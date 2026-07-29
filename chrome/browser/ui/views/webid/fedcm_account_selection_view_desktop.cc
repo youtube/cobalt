@@ -35,7 +35,7 @@
 #include "third_party/blink/public/mojom/webid/federated_auth_request.mojom-shared.h"
 #include "third_party/blink/public/mojom/webid/federated_auth_request.mojom.h"
 #include "ui/base/l10n/l10n_util.h"
-#include "ui/gfx/native_window_types.h"
+#include "ui/gfx/native_ui_types.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
 #include "ui/views/view_utils.h"
 #include "ui/views/widget/widget.h"
@@ -808,7 +808,8 @@ content::WebContents* FedCmAccountSelectionView::GetRpWebContents() {
 }
 
 bool FedCmAccountSelectionView::CanFitInWebContents() {
-  CHECK(web_contents() && (dialog_widget_ || parked_dialog_view_));
+  CHECK(web_contents());
+  CHECK(dialog_widget_ || parked_dialog_view_);
 
   gfx::Size web_contents_size = web_contents()->GetSize();
   gfx::Size preferred_bubble_size =

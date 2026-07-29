@@ -24,7 +24,6 @@ BASE_DECLARE_FEATURE(kNewTabPageCustomization);
 BASE_DECLARE_FEATURE(kNewTabPageCustomizationV2);
 BASE_DECLARE_FEATURE(kNewTabPageCustomizationToolbarButton);
 BASE_DECLARE_FEATURE(kNewTabPageCustomizationForMvt);
-BASE_DECLARE_FEATURE(kAndroidAnimatedProgressBarInBrowser);
 BASE_DECLARE_FEATURE(kAndroidAnimatedProgressBarInViz);
 BASE_DECLARE_FEATURE(kAndroidAppIntegrationWithFavicon);
 BASE_DECLARE_FEATURE(kAndroidAppIntegrationMultiDataSource);
@@ -66,6 +65,7 @@ BASE_DECLARE_FEATURE(kAndroidWindowPopupLargeScreen);
 BASE_DECLARE_FEATURE(kAndroidWindowPopupPredictFinalBounds);
 BASE_DECLARE_FEATURE(kAndroidWindowPopupResizeAfterSpawn);
 BASE_DECLARE_FEATURE(kAndroidXRUsesSurfaceControl);
+BASE_DECLARE_FEATURE(kAndroidZoomIndicator);
 BASE_DECLARE_FEATURE(kAnimatedGifRefactor);
 BASE_DECLARE_FEATURE(kAnimatedImageDragShadow);
 BASE_DECLARE_FEATURE(kAnnotatedPageContentsVirtualStructure);
@@ -144,6 +144,7 @@ BASE_DECLARE_FEATURE(kCrossDeviceTabPaneAndroid);
 BASE_DECLARE_FEATURE(kDeviceAuthenticatorAndroidx);
 BASE_DECLARE_FEATURE(kDesktopUAOnConnectedDisplay);
 BASE_DECLARE_FEATURE(kDisableInstanceLimit);
+BASE_DECLARE_FEATURE(kDiscardPageWithCrashedSubframePolicy);
 BASE_DECLARE_FEATURE(kDontPrefetchLibraries);
 BASE_DECLARE_FEATURE(kDrawChromePagesEdgeToEdge);
 BASE_DECLARE_FEATURE(kEdgeToEdgeBottomChin);
@@ -154,9 +155,9 @@ BASE_DECLARE_FEATURE(kEdgeToEdgeTablet);
 BASE_DECLARE_FEATURE(kEducationalTipDefaultBrowserPromoCard);
 BASE_DECLARE_FEATURE(kEmptyTabListAnimationKillSwitch);
 BASE_DECLARE_FEATURE(kEnableXAxisActivityTransition);
+BASE_DECLARE_FEATURE(kEnableEscapeHandlingForSecondaryActivities);
 BASE_DECLARE_FEATURE(kExperimentsForAgsa);
 BASE_DECLARE_FEATURE(kFloatingSnackbar);
-BASE_DECLARE_FEATURE(kForceBrowserControlsUponExitingFullscreen);
 BASE_DECLARE_FEATURE(kForceTranslucentNotificationTrampoline);
 BASE_DECLARE_FEATURE(kFullscreenInsetsApiMigration);
 BASE_DECLARE_FEATURE(kFullscreenInsetsApiMigrationOnAutomotive);
@@ -237,6 +238,7 @@ BASE_DECLARE_FEATURE(kSearchInCCTAlternateTapHandling);
 BASE_DECLARE_FEATURE(kSearchInCCTIfEnabledByEmbedder);
 BASE_DECLARE_FEATURE(kSearchInCCTAlternateTapHandlingIfEnabledByEmbedder);
 BASE_DECLARE_FEATURE(kSearchResumptionModuleAndroid);
+BASE_DECLARE_FEATURE(kSettingsMultiColumn);
 BASE_DECLARE_FEATURE(kSettingsSingleActivity);
 BASE_DECLARE_FEATURE(kShareCustomActionsInCCT);
 BASE_DECLARE_FEATURE(kSharingHubLinkToggle);
@@ -323,6 +325,12 @@ constexpr base::FeatureParam<int>
         &kReadAloudAudioOverviews,
         "read_aloud_audio_overviews_speed_addition_percentage",
         /* default_value=*/20);
+
+constexpr base::FeatureParam<int>
+  kReadAloudAudioReadabilityDelayMsAfterPageLoad(
+      &kReadAloud,
+      "read_aloud_readability_delay_ms_after_page_load",
+      /* default_value=*/3000);
 
 constexpr base::FeatureParam<std::string> kQuickDeleteAndroidSurveyTriggerId(
     &kQuickDeleteAndroidSurvey,

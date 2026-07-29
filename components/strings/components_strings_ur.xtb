@@ -50,6 +50,7 @@
 <translation id="1080116354587839789">چوڑائی میں فٹ کریں</translation>
 <translation id="1081061862829655580">ٹرے 19</translation>
 <translation id="1082026381988252344">اپنے مشترکہ ٹیب کے مواد کو اسکرول اور زوم کریں</translation>
+<translation id="108859316315249327">دوبارہ کوشش کریں</translation>
 <translation id="1088664500620117635"><ph name="PRODUCT_NAME" /> کی عام قیمت <ph name="LOW_PRICE" /> - <ph name="HIGH_PRICE" /> ہے لیکن ویب پر موجود قیمت <ph name="CURRENT_PRICE" /> ہے۔</translation>
 <translation id="1089439967362294234">پاس ورڈ تبدیل کریں</translation>
 <translation id="1089599132348386324">‏آپ Chrome کی ترتیبات میں کسی بھی وقت اپنا ارادہ بدل سکتے ہیں۔</translation>
@@ -74,6 +75,7 @@
 <translation id="1123753900084781868">لائیو کیپشن ابھی دستیاب نہیں ہے</translation>
 <translation id="112840717907525620">پالیسی کیش ٹھیک ہے</translation>
 <translation id="1131264053432022307">آپ کی کاپی کردہ تصویر</translation>
+<translation id="1132735979845538847"><ph name="ORIGIN" /> – فُل اسکرین سے باہر نکلنے کیلئے، اوپر سے گھسیٹیں اور 'پیچھے جائیں' بٹن کو ٹچ کریں</translation>
 <translation id="1138458427267715730">ویب پر کسی بھی سائٹ پر قیمت کم ہونے پر الرٹس حاصل کریں</translation>
 <translation id="1142713751288681188">کاغذ کی قسم</translation>
 <translation id="1144136880160289237">آپ کے پاس ابھی تک کوئی فعال موضوع نہیں ہے</translation>
@@ -454,6 +456,7 @@
 <translation id="1734878702283171397">سسٹم کے منتظم سے رابطہ کرنے کی کوشش کریں۔</translation>
 <translation id="1736163675982669961"><ph name="CARD_NICKNAME" />، <ph name="CARD_NETWORK_NAME" />، <ph name="CARD_LAST_FOUR_DIGITS" />، اختتامی تاریخ <ph name="CARD_EXPIRATION" /></translation>
 <translation id="1736420071277903564">کمپیوٹر</translation>
+<translation id="1740404923954980840">فُل اسکرین سے باہر نکلنے کیلئے، اوپر سے گھسیٹیں اور 'پیچھے جائیں' بٹن کو ٹچ کریں</translation>
 <translation id="1741474054575634405">لائلٹی کارڈز کا نظم کریں...</translation>
 <translation id="1741613555002899862">‏جب DnsOverHttpsMode <ph name="SECURE_DNS_MODE_SECURE" /> میں ہو، تو متعینہ اور درست اسٹرنگ ہونا چاہیے۔</translation>
 <translation id="1743393865165844832">گدا اور بستر کی چادریں</translation>
@@ -724,6 +727,7 @@
 <translation id="2188375229972301266">نیچے متعدد سوراخ</translation>
 <translation id="218940509700321686">کوما سے الگ کردہ اقدار</translation>
 <translation id="2194856509914051091">قابل غور چیزیں</translation>
+<translation id="2198183835992354675">معلوم مسافر نمبر</translation>
 <translation id="2198215508485017216">‏کچھ غیر متوقع ہوا۔ <ph name="BEGIN_LINK" />‫Drive اپ لوڈز کے بارے میں مزید جانیں<ph name="END_LINK" /></translation>
 <translation id="2200678913752027654">‏اظہار ناپسندیدگی کا بٹن، آپ اس تجویز کو کیوں ناپسند کرتے ہیں، اس سے متعلق مفصل تاثرات جمع کرانے کی ایک فارم کھولنے کیلئے Enter دبائیں</translation>
 <translation id="2202627062836089804">آپ کے کارڈ کے پیچھے</translation>
@@ -926,7 +930,6 @@
 <translation id="2515629240566999685">آپ کے علاقہ میں سگنل چیک کیا جا رہا ہے</translation>
 <translation id="2515761554693942801">‏آپ نے <ph name="PROVIDER_ORIGIN" /> استعمال کرنے والی ویب سائٹس پر Touch ID سے تصدیق کرنے کا انتخاب کیا۔ ممکن ہے کہ اس فراہم کنندہ کے پاس آپ کی ادائیگی کے طریقہ کے بارے میں معلومات اسٹور کردہ ہے جن کو <ph name="LINK_TEXT" />آپ کر سکتے ہیں۔</translation>
 <translation id="2518584823165598232">یہ کارڈ دستیاب نہیں ہے۔ براہ کرم اپنے کارڈ فراہم کنندہ سے رابطہ کریں۔</translation>
-<translation id="2519250377986324805">طریقہ دیکھیں</translation>
 <translation id="2521385132275182522">نیچے بائیں طرف سٹیپل</translation>
 <translation id="2521736961081452453">فارم تخلیق کریں</translation>
 <translation id="2524461107774643265">مزید معلومات شامل کریں</translation>
@@ -986,6 +989,7 @@
 <translation id="2616412942031748191">سرچ انجن بہترین بنانا اور مارکیٹنگ</translation>
 <translation id="2618206371527040026">اکیڈمک کانفرنسیں اور مطبوعات</translation>
 <translation id="2619052155095999743">داخل کریں</translation>
+<translation id="2620436844016719705">سسٹم</translation>
 <translation id="2622754869869445457">آپ کا حالیہ ترین ٹیب</translation>
 <translation id="2625385379895617796">آپ کی گھڑی آگے ہے</translation>
 <translation id="262745152991669301">‏سائٹ USB آلات سے منسلک ہونے کیلئے پوچھ سکتی ہے</translation>
@@ -1114,6 +1118,7 @@
 <translation id="2879233115503670140"><ph name="DATE" /> تک درست ہے۔</translation>
 <translation id="2879694782644540289">پاس ورڈز درج کرنے کے لیے اپنا اسکرین لاک استعمال کریں</translation>
 <translation id="2881276955470682203">کارڈ محفوظ کریں؟</translation>
+<translation id="2882280148032777436">معلوم مسافر نمبر کو حذف کریں</translation>
 <translation id="2882949212241984732">ڈبل گیٹ فولڈ</translation>
 <translation id="2891963978019740012">‏Chrome میں آپ کا سرچ انجن</translation>
 <translation id="2893773853358652045">چوتھا رول</translation>
@@ -1151,6 +1156,7 @@
 <translation id="2933624813161016821">ایمبوسنگ فوئل</translation>
 <translation id="293796669683825859">تبصرے</translation>
 <translation id="2938225289965773019"><ph name="PROTOCOL" /> لنکس کھولیں</translation>
+<translation id="2938370569652058706"><ph name="ORIGIN" /> – اپنا کرسر دکھانے کے لیے، ایپس کو سوئچ کریں، صفحہ کو دوبارہ لوڈ کریں یا واپس جائیں</translation>
 <translation id="2940418897281183211">‏‫PNG تصویر</translation>
 <translation id="2941878205777356567">‏‎9 x 12 انچ لفافہ</translation>
 <translation id="2941952326391522266">یہ سرور یہ ثابت نہیں کر سکا کہ یہ <ph name="DOMAIN" /> ہے؛ اس کا سیکیورٹی سرٹیفکیٹ <ph name="DOMAIN2" /> کی جانب سے ہے۔ یہ غلط کنفیگریشن یا آپ کے کنکشن میں مانع بن رہے کسی حملہ آور کی وجہ سے ہو سکتا ہے۔</translation>
@@ -1321,6 +1327,7 @@
 <translation id="3207960819495026254">بُک مارک بنایا ہوا</translation>
 <translation id="3208701679386778924">‏براہ کرم ایک رپورٹ بھیجیں تاکہ ہم مزید ChromeOS اپ ڈیٹس کو بہتر بنا سکیں۔</translation>
 <translation id="3209034400446768650">صفحہ پیسے چارج کر سکتا ہے</translation>
+<translation id="3212468046572043669">ڈاؤن لوڈ شروع ہوگیا۔ اسے دیکھنے کیلئے، اوپر سے گھسیٹیں اور 'پیچھے جائیں' بٹن کو ٹچ کریں</translation>
 <translation id="3212581601480735796"><ph name="HOSTNAME" /> پر آپ کی سرگرمی پر نظر رکھی جا رہی ہے</translation>
 <translation id="3215092763954878852">‏WebAuthn کا استعمال نہیں کیا جا سکا</translation>
 <translation id="3215311088819828484">نتیجہ اپ ڈیٹ ہو گیا</translation>
@@ -1405,7 +1412,6 @@
 <translation id="3349952286488694786">SRA2</translation>
 <translation id="3350450887151703713">10 سیکنڈز دوبارہ چلائیں</translation>
 <translation id="3352881017886802007">اسپورٹس گیمز</translation>
-<translation id="3355823806454867987">پراکسی ترتیبات تبدیل کریں…</translation>
 <translation id="335809815767823">برآمد ہو گئیں</translation>
 <translation id="3359565626472459400">شادی</translation>
 <translation id="3360103848165129075">ادائیگی ہینڈلر کی شیٹ</translation>
@@ -1707,6 +1713,7 @@
 <translation id="3814865536373139791">ہموار کریں کہ آپ کیسے اپنی تنظیم کی پالیسیوں کا نظم کرتے ہیں</translation>
 <translation id="3815434930383843058">‏‎8 x 12 انچ</translation>
 <translation id="3816482573645936981">قدر (اس کی جگہ نافذ کردہ)</translation>
+<translation id="3817524650114746564">اپنے کمپیوٹر کی پراکسی ترتیبات کو کھولیں</translation>
 <translation id="382115839591654906">‏<ph name="CARD_NAME" /> کے لیے CVC</translation>
 <translation id="3822492359574576064">ماؤس لاک اور استعمال</translation>
 <translation id="3823019343150397277">IBAN</translation>
@@ -1858,6 +1865,7 @@
 <translation id="4085326869263783566">‏لکھنے میں میری مدد کریں۔ کھولنے کیلئے ٹیب اور Enter دبائیں</translation>
 <translation id="4085769736382018559">پروڈکٹس کا موازنہ کریں</translation>
 <translation id="4085778582400064057">نیلا 2</translation>
+<translation id="4085859451613666999">‏آپ کا کارڈ آپ کے Google اکاؤنٹ میں محفوظ ہے لہذا آپ آئندہ کی خریداریوں کے لیے اسے آٹو فل کر سکتے ہیں</translation>
 <translation id="4088981014127559358">‏سائڈ 1 تصویر Y شفٹ</translation>
 <translation id="4089152113577680600">ٹرے 14</translation>
 <translation id="4092349052316400070">پتہ درج کریں</translation>
@@ -2407,6 +2415,7 @@
 <translation id="4995474875135717171">ترمیم کردہ:</translation>
 <translation id="4995749490935861684"><ph name="CUSTOMIZE_SEARCH_ENGINES_FOCUSED_FRIENDLY_MATCH_TEXT" />، سائٹ کی تلاش اور اپنے ڈیفالٹ سرچ انجن کا نظم کرنے کے لیے ٹیب پھر اینٹر دبائیں</translation>
 <translation id="4998950033665438990">سنگل فیس</translation>
+<translation id="5001338033791319371">فُل اسکرین سے باہر نکلنے اور ڈاؤن لوڈ دیکھنے کے لیے، اوپر سے گھسیٹیں اور 'پیچھے جائیں' بٹن کو ٹچ کریں</translation>
 <translation id="5001526427543320409">فریق ثالث کوکیز</translation>
 <translation id="5002932099480077015">‏فعال ہونے پر، زیادہ تیزی سے فارم بھرنے کیلئے Chrome آپ کے کارڈ کی کاپی کو اس آلہ پر اسٹور کرے گا۔</translation>
 <translation id="5007344584818503324">اشتراک کردہ ٹیب گروپس کی سرگرمی</translation>
@@ -2467,6 +2476,7 @@
 <translation id="5097099694988056070">‏CPU/RAM کے استعمال جیسے آلے کے اعداد و شمار</translation>
 <translation id="5097468150760963273">‏‎27 x 39 انچ</translation>
 <translation id="5097501891273180634">A2</translation>
+<translation id="5102512728737175215">‏‫AI وضع کی درخواست کرنے کیلئے ٹیب پھر Enter دبائیں</translation>
 <translation id="510644072453496781">کارڈ بورڈ (اینڈ)</translation>
 <translation id="5106648964679263509">ورچوئل کارڈ <ph name="BNPL_ISSUER_NAME" /> کے لیے پر کیا گیا</translation>
 <translation id="5108567515277121477">لائلٹی کارڈ</translation>
@@ -2488,7 +2498,6 @@
 <translation id="512670116361803001">ہو سکتا ہے کہ <ph name="APP_NAME" /> کا سائز صحیح طریقے سے تبدیل نہ ہو۔ ایپ کو مسائل کا سامنا کرنے سے روکنے کیلئے ونڈو کے پری سیٹ سائز کا استعمال کریں۔</translation>
 <translation id="512756860033933700">کی بورڈ لاک کی اجازت ہے</translation>
 <translation id="5127934926273826089">پھول</translation>
-<translation id="5129094684098010260">کارڈ صرف آلہ میں محفوظ کیا گیا</translation>
 <translation id="5129534298163637277">تصدیقی ڈائیلاگ</translation>
 <translation id="5129662217315786329">پولستانی</translation>
 <translation id="5135404736266831032">پتوں کا نظم کریں...</translation>
@@ -2631,6 +2640,7 @@
 <translation id="5375686690914744327">SRA1</translation>
 <translation id="5377026284221673050">‏"آپ کی گھڑی پیچھے ہے" یا "آپ کی گھڑی آگے ہے" یا "&lt;span class="error-code"&gt;NET::ERR_CERT_DATE_INVALID&lt;/span&gt;"</translation>
 <translation id="5379618281582508161">اپنے سبھی آلات پر اس پاس ورڈ کو حاصل کرنے کے لیے، توثیق کریں کہ یہ آپ ہی ہیں</translation>
+<translation id="5380539543938195166">معلوم مسافر نمبر کو اپ ڈیٹ کریں؟</translation>
 <translation id="5380953781541843508">صعودی ترتیب میں</translation>
 <translation id="5381318171304904246">جب آپ جاری رکھیں گے تو آپ کو آپ کے بینک کی ویب سائٹ پر لے جایا جائے گا۔ آپ کے توثیق کرنے کے بعد، آپ کو اپنی خریداری مکمل کرنے کے لیے خودکار طور پر واپس کر دیا جائے گا۔</translation>
 <translation id="5381952079334035181">‫<ph name="MEMBER_FIRST_NAME" /> نے ٹیب "<ph name="WEBSITE_TITLE" />" کو اپ ڈیٹ کر دیا</translation>
@@ -3066,7 +3076,6 @@
 <translation id="6108580855199168381">سرٹیفیکیٹ کی تفصیلات</translation>
 <translation id="6108702513636120202">‏Chromium میں آپ کا سرچ انجن</translation>
 <translation id="6108849843016142864">خزندے اور جل تھلیے</translation>
-<translation id="610911394827799129">‏ممکن ہے کہ ‎<ph name="BEGIN_LINK" />myactivity.google.com<ph name="END_LINK" />‎ پر آپ کے Google اکاؤنٹ میں براؤزنگ کی سرگزشت کی دیگر شکلیں موجود ہوں</translation>
 <translation id="611018310643025551">‏آپ کی تلاشیں، بہترین مماثلتیں اور ان کے صفحہ کے مواد Google کو بھیجے جاتے ہیں اور اس خصوصیت کو بہتر بنانے کے لیے انسانی جائزہ کاران دیکھ سکتے ہیں۔</translation>
 <translation id="6116338172782435947">کلپ بورڈ میں کاپی کیے گئے متن اور تصاویر دیکھیں</translation>
 <translation id="6117833587752089929">تصویر (ساٹن)</translation>
@@ -3234,6 +3243,7 @@
 <translation id="6380497234672085559">A0</translation>
 <translation id="638289054711715023">شرنک فوئل</translation>
 <translation id="6383221683286411806">آگے ممکنہ چارجز لیے جا سکتے ہيں۔</translation>
+<translation id="6384448607821972818">بازیابی کا پاس ورڈ دکھایا گیا ہے</translation>
 <translation id="6385164437039878414">سفری بیگز اور یوٹیلٹی بیگز</translation>
 <translation id="6386120369904791316">{COUNT,plural, =1{1 دیگر تجویز}other{# دیگر تجاویز}}</translation>
 <translation id="6386565501269869892">‏You 4 لفافہ</translation>
@@ -3342,7 +3352,6 @@
 <translation id="6529173248185917884">ساتواں رول</translation>
 <translation id="6529602333819889595">&amp;دوبارہ حذف کریں</translation>
 <translation id="6532101170117367231">‏Google Drive میں محفوظ کریں</translation>
-<translation id="6535617236508021606">‏یہ کارڈ آپ کے Google اکاؤنٹ میں محفوظ ہوتا ہے تاکہ آپ اسے تمام Google سروسز پر استعمال کر سکیں۔</translation>
 <translation id="6536221421038631327">آپ کے <ph name="DEVICE_TYPE" /> سے پاس پوائنٹ سبسکرپشن ہٹانے سے متعلقہ نیٹ ورکس ہٹ جائیں گے۔ اپنے سبسکرپشن پلان میں تبدیلیاں کرنے کے لیے "<ph name="FRIENDLY_NAME" />" سے رابطہ کریں۔ <ph name="LEARN_MORE" /></translation>
 <translation id="653801826293432362">موازنہ کے ٹیبلز دیکھنے کے لیے، مطابقت پذیری کو آن کریں</translation>
 <translation id="6539092367496845964">کچھ غلط ہو گیا۔ بعد میں دوبارہ کوشش کریں۔</translation>
@@ -3477,6 +3486,7 @@
 <translation id="6786145470008421571">‏‎6 x 9 انچ لفافہ</translation>
 <translation id="6786747875388722282">توسیعات</translation>
 <translation id="6787094689637422836">ہم رازداری کی نئی خصوصیات شروع کر رہے ہیں جو آپ کو دکھائی دینے والے اشتہارات پر مزید انتخاب فراہم کرتی ہیں۔</translation>
+<translation id="6788615780749001893">‏‫AI وضع بٹن، AI وضع کی درخواست کرنے کیلئے Enter دبائیں</translation>
 <translation id="6789062271869667677">مسلسل (بڑی)</translation>
 <translation id="678982761784843853">‏تحفظ یافتہ مواد کی IDs</translation>
 <translation id="6790428901817661496">چلائیں</translation>
@@ -3542,7 +3552,6 @@
 <translation id="6898699227549475383">‏تنظیم (O)</translation>
 <translation id="6900702165119149418">آپ سائن آؤٹ ہیں</translation>
 <translation id="6903907808598579934">مطابقت پذیری آن کریں</translation>
-<translation id="6905163627763043954">اسے آزمائیں</translation>
 <translation id="6907458757809079309">تندرستی</translation>
 <translation id="691024665142758461">متعدد فائلیں ڈاؤن لوڈ کریں</translation>
 <translation id="691046363691324218">ریڈریس نمبر</translation>
@@ -3970,6 +3979,7 @@
 <translation id="7582602800368606489">‏Google کیلنڈر میں تیزی سے ایک نیا ایونٹ تخلیق کریں</translation>
 <translation id="7586676035079382730">اطلاعات کی اجازت نہیں ہے</translation>
 <translation id="7588707273764747927">ٹرانسفر</translation>
+<translation id="7589062909165841767">‏آپ کے Google اکاؤنٹ میں آپ کی <ph name="BEGIN_LINK_GAA" />Gemini ایپس کی سرگرمی<ph name="END_LINK_GAA" /> موجود ہو سکتی ہے</translation>
 <translation id="7591288787774558753">رازدارانہ مواد کا اشتراک کریں؟</translation>
 <translation id="7591636454931265313"><ph name="EMBEDDED_URL" /> <ph name="TOP_LEVEL_URL" /> پر موجود کوکیز اور سائٹ کا ڈیٹا استعمال کرنا چاہتا ہے</translation>
 <translation id="7592362899630581445">سرور سرٹیفیکیٹ نام کی پابندیوں کی خلاف ورزی کرتا ہے۔</translation>
@@ -4005,6 +4015,7 @@
 <translation id="7638605456503525968">سیریل پورٹس</translation>
 <translation id="7646681339175747202">‏آپ نے ابھی جو پاس ورڈ استعمال کیا وہ ڈیٹا کی خلاف ورزی میں پایا گیا۔ Google پاس ورڈ مینیجر آپ کے پاس ورڈ کو ابھی تبدیل کرنے کی تجویز کرتا ہے۔</translation>
 <translation id="7647206758853451655">پرنٹ کا معیار</translation>
+<translation id="7648133459447652947">اپنا کرسر دکھانے کے لیے، ایپس کو سوئچ کریں، صفحہ کو دوبارہ لوڈ کریں یا واپس جائیں</translation>
 <translation id="7648527891719919697">‏یہ سائٹ مسدود رہے گی کیونکہ آپ نے <ph name="BEGIN_ANDROID_SETTINGS_LINK" />Android کی ترتیبات<ph name="END_ANDROID_SETTINGS_LINK" /> میں اعلی تحفظ کو آن کیا ہے۔ <ph name="BEGIN_LEARN_MORE_LINK" />اس وارننگ کے بارے میں مزید جانیں<ph name="END_LEARN_MORE_LINK" /></translation>
 <translation id="7648992873808071793">فائلیں اس آلہ پر اسٹور کریں</translation>
 <translation id="7653957176542370971">ادائیگی ہینڈلر کی شیٹ بند ہے</translation>
@@ -4044,6 +4055,7 @@
 <translation id="7690647519407127574">‏Oufuku Hagaki پوسٹ کارڈ</translation>
 <translation id="7693583928066320343">صفحات کی ترتیب موصول ہوئی</translation>
 <translation id="769424100851389104">ابھی اپ ڈیٹ شروع کریں</translation>
+<translation id="7696107855583699585">معلوم مسافر نمبر میں ترمیم کریں</translation>
 <translation id="7697837508203274589">لائیو کھیلوں کے ایونٹس</translation>
 <translation id="7698864304447945242">‏Google Play سروسز برائے AR کو اپ ڈیٹ کریں؟</translation>
 <translation id="7701040980221191251">کوئی نہیں</translation>
@@ -4253,6 +4265,7 @@
 <translation id="8075736640322370409">‏تیزی سے ایک نئی Google Sheet تخلیق کریں</translation>
 <translation id="8075898834294118863">سائٹ کی ترتیبات کا نظم کریں</translation>
 <translation id="8076492880354921740">ٹیبز</translation>
+<translation id="8076880883123051368">‏ممکن ہے کہ <ph name="BEGIN_LINK_GMA" />myactivity.google.com<ph name="END_LINK_GMA" />‎ پر آپ کے Google اکاؤنٹ میں براؤزنگ کی سرگزشت کی دیگر شکلیں موجود ہوں، جیسے کہ آپ کی <ph name="BEGIN_LINK_GAA" />Gemini ایپس کی سرگرمی<ph name="END_LINK_GAA" /></translation>
 <translation id="8077669823243888800">‏Chinese #8 لفافہ</translation>
 <translation id="8078006011486731853">{0,plural, =1{رازدارانہ فائل اپ لوڈ کریں؟}other{رازدارانہ فائلز اپ لوڈ کریں؟}}</translation>
 <translation id="8079031581361219619">سائٹ دوبارہ لوڈ کریں؟</translation>
@@ -4332,6 +4345,7 @@
 <translation id="822925450938886901">‏اضافی معلومات اور وہ پالیسیاں جو لاگو ہو سکتی ہیں ان کے لیے، اپنے براؤزر میں chrome://management کھولیں۔</translation>
 <translation id="8229288958566709448">‏<ph name="WIDTH" /> x <ph name="HEIGHT" /> ملی میٹر</translation>
 <translation id="822964464349305906"><ph name="TYPE_1" />، <ph name="TYPE_2" /></translation>
+<translation id="8230528737876789478">‏‫VIN (گاڑی کا شناختی نمبر)</translation>
 <translation id="8232343881378637145">پلیٹ فارم کا درجہ حرارت</translation>
 <translation id="8233773197406738106">فائل تیار ہو رہی ہے</translation>
 <translation id="823490921909113114">‏ان ترتیبات کو فعال کرنے اور اپنے Google اکاؤنٹ سے ادائیگی کی معلومات استعمال کرنے کے لیے، آٹو فِل سروسز کی ترتیبات ملاحظہ کریں۔</translation>
@@ -4385,6 +4399,7 @@
 <translation id="8294431847097064396">ماخذ</translation>
 <translation id="8297545700510100061">کوکیز اور سائٹ کا دیگر ڈیٹا آپ کو یاد رکھنے کے لئے استعمال ہوتا ہے، مثال کے طور پر آپ کو سائن ان کرنے یا اشتہارات کو ذاتی نوعیت کا بنانے کے لیے۔ سبھی سائٹس کی خاطر کوکیز کا نظم کرنے کے لیے <ph name="SETTINGS" /> دیکھیں۔</translation>
 <translation id="8298115750975731693">‏آپ جو Wi-Fi استعمال کر رہے ہیں (<ph name="WIFI_NAME" />) وہ آپ سے <ph name="BEGIN_BOLD" /><ph name="LOGIN_URL" /><ph name="END_BOLD" /> ملاحظہ کرنے کا تقاضہ کر سکتا ہے۔</translation>
+<translation id="8298399736867690281">کارڈ صرف آلے پر محفوظ ہے</translation>
 <translation id="8301894345671534559">کوڈ درج کریں</translation>
 <translation id="8304912090860925649">نیا موازنہ ٹیبل</translation>
 <translation id="830498451218851433">آدھا فولڈ کریں</translation>
@@ -4656,6 +4671,7 @@
 <translation id="8772387130037509473">یوگا اور پیلاٹیز</translation>
 <translation id="877348612833018844">{0,plural, =1{رازدارانہ فائل کو منتقل کریں؟}other{رازدارانہ فائلز کو منتقل کریں؟}}</translation>
 <translation id="8775347646940100151">کاغذ (لیٹر ہیڈ)</translation>
+<translation id="8776941011841875705">معلوم مسافر نمبر محفوظ کریں؟</translation>
 <translation id="877985182522063539">A4</translation>
 <translation id="8781278378794969337">‏صفحہ کا ترجمہ کریں بٹن، Google ترجمہ کے ساتھ اس صفحہ کا ترجمہ کرنے کے لیے فعال کریں</translation>
 <translation id="8785658048882205566">موٹر سائیکلیں</translation>
@@ -4841,6 +4857,7 @@
 <translation id="9107199998619088551"><ph name="MANAGER" /> آپ کی پروفائل کا نظم کرتا ہے</translation>
 <translation id="9107467864910557787">آپ کا براؤزر <ph name="MANAGER" /> کے زیر انتظام ہے</translation>
 <translation id="91108059142052966">رازدارانہ مواد کے مرئی ہونے پر منتظم کی پالیسی <ph name="APPLICATION_TITLE" /> کے ساتھ اسکرین کے اشتراک کو غیر فعال کرتی ہے</translation>
+<translation id="9114101423898634479">معلوم مسافر نمبر شامل کریں</translation>
 <translation id="9114524666733003316">کارڈ کی توثیق کی جا رہی ہے…</translation>
 <translation id="9114581008513152754">‏یہ براؤزر کسی کمپنی یا دوسری تنظیم کے زیر انتظام نہیں ہے۔ اس آلے پر ہونے والی سرگرمی کا Chrome سے باہر نظم کیا جا سکتا ہے۔ <ph name="BEGIN_LINK" />مزید جانیں<ph name="END_LINK" /></translation>
 <translation id="9116548361133462832">‏Chrome میں اشتہارات کے بارے میں مزید</translation>
@@ -4903,6 +4920,7 @@
 <translation id="9192361865877479444">میٹل (مَیٹ)</translation>
 <translation id="9192947025498305328">بے داغ حسن</translation>
 <translation id="9195969368671142407">‏جب آپ کی تنظیم آپ کے Google اکاؤنٹ میں محفوظ کرنے کے عمل کو محدود کرتی ہے تو آپ ٹیب گروپس کا اشتراک نہیں کر سکتے یا اس میں شامل نہیں ہو سکتے</translation>
+<translation id="9198613052465150219">‏ممکن ہے کہ <ph name="BEGIN_LINK_GMA" />myactivity.google.com<ph name="END_LINK_GMA" />‎ پر آپ کے Google اکاؤنٹ میں براؤزنگ کی سرگزشت کی دیگر شکلیں موجود ہوں</translation>
 <translation id="9199905725844810519">پرنٹنگ مسدود ہے</translation>
 <translation id="9201904868909900493">سروے کھل رہا ہے...</translation>
 <translation id="9204089334327209740">اپ لوڈ مکمل ہونے کے بعد، آپ <ph name="CLOUD_PROVIDER" /> میں اپنی فائلز میں ترمیم کر سکتے ہیں۔ مقامی اسٹوریج بشمول کوڑے دان میں موجود کسی بھی فائل کو خودکار طور پر ہٹا دیا جائے گا۔</translation>

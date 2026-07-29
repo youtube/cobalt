@@ -1961,6 +1961,12 @@ See your search engine’s instructions for deleting your search history, if app
       <message name="IDS_IOS_DELETE_PASSWORD_TITLE_FOR_SINGLE_URL" desc="Title of the confirmation alert when the user tapped delete password button. [iOS only]" meaning="Explaining to the user that deleting password locally won't delete account on a website.">
           Delete password for <ph name="WEBSITE">$1<ex>twitter.com</ex></ph>?
       </message>
+      <message name="IDS_IOS_DELETE_SAVED_SECURITY_CODE" desc="Title of the delete button that allows the user to delete all saved CVCs. [iOS only]">
+        Delete
+      </message>
+      <message name="IDS_IOS_DELETE_SAVED_SECURITY_CODE_CANCEL" desc="Title of the cancel button that allows user to cancel the deletion of all saved CVCs. [iOS only]">
+        Cancel
+      </message>
       <message name="IDS_IOS_DETECT_ADDRESSES_SETTING_DESCRIPTION" desc="Description of the setting to enable address detection in web pages [iOS only]">
         Get directions and local info from Google Maps
       </message>
@@ -5126,6 +5132,9 @@ Handoff must also be enabled in the General section of Settings, and your device
       <message name="IDS_IOS_READER_MODE_OPTIONS_HIDE_BUTTON_LABEL" desc="Label of a Reading mode options button which closes Reading mode.">
         Turn Off
       </message>
+      <message name="IDS_IOS_READER_MODE_OPTIONS_IPH_DESCRIPTION" desc="In-product help bubble for reader mode options.">
+        Choose your font, text size, and more here
+      </message>
       <message name="IDS_IOS_READER_MODE_OPTIONS_TITLE" desc="Title of the Reading mode options UI which gives user control over the Reading mode font family, font size, color scheme.">
         Reading Mode
       </message>
@@ -6648,14 +6657,8 @@ Handoff must also be enabled in the General section of Settings, and your device
       <message name="IDS_IOS_SIGNOUT_AND_DELETE_DIALOG_SIGN_OUT_BUTTON" desc="This button signs the user out. Related to IDS_IOS_SIGNOUT_DIALOG_TITLE [iOS only].">
         Sign Out and Delete
       </message>
-      <message name="IDS_IOS_SIGNOUT_AND_DISALLOW_SIGNIN_CLEARS_DATA_MESSAGE_WITH_MANAGED_ACCOUNT" desc="Text to inform the managed user about why their their device data is being cleared on signout. [iOS only]">
-        After you sign out, unsaved data will be deleted from this device. This could include passwords, history, and more.
-      </message>
-            <message name="IDS_IOS_SIGNOUT_AND_DISALLOW_SIGNIN_CLOSES_TABS_AND_CLEARS_DATA_MESSAGE_WITH_MANAGED_ACCOUNT" desc="Text to inform the managed user about why their their device data is being cleared on signout. [iOS only]">
+      <message name="IDS_IOS_SIGNOUT_AND_DISALLOW_SIGNIN_CLOSES_TABS_AND_CLEARS_DATA_MESSAGE_WITH_MANAGED_ACCOUNT" desc="Text to inform the managed user about why their their device data is being cleared on signout. [iOS only]">
         After you sign out, tabs will be closed and unsaved account data will be deleted from this device. This could include passwords, history, and more.
-      </message>
-      <message name="IDS_IOS_SIGNOUT_CLEARS_DATA_DIALOG_MESSAGE_WITH_MANAGED_ACCOUNT" desc="Text to inform the managed user about why their their device data is being cleared on signout. [iOS only]">
-          To protect your organization's security, unsaved data will be deleted from this device. This could include passwords, history, and more.
       </message>
       <message name="IDS_IOS_SIGNOUT_CLEARS_DATA_DIALOG_TITLE_WITH_MANAGED_ACCOUNT" desc="The signout dialog title. This is the new dialog that is used when the user have a managed account (other than gmail account) [iOS only].">
         Sign out? Unsaved account data will be deleted.
@@ -6716,6 +6719,9 @@ Handoff must also be enabled in the General section of Settings, and your device
       </message>
       <message name="IDS_IOS_SNACKBAR_ACTION_UNDO" desc="The iOS snackbar action when succeed to unfollow a web content. [iOS only]">
         Undo
+      </message>
+      <message name="IDS_IOS_SNACKBAR_DISMISS_ACTION" desc="The name of the 'Dismiss' accessibility action for a snackbar, which can be activated via the rotor.">
+        Dismiss
       </message>
       <message name="IDS_IOS_SNACKBAR_MESSAGE_FOLLOW_FAILED" desc="The iOS snackbar message when failed to follow a web content. [iOS only]">
         Can't follow. Something went wrong.

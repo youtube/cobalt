@@ -81,26 +81,37 @@ void RecordFunnelStage(FunnelStage stage) {
                                 stage);
 }
 
+void RecordEligibilityFunnelStageDetails(
+    SearchEngineChoiceScreenConditions conditions) {
+  base::UmaHistogramEnumeration("RegionalCapabilities.FunnelStage.Eligibility",
+                                conditions);
+}
+
+void RecordTriggeringFunnelStageDetails(
+    SearchEngineChoiceScreenConditions conditions) {
+  base::UmaHistogramEnumeration("RegionalCapabilities.FunnelStage.Triggering",
+                                conditions);
+}
+
 void RecordActiveRegionalProgram(
     const absl::flat_hash_set<ActiveRegionalProgram> programs) {
-  ActiveRegionalProgram merged_program;
+  auto non_default_programs(programs);
+  non_default_programs.erase(ActiveRegionalProgram::kDefault);
 
-  switch (programs.size()) {
+  ActiveRegionalProgram merged_program;
+  switch (non_default_programs.size()) {
     case 0:
-      // There should always be at least one profile, and therefore at least one
-      // program. To be conservative, treat this case as equivalent to there
-      // being a profile with the default program.
       merged_program = ActiveRegionalProgram::kDefault;
       break;
     case 1:
-      merged_program = *programs.cbegin();
+      merged_program = *non_default_programs.cbegin();
       break;
     default:
       merged_program = ActiveRegionalProgram::kMixed;
       break;
   }
 
-  base::UmaHistogramEnumeration("RegionalCapabilities.ActiveRegionalProgram",
+  base::UmaHistogramEnumeration("RegionalCapabilities.ActiveRegionalProgram2",
                                 merged_program);
 }
 

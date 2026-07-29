@@ -137,9 +137,6 @@ extern const char kAutofillLocalSaveCardBottomSheetDescription[];
 extern const char kAutofillPruneSuggestionsName[];
 extern const char kAutofillPruneSuggestionsDescription[];
 
-extern const char kAutofillRequireCvcForPossibleCardUpdateName[];
-extern const char kAutofillRequireCvcForPossibleCardUpdateDescription[];
-
 extern const char kAutofillSaveCardBottomSheetName[];
 extern const char kAutofillSaveCardBottomSheetDescription[];
 
@@ -199,9 +196,6 @@ extern const char kContentPushNotificationsDescription[];
 
 extern const char kContextualPanelName[];
 extern const char kContextualPanelDescription[];
-
-extern const char kCredentialProviderAutomaticPasskeyUpgradeName[];
-extern const char kCredentialProviderAutomaticPasskeyUpgradeDescription[];
 
 extern const char kCredentialProviderPasskeyLargeBlobName[];
 extern const char kCredentialProviderPasskeyLargeBlobDescription[];
@@ -281,6 +275,9 @@ extern const char kDefaultBrowserPromoPropensityModelDescription[];
 extern const char kDefaultBrowserTriggerCriteriaExperimentName[];
 extern const char kDefaultBrowserTriggerCriteriaExperimentDescription[];
 
+extern const char kPersistentDefaultBrowserPromoName[];
+extern const char kPersistentDefaultBrowserPromoDescription[];
+
 extern const char kDeprecateFeedHeaderExperimentName[];
 extern const char kDeprecateFeedHeaderExperimentDescription[];
 
@@ -301,6 +298,9 @@ extern const char kEnableClipboardDataControlsIOSDescription[];
 
 extern const char kEnableCompromisedPasswordsMutingName[];
 extern const char kEnableCompromisedPasswordsMutingDescription[];
+
+extern const char kEnableCrossDevicePrefTrackerName[];
+extern const char kEnableCrossDevicePrefTrackerDescription[];
 
 extern const char kEnableFeedHeaderSettingsName[];
 extern const char kEnableFeedHeaderSettingsDescription[];
@@ -405,9 +405,6 @@ extern const char kHomeMemoryImprovementsDescription[];
 extern const char kHttpsUpgradesName[];
 extern const char kHttpsUpgradesDescription[];
 
-extern const char kIdentityDiscAccountMenuName[];
-extern const char kIdentityDiscAccountMenuDescription[];
-
 extern const char kIdentityConfirmationSnackbarName[];
 extern const char kIdentityConfirmationSnackbarDescription[];
 
@@ -435,17 +432,14 @@ extern const char kIOSEnableRealtimeEventReportingDescription[];
 extern const char kIOSFillRecoveryPasswordName[];
 extern const char kIOSFillRecoveryPasswordDescription[];
 
-extern const char kIOSKeyboardAccessoryUpgradeName[];
-extern const char kIOSKeyboardAccessoryUpgradeDescription[];
-
-extern const char kIOSKeyboardAccessoryUpgradeForIPadName[];
-extern const char kIOSKeyboardAccessoryUpgradeForIPadDescription[];
-
 extern const char kIOSOmniboxAimShortcutName[];
 extern const char kIOSOmniboxAimShortcutDescription[];
 
 extern const char kIOSOmniboxAimServerEligibilityName[];
 extern const char kIOSOmniboxAimServerEligibilityDescription[];
+
+extern const char kIOSOmniboxAimServerEligibilityEnName[];
+extern const char kIOSOmniboxAimServerEligibilityEnDescription[];
 
 extern const char kIOSOneTapMiniMapRemoveSectionBreaksName[];
 extern const char kIOSOneTapMiniMapRemoveSectionBreaksDescription[];
@@ -827,6 +821,9 @@ extern const char kReaderModeTranslationDescription[];
 
 extern const char kReaderModeDefaultBrowserPromoName[];
 extern const char kReaderModeDefaultBrowserPromoDescription[];
+
+extern const char kReaderModeNewCssName[];
+extern const char kReaderModeNewCssDescription[];
 
 // Title and description for the flag to refactor the toolbarsSize.
 extern const char kRefactorToolbarsSizeName[];

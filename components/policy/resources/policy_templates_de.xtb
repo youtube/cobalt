@@ -472,6 +472,7 @@ Diese Funktion ist unter <ph name="MAC_OS_NAME" /> 10.15 und höher verfügbar.
       Wenn diese Richtlinie aktiviert ist, werden verbesserte internationale Tastenkürzel aktiviert.
       Ist die Richtlinie nicht konfiguriert, wird sie für verwaltete und nutzereigene Geräte aktiviert.
       Beachte, dass es sich hierbei um eine vorübergehende Richtlinie handelt, die dafür sorgt, dass alte Tastenkürzel weiterhin von verwalteten Nutzern verwendet werden können. Diese Richtlinie wird verworfen, sobald benutzerdefinierte Tastenkürzel verfügbar sind.</translation>
+<translation id="1357214899305978790">Verknüpfungen auf der Seite „Neuer Tab“ einrichten (Beta)</translation>
 <translation id="1361661842732478894">„Home“-Schaltfläche in der Symbolleiste anzeigen</translation>
 <translation id="1363275621236827384">Abfragen an Quirks-Server für Hardwareprofile aktivieren</translation>
 <translation id="1363839375295535439">Wenn die Richtlinie aktiviert oder nicht konfiguriert ist, wird die LPAC-Sandbox für Druckdienste aktiviert, sofern dies von der Systemkonfiguration unterstützt wird.
@@ -547,6 +548,19 @@ Chrome-Richtlinien haben Vorrang vor dieser Richtlinie, z. B. wenn die Erweiter
       Diese Richtlinie überschreibt <ph name="DEFAULT_SERIAL_GUARD_SETTING_POLICY_NAME" />, <ph name="SERIAL_ASK_FOR_URLS_POLICY_NAME" />, <ph name="SERIAL_BLOCKED_FOR_URLS_POLICY_NAME" /> und die Nutzereinstellungen.</translation>
 <translation id="1413768951234456918">Browserverlauf löschen</translation>
 <translation id="1413936351612032792">Informationen zur Nutzung von Linux-Apps senden</translation>
+<translation id="1417776888841750570">Mit dieser Richtlinie wird festgelegt, wie sich der Browser verhält, wenn sich Nutzer mit einem verwalteten Konto im Inhaltsbereich anmelden.
+
+Diese Richtlinie überschreibt „<ph name="MANAGED_ACCOUNTS_SIGNIN_RESTRICTION_POLICY_NAME" />“.
+
+Wenn diese Richtlinie auf „Vorgeschlagen“ gesetzt ist, wird der Nutzer nach der Anmeldung in einem verwalteten Konto aufgefordert, ein verwaltetes Profil so zu verwenden, als wäre die Nutzung erzwungen. Wenn der Nutzer dies ablehnt, kann er in einer nicht verwalteten Umgebung weitersurfen.
+
+Wenn diese Richtlinie erzwungen wird, muss der Nutzer nach der Anmeldung in einem verwalteten Konto weiterhin ein verwaltetes Profil verwenden. Wenn der Nutzer dies ablehnt, wird er aus seinem Konto abgemeldet. Die Richtlinie „<ph name="SIGNIN_INTERCEPTION_ENABLED_POLICY_NAME" />“ hat keine Auswirkungen auf die Erzwingung dieser Richtlinie.
+
+Wenn diese Richtlinie deaktiviert oder nicht konfiguriert ist, kann der Nutzer nach der Anmeldung in einem verwalteten Konto über ein Infofeld aufgefordert werden, ein neues Profil zu erstellen. Das Infofeld lässt sich schließen und der Nutzer kann dann in einer nicht verwalteten Umgebung weiter im Internet surfen. Das Infofeld wird über die Richtlinie „<ph name="SIGNIN_INTERCEPTION_ENABLED_POLICY_NAME" />“ gesteuert.
+
+Diese Richtlinie hat keine Auswirkungen, wenn sie auf Geräteebene konfiguriert wird.
+
+Diese Richtlinie gilt nicht für den Inkognitomodus und funktioniert darin auch nicht.</translation>
 <translation id="1417888712677507140">JavaScript-Dialogfelder blockieren, die von einem anderen Quell-Subframe ausgelöst wurden</translation>
 <translation id="1418387035898607074">Safe Browsing-Überprüfung für den Dateidownload von vertrauenswürdigen Quellen überspringen</translation>
 <translation id="1419020637569060510">Einschränkungen zur Nutzung eines verwalteten Kontos als sekundäres Konto in Chrome OS hinzufügen</translation>
@@ -3412,7 +3426,6 @@ Wenn die Richtlinie nicht konfiguriert ist, wird die Browsernavigation verhinder
       Wenn du diese Einstellung deaktivierst oder nicht konfigurierst, wird standardmäßig die neue Inline-Anmeldung verwendet. Nutzer können die alte webbasierte Anmeldung weiterhin über das Befehlszeilenattribut "--enable-web-based-signin" aktivieren.
 
       Die experimentelle Einstellung wird in Zukunft entfernt, sobald die Inline-Anmeldung alle SSO-Anmeldeprozesse vollständig unterstützt.</translation>
-<translation id="3435178885391813398">Funktion „Scanner“ nicht zulassen.</translation>
 <translation id="3435796032110614169">Zulassen, dass der Druckauftragsverlauf gelöscht wird</translation>
 <translation id="3436217793443508863">Zeitraum ohne Nutzereingabe im Akkubetrieb, nach dem der Bildschirm gesperrt wird, angegeben in Millisekunden.</translation>
 <translation id="3437924696598384725">Zulassen, dass der Nutzer VPN-Verbindungen verwaltet</translation>
@@ -5221,6 +5234,17 @@ Der Nutzer bleibt in seinem Google-Konto angemeldet, wenn Cookies gelöscht werd
 Bis Chrome 114 musste für diese Richtlinie die Richtlinie „<ph name="SYNC_DISABLED_POLICY_NAME" />“ auf „True“ gesetzt werden. Ab Chrome 115 wird mit dieser Richtlinie die Synchronisierung für die jeweiligen Datentypen deaktiviert, wenn weder „<ph name="CHROME_SYNC_NAME" />“ durch Festlegen der Richtlinie „<ph name="SYNC_DISABLED_POLICY_NAME" />“ noch „<ph name="BROWSER_SIGNIN_POLICY_NAME" />“ deaktiviert ist.</translation>
 <translation id="4694138212536142867">Melden des Hardwarestatus auf Geräten aktivieren</translation>
 <translation id="4697581738794063407">Funktion zum Filtern von URL-Parametern konfigurieren</translation>
+<translation id="4698488381632756664">In Entwicklung: frühe Vorabversion.
+
+Über diese Richtlinie werden auf der Seite „Neuer Tab“ von <ph name="PRODUCT_NAME" /> bis zu 10 benutzerdefinierte Verknüpfungen vorkonfiguriert.
+
+Wenn diese Richtlinie konfiguriert ist, sehen Nutzer diese Verknüpfungen standardmäßig. Sie können im Bereich „Chrome anpassen“ zwischen „Meine Verknüpfungen“, „Am häufigsten besuchte Websites“ und „Verknüpfungen meiner Organisation“ wechseln. Wenn diese Richtlinie leer oder nicht konfiguriert ist, können Nutzer im Bereich „Chrome anpassen“ nur zwischen „Meine Verknüpfungen“ und „Am häufigsten besuchte Websites“ wechseln.
+
+URLs von Verknüpfungen müssen eindeutig sein.
+
+Wenn „<ph name="NTP_SHORTCUTS_ALLOW_USER_EDIT_NAME" />“ auf „true“ festgelegt ist, können Nutzer den Namen der Verknüpfung ändern. Bei „false“ oder einer fehlenden Konfiguration können Nutzer den Namen nicht bearbeiten.
+
+Wenn „<ph name="NTP_SHORTCUTS_ALLOW_USER_DELETE_NAME" />“ auf „true“ festgelegt ist, können Nutzer die Verknüpfung entfernen. Bei „false“ oder einer fehlenden Konfiguration können Nutzer die Verknüpfung nicht entfernen.</translation>
 <translation id="4698895924806859508">Keine Netzwerkereignisse melden</translation>
 <translation id="4699172675775169585">Bilder und Dateien im Cache</translation>
 <translation id="4699592681017489215">Mit dieser Richtlinie kann ein lokaler Parameter konfiguriert werden, der dazu dient, DNS-Abfangprüfungen zu deaktivieren. Durch die Prüfungen wird ermittelt, ob sich der Browser hinter einem Proxy befindet, der unbekannte Hostnamen weiterleitet.
@@ -6849,15 +6873,6 @@ Unter <ph name="MS_WIN_NAME" /> steht diese Richtlinie nur bei Instanzen zur Ver
 <translation id="5728154254076636808">Erstellung von Roaming-Kopien für <ph name="PRODUCT_NAME" />-Profildaten aktivieren</translation>
 <translation id="5729308727912841256">Kerberos-Passwort. Der Platzhalter „<ph name="PASSWORD_PLACEHOLDER" />“ wird durch das Anmeldepasswort ersetzt.</translation>
 <translation id="5730610899971390601">„Just Works“-Bluetooth-Kopplungsanfragen ablehnen</translation>
-<translation id="5731898940174379509">Über diese Richtlinie werden auf der Seite „Neuer Tab“ von <ph name="PRODUCT_NAME" /> bis zu 10 benutzerdefinierte Verknüpfungen vorkonfiguriert.
-
-Wenn diese Richtlinie konfiguriert ist, sehen Nutzer diese Verknüpfungen standardmäßig. Sie können im Bereich „Chrome anpassen“ zwischen „Meine Verknüpfungen“, „Am häufigsten besuchte Websites“ und „Verknüpfungen meiner Organisation“ wechseln. Wenn diese Richtlinie leer oder nicht konfiguriert ist, können Nutzer im Bereich „Chrome anpassen“ nur zwischen „Meine Verknüpfungen“ und „Am häufigsten besuchte Websites“ wechseln.
-
-URL-Verknüpfungen müssen eindeutig sein.
-
-Wenn „<ph name="NTP_SHORTCUTS_ALLOW_USER_EDIT_NAME" />“ auf „true“ festgelegt ist, können Nutzer den Namen der Verknüpfung ändern. Bei „false“ oder einer fehlenden Konfiguration können Nutzer den Namen nicht bearbeiten.
-
-Wenn „<ph name="NTP_SHORTCUTS_ALLOW_USER_DELETE_NAME" />“ auf „true“ festgelegt ist, können Nutzer die Verknüpfung entfernen. Bei „false“ oder einer fehlenden Konfiguration können Nutzer die Verknüpfung nicht entfernen.</translation>
 <translation id="5732972008943405952">Bei erstmaliger Ausführung Autofill-Formulardaten aus Standardbrowser importieren</translation>
 <translation id="5733040281451845496">Wenn die Richtlinie aktiviert ist, wird die erste Aktivität des Nutzers in einer Sitzung als Ausgangspunkt für Verzögerungen bei der Energieverwaltung und Begrenzungen der Sitzungslänge verwendet.
 
@@ -7131,7 +7146,6 @@ Unter <ph name="MAC_OS_NAME" /> steht diese Richtlinie nur bei Instanzen zur Ver
 
       Wenn die Richtlinie deaktiviert ist, ist die Nutzung des QUIC-Protokolls nicht möglich.</translation>
 <translation id="5916855682471300200">Cloud-Richtlinien auf Maschinenebene haben Vorrang vor Plattformrichtlinien auf Maschinenebene</translation>
-<translation id="5917092644305650513">Einstellungen für die Funktion „Scanner“</translation>
 <translation id="5917425424971710623">Ereignisse vom Typ „Extended Detection and Response“ (XDR) nicht melden</translation>
 <translation id="5917897389577978190">Gmail (wird seit Version 135 unterstützt)</translation>
 <translation id="592036544845479336">Eingestellte/entfernte Mutationsereignisse wieder aktivieren</translation>
@@ -7534,7 +7548,6 @@ In Version 114 und höher ist diese Richtlinie optional, wenn die Richtlinie �
       gemeldet. Ist die Richtlinie auf "true" gesetzt, werden Informationen zu Absturzberichten
       gemeldet.</translation>
 <translation id="624219423122512710">Aktionen bei inaktivem Browser</translation>
-<translation id="6243061183100681514">Funktion „Scanner“ zulassen und KI‑Modelle verbessern.</translation>
 <translation id="6244061205361004687">Nutzern erlauben, VPN-Verbindungen manuell zu trennen oder zu ändern</translation>
 <translation id="6244210204546589761">Beim Start zu öffnende URLs</translation>
 <translation id="624595269193747921">Gibt an, ob die Suche nach dem passenden Drucker auf eine bestimmte Gruppe von Druckern beschränkt werden soll.</translation>
@@ -8255,7 +8268,6 @@ Unter <ph name="MS_WIN_NAME" /> wird die KDC-Richtlinie immer umgesetzt.</transl
 <translation id="666203515318060501">Erweitertes Autofill zulassen, ohne KI‑Modelle zu verbessern.</translation>
 <translation id="6665670272107384733">Festlegen, wie oft der Nutzer das Passwort eingeben muss, um das schnelle Entsperren zu verwenden</translation>
 <translation id="6667586534922258705">Schaltfläche zum Anzeigen des Passworts auf dem Start- oder Sperrbildschirm anzeigen</translation>
-<translation id="6667636336079341367">Funktion „Scanner“ zulassen, ohne KI‑Modelle zu verbessern.</translation>
 <translation id="6668559639284945695">Mit dieser Richtlinie kann das alte Verhalten für den Cookie-Bereich wiederhergestellt werden.
 
 Das bedeutet, dass auf Cookies, die über ein bestimmtes Protokoll (z. B. HTTPS) oder einen bestimmten Port festgelegt wurden, über ein anderes Protokoll oder einen anderen Port zugegriffen werden kann.
@@ -8560,7 +8572,6 @@ Wenn die Richtlinie deaktiviert oder nicht konfiguriert ist, wird der Nutzer nur
 Ist sie auf „false“ gesetzt oder nicht festgelegt, ist das Layout nicht verfügbar. Damit die Änderungen wirksam werden, ist ein Neustart erforderlich.</translation>
 <translation id="685769593149966548">Strikt eingeschränkten Modus auf YouTube erzwingen</translation>
 <translation id="686079137349561371">Microsoft Windows 7 oder höher</translation>
-<translation id="6863927303509860338">Verknüpfungen auf der Seite „Neuer Tab“ einrichten</translation>
 <translation id="6866755486434471318">Zulassen, dass <ph name="PEPPER_NAME" /> freigegebene Bilder für die Videodecodierung verwendet.</translation>
 <translation id="6878757724611298427">Nutzern erlauben, Android-Apps auf nicht verbundenen Geräten zu verwenden</translation>
 <translation id="6881397131210596522">Wenn die Richtlinie auf „2“ gesetzt ist, wird die Verwendung der WebPrinting API automatisch blockiert.
@@ -10889,17 +10900,6 @@ Weitere Informationen zur Datenverarbeitung bei auf generativer KI basierenden 
       Wenn die Richtlinie deaktiviert oder nicht konfiguriert ist, werden keine Informationen ausgegeben.
       Wenn die Richtlinie aktiviert ist, werden CRD-Ereignisse gemeldet, falls es sich um einen verknüpften Nutzer handelt.</translation>
 <translation id="85723976805793612">Ereignisprotokolle für die Android-App-Installation werden an Google weitergegeben</translation>
-<translation id="8573354257711790704">Mit dieser Richtlinie werden für <ph name="PRODUCT_OS_NAME" /> die Einstellungen der Funktion „Scanner“ festgelegt.
-
-„0“ = Die Funktion darf verwendet werden und Google darf relevante Daten nutzen, um seine KI‑Modelle zu verbessern. Relevante Daten können je nach Funktion Prompts, Eingaben, Ausgaben, Quellmaterialien und schriftliches Feedback sein. Sie werden möglicherweise auch manuell überprüft, um KI‑Modelle zu verbessern. „0“ ist der Standardwert, sofern unten nicht anders angegeben.
-
-„1“ = Die Funktion darf verwendet werden, Google darf aber keine Modelle mithilfe von Nutzerinhalten (einschließlich Prompts, Eingaben, Ausgaben, Quellmaterialien und schriftlichen Feedbacks) verbessern. „1“ ist der Standardwert für Unternehmensnutzer, die über die <ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" /> verwaltet werden, sowie für Konten von Bildungseinrichtungen, die über <ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" /> verwaltet werden.
-
-„2“ = Die Funktion darf nicht verwendet werden.
-
-Wenn die Richtlinie nicht konfiguriert ist, wird das Verhalten der Funktion durch die Richtlinie „<ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" />“ bestimmt.
-
-Weitere Informationen zur Datenverarbeitung bei auf generativer KI basierenden Funktionen findest du unter https://support.google.com/chrome/a?p=generative_ai_settings.</translation>
 <translation id="857369585509260201">Diese Richtlinie wird nicht mehr angeboten. Du kannst stattdessen "BrowserSignin" verwenden.
 
 Wenn diese Richtlinie auf "true" gesetzt ist, muss sich der Nutzer mit seinem Profil in <ph name="PRODUCT_NAME" /> anmelden, um den Browser zu nutzen. Außerdem wird der Standardwert von BrowserGuestModeEnabled auf "false" gesetzt. Beachte, dass vorhandene Profile ohne angemeldeten Nutzer gesperrt werden und nach Aktivieren dieser Richtlinie nicht mehr zugänglich sind. Weitere Informationen erhältst du im Hilfeartikel.

@@ -15,6 +15,7 @@
 #include "components/unexportable_keys/unexportable_key_service.h"
 #include "net/base/features.h"
 #include "net/base/net_errors.h"
+#include "net/base/registry_controlled_domains/registry_controlled_domain.h"
 #include "net/device_bound_sessions/registration_request_param.h"
 #include "net/device_bound_sessions/session_binding_utils.h"
 #include "net/device_bound_sessions/session_challenge_param.h"
@@ -100,6 +101,50 @@ void SignChallengeWithKey(
       base::BindOnce(&OnDataSigned, expected_algorithm.value(),
                      std::ref(unexportable_key_service), header_and_payload,
                      std::move(callback)));
+}
+
+// Returns the registrable origin label for `origin_str`, or empty if the origin
+// is invalid or not registrable.
+std::string GetOriginLabel(const std::string& origin_str) {
+  GURL url(origin_str);
+  if (!url.is_valid()) {
+    return "";
+  }
+
+  std::string domain = net::registry_controlled_domains::GetDomainAndRegistry(
+      url, net::registry_controlled_domains::INCLUDE_PRIVATE_REGISTRIES);
+  const std::string::size_type dot_index = domain.find('.');
+  if (dot_index == std::string::npos) {
+    return "";
+  }
+
+  return domain.substr(0, dot_index);
+}
+
+bool WithinOriginLabelLimit(const std::vector<std::string>& relying_origins,
+                            const std::string& target_origin) {
+  constexpr size_t kMaxLabels = 5;
+  base::flat_set<std::string> labels_seen;
+  for (const std::string& origin_str : relying_origins) {
+    std::string label = GetOriginLabel(origin_str);
+    if (label.empty()) {
+      continue;
+    }
+
+    if (!base::Contains(labels_seen, label)) {
+      if (labels_seen.size() >= kMaxLabels) {
+        continue;
+      }
+
+      labels_seen.insert(std::move(label));
+    }
+
+    if (origin_str == target_origin) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 RegistrationFetcher::FetcherType* g_mock_fetcher = nullptr;
@@ -198,6 +243,46 @@ class RegistrationFetcherImpl : public RegistrationFetcher {
                                  registration_params.TakeAuthorization())));
   }
 
+  void StartFetchWithFederatedKey(
+      RegistrationRequestParam& request_params,
+      unexportable_keys::UnexportableKeyId key_id,
+      const GURL& provider_url,
+      RegistrationCompleteCallback callback) override {
+    // Using mock fetcher for testing.
+    if (g_mock_fetcher) {
+      std::move(callback).Run(nullptr, g_mock_fetcher->Run());
+      return;
+    }
+
+    CHECK(callback_.is_null());
+    callback_ = std::move(callback);
+
+    key_id_ = key_id;
+    provider_url_ = provider_url;
+
+    if (!features::kDeviceBoundSessionsCheckFederatedRegistration.Get()) {
+      StartFetch(request_params.TakeChallenge(),
+                 request_params.TakeAuthorization());
+      return;
+    }
+
+    GURL::Replacements replacements;
+    replacements.SetPathStr("/.well-known/device-bound-sessions");
+    GURL well_known_url = provider_url_.ReplaceComponents(replacements);
+    url_fetcher_ =
+        std::make_unique<URLFetcher>(context_, well_known_url, net_log_source_);
+    url_fetcher_->request().set_method("GET");
+    url_fetcher_->request().set_allow_credentials(false);
+    url_fetcher_->request().set_site_for_cookies(
+        isolation_info_.site_for_cookies());
+    url_fetcher_->request().set_initiator(original_request_initiator_);
+    url_fetcher_->request().set_isolation_info(isolation_info_);
+    url_fetcher_->Start(base::BindOnce(
+        &RegistrationFetcherImpl::OnProviderWellKnownRequestComplete,
+        GetWeakPtr(), request_params.TakeChallenge(),
+        request_params.TakeAuthorization()));
+  }
+
   void StartFetchWithExistingKey(
       RegistrationRequestParam& request_params,
       unexportable_keys::ServiceErrorOr<unexportable_keys::UnexportableKeyId>
@@ -226,6 +311,121 @@ class RegistrationFetcherImpl : public RegistrationFetcher {
   }
 
  private:
+  void OnProviderWellKnownRequestComplete(
+      std::optional<std::string> challenge,
+      std::optional<std::string> authorization) {
+    SessionError::ErrorType error =
+        OnProviderWellKnownRequestCompleteInternal();
+    if (error != SessionError::ErrorType::kSuccess) {
+      RunCallback(base::unexpected(SessionError{error}));
+      // `this` may be deleted.
+      return;
+    }
+
+    GURL::Replacements replacements;
+    replacements.SetPathStr("/.well-known/device-bound-sessions");
+    GURL well_known_url = fetcher_endpoint_.ReplaceComponents(replacements);
+    url_fetcher_ =
+        std::make_unique<URLFetcher>(context_, well_known_url, net_log_source_);
+    url_fetcher_->request().set_method("GET");
+    url_fetcher_->request().set_allow_credentials(false);
+    url_fetcher_->request().set_site_for_cookies(
+        isolation_info_.site_for_cookies());
+    url_fetcher_->request().set_initiator(original_request_initiator_);
+    url_fetcher_->request().set_isolation_info(isolation_info_);
+    url_fetcher_->Start(base::BindOnce(
+        &RegistrationFetcherImpl::OnRelyingPartyWellKnownRequestComplete,
+        GetWeakPtr(), std::move(challenge), std::move(authorization)));
+  }
+
+  SessionError::ErrorType OnProviderWellKnownRequestCompleteInternal() {
+    HttpResponseHeaders* headers = url_fetcher_->request().response_headers();
+    const int response_code = headers ? headers->response_code() : 0;
+    RecordHttpResponseOrErrorCode(
+        "Net.DeviceBoundSessions.ProviderWellKnown.Network.Result",
+        url_fetcher_->net_error(), response_code);
+
+    if (url_fetcher_->net_error() != OK) {
+      return SessionError::ErrorType::kSessionProviderWellKnownUnavailable;
+    }
+
+    if (!headers || headers->response_code() != 200) {
+      return SessionError::ErrorType::kSessionProviderWellKnownUnavailable;
+    }
+
+    std::optional<WellKnownParams> maybe_params =
+        ParseWellKnownJson(url_fetcher_->data_received());
+    if (!maybe_params.has_value()) {
+      return SessionError::ErrorType::kSessionProviderWellKnownMalformed;
+    }
+
+    if (maybe_params->provider_origin.has_value()) {
+      return SessionError::ErrorType::kSessionProviderWellKnownMalformed;
+    }
+
+    std::string target_origin =
+        url::Origin::Create(fetcher_endpoint_).Serialize();
+    if (!maybe_params->relying_origins.has_value() ||
+        !base::Contains(*maybe_params->relying_origins, target_origin)) {
+      return SessionError::ErrorType::kFederatedNotAuthorized;
+    }
+
+    if (!WithinOriginLabelLimit(*maybe_params->relying_origins,
+                                target_origin)) {
+      return SessionError::ErrorType::kTooManyRelyingOriginLabels;
+    }
+
+    return SessionError::ErrorType::kSuccess;
+  }
+
+  void OnRelyingPartyWellKnownRequestComplete(
+      std::optional<std::string> challenge,
+      std::optional<std::string> authorization) {
+    SessionError::ErrorType error =
+        OnRelyingPartyWellKnownRequestCompleteInternal();
+    if (error != SessionError::ErrorType::kSuccess) {
+      RunCallback(base::unexpected(SessionError{error}));
+      // `this` may be deleted.
+      return;
+    }
+
+    StartFetch(std::move(challenge), std::move(authorization));
+  }
+
+  SessionError::ErrorType OnRelyingPartyWellKnownRequestCompleteInternal() {
+    HttpResponseHeaders* headers = url_fetcher_->request().response_headers();
+    const int response_code = headers ? headers->response_code() : 0;
+    RecordHttpResponseOrErrorCode(
+        "Net.DeviceBoundSessions.RelyingPartyWellKnown.Network.Result",
+        url_fetcher_->net_error(), response_code);
+
+    if (url_fetcher_->net_error() != OK) {
+      return SessionError::ErrorType::kRelyingPartyWellKnownUnavailable;
+    }
+
+    if (!headers || headers->response_code() != 200) {
+      return SessionError::ErrorType::kRelyingPartyWellKnownUnavailable;
+    }
+
+    std::optional<WellKnownParams> maybe_params =
+        ParseWellKnownJson(url_fetcher_->data_received());
+    if (!maybe_params.has_value()) {
+      return SessionError::ErrorType::kRelyingPartyWellKnownMalformed;
+    }
+
+    if (maybe_params->relying_origins.has_value()) {
+      return SessionError::ErrorType::kRelyingPartyWellKnownMalformed;
+    }
+
+    if (!maybe_params->provider_origin.has_value() ||
+        url::Origin::Create(provider_url_).Serialize() !=
+            *maybe_params->provider_origin) {
+      return SessionError::ErrorType::kFederatedNotAuthorized;
+    }
+
+    return SessionError::ErrorType::kSuccess;
+  }
+
   static constexpr size_t kMaxSigningFailures = 2;
   static constexpr size_t kMaxChallenges = 5;
 
@@ -388,11 +588,10 @@ class RegistrationFetcherImpl : public RegistrationFetcher {
           isolation_info_.site_for_cookies());
       url_fetcher_->request().set_initiator(original_request_initiator_);
       url_fetcher_->request().set_isolation_info(isolation_info_);
-      // `this` owns `url_fetcher_`, so it's safe to use
-      // `base::Unretained`
       url_fetcher_->Start(
-          base::BindOnce(&RegistrationFetcherImpl::OnWellKnownRequestComplete,
-                         base::Unretained(this), std::move(*session_or_error)));
+          base::BindOnce(&RegistrationFetcherImpl::
+                             OnSubdomainRegistrationWellKnownRequestComplete,
+                         GetWeakPtr(), std::move(*session_or_error)));
       return;
     }
 
@@ -400,13 +599,16 @@ class RegistrationFetcherImpl : public RegistrationFetcher {
     // *this is deleted here
   }
 
-  void OnWellKnownRequestComplete(std::unique_ptr<Session> session) {
-    RunCallback(OnWellKnownRequestCompleteInternal(std::move(session)));
+  void OnSubdomainRegistrationWellKnownRequestComplete(
+      std::unique_ptr<Session> session) {
+    RunCallback(OnSubdomainRegistrationWellKnownRequestCompleteInternal(
+        std::move(session)));
     // *this is deleted here.
   }
 
   base::expected<std::unique_ptr<Session>, SessionError>
-  OnWellKnownRequestCompleteInternal(std::unique_ptr<Session> session) {
+  OnSubdomainRegistrationWellKnownRequestCompleteInternal(
+      std::unique_ptr<Session> session) {
     HttpResponseHeaders* headers = url_fetcher_->request().response_headers();
     const int response_code = headers ? headers->response_code() : 0;
     RecordHttpResponseOrErrorCode(
@@ -414,22 +616,24 @@ class RegistrationFetcherImpl : public RegistrationFetcher {
         url_fetcher_->net_error(), response_code);
 
     if (url_fetcher_->net_error() != OK) {
-      return base::unexpected(
-          SessionError{SessionError::ErrorType::kWellKnownUnavailable});
+      return base::unexpected(SessionError{
+          SessionError::ErrorType::kSubdomainRegistrationWellKnownUnavailable});
     }
 
     if (!headers || headers->response_code() != 200) {
-      return base::unexpected(
-          SessionError{SessionError::ErrorType::kWellKnownUnavailable});
+      return base::unexpected(SessionError{
+          SessionError::ErrorType::kSubdomainRegistrationWellKnownUnavailable});
     }
 
-    base::expected<WellKnownParams, SessionError> params_or_error =
+    std::optional<WellKnownParams> maybe_params =
         ParseWellKnownJson(url_fetcher_->data_received());
-    if (!params_or_error.has_value()) {
-      return base::unexpected(std::move(params_or_error).error());
+    if (!maybe_params.has_value()) {
+      return base::unexpected(SessionError{
+          SessionError::ErrorType::kSubdomainRegistrationWellKnownMalformed});
     }
 
-    if (!base::Contains(params_or_error->registering_origins,
+    if (!maybe_params->registering_origins.has_value() ||
+        !base::Contains(*maybe_params->registering_origins,
                         url::Origin::Create(fetcher_endpoint_).Serialize())) {
       return base::unexpected(SessionError{
           SessionError::ErrorType::kSubdomainRegistrationUnauthorized});
@@ -493,6 +697,7 @@ class RegistrationFetcherImpl : public RegistrationFetcher {
 
   std::unique_ptr<URLFetcher> url_fetcher_;
 
+  GURL provider_url_;
   std::optional<std::string> current_challenge_;
   std::optional<std::string> current_authorization_;
   size_t number_of_signing_failures_ = 0;

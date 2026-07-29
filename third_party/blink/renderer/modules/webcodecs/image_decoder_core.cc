@@ -26,7 +26,7 @@ namespace blink {
 namespace {
 
 // TODO(crbug.com/40215121): Remove this after M144.
-BASE_FEATURE(WebCodecsImageDecoderHighBitDepthYUV,
+BASE_FEATURE(kWebCodecsImageDecoderHighBitDepthYUV,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 media::VideoPixelFormat YUVSubsamplingToMediaPixelFormat(

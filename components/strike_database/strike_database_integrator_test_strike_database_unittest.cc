@@ -14,14 +14,14 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
-#include "components/autofill/core/browser/proto/strike_data.pb.h"
-#include "components/autofill/core/common/autofill_payments_features.h"
 #include "components/leveldb_proto/public/proto_database.h"
 #include "components/leveldb_proto/public/proto_database_provider.h"
+#include "components/strike_database/strike_data.pb.h"
+#include "components/strike_database/strike_database_features.h"
 #include "components/strike_database/strike_database_integrator_base.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace autofill {
+namespace strike_database {
 
 class StrikeDatabaseIntegratorTestStrikeDatabaseTest : public ::testing::Test {
  public:
@@ -70,8 +70,7 @@ class StrikeDatabaseIntegratorTestStrikeDatabaseTest : public ::testing::Test {
 
 class DisableStrikeDatabaseIntegratorTestStrikeDatabaseTest
     : public StrikeDatabaseIntegratorTestStrikeDatabaseTest {
-  base::test::ScopedFeatureList feature_list_{
-      features::kDisableAutofillStrikeSystem};
+  base::test::ScopedFeatureList feature_list_{features::kDisableStrikeSystem};
 };
 
 TEST_F(DisableStrikeDatabaseIntegratorTestStrikeDatabaseTest,
@@ -490,4 +489,4 @@ TEST_F(StrikeDatabaseIntegratorTestStrikeDatabaseTest,
   EXPECT_TRUE(strike_database_->ShouldBlockFeature());
 }
 
-}  // namespace autofill
+}  // namespace strike_database

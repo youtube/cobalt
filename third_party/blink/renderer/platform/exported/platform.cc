@@ -274,14 +274,15 @@ std::unique_ptr<WebGraphicsContext3DProvider>
 Platform::CreateWebGLGraphicsContextProvider(
     bool prefer_low_power_gpu,
     bool fail_if_major_performance_caveat,
-    ContextType context_type,
+    WebGLContextType context_type,
     const WebURL& document_url,
-    Platform::GraphicsInfo*) {
+    WebGLContextInfo*) {
   return nullptr;
 }
 
 std::unique_ptr<WebGraphicsContext3DProvider>
-Platform::CreateRasterGraphicsContextProvider(const WebURL& document_url) {
+Platform::CreateRasterGraphicsContextProvider(const WebURL& document_url,
+                                              RasterContextType context_type) {
   return nullptr;
 }
 

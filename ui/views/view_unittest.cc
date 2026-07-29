@@ -35,6 +35,7 @@
 #include "ui/accessibility/ax_enums.mojom.h"
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/base/clipboard/clipboard.h"
+#include "ui/base/interaction/element_identifier.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
@@ -55,7 +56,6 @@
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/geometry/transform.h"
 #include "ui/native_theme/native_theme.h"
-#include "ui/native_theme/test_native_theme.h"
 #include "ui/strings/grit/ui_strings.h"
 #include "ui/views/background.h"
 #include "ui/views/controls/native/native_view_host.h"
@@ -6429,19 +6429,17 @@ TEST_F(ViewTest, OnThemeChanged) {
   Widget::InitParams params = CreateParams(
       Widget::InitParams::CLIENT_OWNS_WIDGET, Widget::InitParams::TYPE_WINDOW);
   widget->Init(std::move(params));
+  EXPECT_TRUE(widget->GetNativeTheme());
 
   TestView* test_view_ptr =
       widget->GetRootView()->AddChildView(std::move(test_view));
-  EXPECT_TRUE(test_view_ptr->native_theme_);
   EXPECT_EQ(widget->GetNativeTheme(), test_view_ptr->native_theme_);
-  EXPECT_TRUE(test_view_child->native_theme_);
   EXPECT_EQ(widget->GetNativeTheme(), test_view_child->native_theme_);
 
   // Child view added after the widget hierarchy exists should also get the
   // notification.
   TestView* test_view_child_2 =
       test_view_ptr->AddChildView(std::make_unique<TestView>());
-  EXPECT_TRUE(test_view_child_2->native_theme_);
   EXPECT_EQ(widget->GetNativeTheme(), test_view_child_2->native_theme_);
 }
 
@@ -6498,23 +6496,6 @@ TEST_F(ViewTest, ScopedTargetHandlerReceivesEvents) {
 }
 
 // See comment above test for details.
-class WidgetWithCustomTheme : public Widget {
- public:
-  explicit WidgetWithCustomTheme(ui::TestNativeTheme* theme) : theme_(theme) {}
-
-  WidgetWithCustomTheme(const WidgetWithCustomTheme&) = delete;
-  WidgetWithCustomTheme& operator=(const WidgetWithCustomTheme&) = delete;
-
-  ~WidgetWithCustomTheme() override = default;
-
-  // Widget:
-  const ui::NativeTheme* GetNativeTheme() const override { return theme_; }
-
- private:
-  raw_ptr<ui::TestNativeTheme> theme_;
-};
-
-// See comment above test for details.
 class ViewThatAddsViewInOnThemeChanged : public View {
   METADATA_HEADER(ViewThatAddsViewInOnThemeChanged, View)
 
@@ -6528,19 +6509,17 @@ class ViewThatAddsViewInOnThemeChanged : public View {
 
   ~ViewThatAddsViewInOnThemeChanged() override = default;
 
-  bool on_native_theme_changed_called() const {
-    return on_native_theme_changed_called_;
-  }
+  bool on_theme_changed_called() const { return on_theme_changed_called_; }
 
   // View:
   void OnThemeChanged() override {
     View::OnThemeChanged();
-    on_native_theme_changed_called_ = true;
+    on_theme_changed_called_ = true;
     GetWidget()->GetRootView()->AddChildView(std::make_unique<View>());
   }
 
  private:
-  bool on_native_theme_changed_called_ = false;
+  bool on_theme_changed_called_ = false;
 };
 
 BEGIN_METADATA(ViewThatAddsViewInOnThemeChanged)
@@ -6560,22 +6539,16 @@ void AddViewWithChildLayer(View* parent) {
 // called before the layer hierarchy was updated. OnThemeChanged() should be
 // called after the layer hierarchy matches the view hierarchy.
 TEST_F(ViewTest, CrashOnAddFromFromOnThemeChanged) {
-  ui::TestNativeTheme theme;
-  auto widget = std::make_unique<WidgetWithCustomTheme>(&theme);
-  test::WidgetDestroyedWaiter waiter(widget.get());
+  auto widget = std::make_unique<Widget>();
   Widget::InitParams params = CreateParams(
       Widget::InitParams::CLIENT_OWNS_WIDGET, Widget::InitParams::TYPE_POPUP);
   params.bounds = gfx::Rect(50, 50, 350, 350);
   widget->Init(std::move(params));
 
   AddViewWithChildLayer(widget->GetRootView());
-  ViewThatAddsViewInOnThemeChanged* v = widget->GetRootView()->AddChildView(
+  const auto* const v = widget->GetRootView()->AddChildView(
       std::make_unique<ViewThatAddsViewInOnThemeChanged>());
-  EXPECT_TRUE(v->on_native_theme_changed_called());
-  // Initiate an explicit close and wait to ensure the |theme| outlives the
-  // |widget|.
-  widget->Close();
-  waiter.Wait();
+  EXPECT_TRUE(v->on_theme_changed_called());
 }
 
 // A View that removes its Layer when hidden.
@@ -7481,6 +7454,53 @@ TEST_F(BaseActionViewInterfaceTest, TestActionChanged) {
   // Test some properties to ensure that the right ActionViewInterface is linked
   // to the view.
   EXPECT_FALSE(action_view->GetEnabled());
+}
+
+TEST_F(ViewTest, GetViewByElementId) {
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kUniqueElementId1);
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kUniqueElementId2);
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kDuplicateElementId);
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kUnusedElementId);
+
+  // Create a view hierarchy for testing:
+  // root
+  // |-- child1 (kDuplicateElementId)
+  // |   |-- grandchild1 (kUniqueElementId1)
+  // |-- child2 (kUniqueElementId2)
+  // |   |-- grandchild2 (kDuplicateElementId)
+  auto root = std::make_unique<View>();
+  View* child1 = root->AddChildView(std::make_unique<View>());
+  View* grandchild1 = child1->AddChildView(std::make_unique<View>());
+  View* child2 = root->AddChildView(std::make_unique<View>());
+  View* grandchild2 = child2->AddChildView(std::make_unique<View>());
+
+  grandchild1->SetProperty(kElementIdentifierKey, kUniqueElementId1);
+  child2->SetProperty(kElementIdentifierKey, kUniqueElementId2);
+  child1->SetProperty(kElementIdentifierKey, kDuplicateElementId);
+  grandchild2->SetProperty(kElementIdentifierKey, kDuplicateElementId);
+
+  // Search from root.
+  EXPECT_EQ(grandchild1, root->GetViewByElementId(kUniqueElementId1));
+  EXPECT_EQ(child2, root->GetViewByElementId(kUniqueElementId2));
+  EXPECT_EQ(nullptr, root->GetViewByElementId(kUnusedElementId));
+
+  // The search is depth-first, so the shallower view (child1) is found
+  // before the deeper view in a subsequent branch (grandchild2).
+  EXPECT_EQ(child1, root->GetViewByElementId(kDuplicateElementId));
+
+  // Search from a subtree.
+  EXPECT_EQ(grandchild1, child1->GetViewByElementId(kUniqueElementId1));
+  EXPECT_EQ(nullptr, child1->GetViewByElementId(kUniqueElementId2));
+
+  // Search from the view itself.
+  EXPECT_EQ(grandchild1, grandchild1->GetViewByElementId(kUniqueElementId1));
+
+  // Test const version.
+  const View* const_root = root.get();
+  EXPECT_EQ(grandchild1, const_root->GetViewByElementId(kUniqueElementId1));
+  EXPECT_EQ(child2, const_root->GetViewByElementId(kUniqueElementId2));
+  EXPECT_EQ(nullptr, const_root->GetViewByElementId(kUnusedElementId));
+  EXPECT_EQ(child1, const_root->GetViewByElementId(kDuplicateElementId));
 }
 
 }  // namespace views

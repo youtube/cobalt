@@ -782,7 +782,7 @@ prefs when the profile is loaded.  -->
 </histogram>
 
 <histogram name="Signin.AndroidNumberOfDeviceAccounts" units="accounts"
-    expires_after="2025-12-28">
+    expires_after="2026-03-01">
   <owner>triploblastic@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -791,7 +791,7 @@ prefs when the profile is loaded.  -->
 </histogram>
 
 <histogram name="Signin.AuthError" enum="GoogleServiceAuthError"
-    expires_after="2025-12-28">
+    expires_after="2026-03-01">
   <owner>msarda@chromium.org</owner>
   <owner>droger@chromium.org</owner>
   <summary>
@@ -843,7 +843,7 @@ prefs when the profile is loaded.  -->
 
 <histogram
     name="Signin.BoundSessionCredentials.CookieRotationHttpResult.{ChallengeType}"
-    enum="CombinedHttpResponseAndNetErrorCode" expires_after="2025-12-28">
+    enum="CombinedHttpResponseAndNetErrorCode" expires_after="2026-03-01">
   <owner>alexilin@chromium.org</owner>
   <owner>msalama@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -955,7 +955,7 @@ prefs when the profile is loaded.  -->
 
 <histogram
     name="Signin.BoundSessionCredentials.Covered{Type}RequestWasDeferred{Result}"
-    enum="BooleanWasDeferred" expires_after="2025-12-28">
+    enum="BooleanWasDeferred" expires_after="2026-03-01">
   <owner>alexilin@chromium.org</owner>
   <owner>msalama@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -1022,6 +1022,73 @@ prefs when the profile is loaded.  -->
   </token>
 </histogram>
 
+<histogram
+    name="Signin.BoundSessionCredentials.OAuthMultilogin.BindingKeyMissing"
+    enum="Boolean" expires_after="2026-06-01">
+  <owner>ernn@google.com</owner>
+  <owner>alexilin@chromium.org</owner>
+  <owner>chrome-signin-team@google.com</owner>
+  <summary>
+    Recorded every time OAuthMultilogin response contains new bound session(s)
+    to register but the binding key is missing. This should never happen given
+    that the server responds with bound session(s) data only if the client
+    proved the possession of the binding key.
+  </summary>
+</histogram>
+
+<histogram name="Signin.BoundSessionCredentials.OAuthMultilogin.InvalidParams"
+    units="params" expires_after="2026-06-01">
+  <owner>ernn@google.com</owner>
+  <owner>alexilin@chromium.org</owner>
+  <owner>chrome-signin-team@google.com</owner>
+  <summary>
+    Records the number of invalid bound session params in successful
+    OAuthMultilogin response. Recorded every time successful OAuthMultilogin
+    response contains new bound session(s) to register.
+  </summary>
+</histogram>
+
+<histogram name="Signin.BoundSessionCredentials.OAuthMultilogin.ParsingError"
+    enum="OAuthMultiloginDeviceBoundSessionParsingError"
+    expires_after="2026-06-01">
+  <owner>ernn@google.com</owner>
+  <owner>alexilin@chromium.org</owner>
+  <owner>chrome-signin-team@google.com</owner>
+  <summary>
+    Records an error (or lack of any) that occured during parsing the device
+    bound sessions data from the OAuthMultilogin API response. Recorded upon
+    receiving a successful response from OAuthMultilogin API only if the cookie
+    parsing completed successfully and the response contained extra information
+    about device bound cookies.
+  </summary>
+</histogram>
+
+<histogram
+    name="Signin.BoundSessionCredentials.OAuthMultilogin.RegisteredSessions"
+    units="sessions" expires_after="2026-06-01">
+  <owner>ernn@google.com</owner>
+  <owner>alexilin@chromium.org</owner>
+  <owner>chrome-signin-team@google.com</owner>
+  <summary>
+    Records the number of bound sessions registered by OAuthMultilogin. Recorded
+    after cookies from a successful OAuthMultilogin response are set. Only
+    recorded for Chrome instances that support OAuthMultilogin cookies binding.
+  </summary>
+</histogram>
+
+<histogram name="Signin.BoundSessionCredentials.OAuthMultilogin.UnknownDomain"
+    units="domains" expires_after="2026-06-01">
+  <owner>ernn@google.com</owner>
+  <owner>alexilin@chromium.org</owner>
+  <owner>chrome-signin-team@google.com</owner>
+  <summary>
+    Records the number of unknown domains in the device bound sessions data from
+    the OAuthMultilogin API response. Recorded upon receiving a successful
+    response from OAuthMultilogin API only if the cookie parsing and the device
+    bound sessions parsing completed successfully.
+  </summary>
+</histogram>
+
 <histogram name="Signin.BoundSessionCredentials.ResumeThrottledRequestsTrigger"
     enum="ResumeBlockedRequestsTrigger" expires_after="2026-02-22">
   <owner>alexilin@chromium.org</owner>
@@ -1036,7 +1103,7 @@ prefs when the profile is loaded.  -->
 </histogram>
 
 <histogram name="Signin.BoundSessionCredentials.SessionCountOnInit"
-    units="DBSC sessions" expires_after="2025-12-28">
+    units="DBSC sessions" expires_after="2026-03-01">
   <owner>alexilin@chromium.org</owner>
   <owner>msalama@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -1108,7 +1175,7 @@ prefs when the profile is loaded.  -->
 
 <histogram
     name="Signin.BoundSessionCredentials.SessionTerminationDebugReportFetcherHttpResult"
-    enum="CombinedHttpResponseAndNetErrorCode" expires_after="2025-12-28">
+    enum="CombinedHttpResponseAndNetErrorCode" expires_after="2026-03-01">
   <owner>alexilin@chromium.org</owner>
   <owner>msalama@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -1131,7 +1198,7 @@ prefs when the profile is loaded.  -->
 </histogram>
 
 <histogram name="Signin.BoundSessionCredentials.StorageReadError"
-    enum="BoundSessionParamsReadError" expires_after="2025-12-28">
+    enum="BoundSessionParamsReadError" expires_after="2026-03-01">
   <owner>alexilin@chromium.org</owner>
   <owner>msalama@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -1144,7 +1211,7 @@ prefs when the profile is loaded.  -->
 </histogram>
 
 <histogram name="Signin.BoundSessionCredentials.StorageWriteError"
-    enum="BoundSessionParamsWriteError" expires_after="2025-12-28">
+    enum="BoundSessionParamsWriteError" expires_after="2026-03-01">
   <owner>alexilin@chromium.org</owner>
   <owner>msalama@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -1172,7 +1239,7 @@ prefs when the profile is loaded.  -->
 </histogram>
 
 <histogram name="Signin.CctAccountMismatch" enum="CctAccountMismatchType"
-    expires_after="2025-12-28">
+    expires_after="2026-03-01">
   <owner>samarchehade@google.com</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -1198,7 +1265,7 @@ prefs when the profile is loaded.  -->
 </histogram>
 
 <histogram name="Signin.ChromeSignoutConfirmationPrompt.{Variant}"
-    enum="ChromeSignoutConfirmationChoice" expires_after="2025-12-28">
+    enum="ChromeSignoutConfirmationChoice" expires_after="2026-03-01">
   <owner>droger@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -1235,7 +1302,7 @@ prefs when the profile is loaded.  -->
 
 <histogram
     name="Signin.CookieJar.SignedInCountWithPrimary{UnconsentedPrimaryAccountType}"
-    units="accounts" expires_after="2025-12-28">
+    units="accounts" expires_after="2026-03-01">
   <owner>msarda@chromium.org</owner>
   <owner>droger@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -1451,7 +1518,7 @@ prefs when the profile is loaded.  -->
 </histogram>
 
 <histogram name="Signin.DiceTokenBindingOutcome" enum="DiceTokenBindingOutcome"
-    expires_after="2025-12-28">
+    expires_after="2026-03-01">
   <owner>alexilin@chromium.org</owner>
   <owner>msalama@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -1761,7 +1828,7 @@ prefs when the profile is loaded.  -->
 </histogram>
 
 <histogram name="Signin.Intercept.BubbleDismissReason{Type}"
-    enum="SigninInterceptionDismissReason" expires_after="2025-12-28">
+    enum="SigninInterceptionDismissReason" expires_after="2026-03-01">
   <owner>rsult@google.com</owner>
   <owner>droger@chromium.org</owner>
   <summary>
@@ -2176,7 +2243,7 @@ prefs when the profile is loaded.  -->
 </histogram>
 
 <histogram name="Signin.IOSNumberOfDeviceAccounts" units="accounts"
-    expires_after="2025-12-28">
+    expires_after="2026-03-01">
   <owner>jlebel@chromium.org</owner>
   <owner>msarda@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -2260,7 +2327,7 @@ the browser and content area. -->
 </histogram>
 
 <histogram name="Signin.LoadedIdentities.Count" units="identities"
-    expires_after="2025-12-28">
+    expires_after="2026-03-01">
   <owner>jlebel@chromium.org</owner>
   <owner>msarda@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -2286,7 +2353,7 @@ the browser and content area. -->
 </histogram>
 
 <histogram name="Signin.LoadedIdentities.DurationPerIdentity" units="ms"
-    expires_after="2025-10-12">
+    expires_after="2026-04-01">
   <owner>jlebel@chromium.org</owner>
   <owner>msarda@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -2300,7 +2367,7 @@ the browser and content area. -->
 </histogram>
 
 <histogram name="Signin.LoadedIdentities.IdentityWithAuthErrorCount"
-    units="identities" expires_after="2025-12-28">
+    units="identities" expires_after="2026-03-01">
   <owner>jlebel@chromium.org</owner>
   <owner>msarda@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -2422,7 +2489,7 @@ the browser and content area. -->
 </histogram>
 
 <histogram name="Signin.OAuth2MintToken.ApiCallResult"
-    enum="OAuth2MintTokenApiCallResult" expires_after="2025-12-28">
+    enum="OAuth2MintTokenApiCallResult" expires_after="2026-03-01">
   <owner>alexilin@chromium.org</owner>
   <owner>droger@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -2436,7 +2503,7 @@ the browser and content area. -->
 </histogram>
 
 <histogram name="Signin.OAuth2MintToken.Response" enum="OAuth2Response"
-    expires_after="2025-12-28">
+    expires_after="2026-03-01">
   <owner>alexilin@chromium.org</owner>
   <owner>droger@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -2453,7 +2520,7 @@ the browser and content area. -->
 
 <histogram
     name="Signin.OAuth2MintToken.{BindingState}FetchAuthError{TokenBindingAssertionValue}"
-    enum="GoogleServiceAuthError" expires_after="2025-12-28">
+    enum="GoogleServiceAuthError" expires_after="2026-03-01">
   <owner>alexilin@chromium.org</owner>
   <owner>droger@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -2479,7 +2546,7 @@ the browser and content area. -->
 </histogram>
 
 <histogram name="Signin.OAuth2MintToken.{BindingState}FetchEncryptionError"
-    enum="TokenBindingResponseEncryptionError" expires_after="2025-12-28">
+    enum="TokenBindingResponseEncryptionError" expires_after="2026-03-01">
   <owner>alexilin@chromium.org</owner>
   <owner>droger@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -2519,36 +2586,8 @@ tokens and is needed for as long as Chrome is fetching access tokens. -->
   </summary>
 </histogram>
 
-<histogram name="Signin.OAuthMultiloginDeviceBoundSessionParsingError"
-    enum="OAuthMultiloginDeviceBoundSessionParsingError"
-    expires_after="2026-06-01">
-  <owner>ernn@google.com</owner>
-  <owner>alexilin@chromium.org</owner>
-  <owner>chrome-signin-team@google.com</owner>
-  <summary>
-    Records an error (or lack of any) that occured during parsing the device
-    bound sessions data from the OAuthMultilogin API response. Recorded upon
-    receiving a successful response from OAuthMultilogin API only if the cookie
-    parsing completed successfully and the response contained extra information
-    about device bound cookies.
-  </summary>
-</histogram>
-
-<histogram name="Signin.OAuthMultiloginDeviceBoundSessionUnknownDomain"
-    units="domains" expires_after="2026-06-01">
-  <owner>ernn@google.com</owner>
-  <owner>alexilin@chromium.org</owner>
-  <owner>chrome-signin-team@google.com</owner>
-  <summary>
-    Records the number of unknown domains in the device bound sessions data from
-    the OAuthMultilogin API response. Recorded upon receiving a successful
-    response from OAuthMultilogin API only if the cookie parsing and the device
-    bound sessions parsing completed successfully.
-  </summary>
-</histogram>
-
 <histogram name="Signin.OAuthMultiloginResponseEncryptionError"
-    enum="TokenBindingResponseEncryptionError" expires_after="2025-12-28">
+    enum="TokenBindingResponseEncryptionError" expires_after="2026-03-01">
   <owner>alexilin@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -2597,7 +2636,7 @@ should be kept to monitor/debug signin Multilogin issues-->
 </histogram>
 
 <histogram name="Signin.PAMInitialize.PrimaryAccountPrefs"
-    enum="PAMInitializePrimaryAccountPrefs" expires_after="2025-12-28">
+    enum="PAMInitializePrimaryAccountPrefs" expires_after="2026-03-01">
   <owner>msarda@chromium.org</owner>
   <owner>droger@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -3183,7 +3222,7 @@ OAuth Multilogin call. -->
 </histogram>
 
 <histogram name="Signin.SigninPending.Resolution"
-    enum="PendingResolutionSource" expires_after="2025-12-28">
+    enum="PendingResolutionSource" expires_after="2026-03-01">
   <owner>rsult@google.com</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -3194,7 +3233,7 @@ OAuth Multilogin call. -->
 </histogram>
 
 <histogram name="Signin.SigninPending.ResolutionSource{Status}"
-    enum="SigninAccessPoint" expires_after="2025-12-28">
+    enum="SigninAccessPoint" expires_after="2026-03-01">
   <owner>rsult@google.com</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -3211,7 +3250,7 @@ OAuth Multilogin call. -->
 </histogram>
 
 <histogram name="Signin.SigninPending.ResolutionTime.{ResolutionType}"
-    units="ms" expires_after="2025-12-28">
+    units="ms" expires_after="2026-03-01">
   <owner>rsult@google.com</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -3465,7 +3504,7 @@ kept as long as profile signout is possible -->
 </histogram>
 
 <histogram name="Signin.SyncErrorMessage{SyncErrorReason}"
-    enum="SyncErrorPromptUIAction" expires_after="2025-12-28">
+    enum="SyncErrorPromptUIAction" expires_after="2026-03-01">
   <owner>triploblastic@chromium.org</owner>
   <owner>bsazonov@chromium.org</owner>
   <summary>
@@ -3583,7 +3622,7 @@ kept as long as profile signout is possible -->
 </histogram>
 
 <histogram name="Signin.SyncPaused.ResolutionTime.{ResolutionType}" units="ms"
-    expires_after="2025-12-28">
+    expires_after="2026-03-01">
   <owner>rsult@google.com</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -3598,7 +3637,7 @@ kept as long as profile signout is possible -->
 </histogram>
 
 <histogram name="Signin.SyncPromo.{Action}.Count.{AccessPoint}"
-    units="impressions" expires_after="2025-12-28">
+    units="impressions" expires_after="2026-03-01">
   <owner>triploblastic@chromium.org</owner>
   <owner>chrome-signin-mobile-team@google.com</owner>
   <summary>
@@ -3644,7 +3683,7 @@ kept as long as profile signout is possible -->
 </histogram>
 
 <histogram name="Signin.TokenBinding.BoundTokenPrevalence"
-    enum="TokenBindingBoundTokenPrevalence" expires_after="2025-12-28">
+    enum="TokenBindingBoundTokenPrevalence" expires_after="2026-03-01">
   <owner>alexilin@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -3656,7 +3695,7 @@ kept as long as profile signout is possible -->
 </histogram>
 
 <histogram name="Signin.TokenBinding.BoundToTheSameKey"
-    enum="BooleanBoundToTheSameKey" expires_after="2025-12-28">
+    enum="BooleanBoundToTheSameKey" expires_after="2026-03-01">
   <owner>alexilin@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -3669,7 +3708,7 @@ kept as long as profile signout is possible -->
 </histogram>
 
 <histogram name="Signin.TokenBinding.GenerateAssertionResult"
-    enum="TokenBindingGenerateAssertionResult" expires_after="2025-12-28">
+    enum="TokenBindingGenerateAssertionResult" expires_after="2026-03-01">
   <owner>alexilin@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>

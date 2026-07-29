@@ -633,6 +633,7 @@ Dim ond rhywun sydd â'ch cyfrinymadrodd all ddarllen eich data sydd wedi'u hamg
 <translation id="4042941173059740150">Parhau at <ph name="SITE_ETLD_PLUS_ONE" /> gyda <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /></translation>
 <translation id="4044708993631234325">Dalen waelod</translation>
 <translation id="4045441967987592849">Ailagor</translation>
+<translation id="4049920046559074950">Rhagor o ddewisiadau ar gyfer <ph name="INSTANCE_TITLE" /></translation>
 <translation id="4052419222954753986">{NUMBER_OF_TABS,plural, =1{<ph name="TABS_COUNT_ONE" /> tab safonol gyda gweithgarwch newydd mewn grwpiau tab a rennir}zero{<ph name="TABS_COUNT_MANY" /> tab safonol gyda gweithgarwch newydd mewn grwpiau tab a rennir}two{<ph name="TABS_COUNT_MANY" /> dab safonol gyda gweithgarwch newydd mewn grwpiau tab a rennir}few{<ph name="TABS_COUNT_MANY" /> thab safonol gyda gweithgarwch newydd mewn grwpiau tab a rennir}many{<ph name="TABS_COUNT_MANY" /> thab safonol gyda gweithgarwch newydd mewn grwpiau tab a rennir}other{<ph name="TABS_COUNT_MANY" /> tab safonol gyda gweithgarwch newydd mewn grwpiau tab a rennir}}</translation>
 <translation id="405365679581583349">Diweddaru gwasanaethau Google Play</translation>
 <translation id="405399507749852140">Cael hysbysiadau os bydd y pris yn gostwng ar unrhyw wefan</translation>
@@ -1831,6 +1832,7 @@ I newid y gosodiad hwn, <ph name="BEGIN_LINK" />dileu'r data Chrome yn eich cyfr
 <translation id="930124987204876019">Dileu hanes, cwcis, data gwefan, storfa dros dro…</translation>
 <translation id="938850635132480979">Gwall: <ph name="ERROR_CODE" /></translation>
 <translation id="939598580284253335">Rhowch gyfrinymadrodd</translation>
+<translation id="945522503751344254">Danfon adborth</translation>
 <translation id="95817756606698420">Gall Chrome ddefnyddio <ph name="BEGIN_BOLD" />Sogou<ph name="END_BOLD" /> ar gyfer chwilio yn Tsieina. Gallwch newid hyn yn y <ph name="BEGIN_LINK" />Gosodiadau<ph name="END_LINK" />.</translation>
 <translation id="961856697154696964">Dileu data pori</translation>
 <translation id="963246339335003378">Agor y Rheolwr Tasgau</translation>

@@ -37,6 +37,8 @@
 #include "components/content_settings/core/common/content_settings_metadata.h"
 #include "components/content_settings/core/common/features.h"
 #include "components/content_settings/core/common/pref_names.h"
+#include "components/permissions/permission_request_manager.h"
+#include "components/permissions/test/mock_permission_prompt_factory.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
@@ -59,6 +61,8 @@
 #include "net/test/embedded_test_server/install_default_websocket_handlers.h"
 #include "net/test/embedded_test_server/register_basic_auth_handler.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
+#include "services/network/public/cpp/features.h"
+#include "services/network/public/cpp/network_switches.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/network/public/mojom/websocket.mojom.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -162,6 +166,7 @@ class WebSocketBrowserTest : public InProcessBrowserTest {
         url, requested_protocols, site_for_cookies,
         net::StorageAccessApiStatus::kNone, isolation_info,
         std::move(additional_headers), process->GetDeprecatedID(), origin,
+        network::mojom::ClientSecurityState::New(),
         network::mojom::kWebSocketOptionNone,
         net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS),
         std::move(handshake_client),
@@ -220,17 +225,21 @@ class WebSocketBrowserConnectToTest : public WebSocketBrowserTest {
   void ConnectTo(const GURL& url) {
     ConnectTo(server().base_url().host(), url);
   }
+  void ConnectTo(const std::string& host, const GURL& url) {
+    ConnectTo(host, url, "/websocket/connect_to.html");
+  }
 
   // Supply a ws: or wss: URL to connect to via loading `host`/connect_to.html.
-  void ConnectTo(const std::string& host, const GURL& url) {
+  void ConnectTo(const std::string& host,
+                 const GURL& url,
+                 const std::string& resource) {
     ASSERT_TRUE(server().Started());
     std::string query("url=" + url.spec());
     GURL::Replacements replacements;
     replacements.SetQueryStr(query);
     ASSERT_TRUE(ui_test_utils::NavigateToURL(
-        browser(), server()
-                       .GetURL(host, "/websocket/connect_to.html")
-                       .ReplaceComponents(replacements)));
+        browser(),
+        server().GetURL(host, resource).ReplaceComponents(replacements)));
   }
 
   virtual net::EmbeddedTestServer& server() = 0;
@@ -277,6 +286,84 @@ class WebSocketBrowserHTTPSConnectToTest
 
   net::EmbeddedTestServer https_server_;
 };
+
+// TODO(crbug.com/434744665): add more tests for websockets opened from all the
+// worker types (dedicated workers, shared workers, service workers).
+class LocalNetworkAccessWebSocketsBrowserTest
+    : public WebSocketBrowserHTTPSConnectToTest {
+ public:
+  permissions::MockPermissionPromptFactory* bubble_factory() {
+    return mock_permission_prompt_factory_.get();
+  }
+
+ protected:
+  void SetUp() override {
+    // Some builders run with field_trial disabled, need to enable
+    // LocalNetworkAccessChecks manually.
+    feature_list_.InitWithFeaturesAndParameters(
+        {{network::features::kLocalNetworkAccessChecks,
+          {{"LocalNetworkAccessChecksWarn", "false"}}},
+         {network::features::kLocalNetworkAccessChecksWebSockets, {}}},
+        {});
+    WebSocketBrowserHTTPSConnectToTest::SetUp();
+  }
+
+  void SetUpOnMainThread() override {
+    WebSocketBrowserHTTPSConnectToTest::SetUpOnMainThread();
+
+    permissions::PermissionRequestManager* manager =
+        permissions::PermissionRequestManager::FromWebContents(
+            browser()->tab_strip_model()->GetActiveWebContents());
+    mock_permission_prompt_factory_ =
+        std::make_unique<permissions::MockPermissionPromptFactory>(manager);
+  }
+
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    // Clear default from InProcessBrowserTest as test doesn't want 127.0.0.1 in
+    // the public address space
+    command_line->AppendSwitchASCII(network::switches::kIpAddressSpaceOverrides,
+                                    "");
+
+    WebSocketBrowserHTTPSConnectToTest::SetUpCommandLine(command_line);
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+  std::unique_ptr<permissions::MockPermissionPromptFactory>
+      mock_permission_prompt_factory_;
+};
+
+IN_PROC_BROWSER_TEST_F(LocalNetworkAccessWebSocketsBrowserTest,
+                       LNAWebSocketConnectionHasPermission) {
+  bubble_factory()->set_response_type(
+      permissions::PermissionRequestManager::AutoResponseType::ACCEPT_ALL);
+  wss_server_.SetSSLConfig(net::EmbeddedTestServer::CERT_TEST_NAMES);
+  // Launch a secure WebSocket server.
+  ASSERT_TRUE(wss_server_.Start());
+
+  ConnectTo(kHostB,
+            net::test_server::GetWebSocketURL(wss_server_, kHostA,
+                                              "/echo-with-no-extension"),
+            "/websocket/connect_to_as_public_address.html");
+
+  EXPECT_EQ("PASS", WaitAndGetTitle());
+}
+
+IN_PROC_BROWSER_TEST_F(LocalNetworkAccessWebSocketsBrowserTest,
+                       LNAWebSocketConnectionDeniedPermission) {
+  bubble_factory()->set_response_type(
+      permissions::PermissionRequestManager::AutoResponseType::DENY_ALL);
+  wss_server_.SetSSLConfig(net::EmbeddedTestServer::CERT_TEST_NAMES);
+  // Launch a secure WebSocket server.
+  ASSERT_TRUE(wss_server_.Start());
+
+  ConnectTo(kHostB,
+            net::test_server::GetWebSocketURL(wss_server_, kHostA,
+                                              "/echo-with-no-extension"),
+            "/websocket/connect_to_as_public_address.html");
+
+  EXPECT_EQ("FAIL", WaitAndGetTitle());
+}
 
 class WebSocketBrowserHTTPSConnectToTestPre3pcd
     : public WebSocketBrowserHTTPSConnectToTest {

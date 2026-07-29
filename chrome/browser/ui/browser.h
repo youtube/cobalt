@@ -32,6 +32,7 @@
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/desktop_browser_window_capabilities_delegate.h"
+#include "chrome/browser/ui/browser_window_deleter.h"
 #include "chrome/browser/ui/chrome_web_modal_dialog_manager_delegate.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
@@ -117,10 +118,11 @@ enum class BrowserClosingStatus {
   kDeniedUnloadHandlersNeedTime
 };
 
-// An instance of this class represents a single browser window on Desktop. All
-// features that are scoped to a browser window should have lifetime semantics
-// scoped to an instance of this class, usually via direct or indirect ownership
-// of a std::unique_ptr. See BrowserWindowFeatures and TabFeatures.
+// An instance of this class represents a single browser window on Desktop.
+// Owned by BrowserManagerService.
+// All features that are scoped to a browser window should have lifetime scoped
+// to an instance of this class, usually via direct or indirect ownership of a
+// std::unique_ptr. See BrowserWindowFeatures and TabFeatures.
 class Browser : public TabStripModelObserver,
                 public WebContentsCollection::Observer,
                 public content::WebContentsDelegate,
@@ -372,7 +374,10 @@ class Browser : public TabStripModelObserver,
   static std::unique_ptr<Browser> DeprecatedCreateOwnedForTesting(
       const CreateParams& params);
 
-  // Returns whether a browser window can be created for the specified profile.
+  // Returns whether a browser window can currently be created for the specified
+  // profile. This condition may change during runtime for a given `profile`
+  // (e.g. a profile may support Browser windows but creating a Browser is
+  // disallowed during shutdown).
   static CreationStatus GetCreationStatusForProfile(Profile* profile);
 
   Browser(const Browser&) = delete;
@@ -433,7 +438,7 @@ class Browser : public TabStripModelObserver,
 
   // |window()| will return NULL if called before |CreateBrowserWindow()|
   // is done.
-  BrowserWindow* window() const { return window_; }
+  BrowserWindow* window() const { return window_.get(); }
 
   // In production code, each instance of Browser will always instantiate an
   // instance of BrowserView in the constructor. Some tests instantiate a
@@ -533,24 +538,25 @@ class Browser : public TabStripModelObserver,
   WarnBeforeClosingResult MaybeWarnBeforeClosing(
       WarnBeforeClosingCallback warn_callback);
 
-  // Gives beforeunload handlers the chance to cancel the close. Returns the
-  // closing status. Closing can be denied due to different reasons.
-  // This function checks if unload handlers are still executing. It further
-  // may ask the user for permission to close the browser (e.g. if downloads
-  // are ongoing).
+  // Gives beforeunload handlers the chance to cancel the close. Returns true if
+  // the close operation was permitted. Closing can be denied due to different
+  // reasons. This function checks if unload handlers are still executing. It
+  // further may ask the user for permission to close the browser (e.g. if
+  // downloads are ongoing).
   // If this function is called
-  // * but the user denied closure after being prompted, it returns
-  // `BrowserClosingStatus::kDeniedByUser`.
-  // * but the closure is not permitted by policy, it returns
-  // `BrowserClosingStatus::kDeniedByPolicy`.
-  // * while the process begun by TryToCloseWindow is in progress, it returns
-  // `BrowserClosingStatus::kDeniedUnloadHandlersNeedTime`.
+  // * but the user denied closure after being prompted, it returns false and
+  //   emits `BrowserWindowInterface::ClosingStatus::kDeniedByUser`.
+  // * but the closure is not permitted by policy, it returns false and emits
+  //   `BrowserWindowInterface::ClosingStatus::kDeniedByPolicy`.
+  // * while the process begun by `TryToCloseWindow()` is in progress, it
+  //   returns false and emits
+  //   `BrowserWindowInterface::ClosingStatus::kDeniedUnloadHandlersNeedTime`.
   //
   // If you don't care about beforeunload handlers and just want to prompt the
   // user that they might lose an in-progress operation, call
-  // MaybeWarnBeforeClosing() instead (HandleBeforeClose() also calls this
+  // `MaybeWarnBeforeClosing()` instead (`HandleBeforeClose()` also calls this
   // method).
-  BrowserClosingStatus HandleBeforeClose();
+  bool HandleBeforeClose();
 
   // Begins the process of confirming whether the associated browser can be
   // closed. If there are no tabs with beforeunload handlers it will immediately
@@ -690,6 +696,7 @@ class Browser : public TabStripModelObserver,
 
   // Overridden from content::WebContentsDelegate:
   void ActivateContents(content::WebContents* contents) override;
+  bool IsContentsActive(content::WebContents* contents) override;
   void SetTopControlsShownRatio(content::WebContents* web_contents,
                                 float ratio) override;
   int GetTopControlsHeight() override;
@@ -748,6 +755,8 @@ class Browser : public TabStripModelObserver,
       content::WebContents* contents) override;
   std::vector<blink::mojom::RelatedApplicationPtr> GetSavedRelatedApplications(
       content::WebContents* web_contents) override;
+  content::WebContents* GetResponsibleWebContents(
+      content::WebContents* web_contents) override;
 
   bool is_type_normal() const { return type_ == TYPE_NORMAL; }
   bool is_type_popup() const { return type_ == TYPE_POPUP; }
@@ -800,6 +809,8 @@ class Browser : public TabStripModelObserver,
   bool ShouldHideUIForFullscreen() const override;
   base::CallbackListSubscription RegisterBrowserDidClose(
       BrowserDidCloseCallback callback) override;
+  base::CallbackListSubscription RegisterBrowserCloseCancelled(
+      BrowserCloseCancelledCallback callback) override;
   views::View* TopContainer() override;
   base::WeakPtr<BrowserWindowInterface> GetWeakPtr() override;
   views::View* LensOverlayView() override;
@@ -831,6 +842,7 @@ class Browser : public TabStripModelObserver,
   bool CanShowCallToAction() const override;
   std::unique_ptr<ScopedWindowCallToAction> ShowCallToAction() override;
   ui::BaseWindow* GetWindow() override;
+  const ui::BaseWindow* GetWindow() const override;
   DesktopBrowserWindowCapabilities* capabilities() override;
   const DesktopBrowserWindowCapabilities* capabilities() const override;
 
@@ -1276,13 +1288,8 @@ class Browser : public TabStripModelObserver,
   // Prevent Profile deletion until this browser window is closed.
   std::unique_ptr<ScopedProfileKeepAlive> profile_keep_alive_;
 
-  // The Browser's BrowserWindow, only set by tests.
-  // TODO(crbug.com/413168662): This can be consolidated with `window_` once
-  // Browser always owns BrowserWindow.
-  std::unique_ptr<BrowserWindow> window_for_testing_;
-
   // This Browser's window.
-  raw_ptr<BrowserWindow, DanglingUntriaged> window_;
+  std::unique_ptr<BrowserWindow, BrowserWindowDeleter> window_;
 
   // The active state of this browser.
   bool is_active_ = false;
@@ -1400,6 +1407,11 @@ class Browser : public TabStripModelObserver,
   using BrowserDidCloseCallbackList =
       base::RepeatingCallbackList<void(BrowserWindowInterface*)>;
   BrowserDidCloseCallbackList browser_did_close_callback_list_;
+
+  using BrowserCloseCancelledCallbackList =
+      base::RepeatingCallbackList<void(BrowserWindowInterface*,
+                                       BrowserWindowInterface::ClosingStatus)>;
+  BrowserCloseCancelledCallbackList browser_close_cancelled_callback_list_;
 
   using DidActiveTabChangeCallbackList =
       base::RepeatingCallbackList<void(BrowserWindowInterface*)>;

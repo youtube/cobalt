@@ -153,7 +153,6 @@ class CreditCardFormEventLogger : public FormEventLoggerBase {
 
  protected:
   // FormEventLoggerBase pure-virtual overrides.
-  void RecordPollSuggestions() override;
   void RecordParseForm() override;
   void RecordShowSuggestions() override;
 
@@ -256,6 +255,8 @@ class CreditCardFormEventLogger : public FormEventLoggerBase {
 
   AutofillMetrics::PaymentsSigninState signin_state_for_metrics_ =
       AutofillMetrics::PaymentsSigninState::kUnknown;
+
+  AutofillTriggerSource trigger_source_ = AutofillTriggerSource::kNone;
 
   // Weak references.
   raw_ptr<PersonalDataManager> personal_data_manager_;

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#define TODO_BASE_FEATURE_MACROS_NEED_MIGRATION
+
 #include "chrome/browser/ui/ui_features.h"
 
 #include "base/feature_list.h"
@@ -119,7 +121,7 @@ BASE_FEATURE(kScrimForBrowserWindowModal,
 
 // When enabled, a scrim is shown behind tab modal dialogs to cover the content
 // area. This gives user a visual cue that the content area is not interactable.
-BASE_FEATURE(KScrimForTabModal,
+BASE_FEATURE(kScrimForTabModal,
              "ScrimForTabModal",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -301,6 +303,10 @@ BASE_FEATURE(kTabHoverCardImages,
 #endif
 );
 
+BASE_FEATURE(kTabGroupHoverCards,
+             "TabGroupHoverCards",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kTabModalUsesDesktopWidget,
              "TabModalUsesDesktopWidget",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -450,10 +456,6 @@ BASE_FEATURE(kEnterpriseManagementDisclaimerUsesCustomLabel,
 
 BASE_FEATURE(kManagedProfileRequiredInterstitial,
              "ManagedProfileRequiredInterstitial",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kEnableAppMenuButtonColorsForDefaultAvatarButtonStates,
-             "EnableAppMenuButtonColorsForDefaultAvatarButtonStates",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables a web-based tab strip. See https://crbug.com/989131. Note this
@@ -725,5 +727,16 @@ bool IsNewTabAddsToActiveGroupEnabled() {
   return base::FeatureList::IsEnabled(kNewTabAddsToActiveGroup);
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_ANDROID)
+BASE_FEATURE(kAndroidAnimatedProgressBarInBrowser,
+             "AndroidAnimatedProgressBarInBrowser",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsAndroidAnimatedProgressBarInBrowserEnabled() {
+  return base::FeatureList::IsEnabled(
+      features::kAndroidAnimatedProgressBarInBrowser);
+}
+#endif  // BUILDFLAG(IS_ANDROID)
 
 }  // namespace features

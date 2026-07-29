@@ -80,11 +80,13 @@ class MODULES_EXPORT WebGLRenderingContextWebGPUBase
   int drawingBufferWidth() const;
   int drawingBufferHeight() const;
   GLenum drawingBufferFormat() const;
-  V8PredefinedColorSpace drawingBufferColorSpace() const;
-  void setDrawingBufferColorSpace(const V8PredefinedColorSpace& color_space,
+  V8PredefinedColorSpace drawingBufferColorSpace(ScriptState*) const;
+  void setDrawingBufferColorSpace(ScriptState*,
+                                  const V8PredefinedColorSpace& color_space,
                                   ExceptionState&);
-  V8PredefinedColorSpace unpackColorSpace() const;
-  void setUnpackColorSpace(const V8PredefinedColorSpace& color_space,
+  V8PredefinedColorSpace unpackColorSpace(ScriptState*) const;
+  void setUnpackColorSpace(ScriptState*,
+                           const V8PredefinedColorSpace& color_space,
                            ExceptionState&);
 
   void activeTexture(GLenum texture);
@@ -597,13 +599,13 @@ class MODULES_EXPORT WebGLRenderingContextWebGPUBase
                   MaybeShared<DOMArrayBufferView> data,
                   int64_t src_offset);
 
-  void texHTMLElement2D(GLenum target,
-                        GLint level,
-                        GLint internalformat,
-                        GLenum format,
-                        GLenum type,
-                        Element* element,
-                        ExceptionState& exception_state);
+  void texHTML2D(GLenum target,
+                 GLint level,
+                 GLint internalformat,
+                 GLenum format,
+                 GLenum type,
+                 Element* element,
+                 ExceptionState& exception_state);
 
   void texElement2D(GLenum target,
                     GLint level,

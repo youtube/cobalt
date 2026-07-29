@@ -10,9 +10,8 @@
 #include <variant>
 
 #include "base/component_export.h"
-#include "base/containers/flat_map.h"
 #include "base/memory/raw_ptr.h"
-#include "base/memory/raw_ptr_exclusion.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/observer_list.h"
 #include "base/sequence_checker.h"
 #include "base/time/time.h"
@@ -21,24 +20,20 @@
 #include "ui/base/models/menu_separator_types.h"
 #include "ui/color/color_id.h"
 #include "ui/color/color_provider_key.h"
+#include "ui/color/system_theme.h"
 #include "ui/gfx/color_palette.h"
+#include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
-#include "ui/gfx/native_widget_types.h"
-#include "ui/native_theme/caption_style.h"
 #include "ui/native_theme/native_theme_observer.h"
 
 namespace cc {
 class PaintCanvas;
 }
 
-namespace gfx {
-class Insets;
-class Rect;
-class Size;
-}  // namespace gfx
-
 namespace ui {
+
+class ColorProvider;
 
 // This class supports drawing UI controls (like buttons, text fields, lists,
 // comboboxes, etc) that look like the native UI controls of the underlying
@@ -145,19 +140,6 @@ class COMPONENT_EXPORT(NATIVE_THEME) NativeTheme {
     kLess = 2,
     kCustom = 3,
     kMaxValue = kCustom,
-  };
-
-  // IMPORTANT!
-  // This enum is reported in metrics. Do not reorder; add additional values at
-  // the end.
-  //
-  // This represents the OS-level high contrast theme. kNone unless the default
-  // system color scheme is kPlatformHighContrast.
-  enum class PlatformHighContrastColorScheme {
-    kNone = 0,
-    kDark = 1,
-    kLight = 2,
-    kMaxValue = kLight,
   };
 
   // The color scheme used for painting the native controls.
@@ -392,7 +374,7 @@ class COMPONENT_EXPORT(NATIVE_THEME) NativeTheme {
   virtual gfx::Insets GetScrollbarSolidColorThumbInsets(Part part) const;
 
   // Called if the theme uses solid color for scrollbar thumb.
-  virtual SkColor4f GetScrollbarThumbColor(
+  virtual SkColor GetScrollbarThumbColor(
       const ui::ColorProvider& color_provider,
       State state,
       const ScrollbarThumbExtraParams& extra_params) const;
@@ -487,18 +469,10 @@ class COMPONENT_EXPORT(NATIVE_THEME) NativeTheme {
   // Notify observers of preferred contrast changes.
   virtual void NotifyOnPreferredContrastUpdated();
 
-  // Returns whether the user has an explicit contrast preference.
-  virtual bool UserHasContrastPreference() const;
-
   // Returns whether we are in forced colors mode, controlled by system
   // accessibility settings. Currently, Windows high contrast is the only system
   // setting that triggers forced colors mode.
-  bool InForcedColorsMode() const;
-
-  // Returns the PlatformHighContrastColorScheme used by the OS. Returns a value
-  // other than kNone only if the default system color scheme is
-  // kPlatformHighContrast.
-  PlatformHighContrastColorScheme GetPlatformHighContrastColorScheme() const;
+  bool forced_colors() const { return forced_colors_; }
 
   // Returns true when the NativeTheme uses a light-on-dark color scheme. If
   // you're considering using this function to choose between two hard-coded
@@ -506,7 +480,7 @@ class COMPONENT_EXPORT(NATIVE_THEME) NativeTheme {
   virtual bool ShouldUseDarkColors() const;
 
   // Returns the user's current page colors.
-  virtual PageColors GetPageColors() const;
+  PageColors page_colors() const { return page_colors_; }
 
   // Calculates and returns the current user preferred color scheme. The
   // base behavior is to set preferred color scheme to light or dark depending
@@ -516,20 +490,21 @@ class COMPONENT_EXPORT(NATIVE_THEME) NativeTheme {
   // Returns the OS-level user preferred color scheme. See the comment for
   // CalculatePreferredColorScheme() for details on how preferred color scheme
   // is calculated.
-  virtual PreferredColorScheme GetPreferredColorScheme() const;
+  PreferredColorScheme preferred_color_scheme() const {
+    return preferred_color_scheme_;
+  }
 
   // Returns the OS-level user preferred contrast.
-  virtual PreferredContrast GetPreferredContrast() const;
+  PreferredContrast preferred_contrast() const { return preferred_contrast_; }
 
   // Returns the OS-level user preferred transparency.
-  virtual bool GetPrefersReducedTransparency() const;
+  bool prefers_reduced_transparency() const {
+    return prefers_reduced_transparency_;
+  }
 
   // Returns the OS-level inverted colors setting. (Classic invert NOT smart
   // invert)
-  virtual bool GetInvertedColors() const;
-
-  // Returns the system's caption style.
-  virtual std::optional<CaptionStyle> GetSystemCaptionStyle() const;
+  bool inverted_colors() const { return inverted_colors_; }
 
   // Updates contrast-related theme states such as `forced_colors_`,
   // `page_colors_`, `preferred_contrast_` and `prefers_reduced_transparency_`
@@ -537,7 +512,9 @@ class COMPONENT_EXPORT(NATIVE_THEME) NativeTheme {
   // these states.
   bool UpdateContrastRelatedStates(const NativeTheme& observed_theme);
 
-  virtual const std::map<SystemThemeColor, SkColor>& GetSystemColors() const;
+  const std::map<SystemThemeColor, SkColor>& system_colors() const {
+    return system_colors_;
+  }
 
   std::optional<SkColor> GetSystemThemeColor(
       SystemThemeColor theme_color) const;
@@ -593,14 +570,11 @@ class COMPONENT_EXPORT(NATIVE_THEME) NativeTheme {
   // pressed states.
   virtual SkColor GetSystemButtonPressedColor(SkColor base_color) const;
 
-  // Assign the focus-ring-appropriate alpha value to the provided base_color.
-  virtual SkColor4f FocusRingColorForBaseColor(SkColor4f base_color) const;
+  static float AdjustBorderWidthByZoom(float border_width, float zoom_level);
 
-  float AdjustBorderWidthByZoom(float border_width, float zoom_level) const;
-
-  float AdjustBorderRadiusByZoom(Part part,
-                                 float border_width,
-                                 float zoom_level) const;
+  static float AdjustBorderRadiusByZoom(Part part,
+                                        float border_width,
+                                        float zoom_level);
 
   // Returns the rate at which the text caret should blink. If 0, the caret
   // will not blink.
@@ -619,12 +593,8 @@ class COMPONENT_EXPORT(NATIVE_THEME) NativeTheme {
   // Whether dark mode is forced via command-line flag.
   static bool IsForcedDarkMode();
 
-  // Calculates and returns the use overlay scrollbar setting.
-  static bool CalculateUseOverlayScrollbar();
-
  protected:
   explicit NativeTheme(
-      bool should_only_use_dark_colors,
       ui::SystemTheme system_theme = ui::SystemTheme::kDefault);
   virtual ~NativeTheme();
 
@@ -666,6 +636,7 @@ class COMPONENT_EXPORT(NATIVE_THEME) NativeTheme {
    private:
     // ui::NativeThemeObserver:
     void OnNativeThemeUpdated(ui::NativeTheme* observed_theme) override;
+    void OnPreferredContrastChanged(ui::NativeTheme* observed_theme) override;
 
     // The theme that gets updated when OnNativeThemeUpdated() is called.
     const raw_ptr<NativeTheme> theme_to_update_;
@@ -675,8 +646,7 @@ class COMPONENT_EXPORT(NATIVE_THEME) NativeTheme {
 
  private:
   // Observers to notify when the native theme changes.
-  base::ObserverList<NativeThemeObserver>::UncheckedAndDanglingUntriaged
-      native_theme_observers_;
+  base::ObserverList<NativeThemeObserver> native_theme_observers_;
 
   // User's primary color. Included in the `ColorProvider::Key` as the basis of
   // all generated colors.

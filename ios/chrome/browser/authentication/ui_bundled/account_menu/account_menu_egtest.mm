@@ -18,7 +18,7 @@
 #import "ios/chrome/browser/settings/ui_bundled/google_services/manage_accounts/manage_accounts_table_view_controller_constants.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
-#import "ios/chrome/browser/shared/ui/util/identity_snackbar/identity_snackbar_message_test_utils.h"
+#import "ios/chrome/browser/shared/public/snackbar/snackbar_constants.h"
 #import "ios/chrome/browser/signin/model/fake_system_identity.h"
 #import "ios/chrome/browser/signin/model/test_constants.h"
 #import "ios/chrome/browser/start_surface/ui_bundled/start_surface_features.h"
@@ -33,9 +33,6 @@
 #import "ios/testing/earl_grey/earl_grey_test.h"
 #import "net/test/embedded_test_server/embedded_test_server.h"
 #import "ui/base/l10n/l10n_util.h"
-
-using signin::assertSnackbarNotShown;
-using signin::assertSnackbarShownAndDismissItWithIdentity;
 
 namespace {
 
@@ -79,13 +76,6 @@ id<GREYMatcher> identityDiscMatcher() {
 + (void)tearDown {
   [SigninEarlGrey clearUseFakeResponsesForProfileSeparationPolicyRequests];
   [super tearDown];
-}
-
-- (AppLaunchConfiguration)appConfigurationForTestCase {
-  AppLaunchConfiguration config = [super appConfigurationForTestCase];
-
-  config.features_enabled.push_back(kIdentityDiscAccountMenu);
-  return config;
 }
 
 - (void)setUp {
@@ -355,7 +345,9 @@ id<GREYMatcher> identityDiscMatcher() {
                                           kAccountMenuSecondaryAccountButtonId)]
       performAction:grey_tap()];
 
-  assertSnackbarShownAndDismissItWithIdentity(kSecondaryIdentity);
+  [SigninEarlGreyUI
+      dismissSigninConfirmationSnackbarForIdentity:kSecondaryIdentity
+                                     assertVisible:YES];
   [SigninEarlGrey verifySignedInWithFakeIdentity:kSecondaryIdentity];
   [self assertAccountMenuIsNotShown];
 }
@@ -386,7 +378,9 @@ id<GREYMatcher> identityDiscMatcher() {
     // is not always detected on CQ causing flakyness.
     // TODO(crbug.com/433726717): Remove the `if` around the assertion when
     // snack-bar stop being flaky on egtest on iphone.
-    assertSnackbarShownAndDismissItWithIdentity(kPrimaryIdentity);
+    [SigninEarlGreyUI
+        dismissSigninConfirmationSnackbarForIdentity:kPrimaryIdentity
+                                       assertVisible:YES];
   }
   [SigninEarlGrey verifySignedInWithFakeIdentity:kPrimaryIdentity];
   [self assertAccountMenuIsNotShown];
@@ -427,7 +421,9 @@ id<GREYMatcher> identityDiscMatcher() {
     // is not always detected on CQ causing flakyness.
     // TODO(crbug.com/433726717): Remove the `if` around the assertion when
     // snack-bar stop being flaky on egtest on iphone.
-    assertSnackbarShownAndDismissItWithIdentity(kManagedIdentity1);
+    [SigninEarlGreyUI
+        dismissSigninConfirmationSnackbarForIdentity:kManagedIdentity1
+                                       assertVisible:YES];
   }
   [SigninEarlGrey verifySignedInWithFakeIdentity:kManagedIdentity1];
   [self assertAccountMenuIsNotShown];
@@ -476,7 +472,9 @@ id<GREYMatcher> identityDiscMatcher() {
         performAction:grey_tap()];
   }
 
-  assertSnackbarShownAndDismissItWithIdentity(kManagedIdentity2);
+  [SigninEarlGreyUI
+      dismissSigninConfirmationSnackbarForIdentity:kManagedIdentity2
+                                     assertVisible:YES];
   [self assertAccountMenuIsNotShown];
   [SigninEarlGrey verifySignedInWithFakeIdentity:kManagedIdentity2];
 }

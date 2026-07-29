@@ -4,28 +4,37 @@
 
 #include "ui/native_theme/native_theme.h"
 
-#include <cstring>
+#include <stddef.h>
+
+#include <algorithm>
+#include <cmath>
 #include <optional>
+#include <utility>
 
 #include "base/command_line.h"
 #include "base/containers/fixed_flat_map.h"
 #include "base/functional/bind.h"
-#include "base/logging.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/scoped_refptr.h"
+#include "base/notreached.h"
 #include "base/observer_list.h"
+#include "base/sequence_checker.h"
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
 #include "build/build_config.h"
 #include "cc/paint/paint_canvas.h"
 #include "cc/paint/paint_flags.h"
+#include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/ui_base_switches.h"
 #include "ui/color/color_id.h"
 #include "ui/color/color_metrics.h"
 #include "ui/color/color_provider.h"
 #include "ui/color/color_provider_key.h"
-#include "ui/color/color_provider_utils.h"
+#include "ui/color/color_provider_manager.h"
+#include "ui/color/system_theme.h"
 #include "ui/gfx/geometry/skia_conversions.h"
 #include "ui/native_theme/features/native_theme_features.h"
-#include "ui/native_theme/native_theme_utils.h"
+#include "ui/native_theme/native_theme_observer.h"
 
 namespace ui {
 
@@ -71,7 +80,7 @@ ColorProviderKey NativeTheme::GetColorProviderKey(
             {PageColors::kNightSky, ColorProviderKey::ForcedColors::kNightSky},
             {PageColors::kWhite, ColorProviderKey::ForcedColors::kWhite},
             {PageColors::kHighContrast,
-             ColorProviderKey::ForcedColors::kActive},
+             ColorProviderKey::ForcedColors::kSystem},
             {PageColors::kAquatic, ColorProviderKey::ForcedColors::kAquatic},
         });
 
@@ -79,16 +88,16 @@ ColorProviderKey NativeTheme::GetColorProviderKey(
   };
 
   const bool dark_mode =
-      InForcedColorsMode()
-          ? (GetPreferredColorScheme() == PreferredColorScheme::kDark)
+      forced_colors()
+          ? (preferred_color_scheme() == PreferredColorScheme::kDark)
           : ShouldUseDarkColors();
   ui::ColorProviderKey key;
   key.color_mode = dark_mode ? ColorProviderKey::ColorMode::kDark
                              : ColorProviderKey::ColorMode::kLight;
-  key.contrast_mode = UserHasContrastPreference()
+  key.contrast_mode = preferred_contrast() == PreferredContrast::kMore
                           ? ColorProviderKey::ContrastMode::kHigh
                           : ColorProviderKey::ContrastMode::kNormal;
-  key.forced_colors = get_forced_colors_key(InForcedColorsMode(), page_colors_);
+  key.forced_colors = get_forced_colors_key(forced_colors(), page_colors_);
   key.system_theme = system_theme_;
   key.frame_type = use_custom_frame ? ColorProviderKey::FrameType::kChromium
                                     : ColorProviderKey::FrameType::kNative;
@@ -103,10 +112,6 @@ ColorProviderKey NativeTheme::GetColorProviderKey(
 }
 
 SkColor NativeTheme::GetSystemButtonPressedColor(SkColor base_color) const {
-  return base_color;
-}
-
-SkColor4f NativeTheme::FocusRingColorForBaseColor(SkColor4f base_color) const {
   return base_color;
 }
 
@@ -160,23 +165,22 @@ void NativeTheme::NotifyOnPreferredContrastUpdated() {
   // listener, and those events may be delivered on unexpected sequences.
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   native_theme_observers_.Notify(
-      &NativeThemeObserver::OnPreferredContrastChanged);
+      &NativeThemeObserver::OnPreferredContrastChanged, this);
 }
 
+// static
 float NativeTheme::AdjustBorderWidthByZoom(float border_width,
-                                           float zoom_level) const {
-  float zoomed = floorf(border_width * zoom_level);
-  return std::max(1.0f, zoomed);
+                                           float zoom_level) {
+  return std::max(std::floor(border_width * zoom_level), 1.0f);
 }
 
+// static
 float NativeTheme::AdjustBorderRadiusByZoom(Part part,
                                             float border_radius,
-                                            float zoom) const {
-  if (part == kCheckbox || part == kTextField || part == kPushButton) {
-    float zoomed = floorf(border_radius * zoom);
-    return std::max(1.0f, zoomed);
-  }
-  return border_radius;
+                                            float zoom) {
+  return (part == kCheckbox || part == kTextField || part == kPushButton)
+             ? AdjustBorderWidthByZoom(border_radius, zoom)
+             : border_radius;
 }
 
 base::TimeDelta NativeTheme::GetCaretBlinkInterval() const {
@@ -191,12 +195,10 @@ base::TimeDelta NativeTheme::GetCaretBlinkInterval() const {
   return kDefaultCaretBlinkInterval;
 }
 
-NativeTheme::NativeTheme(bool should_use_dark_colors,
-                         ui::SystemTheme system_theme)
-    : should_use_dark_colors_(should_use_dark_colors || IsForcedDarkMode()),
+NativeTheme::NativeTheme(ui::SystemTheme system_theme)
+    : should_use_dark_colors_(IsForcedDarkMode()),
       system_theme_(system_theme),
       forced_colors_(IsForcedHighContrast()),
-
       preferred_color_scheme_(CalculatePreferredColorScheme()),
       preferred_contrast_(CalculatePreferredContrast()) {}
 
@@ -243,63 +245,15 @@ bool NativeTheme::ShouldUseDarkColors() const {
   return should_use_dark_colors_;
 }
 
-bool NativeTheme::UserHasContrastPreference() const {
-  return GetPreferredContrast() !=
-         NativeTheme::PreferredContrast::kNoPreference;
-}
-
-bool NativeTheme::InForcedColorsMode() const {
-  return forced_colors_;
-}
-
-NativeTheme::PlatformHighContrastColorScheme
-NativeTheme::GetPlatformHighContrastColorScheme() const {
-  if (!InForcedColorsMode()) {
-    return PlatformHighContrastColorScheme::kNone;
-  }
-  return (GetPreferredColorScheme() == PreferredColorScheme::kDark)
-             ? PlatformHighContrastColorScheme::kDark
-             : PlatformHighContrastColorScheme::kLight;
-}
-
-NativeTheme::PageColors NativeTheme::GetPageColors() const {
-  return page_colors_;
-}
-
 NativeTheme::PreferredColorScheme NativeTheme::CalculatePreferredColorScheme()
     const {
   return ShouldUseDarkColors() ? NativeTheme::PreferredColorScheme::kDark
                                : NativeTheme::PreferredColorScheme::kLight;
 }
 
-// static
-bool NativeTheme::CalculateUseOverlayScrollbar() {
-#if BUILDFLAG(IS_CHROMEOS)
-  return true;
-#else
-  return IsOverlayScrollbarEnabledByFeatureFlag();
-#endif
-}
-
 std::optional<base::TimeDelta> NativeTheme::GetPlatformCaretBlinkInterval()
     const {
   return std::nullopt;
-}
-
-NativeTheme::PreferredColorScheme NativeTheme::GetPreferredColorScheme() const {
-  return preferred_color_scheme_;
-}
-
-bool NativeTheme::GetPrefersReducedTransparency() const {
-  return prefers_reduced_transparency_;
-}
-
-bool NativeTheme::GetInvertedColors() const {
-  return inverted_colors_;
-}
-
-NativeTheme::PreferredContrast NativeTheme::GetPreferredContrast() const {
-  return preferred_contrast_;
 }
 
 void NativeTheme::SetPreferredContrast(
@@ -328,15 +282,6 @@ bool NativeTheme::IsForcedHighContrast() {
 NativeTheme::PreferredContrast NativeTheme::CalculatePreferredContrast() const {
   return IsForcedHighContrast() ? PreferredContrast::kMore
                                 : PreferredContrast::kNoPreference;
-}
-
-std::optional<CaptionStyle> NativeTheme::GetSystemCaptionStyle() const {
-  return CaptionStyle::FromSystemSettings();
-}
-
-const std::map<NativeTheme::SystemThemeColor, SkColor>&
-NativeTheme::GetSystemColors() const {
-  return system_colors_;
 }
 
 std::optional<SkColor> NativeTheme::GetSystemThemeColor(
@@ -368,28 +313,17 @@ NativeTheme::ColorSchemeNativeThemeObserver::~ColorSchemeNativeThemeObserver() =
 
 void NativeTheme::ColorSchemeNativeThemeObserver::OnNativeThemeUpdated(
     ui::NativeTheme* observed_theme) {
-  const bool should_use_dark_colors = observed_theme->ShouldUseDarkColors();
-  const PreferredColorScheme preferred_color_scheme =
-      observed_theme->GetPreferredColorScheme();
-  const bool inverted_colors = observed_theme->GetInvertedColors();
-  const base::TimeDelta caret_blink_interval =
+  const bool new_inverted_colors = observed_theme->inverted_colors();
+  const base::TimeDelta new_caret_blink_interval =
       observed_theme->GetCaretBlinkInterval();
   bool notify_observers = false;
 
-  if (theme_to_update_->ShouldUseDarkColors() != should_use_dark_colors) {
-    theme_to_update_->set_use_dark_colors(should_use_dark_colors);
+  if (theme_to_update_->inverted_colors() != new_inverted_colors) {
+    theme_to_update_->set_inverted_colors(new_inverted_colors);
     notify_observers = true;
   }
-  if (theme_to_update_->GetPreferredColorScheme() != preferred_color_scheme) {
-    theme_to_update_->set_preferred_color_scheme(preferred_color_scheme);
-    notify_observers = true;
-  }
-  if (theme_to_update_->GetInvertedColors() != inverted_colors) {
-    theme_to_update_->set_inverted_colors(inverted_colors);
-    notify_observers = true;
-  }
-  if (theme_to_update_->GetCaretBlinkInterval() != caret_blink_interval) {
-    theme_to_update_->set_caret_blink_interval(caret_blink_interval);
+  if (theme_to_update_->GetCaretBlinkInterval() != new_caret_blink_interval) {
+    theme_to_update_->set_caret_blink_interval(new_caret_blink_interval);
     notify_observers = true;
   }
 
@@ -397,65 +331,80 @@ void NativeTheme::ColorSchemeNativeThemeObserver::OnNativeThemeUpdated(
       theme_to_update_->UpdateContrastRelatedStates(*observed_theme);
 
   if (notify_observers) {
-    DCHECK(theme_to_update_->UserHasContrastPreference() ||
-           !theme_to_update_->InForcedColorsMode());
+    theme_to_update_->NotifyOnNativeThemeUpdated();
+  }
+}
+
+void NativeTheme::ColorSchemeNativeThemeObserver::OnPreferredContrastChanged(
+    ui::NativeTheme* observed_theme) {
+  if (theme_to_update_->UpdateContrastRelatedStates(*observed_theme)) {
     theme_to_update_->NotifyOnNativeThemeUpdated();
   }
 }
 
 bool NativeTheme::UpdateContrastRelatedStates(
     const NativeTheme& observed_theme) {
-  bool forced_colors = observed_theme.InForcedColorsMode();
-  PageColors page_colors = observed_theme.GetPageColors();
-  bool prefers_reduced_transparency =
-      observed_theme.GetPrefersReducedTransparency();
-  PreferredContrast preferred_contrast = observed_theme.GetPreferredContrast();
+  bool new_forced_colors = observed_theme.forced_colors();
+  PageColors new_page_colors = observed_theme.page_colors();
+  PreferredContrast new_preferred_contrast =
+      observed_theme.preferred_contrast();
+  bool new_should_use_dark_colors = observed_theme.ShouldUseDarkColors();
+  PreferredColorScheme new_preferred_color_scheme =
+      observed_theme.preferred_color_scheme();
+  bool new_prefers_reduced_transparency =
+      observed_theme.prefers_reduced_transparency();
   bool states_updated = false;
 
   const auto default_page_colors =
-      forced_colors ? PageColors::kHighContrast : PageColors::kOff;
-  if (page_colors != default_page_colors) {
-    if (page_colors == PageColors::kOff) {
-      forced_colors = false;
-      preferred_contrast = PreferredContrast::kNoPreference;
-    } else if (page_colors != PageColors::kHighContrast) {
+      new_forced_colors ? PageColors::kHighContrast : PageColors::kOff;
+  if (new_page_colors != default_page_colors) {
+    if (new_page_colors == PageColors::kOff) {
+      new_forced_colors = false;
+      new_preferred_contrast = PreferredContrast::kNoPreference;
+    } else if (new_page_colors != PageColors::kHighContrast) {
       // Set other states based on the selected theme (i.e. `kDusk`, `kDesert`,
       // `kNightSky`, `kWhite`, or `kAquatic`). This block is only executed when
       // one of these themes is chosen. `kHighContrast` is not a valid theme
       // here, as it is only available in forced colors mode.
-      CHECK_NE(page_colors, ui::NativeTheme::PageColors::kOff);
-      CHECK_NE(page_colors, ui::NativeTheme::PageColors::kHighContrast);
-      forced_colors = true;
-      preferred_contrast = PreferredContrast::kMore;
+      CHECK_NE(new_page_colors, ui::NativeTheme::PageColors::kOff);
+      CHECK_NE(new_page_colors, ui::NativeTheme::PageColors::kHighContrast);
+      new_forced_colors = true;
+      new_preferred_contrast = PreferredContrast::kMore;
     }
   }
 
-  if (InForcedColorsMode() != forced_colors) {
-    set_forced_colors(forced_colors);
+  if (forced_colors() != new_forced_colors) {
+    set_forced_colors(new_forced_colors);
     states_updated = true;
   }
-  if (GetPageColors() != page_colors) {
-    set_page_colors(page_colors);
-    // Only update the color scheme if page colors is a selected theme.
-    if (page_colors != PageColors::kOff &&
-        page_colors != PageColors::kHighContrast) {
-      bool is_dark_color = page_colors == PageColors::kNightSky ||
-                           page_colors == PageColors::kDusk ||
-                           page_colors == PageColors::kAquatic;
-      PreferredColorScheme page_colors_theme_scheme =
-          is_dark_color ? PreferredColorScheme::kDark
-                        : PreferredColorScheme::kLight;
-      set_use_dark_colors(is_dark_color);
-      set_preferred_color_scheme(page_colors_theme_scheme);
-    }
+  if (page_colors() != new_page_colors) {
+    set_page_colors(new_page_colors);
     states_updated = true;
   }
-  if (GetPreferredContrast() != preferred_contrast) {
-    SetPreferredContrast(preferred_contrast);
+  // Only update the color scheme if page colors is a selected theme.
+  if (new_page_colors != PageColors::kOff &&
+      new_page_colors != PageColors::kHighContrast) {
+    new_should_use_dark_colors = new_page_colors == PageColors::kNightSky ||
+                                 new_page_colors == PageColors::kDusk ||
+                                 new_page_colors == PageColors::kAquatic;
+    new_preferred_color_scheme = new_should_use_dark_colors
+                                     ? PreferredColorScheme::kDark
+                                     : PreferredColorScheme::kLight;
+  }
+  if (ShouldUseDarkColors() != new_should_use_dark_colors) {
+    set_use_dark_colors(new_should_use_dark_colors);
     states_updated = true;
   }
-  if (GetPrefersReducedTransparency() != prefers_reduced_transparency) {
-    set_prefers_reduced_transparency(prefers_reduced_transparency);
+  if (preferred_color_scheme() != new_preferred_color_scheme) {
+    set_preferred_color_scheme(new_preferred_color_scheme);
+    states_updated = true;
+  }
+  if (preferred_contrast() != new_preferred_contrast) {
+    SetPreferredContrast(new_preferred_contrast);
+    states_updated = true;
+  }
+  if (prefers_reduced_transparency() != new_prefers_reduced_transparency) {
+    set_prefers_reduced_transparency(new_prefers_reduced_transparency);
     states_updated = true;
   }
 
@@ -470,7 +419,7 @@ gfx::Insets NativeTheme::GetScrollbarSolidColorThumbInsets(Part part) const {
   return gfx::Insets();
 }
 
-SkColor4f NativeTheme::GetScrollbarThumbColor(
+SkColor NativeTheme::GetScrollbarThumbColor(
     const ui::ColorProvider& color_provider,
     State state,
     const ScrollbarThumbExtraParams& extra_params) const {

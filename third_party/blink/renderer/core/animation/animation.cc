@@ -86,6 +86,7 @@
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
 #include "third_party/blink/renderer/platform/scheduler/public/event_loop.h"
 #include "third_party/blink/renderer/platform/wtf/math_extras.h"
+#include "third_party/perfetto/include/perfetto/tracing/track.h"
 
 namespace blink {
 
@@ -787,8 +788,9 @@ bool Animation::PreCommit(
 
       DCHECK_EQ(V8AnimationPlayState::Enum::kRunning,
                 CalculateAnimationPlayState());
-      TRACE_EVENT_NESTABLE_ASYNC_INSTANT1(
-          AnimationTraceCategories(), "Animation", this, "data",
+      TRACE_EVENT_INSTANT(
+          AnimationTraceCategories(), "Animation",
+          perfetto::Track::FromPointer(this), "data",
           [&](perfetto::TracedValue context) {
             inspector_animation_compositor_event::Data(
                 std::move(context), failure_reasons,
@@ -877,7 +879,7 @@ bool Animation::HasLowerCompositeOrdering(
       // ::view-transition subtree but we may want to sort them based on their
       // actual composite order.
       // https://github.com/w3c/csswg-drafts/issues/9588.
-      return WTF::CodeUnitCompareLessThan(
+      return CodeUnitCompareLessThan(
           PseudoElement::PseudoElementNameForEvents(owning_element1),
           PseudoElement::PseudoElementNameForEvents(owning_element2));
     }
@@ -1957,8 +1959,8 @@ void Animation::ScheduleAsyncFinish() {
   // state temporarily.
   pending_finish_notification_ = true;
   if (!has_queued_microtask_) {
-    execution_context->GetAgent()->event_loop()->EnqueueMicrotask(WTF::BindOnce(
-        &Animation::AsyncFinishMicrotask, WrapWeakPersistent(this)));
+    execution_context->GetAgent()->event_loop()->EnqueueMicrotask(
+        BindOnce(&Animation::AsyncFinishMicrotask, WrapWeakPersistent(this)));
     has_queued_microtask_ = true;
   }
 }
@@ -3342,10 +3344,9 @@ void Animation::ResolvePromiseMaybeAsync(AnimationPromise* promise) {
   if (ScriptForbiddenScope::IsScriptForbidden()) {
     GetExecutionContext()
         ->GetTaskRunner(TaskType::kDOMManipulation)
-        ->PostTask(
-            FROM_HERE,
-            WTF::BindOnce(&AnimationPromise::Resolve<Animation*>,
-                          WrapPersistent(promise), WrapPersistent(this)));
+        ->PostTask(FROM_HERE,
+                   BindOnce(&AnimationPromise::Resolve<Animation*>,
+                            WrapPersistent(promise), WrapPersistent(this)));
   } else {
     promise->Resolve(this);
   }
@@ -3361,9 +3362,9 @@ void Animation::RejectAndResetPromiseMaybeAsync(AnimationPromise* promise) {
   if (ScriptForbiddenScope::IsScriptForbidden()) {
     GetExecutionContext()
         ->GetTaskRunner(TaskType::kDOMManipulation)
-        ->PostTask(FROM_HERE, WTF::BindOnce(&Animation::RejectAndResetPromise,
-                                            WrapPersistent(this),
-                                            WrapPersistent(promise)));
+        ->PostTask(FROM_HERE,
+                   BindOnce(&Animation::RejectAndResetPromise,
+                            WrapPersistent(this), WrapPersistent(promise)));
   } else {
     RejectAndResetPromise(promise);
   }
@@ -3385,23 +3386,25 @@ void Animation::NotifyProbe() {
                      new_play_state == V8AnimationPlayState::Enum::kRunning;
 
     if (!was_active && is_active) {
-      TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(
-          AnimationTraceCategories(), "Animation", this, "data",
-          [&](perfetto::TracedValue context) {
-            inspector_animation_event::Data(std::move(context), *this);
-          });
+      TRACE_EVENT_BEGIN(AnimationTraceCategories(), "Animation",
+                        perfetto::Track::FromPointer(this), "data",
+                        [&](perfetto::TracedValue context) {
+                          inspector_animation_event::Data(std::move(context),
+                                                          *this);
+                        });
     } else if (was_active && !is_active) {
-      TRACE_EVENT_NESTABLE_ASYNC_END1(
-          AnimationTraceCategories(), "Animation", this, "endData",
-          [&](perfetto::TracedValue context) {
+      TRACE_EVENT_END(
+          AnimationTraceCategories(), perfetto::Track::FromPointer(this),
+          "endData", [&](perfetto::TracedValue context) {
             inspector_animation_state_event::Data(std::move(context), *this);
           });
     } else {
-      TRACE_EVENT_NESTABLE_ASYNC_INSTANT1(
-          AnimationTraceCategories(), "Animation", this, "data",
-          [&](perfetto::TracedValue context) {
-            inspector_animation_state_event::Data(std::move(context), *this);
-          });
+      TRACE_EVENT_INSTANT(AnimationTraceCategories(), "Animation",
+                          perfetto::Track::FromPointer(this), "data",
+                          [&](perfetto::TracedValue context) {
+                            inspector_animation_state_event::Data(
+                                std::move(context), *this);
+                          });
     }
   }
 }

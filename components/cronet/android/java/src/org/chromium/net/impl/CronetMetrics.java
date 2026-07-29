@@ -48,10 +48,25 @@ public final class CronetMetrics extends RequestFinishedInfo.Metrics {
         return null;
     }
 
+    static long getDateDeltaMillisOrDefault(Date before, Date after, long defaultValue) {
+        if (before == null || after == null) return defaultValue;
+        return after.getTime() - before.getTime();
+    }
+
     private static boolean checkOrder(long start, long end) {
         // If end doesn't exist, start can be anything, including also not existing
         // If end exists, start must also exist and be before end
         return (end >= start && start != -1) || end == -1;
+    }
+
+    /**
+     * Returns a metrics object populated with empty values.
+     *
+     * <p>Ideally we should just provide Cronet users with a null Metrics object instead, but sadly,
+     * for historical reasons not all users handle a null object properly.
+     */
+    public static CronetMetrics empty() {
+        return new CronetMetrics(-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, false, 0, 0);
     }
 
     /** New-style constructor */

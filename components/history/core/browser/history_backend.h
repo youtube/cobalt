@@ -302,7 +302,10 @@ class HistoryBackend : public base::RefCountedThreadSafe<HistoryBackend>,
 
   // Querying ------------------------------------------------------------------
 
-  QueryURLResult QueryURL(const GURL& url, bool want_visits);
+  QueryURLResult QueryURL(const GURL& url);
+  QueryURLAndVisitsResult QueryURLAndVisits(
+      const GURL& url,
+      VisitQuery404sPolicy policy_for_404s);
   QueryResults QueryHistory(const std::u16string& text_query,
                             const QueryOptions& options);
 
@@ -352,9 +355,6 @@ class HistoryBackend : public base::RefCountedThreadSafe<HistoryBackend>,
   // time.
   HistoryCountResult GetHistoryCount(const base::Time& begin_time,
                                      const base::Time& end_time);
-
-  // Returns the number of hosts visited in the last month.
-  HistoryCountResult CountUniqueHostsVisitedLastMonth();
 
   // Returns a collection of domain diversity metrics. Each metric is an
   // unsigned integer representing the number of unique domains (effective
@@ -568,14 +568,9 @@ class HistoryBackend : public base::RefCountedThreadSafe<HistoryBackend>,
 
   void UpdateClusterTriggerability(const std::vector<Cluster>& clusters);
 
-  // Use `UpdateVisitsInteractionState` instead to preserve the visits' scores.
   void HideVisits(const std::vector<VisitID>& visit_ids);
 
   void UpdateClusterVisit(const history::ClusterVisit& cluster_visit);
-
-  void UpdateVisitsInteractionState(
-      const std::vector<VisitID>& visit_ids,
-      const ClusterVisit::InteractionState interaction_state);
 
   std::vector<Cluster> GetMostRecentClusters(
       base::Time inclusive_min_time,
@@ -643,17 +638,14 @@ class HistoryBackend : public base::RefCountedThreadSafe<HistoryBackend>,
 
   bool CanAddURL(const GURL& url) const override;
 
-  bool GetAllTypedURLs(URLRows* urls);
-
   // TODO(manukh): It's confusing to have 5 methods for fetching URLs' visits
   //   and continuously adding more methods for each use case. Maybe we can
   //   satisfy all the callsites with just a few generic methods. E.g.:
   //   - GetMostRecentVisitsForUrlId(URLID id, int max_visits)
   //   - GetMostRecentVisitsForGurl(GURL url, int max_visits)
   //   - GetMostRecentVisitsForEachGurl(std::vector<GURL> urls, int max_visits)
-
-  // TODO(manukh): DEPRECATED (see above comment)
-  bool GetVisitsForURL(URLID id, VisitVector* visits);
+  // Likewise `VisitDatabase::Get[MostRecent]VisitsFor[Gurl|Url|EachGurl]`
+  // methods.
 
   // TODO(manukh): DEPRECATED (see above comment)
   bool GetMostRecentVisitForURL(URLID id, VisitRow* visit_row) override;
@@ -662,7 +654,7 @@ class HistoryBackend : public base::RefCountedThreadSafe<HistoryBackend>,
   // TODO(manukh): Rename to `GetMostRecentVisitsForUrlId`.
   bool GetMostRecentVisitsForURL(URLID id, int max_visits, VisitVector* visits);
 
-  QueryURLResult GetMostRecentVisitsForGurl(GURL url, int max_visits);
+  QueryURLAndVisitsResult GetMostRecentVisitsForGurl(GURL url, int max_visits);
 
   // Gets whether the URL is known to sync.
   bool GetIsUrlKnownToSync(URLID id, bool* is_known_to_sync);
@@ -779,10 +771,6 @@ class HistoryBackend : public base::RefCountedThreadSafe<HistoryBackend>,
   // The fields of `ExpireHistoryArgs` map directly to the arguments of
   // ExpireHistoryBetween().
   void ExpireHistory(const std::vector<ExpireHistoryArgs>& expire_list);
-
-  // Expires all visits before and including the given time, updating the URLs
-  // accordingly.
-  void ExpireHistoryBeforeForTesting(base::Time end_time);
 
   // Bookmarks -----------------------------------------------------------------
 

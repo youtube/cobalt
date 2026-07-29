@@ -9,10 +9,13 @@
 
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
-#include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
-#include "components/password_manager/core/browser/password_store/login_database.h"
+#include "build/build_config.h"
 #include "components/password_manager/core/browser/password_store/password_store_interface.h"
+
+#if !BUILDFLAG(IS_ANDROID)
+#include "components/password_manager/core/browser/password_store/login_database.h"
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 namespace network::mojom {
 class NetworkContext;
@@ -23,17 +26,16 @@ class PrefService;
 namespace password_manager {
 
 class CredentialsCleanerRunner;
-class PasswordStoreBackend;
 
+#if !BUILDFLAG(IS_ANDROID)
 // Creates a LoginDatabase. Looks in |db_directory| for the database file.
 // Does not call LoginDatabase::Init() -- to avoid UI jank, that needs to be
 // called by PasswordStore::Init() on the background thread.
-std::unique_ptr<LoginDatabase> CreateLoginDatabaseForProfileStorage(
+std::unique_ptr<LoginDatabase> CreateLoginDatabase(
+    password_manager::IsAccountStore is_account_store,
     const base::FilePath& db_directory,
     PrefService* prefs);
-std::unique_ptr<LoginDatabase> CreateLoginDatabaseForAccountStorage(
-    const base::FilePath& db_directory,
-    PrefService* prefs);
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 // This function handles the following clean-ups of credentials:
 // (1) Removing blocklisted duplicates: if two blocklisted credentials have the
@@ -57,22 +59,6 @@ void SanitizeAndMigrateCredentials(
     base::TimeDelta delay,
     base::RepeatingCallback<network::mojom::NetworkContext*()>
         network_context_getter);
-
-// Checks that the backend was not yet shut down (i.e. the weak pointer to the
-// backend was not yet invalidated) before calling `set_prefs_callback`.
-//
-// Example of usage:
-//
-// base::BindRepeating(
-//     &password_manager::IntermediateCallbackForSettingPrefs,
-//     backend->AsWeakPtr(), base::BindRepeating(
-//         &password_manager::SetFooPref, pref_service,
-//        password_manager::prefs::
-//            kEmptyProfileStoreLoginDatabase))
-void IntermediateCallbackForSettingPrefs(
-    base::WeakPtr<PasswordStoreBackend> backend,
-    LoginDatabase::IsEmptyCallback set_prefs_callback,
-    bool value);
 
 }  // namespace password_manager
 

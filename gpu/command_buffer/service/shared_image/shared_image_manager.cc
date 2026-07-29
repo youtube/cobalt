@@ -40,11 +40,6 @@
 #include "ui/ozone/public/ozone_platform.h"
 #endif
 
-#if BUILDFLAG(IS_LINUX)
-#include "gpu/ipc/common/surface_handle.h"
-#include "ui/ozone/public/surface_factory_ozone.h"
-#endif
-
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/android_hardware_buffer_compat.h"
 #endif
@@ -443,7 +438,8 @@ std::unique_ptr<DawnBufferRepresentation> SharedImageManager::ProduceDawnBuffer(
     const Mailbox& mailbox,
     MemoryTypeTracker* tracker,
     const wgpu::Device& device,
-    wgpu::BackendType backend_type) {
+    wgpu::BackendType backend_type,
+    scoped_refptr<SharedContextState> context_state) {
   CALLED_ON_VALID_THREAD();
 
   AutoLock autolock(this);
@@ -454,8 +450,8 @@ std::unique_ptr<DawnBufferRepresentation> SharedImageManager::ProduceDawnBuffer(
     return nullptr;
   }
 
-  auto representation =
-      backing->ProduceDawnBuffer(this, tracker, device, backend_type);
+  auto representation = backing->ProduceDawnBuffer(this, tracker, device,
+                                                   backend_type, context_state);
   if (!representation) {
     LOG(ERROR) << "SharedImageManager::ProduceDawnBuffer: Trying to produce a "
                   "Dawn buffer representation from an incompatible backing: "
@@ -773,24 +769,5 @@ bool SharedImageManager::SupportsScanoutImages() {
   return false;
 #endif
 }
-
-#if BUILDFLAG(IS_LINUX)
-bool SharedImageManager::CanCreateNativePixmap(
-    gfx::BufferFormat buffer_format,
-    gfx::BufferUsage buffer_usage,
-    gpu::VulkanDeviceQueue* device_queue) {
-  auto size = gfx::Size(2, 2);
-  scoped_refptr<gfx::NativePixmap> pixmap =
-      ui::OzonePlatform::GetInstance()
-          ->GetSurfaceFactoryOzone()
-          ->CreateNativePixmap(gpu::kNullSurfaceHandle, device_queue, size,
-                               buffer_format, buffer_usage, size);
-  if (!pixmap.get() || pixmap->ExportHandle().planes.empty()) {
-    return false;
-  }
-
-  return true;
-}
-#endif
 
 }  // namespace gpu

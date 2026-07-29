@@ -20,6 +20,7 @@
 #include "net/base/network_isolation_key.h"
 #include "net/cookies/site_for_cookies.h"
 #include "net/http/http_request_headers.h"
+#include "net/http/http_response_headers.h"
 #include "net/log/net_log.h"
 #include "net/log/net_log_source.h"
 #include "net/log/net_log_with_source.h"
@@ -402,6 +403,7 @@ class PreflightController::PreflightLoader final {
   PreflightLoader(
       PreflightController* controller,
       CompletionCallback completion_callback,
+      int32_t request_id,
       const ResourceRequest& request,
       WithTrustedHeaderClient with_trusted_header_client,
       NonWildcardRequestHeadersSupport non_wildcard_request_headers_support,
@@ -448,22 +450,12 @@ class PreflightController::PreflightLoader final {
     }
     loader_ =
         SimpleURLLoader::Create(std::move(preflight_request), annotation_tag);
+    loader_->SetRequestID(request_id);
     uint32_t options = mojom::kURLLoadOptionAsCorsPreflight;
     if (with_trusted_header_client) {
       options |= mojom::kURLLoadOptionUseHeaderClient;
     }
     loader_->SetURLLoaderFactoryOptions(options);
-
-    // When private network access preflights are sent in warning mode, we
-    // should not wait around forever for a response. Certain servers never
-    // respond, and that should not fail the overall request. Instead, we should
-    // wait a short while then move on. See also https://crbug.com/1299382.
-    if (private_network_access_behavior_ ==
-            PrivateNetworkAccessPreflightBehavior::kWarnWithTimeout &&
-        base::FeatureList::IsEnabled(
-            features::kPrivateNetworkAccessPreflightShortTimeout)) {
-      loader_->SetTimeoutDuration(base::Milliseconds(200));
-    }
   }
 
   PreflightLoader(const PreflightLoader&) = delete;
@@ -714,6 +706,7 @@ PreflightController::~PreflightController() = default;
 
 void PreflightController::PerformPreflightCheck(
     CompletionCallback callback,
+    int32_t request_id,
     const ResourceRequest& request,
     WithTrustedHeaderClient with_trusted_header_client,
     NonWildcardRequestHeadersSupport non_wildcard_request_headers_support,
@@ -748,11 +741,11 @@ void PreflightController::PerformPreflightCheck(
   }
 
   auto emplaced_pair = loaders_.emplace(std::make_unique<PreflightLoader>(
-      this, std::move(callback), request, with_trusted_header_client,
-      non_wildcard_request_headers_support, private_network_access_behavior,
-      tainted, annotation_tag, network_isolation_key,
-      std::move(client_security_state), devtools_observer, net_log,
-      acam_preflight_spec_conformant,
+      this, std::move(callback), request_id, request,
+      with_trusted_header_client, non_wildcard_request_headers_support,
+      private_network_access_behavior, tainted, annotation_tag,
+      network_isolation_key, std::move(client_security_state),
+      devtools_observer, net_log, acam_preflight_spec_conformant,
       std::move(url_loader_network_service_observer), preflight_mode));
   (*emplaced_pair.first)->Request(loader_factory);
 }

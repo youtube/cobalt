@@ -72,6 +72,7 @@ extern const char kDiagnosticsRecovery[];
 #if BUILDFLAG(IS_CHROMEOS)
 extern const char kDisableAutoMaximizeForTests[];
 #endif
+extern const char kDisableAutoReload[];
 extern const char kDisableBackgroundNetworking[];
 extern const char kDisableClientSidePhishingDetection[];
 extern const char kDisableComponentExtensionsWithBackgroundPages[];
@@ -89,6 +90,7 @@ extern const char kDiskCacheSize[];
 extern const char kDoNotDeElevateOnLaunch[];
 extern const char kDumpBrowserHistograms[];
 extern const char kEnableAudioDebugRecordingsFromExtension[];
+extern const char kEnableAutoReload[];
 extern const char kEnableBookmarkUndo[];
 extern const char kEnableCloudPrintProxy[];
 extern const char kEnableDomainReliability[];
@@ -120,6 +122,7 @@ extern const char kForceAppMode[];
 extern const char kForceDevToolsAvailable[];
 #endif
 extern const char kForceFirstRun[];
+extern const char kRefreshPlatformPolicy[];
 extern const char kForceWhatsNew[];
 extern const char kHideCrashRestoreBubble[];
 extern const char kHomePage[];

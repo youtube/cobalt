@@ -7,16 +7,17 @@ module network.mojom;
 import "components/content_settings/core/common/content_settings.mojom";
 import "components/ip_protection/mojom/core.mojom";
 import "components/ip_protection/mojom/data_types.mojom";
+import "mojo/public/mojom/base/big_buffer.mojom";
 import "mojo/public/mojom/base/file_path.mojom";
 import "mojo/public/mojom/base/time.mojom";
 import "mojo/public/mojom/base/unguessable_token.mojom";
 import "mojo/public/mojom/base/values.mojom";
-import "mojo/public/mojom/base/big_buffer.mojom";
 import "sandbox/policy/mojom/context.mojom";
 import "services/network/public/mojom/address_list.mojom";
 import "services/network/public/mojom/cert_verifier_service.mojom";
 import "services/network/public/mojom/clear_data_filter.mojom";
 import "services/network/public/mojom/client_security_state.mojom";
+import "services/network/public/mojom/connection_change_observer_client.mojom";
 import "services/network/public/mojom/cookie_access_observer.mojom";
 import "services/network/public/mojom/cookie_encryption_provider.mojom";
 import "services/network/public/mojom/cookie_manager.mojom";
@@ -50,7 +51,6 @@ import "services/network/public/mojom/proxy_config.mojom";
 import "services/network/public/mojom/proxy_config_with_annotation.mojom";
 import "services/network/public/mojom/proxy_lookup_client.mojom";
 import "services/network/public/mojom/proxy_resolving_socket.mojom";
-import "services/network/public/mojom/connection_change_observer_client.mojom";
 import "services/network/public/mojom/reporting_service.mojom";
 import "services/network/public/mojom/restricted_cookie_manager.mojom";
 import "services/network/public/mojom/restricted_udp_socket.mojom";
@@ -460,6 +460,13 @@ struct NetworkContextParams {
 
   // Signals to IP Protection if this is an incognito network context.
   bool ip_protection_incognito = false;
+
+  // Contains unused IP Protection auth tokens recycled from a previous
+  // Incognito session, used to "pre-warm" the token cache for this
+  // NetworkContext.
+  map<ip_protection.mojom.ProxyLayer,
+      array<ip_protection.mojom.BlindSignedAuthToken>>
+          initial_ip_protection_tokens;
 
   // Points to the user-data directory of the active profile, where
   // Probabilistic Reveal Tokens will be stored if the
@@ -951,13 +958,13 @@ struct URLLoaderFactoryParams {
 
 // Represents a Durable Message Collector instance tied to a throttling profile.
 interface DurableMessageCollector {
-    // Configures the collector instance.
-    Configure(NetworkDurableMessageConfig config);
+  // Configures the collector instance.
+  Configure(NetworkDurableMessageConfig config);
 
-    // Retrieve a collected Durable Message for the given DevTools request ID,
-    // if one is available.
-    Retrieve(string devtools_request_id) =>
-        (mojo_base.mojom.BigBuffer? message);
+  // Retrieve a collected Durable Message for the given DevTools request ID,
+  // if one is available.
+  Retrieve(string devtools_request_id)
+      => (mojo_base.mojom.BigBuffer? message);
 };
 
 // Represents a distinct context for making network requests, with its own
@@ -1067,9 +1074,17 @@ interface NetworkContext {
 
   // Gets the current IP Proxy status from IpProtectionCore.
   //
-  // Only returns a kOk status if both kEnableIpPrivacyProxy and
-  // kMaskedDomainList are enabled, and IP Protection is available and on.
+  // Requires kIpPrivacyEnableIppPanelInDevTools to be enabled,
+  // otherwise return status of kUnavailable.
+  // Only returns a kOk status if IP Protection is available and active.
   GetIpProxyStatus() => (ip_protection.mojom.IpProxyStatus status);
+
+  // Sets whether the network context should bypass IP Protection proxies.
+  // Requires kIpPrivacyEnableIppPanelInDevTools to be enabled to set the
+  // bypass boolean.
+  // `bypass_proxy`: If true, the network context will attempt to bypass
+  //                 IP Protection proxies for all requests.
+  SetBypassIpProtectionProxy(bool bypass_proxy);
 
   // Deletes all Trust Tokens issued by |issuer|.
   //
@@ -1119,6 +1134,11 @@ interface NetworkContext {
   ComputeHttpCacheSize(
       mojo_base.mojom.Time start_time, mojo_base.mojom.Time end_time)
       => (bool is_upper_bound, int64 size_or_error);
+
+  // Notifies the network context that the browser is idle. This can be used
+  // by underlying services to perform deferred tasks, such as checkpointing
+  // the disk cache's database.
+  NotifyBrowserIdle();
 
   // Notifies the HttpCache of a renderer-level cache hit with `url`
   // and `http_method`, with the network isolation key `key` and
@@ -1300,8 +1320,8 @@ interface NetworkContext {
 
   // Enables network level storage of HTTP request/response bodies.
   EnableDurableMessageCollector(
-        mojo_base.mojom.UnguessableToken throttling_profile_id,
-        pending_receiver<DurableMessageCollector> receiver);
+      mojo_base.mojom.UnguessableToken throttling_profile_id,
+      pending_receiver<DurableMessageCollector> receiver);
 
   // Updates the Accept-Language header to be used for requests.
   SetAcceptLanguage(string new_accept_language);
@@ -1479,6 +1499,7 @@ interface NetworkContext {
       array<HttpHeader> additional_headers,
       int32 process_id,
       url.mojom.Origin origin,
+      ClientSecurityState client_security_state,
       uint32 options,
       MutableNetworkTrafficAnnotationTag traffic_annotation,
       pending_remote<WebSocketHandshakeClient> handshake_client,
@@ -1601,9 +1622,8 @@ interface NetworkContext {
   // Performs 2-QWAC verification. Returns the verified 2-QWAC certificate
   // chain if `binding` is a valid 2-QWAC binding for `hostname` which binds
   // `tls_certificate`.
-  Verify2QwacCertBinding(string binding,
-                         string hostname,
-                         X509Certificate tls_certificate)
+  Verify2QwacCertBinding(
+      string binding, string hostname, X509Certificate tls_certificate)
       => (X509Certificate verified_cert);
 
   // Adds explicitly-specified data as if it was processed from an
@@ -1690,7 +1710,6 @@ interface NetworkContext {
       => (AuthCredentials? credentials);
 
   // Enables the checking of static PKP records.
-  [Sync]
   EnableStaticKeyPinningForTesting() => ();
 
   // Verifies the given certificate using the context's CertVerifier.
@@ -1699,17 +1718,14 @@ interface NetworkContext {
                               string ocsp_response,
                               string sct_list) => (int32 error_code);
 
-  [Sync]
   GetTrustAnchorIDsForTesting() => (array<array<uint8>> trust_anchor_ids);
 
   // Adds a Domain Reliability Context.
-  [Sync]
   AddDomainReliabilityContextForTesting(
       url.mojom.Origin origin, url.mojom.Url upload_url) => ();
 
   // Forces all pending Domain Reliability uploads to run now, even if their
   // minimum delay has not yet passed.
-  [Sync]
   ForceDomainReliabilityUploadsForTesting() => ();
 
   // Set the SCT auditing mode for this NetworkContext.
@@ -1745,11 +1761,6 @@ interface NetworkContext {
 
   // Check if there is a preloaded shared dictionary info.
   HasPreloadedSharedDictionaryInfoForTesting() => (bool value);
-
-  // Called when visibility of ResourceSchedulerClient has changed.
-  // `client_token` identifies which client has changed its visibility.
-  ResourceSchedulerClientVisibilityChanged(
-      mojo_base.mojom.UnguessableToken client_token, bool visible);
 
   // Will flush cached client certificate for `host` if `certificate`
   // doesn't match the corresponding cached certificate.

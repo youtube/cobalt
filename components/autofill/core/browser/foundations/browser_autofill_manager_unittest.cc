@@ -59,6 +59,7 @@
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/filling/filling_product.h"
 #include "components/autofill/core/browser/form_import/form_data_importer_test_api.h"
+#include "components/autofill/core/browser/form_parsing/determine_regex_types.h"
 #include "components/autofill/core/browser/form_structure.h"
 #include "components/autofill/core/browser/form_structure_test_api.h"
 #include "components/autofill/core/browser/foundations/autofill_client.h"
@@ -790,6 +791,8 @@ class MockAutofillClient : public TestAutofillClient {
                 ->GetMerchantPromoCodeManager()));
     client->set_crowdsourcing_manager(
         std::make_unique<NiceMock<MockAutofillCrowdsourcingManager>>(&*client));
+    client->set_password_manager_delegate(
+        std::make_unique<NiceMock<MockPasswordManagerDelegate>>());
     test_api(client->GetPersonalDataManager().address_data_manager())
         .set_auto_accept_address_imports(true);
     test_api(*client->GetFormDataImporter())
@@ -1473,6 +1476,11 @@ class BrowserAutofillManagerTest : public testing::Test {
         client().GetAutocompleteHistoryManager());
   }
 
+  MockPasswordManagerDelegate& password_delegate() {
+    return *static_cast<MockPasswordManagerDelegate*>(
+        client().GetPasswordManagerDelegate(FieldGlobalId()));
+  }
+
  private:
   void CreateTestAutofillProfiles() {
     AutofillProfile profile1 =
@@ -1867,13 +1875,9 @@ TEST_F(BrowserAutofillManagerTest, WebauthnSignInWithAnotherDeviceSuggestion) {
   FormData form = CreateTestHybridSignUpFormData();
   FormsSeen({form});
 
-  auto password_manager_delegate =
-      std::make_unique<NiceMock<MockPasswordManagerDelegate>>();
-  ON_CALL(*password_manager_delegate,
-          GetWebauthnSignInWithAnotherDeviceSuggestion)
+  ON_CALL(password_delegate(), GetWebauthnSignInWithAnotherDeviceSuggestion)
       .WillByDefault(
           Return(Suggestion(SuggestionType::kWebauthnSignInWithAnotherDevice)));
-  client().set_password_manager_delegate(std::move(password_manager_delegate));
 
   OnAskForValuesToFill(form, form.fields()[0]);
 
@@ -1894,14 +1898,9 @@ TEST_F(BrowserAutofillManagerTest,
   FormData form = CreateTestHybridSignUpFormData();
   FormsSeen({form});
 
-  auto password_manager_delegate =
-      std::make_unique<NiceMock<MockPasswordManagerDelegate>>();
-  // This ON_CALL should not be decisive since the flag is off.
-  ON_CALL(*password_manager_delegate,
-          GetWebauthnSignInWithAnotherDeviceSuggestion)
+  ON_CALL(password_delegate(), GetWebauthnSignInWithAnotherDeviceSuggestion)
       .WillByDefault(
           Return(Suggestion(SuggestionType::kWebauthnSignInWithAnotherDevice)));
-  client().set_password_manager_delegate(std::move(password_manager_delegate));
 
   OnAskForValuesToFill(form, form.fields()[0]);
 
@@ -1926,13 +1925,9 @@ TEST_F(BrowserAutofillManagerTest,
       "Email", "email", "", FormControlType::kInputEmail, "username")});
   FormsSeen({form});
 
-  auto password_manager_delegate =
-      std::make_unique<NiceMock<MockPasswordManagerDelegate>>();
-  ON_CALL(*password_manager_delegate,
-          GetWebauthnSignInWithAnotherDeviceSuggestion)
+  ON_CALL(password_delegate(), GetWebauthnSignInWithAnotherDeviceSuggestion)
       .WillByDefault(
           Return(Suggestion(SuggestionType::kWebauthnSignInWithAnotherDevice)));
-  client().set_password_manager_delegate(std::move(password_manager_delegate));
 
   OnAskForValuesToFill(form, form.fields()[0]);
 
@@ -1955,18 +1950,62 @@ TEST_F(BrowserAutofillManagerTest,
   FormData form = CreateTestHybridSignUpFormData();
   FormsSeen({form});
 
-  auto password_manager_delegate =
-      std::make_unique<NiceMock<MockPasswordManagerDelegate>>();
-  ON_CALL(*password_manager_delegate,
-          GetWebauthnSignInWithAnotherDeviceSuggestion)
+  ON_CALL(password_delegate(), GetWebauthnSignInWithAnotherDeviceSuggestion)
       .WillByDefault(Return(std::nullopt));  // Explicitly return nullopt
-  client().set_password_manager_delegate(std::move(password_manager_delegate));
 
   OnAskForValuesToFill(form, form.fields()[0]);
 
   EXPECT_THAT(external_delegate()->suggestions(),
               Not(Contains(Suggestion(
                   SuggestionType::kWebauthnSignInWithAnotherDevice))));
+}
+
+TEST_F(BrowserAutofillManagerTest,
+       WebauthnSignInWithAnotherDeviceSuggestion_Select) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures(
+      /*enabled_features=*/
+      {
+          autofill::features::kAutofillAndPasswordsInSameSurface,
+          password_manager::features::
+              kAutofillReintroduceHybridPasskeyDropdownItem,
+      },
+      /*disabled_features=*/{});
+  FormData form = CreateTestHybridSignUpFormData();
+  FormsSeen({form});
+  Suggestion suggestion(SuggestionType::kWebauthnSignInWithAnotherDevice);
+
+  ON_CALL(password_delegate(), GetWebauthnSignInWithAnotherDeviceSuggestion)
+      .WillByDefault(Return(suggestion));
+  EXPECT_CALL(password_delegate(), SelectSuggestion(suggestion));
+
+  OnAskForValuesToFill(form, form.fields()[0]);
+
+  external_delegate()->DidSelectSuggestion(suggestion);
+}
+
+TEST_F(BrowserAutofillManagerTest,
+       WebauthnSignInWithAnotherDeviceSuggestion_Accept) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures(
+      /*enabled_features=*/
+      {
+          autofill::features::kAutofillAndPasswordsInSameSurface,
+          password_manager::features::
+              kAutofillReintroduceHybridPasskeyDropdownItem,
+      },
+      /*disabled_features=*/{});
+  FormData form = CreateTestHybridSignUpFormData();
+  FormsSeen({form});
+  Suggestion suggestion(SuggestionType::kWebauthnSignInWithAnotherDevice);
+
+  ON_CALL(password_delegate(), GetWebauthnSignInWithAnotherDeviceSuggestion)
+      .WillByDefault(Return(suggestion));
+  EXPECT_CALL(password_delegate(), AcceptSuggestion(suggestion, _));
+
+  OnAskForValuesToFill(form, form.fields()[0]);
+
+  external_delegate()->DidAcceptSuggestion(suggestion, {});
 }
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
@@ -2287,8 +2326,12 @@ TEST_F(BrowserAutofillManagerTestValuables,
       test::GetFormData({.fields = {{.role = EMAIL_OR_LOYALTY_MEMBERSHIP_ID},
                                     {.role = PASSWORD}}});
   auto form_structure = std::make_unique<FormStructure>(form_data);
-  form_structure->DetermineHeuristicTypes(GeoIpCountryCode(""),
-                                          LanguageCode(""), nullptr);
+  const RegexPredictions regex_predictions =
+      DetermineRegexTypes(GeoIpCountryCode(""), LanguageCode(""),
+                          form_structure->ToFormData(), nullptr);
+  regex_predictions.ApplyTo(form_structure->fields());
+  form_structure->RationalizeAndAssignSections(GeoIpCountryCode(""),
+                                               LanguageCode(""), nullptr);
 
   test_api(*form_structure)
       .SetFieldTypes({EMAIL_OR_LOYALTY_MEMBERSHIP_ID, PASSWORD},
@@ -2361,8 +2404,12 @@ TEST_F(BrowserAutofillManagerTestValuables,
       test::GetFormData({.fields = {{.role = EMAIL_OR_LOYALTY_MEMBERSHIP_ID},
                                     {.role = PASSWORD}}});
   auto form_structure = std::make_unique<FormStructure>(form_data);
-  form_structure->DetermineHeuristicTypes(GeoIpCountryCode(""),
-                                          LanguageCode(""), nullptr);
+  const RegexPredictions regex_predictions =
+      DetermineRegexTypes(GeoIpCountryCode(""), LanguageCode(""),
+                          form_structure->ToFormData(), nullptr);
+  regex_predictions.ApplyTo(form_structure->fields());
+  form_structure->RationalizeAndAssignSections(GeoIpCountryCode(""),
+                                               LanguageCode(""), nullptr);
 
   test_api(*form_structure)
       .SetFieldTypes({EMAIL_OR_LOYALTY_MEMBERSHIP_ID, PASSWORD},
@@ -3953,15 +4000,31 @@ TEST_F(BrowserAutofillManagerTest,
   FormSubmitted(response_data);
 }
 
-TEST_F(BrowserAutofillManagerTest, FormSubmission_NotifiesSaveAndFillManager) {
+TEST_F(BrowserAutofillManagerTest, FormEvents_NotifiesSaveAndFillManager) {
   EXPECT_CALL(*client().GetPaymentsAutofillClient()->GetSaveAndFillManager(),
-              OnCreditCardFormSubmitted());
+              LogCreditCardFormFilled());
+  EXPECT_CALL(*client().GetPaymentsAutofillClient()->GetSaveAndFillManager(),
+              LogCreditCardFormSubmitted());
+  EXPECT_CALL(*client().GetPaymentsAutofillClient()->GetSaveAndFillManager(),
+              MaybeAddStrikeForSaveAndFill());
 
+  client().SetAutofillPaymentMethodsEnabled(true);
   FormData form =
       CreateTestCreditCardFormData(/*is_https=*/true, /*use_month_type=*/false);
-
   FormsSeen({form});
-  FormSubmitted(form);
+
+  // Create a card and add it to the PDM.
+  personal_data().test_payments_data_manager().ClearCreditCards();
+  CreditCard card = test::GetCreditCard();
+  personal_data().payments_data_manager().AddCreditCard(card);
+  const CreditCard* pdm_card =
+      personal_data().payments_data_manager().GetCreditCardByGUID(card.guid());
+  ASSERT_TRUE(pdm_card);
+
+  FormData filled_form = FillAutofillFormDataAndGetResults(
+      form, form.fields()[0], pdm_card->guid(),
+      AutofillTriggerSource::kCreditCardSaveAndFill);
+  FormSubmitted(filled_form);
 }
 
 TEST_F(BrowserAutofillManagerTest,
@@ -4527,8 +4590,12 @@ TEST_F(BrowserAutofillManagerWithLogEventsTest,
   // Simulate having seen this form on page load.
   auto form_structure_instance = std::make_unique<FormStructure>(form);
   FormStructure* form_structure = form_structure_instance.get();
-  form_structure->DetermineHeuristicTypes(GeoIpCountryCode(""),
-                                          LanguageCode(""), nullptr);
+  const RegexPredictions regex_predictions =
+      DetermineRegexTypes(GeoIpCountryCode(""), LanguageCode(""),
+                          form_structure->ToFormData(), nullptr);
+  regex_predictions.ApplyTo(form_structure->fields());
+  form_structure->RationalizeAndAssignSections(GeoIpCountryCode(""),
+                                               LanguageCode(""), nullptr);
   manager().AddSeenFormStructure(std::move(form_structure_instance));
 
   // Simulate form submission.
@@ -4578,8 +4645,12 @@ TEST_F(BrowserAutofillManagerWithLogEventsTest,
   // Simulate having seen this form on page load.
   auto form_structure_instance = std::make_unique<FormStructure>(form);
   FormStructure* form_structure = form_structure_instance.get();
-  form_structure->DetermineHeuristicTypes(GeoIpCountryCode(""),
-                                          LanguageCode(""), nullptr);
+  const RegexPredictions regex_predictions =
+      DetermineRegexTypes(GeoIpCountryCode(""), LanguageCode(""),
+                          form_structure->ToFormData(), nullptr);
+  regex_predictions.ApplyTo(form_structure->fields());
+  form_structure->RationalizeAndAssignSections(GeoIpCountryCode(""),
+                                               LanguageCode(""), nullptr);
   manager().AddSeenFormStructure(std::move(form_structure_instance));
 
   // Make API response with suggestions.
@@ -4687,8 +4758,12 @@ TEST_F(BrowserAutofillManagerWithLogEventsTest,
   // Simulate having seen this form on page load.
   auto form_structure_instance = std::make_unique<FormStructure>(form);
   FormStructure* form_structure = form_structure_instance.get();
-  form_structure->DetermineHeuristicTypes(GeoIpCountryCode(""),
-                                          LanguageCode(""), nullptr);
+  const RegexPredictions regex_predictions =
+      DetermineRegexTypes(GeoIpCountryCode(""), LanguageCode(""),
+                          form_structure->ToFormData(), nullptr);
+  regex_predictions.ApplyTo(form_structure->fields());
+  form_structure->RationalizeAndAssignSections(GeoIpCountryCode(""),
+                                               LanguageCode(""), nullptr);
   manager().AddSeenFormStructure(std::move(form_structure_instance));
 
   // Make API response with suggestions.
@@ -5034,8 +5109,12 @@ TEST_F(BrowserAutofillManagerTest, OnLoadedServerPredictionsFromApi) {
   // Simulate having seen this form on page load.
   auto form_structure_instance = std::make_unique<FormStructure>(form);
   FormStructure* form_structure = form_structure_instance.get();
-  form_structure->DetermineHeuristicTypes(GeoIpCountryCode(""),
-                                          LanguageCode(""), nullptr);
+  RegexPredictions regex_predictions =
+      DetermineRegexTypes(GeoIpCountryCode(""), LanguageCode(""),
+                          form_structure->ToFormData(), nullptr);
+  regex_predictions.ApplyTo(form_structure->fields());
+  form_structure->RationalizeAndAssignSections(GeoIpCountryCode(""),
+                                               LanguageCode(""), nullptr);
   manager().AddSeenFormStructure(std::move(form_structure_instance));
 
   // Second form on the page.
@@ -5054,8 +5133,12 @@ TEST_F(BrowserAutofillManagerTest, OnLoadedServerPredictionsFromApi) {
   auto form_structure_instance2 = std::make_unique<FormStructure>(form2);
   // This pointer is valid as long as autofill manager lives.
   FormStructure* form_structure2 = form_structure_instance2.get();
-  form_structure2->DetermineHeuristicTypes(GeoIpCountryCode(""),
-                                           LanguageCode(""), nullptr);
+  regex_predictions =
+      DetermineRegexTypes(GeoIpCountryCode(""), LanguageCode(""),
+                          form_structure2->ToFormData(), nullptr);
+  regex_predictions.ApplyTo(form_structure2->fields());
+  form_structure2->RationalizeAndAssignSections(GeoIpCountryCode(""),
+                                                LanguageCode(""), nullptr);
   manager().AddSeenFormStructure(std::move(form_structure_instance2));
 
   // Make API response with suggestions.
@@ -5123,8 +5206,12 @@ TEST_F(BrowserAutofillManagerTest, OnLoadedServerPredictions_ResetManager) {
   // Simulate having seen this form on page load.
   // |form_structure| will be owned by |manager()|.
   auto form_structure = std::make_unique<FormStructure>(form);
-  form_structure->DetermineHeuristicTypes(GeoIpCountryCode(""),
-                                          LanguageCode(""), nullptr);
+  const RegexPredictions regex_predictions =
+      DetermineRegexTypes(GeoIpCountryCode(""), LanguageCode(""),
+                          form_structure->ToFormData(), nullptr);
+  regex_predictions.ApplyTo(form_structure->fields());
+  form_structure->RationalizeAndAssignSections(GeoIpCountryCode(""),
+                                               LanguageCode(""), nullptr);
   std::vector<FormSignature> signatures =
       test::GetEncodedSignatures(*form_structure);
   manager().AddSeenFormStructure(std::move(form_structure));
@@ -5174,8 +5261,12 @@ TEST_F(BrowserAutofillManagerTest, DetermineHeuristicsWithOverallPrediction) {
   FormStructure* form_structure = [&] {
     auto form_structure = std::make_unique<FormStructure>(form);
     FormStructure* ptr = form_structure.get();
-    form_structure->DetermineHeuristicTypes(GeoIpCountryCode(""),
-                                            LanguageCode(""), nullptr);
+    const RegexPredictions regex_predictions =
+        DetermineRegexTypes(GeoIpCountryCode(""), LanguageCode(""),
+                            form_structure->ToFormData(), nullptr);
+    regex_predictions.ApplyTo(form_structure->fields());
+    form_structure->RationalizeAndAssignSections(GeoIpCountryCode(""),
+                                                 LanguageCode(""), nullptr);
     manager().AddSeenFormStructure(std::move(form_structure));
     return ptr;
   }();
@@ -5960,8 +6051,12 @@ TEST_F(BrowserAutofillManagerTest,
                                        FormControlType::kInputText)});
 
   auto form_structure = std::make_unique<FormStructure>(form);
-  form_structure->DetermineHeuristicTypes(GeoIpCountryCode(""),
-                                          LanguageCode(""), nullptr);
+  const RegexPredictions regex_predictions =
+      DetermineRegexTypes(GeoIpCountryCode(""), LanguageCode(""),
+                          form_structure->ToFormData(), nullptr);
+  regex_predictions.ApplyTo(form_structure->fields());
+  form_structure->RationalizeAndAssignSections(GeoIpCountryCode(""),
+                                               LanguageCode(""), nullptr);
   // Make sure the form can not be autofilled now.
   ASSERT_FALSE(std::ranges::any_of(
       form_structure->fields(),
@@ -6923,8 +7018,12 @@ TEST_F(BrowserAutofillManagerTest, AutocompleteMetrics) {
   }
   // Override the types and simulate seeing the form on page load.
   auto form_structure = std::make_unique<FormStructure>(form);
-  form_structure->DetermineHeuristicTypes(GeoIpCountryCode(""),
-                                          LanguageCode(""), nullptr);
+  const RegexPredictions regex_predictions =
+      DetermineRegexTypes(GeoIpCountryCode(""), LanguageCode(""),
+                          form_structure->ToFormData(), nullptr);
+  regex_predictions.ApplyTo(form_structure->fields());
+  form_structure->RationalizeAndAssignSections(GeoIpCountryCode(""),
+                                               LanguageCode(""), nullptr);
   test_api(*form_structure).SetFieldTypes(heuristic_types, server_types);
   manager().AddSeenFormStructure(std::move(form_structure));
 
@@ -7351,8 +7450,11 @@ class BrowserAutofillManagerTest_AutofillAi
     {
       auto fs = std::make_unique<FormStructure>(form);
       form_structure = fs.get();
-      fs->DetermineHeuristicTypes(GeoIpCountryCode(""), LanguageCode(""),
-                                  nullptr);
+      const RegexPredictions regex_predictions = DetermineRegexTypes(
+          GeoIpCountryCode(""), LanguageCode(""), fs->ToFormData(), nullptr);
+      regex_predictions.ApplyTo(fs->fields());
+      fs->RationalizeAndAssignSections(GeoIpCountryCode(""), LanguageCode(""),
+                                       nullptr);
       manager().AddSeenFormStructure(std::move(fs));
     }
 
@@ -9233,36 +9335,8 @@ TEST_F(BrowserAutofillManagerPlusAddressTest,
       external_delegate()->suggestions().front(), {});
 }
 
-// Fixture setting the BAM's `PasswordManagerDelegate` to a mock instead
-// of the default `nullptr`. Enables any features if necessary.
-class BrowserAutofillManagerUsingPasswordDelegateTest
-    : public BrowserAutofillManagerTest {
- protected:
-  void SetUp() override {
-    BrowserAutofillManagerTest::SetUp();
-    client().set_password_manager_delegate(CreatePasswordDelegate());
-  }
-
-  void TearDown() override {
-    delegate_ = nullptr;
-    BrowserAutofillManagerTest::TearDown();
-  }
-
-  MockPasswordManagerDelegate& password_delegate() { return *delegate_; }
-
- private:
-  std::unique_ptr<PasswordManagerDelegate> CreatePasswordDelegate() {
-    auto password_delegate = std::make_unique<MockPasswordManagerDelegate>();
-    delegate_ = password_delegate.get();
-    return password_delegate;
-  }
-
-  raw_ptr<MockPasswordManagerDelegate> delegate_ = nullptr;
-};
-
 // Test that the BAM queries the password delegate as soon as it's present.
-TEST_F(BrowserAutofillManagerUsingPasswordDelegateTest,
-       QueriesDelegateWhenGeneratingSuggestions) {
+TEST_F(BrowserAutofillManagerTest, QueriesDelegateWhenGeneratingSuggestions) {
   FormData form = CreateTestAddressFormData();
   FormsSeen({form});
 

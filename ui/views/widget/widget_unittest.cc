@@ -46,7 +46,7 @@
 #include "ui/events/test/event_generator.h"
 #include "ui/gfx/color_palette.h"
 #include "ui/gfx/geometry/point.h"
-#include "ui/gfx/native_window_types.h"
+#include "ui/gfx/native_ui_types.h"
 #include "ui/native_theme/native_theme.h"
 #include "ui/native_theme/test_native_theme.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
@@ -359,40 +359,10 @@ TEST_F(WidgetWithCustomParamsTest, NamePropagatedFromContentsViewClassName) {
   EXPECT_EQ(contents->GetClassName(), widget->GetName());
 }
 
-namespace {
-
-class TestView : public View {
-  METADATA_HEADER(TestView, View)
-
- public:
-  ~TestView() override = default;
-
-  void OnThemeChanged() override {
-    View::OnThemeChanged();
-    auto* native_theme = GetNativeTheme();
-    if (native_theme && native_theme->user_color()) {
-      user_color_ = *native_theme->user_color();
-    }
-  }
-
-  SkColor user_color() const { return user_color_; }
-
- private:
-  SkColor user_color_ = SK_ColorWHITE;
-};
-
-BEGIN_METADATA(TestView)
-END_METADATA
-
-}  // namespace
-
 class WidgetColorModeTest : public WidgetTest {
  public:
   static constexpr SkColor kLightColor = SK_ColorWHITE;
   static constexpr SkColor kDarkColor = SK_ColorBLACK;
-
-  WidgetColorModeTest() = default;
-  ~WidgetColorModeTest() override = default;
 
   void SetUp() override {
     WidgetTest::SetUp();
@@ -425,7 +395,7 @@ TEST_F(WidgetColorModeTest, ColorModeOverride_NoOverride) {
   test_theme.SetDarkMode(true);
   widget->SetNativeThemeForTest(&test_theme);
 
-  widget->SetColorModeOverride(std::nullopt, std::nullopt);
+  widget->SetColorModeOverride(std::nullopt);
   // Verify that we resolve the dark color when we don't override color mode.
   EXPECT_EQ(kDarkColor,
             widget->GetColorProvider()->GetColor(ui::kColorSysPrimary));
@@ -438,8 +408,7 @@ TEST_F(WidgetColorModeTest, ColorModeOverride_DarkOverride) {
   test_theme.SetDarkMode(false);
   widget->SetNativeThemeForTest(&test_theme);
 
-  widget->SetColorModeOverride(ui::ColorProviderKey::ColorMode::kDark,
-                               std::nullopt);
+  widget->SetColorModeOverride(ui::ColorProviderKey::ColorMode::kDark);
   // Verify that we resolve the light color even though the theme is dark.
   EXPECT_EQ(kDarkColor,
             widget->GetColorProvider()->GetColor(ui::kColorSysPrimary));
@@ -452,8 +421,7 @@ TEST_F(WidgetColorModeTest, ColorModeOverride_LightOverride) {
   test_theme.SetDarkMode(true);
   widget->SetNativeThemeForTest(&test_theme);
 
-  widget->SetColorModeOverride(ui::ColorProviderKey::ColorMode::kLight,
-                               std::nullopt);
+  widget->SetColorModeOverride(ui::ColorProviderKey::ColorMode::kLight);
   // Verify that we resolve the light color even though the theme is dark.
   EXPECT_EQ(kLightColor,
             widget->GetColorProvider()->GetColor(ui::kColorSysPrimary));
@@ -474,8 +442,8 @@ TEST_F(WidgetColorModeTest, ChildInheritsColorMode_NoOverrides) {
 
   // Ensure neither has an override set. The child should inherit the color mode
   // of the parent.
-  widget->SetColorModeOverride(std::nullopt, std::nullopt);
-  widget_child->SetColorModeOverride(std::nullopt, std::nullopt);
+  widget->SetColorModeOverride(std::nullopt);
+  widget_child->SetColorModeOverride(std::nullopt);
   EXPECT_EQ(kDarkColor,
             widget->GetColorProvider()->GetColor(ui::kColorSysPrimary));
   EXPECT_EQ(kDarkColor,
@@ -505,8 +473,8 @@ TEST_F(WidgetColorModeTest, ChildInheritsColorMode_Overrides) {
 
   // Ensure neither has an override set. The child should inherit the color mode
   // of the parent.
-  widget->SetColorModeOverride(std::nullopt, std::nullopt);
-  widget_child->SetColorModeOverride(std::nullopt, std::nullopt);
+  widget->SetColorModeOverride(std::nullopt);
+  widget_child->SetColorModeOverride(std::nullopt);
   EXPECT_EQ(kDarkColor,
             widget->GetColorProvider()->GetColor(ui::kColorSysPrimary));
   EXPECT_EQ(kDarkColor,
@@ -514,15 +482,13 @@ TEST_F(WidgetColorModeTest, ChildInheritsColorMode_Overrides) {
 
   // Set the parent's override to light, then back to dark. the child should
   // follow the parent's overridden color mode.
-  widget->SetColorModeOverride(ui::ColorProviderKey::ColorMode::kLight,
-                               std::nullopt);
+  widget->SetColorModeOverride(ui::ColorProviderKey::ColorMode::kLight);
   EXPECT_EQ(kLightColor,
             widget->GetColorProvider()->GetColor(ui::kColorSysPrimary));
   EXPECT_EQ(kLightColor,
             widget_child->GetColorProvider()->GetColor(ui::kColorSysPrimary));
 
-  widget->SetColorModeOverride(ui::ColorProviderKey::ColorMode::kDark,
-                               std::nullopt);
+  widget->SetColorModeOverride(ui::ColorProviderKey::ColorMode::kDark);
   EXPECT_EQ(kDarkColor,
             widget->GetColorProvider()->GetColor(ui::kColorSysPrimary));
   EXPECT_EQ(kDarkColor,
@@ -530,8 +496,7 @@ TEST_F(WidgetColorModeTest, ChildInheritsColorMode_Overrides) {
 
   // Override the child's color mode to light. The parent should continue to
   // report a dark color mode.
-  widget_child->SetColorModeOverride(ui::ColorProviderKey::ColorMode::kLight,
-                                     std::nullopt);
+  widget_child->SetColorModeOverride(ui::ColorProviderKey::ColorMode::kLight);
   EXPECT_EQ(kDarkColor,
             widget->GetColorProvider()->GetColor(ui::kColorSysPrimary));
   EXPECT_EQ(kLightColor,
@@ -3864,7 +3829,7 @@ bool RunGetNativeThemeFromDestructor(Widget::InitParams params,
   // Destroyed by CloseNow() below.
   WidgetTest::WidgetAutoclosePtr widget(new Widget);
   // Deletes itself when the Widget is destroyed.
-  params.delegate = new GetNativeThemeFromDestructorView;
+  params.delegate = new GetNativeThemeFromDestructorView();
   if (!is_first_run) {
     params.native_widget =
         CreatePlatformNativeWidgetImpl(widget.get(), kStubCapture, nullptr);

@@ -424,15 +424,8 @@ using PageColorsBrowserClientTest = InProcessBrowserTest;
 
 IN_PROC_BROWSER_TEST_F(PageColorsBrowserClientTest,
                        PageColorsAffectsWebContents) {
-  browser()->profile()->GetPrefs()->SetBoolean(
-      prefs::kApplyPageColorsOnlyOnIncreasedContrast, false);
-  browser()->profile()->GetPrefs()->SetInteger(
-      prefs::kPageColors, ui::NativeTheme::PageColors::kDusk);
-
-  browser()
-      ->tab_strip_model()
-      ->GetActiveWebContents()
-      ->OnWebPreferencesChanged();
+  PageColorsControllerFactory::GetForProfile(browser()->profile())
+      ->SetRequestedPageColors(PageColors::kDusk);
 
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("http://foo.com")));
 
@@ -448,15 +441,8 @@ IN_PROC_BROWSER_TEST_F(PageColorsBrowserClientTest,
 
 IN_PROC_BROWSER_TEST_F(PageColorsBrowserClientTest,
                        PageColorsAffectsCssPseudoElements) {
-  browser()->profile()->GetPrefs()->SetBoolean(
-      prefs::kApplyPageColorsOnlyOnIncreasedContrast, false);
-  browser()->profile()->GetPrefs()->SetInteger(
-      prefs::kPageColors, ui::NativeTheme::PageColors::kDesert);
-
-  browser()
-      ->tab_strip_model()
-      ->GetActiveWebContents()
-      ->OnWebPreferencesChanged();
+  PageColorsControllerFactory::GetForProfile(browser()->profile())
+      ->SetRequestedPageColors(PageColors::kDesert);
 
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), ui_test_utils::GetTestUrl(
@@ -1131,8 +1117,7 @@ class KeepaliveDurationOnShutdownTest : public InProcessBrowserTest,
   void SetUpOnMainThread() override {
     InProcessBrowserTest::SetUpOnMainThread();
     client_ = static_cast<ChromeContentBrowserClient*>(
-        content::SetBrowserClientForTesting(nullptr));
-    content::SetBrowserClientForTesting(client_);
+        content::GetContentClientForTesting()->browser());
   }
 
   void TearDownOnMainThread() override {
@@ -1263,8 +1248,7 @@ class IsClipboardPasteAllowedTest : public InProcessBrowserTest {
             /*dm_token=*/std::string()));
 
     client_ = static_cast<ChromeContentBrowserClient*>(
-        content::SetBrowserClientForTesting(nullptr));
-    content::SetBrowserClientForTesting(client_);
+        content::GetContentClientForTesting()->browser());
   }
 
   void TearDownOnMainThread() override {
@@ -1983,8 +1967,7 @@ class TopChromeChromeContentBrowserClientTest
   void SetUpOnMainThread() override {
     ChromeContentBrowserClientBrowserTest::SetUpOnMainThread();
     client_ = static_cast<ChromeContentBrowserClient*>(
-        content::SetBrowserClientForTesting(nullptr));
-    content::SetBrowserClientForTesting(client_);
+        content::GetContentClientForTesting()->browser());
   }
 
   ChromeContentBrowserClient* client() { return client_; }

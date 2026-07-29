@@ -73,7 +73,6 @@ extern const char kBoardingPassDetectorUrlParamName[];
 COMPONENT_EXPORT(CHROME_FEATURES) BASE_DECLARE_FEATURE(kBorealis);
 COMPONENT_EXPORT(CHROME_FEATURES)
 BASE_DECLARE_FEATURE(kBrowserAppInstanceTracking);
-COMPONENT_EXPORT(CHROME_FEATURES) BASE_DECLARE_FEATURE(kShowBorealisMotd);
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -325,6 +324,12 @@ extern const base::FeatureParam<std::string> kGlicTabAccessToggleLearnMoreURL;
 COMPONENT_EXPORT(CHROME_FEATURES)
 extern const base::FeatureParam<std::string>
     kGlicTabAccessToggleLearnMoreURLDataProtected;
+COMPONENT_EXPORT(CHROME_FEATURES)
+extern const base::FeatureParam<std::string>
+    kGlicDefaultTabAccessToggleLearnMoreURL;
+COMPONENT_EXPORT(CHROME_FEATURES)
+extern const base::FeatureParam<std::string>
+    kGlicDefaultTabAccessToggleLearnMoreURLDataProtected;
 COMPONENT_EXPORT(CHROME_FEATURES)
 extern const base::FeatureParam<std::string> kGlicExtensionsManagementUrl;
 
@@ -1117,11 +1122,6 @@ COMPONENT_EXPORT(CHROME_FEATURES)
 extern const base::FeatureParam<base::TimeDelta>
     kTrustSafetySentimentSurveyV2TrustedSurfaceTime;
 #endif
-
-#if BUILDFLAG(IS_MAC)
-COMPONENT_EXPORT(CHROME_FEATURES)
-BASE_DECLARE_FEATURE(kUseChromiumUpdater);
-#endif  // BUILDFLAG(IS_MAC)
 
 #if !BUILDFLAG(IS_ANDROID)
 COMPONENT_EXPORT(CHROME_FEATURES)

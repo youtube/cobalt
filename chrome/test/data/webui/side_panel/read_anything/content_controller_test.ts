@@ -7,7 +7,7 @@
 
 import 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
 
-import {AxReadAloudNode, ContentController, HIGHLIGHTED_LINK_CLASS, NodeStore, previousReadHighlightClass, SpeechBrowserProxyImpl, SpeechController} from 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
+import {ContentController, HIGHLIGHTED_LINK_CLASS, NodeStore, previousReadHighlightClass, ReadAloudNode, SpeechBrowserProxyImpl, SpeechController} from 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
 import {assertArrayEquals, assertEquals, assertFalse, assertTrue} from 'chrome-untrusted://webui-test/chai_assert.js';
 import {microtasksFinished} from 'chrome-untrusted://webui-test/test_util.js';
 
@@ -130,7 +130,9 @@ suite('ContentController', () => {
     test('builds a link as a <span> tag when speech is playing', () => {
       const url = 'https://www.usecheeky.com/';
       chrome.readingMode.linksEnabled = true;
-      speechController.onPlayPauseToggle(null, 'Cause I\'m gonna show you');
+      const element = document.createElement('p');
+      element.textContent = 'Cause I\'m gonna show you';
+      speechController.onPlayPauseToggle(null, element);
       readingMode.getHtmlTag = () => 'a';
       readingMode.getUrl = () => url;
 
@@ -455,7 +457,8 @@ suite('ContentController', () => {
 
       assertEquals('none', canvas.style.display);
       assertEquals('none', figure.style.display);
-      assertTrue(nodeStore.areNodesAllHidden([new AxReadAloudNode(textId)]));
+      assertTrue(nodeStore.areNodesAllHidden(
+          [ReadAloudNode.createFromAxNode(textId)!]));
     });
 
     test('shows images and clears hidden nodes when enabled', async () => {
@@ -470,7 +473,8 @@ suite('ContentController', () => {
 
       assertEquals('', canvas.style.display);
       assertEquals('', figure.style.display);
-      assertFalse(nodeStore.areNodesAllHidden([new AxReadAloudNode(textId)]));
+      assertFalse(nodeStore.areNodesAllHidden(
+          [ReadAloudNode.createFromAxNode(textId)!]));
     });
   });
 });

@@ -19,6 +19,7 @@
 <translation id="1062138828266376352">PIN'iniz değiştirilemedi. İnternet bağlantınızı kontrol edip tekrar deneyin.</translation>
 <translation id="1063070031224282617">"<ph name="BEGIN_BOLD" /><ph name="FILENAME" /><ph name="END_BOLD" />" dosyasının (<ph name="FILE_SIZE" />) kaydedileceği yeri seçin</translation>
 <translation id="1072476005125066234">İlgi alanlarınıza uygun yorumlar</translation>
+<translation id="1072679792409426431">Yöneticiniz tarafından devre dışı bırakıldı</translation>
 <translation id="1074827084851510304">{password_count} şifreyi ve oturum açma bilgilerini hiçbir zaman kaydetmemeyi seçtiğiniz site ve uygulamaların listesini silmek üzeresiniz. Siteler ve uygulamalar için oluşturduğunuz hesaplar silinmez.</translation>
 <translation id="1076421457278169141">Kod tarandı</translation>
 <translation id="1081114897601629648">Aşağıdaki şifreler, koşulları karşılamadıkları için Google Şifre Yöneticisi'ne aktarılamadı.</translation>
@@ -348,6 +349,7 @@
 <translation id="2287614783861766820">{count,plural, =1{Bu adres bu cihazdan silinecek.}other{Bu adresler bu cihazdan silinecek.}}</translation>
 <translation id="2297989278479054870">Oturumunuzu kapattıktan sonra Google Hesabınızdaki yer işaretleri, şifreler ve diğer öğeler bu cihazdan kaldırılır.</translation>
 <translation id="2299218006564889602">Şifreleriniz Google Şifre Yöneticisi'ne kaydedilmeden önce cihazınızda şifrelenir.</translation>
+<translation id="2306265833370324042"><ph name="SEARCH_ENGINE_NAME" /> ayrıntılarını göster</translation>
 <translation id="2309265394777270359">Sekmeyi Kapat</translation>
 <translation id="2311077293164383652">Sabit Sekmeyi Kapat</translation>
 <translation id="2316129865977710310">Hayır, teşekkürler</translation>
@@ -671,7 +673,6 @@ Arama geçmişinizi silmek için arama motorunuzun bununla ilgili talimatların�
 <translation id="3631443864840848029">Bu sitede kullandığınız şifreyi kaydettiğinizden emin olun.</translation>
 <translation id="3642060527569456384">Sekme grupları tüm cihazlarınızda otomatik olarak kaydedilip güncellenir.</translation>
 <translation id="3643338347976071250">{count,plural, =1{{count} şifre yalnızca bu cihaza kaydedilir. Diğer cihazlarınızda kullanmak için Google Hesabınıza ({email}) kaydedin.}other{{count} şifre yalnızca bu cihaza kaydedilir. Diğer cihazlarınızda kullanmak için Google Hesabınıza ({email}) kaydedin.}}</translation>
-<translation id="3650299480924308502">Oturumunuz kapatıldıktan sonra kaydedilmemiş veriler bu cihazdan silinir. Şifreler, geçmiş ve diğer veriler bu kapsamda yer alabilir.</translation>
 <translation id="3659297405161482746">Ödeme yöntemi bulunamadı</translation>
 <translation id="3668816008081204991">Okuma listesi gizlendi</translation>
 <translation id="3670030362669914947">Numara</translation>
@@ -696,7 +697,6 @@ Arama geçmişinizi silmek için arama motorunuzun bununla ilgili talimatların�
 <translation id="3789841737615482174">Yükle</translation>
 <translation id="380329542618494757">Ad</translation>
 <translation id="3803696231112616155">Bu siteyi çevirmeyi öner</translation>
-<translation id="3808311849069021992">Arama motoru ayrıntılarını göster</translation>
 <translation id="3810973564298564668">Yönet</translation>
 <translation id="381219490185664296">Sekme grubu iptal edilsin mi?</translation>
 <translation id="3812308602011798782">Yorumlar</translation>
@@ -1109,7 +1109,6 @@ Arama geçmişinizi silmek için arama motorunuzun bununla ilgili talimatların�
 <translation id="537853552771686272">İlgilendiğiniz konuları ve siteleri yönetin</translation>
 <translation id="5390458669633674385">{count,plural, =1{{count} sekme kapalı}other{{count} sekme kapalı}}</translation>
 <translation id="5394975111793637642">Size özel ürün yorumları kartını gizle</translation>
-<translation id="5395707839134961196">Arama motoru ayrıntılarını gizle</translation>
 <translation id="5414763847370083940">Herhangi bir sitede fiyatı düştüğünde uyarı alırsınız.</translation>
 <translation id="5415289094036440596">Geçiş anahtarları paylaşılamaz</translation>
 <translation id="5416455648658732408">Sekme Grubuna Taşı</translation>
@@ -1203,6 +1202,7 @@ Handoff'un ayrıca, Ayarlar'ın Genel bölümünde de etkinleştirilmesi ve ciha
 <translation id="5709005673595820640">{count,plural, =1{Güvenliğinizi riske atabilecek {count} tane yeniden kullanılan şifreniz var. Güvende kalmak için sorunu hemen giderin.}other{Güvenliğinizi riske atabilecek {count} tane yeniden kullanılan şifreniz var. Güvende kalmak için bunları hemen düzeltin.}}</translation>
 <translation id="57094364128775171">Güçlü şifre öner…</translation>
 <translation id="5718049162805123412">Bu şifreleri hemen değiştirmelisiniz</translation>
+<translation id="5721040778297053709">Kredi kartını bu çerçeveye yerleştirin</translation>
 <translation id="572328651809341494">Son sekmeler</translation>
 <translation id="5724941645893276623">Web'e gizli modda göz atmak için yeni bir sekme ekleyin</translation>
 <translation id="5728072125198221967">Bağlı Google hizmetleri</translation>
@@ -1347,7 +1347,6 @@ Handoff'un ayrıca, Ayarlar'ın Genel bölümünde de etkinleştirilmesi ve ciha
 <translation id="6232329973559504466">Gizli Arama</translation>
 <translation id="6234310016144827337">Bağlantınızı kontrol edip tekrar deneyin</translation>
 <translation id="6236952928980352967">Uyarıyı Geri Yükle</translation>
-<translation id="623755660902014047">Okuma Modu</translation>
 <translation id="6241132809279377987">Google uygulamalarıyla iPhone'unuzda daha fazla özellikten yararlanın</translation>
 <translation id="6247557882553405851">Google Şifre Yöneticisi</translation>
 <translation id="6251835855431997163">Otomatik doldur <ph name="VALUE" /></translation>
@@ -1571,7 +1570,6 @@ Handoff'un ayrıca, Ayarlar'ın Genel bölümünde de etkinleştirilmesi ve ciha
 <translation id="7055240621761583113">Şifreyi otomatik doldur</translation>
 <translation id="7063811929043357292">Hesabınız ebeveyniniz tarafından yönetiliyor.
 <ph name="BEGIN_LINK" />Daha Fazla Bilgi<ph name="END_LINK" /></translation>
-<translation id="7067610207756299941">Kaydedilmemiş veriler, kuruluşunuzun güvenliğini korumak için bu cihazdan silinecek. Şifreler, geçmiş ve diğer veriler bu kapsamda yer alabilir.</translation>
 <translation id="7067780033517902110">Tüm Dosyalar</translation>
 <translation id="707086654079606593">Adresleri yönet…</translation>
 <translation id="7080806333218412752">URL'leri kontrol etmek için Güvenli Tarama'ya gönderir. Ayrıca yeni tehditlerin keşfedilmesine yardımcı olmak için sayfalar, indirmeler, uzantı etkinliği ve sistem bilgilerinden küçük bir örnek gönderir. Sizi Google uygulamalarında korumak için oturumunuz açıkken bu verileri geçici olarak Google Hesabınıza bağlar.</translation>
@@ -1612,7 +1610,7 @@ Handoff'un ayrıca, Ayarlar'ın Genel bölümünde de etkinleştirilmesi ve ciha
 <translation id="7241135764990439166">Gizli mod kullanılamıyor</translation>
 <translation id="7248046129087111453"><ph name="BEGIN_LINK" />Arama geçmişi<ph name="END_LINK" /> ve <ph name="BEGIN_LINK" />diğer etkinlik biçimleri<ph name="END_LINK" /> Google Hesabınıza kaydedilmiş olabilir.</translation>
 <translation id="7253951228444156601">Şifreler kontrol ediliyor…</translation>
-<translation id="7261217796641151584">Grubu paylaş</translation>
+<translation id="7261217796641151584">Grubu Paylaş</translation>
 <translation id="7266578100016339897">Böylece düzenli şekilde çalışabilirsiniz. Bunu dilediğiniz zaman ayarlardan değiştirebilirsiniz.</translation>
 <translation id="7272437679830969316">Kimliğiniz doğrulanamıyor. Şifre kopyalanmadı.</translation>
 <translation id="728025568708172005">Tura katıl</translation>
@@ -1783,6 +1781,7 @@ Handoff'un ayrıca, Ayarlar'ın Genel bölümünde de etkinleştirilmesi ve ciha
 <translation id="7889910613639381518">Google Şifre Yöneticisi widget'ıyla kolay ve güvenli erişim.</translation>
 <translation id="7899199123054742721">Tümünü okunmadı olarak işaretle</translation>
 <translation id="7911190106180361398">Kuruluşunuz bazı şeyleri senkronize etmenize izin vermiyor.</translation>
+<translation id="7918999344502274923"><ph name="SEARCH_ENGINE_NAME" /> ayrıntılarını gizle</translation>
 <translation id="792357691529995513">Sorun bulunmadı</translation>
 <translation id="7925108652071887026">Otomatik doldurma verileri</translation>
 <translation id="7926975587469166629">Kart için takma ad</translation>

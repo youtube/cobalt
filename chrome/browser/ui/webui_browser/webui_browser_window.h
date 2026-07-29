@@ -16,6 +16,7 @@
 #include "ui/color/color_provider_key.h"
 #include "ui/color/color_provider_source.h"
 #include "ui/views/widget/widget.h"
+#include "ui/views/widget/widget_observer.h"
 
 namespace views {
 class NativeWidget;
@@ -24,6 +25,7 @@ class Widget;
 }  // namespace views
 
 class Browser;
+class WebUIBrowserModalDialogHost;
 class WebUIBrowserSidePanelUI;
 class WebUIBrowserUI;
 class WebUIBrowserWebContentsDelegate;
@@ -35,9 +37,10 @@ class WebUIBrowserWindow : public BrowserWindow,
                            public ExclusiveAccessContext,
                            public ui::ColorProviderSource,
                            public ui::AcceleratorProvider,
-                           public ui::AcceleratorTarget {
+                           public ui::AcceleratorTarget,
+                           public views::WidgetObserver {
  public:
-  explicit WebUIBrowserWindow(std::unique_ptr<Browser> browser);
+  explicit WebUIBrowserWindow(Browser* browser);
   ~WebUIBrowserWindow() override;
 
   // Returns the containing browser window for a WebContents that hosts
@@ -70,6 +73,7 @@ class WebUIBrowserWindow : public BrowserWindow,
       BookmarkBar::AnimateChangeType change_type) override;
   void TemporarilyShowBookmarkBar(base::TimeDelta duration) override;
   void UpdateDevTools(content::WebContents* inspected_web_contents) override;
+  bool CanDockDevTools() const override;
   void UpdateLoadingAnimations(bool is_visible) override;
   void SetStarredState(bool is_starred) override;
   bool IsTabModalPopupDeprecated() const override;
@@ -260,15 +264,23 @@ class WebUIBrowserWindow : public BrowserWindow,
   bool GetAcceleratorForCommandId(int command_id,
                                   ui::Accelerator* accelerator) const override;
 
+  // views::WidgetObserver:
+  void OnWidgetBoundsChanged(views::Widget* widget,
+                             const gfx::Rect& new_bounds) override;
+
   void ShowSidePanel(SidePanelEntryKey side_panel_entry_key);
+  void CloseSidePanel();
 
   WebUIBrowserSidePanelUI* GetWebUIBrowserSidePanelUI();
 
   Browser* browser() { return browser_.get(); }
   views::Widget* widget() { return widget_.get(); }
 
+  gfx::Rect GetContentsBoundsInScreen() const;
+
  protected:
-  void DestroyBrowser() override;
+  // BrowserWindow:
+  void DeleteBrowserWindow() final;
 
  private:
   class WidgetDelegate;
@@ -292,10 +304,14 @@ class WebUIBrowserWindow : public BrowserWindow,
   // Load accelerators into |accelerator_table_| and |accelerator_manager_|.
   void LoadAccelerators();
 
+  // Returns the appropriate ThemeInitializerSupplier based on the window type.
+  ui::ColorProviderKey::ThemeInitializerSupplier* GetThemeInitializerSupplier()
+      const;
+
   void OnWindowCloseRequested(views::Widget::ClosedReason close_reason);
   WebUIBrowserUI* GetWebUIBrowserUI() const;
 
-  std::unique_ptr<Browser> browser_;
+  const raw_ptr<Browser> browser_;
   std::unique_ptr<WebUIBrowserWebContentsDelegate> web_contents_delegate_;
   std::unique_ptr<WidgetDelegate> widget_delegate_;
   std::unique_ptr<views::Widget> widget_;
@@ -306,6 +322,8 @@ class WebUIBrowserWindow : public BrowserWindow,
   // //chrome/app/chrome_command_ids.h.
   std::map<ui::Accelerator, int> accelerator_table_;
   ui::AcceleratorManager accelerator_manager_;
+
+  std::unique_ptr<WebUIBrowserModalDialogHost> modal_dialog_host_;
 };
 
 #endif  // CHROME_BROWSER_UI_WEBUI_BROWSER_WEBUI_BROWSER_WINDOW_H_

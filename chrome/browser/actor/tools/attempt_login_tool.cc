@@ -7,6 +7,7 @@
 #include "base/barrier_closure.h"
 #include "base/containers/flat_set.h"
 #include "base/notimplemented.h"
+#include "chrome/browser/actor/actor_features.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/tools/observation_delay_controller.h"
 #include "chrome/browser/actor/tools/tool_callbacks.h"
@@ -127,7 +128,17 @@ void AttemptLoginTool::OnGetCredentials(
     return;
   }
 
-  FetchFavicons();
+  // Unless the flag is enabled, always auto-select the first credential, which
+  // is the credential that is most likely to be the correct one.
+  if (base::FeatureList::IsEnabled(actor::kGlicEnableAutoLoginDialogs)) {
+    FetchFavicons();
+  } else {
+    // The task ID doesn't matter here because the task ID check is already
+    // done at this point.
+    auto response = webui::mojom::SelectCredentialDialogResponse::New();
+    response->selected_credential_id = credentials_[0].id.value();
+    OnCredentialSelected(std::move(response));
+  }
 }
 
 void AttemptLoginTool::FetchFavicons() {
@@ -137,7 +148,7 @@ void AttemptLoginTool::FetchFavicons() {
     // If there is no favicon service, just proceed without favicons.
     tool_delegate().PromptToSelectCredential(
         credentials_,
-        /*favicons=*/{},
+        /*icons=*/{},
         base::BindOnce(&AttemptLoginTool::OnCredentialSelected,
                        weak_ptr_factory_.GetWeakPtr()));
     return;
@@ -150,11 +161,10 @@ void AttemptLoginTool::FetchFavicons() {
     }
   }
 
-  // OnAllFaviconsFetched is called immediately if unique_sites is empty.
+  // OnAllIconsFetched is called immediately if unique_sites is empty.
   base::RepeatingClosure barrier = base::BarrierClosure(
-      unique_sites.size(),
-      base::BindOnce(&AttemptLoginTool::OnAllFaviconsFetched,
-                     weak_ptr_factory_.GetWeakPtr()));
+      unique_sites.size(), base::BindOnce(&AttemptLoginTool::OnAllIconsFetched,
+                                          weak_ptr_factory_.GetWeakPtr()));
   favicon_requests_tracker_ =
       std::vector<base::CancelableTaskTracker>(unique_sites.size());
 
@@ -162,26 +172,26 @@ void AttemptLoginTool::FetchFavicons() {
   for (const GURL& site : unique_sites) {
     favicon_service->GetFaviconImageForPageURL(
         site,
-        base::BindOnce(&AttemptLoginTool::OnFaviconFetched,
+        base::BindOnce(&AttemptLoginTool::OnIconFetched,
                        weak_ptr_factory_.GetWeakPtr(), barrier, site),
         &favicon_requests_tracker_[i]);
     ++i;
   }
 }
 
-void AttemptLoginTool::OnFaviconFetched(
+void AttemptLoginTool::OnIconFetched(
     base::RepeatingClosure barrier,
     GURL site,
     const favicon_base::FaviconImageResult& result) {
   if (!result.image.IsEmpty()) {
-    fetched_favicons_[site] = result.image;
+    fetched_icons_[site.GetWithEmptyPath().spec()] = result.image;
   }
   barrier.Run();
 }
 
-void AttemptLoginTool::OnAllFaviconsFetched() {
+void AttemptLoginTool::OnAllIconsFetched() {
   tool_delegate().PromptToSelectCredential(
-      credentials_, fetched_favicons_,
+      credentials_, fetched_icons_,
       base::BindOnce(&AttemptLoginTool::OnCredentialSelected,
                      weak_ptr_factory_.GetWeakPtr()));
 }

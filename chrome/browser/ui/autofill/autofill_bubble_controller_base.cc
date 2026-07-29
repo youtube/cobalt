@@ -5,8 +5,10 @@
 #include "chrome/browser/ui/autofill/autofill_bubble_controller_base.h"
 
 #include "chrome/browser/ui/autofill/autofill_bubble_base.h"
+#include "chrome/browser/ui/autofill/bubble_manager.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "components/autofill/core/common/autofill_clock.h"
+#include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_payments_features.h"
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -31,15 +33,20 @@ void AutofillBubbleControllerBase::OnVisibilityChanged(
 }
 
 void AutofillBubbleControllerBase::WebContentsDestroyed() {
-  HideBubble();
+  if (IsShowingBubble()) {
+    bubble_view_->Hide();
+    bubble_view_ = nullptr;
+    // Bubble Manager might be already destroyed so no need to inform it.
+  }
 }
 
 void AutofillBubbleControllerBase::UpdatePageActionIcon() {
-// Page action icons do not exist for Android.
+  // Page action icons do not exist for Android.
 #if !BUILDFLAG(IS_ANDROID)
-  Browser* browser = chrome::FindBrowserWithTab(web_contents());
-  if (browser) {
-    browser->window()->UpdatePageActionIcon(GetPageActionIconType());
+  if (auto icon_type = GetPageActionIconType()) {
+    if (Browser* browser = chrome::FindBrowserWithTab(web_contents())) {
+      browser->window()->UpdatePageActionIcon(*icon_type);
+    }
   }
 #endif  // !BUILDFLAG(IS_ANDROID)
 }
@@ -54,6 +61,14 @@ void AutofillBubbleControllerBase::HideBubble() {
   if (IsShowingBubble()) {
     bubble_view_->Hide();
     bubble_view_ = nullptr;
+#if !BUILDFLAG(IS_ANDROID)
+    if (base::FeatureList::IsEnabled(
+            features::kAutofillShowBubblesBasedOnPriorities)) {
+      if (auto* manager = BubbleManager::GetForWebContents(web_contents())) {
+        manager->OnBubbleHiddenByController(*this);
+      }
+    }
+#endif  // !BUILDFLAG(IS_ANDROID)
   }
 }
 
@@ -63,6 +78,34 @@ bool AutofillBubbleControllerBase::IsShowingBubble() const {
 
 bool AutofillBubbleControllerBase::IsMouseHovered() const {
   return IsShowingBubble() && bubble_view_->IsMouseHovered();
+}
+
+bool AutofillBubbleControllerBase::MaySetUpBubble() {
+#if BUILDFLAG(IS_ANDROID)
+  return true;
+#else  // BUILDFLAG(IS_ANDROID)
+  if (!base::FeatureList::IsEnabled(
+          features::kAutofillShowBubblesBasedOnPriorities)) {
+    return true;
+  }
+
+  auto* manager = BubbleManager::GetForWebContents(web_contents());
+  return manager && !manager->HasPendingBubble(*this);
+#endif
+}
+
+void AutofillBubbleControllerBase::QueueOrShowBubble(bool force_show) {
+#if !BUILDFLAG(IS_ANDROID)
+  if (base::FeatureList::IsEnabled(
+          features::kAutofillShowBubblesBasedOnPriorities)) {
+    if (auto* manager = BubbleManager::GetForWebContents(web_contents())) {
+      manager->RequestShowController(*this, force_show);
+    }
+    return;
+  }
+#endif
+
+  ShowBubble();
 }
 
 }  // namespace autofill

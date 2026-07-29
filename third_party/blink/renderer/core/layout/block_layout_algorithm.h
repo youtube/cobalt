@@ -173,12 +173,12 @@ class CORE_EXPORT BlockLayoutAlgorithm
   // Otherwise, it lays out inline children with `*paragraph_scale`.
   NOINLINE const LayoutResult* LayoutInlineChild(
       const InlineNode& node,
-      std::optional<float> paragraph_scale);
+      const ParagraphScale* paragraph_scale);
   // Ditto, for OptimalInlineChildLayoutContext.
   template <wtf_size_t capacity>
   NOINLINE const LayoutResult* LayoutWithOptimalInlineChildLayoutContext(
       const InlineNode& child,
-      std::optional<float> paragraph_scale);
+      const ParagraphScale* paragraph_scale);
 
   NOINLINE const LayoutResult* RelayoutIgnoringLineClamp();
   NOINLINE const LayoutResult* RelayoutClampingByLines(int lines_until_clamp);
@@ -470,11 +470,17 @@ class CORE_EXPORT BlockLayoutAlgorithm
     return false;
   }
 
+  // Represent the result of HandleTextControlPlaceholder().
+  struct PlaceholderLayoutResult {
+    LayoutUnit logical_block_offset;
+    LayoutResult::EStatus status;
+  };
+
   // Layout |placeholder| content, and decide the location of |placeholder|.
   // This is called only if |this| is a text control.
   // This function returns a new value for `PreviousInflowPosition::
-  // logical_block_offset`.
-  LayoutUnit HandleTextControlPlaceholder(
+  // logical_block_offset` and the status of placeholder layout.
+  PlaceholderLayoutResult HandleTextControlPlaceholder(
       BlockNode placeholder,
       const PreviousInflowPosition& previous_inflow_position);
   // A helper for HandleTextControlPlaceholder().

@@ -709,7 +709,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   enterprise_connectors::RegisterProfilePrefs(registry);
   ios_feed::RegisterProfilePrefs(registry);
   FirstRun::RegisterProfilePrefs(registry);
-  FontSizeTabHelper::RegisterBrowserStatePrefs(registry);
+  FontSizeTabHelper::RegisterProfilePrefs(registry);
   HostContentSettingsMap::RegisterProfilePrefs(registry);
   invalidation::PerUserTopicSubscriptionManager::RegisterProfilePrefs(registry);
   image_fetcher::ImageCache::RegisterProfilePrefs(registry);
@@ -751,9 +751,9 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   tab_resumption_prefs::RegisterProfilePrefs(registry);
   reader_mode_prefs::RegisterProfilePrefs(registry);
 
-  [BookmarkMediator registerBrowserStatePrefs:registry];
-  [BookmarkPathCache registerBrowserStatePrefs:registry];
-  [BookmarksHomeMediator registerBrowserStatePrefs:registry];
+  [BookmarkMediator registerProfilePrefs:registry];
+  [BookmarkPathCache registerProfilePrefs:registry];
+  [BookmarksHomeMediator registerProfilePrefs:registry];
   [ContentSuggestionsMediator registerProfilePrefs:registry];
   [HandoffManager registerBrowserStatePrefs:registry];
   [SigninCoordinator registerProfilePrefs:registry];
@@ -1073,8 +1073,6 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
                              base::Time());
 
   registry->RegisterIntegerPref(prefs::kGeminiEnabledByPolicy, 0);
-
-  registry->RegisterTimePref(prefs::kAIHubNewBadgeExpirationTime, base::Time());
 
   // Deprecated 09/2024 (migrated to localState prefs).
   registry->RegisterBooleanPref(prefs::kIncognitoInterstitialEnabled, false);

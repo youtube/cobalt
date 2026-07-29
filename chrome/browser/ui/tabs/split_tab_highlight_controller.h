@@ -15,6 +15,11 @@
 
 class BrowserWindowInterface;
 class BrowserView;
+class PageInfoBubbleViewBase;
+
+namespace content {
+class WebContents;
+}  // namespace content
 
 namespace split_tabs {
 
@@ -49,8 +54,10 @@ class SplitTabHighlightController : public OmniboxTabHelper::Observer,
   void OnActiveTabChange(BrowserWindowInterface* browser_window_interface);
   void OnTabWillDetach(tabs::TabInterface* tab_interface,
                        tabs::TabInterface::DetachReason reason);
-  void OnPageInfoBubbleCreated(content::WebContents* web_contents,
-                               views::Widget* bubble_widget);
+  void OnTabWillDiscard(tabs::TabInterface* tab_interface,
+                        content::WebContents* old_contents,
+                        content::WebContents* new_contents);
+  void OnPageInfoBubbleCreated(PageInfoBubbleViewBase* bubble_view);
   void UpdateHighlight();
 
   bool is_permission_prompt_showing_ = false;
@@ -58,6 +65,7 @@ class SplitTabHighlightController : public OmniboxTabHelper::Observer,
   bool is_omnibox_popup_showing_ = false;
   base::CallbackListSubscription active_tab_change_subscription_;
   base::CallbackListSubscription tab_will_detach_subscription_;
+  base::CallbackListSubscription tab_will_discard_subscription_;
   base::CallbackListSubscription page_info_bubble_created_subscription_;
   base::ScopedObservation<OmniboxTabHelper, OmniboxTabHelper::Observer>
       omnibox_tab_helper_observation_{this};
@@ -67,6 +75,7 @@ class SplitTabHighlightController : public OmniboxTabHelper::Observer,
       page_info_bubble_observation_{this};
   std::unique_ptr<SplitTabHighlightDelegate> split_tab_highlight_delegate_;
   raw_ptr<BrowserWindowInterface> browser_window_interface_;
+  raw_ptr<views::Widget> page_info_bubble_widget_ = nullptr;
 };
 
 }  // namespace split_tabs

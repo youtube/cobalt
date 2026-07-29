@@ -26,7 +26,7 @@ bool IsImageType(const LayoutObject& object) {
 // When enabled, text aggregator nodes are marked as needing repaint in the
 // `TextPaintTimingDetector` when the `SoftNavigationContext` associated with
 // the node changes.
-BASE_FEATURE(MarkTextNodesForRepaintOnContextChange,
+BASE_FEATURE(kMarkTextNodesForRepaintOnContextChange,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 }  // namespace

@@ -43,7 +43,7 @@
 #include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/image/image_skia.h"
-#include "ui/gfx/native_window_types.h"
+#include "ui/gfx/native_ui_types.h"
 #include "ui/views/accessibility/tree/widget_ax_manager.h"
 #include "ui/views/controls/menu/menu_controller.h"
 #include "ui/views/drag_controller.h"
@@ -610,10 +610,8 @@ void Widget::Init(InitParams params) {
     parent_->OnChildAdded(this);
   }
 
-  native_widget_->OnWidgetThemeChanged(
-      GetColorMode(), background_color_ ? GetColorProvider()->GetColor(
-                                              background_color_.value())
-                                        : std::optional<SkColor>());
+  native_widget_->SetBackgroundColor(
+      GetColorProvider()->GetColor(GetBackgroundColorId()));
 
   UpdateAccessibleNameForRootView();
   native_theme_observation_.Observe(GetNativeTheme());
@@ -1482,10 +1480,8 @@ void Widget::ThemeChanged() {
   NotifyColorProviderChanged();
 
   if (native_widget_) {
-    native_widget_->OnWidgetThemeChanged(
-        GetColorMode(), background_color_ ? GetColorProvider()->GetColor(
-                                                background_color_.value())
-                                          : std::optional<SkColor>());
+    native_widget_->SetBackgroundColor(
+        GetColorProvider()->GetColor(GetBackgroundColorId()));
   }
 }
 
@@ -2408,13 +2404,20 @@ void Widget::OnAXModeAdded(ui::AXMode mode) {
 }
 
 void Widget::SetColorModeOverride(
-    std::optional<ui::ColorProviderKey::ColorMode> color_mode,
-    std::optional<ui::ColorId> background_color) {
-  if (color_mode != color_mode_override_ ||
-      background_color != background_color_) {
+    std::optional<ui::ColorProviderKey::ColorMode> color_mode) {
+  if (color_mode != color_mode_override_) {
     color_mode_override_ = color_mode;
-    background_color_ = background_color;
     ThemeChanged();
+  }
+}
+
+void Widget::SetBackgroundColor(std::optional<ui::ColorId> background_color) {
+  if (background_color != background_color_) {
+    background_color_ = background_color;
+    if (native_widget_) {
+      native_widget_->SetBackgroundColor(
+          GetColorProvider()->GetColor(GetBackgroundColorId()));
+    }
   }
 }
 
@@ -2815,6 +2818,10 @@ void Widget::SetClientContentsViewInternal(std::unique_ptr<View> view) {
     SetContentsView(view.release());
   }
   root_view_->LayoutImmediately();
+}
+
+ui::ColorId Widget::GetBackgroundColorId() const {
+  return background_color_.value_or(ui::kColorWindowBackground);
 }
 
 BEGIN_METADATA_BASE(Widget)

@@ -27,7 +27,6 @@ namespace {
 using ::base::test::RunOnceCallback;
 using ::testing::_;
 using ::testing::DoAll;
-using ::testing::Invoke;
 using ::testing::WithArg;
 using PasswordChangeOutcome = ::optimization_guide::proto::
     PasswordChangeSubmissionData_PasswordChangeOutcome;
@@ -71,7 +70,8 @@ class PasswordChangeSubmissionVerifierTest
     OptimizationGuideKeyedServiceFactory::GetInstance()
         ->SetTestingFactoryAndUse(
             profile(), base::BindRepeating(&CreateOptimizationService));
-    logs_uploader_ = std::make_unique<ModelQualityLogsUploader>(web_contents());
+    logs_uploader_ =
+        std::make_unique<ModelQualityLogsUploader>(web_contents(), GURL());
   }
 
   void TearDown() override {
@@ -98,7 +98,7 @@ TEST_F(PasswordChangeSubmissionVerifierTest, Succeeded) {
 
   base::test::TestFuture<bool> completion_future;
   EXPECT_CALL(*optimization_service(), ExecuteModel)
-      .WillOnce(WithArg<3>(Invoke(&PostResponse<true>)));
+      .WillOnce(WithArg<3>(&PostResponse<true>));
   verifier->CheckSubmissionOutcome(completion_future.GetCallback());
 
   EXPECT_TRUE(verifier->capturer());
@@ -118,7 +118,7 @@ TEST_F(PasswordChangeSubmissionVerifierTest, Failed) {
 
   base::test::TestFuture<bool> completion_future;
   EXPECT_CALL(*optimization_service(), ExecuteModel)
-      .WillOnce(WithArg<3>(Invoke(&PostResponse<false>)));
+      .WillOnce(WithArg<3>(&PostResponse<false>));
   verifier->CheckSubmissionOutcome(completion_future.GetCallback());
 
   EXPECT_TRUE(verifier->capturer());

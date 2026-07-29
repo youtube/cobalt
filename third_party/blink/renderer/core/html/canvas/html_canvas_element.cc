@@ -145,7 +145,7 @@ constexpr unsigned kMaxCanvasAnimationBacklog = 2;
 constexpr unsigned kDisableAccelerationThreshold = 100;
 constexpr unsigned kDisableAccelerationPercent = 95;
 
-BASE_FEATURE(OneCopyCanvasCapture,
+BASE_FEATURE(kOneCopyCanvasCapture,
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN)
              base::FEATURE_ENABLED_BY_DEFAULT
 #else
@@ -154,7 +154,7 @@ BASE_FEATURE(OneCopyCanvasCapture,
 );
 
 // Kill switch for not requesting continuous begin frame for low latency canvas.
-BASE_FEATURE(LowLatencyCanvasNoBeginFrameKillSwitch,
+BASE_FEATURE(kLowLatencyCanvasNoBeginFrameKillSwitch,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // These values come from the WhatWG spec.
@@ -585,26 +585,14 @@ void HTMLCanvasElement::IdentifiabilityReportWithDigest(
 }
 
 CanvasRenderingContext* HTMLCanvasElement::GetCanvasRenderingContext(
+    ExecutionContext* execution_context,
     const String& type,
     const CanvasContextCreationAttributesCore& attributes) {
   auto* old_contents_cc_layer = ContentsCcLayer();
-  auto* result = GetCanvasRenderingContextInternal(type, attributes);
+  auto* result =
+      GetCanvasRenderingContextInternal(execution_context, type, attributes);
 
   Document& doc = GetDocument();
-  if (IsRenderingContext2D()) {
-    UseCounter::CountWebDXFeature(doc, WebDXFeature::kCanvas2D);
-  }
-  if (attributes.alpha) {
-    UseCounter::CountWebDXFeature(doc, WebDXFeature::kCanvas2DAlpha);
-  }
-  if (attributes.desynchronized) {
-    UseCounter::CountWebDXFeature(doc, WebDXFeature::kCanvas2DDesynchronized);
-  }
-  if (attributes.will_read_frequently ==
-      CanvasContextCreationAttributesCore::WillReadFrequently::kTrue) {
-    UseCounter::CountWebDXFeature(doc,
-                                  WebDXFeature::kCanvas2DWillreadfrequently);
-  }
   if (IdentifiabilityStudySettings::Get()->ShouldSampleType(
           IdentifiableSurface::Type::kCanvasRenderingContext)) {
     IdentifiabilityMetricBuilder(doc.UkmSourceID())
@@ -614,9 +602,6 @@ CanvasRenderingContext* HTMLCanvasElement::GetCanvasRenderingContext(
              !!result)
         .Record(doc.UkmRecorder());
   }
-
-  if (attributes.color_space != PredefinedColorSpace::kSRGB)
-    UseCounter::Count(doc, WebFeature::kCanvasUseColorSpace);
 
   if (ContentsCcLayer() != old_contents_cc_layer)
     SetNeedsCompositingUpdate();
@@ -629,6 +614,7 @@ bool HTMLCanvasElement::IsPageVisible() const {
 }
 
 CanvasRenderingContext* HTMLCanvasElement::GetCanvasRenderingContextInternal(
+    ExecutionContext* execution_context,
     const String& type,
     const CanvasContextCreationAttributesCore& attributes) {
   CanvasRenderingContext::CanvasRenderingAPI rendering_api =
@@ -668,7 +654,7 @@ CanvasRenderingContext* HTMLCanvasElement::GetCanvasRenderingContextInternal(
         CanvasContextCreationAttributesCore::PowerPreference::kLowPower;
   }
 
-  context_ = factory->Create(this, recomputed_attributes);
+  context_ = factory->Create(execution_context, this, recomputed_attributes);
   if (!context_)
     return nullptr;
 
@@ -700,22 +686,6 @@ CanvasRenderingContext* HTMLCanvasElement::GetCanvasRenderingContextInternal(
     SetNeedsUnbufferedInputEvents(true);
     GetOrCreateResourceDispatcher();
     UseCounter::Count(GetDocument(), WebFeature::kHTMLCanvasElementLowLatency);
-    if (IsRenderingContext2D()) {
-      UseCounter::Count(GetDocument(),
-                        WebFeature::kHTMLCanvasElementLowLatency_2D);
-    } else {
-      UseCounter::Count(GetDocument(),
-                        WebFeature::kHTMLCanvasElementLowLatency_WebGL);
-      if (context_->CreationAttributes().preserve_drawing_buffer) {
-        UseCounter::Count(
-            GetDocument(),
-            WebFeature::kHTMLCanvasElementLowLatency_WebGL_Preserve);
-      } else {
-        UseCounter::Count(
-            GetDocument(),
-            WebFeature::kHTMLCanvasElementLowLatency_WebGL_Discard);
-      }
-    }
   }
 
   // A 2D context does not know before lazy creation whether or not it is
@@ -977,15 +947,26 @@ void HTMLCanvasElement::OnWidthOrHeightAssigned() {
   gfx::Size old_size = Size();
   gfx::Size new_size(w, h);
 
-  // If the size of an existing buffer matches, we can reuse that buffer.
-  // This optimization is only done for 2D canvases for now.
-  if (IsRenderingContext2D() &&
-      RenderingContext()->GetResourceProviderForCanvas2D() != nullptr &&
-      old_size == new_size) {
+  // For Canvas2D, reuse any existing backing buffer rather than dropping and
+  // recreating it. Doing this optimization for WebGL and WebGPU would require
+  // investigation to make sure that it's spec-compliant (including adding any
+  // operations as necessary to get it compliant).
+  if (IsRenderingContext2D() && old_size == new_size) {
     return;
   }
 
-  SetSurfaceSize(new_size);
+  size_ = new_size;
+  if (RenderingContext()) {
+    RenderingContext()->SizeChanged();
+  }
+
+  DiscardResources();
+  if (IsRenderingContext2D() && context_->isContextLost()) {
+    context_->RestoreFromInvalidSizeIfNeeded();
+  }
+  if (frame_dispatcher_) {
+    frame_dispatcher_->Reshape(Size());
+  }
 
   if ((IsWebGL() && old_size != Size()) || IsWebGPU()) {
     context_->Reshape(width(), height());
@@ -1199,10 +1180,8 @@ void HTMLCanvasElement::PaintInternal(GraphicsContext& context,
   // Note: Test coverage for this is assured by manual (non-automated)
   // web test printing/manual/canvas2d-vector-text.html
   // That test should be run manually against CLs that touch this code.
-  if (IsPrinting() && IsRenderingContext2D() &&
-      RenderingContext()->GetResourceProviderForCanvas2D()) {
-    auto* provider = RenderingContext()->GetResourceProviderForCanvas2D();
-    provider->FlushCanvas(FlushReason::kPrinting);
+  if (IsPrinting() && IsRenderingContext2D()) {
+    RenderingContext()->FlushCanvas(FlushReason::kPrinting);
     // `FlushRecording` might be a no-op if a flush already happened before.
     // Fortunately, the last flush recording was kept by the context.
     const std::optional<cc::PaintRecord>& last_recording =
@@ -1218,8 +1197,6 @@ void HTMLCanvasElement::PaintInternal(GraphicsContext& context,
       UMA_HISTOGRAM_BOOLEAN("Blink.Canvas.2DPrintingAsVector", true);
       return;
     }
-    UMA_HISTOGRAM_ENUMERATION("Blink.Canvas.VectorPrintFallbackReason",
-                              provider->printing_fallback_reason());
     UMA_HISTOGRAM_BOOLEAN("Blink.Canvas.2DPrintingAsVector", false);
   }
 
@@ -1263,20 +1240,6 @@ bool HTMLCanvasElement::IsPrinting() const {
 
 UkmParameters HTMLCanvasElement::GetUkmParameters() {
   return {GetDocument().UkmRecorder(), GetDocument().UkmSourceID()};
-}
-
-void HTMLCanvasElement::SetSurfaceSize(gfx::Size size) {
-  CanvasRenderingContextHost::SetSize(size);
-  if (RenderingContext()) {
-    RenderingContext()->SizeChanged();
-  }
-
-  DiscardResources();
-  if (IsRenderingContext2D() && context_->isContextLost()) {
-    context_->RestoreFromInvalidSizeIfNeeded();
-  }
-  if (frame_dispatcher_)
-    frame_dispatcher_->Reshape(Size());
 }
 
 const AtomicString HTMLCanvasElement::ImageSourceURL() const {

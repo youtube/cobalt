@@ -44,6 +44,25 @@ int GetPriorityForBubbleType(BubbleType type) {
   NOTREACHED();
 }
 
+// Returns true if a new bubble of this type should always replace an
+// existing pending bubble of the same type in the queue.
+bool ShouldAlwaysPreemptSameType(BubbleType bubble_type) {
+  switch (bubble_type) {
+    case BubbleType::kPassword:
+      return true;
+    case BubbleType::kFilledCardInformation:
+    case BubbleType::kSaveUpdateAutofillAi:
+    case BubbleType::kSaveUpdateCard:
+    case BubbleType::kVirtualCardEnrollConfirmation:
+    case BubbleType::kSaveIban:
+    case BubbleType::kMandatoryReauth:
+    case BubbleType::kSaveUpdateAddress:
+    case BubbleType::kOfferNotification:
+      return false;
+  }
+  NOTREACHED();
+}
+
 }  // namespace
 
 BubbleManagerImpl::PendingRequest::PendingRequest(
@@ -74,7 +93,8 @@ BubbleManagerImpl::BubbleManagerImpl() = default;
 BubbleManagerImpl::~BubbleManagerImpl() = default;
 
 void BubbleManagerImpl::RequestShowController(
-    BubbleControllerBase& controller_to_show) {
+    BubbleControllerBase& controller_to_show,
+    bool force_show) {
   base::WeakPtr<BubbleControllerBase> controller_weak_ptr =
       controller_to_show.GetBubbleControllerBaseWeakPtr();
 
@@ -86,19 +106,8 @@ void BubbleManagerImpl::RequestShowController(
     return;
   }
 
-  const BubbleType new_bubble_type = controller_weak_ptr->GetBubbleType();
-  const BubbleType active_bubble_type =
-      active_bubble_controller_->GetBubbleType();
-
-  // Preemption logic: New bubble replaces the active one.
-  // 1. A new password bubble always replaces an existing password bubble.
-  // 2. Any bubble with a higher priority replaces the active one.
-  bool should_preempt = (new_bubble_type == BubbleType::kPassword &&
-                         active_bubble_type == BubbleType::kPassword) ||
-                        (GetPriorityForBubbleType(new_bubble_type) >
-                         GetPriorityForBubbleType(active_bubble_type));
-
-  if (should_preempt && !active_bubble_controller_->IsMouseHovered()) {
+  if (force_show ||
+      ShouldReplaceExistingBubble(controller_weak_ptr->GetBubbleType())) {
     HideActiveBubbleForPreemption(controller_weak_ptr);
   } else {
     // New bubble has lower or equal priority, or the active bubble is hovered;
@@ -157,9 +166,8 @@ void BubbleManagerImpl::AddToPendingQueue(
 
   if (it != pending_bubbles_queue_.end()) {
     // If a bubble of the same type exists, erase it before inserting the new
-    // one, subject to timeout rules. Passwords is an exception, it's bubble
-    // would replace the old one.
-    if (new_bubble_type == BubbleType::kPassword ||
+    // one if the controller says so or if it has timed out.
+    if (ShouldAlwaysPreemptSameType(new_bubble_type) ||
         (now - it->time_added) > kPendingRequestTimeout) {
       pending_bubbles_queue_.erase(it);
       pending_bubbles_queue_.insert(PendingRequest(controller, now, priority));
@@ -240,6 +248,25 @@ bool BubbleManagerImpl::HasPendingBubble(
   }
 
   return true;
+}
+
+bool BubbleManagerImpl::ShouldReplaceExistingBubble(
+    const BubbleType new_bubble_type) const {
+  if (active_bubble_controller_->IsMouseHovered()) {
+    return false;
+  }
+
+  const BubbleType active_bubble_type =
+      active_bubble_controller_->GetBubbleType();
+
+  // If the bubbles have same type, preempt based on the controller type.
+  if (new_bubble_type == active_bubble_type) {
+    return ShouldAlwaysPreemptSameType(new_bubble_type);
+  }
+
+  // Otherwise, preempt based on priority.
+  return GetPriorityForBubbleType(new_bubble_type) >
+         GetPriorityForBubbleType(active_bubble_type);
 }
 
 }  // namespace autofill

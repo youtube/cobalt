@@ -106,6 +106,7 @@
 #include "third_party/blink/renderer/core/html/html_template_element.h"
 #include "third_party/blink/renderer/core/html/parser/html_parser_idioms.h"
 #include "third_party/blink/renderer/core/html_names.h"
+#include "third_party/blink/renderer/core/input/keyboard_event_manager.h"
 #include "third_party/blink/renderer/core/input_type_names.h"
 #include "third_party/blink/renderer/core/inspector/console_message.h"
 #include "third_party/blink/renderer/core/keywords.h"
@@ -130,6 +131,8 @@
 #include "third_party/blink/renderer/platform/scheduler/public/post_cancellable_task.h"
 #include "third_party/blink/renderer/platform/text/bidi_paragraph.h"
 #include "third_party/blink/renderer/platform/wtf/std_lib_extras.h"
+#include "third_party/blink/renderer/platform/wtf/text/character_names.h"
+#include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 
 namespace blink {
 
@@ -1995,7 +1998,10 @@ PopoverHideResult HTMLElement::HidePopoverInternal(
       DCHECK_EQ(upstream_invoker->InterestForElement(), this);
       DCHECK_NE(upstream_invoker->GetInvokerData()->GetInterestState(),
                 InterestState::kNoInterest);
-      upstream_invoker->LoseInterestNow();
+      // We're already closing this popover, so don't try to close it again.
+      upstream_invoker->LoseInterestNow(
+          InterestLostCancelable::kCancelable,
+          InterestLostPopoverBehavior::kDontClosePopovers);
     }
 
     // The 'loseinterest' event handler could have changed this popover, e.g. by
@@ -2008,7 +2014,6 @@ PopoverHideResult HTMLElement::HidePopoverInternal(
 
     // Queue the "closing" toggle event.
     String old_state = "open";
-    ToggleEvent* after_event;
     if (GetPopoverData()->hasPendingToggleEventTask()) {
       // There's already a queued 'toggle' event. Cancel it and fire a new one
       // keeping the original value for old_state.
@@ -2018,9 +2023,9 @@ PopoverHideResult HTMLElement::HidePopoverInternal(
     } else {
       GetPopoverData()->setPendingToggleEventStartedClosed(false);
     }
-    after_event = ToggleEvent::Create(event_type_names::kToggle,
-                                      Event::Cancelable::kNo, old_state,
-                                      /*new_state*/ "closed", invoker);
+    ToggleEvent* after_event = ToggleEvent::Create(
+        event_type_names::kToggle, Event::Cancelable::kNo, old_state,
+        /*new_state*/ "closed", invoker);
     CHECK_EQ(after_event->newState(), "closed");
     CHECK_EQ(after_event->oldState(), old_state);
     CHECK(!after_event->bubbles());
@@ -2455,13 +2460,9 @@ void HTMLElement::InvokePopover(Element& invoker) {
 
 void HTMLElement::SetImplicitAnchor(Element* element) {
   CHECK(IsPopover());
-  if (auto* old_implicit_anchor =
-          GetPopoverData() ? GetPopoverData()->implicitAnchor() : nullptr) {
-    old_implicit_anchor->DecrementImplicitlyAnchoredElementCount();
-  }
   GetPopoverData()->setImplicitAnchor(element);
   if (element) {
-    element->IncrementImplicitlyAnchoredElementCount();
+    element->SetMayBeImplicitAnchor();
   }
 }
 
@@ -2512,10 +2513,10 @@ bool HTMLElement::HandleCommandInternal(HTMLElement& invoker,
                               command == CommandEventType::kRequestFullscreen ||
                               command == CommandEventType::kExitFullscreen;
 
-  bool is_show_interest = command == CommandEventType::kToggleInterest;
+  bool is_toggle_interest = command == CommandEventType::kToggleInterest;
 
   if (PopoverType() == PopoverValueType::kNone && !is_fullscreen_action &&
-      (!is_show_interest || !InterestForElement())) {
+      (!is_toggle_interest || !InterestForElement())) {
     return false;
   }
 
@@ -2572,12 +2573,13 @@ bool HTMLElement::HandleCommandInternal(HTMLElement& invoker,
 
   LocalFrame* frame = document.GetFrame();
 
-  if (is_show_interest && InterestForElement()) {
+  if (is_toggle_interest && InterestForElement()) {
     if (GetInterestState() == InterestState::kNoInterest) {
       ShowInterestNow();
     } else {
       CHECK_EQ(GetInterestState(), InterestState::kFullInterest);
-      LoseInterestNow();
+      LoseInterestNow(InterestLostCancelable::kCancelable,
+                      InterestLostPopoverBehavior::kClosePopovers);
     }
     return true;
   } else if (command == CommandEventType::kToggleFullscreen) {
@@ -2681,6 +2683,46 @@ void HTMLElement::click() {
 
 void HTMLElement::AccessKeyAction(SimulatedClickCreationScope creation_scope) {
   DispatchSimulatedClick(nullptr, creation_scope);
+}
+
+String HTMLElement::accessKeyLabel() {
+  CHECK(RuntimeEnabledFeatures::AccessKeyLabelEnabled());
+  const String access_key = FastGetAttribute(html_names::kAccesskeyAttr);
+  if (access_key.empty()) {
+    return String();
+  } else if (access_key.length() > 1) {
+    // If there is more than one code point for access key then it will
+    // cause no access key to be assigned.
+    // This is because the behavior of access_key is not matched
+    // with the spec[1][2]
+    // [1] https://html.spec.whatwg.org/#keyboard-shortcuts-processing-model
+    // [2] https://github.com/whatwg/html/issues/3769
+    AddConsoleMessage(
+        mojom::ConsoleMessageSource::kJavaScript,
+        mojom::ConsoleMessageLevel::kWarning,
+        "An accessKey with more than one code point is not supported.");
+    return String();
+  }
+
+  StringBuilder result;
+
+  const int modifiers = KeyboardEventManager::kAccessKeyModifiers;
+#if BUILDFLAG(IS_MAC)
+  if (modifiers & WebInputEvent::kControlKey) {
+    result.Append(uchar::kUpArrowheadKey);
+  }
+  if (modifiers & WebInputEvent::kAltKey) {
+    result.Append(uchar::kOptionKey);
+  }
+#else
+  DCHECK(!(modifiers & WebInputEvent::kControlKey));
+  if (modifiers & WebInputEvent::kAltKey) {
+    result.Append("Alt+");
+  }
+#endif
+
+  result.Append(access_key);
+  return result.ReleaseString();
 }
 
 String HTMLElement::title() const {

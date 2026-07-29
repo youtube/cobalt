@@ -474,6 +474,7 @@ Tính năng này có trên <ph name="MAC_OS_NAME" /> 10.15 trở lên.</translat
       Nếu bạn bật chính sách này, phím tắt quốc tế cải tiến sẽ được bật.
       Nếu bạn không đặt chính sách này, hệ thống sẽ không áp dụng chính sách cho các thiết bị được quản lý mà áp dụng cho các thiết bị thuộc sở hữu của người dùng thông thường.
       Xin lưu ý rằng đây chỉ là chính sách tạm thời để những người dùng được quản lý vẫn có thể sử dụng các phím tắt cũ không dùng nữa. Chính sách này sẽ ngừng hoạt động sau khi phím tắt tuỳ chỉnh ra mắt.</translation>
+<translation id="1357214899305978790">Thiết lập các lối tắt trên trang Thẻ mới (Phiên bản beta)</translation>
 <translation id="1361661842732478894">Hiện nút Màn hình chính trên thanh công cụ</translation>
 <translation id="1363275621236827384">Bật truy vấn cấu hình Máy chủ Quirks cho phần cứng</translation>
 <translation id="1363839375295535439">Nếu bạn đặt thành Enabled (Bật) hoặc không đặt chính sách này, thì Hộp cát LPAC sẽ được bật cho các dịch vụ in mỗi khi cấu hình hệ thống hỗ trợ.
@@ -549,6 +550,19 @@ Các chính sách của Chrome sẽ được ưu tiên hơn chính sách này, c
       Chính sách này ghi đè <ph name="DEFAULT_SERIAL_GUARD_SETTING_POLICY_NAME" />, <ph name="SERIAL_ASK_FOR_URLS_POLICY_NAME" />, <ph name="SERIAL_BLOCKED_FOR_URLS_POLICY_NAME" /> và các lựa chọn ưu tiên của người dùng.</translation>
 <translation id="1413768951234456918">Xoá nhật ký duyệt web</translation>
 <translation id="1413936351612032792">Báo cáo thông tin về việc sử dụng các ứng dụng Linux</translation>
+<translation id="1417776888841750570">Chính sách này kiểm soát hành vi của trình duyệt sau khi người dùng đăng nhập vào tài khoản được quản lý trong vùng nội dung.
+
+Chính sách này ghi đè <ph name="MANAGED_ACCOUNTS_SIGNIN_RESTRICTION_POLICY_NAME" />.
+
+Nếu bạn đặt chính sách này thành Đề xuất, thì sau khi đăng nhập vào tài khoản được quản lý, người dùng sẽ được yêu cầu tiếp tục sử dụng hồ sơ được quản lý như thể đây là quy tắc bắt buộc. Nếu từ chối, người dùng có thể tiếp tục duyệt web trong môi trường không được quản lý.
+
+Nếu bạn đặt chính sách này thành Bắt buộc, thì sau khi đăng nhập vào tài khoản được quản lý, người dùng sẽ được yêu cầu tiếp tục sử dụng hồ sơ được quản lý. Nếu từ chối, người dùng sẽ bị đăng xuất khỏi tài khoản của mình. Chính sách <ph name="SIGNIN_INTERCEPTION_ENABLED_POLICY_NAME" /> không ảnh hưởng đến quy tắc bắt buộc này.
+
+Nếu bạn đặt chính sách này thành Tắt hoặc không đặt, thì sau khi đăng nhập vào tài khoản được quản lý, người dùng có thể thấy một bong bóng yêu cầu họ tạo hồ sơ mới. Họ có thể đóng bong bóng này và tiếp tục duyệt web trong môi trường không được quản lý. Bong bóng này được kiểm soát theo chính sách <ph name="SIGNIN_INTERCEPTION_ENABLED_POLICY_NAME" />.
+
+Chính sách này không có hiệu lực khi đặt ở cấp độ thiết bị.
+
+Chính sách này không áp dụng hoặc không hoạt động trong chế độ ẩn danh.</translation>
 <translation id="1417888712677507140">Chặn các hộp thoại JavaScript được kích hoạt từ một khung phụ có nguồn gốc khác.</translation>
 <translation id="1418387035898607074">Bỏ qua quá trình kiểm tra của tính năng Duyệt web an toàn đối với các tệp tải xuống từ nguồn đáng tin cậy</translation>
 <translation id="1419020637569060510">Thêm các hạn chế trên một tài khoản được quản lý được sử dụng làm tài khoản phụ trên ChromeOS.</translation>
@@ -3436,7 +3450,6 @@ Nếu bạn không đặt chính sách này, thì hệ thống sẽ ngăn mọi 
       Nếu bạn tắt hoặc không đặt tùy chọn cài đặt này, luồng đăng nhập nội tuyến mới sẽ được sử dụng theo mặc định. Người dùng có thể vẫn bật luồng đăng nhập dựa trên web cũ thông qua cờ dòng lệnh --enable-web-based-signin.
 
       Tùy chọn cài đặt thử nghiệm này sẽ bị xóa trong tương lai khi tính năng đăng nhập nội tuyến hỗ trợ đầy đủ tất cả các luồng đăng nhập một lần (SSO).</translation>
-<translation id="3435178885391813398">Không cho phép Trình quét.</translation>
 <translation id="3435796032110614169">Cho phép xóa lịch sử lệnh in</translation>
 <translation id="3436217793443508863">Khoảng thời gian (tính bằng mili giây) kể từ khi không có hoạt động đầu vào của người dùng cho đến thời điểm màn hình bị khóa khi chạy bằng pin</translation>
 <translation id="3437924696598384725">Cho phép người dùng quản lý các tùy chọn kết nối VPN</translation>
@@ -5320,6 +5333,17 @@ Người dùng sẽ vẫn đăng nhập vào Tài khoản Google của mình khi
 Cho đến Chrome 114, chính sách này yêu cầu đặt chính sách <ph name="SYNC_DISABLED_POLICY_NAME" /> thành true (đúng). Kể từ Chrome 115, việc bạn đặt chính sách này sẽ tắt tính năng đồng bộ hoá đối với các loại dữ liệu tương ứng nếu "<ph name="CHROME_SYNC_NAME" />" không bị tắt bằng cách đặt chính sách <ph name="SYNC_DISABLED_POLICY_NAME" /> và <ph name="BROWSER_SIGNIN_POLICY_NAME" /> cũng không bị tắt.</translation>
 <translation id="4694138212536142867">Bật tính năng báo cáo trạng thái phần cứng của thiết bị</translation>
 <translation id="4697581738794063407">Kiểm soát tính năng lọc tham số URL</translation>
+<translation id="4698488381632756664">Đang phát triển: chỉ dành cho bản xem trước.
+
+Nếu bạn đặt chính sách này, hệ thống sẽ định cấu hình trước tối đa 10 lối tắt tuỳ chỉnh trên trang Thẻ mới của <ph name="PRODUCT_NAME" />.
+
+Nếu bạn đặt chính sách này, người dùng sẽ thấy các lối tắt này theo mặc định và có thể chuyển đổi giữa "Các lối tắt của tôi", "Các trang web truy cập nhiều nhất " hoặc "Các lối tắt của tổ chức của tôi" trên bảng điều khiển "Tuỳ chỉnh Chrome". Nếu bạn không đặt hoặc để trống chính sách này, người dùng sẽ chỉ có thể chuyển đổi giữa "Các lối tắt của tôi" hoặc "Các trang web truy cập nhiều nhất" trên bảng điều khiển "Tuỳ chỉnh Chrome".
+
+URL lối tắt phải không được trùng lặp.
+
+Nếu bạn đặt <ph name="NTP_SHORTCUTS_ALLOW_USER_EDIT_NAME" /> thành true, thì người dùng có thể thay đổi tên của lối tắt. Nếu bạn đặt thành false hoặc không đặt, thì người dùng sẽ không thể chỉnh sửa tên.
+
+Nếu bạn đặt <ph name="NTP_SHORTCUTS_ALLOW_USER_DELETE_NAME" /> thành true, thì người dùng có thể xoá lối tắt. Nếu bạn đặt thành false hoặc không đặt, thì người dùng không thể xoá lối tắt.</translation>
 <translation id="4698895924806859508">Không báo cáo sự kiện mạng</translation>
 <translation id="4699172675775169585">Tệp và hình ảnh được lưu trong bộ nhớ đệm</translation>
 <translation id="4699592681017489215">Chính sách này định cấu hình một công tắc cục bộ có thể dùng để tắt các tùy chọn kiểm tra chặn hệ thống tên miền (DNS). Các tùy chọn kiểm tra dùng để khám phá xem trình duyệt có ở sau một proxy chuyển hướng các tên máy chủ không xác định không.
@@ -6972,15 +6996,6 @@ Trên <ph name="MS_WIN_NAME" />, chính sách này chỉ có trên các phiên b
 <translation id="5728154254076636808">Bật tạo bản sao chuyển vùng cho dữ liệu hồ sơ của <ph name="PRODUCT_NAME" /></translation>
 <translation id="5729308727912841256">Mật khẩu Kerberos. Phần giữ chỗ <ph name="PASSWORD_PLACEHOLDER" /> được thay bằng mật khẩu đăng nhập.</translation>
 <translation id="5730610899971390601">Từ chối yêu cầu ghép nối Bluetooth "Just Works"</translation>
-<translation id="5731898940174379509">Nếu bạn đặt chính sách này, hệ thống sẽ định cấu hình trước tối đa 10 lối tắt tuỳ chỉnh trên trang Thẻ mới của <ph name="PRODUCT_NAME" />.
-
-Nếu bạn đặt chính sách này, người dùng sẽ thấy các lối tắt này theo mặc định và có thể chuyển đổi giữa "Các lối tắt của tôi", "Các trang web truy cập nhiều nhất " hoặc "Lối tắt của tổ chức tôi" trên bảng điều khiển "Tuỳ chỉnh Chrome". Nếu bạn không đặt hoặc để trống chính sách này, người dùng sẽ chỉ có thể chuyển đổi giữa "Các lối tắt của tôi" hoặc "Các trang web truy cập nhiều nhất" trên bảng điều khiển "Tuỳ chỉnh Chrome".
-
-URL lối tắt phải không được trùng lặp.
-
-Nếu bạn đặt <ph name="NTP_SHORTCUTS_ALLOW_USER_EDIT_NAME" /> thành true, thì người dùng có thể thay đổi tên của lối tắt. Nếu bạn đặt thành false hoặc không đặt, thì người dùng sẽ không thể chỉnh sửa tên.
-
-Nếu bạn đặt <ph name="NTP_SHORTCUTS_ALLOW_USER_DELETE_NAME" /> thành true, thì người dùng có thể xoá lối tắt này. Nếu bạn đặt thành false hoặc không đặt, thì người dùng không thể xoá lối tắt.</translation>
 <translation id="5732972008943405952">Nhập dữ liệu tự động điền vào biểu mẫu trên trình duyệt mặc định trong lần chạy đầu tiên</translation>
 <translation id="5733040281451845496">Nếu bạn đặt chính sách này thành Bật, thì thời gian trì hoãn của chính sách quản lý điện và giới hạn thời lượng phiên hoạt động sẽ chỉ bắt đầu sau khi hoạt động đầu tiên của người dùng xảy ra trong một phiên hoạt động.
 
@@ -7267,7 +7282,6 @@ Trên <ph name="MAC_OS_NAME" />, chính sách này chỉ có trên các phiên b
 
       Nếu bạn đặt chính sách này thành Tắt, người dùng sẽ không sử dụng được giao thức QUIC (giao thức kết nối Internet nhanh UDP).</translation>
 <translation id="5916855682471300200">Chính sách thiết bị trên đám mây được ưu tiên hơn chính sách thiết bị trên nền tảng</translation>
-<translation id="5917092644305650513">Chế độ cài đặt cho tính năng Trình quét</translation>
 <translation id="5917425424971710623">Không báo cáo thông tin về các sự kiện phát hiện và phản hồi mở rộng (XDR)</translation>
 <translation id="5917897389577978190">Gmail (được hỗ trợ kể từ phiên bản 135)</translation>
 <translation id="592036544845479336">Kích hoạt lại Sự kiện đột biến không được dùng nữa/đã bị loại bỏ</translation>
@@ -7677,7 +7691,6 @@ Từ phiên bản 114 trở lên, bạn không bắt buộc phải đặt chính
       sẽ không được báo cáo. Nếu bạn đặt thành true, thì thông tin về báo cáo sự cố sẽ được
       báo cáo.</translation>
 <translation id="624219423122512710">Thao tác của trình duyệt ở trạng thái rảnh</translation>
-<translation id="6243061183100681514">Cho phép Trình quét và cải tiến các mô hình AI.</translation>
 <translation id="6244061205361004687">Cho phép người dùng ngắt kết nối hoặc sửa đổi VPN theo cách thủ công</translation>
 <translation id="6244210204546589761">Các URL sẽ mở khi khởi động</translation>
 <translation id="624595269193747921">Liệu có giới hạn phạm vi tìm kiếm máy in phù hợp ở một nhóm máy in cụ thể hay không.</translation>
@@ -8444,7 +8457,6 @@ Chính sách KDC luôn áp dụng trên <ph name="MS_WIN_NAME" />.</translation>
 <translation id="666203515318060501">Cho phép tính năng tự động điền nâng cao nhưng không tham gia cải tiến mô hình AI.</translation>
 <translation id="6665670272107384733">Đặt tần suất người dùng phải nhập mật khẩu để sử dụng tính năng mở khóa nhanh</translation>
 <translation id="6667586534922258705">Hiện nút hiển thị mật khẩu trên màn hình đăng nhập và màn hình khóa</translation>
-<translation id="6667636336079341367">Cho phép Trình quét nhưng không tham gia cải tiến các mô hình AI.</translation>
 <translation id="6668559639284945695">Chính sách này cho phép quay lại hành vi cũ đối với phạm vi truy cập cookie.
 
 Nói cách khác, các cookie được đặt trên một giao thức (ví dụ: HTTPS) hoặc cổng cụ thể có thể được truy cập từ một giao thức hoặc cổng khác.
@@ -8749,7 +8761,6 @@ Nếu bạn đặt chính sách này thành Disabled (Tắt) hoặc không đặ
 Nếu bạn đặt chính sách này thành sai hoặc không đặt thì bố cục này sẽ không được áp dụng. Bạn cần khởi động lại để chính sách có hiệu lực.</translation>
 <translation id="685769593149966548">Buộc sử dụng Chế độ hạn chế nghiêm ngặt cho YouTube</translation>
 <translation id="686079137349561371">Microsoft Windows 7 trở lên</translation>
-<translation id="6863927303509860338">Thiết lập các lối tắt trên trang Thẻ mới</translation>
 <translation id="6866755486434471318">Cho phép <ph name="PEPPER_NAME" /> sử dụng hình ảnh được chia sẻ để giải mã video.</translation>
 <translation id="6878757724611298427">Cho phép người dùng sử dụng ứng dụng Android trên thiết bị chưa liên kết</translation>
 <translation id="6881397131210596522">Nếu bạn đặt chính sách này thành 2 thì hệ thống sẽ tự động ngăn các trang web sử dụng API WebPrinting.
@@ -11123,17 +11134,6 @@ Nếu bạn không đặt chính sách này thì hành vi của chính sách s�
       Nếu chế độ này đang Tắt hoặc chưa được thiết lập, thông tin này sẽ không được báo cáo.
       Nếu chế độ này đang Bật, sự kiện CRD sẽ được báo cáo nếu người dùng đang liên kết</translation>
 <translation id="85723976805793612">Chia sẻ nhật ký sự kiện cài đặt ứng dụng Android với Google</translation>
-<translation id="8573354257711790704">Chính sách này kiểm soát chế độ cài đặt của tính năng Trình quét trên <ph name="PRODUCT_OS_NAME" />.
-
-0 = Cho phép sử dụng tính năng này và cho phép Google sử dụng dữ liệu liên quan để cải tiến các mô hình AI. Tuỳ thuộc vào tính năng, dữ liệu liên quan có thể bao gồm câu lệnh, thông tin đầu vào, thông tin đầu ra, tài liệu nguồn và phản hồi bằng văn bản. Dữ liệu này cũng có thể được nhân viên xem xét để cải tiến các mô hình AI. 0 là giá trị mặc định, trừ phi có ghi chú bên dưới.
-
-1 = Cho phép sử dụng tính năng nhưng không cho phép Google sử dụng nội dung của người dùng (bao gồm câu lệnh, thông tin đầu vào, thông tin đầu ra, tài liệu nguồn và phản hồi bằng văn bản) để cải tiến các mô hình. 1 là giá trị mặc định cho Người dùng doanh nghiệp do <ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" /> quản lý và Tài khoản thuộc tổ chức giáo dục do <ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" /> quản lý.
-
-2 = Không cho phép sử dụng tính năng này.
-
-Nếu bạn không đặt chính sách này thì hành vi của chính sách sẽ do chính sách <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> xác định.
-
-Để biết thêm thông tin về cách xử lý dữ liệu cho các tính năng AI tạo sinh, vui lòng truy cập https://support.google.com/chrome/a?p=generative_ai_settings.</translation>
 <translation id="857369585509260201">Chính sách này không còn dùng nữa, thay vào đó, hãy cân nhắc sử dụng BrowserSignin.
 
       Nếu bạn đặt chính sách này thành true, người dùng sẽ phải đăng nhập vào <ph name="PRODUCT_NAME" /> bằng hồ sơ của họ trước khi sử dụng trình duyệt. Giá trị mặc định của BrowserGuestModeEnabled sẽ được đặt thành false. Lưu ý rằng các hồ sơ chưa ký hiện tại sẽ bị khóa và không truy cập được sau khi bật chính sách này. Để biết thêm thông tin, hãy xem bài viết trên trung tâm trợ giúp.

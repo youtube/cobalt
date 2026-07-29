@@ -21,25 +21,6 @@ const std::string& GetEmptyStringRef() {
 }
 }  // namespace
 
-// DoNothingProto
-
-const google::protobuf::internal::ClassData* DoNothingProto::GetClassData()
-    const {
-  NOTREACHED();
-}
-
-void DoNothingProto::Clear() {}
-
-size_t DoNothingProto::ByteSizeLong() const {
-  return 0;
-}
-
-uint8_t* DoNothingProto::_InternalSerialize(
-    uint8_t* ptr,
-    google::protobuf::io::EpsCopyOutputStream* stream) const {
-  return ptr;
-}
-
 // ===========================
 // RemoteAccessService helpers
 // ===========================
@@ -218,10 +199,10 @@ std::string_view GetSupportId(const RemoteSupportHost&) {
 // ============================
 
 std::string_view GetSendHostMessagePath() {
-  return {};
+  return "/fake/for_testing/send_host_message";
 }
 std::string_view GetReceiveClientMessagesPath() {
-  return {};
+  return "/fake/for_testing/receive_client_messages";
 }
 
 std::unique_ptr<ReceiveClientMessagesRequest> GetReceiveClientMessagesRequest(

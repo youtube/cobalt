@@ -96,7 +96,7 @@ using set_up_list_prefs::SetUpListItemState;
 
 namespace {
 std::unique_ptr<KeyedService> BuildFeatureEngagementMockTracker(
-    web::BrowserState* browser_state) {
+    ProfileIOS* profile) {
   // Allow ShortcutsMediator to call WouldTriggerHelpUI() without causing log
   // noise.
   auto tracker = std::make_unique<feature_engagement::test::MockTracker>();
@@ -255,7 +255,7 @@ class MagicStackRankingModelTest : public PlatformTest {
     builder.AddTestingFactory(
         commerce::ShoppingServiceFactory::GetInstance(),
         base::BindRepeating(
-            [](web::BrowserState*) -> std::unique_ptr<KeyedService> {
+            [](ProfileIOS* profile) -> std::unique_ptr<KeyedService> {
               return commerce::MockShoppingService::Build();
             }));
     builder.AddTestingFactory(TipsManagerIOSFactory::GetInstance(),
@@ -400,10 +400,9 @@ class MagicStackRankingModelTest : public PlatformTest {
     PlatformTest::TearDown();
   }
 
-  web::BrowserState* SetUpEnvironment(web::BrowserState* context) {
-    ProfileIOS* setup_profile = ProfileIOS::FromBrowserState(context);
-    segmentation_test_utils_->SetupForProfile(setup_profile);
-    return context;
+  ProfileIOS* SetUpEnvironment(ProfileIOS* profile) {
+    segmentation_test_utils_->SetupForProfile(profile);
+    return profile;
   }
 
   ProfileIOS* GetProfile() { return profile_.get(); }

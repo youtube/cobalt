@@ -50,6 +50,7 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_list.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/test/base/chrome_ash_test_base.h"
 #include "chrome/test/base/test_browser_window_aura.h"
 #include "chrome/test/base/testing_browser_process.h"
@@ -229,6 +230,17 @@ class MultiProfileSupportTest : public ChromeAshTestBase {
     GetSessionControllerClient()->SetSessionState(
         session_manager::SessionState::ACTIVE);
 
+    // Workaround with testing utilities. Currently, for primary user login
+    // case, OnActiveUserSessionChanged is not called via
+    // TestSessionControllerClient, so call it manually here.
+    // TODO(crbug.com/425160398): Make TestSessionControllerClient behavior
+    // closer to the production one, or get rid of it to connect actual
+    // UserManager and SessionManager in tests.
+    if (user_manager_->GetPrimaryUser() == user) {
+      ash::MultiUserWindowManagerImpl::Get()->OnActiveUserSessionChanged(
+          user->GetAccountId());
+    }
+
     if (user_manager_->GetActiveUser() != user) {
       user_manager_->SwitchActiveUser(user->GetAccountId());
       GetSessionControllerClient()->SwitchActiveUser(user->GetAccountId());
@@ -254,9 +266,6 @@ class MultiProfileSupportTest : public ChromeAshTestBase {
     // initialization in the production.
     // TODO(crbug.com/425160398): This should be simplified for the bug fix.
     ::MultiUserWindowManagerHelper::CreateInstanceForTest();
-    ash::MultiUserWindowManagerImpl::Get()->SetAnimationSpeedForTest(
-        ash::MultiUserWindowManagerImpl::ANIMATION_SPEED_DISABLED);
-    ::MultiUserWindowManagerHelper::GetWindowManager()->SetPrimaryUser(ids[0]);
 
     for (const AccountId& account_id : ids.subspan(1u)) {
       LogInUser(account_id);
@@ -361,6 +370,9 @@ void MultiProfileSupportTest::SetUp() {
 
   ChromeAshTestBase::SetUp();
   GetSessionControllerClient()->set_pref_service_must_exist(true);
+
+  ash::MultiUserWindowManagerImpl::Get()->SetAnimationSpeedForTest(
+      ash::MultiUserWindowManagerImpl::ANIMATION_SPEED_DISABLED);
 
   profile_manager_ = std::make_unique<TestingProfileManager>(
       TestingBrowserProcess::GetGlobal());
@@ -500,12 +512,10 @@ TEST_F(MultiProfileSupportTest, BasicTests) {
   EXPECT_FALSE(multi_user_window_manager()
                    ->GetUserPresentingWindow(window(0))
                    .is_valid());
-  EXPECT_TRUE(
-      MultiUserWindowManagerHelper::GetInstance()->IsWindowOnDesktopOfUser(
-          window(0), kAccountIdA));
-  EXPECT_TRUE(
-      MultiUserWindowManagerHelper::GetInstance()->IsWindowOnDesktopOfUser(
-          window(0), kAccountIdB));
+  EXPECT_TRUE(multi_user_window_manager()->IsWindowOnDesktopOfUser(
+      window(0), kAccountIdA));
+  EXPECT_TRUE(multi_user_window_manager()->IsWindowOnDesktopOfUser(
+      window(0), kAccountIdB));
 
   // Set the owner of one window should remember it as such. It should only be
   // drawn on the owners desktop - not on any other.
@@ -514,12 +524,10 @@ TEST_F(MultiProfileSupportTest, BasicTests) {
             multi_user_window_manager()->GetWindowOwner(window(0)));
   EXPECT_EQ(kAccountIdA,
             multi_user_window_manager()->GetUserPresentingWindow(window(0)));
-  EXPECT_TRUE(
-      MultiUserWindowManagerHelper::GetInstance()->IsWindowOnDesktopOfUser(
-          window(0), kAccountIdA));
-  EXPECT_FALSE(
-      MultiUserWindowManagerHelper::GetInstance()->IsWindowOnDesktopOfUser(
-          window(0), kAccountIdB));
+  EXPECT_TRUE(multi_user_window_manager()->IsWindowOnDesktopOfUser(
+      window(0), kAccountIdA));
+  EXPECT_FALSE(multi_user_window_manager()->IsWindowOnDesktopOfUser(
+      window(0), kAccountIdB));
 
   // Overriding it with another state should show it on the other user's
   // desktop.
@@ -528,12 +536,10 @@ TEST_F(MultiProfileSupportTest, BasicTests) {
             multi_user_window_manager()->GetWindowOwner(window(0)));
   EXPECT_EQ(kAccountIdB,
             multi_user_window_manager()->GetUserPresentingWindow(window(0)));
-  EXPECT_FALSE(
-      MultiUserWindowManagerHelper::GetInstance()->IsWindowOnDesktopOfUser(
-          window(0), kAccountIdA));
-  EXPECT_TRUE(
-      MultiUserWindowManagerHelper::GetInstance()->IsWindowOnDesktopOfUser(
-          window(0), kAccountIdB));
+  EXPECT_FALSE(multi_user_window_manager()->IsWindowOnDesktopOfUser(
+      window(0), kAccountIdA));
+  EXPECT_TRUE(multi_user_window_manager()->IsWindowOnDesktopOfUser(
+      window(0), kAccountIdB));
 }
 
 // Testing simple owner changes.
@@ -808,16 +814,14 @@ TEST_F(MultiProfileSupportTest, MinimizeChangesOwnershipBack) {
   multi_user_window_manager()->SetWindowOwner(window(2), kAccountIdB);
   ShowWindowForUserNoUserTransition(window(1), kAccountIdA);
   EXPECT_EQ("S[a], S[b,a], H[b], S[]", GetStatus());
-  EXPECT_TRUE(
-      MultiUserWindowManagerHelper::GetInstance()->IsWindowOnDesktopOfUser(
-          window(1), kAccountIdA));
+  EXPECT_TRUE(multi_user_window_manager()->IsWindowOnDesktopOfUser(
+      window(1), kAccountIdA));
   WindowState::Get(window(1))->Minimize();
   // At this time the window is still on the desktop of that user, but the user
   // does not have a way to get to it.
   EXPECT_EQ("S[a], H[b,a], H[b], S[]", GetStatus());
-  EXPECT_TRUE(
-      MultiUserWindowManagerHelper::GetInstance()->IsWindowOnDesktopOfUser(
-          window(1), kAccountIdA));
+  EXPECT_TRUE(multi_user_window_manager()->IsWindowOnDesktopOfUser(
+      window(1), kAccountIdA));
   EXPECT_TRUE(WindowState::Get(window(1))->IsMinimized());
   // Change to user B and make sure that minimizing does not change anything.
   SwitchActiveUser(kAccountIdB);
@@ -1643,13 +1647,13 @@ TEST_F(MultiProfileSupportTest, FindBrowserWithActiveWindow) {
   browser->window()->Activate();
   // Manually set last active browser in BrowserList for testing.
   BrowserList::GetInstance()->SetLastActive(browser.get());
-  EXPECT_EQ(browser.get(), BrowserList::GetInstance()->GetLastActive());
+  EXPECT_EQ(browser.get(), GetLastActiveBrowserWindowInterfaceWithAnyProfile());
   EXPECT_TRUE(browser->window()->IsActive());
   EXPECT_EQ(browser.get(), chrome::FindBrowserWithActiveWindow());
 
   // Switch to another user's desktop with no active window.
   SwitchActiveUser(kAccountIdB);
-  EXPECT_EQ(browser.get(), BrowserList::GetInstance()->GetLastActive());
+  EXPECT_EQ(browser.get(), GetLastActiveBrowserWindowInterfaceWithAnyProfile());
   EXPECT_FALSE(browser->window()->IsActive());
   EXPECT_EQ(nullptr, chrome::FindBrowserWithActiveWindow());
 }

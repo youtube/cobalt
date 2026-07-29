@@ -22,7 +22,7 @@ using content::BrowserThread;
 
 namespace android_webview {
 
-BASE_FEATURE(WebViewPrefetchDisableBlockUntilHeadTimeout,
+BASE_FEATURE(kWebViewPrefetchDisableBlockUntilHeadTimeout,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 class AwPrefetchRequestStatusListener

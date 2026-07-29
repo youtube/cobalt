@@ -632,6 +632,7 @@
 <translation id="4042941173059740150">Продолжете на <ph name="SITE_ETLD_PLUS_ONE" /> со <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /></translation>
 <translation id="4044708993631234325">Долен лист</translation>
 <translation id="4045441967987592849">Отвори повторно</translation>
+<translation id="4049920046559074950">Повеќе опции за <ph name="INSTANCE_TITLE" /></translation>
 <translation id="4052419222954753986">{NUMBER_OF_TABS,plural, =1{<ph name="TABS_COUNT_ONE" /> стандардна картичка со нова активност во споделените групи картички}one{<ph name="TABS_COUNT_MANY" /> стандардна картичка со нова активност во споделените групи картички}other{<ph name="TABS_COUNT_MANY" /> стандардни картички со нова активност во споделените групи картички}}</translation>
 <translation id="405365679581583349">Ажурирајте ги „Услугите на Google Play“</translation>
 <translation id="405399507749852140">Добивајте предупредувања ако цената се намали на кој било сајт</translation>
@@ -1830,6 +1831,7 @@
 <translation id="930124987204876019">Избришете ги историјата, колачињата, податоците од сајтот, кешот…</translation>
 <translation id="938850635132480979">Грешка: <ph name="ERROR_CODE" /></translation>
 <translation id="939598580284253335">Внеси пристапна фраза</translation>
+<translation id="945522503751344254">Испратете повратни информации</translation>
 <translation id="95817756606698420">Chrome може да го користи <ph name="BEGIN_BOLD" />Sogou<ph name="END_BOLD" /> за пребарување во Кина. Тоа може да го промените во <ph name="BEGIN_LINK" />Поставки<ph name="END_LINK" />.</translation>
 <translation id="961856697154696964">Избришете го прелистувањето</translation>
 <translation id="963246339335003378">Отвори „Управник со задачи“</translation>

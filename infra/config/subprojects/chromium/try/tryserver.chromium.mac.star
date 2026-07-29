@@ -340,7 +340,7 @@ try_.orchestrator_builder(
         # TODO (crbug.com/415099984): change to 100,
         # then move out of experimental CQ after,
         # mac15-arm64-rel replaces mac14-arm64-rel on CQ.
-        experiment_percentage = 30,
+        experiment_percentage = 1,
     ),
 )
 
@@ -573,6 +573,8 @@ ios_builder(
         "ci/ios-catalyst",
     ],
     gn_args = "ci/ios-catalyst",
+    builderless = True,
+    cpu = cpu.ARM64,
     siso_remote_jobs = siso.remote_jobs.LOW_JOBS_FOR_CQ,
 )
 
@@ -854,6 +856,7 @@ gpu.try_.optional_tests_builder(
     cpu = None,
     ssd = None,
     free_space = None,
+    alerts_enabled = False,
     contact_team_email = "chrome-gpu-infra@google.com",
     main_list_view = "try",
     max_concurrent_builds = 7,

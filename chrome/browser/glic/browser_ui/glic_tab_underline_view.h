@@ -9,6 +9,7 @@
 #include "cc/paint/paint_shader.h"
 #include "chrome/browser/glic/browser_ui/glic_animated_effect_view.h"
 #include "content/public/browser/gpu_data_manager_observer.h"
+#include "ui/base/interaction/element_identifier.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/compositor/compositor_animation_observer.h"
 #include "ui/compositor/compositor_observer.h"
@@ -54,6 +55,8 @@ class GlicTabUnderlineView : public GlicAnimatedEffectView {
   GlicTabUnderlineView& operator=(const GlicTabUnderlineView&) = delete;
   ~GlicTabUnderlineView() override;
 
+  DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kGlicTabUnderlineElementId);
+
  protected:
   friend class Factory;
   explicit GlicTabUnderlineView(Browser* browser,
@@ -70,6 +73,8 @@ class GlicTabUnderlineView : public GlicAnimatedEffectView {
       std::vector<cc::PaintShader::Float4Uniform>& float4_uniforms,
       std::vector<cc::PaintShader::IntUniform>& int_uniforms) const override;
   void DrawEffect(gfx::Canvas* canvas, const cc::PaintFlags& flags) override;
+
+  int ComputeWidth();
 
   // A utility class that subscribes to `GlicKeyedService` for various browser
   // UI status changes that affect showing and animating of the tab underlines.

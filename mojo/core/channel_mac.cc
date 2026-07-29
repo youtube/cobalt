@@ -48,7 +48,7 @@ namespace core {
 namespace {
 
 // Kill switch.
-BASE_FEATURE(UseMachVouchers, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kUseMachVouchers, base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool ShouldUseVouchers() {
   static bool enabled = base::FeatureList::IsEnabled(kUseMachVouchers);
@@ -130,8 +130,7 @@ class ChannelMac : public Channel,
                               size_t num_handles,
                               const void* extra_header,
                               size_t extra_header_size,
-                              std::vector<PlatformHandle>* handles,
-                              bool* deferred) override {
+                              std::vector<PlatformHandle>* handles) override {
     // Validate the incoming handles. If validation fails, ensure they are
     // destroyed.
     std::vector<PlatformHandle> incoming_handles;

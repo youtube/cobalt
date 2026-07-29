@@ -306,20 +306,20 @@ AddressFieldParserNG::~AddressFieldParserNG() = default;
 // static
 std::unique_ptr<FormFieldParser> AddressFieldParserNG::Parse(
     ParsingContext& context,
-    AutofillScanner* scanner) {
-  if (scanner->IsEnd()) {
+    AutofillScanner& scanner) {
+  if (scanner.IsEnd()) {
     return nullptr;
   }
 
-  size_t saved_cursor = scanner->SaveCursor();
+  size_t saved_cursor = scanner.SaveCursor();
   std::unique_ptr<AddressFieldParserNG> address_field(new AddressFieldParserNG(
       AddressCountryCode(context.client_country.value())));
   address_field->context_ = &context;
-  address_field->scanner_ = scanner;
-  address_field->initial_field_ = scanner->Cursor();
+  address_field->scanner_ = &scanner;
+  address_field->initial_field_ = &scanner.Cursor();
 
   DVLOG(1) << "Parse recursively starting at " << saved_cursor << " "
-           << scanner->Cursor()->label();
+           << scanner.Cursor().label();
 
   address_field->ParseRecursively();
 
@@ -333,12 +333,12 @@ std::unique_ptr<FormFieldParser> AddressFieldParserNG::Parse(
   // found, set the cursor to the last classified field + 1, otherwise return
   // the scanner in the initial state.
   if (!address_field->best_classification_.assignments.empty()) {
-    scanner->RewindTo(
+    scanner.RewindTo(
         address_field->best_classification_.last_classified_field_index);
-    scanner->Advance();
+    scanner.Advance();
     return address_field;
   }
-  scanner->RewindTo(saved_cursor);
+  scanner.RewindTo(saved_cursor);
   return nullptr;
 }
 
@@ -351,9 +351,9 @@ void AddressFieldParserNG::AddClassifications(
     // TODO(crbug.com/320965828): Support MatchInfo. The NG parser doesn't track
     // how matches are found. `kHighQualityLabel` is merely a placeholder.
     AddClassification(
-        FieldAndMatchInfo{field_ptr,
+        FieldAndMatchInfo(field_ptr,
                           {.matched_attribute =
-                               MatchInfo::MatchAttribute::kHighQualityLabel}},
+                               MatchInfo::MatchAttribute::kHighQualityLabel}),
         field_type, kBaseAddressParserScore, field_candidates);
   }
 }
@@ -406,7 +406,7 @@ std::optional<double> AddressFieldParserNG::FindScoreOfBestMatchingRule(
     // preferred attribute match.
     auto MatchAttribute = [&](bool match_label) -> std::optional<double> {
       if (FieldMatchesMatchPatternRef(
-              *context_, *scanner_->Cursor(), pattern_name,
+              *context_, scanner_->Cursor(), pattern_name,
               {match_label ? MatchOnlyLabel : MatchOnlyName,
                match_pattern_projection})) {
         return score + (match_label == prefer_label ? 0.05 : 0.0);
@@ -693,6 +693,11 @@ std::optional<double> AddressFieldParserNG::FindScoreOfBestMatchingRule(
     case KNOWN_TRAVELER_NUMBER_EXPIRATION_DATE:
     case ADDRESS_HOME_ZIP_PREFIX:
     case ADDRESS_HOME_ZIP_SUFFIX:
+    case FLIGHT_RESERVATION_FLIGHT_NUMBER:
+    case FLIGHT_RESERVATION_TICKET_NUMBER:
+    case FLIGHT_RESERVATION_CONFIRMATION_CODE:
+    case FLIGHT_RESERVATION_ARRIVAL_AIRPORT:
+    case FLIGHT_RESERVATION_DEPARTURE_AIRPORT:
     case MAX_VALID_FIELD_TYPE:
       return std::nullopt;
   }
@@ -746,7 +751,7 @@ void AddressFieldParserNG::ParseRecursively() {
         partial_classification_.last_classified_field_index;
     if (field_type != UNKNOWN_TYPE) {
       partial_classification_.contained_types.insert(field_type);
-      partial_classification_.assignments[field_type] = scanner_->Cursor();
+      partial_classification_.assignments[field_type] = &scanner_->Cursor();
       partial_classification_.last_classified_field_index =
           scanner_->SaveCursor();
     }

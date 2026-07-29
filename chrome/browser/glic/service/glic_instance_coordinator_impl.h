@@ -13,9 +13,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
-#include "base/observer_list_types.h"
 #include "base/scoped_observation.h"
-#include "base/scoped_observation_traits.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/host/glic_web_client_access.h"
 #include "chrome/browser/glic/host/host.h"
@@ -23,6 +21,8 @@
 #include "chrome/browser/glic/service/glic_instance.h"
 #include "chrome/browser/glic/widget/glic_window_controller.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/browser_list.h"
+#include "chrome/browser/ui/browser_list_observer.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/views/widget/widget.h"
@@ -30,13 +30,19 @@
 
 class Browser;
 
+namespace tabs {
+class TabInterface;
+}
+
 namespace gfx {
 class Size;
 class Point;
 }  // namespace gfx
+
 namespace glic {
 class GlicInstanceCoordinatorImpl : public GlicWindowController,
-                                    public GlicInstance::AttachmentDelegate {
+                                    public GlicInstance::AttachmentDelegate,
+                                    public BrowserListObserver {
  public:
   GlicInstanceCoordinatorImpl(const GlicInstanceCoordinatorImpl&) = delete;
   GlicInstanceCoordinatorImpl& operator=(const GlicInstanceCoordinatorImpl&) =
@@ -48,14 +54,20 @@ class GlicInstanceCoordinatorImpl : public GlicWindowController,
                               GlicEnabling* enabling);
   ~GlicInstanceCoordinatorImpl() override;
 
+  // BrowserListObserver implementation
+  void OnBrowserAdded(Browser* browser) override;
+  void OnBrowserRemoved(Browser* browser) override;
+
   // GlicInstance::AttachmentDelegate implementation
   void AttachInstance(GlicInstance* instance) override;
   void DetachInstance(GlicInstance* instance) override;
-
-  Host& host() const override;
-  HostManager& host_manager() override;
+  void OnInstanceOrphaned(GlicInstance* instance) override;
 
   // GlicWindowController implementation
+  Host& host() override;
+  HostManager& host_manager() override;
+  Host* GetHostForTab(tabs::TabInterface* tab) override;
+
   void Toggle(BrowserWindowInterface* browser,
               bool prevent_close,
               mojom::InvocationSource source) override;
@@ -65,30 +77,22 @@ class GlicInstanceCoordinatorImpl : public GlicWindowController,
                                    bool prevent_close,
                                    mojom::InvocationSource source) override;
   void FocusIfOpen() override;
-  void Attach() override;
-  void Detach() override;
   void Shutdown() override;
-  void Resize(const gfx::Size& size,
-              base::TimeDelta duration,
-              base::OnceClosure callback) override;
-  void EnableDragResize(bool enabled) override;
   void MaybeSetWidgetCanResize() override;
   gfx::Size GetSize() override;
-  void SetDraggableAreas(
-      const std::vector<gfx::Rect>& draggable_areas) override;
-  void SetMinimumWidgetSize(const gfx::Size& size) override;
   void Close() override;
   void CloseWithReason(views::Widget::ClosedReason reason) override;
   void ShowTitleBarContextMenuAt(gfx::Point event_loc) override;
   bool ShouldStartDrag(const gfx::Point& initial_press_loc,
                        const gfx::Point& mouse_location) override;
-  const mojom::PanelState& GetPanelState() const override;
 
   void AddStateObserver(StateObserver* observer) override;
   void RemoveStateObserver(StateObserver* observer) override;
 
-  bool IsActive() override;
+  const mojom::PanelState& GetPanelState() const override;
   bool IsShowing() const override;
+
+  bool IsActive() override;
   bool IsAttached() const override;
   bool IsDetached() const override;
   base::CallbackListSubscription AddWindowActivationChangedCallback(
@@ -110,23 +114,58 @@ class GlicInstanceCoordinatorImpl : public GlicWindowController,
   gfx::Rect GetInitialBounds(Browser* browser) override;
   void ShowDetachedForTesting() override;
   void SetPreviousPositionForTesting(gfx::Point position) override;
-  std::unique_ptr<GlicView> CreateGlicViewForSidePanel() override;
+  std::unique_ptr<views::View> CreateViewForSidePanel(
+      tabs::TabInterface* tab) override;
+  void SidePanelShown(Browser* browser) override;
 
   base::CallbackListSubscription RegisterFloatyStateChange(
       FloatyStateChangeCallback callback) override;
 
  private:
+  GlicInstance* GetOrCreateGlicInstanceForTab(tabs::TabInterface* tab);
+  GlicInstance* GetInstanceFor(const ConversationId& id);
+  GlicInstance* GetInstanceForTab(tabs::TabInterface* tab);
+  GlicInstance* CreateGlicInstance(BrowserWindowInterface* bwi);
+
+  void ToggleFloaty();
+  void ToggleSidePanel(BrowserWindowInterface* browser);
+
+  void RemoveInstance(GlicInstance* instance);
+  bool HasAttachedInstance(GlicInstance* instance);
+  bool IsFloatingInstance(GlicInstance* instance);
+  void ReattachFloatingInstance();
+
+  std::unique_ptr<Host> CreateHost();
+  void OnDestroyingHost(Host* host);
+
   // List of callbacks to be notified when window activation has changed.
   base::RepeatingCallbackList<void(bool)> window_activation_callback_list_;
-
   using FloatyStateChangeCallbackList =
       base::RepeatingCallbackList<void(State, mojom::CurrentView view)>;
   FloatyStateChangeCallbackList floaty_state_change_callback_list_;
 
   mojom::PanelState panel_state_;
   const raw_ptr<Profile> profile_;
+
+  // TODO: This is a temporary solution to associate a
+  // conversation with a browser window. This will be removed once there are
+  // affordances for users to manage their own conversations.
+  std::map<BrowserWindowInterface*, ConversationId>
+      browser_to_conversation_map_;
+
+  std::map<ConversationId, std::unique_ptr<GlicInstance>> instances_;
+
+  // Pointer to the instance (if any) that is currently floating.
+  raw_ptr<GlicInstance> floating_instance_ = nullptr;
+
   std::unique_ptr<HostManager> host_manager_;
+
+  base::ScopedObservation<BrowserList, BrowserListObserver>
+      browser_list_observation_{this};
+
+  base::WeakPtrFactory<GlicInstanceCoordinatorImpl> weak_ptr_factory_{this};
 };
+
 }  // namespace glic
 
 #endif  // CHROME_BROWSER_GLIC_SERVICE_GLIC_INSTANCE_COORDINATOR_IMPL_H_

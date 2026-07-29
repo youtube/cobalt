@@ -47,7 +47,7 @@ namespace blink {
 // Use ZSTD to compress the snapshot. This is faster to decompress, and much
 // faster to compress. ZSTD may not be available on all platforms, so this
 // feature will be a no-op on those.
-BASE_FEATURE(CanvasHibernationSnapshotZstd, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kCanvasHibernationSnapshotZstd, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // static
 HibernatedCanvasMemoryDumpProvider&
@@ -402,8 +402,7 @@ void CanvasHibernationHandler::Hibernate() {
 
   hibernation_scheduled_ = false;
 
-  CanvasResourceProvider* provider =
-      delegate_->GetResourceProviderForCanvas2D();
+  CanvasResourceProvider* provider = delegate_->GetResourceProvider();
   if (!provider) {
     ReportHibernationEvent(
         HibernationEvent::kHibernationAbortedBecauseNoSurface);

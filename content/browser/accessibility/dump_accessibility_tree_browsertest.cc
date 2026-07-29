@@ -943,17 +943,8 @@ IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeTest,
   RunAriaTest(FILE_PATH_LITERAL("aria-controls-reference-target.html"));
 }
 
-// TODO(crbug.com/405117678): Re-enable this test on Mac.
-#if BUILDFLAG(IS_MAC)
-#define MAYBE_AccessibilityAriaControlsManyParagraphsBetween \
-  DISABLED_AccessibilityAriaControlsManyParagraphsBetween
-#else
-#define MAYBE_AccessibilityAriaControlsManyParagraphsBetween \
-  AccessibilityAriaControlsManyParagraphsBetween
-#endif
-
 IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeTest,
-                       MAYBE_AccessibilityAriaControlsManyParagraphsBetween) {
+                       AccessibilityAriaControlsManyParagraphsBetween) {
   RunAriaTest(FILE_PATH_LITERAL("aria-controls-many-paragraphs-between.html"));
 }
 
@@ -3364,6 +3355,11 @@ IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeTest, AccessibilityNoscript) {
 IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeTest,
                        AccessibilityNextOnLineEmptyListItem) {
   RunHtmlTest(FILE_PATH_LITERAL("next-on-line-empty-list-item.html"));
+}
+
+IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeTest,
+                       AccessibilityListMarkerMultiline) {
+  RunHtmlTest(FILE_PATH_LITERAL("list-marker-multiline.html"));
 }
 
 IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeTest, AccessibilityOl) {

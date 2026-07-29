@@ -51,6 +51,7 @@
 #include "components/password_manager/core/browser/mock_webauthn_credentials_delegate.h"
 #include "components/password_manager/core/browser/password_autofill_manager.h"
 #include "components/password_manager/core/browser/password_bubble_experiment.h"
+#include "components/password_manager/core/browser/password_change_service_interface.h"
 #include "components/password_manager/core/browser/password_form.h"
 #include "components/password_manager/core/browser/password_form_manager.h"
 #include "components/password_manager/core/browser/password_form_manager_for_ui.h"
@@ -149,6 +150,14 @@ MATCHER_P(HasUsernameValue, expected_username, "") {
   return arg.username_value == expected_username;
 }
 
+MATCHER_P(HasDateLastFilled, expected, "") {
+  return arg.date_last_filled == expected;
+}
+
+MATCHER_P(HasDateLastUsed, expected, "") {
+  return arg.date_last_used == expected;
+}
+
 class FakeNetworkContext : public network::TestNetworkContext {
  public:
   FakeNetworkContext() = default;
@@ -177,6 +186,19 @@ class MockStoreResultFilter : public StubCredentialsFilter {
                      bool(const PasswordForm&));
 };
 
+class MockPasswordChangeService : public PasswordChangeServiceInterface {
+ public:
+  MOCK_METHOD(bool, IsPasswordChangeAvailable, (), (const override));
+  MOCK_METHOD(bool,
+              IsPasswordChangeSupported,
+              (const GURL&, const autofill::LanguageCode&),
+              (const override));
+  MOCK_METHOD(void,
+              RecordLoginAttemptQuality,
+              (password_manager::LogInWithChangedPasswordOutcome, const GURL&),
+              (const override));
+};
+
 class MockPasswordManagerClient : public StubPasswordManagerClient {
  public:
   MockPasswordManagerClient() {
@@ -197,6 +219,8 @@ class MockPasswordManagerClient : public StubPasswordManagerClient {
                                  PasskeysUnavailableReason::kNotReceived)));
     ON_CALL(webauthn_credentials_delegate_, IsSecurityKeyOrHybridFlowAvailable)
         .WillByDefault(Return(true));
+    ON_CALL(*this, GetPasswordChangeService)
+        .WillByDefault(Return(&password_change_service_));
   }
 
   UndoPasswordChangeController* GetUndoPasswordChangeController() override {
@@ -205,6 +229,10 @@ class MockPasswordManagerClient : public StubPasswordManagerClient {
 
   void ResetUndoPasswordChangeController() {
     undo_password_change_controller_.reset();
+  }
+
+  MockPasswordChangeService& GetPasswordChangeService() {
+    return password_change_service_;
   }
 
   MOCK_METHOD(bool,
@@ -286,6 +314,10 @@ class MockPasswordManagerClient : public StubPasswordManagerClient {
               (),
               (const, override));
   MOCK_METHOD(FieldInfoManager*, GetFieldInfoManager, (), (const, override));
+  MOCK_METHOD(PasswordChangeServiceInterface*,
+              GetPasswordChangeService,
+              (),
+              (const, override));
   MOCK_METHOD(WebAuthnCredentialsDelegate*,
               GetWebAuthnCredentialsDelegateForDriver,
               (PasswordManagerDriver*),
@@ -317,6 +349,7 @@ class MockPasswordManagerClient : public StubPasswordManagerClient {
   std::unique_ptr<UndoPasswordChangeController>
       undo_password_change_controller_ =
           std::make_unique<UndoPasswordChangeController>();
+  MockPasswordChangeService password_change_service_;
 };
 
 class MockPasswordManagerDriver : public StubPasswordManagerDriver {
@@ -414,9 +447,7 @@ class PasswordManagerTestBase : public testing::Test {
         std::make_unique<testing::NiceMock<MockAffiliatedMatchHelper>>(
             &fake_affiliation_service_);
     mock_match_helper_ = owning_mock_match_helper.get();
-    store_->Init(
-        /*prefs=*/nullptr,
-        /*affiliated_match_helper=*/std::move(owning_mock_match_helper));
+    store_->Init(std::move(owning_mock_match_helper));
 
     ON_CALL(client_, GetProfilePasswordStore())
         .WillByDefault(Return(store_.get()));
@@ -424,8 +455,7 @@ class PasswordManagerTestBase : public testing::Test {
     if (ShouldEnableAccountStorage()) {
       account_store_ =
           base::MakeRefCounted<TestPasswordStore>(IsAccountStore(true));
-      account_store_->Init(/*prefs=*/nullptr,
-                           /*affiliated_match_helper=*/nullptr);
+      account_store_->Init(/*affiliated_match_helper=*/nullptr);
 
       ON_CALL(client_, GetAccountPasswordStore())
           .WillByDefault(Return(account_store_.get()));
@@ -1676,7 +1706,7 @@ TEST_P(PasswordManagerTest, FormSubmitWhenPasswordsCannotBeSaved) {
   // Test that a plain form submit doesn't result in offering to save passwords.
   auto store = base::MakeRefCounted<PasswordStore>(
       std::make_unique<FailingPasswordStoreBackend>());
-  store->Init(/*prefs=*/nullptr, /*affiliated_match_helper=*/nullptr);
+  store->Init(/*affiliated_match_helper=*/nullptr);
   ON_CALL(client_, GetProfilePasswordStore())
       .WillByDefault(Return(store.get()));
 
@@ -1709,7 +1739,7 @@ TEST_P(PasswordManagerTest,
   // Test that a plain form submit doesn't result in offering to save passwords.
   auto store = base::MakeRefCounted<PasswordStore>(
       std::make_unique<FailingPasswordStoreBackend>());
-  store->Init(/*prefs=*/nullptr, /*affiliated_match_helper=*/nullptr);
+  store->Init(/*affiliated_match_helper=*/nullptr);
   PasswordForm form(MakeSimpleForm());
   form.password_value = u"old_password";
   store->AddLogin(form);
@@ -1748,12 +1778,19 @@ TEST_P(PasswordManagerTest,
   base::HistogramTester histogram_tester;
   PasswordForm form(MakeSimpleForm());
   form.type = PasswordForm::Type::kChangeSubmission;
+  // Since date_last_used is within the acceptable delta of the backup creation
+  // time, this is the first login with the backup password.
+  form.date_last_used = base::Time::Now() + base::Seconds(1);
+  form.SetPasswordBackupNote(u"backup_password");
   store_->AddLogin(form);
   FormData observed_form = form.form_data;
   manager()->OnPasswordFormsParsed(&driver_, {observed_form});
   manager()->OnPasswordFormsRendered(&driver_, {observed_form});
   task_environment_.RunUntilIdle();
 
+  EXPECT_CALL(client_.GetPasswordChangeService(),
+              RecordLoginAttemptQuality(
+                  LogInWithChangedPasswordOutcome::kPrimaryPasswordFailed, _));
   manager()->OnPasswordFormSubmitted(&driver_, observed_form);
   manager()->OnPasswordFormsRendered(&driver_, {MakeSimpleFormData()});
   manager()->DidNavigateMainFrame(true);
@@ -1778,12 +1815,20 @@ TEST_P(PasswordManagerTest,
   base::HistogramTester histogram_tester;
   PasswordForm form(MakeSimpleForm());
   form.type = PasswordForm::Type::kChangeSubmission;
+  // Since date_last_used is within the acceptable delta of the backup creation
+  // time, this is the first login with the backup password.
+  form.date_last_used = base::Time::Now() + base::Seconds(1);
+  form.SetPasswordBackupNote(u"backup_password");
   store_->AddLogin(form);
   std::vector<FormData> observed = {form.form_data};
   manager()->OnPasswordFormsParsed(&driver_, observed);
   manager()->OnPasswordFormsRendered(&driver_, observed);
   task_environment_.RunUntilIdle();
 
+  EXPECT_CALL(
+      client_.GetPasswordChangeService(),
+      RecordLoginAttemptQuality(
+          LogInWithChangedPasswordOutcome::kPrimaryPasswordSucceeded, _));
   OnPasswordFormSubmitted(form.form_data);
   observed.clear();
   manager()->DidNavigateMainFrame(true);
@@ -1809,6 +1854,9 @@ TEST_P(PasswordManagerTest,
   ukm::TestAutoSetUkmRecorder test_ukm_recorder;
   base::HistogramTester histogram_tester;
   PasswordForm form(MakeSimpleForm());
+  // Since date_last_used is within the acceptable delta of the backup creation
+  // time, this is the first login with the backup password.
+  form.date_last_used = base::Time::Now() + base::Seconds(1);
   std::u16string backup_password = u"backup_password";
   form.SetPasswordBackupNote(backup_password);
   // Set the backup password as input of the login form.
@@ -1817,6 +1865,9 @@ TEST_P(PasswordManagerTest,
   store_->AddLogin(form);
   FormData observed_form = form.form_data;
 
+  EXPECT_CALL(client_.GetPasswordChangeService(),
+              RecordLoginAttemptQuality(
+                  LogInWithChangedPasswordOutcome::kBackupPasswordFailed, _));
   manager()->OnPasswordFormsParsed(&driver_, {observed_form});
   manager()->OnPasswordFormsRendered(&driver_, {observed_form});
   task_environment_.RunUntilIdle();
@@ -1843,6 +1894,9 @@ TEST_P(PasswordManagerTest,
   ukm::TestAutoSetUkmRecorder test_ukm_recorder;
   base::HistogramTester histogram_tester;
   PasswordForm form(MakeSimpleForm());
+  // Since date_last_used is within the acceptable delta of the backup creation
+  // time, this is the first login with the backup password.
+  form.date_last_used = base::Time::Now() + base::Seconds(1);
   std::u16string backup_password = u"backup_password";
   form.SetPasswordBackupNote(backup_password);
   // Set the backup password as input of the login form.
@@ -1855,6 +1909,10 @@ TEST_P(PasswordManagerTest,
   manager()->OnPasswordFormsRendered(&driver_, observed);
   task_environment_.RunUntilIdle();
 
+  EXPECT_CALL(
+      client_.GetPasswordChangeService(),
+      RecordLoginAttemptQuality(
+          LogInWithChangedPasswordOutcome::kBackupPasswordSucceeded, _));
   OnPasswordFormSubmitted(form.form_data);
   observed.clear();
   manager()->DidNavigateMainFrame(true);
@@ -1880,6 +1938,9 @@ TEST_P(PasswordManagerTest,
   ukm::TestAutoSetUkmRecorder test_ukm_recorder;
   base::HistogramTester histogram_tester;
   PasswordForm form(MakeSimpleForm());
+  // Since date_last_used is within the acceptable delta of the backup creation
+  // time, this is the first login with the backup password.
+  form.date_last_used = base::Time::Now() + base::Seconds(1);
   std::u16string backup_password = u"backup_password";
   form.SetPasswordBackupNote(backup_password);
   // Set the manually entered password as input of the login form.
@@ -1888,6 +1949,9 @@ TEST_P(PasswordManagerTest,
   store_->AddLogin(form);
   FormData observed_form = form.form_data;
 
+  EXPECT_CALL(client_.GetPasswordChangeService(),
+              RecordLoginAttemptQuality(
+                  LogInWithChangedPasswordOutcome::kUnknownPasswordFailed, _));
   manager()->OnPasswordFormsParsed(&driver_, {observed_form});
   manager()->OnPasswordFormsRendered(&driver_, {observed_form});
   task_environment_.RunUntilIdle();
@@ -1915,6 +1979,9 @@ TEST_P(PasswordManagerTest,
   ukm::TestAutoSetUkmRecorder test_ukm_recorder;
   base::HistogramTester histogram_tester;
   PasswordForm form(MakeSimpleForm());
+  // Since date_last_used is within the acceptable delta of the backup creation
+  // time, this is the first login with the backup password.
+  form.date_last_used = base::Time::Now() + base::Seconds(1);
   std::u16string backup_password = u"backup_password";
   form.SetPasswordBackupNote(backup_password);
   // Set the manually entered password as input of the login form.
@@ -1927,6 +1994,10 @@ TEST_P(PasswordManagerTest,
   manager()->OnPasswordFormsRendered(&driver_, observed);
   task_environment_.RunUntilIdle();
 
+  EXPECT_CALL(
+      client_.GetPasswordChangeService(),
+      RecordLoginAttemptQuality(
+          LogInWithChangedPasswordOutcome::kUnknownPasswordSucceeded, _));
   OnPasswordFormSubmitted(form.form_data);
   observed.clear();
   manager()->DidNavigateMainFrame(true);
@@ -1947,6 +2018,43 @@ TEST_P(PasswordManagerTest,
           LogInWithChangedPasswordOutcome::kUnknownPasswordSucceeded));
 }
 
+TEST_P(PasswordManagerTest, SecondLogin_MqslNotReported) {
+  ukm::TestAutoSetUkmRecorder test_ukm_recorder;
+  base::HistogramTester histogram_tester;
+  PasswordForm form(MakeSimpleForm());
+  form.type = PasswordForm::Type::kChangeSubmission;
+  // Since date_last_used is within the acceptable delta of the backup creation
+  // time, this is the first login with the backup password.
+  form.date_last_used = base::Time::Now() + base::Minutes(3);
+  form.SetPasswordBackupNote(u"backup_password");
+  store_->AddLogin(form);
+  std::vector<FormData> observed = {form.form_data};
+  manager()->OnPasswordFormsParsed(&driver_, observed);
+  manager()->OnPasswordFormsRendered(&driver_, observed);
+  task_environment_.RunUntilIdle();
+
+  EXPECT_CALL(client_.GetPasswordChangeService(), RecordLoginAttemptQuality)
+      .Times(0);
+  OnPasswordFormSubmitted(form.form_data);
+  observed.clear();
+  manager()->DidNavigateMainFrame(true);
+  manager()->OnPasswordFormsParsed(&driver_, observed);
+  manager()->OnPasswordFormsRendered(&driver_, observed);
+
+  histogram_tester.ExpectUniqueSample(
+      "PasswordManager.LogInWithPasswordChangeSubmission",
+      LogInWithChangedPasswordOutcome::kPrimaryPasswordSucceeded, 1);
+
+  ukm::TestUkmRecorder::ExpectEntryMetric(
+      GetMetricEntry(
+          test_ukm_recorder,
+          ukm::builders::PasswordManager_ChangeSubmission::kEntryName),
+      ukm::builders::PasswordManager_ChangeSubmission::
+          kLogInWithPasswordChangeSubmissionName,
+      static_cast<int>(
+          LogInWithChangedPasswordOutcome::kPrimaryPasswordSucceeded));
+}
+
 // Checks that credentials on the submitted form are not checked for leak when
 // the password store is broken. Broken password store makes it unable to mute
 // the leak notification.
@@ -1957,7 +2065,7 @@ TEST_P(PasswordManagerTest, BrokenPasswordStorePreventsMutingCredentials) {
   manager()->set_leak_factory(std::move(mock_factory));
   auto store = base::MakeRefCounted<PasswordStore>(
       std::make_unique<FailingPasswordStoreBackend>());
-  store->Init(/*prefs=*/nullptr, /*affiliated_match_helper=*/nullptr);
+  store->Init(/*affiliated_match_helper=*/nullptr);
   ON_CALL(client_, GetProfilePasswordStore())
       .WillByDefault(Return(store.get()));
 
@@ -6749,6 +6857,59 @@ TEST_P(PasswordManagerTest,
 
   // Check that a form manager was not created.
   ASSERT_TRUE(manager()->form_managers().empty());
+}
+
+TEST_P(PasswordManagerTest, DateLastFilledIsUpdated) {
+  base::test::ScopedFeatureList feature_list{
+      password_manager::features::kPasswordDateLastFilled};
+  EXPECT_CALL(client_, IsSavingAndFillingEnabled).WillRepeatedly(Return(true));
+
+  // Simulate a user-triggered fill for a stored login. This should update the
+  // `date_last_filled` timestamp on the saved form prior to form submission.
+  const PasswordForm saved_match(MakeSavedForm());
+  store_->AddLogin(saved_match);
+
+  const PasswordForm form(MakeSimpleForm());
+  FormData observed = form.form_data;
+  manager()->OnPasswordFormsParsed(&driver_, {observed});
+  manager()->OnPasswordFormsRendered(&driver_, {observed});
+  task_environment_.RunUntilIdle();
+
+  // Advance the clock to make the expected timestamp different from epoch.
+  task_environment_.AdvanceClock(base::Days(1));
+  auto expected_last_filled = base::Time::Now();
+
+  // Simulate user-triggered password filling.
+  test_api(observed).field(1).set_properties_mask(
+      autofill::FieldPropertiesFlags::kAutofilledOnUserTrigger);
+  manager()->OnInformAboutUserInput(&driver_, observed);
+  task_environment_.RunUntilIdle();
+
+  PasswordForm expected_form = form;
+  EXPECT_THAT(store_->stored_passwords(),
+              ElementsAre(Pair(expected_form.signon_realm,
+                               ElementsAre(AllOf(
+                                   FormMatches(expected_form),
+                                   HasDateLastFilled(expected_last_filled))))));
+
+  // Simulate form submission and wait for navigation to complete. We expect
+  // `date_last_used` to be updated now, and `date_last_filled` to remain the
+  // same.
+  task_environment_.AdvanceClock(base::Seconds(1));
+  auto expected_date_last_used = base::Time::Now();
+
+  OnPasswordFormSubmitted(observed);
+  manager()->DidNavigateMainFrame(true);
+  manager()->OnPasswordFormsParsed(&driver_, {});
+  manager()->OnPasswordFormsRendered(&driver_, {});
+  task_environment_.RunUntilIdle();
+
+  EXPECT_THAT(store_->stored_passwords(),
+              ElementsAre(Pair(expected_form.signon_realm,
+                               ElementsAre(AllOf(
+                                   FormMatches(expected_form),
+                                   HasDateLastUsed(expected_date_last_used),
+                                   HasDateLastFilled(expected_last_filled))))));
 }
 
 INSTANTIATE_TEST_SUITE_P(, PasswordManagerTest, ::testing::Bool());

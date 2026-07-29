@@ -664,6 +664,75 @@ const char kExpectedImageRoleOnlyStructTreeJSON[] = R"({
 }
 )";
 
+const char kExpectedEmphasisStructTreeJSON[] = R"({
+   "lang": "en",
+   "type": "Document",
+   "~children": [ {
+      "type": "Div",
+      "~children": [ {
+         "type": "NonStruct"
+      }, {
+         "type": "Em",
+         "~children": [ {
+            "type": "NonStruct"
+         } ]
+      }, {
+         "type": "NonStruct"
+      }, {
+         "type": "Em",
+         "~children": [ {
+            "type": "NonStruct"
+         } ]
+      }, {
+         "type": "NonStruct"
+      } ]
+   } ]
+}
+)";
+
+const char kExpectedStrongStructTreeJSON[] = R"({
+   "lang": "en",
+   "type": "Document",
+   "~children": [ {
+      "type": "Div",
+      "~children": [ {
+         "type": "NonStruct"
+      }, {
+         "type": "Strong",
+         "~children": [ {
+            "type": "NonStruct"
+         } ]
+      }, {
+         "type": "NonStruct"
+      }, {
+         "type": "Strong",
+         "~children": [ {
+            "type": "NonStruct"
+         } ]
+      }, {
+         "type": "NonStruct"
+      } ]
+   } ]
+}
+)";
+
+const char kExpectedAsideStructTreeJSON[] = R"({
+   "lang": "en",
+   "type": "Document",
+   "~children": [ {
+      "type": "Aside",
+      "~children": [ {
+         "type": "NonStruct"
+      } ]
+   }, {
+      "type": "Aside",
+      "~children": [ {
+         "type": "NonStruct"
+      } ]
+   } ]
+}
+)";
+
 struct TaggedPDFTestData {
   const char* url;
   const char* expected_json;
@@ -677,6 +746,9 @@ constexpr TaggedPDFTestData kTaggedPDFTestData[] = {
     {"/structured_doc_only_image.html", kExpectedImageOnlyStructTreeJSON},
     {"/structured_doc_only_image_role.html",
      kExpectedImageRoleOnlyStructTreeJSON},
+    {"/structured_doc_emphasis.html", kExpectedEmphasisStructTreeJSON},
+    {"/structured_doc_strong.html", kExpectedStrongStructTreeJSON},
+    {"/structured_doc_aside.html", kExpectedAsideStructTreeJSON},
 };
 
 class HeadlessTaggedPDFBrowserTest
@@ -697,6 +769,7 @@ class HeadlessTaggedPDFBrowserTest
     std::string json;
     base::JSONWriter::WriteWithOptions(
         struct_tree, base::JSONWriter::OPTIONS_PRETTY_PRINT, &json);
+
     // Map Windows line endings to Unix by removing '\r'.
     base::RemoveChars(json, "\r", &json);
 

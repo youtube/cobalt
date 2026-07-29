@@ -1437,12 +1437,14 @@ ScriptPromise<XRLightProbe> XRSession::requestLightProbe(
     return EmptyPromise();
   }
 
-  if (light_probe_init->reflectionFormat() != "srgba8" &&
-      light_probe_init->reflectionFormat() != "rgba16f") {
+  if (light_probe_init->reflectionFormat() !=
+          V8XRReflectionFormat::Enum::kSrgba8 &&
+      light_probe_init->reflectionFormat() !=
+          V8XRReflectionFormat::Enum::kRgba16F) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kNotSupportedError,
         "Reflection format \"" +
-            light_probe_init->reflectionFormat().AsString() +
+            light_probe_init->reflectionFormat().AsStringView() +
             "\" not supported.");
     return EmptyPromise();
   }

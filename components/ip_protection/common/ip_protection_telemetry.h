@@ -56,7 +56,9 @@ enum class ProxyResolutionResult {
   kAttemptProxy = 7,
   // A site exception created by User Bypass disables protections.
   kHasSiteException = 8,
-  kMaxValue = kHasSiteException,
+  // The request bypassed the IP Protection proxies through DevTools.
+  kBypassedByDevTools = 9,
+  kMaxValue = kBypassedByDevTools,
 };
 
 // An enumeration of the result of an attempt to fetch a proxy list. These
@@ -90,7 +92,8 @@ enum class IpProtectionTokenCountEvent {
   kSpent = 1,
   kExpired = 2,
   kOrphaned = 3,
-  kMaxValue = kOrphaned,
+  kRecycled = 4,
+  kMaxValue = kRecycled,
 };
 
 // An abstract interface for all of the telemetry associated with IP Protection.

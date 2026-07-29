@@ -510,20 +510,6 @@ targets.mixin(
 )
 
 targets.mixin(
-    name = "skylab-shards-30",
-    skylab = targets.skylab(
-        shards = 30,
-    ),
-)
-
-targets.mixin(
-    name = "skylab-shards-45",
-    skylab = targets.skylab(
-        shards = 45,
-    ),
-)
-
-targets.mixin(
     name = "skylab-50-tests-per-shard",
     skylab = targets.skylab(
         cros_test_max_in_shard = 50,
@@ -1040,6 +1026,22 @@ targets.mixin(
             "os": "Android",
             "device_type": "oriole",
             "device_os": "TP1A.220624.021",
+            "device_os_type": "userdebug",
+            "pool": "chromium.tests.gpu",
+        },
+    ),
+)
+
+targets.mixin(
+    name = "gpu_pixel_10_stable",
+    # We always need this entry to be generated since it is used by
+    # //content/test/gpu/find_bad_machines.py.
+    generate_pyl_entry = targets.IGNORE_UNUSED,
+    swarming = targets.swarming(
+        dimensions = {
+            "os": "Android",
+            "device_type": "frankel",
+            "device_os": "BD3A.250721.001",
             "device_os_type": "userdebug",
             "pool": "chromium.tests.gpu",
         },
@@ -2303,12 +2305,11 @@ targets.mixin(
 )
 
 targets.mixin(
-    name = "updater-mac-pool",
+    name = "updater-tests-pool",
     generate_pyl_entry = False,
     swarming = targets.swarming(
         dimensions = {
-            # Bots in this pool support passwordless sudo.
-            "pool": "chromium.updater.mac",
+            "pool": "chromium.tests.updater",
         },
     ),
 )
@@ -2702,12 +2703,12 @@ targets.mixin(
     generate_pyl_entry = False,
     args = [
         "--xcode-build-version",
-        "17a5305f",
+        "17a5305k",
     ],
     swarming = targets.swarming(
         named_caches = [
             swarming.cache(
-                name = "xcode_ios_17a5305f",
+                name = "xcode_ios_17a5305k",
                 path = "Xcode.app",
             ),
         ],
@@ -2718,12 +2719,12 @@ targets.mixin(
     name = "xcode_26_main",
     args = [
         "--xcode-build-version",
-        "17a5305f",
+        "17a5305k",
     ],
     swarming = targets.swarming(
         named_caches = [
             swarming.cache(
-                name = "xcode_ios_17a5305f",
+                name = "xcode_ios_17a5305k",
                 path = "Xcode.app",
             ),
         ],

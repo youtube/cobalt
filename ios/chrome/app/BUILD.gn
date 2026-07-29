@@ -155,7 +155,6 @@ source_set("unit_tests") {
     "//ios/public/provider/chrome/browser/app_distribution:app_distribution_api",
     "//ios/public/provider/chrome/browser/application_mode_fetcher:application_mode_fetcher_api",
     "//ios/testing:block_swizzler",
-    "//ios/third_party/material_components_ios",
     "//ios/web/public/test",
     "//testing/gmock",
     "//testing/gtest",
@@ -374,8 +373,6 @@ source_set("enterprise_app_agent_ui") {
 
 source_set("app_internal") {
   sources = [
-    "chrome_overlay_window.h",
-    "chrome_overlay_window.mm",
     "main_application_delegate.h",
     "main_application_delegate.mm",
     "main_application_delegate_testing.h",
@@ -516,6 +513,7 @@ source_set("app_internal") {
     "//ios/chrome/browser/shared/public/commands",
     "//ios/chrome/browser/shared/public/features",
     "//ios/chrome/browser/shared/public/features:system_flags",
+    "//ios/chrome/browser/shared/ui/chrome_overlay_window",
     "//ios/chrome/browser/shared/ui/table_view",
     "//ios/chrome/browser/shared/ui/util",
     "//ios/chrome/browser/signin/model",
@@ -545,7 +543,6 @@ source_set("app_internal") {
     "//ios/public/provider/chrome/browser/signin:choice_api",
     "//ios/public/provider/chrome/browser/ui_utils:ui_utils_api",
     "//ios/public/provider/chrome/browser/user_feedback:user_feedback_api",
-    "//ios/third_party/material_components_ios",
     "//ios/web/common:uikit",
     "//ios/web/public/webui",
     "//net",
@@ -617,7 +614,7 @@ source_set("change_profile_animator") {
     "//base",
     "//ios/chrome/app/profile",
     "//ios/chrome/browser/shared/coordinator/scene:scene_state_header",
-    "//ios/third_party/material_components_ios",
+    "//ios/chrome/browser/shared/ui/chrome_overlay_window",
   ]
 }
 
@@ -695,7 +692,7 @@ source_set("multitasking_test_app_delegate") {
     "//base",
     "//ios/chrome/app/application_delegate:app_state",
     "//ios/chrome/browser/shared/coordinator/scene",
-    "//ios/third_party/material_components_ios",
+    "//ios/chrome/browser/shared/ui/chrome_overlay_window",
   ]
 }
 
@@ -732,6 +729,7 @@ chrome_app("chrome") {
     assert(ios_application_icons_target != "",
            "ios_application_icons_target must be defined.")
     bundle_deps += [ ios_application_icons_target ]
+    bundle_deps += [ ios_application_icons_target_legacy ]
     bundle_deps += ios_providers_resources_targets
   } else {
     _variants = []

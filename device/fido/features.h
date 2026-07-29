@@ -40,10 +40,6 @@ BASE_DECLARE_FEATURE(kWebAuthnICloudKeychainForInactiveWithDrive);
 COMPONENT_EXPORT(DEVICE_FIDO)
 BASE_DECLARE_FEATURE(kWebAuthnICloudKeychainForInactiveWithoutDrive);
 
-// Retry requests to U2F keys after a delay if a low-level error happens.
-COMPONENT_EXPORT(DEVICE_FIDO)
-BASE_DECLARE_FEATURE(kWebAuthnRetryU2FErrors);
-
 // Use insecure software unexportable keys to authenticate to the enclave.
 // For development purposes only.
 COMPONENT_EXPORT(DEVICE_FIDO)
@@ -123,12 +119,6 @@ BASE_DECLARE_FEATURE_PARAM(int, kWebAuthnImmediateMediationTimeoutMilliseconds);
 COMPONENT_EXPORT(DEVICE_FIDO)
 BASE_DECLARE_FEATURE(kWebAuthnImmediateGetAutoselect);
 
-// Enables large blob support for iCloud Keychain in MacOS.
-#if BUILDFLAG(IS_MAC)
-COMPONENT_EXPORT(DEVICE_FIDO)
-BASE_DECLARE_FEATURE(kWebAuthnLargeBlobForICloudKeychain);
-#endif  // BUILDFLAG(IS_MAC)
-
 // Enables large blob support for Google Password Manager.
 COMPONENT_EXPORT(DEVICE_FIDO)
 BASE_DECLARE_FEATURE(kWebAuthnLargeBlobForGPM);
@@ -146,6 +136,12 @@ BASE_DECLARE_FEATURE(kWebAuthnWrapCohortData);
 // requests.
 COMPONENT_EXPORT(DEVICE_FIDO)
 BASE_DECLARE_FEATURE(kAuthenticatorPasswordsOnlyImmediateRequests);
+
+// Controls setting the `create_new_vault` flag when refreshing a PIN. When
+// enabled, the enclave will produce new Vault parameters to create a new Vault
+// instead of replacing it.
+COMPONENT_EXPORT(DEVICE_FIDO)
+BASE_DECLARE_FEATURE(kWebAuthnNewRefreshFlow);
 
 }  // namespace device
 

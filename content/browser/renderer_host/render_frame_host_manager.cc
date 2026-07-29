@@ -359,7 +359,9 @@ void ReuseDefaultProcessFromDifferentBrowsingInstanceIfPossible(
 
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
-enum class ProcessPerSiteWithMainFrameThresholdBlockReason {
+//
+// LINT.IfChange(MainFrameProcessReuseBlockReason)
+enum class MainFrameProcessReuseBlockReason {
   kNotBlocked = 0,
   kDisableProcessResuse = 1,
   kDevToolsWasEverAttached = 2,
@@ -369,15 +371,12 @@ enum class ProcessPerSiteWithMainFrameThresholdBlockReason {
   kEmbedderDisallowedReuseForUrl = 6,
   kMaxValue = kEmbedderDisallowedReuseForUrl,
 };
+// LINT.ThenChange(//tools/metrics/histograms/metadata/security/enums.xml:MainFrameProcessReuseBlockReason)
 
-void RecordProcessPerSiteWithMainFrameThresholdBlockReason(
-    ProcessPerSiteWithMainFrameThresholdBlockReason reason) {
-  if (base::FeatureList::IsEnabled(
-          features::kProcessPerSiteUpToMainFrameThreshold)) {
-    base::UmaHistogramEnumeration(
-        "SiteIsolation.ProcessPerSiteWithMainFrameThreshold.BlockReason",
-        reason);
-  }
+void RecordMainFrameProcessReuseBlockReason(
+    MainFrameProcessReuseBlockReason reason) {
+  base::UmaHistogramEnumeration(
+      "SiteIsolation.MainFrameProcessReuse.BlockReason", reason);
 }
 
 // If `site_instance` is for a main frame, try to reuse an existing process
@@ -411,22 +410,20 @@ void UpdateProcessReusePolicyForMainFrame(SiteInstanceImpl* site_instance,
     return;
   }
   if (base::FeatureList::IsEnabled(features::kDisableProcessReuse)) {
-    RecordProcessPerSiteWithMainFrameThresholdBlockReason(
-        ProcessPerSiteWithMainFrameThresholdBlockReason::kDisableProcessResuse);
+    RecordMainFrameProcessReuseBlockReason(
+        MainFrameProcessReuseBlockReason::kDisableProcessResuse);
     return;
   }
   if (!base::FeatureList::IsEnabled(
           features::kMainFrameProcessReuseAllowDevToolsAttached) &&
       RenderFrameDevToolsAgentHost::WasEverAttachedToAnyFrame()) {
-    RecordProcessPerSiteWithMainFrameThresholdBlockReason(
-        ProcessPerSiteWithMainFrameThresholdBlockReason::
-            kDevToolsWasEverAttached);
+    RecordMainFrameProcessReuseBlockReason(
+        MainFrameProcessReuseBlockReason::kDevToolsWasEverAttached);
     return;
   }
   if (!site_instance->RequiresDedicatedProcess()) {
-    RecordProcessPerSiteWithMainFrameThresholdBlockReason(
-        ProcessPerSiteWithMainFrameThresholdBlockReason::
-            kDoesNotRequireDedicatedProcess);
+    RecordMainFrameProcessReuseBlockReason(
+        MainFrameProcessReuseBlockReason::kDoesNotRequireDedicatedProcess);
     return;
   }
 
@@ -440,17 +437,15 @@ void UpdateProcessReusePolicyForMainFrame(SiteInstanceImpl* site_instance,
   if (!base::FeatureList::IsEnabled(
           features::kMainFrameProcessReuseAllowIPAndLocalhost) &&
       (site_url.HostIsIPAddress() || net::IsLocalHostname(site_url.host()))) {
-    RecordProcessPerSiteWithMainFrameThresholdBlockReason(
-        ProcessPerSiteWithMainFrameThresholdBlockReason::
-            kIsIpAddressOrLocalHost);
+    RecordMainFrameProcessReuseBlockReason(
+        MainFrameProcessReuseBlockReason::kIsIpAddressOrLocalHost);
     return;
   }
 
   // Disallow process reuse when scheme is not HTTP(S).
   if (!site_url.SchemeIsHTTPOrHTTPS()) {
-    RecordProcessPerSiteWithMainFrameThresholdBlockReason(
-        ProcessPerSiteWithMainFrameThresholdBlockReason::
-            kSchemeIsNotHttpOrHttps);
+    RecordMainFrameProcessReuseBlockReason(
+        MainFrameProcessReuseBlockReason::kSchemeIsNotHttpOrHttps);
     return;
   }
 
@@ -469,23 +464,21 @@ void UpdateProcessReusePolicyForMainFrame(SiteInstanceImpl* site_instance,
            ->ShouldReuseExistingProcessForNewMainFrameSiteInstance(
                site_instance->GetBrowserContext(),
                site_instance->original_url())) {
-    RecordProcessPerSiteWithMainFrameThresholdBlockReason(
-        ProcessPerSiteWithMainFrameThresholdBlockReason::
-            kEmbedderDisallowedReuseForUrl);
+    RecordMainFrameProcessReuseBlockReason(
+        MainFrameProcessReuseBlockReason::kEmbedderDisallowedReuseForUrl);
     return;
   }
 
-  RecordProcessPerSiteWithMainFrameThresholdBlockReason(
-      ProcessPerSiteWithMainFrameThresholdBlockReason::kNotBlocked);
+  RecordMainFrameProcessReuseBlockReason(
+      MainFrameProcessReuseBlockReason::kNotBlocked);
   if (base::FeatureList::IsEnabled(
           features::kProcessPerSiteUpToMainFrameThreshold)) {
     site_instance->set_process_reuse_policy(
-        ProcessReusePolicy::
-            REUSE_PENDING_OR_COMMITTED_SITE_WITH_MAIN_FRAME_THRESHOLD);
+        ProcessReusePolicy::kReusePendingOrCommittedSiteWithMainFrameThreshold);
   } else if (base::FeatureList::IsEnabled(
                  features::kReusePrerenderingProcessForMainFrames)) {
     site_instance->set_process_reuse_policy(
-        ProcessReusePolicy::REUSE_PRERENDERING_PROCESS_FOR_MAIN_FRAME);
+        ProcessReusePolicy::kReusePrerenderingProcessForMainFrame);
   }
 }
 
@@ -3153,7 +3146,7 @@ RenderFrameHostManager::GetSiteInstanceForNavigation(
                 frame_tree_node_->GetParentOrOuterDocument()
                     ->GetOutermostMainFrame())) {
       new_instance->set_process_reuse_policy(
-          ProcessReusePolicy::REUSE_PENDING_OR_COMMITTED_SITE_SUBFRAME);
+          ProcessReusePolicy::kReusePendingOrCommittedSiteSubframe);
     }
   }
 
@@ -3284,7 +3277,7 @@ RenderFrameHostManager::GetSiteInstanceForNavigation(
   // share the same default process when they don't need a dedicated process.
   // With sites that do require a dedicated process, we reuse processes via the
   // subframe reuse policy (we set the reuse policy to
-  // REUSE_PENDING_OR_COMMITTED_SITE_SUBFRAME).
+  // kReusePendingOrCommittedSiteSubframe).
   if (!current_frame_host()->IsOutermostMainFrame() &&
       !new_instance->HasProcess() &&
       !new_instance->RequiresDedicatedProcess()) {
@@ -5078,12 +5071,12 @@ void RenderFrameHostManager::CommitPending(
   // Now close any modal dialogs that would prevent us from unloading the old
   // frame. This must be done separately from RenderFrameHost::Unload(), so that
   // the ScopedPageLoadDeferrer is no longer on the stack when we send the
-  // mojo::FrameNavigationControl::Unload message. Note that this is
-  // intentionally done before updating the RenderFrameHost below, as this may
-  // trigger far-reaching code that updates UI in the embedder, which could end
-  // up looking up properties of the current RenderFrameHost, and those
-  // properties won't be fully initialized for `pending_rfh` until later, after
-  // UnloadOldFrame(). See https://crbug.com/346386726.
+  // mojo::Frame::Unload message. Note that this is intentionally done before
+  // updating the RenderFrameHost below, as this may trigger far-reaching code
+  // that updates UI in the embedder, which could end up looking up properties
+  // of the current RenderFrameHost, and those properties won't be fully
+  // initialized for `pending_rfh` until later, after UnloadOldFrame(). See
+  // https://crbug.com/346386726.
   //
   // Prerendering pages cannot create modal dialogs, so unloading a prerendering
   // RFH should not cause existing dialogs to close. (Subtle: `pending_rfh` is

@@ -60,7 +60,10 @@ from build import (AddCMakeToPath, AddZlibToPath, CheckoutGitRepo, CopyFile,
                    GitRevert, LLVM_DIR, IsGitAncestorToHead,
                    LLVM_BUILD_TOOLS_DIR, RunCommand)
 from update import (CHROMIUM_DIR, DownloadAndUnpack, EnsureDirExists,
-                    GetDefaultHostOs, RmTree, WriteStampFile, UpdatePackage)
+                    GetDefaultHostOs, RmTree, ReadStampFile, WriteStampFile,
+                    UpdatePackage, STAMP_FILENAME as LLVM_STAMP_FILENAME,
+                    FORCE_HEAD_REVISION_FILENAME as
+                    LLVM_FORCE_HEAD_REVISION_FILENAME)
 
 from update_rust import (RUST_REVISION, RUST_TOOLCHAIN_OUT_DIR,
                          STAGE0_JSON_SHA256, THIRD_PARTY_DIR, VERSION_SRC_PATH,
@@ -252,14 +255,27 @@ def FetchBetaPackage(name, rust_git_hash, triple=None):
 
 
 def InstallBetaPackage(package_dir, install_dir):
-    args = [
+    cmd = []
+    if sys.platform == 'win32':
+        # The install scripts on windows require relative, posix-style paths.
+        install_dir = os.path.relpath(install_dir).replace('\\', '/')
+        # Windows might get confused on how to run an sh file if we don't
+        # invoke the executable directly
+        where = subprocess.check_output(['where.exe', 'sh'], text=True)
+        sh_exe = where.splitlines()[0]
+        cmd += [sh_exe]
+
+    cmd += [
+        os.path.join(package_dir, 'install.sh'),
         f'--destdir={install_dir}',
         f'--prefix=',
     ]
+
     if sys.platform.startswith('linux'):
         # Avoid warnings due to not running as root.
-        args += ['--disable-ldconfig']
-    RunCommand([os.path.join(package_dir, 'install.sh')] + args)
+        cmd += ['--disable-ldconfig']
+
+    RunCommand(cmd)
 
 
 def VendorForStdlib(cargo_bin):
@@ -379,12 +395,6 @@ class XPy:
             self._env['CFLAGS'] += f' {sysroot_cflag}'
             self._env['CXXFLAGS'] += f' {sysroot_cflag}'
             self._env['LDFLAGS'] += f' {sysroot_cflag}'
-            # TODO(https://crbug.com/395891130): remove
-            # C/CXXFLAGS_x86_64_unknown_linux_gnu workaround after upstream
-            # issue is properly fixed.
-            self._env['CFLAGS_x86_64_unknown_linux_gnu'] += f' {sysroot_cflag}'
-            self._env[
-                'CXXFLAGS_x86_64_unknown_linux_gnu'] += f' {sysroot_cflag}'
 
             self._env['RUSTFLAGS_BOOTSTRAP'] += f' -Clink-arg={sysroot_cflag}'
             self._env[
@@ -508,17 +518,33 @@ def GetTestArgs():
     return args
 
 
-def MakeVersionStamp(git_hash):
+def MakeVersionStamp(rust_hash, rust_force_head_revision,
+                     llvm_force_head_revision):
     # We must generate a version stamp that contains the full version of the
     # built Rust compiler:
     # * The version number returned from `rustc --version`.
-    # * The git hash.
-    # * The chromium revision name of the compiler build, which includes the
-    #   associated clang/llvm version.
+    # * The git hash of rust.
+    # * The chromium package version tag, which includes the
+    #   associated clang/llvm version as well as the rust subrevision.
     with open(RUST_SRC_VERSION_FILE_PATH) as version_file:
         rust_version = version_file.readline().rstrip()
-    return (f'rustc {rust_version} {git_hash}'
-            f' ({GetRustClangRevision()} chromium)\n')
+
+    # Compute the package version.
+    # If we're building from head we need to construct our own package version
+    # because it won't match the one in update.py
+    if rust_force_head_revision or llvm_force_head_revision:
+        if llvm_force_head_revision:
+            llvm_stamp_file = os.path.join(RUST_HOST_LLVM_BUILD_DIR, '..',
+                                           LLVM_FORCE_HEAD_REVISION_FILENAME)
+        else:
+            llvm_stamp_file = os.path.join(RUST_HOST_LLVM_BUILD_DIR,
+                                           LLVM_STAMP_FILENAME)
+        package_version = f'{rust_hash}-0-{ReadStampFile(llvm_stamp_file)}'
+    else:
+        package_version = GetRustClangRevision()
+
+    return (f'rustc {rust_version} {rust_hash}'
+            f' ({package_version} chromium)\n')
 
 
 def GetLatestRustCommit():
@@ -624,6 +650,11 @@ def GitApplyCherryPicks():
 
     # TODO(https://crbug.com/441524277): remove revert after resolving issue upstream
     GitRevert(RUST_SRC_DIR, '8ea3b093819aabd92a605b42989341da0c97c0d6')
+
+    # TODO(crbug.com/442444725): Remove once
+    # https://github.com/rust-lang/rust/pull/146116 lands and we roll past it.
+    GitCherryPick(RUST_SRC_DIR, '4ecca581fad73c51d7c7a78c4b97a3ada2ca5249',
+                  'https://github.com/rust-lang/rust.git')
 
     print('Finished applying cherry-picks.')
 
@@ -888,8 +919,10 @@ def main():
 
         xpy.run('install', xpy_args + [])
 
-        WriteStampFile(MakeVersionStamp(checkout_revision), VERSION_SRC_PATH,
-                       args.preserve_gcs_signature)
+        WriteStampFile(
+            MakeVersionStamp(checkout_revision, args.rust_force_head_revision,
+                             args.llvm_force_head_revision), VERSION_SRC_PATH,
+            args.preserve_gcs_signature)
 
     # The Rust stdlib deps are vendored to rust-src/library/vendor, and later
     # the x.py install process copies all subdirs of rust-src/library to the

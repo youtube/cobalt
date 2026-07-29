@@ -413,7 +413,7 @@ bool NeedsIpProtection(const IpProtectionCoreHost* ipp_core_host,
 constexpr std::string_view kDiskCacheExperimentNameSeparator = " ";
 constexpr std::string_view kDiskCacheExperimentNameNone = "None";
 // The date and prefix for the disk cache backend experiment.
-#define DISK_CACHE_EXPERIMENT_DATE_PREFIX "20250725-DiskCache-"
+#define DISK_CACHE_EXPERIMENT_DATE_PREFIX "20250905-DiskCache-"
 constexpr std::string_view kDiskCacheExperimentNameDefault =
     DISK_CACHE_EXPERIMENT_DATE_PREFIX "Default";
 constexpr std::string_view kDiskCacheExperimentNameSimple =
@@ -1575,6 +1575,10 @@ void ProfileNetworkContextService::ConfigureNetworkContextParamsInternal(
         ipp_core_host->IsIpProtectionEnabled();
     network_context_params->ip_protection_incognito =
         profile_->IsIncognitoProfile();
+    if (profile_->IsIncognitoProfile()) {
+      network_context_params->initial_ip_protection_tokens =
+          ipp_core_host->TakeRecycledTokens();
+    }
     if (base::CommandLine::ForCurrentProcess()->HasSwitch(
             network::switches::kStoreProbabilisticRevealTokens)) {
       network_context_params->ip_protection_data_directory =

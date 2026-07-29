@@ -37,6 +37,7 @@
 #include "components/regional_capabilities/regional_capabilities_metrics.h"
 #include "components/regional_capabilities/regional_capabilities_service.h"
 #include "components/regional_capabilities/regional_capabilities_utils.h"
+#include "components/search_engines/search_engine_choice/buildflags.h"
 #include "components/search_engines/search_engine_choice/search_engine_choice_metrics_service_accessor.h"
 #include "components/search_engines/search_engine_choice/search_engine_choice_utils.h"
 #include "components/search_engines/search_engine_type.h"
@@ -56,8 +57,7 @@ using ::country_codes::CountryId;
 namespace search_engines {
 namespace {
 
-#if !(BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_FUCHSIA) || \
-      BUILDFLAG(CHROME_FOR_TESTING))
+#if BUILDFLAG(CHOICE_SCREEN_IN_CHROME)
 // The choice screen should be shown if the `DefaultSearchProviderEnabled`
 // policy is not set, or set to true and the
 // `DefaultSearchProviderSearchURL` policy is not set.
@@ -267,6 +267,20 @@ regional_capabilities::FunnelStage ToFunnelStage(
   NOTREACHED();
 }
 
+void RecordLegacyStaticEligibilityInternal(
+    search_engines::SearchEngineChoiceService::Client& client,
+    SearchEngineChoiceScreenConditions condition) {
+  if (base::FeatureList::IsEnabled(
+          switches::kInvalidateSearchEngineChoiceOnDeviceRestoreDetection) &&
+      client.IsDeviceRestoreDetectedInCurrentSession()) {
+    base::UmaHistogramEnumeration(
+        kChoiceScreenProfileInitConditionsPostRestoreHistogram, condition);
+  }
+
+  base::UmaHistogramEnumeration(
+      kSearchEngineChoiceScreenProfileInitConditionsHistogram, condition);
+}
+
 bool IsChoiceImported(const ChoiceCompletionMetadata& completion_metadata,
                       SearchEngineChoiceService::Client& client,
                       const PrefService& profile_prefs,
@@ -369,8 +383,7 @@ SearchEngineChoiceScreenConditions
 SearchEngineChoiceService::GetStaticChoiceScreenConditions(
     const policy::PolicyService& policy_service,
     const TemplateURLService& template_url_service) const {
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_FUCHSIA) || \
-    BUILDFLAG(CHROME_FOR_TESTING)
+#if !BUILDFLAG(CHOICE_SCREEN_IN_CHROME)
   return SearchEngineChoiceScreenConditions::kUnsupportedBrowserType;
 #else
   base::CommandLine* const command_line =
@@ -408,8 +421,7 @@ SearchEngineChoiceService::GetStaticChoiceScreenConditions(
 SearchEngineChoiceScreenConditions
 SearchEngineChoiceService::GetDynamicChoiceScreenConditions(
     const TemplateURLService& template_url_service) const {
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_FUCHSIA) || \
-    BUILDFLAG(CHROME_FOR_TESTING)
+#if !BUILDFLAG(CHOICE_SCREEN_IN_CHROME)
   return SearchEngineChoiceScreenConditions::kUnsupportedBrowserType;
 #else
   switch (EvaluateSearchProviderChoice(template_url_service)) {
@@ -444,26 +456,30 @@ SearchEngineChoiceService::GetDynamicChoiceScreenConditions(
 #endif
 }
 
-void SearchEngineChoiceService::RecordStaticEligibility(
+void SearchEngineChoiceService::RecordProfileLoadEligibility(
     SearchEngineChoiceScreenConditions condition) {
-  if (base::FeatureList::IsEnabled(
-          switches::kInvalidateSearchEngineChoiceOnDeviceRestoreDetection) &&
-      client_->IsDeviceRestoreDetectedInCurrentSession()) {
-    base::UmaHistogramEnumeration(
-        kChoiceScreenProfileInitConditionsPostRestoreHistogram, condition);
-  }
+#if !BUILDFLAG(IS_IOS)
+  // On iOS, this function is called directly.
+  RecordLegacyStaticEligibilityInternal(*client_.get(), condition);
+#endif  // !BUILDFLAG(IS_IOS)
 
-  base::UmaHistogramEnumeration(
-      kSearchEngineChoiceScreenProfileInitConditionsHistogram, condition);
+  regional_capabilities::RecordEligibilityFunnelStageDetails(condition);
   if (condition != SearchEngineChoiceScreenConditions::kEligible) {
-    // Static eligibility is not a conclusive funnel state. We don't record it
-    // here, we instead rely on dynamic eligibility, which is expected to be
-    // recorded shortly after, to record a funnel stage.
+    // Being eligible at profile load is not a conclusive funnel state. We don't
+    // record it here, we instead rely on trigger-time eligibility, which is
+    // expected to be recorded shortly after, to record a funnel stage.
     regional_capabilities::RecordFunnelStage(ToFunnelStage(condition));
   }
 }
 
-void SearchEngineChoiceService::RecordDynamicEligibility(
+#if BUILDFLAG(IS_IOS)
+void SearchEngineChoiceService::RecordLegacyStaticEligibility(
+    SearchEngineChoiceScreenConditions condition) {
+  RecordLegacyStaticEligibilityInternal(*client_.get(), condition);
+}
+#endif  // BUILDFLAG(IS_IOS)
+
+void SearchEngineChoiceService::RecordTriggeringEligibility(
     SearchEngineChoiceScreenConditions condition) {
   if (base::FeatureList::IsEnabled(
           switches::kInvalidateSearchEngineChoiceOnDeviceRestoreDetection) &&
@@ -475,6 +491,7 @@ void SearchEngineChoiceService::RecordDynamicEligibility(
   base::UmaHistogramEnumeration(
       kSearchEngineChoiceScreenNavigationConditionsHistogram, condition);
 
+  regional_capabilities::RecordTriggeringFunnelStageDetails(condition);
   regional_capabilities::RecordFunnelStage(ToFunnelStage(condition));
 }
 

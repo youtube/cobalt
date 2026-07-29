@@ -11,6 +11,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/memory/weak_ptr.h"
 #include "build/build_config.h"
 #include "components/viz/common/resources/shared_image_format.h"
 #include "gpu/command_buffer/common/mailbox.h"
@@ -34,6 +35,7 @@ namespace gpu {
 class MemoryTracker;
 class SharedContextState;
 class SharedImageBackingFactory;
+class SharedImageCopyManager;
 class D3DImageBackingFactory;
 struct GpuFeatureInfo;
 struct GpuPreferences;
@@ -154,8 +156,13 @@ class GPU_GLES2_EXPORT SharedImageFactory {
   bool HasSharedImage(const Mailbox& mailbox) const;
 
   SharedContextState* shared_context_state() { return context_state_.get(); }
+  const scoped_refptr<SharedImageCopyManager>& copy_manager();
+
+  base::WeakPtr<SharedImageFactory> GetWeakPtr();
 
  private:
+  friend class CompoundImageBacking;
+
   bool IsSharedBetweenThreads(gpu::SharedImageUsageSet usage);
 
   SharedImageRepresentationFactoryRef* GetFactoryRef(
@@ -181,6 +188,7 @@ class GPU_GLES2_EXPORT SharedImageFactory {
   raw_ptr<SharedImageManager> shared_image_manager_;
   const scoped_refptr<SharedContextState> context_state_;
   std::unique_ptr<MemoryTypeTracker> memory_type_tracker_;
+  scoped_refptr<SharedImageCopyManager> copy_manager_;
 
   // This is used if the factory is created on display compositor to check for
   // sharing between threads.
@@ -221,6 +229,7 @@ class GPU_GLES2_EXPORT SharedImageFactory {
   gpu::GpuDriverBugWorkarounds workarounds_;
 
   raw_ptr<SharedImageBackingFactory> backing_factory_for_testing_ = nullptr;
+  base::WeakPtrFactory<SharedImageFactory> weak_ptr_factory_{this};
 };
 
 class GPU_GLES2_EXPORT SharedImageRepresentationFactory {
@@ -251,7 +260,8 @@ class GPU_GLES2_EXPORT SharedImageRepresentationFactory {
   std::unique_ptr<DawnBufferRepresentation> ProduceDawnBuffer(
       const Mailbox& mailbox,
       const wgpu::Device& device,
-      wgpu::BackendType backend_type);
+      wgpu::BackendType backend_type,
+      scoped_refptr<SharedContextState> context_state);
   std::unique_ptr<WebNNTensorRepresentation> ProduceWebNNTensor(
       const Mailbox& mailbox);
   std::unique_ptr<OverlayImageRepresentation> ProduceOverlay(

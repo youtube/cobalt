@@ -62,8 +62,8 @@ source_set("ui_bundled") {
     "//ios/chrome/browser/shared/public/commands",
     "//ios/chrome/browser/shared/public/features",
     "//ios/chrome/browser/shared/public/features:system_flags",
+    "//ios/chrome/browser/shared/public/snackbar:constants",
     "//ios/chrome/browser/shared/ui/symbols",
-    "//ios/chrome/browser/shared/ui/util",
     "//ios/chrome/browser/shared/ui/util",
     "//ios/chrome/browser/shared/ui/util:snackbar_util",
     "//ios/chrome/browser/signin/model",
@@ -80,7 +80,6 @@ source_set("ui_bundled") {
     "//ios/chrome/common/ui/util",
     "//ios/public/provider/chrome/browser/signin:signin_error_api",
     "//ios/public/provider/chrome/browser/signin:signin_resources_api",
-    "//ios/third_party/material_components_ios",
     "//ios/web/public",
     "//services/network/public/cpp",
     "//ui/base",
@@ -271,6 +270,7 @@ source_set("eg_test_support+eg2") {
     "//ios/chrome/browser/settings/ui_bundled:constants",
     "//ios/chrome/browser/settings/ui_bundled/google_services:constants",
     "//ios/chrome/browser/settings/ui_bundled/google_services/manage_accounts:constants",
+    "//ios/chrome/browser/shared/public/snackbar:constants",
     "//ios/chrome/browser/shared/ui/table_view:constants",
     "//ios/chrome/browser/signin/model:capabilities_types",
     "//ios/chrome/browser/signin/model:fake_system_identity",
@@ -289,7 +289,6 @@ source_set("eg2_tests") {
   sources = [
     "separate_profiles_egtest.mm",
     "separate_profiles_migration_egtest.mm",
-    "separate_profiles_rollback_egtest.mm",
   ]
   deps = [
     ":eg_test_support+eg2",
@@ -307,7 +306,6 @@ source_set("eg2_tests") {
     "//ios/chrome/browser/settings/ui_bundled/google_services/manage_accounts:constants",
     "//ios/chrome/browser/shared/model/prefs:pref_names",
     "//ios/chrome/browser/shared/public/features",
-    "//ios/chrome/browser/shared/ui/util/identity_snackbar:test_utils",
     "//ios/chrome/browser/signin/model:fake_system_identity",
     "//ios/chrome/browser/signin/model:test_constants",
     "//ios/chrome/common/ui/promo_style:constants",

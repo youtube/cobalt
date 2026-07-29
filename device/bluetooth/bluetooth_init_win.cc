@@ -7,7 +7,7 @@
 #include <optional>
 
 #include "base/threading/scoped_thread_priority.h"
-#include "base/win/win_util.h"
+#include "base/win/delayload_helpers.h"
 
 namespace device::bluetooth_init_win {
 
@@ -23,7 +23,7 @@ bool HasBluetoothStack() {
         base::win::LoadAllImportsForDll("bthprops.cpl").value_or(false);
   }
 
-  return has_bluetooth_stack.value_or(false);
+  return *has_bluetooth_stack;
 }
 
 }  // namespace device::bluetooth_init_win

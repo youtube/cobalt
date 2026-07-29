@@ -19,7 +19,7 @@ const int kReportIntervalSeconds = 10;
 
 }  // namespace
 
-BASE_FEATURE(WebRtcThermalResource,
+BASE_FEATURE(kWebRtcThermalResource,
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS)
              base::FEATURE_ENABLED_BY_DEFAULT
 #else

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#define TODO_BASE_FEATURE_MACROS_NEED_MIGRATION
+
 #include "content/browser/renderer_host/render_widget_host_view_mac.h"
 
 #import <Carbon/Carbon.h>
@@ -623,6 +625,7 @@ input::CursorManager* RenderWidgetHostViewMac::GetCursorManager() {
 void RenderWidgetHostViewMac::OnOldViewDidNavigatePreCommit() {
   CHECK(browser_compositor_) << "Shouldn't be called during destruction!";
   browser_compositor_->DidNavigateMainFramePreCommit();
+  gesture_provider_.ResetDetection();
 }
 
 void RenderWidgetHostViewMac::OnNewViewDidNavigatePostCommit() {

@@ -32,6 +32,7 @@
 #import "ios/chrome/browser/shared/public/commands/application_commands.h"
 #import "ios/chrome/browser/shared/public/commands/open_new_tab_command.h"
 #import "ios/chrome/browser/shared/public/commands/snackbar_commands.h"
+#import "ios/chrome/browser/shared/public/snackbar/snackbar_message.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_multi_line_text_edit_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_text_edit_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_controller_test.h"
@@ -170,18 +171,22 @@ NSString* DisplayName() {
 
 @implementation FakeSnackbarImplementation
 
-- (void)showSnackbarMessage:(MDCSnackbarMessage*)message {
+- (void)showCustomSnackbarMessage:(SnackbarMessage*)message {
+  self.snackbarMessage = message.title;
 }
 
-- (void)showSnackbarMessageOverBrowserToolbar:(MDCSnackbarMessage*)message {
+- (void)showCustomSnackbarMessageOverBrowserToolbar:(SnackbarMessage*)message {
+  self.snackbarMessage = message.title;
 }
 
-- (void)showSnackbarMessage:(MDCSnackbarMessage*)message
-             withHapticType:(UINotificationFeedbackType)type {
+- (void)showCustomSnackbarMessage:(SnackbarMessage*)message
+                   withHapticType:(UINotificationFeedbackType)type {
+  self.snackbarMessage = message.title;
 }
 
-- (void)showSnackbarMessage:(MDCSnackbarMessage*)message
-               bottomOffset:(CGFloat)offset {
+- (void)showCustomSnackbarMessage:(SnackbarMessage*)message
+                     bottomOffset:(CGFloat)offset {
+  self.snackbarMessage = message.title;
 }
 
 - (void)showSnackbarWithMessage:(NSString*)messageText
@@ -196,6 +201,7 @@ NSString* DisplayName() {
         buttonAccessibilityHint:(NSString*)buttonAccesibilityHint
                   messageAction:(void (^)(void))messageAction
                completionAction:(void (^)(BOOL))completionAction {
+  self.snackbarMessage = messageText;
 }
 
 - (void)dismissAllSnackbars {

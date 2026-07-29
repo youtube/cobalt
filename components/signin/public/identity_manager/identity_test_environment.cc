@@ -64,25 +64,6 @@ using TokenResponseBuilder = OAuth2AccessTokenConsumer::TokenResponse::Builder;
 
 namespace signin {
 
-#if BUILDFLAG(IS_CHROMEOS)
-int ScopedIdentityTestEnvironmentTracker::count_ = 0;
-
-ScopedIdentityTestEnvironmentTracker::ScopedIdentityTestEnvironmentTracker() {
-  ++count_;
-}
-
-ScopedIdentityTestEnvironmentTracker::~ScopedIdentityTestEnvironmentTracker() {
-  --count_;
-  if (count_ == 0) {
-    // TODO(crbug.com/421058020): Integrate `GetAccountManagerFacade` into
-    // `AccountManagerFactory` and let it manage the lifetime.
-    // Remove the facade for the empty path as it was previously a separate
-    // instance and reset after each test.
-    ash::DeleteAccountManagerFacadeInstanceForTesting("");
-  }
-}
-#endif  // BUILDFLAG(IS_CHROMEOS)
-
 class IdentityManagerDependenciesOwner {
  public:
   IdentityManagerDependenciesOwner(
@@ -362,8 +343,6 @@ IdentityTestEnvironment::FinishBuildIdentityManagerForTests(
       std::move(gaia_cookie_manager_service);
   init_params.primary_account_manager = std::move(primary_account_manager);
   init_params.token_service = std::move(token_service);
-  // TODO: Set the account_manager_facade on Lacros once Mirror is enabled by
-  // default.
 #if BUILDFLAG(IS_CHROMEOS)
   init_params.account_manager_facade = account_manager_facade;
 #endif

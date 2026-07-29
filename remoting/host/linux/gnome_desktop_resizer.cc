@@ -97,18 +97,19 @@ void AddMonitorForLayoutCalculation(GnomeDisplayConfig& config,
 
 GnomeDesktopResizer::GnomeDesktopResizer(
     base::WeakPtr<PipewireCaptureStreamManager> stream_manager,
-    base::WeakPtr<GnomeDisplayConfigDBusClient> display_config_client)
+    base::WeakPtr<GnomeDisplayConfigDBusClient> display_config_client,
+    base::WeakPtr<GnomeDisplayConfigMonitor> display_config_monitor)
     : stream_manager_(stream_manager),
       display_config_client_(display_config_client) {
   registry_ = ui::GSettingsNew("org.gnome.desktop.interface");
   CHECK(registry_)
       << "ui::GSettingsNew(\"org.gnome.desktop.interface\") failed.";
-  monitors_changed_subscription_ =
-      display_config_client->SubscribeMonitorsChanged(
-          base::BindRepeating(&GnomeDesktopResizer::QueryDisplayInfo,
-                              weak_ptr_factory_.GetWeakPtr()));
-  // Query the initial display info.
-  QueryDisplayInfo();
+  if (display_config_monitor) {
+    monitors_changed_subscription_ = display_config_monitor->AddCallback(
+        base::BindRepeating(&GnomeDesktopResizer::OnGnomeDisplayConfigReceived,
+                            weak_ptr_factory_.GetWeakPtr()),
+        /*call_with_current_config=*/true);
+  }
 }
 
 GnomeDesktopResizer::~GnomeDesktopResizer() = default;
@@ -221,8 +222,21 @@ void GnomeDesktopResizer::SetVideoLayout(const protocol::VideoLayout& layout) {
   MaybeDelayClearPreferredConfig();
   // Remove pipewire streams that are no longer in the video layout.
   for (const auto& screen_id : unseen_screen_ids) {
+    // Trying to apply monitor config for a monitor that is being removed will
+    // crash Mutter, so we remove it from the current display config to prevent
+    // that.
+    auto it = current_display_config_.FindMonitor(screen_id);
+    if (it != current_display_config_.monitors.end()) {
+      current_display_config_.monitors.erase(it);
+    } else {
+      LOG(ERROR) << "Cannot find monitor with screen ID: " << screen_id;
+    }
     stream_manager_->RemoveStream(screen_id);
   }
+}
+
+base::WeakPtr<GnomeDesktopResizer> GnomeDesktopResizer::GetWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
 }
 
 void GnomeDesktopResizer::SetResolutionAndPosition(
@@ -293,21 +307,15 @@ void GnomeDesktopResizer::OnAddStreamResult(
   ScheduleApplyPreferredMonitorsConfig();
 }
 
-void GnomeDesktopResizer::QueryDisplayInfo() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-  if (display_config_client_) {
-    display_config_client_->GetMonitorsConfig(
-        base::BindOnce(&GnomeDesktopResizer::OnGnomeDisplayConfigReceived,
-                       weak_ptr_factory_.GetWeakPtr()));
-  }
-}
-
 void GnomeDesktopResizer::OnGnomeDisplayConfigReceived(
-    GnomeDisplayConfig config) {
+    const GnomeDisplayConfig& config) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  current_display_config_ = std::move(config);
+  current_display_config_ = config;
+  // Remove monitors that do not have a current mode, which may exist when they
+  // are being created or destroyed. It is safe to ignore them since a new
+  // display config will be received if they later gain a current mode.
+  current_display_config_.RemoveInvalidMonitors();
   // Switch to the physical layout mode, since otherwise monitor offsets would
   // need to be recalculated whenever a monitor scale is changed.
   current_display_config_.SwitchLayoutMode(
@@ -351,9 +359,7 @@ void GnomeDesktopResizer::DoApplyPreferredMonitorsConfig() {
   bool ignore_fractional_scales = new_config.monitors.size() > 1;
   bool all_resolution_changes_reflected = true;
   bool config_changed = false;
-  for (auto preferred_monitor_config_it = preferred_monitors_config_.begin();
-       preferred_monitor_config_it != preferred_monitors_config_.end();) {
-    auto [screen_id, preferred_config] = *preferred_monitor_config_it;
+  for (auto [screen_id, preferred_config] : preferred_monitors_config_) {
     auto monitor_it = new_config.FindMonitor(screen_id);
     if (monitor_it == new_config.monitors.end()) {
       // This may happen for newly added monitors that may not be reflected in
@@ -399,7 +405,6 @@ void GnomeDesktopResizer::DoApplyPreferredMonitorsConfig() {
         }
       }
     }
-    preferred_monitor_config_it++;
   }
 
   if (all_resolution_changes_reflected) {
@@ -419,15 +424,12 @@ void GnomeDesktopResizer::DoApplyPreferredMonitorsConfig() {
           }
         }
 
-        // Write the new offsets back to the preferred config.
+        // Write the new offsets back to the preferred config, if it exists.
         auto it = preferred_monitors_config_.find(
             GnomeDisplayConfig::GetScreenId(monitor_name));
-        if (it == preferred_monitors_config_.end()) {
-          LOG(ERROR) << "Cannot find preferred monitor config for monitor "
-                     << monitor_name;
-          continue;
+        if (it != preferred_monitors_config_.end()) {
+          it->second.position.set(monitor.x, monitor.y);
         }
-        it->second.position.set(monitor.x, monitor.y);
       }
     }
 

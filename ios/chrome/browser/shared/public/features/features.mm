@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#define TODO_BASE_FEATURE_MACROS_NEED_MIGRATION
+
 #import "ios/chrome/browser/shared/public/features/features.h"
 
 #import <string>
@@ -20,9 +22,6 @@
 #import "ios/chrome/common/channel_info.h"
 #import "ui/base/device_form_factor.h"
 
-BASE_FEATURE(IOSKeyboardAccessoryUpgradeForIPad,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(TestFeature, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(SafetyCheckMagicStack, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -33,7 +32,7 @@ BASE_FEATURE(SafetyCheckAutorunByManagerKillswitch,
 BASE_FEATURE(SafetyCheckModuleHiddenIfNoIssuesKillswitch,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(SafetyCheckNotifications, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(SafetyCheckNotifications, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(OmahaServiceRefactor, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -196,7 +195,7 @@ BASE_FEATURE(kLensOverlayForceShowOnboardingScreen,
 
 BASE_FEATURE(LensOverlayNavigationHistory, base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(LensSearchHeadersCheckEnabled, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(LensSearchHeadersCheckEnabled, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Variations of MIA NTP entrypoint.
 const char kNTPMIAEntrypointParam[] = "kNTPMIAEntrypointParam";
@@ -350,7 +349,7 @@ int SafetyCheckNotificationsImpressionLimit() {
   return base::GetFieldTrialParamByFeatureAsInt(
       kSafetyCheckNotifications, kSafetyCheckNotificationsImpressionLimit,
       /*default_value=*/
-      3);
+      0);
 }
 
 bool IsTipsMagicStackEnabled() {
@@ -658,15 +657,10 @@ bool IsContentPushNotificationsSetUpListRegistrationOnly() {
           NotificationsExperimentTypeSetUpListsRegistrationOnly);
 }
 
-bool IsKeyboardAccessoryUpgradeEnabled() {
-  return (ui::GetDeviceFormFactor() != ui::DEVICE_FORM_FACTOR_TABLET) ||
-         base::FeatureList::IsEnabled(kIOSKeyboardAccessoryUpgradeForIPad);
-}
-
 bool IsLiquidGlassEffectEnabled() {
 #if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
   if (@available(iOS 26, *)) {
-    return IsKeyboardAccessoryUpgradeEnabled();
+    return true;
   }
 #endif  // defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >=
         // __IPHONE_26_0
@@ -770,25 +764,6 @@ bool IsHomeMemoryImprovementsEnabled() {
   return base::FeatureList::IsEnabled(kHomeMemoryImprovements);
 }
 
-BASE_FEATURE(IdentityConfirmationSnackbar, base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Feature parameters for kIdentityConfirmationSnackbar.
-constexpr base::FeatureParam<base::TimeDelta>
-    kIdentityConfirmationMinDisplayInterval1{
-        &kIdentityConfirmationSnackbar,
-        /*name=*/"IdentityConfirmationMinDisplayInterval1",
-        /*default_value=*/base::Days(1)};
-constexpr base::FeatureParam<base::TimeDelta>
-    kIdentityConfirmationMinDisplayInterval2{
-        &kIdentityConfirmationSnackbar,
-        /*name=*/"IdentityConfirmationMinDisplayInterval2",
-        /*default_value=*/base::Days(7)};
-constexpr base::FeatureParam<base::TimeDelta>
-    kIdentityConfirmationMinDisplayInterval3{
-        &kIdentityConfirmationSnackbar,
-        /*name=*/"IdentityConfirmationMinDisplayInterval3",
-        /*default_value=*/base::Days(30)};
-
 BASE_FEATURE(EnableTraitCollectionRegistration,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -808,9 +783,6 @@ constexpr base::FeatureParam<base::TimeDelta> kMultiProfileMigrationGracePeriod{
     /*default_value=*/base::Days(90)};
 
 BASE_FEATURE(SeparateProfilesForManagedAccountsForceMigration,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(SeparateProfilesForManagedAccountsKillSwitch,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(OmahaResyncTimerOnForeground, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -986,7 +958,7 @@ bool IsIPHGestureRecognitionImprovementEnabled() {
       kIPHGestureRecognitionAblation, kIPHGestureRecognitionImprovement, false);
 }
 
-BASE_FEATURE(NonModalSignInPromo, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(NonModalSignInPromo, base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsNonModalSignInPromoEnabled() {
   return base::FeatureList::IsEnabled(kNonModalSignInPromo);
@@ -1143,9 +1115,11 @@ BASE_FEATURE(IOSUseDefaultAppsDestinationForPromos,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsDefaultAppsDestinationAvailable() {
+#if defined(__IPHONE_18_3) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_18_3
   if (@available(iOS 18.3, *)) {
     return true;
   }
+#endif
   return false;
 }
 

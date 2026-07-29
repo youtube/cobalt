@@ -110,7 +110,8 @@ GlicKeyedService::GlicKeyedService(
     signin::IdentityManager* identity_manager,
     ProfileManager* profile_manager,
     GlicProfileManager* glic_profile_manager,
-    contextual_cueing::ContextualCueingService* contextual_cueing_service)
+    contextual_cueing::ContextualCueingService* contextual_cueing_service,
+    actor::ActorKeyedService* actor_keyed_service)
     : profile_(profile),
       enabling_(std::make_unique<GlicEnabling>(
           profile,
@@ -125,7 +126,6 @@ GlicKeyedService::GlicKeyedService(
       sharing_manager_(
           std::make_unique<GlicSharingManagerImpl>(profile,
                                                    &window_controller(),
-                                                   &host(),
                                                    metrics_.get())),
       screenshot_capturer_(std::make_unique<GlicScreenshotCapturer>()),
       auth_controller_(std::make_unique<AuthController>(profile,
@@ -137,10 +137,11 @@ GlicKeyedService::GlicKeyedService(
           std::make_unique<GlicZeroStateSuggestionsManager>(
               sharing_manager_.get(),
               &window_controller(),
-              contextual_cueing_service,
-              &host())),
-      contextual_cueing_service_(contextual_cueing_service) {
+              contextual_cueing_service)),
+      contextual_cueing_service_(contextual_cueing_service),
+      actor_keyed_service_(actor_keyed_service) {
   CHECK(GlicEnabling::IsProfileEligible(Profile::FromBrowserContext(profile)));
+  CHECK(actor_keyed_service_);
   metrics_->SetControllers(&window_controller(), sharing_manager_.get());
 
   memory_pressure_listener_ = std::make_unique<base::MemoryPressureListener>(
@@ -167,7 +168,6 @@ GlicKeyedService::GlicKeyedService(
 }
 
 GlicKeyedService::~GlicKeyedService() {
-  host_manager().Destroy();
   metrics_->SetControllers(nullptr, nullptr);
 }
 
@@ -182,6 +182,7 @@ void GlicKeyedService::Shutdown() {
   if (glic_profile_manager) {
     glic_profile_manager->OnServiceShutdown(this);
   }
+  host_manager().Destroy();
 }
 
 void GlicKeyedService::ToggleUI(BrowserWindowInterface* bwi,
@@ -379,7 +380,7 @@ void GlicKeyedService::CreateTask(
         base::unexpected(mojom::CreateTaskErrorReason::kTaskSystemUnavailable));
     return;
   }
-  actor::TaskId task_id = actor::ActorKeyedService::Get(profile_)->CreateTask();
+  actor::TaskId task_id = actor_keyed_service_->CreateTask();
   std::move(callback).Run(task_id.value());
 }
 
@@ -390,8 +391,7 @@ void GlicKeyedService::PerformActionsFinished(
     actor::mojom::ActionResultCode result_code,
     std::optional<size_t> index_of_failed_action,
     std::vector<actor::ActionResultWithLatencyInfo> action_results) {
-  actor::ActorTask* task =
-      actor::ActorKeyedService::Get(profile_)->GetTask(task_id);
+  actor::ActorTask* task = actor_keyed_service_->GetTask(task_id);
 
   // Task is checked when calling PerformActions and it doesn't go away.
   CHECK(task);
@@ -428,8 +428,7 @@ void GlicKeyedService::PerformActions(
     return;
   }
 
-  auto* actor_service = actor::ActorKeyedService::Get(profile_);
-  actor_service->GetJournal().Log(
+  actor_keyed_service_->GetJournal().Log(
       GURL(), actor::TaskId(actions.task_id()),
       actor::mojom::JournalTrack::kActor, "GlicPerformActions",
       absl::StrFormat("Proto: %s", actor::ToBase64(actions)));
@@ -441,8 +440,8 @@ void GlicKeyedService::PerformActions(
   }
 
   actor::TaskId task_id(actions.task_id());
-  if (!actor_service->GetTask(task_id)) {
-    actor_service->GetJournal().Log(
+  if (!actor_keyed_service_->GetTask(task_id)) {
+    actor_keyed_service_->GetJournal().Log(
         GURL::EmptyGURL(), task_id, actor::mojom::JournalTrack::kActor,
         "Act Failed", absl::StrFormat("No task with id[%d]", task_id.value()));
     optimization_guide::proto::ActionsResult response =
@@ -454,7 +453,7 @@ void GlicKeyedService::PerformActions(
 
   actor::BuildToolRequestResult requests = actor::BuildToolRequest(actions);
   if (!requests.has_value()) {
-    actor_service->GetJournal().Log(
+    actor_keyed_service_->GetJournal().Log(
         GURL::EmptyGURL(), task_id, actor::mojom::JournalTrack::kActor,
         "Act Failed",
         absl::StrFormat("Failed to convert proto::Actions[%d] to ToolRequest",
@@ -467,7 +466,7 @@ void GlicKeyedService::PerformActions(
     return;
   }
 
-  actor_service->PerformActions(
+  actor_keyed_service_->PerformActions(
       task_id, std::move(requests.value()),
       base::BindOnce(&GlicKeyedService::PerformActionsFinished, GetWeakPtr(),
                      std::move(callback), task_id, start_time));
@@ -475,19 +474,16 @@ void GlicKeyedService::PerformActions(
 
 void GlicKeyedService::StopActorTask(actor::TaskId task_id,
                                      mojom::ActorTaskStopReason stop_reason) {
-  auto* actor_keyed_service = actor::ActorKeyedService::Get(profile_.get());
-  CHECK(actor_keyed_service);
-
-  actor::ActorTask* task = actor_keyed_service->GetTask(task_id);
+  actor::ActorTask* task = actor_keyed_service_->GetTask(task_id);
   if (!task || task->IsStopped()) {
     std::string error_message =
         task ? absl::StrFormat("Task with id[%d] is already stopped",
                                task_id.value())
              : absl::StrFormat("No task with id[%d]", task_id.value());
-    actor_keyed_service->GetJournal().Log(GURL::EmptyGURL(),
-                                          actor::TaskId(task_id),
-                                          actor::mojom::JournalTrack::kActor,
-                                          "Failed to stop task", error_message);
+    actor_keyed_service_->GetJournal().Log(
+        GURL::EmptyGURL(), actor::TaskId(task_id),
+        actor::mojom::JournalTrack::kActor, "Failed to stop task",
+        error_message);
     return;
   }
 
@@ -501,22 +497,19 @@ void GlicKeyedService::StopActorTask(actor::TaskId task_id,
       break;
   }
 
-  actor_keyed_service->StopTask(task->id(), success);
+  actor_keyed_service_->StopTask(task->id(), success);
 }
 
 void GlicKeyedService::PauseActorTask(
     actor::TaskId task_id,
     mojom::ActorTaskPauseReason pause_reason) {
-  auto* actor_keyed_service = actor::ActorKeyedService::Get(profile_.get());
-  CHECK(actor_keyed_service);
-
-  actor::ActorTask* task = actor_keyed_service->GetTask(task_id);
+  actor::ActorTask* task = actor_keyed_service_->GetTask(task_id);
   if (!task || task->IsStopped() || task->IsPaused()) {
     std::string error_message =
         task ? absl::StrFormat("Task with id[%d] is not in running state",
                                task_id.value())
              : absl::StrFormat("No task with id[%d]", task_id.value());
-    actor_keyed_service->GetJournal().Log(
+    actor_keyed_service_->GetJournal().Log(
         GURL::EmptyGURL(), actor::TaskId(task_id),
         actor::mojom::JournalTrack::kActor, "Failed to pause task",
         error_message);
@@ -540,16 +533,13 @@ void GlicKeyedService::ResumeActorTask(
     actor::TaskId task_id,
     const mojom::GetTabContextOptions& context_options,
     glic::mojom::WebClientHandler::ResumeActorTaskCallback callback) {
-  auto* actor_keyed_service = actor::ActorKeyedService::Get(profile_.get());
-  CHECK(actor_keyed_service);
-
-  actor::ActorTask* task = actor_keyed_service->GetTask(task_id);
+  actor::ActorTask* task = actor_keyed_service_->GetTask(task_id);
   if (!task || !task->IsPaused()) {
     std::string error_message =
         task
             ? absl::StrFormat("Task with id[%d] is not paused", task_id.value())
             : absl::StrFormat("No task with id[%d]", task_id.value());
-    actor_keyed_service->GetJournal().Log(
+    actor_keyed_service_->GetJournal().Log(
         GURL::EmptyGURL(), actor::TaskId(task_id),
         actor::mojom::JournalTrack::kActor, "Failed to resume task",
         error_message);
@@ -562,7 +552,7 @@ void GlicKeyedService::ResumeActorTask(
   tabs::TabInterface* tab_of_resumed_task = task->GetTabForObservation();
   if (!tab_of_resumed_task) {
     std::string error_message = "No tab for observation";
-    actor_keyed_service->GetJournal().Log(
+    actor_keyed_service_->GetJournal().Log(
         GURL::EmptyGURL(), actor::TaskId(task_id),
         actor::mojom::JournalTrack::kActor, "Failed to resume task",
         error_message);
@@ -594,7 +584,7 @@ void GlicKeyedService::ResumeActorTask(
 
         std::move(final_callback).Run(std::move(result.value()));
       },
-      actor_keyed_service->GetWeakPtr(), task_id, std::move(callback));
+      actor_keyed_service_->GetWeakPtr(), task_id, std::move(callback));
 
   // TODO(khushalsagar): Ideally this should be set by the web UI instead of
   // overriding here for actor mode.
@@ -714,7 +704,7 @@ bool GlicKeyedService::IsActiveWebContents(content::WebContents* contents) {
   if (!contents) {
     return false;
   }
-  return contents == host_manager().primary_host().webui_contents() ||
+  return host_manager().IsGlicWebUi(contents) ||
          contents == fre_controller().GetWebContents();
 }
 
@@ -761,16 +751,31 @@ bool GlicKeyedService::IsGlicWebUi(content::WebContents* web_contents) {
   return host_manager().IsGlicWebUi(web_contents);
 }
 
-Host& GlicKeyedService::host() {
-  return window_controller().host();
-}
-
 HostManager& GlicKeyedService::host_manager() {
   if (!UseDefaultWindowController()) {
     // Must be accessed through an instance.
     NOTIMPLEMENTED();
   }
   return window_controller().host_manager();
+}
+
+std::vector<Host*> GlicKeyedService::GetAllHosts() {
+  return host_manager().GetAllHosts();
+}
+
+Host* GlicKeyedService::GetHostForActiveTab(BrowserWindowInterface* bwi) {
+  if (UseDefaultWindowController()) {
+    return &window_controller().host();
+  }
+
+  // TODO(refactor): Add a method for getting the floating instance.
+  CHECK(bwi);
+  tabs::TabInterface* tab = bwi->GetActiveTabInterface();
+  if (!tab) {
+    return nullptr;
+  }
+
+  return window_controller().GetHostForTab(tab);
 }
 
 }  // namespace glic

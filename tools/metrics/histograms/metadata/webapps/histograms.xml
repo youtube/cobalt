@@ -708,7 +708,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Engagement{Context}.{Container}"
-    enum="SiteEngagementServiceEngagementType" expires_after="2025-12-28">
+    enum="SiteEngagementServiceEngagementType" expires_after="2026-03-01">
   <owner>dmurph@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
@@ -1171,7 +1171,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.InstalledCount.ByUserInMultipleProfiles" units="count"
-    expires_after="2025-09-10">
+    expires_after="2026-09-10">
   <owner>mek@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
@@ -1590,7 +1590,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Isolated.OrphanedBundlesCleanupJobError"
-    enum="IsolatedWebAppCleanupOrphanedIWAsError" expires_after="2025-10-05">
+    enum="IsolatedWebAppCleanupOrphanedIWAsError" expires_after="2026-02-09">
   <owner>giovax@chromium.org</owner>
   <owner>pwa-commercial@google.com</owner>
   <owner>src/chrome/browser/web_applications/isolated_web_apps/OWNERS</owner>
@@ -1736,7 +1736,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Isolated.SwbnFileUsabilityError"
-    enum="IsolatedWebAppSwbnFileUsabilityError" expires_after="2025-10-05">
+    enum="IsolatedWebAppSwbnFileUsabilityError" expires_after="2026-02-09">
   <owner>giovax@chromium.org</owner>
   <owner>pwa-commercial@google.com</owner>
   <owner>src/chrome/browser/web_applications/isolated_web_apps/OWNERS</owner>
@@ -1860,7 +1860,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Media.SystemMediaControls"
-    enum="WebAppSystemMediaControlsEvent" expires_after="2025-09-10">
+    enum="WebAppSystemMediaControlsEvent" expires_after="2026-09-10">
   <owner>dmurph@chromium.org</owner>
   <owner>stahon@microsoft.com</owner>
   <owner>steimel@chromium.org</owner>
@@ -1999,7 +1999,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.MlInstall.InstallSource" enum="WebappInstallSource"
-    expires_after="2025-09-10">
+    expires_after="2026-09-10">
   <owner>dmurph@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
@@ -2418,7 +2418,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.ProtocolHandlers.Unregistration.Result"
-    enum="BooleanSuccess" expires_after="2025-09-10">
+    enum="BooleanSuccess" expires_after="2026-09-10">
   <owner>dibyapal@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
@@ -2431,7 +2431,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.ProtocolHandlers.Update.Result" enum="BooleanSuccess"
-    expires_after="2025-09-10">
+    expires_after="2026-09-10">
   <owner>dibyapal@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
@@ -2727,7 +2727,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Webapp.WebAppUrlLoaderPrepareForLoadResult"
-    enum="WebAppUrlLoaderResult" expires_after="2025-12-28">
+    enum="WebAppUrlLoaderResult" expires_after="2026-03-01">
   <owner>dmurph@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>Records the result of WebAppUrlLoader::PrepareForLoad().</summary>

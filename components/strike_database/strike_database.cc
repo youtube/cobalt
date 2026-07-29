@@ -14,10 +14,10 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
-#include "components/autofill/core/browser/proto/strike_data.pb.h"
 #include "components/leveldb_proto/public/proto_database_provider.h"
+#include "components/strike_database/strike_data.pb.h"
 
-namespace autofill {
+namespace strike_database {
 
 namespace {
 const int kMaxInitAttempts = 3;
@@ -255,4 +255,4 @@ void StrikeDatabase::UpdateCache(const std::string& key,
   strike_map_cache_[key] = data;
 }
 
-}  // namespace autofill
+}  // namespace strike_database

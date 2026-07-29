@@ -68,7 +68,7 @@ void TabStripEventRecorder::OnTabStripModelChanged(
       Handle(ToEvent(*change.GetRemove()));
       break;
     case TabStripModelChange::Type::kMoved:
-      Handle(ToEvent(*change.GetMove()));
+      Handle(ToEvent(*change.GetMove(), tab_strip_model_adapter_));
       break;
     case TabStripModelChange::Type::kReplaced:
       NOTIMPLEMENTED();
@@ -84,6 +84,12 @@ void TabStripEventRecorder::TabChangedAt(content::WebContents* contents,
                                          int index,
                                          TabChangeType change_type) {
   Handle(ToEvent(tab_strip_model_adapter_, index, change_type));
+}
+
+void TabStripEventRecorder::TabBlockedStateChanged(
+    content::WebContents* contents,
+    int index) {
+  TabChangedAt(contents, index, TabChangeType::kAll);
 }
 
 void TabStripEventRecorder::OnTabGroupChanged(const TabGroupChange& change) {

@@ -11,7 +11,6 @@
 #import "base/notreached.h"
 #import "base/strings/sys_string_conversions.h"
 #import "components/autofill/ios/browser/suggestion_controller_java_script_feature.h"
-#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/web/public/js_messaging/web_frames_manager.h"
 #import "ios/web/public/web_state.h"
@@ -228,27 +227,6 @@ NSArray* FindDescendantToolbarItemsForActionName(
 
 - (void)selectNextElementWithoutButtonPress {
   [self selectNextElementLoggingButtonPressed];
-}
-
-- (void)fetchPreviousAndNextElementsPresenceWithCompletionHandler:
-    (void (^)(bool, bool))completionHandler {
-  DCHECK(completionHandler);
-
-  if (!_webState || IsKeyboardAccessoryUpgradeEnabled()) {
-    completionHandler(false, false);
-    return;
-  }
-
-  web::WebFrame* frame = [self webFrame];
-
-  if (!frame) {
-    completionHandler(false, false);
-    return;
-  }
-
-  autofill::SuggestionControllerJavaScriptFeature::GetInstance()
-      ->FetchPreviousAndNextElementsPresenceInFrame(
-          frame, base::BindOnce(completionHandler));
 }
 
 #pragma mark - Private

@@ -69,9 +69,11 @@ Cq-Include-Trybots: chromium/try:fuchsia-arm64-cast-receiver-rel
 Cq-Include-Trybots: chromium/try:mac-official,linux-official
 Cq-Include-Trybots: chromium/try:win-official,win32-official
 Cq-Include-Trybots: chromium/try:win-arm64-rel
+Cq-Include-Trybots: chromium/try:linux-v4l2-codec-rel
 Cq-Include-Trybots: chromium/try:linux-swangle-try-x64,win-swangle-try-x86
 Cq-Include-Trybots: chromium/try:android-cronet-riscv64-dbg
 Cq-Include-Trybots: chromium/try:android-cronet-riscv64-rel
+Cq-Include-Trybots: chrome/try:android-x64-rel-ready
 Cq-Include-Trybots: chrome/try:iphone-device,ipad-device
 Cq-Include-Trybots: chrome/try:linux-chromeos-chrome
 Cq-Include-Trybots: chrome/try:win-chrome,win64-chrome,linux-chrome,mac-chrome

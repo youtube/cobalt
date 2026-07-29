@@ -23,8 +23,9 @@ namespace data_sharing::personal_collaboration_data {
 // static
 PersonalCollaborationDataService*
 PersonalCollaborationDataServiceFactory::GetForProfile(ProfileIOS* profile) {
-  return static_cast<PersonalCollaborationDataService*>(
-      GetInstance()->GetServiceForBrowserState(profile, true));
+  return GetInstance()
+      ->GetServiceForProfileAs<PersonalCollaborationDataService>(
+          profile, /*create=*/true);
 }
 
 // static
@@ -37,7 +38,7 @@ PersonalCollaborationDataServiceFactory::GetInstance() {
 PersonalCollaborationDataServiceFactory::
     PersonalCollaborationDataServiceFactory()
     : ProfileKeyedServiceFactoryIOS("PersonalCollaborationDataService",
-                                    ProfileSelection::kOwnInstanceInIncognito) {
+                                    ProfileSelection::kNoInstanceInIncognito) {
   DependsOn(DataTypeStoreServiceFactory::GetInstance());
 }
 
@@ -46,8 +47,8 @@ PersonalCollaborationDataServiceFactory::
 
 std::unique_ptr<KeyedService>
 PersonalCollaborationDataServiceFactory::BuildServiceInstanceFor(
-    web::BrowserState* context) const {
-  CHECK(!context->IsOffTheRecord());
+    ProfileIOS* profile) const {
+  CHECK(!profile->IsOffTheRecord());
   if (!data_sharing::features::IsDataSharingFunctionalityEnabled() ||
       !base::FeatureList::IsEnabled(
           features::kDataSharingAccountDataMigration)) {
@@ -55,7 +56,6 @@ PersonalCollaborationDataServiceFactory::BuildServiceInstanceFor(
   }
 
   version_info::Channel channel = ::GetChannel();
-  ProfileIOS* profile = ProfileIOS::FromBrowserState(context);
   auto data_type_store_factory =
       DataTypeStoreServiceFactory::GetForProfile(profile)->GetStoreFactory();
   return std::make_unique<PersonalCollaborationDataServiceImpl>(

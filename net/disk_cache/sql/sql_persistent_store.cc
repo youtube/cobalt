@@ -23,6 +23,8 @@
 #include "base/timer/elapsed_timer.h"
 #include "base/trace_event/trace_event.h"
 #include "base/types/expected.h"
+#include "components/performance_manager/scenario_api/performance_scenarios.h"
+#include "net/base/features.h"
 #include "net/base/io_buffer.h"
 #include "net/disk_cache/cache_util.h"
 #include "net/disk_cache/sql/sql_backend_constants.h"
@@ -219,7 +221,7 @@ void RecordTimeAndErrorResultHistogram(std::string_view method_name,
   if (!db.Execute(GetQuery(Query::kInitSchema_CreateTableResources)) ||
       !db.Execute(GetQuery(Query::kInitSchema_CreateTableBlobs)) ||
       !db.Execute(GetQuery(Query::kIndex_ResourcesToken)) ||
-      !db.Execute(GetQuery(Query::kIndex_ResourcesCacheKeyDoomed)) ||
+      !db.Execute(GetQuery(Query::kIndex_ResourcesCacheKeyHashDoomed)) ||
       !db.Execute(GetQuery(Query::kIndex_ResourcesDoomedLastUsed)) ||
       !db.Execute(GetQuery(Query::kIndex_ResourcesDoomedResId)) ||
       !db.Execute(GetQuery(Query::kIndex_BlobsTokenStart))) {
@@ -239,6 +241,12 @@ void RecordTimeAndErrorResultHistogram(std::string_view method_name,
   }
   value = default_value;
   return meta.SetValue(key, value);
+}
+
+bool IsBrowserIdle() {
+  return performance_scenarios::CurrentScenariosMatch(
+      performance_scenarios::ScenarioScope::kGlobal,
+      performance_scenarios::kDefaultIdleScenarios);
 }
 
 // The `Backend` class encapsulates all direct interaction with the SQLite
@@ -265,7 +273,13 @@ class Backend {
                 .set_exclusive_database_file_lock(true)
 #endif  // IS_WIN
                 .set_preload(true)
-                .set_wal_mode(true),
+                .set_wal_mode(true)
+                .set_wal_commit_callback(base::BindRepeating(
+                    &Backend::OnCommitCallback,
+                    // This callback is only called while the `db_` instance
+                    // is alive, and never during destructor, so it's safe
+                    // to use base::Unretained.
+                    base::Unretained(this))),
             // Tag for metrics collection.
             sql::Database::Tag("HttpCacheDiskCache")) {
   }
@@ -335,6 +349,7 @@ class Backend {
       int64_t res_id_cursor);
   ErrorAndEvictionRequested RunEviction(
       base::flat_set<CacheEntryKey> excluded_keys);
+  bool MaybeRunCheckpoint();
 
   void EnableStrictCorruptionCheckForTesting() {
     strict_corruption_check_enabled_ = true;
@@ -351,11 +366,9 @@ class Backend {
   EntryInfoOrError CreateEntryInternal(const CacheEntryKey& key,
                                        bool run_existance_check,
                                        bool& corruption_detected);
-  Error DoomEntryInternal(const CacheEntryKey& key,
-                          const base::UnguessableToken& token,
+  Error DoomEntryInternal(const base::UnguessableToken& token,
                           bool& corruption_detected);
-  Error DeleteDoomedEntryInternal(const CacheEntryKey& key,
-                                  const base::UnguessableToken& token,
+  Error DeleteDoomedEntryInternal(const base::UnguessableToken& token,
                                   bool& corruption_detected);
   Error DeleteDoomedEntriesInternal(
       const base::flat_set<base::UnguessableToken>& excluded_tokens,
@@ -378,8 +391,7 @@ class Backend {
       scoped_refptr<net::IOBuffer> buffer,
       int64_t header_size_delta,
       bool& corruption_detected);
-  Error WriteEntryDataInternal(const CacheEntryKey& key,
-                               const base::UnguessableToken& token,
+  Error WriteEntryDataInternal(const base::UnguessableToken& token,
                                int64_t old_body_end,
                                int64_t offset,
                                scoped_refptr<net::IOBuffer> buffer,
@@ -484,6 +496,7 @@ class Backend {
   void MaybeCrashIfCorrupted(bool corruption_detected) {
     CHECK(!(corruption_detected && strict_corruption_check_enabled_));
   }
+  void OnCommitCallback(int pages);
 
   const base::FilePath path_;
   const int64_t max_bytes_;
@@ -494,6 +507,9 @@ class Backend {
   std::optional<Error> db_init_status_;
   StoreStatus store_status_;
   bool strict_corruption_check_enabled_ = false;
+  // The number of pages in the write-ahead log file. This is updated by
+  // `OnCommitCallback` and reset to 0 after a checkpoint.
+  int wal_pages_ = 0;
 };
 
 InitResultOrError Backend::Initialize() {
@@ -511,6 +527,22 @@ InitResultOrError Backend::Initialize() {
                                           dict);
                    });
   MaybeCrashIfCorrupted(corruption_detected);
+
+  if (*db_init_status_ == Error::kOk) {
+    base::UmaHistogramMemoryLargeMB(
+        base::StrCat({kHistogramPrefix, "DatabaseSize"}),
+        base::GetFileSize(path_.Append(kSqlBackendDatabaseFileName))
+                .value_or(0) /
+            1024 / 1024);
+    base::UmaHistogramCounts1M(base::StrCat({kHistogramPrefix, "EntryCount"}),
+                               store_status_.entry_count);
+    base::UmaHistogramMemoryLargeMB(
+        base::StrCat({kHistogramPrefix, "TotalSize"}),
+        store_status_.total_size / 1024 / 1024);
+    base::UmaHistogramMemoryLargeMB(base::StrCat({kHistogramPrefix, "MaxSize"}),
+                                    max_bytes_ / 1024 / 1024);
+  }
+
   return *db_init_status_ == Error::kOk
              ? InitResultOrError(InitResult(max_bytes_))
              : base::unexpected(*db_init_status_);
@@ -668,7 +700,8 @@ OptionalEntryInfoOrError Backend::OpenEntryInternal(const CacheEntryKey& key,
 
   sql::Statement statement(db_.GetCachedStatement(
       SQL_FROM_HERE, GetQuery(Query::kOpenEntry_SelectLiveResources)));
-  statement.BindString(0, key.string());
+  statement.BindInt64(0, key.hash());
+  statement.BindString(1, key.string());
   if (!statement.Step()) {
     // `Step()` returned false, which means either the query completed with no
     // results, or an error occurred.
@@ -766,7 +799,8 @@ EntryInfoOrError Backend::CreateEntryInternal(const CacheEntryKey& key,
     statement.BindTime(2, entry_info.last_used);
     statement.BindInt64(3, entry_info.body_end);
     statement.BindInt64(4, bytes_usage);
-    statement.BindString(5, key.string());
+    statement.BindInt64(5, key.hash());
+    statement.BindString(6, key.string());
     if (!statement.Run()) {
       return base::unexpected(Error::kFailedToExecute);
     }
@@ -798,7 +832,7 @@ ErrorAndEvictionRequested Backend::DoomEntry(
                      });
   base::ElapsedTimer timer;
   bool corruption_detected = false;
-  auto result = DoomEntryInternal(key, token, corruption_detected);
+  auto result = DoomEntryInternal(token, corruption_detected);
   RecordTimeAndErrorResultHistogram("DoomEntry", timer.Elapsed(), result,
                                     corruption_detected);
   TRACE_EVENT_END1("disk_cache", "SqlBackend.DoomEntry", "result",
@@ -811,8 +845,7 @@ ErrorAndEvictionRequested Backend::DoomEntry(
   return ErrorAndEvictionRequested(result, ShouldStartEviction());
 }
 
-Error Backend::DoomEntryInternal(const CacheEntryKey& key,
-                                 const base::UnguessableToken& token,
+Error Backend::DoomEntryInternal(const base::UnguessableToken& token,
                                  bool& corruption_detected) {
   CheckDatabaseInitStatus();
   sql::Transaction transaction(&db_);
@@ -827,9 +860,8 @@ Error Backend::DoomEntryInternal(const CacheEntryKey& key,
   {
     sql::Statement statement(db_.GetCachedStatement(
         SQL_FROM_HERE, GetQuery(Query::kDoomEntry_MarkDoomedResources)));
-    statement.BindString(0, key.string());
-    statement.BindInt64(1, TokenHigh(token));
-    statement.BindInt64(2, TokenLow(token));
+    statement.BindInt64(0, TokenHigh(token));
+    statement.BindInt64(1, TokenLow(token));
     // Iterate through the rows returned by the RETURNING clause.
     while (statement.Step()) {
       // Since we're dooming an entry, its size is subtracted from the total.
@@ -881,7 +913,7 @@ ErrorAndEvictionRequested Backend::DeleteDoomedEntry(
                      });
   base::ElapsedTimer timer;
   bool corruption_detected = false;
-  auto result = DeleteDoomedEntryInternal(key, token, corruption_detected);
+  auto result = DeleteDoomedEntryInternal(token, corruption_detected);
   RecordTimeAndErrorResultHistogram("DeleteDoomedEntry", timer.Elapsed(),
                                     result, corruption_detected);
   TRACE_EVENT_END1("disk_cache", "SqlBackend.DeleteDoomedEntry", "result",
@@ -893,8 +925,7 @@ ErrorAndEvictionRequested Backend::DeleteDoomedEntry(
   return ErrorAndEvictionRequested(result, ShouldStartEviction());
 }
 
-Error Backend::DeleteDoomedEntryInternal(const CacheEntryKey& key,
-                                         const base::UnguessableToken& token,
+Error Backend::DeleteDoomedEntryInternal(const base::UnguessableToken& token,
                                          bool& corruption_detected) {
   CheckDatabaseInitStatus();
   sql::Transaction transaction(&db_);
@@ -907,9 +938,8 @@ Error Backend::DeleteDoomedEntryInternal(const CacheEntryKey& key,
     sql::Statement statement(db_.GetCachedStatement(
         SQL_FROM_HERE,
         GetQuery(Query::kDeleteDoomedEntry_DeleteFromResources)));
-    statement.BindString(0, key.string());
-    statement.BindInt64(1, TokenHigh(token));
-    statement.BindInt64(2, TokenLow(token));
+    statement.BindInt64(0, TokenHigh(token));
+    statement.BindInt64(1, TokenLow(token));
     if (!statement.Run()) {
       return Error::kFailedToExecute;
     }
@@ -924,7 +954,7 @@ Error Backend::DeleteDoomedEntryInternal(const CacheEntryKey& key,
     corruption_detected = true;
   }
 
-  // If we didn't find any doomed entry matching the key and token, report it.
+  // If we didn't find any doomed entry matching the token, report it.
   if (deleted_count == 0) {
     return transaction.Commit() ? Error::kNotFound
                                 : Error::kFailedToCommitTransaction;
@@ -1055,7 +1085,8 @@ Error Backend::DeleteLiveEntryInternal(const CacheEntryKey& key,
   {
     sql::Statement statement(db_.GetCachedStatement(
         SQL_FROM_HERE, GetQuery(Query::kDeleteLiveEntry_DeleteFromResources)));
-    statement.BindString(0, key.string());
+    statement.BindInt64(0, key.hash());
+    statement.BindString(1, key.string());
     while (statement.Step()) {
       ++deleted_count;
       auto maybe_token = ToUnguessableToken(statement.ColumnInt64(0),
@@ -1279,7 +1310,8 @@ Error Backend::UpdateEntryLastUsedInternal(const CacheEntryKey& key,
         SQL_FROM_HERE,
         GetQuery(Query::kUpdateEntryLastUsed_UpdateResourceLastUsed)));
     statement.BindTime(0, last_used);
-    statement.BindString(1, key.string());
+    statement.BindInt64(1, key.hash());
+    statement.BindString(2, key.string());
     if (!statement.Run()) {
       return Error::kFailedToExecute;
     }
@@ -1344,9 +1376,8 @@ Error Backend::UpdateEntryHeaderAndLastUsedInternal(
     statement.BindTime(0, last_used);
     statement.BindInt64(1, header_size_delta);
     statement.BindBlob(2, buffer->span());
-    statement.BindString(3, key.string());
-    statement.BindInt64(4, TokenHigh(token));
-    statement.BindInt64(5, TokenLow(token));
+    statement.BindInt64(3, TokenHigh(token));
+    statement.BindInt64(4, TokenLow(token));
     if (statement.Step()) {
       const int64_t bytes_usage = statement.ColumnInt64(0);
       if (bytes_usage < static_cast<int64_t>(buffer->size()) +
@@ -1388,9 +1419,9 @@ ErrorAndEvictionRequested Backend::WriteEntryData(
                      });
   base::ElapsedTimer timer;
   bool corruption_detected = false;
-  auto result = WriteEntryDataInternal(key, token, old_body_end, offset,
-                                       std::move(buffer), buf_len, truncate,
-                                       corruption_detected);
+  auto result =
+      WriteEntryDataInternal(token, old_body_end, offset, std::move(buffer),
+                             buf_len, truncate, corruption_detected);
   RecordTimeAndErrorResultHistogram("WriteEntryData", timer.Elapsed(), result,
                                     corruption_detected);
   TRACE_EVENT_END1("disk_cache", "SqlBackend.WriteEntryData", "result",
@@ -1402,8 +1433,7 @@ ErrorAndEvictionRequested Backend::WriteEntryData(
   return ErrorAndEvictionRequested(result, ShouldStartEviction());
 }
 
-Error Backend::WriteEntryDataInternal(const CacheEntryKey& key,
-                                      const base::UnguessableToken& token,
+Error Backend::WriteEntryDataInternal(const base::UnguessableToken& token,
                                       int64_t old_body_end,
                                       int64_t offset,
                                       scoped_refptr<net::IOBuffer> buffer,
@@ -1477,9 +1507,8 @@ Error Backend::WriteEntryDataInternal(const CacheEntryKey& key,
         SQL_FROM_HERE, GetQuery(Query::kWriteEntryData_UpdateResource)));
     statement.BindInt64(0, body_end_delta);
     statement.BindInt64(1, total_size_delta);
-    statement.BindString(2, key.string());
-    statement.BindInt64(3, TokenHigh(token));
-    statement.BindInt64(4, TokenLow(token));
+    statement.BindInt64(2, TokenHigh(token));
+    statement.BindInt64(3, TokenLow(token));
     if (statement.Step()) {
       // Consistency check: The `RETURNING` clause gives us the `body_end` value
       // after the update. If this doesn't match our calculated `new_body_end`,
@@ -2243,6 +2272,57 @@ int64_t Backend::CalculateTotalSize() {
   return result;
 }
 
+bool Backend::MaybeRunCheckpoint() {
+  TRACE_EVENT("disk_cache", "SqlBackend.MaybeRunCheckpoint");
+  if (!IsBrowserIdle()) {
+    // Between the time when idle was detected in the browser process and the
+    // time when this backend was notified, the browser became non-idle.
+    return false;
+  }
+  if (wal_pages_ < net::features::kSqlDiskCacheIdleCheckpointThreshold.Get()) {
+    return false;
+  }
+  TRACE_EVENT("disk_cache", "SqlBackend.CheckpointDatabase", "pages",
+              wal_pages_);
+  base::ElapsedTimer timer;
+  bool checkpoint_result = db_.CheckpointDatabase();
+  base::UmaHistogramMicrosecondsTimes(
+      base::StrCat({kHistogramPrefix, "IdleEventCheckpoint.",
+                    checkpoint_result ? "Success" : "Failure", "Time"}),
+      timer.Elapsed());
+  base::UmaHistogramCounts100000(
+      base::StrCat({kHistogramPrefix, "IdleEventCheckpoint.",
+                    checkpoint_result ? "Success" : "Failure", "Pages"}),
+      wal_pages_);
+  wal_pages_ = 0;
+  return checkpoint_result;
+}
+
+void Backend::OnCommitCallback(int pages) {
+  TRACE_EVENT("disk_cache", "SqlBackend.OnCommitCallback");
+  const bool is_idle = IsBrowserIdle();
+  if (pages >= net::features::kSqlDiskCacheForceCheckpointThreshold.Get() ||
+      (pages >= net::features::kSqlDiskCacheIdleCheckpointThreshold.Get() &&
+       is_idle)) {
+    TRACE_EVENT("disk_cache", "SqlBackend.CheckpointDatabase", "pages", pages);
+    base::ElapsedTimer timer;
+    bool checkpoint_result = db_.CheckpointDatabase();
+    base::UmaHistogramMicrosecondsTimes(
+        base::StrCat({kHistogramPrefix, is_idle ? "Idle" : "Force",
+                      "Checkpoint.", checkpoint_result ? "Success" : "Failure",
+                      "Time"}),
+        timer.Elapsed());
+    base::UmaHistogramCounts100000(
+        base::StrCat({kHistogramPrefix, is_idle ? "Idle" : "Force",
+                      "Checkpoint.", checkpoint_result ? "Success" : "Failure",
+                      "Pages"}),
+        pages);
+    wal_pages_ = 0;
+    return;
+  }
+  wal_pages_ = pages;
+}
+
 // `SqlPersistentStoreImpl` is the concrete implementation of the
 // `SqlPersistentStore` interface. It serves as the bridge between the caller
 // (on the main sequence = network IO thread) and the `Backend` (on the
@@ -2424,6 +2504,9 @@ class SqlPersistentStoreImpl : public SqlPersistentStore {
   }
   void GetSizeOfAllEntries(Int64Callback callback) const override {
     backend_.AsyncCall(&Backend::GetSizeOfAllEntries).Then(std::move(callback));
+  }
+  void MaybeRunCheckpoint(base::OnceCallback<void(bool)> callback) override {
+    backend_.AsyncCall(&Backend::MaybeRunCheckpoint).Then(std::move(callback));
   }
 
   void EnableStrictCorruptionCheckForTesting() override {

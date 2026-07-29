@@ -41,11 +41,11 @@ ActorUiTabControllerFactory::CreateActorOverlayViewController(
 
 ActorUiTabController::ActorUiTabController(
     tabs::TabInterface& tab,
-    ActorKeyedService* actor_service,
+    ActorKeyedService* actor_keyed_service,
     std::unique_ptr<ActorUiTabControllerFactoryInterface> controller_factory)
     : ActorUiTabControllerInterface(tab),
       tab_(tab),
-      actor_keyed_service_(actor_service),
+      actor_keyed_service_(actor_keyed_service),
       controller_factory_(std::move(controller_factory)),
       update_ui_debounce_timer_(
           FROM_HERE,
@@ -270,19 +270,11 @@ void ActorUiTabController::BindActorOverlay(
   }
 }
 
-void ActorUiTabController::UpdateScrimBackground() {
-  if (features::kGlicActorUiOverlay.Get()) {
-    actor_overlay_view_controller_->SetScrimBackground(is_hovering_overlay_ ||
-                                                       is_hovering_button_);
-  }
-}
-
 void ActorUiTabController::SetOverlayHoverStatus(bool is_hovering) {
   if (is_hovering_overlay_ == is_hovering) {
     return;
   }
   is_hovering_overlay_ = is_hovering;
-  UpdateScrimBackground();
   update_ui_debounce_timer_.Reset();
 }
 
@@ -291,7 +283,10 @@ void ActorUiTabController::SetHandoffButtonHoverStatus(bool is_hovering) {
     return;
   }
   is_hovering_button_ = is_hovering;
-  UpdateScrimBackground();
+  if (features::kGlicActorUiOverlay.Get()) {
+    actor_overlay_view_controller_->SetHandoffButtonHoverStatus(
+        is_hovering_button_);
+  }
   update_ui_debounce_timer_.Reset();
 }
 

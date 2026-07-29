@@ -7,6 +7,7 @@
 
 #include <variant>
 
+#include "base/containers/span.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #include "components/autofill/core/browser/data_model/identity_credential/identity_credential.h"
@@ -27,7 +28,7 @@ namespace autofill {
 // implementation of the `SuggestionGenerator` interface.
 //
 // Generating suggestions consists of two phases:
-// 1. All generators are called to fetch the data that is gonna be used for
+// 1. All generators are called to fetch the data that is going to be used for
 //    creating the suggestions. No assumptions should be made about the order
 //    of those calls and some of those calls will be asynchronous.
 // 2. Every generator is called again with the data that was fetched for all
@@ -45,6 +46,23 @@ namespace autofill {
 // which the suggestion generators are called.
 class SuggestionGenerator {
  public:
+  // Used to precisely describe what kind of data was fetched to produce a
+  // suggestion. One `FillingProduct` may be able to generate different kinds of
+  // `SuggestionDataSource`, but cannot fetch data for more than one.
+  enum class SuggestionDataSource {
+    kAutofillAi = 0,
+    kAddress = 1,
+    kCreditCard = 2,
+    kIban = 3,
+    kMerchantPromoCode = 4,
+    kAutocomplete = 5,
+    kLoyaltyCard = 6,
+    kIdentityCredential = 7,
+    kPasskey = 8,
+    kCompose = 9,
+    kMaxValue = kCompose
+  };
+
   SuggestionGenerator() = default;
   virtual ~SuggestionGenerator() = default;
 
@@ -62,49 +80,70 @@ class SuggestionGenerator {
                                       IdentityCredential,
                                       HybridPasskeyAvailability>;
 
-  // Obtains data that will be used to generate suggestions on a given trigger
-  // `field` that belongs to `form` by calling `GenerateSuggestions` later (See
-  // top-level documentation of `SuggestionGenerator` for more details).
-  // Once the data is obtained, `callback` is called with the `FillingProduct`
-  // of which the data is for and the corresponding `SuggestionData`.
-  // `form` and `field` may be null if the `form_data` or `field_data` wasn't
-  // yet parsed.
+  // Obtains data that will be used to generate suggestions on a given
+  // `trigger_field` that belongs to `form`.
+  //
+  // Once the data is obtained, `callback` is called with the
+  // `SuggestionDataSource` which the data is for and the corresponding list of
+  // `SuggestionData`. `form_structure` and `trigger_autofill_field` may be null
+  // if the `form` or `trigger_field` wasn't yet parsed.
+  //
+  // Certain `FillingProduct`s can have different suggestions depending on the
+  // `trigger_field` and `form`.  In order to support those cases, fetched data
+  // is tracked by the `SuggestionDataSource`, to ensure that correct generation
+  // logic is later used.
+  // Note that each `FillingProduct` can fetch only one type of
+  // `SuggestionDataSource` per `FetchSuggestionData` call.
+  //
+  // All filtering of suggestion data should happen in this function (relevance
+  // filtering, prefix matching, deduplication, ordering, etc.), as the next
+  // phase in suggestion generation (see top-level ddocumentation for more
+  // details) must generate a Suggestion object for each of the passed
+  // `SuggestionData` and in the given order.
   virtual void FetchSuggestionData(
-      const FormData& form_data,
-      const FormFieldData& field_data,
-      const FormStructure* form,
-      const AutofillField* field,
+      const FormData& form,
+      const FormFieldData& trigger_field,
+      const FormStructure* form_structure,
+      const AutofillField* trigger_autofill_field,
       const AutofillClient& client,
       base::OnceCallback<
-          void(std::pair<FillingProduct,
+          void(std::pair<SuggestionDataSource,
                          std::vector<SuggestionGenerator::SuggestionData>>)>
           callback) = 0;
 
   // Generates suggestions given `all_suggestion_data` that were fetched by
-  // calling `FetchSuggestionData` on all generators (See top-level
+  // calling `FetchSuggestionData` on all generators (see top-level
   // documentation of `SuggestionGenerator` for more details).
-  // Suggestions were triggered on `field` which belongs to `form`. `callback`
-  // is called when generation is complete and a list of `Suggestion`
+  //
+  // Suggestions were triggered on `trigger_field` which belongs to `form`.
+  // `callback` is called when generation is complete and a list of `Suggestion`
   // objects is passed along with the corresponding `FillingProduct`.
-  // `form` and `field` may be null if the `form_data` or `field_data` wasn't
-  // yet parsed.
+  // `form_structure` and `trigger_autofill_field` may be null if the `form` or
+  // the `trigger_field` weren't parsed yet.
+  //
+  // We assume no further filtering/mutation of `all_suggestion_data` beyond
+  // this point. That is, the function must generate a `Suggestion` object for
+  // each of the `SuggestionData` of its corresponding `FillingProduct` and in
+  // the given order.
   virtual void GenerateSuggestions(
-      const FormData& form_data,
-      const FormFieldData& field_data,
-      const FormStructure* form,
-      const AutofillField* field,
-      const std::vector<std::pair<FillingProduct, std::vector<SuggestionData>>>&
+      const FormData& form,
+      const FormFieldData& trigger_field,
+      const FormStructure* form_structure,
+      const AutofillField* trigger_autofill_field,
+      const std::vector<
+          std::pair<SuggestionDataSource, std::vector<SuggestionData>>>&
           all_suggestion_data,
       base::OnceCallback<void(ReturnedSuggestions)> callback) = 0;
 
  protected:
-  // Returns the vector of `SuggestionData` for a specific `FillingProduct`
-  // from the `all_suggestion_data` vector.
-  std::vector<SuggestionGenerator::SuggestionData>
-  ExtractSuggestionDataForFillingProduct(
-      const std::vector<std::pair<FillingProduct, std::vector<SuggestionData>>>&
+  // Returns the vector of `SuggestionData` for a specific
+  // `SuggestionDataSource` from the `all_suggestion_data` vector.
+  static std::vector<SuggestionGenerator::SuggestionData>
+  ExtractSuggestionDataForSource(
+      base::span<
+          const std::pair<SuggestionDataSource, std::vector<SuggestionData>>>
           all_suggestion_data,
-      FillingProduct filling_product);
+      SuggestionDataSource suggestion_data_source);
 };
 
 }  // namespace autofill

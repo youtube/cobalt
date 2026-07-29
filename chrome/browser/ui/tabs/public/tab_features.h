@@ -72,6 +72,7 @@ class ExtensionSidePanelManager;
 
 #if BUILDFLAG(ENABLE_GLIC)
 namespace glic {
+class GlicConversationHelper;
 class GlicTabIndicatorHelper;
 }  // namespace glic
 #endif  // BUILDFLAG(ENABLE_GLIC)
@@ -112,6 +113,13 @@ class CollaborationMessagingTabData;
 namespace lens {
 class TabContextualizationController;
 }  // namespace lens
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+    BUILDFLAG(IS_CHROMEOS)
+namespace wallet {
+class ChromeWalletablePassClient;
+}  // namespace wallet
+#endif
 
 namespace tabs {
 
@@ -232,6 +240,10 @@ class TabFeatures {
   LensOverlayController* lens_overlay_controller();
   const LensOverlayController* lens_overlay_controller() const;
 
+  lens::TabContextualizationController* tab_contextualization_controller() {
+    return tab_contextualization_controller_.get();
+  }
+
   PwaInstallPageActionController* pwa_install_page_action_controller() {
     return pwa_install_page_action_controller_.get();
   }
@@ -257,6 +269,11 @@ class TabFeatures {
 
   TabUIHelper* SetTabUIHelperForTesting(
       std::unique_ptr<TabUIHelper> tab_ui_helper);
+
+  lens::TabContextualizationController*
+  SetTabContextualizationControllerForTesting(
+      std::unique_ptr<lens::TabContextualizationController>
+          tab_contextualization_controller);
 
   TabCreationMetricsController* tab_creation_metrics_controller() {
     return tab_creation_metrics_controller_.get();
@@ -383,6 +400,7 @@ class TabFeatures {
       collaboration_messaging_page_action_controller_;
 
 #if BUILDFLAG(ENABLE_GLIC)
+  std::unique_ptr<glic::GlicConversationHelper> glic_conversation_helper_;
   std::unique_ptr<glic::GlicTabIndicatorHelper> glic_tab_indicator_helper_;
 #endif  // BUILDFLAG(ENABLE_GLIC)
 
@@ -421,6 +439,10 @@ class TabFeatures {
   std::unique_ptr<lens::TabContextualizationController>
       tab_contextualization_controller_;
 
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+    BUILDFLAG(IS_CHROMEOS)
+  std::unique_ptr<wallet::ChromeWalletablePassClient> walletable_pass_client_;
+#endif
   // Must be the last member.
   base::WeakPtrFactory<TabFeatures> weak_factory_{this};
 };

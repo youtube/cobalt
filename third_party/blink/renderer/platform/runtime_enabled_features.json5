@@ -215,6 +215,11 @@
 
   data: [
     {
+      // crbug.com/439682405
+      name: "AbortByPlaceholderLayout",
+      status: "stable",
+    },
+    {
       name: "Accelerated2dCanvas",
       settable_from_internals: true,
       status: "stable",
@@ -277,6 +282,12 @@
       name: "AccessibilityUseAXPositionForDocumentMarkers",
       base_feature: "none",
       public: true,
+    },
+    {
+      // https://chromestatus.com/feature/5113389252739072
+      // https://issues.chromium.org/issues/41119923
+      name: "AccessKeyLabel",
+      status: "experimental",
     },
     {
       name: "AddressSpace",
@@ -367,7 +378,18 @@
     },
     {
       name: "AIProofreadingAPI",
-      status: "test",
+      status: {
+        "Win": "experimental",
+        "Mac": "experimental",
+        "Linux": "experimental",
+        "ChromeOS": "experimental",
+        "default": "",
+      },
+      origin_trial_feature_name: "AIProofreaderAPI",
+      origin_trial_os: ["win", "mac", "linux"],
+      origin_trial_allows_third_party: true,
+      base_feature_status: "enabled",
+      copied_from_base_feature_if: "overridden",
     },
     {
       name: "AIRewriterAPI",
@@ -420,10 +442,6 @@
     {
       name: "AIWriterAPIForWorkers",
       public: true,
-    },
-    {
-      name: "AliasWebkitFillAvailable",
-      status: "stable",
     },
     {
       name: "AlignZoomToCenter",
@@ -819,12 +837,13 @@
     },
     {
       // https://github.com/WICG/html-in-canvas/blob/main/README.md
+      // Note the API name has changed to `drawHTML`.
       name: "CanvasDrawElement",
       status: "test",
     },
     {
-      // Remove the restriction that drawHTMLElement can only draw immediate
-      // children of the canvas, and allow drawing canvas descendants.
+      // Remove the restriction that drawHTML can only draw immediate children
+      // of the canvas, and allow drawing canvas descendants.
       name: "CanvasDrawElementInSubtree",
       depends_on: ["CanvasDrawElement"],
     },
@@ -957,14 +976,6 @@
       // Support ClipboardItemData of Promise<DOMString> type according to spec
       // https://w3c.github.io/clipboard-apis/#typedefdef-clipboarditemdata
       name: "ClipboardItemWithDOMStringSupport",
-      status: "stable",
-    },
-    {
-      // Enables the ability to reset the clipboard snapshot when clipboard write
-      // operations are performed. This feature ensures that stale clipboard data
-      // is cleared and a fresh snapshot is created when necessary.
-      // See crbug.com/388081043
-      name: "ClipboardSnapshotResetOnWrite",
       status: "stable",
     },
     {
@@ -1146,19 +1157,17 @@
       origin_trial_feature_name: "CrashReportingStorageAPI",
     },
     {
-      // Allow WebAuthn relying parties to report information about existing
-      // credentials back to credential storage providers.
-      // Enabled by default on M132. Remove flag on or after M135.
-      name: "CredentialManagerReport",
-      status: "stable",
-    },
-    {
       // When enabled, allowlisting script urls and scripts used in eval via
-      // hashes will be supported in script-src. Controlled by the
-      // network::features::kCSPScriptSrcHashesInV1 flag.
+      // hashes will be supported in script-src. This is a no-op if the
+      // network::features::kCSPScriptSrcHashesInV1 flag is off, since it
+      // controls parsing in the network service.
       // See crbug.com/392657736 for details.
       name: "CSPHashesV1",
       base_feature: "none",
+      origin_trial_feature_name: "CSPExtendedScriptSrcHashes",
+      origin_trial_os: ["win", "linux", "mac", "android", "chromeos"],
+      status: "experimental",
+      public: true,
     },
     {
       name: "CSPReportHash",
@@ -1254,6 +1263,11 @@
       name: "CSSColorTypedOM",
       status: "experimental",
     },
+    {
+      // https://github.com/w3c/csswg-drafts/issues/12090#issuecomment-3204775586
+      name: "CSSContainerNameNotTreeScoped",
+      status: "experimental",
+    },
     // https://drafts.csswg.org/css-values-5/#progress
     // container-progress()
     {
@@ -1312,10 +1326,6 @@
       // crbug.com/417306102
       name: "CssFitWidthText",
       status: "experimental",
-    },
-    {
-      // crbug.com/417306102
-      name: "CssFitWidthTextConsistent",
     },
     {
       name: "CSSFontSizeAdjust",
@@ -1435,6 +1445,11 @@
     {
       name: "CSSNestedPseudoElements",
       status: "stable",
+    },
+    {
+      // https://chromestatus.com/feature/5261280285949952
+      name: "CSSOverscrollGestures",
+      status: "test",
     },
     {
       name: "CSSPaintAPIArguments",
@@ -1869,7 +1884,7 @@
     {
       // https://chromestatus.com/feature/5067126381215744
       name: "DocumentActiveViewTransition",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "DocumentCookie",
@@ -2014,13 +2029,6 @@
     {
       // See: crbug.com/40771555
       name: "EnterInOpenShadowRoots",
-      status: "stable",
-    },
-    {
-      // Escapes "<" and ">" in attribute values. This was launched
-      // in M139, and this flag can be removed in M141.
-      // See: crbug.com/1175016
-      name: "EscapeLtGtInAttributes",
       status: "stable",
     },
     {
@@ -2400,13 +2408,13 @@
     {
       name: "FluentOverlayScrollbars",
       // The associated base feature is defined in
-      // ui/native_theme/native_theme_features.cc.
+      // ui/native_theme/features/native_theme_features.cc.
       base_feature: "none",
     },
     {
       name: "FluentScrollbars",
       // The associated base feature is defined in
-      // ui/native_theme/native_theme_features.cc.
+      // ui/native_theme/features/native_theme_features.cc.
       base_feature: "none",
     },
     {
@@ -2418,6 +2426,10 @@
     {
       name: "FontAccess",
       status: {"Android": "", "default": "stable"},
+    },
+    {
+      name: "FontFallbackForTabSize",
+      status: "stable",
     },
     {
       name: "FontFamilyPostscriptMatchingCTMigration",
@@ -2715,11 +2727,6 @@
       status: "stable",
     },
     {
-      // crbug.com/40602913
-      name: "IgnoreOutOfFlowPositionForPreviousText",
-      status: "stable",
-    },
-    {
       name: "ImageDataPixelFormat",
       status: "stable",
     },
@@ -2735,8 +2742,9 @@
       // Improved retargeting behavior of ToggleEvent.source and
       // CommandEvent.source to match Event.relatedTarget.
       // crbug.com/420639769
+      // Enabled in M142, can be removed in M144.
       name: "ImprovedSourceRetargeting",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "IncludeTransformsForLayerXandLayerY",
@@ -3194,6 +3202,13 @@
       name: "ModifyParagraphCrossEditingoundary",
       status: "stable",
     },
+    // ModulePreloadReferrer enables modulepreload to send proper referrer
+    // headers as specified in the HTML spec. Behind a flag for safer rollout.
+    // https://crbug.com/441933555
+    {
+      name: "ModulePreloadReferrer",
+      status: "experimental",
+    },
     {
       name: "MojoJS",
       status: "test",
@@ -3379,6 +3394,13 @@
       status: "experimental",
     },
     {
+      // Originating elements are implicit anchors for pseudo elements.
+      // This is a spec change since anchor positioning was shipped in Blink.
+      // https://issues.chromium.org/issues/408223892
+      name: "OriginatingElementIsImplicitAnchor",
+      status: "experimental",
+    },
+    {
       name: "OriginIsolationHeader",
       status: "stable",
       base_feature: "none",
@@ -3547,12 +3569,6 @@
       // PARAKEET ad serving runtime flag/JS API.
       name: "Parakeet",
       origin_trial_feature_name: "Parakeet",
-    },
-    {
-      // Uses base::Time::FromUTCString() in ParseDate() instead of code from
-      // ParseDateFromNullTerminatedCharacters() from date_math.cc.
-      name: "ParseDateUsesBaseTimeFromUtcString",
-      status: "stable",
     },
     {
       name: "PartialCompletionNotAllowedInMoveParagraphs",
@@ -4112,9 +4128,7 @@
     // https://chromestatus.com/feature/4771962874363904
     {
       name: "RouteMatching",
-      status: {
-        "default": "test",
-      },
+      status: "test",
     },
     {
       name: "RtcAudioJitterBufferMaxPackets",
@@ -4387,6 +4401,11 @@
       status: "stable",
     },
     {
+      // See https://chromestatus.com/feature/5203433409871872
+      name: "SelectiveClipboardFormatRead",
+      status: "test",
+    },
+    {
       // See https://chromestatus.com/feature/4811835974615040
       name: "SelectivePermissionsIntervention",
       status: "experimental",
@@ -4627,15 +4646,6 @@
       name: "SpeculationRulesPrefetchWithSubresources",
     },
     {
-      // Enables to run prerendering for new tabs (e.g., target="_blank").
-      // See https://crbug.com/1350676.
-      name: "SpeculationRulesTargetHint",
-      origin_trial_feature_name: "SpeculationRulesTargetHint",
-      base_feature: "Prerender2InNewTab",
-      status: "stable",
-      copied_from_base_feature_if: "overridden",
-    },
-    {
       name: "SplitTextNotCleanupDummySpans",
       status: "stable",
     },
@@ -4651,11 +4661,6 @@
       name: "StableBlinkFeatures",
       status: "stable",
       base_feature: "none",
-    },
-    // Killswitch for https://crbug.com/40915318
-    {
-      name: "StandardHistoryStateEmptyUrlHandling",
-      status: "stable",
     },
     {
       // See https://github.com/w3c/csswg-drafts/issues/9398
@@ -4725,6 +4730,10 @@
       status: "experimental",
     },
     {
+      name: "SvgEnableTextDecorationCssStyling",
+      status: "stable",
+    },
+    {
       // Enables loading of external SVG resource documents for the 'clip-path',
       // 'fill', 'stroke' and 'marker-*' properties.
       name: "SvgExternalResources",
@@ -4752,7 +4761,7 @@
     },
     {
       name: "SvgScriptElementAsyncAttribute",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "SvgSmilPruneInstanceTimes",
@@ -4874,6 +4883,11 @@
       status: "stable",
     },
     {
+      // crbug.com/442551790
+      name: "TextareaLastLineRemovalFix",
+      status: "stable",
+    },
+    {
       // crbug.com/414858401
       name: "TextareaLineEndingsAsBr",
       status: "stable",
@@ -4917,6 +4931,10 @@
       // crbug.com/368657256
       name: "TextEmphasisPositionAuto",
       status: "experimental",
+    },
+    {
+      name: "TextEmphasisPunctuationExceptions",
+      status: "stable"
     },
     {
       name: "TextFragmentAPI",
@@ -5032,7 +5050,7 @@
     // This feature enables drag and drop using touch input devices. Replaces
     // the old "--enable-touch-drag-drop" and "--disable-touch-drag-drop"
     // switches.
-    // Enabled by default in Android and ChromeOS.
+    // Enabled by default in Android, ChromeOS and Windows.
     {
       name: "TouchDragAndDrop",
       base_feature: "none",
@@ -5043,6 +5061,9 @@
     {
       name: "TouchDragOnShortPress",
       depends_on: ["TouchDragAndDrop"],
+      status: {
+        "Win": "stable",
+      },
     },
     // Many websites disable mouse support when touch APIs are available.  We'd
     // like to enable this always but can't until more websites fix this bug.
@@ -5113,10 +5134,6 @@
       // This feature acts as a kill switch for https://crbug.com/40580002.
       name: "TreatMhtmlInitialDocumentLoadsAsCrossDocument",
       status: "stable",
-    },
-    {
-      name: "TrustedTypeBeforePolicyCreationEvent",
-      status: "experimental",
     },
     {
       name: "TrustedTypesFromLiteral",
@@ -5224,6 +5241,10 @@
       status: "test",
     },
     {
+      name: "UsePersistentCacheForCodeCache",
+      status: "test",
+    },
+    {
       name: "UsePositionForPointInFlexibleBoxWithSingleChildElement",
       status: "stable",
     },
@@ -5243,6 +5264,11 @@
     {
       name: "UseShadowHostStyleCheckEditable",
       status: "stable",
+    },
+    {
+      // Fix for https://crbug.com/354497121
+      name: "UseSpecValuesInTextFormatUpdateEventStyles",
+      status: "test"
     },
     {
       name: "UseUndoStepElementDispatchBeforeInput",
@@ -5464,12 +5490,6 @@
       name: "WebAuthenticationJSONSerialization",
       status: "stable",
     },
-    // https://w3c.github.io/webauthn/#prf-extension
-    {
-      name: "WebAuthenticationPRF",
-      status: "stable",
-      base_feature: "WebAuthenticationPRFExtension",
-    },
     {
       name: "WebAuthenticationRemoteDesktopSupport",
       base_feature: "none",
@@ -5655,7 +5675,13 @@
     },
     {
       name: "WebSpeechRecognitionContext",
-      status: "experimental",
+      status: {
+        "Win": "stable",
+        "Mac": "stable",
+        "Linux": "stable",
+        "ChromeOS": "experimental",
+        "default": "",
+      },
     },
     {
       name: "WebTransportApplicationProtocol",
@@ -5718,12 +5744,6 @@
       public: true,
       status: "stable",
       base_feature: "none",
-    },
-    {
-      name: "WebXRDepthPerformance",
-      depends_on: ["WebXR"],
-      public: true,
-      status: "stable",
     },
     {
       name: "WebXREnabledFeatures",

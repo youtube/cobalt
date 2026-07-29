@@ -146,9 +146,6 @@ BASE_DECLARE_FEATURE(kRelatedWebsiteSetsDevUI);
 
 // Privacy UX features start
 
-COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
-BASE_DECLARE_FEATURE(kAlwaysBlock3pcsIncognito);
-
 // Enables fingerprinting protection setting UX.
 COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
 BASE_DECLARE_FEATURE(kFingerprintingProtectionUx);
@@ -172,6 +169,10 @@ BASE_DECLARE_FEATURE(kTrackingProtectionContentSettingFor3pcb);
 // Enables showing RWS UI.
 COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
 BASE_DECLARE_FEATURE(kRelatedWebsiteSetsUi);
+
+// Feature for rolling back Mode B.
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+BASE_DECLARE_FEATURE(kRollBackModeB);
 
 // Privacy UX features end
 

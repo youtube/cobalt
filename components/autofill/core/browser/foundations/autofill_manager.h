@@ -9,6 +9,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include "base/callback_list.h"
@@ -156,6 +157,11 @@ class AutofillManager
                                          FormGlobalId form,
                                          FieldGlobalId field) {}
 
+    virtual void OnBeforeSelectFieldOptionsDidChange(AutofillManager& manager,
+                                                     FormGlobalId form) {}
+    virtual void OnAfterSelectFieldOptionsDidChange(AutofillManager& manager,
+                                                    FormGlobalId form) {}
+
     virtual void OnBeforeDidFillAutofillFormData(AutofillManager& manager,
                                                  FormGlobalId form) {}
     virtual void OnAfterDidFillAutofillFormData(AutofillManager& manager,
@@ -210,8 +216,10 @@ class AutofillManager
     // `FormGlobalId` because the form structure cached inside `AutofillManager`
     // is not updated at this point yet and thus does not contain, e.g., the
     // submitted values, that an observer may wish to analyze.
-    virtual void OnFormSubmitted(AutofillManager& manager,
-                                 const FormData& form) {}
+    virtual void OnBeforeFormSubmitted(AutofillManager& manager,
+                                       const FormData& form) {}
+    virtual void OnAfterFormSubmitted(AutofillManager& manager,
+                                      const FormData& form) {}
   };
 
   AutofillManager(const AutofillManager&) = delete;
@@ -241,12 +249,12 @@ class AutofillManager
   virtual void OnTextFieldValueChanged(const FormData& form,
                                        const FieldGlobalId& field_id,
                                        const base::TimeTicks timestamp);
-  void OnDidEndTextFieldEditing();
+  virtual void OnDidEndTextFieldEditing();
   virtual void OnTextFieldDidScroll(const FormData& form,
                                     const FieldGlobalId& field_id);
   virtual void OnSelectControlSelectionChanged(const FormData& form,
                                                const FieldGlobalId& field_id);
-  void OnSelectFieldOptionsDidChange(const FormData& form);
+  virtual void OnSelectFieldOptionsDidChange(const FormData& form);
   virtual void OnFocusOnFormField(const FormData& form,
                                   const FieldGlobalId& field_id);
   void OnFocusOnNonFormField();
@@ -356,9 +364,7 @@ class AutofillManager
   // After subscribing, FieldClassificationModelHandler::OnModelUpdated() will
   // trigger ReparseKnownForms(). There may be a handler for Autofill and/or
   // Password Manager.
-  void SubscribeToMlModelChanges(
-      FieldClassificationModelHandler& handler,
-      optimization_guide::proto::OptimizationTarget optimization_target);
+  void SubscribeToMlModelChanges(FieldClassificationModelHandler& handler);
 
  protected:
   explicit AutofillManager(AutofillDriver* driver);
@@ -430,6 +436,25 @@ class AutofillManager
       std::vector<raw_ptr<FormStructure, VectorExperimental>>* form_structures)
       const;
 
+  // Returns true only if the previewed form should be cleared.
+  virtual bool ShouldClearPreviewedForm() = 0;
+
+  std::map<FormGlobalId, std::unique_ptr<FormStructure>>*
+  mutable_form_structures() {
+    return &form_structures_;
+  }
+
+  // Logs the field types of `form` to chrome://autofill-internals and the
+  // autofill-information attribute (if
+  // `features::test::kAutofillShowTypePredictions` is enabled).
+  void LogCurrentFieldTypes(
+      std::variant<const FormData*, const FormStructure*> form);
+
+ private:
+  friend class AutofillManagerTestApi;
+
+  struct AsyncContext;
+
   // Parses multiple forms in one go. The function proceeds in four stages:
   //
   // 1. Turn (almost) every FormData into a FormStructure.
@@ -464,21 +489,9 @@ class AutofillManager
       std::vector<std::unique_ptr<FormStructure>> form_structures,
       base::OnceCallback<void(AutofillManager&)> callback);
 
-  // Returns true only if the previewed form should be cleared.
-  virtual bool ShouldClearPreviewedForm() = 0;
-
-  std::map<FormGlobalId, std::unique_ptr<FormStructure>>*
-  mutable_form_structures() {
-    return &form_structures_;
-  }
-
-  // Logs the field types of `form` to chrome://autofill-internals and the
-  // autofill-information attribute (if
-  // `features::test::kAutofillShowTypePredictions` is enabled).
-  void LogCurrentFieldTypes(const FormStructure& form);
-
- private:
-  friend class AutofillManagerTestApi;
+  // Step 2 described above ParseFormsAsync().
+  void RunMlModels(AsyncContext context,
+                   base::OnceCallback<void(AsyncContext)> done_callback);
 
   // Invoked by `AutofillCrowdsourcingManager`.
   void OnLoadedServerPredictions(

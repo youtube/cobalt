@@ -276,7 +276,6 @@ luci.notifier(
 luci.notifier(
     name = "annotator-rel",
     notify_emails = [
-        "chiav@chromium.org",
         "crmullins@chromium.org",
         "nicolaso@chromium.org",
         "pastarmovj@chromium.org",
@@ -368,4 +367,22 @@ luci.builder_health_notifier(
     owner_email = "chrome-browser-infra-team@google.com",
     ignore_buckets = ["try"],
     notify_all_healthy = True,
+)
+
+luci.builder_health_notifier(
+    owner_email = "chrome-fuchsia-engprod@google.com",
+    ignore_buckets = ["try"],
+    notify_all_healthy = False,
+)
+
+luci.builder_health_notifier(
+    owner_email = "clank-build@google.com",
+    ignore_buckets = ["try"],
+    notify_all_healthy = False,
+)
+
+luci.builder_health_notifier(
+    owner_email = "clank-engprod@google.com",
+    ignore_buckets = ["try"],
+    notify_all_healthy = False,
 )

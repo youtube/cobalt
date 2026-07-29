@@ -38,8 +38,7 @@ namespace {
 // Builds the service.
 std::unique_ptr<KeyedService> BuildService(
     SyntheticFieldTrialHelper* synthetic_field_trial_helper,
-    web::BrowserState* context) {
-  ProfileIOS* profile = ProfileIOS::FromBrowserState(context);
+    ProfileIOS* profile) {
   CHECK(!profile->IsOffTheRecord());
 
   // Give the opportunity for the test hook to override the factory from
@@ -90,8 +89,8 @@ std::unique_ptr<KeyedService> BuildService(
 // static
 TabGroupSyncService* TabGroupSyncServiceFactory::GetForProfile(
     ProfileIOS* profile) {
-  return static_cast<TabGroupSyncService*>(
-      GetInstance()->GetServiceForBrowserState(profile, true));
+  return GetInstance()->GetServiceForProfileAs<TabGroupSyncService>(
+      profile, /*create=*/true);
 }
 
 // static
@@ -101,7 +100,7 @@ TabGroupSyncServiceFactory* TabGroupSyncServiceFactory::GetInstance() {
 }
 
 // static
-BrowserStateKeyedServiceFactory::TestingFactory
+ProfileKeyedServiceFactoryIOS::ProfileTestingFactory
 TabGroupSyncServiceFactory::GetDefaultFactory() {
   // KeyedService factories are never destroyed, to base::Unretained(...)
   // is safe. See the implementation of GetInstance() for details.
@@ -134,9 +133,8 @@ TabGroupSyncServiceFactory::TabGroupSyncServiceFactory()
 TabGroupSyncServiceFactory::~TabGroupSyncServiceFactory() = default;
 
 std::unique_ptr<KeyedService>
-TabGroupSyncServiceFactory::BuildServiceInstanceFor(
-    web::BrowserState* context) const {
-  return BuildService(synthetic_field_trial_helper_.get(), context);
+TabGroupSyncServiceFactory::BuildServiceInstanceFor(ProfileIOS* profile) const {
+  return BuildService(synthetic_field_trial_helper_.get(), profile);
 }
 
 // static

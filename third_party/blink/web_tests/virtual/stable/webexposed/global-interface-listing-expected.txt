@@ -1713,6 +1713,7 @@ interface Document : Node
     attribute @@unscopables
     getter URL
     getter activeElement
+    getter activeViewTransition
     getter adoptedStyleSheets
     getter alinkColor
     getter all
@@ -7519,6 +7520,7 @@ interface Request
     getter referrer
     getter referrerPolicy
     getter signal
+    getter targetAddressSpace
     getter url
     method arrayBuffer
     method blob
@@ -8585,9 +8587,11 @@ interface SVGSVGElement : SVGGraphicsElement
     setter zoomAndPan
 interface SVGScriptElement : SVGElement
     attribute @@toStringTag
+    getter async
     getter href
     getter type
     method constructor
+    setter async
     setter type
 interface SVGSetElement : SVGAnimationElement
     attribute @@toStringTag
@@ -9075,6 +9079,7 @@ interface SpeechRecognition : EventTarget
     getter onspeechend
     getter onspeechstart
     getter onstart
+    getter phrases
     getter processLocally
     method abort
     method constructor
@@ -9096,6 +9101,7 @@ interface SpeechRecognition : EventTarget
     setter onspeechend
     setter onspeechstart
     setter onstart
+    setter phrases
     setter processLocally
 interface SpeechRecognitionErrorEvent : Event
     attribute @@toStringTag
@@ -9106,6 +9112,11 @@ interface SpeechRecognitionEvent : Event
     attribute @@toStringTag
     getter resultIndex
     getter results
+    method constructor
+interface SpeechRecognitionPhrase
+    attribute @@toStringTag
+    getter boost
+    getter phrase
     method constructor
 interface SpeechSynthesis : EventTarget
     attribute @@toStringTag
@@ -11932,6 +11943,7 @@ interface webkitSpeechRecognition : EventTarget
     getter onspeechend
     getter onspeechstart
     getter onstart
+    getter phrases
     getter processLocally
     method abort
     method constructor
@@ -11953,6 +11965,7 @@ interface webkitSpeechRecognition : EventTarget
     setter onspeechend
     setter onspeechstart
     setter onstart
+    setter phrases
     setter processLocally
 interface webkitSpeechRecognitionError : Event
     attribute @@toStringTag

@@ -35,10 +35,6 @@ using content::RenderFrameHost;
 using content::RenderFrameHostTester;
 using LargestContentTextOrImage =
     page_load_metrics::ContentfulPaintTimingInfo::LargestContentTextOrImage;
-using UserInteractionLatenciesPtr =
-    page_load_metrics::mojom::UserInteractionLatenciesPtr;
-using UserInteractionLatencies =
-    page_load_metrics::mojom::UserInteractionLatencies;
 using UserInteractionLatency = page_load_metrics::mojom::UserInteractionLatency;
 
 namespace {
@@ -1196,17 +1192,13 @@ TEST_P(UmaPageLoadMetricsObserverTest,
 
 TEST_P(UmaPageLoadMetricsObserverTest, NormalizedResponsivenessMetrics) {
   page_load_metrics::mojom::InputTiming input_timing;
-  input_timing.num_interactions = 3;
-  input_timing.max_event_durations =
-      UserInteractionLatencies::NewUserInteractionLatencies({});
-  auto& max_event_durations =
-      input_timing.max_event_durations->get_user_interaction_latencies();
+  auto& user_interaction_latencies = input_timing.user_interaction_latencies;
   base::TimeTicks current_time = base::TimeTicks::Now();
-  max_event_durations.emplace_back(UserInteractionLatency::New(
+  user_interaction_latencies.emplace_back(UserInteractionLatency::New(
       base::Milliseconds(50), 0, current_time + base::Milliseconds(1000)));
-  max_event_durations.emplace_back(UserInteractionLatency::New(
+  user_interaction_latencies.emplace_back(UserInteractionLatency::New(
       base::Milliseconds(100), 1, current_time + base::Milliseconds(2000)));
-  max_event_durations.emplace_back(UserInteractionLatency::New(
+  user_interaction_latencies.emplace_back(UserInteractionLatency::New(
       base::Milliseconds(150), 2, current_time + base::Milliseconds(3000)));
   NavigateAndCommit(GURL(kDefaultTestUrl));
   tester()->SimulateInputTimingUpdate(input_timing);
@@ -1781,6 +1773,72 @@ TEST_P(UmaPageLoadMetricsObserverTest, LCPSpeculationRulesPrerender) {
   TestHistogram(kHistogram, {{kExpected, 1}});
 }
 
+TEST_P(UmaPageLoadMetricsObserverTest, ReloadAfterDiscard_ExcludeHistograms) {
+  page_load_metrics::mojom::PageLoadTiming timing;
+  page_load_metrics::InitPageLoadTimingForTest(&timing);
+  timing.navigation_start = base::Time::FromSecondsSinceUnixEpoch(1);
+  timing.response_start = base::Milliseconds(1);
+  timing.parse_timing->parse_start = base::Milliseconds(1);
+  timing.paint_timing->first_contentful_paint = base::Milliseconds(30);
+  timing.paint_timing->largest_contentful_paint->largest_text_paint =
+      base::Milliseconds(4780);
+  timing.paint_timing->largest_contentful_paint->largest_text_paint_size = 120u;
+  PopulateRequiredTimingFields(&timing);
+
+  // Set the WebContents as discarded.
+  web_contents()->SetWasDiscarded(true);
+
+  NavigateAndCommit(GURL(kDefaultTestUrl));
+  tester()->SimulateTimingUpdate(timing);
+
+  // Navigate again to force histogram recording.
+  NavigateAndCommit(GURL(kDefaultTestUrl2));
+
+  tester()->histogram_tester().ExpectTotalCount(
+      internal::kHistogramFirstContentfulPaint, 1);
+  tester()->histogram_tester().ExpectTotalCount(
+      internal::kHistogramFirstContentfulPaintExcludeReloadAfterDiscard, 0);
+  tester()->histogram_tester().ExpectTotalCount(
+      internal::kHistogramLargestContentfulPaint, 1);
+  tester()->histogram_tester().ExpectTotalCount(
+      internal::kHistogramLargestContentfulPaintExcludeReloadAfterDiscard, 0);
+}
+
+TEST_P(UmaPageLoadMetricsObserverTest,
+       NotReloadAfterDiscard_IncludeHistograms) {
+  page_load_metrics::mojom::PageLoadTiming timing;
+  page_load_metrics::InitPageLoadTimingForTest(&timing);
+  timing.navigation_start = base::Time::FromSecondsSinceUnixEpoch(1);
+  timing.response_start = base::Milliseconds(1);
+  timing.parse_timing->parse_start = base::Milliseconds(1);
+  timing.paint_timing->first_contentful_paint = base::Milliseconds(30);
+  timing.paint_timing->largest_contentful_paint->largest_text_paint =
+      base::Milliseconds(4780);
+  timing.paint_timing->largest_contentful_paint->largest_text_paint_size = 120u;
+  PopulateRequiredTimingFields(&timing);
+
+  // Unlike the previous test, do *not* set the WebContents as discarded.
+
+  NavigateAndCommit(GURL(kDefaultTestUrl));
+  tester()->SimulateTimingUpdate(timing);
+
+  // Navigate again to force histogram recording.
+  NavigateAndCommit(GURL(kDefaultTestUrl2));
+
+  tester()->histogram_tester().ExpectTotalCount(
+      internal::kHistogramFirstContentfulPaint, 1);
+  tester()->histogram_tester().ExpectBucketCount(
+      internal::kHistogramFirstContentfulPaintExcludeReloadAfterDiscard,
+      timing.paint_timing->first_contentful_paint.value().InMilliseconds(), 1);
+  tester()->histogram_tester().ExpectTotalCount(
+      internal::kHistogramLargestContentfulPaint, 1);
+  tester()->histogram_tester().ExpectBucketCount(
+      internal::kHistogramLargestContentfulPaintExcludeReloadAfterDiscard,
+      timing.paint_timing->largest_contentful_paint->largest_text_paint.value()
+          .InMilliseconds(),
+      1);
+}
+
 class UmaPageLoadMetricsObserverIncognitoTest
     : public UmaPageLoadMetricsObserverTest {
  protected:
@@ -1840,17 +1898,13 @@ TEST_P(UmaPageLoadMetricsObserverIncognitoTest,
 TEST_P(UmaPageLoadMetricsObserverIncognitoTest,
        UserInteractionLatencyIncognito) {
   page_load_metrics::mojom::InputTiming input_timing;
-  input_timing.num_interactions = 3;
-  input_timing.max_event_durations =
-      UserInteractionLatencies::NewUserInteractionLatencies({});
-  auto& max_event_durations =
-      input_timing.max_event_durations->get_user_interaction_latencies();
+  auto& user_interaction_latencies = input_timing.user_interaction_latencies;
   base::TimeTicks current_time = base::TimeTicks::Now();
-  max_event_durations.emplace_back(UserInteractionLatency::New(
+  user_interaction_latencies.emplace_back(UserInteractionLatency::New(
       base::Milliseconds(50), 0, current_time + base::Milliseconds(1000)));
-  max_event_durations.emplace_back(UserInteractionLatency::New(
+  user_interaction_latencies.emplace_back(UserInteractionLatency::New(
       base::Milliseconds(100), 1, current_time + base::Milliseconds(2000)));
-  max_event_durations.emplace_back(UserInteractionLatency::New(
+  user_interaction_latencies.emplace_back(UserInteractionLatency::New(
       base::Milliseconds(150), 2, current_time + base::Milliseconds(3000)));
   NavigateAndCommit(GURL(kDefaultTestUrl));
   tester()->SimulateInputTimingUpdate(input_timing);

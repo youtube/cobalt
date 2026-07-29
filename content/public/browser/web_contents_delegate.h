@@ -194,6 +194,14 @@ class CONTENT_EXPORT WebContentsDelegate {
   // Selects the specified contents, bringing its container to the front.
   virtual void ActivateContents(WebContents* contents) {}
 
+  // A WebContents within a browser is considered active if it is the "active"
+  // tab in the browser's tab strip. A non-active WebContents cannot have focus,
+  // but it is possible for an active WebContents to not be focused if focus is
+  // elsewhere in the browser.Just because a WebContents is visible, doesn't
+  // mean it is active due to the SplitView feature. WebContents outside a
+  // browser are always considered active.
+  virtual bool IsContentsActive(WebContents* contents);
+
   // Notifies the delegate that this contents is starting or is done loading
   // some resource. The delegate should use this notification to represent
   // loading feedback. See WebContents::IsLoading()
@@ -769,9 +777,11 @@ class CONTENT_EXPORT WebContentsDelegate {
   // WebContents::StartPrerendering().
   virtual int AllowedPrerenderingCount(WebContents& web_contents);
 
-  // Returns whether to override user agent for prerendering navigation.
+  // Returns whether to override user agent for prerendering navigation. `url`
+  // is the target URL of the request. This function can be called repeatedly
+  // for each URL in the redirect chain.
   virtual NavigationController::UserAgentOverrideOption
-  ShouldOverrideUserAgentForPrerender2();
+  ShouldOverrideUserAgentForPrerender2(const GURL& url);
 
   // Returns true if the embedder allows initiator and transition type mismatch
   // for prerender activation navigations that are embedder-initiated and have
@@ -874,6 +884,10 @@ class CONTENT_EXPORT WebContentsDelegate {
   // https://wicg.github.io/manifest-incubations/index.html#related_applications-member
   virtual std::vector<blink::mojom::RelatedApplicationPtr>
   GetSavedRelatedApplications(WebContents* web_contents);
+
+  // If this returns non-null, overrides the behavior of
+  // WebContents::GetResponsibleWebContents.
+  virtual WebContents* GetResponsibleWebContents(WebContents* web_contents);
 
  protected:
   virtual ~WebContentsDelegate();

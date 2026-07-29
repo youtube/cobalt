@@ -69,7 +69,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="API.StorageAccess.AutograntViaFedCm"
-    enum="AutograntViaFedCmOutcome" expires_after="2025-12-28">
+    enum="AutograntViaFedCmOutcome" expires_after="2026-03-01">
   <owner>cfredric@chromium.org</owner>
   <owner>yigu@chromium.org</owner>
   <summary>
@@ -227,7 +227,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="API.TopLevelStorageAccess.RequestStorageAccessFor2"
-    enum="RequestStorageResult" expires_after="2025-12-28">
+    enum="RequestStorageResult" expires_after="2026-03-01">
   <owner>cfredric@chromium.org</owner>
   <owner>mreichhoff@chromium.org</owner>
   <summary>
@@ -323,7 +323,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="IndexedDB.ClientKeepActiveRemotesCount{Reason}" units="count"
+<histogram name="IndexedDB.ClientKeepActiveRemotesCount" units="count"
     expires_after="2026-01-04">
   <owner>pmonette@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
@@ -331,13 +331,6 @@ chromium-metrics-reviews@google.com.
     Logs the size of the `client_keep_active_remotes_` RemoteSets. Emitted every
     time a new remote is added.
   </summary>
-  <token key="Reason">
-    <variant name="" summary="aggregated across all reasons"/>
-    <variant name=".TransactionIsAcquiringLocks"/>
-    <variant name=".TransactionIsOngoingAndBlockingOthers"/>
-    <variant name=".TransactionIsStartingWhileBlockingOthers"/>
-    <variant name=".VersionChangeEvent"/>
-  </token>
 </histogram>
 
 <histogram name="IndexedDB.ContextShutdownDuration" units="ms"
@@ -832,7 +825,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Storage.Blob.FileReaderLoader.FailureType2"
-    enum="FileReaderLoaderFailureType" expires_after="2025-12-28">
+    enum="FileReaderLoaderFailureType" expires_after="2026-03-01">
   <owner>estade@chromium.org</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
@@ -846,7 +839,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Storage.Blob.FileReaderLoader.ReadError2" enum="NetErrorCodes"
-    expires_after="2025-12-28">
+    expires_after="2026-03-01">
   <owner>estade@chromium.org</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>

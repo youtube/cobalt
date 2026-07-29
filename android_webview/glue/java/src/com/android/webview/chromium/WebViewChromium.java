@@ -55,7 +55,6 @@ import android.webkit.WebViewClient;
 import android.webkit.WebViewProvider;
 import android.webkit.WebViewRenderProcess;
 import android.webkit.WebViewRenderProcessClient;
-import android.widget.TextView;
 
 import androidx.annotation.IntDef;
 
@@ -70,7 +69,6 @@ import org.chromium.android_webview.AwSettings;
 import org.chromium.android_webview.AwThreadUtils;
 import org.chromium.android_webview.DualTraceEvent;
 import org.chromium.android_webview.ManifestMetadataUtil;
-import org.chromium.android_webview.R;
 import org.chromium.android_webview.common.AwSwitches;
 import org.chromium.android_webview.common.Lifetime;
 import org.chromium.android_webview.renderer_priority.RendererPriority;
@@ -729,18 +727,8 @@ class WebViewChromium
         boolean isFirstWebViewInstance = !sFirstWebViewInstanceCreated.getAndSet(true);
         try (DualTraceEvent ignored = DualTraceEvent.scoped("WebViewChromium.init")) {
             if (privateBrowsing) {
-                mAwInit.triggerAndWaitForChromiumStarted(CallSite.WEBVIEW_INSTANCE);
-                final String msg = "Private browsing is not supported in WebView.";
-                if (mAppTargetSdkVersion >= Build.VERSION_CODES.KITKAT) {
-                    throw new IllegalArgumentException(msg);
-                } else {
-                    Log.w(TAG, msg);
-                    TextView warningLabel = new TextView(mContext);
-                    warningLabel.setText(mContext.getString(R.string.private_browsing_warning));
-                    mWebView.addView(warningLabel);
-                }
+                throw new IllegalArgumentException("Private browsing is not supported in WebView.");
             }
-
             // Needed for https://crbug.com/1417872
             mWebView.setDefaultFocusHighlightEnabled(false);
             if (CommandLine.getInstance()
@@ -811,14 +799,6 @@ class WebViewChromium
                         @Override
                         public void run() {
                             initForReal();
-                            if (privateBrowsing) {
-                                // Intentionally irreversibly disable the webview instance, so that
-                                // private user data cannot leak through misuse of a
-                                // non-private-browsing WebView instance. Can't just null out
-                                // mAwContents as we never null-check
-                                // it before use.
-                                destroy();
-                            }
                         }
                     });
         }
@@ -2899,20 +2879,10 @@ class WebViewChromium
 
     @Override
     public void setLayoutParams(final ViewGroup.LayoutParams layoutParams) {
-        // This API is our strongest signal from the View system that this
-        // WebView is going to be bound to a View hierarchy and so at this
-        // point we must bind Chromium's UI thread to the current thread.
-        mAwInit.triggerAndWaitForChromiumStarted(CallSite.WEBVIEW_INSTANCE);
         checkThread();
         mWebViewPrivate.super_setLayoutParams(layoutParams);
         if (checkNeedsPost()) {
-            mFactory.runVoidTaskOnUiThreadBlocking(
-                    new Runnable() {
-                        @Override
-                        public void run() {
-                            mAwContents.setLayoutParams(layoutParams);
-                        }
-                    });
+            mFactory.addTask(() -> setLayoutParams(layoutParams));
             return;
         }
         try (TraceEvent event = TraceEvent.scoped("WebView.APICall.Framework.SET_LAYOUT_PARAMS")) {
@@ -3413,8 +3383,14 @@ class WebViewChromium
 
     @Override
     public boolean onCheckIsTextEditor() {
-        mAwInit.triggerAndWaitForChromiumStarted(CallSite.WEBVIEW_INSTANCE);
-        if (checkNeedsPost()) {
+        if (mAwInit.isChromiumInitialized()) {
+            if (ThreadUtils.runningOnUiThread()) {
+                try (TraceEvent event =
+                        TraceEvent.scoped("WebView.APICall.Framework.ON_CHECK_IS_TEXT_EDITOR")) {
+                    recordWebViewSystemApiCall(SystemApiCall.ON_CHECK_IS_TEXT_EDITOR);
+                    return mAwContents.getViewMethods().onCheckIsTextEditor();
+                }
+            }
             return mFactory.runOnUiThreadBlocking(
                     new Callable<Boolean>() {
                         @Override
@@ -3423,11 +3399,7 @@ class WebViewChromium
                         }
                     });
         }
-        try (TraceEvent event =
-                TraceEvent.scoped("WebView.APICall.Framework.ON_CHECK_IS_TEXT_EDITOR")) {
-            recordWebViewSystemApiCall(SystemApiCall.ON_CHECK_IS_TEXT_EDITOR);
-            return mAwContents.getViewMethods().onCheckIsTextEditor();
-        }
+        return false;
     }
 
     @Override

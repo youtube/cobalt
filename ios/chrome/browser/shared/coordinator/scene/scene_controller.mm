@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#import "ios/chrome/browser/shared/coordinator/scene/scene_controller.h"
+#define TODO_BASE_FEATURE_MACROS_NEED_MIGRATION
 
-#import <MaterialComponents/MaterialSnackbar.h>
+#import "ios/chrome/browser/shared/coordinator/scene/scene_controller.h"
 
 #import "base/apple/foundation_util.h"
 #import "base/feature_list.h"
@@ -47,7 +47,6 @@
 #import "ios/chrome/app/application_delegate/url_opener_params.h"
 #import "ios/chrome/app/application_mode.h"
 #import "ios/chrome/app/change_profile_commands.h"
-#import "ios/chrome/app/chrome_overlay_window.h"
 #import "ios/chrome/app/deferred_initialization_runner.h"
 #import "ios/chrome/app/deferred_initialization_task_names.h"
 #import "ios/chrome/app/profile/profile_state.h"
@@ -179,6 +178,9 @@
 #import "ios/chrome/browser/shared/public/commands/snackbar_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/public/prototypes/diamond/utils.h"
+#import "ios/chrome/browser/shared/public/snackbar/snackbar_message.h"
+#import "ios/chrome/browser/shared/public/snackbar/snackbar_message_action.h"
+#import "ios/chrome/browser/shared/ui/chrome_overlay_window/chrome_overlay_window.h"
 #import "ios/chrome/browser/shared/ui/util/snackbar_util.h"
 #import "ios/chrome/browser/shared/ui/util/top_view_controller.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
@@ -681,15 +683,27 @@ void OnListFamilyMembersResponse(
   UserActivityBrowserAgent* userActivityBrowserAgent =
       UserActivityBrowserAgent::FromBrowser(self.currentInterface.browser);
 
-  NSSet<UIOpenURLContext*>* contexts =
-      self.sceneState.connectionOptions.URLContexts;
+  NSMutableSet<UIOpenURLContext*>* contexts =
+      [NSMutableSet setWithSet:self.sceneState.connectionOptions.URLContexts];
+  [contexts unionSet:self.sceneState.URLContextsToOpen];
+  self.sceneState.URLContextsToOpen = nil;
+
+  if ([self multipleAccountSwitchesRequired:contexts]) {
+    // If more than one context require a potental account change only open the
+    // first context and discard the others to avoid looping between acocunt
+    // changes.
+    NSEnumerator<UIOpenURLContext*>* enumerator = [contexts objectEnumerator];
+    contexts = [NSMutableSet setWithObject:[enumerator nextObject]];
+    base::UmaHistogramEnumeration(
+        kContextsToOpen, ContextsToOpen::kMoreThanOneContextWithAccountChange);
+  }
 
   BOOL widgetsForMIMEnabled = BUILDFLAG(ENABLE_WIDGETS_FOR_MIM);
   if (widgetsForMIMEnabled || IsShareExtensionForMultiprofileEnabled()) {
     // Find the first context that requires an account change.
     WidgetContext* context = [self findContextRequiringAccountChange:contexts];
     // Perform profile switching if needed.
-    if ([self changeProfileForContext:context contexts:contexts]) {
+    if ([self changeProfileForContext:context contexts:contexts openURL:NO]) {
       return;
     }
   }
@@ -703,6 +717,7 @@ void OnListFamilyMembersResponse(
                    startupInformation:self.sceneState.profileState.appState
                                           .startupInformation];
   }
+
   if (self.sceneState.connectionOptions.shortcutItem) {
     userActivityBrowserAgent->Handle3DTouchApplicationShortcuts(
         self.sceneState.connectionOptions.shortcutItem);
@@ -961,7 +976,7 @@ void OnListFamilyMembersResponse(
     // Find the first context that requires an account change.
     WidgetContext* context = [self findContextRequiringAccountChange:contexts];
     // Perform profile switching if needed.
-    if ([self changeProfileForContext:context contexts:contexts]) {
+    if ([self changeProfileForContext:context contexts:contexts openURL:YES]) {
       // Don't open the URLs if the profile was changed.
       return;
     }
@@ -972,7 +987,8 @@ void OnListFamilyMembersResponse(
 
 // Returns YES if a profile change was triggered.
 - (BOOL)changeProfileForContext:(WidgetContext*)context
-                       contexts:(NSSet<UIOpenURLContext*>*)contexts {
+                       contexts:(NSSet<UIOpenURLContext*>*)contexts
+                        openURL:(BOOL)openURL {
   if (!context) {
     return NO;
   }
@@ -1000,12 +1016,21 @@ void OnListFamilyMembersResponse(
   if (!profileName.has_value()) {
     return NO;
   }
+
+  const std::string& oldProfileName =
+      self.sceneState.profileState.profile->GetProfileName();
+  if (oldProfileName == profileName) {
+    // In this case there will be no profile change, just an account change,
+    // always open the URL in the continuation in this scenario.
+    openURL = YES;
+  }
+
   [changeProfileHandler
       changeProfile:*profileName
            forScene:self.sceneState
              reason:ChangeProfileReason::kSwitchAccountsFromWidget
-       continuation:CreateChangeProfileAuthenticationContinuation(context,
-                                                                  contexts)];
+       continuation:CreateChangeProfileAuthenticationContinuation(
+                        context, contexts, openURL)];
   return YES;
 }
 
@@ -1071,7 +1096,7 @@ void OnListFamilyMembersResponse(
       continue;
     }
 
-    if ([newGaiaID isEqualToString:app_group::kNoAccount] && gaiaInApp) {
+    if ([newGaiaID isEqualToString:app_group::kNoAccount] && gaiaInApp.length) {
       return
           [[WidgetContext alloc] initWithContext:context
                                           gaiaID:newGaiaID
@@ -1225,10 +1250,9 @@ void OnListFamilyMembersResponse(
       [self tryPresentSigninUpgradePromo];
     }
 
+    // TODO(crbug.com/443728200): handleExternalIntents may change profile, code
+    // below should not be executed if profile was changed.
     [self handleExternalIntents];
-    if (self.sceneState.URLContextsToOpen.count != 0) {
-      [self handleURLContextsToOpen];
-    }
 
     if (!initializingUIInColdStart &&
         transitionedToForegroundActiveFromBackground &&
@@ -1644,10 +1668,10 @@ void OnListFamilyMembersResponse(
                                           completion:nil];
   };
 
-  MDCSnackbarMessageAction* action = [[MDCSnackbarMessageAction alloc] init];
+  SnackbarMessageAction* action = [[SnackbarMessageAction alloc] init];
   action.handler = moreAction;
   action.title = l10n_util::GetNSString(IDS_IOS_NAVIGATION_BAR_MORE_BUTTON);
-  action.accessibilityIdentifier =
+  action.accessibilityHint =
       l10n_util::GetNSString(IDS_IOS_NAVIGATION_BAR_MORE_BUTTON);
 
   NSString* text =
@@ -1655,11 +1679,11 @@ void OnListFamilyMembersResponse(
           ? l10n_util::GetNSString(IDS_IOS_SNACKBAR_MESSAGE_INCOGNITO_FORCED)
           : l10n_util::GetNSString(IDS_IOS_SNACKBAR_MESSAGE_INCOGNITO_DISABLED);
 
-  MDCSnackbarMessage* message = CreateSnackbarMessage(text);
+  SnackbarMessage* message = CreateCustomSnackbarMessage(text);
   message.action = action;
 
-  [handler showSnackbarMessage:message
-                withHapticType:UINotificationFeedbackTypeError];
+  [handler showCustomSnackbarMessage:message
+                      withHapticType:UINotificationFeedbackTypeError];
 }
 
 - (BOOL)isIncognitoDisabled {

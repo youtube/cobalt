@@ -14,6 +14,7 @@
 #include "base/test/scoped_feature_list.h"
 #include "components/autofill/core/browser/crowdsourcing/autofill_crowdsourcing_encoding.h"
 #include "components/autofill/core/browser/field_types.h"
+#include "components/autofill/core/browser/form_parsing/determine_regex_types.h"
 #include "components/autofill/core/browser/form_structure_test_api.h"
 #include "components/autofill/core/browser/heuristic_source.h"
 #include "components/autofill/core/browser/metrics/autofill_metrics_test_base.h"
@@ -539,8 +540,12 @@ TEST_F(FieldLogUkmMetricTest, AutofillFieldInfoMetricsFieldType) {
 
   auto form_structure = std::make_unique<FormStructure>(form);
   FormStructure* form_structure_ptr = form_structure.get();
-  form_structure->DetermineHeuristicTypes(GeoIpCountryCode(""),
-                                          LanguageCode(""), nullptr);
+  const RegexPredictions regex_predictions =
+      DetermineRegexTypes(GeoIpCountryCode(""), LanguageCode(""),
+                          form_structure->ToFormData(), nullptr);
+  regex_predictions.ApplyTo(form_structure->fields());
+  form_structure->RationalizeAndAssignSections(GeoIpCountryCode(""),
+                                               LanguageCode(""), nullptr);
   ASSERT_TRUE(
       test_api(autofill_manager())
           .mutable_form_structures()

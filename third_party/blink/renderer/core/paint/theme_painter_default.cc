@@ -26,10 +26,13 @@
 
 #include <variant>
 
+#include "third_party/blink/public/mojom/css/preferred_contrast.mojom-shared.h"
+#include "third_party/blink/public/mojom/webpreferences/web_preferences.mojom-blink.h"
 #include "third_party/blink/public/platform/web_theme_engine.h"
 #include "third_party/blink/public/resources/grit/blink_image_resources.h"
 #include "third_party/blink/renderer/core/dom/shadow_root.h"
 #include "third_party/blink/renderer/core/frame/local_frame_view.h"
+#include "third_party/blink/renderer/core/frame/settings.h"
 #include "third_party/blink/renderer/core/html/forms/html_input_element.h"
 #include "third_party/blink/renderer/core/html/forms/slider_thumb_element.h"
 #include "third_party/blink/renderer/core/html/forms/spin_button_element.h"
@@ -69,12 +72,21 @@ bool IsChecked(const Element& element) {
 }
 
 WebThemeEngine::State GetWebThemeState(const Element& element) {
-  if (element.IsDisabledFormControl())
+  if (element.IsDisabledFormControl()) {
     return WebThemeEngine::kStateDisabled;
-  if (element.IsActive())
+  }
+  if (element.IsActive()) {
     return WebThemeEngine::kStatePressed;
-  if (element.IsHovered())
-    return WebThemeEngine::kStateHover;
+  }
+  if (element.IsHovered()) {
+    // Don't draw a hovered state when the device does not have hover available.
+    if (const Settings* const settings = element.GetDocument().GetSettings();
+        !settings ||
+        (settings->GetAvailableHoverTypes() &
+         static_cast<int>(mojom::blink::HoverType::kHoverHoverType))) {
+      return WebThemeEngine::kStateHover;
+    }
+  }
 
   return WebThemeEngine::kStateNormal;
 }
@@ -816,7 +828,8 @@ bool ThemePainterDefault::PaintSearchFieldCancelButton(
       (Image::LoadPlatformResource(IDR_SEARCH_CANCEL_PRESSED_HC_LIGHT_MODE)));
   Image* color_scheme_adjusted_cancel_image;
   Image* color_scheme_adjusted_cancel_pressed_image;
-  if (ui::NativeTheme::GetInstanceForWeb()->UserHasContrastPreference()) {
+  if (ui::NativeTheme::GetInstanceForWeb()->preferred_contrast() ==
+      ui::NativeTheme::PreferredContrast::kMore) {
     // TODO(crbug.com/1159597): Ideally we want the cancel button to be the same
     // color as search field text. Since the cancel button is currently painted
     // with a .png, it can't be colored dynamically so currently our only

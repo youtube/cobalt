@@ -632,6 +632,7 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="4042941173059740150"><ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> की मदद से मिली <ph name="SITE_ETLD_PLUS_ONE" /> का इस्तेमाल करें</translation>
 <translation id="4044708993631234325">बॉटम शीट</translation>
 <translation id="4045441967987592849">फिर से खोलें</translation>
+<translation id="4049920046559074950"><ph name="INSTANCE_TITLE" /> के लिए ज़्यादा विकल्प</translation>
 <translation id="4052419222954753986">{NUMBER_OF_TABS,plural, =1{शेयर किए गए टैब ग्रुप में नई गतिविधि के साथ <ph name="TABS_COUNT_ONE" /> स्टैंडर्ड टैब}one{शेयर किए गए टैब ग्रुप में नई गतिविधि के साथ <ph name="TABS_COUNT_MANY" /> स्टैंडर्ड टैब}other{शेयर किए गए टैब ग्रुप में नई गतिविधि के साथ <ph name="TABS_COUNT_MANY" /> स्टैंडर्ड टैब}}</translation>
 <translation id="405365679581583349">Google Play services को अपडेट करें</translation>
 <translation id="405399507749852140">किसी भी साइट पर कीमत में कमी होने पर सूचना पाएं</translation>
@@ -1830,6 +1831,7 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="930124987204876019">ब्राउज़िंग इतिहास, कुकी, साइट डेटा, कैश मेमोरी वगैरह मिटाएं…</translation>
 <translation id="938850635132480979">गड़बड़ी: <ph name="ERROR_CODE" /></translation>
 <translation id="939598580284253335">'पासफ़्रेज़' दर्ज करें</translation>
+<translation id="945522503751344254">फ़ीडबैक भेजें</translation>
 <translation id="95817756606698420">चीन में खोज करने के लिए Chrome, <ph name="BEGIN_BOLD" />Sogou<ph name="END_BOLD" /> का इस्तेमाल कर सकता है. आप इसे <ph name="BEGIN_LINK" />सेटिंग<ph name="END_LINK" /> में बदल सकते हैं.</translation>
 <translation id="961856697154696964">ब्राउज़िंग डेटा मिटाएं</translation>
 <translation id="963246339335003378">टास्क मैनेजर खोलें</translation>

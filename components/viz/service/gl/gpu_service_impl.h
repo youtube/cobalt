@@ -51,7 +51,7 @@
 #include "skia/buildflags.h"
 #include "third_party/skia/include/core/SkRefCnt.h"
 #include "ui/gfx/gpu_extra_info.h"
-#include "ui/gfx/native_window_types.h"
+#include "ui/gfx/native_ui_types.h"
 
 #if BUILDFLAG(IS_WIN)
 #include "ui/gl/direct_composition_support.h"
@@ -203,9 +203,6 @@ class VIZ_SERVICE_EXPORT GpuServiceImpl
 
   void GetVideoMemoryUsageStats(
       GetVideoMemoryUsageStatsCallback callback) override;
-  void AddVideoMemoryUsageStatsOnCompositorGpu(
-      GetVideoMemoryUsageStatsCallback callback,
-      gpu::VideoMemoryUsageStats video_memory_usage_stats);
 
   // These methods can be called from the CrBrowserMain thread and the
   // VizCompositorThread (with InputVizard) for PeakGpuMemory tracking.
@@ -219,7 +216,7 @@ class VIZ_SERVICE_EXPORT GpuServiceImpl
                   const std::string& key,
                   const std::string& data) override;
   void WakeUpGpu() override;
-  void GpuSwitched(gl::GpuPreference active_gpu_heuristic) override;
+  void GpuSwitched() override;
   void DisplayAdded() override;
   void DisplayRemoved() override;
   void DisplayMetricsChanged() override;

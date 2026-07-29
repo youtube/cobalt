@@ -199,6 +199,7 @@ const base::Feature* const kAllFeatures[] = {
     &kIPHiOSHomepageLensNewBadge,
     &kIPHiOSHomepageCustomizationNewBadge,
     &kIPHiOSAIHubNewBadge,
+    &kIPHiOSReaderModeOptionsFeature,
 #endif  // BUILDFLAG(IS_IOS)
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_LINUX) || \
     BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_FUCHSIA)
@@ -250,6 +251,7 @@ const base::Feature* const kAllFeatures[] = {
     &kIPHReadingListInSidePanelFeature,
     &kIPHReadingModeSidePanelFeature,
     &kIPHShoppingCollectionFeature,
+    &kIPHSideBySidePinnableFeature,
     &kIPHSidePanelGenericPinnableFeature,
     &kIPHSidePanelLensOverlayPinnableFeature,
     &kIPHSidePanelLensOverlayPinnableFollowupFeature,
@@ -340,7 +342,9 @@ const base::Feature* const kAllFeatures[] = {
 #if !BUILDFLAG(IS_ANDROID)
     &kIPHiOSPasswordPromoDesktopFeature,
     &kIPHiOSAddressPromoDesktopFeature,
-    &kIPHiOSPaymentPromoDesktopFeature
+    &kIPHiOSPaymentPromoDesktopFeature,
+    &kIPHiOSLensPromoDesktopFeature,
+    &kIPHiOSEnhancedBrowsingDesktopFeature
 #endif  // !BUILDFLAG(IS_ANDROID)
 };
 }  // namespace

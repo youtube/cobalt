@@ -12,6 +12,7 @@ import tempfile
 from util import jj_log
 from util import run_command
 from util import run_jj
+from util import split_description
 
 _IMMUTABLE_PARENTS = 'parents.filter(|p| p.immutable()).map(|p| p.commit_id())'
 _MUTABLE_PARENTS = 'parents.filter(|p| !p.immutable()).map(|p| p.commit_id())'
@@ -69,8 +70,12 @@ def main(args):
   logging.basicConfig(level=logging.getLevelNamesMapping()[args.verbosity])
 
   revs = args.revisions + args.revision
+  implicit_revs = False
+  # If no revisions are provided, we will upload `@` unless it is empty and
+  # descriptionless, in which case we upload 'parents(@)'.
   if len(revs) == 0:
-    fatal('No revision specified to upload')
+    rev = '@'
+    implicit_revs = True
   elif len(revs) == 1:
     rev = revs[0]
   else:
@@ -95,20 +100,30 @@ def main(args):
       ignore_working_copy=snapshot_taken,
   )
   snapshot_taken = True
+  if implicit_revs:
+    # It's in reverse topological order, so to_upload[0] is the working copy '@'
+    wc = to_upload[0]
+    if not split_description(wc['desc'])[0] and wc['empty'] == 'true':
+      logging.info('No revisions provided and working copy is empty and ' +
+                   'descriptionless, uploading parents(@)')
+      to_upload.remove(wc)
+    else:
+      logging.info('No revisions provided, uploading working copy')
+
   for change in to_upload:
     name = change['name']
-    desc = change['desc']
+    desc, trailers = split_description(change['desc'])
     # Don't trust `git cl presubmit` to pick up on these for stacked changes,
     # since it assumes all the commits will be squashed.
     if change['empty'] == 'true':
       fatal('Attempting to upload an empty change %s', name)
     if not desc:
       fatal('Attempting to upload change with an empty description %s', name)
-    if '\nChange-Id: ' not in desc:
+    if 'Change-Id' not in trailers:
       fatal('Attempting to upload change with no Change-Id %s', name)
-    if '\nBug: ' not in desc and '\nFixed: ' not in desc:
+    if 'Bug' not in trailers and 'Fixed' not in trailers:
       logging.warning(
-          'Change %s has no associated Bug. If this change has an associated' +
+          'Change %s has no associated Bug. If this change has an associated ' +
           'bug, add Bug: [bug number] or Fixed: [bug number].', name)
 
   if not args.bypass_hooks:
@@ -167,6 +182,10 @@ def main(args):
             # Allows it to run with a dirty tree and on no branch
             '--force',
             '--parallel',
+            # Unfortunately, upload skips certain checks which would be
+            # useful. However, it also skips certain checks we really don't
+            # want to run. CheckTreeIsOpen(), for example.
+            '--upload',
             f'--json={out}',
             next(iter(immutable_parents))
         ])
@@ -176,9 +195,10 @@ def main(args):
             fatal('git cl presubmit had warnings.\n' +
                   'Hint: maybe you want --allow-warnings?')
     else:
-      fatal('git cl presubmit only supports running on the revision @. ' +
-            'Please either run `jj new/edit` to check out the change before ' +
-            'uploading it, or rerun with `--bypass-hooks`')
+      # For consistency's sake, we warn if the intersection of commits is small,
+      # so we should also warn if the intersection is emmpty.
+      logging.warning('git cl presubmit only supports running on the ' +
+                      'revision @. `git cl presubmit` will be skipped')
 
   # This could be simplified by another call to jj_log on heads(...),
   # but this is more performant.

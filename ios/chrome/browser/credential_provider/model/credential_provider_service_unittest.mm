@@ -21,7 +21,6 @@
 #import "components/password_manager/core/browser/password_form.h"
 #import "components/password_manager/core/browser/password_store/password_store_change.h"
 #import "components/password_manager/core/browser/password_store/test_password_store.h"
-#import "components/password_manager/core/common/password_manager_features.h"
 #import "components/password_manager/core/common/password_manager_pref_names.h"
 #import "components/prefs/pref_registry_simple.h"
 #import "components/prefs/pref_service.h"
@@ -38,7 +37,6 @@
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
-#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/common/app_group/app_group_constants.h"
 #import "ios/chrome/common/credential_provider/constants.h"
 #import "ios/chrome/common/credential_provider/credential.h"
@@ -92,10 +90,8 @@ class CredentialProviderServiceTest : public PlatformTest {
     PlatformTest::SetUp();
     // Make sure there are no favicons left from some other tests.
     EXPECT_TRUE(DeleteFaviconsFolder());
-    password_store_->Init(&testing_pref_service_,
-                          /*affiliated_match_helper=*/nullptr);
-    account_password_store_->Init(&testing_pref_service_,
-                                  /*affiliated_match_helper=*/nullptr);
+    password_store_->Init(/*affiliated_match_helper=*/nullptr);
+    account_password_store_->Init(/*affiliated_match_helper=*/nullptr);
     testing_pref_service_.registry()->RegisterBooleanPref(
         password_manager::prefs::kCredentialsEnableService, true);
     testing_pref_service_.registry()->RegisterBooleanPref(
@@ -819,9 +815,6 @@ TEST_F(CredentialProviderServiceTest, UpdatePasskey) {
 
 TEST_F(CredentialProviderServiceTest,
        AutomaticPasskeyUpgradeDisabledsWithSavingPasswordsDisabled) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(
-      kCredentialProviderAutomaticPasskeyUpgrade);
   CreateCredentialProviderService();
 
   // The test is initialized with the passkey preferences as true.
@@ -841,9 +834,6 @@ TEST_F(CredentialProviderServiceTest,
 
 TEST_F(CredentialProviderServiceTest,
        AutomaticPasskeyUpgradesDisabledWithSavingPasskeysDisabled) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(
-      kCredentialProviderAutomaticPasskeyUpgrade);
   CreateCredentialProviderService();
 
   // The test is initialized with the passkey preferences as true.
@@ -863,9 +853,6 @@ TEST_F(CredentialProviderServiceTest,
 
 TEST_F(CredentialProviderServiceTest,
        AutomaticPasskeyUpgradesPreferenceDisabled) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(
-      kCredentialProviderAutomaticPasskeyUpgrade);
   CreateCredentialProviderService();
 
   // The test is initialized with the passkey preferences as true.

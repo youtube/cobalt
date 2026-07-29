@@ -120,17 +120,15 @@ void ChromeBrowserFieldTrials::RegisterFeatureOverrides(
     feature_overrides.DisableFeature(features::kEyeDropper);
   }
 #elif BUILDFLAG(IS_ANDROID)  // BUILDFLAG(IS_LINUX)
+  // Update child process binding state before unbinding.
+  // TODO(crbug.com/427087091): Remove when webview rollout is complete.
+  feature_overrides.EnableFeature(base::features::kUpdateStateBeforeUnbinding);
 #if BUILDFLAG(IS_DESKTOP_ANDROID)
   // Nota bene: Anything here is expected to be short-lived, unless deemed too
   // risky to launch to non-desktop platforms. New features being added here
   // should be the exception, and not the norm. Instead, you should place the
   // override in the generic IS_ANDROID block below, guarded by an appropriate
   // runtime check.
-
-  // Enables the Bookmark Bar and related toggle in settings.
-  // TODO(crbug.com/411262183): Remove after Bookmarks Bar rollout is complete.
-  feature_overrides.EnableFeature(chrome::android::kAndroidAppearanceSettings);
-  feature_overrides.EnableFeature(chrome::android::kAndroidBookmarkBar);
 
   // If enabled, then use desktop page webprefs for Android devices that have
   // large displays, specifically tablets and desktops.

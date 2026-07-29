@@ -17,7 +17,7 @@
 
 namespace audio {
 
-BASE_FEATURE(RestrictOwnAudioAddChromiumBack,
+BASE_FEATURE(kRestrictOwnAudioAddChromiumBack,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // static

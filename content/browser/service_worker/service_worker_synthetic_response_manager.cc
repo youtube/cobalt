@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#define TODO_BASE_FEATURE_MACROS_NEED_MIGRATION
+
 #include "content/browser/service_worker/service_worker_synthetic_response_manager.h"
 
 #include <cstddef>
@@ -456,4 +458,13 @@ void ServiceWorkerSyntheticResponseManager::NotifyReloading() {
   }
   OnCloneCompleted();
 }
+
+bool ServiceWorkerSyntheticResponseManager::dry_run_mode_for_testing_ = false;
+void ServiceWorkerSyntheticResponseManager::SetDryRunMode(bool enabled) {
+  dry_run_mode_for_testing_ = enabled;
+}
+bool ServiceWorkerSyntheticResponseManager::IsDryRunModeEnabledForTesting() {
+  return dry_run_mode_for_testing_;
+}
+
 }  // namespace content

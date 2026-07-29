@@ -47,7 +47,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "bitflags"
-version = "2.9.2"
+version = "2.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -75,7 +75,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "calendrical_calculations"
-version = "0.2.0"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "core_maths",
@@ -84,9 +84,10 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.2.33"
+version = "1.2.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
+ "find-msvc-tools",
  "shlex",
 ]
 
@@ -101,7 +102,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "base64",
- "bitflags 2.9.2",
+ "bitflags 2.9.4",
  "bytemuck",
  "bytes",
  "crc32fast",
@@ -141,7 +142,7 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.5.45"
+version = "4.5.47"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "clap_builder",
@@ -149,7 +150,7 @@ dependencies = [
 
 [[package]]
 name = "clap_builder"
-version = "4.5.44"
+version = "4.5.47"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "anstyle",
@@ -199,7 +200,7 @@ dependencies = [
 
 [[package]]
 name = "cxx"
-version = "1.0.168"
+version = "1.0.175"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "cc",
@@ -212,7 +213,7 @@ dependencies = [
 
 [[package]]
 name = "cxxbridge-cmd"
-version = "1.0.168"
+version = "1.0.175"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "clap",
@@ -225,12 +226,12 @@ dependencies = [
 
 [[package]]
 name = "cxxbridge-flags"
-version = "1.0.168"
+version = "1.0.175"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "cxxbridge-macro"
-version = "1.0.168"
+version = "1.0.175"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "indexmap",
@@ -334,6 +335,11 @@ version = "1.5.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "find-msvc-tools"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
 name = "fixed_decimal"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -354,7 +360,7 @@ dependencies = [
 
 [[package]]
 name = "foldhash"
-version = "0.1.5"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -631,7 +637,7 @@ dependencies = [
 
 [[package]]
 name = "indexmap"
-version = "2.10.0"
+version = "2.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "equivalent",
@@ -681,7 +687,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "link-cplusplus"
-version = "1.0.10"
+version = "1.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "cc",
@@ -708,7 +714,7 @@ dependencies = [
 
 [[package]]
 name = "log"
-version = "0.4.27"
+version = "0.4.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -765,7 +771,7 @@ name = "png"
 version = "0.18.0-rc"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "bitflags 2.9.2",
+ "bitflags 2.9.4",
  "crc32fast",
  "fdeflate",
  "flate2",
@@ -774,7 +780,7 @@ dependencies = [
 
 [[package]]
 name = "potential_utf"
-version = "0.1.2"
+version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "serde",
@@ -825,7 +831,7 @@ dependencies = [
 
 [[package]]
 name = "read-fonts"
-version = "0.32.0"
+version = "0.34.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "bytemuck",
@@ -834,12 +840,12 @@ dependencies = [
 
 [[package]]
 name = "regex-automata"
-version = "0.4.9"
+version = "0.4.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "regex-syntax"
-version = "0.8.5"
+version = "0.8.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -918,7 +924,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "skrifa"
-version = "0.34.0"
+version = "0.36.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "bytemuck",
@@ -1297,7 +1303,7 @@ dependencies = [
 
 [[package]]
 name = "zip"
-version = "4.3.0"
+version = "4.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "arbitrary",

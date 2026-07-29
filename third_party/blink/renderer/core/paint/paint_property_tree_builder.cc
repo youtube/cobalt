@@ -560,10 +560,9 @@ static bool NeedsPaintOffsetTranslation(
   }
 
   // TODO(crbug.com/349835587): Should Element or LayoutObject have a public
-  // IsCanvasPlacedElement() funciton?
+  // IsCanvasDrawHTMLElement() function?
   if (object.Parent() && object.Parent()->IsCanvas()) {
-    // The object is being drawn by placeElement and should ignore the ignore
-    // the paint offset.
+    // The object may be drawn with drawHTML and should ignore the paint offset.
     return true;
   }
 
@@ -917,8 +916,13 @@ void FragmentPaintPropertyTreeBuilder::UpdateAnchorPositionScrollTranslation() {
       const auto& box = To<LayoutBox>(object_);
       const AnchorPositionScrollData& anchor_position_scroll_data =
           *box.GetAnchorPositionScrollData();
+      PhysicalOffset remembered_offset =
+          anchor_position_scroll_data
+              .SpeculativeDefaultAnchorRememberedOffset();
+
       gfx::Vector2dF translation_offset(
-          -anchor_position_scroll_data.AccumulatedAdjustment());
+          -anchor_position_scroll_data.AccumulatedAdjustment() +
+          remembered_offset);
       TransformPaintPropertyNode::State state{
           {gfx::Transform::MakeTranslation(translation_offset)}};
 
@@ -949,7 +953,8 @@ void FragmentPaintPropertyTreeBuilder::UpdateAnchorPositionScrollTranslation() {
               anchor_position_scroll_data.AdjustmentContainerIds().begin(),
               anchor_position_scroll_data.AdjustmentContainerIds().end());
       state.anchor_position_scroll_data->accumulated_scroll_origin =
-          anchor_position_scroll_data.AccumulatedAdjustmentScrollOrigin();
+          anchor_position_scroll_data.AccumulatedAdjustmentScrollOrigin() +
+          ToRoundedVector2d(remembered_offset);
       state.anchor_position_scroll_data->needs_scroll_adjustment_in_x =
           anchor_position_scroll_data.NeedsScrollAdjustmentInX();
       state.anchor_position_scroll_data->needs_scroll_adjustment_in_y =
@@ -4107,9 +4112,8 @@ void PaintPropertyTreeBuilder::IssueInvalidationsAfterUpdate() {
   }
 
   if (max_change > PaintPropertyChangeType::kChangedOnlyCompositedValues) {
-    // Elements under canvas can only be rendered with `drawElement` and need
-    // to use regular paint invalidation to ensure js is notified of
-    // invalidations.
+    // Elements under canvas can only be rendered with `drawHTML` and need to
+    // use regular paint invalidation to ensure js is notified of invalidations.
     if (RuntimeEnabledFeatures::CanvasDrawElementEnabled() &&
         IsA<Element>(object_.GetNode()) &&
         To<Element>(object_.GetNode())->IsInCanvasSubtree()) {
@@ -4161,8 +4165,8 @@ bool PaintPropertyTreeBuilder::CanDoDeferredTransformNodeUpdate(
     }
   }
 
-  // Elements under canvas can only be rendered with `drawElement` and need to
-  // use regular paint invalidation to ensure js is notified of invalidations.
+  // Elements under canvas can only be rendered with `drawHTML` and need to use
+  // regular paint invalidation to ensure js is notified of invalidations.
   if (RuntimeEnabledFeatures::CanvasDrawElementEnabled() &&
       IsA<Element>(object.GetNode()) &&
       To<Element>(object.GetNode())->IsInCanvasSubtree()) {
@@ -4203,8 +4207,8 @@ bool PaintPropertyTreeBuilder::CanDoDeferredOpacityNodeUpdate(
     return false;
   }
 
-  // Elements under canvas can only be rendered with `drawElement` and need to
-  // use regular paint invalidation to ensure js is notified of invalidations.
+  // Elements under canvas can only be rendered with `drawHTML` and need to use
+  // regular paint invalidation to ensure js is notified of invalidations.
   if (RuntimeEnabledFeatures::CanvasDrawElementEnabled() &&
       IsA<Element>(object.GetNode()) &&
       To<Element>(object.GetNode())->IsInCanvasSubtree()) {

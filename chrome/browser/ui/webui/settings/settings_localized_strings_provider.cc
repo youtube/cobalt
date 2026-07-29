@@ -80,8 +80,8 @@
 #include "components/password_manager/core/common/password_manager_features.h"
 #include "components/performance_manager/public/features.h"
 #include "components/permissions/features.h"
+#include "components/plus_addresses/core/browser/grit/plus_addresses_strings.h"
 #include "components/plus_addresses/core/common/features.h"
-#include "components/plus_addresses/grit/plus_addresses_strings.h"
 #include "components/plus_addresses/plus_address_service.h"
 #include "components/prefs/pref_service.h"
 #include "components/regional_capabilities/regional_capabilities_service.h"
@@ -770,6 +770,12 @@ void AddGlicStrings(content::WebUIDataSource* html_source) {
        IDS_SETTINGS_GLIC_PERMISSIONS_TAB_ACCESS_TOGGLE_SUBLABEL},
       {"glicTabAccessToggleSublabelDataProtected",
        IDS_SETTINGS_GLIC_PERMISSIONS_TAB_ACCESS_TOGGLE_SUBLABEL_DATA_PROTECTED},
+      {"glicDefaultTabAccessToggle",
+       IDS_SETTINGS_GLIC_PERMISSIONS_DEFAULT_TAB_ACCESS_TOGGLE},
+      {"glicDefaultTabAccessToggleSublabel",
+       IDS_SETTINGS_GLIC_PERMISSIONS_DEFAULT_TAB_ACCESS_TOGGLE_SUBLABEL},
+      {"glicDefaultTabAccessToggleSublabelDataProtected",
+       IDS_SETTINGS_GLIC_PERMISSIONS_DEFAULT_TAB_ACCESS_TOGGLE_SUBLABEL_DATA_PROTECTED},
       {"glicActivityButton", IDS_SETTINGS_GLIC_PERMISSIONS_ACTIVITY_BUTTON},
       {"glicActivityButtonSublabel",
        IDS_SETTINGS_GLIC_PERMISSIONS_ACTIVITY_BUTTON_SUBLABEL},
@@ -784,6 +790,12 @@ void AddGlicStrings(content::WebUIDataSource* html_source) {
        IDS_SETTINGS_GLIC_PERMISSIONS_TAB_ACCESS_CONSIDER_1},
       {"glicTabAccessConsider1LearnMoreLabel",
        IDS_SETTINGS_GLIC_PERMISSIONS_TAB_ACCESS_CONSIDER_1_LEARN_MORE_LABEL},
+      {"glicDefaultTabAccessWhenOn1",
+       IDS_SETTINGS_GLIC_PERMISSIONS_DEFAULT_TAB_ACCESS_WHEN_ON_1},
+      {"glicDefaultTabAccessConsider1",
+       IDS_SETTINGS_GLIC_PERMISSIONS_DEFAULT_TAB_ACCESS_CONSIDER_1},
+      {"glicDefaultTabAccessConsider1LearnMoreLabel",
+       IDS_SETTINGS_GLIC_PERMISSIONS_DEFAULT_TAB_ACCESS_CONSIDER_1_LEARN_MORE_LABEL},
   };
   html_source->AddLocalizedStrings(kLocalizedStrings);
 
@@ -805,6 +817,12 @@ void AddGlicStrings(content::WebUIDataSource* html_source) {
   html_source->AddString(
       "glicTabAccessToggleLearnMoreUrlDataProtected",
       features::kGlicTabAccessToggleLearnMoreURLDataProtected.Get());
+  html_source->AddString(
+      "glicDefaultTabAccessToggleLearnMoreUrl",
+      features::kGlicDefaultTabAccessToggleLearnMoreURL.Get());
+  html_source->AddString(
+      "glicDefaultTabAccessToggleLearnMoreUrlDataProtected",
+      features::kGlicDefaultTabAccessToggleLearnMoreURLDataProtected.Get());
   html_source->AddString("glicSettingsPageLearnMoreUrl",
                          features::kGlicSettingsPageLearnMoreURL.Get());
   html_source->AddString("glicExtensionsManagementUrl",
@@ -820,6 +838,9 @@ void AddGlicStrings(content::WebUIDataSource* html_source) {
       base::FeatureList::IsEnabled(features::kGlicUserStatusCheck));
   html_source->AddBoolean("glicAssetsV2Enabled", base::FeatureList::IsEnabled(
                                                      features::kGlicAssetsV2));
+  html_source->AddBoolean(
+      "showGlicDefaultTabContextSetting",
+      base::FeatureList::IsEnabled(features::kGlicDefaultTabContextSetting));
 }
 #endif  // BUILDFLAG(ENABLE_GLIC)
 
@@ -2821,7 +2842,7 @@ void AddSiteSettingsStrings(content::WebUIDataSource* html_source,
       {"siteSettingsActionMute", IDS_SETTINGS_SITE_SETTINGS_MUTE_MENU},
       {"siteSettingsActionReset", IDS_SETTINGS_SITE_SETTINGS_RESET_MENU},
       {"siteSettingsActionResetFromListA11y",
-        IDS_SETTINGS_SITE_SETTINGS_RESET_FROM_LIST_A11Y},
+       IDS_SETTINGS_SITE_SETTINGS_RESET_FROM_LIST_A11Y},
       {"siteSettingsActionSessionOnly",
        IDS_SETTINGS_SITE_SETTINGS_SESSION_ONLY_MENU},
       {"siteSettingsActionViewFromListA11y",
@@ -3155,6 +3176,10 @@ void AddSiteSettingsStrings(content::WebUIDataSource* html_source,
        IDS_SETTINGS_SITE_SETTINGS_JAVASCRIPT_OPTIMIZER_ALLOWED_SUB_LABEL},
       {"siteSettingsJavascriptOptimizerBlocked",
        IDS_SETTINGS_SITE_SETTINGS_JAVASCRIPT_OPTIMIZER_BLOCKED},
+      {"siteSettingsJavascriptOptimizerBlockedUnfamiliarSites",
+       IDS_SETTINGS_SITE_SETTINGS_JAVASCRIPT_OPTIMIZER_BLOCKED_UNFAMILIAR_SITES},
+      {"siteSettingsJavascriptOptimizerBlockedUnfamiliarSitesSubLabel",
+       IDS_SETTINGS_SITE_SETTINGS_JAVASCRIPT_OPTIMIZER_BLOCKED_UNFAMILIAR_SITES_SUB_LABEL},
       {"siteSettingsJavascriptOptimizerBlockedSubLabel",
        IDS_SETTINGS_SITE_SETTINGS_JAVASCRIPT_OPTIMIZER_BLOCKED_SUB_LABEL},
       {"siteSettingsJavascriptOptimizerAllowedExceptions",

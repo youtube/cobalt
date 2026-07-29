@@ -36,6 +36,7 @@
 #include "components/regional_capabilities/regional_capabilities_test_utils.h"
 #include "components/search_engines/choice_made_location.h"
 #include "components/search_engines/default_search_manager.h"
+#include "components/search_engines/search_engine_choice/buildflags.h"
 #include "components/search_engines/search_engine_choice/search_engine_choice_metrics_service_accessor.h"
 #include "components/search_engines/search_engine_choice/search_engine_choice_service_test_base.h"
 #include "components/search_engines/search_engine_choice/search_engine_choice_utils.h"
@@ -1077,10 +1078,17 @@ TEST_P(SearchEngineChoiceServiceDeviceRestoreTest, RepromptOnRestoreDetection) {
       .choice_predates_restore = GetParam().choice_predates_restore,
   });
 
-  search_engine_choice_service().RecordStaticEligibility(
+  auto static_eligibility =
       search_engine_choice_service().GetStaticChoiceScreenConditions(
-          policy_service(), template_url_service()));
-  search_engine_choice_service().RecordDynamicEligibility(
+          policy_service(), template_url_service());
+  search_engine_choice_service().RecordProfileLoadEligibility(
+      static_eligibility);
+#if BUILDFLAG(IS_IOS)
+  search_engine_choice_service().RecordLegacyStaticEligibility(
+      static_eligibility);
+#endif  // BUILDFLAG(IS_IOS)
+
+  search_engine_choice_service().RecordTriggeringEligibility(
       search_engine_choice_service().GetDynamicChoiceScreenConditions(
           template_url_service()));
 
@@ -1096,8 +1104,7 @@ TEST_P(SearchEngineChoiceServiceDeviceRestoreTest, RepromptOnRestoreDetection) {
             GetParam().expect_invalidation_timestamp);
 
   SearchEngineChoiceScreenConditions expected_eligibility_condition =
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_FUCHSIA) || \
-    BUILDFLAG(CHROME_FOR_TESTING)
+#if !BUILDFLAG(CHOICE_SCREEN_IN_CHROME)
       SearchEngineChoiceScreenConditions::kUnsupportedBrowserType;
 #else
       GetParam().expect_invalidation_timestamp
@@ -1106,6 +1113,9 @@ TEST_P(SearchEngineChoiceServiceDeviceRestoreTest, RepromptOnRestoreDetection) {
 #endif
   histogram_tester_.ExpectUniqueSample(
       search_engines::kSearchEngineChoiceScreenProfileInitConditionsHistogram,
+      expected_eligibility_condition, 1);
+  histogram_tester_.ExpectUniqueSample(
+      "RegionalCapabilities.FunnelStage.Eligibility",
       expected_eligibility_condition, 1);
   if (GetParam().restore_detected_in_current_session &&
       GetParam().is_feature_enabled) {
@@ -1119,6 +1129,9 @@ TEST_P(SearchEngineChoiceServiceDeviceRestoreTest, RepromptOnRestoreDetection) {
   }
   histogram_tester_.ExpectUniqueSample(
       search_engines::kSearchEngineChoiceScreenNavigationConditionsHistogram,
+      expected_eligibility_condition, 1);
+  histogram_tester_.ExpectUniqueSample(
+      "RegionalCapabilities.FunnelStage.Triggering",
       expected_eligibility_condition, 1);
   if (GetParam().restore_detected_in_current_session &&
       GetParam().is_feature_enabled) {
@@ -1367,7 +1380,7 @@ TEST_P(SearchEngineChoiceServiceFunnelTest, RecordsFunnelStage) {
 
   {
     base::HistogramTester scoped_histogram_tester;
-    search_engine_choice_service().RecordStaticEligibility(
+    search_engine_choice_service().RecordProfileLoadEligibility(
         GetParam().condition);
     CheckHistogramExpectation(scoped_histogram_tester,
                               "RegionalCapabilities.FunnelStage.Reported",
@@ -1376,7 +1389,7 @@ TEST_P(SearchEngineChoiceServiceFunnelTest, RecordsFunnelStage) {
 
   {
     base::HistogramTester scoped_histogram_tester;
-    search_engine_choice_service().RecordDynamicEligibility(
+    search_engine_choice_service().RecordTriggeringEligibility(
         GetParam().condition);
     CheckHistogramExpectation(scoped_histogram_tester,
                               "RegionalCapabilities.FunnelStage.Reported",

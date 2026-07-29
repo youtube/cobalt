@@ -9,6 +9,7 @@
 #include "chrome/browser/actor/actor_keyed_service_factory.h"
 #include "chrome/browser/actor/actor_keyed_service_fake.h"
 #include "chrome/browser/actor/ui/actor_ui_tab_controller.h"
+#include "chrome/browser/actor/ui/actor_ui_state_manager_interface.h"
 #include "chrome/browser/actor/ui/mocks/mock_actor_ui_tab_controller.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -34,7 +35,6 @@ using ::tabs::MockTabInterface;
 using ::tabs::TabFeatures;
 using ::tabs::TabInterface;
 using ::testing::_;
-using ::testing::Invoke;
 using ::testing::NiceMock;
 using ::testing::Return;
 using ::testing::ValuesIn;
@@ -78,11 +78,6 @@ class ActorUiStateManagerTest : public testing::Test {
     auto actor_keyed_service = std::make_unique<ActorKeyedServiceFake>(profile);
     actor_keyed_service_fake_ = actor_keyed_service.get();
 
-    auto actor_ui_state_manager_fake =
-        std::make_unique<ActorUiStateManager>(*actor_keyed_service);
-    actor_ui_state_manager_fake_ = actor_ui_state_manager_fake.get();
-    actor_keyed_service->SetActorUiStateManagerForTesting(
-        std::move(actor_ui_state_manager_fake));
     return std::move(actor_keyed_service);
   }
 
@@ -98,15 +93,15 @@ class ActorUiStateManagerTest : public testing::Test {
 
   void ExpectUiTabStateChange(const UiTabState& expected_state) {
     ON_CALL(*mock_actor_ui_tab_controller(), OnUiTabStateChange(_, _))
-        .WillByDefault(Invoke(
+        .WillByDefault(
             [&](UiTabState state, base::OnceCallback<void(bool)> callback) {
               EXPECT_EQ(state, expected_state);
               std::move(callback).Run(true);
-            }));
+            });
   }
 
-  ActorUiStateManager* actor_ui_state_manager() {
-    return actor_ui_state_manager_fake_;
+  ActorUiStateManagerInterface* actor_ui_state_manager() {
+    return actor_keyed_service_fake_->GetActorUiStateManager();
   }
 
   ActorKeyedServiceFake* actor_keyed_service() {
@@ -161,7 +156,6 @@ class ActorUiStateManagerTest : public testing::Test {
   base::test::ScopedFeatureList scoped_feature_list_;
   std::unique_ptr<TestingProfile> profile_;
   raw_ptr<ActorKeyedServiceFake> actor_keyed_service_fake_;
-  raw_ptr<ActorUiStateManager> actor_ui_state_manager_fake_;
   ::ui::UnownedUserDataHost user_data_host_;
   MockBrowserWindowInterface mock_browser_window_interface_;
   MockTabInterface mock_tab_;

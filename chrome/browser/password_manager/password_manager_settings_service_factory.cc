@@ -84,11 +84,7 @@ PasswordManagerSettingsServiceFactory::BuildServiceInstanceForBrowserContext(
 std::unique_ptr<password_manager::PasswordManagerSettingsService>
 PasswordManagerSettingsServiceFactory::CreateService(Profile* profile) const {
 #if BUILDFLAG(IS_ANDROID)
-  // For the first run after the feature is enabled, before the unmigrated
-  // passwords are exported, `IsPasswordManagerAvailable` can return false.
-  // However, password saving isn't possible in that run anyway.
   if (password_manager_android_util::IsPasswordManagerAvailable(
-          profile->GetPrefs(),
           std::make_unique<
               password_manager_android_util::PasswordManagerUtilBridge>())) {
     return std::make_unique<PasswordManagerSettingsServiceAndroidImpl>(

@@ -277,7 +277,8 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
                 MenuOrKeyboardActionController,
                 CompositorViewHolder.Initializer,
                 TabModelInitializer,
-                ThemeResourceWrapperProvider {
+                ThemeResourceWrapperProvider,
+                UmaActivityObserver.UmaSessionAwareActivity {
     public static final String UNFOLD_LATENCY_BEGIN_TIMESTAMP = "unfold_latency_begin_timestamp";
     public static final String IS_FROM_RECREATING = "is_from_recreating";
 
@@ -2499,6 +2500,17 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
             return true;
         }
 
+        if (id == R.id.feedback_form) {
+            String url = currentTab != null ? currentTab.getUrl().getSpec() : "";
+            String helpContextId =
+                    HelpAndFeedbackLauncherImpl.getHelpContextIdFromUrl(
+                            this, url, getCurrentTabModel().isIncognitoBranded());
+            HelpAndFeedbackLauncherImpl.getForProfile(
+                            getTabModelSelector().getCurrentModel().getProfile())
+                    .showFeedback(this, url, helpContextId);
+            return true;
+        }
+
         if (id == R.id.open_history_menu_id) {
             if (currentTab != null && UrlUtilities.isNtpUrl(currentTab.getUrl())) {
                 NewTabPageUma.recordAction(NewTabPageUma.ACTION_OPENED_HISTORY_MANAGER);
@@ -2680,7 +2692,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
         }
 
         if (id == R.id.reader_mode_prefs_id) {
-            DomDistillerUiUtils.openSettings(currentTab.getWebContents());
+            DomDistillerUiUtils.openDialogSettings(currentTab.getWebContents());
             return true;
         }
 

@@ -64,6 +64,7 @@
 #include "chrome/browser/ui/webui/new_tab_page/ntp_promo/ntp_promo_handler.h"
 #include "chrome/browser/ui/webui/new_tab_page/untrusted_source.h"
 #include "chrome/browser/ui/webui/page_not_available_for_guest/page_not_available_for_guest_ui.h"
+#include "chrome/browser/ui/webui/plural_string_handler.h"
 #include "chrome/browser/ui/webui/sanitized_image_source.h"
 #include "chrome/browser/ui/webui/searchbox/realbox_handler.h"
 #include "chrome/browser/ui/webui/searchbox/searchbox_handler.h"
@@ -233,6 +234,9 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
       "mostRelevantTabResumptionModuleFallbackToHost",
       base::FeatureList::IsEnabled(
           ntp_features::kNtpMostRelevantTabResumptionModuleFallbackToHost));
+  source->AddBoolean(
+      "tabGroupsModuleZeroStateEnabled",
+      base::FeatureList::IsEnabled(ntp_features::kNtpTabGroupsModuleZeroState));
   source->AddBoolean("footerEnabled",
                      base::FeatureList::IsEnabled(ntp_features::kNtpFooter));
 
@@ -246,18 +250,19 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
       // Custom Links.
       {"addLinkTitle", IDS_NTP_CUSTOM_LINKS_ADD_SHORTCUT_TITLE},
       {"editLinkTitle", IDS_NTP_CUSTOM_LINKS_EDIT_SHORTCUT},
+      {"viewLinkTitle", IDS_NTP_CUSTOM_LINKS_SHORTCUT_DETAILS_TITLE},
       {"invalidUrl", IDS_NTP_CUSTOM_LINKS_INVALID_URL},
       {"linkAddedMsg", IDS_NTP_CONFIRM_MSG_SHORTCUT_ADDED},
       {"linkCancel", IDS_NTP_CUSTOM_LINKS_CANCEL},
       {"linkCantCreate", IDS_NTP_CUSTOM_LINKS_CANT_CREATE},
       {"linkCantEdit", IDS_NTP_CUSTOM_LINKS_CANT_EDIT},
+      {"viewLink", IDS_NTP_CUSTOM_LINKS_DETAILS},
       {"linkDone", IDS_NTP_CUSTOM_LINKS_DONE},
       {"linkEditedMsg", IDS_NTP_CONFIRM_MSG_SHORTCUT_EDITED},
       {"linkRemove", IDS_NTP_CUSTOM_LINKS_REMOVE},
       {"linkRemovedMsg", IDS_NTP_CONFIRM_MSG_SHORTCUT_REMOVED},
       {"shortcutMoreActions", IDS_NTP_CUSTOM_LINKS_MORE_ACTIONS},
-      {"enterpriseShortcutMoreActionsDisabled",
-       IDS_NTP_ENTERPRISE_SHORTCUTS_MORE_ACTIONS_DISABLED},
+      {"enterpriseShortcutSubtitle", IDS_NTP_ENTERPRISE_SHORTCUT_SUBTITLE},
       {"nameField", IDS_NTP_CUSTOM_LINKS_NAME},
       {"restoreDefaultLinks", IDS_NTP_CONFIRM_MSG_RESTORE_DEFAULTS},
       {"restoreThumbnailsShort", IDS_NEW_TAB_RESTORE_THUMBNAILS_SHORT_LINK},
@@ -691,6 +696,12 @@ NewTabPageUI::NewTabPageUI(content::WebUI* web_ui)
           should_animate_wallpaper_search_button);
   source->AddInteger("wallpaperSearchButtonHideCondition",
                      ntp_features::GetWallpaperSearchButtonHideCondition());
+
+  // Add a handler to provide pluralized strings.
+  auto plural_string_handler = std::make_unique<PluralStringHandler>();
+  plural_string_handler->AddLocalizedString("modulesTabGroupsTabsText",
+                                            IDS_SAVED_TAB_GROUP_TABS_COUNT);
+  web_ui->AddMessageHandler(std::move(plural_string_handler));
 
   content::URLDataSource::Add(profile_,
                               std::make_unique<SanitizedImageSource>(profile_));

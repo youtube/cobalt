@@ -8,22 +8,22 @@
 #include <stdint.h>
 
 #include <iosfwd>
+#include <memory>
 #include <optional>
-#include <set>
 #include <string>
 #include <vector>
 
+#include "base/check.h"
 #include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
 #include "base/time/time.h"
 #include "base/values.h"
-#include "base/version.h"
 #include "build/build_config.h"
 #include "chrome/browser/web_applications/generated_icon_fix_util.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_integrity_block_data.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolation_data.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom-forward.h"
 #include "chrome/browser/web_applications/proto/web_app.pb.h"
+#include "chrome/browser/web_applications/proto/web_app_install_state.pb.h"
 #include "chrome/browser/web_applications/proto/web_app_os_integration_state.pb.h"
 #include "chrome/browser/web_applications/scope_extension_info.h"
 #include "chrome/browser/web_applications/user_display_mode.h"
@@ -38,11 +38,10 @@
 #include "components/sync/model/string_ordinal.h"
 #include "components/sync/protocol/web_app_specifics.pb.h"
 #include "components/webapps/common/web_app_id.h"
-#include "components/webapps/isolated_web_apps/types/storage_location.h"
 #include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
 #include "third_party/blink/public/common/manifest/manifest.h"
-#include "third_party/blink/public/mojom/manifest/capture_links.mojom-shared.h"
-#include "third_party/blink/public/mojom/manifest/display_mode.mojom-shared.h"
+#include "third_party/blink/public/common/safe_url_pattern.h"
+#include "third_party/blink/public/mojom/manifest/capture_links.mojom-forward.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "url/gurl.h"
 
@@ -55,7 +54,7 @@ enum class WebappInstallSource;
 }
 
 namespace web_app {
-class TabbedModeScopeMatcher;
+class UrlPatternWithRegexMatcher;
 
 class WebApp {
  public:
@@ -123,6 +122,10 @@ class WebApp {
 
   const std::vector<DisplayMode>& display_mode_override() const {
     return display_mode_override_;
+  }
+
+  const std::vector<blink::SafeUrlPattern>& borderless_url_patterns() const {
+    return borderless_url_patterns_;
   }
 
   syncer::StringOrdinal user_page_ordinal() const {
@@ -344,7 +347,7 @@ class WebApp {
 
   // Returns the list of patterns to match URLs against for tabbed mode home
   // tab navigations.
-  const std::vector<TabbedModeScopeMatcher>& GetTabbedModeHomeScope() const;
+  const std::vector<UrlPatternWithRegexMatcher>& GetTabbedModeHomeScope() const;
 
   // Only used on Mac.
   bool always_show_toolbar_in_fullscreen() const {
@@ -444,6 +447,8 @@ class WebApp {
   // Sets the UserDisplayMode for the current platform (CrOS or default).
   void SetUserDisplayMode(mojom::UserDisplayMode user_display_mode);
   void SetDisplayModeOverride(std::vector<DisplayMode> display_mode_override);
+  void SetBorderlessUrlPatterns(
+      std::vector<blink::SafeUrlPattern> borderless_url_patterns);
   void SetWebAppChromeOsData(std::optional<WebAppChromeOsData> chromeos_data);
   void SetInstallState(proto::InstallState install_state);
   void SetIsFromSyncAndPendingInstallation(
@@ -573,6 +578,7 @@ class WebApp {
   std::optional<SkColor> dark_mode_background_color_;
   DisplayMode display_mode_ = DisplayMode::kUndefined;
   std::vector<DisplayMode> display_mode_override_;
+  std::vector<blink::SafeUrlPattern> borderless_url_patterns_;
   std::optional<WebAppChromeOsData> chromeos_data_;
   proto::InstallState install_state_ =
       proto::InstallState::INSTALLED_WITHOUT_OS_INTEGRATION;
@@ -702,9 +708,8 @@ class WebApp {
     // considered within home tab scope.
     //
     // An empty list means there is no home tab scope to match against (i.e.
-    // nothing matches), whereas an uninitialized list means it has not yet been
-    // needed.
-    std::optional<std::vector<TabbedModeScopeMatcher>> home_tab_scope;
+    // nothing matches), while a null list means it has not yet been needed.
+    std::optional<std::vector<UrlPatternWithRegexMatcher>> home_tab_scope;
   };
   mutable CachedDerivedData cached_derived_data_;
 };

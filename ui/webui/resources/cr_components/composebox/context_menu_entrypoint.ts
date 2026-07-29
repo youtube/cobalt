@@ -2,14 +2,29 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import './icons.html.js';
 import '//resources/cr_elements/icons.html.js';
 import '//resources/cr_elements/cr_icon/cr_icon.js';
+import '//resources/cr_elements/cr_action_menu/cr_action_menu.js';
 import '//resources/cr_elements/cr_button/cr_button.js';
 
+import {AnchorAlignment} from '//resources/cr_elements/cr_action_menu/cr_action_menu.js';
+import type {CrActionMenuElement} from '//resources/cr_elements/cr_action_menu/cr_action_menu.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
 import {getCss} from './context_menu_entrypoint.css.js';
 import {getHtml} from './context_menu_entrypoint.html.js';
+
+/** The width of the dropdown menu in pixels. */
+const MENU_WIDTH_PX = 190;
+
+export interface ContextMenuEntrypointElement {
+  $: {
+    entrypoint: HTMLElement,
+    entrypointIcon: HTMLElement,
+    menu: CrActionMenuElement,
+  };
+}
 
 export class ContextMenuEntrypointElement extends CrLitElement {
   static get is() {
@@ -22,6 +37,36 @@ export class ContextMenuEntrypointElement extends CrLitElement {
 
   override render() {
     return getHtml.bind(this)();
+  }
+
+  static override get properties() {
+    return {
+      inputsDisabled: {type: Boolean},
+      hasTabSuggestions_: {type: Boolean},
+    };
+  }
+
+  accessor inputsDisabled: boolean = false;
+  // TODO(crbug.com/442575942): Set `hasTabSuggestions_` to false by default,
+  // and add actual logic for setting it true.
+  protected accessor hasTabSuggestions_: boolean = true;
+
+  protected onEntrypointClick_() {
+    this.$.menu.showAt(this.$.entrypointIcon, {
+      top: this.$.entrypointIcon.getBoundingClientRect().bottom,
+      width: MENU_WIDTH_PX,
+      anchorAlignmentX: AnchorAlignment['AFTER_START'],
+    });
+  }
+
+  protected openImageUpload() {
+    this.fire('open-image-upload');
+    this.$.menu.close();
+  }
+
+  protected openFileUpload() {
+    this.fire('open-file-upload');
+    this.$.menu.close();
   }
 }
 

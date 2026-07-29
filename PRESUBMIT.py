@@ -26,9 +26,6 @@ _EXCLUDED_PATHS = (
      r"client_variations.js"),
     # These are video files, not typescript.
     r"^media/test/data/.*.ts",
-    r"^native_client_sdksrc/build_tools/make_rules.py",
-    r"^native_client_sdk/src/build_tools/make_simple.py",
-    r"^native_client_sdk/src/tools/.*.mk",
     r"^net/tools/spdyshark/.*",
     r"^skia/.*",
     r"^third_party/blink/.*",
@@ -3396,13 +3393,10 @@ def CheckChromeOsSyncedPrefRegistration(input_api, output_api):
 
 def CheckNoAbbreviationInPngFileName(input_api, output_api):
     """Makes sure there are no abbreviations in the name of PNG files.
-    The native_client_sdk directory is excluded because it has auto-generated PNG
-    files for documentation.
     """
     errors = []
     files_to_check = [r'.*\.png$']
     files_to_skip = [
-        r'^native_client_sdk/',
         r'^services/test/',
         r'^third_party/blink/web_tests/',
     ]
@@ -3839,7 +3833,6 @@ def CheckSpamLogging(input_api, output_api):
             r"^fuchsia_web/shell/.*\.cc$",
             r"^headless/app/headless_shell\.cc$",
             r"^ipc/ipc_logging\.cc$",
-            r"^native_client_sdk/",
             r"^remoting/base/logging\.h$",
             r"^remoting/host/.*",
             r"^sandbox/linux/.*",
@@ -5374,7 +5367,6 @@ def CheckNoDeprecatedCss(input_api, output_api):
             r"^chrome/browser/resources/chromeos/arc_support/cr_overlay.css$",
             r"^chrome/common/extensions/docs",
             r"^chrome/docs",
-            r"^native_client_sdk",
             # The NTP team prefers reserving -webkit-line-clamp for
             # ellipsis effect which can only be used with -webkit-box.
             r"ui/webui/resources/cr_components/most_visited/.*\.css$"))
@@ -7022,7 +7014,7 @@ def CheckStrings(input_api, output_api):
             results.append(
                 output_api.PresubmitError(
                     'Do not include actual screenshots in the changelist. Run '
-                    'tools/translate/upload_screenshots.py to upload them instead:',
+                    'tools/translation/upload_screenshots.py to upload them instead:',
                     sorted(unnecessary_screenshots)))
 
         if missing_sha1:
@@ -7038,7 +7030,7 @@ def CheckStrings(input_api, output_api):
                 output_api.PresubmitError(
                     'The following files do not seem to contain valid sha1 hashes. '
                     'Make sure they contain hashes created by '
-                    'tools/translate/upload_screenshots.py:',
+                    'tools/translation/upload_screenshots.py:',
                     sorted(invalid_sha1)))
 
         if missing_sha1_modified:

@@ -587,9 +587,12 @@ NET_EXPORT extern const base::FeatureParam<bool>
 NET_EXPORT extern const base::FeatureParam<bool> kIpPrivacyEnableIppInDevTools;
 
 // Enables the ability for IP protection features to be gated in the Privacy
-// and Security Panel within DevTools. When this flag is disabled, the IP
-// Protection section will not be shown in the DevTools panel, allowing testing
-// and development of the IP Protection features before public release.
+// and Security Panel within DevTools. When this flag is enabled, the IP
+// Protection section will be shown in the Privacy and Security section of the
+// DevTools panel allowing users to view proxied requests and bypass IP
+// Protection locally.
+// Do not remove or enable this flag for all users until crbug.com/442349180
+// is resolved.
 NET_EXPORT extern const base::FeatureParam<bool>
     kIpPrivacyEnableIppPanelInDevTools;
 
@@ -693,6 +696,11 @@ NET_EXPORT BASE_DECLARE_FEATURE_PARAM(bool, kDeviceBoundSessionsRefreshQuota);
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(
     bool,
     kDeviceBoundSessionsCheckSubdomainRegistration);
+// This feature controls whether DBSC checks the .well-known for federated
+// sessions.
+NET_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    bool,
+    kDeviceBoundSessionsCheckFederatedRegistration);
 // This feature will enable breaking changes to Device Bound Session
 // Credentials from after the Origin Trial started. This is disabled by
 // default to facilitate implementation of feedback from the Origin
@@ -758,6 +766,17 @@ NET_EXPORT BASE_DECLARE_FEATURE(kDiskCacheBackendExperiment);
 NET_EXPORT extern const base::FeatureParam<DiskCacheBackend>
     kDiskCacheBackendParam;
 
+#if BUILDFLAG(ENABLE_DISK_CACHE_SQL_BACKEND)
+// If the number of pages recorded in the WAL file of the SQL disk cache's DB
+// exceeds this value, a checkpoint is executed on committing data.
+NET_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
+                                      kSqlDiskCacheForceCheckpointThreshold);
+// If the number of pages recorded in the WAL file of the SQL disk cache's DB
+// exceeds this value and the browser is idle, a checkpoint is executed.
+NET_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
+                                      kSqlDiskCacheIdleCheckpointThreshold);
+#endif  // ENABLE_DISK_CACHE_SQL_BACKEND
+
 // If enabled, ignore Strict-Transport-Security for [*.]localhost hosts.
 NET_EXPORT BASE_DECLARE_FEATURE(kIgnoreHSTSForLocalhost);
 
@@ -810,6 +829,11 @@ NET_EXPORT BASE_DECLARE_FEATURE_PARAM(bool,
 // this temporary feature.
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(bool,
                                       kHttpCacheNoVarySearchFakePersistence);
+
+// If true, don't erase the NoVarySearchCache entry when simple cache in-memory
+// hints indicate that the disk cache entry is not usable.
+NET_EXPORT BASE_DECLARE_FEATURE_PARAM(bool,
+                                      kHttpCacheNoVarySearchKeepNotSuitable);
 
 // Enables sending the CORS Origin header on the POST request for Reporting API
 // report uploads.
@@ -889,6 +913,8 @@ NET_EXPORT BASE_DECLARE_FEATURE_PARAM(bool,
 // HttpStreamFactoryJobController.
 NET_EXPORT BASE_DECLARE_FEATURE(kAdditionalDelayMainJob);
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kAdditionalDelay);
+NET_EXPORT BASE_DECLARE_FEATURE_PARAM(bool,
+                                      kDelayMainJobWithAvailableSpdySession);
 
 // If enabled, we will extend the quic handshake timeout.
 NET_EXPORT BASE_DECLARE_FEATURE(kExtendQuicHandshakeTimeout);
@@ -904,6 +930,12 @@ NET_EXPORT BASE_DECLARE_FEATURE(kConfigureQuicHints);
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(std::string, kQuicHintHostPortPairs);
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(std::string,
                                       kWildcardQuicHintHostPortPairs);
+
+// Enables support for Public Resolver Errors (PRE), based on Version 1 of the
+// https://datatracker.ietf.org/doc/draft-nottingham-public-resolver-errors/01/
+// When enabled, clients will attempt to parse structured error information
+// from the EXTRA-TEXT field of Extended DNS Errors.
+NET_EXPORT BASE_DECLARE_FEATURE(kDnsFilteringDetails);
 
 }  // namespace net::features
 

@@ -3804,7 +3804,7 @@ enum WebFeature {
   kOBSOLETE_WindowOpenFullscreenRequested = 4525,
   kOBSOLETE_FullscreenAllowedByWindowOpen = 4526,
   // The items above roughly this point are available in the M113 branch.
-  kAttributeValueContainsLtOrGt = 4527,
+  kOBSOLETE_AttributeValueContainsLtOrGt = 4527,
   kOBSOLETE_V8ImportAssertionDeprecatedSyntax = 4528,
   kImageCaptureBackgroundBlur = 4529,
   kPrivateNetworkAccessPreflightError = 4530,
@@ -4429,8 +4429,8 @@ enum WebFeature {
   kV8PaymentManager_UserHint_AttributeGetter = 5125,
   kV8PaymentManager_UserHint_AttributeSetter = 5126,
   kPerformanceNavigationTimingConfidence = 5127,
-  kHttpParsersParseDateFromUTCStringDifferent = 5128,
-  kHttpParsersParseDateFromStringDifferent = 5129,
+  kOBSOLETE_HttpParsersParseDateFromUTCStringDifferent = 5128,
+  kOBSOLETE_HttpParsersParseDateFromStringDifferent = 5129,
   kMediaQueryRangeSyntax = 5130,
   kParseHTMLSafe = 5131,
   kSetHTMLSafe = 5132,
@@ -4962,6 +4962,14 @@ enum WebFeature {
   kV8WasmCustomDescriptors = 5651,
   kSRIIntegrityAttributeOnInlineScript = 5652,
   kCredentialsGetImmediateMediationWithPasswordsOnly = 5653,
+  kCSSAtRuleRoute = 5654,
+  kAbsposPositionTryFallbacksChange = 5655,
+  kMulticastControllerJoinGroupFunction = 5656,
+  kMulticastControllerLeaveGroupFunction = 5657,
+  kMulticastControllerJoinedGroupsAttribute = 5658,
+  kContainerNameQueryFailedTreeScope = 5659,
+  kLocalNetworkAccessWebSocketResourceNotKnownPrivate = 5660,
+  kCSSPseudoElementUsesImplicitAnchor = 5661,
 
   // Add new features immediately above this line. Don't change assigned
   // numbers of any item, and don't reuse removed slots. Also don't add extra

@@ -103,8 +103,78 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Browser.Cfm.Artemis.EnqueuedPayloadSize" units="bytes"
+    expires_after="2026-08-01">
+  <owner>ntsirakis@google.com</owner>
+  <owner>kdgwill@google.com</owner>
+  <owner>core-devices@google.com</owner>
+  <summary>
+    Size of enqueued payload. Only recorded on initial enqueue attempt; skipped
+    during retries.
+  </summary>
+</histogram>
+
+<histogram name="Browser.Cfm.Artemis.LoggerServiceResponse"
+    enum="CfmArtemisLoggerResponse" expires_after="2026-08-01">
+  <owner>ntsirakis@google.com</owner>
+  <owner>kdgwill@google.com</owner>
+  <owner>core-devices@google.com</owner>
+  <summary>Response from CfM logger service after enqueue attempt.</summary>
+</histogram>
+
+<histogram name="Browser.Cfm.Artemis.NumberOfRetriesBeforeSuccessfulEnqueue"
+    units="retries" expires_after="2026-08-01">
+  <owner>ntsirakis@google.com</owner>
+  <owner>kdgwill@google.com</owner>
+  <owner>core-devices@google.com</owner>
+  <summary>
+    Number of retry attempts before we successfully enqueue a record. Should be
+    zero for the majority of cases.
+  </summary>
+</histogram>
+
+<histogram name="Browser.Cfm.Artemis.PayloadQueueSize" units="payloads"
+    expires_after="2026-08-01">
+  <owner>ntsirakis@google.com</owner>
+  <owner>kdgwill@google.com</owner>
+  <owner>core-devices@google.com</owner>
+  <summary>
+    The current queue size, recorded after every successful enqueue.
+  </summary>
+</histogram>
+
+<histogram name="Browser.Cfm.Artemis.SetupStatus" enum="CfmArtemisSetupStatus"
+    expires_after="2026-08-01">
+  <owner>ntsirakis@google.com</owner>
+  <owner>kdgwill@google.com</owner>
+  <owner>core-devices@google.com</owner>
+  <summary>
+    Recorded during initial one-time setup steps. Any failures logged will imply
+    that Artemis is effectively disabled. This should skew heavily towards
+    kSetupSucceeded.
+  </summary>
+</histogram>
+
+<histogram name="Browser.Cfm.Artemis.TimeSinceLastSuccessfulEnqueue" units="ms"
+    expires_after="2026-08-01">
+  <owner>ntsirakis@google.com</owner>
+  <owner>kdgwill@google.com</owner>
+  <owner>core-devices@google.com</owner>
+  <summary>The time elapsed between successful enqueue attempts.</summary>
+</histogram>
+
+<histogram name="Browser.Cfm.Artemis.TimeWaitedBeforeEnqueueRetry" units="ms"
+    expires_after="2026-08-01">
+  <owner>ntsirakis@google.com</owner>
+  <owner>kdgwill@google.com</owner>
+  <owner>core-devices@google.com</owner>
+  <summary>
+    The delay performed before a given enqueue retry after a failure.
+  </summary>
+</histogram>
+
 <histogram name="Browser.ChromeOS.HatsStatus" enum="HatsStatus"
-    expires_after="2025-12-28">
+    expires_after="2026-03-01">
   <owner>aalsum@chromium.org</owner>
   <owner>chromeos-data-eng@google.com</owner>
   <summary>
@@ -571,7 +641,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Browser.MainThreadsCongestion.1MinAfterResume" units="janks"
-    expires_after="2025-12-28">
+    expires_after="2026-03-01">
   <owner>kawasin@google.com</owner>
   <owner>baseos-perf@google.com</owner>
   <summary>
@@ -645,7 +715,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Browser.MainThreadsCongestion.Used" units="janks"
-    expires_after="2025-12-28">
+    expires_after="2026-03-01">
   <owner>pmonette@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
@@ -963,7 +1033,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Browser.Responsiveness.IOJanksTotalPerMinute" units="janks"
-    expires_after="2025-12-28">
+    expires_after="2026-03-01">
   <owner>gab@chromium.org</owner>
   <owner>olivierli@chromium.org</owner>
   <summary>
@@ -977,7 +1047,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Browser.Responsiveness.IOJankyIntervalsPerMinute"
-    units="janks" expires_after="2025-12-28">
+    units="janks" expires_after="2026-03-01">
   <owner>gab@chromium.org</owner>
   <owner>olivierli@chromium.org</owner>
   <summary>
@@ -1064,7 +1134,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Browser.Tabs.TotalIncompleteSwitchDuration3{TabSwitchingType}"
-    units="ms" expires_after="2025-12-28">
+    units="ms" expires_after="2026-03-01">
   <owner>fdoray@chromium.org</owner>
   <owner>jonross@chromium.org</owner>
   <owner>joenotcharles@google.com</owner>
@@ -1104,7 +1174,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Browser.WindowCount.Incognito" units="units"
-    expires_after="2025-12-28">
+    expires_after="2026-03-01">
   <owner>rhalavati@chromium.org</owner>
   <owner>chrome-privacy-core@google.com</owner>
   <summary>
@@ -1245,15 +1315,12 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="BrowserRenderProcessHost.FastShutdownIfPossible.DelayReason"
-    enum="RenderProcessHostDelayShutdownReason" expires_after="2026-01-04">
+    enum="RenderProcessHostDelayShutdownReason" expires_after="2026-02-28">
   <owner>mych@chromium.org</owner>
   <owner>bfcache-dev@chromium.org</owner>
   <summary>
-    Recorded whenever a RenderProcessHost is fast shutting down, with the reason
-    the shutdown fails or is delayed, or kNoDelay if it succeeded quickly.
-
-    The total count of this histogram should be equal to
-    BrowserRenderProcessHost.FastShutdownIfPossible.Total.
+    Recorded on every attempt to fast-shutdown a RenderProcessHost. The value is
+    kNoDelay on success, or the reason it couldn't take place otherwise.
 
     Warning: this histogram was expired from 2024-04-29 to 2024-12-09; data may
     be missing.
@@ -1297,7 +1364,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="BrowserRenderProcessHost.NoSparePresentReason2"
-    enum="NoSpareRendererReason" expires_after="2025-12-28">
+    enum="NoSpareRendererReason" expires_after="2026-03-01">
   <owner>gjc@google.com</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -1362,6 +1429,18 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="BrowserRenderProcessHost.ReuseExistingProcess.ReusePolicy"
+    enum="ProcessReusePolicy" expires_after="2026-07-04">
+  <owner>gjc@google.com</owner>
+  <owner>chrome-loading@google.com</owner>
+  <summary>
+    Records the process reuse policy when a SiteInstance reuses an existing
+    process. Recorded when RenderProcessHostImpl::GetProcessHostForSiteInstance
+    is called and the site instance is assigned a process by reusing an existing
+    process.
+  </summary>
+</histogram>
+
 <histogram name="BrowserRenderProcessHost.SiteInstanceRenderProcessAssignment"
     enum="SiteInstanceProcessAssignment" expires_after="2026-07-04">
   <owner>ziadyoussef@chromium.org</owner>
@@ -1415,7 +1494,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="BrowserRenderProcessHost.SpareProcessMaybeTakeAction.NavigationRequest"
-    enum="SpareProcessMaybeTakeAction" expires_after="2025-12-31">
+    enum="SpareProcessMaybeTakeAction" expires_after="2026-03-01">
   <owner>gjc@google.com</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -1426,7 +1505,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="BrowserRenderProcessHost.SpareProcessMaybeTakeTime"
-    units="seconds" expires_after="2025-12-28">
+    units="seconds" expires_after="2026-03-01">
   <owner>gjc@google.com</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -1441,7 +1520,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="BrowserRenderProcessHost.SpareProcessMaybeTakeTime.{SpareProcessMaybeTakeAction}"
-    units="seconds" expires_after="2025-12-28">
+    units="seconds" expires_after="2026-03-01">
   <owner>gjc@google.com</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -1454,7 +1533,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="BrowserRenderProcessHost.SpareProcessRefusedByEmbedderReason"
-    enum="SpareProcessRefusedByEmbedderReason" expires_after="2025-12-28">
+    enum="SpareProcessRefusedByEmbedderReason" expires_after="2026-03-01">
   <owner>gjc@google.com</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -1532,7 +1611,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="BrowserRenderProcessHost.SpareRendererTaken.IsReady"
-    enum="BooleanReady" expires_after="2025-12-28">
+    enum="BooleanReady" expires_after="2026-03-01">
   <owner>pmonette@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
@@ -1541,7 +1620,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="BrowserRenderProcessHost.SpareRendererTaken.TimeSinceCreation"
-    units="seconds" expires_after="2025-12-28">
+    units="seconds" expires_after="2026-03-01">
   <owner>pmonette@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
@@ -1628,7 +1707,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="BrowserScheduler.UIThread.TaskOffCpuDuration" units="ms"
-    expires_after="2025-12-25">
+    expires_after="2026-03-01">
   <owner>anandrv@google.com</owner>
   <owner>clank-performance-team@google.com</owner>
   <summary>
@@ -1639,7 +1718,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="BrowserScheduler.UIThread.TaskOnCpuDuration" units="ms"
-    expires_after="2025-12-25">
+    expires_after="2026-03-01">
   <owner>anandrv@google.com</owner>
   <owner>clank-performance-team@google.com</owner>
   <summary>
@@ -1650,7 +1729,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="BrowserScheduler.UIThread.TaskOnCpuPercentage" units="%"
-    expires_after="2025-12-25">
+    expires_after="2026-03-01">
   <owner>anandrv@google.com</owner>
   <owner>clank-performance-team@google.com</owner>
   <summary>
@@ -2072,7 +2151,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="SidePanel.{SidePanelEntry}.TimeFromEntryTriggerToShown"
-    units="ms" expires_after="2025-12-28">
+    units="ms" expires_after="2026-03-01">
   <owner>corising@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <summary>

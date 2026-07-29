@@ -17,6 +17,7 @@
 
 #include "base/apple/scoped_cftyperef.h"
 #include "base/apple/scoped_nsobject.h"
+#include "base/bits.h"
 #include "base/memory/scoped_policy.h"
 #include "base/notimplemented.h"
 #include "base/trace_event/memory_dump_manager.h"
@@ -57,6 +58,9 @@ namespace gpu {
 namespace {
 using GraphiteTextureHolder = SkiaImageRepresentation::GraphiteTextureHolder;
 
+// Alignment required by `CopyBufferToTexture` and `CopyTextureToBuffer`.
+constexpr uint32_t kTextureBytesPerRowAlignment = 256u;
+
 struct ScopedIOSurfaceLock {
   ScopedIOSurfaceLock(IOSurfaceRef iosurface, IOSurfaceLockOptions options)
       : io_surface_(iosurface), options_(options) {
@@ -76,9 +80,9 @@ struct ScopedIOSurfaceLock {
   const IOSurfaceLockOptions options_;
 };
 
-// Returns BufferFormat for given multiplanar `format`.
-gfx::BufferFormat GetBufferFormatForPlane(viz::SharedImageFormat format,
-                                          int plane) {
+// Returns planar format for given multiplanar `format`.
+viz::SharedImageFormat GetFormatForPlane(viz::SharedImageFormat format,
+                                         int plane) {
   DCHECK(format.is_multi_plane());
   DCHECK(format.IsValidPlaneIndex(plane));
 
@@ -87,13 +91,13 @@ gfx::BufferFormat GetBufferFormatForPlane(viz::SharedImageFormat format,
   DCHECK_LE(num_channels, 2);
   switch (format.channel_format()) {
     case viz::SharedImageFormat::ChannelFormat::k8:
-      return num_channels == 2 ? gfx::BufferFormat::RG_88
-                               : gfx::BufferFormat::R_8;
+      return num_channels == 2 ? viz::SinglePlaneFormat::kRG_88
+                               : viz::SinglePlaneFormat::kR_8;
     case viz::SharedImageFormat::ChannelFormat::k10:
     case viz::SharedImageFormat::ChannelFormat::k16:
     case viz::SharedImageFormat::ChannelFormat::k16F:
-      return num_channels == 2 ? gfx::BufferFormat::RG_1616
-                               : gfx::BufferFormat::R_16;
+      return num_channels == 2 ? viz::SinglePlaneFormat::kRG_1616
+                               : viz::SinglePlaneFormat::kR_16;
   }
   NOTREACHED();
 }
@@ -244,6 +248,141 @@ class BackpressureMetalSharedEventImpl final
 };
 
 }  // namespace
+
+IOSurfaceImageBacking::DawnBufferCopyRepresentation::
+    DawnBufferCopyRepresentation(
+        SharedImageManager* manager,
+        SharedImageBacking* backing,
+        MemoryTypeTracker* tracker,
+        const wgpu::Device& device,
+        std::unique_ptr<DawnImageRepresentation> dawn_image_representation)
+    : DawnBufferRepresentation(manager, backing, tracker),
+      device_(device),
+      dawn_image_representation_(std::move(dawn_image_representation)) {}
+
+IOSurfaceImageBacking::DawnBufferCopyRepresentation::
+    ~DawnBufferCopyRepresentation() = default;
+
+wgpu::Buffer IOSurfaceImageBacking::DawnBufferCopyRepresentation::BeginAccess(
+    wgpu::BufferUsage usage) {
+  auto scoped_access = dawn_image_representation_->BeginScopedAccess(
+      wgpu::TextureUsage::CopySrc, wgpu::TextureUsage::None,
+      /*allow_uncleared=*/AllowUnclearedAccess::kYes);
+  wgpu::Texture texture = scoped_access->texture();
+  if (!texture) {
+    LOG(ERROR) << "Failed to begin access to Dawn texture.";
+    return nullptr;
+  }
+
+  // TODO(crbug.com/427252761): Directly import as a buffer then copy to a
+  // packed buffer. This requries SharedBufferMemory implementation.
+
+  // 1. Create a temporary staging buffer with the required alignment for
+  // CopyTextureToBuffer
+  uint32_t bytes_per_pixel = format().BitsPerPixel() / 8;
+  uint32_t packed_bytes_per_row = bytes_per_pixel * size().width();
+  uint32_t aligned_bytes_per_row =
+      base::bits::AlignUp(packed_bytes_per_row, kTextureBytesPerRowAlignment);
+
+  wgpu::BufferDescriptor staging_desc;
+  staging_desc.size = aligned_bytes_per_row * size().height();
+  staging_desc.usage = wgpu::BufferUsage::CopySrc | wgpu::BufferUsage::CopyDst;
+  wgpu::Buffer staging_buffer = device_.CreateBuffer(&staging_desc);
+
+  // 2. Copy from the texture to the aligned staging buffer
+  wgpu::TexelCopyTextureInfo source;
+  source.texture = texture;
+  source.mipLevel = 0;
+  source.origin = {0, 0, 0};
+  source.aspect = wgpu::TextureAspect::All;
+
+  wgpu::TexelCopyBufferInfo staging_destination;
+  staging_destination.buffer = staging_buffer;
+  staging_destination.layout.offset = 0;
+  staging_destination.layout.bytesPerRow = aligned_bytes_per_row;
+  staging_destination.layout.rowsPerImage = size().height();
+
+  wgpu::Extent3D copySize = {static_cast<uint32_t>(size().width()),
+                             static_cast<uint32_t>(size().height()), 1};
+
+  wgpu::CommandEncoder encoder = device_.CreateCommandEncoder();
+  encoder.CopyTextureToBuffer(&source, &staging_destination, &copySize);
+
+  // 3. Create the final packed destination buffer
+  wgpu::BufferDescriptor final_buffer_desc;
+  final_buffer_desc.size = packed_bytes_per_row * size().height();
+  final_buffer_desc.usage = usage | wgpu::BufferUsage::CopySrc;
+  buffer_ = device_.CreateBuffer(&final_buffer_desc);
+
+  // 4. Copy from the staging buffer to the final packed buffer, row by row.
+  for (int y = 0; y < size().height(); ++y) {
+    uint64_t source_offset = y * aligned_bytes_per_row;
+    uint64_t destination_offset = y * packed_bytes_per_row;
+    encoder.CopyBufferToBuffer(staging_buffer, source_offset, buffer_,
+                               destination_offset, packed_bytes_per_row);
+  }
+
+  wgpu::CommandBuffer command_buffer = encoder.Finish();
+  device_.GetQueue().Submit(1, &command_buffer);
+
+  return buffer_;
+}
+
+void IOSurfaceImageBacking::DawnBufferCopyRepresentation::EndAccess() {
+  // Copy the data back to the texture.
+  auto scoped_access = dawn_image_representation_->BeginScopedAccess(
+      wgpu::TextureUsage::CopyDst, wgpu::TextureUsage::None,
+      /*allow_uncleared=*/AllowUnclearedAccess::kNo);
+  wgpu::Texture texture = scoped_access->texture();
+  if (!texture) {
+    DLOG(ERROR) << "Failed to begin access to Dawn texture.";
+    return;
+  }
+
+  // Create a staging buffer with the required alignment for
+  // CopyBufferToTexture.
+  uint32_t bytes_per_pixel = format().BitsPerPixel() / 8;
+  uint32_t packed_bytes_per_row = bytes_per_pixel * size().width();
+
+  uint32_t aligned_bytes_per_row =
+      base::bits::AlignUp(packed_bytes_per_row, kTextureBytesPerRowAlignment);
+
+  wgpu::BufferDescriptor staging_desc;
+  staging_desc.size = aligned_bytes_per_row * size().height();
+  staging_desc.usage = wgpu::BufferUsage::CopySrc | wgpu::BufferUsage::CopyDst;
+  wgpu::Buffer staging_buffer = device_.CreateBuffer(&staging_desc);
+
+  wgpu::CommandEncoder encoder = device_.CreateCommandEncoder();
+
+  // Copy from the packed buffer to the staging buffer row by row.
+  for (int y = 0; y < size().height(); ++y) {
+    uint64_t source_offset = y * packed_bytes_per_row;
+    uint64_t destination_offset = y * aligned_bytes_per_row;
+    encoder.CopyBufferToBuffer(buffer_, source_offset, staging_buffer,
+                               destination_offset, packed_bytes_per_row);
+  }
+
+  // Now copy from the staging buffer to the texture.
+  wgpu::TexelCopyBufferInfo source;
+  source.buffer = staging_buffer;
+  source.layout.offset = 0;
+  source.layout.bytesPerRow = aligned_bytes_per_row;
+  source.layout.rowsPerImage = size().height();
+
+  wgpu::TexelCopyTextureInfo destination;
+  destination.texture = texture;
+  destination.mipLevel = 0;
+  destination.origin = {0, 0, 0};
+  destination.aspect = wgpu::TextureAspect::All;
+
+  wgpu::Extent3D copySize = {static_cast<uint32_t>(size().width()),
+                             static_cast<uint32_t>(size().height()), 1};
+
+  encoder.CopyBufferToTexture(&source, &destination, &copySize);
+
+  wgpu::CommandBuffer command_buffer = encoder.Finish();
+  device_.GetQueue().Submit(1, &command_buffer);
+}
 
 WebNNIOSurfaceTensorRepresentation::WebNNIOSurfaceTensorRepresentation(
     SharedImageManager* manager,
@@ -1707,7 +1846,25 @@ bool IOSurfaceImageBacking::BeginAccessWebNN() {
 
 void IOSurfaceImageBacking::EndAccessWebNN() {
   AutoLock auto_lock(this);
+
   EndAccess(/*readonly=*/false);
+}
+
+std::unique_ptr<DawnBufferRepresentation>
+IOSurfaceImageBacking::ProduceDawnBuffer(
+    SharedImageManager* manager,
+    MemoryTypeTracker* tracker,
+    const wgpu::Device& device,
+    wgpu::BackendType backend_type,
+    scoped_refptr<SharedContextState> context_state) {
+  auto dawn_image_representation =
+      ProduceDawn(manager, tracker, device, backend_type, /*view_formats=*/{},
+                  context_state);
+  if (!dawn_image_representation) {
+    return nullptr;
+  }
+  return std::make_unique<DawnBufferCopyRepresentation>(
+      manager, this, tracker, device, std::move(dawn_image_representation));
 }
 
 bool IOSurfaceImageBacking::BeginAccess(bool readonly) {
@@ -1812,27 +1969,27 @@ bool IOSurfaceImageBacking::IOSurfaceBackingEGLStateBeginAccess(
     std::vector<std::unique_ptr<gl::ScopedEGLSurfaceIOSurface>> egl_surfaces;
     for (int plane_index = 0; plane_index < format().NumberOfPlanes();
          plane_index++) {
-      gfx::BufferFormat buffer_format;
+      viz::SharedImageFormat plane_format;
       if (format().is_single_plane()) {
-        buffer_format = ToBufferFormat(format());
+        plane_format = format();
         // See comments in IOSurfaceImageBackingFactory::CreateSharedImage about
         // RGBA versus BGRA when using Skia Ganesh GL backend or ANGLE.
         if (io_surface_format_ == 'BGRA') {
-          if (buffer_format == gfx::BufferFormat::RGBA_8888) {
-            buffer_format = gfx::BufferFormat::BGRA_8888;
-          } else if (buffer_format == gfx::BufferFormat::RGBX_8888) {
-            buffer_format = gfx::BufferFormat::BGRX_8888;
+          if (plane_format == viz::SinglePlaneFormat::kRGBA_8888) {
+            plane_format = viz::SinglePlaneFormat::kBGRA_8888;
+          } else if (plane_format == viz::SinglePlaneFormat::kRGBX_8888) {
+            plane_format = viz::SinglePlaneFormat::kBGRX_8888;
           }
         }
       } else {
         // For multiplanar formats (without external sampler) get planar buffer
         // format.
-        buffer_format = GetBufferFormatForPlane(format(), plane_index);
+        plane_format = GetFormatForPlane(format(), plane_index);
       }
 
       auto egl_surface = gl::ScopedEGLSurfaceIOSurface::Create(
           egl_state->egl_display_, egl_state->GetGLTarget(), io_surface_.get(),
-          plane_index, buffer_format);
+          plane_index, plane_format);
       if (!egl_surface) {
         LOG(ERROR) << "Failed to create ScopedEGLSurfaceIOSurface.";
         EndAccess(readonly);

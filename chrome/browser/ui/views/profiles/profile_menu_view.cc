@@ -69,8 +69,9 @@
 #include "chrome/browser/ui/views/controls/hover_button.h"
 #include "chrome/browser/ui/views/profiles/badged_profile_photo.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
+#include "chrome/browser/ui/webui/signin/signin_ui_error.h"
+#include "chrome/browser/ui/webui/signin/signin_utils_desktop.h"
 #include "chrome/common/pref_names.h"
-#include "chrome/common/url_constants.h"
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/theme_resources.h"
@@ -218,10 +219,13 @@ ProfileMenuView::ProfileMenuView(
 ProfileMenuView::~ProfileMenuView() = default;
 
 void ProfileMenuView::OnClose() {
-  if (!actionable_item_clicked()) {
-    // Launch a HaTS survey only if the user dismissed the profile menu by
-    // clicking outside or pressing the Escape key. Do not launch if a button
-    // within the menu was clicked.
+  bool is_browser_window_active =
+      skip_window_active_check_for_testing_ ||
+      (browser().window() && browser().window()->IsActive());
+  if (!actionable_item_clicked() && is_browser_window_active) {
+    // Launch a HaTS survey only if the user dismissed the menu without
+    // selecting an item (e.g., by clicking outside or pressing ESC), and the
+    // browser window remains active.
     signin::LaunchSigninHatsSurveyForProfile(
         kHatsSurveyTriggerIdentityProfileMenuDismissed, &profile());
   }
@@ -683,10 +687,28 @@ ProfileMenuView::GetIdentitySectionParams(const ProfileAttributesEntry& entry) {
       signin_metrics::AccessPoint::kAvatarBubbleSignIn;
   switch (signin_util::GetSignedInState(identity_manager)) {
     case signin_util::SignedInState::kSignedOut:
-      if (profile().GetPrefs()->GetBoolean(prefs::kSigninAllowed)) {
+    case signin_util::SignedInState::kWebOnlySignedIn: {
+      AccountInfo account_info_for_promos =
+          signin_ui_util::GetSingleAccountForPromos(identity_manager);
+      if (!CanOfferSignin(&profile(), account_info_for_promos.gaia,
+                          account_info_for_promos.email,
+                          /*allow_account_from_other_profile=*/true)
+               .IsOk()) {
+        break;
+      }
+
+      access_point =
+          signin_metrics::AccessPoint::kAvatarBubbleSignInWithSyncPromo;
+      signin_metrics::LogSignInOffered(
+          explicit_signin_access_point_.value_or(access_point),
+          account_info_for_promos.IsEmpty()
+              ? signin_metrics::PromoAction::
+                    PROMO_ACTION_NEW_ACCOUNT_NO_EXISTING_ACCOUNT
+              : signin_metrics::PromoAction::PROMO_ACTION_WITH_DEFAULT);
+
+      if (account_info_for_promos.IsEmpty()) {
+        // Non-personalized signin button.
         button_type = ActionableItem::kSigninButton;
-        access_point =
-            signin_metrics::AccessPoint::kAvatarBubbleSignInWithSyncPromo;
         params.subtitle = l10n_util::GetStringUTF16(
             base::FeatureList::IsEnabled(
                 syncer::kReplaceSyncPromosWithSignInPromos)
@@ -694,17 +716,9 @@ ProfileMenuView::GetIdentitySectionParams(const ProfileAttributesEntry& entry) {
                 : IDS_PROFILE_MENU_SIGNIN_PROMO_DESCRIPTION);
         params.button_text =
             l10n_util::GetStringUTF16(IDS_PROFILE_MENU_SIGNIN_PROMO_BUTTON);
-        signin_metrics::LogSignInOffered(
-            explicit_signin_access_point_.value_or(access_point),
-            signin_metrics::PromoAction::
-                PROMO_ACTION_NEW_ACCOUNT_NO_EXISTING_ACCOUNT);
+        break;
       }
-      break;
-    case signin_util::SignedInState::kWebOnlySignedIn: {
-      access_point =
-          signin_metrics::AccessPoint::kAvatarBubbleSignInWithSyncPromo;
-      AccountInfo account_info_for_promos =
-          signin_ui_util::GetSingleAccountForPromos(identity_manager);
+      // "Continue as" signin button.
       account_info_for_signin_action = account_info_for_promos;
       params.subtitle = l10n_util::GetStringFUTF16(
           base::FeatureList::IsEnabled(
@@ -738,9 +752,6 @@ ProfileMenuView::GetIdentitySectionParams(const ProfileAttributesEntry& entry) {
               account_image,
               /*width=*/kIdentityImageSizeForButton,
               /*height=*/kIdentityImageSizeForButton, profiles::SHAPE_CIRCLE));
-      signin_metrics::LogSignInOffered(
-          explicit_signin_access_point_.value_or(access_point),
-          signin_metrics::PromoAction::PROMO_ACTION_WITH_DEFAULT);
       break;
     }
     case signin_util::SignedInState::kSignedIn:

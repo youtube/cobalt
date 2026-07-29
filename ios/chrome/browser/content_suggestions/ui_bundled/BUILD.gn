@@ -48,9 +48,12 @@ source_set("coordinator") {
     "//ios/chrome/browser/bookmarks/model",
     "//ios/chrome/browser/commerce/model:shopping_service",
     "//ios/chrome/browser/commerce/model/push_notification",
+    "//ios/chrome/browser/content_suggestions/ui_bundled/app_bundle_promo/coordinator",
     "//ios/chrome/browser/content_suggestions/ui_bundled/cells",
     "//ios/chrome/browser/content_suggestions/ui_bundled/cells:most_visited_tiles",
     "//ios/chrome/browser/content_suggestions/ui_bundled/cells:shortcuts",
+    "//ios/chrome/browser/content_suggestions/ui_bundled/default_browser/coordinator",
+    "//ios/chrome/browser/content_suggestions/ui_bundled/default_browser/public:features",
     "//ios/chrome/browser/content_suggestions/ui_bundled/impression_limits",
     "//ios/chrome/browser/content_suggestions/ui_bundled/magic_stack",
     "//ios/chrome/browser/content_suggestions/ui_bundled/magic_stack:cells",
@@ -67,6 +70,7 @@ source_set("coordinator") {
     "//ios/chrome/browser/content_suggestions/ui_bundled/tab_resumption",
     "//ios/chrome/browser/content_suggestions/ui_bundled/tips",
     "//ios/chrome/browser/content_suggestions/ui_bundled/tips/ui",
+    "//ios/chrome/browser/default_browser/model",
     "//ios/chrome/browser/discover_feed/model",
     "//ios/chrome/browser/discover_feed/model:discover_feed_factory",
     "//ios/chrome/browser/docking_promo/ui",
@@ -137,7 +141,6 @@ source_set("coordinator") {
   if (ios_enable_widget_kit_extension) {
     deps += [ "//ios/chrome/browser/widget_kit/model:model_swift" ]
   }
-  public_deps = [ "//ios/third_party/material_components_ios" ]
 }
 
 source_set("commands") {
@@ -422,6 +425,7 @@ source_set("eg2_tests") {
     "//components/feature_engagement/public",
     "//components/feed/core/shared_prefs:feed_shared_prefs",
     "//components/feed/core/v2/public/ios:feed_ios_public",
+    "//components/omnibox/browser:aim_eligibility_service_features",
     "//components/regional_capabilities",
     "//components/search_engines",
     "//components/segmentation_platform/public",

@@ -6,6 +6,8 @@
 
 #include "base/containers/to_vector.h"
 #include "components/autofill/core/browser/country_type.h"
+#include "components/autofill/core/browser/form_parsing/determine_regex_types.h"
+#include "components/autofill/core/browser/form_qualifiers.h"
 #include "components/autofill/core/browser/form_structure.h"
 #include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #include "components/autofill/core/common/autocomplete_parsing_util.h"
@@ -224,21 +226,25 @@ void FormStructureTest::CheckFormStructureTestData(
     auto form_structure = std::make_unique<FormStructure>(form);
 
     if (test_case.form_flags.determine_heuristic_type) {
-      form_structure->DetermineHeuristicTypes(GeoIpCountryCode(""),
-                                              LanguageCode(""), nullptr);
+      const RegexPredictions regex_predictions =
+          DetermineRegexTypes(GeoIpCountryCode(""), LanguageCode(""),
+                              form_structure->ToFormData(), nullptr);
+      regex_predictions.ApplyTo(form_structure->fields());
+      form_structure->RationalizeAndAssignSections(GeoIpCountryCode(""),
+                                                   LanguageCode(""), nullptr);
     }
 
     if (test_case.form_flags.is_autofillable) {
-      EXPECT_TRUE(form_structure->IsAutofillable());
+      EXPECT_TRUE(IsAutofillable(*form_structure));
     }
     if (test_case.form_flags.should_be_parsed) {
-      EXPECT_TRUE(form_structure->ShouldBeParsed());
+      EXPECT_TRUE(ShouldBeParsed(*form_structure, /*log_manager=*/nullptr));
     }
     if (test_case.form_flags.should_be_queried) {
-      EXPECT_TRUE(form_structure->ShouldBeQueried());
+      EXPECT_TRUE(ShouldBeQueried(*form_structure));
     }
     if (test_case.form_flags.should_be_uploaded) {
-      EXPECT_TRUE(form_structure->ShouldBeUploaded());
+      EXPECT_TRUE(ShouldBeUploaded(*form_structure));
     }
     if (test_case.form_flags.has_author_specified_types) {
       EXPECT_TRUE(

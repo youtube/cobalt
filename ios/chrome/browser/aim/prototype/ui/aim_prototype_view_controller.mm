@@ -47,10 +47,6 @@ const CGFloat kCarouselHeight = 48.0f;
 const CGFloat kAIMButtonHeight = 32.0f;
 /// The width of the AIM mode button.
 const CGFloat kAIMButtonWidth = 94.0f;
-/// The size of the send button icon.
-const CGFloat kSendButtonIconSize = 40.0f;
-/// The size of the send button.
-const CGFloat kSendButtonSize = 40.0f;
 /// The spacing for the horizontal buttons stack view.
 const CGFloat kButtonsStackViewSpacing = 18.0f;
 /// The spacing for the main vertical input plate stack view.
@@ -65,10 +61,6 @@ const CGFloat kInputPlateStackViewVerticalPadding = 10.0f;
 const CGFloat kInputPlateStackViewLeadingPadding = 20.0f;
 /// The trailing padding for the input plate stack view.
 const CGFloat kInputPlateStackViewTrailingPadding = 12.0f;
-/// The alpha value for the send button when it is enabled.
-const CGFloat kSendButtonEnabledAlpha = 1.0f;
-/// The alpha value for the send button when it is disabled.
-const CGFloat kSendButtonDisabledAlpha = 0.3f;
 /// The font size for the AIM mode button title.
 const CGFloat kAIMButtonFontSize = 14.0f;
 /// The point size for the symbols in the AIM mode button.
@@ -101,8 +93,6 @@ const CGFloat kGlowEffectWidth = 4.0f;
   NSLayoutConstraint* _textViewHeightConstraint;
   /// The text view for user input.
   UITextView* _textView;
-  /// The button to send the user's query.
-  UIButton* _sendButton;
   /// The backing view for the animation.
   UIView* _mainViewForAnimation;
   /// The button to toggle AI mode.
@@ -170,6 +160,8 @@ const CGFloat kGlowEffectWidth = 4.0f;
   _textView.spellCheckingType = UITextSpellCheckingTypeNo;
   _textView.contentInsetAdjustmentBehavior =
       UIScrollViewContentInsetAdjustmentNever;
+  _textView.returnKeyType = UIReturnKeyGo;
+  _textView.enablesReturnKeyAutomatically = YES;
 
   // Calculate the initial height of the text view using `sizeThatFits:`. This
   // ensures the initial height is calculated using the exact same logic as the
@@ -304,8 +296,22 @@ const CGFloat kGlowEffectWidth = 4.0f;
                     aimPrototypeViewControllerDidTapCameraButton:weakSelf];
               }];
 
+  UIAction* fileAction = [UIAction
+      // TODO(crbug.com/40280872): Localize this string.
+      actionWithTitle:@"File"
+                image:DefaultSymbolWithPointSize(@"doc", kSymbolActionPointSize)
+           identifier:nil
+              handler:^(UIAction* action) {
+                [weakSelf.delegate
+                    aimPrototypeViewControllerDidTapFileButton:weakSelf];
+              }];
+
   plusButton.menu = [UIMenu menuWithTitle:@""
-                                 children:@[ cameraAction, galleryAction ]];
+                                 children:@[
+                                   fileAction,
+                                   galleryAction,
+                                   cameraAction,
+                                 ]];
 
   _aimButton = [UIButton buttonWithType:UIButtonTypeSystem];
   _aimButton.translatesAutoresizingMaskIntoConstraints = NO;
@@ -326,30 +332,10 @@ const CGFloat kGlowEffectWidth = 4.0f;
                 action:@selector(micButtonTapped)
       forControlEvents:UIControlEventTouchUpInside];
 
-  NSArray<UIColor*>* colors = @[
-    [UIColor colorNamed:kSolidWhiteColor],
-    [UIColor colorNamed:kBlue600Color],
-  ];
-  _sendButton = [UIButton buttonWithType:UIButtonTypeSystem];
-  [_sendButton setImage:SymbolWithPalette(
-                            DefaultSymbolWithPointSize(@"arrow.up.circle.fill",
-                                                       kSendButtonIconSize),
-                            colors)
-               forState:UIControlStateNormal];
-  [_sendButton addTarget:self
-                  action:@selector(sendButtonTapped)
-        forControlEvents:UIControlEventTouchUpInside];
-  _sendButton.translatesAutoresizingMaskIntoConstraints = NO;
-  [_sendButton.widthAnchor constraintEqualToConstant:kSendButtonSize].active =
-      YES;
-  [_sendButton.heightAnchor constraintEqualToConstant:kSendButtonSize].active =
-      YES;
-  [self updateSendButtonState];
-
   // Horizontal stack view for buttons
   UIStackView* buttonsStackView =
       [[UIStackView alloc] initWithArrangedSubviews:@[
-        plusButton, _aimButton, [UIView new], micButton, _sendButton
+        plusButton, _aimButton, [UIView new], micButton
       ]];
   buttonsStackView.translatesAutoresizingMaskIntoConstraints = NO;
   buttonsStackView.axis = UILayoutConstraintAxisHorizontal;
@@ -411,7 +397,6 @@ const CGFloat kGlowEffectWidth = 4.0f;
   [snapshot appendSectionsWithIdentifiers:@[ kMainSectionIdentifier ]];
   [snapshot appendItemsWithIdentifiers:items];
   [_dataSource applySnapshot:snapshot animatingDifferences:YES];
-  [self updateSendButtonState];
 }
 
 - (void)updateState:(AIMInputItemState)state
@@ -439,9 +424,24 @@ const CGFloat kGlowEffectWidth = 4.0f;
 
 #pragma mark - UITextViewDelegate
 
+// The final implementation in the omnibox is expected to use a UIKeyCommand
+// override to handle the return key. This delegate method is a temporary
+// solution for this prototype.
+- (BOOL)textView:(UITextView*)textView
+    shouldChangeTextInRange:(NSRange)range
+            replacementText:(NSString*)text {
+  if ([text isEqualToString:@"\n"]) {
+    [self.mutator sendText:textView.text];
+    textView.text = @"";
+    // Manually trigger textViewDidChange to update placeholder and layout.
+    [self textViewDidChange:textView];
+    return NO;
+  }
+  return YES;
+}
+
 - (void)textViewDidChange:(UITextView*)textView {
   _placeholderLabel.hidden = textView.hasText;
-  [self updateSendButtonState];
 
   // Recalculate textView height and update it to clip and scroll if necessary.
   CGFloat verticalPadding =
@@ -493,10 +493,6 @@ const CGFloat kGlowEffectWidth = 4.0f;
   [self.delegate aimPrototypeViewControllerDidTapMicButton:self];
 }
 
-- (void)sendButtonTapped {
-  [self.mutator sendText:_textView.text];
-}
-
 - (void)stopGlowEffect {
   [_glowEffectView stopGlow];
 }
@@ -517,13 +513,6 @@ const CGFloat kGlowEffectWidth = 4.0f;
                   [cell configureWithItem:item];
                   return cell;
                 }];
-}
-
-- (void)updateSendButtonState {
-  BOOL enabled = _textView.hasText || _dataSource.snapshot.numberOfItems > 0;
-  _sendButton.enabled = enabled;
-  _sendButton.alpha =
-      enabled ? kSendButtonEnabledAlpha : kSendButtonDisabledAlpha;
 }
 
 - (void)updateAIMButtonAppearance {

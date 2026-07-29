@@ -38,15 +38,14 @@ HomeBackgroundCustomizationServiceFactory::
 
 std::unique_ptr<KeyedService>
 HomeBackgroundCustomizationServiceFactory::BuildServiceInstanceFor(
-    web::BrowserState* context) const {
-  ProfileIOS* profile = ProfileIOS::FromBrowserState(context);
+    ProfileIOS* profile) const {
   return std::make_unique<HomeBackgroundCustomizationService>(
       profile->GetPrefs(),
       UserUploadedImageManagerFactory::GetForProfile(profile),
       HomeBackgroundImageServiceFactory::GetForProfile(profile));
 }
 
-void HomeBackgroundCustomizationServiceFactory::RegisterBrowserStatePrefs(
+void HomeBackgroundCustomizationServiceFactory::RegisterProfilePrefs(
     user_prefs::PrefRegistrySyncable* registry) {
   HomeBackgroundCustomizationService::RegisterProfilePrefs(registry);
 }

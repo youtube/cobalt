@@ -10,8 +10,8 @@
 #import "base/memory/raw_ptr.h"
 #import "base/metrics/user_metrics.h"
 #import "base/strings/sys_string_conversions.h"
+#import "components/plus_addresses/core/browser/grit/plus_addresses_strings.h"
 #import "components/plus_addresses/core/browser/plus_address_ui_utils.h"
-#import "components/plus_addresses/grit/plus_addresses_strings.h"
 #import "components/plus_addresses/plus_address_service.h"
 #import "components/strings/grit/components_strings.h"
 #import "ios/chrome/browser/autofill/ui_bundled/manual_fill/manual_fill_action_cell.h"
@@ -24,7 +24,6 @@
 #import "ios/chrome/browser/favicon/model/favicon_loader.h"
 #import "ios/chrome/browser/menu/ui_bundled/browser_action_factory.h"
 #import "ios/chrome/browser/net/model/crurl.h"
-#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "net/base/registry_controlled_domains/registry_controlled_domain.h"
 #import "ui/base/l10n/l10n_util.h"
@@ -211,9 +210,7 @@
   NSMutableArray* items =
       [[NSMutableArray alloc] initWithCapacity:plusAddressesCount];
 
-  NSArray<UIAction*>* menuActions = IsKeyboardAccessoryUpgradeEnabled()
-                                        ? @[ [self createManageMenuAction] ]
-                                        : @[];
+  NSArray<UIAction*>* menuActions = @[ [self createManageMenuAction] ];
 
   for (int i = 0; i < plusAddressesCount; i++) {
     NSString* cellIndexAccessibilityLabel = base::SysUTF16ToNSString(

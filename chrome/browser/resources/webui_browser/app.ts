@@ -11,6 +11,7 @@ import './tab_strip.js';
 import './webview.js';
 import 'chrome://resources/cr_components/searchbox/searchbox.js';
 
+import {ColorChangeUpdater} from '//resources/cr_components/color_change_listener/colors_css_updater.js';
 import type {Tab} from '/tab_strip_api/tab_strip_api_data_model.mojom-webui.js';
 import type {SearchboxElement} from 'chrome://resources/cr_components/searchbox/searchbox.js';
 import {TrackedElementManager} from 'chrome://resources/js/tracked_element/tracked_element_manager.js';
@@ -57,6 +58,7 @@ export class WebuiBrowserAppElement extends CrLitElement implements
     return {
       backButtonDisabled_: {state: true, type: Boolean},
       forwardButtonDisabled_: {state: true, type: Boolean},
+      showingSidePanel_: {state: true, type: Boolean},
       reloadOrStopIcon_: {state: true, type: String},
     };
   }
@@ -67,17 +69,20 @@ export class WebuiBrowserAppElement extends CrLitElement implements
   protected accessor backButtonDisabled_: boolean = true;
   protected accessor forwardButtonDisabled_: boolean = true;
   protected accessor reloadOrStopIcon_: string = 'icon-refresh';
+  protected accessor showingSidePanel_: boolean = false;
 
   constructor() {
     super();
+    ColorChangeUpdater.forDocument().start();
 
     this.bookmarkBarController_ = new BookmarkBarController();
     this.tabStripController_ =
         new TabStripController(this, this.$.tabstrip, this.$.contentRegion);
-    this.trackedElementManager_ = new TrackedElementManager();
+    this.trackedElementManager_ = TrackedElementManager.getInstance();
 
     const callbackRouter = BrowserProxy.getCallbackRouter();
     callbackRouter.showSidePanel.addListener(this.showSidePanel_.bind(this));
+    callbackRouter.closeSidePanel.addListener(this.closeSidePanel_.bind(this));
   }
 
   override connectedCallback() {
@@ -85,9 +90,13 @@ export class WebuiBrowserAppElement extends CrLitElement implements
     // super.connectedCallback().
     super.connectedCallback();
     this.trackedElementManager_.startTracking(
+        this.$.address, 'kLocationBarElementId');
+    this.trackedElementManager_.startTracking(
         this.$.appMenuButton, 'kToolbarAppMenuButtonElementId');
     this.trackedElementManager_.startTracking(
         this.$.avatarButton, 'kToolbarAvatarButtonElementId');
+    this.trackedElementManager_.startTracking(
+        this.$.contentRegion, 'kContentsContainerViewElementId');
   }
 
   // TabStripControllerDelegate:
@@ -108,6 +117,7 @@ export class WebuiBrowserAppElement extends CrLitElement implements
       displayUrl = activeTabUrl;
     }
     this.$.address.setInputText(displayUrl);
+    this.$.contentRegion.classList.toggle('modalScrim', tabData.isBlocked);
   }
 
   protected onLaunchDevtoolsClick_(_: Event) {
@@ -247,8 +257,21 @@ export class WebuiBrowserAppElement extends CrLitElement implements
     this.reloadOrStopIcon_ = isLoading ? 'icon-clear' : 'icon-refresh';
   }
 
-  protected showSidePanel_(guestContentsId: number) {
-    this.$.sidePanel.show(guestContentsId);
+
+  protected showSidePanel_(guestContentsId: number, title: string) {
+    this.showingSidePanel_ = true;
+    this.$.sidePanel.show(guestContentsId, title);
+  }
+
+  protected closeSidePanel_() {
+    this.$.sidePanel.close();
+    this.showingSidePanel_ = false;
+  }
+
+  // This function is called when the side panel closes itself. For example,
+  // when user clicks the close "x" button.
+  protected onSidePanelClosed_() {
+    this.showingSidePanel_ = false;
   }
 }
 

@@ -111,7 +111,7 @@
 #include "services/network/devtools_durable_msg_collector.h"
 #include "services/network/disk_cache/mojo_backend_file_operations_factory.h"
 #include "services/network/host_resolver.h"
-#include "services/network/http_auth_cache_copier.h"
+#include "services/network/http_auth_cache_proxy_copier.h"
 #include "services/network/http_server_properties_pref_delegate.h"
 #include "services/network/ignore_errors_cert_verifier.h"
 #include "services/network/is_browser_initiated.h"
@@ -1026,7 +1026,7 @@ void NetworkContext::CreateURLLoaderFactory(
     mojom::URLLoaderFactoryParamsPtr params) {
   scoped_refptr<ResourceSchedulerClient> resource_scheduler_client =
       base::MakeRefCounted<ResourceSchedulerClient>(
-          ResourceScheduler::ClientId::Create(params->top_frame_id),
+          ResourceScheduler::ClientId::Create(),
           IsBrowserInitiated(params->process_id == mojom::kBrowserProcessId),
           resource_scheduler_.get(),
           url_request_context_->network_quality_estimator());
@@ -1385,6 +1385,19 @@ void NetworkContext::ComputeHttpCacheSize(
       url_request_context_, start_time, end_time,
       base::BindOnce(&NetworkContext::OnHttpCacheSizeComputed,
                      base::Unretained(this), std::move(callback))));
+}
+
+void NetworkContext::NotifyBrowserIdle() {
+  net::HttpCache* htp_cache =
+      url_request_context_->http_transaction_factory()->GetCache();
+  if (!htp_cache) {
+    return;
+  }
+  disk_cache::Backend* backend = htp_cache->GetCurrentBackend();
+  if (!backend) {
+    return;
+  }
+  backend->OnBrowserIdle();
 }
 
 void NetworkContext::ClearCorsPreflightCache(
@@ -1941,6 +1954,7 @@ void NetworkContext::CreateWebSocket(
     std::vector<mojom::HttpHeaderPtr> additional_headers,
     int32_t process_id,
     const url::Origin& origin,
+    network::mojom::ClientSecurityStatePtr client_security_state,
     uint32_t options,
     const net::MutableNetworkTrafficAnnotationTag& traffic_annotation,
     mojo::PendingRemote<mojom::WebSocketHandshakeClient> handshake_client,
@@ -1959,7 +1973,7 @@ void NetworkContext::CreateWebSocket(
   websocket_factory_->CreateWebSocket(
       url, requested_protocols, site_for_cookies, storage_access_api_status,
       isolation_info, std::move(additional_headers), process_id, origin,
-      options,
+      std::move(client_security_state), options,
       static_cast<net::NetworkTrafficAnnotationTag>(traffic_annotation),
       std::move(handshake_client), std::move(url_loader_network_observer),
       std::move(auth_handler), std::move(header_client), throttling_profile_id);
@@ -2472,7 +2486,7 @@ void NetworkContext::SaveHttpAuthCacheProxyEntries(
           ->GetSession()
           ->http_auth_cache();
   base::UnguessableToken cache_key =
-      network_service_->http_auth_cache_copier()->SaveHttpAuthCache(
+      network_service_->http_auth_cache_proxy_copier()->SaveHttpAuthCache(
           *http_auth_cache);
   std::move(callback).Run(cache_key);
 }
@@ -2484,7 +2498,7 @@ void NetworkContext::LoadHttpAuthCacheProxyEntries(
       url_request_context_->http_transaction_factory()
           ->GetSession()
           ->http_auth_cache();
-  network_service_->http_auth_cache_copier()->LoadHttpAuthCache(
+  network_service_->http_auth_cache_proxy_copier()->LoadHttpAuthCache(
       cache_key, http_auth_cache);
   std::move(callback).Run();
 }
@@ -2702,6 +2716,7 @@ URLRequestContextOwner NetworkContext::MakeURLRequestContext(
             std::move(params_->ip_protection_control), core_host_remote,
             mdl_manager, prt_registry, params_->enable_ip_protection,
             params_->ip_protection_incognito,
+            std::move(params_->initial_ip_protection_tokens),
             params_->ip_protection_data_directory);
     builder.set_proxy_delegate(
         std::make_unique<ip_protection::IpProtectionProxyDelegate>(
@@ -3413,12 +3428,6 @@ void NetworkContext::HasPreloadedSharedDictionaryInfoForTesting(
       shared_dictionary_manager_->HasPreloadedSharedDictionaryInfo());
 }
 
-void NetworkContext::ResourceSchedulerClientVisibilityChanged(
-    const base::UnguessableToken& client_token,
-    bool visible) {
-  resource_scheduler_->OnClientVisibilityChanged(client_token, visible);
-}
-
 void NetworkContext::FlushCachedClientCertIfNeeded(
     const net::HostPortPair& host,
     const scoped_refptr<net::X509Certificate>& certificate) {
@@ -3551,6 +3560,12 @@ void NetworkContext::GetIpProxyStatus(GetIpProxyStatusCallback callback) {
   }
 
   std::move(callback).Run(status);
+}
+
+void NetworkContext::SetBypassIpProtectionProxy(bool bypass_proxy) {
+  if (ip_protection_core()) {
+    ip_protection_core()->SetBypassProxy(bypass_proxy);
+  }
 }
 
 bool NetworkContext::IsNetworkForNonceAndUrlAllowed(

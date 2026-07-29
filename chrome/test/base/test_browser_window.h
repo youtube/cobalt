@@ -94,6 +94,7 @@ class TestBrowserWindow : public BrowserWindow, public BrowserListObserver {
       BookmarkBar::AnimateChangeType change_type) override {}
   void TemporarilyShowBookmarkBar(base::TimeDelta duration) override {}
   void UpdateDevTools(content::WebContents* inspected_web_contents) override {}
+  bool CanDockDevTools() const override;
   void UpdateLoadingAnimations(bool is_visible) override {}
   void SetStarredState(bool is_starred) override {}
   void OnActiveTabChanged(content::WebContents* old_contents,
@@ -273,7 +274,7 @@ class TestBrowserWindow : public BrowserWindow, public BrowserListObserver {
   bool IsClosed() const { return is_closed_; }
 
  protected:
-  void DestroyBrowser() override {}
+  void DeleteBrowserWindow() final;
 
  private:
   class TestLocationBar : public LocationBar {

@@ -2196,10 +2196,10 @@ data/accessibility/css/table-display-other.html
 data/accessibility/css/table-display.html
 data/accessibility/css/table-incomplete-expected-blink.txt
 data/accessibility/css/table-incomplete.html
-data/accessibility/css/target-current-html-anchor-role-expected-blink.txt
-data/accessibility/css/target-current-html-anchor-role.html
 data/accessibility/css/target-current-html-anchor-role-dynamic-expected-blink.txt
 data/accessibility/css/target-current-html-anchor-role-dynamic.html
+data/accessibility/css/target-current-html-anchor-role-expected-blink.txt
+data/accessibility/css/target-current-html-anchor-role.html
 data/accessibility/css/text-overflow-ellipsis-expected-blink.txt
 data/accessibility/css/text-overflow-ellipsis.html
 data/accessibility/css/transform-expected-blink.txt
@@ -4852,6 +4852,8 @@ data/accessibility/html/list-item-nested-div-expected-win.txt
 data/accessibility/html/list-item-nested-div.html
 data/accessibility/html/list-item-shadow-dom-line-navigation-expected-blink.txt
 data/accessibility/html/list-item-shadow-dom-line-navigation.html
+data/accessibility/html/list-marker-multiline-expected-blink.txt
+data/accessibility/html/list-marker-multiline.html
 data/accessibility/html/list-marker-styles-expected-blink.txt
 data/accessibility/html/list-marker-styles.html
 data/accessibility/html/list-markers-expected-android-assist-data.txt
@@ -6808,6 +6810,7 @@ data/blob_storage/blob_creation_and_slicing.html
 data/blob_storage/common.js
 data/blue.html
 data/body_overflow_hidden.html
+data/body_overflow_hidden_blocking_touch_handlers.html
 data/browsing_data/embedded_site_data.html
 data/browsing_data/embeds_storage_accessor.html
 data/browsing_data/empty.js
@@ -8144,6 +8147,7 @@ data/page_with_blur.html
 data/page_with_cached_subresource.html
 data/page_with_click_handler.html
 data/page_with_credentialless_iframe.html
+data/page_with_custom_lazy_image.html
 data/page_with_data_iframe_and_allow.html
 data/page_with_frameset.html
 data/page_with_hidden_iframe.html
@@ -8153,6 +8157,7 @@ data/page_with_iframe_and_link.html
 data/page_with_image.html
 data/page_with_image_redirect.html
 data/page_with_input_field.html
+data/page_with_lazy_image.html
 data/page_with_meta_refresh_frame.html
 data/page_with_multiple_cached_subresources.html
 data/page_with_multiple_iframes.html
@@ -8228,7 +8233,6 @@ data/prerender/image_loading_lazy.html
 data/prerender/inline_script.html
 data/prerender/multiple_prerender_with_tags.html
 data/prerender/multiple_prerender_with_tags_and_different_eagerness.html
-data/prerender/origin_trial_initiator.html
 data/prerender/page-with-embedded-plugin.html
 data/prerender/page-with-object-plugin.html
 data/prerender/page_with_trigger_function.html
@@ -8392,6 +8396,7 @@ data/service_worker/add_save_data_to_title.js
 data/service_worker/add_save_data_to_title.js.mock-http-headers
 data/service_worker/auto_preload.js
 data/service_worker/cached_fetch_event.js
+data/service_worker/canvas_noise_worker.js
 data/service_worker/client_api_worker.js
 data/service_worker/clients_claim_worker.js
 data/service_worker/create_service_worker.html

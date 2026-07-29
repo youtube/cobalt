@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#define TODO_BASE_FEATURE_MACROS_NEED_MIGRATION
+
 #include "content/public/browser/process_allocation_context.h"
 
 #include "base/feature_list.h"
@@ -43,8 +45,9 @@ ProcessAllocationContext ProcessAllocationContext::CreateForNavigationRequest(
     bool is_outermost_main_frame) {
   return ProcessAllocationContext{
       ProcessAllocationSource::kNavigationRequest,
-      NavigationProcessAllocationContext{stage, navigation_id,
-                                         is_outermost_main_frame}};
+      NavigationProcessAllocationContext{
+          stage, navigation_id, RequiresNewProcessForCoop(false),
+          IsOutermostMainFrame(is_outermost_main_frame)}};
 }
 
 }  // namespace content

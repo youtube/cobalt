@@ -4,40 +4,47 @@
 
 #include "ui/native_theme/native_theme_fluent.h"
 
+#include <algorithm>
+#include <cmath>
+
+#include "base/check_op.h"
 #include "base/no_destructor.h"
 #include "base/notreached.h"
+#include "base/numerics/safe_conversions.h"
 #include "cc/paint/paint_canvas.h"
 #include "cc/paint/paint_flags.h"
 #include "skia/ext/font_utils.h"
 #include "third_party/skia/include/core/SkFont.h"
 #include "third_party/skia/include/core/SkFontMgr.h"
+#include "third_party/skia/include/core/SkFontStyle.h"
 #include "third_party/skia/include/core/SkPath.h"
+#include "third_party/skia/include/core/SkRRect.h"
+#include "third_party/skia/include/core/SkRect.h"
+#include "third_party/skia/include/core/SkRefCnt.h"
 #include "third_party/skia/include/core/SkTextBlob.h"
+#include "third_party/skia/include/core/SkTypeface.h"
+#include "ui/color/color_id.h"
 #include "ui/color/color_provider.h"
-#include "ui/gfx/color_utils.h"
+#include "ui/gfx/geometry/insets.h"
+#include "ui/gfx/geometry/insets_f.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 #include "ui/gfx/geometry/rect_f.h"
 #include "ui/gfx/geometry/rrect_f.h"
+#include "ui/gfx/geometry/size.h"
+#include "ui/gfx/geometry/size_f.h"
+#include "ui/gfx/geometry/skia_conversions.h"
 #include "ui/native_theme/features/native_theme_features.h"
 #include "ui/native_theme/native_theme_constants_fluent.h"
 
 namespace ui {
 
-NativeThemeFluent::NativeThemeFluent(bool should_only_use_dark_colors)
-    : NativeThemeBase(should_only_use_dark_colors) {
-  set_use_overlay_scrollbar(CalculateUseOverlayScrollbar());
-  scrollbar_width_ = kFluentScrollbarThickness;
+NativeThemeFluent::NativeThemeFluent() {
+  set_use_overlay_scrollbar(IsFluentOverlayScrollbarEnabled());
+  scrollbar_width_ = kScrollbarThickness;
 }
 
 NativeThemeFluent::~NativeThemeFluent() = default;
-
-// static
-NativeThemeFluent* NativeThemeFluent::web_instance() {
-  static base::NoDestructor<NativeThemeFluent> s_native_theme_for_web(
-      /*should_only_use_dark_colors=*/false);
-  return s_native_theme_for_web.get();
-}
 
 void NativeThemeFluent::PaintArrowButton(
     cc::PaintCanvas* canvas,
@@ -134,7 +141,7 @@ gfx::Insets NativeThemeFluent::GetScrollbarSolidColorThumbInsets(
   return gfx::Insets();
 }
 
-SkColor4f NativeThemeFluent::GetScrollbarThumbColor(
+SkColor NativeThemeFluent::GetScrollbarThumbColor(
     const ui::ColorProvider& color_provider,
     State state,
     const ScrollbarThumbExtraParams& extra_params) const {
@@ -148,13 +155,12 @@ SkColor4f NativeThemeFluent::GetScrollbarThumbColor(
     }
     return kColorWebNativeControlScrollbarThumb;
   };
-  return SkColor4f::FromColor(
-      GetContrastingPressedOrHoveredColor(
-          extra_params.thumb_color,
-          extra_params.track_color.value_or(
-              color_provider.GetColor(kColorWebNativeControlScrollbarTrack)),
-          state, /*part=*/Part::kScrollbarVerticalThumb)
-          .value_or(color_provider.GetColor(get_color_id())));
+  return GetContrastingPressedOrHoveredColor(
+             extra_params.thumb_color,
+             extra_params.track_color.value_or(
+                 color_provider.GetColor(kColorWebNativeControlScrollbarTrack)),
+             state, /*part=*/Part::kScrollbarVerticalThumb)
+      .value_or(color_provider.GetColor(get_color_id()));
 }
 
 void NativeThemeFluent::PaintScrollbarCorner(
@@ -236,7 +242,7 @@ void NativeThemeFluent::PaintButton(
     outline_flags.setStyle(cc::PaintFlags::kStroke_Style);
     outline_flags.setStrokeWidth(kFluentScrollbarTrackOutlineWidth);
 
-    if (IsFluentOverlayScrollbarEnabled()) {
+    if (use_overlay_scrollbar()) {
       PaintRoundedButton(canvas, gfx::RectFToSkRect(outline_rect),
                          outline_flags, direction);
     } else {
@@ -248,7 +254,7 @@ void NativeThemeFluent::PaintButton(
     button_fill_rect.Inset(fill_insets + edge_insets);
   }
 
-  if (IsFluentOverlayScrollbarEnabled()) {
+  if (use_overlay_scrollbar()) {
     PaintRoundedButton(canvas, gfx::RectToSkRect(button_fill_rect), flags,
                        direction);
   } else {

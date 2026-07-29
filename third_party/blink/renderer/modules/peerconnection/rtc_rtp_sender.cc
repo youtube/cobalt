@@ -70,7 +70,7 @@ namespace features {
 
 // Killswitch for requesting key frames via setParameterOptions.
 // TODO(crbug.com/1354101): remove after rollout.
-BASE_FEATURE(WebRtcRequestKeyFrameViaSetParameterOptions,
+BASE_FEATURE(kWebRtcRequestKeyFrameViaSetParameterOptions,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 }  // namespace features

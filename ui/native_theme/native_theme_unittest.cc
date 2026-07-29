@@ -4,9 +4,12 @@
 
 #include "ui/native_theme/native_theme.h"
 
+#include <optional>
+
 #include "base/test/metrics/histogram_tester.h"
 #include "base/time/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/color/color_provider_key.h"
 
 namespace ui {
 
@@ -14,7 +17,7 @@ namespace {
 
 class TestNativeTheme : public NativeTheme {
  public:
-  TestNativeTheme() : NativeTheme(false) {}
+  TestNativeTheme() = default;
   TestNativeTheme(const TestNativeTheme&) = delete;
   TestNativeTheme& operator=(const TestNativeTheme&) = delete;
   ~TestNativeTheme() override = default;
@@ -85,7 +88,7 @@ TEST(NativeThemeTest, TestColorProviderKeyForcedColors) {
 
   theme.set_page_colors(NativeTheme::PageColors::kHighContrast);
   EXPECT_EQ(theme.GetForcedColorsKey(),
-            ColorProviderKey::ForcedColors::kActive);
+            ColorProviderKey::ForcedColors::kSystem);
 
   theme.set_forced_colors(false);
   theme.set_page_colors(NativeTheme::PageColors::kOff);

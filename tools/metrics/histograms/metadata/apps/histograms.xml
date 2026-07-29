@@ -2167,7 +2167,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Apps.AppsCount.{AppType}" units="Apps"
-    expires_after="2025-12-28">
+    expires_after="2026-03-01">
   <owner>ovn@google.com</owner>
   <owner>lt-web-apps-team@google.com</owner>
   <component>1389907</component>
@@ -2341,6 +2341,16 @@ chromium-metrics-reviews@google.com.
   <owner>pwa-team@google.com</owner>
   <summary>
     Records the result of creating shortcut for web app on MacOS.
+  </summary>
+</histogram>
+
+<histogram name="Apps.CreateShortcuts.Mac.UpdateSignatureResult"
+    enum="UpdateSignatureResult" expires_after="2025-12-02">
+  <owner>mek@chromium.org</owner>
+  <owner>pwa-team@google.com</owner>
+  <summary>
+    Records the result of updating the app shortcut's signature. This is
+    recorded when ad-hoc signing is used for web app shims.
   </summary>
 </histogram>
 
@@ -2784,7 +2794,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Apps.RunningDuration.{AppType}" units="ms"
-    expires_after="2025-12-28">
+    expires_after="2026-03-01">
   <owner>ovn@google.com</owner>
   <owner>lt-web-apps-team@google.com</owner>
   <component>1389907</component>
@@ -2955,7 +2965,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Apps.UsageTime.{AppType}" units="ms"
-    expires_after="2025-12-28">
+    expires_after="2026-03-01">
   <owner>ovn@google.com</owner>
   <owner>lt-web-apps-team@google.com</owner>
   <component>1389907</component>
@@ -2967,7 +2977,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Apps.UsageTimeV2.{AppTypeV2}" units="ms"
-    expires_after="2025-12-28">
+    expires_after="2026-03-01">
   <owner>ovn@google.com</owner>
   <owner>lt-web-apps-team@google.com</owner>
   <component>1389907</component>

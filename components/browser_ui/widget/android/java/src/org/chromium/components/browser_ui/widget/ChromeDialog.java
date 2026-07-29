@@ -9,6 +9,7 @@ import static android.view.ViewGroup.LayoutParams.MATCH_PARENT;
 import static org.chromium.build.NullUtil.assumeNonNull;
 
 import android.app.Activity;
+import android.content.res.TypedArray;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -24,11 +25,12 @@ import androidx.appcompat.widget.Toolbar;
 import org.chromium.base.DeviceInfo;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.components.browser_ui.util.AutomotiveUtils;
 import org.chromium.ui.base.ImmutableWeakReference;
+import org.chromium.ui.edge_to_edge.WindowSystemBarColorHelper;
 import org.chromium.ui.edge_to_edge.layout.EdgeToEdgeLayoutCoordinator;
 import org.chromium.ui.insets.InsetObserver;
+import org.chromium.ui.util.AttrUtils;
 
 /**
  * Dialog class in Chrome
@@ -44,6 +46,7 @@ public class ChromeDialog extends ComponentDialog {
     @Nullable private InsetObserver mInsetObserver;
     @Nullable private EdgeToEdgeLayoutCoordinator mEdgeToEdgeLayoutCoordinator;
     private final boolean mShouldPadForWindowInsets;
+    private final WindowSystemBarColorHelper mWindowColorHelper;
 
     /**
      * Constructs the dialog class in Chrome.
@@ -57,11 +60,11 @@ public class ChromeDialog extends ComponentDialog {
             Activity activity, @StyleRes int themeResId, boolean shouldPadForWindowInsets) {
         super(activity, themeResId);
         mActivity = activity;
-        if (themeResId == R.style.ThemeOverlay_BrowserUI_Fullscreen) {
-            mIsFullScreen = true;
-        } else {
-            mIsFullScreen = false;
-        }
+
+        TypedArray a = getContext().obtainStyledAttributes(themeResId, R.styleable.ChromeDialog);
+        mIsFullScreen = a.getBoolean(R.styleable.ChromeDialog_isDialogFullscreen, false);
+        a.recycle();
+
         mShouldPadForWindowInsets = shouldPadForWindowInsets;
         if (mShouldPadForWindowInsets && getWindow() != null) {
             mInsetObserver =
@@ -77,6 +80,7 @@ public class ChromeDialog extends ComponentDialog {
         // InsetObserver is reliably being created.
         // TODO(crbug.com/402995103): Clean up getWindow() null check assert.
         assert getWindow() != null : "Checking if there are cases when getWindow() is null";
+        mWindowColorHelper = new WindowSystemBarColorHelper(getWindow());
     }
 
     @Override
@@ -154,6 +158,20 @@ public class ChromeDialog extends ComponentDialog {
         }
     }
 
+    /**
+     * Set the navigation bar color. This is useful when the view attaching to the nav bar is
+     * different than the dialog's background.
+     *
+     * @param color Nav bar color for the current dialog.
+     */
+    public void setNavBarColor(int color) {
+        if (mEdgeToEdgeLayoutCoordinator != null) {
+            mEdgeToEdgeLayoutCoordinator.setNavigationBarColor(color);
+        } else {
+            mWindowColorHelper.setNavigationBarColor(color);
+        }
+    }
+
     private void setAutomotiveToolbarBackButtonAction() {
         Toolbar backButtonToolbarForAutomotive = findViewById(R.id.back_button_toolbar);
         if (backButtonToolbarForAutomotive != null) {
@@ -169,11 +187,13 @@ public class ChromeDialog extends ComponentDialog {
             mEdgeToEdgeLayoutCoordinator =
                     new EdgeToEdgeLayoutCoordinator(mActivity, mInsetObserver);
             mEdgeToEdgeLayoutCoordinator.setNavigationBarColor(
-                    SemanticColorUtils.getDefaultBgColor(mActivity));
+                    AttrUtils.resolveColor(
+                            getContext().getTheme(), android.R.attr.navigationBarColor));
             mEdgeToEdgeLayoutCoordinator.setNavigationBarDividerColor(
-                    SemanticColorUtils.getDefaultBgColor(mActivity));
+                    AttrUtils.resolveColor(
+                            getContext().getTheme(), android.R.attr.navigationBarDividerColor));
             mEdgeToEdgeLayoutCoordinator.setStatusBarColor(
-                    SemanticColorUtils.getDefaultBgColor(mActivity));
+                    AttrUtils.resolveColor(getContext().getTheme(), android.R.attr.statusBarColor));
         }
         return mEdgeToEdgeLayoutCoordinator;
     }

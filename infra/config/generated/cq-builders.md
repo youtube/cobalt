@@ -93,6 +93,18 @@ builder.
   Location filters:
   * [`//infra/config/generated/cq-usage/full.cfg`](https://cs.chromium.org/search?q=+file:infra/config/generated/cq-usage/full.cfg)
 
+* [linux-bluebird-rel](https://ci.chromium.org/p/chrome/builders/try/linux-bluebird-rel) ([definition](https://source.corp.google.com/search?q=+file:/try/.*\.star$+""linux-bluebird-rel""))
+
+  Location filters:
+  * [`//chrome/browser/actor/.+`](https://cs.chromium.org/chromium/src/chrome/browser/actor/)
+  * [`//chrome/browser/glic/.+`](https://cs.chromium.org/chromium/src/chrome/browser/glic/)
+  * [`//chrome/common/actor/.+`](https://cs.chromium.org/chromium/src/chrome/common/actor/)
+  * [`//chrome/renderer/actor/.+`](https://cs.chromium.org/chromium/src/chrome/renderer/actor/)
+  * [`//chrome/test/data/actor/.+`](https://cs.chromium.org/chromium/src/chrome/test/data/actor/)
+
+  This builder is only run when the CL owner is in the group:
+  * [`google/glic-internal-cq@google.com`](https://chrome-infra-auth.appspot.com/auth/lookup?p=google/glic-internal-cq@google.com)
+
 * [optimization_guide-linux](https://ci.chromium.org/p/chrome/builders/try/optimization_guide-linux) ([definition](https://source.corp.google.com/search?q=+file:/try/.*\.star$+""optimization_guide-linux""))
 
   Location filters:
@@ -880,7 +892,7 @@ as required builders.
   * Experiment percentage: 10.0
 
 * [mac15-arm64-rel](https://ci.chromium.org/p/chromium/builders/try/mac15-arm64-rel) ([definition](https://cs.chromium.org/search?q=+file:/try/.*\.star$+""mac15-arm64-rel""))
-  * Experiment percentage: 30.0
+  * Experiment percentage: 1.0
 
 * [tricium-clang-tidy](https://ci.chromium.org/p/chromium/builders/try/tricium-clang-tidy) ([definition](https://cs.chromium.org/search?q=+file:/try/.*\.star$+""tricium-clang-tidy""))
   * Experiment percentage: 100.0

@@ -73,6 +73,7 @@ include_rules = [
   "+components/browser_ui/photo_picker",
   "+components/browser_ui/util",
   "+components/browser_ui/share/android",
+  "+components/browser_ui/widget",
   "+components/browsing_data/content",
   "+components/continuous_search/common",
   "+components/continuous_search/browser",
@@ -590,7 +591,6 @@ specific_include_rules = {
     "+components/stylus_handwriting/win/features.h",
     "+mojo/core/embedder/features.h",
     "+sandbox/policy/features.h",
-    "+skia/rusty_png_feature.h",
   ],
   r"dbus_memory_pressure_evaluator_linux(_unittest)?\.(cc|h)" : [
     "+dbus",

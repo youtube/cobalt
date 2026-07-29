@@ -56,6 +56,7 @@ class SkDiscardableMemory;
 namespace viz {
 
 ContextProviderCommandBuffer::ContextProviderCommandBuffer(
+    base::PassKey<ContextProviderCommandBuffer> pass_key,
     scoped_refptr<gpu::GpuChannelHost> channel,
     int32_t stream_id,
     gpu::SchedulingPriority stream_priority,
@@ -80,6 +81,123 @@ ContextProviderCommandBuffer::ContextProviderCommandBuffer(
       buffer_mapper_(buffer_mapper) {
   DETACH_FROM_SEQUENCE(context_sequence_checker_);
   DCHECK(channel_);
+}
+
+ContextProviderCommandBuffer::ContextProviderCommandBuffer(
+    scoped_refptr<gpu::GpuChannelHost> channel)
+    : ContextProviderCommandBuffer(
+          base::PassKey<ContextProviderCommandBuffer>(),
+          channel,
+          /*stream_id=*/0,
+          gpu::SchedulingPriority::kNormal,
+          GURL(),
+          /*automatic_flushes=*/false,
+          /*support_locking=*/false,
+          gpu::SharedMemoryLimits(),
+          gpu::ContextCreationAttribs(),
+          command_buffer_metrics::ContextType::FOR_TESTING) {}
+
+// static
+scoped_refptr<ContextProviderCommandBuffer>
+ContextProviderCommandBuffer::CreateForGL(
+    scoped_refptr<gpu::GpuChannelHost> channel,
+    int32_t stream_id,
+    gpu::SchedulingPriority stream_priority,
+    const GURL& active_url,
+    command_buffer_metrics::ContextType type,
+    bool lose_context_when_out_of_memory) {
+  gpu::ContextCreationAttribs attributes;
+  attributes.enable_gles2_interface = true;
+  attributes.enable_raster_interface = false;
+  attributes.lose_context_when_out_of_memory = lose_context_when_out_of_memory;
+
+  return base::MakeRefCounted<ContextProviderCommandBuffer>(
+      base::PassKey<ContextProviderCommandBuffer>(), std::move(channel),
+      stream_id, stream_priority, active_url,
+      /*automatic_flushes=*/false, /*support_locking=*/false,
+      gpu::SharedMemoryLimits::ForMailboxContext(), attributes, type);
+}
+
+// static
+scoped_refptr<ContextProviderCommandBuffer>
+ContextProviderCommandBuffer::CreateForWebGL(
+    scoped_refptr<gpu::GpuChannelHost> channel,
+    const GURL& active_url,
+    WebGLContextType context_type,
+    bool prefer_low_power_gpu,
+    bool fail_if_major_performance_caveat) {
+  gpu::ContextCreationAttribs attributes;
+  attributes.enable_raster_interface = false;
+  attributes.enable_gpu_rasterization = false;
+  attributes.enable_gles2_interface = true;
+
+  attributes.gpu_preference = prefer_low_power_gpu
+                                  ? gl::GpuPreference::kLowPower
+                                  : gl::GpuPreference::kHighPerformance;
+
+  attributes.fail_if_major_perf_caveat = fail_if_major_performance_caveat;
+
+  switch (context_type) {
+    case WebGLContextType::kWebGL1:
+      attributes.context_type = gpu::CONTEXT_TYPE_WEBGL1;
+      break;
+    case WebGLContextType::kWebGL2:
+      attributes.context_type = gpu::CONTEXT_TYPE_WEBGL2;
+      break;
+  }
+
+  return base::MakeRefCounted<ContextProviderCommandBuffer>(
+      base::PassKey<ContextProviderCommandBuffer>(), std::move(channel),
+      /*stream_id=*/0, gpu::SchedulingPriority::kNormal, active_url,
+      /*automatic_flushes=*/true, /*support_locking=*/false,
+      gpu::SharedMemoryLimits(), attributes,
+      command_buffer_metrics::ContextType::WEBGL);
+}
+
+// static
+scoped_refptr<ContextProviderCommandBuffer>
+ContextProviderCommandBuffer::CreateForWebGPU(
+    scoped_refptr<gpu::GpuChannelHost> channel,
+    const GURL& active_url,
+    command_buffer_metrics::ContextType type,
+    base::SharedMemoryMapper* buffer_mapper) {
+  gpu::ContextCreationAttribs attributes;
+  // TODO(kainino): It's not clear yet how GPU preferences work for WebGPU.
+  attributes.gpu_preference = gl::GpuPreference::kHighPerformance;
+  attributes.enable_gles2_interface = false;
+  attributes.context_type = gpu::CONTEXT_TYPE_WEBGPU;
+
+  return base::MakeRefCounted<ContextProviderCommandBuffer>(
+      base::PassKey<ContextProviderCommandBuffer>(), std::move(channel),
+      /*stream_id=*/0, gpu::SchedulingPriority::kNormal, active_url,
+      /*automatic_flushes=*/true,
+      /*support_locking=*/false, gpu::SharedMemoryLimits::ForWebGPUContext(),
+      attributes, type, buffer_mapper);
+}
+
+// static
+scoped_refptr<ContextProviderCommandBuffer>
+ContextProviderCommandBuffer::CreateForRaster(
+    scoped_refptr<gpu::GpuChannelHost> channel,
+    int32_t stream_id,
+    gpu::SchedulingPriority stream_priority,
+    const GURL& active_url,
+    bool automatic_flushes,
+    bool support_locking,
+    const gpu::SharedMemoryLimits& memory_limits,
+    command_buffer_metrics::ContextType type,
+    bool enable_gpu_rasterization,
+    bool lose_context_when_out_of_memory) {
+  gpu::ContextCreationAttribs attributes;
+  attributes.enable_gles2_interface = false;
+  attributes.enable_raster_interface = true;
+  attributes.enable_gpu_rasterization = enable_gpu_rasterization;
+  attributes.lose_context_when_out_of_memory = lose_context_when_out_of_memory;
+
+  return base::MakeRefCounted<ContextProviderCommandBuffer>(
+      base::PassKey<ContextProviderCommandBuffer>(), std::move(channel),
+      stream_id, stream_priority, active_url, automatic_flushes,
+      support_locking, memory_limits, attributes, type);
 }
 
 ContextProviderCommandBuffer::~ContextProviderCommandBuffer() {
@@ -157,8 +275,8 @@ gpu::ContextResult ContextProviderCommandBuffer::BindToCurrentSequence() {
   }
 
   if (attributes_.context_type == gpu::CONTEXT_TYPE_WEBGPU) {
-    DCHECK(!attributes_.enable_raster_interface);
-    DCHECK(!attributes_.enable_gles2_interface);
+    CHECK(!attributes_.enable_raster_interface);
+    CHECK(!attributes_.enable_gles2_interface);
 
     auto webgpu_helper =
         std::make_unique<gpu::webgpu::WebGPUCmdHelper>(command_buffer_.get());
@@ -195,8 +313,8 @@ gpu::ContextResult ContextProviderCommandBuffer::BindToCurrentSequence() {
     webgpu_interface_ = std::move(webgpu_impl);
     transfer_buffer_ = std::move(transfer_buffer);
     helper_ = std::move(webgpu_helper);
-  } else if (attributes_.enable_raster_interface &&
-             !attributes_.enable_gles2_interface) {
+  } else if (attributes_.enable_raster_interface) {
+    CHECK(!attributes_.enable_gles2_interface);
     // The raster helper writes the command buffer protocol.
     auto raster_helper =
         std::make_unique<gpu::raster::RasterCmdHelper>(command_buffer_.get());
@@ -239,6 +357,7 @@ gpu::ContextResult ContextProviderCommandBuffer::BindToCurrentSequence() {
     transfer_buffer_ = std::move(transfer_buffer);
     helper_ = std::move(raster_helper);
   } else {
+    CHECK(attributes_.enable_gles2_interface);
     // The GLES2 helper writes the command buffer protocol.
     auto gles2_helper =
         std::make_unique<gpu::gles2::GLES2CmdHelper>(command_buffer_.get());
@@ -258,7 +377,6 @@ gpu::ContextResult ContextProviderCommandBuffer::BindToCurrentSequence() {
     // gpu::ContextSupport interface.
     auto gles2_impl = std::make_unique<gpu::gles2::GLES2Implementation>(
         gles2_helper.get(), /*share_group=*/nullptr, transfer_buffer.get(),
-        /*bind_generates_resource=*/false,
         attributes_.lose_context_when_out_of_memory, command_buffer_.get());
     bind_result_ = gles2_impl->Initialize(memory_limits_);
     if (bind_result_ != gpu::ContextResult::kSuccess) {
@@ -356,26 +474,7 @@ gpu::raster::RasterInterface* ContextProviderCommandBuffer::RasterInterface() {
   DCHECK_EQ(bind_result_, gpu::ContextResult::kSuccess);
   CheckValidSequenceOrLockAcquired();
 
-  if (raster_interface_) {
-    return raster_interface_.get();
-  }
-
-  if (!attributes_.enable_raster_interface) {
-    return nullptr;
-  }
-
-#if BUILDFLAG(IS_ANDROID)
-  // Android uses RasterDecoder exclusively.
-  NOTREACHED();
-#else
-  if (!gles2_impl_.get()) {
-    return nullptr;
-  }
-
-  raster_interface_ = std::make_unique<gpu::raster::RasterImplementationGLES>(
-      gles2_impl_.get(), gles2_impl_.get(), ContextCapabilities());
   return raster_interface_.get();
-#endif
 }
 
 gpu::ContextSupport* ContextProviderCommandBuffer::ContextSupport() {

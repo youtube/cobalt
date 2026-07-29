@@ -2,7 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//components/enterprise/buildflags/buildflags.gni")
 import("//ios/build/chrome_build.gni")
 
 source_set("flags") {
@@ -60,9 +59,11 @@ source_set("flags") {
     "//components/sharing_message",
     "//components/signin/core/browser",
     "//components/signin/ios/browser",
+    "//components/strike_database:features",
     "//components/strings:components_strings",
     "//components/supervised_user/core/common:features",
     "//components/sync/service",
+    "//components/sync_preferences:features",
     "//components/translate/core/browser",
     "//components/translate/core/common",
     "//components/unified_consent",
@@ -78,8 +79,10 @@ source_set("flags") {
     "//ios/chrome/browser/autofill/model:features",
     "//ios/chrome/browser/badges/model:features",
     "//ios/chrome/browser/browsing_data/model:feature_flags",
+    "//ios/chrome/browser/content_suggestions/ui_bundled/default_browser/public:features",
     "//ios/chrome/browser/crash_report/model",
     "//ios/chrome/browser/credential_provider/model:features",
+    "//ios/chrome/browser/default_browser/model:features",
     "//ios/chrome/browser/default_browser/model:utils",
     "//ios/chrome/browser/download/ui:features",
     "//ios/chrome/browser/drag_and_drop/model",
@@ -113,6 +116,7 @@ source_set("flags") {
     "//ios/chrome/browser/text_selection/model:model_utils",
     "//ios/chrome/browser/web/model:feature_flags",
     "//ios/chrome/browser/whats_new/coordinator:util",
+    "//ios/components/enterprise/data_controls:features",
     "//ios/components/security_interstitials/https_only_mode:feature",
     "//ios/public/provider/chrome/browser/app_utils:app_utils_api",
     "//ios/web/common",
@@ -120,10 +124,6 @@ source_set("flags") {
     "//ios/web/common:web_view_creation_util",
     "//ios/web/public",
   ]
-
-  if (enterprise_data_controls) {
-    deps += [ "//ios/chrome/browser/enterprise/data_controls:features" ]
-  }
 
   if (ios_enable_screen_time) {
     deps += [ "//ios/chrome/browser/screen_time/model:feature_flags" ]

@@ -65,6 +65,7 @@
 #include "third_party/blink/renderer/core/probe/core_probes.h"
 #include "third_party/blink/renderer/core/workers/worker_or_worklet_global_scope.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
+#include "third_party/blink/renderer/platform/bindings/script_forbidden_scope.h"
 #include "third_party/blink/renderer/platform/bindings/source_location.h"
 #include "third_party/blink/renderer/platform/bindings/v8_dom_activity_logger.h"
 #include "third_party/blink/renderer/platform/instrumentation/histogram.h"
@@ -754,21 +755,21 @@ bool EventTarget::removeEventListener(
 bool EventTarget::removeEventListener(const AtomicString& event_type,
                                       const EventListener* listener,
                                       bool use_capture) {
-  EventListenerOptions* options = EventListenerOptions::Create();
-  options->setCapture(use_capture);
+  RegisteredEventListener::OptionsForMatching options(use_capture);
   return RemoveEventListenerInternal(event_type, listener, options);
 }
 
 bool EventTarget::removeEventListener(const AtomicString& event_type,
                                       const EventListener* listener,
                                       EventListenerOptions* options) {
-  return RemoveEventListenerInternal(event_type, listener, options);
+  RegisteredEventListener::OptionsForMatching match_options(options->capture());
+  return RemoveEventListenerInternal(event_type, listener, match_options);
 }
 
 bool EventTarget::RemoveEventListenerInternal(
     const AtomicString& event_type,
     const EventListener* listener,
-    const EventListenerOptions* options) {
+    const RegisteredEventListener::OptionsForMatching& options) {
   if (!listener)
     return false;
 
@@ -1023,7 +1024,27 @@ bool EventTarget::FireEventListeners(Event& event,
   }
   bool fired_listener = false;
 
+  // Animation triggers are processed first
+  {
+    ScriptForbiddenScope no_script;
+    for (auto& registered_listener : entry) {
+      if (registered_listener->IsAnimationTrigger() &&
+          registered_listener->ShouldFire(event)) {
+        EventListener* listener = registered_listener->Callback();
+        if (registered_listener->Once()) {
+          removeEventListener(event.type(), listener,
+                              registered_listener->Capture());
+        }
+        listener->Invoke(context, &event);
+      }
+    }
+  }
+
   for (auto& registered_listener : entry) {
+    if (registered_listener->IsAnimationTrigger()) {
+      continue;
+    }
+
     if (registered_listener->Removed()) [[unlikely]] {
       continue;
     }

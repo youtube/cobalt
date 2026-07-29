@@ -31,6 +31,7 @@
 #import "ios/chrome/browser/shared/public/commands/application_commands.h"
 #import "ios/chrome/browser/shared/public/commands/open_new_tab_command.h"
 #import "ios/chrome/browser/shared/public/commands/snackbar_commands.h"
+#import "ios/chrome/browser/shared/public/snackbar/snackbar_message.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_multi_line_text_edit_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_multi_line_text_edit_item_delegate.h"
@@ -1116,10 +1117,9 @@ bool ShouldAllowToRestoreWarning(DetailsContext context, bool is_muted) {
   TriggerHapticFeedbackForNotification(success
                                            ? UINotificationFeedbackTypeSuccess
                                            : UINotificationFeedbackTypeError);
-  [self.snackbarHandler showSnackbarWithMessage:message
-                                     buttonText:nil
-                                  messageAction:nil
-                               completionAction:nil];
+  SnackbarMessage* snackbarMessage =
+      [[SnackbarMessage alloc] initWithTitle:message];
+  [self.snackbarHandler showCustomSnackbarMessage:snackbarMessage];
 
   if ([self.tableView indexPathForSelectedRow]) {
     [self.tableView

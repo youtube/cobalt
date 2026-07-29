@@ -201,6 +201,10 @@ public final class ProductionSupportedFlagList {
                 "Enables using the new ALPS codepoint to negotiate application settings for"
                         + " HTTP2."),
         Flag.baseFeature(
+                BlinkFeatures.ASYNC_TOUCH_MOVES_IMMEDIATELY_AFTER_SCROLL,
+                "Send touch move events as async or non-blocking to Renderer immediately after a"
+                        + " scroll has started."),
+        Flag.baseFeature(
                 BlinkFeatures.LAYOUT_NG_SHAPE_CACHE, "Cache shape results for short text blocks."),
         Flag.baseFeature(
                 BlinkFeatures.FORCE_OFF_TEXT_AUTOSIZING,
@@ -268,9 +272,6 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(
                 AutofillFeatures.AUTOFILL_IGNORE_CHECKABLE_ELEMENTS,
                 "Does not extract checkboxes and radio buttons"),
-        Flag.baseFeature(
-                AutofillFeatures.AUTOFILL_OPTIMIZE_FORM_EXTRACTION,
-                "Makes Autofill spend less time on extracting forms."),
         Flag.baseFeature(
                 AutofillFeatures.AUTOFILL_ENABLE_LOYALTY_CARDS_FILLING,
                 "When enabled, Autofill will offer support for filling the user's loyalty cards"
@@ -910,11 +911,6 @@ public final class ProductionSupportedFlagList {
                 ContentFeatures.IGNORE_DUPLICATE_NAVS,
                 "Ignore duplicate navigations, keeping the older navigations instead."),
         Flag.baseFeature("OverrideAPIKey"),
-        Flag.baseFeature(
-                "RustyPng", "When enabled, uses Rust `png` crate to decode and encode PNG images."),
-        Flag.baseFeature(
-                BlinkFeatures.ESCAPE_LT_GT_IN_ATTRIBUTES,
-                "When enabled, less-than and greater-than characters in attributes are escaped."),
         Flag.baseFeature("CacheStylusSettings", "Cache stylus related settings."),
         Flag.baseFeature(
                 "AsyncFastCheckout", "When enabled, run FastCheckoutTabHelper asynchronously."),

@@ -22,7 +22,6 @@
 #include "build/build_config.h"
 #include "ipc/ipc.mojom.h"
 #include "ipc/ipc_channel.h"
-#include "ipc/ipc_channel_factory.h"
 #include "ipc/ipc_message_pipe_reader.h"
 #include "ipc/ipc_mojo_bootstrap.h"
 
@@ -48,19 +47,6 @@ class COMPONENT_EXPORT(IPC) ChannelMojo
       const scoped_refptr<base::SingleThreadTaskRunner>& ipc_task_runner,
       const scoped_refptr<base::SingleThreadTaskRunner>& proxy_task_runner);
 
-  // Create a factory object for ChannelMojo.
-  // The factory is used to create Mojo-based ChannelProxy family.
-  // |host| must not be null.
-  static std::unique_ptr<ChannelFactory> CreateServerFactory(
-      mojo::ScopedMessagePipeHandle handle,
-      const scoped_refptr<base::SingleThreadTaskRunner>& ipc_task_runner,
-      const scoped_refptr<base::SingleThreadTaskRunner>& proxy_task_runner);
-
-  static std::unique_ptr<ChannelFactory> CreateClientFactory(
-      mojo::ScopedMessagePipeHandle handle,
-      const scoped_refptr<base::SingleThreadTaskRunner>& ipc_task_runner,
-      const scoped_refptr<base::SingleThreadTaskRunner>& proxy_task_runner);
-
   ChannelMojo(const ChannelMojo&) = delete;
   ChannelMojo& operator=(const ChannelMojo&) = delete;
 
@@ -75,15 +61,6 @@ class COMPONENT_EXPORT(IPC) ChannelMojo
   bool Send(Message* message) override;
   Channel::AssociatedInterfaceSupport* GetAssociatedInterfaceSupport() override;
   void SetUrgentMessageObserver(UrgentMessageObserver* observer) override;
-
-  // These access protected API of IPC::Message, which has ChannelMojo
-  // as a friend class.
-  static MojoResult WriteToMessageAttachmentSet(
-      std::optional<std::vector<mojo::native::SerializedHandlePtr>> handles,
-      Message* message);
-  static MojoResult ReadFromMessageAttachmentSet(
-      Message* message,
-      std::optional<std::vector<mojo::native::SerializedHandlePtr>>* handles);
 
   // MessagePipeReader::Delegate
   void OnPeerPidReceived(int32_t peer_pid) override;

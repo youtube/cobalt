@@ -170,7 +170,8 @@ BASE_FEATURE(kAutofillEnableFlatRateCardBenefitsFromCurinos,
 // instead of jumping straight to CVC or biometric auth.
 BASE_FEATURE(kAutofillEnableFpanRiskBasedAuthentication,
              "AutofillEnableFpanRiskBasedAuthentication",
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_ANDROID) || \
+    BUILDFLAG(IS_IOS)
              base::FEATURE_ENABLED_BY_DEFAULT);
 #else
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -189,7 +190,7 @@ BASE_FEATURE(kAutofillEnableVirtualCardJavaPaymentsDataManager,
 // payment data syncing instead of credit card form parsing.
 BASE_FEATURE(kAutofillEnableLoadBnplAllowlistAfterSyncing,
              "AutofillEnableLoadBnplAllowlistAfterSyncing",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, virtual card downstream enrollment will support multiple
 // requests at a time.
@@ -253,14 +254,6 @@ BASE_FEATURE(kAutofillLocalSaveCardBottomSheet,
              "AutofillLocalSaveCardBottomSheet",
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
-
-// When enabled, if credit card upload save encounters a card with the same four
-// digits as an existing server card but a different expiration date, it
-// requires that CVC was found in the flow before offering to save/update the
-// card.
-BASE_FEATURE(kAutofillRequireCvcForPossibleCardUpdate,
-             "AutofillRequireCvcForPossibleCardUpdate",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, Chrome will try to fetch payment account image resources again
 // upon failure. The number of attempts is a controllable parameter. This is a
@@ -329,12 +322,6 @@ BASE_FEATURE(kAutofillSyncEwalletAccounts,
              "AutofillSyncEwalletAccounts",
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
-
-// If enabled, the Autofill strike system will not block features. Intended for
-// debugging/testing use only and should never be launched to users.
-BASE_FEATURE(kDisableAutofillStrikeSystem,
-             "DisableAutofillStrikeSystem",
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool ShouldShowImprovedUserConsentForCreditCardSave() {
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_LINUX)

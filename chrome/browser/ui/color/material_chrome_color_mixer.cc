@@ -36,12 +36,9 @@ void ApplyDefaultChromeRefreshToolbarColors(ui::ColorMixer& mixer,
   mixer[kColorAppMenuHighlightSeverityMedium] = {kColorAppMenuHighlightDefault};
   mixer[kColorAppMenuHighlightSeverityHigh] = {kColorAppMenuHighlightDefault};
 
-  if (base::FeatureList::IsEnabled(
-          features::kEnableAppMenuButtonColorsForDefaultAvatarButtonStates)) {
-    mixer[kColorAvatarButtonHighlightDefaultForeground] = {
-        kColorAppMenuExpandedForegroundDefault};
-    mixer[kColorAvatarButtonHighlightDefault] = {kColorAppMenuHighlightDefault};
-  }
+  mixer[kColorAvatarButtonHighlightDefaultForeground] = {
+      kColorAppMenuExpandedForegroundDefault};
+  mixer[kColorAvatarButtonHighlightDefault] = {kColorAppMenuHighlightDefault};
 
   mixer[kColorAvatarButtonHighlightManagementForeground] = {
       kColorAvatarButtonHighlightDefaultForeground};
@@ -177,8 +174,7 @@ void AddMaterialChromeColorMixer(ui::ColorProvider* provider,
   // Split View colors.
   mixer[kColorSplitViewBackground] = {ui::kColorSysSurface2};
   mixer[kColorSplitViewScrim] = ui::SetAlpha(ui::kColorRefNeutral99, 0x99);
-  mixer[kColorMulitContentsViewMiniToolbarForeground] = {
-      ui::kColorSysOnSurfaceSubtle};
+  mixer[kColorMulitContentsViewMiniToolbarForeground] = {kColorToolbarText};
 
   // Side Panel colors.
   mixer[kColorSidePanelBackground] = {ui::kColorSysBaseContainer};
@@ -281,12 +277,6 @@ void AddMaterialChromeColorMixer(ui::ColorProvider* provider,
       ui::kColorSysOnTonalContainer};
   mixer[kColorAppMenuChipInkDropHover] = {ui::kColorSysStateHoverOnSubtle};
   mixer[kColorAppMenuChipInkDropRipple] = {ui::kColorSysStateRipplePrimary};
-  if (!base::FeatureList::IsEnabled(
-          features::kEnableAppMenuButtonColorsForDefaultAvatarButtonStates)) {
-    mixer[kColorAvatarButtonHighlightDefault] = {ui::kColorSysTonalContainer};
-    mixer[kColorAvatarButtonHighlightDefaultForeground] = {
-        ui::kColorSysOnTonalContainer};
-  }
   mixer[kColorAvatarButtonHighlightSyncPaused] = {
       kColorAvatarButtonHighlightDefault};
   mixer[kColorAvatarButtonHighlightSigninPaused] = {
@@ -335,6 +325,10 @@ void AddMaterialChromeColorMixer(ui::ColorProvider* provider,
   mixer[kColorMediaRouterIconActive] =
       ui::PickGoogleColor(ui::kColorSysPrimary, kColorToolbar,
                           color_utils::kMinimumVisibleContrastRatio);
+
+  mixer[kColorMulitContentsViewMiniToolbarForeground] = {
+      ui::kColorSysOnSurfaceSubtle};
+
   mixer[kColorNewTabButtonFocusRing] = ui::PickGoogleColorTwoBackgrounds(
       ui::kColorSysStateFocusRing,
       ui::GetResultingPaintColor(kColorNewTabButtonBackgroundFrameActive,

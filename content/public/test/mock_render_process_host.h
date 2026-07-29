@@ -7,6 +7,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+
 #include <map>
 #include <memory>
 #include <set>
@@ -143,7 +144,6 @@ class MockRenderProcessHost : public RenderProcessHost {
   void DumpProcessStack() override;
 #endif
   void SetSuddenTerminationAllowed(bool allowed) override;
-  bool SuddenTerminationAllowed() override;
   BrowserContext* GetBrowserContext() override;
   bool InSameStoragePartition(StoragePartition* partition) override;
   IPC::ChannelProxy* GetChannel() override;
@@ -359,9 +359,9 @@ class MockRenderProcessHostFactory : public RenderProcessHostFactory {
 
   ~MockRenderProcessHostFactory() override;
 
-  RenderProcessHost* CreateRenderProcessHost(
-      BrowserContext* browser_context,
-      SiteInstance* site_instance) override;
+  // Builds MockRenderProcessHost and stores it in `processes_`.
+  RenderProcessHost* CreateRenderProcessHost(BrowserContext* browser_context,
+                                             SiteInstance* site_instance) final;
 
   // Removes the given MockRenderProcessHost from the MockRenderProcessHost
   // list.
@@ -372,7 +372,12 @@ class MockRenderProcessHostFactory : public RenderProcessHostFactory {
     return &processes_;
   }
 
- private:
+ protected:
+  // Builds MockRenderProcessHost.
+  virtual std::unique_ptr<MockRenderProcessHost> BuildRenderProcessHost(
+      BrowserContext* browser_context,
+      SiteInstance* site_instance);
+
   // A list of MockRenderProcessHosts created by this object. This list is used
   // for deleting all MockRenderProcessHosts that have not deleted by a test in
   // the destructor and prevent them from being leaked.

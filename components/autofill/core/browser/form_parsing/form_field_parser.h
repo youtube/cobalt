@@ -12,9 +12,11 @@
 #include <utility>
 #include <vector>
 
+#include "base/compiler_specific.h"
 #include "base/containers/lru_cache.h"
+#include "base/containers/span.h"
 #include "base/feature_list.h"
-#include "base/functional/callback.h"
+#include "base/functional/function_ref.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
@@ -151,7 +153,10 @@ class FormFieldParser {
     // matched or how well the regex matched to improve match prioritisation.
   };
   struct FieldAndMatchInfo {
-    raw_ptr<const FormFieldData> field = internal::IsRequired();
+    FieldAndMatchInfo(const FormFieldData* field LIFETIME_BOUND,
+                      MatchInfo match_info)
+        : field(*field), match_info(match_info) {}
+    raw_ref<const FormFieldData> field = internal::IsRequired();
     MatchInfo match_info = internal::IsRequired();
   };
 
@@ -263,7 +268,7 @@ class FormFieldParser {
   // MatchParams after dereferencing the `MatchPatternRef`s.
   static bool ParseField(
       ParsingContext& context,
-      AutofillScanner* scanner,
+      AutofillScanner& scanner,
       std::string_view regex_name,
       std::optional<FieldAndMatchInfo>* match = nullptr,
       MatchParams (*match_pattern_projection)(const MatchParams&) = nullptr);
@@ -271,7 +276,7 @@ class FormFieldParser {
   // Attempts to parse a field with an empty label. Returns true
   // on success and fills |match| with a pointer to the field.
   static bool ParseEmptyLabel(ParsingContext& context,
-                              AutofillScanner* scanner,
+                              AutofillScanner& scanner,
                               std::optional<FieldAndMatchInfo>* match);
 
   // Attempts to parse several fields using the specified parsing functions in
@@ -282,9 +287,9 @@ class FormFieldParser {
   // If no order is matched every parser, false is returned, all fields are
   // reset to nullptr and the scanner is rewound to it's original position.
   static bool ParseInAnyOrder(
-      AutofillScanner* scanner,
-      std::vector<std::pair<raw_ptr<const FormFieldData>*,
-                            base::RepeatingCallback<bool()>>>
+      AutofillScanner& scanner,
+      base::span<const std::pair<raw_ptr<const FormFieldData>*,
+                                 base::FunctionRef<bool()>>>
           fields_and_parsers);
 
   // Adds an association between a `match` and a `type` into `field_candidates`.
@@ -314,7 +319,7 @@ class FormFieldParser {
   // ParseFormFieldsPass() helper function.
   typedef std::unique_ptr<FormFieldParser> ParseFunction(
       ParsingContext& context,
-      AutofillScanner* scanner);
+      AutofillScanner& scanner);
 
   // Removes checkable fields and returns fields to be processed for field
   // detection.

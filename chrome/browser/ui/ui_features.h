@@ -141,7 +141,7 @@ BASE_DECLARE_FEATURE(kReloadSelectionModel);
 
 BASE_DECLARE_FEATURE(kScrimForBrowserWindowModal);
 
-BASE_DECLARE_FEATURE(KScrimForTabModal);
+BASE_DECLARE_FEATURE(kScrimForTabModal);
 
 BASE_DECLARE_FEATURE(kSideBySide);
 
@@ -205,6 +205,7 @@ BASE_DECLARE_FEATURE(kSidePanelResizing);
 BASE_DECLARE_FEATURE(kSidePanelSearchCompanion);
 
 BASE_DECLARE_FEATURE(kTabGroupsCollapseFreezing);
+BASE_DECLARE_FEATURE(kTabGroupHoverCards);
 
 #if !BUILDFLAG(IS_ANDROID)
 // General improvements to tab group menus
@@ -311,10 +312,6 @@ BASE_DECLARE_FEATURE(kEnterpriseProfileBadgingPolicies);
 BASE_DECLARE_FEATURE(kEnterpriseManagementDisclaimerUsesCustomLabel);
 BASE_DECLARE_FEATURE(kManagedProfileRequiredInterstitial);
 
-// Enables using the same colors used for the default app menu button for the
-// avatar button states using default colors.
-BASE_DECLARE_FEATURE(kEnableAppMenuButtonColorsForDefaultAvatarButtonStates);
-
 BASE_DECLARE_FEATURE(kWebUITabStrip);
 
 // Controls whether the context menu is shown on a touch press or a touch
@@ -419,6 +416,12 @@ BASE_DECLARE_FEATURE(kNonMilestoneUpdateToast);
 BASE_DECLARE_FEATURE(kBookmarkTabGroupConversion);
 
 bool IsBookmarkTabGroupConversionEnabled();
+
+#if BUILDFLAG(IS_ANDROID)
+BASE_DECLARE_FEATURE(kAndroidAnimatedProgressBarInBrowser);
+
+bool IsAndroidAnimatedProgressBarInBrowserEnabled();
+#endif  // BUILDFLAG(IS_ANDROID)
 
 }  // namespace features
 

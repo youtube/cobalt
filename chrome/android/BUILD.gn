@@ -37,7 +37,7 @@ if (_is_default_toolchain) {
   import("//chrome/common/features.gni")
   import("//chrome/version.gni")
   import("//components/password_manager/core/browser/buildflags.gni")
-  import("//components/plus_addresses/buildflags.gni")
+  import("//components/plus_addresses/core/browser/buildflags.gni")
   import("//content/public/common/features.gni")
   import("//device/vr/buildflags/buildflags.gni")
   import("//printing/buildflags/buildflags.gni")
@@ -258,7 +258,7 @@ if (_is_default_toolchain) {
       "//components/page_info/android:java_resources",
       "//components/payments/content/android:java_resources",
       "//components/permissions/android:java_resources",
-      "//components/plus_addresses/resources/strings:strings_grd",
+      "//components/plus_addresses/core/browser/resources/strings:strings_grd",
       "//components/policy:app_restrictions_resources",
       "//components/strings:components_locale_settings_grd",
       "//components/strings:components_strings_grd",
@@ -384,6 +384,7 @@ if (_is_default_toolchain) {
       "//chrome/browser/data_sharing:factory_java",
       "//chrome/browser/data_sharing:instant_message_delegate_factory_java",
       "//components/credential_management/android:java",
+      "//components/enterprise/client_certificates/android:browser_binding_java",
       "//components/visited_url_ranking/public:public_java",
       "//google_apis/gaia/android:java",
 
@@ -656,6 +657,7 @@ if (_is_default_toolchain) {
       "//components/offline_items_collection/core:core_java",
       "//components/omnibox/browser:browser_java",
       "//components/omnibox/common:features_java",
+      "//components/optimization_guide/content/browser/android:optimization_guide_content_java",
       "//components/optimization_guide/proto:optimization_guide_proto_java",
       "//components/page_image_service/mojom:mojo_bindings_java",
       "//components/page_info/android:java",
@@ -732,7 +734,6 @@ if (_is_default_toolchain) {
       "//mojo/public/java/system:system_impl_java",
       "//mojo/public/mojom/base:base_java",
       "//net/android:net_java",
-      "//services/data_decoder/public/cpp/android:safe_json_java",
       "//services/device/public/java:device_feature_list_java",
       "//services/device/public/mojom:mojom_java",
       "//services/media_session/public/cpp/android:media_session_java",
@@ -2747,11 +2748,11 @@ if (_is_default_toolchain) {
              "chrome_android",
              "--zero-tests-executed-ok",
            ]
-    data = [ "//third_party/blink/web_tests/platform/android/" ]
     data_deps = [
       ":chrome_public_apk",
       "//chrome/test/chromedriver:chromedriver_server($host_toolchain)",
       "//third_party/blink/tools:wpt_tests_android_isolate",
+      "//third_party/blink/web_tests:wpt_tests",
     ]
   }
 

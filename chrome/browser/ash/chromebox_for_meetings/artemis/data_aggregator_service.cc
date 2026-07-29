@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ash/chromebox_for_meetings/artemis/data_aggregator_service.h"
 
+#include "base/metrics/histogram_functions.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "chrome/browser/ash/chromebox_for_meetings/artemis/log_source.h"
@@ -25,9 +26,9 @@ static DataAggregatorService* g_data_aggregator_service = nullptr;
 constexpr base::TimeDelta kFetchFrequency = base::Minutes(1);
 constexpr size_t kDefaultLogBatchSize = 100;  // lines
 
-constexpr size_t kPayloadMaxSizeBytes = 500 * 1000;  // 500Kb
+constexpr size_t kPayloadMaxSizeBytes = 50 * 1000;  // 50Kb
 constexpr base::TimeDelta kPayloadEnqueueTimeout = base::Minutes(10);
-constexpr size_t kMaxPayloadQueueSize = 3;  // # payloads
+constexpr size_t kMaxPayloadQueueSize = 10;  // # payloads
 
 constexpr base::TimeDelta kServiceAdaptorRetryDelay = base::Seconds(1);
 constexpr size_t kServiceAdaptorRetryMaxTries = 5;
@@ -331,6 +332,8 @@ void DataAggregatorService::OnRequestBindUploadService(
   if (num_tries >= kServiceAdaptorRetryMaxTries) {
     LOG(ERROR) << "Retry limit reached for connecting to " << interface_name
                << ". Remote calls will fail.";
+    base::UmaHistogramEnumeration(kSetupStatusMetricName,
+                                  SetupStatus::kLoggerServiceBindFailure);
     return;
   }
 
@@ -377,6 +380,8 @@ void DataAggregatorService::OnRequestBindDeviceInfoService(
   if (num_tries >= kServiceAdaptorRetryMaxTries) {
     LOG(ERROR) << "Retry limit reached for connecting to " << interface_name
                << ". Remote calls will fail.";
+    base::UmaHistogramEnumeration(kSetupStatusMetricName,
+                                  SetupStatus::kDeviceInfoServiceBindFailure);
     return;
   }
 
@@ -420,6 +425,8 @@ void DataAggregatorService::StorePolicyInfo(
   if (!policy_info->service_account_email_address.has_value()) {
     LOG(ERROR)
         << "Unable to determine robot email! Cloud logging will be disabled.";
+    base::UmaHistogramEnumeration(kSetupStatusMetricName,
+                                  SetupStatus::kNoRobotEmailFound);
     return;
   }
 
@@ -433,6 +440,9 @@ void DataAggregatorService::StorePolicyInfo(
   VLOG(1) << "Assigning device ID " << policy_info->device_id.value()
           << " and email "
           << policy_info->service_account_email_address.value();
+
+  base::UmaHistogramEnumeration(kSetupStatusMetricName,
+                                SetupStatus::kSetupSucceeded);
 
   InitializeLocalSources();
   StartFetchTimer();
@@ -475,6 +485,17 @@ void DataAggregatorService::FetchFromAllSourcesAndEnqueue() {
 
   // Wait for enqueue callback to fire before fetching more data.
   if (enqueue_in_progress_) {
+    return;
+  }
+
+  // If the queue is full, halt fetches until we can catch up. Note that
+  // a full queue implies that we've begun the enqueue process for the
+  // first item, which will continue to attempt an enqueue until it
+  // succeeds, at which point it will trigger the enqueue for the next
+  // one. In other words, we should never reach a deadlocked state where
+  // `Fetch()` calls are halted AND enqueues are halted.
+  if (pending_transport_payloads_.size() >= kMaxPayloadQueueSize) {
+    LOG(WARNING) << "Payload queue is at capacity. Forgoing next fetch.";
     return;
   }
 
@@ -591,11 +612,8 @@ void DataAggregatorService::AddActivePayloadToPendingQueue() {
 
   pending_transport_payloads_.push(std::move(pending_payload));
 
-  // Drop front element if queue grows too large.
-  if (pending_transport_payloads_.size() > kMaxPayloadQueueSize) {
-    LOG(WARNING) << "Payload queue grew too large. Dropping oldest.";
-    pending_transport_payloads_.pop();
-  }
+  base::UmaHistogramCounts100(kPayloadQueueSizeMetricName,
+                              pending_transport_payloads_.size());
 
   VLOG(2) << "Pushed payload into pending queue. New size: "
           << pending_transport_payloads_.size();
@@ -612,6 +630,10 @@ void DataAggregatorService::EnqueueNextPendingTransportPayload() {
   if (enqueue_in_progress_) {
     return;
   }
+
+  base::UmaHistogramCounts1M(
+      kEnqueuedPayloadSizeMetricName,
+      pending_transport_payloads_.front().ByteSizeLong());
 
   InitiateEnqueueRequest();
 }
@@ -642,12 +664,35 @@ void DataAggregatorService::HandleEnqueueResponse(
     chromeos::cfm::mojom::LoggerStatusPtr status) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
+  enum LoggerResponse response;
+
+  if (status->code == chromeos::cfm::mojom::LoggerErrorCode::kOk) {
+    response = LoggerResponse::kOk;
+  } else if (status->code ==
+             chromeos::cfm::mojom::LoggerErrorCode::kOutOfRange) {
+    response = LoggerResponse::kDeniedDueToThrottling;
+  } else if (status->code ==
+             chromeos::cfm::mojom::LoggerErrorCode::kUnauthenticated) {
+    response = LoggerResponse::kUnauthenticated;
+  } else if (status->code ==
+             chromeos::cfm::mojom::LoggerErrorCode::kUnavailable) {
+    response = LoggerResponse::kUnavailable;
+  } else {
+    response = LoggerResponse::kOther;
+  }
+
+  base::UmaHistogramEnumeration(kLoggerServiceResponseMetricName, response);
+
   if (status->code != chromeos::cfm::mojom::LoggerErrorCode::kOk) {
     enqueue_retry_backoff_.InformOfRequest(/*succeeded=*/false);
     auto retry_delay = enqueue_retry_backoff_.GetTimeUntilRelease();
 
     LOG(ERROR) << "Recent enqueue failed with error code: " << status->code
                << ". Trying again in " << retry_delay;
+
+    current_enqueue_retries_++;
+    base::UmaHistogramTimes(kTimeWaitedBeforeEnqueueRetryMetricName,
+                            retry_delay);
 
     // Note: we call the helper directly here to force the attempt to go
     // through, despite `enqueue_in_progress_` being set. We can't unset
@@ -678,9 +723,16 @@ void DataAggregatorService::HandleEnqueueResponse(
     data_source_map_[data_source]->Flush();
   }
 
+  base::UmaHistogramCounts1000(kNumberOfRetriesBeforeSuccessfulEnqueueMetricName,
+                               current_enqueue_retries_);
+
+  base::UmaHistogramTimes(kTimeSinceLastSuccessfulEnqueueMetricName,
+                          base::TimeTicks::Now() - last_upload_time_);
+
   // Clean up.
   enqueue_in_progress_ = false;
   last_upload_time_ = base::TimeTicks::Now();
+  current_enqueue_retries_ = 0;
   pending_transport_payloads_.pop();
 
   // Try another transfer if the queue is still populated.

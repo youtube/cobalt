@@ -427,11 +427,12 @@ class BLINK_PLATFORM_EXPORT Platform {
 
   // Process lifetime management -----------------------------------------
 
-  // Disable/Enable sudden termination on a process level. When possible, it
-  // is preferable to disable sudden termination on a per-frame level via
-  // mojom::LocalFrameHost::SuddenTerminationDisablerChanged.
-  // This method should only be called on the main thread.
-  virtual void SuddenTerminationChanged(bool enabled) {}
+  // Allows/disallows sudden termination at the process level. May only be
+  // called on the main thread. Frame-level disablers use
+  // LocalFrame::UpdateSuddenTerminationStatus() instead of this. Disallowing
+  // sudden termination delays when the process is terminated by the browser but
+  // doesn't keep it alive.
+  virtual void SetSuddenTerminationAllowed(bool allowed) {}
 
   // System --------------------------------------------------------------
 
@@ -478,11 +479,11 @@ class BLINK_PLATFORM_EXPORT Platform {
 
   // GPU ----------------------------------------------------------------
   //
-  enum ContextType {
+  enum WebGLContextType {
     kWebGL1ContextType,  // WebGL 1.0 context, use only for WebGL canvases
     kWebGL2ContextType,  // WebGL 2.0 context, use only for WebGL canvases
   };
-  struct GraphicsInfo {
+  struct WebGLContextInfo {
     unsigned vendor_id = 0;
     unsigned device_id = 0;
     unsigned reset_notification_strategy = 0;
@@ -504,11 +505,18 @@ class BLINK_PLATFORM_EXPORT Platform {
   virtual std::unique_ptr<WebGraphicsContext3DProvider>
   CreateWebGLGraphicsContextProvider(bool prefer_low_power_gpu,
                                      bool fail_if_major_performance_caveat,
-                                     ContextType context_type,
+                                     WebGLContextType context_type,
                                      const WebURL& document_url,
-                                     GraphicsInfo*);
+                                     WebGLContextInfo*);
+
+  enum class RasterContextType {
+    kSharedGpuContextWorker,
+    kVideoTrackRecorder,
+    kWebCodecsReadback,
+  };
   virtual std::unique_ptr<WebGraphicsContext3DProvider>
-  CreateRasterGraphicsContextProvider(const WebURL& document_url);
+  CreateRasterGraphicsContextProvider(const WebURL& document_url,
+                                      RasterContextType context_type);
 
   // Returns a newly allocated and initialized offscreen context provider,
   // backed by the process-wide shared main thread context. Returns null if

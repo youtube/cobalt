@@ -19,6 +19,7 @@
 <translation id="1062138828266376352">No se cambió tu PIN. Revisa la conexión a Internet y vuelve a intentarlo.</translation>
 <translation id="1063070031224282617">Elige dónde guardar "<ph name="BEGIN_BOLD" /><ph name="FILENAME" /><ph name="END_BOLD" />" (<ph name="FILE_SIZE" />)</translation>
 <translation id="1072476005125066234">Opiniones basadas en tus intereses</translation>
+<translation id="1072679792409426431">Inhabilitado por tu administrador</translation>
 <translation id="1074827084851510304">Estás a punto de borrar {password_count} contraseñas y la lista de sitios y apps para los que elegiste no guardar información de acceso. No se borrarán las cuentas que hayas creado para sitios y apps.</translation>
 <translation id="1076421457278169141">Código escaneado</translation>
 <translation id="1081114897601629648">No se importaron las siguientes contraseñas al Administrador de contraseñas de Google porque no cumplen con los requisitos.</translation>
@@ -348,6 +349,7 @@
 <translation id="2287614783861766820">{count,plural, =1{Esta dirección se borrará de este dispositivo.}other{Estas direcciones se borrarán de este dispositivo.}}</translation>
 <translation id="2297989278479054870">Después de salir, los favoritos, las contraseñas y otros datos de tu Cuenta de Google se quitarán de este dispositivo.</translation>
 <translation id="2299218006564889602">Las contraseñas se encriptan en tu dispositivo antes de guardarse en el Administrador de contraseñas de Google.</translation>
+<translation id="2306265833370324042">Mostrar detalles de <ph name="SEARCH_ENGINE_NAME" /></translation>
 <translation id="2309265394777270359">Cerrar pestaña</translation>
 <translation id="2311077293164383652">Cerrar la pestaña fija</translation>
 <translation id="2316129865977710310">No, gracias</translation>
@@ -671,7 +673,6 @@ Consulta las instrucciones de tu motor de búsqueda para borrar el historial de 
 <translation id="3631443864840848029">Asegúrate de guardar la contraseña actual para este sitio.</translation>
 <translation id="3642060527569456384">Los grupos de pestañas se guardan y actualizan automáticamente en todos tus dispositivos.</translation>
 <translation id="3643338347976071250">{count,plural, =1{{count} contraseña se guarda solo en este dispositivo. Para usarla en otros dispositivos, guárdala en tu Cuenta de Google, {email}.}other{{count} contraseñas se guardan solo en este dispositivo. Para usarlas en tus otros dispositivos, guárdalas en tu Cuenta de Google, {email}.}}</translation>
-<translation id="3650299480924308502">Cuando salgas, se borrarán los datos no guardados de este dispositivo. Esto puede incluir contraseñas, historial y más.</translation>
 <translation id="3659297405161482746">No se encontraron formas de pago</translation>
 <translation id="3668816008081204991">La Lista de lectura está oculta</translation>
 <translation id="3670030362669914947">Número</translation>
@@ -696,7 +697,6 @@ Consulta las instrucciones de tu motor de búsqueda para borrar el historial de 
 <translation id="3789841737615482174">Instalar</translation>
 <translation id="380329542618494757">Nombre</translation>
 <translation id="3803696231112616155">Ofrecer traducir este sitio</translation>
-<translation id="3808311849069021992">Mostrar detalles del motor de búsqueda</translation>
 <translation id="3810973564298564668">Administrar</translation>
 <translation id="381219490185664296">¿Quieres desagrupar el grupo de pestañas?</translation>
 <translation id="3812308602011798782">Opiniones</translation>
@@ -1047,7 +1047,7 @@ Consulta las instrucciones de tu motor de búsqueda para borrar el historial de 
 <translation id="5118764316110575523">No</translation>
 <translation id="5119329531859909472">Para hacer un seguimiento del producto, presiona Realizar seguimiento</translation>
 <translation id="5121618895923301719">Ya estás realizando un seguimiento de este producto. Se guardó esta página en <ph name="BEGIN_LINK" />Favoritos del celular<ph name="END_LINK" />.</translation>
-<translation id="512533434554095351">Tienes varios problemas con las contraseñas.</translation>
+<translation id="512533434554095351">Tienes varios problemas relacionados con las contraseñas.</translation>
 <translation id="5127538504377457572">Activo hace <ph name="DAYS" /> días</translation>
 <translation id="5128788795241319992">Explora el nuevo menú</translation>
 <translation id="5132942445612118989">Sincroniza tus contraseñas, historial y más en todos los dispositivos</translation>
@@ -1109,7 +1109,6 @@ Consulta las instrucciones de tu motor de búsqueda para borrar el historial de 
 <translation id="537853552771686272">Administra los temas y los sitios que te interesan</translation>
 <translation id="5390458669633674385">{count,plural, =1{{count} cerrada}other{{count} cerradas}}</translation>
 <translation id="5394975111793637642">Ocultar la tarjeta Opiniones sobre productos para ti</translation>
-<translation id="5395707839134961196">Ocultar detalles del motor de búsqueda</translation>
 <translation id="5414763847370083940">Recibirás una alerta si el precio disminuye en algún sitio.</translation>
 <translation id="5415289094036440596">No se pueden compartir las llaves de acceso</translation>
 <translation id="5416455648658732408">Mover al grupo de pestañas</translation>
@@ -1203,6 +1202,7 @@ Handoff también debe estar habilitado en la sección General de la configuraci�
 <translation id="5709005673595820640">{count,plural, =1{Tienes {count} contraseña reutilizada que podría poner en riesgo tu seguridad. Cámbiala ahora para mantener tu cuenta segura.}other{Tienes {count} contraseñas reutilizadas que podrían poner en riesgo tu seguridad. Cámbialas ahora para mantener tu cuenta segura.}}</translation>
 <translation id="57094364128775171">Sugerir contraseña segura…</translation>
 <translation id="5718049162805123412">Debes cambiarlas ahora</translation>
+<translation id="5721040778297053709">Coloca la tarjeta de crédito en este marco</translation>
 <translation id="572328651809341494">Pestañas recientes</translation>
 <translation id="5724941645893276623">Para navegar en la Web de manera privada, agrega una pestaña nueva.</translation>
 <translation id="5728072125198221967">Servicios de Google vinculados</translation>
@@ -1347,7 +1347,6 @@ Handoff también debe estar habilitado en la sección General de la configuraci�
 <translation id="6232329973559504466">Búsqueda en el modo Incógnito</translation>
 <translation id="6234310016144827337">Comprueba la conexión y vuelve a intentarlo</translation>
 <translation id="6236952928980352967">Restablecer advertencia</translation>
-<translation id="623755660902014047">Modo de lectura</translation>
 <translation id="6241132809279377987">Desbloquea más funciones para tu iPhone con las apps de Google</translation>
 <translation id="6247557882553405851">Administrador de contraseñas de Google</translation>
 <translation id="6251835855431997163">Autocompletar <ph name="VALUE" /></translation>
@@ -1571,7 +1570,6 @@ Handoff también debe estar habilitado en la sección General de la configuraci�
 <translation id="7055240621761583113">Autocompletar la contraseña</translation>
 <translation id="7063811929043357292">Tu madre o padre administra tu cuenta.
 <ph name="BEGIN_LINK" />Más información<ph name="END_LINK" /></translation>
-<translation id="7067610207756299941">Para proteger la seguridad de tu organización, se borrarán los datos no guardados de este dispositivo. Esto puede incluir contraseñas, historial y más.</translation>
 <translation id="7067780033517902110">Todos los archivos</translation>
 <translation id="707086654079606593">Administrar direcciones…</translation>
 <translation id="7080806333218412752">Envía las URL a la Navegación segura para revisarlas. También envía una pequeña muestra de páginas, descargas, información del sistema y actividad de extensiones para ayudar a descubrir nuevas amenazas. Vincula estos datos de manera temporal con tu Cuenta de Google cuando accedes a ella para protegerte en todas las apps de Google.</translation>
@@ -1783,6 +1781,7 @@ Handoff también debe estar habilitado en la sección General de la configuraci�
 <translation id="7889910613639381518">Accede de forma fácil y segura con el widget del Administrador de contraseñas de Google.</translation>
 <translation id="7899199123054742721">Marcar todas como no leídas</translation>
 <translation id="7911190106180361398">Tu organización no te permite sincronizar todo el contenido.</translation>
+<translation id="7918999344502274923">Ocultar detalles de <ph name="SEARCH_ENGINE_NAME" /></translation>
 <translation id="792357691529995513">No se encontraron problemas</translation>
 <translation id="7925108652071887026">Datos de Autocompletar</translation>
 <translation id="7926975587469166629">Sobrenombre de la tarjeta</translation>
@@ -1952,7 +1951,7 @@ Handoff también debe estar habilitado en la sección General de la configuraci�
 <translation id="8534481786647257214">Entrada de Google+ publicada</translation>
 <translation id="8535368836838588657">Mostrar contraseña</translation>
 <translation id="8545276357312221485">Revisa la configuración de tu navegador predeterminado</translation>
-<translation id="854938212724803178">Tienes 1 contraseña hackeada. Cámbiala ahora para mantener tu cuenta segura.</translation>
+<translation id="854938212724803178">Tienes 1 contraseña hackeada. Cámbiala ahora para protegerte.</translation>
 <translation id="8551311254462607218">En la barra de direcciones, presiona el ícono de la cámara de Google Lens</translation>
 <translation id="8556590991644167667">{count,plural, =1{Descartaste {count} advertencia}other{Descartaste {count} advertencias}}</translation>
 <translation id="8558046478684552694">Cerrar grupo.</translation>

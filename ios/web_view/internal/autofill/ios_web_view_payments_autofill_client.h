@@ -20,6 +20,9 @@ class WebState;
 
 namespace autofill {
 
+class AutofillProgressDialogController;
+class CardUnmaskOtpInputDialogController;
+class CardUnmaskPromptController;
 class CreditCardCvcAuthenticator;
 class WebViewAutofillClientIOS;
 class PaymentsDataManager;
@@ -69,6 +72,14 @@ class IOSWebViewPaymentsAutofillClient : public PaymentsAutofillClient {
   PaymentsDataManager& GetPaymentsDataManager() final;
   payments::MandatoryReauthManager* GetOrCreatePaymentsMandatoryReauthManager()
       override;
+
+#if BUILDFLAG(IS_IOS)
+  std::unique_ptr<AutofillProgressDialogController> ExtractProgressDialogModel()
+      override;
+  std::unique_ptr<CardUnmaskOtpInputDialogController>
+  ExtractOtpInputDialogModel() override;
+  CardUnmaskPromptController* GetCardUnmaskPromptModel() override;
+#endif
 
  private:
   const raw_ref<autofill::WebViewAutofillClientIOS> client_;

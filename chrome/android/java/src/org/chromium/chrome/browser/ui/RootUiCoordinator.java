@@ -11,6 +11,8 @@ import android.content.Intent;
 import android.graphics.Rect;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Build.VERSION;
+import android.os.Build.VERSION_CODES;
 import android.os.Bundle;
 import android.os.Handler;
 import android.text.TextUtils;
@@ -66,6 +68,7 @@ import org.chromium.chrome.browser.crash.ChromePureJavaExceptionReporter;
 import org.chromium.chrome.browser.data_sharing.DataSharingTabManager;
 import org.chromium.chrome.browser.device_lock.DeviceLockActivityLauncherImpl;
 import org.chromium.chrome.browser.document.ChromeLauncherActivity;
+import org.chromium.chrome.browser.dom_distiller.ReaderModeBottomSheetManager;
 import org.chromium.chrome.browser.download.DownloadMetrics.OpenWithExternalAppsSource;
 import org.chromium.chrome.browser.download.DownloadUtils;
 import org.chromium.chrome.browser.ephemeraltab.EphemeralTabCoordinator;
@@ -176,6 +179,7 @@ import org.chromium.components.browser_ui.widget.MenuOrKeyboardActionController;
 import org.chromium.components.browser_ui.widget.gesture.BackPressHandler;
 import org.chromium.components.browser_ui.widget.scrim.ScrimManager;
 import org.chromium.components.browser_ui.widget.scrim.ScrimManager.ScrimClient;
+import org.chromium.components.dom_distiller.core.DomDistillerFeatures;
 import org.chromium.components.feature_engagement.EventConstants;
 import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.components.messages.DismissReason;
@@ -335,6 +339,7 @@ public class RootUiCoordinator
     @NonNull protected final ObservableSupplier<Integer> mOverviewColorSupplier;
     @Nullable private ContextualSearchObserver mReadAloudContextualSearchObserver;
     @Nullable private PageZoomCoordinator mPageZoomCoordinator;
+    @Nullable private ReaderModeBottomSheetManager mReaderModeBottomSheetManager;
     private AppMenuObserver mAppMenuObserver;
 
     private final OneshotSupplierImpl<ToolbarManager> mToolbarManagerOneshotSupplier =
@@ -351,6 +356,7 @@ public class RootUiCoordinator
     private final boolean mIsTablet;
     private final ObservableSupplierImpl<TopInsetCoordinator> mTopInsetCoordinatorSupplier;
     private @Nullable ToolbarControlContainer mToolbarContainer;
+    private @Nullable DesktopWindowStateManager mDesktopWindowStateManager;
     private final ExclusiveAccessManager mExclusiveAccessManager;
 
     /**
@@ -398,6 +404,7 @@ public class RootUiCoordinator
      * @param edgeToEdgeManager Manages core edge-to-edge state and logic.
      * @param xrSpaceModeObservableSupplier Supplies current XR space mode status. True for XR full
      *     space mode, false otherwise.
+     * @param desktopWindowStateManager Tracks whether in desktop windowing mode
      */
     public RootUiCoordinator(
             @NonNull AppCompatActivity activity,
@@ -441,7 +448,8 @@ public class RootUiCoordinator
             @Nullable Bundle savedInstanceState,
             @NonNull ObservableSupplier<Integer> overviewColorSupplier,
             @NonNull EdgeToEdgeManager edgeToEdgeManager,
-            @Nullable ObservableSupplier<Boolean> xrSpaceModeObservableSupplier) {
+            @Nullable ObservableSupplier<Boolean> xrSpaceModeObservableSupplier,
+            @Nullable DesktopWindowStateManager desktopWindowStateManager) {
         mCallbackController = new CallbackController();
         mActivity = activity;
         mWindowAndroid = windowAndroid;
@@ -572,10 +580,18 @@ public class RootUiCoordinator
                 new BottomControlsStacker(mBrowserControlsManager, mActivity, mWindowAndroid);
         mTopControlsStacker = new TopControlsStacker(mBrowserControlsManager);
         mXrSpaceModeObservableSupplier = xrSpaceModeObservableSupplier;
+        mDesktopWindowStateManager = desktopWindowStateManager;
+        if (mDesktopWindowStateManager != null) {
+            mDesktopWindowStateManagerSupplier.set(mDesktopWindowStateManager);
+        }
 
         if (ChromeFeatureList.sEnableExclusiveAccessManager.isEnabled()) {
             mExclusiveAccessManager =
-                    new ExclusiveAccessManager(mActivity, mFullscreenManager, mActivityTabProvider);
+                    new ExclusiveAccessManager(
+                            mActivity,
+                            mFullscreenManager,
+                            mActivityTabProvider,
+                            mDesktopWindowStateManager);
         } else {
             mExclusiveAccessManager = null;
         }
@@ -602,7 +618,7 @@ public class RootUiCoordinator
      * @return The {@link DesktopWindowStateManager} instance associated with the current activity.
      */
     public @Nullable DesktopWindowStateManager getDesktopWindowStateManager() {
-        return null;
+        return mDesktopWindowStateManager;
     }
 
     public void onAttachFragment(Fragment fragment) {
@@ -782,12 +798,23 @@ public class RootUiCoordinator
             mBoardingPassController = null;
         }
 
+        if (mReaderModeBottomSheetManager != null) {
+            mReaderModeBottomSheetManager.destroy();
+            mReaderModeBottomSheetManager = null;
+        }
+
         if (mAutomotiveBackButtonToolbarCoordinator != null) {
             mAutomotiveBackButtonToolbarCoordinator.destroy();
             mAutomotiveBackButtonToolbarCoordinator = null;
         }
         mBottomControlsStacker.destroy();
         mTopControlsStacker.destroy();
+
+        if (mDesktopWindowStateManager != null && VERSION.SDK_INT >= VERSION_CODES.R) {
+            mDesktopWindowStateManager.destroy();
+            mDesktopWindowStateManager = null;
+        }
+
         mActivity = null;
     }
 
@@ -978,6 +1005,15 @@ public class RootUiCoordinator
                 contextualSearchManager.addObserver(mReadAloudContextualSearchObserver);
             }
         }
+        if (DomDistillerFeatures.sReaderModeDistillInApp.isEnabled()) {
+            mReaderModeBottomSheetManager =
+                    new ReaderModeBottomSheetManager(
+                            mActivity,
+                            getBottomSheetController(),
+                            mActivityTabProvider,
+                            mTopUiThemeColorProvider);
+        }
+
         if (DeviceInfo.isAutomotive()) {
             mAutomotiveBackButtonToolbarCoordinator =
                     new AutomotiveBackButtonToolbarCoordinator(

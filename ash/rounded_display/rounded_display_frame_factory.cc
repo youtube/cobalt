@@ -167,15 +167,14 @@ RoundedDisplayFrameFactory::AcquireUiResource(
     UiResourceManager& resource_manager) const {
   gfx::Size resource_size = gutter.bounds().size();
 
-  viz::ResourceId reusable_resource_id = resource_manager.FindResourceToReuse(
+  std::unique_ptr<UiResource> ui_resource = resource_manager.GetResourceToReuse(
       resource_size, kSharedImageFormat, gutter.ui_source_id());
 
   std::unique_ptr<RoundedDisplayUiResource> resource;
 
-  if (reusable_resource_id != viz::kInvalidResourceId) {
-    resource = base::WrapUnique(static_cast<RoundedDisplayUiResource*>(
-        resource_manager.ReleaseAvailableResource(reusable_resource_id)
-            .release()));
+  if (ui_resource) {
+    resource = base::WrapUnique(
+        static_cast<RoundedDisplayUiResource*>(ui_resource.release()));
   } else {
     resource = CreateUiResource(resource_size, kSharedImageFormat,
                                 gutter.ui_source_id(), gutter.NeedsOverlays());
@@ -226,10 +225,8 @@ RoundedDisplayFrameFactory::CreateCompositorFrame(
     // requirements of using hardware overlays.
     const gfx::Transform& buffer_to_target_transform = root_rotation_inverse;
 
-    viz::ResourceId resource_id =
-        resource_manager.OfferResource(std::move(resource));
     viz::TransferableResource transferable_resource =
-        resource_manager.PrepareResourceForExport(resource_id);
+        resource_manager.OfferAndPrepareResourceForExport(std::move(resource));
 
     AppendQuad(transferable_resource, buffer_to_target_transform, *gutter,
                *render_pass);

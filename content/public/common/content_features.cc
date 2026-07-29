@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#define TODO_BASE_FEATURE_MACROS_NEED_MIGRATION
+
 #include "content/public/common/content_features.h"
 
 #include <string>
@@ -639,6 +641,10 @@ BASE_FEATURE(PrefetchPrerenderIntegration, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // If explicitly disabled, prefetch proxy is not used.
 BASE_FEATURE(PrefetchProxy, base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Killswitch for UA override issue fix (crbug.com/441612842) in preloading.
+BASE_FEATURE(PreloadingRespectUserAgentOverride,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // If enabled, the feature allows the prerender host to be reused for the
 // future same-site page prerender if marked as reusable.

@@ -14,7 +14,6 @@
 #include <stddef.h>
 #include <uxtheme.h>
 #include <vsstyle.h>
-#include <vssym32.h>
 
 #include <array>
 #include <optional>
@@ -23,10 +22,7 @@
 #include <variant>
 
 #include "base/check.h"
-#include "base/command_line.h"
-#include "base/feature_list.h"
 #include "base/functional/bind.h"
-#include "base/functional/callback.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/no_destructor.h"
 #include "base/notreached.h"
@@ -39,25 +35,29 @@
 #include "base/win/win_util.h"
 #include "cc/paint/paint_canvas.h"
 #include "cc/paint/paint_flags.h"
-#include "skia/ext/platform_canvas.h"
 #include "skia/ext/skia_utils_win.h"
+#include "third_party/skia/include/core/SkBitmap.h"
+#include "third_party/skia/include/core/SkBlendMode.h"
 #include "third_party/skia/include/core/SkCanvas.h"
 #include "third_party/skia/include/core/SkColor.h"
+#include "third_party/skia/include/core/SkImageInfo.h"
+#include "third_party/skia/include/core/SkMatrix.h"
+#include "third_party/skia/include/core/SkPaint.h"
 #include "third_party/skia/include/core/SkPath.h"
 #include "third_party/skia/include/core/SkRefCnt.h"
-#include "third_party/skia/include/core/SkShader.h"
+#include "third_party/skia/include/core/SkSamplingOptions.h"
+#include "third_party/skia/include/core/SkScalar.h"
 #include "third_party/skia/include/core/SkSurface.h"
+#include "third_party/skia/include/core/SkTileMode.h"
 #include "third_party/skia/include/private/chromium/SkPMColor.h"
-#include "ui/base/ui_base_features.h"
-#include "ui/base/ui_base_switches.h"
+#include "ui/color/color_id.h"
 #include "ui/color/color_provider.h"
 #include "ui/color/win/native_color_mixers_win.h"
 #include "ui/display/win/screen_win.h"
-#include "ui/gfx/color_palette.h"
 #include "ui/gfx/color_utils.h"
-#include "ui/gfx/gdi_util.h"
+#include "ui/gfx/geometry/point_f.h"
 #include "ui/gfx/geometry/rect.h"
-#include "ui/gfx/geometry/rect_conversions.h"
+#include "ui/gfx/geometry/rect_f.h"
 #include "ui/gfx/geometry/skia_conversions.h"
 #include "ui/native_theme/native_theme.h"
 
@@ -174,7 +174,12 @@ base::win::RegKey OpenColorFilteringRegKey(REGSAM access) {
 }  // namespace
 
 NativeTheme* NativeTheme::GetInstanceForNativeUi() {
-  static base::NoDestructor<NativeThemeWin> s_native_theme(true, false);
+  static base::NoDestructor<NativeThemeWin> s_native_theme;
+  static bool initialized = false;
+  if (!initialized) {
+    s_native_theme->ConfigureWebInstance();
+    initialized = true;
+  }
   return s_native_theme.get();
 }
 
@@ -268,10 +273,8 @@ void NativeThemeWin::Paint(cc::PaintCanvas* canvas,
   }
 }
 
-NativeThemeWin::NativeThemeWin(bool configure_web_instance,
-                               bool should_only_use_dark_colors)
-    : NativeTheme(should_only_use_dark_colors),
-      supports_windows_dark_mode_(base::win::IsDarkModeAvailable()) {
+NativeThemeWin::NativeThemeWin()
+    : supports_windows_dark_mode_(base::win::IsDarkModeAvailable()) {
   // By default UI should not use the system accent color.
   set_should_use_system_accent_color(false);
 
@@ -282,8 +285,7 @@ NativeThemeWin::NativeThemeWin(bool configure_web_instance,
 
   hkcu_themes_regkey_ = OpenThemeRegKey(KEY_READ | KEY_NOTIFY);
   if (hkcu_themes_regkey_.Valid()) {
-    if (!should_only_use_dark_colors && !IsForcedDarkMode() &&
-        !IsForcedHighContrast()) {
+    if (!IsForcedDarkMode() && !IsForcedHighContrast()) {
       UpdateDarkModeStatus();
     }
     UpdatePrefersReducedTransparency();
@@ -312,15 +314,24 @@ NativeThemeWin::NativeThemeWin(bool configure_web_instance,
 
   memset(theme_handles_, 0, sizeof(theme_handles_));
 
-  if (configure_web_instance) {
-    ConfigureWebInstance();
+  // Histogram high contrast state.
+  // NOTE: Reported in metrics; do not reorder, add additional values at end.
+  enum class HighContrastColorScheme {
+    kNone = 0,
+    kDark = 1,
+    kLight = 2,
+    kMaxValue = kLight,
+  };
+  auto color_scheme = HighContrastColorScheme::kNone;
+  if (forced_colors()) {
+    color_scheme =
+        (preferred_color_scheme() == NativeTheme::PreferredColorScheme::kDark)
+            ? HighContrastColorScheme::kDark
+            : HighContrastColorScheme::kLight;
   }
-
-#if BUILDFLAG(IS_WIN)
   base::UmaHistogramEnumeration("Accessibility.WinHighContrastTheme",
-                                GetPlatformHighContrastColorScheme(),
-                                PlatformHighContrastColorScheme::kMaxValue);
-#endif
+                                color_scheme,
+                                HighContrastColorScheme::kMaxValue);
 }
 
 void NativeThemeWin::ConfigureWebInstance() {
@@ -334,12 +345,12 @@ void NativeThemeWin::ConfigureWebInstance() {
   // Initialize the native theme web instance with the system color info.
   NativeTheme* web_instance = NativeTheme::GetInstanceForWeb();
   web_instance->set_use_dark_colors(ShouldUseDarkColors());
-  web_instance->set_forced_colors(InForcedColorsMode());
-  web_instance->set_preferred_color_scheme(GetPreferredColorScheme());
-  web_instance->SetPreferredContrast(GetPreferredContrast());
+  web_instance->set_forced_colors(forced_colors());
+  web_instance->set_preferred_color_scheme(preferred_color_scheme());
+  web_instance->SetPreferredContrast(preferred_contrast());
   web_instance->set_prefers_reduced_transparency(
-      GetPrefersReducedTransparency());
-  web_instance->set_system_colors(GetSystemColors());
+      prefers_reduced_transparency());
+  web_instance->set_system_colors(system_colors());
   web_instance->set_should_use_system_accent_color(
       should_use_system_accent_color());
 }
@@ -675,7 +686,7 @@ bool NativeThemeWin::ShouldUseDarkColors() const {
   // Windows high contrast modes are entirely different themes,
   // so let them take priority over dark mode.
   // ...unless --force-dark-mode was specified in which case caveat emptor.
-  if (InForcedColorsMode() && !IsForcedDarkMode()) {
+  if (forced_colors() && !IsForcedDarkMode()) {
     return false;
   }
   return NativeTheme::ShouldUseDarkColors();
@@ -683,7 +694,7 @@ bool NativeThemeWin::ShouldUseDarkColors() const {
 
 NativeTheme::PreferredColorScheme
 NativeThemeWin::CalculatePreferredColorScheme() const {
-  if (!InForcedColorsMode()) {
+  if (!forced_colors()) {
     return NativeTheme::CalculatePreferredColorScheme();
   }
 
@@ -702,7 +713,7 @@ NativeThemeWin::CalculatePreferredColorScheme() const {
 
 NativeTheme::PreferredContrast NativeThemeWin::CalculatePreferredContrast()
     const {
-  if (!InForcedColorsMode()) {
+  if (!forced_colors()) {
     return NativeTheme::CalculatePreferredContrast();
   }
 

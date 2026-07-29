@@ -15,6 +15,7 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/browser/content_settings/generated_cookie_prefs.h"
+#include "chrome/browser/content_settings/generated_javascript_optimizer_pref.h"
 #include "chrome/browser/content_settings/generated_permission_prompting_behavior_pref.h"
 #include "chrome/browser/extensions/api/settings_private/generated_prefs.h"
 #include "chrome/browser/extensions/api/settings_private/generated_prefs_factory.h"
@@ -498,6 +499,8 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
   (*s_allowlist)[::content_settings::kGeneratedNotificationPref] =
       settings_api::PrefType::kNumber;
   (*s_allowlist)[::content_settings::kGeneratedGeolocationPref] =
+      settings_api::PrefType::kNumber;
+  (*s_allowlist)[::content_settings::kGeneratedJavascriptOptimizerPref] =
       settings_api::PrefType::kNumber;
   (*s_allowlist)[::prefs::kPluginsAlwaysOpenPdfExternally] =
       settings_api::PrefType::kBoolean;
@@ -1316,6 +1319,8 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
     (*s_allowlist)[glic::prefs::kGlicMicrophoneEnabled] =
         settings_api::PrefType::kBoolean;
     (*s_allowlist)[glic::prefs::kGlicTabContextEnabled] =
+        settings_api::PrefType::kBoolean;
+    (*s_allowlist)[glic::prefs::kGlicDefaultTabContextEnabled] =
         settings_api::PrefType::kBoolean;
     (*s_allowlist)[glic::prefs::kGlicUserStatus] =
         settings_api::PrefType::kDictionary;

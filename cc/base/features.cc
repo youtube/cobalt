@@ -212,14 +212,13 @@ BASE_FEATURE(kUseLayerListsByDefault,
 
 BASE_FEATURE(kProgrammaticScrollAnimationOverride,
              "ProgrammaticScrollAnimationOverride",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Default to `gfx::CubicBezierTimingFunction::EaseType::EASE_IN_OUT`.
 BASE_FEATURE_PARAM(double,
                    kCubicBezierX1,
                    &kProgrammaticScrollAnimationOverride,
                    "cubic_bezier_x1",
-                   0.42);
+                   0.4);
 BASE_FEATURE_PARAM(double,
                    kCubicBezierY1,
                    &kProgrammaticScrollAnimationOverride,
@@ -229,7 +228,7 @@ BASE_FEATURE_PARAM(double,
                    kCubicBezierX2,
                    &kProgrammaticScrollAnimationOverride,
                    "cubic_bezier_x2",
-                   0.58);
+                   0.0);
 BASE_FEATURE_PARAM(double,
                    kCubicBezierY2,
                    &kProgrammaticScrollAnimationOverride,
@@ -237,10 +236,10 @@ BASE_FEATURE_PARAM(double,
                    1.0);
 
 BASE_FEATURE_PARAM(base::TimeDelta,
-                   kMaxAnimtionDuration,
+                   kMaxAnimationDuration,
                    &kProgrammaticScrollAnimationOverride,
                    "max_animation_duration",
-                   base::Milliseconds(700));
+                   base::Milliseconds(1500));
 
 BASE_FEATURE(kSlimDirectReceiverIpc,
              "SlimDirectReceiverIpc",
@@ -252,5 +251,38 @@ BASE_FEATURE(kOverscrollBehaviorRespectedOnAllScrollContainers,
 
 BASE_FEATURE(kSkipFinishDuringReleaseLayerTreeFrameSink,
              "SkipFinishDuringReleaseLayerTreeFrameSink",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kScrollJankV4Metric,
+             "ScrollJankV4Metric",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(double,
+                   kScrollJankV4MetricStabilityCorrection,
+                   &kScrollJankV4Metric,
+                   "stability_correction",
+                   0.05);
+
+BASE_FEATURE_PARAM(double,
+                   kScrollJankV4MetricDiscountFactor,
+                   &kScrollJankV4Metric,
+                   "discount_factor",
+                   0.01);
+
+BASE_FEATURE_PARAM(double,
+                   kScrollJankV4MetricFastScrollContinuityThreshold,
+                   &kScrollJankV4Metric,
+                   "fast_scroll_continuity_threshold_pixels",
+                   3.0);
+
+BASE_FEATURE_PARAM(double,
+                   kScrollJankV4MetricFlingContinuityThreshold,
+                   &kScrollJankV4Metric,
+                   "fling_continuity_threshold_pixels",
+                   0.2);
+
+BASE_FEATURE(kEmitPerScrollJankV1MetricAtEndOfScroll,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kEmitPerScrollJankV4MetricAtEndOfScroll,
              base::FEATURE_ENABLED_BY_DEFAULT);
 }  // namespace features

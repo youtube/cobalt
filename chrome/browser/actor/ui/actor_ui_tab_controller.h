@@ -35,7 +35,7 @@ class ActorUiTabController : public ActorUiTabControllerInterface,
  public:
   ActorUiTabController(
       tabs::TabInterface& tab,
-      ActorKeyedService* actor_service,
+      ActorKeyedService* actor_keyed_service,
       std::unique_ptr<ActorUiTabControllerFactoryInterface> controller_factory);
   ~ActorUiTabController() override;
   DECLARE_USER_DATA(ActorUiTabController);
@@ -93,10 +93,6 @@ class ActorUiTabController : public ActorUiTabControllerInterface,
 
   // Sets the Border Glow visibility.
   void SetBorderGlowVisibility();
-
-  // Updates the visibility of the scrim background. This is determined by the
-  // hover status of the overlay and the handoff button.
-  void UpdateScrimBackground();
 
   // Initialize and start observing ImmersiveModeController.
   void InitializeImmersiveModeObserver();

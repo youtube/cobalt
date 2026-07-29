@@ -632,6 +632,7 @@
 <translation id="4042941173059740150">បន្ត​ទៅកាន់ <ph name="SITE_ETLD_PLUS_ONE" /> ដោយ​ប្រើ <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /></translation>
 <translation id="4044708993631234325">សន្លឹក​ខាងក្រោម</translation>
 <translation id="4045441967987592849">បើកឡើងវិញ</translation>
+<translation id="4049920046559074950">ជម្រើស​ច្រើន​ទៀត​សម្រាប់ <ph name="INSTANCE_TITLE" /></translation>
 <translation id="4052419222954753986">{NUMBER_OF_TABS,plural, =1{<ph name="TABS_COUNT_ONE" /> ផ្ទាំង​ស្តង់ដារ​ដែលមាន​សកម្មភាពថ្មី​នៅក្នុង​ក្រុមផ្ទាំងរួម}other{<ph name="TABS_COUNT_MANY" /> ផ្ទាំង​ស្តង់ដារ​ដែលមាន​សកម្មភាពថ្មី​នៅក្នុង​ក្រុមផ្ទាំងរួម}}</translation>
 <translation id="405365679581583349">ធ្វើ​បច្ចុប្បន្នភាព​សេវាកម្ម Google Play</translation>
 <translation id="405399507749852140">ទទួលបានការជូនដំណឹង ប្រសិនបើមានការធ្លាក់ថ្លៃនៅលើគេហទំព័រណាមួយ</translation>
@@ -1830,6 +1831,7 @@
 <translation id="930124987204876019">លុប​ប្រវត្តិ ខូគី ទិន្នន័យគេហទំព័រ ឃ្លាំង​បម្រុង…</translation>
 <translation id="938850635132480979">កំហុស៖ <ph name="ERROR_CODE" /></translation>
 <translation id="939598580284253335">បញ្ចូលឃ្លាសម្ងាត់</translation>
+<translation id="945522503751344254">ផ្ញើមតិ</translation>
 <translation id="95817756606698420">Chrome អាចប្រើ <ph name="BEGIN_BOLD" />Sogou<ph name="END_BOLD" /> សម្រាប់ការស្វែងរកនៅក្នុងប្រទេសចិន។ អ្នកអាចផ្លាស់ប្តូរវាបាននៅក្នុង <ph name="BEGIN_LINK" />ការកំណត់<ph name="END_LINK" />។</translation>
 <translation id="961856697154696964">លុប​ទិន្នន័យរុករក</translation>
 <translation id="963246339335003378">បើក​កម្មវិធីគ្រប់គ្រងកិច្ចការ</translation>

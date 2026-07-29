@@ -44,8 +44,8 @@ if (is_android) {
     ]
     deps = [
       "//third_party/rust/font_types/v0_9:lib",
-      "//third_party/rust/read_fonts/v0_32:lib",
-      "//third_party/rust/skrifa/v0_34:lib",
+      "//third_party/rust/read_fonts/v0_34:lib",
+      "//third_party/rust/skrifa/v0_36:lib",
     ]
   }
 }
@@ -136,6 +136,7 @@ source_set("browser") {
     "//components/payments/content/icon",
     "//components/payments/mojom",
     "//components/performance_manager/scenario_api",
+    "//components/persistent_cache",
     "//components/power_monitor",
     "//components/services/filesystem:lib",
     "//components/services/quarantine",
@@ -3263,6 +3264,8 @@ source_set("browser") {
       "android/gpu_process_callback.cc",
       "android/ime_adapter_android.cc",
       "android/ime_adapter_android.h",
+      "android/ime_text_span.cc",
+      "android/ime_text_span.h",
       "android/input_token_forwarder_manager.cc",
       "android/input_token_forwarder_manager.h",
       "android/java/gin_java_bound_object.cc",

@@ -19,6 +19,7 @@
 #import "ios/chrome/browser/policy/model/policy_earl_grey_utils.h"
 #import "ios/chrome/browser/policy/model/policy_util.h"
 #import "ios/chrome/browser/policy/ui_bundled/idle/constants.h"
+#import "ios/chrome/browser/shared/public/snackbar/snackbar_constants.h"
 #import "ios/chrome/browser/signin/model/fake_system_identity.h"
 #import "ios/chrome/common/string_util.h"
 #import "ios/chrome/common/ui/confirmation_alert/constants.h"
@@ -40,9 +41,10 @@ using policy_test_utils::SetPolicy;
 
 namespace {
 
-// kSnackbarDisappearanceTimeout = MDCSnackbarMessageDurationMax + extra 4
-// seconds for avoiding flakiness due to time lags.
-constexpr base::TimeDelta kSnackbarDisappearanceTimeout = base::Seconds(10 + 4);
+// Wait a bit more than kSnackbarMessageTestDuration to avoid flakiness due to
+// time lags.
+constexpr base::TimeDelta kSnackbarDisappearanceTimeout =
+    kSnackbarMessageTestDuration + base::Seconds(4);
 
 // Returns a matcher for the idle timeout dialog's "Continue using Chrome"
 // button.
@@ -142,8 +144,9 @@ void WaitForIdleTimeoutScreenAndClickContinue() {
 // Waits to confirm that the snackbar is shown after idle timeout actions run.
 void VerifyActionsSnackbarShown(int actions_string_id) {
   id<GREYMatcher> snackbarMatcher = grey_allOf(
-      grey_accessibilityID(@"MDCSnackbarMessageTitleAutomationIdentifier"),
-      grey_text(l10n_util::GetNSString(actions_string_id)), nil);
+      chrome_test_util::SnackbarViewMatcher(),
+      grey_descendant(grey_text(l10n_util::GetNSString(actions_string_id))),
+      nil);
   // Wait for the snackbar to appear.
   [ChromeEarlGrey testUIElementAppearanceWithMatcher:snackbarMatcher];
   // Wait for the snackbar to disappear to make sure it is not indefinitely in
@@ -156,8 +159,7 @@ void VerifyActionsSnackbarShown(int actions_string_id) {
 // Verifies that the snackbar does not appear within 5 seconds. The condition is
 // expected to timeout and return false.
 void VerifySnackbarDoesNotAppear() {
-  id<GREYMatcher> snackbarMatcher =
-      grey_accessibilityID(@"MDCSnackbarMessageTitleAutomationIdentifier");
+  id<GREYMatcher> snackbarMatcher = chrome_test_util::SnackbarViewMatcher();
   ConditionBlock condition = ^{
     NSError* error = nil;
     [[EarlGrey selectElementWithMatcher:snackbarMatcher]

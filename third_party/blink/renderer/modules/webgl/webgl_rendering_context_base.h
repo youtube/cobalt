@@ -155,21 +155,23 @@ class MODULES_EXPORT WebGLRenderingContextBase
   static std::unique_ptr<WebGraphicsContext3DProvider>
   CreateWebGraphicsContext3DProvider(CanvasRenderingContextHost*,
                                      const CanvasContextCreationAttributesCore&,
-                                     Platform::ContextType context_type,
-                                     Platform::GraphicsInfo* graphics_info);
+                                     Platform::WebGLContextType context_type,
+                                     Platform::WebGLContextInfo* context_info);
   static void ForceNextWebGLContextCreationToFail();
 
-  Platform::ContextType ContextType() const { return context_type_; }
+  Platform::WebGLContextType ContextType() const { return context_type_; }
 
   int drawingBufferWidth() const;
   int drawingBufferHeight() const;
   GLenum drawingBufferFormat() const;
-  V8PredefinedColorSpace drawingBufferColorSpace() const;
-  void setDrawingBufferColorSpace(const V8PredefinedColorSpace& color_space,
+  V8PredefinedColorSpace drawingBufferColorSpace(ScriptState*) const;
+  void setDrawingBufferColorSpace(ScriptState*,
+                                  const V8PredefinedColorSpace& color_space,
                                   ExceptionState&);
 
-  V8PredefinedColorSpace unpackColorSpace() const;
-  void setUnpackColorSpace(const V8PredefinedColorSpace& color_space,
+  V8PredefinedColorSpace unpackColorSpace(ScriptState*) const;
+  void setUnpackColorSpace(ScriptState*,
+                           const V8PredefinedColorSpace& color_space,
                            ExceptionState&);
 
   void activeTexture(GLenum texture);
@@ -428,13 +430,13 @@ class MODULES_EXPORT WebGLRenderingContextBase
                     Element* element,
                     ExceptionState& exception_state);
 
-  void texHTMLElement2D(GLenum target,
-                        GLint level,
-                        GLint internalformat,
-                        GLenum format,
-                        GLenum type,
-                        Element* element,
-                        ExceptionState& exception_state);
+  void texHTML2D(GLenum target,
+                 GLint level,
+                 GLint internalformat,
+                 GLenum format,
+                 GLenum type,
+                 Element* element,
+                 ExceptionState& exception_state);
 
   void setHitTestRegions(VectorOf<CanvasElementHitTestRegion> hit_test_regions,
                          ExceptionState& exception_state);
@@ -705,12 +707,12 @@ class MODULES_EXPORT WebGLRenderingContextBase
 
   WebGLRenderingContextBase(CanvasRenderingContextHost*,
                             std::unique_ptr<WebGraphicsContext3DProvider>,
-                            const Platform::GraphicsInfo& graphics_info,
+                            const Platform::WebGLContextInfo&,
                             const CanvasContextCreationAttributesCore&,
-                            Platform::ContextType);
+                            Platform::WebGLContextType);
   scoped_refptr<DrawingBuffer> CreateDrawingBuffer(
       std::unique_ptr<WebGraphicsContext3DProvider>,
-      const Platform::GraphicsInfo& graphics_info);
+      const Platform::WebGLContextInfo&);
   void SetupFlags();
   bool CopyRenderingResultsFromDrawingBuffer(CanvasResourceProvider*,
                                              SourceDrawingBuffer);
@@ -720,8 +722,6 @@ class MODULES_EXPORT WebGLRenderingContextBase
   bool CanUseDrawingBufferSIWithoutCopyForLowLatency();
   void PageVisibilityChanged() override;
   void SizeChanged() override;
-  std::unique_ptr<CanvasResourceProvider> CreateCanvasResourceProvider(
-      bool use_bitmap_provider);
   scoped_refptr<StaticBitmapImage> PaintRenderingResultsToSnapshot(
       SourceDrawingBuffer source_buffer,
       FlushReason reason) override;
@@ -1965,29 +1965,25 @@ class MODULES_EXPORT WebGLRenderingContextBase
   WebGLRenderingContextBase(CanvasRenderingContextHost*,
                             scoped_refptr<base::SingleThreadTaskRunner>,
                             std::unique_ptr<WebGraphicsContext3DProvider>,
-                            const Platform::GraphicsInfo& graphics_info,
+                            const Platform::WebGLContextInfo&,
                             const CanvasContextCreationAttributesCore&,
-                            Platform::ContextType);
+                            Platform::WebGLContextType);
   static std::unique_ptr<WebGraphicsContext3DProvider>
   CreateContextProviderInternal(CanvasRenderingContextHost*,
                                 const CanvasContextCreationAttributesCore&,
-                                Platform::ContextType context_type,
-                                Platform::GraphicsInfo* graphics_info);
+                                Platform::WebGLContextType,
+                                Platform::WebGLContextInfo*);
 
   scoped_refptr<ExternalCanvasResource> ExportLowLatencyCanvasResource(
-      SourceDrawingBuffer source_buffer,
-      bool export_only_if_update);
+      SourceDrawingBuffer source_buffer);
 
-  CanvasResourceProvider* GetOrCreateCanvasResourceProvider(
-      bool use_bitmap_provider);
+  CanvasResourceProvider* GetOrCreateCanvasResourceProvider();
 
   // Attempts to paint the most recent rendering results into a
   // CanvasResourceProvider. Returns the CanvasResourceProvider if the paint
   // succeeded; otherwise returns nullptr.
   CanvasResourceProvider* PaintRenderingResultsToResourceProvider(
-      SourceDrawingBuffer source_buffer,
-      bool use_bitmap_provider,
-      bool* resource_provider_was_updated = nullptr);
+      SourceDrawingBuffer source_buffer);
   void TexImageHelperMediaVideoFrame(
       TexImageParams,
       WebGLTexture*,
@@ -2002,7 +1998,7 @@ class MODULES_EXPORT WebGLRenderingContextBase
                       WebGLRenderingContextBase*);
   bool CanUseTexImageViaGPU(const TexImageParams&);
 
-  const Platform::ContextType context_type_;
+  const Platform::WebGLContextType context_type_;
 
   bool IsPaintable() const final { return GetDrawingBuffer(); }
 
@@ -2028,7 +2024,21 @@ class MODULES_EXPORT WebGLRenderingContextBase
   // ExtenralCanvasResource.
   bool PushFrameNoCopy();
 
+  // Used to provide accelerated snapshots and CanvasResources holding the
+  // current content.
   std::unique_ptr<CanvasResourceProvider> resource_provider_;
+
+  // Whether `resource_provider_` has fresh content that should be sent to the
+  // compositor in response to a PushFrame() call.
+  bool resource_provider_has_content_for_frame_push_ = false;
+
+  // If PaintRenderingResultsToSnapshot() is unable to create
+  // `resource_provider_`, it will attempt to create an unaccelerated snapshot
+  // directly. If it is successful in doing this, it will cache the created
+  // snapshot in `cached_snapshot_` to avoid readback on subsequent calls.
+  // At most one of `resource_provider_` or `cached_snapshot_` will be non-
+  // null.
+  scoped_refptr<StaticBitmapImage> cached_snapshot_;
   static bool webgl_context_limits_initialized_;
   static unsigned max_active_webgl_contexts_;
   static unsigned max_active_webgl_contexts_on_worker_;

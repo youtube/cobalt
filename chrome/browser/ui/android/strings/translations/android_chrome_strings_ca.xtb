@@ -632,6 +632,7 @@ Només les persones que sàpiguen la teva frase de contrasenya podran llegir les
 <translation id="4042941173059740150">Continua a <ph name="SITE_ETLD_PLUS_ONE" /> amb <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /></translation>
 <translation id="4044708993631234325">Full inferior</translation>
 <translation id="4045441967987592849">Torna a obrir</translation>
+<translation id="4049920046559074950">Més opcions per a <ph name="INSTANCE_TITLE" /></translation>
 <translation id="4052419222954753986">{NUMBER_OF_TABS,plural, =1{<ph name="TABS_COUNT_ONE" /> pestanya estàndard amb activitat nova en grups de pestanyes compartits}other{<ph name="TABS_COUNT_MANY" /> pestanyes estàndard amb activitat nova en grups de pestanyes compartits}}</translation>
 <translation id="405365679581583349">Actualitza Serveis de Google Play</translation>
 <translation id="405399507749852140">Si el preu baixa en qualsevol lloc web, rebràs una alerta</translation>
@@ -1830,6 +1831,7 @@ Per canviar aquesta opció de configuració, <ph name="BEGIN_LINK" />suprimeix l
 <translation id="930124987204876019">Suprimeix l'historial, les galetes, les dades dels llocs web, la memòria cau…</translation>
 <translation id="938850635132480979">Error: <ph name="ERROR_CODE" /></translation>
 <translation id="939598580284253335">Introduïu la frase de contrasenya</translation>
+<translation id="945522503751344254">Envia suggeriments</translation>
 <translation id="95817756606698420">Chrome pot utilitzar <ph name="BEGIN_BOLD" />Sogou<ph name="END_BOLD" /> per fer cerques a la Xina. Per canviar-ho, ves a <ph name="BEGIN_LINK" />Configuració<ph name="END_LINK" />.</translation>
 <translation id="961856697154696964">Suprimeix dades de navegació</translation>
 <translation id="963246339335003378">Obre el gestor de tasques</translation>

@@ -38,7 +38,7 @@ using ::subresource_filter::ScopedTimers;
 using ::subresource_filter::mojom::ActivationLevel;
 using ::subresource_filter::mojom::ActivationState;
 
-// TODO(https://crbug.com/40280666): This doesn't actually throttle any
+// TODO(https://crbug.com/346777548): This doesn't actually throttle any
 // navigations - use a different object to kick off the
 // `ProfileInteractionManager`.
 FingerprintingProtectionPageActivationThrottle::
@@ -277,27 +277,6 @@ void FingerprintingProtectionPageActivationThrottle::LogMetricsOnChecksComplete(
   UMA_HISTOGRAM_ENUMERATION(ActivationLevelHistogramName, level);
   UMA_HISTOGRAM_ENUMERATION(ActivationDecisionHistogramName, decision,
                             ActivationDecision::ACTIVATION_DECISION_MAX);
-}
-
-namespace {
-
-bool ShouldMeasurePerformance(double performance_measurement_rate) {
-  return base::ThreadTicks::IsSupported() &&
-         (performance_measurement_rate == 1 ||
-          base::RandDouble() < performance_measurement_rate);
-}
-
-}  // namespace
-
-bool FingerprintingProtectionPageActivationThrottle::
-    GetEnablePerformanceMeasurements(bool is_incognito) const {
-  // Performance measurement rate may differ between incognito and
-  // non-incognito modes.
-  double performance_measurement_rate = GetFieldTrialParamByFeatureAsDouble(
-      is_incognito ? features::kEnableFingerprintingProtectionFilterInIncognito
-                   : features::kEnableFingerprintingProtectionFilter,
-      features::kPerformanceMeasurementRateParam, 0.0);
-  return ShouldMeasurePerformance(performance_measurement_rate);
 }
 
 bool FingerprintingProtectionPageActivationThrottle::

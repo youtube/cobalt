@@ -47,9 +47,11 @@ class SettingsBrowserTest : public WebUIMochaBrowserTest {
             features::kGlic, features::kTabstripComboButton,
 #endif
             privacy_sandbox::kFingerprintingProtectionUx},
-        /*disabled_features=*/{
+        /*disabled_features=*/
+        {
 #if BUILDFLAG(ENABLE_GLIC)
-            features::kGlicClosedCaptioning
+            features::kGlicClosedCaptioning,
+            features::kGlicDefaultTabContextSetting
 #endif
         });
     set_test_loader_host(chrome::kChromeUISettingsHost);
@@ -358,7 +360,13 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, PeoplePageSyncControls) {
 }
 
 IN_PROC_BROWSER_TEST_F(SettingsTest, PrivacyPageIndex) {
-  RunTest("settings/privacy_page_index_test.js", "mocha.run()");
+  RunTest("settings/privacy_page_index_test.js",
+          "runMochaSuite('PrivacyPageIndex Main')");
+}
+
+IN_PROC_BROWSER_TEST_F(SettingsTest, PrivacyPageIndexSiteSettings) {
+  RunTest("settings/privacy_page_index_test.js",
+          "runMochaSuite('PrivacyPageIndex SiteSettings')");
 }
 
 IN_PROC_BROWSER_TEST_F(SettingsTest, Prefs) {
@@ -506,6 +514,26 @@ IN_PROC_BROWSER_TEST_F(SettingsGlicSubageClosedCaptionsToggleTest,
                        SettingsGlicSubageClosedCaptionsToggleEnabled) {
   RunTest("settings/glic_subpage_test.js",
           "runMochaSuite('GlicSubpage ClosedCaptionsToggleEnabled')");
+}
+
+class SettingsGlicSubPageDefaultTabContextToggleTest
+    : public SettingsBrowserTest {
+ public:
+  SettingsGlicSubPageDefaultTabContextToggleTest() {
+    scoped_feature_list_.InitWithFeatures(
+        {features::kGlicDefaultTabContextSetting},
+        /*disabled_features=*/{});
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(SettingsGlicSubPageDefaultTabContextToggleTest,
+                       SettingsGlicSubPageDefaultTabContextToggleEnabled) {
+  RunTest(
+      "settings/glic_subpage_test.js",
+      "runMochaSuite('GlicSubpage DefaultTabContextSettingFeatureEnabled')");
 }
 
 class SettingsGlicSubageDataProtectionTest : public SettingsBrowserTest {
@@ -1334,6 +1362,48 @@ class SettingsGeolocationPageTest : public SettingsBrowserTest {
 IN_PROC_BROWSER_TEST_F(SettingsGeolocationPageTest, GeolocationPage) {
   RunTest("settings/geolocation_page_test.js",
           "runMochaSuite('GeolocationPage')");
+}
+
+class JavascriptOptimizerPage_BlockOnUnfamiliarSitesFeatureEnabledTest
+    : public SettingsBrowserTest {
+ public:
+  JavascriptOptimizerPage_BlockOnUnfamiliarSitesFeatureEnabledTest() = default;
+  ~JavascriptOptimizerPage_BlockOnUnfamiliarSitesFeatureEnabledTest() override =
+      default;
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_{
+      content_settings::features::kBlockV8OptimizerOnUnfamiliarSitesSetting};
+};
+
+IN_PROC_BROWSER_TEST_F(
+    JavascriptOptimizerPage_BlockOnUnfamiliarSitesFeatureEnabledTest,
+    JavascriptOptimizerPage) {
+  RunTest("settings/v8_page_test.js",
+          "runMochaTest('V8Page', "
+          "'CheckRadioButtons_BlockOnUnfamiliarSitesFeatureEnabled')");
+}
+
+class JavascriptOptimizerPage_BlockOnUnfamiliarSitesFeatureDisabledTest
+    : public SettingsBrowserTest {
+ public:
+  JavascriptOptimizerPage_BlockOnUnfamiliarSitesFeatureDisabledTest() {
+    scoped_feature_list_.InitAndDisableFeature(
+        content_settings::features::kBlockV8OptimizerOnUnfamiliarSitesSetting);
+  }
+  ~JavascriptOptimizerPage_BlockOnUnfamiliarSitesFeatureDisabledTest()
+      override = default;
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(
+    JavascriptOptimizerPage_BlockOnUnfamiliarSitesFeatureDisabledTest,
+    JavascriptOptimizerPage) {
+  RunTest("settings/v8_page_test.js",
+          "runMochaTest('V8Page', "
+          "'CheckRadioButtons_BlockOnUnfamiliarSitesFeatureDisabled')");
 }
 
 IN_PROC_BROWSER_TEST_F(SettingsGeolocationPageTest,

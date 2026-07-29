@@ -2702,7 +2702,7 @@ targets.bundle(
     ],
     per_test_modifications = {
         "enterprise_companion_integration_tests": [
-            "updater-default-pool",
+            "updater-tests-pool",
         ],
         "enterprise_companion_tests": [
             "updater-default-pool",
@@ -2718,10 +2718,10 @@ targets.bundle(
     ],
     per_test_modifications = {
         "enterprise_companion_integration_tests": [
-            "updater-mac-pool",
+            "updater-tests-pool",
         ],
         "enterprise_companion_tests": [
-            "updater-mac-pool",
+            "updater-tests-pool",
         ],
     },
 )
@@ -4205,7 +4205,7 @@ targets.bundle(
 targets.bundle(
     name = "gpu_fyi_lacros_release_gtests",
     targets = [
-        "gpu_memory_buffer_impl_tests_suite",
+        "mappable_buffer_tests_suite",
     ],
 )
 
@@ -4247,7 +4247,7 @@ targets.bundle(
         "gpu_angle_unit_gtests",
         "gpu_common_gtests_passthrough",
         "gpu_desktop_specific_gtests",
-        "gpu_memory_buffer_impl_tests_suite",
+        "mappable_buffer_tests_suite",
         "gpu_vulkan_gtests",
     ],
 )
@@ -4456,32 +4456,6 @@ targets.bundle(
             ),
             "gpu_integration_test_common_args",
         ],
-    },
-)
-
-targets.bundle(
-    name = "gpu_memory_buffer_impl_tests_suite",
-    targets = [
-        "gpu_memory_buffer_impl_tests",
-    ],
-    per_test_modifications = {
-        "gpu_memory_buffer_impl_tests": targets.mixin(
-            args = [
-                "--enable-gpu",
-                "--use-gpu-in-tests",
-                "--gtest_filter=*GpuMemoryBufferImplTest*",
-            ],
-            lacros_args = [
-                "--ozone-platform=wayland",
-                "--xvfb",
-                "--no-xvfb",
-                "--use-weston",
-                "--weston-use-gl",
-            ],
-            linux_args = [
-                "--no-xvfb",
-            ],
-        ),
     },
 )
 
@@ -5253,6 +5227,7 @@ targets.bundle(
 
 # This suite is a union of ios_simulator_tests and
 # ios_simulator_full_configs_tests.
+# TODO(crbug.com/442375894): Add back ios26 variants after ARM migration is complete.
 targets.bundle(
     name = "ios_code_coverage_tests",
     targets = [
@@ -5261,7 +5236,7 @@ targets.bundle(
             variants = [
                 "SIM_IPHONE_14_17_5",
                 "SIM_IPHONE_15_18_2",
-                "SIM_IPHONE_16_26_0",
+                #"SIM_IPHONE_16_26_0",
             ],
         ),
         targets.bundle(
@@ -5272,10 +5247,10 @@ targets.bundle(
             variants = [
                 "SIM_IPAD_PRO_6TH_GEN_17_5",
                 "SIM_IPAD_PRO_7TH_GEN_18_2",
-                "SIM_IPAD_PRO_7TH_GEN_26_0",
+                #"SIM_IPAD_PRO_7TH_GEN_26_0",
                 "SIM_IPHONE_14_17_5",
                 "SIM_IPHONE_15_18_2",
-                "SIM_IPHONE_16_26_0",
+                #"SIM_IPHONE_16_26_0",
             ],
         ),
         targets.bundle(
@@ -5286,10 +5261,10 @@ targets.bundle(
             variants = [
                 "SIM_IPAD_PRO_6TH_GEN_17_5",
                 "SIM_IPAD_PRO_7TH_GEN_18_2",
-                "SIM_IPAD_PRO_7TH_GEN_26_0",
+                #"SIM_IPAD_PRO_7TH_GEN_26_0",
                 "SIM_IPHONE_14_17_5",
                 "SIM_IPHONE_15_18_2",
-                "SIM_IPHONE_16_26_0",
+                #"SIM_IPHONE_16_26_0",
             ],
         ),
         targets.bundle(
@@ -5297,10 +5272,10 @@ targets.bundle(
             variants = [
                 "SIM_IPAD_PRO_6TH_GEN_17_5",
                 "SIM_IPAD_PRO_7TH_GEN_18_2",
-                "SIM_IPAD_PRO_7TH_GEN_26_0",
+                #"SIM_IPAD_PRO_7TH_GEN_26_0",
                 "SIM_IPHONE_14_17_5",
                 "SIM_IPHONE_15_18_2",
-                "SIM_IPHONE_16_26_0",
+                #"SIM_IPHONE_16_26_0",
             ],
         ),
     ],
@@ -5546,14 +5521,32 @@ targets.bundle(
             targets = "ios_eg2_cq_tests",
             mixins = [
                 "xcodebuild_sim_runner",
+                "mac_15_vm_optional",
             ],
             variants = [
-                "SIM_IPAD_PRO_6TH_GEN_17_5",
                 "SIM_IPAD_PRO_7TH_GEN_18_2",
-                "SIM_IPAD_PRO_7TH_GEN_26_0",
                 "SIM_IPHONE_14_17_5",
                 "SIM_IPHONE_15_18_2",
+            ],
+        ),
+        targets.bundle(
+            targets = "ios_eg2_cq_tests",
+            mixins = [
+                "xcodebuild_sim_runner",
+            ],
+            variants = [
+                "SIM_IPAD_PRO_7TH_GEN_26_0",
                 "SIM_IPHONE_16_26_0",
+            ],
+        ),
+        targets.bundle(
+            targets = "ios_eg2_tests",
+            mixins = [
+                "xcodebuild_sim_runner",
+                "mac_15_vm_optional",
+            ],
+            variants = [
+                "SIM_IPHONE_15_18_2",
             ],
         ),
         targets.bundle(
@@ -5562,9 +5555,6 @@ targets.bundle(
                 "xcodebuild_sim_runner",
             ],
             variants = [
-                "SIM_IPAD_PRO_7TH_GEN_18_2",
-                "SIM_IPAD_PRO_7TH_GEN_26_0",
-                "SIM_IPHONE_15_18_2",
                 "SIM_IPHONE_16_26_0",
             ],
         ),
@@ -6162,6 +6152,32 @@ targets.bundle(
             swarming = targets.swarming(
                 shards = 7,
             ),
+        ),
+    },
+)
+
+targets.bundle(
+    name = "mappable_buffer_tests_suite",
+    targets = [
+        "mappable_buffer_tests",
+    ],
+    per_test_modifications = {
+        "mappable_buffer_tests": targets.mixin(
+            args = [
+                "--enable-gpu",
+                "--use-gpu-in-tests",
+                "--gtest_filter=*MappableBufferTest*",
+            ],
+            lacros_args = [
+                "--ozone-platform=wayland",
+                "--xvfb",
+                "--no-xvfb",
+                "--use-weston",
+                "--weston-use-gl",
+            ],
+            linux_args = [
+                "--no-xvfb",
+            ],
         ),
     },
 )
@@ -6871,7 +6887,7 @@ targets.bundle(
             "updater-default-pool",
         ],
         "updater_tests_system": [
-            "updater-mac-pool",
+            "updater-tests-pool",
         ],
     },
 )

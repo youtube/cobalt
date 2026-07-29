@@ -35,6 +35,7 @@
 #include "third_party/blink/renderer/modules/mediastream/media_constraints.h"
 #include "third_party/blink/renderer/modules/mediastream/user_media_request.h"
 #include "third_party/blink/renderer/modules/peerconnection/rtc_peer_connection_handler.h"
+#include "third_party/blink/renderer/platform/json/json_values.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_component.h"
 #include "third_party/blink/renderer/platform/mojo/mojo_binding_context.h"
 #include "third_party/blink/renderer/platform/peerconnection/rtc_answer_options_platform.h"
@@ -79,55 +80,46 @@ struct CrossThreadCopier<base::Value::List>
 
 namespace {
 
-String SerializeServers(
-    const std::vector<webrtc::PeerConnectionInterface::IceServer>& servers) {
-  StringBuilder result;
-  result.Append("[");
-
-  bool following = false;
-  for (const auto& server : servers) {
-    for (const auto& url : server.urls) {
-      if (following)
-        result.Append(", ");
-      else
-        following = true;
-
-      result.Append(String::FromUTF8(url));
-    }
-  }
-  result.Append("]");
-  return result.ToString();
-}
-
 String SerializeGetUserMediaMediaConstraints(
     const MediaConstraints& constraints) {
   return String(constraints.ToString());
 }
 
 String SerializeOfferOptions(blink::RTCOfferOptionsPlatform* options) {
-  if (!options)
+  if (!options) {
     return "null";
+  }
 
-  StringBuilder result;
-  result.Append("offerToReceiveVideo: ");
-  result.AppendNumber(options->OfferToReceiveVideo());
-  result.Append(", offerToReceiveAudio: ");
-  result.AppendNumber(options->OfferToReceiveAudio());
-  result.Append(", voiceActivityDetection: ");
-  result.Append(String::Boolean(options->VoiceActivityDetection()));
-  result.Append(", iceRestart: ");
-  result.Append(String::Boolean(options->IceRestart()));
-  return result.ToString();
+  auto json = std::make_unique<JSONObject>();
+  if (options->OfferToReceiveAudio()) {
+    json->SetBoolean("offerToReceiveAudio", true);
+  }
+  if (options->OfferToReceiveVideo()) {
+    json->SetBoolean("offerToReceiveVideo", true);
+  }
+  if (options->VoiceActivityDetection()) {
+    json->SetBoolean("voiceActivityDetection", true);
+  }
+  if (options->IceRestart()) {
+    json->SetBoolean("iceRestart", true);
+  }
+  StringBuilder value;
+  json->WriteJSON(&value);
+  return value.ToString();
 }
 
 String SerializeAnswerOptions(blink::RTCAnswerOptionsPlatform* options) {
-  if (!options)
+  if (!options) {
     return "null";
+  }
 
-  StringBuilder result;
-  result.Append(", voiceActivityDetection: ");
-  result.Append(String::Boolean(options->VoiceActivityDetection()));
-  return result.ToString();
+  auto json = std::make_unique<JSONObject>();
+  if (options->VoiceActivityDetection()) {
+    json->SetBoolean("voiceActivityDetection", true);
+  }
+  StringBuilder value;
+  json->WriteJSON(&value);
+  return value.ToString();
 }
 
 String SerializeMediaStreamIds(const Vector<String>& stream_ids) {
@@ -317,84 +309,68 @@ String SerializeTransceiver(const RTCRtpTransceiverPlatform& transceiver) {
   return result.ToString();
 }
 
-String SerializeIceTransportType(
-    webrtc::PeerConnectionInterface::IceTransportsType type) {
-  String transport_type("");
-  switch (type) {
-    case webrtc::PeerConnectionInterface::kNone:
-      transport_type = "none";
-      break;
-    case webrtc::PeerConnectionInterface::kRelay:
-      transport_type = "relay";
-      break;
-    case webrtc::PeerConnectionInterface::kAll:
-      transport_type = "all";
-      break;
-    case webrtc::PeerConnectionInterface::kNoHost:
-      transport_type = "noHost";
-      break;
-    default:
-      NOTREACHED();
-  }
-  return transport_type;
-}
-
-String SerializeBundlePolicy(
-    webrtc::PeerConnectionInterface::BundlePolicy policy) {
-  String policy_str("");
-  switch (policy) {
-    case webrtc::PeerConnectionInterface::kBundlePolicyBalanced:
-      policy_str = "balanced";
-      break;
-    case webrtc::PeerConnectionInterface::kBundlePolicyMaxBundle:
-      policy_str = "max-bundle";
-      break;
-    case webrtc::PeerConnectionInterface::kBundlePolicyMaxCompat:
-      policy_str = "max-compat";
-      break;
-    default:
-      NOTREACHED();
-  }
-  return policy_str;
-}
-
-String SerializeRtcpMuxPolicy(
-    webrtc::PeerConnectionInterface::RtcpMuxPolicy policy) {
-  String policy_str("");
-  switch (policy) {
-    case webrtc::PeerConnectionInterface::kRtcpMuxPolicyNegotiate:
-      policy_str = "negotiate";
-      break;
-    case webrtc::PeerConnectionInterface::kRtcpMuxPolicyRequire:
-      policy_str = "require";
-      break;
-    default:
-      NOTREACHED();
-  }
-  return policy_str;
-}
-
 // Serializes things that are of interest from the RTCConfiguration.
 String SerializeConfiguration(
     const webrtc::PeerConnectionInterface::RTCConfiguration& config,
     bool usesInsertableStreams) {
-  StringBuilder result;
-  // TODO(hbos): Add serialization of certificate.
-  result.Append("{ iceServers: ");
-  result.Append(SerializeServers(config.servers));
-  result.Append(", iceTransportPolicy: ");
-  result.Append(SerializeIceTransportType(config.type));
-  result.Append(", bundlePolicy: ");
-  result.Append(SerializeBundlePolicy(config.bundle_policy));
-  result.Append(", rtcpMuxPolicy: ");
-  result.Append(SerializeRtcpMuxPolicy(config.rtcp_mux_policy));
-  result.Append(", iceCandidatePoolSize: ");
-  result.AppendNumber(config.ice_candidate_pool_size);
-  if (usesInsertableStreams) {
-    result.Append(", encodedInsertableStreams: true");
+  auto json = std::make_unique<JSONObject>();
+  // Serialize iceServers (without username and credential).
+  if (!config.servers.empty()) {
+    auto servers = std::make_unique<JSONArray>();
+    for (const auto& ice_server : config.servers) {
+      auto server = std::make_unique<JSONObject>();
+      auto urls = std::make_unique<JSONArray>();
+      for (const auto& url : ice_server.urls) {
+        urls->PushString(String(url));
+      }
+      server->SetArray("urls", std::move(urls));
+      servers->PushObject(std::move(server));
+    }
+    json->SetArray("iceServers", std::move(servers));
   }
-  result.Append(" }");
-  return result.ToString();
+  // Serialize iceTransportPolicy.
+  switch (config.type) {
+    case webrtc::PeerConnectionInterface::kRelay:
+      json->SetString("iceTransportPolicy", "relay");
+      break;
+    default:
+      // The other values are the default or not web-exposed.
+      break;
+  }
+  // Serialize iceCandidatePoolSize.
+  if (config.ice_candidate_pool_size > 0) {
+    json->SetInteger("iceCandidatePoolSize", config.ice_candidate_pool_size);
+  }
+  // Serialize bundlePolicy.
+  switch (config.bundle_policy) {
+    case webrtc::PeerConnectionInterface::kBundlePolicyMaxBundle:
+      json->SetString("bundlePolicy", "max-bundle");
+      break;
+    case webrtc::PeerConnectionInterface::kBundlePolicyMaxCompat:
+      json->SetString("bundlePolicy", "max-compat");
+      break;
+    default:
+      // "balanced" is the default and not serialized.
+      break;
+  }
+  // Serialize rtcpMuxPolicy.
+  switch (config.rtcp_mux_policy) {
+    case webrtc::PeerConnectionInterface::kRtcpMuxPolicyNegotiate:
+      // No longer standard.
+      json->SetString("rtcpMuxPolicy", "negotiate");
+      break;
+    default:
+      // "require" is the default and not serialized.
+      break;
+  }
+  // Serialize (non-standard and obsolete) encodedInsertableStreams.
+  if (usesInsertableStreams) {
+    json->SetBoolean("encodedInsertableStreams", true);
+  }
+  // TODO(hbos): Add serialization of certificate.
+  StringBuilder value;
+  json->WriteJSON(&value);
+  return value.ToString();
 }
 
 const char* GetTransceiverUpdatedReasonString(
@@ -794,9 +770,7 @@ void PeerConnectionTracker::TrackCreateOffer(
   int id = GetLocalIDForHandler(pc_handler);
   if (id == -1)
     return;
-  SendPeerConnectionUpdate(
-      id, "createOffer",
-      StrCat({"options: {", SerializeOfferOptions(options), "}"}));
+  SendPeerConnectionUpdate(id, "createOffer", SerializeOfferOptions(options));
 }
 
 void PeerConnectionTracker::TrackCreateAnswer(
@@ -806,9 +780,7 @@ void PeerConnectionTracker::TrackCreateAnswer(
   int id = GetLocalIDForHandler(pc_handler);
   if (id == -1)
     return;
-  SendPeerConnectionUpdate(
-      id, "createAnswer",
-      StrCat({"options: {", SerializeAnswerOptions(options), "}"}));
+  SendPeerConnectionUpdate(id, "createAnswer", SerializeAnswerOptions(options));
 }
 
 void PeerConnectionTracker::TrackSetSessionDescription(
@@ -820,11 +792,17 @@ void PeerConnectionTracker::TrackSetSessionDescription(
   int id = GetLocalIDForHandler(pc_handler);
   if (id == -1)
     return;
-  String value = StrCat({"type: ", type, ", sdp: ", sdp});
+  auto json = std::make_unique<JSONObject>();
+  json->SetString("type", type);
+  if (!sdp.empty()) {
+    json->SetString("sdp", sdp);
+  }
+  StringBuilder value;
+  json->WriteJSON(&value);
   SendPeerConnectionUpdate(
       id,
       source == kSourceLocal ? "setLocalDescription" : "setRemoteDescription",
-      value);
+      value.ToString());
 }
 
 void PeerConnectionTracker::TrackSetSessionDescriptionImplicit(
@@ -860,24 +838,31 @@ void PeerConnectionTracker::TrackAddIceCandidate(
     return;
   String relay_protocol = candidate->RelayProtocol();
   String url = candidate->Url();
-  String value = StrCat(
-      {"sdpMid: ", String(candidate->SdpMid()), ", ", "sdpMLineIndex: ",
-       (candidate->SdpMLineIndex() ? String::Number(*candidate->SdpMLineIndex())
-                                   : "null"),
-       ", candidate: ", String(candidate->Candidate()),
-       (!url.empty() ? ", url: " : ""), (!url.empty() ? url : String()),
-       (!relay_protocol.empty() ? ", relayProtocol: " : ""),
-       (!relay_protocol.empty() ? relay_protocol : String())});
+
+  auto json = std::make_unique<JSONObject>();
+  json->SetString("sdpMid", candidate->SdpMid());
+  if (candidate->SdpMLineIndex()) {
+    json->SetInteger("sdpMLineIndex", *candidate->SdpMLineIndex());
+  }
+  json->SetString("candidate", candidate->Candidate());
+  if (!url.empty()) {
+    json->SetString("url", url);
+  }
+  if (!relay_protocol.empty()) {
+    json->SetString("relayProtocol", relay_protocol);
+  }
 
   // OnIceCandidate always succeeds as it's a callback from the browser.
   DCHECK(source != kSourceLocal || succeeded);
 
+  StringBuilder value;
+  json->WriteJSON(&value);
   const char* event =
       (source == kSourceLocal)
           ? "icecandidate"
           : (succeeded ? "addIceCandidate" : "addIceCandidateFailed");
 
-  SendPeerConnectionUpdate(id, event, value);
+  SendPeerConnectionUpdate(id, event, value.ToString());
 }
 
 void PeerConnectionTracker::TrackIceCandidateError(
@@ -892,15 +877,21 @@ void PeerConnectionTracker::TrackIceCandidateError(
   int id = GetLocalIDForHandler(pc_handler);
   if (id == -1)
     return;
-  String address_string =
-      address ? StrCat({"address: ", address, "\n"}) : String();
-  String port_string =
-      port.has_value() ? String::Format("port: %d\n", port.value()) : "";
-  String value = StrCat({"url: ", url, "\n", address_string, port_string,
-                         "host_candidate: ", host_candidate, "\n",
-                         "error_text: ", error_text, "\n",
-                         "error_code: ", String::Number(error_code)});
-  SendPeerConnectionUpdate(id, "icecandidateerror", value);
+
+  auto json = std::make_unique<JSONObject>();
+  json->SetString("url", url);
+  if (address) {
+    json->SetString("address", address);
+  }
+  if (port.has_value()) {
+    json->SetInteger("port", *port);
+  }
+  json->SetString("host_candidate", host_candidate);
+  json->SetString("error_text", error_text);
+  json->SetInteger("error_code", error_code);
+  StringBuilder value;
+  json->WriteJSON(&value);
+  SendPeerConnectionUpdate(id, "icecandidateerror", value.ToString());
 }
 
 void PeerConnectionTracker::TrackAddTransceiver(

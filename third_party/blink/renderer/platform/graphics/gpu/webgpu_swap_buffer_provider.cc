@@ -95,10 +95,17 @@ void WebGPUSwapBufferProvider::ReleaseWGPUTextureAccessIfNeeded() {
 }
 
 void WebGPUSwapBufferProvider::DiscardCurrentSwapBuffer() {
+  // We're discarding the current texture without sending it to the compositor.
   if (current_swap_buffer_ && current_swap_buffer_->mailbox_texture) {
     current_swap_buffer_->mailbox_texture->SetNeedsPresent(false);
+
+    // Release the texture access and put it back in the pool to be recycled.
+    // Otherwise, we'll destroy the shared image associated with the texture
+    // instead of reusing it like if the texture was composited.
+    ReleaseWGPUTextureAccessIfNeeded();
+
+    swap_buffer_pool_->ReleaseImage(std::move(current_swap_buffer_));
   }
-  ReleaseWGPUTextureAccessIfNeeded();
   current_swap_buffer_ = nullptr;
 }
 
@@ -112,7 +119,16 @@ void WebGPUSwapBufferProvider::Neuter() {
     layer_ = nullptr;
   }
 
+  // Clear the pool after discarding the current swap buffer since the current
+  // swap buffer could be recycled into the pool.
   DiscardCurrentSwapBuffer();
+
+  // Check that the pool is present before clearing it - the pool is created
+  // in the first GetNewTexture() call.
+  if (swap_buffer_pool_) {
+    swap_buffer_pool_->Clear();
+  }
+
   client_ = nullptr;
   neutered_ = true;
 }
@@ -372,7 +388,7 @@ void WebGPUSwapBufferProvider::MailboxReleased(
   // thread).
   CHECK_EQ(thread_ref, base::PlatformThread::CurrentRef());
 
-  if (provider) {
+  if (provider && !provider->neutered_) {
     provider->swap_buffer_pool_->ReleaseImage(std::move(swap_buffer));
   }
 }
@@ -385,7 +401,7 @@ WebGPUSwapBufferProvider::SwapBuffer::~SwapBuffer() = default;
 
 #if BUILDFLAG(IS_CHROMEOS)
 // This feature is only used as a possible killswitch.
-BASE_FEATURE(WebGPUSwapBufferProviderAllowScanout,
+BASE_FEATURE(kWebGPUSwapBufferProviderAllowScanout,
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 

@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_SAVE_TO_DRIVE_DRIVE_UPLOADER_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -21,6 +22,7 @@ class Profile;
 namespace endpoint_fetcher {
 enum class HttpMethod;
 class EndpointFetcher;
+struct EndpointResponse;
 using UploadProgressCallback =
     base::RepeatingCallback<void(uint64_t, uint64_t)>;
 }  // namespace endpoint_fetcher
@@ -40,6 +42,8 @@ struct AccessTokenInfo;
 }  // namespace signin
 
 namespace save_to_drive {
+
+class ContentReader;
 
 // The type of the Drive uploader.
 enum class DriveUploaderType {
@@ -64,7 +68,8 @@ class DriveUploader {
                 std::string title,
                 AccountInfo account_info,
                 ProgressCallback progress_callback,
-                Profile* profile);
+                Profile* profile,
+                ContentReader* content_reader);
   DriveUploader(const DriveUploader&) = delete;
   DriveUploader& operator=(const DriveUploader&) = delete;
   virtual ~DriveUploader();
@@ -77,6 +82,15 @@ class DriveUploader {
   virtual void UploadFile() = 0;
 
   DriveUploaderType get_drive_uploader_type_for_testing() const;
+
+  void set_oauth_headers_for_testing(std::vector<std::string> oauth_headers);
+
+  // Metadata of a Drive item. This is used to parse the response from the
+  // Drive API.
+  struct Item {
+    std::string id;
+    std::string name;
+  };
 
  protected:
   // Convenience function to create an `EndpointFetcher` to make HTTP requests
@@ -92,14 +106,29 @@ class DriveUploader {
   void OnFetchAccessToken(GoogleServiceAuthError error,
                           signin::AccessTokenInfo access_token_info);
 
+  // Fetches a special folder using Drive API to use as the parent folder
+  // for the uploaded file.
+  void FetchParentFolder();
+
+  // Handles the response from the Drive API when fetching the parent folder.
+  void OnFetchParentFolder(
+      std::unique_ptr<endpoint_fetcher::EndpointResponse> response);
+
+  const std::vector<std::string>& oauth_headers() const;
+
   const DriveUploaderType drive_uploader_type_;
   const std::string title_;
   const AccountInfo account_info_;
   const ProgressCallback progress_callback_;
-  std::vector<std::string> oauth_headers_;
-  raw_ptr<signin::IdentityManager> identity_manager_ = nullptr;
+  const raw_ptr<signin::IdentityManager> identity_manager_;
   std::unique_ptr<signin::AccessTokenFetcher> access_token_fetcher_;
   scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
+  std::unique_ptr<endpoint_fetcher::EndpointFetcher> parent_endpoint_fetcher_;
+  std::optional<Item> parent_folder_;
+  const raw_ptr<ContentReader> content_reader_;
+
+ private:
+  std::vector<std::string> oauth_headers_;
 
   base::WeakPtrFactory<DriveUploader> weak_ptr_factory_{this};
 };

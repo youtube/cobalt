@@ -139,6 +139,7 @@
 #include "net/base/features.h"
 #include "net/base/net_errors.h"
 #include "net/cookies/cookie_setting_override.h"
+#include "net/disk_cache/buildflags.h"
 #include "net/ssl/client_cert_store.h"
 #include "services/cert_verifier/public/mojom/cert_verifier_service_factory.mojom.h"
 #include "services/network/public/cpp/cors/origin_access_list.h"
@@ -1170,13 +1171,31 @@ StoragePartitionImpl::StoragePartitionImpl(
     const base::FilePath& partition_path,
     const base::FilePath& relative_partition_path,
     storage::SpecialStoragePolicy* special_storage_policy)
-    : browser_context_(browser_context),
+    : performance_scenarios::MatchingScenarioObserver(
+          performance_scenarios::kDefaultIdleScenarios),
+      browser_context_(browser_context),
       partition_path_(partition_path),
       config_(config),
       relative_partition_path_(relative_partition_path),
       special_storage_policy_(special_storage_policy),
       network_context_owner_(std::make_unique<NetworkContextOwner>()),
-      deletion_helpers_running_(0) {}
+      deletion_helpers_running_(0) {
+#if BUILDFLAG(ENABLE_DISK_CACHE_SQL_BACKEND)
+  // To run a database checkpoint when the browser is idle, the SQL disk cache
+  // uses PerformanceScenarioObserverList to detect the idle state.
+  if (base::FeatureList::IsEnabled(
+          net::features::kDiskCacheBackendExperiment) &&
+      net::features::kDiskCacheBackendParam.Get() ==
+          net::features::DiskCacheBackend::kSql) {
+    // `observer_list` may be null in tests.
+    if (auto observer_list =
+            performance_scenarios::PerformanceScenarioObserverList::GetForScope(
+                performance_scenarios::ScenarioScope::kGlobal)) {
+      performance_scenario_observation_.Observe(observer_list.get());
+    }
+  }
+#endif  // ENABLE_DISK_CACHE_SQL_BACKEND
+}
 
 StoragePartitionImpl::~StoragePartitionImpl() {
 #if DCHECK_IS_ON()
@@ -2512,6 +2531,7 @@ void StoragePartitionImpl::Clone(
 }
 
 void StoragePartitionImpl::OnWebSocketConnectedToPrivateNetwork(
+    const GURL& request_url,
     network::mojom::IPAddressSpace ip_address_space) {
   RenderFrameHostImpl* render_frame_host_impl =
       RenderFrameHostImpl::FromID(GetRenderFrameHostIdFromNetworkContext());
@@ -2523,6 +2543,17 @@ void StoragePartitionImpl::OnWebSocketConnectedToPrivateNetwork(
     GetContentClient()->browser()->LogWebFeatureForCurrentPage(
         render_frame_host_impl,
         blink::mojom::WebFeature::kPrivateNetworkAccessWebSocketConnected);
+
+    // Log a UseCounter for potential LNA breakage, where we cannot auto-detect
+    // a mixed content bypass situation. This is similar to the check below in
+    // StoragePartitionImpl::OnUrlLoaderConnectedToPrivateNetwork.
+    if (!network::IsUrlPotentiallyTrustworthy(request_url) &&
+        !request_url.HostIsIPAddress() && !request_url.DomainIs("local")) {
+      GetContentClient()->browser()->LogWebFeatureForCurrentPage(
+          render_frame_host_impl,
+          blink::mojom::WebFeature::
+              kLocalNetworkAccessWebSocketResourceNotKnownPrivate);
+    }
   }
 }
 
@@ -3064,11 +3095,8 @@ void StoragePartitionImpl::DataDeletionHelper::ClearDataOnUIThread(
         base::IgnoreArgs<bool>(mojo::WrapCallbackWithDefaultInvokeIfNotRun(
             CreateTaskCompletionClosure(TracingDataType::kCdmStorage))));
 
-    GetUIThreadTaskRunner({})->PostTask(
-        FROM_HERE, base::BindOnce(&CdmStorageManager::DeleteData,
-                                  base::Unretained(cdm_storage_manager),
-                                  generic_filter, storage_key, begin, end,
-                                  std::move(cdm_deletion_callback)));
+    cdm_storage_manager->DeleteData(generic_filter, storage_key, begin, end,
+                                    std::move(cdm_deletion_callback));
   }
 #endif  // BUILDFLAG(ENABLE_LIBRARY_CDMS)
 
@@ -3845,6 +3873,20 @@ int StoragePartitionImpl::GetActiveDocumentCount(
     return 0;
   }
   return active_document_per_nik_count_[nik];
+}
+
+void StoragePartitionImpl::OnScenarioMatchChanged(
+    performance_scenarios::ScenarioScope scope,
+    bool matches_pattern) {
+  // If the scenario matches `performance_scenarios::kDefaultIdleScenarios` and
+  // the network context is available, call `NotifyBrowserIdle()`. It's
+  // possible to miss an idle notification if the browser becomes idle before
+  // the network context is initialized. This is not a problem because the idle
+  // state is also checked when data is committed to the cache, so a checkpoint
+  // will eventually be triggered.
+  if (matches_pattern && network_context_owner_->network_context.get()) {
+    network_context_owner_->network_context->NotifyBrowserIdle();
+  }
 }
 
 StoragePartitionImpl::URLLoaderNetworkContext::URLLoaderNetworkContext(

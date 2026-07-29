@@ -114,7 +114,7 @@ BASE_FEATURE(kLensOverlayEduActionChip,
 
 BASE_FEATURE(kLensSearchSidePanelDefaultWidthChange,
              "LensSearchSidePanelDefaultWidthChange",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kLensOverlayKeyboardSelection,
              "LensOverlayKeyboardSelection",
@@ -122,11 +122,11 @@ BASE_FEATURE(kLensOverlayKeyboardSelection,
 
 BASE_FEATURE(kLensOverlayPermissionBubbleAlt,
              "LensOverlayPermissionBubbleAlt",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kLensOverlayBackToPage,
              "LensOverlayBackToPage",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kLensSearchNotFoundOnPageToast,
              "kLensSearchNotFoundOnPageToast",

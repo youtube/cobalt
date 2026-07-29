@@ -2,6 +2,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//third_party/libprotobuf-mutator/fuzzable_proto_library.gni")
+
 static_library("strike_database") {
   sources = [
     "history_clearable_strike_database.h",
@@ -24,12 +26,26 @@ static_library("strike_database") {
   ]
 
   deps = [
-    # TODO(crbug.com/442352155): Move proto out of Autofill.
-    "//components/autofill/core/browser/proto",
-
-    # TODO(crbug.com/442352155): Remove dependency on test feature.
-    "//components/autofill/core/common:features",
+    ":features",
+    ":proto",
   ]
+}
+
+component("features") {
+  output_name = "strike_database_features"
+  defines = [ "IS_STRIKE_DATABASE_IMPL" ]
+  sources = [
+    "strike_database_features.cc",
+    "strike_database_features.h",
+  ]
+
+  public_deps = [ "//base" ]
+
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
+}
+
+fuzzable_proto_library("proto") {
+  sources = [ "strike_data.proto" ]
 }
 
 static_library("test_support") {
@@ -41,7 +57,7 @@ static_library("test_support") {
 
   public_deps = [ ":strike_database" ]
 
-  deps = [ "//components/autofill/core/browser/proto" ]
+  deps = [ ":proto" ]
 }
 
 source_set("unit_tests") {
@@ -54,14 +70,10 @@ source_set("unit_tests") {
   ]
 
   deps = [
+    ":features",
+    ":proto",
     ":strike_database",
     "//base/test:test_support",
-
-    # TODO(crbug.com/442352155): Move proto out of Autofill.
-    "//components/autofill/core/browser/proto",
-
-    # TODO(crbug.com/442352155): Remove dependency on test feature.
-    "//components/autofill/core/common:features",
     "//testing/gtest",
   ]
 }

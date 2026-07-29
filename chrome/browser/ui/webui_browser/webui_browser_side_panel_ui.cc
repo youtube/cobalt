@@ -13,6 +13,7 @@
 #include "chrome/browser/ui/webui_browser/webui_browser_window.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/views/controls/webview/webview.h"
+#include "ui/views/view_class_properties.h"
 #include "ui/views/view_utils.h"
 
 namespace {
@@ -36,7 +37,19 @@ WebUIBrowserSidePanelUI::WebUIBrowserSidePanelUI(Browser* browser)
 
 WebUIBrowserSidePanelUI::~WebUIBrowserSidePanelUI() = default;
 
-void WebUIBrowserSidePanelUI::Close() {}
+void WebUIBrowserSidePanelUI::Close() {
+  if (!current_key().has_value()) {
+    return;
+  }
+
+  if (SidePanelEntry* entry = GetEntryForUniqueKey(*current_key())) {
+    entry->OnEntryWillHide(SidePanelEntryHideReason::kSidePanelClosed);
+  }
+  // Asynchronously close the side panel in webshell.
+  // WebUI then notifies the browser when the side panel is actually closed
+  // via OnSidePanelClosed().
+  GetWebUIBrowserWindow()->CloseSidePanel();
+}
 
 void WebUIBrowserSidePanelUI::Toggle(SidePanelEntryKey key,
                                      SidePanelOpenTrigger open_trigger) {}
@@ -55,7 +68,9 @@ void WebUIBrowserSidePanelUI::DisableAnimationsForTesting() {}
 void WebUIBrowserSidePanelUI::SetNoDelaysForTesting(
     bool no_delays_for_testing) {}
 
-void WebUIBrowserSidePanelUI::Close(bool suppress_animations) {}
+void WebUIBrowserSidePanelUI::Close(bool suppress_animations) {
+  Close();
+}
 
 content::WebContents* WebUIBrowserSidePanelUI::GetWebContentsForId(
     SidePanelEntryId entry_id) const {
@@ -112,6 +127,12 @@ void WebUIBrowserSidePanelUI::PopulateSidePanel(
 
   current_side_panel_view_ =
       content_view ? std::move(content_view.value()) : entry->GetContent();
+  // This view is never attached to a widget, so override the focus manager
+  // to use the top level widget's focus manager. This makes sure that
+  // View::GetFocusManager() does not crash (called during key event dispatch).
+  current_side_panel_view_->SetProperty(
+      views::kDetachedViewFocusManagerKey,
+      GetWebUIBrowserWindow()->widget()->GetFocusManager());
   set_current_key(unique_key);
   set_current_entry(entry->GetWeakPtr());
   GetWebUIBrowserWindow()->ShowSidePanel(entry->key());
@@ -131,7 +152,67 @@ void WebUIBrowserSidePanelUI::PopulateSidePanel(
 
 void WebUIBrowserSidePanelUI::MaybeShowEntryOnTabStripModelChanged(
     SidePanelRegistry* old_contextual_registry,
-    SidePanelRegistry* new_contextual_registry) {}
+    SidePanelRegistry* new_contextual_registry) {
+  // Show an entry in the following fallback order: new contextual registry's
+  // active entry > active global entry > none (close the side panel).
+  std::optional<UniqueKey> unique_key =
+      IsSidePanelShowing() ? GetNewActiveKeyOnTabChanged() : std::nullopt;
+  if (!unique_key.has_value() && new_contextual_registry &&
+      new_contextual_registry->active_entry().has_value()) {
+    unique_key = UniqueKey{browser()->GetActiveTabInterface()->GetHandle(),
+                           (*new_contextual_registry->active_entry())->key()};
+  }
+
+  if (unique_key.has_value()) {
+    Show(*unique_key, SidePanelUtil::SidePanelOpenTrigger::kTabChanged,
+         /*suppress_animations=*/true);
+    return;
+  }
+
+  // Store the old side panel, if there is one.
+  if (old_contextual_registry &&
+      old_contextual_registry->active_entry().has_value() &&
+      current_key().has_value() &&
+      (*old_contextual_registry->active_entry())->key() == current_key()->key &&
+      current_key()->tab_handle) {
+    auto* active_entry = old_contextual_registry->active_entry().value();
+    active_entry->CacheView(std::move(std::move(current_side_panel_view_)));
+    current_side_panel_view_.reset();
+  }
+
+  Close(/*suppress_animations=*/true);
+}
+
+void WebUIBrowserSidePanelUI::OnSidePanelClosed() {
+  if (!current_key()) {
+    return;
+  }
+
+  const bool closing_global = !current_key()->tab_handle;
+  SidePanelEntry* previous_entry = GetEntryForUniqueKey(*current_key());
+  set_current_key(std::nullopt);
+  if (previous_entry) {
+    previous_entry->OnEntryHidden();
+  }
+
+  // Reset active entry values for all observed registries and clear cache for
+  // everything except remaining active entries (i.e. if another tab has an
+  // active contextual entry).
+  if (auto* contextual_registry = GetActiveContextualRegistry()) {
+    contextual_registry->ResetActiveEntry();
+    if (closing_global) {
+      // Reset last active entry in contextual registry as global entry should
+      // take precedence.
+      contextual_registry->ResetLastActiveEntry();
+    }
+  }
+
+  window_registry_->ResetActiveEntry();
+
+  current_side_panel_view_.reset();
+  // TODO(webium): Clear cached views for registry entries for global and
+  // contextual registries.
+}
 
 WebUIBrowserWindow* WebUIBrowserSidePanelUI::GetWebUIBrowserWindow() {
   return static_cast<WebUIBrowserWindow*>(browser()->window());

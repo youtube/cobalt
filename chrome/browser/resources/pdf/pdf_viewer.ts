@@ -41,8 +41,7 @@ import {AnnotationMode} from './constants.js';
 // </if>
 import {FittingType, FormFieldFocusType} from './constants.js';
 // <if expr="enable_pdf_save_to_drive">
-import type {SaveToDriveBubbleRequestType} from './constants.js';
-import {SaveToDriveState} from './constants.js';
+import {SaveToDriveBubbleRequestType, SaveToDriveState} from './constants.js';
 // </if> enable_pdf_save_to_drive
 import type {MessageData} from './controller.js';
 import {PluginController} from './controller.js';
@@ -1293,8 +1292,11 @@ export class PdfViewerElement extends PdfViewerBaseElement {
   }
 
   protected onSaveToDrive_(e: CustomEvent<SaveRequestType>) {
-    PdfViewerPrivateProxyImpl.getInstance().saveToDrive(e.detail);
+    // TODO(crbug.com/427449996): Implement logics to reset the SaveToDriveState
+    // back to UNINITIALIZED after the bubble is closed from the finish or error
+    // state, so the next `onSaveToDrive_` call can re-trigger the upload flow.
     if (this.saveToDriveState_ === SaveToDriveState.UNINITIALIZED) {
+      PdfViewerPrivateProxyImpl.getInstance().saveToDrive(e.detail);
       return;
     }
     const bubble =
@@ -1306,8 +1308,17 @@ export class PdfViewerElement extends PdfViewerBaseElement {
 
   protected onSaveToDriveBubbleAction_(
       e: CustomEvent<SaveToDriveBubbleRequestType>) {
-    // TODO(crbug.com/427449996): Implement the save PDF to drive logics.
-    console.warn('Saving to Drive bubble action is not implemented yet.' + e);
+    switch (e.detail) {
+      case SaveToDriveBubbleRequestType.CANCEL_UPLOAD:
+        PdfViewerPrivateProxyImpl.getInstance().saveToDrive(
+            /*saveRequestType=undefined*/);
+        break;
+      default:
+        // TODO(crbug.com/427449996): Implement the save PDF to drive logics.
+        console.warn(
+            'Saving to Drive bubble action is not implemented yet.', e.detail);
+        break;
+    }
   }
   // </if> enable_pdf_save_to_drive
 

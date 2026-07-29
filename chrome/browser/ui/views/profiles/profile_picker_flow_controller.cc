@@ -107,20 +107,17 @@ void ShowCustomizationBubble(std::optional<SkColor> new_profile_color,
     return;
   }
 
+  BrowserWindowFeatures& features = browser->GetFeatures();
   if (ProfileCustomizationBubbleSyncController::CanThemeSyncStart(
           browser->profile())) {
     // For sync users, their profile color has not been applied yet. Call a
     // helper class that applies the color and shows the bubble only if there is
     // no conflict with a synced theme / color.
-    ProfileCustomizationBubbleSyncController::
-        ApplyColorAndShowBubbleWhenNoValueSynced(
-            browser,
-            /*suggested_profile_color=*/new_profile_color.value());
+    features.profile_customization_bubble_sync_controller()
+        ->ShowOnSyncFailedOrDefaultTheme(new_profile_color.value());
   } else {
     // For non syncing users, simply show the bubble.
-    browser->GetFeatures()
-        .signin_view_controller()
-        ->ShowModalProfileCustomizationDialog();
+    features.signin_view_controller()->ShowModalProfileCustomizationDialog();
   }
 }
 
@@ -685,11 +682,15 @@ void ProfilePickerFlowController::PickProfile(
     profile_picked_time_on_startup_ = base::TimeTicks::Now();
   }
 
+  bool open_command_line_urls = ProfilePicker::GetOpenCommandLineUrlsInNextProfileOpened();
+  ProfilePicker::SetOpenCommandLineUrlsInNextProfileOpened(false);
+
   profiles::SwitchToProfile(
       profile_path, /*always_create=*/false,
       base::BindOnce(&ProfilePickerFlowController::OnSwitchToProfileComplete,
                      weak_ptr_factory_.GetWeakPtr(), args.open_settings,
-                     std::move(pick_profile_complete_callback)));
+                     std::move(pick_profile_complete_callback)),
+      open_command_line_urls);
 }
 
 void ProfilePickerFlowController::OnSwitchToProfileComplete(

@@ -28,7 +28,7 @@
         <div id="zeroTabGroupsCreateNewTabGroup">
           <cr-button id="createNewTabGroupButton" class="create-new-tab-group"
               @click="${this.onCreateNewTabGroupClick_}">
-            <cr-icon id="createNewTabGroupButtonIcon" class="icon"
+            <cr-icon id="createNewTabGroupButtonIcon"
                 icon="tab_groups:create_new_tab_group" slot="prefix-icon">
             </cr-icon>
             <div id="createNewTabGroupButtonText">
@@ -41,9 +41,10 @@
   `: html`
     <div id="tabGroupsContainer">
       ${this.getTabGroups_().map(item => html`
-        <div class="tab-group-container">
-          <div class="hover-layer"></div>
-          <a class="tab-group" @click="${() => this.onTabGroupClick_(item.id)}">
+        <cr-button class="tab-group"
+            @click="${() => this.onTabGroupClick_(item.id)}"
+            aria-label="${this.ariaLabels.get(item.id)}">
+          <div class="row-content">
             <ntp-icon-container class="icon-container"
                 .style="background-color: var(${this.computeTabGroupColor_(item.color)})"
                 .faviconUrls="${this.getFaviconUrls_(item.faviconUrls)}"
@@ -54,28 +55,27 @@
               <div class="tab-group-description">${this.computeDescription_(item.updateTime, item.deviceName)}</div>
             </div>
             ${item.isSharedTabGroup ? html`
-              <cr-icon id="sharedTabGroupIcon" class="icon"
+              <cr-icon id="sharedTabGroupIcon"
                   icon="tab_groups:shared_tab_group" slot="icon">
               </cr-icon>
             ` : ''}
-          </a>
-        </div>
+          </div>
+        </cr-button>
       `)}
       <div id="footer">
         <div id="divider"></div>
-        <div id="createNewTabGroupContainer" class="tab-group-container">
-          <div class="hover-layer"></div>
-          <a id="createNewTabGroupLink" class="create-new-tab-group"
-              @click="${this.onCreateNewTabGroupClick_}">
-            <cr-icon id="createNewTabGroupIcon" class="icon"
+        <cr-button id="createNewTabGroupFooterButton"
+            class="create-new-tab-group"
+            @click="${this.onCreateNewTabGroupClick_}">
+          <div class="row-content">
+            <cr-icon id="createNewTabGroupIcon"
                 icon="tab_groups:create_new_tab_group" slot="icon">
             </cr-icon>
             <div id="createNewTabGroupText" class="tab-group-title">
               ${this.i18n('modulesTabGroupsCreateNewTabGroup')}
             </div>
-          </a>
-        </div>
-        </div>
+          </div>
+        </cr-button>
       </div>
     </div>
   `}

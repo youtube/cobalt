@@ -5,6 +5,7 @@
 import("//build/buildflag_header.gni")
 import("//components/lens/features.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
+import("//pdf/features.gni")
 
 # Generate a buildflag header for compile-time checking of Lens feature support.
 buildflag_header("buildflags") {
@@ -59,6 +60,7 @@ static_library("lens") {
     "//components/variations:variations_mojom",
     "//google_apis/common",
     "//net",
+    "//pdf:buildflags",
     "//services/metrics/public/cpp:metrics_cpp",
     "//services/metrics/public/cpp:ukm_builders",
     "//third_party/lens_server_proto:lens_overlay_proto",
@@ -68,7 +70,6 @@ static_library("lens") {
     ":features",
     ":mime_type",
   ]
-
   sources += [
     "lens_bitmap_processing.cc",
     "lens_bitmap_processing.h",
@@ -84,10 +85,28 @@ static_library("lens") {
       "tab_contextualization_controller.h",
     ]
     public_deps += [ "//ui/base/unowned_user_data" ]
+    deps += [
+      "//components/optimization_guide/content/browser:page_context_eligibility",
+      "//content/public/browser",
+    ]
+
+    if (enable_pdf) {
+      public_deps += [
+        "//components/pdf/browser",
+        "//pdf/mojom",
+      ]
+    }
   }
 
   if (!is_android) {
     deps += [ "//third_party/zstd:compress" ]
+  }
+
+  if (enable_pdf) {
+    public_deps += [
+      "//components/pdf/browser",
+      "//pdf/mojom",
+    ]
   }
 }
 

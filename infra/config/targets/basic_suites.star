@@ -82,26 +82,6 @@ targets.legacy_basic_suite(
 )
 
 targets.legacy_basic_suite(
-    name = "chromeos_chrome_all_tast_tests",
-    tests = {
-        "chrome_all_tast_tests": targets.legacy_test_config(
-            skylab = targets.skylab(
-                # `tast_expr` must be a non-empty string to run the tast tests. But the value of
-                # would be overridden by `tast_arrt_expr` defined in chromeos/BUILD.gn, so that we
-                # put the stub string here.
-                tast_expr = "STUB_STRING_TO_RUN_TAST_TESTS",
-                # Temporary increases the maximum retries due to the unstable cloudbots (b/377616158)
-                test_level_retries = 2,
-                # Number of shards. Might be overriden for slower boards.
-                shards = 15,
-                # Timeout including DUT privisioning.
-                timeout_sec = 14400,
-            ),
-        ),
-    },
-)
-
-targets.legacy_basic_suite(
     name = "chromeos_chrome_all_tast_tests_tfc",
     tests = {
         "chrome_all_tast_tests": targets.legacy_test_config(
@@ -220,7 +200,6 @@ targets.legacy_basic_suite(
         "google_apis_unittests": targets.legacy_test_config(),
         "ipc_tests": targets.legacy_test_config(),
         "latency_unittests": targets.legacy_test_config(),
-        "libcups_unittests": targets.legacy_test_config(),
         "media_unittests": targets.legacy_test_config(
             args = [
                 "--test-launcher-filter-file=../../testing/buildbot/filters/chromeos.media_unittests.filter",
@@ -307,7 +286,6 @@ targets.legacy_basic_suite(
         "google_apis_unittests": targets.legacy_test_config(),
         "ipc_tests": targets.legacy_test_config(),
         "latency_unittests": targets.legacy_test_config(),
-        "libcups_unittests": targets.legacy_test_config(),
         "media_unittests": targets.legacy_test_config(
             args = [
                 # TODO(b/351276191): Switch to gerneral chromeos.betty.media_unittests.filter

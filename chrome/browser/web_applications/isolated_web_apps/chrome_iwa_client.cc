@@ -8,11 +8,11 @@
 #include "base/types/expected_macros.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/web_applications/isolated_web_apps/commands/isolated_web_app_install_command_helper.h"
+#include "chrome/browser/web_applications/isolated_web_apps/install/pending_install_info.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_features.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_trust_checker.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_update_manager.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
-#include "chrome/browser/web_applications/isolated_web_apps/pending_install_info.h"
+#include "chrome/browser/web_applications/isolated_web_apps/update/isolated_web_app_update_manager.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
 #include "chrome/browser/web_applications/web_app_ui_manager.h"
@@ -22,7 +22,6 @@
 #include "components/webapps/isolated_web_apps/types/url_loading_types.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/isolated_web_apps_policy.h"
-#include "content/public/browser/storage_partition_config.h"
 #include "content/public/browser/web_contents.h"
 
 namespace web_app {
@@ -165,15 +164,6 @@ void ChromeIwaClient::GetIwaSourceForRequest(
       FROM_HERE, base::BindOnce(&GetIwaSourceForRequestImpl,
                                 profile->GetWeakPtr(), web_bundle_id, request,
                                 frame_tree_node, std::move(callback)));
-}
-
-content::StoragePartition* ChromeIwaClient::GetStoragePartition(
-    content::BrowserContext* browser_context,
-    const web_package::SignedWebBundleId& web_bundle_id) {
-  return browser_context->GetStoragePartition(
-      IsolatedWebAppUrlInfo::CreateFromSignedWebBundleId(web_bundle_id)
-          .storage_partition_config(browser_context),
-      /*can_create=*/false);
 }
 
 }  // namespace web_app

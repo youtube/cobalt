@@ -11,6 +11,7 @@
 #import "ios/chrome/browser/home_customization/ui/home_customization_background_cell.h"
 #import "ios/chrome/browser/home_customization/ui/home_customization_background_picker_cell.h"
 #import "ios/chrome/browser/home_customization/ui/home_customization_collection_configurator.h"
+#import "ios/chrome/browser/home_customization/ui/home_customization_enterprise_policy_cell.h"
 #import "ios/chrome/browser/home_customization/ui/home_customization_framing_coordinates.h"
 #import "ios/chrome/browser/home_customization/ui/home_customization_mutator.h"
 #import "ios/chrome/browser/home_customization/ui/home_customization_search_engine_logo_mediator_provider.h"
@@ -53,6 +54,9 @@
 
   // Collection of backgrounds to display in the collection view.
   BackgroundCollectionConfiguration* _backgroundCollectionConfiguration;
+
+  // Registration for the enterprise management info cell.
+  UICollectionViewCellRegistration* _enterprisePolicyCellRegistration;
 
   // The id of the selected background cell.
   NSString* _selectedBackgroundId;
@@ -109,10 +113,8 @@
              cell.mutator = weakSelf.mutator;
            }];
 
-  // TODO(crbug.com/439549295): Update the UI to show a message when NTP
-  // customization is blocked by enterprise policy.
   if (IsNTPBackgroundCustomizationEnabled() &&
-      self.isNTPCustomBackgroundEnabledByPolicy) {
+      !self.customizationDisabledByPolicy) {
     _backgroundCellRegistration = [UICollectionViewCellRegistration
         registrationWithCellClass:[HomeCustomizationBackgroundCell class]
              configurationHandler:^(HomeCustomizationBackgroundCell* cell,
@@ -132,6 +134,17 @@
                cell.delegate = weakSelf.backgroundPickerPresentationDelegate;
              }];
   }
+
+  if (IsNTPBackgroundCustomizationEnabled() &&
+      self.customizationDisabledByPolicy) {
+    _enterprisePolicyCellRegistration = [UICollectionViewCellRegistration
+        registrationWithCellClass:[HomeCustomizationEnterprisePolicyCell class]
+             configurationHandler:^(HomeCustomizationEnterprisePolicyCell* cell,
+                                    NSIndexPath* indexPath,
+                                    NSString* itemIdentifier) {
+               [cell configureCellWithMutator:weakSelf.mutator];
+             }];
+  }
 }
 
 // Creates a data snapshot representing the content of the collection view.
@@ -141,7 +154,7 @@
       [[NSDiffableDataSourceSnapshot alloc] init];
 
   if (IsNTPBackgroundCustomizationEnabled() &&
-      self.isNTPCustomBackgroundEnabledByPolicy) {
+      !self.customizationDisabledByPolicy) {
     // Create background customization section and add items to it.
     [snapshot
         appendSectionsWithIdentifiers:@[ kCustomizationSectionBackground ]];
@@ -157,6 +170,15 @@
   [snapshot
       appendItemsWithIdentifiers:[self identifiersForToggleMap:self.toggleMap]
        intoSectionWithIdentifier:kCustomizationSectionMainToggles];
+
+  if (IsNTPBackgroundCustomizationEnabled() &&
+      self.customizationDisabledByPolicy) {
+    // Create an enterprise section with a message to users.
+    [snapshot
+        appendSectionsWithIdentifiers:@[ kCustomizationSectionEnterprise ]];
+    [snapshot appendItemsWithIdentifiers:@[ kEnterpriseCellIdentifier ]
+               intoSectionWithIdentifier:kCustomizationSectionEnterprise];
+  }
 
   return snapshot;
 }
@@ -177,6 +199,9 @@
       [self.diffableDataSource.snapshot
           indexOfSectionIdentifier:kCustomizationSectionBackground];
 
+  NSInteger enterpriseIdentifier = [self.diffableDataSource.snapshot
+      indexOfSectionIdentifier:kCustomizationSectionEnterprise];
+
   if (sectionIndex == mainTogglesIdentifier) {
     return [_collectionConfigurator
         verticalListSectionForLayoutEnvironment:layoutEnvironment];
@@ -184,6 +209,9 @@
     CHECK(IsNTPBackgroundCustomizationEnabled());
     return [_collectionConfigurator
         backgroundCellSectionForLayoutEnvironment:layoutEnvironment];
+  } else if (sectionIndex == enterpriseIdentifier) {
+    return [_collectionConfigurator
+        verticalListSectionForLayoutEnvironment:layoutEnvironment];
   }
   return nil;
 }
@@ -212,6 +240,12 @@
                                            forIndexPath:indexPath
                                                    item:itemIdentifier];
     }
+  } else if (kCustomizationSectionEnterprise == section) {
+    return [_collectionView
+        dequeueConfiguredReusableCellWithRegistration:
+            _enterprisePolicyCellRegistration
+                                         forIndexPath:indexPath
+                                                 item:itemIdentifier];
   }
   return nil;
 }

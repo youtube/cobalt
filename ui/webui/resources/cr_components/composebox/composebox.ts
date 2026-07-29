@@ -119,6 +119,10 @@ export class ComposeboxElement extends I18nMixinLit
         reflect: true,
         type: Boolean,
       },
+      showDropdown_: {
+        reflect: true,
+        type: Boolean,
+      },
       showErrorScrim_: {
         reflect: true,
         type: Boolean,
@@ -134,7 +138,7 @@ export class ComposeboxElement extends I18nMixinLit
         reflect: true,
         type: Boolean,
       },
-      showDropdown_: {type: Boolean},
+      smartComposeInlineHint_: {type: String},
     };
   }
 
@@ -164,6 +168,7 @@ export class ComposeboxElement extends I18nMixinLit
   protected accessor showErrorScrim_: boolean = false;
   protected accessor errorMessage_: string = '';
   protected accessor result_: AutocompleteResult|null = null;
+  protected accessor smartComposeInlineHint_: string = '';
   protected accessor inputPlaceholder_: string =
       loadTimeData.getString('searchboxComposePlaceholder');
   protected accessor composeboxShowPdfUpload_: boolean =
@@ -205,7 +210,7 @@ export class ComposeboxElement extends I18nMixinLit
     this.expanded_ = !this.isCollapsible;
 
     this.listenerIds = [
-      this.callbackRouter_.onFileUploadStatusChanged.addListener(
+      this.callbackRouter_.onContextualInputStatusChanged.addListener(
           (token: UnguessableToken, status: FileUploadStatus,
            errorType: FileUploadErrorType) => {
             let file = this.files_.get(token);
@@ -337,6 +342,10 @@ export class ComposeboxElement extends I18nMixinLit
     this.$.input.value = '';
   }
 
+  getSmartComposeForTesting() {
+    return this.smartComposeInlineHint_;
+  }
+
   protected computeCancelButtonTitle_() {
     return this.input_.trim().length > 0 || this.files_.size > 0 ?
         this.i18n('composeboxCancelButtonTitleInput') :
@@ -350,7 +359,7 @@ export class ComposeboxElement extends I18nMixinLit
 
     this.files_ = new Map([...this.files_.entries()].filter(
         ([uuid, _]) => uuid !== e.detail.uuid));
-    this.pageHandler_.deleteFile(e.detail.uuid);
+    this.pageHandler_.deleteContext(e.detail.uuid);
     this.$.input.focus();
   }
 
@@ -390,7 +399,7 @@ export class ComposeboxElement extends I18nMixinLit
 
         const bigBuffer:
             BigBuffer = {bytes: Array.from(new Uint8Array(fileBuffer))};
-        const {token} = await this.pageHandler_.addFile(
+        const {token} = await this.pageHandler_.addFileContext(
             {
               fileName: file.name,
               mimeType: file.type,
@@ -608,10 +617,15 @@ export class ComposeboxElement extends I18nMixinLit
     this.result_ = result;
     const hasMatches = this.result_?.matches?.length > 0;
     const firstMatch = hasMatches ? this.result_.matches[0] : null;
+    this.smartComposeInlineHint_ = this.result_.smartComposeInlineHint ?
+        mojoString16ToString(this.result_.smartComposeInlineHint) :
+        '';
     // Zero suggest matches are not allowed to be default. Therefore, this
     // makes sure zero suggest results aren't focused when they are returned.
     if (firstMatch && firstMatch.allowedToBeDefaultMatch) {
       this.$.matches.selectFirst();
+    } else {
+      this.$.matches.unselect();
     }
   }
 }

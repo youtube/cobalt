@@ -52,6 +52,7 @@ class DevtoolsUIController;
 class ExtensionKeybindingRegistryViews;
 class ExclusiveAccessManager;
 class FindBarController;
+class FindBarOwner;
 class FullscreenControlHost;
 class HistoryClustersSidePanelCoordinator;
 class HistorySidePanelCoordinator;
@@ -72,7 +73,7 @@ class TabMenuModelDelegate;
 class TabSearchToolbarButtonController;
 class TabListBridge;
 class TabStripModel;
-class TabStripServiceRegister;
+class TabStripServiceFeature;
 class ToastController;
 class ToastService;
 class TranslateBubbleController;
@@ -91,6 +92,10 @@ namespace default_browser {
 class PinInfoBarController;
 }  // namespace default_browser
 #endif
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+class ProfileCustomizationBubbleSyncController;
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 #if !BUILDFLAG(IS_CHROMEOS)
 class DownloadToolbarUIController;
@@ -361,8 +366,8 @@ class BrowserWindowFeatures {
   }
 
   // Only fetch the tab_strip_service to register a pending receiver.
-  TabStripServiceRegister* tab_strip_service() {
-    return tab_strip_service_.get();
+  TabStripServiceFeature* tab_strip_service_feature() {
+    return tab_strip_service_feature_.get();
   }
 
   LocationBarModel* location_bar_model() { return location_bar_model_.get(); }
@@ -415,6 +420,13 @@ class BrowserWindowFeatures {
     return browser_select_file_dialog_controller_.get();
   }
 
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+  ProfileCustomizationBubbleSyncController*
+  profile_customization_bubble_sync_controller() {
+    return profile_customization_bubble_sync_controller_.get();
+  }
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+
   // Get the FindBarController for this browser window, creating it if it does
   // not yet exist.
   FindBarController* GetFindBarController();
@@ -456,6 +468,8 @@ class BrowserWindowFeatures {
   ui::AcceleratorProvider* accelerator_provider() {
     return accelerator_provider_;
   }
+
+  FindBarOwner* find_bar_owner() { return find_bar_owner_.get(); }
 
   static ui::UserDataFactoryWithOwner<BrowserWindowInterface>&
   GetUserDataFactoryForTesting();
@@ -570,6 +584,11 @@ class BrowserWindowFeatures {
   std::unique_ptr<BrowserSelectFileDialogController>
       browser_select_file_dialog_controller_;
 
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+  std::unique_ptr<ProfileCustomizationBubbleSyncController>
+      profile_customization_bubble_sync_controller_;
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+
   std::unique_ptr<tabs::GlicNudgeController> glic_nudge_controller_;
 
 #if BUILDFLAG(ENABLE_GLIC)
@@ -635,7 +654,7 @@ class BrowserWindowFeatures {
   std::unique_ptr<ColorProviderBrowserHelper> color_provider_browser_helper_;
 
   // This is an experimental API that interacts with the TabStripModel.
-  std::unique_ptr<TabStripServiceRegister> tab_strip_service_;
+  std::unique_ptr<TabStripServiceFeature> tab_strip_service_feature_;
 
   // The Find Bar. This may be NULL if there is no Find Bar, and if it is
   // non-NULL, it may or may not be visible.
@@ -692,6 +711,8 @@ class BrowserWindowFeatures {
   // AcceleratorProvider. Consider eliminating this inheritance and composing
   // this functionality into its own class.
   raw_ptr<ui::AcceleratorProvider> accelerator_provider_;
+
+  std::unique_ptr<FindBarOwner> find_bar_owner_;
 };
 
 #endif  // CHROME_BROWSER_UI_BROWSER_WINDOW_PUBLIC_BROWSER_WINDOW_FEATURES_H_

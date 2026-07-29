@@ -218,16 +218,18 @@ bool CheckAndSetPrefetchHoldbackStatus(
     // 2. If PrefetchContainer is likely ahead of prerender, always set status
     // to kAllowed as it is likely used for prerender.
     //
-    // Note that we don't use `PrefetchContainer::overridden_holdback_status_`
-    // for this purpose because it can't handle a prefetch that was not ahead of
+    // Note that we don't use
+    // `PrefetchContainer::request().holdback_status_override()` for this
+    // purpose because it can't handle a prefetch that was not ahead of
     // prerender but another ahead of prerender one is migrated into it. We need
     // to update migration if we'd like to do it.
     prefetch_container->request().attempt()->SetHoldbackStatus(
         PreloadingHoldbackStatus::kAllowed);
-  } else if (prefetch_container->request().holdback_status_override()) {
+  } else if (prefetch_container->request().holdback_status_override() !=
+             PreloadingHoldbackStatus::kUnspecified) {
     // 3. If PrefetchContainer has custom overridden status, set that value.
     prefetch_container->request().attempt()->SetHoldbackStatus(
-        *prefetch_container->request().holdback_status_override());
+        prefetch_container->request().holdback_status_override());
   }
 
   if (prefetch_container->request().attempt()->ShouldHoldback()) {
@@ -371,10 +373,8 @@ PrefetchOriginProber* PrefetchService::GetPrefetchOriginProber() const {
   return origin_prober_.get();
 }
 
-void PrefetchService::AddPrefetchContainerWithoutStartingPrefetch(
-    std::unique_ptr<PrefetchContainer> owned_prefetch_container) {
-  RecordExistingPrefetchWithMatchingURL(*owned_prefetch_container);
-
+base::WeakPtr<PrefetchContainer> PrefetchService::AddPrefetchRequestInternal(
+    std::unique_ptr<const PrefetchRequest> prefetch_request) {
   enum class Action {
     kTakeOldWithMigration,
     kReplaceOldWithNew,
@@ -404,7 +404,7 @@ void PrefetchService::AddPrefetchContainerWithoutStartingPrefetch(
   //
   // TODO(crbug.com/372186548): Revisit the merging process and comments here
   // and below.
-  auto prefetch_iter = owned_prefetches().find(owned_prefetch_container->key());
+  auto prefetch_iter = owned_prefetches().find(prefetch_request->key());
   Action action = [&]() {
     if (prefetch_iter == owned_prefetches().end()) {
       return Action::kTakeNew;
@@ -437,7 +437,7 @@ void PrefetchService::AddPrefetchContainerWithoutStartingPrefetch(
     // With `kPrerender2FallbackPrefetchSpecRules`, B' triggers prefetch ahead
     // of prerender B for URL X. Sites use SpecRules A+B' with expectation
     // "prefetch X then prerender X", but the order of
-    // `PrefetchService::AddPrefetchContainer*()` for A and B is unstable in
+    // `PrefetchService::AddPrefetchRequest*()` for A and B is unstable in
     // general.
     //
     // `PrerenderHost` of B' needs to know eligibility and status of B. We use
@@ -455,28 +455,26 @@ void PrefetchService::AddPrefetchContainerWithoutStartingPrefetch(
 
   switch (action) {
     case Action::kTakeOldWithMigration:
-      prefetch_iter->second->MigrateNewlyAdded(
-          std::move(owned_prefetch_container));
+      prefetch_iter->second->MergeNewPrefetchRequest(
+          std::move(prefetch_request));
       if (UsePrefetchScheduler()) {
         scheduler_->NotifyAttributeMightChangedAndProgressAsync(
             *prefetch_iter->second, /*should_progress=*/false);
       }
-      break;
+      return nullptr;
     case Action::kReplaceOldWithNew:
       ResetPrefetchContainer(prefetch_iter->second->GetWeakPtr(),
                              /*should_progress=*/false);
-      AddPrefetchContainerToOwnedPrefetches(
-          std::move(owned_prefetch_container));
-      break;
+      return CreatePrefetchContainer(std::move(prefetch_request));
     case Action::kTakeNew:
-      AddPrefetchContainerToOwnedPrefetches(
-          std::move(owned_prefetch_container));
-      break;
+      return CreatePrefetchContainer(std::move(prefetch_request));
   }
 }
 
-void PrefetchService::AddPrefetchContainerToOwnedPrefetches(
-    std::unique_ptr<PrefetchContainer> owned_prefetch_container) {
+base::WeakPtr<PrefetchContainer> PrefetchService::CreatePrefetchContainer(
+    std::unique_ptr<const PrefetchRequest> prefetch_request) {
+  auto owned_prefetch_container = PrefetchContainer::Create(
+      base::PassKey<PrefetchService>(), std::move(prefetch_request));
   const base::WeakPtr<PrefetchContainer> prefetch_container =
       owned_prefetch_container->GetWeakPtr();
 
@@ -489,6 +487,8 @@ void PrefetchService::AddPrefetchContainerToOwnedPrefetches(
   prefetch_container->OnAddedToPrefetchService();
 
   prefetch_container->AddObserver(this);
+
+  return prefetch_container;
 }
 
 bool PrefetchService::IsPrefetchDuplicate(
@@ -643,12 +643,10 @@ struct PrefetchService::CheckEligibilityParams final {
       callback;
 };
 
-std::unique_ptr<PrefetchHandle> PrefetchService::AddPrefetchContainerWithHandle(
-    std::unique_ptr<PrefetchContainer> owned_prefetch_container) {
+std::unique_ptr<PrefetchHandle> PrefetchService::AddPrefetchRequestWithHandle(
+    std::unique_ptr<const PrefetchRequest> prefetch_request) {
   base::WeakPtr<PrefetchContainer> prefetch_container =
-      owned_prefetch_container->GetWeakPtr();
-  AddPrefetchContainerWithoutStartingPrefetch(
-      std::move(owned_prefetch_container));
+      AddPrefetchRequestInternal(std::move(prefetch_request));
 
   if (prefetch_container) {
     PrefetchUrl(prefetch_container);
@@ -657,9 +655,10 @@ std::unique_ptr<PrefetchHandle> PrefetchService::AddPrefetchContainerWithHandle(
   return std::make_unique<PrefetchHandleImpl>(GetWeakPtr(), prefetch_container);
 }
 
-void PrefetchService::AddPrefetchContainerWithoutStartingPrefetchForTesting(
-    std::unique_ptr<PrefetchContainer> prefetch_container) {
-  AddPrefetchContainerWithoutStartingPrefetch(std::move(prefetch_container));
+base::WeakPtr<PrefetchContainer>
+PrefetchService::AddPrefetchRequestWithoutStartingPrefetchForTesting(
+    std::unique_ptr<const PrefetchRequest> prefetch_request) {
+  return AddPrefetchRequestInternal(std::move(prefetch_request));
 }
 
 void PrefetchService::PrefetchUrl(
@@ -2038,82 +2037,6 @@ void PrefetchService::SetInjectedEligibilityCheckForTesting(
 
 base::WeakPtr<PrefetchService> PrefetchService::GetWeakPtr() {
   return weak_method_factory_.GetWeakPtr();
-}
-
-void PrefetchService::RecordExistingPrefetchWithMatchingURL(
-    const PrefetchContainer& prefetch_container) const {
-  bool matching_prefetch = false;
-  int num_matching_prefetches = 0;
-
-  int num_matching_eligible_prefetch = 0;
-  int num_matching_servable_prefetch = 0;
-  int num_matching_prefetch_same_referrer = 0;
-  int num_matching_prefetch_same_rfh = 0;
-
-  for (const auto& prefetch_iter : owned_prefetches()) {
-    if (prefetch_iter.second &&
-        prefetch_iter.second->GetURL() == prefetch_container.GetURL()) {
-      matching_prefetch = true;
-      num_matching_prefetches++;
-
-      switch (prefetch_iter.second->GetLoadState()) {
-        case PrefetchContainer::LoadState::kNotStarted:
-        case PrefetchContainer::LoadState::kFailedIneligible:
-          break;
-        case PrefetchContainer::LoadState::kEligible:
-        case PrefetchContainer::LoadState::kFailedHeldback:
-        case PrefetchContainer::LoadState::kStarted:
-        case PrefetchContainer::LoadState::kDeterminedHead:
-        case PrefetchContainer::LoadState::kCompletedOrFailed:
-          num_matching_eligible_prefetch++;
-          break;
-      }
-
-      switch (
-          prefetch_iter.second->GetServableState(PrefetchCacheableDuration())) {
-        case PrefetchServableState::kNotServable:
-        case PrefetchServableState::kShouldBlockUntilHeadReceived:
-        case PrefetchServableState::kShouldBlockUntilEligibilityGot:
-          break;
-        case PrefetchServableState::kServable:
-          num_matching_servable_prefetch++;
-          break;
-      }
-
-      if (prefetch_iter.second->HasSameReferringURLForMetrics(
-              prefetch_container)) {
-        num_matching_prefetch_same_referrer++;
-      }
-
-      if (prefetch_iter.second->HasSameReferringRenderFrameHostIdForMetrics(
-              prefetch_container)) {
-        num_matching_prefetch_same_rfh++;
-      }
-    }
-  }
-
-  base::UmaHistogramBoolean(
-      "PrefetchProxy.Prefetch.ExistingPrefetchWithMatchingURL",
-      matching_prefetch);
-  base::UmaHistogramCounts100(
-      "PrefetchProxy.Prefetch.NumExistingPrefetchWithMatchingURL",
-      num_matching_prefetches);
-
-  if (matching_prefetch) {
-    base::UmaHistogramCounts100(
-        "PrefetchProxy.Prefetch.NumExistingEligiblePrefetchWithMatchingURL",
-        num_matching_eligible_prefetch);
-    base::UmaHistogramCounts100(
-        "PrefetchProxy.Prefetch.NumExistingServablePrefetchWithMatchingURL",
-        num_matching_servable_prefetch);
-    base::UmaHistogramCounts100(
-        "PrefetchProxy.Prefetch.NumExistingPrefetchWithMatchingURLAndReferrer",
-        num_matching_prefetch_same_referrer);
-    base::UmaHistogramCounts100(
-        "PrefetchProxy.Prefetch."
-        "NumExistingPrefetchWithMatchingURLAndRenderFrameHost",
-        num_matching_prefetch_same_rfh);
-  }
 }
 
 void PrefetchService::EvictPrefetchesForBrowsingDataRemoval(

@@ -27,7 +27,7 @@ namespace {
 
 // Kill switch for allowing `virtualKeyboard.show()` if this page was navigated
 // from a same-site page that had user gesture.
-BASE_FEATURE(ShowKeyboardIfLastPageHadGesture,
+BASE_FEATURE(kShowKeyboardIfLastPageHadGesture,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 }  // namespace

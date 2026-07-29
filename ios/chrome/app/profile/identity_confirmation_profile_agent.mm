@@ -4,8 +4,6 @@
 
 #import "ios/chrome/app/profile/identity_confirmation_profile_agent.h"
 
-#import <MaterialComponents/MaterialSnackbar.h>
-
 #import "base/logging.h"
 #import "base/metrics/field_trial_params.h"
 #import "base/metrics/histogram_functions.h"
@@ -30,7 +28,8 @@
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/snackbar_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
-#import "ios/chrome/browser/shared/ui/util/identity_snackbar/identity_snackbar_message.h"
+#import "ios/chrome/browser/shared/public/snackbar/snackbar_message.h"
+#import "ios/chrome/browser/shared/ui/util/identity_snackbar/identity_snackbar_utils.h"
 #import "ios/chrome/browser/shared/ui/util/snackbar_util.h"
 #import "ios/chrome/browser/signin/model/authentication_service.h"
 #import "ios/chrome/browser/signin/model/authentication_service_factory.h"
@@ -161,16 +160,13 @@ enum class IdentityConfirmationSnackbarDecision {
   if (displayCount == 0) {
     // Wait 1 day before the first reminder.
     // Note: lastPrompted in this case is equal to kLastSigninTimestamp.
-    identityConfirmationMinDisplayInterval =
-        kIdentityConfirmationMinDisplayInterval1.Get();
+    identityConfirmationMinDisplayInterval = base::Days(1);
   } else if (displayCount == 1) {
     // Wait 7 days before the second reminder.
-    identityConfirmationMinDisplayInterval =
-        kIdentityConfirmationMinDisplayInterval2.Get();
+    identityConfirmationMinDisplayInterval = base::Days(7);
   } else if (displayCount == 2) {
     // Wait 30 days before the third reminder.
-    identityConfirmationMinDisplayInterval =
-        kIdentityConfirmationMinDisplayInterval3.Get();
+    identityConfirmationMinDisplayInterval = base::Days(30);
   } else {
     // Stop showing after the third reminder.
     return IdentityConfirmationSnackbarDecision::
@@ -189,10 +185,6 @@ enum class IdentityConfirmationSnackbarDecision {
                          displayCount + 1);
   localState->SetTime(prefs::kIdentityConfirmationSnackbarLastPromptTime,
                       base::Time::Now());
-
-  if (!base::FeatureList::IsEnabled(kIdentityConfirmationSnackbar)) {
-    return IdentityConfirmationSnackbarDecision::kDontShowFeatureDisabled;
-  }
 
   return IdentityConfirmationSnackbarDecision::kShouldShow;
 }
@@ -218,25 +210,14 @@ enum class IdentityConfirmationSnackbarDecision {
   id<SystemIdentity> systemIdentity =
       authenticationService->GetPrimaryIdentity(signin::ConsentLevel::kSignin);
   DCHECK(systemIdentity);
-  UIImage* avatar = ChromeAccountManagerServiceFactory::GetForProfile(profile)
-                        ->GetIdentityAvatarWithIdentity(
-                            systemIdentity, IdentityAvatarSize::Regular);
-  PrefService* prefService = profile->GetPrefs();
-  signin::IdentityManager* identityManager =
-      IdentityManagerFactory::GetForProfile(profile);
-  ManagementState managementState =
-      GetManagementState(identityManager, authenticationService, prefService);
 
-  MDCSnackbarMessage* snackbarTitle =
-      [[IdentitySnackbarMessage alloc] initWithName:systemIdentity.userGivenName
-                                              email:systemIdentity.userEmail
-                                             avatar:avatar
-                                    managementState:managementState];
+  SnackbarMessage* message =
+      CreateIdentitySnackbarMessage(systemIdentity, browser);
 
   CommandDispatcher* dispatcher = browser->GetCommandDispatcher();
   id<SnackbarCommands> snackbarCommandsHandler =
       HandlerForProtocol(dispatcher, SnackbarCommands);
-  [snackbarCommandsHandler showSnackbarMessageOverBrowserToolbar:snackbarTitle];
+  [snackbarCommandsHandler showCustomSnackbarMessageOverBrowserToolbar:message];
 }
 
 - (BOOL)isStartSurfaceWithBrowser:(Browser*)browser {

@@ -120,14 +120,30 @@ enum class ScreenshotIframeRedactionScope {
 extern const base::FeatureParam<ScreenshotIframeRedactionScope>
     kScreenshotIframeRedaction;
 
+// Controls the maximum memory/file bytes used for the capture of a single
+// frame. 0 means no maximum.
+extern const base::FeatureParam<size_t> kScreenshotMaxPerCaptureBytes;
+
 // Enables page context eligibility checks.
 BASE_DECLARE_FEATURE(kGlicPageContextEligibility);
 
+// Callback used for relaying progress.
+class FetchPageProgressListener {
+ public:
+  virtual ~FetchPageProgressListener() = default;
+  virtual void BeginScreenshot() {}
+  virtual void EndScreenshot(std::optional<std::string> error) {}
+  virtual void BeginAPC() {}
+  virtual void EndAPC(std::optional<std::string> error) {}
+};
+
 using FetchPageContextResultCallback =
     base::OnceCallback<void(FetchPageContextResultCallbackArg)>;
-void FetchPageContext(content::WebContents& web_contents,
-                      const FetchPageContextOptions& options,
-                      FetchPageContextResultCallback callback);
+void FetchPageContext(
+    content::WebContents& web_contents,
+    const FetchPageContextOptions& options,
+    std::unique_ptr<FetchPageProgressListener> progress_listener,
+    FetchPageContextResultCallback callback);
 
 }  // namespace page_content_annotations
 

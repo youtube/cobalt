@@ -4,7 +4,6 @@
 
 #import "ios/chrome/browser/bookmarks/ui_bundled/bookmark_utils_ios.h"
 
-#import <MaterialComponents/MaterialSnackbar.h>
 #import <stdint.h>
 
 #import <algorithm>
@@ -44,6 +43,8 @@
 #import "ios/chrome/browser/ntp/shared/metrics/home_metrics.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/public/features/system_flags.h"
+#import "ios/chrome/browser/shared/public/snackbar/snackbar_message.h"
+#import "ios/chrome/browser/shared/public/snackbar/snackbar_message_action.h"
 #import "ios/chrome/browser/shared/ui/util/snackbar_util.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/signin/model/authentication_service.h"
@@ -57,8 +58,6 @@
 using bookmarks::BookmarkNode;
 
 namespace bookmark_utils_ios {
-
-NSString* const kBookmarksSnackbarCategory = @"BookmarksSnackbarCategory";
 
 namespace {
 
@@ -140,12 +139,12 @@ bool IsAccountBookmarkStorageAvailable(const bookmarks::BookmarkModel* model) {
 // Creates a toast which will undo the changes made to the bookmark model if
 // the user presses the undo button, and the UndoManagerWrapper allows the undo
 // to go through.
-MDCSnackbarMessage* CreateUndoToastWithWrapper(UndoManagerWrapper* wrapper,
-                                               NSString* text,
-                                               std::string user_action) {
+SnackbarMessage* CreateUndoToastWithWrapper(UndoManagerWrapper* wrapper,
+                                            NSString* text,
+                                            std::string user_action) {
   DCHECK(!user_action.empty());
   // Create the block that will be executed if the user taps the undo button.
-  MDCSnackbarMessageAction* action = [[MDCSnackbarMessageAction alloc] init];
+  SnackbarMessageAction* action = [[SnackbarMessageAction alloc] init];
   action.handler = ^{
     if (![wrapper hasUndoManagerChanged]) {
       base::RecordAction(base::UserMetricsAction(user_action.c_str()));
@@ -154,13 +153,11 @@ MDCSnackbarMessage* CreateUndoToastWithWrapper(UndoManagerWrapper* wrapper,
   };
 
   action.title = l10n_util::GetNSString(IDS_IOS_BOOKMARK_NEW_UNDO_BUTTON_TITLE);
-  action.accessibilityIdentifier = @"Undo";
   action.accessibilityLabel =
       l10n_util::GetNSString(IDS_IOS_BOOKMARK_NEW_UNDO_BUTTON_TITLE);
   TriggerHapticFeedbackForNotification(UINotificationFeedbackTypeSuccess);
-  MDCSnackbarMessage* message = CreateSnackbarMessage(text);
+  SnackbarMessage* message = CreateCustomSnackbarMessage(text);
   message.action = action;
-  message.category = kBookmarksSnackbarCategory;
   return message;
 }
 
@@ -266,7 +263,7 @@ NSString* messageForAddingBookmarksInFolder(
   }
 }
 
-MDCSnackbarMessage* UpdateBookmarkWithUndoToast(
+SnackbarMessage* UpdateBookmarkWithUndoToast(
     const BookmarkNode* node,
     NSString* title,
     const GURL& url,
@@ -306,7 +303,7 @@ MDCSnackbarMessage* UpdateBookmarkWithUndoToast(
       wrapper, text, "MobileBookmarkManagerUpdatedBookmarkUndone");
 }
 
-MDCSnackbarMessage* CreateBookmarkAtPositionWithUndoToast(
+SnackbarMessage* CreateBookmarkAtPositionWithUndoToast(
     NSString* title,
     const GURL& url,
     const BookmarkNode* folder,
@@ -335,7 +332,7 @@ MDCSnackbarMessage* CreateBookmarkAtPositionWithUndoToast(
                                     "MobileBookmarkManagerAddedBookmarkUndone");
 }
 
-MDCSnackbarMessage* UpdateBookmarkPositionWithUndoToast(
+SnackbarMessage* UpdateBookmarkPositionWithUndoToast(
     const BookmarkNode* node,
     const BookmarkNode* folder,
     size_t position,
@@ -379,7 +376,7 @@ void DeleteBookmarks(const std::set<const BookmarkNode*>& bookmarks,
                            bookmark_model->root_node(), location);
 }
 
-MDCSnackbarMessage* DeleteBookmarksWithUndoToast(
+SnackbarMessage* DeleteBookmarksWithUndoToast(
     const std::set<const BookmarkNode*>& nodes,
     bookmarks::BookmarkModel* bookmark_model,
     ProfileIOS* profile,
@@ -427,7 +424,7 @@ bool MoveBookmarks(const std::vector<const BookmarkNode*>& bookmarks_to_move,
   return did_perform_move;
 }
 
-MDCSnackbarMessage* MoveBookmarksWithUndoToast(
+SnackbarMessage* MoveBookmarksWithUndoToast(
     const std::vector<const BookmarkNode*>& bookmarks_to_move,
     bookmarks::BookmarkModel* model,
     const BookmarkNode* destination_folder,

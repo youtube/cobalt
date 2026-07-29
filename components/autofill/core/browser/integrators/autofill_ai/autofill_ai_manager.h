@@ -30,8 +30,8 @@ struct Suggestion;
 // class is an interface.
 class AutofillAiManager {
  public:
-  AutofillAiManager(autofill::AutofillClient* client,
-                    autofill::StrikeDatabase* strike_database);
+  AutofillAiManager(AutofillClient* client,
+                    strike_database::StrikeDatabaseBase* strike_database);
   AutofillAiManager(const AutofillAiManager&) = delete;
   AutofillAiManager& operator=(const AutofillAiManager&) = delete;
   virtual ~AutofillAiManager();
@@ -105,7 +105,7 @@ class AutofillAiManager {
 
   // Attempts to display an import bubble for `form` if Autofill AI is
   // interested in the form. Returns whether an import bubble will be shown.
-  bool MaybeImportForm(const FormStructure& form);
+  bool MaybeImportForm(const FormStructure& form, ukm::SourceId ukm_source_id);
 
   // Updates the `EntityDataManager` and the save strike database depending on
   // the prompt `result`.
@@ -113,6 +113,7 @@ class AutofillAiManager {
       const GURL& form_url,
       uint64_t form_session_id,
       const std::string& domain,
+      ukm::SourceId ukm_source_id,
       const EntityInstance& entity,
       AutofillClient::EntitySaveOrUpdatePromptResult result);
   // Updates the `EntityDataManager` and the update strike database depending on
@@ -120,6 +121,7 @@ class AutofillAiManager {
   void HandleUpdatePromptResult(
       uint64_t form_session_id,
       const std::string& domain,
+      ukm::SourceId ukm_source_id,
       const EntityInstance::EntityId& entity_uuid,
       AutofillClient::EntitySaveOrUpdatePromptResult result);
 

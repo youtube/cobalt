@@ -131,6 +131,18 @@ chromium-metrics-reviews@google.com.
                and otherwise the initial referrer URL)."/>
 </variants>
 
+<variants name="SqlPersistentStoreCheckpointType">
+  <variant name="ForceCheckpoint"
+      summary="A checkpoint was executed when a commit to the DB occurred
+               while the browser was not idle."/>
+  <variant name="IdleCheckpoint"
+      summary="A checkpoint was executed when a commit to the DB occurred
+               while the browser was idle."/>
+  <variant name="IdleEventCheckpoint"
+      summary="A checkpoint was executed when the browser transitioned to an
+               idle state."/>
+</variants>
+
 <variants name="SqlPersistentStoreMethodName">
   <variant name="CalculateSizeOfEntriesBetween"/>
   <variant name="CreateEntry"/>
@@ -553,7 +565,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="HttpCache.AddTransactionToEntry" units="ms"
-    expires_after="2025-12-28">
+    expires_after="2026-03-01">
   <owner>bashi@chromium.org</owner>
   <owner>net-dev@chromium.org</owner>
   <summary>
@@ -967,7 +979,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="HttpCache.NoVarySearch.NotUsableLostTime2{HostAndFrameType}"
-    units="ms" expires_after="2025-12-16">
+    units="ms" expires_after="2026-03-01">
   <owner>ricea@chromium.org</owner>
   <owner>net-dev@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -1236,14 +1248,19 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
-<histogram name="Net.AcceptCHFrameInterceptor.MismatchClientHint"
-    enum="WebClientHintsType" expires_after="2026-02-01">
+<histogram name="Net.AcceptCHFrameInterceptor.MismatchClientHint2"
+    enum="WebClientHintsType" expires_after="2026-08-01">
   <owner>yyanagisawa@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
-    Records which client hint caused the Accept-CH frame offload to fail because
-    the hint was not in the enabled list. This is recorded when
-    AcceptCHFrameInterceptor::NeedsObserverCheck returns kHintNotEnabled.
+    To optimize performance, the network service can handle `Accept-CH` frames
+    directly without consulting the browser process (an optimization called
+    'offloading'). This histogram is recorded when that optimization fails. It
+    identifies the specific client hint from the `Accept-CH` frame that was not
+    in the network service's cache of hints the browser had previously
+    identified as either allowed or disallowed for the origin. A value is
+    recorded each time this mismatch occurs, forcing a fallback to the browser
+    process.
   </summary>
 </histogram>
 
@@ -1255,6 +1272,22 @@ chromium-metrics-reviews@google.com.
     The reason why AcceptCHFrameInterceptor::NeedsObserverCheck returns true.
     Recorded every time NeedsObserverCheck is called. It is recorded just before
     returning from the function.
+  </summary>
+</histogram>
+
+<histogram name="Net.AcceptCHFrameInterceptor.OffloadSuccessForNotAllowedHint"
+    enum="WebClientHintsType" expires_after="2026-08-01">
+  <owner>yyanagisawa@chromium.org</owner>
+  <owner>chrome-loading@google.com</owner>
+  <summary>
+    When handling an `Accept-CH` frame, the network service can sometimes avoid
+    a costly round-trip to the browser process by checking for required client
+    hints itself (an optimization called 'offloading'). This histogram is
+    recorded for each client hint that was successfully offloaded specifically
+    because of a mechanism enabled by the AcceptCHFrameOffloadNotAllowedHints
+    feature parameter. This mechanism allows offloading for hints that are
+    persisted for an origin but currently disabled by Permissions Policy. This
+    metric helps measure the effectiveness of this opt-in optimization.
   </summary>
 </histogram>
 
@@ -1331,7 +1364,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.CachingCertVerifier.CacheHit{HostType}" enum="Boolean"
-    expires_after="2025-12-28">
+    expires_after="2026-03-01">
   <owner>nidhijaju@chromium.org</owner>
   <owner>chrome-network-stack@google.com</owner>
   <summary>
@@ -1349,7 +1382,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Net.CachingCertVerifier.{VerificationCompletionType}.UncachedVerifyTime{HostType}"
-    units="ms" expires_after="2025-12-28">
+    units="ms" expires_after="2026-03-01">
   <owner>nidhijaju@chromium.org</owner>
   <owner>chrome-network-stack@google.com</owner>
   <summary>
@@ -1947,9 +1980,11 @@ chromium-metrics-reviews@google.com.
     logged instead of the HTTP status code.
   </summary>
   <token key="RequestType">
+    <variant name="ProviderWellKnown" summary="session provider .well-known"/>
     <variant name="Refresh" summary="refresh"/>
     <variant name="Registration" summary="registration"/>
-    <variant name="SubdomainWellKnown" summary="subomdain .well-known"/>
+    <variant name="RelyingPartyWellKnown" summary="relying party .well-known"/>
+    <variant name="SubdomainWellKnown" summary="subdomain .well-known"/>
   </token>
 </histogram>
 
@@ -1967,7 +2002,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.DNS.DnsConfig.DnsClientCapability"
-    enum="DNS.DnsClientCapability" expires_after="2025-12-28">
+    enum="DNS.DnsClientCapability" expires_after="2026-03-01">
   <owner>horo@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -2173,7 +2208,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.DNS.DnsTransaction.AttemptType" enum="DNS.AttemptType"
-    expires_after="2025-12-28">
+    expires_after="2026-03-01">
   <owner>horo@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -2333,7 +2368,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.DNS.HostCache.EraseStale.StaleHits{HostType}" units="hits"
-    expires_after="2025-12-28">
+    expires_after="2026-03-01">
   <owner>suzukikeita@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -2868,7 +2903,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.ErrorPageCounts" enum="NetErrorPageEvents"
-    expires_after="2025-12-28">
+    expires_after="2026-03-01">
   <owner>edwardjung@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -2982,22 +3017,6 @@ chromium-metrics-reviews@google.com.
     all HTTP stream bytes (not just the content body), counts bytes for aborted
     jobs, and network bytes in 304 Not Modified exchanges (rather than cached
     content bodies).
-  </summary>
-</histogram>
-
-<histogram name="Net.HttpJob.IpProtection.AllowListMatch.BytesSent"
-    units="bytes" expires_after="2025-01-02">
-  <owner>aakallam@chromium.org</owner>
-  <owner>abhijithnair@chromium.org</owner>
-  <owner>ashleynewson@chromium.org</owner>
-  <owner>src/components/ip_protection/OWNERS</owner>
-  <summary>
-    Total bytes sent over the network for an HttpJob request that would be
-    covered by IP Protection based on match with respect to the masked domain
-    list alone. This is irrespective of token and proxy availability. Any bypass
-    logic (e.g. first party to top level frame) will be considered, if set.
-    These bytes will be recorded even if `EnableIpPrivacyProxy` is `false`. This
-    is measured when the HttpJob is completed.
   </summary>
 </histogram>
 
@@ -3731,7 +3750,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.HttpTimeToFirstByte.TLS13.Google" units="ms"
-    expires_after="2025-12-28">
+    expires_after="2026-03-01">
   <owner>davidben@chromium.org</owner>
   <owner>trusty-transport@chromium.org</owner>
   <summary>
@@ -3777,7 +3796,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.MultiThreadedCertVerifier.RequestDuration{HostType}"
-    units="ms" expires_after="2025-12-28">
+    units="ms" expires_after="2026-03-01">
   <owner>nidhijaju@chromium.org</owner>
   <owner>chrome-network-stack@google.com</owner>
   <summary>
@@ -5022,7 +5041,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.QuicSession.ConnectionDuration{HostType}{Initiator}"
-    units="ms" expires_after="2025-12-28">
+    units="ms" expires_after="2026-03-01">
   <owner>renjietang@chromium.org</owner>
   <owner>suzukikeita@chromium.org</owner>
   <owner>src/net/quic/OWNERS</owner>
@@ -7478,7 +7497,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SpdySession.AcceptChForOrigin" enum="Boolean"
-    expires_after="2025-10-14">
+    expires_after="2026-09-02">
   <owner>bashi@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -7550,7 +7569,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SpdySession.GoAwayReceived" enum="Http2WireErrorCodes"
-    expires_after="2025-10-14">
+    expires_after="2026-09-02">
   <owner>bashi@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -7645,6 +7664,36 @@ chromium-metrics-reviews@google.com.
   <summary>The number of streams issued over a single session.</summary>
 </histogram>
 
+<histogram name="Net.SqlDiskCache.Backend.DatabaseSize" units="MB"
+    expires_after="2025-12-09">
+  <owner>horo@chromium.org</owner>
+  <owner>src/net/OWNERS</owner>
+  <summary>
+    Records the size of the database file of the SQL-based disk cache. This is
+    recorded when the backend is initialized.
+  </summary>
+</histogram>
+
+<histogram name="Net.SqlDiskCache.Backend.EntryCount" units="entries"
+    expires_after="2025-12-09">
+  <owner>horo@chromium.org</owner>
+  <owner>src/net/OWNERS</owner>
+  <summary>
+    Records the number of entries in the SQL-based disk cache. This is recorded
+    when the backend is initialized.
+  </summary>
+</histogram>
+
+<histogram name="Net.SqlDiskCache.Backend.MaxSize" units="MB"
+    expires_after="2025-12-09">
+  <owner>horo@chromium.org</owner>
+  <owner>src/net/OWNERS</owner>
+  <summary>
+    Records the configured maximum size of the SQL-based disk cache. This is
+    recorded when the backend is initialized.
+  </summary>
+</histogram>
+
 <histogram name="Net.SqlDiskCache.Backend.SqliteError"
     enum="SqliteLoggedResultCode" expires_after="2025-12-09">
   <owner>horo@chromium.org</owner>
@@ -7653,6 +7702,49 @@ chromium-metrics-reviews@google.com.
     Errors reported by SQLite while initializing or using the SQL-based disk
     cache backend database.
   </summary>
+</histogram>
+
+<histogram name="Net.SqlDiskCache.Backend.TotalSize" units="MB"
+    expires_after="2025-12-09">
+  <owner>horo@chromium.org</owner>
+  <owner>src/net/OWNERS</owner>
+  <summary>
+    Records the total size of entries in the SQL-based disk cache. This is
+    recorded when the backend is initialized.
+  </summary>
+</histogram>
+
+<histogram name="Net.SqlDiskCache.Backend.{CheckpointType}.{ResultType}"
+    units="pages" expires_after="2025-12-09">
+  <owner>horo@chromium.org</owner>
+  <owner>src/net/OWNERS</owner>
+  <summary>
+    Measures the number of pages in the WAL file when the SQL-based disk cache
+    checkpoint is performed. This metric is recorded immediately after the
+    checkpoint succeeded or failed. It helps diagnose performance regressions.
+  </summary>
+  <token key="CheckpointType" variants="SqlPersistentStoreCheckpointType"/>
+  <token key="ResultType">
+    <variant name="FailurePages"/>
+    <variant name="SuccessPages"/>
+  </token>
+</histogram>
+
+<histogram name="Net.SqlDiskCache.Backend.{CheckpointType}.{TimeType}"
+    units="microseconds" expires_after="2025-12-09">
+  <owner>horo@chromium.org</owner>
+  <owner>src/net/OWNERS</owner>
+  <summary>
+    Measures the time taken to run the checkpoint of the SQL-based disk cache
+    backend. This metric is recorded immediately after the checkpoint succeeded
+    or failed. It helps diagnose performance regressions. The histogram is not
+    reported on Windows machines without high resolution clocks.
+  </summary>
+  <token key="CheckpointType" variants="SqlPersistentStoreCheckpointType"/>
+  <token key="TimeType">
+    <variant name="FailureTime"/>
+    <variant name="SuccessTime"/>
+  </token>
 </histogram>
 
 <histogram name="Net.SqlDiskCache.Backend.{MethodName}.Result"
@@ -7752,7 +7844,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SSL.ECHResult" enum="SSLECHResult"
-    expires_after="2025-12-28">
+    expires_after="2026-03-01">
   <owner>davidben@chromium.org</owner>
   <owner>trusty-transport@chromium.org</owner>
   <summary>
@@ -7871,7 +7963,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SSLHandshakeDetails" enum="SSLHandshakeDetails"
-    expires_after="2025-12-28">
+    expires_after="2026-03-01">
   <owner>davidben@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -8234,7 +8326,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.URLLoader.AcceptCHFrameReceivedOnHttp2" enum="Boolean"
-    expires_after="2025-12-31">
+    expires_after="2026-03-01">
   <owner>yyanagisawa@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -8244,7 +8336,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.URLLoader.AcceptCHFrameReceivedOnHttp3" enum="Boolean"
-    expires_after="2025-12-31">
+    expires_after="2026-03-01">
   <owner>yyanagisawa@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -8265,7 +8357,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.URLLoaderThrottle.OnReceiveResponseTime" units="ms"
-    expires_after="2025-12-28">
+    expires_after="2026-03-01">
   <owner>nidhijaju@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -8392,7 +8484,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.WebSocket.ProtocolHeaderSize" units="bytes"
-    expires_after="2025-12-14">
+    expires_after="2026-03-01">
   <owner>ricea@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>

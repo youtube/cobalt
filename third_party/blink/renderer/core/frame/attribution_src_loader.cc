@@ -179,9 +179,7 @@ Vector<KURL> ParseAttributionSrcUrls(AttributionSrcLoader& loader,
 
 bool KeepaliveResponsesHandledInBrowser() {
   return base::FeatureList::IsEnabled(
-             blink::features::kKeepAliveInBrowserMigration) &&
-         base::FeatureList::IsEnabled(
-             blink::features::kAttributionReportingInBrowserMigration);
+      blink::features::kKeepAliveInBrowserMigration);
 }
 
 // Keepalive requests will be serviced by `KeepAliveAttributionRequestHelper`
@@ -581,7 +579,8 @@ void AttributionSrcLoader::RegisterFromContextMenuNavigation(
   }
 
   DataHostSharedRemote data_host = std::move(entry->second);
-  DCHECK(data_host.is_bound());
+  // This is required for `DoRegistration()` to work properly.
+  CHECK(data_host.is_bound());
   context_menu_data_hosts_.erase(entry);
 
   const AtomicString& attribution_src =

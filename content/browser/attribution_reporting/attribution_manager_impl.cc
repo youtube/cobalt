@@ -148,6 +148,12 @@ enum class ConversionReportSendRetryCount {
 constexpr base::TimeDelta kReportDeliveryFirstRetryDelay = base::Minutes(5);
 constexpr base::TimeDelta kReportDeliverySecondRetryDelay = base::Minutes(15);
 
+#if BUILDFLAG(IS_ANDROID)
+BASE_FEATURE(kAttributionReportObserveAppState,
+             "AttributionReportObserveAppState",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
+
 }  // namespace
 
 // This class consolidates logic regarding when to schedule the browser to send
@@ -762,7 +768,12 @@ AttributionManagerImpl::AttributionManagerImpl(
   CHECK(os_level_manager_);
 
   scheduler_timer_ = std::make_unique<ReportSchedulerTimer>(
-      std::make_unique<ReportScheduler>(weak_factory_.GetWeakPtr()));
+      std::make_unique<ReportScheduler>(weak_factory_.GetWeakPtr())
+#if BUILDFLAG(IS_ANDROID)
+          ,
+      base::FeatureList::IsEnabled(kAttributionReportObserveAppState)
+#endif
+  );
 }
 
 AttributionManagerImpl::~AttributionManagerImpl() {
@@ -1212,7 +1223,6 @@ void AttributionManagerImpl::SendReports(
   for (auto& report : reports) {
     SendReport(base::NullCallback(), now, std::move(report));
   }
-  report_sender_->SetInFirstBatch(/*in_first_batch=*/false);
 }
 
 // If `web_ui_callback` is null, assumes that `report` is being sent at its

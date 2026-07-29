@@ -34,7 +34,7 @@ namespace blink {
 
 namespace {
 
-BASE_FEATURE(ShutdownSoftNavigationContextOnDetach,
+BASE_FEATURE(kShutdownSoftNavigationContextOnDetach,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 const char kPageLoadInternalSoftNavigationOutcome[] =

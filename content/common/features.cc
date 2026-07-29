@@ -210,6 +210,11 @@ BASE_FEATURE(kFedCmSameSiteLax,
              "FedCmSameSiteLax",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Enables NonString Tokens
+BASE_FEATURE(kFedCmNonStringToken,
+             "FedCmNonStringToken",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables installed web app matching for getInstalledRelatedApps API.
 BASE_FEATURE(kFilterInstalledAppsWebAppMatching,
              "FilterInstalledAppsWebAppMatching",
@@ -303,6 +308,12 @@ BASE_FEATURE(
     kPartitionAllocSchedulerLoopQuarantineTaskObserverForBrowserUIThread,
     "PartitionAllocSchedulerLoopQuarantineTaskObserverForBrowserUIThread",
     base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When true, duplicate navigations are ignored only if they are initiated
+// with a user gesture.
+BASE_FEATURE(kIgnoreDuplicateNavsOnlyWithUserGesture,
+             "IgnoreDuplicateNavsOnlyWithUserGesture",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // A feature flag for the memory-backed code cache.
 BASE_FEATURE(kInMemoryCodeCache,
@@ -668,6 +679,12 @@ BASE_FEATURE(kServiceWorkerClientUrlIsCreationUrl,
 BASE_FEATURE(kSkipEarlyCommitPendingForCrashedFrame,
              "SkipEarlyCommitPendingForCrashedFrame",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Feature to skip a redundant NotifyNavigationStateChanged call during
+// RendererDidNavigate.
+BASE_FEATURE(kSkipRedundantNavigationStateNotification,
+             "SkipRedundantNavigationStateNotification",
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
 // When enabled, ensure high-rank processes are on the LRU list while app is in

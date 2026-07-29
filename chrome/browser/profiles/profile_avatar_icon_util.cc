@@ -465,13 +465,6 @@ constexpr size_t kDefaultAvatarIconsCount = 56;
 #endif
 
 #if !BUILDFLAG(IS_ANDROID)
-// The first 8 icons are generic.
-constexpr size_t kGenericAvatarIconsCount = 8;
-#else
-constexpr size_t kGenericAvatarIconsCount = 0;
-#endif
-
-#if !BUILDFLAG(IS_ANDROID)
 // The avatar used as a placeholder.
 constexpr size_t kPlaceholderAvatarIndex = 26;
 #else
@@ -606,11 +599,12 @@ gfx::Image GetAvatarIconForNSMenu(const base::FilePath& profile_path) {
     return gfx::Image();
   }
 
+  // TODO(pkasting): This should use a `ColorProvider` instead.
+  const bool dark_mode =
+      ui::NativeTheme::GetInstanceForNativeUi()->ShouldUseDarkColors();
+  const SkColor bg_color = dark_mode ? SK_ColorBLACK : SK_ColorWHITE;
   PlaceholderAvatarIconParams icon_params =
-      GetPlaceholderAvatarIconParamsVisibleAgainstColor(
-          ui::NativeTheme::GetInstanceForNativeUi()->ShouldUseDarkColors()
-              ? SK_ColorBLACK
-              : SK_ColorWHITE);
+      GetPlaceholderAvatarIconParamsVisibleAgainstColor(bg_color);
   // Get a higher res than 16px so it looks good after cropping to a circle.
   gfx::Image icon = entry->GetAvatarIcon(
       kAvatarIconSize, /*download_high_res=*/false, icon_params);
@@ -624,10 +618,6 @@ gfx::Image GetAvatarIconForNSMenu(const base::FilePath& profile_path) {
 // Helper methods for accessing, transforming and drawing avatar icons.
 size_t GetDefaultAvatarIconCount() {
   return kDefaultAvatarIconsCount;
-}
-
-size_t GetGenericAvatarIconCount() {
-  return kGenericAvatarIconsCount;
 }
 
 size_t GetPlaceholderAvatarIndex() {

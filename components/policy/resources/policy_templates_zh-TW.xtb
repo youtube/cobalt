@@ -460,6 +460,7 @@
       如果啟用這項政策，系統會啟用經過改善的國際鍵盤快速鍵。
       如果不設定，系統會為受管理的裝置以及消費者擁有的裝置啟用這項政策。
       請注意，這只是一項臨時政策，允許受管理的使用者仍可使用已淘汰的舊版快速鍵。這項政策將在自訂鍵盤快速鍵推出後遭到淘汰。</translation>
+<translation id="1357214899305978790">設定新分頁中的捷徑 (Beta 版)</translation>
 <translation id="1361661842732478894">在工具列上顯示首頁按鈕</translation>
 <translation id="1363275621236827384">允許在 Quirks Server 中查詢硬體設定檔</translation>
 <translation id="1363839375295535439">如果將這項政策設為啟用或不設定，只要系統支援，就會啟用 LPAC 沙箱來執行列印程序。
@@ -533,6 +534,19 @@ Chrome 政策的優先順序高於這項政策，例如擴充功能是否列在 
       這項政策會覆寫 <ph name="DEFAULT_SERIAL_GUARD_SETTING_POLICY_NAME" />、<ph name="SERIAL_ASK_FOR_URLS_POLICY_NAME" />、<ph name="SERIAL_BLOCKED_FOR_URLS_POLICY_NAME" /> 和使用者的偏好設定。</translation>
 <translation id="1413768951234456918">清除瀏覽記錄</translation>
 <translation id="1413936351612032792">回報 Linux 應用程式使用情形資訊</translation>
+<translation id="1417776888841750570">這項政策可控管代管帳戶登入內容區域後的瀏覽器行為。
+
+這項政策會覆寫 <ph name="MANAGED_ACCOUNTS_SIGNIN_RESTRICTION_POLICY_NAME" />。
+
+如果將這項政策設為「建議」，使用者登入代管帳戶後，系統會建議使用者繼續使用受管理設定檔。即使使用者拒絕，仍可在非代管環境中繼續瀏覽。
+
+如果將這項政策設為「強制執行」，使用者登入代管帳戶後，系統會要求使用者繼續使用受管理設定檔。如果使用者拒絕，系統會將其登出帳戶。這項強制執行的行為不受 <ph name="SIGNIN_INTERCEPTION_ENABLED_POLICY_NAME" /> 政策影響。
+
+如果將這項政策設為「停用」或不設定，使用者登入代管帳戶後，可能會看到要求建立新設定檔的泡泡。使用者可選擇關閉泡泡，在非代管環境中繼續瀏覽。該泡泡是由 <ph name="SIGNIN_INTERCEPTION_ENABLED_POLICY_NAME" /> 政策控制。
+
+如果這項政策是在電腦層級設定，就不會有任何作用。
+
+這項政策不適用於無痕模式，也不會在此模式下運作。</translation>
 <translation id="1417888712677507140">封鎖從不同來源子頁框觸發的 JavaScript 對話方塊。</translation>
 <translation id="1418387035898607074">針對從信任的來源下載的檔案略過安全瀏覽檢查</translation>
 <translation id="1419020637569060510">針對在 Chrome OS 將受管理帳戶做為次要帳戶使用的情況，設定限制條件</translation>
@@ -3342,7 +3356,6 @@ Microsoft Outlook 資訊卡需要額外的管理員設定。想進一步瞭解�
       如果停用這項設定或不設定，則系統會預設使用新的內嵌登入流程。使用者仍可以透過指令列旗標「--enable-web-based-signin」來啟用舊的網頁登入流程。
 
       未來內嵌登入將完整支援所有 SSO 登入流程，屆時我們會移除這項實驗性設定。</translation>
-<translation id="3435178885391813398">不允許使用掃描器。</translation>
 <translation id="3435796032110614169">允許刪除列印工作的歷史記錄</translation>
 <translation id="3436217793443508863">使用電池供電時的閒置時間長度 (以毫秒為單位)。如果使用者在這段時間內沒有任何動作，系統就會鎖定螢幕</translation>
 <translation id="3437924696598384725">允許使用者管理 VPN 連線</translation>
@@ -5127,6 +5140,17 @@ ServiceWorkerAutoPreload 功能會在開始執行 ServiceWorker 啟動程序時�
 在 Chrome 114 以下版本，這項政策需要將 <ph name="SYNC_DISABLED_POLICY_NAME" /> 政策設定為 True。從 Chrome 115 版開始，如果未以設定 <ph name="SYNC_DISABLED_POLICY_NAME" /> 政策的方式停用「<ph name="CHROME_SYNC_NAME" />」，也沒有停用 <ph name="BROWSER_SIGNIN_POLICY_NAME" />，設定這項政策就會停用個別資料類型的同步處理作業。</translation>
 <translation id="4694138212536142867">啟用裝置硬體狀態回報功能</translation>
 <translation id="4697581738794063407">控管網址參數篩選器功能</translation>
+<translation id="4698488381632756664">開發中：目前僅適用於早期預先發布版。
+
+如果設定這項政策，就能在 <ph name="PRODUCT_NAME" /> 新分頁預先設定多達 10 個自訂捷徑。
+
+設定之後，使用者預設會看到這些捷徑，並可在「自訂 Chrome」面板中切換「我的捷徑」、「最常造訪的網站」或「我的機構捷徑」。如為空白或未設定，使用者只能在「自訂 Chrome」面板中，切換「我的捷徑」或「最常造訪的網站」。
+
+捷徑網址不得重複。
+
+如果將「<ph name="NTP_SHORTCUTS_ALLOW_USER_EDIT_NAME" />」設為 True，使用者就能變更捷徑名稱。如果設為 False 或未設定，使用者就無法編輯名稱。
+
+如果將「<ph name="NTP_SHORTCUTS_ALLOW_USER_DELETE_NAME" />」設為 True，使用者就能移除捷徑；如果設為 False 或未設定，使用者就無法移除捷徑。</translation>
 <translation id="4698895924806859508">不要回報網路事件</translation>
 <translation id="4699172675775169585">快取的圖片和檔案</translation>
 <translation id="4699592681017489215">這項政策會設定可用於停用 DNS 攔截檢查功能的本機切換鈕。這些檢查機制會嘗試偵測瀏覽器是否透過 Proxy，將使用者重新導向未知的主機名稱。
@@ -6711,15 +6735,6 @@ Microsoft SharePoint 和 OneDrive 資訊卡需要額外的管理員設定。想�
 <translation id="5728154254076636808">允許建立 <ph name="PRODUCT_NAME" /> 設定檔資料的漫遊複本</translation>
 <translation id="5729308727912841256">Kerberos 密碼。<ph name="PASSWORD_PLACEHOLDER" /> 預留位置會由登入密碼取代。</translation>
 <translation id="5730610899971390601">拒絕「Just Works」藍牙配對要求</translation>
-<translation id="5731898940174379509">如果設定這項政策，就能在 <ph name="PRODUCT_NAME" /> 新分頁預先設定多達 10 個自訂捷徑。
-
-設定之後，使用者預設會看到這些捷徑，並可在「自訂 Chrome」面板中切換「我的捷徑」、「最常造訪的網站」或「我的機構捷徑」。如為空白或未設定，使用者只能在「自訂 Chrome」面板中，切換「我的捷徑」或「最常造訪的網站」。
-
-捷徑網址不得重複。
-
-如果將「<ph name="NTP_SHORTCUTS_ALLOW_USER_EDIT_NAME" />」設為 True，使用者就能變更捷徑名稱。如果設為 False 或未設定，使用者就無法編輯名稱。
-
-如果將「<ph name="NTP_SHORTCUTS_ALLOW_USER_DELETE_NAME" />」設為 True，使用者就能移除捷徑；如果設為 False 或未設定，使用者就無法移除捷徑。</translation>
 <translation id="5732972008943405952">首次執行時從預設瀏覽器匯入自動填入表單資料</translation>
 <translation id="5733040281451845496">如果將這項政策設為啟用，系統會等到電源管理工作階段中出現第一項使用者活動後，才開始套用延遲時間和工作階段長度限制。
 
@@ -6985,7 +7000,6 @@ Microsoft SharePoint 和 OneDrive 資訊卡需要額外的管理員設定。想�
 
       如果將這項政策設為停用，系統會禁止使用 QUIC 通訊協定。</translation>
 <translation id="5916855682471300200">雲端機器政策的優先順序高於平台機器政策</translation>
-<translation id="5917092644305650513">掃描器功能設定</translation>
 <translation id="5917425424971710623">不要回報擴展式偵測及回應 (XDR) 事件的相關資訊</translation>
 <translation id="5917897389577978190">Gmail (自 135 版起支援)</translation>
 <translation id="592036544845479336">重新啟用已淘汰/移除的變動事件</translation>
@@ -7383,7 +7397,6 @@ Microsoft SharePoint 和 OneDrive 資訊卡需要額外的管理員設定。想�
 
       如果將這項政策設為 False 或不予設定，系統將不會回報當機報告資訊。如果設為 True，系統將會回報當機報告資訊。</translation>
 <translation id="624219423122512710">閒置的瀏覽器動作</translation>
-<translation id="6243061183100681514">允許使用掃描器並協助改善 AI 模型。</translation>
 <translation id="6244061205361004687">允許使用者手動中斷連線或修改 VPN</translation>
 <translation id="6244210204546589761">起始時開啟的網址</translation>
 <translation id="624595269193747921">是否僅限在特定一組印表機中搜尋相符的印表機。</translation>
@@ -8094,7 +8107,6 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
 <translation id="666203515318060501">允許使用強化版自動填入功能，但不協助改良 AI 模型。</translation>
 <translation id="6665670272107384733">設定使用者使用快速解鎖功能時需輸入密碼的頻率</translation>
 <translation id="6667586534922258705">在登入畫面和鎖定畫面上啟用密碼顯示按鈕</translation>
-<translation id="6667636336079341367">允許使用掃描器，但不協助改善 AI 模型。</translation>
 <translation id="6668559639284945695">這項政策可回到舊的 Cookie 範圍行為。
 
 也就是說，在特定通訊協定 (例如 HTTPS) 或通訊埠設定的 Cookie，可以透過其他通訊協定或通訊埠存取。
@@ -8397,7 +8409,6 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
 如果設為 False 或未設定，就無法使用該鍵盤配置。裝置必須重新啟動，政策設定才會生效。</translation>
 <translation id="685769593149966548">強制執行 YouTube 高度嚴格篩選模式</translation>
 <translation id="686079137349561371">Microsoft Windows 7 以上版本</translation>
-<translation id="6863927303509860338">設定新分頁中的捷徑</translation>
 <translation id="6866755486434471318">允許 <ph name="PEPPER_NAME" /> 使用分享的圖片解碼影片。</translation>
 <translation id="6878757724611298427">允許使用者在無關聯的裝置上使用 Android 應用程式</translation>
 <translation id="6881397131210596522">如果將這項政策設為 2，系統會自動禁止網站使用 WebPrinting API。
@@ -10680,17 +10691,6 @@ https://developers.google.com/privacy-sandbox/cookies/storage-partitioning。</t
       如果將這項政策設為停用或未設定，系統不會回報這項資訊。
       如果啟用這項政策，系統會為相關聯的使用者回報 CRD 事件</translation>
 <translation id="85723976805793612">將 Android 應用程式安裝事件記錄分享給 Google</translation>
-<translation id="8573354257711790704">這項政策會控管 <ph name="PRODUCT_OS_NAME" /> 的掃描器功能設定。
-
-0 = 允許使用這項功能，並允許 Google 運用相關資料改善 AI 模型。相關資料可能包括提示詞、輸入內容、輸出內容、來源資料和文字意見回饋 (視功能而定)。這些資料也可能會送交專人審查，以改善 AI 模型。預設值為 0，但以下註明的情形除外。
-
-1 = 允許使用這項功能，但不允許 Google 運用使用者的內容 (包括提示詞、輸入內容、輸出內容、來源資料和文字意見回饋) 改善模型。如果是 <ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" />管理的企業版使用者，以及 <ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" /> 管理的教育版帳戶，預設值為 1。
-
-2 = 不允許使用這項功能。
-
-如果不設定這項政策，系統會根據 <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> 政策決定其行為。
-
-如要進一步瞭解生成式 AI 功能的資料處理方式，請前往 https://support.google.com/chrome/a?p=generative_ai_settings。</translation>
 <translation id="857369585509260201">這項政策已被淘汰，請考慮改用 BrowserSignin。
 
       如果將這項政策設為 True，使用者必須以自己的設定檔登入 <ph name="PRODUCT_NAME" />，才能使用瀏覽器。此外，BrowserGuestModeEnabled 的預設值將設為 False。請注意，啟用這項政策後，未經簽署的現有設定檔會遭到鎖定無法再使用。詳情請參閱說明中心文章。

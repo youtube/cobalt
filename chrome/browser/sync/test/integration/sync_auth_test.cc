@@ -17,44 +17,20 @@
 #include "chrome/common/pref_names.h"
 #include "components/bookmarks/browser/bookmark_node.h"
 #include "components/prefs/pref_service.h"
+#include "components/signin/public/base/signin_switches.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
 #include "components/sync/service/sync_service_impl.h"
 #include "components/sync/service/sync_token_status.h"
 #include "content/public/test/browser_test.h"
+#include "google_apis/gaia/fake_oauth2_token_response.h"
 #include "google_apis/gaia/google_service_auth_error.h"
+#include "google_apis/gaia/oauth2_response.h"
 #include "net/base/features.h"
 #include "net/base/net_errors.h"
 #include "net/http/http_status_code.h"
 
 namespace {
-
-constexpr char kShortLivedOAuth2Token[] = R"(
-    {
-      "refresh_token": "short_lived_refresh_token",
-      "access_token": "short_lived_access_token",
-      "expires_in": 5,  // 5 seconds.
-      "token_type": "Bearer"
-    })";
-
-constexpr char kValidOAuth2Token[] = R"({
-                                   "refresh_token": "new_refresh_token",
-                                   "access_token": "new_access_token",
-                                   "expires_in": 3600,  // 1 hour.
-                                   "token_type": "Bearer"
-                                 })";
-
-constexpr char kInvalidGrantOAuth2Token[] = R"({
-                                           "error": "invalid_grant"
-                                        })";
-
-constexpr char kInvalidClientOAuth2Token[] = R"({
-                                           "error": "invalid_client"
-                                         })";
-
-constexpr char kEmptyOAuth2Token[] = "";
-
-constexpr char kMalformedOAuth2Token[] = R"({ "foo": )";
 
 bool HasUserPrefValue(const PrefService* pref_service,
                       const std::string& pref) {
@@ -163,7 +139,8 @@ IN_PROC_BROWSER_TEST_F(SyncAuthTest, Sanity) {
   ASSERT_TRUE(SetupSync());
   GetFakeServer()->ClearHttpError();
   DisableTokenFetchRetries();
-  SetOAuth2TokenResponse(kValidOAuth2Token, net::HTTP_OK, net::OK);
+  SetOAuth2TokenResponse(
+      gaia::FakeOAuth2TokenResponse::Success("new_access_token"));
   ASSERT_FALSE(AttemptToTriggerAuthError());
 }
 
@@ -175,28 +152,94 @@ IN_PROC_BROWSER_TEST_F(SyncAuthTest, RetryOnInternalServerError500) {
   ASSERT_FALSE(AttemptToTriggerAuthError());
   GetFakeServer()->SetHttpError(net::HTTP_UNAUTHORIZED);
   DisableTokenFetchRetries();
-  SetOAuth2TokenResponse(kValidOAuth2Token, net::HTTP_INTERNAL_SERVER_ERROR,
-                         net::OK);
+  SetOAuth2TokenResponse(gaia::FakeOAuth2TokenResponse::OAuth2Error(
+      OAuth2Response::kInternalFailure));
   ASSERT_TRUE(AttemptToTriggerAuthError());
   EXPECT_EQ(GetSyncService(0)->GetTransportState(),
             syncer::SyncService::TransportState::ACTIVE);
   EXPECT_TRUE(GetSyncService(0)->IsRetryingAccessTokenFetchForTest());
 }
 
-// Verify that SyncServiceImpl continues trying to fetch access tokens
-// when the access token fetcher has encountered more than a fixed number of
-// HTTP_FORBIDDEN (403) errors.
-IN_PROC_BROWSER_TEST_F(SyncAuthTest, RetryOnHttpForbidden403) {
+class SyncAuthTokenFetcherDependentTest
+    : public SyncAuthTest,
+      public testing::WithParamInterface<bool> {
+ public:
+  SyncAuthTokenFetcherDependentTest() {
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+    scoped_feature_list_.InitWithFeatureState(
+        switches::kUseIssueTokenToFetchAccessTokens, IsIssueTokenEnabled());
+#else
+    CHECK(!IsIssueTokenEnabled());
+#endif
+  }
+
+  bool IsIssueTokenEnabled() const { return GetParam(); }
+
+ private:
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+  base::test::ScopedFeatureList scoped_feature_list_;
+#endif
+};
+
+// Verifies the behavior when the access token fetcher encounters an
+// HTTP_FORBIDDEN (403) error. With IssueToken this should result in a PAUSED
+// state with SERVICE_ERROR auth error, whereas with GetToken it should keep
+// retrying.
+IN_PROC_BROWSER_TEST_P(SyncAuthTokenFetcherDependentTest, HttpForbidden403) {
   ASSERT_TRUE(SetupSync());
   ASSERT_FALSE(AttemptToTriggerAuthError());
   GetFakeServer()->SetHttpError(net::HTTP_UNAUTHORIZED);
   DisableTokenFetchRetries();
-  SetOAuth2TokenResponse(kEmptyOAuth2Token, net::HTTP_FORBIDDEN, net::OK);
+  SetOAuth2TokenResponse(gaia::FakeOAuth2TokenResponse::OAuth2Error(
+      OAuth2Response::kErrorUnexpectedFormat, net::HTTP_FORBIDDEN));
   ASSERT_TRUE(AttemptToTriggerAuthError());
   EXPECT_EQ(GetSyncService(0)->GetTransportState(),
-            syncer::SyncService::TransportState::ACTIVE);
-  EXPECT_TRUE(GetSyncService(0)->IsRetryingAccessTokenFetchForTest());
+            IsIssueTokenEnabled()
+                ? syncer::SyncService::TransportState::PAUSED
+                : syncer::SyncService::TransportState::ACTIVE);
+  EXPECT_EQ(GetSyncService(0)->GetAuthError().state(),
+            IsIssueTokenEnabled() ? GoogleServiceAuthError::SERVICE_ERROR
+                                  : GoogleServiceAuthError::NONE);
+  EXPECT_EQ(GetSyncService(0)->IsRetryingAccessTokenFetchForTest(),
+            !IsIssueTokenEnabled());
 }
+
+// Verifies the behavior when the access token fetcher receives a malformed
+// token. With IssueToken this should result in a PAUSED state with
+// UNEXPECTED_SERVICE_RESPONSE auth error, whereas with GetToken it should keep
+// retrying.
+IN_PROC_BROWSER_TEST_P(SyncAuthTokenFetcherDependentTest, MalformedToken) {
+  ASSERT_TRUE(SetupSync());
+  ASSERT_FALSE(AttemptToTriggerAuthError());
+  GetFakeServer()->SetHttpError(net::HTTP_UNAUTHORIZED);
+  DisableTokenFetchRetries();
+  SetOAuth2TokenResponse(gaia::FakeOAuth2TokenResponse::OAuth2Error(
+      OAuth2Response::kOkUnexpectedFormat));
+  ASSERT_TRUE(AttemptToTriggerAuthError());
+  EXPECT_EQ(GetSyncService(0)->GetTransportState(),
+            IsIssueTokenEnabled()
+                ? syncer::SyncService::TransportState::PAUSED
+                : syncer::SyncService::TransportState::ACTIVE);
+  EXPECT_EQ(GetSyncService(0)->GetAuthError().state(),
+            IsIssueTokenEnabled()
+                ? GoogleServiceAuthError::UNEXPECTED_SERVICE_RESPONSE
+                : GoogleServiceAuthError::NONE);
+  EXPECT_EQ(GetSyncService(0)->IsRetryingAccessTokenFetchForTest(),
+            !IsIssueTokenEnabled());
+}
+
+INSTANTIATE_TEST_SUITE_P(,
+                         SyncAuthTokenFetcherDependentTest,
+                         testing::Values(false
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+                                         ,
+                                         true
+#endif
+                                         ),
+                         [](const testing::TestParamInfo<bool>& info) {
+                           return info.param ? "WithIssueToken"
+                                             : "WithGetToken";
+                         });
 
 // Verify that SyncServiceImpl continues trying to fetch access tokens
 // when the access token fetcher has encountered a URLRequestStatus of FAILED.
@@ -205,8 +248,8 @@ IN_PROC_BROWSER_TEST_F(SyncAuthTest, RetryOnRequestFailed) {
   ASSERT_FALSE(AttemptToTriggerAuthError());
   GetFakeServer()->SetHttpError(net::HTTP_UNAUTHORIZED);
   DisableTokenFetchRetries();
-  SetOAuth2TokenResponse(kEmptyOAuth2Token, net::HTTP_INTERNAL_SERVER_ERROR,
-                         net::ERR_FAILED);
+  SetOAuth2TokenResponse(
+      gaia::FakeOAuth2TokenResponse::NetError(net::ERR_FAILED));
   ASSERT_TRUE(AttemptToTriggerAuthError());
   EXPECT_EQ(GetSyncService(0)->GetTransportState(),
             syncer::SyncService::TransportState::ACTIVE);
@@ -214,13 +257,15 @@ IN_PROC_BROWSER_TEST_F(SyncAuthTest, RetryOnRequestFailed) {
 }
 
 // Verify that SyncServiceImpl continues trying to fetch access tokens
-// when the access token fetcher receives a malformed token.
-IN_PROC_BROWSER_TEST_F(SyncAuthTest, RetryOnMalformedToken) {
+// when the access token fetcher has encountered more than a fixed number of
+// rate limit exceeded errors.
+IN_PROC_BROWSER_TEST_F(SyncAuthTest, RetryOnRateLimitExceeded) {
   ASSERT_TRUE(SetupSync());
   ASSERT_FALSE(AttemptToTriggerAuthError());
   GetFakeServer()->SetHttpError(net::HTTP_UNAUTHORIZED);
   DisableTokenFetchRetries();
-  SetOAuth2TokenResponse(kMalformedOAuth2Token, net::HTTP_OK, net::OK);
+  SetOAuth2TokenResponse(gaia::FakeOAuth2TokenResponse::OAuth2Error(
+      OAuth2Response::kRateLimitExceeded));
   ASSERT_TRUE(AttemptToTriggerAuthError());
   EXPECT_EQ(GetSyncService(0)->GetTransportState(),
             syncer::SyncService::TransportState::ACTIVE);
@@ -235,8 +280,8 @@ IN_PROC_BROWSER_TEST_F(SyncAuthTest, InvalidGrant) {
   ASSERT_FALSE(AttemptToTriggerAuthError());
   GetFakeServer()->SetHttpError(net::HTTP_UNAUTHORIZED);
   DisableTokenFetchRetries();
-  SetOAuth2TokenResponse(kInvalidGrantOAuth2Token, net::HTTP_BAD_REQUEST,
-                         net::OK);
+  SetOAuth2TokenResponse(gaia::FakeOAuth2TokenResponse::OAuth2Error(
+      OAuth2Response::kInvalidGrant));
   ASSERT_TRUE(AttemptToTriggerAuthError());
   EXPECT_EQ(GetSyncService(0)->GetTransportState(),
             syncer::SyncService::TransportState::PAUSED);
@@ -253,8 +298,8 @@ IN_PROC_BROWSER_TEST_F(SyncAuthTest, InvalidClient) {
   ASSERT_FALSE(AttemptToTriggerAuthError());
   GetFakeServer()->SetHttpError(net::HTTP_UNAUTHORIZED);
   DisableTokenFetchRetries();
-  SetOAuth2TokenResponse(kInvalidClientOAuth2Token, net::HTTP_BAD_REQUEST,
-                         net::OK);
+  SetOAuth2TokenResponse(gaia::FakeOAuth2TokenResponse::OAuth2Error(
+      OAuth2Response::kInvalidClient));
   ASSERT_TRUE(AttemptToTriggerAuthError());
   EXPECT_EQ(GetSyncService(0)->GetTransportState(),
             syncer::SyncService::TransportState::PAUSED);
@@ -271,8 +316,8 @@ IN_PROC_BROWSER_TEST_F(SyncAuthTest, RetryRequestCanceled) {
   ASSERT_FALSE(AttemptToTriggerAuthError());
   GetFakeServer()->SetHttpError(net::HTTP_UNAUTHORIZED);
   DisableTokenFetchRetries();
-  SetOAuth2TokenResponse(kEmptyOAuth2Token, net::HTTP_INTERNAL_SERVER_ERROR,
-                         net::ERR_ABORTED);
+  SetOAuth2TokenResponse(
+      gaia::FakeOAuth2TokenResponse::NetError(net::ERR_ABORTED));
   ASSERT_TRUE(AttemptToTriggerAuthError());
   EXPECT_EQ(GetSyncService(0)->GetTransportState(),
             syncer::SyncService::TransportState::ACTIVE);
@@ -287,8 +332,8 @@ IN_PROC_BROWSER_TEST_F(SyncAuthTest, FailInitialSetupWithPersistentError) {
   ASSERT_TRUE(SetupClients());
   GetFakeServer()->SetHttpError(net::HTTP_UNAUTHORIZED);
   DisableTokenFetchRetries();
-  SetOAuth2TokenResponse(kInvalidGrantOAuth2Token, net::HTTP_BAD_REQUEST,
-                         net::OK);
+  SetOAuth2TokenResponse(gaia::FakeOAuth2TokenResponse::OAuth2Error(
+      OAuth2Response::kInvalidGrant));
   ASSERT_FALSE(GetClient(0)->SetupSync());
   EXPECT_FALSE(GetSyncService(0)->IsSyncFeatureActive());
   EXPECT_EQ(GetSyncService(0)->GetTransportState(),
@@ -305,8 +350,8 @@ IN_PROC_BROWSER_TEST_F(SyncAuthTest, RetryInitialSetupWithTransientError) {
   ASSERT_TRUE(SetupClients());
   GetFakeServer()->SetHttpError(net::HTTP_UNAUTHORIZED);
   DisableTokenFetchRetries();
-  SetOAuth2TokenResponse(kEmptyOAuth2Token, net::HTTP_INTERNAL_SERVER_ERROR,
-                         net::OK);
+  SetOAuth2TokenResponse(gaia::FakeOAuth2TokenResponse::OAuth2Error(
+      OAuth2Response::kInternalFailure));
   ASSERT_FALSE(GetClient(0)->SetupSync());
   ASSERT_FALSE(GetSyncService(0)->IsSyncFeatureActive());
   EXPECT_TRUE(GetSyncService(0)->IsRetryingAccessTokenFetchForTest());
@@ -318,7 +363,8 @@ IN_PROC_BROWSER_TEST_F(SyncAuthTestOAuthTokens, TokenExpiry) {
   ASSERT_TRUE(SetupClients());
   GetFakeServer()->ClearHttpError();
   DisableTokenFetchRetries();
-  SetOAuth2TokenResponse(kShortLivedOAuth2Token, net::HTTP_OK, net::OK);
+  SetOAuth2TokenResponse(gaia::FakeOAuth2TokenResponse::Success(
+      "short_lived_access_token", base::Seconds(5)));
   ASSERT_TRUE(GetClient(0)->SetupSync());
   std::string old_token = GetSyncService(0)->GetAccessTokenForTest();
 
@@ -328,14 +374,15 @@ IN_PROC_BROWSER_TEST_F(SyncAuthTestOAuthTokens, TokenExpiry) {
   // Trigger an auth error on the server so PSS requests OA2TS for a new token
   // during the next sync cycle.
   GetFakeServer()->SetHttpError(net::HTTP_UNAUTHORIZED);
-  SetOAuth2TokenResponse(kEmptyOAuth2Token, net::HTTP_INTERNAL_SERVER_ERROR,
-                         net::OK);
+  SetOAuth2TokenResponse(gaia::FakeOAuth2TokenResponse::OAuth2Error(
+      OAuth2Response::kInternalFailure));
   ASSERT_TRUE(AttemptToTriggerAuthError());
   ASSERT_TRUE(GetSyncService(0)->IsRetryingAccessTokenFetchForTest());
 
   // Trigger an auth success state and set up a new valid OAuth2 token.
   GetFakeServer()->ClearHttpError();
-  SetOAuth2TokenResponse(kValidOAuth2Token, net::HTTP_OK, net::OK);
+  SetOAuth2TokenResponse(
+      gaia::FakeOAuth2TokenResponse::Success("new_access_token"));
 
   // Verify that the next sync cycle is successful, and uses the new auth token.
   ASSERT_TRUE(UpdatedProgressMarkerChecker(GetSyncService(0)).Wait());

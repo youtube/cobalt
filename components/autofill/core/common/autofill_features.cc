@@ -85,6 +85,11 @@ BASE_FEATURE(kAutofillAiCreateEntityDataManager,
 #endif
 );
 
+// If enabled, AutofillAi supports flight reservations.
+BASE_FEATURE(kAutofillAiFlightReservation,
+             "AutofillAiFlightReservation",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // If enabled, no account-level capabilities are checked to determine whether
 // a user is eligible for AutofillAI.
 BASE_FEATURE(kAutofillAiIgnoreCapabilityCheck,
@@ -390,13 +395,6 @@ BASE_FEATURE(kAutofillImproveAddressFieldSwapping,
 BASE_FEATURE(kAutofillImproveCityFieldClassification,
              "AutofillImproveCityFieldClassification",
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-// When enabled, Autofill will try to reuse the result of previous form
-// extractions in subsequent functions that needs the form extracted, provided
-// we have guarantees that in the meantime the form couldn't have changed.
-BASE_FEATURE(kAutofillOptimizeFormExtraction,
-             "AutofillOptimizeFormExtraction",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, credit cards that are split into different fields are imported.
 // TODO: crbug.com/392179445 - Clean up when launched.
@@ -799,7 +797,7 @@ BASE_FEATURE(kAutofillGreekRegexes,
 COMPONENT_EXPORT(AUTOFILL)
 BASE_FEATURE(kAutofillServerUploadMoreData,
              "AutofillServerUploadMoreData",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // TODO(crbug.com/435646513) - Clean-up after feature lands at 100% Stable.
 // Enables the new experimental server-side signatures for evaluation purposes.

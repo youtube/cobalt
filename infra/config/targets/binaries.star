@@ -53,7 +53,7 @@ targets.binaries.windowed_test_launcher(
     label = "//third_party/angle/src/tests:angle_deqp_egl_tests",
     # All references have been moved to starlark
     skip_usage_check = True,
-    module_scheme = "gtest",
+    module_scheme = "deqp",
 )
 
 targets.binaries.windowed_test_launcher(
@@ -61,7 +61,7 @@ targets.binaries.windowed_test_launcher(
     label = "//third_party/angle/src/tests:angle_deqp_gles2_tests",
     # All references have been moved to starlark
     skip_usage_check = True,
-    module_scheme = "gtest",
+    module_scheme = "deqp",
 )
 
 targets.binaries.windowed_test_launcher(
@@ -69,7 +69,7 @@ targets.binaries.windowed_test_launcher(
     label = "//third_party/angle/src/tests:angle_deqp_gles31_tests",
     # All references have been moved to starlark
     skip_usage_check = True,
-    module_scheme = "gtest",
+    module_scheme = "deqp",
 )
 
 targets.binaries.windowed_test_launcher(
@@ -77,7 +77,7 @@ targets.binaries.windowed_test_launcher(
     label = "//third_party/angle/src/tests:angle_deqp_gles3_tests",
     # All references have been moved to starlark
     skip_usage_check = True,
-    module_scheme = "gtest",
+    module_scheme = "deqp",
 )
 
 targets.binaries.windowed_test_launcher(
@@ -85,7 +85,7 @@ targets.binaries.windowed_test_launcher(
     label = "//third_party/angle/src/tests:angle_deqp_khr_gles2_tests",
     # All references have been moved to starlark
     skip_usage_check = True,
-    module_scheme = "gtest",
+    module_scheme = "deqp",
 )
 
 targets.binaries.windowed_test_launcher(
@@ -93,7 +93,7 @@ targets.binaries.windowed_test_launcher(
     label = "//third_party/angle/src/tests:angle_deqp_khr_gles3_tests",
     # All references have been moved to starlark
     skip_usage_check = True,
-    module_scheme = "gtest",
+    module_scheme = "deqp",
 )
 
 targets.binaries.windowed_test_launcher(
@@ -101,7 +101,7 @@ targets.binaries.windowed_test_launcher(
     label = "//third_party/angle/src/tests:angle_deqp_khr_gles31_tests",
     # All references have been moved to starlark
     skip_usage_check = True,
-    module_scheme = "gtest",
+    module_scheme = "deqp",
 )
 
 targets.binaries.windowed_test_launcher(
@@ -109,7 +109,7 @@ targets.binaries.windowed_test_launcher(
     label = "//third_party/angle/src/tests:angle_deqp_gles3_rotate180_tests",
     # All references have been moved to starlark
     skip_usage_check = True,
-    module_scheme = "gtest",
+    module_scheme = "deqp",
 )
 
 targets.binaries.windowed_test_launcher(
@@ -117,7 +117,7 @@ targets.binaries.windowed_test_launcher(
     label = "//third_party/angle/src/tests:angle_deqp_gles3_rotate270_tests",
     # All references have been moved to starlark
     skip_usage_check = True,
-    module_scheme = "gtest",
+    module_scheme = "deqp",
 )
 
 targets.binaries.windowed_test_launcher(
@@ -125,7 +125,7 @@ targets.binaries.windowed_test_launcher(
     label = "//third_party/angle/src/tests:angle_deqp_gles3_rotate90_tests",
     # All references have been moved to starlark
     skip_usage_check = True,
-    module_scheme = "gtest",
+    module_scheme = "deqp",
 )
 
 targets.binaries.windowed_test_launcher(
@@ -133,7 +133,7 @@ targets.binaries.windowed_test_launcher(
     label = "//third_party/angle/src/tests:angle_deqp_gles31_rotate180_tests",
     # All references have been moved to starlark
     skip_usage_check = True,
-    module_scheme = "gtest",
+    module_scheme = "deqp",
 )
 
 targets.binaries.windowed_test_launcher(
@@ -141,7 +141,7 @@ targets.binaries.windowed_test_launcher(
     label = "//third_party/angle/src/tests:angle_deqp_gles31_rotate270_tests",
     # All references have been moved to starlark
     skip_usage_check = True,
-    module_scheme = "gtest",
+    module_scheme = "deqp",
 )
 
 targets.binaries.windowed_test_launcher(
@@ -149,7 +149,7 @@ targets.binaries.windowed_test_launcher(
     label = "//third_party/angle/src/tests:angle_deqp_gles31_rotate90_tests",
     # All references have been moved to starlark
     skip_usage_check = True,
-    module_scheme = "gtest",
+    module_scheme = "deqp",
 )
 
 targets.binaries.windowed_test_launcher(
@@ -644,6 +644,7 @@ targets.binaries.script(
     resultdb = targets.resultdb(
         enable = True,
     ),
+    module_scheme = "pyunit",
 )
 
 targets.binaries.script(
@@ -661,6 +662,7 @@ targets.binaries.script(
     resultdb = targets.resultdb(
         enable = True,
     ),
+    module_scheme = "pyunit",
 )
 
 targets.binaries.windowed_test_launcher(
@@ -1529,12 +1531,6 @@ targets.binaries.console_test_launcher(
 )
 
 targets.binaries.console_test_launcher(
-    name = "libcups_unittests",
-    label = "//chrome/services/cups_proxy:libcups_unittests",
-    module_scheme = "gtest",
-)
-
-targets.binaries.console_test_launcher(
     name = "libjingle_xmpp_unittests",
     label = "//third_party/libjingle_xmpp:libjingle_xmpp_unittests",
     module_scheme = "gtest",
@@ -1672,7 +1668,7 @@ targets.binaries.console_test_launcher(
     label = "//chrome/android:monochrome_public_bundle_smoke_test",
     # All references have been moved to starlark
     skip_usage_check = True,
-    module_scheme = "gtest",
+    module_scheme = "junit",
 )
 
 targets.binaries.script(
@@ -2355,7 +2351,7 @@ targets.binaries.console_test_launcher(
     label = "//chrome/android:trichrome_chrome_bundle_smoke_test",
     # All references have been moved to starlark
     skip_usage_check = True,
-    module_scheme = "gtest",
+    module_scheme = "junit",
 )
 
 targets.binaries.console_test_launcher(

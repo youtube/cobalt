@@ -10,6 +10,7 @@
 #include "base/base64.h"
 #include "base/check_op.h"
 #include "base/feature_list.h"
+#include "base/containers/to_vector.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
 #include "components/sync/base/data_type.h"
@@ -182,12 +183,8 @@ NigoriState NigoriState::CreateFromLocalProto(
   }
   state.encrypt_everything = proto.encrypt_everything();
 
-  std::vector<std::string> keystore_keys;
-  for (const std::string& keystore_key : proto.keystore_key()) {
-    keystore_keys.push_back(keystore_key);
-  }
   state.keystore_keys_cryptographer =
-      KeystoreKeysCryptographer::FromKeystoreKeys(keystore_keys);
+      KeystoreKeysCryptographer::FromKeystoreKeys(base::ToVector(proto.keystore_key()));
   if (!state.keystore_keys_cryptographer) {
     // Crypto error occurs, create empty `keystore_keys_cryptographer`.
     // Effectively it resets keystore keys.
@@ -222,16 +219,6 @@ NigoriState NigoriState::CreateFromLocalProto(
       GetCrossUserSharingPublicKeyState(state);
   base::UmaHistogramEnumeration("Sync.CrossUserSharingKeyPairState",
                                 key_pair_state);
-  if (key_pair_state ==
-      CrossUserSharingKeyPairState::kPublicKeyVersionInvalid) {
-    // Currently, only version 0 is supported and hence expected.
-    base::UmaHistogramBoolean(
-        "Sync.CrossUserSharingInvalidKeyVersion.ExpectedVersion",
-        state.cross_user_sharing_key_pair_version == 0u);
-    base::UmaHistogramBoolean(
-        "Sync.CrossUserSharingInvalidKeyVersion.EmptyKeyPair",
-        state.cryptographer->KeyPairSizeForMetrics() == 0u);
-  }
 
   return state;
 }

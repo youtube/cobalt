@@ -260,22 +260,10 @@ source_set("browser_tests") {
     "web_app_ui_manager_impl_browsertest.cc",
     "web_app_uninstall_browsertest.cc",
   ]
-  deps = []
-
-  if (is_chromeos) {
-    sources += [
-      "app_browser_controller_browsertest_chromeos.cc",
-      "create_shortcut_browsertest.cc",
-      "sub_apps_admin_policy_browsertest.cc",
-      "sub_apps_install_dialog_controller_browsertest.cc",
-      "web_app_guest_session_browsertest_chromeos.cc",
-    ]
-    deps += [ "//chrome/browser/ui/extensions" ]
-  }
 
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
 
-  deps += [
+  deps = [
     ":launch_utils",
     ":web_applications",
     "//base",
@@ -293,6 +281,7 @@ source_set("browser_tests") {
     "//chrome/browser/picture_in_picture",
     "//chrome/browser/picture_in_picture:test_support_ui",
     "//chrome/browser/policy:policy_util",
+    "//chrome/browser/preloading:test_support",
     "//chrome/browser/shortcuts",
     "//chrome/browser/themes",
     "//chrome/browser/ui:ui_features",
@@ -315,6 +304,14 @@ source_set("browser_tests") {
   ]
 
   if (is_chromeos) {
+    sources += [
+      "app_browser_controller_browsertest_chromeos.cc",
+      "create_shortcut_browsertest.cc",
+      "sub_apps_admin_policy_browsertest.cc",
+      "sub_apps_install_dialog_controller_browsertest.cc",
+      "web_app_guest_session_browsertest_chromeos.cc",
+    ]
+
     deps += [
       "//chrome/browser/ash/app_list",
       "//chrome/browser/ash/browser_delegate",
@@ -323,6 +320,7 @@ source_set("browser_tests") {
       "//chrome/browser/ash/system_web_apps/test_support",
       "//chrome/browser/ui/ash/shelf",
       "//chrome/browser/ui/ash/system_web_apps",
+      "//chrome/browser/ui/extensions",
       "//chromeos/ash/components/browser_context_helper",
       "//chromeos/constants",
       "//components/session_manager/core",

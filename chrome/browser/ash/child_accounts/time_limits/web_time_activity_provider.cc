@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ash/child_accounts/time_limits/web_time_activity_provider.h"
 
+#include <algorithm>
 #include <optional>
 
 #include "base/containers/contains.h"
@@ -79,31 +80,34 @@ const Browser* GetBrowserForWebContents(const content::WebContents* contents) {
 WebTimeActivityProvider::WebTimeActivityProvider(
     AppTimeController* app_time_controller,
     AppServiceWrapper* app_service_wrapper)
-    : app_time_controller_(app_time_controller),
-      app_service_wrapper_(app_service_wrapper) {
+    : app_time_controller_(app_time_controller) {
   DCHECK(app_time_controller_);
-  DCHECK(app_service_wrapper_);
+  DCHECK(app_service_wrapper);
 
   BrowserList::GetInstance()->AddObserver(this);
-  app_service_wrapper_->AddObserver(this);
+  app_service_wrapper_observation_.Observe(app_service_wrapper);
 }
 
 WebTimeActivityProvider::~WebTimeActivityProvider() {
   BrowserList::GetInstance()->RemoveObserver(this);
   TabStripModelObserver::StopObservingAll(this);
-  app_service_wrapper_->RemoveObserver(this);
-  for (auto* navigation_observer : navigation_observers_) {
-    navigation_observer->RemoveObserver(this);
-  }
 }
 
 void WebTimeActivityProvider::OnWebActivityChanged(
     const WebTimeNavigationObserver::NavigationInfo& info) {
-  if (info.is_web_app) {
+  if (info.web_contents == nullptr) {
     return;
   }
 
-  if (info.web_contents == nullptr) {
+  WebTimeNavigationObserver* observer =
+      WebTimeNavigationObserver::FromWebContents(info.web_contents);
+
+  // Only cache info for observers that this provider is tracking.
+  if (observer && web_time_navigation_observers_.IsObservingSource(observer)) {
+    navigation_info_map_[observer] = info;
+  }
+
+  if (info.is_web_app) {
     return;
   }
 
@@ -125,8 +129,8 @@ void WebTimeActivityProvider::OnWebActivityChanged(
 
 void WebTimeActivityProvider::WebTimeNavigationObserverDestroyed(
     WebTimeNavigationObserver* navigation_observer) {
-  navigation_observer->RemoveObserver(this);
-  navigation_observers_.erase(navigation_observer);
+  web_time_navigation_observers_.RemoveObservation(navigation_observer);
+  navigation_info_map_.erase(navigation_observer);
 }
 
 void WebTimeActivityProvider::OnTabStripModelChanged(
@@ -178,7 +182,8 @@ void WebTimeActivityProvider::OnAppActive(
   }
 
   const Browser* browser = GetBrowserForInstance(
-      app_service_wrapper_->GetInstanceRegistry(), instance_id);
+      app_service_wrapper_observation_.GetSource()->GetInstanceRegistry(),
+      instance_id);
   if (!browser) {
     return;
   }
@@ -196,7 +201,8 @@ void WebTimeActivityProvider::OnAppInactive(
   }
 
   const Browser* browser = GetBrowserForInstance(
-      app_service_wrapper_->GetInstanceRegistry(), instance_id);
+      app_service_wrapper_observation_.GetSource()->GetInstanceRegistry(),
+      instance_id);
   if (!browser) {
     return;
   }
@@ -219,12 +225,11 @@ void WebTimeActivityProvider::TabsInserted(
     // Continue if the navigation observer is not created or if |this| already
     // observes it.
     if (!navigation_observer ||
-        base::Contains(navigation_observers_, navigation_observer)) {
+        web_time_navigation_observers_.IsObservingSource(navigation_observer)) {
       continue;
     }
 
-    navigation_observer->AddObserver(this);
-    navigation_observers_.insert(navigation_observer);
+    web_time_navigation_observers_.AddObservation(navigation_observer);
   }
 }
 
@@ -253,17 +258,18 @@ WebTimeActivityProvider::CalculateChromeAppActivityState() const {
     CHECK(observer) << "This code should not run if ChromeActivityReporting "
                        "feature is disabled";
 
-    const std::optional<WebTimeNavigationObserver::NavigationInfo>& info =
-        observer->last_navigation_info();
+    const auto it = navigation_info_map_.find(observer);
 
     // The first navigation has not occurred yet.
-    if (!info.has_value()) {
+    if (it == navigation_info_map_.end()) {
       continue;
     }
 
+    const WebTimeNavigationObserver::NavigationInfo& info = it->second;
+
     // Web apps opened in the browser are reported separately from the browser
     // activity.
-    if (info->is_web_app) {
+    if (info.is_web_app) {
       continue;
     }
 

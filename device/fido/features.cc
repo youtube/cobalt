@@ -73,12 +73,6 @@ BASE_FEATURE(kWebAuthnICloudKeychainForInactiveWithoutDrive,
              "WebAuthenticationICloudKeychainForInactiveWithoutDrive",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Default enabled in M135. Remove in or after M138.
-COMPONENT_EXPORT(DEVICE_FIDO)
-BASE_FEATURE(kWebAuthnRetryU2FErrors,
-             "WebAuthenticationRetryU2FErrors",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Development flag. Must not be enabled by default once
 // kWebAuthnEnclaveAuthenticator is enabled.
 BASE_FEATURE(kWebAuthnUseInsecureSoftwareUnexportableKeys,
@@ -86,7 +80,7 @@ BASE_FEATURE(kWebAuthnUseInsecureSoftwareUnexportableKeys,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Development flag. Must not be enabled by default.
-BASE_FEATURE(WebAuthnEnclaveAuthenticatorDelay,
+BASE_FEATURE(kWebAuthnEnclaveAuthenticatorDelay,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Not yet enabled by default.
@@ -109,7 +103,7 @@ BASE_FEATURE(kWebAuthnHelloSignal,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Disabled by default.
-BASE_FEATURE(DigitalCredentialsHybridLinking,
+BASE_FEATURE(kDigitalCredentialsHybridLinking,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Default enabled in M136. Remove in or after M139.
@@ -139,7 +133,7 @@ BASE_FEATURE(kWebAuthnSignalApiHidePasskeys,
 
 // Enabled by default as part of the WebAuthenticationImmediateGet feature. Do
 // not remove before WebAuthenticationImmediateGet is removed.
-BASE_FEATURE(WebAuthnImmediateRequestRateLimit,
+BASE_FEATURE(kWebAuthnImmediateRequestRateLimit,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE_PARAM(int,
@@ -176,13 +170,6 @@ BASE_FEATURE(kWebAuthnImmediateGetAutoselect,
              "WebAuthenticationImmediateGetAutoselect",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-#if BUILDFLAG(IS_MAC)
-// Default enabled in M139. Remove in or after M142.
-BASE_FEATURE(kWebAuthnLargeBlobForICloudKeychain,
-             "WebAuthenticationLargeBlobICloudKeychain",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(IS_MAC)
-
 // Default enabled in M140. Remove in or after M143.
 BASE_FEATURE(kWebAuthnLargeBlobForGPM,
              "WebAuthenticationLargeBlobGPM",
@@ -200,7 +187,12 @@ BASE_FEATURE(kWebAuthnWrapCohortData,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Not yet enabled by default.
-BASE_FEATURE(AuthenticatorPasswordsOnlyImmediateRequests,
+BASE_FEATURE(kAuthenticatorPasswordsOnlyImmediateRequests,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Not yet enabled by default.
+BASE_FEATURE(kWebAuthnNewRefreshFlow,
+             "WebAuthenticationNewRefreshFlow",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace device

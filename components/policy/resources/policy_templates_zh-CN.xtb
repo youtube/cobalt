@@ -471,6 +471,7 @@
       如果此政策已启用，改进后的国际键盘快捷键会处于启用状态。
       如果未设置，此政策在受管设备上会处于启用状态，在消费者拥有的设备上也会处于启用状态。
       请注意，此政策只是一项临时性政策，旨在让受管用户仍能使用已弃用的旧版快捷键。待自定义键盘快捷键可用后，此政策将被弃用。</translation>
+<translation id="1357214899305978790">设置要在“新标签页”页面上显示的快捷方式（Beta 版）</translation>
 <translation id="1361661842732478894">在工具栏上显示首页按钮</translation>
 <translation id="1363275621236827384">允许在 Quirks Server 中查询硬件配置文件</translation>
 <translation id="1363839375295535439">如果已启用或未设置此政策，那么只要系统配置支持，系统就会为打印服务启用 LPAC 沙盒。
@@ -546,6 +547,19 @@ Chrome 政策的优先级高于此政策，例如：如果某个扩展程序已�
       此政策会覆盖 <ph name="DEFAULT_SERIAL_GUARD_SETTING_POLICY_NAME" />、<ph name="SERIAL_ASK_FOR_URLS_POLICY_NAME" />、<ph name="SERIAL_BLOCKED_FOR_URLS_POLICY_NAME" /> 和用户的偏好设置。</translation>
 <translation id="1413768951234456918">清除浏览记录</translation>
 <translation id="1413936351612032792">报告有关 Linux 应用使用情况的信息</translation>
+<translation id="1417776888841750570">此政策用于控制浏览器在受管理的账号登录内容区域后的行为。
+
+此政策会覆盖 <ph name="MANAGED_ACCOUNTS_SIGNIN_RESTRICTION_POLICY_NAME" />。
+
+如果此政策设为“建议”，在受管理的账号登录后，系统会发出类似于强制执行政策的提示，要求用户继续使用受管资料。如果用户拒绝，可以在非受管环境中继续浏览。
+
+如果此政策设为“强制”，在使用受管理的账号登录后，系统会要求用户继续使用受管资料。如果用户拒绝，系统会强制其退出账号。这项强制措施不受 <ph name="SIGNIN_INTERCEPTION_ENABLED_POLICY_NAME" /> 政策的影响。
+
+如果此政策已停用或未设置，在使用受管理的账号登录后，系统可能会显示一个信息气泡，要求用户创建新的资料。用户可以关闭该气泡，在非受管环境中继续浏览。该气泡受 <ph name="SIGNIN_INTERCEPTION_ENABLED_POLICY_NAME" /> 政策控制。
+
+如果此政策是在机器级设置的，它不会产生任何效力。
+
+此政策不适用于无痕模式，也不会在无痕模式下发挥作用。</translation>
 <translation id="1417888712677507140">屏蔽从其他来源的子框架触发的 JavaScript 对话框。</translation>
 <translation id="1418387035898607074">不对从可信来源下载的文件执行安全浏览检查</translation>
 <translation id="1419020637569060510">针对在 Chrome 操作系统中将受管理的账号用作辅助账号的情况添加限制</translation>
@@ -3396,7 +3410,6 @@ Microsoft Outlook 卡片需要由管理员进行额外配置。如需详细了�
       如果您停用了此设置或未对其进行设置，默认情况下，系统将使用新的内嵌登录流程。不过，用户仍可以通过命令行指令“--enable-web-based-signin”启用旧的基于 Web 的登录流程。
 
       日后，当内嵌登录全面支持所有 SSO 登录流程时，该实验性设置将会取消。</translation>
-<translation id="3435178885391813398">不允许使用扫描仪。</translation>
 <translation id="3435796032110614169">允许删除打印任务记录</translation>
 <translation id="3436217793443508863">当使用电池供电时系统应在设备闲置多久（以毫秒为单位）后锁定屏幕</translation>
 <translation id="3437924696598384725">允许用户管理 VPN 连接</translation>
@@ -5192,6 +5205,17 @@ ServiceWorkerAutoPreload 功能会在 ServiceWorker 引导过程开始的同时�
 截至 Chrome 114，此政策要求将 <ph name="SYNC_DISABLED_POLICY_NAME" /> 政策设为 true。从 Chrome 115 开始，如果既未通过设置 <ph name="SYNC_DISABLED_POLICY_NAME" /> 政策停用“<ph name="CHROME_SYNC_NAME" />”，也未停用 <ph name="BROWSER_SIGNIN_POLICY_NAME" />，设置此政策会为相应的数据类型停用同步功能。</translation>
 <translation id="4694138212536142867">启用设备硬件状态报告功能</translation>
 <translation id="4697581738794063407">控制网址参数过滤功能</translation>
+<translation id="4698488381632756664">开发中：仅提供早期预览版。
+
+通过设置此政策，您可以预先配置在 <ph name="PRODUCT_NAME" /> 的“新标签页”页面上显示多达 10 个自定义快捷方式。
+
+如果设置了此政策，默认情况下，用户会看到上述自定义快捷方式，并且在“自定义 Chrome”面板中可在“我的快捷方式”“最常访问的网站”和“我所属组织的快捷方式”之间切换。如果此政策为空或未设置，那么在“自定义 Chrome”面板中，用户只能在“我的快捷方式”和“最常访问的网站”之间切换。
+
+快捷方式网址不得重复。
+
+如果 <ph name="NTP_SHORTCUTS_ALLOW_USER_EDIT_NAME" /> 设为 true，用户可以更改快捷方式的名称。如果此政策设为 false 或未设置，用户无法修改快捷方式的名称。
+
+如果 <ph name="NTP_SHORTCUTS_ALLOW_USER_DELETE_NAME" /> 设为 true，用户可以移除快捷方式。如果此政策设为 false 或未设置，用户无法移除快捷方式。</translation>
 <translation id="4698895924806859508">不报告网络事件</translation>
 <translation id="4699172675775169585">缓存的图片和文件</translation>
 <translation id="4699592681017489215">借助此政策，您可以配置一个用于停用 DNS 拦截检查功能的本地开关。该检查功能旨在尝试检测浏览器是否使用了会重定向不明主机名的代理。
@@ -6792,15 +6816,6 @@ Microsoft SharePoint 和 OneDrive 卡片需要由管理员进行额外配置。�
 <translation id="5728154254076636808">允许创建 <ph name="PRODUCT_NAME" /> 个人资料数据的漫游副本</translation>
 <translation id="5729308727912841256">Kerberos 密码。占位符 <ph name="PASSWORD_PLACEHOLDER" /> 会被登录密码取代。</translation>
 <translation id="5730610899971390601">拒绝“Just Works”蓝牙配对请求</translation>
-<translation id="5731898940174379509">通过设置此政策，您可以预先配置在 <ph name="PRODUCT_NAME" /> 的“新标签页”页面上显示多达 10 个自定义快捷方式。
-
-如果设置了此政策，默认情况下，用户会看到上述自定义快捷方式，并且在“自定义 Chrome”面板中可在“我的快捷方式”“最常访问的网站”和“我所属组织的快捷方式”之间切换。如果此政策为空或未设置，那么在“自定义 Chrome”面板中，用户只能在“我的快捷方式”和“最常访问的网站”之间切换。
-
-快捷方式网址不得重复。
-
-如果 <ph name="NTP_SHORTCUTS_ALLOW_USER_EDIT_NAME" /> 设为 true，用户可以更改快捷方式的名称。如果此政策设为 false 或未设置，用户无法修改快捷方式的名称。
-
-如果 <ph name="NTP_SHORTCUTS_ALLOW_USER_DELETE_NAME" /> 设为 true，用户可以移除快捷方式。如果此政策设为 false 或未设置，用户无法移除快捷方式。</translation>
 <translation id="5732972008943405952">首次运行时，从默认浏览器导入自动填充表单数据</translation>
 <translation id="5733040281451845496">如果此政策已启用，仅当在会话内察觉到首项用户活动后，系统才会开始应用电源管理延迟时间和会话时长限制。
 
@@ -7074,7 +7089,6 @@ Microsoft SharePoint 和 OneDrive 卡片需要由管理员进行额外配置。�
 
       如果此政策已停用，系统将禁止使用 QUIC 协议。</translation>
 <translation id="5916855682471300200">云端设备政策的优先级高于平台设备政策</translation>
-<translation id="5917092644305650513">扫描仪功能的设置</translation>
 <translation id="5917425424971710623">不报告扩展检测和响应 (XDR) 事件的相关信息</translation>
 <translation id="5917897389577978190">Gmail（自 135 版起受支持）</translation>
 <translation id="592036544845479336">重新启用已弃用/已移除的变更事件</translation>
@@ -7475,7 +7489,6 @@ Microsoft SharePoint 和 OneDrive 卡片需要由管理员进行额外配置。�
 
       如果此政策设为 false 或未设置，系统将不会报告崩溃报告信息。如果此政策设为 true，系统将会报告崩溃报告信息。</translation>
 <translation id="624219423122512710">浏览器闲置时运行的操作</translation>
-<translation id="6243061183100681514">允许使用扫描仪并改进 AI 模型。</translation>
 <translation id="6244061205361004687">允许用户手动断开或修改 VPN</translation>
 <translation id="6244210204546589761">启动时打开的网址</translation>
 <translation id="624595269193747921">是否要将相符打印机的搜索范围限定为一组特定的打印机。</translation>
@@ -8198,7 +8211,6 @@ Origin-Agent-Cluster HTTP 标头可控制是将某个文档隔离在以源为键
 <translation id="666203515318060501">允许使用增强型自动填充功能，但不改进 AI 模型。</translation>
 <translation id="6665670272107384733">指定用户必须按什么样的频率输入密码才能使用快速解锁功能</translation>
 <translation id="6667586534922258705">在登录屏幕和锁定的屏幕上显示“显示密码”按钮</translation>
-<translation id="6667636336079341367">允许使用扫描仪，但不改进 AI 模型。</translation>
 <translation id="6668559639284945695">此政策允许还原为旧版 Cookie 范围行为。
 
 这意味着，在特定协议（例如 HTTPS）或端口上设置的 Cookie 可以从另一个协议或端口访问。
@@ -8499,7 +8511,6 @@ Origin-Agent-Cluster HTTP 标头可控制是将某个文档隔离在以源为键
 如果此政策设为 false 或未设置，布局将不可用。需要重新启动才能生效。</translation>
 <translation id="685769593149966548">强制启用 YouTube“严格”受限模式</translation>
 <translation id="686079137349561371">Microsoft Windows 7 或更高版本</translation>
-<translation id="6863927303509860338">设置要在“新标签页”页面上显示的快捷方式</translation>
 <translation id="6866755486434471318">允许 <ph name="PEPPER_NAME" /> 使用共享图片进行视频解码。</translation>
 <translation id="6878757724611298427">允许用户在非关联设备上使用 Android 应用</translation>
 <translation id="6881397131210596522">如果此政策设为 2，系统会自动禁止网站使用 WebPrinting API。
@@ -10813,17 +10824,6 @@ Related Website Set 中的所有网站都必须是采用 HTTPS 协议的可注�
       如果此政策已停用或未设置，系统将不会报告这些信息。
       如果此政策已启用，系统将会报告 CRD 事件（倘若用户已被关联）</translation>
 <translation id="85723976805793612">与 Google 分享 Android 应用安装事件日志</translation>
-<translation id="8573354257711790704">此政策用于控制 <ph name="PRODUCT_OS_NAME" /> 的扫描仪功能的设置。
-
-0 表示允许使用此功能，同时允许 Google 使用相关数据改进其 AI 模型。相关数据可能包括提示、输入、输出、素材和书面反馈，具体取决于相应功能。工作人员也可能会审核这些数据，以改进 AI 模型。除非下文另有说明，否则默认值是 0。
-
-1 表示允许使用此功能，但不允许 Google 使用用户内容（包括提示、输入、输出、素材和书面反馈）改进模型。对于受 <ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" />管理的企业用户和受 <ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" /> 管理的教育版账号，默认值是 1。
-
-2 表示不允许使用此功能。
-
-如果此政策未设置，其行为将由 <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> 政策决定。
-
-如需详细了解生成式 AI 功能的数据处理机制，请访问 https://support.google.com/chrome/a?p=generative_ai_settings。</translation>
 <translation id="857369585509260201">此政策已弃用，请考虑改用 BrowserSignin。
 
       如果此政策设为 true，用户必须先使用其个人资料登录 <ph name="PRODUCT_NAME" />，然后才能使用该浏览器。此外，BrowserGuestModeEnabled 的默认值会设为 false。请注意，启用此政策后，现有的未登录个人资料将处于锁定且不可访问的状态。有关详情，请参阅帮助中心文章。

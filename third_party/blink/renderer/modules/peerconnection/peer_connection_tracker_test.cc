@@ -180,13 +180,13 @@ TEST_F(PeerConnectionTrackerTest, TrackCreateOffer) {
   // Note: blink::RTCOfferOptionsPlatform is not mockable. So we can't write
   // tests for anything but a null options parameter.
   RTCOfferOptionsPlatform* options =
-      MakeGarbageCollected<RTCOfferOptionsPlatform>(0, 0, false, false);
+      MakeGarbageCollected<RTCOfferOptionsPlatform>(1, 1, true, true);
   EXPECT_CALL(
       *mock_host_,
       UpdatePeerConnection(
           _, String("createOffer"),
-          String("options: {offerToReceiveVideo: 0, offerToReceiveAudio: 0, "
-                 "voiceActivityDetection: false, iceRestart: false}")));
+          String("{\"offerToReceiveAudio\":true,\"offerToReceiveVideo\":true,"
+                 "\"voiceActivityDetection\":true,\"iceRestart\":true}")));
   tracker_->TrackCreateOffer(mock_handler_.get(), options);
   base::RunLoop().RunUntilIdle();
 }
@@ -480,12 +480,14 @@ TEST_F(PeerConnectionTrackerTest, IceCandidateError) {
                                    "test url", 404, "test error");
   base::RunLoop().RunUntilIdle();
   String expected_value(
-      "url: test url\n"
-      "address: 1.1.1.1\n"
-      "port: 15\n"
-      "host_candidate: [::1]\n"
-      "error_text: test error\n"
-      "error_code: 404");
+      "{"
+      "\"url\":\"test url\","
+      "\"address\":\"1.1.1.1\","
+      "\"port\":15,"
+      "\"host_candidate\":\"[::1]\","
+      "\"error_text\":\"test error\","
+      "\"error_code\":404"
+      "}");
   EXPECT_EQ(expected_value, update_value);
 }
 

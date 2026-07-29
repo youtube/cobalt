@@ -15,10 +15,20 @@ import web_idl_diff_tool
 class WebIdlDiffToolTest(unittest.TestCase):
 
   def testIdlToWebIdlConversion(self):
+    # Note: the following schemas were copied over at the time of their
+    # conversion and are not intended to be kept up to date with any more recent
+    # updates. Once all the old IDL has been converted and we are ready to
+    # remove the old parser, these can all be deleted and this test removed.
     converted_schemas = [
         ('alarms.idl', 'alarms.webidl'),
         ('bluetooth.idl', 'bluetooth.webidl'),
+        ('dns.idl', 'dns.webidl'),
         ('audio.idl', 'audio.webidl'),
+        ('cec_private.idl', 'cec_private.webidl'),
+        ('diagnostics.idl', 'diagnostics.webidl'),
+        ('virtual_keyboard.idl', 'virtual_keyboard.webidl'),
+        ('webcam_private.idl', 'webcam_private.webidl'),
+        ('extension_options_internal.idl', 'extension_options_internal.webidl'),
     ]
     # LoadAndReturnUnifiedDiff expects file paths relative to the repo root.
     converted_schema_path = 'tools/json_schema_compiler/test/converted_schemas/'

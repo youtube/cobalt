@@ -636,6 +636,7 @@ class CONTENT_EXPORT WebContentsImpl
       std::unique_ptr<SelectionPopupDelegate> delegate) override;
 #endif
   bool HasRecentInteraction() override;
+  base::TimeTicks GetLastInteractionTimeTicks() override;
   [[nodiscard]] ScopedIgnoreInputEvents IgnoreInputEvents(
       std::optional<WebInputEventAuditCallback> audit_callback) override;
   bool ShouldIgnoreInputEventsForTesting() override;
@@ -999,7 +1000,7 @@ class CONTENT_EXPORT WebContentsImpl
       std::optional<PrefetchPriority> priority,
       scoped_refptr<PreloadPipelineInfo> preload_pipeline_info,
       base::WeakPtr<PreloadingAttempt> attempt,
-      std::optional<PreloadingHoldbackStatus> holdback_status_override,
+      PreloadingHoldbackStatus holdback_status_override,
       std::optional<base::TimeDelta> ttl) override;
   std::unique_ptr<PrerenderHandle> StartPrerendering(
       const GURL& prerendering_url,

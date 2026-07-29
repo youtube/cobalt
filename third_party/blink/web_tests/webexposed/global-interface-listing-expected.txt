@@ -459,11 +459,6 @@ interface BatteryManager : EventTarget
     setter onchargingtimechange
     setter ondischargingtimechange
     setter onlevelchange
-interface BeforeCreatePolicyEvent : Event
-    attribute @@toStringTag
-    getter policyName
-    method constructor
-    setter policyName
 interface BeforeInstallPromptEvent : Event
     attribute @@toStringTag
     getter platforms
@@ -1035,6 +1030,9 @@ interface CSSRotate : CSSTransformComponent
     setter x
     setter y
     setter z
+interface CSSRouteRule : CSSConditionRule
+    attribute @@toStringTag
+    method constructor
 interface CSSRule
     attribute @@toStringTag
     attribute CHARSET_RULE
@@ -1290,7 +1288,7 @@ interface CanvasRenderingContext2D
     method createRadialGradient
     method drawElement
     method drawFocusIfNeeded
-    method drawHTMLElement
+    method drawHTML
     method drawImage
     method drawMesh
     method ellipse
@@ -2895,6 +2893,11 @@ interface EventTarget
     method dispatchEvent
     method removeEventListener
     method when
+interface EventTrigger : AnimationTrigger
+    attribute @@toStringTag
+    getter eventTarget
+    getter eventType
+    method constructor
 interface External
     attribute @@toStringTag
     method AddSearchProvider
@@ -3848,6 +3851,7 @@ interface HTMLDocument : Document
 interface HTMLElement : Element
     attribute @@toStringTag
     getter accessKey
+    getter accessKeyLabel
     getter attributeStyleMap
     getter autocapitalize
     getter autofocus
@@ -9597,6 +9601,7 @@ interface SecurityPolicyViolationEvent : Event
     getter disposition
     getter documentURI
     getter effectiveDirective
+    getter evalHash
     getter lineNumber
     getter originalPolicy
     getter referrer
@@ -10445,7 +10450,6 @@ interface TrustedTypePolicyFactory : EventTarget
     getter defaultPolicy
     getter emptyHTML
     getter emptyScript
-    getter onbeforecreatepolicy
     method constructor
     method createPolicy
     method getAttributeType
@@ -10454,7 +10458,6 @@ interface TrustedTypePolicyFactory : EventTarget
     method isHTML
     method isScript
     method isScriptURL
-    setter onbeforecreatepolicy
 interface UIEvent : Event
     attribute @@toStringTag
     getter detail
@@ -11614,7 +11617,7 @@ interface WebGL2RenderingContext
     method stencilOp
     method stencilOpSeparate
     method texElement2D
-    method texHTMLElement2D
+    method texHTML2D
     method texImage2D
     method texImage3D
     method texParameterf
@@ -12119,7 +12122,7 @@ interface WebGLRenderingContext
     method stencilOp
     method stencilOpSeparate
     method texElement2D
-    method texHTMLElement2D
+    method texHTML2D
     method texImage2D
     method texParameterf
     method texParameteri

@@ -250,8 +250,8 @@ gpu::ContextResult InProcessCommandBuffer::InitializeOnGpuThread(
       task_executor_->gpu_preferences(), std::move(memory_tracker),
       task_executor_->shader_translator_cache(),
       task_executor_->framebuffer_completeness_cache(), feature_info,
-      /*bind_generates_resource=*/false, nullptr /* progress_reporter */,
-      task_executor_->gpu_feature_info(), task_executor_->discardable_manager(),
+      /*progress_reporter=*/nullptr, task_executor_->gpu_feature_info(),
+      task_executor_->discardable_manager(),
       task_executor_->passthrough_discardable_manager(),
       task_executor_->shared_image_manager());
 
@@ -311,11 +311,11 @@ gpu::ContextResult InProcessCommandBuffer::InitializeOnGpuThread(
       DLOG(ERROR) << "ContextResult::kFatalFailure: WebGPU not enabled";
       return gpu::ContextResult::kFatalFailure;
     }
-    std::unique_ptr<webgpu::WebGPUDecoder> webgpu_decoder(
+    std::unique_ptr<webgpu::WebGPUDecoder> webgpu_decoder =
         webgpu::WebGPUDecoder::Create(
             this, command_buffer_.get(), task_executor_->shared_image_manager(),
             context_group_->memory_tracker(), task_executor_->outputter(),
-            task_executor_->gpu_preferences(), context_state_));
+            task_executor_->gpu_preferences(), context_state_);
     gpu::ContextResult result =
         webgpu_decoder->Initialize(task_executor_->gpu_feature_info());
     if (result != gpu::ContextResult::kSuccess) {
@@ -323,6 +323,7 @@ gpu::ContextResult InProcessCommandBuffer::InitializeOnGpuThread(
       DLOG(ERROR) << "Failed to initialize WebGPU decoder.";
       return result;
     }
+
     decoder_ = std::move(webgpu_decoder);
   } else {
     if (params.attribs->enable_raster_interface &&
@@ -346,12 +347,25 @@ gpu::ContextResult InProcessCommandBuffer::InitializeOnGpuThread(
       }
 
       context_ = context_state_->context();
-      decoder_.reset(raster::RasterDecoder::Create(
-          this, command_buffer_.get(), task_executor_->outputter(),
-          task_executor_->gpu_feature_info(), task_executor_->gpu_preferences(),
-          context_group_->memory_tracker(),
-          task_executor_->shared_image_manager(), context_state_,
-          true /*is_privileged*/));
+      std::unique_ptr<raster::RasterDecoder> raster_decoder =
+          raster::RasterDecoder::Create(
+              this, command_buffer_.get(), task_executor_->outputter(),
+              task_executor_->gpu_feature_info(),
+              task_executor_->gpu_preferences(),
+              context_group_->memory_tracker(),
+              task_executor_->shared_image_manager(), context_state_,
+              /*is_privileged=*/true);
+
+      auto result = raster_decoder->Initialize(
+          params.attribs->enable_gpu_rasterization,
+          params.attribs->lose_context_when_out_of_memory);
+      if (result != gpu::ContextResult::kSuccess) {
+        DestroyOnGpuThread();
+        DLOG(ERROR) << "Failed to initialize decoder.";
+        return result;
+      }
+
+      decoder_ = std::move(raster_decoder);
     } else {
       // TODO(khushalsagar): A lot of this initialization code is duplicated in
       // GpuChannelManager. Pull it into a common util method.
@@ -366,7 +380,8 @@ gpu::ContextResult InProcessCommandBuffer::InitializeOnGpuThread(
       if (!real_context) {
         real_context = gl::init::CreateGLContext(
             gl_share_group_.get(), surface.get(),
-            GenerateGLContextAttribsForDecoder(*params.attribs,
+            GenerateGLContextAttribsForDecoder(params.attribs->context_type,
+                                               params.attribs->gpu_preference,
                                                context_group_.get()));
         if (!real_context) {
           // TODO(piman): This might not be fatal, we could recurse into
@@ -393,15 +408,19 @@ gpu::ContextResult InProcessCommandBuffer::InitializeOnGpuThread(
         return ContextResult::kTransientFailure;
       }
 
-      decoder_.reset(gles2::GLES2Decoder::Create(this, command_buffer_.get(),
-                                                 task_executor_->outputter(),
-                                                 context_group_.get()));
+      std::unique_ptr<gles2::GLES2Decoder> gles2_decoder =
+          gles2::GLES2Decoder::Create(this, command_buffer_.get(),
+                                      task_executor_->outputter(),
+                                      context_group_.get());
       if (use_virtualized_gl_context_) {
         context_ = base::MakeRefCounted<GLContextVirtual>(
-            gl_share_group_.get(), real_context.get(), decoder_->AsWeakPtr());
-        if (!context_->Initialize(surface.get(),
-                                  GenerateGLContextAttribsForDecoder(
-                                      *params.attribs, context_group_.get()))) {
+            gl_share_group_.get(), real_context.get(),
+            gles2_decoder->AsWeakPtr());
+        if (!context_->Initialize(
+                surface.get(),
+                GenerateGLContextAttribsForDecoder(
+                    params.attribs->context_type,
+                    params.attribs->gpu_preference, context_group_.get()))) {
           // TODO(piman): This might not be fatal, we could recurse into
           // CreateGLContext to get more info, tho it should be exceedingly
           // rare and may not be recoverable anyway.
@@ -422,6 +441,16 @@ gpu::ContextResult InProcessCommandBuffer::InitializeOnGpuThread(
         context_ = real_context;
         DCHECK(context_->IsCurrent(surface.get()));
       }
+      auto result = gles2_decoder->Initialize(
+          surface, context_, /*offscreen=*/true, params.attribs->context_type,
+          params.attribs->lose_context_when_out_of_memory);
+      if (result != gpu::ContextResult::kSuccess) {
+        DestroyOnGpuThread();
+        DLOG(ERROR) << "Failed to initialize decoder.";
+        return result;
+      }
+
+      decoder_ = std::move(gles2_decoder);
     }
 
     if (!context_group_->has_program_cache() &&
@@ -429,15 +458,6 @@ gpu::ContextResult InProcessCommandBuffer::InitializeOnGpuThread(
       context_group_->set_program_cache(task_executor_->program_cache());
     }
     DCHECK(context_->default_surface());
-  }
-
-  gles2::DisallowedFeatures disallowed_features;
-  auto result = decoder_->Initialize(surface, context_, /*offscreen=*/true,
-                                     disallowed_features, *params.attribs);
-  if (result != gpu::ContextResult::kSuccess) {
-    DestroyOnGpuThread();
-    DLOG(ERROR) << "Failed to initialize decoder.";
-    return result;
   }
 
   if (task_executor_->gpu_preferences().enable_gpu_service_logging)

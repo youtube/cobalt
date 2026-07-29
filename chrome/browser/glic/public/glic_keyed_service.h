@@ -29,6 +29,7 @@ class ProfileManager;
 
 namespace actor {
 struct ActionResultWithLatencyInfo;
+class ActorKeyedService;
 }  // namespace actor
 
 namespace contextual_cueing {
@@ -79,7 +80,8 @@ class GlicKeyedService : public KeyedService {
       signin::IdentityManager* identity_manager,
       ProfileManager* profile_manager,
       GlicProfileManager* glic_profile_manager,
-      contextual_cueing::ContextualCueingService* contextual_cueing_service);
+      contextual_cueing::ContextualCueingService* contextual_cueing_service,
+      actor::ActorKeyedService* actor_keyed_service);
   GlicKeyedService(const GlicKeyedService&) = delete;
   GlicKeyedService& operator=(const GlicKeyedService&) = delete;
   ~GlicKeyedService() override;
@@ -210,7 +212,7 @@ class GlicKeyedService : public KeyedService {
   void OnMemoryPressure(
       base::MemoryPressureListener::MemoryPressureLevel level);
 
-  Host& host();
+  std::vector<Host*> GetAllHosts();
   HostManager& host_manager();
   GlicZeroStateSuggestionsManager& zero_state_suggestions_manager() {
     return *zero_state_suggestions_manager_;
@@ -221,6 +223,10 @@ class GlicKeyedService : public KeyedService {
   // Returns whether this web contents contains the Chrome glic WebUI,
   // chrome://glic.
   bool IsGlicWebUi(content::WebContents* web_contents);
+
+  // Get the Host associated with the given browser's active tab, or null
+  // if there is none. `bwi` can be null if preloaded with no browser open.
+  Host* GetHostForActiveTab(BrowserWindowInterface* bwi);
 
  private:
   // A helper function to route GetZeroStateSuggestionsForFocusedTabCallback
@@ -271,6 +277,7 @@ class GlicKeyedService : public KeyedService {
   // Unowned
   raw_ptr<contextual_cueing::ContextualCueingService>
       contextual_cueing_service_;
+  raw_ptr<actor::ActorKeyedService> actor_keyed_service_;
 
   base::WeakPtrFactory<GlicKeyedService> weak_ptr_factory_{this};
 };

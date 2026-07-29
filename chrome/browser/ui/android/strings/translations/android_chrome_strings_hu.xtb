@@ -632,6 +632,7 @@ Csak az Ön összetett jelszava ismeretében tudja bárki is megtekinteni a titk
 <translation id="4042941173059740150">Folytassa a(z) <ph name="SITE_ETLD_PLUS_ONE" /> használatát a következővel: <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /></translation>
 <translation id="4044708993631234325">Alsó lap</translation>
 <translation id="4045441967987592849">Újbóli megnyitás</translation>
+<translation id="4049920046559074950">További lehetőségek a következőhöz: <ph name="INSTANCE_TITLE" /></translation>
 <translation id="4052419222954753986">{NUMBER_OF_TABS,plural, =1{<ph name="TABS_COUNT_ONE" /> normál lap új tevékenységgel megosztott lapcsoportokban}other{<ph name="TABS_COUNT_MANY" /> normál lap új tevékenységgel megosztott lapcsoportokban}}</translation>
 <translation id="405365679581583349">A Google Play-szolgáltatások frissítése</translation>
 <translation id="405399507749852140">Értesítést kaphat, ha valamelyik webhelyen csökken az ár</translation>
@@ -1830,6 +1831,7 @@ A beállítás módosításához <ph name="BEGIN_LINK" />törölje a fiókjában
 <translation id="930124987204876019">Előzmények, cookie-k, webhelyadatok, gyorsítótár törlése…</translation>
 <translation id="938850635132480979">Hiba: <ph name="ERROR_CODE" /></translation>
 <translation id="939598580284253335">Összetett jelszó megadása</translation>
+<translation id="945522503751344254">Visszajelzés küldése</translation>
 <translation id="95817756606698420">A Chrome igénybe veheti a <ph name="BEGIN_BOLD" />Sogou<ph name="END_BOLD" /> keresőszolgáltatást, hogy Kínában kereshessen. Ezt a <ph name="BEGIN_LINK" />Beállításokban<ph name="END_LINK" /> módosíthatja.</translation>
 <translation id="961856697154696964">Böngészési adatok törlése</translation>
 <translation id="963246339335003378">Feladatkezelő megnyitása</translation>

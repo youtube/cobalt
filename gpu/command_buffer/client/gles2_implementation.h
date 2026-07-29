@@ -105,7 +105,6 @@ class GLES2_IMPL_EXPORT GLES2Implementation : public GLES2Interface,
   GLES2Implementation(GLES2CmdHelper* helper,
                       scoped_refptr<ShareGroup> share_group,
                       TransferBufferInterface* transfer_buffer,
-                      bool bind_generates_resource,
                       bool lose_context_when_out_of_memory,
                       GpuControl* gpu_control);
 
@@ -388,7 +387,7 @@ class GLES2_IMPL_EXPORT GLES2Implementation : public GLES2Interface,
   void OnGpuControlLostContext() final;
   void OnGpuControlLostContextMaybeReentrant() final;
   void OnGpuControlErrorMessage(const char* message, int32_t id) final;
-  void OnGpuSwitched(gl::GpuPreference active_gpu_heuristic) final;
+  void OnGpuSwitched() final;
   void OnGpuControlReturnData(base::span<const uint8_t> data) final;
 
   void SendErrorMessage(std::string message, int32_t id);
@@ -839,7 +838,6 @@ class GLES2_IMPL_EXPORT GLES2Implementation : public GLES2Interface,
   std::string last_active_url_;
 
   bool gpu_switched_ = false;
-  gl::GpuPreference active_gpu_heuristic_ = gl::GpuPreference::kDefault;
 
   base::WeakPtrFactory<GLES2Implementation> weak_ptr_factory_{this};
 };

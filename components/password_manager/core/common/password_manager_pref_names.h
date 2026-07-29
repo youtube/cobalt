@@ -76,11 +76,6 @@ inline constexpr char kDeletingUndecryptablePasswordsEnabled[] =
 inline constexpr char kAutoSignInEnabledGMS[] =
     "profile.auto_sign_in_enabled_gms";
 
-// A cache of whether the profile LoginDatabase is empty, so that can be checked
-// early on startup.
-inline constexpr char kEmptyProfileStoreLoginDatabase[] =
-    "password_manager.empty_profile_store_login_database";
-
 // Boolean controlling whether the password manager offers to save passwords.
 // If false, the password manager will not save credentials, but it will still
 // fill previously saved ones. This pref is not synced. Its value is set
@@ -134,20 +129,6 @@ inline constexpr char kLocalPasswordHashDataList[] =
 // in a row. The counter resets when the user applies password generation.
 inline constexpr char kPasswordGenerationBottomSheetDismissCount[] =
     "password_generation_bottom_sheet_dismiss_count";
-
-// Whether the auto-exported CSV should be deleted. Normally, it's deleted
-// immediately after export, but if that fails, this pref is used as a signal
-// that deletion should be retried.
-inline constexpr char kUpmAutoExportCsvNeedsDeletion[] =
-    "profile.upm_auto_export_csv_needs_deletion";
-
-// Whether the passwords who couldn't be migrated to UPM have been
-// saved as a CSV. The user can then choose to export the CSV out of Chrome
-// via a separate flow. The pref is also set to true if there were no
-// saved passwords. The value is used as a signal that the login db
-// can stop being used.
-inline constexpr char kUpmUnmigratedPasswordsExported[] =
-    "profile.upm_unmigrated_passwords_exported";
 #endif
 
 #if BUILDFLAG(IS_WIN)

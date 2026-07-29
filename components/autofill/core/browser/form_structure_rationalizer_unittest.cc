@@ -15,6 +15,7 @@
 #include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/crowdsourcing/autofill_crowdsourcing_encoding.h"
 #include "components/autofill/core/browser/field_types.h"
+#include "components/autofill/core/browser/form_parsing/determine_regex_types.h"
 #include "components/autofill/core/browser/form_structure_test_api.h"
 #include "components/autofill/core/browser/heuristic_source.h"
 #include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
@@ -132,8 +133,12 @@ std::unique_ptr<FormStructure> BuildFormStructure(
 
   // Identifies the sections based on the heuristics types.
   if (run_heuristics) {
-    form_structure->DetermineHeuristicTypes(GeoIpCountryCode(""),
-                                            LanguageCode(""), nullptr);
+    const RegexPredictions regex_predictions =
+        DetermineRegexTypes(GeoIpCountryCode(""), LanguageCode(""),
+                            form_structure->ToFormData(), nullptr);
+    regex_predictions.ApplyTo(form_structure->fields());
+    form_structure->RationalizeAndAssignSections(GeoIpCountryCode(""),
+                                                 LanguageCode(""), nullptr);
   } else {
     for (size_t i = 0; i < fields.size(); ++i) {
       form_structure->field(i)->set_heuristic_type(GetActiveHeuristicSource(),

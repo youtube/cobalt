@@ -5,16 +5,29 @@
 #include "chrome/browser/ui/safety_hub/abusive_notification_permissions_manager.h"
 
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/mock_callback.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
+#include "chrome/browser/permissions/crowd_deny_fake_safe_browsing_database_manager.h"
+#include "chrome/browser/permissions/crowd_deny_preload_data.h"
+#include "chrome/browser/permissions/permission_revocation_request.h"
+#include "chrome/browser/safe_browsing/test_safe_browsing_service.h"
 #include "chrome/browser/ui/safety_hub/mock_safe_browsing_database_manager.h"
+#include "chrome/browser/ui/safety_hub/revoked_permissions_service.h"
+#include "chrome/browser/ui/safety_hub/revoked_permissions_service_factory.h"
 #include "chrome/browser/ui/safety_hub/safety_hub_constants.h"
+#include "chrome/browser/ui/safety_hub/safety_hub_test_util.h"
 #include "chrome/browser/ui/safety_hub/safety_hub_util.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
+#include "chrome/test/base/testing_browser_process.h"
+#include "components/content_settings/core/browser/content_settings_uma_util.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/permissions/constants.h"
 #include "components/safe_browsing/core/browser/db/util.h"
+#include "components/safe_browsing/core/browser/safe_browsing_metrics_collector.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
+#include "components/ukm/test_ukm_recorder.h"
 #include "content/public/browser/browser_context.h"
+#include "services/metrics/public/cpp/ukm_builders.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
@@ -165,6 +178,10 @@ TEST_F(AbusiveNotificationPermissionsManagerTest,
   histogram_tester.ExpectUniqueSample(
       safety_hub::kBlocklistCheckCountHistogramName, /* sample */ 2,
       /* expected_count */ 1);
+  histogram_tester.ExpectUniqueSample(
+      "SafeBrowsing.NotificationRevocationSource",
+      safe_browsing::NotificationRevocationSource::kSocialEngineeringBlocklist,
+      /* expected_count */ 2);
 }
 
 TEST_F(AbusiveNotificationPermissionsManagerTest,
@@ -296,6 +313,7 @@ TEST_F(AbusiveNotificationPermissionsManagerTest,
 
 TEST_F(AbusiveNotificationPermissionsManagerTest,
        RegrantedPermissionShouldNotBeChecked) {
+  ukm::TestAutoSetUkmRecorder ukm_recorder;
   AddAbusiveNotification(url1, ContentSetting::CONTENT_SETTING_ALLOW);
   AddAbusiveNotification(url2, ContentSetting::CONTENT_SETTING_ALLOW);
 
@@ -341,6 +359,20 @@ TEST_F(AbusiveNotificationPermissionsManagerTest,
   EXPECT_TRUE(safety_hub_util::IsAbusiveNotificationRevocationIgnored(
       hcsm(), GURL(url1)));
   EXPECT_TRUE(IsRevokedSettingValueRevoked(&manager, url2));
+
+  // Check that the correct metric is reported.
+  auto ukm_entries = ukm_recorder.GetEntriesByName(
+      ukm::builders::
+          SafetyHub_AbusiveNotificationPermissionRevocation_Interactions::
+              kEntryName);
+  ASSERT_EQ(1u, ukm_entries.size());
+  const auto* entry1 = ukm_entries[0].get();
+  ukm_recorder.ExpectEntrySourceHasUrl(entry1, GURL(url1));
+  ukm_recorder.ExpectEntryMetric(
+      entry1, "InteractionType",
+      static_cast<int>(
+          AbusiveNotificationPermissionsManager::
+              AbusiveNotificationPermissionsInteractions::kAllowAgain));
 }
 
 TEST_F(AbusiveNotificationPermissionsManagerTest, ClearRevokedPermissionsList) {
@@ -414,8 +446,9 @@ TEST_F(AbusiveNotificationPermissionsManagerTest,
       safety_hub_util::GetRevokedAbusiveNotificationPermissions(hcsm()).size(),
       0u);
 
-  safety_hub_util::SetRevokedAbusiveNotificationPermission(
-      hcsm(), GURL(url1), /*is_ignored=*/false);
+  AbusiveNotificationPermissionsManager::
+      SetRevokedAbusiveNotificationPermission(hcsm(), GURL(url1),
+                                              /*is_ignored=*/false);
   content_settings =
       safety_hub_util::GetRevokedAbusiveNotificationPermissions(hcsm());
   EXPECT_EQ(content_settings.size(), 1u);
@@ -430,8 +463,9 @@ TEST_F(AbusiveNotificationPermissionsManagerTest,
           hcsm(), GURL(url2))
           .is_none());
 
-  safety_hub_util::SetRevokedAbusiveNotificationPermission(
-      hcsm(), GURL(url2), /*is_ignored=*/false);
+  AbusiveNotificationPermissionsManager::
+      SetRevokedAbusiveNotificationPermission(hcsm(), GURL(url2),
+                                              /*is_ignored=*/false);
   content_settings =
       safety_hub_util::GetRevokedAbusiveNotificationPermissions(hcsm());
   EXPECT_EQ(content_settings.size(), 2u);
@@ -447,6 +481,7 @@ TEST_F(AbusiveNotificationPermissionsManagerTest,
 
 TEST_F(AbusiveNotificationPermissionsManagerTest,
        UndoRegrantPermissionForOriginIfNecessary) {
+  ukm::TestAutoSetUkmRecorder ukm_recorder;
   AddAbusiveNotification(url1, ContentSetting::CONTENT_SETTING_ALLOW);
   AddAbusiveNotification(url2, ContentSetting::CONTENT_SETTING_ALLOW);
 
@@ -487,6 +522,27 @@ TEST_F(AbusiveNotificationPermissionsManagerTest,
             ContentSetting::CONTENT_SETTING_ASK);
   EXPECT_TRUE(IsRevokedSettingValueRevoked(&manager, url1));
   EXPECT_TRUE(IsRevokedSettingValueRevoked(&manager, url2));
+
+  // Check that the correct metric is reported.
+  auto ukm_entries = ukm_recorder.GetEntriesByName(
+      ukm::builders::
+          SafetyHub_AbusiveNotificationPermissionRevocation_Interactions::
+              kEntryName);
+  ASSERT_EQ(2u, ukm_entries.size());
+  const auto* entry1 = ukm_entries[0].get();
+  ukm_recorder.ExpectEntrySourceHasUrl(entry1, GURL(url1));
+  ukm_recorder.ExpectEntryMetric(
+      entry1, "InteractionType",
+      static_cast<int>(
+          AbusiveNotificationPermissionsManager::
+              AbusiveNotificationPermissionsInteractions::kAllowAgain));
+  const auto* entry2 = ukm_entries[1].get();
+  ukm_recorder.ExpectEntrySourceHasUrl(entry2, GURL(url1));
+  ukm_recorder.ExpectEntryMetric(
+      entry2, "InteractionType",
+      static_cast<int>(
+          AbusiveNotificationPermissionsManager::
+              AbusiveNotificationPermissionsInteractions::kUndoAllowAgain));
 }
 
 TEST_F(AbusiveNotificationPermissionsManagerTest,
@@ -590,4 +646,248 @@ TEST_F(AbusiveNotificationPermissionsManagerTest,
   histogram_tester.ExpectBucketCount(
       safety_hub::kBlocklistCheckCountHistogramName, /* sample */ 1,
       /* expected_count */ 1);
+}
+
+class ShowManualNotificationRevocationsTest
+    : public AbusiveNotificationPermissionsManagerTest {
+ public:
+  ShowManualNotificationRevocationsTest() {
+    feature_list_.InitAndEnableFeature(
+        safe_browsing::kShowManualNotificationRevocationsSafetyHub);
+  }
+
+  void SetUp() override {
+    AbusiveNotificationPermissionsManagerTest::SetUp();
+    fake_database_manager_ =
+        base::MakeRefCounted<CrowdDenyFakeSafeBrowsingDatabaseManager>();
+    test_safe_browsing_factory_ =
+        std::make_unique<safe_browsing::TestSafeBrowsingServiceFactory>();
+    test_safe_browsing_factory_->SetTestDatabaseManager(
+        fake_database_manager_.get());
+    TestingBrowserProcess::GetGlobal()->SetSafeBrowsingService(
+        test_safe_browsing_factory_->CreateSafeBrowsingService());
+    safety_hub_test_util::CreateRevokedPermissionsService(profile());
+  }
+
+  void TearDown() override {
+    TestingBrowserProcess::GetGlobal()->SetSafeBrowsingService(nullptr);
+    AbusiveNotificationPermissionsManagerTest::TearDown();
+  }
+
+  void AddToPreloadDataBlocklist(
+      const GURL& origin,
+      chrome_browser_crowd_deny::
+          SiteReputation_NotificationUserExperienceQuality reputation_type,
+      bool has_warning) {
+    CrowdDenyPreloadData::SiteReputation reputation;
+    reputation.set_notification_ux_quality(reputation_type);
+    reputation.set_warning_only(has_warning);
+    testing_preload_data_.SetOriginReputation(url::Origin::Create(origin),
+                                              std::move(reputation));
+  }
+
+  void AddToSafeBrowsingBlocklist(const GURL& url) {
+    safe_browsing::ThreatMetadata test_metadata;
+    test_metadata.api_permissions.emplace("NOTIFICATIONS");
+    fake_database_manager_->SetSimulatedMetadataForUrl(url, test_metadata);
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+  testing::ScopedCrowdDenyPreloadDataOverride testing_preload_data_;
+  scoped_refptr<CrowdDenyFakeSafeBrowsingDatabaseManager>
+      fake_database_manager_;
+  std::unique_ptr<safe_browsing::TestSafeBrowsingServiceFactory>
+      test_safe_browsing_factory_;
+};
+
+TEST_F(ShowManualNotificationRevocationsTest,
+       ManualRevocationAcklowedgeThenUndo) {
+  auto manager = AbusiveNotificationPermissionsManager(
+      mock_database_manager(), hcsm(), profile()->GetTestingPrefService());
+  base::HistogramTester histogram_tester;
+
+  // Setup notification subscription.
+  const GURL origin_to_revoke = GURL("https://origin.com/");
+  hcsm()->SetContentSettingDefaultScope(origin_to_revoke, GURL(),
+                                        ContentSettingsType::NOTIFICATIONS,
+                                        CONTENT_SETTING_ALLOW);
+  EXPECT_EQ(CONTENT_SETTING_ALLOW,
+            hcsm()->GetContentSetting(origin_to_revoke, origin_to_revoke,
+                                      ContentSettingsType::NOTIFICATIONS));
+
+  // Trigger crowd deny revocation.
+  AddToSafeBrowsingBlocklist(origin_to_revoke);
+  AddToPreloadDataBlocklist(
+      origin_to_revoke, CrowdDenyPreloadData::SiteReputation::ABUSIVE_CONTENT,
+      /*has_warning=*/false);
+  base::MockOnceCallback<void(PermissionRevocationRequest::Outcome)>
+      mock_callback_receiver;
+  base::RunLoop run_loop;
+  auto permission_revocation = std::make_unique<PermissionRevocationRequest>(
+      profile(), origin_to_revoke, mock_callback_receiver.Get());
+  EXPECT_CALL(mock_callback_receiver, Run(PermissionRevocationRequest::Outcome::
+                                              PERMISSION_REVOKED_DUE_TO_ABUSE))
+      .WillOnce(testing::InvokeWithoutArgs([&run_loop]() { run_loop.Quit(); }));
+  run_loop.Run();
+
+  // Check if the content setting turn to ASK, when auto-revocation happens.
+  ASSERT_EQ(
+      safety_hub_util::GetRevokedAbusiveNotificationPermissions(hcsm()).size(),
+      1u);
+  EXPECT_EQ(CONTENT_SETTING_ASK,
+            hcsm()->GetContentSetting(origin_to_revoke, origin_to_revoke,
+                                      ContentSettingsType::NOTIFICATIONS));
+
+  // Clearing the revoked permissions removes from the list shown to the user,
+  // but keeps notifications permission revoked.
+  manager.ClearRevokedPermissionsList();
+  ASSERT_EQ(
+      safety_hub_util::GetRevokedAbusiveNotificationPermissions(hcsm()).size(),
+      0u);
+  EXPECT_EQ(CONTENT_SETTING_ASK,
+            hcsm()->GetContentSetting(origin_to_revoke, origin_to_revoke,
+                                      ContentSettingsType::NOTIFICATIONS));
+
+  // Undo clearing the revoked permission adds it back to the list shown to the
+  // user and keeps notification permissions revoked.
+  content_settings::ContentSettingConstraints constraints;
+  manager.RestoreDeletedRevokedPermission(
+      ContentSettingsPattern::FromURLNoWildcard(origin_to_revoke),
+      constraints.Clone());
+  ASSERT_EQ(
+      safety_hub_util::GetRevokedAbusiveNotificationPermissions(hcsm()).size(),
+      1u);
+  EXPECT_EQ(CONTENT_SETTING_ASK,
+            hcsm()->GetContentSetting(origin_to_revoke, origin_to_revoke,
+                                      ContentSettingsType::NOTIFICATIONS));
+
+  // Assert notification auto-revocation is recorded in UMA metrics.
+  EXPECT_EQ(
+      1u, histogram_tester
+              .GetAllSamples(
+                  "Settings.SafetyHub.UnusedSitePermissionsModule.AutoRevoked2")
+              .size());
+  histogram_tester.ExpectBucketCount(
+      "Settings.SafetyHub.UnusedSitePermissionsModule.AutoRevoked2",
+      content_settings_uma_util::ContentSettingTypeToHistogramValue(
+          ContentSettingsType::NOTIFICATIONS),
+      1);
+  histogram_tester.ExpectUniqueSample(
+      "SafeBrowsing.NotificationRevocationSource",
+      safe_browsing::NotificationRevocationSource::
+          kManualSafeBrowsingRevocation,
+      /* expected_count */ 1);
+}
+
+TEST_F(ShowManualNotificationRevocationsTest,
+       ManualRevocationRegrantPermission) {
+  auto manager = AbusiveNotificationPermissionsManager(
+      mock_database_manager(), hcsm(), profile()->GetTestingPrefService());
+
+  // Setup notification subscription.
+  const GURL origin_to_revoke = GURL("https://origin.com/");
+  hcsm()->SetContentSettingDefaultScope(origin_to_revoke, GURL(),
+                                        ContentSettingsType::NOTIFICATIONS,
+                                        CONTENT_SETTING_ALLOW);
+
+  // Trigger crowd deny revocation.
+  AddToSafeBrowsingBlocklist(origin_to_revoke);
+  AddToPreloadDataBlocklist(
+      origin_to_revoke, CrowdDenyPreloadData::SiteReputation::ABUSIVE_CONTENT,
+      /*has_warning=*/false);
+  base::MockOnceCallback<void(PermissionRevocationRequest::Outcome)>
+      mock_callback_receiver;
+  base::RunLoop run_loop;
+  auto permission_revocation = std::make_unique<PermissionRevocationRequest>(
+      profile(), origin_to_revoke, mock_callback_receiver.Get());
+  EXPECT_CALL(mock_callback_receiver, Run(PermissionRevocationRequest::Outcome::
+                                              PERMISSION_REVOKED_DUE_TO_ABUSE))
+      .WillOnce(testing::InvokeWithoutArgs([&run_loop]() { run_loop.Quit(); }));
+  run_loop.Run();
+
+  // Regrant removes the permission from the list shown to the user and changes
+  // the notification permission to allow.
+  manager.RegrantPermissionForOriginIfNecessary(origin_to_revoke);
+  ASSERT_EQ(
+      safety_hub_util::GetRevokedAbusiveNotificationPermissions(hcsm()).size(),
+      0u);
+  EXPECT_EQ(CONTENT_SETTING_ALLOW,
+            hcsm()->GetContentSetting(origin_to_revoke, origin_to_revoke,
+                                      ContentSettingsType::NOTIFICATIONS));
+  EXPECT_TRUE(
+      PermissionRevocationRequest::IsOriginExemptedFromFutureRevocations(
+          profile(), origin_to_revoke));
+
+  // Trigger crowd deny again.
+  base::RunLoop run_loop_new;
+  auto permission_revocation_new =
+      std::make_unique<PermissionRevocationRequest>(
+          profile(), origin_to_revoke, mock_callback_receiver.Get());
+  EXPECT_CALL(mock_callback_receiver,
+              Run(PermissionRevocationRequest::Outcome::PERMISSION_NOT_REVOKED))
+      .WillOnce(testing::InvokeWithoutArgs(
+          [&run_loop_new]() { run_loop_new.Quit(); }));
+  run_loop_new.Run();
+
+  // Permission should not have been revoked, since the user allowed it from
+  // Safety Hub.
+  ASSERT_EQ(
+      safety_hub_util::GetRevokedAbusiveNotificationPermissions(hcsm()).size(),
+      0u);
+  EXPECT_EQ(CONTENT_SETTING_ALLOW,
+            hcsm()->GetContentSetting(origin_to_revoke, origin_to_revoke,
+                                      ContentSettingsType::NOTIFICATIONS));
+}
+
+TEST_F(ShowManualNotificationRevocationsTest,
+       ManualRevocationUndoRegrantPermission) {
+  auto manager = AbusiveNotificationPermissionsManager(
+      mock_database_manager(), hcsm(), profile()->GetTestingPrefService());
+
+  // Setup notification subscription.
+  const GURL origin_to_revoke = GURL("https://origin.com/");
+  hcsm()->SetContentSettingDefaultScope(origin_to_revoke, GURL(),
+                                        ContentSettingsType::NOTIFICATIONS,
+                                        CONTENT_SETTING_ALLOW);
+
+  // Trigger crowd deny revocation.
+  AddToSafeBrowsingBlocklist(origin_to_revoke);
+  AddToPreloadDataBlocklist(
+      origin_to_revoke, CrowdDenyPreloadData::SiteReputation::ABUSIVE_CONTENT,
+      /*has_warning=*/false);
+  base::MockOnceCallback<void(PermissionRevocationRequest::Outcome)>
+      mock_callback_receiver;
+  base::RunLoop run_loop;
+  auto permission_revocation = std::make_unique<PermissionRevocationRequest>(
+      profile(), origin_to_revoke, mock_callback_receiver.Get());
+  EXPECT_CALL(mock_callback_receiver, Run(PermissionRevocationRequest::Outcome::
+                                              PERMISSION_REVOKED_DUE_TO_ABUSE))
+      .WillOnce(testing::InvokeWithoutArgs([&run_loop]() { run_loop.Quit(); }));
+  run_loop.Run();
+
+  // Regrant removes the permission from the list shown to the user and changes
+  // the notification permission to allow.
+  manager.RegrantPermissionForOriginIfNecessary(origin_to_revoke);
+  ASSERT_EQ(
+      safety_hub_util::GetRevokedAbusiveNotificationPermissions(hcsm()).size(),
+      0u);
+  EXPECT_EQ(CONTENT_SETTING_ALLOW,
+            hcsm()->GetContentSetting(origin_to_revoke, origin_to_revoke,
+                                      ContentSettingsType::NOTIFICATIONS));
+
+  // Undo regrant adds the permission back to the list and revokes the
+  // permission again.
+  content_settings::ContentSettingConstraints constraints;
+  manager.UndoRegrantPermissionForOriginIfNecessary(
+      origin_to_revoke, abusive_permission_types, std::move(constraints));
+  ASSERT_EQ(
+      safety_hub_util::GetRevokedAbusiveNotificationPermissions(hcsm()).size(),
+      1u);
+  EXPECT_EQ(CONTENT_SETTING_ASK,
+            hcsm()->GetContentSetting(origin_to_revoke, origin_to_revoke,
+                                      ContentSettingsType::NOTIFICATIONS));
+  EXPECT_FALSE(
+      PermissionRevocationRequest::IsOriginExemptedFromFutureRevocations(
+          profile(), origin_to_revoke));
 }

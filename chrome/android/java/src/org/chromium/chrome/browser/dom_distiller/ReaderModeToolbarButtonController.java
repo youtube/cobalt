@@ -6,9 +6,6 @@ package org.chromium.chrome.browser.dom_distiller;
 
 import android.content.Context;
 import android.content.res.Resources;
-import android.graphics.PorterDuff;
-import android.graphics.PorterDuffColorFilter;
-import android.graphics.drawable.Drawable;
 import android.view.View;
 
 import androidx.appcompat.content.res.AppCompatResources;
@@ -27,7 +24,6 @@ import org.chromium.chrome.browser.toolbar.optional_button.BaseButtonDataProvide
 import org.chromium.chrome.browser.toolbar.optional_button.ButtonData;
 import org.chromium.chrome.browser.toolbar.optional_button.ButtonData.ButtonSpec;
 import org.chromium.chrome.browser.user_education.IphCommandBuilder;
-import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.components.dom_distiller.core.DomDistillerFeatures;
 import org.chromium.components.dom_distiller.core.DomDistillerUrlUtils;
 import org.chromium.components.feature_engagement.FeatureConstants;
@@ -44,8 +40,6 @@ public class ReaderModeToolbarButtonController extends BaseButtonDataProvider {
     private final TabSupplierObserver mActivityTabObserver;
     private final ButtonSpec mEntryPointSpec;
     private final ButtonSpec mExitPointSpec;
-    // Created as needed.
-    private @Nullable ReaderModeBottomSheetCoordinator mReaderModeBottomSheetCoordinator;
     // Only populated when the TabSupplierObserver events fire.
     private @Nullable GURL mTabLastUrlSeen;
 
@@ -87,7 +81,6 @@ public class ReaderModeToolbarButtonController extends BaseButtonDataProvider {
                         GURL currentUrl = tab == null ? null : tab.getUrl();
                         if (Objects.equals(currentUrl, mTabLastUrlSeen)) return;
                         mTabLastUrlSeen = currentUrl;
-                        maybeShowBottomSheet(tab);
                     }
 
                     @Override
@@ -97,15 +90,10 @@ public class ReaderModeToolbarButtonController extends BaseButtonDataProvider {
                 };
 
         mEntryPointSpec = mButtonData.getButtonSpec();
-        Drawable exitPointDrawable =
-                AppCompatResources.getDrawable(mContext, R.drawable.ic_mobile_friendly_24dp);
-        exitPointDrawable.setColorFilter(
-                new PorterDuffColorFilter(
-                        SemanticColorUtils.getDefaultIconColorAccent1(mContext),
-                        PorterDuff.Mode.SRC_ATOP));
         mExitPointSpec =
                 new ButtonSpec(
-                        exitPointDrawable,
+                        AppCompatResources.getDrawable(
+                                mContext, R.drawable.ic_mobile_friendly_24dp),
                         /* onClickListener= */ this,
                         /* onLongClickListener= */ null,
                         /* contentDescription= */ context.getString(
@@ -115,16 +103,8 @@ public class ReaderModeToolbarButtonController extends BaseButtonDataProvider {
                         AdaptiveToolbarButtonVariant.READER_MODE,
                         /* actionChipLabelResId= */ Resources.ID_NULL,
                         /* tooltipTextResId= */ Resources.ID_NULL,
-                        /* hasErrorBadge= */ false);
-    }
-
-    @Override
-    public void destroy() {
-        mActivityTabObserver.destroy();
-        if (mReaderModeBottomSheetCoordinator != null) {
-            mReaderModeBottomSheetCoordinator.destroy();
-        }
-        super.destroy();
+                        /* hasErrorBadge= */ false,
+                        /* isChecked= */ true);
     }
 
     @Override
@@ -168,13 +148,6 @@ public class ReaderModeToolbarButtonController extends BaseButtonDataProvider {
         }
 
         notifyObservers(mButtonData.canShow());
-    }
-
-    private void maybeShowBottomSheet(@Nullable Tab tab) {
-        if (!DomDistillerFeatures.sReaderModeDistillInApp.isEnabled()) return;
-        if (tab == null || !DomDistillerUrlUtils.isDistilledPage(tab.getUrl())) return;
-
-        DomDistillerUiUtils.openSettingsInBottomSheet(tab, /* showFullSheet= */ false);
     }
 
     // Testing-specific functions

@@ -46,6 +46,7 @@
 #include "third_party/blink/renderer/platform/wtf/std_lib_extras.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "third_party/blink/renderer/platform/wtf/wtf_size_t.h"
+#include "third_party/perfetto/include/perfetto/tracing/track.h"
 #include "v8-microtask-queue.h"
 
 namespace blink {
@@ -650,9 +651,8 @@ void ViewTransition::ProcessCurrentState() {
         // Post a task to run the next state (cleanup) outside of the current
         // lifecycle update.
         document_->GetTaskRunner(TaskType::kMiscPlatformAPI)
-            ->PostTask(FROM_HERE,
-                       WTF::BindOnce(&ViewTransition::ProcessCurrentState,
-                                     WrapWeakPersistent(this)));
+            ->PostTask(FROM_HERE, BindOnce(&ViewTransition::ProcessCurrentState,
+                                           WrapWeakPersistent(this)));
 
         // Advance to the pending state. This will stop processing for the
         // current lifecycle update since WaitsForNotification(kPendingDone)
@@ -1000,8 +1000,8 @@ void ViewTransition::PauseRendering() {
   }
   style_tracker_->PauseRendering();
 
-  TRACE_EVENT_NESTABLE_ASYNC_BEGIN0("blink", "ViewTransition::PauseRendering",
-                                    this);
+  TRACE_EVENT_BEGIN("blink", "ViewTransition::PauseRendering",
+                    perfetto::Track::FromPointer(this));
   static const base::TimeDelta timeout_delay =
       RuntimeEnabledFeatures::
               ViewTransitionLongCallbackTimeoutForTestingEnabled()
@@ -1009,8 +1009,8 @@ void ViewTransition::PauseRendering() {
           : base::Seconds(4);
   document_->GetTaskRunner(TaskType::kInternalFrameLifecycleControl)
       ->PostDelayedTask(FROM_HERE,
-                        WTF::BindOnce(&ViewTransition::OnRenderingPausedTimeout,
-                                      WrapWeakPersistent(this)),
+                        BindOnce(&ViewTransition::OnRenderingPausedTimeout,
+                                 WrapWeakPersistent(this)),
                         timeout_delay);
 }
 
@@ -1078,8 +1078,7 @@ void ViewTransition::ResumeRendering() {
   if (!rendering_paused_scope_)
     return;
 
-  TRACE_EVENT_NESTABLE_ASYNC_END0("blink", "ViewTransition::PauseRendering",
-                                  this);
+  TRACE_EVENT_END("blink", perfetto::Track::FromPointer(this));
   if (rendering_paused_scope_->ShouldThrottleRendering() && document_->View()) {
     document_->View()->SetThrottledForViewTransition(false);
   }

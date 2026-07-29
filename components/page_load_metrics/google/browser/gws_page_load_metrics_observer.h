@@ -173,6 +173,7 @@ class GWSPageLoadMetricsObserver
 
   bool is_first_navigation_ = false;
   bool was_cached_ = false;
+  bool network_accessed_ = false;
   bool is_prerendered_ = false;
   bool is_header_from_synthetic_response_ = false;
 
@@ -183,8 +184,8 @@ class GWSPageLoadMetricsObserver
   std::optional<base::TimeDelta> aft_start_time_;
   std::optional<base::TimeDelta> aft_end_time_;
   std::optional<base::TimeDelta> body_chunk_start_time_;
-  std::optional<base::TimeDelta> header_chunk_start_time_;
-  std::optional<base::TimeDelta> header_chunk_end_time_;
+  std::optional<base::TimeDelta> head_chunk_start_time_;
+  std::optional<base::TimeDelta> head_chunk_end_time_;
 
   int64_t navigation_id_;
 };

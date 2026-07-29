@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#define TODO_BASE_FEATURE_MACROS_NEED_MIGRATION
+
 #include "chrome/common/chrome_features.h"
 
 #include "base/command_line.h"
@@ -96,9 +98,6 @@ const base::FeatureParam<std::string> kBoardingPassDetectorUrlParam(
 #if BUILDFLAG(IS_CHROMEOS)
 // Enable Borealis on Chrome OS.
 BASE_FEATURE(Borealis, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enable Borealis MOTD on Chrome OS.
-BASE_FEATURE(ShowBorealisMotd, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -484,6 +483,17 @@ BASE_FEATURE_PARAM(
     "glic-shortcuts-tab-access-toggle-learn-more-url-data-protected",
     "");
 BASE_FEATURE_PARAM(std::string,
+                   kGlicDefaultTabAccessToggleLearnMoreURL,
+                   &kGlicLearnMoreURLConfig,
+                   "glic-default-tab-access-toggle-learn-more-url",
+                   "");
+BASE_FEATURE_PARAM(
+    std::string,
+    kGlicDefaultTabAccessToggleLearnMoreURLDataProtected,
+    &kGlicLearnMoreURLConfig,
+    "glic-default-tab-access-toggle-learn-more-url-data-protected",
+    "");
+BASE_FEATURE_PARAM(std::string,
                    kGlicSettingsPageLearnMoreURL,
                    &kGlicLearnMoreURLConfig,
                    "glic-settings-page-learn-more-url",
@@ -500,15 +510,10 @@ BASE_FEATURE_PARAM(std::string,
 );
 
 BASE_FEATURE(GlicCSPConfig, base::FEATURE_ENABLED_BY_DEFAULT);
-// TODO(crbug.com/378951332): Set appropriate default.
 const base::FeatureParam<std::string> kGlicAllowedOriginsOverride{
     &kGlicCSPConfig, "glic-allowed-origins-override",
     // Space-delimited set of allowed origins.
-    "https://gemini.google.com https://gemini-autopush.corp.google.com "
-    "https://gemini-preprod.corp.google.com "
-    "https://gemini-staging.corp.google.com https://gemini-dev.corp.google.com "
-    "https://www.google.com "
-    "https://login.corp.google.com"};
+    "https://gemini.google.com https://www.google.com"};
 
 // Enable/disable Glic web client responsiveness check feature.
 BASE_FEATURE(GlicClientResponsivenessCheck, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -605,18 +610,18 @@ BASE_FEATURE(GlicApiActivationGating, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, don't try to update the views background color based on the
 // glic client background color.
-BASE_FEATURE(GlicExplicitBackgroundColor, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(GlicExplicitBackgroundColor, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Features to experiment with resetting the panel default location.
 BASE_FEATURE(GlicPanelResetTopChromeButton, base::FEATURE_ENABLED_BY_DEFAULT);
 const base::FeatureParam<int> kGlicPanelResetTopChromeButtonDelayMs{
     &kGlicPanelResetTopChromeButton, "glic-panel-reset-delay-ms", 2500};
-BASE_FEATURE(GlicPanelResetOnStart, base::FEATURE_DISABLED_BY_DEFAULT);
-BASE_FEATURE(GlicPanelSetPositionOnDrag, base::FEATURE_DISABLED_BY_DEFAULT);
-BASE_FEATURE(GlicPanelResetOnSessionTimeout, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(GlicPanelResetOnStart, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(GlicPanelSetPositionOnDrag, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(GlicPanelResetOnSessionTimeout, base::FEATURE_ENABLED_BY_DEFAULT);
 const base::FeatureParam<double> kGlicPanelResetOnSessionTimeoutDelayH{
     &kGlicPanelResetOnSessionTimeout,
-    "glic-panel-reset-session-timeout-delay-h", 0};
+    "glic-panel-reset-session-timeout-delay-h", 1};
 BASE_FEATURE(GlicPanelResetSizeAndLocationOnOpen,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -1523,10 +1528,6 @@ const base::FeatureParam<base::TimeDelta>
     kTrustSafetySentimentSurveyV2TrustedSurfaceTime{
         &kTrustSafetySentimentSurveyV2, "trusted-surface-time",
         base::Seconds(5)};
-#endif
-
-#if BUILDFLAG(IS_MAC)
-BASE_FEATURE(UseChromiumUpdater, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
 #if !BUILDFLAG(IS_ANDROID)

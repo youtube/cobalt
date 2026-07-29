@@ -81,7 +81,13 @@ class BrowserDelegate {
   // Returns whether the browser is a web app window/pop-up.
   virtual bool IsWebApp() const = 0;
 
+  // Returns true during the initial phase of the browser being closed, when
+  // `beforeunload` handlers are running (async). It may be aborted.
+  virtual bool IsAttemptingToClose() const = 0;
+
   // Returns whether the browser is in the process of being closed and deleted.
+  // In this phase, closing committed, browser is hidden and deletion is
+  // scheduled. It cannot be aborted.
   virtual bool IsClosing() const = 0;
 
   // Returns whether the browser window is active.
@@ -133,6 +139,9 @@ class BrowserDelegate {
   // Moves the given tab to the given `target_browser`, where it's placed at the
   // end of the tab strip.
   virtual void MoveTab(size_t tab_index, BrowserDelegate& target_browser) = 0;
+
+  // Initiates user install of a WebApp for the current page.
+  virtual bool CreateWebAppFromActiveWebContents() = 0;
 
  protected:
   ~BrowserDelegate() = default;

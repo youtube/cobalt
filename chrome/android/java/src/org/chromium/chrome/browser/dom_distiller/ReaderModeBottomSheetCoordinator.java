@@ -14,7 +14,11 @@ import org.chromium.base.lifetime.DestroyChecker;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
+import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.theme.ThemeColorProvider;
+import org.chromium.chrome.browser.theme.ThemeUtils;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetContent;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.dom_distiller.core.DomDistillerService;
@@ -35,33 +39,79 @@ public class ReaderModeBottomSheetCoordinator {
     private final ReaderModeBottomSheetContent mBottomSheetContent;
     private final ReaderModeBottomSheetView mReaderModeBottomSheetView;
     private final DomDistillerService mDomDistillerService;
+    private final ThemeColorProvider mThemeColorProvider;
+    private final ThemeColorProvider.ThemeColorObserver mThemeColorObserver;
+    private final ThemeColorProvider.TintObserver mThemeTintObserver;
 
     /**
+     * @param tab The {@link Tab} associated with this coordinator.
      * @param context The {@link Context} associated with this coordinator.
      * @param profile The {@link Profile} associated with this coordinator.
      * @param bottomSheetController Allows displaying content in the bottom sheet.
+     * @param themeColorProvider Provides the theme color for the bottom sheet.
      */
     public ReaderModeBottomSheetCoordinator(
-            Context context, Profile profile, BottomSheetController bottomSheetController) {
+            Tab tab,
+            Context context,
+            Profile profile,
+            BottomSheetController bottomSheetController,
+            ThemeColorProvider themeColorProvider) {
         mContext = context;
         mBottomSheetController = bottomSheetController;
         mDestroyChecker = new DestroyChecker();
         mDomDistillerService = DomDistillerServiceFactory.getForProfile(profile);
+        mThemeColorProvider = themeColorProvider;
 
-        mPropertyModel = new PropertyModel(ReaderModeBottomSheetProperties.ALL_KEYS);
-        mPropertyModel.set(
-                ReaderModeBottomSheetProperties.CONTENT_VIEW,
-                ReaderModePrefsView.create(mContext, mDomDistillerService.getDistilledPagePrefs()));
         mReaderModeBottomSheetView =
                 (ReaderModeBottomSheetView)
                         LayoutInflater.from(mContext)
                                 .inflate(R.layout.reader_mode_bottom_sheet, /* root= */ null);
 
+        mPropertyModel = new PropertyModel(ReaderModeBottomSheetProperties.ALL_KEYS);
         mChangeProcessor =
                 PropertyModelChangeProcessor.create(
                         mPropertyModel,
                         mReaderModeBottomSheetView,
                         ReaderModeBottomSheetViewBinder::bind);
+
+        mPropertyModel.set(
+                ReaderModeBottomSheetProperties.CONTENT_VIEW,
+                ReaderModePrefsView.create(mContext, mDomDistillerService.getDistilledPagePrefs()));
+
+        mThemeColorObserver =
+                (color, shouldAnimate) -> {
+                    mPropertyModel.set(ReaderModeBottomSheetProperties.BACKGROUND_COLOR, color);
+                    mPropertyModel.set(
+                            ReaderModeBottomSheetProperties.SECONDARY_BACKGROUND_COLOR,
+                            ThemeUtils.getTextBoxColorForToolbarBackground(mContext, tab, color));
+                };
+        mThemeColorProvider.addThemeColorObserver(mThemeColorObserver);
+        mThemeColorObserver.onThemeColorChanged(
+                mThemeColorProvider.getThemeColor(), /* shouldAnimate= */ false);
+
+        mThemeTintObserver =
+                (tint, activityFocusTint, brandedColorScheme) -> {
+                    mPropertyModel.set(
+                            ReaderModeBottomSheetProperties.ICON_TINT,
+                            ThemeUtils.getThemedToolbarIconTint(mContext, brandedColorScheme));
+                    mPropertyModel.set(
+                            ReaderModeBottomSheetProperties.PRIMARY_TEXT_COLOR,
+                            OmniboxResourceProvider.getUrlBarPrimaryTextColor(
+                                    mContext, brandedColorScheme));
+                    mPropertyModel.set(
+                            ReaderModeBottomSheetProperties.SECONDARY_TEXT_COLOR,
+                            OmniboxResourceProvider.getUrlBarSecondaryTextColor(
+                                    mContext, brandedColorScheme));
+                    mPropertyModel.set(
+                            ReaderModeBottomSheetProperties.ICON_TINT,
+                            ThemeUtils.getThemedToolbarIconTint(mContext, brandedColorScheme));
+                };
+        mThemeColorProvider.addTintObserver(mThemeTintObserver);
+        mThemeTintObserver.onTintChanged(
+                mThemeColorProvider.getTint(),
+                mThemeColorProvider.getActivityFocusTint(),
+                mThemeColorProvider.getBrandedColorScheme());
+
         mBottomSheetContent = new ReaderModeBottomSheetContent(mReaderModeBottomSheetView);
     }
 
@@ -90,13 +140,21 @@ public class ReaderModeBottomSheetCoordinator {
         }
     }
 
+    /** Hides the reader mode bottom sheet. */
+    public void hide() {
+        mDestroyChecker.checkNotDestroyed();
+        mBottomSheetController.hideContent(mBottomSheetContent, /* animate= */ true);
+    }
+
     /** Destroys the coordinator. */
     public void destroy() {
         mDestroyChecker.destroy();
         mChangeProcessor.destroy();
+        mThemeColorProvider.removeThemeColorObserver(mThemeColorObserver);
+        mThemeColorProvider.removeTintObserver(mThemeTintObserver);
     }
 
-    private class ReaderModeBottomSheetContent implements BottomSheetContent {
+    private static class ReaderModeBottomSheetContent implements BottomSheetContent {
         private final View mContentView;
 
         ReaderModeBottomSheetContent(View contentView) {
@@ -119,9 +177,7 @@ public class ReaderModeBottomSheetCoordinator {
         }
 
         @Override
-        public void destroy() {
-            ReaderModeBottomSheetCoordinator.this.destroy();
-        }
+        public void destroy() {}
 
         @Override
         public int getPriority() {
@@ -140,7 +196,7 @@ public class ReaderModeBottomSheetCoordinator {
 
         @Override
         public boolean swipeToDismissEnabled() {
-            return true;
+            return false;
         }
 
         @Override
@@ -166,6 +222,11 @@ public class ReaderModeBottomSheetCoordinator {
         @Override
         public boolean hasCustomScrimLifecycle() {
             return false;
+        }
+
+        @Override
+        public boolean hasCustomLifecycle() {
+            return true;
         }
 
         @Override

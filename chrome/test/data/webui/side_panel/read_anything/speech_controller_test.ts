@@ -4,7 +4,7 @@
 import {BrowserProxy, MAX_SPEECH_LENGTH, NodeStore, ReadAloudHighlighter, SpeechBrowserProxyImpl, SpeechController, VoiceLanguageController, WordBoundaries} from 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
 import {assertEquals, assertFalse, assertGT, assertNotEquals, assertTrue} from 'chrome-untrusted://webui-test/chai_assert.js';
 
-import {createSpeechErrorEvent, createSpeechSynthesisVoice, createWordBoundaryEvent, mockMetrics, setSimpleAxTreeWithText, setSimpleNodeStoreWithText, setSimpleTreeWithText} from './common.js';
+import {createSpeechErrorEvent, createSpeechSynthesisVoice, createWordBoundaryEvent, mockMetrics, setSimpleNodeStoreWithText, setSimpleTreeWithText} from './common.js';
 import {FakeReadingMode} from './fake_reading_mode.js';
 import {TestColorUpdaterBrowserProxy} from './test_color_updater_browser_proxy.js';
 import type {TestMetricsBrowserProxy} from './test_metrics_browser_proxy.js';
@@ -23,6 +23,14 @@ suite('SpeechController', () => {
   let highlighter: ReadAloudHighlighter;
   let voiceLanguageController: VoiceLanguageController;
   let readingMode: FakeReadingMode;
+
+  // TODO: crbug.com/440400392- Move all tests relying on chrome.readingMode
+  // for text segmentation to use TestReadAloudModelBrowserProxy instead.
+  function onPlayPauseToggle(text: string) {
+    const element = document.createElement('p');
+    element.textContent = text;
+    speechController.onPlayPauseToggle(null, element);
+  }
 
   setup(() => {
     // Clearing the DOM should always be done first.
@@ -70,37 +78,11 @@ suite('SpeechController', () => {
     speech.reset();
   });
 
-  test('clearReadAloudState', () => {
-    const text = 'And I am a massive deal';
-    setSimpleNodeStoreWithText(text);
-    wordBoundaries.updateBoundary(4);
-    speechController.onHighlightGranularityChange(
-        chrome.readingMode.sentenceHighlighting);
-    speechController.onPlayPauseToggle(null, text);
-    assertTrue(speechController.isSpeechActive());
-    assertTrue(wordBoundaries.hasBoundaries());
-    assertTrue(highlighter.hasCurrentHighlights());
-
-    speech.reset();
-    isSpeechActiveChanged = false;
-    isAudioCurrentlyPlayingChanged = false;
-
-    speechController.clearReadAloudState();
-
-    assertTrue(isSpeechActiveChanged);
-    assertEquals(1, speech.getCallCount('cancel'));
-    assertFalse(speechController.isSpeechActive());
-    assertFalse(speechController.isPausedFromButton());
-    assertFalse(speechController.isTemporaryPause());
-    assertFalse(wordBoundaries.hasBoundaries());
-    assertFalse(highlighter.hasCurrentHighlights());
-  });
-
   test('isPausedFromButton', () => {
     assertFalse(speechController.isPausedFromButton());
 
-    speechController.onPlayPauseToggle(null, 'No matter how many times');
-    speechController.onPlayPauseToggle(null, 'No matter how many times');
+    onPlayPauseToggle('No matter how many times');
+    onPlayPauseToggle('No matter how many times');
 
     assertTrue(speechController.isPausedFromButton());
   });
@@ -108,8 +90,8 @@ suite('SpeechController', () => {
   test('pause source is not updated if already paused', () => {
     assertFalse(speechController.isPausedFromButton());
 
-    speechController.onPlayPauseToggle(null, 'No matter how many times');
-    speechController.onPlayPauseToggle(null, 'No matter how many times');
+    onPlayPauseToggle('No matter how many times');
+    onPlayPauseToggle('No matter how many times');
     assertTrue(speechController.isPausedFromButton());
 
     speechController.previewVoice(null);
@@ -119,17 +101,17 @@ suite('SpeechController', () => {
   test('isTemporaryPause', () => {
     assertFalse(speechController.isTemporaryPause());
 
-    speechController.onPlayPauseToggle(null, 'No matter how many times');
-    speechController.onPlayPauseToggle(null, 'No matter how many times');
+    onPlayPauseToggle('No matter how many times');
+    onPlayPauseToggle('No matter how many times');
     assertFalse(speechController.isTemporaryPause());
 
-    speechController.onPlayPauseToggle(null, 'No matter how many times');
+    onPlayPauseToggle('No matter how many times');
     speechController.previewVoice(null);
     assertTrue(speechController.isTemporaryPause());
   });
 
   test('previewVoice stops speech', () => {
-    speechController.onPlayPauseToggle(null, 'Grew up in the French court');
+    onPlayPauseToggle('Grew up in the French court');
 
     speechController.previewVoice(null);
 
@@ -163,47 +145,10 @@ suite('SpeechController', () => {
     assertFalse(!!speechController.getPreviewVoicePlaying());
   });
 
-  suite('initializeSpeechTree', () => {
-    let initAxPositionWithNode: number;
-
-    setup(() => {
-      chrome.readingMode.initAxPositionWithNode = (nodeId) => {
-        initAxPositionWithNode = nodeId;
-      };
-    });
-
-    test('with no node id does nothing', () => {
-      speechController.initializeSpeechTree();
-
-      assertFalse(!!initAxPositionWithNode);
-      assertFalse(speechController.isSpeechTreeInitialized());
-    });
-
-    test('when already initialized does nothing', () => {
-      const id1 = 10;
-      const id2 = 12;
-      speechController.initializeSpeechTree(id1);
-      speechController.initializeSpeechTree(id2);
-      assertEquals(id1, initAxPositionWithNode);
-    });
-
-    test('initializes speech tree after content is set', () => {
-      const id = 14;
-      speechController.initializeSpeechTree(id);
-      assertEquals(id, initAxPositionWithNode);
-
-      // The speech tree is not initialized until content has been set.
-      assertFalse(speechController.isSpeechTreeInitialized());
-
-      setSimpleAxTreeWithText('hello');
-      assertTrue(speechController.isSpeechTreeInitialized());
-    });
-  });
-
   test('onSpeechSettingsChange cancels and resumes speech if playing', () => {
     const text = 'In all the time I\'ve been by your side';
     setSimpleTreeWithText(text);
-    speechController.onPlayPauseToggle(null, text);
+    onPlayPauseToggle(text);
     speech.reset();
 
     speechController.onSpeechSettingsChange();
@@ -235,8 +180,7 @@ suite('SpeechController', () => {
   });
 
   test('onPlayPauseToggle updates state', () => {
-    speechController.onPlayPauseToggle(
-        null, 'Listen up, let me tell you a story');
+    onPlayPauseToggle('Listen up, let me tell you a story');
 
     assertTrue(isSpeechActiveChanged);
     assertTrue(speechController.isSpeechActive());
@@ -245,33 +189,11 @@ suite('SpeechController', () => {
     assertEquals(1, metrics.getCallCount('recordNewPageWithSpeech'));
   });
 
-  test('onPlayPauseToggle propagates state', async () => {
-    let propagatedSpeechActive = false;
-    let propagatedAudioPlaying = false;
-    chrome.readingMode.onIsSpeechActiveChanged = () => {
-      propagatedSpeechActive = true;
-    };
-    chrome.readingMode.onIsAudioCurrentlyPlayingChanged = () => {
-      propagatedAudioPlaying = true;
-    };
-    const text = 'You bring the corsets';
-    chrome.readingMode.isSpeechTreeInitialized = true;
-    setSimpleNodeStoreWithText(text);
-
-    speechController.onPlayPauseToggle(null, text);
-    const spoken = await speech.whenCalled('speak');
-    assertTrue(!!spoken.onstart);
-    spoken.onstart(new SpeechSynthesisEvent('type', {utterance: spoken}));
-
-    assertTrue(propagatedSpeechActive);
-    assertTrue(propagatedAudioPlaying);
-  });
-
   test('onPlayPauseToggle waits for engine load', async () => {
     const text = 'Sorry not sorry bout what I said';
     setSimpleTreeWithText(text);
 
-    speechController.onPlayPauseToggle(null, text);
+    onPlayPauseToggle(text);
     const spoken = await speech.whenCalled('speak');
     assertTrue(onEngineStateChange);
     assertFalse(isAudioCurrentlyPlayingChanged);
@@ -295,7 +217,7 @@ suite('SpeechController', () => {
     chrome.readingMode.baseLanguageForSpeech = lang;
     setSimpleTreeWithText(text);
 
-    speechController.onPlayPauseToggle(null, text);
+    onPlayPauseToggle(text);
 
     const spoken = await speech.whenCalled('speak');
     assertEquals(rate, spoken.rate);
@@ -303,8 +225,8 @@ suite('SpeechController', () => {
   });
 
   test('onPlayPauseToggle pauses with button click', () => {
-    speechController.onPlayPauseToggle(null, 'A story that you think');
-    speechController.onPlayPauseToggle(null, 'A story that you think');
+    onPlayPauseToggle('A story that you think');
+    onPlayPauseToggle('A story that you think');
 
     assertTrue(isSpeechActiveChanged);
     assertFalse(speechController.isSpeechActive());
@@ -316,44 +238,28 @@ suite('SpeechController', () => {
   });
 
   test('onPlayPauseToggle logs play session on pause', () => {
-    speechController.onPlayPauseToggle(null, 'You\'ve heard before.');
-    speechController.onPlayPauseToggle(null, 'You\'ve heard before.');
+    onPlayPauseToggle('You\'ve heard before.');
+    onPlayPauseToggle('You\'ve heard before.');
 
     assertEquals(1, metrics.getCallCount('recordSpeechPlaybackLength'));
   });
 
   test(
       'onPlayPauseToggle resume with no word boundaries resumes speech', () => {
-        speechController.onPlayPauseToggle(null, 'We know you know our names');
-        speechController.onPlayPauseToggle(null, 'We know you know our names');
+        onPlayPauseToggle('We know you know our names');
+        onPlayPauseToggle('We know you know our names');
         speech.reset();
 
-        speechController.onPlayPauseToggle(null, 'We know you know our names');
+        onPlayPauseToggle('We know you know our names');
 
         assertEquals(1, speech.getCallCount('resume'));
         assertEquals(0, speech.getCallCount('cancel'));
       });
 
-  test(
-      'onPlayPauseToggle resume with word boundaries cancels and re-speaks',
-      () => {
-        const textContent = 'And our fame and our faces';
-        setSimpleNodeStoreWithText(textContent);
-        speechController.onPlayPauseToggle(null, textContent);
-        speechController.onPlayPauseToggle(null, textContent);
-        wordBoundaries.updateBoundary(10);
-        speech.reset();
-
-        speechController.onPlayPauseToggle(null, textContent);
-
-        assertEquals(1, speech.getCallCount('speak'));
-        assertEquals(1, speech.getCallCount('cancel'));
-      });
-
   test('word boundary received updates words heard', () => {
     const textContent = 'You\'re all I can think of';
     setSimpleTreeWithText(textContent);
-    speechController.onPlayPauseToggle(null, textContent);
+    onPlayPauseToggle(textContent);
     const spoken = speech.getArgs('speak')[0];
 
     spoken.onboundary(createWordBoundaryEvent(spoken, 0, 6));
@@ -365,7 +271,7 @@ suite('SpeechController', () => {
   test('words heard not updated for whitespace', () => {
     const textContent = 'Every drop I drink up';
     setSimpleTreeWithText(textContent);
-    speechController.onPlayPauseToggle(null, textContent);
+    onPlayPauseToggle(textContent);
     const spoken = speech.getArgs('speak')[0];
 
     spoken.onboundary(createWordBoundaryEvent(spoken, 0, 5));
@@ -377,7 +283,7 @@ suite('SpeechController', () => {
   test('words heard reset on clear', () => {
     const textContent = 'You\'re my soda pop';
     setSimpleTreeWithText(textContent);
-    speechController.onPlayPauseToggle(null, textContent);
+    onPlayPauseToggle(textContent);
     const spoken = speech.getArgs('speak')[0];
 
     spoken.onboundary(createWordBoundaryEvent(spoken, 0, 5));
@@ -392,7 +298,7 @@ suite('SpeechController', () => {
   test('sentence end with word boundaries, does not count sentence', () => {
     const textContent = 'My little soda pop';
     setSimpleTreeWithText(textContent);
-    speechController.onPlayPauseToggle(null, textContent);
+    onPlayPauseToggle(textContent);
     const spoken = speech.getArgs('speak')[0];
 
     spoken.onboundary(createWordBoundaryEvent(spoken, 0, 2));
@@ -405,7 +311,7 @@ suite('SpeechController', () => {
   test('sentence end with no word boundaries, counts sentence', () => {
     const textContent = 'Cool me down, you\'re so hot';
     setSimpleTreeWithText(textContent);
-    speechController.onPlayPauseToggle(null, textContent);
+    onPlayPauseToggle(textContent);
     const spoken = speech.getArgs('speak')[0];
 
     spoken.onend();
@@ -444,7 +350,7 @@ suite('SpeechController', () => {
       const expectedNumSegments =
           Math.ceil(longSentences.length / MAX_SPEECH_LENGTH);
 
-      speechController.onPlayPauseToggle(null, longSentences);
+      onPlayPauseToggle(longSentences);
 
       assertGT(expectedNumSegments, 0);
       for (let i = 0; i < expectedNumSegments; i++) {
@@ -458,7 +364,7 @@ suite('SpeechController', () => {
     test('on text-too-long error smaller text segment plays', () => {
       voiceLanguageController.setUserPreferredVoice(createSpeechSynthesisVoice(
           {lang: 'en', name: 'Google Dinosaur', localService: true}));
-      speechController.onPlayPauseToggle(null, longSentences);
+      onPlayPauseToggle(longSentences);
       assertEquals(longSentences, getSpokenText());
       const utterance = speech.getArgs('speak')[0];
       speech.reset();
@@ -486,7 +392,7 @@ suite('SpeechController', () => {
     chrome.readingMode.baseLanguageForSpeech = pageLanguage;
     voiceLanguageController.onPageLanguageChanged();
 
-    speechController.onPlayPauseToggle(null, textContent);
+    onPlayPauseToggle(textContent);
     assertEquals(1, speech.getCallCount('speak'));
     const utterance = speech.getArgs('speak')[0];
     speech.reset();
@@ -512,7 +418,7 @@ suite('SpeechController', () => {
     chrome.readingMode.baseLanguageForSpeech = pageLanguage;
     voiceLanguageController.onPageLanguageChanged();
 
-    speechController.onPlayPauseToggle(null, textContent);
+    onPlayPauseToggle(textContent);
     assertEquals(1, speech.getCallCount('speak'));
     const utterance = speech.getArgs('speak')[0];
     speech.reset();
@@ -538,7 +444,7 @@ suite('SpeechController', () => {
     chrome.readingMode.baseLanguageForSpeech = pageLanguage;
     voiceLanguageController.onPageLanguageChanged();
 
-    speechController.onPlayPauseToggle(null, textContent);
+    onPlayPauseToggle(textContent);
     assertEquals(1, speech.getCallCount('speak'));
     const utterance = speech.getArgs('speak')[0];
     speech.reset();
@@ -563,7 +469,7 @@ suite('SpeechController', () => {
     chrome.readingMode.baseLanguageForSpeech = pageLanguage;
     voiceLanguageController.onPageLanguageChanged();
 
-    speechController.onPlayPauseToggle(null, textContent);
+    onPlayPauseToggle(textContent);
     assertEquals(1, speech.getCallCount('speak'));
     const utterance = speech.getArgs('speak')[0];
     utterance.onstart(new SpeechSynthesisEvent('type', {utterance: utterance}));
@@ -590,7 +496,7 @@ suite('SpeechController', () => {
     chrome.readingMode.baseLanguageForSpeech = pageLanguage;
     voiceLanguageController.onPageLanguageChanged();
 
-    speechController.onPlayPauseToggle(null, textContent);
+    onPlayPauseToggle(textContent);
     assertEquals(1, speech.getCallCount('speak'));
     const utterance = speech.getArgs('speak')[0];
     speech.reset();
@@ -621,7 +527,7 @@ suite('SpeechController', () => {
       resetGranularityIndex = true;
     };
 
-    speechController.onPlayPauseToggle(null, text);
+    onPlayPauseToggle(text);
 
     const spoken = await speech.whenCalled('speak');
     assertEquals(text, spoken.text);
@@ -666,28 +572,6 @@ suite('SpeechController', () => {
     assertTrue(movedToPrevious);
   });
 
-  test('onNextGranularityClick updates state', () => {
-    setSimpleNodeStoreWithText('Know all about the glories');
-    wordBoundaries.updateBoundary(5);
-
-    speechController.onNextGranularityClick();
-
-    assertTrue(speechController.isSpeechBeingRepositioned());
-    assertFalse(wordBoundaries.hasBoundaries());
-    assertEquals(1, speech.getCallCount('cancel'));
-  });
-
-  test('onPreviousGranularityClick updates state', () => {
-    setSimpleNodeStoreWithText('And the disgraces');
-    wordBoundaries.updateBoundary(5);
-
-    speechController.onPreviousGranularityClick();
-
-    assertTrue(speechController.isSpeechBeingRepositioned());
-    assertFalse(wordBoundaries.hasBoundaries());
-    assertEquals(1, speech.getCallCount('cancel'));
-  });
-
   test('onHighlightGranularityChange', async () => {
     const granularity1 = chrome.readingMode.noHighlighting;
     const granularity2 = chrome.readingMode.wordHighlighting;
@@ -713,7 +597,7 @@ suite('SpeechController', () => {
   });
 
   test('onLockScreen while playing cancels speech', () => {
-    speechController.onPlayPauseToggle(null, 'Oui, oui bonjour');
+    onPlayPauseToggle('Oui, oui bonjour');
     speech.reset();
 
     speechController.onLockScreen();
@@ -734,9 +618,9 @@ suite('SpeechController', () => {
     assertEquals(0, speech.getCallCount('pause'));
     assertEquals(0, speech.getCallCount('speak'));
 
-    speechController.onPlayPauseToggle(null, text);
+    onPlayPauseToggle(text);
     speechController.onVoiceMenuOpen();
-    speechController.onPlayPauseToggle(null, text);
+    onPlayPauseToggle(text);
     speech.reset();
 
     speechController.onVoiceMenuClose();
@@ -784,18 +668,18 @@ suite('SpeechController', () => {
     wordBoundaries.updateBoundary(4);
     speechController.onHighlightGranularityChange(
         chrome.readingMode.sentenceHighlighting);
-    speechController.onPlayPauseToggle(null, text);
-    speechController.onPlayPauseToggle(null, text);
+    onPlayPauseToggle(text);
+    onPlayPauseToggle(text);
     assertTrue(speechController.hasSpeechBeenTriggered());
     assertTrue(wordBoundaries.hasBoundaries());
-    assertTrue(highlighter.hasCurrentHighlights());
+    assertTrue(highlighter.hasCurrentGranularity());
 
     speechController.clearReadAloudState();
     speechController.setPreviousReadingPositionIfExists();
 
     assertFalse(speechController.hasSpeechBeenTriggered());
     assertFalse(wordBoundaries.hasBoundaries());
-    assertFalse(highlighter.hasCurrentHighlights());
+    assertFalse(highlighter.hasCurrentGranularity());
   });
 
   test('set previous reading position restores saved state', () => {
@@ -804,11 +688,11 @@ suite('SpeechController', () => {
     wordBoundaries.updateBoundary(4);
     speechController.onHighlightGranularityChange(
         chrome.readingMode.sentenceHighlighting);
-    speechController.onPlayPauseToggle(null, text);
-    speechController.onPlayPauseToggle(null, text);
+    onPlayPauseToggle(text);
+    onPlayPauseToggle(text);
     assertTrue(speechController.hasSpeechBeenTriggered());
     assertTrue(wordBoundaries.hasBoundaries());
-    assertTrue(highlighter.hasCurrentHighlights());
+    assertTrue(highlighter.hasCurrentGranularity());
 
     speechController.saveReadAloudState();
     speechController.clearReadAloudState();
@@ -816,7 +700,7 @@ suite('SpeechController', () => {
 
     assertTrue(speechController.hasSpeechBeenTriggered());
     assertTrue(wordBoundaries.hasBoundaries());
-    assertTrue(highlighter.hasCurrentHighlights());
+    assertTrue(highlighter.hasCurrentGranularity());
   });
 
   test('onTabMuteStateChange updates speech volume', async () => {
@@ -825,14 +709,14 @@ suite('SpeechController', () => {
     setSimpleNodeStoreWithText(text);
 
     speechController.onTabMuteStateChange(true);
-    speechController.onPlayPauseToggle(null, text);
+    onPlayPauseToggle(text);
 
     let spoken = await speech.whenCalled('speak');
     assertEquals(0, spoken.volume);
 
     speech.reset();
     speechController.onTabMuteStateChange(false);
-    speechController.onPlayPauseToggle(null, text);
+    onPlayPauseToggle(text);
 
     spoken = await speech.whenCalled('speak');
     assertEquals(1, spoken.volume);

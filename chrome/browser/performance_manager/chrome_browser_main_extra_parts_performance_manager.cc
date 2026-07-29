@@ -74,6 +74,7 @@
 
 #if BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/flags/android/chrome_feature_list.h"
+#include "chrome/browser/performance_manager/policies/discard_page_with_crashed_subframe_policy.h"
 #include "chrome/browser/performance_manager/policies/process_rank_policy_android.h"
 #else
 #include "chrome/browser/performance_manager/policies/memory_saver_mode_policy.h"
@@ -272,6 +273,13 @@ void ChromeBrowserMainExtraPartsPerformanceManager::CreatePoliciesAndDecorators(
         std::make_unique<
             performance_manager::policies::ProcessRankPolicyAndroid>());
   }
+
+  if (base::FeatureList::IsEnabled(
+          chrome::android::kDiscardPageWithCrashedSubframePolicy)) {
+    graph->PassToGraph(
+        std::make_unique<performance_manager::policies::
+                             DiscardPageWithCrashedSubframePolicy>());
+  }
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -398,10 +406,8 @@ void ChromeBrowserMainExtraPartsPerformanceManager::PreMainMessageLoopRun() {
 #if !BUILDFLAG(IS_ANDROID)
   // This object requires the host frame sink manager to exist, which is
   // created after all the extra parts have run their PostCreateThreads.
-  performance_manager::user_tuning::BatterySaverModeManager::GetInstance()
-      ->Start();
-  performance_manager::user_tuning::UserPerformanceTuningManager::GetInstance()
-      ->Start();
+  battery_saver_mode_manager_->Start();
+  user_performance_tuning_manager_->Start();
 
   // This object is created by the metrics service before threads, but it
   // needs the UserPerformanceTuningManager to exist. At this point it's

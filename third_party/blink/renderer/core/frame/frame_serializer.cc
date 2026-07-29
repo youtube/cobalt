@@ -113,7 +113,7 @@
 namespace blink {
 
 namespace internal {
-// TODO(crbug.com/363289333): Try to add this functionality to wtf::String.
+// TODO(crbug.com/363289333): Try to add this functionality to blink::String.
 String ReplaceAllCaseInsensitive(
     String source,
     const String& from,
@@ -980,8 +980,8 @@ function main(metadata) {
   }
 
   void AppendAttributeValue(const String& attribute_value) {
-    MarkupFormatter::AppendAttributeValue(
-        markup_, attribute_value, IsA<HTMLDocument>(document_), *document_);
+    MarkupFormatter::AppendAttributeValue(markup_, attribute_value,
+                                          IsA<HTMLDocument>(document_));
   }
 
   void AppendRewrittenAttribute(const Element& element,
@@ -1215,6 +1215,7 @@ function main(metadata) {
       case CSSRule::kNestedDeclarationsRule:
       case CSSRule::kMediaRule:
       case CSSRule::kMixinRule:
+      case CSSRule::kRouteRule:
       case CSSRule::kSupportsRule:
       case CSSRule::kContainerRule:
       case CSSRule::kLayerBlockRule:

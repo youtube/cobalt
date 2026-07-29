@@ -64,7 +64,6 @@
 #import "ios/chrome/browser/plus_addresses/model/plus_address_service_factory.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/public/commands/autofill_commands.h"
-#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/signin/model/authentication_service.h"
 #import "ios/chrome/browser/signin/model/authentication_service_factory.h"
 #import "ios/chrome/browser/signin/model/identity_manager_factory.h"
@@ -227,7 +226,7 @@ ChromeAutofillClientIOS::GetPaymentsAutofillClient() {
   return &payments_autofill_client_;
 }
 
-StrikeDatabase* ChromeAutofillClientIOS::GetStrikeDatabase() {
+strike_database::StrikeDatabase* ChromeAutofillClientIOS::GetStrikeDatabase() {
   return StrikeDatabaseFactory::GetForProfile(profile_->GetOriginalProfile());
 }
 
@@ -295,7 +294,7 @@ void ChromeAutofillClientIOS::ShowAutofillSettings(
 void ChromeAutofillClientIOS::ConfirmSaveAddressProfile(
     const AutofillProfile& profile,
     const AutofillProfile* original_profile,
-    bool is_migration_to_account,
+    SaveAddressBubbleType save_address_bubble_type,
     AddressProfileSavePromptCallback callback) {
   for (infobars::InfoBar* infobar : infobar_manager_->infobars()) {
     AutofillSaveUpdateAddressProfileDelegateIOS* existing_delegate =
@@ -325,7 +324,8 @@ void ChromeAutofillClientIOS::ConfirmSaveAddressProfile(
 
   auto delegate = std::make_unique<AutofillSaveUpdateAddressProfileDelegateIOS>(
       profile, original_profile, GetUserEmail(), GetAppLocale(),
-      is_migration_to_account, std::move(callback));
+      save_address_bubble_type == SaveAddressBubbleType::kMigrateToAccount,
+      std::move(callback));
 
   infobar_manager_->AddInfoBar(std::make_unique<InfoBarIOS>(
       InfobarType::kInfobarTypeSaveAutofillAddressProfile,
@@ -429,7 +429,7 @@ bool ChromeAutofillClientIOS::IsLastQueriedField(FieldGlobalId field_id) {
 }
 
 bool ChromeAutofillClientIOS::ShouldFormatForLargeKeyboardAccessory() const {
-  return IsKeyboardAccessoryUpgradeEnabled();
+  return YES;
 }
 
 std::unique_ptr<device_reauth::DeviceAuthenticator>

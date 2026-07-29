@@ -88,7 +88,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Search.AuxiliarySearch.Availability.Favicons" enum="Boolean"
-    expires_after="2025-09-15">
+    expires_after="2026-03-08">
   <owner>hanxi@chromium.org</owner>
   <owner>gangwu@chromium.org</owner>
   <owner>clank-start@google.com</owner>
@@ -200,7 +200,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Search.AuxiliarySearch.LaunchedFromExternalApp.{ExternalAppType}.{AuxiliarySearchEntryType}"
-    enum="EntryClickedPosition" expires_after="2025-09-15">
+    enum="EntryClickedPosition" expires_after="2026-03-08">
   <owner>hanxi@chromium.org</owner>
   <owner>gangwu@chromium.org</owner>
   <owner>clank-start@google.com</owner>
@@ -311,7 +311,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Search.AuxiliarySearch.TimeToCreateControllerInCustomTab"
-    units="ms" expires_after="2025-11-15">
+    units="ms" expires_after="2026-03-08">
   <owner>hanxi@chromium.org</owner>
   <owner>clank-start@google.com</owner>
   <summary>
@@ -323,7 +323,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Search.AuxiliarySearch.TopSites.ExpirationDuration" units="ms"
-    expires_after="2025-09-15">
+    expires_after="2026-03-08">
   <owner>hanxi@chromium.org</owner>
   <owner>gangwu@chromium.org</owner>
   <owner>clank-start@google.com</owner>
@@ -1182,7 +1182,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.OsDefaultsChoice.LaunchChoiceScreenTapHandlingStatus"
-    enum="LaunchOsChoiceScreenTapHandlingStatus" expires_after="2025-12-28">
+    enum="LaunchOsChoiceScreenTapHandlingStatus" expires_after="2026-03-01">
   <owner>dgn@chromium.org</owner>
   <owner>triploblastic@google.com</owner>
   <owner>chrome-waffle-eng@google.com</owner>
@@ -1670,7 +1670,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.SearchProviderOverrideStatus"
-    enum="SearchProviderOverrideStatus" expires_after="2025-12-28">
+    enum="SearchProviderOverrideStatus" expires_after="2026-03-01">
   <owner>dgn@chromium.org</owner>
   <owner>droger@chromium.org</owner>
   <summary>

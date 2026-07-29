@@ -6,7 +6,6 @@
 
 #include <vector>
 
-#include "base/metrics/histogram_functions.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/companion/text_finder/text_finder_manager.h"
 #include "chrome/browser/companion/text_finder/text_highlighter_manager.h"
@@ -46,6 +45,7 @@
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/referrer.h"
+#include "net/base/net_errors.h"
 #include "net/base/network_change_notifier.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
 #include "net/base/url_util.h"
@@ -70,6 +70,18 @@ namespace {
 inline constexpr char kChromeSideSearchVersionHeaderName[] =
     "X-Chrome-Side-Search-Version";
 inline constexpr char kChromeSideSearchVersionHeaderValue[] = "1";
+
+// Checks to see if the navigation is a same document navigation that is not in
+// the iframe. This is used to ignore navigations that are not relevant to the
+// results in the side panel iframe.
+bool IsIframesResultsNavigation(content::NavigationHandle* navigation_handle) {
+  const GURL& nav_url = navigation_handle->GetURL();
+  return navigation_handle->IsRendererInitiated() &&
+         nav_url.SchemeIsHTTPOrHTTPS() && !navigation_handle->IsSameDocument() &&
+         !navigation_handle->IsInPrimaryMainFrame() &&
+         navigation_handle->GetParentFrame() &&
+         navigation_handle->GetParentFrame()->IsInPrimaryMainFrame();
+}
 
 bool IsSiteTrusted(const GURL& url) {
   if (google_util::IsGoogleDomainUrl(
@@ -151,6 +163,7 @@ void LensOverlaySidePanelCoordinator::RegisterEntryAndShow() {
     // Exit early if the side panel is already registered or opening.
     return;
   }
+
   state_ = State::kOpeningSidePanel;
   RegisterEntry();
   GetSidePanelUI(GetLensOverlayController())
@@ -166,6 +179,10 @@ void LensOverlaySidePanelCoordinator::RegisterEntryAndShow() {
                                 ->GetFeatures()
                                 .side_panel_coordinator();
   CHECK(side_panel_coordinator_);
+
+  // Focus the web contents when created, so that hotkey presses (i.e. escape)
+  // are handled.
+  GetSidePanelWebContents()->Focus();
 }
 
 void LensOverlaySidePanelCoordinator::RecordAndShowSidePanelErrorPage() {
@@ -290,6 +307,9 @@ void LensOverlaySidePanelCoordinator::NotifyNewQueryLoaded(std::string query,
     GetLensSearchboxController()->SetSearchboxThumbnail("");
     GetLensOverlayController()->ClearAllSelections();
     GetLensSearchboxController()->SetSearchboxThumbnail(std::string());
+    GetLensSearchboxController()->SetShowSidePanelSearchboxThumbnail(false);
+  } else {
+    GetLensSearchboxController()->SetShowSidePanelSearchboxThumbnail(true);
   }
 
   // Grab the current state of the overlay and use it to update populate the
@@ -313,6 +333,7 @@ void LensOverlaySidePanelCoordinator::NotifyNewQueryLoaded(std::string query,
   // Update searchbox and selection state to match the new query.
   GetLensSearchboxController()->SetSearchboxInputText(query);
 }
+
 void LensOverlaySidePanelCoordinator::PopAndLoadQueryFromHistory() {
   if (initialization_data_->search_query_history_stack_.empty()) {
     return;
@@ -759,19 +780,13 @@ void LensOverlaySidePanelCoordinator::DidOpenRequestedURL(
 
 void LensOverlaySidePanelCoordinator::DidStartNavigation(
     content::NavigationHandle* navigation_handle) {
-  // Focus the web contents immediately, so that hotkey presses (i.e. escape)
-  // are handled.
-  GetSidePanelWebContents()->Focus();
+  SetSidePanelIsOffline(net::NetworkChangeNotifier::IsOffline());
 
   const GURL& nav_url = navigation_handle->GetURL();
 
   // We only care about the navigation if it is the results frame, is HTTPS,
   // renderer initiated and NOT a same document navigation.
-  if (!navigation_handle->IsRendererInitiated() ||
-      !nav_url.SchemeIsHTTPOrHTTPS() || navigation_handle->IsSameDocument() ||
-      navigation_handle->IsInPrimaryMainFrame() ||
-      !navigation_handle->GetParentFrame() ||
-      !navigation_handle->GetParentFrame()->IsInPrimaryMainFrame()) {
+  if (!IsIframesResultsNavigation(navigation_handle)) {
     return;
   }
 
@@ -836,7 +851,6 @@ void LensOverlaySidePanelCoordinator::DidStartNavigation(
   // page and any feature-specific request headers.
   navigation_handle->SetRequestHeader(kChromeSideSearchVersionHeaderName,
                                       kChromeSideSearchVersionHeaderValue);
-  SetSidePanelIsOffline(net::NetworkChangeNotifier::IsOffline());
   SetSidePanelNewTabUrl(GURL());
 
   // Notify the side panel that the results have moved to/from the AIM UI.
@@ -863,6 +877,24 @@ void LensOverlaySidePanelCoordinator::DOMContentLoaded(
 
   SetSidePanelNewTabUrl(render_frame_host->GetLastCommittedURL());
   SetSidePanelIsLoadingResults(false);
+}
+
+void LensOverlaySidePanelCoordinator::DidFinishNavigation(
+    content::NavigationHandle* navigation_handle) {
+  // Ignore navigations that are not the final results frame navigation
+  // initiated by the user.
+  if (!IsIframesResultsNavigation(navigation_handle)) {
+    return;
+  }
+
+  // Ignore navigations that were aborted due to user input. I.e the user
+  // issued a new query.
+  if (navigation_handle->GetNetErrorCode() == net::ERR_ABORTED) {
+    return;
+  }
+
+  lens::RecordIframeLoadStatus(navigation_handle->IsErrorPage(),
+                               navigation_handle->GetNetErrorCode());
 }
 
 web_modal::WebContentsModalDialogHost*

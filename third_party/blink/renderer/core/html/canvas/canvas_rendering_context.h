@@ -270,6 +270,9 @@ class CORE_EXPORT CanvasRenderingContext
   void WillProcessTask(const base::PendingTask&, bool) final {}
 
   // Canvas2D-specific interface
+  virtual std::optional<cc::PaintRecord> FlushCanvas(FlushReason) {
+    NOTREACHED();
+  }
   virtual void RestoreCanvasMatrixClipStack(cc::PaintCanvas*) const {}
   virtual void Reset() {}
   virtual void RestoreFromInvalidSizeIfNeeded() {}
@@ -285,9 +288,6 @@ class CORE_EXPORT CanvasRenderingContext
   // If the ResourceProvider currently exists, replaces it with a newly-created
   // CanvasResourceProvider.
   virtual void DropAndRecreateExistingCanvas2DResourceProvider() {
-    NOTREACHED();
-  }
-  virtual CanvasResourceProvider* GetResourceProviderForCanvas2D() const {
     NOTREACHED();
   }
   virtual const std::optional<cc::PaintRecord>& GetLastRecordingForCanvas2D() {
@@ -356,9 +356,9 @@ class CORE_EXPORT CanvasRenderingContext
 
   virtual void Dispose();
 
-  bool IsDrawElementEligible(Element* element,
-                             const String& func_name,
-                             ExceptionState& exception_state);
+  bool IsDrawHTMLEligible(Element* element,
+                          const String& func_name,
+                          ExceptionState& exception_state);
 
   bool ConvertHitTestRegionsToHTMLCanvasRegions(
       const HeapVector<Member<CanvasElementHitTestRegion>>& hit_test_regions,

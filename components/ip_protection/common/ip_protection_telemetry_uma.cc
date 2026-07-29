@@ -67,6 +67,8 @@ std::string TokenCountEventToString(IpProtectionTokenCountEvent event) {
       return "Expired";
     case IpProtectionTokenCountEvent::kOrphaned:
       return "Orphaned";
+    case IpProtectionTokenCountEvent::kRecycled:
+      return "Recycled";
   }
   NOTREACHED();
 }
@@ -88,7 +90,7 @@ void IpProtectionTelemetryUma::TokenBatchFetchComplete(
     TryGetAuthTokensResult result,
     std::optional<base::TimeDelta> duration) {
   base::UmaHistogramEnumeration(
-      "NetworkService.IpProtection.TryGetAuthTokensResult", result);
+      "NetworkService.IpProtection.TryGetAuthTokensResult2", result);
   if (duration.has_value()) {
     base::UmaHistogramTimes("NetworkService.IpProtection.TokenBatchRequestTime",
                             *duration);
@@ -162,6 +164,12 @@ void IpProtectionTelemetryUma::ProxyResolution(ProxyResolutionResult result) {
           /*is_proxy_list_available=*/true);
       break;
     case ProxyResolutionResult::kHasSiteException:
+      eligibility = ProtectionEligibility::kEligible;
+      record_availability(
+          /*are_auth_tokens_available=*/true,
+          /*is_proxy_list_available=*/true);
+      break;
+    case ProxyResolutionResult::kBypassedByDevTools:
       eligibility = ProtectionEligibility::kEligible;
       record_availability(
           /*are_auth_tokens_available=*/true,

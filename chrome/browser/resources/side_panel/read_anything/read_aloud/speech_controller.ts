@@ -13,8 +13,8 @@ import {SpeechBrowserProxyImpl} from '../speech_browser_proxy.js';
 import {ReadAloudHighlighter} from './highlighter.js';
 import {getReadAloudModel} from './read_aloud_model_browser_proxy.js';
 import type {ReadAloudModelBrowserProxy} from './read_aloud_model_browser_proxy.js';
-import {AxReadAloudNode} from './read_aloud_types.js';
-import type {ReadAloudNode, Segment} from './read_aloud_types.js';
+import {ReadAloudNode} from './read_aloud_types.js';
+import type {Segment} from './read_aloud_types.js';
 import {PauseActionSource, SpeechEngineState, SpeechModel} from './speech_model.js';
 import type {SpeechPlayingState} from './speech_model.js';
 import {getCurrentSpeechRate, isInvalidHighlightForWordHighlighting} from './speech_presentation_rules.js';
@@ -165,25 +165,26 @@ export class SpeechController {
     };
   }
 
-  initializeSpeechTree(startingNodeId?: number) {
-    if (startingNodeId && !this.model_.getFirstTextNode()) {
-      this.model_.setFirstTextNode(startingNodeId);
+  initializeSpeechTree(context?: Node) {
+    if (context && !this.model_.getContextNode()) {
+      this.model_.setContextNode(context);
     }
 
-    const firstTextNode = this.model_.getFirstTextNode();
-    if (!firstTextNode || this.isSpeechTreeInitialized()) {
+    const contextNode = this.model_.getContextNode();
+    if (!contextNode || this.isSpeechTreeInitialized()) {
       return;
     }
 
     // TODO: crbug.com/40927698 - This step should be skipped on migrating to
     // a non-AXPosition-based text segmentation strategy.
-    this.readAloudModel_.init(new AxReadAloudNode(firstTextNode));
+    const readAloudNode = ReadAloudNode.create(contextNode);
+    if (!readAloudNode) {
+      return;
+    }
+    this.readAloudModel_.init(readAloudNode);
   }
 
   onSelectionChange() {
-    // If speech is resumed, this won't be restored.
-    // TODO: crbug.com/40927698 - Restore the previous highlight after
-    // speech is resumed after a selection.
     this.highlighter_.clearHighlightFormatting();
   }
 
@@ -238,32 +239,34 @@ export class SpeechController {
     this.logger_.logHighlightGranularity(newGranularity);
   }
 
-  onPlayPauseToggle(selection: Selection|null, textContent: string|null) {
+  onPlayPauseToggle(selection: Selection|null, context: HTMLElement|null) {
     if (this.isSpeechActive()) {
       this.stopSpeech_(PauseActionSource.BUTTON_CLICK);
     } else {
-      this.playSpeech_(selection, textContent);
+      this.playSpeech_(selection, context);
       this.model_.setPlaySessionStartTime(Date.now());
     }
   }
 
-  private playSpeech_(selection: Selection|null, textContent: string|null) {
+  private playSpeech_(selection: Selection|null, context: HTMLElement|null) {
     if (this.hasSpeechBeenTriggered() && !this.isSpeechActive()) {
       this.resumeSpeech_(selection);
     } else {
-      this.playSpeechForTheFirstTime_(selection, textContent);
+      this.playSpeechForTheFirstTime_(selection, context);
     }
   }
 
   onNextGranularityClick() {
+    this.model_.setIsSpeechBeingRepositioned(true);
     this.moveToNextGranularity_();
-    this.onMovingGranularity_();
+    // Reset the word boundary index whenever we move the granularity position.
+    this.wordBoundaries_.resetToDefaultState();
     if (!this.highlightAndPlayMessage_()) {
       this.onSpeechFinished_();
     }
   }
 
-  // Prefer calling this rather than movePositionToNextGranularity directly so
+  // Prefer calling this rather than moveSpeechForward directly so
   // that the highlighter is always informed of the change.
   private moveToNextGranularity_() {
     this.highlighter_.onWillMoveToNextGranularity(
@@ -272,14 +275,9 @@ export class SpeechController {
   }
 
   onPreviousGranularityClick() {
-    // This must be called BEFORE calling
-    // moveSpeechBackwards so we can accurately
-    // determine what's currently being highlighted.
-    this.highlighter_.removeCurrentHighlight(
-        this.readAloudModel_.getCurrentTextSegments());
-    this.onMovingGranularity_();
-    this.readAloudModel_.moveSpeechBackwards();
-
+    this.model_.setIsSpeechBeingRepositioned(true);
+    this.moveToPreviousGranularity_();
+    this.wordBoundaries_.resetToDefaultState();
     if (!this.highlightAndPlayMessage_(
             /*isInterrupted=*/ false,
             /*isMovingBackward=*/ true)) {
@@ -287,12 +285,14 @@ export class SpeechController {
     }
   }
 
-  private onMovingGranularity_() {
-    this.model_.setIsSpeechBeingRepositioned(true);
-    this.highlighter_.resetPreviousHighlight();
-
-    // Reset the word boundary index whenever we move the granularity position.
-    this.wordBoundaries_.resetToDefaultState();
+  // Prefer calling this rather than moveSpeechBackward directly so
+  // that the highlighter is always informed of the change.
+  private moveToPreviousGranularity_() {
+    // This must be called BEFORE calling
+    // moveSpeechBackwards so we can accurately
+    // determine what's currently being highlighted.
+    this.highlighter_.onWillMoveToPreviousGranularity();
+    this.readAloudModel_.moveSpeechBackwards();
   }
 
   private resumeSpeech_(selection: Selection|null) {
@@ -309,6 +309,7 @@ export class SpeechController {
         // restarting the current message.
         this.speech_.resume();
       } else {
+        this.highlighter_.restorePreviousHighlighting();
         if (!this.highlightAndPlayInterruptedMessage_()) {
           // Ensure we're updating Read Aloud state if there's no text to
           // speak.
@@ -330,8 +331,8 @@ export class SpeechController {
   }
 
   private playSpeechForTheFirstTime_(
-      selection: Selection|null, textContent: string|null) {
-    if (!textContent) {
+      selection: Selection|null, context: HTMLElement|null) {
+    if (!context || !context.textContent) {
       return;
     }
 
@@ -349,7 +350,11 @@ export class SpeechController {
       return;
     }
 
-    this.initializeSpeechTree();
+    if (chrome.readingMode.isTsTextSegmentationEnabled) {
+      this.initializeSpeechTree(context);
+    } else {
+      this.initializeSpeechTree();
+    }
     if (this.isSpeechTreeInitialized() && !this.highlightAndPlayMessage_()) {
       // Ensure we're updating Read Aloud state if there's no text to speak.
       this.onSpeechFinished_();
@@ -401,14 +406,20 @@ export class SpeechController {
     // selection. This is so clicking previous works before the selection and
     // so the previous highlights are properly set.
     this.readAloudModel_.resetSpeechToBeginning();
+    this.highlighter_.reset();
     // Iterate through the nodes asynchronously so that we can show the spinner
     // in the toolbar while we move up to the selection.
     setTimeout(() => {
-      this.movePlaybackToNode_(
-          new AxReadAloudNode(startingNodeId), startingOffset);
-      // Set everything to previous and then play the next granularity, which
-      // includes the selection.
-      this.highlighter_.resetPreviousHighlight();
+      const domNode = this.nodeStore_.getDomNode(startingNodeId);
+      if (!domNode) {
+        return;
+      }
+      const readAloudNode = ReadAloudNode.create(domNode);
+      if (!readAloudNode) {
+        return;
+      }
+      this.movePlaybackToNode_(readAloudNode, startingOffset);
+      // Play the next granularity, which includes the selection.
       if (!this.highlightAndPlayMessage_()) {
         this.onSpeechFinished_();
       }
@@ -479,7 +490,7 @@ export class SpeechController {
   private skipCurrentPosition_(
       isInterrupted: boolean, isMovingBackward: boolean): boolean {
     if (isMovingBackward) {
-      this.readAloudModel_.moveSpeechBackwards();
+      this.moveToPreviousGranularity_();
     } else {
       this.moveToNextGranularity_();
     }
@@ -796,7 +807,7 @@ export class SpeechController {
 
   clearReadAloudState() {
     this.speech_.cancel();
-    this.highlighter_.clearHighlightFormatting();
+    this.highlighter_.reset();
     this.wordBoundaries_.resetToDefaultState();
 
     const speechPlayingState = {
@@ -808,7 +819,7 @@ export class SpeechController {
     };
     this.setState_(speechPlayingState);
     this.setPreviewVoicePlaying_(null);
-    this.model_.setFirstTextNode(null);
+    this.model_.setContextNode(null);
     this.model_.setResumeSpeechOnVoiceMenuClose(false);
     this.model_.setWordsHeard(0);
   }
@@ -830,8 +841,7 @@ export class SpeechController {
     }
 
     const lastNode = lastPosition.node;
-    if (lastNode instanceof AxReadAloudNode &&
-        this.nodeStore_.getDomNode(lastNode.axNodeId)) {
+    if (lastNode.domNode()) {
       this.movePlaybackToNode_(lastNode, lastPosition.offset);
       this.setState_(savedSpeechPlayingState);
       this.wordBoundaries_.state = savedWordBoundaryState;

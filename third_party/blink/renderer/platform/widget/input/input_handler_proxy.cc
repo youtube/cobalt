@@ -44,6 +44,7 @@
 #include "third_party/blink/renderer/platform/widget/input/input_handler_proxy_client.h"
 #include "third_party/blink/renderer/platform/widget/input/input_metrics.h"
 #include "third_party/blink/renderer/platform/widget/input/scroll_predictor.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/events/types/scroll_input_type.h"
 #include "ui/gfx/geometry/point_conversions.h"
 #include "ui/latency/latency_info.h"
@@ -151,12 +152,14 @@ cc::SnapFlingController::GestureScrollType GestureScrollEventType(
 }
 
 cc::SnapFlingController::GestureScrollUpdateInfo GetGestureScrollUpdateInfo(
-    const WebGestureEvent& event) {
+    const WebGestureEvent& event,
+    bool is_overscroll) {
   cc::SnapFlingController::GestureScrollUpdateInfo info;
   info.delta = gfx::Vector2dF(-event.data.scroll_update.delta_x,
                               -event.data.scroll_update.delta_y);
   info.is_in_inertial_phase = event.data.scroll_update.inertial_phase ==
                               WebGestureEvent::InertialPhaseState::kMomentum;
+  info.is_overscroll = is_overscroll;
   info.event_time = event.TimeStamp();
   return info;
 }
@@ -398,7 +401,16 @@ void InputHandlerProxy::HandleInputEventWithLatencyInfo(
       // dispatching if `event_with_callback` is too old, and if we expect a
       // newer input event to still arrive in time.
       enqueue_scroll_events_ = true;
-      if (scroll_predictor_) {
+
+      // To estimate the impact of empty GestureScrollUpdates on predictor
+      // output quality, some experiment arms will skip them.
+      const bool should_filter_out_event =
+          (::features::kSendEmptyGestureScrollUpdateFilterOutEmptyUpdates
+               .Get() &&
+           gesture_event.data.scroll_update.delta_x == 0 &&
+           gesture_event.data.scroll_update.delta_y == 0);
+
+      if (scroll_predictor_ && !should_filter_out_event) {
         std::unique_ptr<EventWithCallback> event_to_dispatch =
             scroll_predictor_->ResampleScrollEvents(
                 std::move(event_with_callback),
@@ -1201,8 +1213,11 @@ InputHandlerProxy::HandleGestureScrollUpdate(
       "input", "DeltaUnits", TRACE_EVENT_SCOPE_THREAD, "unit",
       static_cast<int>(gesture_event.data.scroll_update.delta_units));
 
+  bool is_overscroll =
+      (elastic_overscroll_controller_ &&
+       !elastic_overscroll_controller_->StretchAmount().IsZero());
   if (snap_fling_controller_->HandleGestureScrollUpdate(
-          GetGestureScrollUpdateInfo(gesture_event))) {
+          GetGestureScrollUpdateInfo(gesture_event, is_overscroll))) {
     handling_gesture_on_impl_thread_ = false;
     return DROP_EVENT;
   }

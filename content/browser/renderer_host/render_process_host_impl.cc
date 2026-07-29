@@ -5,6 +5,8 @@
 // Represents the browser side of the browser <--> renderer communication
 // channel. There will be one RenderProcessHost per renderer process.
 
+#define TODO_BASE_FEATURE_MACROS_NEED_MIGRATION
+
 #include "content/browser/renderer_host/render_process_host_impl.h"
 
 #include <algorithm>
@@ -54,6 +56,7 @@
 #include "base/observer_list.h"
 #include "base/process/process_handle.h"
 #include "base/rand_util.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
@@ -174,7 +177,7 @@
 #include "gpu/command_buffer/service/gpu_switches.h"
 #include "gpu/config/gpu_switches.h"
 #include "ipc/constants.mojom.h"
-#include "ipc/ipc_channel_mojo.h"
+#include "ipc/ipc_channel_factory.h"
 #include "ipc/ipc_channel_proxy.h"
 #include "ipc/trace_ipc_message.h"
 #include "media/base/media_switches.h"
@@ -544,14 +547,14 @@ bool IsBelowReuseResourceThresholds(RenderProcessHost* host,
                                     ProcessReusePolicy process_reuse_policy) {
   if (process_reuse_policy !=
           ProcessReusePolicy::
-              REUSE_PENDING_OR_COMMITTED_SITE_WITH_MAIN_FRAME_THRESHOLD &&
+              kReusePendingOrCommittedSiteWithMainFrameThreshold &&
       process_reuse_policy !=
-          ProcessReusePolicy::REUSE_PENDING_OR_COMMITTED_SITE_SUBFRAME) {
+          ProcessReusePolicy::kReusePendingOrCommittedSiteSubframe) {
     return true;
   }
 
   if (process_reuse_policy ==
-          ProcessReusePolicy::REUSE_PENDING_OR_COMMITTED_SITE_SUBFRAME &&
+          ProcessReusePolicy::kReusePendingOrCommittedSiteSubframe &&
       !base::FeatureList::IsEnabled(
           features::kSubframeProcessReuseThresholds)) {
     return true;
@@ -576,8 +579,7 @@ bool IsBelowReuseResourceThresholds(RenderProcessHost* host,
       });
 
   if (process_reuse_policy ==
-      ProcessReusePolicy::
-          REUSE_PENDING_OR_COMMITTED_SITE_WITH_MAIN_FRAME_THRESHOLD) {
+      ProcessReusePolicy::kReusePendingOrCommittedSiteWithMainFrameThreshold) {
     // If a threshold is specified, don't reuse `host` if it already hosts more
     // main frames (including BFCached and prerendered) than the threshold.
     size_t main_frame_threshold = base::checked_cast<size_t>(
@@ -600,7 +602,7 @@ bool IsBelowReuseResourceThresholds(RenderProcessHost* host,
   }
 
   DCHECK_EQ(process_reuse_policy,
-            ProcessReusePolicy::REUSE_PENDING_OR_COMMITTED_SITE_SUBFRAME);
+            ProcessReusePolicy::kReusePendingOrCommittedSiteSubframe);
 
   // For subframe process reuse, simply check if the `host` has already exceeded
   // the memory threshold to decide whether it should be reused for a new
@@ -770,7 +772,7 @@ class SiteProcessCountTracker : public base::SupportsUserData::Data,
       }
 
       if (process_reuse_policy ==
-          ProcessReusePolicy::REUSE_PRERENDERING_PROCESS_FOR_MAIN_FRAME) {
+          ProcessReusePolicy::kReusePrerenderingProcessForMainFrame) {
         // TODO(crbug.com/434845948): Avoid downcasting to
         // RenderProcessHostImpl. This policy should not be used with
         // MockRenderProcessHost.
@@ -1271,9 +1273,7 @@ bool IsUnusedAndTiedToBrowsingInstance(
 // `keep_alive_ref_count_`.
 bool IsKeepAliveRefCountAllowed() {
   return !base::FeatureList::IsEnabled(
-             blink::features::kKeepAliveInBrowserMigration) ||
-         !base::FeatureList::IsEnabled(
-             blink::features::kAttributionReportingInBrowserMigration);
+      blink::features::kKeepAliveInBrowserMigration);
 }
 
 static RenderProcessHost* FindEmptyBackgroundHostForReuse(
@@ -1289,7 +1289,7 @@ static RenderProcessHost* FindEmptyBackgroundHostForReuse(
   }
 
   tracker->FindRenderProcessesForSiteInstance(
-      site_instance, ProcessReusePolicy::DEFAULT, &eligible_foreground_hosts,
+      site_instance, ProcessReusePolicy::kDefault, &eligible_foreground_hosts,
       &eligible_background_hosts);
 
   CHECK(eligible_foreground_hosts.empty());
@@ -1334,6 +1334,20 @@ void RecordMissedReuseOpportunityMetric(
       context, base::TimeTicks::Now(),
       ProcessLock::FromSiteInfo(site_instance->GetSiteInfo()),
       site_instance->GetBrowserContext());
+}
+
+// Appends a `new_value` to a command-line switch that holds a comma-separated
+// list of values.
+void AppendToCommaSeparatedSwitch(base::CommandLine* command_line,
+                                  const std::string& switch_name,
+                                  const std::string& new_value) {
+  const std::string existing_values =
+      command_line->GetSwitchValueASCII(switch_name);
+  command_line->RemoveSwitch(switch_name);
+  command_line->AppendSwitchASCII(
+      switch_name, existing_values.empty()
+                       ? new_value
+                       : base::StrCat({existing_values, ",", new_value}));
 }
 
 }  // namespace
@@ -1567,15 +1581,7 @@ RenderProcessHostImpl::RenderProcessHostImpl(
       id_(ChildProcessHostImpl::GenerateChildProcessUniqueId()),
       browser_context_(browser_context),
       storage_partition_impl_(storage_partition_impl->GetWeakPtr()),
-      sudden_termination_allowed_(true),
-      is_blocked_(false),
-      flags_(flags),
-      is_unused_(true),
-      delayed_cleanup_needed_(false),
-      within_process_died_observer_(false),
-      channel_connected_(false),
-      sent_render_process_ready_(false),
-      shutdown_exit_code_(-1) {
+      flags_(flags) {
   CHECK(!browser_context->ShutdownStarted());
   TRACE_EVENT("shutdown", "RenderProcessHostImpl",
               ChromeTrackEvent::kRenderProcessHost, *this);
@@ -1888,8 +1894,8 @@ bool RenderProcessHostImpl::Init() {
     // As long as there's no renderer prefix, we can use the zygote process
     // at this stage.
     child_process_launcher_ = std::make_unique<ChildProcessLauncher>(
-        std::move(sandbox_delegate), std::move(cmd_line), GetDeprecatedID(),
-        this, std::move(mojo_invitation_),
+        std::move(sandbox_delegate), std::move(cmd_line), GetID(), this,
+        std::move(mojo_invitation_),
         base::BindRepeating(&RenderProcessHostImpl::OnMojoError, id_),
         std::move(file_data),
         base::HistogramSharedMemory::PassOnCommandLineIsEnabled(
@@ -1963,7 +1969,7 @@ void RenderProcessHostImpl::InitializeChannelProxy() {
   mojo::ScopedMessagePipeHandle bootstrap =
       mojo_invitation_.AttachMessagePipe(kLegacyIpcBootstrapAttachmentName);
   std::unique_ptr<IPC::ChannelFactory> channel_factory =
-      IPC::ChannelMojo::CreateServerFactory(
+      IPC::ChannelFactory::CreateServerFactory(
           std::move(bootstrap), io_task_runner,
           base::SingleThreadTaskRunner::GetCurrentDefault());
 
@@ -2052,6 +2058,18 @@ void RenderProcessHostImpl::BindCacheStorage(
       cross_origin_embedder_policy, std::move(coep_reporter_remote),
       document_isolation_policy, std::move(dip_reporter_remote), bucket_locator,
       storage::mojom::CacheStorageOwner::kCacheAPI, std::move(receiver));
+}
+
+bool RenderProcessHostImpl::HasSuddenTerminationDisabler(
+    blink::mojom::SuddenTerminationDisablerType disabler_type) {
+  for (auto rfh_id : render_frame_host_id_set_) {
+    if (RenderFrameHostImpl* rfh = RenderFrameHostImpl::FromID(rfh_id)) {
+      if (rfh->GetSuddenTerminationDisablerState(disabler_type)) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 void RenderProcessHostImpl::BindIndexedDB(
@@ -3424,11 +3442,12 @@ void RenderProcessHostImpl::AppendRendererCommandLine(
   }
 
   if (IsJitDisabled()) {
-    command_line->AppendSwitchASCII(blink::switches::kJavaScriptFlags,
-                                    "--jitless");
+    AppendToCommaSeparatedSwitch(
+        command_line, blink::switches::kJavaScriptFlags, "--jitless");
   } else if (AreV8OptimizationsDisabled()) {
-    command_line->AppendSwitchASCII(blink::switches::kJavaScriptFlags,
-                                    "--disable-optimizing-compilers");
+    AppendToCommaSeparatedSwitch(command_line,
+                                 blink::switches::kJavaScriptFlags,
+                                 "--disable-optimizing-compilers");
   }
 
   if (DisallowV8FeatureFlagOverrides()) {
@@ -3840,9 +3859,36 @@ bool RenderProcessHostImpl::FastShutdownIfPossible(size_t page_count,
   // while we're shutting down, so there's a small race here.  Given that
   // the window is small, it's unlikely that the web page has much
   // state that will be lost by not calling its unload handlers properly.
-  if (!skip_unload_handlers && !SuddenTerminationAllowed()) {
-    LogDelayReasonForFastShutdown(DelayShutdownReason::kUnload);
-    return false;
+  if (!skip_unload_handlers) {
+    // Sudden termination disallowed a the process level.
+    // TODO(crbug.com/432275395): This is gated by `!skip_unload_handlers` for
+    // historical reasons, it shouldn't be like that.
+    if (!sudden_termination_allowed_) {
+      LogDelayReasonForFastShutdown(
+          DelayShutdownReason::kFastShutdownDisallowedProcessLevel);
+      return false;
+    }
+
+    constexpr struct {
+      blink::mojom::SuddenTerminationDisablerType type;
+      DelayShutdownReason delay_reason;
+    } kDisablers[] = {
+        {blink::mojom::SuddenTerminationDisablerType::kBeforeUnloadHandler,
+         DelayShutdownReason::kBeforeUnloadHandler},
+        {blink::mojom::SuddenTerminationDisablerType::kUnloadHandler,
+         DelayShutdownReason::kUnloadHandler},
+        {blink::mojom::SuddenTerminationDisablerType::kPageHideHandler,
+         DelayShutdownReason::kPageHideHandler},
+        {blink::mojom::SuddenTerminationDisablerType::kVisibilityChangeHandler,
+         DelayShutdownReason::kVisibilityChangeHandler},
+    };
+
+    for (const auto& disabler : kDisablers) {
+      if (HasSuddenTerminationDisabler(disabler.type)) {
+        LogDelayReasonForFastShutdown(disabler.delay_reason);
+        return false;
+      }
+    }
   }
 
   // TODO(crbug.com/40236167): Remove this block once the migration is launched.
@@ -3885,11 +3931,6 @@ bool RenderProcessHostImpl::Send(IPC::Message* msg) {
     return false;
 
   DCHECK(!message->is_sync());
-
-  // Allow tests to watch IPCs sent to the renderer.
-  if (ipc_send_watcher_for_testing_)
-    ipc_send_watcher_for_testing_.Run(*message);
-
   return channel_->Send(message.release());
 }
 
@@ -4358,12 +4399,8 @@ void RenderProcessHostImpl::ClearPriorityOverride() {
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
 
-void RenderProcessHostImpl::SetSuddenTerminationAllowed(bool enabled) {
-  sudden_termination_allowed_ = enabled;
-}
-
-bool RenderProcessHostImpl::SuddenTerminationAllowed() {
-  return sudden_termination_allowed_;
+void RenderProcessHostImpl::SetSuddenTerminationAllowed(bool allowed) {
+  sudden_termination_allowed_ = allowed;
 }
 
 base::TimeDelta RenderProcessHostImpl::GetChildProcessIdleTime() {
@@ -4922,13 +4959,13 @@ RenderProcessHost* RenderProcessHostImpl::GetProcessHostForSiteInstance(
   BrowserContext* browser_context = site_instance->GetBrowserContext();
   // First, attempt to reuse an existing RenderProcessHost if necessary.
   switch (process_reuse_policy) {
-    case ProcessReusePolicy::PROCESS_PER_SITE: {
+    case ProcessReusePolicy::kProcessPerSite: {
       render_process_host = GetSoleProcessHostForSite(
           site_instance->GetIsolationContext(), site_info);
       break;
     }
-    case ProcessReusePolicy::REUSE_PENDING_OR_COMMITTED_SITE_SUBFRAME:
-    case ProcessReusePolicy::REUSE_PENDING_OR_COMMITTED_SITE_WORKER: {
+    case ProcessReusePolicy::kReusePendingOrCommittedSiteSubframe:
+    case ProcessReusePolicy::kReusePendingOrCommittedSiteWorker: {
       render_process_host = FindReusableProcessHostForSiteInstance(
           site_instance, process_reuse_policy);
       UMA_HISTOGRAM_BOOLEAN(
@@ -4941,12 +4978,12 @@ RenderProcessHost* RenderProcessHostImpl::GetProcessHostForSiteInstance(
       break;
     }
     case ProcessReusePolicy::
-        REUSE_PENDING_OR_COMMITTED_SITE_WITH_MAIN_FRAME_THRESHOLD: {
+        kReusePendingOrCommittedSiteWithMainFrameThreshold: {
       CHECK(base::FeatureList::IsEnabled(
           features::kProcessPerSiteUpToMainFrameThreshold));
       [[fallthrough]];
     }
-    case ProcessReusePolicy::REUSE_PRERENDERING_PROCESS_FOR_MAIN_FRAME: {
+    case ProcessReusePolicy::kReusePrerenderingProcessForMainFrame: {
       render_process_host = FindReusableProcessHostForSiteInstance(
           site_instance, process_reuse_policy);
       if (render_process_host) {
@@ -4965,7 +5002,7 @@ RenderProcessHost* RenderProcessHostImpl::GetProcessHostForSiteInstance(
   // site instance is for a service worker. We use DEFAULT when we have failed
   // to start the service worker before and want to use a new process.
   if (!render_process_host &&
-      !(process_reuse_policy == ProcessReusePolicy::DEFAULT &&
+      !(process_reuse_policy == ProcessReusePolicy::kDefault &&
         site_instance->is_for_service_worker())) {
     render_process_host =
         UnmatchedServiceWorkerProcessTracker::MatchWithSite(site_instance);
@@ -5093,6 +5130,12 @@ RenderProcessHost* RenderProcessHostImpl::GetProcessHostForSiteInstance(
   base::UmaHistogramEnumeration(
       "BrowserRenderProcessHost.SiteInstanceRenderProcessAssignment",
       site_instance->GetLastProcessAssignmentOutcome());
+  if (site_instance->GetLastProcessAssignmentOutcome() ==
+      SiteInstanceProcessAssignment::REUSED_EXISTING_PROCESS) {
+    base::UmaHistogramEnumeration(
+        "BrowserRenderProcessHost.ReuseExistingProcess.ReusePolicy",
+        process_reuse_policy);
+  }
   MAYBEVLOG(2) << __func__ << "(" << site_info << ") selected process host "
                << render_process_host->GetDeprecatedID()
                << " using assignment \""
@@ -5344,8 +5387,8 @@ void RenderProcessHost::SetHungRendererAnalysisFunction(
   g_analyze_hung_renderer = analyze_hung_renderer;
 }
 
-void RenderProcessHostImpl::SuddenTerminationChanged(bool enabled) {
-  SetSuddenTerminationAllowed(enabled);
+void RenderProcessHostImpl::SuddenTerminationAllowedChanged(bool allowed) {
+  SetSuddenTerminationAllowed(allowed);
 }
 
 void RenderProcessHostImpl::RecordUserMetricsAction(const std::string& action) {

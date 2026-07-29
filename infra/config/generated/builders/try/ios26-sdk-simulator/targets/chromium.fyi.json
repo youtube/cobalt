@@ -16,13 +16,13 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17a5305f",
+          "17a5305k",
           "--xctest"
         ],
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//ios/chrome/test/earl_grey2:ios_chrome_integration_eg2tests_module/",
+        "module_name": "//ios/chrome/test/earl_grey2:ios_chrome_integration_eg2tests_module",
         "module_scheme": "xctest",
         "name": "ios_chrome_integration_eg2tests_module iPad Air (6th generation) 26.0",
         "resultdb": {
@@ -47,7 +47,7 @@
               "path": "Runtime-ios-26.0"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a5305k",
               "path": "Xcode.app"
             }
           ],
@@ -70,13 +70,13 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17a5305f",
+          "17a5305k",
           "--xctest"
         ],
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//ios/chrome/test/earl_grey2:ios_chrome_integration_eg2tests_module/",
+        "module_name": "//ios/chrome/test/earl_grey2:ios_chrome_integration_eg2tests_module",
         "module_scheme": "xctest",
         "name": "ios_chrome_integration_eg2tests_module iPhone 16 26.0",
         "resultdb": {
@@ -101,7 +101,7 @@
               "path": "Runtime-ios-26.0"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a5305k",
               "path": "Xcode.app"
             }
           ],
@@ -124,13 +124,13 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17a5305f",
+          "17a5305k",
           "--xctest"
         ],
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//ios/chrome/test/earl_grey2:ios_chrome_ui_eg2tests_module/",
+        "module_name": "//ios/chrome/test/earl_grey2:ios_chrome_ui_eg2tests_module",
         "module_scheme": "xctest",
         "name": "ios_chrome_ui_eg2tests_module iPad Air (6th generation) 26.0",
         "resultdb": {
@@ -155,7 +155,7 @@
               "path": "Runtime-ios-26.0"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a5305k",
               "path": "Xcode.app"
             }
           ],
@@ -178,13 +178,13 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17a5305f",
+          "17a5305k",
           "--xctest"
         ],
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//ios/chrome/test/earl_grey2:ios_chrome_ui_eg2tests_module/",
+        "module_name": "//ios/chrome/test/earl_grey2:ios_chrome_ui_eg2tests_module",
         "module_scheme": "xctest",
         "name": "ios_chrome_ui_eg2tests_module iPhone 16 26.0",
         "resultdb": {
@@ -209,7 +209,7 @@
               "path": "Runtime-ios-26.0"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a5305k",
               "path": "Xcode.app"
             }
           ],
@@ -229,13 +229,13 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17a5305f",
+          "17a5305k",
           "--xctest"
         ],
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//ios/web:ios_web_inttests/",
+        "module_name": "//ios/web:ios_web_inttests",
         "module_scheme": "gtest",
         "name": "ios_web_inttests iPad Air (6th generation) 26.0",
         "resultdb": {
@@ -260,7 +260,7 @@
               "path": "Runtime-ios-26.0"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a5305k",
               "path": "Xcode.app"
             }
           ],
@@ -279,13 +279,13 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17a5305f",
+          "17a5305k",
           "--xctest"
         ],
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//ios/web:ios_web_inttests/",
+        "module_name": "//ios/web:ios_web_inttests",
         "module_scheme": "gtest",
         "name": "ios_web_inttests iPhone 16 26.0",
         "resultdb": {
@@ -310,7 +310,7 @@
               "path": "Runtime-ios-26.0"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a5305k",
               "path": "Xcode.app"
             }
           ],
@@ -329,13 +329,13 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17a5305f",
+          "17a5305k",
           "--xctest"
         ],
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//ios/web:ios_web_inttests/",
+        "module_name": "//ios/web:ios_web_inttests",
         "module_scheme": "gtest",
         "name": "ios_web_inttests iPhone SE (3rd generation) 26.0",
         "resultdb": {
@@ -360,7 +360,7 @@
               "path": "Runtime-ios-26.0"
             },
             {
-              "name": "xcode_ios_17a5305f",
+              "name": "xcode_ios_17a5305k",
               "path": "Xcode.app"
             }
           ],

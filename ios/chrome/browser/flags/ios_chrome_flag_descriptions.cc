@@ -220,14 +220,6 @@ const char kAutofillPruneSuggestionsName[] = "Autofill Prune Suggestions";
 const char kAutofillPruneSuggestionsDescription[] =
     "Further limits the number of suggestions in the Autofill dropdown.";
 
-const char kAutofillRequireCvcForPossibleCardUpdateName[] =
-    "Require CVC for possible card update on upload save";
-const char kAutofillRequireCvcForPossibleCardUpdateDescription[] =
-    "When enabled, if credit card upload save encounters a card with the same "
-    "four digits as an existing server card but a different expiration date, "
-    "it requires that CVC was found in the flow before offering to save/update "
-    "the card.";
-
 const char kAutofillSaveCardBottomSheetName[] =
     "Enable save card bottomsheet for upload save";
 const char kAutofillSaveCardBottomSheetDescription[] =
@@ -346,11 +338,6 @@ const char kContentPushNotificationsDescription[] =
 const char kContextualPanelName[] = "Contextual Panel";
 const char kContextualPanelDescription[] =
     "Enables the contextual panel feature.";
-
-const char kCredentialProviderAutomaticPasskeyUpgradeName[] =
-    "Credential Provider Automatic Passkey Upgrade";
-const char kCredentialProviderAutomaticPasskeyUpgradeDescription[] =
-    "Enables automatic passkey upgrade in the Credential Provider Extension.";
 
 const char kCredentialProviderPasskeyLargeBlobName[] =
     "Credential Provider Large Blob support";
@@ -498,6 +485,13 @@ const char kDefaultBrowserTriggerCriteriaExperimentDescription[] =
     "When enabled, default browser promo will be displayed to user without "
     "matching all the trigger criteria.";
 
+const char kPersistentDefaultBrowserPromoName[] =
+    "Persist default browser promo through app backgrounding";
+const char kPersistentDefaultBrowserPromoDescription[] =
+    "When enabled, the default browser promo will persist through "
+    "backgrounding the app so the instructions remain visible when coming "
+    "back.";
+
 const char kDeprecateFeedHeaderExperimentName[] =
     "Deprecate feed header toggle experiment";
 const char kDeprecateFeedHeaderExperimentDescription[] =
@@ -573,6 +567,12 @@ const char kEnableCompromisedPasswordsMutingName[] =
 const char kEnableCompromisedPasswordsMutingDescription[] =
     "Enable the compromised password alert mutings in Password Manager to be "
     "respected in the app.";
+
+const char kEnableCrossDevicePrefTrackerName[] =
+    "Enable Cross-Device Pref Tracker";
+const char kEnableCrossDevicePrefTrackerDescription[] =
+    "Enables the tracking and sharing of select non-syncing preference values "
+    "across a user's signed-in devices.";
 
 const char kEnableDiscoverFeedDiscoFeedEndpointName[] =
     "Enable discover feed discofeed";
@@ -710,11 +710,6 @@ const char kHttpsUpgradesDescription[] =
     "When enabled, eligible navigations will automatically be upgraded to "
     "HTTPS.";
 
-const char kIdentityDiscAccountMenuName[] = "Identity Disc Account Menu";
-const char kIdentityDiscAccountMenuDescription[] =
-    "When enabled, tapping the identity disc on the New Tab page shows the "
-    "account menu UI.";
-
 const char kIdentityConfirmationSnackbarName[] =
     "Identity Confirmation Snackbar";
 const char kIdentityConfirmationSnackbarDescription[] =
@@ -764,17 +759,6 @@ const char kIOSFillRecoveryPasswordDescription[] =
     "When enabled, users will be able to attempt to log in using a recovery "
     "password if the main one didn't work.";
 
-const char kIOSKeyboardAccessoryUpgradeName[] =
-    "Enable the keyboard accessory upgrade on iOS";
-const char kIOSKeyboardAccessoryUpgradeDescription[] =
-    "When enabled, the upgraded keyboard accessory UI will be presented.";
-
-const char kIOSKeyboardAccessoryUpgradeForIPadName[] =
-    "Enable the keyboard accessory upgrade on iOS for iPads";
-const char kIOSKeyboardAccessoryUpgradeForIPadDescription[] =
-    "When enabled, the upgraded keyboard accessory UI will be presented on "
-    "iPads.";
-
 const char kIOSOmniboxAimShortcutName[] = "Enable the omnibox aim shortcut";
 const char kIOSOmniboxAimShortcutDescription[] =
     "When enabled, an aim shortcut entrypoint will be displayed when the "
@@ -782,7 +766,12 @@ const char kIOSOmniboxAimShortcutDescription[] =
 
 const char kIOSOmniboxAimServerEligibilityName[] = "AIM Server Eligibility";
 const char kIOSOmniboxAimServerEligibilityDescription[] =
-    "Enable AIM server eligibility checks.";
+    "Enable AIM server eligibility checks for all locales.";
+
+const char kIOSOmniboxAimServerEligibilityEnName[] =
+    "AIM Server Eligibility EN locales";
+const char kIOSOmniboxAimServerEligibilityEnDescription[] =
+    "Enable AIM server eligibility checks for EN locales.";
 
 const char kIOSOneTapMiniMapRemoveSectionBreaksName[] =
     "Remove section break for address detection.";
@@ -1412,6 +1401,10 @@ const char kReaderModeDefaultBrowserPromoName[] =
 const char kReaderModeDefaultBrowserPromoDescription[] =
     "Enables the Reader Mode eligibility criteria for displaying the default "
     "browser promo and disables all other criteria.";
+
+const char kReaderModeNewCssName[] = "Reader mode new CSS on iOS";
+const char kReaderModeNewCssDescription[] =
+    "Enables the new CSS for Reader mode on iOS.";
 
 const char kRefactorToolbarsSizeName[] = "Refactor toolbars size";
 const char kRefactorToolbarsSizeDescription[] =

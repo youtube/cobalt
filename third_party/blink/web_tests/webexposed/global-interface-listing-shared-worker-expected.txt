@@ -1750,6 +1750,7 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     getter disposition
 [Worker]     getter documentURI
 [Worker]     getter effectiveDirective
+[Worker]     getter evalHash
 [Worker]     getter lineNumber
 [Worker]     getter originalPolicy
 [Worker]     getter referrer
@@ -1961,7 +1962,6 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     getter defaultPolicy
 [Worker]     getter emptyHTML
 [Worker]     getter emptyScript
-[Worker]     getter onbeforecreatepolicy
 [Worker]     method constructor
 [Worker]     method createPolicy
 [Worker]     method getAttributeType
@@ -1970,7 +1970,6 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     method isHTML
 [Worker]     method isScript
 [Worker]     method isScriptURL
-[Worker]     setter onbeforecreatepolicy
 [Worker] interface URL
 [Worker]     static method canParse
 [Worker]     static method createObjectURL
@@ -2784,7 +2783,7 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     method stencilOp
 [Worker]     method stencilOpSeparate
 [Worker]     method texElement2D
-[Worker]     method texHTMLElement2D
+[Worker]     method texHTML2D
 [Worker]     method texImage2D
 [Worker]     method texImage3D
 [Worker]     method texParameterf
@@ -3289,7 +3288,7 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     method stencilOp
 [Worker]     method stencilOpSeparate
 [Worker]     method texElement2D
-[Worker]     method texHTMLElement2D
+[Worker]     method texHTML2D
 [Worker]     method texImage2D
 [Worker]     method texParameterf
 [Worker]     method texParameteri

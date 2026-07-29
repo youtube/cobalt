@@ -55,6 +55,7 @@
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_l10n_util.h"
 #include "components/autofill/core/common/form_field_data.h"
+#include "components/autofill/core/common/logging/log_buffer.h"
 #include "components/strings/grit/components_strings.h"
 #include "third_party/libaddressinput/chromium/addressinput_util.h"
 #include "third_party/libaddressinput/src/cpp/include/libaddressinput/address_data.h"
@@ -280,7 +281,8 @@ AutofillProfile::AutofillProfile(const AutofillProfile& profile)
     : phone_number_(this),
       address_(profile.GetAddress()),
       token_quality_(this),
-      usage_history_information_(profile.usage_history_information_) {
+      usage_history_information_(profile.usage_history_information_),
+      is_devtools_testing_profile_(profile.is_devtools_testing_profile_) {
   operator=(profile);
 }
 
@@ -320,6 +322,8 @@ AutofillProfile& AutofillProfile::operator=(const AutofillProfile& profile) {
 
   token_quality_ = profile.token_quality_;
   token_quality_.set_profile(this);
+
+  is_devtools_testing_profile_ = profile.is_devtools_testing_profile_;
 
   return *this;
 }
@@ -442,7 +446,7 @@ std::u16string AutofillProfile::GetRawInfo(FieldType type) const {
 
 void AutofillProfile::SetRawInfoWithVerificationStatus(
     FieldType type,
-    const std::u16string& value,
+    std::u16string_view value,
     VerificationStatus status) {
   FormGroup* form_group = MutableFormGroupForType(type);
   if (form_group) {
@@ -564,7 +568,7 @@ int AutofillProfile::Compare(const AutofillProfile& profile) const {
 
   // When adding field types, ensure that they don't need to be added here and
   // update the last checked value.
-  static_assert(FieldType::MAX_VALID_FIELD_TYPE == 204,
+  static_assert(FieldType::MAX_VALID_FIELD_TYPE == 206,
                 "New field type needs to be reviewed for inclusion in the "
                 "profile comparison logic.");
 
@@ -1078,11 +1082,10 @@ std::u16string AutofillProfile::GetInfo(const AutofillType& type,
   return form_group->GetInfo(type, app_locale);
 }
 
-bool AutofillProfile::SetInfoWithVerificationStatus(
-    const AutofillType& type,
-    const std::u16string& value,
-    const std::string& app_locale,
-    VerificationStatus status) {
+bool AutofillProfile::SetInfoWithVerificationStatus(const AutofillType& type,
+                                                    std::u16string_view value,
+                                                    std::string_view app_locale,
+                                                    VerificationStatus status) {
   FormGroup* form_group = MutableFormGroupForType(type.GetAddressType());
   if (!form_group) {
     return false;
@@ -1094,11 +1097,10 @@ bool AutofillProfile::SetInfoWithVerificationStatus(
                                                    app_locale, status);
 }
 
-bool AutofillProfile::SetInfoWithVerificationStatus(
-    FieldType type,
-    const std::u16string& value,
-    const std::string& app_locale,
-    VerificationStatus status) {
+bool AutofillProfile::SetInfoWithVerificationStatus(FieldType type,
+                                                    std::u16string_view value,
+                                                    std::string_view app_locale,
+                                                    VerificationStatus status) {
   return SetInfoWithVerificationStatus(AutofillType(type), value, app_locale,
                                        status);
 }
@@ -1259,6 +1261,34 @@ std::ostream& operator<<(std::ostream& os, const AutofillProfile& profile) {
   }
 
   return os;
+}
+
+LogBuffer& operator<<(LogBuffer& buffer, const AutofillProfile& profile) {
+  auto get_record_type = [](AutofillProfile::RecordType record_type) {
+    switch (record_type) {
+      case AutofillProfile::RecordType::kLocalOrSyncable:
+        return "kLocalOrSyncable";
+      case AutofillProfile::RecordType::kAccount:
+        return "kAccount";
+      case AutofillProfile::RecordType::kAccountHome:
+        return "kAccountHome";
+      case AutofillProfile::RecordType::kAccountWork:
+        return "kAccountWork";
+      case AutofillProfile::RecordType::kAccountNameEmail:
+        return "kAccountNameEmail";
+    }
+    NOTREACHED();
+  };
+  buffer << Tag{"table"};
+  buffer << Tr{} << "guid" << profile.guid_;
+  buffer << Tr{} << "record_type" << get_record_type(profile.record_type_);
+  buffer << Tr{} << "name" << profile.name_;
+  buffer << Tr{} << "address" << profile.address_;
+  buffer << Tr{} << "email" << profile.email_;
+  buffer << Tr{} << "company" << profile.company_;
+  buffer << Tr{} << "phone" << profile.phone_number_;
+  buffer << CTag{"table"};
+  return buffer;
 }
 
 bool AutofillProfile::FinalizeAfterImport() {

@@ -17,6 +17,7 @@
 #import "ios/chrome/browser/settings/ui_bundled/google_services/google_services_settings_constants.h"
 #import "ios/chrome/browser/settings/ui_bundled/google_services/manage_accounts/manage_accounts_table_view_controller_constants.h"
 #import "ios/chrome/browser/settings/ui_bundled/google_services/manage_sync_settings_constants.h"
+#import "ios/chrome/browser/shared/public/snackbar/snackbar_constants.h"
 #import "ios/chrome/browser/shared/ui/table_view/table_view_navigation_controller_constants.h"
 #import "ios/chrome/browser/signin/model/fake_system_identity.h"
 #import "ios/chrome/browser/signin/model/test_constants.h"
@@ -86,9 +87,9 @@ void MaybeTapSigninBottomSheetAndHistoryConfirmationDialog(
         performAction:grey_tap()];
   }
 
-  //  Dismiss identity signin confirmation snackbar if shown.
-  [SigninEarlGreyUI
-      maybeDismissIdentityConfirmationSnackbarOnSignin:fakeIdentity];
+  // Dismiss identity signin confirmation snackbar if shown.
+  [SigninEarlGreyUI dismissSigninConfirmationSnackbarForIdentity:fakeIdentity
+                                                   assertVisible:NO];
 
   [ChromeEarlGreyUI waitForAppToIdle];
   [SigninEarlGrey closeManagedAccountSignInDialogIfAny:fakeIdentity];
@@ -105,7 +106,8 @@ void MaybeTapSigninBottomSheetAndHistoryConfirmationDialog(
 id<GREYMatcher> SignOutSnackbarLabelMatcher() {
   NSString* snackbarLabel = l10n_util::GetNSString(
       IDS_IOS_GOOGLE_ACCOUNT_SETTINGS_SIGN_OUT_SNACKBAR_MESSAGE);
-  return grey_accessibilityLabel(snackbarLabel);
+  return grey_allOf(grey_accessibilityLabel(snackbarLabel),
+                    grey_sufficientlyVisible(), nil);
 }
 
 }  // namespace
@@ -380,21 +382,31 @@ id<GREYMatcher> SignOutSnackbarLabelMatcher() {
   [ChromeEarlGreyUI waitForAppToIdle];
 }
 
-+ (void)maybeDismissIdentityConfirmationSnackbarOnSignin:
-    (FakeSystemIdentity*)fakeIdentity {
-  NSString* signedInSnackbarTitle = l10n_util::GetNSStringF(
-      IDS_IOS_ACCOUNT_MENU_SWITCH_CONFIRMATION_TITLE,
-      base::SysNSStringToUTF16(fakeIdentity.userGivenName));
-  NSError* error = nil;
-  [[EarlGrey
-      selectElementWithMatcher:grey_accessibilityLabel(signedInSnackbarTitle)]
-      assertWithMatcher:grey_notNil()
-                  error:&error];
-  if (error == nil) {
-    // Snackbar is presented, dismiss it.
-    [[EarlGrey
-        selectElementWithMatcher:grey_accessibilityLabel(signedInSnackbarTitle)]
++ (void)dismissSigninConfirmationSnackbarForIdentity:
+            (FakeSystemIdentity*)identity
+                                       assertVisible:(BOOL)assertVisible {
+  NSString* signedInSnackbarTitle =
+      l10n_util::GetNSStringF(IDS_IOS_ACCOUNT_MENU_SWITCH_CONFIRMATION_TITLE,
+                              base::SysNSStringToUTF16(identity.userGivenName));
+  id<GREYMatcher> snackbarMatcher = grey_allOf(
+      chrome_test_util::SnackbarViewMatcher(),
+      grey_descendant(grey_accessibilityLabel(signedInSnackbarTitle)), nil);
+
+  if (assertVisible) {
+    [[EarlGrey selectElementWithMatcher:snackbarMatcher]
+        assertWithMatcher:grey_interactable()];
+    [[EarlGrey selectElementWithMatcher:snackbarMatcher]
         performAction:grey_tap()];
+  } else {
+    NSError* error = nil;
+    [[EarlGrey selectElementWithMatcher:snackbarMatcher]
+        assertWithMatcher:grey_interactable()
+                    error:&error];
+    if (error == nil) {
+      // Snackbar is presented, dismiss it.
+      [[EarlGrey selectElementWithMatcher:snackbarMatcher]
+          performAction:grey_tap()];
+    }
   }
 }
 

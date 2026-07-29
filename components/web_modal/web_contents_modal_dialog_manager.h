@@ -15,7 +15,7 @@
 #include "components/web_modal/web_modal_export.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_contents_user_data.h"
-#include "ui/gfx/native_window_types.h"
+#include "ui/gfx/native_ui_types.h"
 
 namespace content {
 enum class Visibility;
@@ -69,6 +69,9 @@ class WEB_MODAL_EXPORT WebContentsModalDialogManager
   // Focus the topmost modal dialog.  IsDialogActive() must be true when calling
   // this function.
   void FocusTopmostDialog() const;
+
+  // Updates all child dialog's position to use the latest delegate host.
+  void UpdateDialogHost();
 
   // Manages observer for when dialogs are closed as a result of page
   // navigation.

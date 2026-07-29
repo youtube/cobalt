@@ -124,10 +124,6 @@ class PLATFORM_EXPORT DrawingBuffer : public cc::TextureLayerClient,
     kPreserve,
     kDiscard,
   };
-  enum WebGLVersion {
-    kWebGL1,
-    kWebGL2,
-  };
 
   enum ChromiumImageUsage {
     kAllowChromiumImage,
@@ -136,7 +132,7 @@ class PLATFORM_EXPORT DrawingBuffer : public cc::TextureLayerClient,
 
   static scoped_refptr<DrawingBuffer> Create(
       std::unique_ptr<WebGraphicsContext3DProvider>,
-      const Platform::GraphicsInfo& graphics_info,
+      const Platform::WebGLContextInfo&,
       bool using_swap_chain,
       Client*,
       const gfx::Size&,
@@ -147,9 +143,9 @@ class PLATFORM_EXPORT DrawingBuffer : public cc::TextureLayerClient,
       bool want_antialiasing,
       bool desynchronized,
       PreserveDrawingBuffer,
-      WebGLVersion,
+      Platform::WebGLContextType,
       ChromiumImageUsage,
-      PredefinedColorSpace color_space,
+      PredefinedColorSpace,
       gl::GpuPreference);
 
   DrawingBuffer(const DrawingBuffer&) = delete;
@@ -172,11 +168,11 @@ class PLATFORM_EXPORT DrawingBuffer : public cc::TextureLayerClient,
   bool HasStencilBuffer() const { return !!depth_stencil_buffer_; }
 
   bool IsUsingGpuCompositing() const {
-    return graphics_info_.using_gpu_compositing;
+    return context_info_.using_gpu_compositing;
   }
 
-  const Platform::GraphicsInfo& GetGraphicsInfo() const {
-    return graphics_info_;
+  const Platform::WebGLContextInfo& ContextInfo() const {
+    return context_info_;
   }
 
   // Given the desired buffer size, provides the largest dimensions that will
@@ -248,7 +244,6 @@ class PLATFORM_EXPORT DrawingBuffer : public cc::TextureLayerClient,
   WebGraphicsContext3DProvider* ContextProvider();
   base::WeakPtr<WebGraphicsContext3DProviderWrapper> ContextProviderWeakPtr();
   Client* client() { return client_; }
-  WebGLVersion webgl_version() const { return webgl_version_; }
   bool destroyed() const { return destruction_in_progress_; }
 
   // cc::TextureLayerClient implementation.
@@ -331,7 +326,7 @@ class PLATFORM_EXPORT DrawingBuffer : public cc::TextureLayerClient,
 
  protected:  // For unittests
   DrawingBuffer(std::unique_ptr<WebGraphicsContext3DProvider>,
-                const Platform::GraphicsInfo& graphics_info,
+                const Platform::WebGLContextInfo&,
                 bool using_swap_chain,
                 bool desynchronized,
                 std::unique_ptr<Extensions3DUtil>,
@@ -341,12 +336,12 @@ class PLATFORM_EXPORT DrawingBuffer : public cc::TextureLayerClient,
                 bool want_alpha_channel,
                 bool premultiplied_alpha,
                 PreserveDrawingBuffer,
-                WebGLVersion,
+                Platform::WebGLContextType,
                 bool wants_depth,
                 bool wants_stencil,
                 ChromiumImageUsage,
-                PredefinedColorSpace color_space,
-                gl::GpuPreference gpu_preference);
+                PredefinedColorSpace,
+                gl::GpuPreference);
 
   bool Initialize(const gfx::Size&, bool use_multisampling);
 
@@ -611,7 +606,7 @@ class PLATFORM_EXPORT DrawingBuffer : public cc::TextureLayerClient,
   raw_ptr<Client> client_ = nullptr;
 
   const PreserveDrawingBuffer preserve_drawing_buffer_;
-  const WebGLVersion webgl_version_;
+  const Platform::WebGLContextType webgl_version_;
 
   std::unique_ptr<WebGraphicsContext3DProviderWrapper> context_provider_;
   // Lifetime is tied to the m_contextProvider.
@@ -631,7 +626,7 @@ class PLATFORM_EXPORT DrawingBuffer : public cc::TextureLayerClient,
   viz::SharedImageFormat color_buffer_format_ =
       viz::SinglePlaneFormat::kRGBA_8888;
 
-  Platform::GraphicsInfo graphics_info_;
+  Platform::WebGLContextInfo context_info_;
   const bool using_swap_chain_;
   bool low_latency_enabled_ = false;
   bool has_implicit_stencil_buffer_ = false;

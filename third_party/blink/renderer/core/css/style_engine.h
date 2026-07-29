@@ -606,6 +606,9 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
   void MarkForDefaultAnchorScrollShift(Element& element) {
     anchored_element_dirty_set_.insert(&element);
   }
+  void MarkAnchorRememberedOffsetsChanged(Element& element) {
+    anchored_element_dirty_set_.insert(&element);
+  }
 
   StyleRuleKeyframes* KeyframeStylesForAnimation(
       const AtomicString& animation_name);
@@ -727,7 +730,7 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
 
   void SetPageColorSchemes(const CSSValue* color_scheme);
   ColorSchemeFlags GetPageColorSchemes() const { return page_color_schemes_; }
-  mojom::PreferredColorScheme GetPreferredColorScheme() const {
+  mojom::blink::PreferredColorScheme GetPreferredColorScheme() const {
     return preferred_color_scheme_;
   }
   bool GetForceDarkModeEnabled() const { return force_dark_mode_enabled_; }
@@ -769,6 +772,10 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
 
   void RevisitStyleSheetForInspector(StyleSheetContents* contents,
                                      const RuleFeatureSet* features) const;
+
+  // Call when @route rules may need to be re-evaluated, because the current URL
+  // has changed.
+  void RoutesMayHaveChanged() { SetNeedsActiveStyleUpdate(GetDocument()); }
 
  private:
   void UpdateCounters(const Element& element,

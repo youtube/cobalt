@@ -55,6 +55,9 @@ std::optional<VerificationStatus> ToSafeVerificationStatus(
 // Prints the string representation of `status` to `os`.
 std::ostream& operator<<(std::ostream& os, VerificationStatus status);
 
+// Returns a string view representation of the `status`.
+std::string_view VerificationStatusToStringView(VerificationStatus status);
+
 // Returns true if `left` has a less significant verification status compared to
 // `right`.
 bool IsLessSignificantVerificationStatus(VerificationStatus left,
@@ -85,23 +88,15 @@ enum MergeMode {
   kReplaceSuperset = 1 << 3,
   // If one component is a subset of the other, use the superset.
   kReplaceSubset = 1 << 4,
-  // If both components have a different value, is the newer one.
-  kUseNewerIfDifferent = 1 << 5,
-  // If the newer component contains one token more, apply a recursive strategy
-  // to merge the tokens.
-  kRecursivelyMergeSingleTokenSubset = 1 << 6,
   // If one is a substring of the other use the most recent one.
-  kUseMostRecentSubstring = 1 << 7,
+  kUseMostRecentSubstring = 1 << 5,
   // If the tokens match or one is a subset of the other, pick the shorter one.
-  kPickShorterIfOneContainsTheOther = 1 << 8,
-  // If the normalized values are different, use the better one in terms
-  // of verification score or the most recent one if both scores are the same.
-  kUseBetterOrMostRecentIfDifferent = 1 << 9,
+  kPickShorterIfOneContainsTheOther = 1 << 6,
   // Merge the child nodes and reformat the node from its children after merge
   // if the value has changed.
-  kMergeChildrenAndReformatIfNeeded = 1 << 10,
+  kMergeChildrenAndReformatIfNeeded = 1 << 7,
   // Make a merge decision based on canonicalized values.
-  kMergeBasedOnCanonicalizedValues = 1 << 11,
+  kMergeBasedOnCanonicalizedValues = 1 << 8,
   // Defines the default merging behavior.
   kDefault = kRecursivelyMergeTokenEquivalentValues
 };
@@ -445,11 +440,6 @@ class AddressComponent {
 
   // Clears all parsed and formatted values.
   void ClearAllParsedAndFormattedValues();
-
-  // Merge a component that has exactly one token less.
-  bool MergeSubsetComponent(
-      const AddressComponent& subset_component,
-      const SortedTokenComparisonResult& token_comparison_result);
 
   // Consumes an additional token into the most appropriate subcomponent.
   // Can be implemented by the specific node types.

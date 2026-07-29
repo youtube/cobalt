@@ -40,14 +40,13 @@ class IpProtectionTokenManagerImpl : public IpProtectionTokenManager {
       scoped_refptr<IpProtectionCoreHostRemote> core_host_remote,
       std::unique_ptr<IpProtectionTokenFetcher> fetcher,
       ProxyLayer proxy_layer,
+      std::vector<BlindSignedAuthToken> initial_tokens,
       bool disable_cache_management_for_testing = false);
   ~IpProtectionTokenManagerImpl() override;
 
   // IpProtectionTokenManager implementation.
-  bool IsAuthTokenAvailable() override;
   bool IsAuthTokenAvailable(const std::string& geo_id) override;
   bool WasTokenCacheEverFilled() override;
-  std::optional<BlindSignedAuthToken> GetAuthToken() override;
   std::optional<BlindSignedAuthToken> GetAuthToken(
       const std::string& geo_id) override;
   std::string CurrentGeo() const override;
@@ -92,6 +91,7 @@ class IpProtectionTokenManagerImpl : public IpProtectionTokenManager {
   bool fetching_auth_tokens_for_testing() { return fetching_auth_tokens_; }
 
  private:
+  void ProcessInitialTokens(std::vector<BlindSignedAuthToken> initial_tokens);
   void OnGotAuthTokens(base::TimeTicks attempt_start_time_for_metrics,
                        std::optional<std::vector<BlindSignedAuthToken>> tokens,
                        std::optional<base::Time> try_again_after);

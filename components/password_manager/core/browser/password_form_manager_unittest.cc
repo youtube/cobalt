@@ -4777,7 +4777,6 @@ TEST_P(PasswordFormManagerTest, SetCreditCardFieldsAsBanned) {
 
 #endif
 
-#if !BUILDFLAG(IS_IOS)
 TEST_P(PasswordFormManagerTest, NotifiesObservers) {
   MockPasswordFormManagerObserver observer;
   MockPasswordFormManagerObserver observer_2;
@@ -4805,32 +4804,6 @@ TEST_P(PasswordFormManagerTest, DoesNotNotifyAfterObserverRemoved) {
 
   task_environment_.FastForwardUntilNoTasksRemain();
 }
-#else
-TEST_P(PasswordFormManagerTest, NotifiesObserver) {
-  MockPasswordFormManagerObserver observer;
-
-  CreateFormManager(observed_form_);
-  form_manager_->SetObserver(observer.GetWeakPtr());
-
-  EXPECT_CALL(observer, OnPasswordFormParsed(form_manager_.get()));
-  SetNonFederatedAndNotifyFetchCompleted({saved_match_});
-
-  task_environment_.FastForwardUntilNoTasksRemain();
-}
-
-TEST_P(PasswordFormManagerTest, DoesNotNotifyAfterObserverRemoved) {
-  MockPasswordFormManagerObserver observer;
-
-  CreateFormManager(observed_form_);
-  form_manager_->SetObserver(observer.GetWeakPtr());
-  form_manager_->ResetObserver();
-
-  EXPECT_CALL(observer, OnPasswordFormParsed).Times(0);
-  SetNonFederatedAndNotifyFetchCompleted({saved_match_});
-
-  task_environment_.FastForwardUntilNoTasksRemain();
-}
-#endif
 
 INSTANTIATE_TEST_SUITE_P(All, PasswordFormManagerTest, testing::Bool());
 
@@ -4866,6 +4839,7 @@ class MockPasswordSaveManager : public PasswordSaveManager {
                void(autofill::mojom::SubmissionIndicatorEvent));
   MOCK_CONST_METHOD0(IsNewLogin, bool());
   MOCK_CONST_METHOD0(IsPasswordUpdate, bool());
+  MOCK_CONST_METHOD0(IsEqualToSavedMatch, bool());
   MOCK_CONST_METHOD0(HasGeneratedPassword, bool());
   MOCK_METHOD0(UsernameUpdatedInBubble, void());
   std::unique_ptr<PasswordSaveManager> Clone() override {
@@ -4878,6 +4852,10 @@ class MockPasswordSaveManager : public PasswordSaveManager {
               GetPasswordStoreForSaving,
               (const PasswordForm& password_form),
               (const override));
+  MOCK_METHOD(void,
+              UpdateDateLastFilled,
+              (const PasswordForm& password_form),
+              (override));
 };
 
 class PasswordFormManagerTestWithMockedSaver : public PasswordFormManagerTest {

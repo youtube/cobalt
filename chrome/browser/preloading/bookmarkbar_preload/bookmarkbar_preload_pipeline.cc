@@ -54,7 +54,6 @@ BookmarkBarPreloadPipeline::~BookmarkBarPreloadPipeline() = default;
 void BookmarkBarPreloadPipeline::StartPrefetch(
     content::WebContents& web_contents,
     content::PreloadingPredictor predictor) {
-  CHECK(!prerender_handle_);
   // Don't trigger prefetch if already triggered.
   if (prefetch_handle_) {
     return;
@@ -75,7 +74,8 @@ void BookmarkBarPreloadPipeline::StartPrefetch(
       blink::mojom::Referrer(), /*referring_origin=*/std::nullopt,
       /*no_vary_search_hint=*/std::nullopt, /*priority=*/std::nullopt,
       pipeline_info_, attempt->GetWeakPtr(),
-      /*holdback_status_override=*/std::nullopt, /*ttl=*/std::nullopt);
+      /*holdback_status_override=*/
+      content::PreloadingHoldbackStatus::kUnspecified, /*ttl=*/std::nullopt);
 }
 
 void BookmarkBarPreloadPipeline::StartPrerender(

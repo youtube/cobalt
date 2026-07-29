@@ -26,7 +26,7 @@
       "android_webview/java/strings/android_webview_strings.grd",
       "ash/ash_strings.grd",
       "ash/webui/camera_app_ui/resources/strings/camera_strings.grd",
-      "chrome/android/features/keyboard_accessory/internal/java/strings/android_keyboard_accessory_strings.grd",
+      "chrome/browser/keyboard_accessory/android/internal/java/strings/android_keyboard_accessory_strings.grd",
       "chrome/android/features/tab_ui/java/strings/android_chrome_tab_ui_strings.grd",
       "chrome/browser/tab_ui/android/java/strings/android_tab_ui_strings.grd",
       "chrome/android/webapk/strings/android_webapk_strings.grd",
@@ -120,7 +120,7 @@
     "chromecast/app/resources/chromecast_settings.grd": "Not UI strings; localized separately",
     "components/components_locale_settings.grd": "Not UI strings; localized separately",
     "components/metrics/server_urls.grd": "Not UI strings; URLs of metrics endpoints",
-    "components/plus_addresses/resources/strings/plus_addresses_strings.grd": "UX research ongoing - strings are not yet finalized",
+    "components/plus_addresses/core/browser/resources/strings/plus_addresses_strings.grd": "UX research ongoing - strings are not yet finalized",
     "components/policy/resources/policy_templates.build.grd": "Copy of policy_templates.grd used locally for build only",
     "tools/grit/grit/testdata/allowlist_resources.grd": "Test data",
     "tools/grit/grit/testdata/allowlist_strings.grd": "Test data",
@@ -140,9 +140,9 @@
   },
   # Internal grds that contain parts not available publicly and thus should
   # not be checked by translation script.
+  # NOTE: This list does NOT itemize src-internal translations.
   "internal_grds": [
     # Test grd that contains a part file that doesn't exist.
     "tools/translation/testdata/internal.grd",
-    "third_party/search_engines_data/resources_internal/search_engine_descriptions_strings.grd": "The strings are already translated when provided",
   ],
 }

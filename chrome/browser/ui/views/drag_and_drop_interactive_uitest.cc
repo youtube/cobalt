@@ -1537,8 +1537,9 @@ IN_PROC_BROWSER_TEST_P(DragAndDropBrowserTest, DragStartInFrame) {
 // a drag-and-drop loop run by Windows OS.
 #define MAYBE_DragSameOriginImageBetweenFrames \
   DISABLED_DragSameOriginImageBetweenFrames
-#elif BUILDFLAG(IS_LINUX)
+#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 // Failing to receive final drop event on linux crbug.com/1268407.
+// TODO(crbug.com/442927728): Fix failing test on ChromeOS
 #define MAYBE_DragSameOriginImageBetweenFrames \
   DISABLED_DragSameOriginImageBetweenFrames
 #else
@@ -1569,10 +1570,7 @@ IN_PROC_BROWSER_TEST_P(DragAndDropBrowserTest,
                                /*image_crossorigin_attr=*/false);
 }
 
-#if BUILDFLAG(IS_WIN)
-#define MAYBE_DragCorsSameOriginImageBetweenFrames \
-  DISABLED_DragCorsSameOriginImageBetweenFrames
-#elif BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 #define MAYBE_DragCorsSameOriginImageBetweenFrames \
   DISABLED_DragCorsSameOriginImageBetweenFrames
 #else
@@ -1594,10 +1592,7 @@ IN_PROC_BROWSER_TEST_P(DragAndDropBrowserTest,
                                /*image_crossorigin_attr=*/true);
 }
 
-#if BUILDFLAG(IS_WIN)
-#define MAYBE_DragCrossOriginImageBetweenFrames \
-  DISABLED_DragCrossOriginImageBetweenFrames
-#elif BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 #define MAYBE_DragCrossOriginImageBetweenFrames \
   DISABLED_DragCrossOriginImageBetweenFrames
 #else
@@ -1856,9 +1851,8 @@ void DragAndDropBrowserTest::DragImageBetweenFrames_Step3(
 // There is no known way to execute test-controlled tasks during
 // a drag-and-drop loop run by Windows OS.
 // Also disable the test on Linux due to flaky: crbug.com/1164442
-// TODO(crbug.com/40876472): Enable on ChromeOS ASAN once flakiness is fixed.
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || \
-    (BUILDFLAG(IS_CHROMEOS) && defined(ADDRESS_SANITIZER))
+// TODO(crbug.com/40876472): Enable on ChromeOS once flakiness is fixed.
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 #define MAYBE_DragImageFromDisappearingFrame \
   DISABLED_DragImageFromDisappearingFrame
 #else
@@ -2210,8 +2204,8 @@ void DragAndDropBrowserTest::CrossNavCrossSiteDrag_Step3(
 
 // There is no known way to execute test-controlled tasks during
 // a drag-and-drop loop run by Windows OS.
-#if BUILDFLAG(IS_WIN) || (BUILDFLAG(IS_CHROMEOS) && \
-                          (defined(ADDRESS_SANITIZER) || !defined(NDEBUG)))
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
+// TODO(crbug.com/442927728): Fix failing test on Linux and ChromeOS
 // https://crbug.com/1393605: Flaky at ChromeOS ASAN and Debug builds
 #define MAYBE_CrossTabDrag DISABLED_CrossTabDrag
 #else

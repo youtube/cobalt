@@ -43,16 +43,6 @@ SortedTokenComparisonResult& SortedTokenComparisonResult::operator=(
 
 SortedTokenComparisonResult::~SortedTokenComparisonResult() = default;
 
-bool SortedTokenComparisonResult::IsSingleTokenSubset() const {
-  return status == SortedTokenComparisonStatus::kSubset &&
-         additional_tokens.size() == 1;
-}
-
-bool SortedTokenComparisonResult::IsSingleTokenSuperset() const {
-  return status == SortedTokenComparisonStatus::kSuperset &&
-         additional_tokens.size() == 1;
-}
-
 bool SortedTokenComparisonResult::OneIsSubset() const {
   return status == SortedTokenComparisonStatus::kSubset ||
          status == SortedTokenComparisonStatus::kSuperset;
@@ -338,13 +328,13 @@ std::u16string NormalizeAndRewrite(const AddressCountryCode& country_code,
           country_code));
 }
 
-bool AreStringTokenEquivalent(const std::u16string& one,
-                              const std::u16string& other) {
+bool AreStringTokenEquivalent(std::u16string_view one,
+                              std::u16string_view other) {
   return AreSortedTokensEqual(TokenizeValue(one), TokenizeValue(other));
 }
 
-bool AreStringTokenCompatible(const std::u16string& first,
-                              const std::u16string& second) {
+bool AreStringTokenCompatible(std::u16string_view first,
+                              std::u16string_view second) {
   SortedTokenComparisonResult result =
       CompareSortedTokens(TokenizeValue(first), TokenizeValue(second));
   return result.status == SortedTokenComparisonStatus::kMatch ||
@@ -363,18 +353,18 @@ SortedTokenComparisonResult CompareSortedTokens(
   DCHECK(std::is_sorted(first.begin(), first.end(), cmp_normalized) &&
          std::is_sorted(second.begin(), second.end(), cmp_normalized));
 
-  bool is_supserset = std::includes(first.begin(), first.end(), second.begin(),
-                                    second.end(), cmp_normalized);
-  bool is_subset = std::includes(second.begin(), second.end(), first.begin(),
-                                 first.end(), cmp_normalized);
+  const bool is_superset = std::includes(
+      first.begin(), first.end(), second.begin(), second.end(), cmp_normalized);
+  const bool is_subset = std::includes(
+      second.begin(), second.end(), first.begin(), first.end(), cmp_normalized);
 
   // If first is both a superset and a subset it is the same.
-  if (is_supserset && is_subset) {
+  if (is_superset && is_subset) {
     return SortedTokenComparisonResult(SortedTokenComparisonStatus::kMatch);
   }
 
   // If it is neither, both are distinct.
-  if (!is_supserset && !is_subset) {
+  if (!is_superset && !is_subset) {
     return SortedTokenComparisonResult(SortedTokenComparisonStatus::kDistinct);
   }
 
@@ -386,7 +376,7 @@ SortedTokenComparisonResult CompareSortedTokens(
       first.begin(), first.end(), second.begin(), second.end(),
       std::back_inserter(additional_tokens), cmp_normalized);
 
-  if (is_supserset) {
+  if (is_superset) {
     return SortedTokenComparisonResult(SortedTokenComparisonStatus::kSuperset,
                                        additional_tokens);
   }
@@ -395,8 +385,8 @@ SortedTokenComparisonResult CompareSortedTokens(
                                      additional_tokens);
 }
 
-SortedTokenComparisonResult CompareSortedTokens(const std::u16string& first,
-                                                const std::u16string& second) {
+SortedTokenComparisonResult CompareSortedTokens(std::u16string_view first,
+                                                std::u16string_view second) {
   return CompareSortedTokens(TokenizeValue(first), TokenizeValue(second));
 }
 

@@ -992,12 +992,12 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
     SetElementFlag(ElementFlags::kStyleAffectedByEmpty);
   }
 
-  void SetIsCanvasOrInCanvasSubtree(bool value) {
-    SetElementFlag(ElementFlags::kIsCanvasOrInCanvasSubtree, value);
-  }
+  void SetIsCanvasOrInCanvasSubtree(bool);
   bool IsCanvasOrInCanvasSubtree() const {
     return HasElementFlag(ElementFlags::kIsCanvasOrInCanvasSubtree);
   }
+  // Called when `IsCanvasOrInCanvasSubtree()` has changed.
+  virtual void DidChangeIsCanvasOrInCanvasSubtree() {}
   // Like `IsCanvasOrInCanvasSubtree()`, but excludes the outermost <canvas>.
   bool IsInCanvasSubtree() const;
 
@@ -1184,13 +1184,27 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
     kFullInterest,
   };
 
+  enum class InterestLostCancelable {
+    kNotCancelable,
+    kCancelable,
+  };
+  enum class InterestLostPopoverBehavior {
+    kDontClosePopovers,
+    kClosePopovers,
+  };
+
   // Implementation of the `interestfor` feature. These are called on the
   // element with the `interestfor` attribute, and not on the target itself.
   // These are called when interest is actually gained or lost on the element,
   // e.g. after any hover-delays. They return true if the event was *not*
   // cancelled, and the action was performed.
-  bool InterestGained(Element& target, InterestState new_state);
-  bool InterestLost(Element& target);
+  bool InterestGained(Element* target);
+  bool InterestLost(
+      Element* target,
+      InterestLostCancelable = InterestLostCancelable::kCancelable,
+      InterestLostPopoverBehavior =
+          InterestLostPopoverBehavior::kClosePopovers);
+
   // Returns the target of the `interestfor` attribute, if any, and only if
   // the element supports this attribute. For example, `interestfor` is not
   // allowed on a `<div>`.
@@ -1212,7 +1226,10 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   // be set on the element. Element must already be an an interest invoker that
   // has interest, or a DCHECK will fail. If the target of the interest invoker
   // is a popover, the popover will be hidden.
-  void LoseInterestNow();
+  void LoseInterestNow(InterestLostCancelable, InterestLostPopoverBehavior);
+
+  // Lose interest immediately in all elements that currently have interest.
+  static void LoseInterestInAllElements(Document&);
 
   // Returns true if any of its (non-inclusive) flat tree descendants is
   // keyboard focusable. Note that this is quite slow, since it traverses the
@@ -1662,8 +1679,20 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
       PseudoId pseudo_id,
       const AtomicString& view_transition_name) const;
 
+  // Performs a full-update of the view-transition pseudo-element tree. A full
+  // update is required whenever the topology of the tree may have changed
+  // (i.e. after a capture phase).
   void RecalcTransitionPseudoTreeStyle(
       const Vector<AtomicString>& view_transition_names);
+
+  // Performs an incremental update of the view-transitions. This version does
+  // not create new view-transition pseudos, but simply ensures style changes
+  // propagate correctly.
+  // TODO(crbug.com/442622988): Handle creation here as well and deprecate
+  // RecalcTransitionPseudoTreeStyle.
+  void UpdateTransitionPseudoElements(const StyleRecalcChange,
+                                      const StyleRecalcContext&);
+
   void RebuildTransitionPseudoLayoutTree(
       const Vector<AtomicString>& view_transition_names);
 
@@ -1718,10 +1747,16 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   void RemoveAnchorPositionScrollData();
   AnchorPositionScrollData* GetAnchorPositionScrollData() const;
 
-  // Returns true if any element is implicitly anchored to this element.
-  bool HasImplicitlyAnchoredElement() const;
-  void DecrementImplicitlyAnchoredElementCount();
-  void IncrementImplicitlyAnchoredElementCount();
+  // Returns true if any element may be implicitly anchored to this element.
+  // This flag is sticky once set. An element may be an implicit anchor for
+  // multiple elements, and all elements may be the implicit anchor for any
+  // pseudo element if the pseudo element is using anchor positioning. Since
+  // using anchor positioning depends on style, it would be tricky to keep
+  // track of when an element is no longer an implicit anchor, hence once we
+  // start considering an element as a potential implicit anchor, it will stay
+  // so.
+  bool MayBeImplicitAnchor() const;
+  void SetMayBeImplicitAnchor();
 
   bool HasAnchorElementObserverForTesting() const {
     return GetAnchorElementObserver();
@@ -2283,11 +2318,8 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   bool IsStyleAttributeChangeAllowed(const AtomicString& style_string);
 
   // These schedule interest gained/lost events, for `interestfor` invokers.
-  void ScheduleInterestGainedTask(InterestState);
+  void ScheduleInterestGainedTask();
   void ScheduleInterestLostTask();
-  static bool GainOrLoseInterest(Element* invoker,
-                                 Element* target,
-                                 InterestState new_state);
   enum class InterestSource {
     kHover,
     kDeHover,

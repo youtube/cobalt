@@ -12,22 +12,6 @@ source_set("features") {
   deps = [ "//base" ]
 }
 
-source_set("cross_device_pref_tracker") {
-  sources = [
-    "cross_device_pref_tracker.cc",
-    "cross_device_pref_tracker.h",
-    "cross_device_pref_tracker_impl.cc",
-    "cross_device_pref_tracker_impl.h",
-  ]
-
-  deps = [
-    "//base",
-    "//components/keyed_service/core",
-    "//components/prefs",
-    "//components/sync_device_info",
-  ]
-}
-
 static_library("sync_preferences") {
   sources = [
     "dual_layer_user_pref_store.cc",

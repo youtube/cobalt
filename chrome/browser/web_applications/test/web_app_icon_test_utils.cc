@@ -235,12 +235,15 @@ void AddIconsToWebAppInstallInfo(
     for (size_t i = 0; i < info.sizes_px.size(); ++i) {
       apps::IconInfo apps_icon_info =
           CreateIconInfo(icons_base_url, info.purpose, info.sizes_px[i]);
-      install_info->manifest_icons.push_back(std::move(apps_icon_info));
+      install_info->manifest_icons.push_back(apps_icon_info);
+      install_info->trusted_icons.push_back(apps_icon_info);
 
       AddGeneratedIcon(&generated_bitmaps, info.sizes_px[i], info.colors[i]);
     }
 
-    install_info->icon_bitmaps.SetBitmapsForPurpose(
+    install_info->icon_bitmaps.SetBitmapsForPurpose(info.purpose,
+                                                    generated_bitmaps);
+    install_info->trusted_icon_bitmaps.SetBitmapsForPurpose(
         info.purpose, std::move(generated_bitmaps));
   }
 }
@@ -282,14 +285,13 @@ SkColor IconManagerReadAppIconPixel(WebAppIconManager& icon_manager,
                                     int y) {
   SkColor result = SK_ColorTRANSPARENT;
   base::RunLoop run_loop;
-  icon_manager.ReadUntrustedIcons(
-      app_id, IconPurpose::ANY, {size_px},
-      base::BindLambdaForTesting(
-          [&](std::map<SquareSizePx, SkBitmap> icon_bitmaps) {
-            DCHECK(base::Contains(icon_bitmaps, size_px));
-            result = icon_bitmaps.at(size_px).getColor(x, y);
-            run_loop.Quit();
-          }));
+  icon_manager.ReadTrustedIconsWithFallbackToManifestIcons(
+      app_id, {size_px}, IconPurpose::ANY,
+      base::BindLambdaForTesting([&](IconMetadataFromDisk icon_metadata) {
+        DCHECK(base::Contains(icon_metadata.icons_map, size_px));
+        result = icon_metadata.icons_map.at(size_px).getColor(x, y);
+        run_loop.Quit();
+      }));
   run_loop.Run();
   return result;
 }

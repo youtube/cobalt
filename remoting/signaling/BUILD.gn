@@ -4,6 +4,10 @@
 
 static_library("signaling") {
   sources = [
+    "corp_message_channel_strategy.cc",
+    "corp_message_channel_strategy.h",
+    "corp_messaging_client.cc",
+    "corp_messaging_client.h",
     "ftl_client_uuid_device_id_provider.cc",
     "ftl_client_uuid_device_id_provider.h",
     "ftl_device_id_provider.h",
@@ -61,6 +65,7 @@ static_library("signaling") {
     "//remoting/base:authorization",
     "//remoting/base:logging",
     "//remoting/base:name_value_map",
+    "//remoting/proto:internal_structs",
     "//remoting/proto/ftl/v1:ftl_messages",
     "//services/network/public/cpp",
   ]
@@ -90,6 +95,8 @@ source_set("unit_tests") {
   testonly = true
 
   sources = [
+    "corp_message_channel_strategy_unittest.cc",
+    "corp_messaging_client_unittest.cc",
     "ftl_message_channel_strategy_unittest.cc",
     "ftl_messaging_client_unittest.cc",
     "ftl_registration_manager_unittest.cc",
@@ -104,7 +111,9 @@ source_set("unit_tests") {
     ":test_support",
     "//net:test_support",
     "//remoting/base",
+    "//remoting/base:buildflags",
     "//remoting/base:test_support",
+    "//remoting/proto:internal_structs",
     "//services/network/public/cpp",
     "//testing/gmock",
     "//testing/gtest",

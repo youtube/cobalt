@@ -78,7 +78,7 @@
 #include "ui/color/color_provider_source.h"
 #include "ui/events/base_event_utils.h"
 #include "ui/events/keycodes/keyboard_codes.h"
-#include "ui/native_theme/native_theme_utils.h"
+#include "ui/native_theme/native_theme.h"
 #include "v8/include/v8.h"
 
 #if BUILDFLAG(IS_MAC)
@@ -393,7 +393,7 @@ void RenderViewTest::SetUp() {
   blink::WebRuntimeFeatures::EnableExperimentalFeatures(true);
   blink::WebRuntimeFeatures::EnableTestOnlyFeatures(true);
   blink::WebRuntimeFeatures::EnableOverlayScrollbars(
-      ui::IsOverlayScrollbarEnabled());
+      ui::NativeTheme::GetInstanceForWeb()->use_overlay_scrollbar());
   blink::WebV8Features::InitializeMojoJSAllowedProtectedMemory();
 
   test_io_thread_ =
@@ -478,7 +478,7 @@ void RenderViewTest::SetUp() {
           ui::ColorProviderKey::ForcedColors::kNone),
       mock_color_provider_source_.GetRendererColorMap(
           mock_color_provider_source_.GetColorMode(),
-          ui::ColorProviderKey::ForcedColors::kActive)};
+          ui::ColorProviderKey::ForcedColors::kSystem)};
 
   mojom::CreateViewParamsPtr view_params = mojom::CreateViewParams::New();
   view_params->opener_frame_token = std::nullopt;

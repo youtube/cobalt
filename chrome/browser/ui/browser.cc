@@ -100,6 +100,8 @@
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_live_tab_context.h"
+#include "chrome/browser/ui/browser_manager_service.h"
+#include "chrome/browser/ui/browser_manager_service_factory.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_select_file_dialog_controller.h"
@@ -108,6 +110,7 @@
 #include "chrome/browser/ui/browser_ui_prefs.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/browser_window/public/desktop_browser_window_capabilities.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
@@ -323,13 +326,6 @@ namespace {
 
 // How long we wait before updating the browser chrome while loading a page.
 constexpr base::TimeDelta kUIUpdateCoalescingTime = base::Milliseconds(200);
-
-BrowserWindow* CreateBrowserWindow(std::unique_ptr<Browser> browser,
-                                   bool user_gesture,
-                                   bool in_tab_dragging) {
-  return BrowserWindow::CreateBrowserWindow(std::move(browser), user_gesture,
-                                            in_tab_dragging);
-}
 
 const extensions::Extension* GetExtensionForOrigin(
     Profile* profile,
@@ -558,7 +554,6 @@ Browser::CreationStatus Browser::GetCreationStatusForProfile(Profile* profile) {
   }
 
   if (!IncognitoModePrefs::CanOpenBrowser(profile) ||
-      (profile->IsGuestSession() && !profile->IsOffTheRecord()) ||
       !profile->AllowsBrowserWindows() ||
       IsProfileDirectoryMarkedForDeletion(profile->GetPath())) {
     return CreationStatus::kErrorProfileUnsuitable;
@@ -577,7 +572,12 @@ Browser* Browser::Create(const CreateParams& params) {
   // not possible, e.g. using the wrong profile or during shutdown. The caller
   // should handle this; see e.g. crbug.com/1141608 and crbug.com/1261628.
   CHECK_EQ(CreationStatus::kOk, GetCreationStatusForProfile(params.profile));
-  return new Browser(params);
+
+  std::unique_ptr<Browser> browser = base::WrapUnique(new Browser(params));
+  Browser* const browser_ptr = browser.get();
+  BrowserManagerServiceFactory::GetForProfile(params.profile)
+      ->AddBrowser(std::move(browser));
+  return browser_ptr;
 }
 
 // static
@@ -664,14 +664,13 @@ Browser::Browser(const CreateParams& params)
 #endif  // BUILDFLAG(IS_OZONE)
 
   if (params.window) {
-    window_for_testing_.reset(params.window.get());
-    window_ = params.window.get();
-  } else {
-    // TODO(crbug.com/413168662): This can be consolidated with above once
-    // Browser always owns BrowserWindow.
-    window_ = CreateBrowserWindow(std::unique_ptr<Browser>(this),
-                                  params.user_gesture, params.in_tab_dragging);
+    CHECK_IS_TEST() << "Browser::CreateParams::window is a test-only param";
   }
+  window_ =
+      params.window
+          ? std::unique_ptr<BrowserWindow, BrowserWindowDeleter>(params.window)
+          : BrowserWindow::CreateBrowserWindow(this, params.user_gesture,
+                                               params.in_tab_dragging);
 
   if (auto* const app_browser_controller = GetAppBrowserController();
       app_browser_controller) {
@@ -694,10 +693,8 @@ Browser::Browser(const CreateParams& params)
 }
 
 Browser::~Browser() {
-  // Reset the test window, if present, before tearing down browser state.
-  window_for_testing_.reset();
-
   BrowserList::RemoveBrowser(this);
+  window_.reset();
 
   // Tear down `BrowserWindowFeatures` and `BrowserUserData`s now to avoid
   // exposing them to Browser in a partially-destroyed state. Eventually,
@@ -1016,22 +1013,36 @@ Browser::WarnBeforeClosingResult Browser::MaybeWarnBeforeClosing(
   return WarnBeforeClosingResult::kDoNotClose;
 }
 
-BrowserClosingStatus Browser::HandleBeforeClose() {
-  // If `force_skip_warning_user_` is true, then we should immediately
-  // return true.
-  if (force_skip_warning_user_on_close_) {
-    return BrowserClosingStatus::kPermitted;
-  }
+bool Browser::HandleBeforeClose() {
+  const auto get_closing_status =
+      [this]() -> BrowserWindowInterface::ClosingStatus {
+    // If `force_skip_warning_user_` is true, then we should immediately
+    // return true.
+    if (force_skip_warning_user_on_close_) {
+      return BrowserWindowInterface::ClosingStatus::kPermitted;
+    }
 
-  // If the user needs to see one or more warnings, hold off closing the
-  // browser.
-  const WarnBeforeClosingResult result = MaybeWarnBeforeClosing(base::BindOnce(
-      &Browser::FinishWarnBeforeClosing, weak_factory_.GetWeakPtr()));
-  if (result == WarnBeforeClosingResult::kDoNotClose) {
-    return BrowserClosingStatus::kDeniedByUser;
-  }
+    // If the user needs to see one or more warnings, hold off closing the
+    // browser.
+    const WarnBeforeClosingResult result =
+        MaybeWarnBeforeClosing(base::BindOnce(&Browser::FinishWarnBeforeClosing,
+                                              weak_factory_.GetWeakPtr()));
+    if (result == WarnBeforeClosingResult::kDoNotClose) {
+      return BrowserWindowInterface::ClosingStatus::kDeniedByUser;
+    }
 
-  return unload_controller_.GetBrowserClosingStatus();
+    return unload_controller_.GetBrowserClosingStatus();
+  };
+
+  // Notify clients if close was cancelled.
+  const BrowserWindowInterface::ClosingStatus close_status =
+      get_closing_status();
+  const bool close_permitted =
+      close_status == BrowserWindowInterface::ClosingStatus::kPermitted;
+  if (!close_permitted) {
+    browser_close_cancelled_callback_list_.Notify(this, close_status);
+  }
+  return close_permitted;
 }
 
 bool Browser::TryToCloseWindow(
@@ -1142,6 +1153,11 @@ base::CallbackListSubscription Browser::RegisterBrowserDidClose(
   return browser_did_close_callback_list_.Add(std::move(callback));
 }
 
+base::CallbackListSubscription Browser::RegisterBrowserCloseCancelled(
+    BrowserCloseCancelledCallback callback) {
+  return browser_close_cancelled_callback_list_.Add(std::move(callback));
+}
+
 views::View* Browser::TopContainer() {
   return window_->GetTopContainer();
 }
@@ -1199,7 +1215,7 @@ bool Browser::IsActive() const {
 #if BUILDFLAG(IS_MAC)
   // If this is a standalone PWA window, check BrowserList instead.
   if (GetAppBrowserController()) {
-    return BrowserList::GetInstance()->GetLastActive() == this;
+    return GetLastActiveBrowserWindowInterfaceWithAnyProfile() == this;
   }
 #endif
   return is_active_;
@@ -1216,8 +1232,11 @@ base::CallbackListSubscription Browser::RegisterDidBecomeInactive(
 }
 
 void Browser::SynchronouslyDestroyBrowser() {
-  CHECK(window_);
-  window_->DestroyBrowser();
+  // TODO(crbug.com/413168662): Eliminate the need for BrowserCloseManager to
+  // call this directly, instead allow Browsers to be destroyed by their owning
+  // BrowserManagerService at shutdown.
+  BrowserManagerServiceFactory::GetForProfile(profile())->DeleteBrowser(this);
+  // `this` is no longer valid from this point forward.
 }
 
 ExclusiveAccessManager* Browser::GetExclusiveAccessManager() {
@@ -1272,6 +1291,10 @@ ui::BaseWindow* Browser::GetWindow() {
   return window_.get();
 }
 
+const ui::BaseWindow* Browser::GetWindow() const {
+  return window_.get();
+}
+
 DesktopBrowserWindowCapabilities* Browser::capabilities() {
   return DesktopBrowserWindowCapabilities::From(this);
 }
@@ -1317,9 +1340,7 @@ void Browser::OnWindowClosing() {
     return;
   }
 
-  if (const auto closing_status = HandleBeforeClose();
-      closing_status != BrowserClosingStatus::kPermitted) {
-    BrowserList::NotifyBrowserCloseCancelled(this, closing_status);
+  if (!HandleBeforeClose()) {
     return;
   }
 
@@ -1370,6 +1391,15 @@ void Browser::OnWindowClosing() {
     // At this point the browser has successfully closed and is scheduled for
     // deletion.
     browser_did_close_callback_list_.Notify(this);
+
+    // Once a Browser has successfully closed, client code expects control to
+    // return to the run loop before the instance is finally deleted. To
+    // maintain existing expectations schedule the delete asynchronously here.
+    // TODO(crbug.com/413168662): Explore synchronously destroying the browser
+    // instead.
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(&Browser::SynchronouslyDestroyBrowser,
+                                  weak_factory_.GetWeakPtr()));
   }
 }
 
@@ -2192,6 +2222,10 @@ void Browser::ActivateContents(WebContents* contents) {
   window_->Activate();
 }
 
+bool Browser::IsContentsActive(content::WebContents* contents) {
+  return tab_strip_model_->GetActiveWebContents() == contents;
+}
+
 void Browser::LoadingStateChanged(WebContents* source,
                                   bool should_show_loading_ui) {
   ScheduleUIUpdate(source, content::INVALIDATE_TYPE_LOAD);
@@ -2527,6 +2561,12 @@ Browser::GetSavedRelatedApplications(WebContents* web_contents) {
     related_apps_ptr.push_back(std::move(related_app));
   }
   return related_apps_ptr;
+}
+
+content::WebContents* Browser::GetResponsibleWebContents(
+    content::WebContents* web_contents) {
+  // Tabs are the proper choice for modal scope.
+  return web_contents;
 }
 
 void Browser::RunFileChooser(
@@ -2931,7 +2971,8 @@ void Browser::SetWebContentsBlocked(content::WebContents* web_contents,
 
   tab_strip_model_->SetTabBlocked(index, blocked);
 
-  bool browser_active = BrowserList::GetInstance()->GetLastActive() == this;
+  const bool browser_active =
+      GetLastActiveBrowserWindowInterfaceWithAnyProfile() == this;
   bool contents_is_active =
       tab_strip_model_->GetActiveWebContents() == web_contents;
   // If the WebContents is foremost (the active tab in the front-most browser)

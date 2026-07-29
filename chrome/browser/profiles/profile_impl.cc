@@ -1056,15 +1056,6 @@ bool ProfileImpl::IsChild() const {
          supervised_user::kChildAccountSUID;
 }
 
-bool ProfileImpl::AllowsBrowserWindows() const {
-#if BUILDFLAG(IS_CHROMEOS)
-  if (ash::ProfileHelper::IsSigninProfile(this)) {
-    return false;
-  }
-#endif
-  return !IsSystemProfile();
-}
-
 ExtensionSpecialStoragePolicy* ProfileImpl::GetExtensionSpecialStoragePolicy() {
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   if (!extension_special_storage_policy_.get()) {
@@ -1136,11 +1127,17 @@ void ProfileImpl::OnLocaleReady(CreateMode create_mode) {
 
   SimpleDependencyManager::GetInstance()->CreateServices(GetProfileKey());
 
+#if !BUILDFLAG(IS_ANDROID)
   // Check that the IdentityManager was not created before the browser context
   // services were created. This ensures that browser tests can override the
   // IdentityManager with a fake.
+
+  // TODO(msarda): This invariant is violated on Android. Remove this check
+  // once the IdentityManager is no longer created as part of the initialization
+  // of the storage partition on Android.
   CHECK(!IdentityManagerFactory::GetForProfileIfExists(this),
         base::NotFatalUntil::M160);
+#endif
 
   BrowserContextDependencyManager::GetInstance()->CreateBrowserContextServices(
       this);

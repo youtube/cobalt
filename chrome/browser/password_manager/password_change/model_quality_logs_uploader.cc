@@ -178,27 +178,27 @@ LoginPasswordType GetLoginAttemptPasswordType(
 }  // namespace
 
 ModelQualityLogsUploader::ModelQualityLogsUploader(
-    content::WebContents* web_contents) {
+    content::WebContents* web_contents,
+    const GURL& change_password_url) {
   CHECK(web_contents);
   profile_ = Profile::FromBrowserContext(web_contents->GetBrowserContext());
-  SetCommonInformationQuality(web_contents);
+
+  auto* quality =
+      final_log_data_.mutable_password_change_submission()->mutable_quality();
+  quality->set_domain(GetPageDomain(change_password_url));
+  quality->set_location(GetLocation());
+  quality->set_language(GetPageLanguage(web_contents));
 }
 ModelQualityLogsUploader::~ModelQualityLogsUploader() = default;
 
-void ModelQualityLogsUploader::SetCommonInformationQuality(
-    content::WebContents* web_contents) {
-  CHECK(web_contents);
-  const GURL& page_url =
-      web_contents->GetPrimaryMainFrame()->GetLastCommittedURL();
+void ModelQualityLogsUploader::SetLoggedInCheckQuality(int state_checks_count) {
+  // If the initial login check wasn't performed because the page content failed
+  // to be requested, the state_checks_count can be 0.
+  const int retry_count = std::max(0, state_checks_count - 1);
   final_log_data_.mutable_password_change_submission()
       ->mutable_quality()
-      ->set_domain(GetPageDomain(page_url));
-  final_log_data_.mutable_password_change_submission()
-      ->mutable_quality()
-      ->set_location(GetLocation());
-  final_log_data_.mutable_password_change_submission()
-      ->mutable_quality()
-      ->set_language(GetPageLanguage(web_contents));
+      ->mutable_logged_in_check()
+      ->set_retry_count(retry_count);
 }
 
 void ModelQualityLogsUploader::SetOpenFormQuality(

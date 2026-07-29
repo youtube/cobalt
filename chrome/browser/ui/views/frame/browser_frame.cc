@@ -22,13 +22,14 @@
 #include "chrome/browser/themes/theme_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_list.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window_state.h"
+#include "chrome/browser/ui/views/frame/browser_native_widget.h"
+#include "chrome/browser/ui/views/frame/browser_native_widget_factory.h"
 #include "chrome/browser/ui/views/frame/browser_non_client_frame_view.h"
 #include "chrome/browser/ui/views/frame/browser_root_view.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
-#include "chrome/browser/ui/views/frame/native_browser_frame.h"
-#include "chrome/browser/ui/views/frame/native_browser_frame_factory.h"
 #include "chrome/browser/ui/views/frame/system_menu_model_builder.h"
 #include "chrome/browser/ui/views/frame/top_container_view.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
@@ -124,11 +125,10 @@ ui::ColorProviderKey::SchemeVariant GetSchemeVariant(
 // BrowserFrame, public:
 
 BrowserFrame::BrowserFrame(BrowserView* browser_view)
-    : native_browser_frame_(nullptr),
+    : browser_native_widget_(nullptr),
       root_view_(nullptr),
       browser_frame_view_(nullptr),
       browser_view_(browser_view) {
-  browser_view_->set_frame(this);
   set_is_secondary_widget(false);
   // Don't focus anything on creation, selecting a tab will set the focus.
   set_focus_on_creation(false);
@@ -136,19 +136,31 @@ BrowserFrame::BrowserFrame(BrowserView* browser_view)
 
 BrowserFrame::~BrowserFrame() {
   set_widget_closed();
-  // Window placement is expected to be saved when the window closes. Under the
-  // CLIENT_OWNS_WIDGET ownership scheme this signal is received in the
-  // Widget destructor. `SaveWindowPlacement()` must be called here as this
-  // depends on state in BrowserFrame, which will have been torn down by the
-  // time the Widget destructor runs.
-  SaveWindowPlacementIfNeeded();
+
+  // Synchronously destroy owned Widgets, which are typically owned by the
+  // BrowserFrame's NativeWidget, to mitigate the risk of dangling pointers to
+  // Browser and related objects during destruction.
+  views::Widget::ForEachOwnedWidget(GetNativeView(),
+                                    [this](views::Widget* widget) {
+                                      if (widget != this) {
+                                        widget->CloseNow();
+                                      }
+                                    });
+
+  // Invoke the pre-window-destruction lifecycle hook before the owned
+  // BrowserView is destroyed.
+  // Do this here and not in ~BrowserView() as BrowserWindowFeatures may attempt
+  // to read state on the BrowserFrame as they undergo destruction, and
+  // BrowserFrame state is destroyed at the end of this scope.
+  browser_view_->browser()->GetFeatures().TearDownPreBrowserWindowDestruction();
 }
 
 void BrowserFrame::InitBrowserFrame() {
-  native_browser_frame_ =
-      NativeBrowserFrameFactory::CreateNativeBrowserFrame(this, browser_view_);
-  views::Widget::InitParams params = native_browser_frame_->GetWidgetParams(
-      views::Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET);
+  browser_native_widget_ =
+      BrowserNativeWidgetFactory::CreateBrowserNativeWidget(this,
+                                                            browser_view_);
+  views::Widget::InitParams params = browser_native_widget_->GetWidgetParams(
+      views::Widget::InitParams::CLIENT_OWNS_WIDGET);
   params.name = "BrowserFrame";
   params.delegate = browser_view_;
   params.headless_mode = headless::IsHeadlessMode();
@@ -175,7 +187,7 @@ void BrowserFrame::InitBrowserFrame() {
   params.session_data = browser->platform_session_data();
 #endif
 
-  if (native_browser_frame_->ShouldRestorePreviousBrowserWidgetState()) {
+  if (browser_native_widget_->ShouldRestorePreviousBrowserWidgetState()) {
     if (browser->is_type_normal() || browser->is_type_devtools() ||
         browser->is_type_app()) {
       // Typed panel/popup can only return a size once the widget has been
@@ -188,7 +200,7 @@ void BrowserFrame::InitBrowserFrame() {
                                                &params.show_state);
 
       params.workspace = browser->initial_workspace();
-      if (native_browser_frame_->ShouldUseInitialVisibleOnAllWorkspaces()) {
+      if (browser_native_widget_->ShouldUseInitialVisibleOnAllWorkspaces()) {
         params.visible_on_all_workspaces =
             browser->initial_visible_on_all_workspaces_state();
       }
@@ -210,15 +222,15 @@ void BrowserFrame::InitBrowserFrame() {
   SetNativeTheme(ui::NativeTheme::GetInstanceForNativeUi());
 #endif
 
-  if (!native_browser_frame_->UsesNativeSystemMenu()) {
+  if (!browser_native_widget_->UsesNativeSystemMenu()) {
     DCHECK(non_client_view());
     non_client_view()->set_context_menu_controller(this);
   }
 }
 
 int BrowserFrame::GetMinimizeButtonOffset() const {
-  return native_browser_frame_
-             ? native_browser_frame_->GetMinimizeButtonOffset()
+  return browser_native_widget_
+             ? browser_native_widget_->GetMinimizeButtonOffset()
              : 0;
 }
 
@@ -314,37 +326,33 @@ BrowserNonClientFrameView* BrowserFrame::GetFrameView() const {
 }
 
 bool BrowserFrame::UseCustomFrame() const {
-  return native_browser_frame_ && native_browser_frame_->UseCustomFrame();
+  return browser_native_widget_ && browser_native_widget_->UseCustomFrame();
 }
 
 bool BrowserFrame::ShouldSaveWindowPlacement() const {
-  return native_browser_frame_ &&
-         native_browser_frame_->ShouldSaveWindowPlacement();
-}
-
-bool BrowserFrame::ShouldDrawFrameHeader() const {
-  return true;
+  return browser_native_widget_ &&
+         browser_native_widget_->ShouldSaveWindowPlacement();
 }
 
 void BrowserFrame::GetWindowPlacement(
     gfx::Rect* bounds,
     ui::mojom::WindowShowState* show_state) const {
-  if (native_browser_frame_) {
-    native_browser_frame_->GetWindowPlacement(bounds, show_state);
+  if (browser_native_widget_) {
+    browser_native_widget_->GetWindowPlacement(bounds, show_state);
   }
 }
 
 content::KeyboardEventProcessingResult BrowserFrame::PreHandleKeyboardEvent(
     const input::NativeWebKeyboardEvent& event) {
-  return native_browser_frame_
-             ? native_browser_frame_->PreHandleKeyboardEvent(event)
+  return browser_native_widget_
+             ? browser_native_widget_->PreHandleKeyboardEvent(event)
              : content::KeyboardEventProcessingResult::NOT_HANDLED;
 }
 
 bool BrowserFrame::HandleKeyboardEvent(
     const input::NativeWebKeyboardEvent& event) {
-  return native_browser_frame_ &&
-         native_browser_frame_->HandleKeyboardEvent(event);
+  return browser_native_widget_ &&
+         browser_native_widget_->HandleKeyboardEvent(event);
 }
 
 void BrowserFrame::OnBrowserViewInitViewsComplete() {
@@ -464,6 +472,21 @@ void BrowserFrame::OnNativeWidgetWorkspaceChanged() {
   Widget::OnNativeWidgetWorkspaceChanged();
 }
 
+void BrowserFrame::OnNativeWidgetDestroyed() {
+  browser_native_widget_ = nullptr;
+  Browser* const browser = browser_view_->browser();
+
+  // Current expectations are that the Browser is destroyed synchronously when
+  // its NativeWidget is destroyed. Prepare Browser and request synchronous
+  // destruction here.
+  // TODO(crbug.com/413168662): Once clients have been migrated away from
+  // closing Browsers via their NativeWidgets explore removing this completely.
+  browser->set_force_skip_warning_user_on_close(true);
+  browser->OnWindowClosing();
+  Widget::OnNativeWidgetDestroyed();
+  browser->SynchronouslyDestroyBrowser();
+}
+
 void BrowserFrame::ShowContextMenuForViewImpl(
     views::View* source,
     const gfx::Point& p,
@@ -550,8 +573,8 @@ void BrowserFrame::SetTabDragKind(TabDragKind tab_drag_kind) {
     return;
   }
 
-  if (native_browser_frame_) {
-    native_browser_frame_->TabDraggingKindChanged(tab_drag_kind);
+  if (browser_native_widget_) {
+    browser_native_widget_->TabDraggingKindChanged(tab_drag_kind);
   }
 
   bool was_dragging_any = tab_drag_kind_ != TabDragKind::kNone;

@@ -66,6 +66,7 @@
 #include "chrome/browser/ui/lens/lens_overlay_url_builder.h"
 #include "chrome/browser/ui/lens/lens_permission_bubble_controller.h"
 #include "chrome/browser/ui/lens/lens_search_controller.h"
+#include "chrome/browser/ui/lens/lens_searchbox_controller.h"
 #include "chrome/browser/ui/lens/lens_side_panel_untrusted_ui.h"
 #include "chrome/browser/ui/lens/test_lens_overlay_controller.h"
 #include "chrome/browser/ui/lens/test_lens_overlay_query_controller.h"
@@ -134,6 +135,7 @@
 #include "net/base/mock_network_change_notifier.h"
 #include "net/base/network_change_notifier.h"
 #include "net/base/url_util.h"
+#include "net/test/embedded_test_server/http_response.h"
 #include "pdf/pdf_features.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "third_party/blink/public/mojom/context_menu/context_menu.mojom.h"
@@ -148,6 +150,7 @@
 #include "ui/events/event_constants.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/controls/webview/webview.h"
+#include "ui/views/interaction/element_tracker_views.h"
 #include "ui/views/test/widget_test.h"
 #include "ui/views/view_utils.h"
 #include "ui/views/widget/any_widget_observer.h"
@@ -1518,6 +1521,89 @@ IN_PROC_BROWSER_TEST_F(LensOverlayControllerBrowserTest,
   EXPECT_FALSE(controller->get_selected_text_for_region().has_value());
   fake_controller->FlushForTesting();
   EXPECT_TRUE(fake_controller->fake_overlay_page_.did_clear_text_selection_);
+}
+
+// TODO(crbug.com/335801964): Test flaky on Mac.
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_SetShowSidePanelSearchboxThumbnail \
+  DISABLED_SetShowSidePanelSearchboxThumbnail
+#else
+#define MAYBE_SetShowSidePanelSearchboxThumbnail \
+  SetShowSidePanelSearchboxThumbnail
+#endif
+IN_PROC_BROWSER_TEST_F(LensOverlayControllerBrowserTest,
+                       MAYBE_SetShowSidePanelSearchboxThumbnail) {
+  EXPECT_CALL(*mock_hats_service_, LaunchDelayedSurveyForWebContents(
+                                       kHatsSurveyTriggerLensOverlayResults, _,
+                                       _, _, _, _, _, _, _, _));
+  WaitForPaint();
+
+  std::string text_query = "Apples";
+  // State should start in off.
+  auto* controller = GetLensOverlayController();
+  ASSERT_EQ(controller->state(), State::kOff);
+
+  // Showing UI should change the state to screenshot and eventually to overlay.
+  OpenLensOverlay(LensOverlayInvocationSource::kAppMenu);
+  ASSERT_EQ(controller->state(), State::kScreenshot);
+  EXPECT_TRUE(controller->GetThumbnailForTesting().empty());
+  EXPECT_EQ(controller->GetPageClassificationForTesting(),
+            metrics::OmniboxEventProto::SEARCH_SIDE_PANEL_SEARCHBOX);
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return controller->state() == State::kOverlay; }));
+  // We need to flush the mojo receiver calls to make sure the screenshot was
+  // passed back to the WebUI or else the region selection UI will not render.
+  auto* fake_controller = static_cast<LensOverlayControllerFake*>(controller);
+  ASSERT_TRUE(fake_controller);
+  fake_controller->FlushForTesting();
+  ASSERT_TRUE(content::WaitForLoadStop(GetOverlayWebContents()));
+
+  // Simulate mouse events on the overlay for drawing a manual region.
+  gfx::Point center =
+      GetOverlayWebContents()->GetContainerBounds().CenterPoint();
+  gfx::Point off_center = gfx::Point(center);
+  off_center.Offset(100, 100);
+  SimulateLeftClickDrag(center, off_center);
+
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return controller->state() == State::kOverlayAndResults; }));
+  auto* coordinator = browser()->GetFeatures().side_panel_coordinator();
+  // Expect the Lens Overlay results panel to open.
+  ASSERT_TRUE(coordinator->IsSidePanelShowing());
+  EXPECT_EQ(coordinator->GetCurrentEntryId(),
+            SidePanelEntry::Id::kLensOverlayResults);
+
+  // Verify that the side panel searchbox displays a thumbnail and that the
+  // controller has a copy.
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return true == content::EvalJs(
+                       controller->GetSidePanelWebContentsForTesting(),
+                       content::JsReplace(kCheckSidePanelThumbnailShownScript));
+  }));
+  EXPECT_TRUE(base::StartsWith(controller->GetThumbnailForTesting(), "data:"));
+
+  GetLensSearchController()
+      ->lens_searchbox_controller()
+      ->SetShowSidePanelSearchboxThumbnail(false);
+
+  // Verify that the thumbnail is hidden.
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return false ==
+           content::EvalJs(
+               controller->GetSidePanelWebContentsForTesting(),
+               content::JsReplace(kCheckSidePanelThumbnailShownScript));
+  }));
+
+  GetLensSearchController()
+      ->lens_searchbox_controller()
+      ->SetShowSidePanelSearchboxThumbnail(true);
+
+  // Verify that the thumbnail is shown again.
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return true == content::EvalJs(
+                       controller->GetSidePanelWebContentsForTesting(),
+                       content::JsReplace(kCheckSidePanelThumbnailShownScript));
+  }));
 }
 
 // TODO(b/350991033): Test flaky on Mac.
@@ -5764,12 +5850,12 @@ IN_PROC_BROWSER_TEST_P(LensOverlayControllerBrowserPDFContextualizationTest,
       EqualsProto(fake_query_controller->last_sent_page_content_payload()));
 
   // Verify the searchbox was shown. The CSB should be shown for all PDFs
-  // regardless of size. The server will handle what should be returned for large
-  // PDFs.
+  // regardless of size. The server will handle what should be returned for
+  // large PDFs.
   auto* fake_controller = static_cast<LensOverlayControllerFake*>(controller);
   ASSERT_TRUE(fake_controller);
   EXPECT_TRUE(fake_controller->fake_overlay_page_
-                   .last_received_should_show_contextual_searchbox_);
+                  .last_received_should_show_contextual_searchbox_);
   CloseOverlayAndWaitForOff(controller,
                             LensOverlayDismissalSource::kOverlayCloseButton);
 
@@ -7834,6 +7920,158 @@ IN_PROC_BROWSER_TEST_F(LensOverlayControllerBrowserTest, ProtectedPageShows) {
                                      /*expected_count=*/1);
 }
 
+class LensOverlayControllerIframeBrowserTest
+    : public LensOverlayControllerBrowserTest {
+  void SetUp() override {
+    // Register a request handler to close the socket. This should result in an
+    // ERR_EMPTY_RESPONSE, which is not a special-cased error. Used for the
+    // SidePanelIframeLoadOtherError test case. The `test` query parameter is
+    // used to trigger this handler.
+    embedded_test_server()->RegisterRequestHandler(base::BindRepeating(
+        [](const net::test_server::HttpRequest& request)
+            -> std::unique_ptr<net::test_server::HttpResponse> {
+          if (base::StartsWith(request.relative_url, kDocumentWithNamedElement,
+                               base::CompareCase::SENSITIVE)) {
+            std::string fail_query_param;
+            net::GetValueForKeyInQuery(request.GetURL(), "fail",
+                                       &fail_query_param);
+            if (fail_query_param == "invalid-headers") {
+              return std::make_unique<net::test_server::RawHttpResponse>(
+                  "invalid-headers", "");
+            }
+          }
+          return nullptr;
+        }));
+
+    LensOverlayControllerBrowserTest::SetUp();
+  }
+
+ protected:
+  void SetupFeatureList() override {
+    // Set the results search URL to the test server URL so that the iframe
+    // navigations are allowed by the iframe CORS policy and the navigation
+    // throttle.
+    feature_list_.InitAndEnableFeatureWithParameters(
+        lens::features::kLensOverlay,
+        {
+            {"results-search-url",
+             embedded_test_server()->GetURL(kDocumentWithNamedElement).spec()},
+        });
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(LensOverlayControllerIframeBrowserTest,
+                       SidePanelIframeLoadSuccess) {
+  base::HistogramTester histogram_tester;
+  WaitForPaint();
+
+  // State should start in off.
+  auto* controller = GetLensOverlayController();
+  ASSERT_EQ(controller->state(), State::kOff);
+
+  // Showing UI should change the state to screenshot and eventually to overlay.
+  OpenLensOverlay(LensOverlayInvocationSource::kAppMenu);
+  ASSERT_EQ(controller->state(), State::kScreenshot);
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return controller->state() == State::kOverlay; }));
+  ASSERT_TRUE(content::WaitForLoadStop(GetOverlayWebContents()));
+
+  // Open the side panel.
+  controller->OpenSidePanelForTesting();
+  ASSERT_TRUE(content::WaitForLoadStop(
+      controller->GetSidePanelWebContentsForTesting()));
+
+  // Navigate the iframe to a successful URL.
+  GURL url(embedded_test_server()->GetURL(kDocumentWithNamedElement));
+  content::TestNavigationObserver navigation_observer(
+      controller->GetSidePanelWebContentsForTesting());
+  controller->results_side_panel_coordinator()->LoadURLInResultsFrameForTesting(
+      url);
+  navigation_observer.WaitForNavigationFinished();
+
+  // Check histogram. The enum is defined in the .cc file so we can't reference
+  // it directly.
+  histogram_tester.ExpectUniqueSample("Lens.Overlay.SidePanel.IframeLoadStatus",
+                                      /*IframeLoadStatus::kSuccess=*/0, 1);
+}
+
+IN_PROC_BROWSER_TEST_F(LensOverlayControllerIframeBrowserTest,
+                       SidePanelIframeLoadConnectionRefused) {
+  base::HistogramTester histogram_tester;
+  WaitForPaint();
+
+  // State should start in off.
+  auto* controller = GetLensOverlayController();
+  ASSERT_EQ(controller->state(), State::kOff);
+
+  // Showing UI should change the state to screenshot and eventually to overlay.
+  OpenLensOverlay(LensOverlayInvocationSource::kAppMenu);
+  ASSERT_EQ(controller->state(), State::kScreenshot);
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return controller->state() == State::kOverlay; }));
+  ASSERT_TRUE(content::WaitForLoadStop(GetOverlayWebContents()));
+
+  // Open the side panel.
+  controller->OpenSidePanelForTesting();
+  ASSERT_TRUE(content::WaitForLoadStop(
+      controller->GetSidePanelWebContentsForTesting()));
+
+  // Create a URL and then shut down the server to force a connection refused
+  // error when the iframe tries to load the URL.
+  GURL url = embedded_test_server()->GetURL(kDocumentWithNamedElement);
+  ASSERT_TRUE(embedded_test_server()->ShutdownAndWaitUntilComplete());
+
+  // Navigate the iframe to the connection refused URL.
+  content::TestNavigationObserver navigation_observer(
+      controller->GetSidePanelWebContentsForTesting());
+  controller->results_side_panel_coordinator()->LoadURLInResultsFrameForTesting(
+      url);
+  navigation_observer.WaitForNavigationFinished();
+
+  // Check histogram.
+  histogram_tester.ExpectUniqueSample(
+      "Lens.Overlay.SidePanel.IframeLoadStatus",
+      /*IframeLoadStatus::kFailedConnectionRefused=*/1, 1);
+}
+
+IN_PROC_BROWSER_TEST_F(LensOverlayControllerIframeBrowserTest,
+                       SidePanelIframeLoadOtherError) {
+  base::HistogramTester histogram_tester;
+  WaitForPaint();
+
+  // State should start in off.
+  auto* controller = GetLensOverlayController();
+  ASSERT_EQ(controller->state(), State::kOff);
+
+  // Showing UI should change the state to screenshot and eventually to overlay.
+  OpenLensOverlay(LensOverlayInvocationSource::kAppMenu);
+  ASSERT_EQ(controller->state(), State::kScreenshot);
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return controller->state() == State::kOverlay; }));
+  ASSERT_TRUE(content::WaitForLoadStop(GetOverlayWebContents()));
+
+  // Open the side panel.
+  controller->OpenSidePanelForTesting();
+  ASSERT_TRUE(content::WaitForLoadStop(
+      controller->GetSidePanelWebContentsForTesting()));
+
+  // Navigate the iframe to the URL with a query parameter. This will trigger
+  // the request handler that will close the socket.
+  GURL url = net::AppendOrReplaceQueryParameter(
+      embedded_test_server()->GetURL(kDocumentWithNamedElement), /*key=*/"fail",
+      /*value=*/"invalid-headers");
+  content::TestNavigationObserver navigation_observer(
+      controller->GetSidePanelWebContentsForTesting());
+  controller->results_side_panel_coordinator()->LoadURLInResultsFrameForTesting(
+      url);
+  navigation_observer.WaitForNavigationFinished();
+
+  // Check histogram. The enum is defined in the .cc file so we can't reference
+  // it directly.
+  histogram_tester.ExpectUniqueSample("Lens.Overlay.SidePanel.IframeLoadStatus",
+                                      /*IframeLoadStatus::kFailedOther=*/6, 1);
+}
+
 class LensOverlayControllerInnerTextEnabledSmallByteLimitTest
     : public LensOverlayControllerBrowserTest {
  protected:
@@ -7878,7 +8116,7 @@ IN_PROC_BROWSER_TEST_F(LensOverlayControllerInnerTextEnabledSmallByteLimitTest,
   auto* fake_controller = static_cast<LensOverlayControllerFake*>(controller);
   ASSERT_TRUE(fake_controller);
   EXPECT_TRUE(fake_controller->fake_overlay_page_
-                   .last_received_should_show_contextual_searchbox_);
+                  .last_received_should_show_contextual_searchbox_);
 
   CloseOverlayAndWaitForOff(controller,
                             LensOverlayDismissalSource::kOverlayCloseButton);
@@ -8852,6 +9090,23 @@ class LensOverlayControllerSideBySideBrowserTest
          {features::kSideBySide, {}}},
         {});
   }
+
+  bool AreAnyRoundedCornersShowing() {
+    const ui::ElementContext context =
+        views::ElementTrackerViews::GetContextForView(
+            BrowserView::GetBrowserViewForBrowser(browser()));
+    views::View* start_corner =
+        views::ElementTrackerViews::GetInstance()->GetFirstMatchingView(
+            kContentsSeparatorLeadingTopCornerElementId, context);
+    views::View* end_corner =
+        views::ElementTrackerViews::GetInstance()->GetFirstMatchingView(
+            kContentsSeparatorTrailingTopCornerElementId, context);
+    return (start_corner && start_corner->GetVisible()) ||
+           (end_corner && end_corner->GetVisible());
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
 };
 
 IN_PROC_BROWSER_TEST_F(LensOverlayControllerSideBySideBrowserTest,
@@ -8980,14 +9235,12 @@ IN_PROC_BROWSER_TEST_F(LensOverlayControllerSideBySideBrowserTest,
       [&]() { return controller->state() == State::kOverlayAndResults; }));
 
   // Expect the side panel rounded corner to exist.
-  EXPECT_FALSE(controller->GetOverlayViewForTesting()->layer() &&
-               controller->GetOverlayViewForTesting()
-                       ->layer()
-                       ->GetTargetRoundedCornerRadius()
-                       .upper_right() > 0);
-  EXPECT_TRUE(BrowserView::GetBrowserViewForBrowser(browser())
-                  ->GetSidePanelRoundedCornerForTesting()
-                  ->GetVisible());
+  ASSERT_TRUE(controller->GetOverlayViewForTesting()->layer());
+  EXPECT_TRUE(controller->GetOverlayViewForTesting()
+                  ->layer()
+                  ->GetTargetRoundedCornerRadius()
+                  .upper_right() > 0);
+  EXPECT_TRUE(AreAnyRoundedCornersShowing());
 }
 
 IN_PROC_BROWSER_TEST_F(LensOverlayControllerSideBySideBrowserTest,
@@ -9022,9 +9275,7 @@ IN_PROC_BROWSER_TEST_F(LensOverlayControllerSideBySideBrowserTest,
                       ->layer()
                       ->GetTargetRoundedCornerRadius()
                       .upper_right() > 0);
-  EXPECT_FALSE(BrowserView::GetBrowserViewForBrowser(browser())
-                   ->GetSidePanelRoundedCornerForTesting()
-                   ->GetVisible());
+  EXPECT_FALSE(AreAnyRoundedCornersShowing());
 
   // Switch to the first tab.
   browser()->tab_strip_model()->ActivateTabAt(0);
@@ -9048,9 +9299,7 @@ IN_PROC_BROWSER_TEST_F(LensOverlayControllerSideBySideBrowserTest,
                        ->layer()
                        ->GetTargetRoundedCornerRadius()
                        .upper_right() > 0);
-  EXPECT_FALSE(BrowserView::GetBrowserViewForBrowser(browser())
-                   ->GetSidePanelRoundedCornerForTesting()
-                   ->GetVisible());
+  EXPECT_FALSE(AreAnyRoundedCornersShowing());
 
   // Switch back to the second tab.
   browser()->tab_strip_model()->ActivateTabAt(1);
@@ -9065,9 +9314,7 @@ IN_PROC_BROWSER_TEST_F(LensOverlayControllerSideBySideBrowserTest,
                       ->layer()
                       ->GetTargetRoundedCornerRadius()
                       .upper_right() > 0);
-  EXPECT_FALSE(BrowserView::GetBrowserViewForBrowser(browser())
-                   ->GetSidePanelRoundedCornerForTesting()
-                   ->GetVisible());
+  EXPECT_FALSE(AreAnyRoundedCornersShowing());
 }
 
 IN_PROC_BROWSER_TEST_F(LensOverlayControllerSideBySideBrowserTest,

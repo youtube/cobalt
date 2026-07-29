@@ -28,7 +28,7 @@ class MockLinuxUi : public FakeLinuxUi {
 
 class MockNativeTheme : public NativeTheme {
  public:
-  MockNativeTheme() : NativeTheme(false) {}
+  MockNativeTheme() = default;
   ~MockNativeTheme() override = default;
 
   void SetUseDarkColors(bool use_dark_colors) {
@@ -80,7 +80,6 @@ MATCHER_P2(Calls, interface, member, "") {
 using testing::_;
 using testing::AtLeast;
 using testing::ByMove;
-using testing::Invoke;
 using testing::Mock;
 using testing::Return;
 using testing::StrictMock;
@@ -133,16 +132,15 @@ class DarkModeManagerLinuxTest : public testing::Test {
 
     EXPECT_CALL(*mock_systemd_proxy_, DoCallMethod(_, _, _))
         .Times(AtLeast(0))
-        .WillRepeatedly(
-            Invoke([](dbus::MethodCall*, int,
-                      dbus::ObjectProxy::ResponseCallback* callback) {
-              std::move(*callback).Run(nullptr);
-            }));
+        .WillRepeatedly([](dbus::MethodCall*, int,
+                           dbus::ObjectProxy::ResponseCallback* callback) {
+          std::move(*callback).Run(nullptr);
+        });
 
     EXPECT_CALL(*mock_dbus_proxy_,
                 DoCallMethod(Calls(DBUS_INTERFACE_DBUS, "NameHasOwner"), _, _))
-        .WillOnce(Invoke([](dbus::MethodCall* method_call, int timeout_ms,
-                            dbus::ObjectProxy::ResponseCallback* callback) {
+        .WillOnce([](dbus::MethodCall* method_call, int timeout_ms,
+                     dbus::ObjectProxy::ResponseCallback* callback) {
           dbus::MessageReader reader(method_call);
           std::string service_name;
           EXPECT_TRUE(reader.PopString(&service_name));
@@ -152,7 +150,7 @@ class DarkModeManagerLinuxTest : public testing::Test {
           dbus::MessageWriter writer(response.get());
           writer.AppendBool(true);
           std::move(*callback).Run(response.get());
-        }));
+        });
 
     EXPECT_CALL(*mock_bus_,
                 GetObjectProxy(
@@ -196,7 +194,7 @@ class DarkModeManagerLinuxTest : public testing::Test {
 
     EXPECT_FALSE(manager_->prefer_dark_theme());
     EXPECT_FALSE(mock_native_theme_->ShouldUseDarkColors());
-    EXPECT_EQ(mock_native_theme_->GetPreferredColorScheme(),
+    EXPECT_EQ(mock_native_theme_->preferred_color_scheme(),
               NativeTheme::PreferredColorScheme::kLight);
     EXPECT_FALSE(mock_native_theme_->user_color().has_value());
   }
@@ -267,7 +265,7 @@ TEST_F(DarkModeManagerLinuxTest, UsePortalSetting) {
   std::move(color_scheme_callback()).Run(response.get(), nullptr);
   EXPECT_TRUE(ManagerPrefersDarkTheme());
   EXPECT_TRUE(mock_native_theme()->ShouldUseDarkColors());
-  EXPECT_EQ(mock_native_theme()->GetPreferredColorScheme(),
+  EXPECT_EQ(mock_native_theme()->preferred_color_scheme(),
             NativeTheme::PreferredColorScheme::kDark);
 
   // Changes in the portal preference should be processed by the manager and the
@@ -282,7 +280,7 @@ TEST_F(DarkModeManagerLinuxTest, UsePortalSetting) {
   std::move(setting_changed_callback()).Run(&signal);
   EXPECT_FALSE(ManagerPrefersDarkTheme());
   EXPECT_FALSE(mock_native_theme()->ShouldUseDarkColors());
-  EXPECT_EQ(mock_native_theme()->GetPreferredColorScheme(),
+  EXPECT_EQ(mock_native_theme()->preferred_color_scheme(),
             NativeTheme::PreferredColorScheme::kLight);
 
   // The native theme preference should have no effect when the portal

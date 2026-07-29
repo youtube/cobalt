@@ -67,6 +67,7 @@
 #include "chrome/browser/user_education/user_education_service_factory.h"
 #include "chrome/browser/web_applications/web_app_tab_helper.h"
 #include "chrome/common/chrome_features.h"
+#include "chrome/common/pref_names.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/branded_strings.h"
@@ -80,8 +81,8 @@
 #include "components/lens/lens_features.h"
 #include "components/password_manager/core/browser/features/password_features.h"
 #include "components/pdf/browser/pdf_document_helper.h"
+#include "components/plus_addresses/core/browser/grit/plus_addresses_strings.h"
 #include "components/plus_addresses/core/common/features.h"
-#include "components/plus_addresses/grit/plus_addresses_strings.h"
 #include "components/safe_browsing/core/common/safebrowsing_referral_methods.h"
 #include "components/saved_tab_groups/public/features.h"
 #include "components/strings/grit/components_strings.h"
@@ -115,7 +116,7 @@
 #include "ui/views/view_utils.h"
 
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
-#include "components/plus_addresses/resources/vector_icons.h"
+#include "components/plus_addresses/core/browser/resources/vector_icons.h"
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -295,31 +296,7 @@ void MaybeRegisterChromeFeaturePromos(
       FeaturePromoSpecification::CreateForCustomAction(
           feature_engagement::kIPHAutofillAiOptInFeature,
           autofill::PopupViewViews::kAutofillAiOptInIphElementId,
-          IDS_AUTOFILL_AI_OPT_IN_IPH_BODY,
-          [&]() {
-            int index =
-                feature_engagement::kAutofillIphCTAVariationsStringValue.Get();
-            if (index < 0 ||
-                index > base::to_underlying(
-                            autofill::features::
-                                AutofillIphCTAVariationsStringVarations::
-                                    kMaxValue)) {
-              return IDS_AUTOFILL_AI_OPT_IN_IPH_SEE_HOW;
-            }
-            switch (static_cast<autofill::features::
-                                    AutofillIphCTAVariationsStringVarations>(
-                index)) {
-              case autofill::features::AutofillIphCTAVariationsStringVarations::
-                  kSeeHow:
-                return IDS_AUTOFILL_AI_OPT_IN_IPH_SEE_HOW;
-              case autofill::features::AutofillIphCTAVariationsStringVarations::
-                  kTryIt:
-                return IDS_AUTOFILL_AI_OPT_IN_IPH_TRY_IT;
-              case autofill::features::AutofillIphCTAVariationsStringVarations::
-                  kTurnOn:
-                return IDS_AUTOFILL_AI_OPT_IN_IPH_TURN_ON;
-            }
-          }(),
+          IDS_AUTOFILL_AI_OPT_IN_IPH_BODY, IDS_AUTOFILL_AI_OPT_IN_IPH_TURN_ON,
           base::BindRepeating(
               [](ContextPtr ctx,
                  user_education::FeaturePromoHandle promo_handle) {
@@ -930,6 +907,25 @@ void MaybeRegisterChromeFeaturePromos(
           .SetMetadata(115, "jocelyntran@chromium.org",
                        "Triggered to encourage users to try out the reading "
                        "mode feature.")));
+
+  registry.RegisterFeature(std::move(
+      FeaturePromoSpecification::CreateForCustomAction(
+          feature_engagement::kIPHSideBySidePinnableFeature,
+          kToolbarSplitTabsToolbarButtonElementId, IDS_SPLIT_VIEW_BODY_IPH,
+          IDS_SPLIT_VIEW_PIN_ACTION_IPH,
+          base::BindRepeating(
+              [](ContextPtr ctx,
+                 user_education::FeaturePromoHandle promo_handle) {
+                GetBrowser(ctx)->GetProfile()->GetPrefs()->SetBoolean(
+                    prefs::kPinSplitTabButton, true);
+              }))
+          .SetBubbleTitleText(IDS_SPLIT_VIEW_TITLE_IPH)
+          .SetBubbleArrow(HelpBubbleArrow::kTopRight)
+          .SetCustomActionDismissText(IDS_SPLIT_VIEW_DISMISS_ACTION_IPH)
+          .SetCustomActionIsDefault(true)
+          .SetMetadata(
+              141, "lugli@google.com",
+              "Triggered when user tried to create split view twice.")));
 
   // kIPHSidePanelGenericPinnableFeature:
   registry.RegisterFeature(std::move(

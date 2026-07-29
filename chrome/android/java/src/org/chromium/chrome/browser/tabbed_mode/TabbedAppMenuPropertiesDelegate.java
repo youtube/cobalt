@@ -282,7 +282,10 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
                         buildModelForDivider(R.id.divider_line_id)));
 
         // Page Zoom
-        if (shouldShowPageZoomItem(currentTab)) modelList.add(buildPageZoomItem(currentTab));
+        // Disable page zoom menu item on Reading Mode pages.
+        if (shouldShowPageZoomItem(currentTab) && !shouldShowReaderModePrefs(currentTab)) {
+            modelList.add(buildPageZoomItem(currentTab));
+        }
 
         // Share
         if (ShareUtils.shouldEnableShare(currentTab)) {
@@ -422,11 +425,9 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
         if (!IncognitoUtils.shouldOpenIncognitoAsWindow() || isIncognitoShowing()) {
             modelList.add(buildNewIncognitoTabItem());
         }
-        if (shouldShowNewIncognitoWindow() && !isIncognitoShowing()) {
-            modelList.add(buildNewIncognitoWindowItem());
-        }
-        if (shouldShowNewIncognitoWindow() && isIncognitoShowing()) {
+        if (shouldShowNewIncognitoWindow()) {
             modelList.add(buildNewWindowItem());
+            modelList.add(buildNewIncognitoWindowItem());
         }
         if (ChromeFeatureList.sTabGroupEntryPointsAndroid.isEnabled()) {
             modelList.add(buildNewTabGroupItem());
@@ -440,7 +441,12 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
 
     private void populateTabletEmptyModeMenu(MVCListAdapter.ModelList modelList) {
         modelList.add(buildNewTabItem());
-        modelList.add(buildNewIncognitoTabItem());
+        if (IncognitoUtils.shouldOpenIncognitoAsWindow()) {
+            modelList.add(buildNewWindowItem());
+            modelList.add(buildNewIncognitoWindowItem());
+        } else {
+            modelList.add(buildNewIncognitoTabItem());
+        }
         modelList.add(buildSettingsItem());
         if (shouldShowQuickDeleteItem()) modelList.add(buildQuickDeleteItem());
     }
@@ -502,11 +508,16 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
     }
 
     private MVCListAdapter.ListItem buildNewIncognitoTabItem() {
+        int iconRes = 0;
+        if (shouldShowIconBeforeItem()) {
+            iconRes =
+                    IncognitoUtils.shouldOpenIncognitoAsWindow()
+                            ? R.drawable.ic_add_box_rounded_corner
+                            : R.drawable.ic_incognito;
+        }
         PropertyModel model =
                 buildModelForStandardMenuItem(
-                        R.id.new_incognito_tab_menu_id,
-                        R.string.menu_new_incognito_tab,
-                        shouldShowIconBeforeItem() ? R.drawable.ic_incognito : 0);
+                        R.id.new_incognito_tab_menu_id, R.string.menu_new_incognito_tab, iconRes);
         model.set(
                 AppMenuItemProperties.ENABLED, isIncognitoEnabled() && !isIncognitoReauthShowing());
         return new MVCListAdapter.ListItem(TabbedAppMenuItemType.NEW_INCOGNITO_TAB, model);

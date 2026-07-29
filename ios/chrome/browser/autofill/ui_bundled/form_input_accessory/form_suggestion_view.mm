@@ -98,8 +98,7 @@ void LogSelectedSuggestionIndexMetric(SuggestionType suggestion_type,
 
 }  // namespace
 
-@interface FormSuggestionView () <FormSuggestionLabelDelegate,
-                                  UIScrollViewDelegate>
+@interface FormSuggestionView () <FormSuggestionLabelDelegate>
 
 // The FormSuggestions that are displayed by this view.
 @property(nonatomic) NSArray<FormSuggestion*>* suggestions;
@@ -182,27 +181,6 @@ void LogSelectedSuggestionIndexMetric(SuggestionType suggestion_type,
                    }];
 }
 
-- (void)lockTrailingView {
-  if (!self.superview || !self.trailingView) {
-    return;
-  }
-  LayoutOffset layoutOffset = CGRectGetLeadingLayoutOffsetInBoundingRect(
-      self.trailingView.frame, {CGPointZero, self.contentSize});
-  // Because of the way the scroll view is transformed for RTL, the insets don't
-  // need to be directed.
-  UIEdgeInsets lockedContentInsets = UIEdgeInsetsMake(0, -layoutOffset, 0, 0);
-  __weak __typeof(self) weakSelf = self;
-  [UIView animateWithDuration:0.2
-      animations:^{
-        weakSelf.contentInset = lockedContentInsets;
-      }
-      completion:^(BOOL finished) {
-        if (!IsKeyboardAccessoryUpgradeEnabled()) {
-          weakSelf.delegate = weakSelf;
-        }
-      }];
-}
-
 #pragma mark - UIView
 
 - (void)willMoveToSuperview:(UIView*)newSuperview {
@@ -241,9 +219,7 @@ void LogSelectedSuggestionIndexMetric(SuggestionType suggestion_type,
   stackView.axis = UILayoutConstraintAxisHorizontal;
   stackView.layoutMarginsRelativeArrangement = YES;
   stackView.layoutMargins = [self adjustedLayoutMargins];
-  stackView.spacing = IsKeyboardAccessoryUpgradeEnabled()
-                          ? kSpacing
-                          : kSuggestionHorizontalMargin;
+  stackView.spacing = kSpacing;
   stackView.translatesAutoresizingMaskIntoConstraints = NO;
   [self addSubview:stackView];
   if (IsLiquidGlassEffectEnabled()) {
@@ -337,8 +313,7 @@ void LogSelectedSuggestionIndexMetric(SuggestionType suggestion_type,
 // Performs the scroll hint. This is triggered when the keyboard accessory
 // initially receives suggestions.
 - (void)scrollHint:(void (^)(BOOL finished))completion {
-  if (!IsKeyboardAccessoryUpgradeEnabled() ||
-      !self.stackView.arrangedSubviews.count) {
+  if (!self.stackView.arrangedSubviews.count) {
     if (completion) {
       completion(NO);
     }
@@ -383,9 +358,7 @@ void LogSelectedSuggestionIndexMetric(SuggestionType suggestion_type,
   return UIEdgeInsetsMake(
       kSuggestionVerticalMargin,
       kSuggestionHorizontalMargin + (_isCompact ? 0.0 : kLeadingOffset),
-      kSuggestionVerticalMargin,
-      IsKeyboardAccessoryUpgradeEnabled() ? kSuggestionEndHorizontalMargin
-                                          : kSuggestionHorizontalMargin);
+      kSuggestionVerticalMargin, kSuggestionEndHorizontalMargin);
 }
 
 #pragma mark - Setters
@@ -398,20 +371,6 @@ void LogSelectedSuggestionIndexMetric(SuggestionType suggestion_type,
   _trailingView = subview;
   if (_stackView) {
     [_stackView addArrangedSubview:_trailingView];
-  }
-}
-
-#pragma mark - UIScrollViewDelegate
-
-- (void)scrollViewDidScroll:(UIScrollView*)scrollView {
-  DCHECK(!IsKeyboardAccessoryUpgradeEnabled());
-
-  CGFloat offset = self.contentOffset.x;
-  CGFloat inset = self.contentInset.left;  // Inset is negative when locked.
-  CGFloat diff = offset + inset;
-  if (diff < -55) {
-    [self.formSuggestionViewDelegate
-        formSuggestionViewShouldResetFromPull:self];
   }
 }
 

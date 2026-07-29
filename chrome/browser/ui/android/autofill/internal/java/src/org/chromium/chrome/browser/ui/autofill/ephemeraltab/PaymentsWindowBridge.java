@@ -16,18 +16,18 @@ import org.chromium.url.GURL;
 @JNINamespace("autofill::payments")
 @NullMarked
 class PaymentsWindowBridge {
-    private long mNativeAutofillPaymentsWindowBridge;
+    private long mNativePaymentsWindowBridge;
     private PaymentsWindowCoordinator mPaymentsWindowCoordinator;
 
     @CalledByNative
-    PaymentsWindowBridge(long nativeAutofillPaymentsWindowBridge, WebContents webContents) {
-        mNativeAutofillPaymentsWindowBridge = nativeAutofillPaymentsWindowBridge;
-        mPaymentsWindowCoordinator = new PaymentsWindowCoordinator(webContents, this);
+    PaymentsWindowBridge(long nativePaymentsWindowBridge) {
+        mNativePaymentsWindowBridge = nativePaymentsWindowBridge;
+        mPaymentsWindowCoordinator = new PaymentsWindowCoordinator(this);
     }
 
     @CalledByNative
-    public void openEphemeralTab(GURL url, String title) {
-        mPaymentsWindowCoordinator.openEphemeralTab(url, title);
+    public void openEphemeralTab(GURL url, String title, WebContents merchantWebContents) {
+        mPaymentsWindowCoordinator.openEphemeralTab(url, title, merchantWebContents);
     }
 
     @CalledByNative
@@ -50,9 +50,8 @@ class PaymentsWindowBridge {
      * @param clickedUrl The URL that the user initiated the navigation to.
      */
     void onNavigationFinished(GURL clickedUrl) {
-        if (mNativeAutofillPaymentsWindowBridge == 0) return;
-        PaymentsWindowBridgeJni.get()
-                .onNavigationFinished(mNativeAutofillPaymentsWindowBridge, clickedUrl);
+        if (mNativePaymentsWindowBridge == 0) return;
+        PaymentsWindowBridgeJni.get().onNavigationFinished(mNativePaymentsWindowBridge, clickedUrl);
     }
 
     /**
@@ -62,15 +61,15 @@ class PaymentsWindowBridge {
      * destroyed and the C++ counterpart deleted.
      */
     void onWebContentsDestroyed() {
-        if (mNativeAutofillPaymentsWindowBridge == 0) return;
-        PaymentsWindowBridgeJni.get().onWebContentsDestroyed(mNativeAutofillPaymentsWindowBridge);
-        mNativeAutofillPaymentsWindowBridge = 0;
+        if (mNativePaymentsWindowBridge == 0) return;
+        PaymentsWindowBridgeJni.get().onWebContentsDestroyed(mNativePaymentsWindowBridge);
+        mNativePaymentsWindowBridge = 0;
     }
 
     @NativeMethods
     interface Natives {
-        void onNavigationFinished(long nativeAutofillPaymentsWindowBridge, GURL clickedUrl);
+        void onNavigationFinished(long nativePaymentsWindowBridge, GURL clickedUrl);
 
-        void onWebContentsDestroyed(long nativeAutofillPaymentsWindowBridge);
+        void onWebContentsDestroyed(long nativePaymentsWindowBridge);
     }
 }

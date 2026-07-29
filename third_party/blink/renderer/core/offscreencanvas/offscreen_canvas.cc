@@ -166,7 +166,7 @@ void OffscreenCanvas::SetSize(gfx::Size size) {
     return;
   }
 
-  CanvasRenderingContextHost::SetSize(size);
+  size_ = size;
   UpdateMemoryUsage();
   current_frame_damage_rect_ = SkIRect::MakeWH(Size().width(), Size().height());
 
@@ -307,7 +307,7 @@ ScriptPromise<Blob> OffscreenCanvas::convertToBlob(
     const ImageEncodeOptions* options,
     ExceptionState& exception_state) {
   DCHECK(IsOffscreenCanvas());
-  WTF::String object_name = "OffscreenCanvas";
+  String object_name = "OffscreenCanvas";
   std::stringstream error_msg;
 
   if (is_neutered_) {
@@ -426,7 +426,7 @@ CanvasRenderingContext* OffscreenCanvas::GetCanvasRenderingContext(
           CanvasContextCreationAttributesCore::PowerPreference::kLowPower;
     }
 
-    context_ = factory->Create(this, recomputed_attributes);
+    context_ = factory->Create(execution_context, this, recomputed_attributes);
     if (context_) {
       context_->RecordUKMCanvasRenderingAPI();
       context_->RecordUMACanvasRenderingAPI();

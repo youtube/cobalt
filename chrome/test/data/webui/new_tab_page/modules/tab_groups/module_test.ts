@@ -3,14 +3,16 @@
 // found in the LICENSE file.
 
 import type {IconContainerElement, TabGroupsModuleElement} from 'chrome://new-tab-page/lazy_load.js';
-import {colorIdToString, tabGroupsDescriptor, TabGroupsProxyImpl} from 'chrome://new-tab-page/lazy_load.js';
+import {colorIdToString, NTPPluralStringProxyImpl, tabGroupsDescriptor, TabGroupsProxyImpl} from 'chrome://new-tab-page/lazy_load.js';
 import {Color} from 'chrome://new-tab-page/tab_group_types.mojom-webui.js';
 import {PageHandlerRemote} from 'chrome://new-tab-page/tab_groups.mojom-webui.js';
 import type {TabGroup} from 'chrome://new-tab-page/tab_groups.mojom-webui.js';
+import type {CrButtonElement} from 'chrome://resources/cr_elements/cr_button/cr_button.js';
 import type {CrIconElement} from 'chrome://resources/cr_elements/cr_icon/cr_icon.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import type {TestMock} from 'chrome://webui-test/test_mock.js';
+import {TestPluralStringProxy} from 'chrome://webui-test/test_plural_string_proxy.js';
 import {eventToPromise, isVisible, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 import {installMock} from '../../test_support.js';
@@ -263,38 +265,6 @@ suite('NewTabPageModulesTabGroupsModuleTest', () => {
     assertEquals('99+', overflowText);
   });
 
-  test('show zero state card when there are no tab groups', async () => {
-    // Arrange.
-    const module = await createModule([]);
-
-    // Assert.
-    // The module must still exist without tab groups data.
-    assertTrue(!!module);
-    assertTrue(
-        isVisible(module.shadowRoot.querySelector('ntp-module-header-v2')));
-
-    // The zero-state container should be present and visible.
-    const zeroStateContainer =
-        module.shadowRoot.querySelector('#zeroTabGroupsContainer');
-    assertTrue(!!zeroStateContainer);
-    assertTrue(isVisible(zeroStateContainer));
-
-    // Tab group rows should be absent.
-    const tabGroupContainers =
-        module.shadowRoot.querySelectorAll('.tab-group-container');
-    assertEquals(0, tabGroupContainers.length);
-
-    // Verify strings.
-    assertEquals(
-        'Stay organized with tab groups',
-        zeroStateContainer.querySelector(
-                              '#zeroTabGroupsTitle')!.textContent!.trim());
-    assertEquals(
-        'You can group tabs to keep related pages together and saved across your devices',
-        zeroStateContainer.querySelector(
-                              '#zeroTabGroupsText')!.textContent!.trim());
-  });
-
   test('action menu - open and close info dialog', async () => {
     // Arrange.
     const module = await createModule([{
@@ -414,29 +384,9 @@ suite('NewTabPageModulesTabGroupsModuleTest', () => {
     }]);
     assertTrue(!!module);
 
-    const createNewTabGroupLink =
-        module.shadowRoot.querySelector<HTMLAnchorElement>(
-            '#createNewTabGroupLink');
-    assertTrue(!!createNewTabGroupLink);
-    assertTrue(isVisible(createNewTabGroupLink));
-
-    // Act.
-    handler.setResultFor('createNewTabGroup', Promise.resolve());
-    createNewTabGroupLink.click();
-    await microtasksFinished();
-
-    // Assert.
-    assertEquals(1, handler.getCallCount('createNewTabGroup'));
-  });
-
-  test('create new tab group from the zero state card', async () => {
-    // Arrange.
-    const module = await createModule([]);
-    assertTrue(!!module);
-
     const createNewTabGroupButton =
-        module.shadowRoot.querySelector<HTMLButtonElement>(
-            '#createNewTabGroupButton');
+        module.shadowRoot.querySelector<CrButtonElement>(
+            '#createNewTabGroupFooterButton');
     assertTrue(!!createNewTabGroupButton);
     assertTrue(isVisible(createNewTabGroupButton));
 
@@ -490,5 +440,100 @@ suite('NewTabPageModulesTabGroupsModuleTest', () => {
     assertEquals(1, handler.getCallCount('openTabGroup'));
     const groupId = handler.getArgs('openTabGroup')[0];
     assertEquals(`${index}`, groupId);
+  });
+
+  test('do not show zero-state card when there are no tab groups', async () => {
+    // Arrange.
+    const module = await createModule([]);
+
+    // Assert.
+    assertFalse(!!module);
+  });
+
+  test('compute aria lables for tab groups', async () => {
+    // Arrange.
+    const pluralString = new TestPluralStringProxy();
+    pluralString.text = '2 tabs';
+    NTPPluralStringProxyImpl.setInstance(pluralString);
+
+    const module = await createModule([
+      {
+        id: '0',
+        color: Color.kBlue,
+        title: 'Group 1',
+        updateTime: 'Recently used',
+        deviceName: 'Test Device',
+        faviconUrls: [],
+        totalTabCount: 2,
+        isSharedTabGroup: true,
+      },
+    ]);
+    assertTrue(!!module);
+
+    const groups =
+        module.shadowRoot.querySelectorAll<CrButtonElement>('.tab-group');
+    assertEquals(1, groups.length);
+
+    // Assert.
+    const expectedLabel = '2 tabs Group 1 Recently used • Test Device shared';
+    assertEquals(expectedLabel, groups[0]!.getAttribute('aria-label'));
+  });
+
+  suite('with zero state flag enabled', () => {
+    setup(() => {
+      loadTimeData.overrideValues({tabGroupsModuleZeroStateEnabled: true});
+    });
+
+    test('show zero state card when there are no tab groups', async () => {
+      // Arrange.
+      const module = await createModule([]);
+
+      // Assert.
+      // The module must still exist without tab groups data.
+      assertTrue(!!module);
+      assertTrue(
+          isVisible(module.shadowRoot.querySelector('ntp-module-header-v2')));
+
+      // The zero-state container should be present and visible.
+      const zeroStateContainer =
+          module.shadowRoot.querySelector('#zeroTabGroupsContainer');
+      assertTrue(!!zeroStateContainer);
+      assertTrue(isVisible(zeroStateContainer));
+
+      // Tab group rows should be absent.
+      const tabGroupContainers =
+          module.shadowRoot.querySelectorAll('.tab-group-container');
+      assertEquals(0, tabGroupContainers.length);
+
+      // Verify strings.
+      assertEquals(
+          'Stay organized with tab groups',
+          zeroStateContainer.querySelector(
+                                '#zeroTabGroupsTitle')!.textContent!.trim());
+      assertEquals(
+          'You can group tabs to keep related pages together and saved across your devices',
+          zeroStateContainer.querySelector(
+                                '#zeroTabGroupsText')!.textContent!.trim());
+    });
+
+    test('create new tab group from the zero state card', async () => {
+      // Arrange.
+      const module = await createModule([]);
+      assertTrue(!!module);
+
+      const createNewTabGroupButton =
+          module.shadowRoot.querySelector<HTMLButtonElement>(
+              '#createNewTabGroupButton');
+      assertTrue(!!createNewTabGroupButton);
+      assertTrue(isVisible(createNewTabGroupButton));
+
+      // Act.
+      handler.setResultFor('createNewTabGroup', Promise.resolve());
+      createNewTabGroupButton.click();
+      await microtasksFinished();
+
+      // Assert.
+      assertEquals(1, handler.getCallCount('createNewTabGroup'));
+    });
   });
 });

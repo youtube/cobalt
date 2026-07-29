@@ -292,6 +292,7 @@ static_library("ui") {
     "//chrome/browser/file_system_access",
     "//chrome/browser/fingerprinting_protection",
     "//chrome/browser/google",
+    "//chrome/browser/history",
     "//chrome/browser/image_decoder",
     "//chrome/browser/image_fetcher",
     "//chrome/browser/media/router:media_router_feature",
@@ -661,14 +662,22 @@ static_library("ui") {
   ]
 
   if (!is_android || is_desktop_android) {
+    sources += [
+      "browser_navigator.h",
+      "incognito_allowed_url.cc",
+      "incognito_allowed_url.h",
+    ]
+
     # Cross-platform dependencies.
     deps += [
+      "//chrome/browser/signin:signin_promo",
       "//chrome/browser/ui/browser_window",
       "//chrome/browser/ui/browser_window/internal",
     ]
 
     # Desktop-Android-only dependencies.
     if (is_desktop_android) {
+      sources += [ "//chrome/browser/ui/android/browser_navigator_android.cc" ]
       deps += [ "//chrome/browser/ui/android/extensions/windowing/internal" ]
     }
   }
@@ -676,7 +685,8 @@ static_library("ui") {
   # TODO(crbug.com/413572035): Move into build files of the actual
   # modules depending on this. eg: autofill, user_education.
   if (is_chrome_branded) {
-    deps += [ "//components/plus_addresses/resources:vector_icons" ]
+    deps +=
+        [ "//components/plus_addresses/core/browser/resources:vector_icons" ]
   }
 
   # TODO(crbug.com/41437292): Remove this circular dependency.
@@ -812,9 +822,9 @@ static_library("ui") {
       "android/autofill/manual_filling_view_android.h",
       "android/autofill/otp_verification_dialog_view_android.cc",
       "android/autofill/otp_verification_dialog_view_android.h",
-      "android/autofill/payments/autofill_payments_window_bridge.cc",
-      "android/autofill/payments/autofill_payments_window_bridge.h",
-      "android/autofill/payments/autofill_payments_window_delegate.h",
+      "android/autofill/payments/payments_window_bridge.cc",
+      "android/autofill/payments/payments_window_bridge.h",
+      "android/autofill/payments/payments_window_delegate.h",
       "android/autofill/save_update_address_profile_flow_manager.cc",
       "android/autofill/save_update_address_profile_flow_manager.h",
       "android/autofill/save_update_address_profile_prompt_view_android.cc",
@@ -963,6 +973,10 @@ static_library("ui") {
       "//url",
     ]
 
+    # TODO(crbug.com/441643015): Remove ui color deps and use Android color
+    # system
+    deps += [ "//chrome/browser/ui/color:color_headers" ]
+
     # TODO(b/335257259): Resolve circular deps.
     # Any circular includes must depend on the target "//chrome/browser:browser_public_dependencies".
     allow_circular_includes_from += [ "//chrome/browser/facilitated_payments" ]
@@ -979,6 +993,8 @@ static_library("ui") {
         "android/extensions/extension_keybinding_registry_android.h",
         "android/extensions/extension_util_bridge.cc",
         "android/extensions/extension_util_bridge.h",
+        "extensions/icon_with_badge_image_source.cc",
+        "extensions/icon_with_badge_image_source.h",
       ]
 
       deps += [
@@ -1012,8 +1028,11 @@ static_library("ui") {
       "browser_live_tab_context.h",
       "browser_location_bar_model_delegate.cc",
       "browser_location_bar_model_delegate.h",
+      "browser_manager_service.cc",
+      "browser_manager_service.h",
+      "browser_manager_service_factory.cc",
+      "browser_manager_service_factory.h",
       "browser_navigator.cc",
-      "browser_navigator.h",
       "browser_otr_state.cc",
       "browser_otr_state.h",
       "browser_select_file_dialog_controller.cc",
@@ -1030,6 +1049,8 @@ static_library("ui") {
       "browser_view_prefs.cc",
       "browser_view_prefs.h",
       "browser_window.h",
+      "browser_window_deleter.cc",
+      "browser_window_deleter.h",
       "browser_window_state.cc",
       "browser_window_state.h",
       "chrome_pages.cc",
@@ -1380,6 +1401,7 @@ static_library("ui") {
       "//chrome/browser/privacy_sandbox/notice:desktop_entrypoint_handlers_helper",
       "//chrome/browser/privacy_sandbox/notice:notice_mojom",
       "//chrome/browser/send_tab_to_self",
+      "//chrome/browser/signin:signin_promo",
       "//chrome/browser/ui/interaction",
       "//chrome/browser/ui/location_bar",
       "//chrome/browser/ui/passwords/bubble_controllers",
@@ -1810,7 +1832,6 @@ static_library("ui") {
 
   if (enable_extensions) {
     sources += [
-      "views/supervised_user/extension_install_blocked_by_parent_dialog.cc",
       "views/supervised_user/parent_permission_dialog_view.cc",
       "views/supervised_user/parent_permission_dialog_view.h",
     ]
@@ -1855,20 +1876,18 @@ static_library("ui") {
       "views/extensions/dialogs/print_job_confirmation_dialog.cc",
       "views/extensions/dialogs/request_file_system_dialog.cc",
       "views/external_protocol_handler_ash.cc",
-      "views/frame/browser_frame_ash.cc",
-      "views/frame/browser_frame_ash.h",
       "views/frame/browser_frame_header_chromeos.cc",
       "views/frame/browser_frame_header_chromeos.h",
+      "views/frame/browser_native_widget_ash.cc",
+      "views/frame/browser_native_widget_ash.h",
+      "views/frame/browser_native_widget_factory_chromeos.cc",
       "views/frame/browser_non_client_frame_view_chromeos.cc",
       "views/frame/browser_non_client_frame_view_chromeos.h",
       "views/frame/browser_non_client_frame_view_factory_chromeos.cc",
       "views/frame/browser_view_ash.cc",
       "views/frame/browser_view_ash.h",
-      "views/frame/custom_tab_browser_frame.cc",
-      "views/frame/custom_tab_browser_frame.h",
       "views/frame/immersive_mode_controller_chromeos.cc",
       "views/frame/immersive_mode_controller_chromeos.h",
-      "views/frame/native_browser_frame_factory_chromeos.cc",
       "views/frame/picture_in_picture_browser_frame_view_ash.cc",
       "views/frame/picture_in_picture_browser_frame_view_ash.h",
       "views/frame/top_controls_slide_controller_chromeos.cc",
@@ -2064,7 +2083,6 @@ static_library("ui") {
       "//chrome/browser/ash/eol",
       "//chrome/browser/ash/extended_updates",
       "//chrome/browser/ash/extensions",
-      "//chrome/browser/ash/extensions/autotest_private",
       "//chrome/browser/ash/extensions/file_manager",
       "//chrome/browser/ash/file_manager",
       "//chrome/browser/ash/file_manager/virtual_tasks",
@@ -2241,7 +2259,6 @@ static_library("ui") {
       "//chrome/browser/ui/views/select_file_dialog_extension",
       "//chrome/browser/ui/webui/ash/account_manager",
       "//chrome/browser/ui/webui/ash/add_supervision",
-      "//chrome/browser/ui/webui/ash/borealis_motd",
       "//chrome/browser/ui/webui/ash/cellular_setup",
       "//chrome/browser/ui/webui/ash/cloud_upload",
       "//chrome/browser/ui/webui/ash/crostini_installer",
@@ -2576,7 +2593,6 @@ static_library("ui") {
       "//chrome/browser/ash/eche_app",
       "//chrome/browser/ash/extended_updates",
       "//chrome/browser/ash/extensions",
-      "//chrome/browser/ash/extensions/autotest_private",
       "//chrome/browser/ash/extensions/file_manager",
       "//chrome/browser/ash/file_manager",
       "//chrome/browser/ash/file_manager/virtual_tasks",
@@ -2584,7 +2600,6 @@ static_library("ui") {
       "//chrome/browser/ash/file_system_provider",
       "//chrome/browser/ash/floating_workspace",
       "//chrome/browser/ash/geolocation",
-      "//chrome/browser/ash/growth",
       "//chrome/browser/ash/guest_os",
       "//chrome/browser/ash/guest_os/public",
       "//chrome/browser/ash/hats",
@@ -2707,8 +2722,6 @@ static_library("ui") {
       "//chrome/browser/ui/views/select_file_dialog_extension",
       "//chrome/browser/ui/webui/ash/account_manager",
       "//chrome/browser/ui/webui/ash/add_supervision",
-
-      "//chrome/browser/ui/webui/ash/borealis_motd",
       "//chrome/browser/ui/webui/ash/cellular_setup",
       "//chrome/browser/ui/webui/ash/cloud_upload",
       "//chrome/browser/ui/webui/ash/diagnostics_dialog",
@@ -3127,14 +3140,14 @@ static_library("ui") {
       "views/certificate_viewer_mac_views.mm",
       "views/eye_dropper/eye_dropper_view_mac.h",
       "views/eye_dropper/eye_dropper_view_mac.mm",
-      "views/frame/browser_frame_mac.h",
-      "views/frame/browser_frame_mac.mm",
+      "views/frame/browser_native_widget_factory_mac.mm",
+      "views/frame/browser_native_widget_mac.h",
+      "views/frame/browser_native_widget_mac.mm",
       "views/frame/browser_non_client_frame_view_factory_mac.mm",
       "views/frame/browser_non_client_frame_view_mac.h",
       "views/frame/browser_non_client_frame_view_mac.mm",
       "views/frame/immersive_mode_controller_mac.h",
       "views/frame/immersive_mode_controller_mac.mm",
-      "views/frame/native_browser_frame_factory_mac.mm",
       "views/tab_contents/chrome_web_contents_view_delegate_views_mac.h",
       "views/tab_contents/chrome_web_contents_view_delegate_views_mac.mm",
       "webui/help/version_updater_mac.mm",
@@ -3207,11 +3220,11 @@ static_library("ui") {
       "views/frame/browser_desktop_window_tree_host_win.h",
       "views/frame/browser_frame_view_win.cc",
       "views/frame/browser_frame_view_win.h",
+      "views/frame/browser_native_widget_factory_aura.cc",
       "views/frame/browser_window_property_manager_win.cc",
       "views/frame/browser_window_property_manager_win.h",
       "views/frame/minimize_button_metrics_win.cc",
       "views/frame/minimize_button_metrics_win.h",
-      "views/frame/native_browser_frame_factory_aura.cc",
       "views/frame/system_menu_insertion_delegate_win.cc",
       "views/frame/system_menu_insertion_delegate_win.h",
       "views/frame/windows_caption_button.cc",
@@ -3295,8 +3308,8 @@ static_library("ui") {
       "views/frame/browser_desktop_window_tree_host.h",
       "views/frame/browser_desktop_window_tree_host_linux.cc",
       "views/frame/browser_desktop_window_tree_host_linux.h",
-      "views/frame/desktop_browser_frame_aura_linux.cc",
-      "views/frame/desktop_browser_frame_aura_linux.h",
+      "views/frame/browser_native_widget_aura_linux.cc",
+      "views/frame/browser_native_widget_aura_linux.h",
       "views/frame/picture_in_picture_browser_frame_view_linux.cc",
       "views/frame/picture_in_picture_browser_frame_view_linux.h",
       "views/status_icons/status_icon_button_linux.cc",
@@ -3738,6 +3751,7 @@ static_library("ui") {
       "views/file_system_access/file_system_access_views_helpers.h",
       "views/find_bar_host.cc",
       "views/find_bar_host.h",
+      "views/find_bar_owner.h",
       "views/find_bar_view.cc",
       "views/find_bar_view.h",
       "views/flying_indicator.cc",
@@ -3747,6 +3761,9 @@ static_library("ui") {
       "views/frame/app_menu_button_observer.h",
       "views/frame/browser_frame.cc",
       "views/frame/browser_frame.h",
+      "views/frame/browser_native_widget.h",
+      "views/frame/browser_native_widget_factory.cc",
+      "views/frame/browser_native_widget_factory.h",
       "views/frame/browser_non_client_frame_view.cc",
       "views/frame/browser_non_client_frame_view.h",
       "views/frame/browser_root_view.cc",
@@ -3773,6 +3790,8 @@ static_library("ui") {
       "views/frame/contents_separator.h",
       "views/frame/contents_web_view.cc",
       "views/frame/contents_web_view.h",
+      "views/frame/find_bar_owner_views.cc",
+      "views/frame/find_bar_owner_views.h",
       "views/frame/immersive_mode_controller.cc",
       "views/frame/immersive_mode_controller_factory_views.cc",
       "views/frame/immersive_mode_controller_stub.cc",
@@ -3789,9 +3808,6 @@ static_library("ui") {
       "views/frame/multi_contents_view_drop_target_controller.h",
       "views/frame/multi_contents_view_mini_toolbar.cc",
       "views/frame/multi_contents_view_mini_toolbar.h",
-      "views/frame/native_browser_frame.h",
-      "views/frame/native_browser_frame_factory.cc",
-      "views/frame/native_browser_frame_factory.h",
       "views/frame/picture_in_picture_browser_frame_view.cc",
       "views/frame/picture_in_picture_browser_frame_view.h",
       "views/frame/scrim_view.cc",
@@ -4037,8 +4053,6 @@ static_library("ui") {
       "views/passwords/password_cross_domain_confirmation_popup_view_views.h",
       "views/passwords/password_generation_popup_view_views.cc",
       "views/passwords/password_generation_popup_view_views.h",
-      "views/passwords/password_save_unsynced_credentials_locally_view.cc",
-      "views/passwords/password_save_unsynced_credentials_locally_view.h",
       "views/passwords/password_save_update_view.cc",
       "views/passwords/password_save_update_view.h",
       "views/passwords/post_save_compromised_bubble_view.cc",
@@ -4608,6 +4622,7 @@ static_library("ui") {
       "//chrome/browser/ui/sharing_hub",
       "//chrome/browser/ui/sharing_hub:impl",
       "//chrome/browser/ui/side_search",
+      "//chrome/browser/ui/tabs/tab_strip_api",
       "//chrome/browser/ui/views",
       "//chrome/browser/ui/views/bubble",
       "//chrome/browser/ui/views/download",
@@ -4694,7 +4709,7 @@ static_library("ui") {
 
     # TODO(crbug.com/413572035): Move into build files of the actual modules depending
     # on this once they are fully modularized. eg: views/autofill, views/user_education.
-    deps += [ "//components/plus_addresses/resources/strings" ]
+    deps += [ "//components/plus_addresses/core/browser/resources/strings" ]
 
     # Any circular includes must depend on the target "//chrome/browser:browser_public_dependencies".
     allow_circular_includes_from += [
@@ -4960,9 +4975,9 @@ static_library("ui") {
 
     if (!is_chromeos) {
       sources += [
+        "views/frame/browser_native_widget_aura.cc",
+        "views/frame/browser_native_widget_aura.h",
         "views/frame/browser_non_client_frame_view_factory_views.cc",
-        "views/frame/desktop_browser_frame_aura.cc",
-        "views/frame/desktop_browser_frame_aura.h",
       ]
     }
 
@@ -5448,6 +5463,7 @@ source_set("browser_navigator_params_headers") {
 
   public_deps = [
     "//base",
+    "//build:android_buildflags",
     "//chrome/browser/ui/tabs:tab_enums",
     "//components/captive_portal/core",
     "//components/tab_groups",

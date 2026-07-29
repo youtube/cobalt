@@ -3,9 +3,7 @@ include_rules = [
 
   "+chromeos/ash/components/mojo_service_manager",
   "+chromeos/ash/components/scheduler_config",
-
   "+chrome/browser/ash/main_parts",
-
   "+chrome/browser/ash/accessibility",
   "+chrome/browser/ash/ambient",
   "+chrome/browser/ash/app_mode",
@@ -17,6 +15,7 @@ include_rules = [
   "+chrome/browser/ash/browser_delegate",
   "+chrome/browser/ash/camera",
   "+chrome/browser/ash/certs",
+  "+chrome/browser/ash/child_accounts/parent_access_code",
   "+chrome/browser/ash/chromebox_for_meetings",
   "+chrome/browser/ash/crosapi",
   "+chrome/browser/ash/crostini",

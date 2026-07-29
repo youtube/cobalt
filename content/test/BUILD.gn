@@ -822,7 +822,7 @@ static_library("test_support") {
 
   if (is_win) {
     deps += [ "//sandbox" ]
-    public_configs = [ "//build/config/win:delayloads" ]
+    public_configs = [ "//build/config/win:delayloads_for_tests" ]
   }
 
   if (v8_use_external_startup_data) {
@@ -1668,7 +1668,6 @@ test("content_browsertests") {
     "../browser/renderer_host/input/wheel_scroll_latching_browsertest.cc",
     "../browser/renderer_host/isolated_web_app_throttle_browsertest.cc",
     "../browser/renderer_host/jit_policy_browsertest.cc",
-    "../browser/renderer_host/local_network_access_browsertest.cc",
     "../browser/renderer_host/media/video_capture_browsertest.cc",
     "../browser/renderer_host/navigation_controller_history_intervention_browsertest.cc",
     "../browser/renderer_host/navigation_controller_impl_browsertest.cc",
@@ -1702,6 +1701,8 @@ test("content_browsertests") {
     "../browser/screen_orientation/screen_orientation_browsertest.cc",
     "../browser/security/coop/cross_origin_opener_policy_browsertest.cc",
     "../browser/security/dip/document_isolation_policy_browsertest.cc",
+    "../browser/security/local_network_access/local_network_access_browsertest.cc",
+    "../browser/security/local_network_access/local_network_access_deprecation_browsertest.cc",
     "../browser/security_exploit_browsertest.cc",
     "../browser/serial/serial_browsertest.cc",
     "../browser/service_host/service_process_host_browsertest.cc",
@@ -2224,7 +2225,6 @@ test("content_browsertests") {
       "//content/shell:content_shell_app",
       "//content/shell/android:content_shell_assets",
       "//content/shell/android:content_shell_jni_headers",
-      "//services/data_decoder/public/cpp/android:safe_json_java",
       "//testing/android/native_test:native_test_support",
       "//ui/accessibility:ax_base_android",
       "//ui/android",
@@ -2246,9 +2246,6 @@ test("content_browsertests") {
   } else {
     # Non-Android.
     sources += [
-      "../browser/direct_sockets/direct_sockets_open_browsertest.cc",
-      "../browser/direct_sockets/direct_sockets_tcp_browsertest.cc",
-      "../browser/direct_sockets/direct_sockets_udp_browsertest.cc",
       "../browser/font_preferences_browsertest.cc",
       "../browser/renderer_host/clipboard_host_impl_browsertest.cc",
       "../browser/speech/speech_recognition_browsertest.cc",
@@ -2275,6 +2272,13 @@ test("content_browsertests") {
 
     if (!is_ios) {
       data += [ "//content/test/data/clipboard/" ]
+    }
+    if (!is_ios && !is_fuchsia) {
+      sources += [
+        "../browser/direct_sockets/direct_sockets_open_browsertest.cc",
+        "../browser/direct_sockets/direct_sockets_tcp_browsertest.cc",
+        "../browser/direct_sockets/direct_sockets_udp_browsertest.cc",
+      ]
     }
   }
   if (is_posix) {
@@ -2783,6 +2787,7 @@ test("content_unittests") {
     "../browser/renderer_host/back_forward_cache_subframe_navigation_throttle_unittest.cc",
     "../browser/renderer_host/browsing_context_group_swap_unittest.cc",
     "../browser/renderer_host/clipboard_host_impl_unittest.cc",
+    "../browser/renderer_host/code_cache_host_impl_unittest.cc",
     "../browser/renderer_host/commit_deferring_condition_runner_unittest.cc",
     "../browser/renderer_host/cursor_manager_unittest.cc",
     "../browser/renderer_host/debug_urls_unittest.cc",
@@ -3072,15 +3077,10 @@ test("content_unittests") {
     ]
   }
 
-  if (is_ios) {
-    sources += [
-      "../browser/renderer_host/render_widget_host_view_ios_uiview_unittest.mm",
-    ]
-  }
-
   if (is_ios && target_platform == "iphoneos") {
     sources += [
       "../browser/date_time_chooser/ios/date_time_chooser_util_unittest.mm",
+      "../browser/renderer_host/render_widget_host_view_ios_uiview_unittest.mm",
     ]
   }
 
@@ -3525,7 +3525,6 @@ test("content_unittests") {
       "//content/public/android:content_java",
       "//gin:v8_snapshot_assets",
       "//gpu/command_buffer/service:android_texture_owner_test_support",
-      "//services/data_decoder/public/cpp/android:safe_json_java",
       "//third_party/blink/public/common",
       "//third_party/blink/public/common:font_unique_name_table_proto",
       "//ui/android",

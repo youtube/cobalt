@@ -38,7 +38,7 @@ namespace {
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 // Enables H.264 CBP encode acceleration.
-BASE_FEATURE(PlatformH264CbpEncoding,
+BASE_FEATURE(kPlatformH264CbpEncoding,
 #if BUILDFLAG(IS_WIN)
              base::FEATURE_DISABLED_BY_DEFAULT);
 #else

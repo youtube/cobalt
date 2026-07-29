@@ -4,8 +4,6 @@
 
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_coordinator.h"
 
-#import <MaterialComponents/MaterialSnackbar.h>
-
 #import "base/feature_list.h"
 #import "base/metrics/field_trial_params.h"
 #import "base/metrics/histogram_functions.h"
@@ -119,6 +117,7 @@
 #import "ios/chrome/browser/shared/public/commands/show_signin_command.h"
 #import "ios/chrome/browser/shared/public/commands/snackbar_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/browser/shared/public/snackbar/snackbar_message.h"
 #import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
 #import "ios/chrome/browser/shared/ui/util/snackbar_util.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
@@ -382,9 +381,7 @@
   [self configureNTPViewController];
   [self configureTabGroupIndicator];
 
-  if (IsNTPBackgroundCustomizationEnabled() &&
-      self.prefService->GetBoolean(
-          prefs::kNTPCustomBackgroundEnabledByPolicy)) {
+  if (IsNTPBackgroundCustomizationEnabled()) {
     // Ensure the initial background is applied after all components have been
     // set up.
     [self.NTPMediator updateBackground];
@@ -933,13 +930,7 @@
     [handler
         showGoogleServicesSettingsFromViewController:self.baseViewController];
   } else if (isSignedIn) {
-    if (IsIdentityDiscAccountMenuEnabled()) {
-      [self showAccountMenu:identityDisc];
-    } else {
-      id<ApplicationCommands> handler = HandlerForProtocol(
-          self.browser->GetCommandDispatcher(), ApplicationCommands);
-      [handler showSettingsFromViewController:self.baseViewController];
-    }
+    [self showAccountMenu:identityDisc];
   } else {
     __weak __typeof(self) weakSelf = self;
     auto accessPoint = signin_metrics::AccessPoint::kNtpSignedOutIcon;
@@ -1854,10 +1845,10 @@
 - (void)showSignInDisableMessage {
   id<SnackbarCommands> handler =
       static_cast<id<SnackbarCommands>>(self.browser->GetCommandDispatcher());
-  MDCSnackbarMessage* message = CreateSnackbarMessage(l10n_util::GetNSString(
+  SnackbarMessage* message = CreateCustomSnackbarMessage(l10n_util::GetNSString(
       IDS_IOS_NTP_FEED_SIGNIN_PROMO_DISABLE_SNACKBAR_MESSAGE));
 
-  [handler showSnackbarMessage:message];
+  [handler showCustomSnackbarMessage:message];
 }
 
 // Saves the state of the NTP associated with `self.webState`.
