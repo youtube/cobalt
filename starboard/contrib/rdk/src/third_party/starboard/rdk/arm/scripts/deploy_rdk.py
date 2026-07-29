@@ -258,8 +258,8 @@ def _extract_flag_key(arg: str) -> str:
     return arg.split("=", 1)[0].split()[0]
 
 
-def deduplicate_sb_args(default_args: List[str], override_args: List[str]) -> List[str]:
-    """Filters pre-existing default flags from default_args whose keys are overridden by override_args.
+def deduplicate_sb_args(cobalt_json_args: List[str], override_args: List[str]) -> List[str]:
+    """Filters pre-existing flags from cobalt_json_args whose keys are overridden by override_args.
 
     Handles inline equals ('--foo=val'), single-string space ('--foo val'),
     valueless/boolean flags ('--foo'), and two-item space-separated ('--foo', 'val').
@@ -269,25 +269,25 @@ def deduplicate_sb_args(default_args: List[str], override_args: List[str]) -> Li
         if arg.startswith("--"):
             override_keys.add(_extract_flag_key(arg))
 
-    filtered_default_args = []
+    filtered_cobalt_json_args = []
     i = 0
-    while i < len(default_args):
-        arg = default_args[i]
+    while i < len(cobalt_json_args):
+        arg = cobalt_json_args[i]
         if arg.startswith("--"):
             key = _extract_flag_key(arg)
             if key in override_keys:
                 # Key is overridden by override_args. Skip this flag.
                 # If value was in separate argument item (no '=' or space in arg),
                 # skip the next argument item too if it's a non-flag value.
-                if "=" not in arg and " " not in arg and (i + 1 < len(default_args)) and not default_args[i + 1].startswith("--"):
+                if "=" not in arg and " " not in arg and (i + 1 < len(cobalt_json_args)) and not cobalt_json_args[i + 1].startswith("--"):
                     i += 1  # Skip space-separated value item
             else:
-                filtered_default_args.append(arg)
+                filtered_cobalt_json_args.append(arg)
         else:
-            filtered_default_args.append(arg)
+            filtered_cobalt_json_args.append(arg)
         i += 1
 
-    return filtered_default_args + override_args
+    return filtered_cobalt_json_args + override_args
 
 
 def launch_on_device(
@@ -351,7 +351,7 @@ def launch_on_device(
             res = json.loads(res_str.strip())
             if "result" in res:
                 config = res["result"]
-                default_args = config.get("sbmainargs", [])
+                cobalt_json_args = config.get("sbmainargs", [])
                 
                 script_args = []
                 if devtools:
@@ -360,7 +360,7 @@ def launch_on_device(
                 user_override_args = param if param else []
                 override_args = script_args + user_override_args
 
-                config["sbmainargs"] = deduplicate_sb_args(default_args, override_args)
+                config["sbmainargs"] = deduplicate_sb_args(cobalt_json_args, override_args)
 
                 # Set configuration
                 rpc_set_config = json.dumps({
