@@ -281,7 +281,7 @@ CSSMathType::BaseType CSSMathType::CalculationCategoryToBaseType(
     case kCalcIdent:
     case kCalcOther:
     case kCalcLengthFunction:
-    case kCalcIntrinsicSize:
+    case kCalcIntermediate:
       NOTREACHED();
   }
 }
@@ -472,7 +472,7 @@ bool IsNaN(PixelsAndPercent value, bool allows_negative_percentage_reference) {
 }
 
 std::optional<PixelsAndPercent> EvaluateValueIfNaNorInfinity(
-    scoped_refptr<const blink::CalculationExpressionNode> value,
+    const blink::CalculationExpressionNode* value,
     bool allows_negative_percentage_reference) {
   if (value->HasColorChannelKeyword()) {
     // We cannot correctly evaluate for NaN or infinity until we know the
@@ -511,8 +511,7 @@ bool CheckProgressFunctionTypes(
     case CSSValueID::kProgress: {
       CalculationResultCategory first_category = nodes[0]->Category();
       if (first_category != nodes[1]->Category() ||
-          first_category != nodes[2]->Category() ||
-          first_category == CalculationResultCategory::kCalcIntrinsicSize) {
+          first_category != nodes[2]->Category() || nodes[0]->IsCalcSize()) {
         return false;
       }
       break;
@@ -1052,14 +1051,14 @@ CSSMathExpressionNumericLiteral::ToPixelsAndPercent(
   }
 }
 
-scoped_refptr<const CalculationExpressionNode>
+const CalculationExpressionNode*
 CSSMathExpressionNumericLiteral::ToCalculationExpression(
     const CSSLengthResolver& length_resolver) const {
   if (Category() == kCalcNumber) {
-    return base::MakeRefCounted<CalculationExpressionNumberNode>(
+    return MakeGarbageCollected<CalculationExpressionNumberNode>(
         value_->DoubleValue());
   }
-  return base::MakeRefCounted<CalculationExpressionPixelsAndPercentNode>(
+  return MakeGarbageCollected<CalculationExpressionPixelsAndPercentNode>(
       *ToPixelsAndPercent(length_resolver));
 }
 
@@ -1117,7 +1116,7 @@ double CSSMathExpressionNumericLiteral::ComputeDouble(
     case kCalcFrequency:
       return value_->ComputeInCanonicalUnit();
     case kCalcLengthFunction:
-    case kCalcIntrinsicSize:
+    case kCalcIntermediate:
     case kCalcOther:
     case kCalcIdent:
       NOTREACHED();
@@ -1135,7 +1134,7 @@ double CSSMathExpressionNumericLiteral::ComputeLengthPx(
     case kCalcAngle:
     case kCalcFrequency:
     case kCalcLengthFunction:
-    case kCalcIntrinsicSize:
+    case kCalcIntermediate:
     case kCalcTime:
     case kCalcResolution:
     case kCalcOther:
@@ -1207,7 +1206,7 @@ static constexpr std::array<std::array<CalculationResultCategory, kCalcOther>,
          {kCalcOther, kCalcLengthFunction, kCalcLengthFunction,
           kCalcLengthFunction, kCalcOther, kCalcOther, kCalcOther, kCalcOther,
           kCalcOther, kCalcOther},
-         /* CalcIntrinsicSize */
+         /* CalcIntermediate */
          {kCalcOther, kCalcOther, kCalcOther, kCalcOther, kCalcOther,
           kCalcOther, kCalcOther, kCalcOther, kCalcOther, kCalcOther},
          /* CalcAngle */
@@ -1237,8 +1236,7 @@ static CalculationResultCategory DetermineCategory(
     return kCalcOther;
   }
 
-  if (left_category == kCalcIntrinsicSize ||
-      right_category == kCalcIntrinsicSize) {
+  if (left_side.IsCalcSize() || right_side.IsCalcSize()) {
     return kCalcOther;
   }
 
@@ -1270,6 +1268,9 @@ static CalculationResultCategory DetermineComparisonCategory(
   bool is_first = true;
   CalculationResultCategory category = kCalcOther;
   for (const CSSMathExpressionNode* operand : operands) {
+    if (operand->IsCalcSize()) {
+      return kCalcOther;
+    }
     if (is_first) {
       category = operand->Category();
     } else {
@@ -1293,12 +1294,12 @@ static CalculationResultCategory DetermineCalcSizeCategory(
   CalculationResultCategory calculation_category = right_side.Category();
 
   if ((basis_category == kCalcLength || basis_category == kCalcPercent ||
-       basis_category == kCalcLengthFunction ||
-       basis_category == kCalcIntrinsicSize) &&
+       basis_category == kCalcLengthFunction || left_side.IsCalcSize()) &&
       (calculation_category == kCalcLength ||
        calculation_category == kCalcPercent ||
-       calculation_category == kCalcLengthFunction)) {
-    return kCalcIntrinsicSize;
+       calculation_category == kCalcLengthFunction) &&
+      !right_side.IsCalcSize()) {
+    return kCalcLengthFunction;
   }
   return kCalcOther;
 }
@@ -1313,10 +1314,10 @@ CSSMathExpressionIdentifierLiteral::CSSMathExpressionIdentifierLiteral(
                             false /* needs_tree_scope_population*/),
       identifier_(std::move(identifier)) {}
 
-scoped_refptr<const CalculationExpressionNode>
+const CalculationExpressionNode*
 CSSMathExpressionIdentifierLiteral::ToCalculationExpression(
     const CSSLengthResolver&) const {
-  return base::MakeRefCounted<CalculationExpressionIdentifierNode>(identifier_);
+  return MakeGarbageCollected<CalculationExpressionIdentifierNode>(identifier_);
 }
 
 // ------ End of CSSMathExpressionIdentifierLiteral member functions ----
@@ -1410,18 +1411,18 @@ CSSMathExpressionKeywordLiteral::CSSMathExpressionKeywordLiteral(
       keyword_(keyword),
       context_(context) {}
 
-scoped_refptr<const CalculationExpressionNode>
+const CalculationExpressionNode*
 CSSMathExpressionKeywordLiteral::ToCalculationExpression(
     const CSSLengthResolver& length_resolver) const {
   switch (context_) {
     case CSSMathExpressionKeywordLiteral::Context::kMediaProgress: {
       switch (keyword_) {
         case CSSValueID::kWidth:
-          return base::MakeRefCounted<
+          return MakeGarbageCollected<
               CalculationExpressionPixelsAndPercentNode>(
               PixelsAndPercent(length_resolver.ViewportWidth()));
         case CSSValueID::kHeight:
-          return base::MakeRefCounted<
+          return MakeGarbageCollected<
               CalculationExpressionPixelsAndPercentNode>(
               PixelsAndPercent(length_resolver.ViewportHeight()));
         default:
@@ -1429,10 +1430,10 @@ CSSMathExpressionKeywordLiteral::ToCalculationExpression(
       }
     }
     case CSSMathExpressionKeywordLiteral::Context::kCalcSize:
-      return base::MakeRefCounted<CalculationExpressionSizingKeywordNode>(
+      return MakeGarbageCollected<CalculationExpressionSizingKeywordNode>(
           CSSValueIDToSizingKeyword(keyword_));
     case CSSMathExpressionKeywordLiteral::Context::kColorChannel:
-      return base::MakeRefCounted<CalculationExpressionColorChannelKeywordNode>(
+      return MakeGarbageCollected<CalculationExpressionColorChannelKeywordNode>(
           CSSValueIDToColorChannelKeyword(keyword_));
   };
 }
@@ -1538,23 +1539,6 @@ CSSMathExpressionNode* CSSMathExpressionOperation::CreateCalcSizeOperation(
 
 // static
 CSSMathExpressionNode* CSSMathExpressionOperation::CreateComparisonFunction(
-    Operands&& operands,
-    CSSMathOperator op) {
-  DCHECK(op == CSSMathOperator::kMin || op == CSSMathOperator::kMax ||
-         op == CSSMathOperator::kClamp);
-
-  CalculationResultCategory category = DetermineComparisonCategory(operands);
-  if (category == kCalcOther) {
-    return nullptr;
-  }
-
-  return MakeGarbageCollected<CSSMathExpressionOperation>(
-      category, std::move(operands), op);
-}
-
-// static
-CSSMathExpressionNode*
-CSSMathExpressionOperation::CreateComparisonFunctionSimplified(
     Operands&& operands,
     CSSMathOperator op) {
   DCHECK(op == CSSMathOperator::kMin || op == CSSMathOperator::kMax ||
@@ -1743,6 +1727,9 @@ CSSMathExpressionNode* CSSMathExpressionOperation::CreateSteppedValueFunction(
       operands[1]->Category() == kCalcOther) {
     return nullptr;
   }
+  if (operands.front()->IsCalcSize() || operands.back()->IsCalcSize()) {
+    return nullptr;
+  }
   CalculationResultCategory category =
       kAddSubtractResult[operands[0]->Category()][operands[1]->Category()];
   if (category == kCalcOther) {
@@ -1767,6 +1754,10 @@ CSSMathExpressionNode* CSSMathExpressionOperation::CreateExponentialFunction(
     Operands&& operands,
     CSSValueID function_id) {
   if (!RuntimeEnabledFeatures::CSSExponentialFunctionsEnabled()) {
+    return nullptr;
+  }
+
+  if (operands.front()->IsCalcSize()) {
     return nullptr;
   }
 
@@ -1875,7 +1866,7 @@ CSSMathExpressionNode* CSSMathExpressionOperation::CreateSignRelatedFunction(
 
   const CSSMathExpressionNode* operand = operands.front();
 
-  if (operand->Category() == kCalcIntrinsicSize) {
+  if (operand->IsCalcSize()) {
     return nullptr;
   }
 
@@ -2368,7 +2359,7 @@ bool CSSMathExpressionOperation::HasPercentage() const {
   if (Category() == kCalcPercent) {
     return true;
   }
-  if (Category() != kCalcLengthFunction && Category() != kCalcIntrinsicSize) {
+  if (Category() != kCalcLengthFunction) {
     return false;
   }
   switch (operator_) {
@@ -2543,7 +2534,7 @@ std::optional<PixelsAndPercent> CSSMathExpressionOperation::ToPixelsAndPercent(
   return result;
 }
 
-scoped_refptr<const CalculationExpressionNode>
+const CalculationExpressionNode*
 CSSMathExpressionOperation::ToCalculationExpression(
     const CSSLengthResolver& length_resolver) const {
   switch (operator_) {
@@ -2574,7 +2565,7 @@ CSSMathExpressionOperation::ToCalculationExpression(
           CalculationOperator::kInvert);
     case CSSMathOperator::kMin:
     case CSSMathOperator::kMax: {
-      Vector<scoped_refptr<const CalculationExpressionNode>> operands;
+      HeapVector<Member<const CalculationExpressionNode>> operands;
       operands.reserve(operands_.size());
       for (const CSSMathExpressionNode* operand : operands_) {
         operands.push_back(operand->ToCalculationExpression(length_resolver));
@@ -2586,7 +2577,7 @@ CSSMathExpressionOperation::ToCalculationExpression(
           std::move(operands), expression_operator);
     }
     case CSSMathOperator::kClamp: {
-      Vector<scoped_refptr<const CalculationExpressionNode>> operands;
+      HeapVector<Member<const CalculationExpressionNode>> operands;
       operands.reserve(operands_.size());
       for (const CSSMathExpressionNode* operand : operands_) {
         operands.push_back(operand->ToCalculationExpression(length_resolver));
@@ -2618,7 +2609,7 @@ CSSMathExpressionOperation::ToCalculationExpression(
     case CSSMathOperator::kAtan:
     case CSSMathOperator::kAtan2:
     case CSSMathOperator::kPow: {
-      Vector<scoped_refptr<const CalculationExpressionNode>> operands;
+      HeapVector<Member<const CalculationExpressionNode>> operands;
       operands.reserve(operands_.size());
       for (const CSSMathExpressionNode* operand : operands_) {
         operands.push_back(operand->ToCalculationExpression(length_resolver));
@@ -3134,7 +3125,7 @@ CSSPrimitiveValue::UnitType CSSMathExpressionOperation::ResolvedUnitType()
           NOTREACHED();
       }
     case kCalcLengthFunction:
-    case kCalcIntrinsicSize:
+    case kCalcIntermediate:
     case kCalcOther:
       return CSSPrimitiveValue::UnitType::kUnknown;
     case kCalcIdent:
@@ -3440,12 +3431,12 @@ String CSSMathExpressionContainerFeature::CustomCSSText() const {
   return builder.ToString();
 }
 
-scoped_refptr<const CalculationExpressionNode>
+const CalculationExpressionNode*
 CSSMathExpressionContainerFeature::ToCalculationExpression(
     const CSSLengthResolver& length_resolver) const {
   double progress =
       EvaluateContainerSize(size_feature_, container_name_, length_resolver);
-  return base::MakeRefCounted<CalculationExpressionPixelsAndPercentNode>(
+  return MakeGarbageCollected<CalculationExpressionPixelsAndPercentNode>(
       PixelsAndPercent(progress));
 }
 
@@ -3615,7 +3606,7 @@ CSSAnchorSizeValue CSSValueIDToAnchorSizeValueEnum(CSSValueID value) {
 
 }  // namespace
 
-scoped_refptr<const CalculationExpressionNode>
+const CalculationExpressionNode*
 CSSMathExpressionAnchorQuery::ToCalculationExpression(
     const CSSLengthResolver& length_resolver) const {
   AnchorQuery query = ToQuery(length_resolver);
@@ -4310,7 +4301,7 @@ class CSSMathExpressionNodeParser {
       case CSSValueID::kCalc:
       case CSSValueID::kWebkitCalc: {
         const CSSMathExpressionNode* node = nodes.front();
-        if (node->Category() == kCalcIntrinsicSize) {
+        if (node->IsCalcSize()) {
           return nullptr;
         }
         return const_cast<CSSMathExpressionNode*>(node);
@@ -4326,7 +4317,7 @@ class CSSMathExpressionNodeParser {
           op = CSSMathOperator::kClamp;
         }
         CSSMathExpressionNode* node =
-            CSSMathExpressionOperation::CreateComparisonFunctionSimplified(
+            CSSMathExpressionOperation::CreateComparisonFunction(
                 std::move(nodes), op);
         if (node) {
           context_.Count(WebFeature::kCSSComparisonFunctions);
@@ -4677,7 +4668,7 @@ class CSSMathExpressionNodeParser {
   const CSSColorChannelMap& color_channel_map_;
 };
 
-scoped_refptr<const CalculationValue> CSSMathExpressionNode::ToCalcValue(
+const CalculationValue* CSSMathExpressionNode::ToCalcValue(
     const CSSLengthResolver& length_resolver,
     Length::ValueRange range,
     bool allows_negative_percentage_reference) const {
@@ -4695,14 +4686,16 @@ scoped_refptr<const CalculationValue> CSSMathExpressionNode::ToCalcValue(
       maybe_pixels_and_percent->percent =
           CSSValueClampingUtils::ClampLength(maybe_pixels_and_percent->percent);
     }
-    return CalculationValue::Create(*maybe_pixels_and_percent, range);
+    return MakeGarbageCollected<CalculationValue>(*maybe_pixels_and_percent,
+                                                  range);
   }
 
-  auto value = ToCalculationExpression(length_resolver);
+  const auto* value = ToCalculationExpression(length_resolver);
   std::optional<PixelsAndPercent> evaluated_value =
       EvaluateValueIfNaNorInfinity(value, allows_negative_percentage_reference);
   if (evaluated_value.has_value()) {
-    return CalculationValue::Create(evaluated_value.value(), range);
+    return MakeGarbageCollected<CalculationValue>(evaluated_value.value(),
+                                                  range);
   }
   return CalculationValue::CreateSimplified(value, range);
 }
@@ -4974,10 +4967,10 @@ String CSSMathExpressionSiblingFunction::CustomCSSText() const {
              : "sibling-count()";
 }
 
-scoped_refptr<const CalculationExpressionNode>
+const CalculationExpressionNode*
 CSSMathExpressionSiblingFunction::ToCalculationExpression(
     const CSSLengthResolver& length_resolver) const {
-  return base::MakeRefCounted<CalculationExpressionNumberNode>(
+  return MakeGarbageCollected<CalculationExpressionNumberNode>(
       ComputeDouble(length_resolver));
 }
 

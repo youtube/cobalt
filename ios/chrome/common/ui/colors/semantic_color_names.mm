@@ -44,6 +44,8 @@ NSString* const kTextfieldPlaceholderColor = @"textfield_placeholder_color";
 NSString* const kToolbarButtonColor = @"toolbar_button_color";
 NSString* const kToolbarShadowColor = @"toolbar_shadow_color";
 
+NSString* const kMiniFakeOmniboxBackgroundColor =
+    @"mini_fake_omnibox_background_color";
 NSString* const kOmniboxKeyboardButtonColor = @"omnibox_keyboard_button_color";
 NSString* const kOmniboxPopoutOverlayColor = @"omnibox_popout_overlay_color";
 NSString* const kOmniboxSuggestionRowSeparatorColor =
@@ -56,7 +58,6 @@ NSString* const kOmniboxPopoutSuggestionRowSeparatorColor =
 
 NSString* const kTabGroupFaviconBackgroundColor =
     @"tab_group_favicons_background_color";
-NSString* const kTabStripBackgroundColor = @"tab_strip_background_color";
 NSString* const kTabStripV3BackgroundColor = @"tab_strip_v3_background_color";
 NSString* const kTabStripNewTabButtonColor = @"tab_strip_new_tab_button_color";
 NSString* const kTabGroupPinkColor = @"tab_group_pink_color";

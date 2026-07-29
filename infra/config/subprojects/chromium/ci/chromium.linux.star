@@ -464,7 +464,7 @@ ci.builder(
 ci.thin_tester(
     name = "Linux Tests",
     branch_selector = branches.selector.LINUX_BRANCHES,
-    triggered_by = ["ci/Linux Builder"],
+    parent = "ci/Linux Builder",
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(
@@ -567,7 +567,7 @@ ci.thin_tester(
 ci.thin_tester(
     name = "Linux Tests (dbg)(1)",
     branch_selector = branches.selector.LINUX_BRANCHES,
-    triggered_by = ["ci/Linux Builder (dbg)"],
+    parent = "ci/Linux Builder (dbg)",
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(
@@ -665,7 +665,7 @@ ci.thin_tester(
 ci.thin_tester(
     name = "Linux Tests (Wayland)",
     branch_selector = branches.selector.LINUX_BRANCHES,
-    triggered_by = ["ci/Linux Builder (Wayland)"],
+    parent = "ci/Linux Builder (Wayland)",
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(
@@ -758,8 +758,7 @@ ci.thin_tester(
 
 ci.thin_tester(
     name = "linux-wayland-mutter-rel-tests",
-    # TODO(crbug.com/401284929): Uncomment when enabling gardener_rotations and tree_closing.
-    # branch_selector = branches.selector.LINUX_BRANCHES,
+    branch_selector = branches.selector.LINUX_BRANCHES,
     description_html =
         "Runs Wayland tests on Mutter. See the {} for details.".format(
             linkify(
@@ -767,7 +766,7 @@ ci.thin_tester(
                 "ozone wayland doc",
             ),
         ),
-    triggered_by = ["ci/Linux Builder (Wayland)"],
+    parent = "ci/Linux Builder (Wayland)",
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(
@@ -845,19 +844,10 @@ ci.thin_tester(
             ),
         },
     ),
-
-    ############################################################################
-    # TODO(crbug.com/401284929) Remove this section once mutter tests are stable
-    ############################################################################
-    gardener_rotations = args.ignore_default(None),
-    tree_closing = False,
     console_view_entry = consoles.console_view_entry(
-        console_view = "chromium.fyi",
-        category = "linux",
+        category = "release",
         short_name = "tst-mt",
     ),
-    main_console_view = None,
-    ############################################################################
     cq_mirrors_console_view = "mirrors",
     contact_team_email = "chrome-linux-engprod@google.com",
 )
@@ -909,7 +899,7 @@ ci.builder(
 ci.builder(
     name = "linux-oi-rel",
     description_html = "This builder runs key test suites with OriginKeyedProcessesByDefault (OriginIsolation) enabled, to provide test coverage with the feature enabled.",
-    triggered_by = ["ci/Linux Builder"],
+    parent = "ci/Linux Builder",
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(

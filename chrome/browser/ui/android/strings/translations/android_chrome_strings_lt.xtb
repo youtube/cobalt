@@ -929,6 +929,7 @@ Adresu <ph name="BEGIN_LINK" />myactivity.google.com<ph name="END_LINK" /> gali 
 <translation id="5233638681132016545">Naujas skirtukas</translation>
 <translation id="5235196193381275927">Prisijungiant įvyko klaida</translation>
 <translation id="5246093389635966745">Redaguoti spartųjį įrankių juostos klavišą</translation>
+<translation id="5252768492075585080">Trečiųjų šalių slapukų nustatymai</translation>
 <translation id="5264813352784073502">pastarosios dvidešimt keturios valandos</translation>
 <translation id="5267572070504076962">Įjunkite Saugų naršymą, kad būtumėte apsaugoti nuo pavojingų svetainių</translation>
 <translation id="5271967389191913893">Įrenginyje nepavyksta atidaryti norimo atsisiųsti turinio.</translation>
@@ -1399,6 +1400,7 @@ Jei norite pakeisti šį nustatymą, <ph name="BEGIN_LINK" />ištrinkite „Chro
 <translation id="7237724030342645845">„Google“ slaptažodžių tvarkyklė nebeveikia</translation>
 <translation id="72415438529550637">Slaptažodžio pasiūlymas uždarytas.</translation>
 <translation id="7248671827512403053">Programa</translation>
+<translation id="7253951228444156601">Tikrinami slaptažodžiai…</translation>
 <translation id="7260367682327802201">Jūsų „Android“ įrenginyje gali būti panašus nustatymas. Jei naršyklėje „Chrome“ ir „Android“ įrenginyje įjungtas skelbimų vertinimo nustatymas, įmonė gali vertinti skelbimo efektyvumą svetainėse, kuriose lankotės, ir programose, kurias naudojate.</translation>
 <translation id="727288900855680735">Pateikti <ph name="ONE_TIME_CODE" /> šaltiniui <ph name="ORIGIN" />?</translation>
 <translation id="7274013316676448362">Užblokuota svetainė</translation>
@@ -1440,6 +1442,7 @@ Jei norite pakeisti šį nustatymą, <ph name="BEGIN_LINK" />ištrinkite „Chro
 <translation id="7431991332293347422">Naršymo istorijos naudojimo paieškai ir kitoms funkcijoms suasmeninti valdymas</translation>
 <translation id="7435356471928173109">Išjungė jūsų administratorius</translation>
 <translation id="7437998757836447326">Atsijungimas nuo „Chrome“</translation>
+<translation id="7439467816829380878">Perkelti skirtuką į grupę</translation>
 <translation id="7453810262525006706">Sutraukti ir peržiūrėti vaizdą iš šono</translation>
 <translation id="7454641608352164238">Nepakanka vietos</translation>
 <translation id="7454744349230173024">Organizacija išjungė slaptažodžių saugojimą</translation>
@@ -1532,6 +1535,7 @@ Jei norite pakeisti šį nustatymą, <ph name="BEGIN_LINK" />ištrinkite „Chro
 <translation id="7810647596859435254">Atidaryti naudojant...</translation>
 <translation id="7814066895362068701">{FILE_COUNT,plural, =1{Visi failai, vienas failas sąraše}one{Visi failai, # failas sąraše}few{Visi failai, # failai sąraše}many{Visi failai, # failo sąraše}other{Visi failai, # failų sąraše}}</translation>
 <translation id="7815484226266492798">Ilga ekrano kopija</translation>
+<translation id="7815680994978050279">Užblokuotas pavojingas atsisiuntimas</translation>
 <translation id="7819605256207059717">Užblokavo jūsų organizacija</translation>
 <translation id="7821130663268546430">Visus atidarytus skirtukus rasite skirtukų perjungiklyje</translation>
 <translation id="7822705602465980873">Kai esate prisijungę, šie duomenys susiejami su jūsų „Google“ paskyra, siekiant apsaugoti jus „Google“ paslaugose, pvz., užtikrinant didesnę apsaugą sistemoje „Gmail“ po saugos incidento.</translation>
@@ -1815,6 +1819,7 @@ Jei norite pakeisti šį nustatymą, <ph name="BEGIN_LINK" />ištrinkite „Chro
 <translation id="9019199799064251516">Tęsti be automobilio profilio užrakto?</translation>
 <translation id="9022774213089566801">Dažnai lankytasi</translation>
 <translation id="9022871169049522985">Svetainės ir reklamuotojai gali vertinti skelbimų našumą</translation>
+<translation id="9027728231343310283">Anuliuoti <ph name="SITE" /></translation>
 <translation id="9035378196785279980">Perkelti į\u2026</translation>
 <translation id="9042893549633094279">Privatumas ir sauga</translation>
 <translation id="9047347135558855162">Sparčiai pradėkite paiešką naršyklėje „Chrome“</translation>

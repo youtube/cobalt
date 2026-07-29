@@ -549,7 +549,9 @@ void NativeWidgetMac::InitModalType(ui::mojom::ModalType modal_type) {
   // Everything happens upon show.
 }
 
-void NativeWidgetMac::OnWidgetThemeChanged(ui::ColorProviderKey::ColorMode color_mode) {
+void NativeWidgetMac::OnWidgetThemeChanged(
+    ui::ColorProviderKey::ColorMode color_mode,
+    std::optional<SkColor> background_color) {
   if (ns_window_host_) {
     ns_window_host_->SetColorMode(color_mode);
   }
@@ -1060,6 +1062,10 @@ bool NativeWidgetMac::AreScreenshotsAllowed() {
   if (ns_window_host_) {
     return ns_window_host_->AllowScreenshots();
   }
+  return true;
+}
+
+bool NativeWidgetMac::IsDesktopNativeWidget() const {
   return true;
 }
 

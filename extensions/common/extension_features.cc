@@ -70,10 +70,6 @@ BASE_FEATURE(kCheckingNoExtensionIdInExtensionIpcs,
              "EMF_NO_EXTENSION_ID_FOR_EXTENSION_SOURCE",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kDeferResetURLLoaderFactories,
-             "DeferResetURLLoaderFactories",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 BASE_FEATURE(kSkipResetServiceWorkerURLLoaderFactories,
              "SkipResetServiceWorkerURLLoaderFactories",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -169,13 +165,6 @@ BASE_FEATURE(kTelemetryExtensionPendingApprovalApi,
 BASE_FEATURE(kWebstoreInstallerUserGestureKillSwitch,
              "WebstoreInstallerUserGestureKillSwitch",
              base::FEATURE_ENABLED_BY_DEFAULT);
-
-#if BUILDFLAG(IS_WIN)
-// TODO(https://crbug.com/400119351): Remove this feature flag in M138.
-BASE_FEATURE(kWinRejectDotSpaceSuffixFilePaths,
-             "WinRejectDotSpaceSuffixFilePaths",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-#endif
 
 BASE_FEATURE(kDeclarativeNetRequestSafeRuleLimits,
              "DeclarativeNetRequestSafeDynamicRules",

@@ -255,6 +255,7 @@ static inline bool IsColorPropertyID(CSSPropertyID property_id) {
       CSSPropertyID::kBorderInlineEndColor,
       CSSPropertyID::kBorderInlineStartColor,
       CSSPropertyID::kColumnRuleColor,
+      CSSPropertyID::kRowRuleColor,
       CSSPropertyID::kTextEmphasisColor,
       CSSPropertyID::kWebkitTextFillColor,
       CSSPropertyID::kWebkitTextStrokeColor,
@@ -1367,7 +1368,7 @@ bool CSSParserFastPaths::IsValidKeywordPropertyAndValue(
              value_id == CSSValueID::kInternalTextareaAuto ||
              (RuntimeEnabledFeatures::CSSResizeAutoEnabled() &&
               value_id == CSSValueID::kAuto);
-    case CSSPropertyID::kScrollMarkerContain:
+    case CSSPropertyID::kScrollTargetGroup:
       return value_id == CSSValueID::kNone || value_id == CSSValueID::kAuto;
     case CSSPropertyID::kScrollMarkerGroup:
       return value_id == CSSValueID::kNone || value_id == CSSValueID::kAfter ||
@@ -1777,7 +1778,7 @@ CSSBitset CSSParserFastPaths::handled_by_keyword_fast_paths_properties_{{
     CSSPropertyID::kReadingFlow,
     CSSPropertyID::kResize,
     CSSPropertyID::kRowRuleBreak,
-    CSSPropertyID::kScrollMarkerContain,
+    CSSPropertyID::kScrollTargetGroup,
     CSSPropertyID::kScrollMarkerGroup,
     CSSPropertyID::kScrollBehavior,
     CSSPropertyID::kOverscrollBehaviorInline,
