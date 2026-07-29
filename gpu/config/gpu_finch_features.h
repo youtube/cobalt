@@ -25,6 +25,10 @@ namespace features {
 
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kUseGles2ForOopR);
 
+#if BUILDFLAG(IS_COBALT)
+GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kCobaltInProcessDirectRaster);
+#endif  // BUILDFLAG(IS_COBALT)
+
 // All features in alphabetical order. The features should be documented
 // alongside the definition of their values in the .cc file.
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kAggressiveShaderCacheLimits);

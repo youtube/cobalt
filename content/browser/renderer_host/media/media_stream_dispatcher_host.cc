@@ -716,13 +716,13 @@ void MediaStreamDispatcherHost::RequestCapturedSurfaceControlPermission(
 }
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
-#if BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 void MediaStreamDispatcherHost::ApplySubCaptureTarget(
     const base::UnguessableToken& device_id,
     media::mojom::SubCaptureTargetType type,
     const base::Token& sub_capture_target,
     uint32_t sub_capture_version,
     ApplySubCaptureTargetCallback callback) {
+#if BUILDFLAG(ENABLE_SCREEN_CAPTURE)
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
 
   const GlobalRenderFrameHostId captured_id =
@@ -742,9 +742,20 @@ void MediaStreamDispatcherHost::ApplySubCaptureTarget(
       base::BindOnce(
           &MediaStreamDispatcherHost::OnSubCaptureTargetValidationComplete,
           weak_factory_.GetWeakPtr(), device_id, type, sub_capture_target,
+<<<<<<< HEAD
           sub_capture_version, std::move(callback)));
+=======
+          sub_capture_version,
+          WrapApplySubCaptureTarget(std::move(callback),
+                                    mojo::GetBadMessageCallback())));
+#else
+  std::move(callback).Run(
+      media::mojom::ApplySubCaptureTargetResult::kNotImplemented);
+#endif  // BUILDFLAG(ENABLE_SCREEN_CAPTURE)
+>>>>>>> parent of 564dd647624 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
+#if BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 void MediaStreamDispatcherHost::OnSubCaptureTargetValidationComplete(
     const base::UnguessableToken& session_id,
     media::mojom::SubCaptureTargetType type,

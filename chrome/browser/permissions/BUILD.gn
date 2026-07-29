@@ -40,10 +40,13 @@ source_set("permissions") {
     "permission_revocation_request.h",
     "prediction_service/language_detection_observer.cc",
     "prediction_service/language_detection_observer.h",
+<<<<<<< HEAD
     "prediction_service/passage_embedder_delegate.cc",
     "prediction_service/passage_embedder_delegate.h",
     "prediction_service/permissions_ai_ui_selector.cc",
     "prediction_service/permissions_ai_ui_selector.h",
+=======
+>>>>>>> parent of 564dd647624 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     "prediction_service/permissions_aiv1_handler.cc",
     "prediction_service/permissions_aiv1_handler.h",
     "prediction_service/prediction_model_handler_provider.cc",
@@ -169,6 +172,8 @@ source_set("permissions") {
 
   if (build_with_tflite_lib) {
     sources += [
+      "prediction_service/passage_embedder_delegate.cc",
+      "prediction_service/passage_embedder_delegate.h",
       "prediction_service/prediction_model_handler_provider_factory.cc",
       "prediction_service/prediction_model_handler_provider_factory.h",
     ]

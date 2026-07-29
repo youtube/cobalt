@@ -275,6 +275,7 @@ source_set("raster_sources") {
     "//gpu/command_buffer/common:gles2",
     "//gpu/command_buffer/common:gles2_utils",
     "//gpu/command_buffer/common:raster",
+    "//gpu/config",
     "//ui/base:features",
     "//ui/gfx:color_space",
     "//ui/gfx/geometry",
