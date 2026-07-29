@@ -713,6 +713,16 @@ content::WebContents* ExtensionBrowserTest::GetActiveWebContents() const {
   return chrome_test_utils::GetActiveWebContents(this);
 }
 
+content::WebContents* ExtensionBrowserTest::GetWebContentsAt(int index) const {
+#if !BUILDFLAG(IS_ANDROID)
+  // Some tests may not immediately open a browser. Handle this gracefully.
+  if (!browser()) {
+    return nullptr;
+  }
+#endif
+  return chrome_test_utils::GetWebContentsAt(this, index);
+}
+
 base::FilePath ExtensionBrowserTest::PackExtension(
     const base::FilePath& dir_path,
     int extra_run_flags) {
@@ -773,17 +783,13 @@ base::FilePath ExtensionBrowserTest::PackExtensionWithOptions(
   return crx_path;
 }
 
-bool ExtensionBrowserTest::NavigateToURL(const GURL& url) {
-  return NavigateToURL(GetActiveWebContents(), url);
-}
-
 bool ExtensionBrowserTest::NavigateToURL(content::WebContents* web_contents,
                                          const GURL& url) {
   content::TestNavigationObserver observer(web_contents);
   // The return value is ignored because some tests load URLs that cause
   // redirects, or are blocked URLs, which make NavigateToURL return false.
   (void)content::NavigateToURL(web_contents, url);
-  // Ensure the navigation happened.
+  // Wait for load to stop.
   observer.Wait();
   return observer.last_navigation_succeeded();
 }

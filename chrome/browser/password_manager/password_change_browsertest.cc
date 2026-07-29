@@ -18,6 +18,7 @@
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/password_manager/chrome_password_change_service.h"
+#include "chrome/browser/password_manager/chrome_password_manager_client.h"
 #include "chrome/browser/password_manager/password_change/change_password_form_finder.h"
 #include "chrome/browser/password_manager/password_change/model_quality_logs_uploader.h"
 #include "chrome/browser/password_manager/password_change/password_change_submission_verifier.h"
@@ -28,6 +29,7 @@
 #include "chrome/browser/password_manager/passwords_navigation_observer.h"
 #include "chrome/browser/password_manager/profile_password_store_factory.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/autofill/chrome_autofill_client.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/passwords/bubble_controllers/password_bubble_controller_base.h"
 #include "chrome/browser/ui/passwords/manage_passwords_ui_controller.h"
@@ -39,6 +41,11 @@
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/affiliations/core/browser/mock_affiliation_service.h"
+#include "components/autofill/content/browser/content_autofill_driver.h"
+#include "components/autofill/content/browser/test_autofill_manager_injector.h"
+#include "components/autofill/core/browser/foundations/browser_autofill_manager.h"
+#include "components/autofill/core/browser/foundations/test_autofill_manager_waiter.h"
+#include "components/autofill/core/common/autofill_test_utils.h"
 #include "components/keyed_service/content/browser_context_dependency_manager.h"
 #include "components/optimization_guide/core/mock_optimization_guide_model_executor.h"
 #include "components/optimization_guide/core/model_quality/test_model_quality_logs_uploader_service.h"
@@ -46,6 +53,8 @@
 #include "components/optimization_guide/core/optimization_guide_prefs.h"
 #include "components/optimization_guide/core/optimization_guide_proto_util.h"
 #include "components/optimization_guide/proto/model_quality_service.pb.h"
+#include "components/password_manager/core/browser/one_time_passwords/otp_form_manager.h"
+#include "components/password_manager/core/browser/one_time_passwords/otp_manager.h"
 #include "components/password_manager/core/browser/password_form_manager.h"
 #include "components/password_manager/core/browser/password_store/test_password_store.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
@@ -106,6 +115,21 @@ class MockPasswordChangeDelegateObserver
               OnPasswordChangeStopped,
               (PasswordChangeDelegate*),
               (override));
+};
+
+class TestAutofillManager : public autofill::BrowserAutofillManager {
+ public:
+  explicit TestAutofillManager(autofill::ContentAutofillDriver* driver)
+      : BrowserAutofillManager(driver) {}
+
+  testing::AssertionResult WaitForFormsSeen(int min_num_awaited_calls) {
+    return forms_seen_waiter_.Wait(min_num_awaited_calls);
+  }
+
+ private:
+  autofill::TestAutofillManagerWaiter forms_seen_waiter_{
+      *this,
+      {autofill::AutofillManagerEvent::kFormsSeen}};
 };
 
 std::unique_ptr<KeyedService> CreateTestAffiliationService(
@@ -209,6 +233,14 @@ class PasswordChangeBrowserTest : public PasswordManagerBrowserTestBase {
     return PasswordChangeServiceFactory::GetForProfile(browser()->profile());
   }
 
+  ChromePasswordManagerClient* client() const {
+    return ChromePasswordManagerClient::FromWebContents(WebContents());
+  }
+
+  TestAutofillManager* GetAutofillManager() {
+    return autofill_manager_injector_[WebContents()->GetPrimaryMainFrame()];
+  }
+
   void SetModelQualityLogsUploader() {
     MockOptimizationGuideKeyedService* optimization_service =
         mock_optimization_guide_keyed_service();
@@ -262,8 +294,43 @@ class PasswordChangeBrowserTest : public PasswordManagerBrowserTestBase {
             }))));
   }
 
+  autofill::FormData CreateSimpleOtp() {
+    content::RenderFrameHost* rfh = WebContents()->GetPrimaryMainFrame();
+    autofill::LocalFrameToken frame_token(rfh->GetFrameToken().value());
+    autofill::FormData form;
+    form.set_url(GURL("https://www.foo.com"));
+    form.set_renderer_id(autofill::test::MakeFormRendererId());
+    autofill::FormFieldData field = {autofill::test::CreateTestFormField(
+        "some_label", "some_name", "some_value",
+        autofill::FormControlType::kInputText)};
+
+    form.set_fields({field});
+    return autofill::test::CreateFormDataForFrame(form, frame_token);
+  }
+
+  void AddOtpToThePage() {
+    auto form = CreateSimpleOtp();
+
+    GetAutofillManager()->OnFormsSeen(
+        /*updated_forms=*/{form},
+        /*removed_forms=*/{});
+    ASSERT_TRUE(GetAutofillManager()->WaitForFormsSeen(1));
+    ASSERT_TRUE(
+        GetAutofillManager()->FindCachedFormById(form.fields()[0].global_id()));
+
+    password_manager::OtpManager* otp_manager =
+        ChromePasswordManagerClient::FromWebContents(WebContents())
+            ->GetOtpManager();
+    otp_manager->ProcessClassificationModelPredictions(
+        form, {{form.fields()[0].global_id(), autofill::ONE_TIME_CODE}});
+  }
+
  private:
+  autofill::test::AutofillUnitTestEnvironment autofill_environment_{
+      {.disable_server_communication = true}};
   base::CallbackListSubscription create_services_subscription_;
+  autofill::TestAutofillManagerInjector<TestAutofillManager>
+      autofill_manager_injector_;
   base::WeakPtrFactory<PasswordChangeBrowserTest> weak_ptr_factory_{this};
 };
 
@@ -737,6 +804,9 @@ IN_PROC_BROWSER_TEST_F(PasswordChangeBrowserTest, OpenTabWithPasswordChange) {
 
   EXPECT_EQ(tab_strip->active_index(), 0);
   delegate->OpenPasswordChangeTab();
+  // Stop the flow as this what happens in reality when user chooses to see a
+  // hidden tab.
+  delegate->Stop();
 
   EXPECT_EQ(tab_strip->count(), 2);
   EXPECT_EQ(tab_strip->active_index(), 1);
@@ -811,6 +881,16 @@ IN_PROC_BROWSER_TEST_F(PasswordChangeBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(PasswordChangeBrowserTest, OTPDetectionHaltsTheFlow) {
   SetPrivacyNoticeAcceptedPref();
+  autofill::FormData form;
+  autofill::FormFieldData field;
+  field.set_name(u"otp");
+  field.set_id_attribute(field.name());
+  field.set_name_attribute(field.name());
+  field.set_form_control_type(autofill::FormControlType::kInputText);
+  field.set_renderer_id(autofill::FieldRendererId(1));
+  form.set_fields({field});
+  password_manager::OtpFormManager otp_form_manager(form, {field.global_id()},
+                                                    client());
   const GURL main_url = WebContents()->GetLastCommittedURL();
   EXPECT_CALL(*affiliation_service(), GetChangePasswordURL(main_url))
       .WillOnce(Return(embedded_test_server()->GetURL("/password/done.html")));
@@ -826,7 +906,7 @@ IN_PROC_BROWSER_TEST_F(PasswordChangeBrowserTest, OTPDetectionHaltsTheFlow) {
             PasswordChangeDelegate::State::kWaitingForChangePasswordForm);
 
   auto* delegate_impl = static_cast<PasswordChangeDelegateImpl*>(delegate);
-  delegate_impl->OnOtpFieldDetected(/*form_manager=*/nullptr);
+  delegate_impl->OnOtpFieldDetected(&otp_form_manager);
 
   EXPECT_EQ(delegate->GetCurrentState(),
             PasswordChangeDelegate::State::kOtpDetected);
@@ -922,7 +1002,8 @@ IN_PROC_BROWSER_TEST_F(PasswordChangeBrowserTest,
   EXPECT_CALL(*affiliation_service(), GetPSLExtensions)
       .WillRepeatedly(RunOnceCallbackRepeatedly<0>(std::vector<std::string>()));
   EXPECT_CALL(*affiliation_service(), GetAffiliationsAndBranding)
-      .WillOnce(RunOnceCallback<1>(affiliations::AffiliatedFacets(), true));
+      .WillRepeatedly(
+          RunOnceCallbackRepeatedly<1>(affiliations::AffiliatedFacets(), true));
   password_change_service()->OfferPasswordChangeUi(main_url, u"test",
                                                    u"pa$$word", WebContents());
   PasswordChangeDelegate* delegate =
@@ -980,9 +1061,10 @@ IN_PROC_BROWSER_TEST_F(PasswordChangeBrowserTest, ViewPasswordBubbleFromToast) {
       .WillOnce(testing::Return(embedded_test_server()->GetURL(
           kMainHost, "/password/update_form_empty_fields.html")));
   EXPECT_CALL(*affiliation_service(), GetPSLExtensions)
-      .WillOnce(RunOnceCallback<0>(std::vector<std::string>()));
+      .WillRepeatedly(RunOnceCallbackRepeatedly<0>(std::vector<std::string>()));
   EXPECT_CALL(*affiliation_service(), GetAffiliationsAndBranding)
-      .WillOnce(RunOnceCallback<1>(affiliations::AffiliatedFacets(), true));
+      .WillRepeatedly(
+          RunOnceCallbackRepeatedly<1>(affiliations::AffiliatedFacets(), true));
   password_change_service()->OfferPasswordChangeUi(main_url, u"test",
                                                    u"pa$$word", WebContents());
   PasswordChangeDelegate* delegate =
@@ -1094,9 +1176,10 @@ IN_PROC_BROWSER_TEST_F(PasswordChangeBrowserTest,
       .WillOnce(Return(https_test_server().GetURL(
           kMainHost, "/password/update_form_empty_fields.html")));
   EXPECT_CALL(*affiliation_service(), GetPSLExtensions)
-      .WillOnce(RunOnceCallback<0>(std::vector<std::string>()));
+      .WillRepeatedly(RunOnceCallbackRepeatedly<0>(std::vector<std::string>()));
   EXPECT_CALL(*affiliation_service(), GetAffiliationsAndBranding)
-      .WillOnce(RunOnceCallback<1>(affiliations::AffiliatedFacets(), true));
+      .WillRepeatedly(
+          RunOnceCallbackRepeatedly<1>(affiliations::AffiliatedFacets(), true));
 
   password_change_service()->OfferPasswordChangeUi(main_url, u"test",
                                                    u"pa$$word", WebContents());
@@ -1129,6 +1212,40 @@ IN_PROC_BROWSER_TEST_F(PasswordChangeBrowserTest,
     return delegate->GetCurrentState() ==
            PasswordChangeDelegate::State::kPasswordChangeFailed;
   }));
+}
+
+IN_PROC_BROWSER_TEST_F(PasswordChangeBrowserTest,
+                       CrossOriginNavigationDetectedBeforeStartingTheFlow) {
+  SetPrivacyNoticeAcceptedPref();
+  const GURL main_url = WebContents()->GetLastCommittedURL();
+  EXPECT_CALL(*affiliation_service(), GetChangePasswordURL(main_url))
+      .WillOnce(Return(https_test_server().GetURL(
+          kMainHost, "/password/update_form_empty_fields.html")));
+  EXPECT_CALL(*affiliation_service(), GetPSLExtensions)
+      .WillOnce(RunOnceCallback<0>(std::vector<std::string>()));
+  EXPECT_CALL(*affiliation_service(), GetAffiliationsAndBranding)
+      .WillOnce(RunOnceCallback<1>(affiliations::AffiliatedFacets(), true));
+
+  AddOtpToThePage();
+
+  password_change_service()->OfferPasswordChangeUi(main_url, u"test",
+                                                   u"pa$$word", WebContents());
+
+  // Verify the delegate is created.
+  PasswordChangeDelegateImpl* delegate =
+      static_cast<PasswordChangeDelegateImpl*>(
+          password_change_service()->GetPasswordChangeDelegate(WebContents()));
+  base::WeakPtr<PasswordChangeDelegate> delegate_weak_ptr =
+      delegate->AsWeakPtr();
+  ASSERT_TRUE(delegate);
+  GURL url = https_test_server().GetURL(kDifferentHost,
+                                        "/password/simple_password.html");
+  // Navigate away from the page to a different domain. The flow should be
+  // stopped.
+  ASSERT_TRUE(content::NavigateToURL(WebContents(), url));
+
+  EXPECT_TRUE(base::test::RunUntil(
+      [&delegate_weak_ptr]() { return !delegate_weak_ptr; }));
 }
 
 IN_PROC_BROWSER_TEST_F(PasswordChangeBrowserTest,
@@ -1300,6 +1417,16 @@ IN_PROC_BROWSER_TEST_F(PasswordChangeBrowserTest,
 IN_PROC_BROWSER_TEST_F(PasswordChangeBrowserTest,
                        OtpDetectedfterSubmitFormStep) {
   SetPrivacyNoticeAcceptedPref();
+  autofill::FormData form;
+  autofill::FormFieldData field;
+  field.set_name(u"otp");
+  field.set_id_attribute(field.name());
+  field.set_name_attribute(field.name());
+  field.set_form_control_type(autofill::FormControlType::kInputText);
+  field.set_renderer_id(autofill::FieldRendererId(1));
+  form.set_fields({field});
+  password_manager::OtpFormManager otp_form_manager(form, {field.global_id()},
+                                                    client());
   const GURL main_url = WebContents()->GetLastCommittedURL();
   EXPECT_CALL(*affiliation_service(), GetChangePasswordURL(main_url))
       .WillOnce(Return(embedded_test_server()->GetURL("/password/done.html")));
@@ -1322,7 +1449,7 @@ IN_PROC_BROWSER_TEST_F(PasswordChangeBrowserTest,
       delegate->AsWeakPtr();
 
   auto* delegate_impl = static_cast<PasswordChangeDelegateImpl*>(delegate);
-  delegate_impl->OnOtpFieldDetected(/*form_manager=*/nullptr);
+  delegate_impl->OnOtpFieldDetected(&otp_form_manager);
   EXPECT_EQ(delegate->GetCurrentState(),
             PasswordChangeDelegate::State::kOtpDetected);
   delegate_impl->ui_controller()->CallOnDialogCanceledForTesting();

@@ -235,6 +235,8 @@ const CGFloat kBaselineAdjustment = 10.0;
   mainTitleLabel.attributedText = attributedString;
 #endif
 
+  mainTitleLabel.accessibilityLabel = mainTitleString;
+  mainTitleLabel.accessibilityTraits |= UIAccessibilityTraitHeader;
   return mainTitleLabel;
 }
 
@@ -244,10 +246,9 @@ const CGFloat kBaselineAdjustment = 10.0;
 
   CAGradientLayer* gradientLayer = [CAGradientLayer layer];
   gradientLayer.colors = [self createGradientColorsArray];
-  gradientLayer.startPoint = CGPointMake(0, 0.5);
+  gradientLayer.startPoint = CGPointMake(0.0, 0.5);
   gradientLayer.endPoint = CGPointMake(1.0, 0.5);
   gradientLayer.frame = CGRectMake(0, 0, iconSize.width, iconSize.height);
-  gradientLayer.locations = @[ @0.40, @1.0 ];
 
   UIGraphicsImageRenderer* renderer =
       [[UIGraphicsImageRenderer alloc] initWithSize:iconSize];
@@ -298,8 +299,15 @@ const CGFloat kBaselineAdjustment = 10.0;
 
 // Create an array of colors representing a gradient color palette.
 - (NSArray*)createGradientColorsArray {
+  UITraitCollection* lightTraitCollection = [UITraitCollection
+      traitCollectionWithUserInterfaceStyle:UIUserInterfaceStyleLight];
   NSArray<UIColor*>* colors = @[
-    [UIColor colorNamed:kBlue700Color], [UIColor colorNamed:kBlue300Color]
+    [[UIColor colorNamed:kBlue500Color]
+        resolvedColorWithTraitCollection:lightTraitCollection],
+    [[UIColor colorNamed:kBlue700Color]
+        resolvedColorWithTraitCollection:lightTraitCollection],
+    [[UIColor colorNamed:kBlue300Color]
+        resolvedColorWithTraitCollection:lightTraitCollection]
   ];
 
   NSMutableArray<id>* gradientColorArray = [[NSMutableArray alloc] init];
@@ -367,6 +375,7 @@ const CGFloat kBaselineAdjustment = 10.0;
   titleLabel.textColor = [UIColor colorNamed:kTextPrimaryColor];
   titleLabel.numberOfLines = 0;
   titleLabel.translatesAutoresizingMaskIntoConstraints = NO;
+  titleLabel.accessibilityTraits |= UIAccessibilityTraitHeader;
 
   UILabel* bodyLabel = [[UILabel alloc] init];
   bodyLabel.text = bodyText;

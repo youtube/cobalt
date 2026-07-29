@@ -34,6 +34,7 @@
 <translation id="1982637982196732906">アクティブでないセクションに移動</translation>
 <translation id="2050597508048557928">{TABS_COUNT,plural, =1{選択した <ph name="TABS_COUNT_ONE" /> 個のタブをブックマークに追加}other{選択した <ph name="TABS_COUNT_MANY" /> 個のタブをブックマークに追加}}</translation>
 <translation id="2055057176188061528">タブグループを選択するか、新しいタブグループを作成します</translation>
+<translation id="2074527029802029717">タブの固定を解除</translation>
 <translation id="2118649612461486615">ストア情報</translation>
 <translation id="2123073051266141035">{INCOGNITO_TABS_COUNT,plural, =1{閉じたタブとグループは、[最近使ったタブ] と [タブグループ] で再度開くことができます。シークレット タブは使用できなくなります。}other{閉じたタブとグループは、[最近使ったタブ] と [タブグループ] で再度開くことができます。# 個のシークレット タブは使用できなくなります。}}</translation>
 <translation id="2162620598375156287">現在の価格は <ph name="SOURCE_WEBSITE" /> で <ph name="CURRENT_PRICE" /></translation>
@@ -62,6 +63,7 @@
 <translation id="2894757982205307093">グループにタブを追加</translation>
 <translation id="2918484639460781603">設定に移動</translation>
 <translation id="2928243913527329289">Google | このショップについて</translation>
+<translation id="2978860912612699943">{ITEMS_COUNT,plural, =1{<ph name="ITEMS_COUNT_ONE" /> 件を選択済み}other{<ph name="ITEMS_COUNT_MANY" /> 件を選択済み}}</translation>
 <translation id="3008554597174452548">商品のトラッキングを停止</translation>
 <translation id="3026391124054406831">グループを作成すると、タブを整理できます。</translation>
 <translation id="3051031624272448591">履歴でいつでも元に戻すことができます</translation>

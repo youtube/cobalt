@@ -701,6 +701,7 @@ static bool ChildRulesHaveFailedOrCanceledSubresources(
       case StyleRuleBase::kCustomMedia:
         break;
       case StyleRuleBase::kApplyMixin:
+      case StyleRuleBase::kContents:
         // TODO(sesse): Should we go down into the rules here?
         // Do we need to do a new name lookup then?
         break;
@@ -809,16 +810,18 @@ void StyleSheetContents::ClearReferencedFromResource() {
   referenced_from_resource_ = nullptr;
 }
 
-RuleSet& StyleSheetContents::EnsureRuleSet(const MediaQueryEvaluator& medium) {
+RuleSet& StyleSheetContents::EnsureRuleSet(const MediaQueryEvaluator& medium,
+                                           const MixinMap& mixins) {
   if (rule_set_ && rule_set_->DidMediaQueryResultsChange(medium)) {
     rule_set_ = nullptr;
   }
+  // TODO(sesse): Check if mixins changed, somehow.
   if (rule_set_diff_) {
     rule_set_diff_->NewRuleSetCleared();
   }
   if (!rule_set_) {
     rule_set_ = MakeGarbageCollected<RuleSet>();
-    rule_set_->AddRulesFromSheet(this, medium);
+    rule_set_->AddRulesFromSheet(this, medium, mixins);
     if (rule_set_diff_) {
       rule_set_diff_->NewRuleSetCreated(rule_set_);
     }
@@ -828,9 +831,10 @@ RuleSet& StyleSheetContents::EnsureRuleSet(const MediaQueryEvaluator& medium) {
 }
 
 RuleSet* StyleSheetContents::CreateUnconnectedRuleSet(
-    const MediaQueryEvaluator& medium) const {
+    const MediaQueryEvaluator& medium,
+    const MixinMap& mixins) const {
   auto* rule_set = MakeGarbageCollected<RuleSet>();
-  rule_set->AddRulesFromSheet(this, medium);
+  rule_set->AddRulesFromSheet(this, medium, mixins);
   rule_set->CompactRulesIfNeeded();
   return rule_set;
 }

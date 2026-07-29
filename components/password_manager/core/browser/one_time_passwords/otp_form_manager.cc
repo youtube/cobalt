@@ -6,6 +6,7 @@
 
 #include "base/feature_list.h"
 #include "components/autofill/core/common/autofill_regexes.h"
+#include "components/autofill/core/common/form_data.h"
 #include "components/password_manager/core/browser/features/password_features.h"
 #include "components/password_manager/core/browser/field_info_manager.h"
 #include "components/password_manager/core/browser/one_time_passwords/sms_otp_backend.h"
@@ -28,7 +29,7 @@ OtpSource DetermineWhereOtpWasLikelySent(FieldInfoManager* field_info_manager,
   }
 
   std::vector<FieldInfo> field_info =
-      field_info_manager->GetFieldInfo(GetSignonRealm(url));
+      field_info_manager->GetFieldInfo(password_manager_util::GetSignonRealm(url));
 
   // FieldInfoManager sorts cached fields from oldest to newest. Iterate in
   // the reverse order to check the last interacted field first.
@@ -45,10 +46,10 @@ OtpSource DetermineWhereOtpWasLikelySent(FieldInfoManager* field_info_manager,
 }  // namespace
 
 OtpFormManager::OtpFormManager(
-    autofill::FormGlobalId form_id,
+    const autofill::FormData& form_data,
     const std::vector<autofill::FieldGlobalId>& otp_field_ids,
     PasswordManagerClient* client)
-    : form_id_(form_id),
+    : form_data_(form_data),
       otp_field_ids_(std::move(otp_field_ids)),
       client_(client) {
   // TODO(crbug.com/415274273): Incorporate page load hints once available.

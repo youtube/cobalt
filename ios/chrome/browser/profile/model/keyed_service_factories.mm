@@ -174,6 +174,7 @@
 #import "ios/chrome/browser/trusted_vault/model/ios_trusted_vault_service_factory.h"
 #import "ios/chrome/browser/unified_consent/model/unified_consent_service_factory.h"
 #import "ios/chrome/browser/unit_conversion/model/unit_conversion_service_factory.h"
+#import "ios/chrome/browser/variations/model/client/variations_client_service_factory.h"
 #import "ios/chrome/browser/visited_url_ranking/model/visited_url_ranking_service_factory.h"
 #import "ios/chrome/browser/voice/ui_bundled/text_to_speech_playback_controller_factory.h"
 #import "ios/chrome/browser/web/model/java_script_console/java_script_console_feature_factory.h"
@@ -181,8 +182,8 @@
 #import "ios/chrome/browser/webdata_services/model/web_data_service_factory.h"
 
 #if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
-#import "ios/chrome/browser/passwords/model/ios_password_field_classification_model_handler_factory.h"
 #import "ios/chrome/browser/autofill/model/ios_autofill_field_classification_model_handler_factory.h"
+#import "ios/chrome/browser/passwords/model/ios_password_field_classification_model_handler_factory.h"
 #endif
 
 #if BUILDFLAG(IOS_CREDENTIAL_PROVIDER_ENABLED)
@@ -364,12 +365,13 @@ void EnsureProfileKeyedServiceFactoriesBuilt() {
   TextClassifierModelServiceFactory::GetInstance();
   TextToSpeechPlaybackControllerFactory::GetInstance();
   TipsManagerIOSFactory::GetInstance();
-  LanguageDetectionModelServiceFactory::GetInstance();
   TrackingProtectionSettingsFactory::GetInstance();
+  LanguageDetectionModelServiceFactory::GetInstance();
   TrustedVaultClientBackendFactory::GetInstance();
   UnifiedConsentServiceFactory::GetInstance();
   UnitConversionServiceFactory::GetInstance();
   UrlLanguageHistogramFactory::GetInstance();
+  VariationsClientServiceFactory::GetInstance();
   VerdictCacheManagerFactory::GetInstance();
   VisitedURLRankingServiceFactory::GetInstance();
   WebSessionStateCacheFactory::GetInstance();

@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.share.android_share_sheet;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.app.Activity;
 import android.content.Context;
 import android.graphics.Bitmap;
@@ -18,6 +20,7 @@ import org.chromium.base.Callback;
 import org.chromium.base.Log;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.supplier.Supplier;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -42,6 +45,7 @@ import org.chromium.url.GURL;
 import java.util.Set;
 
 /** Share sheet controller used to display Android share sheet. */
+@NullMarked
 public class AndroidShareSheetController implements ChromeOptionShareCallback {
     private static final String TAG = "AndroidShare";
 
@@ -149,7 +153,7 @@ public class AndroidShareSheetController implements ChromeOptionShareCallback {
         boolean isIncognito =
                 mTabModelSelectorSupplier.hasValue()
                         && mTabModelSelectorSupplier.get().isIncognitoSelected();
-        Activity activity = params.getWindow().getActivity().get();
+        Activity activity = assumeNonNull(params.getWindow().getActivity().get());
         ChromeCustomShareAction.Provider provider = null;
 
         String urlToShare = getUrlToShare(params, chromeShareExtras);
@@ -253,7 +257,7 @@ public class AndroidShareSheetController implements ChromeOptionShareCallback {
                         chromeShareExtras,
                         SystemClock.elapsedRealtime(),
                         params.getUrl(),
-                        params.getText(),
+                        assumeNonNull(params.getText()),
                         /* includeOriginInTitle= */ true);
         mLinkToTextCoordinator.shareLinkToText();
         return true;

@@ -6,8 +6,11 @@
 
 #include "mojo/public/cpp/bindings/remote_set.h"
 #include "third_party/blink/public/mojom/content_extraction/ai_page_content_metadata.mojom-blink.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_mutation_observer_init.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/events/event.h"
+#include "third_party/blink/renderer/core/dom/mutation_observer.h"
+#include "third_party/blink/renderer/core/dom/mutation_record.h"
 #include "third_party/blink/renderer/core/dom/tree_scope.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
@@ -16,6 +19,7 @@
 #include "third_party/blink/renderer/core/html/html_meta_element.h"
 #include "third_party/blink/renderer/core/page/page.h"
 #include "third_party/blink/renderer/modules/content_extraction/paid_content.h"
+#include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 
 namespace blink {
@@ -29,30 +33,67 @@ void CollectMetaTagsFromFrame(LocalFrame* frame,
     return;
   }
 
-    auto* local_frame = To<LocalFrame>(frame);
-    Document* document = local_frame->GetDocument();
-    if (document && document->head()) {
-      Vector<mojom::blink::MetaTagPtr> found_tags;
-      for (HTMLMetaElement& meta :
-           Traversal<HTMLMetaElement>::ChildrenOf(*document->head())) {
-        const String& name = meta.GetName();
-        if (names_to_find.Contains(name)) {
-          auto meta_tag = mojom::blink::MetaTag::New();
-          meta_tag->name = name;
-          meta_tag->content = meta.Content();
-          found_tags.push_back(std::move(meta_tag));
-        }
-      }
-      if (!found_tags.empty()) {
-        auto frame_metadata = mojom::blink::FrameMetadata::New();
-        frame_metadata->url = document->Url();
-        frame_metadata->meta_tags = std::move(found_tags);
-        page_metadata.frame_metadata.push_back(std::move(frame_metadata));
+  auto* local_frame = To<LocalFrame>(frame);
+  Document* document = local_frame->GetDocument();
+  if (document && document->head()) {
+    Vector<mojom::blink::MetaTagPtr> found_tags;
+    for (HTMLMetaElement& meta :
+         Traversal<HTMLMetaElement>::ChildrenOf(*document->head())) {
+      const String& name = meta.GetName();
+      if (names_to_find.Contains(name)) {
+        auto meta_tag = mojom::blink::MetaTag::New();
+        meta_tag->name = name;
+        meta_tag->content = meta.Content();
+        found_tags.push_back(std::move(meta_tag));
       }
     }
+    if (!found_tags.empty()) {
+      auto frame_metadata = mojom::blink::FrameMetadata::New();
+      frame_metadata->url = document->Url();
+      frame_metadata->meta_tags = std::move(found_tags);
+      page_metadata.frame_metadata.push_back(std::move(frame_metadata));
+    }
+  }
 }
 
 }  // namespace
+
+class FrameMetadataObserverRegistry::MetaTagsMutationObserver final
+    : public MutationObserver::Delegate {
+ public:
+  explicit MetaTagsMutationObserver(FrameMetadataObserverRegistry* registry)
+      : registry_(registry), observer_(MutationObserver::Create(this)) {}
+
+  void Observe(Node* target) {
+    MutationObserverInit* init = MutationObserverInit::Create();
+    init->setChildList(true);
+    init->setAttributes(true);
+    init->setAttributeFilter(Vector<String>{"name", "content"});
+    init->setSubtree(true);
+    DummyExceptionStateForTesting exception_state;
+    observer_->observe(target, init, exception_state);
+    DCHECK(!exception_state.HadException());
+  }
+
+  ExecutionContext* GetExecutionContext() const override {
+    return registry_->GetSupplementable()->GetExecutionContext();
+  }
+
+  void Deliver(const HeapVector<Member<MutationRecord>>&,
+               MutationObserver&) override {
+    registry_->OnMetaTagsChanged();
+  }
+
+  void Trace(Visitor* visitor) const override {
+    visitor->Trace(registry_);
+    visitor->Trace(observer_);
+    MutationObserver::Delegate::Trace(visitor);
+  }
+
+ private:
+  Member<FrameMetadataObserverRegistry> registry_;
+  Member<MutationObserver> observer_;
+};
 
 // static
 const char FrameMetadataObserverRegistry::kSupplementName[] =
@@ -88,8 +129,12 @@ FrameMetadataObserverRegistry::FrameMetadataObserverRegistry(
       receiver_set_(this, frame.DomWindow()),
       paid_content_metadata_observers_(frame.DomWindow()),
       metatags_observers_(frame.DomWindow()) {
-  metatags_observers_.set_disconnect_handler(blink::BindRepeating(
-      &FrameMetadataObserverRegistry::DisconnectHandler, WrapPersistent(this)));
+  // TODO(gklassen): Update with comment to document why this disconnect
+  //                 handler is necessary. We might need to update the
+  //                 .mojom file as well to add more documentation.
+  metatags_observers_.set_disconnect_handler(
+      blink::BindRepeating(&FrameMetadataObserverRegistry::DisconnectHandler,
+                           WrapWeakPersistent(this)));
 }
 
 FrameMetadataObserverRegistry::~FrameMetadataObserverRegistry() = default;
@@ -109,6 +154,7 @@ void FrameMetadataObserverRegistry::Trace(Visitor* visitor) const {
   visitor->Trace(paid_content_metadata_observers_);
   visitor->Trace(metatags_observers_);
   visitor->Trace(metatags_observer_names_);
+  visitor->Trace(meta_tags_mutation_observer_);
 }
 
 class FrameMetadataObserverRegistry::DomContentLoadedListener final
@@ -162,6 +208,7 @@ void FrameMetadataObserverRegistry::AddMetaTagsObserver(
       GetSupplementable()->GetTaskRunner(TaskType::kInternalUserInteraction));
 
   metatags_observer_names_.Set(remote_id.value(), HeapVector<String>(names));
+  has_sent_metatags_.Set(remote_id.value(), false);
   ListenForDomContentLoaded();
 }
 
@@ -175,6 +222,14 @@ void FrameMetadataObserverRegistry::OnDomContentLoaded() {
         false);
     dom_content_loaded_observer_ = nullptr;
   }
+
+  if (!metatags_observers_.empty() && !meta_tags_mutation_observer_) {
+    meta_tags_mutation_observer_ =
+        MakeGarbageCollected<MetaTagsMutationObserver>(this);
+    if (auto* head = GetSupplementable()->head()) {
+      meta_tags_mutation_observer_->Observe(head);
+    }
+  }
 }
 
 void FrameMetadataObserverRegistry::OnPaidContentMetadataChanged() {
@@ -184,6 +239,10 @@ void FrameMetadataObserverRegistry::OnPaidContentMetadataChanged() {
   PaidContent paid_content;
   bool paid_content_exists =
       paid_content.QueryPaidElements(*GetSupplementable());
+
+  if (!paid_content_exists) {
+    return;
+  }
 
   // TODO(gklassen): Add a MutationObserver to monitor for changes during
   // the lifetime of the page.
@@ -204,16 +263,27 @@ void FrameMetadataObserverRegistry::OnMetaTagsChanged() {
   }
 
   for (auto& it : metatags_observer_names_) {
+    const mojo::RemoteSetElementId remote_id(it.key);
     auto page_metadata = mojom::blink::PageMetadata::New();
     CollectMetaTagsFromFrame(current_frame, it.value, *page_metadata);
-    metatags_observers_.Get(mojo::RemoteSetElementId(it.key))
-        ->OnMetaTagsChanged(std::move(page_metadata));
+
+    const bool has_metatags = !page_metadata->frame_metadata.empty();
+    DCHECK(has_sent_metatags_.Contains(remote_id.value()));
+    const bool has_sent_metatags_before =
+        has_sent_metatags_.at(remote_id.value());
+
+    if (has_metatags || has_sent_metatags_before) {
+      metatags_observers_.Get(remote_id)->OnMetaTagsChanged(
+          std::move(page_metadata));
+      has_sent_metatags_.Set(remote_id.value(), has_metatags);
+    }
   }
 }
 
 void FrameMetadataObserverRegistry::DisconnectHandler(
     mojo::RemoteSetElementId id) {
   metatags_observer_names_.erase(id.value());
+  has_sent_metatags_.erase(id.value());
 }
 
 }  // namespace blink

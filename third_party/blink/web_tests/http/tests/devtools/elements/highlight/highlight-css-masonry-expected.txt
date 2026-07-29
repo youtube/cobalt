@@ -168,7 +168,79 @@ masonry-columns-container{
       ],
       "rows": [],
       "rowGaps": [],
-      "gridBorder": [],
+      "columnTrackSizes": [
+        {
+          "x": 33,
+          "y": 8,
+          "computedSize": 50,
+          "authoredSize": "50px"
+        },
+        {
+          "x": 118,
+          "y": 8,
+          "computedSize": 100,
+          "authoredSize": "20%"
+        },
+        {
+          "x": 253,
+          "y": 8,
+          "computedSize": 150,
+          "authoredSize": "30%"
+        }
+      ],
+      "positiveColumnLineNumberPositions": [
+        {
+          "x": 8,
+          "y": 8
+        },
+        {
+          "x": 63,
+          "y": 8
+        },
+        {
+          "x": 173,
+          "y": 8
+        },
+        {
+          "x": 328,
+          "y": 8
+        }
+      ],
+      "negativeColumnLineNumberPositions": [
+        {
+          "x": 8,
+          "y": 148
+        },
+        {
+          "x": 63,
+          "y": 148
+        },
+        {
+          "x": 173,
+          "y": 148
+        },
+        {
+          "x": 328,
+          "y": 148
+        }
+      ],
+      "areaNames": {},
+      "columnLineNameOffsets": [],
+      "gridBorder": [
+        "M",
+        8,
+        8,
+        "L",
+        328,
+        8,
+        "L",
+        328,
+        148,
+        "L",
+        8,
+        148,
+        "Z"
+      ],
       "gridHighlightConfig": {
         "gridBorderDash": false,
         "rowLineDash": true,
@@ -409,7 +481,107 @@ masonry-rows-container{
         438,
         "Z"
       ],
-      "gridBorder": [],
+      "rowTrackSizes": [
+        {
+          "x": 8,
+          "y": 198,
+          "computedSize": 100,
+          "authoredSize": "100px"
+        },
+        {
+          "x": 8,
+          "y": 283,
+          "computedSize": 30,
+          "authoredSize": "30px"
+        },
+        {
+          "x": 8,
+          "y": 343,
+          "computedSize": 50,
+          "authoredSize": "10%"
+        },
+        {
+          "x": 8,
+          "y": 403,
+          "computedSize": 30,
+          "authoredSize": "30px"
+        },
+        {
+          "x": 8,
+          "y": 463,
+          "computedSize": 50,
+          "authoredSize": "10%"
+        }
+      ],
+      "positiveRowLineNumberPositions": [
+        {
+          "x": 8,
+          "y": 148
+        },
+        {
+          "x": 8,
+          "y": 258
+        },
+        {
+          "x": 8,
+          "y": 308
+        },
+        {
+          "x": 8,
+          "y": 378
+        },
+        {
+          "x": 8,
+          "y": 428
+        },
+        {
+          "x": 8,
+          "y": 488
+        }
+      ],
+      "negativeRowLineNumberPositions": [
+        {
+          "x": 308,
+          "y": 148
+        },
+        {
+          "x": 308,
+          "y": 258
+        },
+        {
+          "x": 308,
+          "y": 308
+        },
+        {
+          "x": 308,
+          "y": 378
+        },
+        {
+          "x": 308,
+          "y": 428
+        },
+        {
+          "x": 308,
+          "y": 488
+        }
+      ],
+      "areaNames": {},
+      "rowLineNameOffsets": [],
+      "gridBorder": [
+        "M",
+        8,
+        148,
+        "L",
+        308,
+        148,
+        "L",
+        308,
+        488,
+        "L",
+        8,
+        488,
+        "Z"
+      ],
       "gridHighlightConfig": {
         "gridBorderDash": false,
         "rowLineDash": true,
@@ -569,7 +741,65 @@ empty-masonry-container{
       ],
       "rows": [],
       "rowGaps": [],
-      "gridBorder": [],
+      "columnTrackSizes": [
+        {
+          "x": 18,
+          "y": 648,
+          "computedSize": 20,
+          "authoredSize": "10%"
+        },
+        {
+          "x": 48,
+          "y": 648,
+          "computedSize": 40,
+          "authoredSize": "20%"
+        }
+      ],
+      "positiveColumnLineNumberPositions": [
+        {
+          "x": 8,
+          "y": 648
+        },
+        {
+          "x": 28,
+          "y": 648
+        },
+        {
+          "x": 68,
+          "y": 648
+        }
+      ],
+      "negativeColumnLineNumberPositions": [
+        {
+          "x": 8,
+          "y": 848
+        },
+        {
+          "x": 28,
+          "y": 848
+        },
+        {
+          "x": 68,
+          "y": 848
+        }
+      ],
+      "areaNames": {},
+      "columnLineNameOffsets": [],
+      "gridBorder": [
+        "M",
+        8,
+        648,
+        "L",
+        68,
+        648,
+        "L",
+        68,
+        848,
+        "L",
+        8,
+        848,
+        "Z"
+      ],
       "gridHighlightConfig": {
         "gridBorderDash": false,
         "rowLineDash": true,

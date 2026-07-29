@@ -1096,6 +1096,7 @@ experimental domain Audits
     enum
       BlockedFrameNavigation
       BlockedSubresource
+      NoisedCanvasReadback
 
   # This issue warns about uses of APIs that may be considered misuse to
   # re-identify users.
@@ -1104,6 +1105,8 @@ experimental domain Audits
       UserReidentificationIssueType type
       # Applies to BlockedFrameNavigation and BlockedSubresource issue types.
       optional AffectedRequest request
+      # Applies to NoisedCanvasReadback issue type.
+      optional SourceCodeLocation sourceCodeLocation
 
   # A unique identifier for the type of issue. Each type may use one of the
   # optional fields in InspectorIssueDetails to convey more specific
@@ -2493,8 +2496,7 @@ experimental domain CSS
   # resolved even then, return the provided value without any changes.
   experimental command resolveValues
     parameters
-      # Substitution functions (var()/env()/attr()) and cascade-dependent
-      # keywords (revert/revert-layer) do not work.
+      # Cascade-dependent keywords (revert/revert-layer) do not work.
       array of string values
       # Id of the node in whose context the expression is evaluated
       DOM.NodeId nodeId
@@ -3016,6 +3018,7 @@ domain DOM
       before
       after
       picker-icon
+      interest-hint
       marker
       backdrop
       column
@@ -8686,6 +8689,7 @@ domain Page
       deferred-fetch
       deferred-fetch-minimal
       device-attributes
+      digital-credentials-create
       digital-credentials-get
       direct-sockets
       direct-sockets-private

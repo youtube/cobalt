@@ -21,6 +21,7 @@ struct UiTabState {
   ActorOverlayState actor_overlay;
   HandoffButtonState handoff_button;
   bool tab_indicator_visible = false;
+  bool border_glow_visible = false;
 };
 
 inline std::ostream& operator<<(std::ostream& os, UiTabState state) {
@@ -29,6 +30,7 @@ inline std::ostream& operator<<(std::ostream& os, UiTabState state) {
             << "  handoff_button: " << state.handoff_button << "\n"
             << "  tab_indicator_visible: " << state.tab_indicator_visible
             << "\n"
+            << "  border_glow_visible: " << state.border_glow_visible << "\n"
             << "}";
 }
 
@@ -86,6 +88,12 @@ class ActorUiTabControllerInterface {
 
   // Sets a callback to run when the controller is idle, for tests.
   virtual void SetCallbackForTesting(base::OnceClosure callback) = 0;
+
+  using ActorTabIndicatorStateChangedCallback =
+      base::RepeatingCallback<void(bool)>;
+  virtual base::CallbackListSubscription
+  RegisterActorTabIndicatorStateChangedCallback(
+      ActorTabIndicatorStateChangedCallback callback) = 0;
 };
 
 }  // namespace actor::ui

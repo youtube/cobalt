@@ -8,8 +8,6 @@
 #include <memory>
 
 #include "base/notreached.h"
-#include "third_party/blink/renderer/core/canvas_interventions/canvas_interventions_enums.h"
-#include "third_party/blink/renderer/core/html/canvas/canvas_2d_color_params.h"
 #include "third_party/blink/renderer/core/html/canvas/canvas_context_creation_attributes_core.h"
 #include "third_party/blink/renderer/core/html/canvas/canvas_rendering_context.h"
 #include "third_party/blink/renderer/core/html/canvas/canvas_rendering_context_factory.h"
@@ -17,6 +15,7 @@
 #include "third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.h"
 #include "third_party/blink/renderer/modules/canvas/canvas2d/identifiability_study_helper.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
+#include "third_party/blink/renderer/platform/graphics/canvas_2d_color_params.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
 #include "third_party/blink/renderer/platform/graphics/skia/skia_utils.h"
 #include "third_party/blink/renderer/platform/privacy_budget/identifiability_digest_helpers.h"
@@ -134,14 +133,6 @@ class MODULES_EXPORT OffscreenCanvasRenderingContext2D final
 
   bool IdentifiabilityEncounteredPartiallyDigestedImage() const override {
     return identifiability_study_helper_.encountered_partially_digested_image();
-  }
-
-  bool ShouldTriggerIntervention() const override {
-    return HasTriggerForIntervention();
-  }
-
-  CanvasOperationType GetCanvasTriggerOperations() const override {
-    return GetTriggersForIntervention();
   }
 
   std::optional<cc::PaintRecord> FlushCanvas(FlushReason) override;

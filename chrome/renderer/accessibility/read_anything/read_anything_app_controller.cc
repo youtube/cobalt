@@ -559,7 +559,7 @@ void ReadAnythingAppController::OnStringAttributeChanged(
   if (features::IsReadAnythingImagesViaAlgorithmEnabled() &&
       attr == ax::mojom::StringAttribute::kUrl &&
       rm_node->GetRole() == ax::mojom::Role::kImage) {
-    RequestImageDataUrl(node->id());
+    RequestImageData(node->id());
   }
 }
 
@@ -666,6 +666,12 @@ void ReadAnythingAppController::OnActiveAXTreeIDChanged(
   VLOG(1) << "On active tree changed with new id: " << tree_id;
   RecordNumSelections();
 
+  // If the previous tree was not unknown (e.g. this is not the first tree
+  // seen), log the words that were seen on the previous tree.
+  if (model_.active_tree_id() != ui::AXTreeIDUnknown()) {
+    RecordEstimatedWordsSeen();
+  }
+
   // Cancel any running draw timers.
   post_user_entry_draw_timer_->Stop();
 
@@ -732,6 +738,12 @@ void ReadAnythingAppController::RecordNumSelections() {
       .SetTotalNumSelections(model_.GetNumSelections())
       .Record(ukm_recorder_.get());
   model_.SetNumSelections(0);
+}
+
+void ReadAnythingAppController::RecordEstimatedWordsSeen() {
+  VLOG(1) << "Words seen: " << model_.words_seen();
+  base::UmaHistogramCounts100000(kWordsSeenHistogramName, model_.words_seen());
+  model_.set_words_seen(0);
 }
 
 void ReadAnythingAppController::OnAXTreeDestroyed(const ui::AXTreeID& tree_id) {
@@ -1132,6 +1144,7 @@ gin::ObjectTemplateBuilder ReadAnythingAppController::GetObjectTemplateBuilder(
       .SetMethod("onConnected", &ReadAnythingAppController::OnConnected)
       .SetMethod("onCopy", &ReadAnythingAppController::OnCopy)
       .SetMethod("onNoTextContent", &ReadAnythingAppController::OnNoTextContent)
+      .SetMethod("updateWordsSeen", &ReadAnythingAppController::UpdateWordsSeen)
       .SetMethod("onFontSizeChanged",
                  &ReadAnythingAppController::OnFontSizeChanged)
       .SetMethod("onFontSizeReset", &ReadAnythingAppController::OnFontSizeReset)
@@ -1193,7 +1206,7 @@ gin::ObjectTemplateBuilder ReadAnythingAppController::GetObjectTemplateBuilder(
       .SetMethod("movePositionToPreviousGranularity",
                  &ReadAnythingAppController::MovePositionToPreviousGranularity)
       .SetMethod("requestImageData",
-                 &ReadAnythingAppController::RequestImageDataUrl)
+                 &ReadAnythingAppController::RequestImageData)
       .SetMethod("getImageBitmap", &ReadAnythingAppController::GetImageBitmap)
       .SetMethod("getDisplayNameForLocale",
                  &ReadAnythingAppController::GetDisplayNameForLocale)
@@ -1587,9 +1600,9 @@ std::vector<std::string> ReadAnythingAppController::GetAllFonts() const {
   return ::GetSupportedFonts({});
 }
 
-void ReadAnythingAppController::RequestImageDataUrl(
-    ui::AXNodeID node_id) const {
+void ReadAnythingAppController::RequestImageData(ui::AXNodeID node_id) const {
   if (features::IsReadAnythingImagesViaAlgorithmEnabled()) {
+    DUMP_WILL_BE_CHECK(model_.GetAXNode(node_id));
     auto target_tree_id = model_.active_tree_id();
     CHECK_NE(target_tree_id, ui::AXTreeIDUnknown());
     page_handler_->OnImageDataRequested(target_tree_id, node_id);
@@ -1671,13 +1684,6 @@ v8::Local<v8::Value> ReadAnythingAppController::GetImageBitmap(
   return v8::Undefined(isolate);
 }
 
-std::string ReadAnythingAppController::GetImageDataUrl(
-    ui::AXNodeID node_id) const {
-  ui::AXNode* node = model_.GetAXNode(node_id);
-  CHECK(node);
-  return a11y::GetImageDataUrl(node);
-}
-
 const std::string ReadAnythingAppController::GetDisplayNameForLocale(
     const std::string& locale,
     const std::string& display_locale) const {
@@ -1756,6 +1762,10 @@ void ReadAnythingAppController::OnNoTextContent(bool previouslyHadContent) {
     // is now showing. Otherwise, the loading screen may never terminate.
     DrawEmptyState();
   }
+}
+
+void ReadAnythingAppController::UpdateWordsSeen(int words_seen) {
+  model_.set_words_seen(words_seen);
 }
 
 void ReadAnythingAppController::OnFontSizeChanged(bool increase) {
@@ -2012,6 +2022,7 @@ void ReadAnythingAppController::SetLanguageCode(const std::string& code) {
 void ReadAnythingAppController::OnDeviceLocked() {
   read_aloud_model_.LogSpeechStop(
       ReadAloudAppModel::ReadAloudStopSource::kLockChromeosDevice);
+  RecordEstimatedWordsSeen();
   // Signal to the WebUI that the device has been locked. We'll only receive
   // this callback on ChromeOS.
   ExecuteJavaScript("chrome.readingMode.onLockScreen();");
@@ -2026,12 +2037,14 @@ void ReadAnythingAppController::OnReadingModeHidden() {
   model_.set_will_hide(true);
   read_aloud_model_.LogSpeechStop(
       ReadAloudAppModel::ReadAloudStopSource::kCloseReadingMode);
+  RecordEstimatedWordsSeen();
 }
 
 void ReadAnythingAppController::OnTabWillDetach() {
   model_.set_will_hide(true);
   read_aloud_model_.LogSpeechStop(
       ReadAloudAppModel::ReadAloudStopSource::kCloseTabOrWindow);
+  RecordEstimatedWordsSeen();
 }
 
 void ReadAnythingAppController::OnTabMuteStateChange(bool muted) {

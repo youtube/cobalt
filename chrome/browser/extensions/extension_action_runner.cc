@@ -394,28 +394,9 @@ void ExtensionActionRunner::LogUMA() const {
 
 void ExtensionActionRunner::ShowReloadPageBubble(
     const std::vector<const Extension*>& extensions) {
-  // For testing, simulate the bubble being accepted by directly invoking the
-  // callback, or rejected by skipping the callback.
-  if (accept_bubble_for_testing_.has_value()) {
-    if (*accept_bubble_for_testing_) {
-      base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE,
-          base::BindOnce(&ExtensionActionRunner::OnReloadPageBubbleAccepted,
-                         weak_factory_.GetWeakPtr()));
-    }
-    return;
-  }
-
-  gfx::NativeWindow parent = web_contents()->GetTopLevelNativeWindow();
   reload_page_dialog_controller_ = std::make_unique<ReloadPageDialogController>(
-      parent, browser_context_,
-      base::BindOnce(&ExtensionActionRunner::OnReloadPageBubbleAccepted,
-                     weak_factory_.GetWeakPtr()));
+      web_contents(), browser_context_);
   reload_page_dialog_controller_->TriggerShow(extensions);
-}
-
-void ExtensionActionRunner::OnReloadPageBubbleAccepted() {
-  web_contents()->GetController().Reload(content::ReloadType::NORMAL, false);
 }
 
 void ExtensionActionRunner::RunBlockedActions(const Extension* extension) {
@@ -460,7 +441,6 @@ void ExtensionActionRunner::DidFinishNavigation(
   pending_scripts_.clear();
   web_request_blocked_.clear();
   was_used_on_page_ = false;
-  weak_factory_.InvalidateWeakPtrs();
 
   // Note: This needs to be called *after* the maps have been updated, so that
   // when the UI updates, this object returns the proper result for "wants to

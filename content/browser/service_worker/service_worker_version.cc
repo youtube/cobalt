@@ -767,10 +767,10 @@ int ServiceWorkerVersion::StartRequestWithCustomTimeout(
       event_type);
   InflightRequest* request_rawptr = request.get();
   int request_id = inflight_requests_.Add(std::move(request));
-  TRACE_EVENT_NESTABLE_ASYNC_BEGIN2(
-      "ServiceWorker", "ServiceWorkerVersion::Request",
-      TRACE_ID_LOCAL(request_rawptr), "Request id", request_id, "Event type",
-      ServiceWorkerMetrics::EventTypeToString(event_type));
+  TRACE_EVENT_BEGIN("ServiceWorker", "ServiceWorkerVersion::Request",
+                    perfetto::Track::FromPointer(request_rawptr), "Request id",
+                    request_id, "Event type",
+                    ServiceWorkerMetrics::EventTypeToString(event_type));
 
   base::TimeTicks expiration_time = tick_clock_->NowTicks() + timeout;
   auto [iter, is_inserted] = request_timeouts_.emplace(
@@ -846,9 +846,9 @@ bool ServiceWorkerVersion::FinishRequestWithFetchCount(int request_id,
       request->event_type, tick_clock_->NowTicks() - request->start_time_ticks,
       was_handled, fetch_count);
 
-  TRACE_EVENT_NESTABLE_ASYNC_END1(
-      "ServiceWorker", "ServiceWorkerVersion::Request", TRACE_ID_LOCAL(request),
-      "Handled", was_handled);
+  // ServiceWorkerVersion::Request
+  TRACE_EVENT_END("ServiceWorker", perfetto::Track::FromPointer(request),
+                  "Handled", was_handled);
   request_timeouts_.erase(request->timeout_iter);
   inflight_requests_.Remove(request_id);
   // TODO(crbug.com/40864997): remove the following DCHECK when the cause
@@ -917,6 +917,12 @@ ServiceWorkerVersion::CreateSimpleEventCallback(int request_id) {
   // inflight responses of blink::mojom::ServiceWorker messages, is owned by
   // |this|.
   return base::BindOnce(&ServiceWorkerVersion::OnSimpleEventFinished,
+                        base::Unretained(this), request_id);
+}
+
+ServiceWorkerVersion::PushEventCallback
+ServiceWorkerVersion::CreatePushEventCallback(int request_id) {
+  return base::BindOnce(&ServiceWorkerVersion::OnPushEventFinished,
                         base::Unretained(this), request_id);
 }
 
@@ -1553,10 +1559,10 @@ void ServiceWorkerVersion::OnStopping() {
   TRACE_EVENT0("ServiceWorker", "ServiceWorkerVersion::OnStopping");
   DCHECK(stop_time_.is_null());
   RestartTick(&stop_time_);
-  TRACE_EVENT_NESTABLE_ASYNC_BEGIN2(
+  TRACE_EVENT_BEGIN(
       "ServiceWorker", "ServiceWorkerVersion::StopWorker",
-      TRACE_ID_WITH_SCOPE("ServiceWorkerVersion::StopWorker",
-                          stop_time_.since_origin().InMicroseconds()),
+      perfetto::NamedTrack("ServiceWorkerVersion::StopWorker",
+                           stop_time_.since_origin().InMicroseconds()),
       "Script", script_url_.spec(), "Version Status",
       VersionStatusToString(status_));
 
@@ -1630,11 +1636,10 @@ void ServiceWorkerVersion::SetCachedMetadata(const GURL& url,
                                              base::span<const uint8_t> data) {
   int64_t callback_id =
       base::Time::Now().ToDeltaSinceWindowsEpoch().InMicroseconds();
-  TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(
-      "ServiceWorker", "ServiceWorkerVersion::SetCachedMetadata",
-      TRACE_ID_WITH_SCOPE("ServiceWorkerVersion::SetCachedMetadata",
-                          callback_id),
-      "URL", url.spec());
+  TRACE_EVENT_BEGIN("ServiceWorker", "ServiceWorkerVersion::SetCachedMetadata",
+                    perfetto::NamedTrack(
+                        "ServiceWorkerVersion::SetCachedMetadata", callback_id),
+                    "URL", url.spec());
   script_cache_map_.WriteMetadata(
       url, data,
       base::BindOnce(&ServiceWorkerVersion::OnSetCachedMetadataFinished,
@@ -1644,10 +1649,10 @@ void ServiceWorkerVersion::SetCachedMetadata(const GURL& url,
 void ServiceWorkerVersion::ClearCachedMetadata(const GURL& url) {
   int64_t callback_id =
       base::Time::Now().ToDeltaSinceWindowsEpoch().InMicroseconds();
-  TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(
+  TRACE_EVENT_BEGIN(
       "ServiceWorker", "ServiceWorkerVersion::ClearCachedMetadata",
-      TRACE_ID_WITH_SCOPE("ServiceWorkerVersion::ClearCachedMetadata",
-                          callback_id),
+      perfetto::NamedTrack("ServiceWorkerVersion::ClearCachedMetadata",
+                           callback_id),
       "URL", url.spec());
   script_cache_map_.ClearMetadata(
       url, base::BindOnce(&ServiceWorkerVersion::OnClearCachedMetadataFinished,
@@ -2010,11 +2015,11 @@ void ServiceWorkerVersion::AddRoutes(
 void ServiceWorkerVersion::OnSetCachedMetadataFinished(int64_t callback_id,
                                                        size_t size,
                                                        int result) {
-  TRACE_EVENT_NESTABLE_ASYNC_END1(
-      "ServiceWorker", "ServiceWorkerVersion::SetCachedMetadata",
-      TRACE_ID_WITH_SCOPE("ServiceWorkerVersion::SetCachedMetadata",
-                          callback_id),
-      "result", result);
+  // ServiceWorkerVersion::SetCachedMetadata
+  TRACE_EVENT_END("ServiceWorker",
+                  perfetto::NamedTrack(
+                      "ServiceWorkerVersion::SetCachedMetadata", callback_id),
+                  "result", result);
   for (auto& observer : observers_) {
     observer.OnCachedMetadataUpdated(this, size);
   }
@@ -2022,11 +2027,11 @@ void ServiceWorkerVersion::OnSetCachedMetadataFinished(int64_t callback_id,
 
 void ServiceWorkerVersion::OnClearCachedMetadataFinished(int64_t callback_id,
                                                          int result) {
-  TRACE_EVENT_NESTABLE_ASYNC_END1(
-      "ServiceWorker", "ServiceWorkerVersion::ClearCachedMetadata",
-      TRACE_ID_WITH_SCOPE("ServiceWorkerVersion::ClearCachedMetadata",
-                          callback_id),
-      "result", result);
+  // ServiceWorkerVersion::ClearCachedMetadata
+  TRACE_EVENT_END("ServiceWorker",
+                  perfetto::NamedTrack(
+                      "ServiceWorkerVersion::ClearCachedMetadata", callback_id),
+                  "result", result);
   for (auto& observer : observers_) {
     observer.OnCachedMetadataUpdated(this, 0);
   }
@@ -2096,6 +2101,27 @@ void ServiceWorkerVersion::OnSimpleEventFinished(
                 status == blink::mojom::ServiceWorkerEventStatus::COMPLETED);
   // TODO(http://crbug.com/1251834): Why are we running the "error callback"
   // even when there is no error? Clean this up.
+  std::move(error_callback)
+      .Run(mojo::ConvertTo<blink::ServiceWorkerStatusCode>(status));
+}
+
+void ServiceWorkerVersion::OnPushEventFinished(
+    int request_id,
+    blink::mojom::ServiceWorkerEventStatus status,
+    const std::optional<std::vector<GURL>>& requested_urls) {
+  InflightRequest* request = inflight_requests_.Lookup(request_id);
+  // |request| will be null when the request has been timed out.
+  if (!request) {
+    return;
+  }
+  if (context_) {
+    context_->OnPushEventFinished(script_url_, requested_urls);
+  }
+  // Copy error callback before calling FinishRequest.
+  StatusCallback error_callback = std::move(request->error_callback);
+
+  FinishRequest(request_id,
+                status == blink::mojom::ServiceWorkerEventStatus::COMPLETED);
   std::move(error_callback)
       .Run(mojo::ConvertTo<blink::ServiceWorkerStatusCode>(status));
 }
@@ -2272,12 +2298,12 @@ void ServiceWorkerVersion::DidEnsureLiveRegistrationForStartWorker(
           return;
         } else {
           int trace_id = NextTraceId();
-          TRACE_EVENT_NESTABLE_ASYNC_BEGIN2(
-              "ServiceWorker", "ServiceWorkerVersion::StartWorker",
-              TRACE_ID_WITH_SCOPE("ServiceWorkerVersion::StartWorker",
-                                  trace_id),
-              "Script", script_url_.spec(), "Purpose",
-              ServiceWorkerMetrics::EventTypeToString(purpose));
+          TRACE_EVENT_BEGIN("ServiceWorker",
+                            "ServiceWorkerVersion::StartWorker",
+                            perfetto::NamedTrack(
+                                "ServiceWorkerVersion::StartWorker", trace_id),
+                            "Script", script_url_.spec(), "Purpose",
+                            ServiceWorkerMetrics::EventTypeToString(purpose));
 
           embedded_worker_->ResumeInitializingGlobalScope();
 
@@ -2297,17 +2323,18 @@ void ServiceWorkerVersion::DidEnsureLiveRegistrationForStartWorker(
 
         if (warm_up_callbacks_.empty()) {
           int trace_id = NextTraceId();
-          TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(
-              "ServiceWorker", "ServiceWorkerVersion::WarmUpWorker",
-              TRACE_ID_WITH_SCOPE("ServiceWorkerVersion::WarmUpWorker",
-                                  trace_id),
-              "Script", script_url_.spec());
+          TRACE_EVENT_BEGIN("ServiceWorker",
+                            "ServiceWorkerVersion::WarmUpWorker",
+                            perfetto::NamedTrack(
+                                "ServiceWorkerVersion::WarmUpWorker", trace_id),
+                            "Script", script_url_.spec());
           warm_up_callbacks_.push_back(base::BindOnce(
               [](int trace_id, blink::ServiceWorkerStatusCode status) {
-                TRACE_EVENT_NESTABLE_ASYNC_END1(
-                    "ServiceWorker", "ServiceWorkerVersion::WarmUpWorker",
-                    TRACE_ID_WITH_SCOPE("ServiceWorkerVersion::WarmUpWorker",
-                                        trace_id),
+                // ServiceWorkerVersion::WarmUpWorker
+                TRACE_EVENT_END(
+                    "ServiceWorker",
+                    perfetto::NamedTrack("ServiceWorkerVersion::WarmUpWorker",
+                                         trace_id),
                     "Status", blink::ServiceWorkerStatusToString(status));
               },
               trace_id));
@@ -2315,12 +2342,12 @@ void ServiceWorkerVersion::DidEnsureLiveRegistrationForStartWorker(
       } else {
         if (start_callbacks_.empty()) {
           int trace_id = NextTraceId();
-          TRACE_EVENT_NESTABLE_ASYNC_BEGIN2(
-              "ServiceWorker", "ServiceWorkerVersion::StartWorker",
-              TRACE_ID_WITH_SCOPE("ServiceWorkerVersion::StartWorker",
-                                  trace_id),
-              "Script", script_url_.spec(), "Purpose",
-              ServiceWorkerMetrics::EventTypeToString(purpose));
+          TRACE_EVENT_BEGIN("ServiceWorker",
+                            "ServiceWorkerVersion::StartWorker",
+                            perfetto::NamedTrack(
+                                "ServiceWorkerVersion::StartWorker", trace_id),
+                            "Script", script_url_.spec(), "Purpose",
+                            ServiceWorkerMetrics::EventTypeToString(purpose));
           start_callbacks_.push_back(base::BindOnce(
               &ServiceWorkerVersion::RecordStartWorkerResult,
               weak_factory_.GetWeakPtr(), purpose, prestart_status, trace_id,
@@ -2639,9 +2666,10 @@ void ServiceWorkerVersion::RecordStartWorkerResult(
     bool is_browser_startup_complete,
     blink::ServiceWorkerStatusCode status) {
   if (trace_id != kInvalidTraceId) {
-    TRACE_EVENT_NESTABLE_ASYNC_END1(
-        "ServiceWorker", "ServiceWorkerVersion::StartWorker",
-        TRACE_ID_WITH_SCOPE("ServiceWorkerVersion::StartWorker", trace_id),
+    // ServiceWorkerVersion::StartWorker
+    TRACE_EVENT_END(
+        "ServiceWorker",
+        perfetto::NamedTrack("ServiceWorkerVersion::StartWorker", trace_id),
         "Status", blink::ServiceWorkerStatusToString(status));
   }
   base::TimeTicks start_time = start_time_;
@@ -2693,9 +2721,9 @@ bool ServiceWorkerVersion::MaybeTimeoutRequest(
     return false;
   }
 
-  TRACE_EVENT_NESTABLE_ASYNC_END1("ServiceWorker",
-                                  "ServiceWorkerVersion::Request",
-                                  TRACE_ID_LOCAL(request), "Error", "Timeout");
+  // ServiceWorkerVersion::Request
+  TRACE_EVENT_END("ServiceWorker", perfetto::Track::FromPointer(request),
+                  "Error", "Timeout");
   std::move(request->error_callback)
       .Run(blink::ServiceWorkerStatusCode::kErrorTimeout);
   inflight_requests_.Remove(info.id);
@@ -2830,10 +2858,11 @@ void ServiceWorkerVersion::OnStoppedInternal(
   }
 
   if (!stop_time_.is_null()) {
-    TRACE_EVENT_NESTABLE_ASYNC_END1(
-        "ServiceWorker", "ServiceWorkerVersion::StopWorker",
-        TRACE_ID_WITH_SCOPE("ServiceWorkerVersion::StopWorker",
-                            stop_time_.since_origin().InMicroseconds()),
+    // ServiceWorkerVersion::StopWorker
+    TRACE_EVENT_END(
+        "ServiceWorker",
+        perfetto::NamedTrack("ServiceWorkerVersion::StopWorker",
+                             stop_time_.since_origin().InMicroseconds()),
         "Restart", should_restart);
     ClearTick(&stop_time_);
   }
@@ -2865,9 +2894,10 @@ void ServiceWorkerVersion::OnStoppedInternal(
   base::IDMap<std::unique_ptr<InflightRequest>>::iterator iter(
       &inflight_requests_);
   while (!iter.IsAtEnd()) {
-    TRACE_EVENT_NESTABLE_ASYNC_END1(
-        "ServiceWorker", "ServiceWorkerVersion::Request",
-        TRACE_ID_LOCAL(iter.GetCurrentValue()), "Error", "Worker Stopped");
+    // ServiceWorkerVersion::Request
+    TRACE_EVENT_END("ServiceWorker",
+                    perfetto::Track::FromPointer(iter.GetCurrentValue()),
+                    "Error", "Worker Stopped");
     std::move(iter.GetCurrentValue()->error_callback)
         .Run(blink::ServiceWorkerStatusCode::kErrorFailed);
     iter.Advance();

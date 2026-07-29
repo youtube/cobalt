@@ -36,6 +36,7 @@
 #include "components/tab_groups/tab_group_id.h"
 #include "components/tab_groups/tab_group_visual_data.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/base/models/list_selection_model.h"
 #include "ui/gfx/color_palette.h"
 #include "ui/gfx/color_utils.h"
@@ -915,7 +916,6 @@ TEST_F(TabContentsTest, AccessibleNameChanged) {
   EXPECT_FALSE(
       tab_strip_->tab_at(0)->ShouldUpdateAccessibleName(old_data, new_data));
 
-  new_data.incognito = !new_data.incognito;
   EXPECT_FALSE(
       tab_strip_->tab_at(0)->ShouldUpdateAccessibleName(old_data, new_data));
 

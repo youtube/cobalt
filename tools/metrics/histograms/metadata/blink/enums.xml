@@ -5953,8 +5953,8 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5331" label="WebAppManifestUpdate"/>
   <int value="5332" label="CSSEnvironmentVariable_PreferredTextScale"/>
   <int value="5333" label="ButtonTypeAttrInvalidWithCommandOrCommandfor"/>
-  <int value="5334" label="CSSVarFallbackCycle"/>
-  <int value="5335" label="CSSAttrFallbackCycle"/>
+  <int value="5334" label="OBSOLETE_CSSVarFallbackCycle"/>
+  <int value="5335" label="OBSOLETE_CSSAttrFallbackCycle"/>
   <int value="5336" label="CSSRainbowGradientPattern"/>
   <int value="5337" label="WebAppManifestStartUrl"/>
   <int value="5338" label="WebAppManifestDisplay"/>
@@ -6257,6 +6257,18 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5623" label="WebAppManifestIconsLocalized"/>
   <int value="5624" label="HTMLControlledFrameElement"/>
   <int value="5625" label="SlowDeserialization"/>
+  <int value="5626" label="SharedWorkerStartOnAndroid"/>
+  <int value="5627" label="LocalNetworkAccessWithinSharedWorker"/>
+  <int value="5628" label="LocalNetworkAccessWithinDedicatedWorker"/>
+  <int value="5629" label="CSSPseudoParentInScope"/>
+  <int value="5630" label="InterestHintPseudoElement"/>
+  <int value="5631" label="CookieStoreEmptyPath"/>
+  <int value="5632" label="V8CookieListItem_Domain_AttributeGetter"/>
+  <int value="5633" label="V8CookieListItem_Path_AttributeGetter"/>
+  <int value="5634" label="V8CookieListItem_Expires_AttributeGetter"/>
+  <int value="5635" label="V8CookieListItem_Secure_AttributeGetter"/>
+  <int value="5636" label="V8CookieListItem_SameSite_AttributeGetter"/>
+  <int value="5637" label="V8CookieListItem_Partitioned_AttributeGetter"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom:WebFeature) -->
@@ -6408,6 +6420,7 @@ Called by update_permissions_policy_enum.py.-->
   <int value="138" label="OnDeviceSpeechRecognition"/>
   <int value="139" label="LanguageModel"/>
   <int value="140" label="AriaNotify"/>
+  <int value="141" label="DigitalCredentialsCreate"/>
 </enum>
 
 <enum name="FedCmAccountChooserResult">
@@ -7836,7 +7849,7 @@ Called by update_use_counter_css.py.-->
   <int value="842" label="corner-shape"/>
   <int value="843" label="scroll-target-group"/>
   <int value="844" label="row-rule-style"/>
-  <int value="845" label="gap-rule-paint-order"/>
+  <int value="845" label="gap-rule-overlap"/>
   <int value="846" label="row-rule-width"/>
   <int value="847" label="row-rule-color"/>
   <int value="848" label="print-color-adjust"/>
@@ -8372,6 +8385,22 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="373" label="DRAFT_IncomingCallNotifications"/>
   <int value="374" label="Popover"/>
   <int value="375" label="DRAFT_WebInstallAPI"/>
+  <int value="376" label="TopLevelAwait"/>
+  <int value="377" label="AtomicsPause"/>
+  <int value="378" label="LogicalAssignments"/>
+  <int value="379" label="NullishCoalescing"/>
+  <int value="380" label="CrashReportStorageAPIInitialize"/>
+  <int value="381" label="ExtTextureCompressionBptc"/>
+  <int value="382" label="ExtTextureCompressionRgtc"/>
+  <int value="383" label="ExtTextureNorm16"/>
+  <int value="384" label="OesFboRenderMipmap"/>
+  <int value="385" label="WebglColorManagement"/>
+  <int value="386" label="WebglCompressedTexturePvrtc"/>
+  <int value="387" label="WebglDesynchronized"/>
+  <int value="388" label="WebglMultiDraw"/>
+  <int value="389" label="WebglOesDrawBuffersIndexed"/>
+  <int value="390" label="Webgl2ColorManagement"/>
+  <int value="391" label="Webgl2Desynchronized"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/webdx_feature.mojom:WebDXFeature) -->

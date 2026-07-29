@@ -271,6 +271,9 @@ BASE_FEATURE(kTabGridNewTransitions,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsNewTabGridTransitionsEnabled() {
+  if (IsDiamondPrototypeEnabled()) {
+    return false;
+  }
   return base::FeatureList::IsEnabled(kTabGridNewTransitions);
 }
 
@@ -516,10 +519,6 @@ BASE_FEATURE(kDownloadAutoDeletionFeatureEnabled,
 bool IsDownloadAutoDeletionFeatureEnabled() {
   return base::FeatureList::IsEnabled(kDownloadAutoDeletionFeatureEnabled);
 }
-
-BASE_FEATURE(kDownloadedPDFOpening,
-             "DownloadedPDFOpening",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 const char kDownloadListUITypeParam[] = "DownloadListUIType";
 
@@ -825,38 +824,6 @@ bool IsSegmentationTipsManagerEnabled() {
 BASE_FEATURE(kSpotlightNeverRetainIndex,
              "SpotlightNeverRetainIndex",
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kIOSSaveToPhotosImprovements,
-             "SaveToPhotosImprovements",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-const char kSaveToPhotosContextMenuImprovementParam[] =
-    "save-to-photos-context-menu-improvement";
-const char kSaveToPhotosTitleImprovementParam[] =
-    "save-to-photos-title-improvement";
-const char kSaveToPhotosAccountDefaultChoiceImprovementParam[] =
-    "save-to-photos-account-default-choice-improvement";
-
-bool IsSaveToPhotosActionImprovementEnabled() {
-  return base::FeatureList::IsEnabled(kIOSSaveToPhotosImprovements) &&
-         base::GetFieldTrialParamByFeatureAsBool(
-             kIOSSaveToPhotosImprovements,
-             kSaveToPhotosContextMenuImprovementParam, true);
-}
-
-bool IsSaveToPhotosTitleImprovementEnabled() {
-  return base::FeatureList::IsEnabled(kIOSSaveToPhotosImprovements) &&
-         base::GetFieldTrialParamByFeatureAsBool(
-             kIOSSaveToPhotosImprovements, kSaveToPhotosTitleImprovementParam,
-             true);
-}
-
-bool IsSaveToPhotosAccountPickerImprovementEnabled() {
-  return base::FeatureList::IsEnabled(kIOSSaveToPhotosImprovements) &&
-         base::GetFieldTrialParamByFeatureAsBool(
-             kIOSSaveToPhotosImprovements,
-             kSaveToPhotosAccountDefaultChoiceImprovementParam, true);
-}
 
 bool ShouldDeprecateFeedHeader() {
   return base::FeatureList::IsEnabled(kDeprecateFeedHeader);
@@ -1239,14 +1206,6 @@ BASE_FEATURE(kContainedTabGroup,
 
 bool IsContainedTabGroupEnabled() {
   return base::FeatureList::IsEnabled(kContainedTabGroup);
-}
-
-BASE_FEATURE(kColorfulTabGroup,
-             "ColorfulTabGroup",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-bool IsColorfulTabGroupEnabled() {
-  return base::FeatureList::IsEnabled(kColorfulTabGroup);
 }
 
 BASE_FEATURE(kBestOfAppFRE, "BestOfAppFRE", base::FEATURE_DISABLED_BY_DEFAULT);

@@ -107,10 +107,6 @@ class ExtensionActionRunner : public content::WebContentsObserver,
 
   int num_page_requests() const { return num_page_requests_; }
 
-  void accept_bubble_for_testing(bool accept_bubble) {
-    accept_bubble_for_testing_ = accept_bubble;
-  }
-
   // Handles mojom::LocalFrameHost::RequestScriptInjectionPermission(). It
   // replies back with `callback`.
   void OnRequestScriptInjectionPermission(
@@ -185,9 +181,6 @@ class ExtensionActionRunner : public content::WebContentsObserver,
   // Log metrics.
   void LogUMA() const;
 
-  // Reloads the current page.
-  void OnReloadPageBubbleAccepted();
-
   // content::WebContentsObserver implementation.
   void DidFinishNavigation(
       content::NavigationHandle* navigation_handle) override;
@@ -236,16 +229,10 @@ class ExtensionActionRunner : public content::WebContentsObserver,
   // each caller.
   std::unique_ptr<ReloadPageDialogController> reload_page_dialog_controller_;
 
-  // If true, immediately accept the reload page dialog by running the
-  // callback.
-  std::optional<bool> accept_bubble_for_testing_;
-
   base::ObserverList<TestObserver> test_observers_;
 
   base::ScopedObservation<ExtensionRegistry, ExtensionRegistryObserver>
       extension_registry_observation_{this};
-
-  base::WeakPtrFactory<ExtensionActionRunner> weak_factory_{this};
 };
 
 }  // namespace extensions

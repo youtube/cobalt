@@ -149,6 +149,13 @@ public class ContextMenuTest {
 
     private static final String TEST_PATH =
             "/chrome/test/data/android/contextmenu/context_menu_test.html";
+    // LINT.IfChange(PageScaleFactor)
+    // The initial-scale defined in the test html file meta. The setUp function
+    // will check that the page scale factor has been updated to this value.
+    // This ensures the long press/ right click is simulated at the correct
+    // coordinates of the specified element. See crbug.com/432281754.
+    private static final float PAGE_SCALE_FACTOR = 1.0f;
+    // LINT.ThenChange(//chrome/test/data/android/contextmenu/context_menu_test.html:PageScaleFactor)
 
     private EmbeddedTestServer mTestServer;
     private String mTestUrl;
@@ -221,6 +228,8 @@ public class ContextMenuTest {
         sDownloadTestRule.loadUrl(mTestUrl);
         Tab tab = sDownloadTestRule.getActivityTab();
         CriteriaHelper.pollUiThread(() -> tab.isUserInteractable() && !tab.isLoading());
+        sDownloadTestRule.assertWaitForPageScaleFactorMatch(PAGE_SCALE_FACTOR);
+
         setupLensChipDelegate();
         DownloadUtils.setIsDownloadRestrictedByPolicyForTesting(false);
         DataProtectionBridgeJni.setInstanceForTesting(mDataProtectionBridgeMock);
@@ -316,6 +325,9 @@ public class ContextMenuTest {
     @Feature({"Browser"})
     @RequiresRestart
     public void testLongPressOnImage() throws TimeoutException {
+        doAnswer(sCopyIsAllowedByPolicy)
+                .when(mDataProtectionBridgeMock)
+                .verifyGenericCopyImageActionIsAllowedByPolicy(anyString(), any(), any());
         checkOpenImageInNewTab("testImage", "/chrome/test/data/android/contextmenu/test_image.png");
     }
 
@@ -394,6 +406,9 @@ public class ContextMenuTest {
     @MediumTest
     @Feature({"Browser"})
     public void testLongPressOnImageLink() throws TimeoutException {
+        doAnswer(sCopyIsAllowedByPolicy)
+                .when(mDataProtectionBridgeMock)
+                .verifyGenericCopyImageActionIsAllowedByPolicy(anyString(), any(), any());
         checkOpenImageInNewTab(
                 "testImageLink", "/chrome/test/data/android/contextmenu/test_image.png");
     }
@@ -665,6 +680,9 @@ public class ContextMenuTest {
     @Test
     @MediumTest
     public void testCopyEmailAddress() throws Throwable {
+        doAnswer(sCopyIsAllowedByPolicy)
+                .when(mDataProtectionBridgeMock)
+                .verifyCopyTextIsAllowedByPolicy(anyString(), any(), any());
         Tab tab = sDownloadTestRule.getActivityTab();
         // Allow all thread policies temporarily in main thread to avoid
         // DiskWrite and UnBufferedIo violations during copying under
@@ -688,6 +706,9 @@ public class ContextMenuTest {
     @Test
     @MediumTest
     public void testCopyTelNumber() throws Throwable {
+        doAnswer(sCopyIsAllowedByPolicy)
+                .when(mDataProtectionBridgeMock)
+                .verifyCopyTextIsAllowedByPolicy(anyString(), any(), any());
         Tab tab = sDownloadTestRule.getActivityTab();
         // Allow DiskWrites temporarily in main thread to avoid
         // violation during copying under emulator environment.
@@ -852,15 +873,13 @@ public class ContextMenuTest {
         // Verify that the background tabs were opened in the expected order.
         String newTabUrl =
                 mTestServer.getURL("/chrome/test/data/android/contextmenu/test_link.html");
-        Assert.assertEquals(
-                newTabUrl,
-                ChromeTabUtils.getUrlStringOnUiThread(tabModel.getTabAt(indexOfLinkPage)));
+        Tab tab1 = ThreadUtils.runOnUiThreadBlocking(() -> tabModel.getTabAt(indexOfLinkPage));
+        Assert.assertEquals(newTabUrl, ChromeTabUtils.getUrlStringOnUiThread(tab1));
 
         String imageUrl =
                 mTestServer.getURL("/chrome/test/data/android/contextmenu/test_link2.html");
-        Assert.assertEquals(
-                imageUrl,
-                ChromeTabUtils.getUrlStringOnUiThread(tabModel.getTabAt(indexOfLinkPage2)));
+        Tab tab2 = ThreadUtils.runOnUiThreadBlocking(() -> tabModel.getTabAt(indexOfLinkPage2));
+        Assert.assertEquals(imageUrl, ChromeTabUtils.getUrlStringOnUiThread(tab2));
     }
 
     @Test

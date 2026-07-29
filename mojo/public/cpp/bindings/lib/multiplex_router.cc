@@ -11,6 +11,7 @@
 
 #include <stdint.h>
 
+#include <atomic>
 #include <utility>
 
 #include "base/auto_reset.h"
@@ -120,6 +121,10 @@ class MultiplexRouter::InterfaceEndpoint
     return requests_with_external_sync_waiter_.erase(request_id) != 0;
   }
 
+  bool IsWatchingForSyncReply() {
+    return is_watching_.load(std::memory_order_acquire);
+  }
+
   base::flat_set<uint64_t> UnregisterAllExternalSyncWaiters() {
     router_->AssertLockAcquired();
     base::flat_set<uint64_t> request_ids;
@@ -167,6 +172,8 @@ class MultiplexRouter::InterfaceEndpoint
     DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
     EnsureSyncWatcherExists();
+    is_watching_.store(true, std::memory_order_release);
+    // SyncWatch may delete `this`.
     return sync_watcher_->SyncWatch(&should_stop);
   }
 
@@ -196,6 +203,8 @@ class MultiplexRouter::InterfaceEndpoint
     MayAutoLock locker(&router_->lock_);
     scoped_refptr<InterfaceEndpoint> self_protector(this);
 
+    is_watching_.store(false, std::memory_order_release);
+
     bool more_to_process = router_->ProcessFirstSyncMessageForEndpoint(id_);
 
     if (!more_to_process)
@@ -220,8 +229,11 @@ class MultiplexRouter::InterfaceEndpoint
     sync_watcher_ =
         std::make_unique<SequenceLocalSyncEventWatcher>(base::BindRepeating(
             &InterfaceEndpoint::OnSyncEventSignaled, base::Unretained(this)));
-    if (sync_message_event_signaled_)
+    // If peer_closed_ is true, we'll never be signalled again, so immediately
+    // signal the watcher event to make sure we don't hang indefinitely.
+    if (sync_message_event_signaled_ || peer_closed_) {
       sync_watcher_->SignalEvent();
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -257,6 +269,7 @@ class MultiplexRouter::InterfaceEndpoint
   // Guarded by the router's lock. Used to synchronously wait on replies.
   std::unique_ptr<SequenceLocalSyncEventWatcher> sync_watcher_;
   base::flat_set<uint64_t> requests_with_external_sync_waiter_;
+  std::atomic<bool> is_watching_;
 };
 
 // MessageWrapper objects are always destroyed under the router's lock. On
@@ -727,6 +740,21 @@ bool MultiplexRouter::Accept(Message* message) {
   } else {
     can_process = tasks_.empty() || CanUnblockExternalSyncWait(*message);
   }
+  // Pipe control messages need to be processed right away if they are notifying
+  // us that an endpoint was closed while we're sync waiting for that endpoint.
+  if (!can_process) {
+    if (std::optional<InterfaceId> interface_id =
+            PipeControlMessageHandler::IsPeerAssociatedEndpointClosedEvent(
+                *message)) {
+      if (exclusive_sync_wait_ &&
+          exclusive_sync_wait_->interface_id == *interface_id) {
+        can_process = true;
+      } else if (InterfaceEndpoint* endpoint = FindEndpoint(*interface_id)) {
+        can_process = endpoint->IsWatchingForSyncReply();
+      }
+    }
+  }
+
   MessageWrapper message_wrapper(this, std::move(*message));
   const bool processed =
       can_process &&

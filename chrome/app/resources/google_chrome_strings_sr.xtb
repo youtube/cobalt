@@ -172,6 +172,7 @@
 <translation id="3003694935412297923">Сви задаци</translation>
 <translation id="3018957014024118866">Избриши и податке из Chrome-а (<ph name="URL" />)</translation>
 <translation id="3019382870990049182">Поново покрени ради ажурирања Chrome OS Flex-а</translation>
+<translation id="3037517125981011456">Приказује упите за пријављивање у Chrome</translation>
 <translation id="3037838751736561277">Google Chrome је у позадинском режиму.</translation>
 <translation id="3038232873781883849">Чека се инсталирање...</translation>
 <translation id="3045032126857188731">Језик превода: <ph name="LANGUAGE" /></translation>
@@ -408,6 +409,7 @@ Google Chrome не може да врати подешавања.</translation>
 <translation id="5980111191913430208">Додаци, апликације и теме из непознатих извора могу да нашкоде уређају. Chrome препоручује да их инсталирате само из: <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /></translation>
 <translation id="6003112304606738118">Преузима се... Још <ph name="HOURS" /> ч</translation>
 <translation id="6008161919456049856">Лозинке, начини плаћања и адресе које сте сачували на Google налогу биће уклоњени са овог уређаја. Да бисте их поново користили у Chrome-у, поново се пријавите.</translation>
+<translation id="6009821354356307391">Поставите додатни упит</translation>
 <translation id="6014316319780893079">Помоћу <ph name="BEGIN_LINK" />Chrome алатки<ph name="END_LINK" /> можете безбедно да прегледате и задржите контролу</translation>
 <translation id="6022659036123304283">Прилагодите Chrome себи</translation>
 <translation id="6025087594896450715">Google Chrome ће се рестартовати за <ph name="REMAINING_TIME" /></translation>
@@ -647,6 +649,7 @@ Google Chrome не може да врати подешавања.</translation>
 <translation id="8843516219908676469">Chrome боље разуме обрасце и може брже аутоматски да их попуњава за вас</translation>
 <translation id="8851180723659088381">{NUM_EXTENSIONS,plural, =1{Chrome препоручује да ово уклоните}one{Chrome препоручује да их уклоните}few{Chrome препоручује да их уклоните}other{Chrome препоручује да их уклоните}}</translation>
 <translation id="8862326446509486874">Немате одговарајућа права за инсталацију на нивоу система. Пробајте поново да покренете програм за инсталацију, овога пута као администратор.</translation>
+<translation id="8865415417596392024">Chrome подаци на налогу</translation>
 <translation id="8883862939660515976">Поставите питање Google објективу о овој слици</translation>
 <translation id="8914504000324227558">Поново покрени Chrome</translation>
 <translation id="8922193594870374009">Да бисте послали број са <ph name="ORIGIN" /> на Android телефон, пријавите се у Chrome на оба уређаја.</translation>

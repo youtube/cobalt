@@ -161,11 +161,11 @@ class ContentScriptApiTest : public ExtensionApiTest {
     AllowHttpForHostnamesForTesting(
         {"a.com", "b.com", "default.test", "bar.com", "path-test.example",
          "example.com", "chromium.org", "example1.com"},
-        browser()->profile()->GetPrefs());
+        profile()->GetPrefs());
   }
 
   void TearDownOnMainThread() override {
-    ClearHttpAllowlistForHostnamesForTesting(browser()->profile()->GetPrefs());
+    ClearHttpAllowlistForHostnamesForTesting(profile()->GetPrefs());
   }
 
   void SetUpCommandLine(base::CommandLine* command_line) override {
@@ -874,10 +874,7 @@ IN_PROC_BROWSER_TEST_F(ContentScriptApiTest,
 
   // We're going to close a tab in this test, so make a new one (to ensure
   // we don't close the browser).
-  ui_test_utils::NavigateToURLWithDisposition(
-      browser(), embedded_test_server()->GetURL("/empty.html"),
-      WindowOpenDisposition::NEW_FOREGROUND_TAB,
-      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
+  NavigateToURLInNewTab(embedded_test_server()->GetURL("/empty.html"));
 
   // Set up the same as the previous test case.
   TestExtensionDir ext_dir1;
@@ -1029,7 +1026,7 @@ IN_PROC_BROWSER_TEST_P(ContentScriptApiTestWithContextType,
   ResultCatcher catcher;
   test_listener.Reply(std::string());
   ASSERT_TRUE(catcher.GetNextResult()) << catcher.message();
-  EXPECT_EQ(ntp_test_utils::GetFinalNtpUrl(browser()->profile()),
+  EXPECT_EQ(ntp_test_utils::GetFinalNtpUrl(profile()),
             browser()
                 ->tab_strip_model()
                 ->GetActiveWebContents()

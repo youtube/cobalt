@@ -10,8 +10,6 @@
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/extensions/chrome_content_browser_client_extensions_part.h"
 #include "chrome/browser/extensions/chrome_extensions_browser_client.h"
-#include "chrome/browser/extensions/chrome_extensions_browser_interface_binders.h"
-#include "chrome/browser/extensions/chrome_kiosk_delegate.h"
 #include "chrome/browser/extensions/chrome_process_manager_delegate.h"
 #include "chrome/browser/extensions/chrome_safe_browsing_delegate.h"
 #include "chrome/browser/extensions/error_console/error_console.h"
@@ -23,7 +21,6 @@
 #include "chrome/common/url_constants.h"
 #include "components/webapps/isolated_web_apps/url_loading/url_loader_factory.h"
 #include "content/public/browser/site_instance.h"
-#include "extensions/browser/extensions_browser_interface_binders.h"
 #include "ipc/constants.mojom.h"
 
 namespace extensions {
@@ -52,15 +49,6 @@ ChromeExtensionsBrowserClient::GetControlledFrameEmbedderURLLoader(
       browser_context, app_origin, frame_tree_node_id);
 }
 
-void ChromeExtensionsBrowserClient::RegisterBrowserInterfaceBindersForFrame(
-    mojo::BinderMapWithContext<content::RenderFrameHost*>* binder_map,
-    content::RenderFrameHost* render_frame_host,
-    const Extension* extension) const {
-  PopulateExtensionFrameBinders(binder_map, render_frame_host, extension);
-  PopulateChromeFrameBindersForExtension(binder_map, render_frame_host,
-                                         extension);
-}
-
 void ChromeExtensionsBrowserClient::ReportError(
     content::BrowserContext* context,
     std::unique_ptr<ExtensionError> error) {
@@ -87,13 +75,6 @@ void ChromeExtensionsBrowserClient::CleanUpWebView(
       "", embedder_process_id,
       /*webview_embedder_frame_id=*/IPC::mojom::kRoutingIdNone,
       view_instance_id));
-}
-
-KioskDelegate* ChromeExtensionsBrowserClient::GetKioskDelegate() {
-  if (!kiosk_delegate_) {
-    kiosk_delegate_ = std::make_unique<ChromeKioskDelegate>();
-  }
-  return kiosk_delegate_.get();
 }
 
 void ChromeExtensionsBrowserClient::GetWebViewStoragePartitionConfig(

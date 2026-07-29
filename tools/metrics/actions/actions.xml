@@ -3731,12 +3731,31 @@ should be able to be added at any place in this file.
   <description>The survey infobar was displayed.</description>
 </action>
 
+<action name="Android.WindowManager.ChangeWindowName">
+  <owner>aishwaryarj@google.com</owner>
+  <owner>rathomas@google.com</owner>
+  <description>
+    User tapped 'Save' on the dialog opened via the 3-dot menu on the in-app
+    window manager to successfully save and change the name of a Chrome window
+    and dismiss the dialog.
+  </description>
+</action>
+
 <action name="Android.WindowManager.CloseWindow">
   <owner>jinsukkim@chromium.org</owner>
   <owner>twellington@chromium.org</owner>
   <description>
     User tapped Close in the 3-dot menu from the in-app window manager to remove
     a Chrome window.
+  </description>
+</action>
+
+<action name="Android.WindowManager.NameWindow">
+  <owner>aishwaryarj@google.com</owner>
+  <owner>rathomas@google.com</owner>
+  <description>
+    User tapped 'Name' on the 3-dot menu on the in-app window manager to name a
+    Chrome window.
   </description>
 </action>
 
@@ -3764,6 +3783,16 @@ should be able to be added at any place in this file.
   <description>
     User tapped on 'Restore' in Chrome's in-app window manager to restore an
     inactive Window and bring it to the foreground.
+  </description>
+</action>
+
+<action name="Android.WindowManager.SaveWindowName">
+  <owner>aishwaryarj@google.com</owner>
+  <owner>rathomas@google.com</owner>
+  <description>
+    User tapped 'Save' on the dialog opened via the 3-dot menu on the in-app
+    window manager to successfully save the name of a Chrome window and dismiss
+    the dialog.
   </description>
 </action>
 
@@ -13027,6 +13056,34 @@ should be able to be added at any place in this file.
   <owner>harringtond@chromium.org</owner>
   <owner>erikchen@chromium.org</owner>
   <description>Tracks a single response stop in glic.</description>
+</action>
+
+<action name="GlicResponseStopByUser">
+  <owner>carlosk@chromium.org</owner>
+  <owner>harringtond@chromium.org</owner>
+  <owner>erikchen@chromium.org</owner>
+  <description>
+    Tracks a single response stop in glic, initiated by the user.
+  </description>
+</action>
+
+<action name="GlicResponseStopOther" not_user_triggered="true">
+  <owner>carlosk@chromium.org</owner>
+  <owner>harringtond@chromium.org</owner>
+  <owner>erikchen@chromium.org</owner>
+  <description>
+    Tracks a single response stop in glic, initiated by a non-user cause (could
+    be normal completion).
+  </description>
+</action>
+
+<action name="GlicResponseStopUnknownCause">
+  <owner>carlosk@chromium.org</owner>
+  <owner>harringtond@chromium.org</owner>
+  <owner>erikchen@chromium.org</owner>
+  <description>
+    Tracks a single response stop in glic, the cause is unspecified.
+  </description>
 </action>
 
 <action name="GlicSessionBegin">
@@ -24062,6 +24119,78 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="MobileGeminiEntryPointImpression">
+  <owner>kanouche@google.com</owner>
+  <description>
+    Reported when the user sees the Gemini entry point impression during
+    eligibility checking. iOS only.
+  </description>
+</action>
+
+<action name="MobileGeminiFirstPromptSubmitted">
+  <owner>kanouche@google.com</owner>
+  <owner>bling-alchemy@google.com</owner>
+  <description>
+    Reported when the user submits the first prompt to BWG (Gemini). Persisted
+    floaties resumed from persisted tabs are considered new sessions. iOS only.
+  </description>
+</action>
+
+<action name="MobileGeminiFirstResponseReceived">
+  <owner>kanouche@google.com</owner>
+  <owner>bling-alchemy@google.com</owner>
+  <description>
+    Reported when the user receives the first response from Gemini per session.
+    iOS only.
+  </description>
+</action>
+
+<action name="MobileGeminiFREConsentAccept">
+  <owner>kanouche@google.com</owner>
+  <owner>bling-alchemy@google.com</owner>
+  <description>
+    Reported when the user accepts the BWG FRE consent. iOS only.
+  </description>
+</action>
+
+<action name="MobileGeminiFREConsentDismiss">
+  <owner>kanouche@google.com</owner>
+  <owner>bling-alchemy@google.com</owner>
+  <description>
+    Reported when the user dismisses the BWG FRE consent. iOS only.
+  </description>
+</action>
+
+<action name="MobileGeminiFREConsentLinkClick">
+  <owner>kanouche@google.com</owner>
+  <owner>bling-alchemy@google.com</owner>
+  <description>
+    Reported when the user clicks any link (privacy notice, learn more, etc.) on
+    the BWG FRE consent screen. iOS only.
+  </description>
+</action>
+
+<action name="MobileGeminiFREPromoAccept">
+  <owner>kanouche@google.com</owner>
+  <owner>bling-alchemy@google.com</owner>
+  <description>
+    Reported when the user accepts the BWG FRE promo. iOS only.
+  </description>
+</action>
+
+<action name="MobileGeminiFREPromoCancel">
+  <owner>kanouche@google.com</owner>
+  <owner>bling-alchemy@google.com</owner>
+  <description>
+    Reported when the user dismisses the BWG FRE promo. iOS only.
+  </description>
+</action>
+
+<action name="MobileGeminiFREShown">
+  <owner>kanouche@google.com</owner>
+  <description>Reported when the BWG FRE was shown. iOS only.</description>
+</action>
+
 <action name="MobileGeminiLocationSettingsBack">
   <owner>joemerramos@google.com</owner>
   <description>
@@ -24074,6 +24203,15 @@ should be able to be added at any place in this file.
   <owner>joemerramos@google.com</owner>
   <description>
     Reported when Gemini Location Settings UI was dismissed. iOS only.
+  </description>
+</action>
+
+<action name="MobileGeminiResponseReceived">
+  <owner>kanouche@google.com</owner>
+  <owner>bling-alchemy@google.com</owner>
+  <description>
+    Reported when the user receives any response from BWG (Gemini) on iOS.
+    Tracks overall conversation engagement and response volume per session.
   </description>
 </action>
 
@@ -32917,6 +33055,7 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="PageInfo.CookiesSubpage.RwsSiteSettingsOpened">
+  <obsolete>Deprecated. Never launched.</obsolete>
   <owner>mjenn@google.com</owner>
   <owner>koilos@google.com</owner>
   <description>
@@ -51267,11 +51406,17 @@ should be able to be added at any place in this file.
   <suffix name="MoveToGroup"
       label="Recorded when the 'Move to group' option in the context menu is
              selected."/>
+  <suffix name="PinTab"
+      label="Recorded when the 'Pin Tab' option in the context menu is
+             selected."/>
   <suffix name="SelectTabs"
       label="Recorded when the 'Select tabs' option in the context menu is
              selected."/>
   <suffix name="ShareTab"
       label="Recorded when the 'Share' option in the context menu is
+             selected."/>
+  <suffix name="UnpinTab"
+      label="Recorded when the 'Unpin Tab' option in the context menu is
              selected."/>
   <affected-action name="TabSwitcher.ContextMenu"/>
 </action-suffix>

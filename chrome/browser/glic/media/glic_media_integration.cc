@@ -4,22 +4,20 @@
 
 #include "chrome/browser/glic/media/glic_media_integration.h"
 
-#include "base/feature_list.h"
-#include "base/no_destructor.h"
 #include "base/supports_user_data.h"
 #include "chrome/browser/accessibility/live_caption/live_caption_controller_factory.h"
 #include "chrome/browser/glic/media/glic_media_context.h"
 #include "chrome/browser/glic/media/glic_media_page_cache.h"
+#include "chrome/browser/glic/media/media_transcript_provider_impl.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/live_caption/caption_controller_base.h"
 #include "components/live_caption/caption_util.h"
 #include "components/live_caption/live_caption_controller.h"
 #include "components/live_caption/pref_names.h"
-#include "components/optimization_guide/content/browser/page_content_proto_provider.h"
+#include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/peer_connection_tracker_host_observer.h"
 #include "content/public/browser/web_contents.h"
-#include "media/base/media_switches.h"
 
 namespace {
 
@@ -64,7 +62,7 @@ class GlicMediaIntegrationImpl : public glic::GlicMediaIntegration,
   explicit GlicMediaIntegrationImpl(Profile*);
   ~GlicMediaIntegrationImpl() override = default;
 
-  // glic::GlicMediaIntegration
+  // glic::GlicMediaIntegration:
   void AppendContext(
       content::WebContents* web_contents,
       optimization_guide::proto::ContentNode* context_root) override;
@@ -73,6 +71,7 @@ class GlicMediaIntegrationImpl : public glic::GlicMediaIntegration,
       optimization_guide::proto::ContentNode* context_root) override;
   void OnPeerConnectionAddedForTesting(content::RenderFrameHost*) override;
 
+  // GlicMediaIntegrationImpl:
   void OnContextUpdated(glic::GlicMediaContext* context);
 
  protected:
@@ -204,15 +203,17 @@ void GlicMediaIntegrationImpl::OnPeerConnectionAddedForTesting(
 namespace glic {
 
 // static
-GlicMediaIntegration* GlicMediaIntegration::GetFor(content::WebContents* wc) {
+GlicMediaIntegration* GlicMediaIntegration::GetFor(
+    content::WebContents* web_contents) {
   // This should also check the pref, once it's not toggled automatically.
   // We'll want to install a pref listener, and possibly clean up if the pref
   // is switched off after construction.
-  if (!wc || !captions::IsHeadlessCaptionFeatureSupported()) {
+  if (!web_contents || !captions::IsHeadlessCaptionFeatureSupported()) {
     return nullptr;
   }
 
-  Profile* profile = Profile::FromBrowserContext(wc->GetBrowserContext());
+  Profile* profile =
+      Profile::FromBrowserContext(web_contents->GetBrowserContext());
   if (!profile) {
     return nullptr;
   }
@@ -223,6 +224,11 @@ GlicMediaIntegration* GlicMediaIntegration::GetFor(content::WebContents* wc) {
     auto new_data = std::make_unique<GlicMediaIntegrationImpl>(profile);
     data = new_data.get();
     profile->SetUserData(kGlicMediaIntegrationKey, std::move(new_data));
+  }
+
+  if (!optimization_guide::MediaTranscriptProvider::GetFor(web_contents)) {
+    optimization_guide::MediaTranscriptProvider::SetFor(
+        web_contents, std::make_unique<glic::MediaTranscriptProviderImpl>());
   }
 
   return data;

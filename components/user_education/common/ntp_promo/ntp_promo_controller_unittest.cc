@@ -5,6 +5,7 @@
 #include "components/user_education/common/ntp_promo/ntp_promo_controller.h"
 
 #include "base/test/bind.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
@@ -12,6 +13,7 @@
 #include "components/user_education/common/ntp_promo/ntp_promo_registry.h"
 #include "components/user_education/common/ntp_promo/ntp_promo_specification.h"
 #include "components/user_education/common/user_education_data.h"
+#include "components/user_education/common/user_education_features.h"
 #include "components/user_education/test/test_user_education_storage_service.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -23,8 +25,8 @@ namespace {
 using ::testing::_;
 using ::testing::Return;
 
-constexpr char kPromoId[] = "promo";
-constexpr char kPromo2Id[] = "promo2";
+constexpr char kPromoId[] = "TestPromo";
+constexpr char kPromo2Id[] = "TestPromo2";
 
 constexpr int kSessionNumber = 10;
 
@@ -50,16 +52,23 @@ class NtpPromoControllerTest : public testing::Test {
     registry_.AddPromo(NtpPromoSpecification(
         id, NtpPromoContent("", IDS_OK, IDS_CANCEL), eligibility_callback,
         show_callback, action_callback,
-        /*show_after=*/{}, user_education::Metadata()));
+        /*show_after=*/{}, Metadata()));
   }
 
   // Register a promo of the the specified eligibility.
   void RegisterPromo(NtpPromoIdentifier id,
-                     NtpPromoSpecification::Eligibility eligibility) {
+                     NtpPromoSpecification::Eligibility eligibility,
+                     bool clicked = false) {
     RegisterPromo(id, base::BindLambdaForTesting([=](Profile* profile) {
                     return eligibility;
                   }),
                   base::DoNothing(), base::DoNothing());
+    if (clicked) {
+      NtpPromoData promo_data =
+          storage_service_.ReadNtpPromoData(id).value_or(NtpPromoData());
+      promo_data.last_clicked = base::Time::Now();
+      storage_service_.SaveNtpPromoData(id, promo_data);
+    }
   }
 
   int ShowablePendingPromoCount() {
@@ -101,26 +110,39 @@ TEST_F(NtpPromoControllerTest, UnclickedCompletedPromoHidden) {
 
 TEST_F(NtpPromoControllerTest, ClickedCompletedPromoShows) {
   RegisterPromo(kPromoId, kCompleted);
+  base::HistogramTester histogram_tester;
 
   // Simulate that the user clicked on the promo.
-  user_education::KeyedNtpPromoData keyed_data;
+  NtpPromoData keyed_data;
   keyed_data.last_clicked = base::Time::Now();
   storage_service_.SaveNtpPromoData(kPromoId, keyed_data);
 
+  // Generating promos is currently where "completed promo" detection lives.
   const auto showable_promos = controller_.GenerateShowablePromos(nullptr);
   EXPECT_TRUE(showable_promos.pending.empty());
   EXPECT_EQ(showable_promos.completed.size(), 1u);
+  auto completion_time = base::Time::Now();
 
-  // Ensure the completion time pref is recorded.
-  const auto prefs = storage_service_.ReadNtpPromoData(kPromoId);
-  EXPECT_EQ(prefs.value().completed, base::Time::Now());
+  // Ensure the completion is recorded.
+  auto prefs = storage_service_.ReadNtpPromoData(kPromoId);
+  EXPECT_EQ(prefs.value().completed, completion_time);
+  histogram_tester.ExpectTotalCount(
+      "UserEducation.NtpPromos.Promos.TestPromo.Completed", 1);
+
+  // Generate promos again. Completion data shouldn't change.
+  task_environment_.AdvanceClock(base::Days(1));
+  controller_.GenerateShowablePromos(nullptr);
+  prefs = storage_service_.ReadNtpPromoData(kPromoId);
+  EXPECT_EQ(prefs.value().completed, completion_time);
+  histogram_tester.ExpectTotalCount(
+      "UserEducation.NtpPromos.Promos.TestPromo.Completed", 1);
 }
 
 // Once a promo has been declared completed, it should continue to show as
 // completed even if the promo reverts to Eligible state (eg. a user signs out).
 TEST_F(NtpPromoControllerTest, PreviouslyCompletedPromoShows) {
   RegisterPromo(kPromoId, kEligible);
-  user_education::KeyedNtpPromoData keyed_data;
+  NtpPromoData keyed_data;
   keyed_data.completed = base::Time::Now();
   storage_service_.SaveNtpPromoData(kPromoId, keyed_data);
 
@@ -131,7 +153,7 @@ TEST_F(NtpPromoControllerTest, PreviouslyCompletedPromoShows) {
 
 TEST_F(NtpPromoControllerTest, OldCompletedPromoHidden) {
   RegisterPromo(kPromoId, kEligible);
-  user_education::KeyedNtpPromoData keyed_data;
+  NtpPromoData keyed_data;
   keyed_data.completed =
       base::Time::Now() - controller_.GetCompletedPromoShowDurationForTest();
   storage_service_.SaveNtpPromoData(kPromoId, keyed_data);
@@ -146,7 +168,7 @@ TEST_F(NtpPromoControllerTest, FutureCompletedPromoHidden) {
 
   // Verify that a pref saved with a nonsense timestamp doesn't end up
   // showing a completed promo indefinitely.
-  user_education::KeyedNtpPromoData keyed_data;
+  NtpPromoData keyed_data;
   keyed_data.completed = base::Time::Now() + base::Days(1);
   storage_service_.SaveNtpPromoData(kPromoId, keyed_data);
 
@@ -160,10 +182,14 @@ TEST_F(NtpPromoControllerTest, PromoClicked) {
   RegisterPromo(kPromoId, NtpPromoSpecification::EligibilityCallback(),
                 base::DoNothing(), action_callback.Get());
   EXPECT_CALL(action_callback, Run(_));
+  base::HistogramTester histogram_tester;
+
   controller_.OnPromoClicked(kPromoId, nullptr);
 
   const auto prefs = storage_service_.ReadNtpPromoData(kPromoId);
   EXPECT_EQ(prefs.value().last_clicked, base::Time::Now());
+  histogram_tester.ExpectUniqueSample(
+      "UserEducation.NtpPromos.Promos.TestPromo.Clicked", true, 1);
 }
 
 TEST_F(NtpPromoControllerTest, ClickedPromoHiddenTemporarily) {
@@ -199,7 +225,7 @@ TEST_F(NtpPromoControllerTest, TopSpotPromoShownFirstTime) {
 // same browsing session, prefs shouldn't change.
 TEST_F(NtpPromoControllerTest, TopSpotPromoShownInSameSession) {
   RegisterPromo(kPromoId, kEligible);
-  KeyedNtpPromoData old_value;
+  NtpPromoData old_value;
   old_value.last_top_spot_session = kSessionNumber;
   old_value.top_spot_session_count = 2;
   storage_service_.SaveNtpPromoData(kPromoId, old_value);
@@ -213,7 +239,7 @@ TEST_F(NtpPromoControllerTest, TopSpotPromoShownInSameSession) {
 // previous browsing session, the top spot session count should be incremented.
 TEST_F(NtpPromoControllerTest, TopSpotPromoShownInNewSession) {
   RegisterPromo(kPromoId, kEligible);
-  KeyedNtpPromoData old_value;
+  NtpPromoData old_value;
   old_value.last_top_spot_session = kSessionNumber - 1;
   old_value.top_spot_session_count = 2;
   storage_service_.SaveNtpPromoData(kPromoId, old_value);
@@ -230,11 +256,11 @@ TEST_F(NtpPromoControllerTest, TopSpotPromoShownReclaimsTopSpot) {
   RegisterPromo(kPromo2Id, kEligible);
 
   // Have Promo2 be the most recent top-spot holder.
-  KeyedNtpPromoData old_promo_2;
+  NtpPromoData old_promo_2;
   old_promo_2.last_top_spot_session = kSessionNumber - 1;
   storage_service_.SaveNtpPromoData(kPromo2Id, old_promo_2);
   // Have Promo be a previous top-spot holder, before Promo2.
-  KeyedNtpPromoData old_value;
+  NtpPromoData old_value;
   old_promo_2.last_top_spot_session = kSessionNumber - 2;
   old_promo_2.top_spot_session_count = 3;
   storage_service_.SaveNtpPromoData(kPromoId, old_value);
@@ -246,16 +272,28 @@ TEST_F(NtpPromoControllerTest, TopSpotPromoShownReclaimsTopSpot) {
   EXPECT_EQ(1, new_value->top_spot_session_count);
 }
 
-TEST_F(NtpPromoControllerTest, OnMultiplePromosShown) {
+TEST_F(NtpPromoControllerTest, ShownPromos) {
   RegisterPromo(kPromoId, kEligible);
   RegisterPromo(kPromo2Id, kEligible);
+  base::HistogramTester histogram_tester;
   const auto old_value2 = storage_service_.ReadNtpPromoData(kPromo2Id);
+
   controller_.OnPromosShown({kPromoId, kPromo2Id}, {});
+
   const auto new_value = storage_service_.ReadNtpPromoData(kPromoId);
   const auto new_value2 = storage_service_.ReadNtpPromoData(kPromo2Id);
   EXPECT_EQ(10, new_value->last_top_spot_session);
   EXPECT_EQ(1, new_value->top_spot_session_count);
   EXPECT_EQ(old_value2, new_value2);
+
+  histogram_tester.ExpectUniqueSample(
+      "UserEducation.NtpPromos.Promos.TestPromo.Shown", true, 1);
+  histogram_tester.ExpectUniqueSample(
+      "UserEducation.NtpPromos.Promos.TestPromo.ShownTopSpot", true, 1);
+  histogram_tester.ExpectUniqueSample(
+      "UserEducation.NtpPromos.Promos.TestPromo2.Shown", true, 1);
+  histogram_tester.ExpectTotalCount(
+      "UserEducation.NtpPromos.Promos.TestPromo2.ShownTopSpot", 0);
 }
 
 TEST_F(NtpPromoControllerTest, ShownCallbackInvoked) {
@@ -264,6 +302,90 @@ TEST_F(NtpPromoControllerTest, ShownCallbackInvoked) {
                 show_callback.Get(), base::DoNothing());
   EXPECT_CALL(show_callback, Run());
   controller_.OnPromosShown({kPromoId}, {});
+}
+
+TEST_F(NtpPromoControllerTest, HasShowablePromos) {
+  EXPECT_FALSE(controller_.HasShowablePromos(nullptr));
+  RegisterPromo(kPromoId, kEligible);
+  EXPECT_TRUE(controller_.HasShowablePromos(nullptr));
+}
+
+TEST_F(NtpPromoControllerTest, SetAllPromosSnoozed) {
+  controller_.SetAllPromosSnoozed(true);
+  EXPECT_EQ(storage_service_.ReadNtpPromoPreferences().last_snoozed,
+            storage_service_.GetCurrentTime());
+}
+
+TEST_F(NtpPromoControllerTest, SetAllPromosSnoozedReset) {
+  controller_.SetAllPromosSnoozed(true);
+  controller_.SetAllPromosSnoozed(false);
+  EXPECT_EQ(storage_service_.ReadNtpPromoPreferences().last_snoozed,
+            base::Time());
+}
+
+TEST_F(NtpPromoControllerTest, SetAllPromosDisabled) {
+  controller_.SetAllPromosDisabled(true);
+  EXPECT_TRUE(storage_service_.ReadNtpPromoPreferences().disabled);
+}
+
+TEST_F(NtpPromoControllerTest, SetAllPromosDisabledReset) {
+  controller_.SetAllPromosDisabled(true);
+  controller_.SetAllPromosDisabled(false);
+  EXPECT_FALSE(storage_service_.ReadNtpPromoPreferences().disabled);
+}
+
+TEST_F(NtpPromoControllerTest, SnoozeBlocksPromos) {
+  RegisterPromo(kPromoId, kEligible);
+  RegisterPromo(kPromo2Id, kCompleted, /*clicked=*/true);
+  controller_.SetAllPromosSnoozed(true);
+  EXPECT_FALSE(controller_.HasShowablePromos(nullptr));
+  const auto promos = controller_.GenerateShowablePromos(nullptr);
+  EXPECT_EQ(0U, promos.pending.size());
+  EXPECT_EQ(0U, promos.completed.size());
+}
+
+TEST_F(NtpPromoControllerTest, UnsnoozeRestoresPromos) {
+  RegisterPromo(kPromoId, kEligible);
+  RegisterPromo(kPromo2Id, kCompleted, /*clicked=*/true);
+  controller_.SetAllPromosSnoozed(true);
+  controller_.SetAllPromosSnoozed(false);
+  EXPECT_TRUE(controller_.HasShowablePromos(nullptr));
+  const auto promos = controller_.GenerateShowablePromos(nullptr);
+  EXPECT_EQ(1U, promos.pending.size());
+  EXPECT_EQ(1U, promos.completed.size());
+}
+
+TEST_F(NtpPromoControllerTest, SnoozeExpiresRestoresPromos) {
+  RegisterPromo(kPromoId, kEligible);
+  RegisterPromo(kPromo2Id, kCompleted, /*clicked=*/true);
+  controller_.SetAllPromosSnoozed(true);
+  task_environment_.FastForwardBy(features::GetNtpSetupListSnoozeTime() +
+                                  base::Minutes(1));
+  EXPECT_TRUE(controller_.HasShowablePromos(nullptr));
+  auto promos = controller_.GenerateShowablePromos(nullptr);
+  EXPECT_EQ(1U, promos.pending.size());
+  EXPECT_EQ(1U, promos.completed.size());
+}
+
+TEST_F(NtpPromoControllerTest, DisableBlocksPromos) {
+  RegisterPromo(kPromoId, kEligible);
+  RegisterPromo(kPromo2Id, kCompleted, /*clicked=*/true);
+  controller_.SetAllPromosDisabled(true);
+  EXPECT_FALSE(controller_.HasShowablePromos(nullptr));
+  const auto promos = controller_.GenerateShowablePromos(nullptr);
+  EXPECT_EQ(0U, promos.pending.size());
+  EXPECT_EQ(0U, promos.completed.size());
+}
+
+TEST_F(NtpPromoControllerTest, UndisableRestoresPromos) {
+  RegisterPromo(kPromoId, kEligible);
+  RegisterPromo(kPromo2Id, kCompleted, /*clicked=*/true);
+  controller_.SetAllPromosDisabled(true);
+  controller_.SetAllPromosDisabled(false);
+  EXPECT_TRUE(controller_.HasShowablePromos(nullptr));
+  const auto promos = controller_.GenerateShowablePromos(nullptr);
+  EXPECT_EQ(1U, promos.pending.size());
+  EXPECT_EQ(1U, promos.completed.size());
 }
 
 }  // namespace user_education

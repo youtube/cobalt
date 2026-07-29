@@ -215,6 +215,10 @@ class ExtensionBrowserTest : public PlatformBrowserTest,
   // tab.
   content::WebContents* GetActiveWebContents() const;
 
+  // Returns the WebContents at the specified index, or nullptr if there is
+  // none.
+  content::WebContents* GetWebContentsAt(int index) const;
+
   // Pack the extension in `dir_path` into a crx file and return its path.
   // Return an empty FilePath if there were errors.
   base::FilePath PackExtension(
@@ -232,20 +236,13 @@ class ExtensionBrowserTest : public PlatformBrowserTest,
       const base::FilePath& pem_out_path,
       int extra_run_flags = ExtensionCreator::kNoRunFlags);
 
-  // Navigates to a `url` in the active web contents and waits until the
-  // navigation finishes. Returns true on success.
-  // DEPRECATED: Use the version of this method that takes a WebContents or the
-  // version that takes a BrowserWindowInterface.
-  // TODO(crbug.com/434990953): Remove this method.
-  [[nodiscard]] bool NavigateToURL(const GURL& url);
-
-  // Navigates `web_contents` to a `url` in and waits until the navigation
-  // finishes. Returns true on success.
+  // Navigates `web_contents` to a `url` in and waits until the load stops.
+  // Returns true on success.
   [[nodiscard]] bool NavigateToURL(content::WebContents* web_contents,
                                    const GURL& url);
 
   // Navigates the active tab in `browser_window` to a `url` in and waits until
-  // the navigation finishes. Returns true on success.
+  // the load stops. Returns true on success.
   // NOTE: Only supported on Win/Mac/Linux/ChromeOS. Intentionally fails on
   // Android.
   [[nodiscard]] bool NavigateToURL(BrowserWindowInterface* browser_window,

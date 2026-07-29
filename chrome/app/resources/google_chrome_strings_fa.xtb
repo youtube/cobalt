@@ -168,6 +168,7 @@
 <translation id="3003694935412297923">همه تکلیف‌ها</translation>
 <translation id="3018957014024118866">‏داده‌ها از Chrome هم حذف شود (<ph name="URL" />)</translation>
 <translation id="3019382870990049182">‏برای به‌روزرسانی &amp;ChromeOS Flex، راه‌اندازی مجدد کنید</translation>
+<translation id="3037517125981011456">‏درخواست‌های ورود به سیستم Chrome را نشان می‌دهد</translation>
 <translation id="3037838751736561277">‏Google Chrome در حالت پس‌زمینه است.</translation>
 <translation id="3038232873781883849">درانتظار نصب…</translation>
 <translation id="3045032126857188731">زبان ترجمه‌شده: <ph name="LANGUAGE" /></translation>
@@ -311,6 +312,7 @@
 <translation id="4747730611090640388">‏Chrome می‌تواند علایقتان را برآورد کند.  بعداً، سایتی که از آن بازدید می‌کنید می‌تواند برای شخصی کردن آگهی‌هایی که به شما نشان می‌دهد از Chrome بخواهد علایق شما را ببیند.</translation>
 <translation id="475321580758063259">‏برای ادامه استفاده از داده‌های Chrome ذخیره‌شده در «حساب Google» خود (<ph name="ACCOUNT_EMAIL" />)،‏ Chrome را به‌روز کنید</translation>
 <translation id="4754614261631455953">‏Google Chrome Canary (ورودی mDNS)</translation>
+<translation id="4756182432527369254">‏سرعت سایت‌ها را با موتور V8 مرورگر Chrome بالاتر می‌برد اما مقاومت Chrome را دربرابر حمله‌ها کمی کمتر می‌کند</translation>
 <translation id="479167709087336770">‏از همان غلط‌یاب املا استفاده می‌کند که در جستجوی Google استفاده می‌شود. نوشتاری که در مرورگر تایپ کرده‌اید برای Google ارسال می‌شود. هروقت بخواهید می‌توانید این رفتار را در تنظیمات تغییر دهید.</translation>
 <translation id="4793679854893018356">‏ببینید Chrome چگونه ایمنی شما را حفظ می‌کند</translation>
 <translation id="4828579605166583682">‏Google Chrome می‌خواهد گذرواژه‌های موجود را جایگزین کند. برای مجاز کردن این کار، گذرواژه Windows خود را تایپ کنید.</translation>
@@ -399,6 +401,7 @@
 <translation id="5980111191913430208">‏افزونه‌ها، برنامه‌ها، و زمینه‌های دریافتی از منابع ناشناخته می‌توانند به دستگاهتان آسیب برسانند. ‫Chrome توصیه می‌کند آن‌ها را فقط از <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> نصب کنید</translation>
 <translation id="6003112304606738118">درحال بارگیری… <ph name="HOURS" /> ساعت باقی مانده است</translation>
 <translation id="6008161919456049856">‏گذرواژه‌ها، روش‌های پرداخت، و نشانی‌هایی که در «حساب Google» خود ذخیره کرده‌اید از این دستگاه برداشته خواهد شد. برای استفاده مجدد از آن‌ها در Chrome، دوباره به سیستم وارد شوید.</translation>
+<translation id="6009821354356307391">پرسیدن سؤال تعقیبی</translation>
 <translation id="6014316319780893079">‏با <ph name="BEGIN_LINK" />ابزارهای Chrome<ph name="END_LINK" />، می‌توانید به‌طور ایمن مرور کنید و کنترل را دردست بگیرید</translation>
 <translation id="6022659036123304283">‏Chrome را برای خود اختصاصی کنید</translation>
 <translation id="6025087594896450715">‏Google Chrome تا <ph name="REMAINING_TIME" /> دیگر بازراه‌اندازی خواهد شد</translation>
@@ -593,6 +596,7 @@
 <translation id="8342675569599923794">‏این فایل خطرناک است، بنابراین Chrome آن را مسدود کرده است.</translation>
 <translation id="8349094670477064572">‏هرزمان به سیستم Chrome وارد شده باشید، می‌توانید گذرواژه‌ها و داده‌های دیگر را در «حساب Google» خود ذخیره کنید و از آن‌ها استفاده کنید. <ph name="LEARN_MORE" /></translation>
 <translation id="8362914115861174987">ترجمه به</translation>
+<translation id="8366770919198174997">‏عملکرد را کاهش می‌دهد اما Chrome را دربرابر حملات مقاوم‌تر می‌کند</translation>
 <translation id="8370517070665726704">‏حق نشر <ph name="YEAR" /> Google LLC.‎ کلیه حقوق محفوظ است.</translation>
 <translation id="8387459386171870978">‏ادامه استفاده از Chrome</translation>
 <translation id="8394720698884623075">‏نشانی‌های وب را با فهرست سایت‌های ناامنی که در Chrome ذخیره شده است مقایسه می‌کند</translation>
@@ -637,6 +641,7 @@
 <translation id="8843516219908676469">‏‫Chrome فرم‌ها را بهتر درک می‌کند و می‌تواند با سرعت بیشتری آن‌ها را برایتان پر کند</translation>
 <translation id="8851180723659088381">{NUM_EXTENSIONS,plural, =1{‏Chrome توصیه می‌کند آن را بردارید}one{‏Chrome توصیه می‌کند آن را بردارید}other{‏Chrome توصیه می‌کند آن‌ها را بردارید}}</translation>
 <translation id="8862326446509486874">شما حقوق لازم برای نصب در سطح سیستم را ندارید. دوباره به‌عنوان سرپرست نصب‌کننده را اجرا کنید.</translation>
+<translation id="8865415417596392024">‏داده‌های Chrome در حساب شما</translation>
 <translation id="8883862939660515976">‏پرسیدن از «لنز Google» درباره این تصویر</translation>
 <translation id="8914504000324227558">‏راه‌اندازی مجدد Chrome</translation>
 <translation id="8922193594870374009">‏برای ارسال شماره از <ph name="ORIGIN" /> به تلفن Android خود، در هر دو دستگاه به سیستم Chrome وارد شوید.</translation>

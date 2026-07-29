@@ -32,6 +32,22 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Glic.Api.GetContextFromFocusedTab.Error.{Mode}"
+    enum="GlicGetContextFromFocusedTabError" expires_after="2026-01-15">
+  <owner>carlosk@chromium.org</owner>
+  <owner>harringtond@chromium.org</owner>
+  <owner>birnie@google.com</owner>
+  <summary>
+    Records an error that occurred while trying to get context from the focused
+    tab. The error is broken down by the last known user input mode.
+  </summary>
+  <token key="Mode">
+    <variant name="Audio"/>
+    <variant name="Text"/>
+    <variant name="Unknown"/>
+  </token>
+</histogram>
+
 <histogram name="Glic.Api.NotifyPanelWillOpen" enum="GlicWebClientMode"
     expires_after="2026-01-15">
   <owner>carlosk@chromium.org</owner>
@@ -374,7 +390,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Glic.Host.WebView.AutoPlay" enum="WebViewAutoPlayProgress"
-    expires_after="2025-12-01">
+    expires_after="2026-02-01">
   <owner>carlosk@chromium.org</owner>
   <owner>dewittj@google.com</owner>
   <summary>
@@ -414,6 +430,26 @@ chromium-metrics-reviews@google.com.
     Recorded when an unusual sequence of events is seen by glic metrics
     recorder. Usually replaces a real histogram event.
   </summary>
+</histogram>
+
+<histogram name="Glic.Metrics.Error{Cause}" enum="GlicMetricsError"
+    expires_after="2026-01-15">
+  <owner>dewittj@google.com</owner>
+  <owner>iwells@google.com</owner>
+  <owner>erikchen@chromium.org</owner>
+  <summary>
+    Recorded when an unusual sequence of events is seen by glic metrics
+    recorder, at the Response Stopped event. Usually replaces a real histogram
+    event.
+
+    Limited to the following causes: {Cause}
+  </summary>
+  <token key="Cause">
+    <variant name=".ByUser" summary="User stopped the response"/>
+    <variant name=".Other"
+        summary="Other cause (infra) for stopping the response"/>
+    <variant name=".UnknownCause" summary="Unspecified stop reason"/>
+  </token>
 </histogram>
 
 <histogram name="Glic.Modal.DeepScanAccessPoint" enum="DeepScanAccessPoint"
@@ -656,6 +692,20 @@ chromium-metrics-reviews@google.com.
   <summary>Record the current state when the the panel is closed.</summary>
 </histogram>
 
+<histogram name="Glic.PercentOverlapWithBrowser.{Event}" enum="PercentOverlap"
+    expires_after="2026-01-15">
+  <owner>andreaxg@google.com</owner>
+  <owner>iwells@google.com</owner>
+  <summary>
+    Record the percent overlap of Glic with the active Chrome window. Rounded to
+    the nearest 10%. {Event}
+  </summary>
+  <token key="Event">
+    <variant name="OnClose" summary="Recorded when the glic window is closed."/>
+    <variant name="OnOpen" summary="Recorded when the glic window is opened."/>
+  </token>
+</histogram>
+
 <histogram name="Glic.PositionOnChrome.{Event}" enum="ChromeRelativePosition"
     expires_after="2026-01-15">
   <owner>andreaxg@google.com</owner>
@@ -700,6 +750,23 @@ chromium-metrics-reviews@google.com.
     each time we try to preload if the user has Glic enabled and went through
     the FRE.
   </summary>
+</histogram>
+
+<histogram name="Glic.PrewarmingFre.{PrewarmDisposition}PreloadFreForSource"
+    enum="GlicPrewarmingFreSource" expires_after="2026-01-15">
+  <owner>dewittj@chromium.org</owner>
+  <owner>vollick@chromium.org</owner>
+  <summary>
+    Records whether prewarming {PrewarmDisposition} be allowed for the given
+    prewarming source, just before prewarming (or just after the decision not to
+    prewarm is made).
+  </summary>
+  <token key="PrewarmDisposition">
+    <variant name="DisabledShouldNot"
+        summary="Should not prewarm because the feature flag was not enabled."/>
+    <variant name="Should"/>
+    <variant name="ShouldNot"/>
+  </token>
 </histogram>
 
 <histogram name="Glic.Response.Attached" enum="Boolean"
@@ -837,7 +904,8 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Glic.Response.StopTime" units="ms" expires_after="2026-01-15">
+<histogram name="Glic.Response.StopTime{Cause}" units="ms"
+    expires_after="2026-01-15">
   <owner>carlosk@chromium.org</owner>
   <owner>harringtond@chromium.org</owner>
   <owner>erikchen@chromium.org</owner>
@@ -845,7 +913,16 @@ chromium-metrics-reviews@google.com.
     Measures the time from a user's submitted input until a response stops.
     There is no guarantee of correlation with Response.StartTime. This exists
     for diagnostic purposes only.
+
+    Limited to the following causes: {Cause}
   </summary>
+  <token key="Cause">
+    <variant name="" summary="All causes"/>
+    <variant name=".ByUser" summary="User stopped the response"/>
+    <variant name=".Other"
+        summary="Other cause (infra) for stopping the response"/>
+    <variant name=".UnknownCause" summary="Unspecified stop reason"/>
+  </token>
 </histogram>
 
 <histogram name="Glic.Response.TabsPinnedForSharingCount" units="tabs"
@@ -1012,6 +1089,26 @@ chromium-metrics-reviews@google.com.
   <owner>carlosk@chromium.org</owner>
   <summary>
     Records the browser active state when a Glic response starts rendering.
+  </summary>
+</histogram>
+
+<histogram name="Glic.Session.WebClientCrash.ExitReason"
+    enum="GlicWebviewExitReason" expires_after="2026-08-05">
+  <owner>birnie@google.com</owner>
+  <owner>harringtond@chromium.org</owner>
+  <summary>
+    Records the exit reason of the Glic webview. This is logged when the
+    webview's `exit` event is fired.
+  </summary>
+</histogram>
+
+<histogram name="Glic.Session.WebUiCrash.TerminationStatus"
+    enum="TerminationStatus" expires_after="2026-08-05">
+  <owner>birnie@google.com</owner>
+  <owner>harringtond@chromium.org</owner>
+  <summary>
+    Records the termination status of the Glic WebUI process. This is logged
+    when the WebUI process associated with Glic is terminated for any reason.
   </summary>
 </histogram>
 

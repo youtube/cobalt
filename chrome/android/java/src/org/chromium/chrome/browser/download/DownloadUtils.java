@@ -310,7 +310,7 @@ public class DownloadUtils {
      * @param tab Tab displaying the page that will be downloaded.
      * @return Whether the "Download Page" button should be enabled.
      */
-    public static boolean isAllowedToDownloadPage(Tab tab) {
+    public static boolean isAllowedToDownloadPage(@Nullable Tab tab) {
         if (tab == null) return false;
 
         if (tab.isIncognito()
@@ -386,8 +386,8 @@ public class DownloadUtils {
      * @param source The location from which the download was opened.
      */
     public static void openItem(
-            OfflineItem offlineItem,
-            OtrProfileId otrProfileId,
+            @Nullable OfflineItem offlineItem,
+            @Nullable OtrProfileId otrProfileId,
             @DownloadOpenSource int source,
             Context context) {
         if (offlineItem == null) {
@@ -436,8 +436,8 @@ public class DownloadUtils {
             @Nullable String mimeType,
             @Nullable String downloadGuid,
             @Nullable OtrProfileId otrProfileId,
-            String originalUrl,
-            String referrer,
+            @Nullable String originalUrl,
+            @Nullable String referrer,
             @DownloadOpenSource int source,
             Context context) {
         DownloadMetrics.recordDownloadOpen(source, mimeType);
@@ -525,11 +525,11 @@ public class DownloadUtils {
     @CalledByNative
     public static void openDownload(
             @JniType("std::string") String filePath,
-            @JniType("std::string") String mimeType,
-            @JniType("std::string") String downloadGuid,
+            @JniType("std::string") @Nullable String mimeType,
+            @JniType("std::string") @Nullable String downloadGuid,
             OtrProfileId otrProfileId,
-            @JniType("std::string") String originalUrl,
-            @JniType("std::string") String referer,
+            @JniType("std::string") @Nullable String originalUrl,
+            @JniType("std::string") @Nullable String referer,
             @DownloadOpenSource int source) {
         // Mapping generic MIME type to android openable type based on URL and file extension.
         String newMimeType = MimeUtils.remapGenericMimeType(mimeType, originalUrl, filePath);
@@ -641,7 +641,7 @@ public class DownloadUtils {
             return !entry.isAutoResumable;
         } else {
             // Only the native downloads backend knows about the download.
-            if (item.getDownloadInfo().state() == DownloadState.IN_PROGRESS) {
+            if (assumeNonNull(item.getDownloadInfo()).state() == DownloadState.IN_PROGRESS) {
                 return item.getDownloadInfo().isPaused();
             } else {
                 return item.getDownloadInfo().state() == DownloadState.INTERRUPTED;
@@ -660,7 +660,7 @@ public class DownloadUtils {
         DownloadSharedPreferenceEntry entry =
                 helper.getDownloadSharedPreferenceEntry(item.getContentId());
         return entry != null
-                && item.getDownloadInfo().state() == DownloadState.INTERRUPTED
+                && assumeNonNull(item.getDownloadInfo()).state() == DownloadState.INTERRUPTED
                 && entry.isAutoResumable;
     }
 
@@ -795,8 +795,8 @@ public class DownloadUtils {
     public static boolean openFileWithExternalApps(
             String filePath,
             @Nullable String mimeType,
-            String originalUrl,
-            String referrer,
+            @Nullable String originalUrl,
+            @Nullable String referrer,
             Context context,
             @OpenWithExternalAppsSource int source) {
         try {

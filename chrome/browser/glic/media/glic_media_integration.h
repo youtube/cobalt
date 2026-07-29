@@ -8,7 +8,6 @@
 #include <string>
 
 #include "base/functional/callback.h"
-#include "chrome/browser/glic/host/glic.mojom.h"
 
 namespace optimization_guide {
 namespace proto {
