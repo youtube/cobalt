@@ -4,9 +4,11 @@
 
 #include "chrome/browser/password_manager/password_change/login_state_checker.h"
 
+#include "base/check_deref.h"
 #include "base/functional/bind.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/password_manager/password_change/annotated_page_content_capturer.h"
+#include "chrome/browser/password_manager/password_change/model_quality_logs_uploader.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/autofill/core/browser/logging/log_manager.h"
 #include "components/autofill/core/common/save_password_progress_logger.h"
@@ -46,13 +48,25 @@ void LogBoolean(password_manager::PasswordManagerClient* client,
   }
 }
 
+void LogNumber(password_manager::PasswordManagerClient* client,
+               autofill::SavePasswordProgressLogger::StringID message_id,
+               int error_enum) {
+  if (client && client->GetCurrentLogManager() &&
+      client->GetCurrentLogManager()->IsLoggingActive()) {
+    BrowserSavePasswordProgressLogger(client->GetCurrentLogManager())
+        .LogNumber(message_id, error_enum);
+  }
+}
+
 }  // namespace
 
 LoginStateChecker::LoginStateChecker(
     content::WebContents* web_contents,
+    ModelQualityLogsUploader* logs_uploader,
     password_manager::PasswordManagerClient* client,
     LoginStateResultCallback callback)
     : content::WebContentsObserver(web_contents),
+      logs_uploader_(CHECK_DEREF(logs_uploader)),
       client_(client),
       result_check_callback_(std::move(callback)) {
   CheckLoginState();
@@ -71,6 +85,7 @@ void LoginStateChecker::DidFinishNavigation(
 }
 
 void LoginStateChecker::TerminateLoginChecks() {
+  logs_uploader_->SetLoggedInCheckQuality(state_checks_count_);
   state_checks_count_ = kMaxLoginChecks;
   result_check_callback_.Run(false);
 }
@@ -86,6 +101,9 @@ void LoginStateChecker::CheckLoginState() {
     return;
   }
 
+  // Clear previously captured page content.
+  cached_page_content_ = std::nullopt;
+
   capturer_ = std::make_unique<AnnotatedPageContentCapturer>(
       web_contents(), GetAIPageContentOptions(),
       base::BindRepeating(&LoginStateChecker::OnPageContentReceived,
@@ -100,8 +118,11 @@ OptimizationGuideKeyedService* LoginStateChecker::GetOptimizationService() {
 
 void LoginStateChecker::OnPageContentReceived(
     std::optional<optimization_guide::AIPageContentResult> content) {
-  // Increase the count of login checks.
-  state_checks_count_++;
+  if (is_request_in_flight_) {
+    cached_page_content_ = std::move(content);
+    return;
+  }
+
   if (!content) {
     LogMessage(client_,
                SavePasswordProgressLogger::STRING_LOGIN_STATE_CHECK_NO_CONTENT);
@@ -109,6 +130,7 @@ void LoginStateChecker::OnPageContentReceived(
     return;
   }
 
+  is_request_in_flight_ = true;
   optimization_guide::proto::PasswordChangeRequest request;
   request.set_step(optimization_guide::proto::PasswordChangeRequest::FlowStep::
                        PasswordChangeRequest_FlowStep_IS_LOGGED_IN_STEP);
@@ -130,12 +152,17 @@ void LoginStateChecker::OnExecutionResponseCallback(
     std::unique_ptr<
         optimization_guide::proto::PasswordChangeSubmissionLoggingData>
         logging_data) {
+  is_request_in_flight_ = false;
+  // Increase the count of login checks.
+  state_checks_count_++;
+
   LogMessage(
       client_,
       SavePasswordProgressLogger::STRING_LOGIN_STATE_CHECK_RESPONSE_RECEIVED);
   if (!execution_result.response.has_value()) {
-    LogMessage(client_,
-               SavePasswordProgressLogger::STRING_LOGIN_STATE_CHECK_FAILURE);
+    LogNumber(client_,
+              SavePasswordProgressLogger::STRING_LOGIN_STATE_CHECK_SERVER_ERROR,
+              static_cast<int>(execution_result.response.error().error()));
     TerminateLoginChecks();
     return;
   }
@@ -152,8 +179,15 @@ void LoginStateChecker::OnExecutionResponseCallback(
   }
 
   bool is_logged_in = response->is_logged_in_data().is_logged_in();
+  logs_uploader_->SetLoggedInCheckQuality(state_checks_count_);
   LogBoolean(client_,
              SavePasswordProgressLogger::STRING_LOGIN_STATE_CHECK_RESULT,
              is_logged_in);
+
+  if (cached_page_content_.has_value() && !is_logged_in &&
+      !ReachedAttemptsLimit()) {
+    OnPageContentReceived(std::move(cached_page_content_));
+  }
+
   result_check_callback_.Run(is_logged_in);
 }

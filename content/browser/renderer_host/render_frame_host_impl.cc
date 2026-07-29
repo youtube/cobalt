@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#define TODO_BASE_FEATURE_MACROS_NEED_MIGRATION
+
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 
 #include <algorithm>
@@ -839,7 +841,8 @@ base::TimeDelta GetSubframeProcessShutdownDelay(
   // existing shutdown delays for processes already in delayed-shutdown state.
   const auto* const memory_monitor = base::MemoryPressureMonitor::Get();
   if (memory_monitor &&
-      memory_monitor->GetCurrentPressureLevel() >=
+      memory_monitor->GetCurrentPressureLevel(
+          base::MemoryPressureMonitorTag::kSubframeShutdownDelay) >=
           base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE) {
     return kZeroDelay;
   }
@@ -2775,16 +2778,16 @@ RenderFrameHostImpl::~RenderFrameHostImpl() {
   //    associated `blink::WebView` will clean up the resources associated with
   //    the main RenderFrame.
   // 2. The RenderFrame can be unloaded. In this case, the browser sends a
-  //    mojom::FrameNavigationControl::UnloadFrame message for the RenderFrame
-  //    to replace itself with a `blink::RemoteFrame`and release its associated
-  //    resources. |lifecycle_state_| is advanced to
+  //    mojom::Frame::Unload message for the RenderFrame to replace itself with
+  //    a `blink::RemoteFrame`and release its associated resources.
+  //    |lifecycle_state_| is advanced to
   //    LifecycleStateImpl::kRunningUnloadHandlers to track that this IPC is in
   //    flight.
   // 3. The RenderFrame can be detached, as part of removing a subtree (due to
   //    navigation, unload, or DOM mutation). In this case, the browser sends
-  //    a mojom::FrameNavigationControl::Delete message for the RenderFrame
-  //    to detach itself and release its associated resources. If the subframe
-  //    contains an unload handler, |lifecycle_state_| is advanced to
+  //    a mojom::Frame::Delete message for the RenderFrame to detach itself and
+  //    release its associated resources. If the subframe contains an unload
+  //    handler, |lifecycle_state_| is advanced to
   //    LifecycleStateImpl::kRunningUnloadHandlers to track that the detach is
   //    in progress; otherwise, it is advanced directly to
   //    LifecycleStateImpl::kReadyToBeDeleted.
@@ -2812,9 +2815,8 @@ RenderFrameHostImpl::~RenderFrameHostImpl() {
   //
   // TODO(dcheng): Due to how frame detach is signalled today, there are some
   // bugs in this area. In particular, subtree detach is reported from the
-  // bottom up, so the replicated mojom::FrameNavigationControl::Delete
-  // messages actually operate on a node-by-node basis rather than detaching an
-  // entire subtree at once...
+  // bottom up, so the replicated mojom::Frame::Delete messages actually operate
+  // on a node-by-node basis rather than detaching an entire subtree at once...
   //
   // Note that this logic is fairly subtle. It needs to include all subframes
   // and all speculative frames, but it should exclude case #1 (a main
@@ -6508,8 +6510,7 @@ void RenderFrameHostImpl::Unload(RenderFrameProxyHost* proxy, bool is_loading) {
 
     // The unload handlers already ran for this document during the
     // local<->local swap. Hence, there is no need to send
-    // mojom::FrameNavigationControl::Unload here. It can be marked at
-    // completed.
+    // mojom::Frame::Unload here. It can be marked at completed.
     SetLifecycleState(LifecycleStateImpl::kReadyToBeDeleted);
   }
 
@@ -14180,10 +14181,11 @@ void RenderFrameHostImpl::BindMediaRemoterFactoryReceiver(
 
 void RenderFrameHostImpl::CreateWebSocketConnector(
     mojo::PendingReceiver<blink::mojom::WebSocketConnector> receiver) {
-  mojo::MakeSelfOwnedReceiver(std::make_unique<WebSocketConnectorImpl>(
-                                  GetProcess()->GetDeprecatedID(), routing_id_,
-                                  last_committed_origin_, isolation_info_),
-                              std::move(receiver));
+  mojo::MakeSelfOwnedReceiver(
+      std::make_unique<WebSocketConnectorImpl>(
+          GetProcess()->GetDeprecatedID(), routing_id_, last_committed_origin_,
+          isolation_info_, BuildClientSecurityState()),
+      std::move(receiver));
 }
 
 void RenderFrameHostImpl::CreateWebTransportConnector(
@@ -14723,15 +14725,6 @@ void RenderFrameHostImpl::SetVisibilityForChildViews(bool visible) {
     if (auto* view = frame_host->GetView())
       return visible ? view->Show() : view->Hide();
   });
-
-  if (base::FeatureList::IsEnabled(
-          network::features::kVisibilityAwareResourceScheduler) &&
-      IsOutermostMainFrame()) {
-    GetStoragePartition()
-        ->GetNetworkContext()
-        ->ResourceSchedulerClientVisibilityChanged(GetTopFrameToken().value(),
-                                                   visible);
-  }
 }
 
 mojom::Frame* RenderFrameHostImpl::GetMojomFrameInRenderer() {
@@ -18764,9 +18757,11 @@ void RenderFrameHostImpl::CookieChangeListener::OnCookieChange(
   // TODO (https://crbug.com/1399741): After adding the invalidation signals
   // API, we could mark the page as ineligible for BFCache as soon as the cookie
   // change event is received after the navigation is committed.
-  cookie_change_info_.cookie_modification_count_++;
+  base::UmaHistogramEnumeration("BackForwardCache.CCNS.CookieChangeCause",
+                                change.cause);
+  cookie_change_info_.cookie_modification_count++;
   if (change.cookie.IsHttpOnly()) {
-    cookie_change_info_.http_only_cookie_modification_count_++;
+    cookie_change_info_.http_only_cookie_modification_count++;
   }
 }
 

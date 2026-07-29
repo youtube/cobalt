@@ -5,19 +5,26 @@
 #ifndef UI_NATIVE_THEME_NATIVE_THEME_BASE_H_
 #define UI_NATIVE_THEME_NATIVE_THEME_BASE_H_
 
+#include <optional>
+
 #include "base/component_export.h"
-#include "base/gtest_prod_util.h"
 #include "cc/paint/paint_flags.h"
+#include "third_party/skia/include/core/SkColor.h"
+#include "third_party/skia/include/core/SkPath.h"
+#include "third_party/skia/include/core/SkRect.h"
+#include "ui/gfx/geometry/rect.h"
+#include "ui/gfx/geometry/size.h"
 #include "ui/native_theme/native_theme.h"
 
-namespace gfx {
-class Rect;
-class Size;
-}  // namespace gfx
+namespace cc {
+class PaintCanvas;
+}
 
 namespace ui {
 
-// Theme support for non-Windows toolkits.
+class ColorProvider;
+class NativeThemeBaseTest;
+
 class COMPONENT_EXPORT(NATIVE_THEME) NativeThemeBase : public NativeTheme {
  public:
   NativeThemeBase(const NativeThemeBase&) = delete;
@@ -94,10 +101,6 @@ class COMPONENT_EXPORT(NATIVE_THEME) NativeThemeBase : public NativeTheme {
   };
 
   using NativeTheme::NativeTheme;
-  NativeThemeBase();
-  explicit NativeThemeBase(
-      bool should_only_use_dark_colors,
-      ui::SystemTheme system_theme = ui::SystemTheme::kDefault);
   ~NativeThemeBase() override;
 
   // Draw the arrow. Used by scrollbar and inner spin button.
@@ -281,30 +284,27 @@ class COMPONENT_EXPORT(NATIVE_THEME) NativeThemeBase : public NativeTheme {
       State state,
       Part part) const;
 
-  virtual SkColor ControlsAccentColorForState(
+  SkColor ControlsAccentColorForState(
       State state,
       ColorScheme color_scheme,
       const ColorProvider* color_provider) const;
-  virtual SkColor ControlsSliderColorForState(
+  SkColor ControlsSliderColorForState(
       State state,
       ColorScheme color_scheme,
       const ColorProvider* color_provider) const;
-  virtual SkColor ButtonBorderColorForState(
+  SkColor ButtonBorderColorForState(State state,
+                                    ColorScheme color_scheme,
+                                    const ColorProvider* color_provider) const;
+  SkColor ButtonFillColorForState(State state,
+                                  ColorScheme color_scheme,
+                                  const ColorProvider* color_provider) const;
+  SkColor ControlsBorderColorForState(
       State state,
       ColorScheme color_scheme,
       const ColorProvider* color_provider) const;
-  virtual SkColor ButtonFillColorForState(
-      State state,
-      ColorScheme color_scheme,
-      const ColorProvider* color_provider) const;
-  virtual SkColor ControlsBorderColorForState(
-      State state,
-      ColorScheme color_scheme,
-      const ColorProvider* color_provider) const;
-  virtual SkColor ControlsFillColorForState(
-      State state,
-      ColorScheme color_scheme,
-      const ColorProvider* color_provider) const;
+  SkColor ControlsFillColorForState(State state,
+                                    ColorScheme color_scheme,
+                                    const ColorProvider* color_provider) const;
   virtual float GetContrastRatioForState(State state, Part part) const;
   // Only scrollbar parts that change colors when hovered are supported.
   bool SupportedPartsForContrastingColor(Part part) const;
@@ -316,19 +316,6 @@ class COMPONENT_EXPORT(NATIVE_THEME) NativeThemeBase : public NativeTheme {
 
   gfx::Rect BoundingRectForArrow(const gfx::Rect& rect) const;
 
-  void DrawVertLine(cc::PaintCanvas* canvas,
-                    int x,
-                    int y1,
-                    int y2,
-                    const cc::PaintFlags& flags) const;
-  void DrawHorizLine(cc::PaintCanvas* canvas,
-                     int x1,
-                     int x2,
-                     int y,
-                     const cc::PaintFlags& flags) const;
-  void DrawBox(cc::PaintCanvas* canvas,
-               const gfx::Rect& rect,
-               const cc::PaintFlags& flags) const;
   SkColor OutlineColor(SkScalar* hsv1, SkScalar* hsv2) const;
 
   // Paint the common parts of the checkboxes and radio buttons.

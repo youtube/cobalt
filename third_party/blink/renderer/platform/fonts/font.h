@@ -171,6 +171,9 @@ class PLATFORM_EXPORT Font : public GarbageCollected<Font> {
   // Returns the primary font that contains the CJK water glyph.
   const SimpleFontData* PrimaryFontWithCjkWater() const;
 
+  // Returns the primary font that contains the space glyph for tab-size.
+  const SimpleFontData* PrimaryFontForTabSize() const;
+
   // Returns a list of font features for this `FontDescription`. The returned
   // list is common for all `SimpleFontData` for `this`.
   base::span<const FontFeatureRange> GetFontFeatures() const;
@@ -201,6 +204,10 @@ class PLATFORM_EXPORT Font : public GarbageCollected<Font> {
   void NullifyPrimaryFontForTesting() {
     EnsureFontFallbackList()->NullifyPrimarySimpleFontDataForTesting();
   }
+
+  // Reset `font_fallback_list_` to decouple `SimpleFontData`. This is
+  // required not to leak `SimpleFontData` via initial `ComputedStyle`.
+  void NullifyForTesting() { font_fallback_list_ = nullptr; }
 
   void ReportNotDefGlyph() const;
 
@@ -264,6 +271,11 @@ inline const SimpleFontData* Font::PrimaryFontWithDigitZero() const {
 // Uses CJK water as lookup character.
 inline const SimpleFontData* Font::PrimaryFontWithCjkWater() const {
   return EnsureFontFallbackList()->PrimarySimpleFontDataWithCjkWater(
+      font_description_);
+}
+
+inline const SimpleFontData* Font::PrimaryFontForTabSize() const {
+  return EnsureFontFallbackList()->PrimarySimpleFontDataForTabSize(
       font_description_);
 }
 

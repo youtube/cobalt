@@ -28,7 +28,8 @@ class ModelQualityLogsUploader {
       PasswordChangeQuality_StepQuality_SubmissionStatus;
   using FlowStep = optimization_guide::proto::PasswordChangeRequest::FlowStep;
 
-  explicit ModelQualityLogsUploader(content::WebContents* web_contents);
+  ModelQualityLogsUploader(content::WebContents* web_contents,
+                           const GURL& change_password_url);
   ~ModelQualityLogsUploader();
   ModelQualityLogsUploader(const ModelQualityLogsUploader&) = delete;
   ModelQualityLogsUploader& operator=(const ModelQualityLogsUploader&) = delete;
@@ -37,6 +38,9 @@ class ModelQualityLogsUploader {
   // once. It will merge the 3 LogAiDataRequest and upload a single
   // log entry to the model quality logging service.
   void UploadFinalLog();
+
+  // Sets quality data for Step=LOGGED_IN_CHECK.
+  void SetLoggedInCheckQuality(int retry_count);
 
   // Sets quality data for Step=OPEN_FORM_STEP.
   void SetOpenFormQuality(
@@ -119,8 +123,6 @@ class ModelQualityLogsUploader {
 #endif
 
  private:
-  void SetCommonInformationQuality(content::WebContents* web_contents);
-
   optimization_guide::proto::LogAiDataRequest final_log_data_;
   raw_ptr<Profile> profile_;
   base::WeakPtrFactory<ModelQualityLogsUploader> weak_ptr_factory_{this};

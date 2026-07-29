@@ -7,6 +7,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
+#include "chrome/browser/actor/actor_features.h"
 #include "chrome/browser/actor/actor_test_util.h"
 #include "chrome/browser/actor/execution_engine.h"
 #include "chrome/browser/actor/tools/tool_request.h"
@@ -60,12 +61,12 @@ class MockExecutionEngine : public ExecutionEngine {
 
   // Type alias to get around the comma in the flat_map template. MOCK_METHOD
   // breaks up the argument using commas.
-  using FaviconMap = base::flat_map<GURL, gfx::Image>;
+  using IconMap = base::flat_map<std::string, gfx::Image>;
 
   MOCK_METHOD(void,
               PromptToSelectCredential,
               (const std::vector<actor_login::Credential>&,
-               const FaviconMap&,
+               const IconMap&,
                ToolDelegate::CredentialSelectedCallback),
               (override));
   MOCK_METHOD(actor_login::ActorLoginService&,
@@ -78,8 +79,10 @@ class MockExecutionEngine : public ExecutionEngine {
 class ActorAttemptLoginToolTest : public ActorToolsTest {
  public:
   ActorAttemptLoginToolTest() {
-    scoped_feature_list_.InitAndEnableFeature(
-        password_manager::features::kActorLogin);
+    scoped_feature_list_.InitWithFeatures(
+        /*enabled_features=*/{password_manager::features::kActorLogin,
+                              actor::kGlicEnableAutoLoginDialogs},
+        /*disabled_features=*/{});
   }
 
   ~ActorAttemptLoginToolTest() override = default;
@@ -96,7 +99,7 @@ class ActorAttemptLoginToolTest : public ActorToolsTest {
     ON_CALL(mock_execution_engine(), PromptToSelectCredential(_, _, _))
         .WillByDefault(
             [this](const std::vector<actor_login::Credential>& credentials,
-                   const MockExecutionEngine::FaviconMap&,
+                   const MockExecutionEngine::IconMap&,
                    ToolDelegate::CredentialSelectedCallback callback) {
               std::move(callback).Run(MakeSelectCredentialDialogResponse(
                   actor_task().id(), credentials[0].id));
@@ -177,7 +180,7 @@ IN_PROC_BROWSER_TEST_F(ActorAttemptLoginToolTest,
   ON_CALL(mock_execution_engine(), PromptToSelectCredential(_, _, _))
       .WillByDefault(
           [this](const std::vector<actor_login::Credential>& credentials,
-                 const MockExecutionEngine::FaviconMap&,
+                 const MockExecutionEngine::IconMap&,
                  ToolDelegate::CredentialSelectedCallback callback) {
             std::move(callback).Run(MakeSelectCredentialDialogResponse(
                 actor_task().id(), credentials[1].id));
@@ -387,11 +390,10 @@ IN_PROC_BROWSER_TEST_F(ActorAttemptLoginToolTestWithFaviconService, NoService) {
   std::vector<actor_login::Credential> credentials =
       std::vector{MakeTestCredential(u"username1", url,
                                      /*immediately_available_to_login=*/true)};
-  EXPECT_CALL(
-      mock_execution_engine(),
-      PromptToSelectCredential(/*credentials=*/credentials,
-                               /*favicons=*/MockExecutionEngine::FaviconMap{},
-                               /*callback=*/_));
+  EXPECT_CALL(mock_execution_engine(),
+              PromptToSelectCredential(/*credentials=*/credentials,
+                                       /*icons=*/MockExecutionEngine::IconMap{},
+                                       /*callback=*/_));
 
   mock_login_service().SetCredentials(credentials);
   mock_login_service().SetLoginStatus(
@@ -415,11 +417,10 @@ IN_PROC_BROWSER_TEST_F(ActorAttemptLoginToolTestWithFaviconService,
   std::vector<actor_login::Credential> credentials =
       std::vector{MakeTestCredential(u"username1", url,
                                      /*immediately_available_to_login=*/true)};
-  EXPECT_CALL(
-      mock_execution_engine(),
-      PromptToSelectCredential(/*credentials=*/credentials,
-                               /*favicons=*/MockExecutionEngine::FaviconMap{},
-                               /*callback=*/_));
+  EXPECT_CALL(mock_execution_engine(),
+              PromptToSelectCredential(/*credentials=*/credentials,
+                                       /*icons=*/MockExecutionEngine::IconMap{},
+                                       /*callback=*/_));
   EXPECT_CALL(mock_favicon_service(), GetFaviconImageForPageURL(origin, _, _));
 
   mock_login_service().SetCredentials(credentials);
@@ -456,11 +457,12 @@ IN_PROC_BROWSER_TEST_F(ActorAttemptLoginToolTestWithFaviconService,
   std::vector<actor_login::Credential> credentials =
       std::vector{MakeTestCredential(u"username1", url,
                                      /*immediately_available_to_login=*/true)};
-  EXPECT_CALL(mock_execution_engine(),
-              PromptToSelectCredential(
-                  /*credentials=*/credentials,
-                  /*favicons=*/MockExecutionEngine::FaviconMap{{origin, image}},
-                  /*callback=*/_));
+  EXPECT_CALL(
+      mock_execution_engine(),
+      PromptToSelectCredential(
+          /*credentials=*/credentials,
+          /*icons=*/MockExecutionEngine::IconMap{{origin.spec(), image}},
+          /*callback=*/_));
   EXPECT_CALL(mock_favicon_service(), GetFaviconImageForPageURL(origin, _, _));
 
   mock_login_service().SetCredentials(credentials);
@@ -509,13 +511,14 @@ IN_PROC_BROWSER_TEST_F(ActorAttemptLoginToolTestWithFaviconService,
                                      /*immediately_available_to_login=*/true),
                   MakeTestCredential(u"username2", link_url,
                                      /*immediately_available_to_login=*/true)};
-  EXPECT_CALL(mock_execution_engine(),
-              PromptToSelectCredential(
-                  /*credentials=*/credentials,
-                  /*favicons=*/
-                  MockExecutionEngine::FaviconMap{{blank_origin, blank_icon},
-                                                  {link_origin, link_icon}},
-                  /*callback=*/_));
+  EXPECT_CALL(
+      mock_execution_engine(),
+      PromptToSelectCredential(
+          /*credentials=*/credentials,
+          /*icons=*/
+          MockExecutionEngine::IconMap{{blank_origin.spec(), blank_icon},
+                                       {link_origin.spec(), link_icon}},
+          /*callback=*/_));
   EXPECT_CALL(mock_favicon_service(),
               GetFaviconImageForPageURL(blank_origin, _, _));
   EXPECT_CALL(mock_favicon_service(),

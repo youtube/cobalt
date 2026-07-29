@@ -793,10 +793,8 @@ _CONFIG = [
             'net::features::kPrefixCookieHttp',
             'net::features::kPrefixCookieHostHttp',
 
-            # HTTP status codes
-            'net::OK',
-
             # Net error codes
+            'net::OK',
             'net::ERR_.*',
 
             # HTTP status codes
@@ -1542,6 +1540,7 @@ _CONFIG = [
             'third_party/blink/renderer/core/inspector',
             'third_party/blink/renderer/controller/dev_tools_frontend_impl.h',
             'third_party/blink/renderer/controller/dev_tools_frontend_impl.cc',
+            'third_party/blink/renderer/modules/credentialmanagement/authentication_credentials_container.cc',
             'third_party/blink/renderer/modules/credentialmanagement/digital_identity_credential.cc',
             'third_party/blink/renderer/modules/filesystem/dev_tools_host_file_system.cc'
         ],
@@ -2125,11 +2124,12 @@ _CONFIG = [
         'paths': [
             'third_party/blink/renderer/core/layout/layout_theme.cc',
             'third_party/blink/renderer/core/layout/layout_theme_mac.mm',
+            'third_party/blink/renderer/core/layout/layout_theme_win.cc',
             'third_party/blink/renderer/core/paint/outline_painter.cc',
             'third_party/blink/renderer/core/paint/theme_painter.cc',
             'third_party/blink/renderer/core/paint/theme_painter_default.cc',
         ],
-        'allowed': ['ui::NativeTheme.*', 'ui::color_utils.*'],
+        'allowed': ['ui::NativeTheme.*', 'ui::color_utils.*', 'ui::kColor.*'],
     },
     {
         'paths': [

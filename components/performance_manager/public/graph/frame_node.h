@@ -171,6 +171,10 @@ class FrameNode : public TypedNode<FrameNode> {
   // See FrameNodeObserver::OnCurrentFrameChanged.
   virtual bool IsCurrent() const = 0;
 
+  // Returns true if this frame is active (the document is in the 'active'
+  // lifecycle state). See RenderFrameHost::IsActive() for more details.
+  virtual bool IsActive() const = 0;
+
   // Returns the current priority of the frame, and the reason for the frame
   // having that particular priority.
   virtual const PriorityAndReason& GetPriorityAndReason() const = 0;
@@ -245,6 +249,11 @@ class FrameNode : public TypedNode<FrameNode> {
   // considered important, regardless of this value.
   virtual bool IsImportant() const = 0;
 
+  // Returns false if the frame is not rendered, e.g. because it has
+  // `display: none`. A non-rendered frame is not visible, but a visible frame
+  // is not necessarily rendered.
+  virtual bool IsRendered() const = 0;
+
   // Returns a proxy to the RenderFrameHost associated with this node. The
   // proxy may only be dereferenced on the UI thread.
   virtual const RenderFrameHostProxy& GetRenderFrameHostProxy() const = 0;
@@ -261,6 +270,9 @@ class FrameNode : public TypedNode<FrameNode> {
   // an estimate because it is computed by process, and a process can host
   // multiple frames.
   virtual base::ByteCount GetPrivateFootprintEstimate() const = 0;
+
+  // Called when the process of a cross-process subframe has gone.
+  virtual void CrossProcessSubframeRenderProcessGone() = 0;
 };
 
 // Observer interface for frame nodes.
@@ -410,6 +422,10 @@ class FrameNodeObserver : public base::CheckedObserver {
 
   // Invoked when the `IsImportant` property changes.
   virtual void OnIsImportantChanged(const FrameNode* frame_node) {}
+
+  // Called when the render process of a cross-process subframe exits.
+  virtual void OnCrossProcessSubframeRenderProcessGone(
+      const FrameNode* frame_node) {}
 
   // Events with no property changes.
 

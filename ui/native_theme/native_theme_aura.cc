@@ -4,34 +4,34 @@
 
 #include "ui/native_theme/native_theme_aura.h"
 
-#include <limits>
 #include <optional>
-#include <utility>
 
+#include "base/check.h"
 #include "base/check_op.h"
-#include "base/containers/fixed_flat_map.h"
+#include "base/feature_list.h"
 #include "base/logging.h"
 #include "base/no_destructor.h"
-#include "base/notreached.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "cc/paint/paint_canvas.h"
 #include "cc/paint/paint_flags.h"
+#include "third_party/skia/include/core/SkBlendMode.h"
+#include "third_party/skia/include/core/SkColor.h"
 #include "third_party/skia/include/core/SkPath.h"
-#include "ui/base/ui_base_features.h"
+#include "third_party/skia/include/core/SkScalar.h"
+#include "ui/color/color_id.h"
 #include "ui/color/color_provider.h"
-#include "ui/gfx/animation/tween.h"
-#include "ui/gfx/canvas.h"
 #include "ui/gfx/color_palette.h"
 #include "ui/gfx/geometry/insets.h"
+#include "ui/gfx/geometry/insets_f.h"
 #include "ui/gfx/geometry/rect.h"
+#include "ui/gfx/geometry/rect_f.h"
 #include "ui/gfx/geometry/rrect_f.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/geometry/skia_conversions.h"
-#include "ui/gfx/image/image_skia.h"
 #include "ui/native_theme/features/native_theme_features.h"
+#include "ui/native_theme/native_theme_base.h"
 #include "ui/native_theme/native_theme_fluent.h"
-#include "ui/native_theme/native_theme_utils.h"
 #include "ui/native_theme/overlay_scrollbar_constants.h"
 
 namespace ui {
@@ -65,20 +65,30 @@ BASE_FEATURE(kNewScrollbarArrowRadius,
 #if !BUILDFLAG(IS_APPLE)
 // static
 NativeTheme* NativeTheme::GetInstanceForWeb() {
-  if (IsFluentScrollbarEnabled()) {
-    return NativeThemeFluent::web_instance();
+  static const bool use_fluent = IsFluentScrollbarEnabled();
+  if (use_fluent) {
+    static base::NoDestructor<NativeThemeFluent> s_web_theme;
+    return s_web_theme.get();
   }
-  return NativeThemeAura::web_instance();
+  static base::NoDestructor<NativeThemeAura> s_web_theme(
+#if BUILDFLAG(IS_CHROMEOS)
+      true
+#else
+      IsOverlayScrollbarEnabledByFeatureFlag()
+#endif
+  );
+  return s_web_theme.get();
 }
 
 #if !BUILDFLAG(IS_WIN)
 // static
 NativeTheme* NativeTheme::GetInstanceForNativeUi() {
-  static base::NoDestructor<NativeThemeAura> s_native_theme(
-      /*use_overlay_scrollbars=*/false,
-      /*should_only_use_dark_colors=*/false,
-      /*system_theme=*/ui::SystemTheme::kDefault,
-      /*configure_web_instance=*/true);
+  static base::NoDestructor<NativeThemeAura> s_native_theme;
+  static bool initialized = false;
+  if (!initialized) {
+    s_native_theme->ConfigureWebInstance();
+    initialized = true;
+  }
   return s_native_theme.get();
 }
 #endif  // !BUILDFLAG(IS_WIN)
@@ -87,52 +97,27 @@ NativeTheme* NativeTheme::GetInstanceForNativeUi() {
 ////////////////////////////////////////////////////////////////////////////////
 // NativeThemeAura:
 
-NativeThemeAura::NativeThemeAura(bool use_overlay_scrollbars,
-                                 bool should_only_use_dark_colors,
-                                 ui::SystemTheme system_theme,
-                                 bool configure_web_instance)
-    : NativeThemeBase(should_only_use_dark_colors, system_theme) {
-  set_use_overlay_scrollbar(use_overlay_scrollbars);
+NativeThemeAura::NativeThemeAura(bool use_overlay_scrollbar) {
+  set_use_overlay_scrollbar(use_overlay_scrollbar);
+  if (use_overlay_scrollbar) {
+    scrollbar_width_ =
+        kOverlayScrollbarThumbWidthPressed + kOverlayScrollbarStrokeWidth;
+  }
   // We don't draw scrollbar buttons.
 #if BUILDFLAG(IS_CHROMEOS)
   set_scrollbar_button_length(0);
 #endif
-  if (use_overlay_scrollbars) {
-    scrollbar_width_ =
-        kOverlayScrollbarThumbWidthPressed + kOverlayScrollbarStrokeWidth;
-  }
+}
 
-  // Images and alphas declarations assume the following order.
-  static_assert(kDisabled == 0, "states unexpectedly changed");
-  static_assert(kHovered == 1, "states unexpectedly changed");
-  static_assert(kNormal == 2, "states unexpectedly changed");
-  static_assert(kPressed == 3, "states unexpectedly changed");
-
-  if (configure_web_instance) {
-    ConfigureWebInstance();
-  }
+NativeThemeAura::NativeThemeAura(SystemTheme system_theme)
+    : NativeThemeBase(system_theme) {
+  // We don't draw scrollbar buttons.
+#if BUILDFLAG(IS_CHROMEOS)
+  set_scrollbar_button_length(0);
+#endif
 }
 
 NativeThemeAura::~NativeThemeAura() = default;
-
-// static
-NativeThemeAura* NativeThemeAura::web_instance() {
-  static base::NoDestructor<NativeThemeAura> s_native_theme_for_web(
-      /*use_overlay_scrollbars=*/CalculateUseOverlayScrollbar(),
-      /*should_only_use_dark_colors=*/false);
-  return s_native_theme_for_web.get();
-}
-
-SkColor4f NativeThemeAura::FocusRingColorForBaseColor(
-    SkColor4f base_color) const {
-#if BUILDFLAG(IS_APPLE)
-  // On Mac OSX, the system Accent Color setting is darkened a bit
-  // for better contrast.
-  return SkColor4f(base_color.fR, base_color.fG, base_color.fB, 166 / 255.0f);
-#else
-  return base_color;
-#endif  // BUILDFLAG(IS_APPLE)
-}
 
 void NativeThemeAura::ConfigureWebInstance() {
   // Add the web native theme as an observer to stay in sync with color scheme
@@ -366,18 +351,17 @@ gfx::Insets NativeThemeAura::GetScrollbarSolidColorThumbInsets(
   return gfx::Insets::VH(kThumbInset, extra_inset);
 }
 
-SkColor4f NativeThemeAura::GetScrollbarThumbColor(
+SkColor NativeThemeAura::GetScrollbarThumbColor(
     const ui::ColorProvider& color_provider,
     State state,
     const ScrollbarThumbExtraParams& extra_params) const {
   // Only non-overlay aura scrollbars use solid color thumb.
   CHECK(!use_overlay_scrollbar());
   if (extra_params.thumb_color.has_value()) {
-    return SkColor4f::FromColor(GetContrastingPressedOrHoveredColor(
-                                    extra_params.thumb_color,
-                                    extra_params.track_color, state,
-                                    /*part=*/Part::kScrollbarVerticalThumb)
-                                    .value());
+    return GetContrastingPressedOrHoveredColor(
+               extra_params.thumb_color, extra_params.track_color, state,
+               /*part=*/Part::kScrollbarVerticalThumb)
+        .value();
   }
   ColorId color_id = kColorWebNativeControlScrollbarThumb;
   if (state == NativeTheme::kHovered) {
@@ -385,7 +369,7 @@ SkColor4f NativeThemeAura::GetScrollbarThumbColor(
   } else if (state == NativeTheme::kPressed) {
     color_id = kColorWebNativeControlScrollbarThumbPressed;
   }
-  return SkColor4f::FromColor(color_provider.GetColor(color_id));
+  return color_provider.GetColor(color_id);
 }
 
 void NativeThemeAura::PaintScrollbarCorner(

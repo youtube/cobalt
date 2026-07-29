@@ -1594,109 +1594,6 @@ const char* AttestationConveyancePreferenceToString(
   }
 }
 
-// TestAuthenticatorRequestDelegate is a test fake implementation of the
-// AuthenticatorRequestClientDelegate embedder interface.
-class TestAuthenticatorRequestDelegate
-    : public AuthenticatorRequestClientDelegate {
- public:
-  TestAuthenticatorRequestDelegate(
-      RenderFrameHost* render_frame_host,
-      base::OnceClosure action_callbacks_registered_callback,
-      base::OnceClosure started_over_callback,
-      bool simulate_user_cancelled,
-      std::optional<bool>* enclave_authenticator_should_be_discovered,
-      base::flat_set<device::FidoTransportProtocol>* discovered_transports)
-      : action_callbacks_registered_callback_(
-            std::move(action_callbacks_registered_callback)),
-        started_over_callback_(std::move(started_over_callback)),
-        does_block_request_on_failure_(!started_over_callback_.is_null()),
-        simulate_user_cancelled_(simulate_user_cancelled),
-        enclave_authenticator_should_be_discovered_(
-            enclave_authenticator_should_be_discovered),
-        discovered_transports_(discovered_transports) {}
-
-  TestAuthenticatorRequestDelegate(const TestAuthenticatorRequestDelegate&) =
-      delete;
-  TestAuthenticatorRequestDelegate& operator=(
-      const TestAuthenticatorRequestDelegate&) = delete;
-
-  void RegisterActionCallbacks(
-      base::OnceClosure cancel_callback,
-      base::OnceClosure immediate_not_found_callback,
-      base::RepeatingClosure start_over_callback,
-      AccountPreselectedCallback account_preselected_callback,
-      PasswordSelectedCallback password_selected_callback,
-      device::FidoRequestHandlerBase::RequestCallback request_callback,
-      base::OnceClosure cancel_ui_timeout_callback,
-      base::RepeatingClosure bluetooth_adapter_power_on_callback,
-      base::RepeatingCallback<
-          void(device::FidoRequestHandlerBase::BlePermissionCallback)>
-          ble_status_callback) override {
-    ASSERT_TRUE(action_callbacks_registered_callback_)
-        << "RegisterActionCallbacks called twice.";
-    cancel_callback_ = std::move(cancel_callback);
-    std::move(action_callbacks_registered_callback_).Run();
-    if (started_over_callback_) {
-      action_callbacks_registered_callback_ = std::move(started_over_callback_);
-      start_over_callback_ = start_over_callback;
-    }
-  }
-
-  void OnTransportAvailabilityEnumerated(
-      device::FidoRequestHandlerBase::TransportAvailabilityInfo transport_info)
-      override {
-    if (discovered_transports_) {
-      *discovered_transports_ = transport_info.available_transports;
-    }
-    // Simulate the behaviour of Chrome's |AuthenticatorRequestDialogModel|
-    // which shows a specific error when no transports are available and lets
-    // the user cancel the request.
-    if (transport_info.available_transports.empty() ||
-        simulate_user_cancelled_) {
-      std::move(cancel_callback_).Run();
-    }
-  }
-
-  bool DoesBlockRequestOnFailure(InterestingFailureReason reason) override {
-    if (!does_block_request_on_failure_) {
-      return false;
-    }
-
-    std::move(start_over_callback_).Run();
-    does_block_request_on_failure_ = false;
-    return true;
-  }
-
-  void ConfigureDiscoveries(
-      const url::Origin& origin,
-      const std::string& rp_id,
-      RequestSource request_source,
-      device::FidoRequestType request_type,
-      std::optional<device::ResidentKeyRequirement> resident_key_requirement,
-      device::UserVerificationRequirement user_verification_requirement,
-      std::optional<std::string_view> user_name,
-      base::span<const device::CableDiscoveryData> pairings_from_extension,
-      bool is_enclave_authenticator_available,
-      device::FidoDiscoveryFactory* fido_discovery_factory) override {
-    if (enclave_authenticator_should_be_discovered_) {
-      *enclave_authenticator_should_be_discovered_ =
-          is_enclave_authenticator_available;
-    }
-  }
-
-  base::OnceClosure action_callbacks_registered_callback_;
-  base::OnceClosure cancel_callback_;
-  base::OnceClosure started_over_callback_;
-  base::OnceClosure start_over_callback_;
-  bool does_block_request_on_failure_ = false;
-  bool simulate_user_cancelled_ = false;
-  bool browser_provided_passkeys_available_ = false;
-  raw_ptr<std::optional<bool>> enclave_authenticator_should_be_discovered_;
-  raw_ptr<base::flat_set<device::FidoTransportProtocol>> discovered_transports_;
-};
-
-
-
 // A test class that installs and removes an
 // |TestAuthenticatorContentBrowserClient| automatically and can run tests
 // against simulated attestation results.
@@ -3284,6 +3181,38 @@ TEST_F(AuthenticatorImplRemoteDesktopClientOverrideTest, GetAssertionAppid) {
   }
 }
 
+TEST_F(AuthenticatorImplRemoteDesktopClientOverrideTest,
+       GetAssertionImmediateMediation) {
+  // Verify that an authorized origin may not use the extension with immediate
+  // mediation.
+  NavigateAndCommit(GURL(kCorpCrdOrigin));
+
+  PublicKeyCredentialRequestOptionsPtr options =
+      GetTestPublicKeyCredentialRequestOptions();
+  options->allow_credentials.clear();
+  options->relying_party_id = kExampleRpId;
+  options->extensions->remote_desktop_client_override =
+      RemoteDesktopClientOverride::New(
+          url::Origin::Create(GURL(kExampleOrigin)), true);
+
+  mojo::Remote<blink::mojom::Authenticator> authenticator =
+      ConnectToAuthenticator();
+  base::test::TestFuture<void> mojo_error_future;
+  SetMojoErrorHandler(base::BindLambdaForTesting([&](const std::string& error) {
+    EXPECT_EQ(error,
+              "Immediate mediation cannot be used with a remote desktop "
+              "override request");
+    mojo_error_future.SetValue();
+  }));
+
+  auto get_credential_options = GetCredentialOptions::New();
+  get_credential_options->public_key = std::move(options);
+  get_credential_options->mediation = blink::mojom::Mediation::IMMEDIATE;
+  authenticator->GetCredential(std::move(get_credential_options),
+                               base::DoNothing());
+  EXPECT_TRUE(mojo_error_future.Wait());
+}
+
 class MockAuthenticatorRequestDelegateObserver
     : public TestAuthenticatorRequestDelegate {
  public:
@@ -4767,11 +4696,13 @@ class UVTestAuthenticatorClientDelegate
   explicit UVTestAuthenticatorClientDelegate(bool* collected_pin,
                                              uint32_t* min_pin_length,
                                              bool* did_bio_enrollment,
-                                             bool cancel_bio_enrollment)
+                                             bool cancel_bio_enrollment,
+                                             bool block_request_on_failure_once)
       : collected_pin_(collected_pin),
         min_pin_length_(min_pin_length),
         did_bio_enrollment_(did_bio_enrollment),
-        cancel_bio_enrollment_(cancel_bio_enrollment) {
+        cancel_bio_enrollment_(cancel_bio_enrollment),
+        block_request_on_failure_once_(block_request_on_failure_once) {
     *collected_pin_ = false;
     *did_bio_enrollment_ = false;
   }
@@ -4806,12 +4737,19 @@ class UVTestAuthenticatorClientDelegate
 
   void FinishCollectToken() override {}
 
+  bool DoesBlockRequestOnFailure(InterestingFailureReason reason) override {
+    bool block = block_request_on_failure_once_;
+    block_request_on_failure_once_ = false;
+    return block;
+  }
+
  private:
   raw_ptr<bool> collected_pin_;
   raw_ptr<uint32_t> min_pin_length_;
   base::OnceClosure bio_callback_;
   raw_ptr<bool> did_bio_enrollment_;
   bool cancel_bio_enrollment_;
+  bool block_request_on_failure_once_;
 };
 
 class UVTestAuthenticatorContentBrowserClient : public ContentBrowserClient {
@@ -4826,7 +4764,7 @@ class UVTestAuthenticatorContentBrowserClient : public ContentBrowserClient {
       RenderFrameHost* render_frame_host) override {
     return std::make_unique<UVTestAuthenticatorClientDelegate>(
         &collected_pin, &min_pin_length, &did_bio_enrollment,
-        cancel_bio_enrollment);
+        cancel_bio_enrollment, block_request_on_failure_once);
   }
 
   TestWebAuthenticationDelegate web_authentication_delegate;
@@ -4835,6 +4773,7 @@ class UVTestAuthenticatorContentBrowserClient : public ContentBrowserClient {
   uint32_t min_pin_length = 0;
   bool did_bio_enrollment;
   bool cancel_bio_enrollment = false;
+  bool block_request_on_failure_once = false;
 };
 
 class UVAuthenticatorImplTest : public AuthenticatorImplTest {
@@ -6168,7 +6107,8 @@ TEST_F(InternalUVAuthenticatorImplTest,
   config.bio_enrollment_support = true;
   config.override_response_map
       [device::CtapRequestCommand::kAuthenticatorBioEnrollment] =
-      device::CtapDeviceResponseCode::kCtap2ErrUserActionTimeout;
+      std::make_pair(device::CtapDeviceResponseCode::kCtap2ErrUserActionTimeout,
+                     std::nullopt);
   virtual_device_factory_->mutable_state()->pin = kTestPIN;
   virtual_device_factory_->mutable_state()->pin_retries =
       device::kMaxPinRetries;
@@ -6183,6 +6123,52 @@ TEST_F(InternalUVAuthenticatorImplTest,
   EXPECT_EQ(device::kMinPinLength, test_client_.min_pin_length);
   EXPECT_TRUE(test_client_.did_bio_enrollment);
   EXPECT_FALSE(virtual_device_factory_->mutable_state()->fingerprints_enrolled);
+}
+
+// Regression test for https://crbug.com/442489275.
+// Tests that removing the authenticator during bio enrollment does not leave a
+// dangling pointer.
+TEST_F(InternalUVAuthenticatorImplTest,
+       InlineBioEnrollmentRemoveAuthenticator) {
+  device::VirtualCtap2Device::Config config;
+  config.internal_uv_support = true;
+  config.pin_support = true;
+  config.user_verification_succeeds = true;
+  config.bio_enrollment_support = true;
+  virtual_device_factory_->mutable_state()->pin = kTestPIN;
+  virtual_device_factory_->mutable_state()->pin_retries =
+      device::kMaxPinRetries;
+  virtual_device_factory_->mutable_state()->fingerprints_enrolled = false;
+  virtual_device_factory_->SetCtap2Config(config);
+
+  // Stall the biometric enrollment so we can disconnect the authenticator.
+  base::test::TestFuture<void> touch_fingerprint_future;
+  virtual_device_factory_->mutable_state()->simulate_press_callback =
+      base::BindLambdaForTesting([&](device::VirtualFidoDevice* device) {
+        touch_fingerprint_future.SetValue();
+        return false;
+      });
+
+  // Block the request on failure, otherwise the request ends immediately and
+  // the bug doesn't trigger.
+  test_client_.block_request_on_failure_once = true;
+
+  // Make a credential and wait for the touch.
+  mojo::Remote<blink::mojom::Authenticator> authenticator =
+      ConnectToAuthenticator();
+  TestMakeCredentialFuture request_future;
+  authenticator->MakeCredential(
+      make_credential_options(device::UserVerificationRequirement::kRequired),
+      request_future.GetCallback());
+  ASSERT_TRUE(touch_fingerprint_future.Wait());
+
+  // Disconnect the device, which should clean up the bio enroller.
+  virtual_device_factory_->DisconnectDevice();
+
+  // Time the request out.
+  task_environment()->FastForwardBy(kTestTimeout);
+  ASSERT_TRUE(request_future.Wait());
+  // No crashes due to dangling pointers.
 }
 
 // Test making a credential skipping biometric enrollment during credential

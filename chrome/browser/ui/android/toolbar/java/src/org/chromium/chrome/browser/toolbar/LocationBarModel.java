@@ -177,6 +177,25 @@ public class LocationBarModel implements ToolbarDataProvider, LocationBarDataPro
     private boolean mAlreadyUpdatedUrlBarForSameDocNav;
     private boolean mAlreadyChangedSecurityStateForSameDocNav;
 
+    // Whether the URL returned in getUrlOfVisibleNavigationEntry() should match the trusted CDN
+    // publisher URL, if any exists.
+    private final boolean mMatchTrustedCdnUrl;
+
+    public LocationBarModel(
+            Context context,
+            NewTabPageDelegate newTabPageDelegate,
+            UrlFormatter urlFormatter,
+            OfflineStatus offlineStatus,
+            ObservableSupplier<@ControlsPosition Integer> toolbarPositionSupplier) {
+        this(
+                context,
+                newTabPageDelegate,
+                urlFormatter,
+                offlineStatus,
+                toolbarPositionSupplier,
+                /* matchTrustedCdnUrl= */ false);
+    }
+
     /**
      * Default constructor for this class.
      *
@@ -185,14 +204,17 @@ public class LocationBarModel implements ToolbarDataProvider, LocationBarDataPro
      * @param urlFormatter Formatter returning the formatted version of the original version of URL
      *     of a distillation.
      * @param offlineStatus Offline-related status provider.
-     * @param searchEngineUtils Utils to query the state of the search engine logos feature.
+     * @param toolbarPositionSupplier The on-screen position of the Toolbar.
+     * @param matchTrustedCdnUrl Whether the URL returned in getUrlOfVisibleNavigationEntry() should
+     *     match the trusted CDN publisher URL, if any exists.
      */
     public LocationBarModel(
             Context context,
             NewTabPageDelegate newTabPageDelegate,
             UrlFormatter urlFormatter,
             OfflineStatus offlineStatus,
-            ObservableSupplier<@ControlsPosition Integer> toolbarPositionSupplier) {
+            ObservableSupplier<@ControlsPosition Integer> toolbarPositionSupplier,
+            boolean matchTrustedCdnUrl) {
         mContext = context;
         mNtpDelegate = newTabPageDelegate;
         mUrlFormatter = urlFormatter;
@@ -202,6 +224,7 @@ public class LocationBarModel implements ToolbarDataProvider, LocationBarDataPro
         mUrlForDisplay = "";
         mFormattedFullUrl = "";
         mToolbarPositionSupplier = toolbarPositionSupplier;
+        mMatchTrustedCdnUrl = matchTrustedCdnUrl;
     }
 
     /** Handle any initialization that must occur after native has been initialized. */
@@ -463,7 +486,7 @@ public class LocationBarModel implements ToolbarDataProvider, LocationBarDataPro
         final @ColorInt int secureColor =
                 OmniboxResourceProvider.getUrlBarSecureColor(mContext, brandedColorScheme);
 
-        int securityLevel = getSecurityLevel(getTab(), isOfflinePage, isReaderModePage());
+        int securityLevel = getSecurityLevel(getTab(), isOfflinePage);
         SpannableDisplayTextCacheKey cacheKey =
                 new SpannableDisplayTextCacheKey(
                         url.getSpec(),
@@ -619,14 +642,9 @@ public class LocationBarModel implements ToolbarDataProvider, LocationBarDataPro
         return PdfUtils.getPdfPageType(mTab.getNativePage());
     }
 
-    private boolean isReaderModePage() {
-        if (!hasTab()) return false;
-        return DomDistillerUrlUtils.isDistilledPage(assumeNonNull(getTab()).getUrl());
-    }
-
     @Override
     public int getSecurityLevel() {
-        return getSecurityLevel(getTab(), isOfflinePage(), isReaderModePage());
+        return getSecurityLevel(getTab(), isOfflinePage());
     }
 
     @Override
@@ -640,13 +658,11 @@ public class LocationBarModel implements ToolbarDataProvider, LocationBarDataPro
     @Override
     public @DrawableRes int getSecurityIconResource(boolean isTablet) {
         boolean isOfflinePage = isOfflinePage();
-        boolean isReaderModePage = isReaderModePage();
         return getSecurityIconResource(
-                getSecurityLevel(getTab(), isOfflinePage, isReaderModePage),
+                getSecurityLevel(getTab(), isOfflinePage),
                 !isTablet,
                 isOfflinePage,
                 isPaintPreview(),
-                isReaderModePage,
                 getPdfPageType());
     }
 
@@ -657,7 +673,7 @@ public class LocationBarModel implements ToolbarDataProvider, LocationBarDataPro
 
     @VisibleForTesting
     @ConnectionSecurityLevel
-    int getSecurityLevel(@Nullable Tab tab, boolean isOfflinePage, boolean isReaderModePage) {
+    int getSecurityLevel(@Nullable Tab tab, boolean isOfflinePage) {
         if (tab == null || isOfflinePage) {
             return ConnectionSecurityLevel.NONE;
         }
@@ -688,7 +704,6 @@ public class LocationBarModel implements ToolbarDataProvider, LocationBarDataPro
             boolean isSmallDevice,
             boolean isOfflinePage,
             boolean isPaintPreview,
-            boolean isReaderModePage,
             int pdfPageType) {
         // Paint Preview appears on top of WebContents and shows a visual representation of the page
         // that has been previously stored locally.
@@ -698,12 +713,6 @@ public class LocationBarModel implements ToolbarDataProvider, LocationBarDataPro
         // on a slow connection. In this case, the previews UI takes precedence.
         if (isOfflinePage) {
             return R.drawable.ic_offline_pin_24dp;
-        }
-
-        // Reader mode is when chrome is viewing distilled content. In this case, a reader mode icon
-        // is shown.
-        if (isReaderModePage) {
-            return R.drawable.ic_reader_mode_24dp;
         }
 
         // Pdf page is a native page used to render downloaded pdf files.
@@ -832,6 +841,12 @@ public class LocationBarModel implements ToolbarDataProvider, LocationBarDataPro
         if (mNativeLocationBarModelAndroid == 0) return GURL.emptyGURL();
         if (mNtpDelegate.isCurrentlyVisible()) {
             return getTab().getUrl();
+        }
+        if (mMatchTrustedCdnUrl && mTab != null && !mTab.isDestroyed()) {
+            @Nullable GURL publisherUrl = TrustedCdn.getPublisherUrl(mTab);
+            if (publisherUrl != null) {
+                return publisherUrl;
+            }
         }
 
         return LocationBarModelJni.get()

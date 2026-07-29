@@ -27,6 +27,7 @@
 #include "base/numerics/safe_math.h"
 #include "base/process/current_process.h"
 #include "base/process/process_handle.h"
+#include "base/rand_util.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "base/trace_event/typed_macros.h"
@@ -131,7 +132,6 @@ struct IpczMessage : public Channel::Message {
   std::vector<PlatformHandleInTransit> TakeHandles() override {
     return std::move(handles_);
   }
-  size_t NumHandlesForTransit() const override { return handles_.size(); }
 
   base::span<const char> data_span() const override { return data_; }
   base::span<char> mutable_data_span() override { NOTREACHED(); }
@@ -161,7 +161,6 @@ struct ComplexMessage : public Channel::Message {
   void SetHandles(std::vector<PlatformHandle> new_handles) override;
   void SetHandles(std::vector<PlatformHandleInTransit> new_handles) override;
   std::vector<PlatformHandleInTransit> TakeHandles() override;
-  size_t NumHandlesForTransit() const override;
 
   base::span<const char> data_span() const override { return data_; }
   base::span<char> mutable_data_span() override { return data_.as_span(); }
@@ -220,7 +219,6 @@ struct TrivialMessage : public Channel::Message {
   void SetHandles(std::vector<PlatformHandle> new_handles) override;
   void SetHandles(std::vector<PlatformHandleInTransit> new_handles) override;
   std::vector<PlatformHandleInTransit> TakeHandles() override;
-  size_t NumHandlesForTransit() const override;
 
  private:
   friend struct Channel::Message;
@@ -233,6 +231,10 @@ struct TrivialMessage : public Channel::Message {
 
 static_assert(sizeof(TrivialMessage) == 256,
               "Expected TrivialMessage to be 256 bytes");
+
+bool ShouldRecordSubsampledHistograms() {
+  return base::ShouldRecordSubsampledMetric(0.001);
+}
 
 }  // namespace
 
@@ -707,10 +709,6 @@ std::vector<PlatformHandleInTransit> ComplexMessage::TakeHandles() {
   return std::move(handle_vector_);
 }
 
-size_t ComplexMessage::NumHandlesForTransit() const {
-  return handle_vector_.size();
-}
-
 // static
 Channel::MessagePtr TrivialMessage::TryConstruct(size_t payload_size,
                                                  MessageType message_type) {
@@ -772,10 +770,6 @@ void TrivialMessage::SetHandles(
 
 std::vector<PlatformHandleInTransit> TrivialMessage::TakeHandles() {
   return std::vector<PlatformHandleInTransit>();
-}
-
-size_t TrivialMessage::NumHandlesForTransit() const {
-  return 0;
 }
 
 // Helper class for managing a Channel's read buffer allocations. This maintains
@@ -970,7 +964,7 @@ bool Channel::OnReadComplete(size_t bytes_read, size_t* next_read_size_hint) {
                            next_read_size_hint);
     if (result == DispatchResult::kOK) {
       if (ShouldRecordSubsampledHistograms()) {
-        LogHistogramForIPCMetrics(MessageType::kReceive);
+        RecordReceivedMessageProcessType();
       }
       read_buffer_->Discard(*next_read_size_hint);
       *next_read_size_hint = 0;
@@ -1098,7 +1092,6 @@ Channel::DispatchResult Channel::TryDispatchMessage(
   const uint16_t num_handles =
       header ? header->num_handles : legacy_header->num_handles;
   std::vector<PlatformHandle> handles;
-  bool deferred = false;
   if (num_handles > 0) {
     if (handle_policy_ == HandlePolicy::kRejectHandles) {
       return DispatchResult::kError;
@@ -1108,7 +1101,7 @@ Channel::DispatchResult Channel::TryDispatchMessage(
       handles = std::move(*received_handles);
     } else if (!GetReadPlatformHandles(payload, payload_size, num_handles,
                                        extra_header, extra_header_size,
-                                       &handles, &deferred)) {
+                                       &handles)) {
       return DispatchResult::kError;
     }
 
@@ -1121,12 +1114,11 @@ Channel::DispatchResult Channel::TryDispatchMessage(
   // We've got a complete message! Dispatch it and try another.
   if (legacy_header->message_type != Message::MessageType::NORMAL_LEGACY &&
       legacy_header->message_type != Message::MessageType::NORMAL) {
-    DCHECK(!deferred);
     if (!OnControlMessage(legacy_header->message_type, payload, payload_size,
                           std::move(handles))) {
       return DispatchResult::kError;
     }
-  } else if (!deferred && delegate_) {
+  } else if (delegate_) {
     delegate_->OnChannelMessage(payload, payload_size, std::move(handles),
                                 std::move(envelope));
   }
@@ -1147,20 +1139,6 @@ bool Channel::OnControlMessage(Message::MessageType message_type,
   return false;
 }
 
-// static
-void Channel::LogHistogramForIPCMetrics(MessageType type) {
-  if (type == MessageType::kSent) {
-    UMA_HISTOGRAM_ENUMERATION(
-        "Mojo.Channel.WriteSendMessageProcessType",
-        base::CurrentProcess::GetInstance().GetShortType({}));
-  }
-  if (type == MessageType::kReceive) {
-    UMA_HISTOGRAM_ENUMERATION(
-        "Mojo.Channel.WriteReceiveMessageProcessType",
-        base::CurrentProcess::GetInstance().GetShortType({}));
-  }
-}
-
 // Currently only CrOs, Linux, and Android support upgrades.
 #if !(BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID))
 // static
@@ -1176,13 +1154,22 @@ MOJO_SYSTEM_IMPL_EXPORT void Channel::OfferChannelUpgrade() {
 void Channel::RecordSentMessageMetrics(size_t payload_size) {
   if (ShouldRecordSubsampledHistograms()) {
     UMA_HISTOGRAM_COUNTS_100000("Mojo.Channel.WriteMessageSize", payload_size);
-    LogHistogramForIPCMetrics(MessageType::kSent);
+    RecordSentMessageProcessType();
   }
 }
 
-bool Channel::ShouldRecordSubsampledHistograms() {
-  base::AutoLock hold(lock_);
-  return sub_sampler_.ShouldSample(0.001);
+// static
+void Channel::RecordReceivedMessageProcessType() {
+  UMA_HISTOGRAM_ENUMERATION(
+      "Mojo.Channel.WriteReceiveMessageProcessType",
+      base::CurrentProcess::GetInstance().GetShortType({}));
+}
+
+// static
+void Channel::RecordSentMessageProcessType() {
+  UMA_HISTOGRAM_ENUMERATION(
+      "Mojo.Channel.WriteSendMessageProcessType",
+      base::CurrentProcess::GetInstance().GetShortType({}));
 }
 
 }  // namespace mojo::core

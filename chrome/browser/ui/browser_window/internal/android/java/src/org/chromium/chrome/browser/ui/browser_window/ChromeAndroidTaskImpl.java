@@ -26,7 +26,6 @@ import androidx.core.view.WindowCompat;
 import org.chromium.base.ApplicationStatus;
 import org.chromium.base.Log;
 import org.chromium.base.TimeUtils;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
@@ -41,6 +40,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 /** Implements {@link ChromeAndroidTask}. */
 @NullMarked
@@ -276,7 +276,10 @@ final class ChromeAndroidTaskImpl
     @Override
     public Profile getProfile() {
         Profile profile = mProfileSupplier.get();
-        assert profile != null;
+        assert profile != null
+                : "ChromeAndroidTask supports BrowserWindowInterface, which assumes that the"
+                      + " associated profile will never be null for the lifetime of the window. See"
+                      + " documentation of BrowserWindowInterface::GetProfile() for details.";
         return profile;
     }
 

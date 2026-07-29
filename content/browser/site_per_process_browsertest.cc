@@ -5359,9 +5359,10 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
     std::string expected_console_message;
   } kTestCases[] = {
       {"/frame-ancestors-none.html", false,
-       "Refused to frame '" + reported_blocked_url.spec() +
-           "' because an ancestor violates the following Content Security "
-           "Policy directive: \"frame-ancestors 'none'\".\n"},
+       "Framing '" + reported_blocked_url.spec() +
+           "' violates the following Content Security "
+           "Policy directive: \"frame-ancestors 'none'\". The request has "
+           "been blocked.\n"},
       {"/x-frame-options-deny.html", true,
        "Refused to display '" + reported_blocked_url.spec() +
            "' in a frame because it set 'X-Frame-Options' to 'deny'."},
@@ -5374,7 +5375,7 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
     TitleWatcher title_watcher(shell()->web_contents(), expected_title);
 
     WebContentsConsoleObserver console_observer(shell()->web_contents());
-    console_observer.SetPattern("Refused to*");
+    console_observer.SetPattern("*'" + reported_blocked_url.spec() + "'*");
 
     // Navigate the subframe to a blocked URL.
     TestNavigationObserver load_observer(shell()->web_contents());
@@ -10858,7 +10859,7 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
   EXPECT_FALSE(second_shell_instance->IsRelatedSiteInstance(
       root->current_frame_host()->GetSiteInstance()));
   RenderProcessHost* bar_process = second_shell_instance->GetProcess();
-  EXPECT_EQ(ProcessReusePolicy::DEFAULT,
+  EXPECT_EQ(ProcessReusePolicy::kDefault,
             second_shell_instance->process_reuse_policy());
 
   // Now navigate the first tab's subframe to bar.com.  Confirm that it reuses
@@ -10867,7 +10868,7 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
   EXPECT_EQ(bar_url, child->current_url());
   EXPECT_EQ(bar_process, child->current_frame_host()->GetProcess());
   EXPECT_EQ(
-      ProcessReusePolicy::REUSE_PENDING_OR_COMMITTED_SITE_SUBFRAME,
+      ProcessReusePolicy::kReusePendingOrCommittedSiteSubframe,
       child->current_frame_host()->GetSiteInstance()->process_reuse_policy());
 
   EXPECT_TRUE(child->current_frame_host()->IsCrossProcessSubframe());
@@ -10959,7 +10960,7 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessNoSharingBrowserTest,
   EXPECT_EQ(foo_url, second_child->current_url());
   scoped_refptr<SiteInstanceImpl> second_child_foo_instance =
       second_child->current_frame_host()->GetSiteInstance();
-  EXPECT_EQ(ProcessReusePolicy::REUSE_PENDING_OR_COMMITTED_SITE_SUBFRAME,
+  EXPECT_EQ(ProcessReusePolicy::kReusePendingOrCommittedSiteSubframe,
             second_child_foo_instance->process_reuse_policy());
   EXPECT_NE(foo_instance, second_child_foo_instance);
   EXPECT_EQ(foo_instance->GetProcess(),
@@ -10989,9 +10990,9 @@ namespace {
 //
 // Reversing the order in which the commit messages are dispatched simulates a
 // busy renderer that takes a very long time to actually commit the navigation
-// to |deferred_url| after receiving FrameNavigationControl::CommitNavigation;
-// whereas there is a fast cross-site navigation taking place in the same
-// frame which starts second but finishes first.
+// to |deferred_url| after receiving DidCommitNavigation; whereas there is a
+// fast cross-site navigation taking place in the same frame which starts second
+// but finishes first.
 class CommitMessageOrderReverser : public DidCommitNavigationInterceptor {
  public:
   using DidStartDeferringCommitCallback =
@@ -14072,9 +14073,9 @@ IN_PROC_BROWSER_TEST_P(DisableProcessReusePolicyTest,
 
   scoped_refptr<SiteInstanceImpl> second_shell_instance =
       second_child->current_frame_host()->GetSiteInstance();
-  EXPECT_NE(ProcessReusePolicy::REUSE_PENDING_OR_COMMITTED_SITE_WORKER,
+  EXPECT_NE(ProcessReusePolicy::kReusePendingOrCommittedSiteWorker,
             second_shell_instance->process_reuse_policy());
-  EXPECT_NE(ProcessReusePolicy::REUSE_PENDING_OR_COMMITTED_SITE_SUBFRAME,
+  EXPECT_NE(ProcessReusePolicy::kReusePendingOrCommittedSiteSubframe,
             second_shell_instance->process_reuse_policy());
 
   EXPECT_NE(child->current_frame_host()->GetProcess(),
@@ -14682,6 +14683,63 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessWithSubframeProcessReuseThresholdsTest,
   histograms.ExpectBucketCount(
       "BrowserRenderProcessHost.SubframeProcessReuseThreshold.TotalFrames", 2,
       1);
+}
+
+class CrossProcessSubframeRenderProcessGoneLogger
+    : public ContentBrowserTestContentBrowserClient {
+ public:
+  CrossProcessSubframeRenderProcessGoneLogger() = default;
+  ~CrossProcessSubframeRenderProcessGoneLogger() override = default;
+
+  void CrossProcessSubframeRenderProcessGone(
+      RenderFrameHost* render_frame_host) override {
+    crashed_rfhs_.push_back(render_frame_host);
+  }
+
+  const std::vector<RenderFrameHost*>& crashed_rfhs() const {
+    return crashed_rfhs_;
+  }
+
+ private:
+  std::vector<RenderFrameHost*> crashed_rfhs_;
+};
+
+// Test that when a process hosting multiple subframes dies,
+// ContentBrowserClient::SubframeProcessGone is called for each of them.
+IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
+                       CrossProcessSubframeRenderProcessGone) {
+  // Install a client that counts the number of times
+  // CrossProcessSubframeRenderProcessGone is called.
+  CrossProcessSubframeRenderProcessGoneLogger test_client;
+  web_contents()->OnWebPreferencesChanged();
+
+  GURL main_url(embedded_test_server()->GetURL(
+      "a.com", "/cross_site_iframe_factory.html?a(b,b(c(b)))"));
+  EXPECT_TRUE(NavigateToURL(shell(), main_url));
+
+  FrameTreeNode* root = web_contents()->GetPrimaryFrameTree().root();
+  FrameTreeNode* child1 = root->child_at(0);
+  FrameTreeNode* child2 = root->child_at(1);
+  FrameTreeNode* grandchild = child2->child_at(0);
+  FrameTreeNode* great_grandchild = grandchild->child_at(0);
+
+  RenderFrameHost* rfh_b1 = child1->current_frame_host();
+  RenderFrameHost* rfh_b2 = child2->current_frame_host();
+  RenderFrameHost* rfh_b3 = great_grandchild->current_frame_host();
+
+  RenderProcessHost* b_process = child1->current_frame_host()->GetProcess();
+  EXPECT_EQ(b_process, child2->current_frame_host()->GetProcess());
+  EXPECT_EQ(b_process, great_grandchild->current_frame_host()->GetProcess());
+
+  RenderProcessHostWatcher crash_observer(
+      b_process, RenderProcessHostWatcher::WATCH_FOR_PROCESS_EXIT);
+  b_process->Shutdown(0);
+  crash_observer.Wait();
+
+  EXPECT_EQ(test_client.crashed_rfhs().size(), 2u);
+  EXPECT_TRUE(base::Contains(test_client.crashed_rfhs(), rfh_b1));
+  EXPECT_TRUE(base::Contains(test_client.crashed_rfhs(), rfh_b2));
+  EXPECT_FALSE(base::Contains(test_client.crashed_rfhs(), rfh_b3));
 }
 
 INSTANTIATE_TEST_SUITE_P(All,

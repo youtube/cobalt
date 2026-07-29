@@ -33,7 +33,7 @@
 #import "media/capture/video/mac/video_capture_metrics_mac.h"
 #endif
 
-BASE_FEATURE(VideoCaptureDeviceFactoryAppleLogging,
+BASE_FEATURE(kVideoCaptureDeviceFactoryAppleLogging,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 namespace {
@@ -98,6 +98,88 @@ bool IsDeviceBlocked(const media::VideoCaptureDeviceDescriptor& descriptor) {
       << "Blocked camera: " << descriptor.display_name()
       << ", id: " << descriptor.device_id;
   return is_device_blocked;
+}
+
+// TODO(crbug.com/436126054) remove these functions after issue is resolved.
+void API_AVAILABLE(macos(14.0)) ListAvailableCaptureDevices() {
+  NSArray* deviceTypes = @[
+    AVCaptureDeviceTypeBuiltInWideAngleCamera,
+    AVCaptureDeviceTypeContinuityCamera, AVCaptureDeviceTypeExternal,
+    AVCaptureDeviceTypeMicrophone
+  ];
+
+  AVCaptureDeviceDiscoverySession* deviceDiscoverySession =
+      [AVCaptureDeviceDiscoverySession
+          discoverySessionWithDeviceTypes:deviceTypes
+                                mediaType:nil
+                                 position:AVCaptureDevicePositionUnspecified];
+
+  if ([deviceDiscoverySession.devices count] == 0) {
+    LOG(ERROR) << "Simple Query - No AVCaptureDevices found.";
+  } else {
+    for (AVCaptureDevice* device in deviceDiscoverySession.devices) {
+      LOG(ERROR) << "Simple Query - Device Name:"
+                 << base::SysNSStringToUTF8(device.localizedName)
+                 << " Unique ID:" << base::SysNSStringToUTF8(device.uniqueID)
+                 << " Model ID:" << base::SysNSStringToUTF8(device.modelID)
+                 << " Type:" << base::SysNSStringToUTF8(device.deviceType)
+                 << " Position:" << [device position];
+    }
+  }
+}
+
+// TODO(crbug.com/436126054) remove these functions after issue is resolved.
+void API_AVAILABLE(macos(14.0)) ListAvailableCaptureDevicesNoMic() {
+  NSArray* deviceTypes = @[
+    AVCaptureDeviceTypeBuiltInWideAngleCamera,
+    AVCaptureDeviceTypeContinuityCamera, AVCaptureDeviceTypeExternal
+  ];
+
+  AVCaptureDeviceDiscoverySession* deviceDiscoverySession =
+      [AVCaptureDeviceDiscoverySession
+          discoverySessionWithDeviceTypes:deviceTypes
+                                mediaType:nil
+                                 position:AVCaptureDevicePositionUnspecified];
+
+  if ([deviceDiscoverySession.devices count] == 0) {
+    LOG(ERROR) << "Simple Query NoMic - No AVCaptureDevices found.";
+  } else {
+    for (AVCaptureDevice* device in deviceDiscoverySession.devices) {
+      LOG(ERROR) << "Simple Query NoMic - Device Name:"
+                 << base::SysNSStringToUTF8(device.localizedName)
+                 << " Unique ID:" << base::SysNSStringToUTF8(device.uniqueID)
+                 << " Model ID:" << base::SysNSStringToUTF8(device.modelID)
+                 << " Type:" << base::SysNSStringToUTF8(device.deviceType)
+                 << " Position:" << [device position];
+    }
+  }
+}
+
+// TODO(crbug.com/436126054) remove these functions after issue is resolved.
+void API_AVAILABLE(macos(14.0)) ListAvailableCaptureDevicesMediaType() {
+  NSArray* deviceTypes = @[
+    AVCaptureDeviceTypeBuiltInWideAngleCamera,
+    AVCaptureDeviceTypeContinuityCamera, AVCaptureDeviceTypeExternal
+  ];
+
+  AVCaptureDeviceDiscoverySession* deviceDiscoverySession =
+      [AVCaptureDeviceDiscoverySession
+          discoverySessionWithDeviceTypes:deviceTypes
+                                mediaType:AVMediaTypeVideo
+                                 position:AVCaptureDevicePositionUnspecified];
+
+  if ([deviceDiscoverySession.devices count] == 0) {
+    LOG(ERROR) << "Simple Query MediaType - No AVCaptureDevices found.";
+  } else {
+    for (AVCaptureDevice* device in deviceDiscoverySession.devices) {
+      LOG(ERROR) << "Simple Query MediaType - Device Name:"
+                 << base::SysNSStringToUTF8(device.localizedName)
+                 << " Unique ID:" << base::SysNSStringToUTF8(device.uniqueID)
+                 << " Model ID:" << base::SysNSStringToUTF8(device.modelID)
+                 << " Type:" << base::SysNSStringToUTF8(device.deviceType)
+                 << " Position:" << [device position];
+    }
+  }
 }
 
 }  // anonymous namespace
@@ -165,6 +247,15 @@ void VideoCaptureDeviceFactoryApple::GetDevicesInfo(
 #if BUILDFLAG(IS_IOS)
   bool default_set = false;
 #endif
+  // available() must be in it's own separate if statement.
+  if (@available(macOS 14.0, *)) {
+    if (debug_logging_enabled) {
+      ListAvailableCaptureDevices();
+      ListAvailableCaptureDevicesNoMic();
+      ListAvailableCaptureDevicesMediaType();
+    }
+  }
+
   for (AVCaptureDevice* device in devices) {
     if ([device hasMediaType:AVMediaTypeVideo] ||
         [device hasMediaType:AVMediaTypeMuxed]) {

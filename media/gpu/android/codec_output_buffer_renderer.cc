@@ -17,7 +17,7 @@
 
 namespace media {
 namespace {
-BASE_FEATURE(HandleUpdateTexImageFailures, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kHandleUpdateTexImageFailures, base::FEATURE_ENABLED_BY_DEFAULT);
 }
 
 CodecOutputBufferRenderer::CodecOutputBufferRenderer(

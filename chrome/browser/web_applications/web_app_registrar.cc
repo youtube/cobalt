@@ -32,6 +32,7 @@
 #include "base/strings/to_string.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/web_applications/commands/manifest_silent_update_command.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom-data-view.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom-shared.h"
@@ -40,7 +41,7 @@
 #include "chrome/browser/web_applications/proto/web_app.pb.h"
 #include "chrome/browser/web_applications/proto/web_app_install_state.pb.h"
 #include "chrome/browser/web_applications/proto/web_app_os_integration_state.pb.h"
-#include "chrome/browser/web_applications/tabbed_mode_scope_matcher.h"
+#include "chrome/browser/web_applications/url_pattern_with_regex_matcher.h"
 #include "chrome/browser/web_applications/web_app.h"
 #include "chrome/browser/web_applications/web_app_constants.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
@@ -437,6 +438,17 @@ void WebAppRegistrar::NotifyWebAppUserLinkCapturingPreferencesChanged(
   }
 }
 #endif  // !BUILDFLAG(IS_CHROMEOS)
+
+void WebAppRegistrar::NotifyPendingUpdateInfoChanged(
+    const webapps::AppId& app_id,
+    bool pending_update_available,
+    base::PassKey<ManifestSilentUpdateCommand>) {
+  DVLOG(1) << "NotifyPendingUpdateInfoChanged " << app_id << ", "
+           << pending_update_available;
+  for (WebAppRegistrarObserver& observer : observers_) {
+    observer.OnWebAppPendingUpdateChanged(app_id, pending_update_available);
+  }
+}
 
 base::flat_map<webapps::AppId, base::flat_set<GURL>>
 WebAppRegistrar::GetExternallyInstalledApps(

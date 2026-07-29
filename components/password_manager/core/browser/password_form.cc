@@ -164,6 +164,8 @@ void PasswordFormToJSON(const PasswordForm& form, base::Value::Dict& target) {
              AlternativeElementVectorToString(form.all_alternative_passwords));
   target.Set("blocked_by_user", form.blocked_by_user);
   target.Set("date_last_used", form.date_last_used.InSecondsFSinceUnixEpoch());
+  target.Set("date_last_filled",
+             form.date_last_filled.InSecondsFSinceUnixEpoch());
   target.Set("date_password_modified",
              form.date_password_modified.InSecondsFSinceUnixEpoch());
   target.Set("date_created", form.date_created.InSecondsFSinceUnixEpoch());
@@ -456,7 +458,17 @@ std::optional<base::Time> PasswordForm::GetPasswordBackupDateCreated() const {
 }
 
 void PasswordForm::SetPasswordBackupNote(const std::u16string& new_note_value) {
-  SetNote(notes, PasswordNote::kPasswordChangeBackupNoteName, new_note_value);
+  auto note_itr =
+      std::ranges::find(notes, PasswordNote::kPasswordChangeBackupNoteName,
+                        &PasswordNote::unique_display_name);
+  if (note_itr != notes.end()) {
+    note_itr->value = new_note_value;
+    note_itr->date_created = base::Time::Now();
+  } else {
+    notes.emplace_back(PasswordNote::kPasswordChangeBackupNoteName,
+                       new_note_value, base::Time::Now(),
+                       /*hide_by_default=*/false);
+  }
 }
 
 void PasswordForm::DeletePasswordBackupNote() {

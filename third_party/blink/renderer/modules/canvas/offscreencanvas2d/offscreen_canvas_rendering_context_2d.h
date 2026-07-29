@@ -24,6 +24,7 @@ namespace blink {
 
 class CanvasResourceProvider;
 class ExceptionState;
+class ExecutionContext;
 class MemoryManagedPaintCanvas;
 
 class MODULES_EXPORT OffscreenCanvasRenderingContext2D final
@@ -38,6 +39,7 @@ class MODULES_EXPORT OffscreenCanvasRenderingContext2D final
     ~Factory() override = default;
 
     CanvasRenderingContext* Create(
+        ExecutionContext*,
         CanvasRenderingContextHost* host,
         const CanvasContextCreationAttributesCore& attrs) override;
 
@@ -83,7 +85,6 @@ class MODULES_EXPORT OffscreenCanvasRenderingContext2D final
   int Height() const final;
 
   bool CanCreateCanvas2dResourceProvider() final;
-  CanvasResourceProvider* GetResourceProviderForCanvas2D() const override;
 
   // Offscreen canvas doesn't have any notion of image orientation.
   RespectImageOrientationEnum RespectImageOrientation() const final {
@@ -150,6 +151,7 @@ class MODULES_EXPORT OffscreenCanvasRenderingContext2D final
   bool ResolveFont(const String& new_font) override;
 
  private:
+  CanvasResourceProvider* GetResourceProvider() const override;
   void FinalizeFrame(FlushReason) final;
 
   bool IsPaintable() const final;

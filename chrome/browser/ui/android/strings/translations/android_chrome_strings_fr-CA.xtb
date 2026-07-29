@@ -632,6 +632,7 @@ Seule une personne connaissant votre phrase de passe peut lire vos données chif
 <translation id="4042941173059740150">Continuer jusqu'à <ph name="SITE_ETLD_PLUS_ONE" /> avec <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /></translation>
 <translation id="4044708993631234325">Page de contenu en bas de l'écran</translation>
 <translation id="4045441967987592849">Rouvrir</translation>
+<translation id="4049920046559074950">Plus d'options pour <ph name="INSTANCE_TITLE" /></translation>
 <translation id="4052419222954753986">{NUMBER_OF_TABS,plural, =1{<ph name="TABS_COUNT_ONE" /> onglet standard avec nouvelle activité dans les groupes d'onglets partagés}one{<ph name="TABS_COUNT_MANY" /> onglet standard avec nouvelle activité dans les groupes d'onglets partagés}other{<ph name="TABS_COUNT_MANY" /> onglets standards avec nouvelle activité dans les groupes d'onglets partagés}}</translation>
 <translation id="405365679581583349">Mettez à jour les services Google Play</translation>
 <translation id="405399507749852140">Obtenez des alertes si le prix est réduit sur un site</translation>
@@ -1830,6 +1831,7 @@ Pour modifier ce paramètre, <ph name="BEGIN_LINK" />supprimez les données Chro
 <translation id="930124987204876019">Supprimer l'historique, les témoins, les données relatives aux sites, le cache…</translation>
 <translation id="938850635132480979">Erreur : <ph name="ERROR_CODE" /></translation>
 <translation id="939598580284253335">Entrer la phrase de passe</translation>
+<translation id="945522503751344254">Envoyer un commentaire à Google</translation>
 <translation id="95817756606698420">Google Chrome peut faire appel à <ph name="BEGIN_BOLD" />Sogou<ph name="END_BOLD" /> pour effectuer des recherches en Chine. Vous pouvez modifier cette option dans les <ph name="BEGIN_LINK" />Paramètres<ph name="END_LINK" />.</translation>
 <translation id="961856697154696964">Supp. données de navigation</translation>
 <translation id="963246339335003378">Ouvrir le gestionnaire de tâches</translation>

@@ -22,7 +22,7 @@ class BrowserNonClientFrameView;
 class BrowserRootView;
 enum class BrowserThemeChangeType;
 class BrowserView;
-class NativeBrowserFrame;
+class BrowserNativeWidget;
 class SystemMenuModelBuilder;
 
 namespace input {
@@ -114,9 +114,6 @@ class BrowserFrame : public views::Widget, public views::ContextMenuController {
   // Returns true when the window placement should be saved.
   bool ShouldSaveWindowPlacement() const;
 
-  // Returns true when a frame header should be drawn.
-  virtual bool ShouldDrawFrameHeader() const;
-
   // Retrieves the window placement (show state and bounds) for restoring.
   void GetWindowPlacement(gfx::Rect* bounds,
                           ui::mojom::WindowShowState* show_state) const;
@@ -150,6 +147,7 @@ class BrowserFrame : public views::Widget, public views::ContextMenuController {
   ui::ColorProviderKey::ThemeInitializerSupplier* GetCustomTheme()
       const override;
   void OnNativeWidgetWorkspaceChanged() override;
+  void OnNativeWidgetDestroyed() override;
 
   // views::ContextMenuController:
   void ShowContextMenuForViewImpl(
@@ -165,8 +163,8 @@ class BrowserFrame : public views::Widget, public views::ContextMenuController {
   // Note that in multi user mode this will upon each call create a new model.
   ui::MenuModel* GetSystemMenuModel();
 
-  NativeBrowserFrame* native_browser_frame() const {
-    return native_browser_frame_;
+  BrowserNativeWidget* browser_native_widget() const {
+    return browser_native_widget_;
   }
 
   void SetTabDragKind(TabDragKind tab_drag_kind);
@@ -195,7 +193,7 @@ class BrowserFrame : public views::Widget, public views::ContextMenuController {
   // Returns true if the browser instance belongs to an incognito profile.
   bool IsIncognitoBrowser() const;
 
-  raw_ptr<NativeBrowserFrame> native_browser_frame_;
+  raw_ptr<BrowserNativeWidget> browser_native_widget_;
 
   // A weak reference to the root view associated with the window. We save a
   // copy as a BrowserRootView to avoid evil casting later, when we need to call
@@ -211,7 +209,7 @@ class BrowserFrame : public views::Widget, public views::ContextMenuController {
   std::unique_ptr<SystemMenuModelBuilder> menu_model_builder_;
 
   // Used to show the system menu. Only used if
-  // NativeBrowserFrame::UsesNativeSystemMenu() returns false.
+  // BrowserNativeWidget::UsesNativeSystemMenu() returns false.
   std::unique_ptr<views::MenuRunner> menu_runner_;
 
   base::CallbackListSubscription subscription_ =

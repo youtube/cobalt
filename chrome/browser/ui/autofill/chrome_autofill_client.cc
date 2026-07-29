@@ -124,6 +124,7 @@
 #include "components/signin/public/base/signin_metrics.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
+#include "components/strike_database/strike_database.h"
 #include "components/sync/service/sync_service.h"
 #include "components/translate/core/browser/translate_manager.h"
 #include "components/unified_consent/pref_names.h"
@@ -632,7 +633,7 @@ ChromeAutofillClient::GetPaymentsAutofillClient() {
   return &payments_autofill_client_;
 }
 
-StrikeDatabase* ChromeAutofillClient::GetStrikeDatabase() {
+strike_database::StrikeDatabase* ChromeAutofillClient::GetStrikeDatabase() {
   Profile* profile =
       Profile::FromBrowserContext(web_contents()->GetBrowserContext());
   // No need to return a StrikeDatabase in incognito mode. It is primarily
@@ -777,15 +778,16 @@ void ChromeAutofillClient::ShowAutofillSettings(
 void ChromeAutofillClient::ConfirmSaveAddressProfile(
     const AutofillProfile& profile,
     const AutofillProfile* original_profile,
-    bool is_migration_to_account,
+    SaveAddressBubbleType save_address_bubble_type,
     AddressProfileSavePromptCallback callback) {
 #if BUILDFLAG(IS_ANDROID)
   save_update_address_profile_flow_manager_->OfferSave(
-      web_contents(), profile, original_profile, is_migration_to_account,
+      web_contents(), profile, original_profile,
+      save_address_bubble_type == SaveAddressBubbleType::kMigrateToAccount,
       std::move(callback));
 #else
   AddressBubblesController::SetUpAndShowSaveOrUpdateAddressBubble(
-      web_contents(), profile, original_profile, is_migration_to_account,
+      web_contents(), profile, original_profile, save_address_bubble_type,
       !GetPersonalDataManager().address_data_manager().GetProfiles().empty(),
       std::move(callback));
 #endif

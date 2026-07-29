@@ -8,11 +8,10 @@ import android.animation.AnimatorListenerAdapter;
 import android.graphics.PointF;
 import android.view.View;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-
 import org.chromium.base.Token;
 import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.compositor.overlays.strip.AnimationHost;
 import org.chromium.chrome.browser.compositor.overlays.strip.ScrollDelegate;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutGroupTitle;
@@ -32,13 +31,14 @@ import java.util.List;
 import java.util.function.Supplier;
 
 /** Drag and drop reorder - drag external view onto / out-of strip and reorder within strip. */
+@NullMarked
 public class ExternalViewDragDropReorderStrategy extends ReorderStrategyBase {
     // View on the strip being hovered on by the dragged view.
-    private StripLayoutView mInteractingView;
+    private @Nullable StripLayoutView mInteractingView;
 
     // View on the strip last hovered on by dragged view. This can be used post stop reorder to
     // handle drop event (eg: re-parenting dropped tab).
-    private StripLayoutView mInteractingViewDuringStop;
+    private @Nullable StripLayoutView mInteractingViewDuringStop;
 
     ExternalViewDragDropReorderStrategy(
             ReorderDelegate reorderDelegate,
@@ -48,7 +48,7 @@ public class ExternalViewDragDropReorderStrategy extends ReorderStrategyBase {
             TabModel model,
             TabGroupModelFilter tabGroupModelFilter,
             View containerView,
-            ObservableSupplierImpl<Token> groupIdToHideSupplier,
+            ObservableSupplierImpl<@Nullable Token> groupIdToHideSupplier,
             Supplier<Float> tabWidthSupplier,
             Supplier<Long> lastReorderScrollTimeSupplier) {
         super(
@@ -70,7 +70,7 @@ public class ExternalViewDragDropReorderStrategy extends ReorderStrategyBase {
             StripLayoutView[] stripViews,
             StripLayoutTab[] stripTabs,
             StripLayoutGroupTitle[] stripGroupTitles,
-            @NonNull StripLayoutView interactingView,
+            StripLayoutView interactingView,
             PointF startPoint) {
         // 1. Set initial state and add edge margins.
         mInteractingView = interactingView;
@@ -102,7 +102,7 @@ public class ExternalViewDragDropReorderStrategy extends ReorderStrategyBase {
             float deltaX,
             @ReorderType int reorderType) {
         // 1. Adjust by a half tab-width so that we target the nearest tab gap.
-        boolean isDraggedItemPinned = TabStripDragHandler.isDraggedItemPinned();
+        boolean isDraggedItemPinned = TabStripDragHandler.isDraggingPinnedItem();
         float adjustedXForDrop =
                 StripLayoutUtils.adjustXForTabDrop(endX, mTabWidthSupplier, isDraggedItemPinned);
 
@@ -176,10 +176,7 @@ public class ExternalViewDragDropReorderStrategy extends ReorderStrategyBase {
     public void stopReorderMode(StripLayoutView[] stripViews, StripLayoutGroupTitle[] groupTitles) {
         List<Animator> animatorList = new ArrayList<>();
         mInteractingViewDuringStop = mInteractingView;
-        Runnable onAnimationEnd =
-                () -> {
-                    mInteractingView = null;
-                };
+        Runnable onAnimationEnd = () -> mInteractingView = null;
         handleStopReorderMode(
                 stripViews,
                 groupTitles,
@@ -190,7 +187,7 @@ public class ExternalViewDragDropReorderStrategy extends ReorderStrategyBase {
     }
 
     @Override
-    public StripLayoutView getInteractingView() {
+    public @Nullable StripLayoutView getInteractingView() {
         return mInteractingView;
     }
 
@@ -198,7 +195,7 @@ public class ExternalViewDragDropReorderStrategy extends ReorderStrategyBase {
     public boolean shouldAllowAutoScroll() {
         // Do not allow auto-scroll when a pinned tab is dragged over unpinned tabs; pinned tabs can
         // only be dropped into the pinned section.
-        return !TabStripDragHandler.isDraggedItemPinned();
+        return !TabStripDragHandler.isDraggingPinnedItem();
     }
 
     /** Merges dropped tabs to interacting view's tab group, if one exists. */
@@ -208,7 +205,7 @@ public class ExternalViewDragDropReorderStrategy extends ReorderStrategyBase {
         @Nullable StripLayoutGroupTitle groupTitle;
         final int destinationTabId;
         if (mInteractingViewDuringStop instanceof StripLayoutTab interactingStripTab) {
-            Tab interactingTab = mModel.getTabById(interactingStripTab.getTabId());
+            Tab interactingTab = mModel.getTabByIdChecked(interactingStripTab.getTabId());
             groupTitle =
                     StripLayoutUtils.findGroupTitle(groupTitles, interactingTab.getTabGroupId());
             destinationTabId = interactingTab.getId();
@@ -274,11 +271,12 @@ public class ExternalViewDragDropReorderStrategy extends ReorderStrategyBase {
             StripLayoutTab[] stripTabs, StripLayoutView interactingView, boolean isInteracting) {
         if (!isInteracting) return false;
 
-        if (TabStripDragHandler.isDraggedItemPinned() != isHoveredViewPinned(interactingView)) {
+        if (TabStripDragHandler.isDraggingPinnedItem() != isHoveredViewPinned(interactingView)) {
             return StripLayoutUtils.isLastPinnedTab(stripTabs, interactingView);
         }
 
-        if (TabStripDragHandler.canMergeIntoGroupOnDrop()) return true;
+        // If the dragged item is a tab (not a group) and it’s unpinned, allow merge into a group.
+        if (TabStripDragHandler.isDraggingUnpinnedTab()) return true;
 
         // Skip applying trailing margin for grouped views (like expanded group titles or tabs) when
         // merging on drop is not allowed.
@@ -299,7 +297,7 @@ public class ExternalViewDragDropReorderStrategy extends ReorderStrategyBase {
     // IN-TEST
     // ============================================================================================
 
-    StripLayoutView getInteractingViewDuringStopForTesting() {
+    @Nullable StripLayoutView getInteractingViewDuringStopForTesting() {
         return mInteractingViewDuringStop;
     }
 }

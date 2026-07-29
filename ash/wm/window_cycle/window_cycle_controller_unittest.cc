@@ -184,7 +184,7 @@ class WindowCycleListTestApi {
 };
 
 using aura::Window;
-using aura::test::CreateTestWindowWithId;
+
 using aura::test::TestWindowDelegate;
 
 class WindowCycleControllerTest : public AshTestBase {
@@ -402,8 +402,8 @@ TEST_F(WindowCycleControllerTest, HandleCycleWindow) {
   // When a modal window is active, cycling window does not take effect.
   aura::Window* modal_container = Shell::GetContainer(
       Shell::GetPrimaryRootWindow(), kShellWindowId_SystemModalContainer);
-  std::unique_ptr<Window> modal_window(
-      CreateTestWindowWithId(-2, modal_container));
+  std::unique_ptr<Window> modal_window =
+      aura::test::CreateTestWindow({.window_id = -2}, modal_container);
   modal_window->SetProperty(aura::client::kModalKey,
                             ui::mojom::ModalType::kSystem);
   wm::ActivateWindow(modal_window.get());
@@ -532,7 +532,8 @@ TEST_F(WindowCycleControllerTest, AlwaysOnTopWindow) {
 
   Window* top_container = Shell::GetContainer(
       Shell::GetPrimaryRootWindow(), kShellWindowId_AlwaysOnTopContainer);
-  std::unique_ptr<Window> window2(CreateTestWindowWithId(2, top_container));
+  std::unique_ptr<Window> window2 =
+      aura::test::CreateTestWindow({.window_id = 2}, top_container);
   wm::ActivateWindow(window0.get());
 
   // Simulate pressing and releasing Alt-tab.
@@ -559,8 +560,10 @@ TEST_F(WindowCycleControllerTest, AlwaysOnTopMultiWindow) {
 
   Window* top_container = Shell::GetContainer(
       Shell::GetPrimaryRootWindow(), kShellWindowId_AlwaysOnTopContainer);
-  std::unique_ptr<Window> window2(CreateTestWindowWithId(2, top_container));
-  std::unique_ptr<Window> window3(CreateTestWindowWithId(3, top_container));
+  std::unique_ptr<Window> window2 =
+      aura::test::CreateTestWindow({.window_id = 2}, top_container);
+  std::unique_ptr<Window> window3 =
+      aura::test::CreateTestWindow({.window_id = 3}, top_container);
   wm::ActivateWindow(window0.get());
 
   // Simulate pressing and releasing Alt-tab.
@@ -592,7 +595,8 @@ TEST_F(WindowCycleControllerTest, AlwaysOnTopMultipleRootWindows) {
   EXPECT_EQ(root_windows[0], window0->GetRootWindow());
   Window* top_container0 =
       Shell::GetContainer(root_windows[0], kShellWindowId_AlwaysOnTopContainer);
-  std::unique_ptr<Window> window1(CreateTestWindowWithId(1, top_container0));
+  std::unique_ptr<Window> window1 =
+      aura::test::CreateTestWindow({.window_id = 1}, top_container0);
   EXPECT_EQ(root_windows[0], window1->GetRootWindow());
 
   // Move the active root window to the secondary root and create two windows.
@@ -602,7 +606,8 @@ TEST_F(WindowCycleControllerTest, AlwaysOnTopMultipleRootWindows) {
 
   Window* top_container1 =
       Shell::GetContainer(root_windows[1], kShellWindowId_AlwaysOnTopContainer);
-  std::unique_ptr<Window> window3(CreateTestWindowWithId(3, top_container1));
+  std::unique_ptr<Window> window3 =
+      aura::test::CreateTestWindow({.window_id = 3}, top_container1);
   EXPECT_EQ(root_windows[1], window3->GetRootWindow());
 
   wm::ActivateWindow(window2.get());
@@ -3181,7 +3186,7 @@ class MultiUserWindowCycleControllerTest : public NoSessionAshTestBase {
   ~MultiUserWindowCycleControllerTest() override = default;
 
   MultiUserWindowManager* multi_user_window_manager() {
-    return multi_user_window_manager_.get();
+    return Shell::Get()->multi_user_window_manager();
   }
 
   void SetUp() override {
@@ -3193,6 +3198,10 @@ class MultiUserWindowCycleControllerTest : public NoSessionAshTestBase {
     shelf_view_test_->SetAnimationDuration(base::Milliseconds(1));
 
     generator_ = GetEventGenerator();
+
+    CHECK(MultiUserWindowManagerImpl::Get());
+    MultiUserWindowManagerImpl::Get()->SetAnimationSpeedForTest(
+        MultiUserWindowManagerImpl::ANIMATION_SPEED_DISABLED);
   }
 
   void TearDown() override {
@@ -3244,20 +3253,6 @@ class MultiUserWindowCycleControllerTest : public NoSessionAshTestBase {
 
   void SwitchActiveUser(const AccountId& account_id) {
     GetSessionControllerClient()->SwitchActiveUser(account_id);
-  }
-
-  void SimulateUserLogin(const AccountId& account_id) {
-    AshTestBase::SimulateUserLogin(account_id);
-    // TODO(crbug.com/425160398): Currently on the production,
-    // MultiUserWindowManager is created after primary user login.
-    // We should move the initialization.
-    if (!multi_user_window_manager_) {
-      multi_user_window_manager_ = MultiUserWindowManager::Create();
-      multi_user_window_manager_->SetPrimaryUser(account_id);
-      CHECK(MultiUserWindowManagerImpl::Get());
-      MultiUserWindowManagerImpl::Get()->SetAnimationSpeedForTest(
-          MultiUserWindowManagerImpl::ANIMATION_SPEED_DISABLED);
-    }
   }
 
   const aura::Window::Windows GetWindows(WindowCycleController* controller) {

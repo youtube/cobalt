@@ -46,9 +46,11 @@ void CreateWebGPUGraphicsContextOnMainThreadAsync(
 }  // namespace
 
 std::unique_ptr<WebGraphicsContext3DProvider>
-CreateRasterGraphicsContextProvider(const KURL& url) {
+CreateRasterGraphicsContextProvider(const KURL& url,
+                                    Platform::RasterContextType context_type) {
   if (IsMainThread()) {
-    return Platform::Current()->CreateRasterGraphicsContextProvider(url);
+    return Platform::Current()->CreateRasterGraphicsContextProvider(
+        url, context_type);
   } else {
     base::WaitableEvent waitable_event;
     std::unique_ptr<WebGraphicsContext3DProvider> created_context_provider;
@@ -57,7 +59,7 @@ CreateRasterGraphicsContextProvider(const KURL& url) {
             AccessMainThreadForWebGraphicsContext3DProvider()),
         FROM_HERE,
         CrossThreadBindOnce(
-            [](const KURL& url,
+            [](const KURL& url, Platform::RasterContextType context_type,
                std::unique_ptr<WebGraphicsContext3DProvider>* out_provider,
                base::WaitableEvent* waitable_event) {
               DCHECK(IsMainThread());
@@ -65,10 +67,11 @@ CreateRasterGraphicsContextProvider(const KURL& url) {
               // when making the context. The context will be lost if the mode
               // changes.
               *out_provider =
-                  Platform::Current()->CreateRasterGraphicsContextProvider(url);
+                  Platform::Current()->CreateRasterGraphicsContextProvider(
+                      url, context_type);
               waitable_event->Signal();
             },
-            url, CrossThreadUnretained(&created_context_provider),
+            url, context_type, CrossThreadUnretained(&created_context_provider),
             CrossThreadUnretained(&waitable_event)));
     waitable_event.Wait();
     return created_context_provider;
@@ -78,8 +81,8 @@ CreateRasterGraphicsContextProvider(const KURL& url) {
 std::unique_ptr<WebGraphicsContext3DProvider>
 CreateWebGLGraphicsContextProvider(bool prefer_low_power_gpu,
                                    bool fail_if_major_performance_caveat,
-                                   Platform::ContextType context_type,
-                                   Platform::GraphicsInfo* gl_info,
+                                   Platform::WebGLContextType context_type,
+                                   Platform::WebGLContextInfo* gl_info,
                                    const KURL& url) {
   if (IsMainThread()) {
     return Platform::Current()->CreateWebGLGraphicsContextProvider(
@@ -94,12 +97,12 @@ CreateWebGLGraphicsContextProvider(bool prefer_low_power_gpu,
         FROM_HERE,
         CrossThreadBindOnce(
             [](bool prefer_low_power_gpu, bool fail_if_major_performance_caveat,
-               Platform::ContextType context_type,
-               Platform::GraphicsInfo* gl_info, const KURL& url,
+               Platform::WebGLContextType context_type,
+               Platform::WebGLContextInfo* gl_info, const KURL& url,
                std::unique_ptr<WebGraphicsContext3DProvider>* out_provider,
                base::WaitableEvent* waitable_event) {
               DCHECK(IsMainThread());
-              // The gpu compositing mode is snapshotted in the GraphicsInfo
+              // The gpu compositing mode is snapshotted in the WebGLContextInfo
               // when making the context. The context will be lost if the mode
               // changes.
               *out_provider =

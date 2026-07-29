@@ -26,7 +26,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 using testing::_;
-using testing::Invoke;
 
 class DevToolsUIBindingsTest : public testing::Test {};
 
@@ -224,13 +223,9 @@ class DevToolsUIBindingsDispatchHttpRequestTest : public testing::Test {
     auto registry = std::make_unique<DevToolsHttpServiceRegistry>();
     auto mock_handler = base::WrapUnique(new MockServiceHandler());
     mock_handler_ptr_ = mock_handler.get();
-    registry->AddForTesting(
-        DevToolsHttpServiceRegistry::Service("mockService",
-                                             {
-                                                 {"/getFoo", "GET"},
-                                                 {"/postBar", "POST"},
-                                             },
-                                             std::move(mock_handler)));
+    registry->AddForTesting(DevToolsHttpServiceRegistry::Service(
+        "mockService", {{"/getFoo", "GET"}, {"/postBar", "POST"}},
+        std::move(mock_handler)));
     bindings_->SetHttpServiceRegistryForTesting(std::move(registry));
   }
 
@@ -243,24 +238,15 @@ class DevToolsUIBindingsDispatchHttpRequestTest : public testing::Test {
   };
 
   void DispatchHttpRequest(DevToolsUIBindings::DispatchCallback callback,
-                           const std::string& service,
-                           const std::string& path,
-                           const std::string& method,
-                           const std::optional<std::string>& body) {
-    DevToolsDispatchHttpRequestParams params;
-    params.service = service;
-    params.path = path;
-    params.method = method;
-    params.body = body;
+                           const DevToolsDispatchHttpRequestParams& params) {
     bindings_->DispatchHttpRequest(std::move(callback), params);
   }
 
   void ExpectCanMakeRequest(bool can_make_request) {
     EXPECT_CALL(*mock_handler_ptr_, CanMakeRequest(_, _))
-        .WillOnce(
-            Invoke([=](Profile*, base::OnceCallback<void(bool)> callback) {
-              std::move(callback).Run(can_make_request);
-            }));
+        .WillOnce([=](Profile*, base::OnceCallback<void(bool)> callback) {
+          std::move(callback).Run(can_make_request);
+        });
   }
 
   // Helper to configure a response for a specific URL.
@@ -327,10 +313,14 @@ class DevToolsUIBindingsDispatchHttpRequestTest : public testing::Test {
 TEST_F(DevToolsUIBindingsDispatchHttpRequestTest,
        DispatchHttpRequestUnknownService) {
   base::Value::Dict result;
+  DevToolsDispatchHttpRequestParams params;
+  params.service = "unknownService";
+  params.path = "/path";
+  params.method = "GET";
   DispatchHttpRequest(base::BindLambdaForTesting([&](const base::Value* value) {
                         result = value->GetDict().Clone();
                       }),
-                      "unknownService", "/path", "GET", std::nullopt);
+                      params);
 
   EXPECT_EQ(*result.FindString("error"), "Service not found");
 }
@@ -339,11 +329,15 @@ TEST_F(DevToolsUIBindingsDispatchHttpRequestTest,
        DispatchHttpRequestDisallowedPath) {
   base::Value::Dict result;
   base::RunLoop run_loop;
+  DevToolsDispatchHttpRequestParams params;
+  params.service = "mockService";
+  params.path = "/disallowedPath";
+  params.method = "GET";
   DispatchHttpRequest(base::BindLambdaForTesting([&](const base::Value* value) {
                         result = value->GetDict().Clone();
                         run_loop.Quit();
                       }),
-                      "mockService", "/disallowedPath", "GET", std::nullopt);
+                      params);
   run_loop.Run();
   EXPECT_EQ(*result.FindString("error"), "Disallowed path or method");
 }
@@ -354,11 +348,15 @@ TEST_F(DevToolsUIBindingsDispatchHttpRequestTest,
 
   base::RunLoop run_loop;
   base::Value::Dict result;
+  DevToolsDispatchHttpRequestParams params;
+  params.service = "mockService";
+  params.path = "/getFoo";
+  params.method = "GET";
   DispatchHttpRequest(base::BindLambdaForTesting([&](const base::Value* value) {
                         result = value->GetDict().Clone();
                         run_loop.Quit();
                       }),
-                      "mockService", "/getFoo", "GET", std::nullopt);
+                      params);
   run_loop.Run();
 
   EXPECT_EQ(*result.FindString("error"), "Request validation failed");
@@ -371,11 +369,15 @@ TEST_F(DevToolsUIBindingsDispatchHttpRequestTest,
       "test@google.com", signin::ConsentLevel::kSignin);
   base::RunLoop run_loop;
   base::Value::Dict result;
+  DevToolsDispatchHttpRequestParams params;
+  params.service = "mockService";
+  params.path = "/getFoo";
+  params.method = "GET";
   DispatchHttpRequest(base::BindLambdaForTesting([&](const base::Value* value) {
                         result = value->GetDict().Clone();
                         run_loop.Quit();
                       }),
-                      "mockService", "/getFoo", "GET", std::nullopt);
+                      params);
 
   identity_test_env_adaptor()
       ->identity_test_env()
@@ -396,11 +398,15 @@ TEST_F(DevToolsUIBindingsDispatchHttpRequestTest,
 
   base::RunLoop run_loop;
   base::Value::Dict result;
+  DevToolsDispatchHttpRequestParams params;
+  params.service = "mockService";
+  params.path = "/getFoo";
+  params.method = "GET";
   DispatchHttpRequest(base::BindLambdaForTesting([&](const base::Value* value) {
                         result = value->GetDict().Clone();
                         run_loop.Quit();
                       }),
-                      "mockService", "/getFoo", "GET", std::nullopt);
+                      params);
 
   identity_test_env_adaptor()
       ->identity_test_env()
@@ -408,9 +414,8 @@ TEST_F(DevToolsUIBindingsDispatchHttpRequestTest,
           "test_token", base::Time::Max());
   run_loop.Run();
 
-  net::HttpRequestHeaders headers = interceptor()->GetLastRequestHeaders();
-  EXPECT_EQ(interceptor()->GetLastRequestURL(),
-            GURL("http://localhost:8000/getFoo"));
+  net::HttpRequestHeaders headers = last_request()->headers;
+  EXPECT_EQ(last_request()->url, GURL("http://localhost:8000/getFoo"));
   EXPECT_EQ(headers.GetHeader("Authorization"), "Bearer test_token");
   EXPECT_EQ(*result.FindString("response"), "body");
   EXPECT_EQ(*result.FindInt("statusCode"), net::HTTP_OK);
@@ -425,11 +430,16 @@ TEST_F(DevToolsUIBindingsDispatchHttpRequestTest,
 
   base::RunLoop run_loop;
   base::Value::Dict result;
+  DevToolsDispatchHttpRequestParams params;
+  params.service = "mockService";
+  params.path = "/postBar";
+  params.method = "POST";
+  params.body = "{\"foo\": \"bar\"}";
   DispatchHttpRequest(base::BindLambdaForTesting([&](const base::Value* value) {
                         result = value->GetDict().Clone();
                         run_loop.Quit();
                       }),
-                      "mockService", "/postBar", "POST", "{\"foo\": \"bar\"}");
+                      params);
 
   identity_test_env_adaptor()
       ->identity_test_env()
@@ -453,11 +463,16 @@ TEST_F(DevToolsUIBindingsDispatchHttpRequestTest,
 
   base::RunLoop run_loop;
   base::Value::Dict result;
+  DevToolsDispatchHttpRequestParams params;
+  params.service = "mockService";
+  params.path = "/postBar";
+  params.method = "POST";
+  params.body = "{\"foo\": \"bar\"}";
   DispatchHttpRequest(base::BindLambdaForTesting([&](const base::Value* value) {
                         result = value->GetDict().Clone();
                         run_loop.Quit();
                       }),
-                      "mockService", "/postBar", "POST", "{\"foo\": \"bar\"}");
+                      params);
 
   identity_test_env_adaptor()
       ->identity_test_env()
@@ -478,11 +493,16 @@ TEST_F(DevToolsUIBindingsDispatchHttpRequestTest, DispatchHttpRequestWithBody) {
 
   base::RunLoop run_loop;
   base::Value::Dict result;
+  DevToolsDispatchHttpRequestParams params;
+  params.service = "mockService";
+  params.path = "/postBar";
+  params.method = "POST";
+  params.body = "{\"foo\": \"bar\"}";
   DispatchHttpRequest(base::BindLambdaForTesting([&](const base::Value* value) {
                         result = value->GetDict().Clone();
                         run_loop.Quit();
                       }),
-                      "mockService", "/postBar", "POST", "{\"foo\": \"bar\"}");
+                      params);
 
   identity_test_env_adaptor()
       ->identity_test_env()
@@ -508,11 +528,15 @@ TEST_F(DevToolsUIBindingsDispatchHttpRequestTest,
 
   base::RunLoop run_loop;
   base::Value::Dict result;
+  DevToolsDispatchHttpRequestParams params;
+  params.service = "mockService";
+  params.path = "/getFoo";
+  params.method = "GET";
   DispatchHttpRequest(base::BindLambdaForTesting([&](const base::Value* value) {
                         result = value->GetDict().Clone();
                         run_loop.Quit();
                       }),
-                      "mockService", "/getFoo", "GET", std::nullopt);
+                      params);
 
   identity_test_env_adaptor()
       ->identity_test_env()
@@ -522,4 +546,37 @@ TEST_F(DevToolsUIBindingsDispatchHttpRequestTest,
 
   ASSERT_TRUE(last_request().has_value());
   EXPECT_FALSE(last_request()->request_body);
+}
+
+TEST_F(DevToolsUIBindingsDispatchHttpRequestTest,
+       DispatchHttpRequestWithQueryParamsSuccessful) {
+  ExpectCanMakeRequest(true);
+  identity_test_env_adaptor()->identity_test_env()->MakePrimaryAccountAvailable(
+      "test@google.com", signin::ConsentLevel::kSignin);
+
+  base::RunLoop run_loop;
+  base::Value::Dict result;
+  DevToolsDispatchHttpRequestParams params;
+  params.service = "mockService";
+  params.path = "/getFoo";
+  params.method = "GET";
+  params.query_params["q"].push_back("test/toescape");
+  params.query_params["q"].push_back("test2");
+
+  DispatchHttpRequest(base::BindLambdaForTesting([&](const base::Value* value) {
+                        result = value->GetDict().Clone();
+                        run_loop.Quit();
+                      }),
+                      params);
+
+  identity_test_env_adaptor()
+      ->identity_test_env()
+      ->WaitForAccessTokenRequestIfNecessaryAndRespondWithToken(
+          "test_token", base::Time::Max());
+  run_loop.Run();
+
+  EXPECT_EQ(last_request()->url,
+            GURL("http://localhost:8000/getFoo?q=test%2Ftoescape&q=test2"));
+  EXPECT_EQ(*result.FindString("response"), "body");
+  EXPECT_EQ(*result.FindInt("statusCode"), net::HTTP_OK);
 }

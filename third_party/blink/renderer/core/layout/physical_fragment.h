@@ -446,7 +446,7 @@ class CORE_EXPORT PhysicalFragment : public GarbageCollected<PhysicalFragment> {
   // is concerned.
   bool IsMonolithic() const;
 
-  // Returns true this fragment is used as the implicit anchor for another
+  // Returns true this fragment might be used as the implicit anchor for another
   // element in CSS anchor positioning.
   // Should only be called during layout as it inspects DOM.
   bool IsImplicitAnchor() const;
@@ -627,10 +627,6 @@ class CORE_EXPORT PhysicalFragment : public GarbageCollected<PhysicalFragment> {
 
   const BreakToken* GetBreakToken() const { return break_token_.Get(); }
 
-  base::span<const PhysicalFragmentLink> Children() const;
-
-  PostLayoutChildLinkList PostLayoutChildren() const;
-
   // Returns true if we have any floating descendants which need to be
   // traversed during the float paint phase.
   bool HasFloatingDescendantsForPaint() const {
@@ -648,9 +644,6 @@ class CORE_EXPORT PhysicalFragment : public GarbageCollected<PhysicalFragment> {
   bool DependsOnPercentageBlockSize() const {
     return depends_on_percentage_block_size_;
   }
-
-  void SetChildrenInvalid() const;
-  bool ChildrenValid() const { return children_valid_; }
 
   const GCedHeapVector<Member<LayoutBoxModelObject>>* StickyDescendants()
       const {

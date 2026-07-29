@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#define TODO_BASE_FEATURE_MACROS_NEED_MIGRATION
+
 #include "content/browser/renderer_host/navigation_request.h"
 
 #include <memory>
@@ -235,6 +237,11 @@
 namespace content {
 
 namespace {
+
+// Kill-switch for the fix to copy item_sequence_number and
+// document_sequence_number from a prerender navigation entry during prerender
+// activation (https://crbug.com/442618062).
+BASE_FEATURE(PrerenderFixSequenceNumbers, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Default timeout for the READY_TO_COMMIT -> COMMIT transition. Chosen
 // initially based on the Navigation.ReadyToCommitUntilCommit UMA, and then
@@ -7075,6 +7082,8 @@ void NavigationRequest::UpdateNavigationHandleTimingsOnResponseReceived(
         response_head_->load_timing_internal_info->connected_callback_delay;
     navigation_handle_timing_.initialize_stream_delay =
         response_head_->load_timing_internal_info->initialize_stream_delay;
+    navigation_handle_timing_.session_source =
+        response_head_->load_timing_internal_info->session_source;
     // Reset `load_timing_internal_info` to make sure that isn't exposed.
     response_head_->load_timing_internal_info.reset();
   }
@@ -9079,15 +9088,27 @@ NavigationRequest::MakeDidCommitProvisionalLoadParamsForPrerenderActivation() {
   // TODO(crbug.com/40169536): Investigate when a new entry should
   // replace an old one when prerendering a page.
   params->did_create_new_entry = true;
+
+  FrameNavigationEntry* frame_entry =
+      prerender_navigation_state_->prerender_navigation_entry->GetFrameEntry(
+          frame_tree_node());
+
   // Prerendering already has a navigation entry which has correct PageState.
   // Set params->page_state accordingly to ensure that DCHECKs expecting them to
   // match are happy.
   // Note: |params| are using last commit params as a basis (via
   // TakeLastCommitParams call), which have a page state from the last commit,
   // but the page state might have been updated since the last commit.
-  params->page_state = prerender_navigation_state_->prerender_navigation_entry
-                           ->GetFrameEntry(frame_tree_node())
-                           ->page_state();
+  params->page_state = frame_entry->page_state();
+
+  if (base::FeatureList::IsEnabled(kPrerenderFixSequenceNumbers)) {
+    // These sequence numbers should also be copied from the prerendering
+    // navigation entry.
+    CHECK_NE(frame_entry->item_sequence_number(), -1);
+    CHECK_NE(frame_entry->document_sequence_number(), -1);
+    params->item_sequence_number = frame_entry->item_sequence_number();
+    params->document_sequence_number = frame_entry->document_sequence_number();
+  }
 
   // insecure_request_policy field of the replication state is set during the
   // navigation commit based on DidCommitProvisionalLoadParams. As prerendering
@@ -9185,6 +9206,10 @@ FrameTreeNodeId NavigationRequest::GetFrameTreeNodeId() {
 
 bool NavigationRequest::WasResponseCached() {
   return response() && response()->was_fetched_via_cache;
+}
+
+bool NavigationRequest::NetworkAccessed() {
+  return response() && response()->network_accessed;
 }
 
 bool NavigationRequest::HasPrefetchedAlternativeSubresourceSignedExchange() {

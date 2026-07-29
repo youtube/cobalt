@@ -118,10 +118,11 @@ class CORE_EXPORT HTMLCanvasElement final
   void setLayoutSubtree(bool);
   bool layoutSubtree() const;
 
-  void SetSize(gfx::Size new_size) final;
+  void SetSize(gfx::Size new_size);
 
   // Called by Document::getCSSCanvasContext as well as above getContext().
   CanvasRenderingContext* GetCanvasRenderingContext(
+      ExecutionContext*,
       const String&,
       const CanvasContextCreationAttributesCore&);
 
@@ -400,8 +401,6 @@ class CORE_EXPORT HTMLCanvasElement final
 
   void OnWidthOrHeightAssigned();
 
-  void SetSurfaceSize(gfx::Size);
-
   bool SizeChangesAreAllowed(ExceptionState& exception_state);
 
   bool PaintsIntoCanvasBuffer() const;
@@ -416,6 +415,7 @@ class CORE_EXPORT HTMLCanvasElement final
   scoped_refptr<StaticBitmapImage> GetTransparentImage();
 
   CanvasRenderingContext* GetCanvasRenderingContextInternal(
+      ExecutionContext*,
       const String&,
       const CanvasContextCreationAttributesCore&);
 

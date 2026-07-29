@@ -4,8 +4,7 @@
 
 package org.chromium.chrome.browser.password_manager.settings;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.when;
 
 import androidx.test.filters.MediumTest;
@@ -30,7 +29,6 @@ import org.chromium.chrome.browser.password_manager.LoginDbDeprecationUtilBridge
 import org.chromium.chrome.browser.password_manager.PasswordManagerTestHelper;
 import org.chromium.chrome.browser.password_manager.PasswordManagerUtilBridge;
 import org.chromium.chrome.browser.password_manager.PasswordManagerUtilBridgeJni;
-import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.settings.MainSettings;
 import org.chromium.chrome.browser.settings.SettingsActivityTestRule;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
@@ -38,7 +36,6 @@ import org.chromium.chrome.test.transit.settings.PreferenceFacility;
 import org.chromium.chrome.test.transit.settings.SettingsActivityPublicTransitEntryPoints;
 import org.chromium.chrome.test.transit.settings.SettingsStation;
 import org.chromium.chrome.test.util.ChromeRenderTestRule;
-import org.chromium.components.prefs.PrefService;
 import org.chromium.ui.test.util.DeviceRestriction;
 import org.chromium.ui.test.util.RenderTestRule.Component;
 
@@ -66,8 +63,6 @@ public class PasswordsPreferenceTest {
 
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
 
-    @Mock PrefService mPrefService;
-
     @Mock private PasswordManagerUtilBridge.Natives mPasswordManagerUtilBridgeJniMock;
     @Mock private LoginDbDeprecationUtilBridge.Natives mLoginDbDeprecationUtilBridgeJniMock;
 
@@ -79,17 +74,29 @@ public class PasswordsPreferenceTest {
         PasswordManagerUtilBridgeJni.setInstanceForTesting(mPasswordManagerUtilBridgeJniMock);
         LoginDbDeprecationUtilBridgeJni.setInstanceForTesting(mLoginDbDeprecationUtilBridgeJniMock);
         PasswordManagerTestHelper.setUpGmsCoreFakeBackends();
+    }
 
-        PasswordsPreference.setPrefServiceForTesting(mPrefService);
+    @Test
+    @MediumTest
+    @Feature({"RenderTest"})
+    public void testPasswordManagerAvailableNoSubtitle() throws IOException {
+        when(mPasswordManagerUtilBridgeJniMock.isPasswordManagerAvailable(true)).thenReturn(true);
+        when(mLoginDbDeprecationUtilBridgeJniMock.getAutoExportCsvFilePath(any()))
+                .thenReturn("random/file/path");
+
+        SettingsStation<MainSettings> page = mEntryPoints.startMainSettingsNonBatched();
+        PreferenceFacility passwordsPref = page.scrollToPref(MainSettings.PREF_PASSWORDS);
+
+        mRenderTestRule.render(
+                passwordsPref.prefViewElement.value(), "passwords_preference_no_subtitle");
+        TransitAsserts.assertFinalDestination(page);
     }
 
     @Test
     @MediumTest
     @Feature({"RenderTest"})
     public void testPwmStoppedWorkingSubtitle() throws IOException {
-        when(mPasswordManagerUtilBridgeJniMock.isPasswordManagerAvailable(any(), eq(true)))
-                .thenReturn(false);
-        when(mPrefService.getBoolean(Pref.UPM_UNMIGRATED_PASSWORDS_EXPORTED)).thenReturn(true);
+        when(mPasswordManagerUtilBridgeJniMock.isPasswordManagerAvailable(true)).thenReturn(false);
         when(mLoginDbDeprecationUtilBridgeJniMock.getAutoExportCsvFilePath(any()))
                 .thenReturn("random/file/path");
 
@@ -106,9 +113,7 @@ public class PasswordsPreferenceTest {
     @Feature({"RenderTest"})
     @Restriction({DeviceRestriction.RESTRICTION_TYPE_NON_AUTO})
     public void testSomePasswordsNotAccessibleSubtitle() throws IOException {
-        when(mPasswordManagerUtilBridgeJniMock.isPasswordManagerAvailable(any(), eq(true)))
-                .thenReturn(true);
-        when(mPrefService.getBoolean(Pref.UPM_UNMIGRATED_PASSWORDS_EXPORTED)).thenReturn(true);
+        when(mPasswordManagerUtilBridgeJniMock.isPasswordManagerAvailable(true)).thenReturn(true);
         File fakeCsv = File.createTempFile("passwords", null, null);
         fakeCsv.deleteOnExit();
         when(mLoginDbDeprecationUtilBridgeJniMock.getAutoExportCsvFilePath(any()))
@@ -127,9 +132,7 @@ public class PasswordsPreferenceTest {
     @Feature({"RenderTest"})
     @Restriction({DeviceRestriction.RESTRICTION_TYPE_AUTO})
     public void testSomePasswordsNotAccessibleSubtitleNotDisplayedOnAuto() throws IOException {
-        when(mPasswordManagerUtilBridgeJniMock.isPasswordManagerAvailable(any(), eq(true)))
-                .thenReturn(true);
-        when(mPrefService.getBoolean(Pref.UPM_UNMIGRATED_PASSWORDS_EXPORTED)).thenReturn(true);
+        when(mPasswordManagerUtilBridgeJniMock.isPasswordManagerAvailable(true)).thenReturn(true);
         File fakeCsv = File.createTempFile("passwords", null, null);
         fakeCsv.deleteOnExit();
         when(mLoginDbDeprecationUtilBridgeJniMock.getAutoExportCsvFilePath(any()))

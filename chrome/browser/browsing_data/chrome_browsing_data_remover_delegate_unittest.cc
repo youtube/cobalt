@@ -298,7 +298,6 @@ using testing::_;
 using testing::ByRef;
 using testing::Eq;
 using testing::FloatEq;
-using testing::Invoke;
 using testing::IsEmpty;
 using testing::MakeMatcher;
 using testing::Matcher;
@@ -490,8 +489,7 @@ class RemoveHistoryTester {
     base::RunLoop run_loop;
     base::CancelableTaskTracker tracker;
     history_service_->QueryURL(
-        url, /*want_visits=*/false,
-        base::BindLambdaForTesting([&](history::QueryURLResult result) {
+        url, base::BindLambdaForTesting([&](history::QueryURLResult result) {
           contains_url = result.success;
           run_loop.Quit();
         }),
@@ -1095,8 +1093,6 @@ class MockNetworkErrorLoggingService : public net::NetworkErrorLoggingService {
 
 #endif  // BUILDFLAG(ENABLE_REPORTING)
 
-namespace autofill {
-
 // StrikeDatabaseTester is in the autofill namespace since
 // StrikeDatabase declares it as a friend in the autofill namespace.
 class StrikeDatabaseTester {
@@ -1118,10 +1114,8 @@ class StrikeDatabaseTester {
   }
 
  private:
-  raw_ptr<autofill::StrikeDatabase> strike_database_;
+  const raw_ptr<strike_database::StrikeDatabase> strike_database_;
 };
-
-}  // namespace autofill
 
 // Test Class -----------------------------------------------------------------
 
@@ -2450,7 +2444,7 @@ TEST_F(ChromeBrowsingDataRemoverDelegateTest,
   tester.AddProfileAndCard();
   ASSERT_TRUE(tester.HasProfileAndCard());
 
-  autofill::StrikeDatabaseTester strike_database_tester(GetProfile());
+  StrikeDatabaseTester strike_database_tester(GetProfile());
   BlockUntilBrowsingDataRemoved(base::Time(), base::Time::Max(),
                                 constants::DATA_TYPE_FORM_DATA, false);
 

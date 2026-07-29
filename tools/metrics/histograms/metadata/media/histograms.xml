@@ -27,13 +27,18 @@ chromium-metrics-reviews@google.com.
   <variant name=".Short" summary="Streams shorter than 1000 callbacks"/>
 </variants>
 
+<variants name="AudioDirection">
+  <variant name="Input" summary="for input streams"/>
+  <variant name="Output" summary="for output streams"/>
+</variants>
+
 <variants name="AudioLatencyTag">
-  <variant name="" summary="All latencies combined"/>
-  <variant name=".LatencyExactMs"/>
-  <variant name=".LatencyInteractive"/>
-  <variant name=".LatencyPlayback"/>
-  <variant name=".LatencyRtc"/>
-  <variant name=".LatencyUnknown"/>
+  <variant name="" summary="All latency tags are combined"/>
+  <variant name=".LatencyExactMs" summary="Latency tag is ExactMS"/>
+  <variant name=".LatencyInteractive" summary="Latency tag is Interactive"/>
+  <variant name=".LatencyPlayback" summary="Latency tag is Playback"/>
+  <variant name=".LatencyRtc" summary="Latency tag is RTC"/>
+  <variant name=".LatencyUnknown" summary="Latency tag is Unknown"/>
 </variants>
 
 <variants name="CastStreamingSender">
@@ -556,6 +561,39 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram
+    name="Media.Audio.Android.AAudioBufferSizeInFrames.{Direction}{AudioLatencyTag}"
+    units="frames" expires_after="2026-01-18">
+  <owner>kawasin@google.com</owner>
+  <owner>tguilbert@chromium.org</owner>
+  <summary>
+    The buffer size in frames of an AAudio {Direction} stream got by
+    `AAudioStream_getBufferSizeInFrames()` and {AudioLatencyTag}. Logged when an
+    AAudio stream is opened.
+  </summary>
+  <token key="Direction" variants="AudioDirection"/>
+  <token key="AudioLatencyTag" variants="AudioLatencyTag"/>
+</histogram>
+
+<histogram
+    name="Media.Audio.Android.AAudioFramesPerDataCallback.{Direction}{AudioLatencyTag}"
+    units="frames" expires_after="2026-01-18">
+  <owner>kawasin@google.com</owner>
+  <owner>tguilbert@chromium.org</owner>
+  <summary>
+    The number of frames per data callback for an AAudio stream got by
+    `AAudioStream_getFramesPerDataCallback()` and {AudioLatencyTag}. Logged when
+    an AAudio stream is opened. The requested value by the client is logged as
+    `Media.Audio.Android.RequestedInputFramesPerBuffer` or
+    `Media.Audio.Android.RequestedOutputFramesPerBuffer`. Note that
+    `Media.Audio.Android.AAudioFramesPerDataCallback` can be different from the
+    actual buffer size used by the stream on Android which is logged as
+    `Media.Audio.Android.AAudioBufferSizeInFrames`.
+  </summary>
+  <token key="Direction" variants="AudioDirection"/>
+  <token key="AudioLatencyTag" variants="AudioLatencyTag"/>
+</histogram>
+
 <histogram name="Media.Audio.Android.AAudioSetDeviceId.{Direction}.{Result}"
     enum="AndroidAudioDeviceType" expires_after="2026-01-11">
   <owner>mjel@google.com</owner>
@@ -589,6 +627,66 @@ chromium-metrics-reviews@google.com.
     interpret these numbers as AudioFormat.channelMasks, see:
     https://developer.android.com/reference/android/media/AudioFormat#channelMask
   </summary>
+</histogram>
+
+<histogram
+    name="Media.Audio.Android.PreferredOutputFramesPerBuffer{AudioLatencyTagWithInvalidInputParams}"
+    units="frames" expires_after="2026-01-18">
+  <owner>kawasin@google.com</owner>
+  <owner>tguilbert@chromium.org</owner>
+  <summary>
+    The preferred output buffer size in frames for an audio output stream
+    calculated from OS provided buffer size on Android. This is for audio output
+    streams that {AudioLatencyTagWithInvalidInputParams}. Logged when
+    GetPreferredOutputStreamParameters() is called. This value is usally used by
+    the client to calculate the buffer size in frames for an audio output stream
+    which is logged as `Media.Audio.Android.RequestedOutputFramesPerBuffer`.
+  </summary>
+  <token key="AudioLatencyTagWithInvalidInputParams">
+    <variant name="" summary="All latency tags are combined"/>
+    <variant name=".InvalidInputParams"
+        summary="The input parameters are invalid to calculate the buffer
+                 size from"/>
+    <variant name=".LatencyExactMs" summary="Latency tag is ExactMS"/>
+    <variant name=".LatencyInteractive" summary="Latency tag is Interactive"/>
+    <variant name=".LatencyPlayback" summary="Latency tag is Playback"/>
+    <variant name=".LatencyRtc" summary="Latency tag is RTC"/>
+    <variant name=".LatencyUnknown" summary="Latency tag is Unknown"/>
+  </token>
+</histogram>
+
+<histogram
+    name="Media.Audio.Android.RequestedInputFramesPerBuffer{AudioLatencyTag}"
+    units="frames" expires_after="2026-01-18">
+  <owner>kawasin@google.com</owner>
+  <owner>olka@chromium.org</owner>
+  <owner>dalecurtis@chromium.org</owner>
+  <owner>tguilbert@chromium.org</owner>
+  <owner>webrtc-audio-uma@chromium.org</owner>
+  <summary>
+    The number of frames per data callback for an audio input stream requested
+    by the client and {AudioLatencyTag}. Logged on stream creation.
+    `Media.Audio.Android.AAudioFramesPerDataCallback.Input` logs the actual
+    values used in an AAudio input stream.
+  </summary>
+  <token key="AudioLatencyTag" variants="AudioLatencyTag"/>
+</histogram>
+
+<histogram
+    name="Media.Audio.Android.RequestedOutputFramesPerBuffer{AudioLatencyTag}"
+    units="frames" expires_after="2026-01-18">
+  <owner>kawasin@google.com</owner>
+  <owner>olka@chromium.org</owner>
+  <owner>dalecurtis@chromium.org</owner>
+  <owner>tguilbert@chromium.org</owner>
+  <owner>webrtc-audio-uma@chromium.org</owner>
+  <summary>
+    The number of frames per data callback for an audio output stream requested
+    by the client and {AudioLatencyTag}. Logged on stream creation.
+    `Media.Audio.Android.AAudioFramesPerDataCallback.Output` logs the actual
+    values used in an AAudio output stream.
+  </summary>
+  <token key="AudioLatencyTag" variants="AudioLatencyTag"/>
 </histogram>
 
 <histogram name="Media.Audio.Android.SupportedChannelMask" units="sparse"
@@ -939,7 +1037,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Audio.Capture.Win.VoiceProcessingEffects"
-    enum="AudioEffectType" expires_after="2025-12-30">
+    enum="AudioEffectType" expires_after="2026-03-01">
   <owner>henrika@chromium.org</owner>
   <owner>olka@chromium.org</owner>
   <owner>webrtc-audio-uma@google.com</owner>
@@ -1359,7 +1457,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Audio.Processing.RenderDelayMs" units="ms"
-    expires_after="2025-12-28">
+    expires_after="2026-03-01">
   <owner>saza@chromium.org</owner>
   <owner>olka@chromium.org</owner>
   <owner>webrtc-audio-uma@google.com</owner>
@@ -1716,7 +1814,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Audio.{Type}.SystemGlitchDuration" units="ms"
-    expires_after="2025-12-28">
+    expires_after="2026-03-01">
   <owner>fhernqvist@google.com</owner>
   <owner>olka@chromium.org</owner>
   <owner>webrtc-audio-uma@google.com</owner>
@@ -2182,7 +2280,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Media.AutoPictureInPicture.EnterPictureInPicture.AutomaticReason.{AutomaticReason}.PromptResultV2"
-    enum="MediaAutoPictureInPicturePromptResult" expires_after="2026-01-18">
+    enum="MediaAutoPictureInPicturePromptResult" expires_after="2026-06-18">
   <owner>bkeen@google.com</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -2203,7 +2301,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Media.AutoPictureInPicture.EnterPictureInPicture.AutomaticReason.{AutomaticReason}.TotalTime"
-    units="ms" expires_after="2026-01-18">
+    units="ms" expires_after="2026-06-18">
   <owner>bkeen@google.com</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -2223,7 +2321,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Media.AutoPictureInPicture.EnterPictureInPicture.AutomaticReason.{AutomaticReason}.TotalTimeForSession"
-    units="ms" expires_after="2026-01-18">
+    units="ms" expires_after="2026-06-18">
   <owner>bkeen@google.com</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -2245,7 +2343,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Media.AutoPictureInPicture.EnterPictureInPicture.AutomaticReason.{AutomaticReason}.TotalTimeForSessionV2"
-    units="ms" expires_after="2026-01-11">
+    units="ms" expires_after="2026-06-11">
   <owner>bkeen@google.com</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -2271,7 +2369,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Media.AutoPictureInPicture.EnterPictureInPicture.AutomaticReason.{AutomaticReason}.TotalTimeV2"
-    units="ms" expires_after="2026-01-18">
+    units="ms" expires_after="2026-06-18">
   <owner>bkeen@google.com</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -2288,6 +2386,134 @@ chromium-metrics-reviews@google.com.
     but with a maximum of 10 hours and a bucket size of 100.
   </summary>
   <token key="AutomaticReason">
+    <variant name="MediaPlayback"/>
+    <variant name="VideoConferencing"/>
+  </token>
+</histogram>
+
+<histogram
+    name="Media.AutoPictureInPicture.EnterPictureInPicture.AutomaticReasonV2.{AutomaticReason}.PromptResultV2"
+    enum="MediaAutoPictureInPicturePromptResult" expires_after="2026-06-18">
+  <owner>bkeen@google.com</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    Recorded for automatic picture in picture reason
+    &quot;{AutomaticReason}&quot;, when the user either selects an option from
+    the Automatic picture-in-picture permission prompt, or when the user
+    manually closes the picture-in-picture window without responding to the
+    prompt, or when we decide to not show the prompt at all. When the prompt is
+    shown, this records their selection (or &quot;Ignored&quot; if they did not
+    select an option). When the prompt is not shown, records why it was not
+    shown.
+
+    The AutomaticReasonV2 histograms add the BrowserInitiated bucket.
+  </summary>
+  <token key="AutomaticReason">
+    <variant name="BrowserInitiated"/>
+    <variant name="MediaPlayback"/>
+    <variant name="VideoConferencing"/>
+  </token>
+</histogram>
+
+<histogram
+    name="Media.AutoPictureInPicture.EnterPictureInPicture.AutomaticReasonV2.{AutomaticReason}.TotalTime"
+    units="ms" expires_after="2026-06-18">
+  <owner>bkeen@google.com</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    Total time spent on a Picture in Picture window for automatic picture in
+    picture reason &quot;{AutomaticReason}&quot;. The timer starts counting
+    every time the AutoPictureInPictureTabHelper calls
+    `EnterAutoPictureInPicture`; the time elapsed is recorded when the Picture
+    in Picture window is closed. This metric is recorded regardless of the
+    Picture in Picture window type (document vs video), and of the reason for
+    closing the window (UI interaction, returning back to opener tab, etc.).
+
+    The AutomaticReasonV2 histograms add the BrowserInitiated bucket.
+  </summary>
+  <token key="AutomaticReason">
+    <variant name="BrowserInitiated"/>
+    <variant name="MediaPlayback"/>
+    <variant name="VideoConferencing"/>
+  </token>
+</histogram>
+
+<histogram
+    name="Media.AutoPictureInPicture.EnterPictureInPicture.AutomaticReasonV2.{AutomaticReason}.TotalTimeForSession"
+    units="ms" expires_after="2026-06-18">
+  <owner>bkeen@google.com</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    Total time spent accross all Picture in Picture windows opened by the
+    `AutoPictureInPictureTabHelper`, for automatic picture in picture reason
+    &quot;{AutomaticReason}&quot;. The timer starts counting every time the
+    AutoPictureInPictureTabHelper calls `EnterAutoPictureInPicture`; the time is
+    accumulated any time the tab helper opens and subsequently closes a picture
+    in picture window. The total picture in picture time is recorded when the
+    `AutoPictureInPictureTabHelper` is destroyed. This metric does not
+    differentiate between the Picture in Picture window types (document vs
+    video).
+
+    The AutomaticReasonV2 histograms add the BrowserInitiated bucket.
+  </summary>
+  <token key="AutomaticReason">
+    <variant name="BrowserInitiated"/>
+    <variant name="MediaPlayback"/>
+    <variant name="VideoConferencing"/>
+  </token>
+</histogram>
+
+<histogram
+    name="Media.AutoPictureInPicture.EnterPictureInPicture.AutomaticReasonV2.{AutomaticReason}.TotalTimeForSessionV2"
+    units="ms" expires_after="2026-06-11">
+  <owner>bkeen@google.com</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    Total time spent accross all Picture in Picture windows opened by the
+    `AutoPictureInPictureTabHelper`, for automatic picture in picture reason
+    &quot;{AutomaticReason}&quot;. The timer starts counting every time the
+    AutoPictureInPictureTabHelper calls `EnterAutoPictureInPicture`; the time is
+    accumulated any time the tab helper opens and subsequently closes a picture
+    in picture window. The total picture in picture time is recorded when the
+    `AutoPictureInPictureTabHelper` is destroyed. This metric does not
+    differentiate between the Picture in Picture window types (document vs
+    video).
+
+    Similar to
+    Media.AutoPictureInPicture.EnterPictureInPicture.AutomaticReason.{AutomaticReason}.TotalTimeForSession,
+    but with a maximum of 10 hours and a bucket size of 100.
+
+    The AutomaticReasonV2 histograms add the BrowserInitiated bucket.
+  </summary>
+  <token key="AutomaticReason">
+    <variant name="BrowserInitiated"/>
+    <variant name="MediaPlayback"/>
+    <variant name="VideoConferencing"/>
+  </token>
+</histogram>
+
+<histogram
+    name="Media.AutoPictureInPicture.EnterPictureInPicture.AutomaticReasonV2.{AutomaticReason}.TotalTimeV2"
+    units="ms" expires_after="2026-06-18">
+  <owner>bkeen@google.com</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    Total time spent on a Picture in Picture window for automatic picture in
+    picture reason &quot;{AutomaticReason}&quot;. The timer starts counting
+    every time the AutoPictureInPictureTabHelper calls
+    `EnterAutoPictureInPicture`; the time elapsed is recorded when the Picture
+    in Picture window is closed. This metric is recorded regardless of the
+    Picture in Picture window type (document vs video), and of the reason for
+    closing the window (UI interaction, returning back to opener tab, etc.).
+
+    Similar to
+    Media.AutoPictureInPicture.EnterPictureInPicture.AutomaticReason.{AutomaticReason}.TotalTime,
+    but with a maximum of 10 hours and a bucket size of 100.
+
+    The AutomaticReasonV2 histograms add the BrowserInitiated bucket.
+  </summary>
+  <token key="AutomaticReason">
+    <variant name="BrowserInitiated"/>
     <variant name="MediaPlayback"/>
     <variant name="VideoConferencing"/>
   </token>
@@ -3912,7 +4138,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.GetDisplayMedia.Constraints.SystemAudio"
-    enum="GetDisplayMediaIncludeExcludeConstraint" expires_after="2025-12-28">
+    enum="GetDisplayMediaIncludeExcludeConstraint" expires_after="2026-03-01">
   <owner>eladalon@chromium.org</owner>
   <owner>fbeaufort@chromium.org</owner>
   <owner>webrtc-audio-uma@google.com</owner>
@@ -4257,7 +4483,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.HLS.InitializationError" enum="HlsDemuxerStatus"
-    expires_after="2025-12-31">
+    expires_after="2026-03-01">
   <owner>tmathmeyer@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -4286,7 +4512,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.HLS.ParserError" units="sparse"
-    expires_after="2025-12-31">
+    expires_after="2026-03-01">
   <owner>tmathmeyer@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -4296,7 +4522,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.HLS.PlaybackError" enum="HlsDemuxerStatus"
-    expires_after="2025-12-31">
+    expires_after="2026-03-01">
   <owner>tmathmeyer@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -4569,7 +4795,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.MediaDevices.GetUserMedia.Result2"
-    enum="UserMediaRequestResult" expires_after="2025-12-28">
+    enum="UserMediaRequestResult" expires_after="2026-03-01">
   <owner>toprice@chromium.org</owner>
   <owner>agpalak@chromium.org</owner>
   <owner>video-cmi-apis@google.com</owner>
@@ -5402,6 +5628,12 @@ chromium-metrics-reviews@google.com.
         summary="RendererImpl with software decoder and
                  DecryptingDemuxerStream"/>
     <variant name="DVD" summary="RendererImpl with DecryptingVideoDecoder"/>
+    <variant name="HardwareSecure.DDS.HW"
+        summary="RendererImpl with hardware decoder and
+                 DecryptingDemuxerStream, using hardware secure decryption"/>
+    <variant name="HardwareSecure.DDS.SW"
+        summary="RendererImpl with software decoder and
+                 DecryptingDemuxerStream, using hardware secure decryption"/>
     <variant name="HardwareSecure.HW"
         summary="RendererImpl with hardware decoder and hardware secure
                  decryption"/>
@@ -5413,6 +5645,12 @@ chromium-metrics-reviews@google.com.
         summary="RendererImpl with requested software secure decryption and
                  MediaCodecVideoDecoder"/>
     <variant name="MediaFoundationRenderer"/>
+    <variant name="SoftwareSecure.DDS.HW"
+        summary="RendererImpl with hardware decoder and
+                 DecryptingDemuxerStream, using software secure decryption"/>
+    <variant name="SoftwareSecure.DDS.SW"
+        summary="RendererImpl with software decoder and
+                 DecryptingDemuxerStream, using software secure decryption"/>
     <variant name="SW" summary="RendererImpl with software decoder"/>
     <variant name="UnknownRenderer" summary="an unknown Renderer"/>
   </token>
@@ -6633,16 +6871,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Media.VideoCapture.BlacklistedDevice"
-    enum="BlacklistedVideoCaptureDeviceNames" expires_after="M82">
-  <owner>mcasas@chromium.org</owner>
-  <summary>
-    Counts appearances of Blacklisted Video Capture devices during enumeration.
-    This collection happens during first enumeration in the appropriate
-    platforms' VideoCaptureDeviceFactory.
-  </summary>
-</histogram>
-
 <histogram name="Media.VideoCapture.CreateDeviceSuccessLatency" units="ms"
     expires_after="2026-02-15">
   <owner>herre@google.com</owner>
@@ -6917,7 +7145,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.VideoCapture.StartErrorCode" enum="VideoCaptureError"
-    expires_after="2025-12-28">
+    expires_after="2026-03-01">
   <owner>toprice@chromium.org</owner>
   <owner>video-cmi-apis@google.com</owner>
   <summary>
@@ -6940,7 +7168,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.VideoCapture.StartSourceSuccessLatency" units="ms"
-    expires_after="2025-12-14">
+    expires_after="2026-03-01">
   <owner>herre@google.com</owner>
   <owner>video-cmi-apis@google.com</owner>
   <summary>
@@ -7135,13 +7363,14 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.VideoCaptureManager.DesktopCaptureImplementationAndType"
-    enum="DesktopCaptureImplementationAndType" expires_after="2025-07-27">
+    enum="DesktopCaptureImplementationAndType" expires_after="2026-09-01">
   <owner>handellm@google.com</owner>
   <owner>ccameron@chromium.org</owner>
   <summary>
     Indicates which desktop capture implementation and DesktopID::Type was used
     for a desktop capture session. Recorded on instantiation of the desktop
-    capturer.
+    capturer. Warning: this histogram was expired from 2025-07-27 to 2025-09-05;
+    data may be missing.
   </summary>
 </histogram>
 
@@ -7229,7 +7458,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.VideoEncoder.{Usage}.{Impl}.Profile"
-    enum="VideoCodecProfile" expires_after="2025-12-25">
+    enum="VideoCodecProfile" expires_after="2026-03-01">
   <owner>hiroh@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -7241,7 +7470,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.VideoEncoder.{Usage}.{Impl}.Status" enum="EncoderStatus"
-    expires_after="2025-12-25">
+    expires_after="2026-03-01">
   <owner>hiroh@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -8169,7 +8398,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="MediaRouter.Discovery.LocalNetworkAccessPermissionGranted"
-    enum="Boolean" expires_after="2025-12-28">
+    enum="Boolean" expires_after="2026-03-01">
   <owner>muyaoxu@google.com</owner>
   <owner>openscreen-eng@google.com</owner>
   <summary>

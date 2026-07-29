@@ -16,7 +16,6 @@
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_feature.h"
 #import "ios/chrome/browser/settings/ui_bundled/google_services/manage_accounts/manage_accounts_table_view_controller_constants.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
-#import "ios/chrome/browser/shared/ui/util/identity_snackbar/identity_snackbar_message_test_utils.h"
 #import "ios/chrome/browser/signin/model/fake_system_identity.h"
 #import "ios/chrome/grit/ios_branded_strings.h"
 #import "ios/chrome/grit/ios_strings.h"
@@ -89,7 +88,6 @@ id<GREYMatcher> ManagedProfileCreationDataMigrationDisabledSubtitleMatcher() {
 - (AppLaunchConfiguration)appConfigurationForTestCase {
   AppLaunchConfiguration config = [super appConfigurationForTestCase];
 
-  config.features_enabled.push_back(kIdentityDiscAccountMenu);
   config.features_enabled.push_back(kSeparateProfilesForManagedAccounts);
 
   config.relaunch_policy = ForceRelaunchByCleanShutdown;
@@ -813,15 +811,8 @@ id<GREYMatcher> ManagedProfileCreationDataMigrationDisabledSubtitleMatcher() {
       @"Profile should be personal");
 }
 
-// TODO(crbug.com/433320893): Re-enable this test on device.
-#if !TARGET_OS_SIMULATOR
-#define MAYBE_testProfileDeletedOnRemoveManagedAccount \
-  DISABLED_testProfileDeletedOnRemoveManagedAccount
-#else
-#define MAYBE_testProfileDeletedOnRemoveManagedAccount \
-  testProfileDeletedOnRemoveManagedAccount
-#endif
-- (void)MAYBE_testProfileDeletedOnRemoveManagedAccount {
+// TODO(crbug.com/411035267): Re-enable this test.
+- (void)DISABLED_testProfileDeletedOnRemoveManagedAccount {
   // Setup: There's 1 personal and 1 managed account. The personal account is
   // signed in.
   FakeSystemIdentity* const personalIdentity =
@@ -856,8 +847,9 @@ id<GREYMatcher> ManagedProfileCreationDataMigrationDisabledSubtitleMatcher() {
                                           PromoScreenSecondaryButtonMatcher()]
       performAction:grey_tap()];
 
-  //  Dismiss signed in snackbar.
-  signin::assertSnackbarShownAndDismissItWithIdentity(managedIdentity);
+  // Dismiss signed in snackbar.
+  [SigninEarlGreyUI dismissSigninConfirmationSnackbarForIdentity:managedIdentity
+                                                   assertVisible:YES];
 
   // Confirm profile switched.
   GREYAssert([[ChromeEarlGrey currentProfileName]
@@ -971,8 +963,7 @@ id<GREYMatcher> ManagedProfileCreationDataMigrationDisabledSubtitleMatcher() {
   // Relaunch the browser without the managed account. This simulates the
   // situation where the managed account was removed in another Google app.
   [self relaunchWithIdentities:@[ personalIdentity ]
-               enabledFeatures:{kIdentityDiscAccountMenu,
-                                kSeparateProfilesForManagedAccounts}
+               enabledFeatures:{kSeparateProfilesForManagedAccounts}
               disabledFeatures:{}];
 
   // Verify that the profile was switched back to personal.
@@ -996,7 +987,6 @@ id<GREYMatcher> ManagedProfileCreationDataMigrationDisabledSubtitleMatcher() {
 - (AppLaunchConfiguration)appConfigurationForTestCase {
   AppLaunchConfiguration config = [super appConfigurationForTestCase];
 
-  config.features_enabled.push_back(kIdentityDiscAccountMenu);
   config.features_enabled.push_back(kSeparateProfilesForManagedAccounts);
   // Note: Can't use the actual feature definition, because its build target
   // depends on a bunch of stuff that mustn't make it into the EG test target.

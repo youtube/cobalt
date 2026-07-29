@@ -23,6 +23,12 @@ void RegionalCapabilitiesMetricsProvider::ProvideCurrentSessionData(
        g_browser_process->profile_manager()->GetLoadedProfiles()) {
     RegionalCapabilitiesService* regional_capabilities =
         RegionalCapabilitiesServiceFactory::GetForProfile(profile);
+    if (!regional_capabilities) {
+      // Ignore profiles such as the system profile that don't have a
+      // RegionalCapabilitiesService.
+      continue;
+    }
+
     programs.insert(regional_capabilities->GetActiveProgramForMetrics());
   }
 

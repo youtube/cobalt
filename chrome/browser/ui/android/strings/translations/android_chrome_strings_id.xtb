@@ -632,6 +632,7 @@ Hanya orang yang memiliki frasa sandi Anda yang dapat membaca data terenkripsi A
 <translation id="4042941173059740150">Lanjutkan ke <ph name="SITE_ETLD_PLUS_ONE" /> dengan <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /></translation>
 <translation id="4044708993631234325">Sheet bawah</translation>
 <translation id="4045441967987592849">Buka kembali</translation>
+<translation id="4049920046559074950">Opsi lainnya untuk <ph name="INSTANCE_TITLE" /></translation>
 <translation id="4052419222954753986">{NUMBER_OF_TABS,plural, =1{<ph name="TABS_COUNT_ONE" /> tab standar dengan aktivitas baru di grup tab yang dibagikan}other{<ph name="TABS_COUNT_MANY" /> tab standar dengan aktivitas baru di grup tab yang dibagikan}}</translation>
 <translation id="405365679581583349">Update layanan Google Play</translation>
 <translation id="405399507749852140">Dapatkan notifikasi jika ada diskon di situs mana pun</translation>
@@ -1830,6 +1831,7 @@ Untuk mengubah setelan ini, <ph name="BEGIN_LINK" />hapus data Chrome di akun An
 <translation id="930124987204876019">Hapus histori, cookie, data situs, cache…</translation>
 <translation id="938850635132480979">Kesalahan: <ph name="ERROR_CODE" /></translation>
 <translation id="939598580284253335">Masukkan frasa sandi</translation>
+<translation id="945522503751344254">Kirim masukan</translation>
 <translation id="95817756606698420">Chrome dapat menggunakan <ph name="BEGIN_BOLD" />Sogou<ph name="END_BOLD" /> sebagai mesin telusur di Tiongkok. Anda dapat mengubahnya di <ph name="BEGIN_LINK" />Setelan<ph name="END_LINK" />.</translation>
 <translation id="961856697154696964">Hapus data penjelajahan</translation>
 <translation id="963246339335003378">Buka Pengelola Tugas</translation>

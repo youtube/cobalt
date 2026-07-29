@@ -25,7 +25,6 @@
 #import "ios/chrome/browser/autofill/ui_bundled/manual_fill/manual_fill_credit_card+CreditCard.h"
 #import "ios/chrome/browser/autofill/ui_bundled/manual_fill/manual_fill_credit_card.h"
 #import "ios/chrome/browser/menu/ui_bundled/browser_action_factory.h"
-#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/list_model/list_model.h"
 #import "ios/chrome/browser/shared/ui/table_view/table_view_model.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
@@ -48,9 +47,9 @@ bool ShouldShowMenuActionsInManualFallback(CreditCard::RecordType record_type) {
   switch (record_type) {
     case autofill::CreditCard::RecordType::kLocalCard:
     case autofill::CreditCard::RecordType::kMaskedServerCard:
-      return IsKeyboardAccessoryUpgradeEnabled();
+      return true;
     case autofill::CreditCard::RecordType::kVirtualCard:
-      return NO;
+      return false;
     case autofill::CreditCard::RecordType::kFullServerCard:
       // Full server cards are a temporary cached state and should never be
       // being offered as a suggestion for manual fill.
@@ -297,8 +296,7 @@ std::vector<CreditCard> FetchCards(
   // Check if custom card art is available.
   GURL cardArtURL =
       _personalDataManager->payments_data_manager().GetCardArtURL(creditCard);
-  if (IsKeyboardAccessoryUpgradeEnabled() && !cardArtURL.is_empty() &&
-      cardArtURL.is_valid()) {
+  if (!cardArtURL.is_empty() && cardArtURL.is_valid()) {
     if (const gfx::Image* const image =
             _personalDataManager->payments_data_manager()
                 .GetCachedCardArtImageForUrl(cardArtURL)) {

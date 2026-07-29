@@ -15,9 +15,13 @@
 #include "base/types/expected.h"
 #include "remoting/host/linux/ei_sender_session.h"
 #include "remoting/host/linux/gdbus_connection_ref.h"
+#include "remoting/host/linux/gnome_desktop_resizer.h"
 #include "remoting/host/linux/gnome_display_config_dbus_client.h"
+#include "remoting/host/linux/gnome_display_config_monitor.h"
 #include "remoting/host/linux/gvariant_ref.h"
 #include "remoting/host/linux/pipewire_capture_stream_manager.h"
+#include "remoting/host/linux/pipewire_mouse_cursor_capturer.h"
+#include "remoting/host/persistent_display_layout_manager.h"
 
 namespace remoting {
 
@@ -54,9 +58,19 @@ class GnomeRemoteDesktopSession {
     return capture_stream_manager_.GetWeakPtr();
   }
 
-  base::WeakPtr<GnomeDisplayConfigDBusClient> display_config_client() {
+  base::WeakPtr<PipewireMouseCursorCapturer> mouse_cursor_capturer() {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-    return display_config_client_.GetWeakPtr();
+    return mouse_cursor_capturer_.GetWeakPtr();
+  }
+
+  base::WeakPtr<GnomeDisplayConfigMonitor> display_config_monitor() {
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+    return display_config_monitor_.GetWeakPtr();
+  }
+
+  base::WeakPtr<GnomeDesktopResizer> desktop_resizer() {
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+    return desktop_resizer_.GetWeakPtr();
   }
 
   base::WeakPtr<EiSenderSession> ei_session() {
@@ -99,8 +113,6 @@ class GnomeRemoteDesktopSession {
   void OnSessionStarted(std::tuple<>);
   void OnEisFd(std::pair<std::tuple<GDBusFdList::Handle>, GDBusFdList> args);
   void OnEiSession(std::unique_ptr<EiSenderSession> ei_session);
-  void OnAddStreamResult(
-      base::expected<base::WeakPtr<PipewireCaptureStream>, std::string> result);
 
   SEQUENCE_CHECKER(sequence_checker_);
 
@@ -116,11 +128,17 @@ class GnomeRemoteDesktopSession {
       GUARDED_BY_CONTEXT(sequence_checker_);
   GnomeDisplayConfigDBusClient display_config_client_
       GUARDED_BY_CONTEXT(sequence_checker_);
+  GnomeDisplayConfigMonitor display_config_monitor_ GUARDED_BY_CONTEXT(
+      sequence_checker_){display_config_client_.GetWeakPtr()};
   PipewireCaptureStreamManager capture_stream_manager_
       GUARDED_BY_CONTEXT(sequence_checker_);
-  PipewireCaptureStreamManager::Observer::Subscription
-      capture_stream_manager_subscription_
-          GUARDED_BY_CONTEXT(sequence_checker_);
+  PipewireMouseCursorCapturer mouse_cursor_capturer_ GUARDED_BY_CONTEXT(
+      sequence_checker_){capture_stream_manager_.GetWeakPtr()};
+  GnomeDesktopResizer desktop_resizer_ GUARDED_BY_CONTEXT(sequence_checker_){
+      capture_stream_manager_.GetWeakPtr(), display_config_client_.GetWeakPtr(),
+      display_config_monitor_.GetWeakPtr()};
+  PersistentDisplayLayoutManager persistent_display_layout_manager_
+      GUARDED_BY_CONTEXT(sequence_checker_);
 
   base::WeakPtrFactory<GnomeRemoteDesktopSession> weak_ptr_factory_{this};
 };

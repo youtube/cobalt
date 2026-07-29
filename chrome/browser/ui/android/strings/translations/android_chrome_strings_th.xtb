@@ -632,6 +632,7 @@
 <translation id="4042941173059740150">ใช้ <ph name="SITE_ETLD_PLUS_ONE" /> ด้วย <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> ต่อไป</translation>
 <translation id="4044708993631234325">Bottom Sheet</translation>
 <translation id="4045441967987592849">เปิดอีกครั้ง</translation>
+<translation id="4049920046559074950">ตัวเลือกเพิ่มเติมสำหรับ <ph name="INSTANCE_TITLE" /></translation>
 <translation id="4052419222954753986">{NUMBER_OF_TABS,plural, =1{แท็บมาตรฐานที่มีกิจกรรมใหม่ในกลุ่มแท็บที่แชร์ <ph name="TABS_COUNT_ONE" /> แท็บ}other{แท็บมาตรฐานที่มีกิจกรรมใหม่ในกลุ่มแท็บที่แชร์ <ph name="TABS_COUNT_MANY" /> แท็บ}}</translation>
 <translation id="405365679581583349">อัปเดตบริการ Google Play</translation>
 <translation id="405399507749852140">รับการแจ้งเตือนหากราคาลดลงในเว็บไซต์ใดก็ตาม</translation>
@@ -1830,6 +1831,7 @@
 <translation id="930124987204876019">ลบประวัติการเข้าชม คุกกี้ ข้อมูลเว็บไซต์ แคช…</translation>
 <translation id="938850635132480979">ข้อผิดพลาด: <ph name="ERROR_CODE" /></translation>
 <translation id="939598580284253335">ป้อนรหัสผ่าน</translation>
+<translation id="945522503751344254">ส่งความคิดเห็น</translation>
 <translation id="95817756606698420">Chrome สามารถใช้ <ph name="BEGIN_BOLD" />Sogou<ph name="END_BOLD" /> สำหรับการค้นหาในประเทศจีน คุณสามารถเปลี่ยนเครื่องมือค้นหาเริ่มต้นนี้ได้ใน<ph name="BEGIN_LINK" />การตั้งค่า<ph name="END_LINK" /></translation>
 <translation id="961856697154696964">ลบข้อมูลการท่องเว็บ</translation>
 <translation id="963246339335003378">เปิดตัวจัดการงาน</translation>

@@ -72,7 +72,6 @@ using ::testing::_;
 using ::testing::Contains;
 using ::testing::ElementsAre;
 using ::testing::InSequence;
-using ::testing::Invoke;
 using ::testing::IsEmpty;
 using ::testing::NiceMock;
 using ::testing::Pair;
@@ -142,6 +141,24 @@ class MockTestClient : public TestClient {
   MOCK_METHOD(bool, IsInAnnotationMode, (), (const override));
 #endif  // BUILDFLAG(ENABLE_PDF_INK2)
 };
+
+void SimulateMultiClick(PDFiumEngine& engine,
+                        const gfx::PointF& position,
+                        int click_count) {
+  for (int i = 0, click = 1; i < click_count; ++i, ++click) {
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+    // On both Linux and ChromeOS `click_count` is only 1, 2 or 3. On MacOS and
+    // Windows `click_count` just keeps increasing as the user keeps clicking.
+    if (click > 3) {
+      click = 1;
+    }
+#endif
+    EXPECT_TRUE(engine.HandleInputEvent(MouseEventBuilder()
+                                            .CreateLeftClickAtPosition(position)
+                                            .SetClickCount(click)
+                                            .Build()));
+  }
+}
 
 }  // namespace
 
@@ -866,10 +883,7 @@ TEST_P(PDFiumEngineTest, SelectTextWithDoubleClick) {
   EXPECT_THAT(engine->GetSelectedText(), IsEmpty());
 
   constexpr gfx::PointF kPosition(100, 120);
-  EXPECT_TRUE(engine->HandleInputEvent(MouseEventBuilder()
-                                           .CreateLeftClickAtPosition(kPosition)
-                                           .SetClickCount(2)
-                                           .Build()));
+  SimulateMultiClick(*engine, kPosition, 2);
   EXPECT_EQ("Goodbye", engine->GetSelectedText());
 }
 
@@ -885,10 +899,63 @@ TEST_P(PDFiumEngineTest, SelectTextWithTripleClick) {
   EXPECT_THAT(engine->GetSelectedText(), IsEmpty());
 
   constexpr gfx::PointF kPosition(100, 120);
-  EXPECT_TRUE(engine->HandleInputEvent(MouseEventBuilder()
-                                           .CreateLeftClickAtPosition(kPosition)
-                                           .SetClickCount(3)
-                                           .Build()));
+  SimulateMultiClick(*engine, kPosition, 3);
+  EXPECT_EQ("Goodbye, world!", engine->GetSelectedText());
+}
+
+TEST_P(PDFiumEngineTest, SelectTextWithFourClicks) {
+  TestClient client;
+  std::unique_ptr<PDFiumEngine> engine =
+      InitializeEngine(&client, FILE_PATH_LITERAL("hello_world2.pdf"));
+  ASSERT_TRUE(engine);
+
+  // Plugin size chosen so all pages of the document are visible.
+  engine->PluginSizeUpdated({1024, 4096});
+
+  EXPECT_THAT(engine->GetSelectedText(), IsEmpty());
+
+  constexpr gfx::PointF kPosition(100, 120);
+  SimulateMultiClick(*engine, kPosition, 4);
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+  EXPECT_THAT(engine->GetSelectedText(), IsEmpty());
+#else
+  EXPECT_EQ("Goodbye, world!", engine->GetSelectedText());
+#endif
+}
+
+TEST_P(PDFiumEngineTest, SelectTextFiveClicks) {
+  TestClient client;
+  std::unique_ptr<PDFiumEngine> engine =
+      InitializeEngine(&client, FILE_PATH_LITERAL("hello_world2.pdf"));
+  ASSERT_TRUE(engine);
+
+  // Plugin size chosen so all pages of the document are visible.
+  engine->PluginSizeUpdated({1024, 4096});
+
+  EXPECT_THAT(engine->GetSelectedText(), IsEmpty());
+
+  constexpr gfx::PointF kPosition(100, 120);
+  SimulateMultiClick(*engine, kPosition, 5);
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+  EXPECT_EQ("Goodbye", engine->GetSelectedText());
+#else
+  EXPECT_EQ("Goodbye, world!", engine->GetSelectedText());
+#endif
+}
+
+TEST_P(PDFiumEngineTest, SelectTextWithSixClicks) {
+  TestClient client;
+  std::unique_ptr<PDFiumEngine> engine =
+      InitializeEngine(&client, FILE_PATH_LITERAL("hello_world2.pdf"));
+  ASSERT_TRUE(engine);
+
+  // Plugin size chosen so all pages of the document are visible.
+  engine->PluginSizeUpdated({1024, 4096});
+
+  EXPECT_THAT(engine->GetSelectedText(), IsEmpty());
+
+  constexpr gfx::PointF kPosition(100, 120);
+  SimulateMultiClick(*engine, kPosition, 6);
   EXPECT_EQ("Goodbye, world!", engine->GetSelectedText());
 }
 
@@ -1020,9 +1087,9 @@ TEST_P(PDFiumEngineTest, SelectTextAcrossEmptyPage) {
   EXPECT_TRUE(engine->HandleInputEvent(
       CreateMoveWebMouseEventToPosition(kEndPosition)));
 #if BUILDFLAG(IS_WIN)
-  static constexpr char kExpectedForwardSelection[] = "world!\r\nGoodbye";
+  static constexpr char kExpectedForwardSelection[] = "world!\r\nGoodbye,";
 #else
-  static constexpr char kExpectedForwardSelection[] = "world!\nGoodbye";
+  static constexpr char kExpectedForwardSelection[] = "world!\nGoodbye,";
 #endif
   EXPECT_EQ(kExpectedForwardSelection, engine->GetSelectedText());
 
@@ -2011,12 +2078,12 @@ TEST_P(PDFiumEngineTabbingTest, MaintainViewportWhenFocusIsUpdated) {
     static constexpr gfx::Point kScrollValue = {510, 478};
     EXPECT_CALL(client,
                 ScrollToY(kScrollValue.y(), /*force_smooth_scroll=*/false))
-        .WillOnce(Invoke(
-            [&engine]() { engine->ScrolledToYPosition(kScrollValue.y()); }));
+        .WillOnce(
+            [&engine]() { engine->ScrolledToYPosition(kScrollValue.y()); });
     EXPECT_CALL(client,
                 ScrollToX(kScrollValue.x(), /*force_smooth_scroll=*/false))
-        .WillOnce(Invoke(
-            [&engine]() { engine->ScrolledToXPosition(kScrollValue.x()); }));
+        .WillOnce(
+            [&engine]() { engine->ScrolledToXPosition(kScrollValue.x()); });
   }
 
   EXPECT_EQ(PDFiumEngine::FocusElementType::kNone,
@@ -2068,14 +2135,14 @@ TEST_P(PDFiumEngineTabbingTest, ScrollFocusedAnnotationIntoView) {
     for (const auto& scroll_value : kScrollValues) {
       EXPECT_CALL(client,
                   ScrollToY(scroll_value.y(), /*force_smooth_scroll=*/false))
-          .WillOnce(Invoke([&engine, &scroll_value]() {
+          .WillOnce([&engine, &scroll_value]() {
             engine->ScrolledToYPosition(scroll_value.y());
-          }));
+          });
       EXPECT_CALL(client,
                   ScrollToX(scroll_value.x(), /*force_smooth_scroll=*/false))
-          .WillOnce(Invoke([&engine, &scroll_value]() {
+          .WillOnce([&engine, &scroll_value]() {
             engine->ScrolledToXPosition(scroll_value.x());
-          }));
+          });
     }
   }
 
@@ -2335,18 +2402,18 @@ TEST_P(PDFiumEngineInkTextSelectionTest, ExtendSelectionByPointMultiPage) {
   EXPECT_TRUE(engine->ExtendSelectionByPoint((kEndPosition)));
 
 #if BUILDFLAG(IS_WIN)
-  constexpr char kExpectedText[] = "Goodbye, world!\r\nHello,";
+  constexpr char kExpectedText[] = "Goodbye, world!\r\nHello, ";
 #else
-  constexpr char kExpectedText[] = "Goodbye, world!\nHello,";
+  constexpr char kExpectedText[] = "Goodbye, world!\nHello, ";
 #endif  // BUILDFLAG(IS_WIN)
   EXPECT_EQ(kExpectedText, engine->GetSelectedText());
 
 #if BUILDFLAG(IS_WIN)
-  constexpr PdfRect kExpectedRectPage1{20.0f, 46.328f, 49.664f, 62.48f};
+  constexpr PdfRect kExpectedRectPage1{20.0f, 46.328f, 52.664f, 62.48f};
 #elif BUILDFLAG(IS_MAC)
-  constexpr PdfRect kExpectedRectPage1{20.0f, 46.328f, 49.664f, 62.084f};
+  constexpr PdfRect kExpectedRectPage1{20.0f, 46.328f, 52.664f, 62.084f};
 #else
-  constexpr PdfRect kExpectedRectPage1{20.0f, 47.012f, 49.664f, 60.536f};
+  constexpr PdfRect kExpectedRectPage1{20.0f, 47.012f, 52.664f, 60.536f};
 #endif  // BUILDFLAG(IS_WIN)
   EXPECT_THAT(engine->GetSelectionRectMap(),
               ElementsAre(Pair(0, ElementsAre(kGoodbyeWorldExpectedRectPage0)),

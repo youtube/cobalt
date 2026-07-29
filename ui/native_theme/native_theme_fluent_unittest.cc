@@ -4,9 +4,10 @@
 
 #include "ui/native_theme/native_theme_fluent.h"
 
+#include <algorithm>
+#include <cmath>
 #include <memory>
 
-#include "cc/paint/paint_flags.h"
 #include "cc/paint/paint_op.h"
 #include "cc/paint/paint_record.h"
 #include "cc/paint/record_paint_canvas.h"
@@ -17,6 +18,7 @@
 #include "ui/color/color_id.h"
 #include "ui/color/color_provider.h"
 #include "ui/color/color_provider_utils.h"
+#include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 #include "ui/gfx/geometry/rect_f.h"
 #include "ui/native_theme/native_theme.h"
@@ -93,8 +95,8 @@ class NativeThemeFluentTest : public ::testing::Test,
   gfx::RectF ButtonRect(NativeTheme::Part part) const {
     const int button_length =
         base::ClampFloor(kFluentScrollbarButtonSideLength * ScaleFromDIP());
-    const int track_thickness =
-        base::ClampFloor(kFluentScrollbarThickness * ScaleFromDIP());
+    const int track_thickness = base::ClampFloor(
+        NativeThemeFluent::kScrollbarThickness * ScaleFromDIP());
 
     if (part == NativeTheme::kScrollbarUpArrow ||
         part == NativeTheme::kScrollbarDownArrow) {
@@ -117,7 +119,7 @@ class NativeThemeFluentTest : public ::testing::Test,
     }
   }
 
-  NativeThemeFluent theme_{false};
+  NativeThemeFluent theme_;
 };
 
 // Verify the dimensions of an arrow rect with triangular arrows for a given
@@ -161,21 +163,18 @@ TEST_F(NativeThemeFluentTest, GetThumbColor) {
   const std::unique_ptr<ui::ColorProvider> color_provider =
       CreateDefaultColorProviderForBlink(/*dark_mode=*/false);
   NativeTheme::ScrollbarThumbExtraParams extra_params;
-  const auto to_skcolor = [&](auto id) {
-    return SkColor4f::FromColor(color_provider->GetColor(id));
-  };
   const auto scrollbar_color = [&](auto state) {
     return theme_.GetScrollbarThumbColor(*color_provider, state, extra_params);
   };
 
-  const SkColor4f normal_thumb_color =
-      to_skcolor(kColorWebNativeControlScrollbarThumb);
-  const SkColor4f hovered_thumb_color =
-      to_skcolor(kColorWebNativeControlScrollbarThumbHovered);
-  const SkColor4f pressed_thumb_color =
-      to_skcolor(kColorWebNativeControlScrollbarThumbPressed);
-  const SkColor4f minimal_thumb_color =
-      to_skcolor(kColorWebNativeControlScrollbarThumbOverlayMinimalMode);
+  const SkColor normal_thumb_color =
+      color_provider->GetColor(kColorWebNativeControlScrollbarThumb);
+  const SkColor hovered_thumb_color =
+      color_provider->GetColor(kColorWebNativeControlScrollbarThumbHovered);
+  const SkColor pressed_thumb_color =
+      color_provider->GetColor(kColorWebNativeControlScrollbarThumbPressed);
+  const SkColor minimal_thumb_color = color_provider->GetColor(
+      kColorWebNativeControlScrollbarThumbOverlayMinimalMode);
   static constexpr SkColor css_color = SK_ColorRED;
 
   // When there are no extra params set, the colors should be the ones that
@@ -195,9 +194,9 @@ TEST_F(NativeThemeFluentTest, GetThumbColor) {
   // When there is a css color set in the extra params, we modify the color
   // when it is hovered or pressed to signal the change in state.
   extra_params.thumb_color = css_color;
-  EXPECT_EQ(to_skcolor(css_color), scrollbar_color(NativeTheme::kNormal));
-  EXPECT_NE(to_skcolor(css_color), scrollbar_color(NativeTheme::kHovered));
-  EXPECT_NE(to_skcolor(css_color), scrollbar_color(NativeTheme::kPressed));
+  EXPECT_EQ(css_color, scrollbar_color(NativeTheme::kNormal));
+  EXPECT_NE(css_color, scrollbar_color(NativeTheme::kHovered));
+  EXPECT_NE(css_color, scrollbar_color(NativeTheme::kPressed));
 }
 
 INSTANTIATE_TEST_SUITE_P(All,

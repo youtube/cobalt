@@ -5,12 +5,11 @@
 #include "ui/native_theme/native_theme_base.h"
 
 #include <algorithm>
-#include <limits>
-#include <memory>
+#include <optional>
+#include <utility>
 #include <variant>
 
 #include "base/check.h"
-#include "base/command_line.h"
 #include "base/compiler_specific.h"
 #include "base/containers/fixed_flat_set.h"
 #include "base/containers/span.h"
@@ -18,26 +17,28 @@
 #include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
 #include "build/build_config.h"
+#include "cc/paint/paint_canvas.h"
 #include "cc/paint/paint_flags.h"
-#include "cc/paint/paint_shader.h"
+#include "third_party/skia/include/core/SkBlendMode.h"
+#include "third_party/skia/include/core/SkColor.h"
+#include "third_party/skia/include/core/SkMatrix.h"
 #include "third_party/skia/include/core/SkPath.h"
 #include "third_party/skia/include/core/SkRRect.h"
-#include "third_party/skia/include/effects/SkGradientShader.h"
-#include "ui/base/resource/resource_bundle.h"
-#include "ui/base/resource/resource_scale_factor.h"
-#include "ui/base/ui_base_features.h"
-#include "ui/base/ui_base_switches.h"
+#include "third_party/skia/include/core/SkRect.h"
+#include "ui/color/color_id.h"
 #include "ui/color/color_provider.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/color_palette.h"
 #include "ui/gfx/color_utils.h"
+#include "ui/gfx/geometry/point_f.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/rect_f.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/geometry/skia_conversions.h"
-#include "ui/gfx/image/image_skia.h"
 #include "ui/native_theme/features/native_theme_features.h"
 #include "ui/native_theme/native_theme.h"
+
+namespace ui {
 
 namespace {
 
@@ -46,10 +47,6 @@ const int kCheckboxAndRadioWidth = 13;
 const int kCheckboxAndRadioHeight = 13;
 
 // Color constant pairs for light/default and dark color-schemes below.
-constexpr SkColor kThumbActiveColor[2] = {SkColorSetRGB(0xF4, 0xF4, 0xF4),
-                                          gfx::kPlaceholderColor};
-constexpr SkColor kThumbInactiveColor[2] = {SkColorSetRGB(0xEA, 0xEA, 0xEA),
-                                            SK_ColorWHITE};
 constexpr SkColor kTrackColor[2] = {SkColorSetRGB(0xD3, 0xD3, 0xD3),
                                     gfx::kPlaceholderColor};
 // We are currently only painting kMenuPopupBackground with the kDefault
@@ -91,8 +88,8 @@ const double kAccentLuminanceAdjust = 0.11;
 // TODO(crbug.com/40242489): Move colors defined above to the color pipeline and
 // remove this function.
 SkColor GetColor(base::span<const SkColor, 2> colors,
-                 ui::NativeTheme::ColorScheme color_scheme) {
-  return colors[color_scheme == ui::NativeTheme::ColorScheme::kDark ? 1 : 0];
+                 NativeTheme::ColorScheme color_scheme) {
+  return colors[color_scheme == NativeTheme::ColorScheme::kDark ? 1 : 0];
 }
 
 SkColor AdjustLuminance(const SkColor& color, double luminance) {
@@ -104,15 +101,15 @@ SkColor AdjustLuminance(const SkColor& color, double luminance) {
 
 SkColor CustomAccentColorForState(
     const SkColor& accent_color,
-    ui::NativeTheme::State state,
-    const ui::NativeTheme::ColorScheme& color_scheme) {
+    NativeTheme::State state,
+    const NativeTheme::ColorScheme& color_scheme) {
   bool make_lighter = false;
-  bool is_dark_mode = color_scheme == ui::NativeTheme::ColorScheme::kDark;
+  bool is_dark_mode = color_scheme == NativeTheme::ColorScheme::kDark;
   switch (state) {
-    case ui::NativeTheme::kHovered:
+    case NativeTheme::kHovered:
       make_lighter = is_dark_mode;
       break;
-    case ui::NativeTheme::kPressed:
+    case NativeTheme::kPressed:
       make_lighter = !is_dark_mode;
       break;
     default:
@@ -123,8 +120,6 @@ SkColor CustomAccentColorForState(
 }
 
 }  // namespace
-
-namespace ui {
 
 gfx::Size NativeThemeBase::GetPartSize(Part part,
                                        State state,
@@ -353,12 +348,6 @@ gfx::Rect NativeThemeBase::GetNinePatchAperture(Part part) const {
   NOTREACHED() << "NativeThemeBase doesn't support nine-patch resources.";
 }
 
-NativeThemeBase::NativeThemeBase() : NativeThemeBase(false) {}
-
-NativeThemeBase::NativeThemeBase(bool should_only_use_dark_colors,
-                                 ui::SystemTheme system_theme)
-    : NativeTheme(should_only_use_dark_colors, system_theme) {}
-
 NativeThemeBase::~NativeThemeBase() = default;
 
 void NativeThemeBase::PaintArrowButton(
@@ -370,87 +359,7 @@ void NativeThemeBase::PaintArrowButton(
     ColorScheme color_scheme,
     bool in_forced_colors,
     const ScrollbarArrowExtraParams& extra_params) const {
-  cc::PaintFlags flags;
-
-  // Calculate button color.
-  SkScalar track_hsv[3];
-  SkColorToHSV(
-      extra_params.track_color.value_or(GetColor(kTrackColor, color_scheme)),
-      track_hsv);
-  SkColor button_color = SaturateAndBrighten(track_hsv, 0, 0.2f);
-  SkColor background_color = button_color;
-  if (state == kPressed) {
-    SkScalar button_hsv[3];
-    SkColorToHSV(button_color, button_hsv);
-    button_color = SaturateAndBrighten(button_hsv, 0, -0.1f);
-  } else if (state == kHovered) {
-    SkScalar button_hsv[3];
-    SkColorToHSV(button_color, button_hsv);
-    button_color = SaturateAndBrighten(button_hsv, 0, 0.05f);
-  }
-
-  SkIRect skrect;
-  skrect.setXYWH(rect.x(), rect.y(), rect.width(), rect.height());
-  // Paint the background (the area visible behind the rounded corners).
-  flags.setColor(background_color);
-  canvas->drawIRect(skrect, flags);
-
-  // Paint the button's outline and fill the middle
-  SkPath outline;
-  switch (direction) {
-    case kScrollbarUpArrow:
-      outline.moveTo(rect.x() + 0.5, rect.y() + rect.height() + 0.5);
-      outline.rLineTo(0, -(rect.height() - 2));
-      outline.rLineTo(2, -2);
-      outline.rLineTo(rect.width() - 5, 0);
-      outline.rLineTo(2, 2);
-      outline.rLineTo(0, rect.height() - 2);
-      break;
-    case kScrollbarDownArrow:
-      outline.moveTo(rect.x() + 0.5, rect.y() - 0.5);
-      outline.rLineTo(0, rect.height() - 2);
-      outline.rLineTo(2, 2);
-      outline.rLineTo(rect.width() - 5, 0);
-      outline.rLineTo(2, -2);
-      outline.rLineTo(0, -(rect.height() - 2));
-      break;
-    case kScrollbarRightArrow:
-      outline.moveTo(rect.x() - 0.5, rect.y() + 0.5);
-      outline.rLineTo(rect.width() - 2, 0);
-      outline.rLineTo(2, 2);
-      outline.rLineTo(0, rect.height() - 5);
-      outline.rLineTo(-2, 2);
-      outline.rLineTo(-(rect.width() - 2), 0);
-      break;
-    case kScrollbarLeftArrow:
-      outline.moveTo(rect.x() + rect.width() + 0.5, rect.y() + 0.5);
-      outline.rLineTo(-(rect.width() - 2), 0);
-      outline.rLineTo(-2, 2);
-      outline.rLineTo(0, rect.height() - 5);
-      outline.rLineTo(2, 2);
-      outline.rLineTo(rect.width() - 2, 0);
-      break;
-    default:
-      break;
-  }
-  outline.close();
-
-  flags.setStyle(cc::PaintFlags::kFill_Style);
-  flags.setColor(button_color);
-  canvas->drawPath(outline, flags);
-
-  flags.setAntiAlias(true);
-  flags.setStyle(cc::PaintFlags::kStroke_Style);
-  SkScalar thumb_hsv[3];
-  SkColorToHSV(GetColor(kThumbInactiveColor, color_scheme), thumb_hsv);
-  flags.setColor(OutlineColor(track_hsv, thumb_hsv));
-  canvas->drawPath(outline, flags);
-
-  const SkColor arrow_color =
-      GetContrastingPressedOrHoveredColor(
-          extra_params.thumb_color, extra_params.track_color, state, direction)
-          .value_or(GetArrowColor(state, color_scheme, color_provider));
-  PaintArrow(canvas, rect, direction, arrow_color);
+  NOTIMPLEMENTED();
 }
 
 void NativeThemeBase::PaintArrow(cc::PaintCanvas* gc,
@@ -567,20 +476,7 @@ void NativeThemeBase::PaintScrollbarTrack(
     const gfx::Rect& rect,
     ColorScheme color_scheme,
     bool in_forced_colors) const {
-  cc::PaintFlags flags;
-  SkIRect skrect;
-
-  skrect.setLTRB(rect.x(), rect.y(), rect.right(), rect.bottom());
-  SkScalar track_hsv[3];
-  SkColorToHSV(GetColor(kTrackColor, color_scheme), track_hsv);
-  flags.setColor(SaturateAndBrighten(track_hsv, 0, 0));
-  canvas->drawIRect(skrect, flags);
-
-  SkScalar thumb_hsv[3];
-  SkColorToHSV(GetColor(kThumbInactiveColor, color_scheme), thumb_hsv);
-
-  flags.setColor(OutlineColor(track_hsv, thumb_hsv));
-  DrawBox(canvas, rect, flags);
+  NOTIMPLEMENTED();
 }
 
 void NativeThemeBase::PaintScrollbarThumb(
@@ -591,64 +487,7 @@ void NativeThemeBase::PaintScrollbarThumb(
     const gfx::Rect& rect,
     const ScrollbarThumbExtraParams& extra_params,
     ColorScheme color_scheme) const {
-  const bool hovered = state == kHovered;
-  const int midx = rect.x() + rect.width() / 2;
-  const int midy = rect.y() + rect.height() / 2;
-  const bool vertical = part == kScrollbarVerticalThumb;
-
-  SkScalar thumb[3];
-  SkColorToHSV(
-      GetColor(hovered ? kThumbActiveColor : kThumbInactiveColor, color_scheme),
-      thumb);
-
-  cc::PaintFlags flags;
-  flags.setColor(SaturateAndBrighten(thumb, 0, 0.02f));
-
-  SkIRect skrect;
-  if (vertical) {
-    skrect.setLTRB(rect.x(), rect.y(), midx + 1, rect.y() + rect.height());
-  } else {
-    skrect.setLTRB(rect.x(), rect.y(), rect.x() + rect.width(), midy + 1);
-  }
-
-  canvas->drawIRect(skrect, flags);
-
-  flags.setColor(SaturateAndBrighten(thumb, 0, -0.02f));
-
-  if (vertical) {
-    skrect.setLTRB(midx + 1, rect.y(), rect.x() + rect.width(),
-                   rect.y() + rect.height());
-  } else {
-    skrect.setLTRB(rect.x(), midy + 1, rect.x() + rect.width(),
-                   rect.y() + rect.height());
-  }
-
-  canvas->drawIRect(skrect, flags);
-
-  SkScalar track[3];
-  SkColorToHSV(GetColor(kTrackColor, color_scheme), track);
-  flags.setColor(OutlineColor(track, thumb));
-  DrawBox(canvas, rect, flags);
-
-  if (rect.height() > 10 && rect.width() > 10) {
-    const int grippy_half_width = 2;
-    const int inter_grippy_offset = 3;
-    if (vertical) {
-      DrawHorizLine(canvas, midx - grippy_half_width, midx + grippy_half_width,
-                    midy - inter_grippy_offset, flags);
-      DrawHorizLine(canvas, midx - grippy_half_width, midx + grippy_half_width,
-                    midy, flags);
-      DrawHorizLine(canvas, midx - grippy_half_width, midx + grippy_half_width,
-                    midy + inter_grippy_offset, flags);
-    } else {
-      DrawVertLine(canvas, midx - inter_grippy_offset, midy - grippy_half_width,
-                   midy + grippy_half_width, flags);
-      DrawVertLine(canvas, midx, midy - grippy_half_width,
-                   midy + grippy_half_width, flags);
-      DrawVertLine(canvas, midx + inter_grippy_offset, midy - grippy_half_width,
-                   midy + grippy_half_width, flags);
-    }
-  }
+  NOTIMPLEMENTED();
 }
 
 void NativeThemeBase::PaintScrollbarCorner(
@@ -657,7 +496,9 @@ void NativeThemeBase::PaintScrollbarCorner(
     State state,
     const gfx::Rect& rect,
     const ScrollbarTrackExtraParams& extra_params,
-    ColorScheme color_scheme) const {}
+    ColorScheme color_scheme) const {
+  NOTIMPLEMENTED();
+}
 
 void NativeThemeBase::PaintCheckbox(
     cc::PaintCanvas* canvas,
@@ -1095,7 +936,7 @@ void NativeThemeBase::PaintSliderTrack(
   flags.setStrokeWidth(border_width);
   SkColor border_color =
       ControlsBorderColorForState(state, color_scheme, color_provider);
-  if (!UserHasContrastPreference() && state != kDisabled &&
+  if (preferred_contrast() != PreferredContrast::kMore && state != kDisabled &&
       color_scheme != ColorScheme::kDark) {
     border_color = SkColorSetA(border_color, 0x80);
   }
@@ -1249,7 +1090,8 @@ void NativeThemeBase::PaintProgressBar(
   flags.setStyle(cc::PaintFlags::kStroke_Style);
   flags.setStrokeWidth(border_width);
   SkColor border_color = GetControlColor(kBorder, color_scheme, color_provider);
-  if (!UserHasContrastPreference() && color_scheme != ColorScheme::kDark) {
+  if (preferred_contrast() != PreferredContrast::kMore &&
+      color_scheme != ColorScheme::kDark) {
     border_color = SkColorSetA(border_color, 0x80);
   }
   flags.setColor(border_color);
@@ -1303,37 +1145,6 @@ SkColor NativeThemeBase::GetArrowColor(
       GetControlColor(kScrollbarThumbInactive, color_scheme, color_provider),
       thumb_hsv);
   return OutlineColor(track_hsv, thumb_hsv);
-}
-
-void NativeThemeBase::DrawVertLine(cc::PaintCanvas* canvas,
-                                   int x,
-                                   int y1,
-                                   int y2,
-                                   const cc::PaintFlags& flags) const {
-  SkIRect skrect;
-  skrect.setLTRB(x, y1, x + 1, y2 + 1);
-  canvas->drawIRect(skrect, flags);
-}
-
-void NativeThemeBase::DrawHorizLine(cc::PaintCanvas* canvas,
-                                    int x1,
-                                    int x2,
-                                    int y,
-                                    const cc::PaintFlags& flags) const {
-  SkIRect skrect;
-  skrect.setLTRB(x1, y, x2 + 1, y + 1);
-  canvas->drawIRect(skrect, flags);
-}
-
-void NativeThemeBase::DrawBox(cc::PaintCanvas* canvas,
-                              const gfx::Rect& rect,
-                              const cc::PaintFlags& flags) const {
-  const int right = rect.x() + rect.width() - 1;
-  const int bottom = rect.y() + rect.height() - 1;
-  DrawHorizLine(canvas, rect.x(), right, rect.y(), flags);
-  DrawVertLine(canvas, right, rect.y(), bottom, flags);
-  DrawHorizLine(canvas, rect.x(), right, bottom, flags);
-  DrawVertLine(canvas, rect.x(), rect.y(), bottom, flags);
 }
 
 SkColor NativeThemeBase::OutlineColor(SkScalar* hsv1, SkScalar* hsv2) const {

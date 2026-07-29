@@ -632,6 +632,7 @@ Tik jūsų slaptafrazę turintis asmuo galės perskaityti šifruotus duomenis. S
 <translation id="4042941173059740150">Eikite į „<ph name="SITE_ETLD_PLUS_ONE" />“ su „<ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" />“</translation>
 <translation id="4044708993631234325">Apatinis lapas</translation>
 <translation id="4045441967987592849">Atidaryti iš naujo</translation>
+<translation id="4049920046559074950">Daugiau „<ph name="INSTANCE_TITLE" />“ parinkčių</translation>
 <translation id="4052419222954753986">{NUMBER_OF_TABS,plural, =1{<ph name="TABS_COUNT_ONE" /> įprastas skirtukas su nauja veikla bendrinamose skirtukų grupėse}one{<ph name="TABS_COUNT_MANY" /> įprastas skirtukas su nauja veikla bendrinamose skirtukų grupėse}few{<ph name="TABS_COUNT_MANY" /> įprasti skirtukai su nauja veikla bendrinamose skirtukų grupėse}many{<ph name="TABS_COUNT_MANY" /> įprasto skirtuko su nauja veikla bendrinamose skirtukų grupėse}other{<ph name="TABS_COUNT_MANY" /> įprastų skirtukų su nauja veikla bendrinamose skirtukų grupėse}}</translation>
 <translation id="405365679581583349">„Google Play“ paslaugų atnaujinimas</translation>
 <translation id="405399507749852140">Gaukite įspėjimus, jei kaina bus sumažinta bet kurioje svetainėje</translation>
@@ -1830,6 +1831,7 @@ Jei norite pakeisti šį nustatymą, <ph name="BEGIN_LINK" />ištrinkite „Chro
 <translation id="930124987204876019">Ištrinti istoriją, slapukus, svetainės, talpyklos duomenis…</translation>
 <translation id="938850635132480979">Klaida: <ph name="ERROR_CODE" /></translation>
 <translation id="939598580284253335">Įvesti slaptafrazę</translation>
+<translation id="945522503751344254">Siųsti atsiliepimą</translation>
 <translation id="95817756606698420">„Chrome“ gali naudoti <ph name="BEGIN_BOLD" />Sogou<ph name="END_BOLD" />, kai paieškos atliekamos Kinijoje. Šį nustatymą galite pakeisti skiltyje <ph name="BEGIN_LINK" />„Nustatymai“<ph name="END_LINK" />.</translation>
 <translation id="961856697154696964">Ištrinti naršymo duomenis</translation>
 <translation id="963246339335003378">Atidaryti užduočių tvarkytuvę</translation>

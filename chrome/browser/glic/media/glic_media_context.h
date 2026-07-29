@@ -6,6 +6,8 @@
 #define CHROME_BROWSER_GLIC_MEDIA_GLIC_MEDIA_CONTEXT_H_
 
 #include <list>
+#include <map>
+#include <memory>
 #include <optional>
 #include <string>
 
@@ -16,6 +18,7 @@
 
 namespace content {
 class RenderFrameHost;
+class MediaSession;
 }  // namespace content
 
 namespace glic {
@@ -32,6 +35,7 @@ class GlicMediaContext : public content::DocumentUserData<GlicMediaContext>,
   std::string GetContext() const;
 
   void OnPeerConnectionAdded();
+  void OnPeerConnectionRemoved();
 
   bool is_excluded_from_transcript_for_testing() {
     return IsExcludedFromTranscript();
@@ -75,45 +79,70 @@ class GlicMediaContext : public content::DocumentUserData<GlicMediaContext>,
   // Returns a copy of the transcript chunks.
   std::list<TranscriptChunk> GetTranscriptChunks() const;
 
+ protected:
+  // Gets the current media session, if one exists. Virtual for testing.
+  virtual content::MediaSession* GetMediaSessionIfExists() const;
+
  private:
+  // Represents the state of a single transcript.
+  struct Transcript {
+    Transcript();
+    ~Transcript();
+    Transcript(const Transcript&) = delete;
+    Transcript& operator=(const Transcript&) = delete;
+
+    // Stores transcript chunks in timestamp order.
+    std::list<TranscriptChunk> transcript_chunks_;
+
+    // Iterator to the most recent non-final transcript chunk.
+    std::list<TranscriptChunk>::iterator nonfinal_chunk_it_ =
+        transcript_chunks_.end();
+
+    // The next sequence number to assign to a new chunk.
+    uint64_t next_sequence_number_ = 0;
+
+    // Iterator to the last inserted final chunk, to optimize insertion.
+    std::list<TranscriptChunk>::iterator last_insertion_it_ =
+        transcript_chunks_.end();
+
+    // The maximum transcript size that we've recorded.
+    size_t max_transcript_size_ = 0u;
+  };
+
   bool IsExcludedFromTranscript() const;
 
   // Handles a non-final speech recognition result by inserting or updating a
   // temporary non-final chunk in `transcript_chunks_`.
-  void HandleNonFinalResult(TranscriptChunk new_chunk);
+  void HandleNonFinalResult(Transcript* transcript, TranscriptChunk new_chunk);
 
   // Handles a final speech recognition result by removing any existing
   // non-final chunk, inserting the new final chunk in the correct order, and
   // trimming the transcript.
-  void HandleFinalResult(TranscriptChunk new_chunk);
+  void HandleFinalResult(Transcript* transcript, TranscriptChunk new_chunk);
 
   // Trims the transcript to a maximum size by removing the oldest chunks until
   // the total size is within the limit.
-  void TrimTranscript();
+  void TrimTranscript(Transcript* transcript);
 
   // Removes any chunks in `transcript_chunks_` that overlap with `new_chunk`.
-  void RemoveOverlappingChunks(const TranscriptChunk& new_chunk);
+  void RemoveOverlappingChunks(Transcript* transcript,
+                               const TranscriptChunk& new_chunk);
 
-  // Stores transcript chunks in timestamp order.
-  std::list<TranscriptChunk> transcript_chunks_;
+  // Return the title for the current transcript, or nullopt if there should not
+  // be a transcript.
+  std::optional<std::u16string> GetTranscriptTitle() const;
 
-  // Iterator to the most recent non-final transcript chunk.
-  std::list<TranscriptChunk>::iterator nonfinal_chunk_it_ =
-      transcript_chunks_.end();
+  // Gets an existing transcript, or returns a new one.  May return nullptr if
+  // no transcript should be created.
+  Transcript* GetOrCreateTranscript();
 
-  mutable bool is_excluded_from_transcript_ = false;
+  // Returns the current transcript, or nullptr if it doesn't exist.
+  Transcript* GetTranscriptIfExists() const;
 
-  // The next sequence number to assign to a new chunk.
-  uint64_t next_sequence_number_ = 0;
+  // Map from media session title to transcript.
+  std::map<std::u16string, std::unique_ptr<Transcript>> transcripts_by_title_;
 
-  // Iterator to the last inserted final chunk, to optimize insertion. If it is
-  // `end()`, then the next insertion will scan the whole list to find the right
-  // insertion point.
-  std::list<TranscriptChunk>::iterator last_insertion_it_ =
-      transcript_chunks_.end();
-
-  // The maximum transcript size that we've recorded.
-  size_t max_transcript_size_ = 0u;
+  size_t num_peer_connections_ = 0;
 };
 
 }  // namespace glic

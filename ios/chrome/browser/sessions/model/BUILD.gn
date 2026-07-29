@@ -243,6 +243,7 @@ source_set("legacy_session_restoration_service") {
     "//base",
     "//ios/chrome/browser/shared/model/profile",
     "//ios/chrome/browser/shared/model/web_state_list",
+    "//ios/chrome/browser/tabs/model:features",
     "//ios/web/public",
     "//ios/web/public/session",
     "//ios/web/public/session/proto",
@@ -288,6 +289,7 @@ source_set("session_migration") {
     "session_migration.mm",
   ]
   deps = [
+    ":features",
     ":serialisation",
     ":session_constants",
     ":session_internal_util",

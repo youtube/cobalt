@@ -172,18 +172,6 @@ source_set("run_all_unittests") {
     "//ios/chrome/app/startup:startup_basic",
     "//mojo/core/embedder",
   ]
-
-  if (ios_chrome_links_with_material_components_framework) {
-    public_deps = [
-      "//ios/third_party/material_components_ios:material_components_ios+bundle",
-      "//ios/third_party/material_components_ios:material_components_ios+link",
-    ]
-  } else {
-    assert_no_deps = [
-      "//ios/third_party/material_components_ios:material_components_ios+bundle",
-      "//ios/third_party/material_components_ios:material_components_ios+link",
-    ]
-  }
 }
 
 test("ios_chrome_unittests") {
@@ -260,6 +248,7 @@ test("ios_chrome_unittests") {
     "//ios/chrome/browser/complex_tasks/model:unit_tests",
     "//ios/chrome/browser/content_notification/model:unit_tests",
     "//ios/chrome/browser/content_suggestions/ui_bundled:unit_tests",
+    "//ios/chrome/browser/content_suggestions/ui_bundled/app_bundle_promo/coordinator:unit_tests",
     "//ios/chrome/browser/content_suggestions/ui_bundled/cells:unit_tests",
     "//ios/chrome/browser/content_suggestions/ui_bundled/magic_stack:unit_tests",
     "//ios/chrome/browser/content_suggestions/ui_bundled/price_tracking_promo:unit_tests",
@@ -489,9 +478,9 @@ test("ios_chrome_unittests") {
     "//ios/chrome/browser/shared/model/url:unit_tests",
     "//ios/chrome/browser/shared/model/web_state_list:unit_tests",
     "//ios/chrome/browser/shared/public/commands:unit_tests",
+    "//ios/chrome/browser/shared/ui/chrome_overlay_window:unit_tests",
     "//ios/chrome/browser/shared/ui/elements:unit_tests",
     "//ios/chrome/browser/shared/ui/list_model:unit_tests",
-    "//ios/chrome/browser/shared/ui/symbols:unit_tests",
     "//ios/chrome/browser/shared/ui/table_view:unit_tests",
     "//ios/chrome/browser/shared/ui/table_view/cells:unit_tests",
     "//ios/chrome/browser/shared/ui/util:unit_tests",

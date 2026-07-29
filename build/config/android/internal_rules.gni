@@ -130,24 +130,52 @@ template("write_build_config") {
   _deps = []
   _type = invoker.type
 
-  # Targets that run compile_resources.py or dist_aar.py.
-  # Keys are split from the main config to minimize size of .json that the
-  # action needs to parse, and to avoid marking other actions as dirty when
-  # only resource-related keys change.
-  if (_type == "robolectric_binary" || _type == "android_app_bundle_module" ||
-      _type == "android_apk" || _type == "dist_aar") {
+  # ParamsJson.merges_manifests()
+  _merges_manifests =
+      _type == "android_apk" || _type == "android_app_bundle_module" ||
+      _type == "robolectric_binary"
+  if (_merges_manifests) {
+    _outputs += [ string_replace(invoker.build_config,
+                                 ".build_config.json",
+                                 ".manifest.build_config.json") ]
+  }
+
+  # ParamsJson.collects_resources()
+  if (_merges_manifests || _type == "dist_aar") {
     _outputs += [ string_replace(invoker.build_config,
                                  ".build_config.json",
                                  ".res.build_config.json") ]
   }
 
+  # ParamsJson.needs_transitive_rtxt()
   if (_type == "dist_aar" ||
-      (_type == "java_library" &&
-       (!invoker.is_prebuilt || (defined(invoker.dex_needs_classpath) &&
-                                 invoker.dex_needs_classpath)))) {
+      (_type == "java_library" && !invoker.is_prebuilt)) {
     _outputs += [ string_replace(invoker.build_config,
                                  ".build_config.json",
                                  ".rtxt.build_config.json") ]
+  }
+
+  # ParamsJson.is_compile_type()
+  if (_type == "android_apk" || _type == "android_app_bundle_module" ||
+      _type == "java_annotation_processor" || _type == "java_binary" ||
+      _type == "robolectric_binary" ||
+      (_type == "java_library" && !invoker.is_prebuilt)) {
+    _outputs += [
+      string_replace(invoker.build_config,
+                     ".build_config.json",
+                     ".turbine.build_config.json"),
+      string_replace(invoker.build_config,
+                     ".build_config.json",
+                     ".javac.build_config.json"),
+    ]
+  }
+
+  _enable_bytecode_checks =
+      defined(invoker.enable_bytecode_checks) && invoker.enable_bytecode_checks
+  if (_enable_bytecode_checks) {
+    _outputs += [ string_replace(invoker.build_config,
+                                 ".build_config.json",
+                                 ".targets.build_config.json") ]
   }
 
   if (current_toolchain == default_toolchain) {
@@ -380,6 +408,7 @@ template("write_build_config") {
                                "dex_needs_classpath",
                                "direct_deps_only",
                                "disable_asset_compression",
+                               "enable_bytecode_checks",
                                "gradle_treat_as_prebuilt",
                                "is_prebuilt",
                                "library_always_compress",
@@ -1801,12 +1830,19 @@ if (enable_java_templates) {
                                  ])
       script = "//build/android/gyp/check_for_missing_direct_deps.py"
       inputs = java_paths_for_inputs + [
-                 invoker.build_config,
                  invoker.input_jar,
+                 invoker.javac_build_config,
+                 invoker.targets_build_config,
+                 invoker.turbine_build_config,
                ]
       depfile = "$target_gen_dir/$target_name.d"
       outputs = [ "$target_out_dir/$target_name.bytecode.stamp" ]
-      _rebased_build_config = rebase_path(invoker.build_config, root_build_dir)
+      _rebased_turbine_build_config =
+          rebase_path(invoker.turbine_build_config, root_build_dir)
+      _rebased_javac_build_config =
+          rebase_path(invoker.javac_build_config, root_build_dir)
+      _rebased_targets_build_config =
+          rebase_path(invoker.targets_build_config, root_build_dir)
       args = [
         "--depfile",
         rebase_path(depfile, root_build_dir),
@@ -1819,9 +1855,9 @@ if (enable_java_templates) {
         rebase_path(outputs[0], root_build_dir),
         "--chromium-output-dir",
         rebase_path(root_build_dir, root_build_dir),
-        "--direct-classpath-jars=@FileArg($_rebased_build_config:interface_classpath)",
-        "--full-classpath-jars=@FileArg($_rebased_build_config:javac_full_interface_classpath)",
-        "--full-classpath-gn-targets=@FileArg($_rebased_build_config:javac_full_classpath_targets)",
+        "--direct-classpath-jars=@FileArg($_rebased_turbine_build_config:interface_classpath)",
+        "--full-classpath-jars=@FileArg($_rebased_javac_build_config:javac_full_interface_classpath)",
+        "--full-classpath-gn-targets=@FileArg($_rebased_targets_build_config:javac_full_classpath_targets)",
       ]
       if (defined(invoker.header_jar_path)) {
         _rebased_header_jar_path =
@@ -1835,8 +1871,7 @@ if (enable_java_templates) {
         args += [ "--use-build-server" ]
       }
       if (invoker.include_android_sdk) {
-        args +=
-            [ "--sdk-classpath-jars=@FileArg($_rebased_build_config:sdk_jars)" ]
+        args += [ "--sdk-classpath-jars=@FileArg($_rebased_turbine_build_config:sdk_interface_jars)" ]
       }
       if (treat_warnings_as_errors) {
         args += [ "--warnings-as-errors" ]
@@ -1854,13 +1889,14 @@ if (enable_java_templates) {
       depfile = "$target_gen_dir/$target_name.d"
 
       inputs = java_paths_for_inputs + [
-                 invoker.build_config,
+                 invoker.manifest_build_config,
                  invoker.input_manifest,
                  _manifest_merger_jar_path,
                ]
 
       outputs = [ invoker.output_manifest ]
-      _rebased_build_config = rebase_path(invoker.build_config, root_build_dir)
+      _rebased_build_config =
+          rebase_path(invoker.manifest_build_config, root_build_dir)
 
       args = [
         "--depfile",
@@ -2740,7 +2776,6 @@ if (enable_java_templates) {
     }
     if (!_is_robolectric_apk) {
       _apksigner = "$android_sdk_build_tools/lib/apksigner.jar"
-      _zipalign = "$android_sdk_build_tools/zipalign"
       _keystore_path = android_keystore_path
       _keystore_name = android_keystore_name
       _keystore_password = android_keystore_password
@@ -2753,14 +2788,11 @@ if (enable_java_templates) {
 
       _inputs += [
         _apksigner,
-        _zipalign,
         _keystore_path,
       ]
       _args += [
         "--apksigner-jar",
         rebase_path(_apksigner, root_build_dir),
-        "--zipalign-path",
-        rebase_path(_zipalign, root_build_dir),
         "--key-path",
         rebase_path(_keystore_path, root_build_dir),
         "--key-name",
@@ -3025,11 +3057,7 @@ if (enable_java_templates) {
         }
         inputs += _java_srcjars
       }
-      inputs += invoker.source_files + [
-                  "$android_sdk/optional/android.test.base.jar",
-                  "$android_sdk/optional/org.apache.http.legacy.jar",
-                  _build_config,
-                ] + java_paths_for_inputs
+      inputs += invoker.source_files + [ _build_config ] + java_paths_for_inputs
 
       if (invoker.source_files != []) {
         inputs += [ invoker.target_sources_file ]
@@ -3534,6 +3562,13 @@ if (enable_java_templates) {
                         _type == "java_library" || _type == "dist_jar"
       _build_device_jar = _type != "system_java_library" && _supports_android
 
+      if (_build_host_jar || _build_device_jar) {
+        _enable_bytecode_checks =
+            (!defined(invoker.enable_bytecode_checks) ||
+             invoker.enable_bytecode_checks) && !_is_prebuilt &&
+            android_static_analysis != "off" && !_skip_header_jar
+      }
+
       _jacoco_instrument =
           use_jacoco_coverage && _chromium_code && _source_files != [] &&
           _build_device_jar && (!defined(invoker.testonly) || !invoker.testonly)
@@ -3792,6 +3827,9 @@ if (enable_java_templates) {
       if (defined(_dex_needs_classpath)) {
         dex_needs_classpath = _dex_needs_classpath
       }
+      if (defined(_enable_bytecode_checks) && _enable_bytecode_checks) {
+        enable_bytecode_checks = _enable_bytecode_checks
+      }
 
       # Specifically avoid passing in invoker.base_module_target as one of the
       # possible_config_deps.
@@ -3915,6 +3953,13 @@ if (enable_java_templates) {
         _srcjar_deps += [ ":$_fake_rjava_target" ]
       }
 
+      _javac_build_config = string_replace(_build_config,
+                                           ".build_config.json",
+                                           ".javac.build_config.json")
+      _turbine_build_config = string_replace(_build_config,
+                                             ".build_config.json",
+                                             ".turbine.build_config.json")
+
       if (_kt_files != []) {
         _abs_kt_files = get_path_info(_kt_files, "abspath")
         _kt_allowlist = [
@@ -3938,7 +3983,7 @@ if (enable_java_templates) {
           output_jar_path = _kotlinc_jar_path
           output_interface_jar_path = _kotlin_interface_jar_path
           main_target_name = _main_target_name
-          build_config = _build_config
+          build_config = _javac_build_config
           srcjar_deps = _srcjar_deps
           source_files = _source_files
           target_sources_file = _target_sources_file
@@ -3965,7 +4010,11 @@ if (enable_java_templates) {
           enable_errorprone = _enable_errorprone
           use_turbine = defined(invoker.use_turbine) && invoker.use_turbine
 
-          build_config = _build_config
+          if (use_turbine) {
+            build_config = _turbine_build_config
+          } else {
+            build_config = _javac_build_config
+          }
 
           if (_enable_errorprone) {
             source_files = _errorprone_source_files
@@ -4130,13 +4179,13 @@ if (enable_java_templates) {
     }
 
     if (_build_host_jar || _build_device_jar) {
-      _enable_bytecode_checks = !defined(invoker.enable_bytecode_checks) ||
-                                invoker.enable_bytecode_checks
       _enable_bytecode_checks =
-          _enable_bytecode_checks && !_is_prebuilt &&
+          (!defined(invoker.enable_bytecode_checks) ||
+           invoker.enable_bytecode_checks) && !_is_prebuilt &&
           android_static_analysis != "off" && !_skip_header_jar
       if (_enable_bytecode_checks) {
         _validate_target_name = "${target_name}__validate"
+
         check_for_missing_direct_deps(_validate_target_name) {
           forward_variables_from(invoker, [ "missing_classes_allowlist" ])
           deps = _unprocessed_jar_deps + _header_classpath_deps +
@@ -4155,7 +4204,11 @@ if (enable_java_templates) {
           target_label =
               get_label_info(":${invoker.target_name}", "label_no_toolchain")
           input_jar = _unprocessed_jar_path
-          build_config = _build_config
+          javac_build_config = _javac_build_config
+          turbine_build_config = _turbine_build_config
+          targets_build_config = string_replace(_build_config,
+                                                ".build_config.json",
+                                                ".targets.build_config.json")
         }
       } else {
         not_needed(invoker, [ "missing_classes_allowlist" ])
@@ -4487,12 +4540,11 @@ template("create_android_app_bundle_module") {
   _script = "//build/android/gyp/apkbuilder.py"
 
   # NOTE: Compared to the inputs of the "package_apk" template action,
-  #       this list is much smaller, since finalize_apk is never called
-  #       by apkbuild.py --format=bundle-module. This means not using
-  #       apksigner and zipalign as well, nor the keystore. Other
-  #       dependencies like extra native libraries are all pulled from the
-  #       .build_config.json through @FileArg() references (see below) and
-  #       will be listed in the generated depfile instead.
+  #       this list is much smaller, since ApkSigner is never called
+  #       by apkbuilder.py --format=bundle-module. Other dependencies like
+  #       extra native libraries are all pulled from the .build_config.json
+  #       through @FileArg() references (see below) and will be listed in the
+  #       generated depfile instead.
   _inputs = [
     invoker.build_config,
     invoker.app_bundle_build_config,

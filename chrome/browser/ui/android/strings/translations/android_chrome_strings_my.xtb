@@ -94,7 +94,7 @@
 <translation id="1398057416966591719"><ph name="BEGIN_LINK1" />မည်သည့် Chrome ဒေတာအား သိမ်းမည်ကို<ph name="END_LINK1" /> သင်၏ Google Account တွင် စီမံနိုင်သည်။
 
 သင်၏ Chrome အသုံးပြုမှု ပိုကောင်းစေရန် ဒေတာအသုံးပြုသော နောက်ထပ်ဆက်တင်များအတွက် <ph name="BEGIN_LINK2" />Google ဝန်ဆောင်မှုများ<ph name="END_LINK2" /> သို့သွားပါ။</translation>
-<translation id="1407069428457324124">အမှောင်နောက်ခံ</translation>
+<translation id="1407069428457324124">အမှောင်အပြင်အဆင်</translation>
 <translation id="1407135791313364759">အားလုံး ဖွင့်ရန်</translation>
 <translation id="1409879593029778104">ဖိုင် ရှိနှင့်နေသောကြောင့် <ph name="FILE_NAME" /> ဒေါင်းလုဒ်လုပ်မှု တားဆီးခံခဲ့ရပါသည်။</translation>
 <translation id="1413446866325418126">သင့် Google Account တွင် ဒေတာသိမ်းခြင်း</translation>
@@ -632,6 +632,7 @@
 <translation id="4042941173059740150"><ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> ဖြင့် <ph name="SITE_ETLD_PLUS_ONE" /> ကို ရှေ့ဆက်ပါ</translation>
 <translation id="4044708993631234325">အောက်ခြေအပိုဆောင်း စာမျက်နှာ</translation>
 <translation id="4045441967987592849">ပြန်ဖွင့်ရန်</translation>
+<translation id="4049920046559074950"><ph name="INSTANCE_TITLE" /> အတွက် နောက်ထပ်ရွေးစရာများ</translation>
 <translation id="4052419222954753986">{NUMBER_OF_TABS,plural, =1{မျှဝေထားသော တဘ်အုပ်စုများရှိ လုပ်ဆောင်ချက်အသစ်ပါသည့် ပုံမှန်တဘ် <ph name="TABS_COUNT_ONE" /> ခု}other{မျှဝေထားသော တဘ်အုပ်စုများရှိ လုပ်ဆောင်ချက်အသစ်ပါသည့် ပုံမှန်တဘ် <ph name="TABS_COUNT_MANY" /> ခု}}</translation>
 <translation id="405365679581583349">Google Play ဝန်ဆောင်မှုများကို အပ်ဒိတ်လုပ်ပါ</translation>
 <translation id="405399507749852140">ဝဘ်ဆိုက်တစ်ခုခုတွင် ဈေးကျသွားပါက သတိပေးချက်များ ရယူနိုင်သည်</translation>
@@ -1238,7 +1239,7 @@
 <translation id="6723740634201835758">သင့် Google အကောင့်တွင်-</translation>
 <translation id="6734310707649923383">သင်ဝင်ကြည့်ထားသော စာမျက်နှာများကို ကြည့်နိုင်သည် (သို့) ၎င်းတို့ကို သင့်မှတ်တမ်းမှ ဖျက်နိုင်သည်</translation>
 <translation id="6738867403308150051">ဒေါင်းလုဒ် လုပ်နေ…</translation>
-<translation id="6745063744988317486">မိုနို</translation>
+<translation id="6745063744988317486">Mono</translation>
 <translation id="6746338529702829275">သင့်အကောင့်ဒေတာ ပြန်ကြည့်ရန်</translation>
 <translation id="6751521182688001123">တဘ်အသစ် အမြန်ဖွင့်ပါ။ ဤဖြတ်လမ်းလင့်ခ်ကို ပြင်ဆင်ရန် ထိထားပါ။</translation>
 <translation id="6752130751133944215">ဝင်းဒိုးအသစ် ပြန်ယူရန်အတွက် လက်ရှိသုံးနေသော၊ အသုံးမပြုသော ဝင်းဒိုးအရေအတွက်စုစုပေါင်းကို <ph name="MAX_WINDOW_COUNT_MINUS_ONE" /> နှင့်အောက်သို့ လျှော့ချပါ။ အသုံးမပြုသော ဝင်းဒိုးများကို ၆ လကြာပြီးနောက် ဖျက်လိုက်သည်။</translation>
@@ -1829,6 +1830,7 @@
 <translation id="930124987204876019">မှတ်တမ်း၊ ကွတ်ကီးများ၊ ဝဘ်ဆိုက် ဒေတာ၊ ကက်ရှ်များ ဖျက်သည်…</translation>
 <translation id="938850635132480979">အမှား- <ph name="ERROR_CODE" /></translation>
 <translation id="939598580284253335">စကားစုဝှက်ကို ရိုက်ထည့်ရန်</translation>
+<translation id="945522503751344254">အကြံပြုချက် ပေးပို့မည်</translation>
 <translation id="95817756606698420">Chrome သည် တရုတ်ပြည်တွင် ရှာဖွေရန် <ph name="BEGIN_BOLD" />Sogou<ph name="END_BOLD" /> ကို အသုံးပြုနိုင်ပါသည်။ ၎င်းကို <ph name="BEGIN_LINK" />ဆက်တင်များ<ph name="END_LINK" /> ထဲတွင် ပြောင်းလဲနိုင်သည်။</translation>
 <translation id="961856697154696964">ဖွင့်ကြည့်ထားသည့်မှတ်တမ်းဒေတာ ဖျက်ရန်</translation>
 <translation id="963246339335003378">လုပ်ဆောင်ချက်မန်နေဂျာ ဖွင့်ရန်</translation>

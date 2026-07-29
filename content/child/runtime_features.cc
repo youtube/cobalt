@@ -47,7 +47,7 @@
 #include "ui/gfx/switches.h"
 #include "ui/gl/gl_switches.h"
 #include "ui/native_theme/features/native_theme_features.h"
-#include "ui/native_theme/native_theme_utils.h"
+#include "ui/native_theme/native_theme.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/android_info.h"
@@ -360,7 +360,6 @@ void SetRuntimeFeaturesFromChromiumFeatures() {
            raw_ref(network::features::kCompressionDictionaryTransportBackend)},
           {"CookieDeprecationFacilitatedTesting",
            raw_ref(features::kCookieDeprecationFacilitatedTesting)},
-          {"CSPHashesV1", raw_ref(network::features::kCSPScriptSrcHashesInV1)},
           {"DocumentPolicyIncludeJSCallStacksInCrashReports",
            raw_ref(blink::features::
                        kDocumentPolicyIncludeJSCallStacksInCrashReports),
@@ -524,7 +523,8 @@ void SetCustomizedRuntimeFeaturesFromCombinedArgs(
   // These checks are custom wrappers around base::FeatureList::IsEnabled
   // They're moved here to distinguish them from actual base checks
 #if !BUILDFLAG(IS_CHROMEOS)
-  WebRuntimeFeatures::EnableOverlayScrollbars(ui::IsOverlayScrollbarEnabled());
+  WebRuntimeFeatures::EnableOverlayScrollbars(
+      ui::NativeTheme::GetInstanceForWeb()->use_overlay_scrollbar());
 #endif
   WebRuntimeFeatures::EnableFluentScrollbars(ui::IsFluentScrollbarEnabled());
   WebRuntimeFeatures::EnableFluentOverlayScrollbars(
@@ -642,6 +642,13 @@ void ResolveInvalidConfigurations() {
         << switches::kEnableFeatures << "="
         << blink::features::kPermissionElement.name << " instead.";
     WebRuntimeFeatures::EnablePermissionElement(false);
+  }
+
+  // CSP Hashes in V1 cannot be enabled without the support of the network
+  // service.
+  if (!base::FeatureList::IsEnabled(
+          network::features::kCSPScriptSrcHashesInV1)) {
+    WebRuntimeFeatures::EnableCSPHashesV1(false);
   }
 }
 

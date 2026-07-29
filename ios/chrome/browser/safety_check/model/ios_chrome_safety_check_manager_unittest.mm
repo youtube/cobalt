@@ -19,6 +19,7 @@
 #import "components/prefs/pref_service.h"
 #import "components/prefs/testing_pref_service.h"
 #import "components/safe_browsing/core/common/safe_browsing_prefs.h"
+#import "components/safety_check/features.h"
 #import "ios/chrome/browser/passwords/model/ios_chrome_profile_password_store_factory.h"
 #import "ios/chrome/browser/passwords/model/password_checkup_utils.h"
 #import "ios/chrome/browser/safety_check/model/ios_chrome_safety_check_manager_constants.h"
@@ -46,9 +47,8 @@ class IOSChromeSafetyCheckManagerTest : public PlatformTest {
 
     builder.AddTestingFactory(
         IOSChromeProfilePasswordStoreFactory::GetInstance(),
-        base::BindRepeating(
-            &password_manager::BuildPasswordStore<
-                web::BrowserState, password_manager::TestPasswordStore>));
+        base::BindOnce(&password_manager::BuildPasswordStore<
+                       ProfileIOS, password_manager::TestPasswordStore>));
 
     ProfileIOS* profile =
         profile_manager_.AddProfileWithBuilder(std::move(builder));
@@ -938,20 +938,8 @@ TEST_F(IOSChromeSafetyCheckManagerTest,
             PasswordSafetyCheckState::kDefault);
   EXPECT_EQ(safety_check_manager_->GetUpdateChromeCheckState(),
             UpdateChromeSafetyCheckState::kOutOfDate);
-
-  // The Safety Check Notifications project improves how Safety Check state is
-  // restored.
-  if (IsSafetyCheckNotificationsEnabled()) {
-    // If Safety Check Notifications is enabled, the Safe Browsing check
-    // should be restored to `kSafe`.
-    EXPECT_EQ(safety_check_manager_->GetSafeBrowsingCheckState(),
-              SafeBrowsingSafetyCheckState::kSafe);
-  } else {
-    // Otherwise, the Safe Browsing check should be restored to the default
-    // state, as the state is not persisted.
-    EXPECT_EQ(safety_check_manager_->GetSafeBrowsingCheckState(),
-              SafeBrowsingSafetyCheckState::kDefault);
-  }
+  EXPECT_EQ(safety_check_manager_->GetSafeBrowsingCheckState(),
+            SafeBrowsingSafetyCheckState::kDefault);
 }
 
 // Tests `DictToInsecurePasswordCounts()` correctly converts a Dict to insecure
@@ -994,8 +982,10 @@ TEST_F(IOSChromeSafetyCheckManagerTest,
 // check exists and is sufficiently old.
 TEST_F(IOSChromeSafetyCheckManagerTest,
        AllowsAutorunWhenPreviousCheckIsTooOld) {
+  const base::TimeDelta update_interval_in_days = base::Days(
+      safety_check::features::kBackgroundPasswordCheckInterval.Get().InDays());
   base::Time sufficiently_old_previous_check_time =
-      base::Time::Now() - (kSafetyCheckAutorunDelay + base::Days(7));
+      base::Time::Now() - (update_interval_in_days + base::Days(7));
 
   EXPECT_TRUE(
       CanAutomaticallyRunSafetyCheck(sufficiently_old_previous_check_time));
@@ -1005,8 +995,10 @@ TEST_F(IOSChromeSafetyCheckManagerTest,
 // previous Safety Check run occurred too recently.
 TEST_F(IOSChromeSafetyCheckManagerTest,
        PreventsAutorunWhenPreviousCheckIsTooRecent) {
+  const base::TimeDelta update_interval_in_days = base::Days(
+      safety_check::features::kBackgroundPasswordCheckInterval.Get().InDays());
   base::Time recent_previous_check_time =
-      base::Time::Now() - (kSafetyCheckAutorunDelay - base::Minutes(30));
+      base::Time::Now() - (update_interval_in_days - base::Minutes(30));
 
   EXPECT_FALSE(CanAutomaticallyRunSafetyCheck(recent_previous_check_time));
 }

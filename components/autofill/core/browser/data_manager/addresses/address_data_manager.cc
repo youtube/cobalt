@@ -84,7 +84,7 @@ AddressDataManager::AddressDataManager(
     PrefService* local_state,
     syncer::SyncService* sync_service,
     signin::IdentityManager* identity_manager,
-    StrikeDatabaseBase* strike_database,
+    strike_database::StrikeDatabaseBase* strike_database,
     GeoIpCountryCode variation_country_code,
     std::string app_locale)
     : variation_country_code_(std::move(variation_country_code)),
@@ -522,7 +522,7 @@ void AddressDataManager::SetPrefService(PrefService* pref_service) {
 }
 
 void AddressDataManager::SetStrikeDatabase(
-    StrikeDatabaseBase* strike_database) {
+    strike_database::StrikeDatabaseBase* strike_database) {
   if (!strike_database) {
     return;
   }
@@ -608,6 +608,11 @@ bool AddressDataManager::IsAutofillUserSelectableTypeEnabled() const {
 }
 
 bool AddressDataManager::IsAutofillSyncToggleAvailable() const {
+  if (base::FeatureList::IsEnabled(
+          syncer::kReplaceSyncPromosWithSignInPromos)) {
+    return false;
+  }
+
   if (!pref_service_->GetBoolean(::prefs::kExplicitBrowserSignin)) {
     return false;
   }

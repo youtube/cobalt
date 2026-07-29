@@ -799,8 +799,8 @@ gpu::ContextResult GLES2DecoderPassthroughImpl::Initialize(
     const scoped_refptr<gl::GLSurface>& surface,
     const scoped_refptr<gl::GLContext>& context,
     bool offscreen,
-    const DisallowedFeatures& disallowed_features,
-    const ContextCreationAttribs& attrib_helper) {
+    ContextType context_type,
+    bool lose_context_when_out_of_memory) {
   TRACE_EVENT0("gpu", "GLES2DecoderPassthroughImpl::Initialize");
   CHECK(gl::GetGLImplementation() == gl::kGLImplementationEGLANGLE)
       << "Running WebGL through passthrough command decoder without ANGLE's "
@@ -828,8 +828,7 @@ gpu::ContextResult GLES2DecoderPassthroughImpl::Initialize(
   multi_draw_manager_ = std::make_unique<MultiDrawManager>(
       MultiDrawManager::IndexStorageType::Pointer);
 
-  auto result =
-      group_->Initialize(this, attrib_helper.context_type, disallowed_features);
+  auto result = group_->Initialize(this, context_type, DisallowedFeatures());
   if (result != gpu::ContextResult::kSuccess) {
     // Must not destroy ContextGroup if it is not initialized.
     group_ = nullptr;
@@ -839,7 +838,7 @@ gpu::ContextResult GLES2DecoderPassthroughImpl::Initialize(
 
   // Extensions that are enabled via emulation on the client side or needed for
   // basic command buffer functionality.  Make sure they are always enabled.
-  if (IsWebGLContextType(attrib_helper.context_type)) {
+  if (IsWebGLContextType(context_type)) {
     // Grab the extensions that are requestable
     gfx::ExtensionSet requestable_extensions(
         gl::GetRequestableGLExtensionsFromCurrentContext());
@@ -926,8 +925,7 @@ gpu::ContextResult GLES2DecoderPassthroughImpl::Initialize(
   // Each context initializes its own feature info because some extensions may
   // be enabled dynamically.  Don't disallow any features, leave it up to ANGLE
   // to dynamically enable extensions.
-  InitializeFeatureInfo(attrib_helper.context_type, DisallowedFeatures(),
-                        false);
+  InitializeFeatureInfo(context_type, DisallowedFeatures(), false);
 
   // Check for required extensions
   // TODO(geofflang): verify
@@ -953,18 +951,13 @@ gpu::ContextResult GLES2DecoderPassthroughImpl::Initialize(
   FAIL_INIT_IF_NOT(api()->glIsEnabledFn(GL_CLIENT_ARRAYS_ANGLE) == GL_FALSE,
                    "GL_ANGLE_client_arrays shouldn't be enabled");
   FAIL_INIT_IF_NOT(feature_info_->feature_flags().angle_webgl_compatibility ==
-                       IsWebGLContextType(attrib_helper.context_type),
+                       IsWebGLContextType(context_type),
                    "missing GL_ANGLE_webgl_compatibility");
   FAIL_INIT_IF_NOT(feature_info_->feature_flags().angle_request_extension,
                    "missing GL_ANGLE_request_extension");
   FAIL_INIT_IF_NOT(feature_info_->feature_flags().khr_debug,
                    "missing GL_KHR_debug");
-  FAIL_INIT_IF_NOT(!attrib_helper.fail_if_major_perf_caveat ||
-                       !feature_info_->feature_flags().is_software_webgl,
-                   "fail_if_major_perf_caveat + software gl");
-  FAIL_INIT_IF_NOT(!attrib_helper.enable_gpu_rasterization,
-                   "GPU rasterization not supported");
-  FAIL_INIT_IF_NOT(!IsES31ForTestingContextType(attrib_helper.context_type) ||
+  FAIL_INIT_IF_NOT(!IsES31ForTestingContextType(context_type) ||
                        feature_info_->gl_version_info().IsAtLeastGLES(3, 1),
                    "ES 3.1 context type requires an ES 3.1 ANGLE context");
 
@@ -974,8 +967,6 @@ gpu::ContextResult GLES2DecoderPassthroughImpl::Initialize(
     api()->glBlobCacheCallbacksANGLEFn(PassthroughGLBlobCacheSetCallback,
                                        PassthroughGLBlobCacheGetCallback, this);
   }
-
-  bind_generates_resource_ = group_->bind_generates_resource();
 
   resources_ = group_->passthrough_resources();
 
@@ -1015,8 +1006,7 @@ gpu::ContextResult GLES2DecoderPassthroughImpl::Initialize(
   }
   bound_element_array_buffer_dirty_ = false;
 
-  lose_context_when_out_of_memory_ =
-      attrib_helper.lose_context_when_out_of_memory;
+  lose_context_when_out_of_memory_ = lose_context_when_out_of_memory;
 
   GLint max_2d_texture_size = 0;
   api()->glGetIntegervFn(GL_MAX_TEXTURE_SIZE, &max_2d_texture_size);
@@ -1371,8 +1361,6 @@ gpu::GLCapabilities GLES2DecoderPassthroughImpl::GetGLCapabilities() {
   GLCapabilities caps;
 
   PopulateGLCapabilities(&caps, feature_info_.get());
-  CHECK_EQ(caps.bind_generates_resource_chromium != GL_FALSE,
-           group_->bind_generates_resource());
   caps.occlusion_query_boolean =
       feature_info_->feature_flags().occlusion_query_boolean;
   caps.timer_queries = feature_info_->feature_flags().ext_disjoint_timer_query;
@@ -1594,10 +1582,9 @@ gpu::gles2::Logger* GLES2DecoderPassthroughImpl::GetLogger() {
   return &logger_;
 }
 
-void GLES2DecoderPassthroughImpl::OnGpuSwitched(
-    gl::GpuPreference active_gpu_heuristic) {
+void GLES2DecoderPassthroughImpl::OnGpuSwitched() {
   // Send OnGpuSwitched notification to renderer process via decoder client.
-  client()->OnGpuSwitched(active_gpu_heuristic);
+  client()->OnGpuSwitched();
 }
 
 void GLES2DecoderPassthroughImpl::BeginDecoding() {

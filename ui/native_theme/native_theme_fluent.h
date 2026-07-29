@@ -8,30 +8,35 @@
 #include <optional>
 
 #include "base/component_export.h"
+#include "third_party/skia/include/core/SkRefCnt.h"
+#include "ui/gfx/geometry/rect_f.h"
+#include "ui/native_theme/native_theme.h"
 #include "ui/native_theme/native_theme_base.h"
 
 namespace gfx {
 class Rect;
-class RectF;
-}  // namespace gfx
+}
 
-template <typename T>
-class sk_sp;
 class SkTypeface;
 
 namespace ui {
 
+class ColorProvider;
+class NativeThemeFluentTest;
+
 class COMPONENT_EXPORT(NATIVE_THEME) NativeThemeFluent
     : public NativeThemeBase {
  public:
-  explicit NativeThemeFluent(bool should_only_use_dark_colors);
+  // LINT.IfChange(FluentScrollbarThickness)
+  static constexpr int kScrollbarThickness = 15;
+  // LINT.ThenChange(//third_party/blink/web_tests/resources/scrollbar-util.js:FluentScrollbarThickness)
+
+  NativeThemeFluent();
 
   NativeThemeFluent(const NativeThemeFluent&) = delete;
   NativeThemeFluent& operator=(const NativeThemeFluent&) = delete;
 
   ~NativeThemeFluent() override;
-
-  static NativeThemeFluent* web_instance();
 
   void PaintArrowButton(
       cc::PaintCanvas* canvas,
@@ -58,7 +63,7 @@ class COMPONENT_EXPORT(NATIVE_THEME) NativeThemeFluent
                            const ScrollbarThumbExtraParams& extra_params,
                            ColorScheme color_scheme) const override;
   gfx::Insets GetScrollbarSolidColorThumbInsets(Part part) const override;
-  SkColor4f GetScrollbarThumbColor(
+  SkColor GetScrollbarThumbColor(
       const ui::ColorProvider& color_provider,
       State state,
       const ScrollbarThumbExtraParams& extra) const override;

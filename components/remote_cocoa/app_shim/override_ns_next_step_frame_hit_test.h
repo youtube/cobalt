@@ -5,7 +5,7 @@
 #ifndef COMPONENTS_REMOTE_COCOA_APP_SHIM_OVERRIDE_NS_NEXT_STEP_FRAME_HIT_TEST_H_
 #define COMPONENTS_REMOTE_COCOA_APP_SHIM_OVERRIDE_NS_NEXT_STEP_FRAME_HIT_TEST_H_
 
-#include "ui/gfx/native_window_types.h"
+#include "ui/gfx/native_ui_types.h"
 
 namespace remote_cocoa {
 
@@ -26,7 +26,8 @@ void OverrideNSNextStepFrameHitTest();
 // When a right-mouse-down event occurs within the bounds of `ns_view`, the
 // overridden method will return `ns_view`. This should be the view that is
 // intended to receive right-clicks (i.e. the BridgedContentView).
-void SetNSNextStepFrameHitTestTargetView(NSView* ns_view);
+void SetNSNextStepFrameHitTestTargetView(NSWindow* fullscreen_window,
+                                         NSView* target_view);
 
 }  // namespace remote_cocoa
 

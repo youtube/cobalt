@@ -463,6 +463,7 @@
       このポリシーを有効に設定した場合、改善された国際キーボード ショートカットが有効になります。
       未設定の場合、このポリシーは管理対象のデバイスに対して有効になり、ユーザーが所有するデバイスに対しても有効になります。
       なお、これは管理対象のユーザーが、サポートの終了した従来のショートカットを引き続き使用できるようにするための一時的なポリシーです。このポリシーは、キーボード ショートカットのカスタマイズが可能になった時点でサポート終了となります。</translation>
+<translation id="1357214899305978790">新しいタブページでショートカットを設定する（ベータ版）</translation>
 <translation id="1361661842732478894">ツールバーにホームボタンを表示する</translation>
 <translation id="1363275621236827384">ハードウェア プロファイルを Quirks サーバーに問い合わせられるようにする</translation>
 <translation id="1363839375295535439">このポリシーを有効に設定するか未設定のままにした場合、システム設定でサポートされていれば、印刷サービスで LPAC サンドボックスが有効になります。
@@ -521,6 +522,19 @@ PromptInTab に設定した場合は、ユーザーの認証が期限切れに�
 <translation id="141279920573530952">このポリシーでは、使用可能なすべてのシリアルポートへのアクセスを自動的に許可するサイトのリストを指定できます。必ず有効な URL を指定してください。無効な URL を指定した場合、このポリシーは無視されます。URL のオリジン（スキーム、ホストとポート）のみが考慮されます。<ph name="PRODUCT_OS_NAME" /> 上で、このポリシーは関連のあるユーザーにのみ適用されます。このポリシーは、<ph name="DEFAULT_SERIAL_GUARD_SETTING_POLICY_NAME" />、<ph name="SERIAL_ASK_FOR_URLS_POLICY_NAME" />、<ph name="SERIAL_BLOCKED_FOR_URLS_POLICY_NAME" />、ユーザーの設定をオーバーライドします。</translation>
 <translation id="1413768951234456918">閲覧履歴を消去する</translation>
 <translation id="1413936351612032792">Linux アプリの使用に関する情報を報告します</translation>
+<translation id="1417776888841750570">このポリシーでは、ユーザーが管理対象アカウントでコンテンツ エリアにログインした後のブラウザの動作を制御します。
+
+このポリシーは <ph name="MANAGED_ACCOUNTS_SIGNIN_RESTRICTION_POLICY_NAME" /> をオーバーライドします。
+
+このポリシーを「Suggested（提案）」に設定した場合、ユーザーが管理対象アカウントにログインした後、この設定を強制適用した状態で管理対象プロファイルの使用を続行するかどうかを確認します。拒否した場合、ユーザーは管理対象外の環境でブラウジングを続行できます。
+
+このポリシーを「Enforced（強制適用）」に設定した場合、ユーザーは管理対象アカウントにログインした後、管理対象プロファイルの使用を続行する必要があります。拒否した場合、ユーザーはアカウントからログアウトされます。この設定の適用は <ph name="SIGNIN_INTERCEPTION_ENABLED_POLICY_NAME" /> ポリシーの影響を受けません。
+
+このポリシーを「Disabled（無効）」に設定するか未設定のままにした場合、ユーザーが管理対象アカウントにログインした後、新しいプロファイルを作成するかどうかを確認するバブルを表示します。ユーザーはこのバブルをスキップして、管理対象外の環境でブラウジングを続行できます。バブルは <ph name="SIGNIN_INTERCEPTION_ENABLED_POLICY_NAME" /> ポリシーで制御されます。
+
+このポリシーをマシンレベルで設定した場合、ポリシーは無視されます。
+
+このポリシーは、シークレット モードでは適用されず、機能しません。</translation>
 <translation id="1417888712677507140">異なる生成元のサブフレームからトリガーされた JavaScript ダイアログをブロックします。</translation>
 <translation id="1418387035898607074">信頼できる提供元からのファイルのダウンロードに対してセーフ ブラウジング チェックをスキップする</translation>
 <translation id="1419020637569060510">ChromeOS で予備のアカウントとして管理対象アカウントを使用することに対する制限を追加する</translation>
@@ -3290,7 +3304,6 @@ Microsoft Outlook カードには、追加の管理者設定が必要です。Ch
       この設定を無効または未設定にすると、新しいインライン ログインフローがデフォルトで使用されます。ユーザーは、コマンドライン フラグ（enable-web-based-signin）を指定することで古いウェブベースのログインフローを引き続き有効にできます。
 
       今後、インライン ログインがすべての SSO ログインフローで完全にサポートされるようになった時点で、試験運用の設定は削除されます。</translation>
-<translation id="3435178885391813398">スキャナを許可しない。</translation>
 <translation id="3435796032110614169">印刷ジョブの履歴の削除を許可します</translation>
 <translation id="3436217793443508863">バッテリーでの使用中、ユーザー入力が行われなくなってから画面をロックするまでの時間（ミリ秒）</translation>
 <translation id="3437924696598384725">ユーザーに VPN 接続の管理を許可する</translation>
@@ -5092,6 +5105,17 @@ Cookie を削除しても、ユーザーは Google アカウントにログイ�
 Chrome 114 までは、このポリシーを使用するには <ph name="SYNC_DISABLED_POLICY_NAME" /> ポリシーを true に設定する必要がありました。Chrome 115 以降では、このポリシーを設定すると、<ph name="SYNC_DISABLED_POLICY_NAME" /> ポリシーで「<ph name="CHROME_SYNC_NAME" />」を無効にしておらずかつ <ph name="BROWSER_SIGNIN_POLICY_NAME" /> も無効になっていない場合に、それぞれのデータタイプの同期が無効になります。</translation>
 <translation id="4694138212536142867">デバイスのハードウェア ステータスの報告を有効にする</translation>
 <translation id="4697581738794063407">URL パラメータ フィルタ機能を制御する</translation>
+<translation id="4698488381632756664">開発中: 早期プレビュー版のみ。
+
+このポリシーでは、<ph name="PRODUCT_NAME" /> の新しいタブページに表示する最大 10 個のカスタム ショートカットを事前に設定できます。
+
+このポリシーを設定した場合、指定したショートカットがデフォルトでユーザーに表示されます。ユーザーは [Chrome をカスタマイズ] パネルで [カスタム ショートカット]、[よくアクセスするサイト]、[組織のショートカット] を切り替えることができます。このポリシーを空白または未設定のままにした場合、ユーザーは [Chrome をカスタマイズ] パネルで [カスタム ショートカット] と [よくアクセスするサイト] のみを切り替えることができます。
+
+ショートカットの URL は一意である必要があります。
+
+<ph name="NTP_SHORTCUTS_ALLOW_USER_EDIT_NAME" /> を true に設定した場合、ユーザーはショートカットの名前を変更できます。false に設定するか未設定のままにした場合、ユーザーはショートカットの名前を編集できません。
+
+<ph name="NTP_SHORTCUTS_ALLOW_USER_DELETE_NAME" /> を true に設定した場合、ユーザーはショートカットを削除できます。false に設定するか未設定のままにした場合、ユーザーはショートカットを削除できません。</translation>
 <translation id="4698895924806859508">ネットワーク イベントを報告しない</translation>
 <translation id="4699172675775169585">キャッシュされた画像とファイル</translation>
 <translation id="4699592681017489215">このポリシーでは、DNS 傍受チェックの無効化に使用できるローカルのスイッチを設定します。DNS 傍受チェックは、ブラウザが不明なホスト名をリダイレクトするプロキシの背後にあるかどうかを検出するものです。
@@ -6585,15 +6609,6 @@ URL パターンは、<ph name="DIRECT_SOCKETS_PRIVATE_NETWORK_ACCESS_BLOCKED_FO
 <translation id="5728154254076636808"><ph name="PRODUCT_NAME" /> プロフィール データのローミング コピーを作成できるようにする</translation>
 <translation id="5729308727912841256">Kerberos パスワードです。プレースホルダ「<ph name="PASSWORD_PLACEHOLDER" />」はログイン パスワードに置き換えられます。</translation>
 <translation id="5730610899971390601">「Just Works」Bluetooth ペア設定リクエストを拒否する</translation>
-<translation id="5731898940174379509">このポリシーでは、<ph name="PRODUCT_NAME" /> の新しいタブページに表示する最大 10 個のカスタム ショートカットを事前に設定できます。
-
-このポリシーを設定した場合、指定したショートカットがデフォルトでユーザーに表示されます。ユーザーは [Chrome をカスタマイズ] パネルで [カスタム ショートカット]、[よくアクセスするサイト]、[組織のショートカット] を切り替えることができます。このポリシーを空白または未設定のままにした場合、ユーザーは [Chrome をカスタマイズ] パネルで [カスタム ショートカット] と [よくアクセスするサイト] のみを切り替えることができます。
-
-ショートカットの URL は一意である必要があります。
-
-<ph name="NTP_SHORTCUTS_ALLOW_USER_EDIT_NAME" /> を true に設定した場合、ユーザーはショートカットの名前を変更できます。false に設定するか未設定のままにした場合、ユーザーはショートカットの名前を編集できません。
-
-<ph name="NTP_SHORTCUTS_ALLOW_USER_DELETE_NAME" /> を true に設定した場合、ユーザーはショートカットを削除できます。false に設定するか未設定のままにした場合、ユーザーはショートカットを削除できません。</translation>
 <translation id="5732972008943405952">初回実行時にデフォルトのブラウザから自動入力フォームのデータをインポートする</translation>
 <translation id="5733040281451845496">このポリシーを有効に設定した場合、電力管理の待機時間とセッションの時間制限のカウントは、セッションでユーザーがなんらかの操作をするまで開始されません。
 
@@ -6868,7 +6883,6 @@ URL パターンは、<ph name="DIRECT_SOCKETS_PRIVATE_NETWORK_ACCESS_BLOCKED_FO
 
       このポリシーを無効に設定した場合、QUIC プロトコルの使用は許可されません。</translation>
 <translation id="5916855682471300200">クラウドのマシンポリシーをプラットフォームのマシンポリシーより優先する</translation>
-<translation id="5917092644305650513">スキャナ機能の設定</translation>
 <translation id="5917425424971710623">広範な検出と対応（XDR）イベントに関する情報を報告しない</translation>
 <translation id="5917897389577978190">Gmail（バージョン 135 以降でサポート）</translation>
 <translation id="592036544845479336">非推奨または削除済みのミューテーション イベントを再度有効にする</translation>
@@ -7262,7 +7276,6 @@ false に設定した場合、教師はこの機能にアクセスできませ�
       このポリシーを false に設定するか未設定のままにした場合、障害レポートの情報は報告されません。
 このポリシーを true に設定した場合、障害レポートの情報が報告されます。</translation>
 <translation id="624219423122512710">アイドル時のブラウザの動作</translation>
-<translation id="6243061183100681514">スキャナと AI モデルの改善を許可する。</translation>
 <translation id="6244061205361004687">ユーザーによる手動での VPN の接続解除や変更を許可する</translation>
 <translation id="6244210204546589761">起動時に開く URL</translation>
 <translation id="624595269193747921">照合するプリンタの検索の対象を特定のプリンタに限定するかどうかを指定します。</translation>
@@ -7957,7 +7970,6 @@ URL が <ph name="SERIAL_ASK_FOR_URLS_POLICY_NAME" /> の URL パターンと競
 <translation id="666203515318060501">AI モデルの改善は行わずに、拡張自動入力を許可する。</translation>
 <translation id="6665670272107384733">ロックのクイック解除機能を使用するために必要なパスワード入力の頻度を設定する</translation>
 <translation id="6667586534922258705">ログイン画面とロック画面にパスワード表示ボタンを表示する</translation>
-<translation id="6667636336079341367">AI モデルの改善は行わずにスキャナを許可する。</translation>
 <translation id="6668559639284945695">このポリシーでは、Cookie のスコープを従来の動作に戻すことができます。
 
 つまり、特定のプロトコル（HTTPS など）またはポートで設定された Cookie に別のプロトコルまたはポートからアクセスできるようにします。
@@ -8253,7 +8265,6 @@ URL が <ph name="SERIAL_ASK_FOR_URLS_POLICY_NAME" /> の URL パターンと競
 false に設定するか未設定のままにした場合、このレイアウトは使用できません。有効にするには再起動が必要です。</translation>
 <translation id="685769593149966548">YouTube で制限付きモード「強」を強制する</translation>
 <translation id="686079137349561371">Microsoft Windows 7 以降</translation>
-<translation id="6863927303509860338">新しいタブページでショートカットを設定する</translation>
 <translation id="6866755486434471318"><ph name="PEPPER_NAME" /> が共有画像を動画のデコードに使用することを許可する。</translation>
 <translation id="6878757724611298427">関連付けられていないデバイスでの Android アプリの使用をユーザーに許可する</translation>
 <translation id="6881397131210596522">このポリシーを 2 に設定した場合、サイトによる WebPrinting API の使用が自動的にブロックされます。
@@ -10488,17 +10499,6 @@ URL が <ph name="SERIAL_BLOCKED_FOR_URLS_POLICY_NAME" /> の URL パターン�
       このポリシーを無効に設定するか未設定のままにした場合、この情報は報告されません。
       このポリシーを有効に設定した場合、関連付けられているユーザーの CRD イベントが報告されます</translation>
 <translation id="85723976805793612">Android アプリのインストールのイベントログを Google と共有する</translation>
-<translation id="8573354257711790704">このポリシーでは、<ph name="PRODUCT_OS_NAME" /> のスキャナ機能の設定を制御します。
-
-0 = この機能の使用と、Google が AI モデルを改善する目的で関連データを使用することを許可します。関連データには、機能に応じてプロンプト、入力内容、出力内容、ソース資料、フィードバックの文面などが含まれます。AI モデルを改善するため、人間のレビュアーが確認する場合もあります。以下に記載している場合を除き、0 がデフォルト値です。
-
-1 = この機能の使用を許可しますが、Google がモデルを改善する目的でユーザーのコンテンツ（プロンプト、入力内容、出力内容、ソース資料、フィードバックの文面など）を使用することは許可しません。1 は、<ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" /> で管理されている企業ユーザーと、<ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" /> で管理されている教育機関向けアカウントのデフォルト値です。
-
-2 = この機能を許可しません。
-
-このポリシーを未設定のままにした場合、動作は <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> ポリシーによって決まります。
-
-生成 AI 機能のデータ処理について詳しくは、https://support.google.com/chrome/a?p=generative_ai_settings をご覧ください。</translation>
 <translation id="857369585509260201">このポリシーはサポート終了となりました。代わりに BrowserSignin の使用を検討してください。
 
       このポリシーが true に設定されている場合、ユーザーがブラウザを使用するには、自分のプロフィールで <ph name="PRODUCT_NAME" /> にログインする必要があります。BrowserGuestModeEnabled のデフォルト値は false に設定されます。このポリシーを有効にした後、ログインしていない既存のポリシーはロックされ、アクセスできなくなります。詳しくはヘルプセンター記事をご覧ください。

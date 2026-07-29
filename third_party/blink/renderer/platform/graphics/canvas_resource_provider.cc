@@ -157,6 +157,11 @@ class CanvasResourceProviderBitmap : public CanvasResourceProvider {
   bool IsAccelerated() const final { return false; }
   bool SupportsDirectCompositing() const override { return false; }
   bool IsSingleBuffered() const override { return false; }
+  void ExternalCanvasDrawHelper(
+      base::FunctionRef<void(MemoryManagedPaintCanvas&)> draw_callback)
+      override {
+    draw_callback(Canvas());
+  }
 
  private:
   scoped_refptr<CanvasResource> ProduceCanvasResource(FlushReason) override {
@@ -467,6 +472,19 @@ class CanvasResourceProviderSharedImage : public CanvasResourceProvider,
     return true;
   }
 
+  void ExternalCanvasDrawHelper(
+      base::FunctionRef<void(MemoryManagedPaintCanvas&)> draw_callback)
+      override {
+    // TODO(crbug.com/40183122): Video frames don't work without this
+    // conditional WillDraw(), but we are getting memory leak on CreatePattern
+    // with it. There should be a better way to solve this.
+    if (cached_snapshot_) {
+      WillDraw();
+    }
+
+    draw_callback(Canvas());
+  }
+
  protected:
   scoped_refptr<CanvasResource> ProduceCanvasResource(
       FlushReason reason) override {
@@ -582,12 +600,6 @@ class CanvasResourceProviderSharedImage : public CanvasResourceProvider,
     DCHECK(cached_snapshot_);
     DCHECK(!current_resource_has_write_access_);
     return cached_snapshot_;
-  }
-
-  void WillDrawIfNeeded() final {
-    if (cached_snapshot_) {
-      WillDraw();
-    }
   }
 
   void WillDrawInternal(bool write_to_local_texture) {
@@ -1236,6 +1248,8 @@ CanvasResourceProvider::CreateBitmapProvider(gfx::Size size,
     if (should_initialize ==
         CanvasResourceProvider::ShouldInitialize::kCallClear)
       provider->Clear();
+    // The Clear() call cannot turn a CRPBitmap invalid.
+    CHECK(provider->IsValid());
     return provider;
   }
   return nullptr;
@@ -1266,6 +1280,8 @@ CanvasResourceProvider::CreateSharedImageProviderForSoftwareCompositor(
     if (should_initialize ==
         CanvasResourceProvider::ShouldInitialize::kCallClear)
       provider->Clear();
+    // The Clear() call cannot turn a SW CRPSI invalid.
+    CHECK(provider->IsValid());
     return provider;
   }
 
@@ -1384,6 +1400,11 @@ CanvasResourceProvider::CreateSharedImageProvider(
     if (should_initialize ==
         CanvasResourceProvider::ShouldInitialize::kCallClear)
       provider->Clear();
+
+    // Check whether an error occurred while flushing the recording.
+    if (!provider->IsValid()) {
+      return nullptr;
+    }
     return provider;
   }
 
@@ -1463,6 +1484,11 @@ CanvasResourceProvider::CreateSwapChainProvider(
     if (should_initialize ==
         CanvasResourceProvider::ShouldInitialize::kCallClear)
       provider->Clear();
+
+    // Check whether an error occurred while flushing the recording.
+    if (!provider->IsValid()) {
+      return nullptr;
+    }
     return provider;
   }
 
@@ -1579,14 +1605,15 @@ bool CanvasResourceProvider::CanvasImageProvider::IsHardwareDecodeCache()
 }
 
 #if BUILDFLAG(IS_WIN)
-BASE_FEATURE(UseCRPSIForLowLatencyOnWindows, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kUseCRPSIForLowLatencyOnWindows, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
-BASE_FEATURE(Canvas2DAutoFlushParams, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kCanvas2DAutoFlushParams, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, unused resources (ready to be recycled) are reclaimed after a
 // delay.
-BASE_FEATURE(Canvas2DReclaimUnusedResources, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kCanvas2DReclaimUnusedResources,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // The following parameters attempt to reach a compromise between not flushing
 // too often, and not accumulating an unreasonable backlog. Flushing too
@@ -1772,16 +1799,9 @@ void CanvasResourceProvider::RecordingCleared() {
   mode_ = SkSurface::kDiscard_ContentChangeMode;
   clear_frame_ = true;
   last_flush_reason_ = FlushReason::kNone;
-  printing_fallback_reason_ = FlushReason::kNone;
 }
 
-MemoryManagedPaintCanvas& CanvasResourceProvider::Canvas(bool needs_will_draw) {
-  // TODO(https://crbug.com/1211912): Video frames don't work without
-  // WillDrawIfNeeded(), but we are getting memory leak on CreatePattern
-  // with it. There should be a better way to solve this.
-  if (needs_will_draw)
-    WillDrawIfNeeded();
-
+MemoryManagedPaintCanvas& CanvasResourceProvider::Canvas() {
   return recorder_->getRecordingCanvas();
 }
 
@@ -1886,15 +1906,11 @@ std::optional<cc::PaintRecord> CanvasResourceProvider::FlushCanvas(
 
   // If a previous flush rasterized some paint ops, we lost part of the
   // recording and must fallback to raster printing instead of vectorial
-  // printing. Record the reason why this happened.
-  if (want_to_print && !clear_frame_) {
-    printing_fallback_reason_ = last_flush_reason_;
-  }
+  // printing.
   last_flush_reason_ = reason;
   clear_frame_ = false;
   if (reason == FlushReason::kClear) {
     clear_frame_ = true;
-    printing_fallback_reason_ = FlushReason::kNone;
   }
   cc::PaintRecord recording;
   recording = recorder_->ReleaseMainRecording();

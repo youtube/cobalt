@@ -146,8 +146,8 @@ void PopulateLoadTimeData(content::WebUI* web_ui,
     source->AddBoolean(
         "HelpAppOnboardingRevamp",
         base::FeatureList::IsEnabled(ash::features::kHelpAppOnboardingRevamp));
-    source->AddBoolean("HelpAppAppMall",
-                       chromeos::features::IsCrosMallSwaEnabled());
+    // TODO(crbug.com/370386104): Clean up flag in Showoff code.
+    source->AddBoolean("HelpAppAppMall", true);
     // Only use the action URL if the install URI is enabled.
     // TODO(b/346687914): Clean up flag in Showoff code.
     source->AddBoolean("UseActionUrl", true);
@@ -212,8 +212,7 @@ void PopulateLoadTimeData(content::WebUI* web_ui,
   source->AddBoolean(
       "assistantAllowed",
       assistant_allowed_state == assistant::AssistantAllowedState::ALLOWED);
-  source->AddBoolean("assistantEnabled",
-                     AssistantState::Get()->settings_enabled().value_or(false));
+  source->AddBoolean("assistantEnabled", false);
   source->AddBoolean("playStoreEnabled",
                      arc::IsArcPlayStoreEnabledForProfile(profile));
   source->AddBoolean("pinEnabled", quick_unlock::IsPinEnabled());

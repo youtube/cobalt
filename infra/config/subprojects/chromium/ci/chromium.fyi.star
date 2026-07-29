@@ -513,70 +513,6 @@ ci.builder(
 )
 
 ci.builder(
-    name = "linux-blink-wpt-3pcd-fyi-rel",
-    description_html = "Runs {} and web tests against Chrome with third party cookie disabled for experimental.".format(
-        linkify("https://web-platform-tests.org", "web platform tests"),
-    ),
-    builder_spec = builder_config.builder_spec(
-        gclient_config = builder_config.gclient_config(
-            config = "chromium",
-        ),
-        chromium_config = builder_config.chromium_config(
-            config = "chromium",
-            apply_configs = ["mb"],
-            build_config = builder_config.build_config.RELEASE,
-            target_bits = 64,
-            target_platform = builder_config.target_platform.LINUX,
-        ),
-    ),
-    gn_args = gn_args.config(
-        configs = [
-            "release_builder_blink",
-            "remoteexec",
-            "dcheck_always_on",
-            "linux",
-            "x64",
-        ],
-    ),
-    targets = targets.bundle(
-        targets = [
-            "chromium_webkit_isolated_scripts",
-        ],
-        mixins = [
-            "linux-jammy",
-        ],
-        per_test_modifications = {
-            "blink_web_tests": targets.mixin(
-                args = [
-                    "--flag-specific=disable-third-party-cookie",
-                ],
-            ),
-            "blink_wpt_tests": targets.mixin(
-                args = [
-                    "--flag-specific=disable-third-party-cookie",
-                ],
-            ),
-            "chrome_wpt_tests": targets.mixin(
-                args = [
-                    "--flag-specific=disable-third-party-cookie",
-                ],
-            ),
-            "headless_shell_wpt_tests": targets.mixin(
-                args = [
-                    "--flag-specific=disable-third-party-cookie",
-                ],
-            ),
-        },
-    ),
-    os = os.LINUX_DEFAULT,
-    console_view_entry = consoles.console_view_entry(
-        category = "linux|blink",
-        short_name = "3pcd",
-    ),
-    contact_team_email = "potassium-engprod-team@twosync.google.com",
-)
-
-ci.builder(
     name = "linux-blink-heap-verification",
     builder_spec = builder_config.builder_spec(
         gclient_config = builder_config.gclient_config(config = "chromium"),
@@ -1491,7 +1427,14 @@ ci.builder(
         "test id uploads."
     ),
     builder_spec = builder_config.builder_spec(
-        gclient_config = builder_config.gclient_config(config = "chromium"),
+        gclient_config = builder_config.gclient_config(
+            config = "chromium",
+            apply_configs = [
+                # This is necessary due to child builders running the
+                # telemetry_perf_unittests suite.
+                "chromium_with_telemetry_dependencies",
+            ],
+        ),
         chromium_config = builder_config.chromium_config(
             config = "chromium",
             apply_configs = ["mb"],
@@ -1502,9 +1445,10 @@ ci.builder(
     ),
     gn_args = gn_args.config(
         configs = [
+            "gpu_tests",
             "release_builder",
             "remoteexec",
-            "minimal_symbols",
+            "devtools_do_typecheck",
             "linux",
             "x64",
         ],
@@ -1513,6 +1457,7 @@ ci.builder(
         targets = [
             "chromium_linux_gtests",
             "chromium_linux_rel_isolated_scripts_once",
+            "chromium_linux_scripts",
             "gtests_once",
             "variations_smoke_tests",  # single module scheme
             "mojo_python_unittests",  # pyunit scheme

@@ -59,7 +59,7 @@
 #include "chrome/browser/ui/tabs/split_tab_highlight_controller.h"
 #include "chrome/browser/ui/tabs/tab_group_deletion_dialog_controller.h"
 #include "chrome/browser/ui/tabs/tab_list_bridge.h"
-#include "chrome/browser/ui/tabs/tab_strip_api/tab_strip_service_impl.h"
+#include "chrome/browser/ui/tabs/tab_strip_api/tab_strip_service_mojo_handler.h"
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
 #include "chrome/browser/ui/toasts/toast_controller.h"
 #include "chrome/browser/ui/toasts/toast_features.h"
@@ -72,6 +72,7 @@
 #include "chrome/browser/ui/views/extensions/extension_keybinding_registry_views.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/contents_border_controller.h"
+#include "chrome/browser/ui/views/frame/find_bar_owner_views.h"
 #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
 #include "chrome/browser/ui/views/frame/scrim_view_controller.h"
 #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
@@ -82,6 +83,7 @@
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
 #include "chrome/browser/ui/views/media_router/cast_browser_controller.h"
 #include "chrome/browser/ui/views/new_tab_footer/footer_controller.h"
+#include "chrome/browser/ui/views/profiles/profile_customization_bubble_sync_controller.h"
 #include "chrome/browser/ui/views/profiles/profile_menu_coordinator.h"
 #include "chrome/browser/ui/views/send_tab_to_self/send_tab_to_self_toolbar_bubble_controller.h"
 #include "chrome/browser/ui/views/side_panel/bookmarks/bookmarks_side_panel_coordinator.h"
@@ -101,6 +103,7 @@
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/web_applications/web_app_launch_utils.h"
 #include "chrome/browser/ui/webui_browser/browser_elements_webui_browser.h"
+#include "chrome/browser/ui/webui_browser/find_bar_owner_webui_browser.h"
 #include "chrome/browser/ui/webui_browser/webui_browser.h"
 #include "chrome/browser/ui/webui_browser/webui_browser_side_panel_ui.h"
 #include "chrome/browser/ui/webui_browser/webui_browser_window.h"
@@ -144,8 +147,8 @@
 #include "chrome/browser/glic/browser_ui/glic_iph_controller.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
-#include "chrome/browser/glic/widget/glic_side_panel_coordinator.h"
 #include "chrome/browser/ui/tabs/glic_actor_task_icon_controller.h"
+#include "chrome/browser/ui/views/side_panel/glic/glic_side_panel_coordinator.h"
 #endif
 
 #if defined(USE_AURA)
@@ -255,8 +258,8 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
 
   tab_strip_model_ = browser->GetTabStripModel();
 
-  tab_strip_service_ =
-      std::make_unique<TabStripServiceImpl>(browser, tab_strip_model_);
+  tab_strip_service_feature_ =
+      std::make_unique<TabStripServiceMojoHandler>(browser, tab_strip_model_);
 
   memory_saver_bubble_controller_ =
       std::make_unique<memory_saver::MemorySaverBubbleController>(browser);
@@ -343,6 +346,12 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
 
   browser_select_file_dialog_controller_ =
       std::make_unique<BrowserSelectFileDialogController>(profile);
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+  profile_customization_bubble_sync_controller_ =
+      std::make_unique<ProfileCustomizationBubbleSyncController>(browser,
+                                                                 profile);
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 }
 
 void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
@@ -523,6 +532,9 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
 
     // WebUIBrowserWindow is an AcceleratorProvider.
     accelerator_provider_ = webui_browser_window;
+
+    find_bar_owner_ =
+        std::make_unique<FindBarOwnerWebUIBrowser>(webui_browser_window);
   }
 }
 
@@ -561,7 +573,8 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
 
 #if BUILDFLAG(ENABLE_GLIC)
   glic_side_panel_coordinator_ =
-      std::make_unique<glic::GlicSidePanelCoordinator>();
+      std::make_unique<glic::GlicSidePanelCoordinator>(
+          browser_view->browser(), side_panel_coordinator_.get());
 #endif  // BUILDFLAG(ENABLE_GLIC)
 
   side_panel_coordinator_->Init(browser_view->browser());
@@ -655,6 +668,8 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
 #endif
 
   user_education_->Init(browser_view);
+
+  find_bar_owner_ = std::make_unique<FindBarOwnerViews>(browser_view);
 }
 
 void BrowserWindowFeatures::TearDownPreBrowserWindowDestruction() {
@@ -750,6 +765,8 @@ void BrowserWindowFeatures::TearDownPreBrowserWindowDestruction() {
   if (auto* const provider = browser_elements_->AsA<BrowserElementsViews>()) {
     provider->TearDown();
   }
+
+  find_bar_owner_.reset();
 }
 
 SidePanelUI* BrowserWindowFeatures::side_panel_ui() {

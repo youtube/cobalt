@@ -11,6 +11,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
 #include "build/build_config.h"
+#include "mojo/public/mojom/base/values.mojom-blink.h"
 #include "services/network/public/cpp/is_potentially_trustworthy.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/sms/webotp_constants.h"
@@ -18,6 +19,8 @@
 #include "third_party/blink/public/mojom/credentialmanagement/credential_type_flags.mojom-blink.h"
 #include "third_party/blink/public/mojom/payments/secure_payment_confirmation_service.mojom-blink.h"
 #include "third_party/blink/public/mojom/sms/webotp_service.mojom-blink.h"
+#include "third_party/blink/public/platform/platform.h"
+#include "third_party/blink/public/platform/web_v8_value_converter.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_arraybuffer_arraybufferview.h"
@@ -470,7 +473,7 @@ void OnRequestToken(std::unique_ptr<ScopedPromiseResolver> scoped_resolver,
                     const CredentialRequestOptions* options,
                     RequestTokenStatus status,
                     const std::optional<KURL>& selected_idp_config_url,
-                    const String& token,
+                    std::optional<base::Value> token_value,
                     mojom::blink::TokenErrorPtr error,
                     bool is_auto_selected) {
   auto* resolver =
@@ -508,8 +511,22 @@ void OnRequestToken(std::unique_ptr<ScopedPromiseResolver> scoped_resolver,
     }
     case RequestTokenStatus::kSuccess: {
       CHECK(selected_idp_config_url);
+      CHECK(token_value);
+
+      auto* script_state = resolver->GetScriptState();
+      ScriptState::Scope script_state_scope(script_state);
+
+      ScriptValue token_script_value;
+
+      // Create WebV8ValueConverter and convert base::Value to v8::Value
+      auto converter = Platform::Current()->CreateWebV8ValueConverter();
+      v8::Local<v8::Value> v8_value =
+          converter->ToV8Value(*token_value, script_state->GetContext());
+      token_script_value = ScriptValue(script_state->GetIsolate(), v8_value);
+
       IdentityCredential* credential = IdentityCredential::Create(
-          token, is_auto_selected, *selected_idp_config_url);
+          token_script_value, is_auto_selected, *selected_idp_config_url);
+
       resolver->Resolve(credential);
       return;
     }
@@ -1032,7 +1049,9 @@ const char* validateGetPublicKeyCredentialPRFExtension(
 void EmitImmediateMediationUseCounters(
     ExecutionContext* context,
     const CredentialRequestOptions* options) {
-  CHECK(options->hasMediation() && options->mediation() == "immediate");
+  CHECK(options->hasMediation() &&
+        options->mediation() ==
+            V8CredentialMediationRequirement::Enum::kImmediate);
   if (options->hasPublicKey() && options->password()) {
     UseCounter::Count(
         context,
@@ -1378,7 +1397,9 @@ ScriptPromise<IDLNullable<Credential>> AuthenticationCredentialsContainer::get(
   // assumed to be ambient, when the flag is on. This will change.
   if (RuntimeEnabledFeatures::WebAuthenticationAmbientEnabled() &&
       options->hasPublicKey() && options->hasPassword() &&
-      options->password() && options->mediation() == "conditional") {
+      options->password() &&
+      options->mediation() ==
+          V8CredentialMediationRequirement::Enum::kConditional) {
     // Unsupported ambient credential types:
     if (options->hasOtp() || options->hasIdentity() ||
         (options->publicKey()->hasExtensions() &&
@@ -1397,7 +1418,8 @@ ScriptPromise<IDLNullable<Credential>> AuthenticationCredentialsContainer::get(
   }
 
   if (options->hasOtp() && options->otp()->hasTransport()) {
-    if (!options->otp()->transport().Contains("sms")) {
+    if (!options->otp()->transport().Contains(
+            V8OTPCredentialTransportType::Enum::kSms)) {
       resolver->Reject(MakeGarbageCollected<DOMException>(
           DOMExceptionCode::kNotSupportedError,
           "Unsupported transport type for OTP Credentials"));
@@ -1436,13 +1458,15 @@ ScriptPromise<IDLNullable<Credential>> AuthenticationCredentialsContainer::get(
     }
   }
   CredentialMediationRequirement requirement;
-  if (options->mediation() == "conditional") {
+  if (options->mediation() ==
+      V8CredentialMediationRequirement::Enum::kConditional) {
     resolver->Reject(MakeGarbageCollected<DOMException>(
         DOMExceptionCode::kNotSupportedError,
         "Conditional mediation is not supported for this credential type"));
     return promise;
   }
-  if (options->mediation() == "immediate") {
+  if (options->mediation() ==
+      V8CredentialMediationRequirement::Enum::kImmediate) {
     if (RuntimeEnabledFeatures::WebAuthenticationImmediateGetEnabled(context)) {
       if (options->password()) {
         if (RuntimeEnabledFeatures::
@@ -1881,7 +1905,9 @@ AuthenticationCredentialsContainer::create(
     }
   } else {
     if (RuntimeEnabledFeatures::WebAuthenticationConditionalCreateEnabled()) {
-      mojo_options->is_conditional = options->mediation() == "conditional";
+      mojo_options->is_conditional =
+          options->mediation() ==
+          V8CredentialMediationRequirement::Enum::kConditional;
     }
     authenticator->MakeCredential(
         std::move(mojo_options),
@@ -1969,6 +1995,14 @@ void AuthenticationCredentialsContainer::ForwardRequestToAuthenticator(
       resolver->Reject(MakeGarbageCollected<DOMException>(
           DOMExceptionCode::kNotAllowedError,
           "An allowCredentials is not allowed with immediate mediation."));
+      return;
+    }
+    if (options->hasPublicKey() && options->publicKey()->hasExtensions() &&
+        options->publicKey()->extensions()->hasRemoteDesktopClientOverride()) {
+      resolver->Reject(MakeGarbageCollected<DOMException>(
+          DOMExceptionCode::kNotAllowedError,
+          "Immediate mediation cannot be used with a remote desktop override "
+          "request."));
       return;
     }
     if (!LocalFrame::ConsumeTransientUserActivation(
@@ -2313,9 +2347,9 @@ void AuthenticationCredentialsContainer::GetForIdentity(
       CredentialManagerProxy::From(script_state)->FederatedAuthRequest();
   auth_request->RequestToken(
       std::move(idp_get_params), mediation_requirement,
-      BindOnce(&OnRequestToken,
-               std::make_unique<ScopedPromiseResolver>(resolver),
-               std::move(scoped_abort_state), WrapPersistent(&options)));
+      blink::BindOnce(&OnRequestToken,
+                      std::make_unique<ScopedPromiseResolver>(resolver),
+                      std::move(scoped_abort_state), WrapPersistent(&options)));
 }
 
 }  // namespace blink

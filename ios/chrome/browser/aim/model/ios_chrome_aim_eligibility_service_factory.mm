@@ -15,8 +15,8 @@
 // static
 AimEligibilityService* IOSChromeAimEligibilityServiceFactory::GetForProfile(
     ProfileIOS* profile) {
-  return static_cast<IOSChromeAimEligibilityService*>(
-      GetInstance()->GetServiceForBrowserState(profile, true));
+  return GetInstance()->GetServiceForProfileAs<IOSChromeAimEligibilityService>(
+      profile, /*create=*/true);
 }
 
 // static
@@ -38,8 +38,7 @@ IOSChromeAimEligibilityServiceFactory::
 
 std::unique_ptr<KeyedService>
 IOSChromeAimEligibilityServiceFactory::BuildServiceInstanceFor(
-    web::BrowserState* context) const {
-  ProfileIOS* profile = ProfileIOS::FromBrowserState(context);
+    ProfileIOS* profile) const {
   return std::make_unique<IOSChromeAimEligibilityService>(
       profile->GetPrefs(),
       ios::TemplateURLServiceFactory::GetForProfile(profile),

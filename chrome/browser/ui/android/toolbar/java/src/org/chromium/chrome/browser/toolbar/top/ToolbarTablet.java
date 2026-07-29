@@ -82,6 +82,7 @@ public class ToolbarTablet extends ToolbarLayout {
 
     private boolean mIsInTabSwitcherMode;
     private boolean mToolbarButtonsVisible;
+    private boolean mOptionalButtonForciblyHidden;
     private @Nullable ImageButton mOptionalButton;
     private boolean mOptionalButtonUsesTint;
 
@@ -91,8 +92,6 @@ public class ToolbarTablet extends ToolbarLayout {
     private BackButtonCoordinator mBackButtonCoordinator;
     private IncognitoIndicatorCoordinator mIncognitoIndicatorCoordinator;
     private ForwardButtonCoordinator mForwardButtonCoordinator;
-    private final OptionalButtonToolbarWidthConsumer mOptionalButtonToolbarWidthConsumer =
-            new OptionalButtonToolbarWidthConsumer();
 
     private final int mStartPaddingWithButtons;
     private final int mStartPaddingWithoutButtons;
@@ -401,8 +400,9 @@ public class ToolbarTablet extends ToolbarLayout {
         mToolbarWidthConsumers[ToolbarComponentId.FORWARD] = mForwardButtonCoordinator;
         mToolbarWidthConsumers[ToolbarComponentId.RELOAD] = mReloadButtonCoordinator;
         mToolbarWidthConsumers[ToolbarComponentId.ADAPTIVE_BUTTON] =
-                mOptionalButtonToolbarWidthConsumer;
+                new OptionalButtonToolbarWidthConsumer();
         mToolbarWidthConsumers[ToolbarComponentId.TAB_SWITCHER] = tabSwitcherButtonCoordinator;
+        mToolbarWidthConsumers[ToolbarComponentId.MENU] = menuButtonCoordinator;
     }
 
     @Override
@@ -450,11 +450,6 @@ public class ToolbarTablet extends ToolbarLayout {
     @VisibleForTesting
     int getWidthForStaticComponents() {
         int width = 0;
-        int buttonWidth =
-                getContext().getResources().getDimensionPixelSize(R.dimen.toolbar_button_width);
-        if (getMenuButtonCoordinator().isVisible()) {
-            width += buttonWidth;
-        }
         // Account for the minimum width of the location bar.
         width +=
                 (int)
@@ -563,12 +558,14 @@ public class ToolbarTablet extends ToolbarLayout {
                 mOptionalButton.getPaddingBottom());
 
         mOptionalButton.setContentDescription(buttonSpec.getContentDescription());
+        mOptionalButtonForciblyHidden = false;
         setOptionalButtonVisibility(/* isVisible= */ true);
         mOptionalButton.setEnabled(buttonData.isEnabled());
     }
 
     @Override
     protected void hideOptionalButton() {
+        mOptionalButtonForciblyHidden = true;
         setOptionalButtonVisibility(/* isVisible= */ false);
     }
 
@@ -581,6 +578,10 @@ public class ToolbarTablet extends ToolbarLayout {
         @Override
         public int updateVisibility(int availableWidth) {
             assert isToolbarTabletResizeRefactorEnabled();
+            if (mOptionalButtonForciblyHidden) {
+                setOptionalButtonVisibility(false);
+                return 0;
+            }
 
             int width = getResources().getDimensionPixelSize(R.dimen.toolbar_button_width);
             if (availableWidth >= width) {
@@ -754,7 +755,18 @@ public class ToolbarTablet extends ToolbarLayout {
         mToolbarWidthConsumers[ToolbarComponentId.FORWARD] = mForwardButtonCoordinator;
     }
 
+    void ensureOptionalButtonWidthConsumerForTesting() {
+        mToolbarWidthConsumers[ToolbarComponentId.ADAPTIVE_BUTTON] =
+                new OptionalButtonToolbarWidthConsumer();
+    }
+
     void setTabStackButtonCoordinatorForTesting(ToggleTabStackButtonCoordinator coordinator) {
         mToolbarWidthConsumers[ToolbarComponentId.TAB_SWITCHER] = coordinator;
+    }
+
+    @Override
+    void setMenuButtonCoordinatorForTesting(MenuButtonCoordinator coordinator) {
+        mMenuButtonCoordinator = coordinator;
+        mToolbarWidthConsumers[ToolbarComponentId.MENU] = coordinator;
     }
 }

@@ -85,14 +85,16 @@ cr-searchbox[dropdown-is-visible] {
 
 .tabstripDiv {
   float: left;
+  overflow: hidden;
   text-align: left;
 }
 
 .captionButtonsDiv {
+  app-region: drag;
   float: right;
   flex: 1;
   text-align: right;
-  app-region: drag;
+  white-space: nowrap;
 }
 
 .captionButtonsDiv cr-button {
@@ -121,6 +123,7 @@ cr-searchbox[dropdown-is-visible] {
 
 #topContainer {
   grid-row: 1;
+  min-width: 0;
 }
 
 #main {
@@ -133,4 +136,12 @@ cr-searchbox[dropdown-is-visible] {
 
 content-region {
   border-top: 1px var(--color-toolbar-separator) solid;
+}
+
+content-region[showing-side-panel] {
+  border-top: 1px var(--color-toolbar-separator) solid;
+  border-right: 1px var(--color-toolbar-separator) solid;
+  border-left: none;
+  border-bottom: none;
+  border-radius: 0 16px 0 0;
 }

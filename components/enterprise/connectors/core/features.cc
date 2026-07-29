@@ -12,10 +12,10 @@ BASE_FEATURE(kEnterpriseSecurityEventReportingOnAndroid,
 
 BASE_FEATURE(kEnterpriseActiveUserDetection,
              "EnterpriseActiveUserDetection",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kEnterpriseIframeDlpRulesSupport,
              "EnterpriseIframeDlpRulesSupport",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 }  // namespace enterprise_connectors

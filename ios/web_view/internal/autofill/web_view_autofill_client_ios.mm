@@ -66,7 +66,7 @@ WebViewAutofillClientIOS::WebViewAutofillClientIOS(
     web::WebState* web_state,
     id<CWVAutofillClientIOSBridge, AutofillDriverIOSBridge> bridge,
     signin::IdentityManager* identity_manager,
-    StrikeDatabase* strike_database,
+    strike_database::StrikeDatabase* strike_database,
     syncer::SyncService* sync_service,
     LogRouter* log_router)
     : AutofillClientIOS(web_state, bridge),
@@ -179,7 +179,7 @@ WebViewAutofillClientIOS::GetPaymentsAutofillClient() {
   return &payments_autofill_client_;
 }
 
-StrikeDatabase* WebViewAutofillClientIOS::GetStrikeDatabase() {
+strike_database::StrikeDatabase* WebViewAutofillClientIOS::GetStrikeDatabase() {
   return strike_database_;
 }
 
@@ -223,7 +223,7 @@ void WebViewAutofillClientIOS::ShowAutofillSettings(
 void WebViewAutofillClientIOS::ConfirmSaveAddressProfile(
     const AutofillProfile& profile,
     const AutofillProfile* original_profile,
-    bool is_migration_to_account,
+    SaveAddressBubbleType save_address_bubble_type,
     AddressProfileSavePromptCallback callback) {
   [bridge_ confirmSaveAddressProfile:profile
                      originalProfile:original_profile

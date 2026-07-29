@@ -5,34 +5,24 @@
 #ifndef UI_NATIVE_THEME_NATIVE_THEME_WIN_H_
 #define UI_NATIVE_THEME_NATIVE_THEME_WIN_H_
 
-// A wrapper class for working with custom XP/Vista themes provided in
-// uxtheme.dll.  This is a singleton class that can be grabbed using
-// NativeThemeWin::instance().
-// For more information on visual style parts and states, see:
-// http://msdn.microsoft.com/library/default.asp?url=/library/en-us/shellcc/platform/commctls/userex/topics/partsandstates.asp
 #include <windows.h>
 
 #include <optional>
 
+#include "base/callback_list.h"
 #include "base/component_export.h"
 #include "base/functional/bind.h"
 #include "base/no_destructor.h"
 #include "base/win/registry.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/gfx/geometry/size.h"
-#include "ui/gfx/win/singleton_hwnd_observer.h"
+#include "ui/gfx/win/singleton_hwnd.h"
 #include "ui/native_theme/native_theme.h"
 
 class SkCanvas;
 
 namespace ui {
 
-// Windows implementation of native theme class.
-//
-// At the moment, this class in in transition from an older API that consists
-// of several PaintXXX methods to an API, inherited from the NativeTheme base
-// class, that consists of a single Paint() method with a argument to indicate
-// what kind of part to paint.
 class COMPONENT_EXPORT(NATIVE_THEME) NativeThemeWin : public NativeTheme {
  public:
   enum ThemeName {
@@ -94,14 +84,14 @@ class COMPONENT_EXPORT(NATIVE_THEME) NativeThemeWin : public NativeTheme {
   void ConfigureWebInstance() override;
   std::optional<base::TimeDelta> GetPlatformCaretBlinkInterval() const override;
 
-  NativeThemeWin(bool configure_web_instance, bool should_only_use_dark_colors);
+  NativeThemeWin();
   ~NativeThemeWin() override;
 
  private:
   bool IsUsingHighContrastThemeInternal() const;
   void CloseHandlesInternal();
 
-  // Called by `singleton_hwnd_observer_`.
+  // Called by `hwnd_subscription_`.
   void OnWndProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam);
 
   // Update the locally cached set of system colors.
@@ -226,8 +216,10 @@ class COMPONENT_EXPORT(NATIVE_THEME) NativeThemeWin : public NativeTheme {
   mutable HANDLE theme_handles_[LAST];
 
   // Color/high contrast mode change observer.
-  gfx::SingletonHwndObserver singleton_hwnd_observer_{
-      base::BindRepeating(&NativeThemeWin::OnWndProc, base::Unretained(this))};
+  base::CallbackListSubscription hwnd_subscription_ =
+      gfx::SingletonHwnd::GetInstance()->RegisterCallback(
+          base::BindRepeating(&NativeThemeWin::OnWndProc,
+                              base::Unretained(this)));
 
   // Used to notify the web native theme of changes to dark mode, high
   // contrast, preferred color scheme, and preferred contrast.

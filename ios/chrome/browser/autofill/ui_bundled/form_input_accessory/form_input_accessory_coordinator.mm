@@ -31,8 +31,8 @@
 #import "components/password_manager/core/browser/ui/credential_ui_entry.h"
 #import "components/password_manager/core/common/password_manager_features.h"
 #import "components/password_manager/ios/password_generation_provider.h"
+#import "components/plus_addresses/core/browser/grit/plus_addresses_strings.h"
 #import "components/plus_addresses/core/common/features.h"
-#import "components/plus_addresses/grit/plus_addresses_strings.h"
 #import "components/strings/grit/components_strings.h"
 #import "ios/chrome/browser/autofill/model/autofill_tab_helper.h"
 #import "ios/chrome/browser/autofill/model/bottom_sheet/autofill_bottom_sheet_tab_helper.h"
@@ -74,7 +74,6 @@
 #import "ios/chrome/browser/shared/public/commands/open_new_tab_command.h"
 #import "ios/chrome/browser/shared/public/commands/security_alert_commands.h"
 #import "ios/chrome/browser/shared/public/commands/settings_commands.h"
-#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/shared/ui/util/util_swift.h"
@@ -417,8 +416,7 @@ bool CanReloadInputViews() {
 }
 
 - (void)dismissPopover {
-  if (IsKeyboardAccessoryUpgradeEnabled() &&
-      ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET) {
+  if (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET) {
     // Close the popover view.
     [self stopChildren];
   }
@@ -504,8 +502,6 @@ bool CanReloadInputViews() {
                 didPressManualFillButton:(UIButton*)manualFillButton
                              forDataType:
                                  (manual_fill::ManualFillDataType)dataType {
-  CHECK(IsKeyboardAccessoryUpgradeEnabled());
-
   BOOL invokedOnObfuscatedField =
       [_formInputAccessoryMediator lastFocusedFieldWasObfuscated];
 
@@ -1026,7 +1022,6 @@ bool CanReloadInputViews() {
 // Updates the keyboard accessory to the state it should be in when a manual
 // fill view is displayed.
 - (void)updateKeyboardAccessoryForManualFilling {
-  [_formInputAccessoryViewController lockManualFallbackView];
   _formInputAccessoryMediator.suggestionsEnabled = NO;
 }
 

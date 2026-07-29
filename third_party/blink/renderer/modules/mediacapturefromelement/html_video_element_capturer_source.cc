@@ -22,7 +22,8 @@
 namespace {
 constexpr float kMinFramesPerSecond = 1.0;
 
-BASE_FEATURE(UseVideoFrameRateForCaptureRate, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kUseVideoFrameRateForCaptureRate,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 }  // anonymous namespace
 

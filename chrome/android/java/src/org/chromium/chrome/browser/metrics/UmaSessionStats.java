@@ -86,8 +86,7 @@ public class UmaSessionStats {
         if (connectedDevices.contains(InputDevice.SOURCE_MOUSE)) {
             UmaSessionStatsJni.get().recordPageLoadedWithMouse();
         }
-        if (EdgeToEdgeUtils.isChromeEdgeToEdgeFeatureEnabled()
-                && EdgeToEdgeUtils.isPageOptedIntoEdgeToEdge(tab)) {
+        if (EdgeToEdgeUtils.isPageOptedIntoEdgeToEdge(tab)) {
             UmaSessionStatsJni.get().recordPageLoadedWithToEdge();
         }
 
@@ -115,8 +114,8 @@ public class UmaSessionStats {
      */
     public void startNewSession(
             @ActivityType int activityType,
-            TabModelSelector tabModelSelector,
-            AndroidPermissionDelegate permissionDelegate) {
+            @Nullable TabModelSelector tabModelSelector,
+            @Nullable AndroidPermissionDelegate permissionDelegate) {
         ensureNativeInitialized();
         mTabbedSessionContainedGoogleSearch = false;
         mCurrentActivityType = activityType;
