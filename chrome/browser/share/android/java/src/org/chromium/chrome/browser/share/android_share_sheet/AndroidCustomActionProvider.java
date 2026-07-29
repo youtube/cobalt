@@ -16,7 +16,6 @@ import android.net.Uri;
 import android.os.Build;
 
 import org.chromium.base.Callback;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
@@ -46,6 +45,7 @@ import org.chromium.ui.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 
 /** Provider that constructs custom actions for Android share sheet. */
 @NullMarked
@@ -264,9 +264,8 @@ class AndroidCustomActionProvider extends ChromeProvidedSharingOptionsProviderBa
 
     @Override
     protected @Nullable FirstPartyOption createCollaborateFirstPartyOption() {
-        if (!mTabProvider.hasValue()
-                || !mTabGroupSharingController.isAvailableForTab(
-                        assertNonNull(mTabProvider.get()))) {
+        Tab tab = mTabProvider.get();
+        if (tab == null || !mTabGroupSharingController.isAvailableForTab(tab)) {
             return null;
         }
         return new FirstPartyOptionBuilder(ContentType.LINK_PAGE_VISIBLE)
@@ -276,9 +275,7 @@ class AndroidCustomActionProvider extends ChromeProvidedSharingOptionsProviderBa
                 .setOnClickCallback(
                         (view) -> {
                             mTabGroupSharingController.shareAsTabGroup(
-                                    mActivity,
-                                    mChromeOptionShareCallback,
-                                    assertNonNull(mTabProvider.get()));
+                                    mActivity, mChromeOptionShareCallback, tab);
                         })
                 .build();
     }

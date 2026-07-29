@@ -5,30 +5,33 @@
 import {TabStripService} from '/tab_strip_api/tab_strip_api.mojom-webui.js';
 import type {TabStripServiceRemote} from '/tab_strip_api/tab_strip_api.mojom-webui.js';
 import type {Container, Tab, TabCreatedContainer} from '/tab_strip_api/tab_strip_api_data_model.mojom-webui.js';
-import type {OnTabDataChangedEvent, OnTabGroupVisualsChangedEvent, OnTabsClosedEvent, OnTabsCreatedEvent} from '/tab_strip_api/tab_strip_api_events.mojom-webui.js';
+import type {OnDataChangedEvent, OnTabsClosedEvent, OnTabsCreatedEvent} from '/tab_strip_api/tab_strip_api_events.mojom-webui.js';
 import type {NodeId} from '/tab_strip_api/tab_strip_api_types.mojom-webui.js';
 import {TabStripObservation} from '/tab_strip_api/tab_strip_observation.js';
 
 import type {ContentRegion} from './content_region.js';
 import type {TabStrip} from './tab_strip.js';
 
-export interface LayoutManager {
+export interface TabStripControllerDelegate {
   // Notifies the layout manager to recompute its layout, because the tab strip
   // might have changed.
   refreshLayout: () => void;
+
+  // Notifies that the active tab has updated.
+  activeTabUpdated: (tabData: Tab) => void;
 }
 
 export class TabStripController {
-  private readonly layoutManager_: LayoutManager;
+  private readonly tabStripControllerDelegate_: TabStripControllerDelegate;
   private readonly tabStripService_: TabStripServiceRemote;
   private readonly tabStripObservation_: TabStripObservation;
   private tabStrip_: TabStrip;
   private contentRegion_: ContentRegion;
 
   constructor(
-      layoutManager: LayoutManager, tabStrip: TabStrip,
-      contentRegion: ContentRegion) {
-    this.layoutManager_ = layoutManager;
+      tabStripControllerDelegate: TabStripControllerDelegate,
+      tabStrip: TabStrip, contentRegion: ContentRegion) {
+    this.tabStripControllerDelegate_ = tabStripControllerDelegate;
     this.tabStripService_ = TabStripService.getRemote();
     this.tabStripObservation_ = new TabStripObservation();
     this.tabStrip_ = tabStrip;
@@ -81,8 +84,8 @@ export class TabStripController {
     //    this.onTabMoved_.bind(this));
     this.tabStripObservation_.onTabsClosed.addListener(
         this.onTabsClosed_.bind(this));
-    this.tabStripObservation_.onTabDataChanged.addListener(
-        this.onTabDataChanged_.bind(this));
+    this.tabStripObservation_.onDataChanged.addListener(
+        this.onDataChanged_.bind(this));
     // this.tabStripObservation_.tabReplaced.addListener(
     //    this.onTabReplaced_.bind(this));
     // this.tabStripObservation_.tabCloseCancelled.addListener(
@@ -93,8 +96,6 @@ export class TabStripController {
     //     this.onTabGroupClosed_.bind(this));
     // this.tabStripObservation_.tabGroupMoved.addListener(
     //     this.onTabGroupMoved_.bind(this));
-    this.tabStripObservation_.onTabGroupVisualsChanged.addListener(
-        this.onTabGroupVisualsChanged_.bind(this));
   }
 
   private async loadTabStripModel_() {
@@ -124,7 +125,7 @@ export class TabStripController {
       this.tabStrip_.activateTab(tab.id);
     }
     this.contentRegion_.createWebView(tab.id, tab.isActive);
-    this.layoutManager_.refreshLayout();
+    this.tabStripControllerDelegate_.refreshLayout();
   }
 
   // tab_strip::mojom::Page implementation:
@@ -141,19 +142,22 @@ export class TabStripController {
   }
   */
 
-  private onTabDataChanged_(onTabDataChangedEvent: OnTabDataChangedEvent) {
-    this.tabStrip_.updateTab(onTabDataChangedEvent.tab);
-    if (onTabDataChangedEvent.tab.isActive) {
-      this.tabStrip_.activateTab(onTabDataChangedEvent.tab.id);
-      this.contentRegion_.activateTab(onTabDataChangedEvent.tab.id);
-    }
-    this.layoutManager_.refreshLayout();
-  }
-
-  private onTabGroupVisualsChanged_(event: OnTabGroupVisualsChangedEvent) {
-    const {tabGroup} = event.data;
-    if (tabGroup) {
-      this.tabStrip_.setTabGroupVisualData(tabGroup.id, tabGroup.data);
+  private onDataChanged_(onDataChangedEvent: OnDataChangedEvent) {
+    const data = onDataChangedEvent.data;
+    if (data.tab) {
+      const tab = data.tab;
+      this.tabStrip_.updateTab(tab);
+      if (tab.isActive) {
+        this.tabStrip_.activateTab(tab.id);
+        this.contentRegion_.activateTab(tab.id);
+        this.tabStripControllerDelegate_.activeTabUpdated(tab);
+      }
+      this.tabStripControllerDelegate_.refreshLayout();
+    } else if (data.tabGroup) {
+      const tabGroup = data.tabGroup;
+      if (tabGroup) {
+        this.tabStrip_.setTabGroupVisualData(tabGroup.id, tabGroup.data);
+      }
     }
   }
 

@@ -576,6 +576,12 @@ ContextProperties GraphBuilderTflite::GetContextProperties() {
        {DataTypeConstraint::kUint8, SupportedRanks::UpTo(4)},
        /*logical_not_input=*/
        {DataTypeConstraint::kUint8, SupportedRanks::UpTo(8)},
+       // IsNaN is emulated by not_equal.
+       /*is_nan_input=*/
+       {DataTypeConstraint::kFloat16To32, SupportedRanks::UpTo(4)},
+       // IsInfinite is emulated by abs and equal.
+       /*is_infinite_input=*/
+       {DataTypeConstraint::kFloat16To32, SupportedRanks::UpTo(4)},
        /*logical_output=*/DataTypeConstraint::kUint8,
        /*abs_input=*/{kFloat16To32AndInt32, SupportedRanks::UpTo(8)},
        /*ceil_input=*/
@@ -599,6 +605,8 @@ ContextProperties GraphBuilderTflite::GetContextProperties() {
        // Polyfilled with DIV.
        /*reciprocal_input=*/
        {DataTypeConstraint::kFloat16To32, SupportedRanks::UpTo(5)},
+       /*round_even_input=*/
+       {DataTypeConstraint::kFloat16To32, SupportedRanks::UpTo(8)},
        /*sign_input=*/{kFloat16To32AndInt32, SupportedRanks::UpTo(8)},
        /*sin_input=*/
        {DataTypeConstraint::kFloat16To32, SupportedRanks::UpTo(8)},
@@ -4197,6 +4205,18 @@ auto GraphBuilderTflite::SerializeElementWiseUnary(
       return SerializeUnaryOperation(::tflite::BuiltinOperator_LOG,
                                      input_tensor_index, output_tensor_index);
     }
+    case mojom::ElementWiseUnary::Kind::kIsNaN: {
+      CHECK(data_type_limits.is_nan_input.Supports(input_descriptor));
+      // Emulate the isNaN operation whose calculation follows the expression
+      // `x != x`.
+      return SerializeBinaryOperation(
+          ::tflite::BuiltinOperator_NOT_EQUAL, input_tensor_info.index,
+          input_tensor_info.index, output_tensor_info.index);
+    }
+    case mojom::ElementWiseUnary::Kind::kIsInfinite: {
+      CHECK(data_type_limits.is_infinite_input.Supports(input_descriptor));
+      return SerializeIsInfinite(input_tensor_info, output_tensor_info);
+    }
     case mojom::ElementWiseUnary::Kind::kLogicalNot: {
       CHECK(data_type_limits.logical_not_input.Supports(input_descriptor));
       return SerializeLogicalNot(input_tensor_info, output_tensor_info);
@@ -4209,6 +4229,11 @@ auto GraphBuilderTflite::SerializeElementWiseUnary(
     case mojom::ElementWiseUnary::Kind::kReciprocal: {
       CHECK(data_type_limits.reciprocal_input.Supports(input_descriptor));
       return SerializeReciprocal(input_tensor_info, output_tensor_info);
+    }
+    case mojom::ElementWiseUnary::Kind::kRoundEven: {
+      CHECK(data_type_limits.round_even_input.Supports(input_descriptor));
+      return SerializeUnaryOperation(::tflite::BuiltinOperator_ROUND,
+                                     input_tensor_index, output_tensor_index);
     }
     case mojom::ElementWiseUnary::Kind::kSign: {
       CHECK(data_type_limits.sign_input.Supports(input_descriptor));
@@ -6102,6 +6127,38 @@ auto GraphBuilderTflite::SerializeLinear(const mojom::Linear& linear)
   return SerializeLinearOperation(
       input_tensor_info.dimensions, input_tensor_info.data_type,
       input_tensor_info.index, output_tensor_index, linear.alpha, linear.beta);
+}
+
+auto GraphBuilderTflite::SerializeIsInfinite(
+    const TensorInfo& input_tensor_info,
+    const TensorInfo& output_tensor_info) -> OperatorOffset {
+  // Emulate isInfinite operation whose calculation follows the expression:
+  // `abs(x) == +inf`.
+  const TensorIndex abs_output_tensor_index = SerializeTemporaryTensor(
+      input_tensor_info.dimensions, input_tensor_info.data_type);
+  operators_.emplace_back(SerializeUnaryOperation(::tflite::BuiltinOperator_ABS,
+                                                  input_tensor_info.index,
+                                                  abs_output_tensor_index));
+
+  TensorIndex inf_tensor_index;
+  switch (input_tensor_info.data_type) {
+    case ::tflite::TensorType_FLOAT32:
+      inf_tensor_index = SerializeTensorWithBuffer<float>(
+          /*buffer=*/std::vector<float>{std::numeric_limits<float>::infinity()},
+          /*dimensions=*/{});
+      break;
+    case ::tflite::TensorType_FLOAT16:
+      inf_tensor_index = SerializeTensorWithBuffer<Float16>(
+          /*buffer=*/std::vector<Float16>{Float16{fp16_ieee_from_fp32_value(
+              std::numeric_limits<float>::infinity())}},
+          /*dimensions=*/{});
+      break;
+    default:
+      NOTREACHED() << "Unsupported data type for isInfinite operation.";
+  }
+  return SerializeBinaryOperation(::tflite::BuiltinOperator_EQUAL,
+                                  abs_output_tensor_index, inf_tensor_index,
+                                  output_tensor_info.index);
 }
 
 auto GraphBuilderTflite::SerializeLogicalNot(

@@ -2951,6 +2951,34 @@ void CreateOperatorNodeForNeg(const std::vector<OperandPtr>& operands,
   CHECK(id_to_node_output_map.try_emplace(output_id, output).second);
 }
 
+void CreateOperatorNodeForRoundEven(const std::vector<OperandPtr>& operands,
+                                    const mojom::ElementWiseUnaryPtr& operation,
+                                    GraphBuilderDml& graph_builder,
+                                    IdToNodeOutputMap& id_to_node_output_map) {
+  const NodeOutput* input = GetNodeOutputForOperand(
+      id_to_node_output_map, operation->input_operand_id);
+  const TensorDesc& input_tensor_desc = input->GetTensorDesc();
+
+  const OperandId output_id = operation->output_operand_id;
+  const auto output_tensor_desc = CreateOutputTensorDesc(operands, output_id);
+
+  DML_ELEMENT_WISE_ROUND_OPERATOR_DESC round_even_operator_desc{
+      .InputTensor = &input_tensor_desc.GetDMLTensorDesc(),
+      .OutputTensor = &output_tensor_desc.GetDMLTensorDesc(),
+      .RoundingMode =
+          DML_ROUNDING_MODE::DML_ROUNDING_MODE_HALVES_TO_NEAREST_EVEN};
+
+  std::array<const NodeOutput*, 1> inputs = {input};
+  const GraphNode* round_even_node = graph_builder.CreateOperatorNode(
+      DML_OPERATOR_ELEMENT_WISE_ROUND, &round_even_operator_desc, inputs,
+      operation->label);
+
+  const NodeOutput* output = graph_builder.CreateNodeOutput(
+      round_even_node, std::move(output_tensor_desc), 0);
+  // The output id must be unique in the map.
+  CHECK(id_to_node_output_map.try_emplace(output_id, output).second);
+}
+
 void CreateOperatorNodeForElementWiseUnary(
     const ContextProperties& context_properties,
     const std::vector<OperandPtr>& operands,
@@ -3026,6 +3054,22 @@ void CreateOperatorNodeForElementWiseUnary(
                                         DML_OPERATOR_ELEMENT_WISE_LOG>(
           operands, operation, graph_builder, id_to_node_output_map);
     }
+    case mojom::ElementWiseUnary::Kind::kIsNaN: {
+      CHECK(context_properties.data_type_limits.is_nan_input.data_types.Has(
+          input_data_type));
+      return CreateOperatorNodeForUnary<DML_ELEMENT_WISE_IS_NAN_OPERATOR_DESC,
+                                        DML_OPERATOR_ELEMENT_WISE_IS_NAN>(
+          operands, operation, graph_builder, id_to_node_output_map);
+    }
+    case mojom::ElementWiseUnary::Kind::kIsInfinite: {
+      CHECK(
+          context_properties.data_type_limits.is_infinite_input.data_types.Has(
+              input_data_type));
+      return CreateOperatorNodeForUnary<
+          DML_ELEMENT_WISE_IS_INFINITY_OPERATOR_DESC,
+          DML_OPERATOR_ELEMENT_WISE_IS_INFINITY>(
+          operands, operation, graph_builder, id_to_node_output_map);
+    }
     case mojom::ElementWiseUnary::Kind::kLogicalNot: {
       CHECK(
           context_properties.data_type_limits.logical_not_input.data_types.Has(
@@ -3051,6 +3095,12 @@ void CreateOperatorNodeForElementWiseUnary(
       return CreateOperatorNodeForUnary<DML_ELEMENT_WISE_RECIP_OPERATOR_DESC,
                                         DML_OPERATOR_ELEMENT_WISE_RECIP>(
           operands, operation, graph_builder, id_to_node_output_map);
+    }
+    case mojom::ElementWiseUnary::Kind::kRoundEven: {
+      CHECK(context_properties.data_type_limits.round_even_input.data_types.Has(
+          input_data_type));
+      return CreateOperatorNodeForRoundEven(operands, operation, graph_builder,
+                                            id_to_node_output_map);
     }
     case mojom::ElementWiseUnary::Kind::kSign: {
       CHECK(context_properties.data_type_limits.sign_input.data_types.Has(

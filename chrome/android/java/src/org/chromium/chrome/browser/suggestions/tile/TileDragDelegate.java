@@ -11,6 +11,9 @@ import androidx.annotation.IntDef;
 
 import org.chromium.build.annotations.NullMarked;
 
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+
 /**
  * UI logic to reorder Most Visited Tiles, moving a "from" tile to a "to" tile's location. Two
  * separate flows are supported:
@@ -29,7 +32,8 @@ interface TileDragDelegate {
         ReorderFlow.DRAG_FLOW,
         ReorderFlow.SWAP_FLOW,
     })
-    public @interface ReorderFlow {
+    @Retention(RetentionPolicy.SOURCE)
+    @interface ReorderFlow {
         int DRAG_FLOW = 0;
         int SWAP_FLOW = 1;
         int NUM_ENTRIES = 2;

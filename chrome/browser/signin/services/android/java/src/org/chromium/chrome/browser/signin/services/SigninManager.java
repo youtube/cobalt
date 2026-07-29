@@ -33,7 +33,7 @@ public interface SigninManager {
     /** What type of data to delete when data deletion is requested. */
     @IntDef({DataWipeOption.WIPE_SYNC_DATA, DataWipeOption.WIPE_ALL_PROFILE_DATA})
     @Retention(RetentionPolicy.SOURCE)
-    public @interface DataWipeOption {
+    @interface DataWipeOption {
         /* Delete all syncable data from the profile (history, passwords, form data, as well as */
         /* cache and cookies. */
         int WIPE_SYNC_DATA = 0;
@@ -158,17 +158,17 @@ public interface SigninManager {
     void runAfterOperationInProgress(Runnable runnable);
 
     /**
-     * Revokes sync consent (which disables the sync feature). This method should only be called
-     * for child accounts.
+     * Revokes sync consent (which disables the sync feature). This method should only be called for
+     * child accounts.
      *
-     * @param signoutSource describes the event driving disabling sync (e.g.
-     *         {@link SignoutReason.USER_CLICKED_TURN_OFF_SYNC_SETTINGS}).
+     * @param signoutSource describes the event driving disabling sync (e.g. {@link
+     *     SignoutReason.USER_CLICKED_TURN_OFF_SYNC_SETTINGS}).
      * @param signOutCallback Callback to notify about progress.
      * @param forceWipeUserData Whether user selected to wipe all device data.
      */
     void revokeSyncConsent(
             @SignoutReason int signoutSource,
-            SignOutCallback signOutCallback,
+            @Nullable SignOutCallback signOutCallback,
             boolean forceWipeUserData);
 
     /**

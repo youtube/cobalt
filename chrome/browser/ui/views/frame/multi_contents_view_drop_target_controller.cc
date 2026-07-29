@@ -4,6 +4,8 @@
 
 #include "chrome/browser/ui/views/frame/multi_contents_view_drop_target_controller.h"
 
+#include <algorithm>
+
 #include "base/callback_list.h"
 #include "base/check_deref.h"
 #include "base/functional/callback_forward.h"
@@ -157,9 +159,7 @@ void MultiContentsViewDropTargetController::DoDrop(
   MultiContentsDropTargetView::DropSide side =
       drop_target_view_->side().value();
   drop_target_view_->Hide();
-  auto urls = event.data().GetURLs(ui::FilenameToURLPolicy::CONVERT_FILENAMES);
-  CHECK(urls.has_value());
-  drop_delegate_->HandleLinkDrop(side, urls.value());
+  drop_delegate_->HandleLinkDrop(side, event);
   output_drag_op = ui::mojom::DragOperation::kLink;
 }
 
@@ -191,7 +191,7 @@ void MultiContentsViewDropTargetController::OnWebContentsDragUpdate(
     ResetDropTargetTimer();
     return;
   }
-  if (!data.url.is_valid() || is_in_split_view) {
+  if (!data.url.is_valid() || !data.url.IsStandard() || is_in_split_view) {
     ResetDropTargetTimer();
     return;
   }
@@ -328,15 +328,19 @@ bool MultiContentsViewDropTargetController::PointOverlapsWithOSDropTarget(
     return false;
   }
 
-  const float hide_for_os_width =
-      features::kSideBySideDropTargetHideForOSWidth.Get();
   const gfx::Point point_in_screen = views::View::ConvertPointToScreen(
       drop_target_view_->parent(), point_in_view);
   const views::Widget* top_level_widget =
       drop_target_parent_view_->GetWidget()->GetTopLevelWidget();
+  const int screen_width =
+      top_level_widget->GetWorkAreaBoundsInScreen().width();
+
+  const float hide_for_os_width = std::max(
+      features::kSideBySideDropTargetHideForOSWidth.Get(),
+      static_cast<int>(
+          screen_width *
+          features::kSideBySideDropTargetHideForOSPercentage.Get() / 100));
 
   return (point_in_screen.x() < hide_for_os_width) ||
-         (point_in_screen.x() >
-          top_level_widget->GetWorkAreaBoundsInScreen().width() -
-              hide_for_os_width);
+         (point_in_screen.x() > screen_width - hide_for_os_width);
 }

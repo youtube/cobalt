@@ -36,7 +36,7 @@
 #include "components/autofill/core/browser/data_model/payments/iban.h"
 #include "components/autofill/core/browser/data_model/payments/payment_instrument.h"
 #include "components/autofill/core/browser/field_types.h"
-#include "components/autofill/core/browser/integrators/optimization_guide/mock_autofill_optimization_guide.h"
+#include "components/autofill/core/browser/integrators/optimization_guide/mock_autofill_optimization_guide_decider.h"
 #include "components/autofill/core/browser/metrics/suggestions_list_metrics.h"
 #include "components/autofill/core/browser/payments/card_unmask_challenge_option.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
@@ -729,7 +729,7 @@ void SetUpCreditCardAndBenefitData(
     const CreditCardBenefit& benefit,
     const std::string& benefit_source,
     TestPersonalDataManager& personal_data,
-    AutofillOptimizationGuide* optimization_guide) {
+    AutofillOptimizationGuideDecider* optimization_guide) {
   std::visit(
       absl::Overload{
           [&card](const CreditCardFlatRateBenefit& flat_rate_benefit) {
@@ -744,7 +744,7 @@ void SetUpCreditCardAndBenefitData(
               const CreditCardCategoryBenefit& category_benefit) {
             card.set_instrument_id(
                 *category_benefit.linked_card_instrument_id());
-            ON_CALL(*static_cast<MockAutofillOptimizationGuide*>(
+            ON_CALL(*static_cast<MockAutofillOptimizationGuideDecider*>(
                         optimization_guide),
                     AttemptToGetEligibleCreditCardBenefitCategory)
                 .WillByDefault(testing::Return(
@@ -946,7 +946,7 @@ EntityInstance GetPassportEntityInstance(PassportEntityOptions options) {
       EntityType(EntityTypeName::kPassport), std::move(attributes),
       EntityInstance::EntityId(base::Uuid::ParseLowercase(options.guid)),
       std::string(options.nickname),
-      base::Time::FromTimeT(options.date_modified.ToTimeT()), /*use_count=*/0,
+      base::Time::FromTimeT(options.date_modified.ToTimeT()), options.use_count,
       /*use_date=*/base::Time::FromTimeT(0), options.record_type,
       options.are_attributes_read_only);
 }
@@ -991,7 +991,7 @@ EntityInstance GetDriversLicenseEntityInstance(DriversLicenseOptions options) {
       EntityType(EntityTypeName::kDriversLicense), std::move(attributes),
       EntityInstance::EntityId(base::Uuid::ParseLowercase(options.guid)),
       std::string(options.nickname),
-      base::Time::FromTimeT(options.date_modified.ToTimeT()), /*use_count=*/0,
+      base::Time::FromTimeT(options.date_modified.ToTimeT()), options.use_count,
       /*use_date=*/base::Time::FromTimeT(0), options.record_type,
       options.are_attributes_read_only);
 }
@@ -1017,7 +1017,7 @@ EntityInstance GetKnownTravelerNumberInstance(
       EntityType(EntityTypeName::kKnownTravelerNumber), std::move(attributes),
       EntityInstance::EntityId(base::Uuid::ParseLowercase(options.guid)),
       std::string(options.nickname), base::Time::FromTimeT(kJune2017.ToTimeT()),
-      /*use_count=*/0,
+      options.use_count,
       /*use_date=*/base::Time::FromTimeT(0), options.record_type,
       options.are_attributes_read_only);
 }
@@ -1036,7 +1036,7 @@ EntityInstance GetRedressNumberEntityInstance(RedressNumberOptions options) {
       EntityType(EntityTypeName::kRedressNumber), std::move(attributes),
       EntityInstance::EntityId(base::Uuid::ParseLowercase(options.guid)),
       std::string(options.nickname), base::Time::FromTimeT(kJune2017.ToTimeT()),
-      /*use_count=*/0,
+      options.use_count,
       /*use_date=*/base::Time::FromTimeT(0), options.record_type,
       options.are_attributes_read_only);
 }
@@ -1090,8 +1090,8 @@ EntityInstance GetVehicleEntityInstance(VehicleOptions options) {
   return EntityInstance(
       EntityType(EntityTypeName::kVehicle), std::move(attributes),
       EntityInstance::EntityId(base::Uuid::ParseLowercase(options.guid)),
-      std::string(options.nickname), base::Time::FromTimeT(kJune2017.ToTimeT()),
-      /*use_count=*/0,
+      std::string(options.nickname),
+      base::Time::FromTimeT(options.date_modified.ToTimeT()), options.use_count,
       /*use_date=*/base::Time::FromTimeT(0), options.record_type,
       options.are_attributes_read_only);
 }
@@ -1131,7 +1131,7 @@ EntityInstance GetNationalIdCardEntityInstance(NationalIdCardOptions options) {
       EntityType(EntityTypeName::kNationalIdCard), std::move(attributes),
       EntityInstance::EntityId(base::Uuid::ParseLowercase(options.guid)),
       std::string(options.nickname), base::Time::FromTimeT(kJune2017.ToTimeT()),
-      /*use_count=*/0,
+      options.use_count,
       /*use_date=*/base::Time::FromTimeT(0), options.record_type,
       options.are_attributes_read_only);
 }

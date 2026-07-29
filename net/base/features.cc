@@ -12,6 +12,7 @@
 #include "net/base/cronet_buildflags.h"
 #include "net/disk_cache/buildflags.h"
 #include "net/net_buildflags.h"
+#include "net/third_party/quiche/src/quiche/quic/core/quic_constants.h"
 
 #if BUILDFLAG(IS_WIN)
 #include "base/win/windows_version.h"
@@ -756,5 +757,40 @@ BASE_FEATURE_PARAM(bool,
                    &kNetTaskScheduler,
                    "url_request_redirect_job",
                    false);
+
+BASE_FEATURE(AdditionalDelayMainJob, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kAdditionalDelay,
+                   &kAdditionalDelayMainJob,
+                   "AdditionalDelay",
+                   base::Milliseconds(0));
+
+BASE_FEATURE(ExtendQuicHandshakeTimeout, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kQuicHandshakeTimeout,
+                   &kExtendQuicHandshakeTimeout,
+                   "QuicHandshakeTimeout",
+                   base::Seconds(quic::kMaxTimeForCryptoHandshakeSecs));
+
+BASE_FEATURE(LowerQuicMaxPacketSize, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(size_t,
+                   kQuicMaxPacketSize,
+                   &kLowerQuicMaxPacketSize,
+                   "mtu",
+                   quic::kDefaultMaxPacketSize);
+
+BASE_FEATURE(kConfigureQuicHints,
+             "ConfigureQuicHints",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(std::string,
+                   kQuicHintHostPortPairs,
+                   &kConfigureQuicHints,
+                   /*name=*/"quic_hints",
+                   /*default_value=*/"");
+BASE_FEATURE_PARAM(std::string,
+                   kWildcardQuicHintHostPortPairs,
+                   &kConfigureQuicHints,
+                   /*name=*/"wildcard_quic_hints",
+                   /*default_value=*/"");
 
 }  // namespace net::features

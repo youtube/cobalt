@@ -161,7 +161,6 @@ public final class ProductionSupportedFlagList {
                 GpuFeatures.RELAX_LIMIT_A_IMAGE_READER_MAX_SIZE_TO_ONE,
                 "Allow more than 1 buffer from AImageReader on the specific set of devices. "
                         + "Only supported on TV."),
-        Flag.baseFeature(GpuFeatures.WEBVIEW_THREAD_SAFE_MEDIA, "Use thread-safe media path."),
         Flag.baseFeature(
                 GpuFeatures.PRUNE_OLD_TRANSFER_CACHE_ENTRIES,
                 "Prune old transfer cache entries and disable pruning from client"),
@@ -237,6 +236,10 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(
                 AndroidAutofillFeatures.ANDROID_AUTOFILL_FORWARD_IFRAME_ORIGIN_NAME,
                 "Enable attaching the origin of iframes to form fields."),
+        Flag.baseFeature(
+                AndroidAutofillFeatures.ANDROID_AUTOFILL_IMPROVED_VISIBILITY_DETECTION_NAME,
+                "Enable improved visibility detection form fields sent to the Android "
+                        + "Autofill framework."),
         Flag.baseFeature(
                 AutofillFeatures.AUTOFILL_ACCEPT_DOM_MUTATION_AFTER_AUTOFILL_SUBMISSION,
                 "Accepts DOM_MUTATION_AFTER_AUTOFILL submissions detected on password forms."),
@@ -1128,6 +1131,11 @@ public final class ProductionSupportedFlagList {
                 UiBaseFeatures.SEND_EMPTY_GESTURE_SCROLL_UPDATE,
                 "Send GestureScrollUpdates together with TouchMoves, including empty GSUs for 0"
                         + " delta moves."),
+        Flag.baseFeature(
+                AwFeatures.WEBVIEW_EARLY_STARTUP_TRACING,
+                "Enables early startup tracing. This flag takes effect on subsequent application"
+                    + " startups: After enabling this flag, applications must be started and then"
+                    + " restarted for tracing to apply."),
         // Add new commandline switches and features above. The final entry should have a
         // trailing comma for cleaner diffs.
     };

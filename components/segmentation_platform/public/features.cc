@@ -24,10 +24,6 @@ BASE_FEATURE(kSegmentationPlatformUkmEngine,
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
-BASE_FEATURE(kSegmentationPlatformUserVisibleTaskRunner,
-             "SegmentationPlatformUserVisibleTaskRunner",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kSegmentationPlatformAdaptiveToolbarV2Feature,
              "SegmentationPlatformAdaptiveToolbarV2Feature",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -71,10 +67,6 @@ BASE_FEATURE(kFrequentFeatureUserSegmentFeature,
 BASE_FEATURE(kContextualPageActions,
              "ContextualPageActions",
              base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kContextualPageActionShareModel,
-             "ContextualPageActionShareModel",
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kContextualPageActionTabGrouping,
              "ContextualPageActionTabGrouping",
@@ -131,10 +123,6 @@ BASE_FEATURE(kSegmentationPlatformAndroidHomeModuleRankerV2,
 BASE_FEATURE(kSegmentationPlatformTimeDelaySampling,
              "SegmentationPlatformTimeDelaySampling",
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kSegmentationPlatformModelInitializationDelay,
-             "SegmentationPlatformModelInitializationDelay",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enabled only on iOS to improve startup performance of the module ranker.
 BASE_FEATURE(kSegmentationPlatformSignalDbCache,
@@ -290,5 +278,26 @@ BASE_FEATURE(kAppBundlePromoEphemeralCard,
 #else
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
+
+constexpr base::FeatureParam<int> kMaxAppBundlePromoImpressions{
+    &kAppBundlePromoEphemeralCard, "max_app_bundle_promo_impressions",
+    /*default_value=*/3};
+
+constexpr base::FeatureParam<int> kMaxAppBundleAppsInstalled{
+    &kAppBundlePromoEphemeralCard, "max_app_bundle_apps_installed",
+    /*default_value=*/4};
+
+BASE_FEATURE(kDefaultBrowserMagicStackIos,
+             "DefaultBrowserMagicStackIos",
+#if BUILDFLAG(IS_IOS)
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
+
+constexpr base::FeatureParam<int> kMaxDefaultBrowserMagicStackIosImpressions{
+    &kDefaultBrowserMagicStackIos,
+    "max_default_browser_magic_stack_ios_impressions",
+    /*default_value=*/6};
 
 }  // namespace segmentation_platform::features

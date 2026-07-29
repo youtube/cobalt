@@ -21,6 +21,7 @@
 <translation id="1072476005125066234">Resenyes basades en els teus interessos</translation>
 <translation id="1074827084851510304">Estàs a punt de suprimir {password_count} contrasenyes i la llista de llocs web i aplicacions per als quals has triat que no es desi mai la informació d'inici de sessió. No se suprimiran els comptes que hagis creat per a llocs web i aplicacions.</translation>
 <translation id="1076421457278169141">S'ha escanejat el codi</translation>
+<translation id="1081114897601629648">Les contrasenyes següents no s'han importat al gestor de contrasenyes de Google perquè no compleixen els requisits.</translation>
 <translation id="1081932398873105675">{count,plural, =1{{count} pestanya}other{{count} pestanyes}}</translation>
 <translation id="1082554859195167538">Ressenyes de productes per a tu</translation>
 <translation id="1084365883616172403">S'ha completat la publicació a Facebook.</translation>
@@ -121,7 +122,6 @@
 <translation id="1469381646033328562">El teu pare o mare gestiona el teu compte.
 <ph name="BEGIN_LINK" />Més informació<ph name="END_LINK" /></translation>
 <translation id="147982357559798527">S'ha canviat</translation>
-<translation id="1485907716209290998">Seguiment</translation>
 <translation id="1486096554574027028">Cerca contrasenyes</translation>
 <translation id="1491277525950327607">Fes doble toc per canviar la configuració</translation>
 <translation id="1491965206608166851">Inicia la sessió amb les teves contrasenyes i claus d'accés desades des de qualsevol aplicació</translation>
@@ -241,6 +241,7 @@
 <translation id="1902277226107477495">La detecció d'adreces està desactivada. Torna a activar-la a Configuració.</translation>
 <translation id="1904580727789512086">Els URL que visites es desen al teu Compte de Google</translation>
 <translation id="1911619930368729126">Penja a Google Drive</translation>
+<translation id="1925706052394657380">Obre la pantalla de configuració <ph name="BEGIN_BOLD" />Apps per omissió<ph name="END_BOLD" /> a iOS</translation>
 <translation id="1941314575388338491">Feu doble toc per copiar-ho.</translation>
 <translation id="1943478190258551035">Menú → Configuració</translation>
 <translation id="1952728750904661634">Inicieu la sessió amb un compte gestionat</translation>
@@ -250,6 +251,7 @@
 <translation id="1962348300797608157"><ph name="BEGIN_BOLD" /><ph name="FULL_NAME" /><ph name="END_BOLD" /> ha compartit una contrasenya amb tu per a <ph name="WEBSITE" /></translation>
 <translation id="1962969542251276847">Pantalla de bloqueig</translation>
 <translation id="1963976881984600709">Protecció estàndard</translation>
+<translation id="1964507856799750384">Toca <ph name="BEGIN_BOLD" />Navegador<ph name="END_BOLD" /></translation>
 <translation id="1966313166384086081">les dades dels llocs web</translation>
 <translation id="1967461193809857427">{count,plural, =1{Vols continuar des de la pestanya on ho has deixat a Android?}other{Vols continuar des de les pestanyes on ho has deixat a Android?}}</translation>
 <translation id="1972325230031091483">Navegaràs més de pressa perquè el contingut es carrega de forma proactiva en funció de la pàgina web que estiguis visitant</translation>
@@ -599,7 +601,6 @@ Consulta les instruccions del teu motor de cerca per suprimir l'historial de cer
 <translation id="333229797575847124">Com pots activar aquesta funció</translation>
 <translation id="3344485292736684439">{count,plural, =1{S'ha desat l'adreça d'interès a "{title}" al teu compte, {email}}other{S'han desat les adreces d'interès a "{title}" al teu compte, {email}}}</translation>
 <translation id="334690320928261823">Pestanyes recents</translation>
-<translation id="3348387552617855658">Aquesta targeta t'ajuda a fer un seguiment dels teus paquets i t'ofereix novetats importants sobre les entregues.</translation>
 <translation id="3349031117032695619">Bloqueja finestres emergents</translation>
 <translation id="3349676726073650389">Els llocs web i les cerques que segueixes es desen al teu Compte de Google. Pots gestionar el contingut que segueixes en qualsevol moment a la configuració.</translation>
 <translation id="3353037916374303415"><ph name="EMAIL" />. Aquest compte està gestionat.</translation>
@@ -1398,7 +1399,6 @@ Handoff també ha d'estar activat a la secció General de Configuració, i els v
 <translation id="6406506848690869874">Sincronització</translation>
 <translation id="6410390304316730527">Navegació segura et protegeix contra els atacants que et poden enganyar perquè facis alguna acció perillosa, com ara instal·lar programari maliciós o revelar informació personal (per exemple, contrasenyes, números de telèfon o targetes de crèdit). Si la desactives, ves amb compte quan naveguis per llocs web desconeguts o amb mala reputació.</translation>
 <translation id="6410883413783534063">Obre pestanyes per visitar diverses pàgines al mateix temps</translation>
-<translation id="6416807286621280684">Novetats sobre les entregues i sobre els paquets que segueixes.</translation>
 <translation id="6418346271604475326">Preparant el PDF</translation>
 <translation id="6421038304268477484">Text traduït</translation>
 <translation id="6429213933892582367">Obre Opcions de contrasenya</translation>

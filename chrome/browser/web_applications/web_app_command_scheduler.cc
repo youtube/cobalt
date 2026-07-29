@@ -293,7 +293,7 @@ void WebAppCommandScheduler::ScheduleNavigateAndTriggerInstallDialog(
 void WebAppCommandScheduler::InstallIsolatedWebApp(
     const IsolatedWebAppUrlInfo& url_info,
     const IsolatedWebAppInstallSource& install_source,
-    const std::optional<base::Version>& expected_version,
+    const std::optional<IwaVersion>& expected_version,
     std::unique_ptr<ScopedKeepAlive> optional_keep_alive,
     std::unique_ptr<ScopedProfileKeepAlive> optional_profile_keep_alive,
     InstallIsolatedWebAppCallback callback,
@@ -349,9 +349,8 @@ void WebAppCommandScheduler::ApplyPendingIsolatedWebAppUpdate(
     const IsolatedWebAppUrlInfo& url_info,
     std::unique_ptr<ScopedKeepAlive> optional_keep_alive,
     std::unique_ptr<ScopedProfileKeepAlive> optional_profile_keep_alive,
-    base::OnceCallback<
-        void(base::expected<IsolatedWebAppApplyUpdateCommandSuccess,
-                            IsolatedWebAppApplyUpdateCommandError>)> callback,
+    base::OnceCallback<void(
+        base::expected<void, IsolatedWebAppApplyUpdateCommandError>)> callback,
     const base::Location& call_location) {
   provider_->command_manager().ScheduleCommand(
       std::make_unique<IsolatedWebAppApplyUpdateCommand>(

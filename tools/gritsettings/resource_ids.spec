@@ -597,7 +597,7 @@
     "includes": [4720],
   },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/settings/resources.grd": {
-    "META": {"sizes": {"includes": [500],}},
+    "META": {"sizes": {"includes": [600],}},
     "includes": [4740],
   },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/settings_shared/resources.grd": {
@@ -754,6 +754,10 @@
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/webui_browser/internal/resources.grd": {
     "META": {"sizes": {"includes": [5]}},
     "includes": [5260],
+  },
+  "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/notifications_internals/resources.grd": {
+    "META": {"sizes": {"includes": [5]}},
+    "includes": [5270],
   },
   # END chrome/ WebUI resources section
 
@@ -1105,9 +1109,6 @@
   },
   "components/resources/dev_ui_components_resources.grd": {
     "includes": [7260],
-  },
-  "components/search_engine_descriptions_strings.grd": {
-    "messages": [7280],
   },
   "<(SHARED_INTERMEDIATE_DIR)/components/autofill/core/browser/autofill_and_password_manager_internals/resources.grd": {
     "META": {"sizes": {"includes": [5]}},
@@ -1568,6 +1569,10 @@
 
   "third_party/search_engines_data/resources_internal/search_engines_scaled_resources.grd": {
     "structures": [10100],
+  },
+
+  "third_party/search_engines_data/resources_internal/search_engine_descriptions_strings.grd": {
+    "messages": [10120],
   },
 
   # END "everything else" section.

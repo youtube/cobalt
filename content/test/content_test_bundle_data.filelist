@@ -2196,6 +2196,10 @@ data/accessibility/css/table-display-other.html
 data/accessibility/css/table-display.html
 data/accessibility/css/table-incomplete-expected-blink.txt
 data/accessibility/css/table-incomplete.html
+data/accessibility/css/target-current-html-anchor-role-expected-blink.txt
+data/accessibility/css/target-current-html-anchor-role.html
+data/accessibility/css/target-current-html-anchor-role-dynamic-expected-blink.txt
+data/accessibility/css/target-current-html-anchor-role-dynamic.html
 data/accessibility/css/text-overflow-ellipsis-expected-blink.txt
 data/accessibility/css/text-overflow-ellipsis.html
 data/accessibility/css/transform-expected-blink.txt
@@ -3587,6 +3591,14 @@ data/accessibility/html/commandfor-api-popover-expected-blink.txt
 data/accessibility/html/commandfor-api-popover-expected-mac.txt
 data/accessibility/html/commandfor-api-popover-expected-uia-win.txt
 data/accessibility/html/commandfor-api-popover-expected-win.txt
+data/accessibility/html/commandfor-api-popover-menus-expected-android-external.txt
+data/accessibility/html/commandfor-api-popover-menus-expected-android.txt
+data/accessibility/html/commandfor-api-popover-menus-expected-auralinux.txt
+data/accessibility/html/commandfor-api-popover-menus-expected-blink.txt
+data/accessibility/html/commandfor-api-popover-menus-expected-mac.txt
+data/accessibility/html/commandfor-api-popover-menus-expected-uia-win.txt
+data/accessibility/html/commandfor-api-popover-menus-expected-win.txt
+data/accessibility/html/commandfor-api-popover-menus.html
 data/accessibility/html/commandfor-api-popover.html
 data/accessibility/html/content-left-of-view-port-for-on-screen-mode-expected-blink.txt
 data/accessibility/html/content-left-of-view-port-for-on-screen-mode.html
@@ -7034,6 +7046,7 @@ data/download/iframe-host.html.mock-http-headers
 data/download/octet-stream.abc
 data/download/octet-stream.abc.mock-http-headers
 data/download/page_with_data_image.html
+data/download/svg_download_test.html
 data/download/test.mht
 data/dynamic1.html
 data/dynamic2.html
@@ -8206,10 +8219,13 @@ data/preloading/preloading_decider_moderate.html
 data/prerender/async_script.html
 data/prerender/cross_origin_prerender.html
 data/prerender/cross_origin_srcdoc_sandboxed_postmessage.html
+data/prerender/deferred_script.html
 data/prerender/doc-with-display-none-iframe.html
 data/prerender/duplicate_prerenders.html
 data/prerender/empty.html
+data/prerender/external_sync_script.html
 data/prerender/image_loading_lazy.html
+data/prerender/inline_script.html
 data/prerender/multiple_prerender_with_tags.html
 data/prerender/multiple_prerender_with_tags_and_different_eagerness.html
 data/prerender/origin_trial_initiator.html

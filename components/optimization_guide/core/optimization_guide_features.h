@@ -80,6 +80,8 @@ COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 BASE_DECLARE_FEATURE(kAnnotatedPageContentWithMediaData);
 COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 BASE_DECLARE_FEATURE(kOptimizationGuideProactivePersonalizedHintsFetching);
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
+BASE_DECLARE_FEATURE(kOptimizationGuideBypassFormsClassificationAuth);
 
 // Allows setting feature params for model download configuration, such as
 // minimum performance class for download.
@@ -372,6 +374,12 @@ bool ShouldUseTextSafetyClassifierModel();
 // range [0, 1].
 COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 double GetOnDeviceModelLanguageDetectionMinimumReliability();
+
+// Whether the newer generalized safety model is used instead of the ULM-based
+// model as the text safety model. Irrelevant if
+// `ShouldUseTextSafetyClassifierModel()` returns false;
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
+bool ShouldUseGeneralizedSafetyModel();
 
 // These params configure the repetition checker. See HasRepeatingSuffix() in
 // repetition_checker.h for explanation. A value of 2 for num repeats and 16 for

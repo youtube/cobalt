@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <vector>
 
-#include "ash/constants/ash_features.h"
 #include "base/command_line.h"
 #include "base/containers/contains.h"
 #include "base/feature_list.h"
@@ -40,6 +39,8 @@
 #include "chromeos/ash/experiences/arc/test/fake_compatibility_mode_instance.h"
 #include "chromeos/ash/experiences/arc/test/fake_intent_helper_host.h"
 #include "chromeos/ash/experiences/arc/test/fake_intent_helper_instance.h"
+#include "components/session_manager/core/fake_session_manager_delegate.h"
+#include "components/session_manager/core/session_manager.h"
 #include "components/user_manager/scoped_user_manager.h"
 #include "google_apis/gaia/gaia_id.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -110,7 +111,8 @@ void ArcAppTest::SetUp(Profile* profile) {
   profile_ = profile;
 
   if (!session_manager::SessionManager::Get()) {
-    session_manager_ = std::make_unique<session_manager::SessionManager>();
+    session_manager_ = std::make_unique<session_manager::SessionManager>(
+        std::make_unique<session_manager::FakeSessionManagerDelegate>());
   }
 
   arc::ResetArcAllowedCheckForTesting(profile_);
@@ -160,11 +162,9 @@ void ArcAppTest::SetUp(Profile* profile) {
     WaitForDefaultApps();
   WaitForRemoveAllApps();
 
-  if (ash::features::ArePromiseIconsEnabled()) {
-    apps::AppServiceProxyFactory::GetForProfile(profile_)
-        ->PromiseAppService()
-        ->SetSkipAlmanacForTesting(true);
-  }
+  apps::AppServiceProxyFactory::GetForProfile(profile_)
+      ->PromiseAppService()
+      ->SetSkipAlmanacForTesting(true);
 
   // Check initial conditions.
   if (activate_arc_on_start_) {

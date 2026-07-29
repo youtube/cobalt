@@ -247,8 +247,9 @@ IN_PROC_BROWSER_TEST_P(PriceInsightsIconViewInteractiveTest,
           expected_to_highlight));
 }
 
+// TODO(crbug.com/429709568): Disabled due to flakiness.
 IN_PROC_BROWSER_TEST_P(PriceInsightsIconViewInteractiveTest,
-                       TabDiscardDuringNavigationNoCrash) {
+                       DISABLED_TabDiscardDuringNavigationNoCrash) {
   DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kSecondTab);
   DEFINE_LOCAL_STATE_IDENTIFIER_VALUE(
       ui::test::PollingStateObserver<mojom::LifecycleUnitState>,
@@ -345,11 +346,11 @@ class PriceInsightsIconViewEngagementTest
         WaitForHide(kPriceInsightsChipElementId));
   }
 
-  using PageActionInteractiveTestMixin::WaitForPageActionButtonVisible;
+  using PageActionInteractiveTestMixin::WaitForPageActionChipVisible;
 
-  auto WaitForPageActionButtonVisible() {
+  auto WaitForPageActionChipVisible() {
     MultiStep steps;
-    steps += WaitForPageActionButtonVisible(kActionCommercePriceInsights);
+    steps += WaitForPageActionChipVisible(kActionCommercePriceInsights);
     return steps;
   }
 
@@ -360,7 +361,7 @@ class PriceInsightsIconViewEngagementTest
     RunTestSequence(
         NavigateWebContents(kShoppingTab,
                             embedded_test_server()->GetURL(kShoppingURL)),
-        WaitForPageActionButtonVisible(),
+        WaitForPageActionChipVisible(),
         CheckViewProperty(kPriceInsightsChipElementId,
                           &IconLabelBubbleView::ShouldShowLabel,
                           expected_to_show_label));

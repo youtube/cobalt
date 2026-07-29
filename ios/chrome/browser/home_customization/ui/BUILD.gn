@@ -13,8 +13,6 @@ source_set("ui") {
     "home_customization_background_color_picker_mutator.h",
     "home_customization_background_color_picker_view_controller.h",
     "home_customization_background_color_picker_view_controller.mm",
-    "home_customization_background_photo_framing_coordinates.h",
-    "home_customization_background_photo_framing_coordinates.mm",
     "home_customization_background_photo_framing_mutator.h",
     "home_customization_background_photo_framing_view_controller.h",
     "home_customization_background_photo_framing_view_controller.mm",
@@ -38,8 +36,12 @@ source_set("ui") {
     "home_customization_discover_consumer.h",
     "home_customization_discover_view_controller.h",
     "home_customization_discover_view_controller.mm",
+    "home_customization_framing_coordinates.h",
+    "home_customization_framing_coordinates.mm",
     "home_customization_header_view.h",
     "home_customization_header_view.mm",
+    "home_customization_image_view.h",
+    "home_customization_image_view.mm",
     "home_customization_link_cell.h",
     "home_customization_link_cell.mm",
     "home_customization_magic_stack_consumer.h",
@@ -69,6 +71,7 @@ source_set("ui") {
     "//ios/chrome/browser/shared/ui/symbols",
     "//ios/chrome/browser/shared/ui/util",
     "//ios/chrome/common/ui/colors",
+    "//ios/chrome/common/ui/elements",
     "//ios/chrome/common/ui/util",
     "//ios/chrome/common/ui/util:dynamic_type_util",
     "//skia",
@@ -78,4 +81,15 @@ source_set("ui") {
     "//url",
   ]
   frameworks = [ "UIKit.framework" ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "home_customization_image_view_unittest.mm" ]
+  deps = [
+    ":ui",
+    "//base/test:test_support",
+    "//testing/gtest",
+    "//ui/base",
+  ]
 }

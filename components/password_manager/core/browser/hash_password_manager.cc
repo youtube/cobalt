@@ -9,6 +9,7 @@
 #include "base/base64.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/to_string.h"
+#include "base/time/time.h"
 #include "components/os_crypt/sync/os_crypt.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
 #include "components/prefs/pref_service.h"
@@ -175,7 +176,7 @@ bool HashPasswordManager::SavePasswordHash(
   bool should_save = password_hash_data.force_update ||
                      !HasPasswordHash(password_hash_data.username,
                                       password_hash_data.is_gaia_password);
-  return should_save ? EncryptAndSave(password_hash_data) : false;
+  return should_save && EncryptAndSave(password_hash_data);
 }
 
 void HashPasswordManager::ClearSavedPasswordHash(const std::string& username,

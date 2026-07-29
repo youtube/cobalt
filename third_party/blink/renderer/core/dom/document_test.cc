@@ -1046,8 +1046,7 @@ TEST_F(DocumentTest, HasPrivateTokenSuccess) {
   Document& document = scope.GetDocument();
   document.GetFrame()->GetBrowserInterfaceBroker().SetBinderForTesting(
       network::mojom::blink::TrustTokenQueryAnswerer::Name_,
-      WTF::BindRepeating(&MockTrustTokenQueryAnswerer::Bind,
-                         WTF::Unretained(&answerer)));
+      BindRepeating(&MockTrustTokenQueryAnswerer::Bind, Unretained(&answerer)));
 
   ScriptState* script_state = scope.GetScriptState();
   ExceptionState exception_state(script_state->GetIsolate());
@@ -1072,8 +1071,7 @@ TEST_F(DocumentTest, HasPrivateTokenSuccessWithFalseValue) {
   Document& document = scope.GetDocument();
   document.GetFrame()->GetBrowserInterfaceBroker().SetBinderForTesting(
       network::mojom::blink::TrustTokenQueryAnswerer::Name_,
-      WTF::BindRepeating(&MockTrustTokenQueryAnswerer::Bind,
-                         WTF::Unretained(&answerer)));
+      BindRepeating(&MockTrustTokenQueryAnswerer::Bind, Unretained(&answerer)));
 
   ScriptState* script_state = scope.GetScriptState();
   ExceptionState exception_state(script_state->GetIsolate());
@@ -1098,8 +1096,7 @@ TEST_F(DocumentTest, HasPrivateTokenOperationError) {
   Document& document = scope.GetDocument();
   document.GetFrame()->GetBrowserInterfaceBroker().SetBinderForTesting(
       network::mojom::blink::TrustTokenQueryAnswerer::Name_,
-      WTF::BindRepeating(&MockTrustTokenQueryAnswerer::Bind,
-                         WTF::Unretained(&answerer)));
+      BindRepeating(&MockTrustTokenQueryAnswerer::Bind, Unretained(&answerer)));
 
   ScriptState* script_state = scope.GetScriptState();
   ExceptionState exception_state(script_state->GetIsolate());
@@ -1126,8 +1123,7 @@ TEST_F(DocumentTest, HasPrivateTokenInvalidArgument) {
   Document& document = scope.GetDocument();
   document.GetFrame()->GetBrowserInterfaceBroker().SetBinderForTesting(
       network::mojom::blink::TrustTokenQueryAnswerer::Name_,
-      WTF::BindRepeating(&MockTrustTokenQueryAnswerer::Bind,
-                         WTF::Unretained(&answerer)));
+      BindRepeating(&MockTrustTokenQueryAnswerer::Bind, Unretained(&answerer)));
 
   ScriptState* script_state = scope.GetScriptState();
   ExceptionState exception_state(script_state->GetIsolate());
@@ -1154,8 +1150,7 @@ TEST_F(DocumentTest, HasPrivateTokenResourceExhausted) {
   Document& document = scope.GetDocument();
   document.GetFrame()->GetBrowserInterfaceBroker().SetBinderForTesting(
       network::mojom::blink::TrustTokenQueryAnswerer::Name_,
-      WTF::BindRepeating(&MockTrustTokenQueryAnswerer::Bind,
-                         WTF::Unretained(&answerer)));
+      BindRepeating(&MockTrustTokenQueryAnswerer::Bind, Unretained(&answerer)));
 
   ScriptState* script_state = scope.GetScriptState();
   ExceptionState exception_state(script_state->GetIsolate());
@@ -1181,8 +1176,7 @@ TEST_F(DocumentTest, HasRedemptionRecordSuccess) {
   Document& document = scope.GetDocument();
   document.GetFrame()->GetBrowserInterfaceBroker().SetBinderForTesting(
       network::mojom::blink::TrustTokenQueryAnswerer::Name_,
-      WTF::BindRepeating(&MockTrustTokenQueryAnswerer::Bind,
-                         WTF::Unretained(&answerer)));
+      BindRepeating(&MockTrustTokenQueryAnswerer::Bind, Unretained(&answerer)));
 
   ScriptState* script_state = scope.GetScriptState();
   ExceptionState exception_state(script_state->GetIsolate());
@@ -1207,8 +1201,7 @@ TEST_F(DocumentTest, HasRedemptionRecordSuccessWithFalseValue) {
   Document& document = scope.GetDocument();
   document.GetFrame()->GetBrowserInterfaceBroker().SetBinderForTesting(
       network::mojom::blink::TrustTokenQueryAnswerer::Name_,
-      WTF::BindRepeating(&MockTrustTokenQueryAnswerer::Bind,
-                         WTF::Unretained(&answerer)));
+      BindRepeating(&MockTrustTokenQueryAnswerer::Bind, Unretained(&answerer)));
 
   ScriptState* script_state = scope.GetScriptState();
   ExceptionState exception_state(script_state->GetIsolate());
@@ -1233,8 +1226,7 @@ TEST_F(DocumentTest, HasRedemptionRecordOperationError) {
   Document& document = scope.GetDocument();
   document.GetFrame()->GetBrowserInterfaceBroker().SetBinderForTesting(
       network::mojom::blink::TrustTokenQueryAnswerer::Name_,
-      WTF::BindRepeating(&MockTrustTokenQueryAnswerer::Bind,
-                         WTF::Unretained(&answerer)));
+      BindRepeating(&MockTrustTokenQueryAnswerer::Bind, Unretained(&answerer)));
 
   ScriptState* script_state = scope.GetScriptState();
   ExceptionState exception_state(script_state->GetIsolate());
@@ -1261,8 +1253,7 @@ TEST_F(DocumentTest, HasRedemptionRecordInvalidArgument) {
   Document& document = scope.GetDocument();
   document.GetFrame()->GetBrowserInterfaceBroker().SetBinderForTesting(
       network::mojom::blink::TrustTokenQueryAnswerer::Name_,
-      WTF::BindRepeating(&MockTrustTokenQueryAnswerer::Bind,
-                         WTF::Unretained(&answerer)));
+      BindRepeating(&MockTrustTokenQueryAnswerer::Bind, Unretained(&answerer)));
 
   ScriptState* script_state = scope.GetScriptState();
   ExceptionState exception_state(script_state->GetIsolate());
@@ -2307,6 +2298,9 @@ TEST_F(DocumentTest, PaymentLinkNotHandled_PaymentRel) {
 
   // Check that the payment link was not handled.
   EXPECT_EQ(test_payment_link_handler.get_payment_link_handled_counter(), 0);
+
+  GetDocument().GetFrame()->GetBrowserInterfaceBroker().SetBinderForTesting(
+      payments::facilitated::mojom::blink::PaymentLinkHandler::Name_, {});
 }
 
 TEST_F(DocumentTest, PaymentLinkHandling_SinglePaymentLink) {
@@ -2335,6 +2329,9 @@ TEST_F(DocumentTest, PaymentLinkHandling_SinglePaymentLink) {
   EXPECT_EQ(test_payment_link_handler.get_payment_link_handled_counter(), 1);
   EXPECT_EQ(test_payment_link_handler.get_handled_url(),
             KURL("upi://payment_link_1"));
+
+  GetDocument().GetFrame()->GetBrowserInterfaceBroker().SetBinderForTesting(
+      payments::facilitated::mojom::blink::PaymentLinkHandler::Name_, {});
 }
 
 TEST_F(DocumentTest, PaymentLinkHandling_MultiplePaymentLink) {
@@ -2365,6 +2362,9 @@ TEST_F(DocumentTest, PaymentLinkHandling_MultiplePaymentLink) {
   EXPECT_EQ(test_payment_link_handler.get_payment_link_handled_counter(), 1);
   EXPECT_EQ(test_payment_link_handler.get_handled_url(),
             KURL("upi://payment_link_1"));
+
+  GetDocument().GetFrame()->GetBrowserInterfaceBroker().SetBinderForTesting(
+      payments::facilitated::mojom::blink::PaymentLinkHandler::Name_, {});
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 

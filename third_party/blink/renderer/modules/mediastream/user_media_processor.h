@@ -34,6 +34,7 @@ namespace blink {
 
 class AudioCaptureSettings;
 class LocalFrame;
+class MediaDevices;
 class MediaStreamAudioSource;
 class MediaStreamVideoSource;
 class VideoCaptureSettings;
@@ -315,14 +316,15 @@ class MODULES_EXPORT UserMediaProcessor
   std::optional<base::UnguessableToken> DetermineExistingAudioSessionId(
       const blink::AudioCaptureSettings& settings);
 
-  WTF::HashMap<String, base::UnguessableToken>
-  DetermineExistingAudioSessionIds();
+  HashMap<String, base::UnguessableToken> DetermineExistingAudioSessionIds();
 
   void GenerateStreamForCurrentRequestInfo(
-      WTF::HashMap<String, base::UnguessableToken>
+      HashMap<String, base::UnguessableToken>
           requested_audio_capture_session_ids = {});
 
   WebMediaStreamDeviceObserver* GetMediaStreamDeviceObserver();
+
+  MediaDevices* GetMediaDevices() const;
 
   // Owned by the test.
   raw_ptr<WebMediaStreamDeviceObserver, DanglingUntriaged>

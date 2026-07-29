@@ -82,6 +82,7 @@
 <translation id="2008474315282236005">Ezzel egyetlen elemet töröl erről az eszközről. Az adatok későbbi lekéréséhez jelentkezzen be a Chromiumba a következő e-mail-címmel: <ph name="USER_EMAIL" />.</translation>
 <translation id="2018879682492276940">Sikertelen telepítés. Próbálja újra.</translation>
 <translation id="2020032459870799438">Ha ellenőrizni szeretné, hogy a többi jelszava biztonságban van-e az adatvédelmi incidensektől és más biztonsági problémáktól, <ph name="BEGIN_LINK" />jelentkezzen be a Chromiumba<ph name="END_LINK" />.</translation>
+<translation id="2039417478970545937">Beállítások.</translation>
 <translation id="2049376729098081731">Válassza ki, hogy szeretné-e használni a Chromium-előzményeket személyre szabott élmények biztosításához a Google-szolgáltatásokban.</translation>
 <translation id="2054039611381840095">Ha a jövőben Chromium-frissítéseket szeretne kapni, akkor a macOS 12-es vagy újabb verziójára lesz szüksége. Ezen a számítógépen a macOS 11 fut.</translation>
 <translation id="2086476982681781442">A Chromium letiltotta ezt a letöltést, mert a fájl megtévesztő, és váratlan módosításokat végezhet az eszközön</translation>
@@ -310,10 +311,12 @@
 <translation id="494490797786467921">Kattintson a Chromium bejelentkezési párbeszédpaneljének bezárásához</translation>
 <translation id="4950660488495335294">A Chromium-profilokkal különválaszthatja minden Chromium-anyagát. Létrehozhat profilokat ismerőseinek és családtagjainak, vagy elkülönítheti egymástól a munkát és a szórakozást.</translation>
 <translation id="4987820182225656817">A vendégek úgy használhatják a Chromiumot, hogy nem hagynak hátra semmit.</translation>
+<translation id="4992938037305302429">Az Ön fiókja a Chromiumban</translation>
 <translation id="4994636714258228724">Adja hozzá magát a Chromiumban</translation>
 <translation id="5123973130450702873">A Chromiumnak engedélyre van szüksége ahhoz, hogy követhesse az Ön kézmozgását</translation>
 <translation id="5141988424377517949">Nem látogatta meg mostanában. A Chromium eltávolította a következőket: <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> és <ph name="PERMISSION_3" />.</translation>
 <translation id="5174969993834422967">Ön általában letiltja az értesítéseket. Ha azt szeretné, hogy ez a webhely küldjön értesítéseket, kattintson a helysáv jobb sarkában lévő értesítési ikonra.</translation>
+<translation id="5174983315706567306">Nincs elég lemezterület.</translation>
 <translation id="5187123684706427865">A Chromium-fiókot újból hitelesíteni kell</translation>
 <translation id="5224391634244552924">Nincsenek mentett jelszavak. A Chromium képes a jelszavak ellenőrzésére, ha Ön elmenti őket.</translation>
 <translation id="5231355151045086930">Kijelentkezés a Chromiumból</translation>
@@ -387,6 +390,7 @@
 <translation id="6072463441809498330">A Chromium felgyorsítása</translation>
 <translation id="6096348254544841612">A Chromium személyre szabása és vezérlése. Van rendelkezésre álló frissítés.</translation>
 <translation id="6107893135096467929">Be • A Chromium nem tudja ellenőrizni a bővítmény forrását</translation>
+<translation id="611228897408671387">Az Ön fiókja a Chromiumban</translation>
 <translation id="6119438414301547735">A bővítmény megjeleníthet hozzáférési kérelmeket a Chromium eszköztárán</translation>
 <translation id="6129621093834146363">A(z) <ph name="FILE_NAME" /> veszélyes, ezért a Chromium letiltotta.</translation>
 <translation id="6132897690380286411">A Chromium hamarosan bezáródik, és törli az adatokat</translation>
@@ -441,6 +445,7 @@
 <translation id="6598877126913850652">A Chromium értesítési beállításainak megnyitása</translation>
 <translation id="6600016381025017075">Bármire rákereshet ezen az oldalon</translation>
 <translation id="6613594504749178791">Módosításai a Chromium újraindítása után lépnek érvénybe.</translation>
+<translation id="6648212540664651655">Ott folytathatja, ahol abbahagyta: a Chromium visszaállította a lapokat az előző munkamenetből. Ezt a következő helyen kapcsolhatja ki:</translation>
 <translation id="665732753414869868">A Chromiumnak kamerahasználati engedélyre van szüksége, hogy 3D-s térképet készíthessen az Ön környezetéről</translation>
 <translation id="6669284030132180248">Ha Google-fiókjába is menti könyvjelzőit, a Chromiumban nyomon követheti a termékek árait, és értesítést kaphat, amikor az árak csökkennek.</translation>
 <translation id="6676384891291319759">Internetelérés</translation>
@@ -503,6 +508,7 @@ A Chromium nem tudja visszaállítani a beállításait.</translation>
 <translation id="7352651011704765696">Valami nem működik</translation>
 <translation id="7376384068949534168">Nem látogatta meg mostanában. A Chromium eltávolította a következőket: <ph name="PERMISSION_1" /> és <ph name="PERMISSION_2" />.</translation>
 <translation id="7384121030444253939">Ez a bővítmény már nem támogatott. A Chromium az eltávolítását javasolja.</translation>
+<translation id="7413153308467572558">Ott folytathatja, ahol abbahagyta: a Chromium minden újraindításkor visszaállítja a lapokat. A kikapcsoláshoz lépjen ide:</translation>
 <translation id="7449453770951226939"><ph name="PAGE_TITLE" /> – Chromium Dev</translation>
 <translation id="7450541714075000668">Szöveg vágólapra másolva</translation>
 <translation id="7451052299415159299">A Chromiumnak engedélyre van szüksége ahhoz, hogy hozzáférjen a kamerához ennél a webhelynél</translation>
@@ -634,6 +640,7 @@ A Chromium nem tudja visszaállítani a beállításait.</translation>
 <translation id="911206726377975832">Törli a böngészési adatait is?</translation>
 <translation id="9134482777260927479">Segítség a házi feladatban</translation>
 <translation id="9148058034647219655">Kilépés</translation>
+<translation id="9155105544013854680">Ott folytathatja, ahol abbahagyta: a Chromium minden újraindításkor vissza tudja állítani a lapokat. A bekapcsoláshoz lépjen ide:</translation>
 <translation id="9158494823179993217">Rendszergazdája úgy állította be a Chromiumot, hogy másik böngészőt nyisson meg a(z) <ph name="TARGET_URL_HOSTNAME" /> eléréséhez.</translation>
 <translation id="9185526690718004400">Indítsa újra a Chromium frissítéshez</translation>
 <translation id="9190841055450128916">Chromium (mDNS-In)</translation>

@@ -262,10 +262,11 @@ void AddChromeColorMixer(ui::ColorProvider* provider,
       PickGoogleColor(ui::kColorAccent, kColorToolbar,
                       color_utils::kMinimumVisibleContrastRatio);
   mixer[kColorMediaRouterIconWarning] = {ui::kColorAlertMediumSeverityIcon};
-  mixer[kColorMulitContentsViewActiveContentOutline] = {
-      ui::kColorSysOnSurfacePrimary};
+  mixer[kColorMulitContentsViewActiveContentOutline] = {ui::kColorSysOutline};
   mixer[kColorMulitContentsViewInactiveContentOutline] = {
       ui::kColorSysNeutralOutline};
+  mixer[kColorMulitContentsViewHighlightContentOutline] = {
+      ui::kColorSysStateInactiveRing};
   mixer[kColorMulitContentsViewMiniToolbarForeground] = {kColorToolbarText};
   mixer[kColorOmniboxChipBackground] = {kColorTabBackgroundActiveFrameActive};
   mixer[kColorOmniboxChipBlockedActivityIndicatorBackground] = {
@@ -768,7 +769,9 @@ void AddChromeColorMixer(ui::ColorProvider* provider,
   mixer[kColorToolbarExtensionSeparatorDisabled] = {
       kColorToolbarButtonIconInactive};
   mixer[kColorToolbarSeparator] = {kColorToolbarSeparatorDefault};
-  mixer[kColorToolbarActionItemEngaged] = {ui::kColorSysPrimary};
+  mixer[kColorToolbarActionItemEngaged] = {
+      ui::PickGoogleColor(ui::kColorSysPrimary, kColorToolbar,
+                          color_utils::kMinimumVisibleContrastRatio)};
   mixer[kColorToolbarSeparatorDefault] =
       ui::SetAlpha(kColorToolbarButtonIcon, 0x4D);
   mixer[kColorToolbarText] = {kColorToolbarTextDefault};

@@ -792,11 +792,11 @@ class CONTENT_EXPORT ContentBrowserClient {
   virtual bool IsIsolatedContextAllowedForUrl(BrowserContext* browser_context,
                                               const GURL& lock_url);
 
-  // Check if the application running in the |render_frame_host| is allowed to
-  // automatically capture all screens by using the getAllScreensMedia API.
-  virtual void CheckGetAllScreensMediaAllowed(
-      content::RenderFrameHost* render_frame_host,
-      base::OnceCallback<void(bool)> callback);
+  // Returns whether the application running in the |render_frame_host| is
+  // allowed to automatically capture all screens by using the
+  // getAllScreensMedia API.
+  virtual bool IsMultiCaptureAllowed(
+      content::RenderFrameHost* render_frame_host);
 
   // Allow the embedder to control the maximum renderer process count. Only
   // applies if it is set to a non-zero value.  Once this limit is exceeded,
@@ -1495,6 +1495,18 @@ class CONTENT_EXPORT ContentBrowserClient {
       WebContents* web_contents,
       SiteInstance& main_frame_site,
       blink::web_pref::WebPreferences* prefs);
+
+  // Called by `WebContents` when its `ColorProviderSource` or the web instance
+  // of the `NativeTheme` change. Returns whether the web preferences for
+  // `web_contents` may be out of date as a result, which will trigger
+  // recomputation. This can be used as an alternative to monitoring this state
+  // directly and calling `OnWebPreferencesChanged()` on the `WebContents` when
+  // items of interest change, to avoid duplicate updates. Note that calling
+  // `OnWebPreferencesChanged()` is still necessary if state outside the above
+  // items changes.
+  virtual bool WebPreferencesNeedUpdateForColorRelatedStateChanges(
+      WebContents& web_contents,
+      const SiteInstance& main_frame_site) const;
 
   // Notifies that BrowserURLHandler has been created, so that the embedder can
   // optionally add their own handlers.
@@ -3329,6 +3341,23 @@ class CONTENT_EXPORT ContentBrowserClient {
   // origin has an exception from Canvas noising. Default returns false.
   virtual bool ShouldEnableCanvasNoise(BrowserContext* browser_context,
                                        const GURL& origin);
+
+  // Returns true if PrefetchPrerenderIntegration should be allowed, this
+  // allows a prerender fall back to prefetch if available.
+  virtual bool UsePrefetchPrerenderIntegration();
+
+  // Returns true if `PreloadServingMetrics` should be enabled, which record
+  // serving metrics of preloads.
+  //
+  // Some //content features enable the feature even if it's false. For
+  // details, see `PreloadServingMetrics::IsEnabled()`.
+  //
+  // We use `ContentBrowserClient` rather than //content public feature because
+  // we have mulitple preload triggers in //chrome that want to enable the
+  // feature, and we have a limitation: a feature cannot be used in mulitple
+  // experiments. For more details, see
+  // https://docs.google.com/document/d/1bBhfhO7BotUB7Myy_8mtFF_4lI5N8hUyNayV_gI019Y/edit?tab=t.0#heading=h.9osmajzfan4b
+  virtual bool UsePreloadServingMetrics();
 };
 
 }  // namespace content

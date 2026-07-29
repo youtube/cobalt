@@ -11,7 +11,7 @@
 #include "build/build_config.h"
 #include "extensions/buildflags/buildflags.h"
 #include "extensions/common/extension_id.h"
-#include "ui/gfx/native_widget_types.h"
+#include "ui/gfx/native_window_types.h"
 
 namespace ui {
 class DialogModel;
@@ -36,6 +36,10 @@ void ShowDialog(gfx::NativeWindow parent,
 void ShowDialog(gfx::NativeWindow parent,
                 const std::vector<extensions::ExtensionId>& extension_ids,
                 std::unique_ptr<ui::DialogModel> dialog_model);
+
+// Shows a modal dialog constructed from `dialog_model` on the `parent` window.
+void ShowModalDialog(gfx::NativeWindow parent,
+                     std::unique_ptr<ui::DialogModel> dialog_model);
 
 #if defined(TOOLKIT_VIEWS)
 // Shows the dialog constructed from `dialog_model` for `extension_ids` and

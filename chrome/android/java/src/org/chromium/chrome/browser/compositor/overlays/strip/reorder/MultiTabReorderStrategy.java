@@ -13,7 +13,6 @@ import android.view.View;
 import org.chromium.base.Token;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.ObservableSupplierImpl;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.compositor.overlays.strip.AnimationHost;
@@ -34,6 +33,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.function.Supplier;
 
 /**
  * A reorder strategy for handling the dragging of multiple selected tabs as a single contiguous
@@ -262,9 +262,15 @@ public class MultiTabReorderStrategy extends ReorderStrategyBase {
 
         if (adjTab != null && mInteractingTabIds.contains(adjTab.getId())) return false;
 
+        if (adjTab != null && (adjTab.getIsPinned() != mPrimaryInteractingStripTab.getIsPinned())) {
+            return false;
+        }
+
         // Not interacting with tab groups.
         if (!mayDragInOrOutOfGroup) {
-            if (adjTab == null || Math.abs(offset) <= getTabSwapThreshold()) return false;
+            if (adjTab == null || Math.abs(offset) <= getTabSwapThreshold(/* isPinned= */ false)) {
+                return false;
+            }
             moveAdjacentTabPastBlock(adjTab, towardEnd);
             animateViewSliding(StripLayoutUtils.findTabById(stripTabs, adjTab.getId()));
             return true;
@@ -421,10 +427,34 @@ public class MultiTabReorderStrategy extends ReorderStrategyBase {
      */
     private List<Tab> getSortedSelectedTabs(StripLayoutTab[] stripTabs) {
         List<Tab> sortedTabs = new ArrayList<>();
+        HashSet<Integer> tabIdsToUnselect = new HashSet();
+        assumeNonNull(mPrimaryInteractingStripTab);
         for (StripLayoutTab stripTab : stripTabs) {
             if (stripTab != null && mModel.isTabMultiSelected(stripTab.getTabId())) {
-                sortedTabs.add(mModel.getTabById(stripTab.getTabId()));
+                // TODO(crbug.com/441978834):  This is a temporary workaround: if the selection
+                //  mixes pinned and unpinned tabs, only keep the tabs have the same pin state
+                //  as the primary tab. To match desktop behavior for mixed pinned/unpinned tabs,
+                //  when "ungather" them on drop we should:
+                // 1. When drop in pinned range: place pinned tabs at the drop point; snap unpinned
+                // tabs to the nearest valid indices.
+                // 2. Drop in unpinned range: place unpinned tabs at the drop point; move pinned
+                // tabs to the end of the pinned range.
+                if (stripTab.getIsPinned() == mPrimaryInteractingStripTab.getIsPinned()) {
+                    sortedTabs.add(mModel.getTabById(stripTab.getTabId()));
+                } else {
+                    tabIdsToUnselect.add(stripTab.getTabId());
+                }
             }
+        }
+        // Deselect the ones that don't move due to a different pin state. If this includes the
+        // current tab, switch to the primary tab.
+        if (tabIdsToUnselect.contains(TabModelUtils.getCurrentTabId(mModel))) {
+            TabModelUtils.setIndex(
+                    mModel,
+                    TabModelUtils.getTabIndexById(mModel, mPrimaryInteractingStripTab.getTabId()));
+        }
+        if (!tabIdsToUnselect.isEmpty()) {
+            mModel.setTabsMultiSelected(tabIdsToUnselect, /* isSelected= */ false);
         }
         return sortedTabs;
     }

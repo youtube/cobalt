@@ -65,7 +65,6 @@
 #include "chrome/browser/profiles/profile_selections.h"
 #include "chrome/browser/profiles/profiles_state.h"
 #include "chrome/browser/signin/account_reconcilor_factory.h"
-#include "chrome/browser/signin/accounts_policy_manager_factory.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/signin/signin_util.h"
 #include "chrome/browser/supervised_user/child_accounts/child_account_service_factory.h"
@@ -1304,7 +1303,7 @@ void ProfileManager::RemoveKeepAlive(const Profile* profile,
             << "ProfileManager. The keepalive was not removed.";
     // DumpWithoutCrashing turned off for a couple milestones until we fix the
     // root cause, due to the high volume of reports. See crbug.com/368360956.
-    if (version_info::GetMajorVersionNumberAsInt() >= 141) {
+    if (version_info::GetMajorVersionNumberAsInt() >= 144) {
       // TODO(crbug.com/368360956): Not incrementing the refcount will cause
       // `profile` to get destroyed too early. Remove or convert to a CHECK()
       // once the root cause is fixed.
@@ -1409,11 +1408,6 @@ void ProfileManager::DoFinalInit(ProfileInfo* profile_info,
 
   for (auto& observer : observers_)
     observer.OnProfileAdded(profile);
-
-  if (AccountsPolicyManager* accounts_policy_manager =
-          AccountsPolicyManagerFactory::GetForProfile(profile)) {
-    accounts_policy_manager->Initialize();
-  }
 
 #if !BUILDFLAG(IS_ANDROID)
   // The caret browsing command-line switch toggles caret browsing on

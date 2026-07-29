@@ -37,7 +37,6 @@ import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.OneShotCallback;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.base.supplier.OneshotSupplierImpl;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.base.supplier.SupplierUtils;
 import org.chromium.base.version_info.VersionInfo;
 import org.chromium.chrome.R;
@@ -224,6 +223,7 @@ import org.chromium.url.GURL;
 
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /** A {@link RootUiCoordinator} variant that controls tabbed-mode specific UI. */
 public class TabbedRootUiCoordinator extends RootUiCoordinator {
@@ -643,8 +643,9 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
 
         if (mHistoryNavigationCoordinator != null) {
             TouchEventObserver obs = mHistoryNavigationCoordinator.getTouchEventObserver();
-            if (mCompositorViewHolderSupplier.hasValue() && obs != null) {
-                mCompositorViewHolderSupplier.get().removeTouchEventObserver(obs);
+            var compositorViewHolder = mCompositorViewHolderSupplier.get();
+            if (compositorViewHolder != null && obs != null) {
+                compositorViewHolder.removeTouchEventObserver(obs);
             }
             mHistoryNavigationCoordinator.destroy();
             mHistoryNavigationCoordinator = null;
@@ -1338,19 +1339,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
         }
 
         browserControlsSizer.setAnimateBrowserControlsHeightChanges(animate);
-
-        // Disallow top browser controls from scrolling off on large tablets by setting min height
-        // equal to overall height.
-        // TODO(https://crbug.com/436900619): Converge on and implement long-term solution.
-        if (ChromeFeatureList.isEnabled(ChromeFeatureList.LOCK_TOP_CONTROLS_ON_LARGE_TABLETS)) {
-            int minHeight =
-                    DeviceFormFactor.isNonMultiDisplayContextOnLargeTablet(mActivity)
-                            ? topControlsNewHeight
-                            : mStatusIndicatorHeight;
-            browserControlsSizer.setTopControlsHeight(topControlsNewHeight, minHeight);
-        } else {
-            browserControlsSizer.setTopControlsHeight(topControlsNewHeight, mStatusIndicatorHeight);
-        }
+        browserControlsSizer.setTopControlsHeight(topControlsNewHeight, mStatusIndicatorHeight);
         if (animate) browserControlsSizer.setAnimateBrowserControlsHeightChanges(false);
     }
 
@@ -1831,7 +1820,9 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                             mActivityTabProvider.get(),
                             mBookmarkOpener,
                             mBookmarkManagerOpenerSupplier,
-                            mTopControlsStacker);
+                            mTopControlsStacker,
+                            mActivityTabProvider,
+                            getTopUiThemeColorProvider());
             if (mBookmarkBarVisibilityProvider != null) {
                 mBookmarkBarVisibilityProvider.addObserver(mBookmarkBarCoordinator);
             }

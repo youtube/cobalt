@@ -623,10 +623,9 @@ void PreloadHelper::ModulePreloadIfNeeded(
     // the error event.
     if (client) {
       modulator->TaskRunner()->PostTask(
-          FROM_HERE,
-          WTF::BindOnce(&SingleModuleClient::NotifyModuleLoadFinished,
-                        WrapPersistent(client), nullptr,
-                        ModuleImportPhase::kEvaluation));
+          FROM_HERE, BindOnce(&SingleModuleClient::NotifyModuleLoadFinished,
+                              WrapPersistent(client), nullptr,
+                              ModuleImportPhase::kEvaluation));
     }
     return;
   }
@@ -700,7 +699,7 @@ void PreloadHelper::ModulePreloadIfNeeded(
                          params.referrer_policy,
                          mojom::blink::FetchPriorityHint::kAuto,
                          RenderBlockingBehavior::kNonBlocking),
-      Referrer::ClientReferrerString(), TextPosition::MinimumPosition(),
+      Referrer::NoReferrer(), TextPosition::MinimumPosition(),
       ModuleImportPhase::kEvaluation);
 
   // Step 13. "Fetch a modulepreload module script graph given url, destination,

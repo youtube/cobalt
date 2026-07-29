@@ -20,21 +20,10 @@ BASE_FEATURE(kAutofillEnableAllowlistForBmoCardCategoryBenefits,
              "AutofillEnableAllowlistForBmoCardCategoryBenefits",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// When enabled, Chrome will have the ability to load and query the allowlist
-// for checkout amount extraction, which will be used to check if the current
-// URL is eligible for products that use the checkout amount extraction
-// algorithm. The suffix `desktop` is kept, it was an error in original naming
-// that can not be updated due to ongoing gcl config experiments.
-BASE_FEATURE(kAutofillEnableAmountExtractionAllowlistDesktop,
-             "AutofillEnableAmountExtractionAllowlistDesktop",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // When enabled, Chrome will extract the checkout amount from the checkout page
-// of the allowlisted merchant websites. The suffix `desktop` is kept, it was an
-// error in original naming that can not be updated due to ongoing gcl config
-// experiments.
-BASE_FEATURE(kAutofillEnableAmountExtractionDesktop,
-             "AutofillEnableAmountExtractionDesktop",
+// of the allowlisted merchant websites.
+BASE_FEATURE(kAutofillEnableAmountExtraction,
+             "AutofillEnableAmountExtraction",
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
     BUILDFLAG(IS_CHROMEOS)
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -42,6 +31,14 @@ BASE_FEATURE(kAutofillEnableAmountExtractionDesktop,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
         // BUILDFLAG(IS_CHROMEOS)
+
+// When enabled, Chrome will have the ability to load and query the allowlist
+// for checkout amount extraction, which will be used to check if the current
+// URL is eligible for products that use the checkout amount extraction
+// algorithm.
+BASE_FEATURE(kAutofillEnableAmountExtractionAllowlist,
+             "AutofillEnableAmountExtractionAllowlist",
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables testing of the result of checkout amount extraction on desktop.
 // This flag will allow amount extraction to run on any website when a CC
@@ -216,20 +213,6 @@ BASE_FEATURE(kAutofillEnableOffersInClankKeyboardAccessory,
              "AutofillEnableOffersInClankKeyboardAccessory",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-#if BUILDFLAG(IS_ANDROID)
-// When enabled, the payment settings page will show a card promo and allow for
-// card scans.
-BASE_FEATURE(kAutofillEnablePaymentSettingsCardPromoAndScanCard,
-             "AutofillEnablePaymentSettingsCardPromoAndScanCard",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// When enabled, the payment settings page will save new cards to the payment
-// server instead of locally.
-BASE_FEATURE(kAutofillEnablePaymentSettingsServerCardSave,
-             "AutofillEnablePaymentSettingsServerCardSave",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-#endif
-
 // When enabled, risk data is prefetched during payments autofill flows to
 // reduce user-perceived latency.
 BASE_FEATURE(kAutofillEnablePrefetchingRiskDataForRetrieval,
@@ -268,7 +251,7 @@ BASE_FEATURE(kAutofillEnableVcn3dsAuthentication,
 // when the user has not previously rejected the offer to save the card.
 BASE_FEATURE(kAutofillLocalSaveCardBottomSheet,
              "AutofillLocalSaveCardBottomSheet",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
 // When enabled, if credit card upload save encounters a card with the same four
@@ -277,7 +260,7 @@ BASE_FEATURE(kAutofillLocalSaveCardBottomSheet,
 // card.
 BASE_FEATURE(kAutofillRequireCvcForPossibleCardUpdate,
              "AutofillRequireCvcForPossibleCardUpdate",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, Chrome will try to fetch payment account image resources again
 // upon failure. The number of attempts is a controllable parameter. This is a

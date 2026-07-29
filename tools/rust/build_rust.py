@@ -57,10 +57,10 @@ sys.path.append(
 
 from build import (AddCMakeToPath, AddZlibToPath, CheckoutGitRepo, CopyFile,
                    DownloadDebianSysroot, GetLibXml2Dirs, GitCherryPick,
-                   LLVM_DIR, IsGitAncestorToHead, LLVM_BUILD_TOOLS_DIR,
-                   RunCommand)
+                   GitRevert, LLVM_DIR, IsGitAncestorToHead,
+                   LLVM_BUILD_TOOLS_DIR, RunCommand)
 from update import (CHROMIUM_DIR, DownloadAndUnpack, EnsureDirExists,
-                    GetDefaultHostOs, RmTree, UpdatePackage)
+                    GetDefaultHostOs, RmTree, WriteStampFile, UpdatePackage)
 
 from update_rust import (RUST_REVISION, RUST_TOOLCHAIN_OUT_DIR,
                          STAGE0_JSON_SHA256, THIRD_PARTY_DIR, VERSION_SRC_PATH,
@@ -119,6 +119,10 @@ RUST_HOST_LLVM_INSTALL_DIR = os.path.join(CHROMIUM_DIR, 'third_party',
                                           'rust-toolchain-intermediate',
                                           'llvm-host-install')
 
+RUST_BETA_SYSROOT_DIR = os.path.join(THIRD_PARTY_DIR,
+                                     'rust-toolchain-intermediate',
+                                     'beta-sysroot')
+
 # CIPD Versions from:
 # - List all platforms
 # cipd ls infra/3pp/static_libs/openssl/
@@ -153,6 +157,19 @@ TEST_SUITES = [
     'tests/codegen-llvm',
     'tests/ui',
 ]
+
+
+def InstallRustBetaSysroot(rust_git_hash, target_triples):
+    if os.path.exists(RUST_BETA_SYSROOT_DIR):
+        RmTree(RUST_BETA_SYSROOT_DIR)
+    InstallBetaPackage(FetchBetaPackage('cargo', rust_git_hash),
+                       RUST_BETA_SYSROOT_DIR)
+    InstallBetaPackage(FetchBetaPackage('rustc', rust_git_hash),
+                       RUST_BETA_SYSROOT_DIR)
+    for t in target_triples:
+        InstallBetaPackage(
+            FetchBetaPackage('rust-std', rust_git_hash, triple=t),
+            RUST_BETA_SYSROOT_DIR)
 
 
 def AddOpenSSLToEnv():
@@ -605,6 +622,9 @@ def GitApplyCherryPicks():
     # with `GitMoveSubmoduleBranch()`.
     #############################
 
+    # TODO(https://crbug.com/441524277): remove revert after resolving issue upstream
+    GitRevert(RUST_SRC_DIR, '8ea3b093819aabd92a605b42989341da0c97c0d6')
+
     print('Finished applying cherry-picks.')
 
 
@@ -647,6 +667,14 @@ def main():
     parser.add_argument('--skip-install',
                         action='store_true',
                         help='do not install to RUST_TOOLCHAIN_OUT_DIR')
+    parser.add_argument(
+        '--preserve-gcs-signature',
+        action='store_true',
+        help='By default, this script removes gcs hash files '
+        'so that third_party/llvm-build is clobbered on the next'
+        'run of gclient sync. This disables that, so that the'
+        'directory will be preserved when syncing. Useful for'
+        'local development.')
     parser.add_argument('--rust-force-head-revision',
                         action='store_true',
                         help='build the latest revision')
@@ -679,6 +707,11 @@ def main():
         '--build-crubit',
         action='store_true',
         help='After building rust, also build crubit using build_crubit.py')
+    parser.add_argument(
+        '--gnrt-stdlib',
+        action='store_true',
+        help='After building rust, also generate stdlib GN rules using '
+        'gnrt_stdlib.py')
     if sys.platform == 'win32':
         parser.add_argument('--sh', help='path to the sh.exe to use')
     args, rest = parser.parse_known_args()
@@ -855,8 +888,8 @@ def main():
 
         xpy.run('install', xpy_args + [])
 
-        with open(VERSION_SRC_PATH, 'w') as stamp:
-            stamp.write(MakeVersionStamp(checkout_revision))
+        WriteStampFile(MakeVersionStamp(checkout_revision), VERSION_SRC_PATH,
+                       args.preserve_gcs_signature)
 
     # The Rust stdlib deps are vendored to rust-src/library/vendor, and later
     # the x.py install process copies all subdirs of rust-src/library to the
@@ -890,6 +923,15 @@ def main():
             # depend on the OSS Crubit build staying green with latest Rust and
             # Clang.
             TeeCmd(build_cmd, log, fail_hard=False)
+
+        if args.gnrt_stdlib:
+            InstallRustBetaSysroot(checkout_revision, [RustTargetTriple()])
+            build_cmd = [
+                sys.executable,
+                os.path.join(THIS_DIR, 'gnrt_stdlib.py'), '--skip-prep'
+            ]
+            TeeCmd(build_cmd, log)
+
 
     return 0
 

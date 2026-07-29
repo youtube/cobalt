@@ -36,6 +36,7 @@
 #include "chrome/common/pref_names.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
+#include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/account_id/account_id.h"
 #include "components/content_settings/core/common/pref_names.h"
@@ -58,6 +59,7 @@
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "base/test/scoped_command_line.h"
+#include "chrome/browser/ash/app_mode/kiosk_cryptohome_remover.h"
 #include "chrome/browser/ash/app_mode/web_app/kiosk_web_app_manager.h"
 #include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #include "chrome/common/chrome_switches.h"
@@ -943,7 +945,10 @@ class DeviceAPIServiceWithKioskUserTest : public DeviceAPIServiceParamTest {
     DeviceAPIServiceParamTest::SetUp();
     command_line_.GetProcessCommandLine()->AppendSwitch(
         switches::kForceAppMode);
-    app_manager_ = std::make_unique<ash::KioskWebAppManager>();
+    app_manager_ = std::make_unique<ash::KioskWebAppManager>(
+        TestingBrowserProcess::GetGlobal()->local_state(),
+        TestingBrowserProcess::GetGlobal()->shared_url_loader_factory(),
+        &kiosk_cryptohome_remover_);
   }
 
   void TearDown() override {
@@ -966,6 +971,8 @@ class DeviceAPIServiceWithKioskUserTest : public DeviceAPIServiceParamTest {
  private:
   user_manager::TypedScopedUserManager<ash::FakeChromeUserManager>
       fake_user_manager_;
+  ash::KioskCryptohomeRemover kiosk_cryptohome_remover_{
+      TestingBrowserProcess::GetGlobal()->local_state()};
   std::unique_ptr<ash::KioskWebAppManager> app_manager_;
   base::test::ScopedCommandLine command_line_;
 };

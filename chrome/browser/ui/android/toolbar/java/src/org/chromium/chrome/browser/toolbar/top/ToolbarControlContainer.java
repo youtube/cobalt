@@ -34,8 +34,8 @@ import org.chromium.base.TraceEvent;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.supplier.ObservableSupplier;
+import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.OneshotSupplier;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -74,6 +74,7 @@ import org.chromium.ui.widget.OptimizedFrameLayout;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.function.BooleanSupplier;
+import java.util.function.Supplier;
 
 /** Layout for the browser controls (omnibox, menu, tab strip, etc..). */
 @NullMarked
@@ -100,6 +101,7 @@ public class ToolbarControlContainer extends OptimizedFrameLayout
     private final ObserverList<TouchEventObserver> mTouchEventObservers = new ObserverList<>();
     private final Callback<Boolean> mOnXrSpaceModeChanged = this::onXrSpaceModeChanged;
     private @Nullable ObservableSupplier<Boolean> mXrSpaceModeObservableSupplier;
+    private @Nullable ObservableSupplierImpl<Integer> mHeightChangedSupplier;
 
     /**
      * Constructs a new control container.
@@ -186,6 +188,18 @@ public class ToolbarControlContainer extends OptimizedFrameLayout
         }
     }
 
+    @Override
+    protected void onSizeChanged(int newW, int newH, int oldW, int oldH) {
+        if (newH != oldH && mHeightChangedSupplier != null) {
+            mHeightChangedSupplier.set(newH);
+        }
+    }
+
+    public void setOnHeightChangedListener(
+            @Nullable ObservableSupplierImpl<Integer> heightChangedSupplier) {
+        mHeightChangedSupplier = heightChangedSupplier;
+    }
+
     public void onPageLoadStopped() {
         ((ToolbarViewResourceAdapter) getToolbarResourceAdapter()).onPageLoadStopped();
     }
@@ -241,6 +255,14 @@ public class ToolbarControlContainer extends OptimizedFrameLayout
             mToolbar.getProgressBar().setVisibility(View.VISIBLE);
             mToolbarView.setVisibility(View.VISIBLE);
             mToolbarContainer.removeView(mLocationBarView);
+            // CoordinatorLayout only updates its processed list of children at measure time, even
+            // if a child is removed. This can cause problems if a reparented former child has a new
+            // type of LayoutParams, triggering a ClassCastException. We work around this by forcing
+            // a re-measure.
+            mToolbarContainer.forceLayout();
+            mToolbarContainer.measure(
+                    mToolbarContainer.getMeasuredWidthAndState(),
+                    mToolbarContainer.getMeasuredHeightAndState());
             mToolbar.restoreLocationBarView();
             setBackgroundColor(Color.TRANSPARENT);
         }
@@ -866,7 +888,7 @@ public class ToolbarControlContainer extends OptimizedFrameLayout
             if (isOnTabStrip(e1)) return false;
             if (mToolbar != null && mToolbar.shouldIgnoreSwipeGesture()) return false;
             if (KeyboardVisibilityDelegate.getInstance()
-                    .isKeyboardShowing(getContext(), ToolbarControlContainer.this)) {
+                    .isKeyboardShowing(ToolbarControlContainer.this)) {
                 return false;
             }
             return true;

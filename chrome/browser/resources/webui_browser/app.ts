@@ -5,11 +5,13 @@
 import './bookmark_bar.js';
 import './content_region.js';
 import './icons.html.js';
+import './side_panel.js';
 import '/strings.m.js';
 import './tab_strip.js';
 import './webview.js';
 import 'chrome://resources/cr_components/searchbox/searchbox.js';
 
+import type {Tab} from '/tab_strip_api/tab_strip_api_data_model.mojom-webui.js';
 import type {SearchboxElement} from 'chrome://resources/cr_components/searchbox/searchbox.js';
 import {TrackedElementManager} from 'chrome://resources/js/tracked_element/tracked_element_manager.js';
 import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
@@ -20,8 +22,9 @@ import type {BookmarkBar} from './bookmark_bar.js';
 import {BookmarkBarController} from './bookmark_bar_controller.js';
 import {BrowserProxy} from './browser_proxy.js';
 import type {ContentRegion} from './content_region.js';
+import type {SidePanel} from './side_panel.js';
 import {TabStrip} from './tab_strip.js';
-import type {LayoutManager} from './tab_strip_controller.js';
+import type {TabStripControllerDelegate} from './tab_strip_controller.js';
 import {TabStripController} from './tab_strip_controller.js';
 
 export interface WebuiBrowserAppElement {
@@ -31,12 +34,13 @@ export interface WebuiBrowserAppElement {
     avatarButton: HTMLElement,
     bookmarkBar: BookmarkBar,
     contentRegion: ContentRegion,
+    sidePanel: SidePanel,
     tabstrip: TabStrip,
   };
 }
 
 export class WebuiBrowserAppElement extends CrLitElement implements
-    LayoutManager {
+    TabStripControllerDelegate {
   static get is() {
     return 'webui-browser-app';
   }
@@ -53,6 +57,7 @@ export class WebuiBrowserAppElement extends CrLitElement implements
     return {
       backButtonDisabled_: {state: true, type: Boolean},
       forwardButtonDisabled_: {state: true, type: Boolean},
+      reloadOrStopIcon_: {state: true, type: String},
     };
   }
 
@@ -61,6 +66,7 @@ export class WebuiBrowserAppElement extends CrLitElement implements
   private trackedElementManager_: TrackedElementManager;
   protected accessor backButtonDisabled_: boolean = true;
   protected accessor forwardButtonDisabled_: boolean = true;
+  protected accessor reloadOrStopIcon_: string = 'icon-refresh';
 
   constructor() {
     super();
@@ -69,6 +75,9 @@ export class WebuiBrowserAppElement extends CrLitElement implements
     this.tabStripController_ =
         new TabStripController(this, this.$.tabstrip, this.$.contentRegion);
     this.trackedElementManager_ = new TrackedElementManager();
+
+    const callbackRouter = BrowserProxy.getCallbackRouter();
+    callbackRouter.showSidePanel.addListener(this.showSidePanel_.bind(this));
   }
 
   override connectedCallback() {
@@ -81,9 +90,24 @@ export class WebuiBrowserAppElement extends CrLitElement implements
         this.$.avatarButton, 'kToolbarAvatarButtonElementId');
   }
 
-  // LayoutManager:
+  // TabStripControllerDelegate:
   refreshLayout() {
     this.updateToolbarButtons_();
+  }
+
+  activeTabUpdated(tabData: Tab) {
+    let displayUrl = '';
+    const activeTabUrl = tabData.url.url;
+    // TODO(webium): Should match
+    // ChromeLocationBarModelDelegate::ShouldDisplayURL and
+    // LocationBarModelImpl::GetFormattedURL logic.
+    //
+    // There are also likely some subtleties about what happens when the user
+    // is typing and the tab navigates.
+    if (!activeTabUrl.startsWith('chrome://newtab')) {
+      displayUrl = activeTabUrl;
+    }
+    this.$.address.setInputText(displayUrl);
   }
 
   protected onLaunchDevtoolsClick_(_: Event) {
@@ -126,9 +150,13 @@ export class WebuiBrowserAppElement extends CrLitElement implements
     }
   }
 
-  protected onRefreshClick_(_: Event) {
+  protected onReloadOrStopClick_(_: Event) {
     if (this.$.contentRegion.activeWebview) {
-      this.$.contentRegion.activeWebview.refresh();
+      if (this.reloadOrStopIcon_ === 'icon-refresh') {
+        this.$.contentRegion.activeWebview.reload();
+      } else {
+        this.$.contentRegion.activeWebview.stopLoading();
+      }
     }
   }
 
@@ -164,8 +192,10 @@ export class WebuiBrowserAppElement extends CrLitElement implements
 
   protected override firstUpdated() {
     this.bookmarkBarController_.init(this.$.bookmarkBar);
-    BrowserProxy.getInstance().callbackRouter.setFocusToLocationBar.addListener(
+    BrowserProxy.getCallbackRouter().setFocusToLocationBar.addListener(
         this.setFocusToLocationBar.bind(this));
+    BrowserProxy.getCallbackRouter().setReloadStopState.addListener(
+        this.setReloadStopState.bind(this));
   }
 
   protected onShowBookmarkBar_() {
@@ -211,6 +241,14 @@ export class WebuiBrowserAppElement extends CrLitElement implements
     if (isUserInitiated || this.shadowRoot.activeElement !== this.$.address) {
       this.$.address.selectAll();
     }
+  }
+
+  protected setReloadStopState(isLoading: boolean) {
+    this.reloadOrStopIcon_ = isLoading ? 'icon-clear' : 'icon-refresh';
+  }
+
+  protected showSidePanel_(guestContentsId: number) {
+    this.$.sidePanel.show(guestContentsId);
   }
 }
 

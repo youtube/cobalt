@@ -32,7 +32,9 @@
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
 #include "components/regional_capabilities/access/country_access_reason.h"
+#include "components/regional_capabilities/program_settings.h"
 #include "components/regional_capabilities/regional_capabilities_country_id.h"
+#include "components/regional_capabilities/regional_capabilities_metrics.h"
 #include "components/regional_capabilities/regional_capabilities_service.h"
 #include "components/regional_capabilities/regional_capabilities_utils.h"
 #include "components/search_engines/search_engine_choice/search_engine_choice_metrics_service_accessor.h"
@@ -91,13 +93,6 @@ SearchEngineType GetDefaultSearchEngineType(
   return default_search_engine ? default_search_engine->GetEngineType(
                                      template_url_service.search_terms_data())
                                : SEARCH_ENGINE_OTHER;
-}
-
-void MarkSearchEngineChoiceCompleted(PrefService& prefs) {
-  SetChoiceCompletionMetadata(prefs, ChoiceCompletionMetadata{
-                                         .timestamp = base::Time::Now(),
-                                         .version = version_info::GetVersion(),
-                                     });
 }
 
 // Returns true if the version is valid and can be compared to the current
@@ -237,6 +232,77 @@ void RecordWipeOnMissingDse(bool will_wipe) {
                             will_wipe);
 }
 
+regional_capabilities::FunnelStage ToFunnelStage(
+    SearchEngineChoiceScreenConditions condition) {
+  switch (condition) {
+    case SearchEngineChoiceScreenConditions::kEligible:
+      return regional_capabilities::FunnelStage::kEligible;
+
+    case SearchEngineChoiceScreenConditions::kNotInRegionalScope:
+      return regional_capabilities::FunnelStage::kNotInRegionalScope;
+
+    case SearchEngineChoiceScreenConditions::kAlreadyCompleted:
+      return regional_capabilities::FunnelStage::kAlreadyCompleted;
+
+    // TODO(crbug.com/438717568): Do these 2 need to have a dedicated bucket?
+    case SearchEngineChoiceScreenConditions::kFeatureSuppressed:
+    case SearchEngineChoiceScreenConditions::kUnsupportedBrowserType:
+
+    case SearchEngineChoiceScreenConditions::kHasCustomSearchEngine:
+    case SearchEngineChoiceScreenConditions::kSearchProviderOverride:
+    case SearchEngineChoiceScreenConditions::kControlledByPolicy:
+    case SearchEngineChoiceScreenConditions::kProfileOutOfScope:
+    case SearchEngineChoiceScreenConditions::kExtensionControlled:
+    case SearchEngineChoiceScreenConditions::kSuppressedByOtherDialog:
+    case SearchEngineChoiceScreenConditions::kBrowserWindowTooSmall:
+    case SearchEngineChoiceScreenConditions::kHasDistributionCustomSearchEngine:
+    case SearchEngineChoiceScreenConditions::
+        kHasRemovedPrepopulatedSearchEngine:
+    case SearchEngineChoiceScreenConditions::kHasNonGoogleSearchEngine:
+    case SearchEngineChoiceScreenConditions::kAppStartedByExternalIntent:
+    case SearchEngineChoiceScreenConditions::kAlreadyBeingShown:
+    case SearchEngineChoiceScreenConditions::kUsingPersistedGuestSessionChoice:
+      return regional_capabilities::FunnelStage::kNotEligible;
+  }
+  NOTREACHED();
+}
+
+bool IsChoiceImported(const ChoiceCompletionMetadata& completion_metadata,
+                      SearchEngineChoiceService::Client& client,
+                      const PrefService& profile_prefs,
+                      bool include_previous_just_in_time_detection) {
+  if (!base::FeatureList::IsEnabled(
+          switches::kInvalidateSearchEngineChoiceOnDeviceRestoreDetection)) {
+    // Feature disabled, don't detect imported choices.
+    return false;
+  }
+  if (!client.DoesChoicePredateDeviceRestore(completion_metadata)) {
+    // The current choice happened on this device, it's not imported.
+    return false;
+  }
+
+  if (switches::kInvalidateChoiceOnRestoreIsRetroactive.Get()) {
+    // Retroactive detection is activated, report the choice as imported.
+    return true;
+  }
+
+  if (client.IsDeviceRestoreDetectedInCurrentSession()) {
+    // Restore was detected in this session, report the choice as imported for
+    // the "just-in-time" mode.
+    return true;
+  }
+
+  if (include_previous_just_in_time_detection &&
+      IsSearchEngineChoiceInvalid(profile_prefs)) {
+    // We're doing just-in-time invalidation, and observed the restore. The
+    // user however did not yet make a new choice since then, so the current
+    // one is still the imported one.
+    return true;
+  }
+
+  return false;
+}
+
 }  // namespace
 
 // -- SearchEngineChoiceService::Client ---------------------------------------
@@ -282,9 +348,13 @@ void SearchEngineChoiceService::Init() {
 
   if (auto completion_metadata = GetChoiceCompletionMetadata(*profile_prefs_);
       completion_metadata.has_value() &&
-      IsChoiceRenewalNeeded(
-          completion_metadata.value(),
-          /* include_previous_just_in_time_detection= */ false)) {
+      regional_capabilities_service_->GetChoiceScreenEligibilityConfig()
+          .has_value() &&
+      !regional_capabilities_service_->GetChoiceScreenEligibilityConfig()
+           ->should_preserve_imported_choice &&
+      IsChoiceImported(completion_metadata.value(), CHECK_DEREF(client_.get()),
+                       profile_prefs_.get(),
+                       /* include_previous_just_in_time_detection= */ false)) {
     // Set this flag that will ensure we can keep considering the choice as
     // imported in future sessions using the Just-in-time detection mode.
     profile_prefs_->SetInt64(
@@ -298,7 +368,7 @@ void SearchEngineChoiceService::Init() {
 SearchEngineChoiceScreenConditions
 SearchEngineChoiceService::GetStaticChoiceScreenConditions(
     const policy::PolicyService& policy_service,
-    const TemplateURLService& template_url_service) {
+    const TemplateURLService& template_url_service) const {
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_FUCHSIA) || \
     BUILDFLAG(CHROME_FOR_TESTING)
   return SearchEngineChoiceScreenConditions::kUnsupportedBrowserType;
@@ -311,13 +381,13 @@ SearchEngineChoiceService::GetStaticChoiceScreenConditions(
     return SearchEngineChoiceScreenConditions::kFeatureSuppressed;
   }
 
+  if (!regional_capabilities_service_->IsInSearchEngineChoiceScreenRegion()) {
+    return SearchEngineChoiceScreenConditions::kNotInRegionalScope;
+  }
+
   ChoiceStatus status = EvaluateSearchProviderChoice(template_url_service);
   if (status == ChoiceStatus::kValid) {
     return SearchEngineChoiceScreenConditions::kAlreadyCompleted;
-  }
-
-  if (!regional_capabilities_service_->IsInSearchEngineChoiceScreenRegion()) {
-    return SearchEngineChoiceScreenConditions::kNotInRegionalScope;
   }
 
   // Initially exclude users with this type of override. Consult b/302675777 for
@@ -337,24 +407,14 @@ SearchEngineChoiceService::GetStaticChoiceScreenConditions(
 
 SearchEngineChoiceScreenConditions
 SearchEngineChoiceService::GetDynamicChoiceScreenConditions(
-    const TemplateURLService& template_url_service) {
+    const TemplateURLService& template_url_service) const {
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_FUCHSIA) || \
     BUILDFLAG(CHROME_FOR_TESTING)
   return SearchEngineChoiceScreenConditions::kUnsupportedBrowserType;
 #else
-  ChoiceStatus status = EvaluateSearchProviderChoice(template_url_service);
-  if (status == ChoiceStatus::kValid) {
-    return SearchEngineChoiceScreenConditions::kAlreadyCompleted;
-  }
-
-  // Don't show the dialog if the default search engine is set by an extension.
-  if (template_url_service.IsExtensionControlledDefaultSearch()) {
-    return SearchEngineChoiceScreenConditions::kExtensionControlled;
-  }
-
-  switch (status) {
+  switch (EvaluateSearchProviderChoice(template_url_service)) {
     case ChoiceStatus::kValid:
-      NOTREACHED();  // Already checked above.
+      return SearchEngineChoiceScreenConditions::kAlreadyCompleted;
     case ChoiceStatus::kDefaultSearchDisabled:
     case ChoiceStatus::kCurrentIsSetByPolicy:
       // It is possible that between the static checks at service creation
@@ -364,6 +424,8 @@ SearchEngineChoiceService::GetDynamicChoiceScreenConditions(
       // proceeded here, the choice screen could be shown and we might attempt
       // to set a DSE based on the user selection, but that would be ignored.
       return SearchEngineChoiceScreenConditions::kControlledByPolicy;
+    case ChoiceStatus::kCurrentIsSetByExtension:
+      return SearchEngineChoiceScreenConditions::kExtensionControlled;
     case ChoiceStatus::kCurrentIsDistributionCustom:
       return SearchEngineChoiceScreenConditions::
           kHasDistributionCustomSearchEngine;
@@ -378,6 +440,7 @@ SearchEngineChoiceService::GetDynamicChoiceScreenConditions(
     case ChoiceStatus::kFromRestoredDevice:
       return SearchEngineChoiceScreenConditions::kEligible;
   }
+  NOTREACHED();
 #endif
 }
 
@@ -392,6 +455,12 @@ void SearchEngineChoiceService::RecordStaticEligibility(
 
   base::UmaHistogramEnumeration(
       kSearchEngineChoiceScreenProfileInitConditionsHistogram, condition);
+  if (condition != SearchEngineChoiceScreenConditions::kEligible) {
+    // Static eligibility is not a conclusive funnel state. We don't record it
+    // here, we instead rely on dynamic eligibility, which is expected to be
+    // recorded shortly after, to record a funnel stage.
+    regional_capabilities::RecordFunnelStage(ToFunnelStage(condition));
+  }
 }
 
 void SearchEngineChoiceService::RecordDynamicEligibility(
@@ -405,6 +474,8 @@ void SearchEngineChoiceService::RecordDynamicEligibility(
 
   base::UmaHistogramEnumeration(
       kSearchEngineChoiceScreenNavigationConditionsHistogram, condition);
+
+  regional_capabilities::RecordFunnelStage(ToFunnelStage(condition));
 }
 
 void SearchEngineChoiceService::RecordChoiceScreenEvent(
@@ -465,9 +536,9 @@ void SearchEngineChoiceService::RecordChoiceMade(
   std::optional<bool> should_keep_existing_choice_record = std::nullopt;
   if (auto completion_metadata = GetChoiceCompletionMetadata(*profile_prefs_);
       completion_metadata.has_value()) {
-    if (IsChoiceRenewalNeeded(
-            completion_metadata.value(),
-            /* include_previous_just_in_time_detection= */ true)) {
+    if (IsChoiceImported(completion_metadata.value(),
+                         CHECK_DEREF(client_.get()), profile_prefs_.get(),
+                         /* include_previous_just_in_time_detection= */ true)) {
       // Clear sentinel data associated with the previous choice being renewed.
       should_keep_existing_choice_record = false;
     } else {
@@ -476,7 +547,7 @@ void SearchEngineChoiceService::RecordChoiceMade(
     }
   }
 
-  // Note: this needs be done AFTER `IsChoiceRenewalNeeded()` is called, as it
+  // Note: this needs be done AFTER `IsChoiceImported()` is called, as it
   // is part of that logic.
   ClearSearchEngineChoiceInvalidation(*profile_prefs_);
 
@@ -490,8 +561,6 @@ void SearchEngineChoiceService::RecordChoiceMade(
         SearchEngineChoiceWipeReason::kChoiceRemadeAfterImport);
   }
 
-  // TODO(crbug.com/435658363): Include the program when updating the choice
-  // records.
   if (!regional_capabilities_service_->IsInSearchEngineChoiceScreenRegion()) {
     return;
   }
@@ -499,7 +568,10 @@ void SearchEngineChoiceService::RecordChoiceMade(
   RecordChoiceScreenDefaultSearchProviderType(
       GetDefaultSearchEngineType(CHECK_DEREF(template_url_service)),
       choice_location);
-  MarkSearchEngineChoiceCompleted(*profile_prefs_);
+  SetChoiceCompletionMetadata(
+      *profile_prefs_,
+      search_engines::CreateChoiceCompletionMetadataForCurrentState(
+          *regional_capabilities_service_));
 }
 
 void SearchEngineChoiceService::MaybeRecordChoiceScreenDisplayState(
@@ -576,6 +648,7 @@ SearchEngineChoiceService::CheckPrefsForWipeReason() {
         return SearchEngineChoiceWipeReason::kInvalidMetadataVersion;
       case ChoiceCompletionMetadata::ParseError::kMissingTimestamp:
       case ChoiceCompletionMetadata::ParseError::kNullTimestamp:
+      case ChoiceCompletionMetadata::ParseError::kInvalidProgram:
         return SearchEngineChoiceWipeReason::kInvalidMetadata;
     }
   }
@@ -657,59 +730,55 @@ void SearchEngineChoiceService::ProcessPendingChoiceScreenDisplayState() {
                                       /*is_from_cached_state=*/true);
 }
 
-bool SearchEngineChoiceService::IsChoiceRenewalNeeded(
-    const ChoiceCompletionMetadata& completion_metadata,
-    bool include_previous_just_in_time_detection) {
-  if (!base::FeatureList::IsEnabled(
-          switches::kInvalidateSearchEngineChoiceOnDeviceRestoreDetection)) {
-    // Feature disabled, don't detect imported choices.
-    return false;
-  }
-  if (!client_->DoesChoicePredateDeviceRestore(completion_metadata)) {
-    // The current choice happened on this device, it's not imported.
-    return false;
-  }
+SearchEngineChoiceService::ChoiceRenewalReasons
+SearchEngineChoiceService::GetChoiceRenewalReasons(
+    const regional_capabilities::ChoiceScreenEligibilityConfig&
+        eligibility_config,
+    const ChoiceCompletionMetadata& completion_metadata) const {
+  ChoiceRenewalReasons reasons;
 
-  // TODO(crbug.com/423883723): Introduce program-specific logic.
-
-  if (switches::kInvalidateChoiceOnRestoreIsRetroactive.Get()) {
-    // Retroactive detection is activated, report the choice as imported.
-    return true;
+  if (!eligibility_config.should_preserve_imported_choice &&
+      IsChoiceImported(completion_metadata, CHECK_DEREF(client_.get()),
+                       profile_prefs_.get(),
+                       /* include_previous_just_in_time_detection= */ true)) {
+    reasons.Put(ChoiceRenewalReason::kOutdated);
   }
 
-  if (client_->IsDeviceRestoreDetectedInCurrentSession()) {
-    // Restore was detected in this session, report the choice as imported for
-    // the "just-in-time" mode.
-    return true;
+  if (regional_capabilities_service_->GetSerializedActiveProgram() !=
+      completion_metadata.serialized_program) {
+    reasons.Put(ChoiceRenewalReason::kIncompatibleProgram);
   }
 
-  if (include_previous_just_in_time_detection &&
-      IsSearchEngineChoiceInvalid(*profile_prefs_)) {
-    // We're doing just-in-time invalidation, and observed the restore. The
-    // user however did not yet make a new choice since then, so the current
-    // one is still the imported one.
-    return true;
-  }
-
-  return false;
+  return reasons;
 }
 
 SearchEngineChoiceService::ChoiceStatus
 SearchEngineChoiceService::EvaluateSearchProviderChoice(
-    const TemplateURLService& template_url_service) {
-  bool has_imported_choice = false;
+    const TemplateURLService& template_url_service) const {
+  const regional_capabilities::ChoiceScreenEligibilityConfig&
+      eligibility_config =
+          regional_capabilities_service_->GetChoiceScreenEligibilityConfig()
+              .value();
+
+  // Note: The order of the stages below is mentioned in the
+  // `ChoiceScreenEligibilityConfig` struct documentation. Please try to keep
+  // the doc there in sync when making changes.
+
+  // -- Stage 1: Is a choice already made, and if yes, do we need to renew it?
+
+  ChoiceRenewalReasons renewal_reasons;
   if (auto completion_metadata = GetChoiceCompletionMetadata(*profile_prefs_);
       completion_metadata.has_value()) {
-    if (IsChoiceRenewalNeeded(
-            completion_metadata.value(),
-            /* include_previous_just_in_time_detection= */ true)) {
-      // Check other properties of the current choice, whether it was imported
-      // might affect the overall status later down the line.
-      has_imported_choice = true;
-    } else {
+    renewal_reasons =
+        GetChoiceRenewalReasons(eligibility_config, *completion_metadata);
+    if (renewal_reasons.empty()) {
+      // The choice is not outdated and is also not made on an incompatible
+      // program, so it's still valid.
       return ChoiceStatus::kValid;
     }
   }
+
+  // -- Stage 2: Is something already controlling the default search provider?
 
   const TemplateURL* default_search_provider =
       template_url_service.GetDefaultSearchProvider();
@@ -721,9 +790,8 @@ SearchEngineChoiceService::EvaluateSearchProviderChoice(
     return ChoiceStatus::kCurrentIsSetByPolicy;
   }
 
-  if (!template_url_service.IsPrepopulatedOrDefaultProviderByPolicy(
-          default_search_provider)) {
-    return ChoiceStatus::kCurrentIsNotPrepopulated;
+  if (template_url_service.IsExtensionControlledDefaultSearch()) {
+    return ChoiceStatus::kCurrentIsSetByExtension;
   }
 
   if (default_search_provider->prepopulate_id() >
@@ -734,22 +802,38 @@ SearchEngineChoiceService::EvaluateSearchProviderChoice(
     return ChoiceStatus::kCurrentIsDistributionCustom;
   }
 
-  if (prepopulate_data_resolver_->GetEngineFromFullList(
-          default_search_provider->prepopulate_id()) == nullptr) {
-    // The current default search engine was at some point part of the
-    // prepopulated data (it has a "normal"-looking ID), but it has since been
-    // removed.
-    return ChoiceStatus::kCurrentIsUnknownPrepopulated;
+  // -- Stage 3: Optional program-controlled DSP checks
+
+  // 3.1: Is it a non-prepopulated entry, that had to be explicitly user-added?
+
+  if (eligibility_config.should_preserve_non_prepopulated_dse) {
+    if (!template_url_service.IsPrepopulatedOrDefaultProviderByPolicy(
+            default_search_provider)) {
+      return ChoiceStatus::kCurrentIsNotPrepopulated;
+    }
+
+    if (prepopulate_data_resolver_->GetEngineFromFullList(
+            default_search_provider->prepopulate_id()) == nullptr) {
+      // The current default search engine was at some point part of the
+      // prepopulated data (it has a "normal"-looking ID), but it has since been
+      // removed.
+      return ChoiceStatus::kCurrentIsUnknownPrepopulated;
+    }
   }
 
-  if (has_imported_choice) {
-    // Potentially eligible for choice screens
+  // 3.2: Was the choice made on a different device?
+
+  if (renewal_reasons.Has(ChoiceRenewalReason::kOutdated)) {
     return ChoiceStatus::kFromRestoredDevice;
   }
 
-  if (default_search_provider->GetEngineType(
-          template_url_service.search_terms_data()) != SEARCH_ENGINE_GOOGLE) {
-    return ChoiceStatus::kCurrentIsNonGooglePrepopulated;
+  // 3.3: Is the current DSP non-Google?
+
+  if (eligibility_config.should_preserve_non_google_dse) {
+    if (default_search_provider->GetEngineType(
+            template_url_service.search_terms_data()) != SEARCH_ENGINE_GOOGLE) {
+      return ChoiceStatus::kCurrentIsNonGooglePrepopulated;
+    }
   }
 
   // We don't have a good way for now to distinguish explicit Google selections
@@ -779,6 +863,8 @@ void SearchEngineChoiceService::RegisterProfilePrefs(
   registry->RegisterStringPref(
       prefs::kDefaultSearchProviderChoiceScreenCompletionVersion,
       std::string());
+  registry->RegisterIntegerPref(
+      prefs::kDefaultSearchProviderChoiceScreenCompletionProgram, 0);
   registry->RegisterDictionaryPref(
       prefs::kDefaultSearchProviderPendingChoiceScreenDisplayState);
   registry->RegisterInt64Pref(
@@ -846,9 +932,13 @@ void SearchEngineChoiceService::SetSavedSearchEngineBetweenGuestSessions(
 }
 
 // static
-void MarkSearchEngineChoiceCompletedForTesting(PrefService& prefs) {
+void MarkSearchEngineChoiceCompletedForTesting(
+    PrefService& prefs,
+    regional_capabilities::Program program) {
   CHECK_IS_TEST();
-  MarkSearchEngineChoiceCompleted(prefs);
+  SetChoiceCompletionMetadata(
+      prefs, CreateChoiceCompletionMetadataWithProgram(
+                 regional_capabilities::SerializeProgram(program)));
 }
 
 }  // namespace search_engines

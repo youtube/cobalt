@@ -64,7 +64,6 @@ import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.OneShotCallback;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.base.supplier.OneshotSupplierImpl;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.base.supplier.SupplierUtils;
 import org.chromium.base.supplier.UnownedUserDataSupplier;
 import org.chromium.base.supplier.UnwrapObservableSupplier;
@@ -128,6 +127,7 @@ import org.chromium.chrome.browser.firstrun.FirstRunSignInProcessor;
 import org.chromium.chrome.browser.flags.ActivityType;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
+import org.chromium.chrome.browser.fullscreen.FullscreenOptions;
 import org.chromium.chrome.browser.gesturenav.NavigationSheet;
 import org.chromium.chrome.browser.history.HistoryManager;
 import org.chromium.chrome.browser.history.HistoryManagerUtils;
@@ -215,6 +215,8 @@ import org.chromium.chrome.browser.tab.RedirectHandlerTabHelper;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabArchiveSettings;
 import org.chromium.chrome.browser.tab.TabAssociatedApp;
+import org.chromium.chrome.browser.tab.TabAttributeKeys;
+import org.chromium.chrome.browser.tab.TabAttributes;
 import org.chromium.chrome.browser.tab.TabCreationState;
 import org.chromium.chrome.browser.tab.TabDelegateFactory;
 import org.chromium.chrome.browser.tab.TabLaunchType;
@@ -348,6 +350,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 
 /**
  * This is the main activity for ChromeMobile when not running in document mode. All the tabs are
@@ -872,6 +875,31 @@ public class ChromeTabbedActivity extends ChromeActivity {
                                                 Toast.LENGTH_SHORT)
                                         .show();
                             }
+                            // If tab was marked as in the fullscreen mode, restore it. Used for
+                            // Fullscreen to screen feature during activity recreation.
+                            if (ChromeFeatureList.isEnabled(
+                                    ChromeFeatureList.DISPLAY_EDGE_TO_EDGE_FULLSCREEN)) {
+                                if (type == TabLaunchType.FROM_RESTORE
+                                        && (creationState == TabCreationState.LIVE_IN_FOREGROUND
+                                                || creationState
+                                                        == TabCreationState.LIVE_IN_BACKGROUND)) {
+                                    FullscreenOptions fo =
+                                            TabAttributes.from(tab)
+                                                    .get(TabAttributeKeys.FULLSCREEN_OPTIONS);
+                                    if (fo != null) {
+                                        getFullscreenManager().onEnterFullscreen(tab, fo);
+                                    }
+                                } else {
+                                    TabAttributes attrs = TabAttributes.from(tab);
+                                    if (attrs.get(TabAttributeKeys.FULLSCREEN_OPTIONS) != null) {
+                                        attrs.clear(TabAttributeKeys.FULLSCREEN_OPTIONS);
+                                    }
+                                    if (attrs.get(TabAttributeKeys.FULLSCREEN_START_POSITION)
+                                            != null) {
+                                        attrs.clear(TabAttributeKeys.FULLSCREEN_START_POSITION);
+                                    }
+                                }
+                            }
                         }
                     };
         } finally {
@@ -1252,7 +1280,9 @@ public class ChromeTabbedActivity extends ChromeActivity {
 
             var chromeAndroidTask =
                     chromeAndroidTaskTracker.obtainTask(
-                            BrowserWindowType.NORMAL, activityWindowAndroid);
+                            BrowserWindowType.NORMAL,
+                            activityWindowAndroid,
+                            () -> getCurrentTabModel().getProfile());
 
             mTabModelSelector
                     .getCurrentModel()
@@ -1411,7 +1441,7 @@ public class ChromeTabbedActivity extends ChromeActivity {
     @Override
     public void finishNativeInitialization() {
         try (TraceEvent te = TraceEvent.scoped("ChromeTabbedActivity.finishNativeInitialization")) {
-            assert getProfileProviderSupplier().hasValue();
+            assert getProfileProviderSupplier().get() != null;
             new NavigationPredictorBridge(
                     getProfileProviderSupplier().get().getOriginalProfile(),
                     getLifecycleDispatcher(),
@@ -1489,7 +1519,7 @@ public class ChromeTabbedActivity extends ChromeActivity {
             startupLatencyInjector.maybeInjectLatency();
         }
 
-        assert getProfileProviderSupplier().hasValue();
+        assert getProfileProviderSupplier().get() != null;
         getProfileProviderSupplier()
                 .runSyncOrOnAvailable(
                         (profileProvider) -> {
@@ -1636,21 +1666,6 @@ public class ChromeTabbedActivity extends ChromeActivity {
             if (shouldShowRegularOverviewMode && IntentHandler.wasIntentSenderChrome(intent)) {
                 mTabModelSelector.selectModel(/* incognito= */ false);
                 mLayoutManager.showLayout(LayoutType.TAB_SWITCHER, /* animate= */ false);
-            }
-
-            boolean shouldHideOverviewMode =
-                    IntentUtils.safeGetBooleanExtra(
-                            intent, IntentHandler.EXTRA_EXIT_XR_OVERVIEW_MODE, false);
-            if (shouldHideOverviewMode
-                    && IntentHandler.wasIntentSenderChrome(intent)
-                    && isInOverviewMode()) {
-                // Request switching to Home Space mode on XR.
-                var xrSceneCoreSessionManager = mXrSceneCoreSessionManagerSupplier.get();
-                if (xrSceneCoreSessionManager != null) {
-                    xrSceneCoreSessionManager.requestSpaceModeChange(
-                            /* requestFullSpaceMode= */ false);
-                }
-                hideOverview(/* animate= */ true);
             }
             // Launch history on an already running instance of Chrome.
             maybeLaunchHistory();
@@ -1858,7 +1873,7 @@ public class ChromeTabbedActivity extends ChromeActivity {
             assert !url.isEmpty() : "URL is empty";
 
             Tab tab = processTabIntentAndLoadTab(intent, tabId, url, tabOpenType);
-            if (isPinned[i]) {
+            if (isPinned[i] && !tab.getIsPinned()) {
                 tabModel.pinTab(tab.getId());
             }
             tabs.add(tab);
@@ -2951,14 +2966,15 @@ public class ChromeTabbedActivity extends ChromeActivity {
                     boolean isDialogVisible =
                             tabGroupUi != null && tabGroupUi.isTabGridDialogVisible();
 
-                    if (!mTabSwitcherSupplier.hasValue()) {
+                    TabSwitcher switcher = mTabSwitcherSupplier.get();
+                    if (switcher == null) {
                         // The grid tab switcher may be lazily initialized; early out if it isn't
                         // ready.
                         return isDialogVisible;
                     }
 
                     Supplier<Boolean> tabSwitcherDialogVisibilitySupplier =
-                            mTabSwitcherSupplier.get().getTabGridDialogVisibilitySupplier();
+                            switcher.getTabGridDialogVisibilitySupplier();
 
                     if (tabSwitcherDialogVisibilitySupplier != null) {
                         isDialogVisible |= tabSwitcherDialogVisibilitySupplier.get();
@@ -3808,31 +3824,23 @@ public class ChromeTabbedActivity extends ChromeActivity {
             boolean allowUndo = TabClosureParamsUtils.shouldAllowUndo(triggeringMotion);
 
             // Close both incognito and normal tabs.
+            TabModelSelector tabModelSelector = getTabModelSelectorSupplier().get();
             Runnable closeAllTabsRunnable =
                     CloseAllTabsHelper.buildCloseAllTabsRunnable(
-                            getTabModelSelectorSupplier().get(),
-                            /* isIncognitoOnly= */ false,
-                            allowUndo);
+                            tabModelSelector, /* isIncognitoOnly= */ false, allowUndo);
             CloseAllTabsDialog.show(
-                    this,
-                    getModalDialogManagerSupplier(),
-                    getTabModelSelectorSupplier().get(),
-                    closeAllTabsRunnable);
+                    this, getModalDialogManagerSupplier(), tabModelSelector, closeAllTabsRunnable);
             RecordUserAction.record("MobileMenuCloseAllTabs");
         } else if (id == R.id.close_all_incognito_tabs_menu_id) {
             boolean allowUndo = TabClosureParamsUtils.shouldAllowUndo(triggeringMotion);
 
             // Close only incognito tabs
+            TabModelSelector tabModelSelector = getTabModelSelectorSupplier().get();
             Runnable closeAllTabsRunnable =
                     CloseAllTabsHelper.buildCloseAllTabsRunnable(
-                            getTabModelSelectorSupplier().get(),
-                            /* isIncognitoOnly= */ true,
-                            allowUndo);
+                            tabModelSelector, /* isIncognitoOnly= */ true, allowUndo);
             CloseAllTabsDialog.show(
-                    this,
-                    getModalDialogManagerSupplier(),
-                    getTabModelSelectorSupplier().get(),
-                    closeAllTabsRunnable);
+                    this, getModalDialogManagerSupplier(), tabModelSelector, closeAllTabsRunnable);
             RecordUserAction.record("MobileMenuCloseAllIncognitoTabs");
         } else if (id == R.id.focus_url_bar) {
             boolean isUrlBarVisible =
@@ -3894,10 +3902,12 @@ public class ChromeTabbedActivity extends ChromeActivity {
             RecordUserAction.record("MobileMenuSwitchOutOfIncognito");
         } else if (id == R.id.ntp_customization_id) {
             Supplier<Profile> profileSupplier =
-                    () ->
-                            getProfileProviderSupplier().hasValue()
-                                    ? getProfileProviderSupplier().get().getOriginalProfile()
-                                    : null;
+                    () -> {
+                        var profileProvider = getProfileProviderSupplier().get();
+                        return profileProvider != null
+                                ? profileProvider.getOriginalProfile()
+                                : null;
+                    };
             new NtpCustomizationCoordinator(
                             this,
                             mRootUiCoordinator.getBottomSheetController(),
@@ -4341,8 +4351,9 @@ public class ChromeTabbedActivity extends ChromeActivity {
         }
         mStartupPaintPreviewHelperSupplier.destroy();
 
-        if (mModuleRegistrySupplier.hasValue()) {
-            mModuleRegistrySupplier.get().destroy();
+        var moduleRegistry = mModuleRegistrySupplier.get();
+        if (moduleRegistry != null) {
+            moduleRegistry.destroy();
         }
 
         if (mIncognitoCookiesFetcher != null) {
@@ -4397,9 +4408,8 @@ public class ChromeTabbedActivity extends ChromeActivity {
             mGroupSuggestionsPromotionCoordinator = null;
         }
 
-        if (mXrSceneCoreSessionManagerSupplier.hasValue()
-                && mXrSceneCoreSessionManagerSupplier.get() != null) {
-            var xrSceneCoreSessionManager = mXrSceneCoreSessionManagerSupplier.get();
+        var xrSceneCoreSessionManager = mXrSceneCoreSessionManagerSupplier.get();
+        if (xrSceneCoreSessionManager != null) {
             xrSceneCoreSessionManager
                     .getXrSpaceModeObservableSupplier()
                     .removeObserver(mOnXrSpaceModeChanged);

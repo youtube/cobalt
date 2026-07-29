@@ -109,7 +109,8 @@ std::unique_ptr<FormStructure> ConstructFormStructureFromFormData(
     const FormData& form) {
   auto cached_form_structure =
       std::make_unique<FormStructure>(test::WithoutValues(form));
-  cached_form_structure->DetermineHeuristicTypes(GeoIpCountryCode(""), nullptr);
+  cached_form_structure->DetermineHeuristicTypes(GeoIpCountryCode(""),
+                                                 LanguageCode(""), nullptr);
 
   auto form_structure = std::make_unique<FormStructure>(form);
   form_structure->RetrieveFromCache(
@@ -238,7 +239,7 @@ const ProfileMatchingTypesTestCase kProfileMatchingTypesTestCases[] = {
     {"38116", {ADDRESS_HOME_ZIP, ADDRESS_HOME_ZIP_PREFIX}},
     {"ZA", {ADDRESS_HOME_COUNTRY}},
     {"South Africa", {ADDRESS_HOME_COUNTRY}},
-    {"12345678901", {PHONE_HOME_WHOLE_NUMBER}},
+    {"+12345678901", {PHONE_HOME_WHOLE_NUMBER}},
     {"+1 (234) 567-8901", {PHONE_HOME_WHOLE_NUMBER}},
     {"(234)567-8901",
      {PHONE_HOME_CITY_AND_NUMBER,

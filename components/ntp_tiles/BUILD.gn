@@ -4,6 +4,7 @@
 
 import("//components/supervised_user/buildflags.gni")
 import("//extensions/buildflags/buildflags.gni")
+import("//mojo/public/tools/bindings/mojom.gni")
 
 if (is_android) {
   import("//build/config/android/rules.gni")
@@ -19,7 +20,8 @@ static_library("ntp_tiles") {
     "custom_links_store.cc",
     "custom_links_store.h",
     "custom_links_util.h",
-    "deleted_tile_type.h",
+    "enterprise/enterprise_shortcut.cc",
+    "enterprise/enterprise_shortcut.h",
     "enterprise/enterprise_shortcuts_manager.h",
     "features.cc",
     "features.h",
@@ -43,6 +45,7 @@ static_library("ntp_tiles") {
     "switches.h",
     "tile_source.h",
     "tile_title_source.h",
+    "tile_type.h",
     "tile_visual_type.h",
     "webui/ntp_tiles_internals_message_handler.cc",
     "webui/ntp_tiles_internals_message_handler.h",
@@ -56,6 +59,7 @@ static_library("ntp_tiles") {
     "//components/ntp_tiles/webui/resources",
   ]
   deps = [
+    ":mojo_bindings",
     "//build:branding_buildflags",
     "//components/favicon/core",
     "//components/favicon_base",
@@ -96,8 +100,6 @@ static_library("ntp_tiles") {
 
   if (is_linux || is_win || is_mac || is_chromeos) {
     sources += [
-      "enterprise/enterprise_shortcut.cc",
-      "enterprise/enterprise_shortcut.h",
       "enterprise/enterprise_shortcuts_manager_impl.cc",
       "enterprise/enterprise_shortcuts_manager_impl.h",
       "enterprise/enterprise_shortcuts_store.cc",
@@ -177,4 +179,9 @@ if (is_android) {
       "tile_visual_type.h",
     ]
   }
+}
+
+mojom("mojo_bindings") {
+  sources = [ "tile_type.mojom" ]
+  webui_module_path = "/"
 }

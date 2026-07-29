@@ -46,7 +46,6 @@ import org.chromium.base.Callback;
 import org.chromium.base.DeviceInfo;
 import org.chromium.base.InputHintChecker;
 import org.chromium.base.ObserverList;
-import org.chromium.base.SysUtils;
 import org.chromium.base.TraceEvent;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.supplier.ObservableSupplier;
@@ -81,7 +80,6 @@ import org.chromium.chrome.browser.tabmodel.TabModelSelectorObserver;
 import org.chromium.chrome.browser.theme.ThemeColorProvider;
 import org.chromium.chrome.browser.theme.TopUiThemeColorProvider;
 import org.chromium.chrome.browser.toolbar.ControlContainer;
-import org.chromium.chrome.browser.util.ChromeAccessibilityUtil;
 import org.chromium.components.browser_ui.widget.TouchEventObserver;
 import org.chromium.components.browser_ui.widget.TouchEventProvider;
 import org.chromium.components.content_capture.OnscreenContentProvider;
@@ -102,6 +100,7 @@ import org.chromium.ui.mojom.VirtualKeyboardMode;
 import org.chromium.ui.resources.AndroidResourceType;
 import org.chromium.ui.resources.ResourceManager;
 import org.chromium.ui.resources.dynamics.DynamicResourceLoader;
+import org.chromium.ui.util.AccessibilityUtil;
 import org.chromium.ui.util.MotionEventUtils;
 import org.chromium.url.GURL;
 
@@ -122,7 +121,7 @@ public class CompositorViewHolder extends FrameLayout
                 LayoutRenderHost,
                 TouchEventProvider,
                 BrowserControlsStateProvider.Observer,
-                ChromeAccessibilityUtil.Observer,
+                AccessibilityUtil.Observer,
                 TabObscuringHandler.Observer,
                 ViewGroup.OnHierarchyChangeListener {
     private static final long SYSTEM_UI_VIEWPORT_UPDATE_DELAY_MS = 500;
@@ -150,7 +149,7 @@ public class CompositorViewHolder extends FrameLayout
 
     /** Interface for the observer of frame requests. */
     public interface FrameRequestObserver {
-        public void onFrameRequested();
+        void onFrameRequested();
     }
 
     private final ObserverList<TouchEventObserver> mTouchEventObservers = new ObserverList<>();
@@ -433,7 +432,7 @@ public class CompositorViewHolder extends FrameLayout
         // [1] -
         // https://developer.android.com/reference/android/view/WindowManager.LayoutParams.html#FLAG_FULLSCREEN
         if (mShowingFullscreen
-                && KeyboardVisibilityDelegate.getInstance().isKeyboardShowing(getContext(), this)) {
+                && KeyboardVisibilityDelegate.getInstance().isKeyboardShowing(this)) {
             getWindowVisibleDisplayFrame(mCacheRect);
 
             // On certain devices, getWindowVisibleDisplayFrame is larger than the screen size, so
@@ -656,8 +655,7 @@ public class CompositorViewHolder extends FrameLayout
             TabContentManager tabContentManager,
             PrefService prefService) {
         mActivity = assumeNonNull(windowAndroid.getActivity().get());
-        mCompositorView.initNativeCompositor(
-                SysUtils.isLowEndDevice(), windowAndroid, tabContentManager);
+        mCompositorView.initNativeCompositor(windowAndroid, tabContentManager);
 
         if (mControlContainer != null) {
             mCompositorView
@@ -1314,8 +1312,7 @@ public class CompositorViewHolder extends FrameLayout
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
-        mIsKeyboardShowing =
-                KeyboardVisibilityDelegate.getInstance().isKeyboardShowing(getContext(), this);
+        mIsKeyboardShowing = KeyboardVisibilityDelegate.getInstance().isKeyboardShowing(this);
     }
 
     @Override
@@ -1405,7 +1402,7 @@ public class CompositorViewHolder extends FrameLayout
         if (hasFocus()) {
             KeyboardVisibilityDelegate keyboardVisibilityDelegate =
                     KeyboardVisibilityDelegate.getInstance();
-            wasVisible = keyboardVisibilityDelegate.isKeyboardShowing(getContext(), this);
+            wasVisible = keyboardVisibilityDelegate.isKeyboardShowing(this);
             if (wasVisible) {
                 keyboardVisibilityDelegate.hideKeyboard(this);
             }

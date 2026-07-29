@@ -38,7 +38,7 @@
 #include "base/containers/span.h"
 #include "base/memory/raw_ptr.h"
 #include "base/stl_util.h"
-#include "base/types/always_false.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 
 // Composable memory usage estimators.
 //
@@ -203,6 +203,10 @@ size_t EstimateMemoryUsage(const base::LRUCacheSet<V, C>& lru);
 template <class V, class C>
 size_t EstimateMemoryUsage(const base::HashingLRUCacheSet<V, C>& lru);
 
+// Abseil containers
+template <class K, class V, class H, class E, class A>
+size_t EstimateMemoryUsage(const absl::flat_hash_map<K, V, H, E, A>& map);
+
 // TODO(dskiba):
 //   std::forward_list
 
@@ -268,7 +272,7 @@ size_t EstimateItemMemoryUsage(const T& value) {
   if constexpr (internal::HasEMU<T>) {
     return EstimateMemoryUsage(value);
   } else if constexpr (!internal::IsKnownNonAllocatingType<T>) {
-    static_assert(base::AlwaysFalse<T>,
+    static_assert(false,
                   "Neither global function 'size_t EstimateMemoryUsage(T)' "
                   "nor member function 'size_t T::EstimateMemoryUsage() const' "
                   "is defined for the type.");
@@ -629,6 +633,18 @@ size_t EstimateMemoryUsage(const LRUCacheSet<V, C>& lru_cache) {
 template <class V, class C>
 size_t EstimateMemoryUsage(const HashingLRUCacheSet<V, C>& lru_cache) {
   return internal::DoEstimateMemoryUsageForLruCache(lru_cache);
+}
+
+// Abseil containers
+template <class K, class V, class H, class E, class A>
+size_t EstimateMemoryUsage(const absl::flat_hash_map<K, V, H, E, A>& map) {
+  using value_type = typename absl::flat_hash_map<K, V, H, E, A>::value_type;
+  // `absl::flat_hash_map` stores its elements directly in an array.
+  // The memory usage includes the array itself (capacity * sizeof(value_type))
+  // plus control bytes (capacity * sizeof(char)). See
+  // https://abseil.io/docs/cpp/guides/container#memory-usage for details.
+  return map.capacity() * (sizeof(value_type) + sizeof(char)) +
+         EstimateIterableMemoryUsage(map);
 }
 
 }  // namespace trace_event
