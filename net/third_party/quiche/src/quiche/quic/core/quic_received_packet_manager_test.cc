@@ -372,9 +372,6 @@ TEST_F(QuicReceivedPacketManagerTest, AckDecimationReducesAcks) {
 
   // Start ack decimation from 10th packet.
   received_manager_.set_min_received_before_ack_decimation(10);
-#if BUILDFLAG(IS_COBALT)
-  received_manager_.set_max_retransmittable_packets_before_ack(10);
-#endif
 
   // Receives packets 1 - 29.
   for (size_t i = 1; i <= 29; ++i) {
@@ -405,9 +402,6 @@ TEST_F(QuicReceivedPacketManagerTest, AckDecimationReducesAcks) {
 
 TEST_F(QuicReceivedPacketManagerTest, SendDelayedAckDecimation) {
   EXPECT_FALSE(HasPendingAck());
-#if BUILDFLAG(IS_COBALT)
-  received_manager_.set_max_retransmittable_packets_before_ack(10);
-#endif
   // The ack time should be based on min_rtt * 1/4, since it's less than the
   // default delayed ack time.
   QuicTime ack_time = clock_.ApproximateNow() + kMinRttMs * 0.25;
@@ -439,9 +433,6 @@ TEST_F(QuicReceivedPacketManagerTest, SendDelayedAckDecimation) {
 
 TEST_F(QuicReceivedPacketManagerTest, SendDelayedAckDecimationMin1ms) {
   EXPECT_FALSE(HasPendingAck());
-#if BUILDFLAG(IS_COBALT)
-  received_manager_.set_max_retransmittable_packets_before_ack(10);
-#endif
   // Seed the min_rtt with a kAlarmGranularity signal.
   rtt_stats_.UpdateRtt(kAlarmGranularity, QuicTime::Delta::Zero(),
                        clock_.ApproximateNow());
@@ -476,9 +467,6 @@ TEST_F(QuicReceivedPacketManagerTest, SendDelayedAckDecimationMin1ms) {
 TEST_F(QuicReceivedPacketManagerTest,
        SendDelayedAckDecimationUnlimitedAggregation) {
   EXPECT_FALSE(HasPendingAck());
-#if BUILDFLAG(IS_COBALT)
-  received_manager_.set_max_retransmittable_packets_before_ack(10);
-#endif
   QuicConfig config;
   QuicTagVector connection_options;
   // No limit on the number of packets received before sending an ack.
@@ -518,9 +506,6 @@ TEST_F(QuicReceivedPacketManagerTest,
 
 TEST_F(QuicReceivedPacketManagerTest, SendDelayedAckDecimationEighthRtt) {
   EXPECT_FALSE(HasPendingAck());
-#if BUILDFLAG(IS_COBALT)
-  received_manager_.set_max_retransmittable_packets_before_ack(10);
-#endif
   QuicReceivedPacketManagerPeer::SetAckDecimationDelay(&received_manager_,
                                                        0.125);
 

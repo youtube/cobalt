@@ -64,7 +64,6 @@ class TFieldListCollection : angle::NonCopyable
     bool containsMatrices() const;
     bool containsType(TBasicType t) const;
     bool containsSamplers() const;
-    bool containsOnlySamplers() const;
 
     size_t objectSize() const;
     // How many locations the field list consumes as a uniform.
@@ -338,7 +337,6 @@ class TType
     bool isStructureContainingMatrices() const;
     bool isStructureContainingType(TBasicType t) const;
     bool isStructureContainingSamplers() const;
-    bool isStructureContainingOnlySamplers() const;
     bool isInterfaceBlockContainingType(TBasicType t) const;
 
     bool isStructSpecifier() const { return mIsStructSpecifier; }

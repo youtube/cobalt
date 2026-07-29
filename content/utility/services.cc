@@ -31,9 +31,7 @@
 #include "services/audio/service_factory.h"
 #include "services/data_decoder/data_decoder_service.h"
 #include "services/network/network_service.h"
-#if !BUILDFLAG(IS_COBALT)
-#include "services/on_device_model/on_device_model_service.h"  // nogncheck
-#endif  // !BUILDFLAG(IS_COBALT)
+#include "services/on_device_model/on_device_model_service.h"
 #include "services/tracing/public/mojom/tracing_service.mojom.h"
 #include "services/tracing/tracing_service.h"
 #include "services/video_capture/public/mojom/video_capture_service.mojom.h"
@@ -198,14 +196,12 @@ auto RunNetworkService(
       /*delay_initialization_until_set_client=*/true);
 }
 
-#if !BUILDFLAG(IS_COBALT)
 auto RunAuctionWorkletService(
     mojo::PendingReceiver<auction_worklet::mojom::AuctionWorkletService>
         receiver) {
   return auction_worklet::AuctionWorkletServiceImpl::CreateForService(
       std::move(receiver));
 }
-#endif  // !BUILDFLAG(IS_COBALT)
 
 auto RunAudio(mojo::PendingReceiver<audio::mojom::AudioService> receiver) {
 #if BUILDFLAG(IS_MAC)
@@ -237,7 +233,7 @@ auto RunAudio(mojo::PendingReceiver<audio::mojom::AudioService> receiver) {
       << "task_policy_set TASK_QOS_POLICY";
 #endif
 
-#if (BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   auto* command_line = base::CommandLine::ForCurrentProcess();
   if (sandbox::policy::SandboxTypeFromCommandLine(*command_line) ==
       sandbox::mojom::Sandbox::kNoSandbox) {
@@ -276,14 +272,12 @@ auto RunCdmServiceBroker(
 }
 #endif
 
-#if !BUILDFLAG(IS_COBALT)
 auto RunDataDecoder(
     mojo::PendingReceiver<data_decoder::mojom::DataDecoderService> receiver) {
   UtilityThread::Get()->EnsureBlinkInitialized();
   return std::make_unique<data_decoder::DataDecoderService>(
       std::move(receiver));
 }
-#endif  // !BUILDFLAG(IS_COBALT)
 
 #if BUILDFLAG(ENABLE_ACCESSIBILITY_SERVICE)
 auto RunAccessibilityService(
@@ -313,20 +307,17 @@ auto RunMediaDrmSupportService(
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
-#if !BUILDFLAG(IS_COBALT)
 auto RunStorageService(
     mojo::PendingReceiver<storage::mojom::StorageService> receiver) {
   return std::make_unique<storage::StorageServiceImpl>(
       std::move(receiver), ChildProcess::current()->io_task_runner());
 }
-#endif  // !BUILDFLAG(IS_COBALT)
 
 auto RunTracing(
     mojo::PendingReceiver<tracing::mojom::TracingService> receiver) {
   return std::make_unique<tracing::TracingService>(std::move(receiver));
 }
 
-#if !BUILDFLAG(IS_COBALT)
 auto RunVideoCapture(
     mojo::PendingReceiver<video_capture::mojom::VideoCaptureService> receiver) {
 #if BUILDFLAG(IS_CHROMEOS)
@@ -349,7 +340,6 @@ auto RunVideoCapture(
 
   return service;
 }
-#endif  // !BUILDFLAG(IS_COBALT)
 
 #if BUILDFLAG(ENABLE_VIDEO_EFFECTS)
 auto RunVideoEffects(
@@ -363,13 +353,11 @@ auto RunVideoEffects(
 }
 #endif
 
-#if !BUILDFLAG(IS_COBALT)
 auto RunOnDeviceModel(
     mojo::PendingReceiver<on_device_model::mojom::OnDeviceModelService>
         receiver) {
   return on_device_model::OnDeviceModelService::Create(std::move(receiver));
 }
-#endif  // !BUILDFLAG(IS_COBALT)
 
 #if BUILDFLAG(ENABLE_VR) && !BUILDFLAG(IS_ANDROID)
 auto RunXrDeviceService(
@@ -427,29 +415,21 @@ void RegisterIOThreadServices(mojo::ServiceFactory& services) {
 }
 
 void RegisterMainThreadServices(mojo::ServiceFactory& services) {
-#if !BUILDFLAG(IS_COBALT)
   services.Add(RunAuctionWorkletService);
-#endif  // !BUILDFLAG(IS_COBALT)
   services.Add(RunAudio);
 
-#if !BUILDFLAG(IS_COBALT)
   services.Add(RunDataDecoder);
   services.Add(RunStorageService);
-#endif  // !BUILDFLAG(IS_COBALT)
   services.Add(RunTracing);
-#if !BUILDFLAG(IS_COBALT)
   services.Add(RunVideoCapture);
-#endif  // !BUILDFLAG(IS_COBALT)
 
 #if BUILDFLAG(ENABLE_VIDEO_EFFECTS)
   services.Add(RunVideoEffects);
 #endif
 
-#if !BUILDFLAG(IS_COBALT)
   if (optimization_guide::features::CanLaunchOnDeviceModelService()) {
     services.Add(RunOnDeviceModel);
   }
-#endif  // !BUILDFLAG(IS_COBALT)
 
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING) && BUILDFLAG(IS_CHROMEOS)
   services.Add(RunShapeDetectionService);
