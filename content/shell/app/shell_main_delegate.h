@@ -20,7 +20,7 @@ class ShellContentGpuClient;
 class ShellContentRendererClient;
 class ShellContentUtilityClient;
 
-#if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_STARBOARD)
 class WebTestBrowserMainRunner;
 #endif
 
@@ -61,8 +61,12 @@ class ShellMainDelegate : public ContentMainDelegate {
   // content_browsertests should not set the kRunWebTests command line flag, so
   // |is_content_browsertests_| and |web_test_runner_| are mutually exclusive.
   bool is_content_browsertests_;
+<<<<<<< HEAD
 
 #if !BUILDFLAG(IS_ANDROID)
+=======
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_STARBOARD)
+>>>>>>> parent of c7607f4f00d (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   // Only present when running web tests, which run inside Content Shell.
   //
   // Web tests are not browser tests, so |is_content_browsertests_| and
