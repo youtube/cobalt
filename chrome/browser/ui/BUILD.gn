@@ -9,7 +9,6 @@ import("//build/config/ozone.gni")
 import("//build/config/ui.gni")
 import("//chrome/browser/buildflags.gni")
 import("//chrome/common/features.gni")
-import("//chromeos/ash/components/assistant/assistant.gni")
 import("//components/captive_portal/core/features.gni")
 import("//components/compose/features.gni")
 import("//components/enterprise/buildflags/buildflags.gni")
@@ -24,7 +23,6 @@ import("//pdf/features.gni")
 import("//printing/buildflags/buildflags.gni")
 import("//rlz/buildflags/buildflags.gni")
 import("//services/screen_ai/buildflags/features.gni")
-import("//services/video_effects/args.gni")
 import("//third_party/protobuf/proto_library.gni")
 import("//tools/metrics/generate_allowlist_from_histograms_file.gni")
 import("//ui/base/ui_features.gni")
@@ -697,6 +695,10 @@ static_library("ui") {
 
   if (enable_captive_portal_detection) {
     deps += [ "//chrome/browser/captive_portal" ]
+  }
+
+  if (enable_compose) {
+    deps += [ "//chrome/browser/compose" ]
   }
 
   # TODO(crbug.com/41437292): Remove this circular dependency.
@@ -1736,6 +1738,7 @@ static_library("ui") {
       "//chrome/browser/ui/webui/new_tab_footer:impl",
       "//chrome/browser/ui/signin:impl",
       "//chrome/browser/ui/webui/commerce:impl",
+      "//chrome/browser/ui/webui/reload_button:impl",
       "//chrome/browser/ui/webui/signin:signin_impl",
       "//chrome/browser/ui/webui/signin:login_impl",
       "//chrome/browser/ui/webui/signin:signin_utils_impl",
@@ -2104,6 +2107,7 @@ static_library("ui") {
       "//chrome/browser/ash/browser_delegate:impl",
       "//chrome/browser/ash/bruschetta",
       "//chrome/browser/ash/cert_provisioning",
+      "//chrome/browser/ash/certificate_provider",
       "//chrome/browser/ash/child_accounts",
       "//chrome/browser/ash/child_accounts/on_device_controls",
       "//chrome/browser/ash/child_accounts/parent_access_code",
@@ -2215,7 +2219,6 @@ static_library("ui") {
       "//chrome/browser/ash/video_conference",
       "//chrome/browser/ash/wallpaper",
       "//chrome/browser/ash/wallpaper_handlers",
-      "//chrome/browser/certificate_provider",
       "//chrome/browser/chromeos/app_mode",
       "//chrome/browser/chromeos/arc",
       "//chrome/browser/chromeos/cros_apps",
@@ -2850,6 +2853,8 @@ static_library("ui") {
       "//third_party/lens_server_proto:lens_overlay_proto",
       "//third_party/omnibox_proto",
     ]
+
+    allow_circular_includes_from += [ "//chrome/browser/ui/wallet" ]
   }
 
   if (is_win || is_mac || is_linux || is_chromeos || is_desktop_android) {
@@ -2955,13 +2960,6 @@ static_library("ui") {
       "webui/settings/system_handler.h",
     ]
 
-    if (enable_video_effects) {
-      sources += [
-        "views/media_preview/camera_preview/blur_switch_view_controller.cc",
-        "views/media_preview/camera_preview/blur_switch_view_controller.h",
-      ]
-    }
-
     deps += [
       "//chrome/app:generated_resources",
       "//chrome/browser/browser_switcher",
@@ -2981,7 +2979,6 @@ static_library("ui") {
       "//components/country_codes",
       "//services/audio/public/mojom",
       "//services/video_capture/public/mojom",
-      "//services/video_effects/buildflags",
     ]
 
     # Any circular includes must depend on the target "//chrome/browser:browser_public_dependencies".
@@ -4722,7 +4719,6 @@ static_library("ui") {
       "//components/input",
       "//components/live_caption",
       "//components/live_caption:constants",
-      "//components/media_effects",
       "//components/media_message_center",
       "//components/media_message_center/vector_icons",
       "//components/offline_items_collection/core",
@@ -5078,6 +5074,7 @@ static_library("ui") {
       "//chrome/browser/profiles",
       "//chrome/browser/ui/extensions:extension_enable_flow_delegate",
       "//chrome/browser/ui/extensions:extension_popup_types",
+      "//chrome/browser/ui/tabs:tab_list_interface",
       "//chrome/browser/ui/webui/extensions_zero_state_promo:mojo_bindings",
       "//chrome/browser/web_applications",
       "//chrome/browser/web_applications/app_service",
@@ -5509,6 +5506,7 @@ source_set("ui_features") {
     "//extensions/buildflags",
   ]
   deps = [
+    "//chrome/common:chrome_features",
     "//components/search",
     "//components/webui/flags",
     "//ui/base:features",

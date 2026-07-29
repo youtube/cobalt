@@ -238,7 +238,7 @@ const base::FeatureParam<double> kWebViewCodeCacheSizeLimitMultiplier{
 
 // Connect to the non-embedded components provider from a background thread.
 BASE_FEATURE(kWebViewConnectToComponentProviderInBackground,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables phase 2 of using startup tasks logic for webview chromium
 // initialization which starts browser process asynchronously, when starting
@@ -295,4 +295,12 @@ BASE_FEATURE(kWebViewOptInToGmsBindServiceOptimization,
 // initialization. This is expected to improve startup performance especially
 // when async startup takes place.
 BASE_FEATURE(kWebViewMoveWorkToProviderInit, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When enabled, the temporary cookie manager used before WebView startup is
+// bypassed. If WebView isn't already started up, calling
+// `CookieManager.getInstance()` will trigger WebView startup on the main looper
+// and wait for startup to complete.
+BASE_FEATURE(kWebViewBypassProvisionalCookieManager,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 }  // namespace android_webview::features

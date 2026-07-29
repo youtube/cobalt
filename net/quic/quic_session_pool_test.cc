@@ -127,6 +127,8 @@ class QuicHttpStreamPeer {
 
 namespace {
 
+using ::testing::ElementsAre;
+
 // Run QuicSessionPoolTest instances with all values of version.
 struct TestParams {
   quic::ParsedQuicVersion version;
@@ -374,9 +376,6 @@ class QuicSessionPoolTest : public QuicSessionPoolTestBase,
       IoMode write_error_mode,
       bool disconnect_before_connect);
   void TestNoAlternateNetworkBeforeHandshake(quic::QuicErrorCode error);
-  void
-  TestThatBlackHoleIsDisabledOnNoNewNetworkThenResumedAfterConnectingToANetwork(
-      bool is_blackhole_disabled_after_disconnecting);
   void TestNewConnectionOnAlternateNetworkBeforeHandshake(
       quic::QuicErrorCode error);
   void TestOnNetworkMadeDefaultNonMigratableStream(bool migrate_idle_sessions);
@@ -6299,152 +6298,6 @@ TEST_P(QuicSessionPoolTest,
       socket_ptr, ToIPEndPoint(session->connection()->peer_address()),
       kNewNetworkForTests, SocketTag());
   base::RunLoop().RunUntilIdle();
-}
-
-void QuicSessionPoolTest::
-    TestThatBlackHoleIsDisabledOnNoNewNetworkThenResumedAfterConnectingToANetwork(
-        bool is_blackhole_disabled_after_disconnecting) {
-  scoped_mock_network_change_notifier_ =
-      std::make_unique<ScopedMockNetworkChangeNotifier>();
-  MockNetworkChangeNotifier* mock_ncn =
-      scoped_mock_network_change_notifier_->mock_network_change_notifier();
-  mock_ncn->ForceNetworkHandlesSupported();
-  mock_ncn->SetConnectedNetworksList({kDefaultNetworkForTests});
-  // Enable migration on network change.
-  quic_params_->migrate_sessions_on_network_change_v2 = true;
-  socket_factory_ = std::make_unique<TestPortMigrationSocketFactory>();
-  Initialize();
-  ProofVerifyDetailsChromium verify_details = DefaultProofVerifyDetails();
-  crypto_client_stream_factory_.AddProofVerifyDetails(&verify_details);
-  crypto_client_stream_factory_.AddProofVerifyDetails(&verify_details);
-
-  // Using a testing task runner so that we can control time.
-  auto task_runner = base::MakeRefCounted<base::TestMockTimeTaskRunner>();
-  QuicSessionPoolPeer::SetTaskRunner(pool_.get(), task_runner.get());
-
-  int packet_num = 1;
-  MockQuicData quic_data(version_);
-  quic_data.AddReadPauseForever();
-  quic_data.AddWrite(SYNCHRONOUS, ConstructInitialSettingsPacket(packet_num++));
-  quic_data.AddWrite(
-      SYNCHRONOUS,
-      ConstructGetRequestPacket(
-          packet_num++, GetNthClientInitiatedBidirectionalStreamId(0), true));
-  quic_data.AddReadPauseForever();
-  MockQuicData quic_data2(version_);
-  quic::QuicConnectionId cid_on_new_path =
-      quic::test::TestConnectionId(12345678);
-  client_maker_.set_connection_id(cid_on_new_path);
-  quic_data2.AddWrite(
-      SYNCHRONOUS, client_maker_.Packet(packet_num++).AddPingFrame().Build());
-  quic_data2.AddWrite(SYNCHRONOUS,
-                      client_maker_.Packet(packet_num++)
-                          .AddRetireConnectionIdFrame(/*sequence_number=*/0u)
-                          .Build());
-
-  quic_data2.AddRead(
-      ASYNC, ConstructOkResponsePacket(
-                 1, GetNthClientInitiatedBidirectionalStreamId(0), false));
-  quic_data2.AddReadPauseForever();
-  quic_data2.AddWrite(
-      SYNCHRONOUS,
-      client_maker_.Packet(packet_num++)
-          .AddStreamFrame(GetQpackDecoderStreamId(), /*fin=*/false,
-                          StreamCancellationQpackDecoderInstruction(0))
-          .AddStopSendingFrame(GetNthClientInitiatedBidirectionalStreamId(0),
-                               quic::QUIC_STREAM_CANCELLED)
-          .AddRstStreamFrame(GetNthClientInitiatedBidirectionalStreamId(0),
-                             quic::QUIC_STREAM_CANCELLED)
-          .Build());
-
-  quic_data.AddSocketDataToFactory(socket_factory_.get());
-  quic_data2.AddSocketDataToFactory(socket_factory_.get());
-
-  // Create request and QuicHttpStream.
-  RequestBuilder builder(this);
-  EXPECT_EQ(ERR_IO_PENDING, builder.CallRequest());
-  EXPECT_THAT(callback_.WaitForResult(), IsOk());
-  std::unique_ptr<HttpStream> stream = CreateStream(&builder.request);
-  EXPECT_TRUE(stream.get());
-
-  // Cause QUIC stream to be created.
-  HttpRequestInfo request_info;
-  request_info.method = "GET";
-  request_info.url = GURL(kDefaultUrl);
-  request_info.traffic_annotation =
-      MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS);
-  stream->RegisterRequest(&request_info);
-  EXPECT_EQ(OK, stream->InitializeStream(true, DEFAULT_PRIORITY, net_log_,
-                                         CompletionOnceCallback()));
-
-  // Ensure that session is alive and active.
-  QuicChromiumClientSession* session = GetActiveSession(kDefaultDestination);
-  EXPECT_TRUE(QuicSessionPoolPeer::IsLiveSession(pool_.get(), session));
-  EXPECT_TRUE(HasActiveSession(kDefaultDestination));
-  MaybeMakeNewConnectionIdAvailableToSession(cid_on_new_path, session);
-  // Send GET request on stream.
-  HttpResponseInfo response;
-  HttpRequestHeaders request_headers;
-  EXPECT_EQ(OK, stream->SendRequest(request_headers, &response,
-                                    callback_.callback()));
-  handles::NetworkHandle old_network = session->GetCurrentNetwork();
-  // Forcefully disconnect the current network. This should stop the blackhole
-  // detector since there is no other available network.
-  mock_ncn->NotifyNetworkDisconnected(kDefaultNetworkForTests);
-
-  if (is_blackhole_disabled_after_disconnecting) {
-    EXPECT_FALSE(
-        session->connection()->blackhole_detector().IsDetectionInProgress());
-  } else {
-    EXPECT_TRUE(
-        session->connection()->blackhole_detector().IsDetectionInProgress());
-  }
-
-  // This will fire migrateImmediately which will connect to a new socket on the
-  // new network.
-  mock_ncn->NotifyNetworkConnected(kNewNetworkForTests);
-
-  // Execute the tasks that are added to the task runner from
-  // NotifyNetworkConnected.
-  task_runner->RunUntilIdle();
-  base::RunLoop().RunUntilIdle();
-
-  // Verify that we are on the new network.
-  EXPECT_TRUE(old_network != session->GetCurrentNetwork());
-  EXPECT_TRUE(session->GetCurrentNetwork() == kNewNetworkForTests);
-
-  // Verify that blackhole detector is still active.
-  EXPECT_TRUE(
-      session->connection()->blackhole_detector().IsDetectionInProgress());
-
-  // Verify that we also received the response on the new path.
-  EXPECT_EQ(OK, stream->ReadResponseHeaders(callback_.callback()));
-  EXPECT_EQ(200, response.headers->response_code());
-}
-// When the feature is disabled, the blackhole detector should stay enabled
-// when there is no available network. resumed once a new network has been
-// connected to.
-TEST_P(
-    QuicSessionPoolTest,
-    VerifyThatBlackHoleIsDisabledOnNoAvailableNetworkThenResumedAfterConnectingToNewNetwork_FeatureDisabled) {
-  TestThatBlackHoleIsDisabledOnNoNewNetworkThenResumedAfterConnectingToANetwork(
-      false);
-}
-
-// When the feature is enabled, the blackhole detector should be disabled
-// when there is no available network. resumed once a new network has been
-// connected to.
-TEST_P(
-    QuicSessionPoolTest,
-    VerifyThatBlackHoleIsDisabledOnNoAvailableNetworkThenResumedAfterConnectingToNewNetwork_FeatureEnabled) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitWithFeatures(
-      // enabled_features
-      {features::kDisableBlackholeOnNoNewNetwork},
-      // disabled_features
-      {});
-  TestThatBlackHoleIsDisabledOnNoNewNetworkThenResumedAfterConnectingToANetwork(
-      true);
 }
 
 void QuicSessionPoolTest::TestSimplePortMigrationOnPathDegrading() {
@@ -15161,6 +15014,61 @@ TEST_P(QuicSessionPoolTest, SendPingOnExistingSession) {
   // since `enable_connection_keep_alive` is enabled, and we already have an
   // existing session.
   socket_data.ExpectAllWriteDataConsumed();
+}
+
+TEST_P(QuicSessionPoolTest, ConfigureSupportedGroupsAndKeyShares) {
+  SSLContextConfig ssl_config;
+  ssl_config.supported_named_groups = {
+      {.group_id = SSL_GROUP_MLKEM1024, .send_key_share = false},
+      {.group_id = SSL_GROUP_X25519_MLKEM768, .send_key_share = true},
+      {.group_id = SSL_GROUP_X25519, .send_key_share = true},
+  };
+  ssl_config_service_.UpdateSSLConfigAndNotify(ssl_config);
+
+  Initialize();
+  std::unique_ptr<QuicCryptoClientConfigHandle> crypto_config_handle =
+      QuicSessionPoolPeer::GetCryptoConfig(
+          pool_.get(), QuicSessionPool::QuicCryptoClientConfigKey());
+
+  EXPECT_THAT(crypto_config_handle->GetConfig()->preferred_groups(),
+              ElementsAre(SSL_GROUP_MLKEM1024, SSL_GROUP_X25519_MLKEM768,
+                          SSL_GROUP_X25519));
+  EXPECT_THAT(crypto_config_handle->GetConfig()->client_key_shares(),
+              ElementsAre(SSL_GROUP_X25519_MLKEM768, SSL_GROUP_X25519));
+}
+
+TEST_P(QuicSessionPoolTest, ConfigureSupportedGroupsWithoutKeyShares) {
+  SSLContextConfig ssl_config;
+  ssl_config.supported_named_groups = {
+      {.group_id = SSL_GROUP_MLKEM1024, .send_key_share = false},
+      {.group_id = SSL_GROUP_X25519_MLKEM768, .send_key_share = false},
+      {.group_id = SSL_GROUP_X25519, .send_key_share = false},
+  };
+  ssl_config_service_.UpdateSSLConfigAndNotify(ssl_config);
+
+  Initialize();
+  std::unique_ptr<QuicCryptoClientConfigHandle> crypto_config_handle =
+      QuicSessionPoolPeer::GetCryptoConfig(
+          pool_.get(), QuicSessionPool::QuicCryptoClientConfigKey());
+
+  EXPECT_THAT(crypto_config_handle->GetConfig()->preferred_groups(),
+              ElementsAre(SSL_GROUP_MLKEM1024, SSL_GROUP_X25519_MLKEM768,
+                          SSL_GROUP_X25519));
+  EXPECT_TRUE(crypto_config_handle->GetConfig()->client_key_shares().empty());
+}
+
+TEST_P(QuicSessionPoolTest, ConfigureSSLCompliancePolicy) {
+  SSLContextConfig ssl_config;
+  ssl_config.tls13_cipher_prefer_aes_256 = true;
+  ssl_config_service_.UpdateSSLConfigAndNotify(ssl_config);
+
+  Initialize();
+  std::unique_ptr<QuicCryptoClientConfigHandle> crypto_config_handle =
+      QuicSessionPoolPeer::GetCryptoConfig(
+          pool_.get(), QuicSessionPool::QuicCryptoClientConfigKey());
+
+  EXPECT_EQ(crypto_config_handle->GetConfig()->ssl_compliance_policy(),
+            ssl_compliance_policy_cnsa_202407);
 }
 
 }  // namespace net::test

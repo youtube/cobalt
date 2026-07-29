@@ -14,6 +14,7 @@
 #include "base/sequence_checker.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
+#include "chromeos/ash/components/boca/spotlight/spotlight_audio_stream_consumer.h"
 #include "chromeos/ash/components/boca/spotlight/spotlight_constants.h"
 #include "chromeos/ash/components/boca/spotlight/spotlight_frame_consumer.h"
 #include "remoting/client/common/client_status_observer.h"
@@ -22,6 +23,7 @@
 #include "third_party/skia/include/core/SkBitmap.h"
 
 namespace remoting {
+class AudioPacket;
 class RemotingClient;
 }  // namespace remoting
 
@@ -30,6 +32,8 @@ class DesktopFrame;
 }  // namespace webrtc
 
 namespace ash::boca {
+
+class SpotlightAudioStreamConsumer;
 
 class RemotingClientIOProxy {
  public:
@@ -60,6 +64,8 @@ class RemotingClientIOProxyImpl : public RemotingClientIOProxy,
       std::unique_ptr<network::PendingSharedURLLoaderFactory>
           pending_url_loader_factory,
       SpotlightFrameConsumer::FrameReceivedCallback frame_received_callback,
+      SpotlightAudioStreamConsumer::AudioPacketReceivedCallback
+          audio_packet_received_callback,
       SpotlightCrdStateUpdatedCallback status_updated_callback);
   RemotingClientIOProxyImpl(const RemotingClientIOProxyImpl&) = delete;
   RemotingClientIOProxyImpl& operator=(const RemotingClientIOProxyImpl&) =
@@ -88,9 +94,11 @@ class RemotingClientIOProxyImpl : public RemotingClientIOProxy,
   void UpdateState(CrdConnectionState state);
 
   // Receives the frame on the current sequence and forwards it to the
-  // `frame_recieved_callback_`.
+  // `frame_received_callback_`.
   void OnFrameReceived(SkBitmap bitmap,
                        std::unique_ptr<webrtc::DesktopFrame> frame);
+
+  void OnAudioPacketReceived(std::unique_ptr<remoting::AudioPacket> packet);
 
   // Releases the `remoting::RemoteClient` and `SpotlightFrameConsumer` used
   // for a previous session.
@@ -108,9 +116,12 @@ class RemotingClientIOProxyImpl : public RemotingClientIOProxy,
   base::OnceClosure crd_session_ended_callback_;
   // Callback for receiving a completed frame from `SpotlightFrameConsumer`.
   SpotlightFrameConsumer::FrameReceivedCallback frame_received_callback_;
+  SpotlightAudioStreamConsumer::AudioPacketReceivedCallback
+      audio_packet_received_callback_;
   // Callback for `CrdConnectionState` updates.
   SpotlightCrdStateUpdatedCallback status_updated_callback_;
   std::unique_ptr<SpotlightFrameConsumer> frame_consumer_;
+  std::unique_ptr<SpotlightAudioStreamConsumer> audio_stream_consumer_;
   std::unique_ptr<remoting::RemotingClient> remoting_client_;
 
   base::WeakPtrFactory<RemotingClientIOProxyImpl> weak_factory_{this};

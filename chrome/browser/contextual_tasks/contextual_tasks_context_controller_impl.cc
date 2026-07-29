@@ -12,42 +12,71 @@
 #include "base/task/single_thread_task_runner.h"
 #include "components/contextual_tasks/public/contextual_tasks_service.h"
 #include "components/contextual_tasks/public/features.h"
-#include "components/omnibox/browser/aim_eligibility_service.h"
 #include "components/sessions/core/session_id.h"
 
 namespace contextual_tasks {
 
 ContextualTasksContextControllerImpl::ContextualTasksContextControllerImpl(
-    ContextualTasksService* service,
-    AimEligibilityService* aim_eligibility_service)
-    : service_(service), aim_eligibility_service_(aim_eligibility_service) {}
+    ContextualTasksService* service)
+    : service_(service) {}
 
 ContextualTasksContextControllerImpl::~ContextualTasksContextControllerImpl() =
     default;
 
-void ContextualTasksContextControllerImpl::GetTasks(
-    base::OnceCallback<void(std::vector<ContextualTask>)> callback) {
-  service_->GetTasks(std::move(callback));
+FeatureEligibility
+ContextualTasksContextControllerImpl::GetFeatureEligibility() {
+  return service_->GetFeatureEligibility();
 }
 
-void ContextualTasksContextControllerImpl::GetTask(
+bool ContextualTasksContextControllerImpl::IsInitialized() {
+  return service_->IsInitialized();
+}
+
+ContextualTask ContextualTasksContextControllerImpl::CreateTask() {
+  return service_->CreateTask();
+}
+
+ContextualTask ContextualTasksContextControllerImpl::CreateTaskFromUrl(
+    const GURL& url) {
+  return service_->CreateTaskFromUrl(url);
+}
+
+void ContextualTasksContextControllerImpl::GetTaskById(
     const base::Uuid& task_id,
-    base::OnceCallback<void(std::optional<ContextualTask>)> callback) {
+    base::OnceCallback<void(std::optional<ContextualTask>)> callback) const {
   service_->GetTaskById(task_id, std::move(callback));
 }
 
-void ContextualTasksContextControllerImpl::AssociateTabWithTask(
-    SessionID tab_session_id,
-    const base::Uuid& task_id) {
-  service_->AttachSessionIdToTask(task_id, tab_session_id);
+void ContextualTasksContextControllerImpl::GetTasks(
+    base::OnceCallback<void(std::vector<ContextualTask>)> callback) const {
+  service_->GetTasks(std::move(callback));
 }
 
-void ContextualTasksContextControllerImpl::GetSelectedTaskForTab(
-    SessionID tab_session_id,
-    base::OnceCallback<void(std::optional<ContextualTask>)>
-        selected_task_callback) {
-  std::move(selected_task_callback)
-      .Run(service_->GetMostRecentContextualTaskForSessionID(tab_session_id));
+void ContextualTasksContextControllerImpl::DeleteTask(
+    const base::Uuid& task_id) {
+  service_->DeleteTask(task_id);
+}
+
+void ContextualTasksContextControllerImpl::AddThreadToTask(
+    const base::Uuid& task_id,
+    const Thread& thread) {
+  service_->AddThreadToTask(task_id, thread);
+}
+
+void ContextualTasksContextControllerImpl::RemoveThreadFromTask(
+    const base::Uuid& task_id,
+    ThreadType type,
+    const std::string& server_id) {
+  service_->RemoveThreadFromTask(task_id, type, server_id);
+}
+
+void ContextualTasksContextControllerImpl::UpdateThreadTurnId(
+    const base::Uuid& task_id,
+    ThreadType thread_type,
+    const std::string& server_id,
+    const std::string& conversation_turn_id) {
+  service_->UpdateThreadTurnId(task_id, thread_type, server_id,
+                               conversation_turn_id);
 }
 
 void ContextualTasksContextControllerImpl::AttachUrlToTask(
@@ -70,10 +99,40 @@ void ContextualTasksContextControllerImpl::GetContextForTask(
   service_->GetContextForTask(task_id, sources, std::move(context_callback));
 }
 
-FeatureEligibility
-ContextualTasksContextControllerImpl::GetFeatureEligibility() {
-  return {base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks),
-          aim_eligibility_service_->IsAimEligible()};
+void ContextualTasksContextControllerImpl::AssociateTabWithTask(
+    const base::Uuid& task_id,
+    SessionID tab_id) {
+  service_->AssociateTabWithTask(task_id, tab_id);
+}
+
+void ContextualTasksContextControllerImpl::DisassociateTabFromTask(
+    const base::Uuid& task_id,
+    SessionID tab_id) {
+  service_->DisassociateTabFromTask(task_id, tab_id);
+}
+
+std::optional<ContextualTask>
+ContextualTasksContextControllerImpl::GetContextualTaskForTab(
+    SessionID tab_id) const {
+  return service_->GetContextualTaskForTab(tab_id);
+}
+
+void ContextualTasksContextControllerImpl::ClearAllTabAssociationsForTask(
+    const base::Uuid& task_id) {
+  service_->ClearAllTabAssociationsForTask(task_id);
+}
+
+void ContextualTasksContextControllerImpl::AddObserver(Observer* observer) {
+  service_->AddObserver(observer);
+}
+
+void ContextualTasksContextControllerImpl::RemoveObserver(Observer* observer) {
+  service_->RemoveObserver(observer);
+}
+
+base::WeakPtr<syncer::DataTypeControllerDelegate>
+ContextualTasksContextControllerImpl::GetAiThreadControllerDelegate() {
+  return service_->GetAiThreadControllerDelegate();
 }
 
 }  // namespace contextual_tasks

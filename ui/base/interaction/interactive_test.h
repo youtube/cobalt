@@ -48,16 +48,15 @@ namespace ui::test {
 // //chrome/test/interaction/README.md for more information).
 //
 // This class is not a test fixture; it is a mixin that can be added to an
-// existing test fixture using `InteractiveTestT<T>` - or just use
+// existing test fixture using `InteractiveTestMixin<T>` - or just use
 // `InteractiveTest`, which *is* a test fixture.
 //
 // Also, since this class does not implement input automation for any particular
-// framework, you are more likely to want e.g. InteractiveViewsTest[Api] or
-// InteractiveBrowserTest[Api], which inherit from this class.
+// framework, you are more likely to want e.g. InteractiveViewsTest[Api|Mixin]
+// or InteractiveBrowserTest[Api], which inherit from this class.
 class InteractiveTestApi {
  public:
-  explicit InteractiveTestApi(
-      std::unique_ptr<internal::InteractiveTestPrivate> private_test_impl);
+  InteractiveTestApi();
   virtual ~InteractiveTestApi();
   InteractiveTestApi(const InteractiveTestApi&) = delete;
   void operator=(const InteractiveTestApi&) = delete;
@@ -123,6 +122,15 @@ class InteractiveTestApi {
   template <typename... Args>
     requires(sizeof...(Args) > 0 && (internal::IsValueOrRvalue<Args> && ...))
   bool RunTestSequenceInContext(ElementContext context, Args&&... steps);
+
+  // Runs a test InteractionSequence from a series of Steps or StepBuilders with
+  // RunSynchronouslyForTesting(). Hooks both the completed and aborted
+  // callbacks to ensure completion, and prints an error on failure. The context
+  // will be pulled from `context_widget()`.
+  template <typename... Args>
+    requires(sizeof...(Args) > 0 &&
+             (ui::test::internal::IsValueOrRvalue<Args> && ...))
+  bool RunTestSequence(Args&&... steps);
 
   // Convenience methods for creating interaction steps of type kShown. The
   // resulting step's start callback is already set; therefore, do not try to
@@ -318,14 +326,14 @@ class InteractiveTestApi {
   // Names an element specified by `spec` as `name`. If `spec` requires a
   // context, the context of the current step will be used.
   //
-  // For Views, prefer `InteractiveViewsTest::NameView()`.
+  // For Views, prefer `InteractiveViewsTestApi::NameView()`.
   [[nodiscard]] StepBuilder NameElement(std::string_view name,
                                         AbsoluteElementSpecifier spec);
 
   // Calls `find_callback` to locate an element relative to element
   // `relative_to` and assign it `name`.
   //
-  // For Views, prefer `InteractiveViewsTest::NameViewRelative()`.
+  // For Views, prefer `InteractiveViewsTestApi::NameViewRelative()`.
   template <typename C>
     requires internal::HasSignature<C, TrackedElement*(TrackedElement*)>
   [[nodiscard]] StepBuilder NameElementRelative(ElementSpecifier relative_to,
@@ -707,15 +715,13 @@ class InteractiveTestApi {
 // attached to test_util() so if you want to use verbs like PressButton() you
 // will need to install your own simulator.
 template <typename T>
-class InteractiveTestT : public T, public InteractiveTestApi {
+class InteractiveTestMixin : public T, public InteractiveTestApi {
  public:
   template <typename... Args>
-  explicit InteractiveTestT(Args&&... args)
-      : T(std::forward<Args>(args)...),
-        InteractiveTestApi(std::make_unique<internal::InteractiveTestPrivate>(
-            std::make_unique<InteractionTestUtil>())) {}
+  explicit InteractiveTestMixin(Args&&... args)
+      : T(std::forward<Args>(args)...), InteractiveTestApi() {}
 
-  ~InteractiveTestT() override = default;
+  ~InteractiveTestMixin() override = default;
 
  protected:
   void SetUp() override {
@@ -728,14 +734,6 @@ class InteractiveTestT : public T, public InteractiveTestApi {
     T::TearDown();
   }
 };
-
-// A simple test fixture that brings in all of the features of
-// InteractiveTestApi. No simulators are attached to test_util() so if you want
-// to use verbs like PressButton() you will need to install your own simulator.
-//
-// Provided for convenience, but generally you will want InteractiveViewsTest
-// or InteractiveBrowserTest instead.
-using InteractiveTest = InteractiveTestT<testing::Test>;
 
 // Template definitions:
 
@@ -765,6 +763,16 @@ bool InteractiveTestApi::RunTestSequenceInContext(ElementContext context,
   InteractionSequence::Builder builder;
   (AddStep(builder, std::forward<Args>(steps)), ...);
   return RunTestSequenceImpl(context, std::move(builder));
+}
+
+template <typename... Args>
+  requires(sizeof...(Args) > 0 &&
+           (ui::test::internal::IsValueOrRvalue<Args> && ...))
+bool InteractiveTestApi::RunTestSequence(Args&&... steps) {
+  const ElementContext context = private_test_impl_->default_context();
+  CHECK(context)
+      << "Default context must be set before test sequence can be run.";
+  return RunTestSequenceInContext(context, std::forward<Args>(steps)...);
 }
 
 template <typename A>

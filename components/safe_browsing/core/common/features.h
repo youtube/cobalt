@@ -34,6 +34,21 @@ BASE_DECLARE_FEATURE(kAddWarningShownTSToClientSafeBrowsingReport);
 // received a number of notifications with a suspicious verdict from the
 // on-device model.
 BASE_DECLARE_FEATURE(kAutoRevokeSuspiciousNotification);
+// The number of days in which suspicious notification will be counted toward
+// `kAutoRevokeSuspiciousNotificationMinNotificationCount`.
+extern const base::FeatureParam<int>
+    kAutoRevokeSuspiciousNotificationLookBackPeriod;
+// Notification permissions with site engagement score of
+// kAutoRevokeSuspiciousNotificationEngagementScoreCutOff or higher will not be
+// revoked due to suspicious content reason to prevent false positive
+// revocations.
+extern const base::FeatureParam<double>
+    kAutoRevokeSuspiciousNotificationEngagementScoreCutOff;
+// The minimum number of suspicious notification warning the user have received
+// during `kAutoRevokeSuspiciousNotificationLookBackPeriod` before the
+// notification permission is revoked.
+extern const base::FeatureParam<int>
+    kAutoRevokeSuspiciousNotificationMinNotificationCount;
 
 // Enables Bundled Security Settings UI on chrome://settings/security
 BASE_DECLARE_FEATURE(kBundledSecuritySettings);
@@ -267,6 +282,17 @@ extern const base::FeatureParam<std::string>
 // Safe Browsing-enabled users, and may show warnings.
 BASE_DECLARE_FEATURE_PARAM(bool, kMaliciousApkDownloadCheckTelemetryOnly);
 #endif
+
+// TODO(crbug.com/449960661): Remove this flag once the MigrateAccountPrefs
+// feature is launched and the regression of users with ESB enhanced protection
+// is resolved.
+//  When enabled, this feature fixes a flaw in the Tailored Security service's
+//  handling of failed requests for the Enhanced Safe Browsing (ESB) setting.
+//  Previously, a network error would cause the service to incorrectly assume
+//  ESB was disabled. With this fix, the service preserves the last known state
+//  of the ESB bit during a failed request, preventing transient errors from
+//  disabling user protection.
+BASE_DECLARE_FEATURE(kModifiedESBFetchErrorHandling);
 
 // Enable the collection of Notification Telemetry to track potentially abusive
 // notifications.

@@ -81,19 +81,6 @@
 
   --glif-rotation-duration: 1000ms;
 
-  --expand-ease-in-duration: 400ms;
-  --expand-delay: 300ms;
-  --expand-ease-out-duration: 300ms;
-  --expand-duration: calc(
-    var(--expand-ease-in-duration) + var(--expand-delay) +
-      var(--expand-ease-out-duration)
-  );
-  --collapse-ease-in-duration: 100ms;
-  --collapse-ease-out-duration: 500ms;
-  --collapse-duration: calc(
-    var(--collapse-ease-in-duration) + var(--collapse-ease-out-duration)
-  );
-
   --icon-entry-transition: opacity var(--expand-ease-out-duration) linear 800ms;
   --icon-exit-transition: opacity var(--collapse-ease-in-duration)
     var(--emphasized-accelerate);
@@ -111,6 +98,25 @@
   font-size: var(--cr-composebox-font-size, 18px);
   transition: var(--border-radius-transition);
   width: var(--ntp-composebox-width, 337px);
+}
+
+:host(:not([ntp-realbox-next-enabled])) {
+  --expand-ease-in-duration: 400ms;
+  --expand-delay: 300ms;
+  --expand-ease-out-duration: 300ms;
+  --expand-duration: calc(
+    var(--expand-ease-in-duration) + var(--expand-delay) +
+      var(--expand-ease-out-duration)
+  );
+  --collapse-ease-in-duration: 100ms;
+  --collapse-ease-out-duration: 500ms;
+  --collapse-duration: calc(
+    var(--collapse-ease-in-duration) + var(--collapse-ease-out-duration)
+  );
+}
+
+:host([ntp-realbox-next-enabled]) {
+  --input-bottom-spacing: 12px;
 }
 
 :host([expanded_]) {
@@ -189,6 +195,13 @@
   width: 24px;
 }
 
+@media (forced-colors: active) {
+  #aimIcon {
+    background-color: Highlight;
+    border-radius: 4px;
+  }
+}
+
 #inputWrapper {
   position: relative;
   width: 100%;
@@ -208,6 +221,10 @@
   width: 100%;
 }
 
+:host(:not[ntp-realbox-next-enabled]) #input {
+  transition: padding var(--height-expand-duration) var(--standard-curve);
+}
+
 #input {
   animation: color-change 5s infinite;
   background-color: inherit;
@@ -220,7 +237,6 @@
   outline: none;
   position: relative;
   resize: none;
-  transition: padding var(--height-expand-duration) var(--standard-curve);
 }
 
 #input::placeholder {
@@ -368,7 +384,8 @@
   right: unset;
 }
 
-#submitContainer {
+:host(:not([show-submit_])) #submitContainer,
+:host([show-submit_]:not([submit-enabled_])) #submitContainer{
   display: none;
 }
 
@@ -377,8 +394,8 @@
   --cr-icon-button-icon-size: 16px;
   background-color: var(--color-new-tab-page-composebox-submit-button);
   bottom: var(--input-bottom-spacing);
-  cursor: default;
-  opacity: 30%;
+  cursor: default; /* For Lens side panel. */
+  opacity: 30%; /* For Lens side panel. */
   transition: var(--submit-enabled-transition);
 }
 
@@ -388,9 +405,10 @@
   outline-offset: 2px;
 }
 
-:host([submit-enabled_]) #submitIcon {
+:host([show-submit_][submit-enabled_]) #submitIcon {
   cursor: pointer;
-  opacity: 100%;
+  display: block;
+  opacity: 100%; /* For Lens side panel. */
 }
 
 /* Controls the opacity of the icons when the composebox is expanded/collapsed. */
@@ -598,4 +616,39 @@
   margin-inline-start: var(--text-input-inline-start-spacing);
   margin-top: 8px;
   margin-bottom: 10px;
+}
+
+:host([ntp-realbox-next-enabled][realbox-layout-mode="Compact"]) #iconContainer {
+  display: none;
+}
+
+:host([ntp-realbox-next-enabled][realbox-layout-mode="Compact"]) #textContainer {
+  --text-input-inline-start-spacing: 40px;
+}
+
+:host([ntp-realbox-next-enabled]) #input,
+:host([ntp-realbox-next-enabled]) #smartCompose {
+  --text-input-top-spacing: 14px;
+}
+
+:host([ntp-realbox-next-enabled][realbox-layout-mode="Compact"]) #input {
+  --text-input-top-spacing: 8px;
+}
+
+:host([ntp-realbox-next-enabled][realbox-layout-mode="Compact"]) #context {
+  margin-top: -48px;
+}
+
+:host([ntp-realbox-next-enabled][realbox-layout-mode="Compact"])
+    #context::part(tool-chips-container) {
+  padding-top: 6px;
+}
+
+:host([expanded_][show-dropdown_][ntp-realbox-next-enabled][realbox-layout-mode="Compact"]) ntp-composebox-dropdown {
+  padding-bottom: 0;
+  padding-top: 8px;
+}
+
+:host-context([realbox-layout-mode='TallTopContext']) contextual-entrypoint-and-carousel::part(carousel-divider) {
+  margin-top: 10px;
 }

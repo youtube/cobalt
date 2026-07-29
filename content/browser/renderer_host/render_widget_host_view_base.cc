@@ -190,9 +190,10 @@ void RenderWidgetHostViewBase::CopyMainAndPopupFromSurface(
 
   // First locate the popup relative to the main page, in DIPs
   const gfx::Point parent_location =
-      main_host->GetView()->GetBoundsInRootWindow().origin();
+      main_host->GetView()->GetViewBounds().origin();
   const gfx::Point popup_location =
-      popup_host->GetView()->GetBoundsInRootWindow().origin();
+      popup_host->GetView()->GetViewBounds().origin();
+
   const gfx::Point offset_dips =
       PointAtOffsetFromOrigin(popup_location - parent_location);
   const gfx::Vector2d offset_physical =
@@ -886,7 +887,7 @@ void RenderWidgetHostViewBase::OnShowWithPageVisibility(
   const bool web_contents_is_visible =
       page_visibility == PageVisibilityState::kVisible;
 
-  if (host_->is_hidden()) {
+  if (host_->IsHidden()) {
     // If the WebContents is becoming visible, ask the compositor to report the
     // visibility time for metrics. Otherwise the widget is being rendered even
     // though the WebContents is hidden or occluded, for example due to being

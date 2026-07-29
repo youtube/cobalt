@@ -9,6 +9,7 @@
 #include "base/hash/hash.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_prefs.h"
@@ -19,6 +20,7 @@
 #include "components/sync/base/user_selectable_type.h"
 #include "components/sync/service/sync_service.h"
 #include "components/sync/service/sync_user_settings.h"
+#include "third_party/re2/src/re2/re2.h"
 
 namespace autofill {
 
@@ -32,6 +34,16 @@ bool AutofillProfileMatchesAccountInfo(const AutofillProfile& profile,
                                        const AccountInfo& info) {
   return profile.GetRawInfo(NAME_FULL) == base::UTF8ToUTF16(info.full_name) &&
          profile.GetRawInfo(EMAIL_ADDRESS) == base::UTF8ToUTF16(info.email);
+}
+
+void RemoveNickname(std::string& name) {
+  static base::NoDestructor<std::unique_ptr<const RE2>> nickname_pattern(
+      std::make_unique<const RE2>(
+          features::kAutofillNameAndEmailProfileNicknameRegex.Get()));
+  RE2::GlobalReplace(&name, **nickname_pattern, "");
+
+  name = base::UTF16ToUTF8(base::TrimWhitespace(base::UTF8ToUTF16(name),
+                                                base::TrimPositions::TRIM_ALL));
 }
 
 }  // namespace
@@ -93,14 +105,14 @@ void AccountNameEmailStore::OnStateChanged(syncer::SyncService* sync_service) {
   switch (reason.value()) {
     case ProfileUpdateBlockReason::kAutofillSyncToggleDisabled:
     case ProfileUpdateBlockReason::kSyncDisabled:
-      SoftRemoveAccountNameEmail();
+      RemoveAccountNameEmail(/*is_soft_removal=*/true);
       return;
     case ProfileUpdateBlockReason::kUserSignedOut:
       // User signed out and prefs are no longer synced. Clear their local state
       // to prevent them from leaking into a different account. It is important
       // that this happens after PRIORITY_PREFERENCES stopped syncing, because
       // the metadata should be redownloaded during the next sign-in.
-      SoftRemoveAccountNameEmail();
+      RemoveAccountNameEmail(/*is_soft_removal=*/true);
       pref_service_->ClearPref(prefs::kAutofillNameAndEmailProfileSignature);
       pref_service_->ClearPref(
           prefs::kAutofillNameAndEmailProfileNotSelectedCounter);
@@ -118,7 +130,7 @@ void AccountNameEmailStore::MaybeUpdateOrCreateAccountNameEmail() {
     return;
   }
 
-  const std::optional<AccountInfo>& extended_info =
+  std::optional<AccountInfo> extended_info =
       identity_manager_observer_.GetSource()->FindExtendedAccountInfo(
           identity_manager_observer_.GetSource()->GetPrimaryAccountInfo(
               signin::ConsentLevel::kSignin));
@@ -170,22 +182,20 @@ void AccountNameEmailStore::ApplyChange(const AutofillProfileChange& change) {
   }
 }
 
-void AccountNameEmailStore::SoftRemoveAccountNameEmail() {
+void AccountNameEmailStore::RemoveAccountNameEmail(bool is_soft_removal) {
   const std::vector<const AutofillProfile*> account_name_email_profiles =
       address_data_manager_->GetProfilesByRecordType(
           AutofillProfile::RecordType::kAccountNameEmail);
   if (account_name_email_profiles.empty()) {
     return;
   }
-  CHECK_EQ(1u, account_name_email_profiles.size());
 
   address_data_manager_->RemoveProfile(
       account_name_email_profiles[0]->guid(),
-      /*non_permanent_account_profile_removal=*/true);
+      /*non_permanent_account_profile_removal=*/is_soft_removal);
 }
 
-void AccountNameEmailStore::UpdateOrCreateAccountNameEmail(
-    const AccountInfo& info) {
+void AccountNameEmailStore::UpdateOrCreateAccountNameEmail(AccountInfo& info) {
   // During signin the `OnExtendedAccountInfoUpdated` method might call this
   // method with an empty `info.full_name` since not all data arrives all at
   // once and `AccountInfo` is updated multiple times. The kAccountNameEmail
@@ -194,6 +204,14 @@ void AccountNameEmailStore::UpdateOrCreateAccountNameEmail(
     return;
   }
   CHECK(!info.email.empty());
+
+  // The account name can contain nicknames in one of the following styles:
+  // 1. John Smith (JJ)
+  // 2. John "JJ" Smith
+  // where the JJ is the nickname added to the account data (either by the user
+  // itself or as a result of the account being managed by a separate app).
+  // The nickname shouldn't be added to the AutofillProfile and is removed.
+  RemoveNickname(info.full_name);
 
   const std::string new_hash = HashAccountInfo(info);
   const bool hashes_different =
@@ -221,9 +239,21 @@ void AccountNameEmailStore::UpdateOrCreateAccountNameEmail(
     return;
   }
 
-  if (account_name_email_exists) {
-    SoftRemoveAccountNameEmail();
+  // If the name not available, the `info.full_name` can default to the
+  // `info.email`. In this case, don't create the profile.
+  if (info.full_name == info.email) {
+    // If the account info was updated, make sure any prior profile is removed.
+    RemoveAccountNameEmail(/*is_soft_removal=*/false);
+    // Ensure that the hash reflects the current values of the account info.
+    pref_service_->SetString(prefs::kAutofillNameAndEmailProfileSignature,
+                             new_hash);
+    return;
   }
+
+  if (account_name_email_exists) {
+    RemoveAccountNameEmail(/*is_soft_removal=*/true);
+  }
+
   address_data_manager_->AddProfile(AutofillProfile{info});
   if (hashes_different) {
     pref_service_->SetString(prefs::kAutofillNameAndEmailProfileSignature,
@@ -286,14 +316,7 @@ void AccountNameEmailStore::OnCounterPrefUpdated() {
     return;
   }
 
-  const std::vector<const AutofillProfile*> account_name_email_profiles =
-      address_data_manager_->GetProfilesByRecordType(
-          AutofillProfile::RecordType::kAccountNameEmail);
-  if (account_name_email_profiles.empty()) {
-    return;
-  }
-  CHECK_EQ(1u, account_name_email_profiles.size());
-  address_data_manager_->RemoveProfile(account_name_email_profiles[0]->guid());
+  RemoveAccountNameEmail(/*is_soft_removal=*/false);
 }
 
 bool AccountNameEmailStore::ShouldUpdateOrCreateAccountNameEmail() {

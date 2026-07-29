@@ -37,6 +37,7 @@
 #include "chrome/browser/send_tab_to_self/send_tab_to_self_util.h"
 #include "chrome/browser/themes/theme_service.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
+#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
@@ -48,7 +49,7 @@
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
 #include "chrome/browser/ui/view_ids.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
-#include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
 #include "chrome/browser/ui/views/location_bar/icon_label_bubble_view.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_result_view.h"
@@ -63,6 +64,7 @@
 #include "components/omnibox/browser/autocomplete_match.h"
 #include "components/omnibox/browser/omnibox_client.h"
 #include "components/omnibox/browser/omnibox_popup_selection.h"
+#include "components/omnibox/browser/omnibox_pref_names.h"
 #include "components/omnibox/browser/omnibox_prefs.h"
 #include "components/omnibox/browser/omnibox_text_util.h"
 #include "components/omnibox/common/omnibox_feature_configs.h"
@@ -510,8 +512,7 @@ void OmniboxViewViews::SetFocus(bool is_user_initiated) {
   std::unique_ptr<ImmersiveRevealedLock> focus_reveal_lock;
   if (location_bar_view_ && location_bar_view_->browser()) {
     focus_reveal_lock =
-        BrowserView::GetBrowserViewForBrowser(location_bar_view_->browser())
-            ->immersive_mode_controller()
+        ImmersiveModeController::From(location_bar_view_->browser())
             ->GetRevealedLock(ImmersiveModeController::ANIMATE_REVEAL_YES);
   }
 
@@ -657,6 +658,16 @@ void OmniboxViewViews::OnPaint(gfx::Canvas* canvas) {
     SCOPED_UMA_HISTOGRAM_TIMER("Omnibox.PaintTime");
     Textfield::OnPaint(canvas);
   }
+
+  // Record an impression of the AIM hint text if it is being shown.
+  const bool should_show_placeholder = ShouldShowPlaceholderText();
+  const bool is_aim_placeholder =
+      GetPlaceholderText() ==
+      l10n_util::GetStringUTF16(IDS_OMNIBOX_AIM_PLACEHOLDER_TEXT);
+  if (should_show_placeholder && is_aim_placeholder && !aim_hint_shown_) {
+    aim_hint_shown_ = true;
+    RecordAimHintImpression();
+  }
 }
 
 void OmniboxViewViews::ExecuteCommand(int command_id, int event_flags) {
@@ -672,6 +683,7 @@ void OmniboxViewViews::ExecuteCommand(int command_id, int event_flags) {
     case IDC_EDIT_SEARCH_ENGINES:
     case IDC_SHOW_FULL_URLS:
     case IDC_SHOW_GOOGLE_LENS_SHORTCUT:
+    case IDC_SHOW_AI_MODE_OMNIBOX_BUTTON:
     case IDC_SHOW_SEARCH_TOOLS:
       location_bar_view_->command_updater()->ExecuteCommand(command_id);
       return;
@@ -1578,10 +1590,6 @@ bool OmniboxViewViews::HandleAccessibleAction(
 void OmniboxViewViews::OnFocus() {
   views::Textfield::OnFocus();
 
-  // TODO(tommycli): This does not seem like it should be necessary.
-  // Investigate why it's needed and see if we can remove it.
-  model()->ResetDisplayTexts();
-
   // TODO(oshima): Get control key state.
   model()->OnSetFocus(false);
   // Don't call WebLocationBar::OnSetFocus(), this view has already acquired
@@ -1683,6 +1691,8 @@ void OmniboxViewViews::OnBlur() {
   render_text->SetWhitespaceElision(false);
   render_text->SetDisplayOffset(0);
 
+  aim_hint_shown_ = false;
+
   // `location_bar_view_` can be null in tests.
   if (location_bar_view_) {
     location_bar_view_->OnOmniboxBlurred();
@@ -1742,6 +1752,7 @@ bool OmniboxViewViews::IsCommandIdEnabled(int command_id) const {
   // These menu items are only shown when they are valid.
   if (command_id == IDC_SHOW_FULL_URLS ||
       command_id == IDC_SHOW_GOOGLE_LENS_SHORTCUT ||
+      command_id == IDC_SHOW_AI_MODE_OMNIBOX_BUTTON ||
       command_id == IDC_SHOW_SEARCH_TOOLS) {
     return true;
   }
@@ -2229,6 +2240,12 @@ void OmniboxViewViews::UpdateContextMenu(ui::SimpleMenuModel* menu_contents) {
         IDS_CONTEXT_MENU_SHOW_GOOGLE_LENS_SHORTCUT);
   }
 
+  if (omnibox_feature_configs::AiModeOmniboxEntryPoint::Get().enabled) {
+    menu_contents->AddCheckItemWithStringId(
+        IDC_SHOW_AI_MODE_OMNIBOX_BUTTON,
+        IDS_CONTEXT_MENU_SHOW_AI_MODE_OMNIBOX_BUTTON);
+  }
+
   if (omnibox_feature_configs::Toolbelt::Get().enabled) {
     menu_contents->AddCheckItemWithStringId(IDC_SHOW_SEARCH_TOOLS,
                                             IDS_CONTEXT_MENU_SHOW_SEARCH_TOOLS);
@@ -2247,6 +2264,10 @@ bool OmniboxViewViews::IsCommandIdChecked(int id) const {
   if (id == IDC_SHOW_SEARCH_TOOLS) {
     return location_bar_view_->profile()->GetPrefs()->GetBoolean(
         omnibox::kShowSearchTools);
+  }
+  if (id == IDC_SHOW_AI_MODE_OMNIBOX_BUTTON) {
+    return location_bar_view_->profile()->GetPrefs()->GetBoolean(
+        omnibox::kShowAiModeOmniboxButton);
   }
   return false;
 }
@@ -2370,6 +2391,36 @@ void OmniboxViewViews::UpdatePlaceholderTextColor() {
       dse_placeholder_installed ? kColorOmniboxText : kColorOmniboxTextDimmed));
 }
 
+bool OmniboxViewViews::AreAimHintImpressionLimitsReached() const {
+  // If the hint has already been shown in the current focus session, we can
+  // ignore the limits to avoid hiding the hint text in the same session that
+  // the impression limit was reached.
+  if (aim_hint_shown_) {
+    return false;
+  }
+
+  const auto& config = omnibox_feature_configs::AiModeOmniboxEntryPoint::Get();
+  if (config.enable_hint_impression_limits) {
+    PrefService* prefs = location_bar_view_->profile()->GetPrefs();
+
+    // Check total impressions.
+    const int total_impressions =
+        prefs->GetInteger(omnibox::kAimHintTotalImpressions);
+    if (total_impressions >= config.aim_hint_impression_limit_total) {
+      return true;
+    }
+
+    // Check daily impressions.
+    const int today = (base::Time::Now() - base::Time::UnixEpoch()).InDays();
+    if (prefs->GetInteger(omnibox::kAimHintLastImpressionDay) == today &&
+        prefs->GetInteger(omnibox::kAimHintDailyImpressionsCount) >=
+            config.aim_hint_impression_limit_daily) {
+      return true;
+    }
+  }
+  return false;
+}
+
 bool OmniboxViewViews::ShouldInstallAimPlaceholderText() const {
   // `location_bar_view_` can be null in tests.
   if (!location_bar_view_) {
@@ -2385,12 +2436,43 @@ bool OmniboxViewViews::ShouldInstallAimPlaceholderText() const {
   return is_aim_entrypoint_enabled && model()->is_caret_visible();
 }
 
+void OmniboxViewViews::RecordAimHintImpression() {
+  const auto& config = omnibox_feature_configs::AiModeOmniboxEntryPoint::Get();
+  if (!config.enable_hint_impression_limits) {
+    return;
+  }
+
+  PrefService* prefs = location_bar_view_->profile()->GetPrefs();
+
+  // Increment the total impressions count.
+  const int total_impressions =
+      prefs->GetInteger(omnibox::kAimHintTotalImpressions) + 1;
+  prefs->SetInteger(omnibox::kAimHintTotalImpressions, total_impressions);
+
+  // Increment the daily impressions count, resetting the count if the day has
+  // changed.
+  const int today = (base::Time::Now() - base::Time::UnixEpoch()).InDays();
+  if (prefs->GetInteger(omnibox::kAimHintLastImpressionDay) != today) {
+    prefs->SetInteger(omnibox::kAimHintLastImpressionDay, today);
+    prefs->SetInteger(omnibox::kAimHintDailyImpressionsCount, 0);
+  }
+
+  const int daily_impressions =
+      prefs->GetInteger(omnibox::kAimHintDailyImpressionsCount) + 1;
+  prefs->SetInteger(omnibox::kAimHintDailyImpressionsCount, daily_impressions);
+}
+
 bool OmniboxViewViews::ShouldShowAimPlaceholderText() const {
   // If the hint text is hidden or the AIM button is not visible, the
   // placeholder text is not shown.
   if (omnibox_feature_configs::AiModeOmniboxEntryPoint::Get()
           .hide_aim_hint_text ||
       !AimButtonVisible()) {
+    return false;
+  }
+
+  // If the impression limits have been reached, the hint should not be shown.
+  if (AreAimHintImpressionLimitsReached()) {
     return false;
   }
 

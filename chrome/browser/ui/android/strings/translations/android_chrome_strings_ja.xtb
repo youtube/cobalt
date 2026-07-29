@@ -87,7 +87,7 @@
 <translation id="1360432990279830238">ログアウトして同期をオフにしますか？</translation>
 <translation id="1363028406613469049">トラック</translation>
 <translation id="1366525380420346469">オンにした場合</translation>
-<translation id="1372840539168747818">{NUM_SITES,plural, =1{今後、このサイトからの通知の送信を停止できます}other{今後、これらのサイトからの通知の送信を停止できます。}}</translation>
+<translation id="1372840539168747818">{NUM_SITES,plural, =1{今後、このサイトからの通知の送信を停止できます}other{今後、これらのサイトからの通知の送信を停止できます}}</translation>
 <translation id="1373696734384179344">選択したコンテンツをダウンロードするにはメモリが不足しています。</translation>
 <translation id="1376578503827013741">計算中...</translation>
 <translation id="1381838868249179644">安全を確保するため、いくつかのサイトから権限を削除しました</translation>
@@ -109,7 +109,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="1419753403124156396">Chrome を再起動しますか？</translation>
 <translation id="1428770807407000502">同期を OFF にしますか？</translation>
 <translation id="1430915738399379752">印刷</translation>
-<translation id="1433478348197382180">リーディング モード</translation>
 <translation id="1435593198351412143">PDF を自動的に開く</translation>
 <translation id="1437543266176261764"><ph name="APP_NAME" /> で実行中</translation>
 <translation id="1448440926884431741">ブックマークでトラッキングしている商品を整理できます</translation>
@@ -270,6 +269,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="2249635629516220541">ウェブサイトが広告表示に使用する情報をカスタマイズします</translation>
 <translation id="2251809247798634662">新しいシークレット ウィンドウ</translation>
 <translation id="2253927598983295051"><ph name="APP_NAME" /> と共有する情報を選択する</translation>
+<translation id="2261570557291037252">アプリの詳細情報</translation>
 <translation id="2276696007612801991">パスワードを確認するには、Google アカウントにログインしてください</translation>
 <translation id="2281243904606300427"><ph name="TAB_TITLE" />、選択したシークレット タブ</translation>
 <translation id="2286841657746966508">請求先住所</translation>
@@ -369,7 +369,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="2718352093833049315">Wi-Fi接続時のみ</translation>
 <translation id="2718846868787000099">ご希望の言語でコンテンツを表示するため、アクセス先のサイトには設定内容が伝えられます</translation>
 <translation id="2723001399770238859">音声</translation>
-<translation id="2734335652257251631">リーディング モードを表示</translation>
 <translation id="2739887572830526131">後でタブを追加できるようにこのグループを保持するか、今後使用しない場合は削除します。</translation>
 <translation id="2742373789128106053"><ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> は現在使用できません。</translation>
 <translation id="2760805590727089264">MM/YY</translation>
@@ -1011,7 +1010,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="569536719314091526">[その他のオプション] から、このページを任意の言語に翻訳できます</translation>
 <translation id="5696597120588531049">Chrome でデータ侵害や安全でないウェブサイトなどの脅威から保護されているか確認します</translation>
 <translation id="5698878456427040674">選択したアカウントがサポートされているかどうかを確認してください。</translation>
-<translation id="570347048394355941">タブを切り替え</translation>
 <translation id="5709213329446699338"><ph name="SITE" /> がシリアルポートへの接続を要求しています</translation>
 <translation id="5715150588940290235">保存済みのセキュリティ コードを削除しますか？</translation>
 <translation id="571930967925877633">ブックマーク、履歴、その他の Chrome データは、Google アカウントに同期されなくなります</translation>
@@ -1139,6 +1137,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="6232535412751077445">「Do Not Track」を有効にすると、リクエストが閲覧トラフィックに含まれるようになります。ウェブサイトがリクエストに応答するかどうか、またリクエストがどのように解釈されるかによって、この影響は異なります。
 
 たとえば一部のウェブサイトでは、このリクエストに対して、ユーザーが過去にアクセスしたウェブサイトとは関係のない広告が表示されます。トラッキングを拒否しても、実際のところ多くのウェブサイトではユーザーの閲覧データが収集され利用されています。その用途としては、セキュリティの強化や、コンテンツ、サービス、広告、おすすめの表示、レポート統計情報の作成などが挙げられます。</translation>
+<translation id="623755660902014047">リーディング モード</translation>
 <translation id="6247557882553405851">Google パスワード マネージャー</translation>
 <translation id="6248988683584659830">設定項目を検索</translation>
 <translation id="6250847299079540062"><ph name="TAB_TITLE" />、複数選択された固定シークレット タブ</translation>
@@ -1187,7 +1186,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="6411219469806822692">上に移動できません。ページの上のほうから始めてみてください。</translation>
 <translation id="6412215853589222273"><ph name="TAB_TITLE" />、複数選択されたタブ</translation>
 <translation id="641643625718530986">印刷...</translation>
-<translation id="6433501201775827830">検索エンジンの選択</translation>
+<translation id="6433501201775827830">検索サービスの選択</translation>
 <translation id="6434309073475700221">破棄</translation>
 <translation id="6437162790453527153">ログインすると、すべてのデバイスで同じブックマークやその他の設定を使用できるようになります</translation>
 <translation id="6437478888915024427">ページ情報</translation>
@@ -1300,6 +1299,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="6865313869410766144">自動入力フォームのデータ</translation>
 <translation id="6867400383614725881">新しいシークレット タブ</translation>
 <translation id="686899695320434745">住所はパスフレーズで暗号化されません。そのため、他の Google サービスで使用できます。</translation>
+<translation id="6870625088374152862"><ph name="USER_EMAIL_ADDRESS" /> としてログインしています</translation>
 <translation id="687838958001010630">リンクを知っているユーザーは誰でも、すべてのタブを編集できます</translation>
 <translation id="6880903702195291049">権限に問題は見受けられません</translation>
 <translation id="6883204995689174413">共有</translation>
@@ -1396,7 +1396,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="7221869452894271364">このページを再読み込みします</translation>
 <translation id="7227218174981371415">{FILE_COUNT,plural, =1{1 件のダウンロードが保留中です}other{# 件のダウンロードが保留中です}}</translation>
 <translation id="7230064152164845085">シークレット モードに切り替え</translation>
-<translation id="7230836263524391273">リーディング モードを非表示</translation>
 <translation id="7237724030342645845">Google パスワード マネージャーが動作を停止しました</translation>
 <translation id="72415438529550637">パスワードの候補が閉じられています。</translation>
 <translation id="7248671827512403053">アプリケーション</translation>
@@ -1731,7 +1730,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="867914734596684889">ブックマーク バーの表示と非表示を切り替える</translation>
 <translation id="8683039184091909753">画像</translation>
 <translation id="8688183792442786085"><ph name="TAB_TITLE" />、選択したタブ</translation>
-<translation id="8693232767599693749">リーディング モードを表示しますか？</translation>
 <translation id="8697753151306746444">代わりにウィンドウまたは画面を共有</translation>
 <translation id="8699120352855309748">これらの言語を翻訳するか尋ねない</translation>
 <translation id="8712637175834984815">理解しました</translation>

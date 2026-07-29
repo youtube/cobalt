@@ -132,7 +132,7 @@ public class OmniboxFeatures {
             newFlag(OmniboxFeatureList.OMNIBOX_SITE_SEARCH, FeatureState.ENABLED_IN_TEST);
 
     public static final CachedFlag sOmniboxMultimodalInput =
-            newFlag(OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT, FeatureState.DISABLED);
+            newFlag(OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT, FeatureState.ENABLED_IN_TEST);
 
     public static final BooleanCachedFeatureParam sAimToggleOnly =
             newBooleanParam(sOmniboxMultimodalInput, "aim_toggle_only", false);
@@ -210,6 +210,10 @@ public class OmniboxFeatures {
     // This parameter enables showing the switch-to-tab chip on large form factors.
     public static final BooleanCachedFeatureParam sOmniboxImprovementForLFFSwitchToTabChip =
             newBooleanParam(sOmniboxImprovementForLFF, "switch_to_tab_chip", false);
+
+    // This parameter enables removing suggestion via "x" button.
+    public static final BooleanCachedFeatureParam sOmniboxImprovementForRemoveSuggestionViaButton =
+            newBooleanParam(sOmniboxImprovementForLFF, "remove_suggestion_via_button", false);
 
     // Omnibox Diagnostics
     private static final CachedFlag sDiagnostics =

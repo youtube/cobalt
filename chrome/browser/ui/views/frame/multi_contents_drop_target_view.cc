@@ -68,12 +68,10 @@ MultiContentsDropTargetView::MultiContentsDropTargetView()
                                    views::MaximumFlexSizeRule::kUnbounded));
 
   auto inner_container = std::make_unique<views::View>();
-  inner_container->SetPaintToLayer(ui::LAYER_SOLID_COLOR);
-  inner_container->layer()->SetName(
+  inner_container->SetBackground(views::CreateLayerBasedRoundedBackground(
+      ui::kColorSysSurface3, gfx::RoundedCornersF(kInnerCornerRadius)));
+  inner_container->background()->SetInternalName(
       "MultiContentsDropTargetView/InnerContainer");
-  inner_container->layer()->SetRoundedCornerRadius(
-      gfx::RoundedCornersF(kInnerCornerRadius));
-  inner_container->layer()->SetIsFastRoundedCorner(true);
 
   inner_container_layout_ =
       &inner_container->SetLayoutManager(std::make_unique<views::FlexLayout>())
@@ -142,7 +140,8 @@ bool MultiContentsDropTargetView::IsClosing() const {
 
 // static
 int MultiContentsDropTargetView::GetMaxWidth(int web_contents_width,
-                                             DropTargetState state) {
+                                             DropTargetState state,
+                                             DragType drag_type) {
   int min_width = 0;
   int max_width = 0;
   int percentage = 0;
@@ -165,7 +164,11 @@ int MultiContentsDropTargetView::GetMaxWidth(int web_contents_width,
     case DropTargetState::kFull:
       min_width = features::kSideBySideDropTargetMinWidth.Get();
       max_width = features::kSideBySideDropTargetMaxWidth.Get();
-      percentage = features::kSideBySideDropTargetTargetWidthPercentage.Get();
+      percentage =
+          drag_type == DragType::kTab
+              ? features::kSideBySideDropTargetTargetWidthPercentage.Get()
+              : features::kSideBySideDropTargetForLinkTargetWidthPercentage
+                    .Get();
       break;
     default:
       NOTREACHED();
@@ -186,8 +189,10 @@ int MultiContentsDropTargetView::GetPreferredWidth(
   }
 
   CHECK(state_.has_value());
+  CHECK(drag_type_.has_value());
 
-  const int target_full_width = GetMaxWidth(web_contents_width, *state_);
+  const int target_full_width =
+      GetMaxWidth(web_contents_width, *state_, drag_type_.value());
   const int animation_start_width = animate_expand_starting_width_.value_or(0);
   return animation_start_width +
          (GetAnimationValue() * (target_full_width - animation_start_width));
@@ -275,12 +280,6 @@ bool MultiContentsDropTargetView::ShouldShowAnimation() const {
 
 void MultiContentsDropTargetView::DisableAnimationsForTesting() {
   should_show_animations_for_testing_ = false;
-}
-
-void MultiContentsDropTargetView::OnThemeChanged() {
-  views::View::OnThemeChanged();
-  inner_container_->layer()->SetColor(
-      GetColorProvider()->GetColor(ui::kColorSysSurface3));
 }
 
 bool MultiContentsDropTargetView::GetDropFormats(

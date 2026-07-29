@@ -40,6 +40,24 @@ class MEDIA_EXPORT API_AVAILABLE(macos(14.2)) CatapAudioInputStreamSource {
     virtual void OnDefaultDeviceChange() = 0;
   };
 
+  struct Config {
+    Config(const AudioParameters& params,
+           const std::string& device_id,
+           bool force_mono_capture);
+
+    int catap_channels;
+    int output_channels;
+    int sample_rate;
+    int frames_per_buffer;
+    bool capture_default_device;
+    bool mute_local_device;
+    bool exclude_chrome;
+
+    // Returns a human-readable string describing |*this|.  For debugging & test
+    // output only.
+    std::string AsHumanReadableString() const;
+  };
+
   // These values are persisted to logs. Entries should not be renumbered and
   // numeric values should never be reused.
   enum class OpenStatus {
@@ -70,8 +88,7 @@ class MEDIA_EXPORT API_AVAILABLE(macos(14.2)) CatapAudioInputStreamSource {
   // Only mono or stereo channels are supported for loopback device
   // compatibility.
   CatapAudioInputStreamSource(const raw_ptr<CatapApi> catap_api,
-                              const AudioParameters& params,
-                              const std::string& device_id,
+                              const Config& config,
                               const AudioManager::LogCallback log_callback,
                               const raw_ptr<AudioPropertyChangeCallback>
                                   audio_property_change_callback);
@@ -147,20 +164,13 @@ class MEDIA_EXPORT API_AVAILABLE(macos(14.2)) CatapAudioInputStreamSource {
   // Interface used to access the CoreAudio framework.
   const raw_ptr<CatapApi> catap_api_;
 
-  // Audio parameters passed to the constructor.
-  const AudioParameters params_;
+  const Config config_;
 
   // The length of time covered by the audio data in a single audio buffer.
   const base::TimeDelta buffer_frames_duration_;
 
   // Used to detect and report glitches.
   GlitchHelper glitch_helper_;
-
-  // One of AudioDeviceDescription::kLoopback*.
-  const std::string device_id_;
-
-  // True if the capturer is configured to capture the default device.
-  const bool capture_default_device_;
 
   // Audio bus used to pass audio samples to sink_.
   const std::unique_ptr<AudioBus> audio_bus_;
@@ -251,14 +261,21 @@ class MEDIA_EXPORT API_AVAILABLE(macos(14.2)) CatapAudioInputStreamSource {
 class API_AVAILABLE(macos(14.2)) CatapAudioInputStream
     : public AgcAudioStream<AudioInputStream>,
       public CatapAudioInputStreamSource::AudioPropertyChangeCallback {
-  using NotifyOnCloseCallback = base::OnceCallback<void(AudioInputStream*)>;
-  using GetDefaultDeviceUniqueIdCallback =
-      base::RepeatingCallback<std::optional<std::string>()>;
-
  public:
+  struct MEDIA_EXPORT AudioDeviceIds {
+    AudioDeviceIds();
+    AudioDeviceIds(AudioDeviceID device_id, std::string uid);
+    ~AudioDeviceIds();
+    AudioDeviceIds(const AudioDeviceIds& other);
+    std::optional<AudioDeviceID> id;
+    std::optional<std::string> uid;
+  };
+  using NotifyOnCloseCallback = base::OnceCallback<void(AudioInputStream*)>;
+  using GetDefaultDeviceIdsCallback = base::RepeatingCallback<AudioDeviceIds()>;
+
   CatapAudioInputStream(
       std::unique_ptr<CatapApi> catap_api,
-      GetDefaultDeviceUniqueIdCallback get_default_device_uid_callback,
+      GetDefaultDeviceIdsCallback get_default_device_ids_callback,
       const AudioParameters& params,
       const std::string& device_id,
       AudioManager::LogCallback log_callback,
@@ -289,6 +306,8 @@ class API_AVAILABLE(macos(14.2)) CatapAudioInputStream
   // is put in the correct state.
   void RestartStream();
 
+  int GetVirtualFormatChannels(AudioDeviceID device_id);
+
   // Send log messages to the client.
   void SendLogMessage(const char* format, ...);
 
@@ -312,8 +331,8 @@ class API_AVAILABLE(macos(14.2)) CatapAudioInputStream
   // Callback to send log messages to the client.
   AudioManager::LogCallback log_callback_ GUARDED_BY_CONTEXT(sequence_checker_);
 
-  // Function that provide default audio output device UID.
-  GetDefaultDeviceUniqueIdCallback get_default_device_uid_callback_
+  // Function that provide default output audio device IDs.
+  GetDefaultDeviceIdsCallback get_default_device_ids_callback_
       GUARDED_BY_CONTEXT(sequence_checker_);
 
   // Receives the processed audio data and errors. `audio_input_callback_` is
@@ -342,8 +361,8 @@ AudioInputStream* MEDIA_EXPORT CreateCatapAudioInputStreamForTesting(
     AudioManager::LogCallback log_callback,
     base::OnceCallback<void(AudioInputStream*)> close_callback,
     std::unique_ptr<CatapApi> catap_api,
-    base::RepeatingCallback<std::optional<std::string>()>
-        get_default_device_uid_callback);
+    base::RepeatingCallback<CatapAudioInputStream::AudioDeviceIds()>
+        get_default_device_ids_callback);
 
 }  // namespace media
 

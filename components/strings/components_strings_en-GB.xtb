@@ -286,6 +286,7 @@ This will otherwise be blocked by your privacy settings. This will allow the con
 <translation id="1457992721081300557">{NUM_REVIEWS,plural, =0{View 0 reviews}=1{View 1 review}other{View all # reviews}}</translation>
 <translation id="1458059624921545588">People and society</translation>
 <translation id="1458140305240870199">Undergarments</translation>
+<translation id="1458770162980644530">Buy now, pay later Terms of Service screen. Keyboard hidden.</translation>
 <translation id="1459693405370120464">Weather</translation>
 <translation id="1461041542809785877">Performance</translation>
 <translation id="1462245070427461050">JIS B9</translation>
@@ -983,6 +984,7 @@ This will otherwise be blocked by your privacy settings. This will allow the con
 <translation id="2596415276201385844">To establish a secure connection, your clock needs to be set correctly. This is because the certificates that websites use to identify themselves are only valid for specific periods of time. Since your device's clock is incorrect, Chrome cannot verify these certificates.</translation>
 <translation id="2597378329261239068">This document is password-protected.  Please enter a password.</translation>
 <translation id="2600083925285092409">Autofill this card for purchases made in Chromium when it's saved to use with Google Pay</translation>
+<translation id="2602283642570832995">This action might violate <ph name="DOMAIN" />'s policies</translation>
 <translation id="2605979593348332811">Phonetic name</translation>
 <translation id="2606760465469169465">Auto-verify</translation>
 <translation id="2608019759319359258">When a topic is blocked, it won't be used to personalise ads</translation>
@@ -2021,6 +2023,7 @@ This will otherwise be blocked by your privacy settings. This will allow the con
 <translation id="4281998142035485137">{0,plural, =1{Open confidential file?}other{Open confidential files?}}</translation>
 <translation id="4282280603030594840">Vehicle shopping</translation>
 <translation id="4282346679996504092">Alerts for this product have been turned off and the bookmark removed</translation>
+<translation id="4284885181066817063">Blocked by <ph name="DOMAIN" /></translation>
 <translation id="4285498937028063278">Unpin</translation>
 <translation id="4287495839370498922">Enhanced ad privacy in Chrome</translation>
 <translation id="4288101205645068104">Delete vehicle</translation>
@@ -2289,6 +2292,7 @@ This will otherwise be blocked by your privacy settings. This will allow the con
 <translation id="4758311279753947758">Add contact info</translation>
 <translation id="4761326898079498987">Review for further details</translation>
 <translation id="4761869838909035636">Run Chrome Safety Check</translation>
+<translation id="4762097990764616058">Continue to pay with <ph name="BNPL_ISSUER_NAME" />?</translation>
 <translation id="4763196677855776703">Terms and conditions provided by <ph name="URL" /></translation>
 <translation id="4764680219299728632">Ranges, Hobs and Ovens</translation>
 <translation id="4764776831041365478">The web page at <ph name="URL" /> might be temporarily down or it may have moved permanently to a new web address.</translation>
@@ -2918,9 +2922,9 @@ This will otherwise be blocked by your privacy settings. This will allow the con
 <translation id="5813119285467412249">&amp;Redo Add</translation>
 <translation id="5813753398265398978">Physics</translation>
 <translation id="5817918615728894473">Pair</translation>
-<translation id="5820625124144807242">Once you review your order, you must sign in to or create an account with <ph name="BNPL_ISSUER_NAME" />. This account will be automatically linked to Google Pay.</translation>
 <translation id="5826507051599432481">Common Name (CN)</translation>
 <translation id="5830698870816298009">camera use and movement</translation>
+<translation id="5831217499016131155">Google Wallet</translation>
 <translation id="583281660410589416">Unknown</translation>
 <translation id="5832976493438355584">Locked</translation>
 <translation id="5837220895135257862">Free up space in <ph name="CLOUD_PROVIDER" /> before trying again</translation>
@@ -3431,6 +3435,7 @@ This will otherwise be blocked by your privacy settings. This will allow the con
 <translation id="6649510485211003056">195 mm x 270 mm</translation>
 <translation id="6651270836885078973">Managed by:</translation>
 <translation id="6652101503459149953">Use Windows Hello</translation>
+<translation id="6653684225271066234"><ph name="BNPL_ISSUER_NAME" /> will check your eligibility (this won't affect your credit score). If you meet the eligibility criteria, <ph name="BNPL_ISSUER_NAME" /> will provide potential payment plan(s) to complete your purchase.</translation>
 <translation id="6654224358955673568">Formalise</translation>
 <translation id="6654244995031366386">Glass (textured)</translation>
 <translation id="6657585470893396449">Password</translation>
@@ -3594,6 +3599,7 @@ This will otherwise be blocked by your privacy settings. This will allow the con
 <translation id="6925267999184670015">North American B+</translation>
 <translation id="6926216138694948720">Body art</translation>
 <translation id="692638818576287323">Commercial Vehicles</translation>
+<translation id="6927057753277044239">Once you review your order, you must sign in to or create an account with <ph name="BNPL_ISSUER_NAME" />. This account will be automatically linked to your Google Account.</translation>
 <translation id="6930607614725241390">Search in side panel</translation>
 <translation id="6934236486840930310"><ph name="BEGIN_BOLD" />Your default search engine lets you search the web and powers Chrome features<ph name="END_BOLD" /> like searching from the address bar and from images on web pages. A feature might not be available if your search engine doesn’t support it.</translation>
 <translation id="6934672428414710184">This name is from your Google Account</translation>
@@ -3645,6 +3651,7 @@ This will otherwise be blocked by your privacy settings. This will allow the con
 <translation id="6997288673234694149">Baseball and Softball Equipment</translation>
 <translation id="6998512609912910179">Fill forms faster</translation>
 <translation id="6999480632062519056">Fitness Instruction and Personal Training</translation>
+<translation id="7002897669829306463">Home address, <ph name="ADDRESS" /></translation>
 <translation id="7003278537452757231">Rugs and Carpets</translation>
 <translation id="7003322000677139268">Vehicle parts and accessories</translation>
 <translation id="7004499039102548441">Recent tabs</translation>
@@ -3946,7 +3953,6 @@ Additional details:
 <translation id="7485085230273446323">Business and industrial</translation>
 <translation id="7485870689360869515">No data found.</translation>
 <translation id="7486880426035242089">OneDrive</translation>
-<translation id="7489255442002627311"><ph name="BNPL_ISSUER_NAME" /> will check your eligibility (this won't affect your credit score). If approved, <ph name="BNPL_ISSUER_NAME" /> will provide payment plans for you to choose from and complete your purchase.</translation>
 <translation id="7489392576326061356">Shampoos and Conditioners</translation>
 <translation id="7489919936111034362">Your Google Drive storage is full</translation>
 <translation id="7495528107193238112">This content is blocked. Contact the site owner to fix the issue.</translation>
@@ -4212,6 +4218,8 @@ Additional details:
 <translation id="7916162853251942238">Flexo base</translation>
 <translation id="791698251820376781">Your organisation doesn't allow you to sign in</translation>
 <translation id="7926503317156566022">Aviation industry</translation>
+<translation id="7930282586031445870">Buy now, pay later Terms of Service screen is closed.</translation>
+<translation id="7932035970207573919">Work address, <ph name="ADDRESS" /></translation>
 <translation id="793209273132572360">Update address?</translation>
 <translation id="7932579305932748336">Coat</translation>
 <translation id="79338296614623784">Enter a valid phone number</translation>
@@ -4624,6 +4632,7 @@ Additional details:
 <translation id="8601027005147870853"><ph name="BEGIN_BOLD" />What data is used:<ph name="END_BOLD" /> Your activity on a site that you visit using Chrome on this device.</translation>
 <translation id="8601456038554914806">Water Sports Equipment</translation>
 <translation id="8601782593888534566">Science fiction and fantasy</translation>
+<translation id="8604103095921958091">Buy now, pay later Terms of Service screen opened at full height.</translation>
 <translation id="8606988009912891950">Ad topics help sites show you relevant ads while protecting your browsing history and identity. Chrome can note topics of interest based on your recent browsing history. Later, a site that you visit can ask Chrome for relevant topics to personalise the ads that you see.</translation>
 <translation id="8612919051706159390">Online communities</translation>
 <translation id="8617269623452051934">your device use</translation>
@@ -4864,6 +4873,7 @@ Additional details:
 <translation id="9045525010788763347"><ph name="RESULT_MODIFIED_DATE" /> – <ph name="RESULT_PRODUCT_SOURCE" /></translation>
 <translation id="9046578823518542618"><ph name="URL" /> wants to look for and connect to any device on your local network</translation>
 <translation id="9046864189129893978">Microphones (<ph name="MICS_COUNT" />)</translation>
+<translation id="9046865906192819796">Buy now, pay later Terms of Service screen opened at half height.</translation>
 <translation id="9047528041803621289">Your default lets you search the web. You can change it in settings.</translation>
 <translation id="9048035366624198823">These actions require the <ph name="POLICY_NAME" /> policy to be set to <ph name="POLICY_VALUE" />: <ph name="ACTION_LIST" />.</translation>
 <translation id="9048662076076074925">24 in x 36 in</translation>

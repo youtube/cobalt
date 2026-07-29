@@ -1559,9 +1559,21 @@ class WebContents : public PageNavigator, public base::SupportsUserData {
   // alives.
   using WebInputEventAuditCallback =
       base::RepeatingCallback<bool(const blink::WebInputEvent&)>;
+  [[nodiscard]] inline ScopedIgnoreInputEvents IgnoreInputEvents(
+      std::optional<WebInputEventAuditCallback> audit_callback) {
+    return IgnoreInputEvents(std::move(audit_callback),
+                             /*should_ignore_a11y_input=*/false);
+  }
+  // If `should_ignore_a11y_input` is true, this also blocks all
+  // accessibility actions from interacting with the WebContents, other than the
+  // hit test.
+  // TODO(crbug.com/452693512): Consider ignoring a11y input events as the
+  // default behavior for ignoring input events in general.
   [[nodiscard]] virtual ScopedIgnoreInputEvents IgnoreInputEvents(
-      std::optional<WebInputEventAuditCallback> audit_callback) = 0;
+      std::optional<WebInputEventAuditCallback> audit_callback,
+      bool should_ignore_a11y_input) = 0;
   virtual bool ShouldIgnoreInputEventsForTesting() = 0;
+  virtual bool ShouldIgnoreA11yInputEventsForTesting() = 0;
 
   // Returns the group id for all audio streams that correspond to a single
   // WebContents. This can be used to determine if a AudioOutputStream was
@@ -1607,6 +1619,10 @@ class WebContents : public PageNavigator, public base::SupportsUserData {
       bool animate,
       const std::optional<cc::BrowserControlsOffsetTagModifications>&
           offset_tag_modifications) = 0;
+
+  // Indicates that the primary main frame should collect draggable regions set
+  // using the app-region CSS property.
+  virtual void SetSupportsDraggableRegions(bool supports_draggable_regions) = 0;
 
   // Transmits data to V8CrowdsourcedCompileHintsConsumer in the renderer. The
   // data is a model describing which JavaScript functions on the page should be

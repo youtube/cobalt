@@ -31,6 +31,12 @@
           "builder": "linux-prompt-evals",
           "project": "chromium"
         }
+      ],
+      "mirroring_builder_group_and_names": [
+        {
+          "builder": "linux-prompt-evals",
+          "group": "tryserver.chromium.prompt_eval"
+        }
       ]
     }
   },

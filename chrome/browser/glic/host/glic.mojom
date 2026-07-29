@@ -257,14 +257,6 @@ struct UserProfileInfo {
   bool is_managed;
 };
 
-// Information about the active browser window.
-struct ActiveBrowserInfo {
-  // The unique ID of the active browser window.
-  int32 window_id;
-  // Whether the active browser window is using the current user profile.
-  bool using_this_profile;
-};
-
 // The result of `WebClientCreated()`. Contains information that needs to be
 // available before the web client is initialized.
 struct WebClientInitialState {
@@ -283,8 +275,6 @@ struct WebClientInitialState {
   bool panel_is_active;
   bool browser_is_open;
   bool browser_is_active;
-  // The active browser window, if there is one.
-  ActiveBrowserInfo? active_browser_info;
   // Reflects the enabling state of always-detached mode.
   bool always_detached_mode;
   bool enable_zero_state_suggestions;
@@ -313,6 +303,12 @@ struct WebClientInitialState {
   bool enable_get_page_metadata;
   // Whether kGlicApiActivationGating is enabled.
   bool enable_api_activation_gating;
+  // Whether capture region is enabled.
+  bool enable_capture_region;
+  // Whether kGlicWebActuationSetting is enabled.
+  bool enable_web_actuation_setting_feature;
+  // Whether the user enabled actuation setting is enabled.
+  bool actuation_on_web_setting_enabled;
 };
 
 // Options for getting tab context.
@@ -618,9 +614,8 @@ interface WebClientHandler {
   // restores these restrictions, and allows for further actions. Any in flight
   // actions are canceled and their callbacks will be (asynchronously) invoked.
   // No-op if a task with the given id does not exist.
-  PauseActorTask(int32 task_id,
-                 ActorTaskPauseReason pause_reason,
-                 int32? tab_id);
+  PauseActorTask(
+      int32 task_id, ActorTaskPauseReason pause_reason, int32? tab_id);
 
   // Resumes a paused task associated with the given id, allowing for further
   // actions. Any restrictions on the tab lifted by PauseActorTask are
@@ -681,6 +676,11 @@ interface WebClientHandler {
   // prefs::kGlicClosedCaptioningEnabled. Returns when the browser has stored
   // the new pref value.
   SetClosedCaptioningSetting(bool enabled) => ();
+
+  // Set the state of the user enabled web actuation glic setting pref:
+  // prefs::kGlicUserEnabledActuationOnWeb. Returns when the browser has stored
+  // the new pref value.
+  SetActuationOnWebSetting(bool enabled) => ();
 
   // Returns whether a media permission request from the guest should be granted
   // or denied.
@@ -867,21 +867,20 @@ struct PanelOpeningData {
   string? conversation_id;
 };
 
+// @generate glic_api
+// The panel can be in one of these three states.
+enum PanelStateKind {
+  // The panel is hidden.
+  kHidden = 0,
+  // The panel is a floating window, detached from any browser window.
+  kDetached = 1,
+  // The panel is a side panel, attached to a browser window.
+  kAttached = 2,
+};
+
 // State of the glic panel.
 struct PanelState {
-  // The panel can be in one of these three states.
-  // WARNING: These enum values should match
-  // chrome/browser/resources/glic/glic_api/glic_api.ts.
-  enum Kind {
-    // The panel is hidden.
-    kHidden = 0,
-    // The panel is floating free and detached from any browser window.
-    kDetached = 1,
-    // The panel is attached to a browser window.
-    kAttached = 2,
-  };
-
-  Kind kind;
+  PanelStateKind kind;
   // Present when attached, indicates to which window the panel is attached.
   int32? window_id;
 };
@@ -1064,9 +1063,6 @@ interface WebClient {
   // may be paused or resumed accordingly.
   NotifyBrowserIsActiveChanged(bool browser_active);
 
-  // The active browser has changed.
-  NotifyActiveBrowserChanged(ActiveBrowserInfo? active_browser_info);
-
   // Notify that the closed captioning setting has changed.
   NotifyClosedCaptioningSettingChanged(bool enabled);
 
@@ -1118,6 +1114,9 @@ interface WebClient {
 
   // Informs the client that additional context is available.
   NotifyAdditionalContext(AdditionalContext context);
+
+  // Notify that the user enabled web actuation setting has changed.
+  NotifyActuationOnWebSettingChanged(bool enabled);
 };
 
 // Information extracted from a tab.

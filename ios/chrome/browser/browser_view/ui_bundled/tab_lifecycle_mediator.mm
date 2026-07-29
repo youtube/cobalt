@@ -16,7 +16,6 @@
 #import "ios/chrome/browser/download/model/pass_kit_tab_helper.h"
 #import "ios/chrome/browser/enterprise/data_controls/model/data_controls_tab_helper.h"
 #import "ios/chrome/browser/find_in_page/model/find_tab_helper.h"
-#import "ios/chrome/browser/follow/model/follow_tab_helper.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_controller.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_tab_helper.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
@@ -172,6 +171,9 @@
   data_controls::DataControlsTabHelper::GetOrCreateForWebState(webState)
       ->SetDataControlsCommandsHandler(
           HandlerForProtocol(_commandDispatcher, DataControlsCommands));
+  data_controls::DataControlsTabHelper::GetOrCreateForWebState(webState)
+      ->SetSnackbarHandler(
+          static_cast<id<SnackbarCommands>>(_commandDispatcher));
 
   // DownloadManagerTabHelper cannot function without its delegate.
   DCHECK(_downloadManagerTabHelperDelegate);
@@ -221,12 +223,6 @@
       _printCoordinator);
 
   RepostFormTabHelper::FromWebState(webState)->SetDelegate(_repostFormDelegate);
-
-  FollowTabHelper* followTabHelper = FollowTabHelper::FromWebState(webState);
-  if (followTabHelper) {
-    followTabHelper->set_help_handler(
-        HandlerForProtocol(_commandDispatcher, HelpCommands));
-  }
 
   DCHECK(_tabInsertionBrowserAgent);
   CaptivePortalTabHelper::GetOrCreateForWebState(webState)
@@ -350,6 +346,8 @@
 
   data_controls::DataControlsTabHelper::GetOrCreateForWebState(webState)
       ->SetDataControlsCommandsHandler(nil);
+  data_controls::DataControlsTabHelper::GetOrCreateForWebState(webState)
+      ->SetSnackbarHandler(nil);
 
   DownloadManagerTabHelper::FromWebState(webState)->SetDelegate(nil);
   DownloadManagerTabHelper::FromWebState(webState)->SetSnackbarHandler(nil);
@@ -376,11 +374,6 @@
   PrintTabHelper::GetOrCreateForWebState(webState)->set_printer(nil);
 
   RepostFormTabHelper::FromWebState(webState)->SetDelegate(nil);
-
-  FollowTabHelper* followTabHelper = FollowTabHelper::FromWebState(webState);
-  if (followTabHelper) {
-    followTabHelper->set_help_handler(nil);
-  }
 
   CaptivePortalTabHelper::GetOrCreateForWebState(webState)
       ->SetTabInsertionBrowserAgent(nil);

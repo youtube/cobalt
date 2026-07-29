@@ -456,6 +456,44 @@ IN_PROC_BROWSER_TEST_F(ExecutionEngineBrowserTest, PromptToConfirmDownload) {
   EXPECT_TRUE(response->result->get_permission_granted());
 }
 
+class ExecutionEngineDangerousContentBrowserTest
+    : public ExecutionEngineBrowserTest,
+      public testing::WithParamInterface<bool> {
+ public:
+  ExecutionEngineDangerousContentBrowserTest() {
+    scoped_feature_list_.InitWithFeatureState(
+        kGlicBlockNavigationToDangerousContentTypes,
+        should_block_dangerous_navigations());
+  }
+
+  bool should_block_dangerous_navigations() { return GetParam(); }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_P(ExecutionEngineDangerousContentBrowserTest,
+                       BlockNavigationToJson) {
+  const GURL start_url =
+      embedded_https_test_server().GetURL("example.com", "/actor/link.html");
+  const GURL json_url =
+      embedded_https_test_server().GetURL("example.com", "/actor/test.json");
+
+  ASSERT_TRUE(content::NavigateToURL(web_contents(), start_url));
+  EXPECT_TRUE(content::ExecJs(web_contents(),
+                              content::JsReplace("setLink($1);", json_url)));
+
+  ClickTarget("#link",
+              should_block_dangerous_navigations()
+                  ? mojom::ActionResultCode::kTriggeredNavigationBlocked
+                  : mojom::ActionResultCode::kOk);
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(),
+            should_block_dangerous_navigations() ? start_url : json_url);
+}
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         ExecutionEngineDangerousContentBrowserTest,
+                         testing::Bool());
 class ExecutionEngineOriginGatingBrowserTest
     : public ExecutionEngineBrowserTest,
       public testing::WithParamInterface<bool> {
@@ -490,16 +528,13 @@ class ExecutionEngineOriginGatingBrowserTest
                     }));
   }
 
+ protected:
+  base::HistogramTester histogram_tester_;
+
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
   base::CallbackListSubscription user_confirmation_dialog_subscription_;
 };
-
-std::string EncodeURI(const std::string& component) {
-  url::RawCanonOutputT<char> encoded;
-  url::EncodeURIComponent(component, &encoded);
-  return std::string(encoded.view());
-}
 
 IN_PROC_BROWSER_TEST_P(ExecutionEngineOriginGatingBrowserTest,
                        GateCrossOriginNavigations_Denied) {
@@ -524,14 +559,35 @@ IN_PROC_BROWSER_TEST_P(ExecutionEngineOriginGatingBrowserTest,
               origin_gating_enabled()
                   ? mojom::ActionResultCode::kTriggeredNavigationBlocked
                   : mojom::ActionResultCode::kOk);
+
+  // The first navigation should log that gating was not applied. The second
+  // should log that gating was applied.
+  histogram_tester_.ExpectBucketCount("Actor.NavigationGating.AppliedGate",
+                                      false, origin_gating_enabled() ? 1 : 0);
+  histogram_tester_.ExpectBucketCount("Actor.NavigationGating.AppliedGate",
+                                      true, origin_gating_enabled() ? 1 : 0);
+  // Should log that there was one same-site navigation and one cross-site
+  // navigation.
+  histogram_tester_.ExpectBucketCount("Actor.NavigationGating.CrossOrigin",
+                                      false, origin_gating_enabled() ? 1 : 0);
+  histogram_tester_.ExpectBucketCount("Actor.NavigationGating.CrossOrigin",
+                                      true, origin_gating_enabled() ? 1 : 0);
+  histogram_tester_.ExpectBucketCount("Actor.NavigationGating.CrossSite", false,
+                                      origin_gating_enabled() ? 1 : 0);
+  histogram_tester_.ExpectBucketCount("Actor.NavigationGating.CrossSite", true,
+                                      origin_gating_enabled() ? 1 : 0);
+  // Should log that permission was *denied* once.
+  histogram_tester_.ExpectBucketCount(
+      "Actor.NavigationGating.PermissionGranted", false,
+      origin_gating_enabled() ? 1 : 0);
 }
 
 IN_PROC_BROWSER_TEST_P(ExecutionEngineOriginGatingBrowserTest,
                        GateCrossOriginNavigations_Granted) {
-  const GURL start_url =
-      embedded_https_test_server().GetURL("example.com", "/actor/link.html");
-  const GURL second_url =
-      embedded_https_test_server().GetURL("foo.com", "/actor/blank.html");
+  const GURL start_url = embedded_https_test_server().GetURL(
+      "www.example.com", "/actor/link.html");
+  const GURL second_url = embedded_https_test_server().GetURL(
+      "foo.example.com", "/actor/blank.html");
 
   CreateMockPromptIPCResponse(url::Origin::Create(second_url),
                               /*permission_granted=*/true);
@@ -546,6 +602,66 @@ IN_PROC_BROWSER_TEST_P(ExecutionEngineOriginGatingBrowserTest,
                               content::JsReplace("setLink($1);", second_url)));
 
   ClickTarget("#link", mojom::ActionResultCode::kOk);
+
+  // The first navigation should log that gating was not applied. The second
+  // should log that gating was applied.
+  histogram_tester_.ExpectBucketCount("Actor.NavigationGating.AppliedGate",
+                                      false, origin_gating_enabled() ? 1 : 0);
+  histogram_tester_.ExpectBucketCount("Actor.NavigationGating.AppliedGate",
+                                      true, origin_gating_enabled() ? 1 : 0);
+  // Should log that there was only a cross-origin navigation and not a
+  // cross-site navigation.
+  histogram_tester_.ExpectBucketCount("Actor.NavigationGating.CrossOrigin",
+                                      false, origin_gating_enabled() ? 1 : 0);
+  histogram_tester_.ExpectBucketCount("Actor.NavigationGating.CrossOrigin",
+                                      true, origin_gating_enabled() ? 1 : 0);
+  histogram_tester_.ExpectBucketCount("Actor.NavigationGating.CrossSite", false,
+                                      origin_gating_enabled() ? 2 : 0);
+  // Should log that permission was *granted* once.
+  histogram_tester_.ExpectBucketCount(
+      "Actor.NavigationGating.PermissionGranted", true,
+      origin_gating_enabled() ? 1 : 0);
+}
+
+IN_PROC_BROWSER_TEST_P(ExecutionEngineOriginGatingBrowserTest,
+                       AddWritableMainframeOrigins) {
+  // This test is not meaningful if origin gating is disabled.
+  if (!origin_gating_enabled()) {
+    return;
+  }
+
+  const GURL cross_origin_url =
+      embedded_https_test_server().GetURL("bar.com", "/actor/blank.html");
+  const GURL link_page_url = embedded_https_test_server().GetURL(
+      "foo.com", base::StrCat({"/actor/link_full_page.html?href=",
+                               EncodeURI(cross_origin_url.spec())}));
+
+  // Mock IPC response waill always reject navigation.
+  CreateMockPromptIPCResponse(url::Origin::Create(cross_origin_url),
+                              /*permission_granted=*/false);
+
+  // Start on link page on foo.com.
+  ASSERT_TRUE(content::NavigateToURL(web_contents(), link_page_url));
+  // Click on full-page link to bar.com only.
+  std::unique_ptr<ToolRequest> click_link =
+      MakeClickRequest(*active_tab(), gfx::Point(1, 1));
+  ActResultFuture result1;
+  actor_task().Act(ToRequestList(click_link), result1.GetCallback());
+  // Expect the navigation to be blocked by origin gating.
+  ExpectErrorResult(result1,
+                    mojom::ActionResultCode::kTriggeredNavigationBlocked);
+
+  // Add bar.com's origin to writable mainframe origins.
+  actor_task().GetExecutionEngine()->AddWritableMainframeOrigins(
+      {url::Origin::Create(cross_origin_url)});
+
+  // Click on full-page link to bar.com only.
+  std::unique_ptr<ToolRequest> click_link_again =
+      MakeClickRequest(*active_tab(), gfx::Point(1, 1));
+  ActResultFuture result2;
+  actor_task().Act(ToRequestList(click_link_again), result2.GetCallback());
+  // Now the navigation should not be blocked.
+  ExpectOkResult(result2);
 }
 
 IN_PROC_BROWSER_TEST_P(ExecutionEngineOriginGatingBrowserTest,
@@ -602,6 +718,18 @@ IN_PROC_BROWSER_TEST_P(ExecutionEngineOriginGatingBrowserTest,
   // Expect the navigation to be blocked by origin gating.
   ExpectErrorResult(result2,
                     mojom::ActionResultCode::kTriggeredNavigationBlocked);
+
+  // All but the last navigation should not have gating applied.
+  histogram_tester_.ExpectBucketCount("Actor.NavigationGating.AppliedGate",
+                                      false, 3);
+  histogram_tester_.ExpectBucketCount("Actor.NavigationGating.AppliedGate",
+                                      true, 1);
+  // Should log that permission was denied the one time it was prompted.
+  histogram_tester_.ExpectBucketCount(
+      "Actor.NavigationGating.PermissionGranted", false, 1);
+  // Should log the allow-list has 2 entries at the end of the first task.
+  histogram_tester_.ExpectBucketCount("Actor.NavigationGating.AllowListSize", 2,
+                                      1);
 }
 
 INSTANTIATE_TEST_SUITE_P(All,

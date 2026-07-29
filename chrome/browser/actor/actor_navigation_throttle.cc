@@ -6,8 +6,11 @@
 
 #include <algorithm>
 
+#include "base/containers/fixed_flat_set.h"
 #include "base/memory/ptr_util.h"
+#include "chrome/browser/actor/actor_features.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
+#include "chrome/browser/actor/actor_policy_checker.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/execution_engine.h"
 #include "chrome/browser/actor/site_policy.h"
@@ -18,8 +21,20 @@
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/navigation_throttle_registry.h"
 #include "content/public/browser/web_contents.h"
+#include "net/http/http_response_headers.h"
 
 namespace actor {
+namespace {
+constexpr auto kBlockedMimeTypes = base::MakeFixedFlatSet<std::string_view>({
+    "application/javascript",
+    "application/json",
+    "application/xml",
+    "text/javascript",
+    "text/csv",
+    "text/json",
+    "text/xml",
+});
+}  // namespace
 
 // static
 void ActorNavigationThrottle::MaybeCreateAndAdd(
@@ -81,6 +96,31 @@ ActorNavigationThrottle::WillRedirectRequest() {
 
 content::NavigationThrottle::ThrottleCheckResult
 ActorNavigationThrottle::WillProcessResponse() {
+  if (base::FeatureList::IsEnabled(
+          kGlicBlockNavigationToDangerousContentTypes)) {
+    const net::HttpResponseHeaders* headers =
+        navigation_handle()->GetResponseHeaders();
+    std::string mime_type;
+    if (headers->GetMimeType(&mime_type) &&
+        kBlockedMimeTypes.contains(mime_type)) {
+      GetJournal().Log(navigation_handle()->GetURL(), task_id_,
+                       mojom::JournalTrack::kActor, "NavThrottle",
+                       JournalDetailsBuilder()
+                           .AddError("Navigate to disallowed content-type")
+                           .Add("mime_type", mime_type)
+                           .Build());
+
+      // If the navigation we're about to cancel is attributable to the actor's
+      // tool usage, consider the action a failure.
+      if (navigation_handle()->IsInPrimaryMainFrame() && execution_engine_) {
+        execution_engine_->FailCurrentTool(
+            mojom::ActionResultCode::kTriggeredNavigationBlocked);
+      }
+
+      return content::NavigationThrottle::CANCEL_AND_IGNORE;
+    }
+  }
+
   if (!execution_engine_ ||
       !execution_engine_->ShouldGateNavigation(
           *navigation_handle(),
@@ -157,11 +197,13 @@ ActorNavigationThrottle::WillStartOrRedirectRequest(bool is_redirection) {
                                        : "Check navigation safety")
           .Build());
 
-  MayActOnUrl(
-      navigation_url, /*allow_insecure_http=*/true, GetProfile(), journal,
-      task_id_,
-      base::BindOnce(&ActorNavigationThrottle::OnMayActOnUrlResult,
-                     weak_factory_.GetWeakPtr(), std::move(journal_entry)));
+  ActorKeyedService::Get(GetProfile())
+      ->GetPolicyChecker()
+      .MayActOnUrl(
+          navigation_url, /*allow_insecure_http=*/true, GetProfile(), journal,
+          task_id_,
+          base::BindOnce(&ActorNavigationThrottle::OnMayActOnUrlResult,
+                         weak_factory_.GetWeakPtr(), std::move(journal_entry)));
 
   return content::NavigationThrottle::DEFER;
 }

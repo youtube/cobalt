@@ -101,8 +101,6 @@ component("gfx") {
     "frame_data.h",
     "gpu_extra_info.cc",
     "gpu_extra_info.h",
-    "image/buffer_w_stream.cc",
-    "image/buffer_w_stream.h",
     "image/image.cc",
     "image/image.h",
     "image/image_family.cc",
@@ -605,7 +603,6 @@ source_set("memory_buffer_sources") {
     "gpu_fence.h",
     "gpu_fence_handle.cc",
     "gpu_fence_handle.h",
-    "native_pixmap.cc",
     "native_pixmap.h",
     "overlay_priority_hint.h",
     "overlay_transform.h",
@@ -662,6 +659,8 @@ source_set("memory_buffer_sources") {
     sources += [
       "mac/io_surface.cc",
       "mac/io_surface.h",
+      "mac/mtl_shared_event_fence.h",
+      "mac/mtl_shared_event_fence.mm",
     ]
 
     public_deps += [
@@ -766,7 +765,6 @@ test("gfx_unittests") {
     "geometry/sin_cos_degrees_unittest.cc",
     "geometry/transform_operations_unittest.cc",
     "geometry/transform_unittest.cc",
-    "image/buffer_w_stream_unittest.cc",
     "image/image_family_unittest.cc",
     "image/image_skia_unittest.cc",
     "image/image_unittest.cc",

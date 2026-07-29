@@ -253,6 +253,7 @@ declare global {
         addEntityTypeString: string;
         editEntityTypeString: string;
         deleteEntityTypeString: string;
+        supportsWalletStorage: boolean;
       }
 
       export interface DateValue {
@@ -275,6 +276,7 @@ declare global {
 
       export interface EntityInstanceWithLabels {
         guid: string;
+        type: EntityType;
         entityInstanceLabel: string;
         entityInstanceSubLabel: string;
         storedInWallet: boolean;

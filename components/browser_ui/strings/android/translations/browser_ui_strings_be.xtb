@@ -121,6 +121,7 @@
 <translation id="2359808026110333948">Працягнуць</translation>
 <translation id="2379925928934107488">Калі Chrome выкарыстоўвае цёмную тэму, прымяняць яе да сайтаў (калі гэта магчыма)</translation>
 <translation id="2390272837142897736">Павялічыць маштаб</translation>
+<translation id="2397689164757137845">Дазволена • Дакладнае</translation>
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> МБ</translation>
 <translation id="2403474027143565107">Дакладнае</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{Дазволены <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> і яшчэ <ph name="NUM_MORE" />}one{Дазволены <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> і яшчэ <ph name="NUM_MORE" />}few{Дазволены <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> і яшчэ <ph name="NUM_MORE" />}many{Дазволены <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> і яшчэ <ph name="NUM_MORE" />}other{Дазволены <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> і яшчэ <ph name="NUM_MORE" />}}</translation>
@@ -140,6 +141,7 @@
 <translation id="2498359688066513246">Даведка і водгукі</translation>
 <translation id="2501278716633472235">Назад</translation>
 <translation id="2533138527374486328">Калі гэта налада ўключана, сайты могуць запытваць дазвол на падключэнне да прылад у вашай лакальнай сетцы. Калі выключана, сайты не могуць падключацца да прылад у лакальнай сетцы.</translation>
+<translation id="2536779053640817375">Дазволена гэтым разам • Дакладнае</translation>
 <translation id="2544997614631598250">Колер тэмы: цёмны</translation>
 <translation id="2546283357679194313">Файлы сookie і даныя сайтаў</translation>
 <translation id="2570922361219980984">Доступ да месцазнаходжання для гэтай прылады таксама выключаны. Уключыце яго ў <ph name="BEGIN_LINK" />Наладах Android<ph name="END_LINK" />.</translation>
@@ -442,6 +444,7 @@
 <translation id="5876056640971328065">Прыпыніць відэа</translation>
 <translation id="5877248419911025165">Згортваць усе запыты</translation>
 <translation id="5878945009165002849">Блакіраваць запыты на ўваход ад сэрвісаў ідэнтыфікацыі</translation>
+<translation id="588258955323874662">Поўнаэкранны рэжым</translation>
 <translation id="5884085660368669834">Выбар у дачыненні да сайта</translation>
 <translation id="5887687176710214216">Апошняе наведванне: учора</translation>
 <translation id="5908617755156109052">Не дазваляць сайтам ствараць 3D-карту вашага асяроддзя або адсочваць становішча камеры</translation>
@@ -569,6 +572,7 @@
 <translation id="7406113532070524618">Вашы персанальныя даныя пры гэтым не раскрываюцца, а сайты не маюць доступу да вашай гісторыі прагляду сайтаў, хаця могуць дзяліцца невялікім аб’ёмам інфармацыі ў рамках праверкі</translation>
 <translation id="7409735910987429903">Сайты могуць паказваць усплывальныя вокны з рэкламай або ажыццяўляць перанакіраванне на вэб-сайты, якія вы можаце лічыць непажаданымі</translation>
 <translation id="7412160840120117304">Асноўны колер (шаснаццатковы код)</translation>
+<translation id="7412223528111026033">{ZOOM_PERCENTAGE,plural, =1{Маштаб}one{Маштаб: <ph name="ZOOM_PERCENTAGE_NUMBER" />%%}few{Маштаб: <ph name="ZOOM_PERCENTAGE_NUMBER" />%%}many{Маштаб: <ph name="ZOOM_PERCENTAGE_NUMBER" />%%}other{Маштаб: <ph name="ZOOM_PERCENTAGE_NUMBER" />%%}}</translation>
 <translation id="7423098979219808738">Спачатку запытваць</translation>
 <translation id="7423538860840206698">Чытанне буфера абмену заблакіравана</translation>
 <translation id="7425915948813553151">Цёмная тэма для сайтаў</translation>
@@ -700,7 +704,6 @@
 <translation id="8803526663383843427">Калі функцыя ўключана</translation>
 <translation id="8805385115381080995">Прагляд старонак робіцца хутчэйшым, бо сайты з меншай імавернасцю будуць прасіць вас пацвердзіць, што вы сапраўды чалавек</translation>
 <translation id="8816026460808729765">Забараніць сайтам доступ да датчыкаў</translation>
-<translation id="884765916894384048">Перайсці ў фонавы рэжым</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8874790741333031443">Паспрабуйце часова дазволіць староннія файлы cookie – гэта знізіць вашу абароненасць падчас прагляду вэб-сайтаў, але павысіць імавернасць таго, што функцыі сайта будуць працаваць карэктна.</translation>
 <translation id="8889294078294184559">Гэта дазваляе іншым сайтам, якія вы наведваеце, запытваць гэты даныя ў Chrome, каб правяраць, ці сапраўды вы чалавек.</translation>

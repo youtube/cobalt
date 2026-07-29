@@ -64,9 +64,6 @@ enum Sandbox {
   // Like kUtility but allows loading of speech recognition libraries.
   kSpeechRecognition,
 
-  // Like kService but allows loading of the optimization guide library.
-  [EnableIf=is_linux] kVideoEffects,
-
   // Equivalent to no sandbox on all non-Fuchsia platforms.
   // Minimally privileged sandbox on Fuchsia.
   [EnableIf=is_fuchsia] kVideoCapture,
@@ -125,10 +122,6 @@ enum Sandbox {
 
   // Text-to-speech.
   [EnableIf=is_chromeos] kTts,
-
-  // Hosts the Libassistant service on ChromeOS Ash, only used for
-  // Chrome branded builds.
-  [EnableIf=enable_cros_libassistant] kLibassistant,
 
   // Like kUtility but allows access to IOSurface on macOS.
   [EnableIf=is_mac] kMirroring,

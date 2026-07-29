@@ -20,6 +20,9 @@ source_set("model") {
     "//base",
     "//components/enterprise/data_controls/core/browser",
     "//components/open_from_clipboard:open_from_clipboard_impl",
+    "//components/policy/core/common:common_constants",
+    "//components/strings",
+    "//ios/chrome/browser/enterprise/common",
     "//ios/chrome/browser/enterprise/data_controls/utils",
     "//ios/chrome/browser/shared/model/application_context",
     "//ios/chrome/browser/shared/model/profile",
@@ -50,6 +53,20 @@ source_set("ios_rules_service") {
   ]
 }
 
+source_set("test_support") {
+  testonly = true
+  sources = [
+    "data_controls_test_utils.h",
+    "data_controls_test_utils.mm",
+  ]
+  deps = [
+    ":model",
+    "//base",
+    "//base/test:test_support",
+    "//testing/gtest",
+  ]
+}
+
 source_set("unit_tests") {
   testonly = true
   sources = [
@@ -60,13 +77,17 @@ source_set("unit_tests") {
   deps = [
     ":ios_rules_service",
     ":model",
+    ":test_support",
     "//base",
     "//base/test:test_support",
     "//components/enterprise/data_controls/core/browser:test_support",
+    "//components/signin/public/identity_manager:test_support",
     "//components/strings",
     "//components/sync_preferences:test_support",
     "//ios/chrome/browser/shared/model/profile/test",
     "//ios/chrome/browser/shared/public/commands",
+    "//ios/chrome/browser/signin/model",
+    "//ios/chrome/browser/signin/model:test_support",
     "//ios/chrome/test:test_support",
     "//ios/chrome/test/fakes",
     "//ios/components/enterprise/data_controls:features",

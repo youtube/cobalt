@@ -14,8 +14,10 @@
 #include "base/types/pass_key.h"
 #include "chrome/browser/actor/actor_features.h"
 #include "chrome/browser/actor/actor_keyed_service_factory.h"
+#include "chrome/browser/actor/actor_policy_checker.h"
 #include "chrome/browser/actor/actor_tab_data.h"
 #include "chrome/browser/actor/actor_task.h"
+#include "chrome/browser/actor/actor_task_metadata.h"
 #include "chrome/browser/actor/aggregated_journal.h"
 #include "chrome/browser/actor/browser_action_util.h"
 #include "chrome/browser/actor/execution_engine.h"
@@ -58,7 +60,7 @@ using ui::ActorUiStateManagerInterface;
 
 ActorKeyedService::ActorKeyedService(Profile* profile) : profile_(profile) {
   actor_ui_state_manager_ = std::make_unique<ui::ActorUiStateManager>(*this);
-  InitActionBlocklist(profile);
+  policy_checker_ = std::make_unique<ActorPolicyChecker>(*this);
 }
 
 ActorKeyedService::~ActorKeyedService() = default;
@@ -131,17 +133,19 @@ void ActorKeyedService::ResetForTesting() {
 }
 
 TaskId ActorKeyedService::CreateTask() {
-  return CreateTaskWithOptions(nullptr);
+  return CreateTaskWithOptions(nullptr, nullptr);
 }
 
 TaskId ActorKeyedService::CreateTaskWithOptions(
-    webui::mojom::TaskOptionsPtr options) {
+    webui::mojom::TaskOptionsPtr options,
+    base::WeakPtr<ActorTaskDelegate> delegate) {
   TRACE_EVENT0("actor", "ActorKeyedService::CreateTask");
   base::UmaHistogramBoolean("Actor.Task.Created", true);
   auto execution_engine = std::make_unique<ExecutionEngine>(profile_.get());
   auto actor_task = std::make_unique<ActorTask>(
       profile_.get(), std::move(execution_engine),
-      ui::NewUiEventDispatcher(GetActorUiStateManager()), std::move(options));
+      ui::NewUiEventDispatcher(GetActorUiStateManager()), std::move(options),
+      std::move(delegate));
   return AddActiveTask(std::move(actor_task));
 }
 
@@ -224,6 +228,16 @@ void ActorKeyedService::OnUserConfirmationDialogDecision(
   }
 }
 
+void ActorKeyedService::OnActuationCapabilityChanged(
+    bool has_actuation_capability) {
+  if (!has_actuation_capability) {
+    FailAllTasks();
+  }
+  // TODO(crbug.com/450525715): Depends on the shape of the Chrome API to signal
+  // the HostCapability (Set vs Observable), we might need to inform the web
+  // client about the capability change.
+}
+
 void ActorKeyedService::RequestTabObservation(
     tabs::TabInterface& tab,
     TaskId task_id,
@@ -295,10 +309,10 @@ void ActorKeyedService::RequestTabObservation(
             pending_journal_entry->GetJournal().LogAnnotatedPageContent(
                 last_committed_url, pending_journal_entry->GetTaskId(), buffer);
 
-            auto& data = fetch_result.screenshot_result->jpeg_data;
+            auto& data = fetch_result.screenshot_result->screenshot_data;
             pending_journal_entry->GetJournal().LogScreenshot(
                 last_committed_url, pending_journal_entry->GetTaskId(),
-                kMimeTypeJpeg, base::as_byte_span(data));
+                fetch_result.screenshot_result->mime_type, base::as_byte_span(data));
             if (tab) {
               actor::ActorTabData::From(tab.get())->DidObserveContent(
                   fetch_result.annotated_page_content_result->proto);
@@ -313,6 +327,7 @@ void ActorKeyedService::RequestTabObservation(
 void ActorKeyedService::PerformActions(
     TaskId task_id,
     std::vector<std::unique_ptr<ToolRequest>>&& actions,
+    ActorTaskMetadata task_metadata,
     PerformActionsCallback callback) {
   TRACE_EVENT0("actor", "ActorKeyedService::PerformActions");
   std::vector<ActionResultWithLatencyInfo> empty_results;
@@ -333,6 +348,8 @@ void ActorKeyedService::PerformActions(
     return;
   }
 
+  task->GetExecutionEngine()->AddWritableMainframeOrigins(
+      task_metadata.added_writable_mainframe_origins());
   task->Act(
       std::move(actions),
       base::BindOnce(&ActorKeyedService::OnActionsFinished,
@@ -349,6 +366,14 @@ void ActorKeyedService::OnActionsFinished(
   CHECK(!IsOk(*result) || !index_of_failed_action);
   RunLater(base::BindOnce(std::move(callback), result->code,
                           index_of_failed_action, std::move(action_results)));
+}
+
+void ActorKeyedService::FailAllTasks() {
+  std::vector<TaskId> tasks_to_stop =
+      FindTaskIdsInActive([](const ActorTask& task) { return true; });
+  for (const auto& task_id : tasks_to_stop) {
+    StopTask(task_id, /*success=*/false);
+  }
 }
 
 void ActorKeyedService::StopTask(TaskId task_id, bool success) {
@@ -374,6 +399,10 @@ ActorTask* ActorKeyedService::GetTask(TaskId task_id) {
 
 ActorUiStateManagerInterface* ActorKeyedService::GetActorUiStateManager() {
   return actor_ui_state_manager_.get();
+}
+
+ActorPolicyChecker& ActorKeyedService::GetPolicyChecker() {
+  return *policy_checker_;
 }
 
 bool ActorKeyedService::IsActiveOnTab(const tabs::TabInterface& tab) const {
@@ -403,10 +432,10 @@ Profile* ActorKeyedService::GetProfile() {
 }
 
 std::vector<TaskId> ActorKeyedService::FindTaskIdsInActive(
-    const base::RepeatingCallback<bool(const ActorTask&)>& predicate) const {
+    base::FunctionRef<bool(const ActorTask&)> predicate) const {
   std::vector<TaskId> result;
   for (const auto& [id, task] : active_tasks_) {
-    if (predicate.Run(*task)) {
+    if (predicate(*task)) {
       result.push_back(id);
     }
   }
@@ -414,10 +443,10 @@ std::vector<TaskId> ActorKeyedService::FindTaskIdsInActive(
 }
 
 std::vector<TaskId> ActorKeyedService::FindTaskIdsInInactive(
-    const base::RepeatingCallback<bool(const ActorTask&)>& predicate) const {
+    base::FunctionRef<bool(const ActorTask&)> predicate) const {
   std::vector<TaskId> result;
   for (const auto& [id, task] : inactive_tasks_) {
-    if (predicate.Run(*task)) {
+    if (predicate(*task)) {
       result.push_back(id);
     }
   }

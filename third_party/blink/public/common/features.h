@@ -1178,9 +1178,6 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(LinkPreviewTriggerType,
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kLoadingTasksUnfreezable);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
-    kLoadingPhaseBufferTimeAfterFirstMeaningfulPaint);
-
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
     kLogUnexpectedIPCPostedToBackForwardCachedDocuments);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kLowLatencyCanvas2dImageChromium);
@@ -1414,18 +1411,21 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kPrefetchFontLookupTables);
 
 // If enabled, "eager" eagerness will use different heuristics than "immediate"
 // eagerness:
-// * On desktop, it will use a short (configurable) hover delay.
-// * On mobile, it will use the presence of a link in the viewport (with no
-//   restrictions of the sort used by kPreloadingViewportHeuristics).
+// * Hover heuristics (for Desktop), it will use a short hover delay.
+// * Viewport heuristics (for Mobile), it will use the presence of a link in the
+// viewport (with no restrictions of the sort used by
+// kPreloadingModerateViewportHeuristics).
+//
 // Both are less eager than the "immediate" behavior and more eager than the
 // "moderate" behavior on the respective platforms.
-//
-// TODO(https://crbug.com/40287486): this is not fully implemented yet and for
-// now this just guards some hover tracking logic.
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kPreloadingEagerHeuristics);
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kPreloadingEagerHoverHeuristics);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
     base::TimeDelta,
-    kPreloadingEagerHeuristicsHoverDwellTime);
+    kPreloadingEagerHoverHeuristicsDwellTime);
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kPreloadingEagerViewportHeuristics);
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    base::TimeDelta,
+    kPreloadingEagerViewportHeuristicsPresentTime);
 
 // If enabled, the machine learning model will be employed to predict the next
 // click for speculation-rule based pre-loadings.
@@ -1453,7 +1453,7 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
 // Note: The prediction will only be preloaded if the "enact_candidates" param
 // is set to true (false by default), otherwise it is only logged for metrics
 // purposes.
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kPreloadingViewportHeuristics);
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kPreloadingModerateViewportHeuristics);
 
 // The number of prerenderings that can run concurrently. This only applies for
 // prerenderings triggered by speculation rules.
@@ -1793,6 +1793,10 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kURLPatternDummyURLCanonicalization);
 // heuristic where images occupying the full viewport are ignored.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kUsePageViewportInLCP);
 
+// Always use IsPersistentCacheForCodeCacheEnabled() rather than checking this
+// feature directly.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kUsePersistentCacheForCodeCache);
+
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kUseSnappyForParkableStrings);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kUseZstdForParkableStrings);
@@ -1884,6 +1888,8 @@ BLINK_COMMON_EXPORT bool DisplayWarningDeprecateURNIframesUseFencedFrames();
 BLINK_COMMON_EXPORT bool IsFencedFramesEnabled();
 
 BLINK_COMMON_EXPORT bool IsParkableStringsToDiskEnabled();
+
+BLINK_COMMON_EXPORT bool IsPersistentCacheForCodeCacheEnabled();
 
 BLINK_COMMON_EXPORT bool IsSetIntervalWithoutClampEnabled();
 

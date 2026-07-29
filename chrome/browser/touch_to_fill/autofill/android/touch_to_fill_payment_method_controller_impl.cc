@@ -5,10 +5,12 @@
 #include "chrome/browser/touch_to_fill/autofill/android/touch_to_fill_payment_method_controller_impl.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
+#include "base/containers/span.h"
 #include "base/functional/callback.h"
 #include "base/strings/strcat.h"
 #include "chrome/browser/android/resource_mapper.h"
@@ -176,20 +178,23 @@ bool TouchToFillPaymentMethodControllerImpl::ShowProgressScreen(
 }
 
 bool TouchToFillPaymentMethodControllerImpl::ShowBnplIssuers(
-    base::WeakPtr<TouchToFillDelegate> delegate,
-    base::span<const payments::BnplIssuerContext> bnpl_issuer_contexts) {
+    base::span<const payments::BnplIssuerContext> bnpl_issuer_contexts,
+    const std::string& app_locale,
+    base::OnceCallback<void(BnplIssuer)> selected_issuer_callback,
+    base::OnceClosure cancel_callback) {
   if (!view_ || !view_->ShowBnplIssuers(bnpl_issuer_contexts)) {
     ResetJavaObject();
     return false;
   }
-
-  delegate_ = std::move(delegate);
+  if (delegate_) {
+    delegate_->SetCancelCallback(std::move(cancel_callback));
+    delegate_->SetSelectedIssuerCallback(std::move(selected_issuer_callback));
+  }
   return true;
 }
 
 bool TouchToFillPaymentMethodControllerImpl::ShowErrorScreen(
     std::unique_ptr<TouchToFillPaymentMethodView> view,
-    base::WeakPtr<TouchToFillDelegate> delegate,
     const std::u16string& title,
     const std::u16string& description) {
   if (view) {
@@ -206,13 +211,12 @@ bool TouchToFillPaymentMethodControllerImpl::ShowErrorScreen(
     return false;
   }
 
-  delegate_ = delegate;
   return true;
 }
 
 bool TouchToFillPaymentMethodControllerImpl::ShowBnplIssuerTos(
     const payments::BnplIssuerTosDetail& bnpl_issuer_tos_detail) {
-  if (!view_ || !view_->ShowBnplIssuerTos(bnpl_issuer_tos_detail)) {
+  if (!view_ || !view_->ShowBnplIssuerTos(*this, bnpl_issuer_tos_detail)) {
     ResetJavaObject();
     return false;
   }
@@ -266,8 +270,6 @@ void TouchToFillPaymentMethodControllerImpl::OnDismissed(
   delegate_.reset();
   ResetJavaObject();
   keyboard_suppressor_.Unsuppress();
-  // TODO(crbug.com/430575808): Run callback `on_bnpl_flow_dismissed_by_user_`
-  // if provided by an ongoing BNPL UI flow.
 }
 
 void TouchToFillPaymentMethodControllerImpl::ScanCreditCard(JNIEnv* env) {
@@ -289,6 +291,14 @@ void TouchToFillPaymentMethodControllerImpl::CreditCardSuggestionSelected(
     bool is_virtual) {
   if (delegate_) {
     delegate_->CreditCardSuggestionSelected(unique_id, is_virtual);
+  }
+}
+
+void TouchToFillPaymentMethodControllerImpl::BnplSuggestionSelected(
+    JNIEnv* env,
+    std::optional<int64_t> extracted_amount) {
+  if (delegate_) {
+    delegate_->BnplSuggestionSelected(extracted_amount);
   }
 }
 
@@ -324,8 +334,16 @@ void TouchToFillPaymentMethodControllerImpl::OnErrorOkPressed(JNIEnv* env) {
   }
 }
 
+void TouchToFillPaymentMethodControllerImpl::OnBnplIssuerSuggestionSelected(
+    JNIEnv* env,
+    const std::string& issuer_id) {
+  if (delegate_) {
+    delegate_->OnBnplIssuerSuggestionSelected(issuer_id);
+  }
+}
+
 int TouchToFillPaymentMethodControllerImpl::GetJavaResourceId(
-    int native_resource_id) {
+    int native_resource_id) const {
   return ResourceMapper::MapToJavaDrawableId(native_resource_id);
 }
 

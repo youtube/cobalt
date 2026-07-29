@@ -6,6 +6,7 @@ package org.chromium.chrome.browser.ntp;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.res.ColorStateList;
 import android.content.res.Resources;
 import android.graphics.Point;
 import android.graphics.Rect;
@@ -19,6 +20,7 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 
 import androidx.annotation.RawRes;
+import androidx.annotation.StyleRes;
 import androidx.annotation.VisibleForTesting;
 import androidx.core.widget.ImageViewCompat;
 
@@ -53,12 +55,14 @@ import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
 import org.chromium.chrome.browser.omnibox.SearchEngineUtils;
 import org.chromium.chrome.browser.omnibox.status.StatusProperties;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.signin.SigninAndHistorySyncActivityLauncherImpl;
 import org.chromium.chrome.browser.suggestions.tile.MostVisitedTilesCoordinator;
 import org.chromium.chrome.browser.suggestions.tile.MostVisitedTilesLayout;
 import org.chromium.chrome.browser.suggestions.tile.TileGroup;
 import org.chromium.chrome.browser.suggestions.tile.TileGroup.Delegate;
 import org.chromium.chrome.browser.tab_ui.InvalidationAwareThumbnailProvider;
 import org.chromium.chrome.browser.ui.native_page.TouchEnabledDelegate;
+import org.chromium.chrome.browser.ui.signin.signin_promo.NtpSigninPromoCoordinator;
 import org.chromium.chrome.browser.util.BrowserUiUtils;
 import org.chromium.chrome.browser.util.BrowserUiUtils.ModuleTypeOnStartAndNtp;
 import org.chromium.components.browser_ui.widget.RoundedCornerOutlineProvider;
@@ -67,6 +71,8 @@ import org.chromium.components.browser_ui.widget.displaystyle.HorizontalDisplayS
 import org.chromium.components.browser_ui.widget.displaystyle.UiConfig;
 import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.components.omnibox.OmniboxFeatures;
+import org.chromium.components.signin.SigninFeatureMap;
+import org.chromium.components.signin.SigninFeatures;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.ui.base.MimeTypeUtils;
 import org.chromium.ui.base.WindowAndroid;
@@ -168,6 +174,9 @@ public class NewTabPageLayout extends LinearLayout
     private int mCurrentNtpFakeSearchBoxTransitionStartOffset;
     private int mTopInset;
     private @Nullable OnLayoutChangeListener mOnLayoutChangeListener;
+    // TODO(crbug.com/451602301): remove @Nullable and all null checks once
+    // ENABLE_SEAMLESS_SIGNIN is removed after the experiment.
+    private @Nullable NtpSigninPromoCoordinator mSigninPromoCoordinator;
 
     /** Constructor for inflating from XML. */
     public NewTabPageLayout(Context context, AttributeSet attrs) {
@@ -298,8 +307,18 @@ public class NewTabPageLayout extends LinearLayout
         initializeVoiceSearchButton();
         initializeLensButton();
         initializeComposeplate();
+
+        // This should be called after both mSearchBoxCoordinator and mComposeplateCoordinator are
+        // initialized.
+        if (NtpCustomizationUtils.shouldApplyWhiteBackgroundOnSearchBox()) {
+            onCustomizedBackgroundChanged(/* applyWhiteBackgroundOnSearchBox= */ true);
+        }
+
         updateActionButtonVisibility();
         initializeLayoutChangeListener();
+        if (SigninFeatureMap.isEnabled(SigninFeatures.ENABLE_SEAMLESS_SIGNIN)) {
+            initializeSigninPromoCoordinator();
+        }
 
         // Initialize Searchbox observers
         SearchEngineUtils.getForProfile(mProfile).addSearchBoxHintTextObserver(this);
@@ -415,15 +434,27 @@ public class NewTabPageLayout extends LinearLayout
         if (mDseIconView.getVisibility() == visibility) return;
 
         mDseIconView.setVisibility(visibility);
+        boolean shouldApplyWhiteBackground =
+                NtpCustomizationUtils.shouldApplyWhiteBackgroundOnSearchBox();
 
         if (isVisible) {
             mSearchBoxCoordinator.setStartPadding(mFakeSearchBoxStartPaddingWithDseLogo);
-            mSearchBoxCoordinator.setSearchBoxTextAppearance(
-                    R.style.TextAppearance_FakeSearchBoxTextMedium);
+            if (shouldApplyWhiteBackground) {
+                mSearchBoxCoordinator.setSearchBoxTextAppearance(
+                        R.style.TextAppearance_FakeSearchBoxTextMediumDark);
+            } else {
+                mSearchBoxCoordinator.setSearchBoxTextAppearance(
+                        R.style.TextAppearance_FakeSearchBoxTextMedium);
+            }
         } else {
             mSearchBoxCoordinator.setStartPadding(mFakeSearchBoxStartPadding);
-            mSearchBoxCoordinator.setSearchBoxTextAppearance(
-                    R.style.TextAppearance_FakeSearchBoxText);
+            if (shouldApplyWhiteBackground) {
+                mSearchBoxCoordinator.setSearchBoxTextAppearance(
+                        R.style.TextAppearance_FakeSearchBoxTextDark);
+            } else {
+                mSearchBoxCoordinator.setSearchBoxTextAppearance(
+                        R.style.TextAppearance_FakeSearchBoxText);
+            }
         }
     }
 
@@ -449,6 +480,16 @@ public class NewTabPageLayout extends LinearLayout
     private void initializeComposeplate() {
         if (!mIsComposeplateEnabled) return;
 
+        boolean shouldApplyWhiteBackgroundOnSearchBox =
+                NtpCustomizationUtils.shouldApplyWhiteBackgroundOnSearchBox();
+        ColorStateList colorStateList =
+                NtpCustomizationUtils.getSearchBoxIconColorTint(
+                        mContext, shouldApplyWhiteBackgroundOnSearchBox);
+        @StyleRes
+        int textStyleResId =
+                NtpCustomizationUtils.getSearchBoxTextStyleResId(
+                        shouldApplyWhiteBackgroundOnSearchBox);
+
         if (!mIsComposeplateV2Enabled) {
             mComposeplateButtonClickListener =
                     view -> {
@@ -459,14 +500,16 @@ public class NewTabPageLayout extends LinearLayout
                     mComposeplateButtonClickListener);
             @RawRes
             int iconRawResId =
-                    ColorUtils.inNightMode(mContext)
+                    !shouldApplyWhiteBackgroundOnSearchBox && ColorUtils.inNightMode(mContext)
                             ? R.raw.composeplate_loop_dark
                             : R.raw.composeplate_loop_light;
             mSearchBoxCoordinator.setComposeplateButtonIconRawResId(iconRawResId);
 
             ViewStub composeplateViewStub = findViewById(R.id.composeplate_view_stub);
             ViewGroup composeplateView = (ViewGroup) composeplateViewStub.inflate();
-            mComposeplateCoordinator = new ComposeplateCoordinator(composeplateView, mProfile);
+            mComposeplateCoordinator =
+                    new ComposeplateCoordinator(
+                            composeplateView, mProfile, colorStateList, textStyleResId);
 
             assert mVoiceSearchButtonClickListener != null && mLensButtonClickListener != null;
             mComposeplateCoordinator.setVoiceSearchClickListener(mVoiceSearchButtonClickListener);
@@ -477,7 +520,9 @@ public class NewTabPageLayout extends LinearLayout
 
         ViewStub composeplateViewStub = findViewById(R.id.composeplate_view_v2_stub);
         ViewGroup composeplateView = (ViewGroup) composeplateViewStub.inflate();
-        mComposeplateCoordinator = new ComposeplateCoordinator(composeplateView, mProfile);
+        mComposeplateCoordinator =
+                new ComposeplateCoordinator(
+                        composeplateView, mProfile, colorStateList, textStyleResId);
         mComposeplateCoordinator.setIncognitoClickListener(this::onIncognitoButtonClicked);
         // Don't log click metrics in this listener, since the mComposeplateCoordinator will
         // log.
@@ -579,6 +624,16 @@ public class NewTabPageLayout extends LinearLayout
         if (ChromeFeatureList.sNewTabPageCustomizationForMvt.isEnabled()) {
             mMostVisitedTilesCoordinator.updateMvtVisibility();
         }
+    }
+
+    private void initializeSigninPromoCoordinator() {
+        ViewStub signinPromoViewContainerStub = findViewById(R.id.signin_promo_view_container_stub);
+        mSigninPromoCoordinator =
+                new NtpSigninPromoCoordinator(
+                        mContext,
+                        mProfile,
+                        SigninAndHistorySyncActivityLauncherImpl.get(),
+                        signinPromoViewContainerStub);
     }
 
     /** Updates the search box when the parent view's scroll position is changed. */
@@ -1162,6 +1217,11 @@ public class NewTabPageLayout extends LinearLayout
             mComposeplateCoordinator = null;
         }
 
+        if (mSigninPromoCoordinator != null) {
+            mSigninPromoCoordinator.destroy();
+            mSigninPromoCoordinator = null;
+        }
+
         mComposeplateButtonClickListener = null;
         mLensButtonClickListener = null;
         mVoiceSearchButtonClickListener = null;
@@ -1312,6 +1372,25 @@ public class NewTabPageLayout extends LinearLayout
                 getResources().getDimensionPixelSize(R.dimen.toolbar_height_no_shadow) + mTopInset,
                 getPaddingEnd(),
                 getPaddingBottom());
+    }
+
+    /**
+     * Called when a customized background image is selected or deselected.
+     *
+     * @param applyWhiteBackgroundOnSearchBox Whether to apply a white background color to the fake
+     *     search box.
+     */
+    void onCustomizedBackgroundChanged(boolean applyWhiteBackgroundOnSearchBox) {
+        // applyWhiteBackgroundWithShadow() will be called immediately after mSearchBoxCoordinator
+        // is initialized, it is fine to skip here.
+        if (mSearchBoxCoordinator != null) {
+            mSearchBoxCoordinator.applyWhiteBackgroundWithShadow(applyWhiteBackgroundOnSearchBox);
+        }
+
+        if (mComposeplateCoordinator != null) {
+            mComposeplateCoordinator.applyWhiteBackgroundWithShadow(
+                    applyWhiteBackgroundOnSearchBox);
+        }
     }
 
     /** Returns the top inset of the NTP. */

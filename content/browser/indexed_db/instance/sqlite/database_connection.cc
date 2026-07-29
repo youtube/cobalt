@@ -20,7 +20,9 @@
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/types/expected.h"
+#include "base/types/expected_macros.h"
 #include "build/build_config.h"
+#include "content/browser/indexed_db/indexed_db_data_format_version.h"
 #include "content/browser/indexed_db/indexed_db_value.h"
 #include "content/browser/indexed_db/instance/backing_store.h"
 #include "content/browser/indexed_db/instance/record.h"
@@ -117,14 +119,16 @@ void BindKeyPath(sql::Statement& statement,
       NOTREACHED();
   }
 }
-blink::IndexedDBKeyPath ColumnKeyPath(sql::Statement& statement,
-                                      int column_index) {
+
+StatusOr<blink::IndexedDBKeyPath> ColumnKeyPath(sql::Statement& statement,
+                                                int column_index) {
   if (statement.GetColumnType(column_index) == sql::ColumnType::kNull) {
     // `Null` key path.
     return blink::IndexedDBKeyPath();
   }
-  std::u16string encoded;
-  statement.ColumnBlobAsString16(column_index, &encoded);
+  ASSIGN_OR_RETURN(
+      std::u16string encoded, statement.ColumnBlobAsString16(column_index),
+      []() { return Status::Corruption("Key path unexpected size"); });
   std::vector<std::u16string> parts = base::SplitString(
       encoded, kKeyPathSeparator, base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL);
   if (parts.empty()) {
@@ -138,6 +142,9 @@ blink::IndexedDBKeyPath ColumnKeyPath(sql::Statement& statement,
   // `Array` key path.
   return blink::IndexedDBKeyPath(std::move(parts));
 }
+
+// Key used in MetaTable to track the data encoding version used by Blink/V8.
+constexpr std::string_view kV8DataVersionKey = "v8_data_version";
 
 // These are schema versions of our implementation of `sql::Database`; not the
 // version supplied by the application for the IndexedDB database.
@@ -466,13 +473,13 @@ class ObjectStoreCursorImpl : public BackingStoreCursorImpl {
   StatusOr<std::unique_ptr<Record>> ReadRow(
       sql::Statement& statement) override {
     CHECK(statement.Succeeded());
-    statement.ColumnBlobAsString(0, &position_);
+    position_ = statement.ColumnBlobAsString(0);
     blink::IndexedDBKey key = DecodeSortableIDBKey(position_);
     if (key_only_) {
       return std::make_unique<ObjectStoreKeyOnlyRecord>(std::move(key));
     }
     IndexedDBValue value;
-    statement.ColumnBlobAsVector(1, &value.bits);
+    value.bits = statement.ColumnBlobAsVector(1);
     int64_t record_row_id = statement.ColumnInt64(2);
     return db()
         ->AddExternalObjectMetadataToValue(std::move(value), record_row_id)
@@ -687,10 +694,9 @@ class IndexCursorImpl : public BackingStoreCursorImpl {
   StatusOr<std::unique_ptr<Record>> ReadRow(
       sql::Statement& statement) override {
     CHECK(statement.Succeeded());
-
-    statement.ColumnBlobAsString(0, &position_);
+    position_ = statement.ColumnBlobAsString(0);
     blink::IndexedDBKey key = DecodeSortableIDBKey(position_);
-    statement.ColumnBlobAsString(1, &object_store_position_);
+    object_store_position_ = statement.ColumnBlobAsString(1);
     blink::IndexedDBKey primary_key =
         DecodeSortableIDBKey(object_store_position_);
     if (key_only_) {
@@ -698,7 +704,7 @@ class IndexCursorImpl : public BackingStoreCursorImpl {
                                                   std::move(primary_key));
     }
     IndexedDBValue value;
-    statement.ColumnBlobAsVector(2, &value.bits);
+    value.bits = statement.ColumnBlobAsVector(2);
     int64_t record_row_id = statement.ColumnInt64(3);
     return db()
         ->AddExternalObjectMetadataToValue(std::move(value), record_row_id)
@@ -747,6 +753,11 @@ StatusOr<std::unique_ptr<DatabaseConnection>> DatabaseConnection::Open(
       base::WrapUnique(new DatabaseConnection(path, backing_store));
   Status s = connection->Init(name);
   if (!s.ok()) {
+    IndexedDBDataLossInfo loss;
+    if (connection->marked_for_permanent_deletion_) {
+      loss.status = blink::mojom::IDBDataLoss::Total;
+      loss.message = s.ToString();
+    }
     // If opening fails, recover or destroy the DB and try once more. This is
     // accomplished by destroying `connection`, since the destructor handles
     // errors.
@@ -754,6 +765,7 @@ StatusOr<std::unique_ptr<DatabaseConnection>> DatabaseConnection::Open(
     // attempt.
     connection = base::WrapUnique(new DatabaseConnection(path, backing_store));
     s = connection->Init(name);
+    connection->data_loss_info_ = std::move(loss);
   }
   if (!s.ok()) {
     return base::unexpected(s);
@@ -771,7 +783,7 @@ void DatabaseConnection::Release(base::WeakPtr<DatabaseConnection> db) {
   // in case the page reopens the same database soon.
   DatabaseConnection* db_ptr = db.get();
   db.reset();
-  if (db_ptr->CanBeDestroyed()) {
+  if (db_ptr->CanSelfDestruct()) {
     db_ptr->backing_store_->DestroyConnection(db_ptr->metadata_.name);
   }
 }
@@ -781,15 +793,24 @@ DatabaseConnection::DatabaseConnection(base::FilePath path,
     : path_(path), backing_store_(backing_store) {}
 
 DatabaseConnection::~DatabaseConnection() {
-  if (!db_ || path_.empty()) {
+  // Although generally active blobs will keep `this` alive, in some cases such
+  // as when the backing store is being force-closed, blobs may still be active.
+  active_blobs_.clear();
+
+  if (!db_ || in_memory()) {
     return;
   }
 
-  if (marked_for_permanent_deletion_) {
+  bool had_sql_error =
+      !sql::IsSqliteSuccessCode(sql::ToSqliteResultCode(db_->GetErrorCode()));
+
+  // When the database never finished initializing, it will be zygotic. This
+  // could happen if version change transaction was aborted/rolled back. In this
+  // case the newly created database should be deleted.
+  if (marked_for_permanent_deletion_ || (IsZygotic() && !had_sql_error)) {
     db_.reset();
     sql::Database::Delete(path_);
-  } else if (!sql::IsSqliteSuccessCode(
-                 sql::ToSqliteResultCode(db_->GetErrorCode()))) {
+  } else if (had_sql_error) {
     LogEvent(SpecificEvent::kDatabaseHadSqlError);
 
     // Note that `DatabaseConnection` does not set an error callback on
@@ -819,14 +840,14 @@ Status DatabaseConnection::Init(std::optional<std::u16string_view> name) {
 
   constexpr sql::Database::Tag kSqlTag = "IndexedDB";
   constexpr sql::Database::Tag kSqlTagInMemory = "IndexedDBEphemeral";
-  db_ = std::make_unique<sql::Database>(
-      sql::DatabaseOptions()
-          .set_exclusive_locking(true)
-          .set_wal_mode(true)
-          .set_enable_triggers(true),
-      path_.empty() ? kSqlTagInMemory : kSqlTag);
+  db_ =
+      std::make_unique<sql::Database>(sql::DatabaseOptions()
+                                          .set_exclusive_locking(true)
+                                          .set_wal_mode(true)
+                                          .set_enable_triggers(true),
+                                      in_memory() ? kSqlTagInMemory : kSqlTag);
 
-  if (path_.empty()) {
+  if (in_memory()) {
     RETURN_STATUS_ON_ERROR(db_->OpenInMemory());
   } else {
     RETURN_STATUS_ON_ERROR(db_->Open(path_));
@@ -839,7 +860,8 @@ Status DatabaseConnection::Init(std::optional<std::u16string_view> name) {
   sql::Transaction transaction(db_.get());
   RETURN_STATUS_ON_ERROR(transaction.Begin());
 
-  if (!sql::MetaTable::DoesTableExist(db_.get())) {
+  const bool is_new_db = !sql::MetaTable::DoesTableExist(db_.get());
+  if (is_new_db) {
     IDB_RETURN_IF_ERROR(CreateSchema(db_.get(), *name));
   }
 
@@ -851,6 +873,26 @@ Status DatabaseConnection::Init(std::optional<std::u16string_view> name) {
     return Fatal(Status::NotFound("Database too new"),
                  SpecificEvent::kDatabaseTooNew);
   }
+
+  // The "data format version" refers to the encoding routine Blink/V8 uses to
+  // serialize values. It will always be backwards compatible, but we may open a
+  // database that is too new (written by a future version of the browser),
+  // which will be a fatal error.
+  const auto current_data_format = IndexedDBDataFormatVersion::GetCurrent();
+  if (!is_new_db) {
+    int64_t data_format_version;
+    if (!meta_table_->GetValue(kV8DataVersionKey, &data_format_version)) {
+      return Fatal(Status::Corruption("Missing data format version"),
+                   SpecificEvent::kV8FormatTooNewOrMissing);
+    }
+    if (!current_data_format.IsAtLeast(
+            IndexedDBDataFormatVersion::Decode(data_format_version))) {
+      return Fatal(
+          Status::NotFound("Unintelligible data format version: too new"),
+          SpecificEvent::kV8FormatTooNewOrMissing);
+    }
+  }
+  meta_table_->SetValue(kV8DataVersionKey, current_data_format.Encode());
 
   switch (meta_table_->GetVersionNumber()) {
     // ...
@@ -900,7 +942,7 @@ int64_t DatabaseConnection::GetCommittedVersion() const {
 }
 
 uint64_t DatabaseConnection::GetInMemorySize() const {
-  CHECK(path_.empty());
+  CHECK(in_memory());
   // TODO(crbug.com/419203257): For consistency, consider using this logic while
   // reporting usage of on-disk databases too.
   //
@@ -1435,7 +1477,7 @@ StatusOr<IndexedDBValue> DatabaseConnection::GetValue(
       return IndexedDBValue();
     }
     record_row_id = statement.ColumnInt64(0);
-    statement.ColumnBlobAsVector(1, &value.bits);
+    value.bits = statement.ColumnBlobAsVector(1);
   }
 
   return AddExternalObjectMetadataToValue(std::move(value), record_row_id);
@@ -1720,9 +1762,7 @@ StatusOr<blink::IndexedDBKey> DatabaseConnection::GetFirstPrimaryKeyForIndexKey(
   statement.BindInt64(1, index_id);
   statement.BindBlob(2, EncodeSortableIDBKey(key));
   if (statement.Step()) {
-    std::string primary_key;
-    statement.ColumnBlobAsString(0, &primary_key);
-    return DecodeSortableIDBKey(primary_key);
+    return DecodeSortableIDBKey(statement.ColumnBlobAsString(0));
   }
   RETURN_IF_STATEMENT_ERRORED(statement);
   // Not found.
@@ -1835,7 +1875,7 @@ void DatabaseConnection::DeleteIdbDatabase(
   interface_wrapper_weak_factory_.InvalidateWeakPtrs();
   CHECK(!blob_writers_weak_factory_.HasWeakPtrs());
 
-  if (CanBeDestroyed()) {
+  if (CanSelfDestruct()) {
     // Fast path: skip explicitly deleting data as the whole database will be
     // dropped.
     backing_store_->DestroyConnection(metadata_.name);
@@ -1861,9 +1901,8 @@ void DatabaseConnection::DeleteIdbDatabase(
       }();
 
   // If there are any errors in the above, then blobs will probably error out
-  // too, so abandon the blobs.
+  // too, so go ahead and destroy `this`.
   if (!success) {
-    active_blobs_.clear();
     backing_store_->DestroyConnection(metadata_.name);
     // `this` is deleted.
   }
@@ -1888,7 +1927,7 @@ void DatabaseConnection::OnBlobBecameInactive(int64_t blob_number) {
     }
   }
 
-  if (CanBeDestroyed()) {
+  if (CanSelfDestruct()) {
     backing_store_->DestroyConnection(metadata_.name);
     // `this` is deleted.
     return;
@@ -1906,7 +1945,13 @@ bool DatabaseConnection::AddActiveBlobReference(int64_t blob_number) {
   return statement.Run();
 }
 
-bool DatabaseConnection::CanBeDestroyed() const {
+bool DatabaseConnection::CanSelfDestruct() const {
+  // In-memory databases must remain alive until the BrowserContext is destroyed
+  // (which destroys the BackingStore).
+  if (in_memory() && !marked_for_permanent_deletion_) {
+    return false;
+  }
+
   return active_blobs_.empty() &&
          !interface_wrapper_weak_factory_.HasWeakPtrs();
 }
@@ -2001,7 +2046,10 @@ DatabaseConnection::GenerateIndexedDbMetadata() {
           Fatal(Status::Corruption("Missing table `indexed_db_metadata`"),
                 SpecificEvent::kMissingMetadataTable));
     }
-    statement.ColumnBlobAsString16(0, &metadata.name);
+    ASSIGN_OR_RETURN(metadata.name, statement.ColumnBlobAsString16(0), [&]() {
+      return Fatal(Status::Corruption("Database name is unexpected size"),
+                   SpecificEvent::kUtf16StringUnreadable);
+    });
     metadata.version = statement.ColumnInt64(1);
   }
 
@@ -2013,8 +2061,17 @@ DatabaseConnection::GenerateIndexedDbMetadata() {
     while (statement.Step()) {
       blink::IndexedDBObjectStoreMetadata store_metadata;
       store_metadata.id = statement.ColumnInt64(0);
-      statement.ColumnBlobAsString16(1, &store_metadata.name);
-      store_metadata.key_path = ColumnKeyPath(statement, 2);
+      ASSIGN_OR_RETURN(
+          store_metadata.name, statement.ColumnBlobAsString16(1), [&]() {
+            return Fatal(
+                Status::Corruption("Object store name is unexpected size"),
+                SpecificEvent::kUtf16StringUnreadable);
+          });
+      ASSIGN_OR_RETURN(store_metadata.key_path, ColumnKeyPath(statement, 2),
+                       [&](Status error) {
+                         return Fatal(error,
+                                      SpecificEvent::kUtf16StringUnreadable);
+                       });
       store_metadata.auto_increment = statement.ColumnBool(3);
       max_object_store_id = std::max(max_object_store_id, store_metadata.id);
       metadata.object_stores[store_metadata.id] = std::move(store_metadata);
@@ -2032,8 +2089,16 @@ DatabaseConnection::GenerateIndexedDbMetadata() {
       blink::IndexedDBIndexMetadata index_metadata;
       int64_t object_store_id = statement.ColumnInt64(0);
       index_metadata.id = statement.ColumnInt64(1);
-      statement.ColumnBlobAsString16(2, &index_metadata.name);
-      index_metadata.key_path = ColumnKeyPath(statement, 3);
+      ASSIGN_OR_RETURN(
+          index_metadata.name, statement.ColumnBlobAsString16(2), [&]() {
+            return Fatal(Status::Corruption("Index name is unexpected size"),
+                         SpecificEvent::kUtf16StringUnreadable);
+          });
+      ASSIGN_OR_RETURN(index_metadata.key_path, ColumnKeyPath(statement, 3),
+                       [&](Status error) {
+                         return Fatal(error,
+                                      SpecificEvent::kUtf16StringUnreadable);
+                       });
       index_metadata.unique = statement.ColumnBool(4);
       index_metadata.multi_entry = statement.ColumnBool(5);
       blink::IndexedDBObjectStoreMetadata& store_metadata =
@@ -2049,7 +2114,7 @@ DatabaseConnection::GenerateIndexedDbMetadata() {
 }
 
 void DatabaseConnection::LogEvent(SpecificEvent event) const {
-  if (path_.empty()) {
+  if (in_memory()) {
     base::UmaHistogramEnumeration("IndexedDB.SQLite.SpecificEvent.InMemory",
                                   event);
   } else {

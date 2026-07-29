@@ -11,6 +11,7 @@
 #include "base/notimplemented.h"
 #include "base/time/time.h"
 #include "chrome/browser/ui/android/autofill/payments/payments_window_bridge.h"
+#include "chrome/browser/ui/autofill/payments/chrome_payments_autofill_client.h"
 #include "components/autofill/content/browser/content_autofill_client.h"
 #include "components/autofill/core/browser/metrics/payments/bnpl_metrics.h"
 #include "components/autofill/core/browser/payments/payments_window_manager_util.h"
@@ -46,11 +47,36 @@ void AndroidPaymentsWindowManager::InitVcn3dsAuthentication(
 }
 
 void AndroidPaymentsWindowManager::WebContentsDestroyed() {
-  CHECK(flow_state_.has_value());
+  // If `flow_state_` is not present, then completion flow has already been
+  // handled.
+  if (!flow_state_.has_value()) {
+    return;
+  }
+
+  // On Android, the PaymentsAutofillClient can only be a
+  // ChromePaymentsAutofillClient.
+  ChromePaymentsAutofillClient* payments_autofill_client =
+      static_cast<ChromePaymentsAutofillClient*>(
+          client_->GetPaymentsAutofillClient());
+
   switch (flow_state_->flow_type) {
     case FlowType::kBnpl:
+      // This should only be reached if the user directly closed the ephemeral
+      // tab before navigating to the success/failure URL.
+      CHECK_EQ(BnplPopupStatus::kNotFinished,
+               ParseUrlForBnpl(flow_state_->most_recent_url_navigation,
+                               flow_state_->bnpl_context.value()));
       TriggerCompletionCallbackAndLogMetricsForBnpl(
           std::move(flow_state_.value()));
+
+      // Clear any leftover state from the TouchToFillPaymentMethodController in
+      // case there is a bottom sheet that is currently hidden but not fully
+      // dismissed.
+      if (payments_autofill_client &&
+          payments_autofill_client->GetTouchToFillPaymentMethodController()) {
+        payments_autofill_client->GetTouchToFillPaymentMethodController()
+            ->OnDismissed(/*env=*/nullptr, /*dismissed_by_user=*/true);
+      }
       break;
     case FlowType::kVcn3ds:
     case FlowType::kNoFlow:
@@ -71,6 +97,13 @@ void AndroidPaymentsWindowManager::OnDidFinishNavigationForBnpl(
   if (status == BnplPopupStatus::kNotFinished) {
     return;
   }
+
+  // Run the completion callback to add the subsequent UI, such as the progress
+  // or error screen, to the bottom sheet queue. This ensures the next screen is
+  // shown seamlessly after the current ephemeral tab is dismissed.
+  TriggerCompletionCallbackAndLogMetricsForBnpl(std::move(flow_state_.value()));
+  flow_state_.reset();
+
   payments_window_bridge_->CloseEphemeralTab();
 }
 

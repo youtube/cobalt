@@ -42,12 +42,11 @@ import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.browser.WebContentsObserver;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.edge_to_edge.EdgeToEdgeStateProvider;
-import org.chromium.ui.hierarchicalmenu.FlyoutController;
 import org.chromium.ui.hierarchicalmenu.FlyoutController.FlyoutHandler;
 import org.chromium.ui.hierarchicalmenu.FlyoutController.FlyoutPopupEntry;
 import org.chromium.ui.hierarchicalmenu.HierarchicalMenuController;
+import org.chromium.ui.hierarchicalmenu.HierarchicalMenuController.AccessibilityListObserver;
 import org.chromium.ui.listmenu.ListMenuUtils;
-import org.chromium.ui.listmenu.ListMenuUtils.AccessibilityListObserver;
 import org.chromium.ui.modelutil.LayoutViewBuilder;
 import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
@@ -326,17 +325,13 @@ public class ContextMenuCoordinator implements ContextMenuUi, FlyoutHandler<Cont
                         mIsCustomItemPresent);
         ContextMenuMediator mediator =
                 new ContextMenuMediator(
-                        mActivity,
-                        mHeaderCoordinator,
-                        onItemClicked,
-                        this::dismiss,
-                        mUsePopupWindow);
+                        mActivity, mHeaderCoordinator, onItemClicked, this::dismiss);
 
         HierarchicalMenuController hierarchicalMenuController =
-                new HierarchicalMenuController(new ListMenuUtils.ListMenuKeyProvider(), this);
-
-        FlyoutController flyoutController = hierarchicalMenuController.getFlyoutController();
-        assert flyoutController != null;
+                new HierarchicalMenuController(
+                        new ListMenuUtils.ListMenuKeyProvider(),
+                        /* flyoutHandler= */ this,
+                        /* drillDownOverrideValue= */ mUsePopupWindow ? null : true);
 
         // The Integer here specifies the {@link ListItemType}.
         ModelList listItems =
@@ -346,7 +341,7 @@ public class ContextMenuCoordinator implements ContextMenuUi, FlyoutHandler<Cont
                         // preview the page before initiating any actions. This is not needed for
                         // actions performed on the current page.
                         /* hasHeader= */ !params.getOpenedFromHighlight() && !params.isPage(),
-                        flyoutController);
+                        hierarchicalMenuController);
 
         ModelListAdapter adapter = createAdapter(listItems);
 
@@ -366,12 +361,14 @@ public class ContextMenuCoordinator implements ContextMenuUi, FlyoutHandler<Cont
         mListViews.add(listView);
 
         listItems.addObserver(
-                new AccessibilityListObserver(
+                hierarchicalMenuController
+                .new AccessibilityListObserver(
                         listView,
                         /* headerView= */ null,
                         listView,
                         /* headerModelList= */ null,
                         listItems));
+
         mWebContentsObserver =
                 new WebContentsObserver(mWebContents) {
                     @Override
@@ -416,7 +413,7 @@ public class ContextMenuCoordinator implements ContextMenuUi, FlyoutHandler<Cont
         mListViews.subList(clearFromIndex, mListViews.size()).clear();
 
         if (mDialogs.size() > 0) {
-            mDialogs.get(mDialogs.size() - 1).popupWindow.setWindowFocus(true);
+            mDialogs.get(mDialogs.size() - 1).popupWindow.setWindowFocusForFlyoutMenus(true);
         }
     }
 
@@ -456,9 +453,9 @@ public class ContextMenuCoordinator implements ContextMenuUi, FlyoutHandler<Cont
                         });
 
         assert mDialogs.size() > 0;
-        mDialogs.get(mDialogs.size() - 1).popupWindow.setWindowFocus(false);
+        mDialogs.get(mDialogs.size() - 1).popupWindow.setWindowFocusForFlyoutMenus(false);
 
-        dialog.setWindowFocus(true);
+        dialog.setWindowFocusForFlyoutMenus(true);
         dialog.show();
 
         mDialogs.add(new FlyoutPopupEntry(item, dialog));

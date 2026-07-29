@@ -1105,13 +1105,14 @@ void CloseWindow(BrowserWindowInterface* browser) {
   browser->GetWindow()->Close();
 }
 
-content::WebContents& NewTab(Browser* browser) {
-  base::RecordAction(UserMetricsAction("NewTab"));
-  // TODO(asvitkine): This is invoked programmatically from several places.
-  // Audit the code and change it so that the histogram only gets collected for
-  // user-initiated commands.
-  UMA_HISTOGRAM_ENUMERATION("Tab.NewTab", NewTabTypes::NEW_TAB_COMMAND,
+content::WebContents& NewTab(Browser* browser, NewTabTypes context) {
+  if (context != NewTabTypes::NO_USER_ACTION) {
+    base::RecordAction(base::UserMetricsAction("NewTab"));
+  }
+
+  UMA_HISTOGRAM_ENUMERATION("Tab.NewTab", context,
                             NewTabTypes::NEW_TAB_ENUM_COUNT);
+
   browser->profile()->SetUserData(
       NewTabGroupingUserData::kNewTabGroupingUserDataKey,
       std::make_unique<NewTabGroupingUserData>(
@@ -2316,6 +2317,13 @@ void ToggleShowGoogleLensShortcut(Browser* browser) {
   bool pref_enabled = browser->profile()->GetPrefs()->GetBoolean(
       omnibox::kShowGoogleLensShortcut);
   browser->profile()->GetPrefs()->SetBoolean(omnibox::kShowGoogleLensShortcut,
+                                             !pref_enabled);
+}
+
+void ToggleShowAiModeOmniboxButton(Browser* browser) {
+  bool pref_enabled = browser->profile()->GetPrefs()->GetBoolean(
+      omnibox::kShowAiModeOmniboxButton);
+  browser->profile()->GetPrefs()->SetBoolean(omnibox::kShowAiModeOmniboxButton,
                                              !pref_enabled);
 }
 

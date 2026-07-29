@@ -184,6 +184,8 @@ class OmniboxViewViews
   FRIEND_TEST_ALL_PREFIXES(OmniboxViewViewsTest, DoNotNavigateOnDrop);
   FRIEND_TEST_ALL_PREFIXES(OmniboxViewViewsTest, AyncDropCallback);
   FRIEND_TEST_ALL_PREFIXES(OmniboxViewViewsTest, AccessibleTextSelectBoundTest);
+  FRIEND_TEST_ALL_PREFIXES(OmniboxViewViewsAIMButtonPreferenceTest,
+                           ButtonVisibilityTogglesWithPref_OmniboxFocused);
 
   enum class UnelisionGesture {
     HOME_KEY_PRESSED,
@@ -329,6 +331,9 @@ class OmniboxViewViews
   // DSE placeholder.
   void UpdatePlaceholderTextColor();
 
+  // Returns true if the AIM hint impression limits have been reached.
+  bool AreAimHintImpressionLimitsReached() const;
+
   // Returns true if the AIM placeholder text should be installed instead of the
   // DSE placeholder text.
   bool ShouldInstallAimPlaceholderText() const;
@@ -337,6 +342,9 @@ class OmniboxViewViews
   // from ShouldInstallAimPlaceholderText() because there are certain scenarios
   // where the AIM placeholder text is installed but not visible.
   bool ShouldShowAimPlaceholderText() const;
+
+  // Records an impression of the AIM hint text.
+  void RecordAimHintImpression();
 
   // Returns the AI Mode page action icon view, if present, or nullptr if the
   // view doesn't exist.
@@ -432,6 +440,10 @@ class OmniboxViewViews
   // mode page action icon as focused. Only used when keyboard accessibility is
   // disabled (which currently only happens on Mac).
   bool aim_page_action_icon_has_fake_focus_ = false;
+
+  // Used to track whether the AIM hint has been shown during a single focus
+  // session (omnibox focused -> omnibox blurred).
+  bool aim_hint_shown_ = false;
 
   base::ScopedObservation<ui::Compositor, ui::CompositorObserver>
       scoped_compositor_observation_{this};

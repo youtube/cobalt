@@ -54,6 +54,8 @@
 #include "chrome/browser/ui/webui/privacy_sandbox/privacy_sandbox_internals_ui.h"
 #include "chrome/browser/ui/webui/privacy_sandbox/private_state_tokens/private_state_tokens.mojom.h"
 #include "chrome/browser/ui/webui/privacy_sandbox/related_website_sets/related_website_sets.mojom.h"
+#include "chrome/browser/ui/webui/reload_button/reload_button.mojom.h"
+#include "chrome/browser/ui/webui/reload_button/reload_button_ui.h"
 #include "chrome/browser/ui/webui/search_engine_choice/search_engine_choice.mojom.h"  // nogncheck crbug.com/1125897
 #include "chrome/browser/ui/webui/search_engine_choice/search_engine_choice_ui.h"
 #include "chrome/browser/ui/webui/settings/settings_ui.h"
@@ -205,10 +207,6 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
   RegisterWebUIControllerInterfaceBinder<downloads::mojom::PageHandlerFactory,
                                          DownloadsUI>(map);
 
-  RegisterWebUIControllerInterfaceBinder<
-      new_tab_page_third_party::mojom::PageHandlerFactory,
-      NewTabPageThirdPartyUI>(map);
-
   if (lens::features::IsLensOverlayEnabled()) {
     RegisterWebUIControllerInterfaceBinder<
         lens::mojom::LensSidePanelPageHandlerFactory,
@@ -251,11 +249,11 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
       ColorPipelineInternalsUI, UserEducationInternalsUI, ReadingListUI,
       TabSearchUI, WebuiGalleryUI, HistoryClustersSidePanelUI,
       ShoppingInsightsSidePanelUI, media_router::AccessCodeCastUI,
-      commerce::ProductSpecificationsUI, NewTabFooterUI>(map);
+      commerce::ProductSpecificationsUI>(map);
 
   RegisterWebUIControllerInterfaceBinder<
-      customize_buttons::mojom::CustomizeButtonsHandlerFactory, NewTabPageUI,
-      NewTabFooterUI>(map);
+      customize_buttons::mojom::CustomizeButtonsHandlerFactory, NewTabPageUI>(
+      map);
 
   RegisterWebUIControllerInterfaceBinder<
       new_tab_page::mojom::PageHandlerFactory, NewTabPageUI>(map);
@@ -267,11 +265,7 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
   }
 
   RegisterWebUIControllerInterfaceBinder<
-      new_tab_footer::mojom::NewTabFooterHandlerFactory, NewTabFooterUI>(map);
-
-  RegisterWebUIControllerInterfaceBinder<
-      most_visited::mojom::MostVisitedPageHandlerFactory, NewTabPageUI,
-      NewTabPageThirdPartyUI>(map);
+      most_visited::mojom::MostVisitedPageHandlerFactory, NewTabPageUI>(map);
 
   if (HistorySidePanelCoordinator::IsSupported()) {
     RegisterWebUIControllerInterfaceBinder<history::mojom::PageHandler,
@@ -357,22 +351,21 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
   RegisterWebUIControllerInterfaceBinder<
       customize_color_scheme_mode::mojom::
           CustomizeColorSchemeModeHandlerFactory,
-      CustomizeChromeUI, settings::SettingsUI>(map);
+      CustomizeChromeUI>(map);
 
   RegisterWebUIControllerInterfaceBinder<
       theme_color_picker::mojom::ThemeColorPickerHandlerFactory,
       CustomizeChromeUI
 #if !BUILDFLAG(IS_CHROMEOS)
       ,
-      ProfileCustomizationUI, settings::SettingsUI
+      ProfileCustomizationUI
 #endif  // !BUILDFLAG(IS_CHROMEOS)
       >(map);
 
   RegisterWebUIControllerInterfaceBinder<
       help_bubble::mojom::HelpBubbleHandlerFactory, UserEducationInternalsUI,
-      settings::SettingsUI, ReadingListUI, NewTabPageUI, CustomizeChromeUI,
-      PasswordManagerUI, HistoryUI, lens::LensOverlayUntrustedUI,
-      lens::LensSidePanelUntrustedUI
+      ReadingListUI, NewTabPageUI, CustomizeChromeUI, PasswordManagerUI,
+      HistoryUI, lens::LensOverlayUntrustedUI, lens::LensSidePanelUntrustedUI
 #if !BUILDFLAG(IS_CHROMEOS)
       ,
       ProfilePickerUI
@@ -423,12 +416,6 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
           render_frame_host->GetBrowserContext()))) {
     RegisterWebUIControllerInterfaceBinder<
         file_suggestion::mojom::MicrosoftFilesPageHandler, NewTabPageUI>(map);
-  }
-
-  if (ntp_composebox::IsNtpComposeboxEnabled(Profile::FromBrowserContext(
-          render_frame_host->GetProcess()->GetBrowserContext()))) {
-    RegisterWebUIControllerInterfaceBinder<
-        composebox::mojom::PageHandlerFactory, NewTabPageUI>(map);
   }
 
   RegisterWebUIControllerInterfaceBinder<
@@ -527,6 +514,9 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
   RegisterWebUIControllerInterfaceBinder<
       guest_contents::mojom::GuestContentsHost, WebUIBrowserUI>(map);
 
+  const bool is_ntp_composebox_enabled =
+      ntp_composebox::IsNtpComposeboxEnabled(Profile::FromBrowserContext(
+          render_frame_host->GetProcess()->GetBrowserContext()));
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
   RegisterWebUIControllerInterfaceBinder<
       app_management::mojom::PageHandlerFactory, WebAppSettingsUI>(map);
@@ -543,11 +533,57 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
   RegisterWebUIControllerInterfaceBinder<::app_home::mojom::PageHandlerFactory,
                                          webapps::AppHomeUI>(map);
 
-  if (base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks)) {
+  const bool is_contextual_tasks_enabled =
+      base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks);
+  if (is_ntp_composebox_enabled && is_contextual_tasks_enabled) {
+    RegisterWebUIControllerInterfaceBinder<
+        composebox::mojom::PageHandlerFactory, NewTabPageUI, ContextualTasksUI>(
+        map);
+  } else if (is_contextual_tasks_enabled) {
+    RegisterWebUIControllerInterfaceBinder<
+        composebox::mojom::PageHandlerFactory, ContextualTasksUI>(map);
+  } else if (is_ntp_composebox_enabled) {
+    RegisterWebUIControllerInterfaceBinder<
+        composebox::mojom::PageHandlerFactory, NewTabPageUI>(map);
+  }
+
+  if (is_contextual_tasks_enabled) {
     RegisterWebUIControllerInterfaceBinder<
         contextual_tasks::mojom::PageHandlerFactory, ContextualTasksUI>(map);
   }
+#else
+  if (is_ntp_composebox_enabled) {
+    RegisterWebUIControllerInterfaceBinder<
+        composebox::mojom::PageHandlerFactory, NewTabPageUI>(map);
+  }
 #endif
+}
+
+void PopulateChromeWebUIFrameInterfaceBrokersTrustedPartsDesktop(
+    content::WebUIBrowserInterfaceBrokerRegistry& registry) {
+  if (base::FeatureList::IsEnabled(ntp_features::kNtpFooter)) {
+    registry.ForWebUI<NewTabFooterUI>()
+        .Add<color_change_listener::mojom::PageHandler>()
+        .Add<customize_buttons::mojom::CustomizeButtonsHandlerFactory>()
+        .Add<new_tab_footer::mojom::NewTabFooterHandlerFactory>();
+  }
+
+  registry.ForWebUI<NewTabPageThirdPartyUI>()
+      .Add<most_visited::mojom::MostVisitedPageHandlerFactory>()
+      .Add<new_tab_page_third_party::mojom::PageHandlerFactory>();
+
+  registry
+      .ForWebUI<settings::SettingsUI>()
+#if !BUILDFLAG(IS_CHROMEOS)
+      .Add<theme_color_picker::mojom::ThemeColorPickerHandlerFactory>()
+#endif  // !BUILDFLAG(IS_CHROMEOS)
+      .Add<customize_color_scheme_mode::mojom::
+               CustomizeColorSchemeModeHandlerFactory>()
+      .Add<help_bubble::mojom::HelpBubbleHandlerFactory>();
+
+  // TODO(crbug.com/452983498): Migrate all remaining
+  // RegisterWebUIControllerInterfaceBinder calls to registry.ForWebUI().Add()
+  // calls.
 }
 
 void PopulateChromeWebUIFrameInterfaceBrokersUntrustedPartsDesktop(
@@ -592,6 +628,11 @@ void PopulateChromeWebUIFrameInterfaceBrokersUntrustedPartsDesktop(
         .Add<metrics_reporter::mojom::PageMetricsHost>()
         .Add<tabs_api::mojom::TabStripService>()
         .Add<tracked_element::mojom::TrackedElementHandler>();
+  }
+
+  if (base::FeatureList::IsEnabled(features::kWebUIReloadButton)) {
+    registry.ForWebUI<ReloadButtonUI>()
+        .Add<reload_button::mojom::PageHandlerFactory>();
   }
 }
 
