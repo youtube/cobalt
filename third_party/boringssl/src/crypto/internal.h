@@ -15,6 +15,8 @@
 #ifndef OPENSSL_HEADER_CRYPTO_INTERNAL_H
 #define OPENSSL_HEADER_CRYPTO_INTERNAL_H
 
+#include "build/build_config.h" 
+
 #include <openssl/crypto.h>
 #include <openssl/ex_data.h>
 #include <openssl/stack.h>
@@ -23,7 +25,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+<<<<<<< HEAD
 #include <type_traits>
+=======
+>>>>>>> parent of bd5da122a4c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 #if defined(BORINGSSL_CONSTANT_TIME_VALIDATION)
 #include <valgrind/memcheck.h>

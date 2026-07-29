@@ -88,6 +88,10 @@
 #include "util/win/session_end_watcher.h"
 #endif  // BUILDFLAG(IS_APPLE)
 
+#if BUILDFLAG(IS_NATIVE_TOOLCHAIN)
+#include <functional>
+#endif
+
 namespace crashpad {
 
 namespace {
@@ -187,6 +191,13 @@ void Usage(const base::FilePath& me) {
   // clang-format on
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
         // BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_NATIVE_TOOLCHAIN)
+"      --evergreen-information=EVERGREEN_INFORMATION_ADDRESS\n"
+"                              the address of a EvegreenInfo struct.\n"
+"      --ca-certificates-path=CA_CERTIFICATES_PATH\n"
+"                              the path to a directory containing root CA\n"
+"                              certs to use for report uploads\n"
+#endif  // BUILDFLAG(IS_NATIVE_TOOLCHAIN)
       // clang-format off
 "      --url=URL               send crash reports to this Breakpad server URL,\n"
 "                              only if uploads are enabled for the database\n"
@@ -234,6 +245,10 @@ struct Options {
   VMAddress sanitization_information_address;
   int initial_client_fd;
   bool shared_client_connection;
+#if BUILDFLAG(IS_NATIVE_TOOLCHAIN)
+  VMAddress evergreen_information_address;
+  base::FilePath ca_certificates_path;
+#endif  // BUILDFLAG(IS_NATIVE_TOOLCHAIN)
 #if BUILDFLAG(IS_ANDROID)
   bool write_minidump_to_log;
   bool write_minidump_to_database;
@@ -568,6 +583,9 @@ int HandlerMain(int argc,
                 char* argv[],
                 const UserStreamDataSources* user_stream_sources) {
   InitCrashpadLogging();
+#if BUILDFLAG(IS_COBALT)
+  LOG(INFO) << "Crashpad logging initialized in HandlerMain.";
+#endif
 
   InstallCrashHandler();
   CallMetricsRecordNormalExit metrics_record_normal_exit;
@@ -620,6 +638,10 @@ int HandlerMain(int argc,
     kOptionSharedClientConnection,
     kOptionTraceParentWithException,
 #endif
+#if BUILDFLAG(IS_NATIVE_TOOLCHAIN)
+    kOptionEvergreenInformaton,
+    kOptionCACertificatesPath,
+#endif  // BUILDFLAG(IS_NATIVE_TOOLCHAIN)
     kOptionURL,
 #if BUILDFLAG(IS_CHROMEOS)
     kOptionUseCrosCrashReporter,
@@ -704,6 +726,16 @@ int HandlerMain(int argc,
      kOptionTraceParentWithException},
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
         // BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_NATIVE_TOOLCHAIN)
+    {"evergreen-information",
+     required_argument,
+     nullptr,
+     kOptionEvergreenInformaton},
+    {"ca-certificates-path",
+     required_argument,
+     nullptr,
+     kOptionCACertificatesPath},
+#endif  // BUILDFLAG(IS_NATIVE_TOOLCHAIN)
     {"url", required_argument, nullptr, kOptionURL},
 #if BUILDFLAG(IS_CHROMEOS)
     {"use-cros-crash-reporter",
@@ -874,6 +906,22 @@ int HandlerMain(int argc,
       }
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
         // BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_NATIVE_TOOLCHAIN)
+      case kOptionEvergreenInformaton: {
+        if (!StringToNumber(optarg,
+                            &options.evergreen_information_address)) {
+          ToolSupport::UsageHint(me,
+                                 "failed to parse --evergreen-information");
+          return ExitFailure();
+        }
+        break;
+      }
+      case kOptionCACertificatesPath: {
+        options.ca_certificates_path = base::FilePath(
+            ToolSupport::CommandLineArgumentToFilePathStringType(optarg));
+        break;
+      }
+#endif  // BUILDFLAG(IS_NATIVE_TOOLCHAIN)
       case kOptionURL: {
         options.url = optarg;
         break;
@@ -1015,6 +1063,28 @@ int HandlerMain(int argc,
     return ExitFailure();
   }
 
+#if BUILDFLAG(IS_NATIVE_TOOLCHAIN)
+  ScopedStoppable prune_thread;
+  // TODO: b/446889385 - Cobalt: re-evaluate the max database size when we have
+  // better data about the distribution of minidump sizes for chrobalt.
+  constexpr size_t kMaxSizeInKb = 1024 * 5;  // 5 MB, per go/crashpad-db-mgmt
+  constexpr int kMaxAgeInDays = 365;
+  prune_thread.Reset(new PruneCrashReportThread(
+      database.get(),
+      // DatabaseSizePruneCondition must be the LHS condition so that it is
+      // always evaluated; see similar comment in PruneCondition::GetDefault().
+      std::make_unique<BinaryPruneCondition>(
+          BinaryPruneCondition::OR,
+          new DatabaseSizePruneCondition(kMaxSizeInKb),
+          new AgePruneCondition(kMaxAgeInDays))));
+  prune_thread.Get()->Start();
+
+  CrashReportUploadThread::ProcessPendingReportsObservationCallback
+      prune_now_cb = std::bind(
+          &crashpad::PruneCrashReportThread::PruneNow,
+          (crashpad::PruneCrashReportThread*) prune_thread.Get());
+#endif  // BUILDFLAG(IS_NATIVE_TOOLCHAIN)
+
   ScopedStoppable upload_thread;
   if (!options.url.empty()) {
     // TODO(scottmg): options.rate_limit should be removed when we have a
@@ -1030,8 +1100,15 @@ int HandlerMain(int argc,
     upload_thread.Reset(new CrashReportUploadThread(
         database.get(),
         options.url,
+#if BUILDFLAG(IS_NATIVE_TOOLCHAIN)
+        options.ca_certificates_path,
+#endif
         upload_thread_options,
+#if BUILDFLAG(IS_NATIVE_TOOLCHAIN)
+        prune_now_cb));
+#else  // BUILDFLAG(IS_NATIVE_TOOLCHAIN)
         CrashReportUploadThread::ProcessPendingReportsObservationCallback()));
+#endif  // BUILDFLAG(IS_NATIVE_TOOLCHAIN)
     upload_thread.Get()->Start();
   }
 
@@ -1092,6 +1169,10 @@ int HandlerMain(int argc,
     info.exception_information_address = options.exception_information_address;
     info.sanitization_information_address =
         options.sanitization_information_address;
+#if BUILDFLAG(IS_NATIVE_TOOLCHAIN)
+    info.evergreen_information_address =
+        options.evergreen_information_address;
+#endif  // BUILDFLAG(IS_NATIVE_TOOLCHAIN)
     return exception_handler->HandleException(getppid(), geteuid(), info)
                ? EXIT_SUCCESS
                : ExitFailure();
@@ -1099,12 +1180,17 @@ int HandlerMain(int argc,
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
         // BUILDFLAG(IS_ANDROID)
 
+#if !BUILDFLAG(IS_NATIVE_TOOLCHAIN)
+  // This is dead code anyway when the handler is started in response to a
+  // crash, which it always is for Cobalt, and by not even building this we make
+  // it more clear that there is only one prune thread instantiated (above).
   ScopedStoppable prune_thread;
   if (options.periodic_tasks) {
     prune_thread.Reset(new PruneCrashReportThread(
         database.get(), PruneCondition::GetDefault()));
     prune_thread.Get()->Start();
   }
+#endif  // !BUILDFLAG(IS_NATIVE_TOOLCHAIN)
 
 #if BUILDFLAG(IS_APPLE)
   if (options.mach_service.empty()) {

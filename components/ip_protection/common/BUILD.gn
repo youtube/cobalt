@@ -455,10 +455,13 @@ source_set("ip_protection_performance_hooks_unittest") {
     ":ip_protection_performance_hooks",
     "//base",
     "//base/test:test_support",
-    "//base/test:test_trace_processor",
     "//testing/gmock",
     "//testing/gtest",
   ]
+
+  if (!is_cobalt_hermetic_build) {
+    deps += [ "//base/test:test_trace_processor" ]
+  }
 }
 
 source_set("ip_protection_token_manager") {

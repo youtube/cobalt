@@ -28,6 +28,7 @@
 #include "base/trace_event/trace_event.h"
 #include "base/unguessable_token.h"
 #include "build/build_config.h"
+#include "build/buildflag.h"
 #include "components/download/public/common/in_progress_download_manager.h"
 #include "components/leveldb_proto/public/proto_database_provider.h"
 #include "components/services/storage/privileged/mojom/indexed_db_control.mojom.h"
@@ -36,8 +37,14 @@
 #include "content/browser/browsing_data/browsing_data_remover_impl.h"
 #include "content/browser/child_process_host_impl.h"
 #include "content/browser/child_process_security_policy_impl.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/in_memory_federated_permission_context.h"
+<<<<<<< HEAD
 #include "content/browser/preloading/prefetch/prefetch_request.h"
+=======
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
+#include "content/browser/preloading/prefetch/prefetch_container.h"
+>>>>>>> parent of bd5da122a4c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "content/browser/preloading/prefetch/prefetch_service.h"
 #include "content/browser/preloading/prefetch/prefetch_type.h"
 #include "content/browser/push_messaging/push_messaging_router.h"
@@ -446,17 +453,29 @@ BrowserContext::CreateVideoDecodePerfHistory() {
 
 FederatedIdentityApiPermissionContextDelegate*
 BrowserContext::GetFederatedIdentityApiPermissionContext() {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   return impl()->GetFederatedPermissionContext();
+#else
+  return nullptr;
+#endif
 }
 
 FederatedIdentityAutoReauthnPermissionContextDelegate*
 BrowserContext::GetFederatedIdentityAutoReauthnPermissionContext() {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   return impl()->GetFederatedPermissionContext();
+#else
+  return nullptr;
+#endif
 }
 
 FederatedIdentityPermissionContextDelegate*
 BrowserContext::GetFederatedIdentityPermissionContext() {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   return impl()->GetFederatedPermissionContext();
+#else
+  return nullptr;
+#endif
 }
 
 KAnonymityServiceDelegate* BrowserContext::GetKAnonymityServiceDelegate() {
