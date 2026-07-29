@@ -10,6 +10,7 @@
 
 #include "base/command_line.h"
 #include "base/feature_list.h"
+#include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
 #include "build/build_config.h"
 #include "build/chromecast_buildflags.h"
@@ -219,10 +220,6 @@ const char kUseFakeMjpegDecodeAccelerator[] =
 //
 // Must also be used with kDisableAudioInput or kUseFakeDeviceForMediaStream.
 const char kUseFileForFakeAudioCapture[] = "use-file-for-fake-audio-capture";
-
-// Use a local TF Lite model for residual echo estimation in audio processing.
-const char kUseFileForNeuralResidualEchoEstimatorModel[] =
-    "use-file-for-neural-residual-echo-estimator-model";
 
 // Use an .y4m file to play as the webcam. See the comments in
 // media/capture/video/file_video_capture_device.h for more details.
@@ -606,12 +603,10 @@ BASE_FEATURE(kDeferAudioFocusUntilAudible,
 #endif
 );
 
-#if !BUILDFLAG(IS_ANDROID)
 // Allow document picture-in-picture to navigate.  This should be disabled
 // except for testing.
 BASE_FEATURE(kDocumentPictureInPictureNavigation,
              base::FEATURE_DISABLED_BY_DEFAULT);
-#endif  // !BUILDFLAG(IS_ANDROID)
 
 // Adds an animation to document picture-in-picture resizes.
 BASE_FEATURE(kDocumentPictureInPictureAnimateResize,
@@ -1539,6 +1534,19 @@ bool IsChromeWideEchoCancellationEnabled() {
 #endif
 }
 
+BASE_FEATURE(kWebRtcAudioNeuralResidualEchoEstimation,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsAudioProcessMlModelUsageEnabled() {
+  if (!media::IsChromeWideEchoCancellationEnabled()) {
+    // The feature relies on Chrome-wide echo cancellation being enabled,
+    // because that is when the audio service has processing that may use a
+    // model.
+    return false;
+  }
+  return base::FeatureList::IsEnabled(kWebRtcAudioNeuralResidualEchoEstimation);
+}
+
 #if BUILDFLAG(IS_MAC)
 namespace {
 // Enables system audio loopback capture using the macOS Screen Capture Kit
@@ -1727,9 +1735,13 @@ uint32_t GetPassthroughAudioFormats() {
     auto* command_line = base::CommandLine::ForCurrentProcess();
     uint32_t value = 0;
     if (command_line->HasSwitch(switches::kAudioCodecsFromEDID)) {
-      base::StringToUint(
-          command_line->GetSwitchValueASCII(switches::kAudioCodecsFromEDID),
-          &value);
+      const std::string switch_value =
+          command_line->GetSwitchValueASCII(switches::kAudioCodecsFromEDID);
+      if (!base::StringToUint(switch_value, &value)) {
+        LOG(WARNING) << "Invalid value for --audio-codecs-from-edid: "
+                     << switch_value << ". Falling back to 0.";
+        return 0u;
+      }
     }
     return value;
   }();

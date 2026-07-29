@@ -234,6 +234,7 @@ test("components_unittests") {
     "//components/encrypted_messages:unit_tests",
     "//components/enterprise:unit_tests",
     "//components/enterprise/common:unit_tests",
+    "//components/enterprise/connectors/core:cloud_content_scanning_unittests",
     "//components/enterprise/connectors/core:unit_tests",
     "//components/enterprise/obfuscation/core:unit_tests",
     "//components/facilitated_payments/core/validation:unit_tests",
@@ -241,7 +242,6 @@ test("components_unittests") {
     "//components/favicon_base:unit_tests",
     "//components/feature_engagement:unit_tests",
     "//components/filename_generation:unit_tests",
-    "//components/fingerprinting_protection_filter/common:unit_tests",
     "//components/gcm_driver:unit_tests",
     "//components/gcm_driver/crypto:unit_tests",
     "//components/google/core/common:unit_tests",
@@ -250,6 +250,7 @@ test("components_unittests") {
     "//components/history/core/browser:unit_tests",
     "//components/history/metrics:unit_tests",
     "//components/image_fetcher/core:unit_tests",
+    "//components/infobars/core:unit_tests",
     "//components/keyed_service/core:unit_tests",
     "//components/language/core/browser:unit_tests",
     "//components/language/core/common:unit_tests",
@@ -384,6 +385,7 @@ test("components_unittests") {
     "//components/ukm:unit_tests",
     "//components/undo:unit_tests",
     "//components/unexportable_keys:unit_tests",
+    "//components/unexportable_keys/mojom:unit_tests",
     "//components/unified_consent:unit_tests",
     "//components/upload_list:unit_tests",
     "//components/url_deduplication:unit_tests",
@@ -620,8 +622,6 @@ test("components_unittests") {
       "//components/background_sync:unit_tests",
       "//components/blocked_content:unit_tests",
       "//components/content_settings/browser/ui:unit_tests",
-      "//components/fingerprinting_protection_filter/browser:unit_tests",
-      "//components/fingerprinting_protection_filter/renderer:unit_tests",
       "//components/headless/test:unit_tests",
       "//components/ip_protection:unit_tests",
       "//components/media_router/browser:unit_tests",
@@ -815,11 +815,12 @@ test("components_unittests") {
     ]
   }
 
+  if (is_win || is_linux) {
+    deps += [ "//components/services/font_data:unit_tests" ]
+  }
+
   if (is_win) {
-    deps += [
-      "//components/services/font_data:unit_tests",
-      "//components/winhttp:unit_tests",
-    ]
+    deps += [ "//components/winhttp:unit_tests" ]
   }
 
   if (enterprise_watermark) {

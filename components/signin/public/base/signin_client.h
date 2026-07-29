@@ -14,11 +14,15 @@
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/signin/public/base/account_consistency_method.h"
 #include "components/signin/public/base/consent_level.h"
+#include "components/signin/public/base/oauth_consumer.h"
+#include "components/signin/public/base/oauth_consumer_id.h"
+#include "components/signin/public/base/oauth_consumer_registry.h"
 #include "components/signin/public/base/signin_buildflags.h"
 #include "components/signin/public/base/signin_metrics.h"
 
 namespace signin {
 class BoundSessionOAuthMultiLoginDelegate;
+class PrimaryAccountChangeEvent;
 }
 
 class GaiaAuthConsumer;
@@ -38,16 +42,13 @@ class SharedURLLoaderFactory;
 
 namespace mojom {
 class CookieManager;
+class DeviceBoundSessionManager;
 class NetworkContext;
 }  // namespace mojom
 }  // namespace network
 
 namespace version_info {
 enum class Channel;
-}
-
-namespace signin {
-class PrimaryAccountChangeEvent;
 }
 
 // An interface that needs to be supplied to the Signin component by its
@@ -80,6 +81,13 @@ class SigninClient : public KeyedService {
 
   // Returns the CookieManager for the client.
   virtual network::mojom::CookieManager* GetCookieManager() = 0;
+
+  // Returns the DeviceBoundSessionManager for the client.
+  //
+  // TODO(crbug.com/463979316): Make it pure virtual to make sure all embedders
+  // explicitly provide an implementation.
+  virtual network::mojom::DeviceBoundSessionManager*
+  GetDeviceBoundSessionManager() const;
 
   // Returns the NetworkContext for the client.
   virtual network::mojom::NetworkContext* GetNetworkContext() = 0;
@@ -139,6 +147,10 @@ class SigninClient : public KeyedService {
 
   virtual std::unique_ptr<signin::BoundSessionOAuthMultiLoginDelegate>
   CreateBoundSessionOAuthMultiloginDelegate() const;
+
+  // Returns the OAuthConsumer associated with `oauth_consumer_id`.
+  virtual signin::OAuthConsumer GetOAuthConsumerFromId(
+      signin::OAuthConsumerId oauth_consumer_id) const = 0;
 
  protected:
   std::optional<SignoutDecision> is_clear_primary_account_allowed_for_testing_;

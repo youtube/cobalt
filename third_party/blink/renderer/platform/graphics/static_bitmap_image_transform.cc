@@ -240,7 +240,6 @@ scoped_refptr<StaticBitmapImage> StaticBitmapImageTransform::ApplyUsingPixmap(
 // Perform all transformations using a blit, which will result in a new
 // premultiplied-alpha result.
 scoped_refptr<StaticBitmapImage> StaticBitmapImageTransform::ApplyWithBlit(
-    FlushReason flush_reason,
     scoped_refptr<StaticBitmapImage> source,
     const StaticBitmapImageTransform::Params& options) {
   // This path will necessarily premultiply alpha.
@@ -285,7 +284,7 @@ scoped_refptr<StaticBitmapImage> StaticBitmapImageTransform::ApplyWithBlit(
       BlitToCanvas(resource_provider->Canvas(), source_paint_image,
                    source_orientation, SkRect::Make(source_rect), dest_size,
                    options);
-      return resource_provider->Snapshot(flush_reason, source_orientation);
+      return resource_provider->Snapshot(source_orientation);
     }
   }
 
@@ -313,7 +312,6 @@ scoped_refptr<StaticBitmapImage> StaticBitmapImageTransform::ApplyWithBlit(
 // unless `force_copy` is specified, in which case it will always create a new
 // object and backing.
 scoped_refptr<StaticBitmapImage> StaticBitmapImageTransform::Apply(
-    FlushReason flush_reason,
     scoped_refptr<StaticBitmapImage> source,
     const StaticBitmapImageTransform::Params& options) {
   // It's not obvious what `reinterpret_as_srgb` should mean if we also specify
@@ -358,11 +356,10 @@ scoped_refptr<StaticBitmapImage> StaticBitmapImageTransform::Apply(
   if (!options.premultiply_alpha) {
     return ApplyUsingPixmap(source, options);
   }
-  return ApplyWithBlit(flush_reason, source, options);
+  return ApplyWithBlit(source, options);
 }
 
 scoped_refptr<StaticBitmapImage> StaticBitmapImageTransform::Clone(
-    FlushReason flush_reason,
     scoped_refptr<StaticBitmapImage> source) {
   if (!source) {
     return nullptr;
@@ -372,12 +369,11 @@ scoped_refptr<StaticBitmapImage> StaticBitmapImageTransform::Clone(
   options.dest_size = GetSourceSize(source, options);
   options.premultiply_alpha = source->GetAlphaType() != kUnpremul_SkAlphaType;
   options.force_copy = true;
-  return Apply(flush_reason, source, options);
+  return Apply(source, options);
 }
 
 scoped_refptr<StaticBitmapImage>
 StaticBitmapImageTransform::ConvertToColorSpace(
-    FlushReason flush_reason,
     scoped_refptr<StaticBitmapImage> source,
     sk_sp<SkColorSpace> color_space) {
   StaticBitmapImageTransform::Params options;
@@ -385,7 +381,7 @@ StaticBitmapImageTransform::ConvertToColorSpace(
   options.dest_size = GetSourceSize(source, options);
   options.premultiply_alpha = source->GetAlphaType() != kUnpremul_SkAlphaType;
   options.dest_color_space = color_space;
-  return Apply(flush_reason, source, options);
+  return Apply(source, options);
 }
 
 }  // namespace blink

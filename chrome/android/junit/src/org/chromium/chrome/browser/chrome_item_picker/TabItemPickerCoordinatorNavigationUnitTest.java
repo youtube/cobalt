@@ -36,10 +36,9 @@ import org.chromium.chrome.browser.tasks.tab_management.TabListEditorItemSelecti
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.components.browser_ui.widget.selectable_list.SelectionDelegate;
 
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 /** Integration tests for TabItemPickerCoordinator. */
 @RunWith(BaseRobolectricTestRunner.class)
@@ -68,7 +67,9 @@ public class TabItemPickerCoordinatorNavigationUnitTest {
                         mActivity,
                         snackbarManager,
                         rootView,
-                        containerView);
+                        containerView,
+                        new ArrayList<Integer>(),
+                        TabListEditorCoordinator.UNLIMITED_SELECTION);
         mItemPickerCoordinator = Mockito.spy(realCoordinator);
     }
 
@@ -111,8 +112,6 @@ public class TabItemPickerCoordinatorNavigationUnitTest {
         TabListEditorItemSelectionId id2 = TabListEditorItemSelectionId.createTabId(102);
         List<TabListEditorItemSelectionId> selectedList = Arrays.asList(id1, id2);
 
-        Set<TabListEditorItemSelectionId> expectedSet = new HashSet<>(selectedList);
-
         // Simulate finishSelection() being called.
         mNavigationProvider.finishSelection(selectedList);
 
@@ -122,7 +121,7 @@ public class TabItemPickerCoordinatorNavigationUnitTest {
         inOrder.verify(mTabListEditorController).hideByAction();
 
         // Verify the Activity success method is called second with the expected data.
-        inOrder.verify(mActivity).finishWithSelectedItems(expectedSet);
+        inOrder.verify(mActivity).finishWithSelectedItems(selectedList);
         verify(mActivity, never()).finish();
     }
 }

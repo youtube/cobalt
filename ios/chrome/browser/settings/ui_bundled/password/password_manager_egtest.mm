@@ -1871,6 +1871,14 @@ void OpenPasswordManagerWidgetPromoInstructions() {
 
 // Test export flow
 - (void)testExportFlow {
+#if BUILDFLAG(IOS_CREDENTIAL_EXCHANGE_ENABLED)
+  if (@available(iOS 26, *)) {
+    // TODO(crbug.com/463313017): Move this test to credential_export_egtest.mm.
+    EARL_GREY_TEST_SKIPPED(
+        @"This feature is moved elsewhere with credential exchange enabled");
+  }
+#endif
+
   // Saving a form is needed for exporting passwords.
   SavePasswordFormToProfileStore();
 
@@ -1882,9 +1890,7 @@ void OpenPasswordManagerWidgetPromoInstructions() {
   [[EarlGrey selectElementWithMatcher:ToolbarSettingsSubmenuButton()]
       performAction:grey_tap()];
 
-  const int exportButtonAccessibilityId =
-      CredentialExchangeEnabled() ? IDS_IOS_EXPORT_PASSWORDS_AND_PASSKEYS
-                                  : IDS_IOS_EXPORT_PASSWORDS;
+  const int exportButtonAccessibilityId = IDS_IOS_EXPORT_PASSWORDS;
 
   [[[EarlGrey
       selectElementWithMatcher:grey_allOf(ButtonWithAccessibilityLabelId(
@@ -2661,7 +2667,8 @@ void OpenPasswordManagerWidgetPromoInstructions() {
 // Tests that when a new credential is saved or an existing one is updated via
 // the add credential flow, the VC auto scrolls to the newly created or the
 // updated entry.
-- (void)testAutoScroll {
+// TODO(crbug.com/460743577): Test is flaky.
+- (void)FLAKY_testAutoScroll {
   for (int i = 0; i < 20; i++) {
     NSString* username = [NSString stringWithFormat:@"username %d", i];
     NSString* password = [NSString stringWithFormat:@"password %d", i];

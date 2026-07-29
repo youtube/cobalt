@@ -23,7 +23,10 @@ constexpr SkColor kColorSysStateHoverOnSubtle_Light = SkColorSetARGB(0x0F, 0x1F,
 constexpr SkColor kColorGemSysColorPrimary_Light =
     SkColorSetRGB(0x0B, 0x57, 0xD0);
 constexpr SkColor kColorSysTonalOutline_Light = SkColorSetRGB(0xA8, 0xC7, 0xFA);
+constexpr SkColor kColorSysPrimary_Light = SkColorSetRGB(0x0B, 0x57, 0xD0);
 
+constexpr SkColor kColorSysOnSurfaceSubtle_Light =
+    SkColorSetRGB(0x5E, 0x5E, 0x5E);
 }  // namespace
 
 void AddMaterialNewTabPageColorMixer(ui::ColorProvider* provider,
@@ -51,6 +54,7 @@ void AddMaterialNewTabPageColorMixer(ui::ColorProvider* provider,
   mixer[kColorNewTabPageButtonForeground] = {ui::kColorSysOnTonalContainer};
 
   mixer[kColorComposeboxBackground] = {SK_ColorWHITE};
+  mixer[kColorComposeboxFileChipSpinner] = {kColorSysPrimary_Light};
   mixer[kColorComposeboxFont] = {
       dark_mode ? SkColorSetRGB(0xE6, 0xE8, 0xF0)
                 : SkColorSetRGB(0x0A, 0x0A, 0x0A)};
@@ -108,6 +112,12 @@ void AddMaterialNewTabPageColorMixer(ui::ColorProvider* provider,
       SkColorSetARGB(0x99, 0x00, 0x00, 0x00)};
   mixer[kColorComposeboxFileCarouselDivider] = {
       SkColorSetRGB(0xD3, 0xE3, 0xFD)};
+  mixer[kColorComposeboxFileCarouselRemoveButton] = {kColorSysSurface_Light};
+  mixer[kColorComposeboxFileCarouselUrl] = {kColorSysOnSurfaceSubtle_Light};
+  mixer[kColorComposeboxFileCarouselRemoveGradientStart] = {
+      SkColorSetRGB(0xF0, 0xF4, 0xF9)};
+  mixer[kColorComposeboxFileCarouselRemoveGradientEnd] = {
+      SkColorSetARGB(0x00, 0xF0, 0xF4, 0xF9)};
   mixer[kColorComposeboxContextEntrypointTextDisabled] = {
       SkColorSetARGB(0x60, 0x1F, 0x1F, 0x1F)};
   mixer[kColorComposeboxContextEntrypointHoverBackground] = {
@@ -135,7 +145,7 @@ void AddMaterialNewTabPageColorMixer(ui::ColorProvider* provider,
   // Action chips colors.
   mixer[kColorNewTabPageActionChipBackground] = {ui::kColorSysBaseContainer};
   mixer[kColorNewTabPageActionChipBackgroundHover] = {
-      ui::kColorSysStateHoverOnSubtle};
+      ui::kColorSysStateRippleNeutralOnSubtle};
 
   mixer[kColorNewTabPageActionChipTextTitle] = {ui::kColorSysOnSurface};
   mixer[kColorNewTabPageActionChipTextBody] = {ui::kColorSysOnSurfaceSubtle};
@@ -197,6 +207,7 @@ void AddMaterialNewTabPageColorMixer(ui::ColorProvider* provider,
 
   mixer[kColorNewTabPagePromoBackground] = {ui::kColorSysBase};
   mixer[kColorNewTabPagePrimaryForeground] = {ui::kColorSysOnSurface};
+  mixer[kColorNewTabPageCommonInputPlaceholder] = {SkColorSetARGB(0x60, 0x1F, 0x1F, 0x1F)};
   mixer[kColorNewTabPageRealboxNextIconHover] = {kColorSysStateHoverOnSubtle_Light};
   mixer[kColorNewTabPageSecondaryForeground] = {ui::kColorSysOnSurfaceSubtle};
 

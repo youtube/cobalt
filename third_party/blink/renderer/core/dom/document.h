@@ -191,7 +191,6 @@ class ExceptionState;
 class FocusOptions;
 class FocusedElementChangeObserver;
 class FontFaceSet;
-class FontMatchingMetrics;
 class FormController;
 class FragmentDirective;
 class FrameCallback;
@@ -418,11 +417,6 @@ class CORE_EXPORT Document : public ContainerNode,
   MediaQueryMatcher& GetMediaQueryMatcher();
 
   void MediaQueryAffectingValueChanged(MediaValueChange change);
-
-  // SetMediaFeatureEvaluated and WasMediaFeatureEvaluated are used to prevent
-  // UKM sampling of CSS media features more than once per document.
-  void SetMediaFeatureEvaluated(int feature);
-  bool WasMediaFeatureEvaluated(int feature);
 
   using TreeScope::getElementById;
 
@@ -1910,11 +1904,6 @@ class CORE_EXPORT Document : public ContainerNode,
   ukm::UkmRecorder* UkmRecorder();
   ukm::SourceId UkmSourceID() const;
 
-  // Tracks and reports UKM metrics of the number of attempted font family match
-  // attempts (both successful and not successful) by the page. This will return
-  // null if the document is stopped.
-  FontMatchingMetrics* GetFontMatchingMetrics();
-
   void MaybeRecordSvgImageProcessingTime(
       int data_change_count,
       base::TimeDelta data_change_elapsed_time) const;
@@ -2847,10 +2836,6 @@ class CORE_EXPORT Document : public ContainerNode,
   // explicitly set.
   mutable std::optional<DocumentToken> token_;
 
-  // Bitfield used for tracking UKM sampling of media features such that each
-  // media feature is sampled only once per document.
-  uint64_t evaluated_media_features_ = 0;
-
   DocumentLifecycle lifecycle_;
 
   bool is_initial_empty_document_;
@@ -3274,10 +3259,6 @@ class CORE_EXPORT Document : public ContainerNode,
   // the document to record UKM.
   std::unique_ptr<ukm::UkmRecorder> ukm_recorder_;
   const int64_t ukm_source_id_;
-
-  // Tracks and reports metrics of attempted font match attempts (both
-  // successful and not successful) by the page.
-  std::unique_ptr<FontMatchingMetrics> font_matching_metrics_;
 
 #if DCHECK_IS_ON()
   unsigned slot_assignment_recalc_forbidden_recursion_depth_ = 0;

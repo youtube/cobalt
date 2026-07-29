@@ -300,7 +300,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientGetUnsyncedTypesTest,
   GetFakeServer()->ClearHttpError();
   ASSERT_TRUE(bookmarks_helper::BookmarkModelMatchesFakeServerChecker(
                   GetBookmarkModel(0), GetSyncService(0), GetFakeServer(),
-                  /*is_transport_mode=*/true)
+                  bookmarks_helper::StoreType::kAccountStore)
                   .Wait());
 
   // BOOKMARKS has no unsynced data.

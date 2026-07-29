@@ -7,11 +7,7 @@
 #include "base/location.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
-#include "base/trace_event/typed_macros.h"
 #include "build/build_config.h"
-#include "third_party/blink/public/common/privacy_budget/identifiability_metric_builder.h"
-#include "third_party/blink/public/common/privacy_budget/identifiability_metrics.h"
-#include "third_party/blink/public/common/privacy_budget/identifiability_study_settings.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/public/platform/task_type.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
@@ -147,7 +143,6 @@ CanvasAsyncBlobCreator::CanvasAsyncBlobCreator(
     ToBlobFunctionType function_type,
     base::TimeTicks start_time,
     ExecutionContext* context,
-    const IdentifiableToken& input_digest,
     ScriptPromiseResolver<Blob>* resolver)
     : CanvasAsyncBlobCreator(image,
                              options,
@@ -155,7 +150,6 @@ CanvasAsyncBlobCreator::CanvasAsyncBlobCreator(
                              nullptr,
                              start_time,
                              context,
-                             input_digest,
                              resolver) {}
 
 CanvasAsyncBlobCreator::CanvasAsyncBlobCreator(
@@ -165,7 +159,6 @@ CanvasAsyncBlobCreator::CanvasAsyncBlobCreator(
     V8BlobCallback* callback,
     base::TimeTicks start_time,
     ExecutionContext* context,
-    const IdentifiableToken& input_digest,
     ScriptPromiseResolver<Blob>* resolver)
     : fail_encoder_initialization_for_test_(false),
       enforce_idle_encoding_for_test_(false),
@@ -173,7 +166,6 @@ CanvasAsyncBlobCreator::CanvasAsyncBlobCreator(
       function_type_(function_type),
       start_time_(start_time),
       static_bitmap_image_loaded_(false),
-      input_digest_(input_digest),
       callback_(callback),
       script_promise_resolver_(resolver) {
   CHECK(context);
@@ -229,10 +221,6 @@ CanvasAsyncBlobCreator::CanvasAsyncBlobCreator(
 CanvasAsyncBlobCreator::~CanvasAsyncBlobCreator() = default;
 
 void CanvasAsyncBlobCreator::Dispose() {
-  TRACE_EVENT_INSTANT(
-      TRACE_DISABLED_BY_DEFAULT("identifiability.high_entropy_api"),
-      "CanvasReadback", perfetto::TerminatingFlow::FromPointer(this));
-
   // Eagerly let go of references to prevent retention of these
   // resources while any remaining posted tasks are queued.
   context_.Clear();
@@ -284,10 +272,6 @@ bool CanvasAsyncBlobCreator::EncodeImage(
 //  - For the in-thread case (2b), not stored anywhere, because encoding happens
 //    within this function.
 void CanvasAsyncBlobCreator::ScheduleAsyncBlobCreation(const double& quality) {
-  TRACE_EVENT_INSTANT(
-      TRACE_DISABLED_BY_DEFAULT("identifiability.high_entropy_api"),
-      "CanvasReadback", perfetto::Flow::FromPointer(this));
-
   if (!static_bitmap_image_loaded_) {
     context_->GetTaskRunner(TaskType::kCanvasBlobSerialization)
         ->PostTask(FROM_HERE,
@@ -468,59 +452,7 @@ void CanvasAsyncBlobCreator::CreateBlobAndReturnResult(
                                 base::TimeTicks::Now() - start_time_,
                                 image_->width(), image_->height());
 
-  TraceCanvasContent(&encoded_image);
-  if (IdentifiabilityStudySettings::Get()->ShouldSampleType(
-          blink::IdentifiableSurface::Type::kCanvasReadback)) {
-    // Creating this ImageDataBuffer has some overhead, namely getting the
-    // SkImage and computing the pixmap. We need the StaticBitmapImage to be
-    // deleted on the same thread on which it was created, so we use the same
-    // TaskType here in order to get the same TaskRunner.
-
-    // TODO(crbug.com/1143737) WrapPersistent(this) stores more data than is
-    // needed by the function. It would be good to find a way to wrap only the
-    // objects needed (image_, ukm_source_id_, input_digest_, context_)
-    context_->GetTaskRunner(TaskType::kCanvasBlobSerialization)
-        ->PostTask(
-            FROM_HERE,
-            BindOnce(&CanvasAsyncBlobCreator::RecordIdentifiabilityMetric,
-                     WrapPersistent(this)));
-  } else {
-    // RecordIdentifiabilityMetric needs a reference to image_, and will run
-    // dispose itself. So here we only call dispose if not recording the metric.
-    Dispose();
-  }
-}
-
-void CanvasAsyncBlobCreator::RecordIdentifiabilityMetric() {
-  std::unique_ptr<ImageDataBuffer> data_buffer =
-      ImageDataBuffer::Create(image_);
-
-  if (data_buffer) {
-    blink::IdentifiabilityMetricBuilder(context_->UkmSourceID())
-        .Add(blink::IdentifiableSurface::FromTypeAndToken(
-                 blink::IdentifiableSurface::Type::kCanvasReadback,
-                 input_digest_),
-             blink::IdentifiabilityDigestOfBytes(data_buffer->PixelData()))
-        .Record(context_->UkmRecorder());
-  }
-
-  // Avoid unwanted retention, see dispose().
   Dispose();
-}
-
-void CanvasAsyncBlobCreator::TraceCanvasContent(
-    Vector<unsigned char>* encoded_image) {
-  TRACE_EVENT_INSTANT(
-      TRACE_DISABLED_BY_DEFAULT("identifiability.high_entropy_api"),
-      "CanvasReadback", perfetto::Flow::FromPointer(this),
-      [&](perfetto::EventContext ctx) {
-        String data = "data:";
-        if (encoded_image) {
-          data = StrCat({data, ImageEncoderUtils::MimeTypeName(mime_type_),
-                         ";base64,", Base64Encode(*encoded_image)});
-        }
-        ctx.AddDebugAnnotation("data_url", data.Utf8());
-      });
 }
 
 void CanvasAsyncBlobCreator::CreateNullAndReturnResult() {
@@ -543,7 +475,6 @@ void CanvasAsyncBlobCreator::CreateNullAndReturnResult() {
                     DOMExceptionCode::kEncodingError,
                     "Encoding of the source image has failed."))));
   }
-  TraceCanvasContent(nullptr);
   // Avoid unwanted retention, see dispose().
   Dispose();
 }

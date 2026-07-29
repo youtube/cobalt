@@ -36,10 +36,8 @@ class TestContextProvider
       public RasterContextProvider {
  public:
   // Creates a context backed by TestGLES2Interface with no lock.
-  static scoped_refptr<TestContextProvider> Create(
+  static scoped_refptr<TestContextProvider> CreateGLES(
       std::string additional_extensions = std::string());
-  static scoped_refptr<TestContextProvider> Create(
-      std::unique_ptr<TestGLES2Interface> gl);
 
   // Creates a context backed by TestRasterInterface with no lock.
   static scoped_refptr<TestContextProvider> CreateRaster();
@@ -60,7 +58,6 @@ class TestContextProvider
   explicit TestContextProvider(
       std::unique_ptr<TestContextSupport> support,
       std::unique_ptr<TestGLES2Interface> gl,
-      std::unique_ptr<gpu::raster::RasterInterface> raster,
       scoped_refptr<gpu::TestSharedImageInterface> sii,
       bool support_locking);
 
@@ -115,7 +112,6 @@ class TestContextProvider
 
   // Used for GLES2 contexts.
   std::unique_ptr<TestGLES2Interface> context_gl_;
-  std::unique_ptr<gpu::raster::RasterInterface> raster_interface_gles_;
 
   // Used for raster contexts.
   std::unique_ptr<TestRasterInterface> raster_context_;

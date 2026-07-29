@@ -19,6 +19,7 @@
 // bitfields.)
 
 use crate::ast::*;
+use std::collections::HashMap;
 
 /// Return the number of bytes we need to skip to reach the given alignment.
 fn bytes_to_align(current_offset: usize, required_alignment: usize) -> usize {
@@ -30,7 +31,7 @@ fn bytes_to_align(current_offset: usize, required_alignment: usize) -> usize {
 /// to the original type.
 struct PackedField<'a> {
     /// The name of the field in the original struct definition.
-    name: &'a str,
+    name: &'a String,
     /// The type of the field, which has been recursively packed.
     ty: MojomWireType,
     /// Number of bytes from the beginning of the struct to the start of the
@@ -44,7 +45,7 @@ struct PackedField<'a> {
 impl<'a> PackedField<'a> {
     /// Create a new PackedField given the original field's information and its
     /// location
-    fn new(name: &'a str, ty: MojomWireType, start_offset: usize) -> PackedField<'a> {
+    fn new(name: &'a String, ty: MojomWireType, start_offset: usize) -> PackedField<'a> {
         PackedField { start_offset: start_offset, end_offset: start_offset + ty.size(), name, ty }
     }
 }
@@ -72,19 +73,22 @@ fn try_pack_bool(ordinal: Ordinal, packed_field: &mut MojomWireType) -> bool {
 /// Transform the fields of a Mojom struct into their packed representation.
 /// This uses the basic algorithm from
 /// mojo/public/tools/mojom/mojom/generate/pack.py
-fn pack_struct(fields: &Vec<(String, MojomType)>) -> Vec<(String, MojomWireType)> {
+fn pack_struct(fields: &[MojomType], field_names: &[String]) -> PackedStructuredType {
     let mut packed_fields: Vec<PackedField> = vec![];
     let mut total_length = 0;
     // For each field, see if we can fit it between two existing packed fields.
     // If not, put it at the end.
-    'outer: for (ordinal, (field_name, field_ty)) in fields.iter().enumerate() {
+    'outer: for (ordinal, field_ty) in fields.iter().enumerate() {
         let is_bool = match field_ty {
             MojomType::Bool => true,
             _ => false,
         };
+        let field_name = field_names
+            .get(ordinal)
+            .expect("pack_struct: field_names should have the same length as fields");
         // Recursively pack any structs this field contains
         let field_ty = pack_mojom_type(field_ty, ordinal);
-        let field_size = field_ty.size();
+        let field_alignment = field_ty.alignment();
         // Try every pair (i-1, i) of adjacent packed fields.
         for i in 1..packed_fields.len() {
             let end_of_last_field = packed_fields[i - 1].end_offset;
@@ -93,13 +97,14 @@ fn pack_struct(fields: &Vec<(String, MojomType)>) -> Vec<(String, MojomWireType)
                 continue 'outer;
             };
             // If we fit, then pack this field here
-            if (field_size + bytes_to_align(end_of_last_field, field_size)) <= empty_space {
+            if (field_ty.size() + bytes_to_align(end_of_last_field, field_alignment)) <= empty_space
+            {
                 packed_fields.insert(
                     i,
                     PackedField::new(
                         field_name,
                         field_ty,
-                        end_of_last_field + bytes_to_align(end_of_last_field, field_size),
+                        end_of_last_field + bytes_to_align(end_of_last_field, field_alignment),
                     ),
                 );
                 continue 'outer;
@@ -120,7 +125,7 @@ fn pack_struct(fields: &Vec<(String, MojomType)>) -> Vec<(String, MojomWireType)
         let packed_field = PackedField::new(
             field_name,
             field_ty,
-            total_length + bytes_to_align(total_length, field_size),
+            total_length + bytes_to_align(total_length, field_alignment),
         );
         total_length = packed_field.end_offset;
         packed_fields.push(packed_field);
@@ -128,21 +133,39 @@ fn pack_struct(fields: &Vec<(String, MojomType)>) -> Vec<(String, MojomWireType)
 
     // Transform each packed field back into a regular MojomType
     // Also recursively pack each one, to handle nested structs.
-    return packed_fields
+    let (packed_field_types, packed_field_names): (Vec<MojomWireType>, Vec<String>) = packed_fields
         .into_iter()
-        .map(|packed_field| (packed_field.name.to_string(), packed_field.ty))
-        .collect();
+        .map(|packed_field| (packed_field.ty, packed_field.name.clone()))
+        .unzip();
+
+    return PackedStructuredType::Struct { packed_field_types, packed_field_names };
 }
 
-/// Given a MojomType, return its packed representation.
+fn pack_union_variants(variants: &HashMap<u32, MojomType>) -> HashMap<u32, MojomWireType> {
+    variants
+        .iter()
+        .map(|(tag, ty)| {
+            let wire_ty = pack_mojom_type(ty, 0);
+            let ret_ty = match wire_ty {
+                // Special case: Unions nested in other unions are represented as pointers
+                MojomWireType::Union { ordinal, variants } => MojomWireType::Pointer {
+                    ordinal,
+                    nested_data_type: PackedStructuredType::Union { variants },
+                },
+                _ => wire_ty,
+            };
+            (*tag, ret_ty)
+        })
+        .collect()
+}
+
+/// Given a MojomType, return its packed representation as if it were a member
+/// of a struct with the given ordinal.
 pub fn pack_mojom_type(ty: &MojomType, ordinal: Ordinal) -> MojomWireType {
     match ty {
-        MojomType::Struct { fields } => MojomWireType::Pointer {
-            ordinal,
-            nested_data_type: PackedStructuredType::Struct {
-                packed_field_types: pack_struct(fields),
-            },
-        },
+        MojomType::Struct { fields, field_names } => {
+            MojomWireType::Pointer { ordinal, nested_data_type: pack_struct(fields, field_names) }
+        }
         MojomType::Array { element_type, num_elements } => {
             let array_type = match num_elements {
                 None => PackedArrayType::UnsizedArray,
@@ -173,8 +196,14 @@ pub fn pack_mojom_type(ty: &MojomType, ordinal: Ordinal) -> MojomWireType {
         MojomType::UInt16 => MojomWireType::Leaf { ordinal, leaf_type: PackedLeafType::UInt16 },
         MojomType::UInt32 => MojomWireType::Leaf { ordinal, leaf_type: PackedLeafType::UInt32 },
         MojomType::UInt64 => MojomWireType::Leaf { ordinal, leaf_type: PackedLeafType::UInt64 },
+        MojomType::Enum { is_valid } => {
+            MojomWireType::Leaf { ordinal, leaf_type: PackedLeafType::Enum { is_valid: *is_valid } }
+        }
         MojomType::Bool => MojomWireType::Bitfield {
             ordinals: [Some(ordinal), None, None, None, None, None, None, None],
         },
+        MojomType::Union { variants } => {
+            MojomWireType::Union { ordinal, variants: pack_union_variants(variants) }
+        }
     }
 }

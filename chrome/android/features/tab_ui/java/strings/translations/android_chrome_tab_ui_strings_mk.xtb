@@ -73,6 +73,7 @@
 <translation id="311432875115153175">Списокот со групи картички е затворен</translation>
 <translation id="3194464645767632461">оценување</translation>
 <translation id="3269930881809501915">{TABS_COUNT,plural, =1{Додајте <ph name="TABS_COUNT_ONE" /> картичка во групата}one{Додајте <ph name="TABS_COUNT_MANY" /> картичка во групата}other{Додајте <ph name="TABS_COUNT_MANY" /> картички во групата}}</translation>
+<translation id="3293080634164207409">Додајте картички</translation>
 <translation id="3328308545011660196">Предлог: <ph name="NUMBER_OF_TABS" /> картички изгледаат поврзани. Да се групираат?</translation>
 <translation id="3330595302841061275">{DAY_COUNT,plural, =1{По неактивност од 1 ден}one{По неактивност од <ph name="DAY_COUNT_MANY" /> ден}other{По неактивност од <ph name="DAY_COUNT_MANY" /> дена}}</translation>
 <translation id="358453129938375749">{NUMBER_OF_TABS_ADDED,plural, =1{Нови картички: <ph name="ONE_ADDED" />}one{Нови картички: <ph name="MANY_ADDED" />}other{Нови картички: <ph name="MANY_ADDED" />}}</translation>
@@ -81,6 +82,7 @@
 <translation id="3649471731638882002">{TAB_COUNT,plural, =1{Затвори ја ставката}one{Затвори ги ставките}other{Затвори ги ставките}}</translation>
 <translation id="3652027618765638838"><ph name="CURRENT_RATING" />/<ph name="RATING_BASELINE" /></translation>
 <translation id="374923079891132274">Сликичка за преглед на лист за споделување</translation>
+<translation id="3776329373944672717">Наслов на групата картички <ph name="TITLE_OF_GROUP" /></translation>
 <translation id="3810973564298564668">Управувај</translation>
 <translation id="3849789634341518784">{TAB_COUNT,plural, =1{Откачи ја картичката}one{Откачи ги картичките}other{Откачи ги картичките}}</translation>
 <translation id="3940195383040445971">Следете ги цените на картичките</translation>
@@ -193,6 +195,7 @@
 <translation id="7853202427316060426">Активност</translation>
 <translation id="7854360405711302755">{REVIEWS,plural, =1{ <ph name="CURRENT_RATING" />/<ph name="RATING_BASELINE" /> оцени, <ph name="REVIEWS_COUNT_ONE" /> рецензија}one{<ph name="CURRENT_RATING" />/<ph name="RATING_BASELINE" /> оцени, <ph name="REVIEWS_COUNT_MANY" /> рецензија}other{<ph name="CURRENT_RATING" />/<ph name="RATING_BASELINE" /> оцени, <ph name="REVIEWS_COUNT_MANY" /> рецензии}}</translation>
 <translation id="7885132941432959125">Премести ја картичката надесно</translation>
+<translation id="7887334752153342268">Направи дупликат</translation>
 <translation id="7939917283308035850">Не е избрано: <ph name="COLOR_NAME" /></translation>
 <translation id="7961015016161918242">Никогаш</translation>
 <translation id="7966321538264951561">Отфрли ги предлозите.</translation>
@@ -216,6 +219,7 @@
 <translation id="8428213095426709021">Поставки</translation>
 <translation id="855081842937141170">Прикачи картичка</translation>
 <translation id="8633025649649592204">Неодамнешна активност</translation>
+<translation id="8635822281281406185">Додајте најмногу 10 датотеки, картички или слики</translation>
 <translation id="8712637175834984815">Сфатив</translation>
 <translation id="8714939927607906138">Пониска цена</translation>
 <translation id="8730621377337864115">Готово</translation>

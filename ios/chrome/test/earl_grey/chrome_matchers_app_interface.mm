@@ -752,6 +752,11 @@ UIWindow* WindowWithAccessibilityIdentifier(NSString* accessibility_id) {
                                       IDS_IOS_CONTENT_CONTEXT_OPENINNEWWINDOW];
 }
 
++ (id<GREYMatcher>)navigationBarCloseButton {
+  return grey_allOf(grey_accessibilityLabel(@"Close"),
+                    grey_sufficientlyVisible(), nil);
+}
+
 + (id<GREYMatcher>)navigationBarDoneButton {
   return grey_allOf(
       [ChromeMatchersAppInterface
@@ -908,17 +913,7 @@ UIWindow* WindowWithAccessibilityIdentifier(NSString* accessibility_id) {
                     nil);
 }
 
-+ (id<GREYMatcher>)promoScreenPrimaryButtonMatcher {
-  return grey_allOf(
-      grey_accessibilityID(kPromoStylePrimaryActionAccessibilityIdentifier),
-      grey_sufficientlyVisible(), nil);
-}
-
-+ (id<GREYMatcher>)promoScreenSecondaryButtonMatcher {
-  return grey_allOf(
-      grey_accessibilityID(kPromoStyleSecondaryActionAccessibilityIdentifier),
-      grey_sufficientlyVisible(), nil);
-}
+#pragma mark - Incognito Interstitial
 
 + (id<GREYMatcher>)settingsAccountButton {
   return grey_accessibilityID(kSettingsAccountCellId);
@@ -1679,18 +1674,17 @@ UIWindow* WindowWithAccessibilityIdentifier(NSString* accessibility_id) {
 
 + (id<GREYMatcher>)incognitoInterstitialOpenInChromeIncognitoButton {
   return grey_allOf(
-      [ChromeMatchersAppInterface promoScreenPrimaryButtonMatcher],
+      [ChromeMatchersAppInterface buttonStackPrimaryButton],
       grey_accessibilityLabel(l10n_util::GetNSString(
           IDS_IOS_INCOGNITO_INTERSTITIAL_OPEN_IN_CHROME_INCOGNITO)),
       nullptr);
 }
 
 + (id<GREYMatcher>)incognitoInterstitialOpenInChromeButton {
-  return grey_allOf(
-      [ChromeMatchersAppInterface promoScreenSecondaryButtonMatcher],
-      grey_accessibilityLabel(l10n_util::GetNSString(
-          IDS_IOS_INCOGNITO_INTERSTITIAL_OPEN_IN_CHROME)),
-      nullptr);
+  return grey_allOf([ChromeMatchersAppInterface buttonStackSecondaryButton],
+                    grey_accessibilityLabel(l10n_util::GetNSString(
+                        IDS_IOS_INCOGNITO_INTERSTITIAL_OPEN_IN_CHROME)),
+                    nullptr);
 }
 
 + (id<GREYMatcher>)incognitoInterstitialCancelButton {

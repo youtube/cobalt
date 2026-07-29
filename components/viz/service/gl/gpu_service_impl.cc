@@ -30,7 +30,7 @@
 #include "base/trace_event/trace_event.h"
 #include "base/unguessable_token.h"
 #include "build/build_config.h"
-#include "components/persistent_cache/backend_params.h"
+#include "components/persistent_cache/pending_backend.h"
 #include "components/startup_metric_utils/gpu/startup_metric_utils.h"
 #include "components/version_info/version_info.h"
 #include "components/viz/common/features.h"
@@ -225,6 +225,8 @@ GpuServiceImpl::GpuServiceImpl(
       // outlives the DawnContextProvider.
       std::unique_ptr<gpu::webgpu::DawnCachingInterface> caching_interface;
       if (features::kSkiaGraphiteDawnUsePersistentCache.Get()) {
+        auto memory_cache = base::MakeRefCounted<gpu::MemoryCache>(
+            gpu::GetDefaultGpuDiskCacheSize());
         gpu::GpuPersistentCache::AsyncDiskWriteOpts async_opts;
         async_opts.task_runner = base::ThreadPool::CreateSequencedTaskRunner(
             {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
@@ -233,8 +235,9 @@ GpuServiceImpl::GpuServiceImpl(
             gpu::GetDefaultGpuDiskCacheSize();
         caching_interface = dawn_caching_interface_factory_->CreateInstance(
             gpu::kGraphiteDawnGpuDiskCacheHandle,
-            std::make_unique<gpu::GpuPersistentCache>("GraphiteDawn",
-                                                      std::move(async_opts)));
+            base::MakeRefCounted<gpu::GpuPersistentCache>(
+                "GraphiteDawn", std::move(memory_cache),
+                std::move(async_opts)));
       } else {
         auto cache_blob_callback = base::BindRepeating(
             [](GpuServiceImpl* self, const std::string& key,
@@ -914,11 +917,11 @@ void GpuServiceImpl::SetChannelClientPid(int32_t client_id,
   gpu_channel_manager_->SetChannelClientPid(client_id, client_pid);
 }
 
-void GpuServiceImpl::SetChannelPersistentCacheParams(
+void GpuServiceImpl::SetChannelPersistentCachePendingBackend(
     int32_t client_id,
     const gpu::GpuDiskCacheHandle& handle,
-    persistent_cache::BackendParams backend_params) {
-  TRACE_EVENT2("gpu", "GpuServiceImpl::SetChannelPersistentCacheParams",
+    persistent_cache::PendingBackend pending_backend) {
+  TRACE_EVENT2("gpu", "GpuServiceImpl::SetChannelPersistentCachePendingBackend",
                "client_id", client_id, "handle_type", GetHandleType(handle));
 #if BUILDFLAG(SKIA_USE_DAWN)
   // TODO(399642827): Support other cache types.
@@ -930,7 +933,7 @@ void GpuServiceImpl::SetChannelPersistentCacheParams(
 
   auto* cache = dawn_context_provider_->GetCachingInterface();
   CHECK(cache);
-  cache->InitializePersistentCache(std::move(backend_params),
+  cache->InitializePersistentCache(std::move(pending_backend),
                                    use_shader_cache_shm_count_);
 #endif
 }

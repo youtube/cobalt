@@ -22,7 +22,6 @@
 #include "third_party/blink/renderer/core/css/style_rule.h"
 
 #include "base/compiler_specific.h"
-#include "third_party/blink/renderer/core/css/cascade_layer.h"
 #include "third_party/blink/renderer/core/css/css_apply_mixin_rule.h"
 #include "third_party/blink/renderer/core/css/css_container_rule.h"
 #include "third_party/blink/renderer/core/css/css_contents_mixin_rule.h"
@@ -803,7 +802,6 @@ bool StyleRuleProperty::SetNameText(const ExecutionContext* execution_context,
 
 void StyleRuleProperty::TraceAfterDispatch(blink::Visitor* visitor) const {
   visitor->Trace(properties_);
-  visitor->Trace(layer_);
   StyleRuleBase::TraceAfterDispatch(visitor);
 }
 
@@ -823,7 +821,6 @@ MutableCSSPropertyValueSet& StyleRuleFontFace::MutableProperties() {
 
 void StyleRuleFontFace::TraceAfterDispatch(blink::Visitor* visitor) const {
   visitor->Trace(properties_);
-  visitor->Trace(layer_);
   StyleRuleBase::TraceAfterDispatch(visitor);
 }
 
@@ -928,7 +925,6 @@ MutableCSSPropertyValueSet& StyleRulePage::MutableProperties() {
 
 void StyleRulePage::TraceAfterDispatch(blink::Visitor* visitor) const {
   visitor->Trace(properties_);
-  visitor->Trace(layer_);
   visitor->Trace(selector_list_);
   StyleRuleGroup::TraceAfterDispatch(visitor);
 }
@@ -1073,7 +1069,6 @@ StyleRuleFunction::StyleRuleFunction(
 void StyleRuleFunction::TraceAfterDispatch(blink::Visitor* visitor) const {
   StyleRuleGroup::TraceAfterDispatch(visitor);
   visitor->Trace(parameters_);
-  visitor->Trace(layer_);
 }
 
 StyleRuleMixin::StyleRuleMixin(

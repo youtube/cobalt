@@ -53,6 +53,7 @@
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/navigation_controller.h"
+#include "content/public/browser/navigation_details.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/site_isolation_policy.h"
@@ -11529,6 +11530,42 @@ IN_PROC_BROWSER_TEST_P(
     // affect a request's referrer.
     ExpectReferrerWithDefaultPolicy(entry, client_redirecting_url);
   }
+}
+
+IN_PROC_BROWSER_TEST_P(NavigationControllerBrowserTest,
+                       FrameNavigationEntry_PushStateIframe) {
+  GURL main_url(embedded_test_server()->GetURL(
+      "/navigation_controller/page_with_iframe_simple.html"));
+  EXPECT_TRUE(NavigateToURL(shell(), main_url));
+
+  NavigationControllerImpl& controller =
+      static_cast<NavigationControllerImpl&>(contents()->GetController());
+  NavigationEntryImpl* entry = controller.GetLastCommittedEntry();
+  ASSERT_EQ(1u, entry->root_node()->children.size());
+
+  // Remove the iframe and then do a pushState.
+  EXPECT_TRUE(ExecJs(shell(), kRemoveFrameScript));
+  {
+    TestNavigationObserver observer(shell()->web_contents());
+    EXPECT_TRUE(ExecJs(shell(), "history.pushState({}, '', 'foo')"));
+    observer.Wait();
+  }
+
+  // The new entry should not have any children for the iframe.
+  entry = controller.GetLastCommittedEntry();
+  EXPECT_TRUE(entry->root_node()->children.empty());
+  EXPECT_EQ(2, controller.GetEntryCount());
+
+  // But going back should restore it.
+  {
+    TestNavigationObserver back_load_observer(shell()->web_contents());
+    controller.GoBack();
+    back_load_observer.Wait();
+  }
+  entry = controller.GetLastCommittedEntry();
+  EXPECT_EQ(1u, entry->root_node()->children.size());
+  EXPECT_EQ(0, controller.GetCurrentEntryIndex());
+  EXPECT_EQ(2, controller.GetEntryCount());
 }
 
 // Verify that restoring a NavigationEntry with cross-site subframes does not

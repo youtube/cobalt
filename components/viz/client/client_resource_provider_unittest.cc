@@ -42,7 +42,7 @@ class ClientResourceProviderTest : public testing::TestWithParam<bool> {
  protected:
   ClientResourceProviderTest()
       : use_gpu_(GetParam()),
-        context_provider_(TestContextProvider::Create()),
+        context_provider_(TestContextProvider::CreateGLES()),
         bound_(context_provider_->BindToCurrentSequence()) {
     DCHECK_EQ(bound_, gpu::ContextResult::kSuccess);
   }
@@ -198,7 +198,7 @@ TEST_P(ClientResourceProviderTest, TransferableResourceSendTwoToParent) {
     verified_sync_token.SetVerifyFlush();
     EXPECT_EQ(exported[i].id, to_send[i]);
     EXPECT_EQ(exported[i].GetIsSoftware(), tran[i].GetIsSoftware());
-    EXPECT_EQ(exported[i].size, tran[i].size);
+    EXPECT_EQ(exported[i].GetSize(), tran[i].GetSize());
     EXPECT_EQ(exported[i].mailbox(), tran[i].mailbox());
     EXPECT_EQ(exported[i].sync_token(), verified_sync_token);
     EXPECT_EQ(exported[i].texture_target(), tran[i].texture_target());

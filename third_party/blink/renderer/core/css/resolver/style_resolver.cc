@@ -45,6 +45,7 @@
 #include "third_party/blink/renderer/core/animation/invalidatable_interpolation.h"
 #include "third_party/blink/renderer/core/css/anchor_evaluator.h"
 #include "third_party/blink/renderer/core/css/cascade_layer_map.h"
+#include "third_party/blink/renderer/core/css/cascade_layered.h"
 #include "third_party/blink/renderer/core/css/container_query_evaluator.h"
 #include "third_party/blink/renderer/core/css/css_custom_ident_value.h"
 #include "third_party/blink/renderer/core/css/css_default_style_sheets.h"
@@ -155,6 +156,8 @@ bool IsPseudoElementWithUAStyle(PseudoId pseudo_id) {
     case kPseudoIdScrollButtonInlineEnd:
     case kPseudoIdScrollButtonBlockEnd:
     case kPseudoIdScrollMarker:
+    case kPseudoIdOverscrollAreaParent:
+    case kPseudoIdOverscrollClientArea:
       return true;
     default:
       return false;
@@ -185,12 +188,12 @@ bool ShouldStoreOldStyle(const StyleRecalcContext& style_recalc_context,
   return (style_recalc_context.size_container ||
           style_recalc_context.has_anchored_container ||
           state.StyleBuilder().HasAnchorFunctions() ||
-          state.StyleBuilder().PositionAnchor() ||
+          state.StyleBuilder().PositionAnchor().IsName() ||
           state.GetElement().ImplicitAnchorElement() ||
           ((state.GetElement().IsPseudoElement() ||
             state.IsForPseudoElement()) &&
            (state.ParentStyle()->HasAnchorFunctions() ||
-            state.ParentStyle()->PositionAnchor())) ||
+            state.ParentStyle()->PositionAnchor().IsName())) ||
           state.StyleBuilder().GetPositionTryFallbacks() != nullptr) &&
          state.CanAffectAnimations();
 }
@@ -1510,6 +1513,7 @@ void StyleResolver::InitStyle(Element& element,
                               const StyleRequest& style_request,
                               const ComputedStyle& source_for_noninherited,
                               const ComputedStyle* parent_style,
+                              const ComputedStyle* originating_element_style,
                               StyleResolverState& state) {
   if (state.IsForHighlight()) {
     // When resolving highlight styles, the spec requires that we default
@@ -1524,7 +1528,7 @@ void StyleResolver::InitStyle(Element& element,
     // resolution entirely.
     state.CreateNewClonedStyle(*parent_style);
     state.StyleBuilder().CopyHighlightPropertiesFrom(
-        *state.OriginatingElementStyle());
+        *originating_element_style);
   } else {
     state.CreateNewStyle(source_for_noninherited, *parent_style,
                          (!IsForPseudoElement(element, style_request) &&
@@ -1817,7 +1821,7 @@ void StyleResolver::ApplyBaseStyleNoCache(
   if (IsForPseudoElement(*element, style_request)) {
     if (!match_result.HasMatchedProperties()) {
       InitStyle(*element, style_request, *initial_style_, state.ParentStyle(),
-                state);
+                state.OriginatingElementStyle(), state);
       StyleAdjuster::AdjustComputedStyle(state, nullptr /* element */);
       state.SetHadNoMatchedProperties();
       return;
@@ -2669,10 +2673,12 @@ StyleResolver::FindKeyframesRuleResult StyleResolver::FindKeyframesRule(
   StyleRuleKeyframes* matched_keyframes_rule = nullptr;
   auto func = [&matched_keyframes_rule, &animation_name](
                   RuleSet* rules, unsigned rule_set_index) {
-    auto keyframes_rules = rules->KeyframesRules();
-    for (auto& keyframes_rule : keyframes_rules) {
-      if (keyframes_rule->GetName() == animation_name) {
-        matched_keyframes_rule = keyframes_rule;
+    const HeapVector<CascadeLayered<StyleRuleKeyframes>>& keyframes_rules =
+        rules->KeyframesRules();
+    for (const CascadeLayered<StyleRuleKeyframes>& keyframes_rule :
+         keyframes_rules) {
+      if (keyframes_rule.value->GetName() == animation_name) {
+        matched_keyframes_rule = keyframes_rule.value;
       }
     }
   };
@@ -2691,6 +2697,10 @@ void StyleResolver::InvalidateMatchedPropertiesCache() {
   matched_properties_cache_.Clear();
 }
 
+void StyleResolver::InvalidateMatchedPropertiesCacheForViewportUnits() {
+  matched_properties_cache_.ClearViewportDependent();
+}
+
 void StyleResolver::SetResizedForViewportUnits() {
   was_viewport_resized_ = true;
   GetDocument().GetStyleEngine().UpdateActiveStyle();
@@ -2707,7 +2717,21 @@ StyleResolver::CacheSuccess StyleResolver::ApplyMatchedCache(
     const MatchResult& match_result) {
   Element& element = state.GetElement();
 
-  MatchedPropertiesCache::Key key(match_result);
+  // Add in a couple of fields from the parent to the hash; this reduces the
+  // number of differs-by-inherited-fields mismatches the MPC needs to filter
+  // out. We pick out a couple of fields that seem to be commonly causing
+  // mismatches (from eyeballing some test suite data) and are cheap to hash;
+  // it would be nice to add e.g. Color() too, but it's much more expensive.
+  unsigned inherited_hash =
+      state.IsForHighlight()
+          ? state.OriginatingElementStyle()->InheritedVariables().GetHash()
+          : state.ParentStyle()->InheritedVariables().GetHash();
+  inherited_hash ^= state.ParentStyle()->HashInheritedBitFields();
+  inherited_hash ^= HashFloat(
+      state.ParentStyle()->GetFont()->GetFontDescription().ComputedSize());
+  MatchedPropertiesCache::Key key(
+      match_result,
+      MatchedPropertiesCache::Key::AdditionalHash(inherited_hash));
 
   bool can_use_cache = match_result.IsCacheable();
   // NOTE: Do not add anything here without also adding it to
@@ -2726,10 +2750,11 @@ StyleResolver::CacheSuccess StyleResolver::ApplyMatchedCache(
     INCREMENT_STYLE_STATS_COUNTER(GetDocument().GetStyleEngine(),
                                   matched_property_cache_hit, 1);
 
-    const ComputedStyle* parent_style =
+    const ComputedStyle* style_to_clone =
         cached_matched_properties->computed_style.Get();
 
-    InitStyle(element, style_request, *parent_style, parent_style, state);
+    InitStyle(element, style_request, *style_to_clone, style_to_clone,
+              style_to_clone, state);
 
     if (cached_matched_properties->computed_style->CanAffectAnimations()) {
       // Need to set this flag from the cached ComputedStyle to make
@@ -2765,7 +2790,7 @@ StyleResolver::CacheSuccess StyleResolver::ApplyMatchedCache(
     // details.
     const ComputedStyle& initial_style = *initial_style_;
     InitStyle(element, style_request, initial_style, state.ParentStyle(),
-              state);
+              state.OriginatingElementStyle(), state);
 
     ExpandInheritedVisitedProperties(state);
 
@@ -2800,8 +2825,9 @@ void StyleResolver::MaybeAddToMatchedPropertiesCache(
   if (key.IsCacheable() && MatchedPropertiesCache::IsCacheable(state)) {
     INCREMENT_STYLE_STATS_COUNTER(GetDocument().GetStyleEngine(),
                                   matched_property_cache_added, 1);
-    matched_properties_cache_.Add(key, state.StyleBuilder().CloneStyle(),
-                                  state.ParentStyle());
+    matched_properties_cache_.Add(
+        key, state.StyleBuilder().CloneStyle(), state.ParentStyle(),
+        state.IsForHighlight() ? state.OriginatingElementStyle() : nullptr);
   }
 }
 
@@ -3525,14 +3551,6 @@ void StyleResolver::PropagateStyleToViewport() {
                    SetColorSchemeFlagsIsNormal, false);
   }
 
-  // scroll-start
-  {
-    PROPAGATE_FROM(document_element_style, ScrollStartX, SetScrollStartX,
-                   ScrollStartData());
-    PROPAGATE_FROM(document_element_style, ScrollStartY, SetScrollStartY,
-                   ScrollStartData());
-  }
-
   changed |= PropagateScrollSnapStyleToViewport(
       GetDocument(), document_element_style, new_viewport_style_builder);
 
@@ -3628,11 +3646,12 @@ StyleRulePositionTry* StyleResolver::ResolvePositionTryRule(
 
   // Try UA rules if no author rule matches
   if (!position_try_rule) {
-    for (const auto& rule : CSSDefaultStyleSheets::Instance()
-                                .DefaultHtmlStyle()
-                                ->PositionTryRules()) {
-      if (position_try_name == rule->Name()) {
-        position_try_rule = rule;
+    for (const CascadeLayered<StyleRulePositionTry>& rule :
+         CSSDefaultStyleSheets::Instance()
+             .DefaultHtmlStyle()
+             ->PositionTryRules()) {
+      if (position_try_name == rule.value->Name()) {
+        position_try_rule = rule.value;
         break;
       }
     }

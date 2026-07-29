@@ -61,9 +61,6 @@ void Set(const IDeviceInfo& info) {
   base::AutoLock l(*lock);
 
   std::optional<IDeviceInfo>& holder = get_holder();
-  if (holder.has_value()) {
-    return;
-  }
   holder.emplace(info);
 }
 
@@ -153,3 +150,5 @@ void reset_is_xr_for_testing() {
   get_holder().reset();
 }
 }  // namespace base::android::device_info
+
+DEFINE_JNI(DeviceInfo)

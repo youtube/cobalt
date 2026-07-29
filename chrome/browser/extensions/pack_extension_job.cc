@@ -76,7 +76,7 @@ PackExtensionJob::PackExtensionJob(Client* client,
 PackExtensionJob::~PackExtensionJob() = default;
 
 void PackExtensionJob::Start() {
-  if (run_mode_ == RunMode::ASYNCHRONOUS) {
+  if (run_mode_ == RunMode::kAsynchronous) {
     scoped_refptr<base::SequencedTaskRunner> task_runner =
         base::SequencedTaskRunner::GetCurrentDefault();
     GetExtensionFileTaskRunner()->PostTask(
@@ -85,20 +85,20 @@ void PackExtensionJob::Start() {
                        // See class level comments for why Unretained is safe.
                        base::Unretained(this), std::move(task_runner)));
   } else {
-    DCHECK_EQ(RunMode::SYNCHRONOUS, run_mode_);
+    DCHECK_EQ(RunMode::kSynchronous, run_mode_);
     Run(nullptr);
   }
 }
 
 void PackExtensionJob::Run(
     scoped_refptr<base::SequencedTaskRunner> async_reply_task_runner) {
-  DCHECK_EQ(!!async_reply_task_runner, run_mode_ == RunMode::ASYNCHRONOUS)
+  DCHECK_EQ(!!async_reply_task_runner, run_mode_ == RunMode::kAsynchronous)
       << "Provide task runner iff we are running in asynchronous mode.";
 
   std::optional<CrxAndKeyFiles> files =
       GetCrxAndKeyFilePaths(root_directory_, key_file_);
   if (!files) {
-    ReportFailureOnClientSequence("Failed to create files under Downloads",
+    ReportFailureOnClientSequence(u"Failed to create files under Downloads",
                                   ExtensionCreator::ErrorType::kOtherError);
   }
   auto crx_file_out = std::make_unique<base::FilePath>(std::move(files->crx));
@@ -107,7 +107,7 @@ void PackExtensionJob::Run(
   ExtensionCreator creator;
   if (creator.Run(root_directory_, *crx_file_out, key_file_, *key_file_out,
                   run_flags_)) {
-    if (run_mode_ == RunMode::ASYNCHRONOUS) {
+    if (run_mode_ == RunMode::kAsynchronous) {
       async_reply_task_runner->PostTask(
           FROM_HERE,
           base::BindOnce(&PackExtensionJob::ReportSuccessOnClientSequence,
@@ -120,7 +120,7 @@ void PackExtensionJob::Run(
                                     std::move(key_file_out));
     }
   } else {
-    if (run_mode_ == RunMode::ASYNCHRONOUS) {
+    if (run_mode_ == RunMode::kAsynchronous) {
       async_reply_task_runner->PostTask(
           FROM_HERE,
           base::BindOnce(&PackExtensionJob::ReportFailureOnClientSequence,
@@ -128,7 +128,7 @@ void PackExtensionJob::Run(
                          base::Unretained(this), creator.error_message(),
                          creator.error_type()));
     } else {
-      DCHECK_EQ(RunMode::SYNCHRONOUS, run_mode_);
+      DCHECK_EQ(RunMode::kSynchronous, run_mode_);
       ReportFailureOnClientSequence(creator.error_message(),
                                     creator.error_type());
     }
@@ -144,11 +144,13 @@ void PackExtensionJob::ReportSuccessOnClientSequence(
 }
 
 void PackExtensionJob::ReportFailureOnClientSequence(
-    const std::string& error,
+    const std::u16string& error,
     ExtensionCreator::ErrorType error_type) {
   DCHECK(client_);
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  client_->OnPackFailure(error, error_type);
+  // TODO(crbug.com/41317803): Continue removing std::string errors and
+  // replacing with std::u16string.
+  client_->OnPackFailure(base::UTF16ToUTF8(error), error_type);
 }
 
 // static

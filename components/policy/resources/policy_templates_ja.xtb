@@ -147,6 +147,16 @@
 管理対象デバイスでは、このポリシーがデフォルトで有効であり、Google に統計情報が送信されます。
 
 管理対象デバイス以外では、ポリシーが未設定の場合、統計情報を送信するかどうかをユーザーが指定できます。</translation>
+<translation id="1081470306474387129">Controlled Frame API を使用すると、独立したウェブアプリ（IWA）といった特定の独立したコンテキストで、任意のコンテンツを埋め込んだり操作したりできます。詳細については、https://github.com/WICG/controlled-frame をご覧ください。
+
+このポリシーでは、Controlled Frame API の使用を許可しないサイトの URL パターンのリストを指定できます。
+有効なパターンは、独立したウェブアプリにのみ適用されます。
+
+このポリシーを未設定のままにした場合、<ph name="DEFAULT_CONTROLLED_FRAME_SETTING_POLICY_NAME" /> が設定されていればその設定がすべてのサイトで使用されます。
+
+URL パターンは、<ph name="CONTROLLED_FRAME_ALLOWED_FOR_URLS_POLICY_NAME" /> と競合しないようにする必要があります。URL が両方のポリシーの URL パターンと一致する場合、どちらのポリシーも優先されません。
+
+有効な URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。このポリシーの値に「<ph name="WILDCARD_VALUE" />」は使用できません。</translation>
 <translation id="1082802595100075771">匿名の Google サービスを使用して、ラベル付けがない画像の説明を自動的に取得するかどうかをユーザーが選択できる</translation>
 <translation id="1084697375611053264"><ph name="DESK_API_NAME" /> を使用して <ph name="PRODUCT_OS_NAME" /> のデスクを管理できるサードパーティのウェブ アプリケーションのドメインリストを指定します。URL のパターンは、https://developer.chrome.com/docs/extensions/mv3/manifest/externally_connectable/#reference の「matches」プロパティで定義されている形式で指定する必要があります。</translation>
 <translation id="1087057100912843460">アップデートを許可する</translation>
@@ -156,6 +166,13 @@
 <translation id="1089150222292592899">SAML IdP ページでユーザー名を自動入力する</translation>
 <translation id="1090430607214486535">機密</translation>
 <translation id="1091765729282771296">サイトが HID デバイスへのアクセスをユーザーに要求することを許可する</translation>
+<translation id="1093047620074696166">セキュリティ上の理由から、<ph name="SHOW_OPEN_FILE_PICKER_API_NAME" />、<ph name="SHOW_SAVE_FILE_PICKER_API_NAME" />、<ph name="SHOW_DIRECTORY_PICKER_API_NAME" /> ウェブ API を呼び出すには、事前のユーザー操作（「一時的な有効化」）が必要で、操作がない場合は呼び出せません。
+
+このポリシーでは、事前のユーザー操作なしで、これらの API を呼び出せるオリジンを指定できます。
+
+有効な URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns/ をご覧ください。このポリシーの値に「*」は使用できません。
+
+このポリシーを未設定のままにした場合、すべてのオリジンで、これらの API の呼び出しに事前のユーザー操作が必要となります。</translation>
 <translation id="1095209545735032039">シリアル API をブロックするサイトを指定します</translation>
 <translation id="1096105751829466145">デフォルトの検索プロバイダ</translation>
 <translation id="1099282607296956954">すべてのサイトに対してサイト分離を有効にする</translation>
@@ -678,9 +695,27 @@ PromptInTab に設定した場合は、ユーザーの認証が期限切れに�
 <translation id="1523587744262636189">ポート 10080（ブロックの解除は 2022 年 4 月 1 日まで可能）</translation>
 <translation id="1523774894176285446">設定したウェブサイトに対して起動する代替ブラウザ。</translation>
 <translation id="152657506688053119">デフォルトの検索プロバイダが使用する代替 URL のリスト</translation>
+<translation id="1526766414933532012">ユーザーが <ph name="PRIVACY_SANDBOX_NAME" /> の広告測定設定を変更できるようにするかどうかを管理するポリシーです。
+
+このポリシーを無効に設定した場合、ユーザーは広告測定設定を変更できません。
+このポリシーを有効に設定するか未設定のままにした場合、ユーザーはデバイスで <ph name="PRIVACY_SANDBOX_NAME" /> の広告測定設定を有効または無効にすることができます。
+
+このポリシーを設定するには、<ph name="PRIVACY_SANDBOX_PROMPT_ENABLED_POLICY_NAME" /> ポリシーを無効に設定する必要があります。
+
+Attribution Reporting API のサポート終了により、このポリシーは <ph name="PRODUCT_NAME" /> バージョン 144 で非推奨になりました。</translation>
 <translation id="1530812829012954197">ホスト ブラウザに次の URL パターンを常に表示する</translation>
+<translation id="1532928374875633053">ウィンドウの配置に関する権限を自動的に許可するサイトの URL パターンのリストを指定できます。これらのサイトでは、デバイスの画面に関する情報の取得や、その情報を使用したウィンドウの表示と配置、特定の画面での全画面表示のリクエストといった機能が有効になります。
+
+      有効なサイトの URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。ワイルドカード（<ph name="WILDCARD_VALUE" />）を使用できます。このポリシーでは、オリジンのみが照合されるため、URL パターンのパスは無視されます。
+
+      このポリシーでサイトを指定しない場合は、<ph name="DEFAULT_WINDOW_PLACEMENT_SETTING_POLICY_NAME" /> のポリシーが適用されます。このポリシーでサイトを指定した場合は、ブラウザのデフォルトの権限設定が適用され、ユーザーはサイトごとに権限を選択できます。</translation>
 <translation id="1533353321560451784">Vids（バージョン 143 以降でサポート）</translation>
 <translation id="1534007181698071943">サポート終了までの移行中、unload イベント ハンドラをデフォルトで無効にすることを許可する</translation>
+<translation id="1534485784652519884">このポリシーでは、JavaScript の実行を許可するサイトの URL パターンリストを指定できます。
+
+      このポリシーを未設定のままにした場合、<ph name="DEFAULT_JAVA_SCRIPT_SETTING_POLICY_NAME" /> が設定されていればその設定がすべてのサイトで使用され、設定されていなければユーザーの個人設定が適用されます。
+
+      有効な <ph name="URL_LABEL" /> パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。ワイルドカード（<ph name="WILDCARD_VALUE" />）を使用できます。</translation>
 <translation id="1539343118617844331">学校</translation>
 <translation id="1542491165152947087">ユーザーがデバイスで <ph name="PRIVACY_SANDBOX_NAME" /> の広告トピック設定を有効または無効にできるようにする。</translation>
 <translation id="1542958897137600427">クライアント証明書のプロビジョニングを有効にする</translation>
@@ -743,6 +778,11 @@ URL は「http://example.com」、「https://example.com」のような標準的
 <ph name="MS_WIN_NAME" /> では、<ph name="MS_AD_NAME" /> ドメインに追加されたインスタンス、<ph name="MS_AAD_NAME" /> に追加されたインスタンス、または <ph name="CHROME_ENTERPRISE_CORE_NAME" /> に登録されているインスタンスでのみこのポリシーを使用できます。
 
 <ph name="MAC_OS_NAME" /> では、MDM を介して管理されるインスタンス、MCX を介してドメインに追加されたインスタンス、または <ph name="CHROME_ENTERPRISE_CORE_NAME" /> に登録されているインスタンスでのみこのポリシーを使用できます。</translation>
+<translation id="1564580460097756386">このポリシーでは、ポップアップの表示を許可しないサイトの URL パターンリストを指定できます。
+
+      このポリシーを未設定のままにした場合、<ph name="DEFAULT_POPUPS_SETTING_POLICY_NAME" /> が設定されていればその設定がすべてのサイトで使用され、設定されていなければユーザーの個人設定が適用されます。
+
+      有効な <ph name="URL_LABEL" /> パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。ワイルドカード（<ph name="WILDCARD_VALUE" />）を使用できます。</translation>
 <translation id="1567718448549957373">このポリシーを有効に設定するか未設定のままにした場合、保護されていない HTTP 経由で受信した <ph name="BASIC_AUTH" /> 認証チャレンジが許可されます。
 
       このポリシーを無効に設定した場合、保護されていない HTTP リクエストで <ph name="BASIC_AUTH" /> 認証スキームの使用を禁止し、安全な HTTPS のみが許可されます。
@@ -802,6 +842,13 @@ URL は「http://example.com」、「https://example.com」のような標準的
 <translation id="1588240398285670601">ブラウザの設定</translation>
 <translation id="1590802206069983683">ThrottleDisplayNoneAndVisibilityHiddenCrossOriginiFrames 機能を使用できるようにする</translation>
 <translation id="1592334921377856028">デバイスのハードウェア ステータスの報告を無効にする</translation>
+<translation id="1593665816445147335">このポリシーでは、ホスト オペレーティング システムのファイル システム内にあるファイルやディレクトリに書き込みアクセスすることに関して、ユーザーに許可を要求できるサイトの URL パターンリストを指定できます。
+
+      このポリシーを未設定のままにした場合、<ph name="DEFAULT_FILE_SYSTEM_WRITE_GUARD_SETTING_POLICY_NAME" /> が設定されていればその設定がすべてのサイトで使用され、設定されていなければユーザーの個人設定が適用されます。
+
+      URL パターンは、<ph name="FILE_SYSTEM_WRITE_BLOCKED_FOR_URLS_POLICY_NAME" /> と競合しないようにする必要があります。URL が両方のポリシーの URL パターンと一致する場合、どちらのポリシーも優先されません。
+
+      有効な <ph name="URL_LABEL" /> パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。このポリシーの値に「<ph name="WILDCARD_VALUE" />」は使用できません。</translation>
 <translation id="1595013560176869154">このポリシーを有効に設定した場合、強度の低い PIN が許可されます。強度の低い PIN の特性としては、数字がすべて同じ（1111 など）、連続した数字（1234、4321 など）、一般によく使われる並びの PIN などが挙げられます。このポリシーを無効に設定した場合、ユーザーは強度が低く推測されやすい PIN を設定できません。
 
       このポリシーを未設定のままにした場合、ユーザーが強度の低い PIN を設定すると、エラーではなく警告が表示されます。</translation>
@@ -922,6 +969,7 @@ Virtual Tasks の場合は <ph name="DEFAULT_HANDLERS_FOR_FILE_EXTENSIONS_POLICY
 <translation id="165769015320654523">特定のベンダー ID と製品 ID を持つ HID デバイスへの接続を自動的にこれらのサイトに許可します。</translation>
 <translation id="1659406551862245683">仮想キーボードのデフォルトのサイズ変更動作が変えられ、レイアウト ビューポートのサイズ変更が行われる</translation>
 <translation id="166427968280387991">プロキシ サーバー</translation>
+<translation id="1664527497245747318">カメラアプリの写真を保存する場所を設定する。</translation>
 <translation id="1665033825018489686">このポリシーを有効に設定するか未設定のままにした場合、<ph name="PRODUCT_NAME" /> ではゲストモードでのログインが可能になります。ゲストモードでのログインには、すべてのウィンドウをシークレット モードで表示する <ph name="PRODUCT_NAME" /> プロフィールが適用されます。
 
 このポリシーを無効に設定した場合、<ph name="PRODUCT_NAME" /> ではゲストモードのプロフィールの使用は許可されません。</translation>
@@ -1252,6 +1300,13 @@ Manifest V2 を使用した拡張機能はサポートの終了が予定され�
 <translation id="1931537386635075674">NTP Outlook カレンダー カードを有効にする</translation>
 <translation id="1933378685401357864">壁紙の画像</translation>
 <translation id="1935409768874953955">URL キーによる匿名化データの収集を常に有効にする</translation>
+<translation id="1937541525148790735">このポリシーでは、JavaScript の実行を許可しないサイトの URL パターンリストを指定できます。
+
+      このポリシーを未設定のままにした場合、<ph name="DEFAULT_JAVA_SCRIPT_SETTING_POLICY_NAME" /> が設定されていればその設定がすべてのサイトで使用され、設定されていなければユーザーの個人設定が適用されます。
+
+      有効な <ph name="URL_LABEL" /> パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。ワイルドカード（<ph name="WILDCARD_VALUE" />）を使用できます。
+
+      このポリシーでは、トップレベルのドキュメントのオリジン（通常、アドレスバーにも表示されるページの URL）がいずれかのパターンに一致するかどうかに基づいて、JavaScript がブロックされます。そのため、このポリシーはウェブ サプライ チェーン攻撃の軽減には適していません。たとえば、パターン「https://[*.]foo.com/」を指定した場合、https://example.com でホストされているページで https://www.foo.com/example.js から読み込まれたスクリプトの実行を防ぐことはできません。また、パターン「https://example.com/」を指定した場合、https://example.com のドキュメントが最上位のドキュメントでなく、別のオリジン（https://www.bar.com）でホストされているページにサブフレームとして埋め込まれている場合、スクリプトの実行を防ぐことはできません。</translation>
 <translation id="1942015922182679826">復号できないパスワードの削除を有効にする</translation>
 <translation id="1942626390957213764">デスクトップ共有ハブを無効にする</translation>
 <translation id="194407941132272412">すべてのウェブサイトでサイト分離を無効にするが、ユーザーが有効化できるようにする</translation>
@@ -1266,6 +1321,7 @@ Manifest V2 を使用した拡張機能はサポートの終了が予定され�
 <translation id="1955063069502242812">バッテリー残量低下時のサウンドを有効にする</translation>
 <translation id="1955806069704957172">デスクコネクタ API の設定を管理します。</translation>
 <translation id="1957093168333856467">ユーザー補助仮想キーボードを無効にする</translation>
+<translation id="1958110911685486719">PDF の XFA フォームのサポートを有効にする</translation>
 <translation id="1960059835237529462"><ph name="IOS_NAME" /> の App Store の評価に関するプロモーションのユーザーへの表示を許可します</translation>
 <translation id="1960416154405676350"><ph name="GOOGLE_LENS_PRODUCT_NAME" /> の地域検索を有効にする。</translation>
 <translation id="1961091374249454164">このポリシーは、管理対象ゲスト セッションにのみ適用されます。
@@ -1282,6 +1338,21 @@ Manifest V2 を使用した拡張機能はサポートの終了が予定され�
 
       「KerberosUseCustomPrefilledConfig」ポリシーが無効になっている場合、このポリシーの値は使用されません。</translation>
 <translation id="1967820716244187368">Chrome for Testing の使用を許可する</translation>
+<translation id="1968449801450833124">このポリシーでは、HID デバイスへのアクセス許可をユーザーに要求できないサイトの URL パターンリストを指定できます。
+
+      このポリシーを未設定のままにした場合、<ph name="DEFAULT_WEB_HID_GUARD_SETTING_POLICY_NAME" /> が設定されていればその設定がすべてのサイトで使用され、設定されていなければユーザーの個人設定が適用されます。
+
+      URL がポリシーの URL パターンと一致しない場合は、次の順に適用されます。
+
+        * <ph name="WEB_HID_ASK_FOR_URLS_POLICY_NAME" />（一致する場合）
+
+        *<ph name="DEFAULT_WEB_HID_GUARD_SETTING_POLICY_NAME" />（指定されている場合）
+
+        *ユーザーの個人設定
+
+      URL パターンは、<ph name="WEB_HID_ASK_FOR_URLS_POLICY_NAME" /> と競合しないようにする必要があります。URL が両方のポリシーの URL パターンと一致する場合、どちらのポリシーも優先されません。
+
+      有効な <ph name="URL_LABEL" /> パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。このポリシーの値に「<ph name="WILDCARD_VALUE" />」は使用できません。</translation>
 <translation id="1969212217917526199">リモート アクセス ホストの Debug ビルドでポリシーをオーバーライドします。
 
           この値は、ポリシー値のマッピングに対するポリシー名の JSON 辞書として解析されます。</translation>
@@ -1293,6 +1364,23 @@ Manifest V2 を使用した拡張機能はサポートの終了が予定され�
 <translation id="1972134432340252414">ブラウザ プロセスで従来の拡張機能ポイントをブロックする</translation>
 <translation id="1973804850652157024">Controlled Frame API の使用を管理する</translation>
 <translation id="1977581177449752640">このポリシーを設定した場合、リモート アクセス ホストは発行元の CN が指定されたクライアント証明書を使用して <ph name="REMOTE_ACCESS_HOST_TOKEN_VALIDATION_URL_POLICY_NAME" /> に対し認証を行います。利用可能な任意のクライアント証明書を使用するには、このポリシーを「<ph name="WILDCARD_VALUE" />」に設定します。このポリシーを空白にした場合または設定しない場合、この機能は無効になります。</translation>
+<translation id="1982446141078810235">このポリシーでは、WebRTC が最適な接続を検索する際に使用する IP アドレスとインターフェースを特定の URL パターン別に制限できます。
+
+URL パターンと処理タイプの組み合わせのリストを指定します。URL パターンは順番に照合され、最初に一致したパターンによって、WebRTC がそのドメインに対して使用する処理が設定されます。現在のドキュメントの URL に一致するエントリがない場合は、ポリシー <ph name="WEB_RTC_IP_HANDLING_POLICY_NAME" /> で設定された構成が使用されます。
+
+有効な入力パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns/ をご覧ください。ワイルドカード（<ph name="WILDCARD_VALUE" />）を使用できます。このポリシーでは、オリジンのみが照合されるため、URL パターンのパスは無視されます。
+
+有効な処理値:
+
+* default - WebRTC はすべてのネットワーク インターフェースを使用します。
+
+* default_public_and_private_interfaces - WebRTC はすべてのパブリック インターフェースとプライベート インターフェースを使用します。
+
+* default_public_interface_only - WebRTC はすべてのパブリック インターフェースを使用し、プライベート インターフェースは使用しません。
+
+* disable_non_proxied_udp - WebRTC は UDP SOCKS プロキシを使用するか、TCP プロキシにフォールバックします。
+
+すべての処理値の詳しい説明については、RFC 8828 のセクション 5.2（https://tools.ietf.org/html/rfc8828.html#section-5.2）をご覧ください。</translation>
 <translation id="1984934843478301531">アプリ起動の自動化</translation>
 <translation id="1985545260037812875">ログイン時にディスプレイ サイズ設定画面を表示する</translation>
 <translation id="1987789058026551147">デバイスのキオスク セッションの報告を有効にする</translation>
@@ -1438,21 +1526,6 @@ accounts.google.com など一部の URL は認証に必要です。オンライ�
           このポリシーを有効に設定した場合は、ポリシーで定義されたアカウントのリストが Kerberos アカウント設定に追加されます。
 
           このポリシーを無効または未設定のままにした場合、アカウントは Kerberos アカウント設定に追加されず、以前にこのポリシーで追加されたアカウントもすべて削除されます。「ユーザーに Kerberos アカウントの追加を許可する」ポリシーが有効であれば、ユーザーは手動でアカウントを追加できます。</translation>
-<translation id="2103906574050962342">このポリシーでは、接続先の URL やその他の条件に基づいてブラウザで使用するプロキシを選択するルールを設定します。このポリシーは、<ph name="PROXY_SETTINGS_POLICY_NAME" /> ポリシー、<ph name="PROXY_SETTINGS_EXTENSION_API" /> の拡張機能 API、またはユーザーが手動で設定したプロキシ設定より優先されます（設定されている場合）。
-
-このポリシーを未設定のままにした場合、他のプロキシ ポリシーやユーザー設定には影響しません。
-
-ブラウザで使用するプロキシを決定する必要がある場合、<ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> の URL ホストの少なくとも 1 つに一致するエントリが見つかるまで、<ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" /> ポリシーのエントリが順番に照合され、<ph name="PROXY_OVERRIDE_RULES_CONDITIONS" /> のすべてのエントリが満たされるかどうかが評価されます。<ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" /> の値は、一致した場合にプロキシとして使用されます。一致するエントリが見つからない場合は、<ph name="PROXY_SETTINGS_POLICY_NAME" /> ポリシーで設定されたプロキシにフォールバックされます。
-
-<ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" /> フィールドのエントリは、次のような PAC ファイルの文字列値に対応します。
-  * DIRECT
-  * PROXY host:port
-  * HTTPS host:port
-最初に到達可能なエントリがプロキシとして使用されます。
-
-<ph name="PROXY_OVERRIDE_RULES_CONDITIONS" /> フィールドには、オーバーライド ルールで使用するプロキシを決定する際に、すべて満たす必要がある条件のリストを指定します。未設定の場合、<ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> の少なくとも 1 つのホストが一致すれば、エントリが使用されます。
-
-<ph name="PROXY_OVERRIDE_RULES_DNS_PROBE" /> 条件は、指定された DNS <ph name="PROXY_OVERRIDE_RULES_HOST" /> が IP アドレスに解決可能かどうかを判定します。<ph name="PROXY_OVERRIDE_RULES_RESULT" /> の値が「<ph name="PROXY_OVERRIDE_RULES_RESOLVES" />」の場合は、条件が満たされたと判定されます。代わりに値を「<ph name="PROXY_OVERRIDE_RULES_NOT_FOUND" />」に設定した場合は、解決に失敗すると、条件が満たされたと判定されます。</translation>
 <translation id="2104418465060359056">拡張機能とプラグインの情報についてレポートを作成する</translation>
 <translation id="210652463860415362">ウェブ コンテンツによる圧縮辞書転送機能の使用を許可する</translation>
 <translation id="2106627642643925514">デフォルトの PIN 印刷モードをオーバーライドします。このモードを使用できない場合、このポリシーは無視されます。</translation>
@@ -1518,6 +1591,11 @@ accounts.google.com など一部の URL は認証に必要です。オンライ�
 <translation id="2158741059065130266">このポリシーを True に設定した場合、<ph name="PRODUCT_OS_NAME" /> のファイルアプリにゴミ箱が表示され、「マイファイル」と「ダウンロード」（ユーザーがその下に作成したフォルダも含む）のファイルは削除時にゴミ箱に移動されます。
 
       このポリシーを False に設定した場合、それまでゴミ箱に入っていたファイルは、隠しファイルを表示して「マイファイル」または「ダウンロード」の下にあるゴミ箱ディレクトリを探すことで使用できます。</translation>
+<translation id="2159092270572925582">ブロック可能な（アクティブな）混合コンテンツ（HTTPS サイトの HTTP コンテンツ）の表示を許可するサイトと、任意でブロック可能な混合コンテンツのアップグレードを無効にするサイトを URL パターンのリストで設定できます。
+
+          このポリシーを未設定のままにした場合、ブロック可能な混合コンテンツはブロックされ、任意でブロック可能な混合コンテンツはアップグレードされますが、ユーザーは特定のサイトについてそうしたコンテンツを許可する例外を設定できます。
+
+          有効な URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。ワイルドカード（<ph name="WILDCARD_VALUE" />）を使用できます。</translation>
 <translation id="2159486052528894673">ユーザーのクラウド ポリシーがマシンのクラウド ポリシーを上書きできるようにする</translation>
 <translation id="2160170953213468208">このポリシーを有効にした場合、通常 <ph name="BASIC_EDITOR_NAME" /> で処理される MIME タイプの Office ドキュメントを操作する際にファイルをダウンロードします。
 
@@ -1605,12 +1683,6 @@ URI テンプレートに <ph name="HTTP_VARIABLE_DNS" /> 変数が含まれて�
       このポリシーが true または未設定の場合、ユーザーは VM 管理 CLI を使用できます。
       それ以外の場合、VM 管理 CLI はすべて無効かつ非表示になります。
       </translation>
-<translation id="2194051055390000601">ユーザーが <ph name="PRIVACY_SANDBOX_NAME" /> の広告トピック設定を変更できるようにするかどうかを管理するポリシーです。
-
-このポリシーを無効に設定した場合、ユーザーは広告トピック設定を変更できません。
-このポリシーを有効に設定するか未設定のままにした場合、ユーザーはデバイスで <ph name="PRIVACY_SANDBOX_NAME" /> の広告トピック設定を有効または無効にすることができます。
-
-このポリシーを設定するには、<ph name="PRIVACY_SANDBOX_PROMPT_ENABLED_POLICY_NAME" /> ポリシーを無効に設定する必要があります。</translation>
 <translation id="2195032660890227692">このポリシーは <ph name="PRODUCT_NAME" /> 68 で削除され、<ph name="ARC_BR_POLICY_NAME" /> に置き換えられました。</translation>
 <translation id="2197625019569762163">このポリシーを True に設定した場合、ログイン画面ではパスワード入力用に数字キーボードがデフォルトで表示されます。ユーザーはそこから通常のキーボードに切り替えることができます。
 
@@ -1694,6 +1766,7 @@ URI テンプレートに <ph name="HTTP_VARIABLE_DNS" /> 変数が含まれて�
 <translation id="2258126710006312594">リモート アクセスのユーザーにホストとのファイルの転送を許可します</translation>
 <translation id="225830954785359083">アンロード中にページでポップアップを表示することを許可しない</translation>
 <translation id="2261648512244797294">サポートが終了している Privet 印刷を無効にする</translation>
+<translation id="2262701937800507517"><ph name="PRODUCT_OS_NAME" /> のデフォルトの暗号化順序を使用する</translation>
 <translation id="2263881357524831360"><ph name="ANDROID_NAME" /> の <ph name="PRODUCT_NAME" /> でサードパーティのパスワード マネージャーの使用を許可する</translation>
 <translation id="2266422599396179941">ユーザーにフィードバックの送信を許可する</translation>
 <translation id="2268891553068901979">このポリシーを有効に設定した場合、モバイル接続時に <ph name="PRODUCT_OS_NAME" /> ファイルアプリで <ph name="GOOGLE_DRIVE_NAME" />の同期がオフになります。この場合、データは Wi-Fi またはイーサネット接続時にのみドライブに同期されます。
@@ -1818,6 +1891,13 @@ Android アプリの場合はパッケージ名（「com.google.android.gm」な
 <translation id="2376151922689284770">インストーラ UI に表示される名前（Happy VM など）。未設定のままにすると、BruschettaVMConfiguration ポリシーの最初の（表示順）エントリから派生したフォールバック名が表示されるか、またはこれに失敗した場合は汎用名が表示されます。</translation>
 <translation id="2377059627106831967">AI モデルの改善は行わずに生成 AI による概要ウィンドウのグループ化を許可する。</translation>
 <translation id="2377109572344699022">Direct Sockets API の使用を管理する</translation>
+<translation id="2380422292451406897">このポリシーでは、モーション センサーや光センサーなどのセンサーへのアクセスを許可しないサイトの URL パターンリストを指定できます。
+
+      このポリシーを未設定のままにした場合、<ph name="DEFAULT_SENSORS_SETTING_POLICY_NAME" /> が設定されていればその設定がすべてのサイトで使用され、設定されていなければユーザーの個人設定が適用されます。
+
+      このポリシーと <ph name="SENSORS_ALLOWED_FOR_URLS_POLICY_NAME" /> ポリシーの両方で同じ URL パターンが指定されている場合は、このポリシーが優先され、モーション センサーや光センサーへのアクセスはブロックされます。
+
+      有効な <ph name="URL_LABEL" /> パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。ワイルドカード（<ph name="WILDCARD_VALUE" />）を使用できます。</translation>
 <translation id="2382672620906337383">引き上げられたネストのしきい値を超えるまで JavaScript の setTimeout() をクランプしない。</translation>
 <translation id="2383521405943565490">このポリシーでは、サードパーティのストレージ パーティションをデフォルトで許可するかどうかを制御します。
 
@@ -2005,6 +2085,24 @@ Android アプリの場合はパッケージ名（「com.google.android.gm」な
 <translation id="2521581787935130926">ブックマーク バーでアプリのショートカットを表示する</translation>
 <translation id="2522304491589804974">拡張機能インストールの許可リストを設定する</translation>
 <translation id="2523511232831599126">ログイン画面でユーザー補助のショートカットを有効にする</translation>
+<translation id="252611686271192278">Direct Sockets API は TCP と UDP を使用して任意のエンドポイントと通信できます。
+詳細については、https://github.com/WICG/direct-sockets をご覧ください。
+
+プライベート ネットワークのエンドポイントは、https://wicg.github.io/private-network-access/#ip-address-space-private で定義されているプライベート IP アドレス空間の IP アドレスを使用するエンドポイントです。
+
+このポリシーでは、Direct Sockets API でプライベート ネットワークへのアクセスをブロックするサイトの URL パターンのリストを指定できます。
+有効なパターンは、独立したウェブアプリにのみ適用されます。
+
+このポリシーを未設定のままにした場合、<ph name="DEFAULT_DIRECT_SOCKETS_PRIVATE_NETWORK_ACCESS_SETTING_POLICY_NAME" /> が設定されていればその設定がすべてのサイトで使用されます。
+
+URL パターンは、<ph name="DIRECT_SOCKETS_PRIVATE_NETWORK_ACCESS_ALLOWED_FOR_URLS_POLICY_NAME" /> と競合しないようにする必要があります。URL が両方のポリシーの URL パターンと一致する場合、どちらのポリシーも優先されません。
+
+有効な URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。このポリシーの値に「<ph name="WILDCARD_VALUE" />」は使用できません。
+
+このポリシーは、オリジンに Direct Sockets API の使用が許可されている場合にのみ適用されます。
+詳しくは、<ph name="DEFAULT_DIRECT_SOCKETS_SETTING_POLICY_NAME" />、<ph name="DIRECT_SOCKETS_ALLOWED_FOR_URLS_POLICY_NAME" />、<ph name="DIRECT_SOCKETS_BLOCKED_FOR_URLS_POLICY_NAME" /> をご覧ください。
+
+このポリシーは新しい接続の試行にのみ適用され、既存の接続を無効にするものではありません。</translation>
 <translation id="252742292004421898">Direct Sockets API を許可するサイトを指定する</translation>
 <translation id="2528762900096510743">自動ログアウト サービスを有効にする</translation>
 <translation id="2529880111512635313">自動インストールするアプリと拡張機能のリストの設定</translation>
@@ -2050,13 +2148,6 @@ Android アプリの場合はパッケージ名（「com.google.android.gm」な
 
       ユーザーはブックマークが保存されるフォルダを変更できません（ブックマーク バーでフォルダを非表示にすることはできます）。管理対象のブックマークのデフォルトのフォルダ名は「管理対象のブックマーク」です。フォルダ名を変更するには、希望するフォルダ名を値とする「<ph name="TOPLEVEL_NAME" />」キーを 1 つ含む新しいサブディクショナリをポリシーに追加します。管理対象のブックマークは、ユーザー アカウントと同期されず、拡張機能で変更することもできません。</translation>
 <translation id="2552966063069741410">タイムゾーン</translation>
-<translation id="2554010621206996293">このポリシーでは、関連ウェブサイト セット機能の有効化を管理できます。
-
-このポリシーは <ph name="FIRST_PARTY_SETS_ENABLED_POLICY_NAME" /> ポリシーをオーバーライドします。
-
-このポリシーを未設定のままにするか True に設定した場合、関連ウェブサイト セット機能が有効になります。
-
-このポリシーを False に設定した場合、関連ウェブサイト セット機能は無効になります。</translation>
 <translation id="2555244983262829274">ツールバーにホームボタンを表示しない</translation>
 <translation id="2558154810835597313">管理対象ユーザーまたはプロフィールのクライアント証明書のプロビジョニングを有効にする</translation>
 <translation id="2559274305158103883">WebRTC のポスト量子鍵交換を無効にする</translation>
@@ -2070,6 +2161,13 @@ Android アプリの場合はパッケージ名（「com.google.android.gm」な
           このポリシーは、「DefaultSearchProviderEnabled」ポリシーが有効な場合にのみ適用されます。</translation>
 <translation id="2563373001850981577"><ph name="PRODUCT_OS_NAME" /> のファイルアプリで、ファイルを（対応しているファイル システム上の）ゴミ箱に移動する機能を有効にする</translation>
 <translation id="256597156026041241">ログイン画面で固定キーを無効にする</translation>
+<translation id="2568364558457964228"><ph name="SSL_ERROR_OVERRIDE_ALLOWED_POLICY_NAME" /> が無効の場合、このポリシーでは、ユーザーが SSL エラーのあるサイトに移動したとき、<ph name="PRODUCT_NAME" /> に表示される警告ページをクリックスルーできるサイトのオリジン パターンリストを指定できます。指定した場合、このリストにないオリジンでは、SSL 警告ページをクリックスルーできなくなります。
+
+      <ph name="SSL_ERROR_OVERRIDE_ALLOWED_POLICY_NAME" /> が有効または未設定の場合、このポリシーは効力を持ちません。
+
+      このポリシーを未設定のままにした場合、<ph name="SSL_ERROR_OVERRIDE_ALLOWED_POLICY_NAME" /> がすべてのサイトに適用されます。
+
+      有効な入力パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns/ をご覧ください。このポリシーの値に「<ph name="WILDCARD_VALUE" />」は使用できません。このポリシーでは、オリジンのみが照合されるため、URL パターンのパスは無視されます。</translation>
 <translation id="2568488785376704318">このポリシーはサポートを終了しました。代わりに <ph name="REMOTE_ACCESS_HOST_DOMAIN_LIST_POLICY_NAME" /> を使用してください。</translation>
 <translation id="2570059561924004903">音声フィードバックを無効にする</translation>
 <translation id="2570181623957732921"><ph name="DESK_API_NAME" /> の使用を許可するサードパーティのドメインリストを指定する</translation>
@@ -2098,6 +2196,13 @@ Android アプリの場合はパッケージ名（「com.google.android.gm」な
 
       このポリシーを未設定のままにした場合、<ph name="PRINTERS_ALLOW_ALL" /> が適用されます。</translation>
 <translation id="2581338546762479588">更新後の自動再起動を許可する</translation>
+<translation id="258217502043368694">このポリシーでは、画像の表示を許可しないサイトの URL パターンリストを指定できます。
+
+      このポリシーを未設定のままにした場合、<ph name="DEFAULT_IMAGE_SETTING_ENABLED_POLICY_NAME" /> が設定されていればその設定がすべてのサイトで使用され、設定されていなければユーザーの個人設定が適用されます。
+
+       有効な <ph name="URL_LABEL" /> パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。ワイルドカード（<ph name="WILDCARD_VALUE" />）を使用できます。
+
+       このポリシーは以前、Android で誤って有効になっていましたが、Android でこの機能がフルサポートされていたことはありません。</translation>
 <translation id="2585535930727399201">エンタープライズ拡張機能では、chrome.systemLog API を介してシステムログ ファイルにログを追加できます。
 
 このポリシーを有効に設定した場合、システムログ ファイルに一定期間ログを保持できます。
@@ -2167,13 +2272,6 @@ Android アプリの場合はパッケージ名（「com.google.android.gm」な
 <translation id="2614156176932194496">アドレスバーと新しいタブページの検索ボックスでの Google AI モード統合の設定。</translation>
 <translation id="2615240493030733717">タイムゾーン情報を報告する</translation>
 <translation id="2619258867868873629"><ph name="PRODUCT_OS_NAME" /> デバイスの [PDF に保存] の保存先と [Google ドライブに保存] の保存先</translation>
-<translation id="262035875928535253"><ph name="PRODUCT_NAME" /> で <ph name="PASSWORD_MANAGER_NAME" /> を必ず無効にするドメインのリストを設定します。これにより、保存と入力のワークフローが無効になり、これらのウェブサイトのパスワードを保存したり、ウェブフォームに自動入力したりできなくなります。
-
-リストに含めたドメインでは、<ph name="PASSWORD_MANAGER_NAME" /> が無効になります。
-
-リストに含めていないドメインでは、<ph name="PASSWORD_MANAGER_NAME" /> を使用できます。
-
-このポリシーを未設定のままにした場合、<ph name="PASSWORD_MANAGER_NAME" /> はすべてのドメインで使用できます。</translation>
 <translation id="2621290137818374425">このポリシーを設定した場合、指定した URL 内のホスト名について、Certificate Transparency（証明書の透明性）の開示要件が無効になります。ホストに対して間違って発行された証明書は検出が難しくなりますが、適切に公開されていないことを理由に通常であれば信頼できないものとして扱われる証明書でも、引き続き使用できるようになります。ポリシーを未設定のままにした場合、Certificate Transparency（証明書の透明性）に基づき開示が必要な証明書が開示されていなければ、<ph name="PRODUCT_NAME" /> で信頼されません。
 
       URL のパターンは、https://support.google.com/chrome/a?p=url_blocklist_filter_format の形式で指定します。ただし、スキーム、ポート、パスに関係なく特定のホスト名に対して証明書が有効になるため、<ph name="PRODUCT_NAME" /> で考慮されるのは URL のホスト名の部分のみです。ワイルドカードを使ったホストの指定はサポートされていません。</translation>
@@ -2304,6 +2402,7 @@ Android アプリの場合はパッケージ名（「com.google.android.gm」な
 <translation id="2731627323327011390">ARC アプリで <ph name="PRODUCT_OS_NAME" /> の証明書を使用できないようにする</translation>
 <translation id="273678600057164019">システムの DNS 解決をネットワーク プロセス内で実行する。</translation>
 <translation id="2737917415184832294">更新版のダウンロードに HTTPS を使用する</translation>
+<translation id="2738525271405092369">組み込みの <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> とのコンテンツの共有を許可しない。</translation>
 <translation id="2739213523971537320">ログイン画面でタップ仮想キーボードを無効にする</translation>
 <translation id="2742843273354638707">[新しいタブ] ページと <ph name="PRODUCT_OS_NAME" /> のアプリ ランチャーで、Chrome ウェブストア アプリとフッターのリンクを非表示にします。
 
@@ -2375,6 +2474,23 @@ Android アプリの場合はパッケージ名（「com.google.android.gm」な
 <translation id="2812417768214606683">このポリシーでは、<ph name="EXTERNAL_STORAGE_DISABLED_POLICY_NAME" /> ポリシーと <ph name="EXTERNAL_STORAGE_READ_ONLY_POLICY_NAME" /> ポリシーの対象から除外する USB ストレージ デバイスのリストを指定します。
 
 リストの項目には、特定の USB デバイスモデルを表す USB ベンダー ID とプロダクト ID の組み合わせを指定します。</translation>
+<translation id="2816735327277809365">このポリシーでは、<ph name="PRODUCT_OS_NAME" /> で優先する TLS 1.3 の暗号化の順序を指定し、ログイン画面からネットワーク リクエストを行う際に、特定のコンプライアンス体制で承認されたアルゴリズムの優先順序を反映するように設定します。
+
+このポリシーを設定しても、特定のアルゴリズムがネゴシエートされるとは限りません。
+
+このポリシーは、コンプライアンス要件の有無にかかわらずクライアントをサポートしたいサーバー オペレーターが、それらのクライアントを区別し、暗号化強度の高い特定のデフォルトではないアルゴリズムを優先するように明示的に設定されたクライアントに対してのみ使用できるようにするためのものです。
+
+このポリシーを「<ph name="CNSA_NAME" />」に設定した場合は、<ph name="PRODUCT_OS_NAME" /> で Commercial National Security Algorithm Suite バージョン 1.0 および 2.0（CNSA 1.0 および 2.0）に準拠するために必要な暗号を優先するように設定します。
+
+このポリシーを設定しない場合、または「<ph name="DEFAULT_NAME" />」に設定した場合、<ph name="PRODUCT_OS_NAME" /> でデフォルトの暗号化を使用するように設定します。
+
+このポリシーの設定はセキュリティ上必須ではありません。<ph name="PRODUCT_OS_NAME" /> で使用するデフォルトの暗号化は、いかなる総当たり攻撃にも十分耐えうるほど強力です。
+
+このポリシーを設定すると、ログイン画面からネットワーク リクエストを行う際に <ph name="PRODUCT_OS_NAME" /> の動作が遅くなる場合があります。
+
+このポリシーは TLS 1.3 と QUIC にのみ影響し、以前のバージョンの TLS には影響しません。
+
+このデバイス ポリシーは、ユーザー ポリシー <ph name="PREFER_SLOW_CIPHERS_POLICY_NAME" /> と同じように機能しますが、適用対象がログイン画面のログイン プロファイルとなります。</translation>
 <translation id="2816964824289752181">サードパーティの <ph name="PRODUCT_OS_NAME" /> 制御機能に対して <ph name="DESK_API_NAME" /> を有効にする</translation>
 <translation id="2818074121667686266">このポリシーを有効に設定するか未設定のままにした場合、AudioCaptureAllowedUrls リストで指定されている URL 以外では、ユーザーに音声キャプチャのアクセスを確認するメッセージが表示されます。
 
@@ -2573,6 +2689,10 @@ PIN とパスワードの複雑さの各レベルについて、詳しくはヘ�
       このポリシーは Chrome 99 で削除されました。
 
       詳しくは、https://www.chromestatus.com/feature/4664843055398912 をご覧ください。</translation>
+<translation id="2949017810764929070">このポリシーは M88 でサポートが終了しています。Flash は Chrome でご利用いただけなくなりました。このポリシーでは、<ph name="FLASH_PLUGIN_NAME" /> プラグインの実行を許可するサイトの URL パターンリストを指定できます。
+      このポリシーを未設定のままにした場合、<ph name="DEFAULT_PLUGINS_SETTING_POLICY_NAME" /> が設定されていればその設定がすべてのサイトで使用され、設定されていなければユーザーの個人設定が適用されます。
+
+      有効な URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。ただし、M85 以降では、ホストに「*」と「[*.]」のワイルドカードを使用したパターンは、このポリシーでサポートされなくなります。</translation>
 <translation id="2952347049958405264">制限事項:</translation>
 <translation id="2952574113954326102">フローティング SSO サービスが有効な場合に、ユーザーが別の <ph name="PRODUCT_OS_NAME" /> デバイスに切り替えたときに移動をブロックする Cookie ドメインのリストを指定します。
 
@@ -2596,6 +2716,11 @@ PIN とパスワードの複雑さの各レベルについて、詳しくはヘ�
 <translation id="2962972237615992440"><ph name="CLOUD_PRINT_NAME" /> プロキシを無効にする</translation>
 <translation id="2963292398266537394">音声入力を無効にする</translation>
 <translation id="2964373560810620158">ユーザーに <ph name="LACROS_NAME" /> ブラウザの使用を許可しない</translation>
+<translation id="2965032244124877282">ブロック可能な（アクティブな）混合コンテンツ（HTTPS サイトの HTTP コンテンツ）の表示を許可しないサイトと、任意でブロック可能な（パッシブな）混合コンテンツをアップグレードするサイトを URL パターンのリストで設定できます。
+
+          このポリシーを未設定のままにした場合、ブロック可能な混合コンテンツはブロックされ、任意でブロック可能な混合コンテンツはアップグレードされますが、ユーザーは特定のサイトについてそうしたコンテンツを許可する例外を設定できます。
+
+          有効な URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。ワイルドカード（<ph name="WILDCARD_VALUE" />）を使用できます。</translation>
 <translation id="2965240371261684039">このポリシーでは、選択した教師に生徒の画面のリモート表示を許可するかどうかを指定します。
 
 true に設定するか未設定のままにした場合、教師は生徒の画面を表示できます。
@@ -3091,6 +3216,15 @@ Microsoft Outlook カードには、追加の管理者設定が必要です。Ch
 <translation id="3341649870321644698">フォーカス モード時にフォーカス モード用のサウンドのみ有効にする。</translation>
 <translation id="334231891933432876">アカウントの認証が無効になったら直ちにユーザーをログアウトする</translation>
 <translation id="3345323903592385588">インストーラで VM 構成が表示される順序。複数の VM 構成が指定されている場合は、display_order 値が小さいものから表示されます。デフォルトは 0 です。</translation>
+<translation id="3349823333182687926">このポリシーでは、ウィンドウとタブのキャプチャの使用を許可する URL パターンのリストを設定できます。
+
+      このポリシーを未設定のままにした場合、このレベルのキャプチャでサイトのオーバーライドは考慮されません。
+
+      サイトの URL が <ph name="TAB_CAPTURE_ALLOWED_BY_ORIGINS_POLICY_NAME" /> または <ph name="SAME_ORIGIN_TAB_CAPTURE_ALLOWED_BY_ORIGINS_POLICY_NAME" /> のいずれかのポリシーで指定された URL パターンと一致している場合、このポリシーは無視されます。
+
+      サイトの URL がこのポリシーで指定した URL パターンと一致した場合、<ph name="SCREEN_CAPTURE_ALLOWED_BY_ORIGINS_POLICY_NAME" /> と <ph name="SCREEN_CAPTURE_ALLOWED_POLICY_NAME" /> のポリシーは無視されます。
+
+      有効な <ph name="URL_LABEL" /> パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns/ をご覧ください。このポリシーでは、オリジンのみが照合されるため、URL パターンのパスは無視されます。</translation>
 <translation id="3351661569026056296">このポリシーを True に設定した場合、キーボードの最上段のキーがファンクション キーのコマンドとして機能します。検索キーを押すと、メディアキーの動作に戻ります。
 
 このポリシーを False に設定するか未設定のままにした場合、最上段のキーを押すとデフォルトでメディアキーのコマンドが実行されます。検索キーを押すと、これらのキーはファンクション キーに変わります。</translation>
@@ -3119,6 +3253,17 @@ Microsoft Outlook カードには、追加の管理者設定が必要です。Ch
 
 このポリシーが true または未設定の場合、Crostini コンテナへのルートアクセスがユーザーに許可されます。
 このポリシーが false の場合、Crostini コンテナ（新規、既存の両方）へのルートアクセスはユーザーに許可されません。</translation>
+<translation id="3370759229531293665">JIT（Just In Time）コンパイラを有効にした JavaScript の実行を許可しないサイトの URL パターンのリストを設定できます。
+
+          JavaScript JIT を無効にした場合、<ph name="PRODUCT_NAME" /> でウェブ コンテンツの表示に時間がかかったり、WebAssembly を使用する JavaScript の一部が無効になったりする可能性があります。JavaScript JIT を無効にすると、<ph name="PRODUCT_NAME" /> でのウェブ コンテンツの表示をより安全な設定で行えるようになります。
+
+          有効な URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。ワイルドカード（<ph name="WILDCARD_VALUE" />）を使用できます。
+
+          JavaScript JIT ポリシーの例外は、サイトの詳細レベル（eTLD+1）でのみ適用されます。ポリシーを subdomain.site.com でのみ設定した場合は、site.com にも subdomain.site.com にも正しく適用されません。これは、どちらも同じ eTLD+1（site.com）に解決され、これにポリシーは設定されていないためです。この場合、site.com と subdomain.site.com の両方に正しく適用するには、ポリシーを site.com で設定する必要があります。
+
+          このポリシーは、最上位のオリジン URL のみに基づいて適用されるのではなく、フレーム単位で適用されます。したがって、たとえば <ph name="JAVA_SCRIPT_JIT_BLOCKED_FOR_SITES_POLICY_NAME" /> ポリシーで指定している site-one.com で site-two.com が含まれるフレームを読み込む場合、site-one.com では JavaScript JIT が無効になりますが、site-two.com では <ph name="DEFAULT_JAVA_SCRIPT_JIT_SETTING_POLICY_NAME" /> のポリシーが使用されます（ポリシーを設定しているか、デフォルトで JavaScript JIT を有効にしている場合）。
+
+          サイトでこのポリシーが設定されていない場合、<ph name="DEFAULT_JAVA_SCRIPT_JIT_SETTING_POLICY_NAME" /> のポリシーがサイトに適用されます（ポリシーを設定しているか、JavaScript JIT をサイトで有効にしている場合）。</translation>
 <translation id="3373381043600809954"><ph name="PRODUCT_NAME" /> を有効にする</translation>
 <translation id="3374587000313305002"><ph name="PRODUCT_NAME" /> でユーザーデータの保存に使用するディレクトリを設定します。
 
@@ -3398,6 +3543,13 @@ Microsoft Outlook カードには、追加の管理者設定が必要です。Ch
 <translation id="3565284547329101236">Flex に <ph name="ARC_VM" /> イメージをプリロードする</translation>
 <translation id="35668690622495904">
           許可リストにないコンテキストで発生したという理由で呼び出しをブロックしない （その他の理由によりブロックされる可能性はあります）。</translation>
+<translation id="356692815800858">ウィンドウの管理に関する権限を自動的に許可するサイトの URL パターンのリストを指定できます。これらのサイトでは、デバイスの画面に関する情報の取得や、その情報を使用したウィンドウの表示と配置、特定の画面での全画面表示のリクエストといった機能が有効になります。
+
+有効なサイトの URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。ワイルドカード（<ph name="WILDCARD_VALUE" />）を使用できます。このポリシーでは、オリジンのみが照合されるため、URL パターンのパスは無視されます。
+
+このポリシーでサイトを指定しない場合は、<ph name="DEFAULT_WINDOW_MANAGEMENT_SETTING_POLICY_NAME" /> のポリシーが適用されます。このポリシーでサイトを指定した場合は、ブラウザのデフォルトの権限設定が適用され、ユーザーはサイトごとに権限を選択できます。
+
+これは、サポート終了となった <ph name="WINDOW_PLACEMENT_ALLOWED_FOR_URLS_POLICY_NAME" /> ポリシーに代わるものです。</translation>
 <translation id="3568762199045490351">タイムアウトを 0 ミリ秒に設定した JavaScript setTimeout() に 1 ミリ秒のタイムアウトを含める。</translation>
 <translation id="3574450691573438824">デバイスのシステムログのアップロードを無効にする</translation>
 <translation id="3575011234198230041">HTTP 認証</translation>
@@ -3479,6 +3631,9 @@ SwiftShader は、ヘッドレス システムや仮想マシンなど、GPU ア
 <translation id="3616490235694929053">このポリシーでは、初回ログイン時にディスプレイ サイズ設定画面をユーザーに表示するかどうかを管理します。
       false に設定した場合、ディスプレイ サイズ設定画面は表示されません。
       true に設定した場合、ディスプレイ サイズ設定画面が表示されます。</translation>
+<translation id="3621103925288234132">このポリシーを設定した場合、リストで指定した追加のオリジンは、ウェブキオスク アプリケーションのインストール元ですでに使用可能なブラウザ権限（例: 位置情報、カメラ、マイク）にアクセスできます。
+
+有効な <ph name="URL_LABEL" /> パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns/ をご覧ください。このポリシーの値に「<ph name="WILDCARD_VALUE" />」は使用できません。</translation>
 <translation id="3622463490728773174">新しい実装を許可する</translation>
 <translation id="3623332696371971798">カスタマイズ アプリから Google フォトへのアクセスをブロックする</translation>
 <translation id="3625900437628963632">このポリシーの項目で設定された Kerberos パスワードの値を保存するかどうかを指定します。未設定か true に設定した場合、パスワードは保存されます。false に設定した場合、パスワードは保存されません。このアカウントのパスワード フィールドが指定されていない場合は無視されます。このフィールドは、ChromeOS バージョン 116 以降でサポートされます。</translation>
@@ -3719,6 +3874,17 @@ HTTPS 用の RSA 証明書に両方を含める必要があります。</transla
 
       このポリシーが未設定の場合、デフォルトの設定は、企業の管理対象ユーザーに対しては「許可しない」、管理対象外のユーザーに対しては「許可する」となります。</translation>
 <translation id="3791179836066841809">ポリシーに関するドキュメント</translation>
+<translation id="3792548089600605745">このポリシーでは、タブキャプチャの使用を許可する URL パターンのリストを設定できます。
+
+      このポリシーを未設定のままにした場合、このレベルのキャプチャでサイトのオーバーライドは考慮されません。
+
+      なお、ウィンドウ表示の Chrome アプリをキャプチャすることは引き続き可能です。
+
+      サイトの URL が <ph name="SAME_ORIGIN_TAB_CAPTURE_ALLOWED_BY_ORIGINS_POLICY_NAME" /> ポリシーで指定された URL パターンと一致している場合、このポリシーは無視されます。
+
+      サイトの URL がこのポリシーで指定した URL パターンと一致した場合、<ph name="WINDOW_CAPTURE_ALLOWED_BY_ORIGINS_POLICY_NAME" />、<ph name="SCREEN_CAPTURE_ALLOWED_BY_ORIGINS_POLICY_NAME" />、<ph name="SCREEN_CAPTURE_ALLOWED_POLICY_NAME" /> のポリシーは無視されます。
+
+      有効な <ph name="URL_LABEL" /> パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns/ をご覧ください。このポリシーでは、オリジンのみが照合されるため、URL パターンのパスは無視されます。</translation>
 <translation id="379318040165550702">ユーザーによる選択を許可</translation>
 <translation id="3796527892245558832">起動時にプロフィール選択画面を無効にする</translation>
 <translation id="3798922329287609568">このポリシーでは、両面印刷モードを制限できます。
@@ -3896,6 +4062,11 @@ HTTPS 用の RSA 証明書に両方を含める必要があります。</transla
       *スコープとレベルが異なる場合: 優先度の最も高いポリシーが適用されます。
 
       ポリシーがリストになく、ソース、スコープ、レベル間で矛盾がある場合は、優先度の最も高いポリシーが適用されます。</translation>
+<translation id="3912719841076835600">このポリシーでは、通知の表示を許可するサイトの URL パターンリストを指定できます。
+
+      このポリシーを未設定のままにした場合、<ph name="DEFAULT_NOTIFICATIONS_SETTING_POLICY_NAME" /> が設定されていればその設定がすべてのサイトで使用され、設定されていなければユーザーの個人設定が適用されます。
+
+      有効な <ph name="URL_LABEL" /> パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。ワイルドカード（<ph name="WILDCARD_VALUE" />）を使用できます。</translation>
 <translation id="3913680877415932969">サイトでのキャプチャを許可する画面共有 API（getDisplayMedia() や Desktop Capture extension API など）の
       レベル（タブ、ウィンドウ、またはデスクトップ）を管理するためのポリシーを設定します。</translation>
 <translation id="3915395663995367577">プロキシ .pac ファイルへの URL</translation>
@@ -4089,6 +4260,9 @@ HTTPS 用の RSA 証明書に両方を含める必要があります。</transla
 <ph name="PRODUCT_OS_NAME" /> では、このポリシーはリモート認証に関連付けられ、証明書が自動的に生成されてサーバーにアップロードされます。デバイスのログイン画面での認証フローの使用については、<ph name="DEVICE_LOGIN_SCREEN_CONTEXT_AWARE_ACCESS_SIGNALS_ALLOWLIST_POLICY_NAME" /> ポリシーで管理できます。
 
 有効な <ph name="URL_LABEL" /> パターンについて詳しくは、https://support.google.com/chrome/a?p=url_blocklist_filter_format をご覧ください。</translation>
+<translation id="406637577497776959">このポリシーでは、リクエスト元 URL のセキュリティ オリジンと照合する URL パターン リストを指定できます。一致するものについては、動画キャプチャ デバイスへのアクセスが許可されます。その際、確認のメッセージは表示されません。
+
+      有効な <ph name="URL_LABEL" /> パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns/ をご覧ください。任意の URL に一致するパターン「*」は、このポリシーではサポートされません。</translation>
 <translation id="4070039109671307724">その他</translation>
 <translation id="4071922398488395340">フローティング SSO 機能にセッション Cookie を含める</translation>
 <translation id="4072225853834793549">ログイン画面でユーザー補助のショートカットを無効にする</translation>
@@ -4151,6 +4325,11 @@ Manifest V2 を使用した拡張機能はサポートの終了が予定され�
 <translation id="4122432898152851612"><ph name="PRODUCT_OS_NAME" /> のファイル同期機能に関連する UI をユーザーに一切表示しない。</translation>
 <translation id="4122473079291425973">コンテンツが利用可能な場合は新しいタブページにカードを表示し、ユーザーはこの設定を変更できる</translation>
 <translation id="4122565688998751716">このポリシーはサポートが終了しています。代わりに <ph name="ALLOW_SYSTEM_NOTIFICATIONS_POLICY_NAME" /> ポリシーを使用してください。Linux で <ph name="PRODUCT_NAME" /> がネイティブ通知を使用するかどうかを設定します。True に設定するか未設定のままにすると、<ph name="PRODUCT_NAME" /> はネイティブ通知を使用できます。False に設定すると、<ph name="PRODUCT_NAME" /> はネイティブ通知を使用しません。代わりに <ph name="PRODUCT_NAME" /> のメッセージ センターが使用されます。</translation>
+<translation id="4126966979883096890">ローカル フォントに関する権限を自動的に許可するサイトを指定するサイトの URL パターンのリストを設定できます。これらのサイトでは、ローカル フォントに関する情報を参照する機能が有効になります。
+
+      有効なサイトの URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。ワイルドカード（<ph name="WILDCARD_VALUE" />）を使用できます。このポリシーでは、オリジンのみが照合されるため、URL パターンのパスは無視されます。
+
+      このポリシーでサイトを指定しない場合は、<ph name="DEFAULT_LOCAL_FONTS_SETTING_POLICY_NAME" /> のポリシーが適用されます。このポリシーでサイトを指定した場合は、ブラウザのデフォルトの権限設定が適用され、ユーザーはサイトごとに権限を選択できます。</translation>
 <translation id="412697421478384751">ロック画面の PIN として強度の低い PIN を設定可能にする</translation>
 <translation id="4136603825567209889">ユーザー識別情報のレポートを有効にする</translation>
 <translation id="4138655880188755661">時間制限</translation>
@@ -4330,6 +4509,11 @@ URL パターンは、<ph name="DIRECT_SOCKETS_ALLOWED_FOR_URLS_POLICY_NAME" /> 
 <translation id="4245159233848584683">このポリシーを有効に設定するか未設定のままにした場合、デバイスのローカル アカウントが遅延なしで自動ログインするように設定されていれば、デバイスがオフラインのときに <ph name="PRODUCT_OS_NAME" /> でネットワーク設定メッセージが表示されます。
 
 このポリシーを無効に設定した場合は、代わりにエラー メッセージが表示されます。</translation>
+<translation id="4245192755797817012">Idle Detection API の使用を許可しないサイトの URL パターンのリストを指定できます。
+
+有効なサイトの URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。ワイルドカード（<ph name="WILDCARD_VALUE" />）を使用できます。このポリシーでは、オリジンのみが照合されるため、URL パターンのパスは無視されます。
+
+このポリシーを未設定のままにした場合、すべてのサイトでグローバル デフォルト値が使用されます。デフォルト値は、<ph name="DEFAULT_IDLE_DETECTION_SETTING_POLICY_NAME" />（アイドル状態の検出のデフォルト設定）ポリシーで設定されていればその値、設定されていなければユーザーの個人設定の値になります。</translation>
 <translation id="4248277954659222481">メディアの自動再生を許可する URL パターンのリストを指定する</translation>
 <translation id="4250680216510889253">いいえ</translation>
 <translation id="4251370222792468420">iOS で特定の種類の混合コンテンツ（HTTPS サイトの HTTP）サブリソースのアップグレードを試行します。
@@ -4544,6 +4728,21 @@ WebSQL は M112 で削除されました。</translation>
 
       このポリシーが false の場合、OS のアップグレード後に初めてブラウザを起動したときにウェルカム ページは再表示されません。</translation>
 <translation id="441686537793821907">外部の拡張機能のインストールを許可しない</translation>
+<translation id="4422264818474941899">このポリシーでは、HID デバイスへのアクセス許可をユーザーに要求できるサイトの URL パターンリストを指定できます。
+
+      このポリシーを未設定のままにした場合、<ph name="DEFAULT_WEB_HID_GUARD_SETTING_POLICY_NAME" /> が設定されていればその設定がすべてのサイトで使用され、設定されていなければユーザーの個人設定が適用されます。
+
+      URL がポリシーの URL パターンと一致しない場合は、次の順に適用されます。
+
+        * <ph name="WEB_HID_BLOCKED_FOR_URLS_POLICY_NAME" />（一致する場合）
+
+        *<ph name="DEFAULT_WEB_HID_GUARD_SETTING_POLICY_NAME" />（指定されている場合）
+
+        *ユーザーの個人設定
+
+      URL パターンは、<ph name="WEB_HID_BLOCKED_FOR_URLS_POLICY_NAME" /> と競合しないようにする必要があります。URL が両方のポリシーの URL パターンと一致する場合、どちらのポリシーも優先されません。
+
+      有効な <ph name="URL_LABEL" /> パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。このポリシーの値に「<ph name="WILDCARD_VALUE" />」は使用できません。</translation>
 <translation id="4423597592074154136">プロキシ設定を手動で指定する</translation>
 <translation id="4424004842303301809">データ漏洩防止イベントのレポートを無効にする</translation>
 <translation id="4426601693403743089">ファミリー リンクのユーザーに対してスクリーンキャスト dogfood を無効にする</translation>
@@ -4621,7 +4820,35 @@ WebSQL は M112 で削除されました。</translation>
 <translation id="4483649828988077221">自動更新を無効にする</translation>
 <translation id="4483738129334574255">登録されている <ph name="PRODUCT_OS_NAME" /> デバイスでは恐竜のイースター エッグゲームを無効にし、他の環境では有効にする</translation>
 <translation id="4484515651939984695">アクセスコードまたは QR コードで選択したキャスト デバイスを <ph name="PRODUCT_NAME" /> メニューのキャスト デバイスのリストに表示しておく期間（秒単位）を指定します。</translation>
+<translation id="4485110452429739046">このポリシーでは、ログイン画面の SAML フロー中にデバイス識別情報のリモート証明書の使用を許可する URL を設定します。
+
+      具体的に、URL がこのポリシーの指定パターンの 1 つに一致する場合、その URL ではリモート証明書の要求に対する応答を含む HTTP ヘッダーを受信し、デバイスの識別情報と状態を認証することができます。
+
+      このポリシーを未設定のままにするか空のリストに設定した場合は、どの URL にもログイン画面でのリモート証明書の使用は許可されません。
+
+      指定する URL は HTTPS スキームを使用したものでなければなりません（例: 「https://example.com」）。
+
+      有効な URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns/ をご覧ください。</translation>
 <translation id="4485425108474077672">新しいタブページ URL を設定する</translation>
+<translation id="4485667899983529614">このポリシーでは、<ph name="PRODUCT_OS_NAME" /> で優先する TLS 1.3 の鍵交換アルゴリズム（サポートされているグループ）の順序を指定し、ログイン画面からネットワーク リクエストを行う際に、特定のコンプライアンス体制で承認されたアルゴリズムの優先順序を反映するように設定します。
+
+このポリシーを設定しても、特定のアルゴリズムがネゴシエートされるとは限りません。
+
+このポリシーは、コンプライアンス要件の有無にかかわらずクライアントをサポートしたいサーバー オペレーターが、それらのクライアントを区別し、暗号化強度の高い特定のデフォルトではないアルゴリズムを優先するように明示的に設定されたクライアントに対してのみ使用できるようにするためのものです。
+
+このポリシーを「<ph name="CNSA2_NAME" />」に設定した場合は、<ph name="PRODUCT_OS_NAME" /> で Commercial National Security Algorithm Suite 2.0（CNSA 2.0）に準拠するために必要な鍵交換方式を優先するように設定します。
+
+このポリシーを設定しない場合、または「<ph name="DEFAULT_NAME" />」に設定した場合、<ph name="PRODUCT_OS_NAME" /> でデフォルトの鍵交換方式を使用するように設定します。
+
+このポリシーを、<ph name="PRODUCT_OS_NAME" /> でポスト量子鍵交換アルゴリズムを優先するように設定する値に設定しても、<ph name="DEVICE_POST_QUANTUM_KEY_AGREEMENT_ENABLED_POLICY_NAME" /> が無効になっている場合は、<ph name="DEVICE_POST_QUANTUM_KEY_AGREEMENT_ENABLED_POLICY_NAME" /> の設定が優先されます。
+
+このポリシーの設定はセキュリティ上必須ではありません。<ph name="PRODUCT_OS_NAME" /> で使用するデフォルトの暗号化は、いかなる総当たり攻撃にも十分耐えうるほど強力です。
+
+このポリシーを設定すると、ログイン画面からネットワーク リクエストを行う際に <ph name="PRODUCT_OS_NAME" /> の動作が遅くなる場合があります。
+
+このポリシーは TLS 1.3 と QUIC にのみ影響し、以前のバージョンの TLS には影響しません。
+
+このデバイス ポリシーは、ユーザー ポリシー <ph name="PREFER_SLOW_KEX_ALGORITHMS_POLICY_NAME" /> と同じように機能しますが、適用対象がログイン画面のログイン プロファイルとなります。</translation>
 <translation id="4488959486611931919">注: M118 より、Chrome でこれらの Cookie をデフォルトでブロックするようになってから、サイトの破損は報告されていません。そのため、M127 以降、この機能は設定できなくなります（このポリシーは無視されます）。
 
 このポリシーでは、JavaScript を介して設定された、特定の制御文字（NULL、改行、ラインフィード）を含む Cookie の Chrome での処理方法を一時的に無効にします。
@@ -4732,6 +4959,16 @@ WebSQL は M112 で削除されました。</translation>
       このポリシーを設定しない場合、ユーザーはシステムにインストールされたどのプラグインも無効にできます。</translation>
 <translation id="4549695018986780856">Manifest V2 を有効にする</translation>
 <translation id="4549729301485728119">他の要素によって決定される（デフォルト）</translation>
+<translation id="4551805206890868914">Controlled Frame API を使用すると、独立したウェブアプリ（IWA）といった特定の独立したコンテキストで、任意のコンテンツを埋め込んだり操作したりできます。詳細については、https://github.com/WICG/controlled-frame をご覧ください。
+
+このポリシーでは、Controlled Frame API の使用を許可するサイトの URL パターンのリストを指定できます。
+有効なパターンは、独立したウェブアプリにのみ適用されます。
+
+このポリシーを未設定のままにした場合、<ph name="DEFAULT_CONTROLLED_FRAME_SETTING_POLICY_NAME" /> が設定されていればその設定がすべてのサイトで使用されます。
+
+URL パターンは、<ph name="CONTROLLED_FRAME_BLOCKED_FOR_URLS_POLICY_NAME" /> と競合しないようにする必要があります。URL が両方のポリシーの URL パターンと一致する場合、どちらのポリシーも優先されません。
+
+有効な URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。このポリシーの値に「<ph name="WILDCARD_VALUE" />」は使用できません。</translation>
 <translation id="4554429681167460828">オリジンが明示的に分離を要求しない限り、同じサイトの他のオリジンから分離しない。</translation>
 <translation id="4554651132977135445">ユーザー ポリシーのループバック処理モード</translation>
 <translation id="4554991346503872538">翻訳の確認をしない</translation>
@@ -4776,6 +5013,13 @@ WebSQL は M112 で削除されました。</translation>
           </translation>
 <translation id="4578265298946081589">ユーザーのログアウト時に再起動しません。</translation>
 <translation id="4581507927311097234">ユーザー入力が行われなくなってから画面をオフにするまでの時間（ミリ秒）</translation>
+<translation id="4582027661281685066">URL パターンのリストを指定します。このリストのパターンと一致するオリジンのウェブサイトから送信されたリクエストは、<ph name="PRIVATE_NETWORK_ACCESS" />　のチェック対象外となります。
+
+          リストを指定しない場合、このポリシーは空のリストを指定したときと同様に動作します。
+
+          ここで指定したパターンに含まれていないオリジンについては、グローバル デフォルト値として、<ph name="INSECURE_PRIVATE_NETWORK_REQUESTS_ALLOWED_POLICY_NAME" /> ポリシーで値が設定されていればその値、設定されていなければユーザーの個人設定の値が使用されます。
+
+          有効な URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns/ をご覧ください。</translation>
 <translation id="4582338216073557489">このポリシーを None に設定した場合、<ph name="PRODUCT_NAME" /> は、キャッシュされたファイルをディスクに保存する際に、デフォルトのキャッシュ サイズを使用します。ユーザーはこの設定を変更できません。
 
       このポリシーを設定した場合、<ph name="PRODUCT_NAME" /> は、ユーザーが「--disk-cache-size」フラグを指定しているかどうかにかかわらず、設定されたキャッシュ サイズを使用します（数メガバイトより小さい値は切り上げられます）。
@@ -4831,6 +5075,15 @@ WebSQL は M112 で削除されました。</translation>
 <translation id="4615892138881859957">Insert「6 個セット」キーのトリガーに使用するショートカットを制御する</translation>
 <translation id="4617338332148204752"><ph name="PRODUCT_FRAME_NAME" /> でのメタ タグ チェックをスキップする</translation>
 <translation id="461901491675418689">NewBaseUrlInheritanceBehavior 機能を使用できるようにする</translation>
+<translation id="4619091826372095683">このポリシーでは、ファイル形式へのアクセスをユーザーに求めることが許可されないウェブアプリの URL パターンリストを指定できます。
+
+      このポリシーを未設定のままにした場合、<ph name="DEFAULT_FILE_HANDLING_GUARD_SETTING_POLICY_NAME" /> が設定されていればその設定がすべてのウェブアプリで使用され、設定されていなければユーザーの個人設定が適用されます。
+
+      URL が <ph name="FILE_HANDLING_ALLOWED_FOR_URLS_POLICY_NAME" /> と <ph name="FILE_HANDLING_BLOCKED_FOR_URLS_POLICY_NAME" /> の URL パターンと一致しない場合は、<ph name="DEFAULT_FILE_HANDLING_GUARD_SETTING_POLICY_NAME" />、ユーザーの個人設定の順に適用されます。
+
+      URL パターンは、<ph name="FILE_HANDLING_ALLOWED_FOR_URLS_POLICY_NAME" /> と競合しないようにする必要があります。URL が両方のポリシーの URL パターンと一致する場合、どちらのポリシーも優先されません。
+
+      有効な <ph name="URL_LABEL" /> パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。このポリシーの値に「<ph name="WILDCARD_VALUE" />」は使用できません。</translation>
 <translation id="4624417808625504735">JavaScript での JIT の使用をブロックするサイトを指定する</translation>
 <translation id="46321462262887935">最上段のキーをファンクション キーとして使用するが、ユーザーによる変更を許可する</translation>
 <translation id="4632343302005518762">リストで指定したコンテンツ タイプの処理を <ph name="PRODUCT_FRAME_NAME" /> に対して許可する</translation>
@@ -4975,6 +5228,15 @@ None（なし）に設定するか未設定のままにした場合、ARC アプ
 <translation id="4707142899480362007">このポリシーを設定することにより、ログイン画面で特定のベンダー ID と製品 ID の USB デバイスへのアクセスを自動的に許可するサイトの URL パターンリストを設定できます。ポリシーを有効にするには、リストの各項目で「<ph name="DEVICES_FIELD_NAME" />」フィールドと「<ph name="URLS_FIELD_NAME" />」フィールドの両方を指定する必要があります。「<ph name="DEVICES_FIELD_NAME" />」フィールドの各項目には、「<ph name="VENDOR_ID_FIELD_NAME" />」フィールドと「<ph name="PRODUCT_ID_FIELD_NAME" />」フィールドを指定できます。「<ph name="VENDOR_ID_FIELD_NAME" />」フィールドを省略した場合、あらゆるデバイスに一致するポリシーが作成されます。「<ph name="PRODUCT_ID_FIELD_NAME" />」フィールドを省略した場合、指定したベンダー ID のあらゆるデバイスに一致するポリシーが作成されます。「<ph name="PRODUCT_ID_FIELD_NAME" />」フィールドを指定して「<ph name="VENDOR_ID_FIELD_NAME" />」フィールドは指定しなかった場合、ポリシーは無効になります。USB のアクセス許可モデルでは、指定した URL に最上位のオリジンとして USB デバイスへのアクセスを許可します。埋め込みフレームから USB デバイスにアクセスする必要がある場合は、「usb」<ph name="FEATURE_POLICY_HEADER_NAME" /> ヘッダーを使用してアクセスを許可します。必ず有効な URL を指定してください。無効な URL を指定した場合、このポリシーは無視されます。サポートの終了: USB のアクセス許可モデルでは、以前はリクエスト元 URL と埋め込み元 URL の両方を指定してアクセスを許可することができました。現在このサポートは終了し、次の方法による下位互換のみがサポートされています。リクエスト元 URL と埋め込み元 URL の両方を指定した場合、埋め込み元 URL は最上位のオリジンとしてアクセスが許可され、リクエスト元 URL は完全に無視されます。このポリシーを未設定のままにした場合、すべてのサイトでグローバルなデフォルト値（自動アクセスなし）が使用されます。</translation>
 <translation id="471269469779289997">AI モデルの改善は行わずにインライン画像を許可する。</translation>
 <translation id="471360812659157054">window.webkitStorageInfo は使用できなくなります。</translation>
+<translation id="4715338085223445947">このポリシーでは、ユーザーに対するシリアルポートへのアクセス要求を許可しないサイトの URL パターンリストを指定できます。
+
+このポリシーを未設定のままにした場合、<ph name="DEFAULT_SERIAL_GUARD_SETTING_POLICY_NAME" /> が設定されていればその設定がすべてのサイトで使用され、設定されていなければユーザーの個人設定が適用されます。
+
+URL が <ph name="SERIAL_ASK_FOR_URLS_POLICY_NAME" /> ポリシーの URL パターン（指定されている場合）と一致しない場合は、<ph name="DEFAULT_SERIAL_GUARD_SETTING_POLICY_NAME" />（設定されている場合）、ユーザーの個人設定の順に適用されます。
+
+URL が <ph name="SERIAL_ASK_FOR_URLS_POLICY_NAME" /> の URL パターンと競合する場合は、このポリシーが優先されます。
+
+有効な <ph name="URL_LABEL" /> パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。このポリシーの値に「<ph name="WILDCARD_VALUE" />」は使用できません。</translation>
 <translation id="4715773950737036924">Chrome ウェブストアで公開されていない拡張機能を利用できるかどうかを管理する。</translation>
 <translation id="4716374625338793065">ローカル ネットワーク アクセスの設定</translation>
 <translation id="4722122254122249791">指定したオリジンに対してサイト分離を有効にする</translation>
@@ -4983,6 +5245,15 @@ None（なし）に設定するか未設定のままにした場合、ARC アプ
 有効な値の範囲は 1〜9,999 秒です。このポリシーを未設定のままにした場合、<ph name="PRODUCT_OS_NAME" /> ではデフォルト値である 60 秒が使用されます。
 
 <ph name="DEVICE_SCREENSAVER_LOGIN_SCREEN_ENABLED_POLICY_NAME" /> ポリシーが false に設定されている場合、このポリシーは無視されます。</translation>
+<translation id="4723615546736863060">JavaScript の高度な最適化を有効にするサイトの URL パターンのリストを指定できます。
+
+有効なサイトの URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。ワイルドカード（<ph name="WILDCARD_VALUE" />）を使用できます。
+
+JavaScript の最適化ポリシーの例外は、サイトの詳細レベル（eTLD+1）でのみ適用されます。ポリシーを subdomain.site.com でのみ設定した場合は、site.com にも subdomain.site.com にも正しく適用されません。これは、どちらも同じ eTLD+1（site.com）に解決され、これにポリシーは設定されていないためです。この場合、site.com と subdomain.site.com の両方に正しく適用するには、ポリシーを site.com で設定する必要があります。
+
+このポリシーは、最上位のオリジン URL のみに基づいて適用されるのではなく、フレーム単位で適用されます。したがって、たとえば <ph name="JAVA_SCRIPT_OPTIMIZER_ALLOWED_FOR_SITES_POLICY_NAME" /> ポリシーで指定している site-one.com で site-two.com が含まれるフレームを読み込む場合、site-one.com では JavaScript の最適化が有効になりますが、site-two.com では <ph name="DEFAULT_JAVA_SCRIPT_OPTIMIZER_SETTING_POLICY_NAME" /> のポリシーが使用されます（このポリシーが設定されているか、デフォルトで JavaScript の最適化が有効になっている場合）。ブロックリストのエントリの優先度は許可リストのエントリより高く、許可リストのエントリの優先度は設定されたデフォルト値より高くなります。
+
+サイトでこのポリシーが設定されていない場合は、<ph name="DEFAULT_JAVA_SCRIPT_OPTIMIZER_SETTING_POLICY_NAME" /> のポリシーがサイトに適用されます（このポリシーが設定されているか、サイトで JavaScript の最適化が有効になっている場合）。</translation>
 <translation id="4723829699367336876">リモート アクセス クライアントからのファイアウォール トラバーサルを有効にする</translation>
 <translation id="4725528134735324213">Android バックアップ サービスを有効にする</translation>
 <translation id="4725691087141147920">ログイン時に同期の同意メッセージを表示する</translation>
@@ -5047,6 +5318,21 @@ None（なし）に設定するか未設定のままにした場合、ARC アプ
 
       未設定の場合、Gemini の紹介画面は企業の管理対象ユーザーに対してはスキップされ、管理対象外ユーザーには表示されます。</translation>
 <translation id="4783415902268741066">ブラウザのサイドパネルにデフォルトの検索エンジンの最新の検索結果ページを表示することを許可します</translation>
+<translation id="4784457904946078535">このポリシーでは、<ph name="PRODUCT_NAME" /> のサイドパネルやタブでページやファイルのコンテンツを <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> と共有できるようにするかどうかを制御します。
+
+なお、このポリシーはウェブ上の <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> には影響しません。このポリシーは、ユーザーが <ph name="PRODUCT_NAME" /> の使用時に情報を共有するかどうかのみを制御します。
+
+0 / 未設定 = ユーザーはページやファイルのコンテンツを <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> と共有できます。
+
+1 = ユーザーはページやファイルのコンテンツを <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> と共有できません。コンテキストを共有するためのエントリ ポイントは無効になるか、非表示になります。
+
+<ph name="GOOGLE_SEARCH_PRODUCT_NAME" /> がユーザーのデフォルトの検索エンジンでない場合、この機能は無効になっているため、このポリシーは無視されます。
+
+このポリシーは、<ph name="AI_MODE_SETTINGS_POLICY_NAME" /> ポリシーとは関係なく動作します。<ph name="AI_MODE_SETTINGS_POLICY_NAME" /> ポリシーはアドレスバーまたは新しいタブページの検索ボックスのエントリ ポイントのみを制御し、このポリシーはサイドパネルやタブでのコンテキストの共有を制御します。
+
+また、このポリシーは、<ph name="GEMINI_SETTINGS_POLICY_NAME" /> を使用して無効にできる組み込みの <ph name="GOOGLE_GEMINI_PRODUCT_NAME" /> にも影響しません。
+
+生成 AI 機能のデータ処理について詳しくは、https://support.google.com/chrome/a?p=generative_ai_settings をご覧ください。</translation>
 <translation id="4786784434769279324">パソコンがアイドル状態になったときに行う動作</translation>
 <translation id="4787763197941188108">デフォルトの印刷ページサイズをオーバーライドします。
 
@@ -5084,6 +5370,7 @@ None（なし）に設定するか未設定のままにした場合、ARC アプ
 <translation id="4802905909524200151"><ph name="TPM_FIRMWARE_UPDATE_TPM" /> ファームウェア アップデートの動作を設定する</translation>
 <translation id="4804828344300125154">ユーザーがログアウトするたびに再起動します。</translation>
 <translation id="4807950475297505572">十分な空き容量に達するまで、前回のログインから時間が経っているユーザーを順に削除する</translation>
+<translation id="4808129082654355104">デバイスのログイン画面の TLS で特定の暗号化アルゴリズムを優先する</translation>
 <translation id="4812270373673968774">このポリシーを [常に使用] に設定した場合、<ph name="PRODUCT_OS_NAME" /> シェルフが自動的に非表示になります。このポリシーを [使用しない] に設定した場合、シェルフが非表示になることがなくなります。このポリシーを設定した場合、ユーザーは設定を変更できません。設定しない場合、シェルフが自動的に非表示になるかどうかをユーザーが指定します。</translation>
 <translation id="4812309945046430049">赤色のキーボード バックライト</translation>
 <translation id="4812714598405913256">DeviceMinimumVersion ポリシー用の自動更新の有効期限に関するメッセージを設定する</translation>
@@ -5100,6 +5387,11 @@ None（なし）に設定するか未設定のままにした場合、ARC アプ
 <translation id="4826977043372474305">キオスクの Wi-Fi 認証情報をキオスクレベルで保存する</translation>
 <translation id="4827727182370777723">ローカル フォントに関する権限のデフォルトの設定</translation>
 <translation id="482803100714220060">URL 全体を表示する</translation>
+<translation id="4832373379539003927"><ph name="PRODUCT_NAME" /> の PDF ビューアで PDF ドキュメントの XFA フォームをサポートするかどうかを制御します。
+
+このポリシーを True に設定した場合、XFA フォームのサポートが有効になります。
+このポリシーを False に設定した場合、XFA フォームのサポートは無効になります。
+このポリシーを設定しない場合は、Chrome のデフォルトの動作が使用されます。この動作は、`#pdf-xfa-forms` フラグの影響を受けることもあります。このポリシーを設定した場合は、`#pdf-xfa-forms` フラグよりも優先されます。</translation>
 <translation id="4832852360828533362">ユーザーとデバイスに関するレポートの送信</translation>
 <translation id="4834526953114077364">十分な空き容量に達するまで、3 か月以内にログインしていないユーザーを順に削除する</translation>
 <translation id="4835470005923546373">背景のグラフィックの印刷モードをデフォルトで無効にする</translation>
@@ -5135,6 +5427,11 @@ None（なし）に設定するか未設定のままにした場合、ARC アプ
 <translation id="4860900625632464759">ユーザーがスマートフォンと Chromebook の間で SMS メッセージを同期できるようにする</translation>
 <translation id="486146220825734683">ユーザーが Kerberos のパスワードを保存できないようにする</translation>
 <translation id="4861767323695239729">ユーザー セッションで許可する入力方法を設定します</translation>
+<translation id="4866159293453405598">このポリシーでは、クリップボードのサイト権限の使用をブロックするサイトの URL パターンリストを指定できます。このポリシーは、指定したパターンと一致するオリジンのすべてのクリップボード操作に適用されるわけではありません。たとえば、キーボード ショートカットはクリップボードのサイト権限で管理されないため、キーボード ショートカットを使った貼り付けはこのポリシーに関係なく可能です。
+
+      このポリシーを未設定のままにした場合、<ph name="DEFAULT_CLIPBOARD_SETTING" /> が設定されていればその設定がすべてのサイトで使用され、設定されていなければユーザーの個人設定が適用されます。
+
+      有効な <ph name="URL_LABEL" /> パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。ワイルドカード（<ph name="WILDCARD_VALUE" />）を使用できます。</translation>
 <translation id="4872597029876646534">TLS で特定の暗号化アルゴリズムを優先する</translation>
 <translation id="4872803921706580974">ログイン時に人感センサーの画面の表示を有効にする</translation>
 <translation id="4873380469296842901">この設定を有効にした場合、スマートフォン ハブをすでにオプトインしているユーザーは、ChromeOS 上でスマートフォンの通知を送受信できます。この設定を無効にした場合、ユーザーはこの機能を使用できません。PhoneHubAllowed ポリシーを無効にした場合も、ユーザーはこの機能を使用できません。このポリシーを未設定のままにした場合、デフォルトでは、企業の管理対象ユーザーと管理対象外ユーザーのいずれもこの機能を使用できます。</translation>
@@ -5142,6 +5439,17 @@ None（なし）に設定するか未設定のままにした場合、ARC アプ
 <translation id="4874982543810021567">WebUSB をブロックするサイト</translation>
 <translation id="4876805738539874299">有効な SSL の最大バージョン</translation>
 <translation id="4877305769899044884">キーボード バックライトのデフォルトの色</translation>
+<translation id="488179114080257355">Direct Sockets API は TCP と UDP を使用して任意のエンドポイントと通信できます。
+詳細については、https://github.com/WICG/direct-sockets をご覧ください。
+
+このポリシーでは、Direct Sockets API の使用を許可するサイトの URL パターンのリストを指定できます。
+有効なパターンは、独立したウェブアプリにのみ適用されます。
+
+このポリシーを未設定のままにした場合、<ph name="DEFAULT_DIRECT_SOCKETS_SETTING_POLICY_NAME" /> が設定されていればその設定がすべてのサイトで使用されます。
+
+URL パターンは、<ph name="DIRECT_SOCKETS_BLOCKED_FOR_URLS_POLICY_NAME" /> と競合しないようにする必要があります。URL が両方のポリシーの URL パターンと一致する場合、どちらのポリシーも優先されません。
+
+有効な URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。このポリシーの値に「<ph name="WILDCARD_VALUE" />」は使用できません。</translation>
 <translation id="4886138258823889910">Windows でブラウザの <ph name="UIA_NAME" /> ユーザー補助フレームワーク プロバイダを有効にする</translation>
 <translation id="4889589161838982604"><ph name="DBSC_FEATURE_NAME" /> 機能の状態を制御します。
 
@@ -5200,6 +5508,7 @@ None（なし）に設定するか未設定のままにした場合、ARC アプ
 <translation id="4917385247580444890">強い</translation>
 <translation id="4918150584200819898">オンライン再認証の自動開始を有効にします。</translation>
 <translation id="4918261735182294270">ユーザーが <ph name="CHROME_SYNC_NAME" /> を有効にするかどうかを選択できるようにする</translation>
+<translation id="4918485681633125382">PDF ドキュメントで XFA フォームのサポートを有効にする</translation>
 <translation id="491889618361437456"><ph name="GOOGLE_CALENDAR_NAME" /> 統合を有効にします</translation>
 <translation id="4919122295221518724">混合コンテンツの厳密な取り扱いを有効にする</translation>
 <translation id="4919341087029582581">ユーザーがすべてのブラウザ ウィンドウを終了したときに削除する閲覧データの種類のリストを設定します。
@@ -5371,6 +5680,13 @@ Chrome 114 までは、このポリシーを使用するには <ph name="SYNC_DI
 <translation id="5041315457555330432">CastAllowAllIPs 機能がオンになっていない場合に、プライベート IP アドレスのデバイスにのみ <ph name="PRODUCT_NAME" /> の接続を許可する。</translation>
 <translation id="504689994545234073">ユーザー ファイルのローカル保存を有効にする</translation>
 <translation id="5048890362473520096">印刷サービスで LPAC サンドボックスを有効にする</translation>
+<translation id="5053070908839680464">セキュリティ上の理由から、<ph name="GET_DISPLAY_MEDIA_API_NAME" /> ウェブ API を呼び出すには、事前のユーザー操作（「一時的な有効化」）が必要で、操作がない場合は呼び出せません。
+
+このポリシーでは、事前のユーザー操作なしで、この API を呼び出せるオリジンを指定できます。
+
+有効な URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns/ をご覧ください。このポリシーの値に「*」は使用できません。
+
+このポリシーを未設定のままにした場合、すべてのオリジンで、この API の呼び出しに事前のユーザー操作が必要となります。</translation>
 <translation id="5055474681190962362">再起動する日付 [1-31]（デバイスのローカル タイムゾーン）です。frequency が「MONTHLY」に指定されている場合にのみ使用されます。値が対象月の最大日数を上回った場合は、その月末日が使用されます。</translation>
 <translation id="5055513974503523022">生成 AI ビデオ通話背景では、<ph name="PRODUCT_OS_NAME" /> で生成 AI 機能を使用して、個性を生かしたビデオ会議の背景を作成できます。
 
@@ -5394,6 +5710,14 @@ Chrome 114 までは、このポリシーを使用するには <ph name="SYNC_DI
 <translation id="5063480226653192405">使用状況</translation>
 <translation id="5067143124345820993">ログイン ユーザーのホワイト リスト</translation>
 <translation id="50689955292091946">ログイン画面でユーザー補助仮想キーボードを有効にする</translation>
+<translation id="5069453818168036580">このポリシーでは、ユーザーが <ph name="PRIVACY_SANDBOX_NAME" /> のサイトによる広告の提案の設定を無効にできるかどうかを制御します。
+
+このポリシーを無効に設定した場合、ユーザーがサイトによる広告の提案の設定をオフにすることはできません。
+このポリシーを有効に設定するか未設定のままにした場合、ユーザーはデバイスで <ph name="PRIVACY_SANDBOX_NAME" /> のサイトによる広告の提案の設定をオンまたはオフにすることができます。
+
+このポリシーを設定するには、<ph name="PRIVACY_SANDBOX_PROMPT_ENABLED_POLICY_NAME" /> ポリシーを無効に設定する必要があります。
+
+Protected Audience API のサポートを終了により、このポリシーは <ph name="PRODUCT_NAME" /> バージョン 144 で非推奨になりました。</translation>
 <translation id="5069522005630249098">この設定により、<ph name="LACROS_NAME" /> が無効になった後、どれだけのユーザーデータが保持されるかが決まります。
 
       このポリシーを <ph name="LACROS_BACKWARD_MIGRATION_NONE" /> に設定するか未設定のままにした場合、過去に遡ったデータの移行は行われません。
@@ -5571,6 +5895,11 @@ Chrome 114 までは、このポリシーを使用するには <ph name="SYNC_DI
 <translation id="5177260184597743704">OnSecurityEvent Chrome Enterprise コネクタの設定ポリシー</translation>
 <translation id="5178479074002209469">このポリシーによりアップデートが必須となっている場合に、管理対象外のユーザー セッションで通知を表示してログアウトするかどうかを示すブール値のフラグです。</translation>
 <translation id="5179853299156742425">デスク テンプレートをダウンロードすることのできる URL です。</translation>
+<translation id="5182294255397816573">キー生成の使用を許可しないサイトを指定する URL パターンのリストを設定できます。URL パターンが「KeygenAllowedForUrls」にも含まれる場合は、このブロック ポリシーが優先されます。
+
+          このポリシーが未設定のままの場合、すべてのサイトでグローバルなデフォルト値（「DefaultKeygenSetting」ポリシーで値が設定されていればその値、設定されていなければユーザーの個人設定の値）が使用されます。
+
+          有効な URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。このポリシーの値に「<ph name="WILDCARD_VALUE" />」は使用できません。</translation>
 <translation id="5182483318861266793">シェルフを画面の右側に配置する</translation>
 <translation id="51859390023061147">完全復元機能を無効にする</translation>
 <translation id="5189360528842591274">接続を許可する Bluetooth サービスのリストを指定する</translation>
@@ -5665,6 +5994,12 @@ Chrome 114 までは、このポリシーを使用するには <ph name="SYNC_DI
 
       このポリシーを無効に設定するか未設定のままにした場合、デバイス アクティビティの状態は報告されません。
       有効に設定した場合、デバイス アクティビティの状態がサーバーに報告され、ユーザーが関連付けられている限り、デバイスがオフラインかどうかを検出できるようになります。</translation>
+<translation id="5237063248422984115">このポリシーでは、クリップボードのサイト権限の使用を許可するサイトの URL パターンリストを指定できます。このポリシーは、指定したパターンと一致するオリジンのすべてのクリップボード操作に適用されるわけではありません。たとえば、キーボード ショートカットはクリップボードのサイト権限で管理されないため、キーボード ショートカットを使った貼り付けはこのポリシーに関係なく可能です。
+
+
+      このポリシーを未設定のままにした場合、<ph name="DEFAULT_CLIPBOARD_SETTING" /> が設定されていればその設定がすべてのサイトで使用され、設定されていなければユーザーの個人設定が適用されます。
+
+      有効な <ph name="URL_LABEL" /> パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。ワイルドカード（<ph name="WILDCARD_VALUE" />）を使用できます。</translation>
 <translation id="5238275681097851753">特定の <ph name="FLASH_PLUGIN_NAME" /> コンテンツのブロックを許可する</translation>
 <translation id="5238976843489093540">ファスト ペアリング（ファスト Bluetooth ペアリング）を強制的に有効にする。</translation>
 <translation id="5239277956452384929">認証中にアクセスを許可する URL のリストを指定する</translation>
@@ -5768,6 +6103,19 @@ Chrome 114 までは、このポリシーを使用するには <ph name="SYNC_DI
 <translation id="5306186200045823863">Symantec Corporation の古い PKI インフラストラクチャを信頼する</translation>
 <translation id="5307432759655324440">シークレット モードが利用可能かどうかを設定する</translation>
 <translation id="5308551343115571396"><ph name="LACROS_NAME" /> が無効になった後、ブラウザデータをすべて削除する一方、ユーザーデータはできるだけ多く保持するよう試みる。</translation>
+<translation id="53086358353377307">Cookie の設定を許可するサイトを指定する URL パターンのリストを設定できます。
+
+          URL パターンとして単一の URL を指定した場合は、そのサイトのすべてのトップレベル サイトで Cookie の使用が許可されます。
+
+          パターンとして、カンマで区切った 2 つの URL を指定することもできます。1 つ目の URL には、Cookie の使用を許可するサイトを指定します。2 つ目の URL には、最初の値を適用するトップレベル サイトを指定します。
+
+          URL のペアを指定する場合は、ペアの 1 つ目の値で「*」を使用できますが、2 つ目の値では使用できません。1 つ目の値で「*」を使用し、2 つ目の URL としてトップレベル サイトを指定した場合は、すべてのサイトで Cookie の使用が許可されます。
+
+          このポリシーを未設定のままにした場合、すべてのサイトでグローバルなデフォルト値（<ph name="DEFAULT_COOKIES_SETTINGS_POLICY_NAME" /> ポリシーまたは <ph name="BLOCK_THIRD_PARTY_COOKIES_POLICY_NAME" /> ポリシーで値が設定されていればその値、設定されていなければユーザーの個人設定の値）が使用されます。
+
+          <ph name="COOKIES_BLOCKED_FOR_URLS_POLICY_NAME" /> ポリシーと <ph name="COOKIES_SESSIONS_ONLY_FOR_URLS" /> ポリシーも確認して、これら 3 つのポリシーの URL パターンが競合しないようにする必要があります。競合する場合にどのポリシーが優先されるかは決まっていません。
+
+          有効な URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。このポリシーの値に「<ph name="WILDCARD_VALUE" />」は使用できません。</translation>
 <translation id="530949964068726932">システムトレイ メニューにユーザー補助オプションを表示しない</translation>
 <translation id="5309944663104291505">自動インストールされた独立したウェブアプリとキオスク アプリケーションに Device Attributes API の使用を許可しない</translation>
 <translation id="5311275381462687162">Cookie に関する以前の <ph name="ATTRIBUTE_SAMESITE_NAME" /> 動作のデフォルト設定</translation>
@@ -5790,6 +6138,7 @@ Chrome 114 までは、このポリシーを使用するには <ph name="SYNC_DI
 パスワードの同期が（ユーザー設定または <ph name="SYNC_DISABLED" /> ポリシーの有効化により）無効になっている場合、この機能は使用できません。
 
 管理対象アカウントはファミリー グループに参加したり、ファミリー グループを作成したりできないため、パスワードを共有できません。</translation>
+<translation id="5326771913945855850"><ph name="PRODUCT_OS_NAME" /> のデフォルトのサポートされているグループを使用する</translation>
 <translation id="532848608876725157">DNS-over-HTTPS を有効にする（安全でないフォールバックあり）</translation>
 <translation id="5328965694451556034">ログイン / ログアウトを報告する</translation>
 <translation id="5329018127554115226">高効率モードを無効にする。</translation>
@@ -5813,11 +6162,6 @@ Chrome 114 までは、このポリシーを使用するには <ph name="SYNC_DI
       <ph name="AUTO_SELECT_ALL_SCREENS_NAME" /> プロパティが <ph name="GET_DISPLAY_MEDIA_SET_NAME" /> リクエストで定義されている場合、ユーザーの明示的な許可なしに、すべてのスクリーン サーフェスが自動的にキャプチャされます。
       ポリシーを未設定のままにした場合、すべてのウェブ アプリケーションで <ph name="AUTO_SELECT_ALL_SCREENS_NAME" /> の使用が許可されません。
 プライバシー保護を強化するため、<ph name="PRODUCT_NAME" /> バージョン 116 以降、このポリシーで動的リフレッシュはサポートされなくなります。これにより、セッション開始時に許可しない限り、ログイン後に他のページでスクリーンがキャプチャされないようにすることができます。</translation>
-<translation id="5351946114524094311">このポリシーを設定した場合、指定したすべてのデータタイプが <ph name="CHROME_SYNC_NAME" /> とローミング プロファイルの同期から除外されます。これにより、ローミング プロファイルのサイズを抑えたり、<ph name="CHROME_SYNC_NAME" /> サーバーにアップロードされるデータのタイプを制限したりできます。
-
-      現在、このポリシーで指定できるデータタイプは次のとおりです: "apps"、"autofill"、"bookmarks"、"extensions"、"preferences"、"passwords"、"payments"、"productComparison"、"readingList"、"savedTabGroups"、"tabs"、"themes"、"typedUrls"、"wifiConfigurations"。データタイプの名前では大文字と小文字が区別されます。
-
-      注: 動的なポリシー更新は <ph name="PRODUCT_NAME" /> バージョン 123 以降でのみサポートされます。"autofill" を無効にすると、"payments" も無効になります。"typedUrls" はすべての閲覧履歴を指します。</translation>
 <translation id="5361167871898066799">物理キーボードの自動修正機能を制御する</translation>
 <translation id="5361708558735884308">このポリシーでは、<ph name="URL_BLOCKLIST_POLICY_NAME" /> の例外としてアクセスを許可する URL のリストを指定できます。リストの指定形式については、このポリシーの説明をご覧ください。このポリシーは、たとえば <ph name="URL_BLOCKLIST_POLICY_NAME" /> で「*」と設定してすべてのリクエストをブロックし、限定された一部の URL のみアクセスを許可する場合に使用します。つまり、特定のスキームや、他のドメインのサブドメイン、ポート、具体的なパスについて例外を設定します。設定の際は、https://support.google.com/chrome/a?p=url_blocklist_filter_format で指定された形式を使用します。URL のブロックや許可は、最も具体的なフィルタによって決定されます。<ph name="URL_ALLOWLIST_POLICY_NAME" /> ポリシーは、<ph name="URL_BLOCKLIST_POLICY_NAME" /> より優先されます。このポリシーで指定できる URL は最大 1,000 件です。
 
@@ -6037,6 +6381,11 @@ false に設定した場合、教師はこの機能にアクセスできませ�
 <translation id="5492713303272131731">レンダラ プロセスの実行中に、同じ CPU コアで他のすべてのプロセスをスケジュール実行できる。</translation>
 <translation id="5494322570831642650"><ph name="PRODUCT_NAME" /> でユーザーがシークレット モードでページを開けるかどうかを指定します。「有効」を選択するかポリシーを未設定のままにした場合は、シークレット モードでページを開くことができます。「無効」を選択した場合、シークレット モードでページを開くことはできません。「強制」を選択した場合は、シークレット モードでのみページを開くことができます。「強制」は Android-on-Chrome では機能しません。注: iOS ではセッション中にポリシーが変更されると、変更後のポリシーは再起動するまで有効になりません。</translation>
 <translation id="549471902631700911">セーフ ブラウジングに関するアンケートの受け取りを無効にする</translation>
+<translation id="549625769649876757">このポリシーでは、ユーザーに許可を求めずに、ユーザーの高精度な位置情報へのアクセスを許可するサイトの URL パターンリストを指定できます。
+
+このポリシーを未設定のままにした場合、<ph name="DEFAULT_GEOLOCATION_SETTING" /> が設定されていれば、その設定がすべてのサイトに適用されます。設定されていなければユーザーの個人設定が適用されます。
+
+有効な <ph name="URL_LABEL" /> パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。ワイルドカード（<ph name="WILDCARD_VALUE" />）を使用できます。</translation>
 <translation id="5499375345075963939">このポリシーは小売りモードでのみアクティブになります。
 
       このポリシーの値を 0 以外に設定した場合、現在デモ モードでログインしているユーザーが操作しないまま、ここに指定した時間が経過すると、ユーザーは自動的にログアウトされます。
@@ -6105,6 +6454,27 @@ Microsoft SharePoint と OneDrive のカードには、追加の管理者設定�
 * Legacy（以前の暗号化タイプ）: RC4 タイプのみ許可します。RC4 は安全ではないため、使用するのはどうしても必要な場合のみとし、可能であれば AES 暗号化に対応するようサーバーを再設定してください。
 
 https://wiki.samba.org/index.php/Samba_4.6_Features_added/changed#Kerberos_client_encryption_types も併せてご覧ください。</translation>
+<translation id="5547367922423795226">SAML フローをホストするログイン画面のフレームで、サイトから証明書をリクエストされた場合に、どのサイトであればクライアント証明書を自動的に選択するかを URL パターンのリストで指定できます。使用例としては、SAML IdP に提示するデバイス全体の証明書を設定するケースが挙げられます。
+
+      値は文字列変換した JSON 辞書の配列で、それぞれ <ph name="AUTO_SELECT_CERTIFICATE_FOR_URLS_EXAMPLE" /> の形式で指定します。<ph name="URL_PATTERN_PLACEHOLDER" /> は、コンテンツを設定するパターンです。<ph name="FILTER_PLACEHOLDER" /> は、ブラウザで自動的に選択されるクライアント証明書の発行元を限定するフィルタです。なお、フィルタの設定にかかわらず、サーバーの証明書リクエストに一致する証明書のみが選択されます。
+
+      <ph name="FILTER_PLACEHOLDER" /> セクションの使用例:
+
+      * <ph name="FILTER_PLACEHOLDER" /> に <ph name="AUTO_SELECT_CERTIFICATE_FOR_URLS_FILTER_EXAMPLE" /> を設定した場合、発行元の CommonName が <ph name="ISSUER_CN_PLACEHOLDER" /> であるクライアント証明書のみが選択されます。
+
+      * <ph name="FILTER_PLACEHOLDER" /> に <ph name="ISSUER_STRING_VALUE" /> と <ph name="SUBJECT_STRING_VALUE" /> の両方のセクションを含めた場合は、両方の条件を満たすクライアント証明書のみが選択されます。
+
+      * <ph name="FILTER_PLACEHOLDER" /> に <ph name="SUBJECT_STRING_VALUE" /> セクションと <ph name="FILTER_STRING_ORGANIZATION" /> の値を含めた場合は、指定した値に一致する組織を少なくとも 1 つ含む証明書が選択されます。
+
+      * <ph name="FILTER_PLACEHOLDER" /> に <ph name="SUBJECT_STRING_VALUE" /> セクションと <ph name="FILTER_STRING_ORGANIZATIONAL_UNIT" /> の値を含めた場合は、指定した値に一致する組織部門を少なくとも 1 つ含む証明書が選択されます。
+
+      * <ph name="FILTER_PLACEHOLDER" /> に <ph name="EMPTY_DICTIONARY" /> を設定した場合、クライアント証明書の選択に追加の条件は適用されません。ウェブサーバーによって提供されたフィルタは引き続き適用されます。
+
+
+
+      このポリシーを設定しない場合、どのサイトに対しても自動選択は行われません。
+
+      有効な URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns/ をご覧ください。</translation>
 <translation id="554903022911579950">Kerberos</translation>
 <translation id="555022085242359084">ログイン画面でハイ コントラストを有効にする</translation>
 <translation id="555077880566103058">すべてのサイトで <ph name="FLASH_PLUGIN_NAME" /> プラグインの自動実行を許可する</translation>
@@ -6556,6 +6926,13 @@ https://wiki.samba.org/index.php/Samba_4.6_Features_added/changed#Kerberos_clien
 <translation id="5842283830553218200">無効化されたフォーム コントロールでのイベントのディスパッチで新しい動作をデフォルトで使用する。</translation>
 <translation id="5843736977964493779"><ph name="MICROSOFT_ONE_DRIVE_NAME" /> と <ph name="MICROSOFT_365_NAME" /> の<ph name="CLOUD_UPLOAD_NAME" /> フローを許可しない</translation>
 <translation id="5847509620317822100">この機能は Chrome 100 で削除されました。このポリシーを有効に設定した場合、ユーザーが他のデバイスで以前インストールしたアプリのおすすめが表示されます。このおすすめは、検索テキストが入力されていない場合に、ランチャー内のローカルアプリのおすすめの後に表示されます。このポリシーを無効に設定するか未設定のままにした場合、このおすすめは表示されません。このポリシーを設定した場合、ユーザーはこれを変更できません。</translation>
+<translation id="5848377635141323700">ここで指定したパターンに一致するドメインに設定されている Cookie を、以前の <ph name="ATTRIBUTE_SAMESITE_NAME" /> 動作に戻します。以前の動作に戻すと、<ph name="ATTRIBUTE_SAMESITE_NAME" /> 属性のない Cookie は「<ph name="ATTRIBUTE_VALUE_SAMESITE_NONE" />」が指定されたものとして扱われます。また、「<ph name="ATTRIBUTE_VALUE_SAMESITE_NONE" />」の Cookie に「<ph name="ATTRIBUTE_SECURE_NAME" />」属性は必須ではなくなります。さらに、2 つのサイトが同一サイトかどうかを評価する際に、スキーム比較がスキップされます。詳細については https://www.chromium.org/administrators/policy-list-3/cookie-legacy-samesite-policies をご覧ください。
+
+          ここで指定したパターンに一致しないドメインの Cookie（またはこのポリシーが未設定の場合はすべての Cookie）には、グローバルなデフォルト値がユーザーの個人設定の値として使用されます。
+
+          有効なパターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。
+
+          ここで指定するパターンは URL ではなくドメインとして扱われるため、スキームやポートは指定しないでください。</translation>
 <translation id="5851248808417680865">ダークモードを使用する</translation>
 <translation id="585270638818921943">信頼できない提供元の Android アプリの使用をユーザーに許可しない</translation>
 <translation id="5859344336338527083">このポリシーを設定することで、どの URL から拡張機能、アプリ、テーマのインストールを許可するかを指定できます。<ph name="PRODUCT_NAME" /> 21 より前では、*.crx ファイルのリンクをクリックすると、いくつかの警告が表示された後、<ph name="PRODUCT_NAME" /> によりファイルのインストールを申し出るメッセージが表示されました。それ以降のバージョンでは、このようなファイルは、ダウンロードしてから <ph name="PRODUCT_NAME" /> の設定ページにドラッグする必要があります。この設定を利用することで、特定の URL に以前の簡単なインストール フローを適用できます。
@@ -6663,6 +7040,11 @@ https://wiki.samba.org/index.php/Samba_4.6_Features_added/changed#Kerberos_clien
       このポリシーを設定した場合、指定したアプリの種類について、アプリ使用状況のテレメトリーを報告します。
       未設定のままにした場合、アプリ使用状況のテレメトリーは報告されません。</translation>
 <translation id="5897234314586602143">印刷プレビューにヘッダーとフッターを表示する</translation>
+<translation id="5897293532952702216">ウィンドウの配置に関する権限を自動的に拒否するサイトの URL パターンのリストを指定できます。デバイスの画面に関する情報の取得や、その情報を使用したウィンドウの表示と配置、特定の画面での全画面表示のリクエストといったサイトの機能が制限されます。
+
+      有効なサイトの URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。ワイルドカード（<ph name="WILDCARD_VALUE" />）を使用できます。このポリシーでは、オリジンのみが照合されるため、URL パターンのパスは無視されます。
+
+      このポリシーでサイトを指定しない場合は、<ph name="DEFAULT_WINDOW_PLACEMENT_SETTING_POLICY_NAME" /> のポリシーが適用されます。このポリシーでサイトを指定した場合は、ブラウザのデフォルトの権限設定が適用され、ユーザーはサイトごとに権限を選択できます。</translation>
 <translation id="5897913798715600338">急速充電でバッテリーを充電する。</translation>
 <translation id="5898486742390981550">複数のユーザーがログインしている場合は、メインユーザーのみが Android アプリを使用できます。</translation>
 <translation id="5899751601113377553"><ph name="LACROS_NAME" /> の使用を許可しない</translation>
@@ -6679,6 +7061,13 @@ https://wiki.samba.org/index.php/Samba_4.6_Features_added/changed#Kerberos_clien
 <ph name="MAC_OS_NAME" /> では、MDM を介して管理されるインスタンス、MCX を介してドメインに追加されたインスタンス、または <ph name="CHROME_ENTERPRISE_CORE_NAME" /> に登録されているインスタンスでのみこのポリシーを使用できます。</translation>
 <translation id="5905114360004248993">これらのサイトでポップアップを許可する</translation>
 <translation id="5905473632148429217">オンライン OCSP / CRL チェックを有効にする</translation>
+<translation id="590591187943862671">このポリシーでは、ホスト オペレーティング システムのファイル システム内にあるファイルやディレクトリに File System API 経由で読み取りアクセスすることに関して、ユーザーに許可を要求できるサイトの URL パターンリストを指定できます。
+
+      このポリシーを未設定のままにした場合、<ph name="DEFAULT_FILE_SYSTEM_READ_GUARD_SETTING_POLICY_NAME" /> が設定されていればその設定がすべてのサイトで使用され、設定されていなければユーザーの個人設定が適用されます。
+
+      URL パターンは、<ph name="FILE_SYSTEM_READ_BLOCKED_FOR_URLS_POLICY_NAME" /> と競合しないようにする必要があります。URL が両方のポリシーの URL パターンと一致する場合、どちらのポリシーも優先されません。
+
+      有効な <ph name="URL_LABEL" /> パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。このポリシーの値に「<ph name="WILDCARD_VALUE" />」は使用できません。</translation>
 <translation id="5908808391744484238">このポリシーを有効にするか未設定のままにした場合、ユーザーがコンテキスト メニューから [シークレット ウィンドウで開く] を選択したときに、URL パラメータ フィルタによって一部のパラメータが削除されることがあります。無効にした場合、フィルタリングは行われません。このポリシーは一時的なものであり、将来のリリースで削除される可能性があります。</translation>
 <translation id="5910810837616572201"><ph name="BULK_PRINTERS_ACCESS_MODE_POLICY_NAME" /> の値に <ph name="PRINTERS_BLACKLIST" /> が選択されている場合、<ph name="NATIVE_PRINTERS_BULK_BLACKLIST_POLICY_NAME" /> でユーザーが使用できないプリンタを指定できます。ユーザーは、このポリシーで指定されている ID 以外のすべてのプリンタを使用できます。この ID は、<ph name="BULK_PRINTERS_POLICY_NAME" /> で指定されたファイル内の「<ph name="ID_FIELD" />」または「<ph name="GUID_FIELD" />」フィールドに対応している必要があります。
 
@@ -6796,6 +7185,7 @@ https://wiki.samba.org/index.php/Samba_4.6_Features_added/changed#Kerberos_clien
 <translation id="6011969832398368671">サイトがファイルとディレクトリへの書き込みアクセスをユーザーに要求することを許可する</translation>
 <translation id="601234435141599215">Linux 仮想マシンへのポート転送を許可する</translation>
 <translation id="6012952794649558174">デフォルトのブラウザ処理を使用する。</translation>
+<translation id="6013875085491664033">組み込みの <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> とのコンテンツの共有を有効にする</translation>
 <translation id="6015281292796053435">このポリシーでは、セーフ ブラウジングの警告数、セーフ ブラウジングの警告のクリック数といったセーフ ブラウジングに関する情報について、レポートを作成するかどうかを管理します。
 
       ポリシー <ph name="CLOUD_REPORTING_ENABLED_POLICY_NAME" /> を未設定のままにするか無効にすると、このポリシーは無視されます。
@@ -6964,6 +7354,13 @@ false に設定した場合、教師はこの機能にアクセスできませ�
 <translation id="6155350825868160236">スペルミスの解決に Google のウェブサービスを使用するかどうかをユーザーが選択できるようにする</translation>
 <translation id="6155936611791017817">ログイン画面での大きいカーソルのデフォルト状態を設定する</translation>
 <translation id="6157537876488211233">プロキシ バイパス ルールのカンマ区切りリスト</translation>
+<translation id="615770784601443240">このポリシーでは、USB デバイスへのアクセス許可をユーザーに要求できるサイトの URL パターンリストを指定できます。
+
+      このポリシーを未設定のままにした場合、<ph name="DEFAULT_WEB_USB_GUARD_SETTING_POLICY_NAME" /> が設定されていればその設定がすべてのサイトで使用され、設定されていなければユーザーの個人設定が適用されます。
+
+      URL パターンは、<ph name="WEB_USB_ASK_FOR_URLS_POLICY_NAME" /> と競合しないようにする必要があります。URL が両方のポリシーの URL パターンと一致する場合、どちらのポリシーも優先されません。
+
+      有効な <ph name="URL_LABEL" /> パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。このポリシーの値に「<ph name="WILDCARD_VALUE" />」は使用できません。</translation>
 <translation id="6158324314836466367">エンタープライズ ウェブストア名（サポート終了）</translation>
 <translation id="6162385223000257668">ローカル ファイルを Google ドライブに移行してローカル フォルダを非表示にする</translation>
 <translation id="6164441518097008843">ログインをリスト内のユーザーのみに制限する</translation>
@@ -7001,6 +7398,13 @@ false に設定した場合、教師はこの機能にアクセスできませ�
       有効に設定した場合、AI の紹介画面が表示されます。
 
       未設定の場合、AI の紹介画面は企業の管理対象ユーザーに対してはスキップされ、管理対象外ユーザーには表示されます。</translation>
+<translation id="6186913837096193333">このポリシーでは、ホスト オペレーティング システムのファイル システム内にあるファイルやディレクトリに File System API 経由で読み取りアクセスすることに関して、ユーザーに許可を要求できないサイトの URL パターンリストを指定できます。
+
+      このポリシーを未設定のままにした場合、<ph name="DEFAULT_FILE_SYSTEM_READ_GUARD_SETTING_POLICY_NAME" /> が設定されていればその設定がすべてのサイトで使用され、設定されていなければユーザーの個人設定が適用されます。
+
+      URL パターンは、<ph name="FILE_SYSTEM_READ_ASK_FOR_URLS_POLICY_NAME" /> と競合しないようにする必要があります。URL が両方のポリシーの URL パターンと一致する場合、どちらのポリシーも優先されません。
+
+      有効な <ph name="URL_LABEL" /> パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。このポリシーの値に「<ph name="WILDCARD_VALUE" />」は使用できません。</translation>
 <translation id="6187632100458475876">管理対象のツールバー アバターラベル設定</translation>
 <translation id="6190367314942602985">ユーザー識別情報に関するレポートを作成</translation>
 <translation id="6191963383731098056">このポリシーにより、管理者は <ph name="PRODUCT_NAME" /> のテーマの色を設定できます。入力する文字列は「#RRGGBB」の形式に沿った有効な 16 進数色コードである必要があります。
@@ -7287,6 +7691,13 @@ Origin-Agent-Cluster HTTP ヘッダーは、オリジンキー エージェン�
 <translation id="6339355882150329269">動画再生中はユーザーをアイドル状態と見なさない</translation>
 <translation id="6353890097388312479">このポリシーを All（0）に設定するか未設定のままにした場合、ユーザーは、すべての CA 証明書の信頼設定の編集、ユーザーが取り込んだ証明書の削除、証明書マネージャーによる証明書の取り込みを行うことができます。このポリシーを UserOnly（1）に設定した場合、ユーザーは、ユーザーが取り込んだ証明書のみを管理でき、組み込みの証明書の信頼設定を変更することはできません。このポリシーを None（2）に設定した場合、ユーザーは CA 証明書を表示できます（管理はできません）。</translation>
 <translation id="6358320368815225772">デバイスのリモート認証を無効にする</translation>
+<translation id="6362210464341005867"><ph name="RESTORE_ON_STARTUP_POLICY_NAME" /> ポリシーで前のセッションの URL を完全復元するように設定されていない場合は、<ph name="COOKIES_SESSION_ONLY_FOR_URLS_POLICY_NAME" /> を使って URL パターンのリストを作成し、1 回のセッションで Cookie の設定を許可するサイトと禁止するサイトを指定できます。
+
+      このポリシーを未設定のままにした場合、<ph name="DEFAULT_COOKIES_SETTINGS_POLICY_NAME" /> が設定されていればその設定がすべてのサイトで使用され、設定されていなければユーザーの個人設定が適用されます。指定したパターンに URL が一致しない場合もデフォルトの設定が使用されます。
+
+      特定のポリシーが優先されることはありませんが、<ph name="COOKIES_BLOCKED_FOR_URLS_POLICY_NAME" /> と <ph name="COOKIES_ALLOWED_FOR_URLS_POLICY_NAME" /> を確認して、これらの 3 つのポリシー間で URL パターンに矛盾がないようにしてください。
+
+      有効な <ph name="URL_LABEL" /> パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。このポリシーの値に「<ph name="WILDCARD_VALUE" />」は使用できません。</translation>
 <translation id="6362589180545896213">GPU ハードウェアを使用した動画のデコードを無効にする</translation>
 <translation id="6362805033373293870">AI モデルの改善を行わずにタブの整理機能を許可する。</translation>
 <translation id="6362856770865555544">このポリシーを有効に設定するか未設定のままにした場合、<ph name="PRODUCT_NAME" /> で WPAD（ウェブプロキシ自動検出）の最適化が有効になります。
@@ -7361,6 +7772,36 @@ Origin-Agent-Cluster HTTP ヘッダーは、オリジンキー エージェン�
 <translation id="6412793408912788345">ログイン時に Gemini の紹介画面を表示する</translation>
 <translation id="6416506846917150119">ユーザーの入力時に物理キーボードの予測入力を無効にする</translation>
 <translation id="6417265370957905582">Google アシスタント</translation>
+<translation id="6417827417523888006">このポリシーでは、ブラウザが関連ウェブサイト セット機能で使用するセットのリストをオーバーライドできます。
+
+このポリシーは <ph name="FIRST_PARTY_SETS_OVERRIDES_POLICY_NAME" /> ポリシーをオーバーライドします。
+
+ブラウザの関連ウェブサイト セット リストの各セットは、関連ウェブサイト セットの要件を満たしている必要があります。
+関連ウェブサイト セットには、プライマリ サイトと 1 つ以上のメンバーサイトが含まれている必要があります。
+セットには、所有するサービスサイトのリストと、サイトからすべての ccTLD バリアントへのマップを含めることもできます。
+<ph name="PRODUCT_NAME" /> で使用される関連ウェブサイト セットの詳細については、https://github.com/WICG/first-party-sets をご覧ください。
+
+
+関連ウェブサイト セットのすべてのサイトは、HTTPS 経由で配信される登録可能なドメインである必要があります。また、関連ウェブサイト セットの各サイトは一意である必要があります。つまり、1 つの関連ウェブサイト セットに同じサイトを複数回含めることはできません。
+
+このポリシーで空の辞書を指定した場合、ブラウザは関連ウェブサイト セットの公開リストを使用します。
+
+<ph name="REPLACEMENTS" /> リストで指定した関連ウェブサイト セットのサイトについては、ブラウザの関連ウェブサイト セットのリストに同じサイトがある場合は、ブラウザの関連ウェブサイト セットからそのサイトが削除されます。
+その後、ポリシーで指定した関連ウェブサイト セットがブラウザの関連ウェブサイト セットのリストに追加されます。
+
+<ph name="ADDITIONS" /> リストで指定した関連ウェブサイト セットのサイトについては、ブラウザの関連ウェブサイト セットのリストに同じサイトがある場合は、新しい関連ウェブサイト セットをブラウザのリストに追加できるようにブラウザの関連ウェブサイト セットが更新されます。ブラウザのリストが更新された後、ポリシーで指定した関連ウェブサイト セットがブラウザの関連ウェブサイト セットのリストに追加されます。
+
+ブラウザの関連ウェブサイト セット リストのサイトは、いずれも複数のセットに含まれないようにする必要があります。この要件は <ph name="REPLACEMENTS" /> リストと <ph name="ADDITIONS" /> リストにも適用されます。同様に、同じサイトを <ph name="REPLACEMENTS" /> リストと <ph name="ADDITIONS" /> リストの両方に含めることはできません。
+
+ワイルドカード（*）は、ポリシーの値として使用できず、これらのリストのどの関連ウェブサイト セットでも使用できません。
+
+このポリシーで指定するすべてのセットは、有効な関連ウェブサイト セットである必要があります。そうでない場合は、該当するエラーが出力されます。
+
+<ph name="MS_WIN_NAME" /> では、<ph name="MS_AD_NAME" /> ドメインに追加されたインスタンス、<ph name="MS_AAD_NAME" /> に追加されたインスタンス、または <ph name="CHROME_ENTERPRISE_CORE_NAME" /> に登録されているインスタンスでのみこのポリシーを使用できます。
+
+<ph name="MAC_OS_NAME" /> では、MDM を介して管理されるインスタンス、MCX を介してドメインに追加されたインスタンス、または <ph name="CHROME_ENTERPRISE_CORE_NAME" /> に登録されているインスタンスでのみこのポリシーを使用できます。
+
+関連ウェブサイト セットのサポート終了により、このポリシーは <ph name="PRODUCT_NAME" /> バージョン 144 で非推奨になりました。</translation>
 <translation id="6419001911253110938">ログインフロー中にセッション内 AI 機能の紹介画面を表示する処理を有効にする</translation>
 <translation id="6421254653839955267">このポリシーを有効に設定した場合、CNAME 検索はスキップされます。Kerberos SPN の生成時には、入力されたサーバー名が使用されます。
 
@@ -7528,6 +7969,13 @@ False に設定すると、P2P は使用されません。
 <translation id="651248769129998376">拡張機能インストール リクエストの作成や管理コンソールへのアップロードを行わない</translation>
 <translation id="6513453889192806240">HTTPS レイテンシ</translation>
 <translation id="6515357889978918016"><ph name="PLUGIN_VM_NAME" /> の画像</translation>
+<translation id="6517859209214570623">このポリシーでは、Cookie を設定できないサイトを指定する URL パターンのリストを作成できます。
+
+      このポリシーを未設定のままにした場合、<ph name="DEFAULT_COOKIES_SETTINGS_POLICY_NAME" /> が設定されていればその設定がすべてのサイトで使用され、設定されていなければユーザーの個人設定が適用されます。
+
+      特定のポリシーが優先されることはありませんが、<ph name="COOKIES_ALLOWED_FOR_URLS_POLICY_NAME" /> と <ph name="COOKIES_SESSION_ONLY_FOR_URLS_POLICY_NAME" /> を確認して、これらの 3 つのポリシー間で URL パターンに矛盾がないようにしてください。
+
+      有効な <ph name="URL_LABEL" /> パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。このポリシーの値に「<ph name="WILDCARD_VALUE" />」は使用できません。</translation>
 <translation id="6518102411616460786">ターゲット チャンネルがチャンネル ダウングレードの対象になるまで待機する</translation>
 <translation id="6518286606938091609">安全でない SwiftShader による WebGL フォールバックのサポートを無効にする</translation>
 <translation id="6520053715392444458">このポリシーを有効に設定するか未設定のままにした場合、<ph name="PRODUCT_NAME" /> はセーフ ブラウジングを有効にしているユーザーの不審なダウンロードを Google に送信して、マルウェアをスキャンするか、暗号化されたアーカイブのパスワードを提供するようユーザーに促すことができます。
@@ -7564,6 +8012,9 @@ False に設定すると、P2P は使用されません。
 <translation id="6539246272469751178">このポリシーは Android アプリには適用されません。Android アプリは、常にデフォルトのダウンロード ディレクトリを使用し、<ph name="PRODUCT_OS_NAME" /> によってデフォルト以外のダウンロード ディレクトリにダウンロードされたファイルにはアクセスできません。</translation>
 <translation id="6541383786427998658">エンタープライズ拡張機能のシステムログを有効にする</translation>
 <translation id="654303922206238013">ecryptfs の移行方法</translation>
+<translation id="6544205049437664515">このポリシーでは、動画を音声コンテンツとともに <ph name="PRODUCT_NAME" /> で自動再生できるようにします（ユーザーの同意は確認されません）。<ph name="AUTOPLAY_ALLOWED_POLICY_NAME" /> ポリシーが True に設定されている場合、このポリシーは無視されます。<ph name="AUTOPLAY_ALLOWED_POLICY_NAME" /> ポリシーが False に設定されている場合、このポリシーで設定した URL パターンの動画に限り再生されます。<ph name="PRODUCT_NAME" /> の実行中にこのポリシーを変更した場合、変更内容は新しく開かれるタブにのみ適用されます。
+
+      有効な URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns/ をご覧ください。</translation>
 <translation id="6544601600794014309">クイック アンサーの翻訳を有効にする</translation>
 <translation id="654546276700640113">このポリシーでは、PIN の最大桁数を指定して適用できます。この値を 0 以下にした場合、ユーザーは任意の桁数の PIN を設定できます。この値を 0 より大きく <ph name="PIN_UNLOCK_MINIMUM_LENGTH_POLICY_NAME" /> より小さくした場合、最大桁数は最小桁数と同じに設定されます。
 
@@ -7608,6 +8059,13 @@ False に設定すると、P2P は使用されません。
 <translation id="6561396069801924653">システム トレイ メニューにユーザー補助オプションを表示</translation>
 <translation id="6562889469672829421">ユーザー入力が行われなくなってから画面を暗くするまでの時間（ミリ秒）</translation>
 <translation id="6563458316362153786">802.11r 高速切り替えを有効にする</translation>
+<translation id="6568020959511014866">このポリシーでは、ホスト オペレーティング システムのファイル システム内にあるファイルやディレクトリに書き込みアクセスすることに関して、ユーザーに許可を要求できないサイトの URL パターンリストを指定できます。
+
+      このポリシーを未設定のままにした場合、<ph name="DEFAULT_FILE_SYSTEM_WRITE_GUARD_SETTING_POLICY_NAME" /> が設定されていればその設定がすべてのサイトで使用され、設定されていなければユーザーの個人設定が適用されます。
+
+      URL パターンは、<ph name="FILE_SYSTEM_WRITE_ASK_FOR_URLS_POLICY_NAME" /> と競合しないようにする必要があります。URL が両方のポリシーの URL パターンと一致する場合、どちらのポリシーも優先されません。
+
+      有効な <ph name="URL_LABEL" /> パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。このポリシーの値に「<ph name="WILDCARD_VALUE" />」は使用できません。</translation>
 <translation id="6568977718979857253">このポリシーはサポートを終了しました。Flash プラグインを使用できるかどうかを管理するには <ph name="DEFAULT_PLUGINS_SETTING_POLICY_NAME" /> を使用してください。また、PDF ファイルを開く際に組み込みの PDF ビューアを使用するかどうかを管理するには <ph name="ALWAYS_OPEN_PDF_EXTERNALLY_POLICY_NAME" /> を使用してください。
 
       <ph name="PRODUCT_NAME" /> で無効にするプラグインのリストを指定し、ユーザーがこの設定を変更できないようにします。
@@ -7935,6 +8393,13 @@ False に設定すると、P2P は使用されません。
 <translation id="6796215185873669533">ユーザー エージェント文字列のバージョンとしてブラウザ設定を使用する。</translation>
 <translation id="6800181452282128474">Quirks サーバーにクエリを送信しない</translation>
 <translation id="6801739506172328815">透かしテキストのフォントサイズ（ポイント）。</translation>
+<translation id="6801869606972542492">ウィンドウの管理に関する権限を自動的に拒否するサイトの URL パターンのリストを指定できます。デバイスの画面に関する情報の取得や、その情報を使用したウィンドウの表示と配置、特定の画面での全画面表示のリクエストといったサイトの機能が制限されます。
+
+有効なサイトの URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。ワイルドカード（<ph name="WILDCARD_VALUE" />）を使用できます。このポリシーでは、オリジンのみが照合されるため、URL パターンのパスは無視されます。
+
+このポリシーでサイトを指定しない場合は、<ph name="DEFAULT_WINDOW_MANAGEMENT_SETTING_POLICY_NAME" /> のポリシーが適用されます。このポリシーでサイトを指定した場合は、ブラウザのデフォルトの権限設定が適用され、ユーザーはサイトごとに権限を選択できます。
+
+これは、サポート終了となった <ph name="WINDOW_PLACEMENT_BLOCKED_FOR_URLS_POLICY_NAME" /> ポリシーに代わるものです。</translation>
 <translation id="6802412020718145539">PDF ビューアで OOPIF アーキテクチャを使用する。</translation>
 <translation id="68031099365512050">音声の状態を報告する</translation>
 <translation id="680356860463873420">ユーザーに PluginVm の使用を許可しない</translation>
@@ -8111,6 +8576,13 @@ false に設定するか未設定のままにした場合、このレイアウ�
 <translation id="6938524853892166974">リアルタイム翻訳を無効にする</translation>
 <translation id="6940243892299228102">デスク テンプレートの使用をユーザーに許可しない</translation>
 <translation id="6943577887654905793">Mac/Linux 設定名:</translation>
+<translation id="6944302005022384441">セキュリティ上の理由から、<ph name="SHOW_SUBAPPS_APP_API_NAME" />、<ph name="SHOW_SUBAPPS_REMOVE_API_NAME" />、<ph name="SHOW_SUBAPPS_LIST_API_NAME" /> ウェブ API を呼び出すには、事前のユーザー操作（「一時的な有効化」）が必要で、操作がない場合は呼び出せません。さらに、ユーザーには確認ダイアログで操作の確認が求められます。
+
+このポリシーでは、事前のユーザー操作やユーザーに確認を求めることなく、これらの API を呼び出せるオリジンを指定できます。
+
+有効な URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns/ をご覧ください。このポリシーの値に「*」は使用できません。
+
+このポリシーを未設定のままにした場合、すべてのオリジンで、これらの API の呼び出しに事前のユーザー操作が必要となり、ユーザーに確認ダイアログが表示されます。</translation>
 <translation id="694602410134474029"><ph name="PRODUCT_NAME" /> で個別のサービス プロセスからプリンタ ドライバを操作するどうかを制御します。プラットフォーム印刷では、利用可能なプリンタの検出、プリンタ ドライバ設定の取得、印刷ドキュメントのローカル プリンタへの送信をサービス プロセスから呼び出します。これらの呼び出しをブラウザ プロセス外に移動すると、安定性が向上し、印刷プレビューで UI の動作がフリーズしにくくなります。
 
 このポリシーを有効に設定するか未設定のままにした場合、<ph name="PRODUCT_NAME" /> は個別のサービス プロセスを使用してプラットフォーム印刷のタスクを実行します。
@@ -8205,15 +8677,41 @@ SkyVault ユーザーのみ、つまり LocalUserFilesAllowed が false の場�
 <translation id="7003746348783715221"><ph name="PRODUCT_NAME" /> の設定</translation>
 <translation id="7007283257527015835">プロトコル ハンドラがデフォルトとして設定されている必要があるかどうかを示すブール値のフラグです。</translation>
 <translation id="7007403084376547341"><ph name="LACROS_NAME" /> ブラウザのバイナリを選択する</translation>
+<translation id="7007606445961009611">関連付けられたユーザーのデバイスからウェブサイトのアクティビティ レポートを送信する URL を許可リストとして指定します。
+
+このポリシーを設定した場合、許可リストに登録された URL について、それらのウェブサイトの URL の opened と closed のイベント レポートを管理できます。
+未設定の場合、ウェブサイトのイベントは報告されません。
+有効な URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns/ をご覧ください。このポリシーで使用できるのは、HTTP と HTTPS の URL スキームのみです。</translation>
 <translation id="7007704186032892878">キオスクのアプリごとのアクティブな Wi-Fi 認証情報をデバイスレベルで使用可能にする</translation>
 <translation id="7008308728445338159">DNS 傍受チェックを有効にする</translation>
 <translation id="7009043124653876961">ユーザーの入力時に絵文字候補を無効にする</translation>
 <translation id="7010006999849135962">リモート アクセスホストの PIN 入力なしの認証を有効にする</translation>
+<translation id="7012747034204028941">このポリシーでは、デスクトップ、ウィンドウ、タブのキャプチャの使用を許可する URL パターンのリストを設定できます。
+
+      このポリシーを未設定のままにした場合、このレベルのキャプチャでサイトのオーバーライドは考慮されません。
+
+      サイトの URL が <ph name="WINDOW_CAPTURE_ALLOWED_BY_ORIGINS_POLICY_NAME" />、<ph name="TAB_CAPTURE_ALLOWED_BY_ORIGINS_POLICY_NAME" />、<ph name="SAME_ORIGIN_TAB_CAPTURE_ALLOWED_BY_ORIGINS_POLICY_NAME" /> のいずれかのポリシーで指定された URL パターンと一致している場合、このポリシーは無視されます。
+
+      サイトの URL がこのポリシーで指定した URL パターンと一致した場合、<ph name="SCREEN_CAPTURE_ALLOWED_POLICY_NAME" /> ポリシーは無視されます。
+
+      有効な <ph name="URL_LABEL" /> パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns/ をご覧ください。このポリシーでは、オリジンのみが照合されるため、URL パターンのパスは無視されます。</translation>
 <translation id="7013333561002112085">このポリシーを <ph name="PROVISION_MANAGED_CLIENT_CERTIFICATE_FOR_USER_ENABLED" />（値 1）に設定した場合、ブラウザは管理対象ユーザーまたはプロフィールのクライアント証明書をデバイス管理サーバーにリクエストします。この証明書は、mTLS 接続などで使用できるようになります。
 
 このポリシーを <ph name="PROVISION_MANAGED_CLIENT_CERTIFICATE_FOR_USER_DISABLED" />（値 0）に設定した場合、ブラウザはクライアント証明書をリクエストできません。このポリシーが以前に有効になっていたため、プロフィールの管理対象クライアント証明書がすでにプロビジョニングされている場合、証明書が削除されることはありませんが、mTLS 接続では使用できず、期限切れになると更新されません。</translation>
 <translation id="7013484314513229844">AC 電源接続時の起動を有効にする</translation>
 <translation id="7014427417852575165">高度な保護機能プログラムに登録済みのユーザーが追加の保護機能を使用できるようにする</translation>
+<translation id="7015750050379345684">JavaScript の高度な最適化を無効にするサイトの URL パターンのリストを指定できます。
+
+JavaScript の最適化を無効にした場合、<ph name="PRODUCT_NAME" /> でウェブ コンテンツの表示に時間がかかる可能性があります。
+
+有効な URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。
+ワイルドカード（<ph name="WILDCARD_VALUE" />）を使用できます。
+
+JavaScript の最適化ポリシーの例外は、サイトの詳細レベル（eTLD+1）でのみ適用されます。ポリシーを subdomain.site.com でのみ設定した場合は、site.com にも subdomain.site.com にも正しく適用されません。これは、どちらも同じ eTLD+1（site.com）に解決され、これにポリシーは設定されていないためです。この場合、site.com と subdomain.site.com の両方に正しく適用するには、ポリシーを site.com で設定する必要があります。
+
+このポリシーは、最上位のオリジン URL のみに基づいて適用されるのではなく、フレーム単位で適用されます。したがって、たとえば <ph name="JAVA_SCRIPT_OPTIMIZER_BLOCKED_FOR_SITES_POLICY_NAME" /> ポリシーで指定している site-one.com で site-two.com が含まれるフレームを読み込む場合、site-one.com では JavaScript の最適化が無効になりますが、site-two.com では <ph name="DEFAULT_JAVA_SCRIPT_OPTIMIZER_SETTING_POLICY_NAME" /> のポリシーが使用されます（このポリシーが設定されているか、デフォルトで JavaScript の最適化が有効になっている場合）。ブロックリストのエントリの優先度は許可リストのエントリより高く、許可リストのエントリの優先度は設定されたデフォルト値より高くなります。
+
+サイトでこのポリシーが設定されていない場合は、<ph name="DEFAULT_JAVA_SCRIPT_OPTIMIZER_SETTING_POLICY_NAME" /> のポリシーがサイトに適用されます（このポリシーが設定されているか、サイトで JavaScript の最適化が有効になっている場合）。</translation>
 <translation id="7016587686120059767">ゲストモードを無効にする</translation>
 <translation id="7019805045859631636">速い</translation>
 <translation id="7021590945154530517">デバイスの稼働状況の監視を有効にする</translation>
@@ -8303,6 +8801,15 @@ SkyVault ユーザーのみ、つまり LocalUserFilesAllowed が false の場�
 <translation id="7062803946218028349">スマートフォン ハブの有効化を許可する</translation>
 <translation id="7066292150801784098">リモート ユーザーがリモート アシスタンス セッションで権限昇格ウィンドウとやり取りできないようにする</translation>
 <translation id="706669471845501145">サイトに対してデスクトップ通知の表示を許可する</translation>
+<translation id="7067419518071223152">このポリシーでは、ファイル形式へのアクセスが許可されているウェブアプリの URL パターンリストを指定できます。
+
+      このポリシーを未設定のままにした場合、<ph name="DEFAULT_FILE_HANDLING_GUARD_SETTING_POLICY_NAME" /> が設定されていればその設定がすべてのウェブアプリで使用され、設定されていなければユーザーの個人設定が適用されます。
+
+      URL が <ph name="FILE_HANDLING_ALLOWED_FOR_URLS_POLICY_NAME" /> と <ph name="FILE_HANDLING_BLOCKED_FOR_URLS_POLICY_NAME" /> の URL パターンと一致しない場合は、<ph name="DEFAULT_FILE_HANDLING_GUARD_SETTING_POLICY_NAME" />、ユーザーの個人設定の順に適用されます。
+
+      URL パターンは、<ph name="FILE_HANDLING_BLOCKED_FOR_URLS_POLICY_NAME" /> と競合しないようにする必要があります。URL が両方のポリシーの URL パターンと一致する場合、どちらのポリシーも優先されません。
+
+      有効な <ph name="URL_LABEL" /> パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。このポリシーの値に「<ph name="WILDCARD_VALUE" />」は使用できません。</translation>
 <translation id="70681795425744184">CRD にリモートホストからプロキシ送信される WebAuthn API リクエストの実行を許可しない。</translation>
 <translation id="7070525176564511548">週 1 回（168 時間ごとに）パスワードの入力を求める</translation>
 <translation id="7072208053150563108">パソコンのパスワードの変更頻度</translation>
@@ -8386,6 +8893,15 @@ SkyVault ユーザーのみ、つまり LocalUserFilesAllowed が false の場�
 
 このポリシーが無効に設定されている場合、パスワードは保存されず、以前に保存されたパスワードもすべて削除されます。ユーザーは、Kerberos システムで認証が必要となるたびにパスワードを入力しなければなりません。この場合、パスワードの確認は、サーバーの設定に応じて通常 8 時間～数か月ごとに行われます。</translation>
 <translation id="7126928806195745404">JavaScript 設定</translation>
+<translation id="7127108620894338616">このポリシーでは、同じオリジンのタブのキャプチャを許可する URL パターンのリストを設定できます。
+
+      このポリシーを未設定のままにした場合、このレベルのキャプチャでサイトのオーバーライドは考慮されません。
+
+      なお、このサイトと同じオリジンのウィンドウ表示の Chrome アプリをキャプチャすることは引き続き可能です。
+
+      サイトの URL がこのポリシーで指定した URL パターンと一致した場合、<ph name="TAB_CAPTURE_ALLOWED_BY_ORIGINS_POLICY_NAME" />、<ph name="WINDOW_CAPTURE_ALLOWED_BY_ORIGINS_POLICY_NAME" />、<ph name="SCREEN_CAPTURE_ALLOWED_BY_ORIGINS_POLICY_NAME" />、<ph name="SCREEN_CAPTURE_ALLOWED_POLICY_NAME" /> のポリシーは無視されます。
+
+      有効な <ph name="URL_LABEL" /> パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns/ をご覧ください。このポリシーでは、オリジンのみが照合されるため、URL パターンのパスは無視されます。</translation>
 <translation id="7127732963662601239">このポリシーでは、初回ログイン時に人感センサーの画面を表示するかどうかを管理します。
     false に設定した場合、人感センサーの画面は表示されません。
     true に設定した場合、人感センサーの画面が表示されます。
@@ -8511,6 +9027,7 @@ EphemeralNetworkPolicies 機能がデフォルトで有効になると、この�
 <ph name="PRODUCT_OS_NAME" /> デバイスでは、システムのタイムゾーンを使用してこれらの期間を適用します。
 
 重要な注意事項: このポリシーの設定が他の電源管理設定（<ph name="POWER_MANAGEMENT_IDLE_SETTINGS_POLICY_NAME" /> など）と競合する場合、意図したとおりに適用されないことがあります。設定した停止期間が適切に適用されるように、これらのポリシーを設定してください。</translation>
+<translation id="7196583864907169857">組み込みの <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> とのコンテンツの共有を許可する。</translation>
 <translation id="7196944905905233325"><ph name="PRODUCT_NAME" /> で <ph name="UIA_NAME" /> ユーザー補助フレームワーク プロバイダを有効にして、ユーザー補助ツールで使用できるようにします。このポリシーは、企業の管理者がブラウザの <ph name="UIA_NAME" /> ユーザー補助フレームワーク プロバイダのデプロイを管理できるように、<ph name="PRODUCT_NAME" /> で 1 年の移行期間にわたりサポートされます。<ph name="UIA_NAME" /> ユーザー補助フレームワークを使用してブラウザと連携するユーザー補助ツールやその他のツールでは、ブラウザの <ph name="UIA_NAME" /> プロバイダに対応するために更新が必要になる場合があります。影響を受けるツールの更新をベンダーと協力して提供するまでの間、管理者はこのポリシーを使用して、ブラウザの <ph name="UIA_NAME" /> プロバイダを一時的に無効にする（以前の動作に戻す）ことができます。false に設定した場合、<ph name="PRODUCT_NAME" /> では <ph name="MSAA_NAME" /> プロバイダのみが有効になります。新しい <ph name="UIA_NAME" /> ユーザー補助フレームワークを使用してブラウザと連携するユーザー補助ツールやその他のツールは、<ph name="MS_WIN_NAME" /> の互換性 shim を介してブラウザと通信します。true に設定した場合、<ph name="PRODUCT_NAME" /> では <ph name="MSAA_NAME" /> プロバイダに加えて <ph name="UIA_NAME" /> プロバイダも有効になります。新しい <ph name="UIA_NAME" /> ユーザー補助フレームワークを使用してブラウザと連携するユーザー補助やその他のツールは、ブラウザと直接通信します。未設定のままにした場合、プロバイダの有効化と無効化には <ph name="PRODUCT_NAME" /> のバリエーション フレームワークが使用されます。このポリシー設定のサポートは <ph name="PRODUCT_NAME" /> 146 で終了します。</translation>
 <translation id="7198134478421755850">拡張機能</translation>
 <translation id="7199304109870655950">Chrome リモート デスクトップ ホストのリモート アクセス オプションを設定します。
@@ -8591,6 +9108,17 @@ EphemeralNetworkPolicies 機能がデフォルトで有効になると、この�
 このポリシーを有効に設定した場合、Kerberos 機能は有効になります。このとき、Kerberos アカウントは「Kerberos アカウントを設定する」ポリシーまたは Kerberos 設定ページの Kerberos アカウント設定から追加できます。
 
 このポリシーを無効に設定するか未設定のままにした場合、Kerberos アカウント設定は無効になります。このとき、Kerberos アカウントは追加できず、Kerberos 認証は使用できません。既存の Kerberos アカウントと保存したパスワードもすべて削除されます。</translation>
+<translation id="7273266646672521061">URL パターンのリストを指定します。このリストのパターンと一致するオリジンのウェブサイトに対して、<ph name="LOCAL_NETWORK_ACCESS" /> のリクエストの発行をブロックします。
+
+オリジンがこのポリシーと LocalNetworkAccessAllowedForUrls の両方に含まれている場合、このポリシーが優先されます。
+
+<ph name="LOCAL_NETWORK_ACCESS" /> のロールアウトの段階によっては、このポリシーで <ph name="LOCAL_NETWORK_ACCESS" /> のリクエストをブロックするには、LocalNetworkAccessRestrictionsEnabled も有効にする必要があります。
+
+ここで指定したパターンに含まれていないオリジンについては、ユーザーの個人設定が適用されます。
+
+有効な URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns/ をご覧ください。
+
+<ph name="LOCAL_NETWORK_ACCESS" /> の制限については、https://wicg.github.io/local-network-access/ をご覧ください。</translation>
 <translation id="7273785848231509306">ユーザー名と写真を表示しない</translation>
 <translation id="7274077256421167535">USB 電力共有を有効にする</translation>
 <translation id="7275334191706090484">管理対象のブックマーク</translation>
@@ -8599,6 +9127,7 @@ EphemeralNetworkPolicies 機能がデフォルトで有効になると、この�
 
       <ph name="MAC_OS_NAME" /> では、<ph name="CHROME_ROOT_STORE_ENABLED_POLICY_NAME" /> ポリシーが False に設定されている場合、このポリシーは無視されます。</translation>
 <translation id="7278854311116092134">拒否リストから除外するネイティブ メッセージング ホストの名前</translation>
+<translation id="7283289959521910308">正確な位置情報を許可するサイトを指定する</translation>
 <translation id="7291084543582732020">この設定を有効にした場合、ユーザーは Smart Lock の要件を満たしていれば Smart Lock を使用できます。
 
       この設定を無効にした場合、ユーザーは Smart Lock を使用できません。
@@ -8676,11 +9205,28 @@ EphemeralNetworkPolicies 機能がデフォルトで有効になると、この�
 <translation id="7341773449551289679">外部ストレージの許可リスト</translation>
 <translation id="7343004974628511824">DNS 傍受チェックを行う</translation>
 <translation id="7343497214039883642">デバイスの企業プリンタ設定ファイル</translation>
+<translation id="7344533124201531786"><ph name="PRODUCT_NAME" /> で <ph name="PASSWORD_MANAGER_NAME" /> を必ず無効にするドメインのリストを設定します。これにより、保存と入力のワークフローが無効になり、これらのウェブサイトのパスワードを保存したり、ウェブフォームに自動入力したりできなくなります。
+
+リストに含めたドメインでは、<ph name="PASSWORD_MANAGER_NAME" /> が無効になります。
+
+リストに含めていないドメインでは、<ph name="PASSWORD_MANAGER_NAME" /> を使用できます。
+
+このポリシーを未設定のままにした場合、<ph name="PASSWORD_MANAGER_NAME" /> はすべてのドメインで使用できます。
+
+有効な <ph name="URL_LABEL" /> パターンについて詳しくは、https://support.google.com/chrome/a?p=url_blocklist_filter_format をご覧ください。</translation>
 <translation id="7357148531287978404">オーディオ入力を無効にする</translation>
 <translation id="7358299261566939984">ServiceWorkerAutoPreload を有効にする</translation>
 <translation id="7358359585412734876"><ph name="LACROS_NAME" /> を有効にする</translation>
 <translation id="7361553161955926036">アイドル状態の検出のデフォルト設定</translation>
 <translation id="7362566456990049303">ユーザーのみ</translation>
+<translation id="736404635686727796">このポリシーでは、WebPrinting API を介したローカル プリンタへのアクセスを自動的に拒否するサイトの URL パターンのリストを指定できます。
+有効なパターンは、独立したウェブアプリにのみ適用されます。
+
+このポリシーを未設定のままにした場合、<ph name="DEFAULT_WEB_PRINTING_SETTING_POLICY_NAME" /> が設定されていればその設定がすべてのサイトで使用され、設定されていなければユーザーの個人設定が適用されます。
+
+URL パターンは、<ph name="WEB_PRINTING_ALLOWED_FOR_URLS_POLICY_NAME" /> と競合しないようにする必要があります。URL が両方のポリシーの URL パターンと一致する場合、どちらのポリシーも優先されません。
+
+有効な URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。このポリシーの値に「<ph name="WILDCARD_VALUE" />」は使用できません。</translation>
 <translation id="736486789939370545">外部の拡張機能のインストールを許可する</translation>
 <translation id="7364975417585163622">このポリシーでは、Chrome での <ph name="DATA_URL_SCHEME" /> URL に含まれる空白文字の処理に関する変更を一時的に無効にします。従来は、最上位のメディアタイプが <ph name="TEXT_MEDIA_TYPE" /> である場合、またはメディアタイプ文字列 <ph name="XML" /> が含まれている場合にのみ、空白文字が保持されていました。今後はメディアタイプに関係なく、すべてのデータ URL で空白文字が保持されます。
 
@@ -8707,6 +9253,15 @@ EphemeralNetworkPolicies 機能がデフォルトで有効になると、この�
       例外: M95 以前では、TPM の情報は <ph name="REPORT_DEVICE_HARDWARE_STATUS" /> によって制御されます。</translation>
 <translation id="739556497251174388"><ph name="PRODUCT_OS_NAME" /> のログイン認証情報をネットワーク認証で再利用することを許可する</translation>
 <translation id="7395790871181951311">独立したアプリによるスマートカードへの接続をブロックする</translation>
+<translation id="7396487166653169044">JIT（Just In Time）コンパイラを有効にした JavaScript の実行を許可するサイトの URL パターンのリストを設定できます。
+
+          有効なサイトの URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。ワイルドカード（<ph name="WILDCARD_VALUE" />）を使用できます。
+
+          JavaScript JIT ポリシーの例外は、サイトの詳細レベル（eTLD+1）でのみ適用されます。ポリシーを subdomain.site.com でのみ設定した場合は、site.com にも subdomain.site.com にも正しく適用されません。これは、どちらも同じ eTLD+1（site.com）に解決され、これにポリシーは設定されていないためです。この場合、site.com と subdomain.site.com の両方に正しく適用するには、ポリシーを site.com で設定する必要があります。
+
+          このポリシーは、最上位のオリジン URL のみに基づいて適用されるのではなく、フレーム単位で適用されます。したがって、たとえば <ph name="JAVA_SCRIPT_JIT_ALLOWED_FOR_SITES_POLICY_NAME" /> ポリシーで指定している site-one.com で site-two.com が含まれるフレームを読み込む場合、site-one.com では JavaScript JIT が有効になりますが、site-two.com では <ph name="DEFAULT_JAVA_SCRIPT_JIT_SETTING_POLICY_NAME" /> のポリシーが使用されます（ポリシーを設定しているか、デフォルトで JavaScript JIT を有効にしている場合）。
+
+          サイトでこのポリシーが設定されていない場合、<ph name="DEFAULT_JAVA_SCRIPT_JIT_SETTING_POLICY_NAME" /> のポリシーがサイトに適用されます（ポリシーを設定しているか、JavaScript JIT をサイトで有効にしている場合）。</translation>
 <translation id="7400208209734208176">デフォルトで Chrome ブラウザを使用してリンクを開く</translation>
 <translation id="7402257017733669351">ブラウザ プロセスで動的コードが作成されないようにする</translation>
 <translation id="7406039009275722824"><ph name="CHROME_SYNC_NAME" /> を無効にすると、Android のバックアップと復旧が適切に機能しなくなります。</translation>
@@ -8845,6 +9400,22 @@ Gemini による操作は、一部の国や言語ではご利用いただけま�
 <translation id="7512514325152952954"><ph name="PRODUCT_OS_NAME" /> での自動更新ペイロードは HTTPS ではなく HTTP でダウンロードされます。これにより、HTTP ダウンロードの透過 HTTP キャッシングが可能になります。
 
 このポリシーを true に設定すると、<ph name="PRODUCT_OS_NAME" /> は HTTP 経由で自動更新ペイロードをダウンロードしようとします。このポリシーを false に設定するか、設定しない場合は、自動更新ペイロードのダウンロードに HTTPS が使用されます。</translation>
+<translation id="7512603255315110634">Direct Sockets API は TCP と UDP を使用して任意のエンドポイントと通信できます。
+詳細については、https://github.com/WICG/direct-sockets をご覧ください。
+
+プライベート ネットワークのエンドポイントは、https://wicg.github.io/private-network-access/#ip-address-space-private で定義されているプライベート IP アドレス空間の IP アドレスを使用するエンドポイントです。
+
+このポリシーでは、Direct Sockets API でプライベート ネットワークのエンドポイントとの通信を許可するサイトの URL パターンのリストを指定できます。
+有効なパターンは、独立したウェブアプリにのみ適用されます。
+
+このポリシーを未設定のままにした場合、<ph name="DEFAULT_DIRECT_SOCKETS_PRIVATE_NETWORK_ACCESS_SETTING_POLICY_NAME" /> が設定されていればその設定がすべてのサイトで使用されます。
+
+URL パターンは、<ph name="DIRECT_SOCKETS_PRIVATE_NETWORK_ACCESS_BLOCKED_FOR_URLS_POLICY_NAME" /> と競合しないようにする必要があります。URL が両方のポリシーの URL パターンと一致する場合、どちらのポリシーも優先されません。
+
+有効な URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。このポリシーの値に「<ph name="WILDCARD_VALUE" />」は使用できません。
+
+このポリシーは、オリジンに Direct Sockets API の使用が許可されている場合にのみ適用されます。
+詳しくは、<ph name="DEFAULT_DIRECT_SOCKETS_SETTING_POLICY_NAME" />、<ph name="DIRECT_SOCKETS_ALLOWED_FOR_URLS_POLICY_NAME" />、<ph name="DIRECT_SOCKETS_BLOCKED_FOR_URLS_POLICY_NAME" /> をご覧ください。</translation>
 <translation id="7515953732107149296">このポリシーは、RC4 が <ph name="PRODUCT_NAME" /> から削除された後、M53 で削除されました。
 
       このポリシーを設定しない場合や false に設定した場合は、TLS の RC4 暗号スイートは有効になりません。また、true に設定して古いサーバーとの互換性を維持できます。これは暫定的な措置であり、サーバーの再設定が必要です。</translation>
@@ -8937,6 +9508,14 @@ Gemini による操作は、一部の国や言語ではご利用いただけま�
 <translation id="7613115815080726221">ユーザー入力が行われなくなってからアイドル時のアクションを行うまでの時間（ミリ秒）</translation>
 <translation id="7613706918933704660">独立したウェブアプリのオリジンに Direct Sockets の使用を許可しない</translation>
 <translation id="7614663184588396421">無効なプロトコル スキームのリスト</translation>
+<translation id="7615139766238160758">このポリシーでは、WebPrinting API を介したローカル プリンタへのアクセスを自動的に許可するサイトの URL パターンのリストを指定できます。
+有効なパターンは、独立したウェブアプリにのみ適用されます。
+
+このポリシーを未設定のままにした場合、<ph name="DEFAULT_WEB_PRINTING_SETTING_POLICY_NAME" /> が設定されていればその設定がすべてのサイトで使用され、設定されていなければユーザーの個人設定が適用されます。
+
+URL パターンは、<ph name="WEB_PRINTING_BLOCKED_FOR_URLS_POLICY_NAME" /> と競合しないようにする必要があります。URL が両方のポリシーの URL パターンと一致する場合、どちらのポリシーも優先されません。
+
+有効な URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。このポリシーの値に「<ph name="WILDCARD_VALUE" />」は使用できません。</translation>
 <translation id="7616631530432070402">TLS の 3DES 暗号スイートが有効になります</translation>
 <translation id="761788785484453836">すべてのウェブサイトでサイト分離を必須にする</translation>
 <translation id="7620869951155758729">このポリシーでは、保護者のアクセスコードの生成と確認に使用する設定を指定します。 |current_config| は常にアクセスコードの生成に使用され、|future_config| でアクセスコードを確認できなかった場合に限り確認に使用されます。
@@ -8944,6 +9523,13 @@ Gemini による操作は、一部の国や言語ではご利用いただけま�
 
 このポリシーは、アクセスコード設定を段階的に切り替える場合に使用することを想定しています。新しい設定は常に |future_config| に入力され、同時に既存の値は |current_config| に移動されます。|current_config| の以前の値は |old_configs| に移動され、切り替えが完了した後に削除されます。このポリシーは子どものユーザーにのみ適用されます。このポリシーが設定されている場合、子どものユーザーのデバイスで保護者のアクセスコードを確認できます。このポリシーが設定されていない場合、子どものユーザーのデバイスで保護者のアクセスコードを確認できません。</translation>
 <translation id="7623431489198474050">コンテンツ保護のリモート認証を無効にする</translation>
+<translation id="7625858205605842562">このポリシーでは、USB デバイスへのアクセス許可をユーザーに要求できないサイトの URL パターンリストを指定できます。
+
+      このポリシーを未設定のままにした場合、<ph name="DEFAULT_WEB_USB_GUARD_SETTING_POLICY_NAME" /> が設定されていればその設定がすべてのサイトで使用され、設定されていなければユーザーの個人設定が適用されます。
+
+      URL パターンは、<ph name="WEB_USB_ASK_FOR_URLS_POLICY_NAME" /> と競合しないようにする必要があります。URL が両方のポリシーの URL パターンと一致する場合、どちらのポリシーも優先されません。
+
+      有効な <ph name="URL_LABEL" /> パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。このポリシーの値に「<ph name="WILDCARD_VALUE" />」は使用できません。</translation>
 <translation id="7628747690141606652">クイック アンサーの翻訳を無効にする</translation>
 <translation id="7629840767216985001">このポリシーを True に設定した場合、ログイン画面で大きいカーソルが有効になります。このポリシーを False に設定した場合、ログイン画面で大きいカーソルが無効になります。
 
@@ -8969,12 +9555,6 @@ Gemini による操作は、一部の国や言語ではご利用いただけま�
 なお、優先されるのはセキュア ユーザーのポリシーのみです。セキュア ユーザーとは、<ph name="CHROME_ENTERPRISE_CORE_NAME" /> を使用してブラウザを管理している組織に所属するユーザーです。他のユーザーレベルのポリシーはすべて、デフォルトの優先順位になります。
 
 ポリシーを統合するには、<ph name="POLICY_LIST_MULTIPLE_SOURCE_MERGE_LIST_POLICY_NAME" /> または <ph name="POLICY_DICTIONARY_MULTIPLE_SOURCE_MERGE_LIST_POLICY_NAME" /> での設定も必要です。これら 2 つのポリシーのどちらも設定していない場合、このポリシーは無視されます。</translation>
-<translation id="7643151458117317518">ユーザーが <ph name="PRIVACY_SANDBOX_NAME" /> の広告測定設定を変更できるようにするかどうかを管理するポリシーです。
-
-このポリシーを無効に設定した場合、ユーザーは広告測定設定を変更できません。
-このポリシーを有効に設定するか未設定のままにした場合、ユーザーはデバイスで <ph name="PRIVACY_SANDBOX_NAME" /> の広告測定設定を有効または無効にすることができます。
-
-このポリシーを設定するには、<ph name="PRIVACY_SANDBOX_PROMPT_ENABLED_POLICY_NAME" /> ポリシーを無効に設定する必要があります。</translation>
 <translation id="7643883929273267746"><ph name="PRODUCT_NAME" /> に表示されるアカウントを制限する</translation>
 <translation id="7648664871086956188">このポリシーは、DataLeakPreventionRulesList ポリシーで定義されたすべてのルールに対する一般的なスイッチです。
       このポリシーを True に設定すると、データ漏洩防止イベントのリアルタイム レポートがオンになります。
@@ -8984,6 +9564,9 @@ Gemini による操作は、一部の国や言語ではご利用いただけま�
 <translation id="7657261947024629645">パフォーマンスを重視します。</translation>
 <translation id="76580522298425324">事前のユーザー操作なしでスクリーン キャプチャを許可する</translation>
 <translation id="7661379728107156839">複雑さのレベル: 低</translation>
+<translation id="7664977773563102099">このポリシーでは、リクエスト元 URL のセキュリティ オリジンと照合する URL パターンリストを指定できます。一致するものについては、音声キャプチャ デバイスへのアクセスが許可されます。その際、確認のメッセージは表示されません。
+
+      有効な <ph name="URL_LABEL" /> パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns/ をご覧ください。任意の URL に一致するパターン「*」は、このポリシーではサポートされません。</translation>
 <translation id="7666228839913571182">サードパーティ Cookie を許可する</translation>
 <translation id="7666782560345386904">高精度の自動入力の設定</translation>
 <translation id="7669630878711068277">このポリシーを有効に設定するか未設定のままにした場合、ユーザーは <ph name="PRODUCT_NAME" /> で印刷することができます。ユーザーはこの設定を変更できません。
@@ -9016,6 +9599,11 @@ Gemini による操作は、一部の国や言語ではご利用いただけま�
 
           このポリシーの値はミリ秒単位とし、画面オフ（設定されている場合）およびアイドル待ちの時間と同じかそれより短い時間を指定できます。</translation>
 <translation id="7680437377926096177">最後のウィンドウを閉じたときにログアウト ダイアログを表示しない</translation>
+<translation id="7682409626897786151">キー生成の使用を許可するサイトを指定する URL パターンのリストを設定できます。URL パターンが「KeygenBlockedForUrls」にも含まれる場合、この例外ポリシーは無視されます。
+
+          このポリシーが未設定のままの場合、すべてのサイトでグローバルなデフォルト値（「DefaultKeygenSetting」ポリシーで値が設定されていればその値、設定されていなければユーザーの個人設定の値）が使用されます。
+
+          有効な URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。このポリシーの値に「<ph name="WILDCARD_VALUE" />」は使用できません。</translation>
 <translation id="7683777542468165012">動的なポリシーの更新</translation>
 <translation id="7687943045976362719">このポリシーが設定されている場合、指定されたコンテンツ タイプは <ph name="PRODUCT_FRAME_NAME" /> で処理されます。
 
@@ -9057,6 +9645,7 @@ Gemini による操作は、一部の国や言語ではご利用いただけま�
 <translation id="7712245244073542805">ブラウザ プロセスからプラットフォーム印刷を行う。</translation>
 <translation id="7713608076604149344">ダウンロードの制限</translation>
 <translation id="7713845740295404764">ログイン / ログアウト イベントを報告する</translation>
+<translation id="7715155449217638248">デバイスのログイン画面の TLS で特定の鍵交換アルゴリズムを優先する</translation>
 <translation id="7715711044277116530">プレゼンテーション モードで画面を暗くするまでの時間に掛ける倍率</translation>
 <translation id="7715838249298819250">テキスト キャプチャを許可しない。</translation>
 <translation id="7716020145539921591">このポリシーはサポートが終了しています。代わりに <ph name="PROXY_SETTINGS_POLICY_NAME" /> を使用してください。
@@ -9133,6 +9722,15 @@ Gemini による操作は、一部の国や言語ではご利用いただけま�
 <translation id="77675082813227181">ポリシーテストのページへのアクセスをブロックする</translation>
 <translation id="7769289607378631288">有効: ミューテーション イベントを一時的に再度有効にします。</translation>
 <translation id="7771298620150437359">使用言語の内容と順序を設定する</translation>
+<translation id="7771471711336504337">このポリシーでは、ユーザーに対するシリアルポートへのアクセス要求を許可するサイトの URL パターンリストを指定できます。
+
+このポリシーを未設定のままにした場合、<ph name="DEFAULT_SERIAL_GUARD_SETTING_POLICY_NAME" /> が設定されていればその設定がすべてのサイトで使用され、設定されていなければユーザーの個人設定が適用されます。
+
+URL が <ph name="SERIAL_BLOCKED_FOR_URLS_POLICY_NAME" /> ポリシーの URL パターン（指定されている場合）と一致しない場合は、<ph name="DEFAULT_SERIAL_GUARD_SETTING_POLICY_NAME" />（設定されている場合）、ユーザーの個人設定の順に適用されます。
+
+URL が <ph name="SERIAL_BLOCKED_FOR_URLS_POLICY_NAME" /> の URL パターンと競合する場合は無視されます。
+
+有効な <ph name="URL_LABEL" /> パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。このポリシーの値に「<ph name="WILDCARD_VALUE" />」は使用できません。</translation>
 <translation id="7773790010815041731">Chrome アプリは、<ph name="MS_WIN_NAME" />、<ph name="MAC_OS_NAME" />、<ph name="LINUX_OS_NAME" /> でのサポートが終了しています。
       このポリシーを有効に設定した場合、2022 年 6 月にすべてのプラットフォームで Chrome アプリのサポートが廃止される日まで、これらのプラットフォームでは引き続き <ph name="PRODUCT_NAME" /> で Chrome アプリを実行できます。
       このポリシーを無効に設定するか未設定のままにした場合、サポート終了の段階に応じて、一部の Chrome アプリは実行できなくなります。
@@ -9162,6 +9760,11 @@ Gemini による操作は、一部の国や言語ではご利用いただけま�
 Internet Explorer の <ph name="IEEM_SITELIST_POLICY" /> ポリシーについて詳しくは、https://docs.microsoft.com/internet-explorer/ie11-deploy-guide/what-is-enterprise-mode をご覧ください。</translation>
 <translation id="7791215522423893512">スクリーンショットと動画の撮影をユーザーに許可しない</translation>
 <translation id="7792796937016596423">ネットワーク パケット キャプチャの実行をユーザーに許可しない</translation>
+<translation id="7797308735860812145">このポリシーでは、ポップアップの表示を許可するサイトの URL パターンリストを指定できます。
+
+      このポリシーを未設定のままにした場合、<ph name="DEFAULT_POPUPS_SETTING_POLICY_NAME" /> が設定されていればその設定がすべてのサイトで使用され、設定されていなければユーザーの個人設定が適用されます。
+
+      有効な <ph name="URL_LABEL" /> パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。ワイルドカード（<ph name="WILDCARD_VALUE" />）を使用できます。</translation>
 <translation id="7798441698807517880"><ph name="FLASH_PLUGIN_NAME" /> のサポートが終了したため、このポリシーは <ph name="PRODUCT_NAME" /> バージョン 89 以降で削除されています。
 
       このポリシーを True に設定した場合、<ph name="FLASH_PLUGIN_NAME" /> が許可されているウェブサイトで、埋め込まれているすべての <ph name="FLASH_PLUGIN_NAME" /> コンテンツ（他のソースからのコンテンツ、小さなコンテンツを含む）が実行されます。
@@ -9219,6 +9822,7 @@ Internet Explorer の <ph name="IEEM_SITELIST_POLICY" /> ポリシーについ�
 
       このポリシーを False に設定するか未設定のままにした場合、ウェブページは WebGL API を使用できます。ただし、ブラウザのデフォルト設定によっては、これらの API を使用するためにコマンドライン引数が必要となる場合があります。</translation>
 <translation id="7848641140449742406">OS の設定</translation>
+<translation id="7850091451640294457">PDF の XFA フォームのサポートを無効にする</translation>
 <translation id="7850846808758624237">このポリシーを有効に設定した場合、初回実行時に以前の既定のブラウザからホームページが読み込まれます。このポリシーを無効に設定するか未設定のままにした場合、初回実行時にホームページは読み込まれません。
 
       ユーザーはインポート ダイアログを表示できます。このとき、ホームページのチェックボックスは、このポリシーの値に合わせてオンまたはオフになります。</translation>
@@ -9268,6 +9872,9 @@ Internet Explorer の <ph name="IEEM_SITELIST_POLICY" /> ポリシーについ�
 <translation id="7882890448959833986">サポート外の OS の警告を表示しない</translation>
 <translation id="7884672714405919225"><ph name="HAPPY_EYEBALLS_V3" /> アルゴリズムを使用しない。</translation>
 <translation id="788480874436328004">パスワード マネージャーを使用したパスワードの保存を無効にする</translation>
+<translation id="7891540662888081649">このポリシーを設定した場合、リストで指定したオリジンは Device Attributes API を使用してデバイスの属性（シリアル番号やホスト名など）を取得できません。
+
+オリジンは、<ph name="ISOLATED_WEB_APP_INSTALL_FORCE_LIST_POLICY_NAME" /> ポリシーを使用して自動インストールされたウェブ アプリケーションか、キオスクアプリとして設定されたウェブ アプリケーションに対応している必要があります。Device Attributes API の仕様については、https://wicg.github.io/WebApiDevice/device_attributes をご覧ください。有効な <ph name="URL_LABEL" /> パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。このポリシーの値に「<ph name="WILDCARD_VALUE" />」は使用できません。</translation>
 <translation id="7891884447851425349"><ph name="DEFAULT_SEARCH_PROVIDER_ENABLED_POLICY_NAME" /> がオンの場合に、<ph name="DEFAULT_SEARCH_PROVIDER_SEARCH_URL_POLICY_NAME" /> では、デフォルトの検索に使用する検索エンジンの URL を指定できます。この URL には <ph name="SEARCH_TERM_MARKER" /> という文字列を含めます。この文字列は、クエリの送信時にユーザーが指定した検索キーワードに置き換えられます。
 
       Google の検索 URL は次のように指定できます。<ph name="GOOGLE_SEARCH_URL" /></translation>
@@ -9471,6 +10078,15 @@ Internet Explorer の <ph name="IEEM_SITELIST_POLICY" /> ポリシーについ�
 <translation id="8031651557770840616">生成 AI 壁紙を許可しない</translation>
 <translation id="8035570672225663428">アダプティブ充電モデルを有効にして、バッテリー寿命を延ばすため充電プロセスを保留する</translation>
 <translation id="8038007682032315784">すべてのウェブページで <ph name="SEARCH_SIDE_PANEL_FEATURE_NAME" /> を無効にする</translation>
+<translation id="8038781335960215878">URL パターンのリストを指定します。このリストのパターンと一致するオリジンのウェブサイトで発行されたリクエストに対しては、<ph name="LOCAL_NETWORK_ACCESS" /> のチェックを行いません。
+
+オリジンがこのポリシーと LocalNetworkAccessBlockedForUrls の両方に含まれている場合、LocalNetworkAccessBlockedForUrls が優先されます。
+
+ここで指定したパターンに含まれていないオリジンについては、ユーザーの個人設定が適用されます。
+
+有効な URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns/ をご覧ください。
+
+<ph name="LOCAL_NETWORK_ACCESS" /> の制限については、https://wicg.github.io/local-network-access/ をご覧ください。</translation>
 <translation id="8044493735196713914">デバイス起動モードを報告する</translation>
 <translation id="80453040817068401"><ph name="LACROS_NAME" /> ブラウザを使用可能にする</translation>
 <translation id="804619600634661088">リモート デバッグの使用を許可する</translation>
@@ -9501,6 +10117,11 @@ Internet Explorer の <ph name="IEEM_SITELIST_POLICY" /> ポリシーについ�
 この設定を未設定のままにするか false に設定した場合、<ph name="PRODUCT_OS_NAME" /> デバイスでは更新が自動的にチェックされます。
 
 警告: ユーザーが各自のデバイスでソフトウェアのアップデートや重要なセキュリティ修正を取得できるように、自動更新は有効のままにしておくことをおすすめします。自動更新を無効にすると、ユーザーが危険にさらされる恐れがあります。</translation>
+<translation id="8087115539535813211">このポリシーでは、通知の表示を許可しないサイトの URL パターンリストを指定できます。
+
+      このポリシーを未設定のままにした場合、<ph name="DEFAULT_NOTIFICATIONS_SETTING_POLICY_NAME" /> が設定されていればその設定がすべてのサイトで使用され、設定されていなければユーザーの個人設定が適用されます。
+
+      有効な <ph name="URL_LABEL" /> パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。ワイルドカード（<ph name="WILDCARD_VALUE" />）を使用できます。</translation>
 <translation id="8089200718228084417">サポートが終了している Privet 印刷を有効にする</translation>
 <translation id="8091982561085048989">プリンタの設定に IPP Everywhere を使用するかどうかを示すブール値のフラグです。このフラグは <ph name="PRODUCT_OS_NAME" /> バージョン 76 以降でサポートされています。</translation>
 <translation id="8094095107731619070">ユーザーの入力時に物理キーボードの自動修正を有効にする</translation>
@@ -9627,34 +10248,6 @@ false に設定した場合、管理対象のネットワークに接続され�
 <translation id="8199823751103472868">このポリシーを設定した場合、<ph name="PRODUCT_OS_NAME" /> でヒンディー語（字母）レイアウトが有効になります。false に設定するか未設定のままにした場合、このレイアウトは使用できません。</translation>
 <translation id="8202566089100454374">Google マップ（バージョン 135 以降でサポート）</translation>
 <translation id="8202834945144737726">ログイン画面で <ph name="CHROME_ENTERPRISE_DEVICE_TRUST_CONNECTOR" /> の認証フローを有効にする URL のリストを指定する</translation>
-<translation id="8210117014924235250">このポリシーでは、ブラウザが関連ウェブサイト セット機能で使用するセットのリストをオーバーライドできます。
-
-このポリシーは <ph name="FIRST_PARTY_SETS_OVERRIDES_POLICY_NAME" /> ポリシーをオーバーライドします。
-
-ブラウザの関連ウェブサイト セット リストの各セットは、関連ウェブサイト セットの要件を満たしている必要があります。
-関連ウェブサイト セットには、プライマリ サイトと 1 つ以上のメンバーサイトが含まれている必要があります。
-セットには、所有するサービスサイトのリストと、サイトからすべての ccTLD バリアントへのマップを含めることもできます。
-<ph name="PRODUCT_NAME" /> で使用される関連ウェブサイト セットの詳細については、https://github.com/WICG/first-party-sets をご覧ください。
-
-
-関連ウェブサイト セットのすべてのサイトは、HTTPS 経由で配信される登録可能なドメインである必要があります。また、関連ウェブサイト セットの各サイトは一意である必要があります。つまり、1 つの関連ウェブサイト セットに同じサイトを複数回含めることはできません。
-
-このポリシーで空の辞書を指定した場合、ブラウザは関連ウェブサイト セットの公開リストを使用します。
-
-<ph name="REPLACEMENTS" /> リストで指定した関連ウェブサイト セットのサイトについては、ブラウザの関連ウェブサイト セットのリストに同じサイトがある場合は、ブラウザの関連ウェブサイト セットからそのサイトが削除されます。
-その後、ポリシーで指定した関連ウェブサイト セットがブラウザの関連ウェブサイト セットのリストに追加されます。
-
-<ph name="ADDITIONS" /> リストで指定した関連ウェブサイト セットのサイトについては、ブラウザの関連ウェブサイト セットのリストに同じサイトがある場合は、新しい関連ウェブサイト セットをブラウザのリストに追加できるようにブラウザの関連ウェブサイト セットが更新されます。ブラウザのリストが更新された後、ポリシーで指定した関連ウェブサイト セットがブラウザの関連ウェブサイト セットのリストに追加されます。
-
-ブラウザの関連ウェブサイト セット リストのサイトは、いずれも複数のセットに含まれないようにする必要があります。この要件は <ph name="REPLACEMENTS" /> リストと <ph name="ADDITIONS" /> リストにも適用されます。同様に、同じサイトを <ph name="REPLACEMENTS" /> リストと <ph name="ADDITIONS" /> リストの両方に含めることはできません。
-
-ワイルドカード（*）は、ポリシーの値として使用できず、これらのリストのどの関連ウェブサイト セットでも使用できません。
-
-このポリシーで指定するすべてのセットは、有効な関連ウェブサイト セットである必要があります。そうでない場合は、該当するエラーが出力されます。
-
-<ph name="MS_WIN_NAME" /> では、<ph name="MS_AD_NAME" /> ドメインに追加されたインスタンス、<ph name="MS_AAD_NAME" /> に追加されたインスタンス、または <ph name="CHROME_ENTERPRISE_CORE_NAME" /> に登録されているインスタンスでのみこのポリシーを使用できます。
-
-<ph name="MAC_OS_NAME" /> では、MDM を介して管理されるインスタンス、MCX を介してドメインに追加されたインスタンス、または <ph name="CHROME_ENTERPRISE_CORE_NAME" /> に登録されているインスタンスでのみこのポリシーを使用できます。</translation>
 <translation id="8213770777756919897">このポリシーはサポートが終了しており、<ph name="PRODUCT_OS_NAME" /> バージョン 85 で削除されます。代わりに <ph name="POWER_MANAGEMENT_IDLE_SETTINGS_POLICY_NAME" /> を使用してください。
 
           このポリシーを設定した場合は、アイドル状態になってから一定の時間（アイドル待ちとして指定された時間）が経過すると、<ph name="PRODUCT_OS_NAME" /> で指定の操作が行われます。アイドル待ちの時間は別途設定できます。
@@ -9705,6 +10298,10 @@ false に設定した場合、管理対象のネットワークに接続され�
 <translation id="8247143534027746614">認証中にアクセスをブロックする URL パターンのリストを指定する</translation>
 <translation id="824818544897669723">ブラウザとダウンロードの履歴の削除を無効にする</translation>
 <translation id="8250048892729838843">このポリシーはサポートを終了しました。このポリシーを有効に設定するか未設定のままにした場合、デバイスで詳細なレポート コントロールを受けることができます。このポリシーを無効に設定した場合、登録済みデバイスは詳細なレポート コントロールを受けません。</translation>
+<translation id="82501412047133986">このポリシーは M88 でサポートが終了しています。Flash は Chrome でご利用いただけなくなりました。このポリシーでは、<ph name="FLASH_PLUGIN_NAME" /> プラグインの実行を許可しないサイトの URL パターンリストを指定できます。
+      このポリシーを未設定のままにした場合、<ph name="DEFAULT_PLUGINS_SETTING_POLICY_NAME" /> が設定されていればその設定がすべてのサイトで使用され、設定されていなければユーザーの個人設定が適用されます。
+
+      有効な URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。ただし、M85 以降では、ホストに「*」と「[*.]」のワイルドカードを使用したパターンは、このポリシーでサポートされなくなります。</translation>
 <translation id="82530263956734297">拒否リストから除外する拡張機能 ID</translation>
 <translation id="8254749125469750814">クラウド サービスを使用して、拡張機能をインストールできるかどうかを検証しない。</translation>
 <translation id="8256006033157034334">このポリシーは非推奨で、サポートされていません。代わりに <ph name="PRINTERS_BULK_ACCESS_MODE_POLICY_NAME_POLICY_NAME" /> を使用してください。</translation>
@@ -9944,6 +10541,11 @@ false に設定した場合、管理対象のネットワークに接続され�
 <translation id="8381774264911275515">ログイン中のユーザー セッションへの SAML SSO Cookie の転送を無効にする</translation>
 <translation id="8382184662529825177">デバイスのコンテンツ保護に関するリモート認証の使用を有効にする</translation>
 <translation id="838870586332499308">データ ローミングを有効にする</translation>
+<translation id="8392010421565173310">関連付けられたユーザーのデバイスからウェブサイトのテレメトリー レポートを送信する URL を許可リストとして指定します。報告するテレメトリー データのタイプは、<ph name="REPORT_WEBSITE_TELEMETRY_POLICY_NAME" /> ポリシーで制御されます。
+
+このポリシーを設定した場合、許可リストで指定した URL について、ウェブサイトのテレメトリー レポートを送信します。
+未設定のままにした場合、ウェブサイトのテレメトリーは報告されません。
+有効な URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns/ をご覧ください。このポリシーで使用できるのは、HTTP と HTTPS の URL スキームのみです。</translation>
 <translation id="8392478748777481636">このポリシーは非推奨で、サポートされていません。代わりに「<ph name="EXTENSION_INSTALL_BLOCKLIST_POLICY_NAME" />」ポリシーを使用してください。</translation>
 <translation id="8393850527597048037">プラットフォーム専用</translation>
 <translation id="8395350646076131800">ロック画面にユーザーのスクリーンセーバーを表示するまでのアイドル タイムアウト。</translation>
@@ -9991,6 +10593,11 @@ false に設定した場合、管理対象のネットワークに接続され�
 <translation id="8415953438346821074">この設定を有効にした場合は、<ph name="PRODUCT_NAME" /> プロフィールに保存されている設定（ブックマーク、自動入力データ、パスワードなど）が、「ローミング」ユーザー プロフィール フォルダまたは管理者が <ph name="ROAMING_PROFILE_LOCATION_POLICY_NAME" /> ポリシーで指定した場所に保存されるファイルにも書き込まれます。このポリシーを有効にすると、クラウド同期は無効になります。
 
       このポリシーを無効にするか未設定のままにした場合は、通常のローカル プロフィールのみが使用されます。</translation>
+<translation id="841729187602695836">ユーザーに確認せずに Idle Detection API の使用を許可するサイトの URL パターンのリストを指定できます。ブロックリストのエントリの優先度は許可リストのエントリより高く、許可リストのエントリの優先度は設定されたデフォルト値より高くなります。
+
+有効なサイトの URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。ワイルドカード（<ph name="WILDCARD_VALUE" />）を使用できます。このポリシーでは、オリジンのみが照合されるため、URL パターンのパスは無視されます。
+
+このポリシーを未設定のままにした場合、すべてのサイトでグローバル デフォルト値が使用されます。デフォルト値は、<ph name="DEFAULT_IDLE_DETECTION_SETTING_POLICY_NAME" />（アイドル状態の検出のデフォルト設定）ポリシーで設定されていればその値、設定されていなければユーザーの個人設定の値になります。</translation>
 <translation id="8417305981081876834">ロック画面の PIN の最大桁数を設定する</translation>
 <translation id="841977920223099909">パスワード保護について警告する場合のトリガー</translation>
 <translation id="8419965165591256432">登録デバイスで関連付けられたユーザーのデバイス アクティビティの状態を収集する間隔を指定できます。指定できる最小値は 1 分です。
@@ -10087,6 +10694,35 @@ false に設定した場合、管理対象のネットワークに接続され�
           このポリシーが未設定の場合は、「ChromeFrameRendererSettings」ポリシーで指定されているデフォルトのレンダラがすべてのサイトで使用されます。
 
           パターンの例については、https://www.chromium.org/developers/how-tos/chrome-frame-getting-started をご覧ください。</translation>
+<translation id="8484830523381746060">このポリシーを有効にする場合は、ファイル形式の拡張子に基づくダウンロードの警告を表示しないファイル形式の拡張子と対応するドメインリストのディクショナリを作成できます。これにより、企業の管理者は、指定したドメインに関連付けられたファイルに対して、ファイル形式の拡張子に基づいたダウンロードの警告を表示しないよう制御できます。たとえば、拡張子「jnlp」が「website1.com」と関連付けられている場合、ユーザーが「website1.com」から「jnlp」ファイルをダウンロードしても警告は表示されませんが、「website2.com」から「jnlp」ファイルをダウンロードした場合は警告が表示されます。
+
+なお、このポリシーでドメインとファイル形式の拡張子を指定した場合も、該当のファイルに対して、ファイル形式の拡張子に基づかないセキュリティ上の警告（混合コンテンツのダウンロードに関する警告やセーフ ブラウジングの警告など）は表示されます。
+
+このポリシーを無効にするか未設定のままにした場合、拡張子に基づくダウンロードの警告の対象となるファイル形式については、ユーザーに警告が表示されます。
+
+このポリシーを有効にする場合:
+
+* URL パターンは、https://chromeenterprise.google/policies/url-patterns/ の形式で指定します。
+
+* ファイル形式の拡張子は小文字の ASCII で入力します。ファイル形式の拡張子には、先頭の区切り記号を含めないでください。たとえば「.jnlp」の場合は「jnlp」と指定します。
+
+例:
+
+次の例では、「*.example.com」ドメインの拡張子「exe」、「jnlp」のファイル、およびすべてのドメインの拡張子「swf」のファイルに対して、ファイル形式の拡張子に基づくダウンロードの警告を表示しないよう指定しています。ファイル形式の拡張子に基づくダウンロードの警告は、これ以外のドメインの「exe」、「jnlp」ファイルに対しては表示されますが、「swf」ファイルに対しては表示されません。
+
+[
+  { "file_extension": "jnlp", "domains": ["example.com"] },
+  { "file_extension": "exe", "domains": ["example.com"] },
+  { "file_extension": "swf", "domains": ["*"] }
+]
+
+上記の例では、すべてのドメインの「swf」ファイルに対して、ファイル形式の拡張子に基づくダウンロードの警告を表示しないよう指定していますが、危険性のあるファイル形式の拡張子について、このようにすべてのドメインに対して警告を非表示にすることは、セキュリティ上の懸念があるためおすすめしません。上記の例は、あくまでこのような設定が可能であることを示したものです。
+
+このポリシーと <ph name="DOWNLOAD_RESTRICTIONS_POLICY_NAME" /> を両方とも有効にした場合、危険性のあるファイル形式をブロックする <ph name="DOWNLOAD_RESTRICTIONS_POLICY_NAME" /> の設定より、このポリシーで指定した、ファイル形式の拡張子に基づく警告の例外が優先されます。このポリシーで指定した例外は、<ph name="DOWNLOAD_RESTRICTIONS_POLICY_NAME" /> の値 1 と 2 で指定した「危険性のあるファイル形式をブロックする」動作にのみ適用されます。
+
+たとえば、このポリシーで「website1.com」からの拡張子「exe」のファイルのダウンロードを例外として指定し、<ph name="DOWNLOAD_RESTRICTIONS_POLICY_NAME" /> で不正なファイルのダウンロードや危険性のあるファイル形式をブロックするよう設定（値 1）している場合、「website1.com」からの「exe」ファイルのダウンロードはファイル形式の拡張子に基づくブロック対象から除外されますが、不正なファイルの場合はブロックされます。
+
+<ph name="DOWNLOAD_RESTRICTIONS_POLICY_NAME" /> について詳しくは、https://chromeenterprise.google/policies/?policy=DownloadRestrictions をご覧ください。</translation>
 <translation id="8489169564515126823">無効: デフォルトでスクローラーをフォーカス可能にしない。</translation>
 <translation id="8489964335640955763">PluginVm</translation>
 <translation id="8493645415242333585">ブラウザの履歴の保存を無効にする</translation>
@@ -10170,12 +10806,6 @@ false に設定した場合、管理対象のネットワークに接続され�
 <translation id="8549906780629620346">アカウント復元を有効にする</translation>
 <translation id="855182606166519378">ユーザーはファームウェアを更新できない</translation>
 <translation id="8553491595730354263">リモート アクセスホストにクライアント接続受け入れ時の PIN 認証とペア設定認証の使用を許可する</translation>
-<translation id="8554750769356971993">ユーザーが <ph name="PRIVACY_SANDBOX_NAME" /> のウェブサイトによる広告の提案の設定を変更できるようにするかどうかを管理するポリシーです。
-
-このポリシーを無効に設定した場合、ユーザーはウェブサイトによる広告の提案の設定を変更できません。
-このポリシーを有効に設定するか未設定のままにした場合、ユーザーはデバイスで <ph name="PRIVACY_SANDBOX_NAME" /> のウェブサイトによる広告の提案設定を有効または無効にすることができます。
-
-このポリシーを設定するには、<ph name="PRIVACY_SANDBOX_PROMPT_ENABLED_POLICY_NAME" /> ポリシーを無効に設定する必要があります。</translation>
 <translation id="8559221882677768248">ログイン画面で「選択して読み上げ」を無効にする</translation>
 <translation id="8561512522781085002">PageUp / PageDown の設定で「検索」修飾キーを含むショートカットを使用する</translation>
 <translation id="8562398722263115493">文書作成サポートは、ウェブでの短文作成を支援する AI ベースのツールです。候補は、ユーザーが入力したプロンプトとウェブページのコンテンツに基づいて表示されます。
@@ -10216,6 +10846,15 @@ false に設定した場合、管理対象のネットワークに接続され�
 <translation id="8584279193368801689">PIN 印刷モードを制限します。ポリシーが未設定の場合は、制限なしとして扱われます。このモードを使用できない場合、このポリシーは無視されます。なお、PIN 印刷機能は、IPPS、HTTPS、USB、IPP-over-USB のいずれかのプロトコルを使用するプリンタに対してのみ有効にできます。</translation>
 <translation id="858510846828945657">フローティング SSO サービスのドメイン ブロックリストの例外リスト</translation>
 <translation id="8587229956764455752">新しいユーザー アカウントの作成を許可する</translation>
+<translation id="8588505938424623378">カメラで撮影した写真や動画を保存するディレクトリを設定します。
+ユーザーはこの設定を変更できず、写真は常に定義されたディレクトリに保存されます。
+
+このポリシーでは、<ph name="DOWNLOAD_DIRECTORY_POLICY_NAME" /> ポリシーと同じ形式を使用します。
+ローカル ファイルシステム、<ph name="GOOGLE_DRIVE_NAME" />（接頭辞が「${google_drive}」）、<ph name="MICROSOFT_ONE_DRIVE_NAME" />（接頭辞が「${microsoft_onedrive}」）のいずれかの場所を指定できます。
+このポリシーに空の文字列を設定した場合、写真はデフォルトの [マイファイル] &gt; [カメラ] ディレクトリに保存されます。
+使用できる変数の一覧については、https://www.chromium.org/administrators/policy-list-3/user-data-directory-variables をご覧ください。
+
+このポリシーを未設定のままにした場合、<ph name="PRODUCT_OS_NAME" /> ではデフォルトの [マイファイル] &gt; [カメラ] ディレクトリに写真が保存されます。</translation>
 <translation id="8589285015138337712">ユーザーにシステム ショートカットのカスタマイズを許可しない</translation>
 <translation id="8589346048177748110">このポリシーを True に設定した場合、ユーザーが恐竜ゲームをプレイすることを許可します。このポリシーを False に設定した場合、ユーザーはデバイスがオフラインのときに恐竜のイースター エッグゲームをプレイできません。
 
@@ -10363,6 +11002,14 @@ JavaScript の最適化を無効にした場合（このポリシーの値を 2 
       このポリシーを無効に設定した場合、悪質な疑いのある不明なコードに対して <ph name="PRODUCT_NAME" /> のブラウザ プロセス内での読み込みが許可されるため、<ph name="PRODUCT_NAME" /> のセキュリティと安定性が低下します。このポリシーは、<ph name="PRODUCT_NAME" /> のブラウザ プロセス内で実行する必要のあるサードパーティ ソフトウェアとの間で互換性の問題が発生する場合にのみ無効にしてください。
 
       注: 詳しくはプロセス対応ポリシー（https://chromium.googlesource.com/chromium/src/+/HEAD/docs/design/sandbox.md#Process-mitigation-policies）をご覧ください。</translation>
+<translation id="8672039014434141545">ユーザーが <ph name="PRIVACY_SANDBOX_NAME" /> の広告トピック設定を変更できるようにするかどうかを管理するポリシーです。
+
+このポリシーを無効に設定した場合、ユーザーは広告トピック設定を変更できません。
+このポリシーを有効に設定するか未設定のままにした場合、ユーザーはデバイスで <ph name="PRIVACY_SANDBOX_NAME" /> の広告トピック設定を有効または無効にすることができます。
+
+このポリシーを設定するには、<ph name="PRIVACY_SANDBOX_PROMPT_ENABLED_POLICY_NAME" /> ポリシーを無効に設定する必要があります。
+
+Topics API のサポート終了により、このポリシーは <ph name="PRODUCT_NAME" /> バージョン 144 で非推奨になりました。</translation>
 <translation id="8672321184841719703">自動更新の対象バージョンを指定</translation>
 <translation id="867410340948518937">U2F（Universal Second Factor）</translation>
 <translation id="8676959842615154675">このポリシーを有効に設定した場合、リモート アクセス ホストは、そのホストが関連付けられているローカル ユーザーの名前と、ホストの所有者として登録されている Google アカウントの名前（たとえば、ホストの所有者が「johndoe@example.com」の場合は「johndoe」）を比較します。ホストの所有者の名前と、ホストが関連付けられているローカル ユーザーの名前が異なる場合、このホストは起動しません。所有者の Google アカウントが必ず特定のドメインと関連付けられるようにするには、このポリシーを <ph name="REMOTE_ACCESS_HOST_DOMAIN_POLICY_NAME" /> と一緒に使用してください。
@@ -10434,6 +11081,15 @@ JavaScript の最適化を無効にした場合（このポリシーの値を 2 
 <translation id="8734543507835977857">セッション開始時に電力管理の遅延とセッションの時間制限のカウントを開始する</translation>
 <translation id="8736538322216687231">YouTube で一定レベル以上の制限付きモードを強制する</translation>
 <translation id="873800217865395140">ウェブサイトのテレメトリーの収集間隔（ミリ秒単位）。</translation>
+<translation id="8742596277791362306">このポリシーでは、関連ウェブサイト セット機能の有効化を管理できます。
+
+このポリシーは <ph name="FIRST_PARTY_SETS_ENABLED_POLICY_NAME" /> ポリシーをオーバーライドします。
+
+このポリシーを未設定のままにするか True に設定した場合、関連ウェブサイト セット機能が有効になります。
+
+このポリシーを False に設定した場合、関連ウェブサイト セット機能は無効になります。
+
+関連ウェブサイト セットのサポート終了により、このポリシーは <ph name="PRODUCT_NAME" /> バージョン 144 で非推奨になりました。</translation>
 <translation id="8743149927570551353"><ph name="PRODUCT_OS_NAME" /> のコンテンツ移行ツールを使用できる期間を設定する</translation>
 <translation id="8743902569031401303">セーフ ブラウジングに関するアンケートを許可する</translation>
 <translation id="8744844164152340112">OOBE 中とセッション中に UI のレンダリングに使用するモード（ダーク、ライト、自動）を管理します。
@@ -10558,6 +11214,11 @@ M119 よりデフォルトで無効になります）。
 <translation id="8843331294082716286"><ph name="PRIVACY_SANDBOX_NAME" /> のプロンプトをユーザーに表示しない。</translation>
 <translation id="884855199714673326">リモート アクセス ホストに決定を許可する</translation>
 <translation id="885147810817138322">おすすめメディアをユーザーに表示する</translation>
+<translation id="8852398766459514604">このポリシーを設定した場合、リストで指定したオリジンは Device Attributes API を使用してデバイスの属性（シリアル番号やホスト名など）を取得できます。
+
+オリジンは、<ph name="ISOLATED_WEB_APP_INSTALL_FORCE_LIST_POLICY_NAME" /> ポリシーを使用して自動インストールされたウェブ アプリケーション（バージョン 125 以降）、キオスクアプリとして設定されたウェブ アプリケーション、または <ph name="WEB_APP_INSTALL_FORCE_LIST_POLICY_NAME" /> を使用して自動インストールされたウェブ アプリケーション（バージョン 140 以前）のいずれかに対応している必要があります。Device Attributes API の仕様については、https://wicg.github.io/WebApiDevice/device_attributes をご覧ください。
+
+有効な <ph name="URL_LABEL" /> パターン（バージョン 127 以降）について詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。このポリシーの値に「<ph name="WILDCARD_VALUE" />」は使用できません。</translation>
 <translation id="8852579753940989645">レンダラコードの整合性チェックを有効にする</translation>
 <translation id="8854571659927427063">このポリシーを有効に設定した場合、初回実行時に以前の既定のブラウザからブックマークが読み込まれます。このポリシーを無効に設定するか未設定のままにした場合、初回実行時にブックマークは読み込まれません。
 
@@ -10640,6 +11301,12 @@ M119 よりデフォルトで無効になります）。
 <translation id="8883577480680089760"><ph name="PRODUCT_NAME" /> V2 サービスを無効にして、ログイン時にリモートデスクを起動しない</translation>
 <translation id="8887709920496070892">ユーザー入力が行われなくなってから警告ダイアログを表示するまでの時間（ミリ秒）</translation>
 <translation id="8888289774309799423"><ph name="MICROSOFT_ONE_DRIVE_NAME" /> の設定を許可しない</translation>
+<translation id="8888508932042268801">セキュリティ上の理由から、<ph name="REQUEST_FULLSCREEN_API_NAME" /> ウェブ API を呼び出すには、事前のユーザー操作（「一時的な有効化」）が必要です。その操作がなかった場合、呼び出しは失敗します。<ph name="AUTOMATIC_FULLSCREEN_HELP_URL" /> の説明のとおり、ユーザーの個人設定によっては、事前のユーザー操作なしでこの API を呼び出すことが特定のオリジンに許可されている場合があります。このポリシーはユーザーの個人設定より優先され、一致するオリジンによる事前のユーザー操作がない API 呼び出しをブロックします。
+
+有効な URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。
+ワイルドカード（<ph name="WILDCARD_VALUE" />）を使用できます。
+
+ブロック ポリシーのパターンと許可ポリシーのパターンの両方に一致する場合、オリジンはブロックされます。ポリシーでもユーザー設定でも指定されていないオリジンの場合、この API を呼び出すには事前のユーザー操作が必要になります。</translation>
 <translation id="8890438048579188548"><ph name="CLOUD_PRINT_NAME" /> のサポート終了の警告を表示しない</translation>
 <translation id="8891334958985336685">デバイスのシステム情報レポートを無効にする</translation>
 <translation id="8892286064305622118"><ph name="PLUGIN_VM_NAME" /> に必要なディスクの空き容量</translation>
@@ -10874,6 +11541,7 @@ M119 よりデフォルトで無効になります）。
 <translation id="9051019223077908578">ログイン画面でインストールするアプリと拡張機能のリストを設定する</translation>
 <translation id="9053841574218808519">期限切れでないプラグインを常に実行する</translation>
 <translation id="9055866143096316150">画面の wake lock のリクエストをシステムの wake lock のリクエストに引き下げる</translation>
+<translation id="9057159618445405645">Chrome ブラウザのデフォルトの動作を使用する</translation>
 <translation id="9061455386353325110"><ph name="PRODUCT_NAME" /> で、生成 AI を使用してフォームの内容を正確に把握し、より多くの項目に入力できるようにするかどうかを指定します。
 
 0 = この機能の使用と、Google が AI モデルを改善する目的で関連データを使用することを許可します。関連データには、機能に応じてプロンプト、入力内容、出力内容、ソース資料、フィードバックの文面などが含まれます。以下に記載している場合を除き、0 がデフォルト値です。
@@ -10887,6 +11555,13 @@ M119 よりデフォルトで無効になります）。
 生成 AI 機能のデータ処理について詳しくは、https://support.google.com/chrome/a?p=generative_ai_settings をご覧ください。</translation>
 <translation id="9061609750723054419">管理対象ブラウザの新しいタブページに管理に関する通知を表示するかどうかを制御する</translation>
 <translation id="9063485115966829754">PDF ビューアで GuestView アーキテクチャを使用する。</translation>
+<translation id="9064546884927958824">このポリシーでは、画像を表示できるサイトを指定する URL パターンのリストを設定できます。
+
+      このポリシーを未設定のままにした場合、<ph name="DEFAULT_IMAGES_SETTING_ENABLED_POLICY_NAME" /> が設定されていればその設定がすべてのサイトで使用され、設定されていなければユーザーの個人設定が適用されます。
+
+      有効な <ph name="URL_LABEL" /> パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。ワイルドカード（<ph name="WILDCARD_VALUE" />）を使用できます。
+
+      このポリシーは以前、Android で誤って有効になっていましたが、Android でこの機能がフルサポートされていたことはありません。</translation>
 <translation id="9066311316566875681">希望の DNS-over-HTTPS リゾルバの URI テンプレートを指定します。複数の DNS-over-HTTPS リゾルバを指定するには、対応する URI テンプレートをスペースで区切ります。
 
       DnsOverHttpsMode が <ph name="SECURE_DNS_MODE_SECURE" /> に設定されている場合、このポリシーの設定は必須で、空にはできません。<ph name="PRODUCT_OS_NAME" /> の場合のみ、このポリシーまたは <ph name="DOH_TEMPLATES_WITH_IDENTIFIERS_POLICY_NAME" /> のいずれかを設定する必要があります。設定しない場合、DNS の解決ができなくなります。

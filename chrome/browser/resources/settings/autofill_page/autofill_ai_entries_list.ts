@@ -92,7 +92,7 @@ export class SettingsAutofillAiEntriesListElement extends
         value: null,
       },
 
-      title: {
+      listTitle: {
         type: String,
       },
 
@@ -178,7 +178,7 @@ export class SettingsAutofillAiEntriesListElement extends
 
   declare ineligibleUser: boolean;
   declare allowedEntityTypes: Set<EntityTypeName>|null;
-  declare title: string;
+  declare listTitle: string;
   declare allowEditingPref: chrome.settingsPrivate.PrefObject<boolean>|null;
   declare private allowEditing_: boolean;
   declare private activeEntityInstance_: EntityInstance|null;
@@ -222,14 +222,7 @@ export class SettingsAutofillAiEntriesListElement extends
 
     this.entityDataManager_.getWritableEntityTypes().then(
         (entityTypes: EntityType[]) => {
-          // Filter only if the filter was set
-          const filteredEntities = this.allowedEntityTypes ?
-              entityTypes.filter(
-                  instance => this.allowedEntityTypes!.has(instance.typeName)) :
-              entityTypes;
-
-          this.completeEntityTypesList_ =
-              filteredEntities.sort(this.entityTypesComparator_);
+          this.updateEntittyTypesList_(entityTypes);
         });
 
     this.addWebUiListener(
@@ -245,15 +238,22 @@ export class SettingsAutofillAiEntriesListElement extends
     this.entityInstancesChangedListener_ = null;
   }
 
+  private updateEntittyTypesList_(entityTypes: EntityType[]) {
+    // Filter only if the filter was set
+    const filteredEntities = this.allowedEntityTypes ?
+        entityTypes.filter(
+            instance => this.allowedEntityTypes!.has(instance.typeName)) :
+        entityTypes;
+
+    this.completeEntityTypesList_ =
+        filteredEntities.sort(this.entityTypesComparator_);
+  }
+
   /*
    * This comparator purposefully uses sensitivity 'base', not to differentiate
    * between different capitalization or diacritics.
    */
   private entityTypesComparator_(a: EntityType, b: EntityType): number {
-    if (a.supportsWalletStorage !== b.supportsWalletStorage) {
-      return a.supportsWalletStorage ? 1 : -1;
-    }
-
     return a.typeNameAsString.localeCompare(
         b.typeNameAsString, undefined, {sensitivity: 'base'});
   }
@@ -393,8 +393,7 @@ export class SettingsAutofillAiEntriesListElement extends
   private onSyncStatusChanged_(_: SyncStatus) {
     this.entityDataManager_.getWritableEntityTypes().then(
         (entityTypes: EntityType[]) => {
-          this.completeEntityTypesList_ =
-              entityTypes.sort(this.entityTypesComparator_);
+          this.updateEntittyTypesList_(entityTypes);
         });
   }
 

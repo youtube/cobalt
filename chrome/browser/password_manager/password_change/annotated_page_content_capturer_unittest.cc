@@ -11,9 +11,11 @@
 #include "base/test/test_future.h"
 #include "base/types/pass_key.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
+#include "components/optimization_guide/content/browser/page_content_proto_provider.h"
 #include "content/public/test/web_contents_tester.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/public/mojom/content_extraction/ai_page_content.mojom.h"
 
 using ::base::test::RunOnceCallback;
 using ::testing::_;
@@ -37,7 +39,7 @@ class AnnotatedPageContentCapturerTest
 };
 
 TEST_F(AnnotatedPageContentCapturerTest, CaptureEmptyPageContent) {
-  base::test::TestFuture<std::optional<optimization_guide::AIPageContentResult>>
+  base::test::TestFuture<optimization_guide::AIPageContentResultOrError>
       completion_future;
   std::unique_ptr<AnnotatedPageContentCapturer> capturer =
       CreateCapturer(completion_future.GetCallback());
@@ -52,7 +54,7 @@ TEST_F(AnnotatedPageContentCapturerTest, CaptureEmptyPageContent) {
 }
 
 TEST_F(AnnotatedPageContentCapturerTest, CaptureSucceedsOnFirstLoad) {
-  base::test::TestFuture<std::optional<optimization_guide::AIPageContentResult>>
+  base::test::TestFuture<optimization_guide::AIPageContentResultOrError>
       completion_future;
   std::unique_ptr<AnnotatedPageContentCapturer> capturer =
       CreateCapturer(completion_future.GetCallback());
@@ -67,7 +69,7 @@ TEST_F(AnnotatedPageContentCapturerTest, CaptureSucceedsOnFirstLoad) {
 }
 
 TEST_F(AnnotatedPageContentCapturerTest, NewLoadInvalidatesPreviousRequest) {
-  base::test::TestFuture<std::optional<optimization_guide::AIPageContentResult>>
+  base::test::TestFuture<optimization_guide::AIPageContentResultOrError>
       completion_future;
   std::unique_ptr<AnnotatedPageContentCapturer> capturer =
       CreateCapturer(completion_future.GetCallback());

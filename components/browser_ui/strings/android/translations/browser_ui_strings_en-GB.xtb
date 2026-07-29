@@ -171,6 +171,7 @@ Advanced Protection controls these Chrome settings:
 <translation id="2787357173144933081">Jump-start omnibox</translation>
 <translation id="2789132527330338807">Sites can ask to create a 3D map of your surroundings or track camera position</translation>
 <translation id="2790501146643349491">When on, recently closed sites can finish sending and receiving data. When off, recently closed sites can't finish sending or receiving data.</translation>
+<translation id="2794551654724114396">Turn on notifications for useful tips to help you get the best of Chrome</translation>
 <translation id="2795716239552913152">Sites usually use your location for relevant features or info, like local news or nearby shops</translation>
 <translation id="2800760947029405028">Upload an image</translation>
 <translation id="2802908157808345702">Don't allow sites to send pop-ups and use redirects</translation>
@@ -338,10 +339,12 @@ Advanced Protection controls these Chrome settings:
 <translation id="4635969503923889910">Don't allow sites to use NFC devices</translation>
 <translation id="4644713492825682049">Delete and reset</translation>
 <translation id="4645575059429386691">Managed by your parent</translation>
+<translation id="4652266463001779298">Not allowed</translation>
 <translation id="4663373278480897665">Camera allowed</translation>
 <translation id="4670064810192446073">Virtual reality</translation>
 <translation id="4672315773691449562">Tap Browser app, then tap Chrome</translation>
 <translation id="4676059169848868271">To let <ph name="APP_NAME" /> use hand tracking, also turn on hand tracking in <ph name="BEGIN_LINK" />system settings<ph name="END_LINK" />.</translation>
+<translation id="4688045258817337666">Manage your cards</translation>
 <translation id="4751476147751820511">Motion or light sensors</translation>
 <translation id="4755971844837804407">When on, sites can show any ad to you. When off, sites can't show intrusive or misleading ads.</translation>
 <translation id="4779083564647765204">Zoom</translation>
@@ -540,7 +543,7 @@ Advanced Protection controls these Chrome settings:
 <translation id="6900883974539674431">Create tab groups that automatically save and update across all your devices</translation>
 <translation id="6912998170423641340">Block sites from reading text and images from the clipboard</translation>
 <translation id="6945221475159498467">Select</translation>
-<translation id="6950072572526089586">A site you visit can save info about what you’re doing so that it works as expected – for example, to keep you signed in to a site or to save items in your shopping cart. Often sites save this info temporarily on your device.</translation>
+<translation id="6950072572526089586">A site you visit can save info about what you’re doing so that it works as expected – for example, to keep you signed in to a site or to save items in your shopping basket. Often sites save this info temporarily on your device.</translation>
 <translation id="6965382102122355670">OK</translation>
 <translation id="6980861169612950611">Delete site data? <ph name="SITE_NAME" /></translation>
 <translation id="6981982820502123353">Accessibility</translation>
@@ -678,6 +681,7 @@ Advanced Protection controls these Chrome settings:
 <translation id="8487700953926739672">Available offline</translation>
 <translation id="848952951823693243">Always request mobile site</translation>
 <translation id="8492822722330266509">Sites can send pop-ups and use redirects</translation>
+<translation id="8493548450030356203">Pop-up zoom window</translation>
 <translation id="8499083585497694743">Unmute microphone</translation>
 <translation id="8514955299594277296">Don't allow sites to save data on your device (not recommended)</translation>
 <translation id="851751545965956758">Block sites from connecting to devices</translation>

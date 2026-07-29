@@ -11,15 +11,20 @@
   <dist:module dist:onDemand="false">  # DIFF-ANCHOR: 2805007f
     <dist:fusing dist:include="true"/>
   </dist:module>  # DIFF-ANCHOR: 2805007f
-  <queries>  # DIFF-ANCHOR: ac70d2a8
+  <queries>  # DIFF-ANCHOR: 2a6d7800
     <intent>  # DIFF-ANCHOR: dd112d1c
       <action android:name="android.intent.action.VIEW"/>
       <category android:name="android.intent.category.BROWSABLE"/>
       <data android:scheme="https"/>
     </intent>  # DIFF-ANCHOR: dd112d1c
-  </queries>  # DIFF-ANCHOR: ac70d2a8
+    <package android:name="com.google.android.gms.policy_cast_dynamite"/>
+  </queries>  # DIFF-ANCHOR: 2a6d7800
+  <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+  <uses-permission android:name="android.permission.INTERNET"/>
   <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
   <uses-permission android:name="android.permission.USE_FINGERPRINT"/>
+  <uses-permission android:name="com.google.android.c2dm.permission.RECEIVE"/>
   <uses-sdk android:minSdkVersion="29" android:targetSdkVersion="36"/>
   <application>
     <activity  # DIFF-ANCHOR: 28dc9019
@@ -301,6 +306,16 @@
         android:process=":launch_failed"
         android:theme="@style/Theme.BrowserUI.Translucent.NoTitleBar">
     </activity>  # DIFF-ANCHOR: 060360d2
+    <activity  # DIFF-ANCHOR: 43bdc48f
+        android:name="org.chromium.chrome.browser.media.DocumentPictureInPictureActivity"
+        android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation"
+        android:excludeFromRecents="true"
+        android:exported="false"
+        android:noHistory="true"
+        android:resizeableActivity="true"
+        android:supportsPictureInPicture="true"
+        android:theme="@style/Theme.Chromium.Activity">
+    </activity>  # DIFF-ANCHOR: 43bdc48f
     <activity  # DIFF-ANCHOR: ecd48344
         android:name="org.chromium.chrome.browser.media.MediaLauncherActivity"
         android:enabled="false"
@@ -711,6 +726,10 @@
       </intent-filter>  # DIFF-ANCHOR: 1ebe78e9
       <meta-data android:name="android.appwidget.provider" android:resource="@xml/bookmark_widget_info"/>
     </receiver>  # DIFF-ANCHOR: 58d39a0f
+    <receiver  # DIFF-ANCHOR: 0a6f8fa5
+        android:name="com.google.android.gms.cast.framework.media.MediaIntentReceiver"
+        android:exported="false">
+    </receiver>  # DIFF-ANCHOR: 0a6f8fa5
     <receiver  # DIFF-ANCHOR: 68e22783
         android:name="org.chromium.chrome.browser.announcement.AnnouncementNotificationManager$Receiver"
         android:exported="false">
@@ -869,22 +888,6 @@
         android:exported="false"
         android:isolatedProcess="true">
     </service>  # DIFF-ANCHOR: 5d82e3ff
-    <service  # DIFF-ANCHOR: 4c2196d9
-        android:name="com.google.ipc.invalidation.ticl.android2.channel.GcmRegistrationTaskService"
-        android:exported="true"
-        android:permission="com.google.android.gms.permission.BIND_NETWORK_TASK_SERVICE">
-      <intent-filter>  # DIFF-ANCHOR: 99686c45
-        <action android:name="com.google.android.gms.gcm.ACTION_TASK_READY"/>
-      </intent-filter>  # DIFF-ANCHOR: 99686c45
-    </service>  # DIFF-ANCHOR: 4c2196d9
-    <service  # DIFF-ANCHOR: c34d99ad
-        android:name="org.chromium.chrome.browser.ChromeBackgroundService"
-        android:exported="true"
-        android:permission="com.google.android.gms.permission.BIND_NETWORK_TASK_SERVICE">
-      <intent-filter>  # DIFF-ANCHOR: 99686c45
-        <action android:name="com.google.android.gms.gcm.ACTION_TASK_READY"/>
-      </intent-filter>  # DIFF-ANCHOR: 99686c45
-    </service>  # DIFF-ANCHOR: c34d99ad
     <service  # DIFF-ANCHOR: b56e4a55
         android:name="org.chromium.chrome.browser.app.bluetooth.BluetoothNotificationService"
         android:exported="false">

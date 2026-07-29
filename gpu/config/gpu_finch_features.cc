@@ -154,6 +154,20 @@ BASE_FEATURE(kAdjustGpuProcessPriority, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kClearGrShaderDiskCacheOnInvalidPrefix,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// When enabled, Chrome will use the shader disk cache. This feature provides a
+// kill-switch for working around issues with the disk cache and assessing the
+// performance value of the disk cache. The --disable-gpu-shader-disk-cache flag
+// overrides this feature and forces the disk cache to be disabled.
+BASE_FEATURE(kGpuShaderDiskCache, base::FEATURE_ENABLED_BY_DEFAULT);
+
+bool IsShaderDiskCacheEnabled(const base::CommandLine* command_line) {
+  if (command_line->HasSwitch(switches::kDisableGpuShaderDiskCache)) {
+    return false;
+  }
+
+  return base::FeatureList::IsEnabled(kGpuShaderDiskCache);
+}
+
 // Enable Vulkan graphics backend for compositing and rasterization. Defaults to
 // native implementation if --use-vulkan flag is not used. Otherwise
 // --use-vulkan will be followed.
@@ -220,8 +234,6 @@ const base::FeatureParam<bool> kWebGPUSpontaneousWireServer{
 // Note that the comma should be URL-encoded.
 const base::FeatureParam<std::string> kWGSLUnsafeFeatures{
     &kWebGPUService, "UnsafeWGSLFeatures", ""};
-
-BASE_FEATURE(kWebGPUUseVulkanMemoryModel, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kWebGPUEnableRangeAnalysisForRobustness,
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -357,6 +369,9 @@ BASE_FEATURE_PARAM(bool,
                    &kSkiaGraphite,
                    "enable_deferred_submit",
                    true);
+
+const base::FeatureParam<bool> kSkiaGraphiteEnableMSAAOnNewerIntel{
+    &kSkiaGraphite, "enable_msaa_on_newer_intel", true};
 
 #if BUILDFLAG(IS_WIN)
 // Whether the we should DumpWithoutCrashing when D3D related errors are detected.

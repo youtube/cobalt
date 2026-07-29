@@ -7,6 +7,7 @@
 #include <optional>
 #include <variant>
 
+#include "base/notreached.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/types/pass_key.h"
 #include "media/formats/hls/parse_status.h"
@@ -16,8 +17,41 @@
 
 namespace media::hls {
 
+namespace {
+
+MediaTrack CreateTrackForRendition(const Rendition& rendition,
+                                   MediaType type,
+                                   RenditionGroup::RenditionTrackId unique_id) {
+  switch (type) {
+    case MediaType::kAudio: {
+      return MediaTrack::CreateAudioTrack(
+          /*id = */ rendition.GetName(),
+          /*kind =*/MediaTrack::AudioKind::kMain,
+          /*label = */ rendition.GetName(),
+          /*language = */ rendition.GetLanguage().value_or(""),
+          /*enabled = */ false,
+          /*stream_id =*/unique_id.value(),
+          /*exclusive =*/true);
+    }
+    case MediaType::kVideo: {
+      return MediaTrack::CreateVideoTrack(
+          /*id = */ rendition.GetName(),
+          /*kind =*/MediaTrack::VideoKind::kMain,
+          /*label = */ rendition.GetName(),
+          /*language = */ rendition.GetLanguage().value_or(""),
+          /*enabled = */ false,
+          /*stream_id =*/unique_id.value());
+    }
+    default: {
+      NOTREACHED();
+    }
+  }
+}
+
+}  // namespace
+
 RenditionGroup::RenditionGroup(base::PassKey<MultivariantPlaylist>,
-                               std::string id)
+                               std::optional<std::string> id)
     : id_(std::move(id)) {}
 
 RenditionGroup::~RenditionGroup() = default;
@@ -26,7 +60,7 @@ ParseStatus::Or<std::monostate> RenditionGroup::AddRendition(
     base::PassKey<MultivariantPlaylist>,
     XMediaTag tag,
     const GURL& playlist_uri,
-    uint64_t rendition_unique_id) {
+    RenditionTrackId unique_id) {
   DCHECK(tag.group_id.Str() == id_);
   DCHECK(playlist_uri.is_valid());
 
@@ -65,38 +99,6 @@ ParseStatus::Or<std::monostate> RenditionGroup::AddRendition(
     associated_language = std::string(tag.associated_language->Str());
   }
 
-  // TODO(crbug.com/371024058): We might want to try figuring out Kind
-  // values, but it would have to be post-hoc with respect to the entire
-  // rendition group being parsed. We could also figure out a better label
-  // value, since that's what gets shown to the used in the track selection UX.
-  std::optional<MediaTrack> track;
-  switch (tag.type) {
-    case MediaType::kAudio: {
-      track = MediaTrack::CreateAudioTrack(
-          /*id = */ name,
-          /*kind =*/MediaTrack::AudioKind::kMain,
-          /*label = */ name,
-          /*language = */ language.value_or(""),
-          /*enabled = */ false,
-          /*stream_id =*/rendition_unique_id,
-          /*exclusive =*/true);
-      break;
-    }
-    case MediaType::kVideo: {
-      track = MediaTrack::CreateVideoTrack(
-          /*id = */ name,
-          /*kind =*/MediaTrack::VideoKind::kMain,
-          /*label = */ name,
-          /*language = */ language.value_or(""),
-          /*enabled = */ false,
-          /*stream_id =*/rendition_unique_id);
-      break;
-    }
-    default: {
-      NOTREACHED();
-    }
-  }
-
   auto& rendition = renditions_.emplace_back(
       base::PassKey<RenditionGroup>(),
       Rendition::CtorArgs{
@@ -109,13 +111,17 @@ ParseStatus::Or<std::monostate> RenditionGroup::AddRendition(
           .autoselect = std::move(tag.autoselect),
       });
 
-  tracks_.push_back(*track);
-  renditions_map_.emplace(track->track_id(),
-                          std::make_tuple(*track, &rendition));
+  // TODO(crbug.com/371024058): We might want to try figuring out Kind
+  // values, but it would have to be post-hoc with respect to the entire
+  // rendition group being parsed. We could also figure out a better label
+  // value, since that's what gets shown to the used in the track selection UX.
+  MediaTrack track = CreateTrackForRendition(rendition, tag.type, unique_id);
+  tracks_.push_back(track);
+  renditions_map_.emplace(track.track_id(), std::make_tuple(track, &rendition));
 
   if (tag.is_default) {
     if (!default_rendition_.has_value()) {
-      default_rendition_ = std::make_tuple(*track, &rendition);
+      default_rendition_ = std::make_tuple(track, &rendition);
     } else if (!HLSQuirks::AllowMultipleDefaultRenditionsInGroup()) {
       return ParseStatusCode::kRenditionGroupHasDuplicateRenditionNames;
     }
@@ -126,8 +132,9 @@ ParseStatus::Or<std::monostate> RenditionGroup::AddRendition(
 
 RenditionGroup::RenditionTrack RenditionGroup::MakeImplicitRendition(
     base::PassKey<MultivariantPlaylist>,
+    MediaType type,
     const GURL& default_rendition_uri,
-    uint64_t rendition_unique_id) {
+    RenditionTrackId unique_id) {
   auto& rendition =
       renditions_.emplace_back(base::PassKey<RenditionGroup>(),
                                Rendition::CtorArgs{
@@ -139,14 +146,8 @@ RenditionGroup::RenditionTrack RenditionGroup::MakeImplicitRendition(
                                    .channels = std::nullopt,
                                    .autoselect = true,
                                });
-  MediaTrack track = MediaTrack::CreateVideoTrack(
-      /*id = */ rendition.GetName(),
-      /*kind =*/MediaTrack::VideoKind::kMain,
-      /*label = */ rendition.GetName(),
-      /*language = */ "",
-      /*enabled = */ true,
-      /*stream_id =*/rendition_unique_id);
-  return std::make_tuple(track, &rendition);
+  return std::make_tuple(CreateTrackForRendition(rendition, type, unique_id),
+                         &rendition);
 }
 
 const std::optional<RenditionGroup::RenditionTrack> RenditionGroup::MostSimilar(

@@ -74,6 +74,12 @@ struct CredentialUIEntry {
 
     // signon_realm of a corresponding PasswordForm.
     std::string signon_realm;
+
+    friend bool operator==(const DomainInfo& lhs,
+                           const DomainInfo& rhs) = default;
+
+    friend auto operator<=>(const DomainInfo& lhs,
+                            const DomainInfo& rhs) = default;
   };
 
   // Structure which represents a recovery password for a password changed in a
@@ -156,6 +162,10 @@ struct CredentialUIEntry {
   // and should be marked as such in management surfaces. Used for passkeys
   // only.
   bool hidden = false;
+
+  // The relying party identifier. Used for passkeys only, empty otherwise.
+  // https://w3c.github.io/webauthn/#relying-party-identifier
+  std::string rp_id;
 
   // Information about password insecurities.
   bool IsLeaked() const;

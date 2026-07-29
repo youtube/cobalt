@@ -147,7 +147,6 @@
 #include "third_party/blink/public/platform/scheduler/web_thread_scheduler.h"
 #include "third_party/blink/public/platform/web_cache.h"
 #include "third_party/blink/public/platform/web_image_generator.h"
-#include "third_party/blink/public/platform/web_memory_pressure_listener.h"
 #include "third_party/blink/public/platform/web_network_state_notifier.h"
 #include "third_party/blink/public/platform/web_runtime_features.h"
 #include "third_party/blink/public/platform/web_scoped_page_pauser.h"
@@ -1281,7 +1280,10 @@ void RenderThreadImpl::SetProcessState(
             features::kIsolatesPriorityBestEffortWhenHidden)) {
       blink::WebV8Features::SetIsolatePriority(
           base::Process::Priority::kBestEffort);
-    } else {
+    } else if (!process_priority_.has_value() ||
+               *process_priority_ != process_priority ||
+               base::FeatureList::IsEnabled(
+                   features::kIsolatesPriorityBestEffortWhenHidden)) {
       blink::WebV8Features::SetIsolatePriority(process_priority);
     }
   }
@@ -1303,23 +1305,13 @@ void RenderThreadImpl::SetProcessState(
           is_visible);
     }
 
-    if (is_visible)
+    if (is_visible) {
       OnRendererVisible();
-    else
+    } else {
       OnRendererHidden();
+    }
   }
 
-  if (process_priority_ != process_priority) {
-    TRACE_EVENT_END("renderer", process_priority_track_);
-    TRACE_EVENT_BEGIN("renderer", ProcessPriorityToString(process_priority),
-                      process_priority_track_);
-  }
-
-  if (visible_state_ != visible_state) {
-    TRACE_EVENT_END("renderer", process_visibility_track_);
-    TRACE_EVENT_BEGIN("renderer", ProcessVisibilityToString(visible_state),
-                      process_visibility_track_);
-  }
   process_priority_ = process_priority;
   visible_state_ = visible_state;
 }
@@ -1640,12 +1632,6 @@ void RenderThreadImpl::OnRendererHidden() {
   }
 
   blink_isolates_pressure_listener_.OnRendererHidden();
-
-  // TODO(rmcilroy): Remove IdleHandler and replace it with an IdleTask
-  // scheduled by the RendererScheduler - http://crbug.com/469210.
-  if (!GetContentClient()->renderer()->RunIdleHandlerWhenWidgetsHidden())
-    return;
-  main_thread_scheduler_->SetRendererHidden(true);
 }
 
 void RenderThreadImpl::OnRendererVisible() {
@@ -1654,12 +1640,7 @@ void RenderThreadImpl::OnRendererVisible() {
     blink::WebV8Features::SetIsolatePriority(
         base::Process::Priority::kUserBlocking);
   }
-
   blink_isolates_pressure_listener_.OnRendererVisible();
-
-  if (!GetContentClient()->renderer()->RunIdleHandlerWhenWidgetsHidden())
-    return;
-  main_thread_scheduler_->SetRendererHidden(false);
 }
 
 bool RenderThreadImpl::RendererIsBackgrounded() const {
@@ -1694,10 +1675,6 @@ void RenderThreadImpl::OnMemoryPressure(
         data->set_level(base::trace_event::MemoryPressureLevelToTraceEnum(
             memory_pressure_level));
       });
-
-  if (blink_platform_impl_) {
-    blink::WebMemoryPressureListener::OnMemoryPressure(memory_pressure_level);
-  }
 }
 
 void RenderThreadImpl::OnRendererInterfaceReceiver(

@@ -182,7 +182,8 @@ struct WebPreferences {
   // Disallow user opt-in for blockable mixed content.
   bool strictly_block_blockable_mixed_content;
   bool block_mixed_plugin_content;
-  bool password_echo_enabled;
+  bool password_echo_enabled_physical;
+  bool password_echo_enabled_touch;
   bool should_clear_document_background;
   bool enable_scroll_animator;
   bool prefers_reduced_motion;
@@ -512,8 +513,6 @@ struct WebPreferences {
   // Whether PaymentRequest is enabled. Controlled by WebView settings on
   // WebView and by `kWebPayments` feature flag everywhere.
   bool payment_request_enabled = false;
-
-  bool content_based_fingerprinting_protection_enabled = false;
 
   bool ai_prompt_api_enabled = false;
 

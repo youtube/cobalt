@@ -107,6 +107,7 @@
 
 #if BUILDFLAG(ENABLE_GLIC)
 #include "chrome/browser/glic/browser_ui/tab_underline_view.h"
+#include "chrome/browser/glic/browser_ui/tab_underline_view_controller_impl.h"
 #endif
 
 using base::UserMetricsAction;
@@ -263,8 +264,9 @@ Tab::Tab(TabSlotController* controller)
           controller_->GetBrowser()->GetProfile())) {
     glic_tab_underline_view_ = AddChildView(
         views::Builder<glic::TabUnderlineView>(
-            glic::TabUnderlineView::Factory::Create(controller->GetBrowser(),
-                                                    this))
+            glic::TabUnderlineView::Factory::Create(
+                std::make_unique<glic::TabUnderlineViewControllerImpl>(),
+                controller->GetBrowser(), this))
             // Needed so that expectations of visibility that
             // inform underline updates are correct on first show.
             .SetVisible(false)
@@ -280,7 +282,6 @@ Tab::Tab(TabSlotController* controller)
       base::BindRepeating(&Tab::CloseButtonPressed, base::Unretained(this)),
       base::BindRepeating(&TabSlotController::OnMouseEventInTab,
                           base::Unretained(controller_))));
-  close_button_->SetHasInkDropActionOnClick(true);
 
 #if BUILDFLAG(IS_CHROMEOS)
   showing_close_button_ = !controller_->IsLockedForOnTask();
@@ -904,6 +905,18 @@ void Tab::ActiveStateChanged() {
   icon_->SetActiveState(IsActive());
   alert_indicator_button_->OnParentTabButtonColorChanged();
   DeprecatedLayoutImmediately();
+}
+
+bool Tab::ShouldEnableMuteToggle(int required_width) {
+  return IsActive() || GetWidthOfLargestSelectableRegion() >= required_width;
+}
+
+void Tab::ToggleTabAudioMute() {
+  controller()->ToggleTabAudioMute(this);
+}
+
+bool Tab::IsApparentlyActive() const {
+  return tab_style_views()->GetApparentActiveState() == TabActive::kActive;
 }
 
 void Tab::AlertStateChanged() {

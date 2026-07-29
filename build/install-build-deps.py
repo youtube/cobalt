@@ -214,6 +214,7 @@ def apt_update(options):
 # Packages needed for development
 def dev_list():
   packages = [
+      "autoconf",
       "binutils",
       "bison",
       "bzip2",
@@ -626,7 +627,6 @@ def backwards_compatible_list(options):
 
       # Packages to build NaCl, its toolchains, and its ports.
       "ant",
-      "autoconf",
       "bison",
       "cmake",
       "gawk",

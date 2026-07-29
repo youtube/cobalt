@@ -61,6 +61,10 @@ const base::FeatureParam<bool>* GetPageActionsMigrationParam(
     case PageActionIconType::kSaveIban:
     case PageActionIconType::kSaveCard:
       return &features::kPageActionsMigrationSavePayments;
+    case PageActionIconType::kLensOverlayHomework:
+      return &features::kPageActionsMigrationLensOverlayHomework;
+    case PageActionIconType::kBookmarkStar:
+      return &features::kPageActionsMigrationBookmarkStar;
     default:
       return nullptr;
   }
@@ -69,6 +73,17 @@ const base::FeatureParam<bool>* GetPageActionsMigrationParam(
 }  // namespace
 
 bool IsPageActionMigrated(PageActionIconType page_action) {
+  if (!base::FeatureList::IsEnabled(features::kPageActionsMigration)) {
+    return false;
+  }
+
+  // Page actions on the new framework that don't have an implementation on the legacy path
+  // and don't have a feature param.
+  if (page_action == PageActionIconType::kContextualSidePanel ||
+      page_action == PageActionIconType::kJsOptimizations) {
+    return true;
+  }
+
   const auto* feature_param = GetPageActionsMigrationParam(page_action);
   if (feature_param == nullptr) {
     return false;

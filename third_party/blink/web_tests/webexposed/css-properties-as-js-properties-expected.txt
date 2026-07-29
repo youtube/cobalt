@@ -252,6 +252,10 @@ gridColumnEnd
 gridColumnGap
 gridColumnStart
 gridGap
+gridLanes
+gridLanesDirection
+gridLanesFill
+gridLanesFlow
 gridRow
 gridRowEnd
 gridRowGap
@@ -325,10 +329,6 @@ maskPosition
 maskRepeat
 maskSize
 maskType
-masonry
-masonryDirection
-masonryFill
-masonryFlow
 mathDepth
 mathShift
 mathStyle
@@ -474,11 +474,6 @@ scrollPaddingTop
 scrollSnapAlign
 scrollSnapStop
 scrollSnapType
-scrollStart
-scrollStartBlock
-scrollStartInline
-scrollStartX
-scrollStartY
 scrollTargetGroup
 scrollTimeline
 scrollTimelineAxis
@@ -549,9 +544,11 @@ textWrapMode
 textWrapStyle
 timelineScope
 timelineTrigger
+timelineTriggerExitRange
 timelineTriggerExitRangeEnd
 timelineTriggerExitRangeStart
 timelineTriggerName
+timelineTriggerRange
 timelineTriggerRangeEnd
 timelineTriggerRangeStart
 timelineTriggerSource

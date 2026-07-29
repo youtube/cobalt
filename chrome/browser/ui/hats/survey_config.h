@@ -85,10 +85,6 @@ extern const char kHatsSurveyTriggerComposeNudgeClose[];
 extern const char kHatsSurveyTriggerWhatsNew[];
 #else   // BUILDFLAG(IS_ANDROID)
 extern const char kHatsSurveyTriggerAndroidStartupSurvey[];
-extern const char kHatsSurveyTriggerQuickDelete[];
-extern const char kHatsSurveyTriggerClearBrowsingData[];
-extern const char kHatsSurveyTriggerSafetyHubAndroid[];
-extern const char kHatsSurveyOrganicTriggerSafetyHubAndroid[];
 extern const char kHatsSurveyTriggerSigninFirstRun[];
 extern const char kHatsSurveyTriggerSigninWeb[];
 extern const char kHatsSurveyTriggerSigninNtpAvatar[];

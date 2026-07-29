@@ -177,7 +177,6 @@ ci.builder(
     ),
     contact_team_email = "lexan@google.com",
     notifies = ["CFI Linux"],
-    siso_remote_jobs = siso.remote_jobs.DEFAULT,
 )
 
 ci.builder(
@@ -355,6 +354,7 @@ ci.builder(
             "clang_tot_gn",
             "no_treat_warnings_as_errors",
             "arm",
+            "remoteexec",
         ],
     ),
     targets = targets.bundle(
@@ -415,6 +415,7 @@ ci.builder(
             "shared",
             "debug",
             "arm",
+            "remoteexec",
         ],
     ),
     targets = targets.bundle(
@@ -459,6 +460,7 @@ ci.builder(
             "release",
             "x64",
             "dcheck_always_on",
+            "remoteexec",
         ],
     ),
     # TODO(crbug.com/41368235): Re-enable tests once there are devices to run them on.
@@ -514,6 +516,7 @@ ci.builder(
             "release",
             "x86",
             "dcheck_always_on",
+            "remoteexec",
         ],
     ),
     targets = targets.bundle(
@@ -559,6 +562,7 @@ ci.builder(
             "x86",
             "dcheck_always_on",
             "use_clang_coverage",
+            "remoteexec",
         ],
     ),
     targets = targets.bundle(
@@ -601,6 +605,7 @@ ci.builder(
             "no_treat_warnings_as_errors",
             "release",
             "arm64",
+            "remoteexec",
         ],
     ),
     targets = targets.bundle(
@@ -648,6 +653,7 @@ ci.builder(
             "clang_tot_gn",
             "no_treat_warnings_as_errors",
             "arm64",
+            "remoteexec",
         ],
     ),
     targets = targets.bundle(
@@ -690,6 +696,7 @@ ci.builder(
             "clang_tot_gn",
             "no_treat_warnings_as_errors",
             "x64",
+            "remoteexec",
         ],
     ),
     targets = targets.bundle(
@@ -729,6 +736,7 @@ ci.builder(
             "clang_tot_gn",
             "no_treat_warnings_as_errors",
             "x64",
+            "remoteexec",
         ],
     ),
     targets = targets.bundle(
@@ -772,6 +780,7 @@ ci.builder(
             "cast_receiver_size_optimized",
             "x64",
             "dcheck_always_on",
+            "remoteexec",
         ],
     ),
     targets = targets.bundle(
@@ -866,6 +875,7 @@ ci.builder(
             "arm64_host",
             "cast_receiver_size_optimized",
             "dcheck_always_on",
+            "remoteexec",
         ],
     ),
     targets = targets.bundle(
@@ -932,7 +942,6 @@ clang_tot_linux_builder(
         ],
     ),
     short_name = "rel",
-    siso_remote_jobs = min(siso.remote_jobs.HIGH_JOBS_FOR_CI, 400),
 )
 
 clang_tot_linux_builder(
@@ -972,7 +981,7 @@ clang_tot_linux_builder(
         ],
     ),
     short_name = "dbg",
-    siso_remote_jobs = min(siso.remote_jobs.HIGH_JOBS_FOR_CI, 400),
+    siso_remote_jobs = siso.remote_jobs.HIGH_JOBS_FOR_CI,
 )
 
 clang_tot_linux_builder(
@@ -1019,7 +1028,6 @@ clang_tot_linux_builder(
         ],
     ),
     short_name = "asn",
-    siso_remote_jobs = min(siso.remote_jobs.HIGH_JOBS_FOR_CI, 400),
 )
 
 clang_tot_linux_builder(
@@ -1067,7 +1075,6 @@ clang_tot_linux_builder(
     # Requires a large disk, so has a machine specifically devoted to it
     builderless = False,
     short_name = "fuz",
-    siso_remote_jobs = min(siso.remote_jobs.HIGH_JOBS_FOR_CI, 400),
 )
 
 clang_tot_linux_builder(
@@ -1081,6 +1088,7 @@ clang_tot_linux_builder(
             "minimal_symbols",
             "release",
             "x64",
+            "remoteexec",
         ],
     ),
     category = "ToT Code Coverage",
@@ -1168,7 +1176,6 @@ clang_tot_linux_builder(
         ],
     ),
     short_name = "pgo",
-    siso_remote_jobs = min(siso.remote_jobs.HIGH_JOBS_FOR_CI, 400),
 )
 
 clang_tot_linux_builder(
@@ -1209,7 +1216,6 @@ clang_tot_linux_builder(
         ],
     ),
     short_name = "tsn",
-    siso_remote_jobs = min(siso.remote_jobs.HIGH_JOBS_FOR_CI, 400),
 )
 
 clang_tot_linux_builder(
@@ -1250,7 +1256,6 @@ clang_tot_linux_builder(
         ],
     ),
     short_name = "usn",
-    siso_remote_jobs = min(siso.remote_jobs.HIGH_JOBS_FOR_CI, 400),
 )
 
 ci.builder(
@@ -2215,6 +2220,7 @@ ci.builder(
             "debug",
             "x64",
             "linux",
+            "remoteexec",
         ],
     ),
     targets = targets.bundle(

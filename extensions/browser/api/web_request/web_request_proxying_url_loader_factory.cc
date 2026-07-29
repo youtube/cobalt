@@ -13,6 +13,7 @@
 
 #include "base/check.h"
 #include "base/check_op.h"
+#include "base/debug/crash_logging.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
@@ -170,6 +171,9 @@ WebRequestProxyingURLLoaderFactory::InProgressRequest::InProgressRequest(
           network_service_request_id_ != 0 &&
           WebRequestEventRouter::Get(factory_->browser_context_)
               ->HasAnyExtraHeadersListener(factory_->browser_context_)),
+      has_any_security_info_listeners_(
+          WebRequestEventRouter::Get(factory_->browser_context_)
+              ->HasAnySecurityInfoListener(factory_->browser_context_)),
       navigation_response_task_runner_(navigation_response_task_runner) {
   TRACE_EVENT_WITH_FLOW1(
       "extensions",
@@ -205,7 +209,10 @@ WebRequestProxyingURLLoaderFactory::InProgressRequest::InProgressRequest(
       for_cors_preflight_(true),
       has_any_extra_headers_listeners_(
           WebRequestEventRouter::Get(factory_->browser_context_)
-              ->HasAnyExtraHeadersListener(factory_->browser_context_)) {
+              ->HasAnyExtraHeadersListener(factory_->browser_context_)),
+      has_any_security_info_listeners_(
+          WebRequestEventRouter::Get(factory_->browser_context_)
+              ->HasAnySecurityInfoListener(factory_->browser_context_)) {
   TRACE_EVENT_WITH_FLOW1(
       "extensions",
       "WebRequestProxyingURLLoaderFactory::InProgressRequest::"
@@ -278,6 +285,10 @@ void WebRequestProxyingURLLoaderFactory::InProgressRequest::
   // `current_request_uses_header_client_` is true but the request is not made
   // with the kURLLoadOptionUseHeaderClient option, also check
   // `has_any_extra_headers_listeners_` here. See http://crbug.com/1074282.
+  // Note that the header client is also used with has_any_security_info_client
+  // to obtain ssl_info of the connection. However, value of
+  // current_request_uses_header_client might be false, to not expose sensitive
+  // headers.
   current_request_uses_header_client_ =
       has_any_extra_headers_listeners_ &&
       factory_->url_loader_header_client_receiver_.is_bound() &&
@@ -647,6 +658,13 @@ void WebRequestProxyingURLLoaderFactory::InProgressRequest::OnHeadersReceived(
       "for_cors_preflight", for_cors_preflight_);
 
   auto parsed_headers = base::MakeRefCounted<net::HttpResponseHeaders>(headers);
+
+  if (WebRequestEventRouter::Get(factory_->browser_context_)
+          ->HasSecurityInfoListenerForRequest(factory_->browser_context_,
+                                              &info_.value())) {
+    info_->AddSslInfo(ssl_info);
+  }
+
   if (!current_request_uses_header_client_) {
     std::move(callback).Run(net::OK, std::nullopt, std::nullopt);
 
@@ -858,7 +876,7 @@ void WebRequestProxyingURLLoaderFactory::InProgressRequest::
     uint32_t options = options_;
     // Even if this request does not use the header client, future redirects
     // might, so we need to set the option on the loader.
-    if (has_any_extra_headers_listeners_) {
+    if (has_any_extra_headers_listeners_ || has_any_security_info_listeners_) {
       options |= network::mojom::kURLLoadOptionUseHeaderClient;
     }
     factory_->target_factory_->CreateLoaderAndStart(
@@ -1251,6 +1269,13 @@ void WebRequestProxyingURLLoaderFactory::InProgressRequest::
 
   WebRequestEventRouter::Get(factory_->browser_context_)
       ->OnResponseStarted(factory_->browser_context_, &info_.value(), net::OK);
+
+  // OnReceiveResponse() can be called at most once. This check is added to
+  // debug crbug.com/463388771.
+  SCOPED_CRASH_KEY_STRING1024("crbug463388771", "proxied_url",
+                              request_.url.spec());
+  CHECK(!has_forwarded_response_);
+  has_forwarded_response_ = true;
   target_client_->OnReceiveResponse(current_response_.Clone(),
                                     std::move(current_body_),
                                     std::move(current_cached_metadata_));

@@ -18,6 +18,11 @@
 #include "chrome/browser/ui/browser.h"
 #include "components/keyed_service/content/browser_context_dependency_manager.h"
 
+#if BUILDFLAG(IS_CHROMEOS)
+#include "chromeos/ash/components/browser_context_helper/browser_context_helper.h"
+#include "chromeos/constants/chromeos_features.h"
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
 namespace glic {
 
 namespace internal {
@@ -107,7 +112,11 @@ class GlicTestEnvironmentServiceFactory : public ProfileKeyedServiceFactory {
 
 std::vector<base::test::FeatureRef> GetDefaultEnabledGlicTestFeatures() {
   return {features::kGlic, features::kTabstripComboButton,
-          features::kGlicRollout};
+          features::kGlicRollout,
+#if BUILDFLAG(IS_CHROMEOS)
+          chromeos::features::kFeatureManagementGlic
+#endif  // BUILDFLAG(IS_CHROMEOS)
+  };
 }
 std::vector<base::test::FeatureRef> GetDefaultDisabledGlicTestFeatures() {
   return {features::kGlicWarming, features::kGlicFreWarming};
@@ -194,6 +203,25 @@ GlicTestEnvironmentService::GlicTestEnvironmentService(Profile* profile)
     SetFRECompletion(*config.fre_status);
   }
   if (config.force_signin_and_model_execution_capability) {
+#if BUILDFLAG(IS_CHROMEOS)
+    // SigninWithPrimaryAccount below internally runs RunLoop to wait for an
+    // async task completion. This is the test only behavior.
+    // However, that has side effect that other tasks in the queue also runs.
+    // Specifically, some of the queued tasks will require communicating with
+    // SigninBrowserContext, and if it's not existing, the instance is created.
+    // Because this running inside a KeyedService construction,
+    // KeyedServiceTemplatedFactory temporarily keeps the map entry between
+    // the current browser context and the info of this KeyedService instance.
+    // However, the entry is invalidated if another BrowserContext is created,
+    // like SigninBrowserContext case explained above, regardless of whether
+    // the newly created BrowserContext will create this service or not.
+    // Thus, after returning from this function, it will cause crashes.
+    // To avoid such crashes, while running the async task, we temporarily
+    // disable the creation of new BrowserContext for the workaround.
+    // See also crbug.com/460334478 for details.
+    auto disabled = ash::BrowserContextHelper::
+        DisableImplicitBrowserContextCreationForTest();
+#endif
     SigninWithPrimaryAccount(profile);
     SetModelExecutionCapability(true);
   }

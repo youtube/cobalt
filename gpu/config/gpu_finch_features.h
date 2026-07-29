@@ -52,6 +52,10 @@ GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kAdjustGpuProcessPriority);
 
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kClearGrShaderDiskCacheOnInvalidPrefix);
 
+GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kGpuShaderDiskCache);
+GPU_CONFIG_EXPORT bool IsShaderDiskCacheEnabled(
+    const base::CommandLine* command_line);
+
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kVulkan);
 
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kSkiaGraphite);
@@ -68,6 +72,8 @@ GPU_CONFIG_EXPORT extern const base::FeatureParam<int>
     kSkiaGraphiteMaxPendingRecordings;
 GPU_CONFIG_EXPORT extern const base::FeatureParam<bool>
     kSkiaGraphiteEnableDeferredSubmit;
+GPU_CONFIG_EXPORT extern const base::FeatureParam<bool>
+    kSkiaGraphiteEnableMSAAOnNewerIntel;
 
 #if BUILDFLAG(IS_WIN)
 GPU_CONFIG_EXPORT extern const base::FeatureParam<bool>
@@ -100,7 +106,6 @@ GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kEnableDrDcVulkan);
 
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kWebGPUService);
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kWebGPUBlobCache);
-GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kWebGPUUseVulkanMemoryModel);
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kWebGPUEnableRangeAnalysisForRobustness);
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kWebGPUAndroidOpenGLES);
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kWebGPUUseSpirv14);

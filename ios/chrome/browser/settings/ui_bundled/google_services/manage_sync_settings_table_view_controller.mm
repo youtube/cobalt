@@ -8,7 +8,6 @@
 #import "ios/chrome/browser/authentication/ui_bundled/cells/central_account_view.h"
 #import "ios/chrome/browser/net/model/crurl.h"
 #import "ios/chrome/browser/policy/model/management_state.h"
-#import "ios/chrome/browser/settings/ui_bundled/cells/settings_image_detail_text_cell.h"
 #import "ios/chrome/browser/settings/ui_bundled/cells/sync_switch_item.h"
 #import "ios/chrome/browser/settings/ui_bundled/elements/enterprise_info_popover_view_controller.h"
 #import "ios/chrome/browser/settings/ui_bundled/google_services/manage_sync_settings_constants.h"
@@ -25,12 +24,12 @@
 namespace {
 
 // Table view customized header heights.
-CGFloat kAdvancedSettingsSectionHeaderHeightPointSize = 26.;
-CGFloat kSignOutSectionHeaderHeightPointSize = 26.;
-CGFloat kDefaultSectionHeaderHeightPointSize = 10.;
+constexpr CGFloat kAdvancedSettingsSectionHeaderHeightPointSize = 26.;
+constexpr CGFloat kSignOutSectionHeaderHeightPointSize = 26.;
+constexpr CGFloat kDefaultSectionHeaderHeightPointSize = 10.;
 
 // Table view customized footer heights.
-CGFloat kDefaultSectionFooterHeightPointSize = 10.;
+constexpr CGFloat kDefaultSectionFooterHeightPointSize = 10.;
 
 }  // namespace
 
@@ -62,16 +61,6 @@ CGFloat kDefaultSectionFooterHeightPointSize = 10.;
 }
 
 #pragma mark - UITableViewDataSource
-
-- (UITableViewCell*)tableView:(UITableView*)tableView
-        cellForRowAtIndexPath:(NSIndexPath*)indexPath {
-  UITableViewCell* cell = [super tableView:tableView
-                     cellForRowAtIndexPath:indexPath];
-  if ([cell isKindOfClass:[SettingsImageDetailTextCell class]]) {
-    cell.selectionStyle = UITableViewCellSelectionStyleNone;
-  }
-  return cell;
-}
 
 - (UIView*)tableView:(UITableView*)tableView
     viewForFooterInSection:(NSInteger)section {

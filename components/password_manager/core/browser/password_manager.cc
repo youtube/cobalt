@@ -535,6 +535,10 @@ PasswordForm CreateFormForLeakCheck(const PasswordForm& pending_credentials,
       submitted_credentials.new_password_element_renderer_id;
   form.confirmation_password_element_renderer_id =
       submitted_credentials.confirmation_password_element_renderer_id;
+  // Take the url from the submitted form because the url from pendind
+  // credentials may be for the site where the stored password was saved
+  // originally.
+  form.url = submitted_credentials.url;
   return form;
 }
 
@@ -606,6 +610,11 @@ void PasswordManager::RegisterProfilePrefs(
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)  // Desktop
   registry->RegisterListPref(prefs::kPasswordManagerPromoCardsList);
 #endif  // BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN) || \
+    BUILDFLAG(IS_MAC)
+  registry->RegisterListPref(prefs::kPasswordManagerBlocklist);
+#endif  // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN) ||
+        // BUILDFLAG(IS_MAC)
   registry->RegisterBooleanPref(prefs::kPasswordSharingEnabled, true);
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
   registry->RegisterIntegerPref(prefs::kRelaunchChromeBubbleDismissedCounter,

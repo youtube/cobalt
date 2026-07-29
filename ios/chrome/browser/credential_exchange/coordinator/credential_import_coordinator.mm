@@ -4,6 +4,7 @@
 
 #import "ios/chrome/browser/credential_exchange/coordinator/credential_import_coordinator.h"
 
+#import "base/notreached.h"
 #import "components/keyed_service/core/service_access_type.h"
 #import "components/metrics/metrics_pref_names.h"
 #import "components/password_manager/core/browser/ui/saved_passwords_presenter.h"
@@ -13,7 +14,10 @@
 #import "components/webauthn/core/browser/passkey_model.h"
 #import "ios/chrome/browser/affiliations/model/ios_chrome_affiliation_service_factory.h"
 #import "ios/chrome/browser/credential_exchange/coordinator/credential_import_mediator.h"
+#import "ios/chrome/browser/credential_exchange/public/credential_import_stage.h"
 #import "ios/chrome/browser/credential_exchange/ui/credential_import_view_controller.h"
+#import "ios/chrome/browser/data_import/public/password_import_item.h"
+#import "ios/chrome/browser/data_import/ui/data_import_credential_conflict_resolution_view_controller.h"
 #import "ios/chrome/browser/passwords/model/ios_chrome_account_password_store_factory.h"
 #import "ios/chrome/browser/passwords/model/ios_chrome_profile_password_store_factory.h"
 #import "ios/chrome/browser/settings/ui_bundled/password/create_password_manager_title_view.h"
@@ -95,6 +99,14 @@
   _navigationController.navigationBarHidden = NO;
 }
 
+- (void)stop {
+  [_viewController.presentingViewController dismissViewControllerAnimated:YES
+                                                               completion:nil];
+  _mediator = nil;
+  _navigationController = nil;
+  _viewController = nil;
+}
+
 #pragma mark - CredentialImportMediatorDelegate
 
 - (void)showImportScreen {
@@ -103,35 +115,71 @@
                                       completion:nil];
 }
 
+- (void)showConflictResolutionScreenWithPasswords:
+    (NSArray<PasswordImportItem*>*)passwords {
+  // Wraps the conflict resolution view in a navigation controller to display
+  // navigation bar and toolbar.
+  DataImportCredentialConflictResolutionViewController*
+      conflictResolutionViewController =
+          [[DataImportCredentialConflictResolutionViewController alloc]
+              initWithPasswordConflicts:passwords];
+  conflictResolutionViewController.mutator = _mediator;
+  UINavigationController* wrapper = [[UINavigationController alloc]
+      initWithRootViewController:conflictResolutionViewController];
+  wrapper.toolbarHidden = NO;
+  wrapper.modalInPresentation = YES;
+  [self presentViewController:wrapper];
+}
+
 #pragma mark - PromoStyleViewControllerDelegate
 
 - (void)didTapPrimaryActionButton {
-  // TODO(crbug.com/450982128): Skip fetching keys with no passkeys present.
-  bool metricsReportingEnabled =
-      GetApplicationContext()->GetLocalState()->GetBoolean(
-          metrics::prefs::kMetricsReportingEnabled);
-  _passkeyKeychainProviderBridge = [[PasskeyKeychainProviderBridge alloc]
-        initWithEnableLogging:metricsReportingEnabled
-         navigationController:_navigationController
-      navigationItemTitleView:password_manager::CreatePasswordManagerTitleView(
-                                  l10n_util::GetNSString(
-                                      IDS_IOS_PASSWORD_MANAGER))];
-  _passkeyKeychainProviderBridge.delegate = self;
+  switch (_mediator.importStage) {
+    case CredentialImportStage::kNotStarted: {
+      // If no passkeys are being imported, there is no point in fetching the
+      // security domain secret. Proceed to start the importing process.
+      if (!_mediator.importingPasskeys) {
+        [_mediator startImportingCredentialsWithSecurityDomainSecrets:nil];
+        break;
+      }
 
-  CoreAccountInfo account =
-      IdentityManagerFactory::GetForProfile(self.profile)
-          ->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin);
-  __weak __typeof(self) weakSelf = self;
-  [_passkeyKeychainProviderBridge
-      fetchSecurityDomainSecretForGaia:account.gaia.ToNSString()
-                            credential:nil
-                               purpose:PasskeyKeychainProvider::
-                                           ReauthenticatePurpose::kEncrypt
-                            completion:^(
-                                NSArray<NSData*>* securityDomainSecrets) {
-                              [weakSelf onSecurityDomainSecretsFetched:
-                                            securityDomainSecrets];
-                            }];
+      bool metricsReportingEnabled =
+          GetApplicationContext()->GetLocalState()->GetBoolean(
+              metrics::prefs::kMetricsReportingEnabled);
+      _passkeyKeychainProviderBridge = [[PasskeyKeychainProviderBridge alloc]
+            initWithEnableLogging:metricsReportingEnabled
+             navigationController:_navigationController
+          navigationItemTitleView:
+              password_manager::CreatePasswordManagerTitleView(
+                  l10n_util::GetNSString(IDS_IOS_PASSWORD_MANAGER))];
+      _passkeyKeychainProviderBridge.delegate = self;
+
+      CoreAccountInfo account =
+          IdentityManagerFactory::GetForProfile(self.profile)
+              ->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin);
+      __weak __typeof(self) weakSelf = self;
+      [_passkeyKeychainProviderBridge
+          fetchSecurityDomainSecretForGaia:account.gaia.ToNSString()
+                                credential:nil
+                                   purpose:webauthn::ReauthenticatePurpose::
+                                               kEncrypt
+                                completion:^(
+                                    NSArray<NSData*>* securityDomainSecrets) {
+                                  [weakSelf onSecurityDomainSecretsFetched:
+                                                securityDomainSecrets];
+                                }];
+      break;
+    }
+    case CredentialImportStage::kImporting:
+      NOTREACHED() << "Primary action button should be disabled";
+    case CredentialImportStage::kImported:
+      [self.delegate credentialImportCoordinatorDidFinish:self];
+      break;
+  }
+}
+
+- (void)didTapDismissButton {
+  [self.delegate credentialImportCoordinatorDidFinish:self];
 }
 
 #pragma mark - PasskeyKeychainProviderBridgeDelegate
@@ -187,6 +235,18 @@
 
   [_mediator
       startImportingCredentialsWithSecurityDomainSecrets:securityDomainSecrets];
+}
+
+// Presents `viewController` and returns `YES` if no other view controller is
+// being presented. Returns `NO` otherwise.
+- (BOOL)presentViewController:(UIViewController*)viewController {
+  if (_viewController.presentedViewController) {
+    return NO;
+  }
+  [_viewController presentViewController:viewController
+                                animated:YES
+                              completion:nil];
+  return YES;
 }
 
 @end

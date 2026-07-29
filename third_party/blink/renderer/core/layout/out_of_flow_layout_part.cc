@@ -13,6 +13,7 @@
 #include "third_party/blink/renderer/core/accessibility/ax_object_cache.h"
 #include "third_party/blink/renderer/core/css/css_property_value_set.h"
 #include "third_party/blink/renderer/core/css/out_of_flow_data.h"
+#include "third_party/blink/renderer/core/css/style_engine.h"
 #include "third_party/blink/renderer/core/display_lock/display_lock_document_state.h"
 #include "third_party/blink/renderer/core/dom/flat_tree_traversal.h"
 #include "third_party/blink/renderer/core/frame/web_feature.h"
@@ -311,16 +312,23 @@ class OOFCandidateStyleIterator {
 
   bool ElementStyleDependsOnAnchor(const Element& element,
                                    const ComputedStyle& style) {
-    if (style.PositionAnchor() || element.ImplicitAnchorElement()) {
-      // anchor-center offsets may need to be updated since the layout of the
-      // anchor may have changed. anchor-center offsets are computed when a
-      // default anchor is present.
-      return true;
-    }
     if (style.HasAnchorFunctions()) {
       return true;
     }
-    return false;
+
+    // anchor-center offsets may need to be updated since the layout of the
+    // anchor may have changed. anchor-center offsets are computed when a
+    // default anchor is present.
+    const StylePositionAnchor& position_anchor = style.PositionAnchor();
+    using Type = StylePositionAnchor::Type;
+    switch (position_anchor.GetType()) {
+      case Type::kNone:
+        return false;
+      case Type::kAuto:
+        return static_cast<bool>(element.ImplicitAnchorElement());
+      case Type::kName:
+        return true;
+    }
   }
 
   // Update the style using the specified index into `position_try_fallbacks_`
@@ -401,30 +409,40 @@ const Element* GetPositionAnchorElement(const BlockNode& node,
   if (!anchor_map) {
     return nullptr;
   }
-  if (const ScopedCSSName* specifier = style.PositionAnchor()) {
-    const LayoutBox& anchored_box = *node.GetLayoutBox();
 
-    // OOFs in fragmentation do not follow the actual containing block structure
-    // (instead they become direct children of a fragmentainer). We need to pass
-    // the actual (CSS) containing block in such cases, in order to determine
-    // which anchors in the list are acceptable.
-    const LayoutObject* actual_containing_block = nullptr;
-    if (anchored_box.MightBeInsideFragmentationContext()) {
-      actual_containing_block = anchored_box.Container();
-    }
+  const StylePositionAnchor& position_anchor = style.PositionAnchor();
+  using Type = StylePositionAnchor::Type;
+  switch (position_anchor.GetType()) {
+    case Type::kNone:
+      return nullptr;
+    case Type::kAuto:
+      if (const auto* element = DynamicTo<Element>(node.GetDOMNode())) {
+        return element->ImplicitAnchorElement();
+      }
+      return nullptr;
+    case Type::kName: {
+      const LayoutBox& anchored_box = *node.GetLayoutBox();
 
-    if (const PhysicalAnchorReference* reference = anchor_map->AnchorReference(
-            anchored_box, actual_containing_block,
-            ToAnchorScopedName(*specifier, anchored_box))) {
-      DCHECK(reference->GetLayoutObject());
-      return &reference->GetElement();
+      // OOFs in fragmentation do not follow the actual containing block
+      // structure (instead they become direct children of a fragmentainer). We
+      // need to pass the actual (CSS) containing block in such cases, in order
+      // to determine which anchors in the list are acceptable.
+      const LayoutObject* actual_containing_block = nullptr;
+      if (anchored_box.MightBeInsideFragmentationContext()) {
+        actual_containing_block = anchored_box.Container();
+      }
+
+      if (const PhysicalAnchorReference* reference =
+              anchor_map->AnchorReference(
+                  anchored_box, actual_containing_block,
+                  ToAnchorScopedName(position_anchor.GetName(),
+                                     anchored_box))) {
+        DCHECK(reference->GetLayoutObject());
+        return &reference->GetElement();
+      }
+      return nullptr;
     }
-    return nullptr;
   }
-  if (auto* element = DynamicTo<Element>(node.GetDOMNode())) {
-    return element->ImplicitAnchorElement();
-  }
-  return nullptr;
 }
 
 const LayoutObject* GetPositionAnchorObject(const BlockNode& node,
@@ -653,37 +671,32 @@ void OutOfFlowLayoutPart::Run() {
   //  - Additions/removals may occur while processing normal out-of-flow
   //    positioned elements (e.g. via a container-query).
   //  - They correctly reference any anchor()s from preceding elements.
-  if (!container_builder_->IsRoot()) {
-    return;
-  }
+  if (container_builder_->IsRoot()) {
+    for (LayoutInputNode child = node.FirstChild(); child;
+         child = child.NextSibling()) {
+      if (!child.IsBlock()) {
+        continue;
+      }
+      BlockNode block_child = To<BlockNode>(child);
+      if (!block_child.IsInTopOrViewTransitionLayer() ||
+          !block_child.IsOutOfFlowPositioned()) {
+        continue;
+      }
 
-  for (LayoutInputNode child = node.FirstChild(); child;
-       child = child.NextSibling()) {
-    if (!child.IsBlock()) {
-      continue;
+      // https://drafts.csswg.org/css-position-4/#top-styling
+      // The static position for top-layer elements is just 0x0.
+      container_builder_->AddOutOfFlowChildCandidate(
+          block_child, LogicalStaticPosition(),
+          /*allow_top_layer_nodes=*/true);
+
+      // With one top-layer node added, run through the machinery again. Note
+      // that we need to do this separately for each node, as laying out a node
+      // may cause top-layer nodes to be added or removed.
+      HandleFragmentation();
+      candidates.Shrink(0);
+      container_builder_->SwapOutOfFlowPositionedCandidates(&candidates);
+      LayoutCandidates(candidates);
     }
-    BlockNode block_child = To<BlockNode>(child);
-    if (!block_child.IsInTopOrViewTransitionLayer() ||
-        !block_child.IsOutOfFlowPositioned()) {
-      continue;
-    }
-
-    // https://drafts.csswg.org/css-position-4/#top-styling
-    // The static position for top-layer elements is just 0x0.
-    container_builder_->AddOutOfFlowChildCandidate(
-        block_child, LogicalOffset(),
-        LogicalStaticPosition::InlineEdge::kInlineStart,
-        LogicalStaticPosition::BlockEdge::kBlockStart,
-        LogicalStaticPosition::LogicalAlignmentDirection::kBlock,
-        /*allow_top_layer_nodes=*/true);
-
-    // With one top-layer node added, run through the machinery again. Note that
-    // we need to do this separately for each node, as laying out a node may
-    // cause top-layer nodes to be added or removed.
-    HandleFragmentation();
-    candidates.Shrink(0);
-    container_builder_->SwapOutOfFlowPositionedCandidates(&candidates);
-    LayoutCandidates(candidates);
   }
 }
 
@@ -877,8 +890,8 @@ OutOfFlowLayoutPart::GetContainingBlockInfo(
   bool is_hidden_for_paint =
       container_builder_->GetConstraintSpace().IsHiddenForPaint();
 
-  auto IsPlacedWithinGridOrMasonryArea = [&](const auto* containing_block) {
-    if (!containing_block->IsLayoutGridOrMasonry()) {
+  auto IsPlacedWithinGridOrGridLanesArea = [&](const auto* containing_block) {
+    if (!containing_block->IsLayoutGridOrGridLanes()) {
       return false;
     }
 
@@ -892,7 +905,7 @@ OutOfFlowLayoutPart::GetContainingBlockInfo(
       [&](const LayoutBox& containing_box, const GridLayoutData& layout_data,
           const BoxStrut& borders,
           const LogicalSize& size) -> OutOfFlowLayoutPart::ContainingBlockInfo {
-    DCHECK(containing_box.IsLayoutGrid() || containing_box.IsLayoutMasonry());
+    DCHECK(containing_box.IsLayoutGrid() || containing_box.IsLayoutGridLanes());
 
     const auto& style = containing_box.StyleRef();
     GridItemData* item =
@@ -905,8 +918,8 @@ OutOfFlowLayoutPart::GetContainingBlockInfo(
           style, borders, size, item);
     } else {
       rect = MasonryLayoutAlgorithm::ComputeOutOfFlowItemContainingRect(
-          To<LayoutMasonry>(containing_box).CachedPlacementData(), layout_data,
-          style, borders, size, item);
+          To<LayoutGridLanes>(containing_box).CachedPlacementData(),
+          layout_data, style, borders, size, item);
     }
 
     return {.writing_direction = style.GetWritingDirection(),
@@ -935,7 +948,7 @@ OutOfFlowLayoutPart::GetContainingBlockInfo(
 
       bool is_placed_within_grid_area =
           containing_block->IsLayoutGrid() &&
-          IsPlacedWithinGridOrMasonryArea(containing_block);
+          IsPlacedWithinGridOrGridLanesArea(containing_block);
       auto it = containing_blocks_map_.find(containing_block);
       if (it != containing_blocks_map_.end() && !is_placed_within_grid_area)
         return it->value;
@@ -951,7 +964,7 @@ OutOfFlowLayoutPart::GetContainingBlockInfo(
                             ->Borders()
                             .ConvertToLogical(writing_direction);
 
-      // TODO(yanlingwang): Add support for masonry fragmentation.
+      // TODO(yanlingwang): Add support for grid-lanes fragmentation.
       if (is_placed_within_grid_area) {
         return GridAreaContainingBlockInfo(
             *To<LayoutGrid>(containing_block),
@@ -978,7 +991,7 @@ OutOfFlowLayoutPart::GetContainingBlockInfo(
     }
   }
 
-  if (IsPlacedWithinGridOrMasonryArea(container_object)) {
+  if (IsPlacedWithinGridOrGridLanesArea(container_object)) {
     return GridAreaContainingBlockInfo(
         *To<LayoutBox>(container_object),
         container_builder_->GetGridLayoutData(), container_builder_->Borders(),
@@ -1025,6 +1038,9 @@ void OutOfFlowLayoutPart::ComputeInlineContainingBlocks(
 void OutOfFlowLayoutPart::ComputeInlineContainingBlocksForFragmentainer(
     const HeapVector<LogicalOofNodeForFragmentation>& descendants) {
   struct InlineContainingBlockInfo {
+    DISALLOW_NEW();
+
+   public:
     InlineContainingBlockUtils::InlineContainingBlockMap map;
     // The relative offset of the inline's containing block to the
     // fragmentation context root.
@@ -1032,10 +1048,12 @@ void OutOfFlowLayoutPart::ComputeInlineContainingBlocksForFragmentainer(
     // The offset of the containing block relative to the fragmentation context
     // root (not including any relative offset).
     LogicalOffset offset_to_fragmentation_context;
+
+    void Trace(Visitor* visitor) const { visitor->Trace(map); }
   };
 
   HeapHashMap<Member<const LayoutBox>, InlineContainingBlockInfo>
-      inline_containg_blocks;
+      inline_containing_blocks;
 
   // Collect the inline containers by shared containing block.
   for (auto& descendant : descendants) {
@@ -1048,8 +1066,8 @@ void OutOfFlowLayoutPart::ComputeInlineContainingBlocksForFragmentainer(
           inline_geometry = {};
       inline_geometry.relative_offset =
           descendant.inline_container.relative_offset;
-      auto it = inline_containg_blocks.find(containing_block);
-      if (it != inline_containg_blocks.end()) {
+      auto it = inline_containing_blocks.find(containing_block);
+      if (it != inline_containing_blocks.end()) {
         if (!it->value.map.Contains(descendant.inline_container.container)) {
           it->value.map.insert(descendant.inline_container.container.Get(),
                                inline_geometry);
@@ -1060,15 +1078,16 @@ void OutOfFlowLayoutPart::ComputeInlineContainingBlocksForFragmentainer(
       inline_containers.insert(descendant.inline_container.container.Get(),
                                inline_geometry);
       InlineContainingBlockInfo inline_info{
-          inline_containers, descendant.containing_block.RelativeOffset(),
+          std::move(inline_containers),
+          descendant.containing_block.RelativeOffset(),
           descendant.containing_block.Offset()};
-      inline_containg_blocks.insert(containing_block, inline_info);
+      inline_containing_blocks.insert(containing_block, inline_info);
     }
   }
 
-  for (auto& inline_containg_block : inline_containg_blocks) {
-    const LayoutBox* containing_block = inline_containg_block.key;
-    InlineContainingBlockInfo& inline_info = inline_containg_block.value;
+  for (auto& inline_containing_block : inline_containing_blocks) {
+    const LayoutBox* containing_block = inline_containing_block.key;
+    InlineContainingBlockInfo& inline_info = inline_containing_block.value;
 
     LogicalSize size(BoxInlineSize(*containing_block),
                      BoxTotalBlockSize(*containing_block));
@@ -2034,7 +2053,7 @@ const LayoutResult* OutOfFlowLayoutPart::LayoutOOFNode(
       PaintLayerScrollableArea::FreezeScrollbarsRootScope freezer(
           *node_info.node.GetLayoutBox(), freeze_horizontal, freeze_vertical);
 
-      if (!IsBreakInside(oof_node_to_layout.break_token)) {
+      if (!IsBreakInside(node_info.break_token)) {
         // The offset itself does not need to be recalculated. However, the
         // |node_dimensions| and |initial_layout_result| may need to be updated,
         // so recompute the OffsetInfo.
@@ -2405,6 +2424,11 @@ OutOfFlowLayoutPart::OffsetInfo OutOfFlowLayoutPart::CalculateOffset(
   offset_info->display_locks_affected_by_anchors =
       anchor_evaluator.GetDisplayLocksAffectedByAnchors();
 
+  if (anchor_evaluator.DidResolveAnchorWithRunningTransformAnimation()) {
+    DCHECK(RuntimeEnabledFeatures::CSSAnchorWithTransformsEnabled());
+    container_builder_->SetHasRunningAnchorTransformAnimation();
+  }
+
   return *offset_info;
 }
 
@@ -2426,8 +2450,8 @@ OutOfFlowLayoutPart::TryCalculateOffset(
   // to end up with a candidate style with different values.
   DCHECK_EQ(node_info.node.Style().GetWritingDirection(),
             candidate_style.GetWritingDirection());
-  DCHECK(base::ValuesEquivalent(node_info.node.Style().PositionAnchor(),
-                                candidate_style.PositionAnchor()));
+  DCHECK(node_info.node.Style().PositionAnchor() ==
+         candidate_style.PositionAnchor());
 
   // If we have a valid default anchor, we use the scrollable containing-block:
   // https://drafts.csswg.org/css-position-4/#scrollable-containing-block
@@ -2769,7 +2793,7 @@ const LayoutResult* OutOfFlowLayoutPart::GenerateFragment(
     bool is_last_fragmentainer_so_far) {
   const NodeInfo& node_info = oof_node_to_layout.node_info;
   const OffsetInfo& offset_info = oof_node_to_layout.offset_info;
-  const BlockBreakToken* break_token = oof_node_to_layout.break_token;
+  const BlockBreakToken* break_token = node_info.break_token;
   const BlockNode& node = node_info.node;
   const auto& style = node.Style();
   const LayoutUnit block_offset = offset_info.offset.block_offset;
@@ -3028,9 +3052,8 @@ void OutOfFlowLayoutPart::AddOOFToFragmentainer(
     // includes the block contribution of |descendant| from previous
     // fragmentainers. This ensures that any fixedpos descendants in the current
     // fragmentainer have the correct static position.
-    if (descendant.break_token) {
-      additional_fixedpos_offset.block_offset +=
-          descendant.break_token->ConsumedBlockSize();
+    if (const BlockBreakToken* token = descendant.node_info.break_token) {
+      additional_fixedpos_offset.block_offset += token->ConsumedBlockSize();
     }
   } else if (outer_context_has_fixedpos_container_) {
     // If the fixedpos containing block is in an outer fragmentation context,
@@ -3058,7 +3081,7 @@ void OutOfFlowLayoutPart::AddOOFToFragmentainer(
     // We must continue layout in the next fragmentainer. Update any information
     // in NodeToLayout, and add the node to |fragmented_descendants|.
     NodeToLayout fragmented_descendant = descendant;
-    fragmented_descendant.break_token = break_token;
+    fragmented_descendant.node_info.break_token = break_token;
     if (!break_token->IsRepeated()) {
       // Fragmented nodes usually resume at the block-start of the next
       // fragmentainer. One exception is if there's fragmentainer overflow
@@ -3262,6 +3285,7 @@ void OutOfFlowLayoutPart::NodeInfo::Trace(Visitor* visitor) const {
   visitor->Trace(containing_block);
   visitor->Trace(fixedpos_containing_block);
   visitor->Trace(fixedpos_inline_container);
+  visitor->Trace(break_token);
 }
 
 void OutOfFlowLayoutPart::OffsetInfo::Trace(Visitor* visitor) const {
@@ -3274,7 +3298,6 @@ void OutOfFlowLayoutPart::OffsetInfo::Trace(Visitor* visitor) const {
 void OutOfFlowLayoutPart::NodeToLayout::Trace(Visitor* visitor) const {
   visitor->Trace(node_info);
   visitor->Trace(offset_info);
-  visitor->Trace(break_token);
   visitor->Trace(containing_block_fragment);
 }
 

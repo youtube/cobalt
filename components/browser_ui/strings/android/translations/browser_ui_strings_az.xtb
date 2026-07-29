@@ -171,6 +171,7 @@ Qabaqcıl Qoruma bu Chrome ayarlarına nəzarət edir:
 <translation id="2787357173144933081">Omnibox-u sürətlə başladın</translation>
 <translation id="2789132527330338807">Saytlar ətrafın 3D xəritəsini yaratmaq və ya kameranın mövqeyini izləmək istəyə bilər</translation>
 <translation id="2790501146643349491">Aktiv ediləndə son qapadılan saytlar data göndərilməsi və qəbulunu tamamlaya bilər. Deaktiv ediləndə son qapadılan saytlar data göndərilməsi və ya qəbulunu tamamlaya bilməz.</translation>
+<translation id="2794551654724114396">Chrome-dan maksimum yararlanmağınıza kömək edəcək faydalı ipucular üçün bildirişləri aktiv edin</translation>
 <translation id="2795716239552913152">Saytlar adətən yerli xəbərlər və ya yaxınlıqdakı mağazalar kimi müvafiq xüsusiyyətlər və məlumatlar üçün məkanınızdan istifadə edir</translation>
 <translation id="2800760947029405028">Təsvir yükləyin</translation>
 <translation id="2802908157808345702">Saytlara popap bildirişlər göndərmək və yönləndirmələrdən istifadə etmək icazəsi verməyin</translation>
@@ -338,10 +339,12 @@ Qabaqcıl Qoruma bu Chrome ayarlarına nəzarət edir:
 <translation id="4635969503923889910">Saytlara NFC cihazlarından istifadə etmək icazəsi verməyin</translation>
 <translation id="4644713492825682049">Silin və sıfırlayın</translation>
 <translation id="4645575059429386691">Valideyniniz tərəfindən idarə olunur</translation>
+<translation id="4652266463001779298">İcazə verilmir</translation>
 <translation id="4663373278480897665">Kameraya icazə verildi</translation>
 <translation id="4670064810192446073">Virtual reallıq</translation>
 <translation id="4672315773691449562">Brauzer tətbiqinə, sonra Chrome-a toxunun</translation>
 <translation id="4676059169848868271"><ph name="APP_NAME" /> tətbiqinə əl izləmədən istifadə etmək imkanı vermək üçün <ph name="BEGIN_LINK" />sistem ayarlarında<ph name="END_LINK" /> əl izləməni də yandırın.</translation>
+<translation id="4688045258817337666">Kartlarınızı idarə edin</translation>
 <translation id="4751476147751820511">Hərəkət və ışıq sensorları</translation>
 <translation id="4755971844837804407">Aktiv ediləndə saytlar istənilən reklamı göstərə bilər. Deaktiv ediləndə saytlar bezdirici və ya aldadıcı reklam göstərə bilməz.</translation>
 <translation id="4779083564647765204">Zoom</translation>
@@ -678,6 +681,7 @@ Qabaqcıl Qoruma bu Chrome ayarlarına nəzarət edir:
 <translation id="8487700953926739672">Oflayn olaraq əlçatan</translation>
 <translation id="848952951823693243">Həmişə mobil sayt tələb edin</translation>
 <translation id="8492822722330266509">Saytlar ani bildirişlər göndərə və yönləndirmələrdən istifadə edə bilər</translation>
+<translation id="8493548450030356203">Popap zum pəncərəsi</translation>
 <translation id="8499083585497694743">Mikrofonu səssiz rejimdən çıxarın</translation>
 <translation id="8514955299594277296">Saytlara cihazınızda məlumat saxlamağa icazə verməyin (tövsiyə edilmir)</translation>
 <translation id="851751545965956758">Saytların cihazlara qoşulmasını blok edin</translation>

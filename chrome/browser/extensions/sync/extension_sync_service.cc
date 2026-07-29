@@ -18,7 +18,6 @@
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/extensions/extension_util.h"
 #include "chrome/browser/extensions/launch_util.h"
-#include "chrome/browser/extensions/permissions/permissions_updater.h"
 #include "chrome/browser/extensions/sync/account_extension_tracker.h"
 #include "chrome/browser/extensions/sync/extension_sync_data.h"
 #include "chrome/browser/extensions/sync/extension_sync_service_factory.h"
@@ -37,6 +36,7 @@
 #include "extensions/browser/extension_util.h"
 #include "extensions/browser/launch_util.h"
 #include "extensions/browser/pending_extension_manager.h"
+#include "extensions/browser/permissions/permissions_updater.h"
 #include "extensions/browser/uninstall_reason.h"
 #include "extensions/buildflags/buildflags.h"
 #include "extensions/common/extension.h"
@@ -687,7 +687,9 @@ void ExtensionSyncService::OnExtensionUninstalled(
     extensions::UninstallReason reason) {
   DCHECK_EQ(profile_, browser_context);
   // Don't bother syncing if the extension will be re-installed momentarily.
+  // Don't sync extension removals enforced by policy.
   if (reason == extensions::UNINSTALL_REASON_REINSTALL ||
+      reason == extensions::UNINSTALL_REASON_INTERNAL_MANAGEMENT ||
       !ShouldSync(*extension)) {
     return;
   }

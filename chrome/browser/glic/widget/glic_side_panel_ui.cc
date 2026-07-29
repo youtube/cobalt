@@ -7,8 +7,8 @@
 #include "base/notimplemented.h"
 #include "base/strings/string_number_conversions.h"
 #include "chrome/browser/glic/public/glic_instance.h"
-#include "chrome/browser/glic/service/glic_instance_metrics.h"
 #include "chrome/browser/glic/service/glic_ui_embedder.h"
+#include "chrome/browser/glic/service/metrics/glic_instance_metrics.h"
 #include "chrome/browser/glic/widget/application_hotkey_delegate.h"
 #include "chrome/browser/glic/widget/glic_inactive_side_panel_ui.h"
 #include "chrome/browser/glic/widget/glic_panel_hotkey_delegate.h"
@@ -235,8 +235,7 @@ void GlicSidePanelUi::ClosePanel() {
 
 std::unique_ptr<GlicUiEmbedder> GlicSidePanelUi::CreateInactiveEmbedder()
     const {
-  return GlicInactiveSidePanelUi::CreateForVisibleTab(
-      tab_, delegate_->host().webui_contents(), delegate_.get());
+  return GlicInactiveSidePanelUi::CreateForVisibleTab(tab_, delegate_.get());
 }
 
 void GlicSidePanelUi::FocusIfOpen() {

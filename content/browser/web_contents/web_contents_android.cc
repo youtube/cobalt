@@ -222,7 +222,7 @@ static void JNI_WebContentsImpl_DestroyWebContents(
 }
 
 // static
-ScopedJavaLocalRef<jobject> JNI_WebContentsImpl_FromNativePtr(
+static ScopedJavaLocalRef<jobject> JNI_WebContentsImpl_FromNativePtr(
     JNIEnv* env,
     jlong web_contents_ptr) {
   WebContentsAndroid* web_contents_android =
@@ -1045,4 +1045,17 @@ void WebContentsAndroid::BrowserControlsOffsetTagMediator::
   rwhva_ = new_rwhva;
 }
 
+ScopedJavaLocalRef<jobject>
+WebContentsAndroid::GetDocumentPictureInPictureOpener(JNIEnv* env) {
+  WebContents* web_contents =
+      web_contents_->GetDocumentPictureInPictureOpener();
+  if (!web_contents) {
+    return nullptr;
+  }
+
+  return web_contents->GetJavaWebContents();
+}
+
 }  // namespace content
+
+DEFINE_JNI(WebContentsImpl)

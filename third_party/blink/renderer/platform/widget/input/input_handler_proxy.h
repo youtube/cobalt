@@ -266,6 +266,9 @@ class PLATFORM_EXPORT InputHandlerProxy : public cc::InputHandlerClient,
   // Immediately dispatches all queued events.
   void FlushQueuedEventsForTesting();
 
+  // Returns the ElementId of the currently latched scroller, or invalid id.
+  cc::ElementId LatchedScrollerElementId() const;
+
  private:
   friend class test::TestInputHandlerProxy;
   friend class test::InputHandlerProxyTest;
@@ -318,7 +321,8 @@ class PLATFORM_EXPORT InputHandlerProxy : public cc::InputHandlerClient,
   // Update the elastic overscroll controller with |gesture_event|.
   void HandleScrollElasticityOverscroll(
       const blink::WebGestureEvent& gesture_event,
-      const cc::InputHandlerScrollResult& scroll_result);
+      const cc::InputHandlerScrollResult& scroll_result,
+      cc::ElementId latched_element_id);
 
   // Overrides the internal clock for testing.
   // This doesn't take the ownership of the clock. |tick_clock| must outlive the
@@ -505,6 +509,10 @@ class PLATFORM_EXPORT InputHandlerProxy : public cc::InputHandlerClient,
 
   // Timer to ensure DeliverInputForDeadline is called.
   base::DeadlineTimer deadline_timer_;
+
+  // Is true when an empty (0 delta) GestureScrollUpdate is the only input in
+  // the current frame.
+  bool is_only_empty_gsu_in_queue_{false};
 };
 
 }  // namespace blink

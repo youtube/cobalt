@@ -108,6 +108,7 @@
 <translation id="2236949375853147973">내 활동</translation>
 <translation id="2238130810669087193">모든 기기에서 내 주소 등을 가져오려면 Chromium에 로그인하세요. 로그인하면 이 주소가 Google 계정에 저장됩니다</translation>
 <translation id="2241627712206172106">컴퓨터를 공유하는 경우 친구와 가족이 개별적으로 탐색하고 원하는 대로 Chromium을 설정할 수 있습니다.</translation>
+<translation id="2283803047247799269">이미지 검색으로 이 탭 검색</translation>
 <translation id="2287771843518581140">{NUM_TABS,plural, =1{브라우저 속도를 저하시키는 탭을 일시중지하는 것이 좋습니다}other{브라우저 속도를 저하시키는 탭을 일시중지하는 것이 좋습니다}}</translation>
 <translation id="2307973900865360088">도크에 고정</translation>
 <translation id="2313870531055795960">Chromium에 저장된 안전하지 않은 사이트 목록을 사용하여 URL을 검사합니다. 사이트에서 사용자의 비밀번호를 도용하려고 하거나 사용자가 유해한 파일을 다운로드하는 경우, Chromium에서 페이지 콘텐츠 일부를 비롯한 URL을 세이프 브라우징 서비스에 보낼 수 있습니다.</translation>
@@ -154,7 +155,6 @@
 <translation id="2718390899429598676">보안 강화를 위해 Chromium에서 사용자 데이터를 암호화합니다.</translation>
 <translation id="2721354645805494590">Chromium에서 Google 계정을 삭제하려면 로그아웃하세요.</translation>
 <translation id="2722636413143664436">모든 기기에서 비밀번호, 북마크 등을 사용하려면 Chromium에 로그인하세요</translation>
-<translation id="2723860029395667894">Google AI 모드 바로가기 항상 표시</translation>
 <translation id="2738871930057338499">인터넷에 연결할 수 없습니다(HTTP 403 Forbidden). 프록시 설정을 확인하시기 바랍니다.</translation>
 <translation id="2753623023919742414">클릭하여 검색</translation>
 <translation id="2768103863314748511">Chromium을 기본 PDF 뷰어로 설정</translation>
@@ -179,6 +179,7 @@
 <translation id="2977506796191543575">사이트에서 사용자의 비밀번호를 도용하려고 하거나 사용자가 유해한 파일을 다운로드하는 경우, Chromium에서 페이지 콘텐츠 일부를 비롯한 URL을 세이프 브라우징 서비스에 보낼 수 있습니다.</translation>
 <translation id="2981563588585023386">부모님의 선택을 통해 온라인에서 더 안전하게 보호받으려면 Chromium에 로그인하세요</translation>
 <translation id="3003694935412297923">모든 작업</translation>
+<translation id="3012615494352020668">{count,plural, =1{일부 데이터를 Google 계정에 저장하고 모든 기기에서 사용하려면 Chromium에서 본인 인증을 거쳐야 합니다. 지금 로그아웃하면 이 데이터(항목 1개)가 삭제됩니다}other{일부 데이터를 Google 계정에 저장하고 모든 기기에서 사용하려면 Chromium에서 본인 인증을 거쳐야 합니다. 지금 로그아웃하면 이 데이터(항목 {count}개)가 삭제됩니다}}</translation>
 <translation id="3013473503895162900">Chromium의 새 탭에서 <ph name="URL" /> 주소가 열립니다.</translation>
 <translation id="3032706164202344641">Chromium에서 비밀번호를 확인할 수 없습니다. 나중에 다시 시도하세요.</translation>
 <translation id="3032787606318309379">Chromium에 추가하는 중...</translation>
@@ -232,6 +233,7 @@
 <translation id="364817392622123556">{COUNT,plural, =0{새 Chromium 업데이트가 있습니다. Chromium을 다시 실행하면 업데이트가 바로 적용됩니다.}=1{새 Chromium 업데이트가 있습니다. Chromium을 다시 실행하면 업데이트가 바로 적용됩니다. 시크릿 창이 다시 열리지 않습니다.}other{새 Chromium 업데이트가 있습니다. Chromium을 다시 실행하면 업데이트가 바로 적용됩니다. 시크릿 창 #개가 다시 열리지 않습니다.}}</translation>
 <translation id="3651803019964686660"><ph name="ORIGIN" />에서 Android 휴대전화로 번호를 전송하려면 두 기기 모두에서 Chromium에 로그인하세요.</translation>
 <translation id="3667616615096815454">설치할 수 없습니다. 서버에서 애플리케이션을 알 수 없습니다.</translation>
+<translation id="3675854891107786059"><ph name="BEGIN_LINK" />나만의 암호<ph name="END_LINK" />를 사용하여 Google 계정에 있는 모든 Chromium 데이터를 암호화하세요. Google Pay의 결제 수단 및 주소는 암호화되지 않습니다. Chromium 방문 기록은 동기화되지 않습니다.</translation>
 <translation id="3685209450716071127">Chromium에서 비밀번호를 확인할 수 없습니다. 인터넷 연결 상태를 확인하세요.</translation>
 <translation id="370962675267501463">{COUNT,plural, =0{관리자가 이 업데이트를 적용하려면 사용자가 Chromium을 다시 시작하도록 설정했습니다.}=1{관리자가 이 업데이트를 적용하려면 사용자가 Chromium을 다시 시작하도록 설정했습니다. 시크릿 창이 다시 열리지 않습니다.}other{관리자가 이 업데이트를 적용하려면 사용자가 Chromium을 다시 시작하도록 설정했습니다. 시크릿 창 #개가 다시 열리지 않습니다.}}</translation>
 <translation id="3713809861844741608">새 Chromium 탭에서 링크 열기(&amp;T)</translation>
@@ -496,6 +498,7 @@
 <translation id="6729124504294600478">맞춤설정 및 기타 기능을 사용하려면 웹 및 앱 활동 그리고 연결된 Google 서비스에 Chromium을 포함하세요</translation>
 <translation id="6734291798041940871">모든 사용자가 사용할 수 있도록 컴퓨터에 Chromium이 이미 설치되어 있습니다.</translation>
 <translation id="6751374565094704799">Chromium의 V8 엔진으로 사이트 속도를 높이지만 Chromium이 공격에 약간 더 취약해집니다. 설정이 사용 설정되어 있습니다.</translation>
+<translation id="6754665438209053659">{count,plural, =1{Chromium 데이터 중 일부가 아직 Google 계정에 저장되지 않았습니다. 잠시 기다렸다가 로그아웃하세요. 지금 로그아웃하면 이 데이터(항목 1개)가 삭제됩니다}other{Chromium 데이터 중 일부가 아직 Google 계정에 저장되지 않았습니다. 잠시 기다렸다가 로그아웃하세요. 지금 로그아웃하면 이 데이터(항목 {count}개)가 삭제됩니다}}</translation>
 <translation id="67706546131546258">위험할 수 있는 파일이므로 검사하는 것이 좋습니다.</translation>
 <translation id="6779406956731413166">ChromiumOS는 추가 <ph name="BEGIN_LINK_CROS_OSS" />오픈소스 소프트웨어<ph name="END_LINK_CROS_OSS" />를 사용하여 개발되었습니다.</translation>
 <translation id="6831043979455480757">번역</translation>
@@ -523,6 +526,7 @@
 <translation id="705851970750939768">Chromium 업데이트</translation>
 <translation id="7067091210845072982">이미지에 유용한 설명이 없으면 Chromium에서 자동으로 설명을 제공하려고 시도합니다. 설명을 생성하기 위해 이미지가 Google로 전송됩니다.</translation>
 <translation id="7141270731789036260">Chrome for Testing 맞춤설정</translation>
+<translation id="7147227333672430807">언제든지 메시지, 문서, 기타 앱에서 링크를 클릭하여 Chromium을 사용할 수 있습니다.</translation>
 <translation id="7163519456498498587"><ph name="EXTENSION_NAME" /> 확장 프로그램을 Chromium에서 제거</translation>
 <translation id="7173822816570314652"><ph name="TIMEOUT_DURATION" /> 동안 사용하지 않으면 조직에서 Chromium 데이터를 삭제합니다. 여기에는 방문 기록, 자동 완성, 다운로드가 포함될 수 있습니다.</translation>
 <translation id="718435575166326686">Chromium에서 사이트에 대한 카메라 권한이 필요합니다.</translation>
@@ -624,6 +628,7 @@ Chromium에서 설정을 복구할 수 없습니다.</translation>
 <translation id="8359544530202147897">Google 계정(<ph name="ACCOUNT_EMAIL" />)의 Chromium 데이터를 계속 사용하려면 Chromium을 업데이트하세요</translation>
 <translation id="8360718212975266891">향후 Chromium 업데이트를 받으려면 Windows 10 이상이 필요합니다. 이 컴퓨터에서는 Windows 8을 사용 중입니다.</translation>
 <translation id="8362914115861174987">도착어</translation>
+<translation id="8367705492654390392">무엇이든 물어보세요</translation>
 <translation id="8370517070665726704">Copyright <ph name="YEAR" /> Google LLC. All rights reserved.</translation>
 <translation id="8372327902843331129">모든 기기에서 비밀번호 등을 사용하려면 Chromium에 로그인하세요. 로그인하면 이 비밀번호가 Google 계정에 저장됩니다.</translation>
 <translation id="837460953767177950">그런 다음 Chromium을 다시 시작해야 합니다.</translation>
@@ -638,6 +643,7 @@ Chromium에서 설정을 복구할 수 없습니다.</translation>
 <translation id="8471947159125090285">Google 계정에서 Chromium 데이터를 사용하고 저장하려면 본인 인증을 완료하세요.</translation>
 <translation id="8482493977473846331">Chromium에 로그인하기 위한 메시지를 표시합니다.</translation>
 <translation id="8493179195440786826">Chromium이 이전 버전임</translation>
+<translation id="850264194101621529">Chromium을 기본 브라우저로 선택해 주셔서 감사합니다.</translation>
 <translation id="8522801943730206384">비밀번호를 저장하면 Chromium에서 확인할 수 있습니다</translation>
 <translation id="8555465886620020932">서비스 오류(<ph name="SERVICE_ERROR" />)가 발생했습니다.</translation>
 <translation id="8556420416730706394">측면 패널 상단의 고정 버튼을 클릭하여 이미지 검색을 고정하면 쉽게 액세스할 수 있습니다</translation>
@@ -647,8 +653,8 @@ Chromium에서 설정을 복구할 수 없습니다.</translation>
 <translation id="8586442755830160949">Copyright <ph name="YEAR" /> The Chromium Authors. All rights reserved.</translation>
 <translation id="8601359445272098721">New! '화면 번역' 버튼을 선택하여 화면의 텍스트와 이미지를 모두 번역할 수 있습니다.</translation>
 <translation id="8619360774459241877">Chromium 실행 중...</translation>
+<translation id="8624541899164515475">설정, 새 탭에서 열립니다.</translation>
 <translation id="8648201657708811153">Google Chrome for Testing을 기본 브라우저로 설정할 수 없습니다.</translation>
-<translation id="8677922833187616101">Google AI 모드 바로가기 항상 표시</translation>
 <translation id="8697124171261953979">또한 Chromium을 시작하거나 검색주소창에서 검색할 때 표시되는 페이지를 설정합니다.</translation>
 <translation id="8704119203788522458">나만의 Chromium</translation>
 <translation id="8712637175834984815">확인</translation>

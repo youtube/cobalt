@@ -88,6 +88,7 @@ BASE_FEATURE(kBoundSessionCredentialsKillSwitch,
 
 #if BUILDFLAG(IS_IOS)
 BASE_FEATURE(kCacheIdentityListInChrome, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kEnableACPrefetch, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
@@ -119,7 +120,7 @@ BASE_FEATURE(kChromeIdentitySurveyFirstRunSignin,
 BASE_FEATURE(kChromeIdentitySurveyPasswordBubbleSignin,
              base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kChromeIdentitySurveyProfileMenuDismissed,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kChromeIdentitySurveyProfileMenuSignin,
              base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kChromeIdentitySurveyProfilePickerAddProfileSignin,
@@ -129,7 +130,7 @@ BASE_FEATURE(kChromeIdentitySurveySigninInterceptProfileSeparation,
 BASE_FEATURE(kChromeIdentitySurveySigninPromoBubbleDismissed,
              base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kChromeIdentitySurveySwitchProfileFromProfileMenu,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kChromeIdentitySurveySwitchProfileFromProfilePicker,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
@@ -143,6 +144,10 @@ BASE_FEATURE_PARAM(base::TimeDelta,
                    "launch_delay_duration",
                    base::Milliseconds(3000));
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+
+#if BUILDFLAG(IS_ANDROID)
+BASE_FEATURE(kEnableAddSessionRedirect, base::FEATURE_ENABLED_BY_DEFAULT);
+#endif
 
 #if BUILDFLAG(IS_IOS)
 BASE_FEATURE(kEnableASWebAuthenticationSession,
@@ -201,16 +206,11 @@ BASE_FEATURE(kEnableIdentityInAuthError, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
-// Enables binding the OAuthMultilogin cookies to a device.
+// Enables binding the OAuthMultilogin cookies to a device with DBSC prototype.
+//
+// If `kEnableOAuthMultiloginStandardCookiesBinding` is enabled, DBSC standard
+// takes precedence over DBSC prototype.
 BASE_FEATURE(kEnableOAuthMultiloginCookiesBinding,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
-
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
-// Enables binding the OAuthMultilogin cookies to a device for non-default
-// storage partitions. This flag is a safety net for partitions that might not
-// be ready to have bound cookies (e.g. Glic).
-BASE_FEATURE(kEnableOAuthMultiloginCookiesBindingForNonDefaultPartitions,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
@@ -231,8 +231,17 @@ BASE_FEATURE_PARAM(bool,
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
-// Kill switch for the OAuthMultilogin cookies standard binding.
+// Enables binding the OAuthMultilogin cookies to a device with DBSC standard.
+//
+// It takes precedence over the `kEnableOAuthMultiloginCookiesBinding` flag.
 BASE_FEATURE(kEnableOAuthMultiloginStandardCookiesBinding,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
+
+// Kill switch for enabling binding the OAuthMultilogin cookies to a device with
+// DBSC standard for the Glic partition.
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+BASE_FEATURE(kEnableOAuthMultiloginStandardCookiesBindingForGlicPartition,
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
@@ -296,6 +305,11 @@ BASE_FEATURE(kForceHistoryOptInScreen, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kForceStartupSigninPromo, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
+#if BUILDFLAG(IS_ANDROID)
+BASE_FEATURE(kFRESignInAlternativeSecondaryButtonText,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_ANDROID)
+
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
 BASE_FEATURE(kFullscreenSignInPromoUseDate, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
@@ -347,7 +361,25 @@ BASE_FEATURE_PARAM(base::TimeDelta,
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+BASE_FEATURE(kOpenAllProfilesFromProfilePickerExperiment,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+const base::FeatureParam<int>
+    kMaxProfilesCountToShowOpenAllButtonInProfilePicker{
+        &kOpenAllProfilesFromProfilePickerExperiment,
+        "max_profiles_count_to_show_open_all_button_in_profile_picker", 5};
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 BASE_FEATURE(kProfileCreationDeclineSigninCTAExperiment,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kProfileCreationFrictionReductionExperimentPrefillNameRequirement,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kProfileCreationFrictionReductionExperimentRemoveSigninStep,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kProfileCreationFrictionReductionExperimentSkipCustomizeProfile,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kProfilePickerTextVariations, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -379,6 +411,8 @@ BASE_FEATURE(kRollbackDiceMigration, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kShowProfilePickerToAllUsersExperiment,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+
+BASE_FEATURE(kSigninPromoLimitsExperiment, base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 BASE_FEATURE(kSignInPromoMaterialNextUI, base::FEATURE_ENABLED_BY_DEFAULT);

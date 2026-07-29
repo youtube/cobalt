@@ -41,11 +41,13 @@
 #include "components/autofill/core/browser/data_model/addresses/phone_number.h"
 #include "components/autofill/core/browser/data_model/usage_history_information.h"
 #include "components/autofill/core/browser/data_quality/addresses/profile_token_quality.h"
+#include "components/autofill/core/browser/data_quality/autofill_data_util.h"
 #include "components/autofill/core/browser/data_quality/validation.h"
 #include "components/autofill/core/browser/field_type_utils.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/geo/address_i18n.h"
 #include "components/autofill/core/browser/geo/autofill_country.h"
+#include "components/autofill/core/browser/geo/country_names.h"
 #include "components/autofill/core/browser/geo/phone_number_i18n.h"
 #include "components/autofill/core/browser/geo/state_names.h"
 #include "components/autofill/core/browser/metrics/autofill_metrics.h"
@@ -440,6 +442,13 @@ void AutofillProfile::SetRawInfoWithVerificationStatus(
     VerificationStatus status) {
   FormGroup* form_group = MutableFormGroupForType(type);
   if (form_group) {
+    if (type == ADDRESS_HOME_COUNTRY) {
+      auto old_country_code = GetAddressCountryCode();
+      form_group->SetRawInfoWithVerificationStatus(type, value, status);
+      OnProfileCountryUpdate(old_country_code, GetAddressCountryCode());
+      return;
+    }
+
     form_group->SetRawInfoWithVerificationStatus(type, value, status);
   }
 }
@@ -792,17 +801,7 @@ bool AutofillProfile::MergeDataFrom(const AutofillProfile& profile,
 
   set_language_code(profile.language_code());
 
-  // Update the use-count to be the max of the two merge-counts. Alternatively,
-  // we could have summed the two merge-counts. We don't sum because it skews
-  // the ranking score value on merge and double counts usage on profile reuse.
-  // Profile reuse is accounted for on RecordUseOf() on selection of a profile
-  // in the autofill drop-down; we don't need to account for that here. Further,
-  // a similar, fully-typed submission that merges to an existing profile should
-  // not be counted as a re-use of that profile.
-  usage_history_information_.set_use_count(
-      std::max(profile.usage_history_information_.use_count(),
-               usage_history_information_.use_count()));
-  usage_history_information_.MergeUseDates(profile.usage_history());
+  usage_history_information_.MergeUsageHistories(profile.usage_history());
 
   // Update the fields which need to be modified, if any. Note: that we're
   // comparing the fields for representational equality below (i.e., are the
@@ -870,6 +869,16 @@ void AutofillProfile::MergeFormGroupTokenQuality(
       token_quality_.ResetObservationsForStoredType(type);
     }
   }
+}
+
+void AutofillProfile::OnProfileCountryUpdate(
+    const AddressCountryCode& old_country_code,
+    const AddressCountryCode& new_country_code) {
+  if (old_country_code == new_country_code) {
+    return;
+  }
+
+  name_.OnCountryChange(new_country_code);
 }
 
 // static
@@ -1084,6 +1093,14 @@ bool AutofillProfile::SetInfoWithVerificationStatus(const AutofillType& type,
   }
   std::u16string trimmed_value;
   base::TrimWhitespace(value, base::TRIM_ALL, &trimmed_value);
+
+  if (type.GetAddressType() == ADDRESS_HOME_COUNTRY) {
+    const AddressCountryCode old_country_code = GetAddressCountryCode();
+    const bool response = form_group->SetInfoWithVerificationStatus(
+        type, trimmed_value, app_locale, status);
+    OnProfileCountryUpdate(old_country_code, GetAddressCountryCode());
+    return response;
+  }
 
   return form_group->SetInfoWithVerificationStatus(type, trimmed_value,
                                                    app_locale, status);
@@ -1353,3 +1370,7 @@ const UsageHistoryInformation& AutofillProfile::usage_history() const {
 }
 
 }  // namespace autofill
+
+#if BUILDFLAG(IS_ANDROID)
+DEFINE_JNI(AutofillProfile)
+#endif

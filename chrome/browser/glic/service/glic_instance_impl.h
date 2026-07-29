@@ -21,9 +21,9 @@
 #include "chrome/browser/glic/host/host.h"
 #include "chrome/browser/glic/public/glic_instance.h"
 #include "chrome/browser/glic/service/glic_instance_helper.h"
-#include "chrome/browser/glic/service/glic_instance_metrics.h"
 #include "chrome/browser/glic/service/glic_ui_embedder.h"
 #include "chrome/browser/glic/service/glic_ui_types.h"
+#include "chrome/browser/glic/service/metrics/glic_instance_metrics.h"
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_list_observer.h"
 #include "components/autofill/core/browser/integrators/glic/actor_form_filling_types.h"
@@ -108,7 +108,7 @@ class GlicInstanceImpl : public GlicInstance,
 
   void NotifyInstanceActivationChanged(bool is_active);
 
-  base::TimeTicks GetLastActiveTime() const;
+  base::TimeTicks GetLastActiveTime() const override;
 
   bool IsHibernated() const;
 
@@ -124,6 +124,7 @@ class GlicInstanceImpl : public GlicInstance,
 
   bool IsDetached();
   bool IsActuating() const;
+  bool IsLiveMode();
 
   glic::mojom::ConversationInfoPtr GetConversationInfo() const;
 
@@ -144,7 +145,7 @@ class GlicInstanceImpl : public GlicInstance,
   // GlicInstance:
   Host& host() override;
   const InstanceId& id() const override;
-  std::optional<std::string> conversation_id() const;
+  std::optional<std::string> conversation_id() const override;
   base::CallbackListSubscription RegisterStateChange(
       StateChangeCallback callback) override;
 
@@ -243,6 +244,7 @@ class GlicInstanceImpl : public GlicInstance,
   void RequestToShowUserConfirmationDialog(
       actor::TaskId task_id,
       const url::Origin& navigation_origin,
+      bool for_blocklisted_origin,
       actor::ActorTaskDelegate::UserConfirmationDialogCallback callback)
       override;
   void RequestToConfirmNavigation(
@@ -314,6 +316,7 @@ class GlicInstanceImpl : public GlicInstance,
   bool ShouldPinOnBind() const;
 
   void MaybeActivateForegroundEmbedder();
+  void MaybeRemoveBlankInstanceOnClose();
   EmbedderEntry& BindTab(tabs::TabInterface* tab);
   // For any pinned tab not already bound to a conversation bind it to this one.
   void OnTabPinningStatusChanged(tabs::TabInterface* tab, bool pinned);
@@ -387,6 +390,8 @@ class GlicInstanceImpl : public GlicInstance,
 
   base::OneShotTimer inactivity_timer_;
   base::TimeTicks last_active_time_;
+
+  base::OneShotTimer remove_blank_instance_timer_;
 
   base::WeakPtrFactory<GlicInstanceImpl> weak_ptr_factory_{this};
 };

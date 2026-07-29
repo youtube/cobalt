@@ -78,7 +78,7 @@ class MockNetworkManager : public webrtc::NetworkManagerBase {
   // StartUpdating() will trigger another one.
   void StartUpdating() override {
     if (sent_first_update_)
-      SignalNetworksChanged();
+      NotifyNetworksChanged();
   }
   void StopUpdating() override {}
 
@@ -88,7 +88,7 @@ class MockNetworkManager : public webrtc::NetworkManagerBase {
 
   void SendNetworksChanged() {
     sent_first_update_ = true;
-    SignalNetworksChanged();
+    NotifyNetworksChanged();
   }
 
   webrtc::MdnsResponderInterface* GetMdnsResponder() const override {
@@ -165,8 +165,7 @@ class MockMediaPermission : public media::MediaPermission {
 
 namespace blink {
 
-class FilteringNetworkManagerTest : public testing::Test,
-                                    public sigslot::has_slots<> {
+class FilteringNetworkManagerTest : public testing::Test {
  public:
   FilteringNetworkManagerTest()
       : media_permission_(new MockMediaPermission()),
@@ -194,8 +193,7 @@ class FilteringNetworkManagerTest : public testing::Test,
       network_manager_.reset(new EmptyNetworkManager(
           base_network_manager_.get(), base_network_manager_->AsWeakPtr()));
     }
-    network_manager_->SignalNetworksChanged.connect(
-        this, &FilteringNetworkManagerTest::OnNetworksChanged);
+    network_manager_->SubscribeNetworksChanged([this] { OnNetworksChanged(); });
   }
 
   void RunTests(base::span<TestEntry> tests) {

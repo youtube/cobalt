@@ -127,7 +127,7 @@ class TestPDFiumEngine : public PDFiumEngine {
 
   MOCK_METHOD(PDFLoadedWithV2InkAnnotations,
               ContainsV2InkPath,
-              (const base::TimeDelta&),
+              (base::TimeDelta),
               (const override));
 
   MOCK_METHOD((std::map<InkModeledShapeId, ink::PartitionedMesh>),
@@ -180,6 +180,8 @@ class TestPDFiumEngine : public PDFiumEngine {
   MOCK_METHOD(void, ClearTextSelection, (), (override));
 
   MOCK_METHOD(void, SetCaretBrowsingEnabled, (bool), (override));
+
+  MOCK_METHOD(void, SetCaretBlinkInterval, (base::TimeDelta), (override));
 
  protected:
   std::vector<DocumentAttachmentInfo>& doc_attachment_info_list() {

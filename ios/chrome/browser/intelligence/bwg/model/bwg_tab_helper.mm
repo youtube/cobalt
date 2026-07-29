@@ -5,12 +5,15 @@
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_tab_helper.h"
 
 #import "base/functional/bind.h"
+#import "base/functional/callback_helpers.h"
 #import "base/ios/block_types.h"
 #import "base/memory/weak_ptr.h"
 #import "base/strings/string_number_conversions.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/time/time.h"
 #import "base/values.h"
+#import "components/feature_engagement/public/feature_constants.h"
+#import "components/feature_engagement/public/tracker.h"
 #import "components/google/core/common/google_util.h"
 #import "components/optimization_guide/core/hints/optimization_guide_decider.h"
 #import "components/optimization_guide/core/hints/optimization_guide_decision.h"
@@ -18,6 +21,7 @@
 #import "components/optimization_guide/proto/contextual_cueing_metadata.pb.h"
 #import "components/prefs/pref_service.h"
 #import "components/prefs/scoped_user_pref_update.h"
+#import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_snapshot_utils.h"
 #import "ios/chrome/browser/intelligence/bwg/ui/bwg_ui_utils.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
@@ -206,6 +210,14 @@ void BwgTabHelper::SetPageLoadedCallback(base::OnceClosure callback) {
   page_loaded_callback_ = std::move(callback);
 }
 
+NSString* BwgTabHelper::GetContextualCueLabel() {
+  return contextual_cue_label_;
+}
+
+void BwgTabHelper::SetContextualCueLabel(NSString* cue_label) {
+  contextual_cue_label_ = cue_label;
+}
+
 bool BwgTabHelper::GetIsBwgSessionActiveInBackground() {
   return is_bwg_session_active_in_background_;
 }
@@ -338,10 +350,15 @@ void BwgTabHelper::DidStartNavigation(
       weak_ptr_factory_.InvalidateWeakPtrs();
       ClearZeroStateSuggestions();
       zero_state_suggestions_->url = current_url;
-      optimization_guide_decider_->CanApplyOptimization(
-          current_url, optimization_guide::proto::GLIC_ZERO_STATE_SUGGESTIONS,
-          base::BindOnce(&BwgTabHelper::OnCanApplyZeroStateSuggestionsDecision,
-                         weak_ptr_factory_.GetWeakPtr()));
+      ProfileIOS* profile =
+          ProfileIOS::FromBrowserState(web_state_->GetBrowserState());
+      if (profile->GetPrefs()->GetBoolean(prefs::kIOSBWGPageContentSetting)) {
+        optimization_guide_decider_->CanApplyOptimization(
+            current_url, optimization_guide::proto::GLIC_ZERO_STATE_SUGGESTIONS,
+            base::BindOnce(
+                &BwgTabHelper::OnCanApplyZeroStateSuggestionsDecision,
+                weak_ptr_factory_.GetWeakPtr()));
+      }
     }
   }
 }
@@ -369,7 +386,7 @@ void BwgTabHelper::DidFinishNavigation(
   if (IsAskGeminiChipEnabled()) {
     optimization_guide_decider_->CanApplyOptimization(
         current_url, optimization_guide::proto::GLIC_CONTEXTUAL_CUEING,
-        base::BindOnce(&BwgTabHelper::OnOptimizationGuideDecision,
+        base::BindOnce(&BwgTabHelper::OnCanApplyContextualCueingDecision,
                        weak_ptr_factory_.GetWeakPtr(), current_url));
   }
 }
@@ -387,6 +404,7 @@ void BwgTabHelper::PageLoaded(
 }
 
 void BwgTabHelper::WebStateDestroyed(web::WebState* web_state) {
+  weak_ptr_factory_.InvalidateWeakPtrs();
   web_state_observation_.Reset();
   if (!IsGeminiCrossTabEnabled()) {
     CleanupSessionFromPrefs(GetClientId());
@@ -493,7 +511,7 @@ void BwgTabHelper::UpdateWebStateSnapshotInStorage() {
   snapshot_tab_helper->UpdateSnapshotStorageWithImage(cached_snapshot_);
 }
 
-void BwgTabHelper::OnOptimizationGuideDecision(
+void BwgTabHelper::OnCanApplyContextualCueingDecision(
     const GURL& main_frame_url,
     optimization_guide::OptimizationGuideDecision decision,
     const optimization_guide::OptimizationMetadata& metadata) {
@@ -509,14 +527,16 @@ void BwgTabHelper::OnOptimizationGuideDecision(
 
   latest_load_contextual_cueing_metadata_ = metadata.ParsedMetadata<
       optimization_guide::proto::GlicContextualCueingMetadata>();
+
   if (!latest_load_contextual_cueing_metadata_) {
     return;
   }
 
   ProfileIOS* profile =
       ProfileIOS::FromBrowserState(web_state_->GetBrowserState());
-  // TODO(crbug.com/453978851): Leverage engagement tracker events to track
-  // these conditions instead of checking prefs manually.
+
+  // TODO (crbug.com/461595639): Remove pref checks to fully migrate logic to
+  // FET.
   bool floaty_shown = profile->GetPrefs()->GetBoolean(prefs::kIOSBwgConsent);
   bool bwg_promo_shown =
       profile->GetPrefs()->GetInteger(prefs::kIOSBWGPromoImpressionCount) > 0;
@@ -525,7 +545,10 @@ void BwgTabHelper::OnOptimizationGuideDecision(
 
   // Show promo if eligible.
   if (IsGeminiNavigationPromoEnabled() && !should_wait_for_new_user &&
-      !floaty_shown && !bwg_promo_shown) {
+      !floaty_shown && !bwg_promo_shown &&
+      feature_engagement::TrackerFactory::GetForProfile(profile)
+          ->WouldTriggerHelpUI(
+              feature_engagement::kIPHiOSGeminiFullscreenPromoFeature)) {
     [bwg_commands_handler_ showBWGPromoIfPageIsEligible];
     return;
   }
@@ -613,6 +636,10 @@ void BwgTabHelper::PrepareWebPageReportedImagesSnackbar() {
   web::WebFrame* main_frame =
       web_state_->GetPageWorldWebFramesManager()->GetMainWebFrame();
 
+  if (!main_frame) {
+    return;
+  }
+
   // Extract the OG image.
   main_frame->ExecuteJavaScript(
       u"(() => {"
@@ -646,6 +673,10 @@ void BwgTabHelper::OnImageExtractedFromWebState(const base::Value* value,
       ImageFetchTabHelper::FromWebState(web_state_.get());
   const GURL& lastCommittedURL = web_state_->GetLastCommittedURL();
   web::Referrer referrer(lastCommittedURL, web::ReferrerPolicyDefault);
+
+  if (!image_fetcher) {
+    return;
+  }
 
   image_fetcher->GetImageData(
       GURL(value->GetString()), referrer,

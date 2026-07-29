@@ -4,16 +4,12 @@
 
 package org.chromium.chrome.browser.toolbar.top;
 
-import android.animation.TimeAnimator;
-import android.animation.TimeAnimator.TimeListener;
 import android.content.Context;
-import android.graphics.Rect;
 import android.view.View;
 
 import androidx.annotation.ColorInt;
 
 import org.chromium.base.Callback;
-import org.chromium.base.MathUtils;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
@@ -33,8 +29,10 @@ import org.chromium.chrome.browser.tab.EmptyTabObserver;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.theme.ThemeUtils;
 import org.chromium.chrome.browser.theme.TopUiThemeColorProvider;
+import org.chromium.chrome.browser.toolbar.ToolbarProgressBar;
 import org.chromium.components.browser_ui.widget.ClipDrawableProgressBar;
 import org.chromium.components.browser_ui.widget.ClipDrawableProgressBar.DrawingInfo;
+import org.chromium.components.browser_ui.widget.ClipDrawableProgressBar.ProgressBarObserver;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.modelutil.PropertyModel;
 
@@ -80,6 +78,8 @@ public class TopToolbarOverlayMediator {
     /** An observer of the browser controls offsets. */
     private final BrowserControlsStateProvider.Observer mBrowserControlsObserver;
 
+    private final ProgressBarObserver mProgressBarObserver;
+
     private final TopUiThemeColorProvider mTopUiThemeColorProvider;
 
     /** The view state for this overlay. */
@@ -116,34 +116,9 @@ public class TopToolbarOverlayMediator {
     private final ObservableSupplier<Long> mCaptureResourceIdSupplier;
     private float mViewportHeight;
 
-    private @Nullable OffsetTag mTopControlsOffsetTag;
+    private @Nullable BrowserControlsOffsetTagsInfo mBrowserControlsOffsetTagsInfo;
     private @Nullable OffsetTag mTopProgressBarOffsetTag;
-    private @Nullable OffsetTag mBottomControlsOffsetTag;
     private @Nullable OffsetTag mBottomProgressBarOffsetTag;
-
-    private float mAnimatedProgress;
-    private float mTargetProgress;
-    private static final long ANIMATION_DURATION_MS = 3000;
-
-    private final TimeAnimator mProgressBarAnimation = new TimeAnimator();
-
-    {
-        mProgressBarAnimation.setTimeListener(
-                new TimeListener() {
-                    @Override
-                    public void onTimeUpdate(
-                            TimeAnimator animation, long totalTimeMs, long deltaTimeMs) {
-                        if (MathUtils.areFloatsEqual(mAnimatedProgress, mTargetProgress)
-                                || mAnimatedProgress > mTargetProgress) {
-                            return;
-                        }
-
-                        mAnimatedProgress += (deltaTimeMs / ((float) ANIMATION_DURATION_MS));
-                        mAnimatedProgress = Math.min(mAnimatedProgress, mTargetProgress);
-                        updateProgress();
-                    }
-                });
-    }
 
     TopToolbarOverlayMediator(
             PropertyModel model,
@@ -157,7 +132,8 @@ public class TopToolbarOverlayMediator {
             ObservableSupplier<Boolean> suppressToolbarSceneLayerSupplier,
             int layoutsToShowOn,
             boolean manualVisibilityControl,
-            ObservableSupplier<Long> captureResourceIdSupplier) {
+            ObservableSupplier<Long> captureResourceIdSupplier,
+            @Nullable ToolbarProgressBar progressBar) {
         mContext = context;
         mLayoutStateProvider = layoutStateProvider;
         mProgressInfoCallback = progressInfoCallback;
@@ -208,7 +184,7 @@ public class TopToolbarOverlayMediator {
                             public void onLoadProgressChanged(Tab tab, float progress) {
                                 if (ChromeFeatureList.sAndroidAnimatedProgressBarInBrowser
                                         .isEnabled()) {
-                                    mTargetProgress = progress;
+                                    return;
                                 }
                                 updateProgress();
                             }
@@ -289,9 +265,11 @@ public class TopToolbarOverlayMediator {
                             @BrowserControlsState int constraints,
                             boolean shouldUpdateOffsets) {
                         if (ChromeFeatureList.sBrowserControlsInViz.isEnabled()) {
-                            mTopControlsOffsetTag = offsetTagsInfo.getTopControlsOffsetTag();
-                            mBottomControlsOffsetTag = offsetTagsInfo.getBottomControlsOffsetTag();
-                            updateOffsetTag();
+                            // Offset tag application is handled by external when
+                            // #isTopControlsRefactorOffsetEnabled is enabled.
+                            if (!BrowserControlsUtils.isTopControlsRefactorOffsetEnabled()) {
+                                updateOffsetTag(offsetTagsInfo);
+                            }
                             if (shouldUpdateOffsets) {
                                 applyContentOffsetToModel(
                                         mBrowserControlsStateProvider.getContentOffset());
@@ -302,14 +280,36 @@ public class TopToolbarOverlayMediator {
                     @Override
                     public void onControlsPositionChanged(int controlsPosition) {
                         if (ChromeFeatureList.sBcivBottomControls.isEnabled()) {
-                            updateOffsetTag();
-                            if (ChromeFeatureList.sAndroidAnimatedProgressBarInViz.isEnabled()) {
+                            updateOffsetTag(mBrowserControlsOffsetTagsInfo);
+                            if (ChromeFeatureList.sAndroidAnimatedProgressBarInBrowser
+                                    .isEnabled()) {
                                 updateProgress();
                             }
                         }
                     }
                 };
         mBrowserControlsStateProvider.addObserver(mBrowserControlsObserver);
+
+        mProgressBarObserver =
+                new ProgressBarObserver() {
+                    @Override
+                    public void onVisibleProgressUpdated() {
+                        if (ChromeFeatureList.sAndroidAnimatedProgressBarInBrowser.isEnabled()) {
+                            updateProgress();
+                        }
+                    }
+
+                    @Override
+                    public void onCompositedLayersVisibilityChanged() {
+                        if (ChromeFeatureList.sAndroidAnimatedProgressBarInBrowser.isEnabled()) {
+                            updateProgress();
+                        }
+                    }
+                };
+        if (progressBar != null) {
+            progressBar.addObserver(mProgressBarObserver);
+        }
+
         mIsBrowserControlsAndroidViewVisible =
                 mBrowserControlsStateProvider.getAndroidControlsVisibility() == View.VISIBLE;
     }
@@ -347,13 +347,21 @@ public class TopToolbarOverlayMediator {
         return originalContentOffset - offset;
     }
 
-    private void updateOffsetTag() {
-        if (getControlsPosition() == ControlsPosition.TOP) {
-            mModel.set(TopToolbarOverlayProperties.TOOLBAR_OFFSET_TAG, mTopControlsOffsetTag);
-        } else if (getControlsPosition() == ControlsPosition.BOTTOM) {
-            mModel.set(TopToolbarOverlayProperties.TOOLBAR_OFFSET_TAG, mBottomControlsOffsetTag);
-        } else {
+    void updateOffsetTag(@Nullable BrowserControlsOffsetTagsInfo offsetTagsInfo) {
+        mBrowserControlsOffsetTagsInfo = offsetTagsInfo;
+
+        if (offsetTagsInfo == null || getControlsPosition() == ControlsPosition.NONE) {
             mModel.set(TopToolbarOverlayProperties.TOOLBAR_OFFSET_TAG, null);
+        } else if (getControlsPosition() == ControlsPosition.TOP) {
+            mModel.set(
+                    TopToolbarOverlayProperties.TOOLBAR_OFFSET_TAG,
+                    offsetTagsInfo.getTopControlsOffsetTag());
+        } else if (getControlsPosition() == ControlsPosition.BOTTOM) {
+            mModel.set(
+                    TopToolbarOverlayProperties.TOOLBAR_OFFSET_TAG,
+                    offsetTagsInfo.getBottomControlsOffsetTag());
+        } else {
+            assert false : "Unknown control position.";
         }
     }
 
@@ -422,7 +430,9 @@ public class TopToolbarOverlayMediator {
     /** Update the state of the composited progress bar. */
     private void updateProgress() {
         // Tablets have their own version of a progress "spinner".
-        if (isTablet()) return;
+        if (!ChromeFeatureList.sAndroidAnimatedProgressBarInBrowser.isEnabled() && isTablet()) {
+            return;
+        }
 
         if (mModel.get(TopToolbarOverlayProperties.PROGRESS_BAR_INFO) == null) {
             mModel.set(
@@ -456,30 +466,6 @@ public class TopToolbarOverlayMediator {
             }
 
             onProgressBarOffsetTagsChanged();
-        }
-
-        if (ChromeFeatureList.sAndroidAnimatedProgressBarInBrowser.isEnabled()) {
-            if (drawingInfo.visible && !mProgressBarAnimation.isStarted()) {
-                mAnimatedProgress = 0;
-                mProgressBarAnimation.start();
-            } else if (!drawingInfo.visible) {
-                mProgressBarAnimation.cancel();
-            }
-
-            Rect foregroundRect = drawingInfo.progressBarRect;
-            Rect backgroundRect = drawingInfo.progressBarBackgroundRect;
-            Rect staticBackgroundRect = drawingInfo.progressBarStaticBackgroundRect;
-            int progressX =
-                    foregroundRect.left
-                            + Math.round(mAnimatedProgress * staticBackgroundRect.width());
-            int gap = backgroundRect.left - foregroundRect.right;
-            drawingInfo.progressBarRect.set(
-                    foregroundRect.left, foregroundRect.top, progressX, foregroundRect.bottom);
-            drawingInfo.progressBarBackgroundRect.set(
-                    progressX + gap,
-                    backgroundRect.top,
-                    backgroundRect.right,
-                    backgroundRect.bottom);
         }
 
         // TODO(https://crbug.com/439461293) Try not updating the model if nothing changed.

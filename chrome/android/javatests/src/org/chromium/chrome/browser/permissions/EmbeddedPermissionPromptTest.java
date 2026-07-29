@@ -62,7 +62,6 @@ import java.util.concurrent.TimeUnit;
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 @Features.EnableFeatures(PermissionsAndroidFeatureList.BYPASS_PEPC_SECURITY_FOR_TESTING)
-@Features.DisableFeatures(PermissionsAndroidFeatureList.APPROXIMATE_GEOLOCATION_PERMISSION)
 @Batch(Batch.PER_CLASS)
 @Restriction({DeviceRestriction.RESTRICTION_TYPE_NON_AUTO}) // crbug.com/394097674
 public class EmbeddedPermissionPromptTest {
@@ -184,7 +183,7 @@ public class EmbeddedPermissionPromptTest {
                 expectedPositiveEphemeralButtonText,
                 expectedNegativeButtonText,
                 /*expectedPermission*/ "",
-                "dismiss");
+                "promptdismiss");
     }
 
     /**
@@ -315,7 +314,9 @@ public class EmbeddedPermissionPromptTest {
                 new TestAndroidPermissionDelegate(
                         requestablePermission, RuntimePromptResponse.GRANT);
         final String expectedTitle =
-                (response == EmbeddedPermissiontResponse.NEGATIVE) ? "dismiss" : "resolve";
+                (response == EmbeddedPermissiontResponse.NEGATIVE)
+                        ? "promptdismiss"
+                        : "promptaction";
         final String expectedPermission =
                 (response == EmbeddedPermissiontResponse.NEGATIVE) ? "prompt" : "granted";
         runTest(
@@ -345,7 +346,9 @@ public class EmbeddedPermissionPromptTest {
                 new TestAndroidPermissionDelegate(
                         requestablePermission, RuntimePromptResponse.GRANT);
         final String expectedTitle =
-                (response == EmbeddedPermissiontResponse.NEGATIVE) ? "resolve" : "dismiss";
+                (response == EmbeddedPermissiontResponse.NEGATIVE)
+                        ? "promptaction"
+                        : "promptdismiss";
         final String expectedPermission =
                 (response == EmbeddedPermissiontResponse.NEGATIVE) ? "granted" : "denied";
         runTest(
@@ -375,7 +378,9 @@ public class EmbeddedPermissionPromptTest {
                 new TestAndroidPermissionDelegate(
                         requestablePermission, RuntimePromptResponse.GRANT);
         final String expectedTitle =
-                (response == EmbeddedPermissiontResponse.NEGATIVE) ? "resolve" : "dismiss";
+                (response == EmbeddedPermissiontResponse.NEGATIVE)
+                        ? "promptaction"
+                        : "promptdismiss";
         final String expectedPermission =
                 (response == EmbeddedPermissiontResponse.NEGATIVE) ? "denied" : "granted";
         runTest(

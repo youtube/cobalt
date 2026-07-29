@@ -9,18 +9,14 @@
 #include "third_party/blink/renderer/core/script_tools/model_context.h"
 #include "third_party/blink/renderer/core/script_tools/model_context_testing.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
-#include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
 
 class Navigator;
 
 class CORE_EXPORT ModelContextSupplement final
-    : public GarbageCollected<ModelContextSupplement>,
-      public Supplement<Navigator> {
+    : public GarbageCollected<ModelContextSupplement> {
  public:
-  static const unsigned kSupplementIndex;
-
   static ModelContextSupplement& From(Navigator&);
   static ModelContext* GetIfExists(Navigator&);
   static ModelContext* modelContext(Navigator&);
@@ -30,12 +26,13 @@ class CORE_EXPORT ModelContextSupplement final
   ModelContextSupplement(const ModelContextSupplement&) = delete;
   ModelContextSupplement& operator=(const ModelContextSupplement&) = delete;
 
-  void Trace(Visitor*) const override;
+  void Trace(Visitor*) const;
 
  private:
   ModelContext* modelContext();
   ModelContextTesting* modelContextTesting();
 
+  Member<Navigator> navigator_;
   Member<ModelContext> model_context_;
   Member<ModelContextTesting> model_context_testing_;
 };

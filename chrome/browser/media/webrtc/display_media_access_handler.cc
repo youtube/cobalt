@@ -351,7 +351,7 @@ void DisplayMediaAccessHandler::ShowMediaSelectionDialog(
       picker_factory_->CreatePicker(&request);
   if (!picker) {
     std::move(callback).Run(blink::mojom::StreamDevicesSet(),
-                            MediaStreamRequestResult::INVALID_STATE,
+                            MediaStreamRequestResult::NOT_SUPPORTED,
                             /*ui=*/nullptr);
     return;
   }
@@ -597,6 +597,7 @@ void DisplayMediaAccessHandler::ProcessQueuedPickerRequest(
       pending_request.request.exclude_self_browser_surface;
   picker_params.exclude_monitor_type_surfaces =
       pending_request.request.exclude_monitor_type_surfaces;
+  picker_params.includable_web_contents_filter = includable_web_contents_filter;
 #endif
 
   pending_request.picker->Show(picker_params, std::move(source_lists),
@@ -612,7 +613,8 @@ void DisplayMediaAccessHandler::ProcessQueuedChangeSourceRequest(
   WebContentsMediaCaptureId web_contents_id;
   if (!WebContentsMediaCaptureId::Parse(
           request.requested_video_device_ids.front(), &web_contents_id)) {
-    RejectRequest(web_contents, MediaStreamRequestResult::INVALID_STATE);
+    RejectRequest(web_contents,
+                  MediaStreamRequestResult::INVALID_VIDEO_DEVICE_ID);
     return;
   }
   DesktopMediaID media_id(DesktopMediaID::TYPE_WEB_CONTENTS,
@@ -794,7 +796,7 @@ void DisplayMediaAccessHandler::OnDlpRestrictionChecked(
 
   if (!is_dlp_allowed) {
     RejectRequest(web_contents.get(),
-                  MediaStreamRequestResult::PERMISSION_DENIED);
+                  MediaStreamRequestResult::DLP_PERMISSION_DENIED);
   }
   AcceptRequest(web_contents.get(), media_id);
 }

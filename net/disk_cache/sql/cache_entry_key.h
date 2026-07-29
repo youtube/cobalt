@@ -7,12 +7,13 @@
 
 #include <optional>
 #include <string>
+#include <string_view>
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/ref_counted_memory.h"
 #include "base/types/strong_alias.h"
 #include "net/base/net_export.h"
-#include "net/disk_cache/sql/sql_backend_ids.h"
+#include "net/disk_cache/sql/sql_backend_aliases.h"
 
 namespace disk_cache {
 
@@ -39,6 +40,10 @@ namespace disk_cache {
 class NET_EXPORT_PRIVATE CacheEntryKey {
  public:
   using Hash = CacheEntryKeyHash;
+
+  // A utility to compute the hash of a string, without needing to create a
+  // CacheEntryKey object.
+  static Hash HashFromString(const std::string_view str);
 
   explicit CacheEntryKey(std::string str = "");
   ~CacheEntryKey();

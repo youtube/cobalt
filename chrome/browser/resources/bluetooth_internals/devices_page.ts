@@ -34,8 +34,7 @@ export class DevicesPage extends Page {
   constructor() {
     super('devices', 'Devices', 'devices');
 
-    this.deviceTable =
-        document.createElement('device-table') as DeviceTableElement;
+    this.deviceTable = document.createElement('device-table');
     this.pageDiv.appendChild(this.deviceTable);
     this.scanBtn_ = this.pageDiv.querySelector<HTMLButtonElement>('#scan-btn')!;
     this.scanBtn_.addEventListener('click', _event => {
@@ -83,5 +82,12 @@ export class DevicesPage extends Page {
         this.scanBtn_.textContent = 'Stopping...';
         break;
     }
+  }
+}
+
+declare global {
+  interface HTMLElementEventMap {
+    'inspectpressed': CustomEvent<{address: string}>;
+    'scanpressed': CustomEvent;
   }
 }

@@ -13,13 +13,14 @@
 #include "base/component_export.h"
 #include "base/containers/span.h"
 #include "base/types/expected.h"
-#include "components/persistent_cache/backend_params.h"
+#include "components/persistent_cache/buffer_provider.h"
 #include "components/persistent_cache/entry_metadata.h"
+#include "components/persistent_cache/lock_state.h"
 #include "components/persistent_cache/transaction_error.h"
 
 namespace persistent_cache {
 
-class Entry;
+enum class BackendType;
 
 // The persistence mechanism backing up the cache.
 class COMPONENT_EXPORT(PERSISTENT_CACHE) Backend {
@@ -32,16 +33,13 @@ class COMPONENT_EXPORT(PERSISTENT_CACHE) Backend {
   Backend& operator=(const Backend&) = delete;
   Backend& operator=(Backend&&) = delete;
 
-  // Initializes the cache. Must be called exactly once before any other
-  // method. No further method can be called if this fails.
-  virtual bool Initialize() = 0;
-
   // See `PersistentCache::Find()`.
   // Note: Backends have to outlive entries they vend.
   //
   // Thread-safe.
-  virtual base::expected<std::unique_ptr<Entry>, TransactionError> Find(
-      std::string_view key) = 0;
+  virtual base::expected<std::optional<EntryMetadata>, TransactionError> Find(
+      std::string_view key,
+      BufferProvider buffer_provider) = 0;
 
   // See `PersistentCache::Insert()`.
   // Thread-safe.
@@ -61,16 +59,8 @@ class COMPONENT_EXPORT(PERSISTENT_CACHE) Backend {
   // not permitted.
   virtual bool IsReadOnly() const = 0;
 
-  // Returns params for an independent read-only connection to the instance, or
-  // nothing in case of error.
-  virtual std::optional<BackendParams> ExportReadOnlyParams() = 0;
-
-  // Returns params for an independent read-write connection to the instance, or
-  // nothing in case of error.
-  virtual std::optional<BackendParams> ExportReadWriteParams() = 0;
-
   // See `PersistentCache::Abandon()` documentation.
-  virtual void Abandon() = 0;
+  virtual LockState Abandon() = 0;
 
  protected:
   Backend();

@@ -49,11 +49,11 @@
 #include "components/content_settings/core/common/content_settings_pattern.h"
 #include "components/content_settings/core/common/content_settings_types.h"
 #include "components/content_settings/core/common/features.h"
+#include "components/desktop_to_mobile_promos/features.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
 #include "components/permissions/constants.h"
 #include "components/safe_browsing/core/common/features.h"
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
-#include "components/sharing_message/features.h"
 #include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/site_engagement/content/site_engagement_service.h"
@@ -835,12 +835,13 @@ void SafetyHubHandler::OnJavascriptDisallowed() {}
 
 void SafetyHubHandler::OnSafeBrowsingEnhancedChanged() {
   if (profile_->GetPrefs()->GetBoolean(prefs::kSafeBrowsingEnhanced) &&
-      MobilePromoOnDesktopTypeEnabled() ==
-          MobilePromoOnDesktopPromoType::kESBPromo) {
+      MobilePromoOnDesktopTypeEnabled(
+          MobilePromoOnDesktopPromoType::kESBPromo)) {
     IOSPromoTriggerService* service =
         IOSPromoTriggerServiceFactory::GetForProfile(profile_);
     if (service) {
-      service->NotifyPromoShouldBeShown(IOSPromoType::kEnhancedBrowsing);
+      service->NotifyPromoShouldBeShown(
+          desktop_to_mobile_promos::PromoType::kEnhancedBrowsing);
     }
   }
 }

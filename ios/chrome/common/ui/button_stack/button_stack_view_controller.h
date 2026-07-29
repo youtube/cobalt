@@ -61,6 +61,11 @@
 // indicator. Must be set before the view is loaded. Default is YES.
 @property(nonatomic, assign) BOOL showsVerticalScrollIndicator;
 
+// Controls the scroll view's content inset adjustment behavior.
+// Default is UIScrollViewContentInsetAdjustmentAlways.
+@property(nonatomic, assign)
+    UIScrollViewContentInsetAdjustmentBehavior contentInsetAdjustmentBehavior;
+
 // Controls the addition of the a bottom inset to the contentView.
 // Defaults to YES.
 @property(nonatomic, assign) BOOL addsContentViewBottomInset;
@@ -73,6 +78,10 @@
 - (instancetype)initWithConfiguration:(ButtonStackConfiguration*)configuration
     NS_DESIGNATED_INITIALIZER;
 
+// Initializes the view controller with a default `ButtonStackConfiguration`.
+// Prefer using `initWithConfiguration:` when possible.
+- (instancetype)init;
+
 - (instancetype)initWithNibName:(NSString*)nibNameOrNil
                          bundle:(NSBundle*)nibBundleOrNil NS_UNAVAILABLE;
 - (instancetype)initWithCoder:(NSCoder*)coder NS_UNAVAILABLE;
@@ -83,11 +92,20 @@
 // Scrolls the view to the end.
 - (void)scrollToBottom;
 
-// Returns the height of the button stack view.
-- (CGFloat)buttonStackHeight;
-
 // Returns YES if at least one button is visible.
 - (BOOL)hasVisibleButtons;
+
+// Detent that attempts to fit the preferred height of the content. Detent may
+// be inactive in some size classes, so it should be used together with at
+// least one other detent.
+- (UISheetPresentationControllerDetent*)preferredHeightDetent;
+
+// Calculates the preferred height of the content.
+// Subclasses should override this method to include the height of any
+// additional views they add outside of the `contentView` (e.g., navigation
+// bars, headers), while calling `super` to include the base content and button
+// stack height.
+- (CGFloat)preferredHeightForContent;
 
 @end
 

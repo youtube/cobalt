@@ -40,10 +40,6 @@ inline constexpr char kDefaultListCountryOverride[] = "DEFAULT_EEA";
 inline constexpr char kEeaListCountryOverride[] = "EEA_ALL";
 
 #if BUILDFLAG(IS_ANDROID)
-// Mitigate overlap cases between the legacy search engine promo and the
-// device-based program eligibility determinations.
-BASE_DECLARE_FEATURE(kMitigateLegacySearchEnginePromoOverlap);
-
 // Ensure that the legacy search engine promos don't trigger on out of
 // scope device types.
 BASE_DECLARE_FEATURE(kRestrictLegacySearchEnginePromoOnFormFactors);
@@ -81,6 +77,14 @@ BASE_DECLARE_FEATURE(kDynamicProfileCountry);
 // be enabled. When enabled, the associated program settings will be read to
 // determine whether to actually show it.
 BASE_DECLARE_FEATURE(kCurrentDseHighlightOnChoiceScreenSupport);
+
+// Whether to enable eligibility based on the current location for Waffle choice
+// screens (see ChoiceScreenEligibilityConfig.restrict_to_associated_countries).
+BASE_DECLARE_FEATURE(kWaffleRestrictToAssociatedCountries);
+
+// For programs with restrict_to_associated_countries, whether an exact country
+// match is required (in addition to a region match).
+BASE_DECLARE_FEATURE(kStrictAssociatedCountriesCheck);
 
 }  // namespace switches
 

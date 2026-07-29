@@ -19,7 +19,6 @@
 
 #include "base/allocator/allocator_check.h"
 #include "base/allocator/partition_alloc_support.h"
-#include "base/android/background_thread_pool_field_trial.h"
 #include "base/at_exit.h"
 #include "base/base_switches.h"
 #include "base/command_line.h"
@@ -51,6 +50,7 @@
 #include "base/task/thread_pool/thread_pool_instance.h"
 #include "base/threading/hang_watcher.h"
 #include "base/threading/platform_thread.h"
+#include "base/time/default_clock.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "build/branding_buildflags.h"
@@ -187,6 +187,7 @@
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
+#include "base/android/background_thread_pool_field_trial.h"
 #include "base/system/sys_info.h"
 #include "content/browser/android/battery_metrics.h"
 #include "content/browser/android/browser_startup_controller.h"
@@ -1184,7 +1185,8 @@ int ContentMainRunnerImpl::RunBrowser(MainFunctionParams main_params,
     auto* provider = delegate_->CreateVariationsIdsProvider();
     if (!provider) {
       variations::VariationsIdsProvider::CreateInstance(
-          variations::VariationsIdsProvider::Mode::kUseSignedInState);
+          variations::VariationsIdsProvider::Mode::kUseSignedInState,
+          std::make_unique<base::DefaultClock>());
     }
 
     std::optional<int> post_early_initialization_exit_code =
@@ -1278,6 +1280,11 @@ int ContentMainRunnerImpl::RunBrowser(MainFunctionParams main_params,
       ->ReconfigureAfterFeatureListInit("");
   base::allocator::PartitionAllocSupport::Get()->ReconfigureAfterTaskRunnerInit(
       "");
+  BrowserTaskExecutor::GetIOThreadTaskRunner({base::TaskPriority::BEST_EFFORT})
+      ->PostTask(FROM_HERE, base::BindOnce([] {
+                   base::allocator::ReconfigureSchedulerLoopQuarantineBranch(
+                       base::allocator::SchedulerLoopQuarantineBranchType::kIO);
+                 }));
 
   if (start_minimal_browser) {
     DVLOG(0) << "Chrome is running in minimal browser mode.";

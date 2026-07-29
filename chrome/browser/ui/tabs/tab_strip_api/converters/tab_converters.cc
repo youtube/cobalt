@@ -69,6 +69,8 @@ mojom::AlertState ToMojo(tabs::TabAlert state) {
       return mojom::AlertState::kGlicSharing;
     case tabs::TabAlert::kActorAccessing:
       return mojom::AlertState::kActorAccessing;
+    case tabs::TabAlert::kActorWaitingOnUser:
+      return mojom::AlertState::kActorWaitingOnUser;
   }
 }
 
@@ -166,6 +168,47 @@ TabNetworkState FromMojo(mojom::NetworkState state) {
       return TabNetworkState::kLoading;
     case mojom::NetworkState::kError:
       return TabNetworkState::kError;
+  }
+}
+
+tabs::TabAlert FromMojo(mojom::AlertState state) {
+  switch (state) {
+    case mojom::AlertState::kMediaRecording:
+      return tabs::TabAlert::kMediaRecording;
+    case mojom::AlertState::kTabCapturing:
+      return tabs::TabAlert::kTabCapturing;
+    case mojom::AlertState::kAudioPlaying:
+      return tabs::TabAlert::kAudioPlaying;
+    case mojom::AlertState::kAudioMuting:
+      return tabs::TabAlert::kAudioMuting;
+    case mojom::AlertState::kBluetoothConnected:
+      return tabs::TabAlert::kBluetoothConnected;
+    case mojom::AlertState::kBluetoothScanActive:
+      return tabs::TabAlert::kBluetoothScanActive;
+    case mojom::AlertState::kUsbConnected:
+      return tabs::TabAlert::kUsbConnected;
+    case mojom::AlertState::kHidConnected:
+      return tabs::TabAlert::kHidConnected;
+    case mojom::AlertState::kSerialConnected:
+      return tabs::TabAlert::kSerialConnected;
+    case mojom::AlertState::kPipPlaying:
+      return tabs::TabAlert::kPipPlaying;
+    case mojom::AlertState::kDesktopCapturing:
+      return tabs::TabAlert::kDesktopCapturing;
+    case mojom::AlertState::kVrPresentingInHeadset:
+      return tabs::TabAlert::kVrPresentingInHeadset;
+    case mojom::AlertState::kAudioRecording:
+      return tabs::TabAlert::kAudioRecording;
+    case mojom::AlertState::kVideoRecording:
+      return tabs::TabAlert::kVideoRecording;
+    case mojom::AlertState::kGlicAccessing:
+      return tabs::TabAlert::kGlicAccessing;
+    case mojom::AlertState::kGlicSharing:
+      return tabs::TabAlert::kGlicSharing;
+    case mojom::AlertState::kActorAccessing:
+      return tabs::TabAlert::kActorAccessing;
+    case mojom::AlertState::kActorWaitingOnUser:
+      return tabs::TabAlert::kActorWaitingOnUser;
   }
 }
 

@@ -42,7 +42,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/permissions_policy/document_policy_features.h"
-#include "third_party/blink/public/common/privacy_budget/identifiable_surface.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/public/web/web_print_page_description.h"
 #include "third_party/blink/renderer/bindings/core/v8/isolated_world_csp.h"
@@ -53,6 +52,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/v8_throw_dom_exception.h"
 #include "third_party/blink/renderer/core/css/media_query_list_listener.h"
 #include "third_party/blink/renderer/core/css/media_query_matcher.h"
+#include "third_party/blink/renderer/core/css/style_engine.h"
 #include "third_party/blink/renderer/core/dom/document_fragment.h"
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
 #include "third_party/blink/renderer/core/dom/dom_implementation.h"
@@ -331,33 +331,6 @@ TEST_F(DocumentTest, PrintRelayout) {
   EXPECT_EQ(GetDocument().documentElement()->OffsetWidth(), 400);
   GetDocument().GetFrame()->EndPrinting();
   EXPECT_EQ(GetDocument().documentElement()->OffsetWidth(), 800);
-}
-
-// This tests whether we properly set the bits for indicating if a media feature
-// has been evaluated.
-TEST_F(DocumentTest, MediaFeatureEvaluated) {
-  GetDocument().SetMediaFeatureEvaluated(
-      static_cast<int>(IdentifiableSurface::MediaFeatureName::kForcedColors));
-  for (int i = 0; i < 64; i++) {
-    if (i == static_cast<int>(
-                 IdentifiableSurface::MediaFeatureName::kForcedColors)) {
-      EXPECT_TRUE(GetDocument().WasMediaFeatureEvaluated(i));
-    } else {
-      EXPECT_FALSE(GetDocument().WasMediaFeatureEvaluated(i));
-    }
-  }
-  GetDocument().SetMediaFeatureEvaluated(
-      static_cast<int>(IdentifiableSurface::MediaFeatureName::kAnyHover));
-  for (int i = 0; i < 64; i++) {
-    if ((i == static_cast<int>(
-                  IdentifiableSurface::MediaFeatureName::kForcedColors)) ||
-        (i ==
-         static_cast<int>(IdentifiableSurface::MediaFeatureName::kAnyHover))) {
-      EXPECT_TRUE(GetDocument().WasMediaFeatureEvaluated(i));
-    } else {
-      EXPECT_FALSE(GetDocument().WasMediaFeatureEvaluated(i));
-    }
-  }
 }
 
 // This test checks that Documunt::linkManifest() returns a value conform to the
@@ -1431,8 +1404,7 @@ TEST_F(DocumentSimTest, DuplicatedDocumentPolicyViolationsAreIgnored) {
   ExecutionContext* execution_context = GetDocument().GetExecutionContext();
   MockReportingContext* mock_reporting_context =
       MakeGarbageCollected<MockReportingContext>(*execution_context);
-  Supplement<ExecutionContext>::ProvideTo(*execution_context,
-                                          mock_reporting_context);
+  execution_context->SetReportingContext(mock_reporting_context);
 
   EXPECT_FALSE(execution_context->IsFeatureEnabled(
       mojom::blink::DocumentPolicyFeature::kForceLoadAtTop,

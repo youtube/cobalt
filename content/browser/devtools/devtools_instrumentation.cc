@@ -76,7 +76,9 @@ namespace {
 namespace AttributionReportingIssueTypeEnum =
     protocol::Audits::AttributionReportingIssueTypeEnum;
 
-const char kPrivacySandboxExtensionsAPI[] = "PrivacySandboxExtensionsAPI";
+const char kExampleBrowserProcessDeprecation[] =
+    "ExampleBrowserProcessDeprecation";
+const char kRelatedWebsiteSets[] = "RelatedWebsiteSets";
 
 template <typename Handler, typename... MethodArgs, typename... Args>
 void DispatchToAgents(DevToolsAgentHostImpl* host,
@@ -510,8 +512,10 @@ BuildFederatedAuthUserInfoRequestIssue(
 const char* DeprecationIssueTypeToProtocol(
     blink::mojom::DeprecationIssueType error_type) {
   switch (error_type) {
-    case blink::mojom::DeprecationIssueType::kPrivacySandboxExtensionsAPI:
-      return kPrivacySandboxExtensionsAPI;
+    case blink::mojom::DeprecationIssueType::kExampleBrowserProcessDeprecation:
+      return kExampleBrowserProcessDeprecation;
+    case blink::mojom::DeprecationIssueType::kRelatedWebsiteSets:
+      return kRelatedWebsiteSets;
   }
 }
 
@@ -1015,6 +1019,33 @@ void OnNavigationRequestFailed(
 
   DispatchToAgents(ftn, &protocol::NetworkHandler::LoadingComplete, id,
                    protocol::Network::ResourceTypeEnum::Document, status);
+}
+
+void OnNavigationEntryMarkedSkippable(const GURL& url,
+                                      RenderFrameHostImpl* rfh) {
+  DCHECK(rfh);
+
+  auto request =
+      protocol::Audits::AffectedRequest::Create().SetUrl(url.spec()).Build();
+
+  auto generic_details =
+      protocol::Audits::GenericIssueDetails::Create()
+          .SetErrorType(protocol::Audits::GenericIssueErrorTypeEnum::
+                            NavigationEntryMarkedSkippable)
+          .SetRequest(std::move(request))
+          .Build();
+
+  auto details = protocol::Audits::InspectorIssueDetails::Create()
+                     .SetGenericIssueDetails(std::move(generic_details))
+                     .Build();
+
+  auto issue =
+      protocol::Audits::InspectorIssue::Create()
+          .SetCode(protocol::Audits::InspectorIssueCodeEnum::GenericIssue)
+          .SetDetails(std::move(details))
+          .Build();
+
+  ReportBrowserInitiatedIssue(rfh, std::move(issue));
 }
 
 bool ShouldBypassCSP(const NavigationRequest& nav_request) {
@@ -2554,17 +2585,17 @@ protocol::Audits::GenericIssueErrorType GenericIssueErrorTypeToProtocol(
       return protocol::Audits::GenericIssueErrorTypeEnum::
           FormEmptyIdAndNameAttributesForInputError;
     case blink::mojom::GenericIssueErrorType::
-        kFormAriaLabelledByToNonExistingId:
+        kFormAriaLabelledByToNonExistingIdError:
       return protocol::Audits::GenericIssueErrorTypeEnum::
-          FormAriaLabelledByToNonExistingId;
+          FormAriaLabelledByToNonExistingIdError;
     case blink::mojom::GenericIssueErrorType::
         kFormInputAssignedAutocompleteValueToIdOrNameAttributeError:
       return protocol::Audits::GenericIssueErrorTypeEnum::
           FormInputAssignedAutocompleteValueToIdOrNameAttributeError;
     case blink::mojom::GenericIssueErrorType::
-        kFormLabelHasNeitherForNorNestedInput:
+        kFormLabelHasNeitherForNorNestedInputError:
       return protocol::Audits::GenericIssueErrorTypeEnum::
-          FormLabelHasNeitherForNorNestedInput;
+          FormLabelHasNeitherForNorNestedInputError;
     case blink::mojom::GenericIssueErrorType::
         kFormLabelForMatchesNonExistingIdError:
       return protocol::Audits::GenericIssueErrorTypeEnum::
@@ -2576,6 +2607,9 @@ protocol::Audits::GenericIssueErrorType GenericIssueErrorTypeToProtocol(
     case blink::mojom::GenericIssueErrorType::kResponseWasBlockedByORB:
       return protocol::Audits::GenericIssueErrorTypeEnum::
           ResponseWasBlockedByORB;
+    case blink::mojom::GenericIssueErrorType::kNavigationEntryMarkedSkippable:
+      return protocol::Audits::GenericIssueErrorTypeEnum::
+          NavigationEntryMarkedSkippable;
   }
 }
 

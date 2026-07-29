@@ -13,6 +13,30 @@ suite('ReadAloudModel', () => {
     assertEquals(0, getReadAloudModel().getCurrentTextSegments().length);
   }
 
+  interface TestSegment {
+    node: Node;
+    start: number;
+    length: number;
+  }
+
+  function expectHighlightAtIndexMatches(
+      index: number, expectedSegments: TestSegment[], phrases = false) {
+    const segments =
+        getReadAloudModel().getHighlightForCurrentSegmentIndex(index, phrases);
+    assertEquals(expectedSegments.length, segments.length);
+    for (let i = 0; i < segments.length; i++) {
+      const expected = expectedSegments[i]!;
+      const actual = segments[i]!;
+      assertEquals(expected.node, actual.node.domNode());
+      assertEquals(expected.start, actual.start);
+      assertEquals(expected.length, actual.length);
+    }
+  }
+
+  function expectHighlightAtIndexMatchesEmpty(index: number, phrases = false) {
+    expectHighlightAtIndexMatches(index, [], phrases);
+  }
+
   function assertSentenceMatchesEntireSegment(sentence: string) {
     // Remove all trailing whitespace and newline characters. It's possible
     // that extra newlines may get added to the ends of sentences to ensure
@@ -28,11 +52,162 @@ suite('ReadAloudModel', () => {
     assertEquals(sentence, node.getText().trim());
   }
 
+  // Creates a linked citation intended to mimic citations in Wikipedia and
+  // other articles. Of the format:
+  // <sup><a><span>[</span>text content<span>]</span></a></sup>
+  function createLinkedCitationSuperscript(text: string): HTMLElement {
+    const superscript = document.createElement('sup');
+    const link = document.createElement('a');
+    const openingBracketSpan = document.createElement('span');
+    const textSpan = document.createTextNode(text);
+    const closingBracketSpan = document.createElement('span');
+
+    openingBracketSpan.textContent = '[';
+    closingBracketSpan.textContent = ']';
+
+    link.appendChild(openingBracketSpan);
+    link.appendChild(textSpan);
+    link.appendChild(closingBracketSpan);
+
+    superscript.appendChild(link);
+    return superscript;
+  }
+
   setup(() => {
     // Clearing the DOM should always be done first.
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
     setInstance(null);
   });
+
+  test('getCurrentText opening punctuation ignored', async () => {
+    const paragraph = document.createElement('p');
+
+    const sentence = document.createTextNode('Run, take cover.');
+    const parenthetical =
+        document.createTextNode('(I\'m gonna come up with a plan.)');
+
+    paragraph.appendChild(sentence);
+    paragraph.appendChild(parenthetical);
+    document.body.appendChild(paragraph);
+
+    await microtasksFinished();
+
+    getReadAloudModel().init(ReadAloudNode.create(document.body)!);
+
+    assertEquals(
+        sentence.textContent.trim(),
+        getReadAloudModel().getCurrentTextContent().trim());
+
+    getReadAloudModel().moveSpeechForward();
+    assertEquals(
+        parenthetical.textContent.trim(),
+        getReadAloudModel().getCurrentTextContent().trim());
+
+    getReadAloudModel().moveSpeechForward();
+    assertTextEmpty();
+  });
+
+  test('getCurrentText multiple opening punctuation ignored', async () => {
+    const paragraph = document.createElement('p');
+
+    const sentence = document.createTextNode('Run, take cover.');
+    const parenthetical =
+        document.createTextNode('[{<(((I\'m gonna come up with a plan.)');
+
+    paragraph.appendChild(sentence);
+    paragraph.appendChild(parenthetical);
+    document.body.appendChild(paragraph);
+
+    await microtasksFinished();
+
+    getReadAloudModel().init(ReadAloudNode.create(document.body)!);
+
+    assertEquals(
+        sentence.textContent.trim(),
+        getReadAloudModel().getCurrentTextContent().trim());
+
+    getReadAloudModel().moveSpeechForward();
+    assertEquals(
+        parenthetical.textContent.trim(),
+        getReadAloudModel().getCurrentTextContent().trim());
+
+    getReadAloudModel().moveSpeechForward();
+    assertTextEmpty();
+  });
+
+  test(
+      'getCurrentText opening punctuation included when entire node',
+      async () => {
+        const paragraph = document.createElement('p');
+
+        const sentence = document.createTextNode('And I am almost there.');
+        const parenthetical = document.createElement('b');
+        parenthetical.appendChild(document.createTextNode('['));
+        parenthetical.appendChild(document.createTextNode('2'));
+        parenthetical.appendChild(document.createTextNode(']'));
+
+        paragraph.appendChild(sentence);
+        paragraph.appendChild(parenthetical);
+        document.body.appendChild(paragraph);
+
+        await microtasksFinished();
+
+        getReadAloudModel().init(ReadAloudNode.create(document.body)!);
+
+        assertEquals(
+            sentence.textContent.trim(),
+            getReadAloudModel().getCurrentTextContent().trim());
+
+        // The next segment contains the entire bracketed statement '[2]' with
+        // both opening and closing brackets so neither bracket is read
+        // out-of-context.
+        getReadAloudModel().moveSpeechForward();
+        assertEquals(
+            parenthetical.textContent.trim(),
+            getReadAloudModel().getCurrentTextContent().trim());
+
+        getReadAloudModel().moveSpeechForward();
+        assertTextEmpty();
+      });
+
+  test(
+      'getCurrentText with multiple opening punctuation characters',
+      async () => {
+        const paragraph = document.createElement('p');
+
+        const sentence = document.createTextNode('And I am almost there.');
+        const parenthetical = document.createElement('b');
+        parenthetical.appendChild(document.createTextNode('['));
+        parenthetical.appendChild(document.createTextNode('('));
+        parenthetical.appendChild(document.createTextNode('{'));
+        parenthetical.appendChild(document.createTextNode('<'));
+        parenthetical.appendChild(document.createTextNode('2'));
+        parenthetical.appendChild(document.createTextNode(')'));
+        parenthetical.appendChild(document.createTextNode(']'));
+
+        paragraph.appendChild(sentence);
+        paragraph.appendChild(parenthetical);
+        document.body.appendChild(paragraph);
+
+        await microtasksFinished();
+
+        getReadAloudModel().init(ReadAloudNode.create(document.body)!);
+
+        assertEquals(
+            sentence.textContent.trim(),
+            getReadAloudModel().getCurrentTextContent().trim());
+
+        // The next segment contains the entire bracketed statement '[2]' with
+        // both opening and closing brackets so neither bracket is read
+        // out-of-context.
+        getReadAloudModel().moveSpeechForward();
+        assertEquals(
+            parenthetical.textContent.trim(),
+            getReadAloudModel().getCurrentTextContent().trim());
+
+        getReadAloudModel().moveSpeechForward();
+        assertTextEmpty();
+      });
 
   test(
       'getCurrentTextContent when called many times returns same text',
@@ -1055,5 +1230,745 @@ suite('ReadAloudModel', () => {
 
         getReadAloudModel().moveSpeechForward();
         assertTextEmpty();
+      });
+
+  test(
+      'getCurrentText does not filter out whitespace between nodes',
+      async () => {
+        const teenLink = document.createElement('a');
+        const p = document.createElement('p');
+        teenLink.textContent = 'teen';
+        p.appendChild(teenLink);
+
+        const whitespaceSpan = document.createElement('span');
+        whitespaceSpan.textContent = ' ';
+        p.appendChild(whitespaceSpan);
+
+        const satiricalLink = document.createElement('a');
+        satiricalLink.textContent = 'satirical';
+        p.appendChild(satiricalLink);
+
+        const whitespaceSpan2 = document.createElement('span');
+        whitespaceSpan2.textContent = ' ';
+        p.appendChild(whitespaceSpan2);
+
+        const crimeFilmLink = document.createElement('a');
+        crimeFilmLink.textContent = 'crime film';
+        p.appendChild(crimeFilmLink);
+
+        document.body.appendChild(p);
+
+        await microtasksFinished();
+        getReadAloudModel().init(ReadAloudNode.create(document.body)!);
+        // If whitespace were filtered out, this would be
+        // "teensatiricalcrime film"
+        assertEquals(
+            'teen satirical crime film',
+            getReadAloudModel().getCurrentTextContent().trim());
+
+        getReadAloudModel().moveSpeechForward();
+        assertTextEmpty();
+      });
+
+  test(
+      'getCurrentTextSegments superscript combined with current segment',
+      async () => {
+        const div = document.createElement('div');
+        const sentence1 = document.createElement('b');
+        sentence1.textContent = 'And I am almost there.';
+
+        const sentence2 = document.createElement('sup');
+        sentence2.textContent = '2';
+
+        div.appendChild(sentence1);
+        div.appendChild(sentence2);
+        document.body.appendChild(div);
+
+        await microtasksFinished();
+        getReadAloudModel().init(ReadAloudNode.create(document.body)!);
+        assertEquals(
+            sentence1.textContent + sentence2.textContent,
+            getReadAloudModel().getCurrentTextContent().trim());
+
+        getReadAloudModel().moveSpeechForward();
+        assertTextEmpty();
+      });
+
+  test(
+      'getCurrentTextSegments superscript combined with preceding sentence instead of succeeding sentence',
+      async () => {
+        // Create a container element to hold the simplified structure
+        const simplifiedContainer = document.createElement('p');
+
+        // Text before the citation
+        simplifiedContainer.appendChild(
+            document.createTextNode('I\'m coming!'));
+
+        // <sup><a><span>[</span>b<span>]</span></a></sup>
+        const citation = createLinkedCitationSuperscript('b');
+        simplifiedContainer.appendChild(citation);
+
+        // Text after the citation.
+        simplifiedContainer.appendChild(
+            document.createTextNode(' Wait for me.'));
+
+        document.body.appendChild(simplifiedContainer);
+
+        await microtasksFinished();
+        getReadAloudModel().init(ReadAloudNode.create(document.body)!);
+        assertEquals(
+            'I\'m coming![b]',
+            getReadAloudModel().getCurrentTextContent().trim());
+        getReadAloudModel().moveSpeechForward();
+        assertEquals(
+            'Wait for me.', getReadAloudModel().getCurrentTextContent().trim());
+
+        getReadAloudModel().moveSpeechForward();
+        assertTextEmpty();
+      });
+
+  test(
+      'getCurrentTextSegments superscript combined with preceding sentence with multiple superscripts',
+      async () => {
+        // Create a container element to hold the simplified structure
+        const simplifiedContainer = document.createElement('p');
+
+        // Text before the citation
+        simplifiedContainer.appendChild(
+            document.createTextNode('Wait for me, I\'m coming.'));
+
+        // <sup><a><span>[</span>7<span>]</span></a></sup>
+        const citation7 = createLinkedCitationSuperscript('7');
+        simplifiedContainer.appendChild(citation7);
+
+        // <sup><a><span>[</span>8<span>]</span></a></sup>
+        const citation8 = createLinkedCitationSuperscript('8');
+        simplifiedContainer.appendChild(citation8);
+
+        // Text after the citation.
+        simplifiedContainer.appendChild(
+            document.createTextNode(' Show the way so we can see.'));
+
+        document.body.appendChild(simplifiedContainer);
+
+        await microtasksFinished();
+        getReadAloudModel().init(ReadAloudNode.create(document.body)!);
+        assertEquals(
+            'Wait for me, I\'m coming.[7][8]',
+            getReadAloudModel().getCurrentTextContent().trim());
+        getReadAloudModel().moveSpeechForward();
+        assertEquals(
+            'Show the way so we can see.',
+            getReadAloudModel().getCurrentTextContent().trim());
+
+        getReadAloudModel().moveSpeechForward();
+        assertTextEmpty();
+      });
+
+  test(
+      'getCurrentTextSegments all superscript nodes included in current sentence',
+      async () => {
+        // Create a container element to hold the simplified structure
+        const paragraph = document.createElement('p');
+
+        // Text before the citation
+        paragraph.appendChild(document.createTextNode('Doubt comes in.'));
+
+        const superscript = document.createElement('sup');
+        superscript.appendChild(document.createTextNode('['));
+        superscript.appendChild(document.createTextNode('3'));
+        superscript.appendChild(document.createTextNode(']'));
+        paragraph.appendChild(superscript);
+
+        document.body.appendChild(paragraph);
+        await microtasksFinished();
+        getReadAloudModel().init(ReadAloudNode.create(document.body)!);
+
+        // The first sentence and its superscript are returned as one segment.
+        assertEquals(
+            'Doubt comes in.[3]',
+            getReadAloudModel().getCurrentTextContent().trim());
+
+
+        getReadAloudModel().moveSpeechForward();
+        assertTextEmpty();
+      });
+
+  test(
+      'getCurrentTextSegments superscript with brackets included in current sentence',
+      async () => {
+        // Create a container element to hold the simplified structure
+        const paragraph = document.createElement('p');
+
+        // Text before the citation
+        paragraph.appendChild(document.createTextNode('Doubt comes in.'));
+
+        const superscript = document.createElement('sup');
+        superscript.appendChild(document.createTextNode('[2]'));
+        paragraph.appendChild(superscript);
+
+        document.body.appendChild(paragraph);
+        await microtasksFinished();
+        getReadAloudModel().init(ReadAloudNode.create(document.body)!);
+
+        // The first sentence and its superscript are returned as one segment.
+        assertEquals(
+            'Doubt comes in.[2]',
+            getReadAloudModel().getCurrentTextContent().trim());
+
+        getReadAloudModel().moveSpeechForward();
+        assertTextEmpty();
+      });
+
+  test(
+      'getCurrentTextSegments superscript included when entire node and more text is after superscript',
+      async () => {
+        // Create a container element to hold the simplified structure
+        const paragraph = document.createElement('p');
+
+        // Text before the citation
+        paragraph.appendChild(
+            document.createTextNode('And I am almost there.'));
+
+        const superscript = document.createElement('sup');
+        superscript.appendChild(document.createTextNode('['));
+        superscript.appendChild(document.createTextNode('23'));
+        superscript.appendChild(document.createTextNode(']'));
+        paragraph.appendChild(superscript);
+
+        // Text after the citation
+        paragraph.appendChild(
+            document.createTextNode('People gon\' come here from everywhere.'));
+
+        document.body.appendChild(paragraph);
+        await microtasksFinished();
+        getReadAloudModel().init(ReadAloudNode.create(document.body)!);
+
+        // The first sentence and its superscript are returned as one segment.
+        assertEquals(
+            'And I am almost there.[23]',
+            getReadAloudModel().getCurrentTextContent().trim());
+
+        // The next sentence and is returned on its own.
+        getReadAloudModel().moveSpeechForward();
+        assertEquals(
+            'People gon\' come here from everywhere.',
+            getReadAloudModel().getCurrentTextContent().trim());
+
+        getReadAloudModel().moveSpeechForward();
+        assertTextEmpty();
+      });
+
+
+  test(
+      'getHighlightForCurrentSegmentIndex returns correct nodess', async () => {
+        const paragraph = document.createElement('p');
+        const child = document.createTextNode('I\'m crossing the line!');
+        paragraph.appendChild(child);
+        document.body.appendChild(paragraph);
+        await microtasksFinished();
+
+        // Before there are any processed granularities,
+        // getHighlightForCurrentSegmentIndex should be empty.
+        assertEquals(
+            0,
+            getReadAloudModel()
+                .getHighlightForCurrentSegmentIndex(0, false)
+                .length);
+        getReadAloudModel().init(ReadAloudNode.create(document.body)!);
+
+        expectHighlightAtIndexMatches(0, [{node: child, start: 0, length: 3}]);
+        expectHighlightAtIndexMatches(3, [{node: child, start: 3, length: 9}]);
+        expectHighlightAtIndexMatches(7, [{node: child, start: 7, length: 5}]);
+        expectHighlightAtIndexMatches(
+            child.textContent.length - 2,
+            [{node: child, start: 20, length: 1}]);
+        expectHighlightAtIndexMatchesEmpty(child.textContent.length);
+      });
+
+
+  test(
+      ' getHighlightForCurrentSegmentIndex sentence spans multiple nodes returns correct node',
+      async () => {
+        const paragraph = document.createElement('p');
+        // Text indices:                      0123456789012345678901234567890
+        const child1 = document.createTextNode('Never feel heavy ');
+        const child2 = document.createTextNode('or earthbound, ');
+        const child3 =
+            document.createTextNode('no worries or doubts interfere.');
+        paragraph.appendChild(child1);
+        paragraph.appendChild(child2);
+        paragraph.appendChild(child3);
+        document.body.appendChild(paragraph);
+        await microtasksFinished();
+
+        // Before there are any processed granularities,
+        // getHighlightForCurrentSegmentIndex should be empty.
+        assertEquals(
+            0,
+            getReadAloudModel()
+                .getHighlightForCurrentSegmentIndex(0, false)
+                .length);
+        getReadAloudModel().init(ReadAloudNode.create(document.body)!);
+
+        // Spot check that indices 0->sentence1.length() map to the first node
+        // id.
+        let baseLength: number = child1.textContent.length;
+        expectHighlightAtIndexMatches(0, [{node: child1, start: 0, length: 5}]);
+        expectHighlightAtIndexMatches(7, [{node: child1, start: 7, length: 3}]);
+
+        // The trailing whitespace is segmented with the next word.
+        expectHighlightAtIndexMatches(baseLength - 1, [
+          {node: child1, start: 16, length: 1},
+          {node: child2, start: 0, length: 2},
+        ]);
+
+        // Spot check that indices in sentence 2 map to the second node id.
+        baseLength += child2.textContent.length;
+        expectHighlightAtIndexMatches(
+            child1.textContent.length + 1,
+            [{node: child2, start: 1, length: 1}]);
+        expectHighlightAtIndexMatches(
+            26, [{node: child2, start: 9, length: 4}]);
+        expectHighlightAtIndexMatches(baseLength - 1, [
+          {node: child2, start: 14, length: 1},
+          {node: child3, start: 0, length: 2},
+        ]);
+        expectHighlightAtIndexMatches(
+            baseLength, [{node: child3, start: 0, length: 2}]);
+
+        // Spot check that indices in sentence 3 map to the third node id.
+        baseLength += child3.textContent.length;
+        expectHighlightAtIndexMatches(
+            child1.textContent.length + child2.textContent.length + 1,
+            [{node: child3, start: 1, length: 1}]);
+        expectHighlightAtIndexMatches(
+            40, [{node: child3, start: 8, length: 2}]);
+
+        // Out-of-bounds nodes return an empty array.
+        expectHighlightAtIndexMatchesEmpty(baseLength - 1);
+        expectHighlightAtIndexMatchesEmpty(535);
+        expectHighlightAtIndexMatchesEmpty(-10);
+      });
+
+  test('getCurrentTextSegments returns correct segments', async () => {
+    const p = document.createElement('p');
+    p.textContent = 'I broke into a million pieces';
+    document.body.appendChild(p);
+    await microtasksFinished();
+    getReadAloudModel().init(ReadAloudNode.create(document.body)!);
+
+    const segments = getReadAloudModel().getCurrentTextSegments();
+    assertEquals(1, segments.length);
+    assertEquals(p.firstChild, segments[0]!.node.domNode());
+    assertEquals(0, segments[0]!.start);
+    assertEquals(p.textContent.length, segments[0]!.length);
+  });
+
+  test(
+      'getCurrentTextSegments sentence spans multiple nodes returns correct segments',
+      async () => {
+        const div = document.createElement('div');
+        const sentence1 = document.createTextNode('and I can\'t go back, ');
+        const sentence2 =
+            document.createTextNode('But now I\'m seeing all the beauty ');
+        const sentence3 = document.createTextNode('in the broken glass.');
+        div.appendChild(sentence1);
+        div.appendChild(sentence2);
+        div.appendChild(sentence3);
+        document.body.appendChild(div);
+        await microtasksFinished();
+        getReadAloudModel().init(ReadAloudNode.create(document.body)!);
+
+        const segments = getReadAloudModel().getCurrentTextSegments();
+        assertEquals(3, segments.length);
+        assertEquals(sentence1, segments[0]!.node.domNode());
+        assertEquals(0, segments[0]!.start);
+        assertEquals(sentence1.textContent.length, segments[0]!.length);
+        assertEquals(sentence2, segments[1]!.node.domNode());
+        assertEquals(0, segments[1]!.start);
+        assertEquals(sentence2.textContent.length, segments[1]!.length);
+        assertEquals(sentence3, segments[2]!.node.domNode());
+        assertEquals(0, segments[2]!.start);
+        assertEquals(sentence3.textContent.length, segments[2]!.length);
+      });
+
+  test(
+      'getCurrentTextSegments node spans multiple sentences returns correct segments',
+      async () => {
+        const segment1 = 'The scars are part of me! ';
+        const segment2 = 'Darkness and harmony. ';
+        const segment3 = 'My voice without the lies. ';
+        const segment4 = 'This is what it sounds ';
+        const node1Text = segment1 + segment2 + segment3 + segment4;
+        const node2Text = 'like.';
+        const div = document.createElement('div');
+        const node1 = document.createTextNode(node1Text);
+        div.appendChild(node1);
+        const node2 = document.createTextNode(node2Text);
+        div.appendChild(node2);
+        document.body.appendChild(div);
+        await microtasksFinished();
+        getReadAloudModel().init(ReadAloudNode.create(document.body)!);
+
+        // Sentence 1
+        assertEquals(
+            segment1.trim(),
+            getReadAloudModel().getCurrentTextContent().trim());
+        let segments = getReadAloudModel().getCurrentTextSegments();
+        assertEquals(1, segments.length);
+        assertEquals(node1, segments[0]!.node.domNode());
+        assertEquals(0, segments[0]!.start);
+        assertEquals(segment1.length, segments[0]!.length);
+
+        // Sentence 2
+        getReadAloudModel().moveSpeechForward();
+        assertEquals(
+            segment2.trim(),
+            getReadAloudModel().getCurrentTextContent().trim());
+        segments = getReadAloudModel().getCurrentTextSegments();
+        assertEquals(1, segments.length);
+        assertEquals(node1, segments[0]!.node.domNode());
+        assertEquals(segment1.length, segments[0]!.start);
+        assertEquals(segment2.length, segments[0]!.length);
+
+        // Sentence 3
+        getReadAloudModel().moveSpeechForward();
+        assertEquals(
+            segment3.trim(),
+            getReadAloudModel().getCurrentTextContent().trim());
+        segments = getReadAloudModel().getCurrentTextSegments();
+        assertEquals(1, segments.length);
+        assertEquals(node1, segments[0]!.node.domNode());
+        assertEquals(segment1.length + segment2.length, segments[0]!.start);
+        assertEquals(segment3.length, segments[0]!.length);
+
+        // Sentence 4
+        getReadAloudModel().moveSpeechForward();
+        assertEquals(
+            (segment4 + node2Text).trim(),
+            getReadAloudModel().getCurrentTextContent().trim());
+        segments = getReadAloudModel().getCurrentTextSegments();
+        assertEquals(2, segments.length);
+        assertEquals(node1, segments[0]!.node.domNode());
+        assertEquals(
+            segment1.length + segment2.length + segment3.length,
+            segments[0]!.start);
+        assertEquals(segment4.length, segments[0]!.length);
+        assertEquals(node2, segments[1]!.node.domNode());
+        assertEquals(0, segments[1]!.start);
+        assertEquals(node2Text.length, segments[1]!.length);
+      });
+
+  test(
+      'getCurrentTextSegments after previous returns correct nodes',
+      async () => {
+        const sentence1 =
+            'Why did I cover up the colors stuck inside my head? ';
+        const sentence2 = 'I should\'ve let the jagged edges.';
+        const sentence3 = 'meet the light instead.';
+        const p1 = document.createElement('p');
+        p1.textContent = sentence1;
+        const p2 = document.createElement('p');
+        p2.textContent = sentence2;
+        const p3 = document.createElement('p');
+        p3.textContent = sentence3;
+        document.body.appendChild(p1);
+        document.body.appendChild(p2);
+        document.body.appendChild(p3);
+        await microtasksFinished();
+        getReadAloudModel().init(ReadAloudNode.create(document.body)!);
+
+        getReadAloudModel().moveSpeechForward();
+        getReadAloudModel().moveSpeechForward();
+        assertEquals(
+            sentence3, getReadAloudModel().getCurrentTextContent().trim());
+
+        getReadAloudModel().moveSpeechBackwards();
+        assertEquals(
+            sentence2, getReadAloudModel().getCurrentTextContent().trim());
+        const segments = getReadAloudModel().getCurrentTextSegments();
+        assertEquals(1, segments.length);
+        assertEquals(p2.firstChild, segments[0]!.node.domNode());
+        assertEquals(0, segments[0]!.start);
+        assertEquals(sentence2.length, segments[0]!.length);
+      });
+
+  test(
+      'getHighlightForCurrentSegmentIndex after moving forward returns correct nodes',
+      async () => {
+        const sentence1 = 'Never feel heavy or earthbound. ';
+        const sentence2 = 'No worries or doubts ';
+        const sentence3 = 'interfere.';
+        const paragraph = document.createElement('p');
+        const child1 = document.createTextNode(sentence1);
+        const child2 = document.createTextNode(sentence2);
+        const child3 = document.createTextNode(sentence3);
+        paragraph.appendChild(child1);
+        paragraph.appendChild(child2);
+        paragraph.appendChild(child3);
+        document.body.appendChild(paragraph);
+        await microtasksFinished();
+        getReadAloudModel().init(ReadAloudNode.create(document.body)!);
+
+        // Spot check that indices 0->sentence1.length() map to the first node
+        // id.
+        expectHighlightAtIndexMatches(0, [{node: child1, start: 0, length: 5}]);
+        expectHighlightAtIndexMatches(7, [{node: child1, start: 7, length: 3}]);
+        expectHighlightAtIndexMatchesEmpty(sentence1.length - 1);
+        expectHighlightAtIndexMatchesEmpty(sentence1.length);
+
+        // Move to the next granularity.
+        getReadAloudModel().moveSpeechForward();
+        assertEquals(
+            (sentence2 + sentence3).trim(),
+            getReadAloudModel().getCurrentTextContent().trim());
+
+        // Spot check that indices in sentence 2 map to the second node id.
+        expectHighlightAtIndexMatches(0, [{node: child2, start: 0, length: 2}]);
+        expectHighlightAtIndexMatches(7, [{node: child2, start: 7, length: 3}]);
+        expectHighlightAtIndexMatches(
+            sentence2.length, [{node: child3, start: 0, length: 9}]);
+
+        // Spot check that indices in sentence 3 map to the third node id.
+        expectHighlightAtIndexMatches(
+            sentence2.length + 1, [{node: child3, start: 1, length: 8}]);
+        expectHighlightAtIndexMatches(
+            27, [{node: child3, start: 6, length: 3}]);
+        expectHighlightAtIndexMatchesEmpty(
+            sentence2.length + sentence3.length - 1);
+
+        // Out-of-bounds nodes return invalid.
+        expectHighlightAtIndexMatchesEmpty(
+            sentence2.length + sentence3.length + 1);
+      });
+
+  test(
+      'getHighlightForCurrentSegmentIndex after backwards returns correct highlight',
+      async () => {
+        const sentence1 = 'There\'s nothing but you ';
+        const sentence2 = 'looking down on the view from up here. ';
+        const sentence3 = 'Stretch out with the wind behind you.';
+        const paragraph = document.createElement('p');
+        const child1 = document.createTextNode(sentence1);
+        const child2 = document.createTextNode(sentence2);
+        const child3 = document.createTextNode(sentence3);
+        paragraph.appendChild(child1);
+        paragraph.appendChild(child2);
+        paragraph.appendChild(child3);
+
+        document.body.appendChild(paragraph);
+        await microtasksFinished();
+
+        // Before there are any processed granularities, there should be no
+        // highlights.
+        expectHighlightAtIndexMatchesEmpty(1);
+        getReadAloudModel().init(ReadAloudNode.create(document.body)!);
+
+        getReadAloudModel().moveSpeechForward();
+        // Spot check that indices 0->sentence3.length() map to the third node
+        // id.
+        expectHighlightAtIndexMatches(0, [{node: child3, start: 0, length: 7}]);
+        expectHighlightAtIndexMatches(7, [{node: child3, start: 7, length: 4}]);
+        expectHighlightAtIndexMatchesEmpty(sentence3.length - 1);
+
+        getReadAloudModel().moveSpeechBackwards();
+        assertEquals(
+            (sentence1 + sentence2).trim(),
+            getReadAloudModel().getCurrentTextContent().trim());
+
+        // Spot check that indices in sentence 1 map to the first node id.
+        expectHighlightAtIndexMatches(0, [{node: child1, start: 0, length: 7}]);
+        expectHighlightAtIndexMatches(6, [{node: child1, start: 6, length: 1}]);
+        expectHighlightAtIndexMatches(sentence1.length - 1, [
+          {node: child1, start: 23, length: 1},
+          {node: child2, start: 0, length: 7},
+        ]);
+
+        // Spot check that indices in sentence 2 map to the second node id.
+        expectHighlightAtIndexMatches(
+            sentence1.length + 1, [{node: child2, start: 1, length: 6}]);
+        expectHighlightAtIndexMatches(
+            27, [{node: child2, start: 3, length: 4}]);
+        expectHighlightAtIndexMatchesEmpty(
+            sentence1.length + sentence2.length - 1);
+
+        // Out-of-bounds nodes return invalid.
+        expectHighlightAtIndexMatchesEmpty(
+            sentence1.length + sentence2.length + 1);
+      });
+
+  test(
+      'getHighlightForCurrentSegmentIndex multinode words returns correct length',
+      async () => {
+        const word1 = 'Stretch ';
+        const word2 = 'out ';
+        const word3 = 'with ';
+        const word4 = 'the ';
+        const word5 = 'wind ';
+        const word6 = 'beh';
+        const word7 = 'ind ';
+        const word8 = 'you.';
+        const sentence1 = word1 + word2 + word3 + word4 + word5 + word6;
+        const sentence2 = word7 + word8;
+        const p = document.createElement('p');
+        const node1 = document.createTextNode(sentence1);
+        const node2 = document.createTextNode(sentence2);
+        p.appendChild(node1);
+        p.appendChild(node2);
+        document.body.appendChild(p);
+        await microtasksFinished();
+
+        getReadAloudModel().init(ReadAloudNode.create(document.body)!);
+        assertEquals(
+            'Stretch out with the wind behind you.',
+            getReadAloudModel().getCurrentTextContent().trim());
+
+        // Throughout first word.
+        expectHighlightAtIndexMatches(0, [{node: node1, start: 0, length: 7}]);
+        expectHighlightAtIndexMatches(2, [{node: node1, start: 2, length: 5}]);
+        expectHighlightAtIndexMatches(
+            word1.length - 2, [{node: node1, start: 6, length: 1}]);
+
+        // Throughout third word.
+        const thirdWordIndex: number = sentence1.indexOf(word3);
+        expectHighlightAtIndexMatches(
+            thirdWordIndex, [{node: node1, start: 12, length: 4}]);
+        expectHighlightAtIndexMatches(
+            thirdWordIndex + 2, [{node: node1, start: 14, length: 2}]);
+
+        // Words split across node boundaries
+        const sixthWordIndex: number = sentence1.indexOf(word6);
+        expectHighlightAtIndexMatches(sixthWordIndex, [
+          {node: node1, start: 26, length: 3},
+          {node: node2, start: 0, length: 3},
+        ]);
+        expectHighlightAtIndexMatches(sixthWordIndex + 2, [
+          {node: node1, start: 28, length: 1},
+          {node: node2, start: 0, length: 3},
+        ]);
+
+        const seventhWordIndex: number = sentence1.length;
+        expectHighlightAtIndexMatches(
+            seventhWordIndex, [{node: node2, start: 0, length: 3}]);
+        expectHighlightAtIndexMatches(
+            seventhWordIndex + 2, [{node: node2, start: 2, length: 1}]);
+
+        const lastWordIndex = sentence1.length + sentence2.indexOf(word8);
+        expectHighlightAtIndexMatches(
+            lastWordIndex, [{node: node2, start: 4, length: 3}]);
+        expectHighlightAtIndexMatches(
+            lastWordIndex + 2, [{node: node2, start: 6, length: 1}]);
+
+        // Boundary testing.
+        expectHighlightAtIndexMatchesEmpty(-5);
+        expectHighlightAtIndexMatchesEmpty(sentence1.length + sentence2.length);
+        expectHighlightAtIndexMatchesEmpty(
+            sentence1.length + sentence2.length + 1);
+      });
+
+  test(
+      'getHighlightForCurrentSegmentIndex node spans multiple sentences returns correct nodes',
+      async () => {
+        const segment1 = 'I\'m taking what\'s mine! ';
+        const segment2 = 'Every drop, every smidge. ';
+        const segment3 = 'If I\'m burning a bridge, let it burn. ';
+        const segment4 = 'But I\'m crossing the ';
+        const node1Text = segment1 + segment2 + segment3 + segment4;
+        const node2Text = 'line.';
+
+        const div = document.createElement('div');
+        const node1 = document.createTextNode(node1Text);
+        div.appendChild(node1);
+        const node2 = document.createTextNode(node2Text);
+        div.appendChild(node2);
+        document.body.appendChild(div);
+        await microtasksFinished();
+        getReadAloudModel().init(ReadAloudNode.create(document.body)!);
+
+        // First sentence
+        assertEquals(
+            segment1.trim(),
+            getReadAloudModel().getCurrentTextContent().trim());
+        expectHighlightAtIndexMatches(0, [{node: node1, start: 0, length: 3}]);
+        expectHighlightAtIndexMatches(6, [{node: node1, start: 6, length: 4}]);
+        expectHighlightAtIndexMatches(
+            15, [{node: node1, start: 15, length: 2}]);
+        expectHighlightAtIndexMatchesEmpty(segment1.length - 1);
+        expectHighlightAtIndexMatchesEmpty(segment1.length);
+
+        // Move to segment 2.
+        getReadAloudModel().moveSpeechForward();
+        assertEquals(
+            segment2.trim(),
+            getReadAloudModel().getCurrentTextContent().trim());
+
+        // For the second segment, the boundary index will have reset for the
+        // new speech segment. The correct highlight start index is the index
+        // that the boundary index within the segment corresponds to within the
+        // node.
+        let baseLength: number = segment1.length;
+        expectHighlightAtIndexMatches(
+            0, [{node: node1, start: baseLength, length: 5}]);
+        expectHighlightAtIndexMatches(
+            10, [{node: node1, start: baseLength + 10, length: 7}]);
+        expectHighlightAtIndexMatches(
+            13, [{node: node1, start: baseLength + 13, length: 4}]);
+
+        baseLength += segment2.length;
+        expectHighlightAtIndexMatchesEmpty(segment2.length - 1);
+        expectHighlightAtIndexMatchesEmpty(segment1.length + segment2.length);
+
+        // Move to segment 3.
+        getReadAloudModel().moveSpeechForward();
+        assertEquals(
+            segment3.trim(),
+            getReadAloudModel().getCurrentTextContent().trim());
+
+        // For the third segment, the boundary index will have reset for the new
+        // speech segment. The correct highlight start index is the index that
+        // the boundary index within the segment corresponds to within the node.
+        expectHighlightAtIndexMatches(
+            0, [{node: node1, start: baseLength, length: 2}]);
+        expectHighlightAtIndexMatches(
+            9, [{node: node1, start: baseLength + 9, length: 5}]);
+        expectHighlightAtIndexMatches(
+            13, [{node: node1, start: baseLength + 13, length: 1}]);
+        expectHighlightAtIndexMatchesEmpty(segment3.length - 1);
+        expectHighlightAtIndexMatchesEmpty(baseLength + segment3.length - 1);
+
+        // Move to segment 4.
+        getReadAloudModel().moveSpeechForward();
+        assertEquals(
+            segment4 + node2Text,
+            getReadAloudModel().getCurrentTextContent().trim());
+
+        // For the fourth segment, there are two nodes. For the first node,
+        // the correct highlight start corresponds to the index within the first
+        // node.
+        baseLength += segment3.length;
+        expectHighlightAtIndexMatches(
+            0, [{node: node1, start: baseLength, length: 3}]);
+        expectHighlightAtIndexMatches(
+            2, [{node: node1, start: baseLength + 2, length: 1}]);
+        expectHighlightAtIndexMatches(
+            8, [{node: node1, start: baseLength + 8, length: 8}]);
+        expectHighlightAtIndexMatches(segment4.length - 1, [
+          {node: node1, start: baseLength + segment4.length - 1, length: 1},
+          {node: node2, start: 0, length: 4},
+        ]);
+
+
+        // For the second node, the highlight index corresponds to the position
+        // within the second node.
+        expectHighlightAtIndexMatches(
+            segment4.length, [{node: node2, start: 0, length: 4}]);
+        expectHighlightAtIndexMatches(
+            segment4.length + 2, [{node: node2, start: 2, length: 2}]);
+        expectHighlightAtIndexMatches(
+            (segment4 + node2Text).length - 2,
+            [{node: node2, start: node2Text.length - 2, length: 1}]);
+        expectHighlightAtIndexMatchesEmpty((segment4 + node2Text).length - 1);
+        expectHighlightAtIndexMatchesEmpty((segment4 + node2Text).length);
       });
 });

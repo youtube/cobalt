@@ -284,16 +284,13 @@ class MockConsumer : public mojom::FrameSinkVideoConsumer {
                          std::move(mapping)));
     } else if (data->is_gpu_memory_buffer_handle()) {
       // kNativeTexture + NV12 / RGBA
-      // Create a test GpuMemoryBuffer as these test don't run the code to
-      // produce GPU frames. The mailbox values aren't important since
-      // IsLetterboxedFrame does no verification for GMB VideoFrames.
-      test_sii_->UseTestGMBInSharedImageCreationWithBufferUsage();
 
       // Setting some default usage in order to get a mappable shared image.
       const auto si_usage = gpu::SHARED_IMAGE_USAGE_CPU_WRITE_ONLY |
                             gpu::SHARED_IMAGE_USAGE_DISPLAY_READ;
-      const auto si_format = GetSharedImageFormat(
-          VideoPixelFormatToGfxBufferFormat(info->pixel_format).value());
+      const auto si_format =
+          media::VideoPixelFormatToSharedImageFormat(info->pixel_format)
+              .value();
       const auto si_size = GetBufferSizeInPixelsForVideoPixelFormat(
           info->pixel_format, info->coded_size);
       // Create a mappable shared image.
@@ -760,7 +757,7 @@ class TestGmbVideoFramePoolContext
     : public media::RenderableGpuMemoryBufferVideoFramePool::Context {
  public:
   TestGmbVideoFramePoolContext()
-      : context_provider_(TestContextProvider::Create()) {}
+      : context_provider_(TestContextProvider::CreateGLES()) {}
   ~TestGmbVideoFramePoolContext() override = default;
 
   scoped_refptr<gpu::ClientSharedImage> CreateSharedImage(
@@ -770,8 +767,6 @@ class TestGmbVideoFramePoolContext
       const gfx::ColorSpace& color_space,
       gpu::SharedImageUsageSet usage,
       gpu::SyncToken& sync_token) override {
-    context_provider_->SharedImageInterface()
-        ->UseTestGMBInSharedImageCreationWithBufferUsage();
     return context_provider_->SharedImageInterface()->CreateSharedImage(
         {si_format, size, color_space, usage,
          "FrameSinkVideoCapturerImplUnittest"},

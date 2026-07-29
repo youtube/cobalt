@@ -26,9 +26,11 @@ syncer::SyncService* GetSyncService(
 }
 }  // namespace
 
-void JNI_TrackingProtectionSettingsBridge_MaybeSetRollbackPrefsModeB(
+static void JNI_TrackingProtectionSettingsBridge_MaybeSetRollbackPrefsModeB(
     JNIEnv* env,
     const JavaParamRef<jobject>& j_profile) {
   privacy_sandbox::MaybeSetRollbackPrefsModeB(GetSyncService(j_profile),
                                               GetPrefService(j_profile));
 }
+
+DEFINE_JNI(TrackingProtectionSettingsBridge)

@@ -17,10 +17,10 @@
 #include "chromeos/ash/components/boca/boca_request.h"
 #include "chromeos/ash/components/boca/invalidations/fcm_handler.h"
 #include "chromeos/ash/components/boca/proto/receiver.pb.h"
+#include "chromeos/ash/components/boca/receiver/receiver_connection_info_poller.h"
 #include "chromeos/ash/components/boca/retriable_request_sender.h"
 #include "chromeos/services/network_config/public/cpp/cros_network_config_observer.h"
 #include "chromeos/services/network_config/public/mojom/cros_network_config.mojom.h"
-#include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -111,6 +111,8 @@ class BocaReceiverUntrustedPageHandler
       std::vector<chromeos::network_config::mojom::NetworkStatePropertiesPtr>
           networks) override;
 
+  void OnConnectionClosedByPoller(bool server_unreachable);
+
   boca::FCMHandler* fcm_handler() const;
 
   boca::SpotlightRemotingClientManager* remoting_client() const;
@@ -125,6 +127,7 @@ class BocaReceiverUntrustedPageHandler
   std::optional<::boca::KioskReceiverConnection> connection_info_;
   std::unique_ptr<UpdateReceiverStateRequestSender>
       update_connection_retriable_sender_;
+  ReceiverConnectionInfoPoller connection_info_poller_;
 
   mojo::Remote<chromeos::network_config::mojom::CrosNetworkConfig>
       cros_network_config_;

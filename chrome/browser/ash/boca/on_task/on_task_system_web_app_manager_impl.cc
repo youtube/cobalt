@@ -119,8 +119,6 @@ void OnTaskSystemWebAppManagerImpl::CloseSystemWebAppWindow(
 SessionID OnTaskSystemWebAppManagerImpl::GetActiveSystemWebAppWindowID() {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
-  // TODO (b/354007279): Filter out SWA window instances that are not managed by
-  // OnTask (for instance, those manually spawned by consumers).
   BrowserDelegate* const browser = FindSystemWebAppBrowser(
       profile_, SystemWebAppType::BOCA, BrowserType::kApp);
   // Verify that there is no browser instance and that there is no scheduled
@@ -467,6 +465,14 @@ void OnTaskSystemWebAppManagerImpl::SetAllChromeTabsMuted(bool muted) {
         }
         return ash::BrowserController::kContinueIteration;
       });
+}
+
+bool OnTaskSystemWebAppManagerImpl::IsWindowPinned(SessionID window_id) {
+  Browser* const browser = GetBrowserWindowWithID(window_id);
+  if (!browser) {
+    return false;
+  }
+  return platform_util::IsBrowserLockedFullscreen(browser);
 }
 
 void OnTaskSystemWebAppManagerImpl::SetWindowTrackerForTesting(

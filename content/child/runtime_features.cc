@@ -191,8 +191,6 @@ void SetRuntimeFeaturesFromChromiumFeatures() {
            raw_ref(features::kEnableAccessibilityAriaVirtualContent)},
           {wf::EnableAccessibilityUseAXPositionForDocumentMarkers,
            raw_ref(features::kUseAXPositionForDocumentMarkers)},
-          {wf::EnableAOMAriaRelationshipProperties,
-           raw_ref(features::kEnableAriaElementReflection)},
 #if BUILDFLAG(IS_ANDROID)
           {wf::EnableAudioOutputDevices,
            raw_ref(features::kAAudioPerStreamDeviceSelection)},
@@ -361,6 +359,8 @@ void SetRuntimeFeaturesFromChromiumFeatures() {
            raw_ref(network::features::kCompressionDictionaryTransport)},
           {"CookieDeprecationFacilitatedTesting",
            raw_ref(features::kCookieDeprecationFacilitatedTesting)},
+          {"CookieStoreAPIMaxAge",
+           raw_ref(blink::features::kCookieStoreAPIMaxAge)},
           {"DocumentPolicyIncludeJSCallStacksInCrashReports",
            raw_ref(blink::features::
                        kDocumentPolicyIncludeJSCallStacksInCrashReports),

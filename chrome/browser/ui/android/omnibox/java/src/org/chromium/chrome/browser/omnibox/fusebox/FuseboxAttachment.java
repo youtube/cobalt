@@ -7,12 +7,15 @@ package org.chromium.chrome.browser.omnibox.fusebox;
 import static org.chromium.build.NullUtil.assertNonNull;
 import static org.chromium.build.NullUtil.assumeNonNull;
 
+import android.content.res.Resources;
+import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.text.TextUtils;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxAttachmentRecyclerViewAdapter.FuseboxAttachmentType;
+import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -25,6 +28,8 @@ public final class FuseboxAttachment extends ListItem {
     public final String mimeType;
     public final byte[] data;
     public final @Nullable Tab tab;
+    public final @Nullable Integer tabId;
+    private boolean mIsUploadComplete;
     private @Nullable String mToken;
 
     private FuseboxAttachment(
@@ -39,7 +44,14 @@ public final class FuseboxAttachment extends ListItem {
         this.title = title;
         this.mimeType = mimeType;
         this.data = data;
-        this.tab = tab;
+        if (tab != null && tab.getId() != Tab.INVALID_TAB_ID) {
+            this.tab = tab;
+            this.tabId = tab.getId();
+        } else {
+            this.tab = null;
+            this.tabId = null;
+        }
+        mIsUploadComplete = false;
         mToken = null;
 
         // Set the ATTACHMENT property to this instance after construction
@@ -61,9 +73,14 @@ public final class FuseboxAttachment extends ListItem {
     }
 
     /** Creates a FuseboxAttachment for a tab. */
-    public static FuseboxAttachment forTab(Tab tab) {
+    public static FuseboxAttachment forTab(Tab tab, Resources res) {
         return new FuseboxAttachment(
-                FuseboxAttachmentType.ATTACHMENT_TAB, null, tab.getTitle(), "", new byte[0], tab);
+                FuseboxAttachmentType.ATTACHMENT_TAB,
+                new BitmapDrawable(res, OmniboxResourceProvider.getFaviconBitmapForTab(tab)),
+                tab.getTitle(),
+                "",
+                new byte[0],
+                tab);
     }
 
     /**
@@ -76,7 +93,7 @@ public final class FuseboxAttachment extends ListItem {
         assert !hasToken() : "Attachment should not have a token when uploaded";
 
         if (type == FuseboxAttachmentType.ATTACHMENT_TAB) {
-            if (assumeNonNull(tab).getWebContents() != null) {
+            if (FuseboxTabUtils.isTabActive(assumeNonNull(tab))) {
                 mToken = bridge.addTabContext(tab);
             } else {
                 mToken = bridge.addTabContextFromCache(assumeNonNull(tab).getId());
@@ -112,5 +129,13 @@ public final class FuseboxAttachment extends ListItem {
     /** Gets the token for this attachment. */
     public String getToken() {
         return assertNonNull(mToken);
+    }
+
+    public boolean isUploadComplete() {
+        return mIsUploadComplete;
+    }
+
+    public void setUploadIsComplete() {
+        mIsUploadComplete = true;
     }
 }

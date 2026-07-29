@@ -247,13 +247,6 @@ source_set("cronet_static") {
   configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
-config("hide_all_but_jni_onload_and_cronet") {
-  _version_script = "android_only_jni_onload_and_cronet_exports.lst"
-  inputs = [ _version_script ]
-  ldflags =
-      [ "-Wl,--version-script=" + rebase_path(_version_script, root_out_dir) ]
-}
-
 _cronet_shared_lib_name = "cronet.$chrome_version_full"
 
 shared_library("cronet") {
@@ -264,8 +257,6 @@ shared_library("cronet") {
     "//base",
     "//net",
   ]
-  configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
-  configs += [ ":hide_all_but_jni_onload_and_cronet" ]
 }
 
 sizes_test("cronet_sizes") {
@@ -638,6 +629,35 @@ android_library("httpengine_native_provider_java") {
     "java/src/org/chromium/net/impl/CronetExceptionTranslationUtils.java",
     "java/src/org/chromium/net/impl/HttpEngineNativeProvider.java",
   ]
+
+  # Provide stubs for APIs that do not exist in Chromium yet.
+  #
+  # The Android SDK currently used in Chromium is not recent enough to know
+  # about the new HttpEngine proxy APIs. This means we can't build a proper
+  # AndroidProxyOptions wrapper in Chromium: the Android APIs it would need to
+  # reference, while wrapping, do not exist as far as Chromium is concerned.
+  # However, such code would build in the Android repo: that always contains the
+  # latest Android APIs, since they are developed there.
+  #
+  # This is not useful to actual users of HttpEngineNativeProvider, since they
+  # won't be receiving this code until Chromium can successfully compile it.
+  # Having said that, this is useful to testing: it allows the Cronet test
+  # suite (especially org.chromium.net.ProxyTest) to run against the new
+  # HttpEngine Proxy APIs when running within the Android repo, thus providing
+  # HttpEngine with test coverage.
+  #
+  # TODO(https://crbug.com/460408392): Clean this up once the new HttpEngine
+  # proxy APIs have made it to the Android SDK used in Chromium.
+  if (is_cronet_for_aosp_build) {
+    sources += [
+      "platform-only/org/chromium/net/AndroidProxy.java",
+      "platform-only/org/chromium/net/AndroidProxyHttpConnectCallback.java",
+      "platform-only/org/chromium/net/AndroidProxyHttpConnectCallbackRequest.java",
+      "platform-only/org/chromium/net/AndroidProxyOptions.java",
+    ]
+  } else {
+    sources += [ "java/src/org/chromium/net/impl/AndroidProxyOptions.java" ]
+  }
 
   deps = [
     ":cronet_api_java",
@@ -1502,8 +1522,6 @@ cronet_instrumentation_test_apk("cronet_test_instrumentation_apk") {
   enable_lint = true
   lint_baseline_file = "lint-baseline.xml"
   lint_suppressions_file = "lint-suppressions.xml"
-
-  lint_min_sdk_version = 23
 
   apk_name = "CronetTestInstrumentation"
   android_manifest = "test/javatests/AndroidManifest.xml"

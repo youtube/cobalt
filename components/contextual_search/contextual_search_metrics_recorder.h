@@ -22,11 +22,17 @@ enum class MimeType;
 
 namespace contextual_search {
 
+// LINT.IfChange(ContextualSearchSource)
+
 enum class ContextualSearchSource {
   kUnknown,
   kNewTabPage,
   kOmnibox,
+  kContextualTasks,
+  kLens,
 };
+
+// LINT.ThenChange(//tools/metrics/histograms/metadata/contextual_search/histograms.xml:ContextualSearchSource)
 
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
@@ -85,7 +91,8 @@ class ContextualSearchMetricsRecorder {
   // Maps mime types to its string version for histogram naming.
   std::string MimeTypeToString(lens::MimeType mime_type);
   // Maps contextual search sources to its string version for histogram naming.
-  std::string ContextualSearchSourceToString(ContextualSearchSource source);
+  static std::string ContextualSearchSourceToString(
+      ContextualSearchSource source);
   // Maps submission types to its string version for histogram naming.
   std::string SubmissionTypeToString(SubmissionType submission_type);
 
@@ -109,6 +116,10 @@ class ContextualSearchMetricsRecorder {
   void RecordToolsSubmissionType(SubmissionType submission_type);
 
   void RecordToolState(SubmissionType submission_type, AimToolState tool_state);
+
+  // Records whether the config was parsed successfully.
+  static void RecordConfigParseSuccess(ContextualSearchSource source,
+                                       bool success);
 
  private:
   // Called when the session starts to correctly track session

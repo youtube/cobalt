@@ -78,10 +78,8 @@ class PDFIFrameNavigationThrottleTest : public ChromeRenderViewHostTestHarness {
     info.path = base::FilePath(ChromeContentClient::kPDFExtensionPluginPath);
     info.mime_types.emplace_back(pdf::kPDFMimeType, "pdf",
                                  "Fake PDF description");
-    plugin_service->RegisterInternalPlugin(info, true);
-
-    // Set the plugin list as dirty, like when the browser first starts.
-    plugin_service->RefreshPlugins();
+    plugin_service->RegisterInternalPlugin(info);
+    plugin_service->GetPlugins();
 #endif
 
     content::RenderFrameHostTester::For(main_rfh())

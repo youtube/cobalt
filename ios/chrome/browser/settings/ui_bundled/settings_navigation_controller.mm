@@ -387,6 +387,22 @@ NSString* const kSettingsDoneButtonId = @"kSettingsDoneButtonId";
 }
 
 + (instancetype)
+    credentialImportControllerForBrowser:(Browser*)browser
+                                delegate:
+                                    (id<SettingsNavigationControllerDelegate>)
+                                        delegate
+                                    UUID:(NSUUID*)UUID {
+  SettingsNavigationController* navigationController =
+      [[SettingsNavigationController alloc]
+          initWithRootViewController:nil
+                             browser:browser
+                            delegate:delegate];
+  [navigationController showPasswordManagerForCredentialImport:UUID];
+
+  return navigationController;
+}
+
++ (instancetype)
     userFeedbackControllerForBrowser:(Browser*)browser
                             delegate:(id<SettingsNavigationControllerDelegate>)
                                          delegate
@@ -1194,6 +1210,19 @@ NSString* const kSettingsDoneButtonId = @"kSettingsDoneButtonId";
 - (void)showSavedPasswordsSettingsFromViewController:
     (UIViewController*)baseViewController {
   [self showSavedPasswords];
+}
+
+- (void)showPasswordManagerForCredentialImport:(NSUUID*)UUID {
+  self.savedPasswordsCoordinator = [[PasswordsCoordinator alloc]
+      initWithBaseNavigationController:self
+                               browser:self.browser];
+  self.savedPasswordsCoordinator.delegate = self;
+
+  // `UUID` needs to be set before calling `start`, as the latter will invoke
+  // user verification and the presence of `UUID` will be a signal to start the
+  // credential import on successful user verification.
+  self.savedPasswordsCoordinator.credentialImportUUID = UUID;
+  [self.savedPasswordsCoordinator start];
 }
 
 - (void)showAddressDetails:(const autofill::AutofillProfile)address

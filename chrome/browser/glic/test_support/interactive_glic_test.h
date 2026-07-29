@@ -67,6 +67,10 @@
 #include "url/gurl.h"
 #include "url/url_util.h"
 
+#if BUILDFLAG(IS_CHROMEOS)
+#include "chromeos/constants/chromeos_features.h"
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
 namespace glic {
 class GlicWindowControllerImpl;
 }
@@ -133,7 +137,12 @@ class InteractiveGlicTestMixin : public T {
         {{features::kGlic, glic_params},
          {features::kTabstripComboButton, {}},
          {features::kGlicRollout, {}},
-         {features::kGlicKeyboardShortcutNewBadge, {}}},
+         {features::kGlicKeyboardShortcutNewBadge, {}},
+#if BUILDFLAG(IS_CHROMEOS)
+         { chromeos::features::kFeatureManagementGlic,
+           {} }
+#endif  // BUILDFLAG(IS_CHROMEOS)
+        },
         {});
   }
 
@@ -502,8 +511,31 @@ class InteractiveGlicTestMixin : public T {
     });
   }
 
+  auto RegisterConversation(std::string conversation_id) {
+    return Api::Do([this, conversation_id]() {
+      if (base::FeatureList::IsEnabled(features::kGlicMultiInstance)) {
+        auto* instance = GetGlicInstanceImpl();
+        if (!instance) {
+          return;
+        }
+        auto conversation_info = glic::mojom::ConversationInfo::New();
+        conversation_info->conversation_id = conversation_id;
+        instance->RegisterConversation(std::move(conversation_info),
+                                       base::DoNothing());
+      }
+    });
+  }
+
   auto ClickWebuiCloseButton() {
     return ClickWebElement(TargetWebContents::kGlicWebUi, ".close-button");
+  }
+
+  auto Detach() {
+    return Api::Do([this]() {
+      auto* host = GetHost();
+      CHECK(host);
+      host->DetachPanel(host->GetPrimaryPageHandlerForTesting());
+    });
   }
 
   base::expected<content::RenderFrameHost*, std::string> GetWebFrame(

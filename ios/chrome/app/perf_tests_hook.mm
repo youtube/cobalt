@@ -73,6 +73,11 @@ bool DelayAppLaunchPromos() {
 bool NeverPurgeDiscardedSessionsData() {
   return false;
 }
+
+bool LoadMinimalAppUI() {
+  return false;
+}
+
 policy::ConfigurationPolicyProvider* GetOverriddenPlatformPolicyProvider() {
   return nullptr;
 }
@@ -138,7 +143,7 @@ feature_engagement::FeatureActivation FETDemoModeOverride() {
   return feature_engagement::FeatureActivation::AllEnabled();
 }
 
-void WipeProfileIfRequested(int argc, char* argv[]) {
+void WipeProfileIfRequested(base::span<const char* const> args) {
   // Do nothing.
 }
 

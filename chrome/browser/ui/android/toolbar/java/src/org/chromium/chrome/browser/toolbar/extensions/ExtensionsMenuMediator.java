@@ -12,11 +12,13 @@ import android.view.View;
 import org.chromium.base.Callback;
 import org.chromium.base.lifetime.Destroyable;
 import org.chromium.base.supplier.ObservableSupplier;
+import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.extensions.ContextMenuSource;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTask;
 import org.chromium.chrome.browser.ui.extensions.ExtensionAction;
 import org.chromium.chrome.browser.ui.extensions.ExtensionActionContextMenuBridge;
 import org.chromium.chrome.browser.ui.extensions.ExtensionActionsBridge;
@@ -35,23 +37,24 @@ import org.chromium.ui.widget.RectProvider;
 class ExtensionsMenuMediator implements Destroyable {
     private final ActionsUpdateDelegate mActionsUpdateDelegate = new ActionsUpdateDelegate();
     private final Context mContext;
-    private final ObservableSupplier<Profile> mProfileSupplier;
+    private final OneshotSupplier<ChromeAndroidTask> mTaskSupplier;
+    private final ObservableSupplier<@Nullable Profile> mProfileSupplier;
     private final Runnable mOnUpdateFinishedRunnable;
     private final Callback<Boolean> mOnExtensionsAvailableCallback;
     private final ExtensionActionsUpdateHelper mExtensionActionsUpdateHelper;
-    private final Callback<Profile> mProfileUpdatedCallback = this::onProfileUpdated;
+    private final Callback<@Nullable Profile> mProfileUpdatedCallback = this::onProfileUpdated;
     private final View mRootView;
-
-    @Nullable private Profile mProfile;
 
     public ExtensionsMenuMediator(
             Context context,
-            ObservableSupplier<Profile> profileSupplier,
-            ObservableSupplier<Tab> currentTabSupplier,
+            OneshotSupplier<ChromeAndroidTask> taskSupplier,
+            ObservableSupplier<@Nullable Profile> profileSupplier,
+            ObservableSupplier<@Nullable Tab> currentTabSupplier,
             ModelList extensionModels,
             Runnable onUpdateFinishedRunnable,
             Callback<Boolean> onExtensionsAvailableCallback,
             View rootView) {
+        mTaskSupplier = taskSupplier;
         mProfileSupplier = profileSupplier;
         mProfileSupplier.addObserver(mProfileUpdatedCallback);
 
@@ -98,38 +101,31 @@ class ExtensionsMenuMediator implements Destroyable {
     }
 
     private void onProfileUpdated(@Nullable Profile profile) {
-        if (profile == mProfile) {
-            return;
-        }
-
-        mProfile = profile;
-
         // TODO(crbug.com/422307625): Remove this check once extensions are ready for dogfooding.
-        boolean extensionsSupported = false;
-        if (mProfile != null) {
-            ExtensionActionsBridge extensionActionsBridge = ExtensionActionsBridge.get(mProfile);
-            if (extensionActionsBridge != null && extensionActionsBridge.extensionsEnabled()) {
-                extensionsSupported = true;
-            }
-        }
+        boolean extensionsSupported =
+                profile != null ? ExtensionActionsBridge.extensionsEnabled(profile) : false;
         mOnExtensionsAvailableCallback.onResult(extensionsSupported);
     }
 
     private void onPrimaryClick(ListMenuButton buttonView, String actionId) {
+        ChromeAndroidTask task = mTaskSupplier.get();
+        if (task == null) {
+            return;
+        }
+
         Tab currentTab = mExtensionActionsUpdateHelper.getCurrentTab();
         if (currentTab == null) {
             return;
         }
 
         WebContents webContents = currentTab.getWebContents();
-        Profile profile = mExtensionActionsUpdateHelper.getProfile();
-        if (webContents == null || profile == null) {
+        if (webContents == null) {
             return;
         }
 
         ExtensionActionContextMenuBridge bridge =
                 new ExtensionActionContextMenuBridge(
-                        profile, actionId, webContents, ContextMenuSource.MENU_ITEM);
+                        task, actionId, webContents, ContextMenuSource.MENU_ITEM);
 
         ExtensionActionContextMenuUtils.showContextMenu(
                 mContext,
@@ -143,7 +139,6 @@ class ExtensionsMenuMediator implements Destroyable {
     public void destroy() {
         mExtensionActionsUpdateHelper.destroy();
         mProfileSupplier.removeObserver(mProfileUpdatedCallback);
-        mProfile = null;
     }
 
     private class ActionsUpdateDelegate

@@ -71,6 +71,8 @@
 #import "ios/chrome/browser/web/model/web_navigation_util.h"
 #import "ios/chrome/common/ui/favicon/favicon_constants.h"
 #import "ios/chrome/grit/ios_strings.h"
+#import "ios/components/enterprise/data_controls/clipboard_enums.h"
+#import "ios/components/enterprise/data_controls/metrics_utils.h"
 #import "ios/public/provider/chrome/browser/context_menu/context_menu_api.h"
 #import "ios/public/provider/chrome/browser/lens/lens_api.h"
 #import "ios/web/common/features.h"
@@ -83,6 +85,11 @@
 #import "ui/base/device_form_factor.h"
 #import "ui/base/l10n/l10n_util.h"
 #import "url/gurl.h"
+
+using data_controls::ClipboardAction;
+using data_controls::ClipboardSource;
+using data_controls::RecordClipboardOutcomeMetrics;
+using data_controls::RecordClipboardSourceMetrics;
 
 namespace {
 
@@ -214,8 +221,7 @@ NSString* const kAlertAccessibilityIdentifier = @"AlertAccessibilityIdentifier";
     contextMenuContentPreviewProviderForWebState:(web::WebState*)webState
                                           params:
                                               (web::ContextMenuParams)params {
-  if (!base::FeatureList::IsEnabled(kShareInWebContextMenuIOS) ||
-      !params.src_url.is_valid() || params.link_url.is_valid()) {
+  if (!params.src_url.is_valid() || params.link_url.is_valid()) {
     return nil;
   }
 
@@ -269,7 +275,18 @@ NSString* const kAlertAccessibilityIdentifier = @"AlertAccessibilityIdentifier";
 
     if (!IsImageTitle(params) &&
         menuTitle.length > kContextMenuMaxURLTitleLength + 1) {
-      if (base::FeatureList::IsEnabled(kShareInWebContextMenuIOS)) {
+      if (IsIOSWebContextMenuNewTitleEnabled()) {
+        NSString* fullURL = menuTitle;
+        // Truncate context menu titles that originate from URLs, leaving text
+        // titles untruncated.
+        menuTitle = [[menuTitle substringToIndex:kContextMenuMaxURLTitleLength]
+            stringByAppendingString:kContextMenuEllipsis];
+        __weak __typeof(self) weakSelf = self;
+        ProceduralBlock block = ^{
+          [weakSelf showFullURLPopUp:params URLString:fullURL];
+        };
+        ios::provider::AttachBlockToContextMenu(menuTitle, block);
+      } else {
         // "Show URL action" at the top of the context menu.
         __weak __typeof(self) weakSelf = self;
         BrowserActionFactory* actionFactory =
@@ -282,11 +299,6 @@ NSString* const kAlertAccessibilityIdentifier = @"AlertAccessibilityIdentifier";
                                              URLString:menuTitle];
                           }];
         menuTitle = nil;
-      } else {
-        // Truncate context menu titles that originate from URLs, leaving text
-        // titles untruncated.
-        menuTitle = [[menuTitle substringToIndex:kContextMenuMaxURLTitleLength]
-            stringByAppendingString:kContextMenuEllipsis];
       }
     }
   }
@@ -373,8 +385,7 @@ NSString* const kAlertAccessibilityIdentifier = @"AlertAccessibilityIdentifier";
   NSMutableArray<UIMenuElement*>* linkOpeningElements =
       [[NSMutableArray alloc] init];
 
-  if (showFullURLAction &&
-      base::FeatureList::IsEnabled(kShareInWebContextMenuIOS)) {
+  if (showFullURLAction) {
     [linkOpeningElements addObject:showFullURLAction];
   }
 
@@ -972,6 +983,9 @@ NSString* const kAlertAccessibilityIdentifier = @"AlertAccessibilityIdentifier";
     return;
   }
 
+  RecordClipboardSourceMetrics(ClipboardAction::kCopy,
+                               ClipboardSource::kCustomAction);
+
   __weak __typeof(self) weakSelf = self;
   ProceduralBlock finishCopyImage = ^{
     ContextMenuConfigurationProvider* strongSelf = weakSelf;
@@ -986,18 +1000,20 @@ NSString* const kAlertAccessibilityIdentifier = @"AlertAccessibilityIdentifier";
 
   web::WebStateDelegate* webStateDelegate = self.webState->GetDelegate();
   if (!webStateDelegate) {
+    RecordClipboardOutcomeMetrics(ClipboardAction::kCopy, true);
     finishCopyImage();
     return;
   }
 
   // Check if copying content from the current web page is allowed by
   // policies.
-  webStateDelegate->ShouldAllowCopy(self.webState,
-                                    base::BindOnce(^(bool allowed) {
-                                      if (allowed) {
-                                        finishCopyImage();
-                                      }
-                                    }));
+  webStateDelegate->ShouldAllowCopy(
+      self.webState, base::BindOnce(^(bool allowed) {
+        RecordClipboardOutcomeMetrics(ClipboardAction::kCopy, allowed);
+        if (allowed) {
+          finishCopyImage();
+        }
+      }));
 }
 
 // Checks enterprise policy and copies the given `linkURL` to the pasteboard.
@@ -1006,28 +1022,32 @@ NSString* const kAlertAccessibilityIdentifier = @"AlertAccessibilityIdentifier";
     return;
   }
 
+  RecordClipboardSourceMetrics(ClipboardAction::kCopy,
+                               ClipboardSource::kCustomAction);
+
   web::WebStateDelegate* webStateDelegate = self.webState->GetDelegate();
   if (!webStateDelegate) {
+    RecordClipboardOutcomeMetrics(ClipboardAction::kCopy, true);
     StoreURLInPasteboard(linkURL);
     return;
   }
 
   // Check if copying content from the current web page is allowed by
   // policies.
-  webStateDelegate->ShouldAllowCopy(self.webState,
-                                    base::BindOnce(^(bool allowed) {
-                                      if (allowed) {
-                                        StoreURLInPasteboard(linkURL);
-                                      }
-                                    }));
+  webStateDelegate->ShouldAllowCopy(
+      self.webState, base::BindOnce(^(bool allowed) {
+        RecordClipboardOutcomeMetrics(ClipboardAction::kCopy, allowed);
+        if (allowed) {
+          StoreURLInPasteboard(linkURL);
+        }
+      }));
 }
 
 // Returns true if sharing from the context menu is allowed.
 - (BOOL)isSharingAllowed {
   // TODO(crbug.com/351817704): Disable the share menu with lens overlay as the
   // share sheet is not presented in `baseViewController`.
-  if (_isLensOverlay ||
-      !base::FeatureList::IsEnabled(kShareInWebContextMenuIOS)) {
+  if (_isLensOverlay) {
     return NO;
   }
 

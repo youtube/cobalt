@@ -222,6 +222,18 @@ CHAR_LIMIT guidelines:
       <message name="IDS_SEARCH_IN_SETTINGS_HINT" desc='Hint text in search in settings widget. [CHAR_LIMIT=32]'>
         Search settings
       </message>
+      <message name="IDS_SEARCH_IN_SETTINGS_RESULTS" desc='Title text for settings search results page. [CHAR_LIMIT=32]'>
+        Search results
+      </message>
+      <message name="IDS_SEARCH_IN_SETTINGS_ZERO_STATE" desc='Guide message when search in settings starts or for an empty query. [CHAR_LIMIT=32]'>
+        Search for a setting
+      </message>
+      <message name="IDS_SEARCH_IN_SETTINGS_NO_MATCH" desc='Guide message when there is no match for search in settings. [CHAR_LIMIT=32]'>
+        No results found
+      </message>
+      <message name="IDS_SEARCH_IN_SETTINGS_HELP_CENTER" desc='Message suggesting user search help center when there is no match in search. [CHAR_LIMIT=32]'>
+        Try searching the help center
+      </message>
 
       <!-- Notification channels -->
       <message name="IDS_NOTIFICATION_CATEGORY_GROUP_GENERAL" desc='Subheading for "General" section of a list of notification categories. [CHAR_LIMIT=32]'>
@@ -2555,6 +2567,12 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_SYNC_ERROR_CARD_TITLE" desc="Title of the Sync Error Card. [CHAR_LIMIT=32]">
         Sync isn't working
       </message>
+      <message name="IDS_BOOKMARK_SYNC_LIMIT_ERROR_TITLE" desc="Title for the error when the user has too many bookmarks and sync is paused. [CHAR-LIMIT=50]">
+        Some bookmarks aren’t saved
+      </message>
+      <message name="IDS_BOOKMARK_SYNC_LIMIT_ERROR_DESCRIPTION" desc="Description for the error when the user has too many bookmarks and sync is paused.">
+        To save bookmarks in your account, delete your unused bookmarks
+      </message>
       <message name="IDS_PASSWORD_SYNC_ERROR_SUMMARY" desc="Short message shown in various UIs (e.g. Sync Error Card body) to inform that passwords can't be synced (due to missing trusted vault keys). [CHAR_LIMIT=32]">
         Password sync isn't working
       </message>
@@ -2957,6 +2975,9 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
       <message name="IDS_CONTEXTMENU_OPEN_IN_NEW_CHROME_TAB" desc="Context sensitive menu item to open the selected link in a new Chrome tab from Chrome Custom Tab. [CHAR_LIMIT=30]">
         Open in new Chrome tab
+      </message>
+      <message name="IDS_CONTEXTMENU_OPEN_IN_CHROME_WINDOW" desc="Context sensitive menu item to open the selected link in a Chrome window from Chrome Custom Tab. Used when there is a dedicated window for Incognito tabs. [CHAR_LIMIT=30]">
+        Open in Chrome window
       </message>
       <message name="IDS_CONTEXTMENU_OPEN_IN_CHROME_INCOGNITO_TAB" desc="Context sensitive menu item to open the selected link in a Chrome Incognito tab from Chrome Custom Tab. [CHAR_LIMIT=30]">
         Open in Incognito tab
@@ -3507,6 +3528,9 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_SIGNIN_FRE_DISMISS_BUTTON" desc="Button on the very first screen of Chrome to continue without signing into Chrome. Ensure consistency with OneGoogle strings while still omitting “Chrome” (see e.g. TC ID 5336438894576002929).">
         Use without an account
       </message>
+      <message name="IDS_SIGNIN_FRE_STAY_SIGNED_OUT_BUTTON" desc="Button on the sign in screen of the Chrome First Run Experience to stay signed out of Chrome.">
+        Stay signed out
+      </message>
       <message name="IDS_SIGNIN_FRE_FOOTER_TOS" desc="The text is displayed in a footer on the very first screen of Chrome. The link ‘Terms of Service’ opens the Google Terms of Service.">
         By continuing, you agree to the <ph name="BEGIN_TOS_LINK">&lt;TOS_LINK&gt;</ph>Terms of Service<ph name="END_TOS_LINK">&lt;/TOS_LINK&gt;</ph>.
       </message>
@@ -3811,6 +3835,9 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
       <message name="IDS_NTP_RECENT_TABS_SYNC_PROMO_TITLE" desc="Header for the promo explaining how users can see the list of tabs open on their other devices">
         Other devices
+      </message>
+      <message name="IDS_SIGNIN_PROMO_DESCRIPTION_RECENT_TABS_NO_ACCOUNTS" desc="This string is the title of a card that appears when the user opens Chrome's recent tabs page; the user is signed out of Chrome and there are no accounts available on the device." meaning="This message means that the user can get the recent tabs from their computer on their phone, and their phone's recent tabs on their computer. We want users to read this card and tap the 'Continue'/'Sign in' button and sign-in. The tone should be inviting.">
+        Sign in to get your tabs and more on all your devices
       </message>
       <message name="IDS_NTP_RECENT_TABS_LAST_SYNCED" desc="Label for the time since a device was last synced">
         Last synced: <ph name="WHEN">%1$s<ex>4 hours ago</ex></ph>
@@ -4346,12 +4373,6 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_MENU_REVIEW_PDF_WITH_AI" desc="Menu item to review a PDF file with AI.">
         Review PDF with AI
       </message>
-      <message name="IDS_MENU_PIN_TAB" desc="Menu item for pinning a tab.">
-        Pin tab
-      </message>
-      <message name="IDS_MENU_UNPIN_TAB" desc="Menu item for unpinning a tab.">
-        Unpin tab
-      </message>
       <message name="IDS_MENU_ITEM_CONTENT_FILTER_HELP_CENTER_LINK" desc="Menu item to explain that the content filter is on and to direct the user to the help center article about content filters. Only available when the content filter is on.">
         Content filter is on
       </message>
@@ -4856,6 +4877,12 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_TABSWITCHER_NO_TABS_OPEN_TO_VISIT_DIFFERENT_PAGES" desc="Text appearing on an empty tab switcher that indicates that users can open tabs here to visit different pages.">
         Open tabs to visit different pages at the same time
       </message>
+      <message name="IDS_TABPICKER_NO_TABS_EMPTY_STATE_HEADER" desc="Text appearing on an empty tab picker that indicates that users do not have recently opened tabs.">
+        No recent tabs
+      </message>
+      <message name="IDS_TABPICKER_NO_TABS_EMPTY_STATE_DESCRIPTION" desc="Text appearing on an empty tab picker that indicates that users can open tabs to add to search query.">
+        Open a new tab to add it to your question
+      </message>
       <message name="IDS_ACCESSIBILITY_TOOLBAR_BTN_TABSWITCHER_TOGGLE_DEFAULT" desc="Placeholder content description for the button that enters or leaves the tab switcher. NUMBER_OF_TABS is the number of tabs within the tab switcher.">
         {NUMBER_OF_TABS, plural,
           =1 {See <ph name="TABS_COUNT_ONE">%1$d<ex>1</ex></ph> tab}
@@ -5354,6 +5381,12 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_MAX_NUMBER_OF_WINDOWS" desc="Toast message for when the user has tried to start more than 5 instances of Chrome window.">
         You can have up to <ph name="MAX_WINDOW_COUNT">%1$d</ph> windows.
       </message>
+      <message name="IDS_MAX_NUMBER_OF_WINDOWS_INSTANCE_SWITCHER_ACTIVE_TAB" desc="Message to notify the user that a new window cannot be created because the total number of persisted instances exceeds the window limit.">
+        To open a new window, reduce the total number of active windows to <ph name="MAX_WINDOW_COUNT_MINUS_ONE">%1$d</ph> or fewer.
+      </message>
+      <message name="IDS_MAX_NUMBER_OF_WINDOWS_INSTANCE_SWITCHER_INACTIVE_TAB" desc="Message to notify the user thata window cannot be restored because the total number of persisted instances exceeds the window limit.">
+        To restore a new window, reduce the total number of active windows to <ph name="MAX_WINDOW_COUNT_MINUS_ONE">%1$d</ph> or fewer. Inactive windows are deleted after 6 months.
+      </message>
       <message name="IDS_MAX_NUMBER_OF_WINDOWS_INSTANCE_SWITCHER_V2_ACTIVE_TAB" desc="Message to notify the user that a new window cannot be created because the total number of persisted instances exceeds the window limit.">
         To open a new window, reduce the total number of windows across active and inactive to <ph name="MAX_WINDOW_COUNT_MINUS_ONE">%1$d</ph> or fewer.
       </message>
@@ -5825,9 +5858,6 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
        <message name="IDS_INSTANCE_SWITCHER_NAME_WINDOW_CONFIRM_HEADER" desc="The header of multi-instance switcher dialog confirming to name the selected window.">
         Name this window
-      </message>
-       <message name="IDS_INSTANCE_SWITCHER_NAME_WINDOW_MISSING_TITLE" desc="Error message appearing when a user tries to rename a window without a title. s[CHAR_LIMIT=32]">
-        Title required
       </message>
       <message name="IDS_INSTANCE_SWITCHER_CLOSE_WINDOW" desc="The menu item for the 3-dot more button to close the instance.">
         Close window
@@ -6916,11 +6946,6 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
         Use another device
       </message>
 
-      <!-- Plus Address accessibility strings: TODO(crbug.com/40276862): Replace with final versions  -->
-      <message name="IDS_PLUS_ADDRESS_BOTTOM_SHEET_CONTENT_DESCRIPTION" desc="Accessibility string read when the plus address bottom sheet is opened." is_accessibility_with_no_ui="true">
-        Lorem Ipsum
-      </message>
-
       <message name="IDS_READALOUD_VOICE_PREVIEW_MESSAGE" desc="String to be read aloud when a voice's preview button is clicked as a demonstration of how that voice sounds. It also explains how to select the voice by clicking the menu item.">
         Here are the voices you can pick for reading out your web pages. If you like this voice and want me to keep using it just tap the voice name.
       </message>
@@ -7278,20 +7303,6 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_DEFAULT_BROWSER_PROMO_OPEN_SETTINGS_LABEL" desc="Text that displayed on button that allows the user to open Android settings to set a default browser.">
           Open Settings
       </message>
-
-      <!-- Mandatory biometric auth errors -->
-      <message name="IDS_IDENTITY_CHECK_LOCKOUT_ERROR_TITLE" desc="Title for the error dialog shown to the user when Identity Check cannot authenticate them because the maximum number of attempts to authenticate with biometrics has been exceeded and biometrics have been locked out.">
-        Identity Check is on and can’t verify it’s you
-      </message>
-      <message name="IDS_IDENTITY_CHECK_LOCKOUT_ERROR_DESCRIPTION" desc="Description for the error dialog shown to the user when the maximum number of attempts to authenticate with biometrics has been exceeded and biometrics have been locked out, but Identity Check is on so verification is mandatory.">
-        Biometrics failed too many times. Lock and unlock your device to retry.
-      </message>
-      <message name="IDS_IDENTITY_CHECK_LOCKOUT_ERROR_MORE_DETAILS" desc="Second paragraph of the description for the lockout error, explaining to the user how they can manage Identity Check.">
-        You can manage Identity Check in theft protection settings. <ph name="BEGIN_LINK">&lt;link&gt;</ph>Go to settings<ph name="END_LINK">&lt;/link&gt;</ph>
-      </message>
-      <message name="IDS_LOCK_SCREEN" desc="Title for the button that the user can tap to lock the device screen. This is the only way to exit a biometric lockout status.">
-        Lock screen
-      </message>
       <message name="IDS_DEFAULT_BROWSER_PROMO_MESSAGE_TITLE" desc="Title that displayed in a prompt message that encourage user to set Chrome as the default browser.">
         Make Chrome your default
       </message>
@@ -7412,6 +7423,9 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_TIPS_PROMO_BOTTOM_SHEET_THIRD_STEP_BOTTOM_OMNIBOX" desc="Description of the Bottom Omnibox feature tip third step detail page promo.">
         Choose your preferred position
       </message>
+      <message name="IDS_TIPS_PROMO_BOTTOM_SHEET_TITLE_QUICK_DELETE_SHORT" desc="Title of the Quick Delete feature tip detail page promo. [CHAR_LIMIT=32]">
+        Quickly delete browsing data
+      </message>
       <message name="IDS_TIPS_PROMO_BOTTOM_SHEET_TITLE_BOTTOM_OMNIBOX_SHORT" desc="Title of the Bottom Omnibox feature tip detail page promo. [CHAR_LIMIT=32]">
         Choose address bar position
       </message>
@@ -7449,6 +7463,11 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
       <message name="IDS_CARET_BROWSING_DIALOG_MESSAGE" desc="Message of the caret browsing confirmation dialog" formatter_data="android_java">
         You can navigate pages with a text cursor. Press F7 to turn off.
+      </message>
+
+       <!-- Automatic Picture-in-Picture Permission Prompt -->
+      <message name="IDS_AUTO_PICTURE_IN_PICTURE_PROMPT_TITLE" desc="Title for the auto-picture-in-picture permission prompt. The placeholder is the website's origin.">
+        <ph name="URL">%1$s<ex>example.com</ex></ph> wants to enter picture-in-picture automatically
       </message>
     </messages>
   </release>

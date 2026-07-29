@@ -148,7 +148,7 @@ class ReadAnythingAppController
   void ScreenAIServiceReady() override;
   void OnGetVoicePackInfo(
       read_anything::mojom::VoicePackInfoPtr voice_pack_info) override;
-  void OnReadingModeHidden() override;
+  void OnReadingModeHidden(bool tab_active) override;
   void OnTabWillDetach() override;
   void OnTabMuteStateChange(bool muted) override;
 #if BUILDFLAG(IS_CHROMEOS)
@@ -231,6 +231,7 @@ class ReadAnythingAppController
   std::string GetHtmlTag(ui::AXNodeID ax_node_id) const;
   std::string GetLanguage(ui::AXNodeID ax_node_id) const;
   std::u16string GetTextContent(ui::AXNodeID ax_node_id) const;
+  std::u16string GetPrefixText(ui::AXNodeID ax_node_id) const;
   std::string GetTextDirection(ui::AXNodeID ax_node_id) const;
   std::string GetUrl(ui::AXNodeID ax_node_id) const;
   std::string GetAltText(ui::AXNodeID ax_node_id) const;
@@ -252,6 +253,7 @@ class ReadAnythingAppController
                          ui::AXNodeID focus_node_id,
                          int focus_offset);
   void OnCollapseSelection() const;
+  void OnDistilled(int word_count);
   bool IsGoogleDocs() const;
   bool IsReadAloudEnabled() const;
   bool IsTsTextSegmentationEnabled() const;

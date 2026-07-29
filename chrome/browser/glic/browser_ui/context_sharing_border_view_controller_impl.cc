@@ -70,6 +70,12 @@ ContentsWebView* ContextSharingBorderViewControllerImpl::contents_web_view() {
   return contents_web_view_;
 }
 
+bool ContextSharingBorderViewControllerImpl::IsSidePanelOpen() const {
+  // TODO(crbug.com/456589738, crbug.com/462446138): Have the controller track
+  // whether the currently open side panel is for glic or contextual tasks.
+  return glic::GlicEnabling::IsMultiInstanceEnabled();
+}
+
 void ContextSharingBorderViewControllerImpl::OnFocusedTabChanged(
     const FocusedTabData& focused_tab_data) {
   tabs::TabInterface* tab = focused_tab_data.focus();
@@ -248,7 +254,7 @@ bool ContextSharingBorderViewControllerImpl::ShouldShowBorderAnimation() {
 
   // For multi-instance we rely on the sharing manager signal for everything
   // else.
-  if (GlicEnabling::IsMultiInstanceEnabledByFlags()) {
+  if (GlicEnabling::IsMultiInstanceEnabled()) {
     return true;
   }
 

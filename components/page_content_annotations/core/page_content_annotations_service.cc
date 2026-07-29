@@ -11,6 +11,7 @@
 #include "base/barrier_closure.h"
 #include "base/containers/adapters.h"
 #include "base/containers/contains.h"
+#include "base/functional/callback_helpers.h"
 #include "base/i18n/case_conversion.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros_local.h"
@@ -708,12 +709,17 @@ void PageContentAnnotationsService::OnURLsModified(
 
 void PageContentAnnotationsService::OnURLVisitedWithNavigationId(
     history::HistoryService* history_service,
-    const history::URLRow& url_row,
-    const history::VisitRow& visit_row,
-    std::optional<int64_t> local_navigation_id) {
+    const history::VisitedURLInfo& visited_url_info) {
   DCHECK_EQ(history_service, history_service_);
 
+  const history::URLRow& url_row = visited_url_info.url_row;
+  const history::VisitRow& visit_row = visited_url_info.visit_row;
   if (!url_row.url().SchemeIsHTTPOrHTTPS()) {
+    return;
+  }
+
+  if (visited_url_info.response_code_category ==
+      history::VisitResponseCodeCategory::k404) {
     return;
   }
 
@@ -722,8 +728,8 @@ void PageContentAnnotationsService::OnURLVisitedWithNavigationId(
   history_visit.nav_entry_timestamp = visit_row.visit_time;
   history_visit.text_to_annotate = base::UTF16ToUTF8(url_row.title());
   history_visit.url = url_row.url();
-  if (local_navigation_id) {
-    history_visit.navigation_id = local_navigation_id.value();
+  if (visited_url_info.local_navigation_id) {
+    history_visit.navigation_id = visited_url_info.local_navigation_id.value();
   }
 
   if (template_url_service_) {

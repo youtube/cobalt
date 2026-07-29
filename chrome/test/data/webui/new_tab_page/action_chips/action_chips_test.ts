@@ -6,8 +6,9 @@ import 'chrome://new-tab-page/lazy_load.js';
 
 import {ActionChipsHandlerRemote, ChipType, PageCallbackRouter} from 'chrome://new-tab-page/action_chips.mojom-webui.js';
 import type {ActionChip, PageRemote, TabInfo} from 'chrome://new-tab-page/action_chips.mojom-webui.js';
-import {ActionChipsApiProxyImpl} from 'chrome://new-tab-page/lazy_load.js';
+import {ActionChipsApiProxyImpl, ActionChipsRetrievalState} from 'chrome://new-tab-page/lazy_load.js';
 import type {ActionChipsElement} from 'chrome://new-tab-page/lazy_load.js';
+import {WindowProxy} from 'chrome://new-tab-page/new_tab_page.js';
 import type {TabUpload} from 'chrome://resources/cr_components/composebox/common.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {assertDeepEquals, assertEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
@@ -22,9 +23,12 @@ suite('NewTabPageActionChipsTest', () => {
   let chips: ActionChipsElement;
   let handler: TestMock<ActionChipsHandlerRemote>;
   let pageRemote: PageRemote;
+  let windowProxy: TestMock<WindowProxy>;
 
   interface InitializeChipsOptions {
     actionChips: ActionChip[];
+    windowTimestampStart: number;
+    windowTimestampEnd: number;
   }
 
   async function initializeChips(
@@ -55,6 +59,8 @@ suite('NewTabPageActionChipsTest', () => {
           tab: null,
         },
       ],
+      windowTimestampStart: Date.now().valueOf(),
+      windowTimestampEnd: Date.now().valueOf() + 1,
     };
     const options = {...defaultOptions, ...providedOptions};
     handler.setResultMapperFor('startActionChipsRetrieval', () => {
@@ -62,11 +68,18 @@ suite('NewTabPageActionChipsTest', () => {
       pageRemote.$.flushForTesting();
     });
 
+    // Timestamp recorded when the action chips element is constructed.
+    windowProxy.setResultFor('now', options.windowTimestampStart);
+
     loadTimeData.overrideValues({
       addTabUploadDelayOnActionChipClick: true,
     });
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
     chips = document.createElement('ntp-action-chips');
+
+    // Timestamp recorded after the action chips have been updated.
+    windowProxy.setResultFor('now', options.windowTimestampEnd);
+
     document.body.append(chips);
     await handler.whenCalled('startActionChipsRetrieval');
     await microtasksFinished();
@@ -80,6 +93,7 @@ suite('NewTabPageActionChipsTest', () => {
         getCallbackRouter: () => callbackRouter,
       });
     });
+    windowProxy = installMock(WindowProxy);
     pageRemote = callbackRouter.$.bindNewPipeAndPassRemote();
   });
 
@@ -147,6 +161,32 @@ suite('NewTabPageActionChipsTest', () => {
     assertTrue(!!recentTabChipIcon);
   });
 
+  test('deep dive chip renders correct format', async () => {
+    await initializeChips({
+      actionChips: [{
+        type: ChipType.kDeepDive,
+        title: 'Example Tab',
+        suggestion: 'Ask more about this site',
+        tab: {
+          url: {url: 'https://example.com'},
+          tabId: 0,
+          title: 'Example Tab',
+          lastActiveTime: {internalValue: BigInt(0)},
+        },
+      }],
+    });
+
+    // Check correct classes are rendered
+    const deepDiveChipIcon = chips.shadowRoot.querySelector<HTMLElement>(
+        '.action-chip-icon-container.deep-dive');
+    assertTrue(!!deepDiveChipIcon);
+
+    // Check chip title is not rendered
+    const deepDiveChipTitle =
+        chips.shadowRoot.querySelector<HTMLImageElement>('.chip-title');
+    assertEquals(null, deepDiveChipTitle);
+  });
+
   suite('metrics collection', () => {
     let metrics: MetricsTracker;
     setup(async () => {
@@ -207,11 +247,68 @@ suite('NewTabPageActionChipsTest', () => {
     });
   });
 
-  suite('startActionChipsRetrieval', () => {
-    test('Handler is called on load', async () => {
-      await initializeChips({});
-      assertEquals(1, handler.getCallCount('startActionChipsRetrieval'));
+  test('latency is recorded once for non-empty action chips', async () => {
+    // Setup.
+    const metrics: MetricsTracker = fakeMetricsPrivate();
+    const expectedLatency = 1000;
+    const mockTimestamp = Date.now().valueOf();
+
+    // Act.
+    await initializeChips({
+      windowTimestampStart: mockTimestamp,
+      windowTimestampEnd: mockTimestamp + expectedLatency,
     });
+
+    // Assert.
+    assertEquals(
+        1, metrics.count('NewTabPage.ActionChips.WebUI.InitialLoadLatency'));
+    assertEquals(
+        1,
+        metrics.count(
+            'NewTabPage.ActionChips.WebUI.InitialLoadLatency',
+            expectedLatency));
+  });
+
+  test('latency is not recorded for empty action chips', async () => {
+    // Setup.
+    const metrics: MetricsTracker = fakeMetricsPrivate();
+    const expectedLatency = 1000;
+    const mockTimestamp = Date.now().valueOf();
+
+    // Act.
+    await initializeChips({
+      actionChips: [],
+      windowTimestampStart: mockTimestamp,
+      windowTimestampEnd: mockTimestamp + expectedLatency,
+    });
+
+    // Assert.
+    assertEquals(
+        0, metrics.count('NewTabPage.ActionChips.WebUI.InitialLoadLatency'));
+  });
+
+  suite('startActionChipsRetrieval', () => {
+    test(
+        'Handler is called on load and its completion fires an event',
+        async () => {
+          const events: ActionChipsRetrievalState[] = [];
+          const eventCollector = (e: any) => {
+            events.push(e.detail.state);
+          };
+          document.body.addEventListener(
+              'action-chips-retrieval-state-changed', eventCollector);
+          await initializeChips({});
+          assertEquals(1, handler.getCallCount('startActionChipsRetrieval'));
+          await microtasksFinished();
+          document.body.removeEventListener(
+              'action-chips-retrieval-state-changed', eventCollector);
+          assertDeepEquals(
+              [
+                ActionChipsRetrievalState.REQUESTED,
+                ActionChipsRetrievalState.UPDATED,
+              ],
+              events);
+        });
 
     test(
         'The number of chips is equal to the number of items in the response',

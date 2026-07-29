@@ -464,15 +464,15 @@ void View::SetBoundsRect(const gfx::Rect& bounds) {
     LayoutImmediately();
   }
 
-  if (GetNeedsNotificationWhenVisibleBoundsChange()) {
-    OnVisibleBoundsChanged();
+  if (GetNeedsNotificationWhenVisibleBoundsChangeImpl()) {
+    OnVisibleBoundsChangedImpl();
   }
 
   // Notify interested Views that visible bounds within the root view may have
   // changed.
   if (descendants_to_notify_) {
     for (views::View* i : *descendants_to_notify_) {
-      i->OnVisibleBoundsChanged();
+      i->OnVisibleBoundsChangedImpl();
     }
   }
 
@@ -483,22 +483,22 @@ void View::SetBoundsRect(const gfx::Rect& bounds) {
   if (prev.x() != bounds_.x()) {
     OnPropertyChanged(
         ui::metadata::MakeUniquePropertyKey(&bounds_, kXChangedKey),
-        kPropertyEffectsNone);
+        PropertyEffects::kNone);
   }
   if (prev.y() != bounds_.y()) {
     OnPropertyChanged(
         ui::metadata::MakeUniquePropertyKey(&bounds_, kYChangedKey),
-        kPropertyEffectsNone);
+        PropertyEffects::kNone);
   }
   if (prev.width() != bounds_.width()) {
     OnPropertyChanged(
         ui::metadata::MakeUniquePropertyKey(&bounds_, kWidthChangedKey),
-        kPropertyEffectsNone);
+        PropertyEffects::kNone);
   }
   if (prev.height() != bounds_.height()) {
     OnPropertyChanged(
         ui::metadata::MakeUniquePropertyKey(&bounds_, kHeightChangedKey),
-        kPropertyEffectsNone);
+        PropertyEffects::kNone);
   }
 }
 
@@ -660,7 +660,7 @@ void View::SetVisible(bool visible) {
     UpdateLayerVisibility();
 
     // Notify all other subscriptions of the change.
-    OnPropertyChanged(&visible_, kPropertyEffectsPaint);
+    OnPropertyChanged(&visible_, PropertyEffects::kPaint);
 
     if (was_visible) {
       UpdateTooltip();
@@ -699,7 +699,7 @@ void View::SetEnabled(bool enabled) {
 
   enabled_ = enabled;
   UpdateEnabledInViewsSubtreeState();
-  OnPropertyChanged(&enabled_, kPropertyEffectsPaint);
+  OnPropertyChanged(&enabled_, PropertyEffects::kPaint);
 }
 
 base::CallbackListSubscription View::AddEnabledChangedCallback(
@@ -872,6 +872,32 @@ std::unique_ptr<ui::Layer> View::RecreateLayer() {
   return old_layer;
 }
 
+bool View::GetClipLayerToVisibleBounds() const {
+  return clip_layer_to_visible_bounds_;
+}
+
+void View::SetClipLayerToVisibleBounds(bool clip_layer) {
+  if (clip_layer_to_visible_bounds_ == clip_layer) {
+    return;
+  }
+  bool remove_layer_clip = clip_layer_to_visible_bounds_;
+  auto* widget = GetWidget();
+  // Register / Unregister to visible bounds notification only when the view is
+  // already added to the widget.  Otherwise this will registered when added to
+  // the widget.
+  if (!clip_layer && widget) {
+    UnregisterForVisibleBoundsNotification();
+  }
+  clip_layer_to_visible_bounds_ = clip_layer;
+  if (clip_layer_to_visible_bounds_ && widget) {
+    RegisterForVisibleBoundsNotification();
+  }
+
+  UpdateLayerClipForVisibleBounds(remove_layer_clip);
+
+  OnPropertyChanged(&clip_layer_to_visible_bounds_, PropertyEffects::kNone);
+}
+
 // RTL positioning -------------------------------------------------------------
 
 gfx::Rect View::GetMirroredBounds() const {
@@ -1018,7 +1044,7 @@ void View::SetUseDefaultFillLayout(bool value) {
   } else {
     SetLayoutManager(nullptr);
   }
-  OnPropertyChanged(&use_default_fill_layout_, kPropertyEffectsLayout);
+  OnPropertyChanged(&use_default_fill_layout_, PropertyEffects::kLayout);
 }
 
 // Attributes ------------------------------------------------------------------
@@ -1048,7 +1074,7 @@ void View::SetID(int id) {
 
   id_ = id;
 
-  OnPropertyChanged(&id_, kPropertyEffectsNone);
+  OnPropertyChanged(&id_, PropertyEffects::kNone);
 }
 
 const View* View::GetViewByElementId(ui::ElementIdentifier element_id) const {
@@ -1081,7 +1107,7 @@ void View::SetGroup(int gid) {
   DCHECK(group_ == -1 || group_ == gid);
   if (group_ != gid) {
     group_ = gid;
-    OnPropertyChanged(&group_, kPropertyEffectsNone);
+    OnPropertyChanged(&group_, PropertyEffects::kNone);
   }
 }
 
@@ -1090,7 +1116,7 @@ void View::SetOwnedGroup(int group_id) {
   DCHECK(owned_group_ == -1 || owned_group_ == group_id);
   if (owned_group_ != group_id) {
     owned_group_ = group_id;
-    OnPropertyChanged(&owned_group_, kPropertyEffectsNone);
+    OnPropertyChanged(&owned_group_, PropertyEffects::kNone);
   }
 }
 
@@ -1536,7 +1562,7 @@ void View::SetFlipCanvasOnPaintForRTLUI(bool enable) {
   }
   flip_canvas_on_paint_for_rtl_ui_ = enable;
 
-  OnPropertyChanged(&flip_canvas_on_paint_for_rtl_ui_, kPropertyEffectsPaint);
+  OnPropertyChanged(&flip_canvas_on_paint_for_rtl_ui_, PropertyEffects::kPaint);
 }
 
 base::CallbackListSubscription
@@ -1552,7 +1578,7 @@ void View::SetMirrored(bool is_mirrored) {
   }
   is_mirrored_ = is_mirrored;
 
-  OnPropertyChanged(&is_mirrored_, kPropertyEffectsPaint);
+  OnPropertyChanged(&is_mirrored_, PropertyEffects::kPaint);
 }
 
 bool View::GetMirrored() const {
@@ -1578,7 +1604,8 @@ void View::SetCanProcessEventsWithinSubtree(bool can_process) {
     return;
   }
   can_process_events_within_subtree_ = can_process;
-  OnPropertyChanged(&can_process_events_within_subtree_, kPropertyEffectsNone);
+  OnPropertyChanged(&can_process_events_within_subtree_,
+                    PropertyEffects::kNone);
 }
 
 View* View::GetTooltipHandlerForPoint(const gfx::Point& point) {
@@ -2025,7 +2052,7 @@ void View::SetFocusBehavior(FocusBehavior focus_behavior) {
                                                           FocusBehavior::NEVER);
   AdvanceFocusIfNecessary();
 
-  OnPropertyChanged(&focus_behavior_, kPropertyEffectsNone);
+  OnPropertyChanged(&focus_behavior_, PropertyEffects::kNone);
 }
 
 bool View::IsFocusable() const {
@@ -2659,6 +2686,53 @@ void View::SetLayerParent(ui::Layer* parent_layer) {
   }
 }
 
+bool View::GetNeedsNotificationWhenVisibleBoundsChangeImpl() const {
+  return clip_layer_to_visible_bounds_ ||
+         GetNeedsNotificationWhenVisibleBoundsChange();
+}
+
+void View::OnVisibleBoundsChangedImpl() {
+  OnVisibleBoundsChanged();
+
+  if (!clip_layer_to_visible_bounds_) {
+    return;
+  }
+  UpdateLayerClipForVisibleBounds(/*remove_layer_clip=*/false);
+}
+
+void View::UpdateLayerClipForVisibleBounds(bool remove_layer_clip) {
+  if (!layer()) {
+    return;
+  }
+
+  std::optional<gfx::Rect> clip_bounds = GetVisibleBounds();
+  if (remove_layer_clip || clip_bounds == GetLocalBounds()) {
+    clip_bounds.reset();
+  }
+
+  auto apply_clip_bounds = [](ui::Layer* layer,
+                              std::optional<gfx::Rect>& clip_bounds) {
+    if (!clip_bounds) {
+      layer->SetClipRect({});
+    } else if (clip_bounds->IsEmpty()) {
+      // If the visible bounds is empty, that means the layer should be
+      // invisible. However, setting an empty clip rect reset means 'no
+      // clipping', and we cannot use `SetVisible` as a client may change this
+      // value. Use the clip bounds that never intersect with the layer to make
+      // this invisible.
+      constexpr gfx::Rect kOutOfBounds(-2, -2, 1, 1);
+      layer->SetClipRect(kOutOfBounds);
+    } else {
+      layer->SetClipRect(*clip_bounds);
+    }
+  };
+  apply_clip_bounds(layer(), clip_bounds);
+
+  for (ui::Layer* layer : GetLayersInOrder(ViewLayer::kExclude)) {
+    apply_clip_bounds(layer, clip_bounds);
+  }
+}
+
 void View::ReorderChildLayers(ui::Layer* parent_layer) {
   if (layer() && layer() != parent_layer) {
     DCHECK_EQ(parent_layer, layer()->parent());
@@ -2772,7 +2846,7 @@ void View::TooltipTextChanged() {
     widget->GetTooltipManager()->TooltipTextChanged(this);
   }
 
-  OnPropertyChanged(&cached_tooltip_text_, kPropertyEffectsNone);
+  OnPropertyChanged(&cached_tooltip_text_, PropertyEffects::kNone);
 }
 
 void View::UpdateTooltipForFocus() {
@@ -2824,15 +2898,21 @@ PaintInfo::ScaleType View::GetPaintScaleType() const {
 }
 
 void View::HandlePropertyChangeEffects(PropertyEffects effects) {
-  if (effects & kPropertyEffectsPreferredSizeChanged) {
-    PreferredSizeChanged();
+  switch (effects) {
+    case PropertyEffects::kPreferredSizeChanged:
+      // This calls InvalidateLayout() internally.
+      PreferredSizeChanged();
+      return;
+    case PropertyEffects::kLayout:
+      InvalidateLayout();
+      return;
+    case PropertyEffects::kPaint:
+      SchedulePaint();
+      return;
+    case PropertyEffects::kNone:
+      return;
   }
-  if (effects & kPropertyEffectsLayout) {
-    InvalidateLayout();
-  }
-  if (effects & kPropertyEffectsPaint) {
-    SchedulePaint();
-  }
+  NOTREACHED();
 }
 
 void View::AfterPropertyChange(const void* key, int64_t old_value) {
@@ -2856,7 +2936,7 @@ void View::AfterPropertyChange(const void* key, int64_t old_value) {
 
 void View::OnPropertyChanged(ui::metadata::PropertyKey property,
                              PropertyEffects property_effects) {
-  if (property_effects != kPropertyEffectsNone) {
+  if (property_effects != PropertyEffects::kNone) {
     HandlePropertyChangeEffects(property_effects);
   }
   TriggerChangedCallback(property);
@@ -3252,7 +3332,6 @@ void View::PropagateAddNotifications(const ViewHierarchyChangedDetails& details,
   // their parents as accelerators registered later take priority over those
   // registered earlier.
   RegisterPendingAccelerators();
-
   {
     internal::ScopedChildrenLock lock(this);
     for (views::View* child : children_) {
@@ -3341,7 +3420,7 @@ void View::SnapLayerToPixelBoundary(const LayerOffsetData& offset_data) {
 
 // static
 void View::RegisterChildrenForVisibleBoundsNotification(View* view) {
-  if (view->GetNeedsNotificationWhenVisibleBoundsChange()) {
+  if (view->GetNeedsNotificationWhenVisibleBoundsChangeImpl()) {
     view->RegisterForVisibleBoundsNotification();
   }
   for (View* child : view->children_) {
@@ -3351,7 +3430,7 @@ void View::RegisterChildrenForVisibleBoundsNotification(View* view) {
 
 // static
 void View::UnregisterChildrenForVisibleBoundsNotification(View* view) {
-  if (view->GetNeedsNotificationWhenVisibleBoundsChange()) {
+  if (view->GetNeedsNotificationWhenVisibleBoundsChangeImpl()) {
     view->UnregisterForVisibleBoundsNotification();
   }
   for (View* child : view->children_) {
@@ -3363,7 +3442,6 @@ void View::RegisterForVisibleBoundsNotification() {
   if (registered_for_visible_bounds_notification_) {
     return;
   }
-
   registered_for_visible_bounds_notification_ = true;
   for (View* ancestor = parent_; ancestor; ancestor = ancestor->parent_) {
     ancestor->AddDescendantToNotify(this);
@@ -3440,7 +3518,7 @@ void View::UpdateEnabledInViewsSubtreeState() {
   for (views::View* child : base::Reversed(children_)) {
     child->UpdateEnabledInViewsSubtreeState();
   }
-  OnPropertyChanged(&enabled_in_views_subtree_, kPropertyEffectsPaint);
+  OnPropertyChanged(&enabled_in_views_subtree_, PropertyEffects::kPaint);
 }
 
 void View::SetLayerBounds(const gfx::Size& size,
@@ -3996,6 +4074,7 @@ ADD_PROPERTY_METADATA(int, Width)
 ADD_PROPERTY_METADATA(int, X)
 ADD_PROPERTY_METADATA(int, Y)
 ADD_PROPERTY_METADATA(std::u16string, TooltipText)
+ADD_PROPERTY_METADATA(bool, ClipLayerToVisibleBounds)
 ADD_CLASS_PROPERTY_METADATA(gfx::Insets, kMarginsKey)
 ADD_CLASS_PROPERTY_METADATA(gfx::Insets, kInternalPaddingKey)
 ADD_CLASS_PROPERTY_METADATA(LayoutAlignment, kCrossAxisAlignmentKey)

@@ -25,7 +25,7 @@ namespace crypto::apple {
 //
 // Unlike Windows keys, macOS will store key metadata locally. Callers are
 // responsible for deleting keys when they are no longer needed.
-class UnexportableKeyProviderMac : public UnexportableKeyProvider {
+class UnexportableKeyProviderMac : public StatefulUnexportableKeyProvider {
  public:
   explicit UnexportableKeyProviderMac(Config config);
   ~UnexportableKeyProviderMac() override;
@@ -56,7 +56,13 @@ class UnexportableKeyProviderMac : public UnexportableKeyProvider {
           acceptable_algorithms) override;
   std::unique_ptr<UnexportableSigningKey> FromWrappedSigningKeySlowly(
       base::span<const uint8_t> wrapped_key) override;
+  StatefulUnexportableKeyProvider* AsStatefulUnexportableKeyProvider() override;
+
+  // StatefulUnexportableKeyProvider:
+  std::optional<std::vector<std::unique_ptr<UnexportableSigningKey>>>
+  GetAllSigningKeysSlowly() override;
   bool DeleteSigningKeySlowly(base::span<const uint8_t> wrapped_key) override;
+  std::optional<size_t> DeleteAllSigningKeysSlowly() override;
 
  private:
   struct ObjCStorage;

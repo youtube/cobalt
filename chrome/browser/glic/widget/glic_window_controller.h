@@ -85,6 +85,14 @@ class GlicWindowController {
 
   // Close the panel but keep the glic WebContents alive in the background.
   virtual void Close() = 0;
+  // Closes the active embedder of an instance with matching render_frame_host
+  // without resetting webcontents.
+  virtual void CloseInstanceWithFrame(
+      content::RenderFrameHost* render_frame_host) = 0;
+  // Closes the active embedder of an instance with matching render_frame_host
+  // with resetting webcontents.
+  virtual void CloseAndShutdownInstanceWithFrame(
+      content::RenderFrameHost* render_frame_host) = 0;
 
   // Returns wehether or not the glic window is currently showing detached.
   // When True |GetGlicWidget| will return a valid ptr.
@@ -152,10 +160,11 @@ class GlicWindowController {
       ActiveInstanceChangedCallback callback) = 0;
   virtual GlicInstance* GetActiveInstance() = 0;
 
-  // Helper function to get the always detached flag.
+  // Helper function to return whether the kGlicDetached feature is enabled
+  // while multi-instance is not.
   static bool AlwaysDetached() {
     return base::FeatureList::IsEnabled(features::kGlicDetached) &&
-           !GlicEnabling::IsMultiInstanceEnabledByFlags();
+           !GlicEnabling::IsMultiInstanceEnabled();
   }
 
   // Same as GlicInstance::AddStateObserver, but applies globally, provides

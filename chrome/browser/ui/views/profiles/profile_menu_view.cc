@@ -71,6 +71,8 @@
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/webui/signin/signin_ui_error.h"
 #include "chrome/browser/ui/webui/signin/signin_utils_desktop.h"
+#include "chrome/browser/webauthn/passkey_unlock_manager.h"
+#include "chrome/browser/webauthn/passkey_unlock_manager_factory.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/branded_strings.h"
@@ -91,6 +93,7 @@
 #include "components/sync/base/features.h"
 #include "components/sync/service/sync_service.h"
 #include "components/vector_icons/vector_icons.h"
+#include "device/fido/features.h"
 #include "net/base/url_util.h"
 #include "ui/base/interaction/element_tracker.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -313,6 +316,14 @@ void ProfileMenuView::OnAccountSettingsButtonClicked() {
   chrome::ShowSettingsSubPage(&browser(), chrome::kPeopleSubPage);
 }
 
+void ProfileMenuView::OnPasskeyUnlockButtonClicked() {
+  OnActionableItemClicked(ActionableItem::kPasskeyUnlockButton);
+  if (!perform_menu_actions()) {
+    return;
+  }
+  webauthn::PasskeyUnlockManager::OpenTabWithPasskeyUnlockChallenge(&browser());
+}
+
 void ProfileMenuView::OnSyncErrorButtonClicked(
     syncer::SyncService::UserActionableError error) {
   OnActionableItemClicked(ActionableItem::kSyncErrorButton);
@@ -374,6 +385,10 @@ void ProfileMenuView::OnSyncErrorButtonClicked(
       break;
     case syncer::SyncService::UserActionableError::kNeedsSettingsConfirmation:
       chrome::ShowSettingsSubPage(&browser(), chrome::kSyncSetupSubPage);
+      break;
+    case syncer::SyncService::UserActionableError::kBookmarksLimitExceeded:
+      // TODO(crbug.com/452968646): Adjust this with providing the concrete
+      // help center article link.
       break;
     case syncer::SyncService::UserActionableError::kNone:
       NOTREACHED();
@@ -668,9 +683,10 @@ ProfileMenuView::GetIdentitySectionParams(const ProfileAttributesEntry& entry) {
   }
 
   syncer::SyncService* service = SyncServiceFactory::GetForProfile(&profile());
+  syncer::SyncService::UserActionableError error =
+      syncer::SyncService::UserActionableError::kNone;
   if (service) {
-    const syncer::SyncService::UserActionableError error =
-        service->GetUserActionableError();
+    error = service->GetUserActionableError();
     // Avoid reacting to
     // syncer::SyncService::UserActionableError::kSignInNeedsUpdate in case of
     // no sync consent, as kSignInPending is handled differently below.
@@ -684,6 +700,25 @@ ProfileMenuView::GetIdentitySectionParams(const ProfileAttributesEntry& entry) {
       params.button_action =
           base::BindRepeating(&ProfileMenuView::OnSyncErrorButtonClicked,
                               base::Unretained(this), error);
+      params.has_dotted_ring = true;
+      return params;
+    }
+  }
+
+  // If there are no sync user actionable errors, we can display passkey unlock
+  // card if needed:
+  if (error == syncer::SyncService::UserActionableError::kNone &&
+      webauthn::PasskeyUnlockManager::IsPasskeyUnlockErrorUiEnabled()) {
+    webauthn::PasskeyUnlockManager* passkey_unlock_manager =
+        webauthn::PasskeyUnlockManagerFactory::GetForProfile(&profile());
+    if (passkey_unlock_manager->ShouldDisplayErrorUi()) {
+      params.subtitle =
+          passkey_unlock_manager->GetPasskeyErrorProfileMenuDetails();
+      params.button_text =
+          passkey_unlock_manager->GetPasskeyErrorProfileMenuButtonLabel();
+      params.button_action =
+          base::BindRepeating(&ProfileMenuView::OnPasskeyUnlockButtonClicked,
+                              base::Unretained(this));
       params.has_dotted_ring = true;
       return params;
     }

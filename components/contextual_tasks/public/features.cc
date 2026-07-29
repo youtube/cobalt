@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "base/metrics/field_trial_params.h"
+#include "base/rand_util.h"
 #include "base/strings/string_split.h"
 
 namespace contextual_tasks {
@@ -17,6 +18,36 @@ BASE_FEATURE(kContextualTasks, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables relevant context determination for contextual tasks.
 BASE_FEATURE(kContextualTasksContext, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables quality logging for relevant context determination for contextual
+// tasks.
+BASE_FEATURE(kContextualTasksContextLogging, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables context menu settings for contextual tasks.
+BASE_FEATURE(kContextualTasksContextMenu,
+             "ContextualTasksContextMenu",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Enables suggestions for contextual tasks.
+BASE_FEATURE(kContextualTasksSuggestionsEnabled,
+             "ContextualTasksSuggestionsEnabled",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<double> kMinEmbeddingSimilarityScore{
+    &kContextualTasksContext, "ContextualTasksContextEmbeddingSimilarityScore",
+    0.8};
+
+const base::FeatureParam<bool> kOnlyUseTitlesForSimilarity(
+    &kContextualTasksContext,
+    "ContextualTasksContextOnlyUseTitles",
+    false);
+
+const base::FeatureParam<double> kMinMultiSignalScore{
+    &kContextualTasksContext, "ContextualTasksContextMinMultiSignalScore", 0.8};
+
+const base::FeatureParam<double> kContextualTasksContextLoggingSampleRate{
+    &kContextualTasksContextLogging, "ContextualTasksContextLoggingSampleRate",
+    1.0};
 
 // The base URL for the AI page.
 const base::FeatureParam<std::string> kContextualTasksAiPageUrl{
@@ -28,21 +59,33 @@ const base::FeatureParam<std::string> kContextualTasksSignInDomains{
     &kContextualTasksContext, "sign-in-domains",
     "accounts.google.com,login.corp.google.com"};
 
-const base::FeatureParam<double> kMinEmbeddingSimilarityScore{
-    &kContextualTasksContext, "ContextualTasksContextEmbeddingSimilarityScore",
-    0.8};
+constexpr base::FeatureParam<EntryPointOption>::Option kEntryPointOptions[] = {
+    {EntryPointOption::kNoEntryPoint, "no-entry-point"},
+    {EntryPointOption::kPageActionRevisit, "page-action-revisit"},
+    {EntryPointOption::kToolbarRevisit, "toolbar-revisit"},
+    {EntryPointOption::kToolbarPermanent, "toolbar-permanent"}};
 
-const base::FeatureParam<double> kMinMultiSignalScore{
-    &kContextualTasksContext, "ContextualTasksContextMinMultiSignalScore", 0.8};
+const base::FeatureParam<EntryPointOption> kShowEntryPoint(
+    &kContextualTasks,
+    "ContextualTasksEntryPoint",
+    EntryPointOption::kNoEntryPoint,
+    &kEntryPointOptions);
 
-const base::FeatureParam<bool> kOnlyUseTitlesForSimilarity(
-    &kContextualTasksContext,
-    "ContextualTasksContextOnlyUseTitles",
-    false);
-
-const base::FeatureParam<bool> kTaskScopedSidpePanel(&kContextualTasksContext,
-                                                     "TaskScopedSidpePanel",
+const base::FeatureParam<bool> kTaskScopedSidePanel(&kContextualTasksContext,
+                                                     "TaskScopedSidePanel",
                                                      true);
+
+const base::FeatureParam<bool> kEnableLensInContextualTasks(
+    &kContextualTasksContext,
+    "EnableLensInContextualTasks",
+    true);
+
+// The user agent suffix to use for requests from the contextual tasks UI.
+// TODO(crbug.com/454388385): Remove "WGA/1.0" once our custom user agent
+// is allowlisted. This is a temporary workaround to unblock the
+// authentication flow.
+const base::FeatureParam<std::string> kContextualTasksUserAgentSuffix{
+    &kContextualTasks, "user-agent-suffix", "WGA/1.0"};
 
 std::string GetContextualTasksAiPageUrl() {
   return kContextualTasksAiPageUrl.Get();
@@ -51,6 +94,45 @@ std::string GetContextualTasksAiPageUrl() {
 std::vector<std::string> GetContextualTasksSignInDomains() {
   return base::SplitString(kContextualTasksSignInDomains.Get(), ",",
                            base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+}
+
+bool GetIsContextualTasksNextboxContextMenuEnabled() {
+  return base::FeatureList::IsEnabled(kContextualTasksContextMenu);
+}
+
+const base::FeatureParam<std::string> kContextualTasksNextboxImageFileTypes{
+    &kContextualTasksContextMenu, "ContextualTasksNextboxImageFileTypes",
+    "image/jpeg,image/png"};
+
+const base::FeatureParam<std::string> kContextualTasksNextboxAttachmentFileTypes{
+    &kContextualTasksContextMenu, "ContextualTasksNextboxAttachmentFileTypes",
+    "text/plain,application/pdf"};
+
+const base::FeatureParam<int> kContextualTasksNextboxMaxFileSize{
+    &kContextualTasksContextMenu, "ContextualTasksNextboxMaxFileSize",
+    20 * 1024 * 1024};
+
+const base::FeatureParam<int> kContextualTasksNextboxMaxFileCount{
+    &kContextualTasksContextMenu, "ContextualTasksNextboxMaxFileCount", 4};
+
+bool GetIsContextualTasksSuggestionsEnabled() {
+  return base::FeatureList::IsEnabled(kContextualTasksSuggestionsEnabled);
+}
+
+bool GetEnableLensInContextualTasks() {
+  return base::FeatureList::IsEnabled(kContextualTasks) &&
+         kEnableLensInContextualTasks.Get();
+}
+
+std::string GetContextualTasksUserAgentSuffix() {
+  return kContextualTasksUserAgentSuffix.Get();
+}
+
+bool ShouldLogContextualTasksContextQuality() {
+  if (!base::FeatureList::IsEnabled(kContextualTasksContextLogging)) {
+    return false;
+  }
+  return base::RandDouble() <= kContextualTasksContextLoggingSampleRate.Get();
 }
 
 namespace flag_descriptions {
@@ -62,6 +144,11 @@ const char kContextualTasksDescription[] =
 const char kContextualTasksContextName[] = "Contextual Tasks Context";
 const char kContextualTasksContextDescription[] =
     "Enables relevant context determination for contextual tasks.";
+
+const char kContextualTasksSuggestionsEnabledName[] =
+    "Contextual Tasks Suggestions Enabled";
+const char kContextualTasksSuggestionsEnabledDescription[] =
+    "Enables suggestions for contextual tasks.";
 
 }  // namespace flag_descriptions
 

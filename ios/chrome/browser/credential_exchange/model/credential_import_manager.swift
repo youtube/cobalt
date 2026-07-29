@@ -34,8 +34,11 @@ import Foundation
   /// app launch.
   @available(iOS 26, *)
   @objc public func prepareImport(_ uuid: NSUUID) {
-    let importManager = ASCredentialImportManager()
     Task {
+      // Initialize an import manager within the scope of Task to prevent an instance from crossing
+      // boundaries.
+      let importManager = ASCredentialImportManager()
+
       do {
         let credentialData = try await importManager.importCredentials(token: uuid as UUID)
         let translatedData = translateCredentialData(credentialData)
@@ -57,18 +60,13 @@ import Foundation
 
     for account in credentialData.accounts {
       for item in account.items {
+        // TODO(crbug.com/445889719): Handle Android app scope as well.
         let optionalUrl = item.scope?.urls.first
 
         let credentials = item.credentials
         for i in 0..<credentials.count {
           switch credentials[i] {
           case .basicAuthentication(let basicAuth):
-            // Password without a url cannot be imported, skip it.
-            // TODO(crbug.com/445889719): Handle Android app scope as well.
-            // TODO(crbug.com/445889706): Either initialize empty url object and let credential
-            // importer handle it, or add metric logging.
-            guard let url = optionalUrl else { continue }
-
             // If the next credential is of type note, treat it as note for password.
             var note = ""
             let nextIndex = i + 1
@@ -79,7 +77,7 @@ import Foundation
             }
             passwords.append(
               CredentialExchangePassword(
-                url: url,
+                url: optionalUrl,
                 username: basicAuth.userName?.value ?? "",
                 password: basicAuth.password?.value ?? "",
                 note: note

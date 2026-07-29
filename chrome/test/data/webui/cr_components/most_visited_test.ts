@@ -168,6 +168,7 @@ interface SetUpTestOptions {
   singleRow: boolean;
   reflowOnOverflow: boolean;
   expandableTilesEnabled: boolean;
+  maxTilesBeforeShowMore: number;
 }
 
 function setUpTest(providedOptions: Partial<SetUpTestOptions> = {}) {
@@ -175,6 +176,7 @@ function setUpTest(providedOptions: Partial<SetUpTestOptions> = {}) {
     singleRow: false,
     reflowOnOverflow: false,
     expandableTilesEnabled: false,
+    maxTilesBeforeShowMore: MAX_TILES_BEFORE_SHOW_MORE,
   };
   const options = {...defaultOptions, ...providedOptions};
   document.body.innerHTML = window.trustedTypes!.emptyHTML;
@@ -187,6 +189,9 @@ function setUpTest(providedOptions: Partial<SetUpTestOptions> = {}) {
   mostVisited.reflowOnOverflow = options.reflowOnOverflow;
   if (options.expandableTilesEnabled) {
     mostVisited.setAttribute('expandable-tiles-enabled', '');
+    mostVisited.setAttribute(
+        'max-tiles-before-show-more',
+        options.maxTilesBeforeShowMore.toString());
   }
   document.body.appendChild(mostVisited);
   assertEquals(1, handler.getCallCount('updateMostVisitedInfo'));
@@ -289,12 +294,6 @@ suite('ShowAddButton', () => {
 });
 
 suite('ExpandableTiles', () => {
-  suiteSetup(() => {
-    loadTimeData.overrideValues({
-      maxTilesBeforeShowMore: MAX_TILES_BEFORE_SHOW_MORE,
-    });
-  });
-
   test('initializes isExpanded to true from pref', async () => {
     createBrowserProxy();
     handler.setResultFor(
@@ -462,6 +461,37 @@ suite('ExpandableTiles', () => {
         expandedHeight, collapsedHeight,
         'Collapsed layout should be shorter than expanded layout');
   });
+
+  test(
+      'show less button on first row with 8 tiles and custom links disabled',
+      async () => {
+        await setUpTest({
+          singleRow: true,
+          reflowOnOverflow: true,
+          expandableTilesEnabled: true,
+        });
+        await addTiles(8, /*customLinksEnabled=*/ false);
+
+        const showMoreButton = getShowMoreButton();
+        assertTrue(isVisible(showMoreButton));
+
+        // Click "Show more" to expand.
+        showMoreButton!.click();
+        await microtasksFinished();
+
+        // We expect 1 row with 8 tiles and a "Show less" button.
+        const showLessButton = getShowLessButton();
+        assertTrue(isVisible(showLessButton));
+        assertHiddenTileLength(0);
+        const expandedItems =
+            queryAll<HTMLElement>('.tile:not([hidden]), #showLess');
+        assertEquals(8 + 1, expandedItems.length);
+        const firstItemTop = expandedItems[0]!.offsetTop;
+        for (const item of expandedItems) {
+          assertEquals(firstItemTop, item.offsetTop);
+        }
+        assertEquals(1, rowCount());
+      });
 
   test(
       'show more and show less buttons do not move during drag and drop',

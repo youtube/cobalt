@@ -77,6 +77,7 @@ import org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundImageType;
 import org.chromium.chrome.browser.ntp_customization.edge_to_edge.TopInsetCoordinator;
+import org.chromium.chrome.browser.ntp_customization.theme.chrome_colors.NtpThemeColorInfo;
 import org.chromium.chrome.browser.ntp_customization.theme.upload_image.BackgroundImageInfo;
 import org.chromium.chrome.browser.omnibox.OmniboxFocusReason;
 import org.chromium.chrome.browser.omnibox.OmniboxStub;
@@ -831,8 +832,8 @@ public class NewTabPage
                             Bitmap originalBitmap,
                             @Nullable BackgroundImageInfo backgroundImageInfo,
                             boolean fromInitialization,
-                            int oldType,
-                            int newType) {
+                            @NtpBackgroundImageType int oldType,
+                            @NtpBackgroundImageType int newType) {
                         mUseLightIconTint = true;
                         if (NtpCustomizationUtils.shouldApplyWhiteBackgroundOnSearchBox(oldType)) {
                             return;
@@ -843,10 +844,11 @@ public class NewTabPage
 
                     @Override
                     public void onBackgroundColorChanged(
-                            int backgroundColor,
+                            @Nullable NtpThemeColorInfo ntpThemeColorInfo,
+                            @ColorInt int backgroundColor,
                             boolean fromInitialization,
-                            int oldType,
-                            int newType) {
+                            @NtpBackgroundImageType int oldType,
+                            @NtpBackgroundImageType int newType) {
                         mUseLightIconTint = false;
 
                         if (!NtpCustomizationUtils.shouldApplyWhiteBackgroundOnSearchBox(oldType)) {
@@ -1150,7 +1152,6 @@ public class NewTabPage
      *     extras.
      * @param key The string previously used to tag this piece of data.
      * @return The value previously stored with the given key.
-     *     <p>TODO(crbug.com/40618119): Refactor this to be reusable across NativePage components.
      */
     public static String getStringFromNavigationEntry(Tab tab, String key) {
         if (tab.getWebContents() == null) return "";

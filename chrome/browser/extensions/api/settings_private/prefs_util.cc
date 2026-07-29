@@ -217,6 +217,8 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
       settings_api::PrefType::kBoolean;
   (*s_allowlist)[::prefs::kSidePanelHorizontalAlignment] =
       settings_api::PrefType::kBoolean;
+  (*s_allowlist)[::prefs::kVerticalTabsEnabled] =
+      settings_api::PrefType::kBoolean;
   (*s_allowlist)[::prefs::kTabSearchRightAligned] =
       settings_api::PrefType::kBoolean;
   (*s_allowlist)[tab_groups::prefs::kAutoPinNewTabGroups] =
@@ -228,6 +230,8 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
 #endif
   (*s_allowlist)[::prefs::kShowHomeButton] = settings_api::PrefType::kBoolean;
   (*s_allowlist)[::prefs::kShowForwardButton] =
+      settings_api::PrefType::kBoolean;
+  (*s_allowlist)[::prefs::kPinContextualTaskButton] =
       settings_api::PrefType::kBoolean;
   (*s_allowlist)[::prefs::kPinSplitTabButton] =
       settings_api::PrefType::kBoolean;
@@ -1216,6 +1220,9 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
   // Proxy settings.
   (*s_allowlist)[proxy_config::prefs::kProxy] =
       settings_api::PrefType::kDictionary;
+  // Proxy override rules.
+  (*s_allowlist)[proxy_config::prefs::kProxyOverrideRules] =
+      settings_api::PrefType::kList;
 
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
   (*s_allowlist)[::prefs::kUserFeedbackAllowed] =
@@ -1703,19 +1710,6 @@ bool PrefsUtil::IsPrefUserModifiable(const std::string& pref_name) {
 
 PrefService* PrefsUtil::FindServiceForPref(const std::string& pref_name) {
   PrefService* user_prefs = profile_->GetPrefs();
-
-  // Proxy is a peculiar case: on ChromeOS, settings exist in both user
-  // prefs and local state, but chrome://settings should affect only user prefs.
-  // Elsewhere the proxy settings are stored in local state.
-  // See http://crbug.com/157147
-
-  if (pref_name == proxy_config::prefs::kProxy) {
-#if BUILDFLAG(IS_CHROMEOS)
-    return user_prefs;
-#else
-    return g_browser_process->local_state();
-#endif
-  }
 
 #if BUILDFLAG(IS_CHROMEOS)
   // Secure DNS configurations should apply to the current user session. The

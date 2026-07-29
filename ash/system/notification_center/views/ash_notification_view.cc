@@ -54,7 +54,6 @@
 #include "ui/compositor/compositor.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/layer_animator.h"
-#include "ui/compositor/scoped_animation_duration_scale_mode.h"
 #include "ui/gfx/animation/tween.h"
 #include "ui/gfx/codec/png_codec.h"
 #include "ui/gfx/color_utils.h"
@@ -67,6 +66,7 @@
 #include "ui/gfx/image/image_skia.h"
 #include "ui/gfx/image/image_skia_operations.h"
 #include "ui/gfx/paint_vector_icon.h"
+#include "ui/gfx/scoped_animation_duration_scale_mode.h"
 #include "ui/gfx/shadow_util.h"
 #include "ui/gfx/text_constants.h"
 #include "ui/gfx/text_elider.h"
@@ -457,7 +457,6 @@ AshNotificationView::AshNotificationView(
       Shell::Get()->message_center_controller()->drag_controller());
 
   message_center_observer_.Observe(message_center::MessageCenter::Get());
-  // TODO(crbug.com/40780100): fix views and layout to match spec.
   // Instantiate view instances and define layout and view hierarchy.
   SetLayoutManager(std::make_unique<views::BoxLayout>(
       views::BoxLayout::Orientation::kVertical,
@@ -1897,8 +1896,8 @@ void AshNotificationView::PerformLargeImageAnimation() {
 
 void AshNotificationView::PerformToggleInlineSettingsAnimation(
     bool should_show_inline_settings) {
-  if (ui::ScopedAnimationDurationScaleMode::duration_multiplier() ==
-      ui::ScopedAnimationDurationScaleMode::ZERO_DURATION) {
+  if (gfx::ScopedAnimationDurationScaleMode::duration_multiplier() ==
+      gfx::ScopedAnimationDurationScaleMode::ZERO_DURATION) {
     return;
   }
 

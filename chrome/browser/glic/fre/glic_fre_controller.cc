@@ -9,7 +9,6 @@
 
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
-#include "base/functional/callback_forward.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/user_metrics.h"
@@ -171,8 +170,6 @@ void GlicFreController::ShowFreDialogAfterAuthCheck(
   // Note that this call to `CreateShowDialogAndBlockTabInteraction` is
   // necessarily preceded by a call to `CanShowModalUI`. See
   // `GlicFreController::CanShowFreDialog`.
-  // TODO(crbug.com/393400004): This returned widget should be configured to
-  // use a synchronous close.
   fre_widget_ = tab_showing_modal_->GetTabFeatures()
                     ->tab_dialog_manager()
                     ->CreateTabScopedDialog(fre_view_.release());

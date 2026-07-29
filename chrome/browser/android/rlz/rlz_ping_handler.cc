@@ -4,6 +4,8 @@
 
 #include "chrome/browser/android/rlz/rlz_ping_handler.h"
 
+#include <optional>
+#include <string>
 #include <utility>
 
 #include "base/android/callback_android.h"
@@ -129,7 +131,7 @@ void RlzPingHandler::Ping(
 }
 
 void RlzPingHandler::OnSimpleLoaderComplete(
-    std::unique_ptr<std::string> response_body) {
+    std::optional<std::string> response_body) {
   bool valid = false;
   if (!response_body) {
     int response_code = -1;
@@ -152,7 +154,7 @@ void RlzPingHandler::OnSimpleLoaderComplete(
   delete this;
 }
 
-void JNI_RlzPingHandler_StartPing(
+static void JNI_RlzPingHandler_StartPing(
     JNIEnv* env,
     Profile* profile,
     const base::android::JavaParamRef<jstring>& j_brand,
@@ -166,3 +168,5 @@ void JNI_RlzPingHandler_StartPing(
 
 }  // namespace android
 }  // namespace chrome
+
+DEFINE_JNI(RlzPingHandler)

@@ -164,7 +164,6 @@
 #import "ios/chrome/browser/shared/public/commands/browser_commands.h"
 #import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
-#import "ios/chrome/browser/shared/public/commands/credential_exchange_commands.h"
 #import "ios/chrome/browser/shared/public/commands/lens_commands.h"
 #import "ios/chrome/browser/shared/public/commands/omnibox_commands.h"
 #import "ios/chrome/browser/shared/public/commands/open_lens_input_selection_command.h"
@@ -581,21 +580,7 @@ void RecordIfNeededSigninFullscreenPromoEvent(
 
   // Add agents. They may depend on the ProfileState, so they need to be
   // created after it has been connected to the SceneState.
-  [_sceneState addAgent:[[UIBlockerSceneAgent alloc] init]];
-  [_sceneState addAgent:[[IncognitoBlockerSceneAgent alloc] init]];
-  [_sceneState
-      addAgent:[[IncognitoReauthSceneAgent alloc]
-                         initWithReauthModule:[[ReauthenticationModule alloc]
-                                                  init]
-                   applicationCommandsHandler:self]];
-  [_sceneState addAgent:[[StartSurfaceSceneAgent alloc] init]];
-  [_sceneState addAgent:[[SessionSavingSceneAgent alloc] init]];
-  [_sceneState addAgent:[[LayoutGuideSceneAgent alloc] init]];
-  [_sceneState addAgent:[[TabGridSceneAgent alloc] init]];
-
-  if (IsShareExtensionForMultiprofileEnabled()) {
-    [_sceneState addAgent:[[ShareExtensionSceneAgent alloc] init]];
-  }
+  [self addProfileStateDependentAgents];
 
   // Start observing the ProfileState. This needs to happen after the agents
   // as this may result in creation of the UI which can access to the agents.
@@ -709,14 +694,14 @@ void RecordIfNeededSigninFullscreenPromoEvent(
         kContextsToOpen, ContextsToOpen::kMoreThanOneContextWithAccountChange);
   }
 
-  BOOL widgetsForMIMEnabled = BUILDFLAG(ENABLE_WIDGETS_FOR_MIM);
-  if (widgetsForMIMEnabled || IsShareExtensionForMultiprofileEnabled()) {
-    // Find the first context that requires an account change.
-    URLContext* context = [self findContextRequiringAccountChange:contexts];
-    // Perform profile switching if needed.
-    if ([self changeProfileForContext:context contexts:contexts openURL:NO]) {
-      return YES;
-    }
+  // Find the first context that requires an account change.
+  URLContext* firstContextForAccountChange =
+      [self findContextRequiringAccountChange:contexts];
+  // Perform profile switching if needed.
+  if ([self changeProfileForContext:firstContextForAccountChange
+                           contexts:contexts
+                            openURL:NO]) {
+    return YES;
   }
 
   // Handle URL opening from
@@ -927,6 +912,20 @@ void RecordIfNeededSigninFullscreenPromoEvent(
 
 #pragma mark - private
 
+- (void)webSigninCompletion:(SigninCoordinator*)coordinator
+                     result:(SigninCoordinatorResult)result
+         completionIdentity:(id<SystemIdentity>)completionIdentity
+                        URL:(const GURL&)URL {
+  CHECK_EQ(coordinator, self.signinCoordinator);
+  // If the sign-in is not successful do not load the continuation URL.
+  BOOL success = result == SigninCoordinatorResultSuccess;
+  if (!success) {
+    return;
+  }
+  UrlLoadingBrowserAgent::FromBrowser(self.mainInterface.browser)
+      ->Load(UrlLoadParams::InCurrentTab(URL));
+}
+
 // If sign-in is disabled, switch to the personal profile and sign-out.
 - (void)signoutIfNeeded {
   AuthenticationService* authenticationService =
@@ -982,16 +981,12 @@ void RecordIfNeededSigninFullscreenPromoEvent(
   }
   self.sceneState.URLContextsToOpen = nil;
 
-  BOOL widgetsForMIMEnabled = BUILDFLAG(ENABLE_WIDGETS_FOR_MIM);
-
-  if (widgetsForMIMEnabled || IsShareExtensionForMultiprofileEnabled()) {
-    // Find the first context that requires an account change.
-    URLContext* context = [self findContextRequiringAccountChange:contexts];
-    // Perform profile switching if needed.
-    if ([self changeProfileForContext:context contexts:contexts openURL:YES]) {
-      // Don't open the URLs if the profile was changed.
-      return;
-    }
+  // Find the first context that requires an account change.
+  URLContext* context = [self findContextRequiringAccountChange:contexts];
+  // Perform profile switching if needed.
+  if ([self changeProfileForContext:context contexts:contexts openURL:YES]) {
+    // Don't open the URLs if the profile was changed.
+    return;
   }
 
   [self openURLContexts:contexts];
@@ -1078,12 +1073,11 @@ void RecordIfNeededSigninFullscreenPromoEvent(
 }
 
 - (BOOL)shareExtensionURLEligibleForAccountChange:(NSURL*)URL {
-  return IsShareExtensionForMultiprofileEnabled() &&
-         [URL.path
-             isEqualToString:
-                 [NSString
-                     stringWithFormat:
-                         @"/%s", app_group::kChromeAppGroupXCallbackCommand]];
+  return [URL.path
+      isEqualToString:
+          [NSString
+              stringWithFormat:@"/%s",
+                               app_group::kChromeAppGroupXCallbackCommand]];
 }
 
 - (URLContext*)findContextRequiringAccountChange:
@@ -1310,7 +1304,9 @@ void RecordIfNeededSigninFullscreenPromoEvent(
     return;
   }
 
-  [self startUpChromeUI];
+  if (!tests_hook::LoadMinimalAppUI()) {
+    [self startUpChromeUI];
+  }
   self.sceneState.UIEnabled = YES;
 }
 
@@ -1793,6 +1789,10 @@ void RecordIfNeededSigninFullscreenPromoEvent(
     }
   }
 
+  if (tests_hook::LoadMinimalAppUI()) {
+    return NO;
+  }
+
   return YES;
 }
 
@@ -1867,6 +1867,27 @@ void RecordIfNeededSigninFullscreenPromoEvent(
       }
     }
   }];
+}
+
+// Adds agents that may depend on profileState. Called after a profileState has
+// been connected to the sceneState.
+- (void)addProfileStateDependentAgents {
+  if (tests_hook::LoadMinimalAppUI()) {
+    return;
+  }
+
+  [_sceneState addAgent:[[UIBlockerSceneAgent alloc] init]];
+  [_sceneState addAgent:[[IncognitoBlockerSceneAgent alloc] init]];
+  [_sceneState
+      addAgent:[[IncognitoReauthSceneAgent alloc]
+                         initWithReauthModule:[[ReauthenticationModule alloc]
+                                                  init]
+                   applicationCommandsHandler:self]];
+  [_sceneState addAgent:[[StartSurfaceSceneAgent alloc] init]];
+  [_sceneState addAgent:[[SessionSavingSceneAgent alloc] init]];
+  [_sceneState addAgent:[[LayoutGuideSceneAgent alloc] init]];
+  [_sceneState addAgent:[[TabGridSceneAgent alloc] init]];
+  [_sceneState addAgent:[[ShareExtensionSceneAgent alloc] init]];
 }
 
 #pragma mark - ApplicationCommands
@@ -2316,16 +2337,12 @@ using UserFeedbackDataCallback =
   // Copy the URL so it can be safely captured in the block.
   GURL copiedURL = url;
   [self startSigninCoordinatorWithCompletion:^(
-            SigninCoordinatorResult result,
+            SigninCoordinator* coordinator, SigninCoordinatorResult result,
             id<SystemIdentity> completionIdentity) {
-    // If the sign-in is not successful or the scene controller is shut down do
-    // not load the continuation URL.
-    BOOL success = result == SigninCoordinatorResultSuccess;
-    if (!success || !weakSelf) {
-      return;
-    }
-    UrlLoadingBrowserAgent::FromBrowser(weakSelf.mainInterface.browser)
-        ->Load(UrlLoadParams::InCurrentTab(copiedURL));
+    [weakSelf webSigninCompletion:coordinator
+                           result:result
+               completionIdentity:completionIdentity
+                              URL:copiedURL];
   }];
 }
 
@@ -2696,6 +2713,24 @@ using UserFeedbackDataCallback =
     [weakSelf showSavedPasswordsSettingsAfterModalDismissFromViewController:
                   baseViewController];
   }];
+}
+
+- (void)showPasswordManagerForCredentialImport:(NSUUID*)UUID {
+  if (!self.settingsNavigationController) {
+    self.settingsNavigationController = [SettingsNavigationController
+        credentialImportControllerForBrowser:self.mainInterface.browser
+                                    delegate:self
+                                        UUID:UUID];
+    [self.currentInterface.viewController
+        presentViewController:self.settingsNavigationController
+                     animated:YES
+                   completion:nil];
+    return;
+  }
+
+  CHECK(self.settingsNavigationController);
+  [self.settingsNavigationController
+      showPasswordManagerForCredentialImport:UUID];
 }
 
 - (void)dismissModalsAndShowPasswordCheckupPageForReferrer:
@@ -3393,12 +3428,11 @@ using UserFeedbackDataCallback =
 }
 
 - (void)importCredentials {
-  id<CredentialExchangeCommands> credentialExchangeCommands =
-      HandlerForProtocol(self.currentInterface.browser->GetCommandDispatcher(),
-                         CredentialExchangeCommands);
-  [credentialExchangeCommands
-      showCredentialExchangeImport:self.startupParameters
-                                       .credentialExchangeImportUUID];
+  id<SettingsCommands> settingsHandler = HandlerForProtocol(
+      self.currentInterface.browser->GetCommandDispatcher(), SettingsCommands);
+  [settingsHandler
+      showPasswordManagerForCredentialImport:self.startupParameters
+                                                 .credentialExchangeImportUUID];
 }
 
 #pragma mark - TabOpening implementation.
@@ -4052,7 +4086,9 @@ using UserFeedbackDataCallback =
       signinCoordinator.signinCompletion;
   signinCoordinator.signinCompletion = nil;
   CHECK(signinCompletion, base::NotFatalUntil::M142);
-  signinCompletion(SigninCoordinatorResultInterrupted, nil);
+  // The `signinCoordinator` must be nil here, because `self.signinCoordinator`
+  // was set to `nil` above.
+  signinCompletion(nil, SigninCoordinatorResultInterrupted, nil);
 }
 
 // Starts the sign-in coordinator with a default cleanup completion.
@@ -4067,7 +4103,12 @@ using UserFeedbackDataCallback =
   switch (statusService) {
     case AuthenticationService::ServiceStatus::SigninDisabledByPolicy: {
       if (completion) {
-        completion(SigninCoordinatorResultDisabled, nil);
+        // The coordinator argument is `nil` because this completion has never
+        // been assigned to a signinCoordinator’s `signinCompletion`. It works
+        // because the part that check the coordinator value is in the
+        // `signinCompletedWithCoordinator:...` below, and so not integrated in
+        // the completion function yet.
+        completion(nil, SigninCoordinatorResultDisabled, nil);
       }
       [self stopSigninCoordinatorAnimated:NO];
       id<PolicyChangeCommands> handler = HandlerForProtocol(
@@ -4097,7 +4138,12 @@ using UserFeedbackDataCallback =
     // This could occur due to race condition with multiple windows and
     // simultaneous taps. See crbug.com/368310663.
     if (completion) {
-      completion(SigninCoordinatorResultInterrupted, nil);
+      // The coordinator argument is `nil` because this completion has never
+      // been assigned to a signinCoordinator’s `signinCompletion`. It works
+      // because the part that check the coordinator value is in the
+      // `signinCompletedWithCoordinator:...` below, and so not integrated in
+      // the completion function yet.
+      completion(nil, SigninCoordinatorResultInterrupted, nil);
     }
     self.signinCoordinator = nil;
     RecordIfNeededSigninFullscreenPromoEvent(
@@ -4108,10 +4154,12 @@ using UserFeedbackDataCallback =
 
   __weak __typeof(self) weakSelf = self;
   self.signinCoordinator.signinCompletion =
-      ^(SigninCoordinatorResult result, id<SystemIdentity> identity) {
-        [weakSelf signinCompletedWithResult:result
-                                   identity:identity
-                                 completion:completion];
+      ^(SigninCoordinator* coordinator, SigninCoordinatorResult result,
+        id<SystemIdentity> identity) {
+        [weakSelf signinCompletedWithCoordinator:coordinator
+                                          result:result
+                                        identity:identity
+                                      completion:completion];
       };
 
   // Log that the fullscreen sign-in promo UI has started.
@@ -4123,15 +4171,17 @@ using UserFeedbackDataCallback =
 }
 
 // Completion block for Signin coordinators.
-- (void)signinCompletedWithResult:(SigninCoordinatorResult)result
-                         identity:(id<SystemIdentity>)identity
-                       completion:
-                           (SigninCoordinatorCompletionCallback)completion {
-  [self stopSigninCoordinatorAnimated:YES];
+- (void)signinCompletedWithCoordinator:(SigninCoordinator*)coordinator
+                                result:(SigninCoordinatorResult)result
+                              identity:(id<SystemIdentity>)identity
+                            completion:(SigninCoordinatorCompletionCallback)
+                                           completion {
+  CHECK_EQ(coordinator, self.signinCoordinator, base::NotFatalUntil::M151);
 
   if (completion) {
-    completion(result, identity);
+    completion(coordinator, result, identity);
   }
+  [self stopSigninCoordinatorAnimated:YES];
 }
 
 #pragma mark - WebStateListObserving

@@ -636,6 +636,18 @@ chromium-metrics-reviews@google.com.
   <int value="7" label="kShare"/>
 </enum>
 
+<!-- LINT.IfChange(EnterpriseDlpPolicyLevel) -->
+
+<enum name="EnterpriseDlpPolicyLevel">
+  <int value="0" label="Not Set"/>
+  <int value="1" label="Report"/>
+  <int value="2" label="Warn"/>
+  <int value="3" label="Block"/>
+  <int value="4" label="Allow"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/enterprise/data_controls/core/browser/rule.h:Level) -->
+
 <enum name="EnterpriseDlpPolicyRestriction">
   <summary>
     Type of restriction enforced by Data Leak Prevention policy.
@@ -2334,6 +2346,10 @@ chromium-metrics-reviews@google.com.
   <int value="1411" label="GeolocationBlockedForUrls"/>
   <int value="1412" label="PdfXfaFormsEnabled"/>
   <int value="1413" label="CameraSaveLocation"/>
+  <int value="1414" label="DeviceLoginScreenPreferSlowKexAlgorithms"/>
+  <int value="1415" label="DeviceLoginScreenPreferSlowCiphers"/>
+  <int value="1416" label="SearchContentSharingSettings"/>
+  <int value="1417" label="StaticStorageQuotaEnabled"/>
 </enum>
 
 <enum name="EnterprisePoliciesSources">
@@ -2781,6 +2797,7 @@ chromium-metrics-reviews@google.com.
 <enum name="SecurityReportTrigger">
   <int value="0" label="Signals-only report triggered by timer"/>
   <int value="1" label="Signals-only report triggered by cookie change"/>
+  <int value="2" label="Signals-only report triggered by policy change"/>
 </enum>
 
 <enum name="SecuritySignalsMode">

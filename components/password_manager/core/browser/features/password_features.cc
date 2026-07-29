@@ -14,14 +14,12 @@ BASE_FEATURE(kActorActiveDisablesFillingOnPageLoad,
              base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kActorLogin, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kActorLoginFieldVisibilityCheck, base::FEATURE_ENABLED_BY_DEFAULT);
-BASE_FEATURE(kActorLoginFillingHeuristics, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kActorLoginLocalClassificationModel,
              base::FEATURE_ENABLED_BY_DEFAULT);
-BASE_FEATURE(kActorLoginReauthTaskRefocus, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kActorLoginReauthTaskRefocus, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kActorLoginQualityLogs, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kActorLoginSameSiteIframeSupport,
              base::FEATURE_ENABLED_BY_DEFAULT);
-BASE_FEATURE(kEnableActorLoginPermissions, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
 #if BUILDFLAG(IS_ANDROID)
@@ -53,9 +51,6 @@ BASE_FEATURE(kCheckIfSubmittedFormIdenticalToObserved,
 
 BASE_FEATURE(kCheckVisibilityInChangePasswordFormWaiter,
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kCheckLoginStateBeforePasswordChange,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kClearUndecryptablePasswords,
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_IOS)
@@ -91,6 +86,8 @@ BASE_FEATURE(kFetchChangePasswordUrlForPasswordChange,
              base::FEATURE_DISABLED_BY_DEFAULT
 #endif
 );
+
+BASE_FEATURE(kFillChangePasswordFormByTyping, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kFillOnAccountSelect,
              "fill-on-account-select",
@@ -145,7 +142,6 @@ BASE_FEATURE(kRestartToGainAccessToKeychain,
 #endif
 #endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
-BASE_FEATURE(kSetLeakCheckRequestCriticality, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kShowRecoveryPassword, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -175,10 +171,6 @@ BASE_FEATURE(kTriggerPasswordResyncWhenUndecryptablePasswordsDetected,
 #endif
 );
 
-#if BUILDFLAG(IS_ANDROID)
-BASE_FEATURE(kBiometricAuthIdentityCheck, base::FEATURE_DISABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(IS_ANDROID)
-
 BASE_FEATURE(kMarkAllCredentialsAsLeaked, base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)  // Desktop
@@ -200,5 +192,8 @@ BASE_FEATURE(kReloadPasswordsOnTrustedVaultEncryptionChange,
 BASE_FEATURE(kRetrieveTrustedVaultKeyKeyboardAccessoryAction,
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
+
+BASE_FEATURE(kUseActionablesForImprovedPasswordChange,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace password_manager::features

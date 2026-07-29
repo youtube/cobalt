@@ -64,6 +64,7 @@
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/strings/grit/components_branded_strings.h"
 #include "components/strings/grit/components_strings.h"
+#include "components/wallet/core/browser/walletable_permission_utils.h"
 #include "content/public/browser/web_contents.h"
 #include "extensions/browser/extension_function.h"
 #include "extensions/browser/extension_function_registry.h"
@@ -1089,6 +1090,8 @@ AutofillPrivateGetWritableEntityTypesFunction::Run() {
     if (entity_type.read_only()) {
       continue;
     }
+    // TODO(crbug.com/454892936): Provide the correct value for
+    // `supports_wallet_storage`.
     result.push_back(autofill_ai_util::EntityTypeToPrivateApiEntityType(
         entity_type, /*supports_wallet_storage=*/false));
   }
@@ -1166,6 +1169,30 @@ AutofillPrivateSetAutofillAiOptInStatusFunction::Run() {
   return RespondNow(ArgumentList(
       api::autofill_private::SetAutofillAiOptInStatus::Results::Create(
           /*success=*/true)));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// AutofillPrivateGetWalletablePassDetectionOptInStatusFunction
+
+ExtensionFunction::ResponseAction
+AutofillPrivateGetWalletablePassDetectionOptInStatusFunction::Run() {
+  return RespondNow(WithArguments(wallet::GetWalletablePassDetectionOptInStatus(
+      autofill_client()->GetPrefs(), autofill_client()->GetIdentityManager())));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// AutofillPrivateSetWalletablePassDetectionOptInStatusFunction
+
+ExtensionFunction::ResponseAction
+AutofillPrivateSetWalletablePassDetectionOptInStatusFunction::Run() {
+  std::optional<autofill_private::SetWalletablePassDetectionOptInStatus::Params>
+      params = autofill_private::SetWalletablePassDetectionOptInStatus::Params::
+          Create(args());
+  EXTENSION_FUNCTION_VALIDATE(params);
+  wallet::SetWalletablePassDetectionOptInStatus(
+      autofill_client()->GetPrefs(), autofill_client()->GetIdentityManager(),
+      params->opted_in);
+  return RespondNow(NoArguments());
 }
 
 }  // namespace extensions

@@ -16,6 +16,8 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/collaboration/collaboration_service_factory.h"
 #include "chrome/browser/commerce/shopping_service_factory.h"
+#include "chrome/browser/contextual_tasks/active_task_context_provider_impl.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_service_factory.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_side_panel_coordinator.h"
 #include "chrome/browser/devtools/devtools_ui_controller.h"
 #include "chrome/browser/enterprise/data_protection/data_protection_ui_controller.h"
@@ -76,6 +78,7 @@
 #include "chrome/browser/ui/toolbar/pinned_toolbar/tab_search_toolbar_button_controller.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/color_provider_browser_helper.h"
+#include "chrome/browser/ui/views/contextual_tasks/contextual_tasks_ephemeral_button_controller.h"
 #include "chrome/browser/ui/views/data_sharing/data_sharing_bubble_controller.h"
 #include "chrome/browser/ui/views/extensions/extension_keybinding_registry_views.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -116,6 +119,7 @@
 #include "chrome/browser/ui/webui_browser/browser_elements_webui_browser.h"
 #include "chrome/browser/ui/webui_browser/find_bar_owner_webui_browser.h"
 #include "chrome/browser/ui/webui_browser/webui_browser.h"
+#include "chrome/browser/ui/webui_browser/webui_browser_exclusive_access_context.h"
 #include "chrome/browser/ui/webui_browser/webui_browser_side_panel_ui.h"
 #include "chrome/browser/ui/webui_browser/webui_browser_window.h"
 #include "chrome/common/chrome_features.h"
@@ -125,6 +129,7 @@
 #include "components/commerce/core/feature_utils.h"
 #include "components/commerce/core/shopping_service.h"
 #include "components/contextual_tasks/public/features.h"
+#include "components/desktop_to_mobile_promos/features.h"
 #include "components/lens/lens_features.h"
 #include "components/omnibox/browser/location_bar_model.h"
 #include "components/omnibox/browser/location_bar_model_impl.h"
@@ -135,7 +140,6 @@
 #include "components/saved_tab_groups/public/features.h"
 #include "components/search/ntp_features.h"
 #include "components/search/search.h"
-#include "components/sharing_message/features.h"
 #include "content/public/common/content_constants.h"
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
@@ -411,6 +415,15 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
               *browser, browser);
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
+  if (base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks) &&
+      (contextual_tasks::kShowEntryPoint.Get() ==
+       contextual_tasks::EntryPointOption::kToolbarRevisit)) {
+    contextual_tasks_ephemeral_button_controller_ =
+        GetUserDataFactory()
+            .CreateInstance<ContextualTasksEphemeralButtonController>(*browser,
+                                                                      browser);
+  }
+
   // Initialize embedder features last.
   embedder_browser_window_features_ =
       GetUserDataFactory().CreateInstance<EmbedderBrowserWindowFeatures>(
@@ -422,6 +435,14 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
       GetUserDataFactory().CreateInstance<DesktopBrowserWindowCapabilities>(
           *browser, browser, browser->window(),
           browser->GetUnownedUserDataHost());
+
+  if (WebUIBrowserWindow* webui_browser_window =
+          WebUIBrowserWindow::FromBrowser(browser)) {
+    webui_browser_exclusive_access_context_ =
+        std::make_unique<WebUIBrowserExclusiveAccessContext>(
+            browser->profile(), browser_, browser->GetTabStripModel(),
+            webui_browser_window->widget(), webui_browser_window);
+  }
 
   exclusive_access_manager_ = std::make_unique<ExclusiveAccessManager>(
       browser->window()->GetExclusiveAccessContext());
@@ -453,8 +474,7 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
           std::make_unique<ChromeLabsCoordinator>(browser);
     }
 
-    if (MobilePromoOnDesktopTypeEnabled() !=
-        MobilePromoOnDesktopPromoType::kDisabled) {
+    if (MobilePromoOnDesktopEnabled()) {
       ios_promo_controller_ =
           GetUserDataFactory().CreateInstance<IOSPromoController>(*browser,
                                                                   browser);
@@ -665,7 +685,7 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
         std::make_unique<CommentsSidePanelCoordinator>(browser_view->browser());
   }
 #if BUILDFLAG(ENABLE_GLIC)
-  if (!glic::GlicEnabling::IsMultiInstanceEnabledByFlags() &&
+  if (!glic::GlicEnabling::IsMultiInstanceEnabled() &&
       glic::GlicKeyedService::Get(browser_view->GetProfile())) {
     glic_side_panel_coordinator_ =
         std::make_unique<glic::GlicLegacySidePanelCoordinator>(
@@ -674,6 +694,11 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
 #endif  // BUILDFLAG(ENABLE_GLIC)
 
   if (base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks)) {
+    contextual_tasks_active_task_context_provider_ =
+        std::make_unique<contextual_tasks::ActiveTaskContextProviderImpl>(
+            browser_,
+            contextual_tasks::ContextualTasksServiceFactory::GetForProfile(
+                browser_->GetProfile()));
     contextual_tasks_side_panel_coordinator_ =
         GetUserDataFactory()
             .CreateInstance<
@@ -904,6 +929,8 @@ void BrowserWindowFeatures::TearDownPreBrowserWindowDestruction() {
   immersive_mode_controller_.reset();
 
   exclusive_access_manager_.reset();
+
+  webui_browser_exclusive_access_context_.reset();
 
   scrim_view_controller_.reset();
 

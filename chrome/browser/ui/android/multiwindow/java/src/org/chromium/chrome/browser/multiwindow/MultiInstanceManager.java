@@ -10,11 +10,11 @@ import android.hardware.display.DisplayManager;
 import android.util.Pair;
 
 import androidx.annotation.IntDef;
-import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.CommandLine;
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.multiwindow.UiUtils.NameWindowDialogSource;
 import org.chromium.chrome.browser.tab.Tab;
@@ -66,6 +66,7 @@ public abstract class MultiInstanceManager {
     // These values are persisted to logs. Entries should not be renumbered and
     // numeric values should never be reused.
     @IntDef({
+        CloseWindowAppSource.OTHER,
         CloseWindowAppSource.WINDOW_MANAGER,
         CloseWindowAppSource.RETENTION_PERIOD_EXPIRATION,
         CloseWindowAppSource.NO_TABS_IN_WINDOW
@@ -213,8 +214,10 @@ public abstract class MultiInstanceManager {
      * @param info {@link InstanceInfo} describing the destination window.
      * @param tabs The list of tabs that is to be moved to the current instance.
      * @param atIndex Tab position index in the destination window instance.
+     * @param source The new window creation source used for metrics.
      */
-    public void moveTabsToWindow(InstanceInfo info, List<Tab> tabs, int atIndex) {
+    public void moveTabsToWindow(
+            InstanceInfo info, List<Tab> tabs, int atIndex, @NewWindowAppSource int source) {
         // Not implemented
     }
 
@@ -250,9 +253,13 @@ public abstract class MultiInstanceManager {
      * @param info {@link InstanceInfo} describing the destination window.
      * @param tabGroupMetadata The object containing the metadata of the tab group.
      * @param atIndex Tab position index in the destination window instance.
+     * @param source The new window creation source used for metrics.
      */
     public void moveTabGroupToWindow(
-            InstanceInfo info, TabGroupMetadata tabGroupMetadata, int atIndex) {
+            InstanceInfo info,
+            TabGroupMetadata tabGroupMetadata,
+            int atIndex,
+            @NewWindowAppSource int source) {
         // Not implemented
     }
 
@@ -273,9 +280,14 @@ public abstract class MultiInstanceManager {
      * @param loadUrlParams The url to open.
      * @param parentTabId The ID of the parent tab.
      * @param preferNew Whether we should prioritize launching the tab in a new window.
+     * @param instanceType The {@link PersistedInstanceType} that will be used to determine the type
+     *     of window the URL can be opened in.
      */
-    public void openUrlInSelectedWindow(
-            LoadUrlParams loadUrlParams, int parentTabId, boolean preferNew) {
+    public void openUrlInOtherWindow(
+            LoadUrlParams loadUrlParams,
+            int parentTabId,
+            boolean preferNew,
+            @PersistedInstanceType int instanceType) {
         // not implemented
     }
 
@@ -407,7 +419,7 @@ public abstract class MultiInstanceManager {
 
     public abstract void setCurrentDisplayIdForTesting(int displayId);
 
-    public abstract @Nullable DisplayManager.DisplayListener getDisplayListenerForTesting();
+    public abstract DisplayManager.@Nullable DisplayListener getDisplayListenerForTesting();
 
     @VisibleForTesting
     public static void setTestDisplayIds(List<Integer> testDisplayIds) {
@@ -421,24 +433,30 @@ public abstract class MultiInstanceManager {
 
     // The instance types are defined as bit flags, so they can be or-ed to reflect
     // more than one value. Or-ed values should be validated at points of access.
-    @IntDef({
-        PersistedInstanceType.ANY,
-        PersistedInstanceType.ACTIVE,
-        PersistedInstanceType.INACTIVE,
-        PersistedInstanceType.OFF_THE_RECORD
-    })
+    @IntDef(
+            flag = true,
+            value = {
+                PersistedInstanceType.ANY,
+                PersistedInstanceType.ACTIVE,
+                PersistedInstanceType.INACTIVE,
+                PersistedInstanceType.OFF_THE_RECORD,
+                PersistedInstanceType.REGULAR
+            })
     @Retention(RetentionPolicy.SOURCE)
     public @interface PersistedInstanceType {
         // Represents any instance not bound by any specific type.
         int ANY = 0;
 
         // Represents an active instance that is associated with a live task.
-        int ACTIVE = 1;
+        int ACTIVE = 1 << 0;
 
         // Represents an inactive instance that is not associated with a live task.
-        int INACTIVE = 2;
+        int INACTIVE = 1 << 1;
 
         // Represents an instance for an incognito-only window.
-        int OFF_THE_RECORD = 4;
+        int OFF_THE_RECORD = 1 << 2;
+
+        // Represents an instance for a regular window that does not hold incognito tabs.
+        int REGULAR = 1 << 3;
     }
 }

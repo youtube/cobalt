@@ -32,13 +32,18 @@ declare_args() {
   # The default linker everywhere else.
   use_lld = is_clang && current_os != "zos"
 
-  # If false, build using C++20; otherwise, build using C++23.
-  use_cxx23 = false
-
   # If true, optimize for size.
   # Default to favoring speed over size for platforms not listed below.
   optimize_for_size =
       !is_high_end_android && (is_android || is_castos || is_fuchsia)
+}
+
+# Allow other projects to keep use_cxx23 false by default if they aren't ready.
+if (!defined(use_cxx23)) {
+  declare_args() {
+    # If false, build using C++20; otherwise, build using C++23.
+    use_cxx23 = false
+  }
 }
 
 declare_args() {
@@ -47,6 +52,9 @@ declare_args() {
   # builds on Linux that could use a different version of the compiler.
   # With GCC, warnings in no-Chromium code are always not treated as errors.
   treat_warnings_as_errors = true
+
+  # Ignore unknown warning flags when using an older Clang version.
+  disable_unknown_warning_option = false
 
   # How clang should report warnings, either false to report in the usual
   # manner, or true to add source range information to the diagnostics in
@@ -142,9 +150,10 @@ declare_args() {
                              use_custom_libcxx && !is_component_build
 
   # Enable C++14 sized global deallocation functions.
-  # Disabled by default because of binary size increase.
+  # Enable only on ASan or platforms without strict binary size requirements
+  # because of binary size increase.
   # TODO(crbug.com/345541122): investigate the fuchsia binary size increase.
-  use_sized_deallocation = is_clang && is_asan
+  use_sized_deallocation = is_clang && (is_asan || !optimize_for_size)
 }
 
 # To try out this combination, delete this assert.
@@ -157,8 +166,10 @@ assert(!is_cfi || use_thin_lto, "CFI requires ThinLTO")
 assert(!enable_profiling || !is_component_build,
        "Cannot profile component builds (crbug.com/1199271).")
 
-assert(!is_win || is_asan == use_sized_deallocation,
-       "ASan and sized deallocation must be enabled together on Windows.")
+# The Abseil .def lists for Windows component builds are created expecting sized
+# deallocation. Disabling it leads to symbol mismatches and build failures.
+assert(!is_win || !is_component_build || use_sized_deallocation,
+       "Sized deallocation must be enabled in component builds on Windows.")
 assert(is_clang || !use_sized_deallocation,
        "Sized deallocation is supported on clang.")
 

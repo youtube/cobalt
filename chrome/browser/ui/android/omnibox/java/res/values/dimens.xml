@@ -69,8 +69,6 @@ found in the LICENSE file.
     </dimen>
     <dimen name="location_bar_action_icon_margin_horizontal">0dp</dimen>
     <dimen name="location_bar_action_icon_margin_horizontal_desktop">4dp</dimen>
-    <dimen name="location_bar_action_icon_margin_vertical">0dp</dimen>
-    <dimen name="location_bar_action_icon_margin_vertical_desktop">8dp</dimen>
     <dimen name="location_bar_icon_margin_end">4dp</dimen>
     <dimen name="location_bar_lock_icon_width">
         @dimen/min_touch_target_size
@@ -170,12 +168,16 @@ found in the LICENSE file.
 
     <!-- Fusebox bar -->
     <dimen name="fusebox_glif_stroke_width">2dp</dimen>
-    <dimen name="fusebox_glif_blur_stroke_width">7dp</dimen>
+    <dimen name="fusebox_glif_blur_stroke_width">3dp</dimen>
     <dimen name="fusebox_popup_width">250dp</dimen>
     <dimen name="fusebox_popup_item_icon_size">24dp</dimen>
     <dimen name="fusebox_button_size">56dp</dimen>
     <dimen name="fusebox_button_padding">10dp</dimen>
     <dimen name="fusebox_button_corner_radius">8dp</dimen>
+    <dimen name ="fusebox_attachment_spinner_size">20dp</dimen>
+    <dimen name ="fusebox_attachment_loading_width">132dp</dimen>
+    <dimen name ="fusebox_attachment_file_width">132dp</dimen>
+    <dimen name ="fusebox_attachment_image_width">80dp</dimen>
 
     <!-- Search engine logo. -->
     <dimen name="omnibox_search_engine_logo_composed_size">24dp</dimen>

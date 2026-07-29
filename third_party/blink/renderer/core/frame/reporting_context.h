@@ -14,7 +14,6 @@
 #include "third_party/blink/renderer/platform/heap/member.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_receiver_set.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
-#include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
@@ -26,11 +25,8 @@ class ReportingObserver;
 // ReportingContext processes all reports for an ExecutionContext, and serves as
 // a container for all active ReportingObservers on that ExecutionContext.
 class CORE_EXPORT ReportingContext : public GarbageCollected<ReportingContext>,
-                                     public mojom::blink::ReportingObserver,
-                                     public Supplement<ExecutionContext> {
+                                     public mojom::blink::ReportingObserver {
  public:
-  static const unsigned kSupplementIndex;
-
   explicit ReportingContext(ExecutionContext&);
 
   // Returns the ReportingContext for an ExecutionContext. If one does not
@@ -51,7 +47,7 @@ class CORE_EXPORT ReportingContext : public GarbageCollected<ReportingContext>,
   // mojom::blink::ReportingObserver implementation.
   void Notify(mojom::blink::ReportPtr report) override;
 
-  void Trace(Visitor*) const override;
+  void Trace(Visitor*) const;
 
  private:
   // Counts the use of a report type via UseCounter.

@@ -13,6 +13,27 @@
 #import "testing/gtest_mac.h"
 #import "url/gurl.h"
 
+@interface PasskeyScriptMessageHandler : NSObject <WKScriptMessageHandler>
+@property(nonatomic, strong) WKScriptMessage* lastReceivedMessage;
+@end
+
+@implementation PasskeyScriptMessageHandler
+
+- (void)configureForWebView:(WKWebView*)webView {
+  [webView.configuration.userContentController
+      addScriptMessageHandler:self
+                         name:@"PasskeyInteractionHandler"];
+}
+
+- (void)userContentController:(WKUserContentController*)userContentController
+      didReceiveScriptMessage:(WKScriptMessage*)message {
+  self.lastReceivedMessage = message;
+}
+
+@end
+
+namespace webauthn {
+
 namespace {
 
 const char kNavigatorCredentialsCreateUrl[] = "/credentialsCreate";
@@ -49,25 +70,6 @@ std::unique_ptr<net::test_server::HttpResponse> StandardResponse(
 }
 
 }  // namespace
-
-@interface PasskeyScriptMessageHandler : NSObject <WKScriptMessageHandler>
-@property(nonatomic, strong) WKScriptMessage* lastReceivedMessage;
-@end
-
-@implementation PasskeyScriptMessageHandler
-
-- (void)configureForWebView:(WKWebView*)webView {
-  [webView.configuration.userContentController
-      addScriptMessageHandler:self
-                         name:@"PasskeyInteractionHandler"];
-}
-
-- (void)userContentController:(WKUserContentController*)userContentController
-      didReceiveScriptMessage:(WKScriptMessage*)message {
-  self.lastReceivedMessage = message;
-}
-
-@end
 
 // Test fixture for passkey_controller.ts.
 // TODO(crbug.com/369629469): Explore adding EG tests that verify original JS
@@ -137,7 +139,7 @@ TEST_F(PasskeyControllerJavaScriptTest,
   EXPECT_EQ(allKeys.count, 1ul);
   EXPECT_TRUE([allKeys containsObject:@"event"]);
 
-  EXPECT_NSEQ(@"createRequested", body[@"event"]);
+  EXPECT_NSEQ(@"logCreateRequest", body[@"event"]);
 }
 
 TEST_F(PasskeyControllerJavaScriptTest,
@@ -155,7 +157,7 @@ TEST_F(PasskeyControllerJavaScriptTest,
   EXPECT_EQ(allKeys.count, 1ul);
   EXPECT_TRUE([allKeys containsObject:@"event"]);
 
-  EXPECT_NSEQ(@"getRequested", body[@"event"]);
+  EXPECT_NSEQ(@"logGetRequest", body[@"event"]);
 }
 
 TEST_F(PasskeyControllerJavaScriptTest,
@@ -170,9 +172,10 @@ TEST_F(PasskeyControllerJavaScriptTest,
 
   NSDictionary* body = message_handler().lastReceivedMessage.body;
   NSArray* allKeys = body.allKeys;
-  EXPECT_EQ(allKeys.count, 6ul);
+  EXPECT_EQ(allKeys.count, 7ul);
   EXPECT_TRUE([allKeys containsObject:@"event"]);
   EXPECT_TRUE([allKeys containsObject:@"frameId"]);
+  EXPECT_TRUE([allKeys containsObject:@"requestId"]);
   EXPECT_TRUE([allKeys containsObject:@"request"]);
   EXPECT_TRUE([allKeys containsObject:@"rpEntity"]);
   EXPECT_TRUE([allKeys containsObject:@"userEntity"]);
@@ -193,12 +196,15 @@ TEST_F(PasskeyControllerJavaScriptTest,
 
   NSDictionary* body = message_handler().lastReceivedMessage.body;
   NSArray* allKeys = body.allKeys;
-  EXPECT_EQ(allKeys.count, 5ul);
+  EXPECT_EQ(allKeys.count, 6ul);
   EXPECT_TRUE([allKeys containsObject:@"event"]);
   EXPECT_TRUE([allKeys containsObject:@"frameId"]);
+  EXPECT_TRUE([allKeys containsObject:@"requestId"]);
   EXPECT_TRUE([allKeys containsObject:@"request"]);
   EXPECT_TRUE([allKeys containsObject:@"rpEntity"]);
   EXPECT_TRUE([allKeys containsObject:@"allowCredentials"]);
 
   EXPECT_NSEQ(@"handleGetRequest", body[@"event"]);
 }
+
+}  // namespace webauthn

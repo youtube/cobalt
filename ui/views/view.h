@@ -163,20 +163,19 @@ struct VIEWS_EXPORT ViewHierarchyChangedDetails {
 
 using PropertyChangedCallback = ui::metadata::PropertyChangedCallback;
 
-// The elements in PropertyEffects represent bits which define what effect(s) a
-// changed Property has on the containing class. Additional elements should
-// use the next most significant bit.
-enum PropertyEffects {
-  kPropertyEffectsNone = 0,
+// The elements in PropertyEffects define what effect(s) a changed Property has
+// on the containing class.
+enum class PropertyEffects {
+  kNone,
   // Any changes to the property should cause the container to invalidate the
   // current layout state.
-  kPropertyEffectsLayout = 0x00000001,
+  kLayout,
   // Changes to the property should cause the container to schedule a painting
   // update.
-  kPropertyEffectsPaint = 0x00000002,
+  kPaint,
   // Changes to the property should cause the preferred size to change. This
-  // implies kPropertyEffectsLayout.
-  kPropertyEffectsPreferredSizeChanged = 0x00000004,
+  // implies kLayout.
+  kPreferredSizeChanged,
 };
 
 // When adding layers to the view, this indicates the region into which the
@@ -233,15 +232,14 @@ enum class ViewLayer {
 //
 //   In the SetXXXX method, after the value storage location has been updated,
 //   OnPropertyChanged() must be called using the address of the storage
-//   location as a key. Additionally, any combination of PropertyEffects are
-//   also passed in. This will ensure that any desired side effects are properly
-//   invoked.
+//   location as a key. Additionally, PropertyEffects are also passed in. This
+//   will ensure that any desired side effects are properly invoked.
 //
 //   void View::SetFrobble(bool is_frobble) {
 //     if (is_frobble == frobble_)
 //       return;
 //     frobble_ = is_frobble;
-//     OnPropertyChanged(&frobble_, kPropertyEffectsPaint);
+//     OnPropertyChanged(&frobble_, PropertyEffects::kPaint);
 //   }
 //
 //   Each property should also have a way to "listen" to changes by registering
@@ -803,6 +801,12 @@ class VIEWS_EXPORT View : public ui::LayerDelegate,
 
   // Overridden from ui::LayerOwner:
   std::unique_ptr<ui::Layer> RecreateLayer() override;
+
+  // When set to true, the layer will be masked to the view's visible bounds.
+  // A client should not modify the layer's `clip_rect`, which will be updated
+  // by the view.
+  bool GetClipLayerToVisibleBounds() const;
+  void SetClipLayerToVisibleBounds(bool clip_layer);
 
   // RTL positioning -----------------------------------------------------------
 
@@ -2303,6 +2307,18 @@ class VIEWS_EXPORT View : public ui::LayerDelegate,
   // parent in the correct order.
   void SetLayerParent(ui::Layer* parent_layer);
 
+  // Returns true if this view is interested in VisibleBoundsChange event.
+  bool GetNeedsNotificationWhenVisibleBoundsChangeImpl() const;
+
+  // Performs tasks that are needed when visible bounds are changed. Internally
+  // this will call subclasses `OnVisibleBoundsChanged()` first.
+  void OnVisibleBoundsChangedImpl();
+
+  // Apply or remove the clip rect so that the layer's visible area matches
+  // views visible bounds. When `remove_layer_clip` is true, this will remove
+  // the clip rect regardless of the visible bounds.
+  void UpdateLayerClipForVisibleBounds(bool remove_layer_clip);
+
   // Layout --------------------------------------------------------------------
 
   // Returns whether a layout is deferred to a layout manager, either the
@@ -2374,8 +2390,8 @@ class VIEWS_EXPORT View : public ui::LayerDelegate,
 
   // Property support ----------------------------------------------------------
 
-  // Called from OnPropertyChanged with the given set of property effects. This
-  // function is NOT called if effects == kPropertyEffectsNone.
+  // Called from OnPropertyChanged with the given property effects. This
+  // function is NOT called if effects == PropertyEffects::kNone.
   void HandlePropertyChangeEffects(PropertyEffects effects);
 
   // The following methods are used by the property access system described in
@@ -2596,6 +2612,9 @@ class VIEWS_EXPORT View : public ui::LayerDelegate,
   // child layers to within the |clip_path_|.
   std::unique_ptr<views::ViewMaskLayer> mask_layer_;
 
+  // When true, the layer will be clipped to view's visible bounds.
+  bool clip_layer_to_visible_bounds_ = false;
+
   // Accelerators --------------------------------------------------------------
 
   // The list of accelerators. List elements in the range
@@ -2750,6 +2769,7 @@ VIEW_BUILDER_PROPERTY(gfx::Transform, Transform)
 VIEW_BUILDER_PROPERTY(bool, Visible)
 VIEW_BUILDER_PROPERTY(bool, CanProcessEventsWithinSubtree)
 VIEW_BUILDER_PROPERTY(bool, UseDefaultFillLayout)
+VIEW_BUILDER_PROPERTY(bool, ClipLayerToVisibleBounds)
 END_VIEW_BUILDER
 
 }  // namespace views

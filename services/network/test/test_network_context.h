@@ -85,8 +85,6 @@ class TestNetworkContext : public mojom::NetworkContext {
       const url::Origin& issuer,
       DeleteStoredTrustTokensCallback callback) override {}
   void SetBlockTrustTokens(bool block) override {}
-  void SetTrackingProtectionContentSetting(
-      const ContentSettingsForOneType& settings) override {}
 #if BUILDFLAG(ENABLE_REPORTING)
   void AddReportingApiObserver(
       mojo::PendingRemote<network::mojom::ReportingApiObserver> observer)
@@ -373,10 +371,8 @@ class TestNetworkContext : public mojom::NetworkContext {
       const scoped_refptr<net::X509Certificate>& certificate) override {}
   void FlushMatchingCachedClientCert(
       const scoped_refptr<net::X509Certificate>& certificate) override {}
-  void SetCookieDeprecationLabel(
-      const std::optional<std::string>& label) override {}
   void RevokeNetworkForNonces(
-      const std::vector<base::UnguessableToken>& nonces,
+      std::vector<mojom::NonceAndAllowlistedPatternsPtr> nonces_to_patternss,
       RevokeNetworkForNoncesCallback callback) override {}
   void ClearNonces(const std::vector<base::UnguessableToken>& nonces) override {
   }

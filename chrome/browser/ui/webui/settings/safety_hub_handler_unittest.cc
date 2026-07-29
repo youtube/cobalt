@@ -54,11 +54,11 @@
 #include "components/content_settings/core/common/content_settings_types.h"
 #include "components/content_settings/core/common/features.h"
 #include "components/crx_file/id_util.h"
+#include "components/desktop_to_mobile_promos/features.h"
 #include "components/password_manager/core/browser/password_store/test_password_store.h"
 #include "components/permissions/constants.h"
 #include "components/safe_browsing/core/common/features.h"
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
-#include "components/sharing_message/features.h"
 #include "components/sync_preferences/features.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
 #include "content/public/browser/storage_partition.h"
@@ -95,18 +95,26 @@ namespace {
 
 class MockIOSPromoTriggerService : public IOSPromoTriggerService {
  public:
-  MockIOSPromoTriggerService() = default;
+  explicit MockIOSPromoTriggerService(Profile* profile)
+      : IOSPromoTriggerService(profile) {}
   ~MockIOSPromoTriggerService() override = default;
 
   MOCK_METHOD(void,
               NotifyPromoShouldBeShown,
-              (IOSPromoType promo_type),
+              (desktop_to_mobile_promos::PromoType promo_type),
+              (override));
+  MOCK_METHOD(const syncer::DeviceInfo*, GetIOSDeviceToRemind, (), (override));
+  MOCK_METHOD(void,
+              SetReminderForIOSDevice,
+              (desktop_to_mobile_promos::PromoType promo_type,
+               const std::string& device_guid),
               (override));
 };
 
 std::unique_ptr<KeyedService> BuildMockIOSPromoTriggerService(
     content::BrowserContext* context) {
-  return std::make_unique<MockIOSPromoTriggerService>();
+  return std::make_unique<MockIOSPromoTriggerService>(
+      Profile::FromBrowserContext(context));
 }
 
 }  // namespace
@@ -1374,7 +1382,8 @@ TEST_F(SafetyHubHandlerTest, OnSafeBrowsingEnhancedChanged) {
 
   // Turn on enhanced safe browsing. The promo should be triggered.
   EXPECT_CALL(*mock_service,
-              NotifyPromoShouldBeShown(IOSPromoType::kEnhancedBrowsing));
+              NotifyPromoShouldBeShown(
+                  desktop_to_mobile_promos::PromoType::kEnhancedBrowsing));
   profile()->GetPrefs()->SetBoolean(prefs::kSafeBrowsingEnhanced, true);
 }
 

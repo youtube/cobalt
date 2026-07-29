@@ -78,6 +78,8 @@ using SaveCardOfferUserDecision =
 using SaveCardPromptOffer = autofill_metrics::SaveCardPromptOffer;
 using SaveCardPromptResult = autofill_metrics::SaveCardPromptResult;
 
+constexpr bool is_ios = !!BUILDFLAG(IS_IOS);
+
 // If |name| consists of three whitespace-separated parts and the second of the
 // three parts is a single character or a single character followed by a period,
 // returns the result of joining the first and third parts with a space.
@@ -222,7 +224,7 @@ CreditCardSaveManager::~CreditCardSaveManager() = default;
 
 bool CreditCardSaveManager::AttemptToOfferCardLocalSave(
     const CreditCard& card) {
-  if (!client_->GetPaymentsAutofillClient()->LocalCardSaveIsSupported()) {
+  if (!payments_autofill_client().LocalCardSaveIsSupported()) {
     return false;
   }
   card_save_candidate_ = card;
@@ -366,7 +368,7 @@ void CreditCardSaveManager::AttemptToOfferCardUploadSave(
     const bool uploading_local_card,
     ukm::SourceId ukm_source_id) {
   payments::PaymentsNetworkInterface* payments_network_interface =
-      client_->GetPaymentsAutofillClient()->GetPaymentsNetworkInterface();
+      payments_autofill_client().GetPaymentsNetworkInterface();
   // Abort the uploading if `payments_network_interface` is nullptr.
   if (!payments_network_interface) {
     return;
@@ -568,16 +570,19 @@ void CreditCardSaveManager::AttemptToOfferCvcUploadSave(
   show_save_prompt_.reset();
 
   show_save_prompt_ = !DetermineAndLogCvcSaveStrikeDatabaseBlockDecision();
-  // TODO(crbug.com/40931101): Refactor ShowSaveCreditCardToCloud to change
-  // legal_message_lines_ to optional.
-  client_->GetPaymentsAutofillClient()->ShowSaveCreditCardToCloud(
-      card_save_candidate_, legal_message_lines_,
-      payments::PaymentsAutofillClient::SaveCreditCardOptions()
-          .with_show_prompt(show_save_prompt_.value())
-          .with_card_save_type(
-              payments::PaymentsAutofillClient::CardSaveType::kCvcSaveOnly),
-      base::BindOnce(&CreditCardSaveManager::OnUserDidDecideOnCvcUploadSave,
-                     weak_ptr_factory_.GetWeakPtr()));
+
+  if (!is_ios || show_save_prompt_.value_or(true)) {
+    // TODO(crbug.com/40931101): Refactor ShowSaveCreditCardToCloud to change
+    // legal_message_lines_ to optional.
+    payments_autofill_client().ShowSaveCreditCardToCloud(
+        card_save_candidate_, legal_message_lines_,
+        payments::PaymentsAutofillClient::SaveCreditCardOptions()
+            .with_show_prompt(show_save_prompt_.value())
+            .with_card_save_type(
+                payments::PaymentsAutofillClient::CardSaveType::kCvcSaveOnly),
+        base::BindOnce(&CreditCardSaveManager::OnUserDidDecideOnCvcUploadSave,
+                       weak_ptr_factory_.GetWeakPtr()));
+  }
 }
 
 bool CreditCardSaveManager::IsCreditCardUploadEnabled() {
@@ -631,7 +636,7 @@ void CreditCardSaveManager::OnDidUploadCard(
     // because the local save bubble does not support the expiration date fix
     // flow.
     bool run_save_card_fallback =
-        client_->GetPaymentsAutofillClient()->LocalCardSaveIsSupported();
+        payments_autofill_client().LocalCardSaveIsSupported();
 
     if (run_save_card_fallback &&
         !upload_request_.card
@@ -672,7 +677,7 @@ void CreditCardSaveManager::OnDidUploadCard(
           : std::nullopt;
 
   // Show credit card upload feedback.
-  client_->GetPaymentsAutofillClient()->CreditCardUploadCompleted(
+  payments_autofill_client().CreditCardUploadCompleted(
       result, std::move(on_confirmation_closed_callback));
 
   if (observer_for_testing_) {
@@ -685,10 +690,10 @@ void CreditCardSaveManager::InitVirtualCardEnroll(
     std::optional<payments::GetDetailsForEnrollmentResponseDetails>
         get_details_for_enrollment_response_details) {
   // Hides save card confirmation dialog if still showing.
-  client_->GetPaymentsAutofillClient()->HideSaveCardPrompt();
+  payments_autofill_client().HideSaveCardPrompt();
 
   if (auto* virtual_card_enrollment_manager =
-      client_->GetPaymentsAutofillClient()->GetVirtualCardEnrollmentManager()) {
+          payments_autofill_client().GetVirtualCardEnrollmentManager()) {
     virtual_card_enrollment_manager->InitVirtualCardEnroll(
         credit_card, VirtualCardEnrollmentSource::kUpstream,
         base::BindOnce(
@@ -775,7 +780,7 @@ void CreditCardSaveManager::OnDidGetUploadDetails(
     }
 
     // Do *not* call
-    // `client_->GetPaymentsAutofillClient()->GetPaymentsNetworkInterface()->Prepare()`
+    // `payments_autofill_client().GetPaymentsNetworkInterface()->Prepare()`
     // here. We shouldn't send credentials until the user has explicitly
     // accepted a prompt to upload.
     if (!supported_card_bin_ranges.empty() &&
@@ -854,7 +859,7 @@ void CreditCardSaveManager::OfferCardLocalSave() {
       observer_for_testing_->OnOfferLocalSave();
     }
 
-    client_->GetPaymentsAutofillClient()->ShowSaveCreditCardLocally(
+    payments_autofill_client().ShowSaveCreditCardLocally(
         card_save_candidate_, options,
         base::BindOnce(&CreditCardSaveManager::OnUserDidDecideOnLocalSave,
                        weak_ptr_factory_.GetWeakPtr()));
@@ -874,14 +879,16 @@ void CreditCardSaveManager::OfferCardLocalSave() {
 }
 
 void CreditCardSaveManager::OfferCvcLocalSave() {
-  client_->GetPaymentsAutofillClient()->ShowSaveCreditCardLocally(
-      card_save_candidate_,
-      payments::PaymentsAutofillClient::SaveCreditCardOptions()
-          .with_show_prompt(show_save_prompt_.value_or(false))
-          .with_card_save_type(
-              payments::PaymentsAutofillClient::CardSaveType::kCvcSaveOnly),
-      base::BindOnce(&CreditCardSaveManager::OnUserDidDecideOnCvcLocalSave,
-                     weak_ptr_factory_.GetWeakPtr()));
+  if (!is_ios || show_save_prompt_.value_or(true)) {
+    payments_autofill_client().ShowSaveCreditCardLocally(
+        card_save_candidate_,
+        payments::PaymentsAutofillClient::SaveCreditCardOptions()
+            .with_show_prompt(show_save_prompt_.value_or(false))
+            .with_card_save_type(
+                payments::PaymentsAutofillClient::CardSaveType::kCvcSaveOnly),
+        base::BindOnce(&CreditCardSaveManager::OnUserDidDecideOnCvcLocalSave,
+                       weak_ptr_factory_.GetWeakPtr()));
+  }
 }
 
 void CreditCardSaveManager::OfferCardUploadSave(ukm::SourceId ukm_source_id) {
@@ -932,11 +939,11 @@ void CreditCardSaveManager::OfferCardUploadSave(ukm::SourceId ukm_source_id) {
     if (observer_for_testing_) {
       observer_for_testing_->OnOfferUploadSave();
     }
-    client_->GetPaymentsAutofillClient()->ShowSaveCreditCardToCloud(
+    payments_autofill_client().ShowSaveCreditCardToCloud(
         upload_request_.card, legal_message_lines_, options,
         base::BindOnce(&CreditCardSaveManager::OnUserDidDecideOnUploadSave,
                        weak_ptr_factory_.GetWeakPtr()));
-    client_->GetPaymentsAutofillClient()->LoadRiskData(
+    payments_autofill_client().LoadRiskData(
         base::BindOnce(&CreditCardSaveManager::OnDidGetUploadRiskData,
                        weak_ptr_factory_.GetWeakPtr()));
 
@@ -1282,13 +1289,12 @@ void CreditCardSaveManager::OnUserDidDecideOnUploadSave(
 #if BUILDFLAG(IS_ANDROID)
       // On Android, requesting cardholder name is a two step flow.
       if (should_request_name_from_user_) {
-        client_->GetPaymentsAutofillClient()->ConfirmAccountNameFixFlow(
-            base::BindOnce(
-                &CreditCardSaveManager::OnUserDidAcceptAccountNameFixFlow,
-                weak_ptr_factory_.GetWeakPtr()));
+        payments_autofill_client().ConfirmAccountNameFixFlow(base::BindOnce(
+            &CreditCardSaveManager::OnUserDidAcceptAccountNameFixFlow,
+            weak_ptr_factory_.GetWeakPtr()));
         // On Android, requesting expiration date is a two step flow.
       } else if (should_request_expiration_date_from_user_) {
-        client_->GetPaymentsAutofillClient()->ConfirmExpirationDateFixFlow(
+        payments_autofill_client().ConfirmExpirationDateFixFlow(
             upload_request_.card,
             base::BindOnce(
                 &CreditCardSaveManager::OnUserDidAcceptExpirationDateFixFlow,
@@ -1436,7 +1442,7 @@ void CreditCardSaveManager::OnUserDidAcceptUploadHelper(
 #endif
   // Virtual card enrollment manager may not be set of CWV clients.
   if (auto* virtual_card_enrollment_manager =
-      client_->GetPaymentsAutofillClient()->GetVirtualCardEnrollmentManager()) {
+          payments_autofill_client().GetVirtualCardEnrollmentManager()) {
     virtual_card_enrollment_manager
       ->SetSaveCardBubbleAcceptedTimestamp(AutofillClock::Now());
   }

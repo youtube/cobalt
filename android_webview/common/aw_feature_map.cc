@@ -43,8 +43,6 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &features::kWebViewCacheBoundaryInterfaceMethods,
     &features::kWebViewCacheSizeLimitDerivedFromAppCacheQuota,
     &features::kWebViewConnectToComponentProviderInBackground,
-    &features::kWebViewDoNotSendAccessibilityEventsOnGSU,
-    &features::kWebViewDrainPrefetchQueueDuringInit,
     &features::kWebViewEarlyPerfettoInit,
     &features::kWebViewEarlyStartupTracing,
     &features::kWebViewEnableCrash,
@@ -55,16 +53,12 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &features::kWebViewLazyFetchHandWritingIcon,
     &features::kWebViewMixedContentAutoupgrades,
     &features::kWebViewMoveWorkToProviderInit,
-    &features::kWebViewMuteAudio,
     &features::kWebViewOptInToGmsBindServiceOptimization,
     &features::kWebViewPrefetchNativeLibrary,
-    &features::kWebViewPreloadClasses,
-    &features::kWebViewQuicConnectionTimeout,
     &features::kWebViewRecordAppCacheHistograms,
     &features::kWebViewReduceUAAndroidVersionDeviceModel,
     &features::kWebViewReducedSeedExpiration,
     &features::kWebViewReducedSeedRequestPeriod,
-    &features::kWebViewShortCircuitShouldInterceptRequest,
     &features::kWebViewSkipInterceptsForPrefetch,
     &features::kWebViewStartupTasksYieldToNative,
     &features::kWebViewTestFeature,
@@ -91,3 +85,5 @@ static jlong JNI_AwFeatureMap_GetNativeMap(JNIEnv* env) {
 }
 
 }  // namespace android_webview
+
+DEFINE_JNI(AwFeatureMap)

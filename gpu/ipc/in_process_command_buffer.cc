@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "gpu/ipc/in_process_command_buffer.h"
 
 #include <stddef.h>
@@ -18,6 +13,7 @@
 #include "base/atomic_sequence_num.h"
 #include "base/auto_reset.h"
 #include "base/command_line.h"
+#include "base/compiler_specific.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
@@ -326,6 +322,7 @@ gpu::ContextResult InProcessCommandBuffer::InitializeOnGpuThread(
     gl_share_group_ = task_executor_->GetShareGroup();
   }
 
+  bool enable_gpu_rasterization = false;
   switch (params.attribs->which()) {
     case mojom::ContextCreationAttribs::Tag::kWebgpu: {
       if (!task_executor_->gpu_preferences().enable_webgpu) {
@@ -378,9 +375,9 @@ gpu::ContextResult InProcessCommandBuffer::InitializeOnGpuThread(
               /*is_privileged=*/true);
 
       const auto& attribs = params.attribs->get_raster();
-      auto result =
-          raster_decoder->Initialize(attribs->enable_gpu_rasterization,
-                                     attribs->lose_context_when_out_of_memory);
+      enable_gpu_rasterization = attribs->enable_gpu_rasterization;
+      auto result = raster_decoder->Initialize(
+          enable_gpu_rasterization, attribs->lose_context_when_out_of_memory);
       if (result != gpu::ContextResult::kSuccess) {
         DestroyOnGpuThread();
         DLOG(ERROR) << "Failed to initialize decoder.";
@@ -504,6 +501,7 @@ gpu::ContextResult InProcessCommandBuffer::InitializeOnGpuThread(
   }
 
   *params.capabilities = decoder_->GetCapabilities();
+  params.capabilities->gpu_rasterization = enable_gpu_rasterization;
   *params.gl_capabilities = decoder_->GetGLCapabilities();
 
   return gpu::ContextResult::kSuccess;
@@ -905,7 +903,7 @@ void InProcessCommandBuffer::ScheduleGrContextCleanup() {
 
 void InProcessCommandBuffer::HandleReturnData(base::span<const uint8_t> data) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(gpu_sequence_checker_);
-  std::vector<uint8_t> vec(data.data(), data.data() + data.size());
+  std::vector<uint8_t> vec(data.data(), UNSAFE_TODO(data.data() + data.size()));
   PostOrRunClientCallback(
       base::BindOnce(&InProcessCommandBuffer::HandleReturnDataOnOriginThread,
                      client_thread_weak_ptr_, std::move(vec)));

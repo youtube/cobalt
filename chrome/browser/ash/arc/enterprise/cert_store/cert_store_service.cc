@@ -19,6 +19,7 @@
 #include "base/base64.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/memory/singleton.h"
 #include "base/memory/weak_ptr.h"
@@ -246,11 +247,11 @@ std::optional<CertDescription> BuildCertDescritionOnWorkerThread(
   if (!nss_cert)
     return std::nullopt;
 
-  // TODO(b/193771095) Use a valid wincx.
+  // Passing a nullptr for wincx is a hack but not worth fixing now, see b/193771095
   // Must have a private key in order to access label and ID.
   SECKEYPrivateKey* private_key =
       PK11_FindKeyByAnyCert(nss_cert.get(), nullptr /* wincx */);
-  // TODO(b/193771180) Investigate race condition with null private keys.
+  // Potential race condition with null private keys (see b/193771180)
   if (!private_key)
     return std::nullopt;
   crypto::ScopedSECKEYPrivateKey priv_key_destroyer(private_key);
@@ -269,7 +270,6 @@ std::optional<CertDescription> BuildCertDescritionOnWorkerThread(
   crypto::ScopedSECItem sec_item_destroyer(id_item);
   std::string pkcs11_id(id_item->data, id_item->data + id_item->len);
 
-  // TODO(b/193784305) Try to avoid (some) key generation if possible.
   // Generate the placeholder RSA key that will be installed in ARC.
   auto placeholder_key = crypto::keypair::PrivateKey::GenerateRsa2048();
 

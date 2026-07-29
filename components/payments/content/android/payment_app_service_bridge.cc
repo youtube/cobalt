@@ -100,7 +100,7 @@ void SetOptOutOffered(const JavaRef<jobject>& jcallback) {
 }  // namespace
 
 /* static */
-void JNI_PaymentAppServiceBridge_Create(
+static void JNI_PaymentAppServiceBridge_Create(
     JNIEnv* env,
     const JavaParamRef<jobject>& jrender_frame_host,
     const JavaParamRef<jstring>& jtop_origin,
@@ -408,3 +408,5 @@ PaymentAppServiceBridge::PaymentAppServiceBridge(
       set_opt_out_offered_callback_(std::move(set_opt_out_offered_callback)) {}
 
 }  // namespace payments
+
+DEFINE_JNI(PaymentAppServiceBridge)

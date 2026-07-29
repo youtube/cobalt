@@ -604,6 +604,7 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   virtual void DidFinishImplFrame(const viz::BeginFrameArgs& args);
   void DidNotProduceFrame(const viz::BeginFrameAck& ack,
                           FrameSkippedReason reason);
+  void DidChangeBeginFrameSourcePaused(bool paused);
   void OnBeginImplFrameDeadline();
   void DidModifyTilePriorities(bool pending_update_tiles);
   // Requests that we do not produce frames until the new viz::LocalSurfaceId
@@ -892,7 +893,7 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
 
   void NotifyNewLocalSurfaceIdExpectedWhilePaused();
 
-  void ElasticOverscrollAnimationFinished();
+  void ElasticOverscrollAnimationFinished(ElementId finished_id);
 
   void set_send_frame_token_to_embedder(bool send_frame_token_to_embedder) {
     send_frame_token_to_embedder_ = send_frame_token_to_embedder;

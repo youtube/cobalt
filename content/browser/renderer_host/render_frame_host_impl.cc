@@ -79,7 +79,6 @@
 #include "content/browser/child_process_security_policy_impl.h"
 #include "content/browser/closewatcher/close_listener_host.h"
 #include "content/browser/code_cache/generated_code_cache_context.h"
-#include "content/browser/cookie_deprecation_label/cookie_deprecation_label_manager_impl.h"
 #include "content/browser/data_url_loader_factory.h"
 #include "content/browser/devtools/devtools_instrumentation.h"
 #include "content/browser/digital_credentials/digital_identity_request_impl.h"
@@ -278,8 +277,6 @@
 #include "third_party/blink/public/common/navigation/navigation_params_mojom_traits.h"
 #include "third_party/blink/public/common/permissions/permission_utils.h"
 #include "third_party/blink/public/common/permissions_policy/document_policy.h"
-#include "third_party/blink/public/common/privacy_budget/identifiability_study_document_created.h"
-#include "third_party/blink/public/common/privacy_budget/identifiability_study_settings.h"
 #include "third_party/blink/public/common/runtime_feature_state/runtime_feature_state_context.h"
 #include "third_party/blink/public/common/scheduler/web_scheduler_tracked_feature.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
@@ -1045,25 +1042,6 @@ bool ValidateUnfencedTopNavigation(
   }
 
   return true;
-}
-
-// Records the identifiable surface metric associated with a document created
-// event when the identifiability study is active.
-void RecordIdentifiabilityDocumentCreatedMetrics(
-    const ukm::SourceId document_ukm_source_id,
-    ukm::UkmRecorder* ukm_recorder,
-    ukm::SourceId navigation_source_id,
-    bool is_cross_origin_frame,
-    bool is_cross_site_frame,
-    bool is_main_frame) {
-  if (blink::IdentifiabilityStudySettings::Get()->IsActive()) {
-    blink::IdentifiabilityStudyDocumentCreated(document_ukm_source_id)
-        .SetNavigationSourceId(navigation_source_id)
-        .SetIsMainFrame(is_main_frame)
-        .SetIsCrossOriginFrame(is_cross_origin_frame)
-        .SetIsCrossSiteFrame(is_cross_site_frame)
-        .Record(ukm_recorder);
-  }
 }
 
 bool IsOpenerSameOriginFrame(const RenderFrameHostImpl* opener) {
@@ -1890,6 +1868,9 @@ class RenderFrameHostImpl::SubresourceLoaderFactoriesConfig {
             ? ukm::kInvalidSourceId
             : frame.GetPageUkmSourceId());
 
+    result.network_restrictions_id_ =
+        frame.document_associated_data_->network_restrictions_id();
+
     result.cookie_setting_overrides_ =
         frame.document_associated_data_->cookie_setting_overrides();
 
@@ -1916,6 +1897,8 @@ class RenderFrameHostImpl::SubresourceLoaderFactoriesConfig {
         navigation_request.BuildClientSecurityStateForCommittedDocument();
     result.ukm_source_id_ = ukm::SourceIdObj::FromInt64(
         navigation_request.GetNextPageUkmSourceId());
+    result.network_restrictions_id_ =
+        navigation_request.network_restrictions_id();
 
     // TODO(lukasza): Consider pushing the ok-vs-error differentiation into
     // NavigationRequest methods (e.g. into |isolation_info_for_subresources|
@@ -2052,6 +2035,10 @@ class RenderFrameHostImpl::SubresourceLoaderFactoriesConfig {
     return cookie_setting_overrides_;
   }
 
+  const std::optional<base::UnguessableToken>& network_restrictions_id() const {
+    return network_restrictions_id_;
+  }
+
  private:
   // Private constructor - please go through the static For... methods.
   SubresourceLoaderFactoriesConfig() = default;
@@ -2067,6 +2054,7 @@ class RenderFrameHostImpl::SubresourceLoaderFactoriesConfig {
       trust_token_redemption_policy_;
   ukm::SourceIdObj ukm_source_id_;
   net::CookieSettingOverrides cookie_setting_overrides_;
+  std::optional<base::UnguessableToken> network_restrictions_id_;
 };
 
 class PendingNavigation {
@@ -2506,19 +2494,8 @@ RenderFrameHostImpl::RenderFrameHostImpl(
     set_nav_entry_id(parent_->nav_entry_id());
   }
 
-  if (frame_tree_->is_prerendering()) {
-    // TODO(crbug.com/40150746): Check the prerendering page is
-    // same-origin to the prerender trigger page.
-    mojo_binder_policy_applier_ =
-        MojoBinderPolicyApplier::CreateForSameOriginPrerendering(base::BindOnce(
-            &RenderFrameHostImpl::CancelPrerenderingByMojoBinderPolicy,
-            base::Unretained(this)));
-    broker_.ApplyMojoBinderPolicies(mojo_binder_policy_applier_.get());
-  } else if (frame_tree_->page_delegate()->IsPageInPreviewMode()) {
-    mojo_binder_policy_applier_ = MojoBinderPolicyApplier::CreateForPreview(
-        base::BindOnce(&RenderFrameHostImpl::CancelPreviewByMojoBinderPolicy,
-                       base::Unretained(this)));
-    broker_.ApplyMojoBinderPolicies(mojo_binder_policy_applier_.get());
+  if (!base::FeatureList::IsEnabled(features::kLazyBrowserInterfaceBroker)) {
+    CreateBrokerHolder();
   }
 
   if (lifecycle_state_ != LifecycleStateImpl::kSpeculative) {
@@ -4851,7 +4828,8 @@ void RenderFrameHostImpl::RendererDidActivateForPrerendering() {
     // As per `ReleaseMojoBinderPolicies` method requirement, the policy applier
     // owner should call the method when destroying the object, so we first
     // need to call this method before resetting the unique pointer.
-    broker_.ReleaseMojoBinderPolicies();
+    CHECK(broker_holder_);
+    broker_holder_->broker().ReleaseMojoBinderPolicies();
     mojo_binder_policy_applier_.reset();
   }
 }
@@ -4928,7 +4906,7 @@ void RenderFrameHostImpl::OnCreateChildFrame(
   // `new_routing_id`, `frame_token`, `devtools_frame_token` and
   // `document_token` were generated on the browser's IO thread and not taken
   // from the renderer process.
-  FrameTreeNode* new_frame_tree_node = frame_tree_->AddFrame(
+  frame_tree_->AddFrame(
       this, GetProcess()->GetDeprecatedID(), new_routing_id,
       std::move(frame_remote), std::move(browser_interface_broker_receiver),
       std::move(policy_container_bind_params),
@@ -4937,16 +4915,6 @@ void RenderFrameHostImpl::OnCreateChildFrame(
       devtools_frame_token, document_token, frame_policy,
       frame_owner_properties, was_discarded_, owner_type,
       /*is_dummy_frame_for_inner_tree=*/false);
-
-  // Record the DocumentCreated identifiability metric for initial empty
-  // documents in child frames (other cases are taken care of by the
-  // NavigationRequest).
-  //
-  // Note: We do not want to record the corresponding DocumentCreated UKM event
-  // here, see https://crbug.com/1326431.
-  new_frame_tree_node->current_frame_host()->RecordDocumentCreatedUkmEvent(
-      GetLastCommittedOrigin(), document_ukm_source_id, ukm::UkmRecorder::Get(),
-      /*only_record_identifiability_metric=*/true);
 }
 
 void RenderFrameHostImpl::OnPreloadingHeuristicsModelDone(const GURL& url,
@@ -6472,8 +6440,6 @@ void RenderFrameHostImpl::SetNavigationRequest(
     return;
   }
 
-  did_last_navigation_have_view_transition_ =
-      navigation_request->HasViewTransitionResources();
   loading_state_ = LoadingState::LOADING_UI_REQUESTED;
   navigation_requests_[navigation_request.get()] =
       std::move(navigation_request);
@@ -7619,7 +7585,9 @@ void RenderFrameHostImpl::DownloadURL(
 }
 
 void RenderFrameHostImpl::ReportNoBinderForInterface(const std::string& error) {
-  broker_receiver_.ReportBadMessage(error + " for the frame/document scope");
+  CHECK(broker_holder_);
+  broker_holder_->broker_receiver().ReportBadMessage(
+      error + " for the frame/document scope");
 }
 
 ukm::SourceId RenderFrameHostImpl::GetPageUkmSourceId() {
@@ -9518,6 +9486,11 @@ void RenderFrameHostImpl::SetCloseListener(
 
 void RenderFrameHostImpl::BindBrowserInterfaceBrokerReceiver(
     mojo::PendingReceiver<blink::mojom::BrowserInterfaceBroker> receiver) {
+  // TODO(crbug.com/458719426): Move this call to SetUpMojoConnection.
+  if (base::FeatureList::IsEnabled(features::kLazyBrowserInterfaceBroker)) {
+    CreateBrokerHolder();
+  }
+
   DCHECK(receiver.is_valid());
   if (frame_tree()->is_prerendering()) {
     // RenderFrameHostImpl will rebind the receiver end of
@@ -9531,9 +9504,21 @@ void RenderFrameHostImpl::BindBrowserInterfaceBrokerReceiver(
         << "prerendering pages should have a policy applier";
     mojo_binder_policy_applier_->DropDeferredBinders();
   }
-  broker_receiver_.Bind(std::move(receiver));
-  broker_receiver_.SetFilter(
+
+  broker_holder_->broker_receiver().Bind(std::move(receiver));
+  broker_holder_->broker_receiver().SetFilter(
       std::make_unique<internal::ActiveUrlMessageFilter>(this));
+}
+
+bool RenderFrameHostImpl::ResetBrowserInterfaceBrokerReceiverForTesting() {
+  if (!broker_holder_) {
+    return true;
+  }
+  bool is_valid = broker_holder_->broker_receiver().Unbind().is_valid();
+  if (base::FeatureList::IsEnabled(features::kLazyBrowserInterfaceBroker)) {
+    broker_holder_.reset();
+  }
+  return is_valid;
 }
 
 void RenderFrameHostImpl::BindAssociatedInterfaceProviderReceiver(
@@ -10745,15 +10730,12 @@ void RenderFrameHostImpl::DisableUntrustedNetworkInFencedFrame(
   // Register the nonce in the network service's data structure to deny network
   // access.
   CHECK(properties->partition_nonce().has_value());
-  StoragePartitionImpl* storage_partition = GetStoragePartition();
   // TODO(crbug.com/41488151): Audit all existing transient IsolationInfo
   // constructors to ensure that they are tagged with the relevant partition
   // nonce.
-  storage_partition->RevokeNetworkForNoncesInNetworkContext(
-      {
-          properties->partition_nonce()->GetValueIgnoringVisibility(),
-          GetPage().credentialless_iframes_nonce(),
-      },
+  GetStoragePartition()->RevokeNetworkForNoncesInNetworkContext(
+      {{properties->partition_nonce()->GetValueIgnoringVisibility(), {}},
+       {GetPage().credentialless_iframes_nonce(), {}}},
       base::BindOnce(
           &RenderFrameHostImpl::RevokeNetworkForNonceCallback,
           weak_ptr_factory_.GetWeakPtr(),
@@ -11047,8 +11029,7 @@ void RenderFrameHostImpl::SetCrashReportStorageKey(
     mojo::ReportBadMessage("Must call InitializeCrashReportStorage() first");
   }
 
-  document_associated_data_->crash_storage_map().insert(
-      std::make_pair(key, value));
+  document_associated_data_->crash_storage_map().insert_or_assign(key, value);
   std::move(callback).Run();
 }
 
@@ -13479,6 +13460,32 @@ bool RenderFrameHostImpl::HasSelection() {
   return has_selection_;
 }
 
+RenderFrameHostImpl::BrokerHolder::BrokerHolder(RenderFrameHostImpl* host)
+    : broker_(host), broker_receiver_(&broker_) {}
+RenderFrameHostImpl::BrokerHolder::~BrokerHolder() = default;
+
+void RenderFrameHostImpl::CreateBrokerHolder() {
+  CHECK(!broker_holder_);
+
+  broker_holder_.emplace(this);
+  if (frame_tree_->is_prerendering()) {
+    // TODO(crbug.com/40150746): Check the prerendering page is
+    // same-origin to the prerender trigger page.
+    mojo_binder_policy_applier_ =
+        MojoBinderPolicyApplier::CreateForSameOriginPrerendering(base::BindOnce(
+            &RenderFrameHostImpl::CancelPrerenderingByMojoBinderPolicy,
+            base::Unretained(this)));
+    broker_holder_->broker().ApplyMojoBinderPolicies(
+        mojo_binder_policy_applier_.get());
+  } else if (frame_tree_->page_delegate()->IsPageInPreviewMode()) {
+    mojo_binder_policy_applier_ = MojoBinderPolicyApplier::CreateForPreview(
+        base::BindOnce(&RenderFrameHostImpl::CancelPreviewByMojoBinderPolicy,
+                       base::Unretained(this)));
+    broker_holder_->broker().ApplyMojoBinderPolicies(
+        mojo_binder_policy_applier_.get());
+  }
+}
+
 FrameTreeNode* RenderFrameHostImpl::PreviousSibling() const {
   return GetSibling(-1);
 }
@@ -13723,7 +13730,7 @@ RenderFrameHostImpl::CreateURLLoaderFactoryParamsForMainWorld(
       config.GetDipReporter(), GetProcess(),
       config.trust_token_issuance_policy(),
       config.trust_token_redemption_policy(), config.cookie_setting_overrides(),
-      debug_tag);
+      config.network_restrictions_id(), debug_tag);
 }
 
 bool RenderFrameHostImpl::CreateNetworkServiceDefaultFactoryAndObserve(
@@ -15677,6 +15684,14 @@ bool RenderFrameHostImpl::DidCommitNavigationInternal(
   VerifyThatBrowserAndRendererCalculatedDidCommitParamsMatch(
       navigation_request.get(), *params, same_document_params.Clone());
 
+  // This token is generated in the renderer at commit time; it uniquely
+  // identifies a committed same-document navigation. This is used for
+  // attributing soft navigation metrics to the correct UKM Source ID.
+  if (is_same_document_navigation) {
+    navigation_request->set_same_document_metrics_token(
+        same_document_params->same_document_metrics_token);
+  }
+
   // Update the page transition. For subframe navigations, the renderer process
   // only gives the correct page transition at commit time.
   // TODO(clamy): We should get the correct page transition when starting the
@@ -15756,7 +15771,8 @@ bool RenderFrameHostImpl::DidCommitNavigationInternal(
         navigation_request->navigation_confidence());
     document_associated_data_->set_devtools_navigation_token(
         navigation_request->devtools_navigation_token());
-
+    document_associated_data_->set_network_restrictions_id(
+        navigation_request->network_restrictions_id());
     // Stores fetch keepalive FactoryContext created before committing into
     // document-associated data, such that it can be referenced later when
     // DevTools tries to intercepts requests.
@@ -16496,18 +16512,6 @@ void RenderFrameHostImpl::SendCommitNavigation(
         GetSiteInstance()->browsing_instance_token();
   }
 
-  auto* cookie_deprecation_label_manager =
-      static_cast<CookieDeprecationLabelManagerImpl*>(
-          GetStoragePartition()->GetCookieDeprecationLabelManager());
-  if (cookie_deprecation_label_manager) {
-    url::Origin top_frame_origin =
-        is_main_frame() ? origin_to_commit
-                        : GetMainFrame()->GetLastCommittedOrigin();
-    commit_params->cookie_deprecation_label =
-        cookie_deprecation_label_manager->GetValue(top_frame_origin,
-                                                   origin_to_commit);
-  }
-
 #if BUILDFLAG(IS_ANDROID)
   // TODO(khushalsagar): This code-path can be removed after RenderDocument is
   // fully enabled. See crbug.com/346500010.
@@ -16697,8 +16701,15 @@ void RenderFrameHostImpl::DidCommitNavigation(
   }
 
   if (interface_params) {
-    if (broker_receiver_.is_bound()) {
-      broker_receiver_.reset();
+    if (base::FeatureList::IsEnabled(features::kLazyBrowserInterfaceBroker)) {
+      // Reset the broker holder so it is entirely re-created in
+      // BindBrowserInterfaceBrokerReceiver.
+      broker_holder_.reset();
+    } else {
+      CHECK(broker_holder_);
+      if (broker_holder_->broker_receiver().is_bound()) {
+        broker_holder_->broker_receiver().reset();
+      }
     }
     BindBrowserInterfaceBrokerReceiver(
         std::move(interface_params->browser_interface_broker_receiver));
@@ -16712,7 +16723,8 @@ void RenderFrameHostImpl::DidCommitNavigation(
     // hence possibly from a different security origin, will no longer be
     // dispatched.
     if (!frame_tree_node_->is_on_initial_empty_document()) {
-      broker_receiver_.reset();
+      CHECK(broker_holder_);
+      broker_holder_->broker_receiver().reset();
       bad_message::ReceivedBadMessage(
           process, bad_message::RFH_INTERFACE_PROVIDER_MISSING);
 
@@ -17200,23 +17212,6 @@ void RenderFrameHostImpl::LogCannotCommitUrlCrashKeys(
                                    navigation_request->GetStartingSiteInstance()
                                        ->GetSiteInfo()
                                        .GetDebugString());
-
-    // Recompute the target SiteInstance to see if it matches the current
-    // one at commit time.
-    BrowsingContextGroupSwap ignored_bcg_swap_info =
-        BrowsingContextGroupSwap::CreateDefault();
-    scoped_refptr<SiteInstance> dest_instance =
-        navigation_request->frame_tree_node()
-            ->render_manager()
-            ->GetSiteInstanceForNavigationRequest(navigation_request,
-                                                  &ignored_bcg_swap_info);
-    static auto* const does_recomputed_site_instance_match_key =
-        base::debug::AllocateCrashKeyString(
-            "does_recomputed_site_instance_match",
-            base::debug::CrashKeySize::Size32);
-    base::debug::SetCrashKeyString(
-        does_recomputed_site_instance_match_key,
-        base::ToString(dest_instance == GetSiteInstance()));
   }
 }
 
@@ -18020,6 +18015,10 @@ bool RenderFrameHostImpl::IsOutermostMainFrame() const {
   return !GetParentOrOuterDocument();
 }
 
+bool RenderFrameHostImpl::IsAdFrame() const {
+  return browsing_context_state_->IsAdFrame();
+}
+
 void RenderFrameHostImpl::SetIsLoadingForRendererDebugURL() {
   LoadingState previous_frame_tree_loading_state =
       frame_tree()->LoadingTree()->GetLoadingState();
@@ -18397,7 +18396,7 @@ void RenderFrameHostImpl::SetLifecycleState(LifecycleStateImpl new_state) {
       // happens after commit.
       DCHECK(children_.empty());
     }
-    if (GetOutermostMainFrameOrEmbedder() == this &&
+    if (IsOutermostMainFrame() &&
         (lifecycle_state() == LifecycleStateImpl::kInBackForwardCache ||
          lifecycle_state() == LifecycleStateImpl::kPrerendering)) {
       // We mark all the children, including inner FrameTrees and delegate
@@ -18515,8 +18514,7 @@ void RenderFrameHostImpl::SetLifecycleState(LifecycleStateImpl new_state) {
 void RenderFrameHostImpl::RecordDocumentCreatedUkmEvent(
     const url::Origin& origin,
     const ukm::SourceId document_ukm_source_id,
-    ukm::UkmRecorder* ukm_recorder,
-    bool only_record_identifiability_metric) {
+    ukm::UkmRecorder* ukm_recorder) {
   DCHECK(ukm_recorder);
   if (document_ukm_source_id == ukm::kInvalidSourceId) {
     return;
@@ -18549,14 +18547,6 @@ void RenderFrameHostImpl::RecordDocumentCreatedUkmEvent(
   const ukm::SourceId navigation_ukm_source_id =
       IsInLifecycleState(LifecycleState::kPrerendering) ? ukm::kInvalidSourceId
                                                         : GetPageUkmSourceId();
-
-  RecordIdentifiabilityDocumentCreatedMetrics(
-      document_ukm_source_id, ukm_recorder, navigation_ukm_source_id,
-      is_cross_origin_frame, is_cross_site_frame, is_main_frame);
-
-  if (only_record_identifiability_metric) {
-    return;
-  }
 
   ukm::builders::DocumentCreated(document_ukm_source_id)
       .SetNavigationSourceId(navigation_ukm_source_id)
@@ -19165,7 +19155,8 @@ RenderFrameHostImpl::GetCrossOriginEmbedderPolicy() const {
 
 void RenderFrameHostImpl::GetBoundInterfacesForTesting(
     std::vector<std::string>& out) {
-  broker_.GetBinderMapInterfacesForTesting(out);  // IN-TEST
+  broker_holder_->broker().GetBinderMapInterfacesForTesting(  // IN-TEST
+      out);
 }
 
 std::optional<base::flat_map<blink::mojom::PermissionName,

@@ -19,6 +19,7 @@
 #import "ios/chrome/browser/authentication/test/signin_earl_grey_ui_test_util.h"
 #import "ios/chrome/browser/authentication/test/signin_matchers.h"
 #import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
+#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/signin/model/fake_system_identity.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_groups/tab_group_app_interface.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_groups/tab_groups_constants.h"
@@ -39,6 +40,7 @@
 #import "ui/base/l10n/l10n_util.h"
 
 using ::base::test::ios::kWaitForActionTimeout;
+using chrome_test_util::ButtonStackPrimaryButton;
 using chrome_test_util::ConsistencySigninPrimaryButtonMatcher;
 using chrome_test_util::CreateTabGroupAtIndex;
 using chrome_test_util::FakeJoinFlowView;
@@ -47,7 +49,6 @@ using chrome_test_util::LongPressTabGroupCellAtIndex;
 using chrome_test_util::ManageGroupButton;
 using chrome_test_util::NavigationBarCancelButton;
 using chrome_test_util::NavigationBarSaveButton;
-using chrome_test_util::PromoScreenPrimaryButtonMatcher;
 using chrome_test_util::ShareGroupButton;
 using chrome_test_util::TabGridGroupCellAtIndex;
 
@@ -83,6 +84,7 @@ AppLaunchConfiguration SharedTabGroupAppLaunchConfiguration(
       collaboration::features::kCollaborationMessaging);
   config.features_enabled.push_back(
       data_sharing::features::kDataSharingFeature);
+  config.features_disabled.push_back(kIOSAutoOpenRemoteTabGroupsSettings);
 
   // Add the flag to use FakeTabGroupSyncService.
   config.additional_args.push_back(
@@ -152,15 +154,15 @@ AppLaunchConfiguration SharedTabGroupAppLaunchConfiguration(
                                                    assertVisible:NO];
 
   // Check that a custom history & sync promo is displayed.
-  [ChromeEarlGrey waitForMatcher:PromoScreenPrimaryButtonMatcher()];
+  [ChromeEarlGrey waitForMatcher:ButtonStackPrimaryButton()];
   [[EarlGrey selectElementWithMatcher:
                  grey_text(l10n_util::GetNSString(
                      IDS_IOS_HISTORY_SYNC_GROUP_COLLABORATION_TITLE))]
       assertWithMatcher:grey_sufficientlyVisible()];
 
   // Accept history & sync.
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::
-                                          PromoScreenPrimaryButtonMatcher()]
+  [[EarlGrey
+      selectElementWithMatcher:chrome_test_util::ButtonStackPrimaryButton()]
       performAction:grey_tap()];
   GREYAssertTrue([ChromeEarlGrey isSyncHistoryDataTypeSelected],
                  @"History sync is disabled.");
@@ -208,15 +210,15 @@ AppLaunchConfiguration SharedTabGroupAppLaunchConfiguration(
       performAction:grey_tap()];
 
   // Check that a custom history & sync promo is displayed.
-  [ChromeEarlGrey waitForMatcher:PromoScreenPrimaryButtonMatcher()];
+  [ChromeEarlGrey waitForMatcher:ButtonStackPrimaryButton()];
   [[EarlGrey selectElementWithMatcher:
                  grey_text(l10n_util::GetNSString(
                      IDS_IOS_HISTORY_SYNC_GROUP_COLLABORATION_TITLE))]
       assertWithMatcher:grey_sufficientlyVisible()];
 
   // Accept history & sync.
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::
-                                          PromoScreenPrimaryButtonMatcher()]
+  [[EarlGrey
+      selectElementWithMatcher:chrome_test_util::ButtonStackPrimaryButton()]
       performAction:grey_tap()];
   GREYAssertTrue([ChromeEarlGrey isSyncHistoryDataTypeSelected],
                  @"History sync is disabled.");
@@ -253,7 +255,7 @@ AppLaunchConfiguration SharedTabGroupAppLaunchConfiguration(
   [ChromeEarlGrey loadURL:joinGroupURL waitForCompletion:NO];
 
   // Check that a custom sign promo is displayed.
-  [ChromeEarlGrey waitForMatcher:PromoScreenPrimaryButtonMatcher()];
+  [ChromeEarlGrey waitForMatcher:ButtonStackPrimaryButton()];
   [[EarlGrey
       selectElementWithMatcher:grey_text(l10n_util::GetNSString(
                                    IDS_IOS_SIGNIN_GROUP_COLLABORATION_TITLE))]
@@ -264,20 +266,20 @@ AppLaunchConfiguration SharedTabGroupAppLaunchConfiguration(
       assertWithMatcher:grey_sufficientlyVisible()];
 
   // Sign-in.
-  [[EarlGrey selectElementWithMatcher:PromoScreenPrimaryButtonMatcher()]
+  [[EarlGrey selectElementWithMatcher:ButtonStackPrimaryButton()]
       performAction:grey_tap()];
   [SigninEarlGrey verifySignedInWithFakeIdentity:fakeIdentity];
 
   // Check that a custom history & sync promo is displayed.
-  [ChromeEarlGrey waitForMatcher:PromoScreenPrimaryButtonMatcher()];
+  [ChromeEarlGrey waitForMatcher:ButtonStackPrimaryButton()];
   [[EarlGrey selectElementWithMatcher:
                  grey_text(l10n_util::GetNSString(
                      IDS_IOS_HISTORY_SYNC_GROUP_COLLABORATION_TITLE))]
       assertWithMatcher:grey_sufficientlyVisible()];
 
   // Accept history & sync.
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::
-                                          PromoScreenPrimaryButtonMatcher()]
+  [[EarlGrey
+      selectElementWithMatcher:chrome_test_util::ButtonStackPrimaryButton()]
       performAction:grey_tap()];
   GREYAssertTrue([ChromeEarlGrey isSyncHistoryDataTypeSelected],
                  @"History sync is disabled.");
@@ -307,15 +309,15 @@ AppLaunchConfiguration SharedTabGroupAppLaunchConfiguration(
   [ChromeEarlGrey loadURL:joinGroupURL waitForCompletion:NO];
 
   // Check that a custom history & sync promo is displayed.
-  [ChromeEarlGrey waitForMatcher:PromoScreenPrimaryButtonMatcher()];
+  [ChromeEarlGrey waitForMatcher:ButtonStackPrimaryButton()];
   [[EarlGrey selectElementWithMatcher:
                  grey_text(l10n_util::GetNSString(
                      IDS_IOS_HISTORY_SYNC_GROUP_COLLABORATION_TITLE))]
       assertWithMatcher:grey_sufficientlyVisible()];
 
   // Accept history & sync.
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::
-                                          PromoScreenPrimaryButtonMatcher()]
+  [[EarlGrey
+      selectElementWithMatcher:chrome_test_util::ButtonStackPrimaryButton()]
       performAction:grey_tap()];
   GREYAssertTrue([ChromeEarlGrey isSyncHistoryDataTypeSelected],
                  @"History sync is disabled.");

@@ -488,23 +488,6 @@ PrivacySandboxServiceImpl::PrivacySandboxServiceImpl(
     pref_service_->ClearPref(prefs::kPrivacySandboxM1PromptSuppressed);
   }
 
-  if (pref_service_->GetBoolean(
-          prefs::kPrivacySandboxAllowNoticeFor3PCBlockedTrial)) {
-    if (base::FieldTrial* field_trial = base::FeatureList::GetFieldTrial(
-            privacy_sandbox::kPrivacySandboxAllowPromptForBlocked3PCookies)) {
-      field_trial->Activate();
-    }
-  }
-
-  // Special usecase for Third Party Coookies: Make sure the 3PC
-  // suppression value is overridden in case 3PC Blocking is not a valid
-  // reason to block the Prompt.
-  if (prompt_suppressed_reason ==
-          PromptSuppressedReason::kThirdPartyCookiesBlocked &&
-      CheckAndRegisterAllowPromptForBlocked3PCookiesTrial()) {
-    pref_service_->ClearPref(prefs::kPrivacySandboxM1PromptSuppressed);
-  }
-
   // Check for FPS pref init at each startup.
   // TODO(crbug.com/40234448): Remove this logic when most users have run init.
   MaybeInitializeRelatedWebsiteSetsPref();
@@ -531,14 +514,6 @@ void PrivacySandboxServiceImpl::Shutdown() {
   profile_ = nullptr;
 }
 
-bool PrivacySandboxServiceImpl::
-    CheckAndRegisterAllowPromptForBlocked3PCookiesTrial() {
-  pref_service_->SetBoolean(prefs::kPrivacySandboxAllowNoticeFor3PCBlockedTrial,
-                            true);
-  return base::FeatureList::IsEnabled(
-      privacy_sandbox::kPrivacySandboxAllowPromptForBlocked3PCookies);
-}
-
 void PrivacySandboxServiceImpl::SetPromptSuppressedReason(
     PromptSuppressedReason reason) {
   pref_service_->SetInteger(prefs::kPrivacySandboxM1PromptSuppressed,
@@ -559,8 +534,7 @@ bool PrivacySandboxServiceImpl::UpdateAndGetSuppressionReason() {
   }
 
   if (AreAllThirdPartyCookiesBlocked(cookie_settings_.get(), pref_service_,
-                                     tracking_protection_settings_) &&
-      !CheckAndRegisterAllowPromptForBlocked3PCookiesTrial()) {
+                                     tracking_protection_settings_)) {
     SetPromptSuppressedReason(
         PromptSuppressedReason::kThirdPartyCookiesBlocked);
     return true;
@@ -646,64 +620,12 @@ bool PrivacySandboxServiceImpl::ShouldDisablePrompt() {
   return false;
 }
 
-PromptType PrivacySandboxServiceImpl::GetRequiredPromptTypeInternal(
-    SurfaceType surface_type) {
-  if (ShouldDisablePrompt()) {
-    return PromptType::kNone;
-  }
-
-  // Only one of the consent or notice should be required.
-  DCHECK(!IsNoticeRequired() || !IsConsentRequired());
-
-  // Check for and update suppression reasons. If suppressed, no prompt.
-  if (UpdateAndGetSuppressionReason()) {
-    return PromptType::kNone;
-  }
-
-  // At this point, no existing or newly determined suppression reason applies.
-  // Proceed to determine the specific prompt type based on remaining
-  // conditions.
-  if (IsRestrictedNoticeRequired()) {
-    CHECK(IsConsentRequired() || IsNoticeRequired());
-    if (HasAckedAnyMeasurementNotice(pref_service_)) {
-      return PromptType::kNone;
-    }
-    if (privacy_sandbox_settings_->IsSubjectToM1NoticeRestricted()) {
-      return PromptType::kM1NoticeRestricted;
-    }
-  }
-
-  if (IsConsentRequired()) {
-    if (!pref_service_->GetBoolean(
-            prefs::kPrivacySandboxM1ConsentDecisionMade)) {
-      return PromptType::kM1Consent;
-    }
-    if (!pref_service_->GetBoolean(
-            prefs::kPrivacySandboxM1EEANoticeAcknowledged)) {
-      return PromptType::kM1NoticeEEA;
-    }
-    return PromptType::kNone;
-  }
-
-  DCHECK(IsNoticeRequired());
-
-  if (pref_service_->GetBoolean(
-          prefs::kPrivacySandboxM1RowNoticeAcknowledged) ||
-      pref_service_->GetBoolean(
-          prefs::kPrivacySandboxM1RestrictedNoticeAcknowledged)) {
-    return PromptType::kNone;
-  } else {
-    return PromptType::kM1NoticeROW;
-  }
-}
-
 PromptType PrivacySandboxServiceImpl::GetRequiredPromptType(
     SurfaceType surface_type) {
   // TODO(crbug.com/441942835) deprecate the user of force prompt test params.
   if (auto prompt_override = GetRequiredPromptTypeOverride()) {
     return *prompt_override;
   }
-  PromptType ps_prompt_type = GetRequiredPromptTypeInternal(surface_type);
   PromptType notice_service_prompt_type = PromptType::kNone;
   if (auto* notice_service =
           PrivacySandboxNoticeServiceFactory::GetForProfile(profile_)) {
@@ -711,16 +633,7 @@ PromptType PrivacySandboxServiceImpl::GetRequiredPromptType(
         notice_service->GetRequiredNotices(ToNoticeSurfaceType(surface_type)));
   }
 
-  base::UmaHistogramEnumeration(
-      "PrivacySandbox.Notice.Migration.PromptTypeCombination",
-      static_cast<PromptTypeCombination>(
-          static_cast<int>(ps_prompt_type) |
-          (static_cast<int>(notice_service_prompt_type) << 3)));
-
-  return base::FeatureList::IsEnabled(
-             privacy_sandbox::kPrivacySandboxGetPromptFromNoticeService)
-             ? notice_service_prompt_type
-             : ps_prompt_type;
+  return notice_service_prompt_type;
 }
 
 void MaybeUpdateNoticeService(

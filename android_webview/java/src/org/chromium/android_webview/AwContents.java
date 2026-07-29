@@ -119,6 +119,7 @@ import org.chromium.content_public.browser.MessagePort;
 import org.chromium.content_public.browser.NavigationController;
 import org.chromium.content_public.browser.NavigationHandle;
 import org.chromium.content_public.browser.NavigationHistory;
+import org.chromium.content_public.browser.Page;
 import org.chromium.content_public.browser.RenderFrameHost;
 import org.chromium.content_public.browser.SelectionClient;
 import org.chromium.content_public.browser.SelectionPopupController;
@@ -151,7 +152,6 @@ import java.lang.annotation.Annotation;
 import java.lang.ref.WeakReference;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -381,7 +381,7 @@ public class AwContents implements SmartClipProvider {
     private WebContentsInternalsHolder mWebContentsInternalsHolder;
     private NavigationController mNavigationController;
     private final AwContentsClient mContentsClient;
-    private final List<AwNavigationListener> mNavigationClients = new ArrayList<>();
+    private final AwNavigationClient mNavigationClient = new AwNavigationClient();
     private AwWebContentsObserver mWebContentsObserver;
     private final AwContentsClientBridge mContentsClientBridge;
     private final AwWebContentsDelegateAdapter mWebContentsDelegate;
@@ -807,6 +807,11 @@ public class AwContents implements SmartClipProvider {
         public void cancelFling() {
             mWebContents.getEventForwarder().cancelFling(SystemClock.uptimeMillis(), false);
         }
+
+        @Override
+        public int getBottomViewportInset() {
+            return mDisplayCutoutController.getBottomImeInset();
+        }
     }
 
     // --------------------------------------------------------------------------------------------
@@ -829,10 +834,6 @@ public class AwContents implements SmartClipProvider {
 
         @Override
         public void onScrollUpdateGestureConsumed() {
-            if (!AwFeatureMap.isEnabled(
-                    AwFeatures.WEBVIEW_DO_NOT_SEND_ACCESSIBILITY_EVENTS_ON_GSU)) {
-                mScrollAccessibilityHelper.postViewScrolledAccessibilityEventCallback();
-            }
             if (AwFeatureMap.isEnabled(AwFeatures.WEBVIEW_INVOKE_ZOOM_PICKER_ON_GSU)) {
                 mZoomControls.invokeZoomPicker();
             }
@@ -847,10 +848,7 @@ public class AwContents implements SmartClipProvider {
                 mZoomControls.setAutoDismissed(false);
             }
             mZoomControls.invokeZoomPicker();
-            if (AwFeatureMap.isEnabled(
-                    AwFeatures.WEBVIEW_DO_NOT_SEND_ACCESSIBILITY_EVENTS_ON_GSU)) {
-                mScrollAccessibilityHelper.setIsInAScroll(true);
-            }
+            mScrollAccessibilityHelper.setIsInAScroll(true);
         }
 
         @Override
@@ -861,10 +859,7 @@ public class AwContents implements SmartClipProvider {
                 // android.
                 mZoomControls.invokeZoomPicker();
             }
-            if (AwFeatureMap.isEnabled(
-                    AwFeatures.WEBVIEW_DO_NOT_SEND_ACCESSIBILITY_EVENTS_ON_GSU)) {
-                mScrollAccessibilityHelper.setIsInAScroll(false);
-            }
+            mScrollAccessibilityHelper.setIsInAScroll(false);
         }
 
         @Override
@@ -961,19 +956,18 @@ public class AwContents implements SmartClipProvider {
         try (DualTraceEvent e1 = DualTraceEvent.scoped("AwContents.constructor")) {
             mBrowserContext = browserContext;
 
-            if (AwFeatureMap.isEnabled(AwFeatures.WEBVIEW_DRAIN_PREFETCH_QUEUE_DURING_INIT)) {
-                // Immediately drain any prefetch requests that have been queued as soon as we have
-                // the browser context.
-                //
-                // We will do this again at the end of the constructor in case any
-                // prefetch requests have been queued during this constructor's execution.
-                //
-                // Longer term, and once the prefetch infra has been moved off of the UI thread,
-                // we will be able to clean this up (see crbug.com/363939616), however
-                // for now we need to attempt to clear the prefetch queue in multiple places.
-                // TODO (crbug.com/363939616) Clean this up once prefetch infra supports bg thread.
-                mBrowserContext.getPrefetchManager().executeQueuedPrefetchRequests();
-            }
+            // Immediately drain any prefetch requests that have been queued as soon as we have
+            // the browser context.
+            //
+            // We will do this again at the end of the constructor in case any
+            // prefetch requests have been queued during this constructor's execution.
+            //
+            // Longer term, and once the prefetch infra has been moved off of the UI thread,
+            // we will be able to clean this up (see crbug.com/363939616), however
+            // for now we need to attempt to clear the prefetch queue in multiple places.
+            // TODO (crbug.com/363939616) Clean this up once prefetch infra supports bg thread.
+            mBrowserContext.getPrefetchManager().executeQueuedPrefetchRequests();
+
             mDisplayModeController =
                     new AwDisplayModeController(
                             new AwDisplayModeController.Delegate() {
@@ -1058,8 +1052,7 @@ public class AwContents implements SmartClipProvider {
                             () -> mBrowserContext.getCookieManager().acceptCookie());
             mInterceptNavigationDelegate = new InterceptNavigationDelegateImpl();
             mDisplayObserver = new AwDisplayAndroidObserver();
-            mPasswordEchoSettingController =
-                    new AwPasswordEchoSettingController(mSettings, mContext);
+            mPasswordEchoSettingController = new AwPasswordEchoSettingController(mSettings);
             mUpdateVisibilityRunnable = () -> updateWebContentsVisibility();
 
             AwSettings.ZoomSupportChangeListener zoomListener =
@@ -1076,7 +1069,6 @@ public class AwContents implements SmartClipProvider {
             String defaultVideoPosterUrl =
                     mDefaultVideoPosterRequestHandler.getDefaultVideoPosterUrl();
             mSettings.setDefaultVideoPosterUrl(defaultVideoPosterUrl);
-            mShouldInterceptRequestMediator.setNoSkipUrl(defaultVideoPosterUrl);
             mScrollOffsetManager =
                     dependencyFactory.createScrollOffsetManager(
                             new AwScrollOffsetManagerDelegate());
@@ -1098,15 +1090,12 @@ public class AwContents implements SmartClipProvider {
             onContainerViewChanged();
         }
 
-        if (AwFeatureMap.isEnabled(AwFeatures.WEBVIEW_DRAIN_PREFETCH_QUEUE_DURING_INIT)) {
-            // Drain any scheduled prefetch requests that may have happened during this
-            // constructor's
-            // execution. We will be able to clean this up once the prefetch infra is moved off of
-            // the
-            // UI thread.
-            // TODO (crbug.com/363939616) Clean this up once prefetch infra supports bg thread.
-            mBrowserContext.getPrefetchManager().executeQueuedPrefetchRequests();
-        }
+        // Drain any scheduled prefetch requests that may have happened during this constructor's
+        // execution. We will be able to clean this up once the prefetch infra is moved off of
+        // the UI thread.
+        // TODO (crbug.com/363939616) Clean this up once prefetch infra supports bg thread.
+        mBrowserContext.getPrefetchManager().executeQueuedPrefetchRequests();
+
         long delta = SystemClock.uptimeMillis() - startTime;
         RecordHistogram.recordTimesHistogram(CONSTRUCTOR_HISTOGRAM_NAME, delta);
         if (mId == 1) {
@@ -1256,10 +1245,14 @@ public class AwContents implements SmartClipProvider {
         restoreState(previousState);
     }
 
+    public AwNavigationClient getNavigationClient() {
+        return mNavigationClient;
+    }
+
     /**
-     * Transitions this {@link AwContents} to fullscreen mode and returns the
-     * {@link View} where the contents will be drawn while in fullscreen, or null
-     * if this AwContents has already been destroyed.
+     * Transitions this {@link AwContents} to fullscreen mode and returns the {@link View} where the
+     * contents will be drawn while in fullscreen, or null if this AwContents has already been
+     * destroyed.
      */
     View enterFullScreen() {
         assert !isFullScreen();
@@ -1992,6 +1985,10 @@ public class AwContents implements SmartClipProvider {
         return mWebContents;
     }
 
+    public AwWebContentsObserver getWebContentsObserverForTesting() {
+        return mWebContentsObserver;
+    }
+
     @VisibleForTesting
     public NavigationController getNavigationController() {
         return mNavigationController;
@@ -2394,7 +2391,7 @@ public class AwContents implements SmartClipProvider {
             requestVisitedHistoryFromClient();
         }
 
-        return mWebContentsObserver.getAwNavigationFor(handle);
+        return mNavigationClient.getOrUpdateAwNavigationFor(handle);
     }
 
     /** WebView.postUrl. */
@@ -2570,11 +2567,10 @@ public class AwContents implements SmartClipProvider {
      */
     @VisibleForTesting
     public void loadUrl(LoadUrlParams params) {
-        if (AwFeatureMap.isEnabled(AwFeatures.WEBVIEW_DRAIN_PREFETCH_QUEUE_DURING_INIT)) {
-            // Drain any pending prefetch requests from the queue.
-            // TODO (crbug.com/363939616) Clean this up once prefetch infra supports bg thread.
-            mBrowserContext.getPrefetchManager().executeQueuedPrefetchRequests();
-        }
+        // Drain any pending prefetch requests from the queue.
+        // TODO (crbug.com/363939616) Clean this up once prefetch infra supports bg thread.
+        mBrowserContext.getPrefetchManager().executeQueuedPrefetchRequests();
+
         if (params.getBaseUrl() == null) {
             // Don't record the URL if this was loaded via loadDataWithBaseURL(). That API is
             // tracked separately under Android.WebView.LoadDataWithBaseUrl.BaseUrl.
@@ -3773,16 +3769,11 @@ public class AwContents implements SmartClipProvider {
     }
 
     public void setAudioMuted(boolean mute) {
-        if (AwFeatureMap.isEnabled(AwFeatures.WEBVIEW_MUTE_AUDIO)) {
-            mWebContents.setAudioMuted(mute);
-        }
+        mWebContents.setAudioMuted(mute);
     }
 
     public boolean isAudioMuted() {
-        if (AwFeatureMap.isEnabled(AwFeatures.WEBVIEW_MUTE_AUDIO)) {
-            return mWebContents.isAudioMuted();
-        }
-        return false;
+        return mWebContents.isAudioMuted();
     }
 
     public void setRendererPriorityPolicy(
@@ -3820,10 +3811,6 @@ public class AwContents implements SmartClipProvider {
 
     public int getDisplayMode() {
         return mDisplayModeController.getDisplayMode();
-    }
-
-    public List<AwNavigationListener> getNavigationClients() {
-        return mNavigationClients;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -4127,6 +4114,11 @@ public class AwContents implements SmartClipProvider {
     /** Returns the AwContents instance associated with |webContents|, or NULL */
     public static AwContents fromWebContents(WebContents webContents) {
         return AwContentsJni.get().fromWebContents(webContents);
+    }
+
+    @CalledByNative
+    private void onPerformanceMark(Page page, String markName, long markTimeMs) {
+        mNavigationClient.onPerformanceMark(page, markName, markTimeMs);
     }
 
     // -------------------------------------------------------------------------------------------

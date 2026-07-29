@@ -240,7 +240,7 @@ scoped_refptr<StaticBitmapImage> ApplyTransformsFromOptions(
   params.sampling = options.sampling;
   params.source_rect = options.source_rect;
   params.dest_size = options.dest_size;
-  return StaticBitmapImageTransform::Apply(FlushReason::kOther, source, params);
+  return StaticBitmapImageTransform::Apply(source, params);
 }
 
 scoped_refptr<StaticBitmapImage> MakeBlankImage(
@@ -372,8 +372,8 @@ ImageBitmap::ImageBitmap(HTMLCanvasElement* canvas,
                          std::optional<gfx::Rect> crop_rect,
                          const ImageBitmapOptions* options) {
   SourceImageStatus status;
-  scoped_refptr<Image> image_input = canvas->GetSourceImageForCanvas(
-      FlushReason::kOther, &status, gfx::SizeF());
+  scoped_refptr<Image> image_input =
+      canvas->GetSourceImageForCanvas(&status, gfx::SizeF());
   if (status != kNormalSourceImageStatus)
     return;
   DCHECK(IsA<StaticBitmapImage>(image_input.get()));
@@ -397,7 +397,7 @@ ImageBitmap::ImageBitmap(OffscreenCanvas* offscreen_canvas,
                          const ImageBitmapOptions* options) {
   SourceImageStatus status;
   scoped_refptr<Image> raw_input = offscreen_canvas->GetSourceImageForCanvas(
-      FlushReason::kOther, &status, gfx::SizeF(offscreen_canvas->Size()));
+      &status, gfx::SizeF(offscreen_canvas->Size()));
   DCHECK(IsA<StaticBitmapImage>(raw_input.get()));
   scoped_refptr<StaticBitmapImage> input =
       static_cast<StaticBitmapImage*>(raw_input.get());
@@ -511,8 +511,7 @@ scoped_refptr<StaticBitmapImage> ImageBitmap::Transfer() {
     // This approach is slow and wateful but it is only to handle extremely
     // rare edge cases.
     if (!image_->HasOneRef()) {
-      auto copy =
-          StaticBitmapImageTransform::Clone(FlushReason::kOther, image_);
+      auto copy = StaticBitmapImageTransform::Clone(image_);
       if (!copy) {
         return nullptr;
       }
@@ -742,7 +741,6 @@ ScriptPromise<ImageBitmap> ImageBitmap::CreateImageBitmap(
 }
 
 scoped_refptr<Image> ImageBitmap::GetSourceImageForCanvas(
-    FlushReason reason,
     SourceImageStatus* status,
     const gfx::SizeF&) {
   *status = kNormalSourceImageStatus;

@@ -171,6 +171,7 @@ Dodatna zaščita upravlja te nastavitve za Chrome:
 <translation id="2787357173144933081">Hiter začetek z naslovno vrstico</translation>
 <translation id="2789132527330338807">Spletna mesta lahko zahtevajo ustvarjanje 3D-zemljevida vaše okolice ali spremljanje položaja fotoaparata</translation>
 <translation id="2790501146643349491">Če je ta možnost vklopljena, nedavno zaprta spletna mesta lahko dokončajo pošiljanje in prejemanje podatkov. Če je ta možnost izklopljena, nedavno zaprta spletna mesta ne smejo dokončati pošiljanja ali prejemanja podatkov.</translation>
+<translation id="2794551654724114396">Vklopite obvestila, če želite prejemati koristne nasvete, s katerimi boste lahko izkoristili najboljše, kar ponuja Chrome</translation>
 <translation id="2795716239552913152">Spletna mesta običajno uporabljajo vašo lokacijo zaradi ustreznih funkcij ali informacij, kot so lokalne novice ali trgovine v bližini.</translation>
 <translation id="2800760947029405028">Naloži sliko</translation>
 <translation id="2802908157808345702">Spletnim mestom ni dovoljeno pošiljati pojavnih oken in uporabljati preusmeritev</translation>
@@ -338,10 +339,12 @@ Dodatna zaščita upravlja te nastavitve za Chrome:
 <translation id="4635969503923889910">Spletnim mestom ni dovoljena uporaba naprav s tehnologijo NFC</translation>
 <translation id="4644713492825682049">Izbriši in ponastavi</translation>
 <translation id="4645575059429386691">Upravlja starš</translation>
+<translation id="4652266463001779298">Ni dovoljeno</translation>
 <translation id="4663373278480897665">Kamera je dovoljena</translation>
 <translation id="4670064810192446073">Navidezna resničnost</translation>
 <translation id="4672315773691449562">Dotaknite se aplikacije brskalnika in nato Chrome</translation>
 <translation id="4676059169848868271">Če želite aplikaciji <ph name="APP_NAME" /> dovoliti uporabo sledenja potezam dlani, sledenje potezam dlani vklopite tudi v <ph name="BEGIN_LINK" />sistemskih nastavitvah<ph name="END_LINK" />.</translation>
+<translation id="4688045258817337666">Upravljanje kartic</translation>
 <translation id="4751476147751820511">Tipala za gibanje in svetlobo</translation>
 <translation id="4755971844837804407">Če je ta možnost vklopljena, vam spletna mesta lahko prikazujejo kateri koli oglas. Če je ta možnost izklopljena, spletna mesta ne smejo prikazovati vsiljivih ali zavajajočih oglasov.</translation>
 <translation id="4779083564647765204">Povečaj</translation>
@@ -678,6 +681,7 @@ Dodatna zaščita upravlja te nastavitve za Chrome:
 <translation id="8487700953926739672">Na voljo brez povezave</translation>
 <translation id="848952951823693243">Vedno zahtevaj spletno mesto za mobilne naprave</translation>
 <translation id="8492822722330266509">Spletna mesta lahko prikazujejo pojavna okna in uporabljajo preusmeritve</translation>
+<translation id="8493548450030356203">Pojavno okno za povečavo</translation>
 <translation id="8499083585497694743">Vklopi mikrofon</translation>
 <translation id="8514955299594277296">Spletnim mestom ni dovoljeno shranjevanje podatkov v napravi (ni priporočljivo)</translation>
 <translation id="851751545965956758">Spletnim mestom prepreči povezovanje z napravami</translation>

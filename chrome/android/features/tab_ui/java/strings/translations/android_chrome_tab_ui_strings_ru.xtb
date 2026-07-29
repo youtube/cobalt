@@ -73,6 +73,7 @@
 <translation id="311432875115153175">Список групп вкладок закрыт</translation>
 <translation id="3194464645767632461">оценка</translation>
 <translation id="3269930881809501915">{TABS_COUNT,plural, =1{Добавить в группу <ph name="TABS_COUNT_ONE" /> вкладку}one{Добавить в группу <ph name="TABS_COUNT_MANY" /> вкладку}few{Добавить в группу <ph name="TABS_COUNT_MANY" /> вкладки}many{Добавить в группу <ph name="TABS_COUNT_MANY" /> вкладок}other{Добавить в группу <ph name="TABS_COUNT_MANY" /> вкладки}}</translation>
+<translation id="3293080634164207409">Добавить вкладки</translation>
 <translation id="3328308545011660196">Подсказка: обнаружены похожие вкладки (<ph name="NUMBER_OF_TABS" />). Сгруппировать их?</translation>
 <translation id="3330595302841061275">{DAY_COUNT,plural, =1{Через 1 день без активности}one{Через <ph name="DAY_COUNT_MANY" /> день без активности}few{Через <ph name="DAY_COUNT_MANY" /> дня без активности}many{Через <ph name="DAY_COUNT_MANY" /> дней без активности}other{Через <ph name="DAY_COUNT_MANY" /> дня без активности}}</translation>
 <translation id="358453129938375749">{NUMBER_OF_TABS_ADDED,plural, =1{<ph name="ONE_ADDED" /> новая вкладка}one{<ph name="MANY_ADDED" /> новая вкладка}few{<ph name="MANY_ADDED" /> новые вкладки}many{<ph name="MANY_ADDED" /> новых вкладок}other{<ph name="MANY_ADDED" /> новой вкладки}}</translation>
@@ -81,6 +82,7 @@
 <translation id="3649471731638882002">{TAB_COUNT,plural, =1{Закрыть}one{Закрыть}few{Закрыть }many{Закрыть}other{Закрыть}}</translation>
 <translation id="3652027618765638838"><ph name="CURRENT_RATING" />/<ph name="RATING_BASELINE" /></translation>
 <translation id="374923079891132274">Значок для отпр. предпросм. листа</translation>
+<translation id="3776329373944672717">Название группы вкладок "<ph name="TITLE_OF_GROUP" />"</translation>
 <translation id="3810973564298564668">Управление</translation>
 <translation id="3849789634341518784">{TAB_COUNT,plural, =1{Открепить вкладку}one{Открепить вкладки}few{Открепить вкладки}many{Открепить вкладки}other{Открепить вкладки}}</translation>
 <translation id="3940195383040445971">Отслеживать цены на вкладках</translation>
@@ -193,6 +195,7 @@
 <translation id="7853202427316060426">История действий</translation>
 <translation id="7854360405711302755">{REVIEWS,plural, =1{ Оценка: <ph name="CURRENT_RATING" />/<ph name="RATING_BASELINE" />, <ph name="REVIEWS_COUNT_ONE" /> отзыв}one{Оценка: <ph name="CURRENT_RATING" />/<ph name="RATING_BASELINE" />, <ph name="REVIEWS_COUNT_MANY" /> отзыв}few{Оценка: <ph name="CURRENT_RATING" />/<ph name="RATING_BASELINE" />, <ph name="REVIEWS_COUNT_MANY" /> отзыва}many{Оценка: <ph name="CURRENT_RATING" />/<ph name="RATING_BASELINE" />, <ph name="REVIEWS_COUNT_MANY" /> отзывов}other{Оценка: <ph name="CURRENT_RATING" />/<ph name="RATING_BASELINE" />, <ph name="REVIEWS_COUNT_MANY" /> отзыва}}</translation>
 <translation id="7885132941432959125">Переместить вкладку вправо</translation>
+<translation id="7887334752153342268">Дублировать</translation>
 <translation id="7939917283308035850">Цвет "<ph name="COLOR_NAME" />" не выбран</translation>
 <translation id="7961015016161918242">Никогда</translation>
 <translation id="7966321538264951561">Скрыть подсказки.</translation>
@@ -216,6 +219,7 @@
 <translation id="8428213095426709021">Настройки</translation>
 <translation id="855081842937141170">Закрепить вкладку</translation>
 <translation id="8633025649649592204">Недавние действия</translation>
+<translation id="8635822281281406185">Добавьте не более 10 файлов, вкладок или изображений.</translation>
 <translation id="8712637175834984815">OK</translation>
 <translation id="8714939927607906138">Более низкая цена</translation>
 <translation id="8730621377337864115">Готово</translation>

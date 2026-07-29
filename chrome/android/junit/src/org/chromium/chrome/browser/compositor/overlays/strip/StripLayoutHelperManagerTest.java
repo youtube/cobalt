@@ -15,6 +15,7 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyFloat;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -105,6 +106,7 @@ import org.chromium.components.tab_group_sync.TabGroupSyncService;
 import org.chromium.ui.base.LocalizationUtils;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.dragdrop.DragAndDropDelegate;
+import org.chromium.ui.resources.ResourceManager;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
@@ -154,6 +156,7 @@ public class StripLayoutHelperManagerTest {
     @Mock private TabGroupSyncService mTabGroupSyncService;
     @Mock private ServiceStatus mServiceStatus;
     @Mock private Tracker mTracker;
+    @Mock private ResourceManager mResourceManager;
     @Captor private ArgumentCaptor<List<Rect>> mSystemExclusionRectCaptor;
 
     private StripLayoutHelperManager mStripLayoutHelperManager;
@@ -186,6 +189,7 @@ public class StripLayoutHelperManagerTest {
         CollaborationServiceFactory.setForTesting(mCollaborationService);
         when(mCollaborationService.getServiceStatus()).thenReturn(mServiceStatus);
         when(mServiceStatus.isAllowedToJoin()).thenReturn(false);
+        when(mRenderHost.getResourceManager()).thenReturn(mResourceManager);
 
         initializeTest();
         CompositorAnimationHandler.setTestingMode(true);
@@ -733,11 +737,11 @@ public class StripLayoutHelperManagerTest {
         mStripLayoutHelperManager.onAppHeaderStateChanged(appHeaderState);
         mStripLayoutHelperManager.onHeightChanged(
                 TAB_STRIP_HEIGHT_PX + topPaddingPx, /* applyScrimOverlay= */ true);
-        mStripLayoutHelperManager.onHeightTransitionFinished();
+        mStripLayoutHelperManager.onHeightTransitionFinished(true);
 
         // Invoke the method.
         mStripLayoutHelperManager.getUpdatedSceneOverlayTree(
-                new RectF(), new RectF(), mRenderHost.getResourceManager(), 0f);
+                new RectF(), new RectF(), mResourceManager);
 
         // Verify the call to #pushAndUpdateStrip.
         verify(mTabStripTreeProvider)
@@ -790,6 +794,7 @@ public class StripLayoutHelperManagerTest {
         mStripLayoutHelperManager.setTabStripTreeProviderForTesting(mTabStripTreeProvider);
 
         float yOffset = 10;
+        doReturn((int) yOffset).when(mBrowserControlStateProvider).getTopControlOffset();
         // With tab strip transition, the yOffset will be forced to be 0.
         mTabStripHeightSupplier.set(0);
         mStripLayoutHelperManager.onHeightChanged(0, /* applyScrimOverlay= */ true);
@@ -798,7 +803,7 @@ public class StripLayoutHelperManagerTest {
                 StripLayoutHelperManager.TAB_STRIP_TRANSITION_INTERPOLATOR.getInterpolation(
                         progress);
         mStripLayoutHelperManager.getUpdatedSceneOverlayTree(
-                new RectF(), new RectF(), mRenderHost.getResourceManager(), yOffset);
+                new RectF(), new RectF(), mResourceManager);
         verify(mTabStripTreeProvider)
                 .pushAndUpdateStrip(
                         any(),
@@ -817,9 +822,9 @@ public class StripLayoutHelperManagerTest {
 
         // With tab strip transition finished, the yOffset will be forced to be the negative of the
         // tab strip height.
-        mStripLayoutHelperManager.onHeightTransitionFinished();
+        mStripLayoutHelperManager.onHeightTransitionFinished(true);
         mStripLayoutHelperManager.getUpdatedSceneOverlayTree(
-                new RectF(), new RectF(), mRenderHost.getResourceManager(), yOffset);
+                new RectF(), new RectF(), mResourceManager);
         verify(mTabStripTreeProvider)
                 .pushAndUpdateStrip(
                         any(),
@@ -922,7 +927,7 @@ public class StripLayoutHelperManagerTest {
         // and once by #onHeightChanged().
         verify(mStatusBarColorController, times(3)).setTabStripHiddenOnTablet(false);
 
-        mStripLayoutHelperManager.onHeightTransitionFinished();
+        mStripLayoutHelperManager.onHeightTransitionFinished(true);
         mStripLayoutHelperManager.getVirtualViews(views);
         assertFalse("Views are not empty after tab strip transition.", views.isEmpty());
     }
@@ -944,7 +949,7 @@ public class StripLayoutHelperManagerTest {
         // when the yOffset=0, ignore this update.
         actual = mStripLayoutHelperManager.calculateScrimOpacityDuringHeightTransition(0f);
         assertEquals(expected, actual, 0f);
-        mStripLayoutHelperManager.onHeightTransitionFinished();
+        mStripLayoutHelperManager.onHeightTransitionFinished(true);
     }
 
     @Test
@@ -963,7 +968,7 @@ public class StripLayoutHelperManagerTest {
         // when the yOffset=-10, ignore this update.
         actual = mStripLayoutHelperManager.calculateScrimOpacityDuringHeightTransition(30f);
         assertEquals(expected, actual, 0f);
-        mStripLayoutHelperManager.onHeightTransitionFinished();
+        mStripLayoutHelperManager.onHeightTransitionFinished(true);
     }
 
     @SuppressWarnings("DirectInvocationOnMock")
@@ -971,13 +976,14 @@ public class StripLayoutHelperManagerTest {
         // Assume tab strip is hidden from the beginning.
         mTabStripHeightSupplier.set(0);
         mStripLayoutHelperManager.onHeightChanged(0, /* applyScrimOverlay= */ true);
-        mStripLayoutHelperManager.onHeightTransitionFinished();
+        mStripLayoutHelperManager.onHeightTransitionFinished(true);
         mStripLayoutHelperManager.setTabStripTreeProviderForTesting(mTabStripTreeProvider);
 
         // The yOffset will be forced to be reduced by the tab strip height to be kept invisible.
         float yOffset = -10;
+        doReturn((int) yOffset).when(mBrowserControlStateProvider).getTopControlOffset();
         mStripLayoutHelperManager.getUpdatedSceneOverlayTree(
-                new RectF(), new RectF(), mRenderHost.getResourceManager(), yOffset);
+                new RectF(), new RectF(), mResourceManager);
         verify(mTabStripTreeProvider)
                 .pushAndUpdateStrip(
                         any(),
@@ -1004,7 +1010,7 @@ public class StripLayoutHelperManagerTest {
                 StripLayoutHelperManager.TAB_STRIP_TRANSITION_INTERPOLATOR.getInterpolation(
                         progress);
         mStripLayoutHelperManager.getUpdatedSceneOverlayTree(
-                new RectF(), new RectF(), mRenderHost.getResourceManager(), yOffset);
+                new RectF(), new RectF(), mResourceManager);
         verify(mTabStripTreeProvider)
                 .pushAndUpdateStrip(
                         any(),
@@ -1023,9 +1029,9 @@ public class StripLayoutHelperManagerTest {
 
         // When transition finished while tabs strip showing, yOffset will be applied by viz, so
         // the layer should be offset to 0.
-        mStripLayoutHelperManager.onHeightTransitionFinished();
+        mStripLayoutHelperManager.onHeightTransitionFinished(true);
         mStripLayoutHelperManager.getUpdatedSceneOverlayTree(
-                new RectF(), new RectF(), mRenderHost.getResourceManager(), yOffset);
+                new RectF(), new RectF(), mResourceManager);
         verify(mTabStripTreeProvider)
                 .pushAndUpdateStrip(
                         any(),
@@ -1075,7 +1081,7 @@ public class StripLayoutHelperManagerTest {
                         true);
         mStripLayoutHelperManager.onAppHeaderStateChanged(appHeaderState);
         mStripLayoutHelperManager.onHeightChanged(newHeight, /* applyScrimOverlay= */ true);
-        mStripLayoutHelperManager.onHeightTransitionFinished();
+        mStripLayoutHelperManager.onHeightTransitionFinished(true);
         mStripLayoutHelperManager.onSizeChanged(
                 SCREEN_WIDTH, SCREEN_HEIGHT, VISIBLE_VIEWPORT_Y, ORIENTATION);
 
@@ -1109,7 +1115,7 @@ public class StripLayoutHelperManagerTest {
         int topPadding = 10;
         mStripLayoutHelperManager.onHeightChanged(
                 TAB_STRIP_HEIGHT_PX + topPadding, /* applyScrimOverlay= */ true);
-        mStripLayoutHelperManager.onHeightTransitionFinished();
+        mStripLayoutHelperManager.onHeightTransitionFinished(true);
         mStripLayoutHelperManager.onSizeChanged(
                 SCREEN_WIDTH, SCREEN_HEIGHT, VISIBLE_VIEWPORT_Y, ORIENTATION);
 
@@ -1174,7 +1180,7 @@ public class StripLayoutHelperManagerTest {
         mStripLayoutHelperManager.onAppHeaderStateChanged(appHeaderState);
         mStripLayoutHelperManager.onHeightChanged(
                 TAB_STRIP_HEIGHT_PX + topPadding, /* applyScrimOverlay= */ true);
-        mStripLayoutHelperManager.onHeightTransitionFinished();
+        mStripLayoutHelperManager.onHeightTransitionFinished(true);
 
         float newOpacity = showStrip ? 0f : 1f;
         mStripLayoutHelperManager.onFadeTransitionRequested(
@@ -1248,7 +1254,7 @@ public class StripLayoutHelperManagerTest {
         mStripLayoutHelperManager.onAppHeaderStateChanged(appHeaderState);
         mStripLayoutHelperManager.onHeightChanged(
                 TAB_STRIP_HEIGHT_PX + topPadding, /* applyScrimOverlay= */ true);
-        mStripLayoutHelperManager.onHeightTransitionFinished();
+        mStripLayoutHelperManager.onHeightTransitionFinished(true);
         mStripLayoutHelperManager.updateOverlay(0, 0);
 
         verify(mToolbarContainerView)
@@ -1294,7 +1300,7 @@ public class StripLayoutHelperManagerTest {
         mStripLayoutHelperManager.onAppHeaderStateChanged(appHeaderState);
         mStripLayoutHelperManager.onHeightChanged(
                 TAB_STRIP_HEIGHT_PX + topPadding, /* applyScrimOverlay= */ true);
-        mStripLayoutHelperManager.onHeightTransitionFinished();
+        mStripLayoutHelperManager.onHeightTransitionFinished(true);
         mStripLayoutHelperManager.updateOverlay(0, 0);
 
         verify(mToolbarContainerView)
@@ -1370,7 +1376,7 @@ public class StripLayoutHelperManagerTest {
         mStripLayoutHelperManager.onFadeTransitionRequested(1f, 0);
         mStripLayoutHelperManager.onHeightChanged(
                 TAB_STRIP_HEIGHT_PX + newTopPadding, /* applyScrimOverlay= */ false);
-        mStripLayoutHelperManager.onHeightTransitionFinished();
+        mStripLayoutHelperManager.onHeightTransitionFinished(true);
 
         // Verify strip height.
         assertEquals(
@@ -1419,7 +1425,7 @@ public class StripLayoutHelperManagerTest {
     public void testHeightTransitionAcrossWindowingModes() {
         // Simulate a height transition to hide the strip.
         mStripLayoutHelperManager.onHeightChanged(0, /* applyScrimOverlay= */ true);
-        mStripLayoutHelperManager.onHeightTransitionFinished();
+        mStripLayoutHelperManager.onHeightTransitionFinished(true);
         // Verify the strip visibility.
         assertNotEquals(
                 "StripVisibilityState.HIDDEN_BY_HEIGHT_TRANSITION should be set.",
@@ -1431,7 +1437,7 @@ public class StripLayoutHelperManagerTest {
         int topPadding = 5;
         mStripLayoutHelperManager.onHeightChanged(
                 TAB_STRIP_HEIGHT_PX + topPadding, /* applyScrimOverlay= */ false);
-        mStripLayoutHelperManager.onHeightTransitionFinished();
+        mStripLayoutHelperManager.onHeightTransitionFinished(true);
         mStripLayoutHelperManager.onFadeTransitionRequested(1f, 0);
 
         // Verify the strip visibility.
@@ -1461,7 +1467,7 @@ public class StripLayoutHelperManagerTest {
         // Simulate switching out of desktop windowing mode.
         mStripLayoutHelperManager.onHeightChanged(
                 TAB_STRIP_HEIGHT_PX, /* applyScrimOverlay= */ true);
-        mStripLayoutHelperManager.onHeightTransitionFinished();
+        mStripLayoutHelperManager.onHeightTransitionFinished(true);
         // Verify the strip visibility.
         assertEquals(
                 "Strip visibility is incorrect.",
@@ -1486,8 +1492,9 @@ public class StripLayoutHelperManagerTest {
         doReturn(false).when(mBrowserControlStateProvider).isVisibilityForced();
 
         float yOffset = 10;
+        doReturn((int) yOffset).when(mBrowserControlStateProvider).getTopControlOffset();
         mStripLayoutHelperManager.getUpdatedSceneOverlayTree(
-                new RectF(), new RectF(), mRenderHost.getResourceManager(), yOffset);
+                new RectF(), new RectF(), mResourceManager);
 
         // When visibility isn't forced, and when we're not in a height transition, the offset
         // should always be 0, to position the controls at their fully visible positions.
@@ -1509,7 +1516,7 @@ public class StripLayoutHelperManagerTest {
 
         doReturn(true).when(mBrowserControlStateProvider).isVisibilityForced();
         mStripLayoutHelperManager.getUpdatedSceneOverlayTree(
-                new RectF(), new RectF(), mRenderHost.getResourceManager(), yOffset);
+                new RectF(), new RectF(), mResourceManager);
 
         // When visibility is forced, use the provided offset.
         verify(mTabStripTreeProvider)
@@ -1536,7 +1543,7 @@ public class StripLayoutHelperManagerTest {
         // Simulate the |mTopPadding| update when switching to a desktop window.
         mStripLayoutHelperManager.onHeightChanged(
                 TAB_STRIP_HEIGHT_PX + topPadding, /* applyScrimOverlay= */ false);
-        mStripLayoutHelperManager.onHeightTransitionFinished();
+        mStripLayoutHelperManager.onHeightTransitionFinished(true);
         // Simulate a window size change in a desktop window.
         var appHeaderState =
                 new AppHeaderState(
@@ -1587,5 +1594,69 @@ public class StripLayoutHelperManagerTest {
     private boolean motionEventHandled(float x, float y) {
         MotionEvent event = MotionEvent.obtain(0, 0, MotionEvent.ACTION_DOWN, x, y, 0);
         return mStripLayoutHelperManager.getEventFilter().onInterceptTouchEvent(event, false);
+    }
+
+    @Test
+    @EnableFeatures({
+        ChromeFeatureList.TOP_CONTROLS_REFACTOR,
+        ChromeFeatureList.TOP_CONTROLS_REFACTOR_V2
+    })
+    public void testPushAndUpdateStrip_RefactorEnabled() {
+        mStripLayoutHelperManager.setTabStripTreeProviderForTesting(mTabStripTreeProvider);
+
+        mTabStripHeightSupplier.set(0);
+        mStripLayoutHelperManager.onHeightChanged(0, true);
+
+        // The offset is corrected to be 0, while the scrim is not 0.
+        doReturn(-10).when(mBrowserControlStateProvider).getTopControlOffset();
+        mStripLayoutHelperManager.onLayerYOffsetChanged(0, TAB_STRIP_HEIGHT_PX - 10);
+        mStripLayoutHelperManager.getUpdatedSceneOverlayTree(
+                new RectF(), new RectF(), mResourceManager);
+
+        ArgumentCaptor<Float> scrimOpacityCaptor = ArgumentCaptor.forClass(Float.class);
+        verify(mTabStripTreeProvider)
+                .pushAndUpdateStrip(
+                        any(),
+                        any(),
+                        any(),
+                        any(),
+                        any(),
+                        /* yOffset= */ eq(0f),
+                        anyInt(),
+                        anyInt(),
+                        anyInt(),
+                        /* scrimOpacity= */ scrimOpacityCaptor.capture(),
+                        anyFloat(),
+                        anyFloat(),
+                        anyFloat());
+        float scrimOpacity = scrimOpacityCaptor.getValue();
+        assertNotEquals("Scrim should not have 0 opacity.", 0f, scrimOpacity, 0.01f);
+        clearInvocations(mTabStripTreeProvider);
+
+        // Even when top control offset changed, as long as no new onLayerYOffsetChanged is not
+        // called, scrim opacity should not change.
+        doReturn(-10).when(mBrowserControlStateProvider).getTopControlOffset();
+        mStripLayoutHelperManager.getUpdatedSceneOverlayTree(
+                new RectF(), new RectF(), mResourceManager);
+        verify(mTabStripTreeProvider)
+                .pushAndUpdateStrip(
+                        any(),
+                        any(),
+                        any(),
+                        any(),
+                        any(),
+                        /* yOffset= */ eq(0f),
+                        anyInt(),
+                        anyInt(),
+                        anyInt(),
+                        /* scrimOpacity= */ scrimOpacityCaptor.capture(),
+                        anyFloat(),
+                        anyFloat(),
+                        anyFloat());
+        assertEquals(
+                "The scrim opacity should not change.",
+                scrimOpacity,
+                scrimOpacityCaptor.getValue(),
+                0.01f);
     }
 }

@@ -46,7 +46,6 @@
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_set.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
-#include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/timer.h"
 
 namespace blink {
@@ -60,13 +59,11 @@ class Navigator;
 
 class CORE_EXPORT Geolocation final : public ScriptWrappable,
                                       public ActiveScriptWrappable<Geolocation>,
-                                      public Supplement<Navigator>,
                                       public ExecutionContextLifecycleObserver,
                                       public PageVisibilityObserver {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  static const unsigned kSupplementIndex;
   static Geolocation* geolocation(Navigator&);
 
   explicit Geolocation(Navigator&);

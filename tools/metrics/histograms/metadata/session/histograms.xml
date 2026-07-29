@@ -49,7 +49,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Session.BrowserFullscreen.DurationUpTo24H" units="ms"
-    expires_after="2026-03-22">
+    expires_after="2026-05-24">
   <owner>avi@chromium.org</owner>
   <owner>chrome-mac-dev@google.com</owner>
   <summary>
@@ -928,7 +928,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Session.TotalDurationMax1Day.{HistorySyncState}" units="ms"
-    expires_after="2026-03-15">
+    expires_after="2026-05-17">
   <owner>mastiz@chromium.org</owner>
   <owner>msarda@chromium.org</owner>
   <owner>treib@chromium.org</owner>
@@ -972,7 +972,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Session.TotalDurationMax1Day.{MsbbState}" units="ms"
-    expires_after="2026-03-15">
+    expires_after="2026-05-17">
   <owner>mastiz@chromium.org</owner>
   <owner>msarda@chromium.org</owner>
   <owner>treib@chromium.org</owner>
@@ -1097,7 +1097,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Session.WebStates.SavingTimeOnMainThread" units="ms"
-    expires_after="2026-03-15">
+    expires_after="2026-05-17">
   <owner>fedegermi@google.com</owner>
   <owner>sdefresne@chromium.org</owner>
   <summary>
@@ -1334,44 +1334,6 @@ chromium-metrics-reviews@google.com.
 
     Warning: Histogram expired between M95-M110. Data may be missing.
   </summary>
-</histogram>
-
-<histogram name="SessionStorageContext.OpenError" enum="LocalStorageOpenError"
-    expires_after="2024-12-01">
-  <owner>ayui@chromium.org</owner>
-  <owner>chrome-owp-storage@google.com</owner>
-  <summary>
-    The reason opening the LevelDB database that backs SessionStorage failed.
-    Recorded after an error is encountered after an open operation.
-
-    Warning: Histogram expired between M95-M110. Data may be missing.
-  </summary>
-</histogram>
-
-<histogram
-    name="SessionStorageContext.OpenResultAfter{SessionStorageContextOpenReasons}"
-    enum="LocalStorageOpenError" expires_after="2024-12-01">
-  <owner>ayui@chromium.org</owner>
-  <owner>chrome-owp-storage@google.com</owner>
-  <summary>
-    The result of opening the LevelDB database that backs SessionStorage.
-    Recorded after an open operation attempt returns an error.
-
-    Warning: Histogram expired between M95-M110. Data may be missing.
-    {SessionStorageContextOpenReasons}
-  </summary>
-  <token key="SessionStorageContextOpenReasons">
-    <variant name="CommitErrors" summary="After too many commit errors."/>
-    <variant name="InvalidVersion"
-        summary="After an invalid version was read."/>
-    <variant name="OpenFailed" summary="After opening the DB failed."/>
-    <variant name="ReadNamespacesError"
-        summary="After reading the namespaces failed."/>
-    <variant name="ReadNextMapIdError"
-        summary="After reading the map id failed."/>
-    <variant name="ReadVersionError"
-        summary="After reading the schema version failed."/>
-  </token>
 </histogram>
 
 <histogram name="SessionStorageDatabase.Open" enum="SessionStorageDatabaseOpen"

@@ -30,13 +30,13 @@ namespace {
 using ::testing::_;
 using ::testing::Return;
 
-using internal::SendHostMessageRequest;
-using internal::SendHostMessageResponse;
-using internal::SimpleMessageStruct;
+using internal::HostSendMessageRequest;
+using internal::HostSendMessageResponse;
 
-// constexpr char kFakeServerEndpoint[] = "test.com";
-constexpr char kFakeDestinationId[] = "fake_destination_id";
 constexpr char kFakePayload[] = "fake_payload";
+constexpr char kFakeUsername[] = "fake_user";
+constexpr char kFakeAuthzToken[] = "fake_token";
+constexpr char kFakePublicKey[] = "fake_public_key";
 
 using StatusCallback = CorpMessagingClient::StatusCallback;
 
@@ -57,16 +57,15 @@ class CorpMessagingClientTest : public testing::Test {
  protected:
   base::test::TaskEnvironment task_environment_;
   ProtobufHttpTestResponder test_responder_;
-  CorpMessagingClient messaging_client_{test_responder_.GetUrlLoaderFactory(),
+  CorpMessagingClient messaging_client_{kFakeUsername, kFakePublicKey,
+                                        test_responder_.GetUrlLoaderFactory(),
                                         CreateClientCertStoreInstance()};
 };
 
 TEST_F(CorpMessagingClientTest, TestSendMessage_Unauthenticated) {
   base::RunLoop run_loop;
-  internal::EndpointIdStruct destination_id;
-  destination_id.username = kFakeDestinationId;
   messaging_client_.SendMessage(
-      destination_id, kFakePayload,
+      kFakeAuthzToken, kFakePayload,
       CheckStatusThenQuitRunLoopCallback(
           FROM_HERE, HttpStatus::Code::UNAUTHENTICATED, &run_loop));
   test_responder_.AddErrorToMostRecentRequestUrl(
@@ -76,17 +75,15 @@ TEST_F(CorpMessagingClientTest, TestSendMessage_Unauthenticated) {
 
 TEST_F(CorpMessagingClientTest, TestSendMessage_SendOneMessage) {
   base::RunLoop run_loop;
-  internal::EndpointIdStruct destination_id;
-  destination_id.username = kFakeDestinationId;
   messaging_client_.SendMessage(
-      destination_id, kFakePayload,
+      kFakeAuthzToken, kFakePayload,
       CheckStatusThenQuitRunLoopCallback(FROM_HERE, HttpStatus::Code::OK,
                                          &run_loop));
 
-  SendHostMessageRequest request;
+  HostSendMessageRequest request;
   ASSERT_TRUE(test_responder_.GetMostRecentRequestMessage(&request));
 
-  test_responder_.AddResponseToMostRecentRequestUrl(SendHostMessageResponse());
+  test_responder_.AddResponseToMostRecentRequestUrl(HostSendMessageResponse());
   run_loop.Run();
 }
 

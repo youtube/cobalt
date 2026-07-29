@@ -16,6 +16,17 @@ class Profile;
 
 namespace omnibox {
 
+// The `internal` namespace contains implementation details for omnibox
+// features. It is exposed only for use by about_flags.cc and in unit tests.
+//
+// DO NOT USE THESE FEATURE FLAGS DIRECTLY FROM OTHER CODE.
+// Instead, use the helper functions defined below (e.g., `IsAimPopupEnabled`).
+namespace internal {
+
+BASE_DECLARE_FEATURE(kWebUIOmniboxAimPopup);
+
+}  // namespace internal
+
 enum class AddContextButtonVariant {
   // No "Add Context" button.
   kNone = 0,
@@ -27,17 +38,12 @@ enum class AddContextButtonVariant {
   kInline = 3,
 };
 
-BASE_DECLARE_FEATURE(kWebUIOmniboxAimPopup);
 extern const base::FeatureParam<AddContextButtonVariant>
     kWebUIOmniboxAimPopupAddContextButtonVariantParam;
 BASE_DECLARE_FEATURE(kWebUIOmniboxFullPopup);
 BASE_DECLARE_FEATURE(kWebUIOmniboxPopup);
 BASE_DECLARE_FEATURE(kWebUIOmniboxPopupDebug);
 extern const base::FeatureParam<bool> kWebUIOmniboxPopupDebugSxSParam;
-
-// TODO(b/459836203): Update histogram to a Omnibox-specific one.
-inline constexpr char kConfigParamParseSuccessHistogram[] =
-    "NewTabPage.Composebox.ConfigParseSuccess";
 
 // The serialized base64 encoded `omnibox::NTPComposeboxConfig`.
 extern const base::FeatureParam<std::string> kConfigParam;
@@ -91,6 +97,17 @@ extern const base::FeatureParam<bool> kSuppressLnsSurfaceParamIfNoImage;
 // multi-context input flow is enabled.
 extern const base::FeatureParam<bool>
     kUseSeparateRequestIdsForMultiContextViewportImages;
+
+// Returns true if the `kWebUIOmniboxAimPopup` base::Feature is enabled.
+// This does NOT include user eligibility checks. Most UI code should use the
+// profile-based `IsAimPopupEnabled()` function below instead.
+bool IsAimPopupFeatureEnabled();
+
+// Returns true if the AIM Popup feature is fully enabled for the given
+// `profile`. This is the correct function for external code to use, as it
+// checks both the base::Feature flag and all other requirements like user
+// eligibility.
+bool IsAimPopupEnabled(Profile* profile);
 
 bool IsCreateImagesEnabled(Profile* profile);
 bool IsDeepSearchEnabled(Profile* profile);

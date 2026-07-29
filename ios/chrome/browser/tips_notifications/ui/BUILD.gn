@@ -4,16 +4,14 @@
 
 source_set("shared") {
   sources = [
-    "instructions_bottom_sheet_view_controller.h",
-    "instructions_bottom_sheet_view_controller.mm",
     "tips_promo_view_controller.h",
     "tips_promo_view_controller.mm",
   ]
   deps = [
     "//base",
+    "//ios/chrome/browser/instructions_bottom_sheet/ui",
     "//ios/chrome/browser/shared/ui/bottom_sheet:bottom_sheet_view_controller",
     "//ios/chrome/common/ui/colors",
-    "//ios/chrome/common/ui/instruction_view",
     "//ios/chrome/common/ui/promo_style",
     "//ios/chrome/common/ui/promo_style:utils",
     "//ios/chrome/common/ui/util",
@@ -32,6 +30,8 @@ source_set("lens_promo") {
   deps = [
     ":shared",
     "//ios/chrome/app/strings",
+    "//ios/chrome/browser/instructions_bottom_sheet/ui",
+    "//ios/chrome/browser/shared/ui/util",
     "//ios/chrome/browser/tips_notifications/ui/resources",
     "//ios/chrome/common/ui/button_stack",
     "//ui/base",
@@ -49,6 +49,7 @@ source_set("enhanced_safe_browsing_promo") {
   deps = [
     ":shared",
     "//ios/chrome/app/strings",
+    "//ios/chrome/browser/instructions_bottom_sheet/ui",
     "//ios/chrome/browser/tips_notifications/ui/resources",
     "//ios/chrome/common/ui/button_stack",
     "//ui/base",
@@ -69,6 +70,7 @@ source_set("search_what_you_see_promo") {
   ]
   deps = [
     "//ios/chrome/app/strings",
+    "//ios/chrome/browser/instructions_bottom_sheet/ui",
     "//ios/chrome/common/ui/button_stack",
     "//ui/base",
   ]

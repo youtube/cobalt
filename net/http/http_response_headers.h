@@ -80,7 +80,7 @@ class NET_EXPORT HttpResponseHeaders
     Builder& AddHeader(std::string_view name, std::string_view value) {
       DCHECK(HttpUtil::IsValidHeaderName(name));
       DCHECK(HttpUtil::IsValidHeaderValue(value));
-      headers_.push_back({name, value});
+      headers_.emplace_back(name, value);
       return *this;
     }
 
@@ -116,17 +116,16 @@ class NET_EXPORT HttpResponseHeaders
     base::TimeDelta staleness;
   };
 
-  static const char kContentRange[];
-  static const char kLastModified[];
-  static const char kVary[];
+  static constexpr char kContentRange[] = "Content-Range";
+  static constexpr char kLastModified[] = "Last-Modified";
+  static constexpr char kVary[] = "Vary";
 
-  static constexpr std::string_view kCacheControl = "cache-control";
-  static constexpr std::string_view kNoStore = "no-store";
-  static constexpr std::string_view kNoCache = "no-cache";
-  static constexpr std::string_view kMustRevalidate = "must-revalidate";
-  static constexpr std::string_view kMaxAge = "max-age=";
-  static constexpr std::string_view kStaleWhileRevalidate =
-      "stale-while-revalidate=";
+  static constexpr char kCacheControl[] = "cache-control";
+  static constexpr char kNoStore[] = "no-store";
+  static constexpr char kNoCache[] = "no-cache";
+  static constexpr char kMustRevalidate[] = "must-revalidate";
+  static constexpr char kMaxAge[] = "max-age=";
+  static constexpr char kStaleWhileRevalidate[] = "stale-while-revalidate=";
 
   HttpResponseHeaders() = delete;
 

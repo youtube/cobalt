@@ -24,6 +24,7 @@
 #import "components/autofill/core/browser/webdata/autofill_webdata_service.h"
 #import "components/autofill/core/common/autofill_payments_features.h"
 #import "components/browsing_data/core/cookie_or_cache_deletion_choice.h"
+#import "components/desktop_to_mobile_promos/features.h"
 #import "components/history/core/browser/history_service.h"
 #import "components/keyed_service/core/service_access_type.h"
 #import "components/language/core/browser/url_language_histogram.h"
@@ -33,19 +34,16 @@
 #import "components/prefs/pref_service.h"
 #import "components/search_engines/template_url_service.h"
 #import "components/sessions/core/tab_restore_service.h"
-#import "components/sharing_message/features.h"
 #import "components/signin/ios/browser/account_consistency_service.h"
 #import "components/signin/public/base/signin_pref_names.h"
 #import "components/strike_database/strike_database.h"
 #import "ios/chrome/browser/autofill/model/personal_data_manager_factory.h"
 #import "ios/chrome/browser/autofill/model/strike_database_factory.h"
 #import "ios/chrome/browser/bookmarks/model/bookmark_remover_helper.h"
-#import "ios/chrome/browser/browsing_data/model/browsing_data_features.h"
 #import "ios/chrome/browser/browsing_data/model/browsing_data_remove_mask.h"
 #import "ios/chrome/browser/browsing_data/model/system_snapshots_cleaner.h"
 #import "ios/chrome/browser/crash_report/model/crash_helper.h"
-#import "ios/chrome/browser/cross_platform_promos/model/cross_platform_promos_service.h"
-#import "ios/chrome/browser/cross_platform_promos/model/cross_platform_promos_service_factory.h"
+#import "ios/chrome/browser/cross_platform_promos/model/cross_platform_promos_data_remover.h"
 #import "ios/chrome/browser/external_files/model/external_file_remover.h"
 #import "ios/chrome/browser/external_files/model/external_file_remover_factory.h"
 #import "ios/chrome/browser/history/model/history_service_factory.h"
@@ -466,12 +464,8 @@ void BrowsingDataRemoverImpl::RemoveImpl(base::Time delete_begin,
     https_upgrade_service->ClearAllowlist(delete_begin, delete_end);
 
     // Clear cross-platform promos data.
-    if (IsMobilePromoOnDesktopNotificationsEnabled()) {
-      CrossPlatformPromosService* cross_platform_promos_service =
-          CrossPlatformPromosServiceFactory::GetForProfile(profile_);
-      if (cross_platform_promos_service) {
-        cross_platform_promos_service->ClearData();
-      }
+    if (MobilePromoOnDesktopEnabled()) {
+      CrossPlatformPromosDataRemover(profile_).Remove();
     }
   }
 

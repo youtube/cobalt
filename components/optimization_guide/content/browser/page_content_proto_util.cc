@@ -253,8 +253,6 @@ void ConvertGeometry(const blink::mojom::AIPageContentGeometry& mojom_geometry,
   for (const gfx::Rect& rect : mojom_geometry.fragment_visible_bounding_boxes) {
     ConvertRect(rect, proto_geometry->add_fragment_visible_bounding_boxes());
   }
-  proto_geometry->set_is_fixed_or_sticky_position(
-      mojom_geometry.is_fixed_or_sticky_position);
 }
 
 void ConvertScrollerInfo(
@@ -1065,6 +1063,9 @@ class Converter {
 
     popup_window->set_opener_common_ancestor_dom_node_id(
         mojom_popup.opener_dom_node_id);
+
+    ConvertRect(mojom_popup.visible_bounding_box,
+                popup_window->mutable_visible_bounding_box());
 
     return base::ok();
   }

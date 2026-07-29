@@ -18,7 +18,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.params.ParameterAnnotations.UseMethodParameter;
 import org.chromium.base.test.params.ParameterAnnotations.UseRunnerDelegate;
 import org.chromium.base.test.params.ParameterProvider;
@@ -28,9 +27,7 @@ import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.DisableIf;
-import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.chrome.browser.customtabs.IncognitoCustomTabActivityTestRule;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.incognito.IncognitoDataTestUtils.ActivityType;
 import org.chromium.chrome.browser.incognito.IncognitoDataTestUtils.TestParams;
@@ -52,8 +49,6 @@ import java.util.concurrent.TimeoutException;
 @RunWith(ParameterizedRunner.class)
 @UseRunnerDelegate(ChromeJUnit4RunnerDelegate.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE, ChromeSwitches.DISABLE_ALL_IPH})
-// TODO(crbug.com/439491767): Fix broken tests caused by desktop-like incognito window.
-@DisableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
 public class IncognitoCookieLeakageTest {
     private static final String COOKIES_SETTING_PATH = "/chrome/test/data/android/cookie.html";
     private String mCookiesTestPage;
@@ -77,8 +72,7 @@ public class IncognitoCookieLeakageTest {
 
     @After
     public void tearDown() {
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> IncognitoDataTestUtils.closeTabs(mChromeActivityTestRule));
+        mChromeActivityTestRule.closeAllWindowsAndDeleteInstanceAndTabState();
     }
 
     private void setCookies(Tab tab) throws TimeoutException {
@@ -112,9 +106,6 @@ public class IncognitoCookieLeakageTest {
         }
     }
 
-    // TODO(crbug.com/40107157) : Currently, incognito CCTs are not isolated and hence they share
-    // the session with other incognito sessions. Once, they are properly isolated we should change
-    // the test to expect that cookies are not leaked from/to an incognito CCT session.
     @Test
     @LargeTest
     @UseMethodParameter(TestParams.IncognitoToIncognito.class)
@@ -124,18 +115,18 @@ public class IncognitoCookieLeakageTest {
         ActivityType incognitoActivity1 = ActivityType.valueOf(incognitoActivityType1);
         ActivityType incognitoActivity2 = ActivityType.valueOf(incognitoActivityType2);
 
-        Tab setter_tab =
+        Tab setterTab =
                 incognitoActivity1.launchUrl(
                         mChromeActivityTestRule, mCustomTabActivityTestRule, mCookiesTestPage);
-        setCookies(setter_tab);
+        setCookies(setterTab);
 
-        Tab getter_tab =
+        Tab getterTab =
                 incognitoActivity2.launchUrl(
                         mChromeActivityTestRule, mCustomTabActivityTestRule, mCookiesTestPage);
 
         String expected = "\"\"";
 
-        assertCookies(getter_tab, expected);
+        assertCookies(getterTab, expected);
     }
 
     // This test cookie does not leak from regular to incognito and from incognito to regular
@@ -148,15 +139,15 @@ public class IncognitoCookieLeakageTest {
         ActivityType setterActivity = ActivityType.valueOf(setterActivityType);
         ActivityType getterActivity = ActivityType.valueOf(getterActivityType);
 
-        Tab setter_tab =
+        Tab setterTab =
                 setterActivity.launchUrl(
                         mChromeActivityTestRule, mCustomTabActivityTestRule, mCookiesTestPage);
-        setCookies(setter_tab);
+        setCookies(setterTab);
 
-        Tab getter_tab =
+        Tab getterTab =
                 getterActivity.launchUrl(
                         mChromeActivityTestRule, mCustomTabActivityTestRule, mCookiesTestPage);
 
-        assertCookies(getter_tab, "\"\"");
+        assertCookies(getterTab, "\"\"");
     }
 }

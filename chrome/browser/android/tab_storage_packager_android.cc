@@ -6,13 +6,15 @@
 
 #include <jni.h>
 
+#include <cstdint>
 #include <memory>
 #include <utility>
+#include <vector>
 
 #include "base/android/jni_android.h"
 #include "base/android/jni_bytebuffer.h"
 #include "base/android/jni_string.h"
-#include "base/strings/utf_string_conversions.h"
+#include "base/memory/ptr_util.h"
 #include "base/token.h"
 #include "chrome/browser/android/tab_android.h"
 #include "chrome/browser/android/tab_android_conversions.h"
@@ -28,7 +30,6 @@
 #include "chrome/browser/tab/tab_storage_package.h"
 #include "chrome/browser/tab/tab_storage_packager.h"
 #include "components/tabs/public/android/jni_conversion.h"
-#include "components/tabs/public/direct_child_walker.h"
 #include "components/tabs/public/tab_strip_collection.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
@@ -47,8 +48,10 @@ class TabStripCollectionStorageData : public Payload {
 
   ~TabStripCollectionStorageData() override = default;
 
-  std::string SerializePayload() const override {
-    return state_.SerializeAsString();
+  std::vector<uint8_t> SerializePayload() const override {
+    std::vector<uint8_t> payload_vec(state_.ByteSizeLong());
+    state_.SerializeToArray(payload_vec.data(), payload_vec.size());
+    return payload_vec;
   }
 
  private:
@@ -83,20 +86,21 @@ class UnmappedTabStripCollectionStorageData {
   tabs_pb::TabStripCollectionState state_;
 };
 
-// Consumes `unmapped_data` and applies the `mapping` to it. The `unmapped_data`
-// is deleted in this function and should not be used after this function
-// returns. The returned TabStripCollectionStorageData is a valid payload that
-// can be packaged into the database.
+// Consumes `unmapped_data` and applies the `mapping` to it. The returned
+// TabStripCollectionStorageData is a valid payload that can be packaged into
+// the database.
 std::unique_ptr<TabStripCollectionStorageData>
 MapAndConsumeUnmappedTabStripCollectionStorageData(
-    UnmappedTabStripCollectionStorageData* unmapped_data,
+    std::unique_ptr<UnmappedTabStripCollectionStorageData> unmapped_data,
     StorageIdMapping& mapping) {
   tabs_pb::TabStripCollectionState state = unmapped_data->TakeState();
   TabAndroid* active_tab = unmapped_data->active_tab();
   if (active_tab) {
-    state.set_active_tab_storage_id(mapping.GetStorageId(active_tab));
+    tabs_pb::Token* active_tab_storage_id =
+        state.mutable_active_tab_storage_id();
+    StorageIdToTokenProto(mapping.GetStorageId(active_tab),
+                          active_tab_storage_id);
   }
-  delete unmapped_data;
   return std::make_unique<TabStripCollectionStorageData>(std::move(state));
 }
 
@@ -145,7 +149,8 @@ TabStoragePackagerAndroid::PackageTabStripCollectionData(
   long ptr_value = Java_TabStoragePackager_packageTabStripCollection(
       env, java_obj_, profile_, collection);
   return MapAndConsumeUnmappedTabStripCollectionStorageData(
-      reinterpret_cast<UnmappedTabStripCollectionStorageData*>(ptr_value),
+      base::WrapUnique(
+          reinterpret_cast<UnmappedTabStripCollectionStorageData*>(ptr_value)),
       mapping);
 }
 
@@ -153,17 +158,16 @@ long TabStoragePackagerAndroid::ConsolidateTabData(
     JNIEnv* env,
     jlong timestamp_millis,
     const jni_zero::JavaParamRef<jobject>& web_contents_state_buffer,
-    std::string& opener_app_id,
+    std::optional<std::string> opener_app_id,
     jint theme_color,
     jlong last_navigation_committed_timestamp_millis,
     jboolean tab_has_sensitive_content,
     TabAndroid* tab) {
-  std::unique_ptr<std::string> web_contents_state_bytes;
+  std::optional<std::vector<uint8_t>> web_contents_state_bytes;
   if (web_contents_state_buffer) {
     base::span<const uint8_t> span =
         base::android::JavaByteBufferToSpan(env, web_contents_state_buffer);
-    web_contents_state_bytes =
-        std::make_unique<std::string>(span.begin(), span.end());
+    web_contents_state_bytes.emplace(span.begin(), span.end());
   }
 
   base::Token tab_group_id;
@@ -171,14 +175,12 @@ long TabStoragePackagerAndroid::ConsolidateTabData(
     tab_group_id = tab->GetGroup()->token();
   }
 
-  std::unique_ptr<AndroidTabPackage> android_package =
-      std::make_unique<AndroidTabPackage>(
-          kTabStoragePackagerAndroidVersion, tab->GetAndroidId(),
-          tab->GetParentId(), timestamp_millis,
-          std::move(web_contents_state_bytes),
-          std::make_unique<std::string>(std::move(opener_app_id)), theme_color,
-          last_navigation_committed_timestamp_millis, tab_has_sensitive_content,
-          tab->GetTabLaunchTypeAtCreation());
+  AndroidTabPackage android_package(
+      kTabStoragePackagerAndroidVersion, tab->GetAndroidId(),
+      tab->GetParentId(), timestamp_millis, std::move(web_contents_state_bytes),
+      std::move(opener_app_id), theme_color,
+      last_navigation_committed_timestamp_millis, tab_has_sensitive_content,
+      tab->GetTabLaunchTypeAtCreation());
 
   TabStoragePackage* package_ptr =
       new TabStoragePackage(tab->GetUserAgent(), std::move(tab_group_id),
@@ -205,3 +207,5 @@ long TabStoragePackagerAndroid::ConsolidateTabStripCollectionData(
 TabStoragePackagerAndroid::~TabStoragePackagerAndroid() = default;
 
 }  // namespace tabs
+
+DEFINE_JNI(TabStoragePackager)

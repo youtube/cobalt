@@ -4,8 +4,6 @@
 
 package org.chromium.chrome.browser.settings.search;
 
-import static org.chromium.build.NullUtil.assumeNonNull;
-
 import android.os.Bundle;
 import android.text.TextUtils;
 
@@ -66,7 +64,7 @@ public class SettingsIndexData {
         public final String key;
 
         /** Title of Preference/Fragment. */
-        public final String title;
+        public final @Nullable String title;
 
         /** Summary/description of Preference/Fragment. */
         public final @Nullable String summary;
@@ -92,7 +90,7 @@ public class SettingsIndexData {
         private Entry(
                 String id,
                 String key,
-                String title,
+                @Nullable String title,
                 @Nullable String header,
                 @Nullable String summary,
                 @Nullable String fragment,
@@ -119,7 +117,7 @@ public class SettingsIndexData {
         public static class Builder {
             private final String mId;
             private final String mKey;
-            private String mTitle;
+            private @Nullable String mTitle;
             private @Nullable String mHeader;
             private @Nullable String mSummary;
             private @Nullable String mFragment;
@@ -135,7 +133,7 @@ public class SettingsIndexData {
              * @param title The title of the preference.
              * @param parentFragment The class name of the fragment containing this preference.
              */
-            public Builder(String id, String key, String title, String parentFragment) {
+            public Builder(String id, String key, @Nullable String title, String parentFragment) {
                 mId = id;
                 mKey = key;
                 mTitle = title;
@@ -159,7 +157,7 @@ public class SettingsIndexData {
                 mParentFragment = original.parentFragment;
             }
 
-            public Builder setTitle(String title) {
+            public Builder setTitle(@Nullable String title) {
                 mTitle = title;
                 return this;
             }
@@ -298,10 +296,13 @@ public class SettingsIndexData {
         List<String> entriesToRemove = new ArrayList<>();
 
         for (Entry entry : mEntries.values()) {
-            // Root entries have their own title as the header.
+            // Root entries have their own title as the header if they do not inherit one from the
+            // XML.
             if (entry.parentFragment.equals(rootFragmentName)) {
-                Entry updatedEntry = new Entry.Builder(entry).setHeader(entry.title).build();
-                updateEntry(entry.id, updatedEntry);
+                if (TextUtils.isEmpty(entry.header)) {
+                    Entry updatedEntry = new Entry.Builder(entry).setHeader(entry.title).build();
+                    updateEntry(entry.id, updatedEntry);
+                }
                 continue;
             }
 
@@ -422,6 +423,44 @@ public class SettingsIndexData {
             }
             return entryList;
         }
+
+        /** Returns a list of search results after grouping them by the header. */
+        public List<Entry> groupByHeader() {
+            Map<String, Integer> groups = new HashMap<>();
+            List<Entry> results = new ArrayList<>();
+            int pos = 0;
+
+            // The input is already sorted by the score. Move up items till
+            // they all get grouped together.
+            for (Map.Entry<Integer, Entry> pair : mScoredItems) {
+                Entry entry = pair.getValue();
+                String header = entry.header;
+                int groupPos = groups.getOrDefault(header, -1);
+                if (groupPos < 0) {
+                    // |groups| keep the position of the lowest entries of each group.
+                    // The new item with the same group is inserted in that position.
+                    groups.put(header, pos);
+                    results.add(entry);
+                } else {
+                    // Push down all the items not in |header| and add the new one there.
+                    if (groupPos == results.size() - 1) {
+                        results.add(entry);
+                    } else {
+                        results.add(groupPos + 1, entry);
+                    }
+                    Map<String, Integer> newGroups = new HashMap<>();
+                    for (String key : groups.keySet()) {
+                        // Adjust |groups| after a new item is inserted. Any group
+                        // below the current pos should be pushed down by one.
+                        int p = groups.get(key);
+                        newGroups.put(key, groupPos <= p ? p + 1 : p);
+                    }
+                    groups = newGroups;
+                }
+                ++pos;
+            }
+            return results;
+        }
     }
 
     /**
@@ -453,8 +492,7 @@ public class SettingsIndexData {
         }
 
         for (Entry entry : mEntries.values()) {
-            assumeNonNull(entry.mTitleNormalized);
-            if (entry.mTitleNormalized.contains(query)) {
+            if (entry.mTitleNormalized != null && entry.mTitleNormalized.contains(query)) {
                 int score =
                         TextUtils.equals(entry.mTitleNormalized, query)
                                 ? EXACT_TITLE_MATCH

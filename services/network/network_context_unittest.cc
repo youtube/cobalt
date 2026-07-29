@@ -720,6 +720,13 @@ class NetworkContextTest : public testing::Test {
         /*container_policy=*/{}, url::Origin::Create(url));
   }
 
+  mojom::NonceAndAllowlistedPatternsPtr CreateNonceAndAllowlistedPatterns(
+      const base::UnguessableToken& nonce) {
+    auto nonce_and_allowlisted_urls = mojom::NonceAndAllowlistedPatterns::New();
+    nonce_and_allowlisted_urls->nonce = nonce;
+    return nonce_and_allowlisted_urls;
+  }
+
  protected:
   base::test::TaskEnvironment task_environment_;
   std::unique_ptr<net::NetworkChangeNotifier> network_change_notifier_;
@@ -1117,8 +1124,11 @@ TEST_F(NetworkContextTest, QueueReportAfterNetworkRevocation) {
 
   // Revoke untrusted network access for the nonce.
   base::test::TestFuture<void> revoked;
+  auto revoked_nonce_pattern = CreateNonceAndAllowlistedPatterns(revoked_nonce);
+  std::vector<network::mojom::NonceAndAllowlistedPatternsPtr> nonces_to_urls;
+  nonces_to_urls.push_back(std::move(revoked_nonce_pattern));
   network_context->RevokeNetworkForNonces(
-      {revoked_nonce}, base::BindOnce(revoked.GetCallback()));
+      std::move(nonces_to_urls), base::BindOnce(revoked.GetCallback()));
   EXPECT_TRUE(revoked.Wait());
   EXPECT_FALSE(
       network_context->IsNetworkForNonceAndUrlAllowed(revoked_nonce, kUrl_));
@@ -1181,8 +1191,11 @@ TEST_F(NetworkContextTest,
 
   // Revoke untrusted network access for the nonce.
   base::test::TestFuture<void> revoked;
+  auto revoked_nonce_pattern = CreateNonceAndAllowlistedPatterns(revoked_nonce);
+  std::vector<network::mojom::NonceAndAllowlistedPatternsPtr> nonces_to_urls;
+  nonces_to_urls.push_back(std::move(revoked_nonce_pattern));
   network_context->RevokeNetworkForNonces(
-      {revoked_nonce}, base::BindOnce(revoked.GetCallback()));
+      std::move(nonces_to_urls), base::BindOnce(revoked.GetCallback()));
   EXPECT_TRUE(revoked.Wait());
   EXPECT_FALSE(
       network_context->IsNetworkForNonceAndUrlAllowed(revoked_nonce, kUrl_));
@@ -1303,6 +1316,29 @@ TEST_F(NetworkContextTest, DeviceBoundSessionsEnableWithStore) {
       future;
   service->GetAllSessionsAsync(future.GetCallback());
   ASSERT_TRUE(future.Wait());
+}
+
+TEST_F(NetworkContextTest, DeviceBoundSessionsEnabledWithValidPendingRemote) {
+  mojom::NetworkContextParamsPtr context_params =
+      CreateNetworkContextParamsForTesting();
+  context_params->device_bound_sessions_enabled = true;
+
+  mojo::PendingRemote<unexportable_keys::mojom::UnexportableKeyService>
+      pending_unexportable_key_service;
+
+  // We need to create a receiver for the remote to be valid.
+  mojo::PendingReceiver<unexportable_keys::mojom::UnexportableKeyService>
+      receiver =
+          pending_unexportable_key_service.InitWithNewPipeAndPassReceiver();
+
+  context_params->bound_sessions_unexportable_key_service =
+      std::move(pending_unexportable_key_service);
+
+  std::unique_ptr<NetworkContext> network_context =
+      CreateContextWithParams(std::move(context_params));
+
+  EXPECT_TRUE(
+      network_context->url_request_context()->unexportable_key_service());
 }
 #endif  // BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
 
@@ -4426,8 +4462,11 @@ TEST_F(NetworkContextResolveHostTest,
 
   // Revoke untrusted network access for the nonce.
   base::test::TestFuture<void> revoked;
+  auto revoked_nonce_pattern = CreateNonceAndAllowlistedPatterns(nonce);
+  std::vector<network::mojom::NonceAndAllowlistedPatternsPtr> nonces_to_urls;
+  nonces_to_urls.push_back(std::move(revoked_nonce_pattern));
   network_context->RevokeNetworkForNonces(
-      {nonce}, base::BindOnce(revoked.GetCallback()));
+      std::move(nonces_to_urls), base::BindOnce(revoked.GetCallback()));
   EXPECT_TRUE(revoked.Wait());
   EXPECT_FALSE(network_context->IsNetworkForNonceAndUrlAllowed(nonce, url));
 
@@ -4476,8 +4515,11 @@ TEST_F(NetworkContextResolveHostTest,
 
   // Revoke untrusted network access for the nonce.
   base::test::TestFuture<void> revoked;
+  auto revoked_nonce_pattern = CreateNonceAndAllowlistedPatterns(nonce);
+  std::vector<network::mojom::NonceAndAllowlistedPatternsPtr> nonces_to_urls;
+  nonces_to_urls.push_back(std::move(revoked_nonce_pattern));
   network_context->RevokeNetworkForNonces(
-      {nonce}, base::BindOnce(revoked.GetCallback()));
+      std::move(nonces_to_urls), base::BindOnce(revoked.GetCallback()));
   EXPECT_TRUE(revoked.Wait());
   EXPECT_FALSE(network_context->IsNetworkForNonceAndUrlAllowed(nonce, url));
 
@@ -4529,8 +4571,11 @@ TEST_F(NetworkContextResolveHostTest,
 
   // Revoke untrusted network access for the nonce.
   base::test::TestFuture<void> revoked;
+  auto revoked_nonce_pattern = CreateNonceAndAllowlistedPatterns(nonce);
+  std::vector<network::mojom::NonceAndAllowlistedPatternsPtr> nonces_to_urls;
+  nonces_to_urls.push_back(std::move(revoked_nonce_pattern));
   network_context->RevokeNetworkForNonces(
-      {nonce}, base::BindOnce(revoked.GetCallback()));
+      std::move(nonces_to_urls), base::BindOnce(revoked.GetCallback()));
   EXPECT_TRUE(revoked.Wait());
   EXPECT_FALSE(network_context->IsNetworkForNonceAndUrlAllowed(
       nonce, GURL("nik.test:160")));
@@ -4579,8 +4624,11 @@ TEST_F(NetworkContextResolveHostTest,
 
   // Revoke untrusted network access for the nonce.
   base::test::TestFuture<void> revoked;
+  auto revoked_nonce_pattern = CreateNonceAndAllowlistedPatterns(nonce);
+  std::vector<network::mojom::NonceAndAllowlistedPatternsPtr> nonces_to_urls;
+  nonces_to_urls.push_back(std::move(revoked_nonce_pattern));
   network_context->RevokeNetworkForNonces(
-      {nonce}, base::BindOnce(revoked.GetCallback()));
+      std::move(nonces_to_urls), base::BindOnce(revoked.GetCallback()));
   EXPECT_TRUE(revoked.Wait());
   EXPECT_FALSE(network_context->IsNetworkForNonceAndUrlAllowed(
       nonce, GURL("nik.test:160")));
@@ -5115,51 +5163,6 @@ TEST_F(NetworkContextActivateDohProbesTest, NotPrimaryContext) {
   network_context.reset();
 
   EXPECT_FALSE(state->IsDohProbeRunning());
-}
-
-TEST_F(NetworkContextTest,
-       NetworkContextUpdatesIpProtectionCoreTrackingProtectionExceptions) {
-  const std::string url = "http://foo.com";
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitWithFeaturesAndParameters(
-      {{net::features::kEnableIpProtectionProxy,
-        {{net::features::kIpPrivacyAlwaysCreateCore.name, "true"}}},
-       {network::features::kMaskedDomainList, {}}},
-      {});
-
-  std::unique_ptr<NetworkContext> network_context =
-      CreateContextWithParams(CreateNetworkContextParamsForTesting());
-
-  content_settings::RuleMetaData metadata;
-  metadata.SetExpirationAndLifetime(base::Time(), base::TimeDelta());
-
-  // Verify with a TRACKING_PROTECTION exception.
-  {
-    network_context->SetTrackingProtectionContentSetting(
-        {ContentSettingPatternSource(ContentSettingsPattern::Wildcard(),
-                                     ContentSettingsPattern::FromString(url),
-                                     base::Value(CONTENT_SETTING_ALLOW),
-                                     content_settings::ProviderType::kNone,
-                                     /*incognito=*/true, metadata.Clone())});
-
-    EXPECT_TRUE(
-        network_context->ip_protection_core()->HasTrackingProtectionException(
-            GURL(url)));
-  }
-
-  // Verify without a TRACKING_PROTECTION exception.
-  {
-    network_context->SetTrackingProtectionContentSetting(
-        {ContentSettingPatternSource(ContentSettingsPattern::Wildcard(),
-                                     ContentSettingsPattern::FromString(url),
-                                     base::Value(CONTENT_SETTING_BLOCK),
-                                     content_settings::ProviderType::kNone,
-                                     /*incognito=*/true, std::move(metadata))});
-
-    EXPECT_FALSE(
-        network_context->ip_protection_core()->HasTrackingProtectionException(
-            GURL(url)));
-  }
 }
 
 TEST_F(NetworkContextTest, PrivacyModeDisabledByDefault) {
@@ -9349,8 +9352,13 @@ TEST_F(NetworkContextTest, RevokeNetworkForNoncesTest) {
   // Revoke nonce1 and nonce3 but not nonce2.
   {
     base::test::TestFuture<void> revoked;
+    std::vector<network::mojom::NonceAndAllowlistedPatternsPtr> nonces_to_urls;
+    auto revoked_nonce_pattern1 = CreateNonceAndAllowlistedPatterns(nonce1);
+    auto revoked_nonce_pattern3 = CreateNonceAndAllowlistedPatterns(nonce3);
+    nonces_to_urls.push_back(std::move(revoked_nonce_pattern1));
+    nonces_to_urls.push_back(std::move(revoked_nonce_pattern3));
     network_context->RevokeNetworkForNonces(
-        {nonce1, nonce3}, base::BindOnce(revoked.GetCallback()));
+        std::move(nonces_to_urls), base::BindOnce(revoked.GetCallback()));
     EXPECT_TRUE(revoked.Wait());
     EXPECT_FALSE(
         network_context->IsNetworkForNonceAndUrlAllowed(nonce1, kFooHttpsUrl));
@@ -9363,8 +9371,11 @@ TEST_F(NetworkContextTest, RevokeNetworkForNoncesTest) {
   // Redundant revocations should have no effect.
   {
     base::test::TestFuture<void> revoked;
+    std::vector<network::mojom::NonceAndAllowlistedPatternsPtr> nonces_to_urls;
+    auto revoked_nonce_pattern3 = CreateNonceAndAllowlistedPatterns(nonce3);
+    nonces_to_urls.push_back(std::move(revoked_nonce_pattern3));
     network_context->RevokeNetworkForNonces(
-        {nonce3, nonce1}, base::BindOnce(revoked.GetCallback()));
+        std::move(nonces_to_urls), base::BindOnce(revoked.GetCallback()));
     EXPECT_TRUE(revoked.Wait());
     EXPECT_FALSE(
         network_context->IsNetworkForNonceAndUrlAllowed(nonce1, kFooHttpsUrl));
@@ -9377,8 +9388,11 @@ TEST_F(NetworkContextTest, RevokeNetworkForNoncesTest) {
   // Revoke nonce2 too.
   {
     base::test::TestFuture<void> revoked;
+    std::vector<network::mojom::NonceAndAllowlistedPatternsPtr> nonces_to_urls;
+    auto revoked_nonce_pattern2 = CreateNonceAndAllowlistedPatterns(nonce2);
+    nonces_to_urls.push_back(std::move(revoked_nonce_pattern2));
     network_context->RevokeNetworkForNonces(
-        {nonce2}, base::BindOnce(revoked.GetCallback()));
+        std::move(nonces_to_urls), base::BindOnce(revoked.GetCallback()));
     EXPECT_TRUE(revoked.Wait());
     EXPECT_FALSE(
         network_context->IsNetworkForNonceAndUrlAllowed(nonce1, kFooHttpsUrl));
@@ -9417,8 +9431,11 @@ TEST_F(NetworkContextTest, RevokeNetworkForNoncesDisablesNewRequestsTest) {
 
   {
     base::test::TestFuture<void> revoked;
+    auto revoked_nonce_pattern = CreateNonceAndAllowlistedPatterns(nonce);
+    std::vector<network::mojom::NonceAndAllowlistedPatternsPtr> nonces_to_urls;
+    nonces_to_urls.push_back(std::move(revoked_nonce_pattern));
     network_context->RevokeNetworkForNonces(
-        {nonce}, base::BindOnce(revoked.GetCallback()));
+        std::move(nonces_to_urls), base::BindOnce(revoked.GetCallback()));
     EXPECT_TRUE(revoked.Wait());
     EXPECT_FALSE(
         network_context->IsNetworkForNonceAndUrlAllowed(nonce, server_url));
@@ -9458,8 +9475,11 @@ TEST_F(NetworkContextTest, RevokeNetworkForNoncesDisablesNewRequestsTest) {
   // But the exemption should have no effect on other nonces.
   {
     base::test::TestFuture<void> revoked;
+    auto revoked_nonce_pattern = CreateNonceAndAllowlistedPatterns(nonce2);
+    std::vector<network::mojom::NonceAndAllowlistedPatternsPtr> nonces_to_urls;
+    nonces_to_urls.push_back(std::move(revoked_nonce_pattern));
     network_context->RevokeNetworkForNonces(
-        {nonce2}, base::BindOnce(revoked.GetCallback()));
+        std::move(nonces_to_urls), base::BindOnce(revoked.GetCallback()));
     EXPECT_TRUE(revoked.Wait());
     EXPECT_FALSE(
         network_context->IsNetworkForNonceAndUrlAllowed(nonce2, server_url));
@@ -9522,8 +9542,11 @@ TEST_F(NetworkContextTest,
 
   // Revoke network access for the nonce.
   base::test::TestFuture<void> revoked;
+  auto revoked_nonce_pattern = CreateNonceAndAllowlistedPatterns(nonce);
+  std::vector<network::mojom::NonceAndAllowlistedPatternsPtr> nonces_to_urls;
+  nonces_to_urls.push_back(std::move(revoked_nonce_pattern));
   network_context->RevokeNetworkForNonces(
-      {nonce}, base::BindOnce(revoked.GetCallback()));
+      std::move(nonces_to_urls), base::BindOnce(revoked.GetCallback()));
   EXPECT_TRUE(revoked.Wait());
 
   // Continue sending headers.
@@ -9578,8 +9601,13 @@ TEST_F(NetworkContextTest,
   // Revoke network access for both `nonce` and `nonce2`. This confirms that
   // requests for nonces beyond the first get cancelled.
   base::test::TestFuture<void> revoked;
+  auto revoked_nonce_pattern = CreateNonceAndAllowlistedPatterns(nonce);
+  auto revoked_nonce_pattern2 = CreateNonceAndAllowlistedPatterns(nonce2);
+  std::vector<network::mojom::NonceAndAllowlistedPatternsPtr> nonces_to_urls;
+  nonces_to_urls.push_back(std::move(revoked_nonce_pattern));
+  nonces_to_urls.push_back(std::move(revoked_nonce_pattern2));
   network_context->RevokeNetworkForNonces(
-      {nonce2, nonce}, base::BindOnce(revoked.GetCallback()));
+      std::move(nonces_to_urls), base::BindOnce(revoked.GetCallback()));
   EXPECT_TRUE(revoked.Wait());
 
   // Continue sending headers.
@@ -9638,8 +9666,11 @@ TEST_F(NetworkContextTest,
 
   // Revoke network access for the nonce.
   base::test::TestFuture<void> revoked;
+  auto revoked_nonce_pattern = CreateNonceAndAllowlistedPatterns(nonce);
+  std::vector<network::mojom::NonceAndAllowlistedPatternsPtr> nonces_to_urls;
+  nonces_to_urls.push_back(std::move(revoked_nonce_pattern));
   network_context->RevokeNetworkForNonces(
-      {nonce}, base::BindOnce(revoked.GetCallback()));
+      std::move(nonces_to_urls), base::BindOnce(revoked.GetCallback()));
   EXPECT_TRUE(revoked.Wait());
 
   // Run the request to completion.
@@ -9691,8 +9722,11 @@ TEST_F(NetworkContextTest,
 
   // Revoke network access for an unrelated nonce `nonce2`.
   base::test::TestFuture<void> revoked;
+  auto revoked_nonce_pattern2 = CreateNonceAndAllowlistedPatterns(nonce2);
+  std::vector<network::mojom::NonceAndAllowlistedPatternsPtr> nonces_to_urls;
+  nonces_to_urls.push_back(std::move(revoked_nonce_pattern2));
   network_context->RevokeNetworkForNonces(
-      {nonce2}, base::BindOnce(revoked.GetCallback()));
+      std::move(nonces_to_urls), base::BindOnce(revoked.GetCallback()));
   EXPECT_TRUE(revoked.Wait());
 
   // Run the request to completion.
@@ -9713,8 +9747,11 @@ TEST_F(NetworkContextTest, RevokeNetworkForNoncesCancelsPreconnectRequests) {
 
   // Revoke untrusted network access for the nonce.
   base::test::TestFuture<void> revoked;
+  auto revoked_nonce_pattern = CreateNonceAndAllowlistedPatterns(nonce);
+  std::vector<network::mojom::NonceAndAllowlistedPatternsPtr> nonces_to_urls;
+  nonces_to_urls.push_back(std::move(revoked_nonce_pattern));
   network_context->RevokeNetworkForNonces(
-      {nonce}, base::BindOnce(revoked.GetCallback()));
+      std::move(nonces_to_urls), base::BindOnce(revoked.GetCallback()));
   EXPECT_TRUE(revoked.Wait());
 
   // Set up the connection listener.
@@ -9787,8 +9824,11 @@ TEST_F(NetworkContextTest, ExemptUrlFromNetworkRevocationForNonceTest) {
   // Revoke `nonce`.
   {
     base::test::TestFuture<void> revoked;
+    auto revoked_nonce_pattern = CreateNonceAndAllowlistedPatterns(nonce);
+    std::vector<network::mojom::NonceAndAllowlistedPatternsPtr> nonces_to_urls;
+    nonces_to_urls.push_back(std::move(revoked_nonce_pattern));
     network_context->RevokeNetworkForNonces(
-        {nonce}, base::BindOnce(revoked.GetCallback()));
+        std::move(nonces_to_urls), base::BindOnce(revoked.GetCallback()));
     EXPECT_TRUE(revoked.Wait());
   }
   // Now for `nonce` kFooHttpsUrl should be exempted, but kBarHttpsUrl blocked.
@@ -9849,8 +9889,11 @@ TEST_F(NetworkContextTest, ExemptUrlFromNetworkRevocationForNonceTest) {
   // Revoke `nonce2`.
   {
     base::test::TestFuture<void> revoked;
+    auto revoked_nonce_pattern2 = CreateNonceAndAllowlistedPatterns(nonce2);
+    std::vector<network::mojom::NonceAndAllowlistedPatternsPtr> nonces_to_urls;
+    nonces_to_urls.push_back(std::move(revoked_nonce_pattern2));
     network_context->RevokeNetworkForNonces(
-        {nonce2}, base::BindOnce(revoked.GetCallback()));
+        std::move(nonces_to_urls), base::BindOnce(revoked.GetCallback()));
     EXPECT_TRUE(revoked.Wait());
   }
   // Nothing should be exempted for `nonce2`.
@@ -9933,8 +9976,11 @@ TEST_F(NetworkContextTest, ExemptUrlFromNetworkRevocationForNonce_InvalidURLs) {
 
   // Revoke `nonce`.
   base::test::TestFuture<void> revoked;
+  auto revoked_nonce_pattern = CreateNonceAndAllowlistedPatterns(nonce);
+  std::vector<network::mojom::NonceAndAllowlistedPatternsPtr> nonces_to_urls;
+  nonces_to_urls.push_back(std::move(revoked_nonce_pattern));
   network_context->RevokeNetworkForNonces(
-      {nonce}, base::BindOnce(revoked.GetCallback()));
+      std::move(nonces_to_urls), base::BindOnce(revoked.GetCallback()));
   EXPECT_TRUE(revoked.Wait());
 
   // Now the `invalid_urls` and the `valid_url` all have network disabled.
@@ -9970,8 +10016,13 @@ TEST_F(NetworkContextTest, ClearNoncesTest) {
   // Revoke nonce1 and nonce3 but not nonce2.
   {
     base::test::TestFuture<void> revoked;
+    auto revoked_nonce_pattern1 = CreateNonceAndAllowlistedPatterns(nonce1);
+    std::vector<network::mojom::NonceAndAllowlistedPatternsPtr> nonces_to_urls;
+    nonces_to_urls.push_back(std::move(revoked_nonce_pattern1));
+    auto revoked_nonce_pattern3 = CreateNonceAndAllowlistedPatterns(nonce3);
+    nonces_to_urls.push_back(std::move(revoked_nonce_pattern3));
     network_context->RevokeNetworkForNonces(
-        {nonce1, nonce3}, base::BindOnce(revoked.GetCallback()));
+        std::move(nonces_to_urls), base::BindOnce(revoked.GetCallback()));
     EXPECT_TRUE(revoked.Wait());
     EXPECT_FALSE(
         network_context->IsNetworkForNonceAndUrlAllowed(nonce1, kFooHttpsUrl));

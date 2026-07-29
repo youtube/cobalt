@@ -114,6 +114,9 @@ class AutofillWebDataService : public WebDataServiceBase {
   WebDataServiceBase::Handle GetEntityInstances(
       WebDataServiceRequestCallback consumer);
 
+  // Updates the `EntityInstance::EntityMetadata` related to the given `entity`.
+  void UpdateEntityMetadata(const EntityInstance& entity);
+
   // Retrieves LoyaltyCards from the database.
   WebDataServiceBase::Handle GetLoyaltyCards(
       WebDataServiceRequestCallback consumer);
@@ -175,8 +178,9 @@ class AutofillWebDataService : public WebDataServiceBase {
   // Method to clear all the local CVCs from the web database.
   void ClearLocalCvcs();
 
-  // Method to clean up for crbug.com/411681430.
-  void CleanupForCrbug411681430();
+  // Method to clear all local CVCs created before mid-May 2025. For more
+  // information, see crbug.com/411681430.
+  void ClearLocalCvcsUpToMay2025();
 
 #if BUILDFLAG(IS_IOS)
   // Method to clean up for crbug.com/445879524.
@@ -263,10 +267,8 @@ class AutofillWebDataService : public WebDataServiceBase {
   void RemoveObserver(AutofillWebDataServiceObserverOnUISequence* observer);
 
   // Returns a SupportsUserData object that may be used to store data accessible
-  // from the DB sequence. Should be called only from the DB sequence, and will
-  // be destroyed on the DB sequence soon after ShutdownOnUISequence() is
-  // called.
-  base::SupportsUserData* GetDBUserData();
+  // from the DB sequence. Must be called only from the DB sequence.
+  base::SupportsUserData& GetDBUserData();
 
   // Takes a callback which will be called on the DB sequence with a pointer to
   // an AutofillWebdataBackend. This backend can be used to access or update the

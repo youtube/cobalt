@@ -39,6 +39,16 @@ BASE_FEATURE(kAutofillAcrossIframesIosThrottling,
 BASE_FEATURE(kAutofillAcrossIframesIosTriggerFormExtraction,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Controls whether to rewrite the credit card trigger field to the first
+// credit card number field in the same section.
+BASE_FEATURE(kAutofillActorRewriteCreditCardTriggerField,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Controls whether all import tasks are suppressed when an Actor task is
+// active on the tab in question. This also suppresses silent updates and
+// saving to Autocomplete.
+BASE_FEATURE(kAutofillActorSuppressImport, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Feature flag to control displaying of Autofill suggestions on
 // unclassified fields based on prefix matching. These suggestions are displayed
 // after the user typed a certain number of characters that match some data
@@ -341,9 +351,7 @@ BASE_FEATURE(kAutofillAndPasswordsInSameSurface,
 // TODO(crbug.com/438125774): Remove when launched.
 BASE_FEATURE(kAutofillAndroidDesktopKeyboardAccessoryRevamp,
              base::FEATURE_DISABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(IS_ANDROID)
 
-#if BUILDFLAG(IS_ANDROID)
 // If enabled, on Android desktop, Autofill keyboard accessory will be
 // suppressed when there are no autofill suggestions.
 BASE_FEATURE(kAutofillAndroidDesktopSuppressAccessoryOnEmpty,
@@ -362,6 +370,14 @@ BASE_FEATURE(kAutofillAndroidDesktopSuppressAccessoryOnEmpty,
 BASE_FEATURE(kAutofillAndroidDisableSuggestionsOnJSFocus,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// If enabled, on Android, the Autofill keyboard accessory will not be
+// displayed attached to the keyboard but will be placed below or above the
+// focused field. It works only for large form factor devices like tablets or
+// desktops.
+// TODO(crbug.com/438125774): Remove when launched.
+BASE_FEATURE(kAutofillAndroidKeyboardAccessoryDynamicPositioning,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // When enabled, the placeholder is not considered a label fallback on the
 // renderer side anymore. Instead, local heuristic will match regexes against
 // either the label or the placeholder, depending on how high quality the label
@@ -370,13 +386,6 @@ BASE_FEATURE(kAutofillAndroidDisableSuggestionsOnJSFocus,
 // TODO(crbug.com/320965828): Remove when launched.
 BASE_FEATURE(kAutofillBetterLocalHeuristicPlaceholderSupport,
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-// When enabled, forms that are only identified through server predictions
-// are considered for key and funnel metric logging. Without this feature, due
-// to a bug, only forms identified by parsing are considered.
-// TODO(crbug.com/436171158): Clean up when launched.
-BASE_FEATURE(kAutofillConsiderServerOnlyFormsInKeyMetrics,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Same as `kAutofillAddressUserPerceptionSurvey` but for credit card forms.
 BASE_FEATURE(kAutofillCreditCardUserPerceptionSurvey,
@@ -616,6 +625,15 @@ BASE_FEATURE(kAutofillExtendZipCodeValidation,
 BASE_FEATURE(kAutofillExtractOnlyNonAdFrames,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// When enabled, adds stricter conditions to trigger refills in order to avoid
+// trivial refill operations, which are refills that do not modify any field.
+BASE_FEATURE(kAutofillFewerTrivialRefills, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Kill switch: Changes the behavior of Form[Field]Data::DeepEqual().
+// TODO(crbug.com/40183094): Turn this into a kill switch after a few
+// weeks on canary.
+BASE_FEATURE(kAutofillFixFormEquality, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Removes logic that resets form submission tracking data upon receiving a
 // FORM_SUBMISSION or PROBABLE_FORM_SUBMISSION signal. Also, fixes submission
 // deduplication so that it ignores submissions that PWM doesn't act upon.
@@ -644,12 +662,6 @@ BASE_FEATURE(kAutofillIgnoreCheckableElements,
 // TODO(crbug.com/381531027): Remove when launched.
 BASE_FEATURE(kAutofillImproveAddressFieldSwapping,
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-// When enabled, new `negative_pattern` regex values will be used
-// in order to reduce false positive classifications of city fields.
-// TODO(crbug.com/330508437): Clean up when launched.
-BASE_FEATURE(kAutofillImproveCityFieldClassification,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, the autofill suggestion labels are more descriptive and
 // relevant.
@@ -750,6 +762,25 @@ BASE_FEATURE(kAutofillPageLanguageDetection, base::FEATURE_DISABLED_BY_DEFAULT);
 // TODO(crbug.com/354175563): Remove when launched.
 BASE_FEATURE(kAutofillPaymentsFieldSwapping, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Controls whether Autofill may fill across origins.
+// In payment forms, the cardholder name field is often on the merchant's origin
+// while the credit card number and CVC are in iframes hosted by a payment
+// service provider. By enabling the policy-controlled feature "autofill" in
+// those iframes, the merchant's website enable Autofill to fill the credit card
+// number and CVC fields from the cardholder name field, even though this
+// autofill operation crosses origins.
+// TODO(crbug.com/40178859): Enable this feature.
+BASE_FEATURE(kAutofillPolicyControlledFeatureAutofill,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Controls whether Autofill warns about manual text input in cross-origin
+// frames.
+// This feature lives in Autofill code because of its close relationship to
+// `kAutofillCrossOriginAutofill`.
+// TODO(crbug.com/40178859): Enable this feature.
+BASE_FEATURE(kAutofillPolicyControlledFeatureManualText,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // If the feature is enabled, before triggering suggestion acceptance, the row
 // view checks that a substantial portion of its content was visible for some
 // minimum required period.
@@ -766,14 +797,6 @@ BASE_FEATURE(kAutofillPopupDontAcceptNonVisibleEnoughSuggestion,
 // display on top of all other windows, which potentially can negatively
 // affect their functionality.
 BASE_FEATURE(kAutofillPopupZOrderSecuritySurface,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Replaces blink::WebFormElementObserver usage in FormTracker by updated logic
-// for tracking the disappearance of forms as well as other submission
-// triggering events. See `AutofillAgent::GetSubmittedForm()` for more
-// documentation.
-// TODO(crbug.com/40281981): Remove when launched.
-BASE_FEATURE(kAutofillPreferSavedFormAsSubmittedForm,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Allows the import of an Autofill profile if duplicate fields were present
@@ -802,15 +825,6 @@ BASE_FEATURE(kAutofillServerExperimentalSignatures,
 // signatures: go/autofill-signatures-more-data.
 BASE_FEATURE(kAutofillServerUploadMoreData, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Controls whether Autofill may fill across origins.
-// In payment forms, the cardholder name field is often on the merchant's origin
-// while the credit card number and CVC are in iframes hosted by a payment
-// service provider. By enabling the policy-controlled feature "shared-autofill"
-// in those iframes, the merchant's website enable Autofill to fill the credit
-// card number and CVC fields from the cardholder name field, even though this
-// autofill operation crosses origins.
-// TODO(crbug.com/1304721): Enable this feature.
-BASE_FEATURE(kAutofillSharedAutofill, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, password manager and autofill bubbles will be shown based on
 // the priorities of the bubbles.
@@ -820,6 +834,10 @@ BASE_FEATURE(kAutofillShowBubblesBasedOnPriorities,
 
 // If enabled, a pre-filled field will not be filled.
 BASE_FEATURE(kAutofillSkipPreFilledFields, base::FEATURE_ENABLED_BY_DEFAULT);
+
+// If enabled, upload votes for sms otp.
+// TODO(crbug.com/453999673): Clean up when launched.
+BASE_FEATURE(kAutofillSmsOtpCrowdsourcing, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, select-option-change signals are throttled separately by
 // element. Previously, they were throttled together irrespective of the
@@ -922,12 +940,6 @@ BASE_FEATURE(kAutofillUseNegativePatternForAllAttributes,
 // For Queries still only the secondary (alternative) signature is used.
 // TODO(crbug.com/431737839): Clean up when roll out finishes successfully.
 BASE_FEATURE(kAutofillUseStructuralSignatureInsteadOfSecondary,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Uses AutofillAgent::GetSubmittedForm() in HTML submissions.
-// See `AutofillAgent::GetSubmittedForm()` for more documentation.
-// TODO(crbug.com/40281981): Remove when launched.
-BASE_FEATURE(kAutofillUseSubmittedFormInHtmlSubmission,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, the field classification model uses runtime caching to not run

@@ -134,7 +134,6 @@
 #include "chrome/browser/preloading/preloading_prefs.h"
 #include "chrome/browser/preloading/prerender/prerender_web_contents_delegate.h"
 #include "chrome/browser/preloading/search_preload/search_preload_features.h"
-#include "chrome/browser/privacy_budget/identifiability_study_state.h"
 #include "chrome/browser/privacy_sandbox/privacy_sandbox_settings_factory.h"
 #include "chrome/browser/privacy_sandbox/tracking_protection_settings_factory.h"
 #include "chrome/browser/profiles/profile.h"
@@ -241,7 +240,6 @@
 #include "components/error_page/common/error.h"
 #include "components/error_page/common/error_page_switches.h"
 #include "components/error_page/common/localized_error.h"
-#include "components/fingerprinting_protection_filter/common/fingerprinting_protection_filter_features.h"
 #include "components/google/core/common/google_switches.h"
 #include "components/heap_profiling/in_process/heap_profiler_controller.h"
 #include "components/keep_alive_registry/keep_alive_types.h"
@@ -430,6 +428,8 @@
 #include "sandbox/win/src/sandbox_policy.h"
 #elif BUILDFLAG(IS_MAC)
 #include "chrome/browser/browser_process_platform_part_mac.h"
+#include "chrome/browser/enterprise/platform_auth/platform_auth_features.h"
+#include "chrome/browser/enterprise/platform_auth/platform_auth_proxying_url_loader_factory.h"
 #include "chrome/common/chrome_version.h"
 #include "components/soda/constants.h"
 #include "sandbox/mac/sandbox_serializer.h"
@@ -1740,13 +1740,6 @@ void ChromeContentBrowserClient::RenderProcessWillLaunch(
       std::make_unique<CrashMemoryMetricsCollector>(host));
 #endif
 
-  IdentifiabilityStudyState* identifiability_study_state =
-      g_browser_process->GetMetricsServicesManager()
-          ->GetIdentifiabilityStudyState();
-  if (identifiability_study_state) {
-    identifiability_study_state->InitializeRenderer(host);
-  }
-
   // The RendereUpdater might be null for some irregular profiles, e.g. the
   // System Profile.
   if (RendererUpdater* service =
@@ -2573,7 +2566,7 @@ bool ChromeContentBrowserClient::ShouldUrlUseApplicationIsolationLevel(
 }
 
 #if !BUILDFLAG(IS_ANDROID)
-bool ChromeContentBrowserClient::IsInitialWebUIScheme(const GURL& url) {
+bool ChromeContentBrowserClient::IsInitialWebUIURL(const GURL& url) {
   return waap::IsForInitialWebUI(url);
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
@@ -4563,10 +4556,13 @@ void ChromeContentBrowserClient::OverrideWebPreferences(
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
-  web_prefs->password_echo_enabled =
-      prefs->GetBoolean(prefs::kWebKitPasswordEchoEnabled);
+  web_prefs->password_echo_enabled_physical =
+      prefs->GetBoolean(prefs::kWebKitPasswordEchoEnabledPhysical);
+  web_prefs->password_echo_enabled_touch =
+      prefs->GetBoolean(prefs::kWebKitPasswordEchoEnabledTouch);
 #else
-  web_prefs->password_echo_enabled = false;
+  web_prefs->password_echo_enabled_physical = false;
+  web_prefs->password_echo_enabled_touch = false;
 #endif
 
   web_prefs->text_areas_are_resizable =
@@ -4779,12 +4775,6 @@ void ChromeContentBrowserClient::OverrideWebPreferences(
   web_prefs->always_show_context_menu_on_touch =
       base::FeatureList::IsEnabled(::features::kContextMenuEmptySpace);
 #endif
-
-  web_prefs->content_based_fingerprinting_protection_enabled =
-      fingerprinting_protection_filter::features::
-          IsFingerprintingProtectionEnabledForIncognitoState(
-              Profile::FromBrowserContext(web_contents->GetBrowserContext())
-                  ->IsIncognitoProfile());
 
   if (base::FeatureList::IsEnabled(::features::kDevToolsAiPromptApi) &&
       web_contents->GetVisibleURL().SchemeIs(content::kChromeDevToolsScheme)) {
@@ -5130,7 +5120,7 @@ std::wstring ChromeContentBrowserClient::GetAppContainerSidForSandboxType(
     case sandbox::mojom::Sandbox::kServiceWithJit:
     case sandbox::mojom::Sandbox::kIconReader:
     case sandbox::mojom::Sandbox::kMediaFoundationCdm:
-    case sandbox::mojom::Sandbox::kWindowsSystemProxyResolver:
+    case sandbox::mojom::Sandbox::kProxyResolver:
       // Should never reach here.
       NOTREACHED();
   }
@@ -5227,7 +5217,7 @@ bool ChromeContentBrowserClient::PreSpawnChild(
     case sandbox::mojom::Sandbox::kService:
     case sandbox::mojom::Sandbox::kIconReader:
     case sandbox::mojom::Sandbox::kMediaFoundationCdm:
-    case sandbox::mojom::Sandbox::kWindowsSystemProxyResolver:
+    case sandbox::mojom::Sandbox::kProxyResolver:
       break;
   }
 
@@ -6396,6 +6386,13 @@ void ChromeContentBrowserClient::WillCreateURLLoaderFactory(
   }
 #endif
 
+#if BUILDFLAG(IS_MAC)
+  if (base::FeatureList::IsEnabled(enterprise_auth::kOktaSSO)) {
+    enterprise_auth::ProxyingURLLoaderFactory::MaybeProxyRequest(
+        request_initiator, factory_builder);
+  }
+#endif
+
   // WARNING: This must be the last interceptor in the chain as the proxying
   // URLLoaderFactory installed by this needs to be the one actually sending
   // packets over the network (to effectively target `bound_network`).
@@ -6986,6 +6983,16 @@ bool ChromeContentBrowserClient::HandleWebUI(
     *url = url->ReplaceComponents(replacements);
   }
 
+  // Rewrite chrome://settings/addresses to chrome://settings/contactInfo.
+  if (url->SchemeIs(content::kChromeUIScheme) &&
+      url->GetHost() == chrome::kChromeUISettingsHost &&
+      (url->GetPath() == chrome::kChromeUIAddressesPath) &&
+      base::FeatureList::IsEnabled(
+          autofill::features::kYourSavedInfoSettingsPage)) {
+    GURL::Replacements replacements;
+    replacements.SetPathStr(chrome::kChromeUIContactInfoPath);
+    *url = url->ReplaceComponents(replacements);
+  }
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
         // BUILDFLAG(IS_CHROMEOS)
 
@@ -8520,12 +8527,6 @@ void ChromeContentBrowserClient::PreferenceRankVideoDeviceInfos(
   media_prefs::PreferenceRankVideoDeviceInfos(*prefs, infos);
 }
 
-network::mojom::IpProtectionProxyBypassPolicy
-ChromeContentBrowserClient::GetIpProtectionProxyBypassPolicy() {
-  return network::mojom::IpProtectionProxyBypassPolicy::
-      kFirstPartyToTopLevelFrame;
-}
-
 void ChromeContentBrowserClient::MaybePrewarmHttpDiskCache(
     content::BrowserContext& browser_context,
     const std::optional<url::Origin>& initiator_origin,
@@ -8940,4 +8941,16 @@ void ChromeContentBrowserClient::RecordAssistedLogin(
       break;
   }
   password_manager::metrics_util::RecordBrowserAssistedLogin(pwm_login_type);
+}
+
+std::optional<bool>
+ChromeContentBrowserClient::GetOverrideValueForStaticStorageQuota(
+    content::BrowserContext* browser_context) {
+  Profile* profile = Profile::FromBrowserContext(browser_context);
+
+  if (profile->GetPrefs()->HasPrefPath(prefs::kStaticStorageQuotaEnabled)) {
+    return profile->GetPrefs()->GetBoolean(prefs::kStaticStorageQuotaEnabled);
+  } else {
+    return std::nullopt;
+  }
 }

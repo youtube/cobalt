@@ -10,10 +10,9 @@
 #include "chrome/browser/profiles/profile_key.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/supervised_user/android/supervised_user_service_platform_delegate.h"
+#include "chrome/browser/supervised_user/supervised_user_content_filters_service_factory.h"
 #include "chrome/browser/supervised_user/supervised_user_service_factory.h"
-#include "chrome/browser/supervised_user/supervised_user_content_filters_service_factory.h"
 #include "chrome/browser/supervised_user/supervised_user_settings_service_factory.h"
-#include "chrome/browser/supervised_user/supervised_user_content_filters_service_factory.h"
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "components/safe_search_api/fake_url_checker_client.h"
 #include "components/supervised_user/core/browser/supervised_user_preferences.h"
@@ -47,7 +46,8 @@ std::unique_ptr<KeyedService> BuildSupervisedUserService(
       std::make_unique<SupervisedUserURLFilter>(
           *profile->GetPrefs(), std::make_unique<FakeURLFilterDelegate>(),
           std::make_unique<safe_search_api::FakeURLCheckerClient>()),
-      std::make_unique<SupervisedUserServicePlatformDelegate>(*profile));
+      std::make_unique<SupervisedUserServicePlatformDelegate>(*profile),
+      InitialSupervisionState::kUnsupervised);
 }
 
 TestSupervisedUserService* GetTestSupervisedUserService(Profile* profile) {
@@ -58,12 +58,13 @@ TestSupervisedUserService* GetTestSupervisedUserService(Profile* profile) {
 
 }  // namespace
 
-void JNI_SupervisedUserServiceTestBridge_Init(JNIEnv* env, Profile* profile) {
+static void JNI_SupervisedUserServiceTestBridge_Init(JNIEnv* env,
+                                                     Profile* profile) {
   SupervisedUserServiceFactory::GetInstance()->SetTestingFactoryAndUse(
       profile, base::BindRepeating(&BuildSupervisedUserService));
 }
 
-void JNI_SupervisedUserServiceTestBridge_EnableBrowserContentFilters(
+static void JNI_SupervisedUserServiceTestBridge_EnableBrowserContentFilters(
     JNIEnv* env,
     Profile* profile) {
   GetTestSupervisedUserService(profile)
@@ -71,7 +72,7 @@ void JNI_SupervisedUserServiceTestBridge_EnableBrowserContentFilters(
       ->SetEnabled(true);
 }
 
-void JNI_SupervisedUserServiceTestBridge_EnableSearchContentFilters(
+static void JNI_SupervisedUserServiceTestBridge_EnableSearchContentFilters(
     JNIEnv* env,
     Profile* profile) {
   GetTestSupervisedUserService(profile)
@@ -79,3 +80,5 @@ void JNI_SupervisedUserServiceTestBridge_EnableSearchContentFilters(
       ->SetEnabled(true);
 }
 }  // namespace supervised_user
+
+DEFINE_JNI(SupervisedUserServiceTestBridge)

@@ -1296,6 +1296,9 @@ are declared in tools/grit/grit_args.gni.
           <message name="IDS_ADDRESSES_AND_MORE_SUBMENU_OPTION" desc="The text label of the addresses and more item for the passwords and autofill submenu">
             &amp;Addresses and more
           </message>
+          <message name="IDS_YOUR_SAVED_INFO_CONTACT_INFO_SUBMENU_OPTION" desc="The text label of the contact info option for the Your saved info submenu that allows user to manage their list of saved addresses and Autofill preferences for addresses.">
+            &amp;Contact info
+          </message>
           <message name="IDS_PASSWORDS_AND_AUTOFILL_MENU" desc="The text label of the passwords and autofill menu item">
             Passwords and &amp;autofill
           </message>
@@ -1360,6 +1363,9 @@ are declared in tools/grit/grit_args.gni.
           </message>
           <message name="IDS_PAYMENT_METHOD_SUBMENU_OPTION" desc="The text label of the payment method for the passwords and autofill submenu">
             &amp;Payment methods
+          </message>
+          <message name="IDS_YOUR_SAVED_INFO_PAYMENTS_SUBMENU_OPTION" desc="The text label of the payments option for the Your saved info submenu that allows user to manage their list of saved payment methods and Autofill preferences for payment methods.">
+            &amp;Payments
           </message>
           <message name="IDS_SAVE_AND_SHARE_MENU" desc="The text label of the Save and share sub menu item">
             &amp;Save and share
@@ -1432,6 +1438,9 @@ are declared in tools/grit/grit_args.gni.
           <message name="IDS_ADDRESSES_AND_MORE_SUBMENU_OPTION" desc="In Title Case: The text label of the addresses and more item for the passwords and autofill submenu">
             &amp;Addresses and More
           </message>
+          <message name="IDS_YOUR_SAVED_INFO_CONTACT_INFO_SUBMENU_OPTION" desc="In Title Case: The text label of the contact info option for the Your saved info submenu that allows user to manage their list of saved addresses and Autofill preferences for addresses.">
+            &amp;Contact Info
+          </message>
           <message name="IDS_PASSWORDS_AND_AUTOFILL_MENU" desc="In Title Case: The text label of the passwords and autofill menu item">
             Passwords and &amp;Autofill
           </message>
@@ -1499,6 +1508,9 @@ are declared in tools/grit/grit_args.gni.
           </message>
           <message name="IDS_PAYMENT_METHOD_SUBMENU_OPTION" desc="In Title Case: The text label of the payment method for the passwords and autofill submenu">
             &amp;Payment Methods
+          </message>
+          <message name="IDS_YOUR_SAVED_INFO_PAYMENTS_SUBMENU_OPTION" desc="In Title Case: The text label of the payments option for the Your saved info submenu that allows user to manage their list of saved payment methods and Autofill preferences for payment methods.">
+            &amp;Payments
           </message>
           <message name="IDS_SAVE_AND_SHARE_MENU" desc="In Title Case: The text label of the Save and share sub menu item">
             &amp;Save and Share
@@ -4142,6 +4154,23 @@ are declared in tools/grit/grit_args.gni.
         See how
       </message>
 
+      <!-- JS optimizations bubble -->
+      <message name="IDS_JS_OPTIMIZATIONS_DISABLED_ICON_TOOLTIP" desc="Tooltip for the JS Optimizations chip in the toolbar when it's disabled.">
+        JavaScript optimizations are disabled.
+      </message>
+      <message name="IDS_JS_OPTIMIZATION_BUBBLE_TITLE" desc="Title for the V8 optimization bubble.">
+        V8 optimization is off
+      </message>
+      <message name="IDS_JS_OPTIMIZATION_BUBBLE_POLICY_BODY" desc="Body text for the V8 optimization bubble when disabled by enterprise policy.">
+        JavaScript optimization is off for this site.
+      </message>
+      <message name="IDS_JS_OPTIMIZATION_BUBBLE_BODY_NON_POLICY_BODY" desc="Body text for the V8 optimization bubble when disabled for other reasons.">
+        JavaScript optimization is off for this site. Enable for better performance.
+      </message>
+      <message name="IDS_JS_OPTIMIZATION_BUBBLE_ENABLE_BUTTON" desc="Button text to enable V8 optimization for the current site.">
+        Allow for this site
+      </message>
+
       <!-- Win certificate selector dialog strings.  -->
       <if expr="toolkit_views">
         <message name="IDS_CERT_SELECTOR_SUBJECT_COLUMN" desc="The text of the header for the certificate subject column in the certificate selector dialog.">
@@ -4764,6 +4793,23 @@ are declared in tools/grit/grit_args.gni.
       </message>
       <message name="IDS_DEV_TOOLS_EDIT_DIRECTORY_PERMISSION_TITLE" desc="Title of dialog asking user to confirm giving read and write access to (files in) a directory using DevTools">
         Let DevTools edit files?
+      </message>
+
+      <!-- DevTools connection dialog -->
+      <message name="IDS_DEV_TOOLS_CONNECTION_DIALOG_TITLE" desc="Title of dialog asking user to confirm allowing a debugging connection to this browser instance.">
+        Allow remote debugging?
+      </message>
+      <message name="IDS_DEV_TOOLS_CONNECTION_DIALOG_MESSAGE_PART_1" desc="Message displayed in the dialog asking user to confirm allowing a debugging connection to this browser instance.">
+        An external app wants full control over this Chrome session to debug it. This includes access to your saved data, cookies and site data, and the ability to navigate to any URL.
+      </message>
+      <message name="IDS_DEV_TOOLS_CONNECTION_DIALOG_MESSAGE_PART_2" desc="Message displayed in the dialog asking user to confirm allowing a debugging connection to this browser instance.">
+        Only web developers should turn on this feature, and only use it with trusted apps.
+      </message>
+      <message name="IDS_DEV_TOOLS_CONNECTION_DIALOG_ALLOW_TEXT" desc="Text for the button to allow a debugging connection to this browser instance.">
+        Allow
+      </message>
+      <message name="IDS_DEV_TOOLS_CONNECTION_DIALOG_DISABLE_TEXT" desc="Text for the button to disable the debugging connection feature.">
+        Turn off in settings
       </message>
 
       <!-- DevTools confirm infobar button labels -->
@@ -5877,6 +5923,10 @@ are declared in tools/grit/grit_args.gni.
           To get your extensions on all your computers, turn on sync
         </message>
         <!-- End of Sync Promo strings for Desktop Identity Consistency. -->
+
+        <message name="IDS_EXTENSION_VERIFY_PROMO_SUBTITLE" desc="This is the body text of a confirmation message and means that the extension is in an account-pending storage. In other words, it's waiting to be uploaded to the user's Google Account. It appears when the user was signed in to Chrome with account storage for extensions enabled but their sign-in credentials have expired; now, they need to sign back in to Chrome. If the user wants to save this data to their Google Account, they can click the 'Verify it's you' button at the bottom of this message. The tone should be motivating.">
+          To get this extension on all your computers, verify it’s you
+        </message>
       </if>
 
       <!-- Directory access confirmation dialog -->
@@ -7584,6 +7634,30 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_WEBUI_OMNIBOX_PLACEHOLDER_TEXT" desc="The text displayed in the WebUI Omnibox when it is empty and unfocused.">
         Ask <ph name="SEARCH_ENGINE_NAME">$1<ex>Google</ex></ph> or type a URL
       </message>
+      <message name="IDS_WEBUI_OMNIBOX_COMPOSE_ASK_ABOUT_THIS_TAB" desc="Label for a button that allows the user to ask a question about the content of their current tab.">
+        Ask Google about this tab
+      </message>
+      <message name="IDS_WEBUI_OMNIBOX_COMPOSE_ASK_ABOUT_THIS_TAB_ARIA_LABEL" desc="The aria-label for the button that allows the user to ask a question about the content of their current tab. The $1 is a placeholder for the tab title.">
+        Ask Google about this tab: <ph name="TAB_TITLE">$1</ph>
+      </message>
+      <message name="IDS_WEBUI_OMNIBOX_COMPOSE_ASK_ABOUT_THIS_PAGE" desc="Label for a button that allows the user to ask a question about the content of their current page.">
+        Ask Google about this page
+      </message>
+      <message name="IDS_WEBUI_OMNIBOX_COMPOSE_ASK_ABOUT_THIS_PAGE_ARIA_LABEL" desc="The aria-label for the button that allows the user to ask a question about the content of their current page. The $1 is a placeholder for the page title.">
+        Ask Google about this page: <ph name="PAGE_TITLE">$1</ph>
+      </message>
+      <message name="IDS_WEBUI_OMNIBOX_COMPOSE_LENS_SEARCH_THIS_TAB" desc="Label for a button that allows the user to search the content of their current tab with Google Lens">
+        Search this tab with Google Lens
+      </message>
+      <message name="IDS_WEBUI_OMNIBOX_COMPOSE_LENS_SEARCH_THIS_TAB_ARIA_LABEL" desc="The aria-label for the button that allows the user to search the content of their current tab with Google Lens. The $1 is a placeholder for the page title.">
+        Search this tab with Google Lens: <ph name="PAGE_TITLE">$1</ph>
+      </message>
+      <message name="IDS_WEBUI_OMNIBOX_COMPOSE_LENS_SEARCH_THIS_PAGE" desc="Label for a button that allows the user to search the content of their current page with Google Lens">
+        Search this page with Google Lens
+      </message>
+      <message name="IDS_WEBUI_OMNIBOX_COMPOSE_LENS_SEARCH_THIS_PAGE_ARIA_LABEL" desc="The aria-label for the button that allows the user to search the content of their current page with Google Lens. The $1 is a placeholder for the page title.">
+        Search this page with Google Lens: <ph name="PAGE_TITLE">$1</ph>
+      </message>
 
       <!-- NTP -->
       <message name="IDS_GOOGLE_SEARCH_BOX_EMPTY_HINT_MD" desc="The text displayed in the fakebox (on the New Tab page) when it is empty, Google is the default search engine, and the Material Design UI is enabled.">
@@ -7867,6 +7941,9 @@ Keep your key file in a safe place. You will need it to create new versions of y
       </message>
       <message name="IDS_NTP_CUSTOMIZE_SHOW_CHIPS_LABEL" desc="The label for the option to show the Google Search tools options in the New Tab Page" meaning="Toggle to display/hide the Search tool options in the New Tab Page.">
         Show options
+      </message>
+      <message name="IDS_NTP_CUSTOMIZE_SHOW_SUGGESTIONS_CHIPS_LABEL" desc="The label for the option to show the Google Search tool suggestions in the New Tab Page" meaning="Toggle to display/hide the Search tool suggestions in the New Tab Page.">
+        Show suggestions
       </message>
       <message name="IDS_NTP_CUSTOMIZE_SHOW_SHORTCUTS_LABEL" desc="The label for the option to show shortcuts in the customization menu on the New Tab Page">
         Show shortcuts
@@ -8562,11 +8639,13 @@ Keep your key file in a safe place. You will need it to create new versions of y
           Reset to default
         </message>
       </if>
+
+      <!-- Composebox -->
       <message name="IDS_NTP_COMPOSE_ENTRYPOINT" desc="The text for the compose entrypoint in the searchbox on the New Tab Page.">
         AI Mode
       </message>
       <message name="IDS_NTP_COMPOSE_ENTRYPOINT_A11Y_LABEL" desc="The accessibility label for the compose entrypoint in the searchbox on the New Tab Page.">
-        Ask Google AI Mode
+        Ask AI Mode in Google Search
       </message>
       <message name="IDS_NTP_COMPOSE_PLACEHOLDER_TEXT" desc="The placeholder for the input in the compose box.">
         Ask AI Mode
@@ -8636,6 +8715,9 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_NTP_COMPOSE_ADD_CONTEXT" desc="The text to display to ask user to add context to their search e.g. pdf or image.">
         Add a tab and more
       </message>
+      <message name="IDS_NTP_COMPOSE_ADD_CONTEXTS" desc="The text to display to ask user to add context to their search.">
+        Add tabs and more
+      </message>
       <message name="IDS_NTP_COMPOSE_ADD_CONTEXT_TITLE" desc="The a11y title for a button that allows users to add context to their search e.g. pdf or image.">
         Add a tab or file to your search, and also use a tool
       </message>
@@ -8651,17 +8733,17 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_NTP_COMPOSE_DEEP_SEARCH" desc="The label for the deep search button in the context menu in the composebox as well as the chip that indicates that the user is in deep search mode.">
         Deep Search
       </message>
-      <message name="IDS_NTP_COMPOSE_ASK_ABOUT_THIS_TAB" desc="The text on a button that suggests the user can ask a question about the content of their most recent tab."  translateable="false">
-        Ask Google about previous tab
-      </message>
-      <message name="IDS_NTP_COMPOSE_ASK_ABOUT_THIS_TAB_ARIA_LABEL" desc="The aria-label for the button that suggests the user can ask a question about the content of their most recent tab. The $1 is a placeholder for the tab title." translateable="false">
-        Ask Google about previous tab: <ph name="TAB_TITLE">$1</ph>
-      </message>
       <message name="IDS_NTP_COMPOSE_CREATE_IMAGES" desc="The label for the create images button in the context menu in the composebox as well as the chip that indicates that the user is in create images mode.">
         Create images
       </message>
       <message name="IDS_COMPOSE_DEEP_SEARCH_PLACEHOLDER" desc="Placeholder text for the composebox when in deep search mode.">
         Research anything
+      </message>
+      <message name="IDS_COMPOSE_CREATE_IMAGE_IPH" desc="In-product help text to suggest adding an image as context to a composebox query with create image tool enabled.">
+        Add and edit an image
+      </message>
+      <message name="IDS_COMPOSE_DEEP_SEARCH_IPH" desc="In-product help text to explain what deep search mode does.">
+        Get deeper responses with more sources, in a little extra time
       </message>
       <message name="IDS_COMPOSE_CREATE_IMAGE_PLACEHOLDER" desc="Placeholder text for the composebox when in create image mode.">
         Describe your image
@@ -8696,6 +8778,18 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_COMPOSE_REMOVE_TOOL_CHIP_A11Y_LABEL" desc="A11y text for removing a tool in the composebox.">
         Remove <ph name="TOOL_NAME">$1<ex>Deep Search</ex></ph>
       </message>
+      <message name="IDS_COMPOSE_ASK_ABOUT_THIS_TAB" desc="Label for a button in the composebox that allows the user to ask a question about the content of their most recent tab.">
+        Ask Google about previous tab
+      </message>
+      <message name="IDS_COMPOSE_ASK_ABOUT_THIS_TAB_ARIA_LABEL" desc="The aria-label for the button that allows the user to ask a question about the content of their most recent tab. The $1 is a placeholder for the tab title.">
+        Ask Google about previous tab: <ph name="TAB_TITLE">$1</ph>
+      </message>
+      <message name="IDS_COMPOSE_ASK_ABOUT_THIS_PAGE" desc="Label for a button in the composebox that allows the user to ask a question about the content of their most recent page." >
+        Ask Google about previous page
+      </message>
+      <message name="IDS_COMPOSE_ASK_ABOUT_THIS_PAGE_ARIA_LABEL" desc="The aria-label for the button that allows the user to ask a question about the content of their most recent tab. The $1 is a placeholder for the page title.">
+        Ask Google about previous page: <ph name="PAGE_TITLE">$1</ph>
+      </message>
 
       <!-- NTP Modules -->
       <message name="IDS_NTP_MODULES_SETUP_LIST_DISABLE_TOAST_MESSAGE" desc="Text shown in the toast confirming a module has been disabled.">
@@ -8718,6 +8812,9 @@ Keep your key file in a safe place. You will need it to create new versions of y
       </message>
       <message name="IDS_NTP_MODULES_DISABLE_TOAST_MESSAGE" desc="Text shown in the toast confirming a module has been disabled.">
         You won't see <ph name="MODULE_NAME">$1<ex>shopping suggestions</ex></ph> on this page again
+      </message>
+      <message name="IDS_NTP_MODULES_INACTIVITY_REMOVAL" desc="Text shown in a toast informing not recently used cards have been removed." >
+        Cards removed because you haven't used them recently
       </message>
       <message name="IDS_NTP_MODULES_HISTORY_CLUSTERS_DISABLE_TOAST_MESSAGE" desc="Text shown in the toast confirming the NTP History Clusters module has been disabled.">
         You won't see <ph name="MODULE_NAME">$1<ex>this type of card</ex></ph> again
@@ -9058,6 +9155,11 @@ Keep your key file in a safe place. You will need it to create new versions of y
       </message>
       <message name="IDS_NTP_MOBILE_PROMO_QR_CODE_LABEL" desc="Accessibility label for a QR code that shows on the Desktop NTP that prompts the user to scan it.">
         Scan QR Code
+      </message>
+
+      <!-- NTP Shortcuts -->
+      <message name="IDS_NTP_MOST_VISITED_SHORTCUTS_INACTIVITY_REMOVAL" desc="Text shown in a toast informing not recently used most visited shortcuts have been removed." >
+        Shortcuts for your most visited sites were removed because you haven't used them recently
       </message>
 
       <!-- Extensions NTP Middle Slot Promo -->
@@ -12490,6 +12592,12 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google 
         <message name="IDS_TAB_GROUP_HEADER_CXMENU_UNGROUP" desc="The label of the tab group header context menu item for ungrouping the current group.">
           Ungroup
         </message>
+        <message name="IDS_TAB_GROUP_HEADER_CXMENU_FOCUS_GROUP" desc="The label for focus group in the tab group editor bubble.">
+          Focus group
+        </message>
+        <message name="IDS_TAB_GROUP_HEADER_CXMENU_UNFOCUS_GROUP" desc="The label for unfocus group in the tab group editor bubble.">
+          Unfocus group
+        </message>
         <message name="IDS_TAB_GROUP_HEADER_CXMENU_SHARE_GROUP" desc="The label of the tab group header context menu item for sharing the current group.">
           Share group
         </message>
@@ -12537,6 +12645,12 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google 
         </message>
         <message name="IDS_TAB_GROUP_HEADER_CXMENU_UNGROUP" desc="In Title Case: The label of the tab group header context menu item for ungrouping the current group.">
           Ungroup
+        </message>
+        <message name="IDS_TAB_GROUP_HEADER_CXMENU_FOCUS_GROUP" desc="The label for focus group in the tab group editor bubble.">
+          Focus Group
+        </message>
+        <message name="IDS_TAB_GROUP_HEADER_CXMENU_UNFOCUS_GROUP" desc="The label for unfocus group in the tab group editor bubble.">
+          Unfocus Group
         </message>
         <message name="IDS_TAB_GROUP_HEADER_CXMENU_SHARE_GROUP" desc="The label of the tab group header context menu item for sharing the current group.">
           Share Group
@@ -17325,7 +17439,7 @@ Please help our engineers fix this problem. Tell us what happened right before y
 
     <!-- Automation infobar -->
     <message name="IDS_CONTROLLED_BY_AUTOMATION" desc="Message shown when the browser session is being controlled by an automated test.">
-      Chrome is being controlled by automated test software.
+      Chrome is being controlled by automated test software
     </message>
 
     <!-- Chrome for Testing infobar main text -->
@@ -17350,14 +17464,12 @@ Please help our engineers fix this problem. Tell us what happened right before y
     </if>
 
     <!-- Download open confirmation dialog -->
-    <if expr="not is_android">
-      <message name="IDS_DOWNLOAD_OPEN_CONFIRMATION_DIALOG_TITLE" desc="Title of the dialog prompt shown to users when an extension is trying to open a downloaded file.">
-        Open download
-      </message>
-      <message name="IDS_DOWNLOAD_OPEN_CONFIRMATION_DIALOG_MESSAGE" desc="Text of the message of the download open confirmation dialog.">
-        Allow <ph name="EXTENSION_NAME">$1<ex>Download Viewer</ex></ph> to open <ph name="FILE_NAME">$2<ex>abc.jpg</ex></ph>?
-      </message>
-    </if>
+    <message name="IDS_DOWNLOAD_OPEN_CONFIRMATION_DIALOG_TITLE" desc="Title of the dialog prompt shown to users when an extension is trying to open a downloaded file.">
+      Open download
+    </message>
+    <message name="IDS_DOWNLOAD_OPEN_CONFIRMATION_DIALOG_MESSAGE" desc="Text of the message of the download open confirmation dialog.">
+      Allow <ph name="EXTENSION_NAME">$1<ex>Download Viewer</ex></ph> to open <ph name="FILE_NAME">$2<ex>abc.jpg</ex></ph>?
+    </message>
 
     <message name="IDS_CONFIRM_FILE_UPLOAD_TITLE" desc="Title of dialog for confirming that many files are about to be uploaded / given to the site. [ICU Syntax]">
       {0, plural,
@@ -18544,16 +18656,16 @@ Please help our engineers fix this problem. Tell us what happened right before y
           =1 {Click to view the extension}
           other {Click to view these extensions}}
       </message>
-      <message name="IDS_ENTERPRISE_EXTENSION_REQUEST_JUSTIFICATION" desc="Text describing the extension request justificaion textfield.">
-        Justification for requesting this extension:
-      </message>
-      <message name="IDS_ENTERPRISE_EXTENSION_REQUEST_JUSTIFICATION_PLACEHOLDER" desc="Placeholder text which appears inside the extension request justification textfield.">
-        Enter justification...
-      </message>
-      <message name="IDS_ENTERPRISE_EXTENSION_REQUEST_JUSTIFICATION_LENGTH_LIMIT" desc="Text displaying the current number of characters in the extension request justification text box, as well as the maximum character limit. This is used to inform the user when the limit is exceeded.">
-        <ph name="ACTUAL_CHAR_COUNT">$1<ex>10</ex></ph>/<ph name="MAX_CHAR_COUNT">$2<ex>300</ex></ph>
-      </message>
     </if>
+    <message name="IDS_ENTERPRISE_EXTENSION_REQUEST_JUSTIFICATION" desc="Text describing the extension request justificaion textfield.">
+      Justification for requesting this extension:
+    </message>
+    <message name="IDS_ENTERPRISE_EXTENSION_REQUEST_JUSTIFICATION_PLACEHOLDER" desc="Placeholder text which appears inside the extension request justification textfield.">
+      Enter justification...
+    </message>
+    <message name="IDS_ENTERPRISE_EXTENSION_REQUEST_JUSTIFICATION_LENGTH_LIMIT" desc="Text displaying the current number of characters in the extension request justification text box, as well as the maximum character limit. This is used to inform the user when the limit is exceeded.">
+      <ph name="ACTUAL_CHAR_COUNT">$1<ex>10</ex></ph>/<ph name="MAX_CHAR_COUNT">$2<ex>300</ex></ph>
+    </message>
 
     <message name="IDS_NAME_WINDOW_PROMPT_TITLE"
              desc="Title of the prompt to choose a new name for a window.">
@@ -19156,11 +19268,6 @@ Please help our engineers fix this problem. Tell us what happened right before y
     <!-- Infobar shown when Protected Audiences Debugging is enabled -->
     <message name="IDS_PROTECTED_AUDIENCE_DEBUGGING_DISCLAIMER" desc="Text of infobar that shows up when the consented debugging feature for Protected Audiences is enabled.">
       Protected Audiences Debugging is enabled.
-    </message>
-
-    <!-- Infobar shown when test-third-party-cookies switch is enabled -->
-    <message name="IDS_TEST_THIRD_PARTY_COOKIE_BLOCKING_PHASEOUT_INFO" desc="Text of infobar that shows up when the user starts Chrome with the --test-third-party-cookie-phaseout command line flag">
-      You have enabled testing third-party cookie phaseout. This cannot be overridden by the settings page. If you want to re-enable third-party cookies, relaunch Chrome with this feature disabled.
     </message>
 
     <!-- Responsive Toolbar -->

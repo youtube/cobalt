@@ -34,9 +34,6 @@
 /// Whether the return key is enabled with an empty text.
 @property(nonatomic, assign) BOOL allowsReturnKeyWithEmptyText;
 
-/// The grayed-out text shown when the text input is empty.
-@property(nonatomic, copy) NSString* placeholder;
-
 /// The text displayed in the text input.
 @property(nonatomic, copy) NSString* text;
 
@@ -129,6 +126,18 @@
 
 /// Current omnibox font.
 - (UIFont*)currentFont;
+
+// Force disable the return key.
+- (void)forceDisableReturnKey:(BOOL)forceDisable;
+
+// The default string that displays when there is no other text in the text
+// field. Can be locally overridden by `-(void)setCustomPlaceholderText:`.
+- (void)setDefaultPlaceholderText:(NSString*)defaultPlaceholderText;
+
+// Sets a custom placeholder text, overriding the default one already set.
+// If the custom placeholder is `nil` the system will fallback to the default
+// placeholder.
+- (void)setCustomPlaceholderText:(NSString*)customPlaceholderText;
 
 @end
 

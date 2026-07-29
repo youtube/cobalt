@@ -21,6 +21,7 @@
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
 #include "ui/views/controls/button/checkbox.h"
 #include "ui/views/controls/textfield/textfield_controller.h"
+#include "ui/views/layout/table_layout_view.h"
 #include "ui/views/view.h"
 
 class PictureInPictureInputProtector;
@@ -93,6 +94,21 @@ class ExtensionInstallDialogView : public views::BubbleDialogDelegateView,
   // info.
   void CreateContents();
 
+  // Returns the title container, which contains the title and (maybe) webstore
+  // data.
+  [[nodiscard]] std::unique_ptr<views::TableLayoutView> CreateTitleContainer();
+
+  // Returns the webstore data builder, which contains information about the
+  // extension on the webstore.
+  [[nodiscard]] views::Builder<views::BoxLayoutView>
+  CreateWebstoreDataBuilder();
+
+  // Returns the extension info container, which contains extension permissions
+  // and/or justification views.
+  [[nodiscard]] std::unique_ptr<views::ScrollView> CreateExtensionInfoContainer(
+      bool has_permissions,
+      bool requires_justification);
+
   // views::TextfieldController:
   void ContentsChanged(views::Textfield* sender,
                        const std::u16string& new_contents) override;
@@ -104,7 +120,6 @@ class ExtensionInstallDialogView : public views::BubbleDialogDelegateView,
   std::unique_ptr<ExtensionInstallPromptShowParams> show_params_;
   ExtensionInstallPrompt::DoneCallback done_callback_;
   std::unique_ptr<ExtensionInstallPrompt::Prompt> prompt_;
-  std::u16string title_;
   base::ScopedObservation<extensions::ExtensionRegistry,
                           extensions::ExtensionRegistryObserver>
       extension_registry_observation_{this};

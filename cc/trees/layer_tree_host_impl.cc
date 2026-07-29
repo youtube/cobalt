@@ -537,10 +537,14 @@ LayerTreeHostImpl::LayerTreeHostImpl(
       << "scrollbar_flash_after_any_scroll_update "
       << "can be enabled";
 
-  if (base::FeatureList::IsEnabled(features::kTreesInViz) &&
-      !settings_.TreesInVizInClientProcess()) {
+  if (settings.trees_in_viz_in_viz_process) {
     compositor_frame_reporting_controller_ =
         std::make_unique<StubCompositorFrameReportingController>();
+
+    // TreesInViz server side usually has frame tokens set by the client.
+    // Initialize a default value here, which is expected in many tree
+    // tests.
+    set_next_frame_token_from_client(1u);
   } else {
     compositor_frame_reporting_controller_ =
         std::make_unique<CompositorFrameReportingController>(
@@ -1665,7 +1669,6 @@ DrawResult LayerTreeHostImpl::CalculateRenderPasses(FrameData* frame,
   // When we require high res to draw, abort the draw (almost) always. This does
   // not cause the scheduler to do a main frame, instead it will continue to try
   // drawing until we finally complete, so the copy request will not be lost.
-  // TODO(weiliangc): Remove RequiresHighResToDraw. crbug.com/469175
   if (frame->checkerboarded_needs_raster) {
     if (RequiresHighResToDraw()) {
       if (expects_to_draw) {
@@ -3763,6 +3766,10 @@ void LayerTreeHostImpl::DidNotProduceFrame(const viz::BeginFrameAck& ack,
   }
 }
 
+void LayerTreeHostImpl::DidChangeBeginFrameSourcePaused(bool paused) {
+  client_->DidChangeBeginFrameSourcePaused(paused);
+}
+
 void LayerTreeHostImpl::OnBeginImplFrameDeadline() {
   if (!input_delegate_) {
     return;
@@ -4187,6 +4194,10 @@ void LayerTreeHostImpl::ActivateStateForImages() {
 }
 
 void LayerTreeHostImpl::OnMemoryPressure(base::MemoryPressureLevel level) {
+  if (level == base::MEMORY_PRESSURE_LEVEL_NONE) {
+    return;
+  }
+
   if (settings_.trees_in_viz_in_viz_process) {
     return;
   }
@@ -4259,7 +4270,6 @@ void LayerTreeHostImpl::SetVisible(bool visible) {
   // If we just became visible, we have to ensure that we draw high res tiles,
   // to prevent checkerboard flashes.
   if (visible_) {
-    // TODO(crbug.com/40410467): Replace with RequiresHighResToDraw.
     SetRequiresHighResToDraw();
     // Prior CompositorFrame may have been discarded and thus we need to ensure
     // that we submit a new one, even if there are no tiles. Therefore, force a
@@ -4705,7 +4715,6 @@ bool LayerTreeHostImpl::InitializeFrameSink(
   // There will not be anything to draw here, so set high res
   // to avoid checkerboards, typically when we are recovering
   // from lost context.
-  // TODO(crbug.com/40410467): Replace with RequiresHighResToDraw.
   SetRequiresHighResToDraw();
 
   // Always allocate a new viz::LocalSurfaceId when we get a new
@@ -5320,9 +5329,6 @@ bool LayerTreeHostImpl::AnimateLayers(base::TimeTicks monotonic_time,
   // TODO(crbug.com/40443202): Only do this if the animations are on the active
   // tree, or if they are on the pending tree waiting for some future time to
   // start.
-  // TODO(crbug.com/40443205): We currently have a single signal from the
-  // animation_host, so on the last frame of an animation we will
-  // still request an extra SetNeedsAnimate here.
   if (animated) {
     // TODO(crbug.com/40667010): If only scroll animations present, schedule a
     // frame only if scroll changes.
@@ -5360,9 +5366,6 @@ bool LayerTreeHostImpl::AnimateLayers(base::TimeTicks monotonic_time,
         FrameSequenceTrackerType::kSETCompositorAnimation);
   }
 
-  // TODO(crbug.com/40443205): We could return true only if the animations are
-  // on the active tree. There's no need to cause a draw to take place from
-  // animations starting/ticking on the pending tree.
   return animated;
 }
 
@@ -6151,9 +6154,10 @@ void LayerTreeHostImpl::ScrollOffsetAnimationFinished(ElementId element_id) {
     input_delegate_->ScrollOffsetAnimationFinished(element_id);
 }
 
-void LayerTreeHostImpl::ElasticOverscrollAnimationFinished() {
+void LayerTreeHostImpl::ElasticOverscrollAnimationFinished(
+    ElementId finished_id) {
   if (input_delegate_) {
-    input_delegate_->ElasticOverscrollAnimationFinished();
+    input_delegate_->ElasticOverscrollAnimationFinished(finished_id);
   }
 }
 

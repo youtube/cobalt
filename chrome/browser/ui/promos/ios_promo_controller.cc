@@ -12,6 +12,31 @@
 #include "chrome/browser/ui/promos/ios_promo_trigger_service.h"
 #include "chrome/browser/ui/promos/ios_promo_trigger_service_factory.h"
 #include "chrome/browser/ui/promos/ios_promos_utils.h"
+#include "chrome/browser/ui/user_education/browser_user_education_interface.h"
+#include "components/desktop_to_mobile_promos/promos_types.h"
+#include "components/feature_engagement/public/feature_constants.h"
+
+using desktop_to_mobile_promos::PromoType;
+
+namespace {
+
+// Returns the feature associated with the given PromoType.
+const base::Feature& FeatureForIOSPromoType(PromoType promo_type) {
+  switch (promo_type) {
+    case PromoType::kPassword:
+      return feature_engagement::kIPHiOSPasswordPromoDesktopFeature;
+    case PromoType::kAddress:
+      return feature_engagement::kIPHiOSAddressPromoDesktopFeature;
+    case PromoType::kPayment:
+      return feature_engagement::kIPHiOSPaymentPromoDesktopFeature;
+    case PromoType::kEnhancedBrowsing:
+      return feature_engagement::kIPHiOSEnhancedBrowsingDesktopFeature;
+    case PromoType::kLens:
+      return feature_engagement::kIPHiOSLensPromoDesktopFeature;
+  }
+}
+
+}  // namespace
 
 DEFINE_USER_DATA(IOSPromoController);
 
@@ -35,7 +60,7 @@ IOSPromoController* IOSPromoController::From(
   return Get(browser_window_interface->GetUnownedUserDataHost());
 }
 
-void IOSPromoController::OnPromoTriggered(IOSPromoType promo_type) {
+void IOSPromoController::OnPromoTriggered(PromoType promo_type) {
   BrowserWindow* window = browser_->window();
   // Don't show the promo if the window is not active or the toolbar is not
   // visible.
@@ -43,5 +68,29 @@ void IOSPromoController::OnPromoTriggered(IOSPromoType promo_type) {
     return;
   }
 
-  ios_promos_utils::VerifyIOSPromoEligibility(promo_type, browser_);
+  // Don't show the promo if the user has a recent active Android device.
+  if (ios_promos_utils::IsUserActiveOnAndroid(browser_->profile())) {
+    return;
+  }
+
+  // Do not show the promo if the user does not meet one of the two
+  // conditions:
+  // 1. Does not have Chrome installed on any iOS device
+  // 2. Is active for no more than 16 days in the last 28
+  IOSPromoTriggerService* service =
+      IOSPromoTriggerServiceFactory::GetForProfile(browser_->profile());
+  if (!service) {
+    return;
+  }
+  const syncer::DeviceInfo* device = service->GetIOSDeviceToRemind();
+  if (device && ios_promos_utils::IsUserActiveOnIOS(browser_->profile())) {
+    return;
+  }
+
+  auto* user_education_interface =
+      BrowserUserEducationInterface::From(browser_);
+  if (user_education_interface) {
+    user_education_interface->MaybeShowFeaturePromo(
+        FeatureForIOSPromoType(promo_type));
+  }
 }

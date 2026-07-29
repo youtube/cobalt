@@ -4,6 +4,8 @@
 
 #include "chrome/browser/ui/omnibox/omnibox_context_menu_controller.h"
 
+#include "base/test/scoped_feature_list.h"
+#include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/contextual_search/contextual_search_web_contents_helper.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
@@ -13,6 +15,7 @@
 #include "chrome/browser/ui/contextual_search/searchbox_context_data.h"
 #include "chrome/browser/ui/location_bar/location_bar.h"
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
+#include "chrome/browser/ui/omnibox/omnibox_edit_model.h"
 #include "chrome/browser/ui/omnibox/omnibox_next_features.h"
 #include "chrome/browser/ui/omnibox/omnibox_popup_state_manager.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -105,7 +108,9 @@ class TestOmniboxPopupFileSelector : public OmniboxPopupFileSelector {
       content::WebContents* web_contents,
       bool is_image,
       contextual_search::ContextualSearchContextController* query_controller,
-      OmniboxEditModel* edit_model) override {
+      OmniboxEditModel* edit_model,
+      std::optional<lens::ImageEncodingOptions> image_encoding_options)
+      override {
     open_file_upload_dialog_calls_++;
   }
 
@@ -121,11 +126,15 @@ class OmniboxContextMenuControllerBrowserTest : public InProcessBrowserTest {
  public:
   OmniboxContextMenuControllerBrowserTest() {
     scoped_feature_list_.InitWithFeaturesAndParameters(
-        {{omnibox::kWebUIOmniboxAimPopup,
+        /*enabled_features=*/
+        {{omnibox::internal::kWebUIOmniboxAimPopup,
           {{omnibox::kWebUIOmniboxAimPopupAddContextButtonVariantParam.name,
-            "inline"}}},
+            "inline"},
+           {omnibox::kForceToolsAndModels.name, "true"},
+           {omnibox::kShowCreateImageTool.name, "true"},
+           {omnibox::kShowToolsAndModels.name, "true"}}},
          {omnibox::kWebUIOmniboxPopup, {}}},
-        {});
+        /*disabled_features=*/{omnibox::kAimServerEligibilityEnabled});
   }
 
   OmniboxContextMenuControllerBrowserTest(
@@ -242,8 +251,15 @@ IN_PROC_BROWSER_TEST_F(OmniboxContextMenuControllerBrowserTest,
   EXPECT_EQ(9u, model->GetItemCount());
 }
 
+// TODO(crbug.com/460910010): Flaky, especially on CrOS ASAN LSAN and Win ASAN.
+#if defined(ADDRESS_SANITIZER) && \
+    ((BUILDFLAG(IS_CHROMEOS) && defined(LEAK_SANITIZER)) || BUILDFLAG(IS_WIN))
+#define MAYBE_ExecuteCommand DISABLED_ExecuteCommand
+#else
+#define MAYBE_ExecuteCommand ExecuteCommand
+#endif
 IN_PROC_BROWSER_TEST_F(OmniboxContextMenuControllerBrowserTest,
-                       ExecuteCommand) {
+                       MAYBE_ExecuteCommand) {
   TestingPrefServiceSimple pref_service;
   TestOmniboxPopupFileSelector file_selector;
   OmniboxContextMenuController controller(&file_selector, GetWebContents());

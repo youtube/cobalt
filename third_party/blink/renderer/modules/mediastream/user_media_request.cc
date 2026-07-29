@@ -706,6 +706,18 @@ UserMediaRequestType UserMediaRequest::MediaRequestType() const {
   return media_type_;
 }
 
+bool UserMediaRequest::IsGumExtensionRequest() const {
+  auto audio_type = AudioMediaStreamType();
+  auto video_type = VideoMediaStreamType();
+  if (audio_type == MediaStreamType::GUM_DESKTOP_AUDIO_CAPTURE ||
+      audio_type == MediaStreamType::GUM_TAB_AUDIO_CAPTURE ||
+      video_type == MediaStreamType::GUM_DESKTOP_VIDEO_CAPTURE ||
+      video_type == MediaStreamType::GUM_TAB_VIDEO_CAPTURE) {
+    return true;
+  }
+  return false;
+}
+
 bool UserMediaRequest::Audio() const {
   return !audio_.IsNull();
 }
@@ -726,13 +738,13 @@ MediaStreamType UserMediaRequest::AudioMediaStreamType() const {
   if (!Audio()) {
     return MediaStreamType::NO_SERVICE;
   }
-  if (MediaRequestType() == UserMediaRequestType::kDisplayMedia) {
+  auto media_type = MediaRequestType();
+  if (media_type == UserMediaRequestType::kDisplayMedia) {
     return MediaStreamType::DISPLAY_AUDIO_CAPTURE;
   }
-  if (MediaRequestType() == UserMediaRequestType::kAllScreensMedia) {
+  if (media_type != UserMediaRequestType::kUserMedia) {
     return MediaStreamType::NO_SERVICE;
   }
-  DCHECK_EQ(UserMediaRequestType::kUserMedia, MediaRequestType());
 
   // Check if this is a getUserMedia display capture.
   const MediaConstraints& constraints = AudioConstraints();
@@ -758,16 +770,19 @@ MediaStreamType UserMediaRequest::VideoMediaStreamType() const {
   if (!Video()) {
     return MediaStreamType::NO_SERVICE;
   }
-  if (MediaRequestType() == UserMediaRequestType::kDisplayMedia) {
+  auto media_type = MediaRequestType();
+  if (media_type == UserMediaRequestType::kDisplayMedia) {
     return should_prefer_current_tab()
                ? MediaStreamType::DISPLAY_VIDEO_CAPTURE_THIS_TAB
                : MediaStreamType::DISPLAY_VIDEO_CAPTURE;
   }
-  if (MediaRequestType() == UserMediaRequestType::kAllScreensMedia) {
+  if (media_type == UserMediaRequestType::kAllScreensMedia) {
     DCHECK(!should_prefer_current_tab());
     return MediaStreamType::DISPLAY_VIDEO_CAPTURE_SET;
   }
-  DCHECK_EQ(UserMediaRequestType::kUserMedia, MediaRequestType());
+  if (media_type != UserMediaRequestType::kUserMedia) {
+    return MediaStreamType::NO_SERVICE;
+  }
 
   // Check if this is a getUserMedia display capture.
   const MediaConstraints& constraints = VideoConstraints();
@@ -927,10 +942,16 @@ void UserMediaRequest::Fail(Result error, const String& message) {
     case Result::PERMISSION_DENIED:
     case Result::PERMISSION_DENIED_BY_SYSTEM:
     case Result::PERMISSION_DISMISSED:
+    case Result::ANDROID_CANT_REQUEST_PERMISSION:
+    case Result::PERMISSION_DENIED_BY_EMBEDDER_CONTEXT:
+    case Result::DLP_PERMISSION_DENIED:
     case Result::NO_TRANSIENT_ACTIVATION:
       // TODO(crbug.com/453600255): Use `result_enum` kInvalidStateError for
       // NO_TRANSIENT_ACTIVATION once all new enum values are added.
     case Result::CAPTURE_NOT_ALLOWED_BY_POLICY:
+    case Result::MULTI_CAPTURE_NOT_SUPPORTED:
+      // TODO(crbug.com/453600255): Use `result_enum` kNotSupportedError for
+      // MULTI_CAPTURE_NOT_SUPPORTED once all new enum values are added.
     case Result::KILL_SWITCH_ON:
       exception_code = DOMExceptionCode::kNotAllowedError;
       result_enum = UserMediaRequestResult::kNotAllowedError;
@@ -944,14 +965,25 @@ void UserMediaRequest::Fail(Result error, const String& message) {
       result_enum = UserMediaRequestResult::kNotFoundError;
       break;
     case Result::INVALID_STATE:
+    case Result::INVALID_VIDEO_DEVICE_ID:
     case Result::FAILED_DUE_TO_SHUTDOWN:
       // TODO(crbug.com/453600255): Use `result_enum` kContextDestroyed and
       // `exception_code` kInvalidStateError for
       // FAILED_DUE_TO_SHUTDOWN once all new enum values are added.
     case Result::TAB_CAPTURE_FAILURE:
+    case Result::STREAM_NOT_FOUND_IN_REGISTRY:
+    case Result::REGISTRY_REQUEST_UNVERIFIED:
     case Result::SCREEN_CAPTURE_FAILURE:
     case Result::CAPTURE_FAILURE:
     case Result::START_TIMEOUT:
+    case Result::INVALID_DISPLAY_CAPTURE_CONSTRAINTS:
+    case Result::INVALID_GUM_TAB_CAPTURE_CONSTRAINTS:
+    case Result::INVALID_GUM_SCREEN_CAPTURE_CONSTRAINTS:
+      // TODO(crbug.com/453600255): Use `result_enum` kOverconstrainedError for
+      // INVALID_DISPLAY_CAPTURE_CONSTRAINTS,
+      // INVALID_GUM_TAB_CAPTURE_CONSTRAINTS and
+      // INVALID_GUM_SCREEN_CAPTURE_CONSTRAINTS once all new enum values are
+      // added.
       exception_code = DOMExceptionCode::kAbortError;
       result_enum = UserMediaRequestResult::kAbortError;
       break;

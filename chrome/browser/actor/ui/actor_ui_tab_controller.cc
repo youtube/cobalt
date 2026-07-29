@@ -37,12 +37,6 @@ void LogAndIgnoreCallbackError(const std::string_view source_name,
   }
 }
 
-std::unique_ptr<HandoffButtonController>
-ActorUiTabControllerFactory::CreateHandoffButtonController(
-    tabs::TabInterface& tab) {
-  return std::make_unique<HandoffButtonController>(tab);
-}
-
 ActorUiTabController::ActorUiTabController(
     tabs::TabInterface& tab,
     ActorKeyedService* actor_keyed_service,
@@ -50,7 +44,6 @@ ActorUiTabController::ActorUiTabController(
     : ActorUiTabControllerInterface(tab),
       tab_(tab),
       actor_keyed_service_(actor_keyed_service),
-      controller_factory_(std::move(controller_factory)),
       update_scrim_background_debounce_timer_(
           FROM_HERE,
           features::kGlicActorUiDebounceTimer.Get(),
@@ -58,8 +51,7 @@ ActorUiTabController::ActorUiTabController(
                               base::Unretained(this))),
       scoped_unowned_user_data_(tab.GetUnownedUserDataHost(), *this) {
   CHECK(actor_keyed_service_);
-  handoff_button_controller_ =
-      controller_factory_->CreateHandoffButtonController(tab);
+
   RegisterTabSubscriptions();
 }
 
@@ -86,11 +78,6 @@ void ActorUiTabController::OnUiTabStateChange(const UiTabState& ui_tab_state,
 
   current_ui_tab_state_ = ui_tab_state;
   UpdateUi(std::move(callback));
-}
-
-bool ActorUiTabController::ShouldShowActorTabIndicator() {
-  return features::kGlicActorUiTabIndicator.Get() &&
-         should_show_actor_tab_indicator_;
 }
 
 void ActorUiTabController::OnTabWillDetach(
@@ -167,17 +154,16 @@ ActorUiTabController::RegisterActorOverlayStateChange(
 }
 
 void ActorUiTabController::SetActorTabIndicatorVisibility(
-    bool should_show_tab_indicator,
+    TabIndicatorStatus tab_indicator_status,
     base::OnceClosure callback) {
   // When GLIC isn't enabled, we never set the tab indicator.
-  // TODO(crbug.com/422538779) remove GLIC dependency once the ACTOR_ACCESSING
+  // TODO(crbug.com/461457730) remove GLIC dependency once the ACTOR_ACCESSING
   // alert migrates away from the GLIC_ACCESSING resources.
 #if BUILDFLAG(ENABLE_GLIC)
-  if (should_show_actor_tab_indicator_ != should_show_tab_indicator) {
-    should_show_actor_tab_indicator_ = should_show_tab_indicator;
+  if (tab_indicator_ != tab_indicator_status) {
+    tab_indicator_ = tab_indicator_status;
     if (on_actor_tab_indicator_changed_callback_) {
-      on_actor_tab_indicator_changed_callback_.Run(
-          should_show_actor_tab_indicator_);
+      on_actor_tab_indicator_changed_callback_.Run(tab_indicator_);
       // Notify tab strip model of state change.
       tab_->GetBrowserWindowInterface()->GetTabStripModel()->NotifyTabChanged(
           base::to_address(tab_), TabChangeType::kAll);
@@ -211,14 +197,14 @@ void ActorUiTabController::UpdateUi(UiResultCallback callback) {
         concurrent_closures.CreateClosure());
   }
   // Handoff Button
-  if (features::kGlicActorUiHandoffButton.Get()) {
+  if (features::kGlicActorUiHandoffButton.Get() && handoff_button_controller_) {
     handoff_button_controller_->UpdateState(
         current_ui_tab_state_.handoff_button, ComputeHandoffButtonVisibility(),
         concurrent_closures.CreateClosure());
   }
   // Tab Indicator
   if (features::kGlicActorUiTabIndicator.Get()) {
-    SetActorTabIndicatorVisibility(current_ui_tab_state_.tab_indicator_visible,
+    SetActorTabIndicatorVisibility(current_ui_tab_state_.tab_indicator,
                                    concurrent_closures.CreateClosure());
   }
   // Border Glow
@@ -340,8 +326,9 @@ void ActorUiTabController::SetActorTaskResume() {
 // controller side and handle it on the ui component side.
 void ActorUiTabController::UpdateScrimBackground() {
   bool should_show_scrim_background =
-      is_overlay_hovered_ || handoff_button_controller_->IsHovering() ||
-      handoff_button_controller_->IsFocused();
+      is_overlay_hovered_ || (handoff_button_controller_ &&
+                              (handoff_button_controller_->IsHovering() ||
+                               handoff_button_controller_->IsFocused()));
   if (should_show_scrim_background_ == should_show_scrim_background) {
     return;
   }
@@ -376,8 +363,21 @@ void ActorUiTabController::UnregisterActorTabIndicatorStateChange() {
   on_actor_tab_indicator_changed_callback_.Reset();
 }
 
+void ActorUiTabController::UnregisterHandoffButtonController() {
+  handoff_button_controller_ = nullptr;
+}
+
 void ActorUiTabController::OnHandoffButtonFocusStatusChanged() {
   update_scrim_background_debounce_timer_.Reset();
+}
+
+[[nodiscard]] base::ScopedClosureRunner
+ActorUiTabController::RegisterHandoffButtonController(
+    HandoffButtonController* controller) {
+  handoff_button_controller_ = controller;
+  return base::ScopedClosureRunner(
+      base::BindOnce(&ActorUiTabController::UnregisterHandoffButtonController,
+                     weak_factory_.GetWeakPtr()));
 }
 
 base::WeakPtr<ActorUiTabControllerInterface>

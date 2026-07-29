@@ -8,6 +8,7 @@
 
 #include "base/functional/bind.h"
 #include "content/public/browser/web_contents.h"
+#include "third_party/blink/public/mojom/content_extraction/ai_page_content.mojom.h"
 
 AnnotatedPageContentCapturer::AnnotatedPageContentCapturer(
     content::WebContents* web_contents,
@@ -62,7 +63,7 @@ void AnnotatedPageContentCapturer::DidStopLoading() {
 }
 
 void AnnotatedPageContentCapturer::CapturePageContent(
-    std::optional<optimization_guide::AIPageContentResult> result) {
+    optimization_guide::AIPageContentResultOrError result) {
   if (callback_ && result.has_value() && result.value().proto.has_root_node()) {
     std::move(callback_).Run(std::move(result));
   }

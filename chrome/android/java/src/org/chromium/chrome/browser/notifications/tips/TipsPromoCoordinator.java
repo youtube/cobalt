@@ -4,17 +4,22 @@
 
 package org.chromium.chrome.browser.notifications.tips;
 
+import android.content.ComponentCallbacks;
 import android.content.Context;
 import android.content.Intent;
+import android.content.res.Configuration;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.ViewFlipper;
 
+import androidx.annotation.IntDef;
 import androidx.annotation.StringRes;
 
+import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -31,8 +36,10 @@ import org.chromium.chrome.browser.safe_browsing.metrics.SettingsAccessPoint;
 import org.chromium.chrome.browser.safe_browsing.settings.SafeBrowsingSettingsFragment;
 import org.chromium.chrome.browser.settings.SettingsNavigationFactory;
 import org.chromium.chrome.browser.toolbar.settings.AddressBarSettingsFragment;
+import org.chromium.chrome.browser.toolbar.settings.AddressBarSettingsFragment.HighlightedOption;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetContent;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
+import org.chromium.components.browser_ui.bottomsheet.BottomSheetController.StateChangeReason;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetObserver;
 import org.chromium.components.browser_ui.bottomsheet.EmptyBottomSheetObserver;
 import org.chromium.ui.base.LocalizationUtils;
@@ -40,11 +47,50 @@ import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.util.List;
 
 /** Coordinator to manage the promo for the Tips Notifications feature. */
 @NullMarked
 public class TipsPromoCoordinator {
+    // These values are persisted to logs. Entries should not be renumbered and
+    // numeric values should never be reused.
+    // LINT.IfChange(FeatureTipPromoEventType)
+    @IntDef({
+        FeatureTipPromoEventType.SHOWN,
+        FeatureTipPromoEventType.DISMISSED,
+        FeatureTipPromoEventType.ACCEPTED,
+        FeatureTipPromoEventType.DETAIL_PAGE_CLICKED,
+        FeatureTipPromoEventType.DETAIL_PAGE_BACK_BUTTON,
+        FeatureTipPromoEventType.NUM_ENTRIES
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface FeatureTipPromoEventType {
+        int SHOWN = 0;
+        int DISMISSED = 1;
+        int ACCEPTED = 2;
+        int DETAIL_PAGE_CLICKED = 3;
+        int DETAIL_PAGE_BACK_BUTTON = 4;
+
+        // Be sure to also update enums.xml when updating these values.
+        int NUM_ENTRIES = 5;
+    }
+
+    // LINT.ThenChange(//tools/metrics/histograms/metadata/notifications/enums.xml:TipsNotificationsFeatureTipPromoEventType)
+
+    private final ComponentCallbacks mComponentCallbacks =
+            new ComponentCallbacks() {
+                @Override
+                public void onConfigurationChanged(Configuration configuration) {
+                    TipsUtils.scaleBottomSheetImageLogoByWidth(
+                            mContext, configuration, mContentView, R.id.main_page_logo);
+                }
+
+                @Override
+                public void onLowMemory() {}
+            };
+
     public static final int INVALID_TIPS_NOTIFICATION_FEATURE_TYPE = -1;
 
     private final Context mContext;
@@ -57,6 +103,7 @@ public class TipsPromoCoordinator {
     private final PropertyModelChangeProcessor mChangeProcessor;
     private final ViewFlipper mViewFlipperView;
     private final View mContentView;
+    private final @TipsNotificationsFeatureType int mFeatureType;
     private LensController mLensController;
 
     /**
@@ -65,13 +112,17 @@ public class TipsPromoCoordinator {
      * @param context The Android {@link Context}.
      * @param bottomSheetController The system {@link BottomSheetController}.
      * @param quickDeleteController The controller to for the quick delete dialog.
+     * @param windowAndroid The current WindowAndroid.
+     * @param isIncognito Whether the current context is incognito.
+     * @param featureType The {@link TipsNotificationsFeatureType} to show.
      */
     public TipsPromoCoordinator(
             Context context,
             BottomSheetController bottomSheetController,
             QuickDeleteController quickDeleteController,
             WindowAndroid windowAndroid,
-            boolean isIncognito) {
+            boolean isIncognito,
+            @TipsNotificationsFeatureType int featureType) {
         mContext = context;
         mBottomSheetController = bottomSheetController;
         mQuickDeleteController = quickDeleteController;
@@ -79,12 +130,14 @@ public class TipsPromoCoordinator {
         mIsIncognito = isIncognito;
         mPropertyModel = TipsPromoProperties.createDefaultModel();
         mLensController = LensController.getInstance();
+        mFeatureType = featureType;
 
         mContentView =
                 LayoutInflater.from(context)
                         .inflate(R.layout.tips_promo_bottom_sheet, /* root= */ null);
         mSheetContent =
-                new TipsPromoSheetContent(mContentView, mPropertyModel, mBottomSheetController);
+                new TipsPromoSheetContent(
+                        mContentView, mPropertyModel, mBottomSheetController, featureType);
 
         mChangeProcessor =
                 PropertyModelChangeProcessor.create(
@@ -99,25 +152,26 @@ public class TipsPromoCoordinator {
                                 mPropertyModel.get(TipsPromoProperties.CURRENT_SCREEN));
                     }
                 });
+
+        // Fire an event for the original setup.
+        mComponentCallbacks.onConfigurationChanged(mContext.getResources().getConfiguration());
+        mContext.registerComponentCallbacks(mComponentCallbacks);
     }
 
     /** Cleans up resources. */
     public void destroy() {
         mChangeProcessor.destroy();
+        mContext.unregisterComponentCallbacks(mComponentCallbacks);
     }
 
-    /**
-     * Shows the promo. The caller is responsible for all eligibility checks.
-     *
-     * @param featureType The {@link TipsNotificationsFeatureType} to show.
-     */
-    public void showBottomSheet(@TipsNotificationsFeatureType int featureType) {
-        FeatureTipPromoData data = TipsUtils.getFeatureTipPromoDataForType(mContext, featureType);
+    /** Shows the promo. The caller is responsible for all eligibility checks. */
+    public void showBottomSheet() {
+        FeatureTipPromoData data = TipsUtils.getFeatureTipPromoDataForType(mContext, mFeatureType);
         mPropertyModel.set(TipsPromoProperties.FEATURE_TIP_PROMO_DATA, data);
         mPropertyModel.set(TipsPromoProperties.CURRENT_SCREEN, ScreenType.MAIN_SCREEN);
-        setupButtonClickHandlers(featureType);
+        setupButtonClickHandlers(mFeatureType);
         setupDetailPageSteps(data.detailPageSteps);
-        onShowPromoForFeatureType(featureType);
+        onShowPromoForFeatureType(mFeatureType);
         mBottomSheetController.requestShowContent(mSheetContent, /* animate= */ true);
     }
 
@@ -130,18 +184,23 @@ public class TipsPromoCoordinator {
                 TipsPromoProperties.BACK_BUTTON_CLICK_LISTENER,
                 (view) -> {
                     mPropertyModel.set(TipsPromoProperties.CURRENT_SCREEN, ScreenType.MAIN_SCREEN);
+                    recordFeatureTipPromoEventType(
+                            featureType, FeatureTipPromoEventType.DETAIL_PAGE_BACK_BUTTON);
                 });
         mPropertyModel.set(
                 TipsPromoProperties.DETAILS_BUTTON_CLICK_LISTENER,
                 (view) -> {
                     mPropertyModel.set(
                             TipsPromoProperties.CURRENT_SCREEN, ScreenType.DETAIL_SCREEN);
+                    recordFeatureTipPromoEventType(
+                            featureType, FeatureTipPromoEventType.DETAIL_PAGE_CLICKED);
                 });
         mPropertyModel.set(
                 TipsPromoProperties.SETTINGS_BUTTON_CLICK_LISTENER,
                 (view) -> {
                     mBottomSheetController.hideContent(mSheetContent, /* animate= */ true);
                     performFeatureAction(featureType);
+                    recordFeatureTipPromoEventType(featureType, FeatureTipPromoEventType.ACCEPTED);
                 });
     }
 
@@ -196,7 +255,11 @@ public class TipsPromoCoordinator {
                 break;
             case TipsNotificationsFeatureType.BOTTOM_OMNIBOX:
                 SettingsNavigationFactory.createSettingsNavigation()
-                        .startSettings(mContext, AddressBarSettingsFragment.class);
+                        .startSettings(
+                                mContext,
+                                AddressBarSettingsFragment.class,
+                                AddressBarSettingsFragment.createArguments(
+                                        HighlightedOption.BOTTOM_TOOLBAR));
                 break;
             default:
                 assert false : "Invalid feature type: " + featureType;
@@ -204,6 +267,7 @@ public class TipsPromoCoordinator {
     }
 
     private void onShowPromoForFeatureType(@TipsNotificationsFeatureType int featureType) {
+        recordFeatureTipPromoEventType(featureType, FeatureTipPromoEventType.SHOWN);
         switch (featureType) {
             case TipsNotificationsFeatureType.ENHANCED_SAFE_BROWSING:
                 break;
@@ -219,36 +283,75 @@ public class TipsPromoCoordinator {
         }
     }
 
+    private String featureTypeToSuffix(@TipsNotificationsFeatureType int featureType) {
+        switch (featureType) {
+            case TipsNotificationsFeatureType.ENHANCED_SAFE_BROWSING:
+                return ".EnhancedSafeBrowsing";
+            case TipsNotificationsFeatureType.QUICK_DELETE:
+                return ".QuickDelete";
+            case TipsNotificationsFeatureType.GOOGLE_LENS:
+                return ".GoogleLens";
+            case TipsNotificationsFeatureType.BOTTOM_OMNIBOX:
+                return ".BottomOmnibox";
+            default:
+                assert false : "Invalid feature type: " + featureType;
+                return "";
+        }
+    }
+
+    private void recordFeatureTipPromoEventType(
+            @TipsNotificationsFeatureType int featureType,
+            @FeatureTipPromoEventType int eventType) {
+        String histogramName = "Notifications.Tips.FeatureTipPromo.EventType";
+        RecordHistogram.recordEnumeratedHistogram(
+                histogramName, eventType, FeatureTipPromoEventType.NUM_ENTRIES);
+        RecordHistogram.recordEnumeratedHistogram(
+                histogramName + featureTypeToSuffix(featureType),
+                eventType,
+                FeatureTipPromoEventType.NUM_ENTRIES);
+    }
+
     @NullMarked
-    private class TipsPromoSheetContent implements BottomSheetContent {
+    protected class TipsPromoSheetContent implements BottomSheetContent {
         private final View mContentView;
         private final PropertyModel mModel;
         private final BottomSheetController mController;
         private final BottomSheetObserver mBottomSheetOpenedObserver;
         private final ObservableSupplierImpl<Boolean> mBackPressStateChangedSupplier =
                 new ObservableSupplierImpl<>();
+        private final @TipsNotificationsFeatureType int mFeatureTipType;
+        private final ScrollView mScrollView;
 
         TipsPromoSheetContent(
-                View contentView, PropertyModel model, BottomSheetController controller) {
+                View contentView,
+                PropertyModel model,
+                BottomSheetController controller,
+                @TipsNotificationsFeatureType int featureTipType) {
             mContentView = contentView;
             mModel = model;
             mController = controller;
+            mFeatureTipType = featureTipType;
+            mScrollView = mContentView.findViewById(R.id.main_page_scrollview);
 
             mBottomSheetOpenedObserver =
                     new EmptyBottomSheetObserver() {
                         @Override
-                        public void onSheetOpened(
-                                @BottomSheetController.StateChangeReason int reason) {
+                        public void onSheetOpened(@StateChangeReason int reason) {
                             super.onSheetOpened(reason);
                             mBackPressStateChangedSupplier.set(true);
                         }
 
                         @Override
-                        public void onSheetClosed(
-                                @BottomSheetController.StateChangeReason int reason) {
+                        public void onSheetClosed(@StateChangeReason int reason) {
                             super.onSheetClosed(reason);
                             mBackPressStateChangedSupplier.set(false);
                             mBottomSheetController.removeObserver(mBottomSheetOpenedObserver);
+
+                            if (reason == StateChangeReason.SWIPE
+                                    || reason == StateChangeReason.TAP_SCRIM) {
+                                recordFeatureTipPromoEventType(
+                                        mFeatureTipType, FeatureTipPromoEventType.DISMISSED);
+                            }
                         }
                     };
             mBottomSheetController.addObserver(mBottomSheetOpenedObserver);
@@ -265,8 +368,22 @@ public class TipsPromoCoordinator {
             return null;
         }
 
+        /**
+         * The vertical scroll offset of the bottom sheet. The offset prevents scroll flinging from
+         * dismissing the sheet.
+         */
         @Override
         public int getVerticalScrollOffset() {
+            int currentScreen = mModel.get(TipsPromoProperties.CURRENT_SCREEN);
+
+            if (currentScreen == ScreenType.MAIN_SCREEN) {
+                if (mScrollView != null) {
+                    // Calculate the scroll position of the scrollview and make sure it is
+                    // non-zero, otherwise allows swipe to dismiss on the bottom sheet.
+                    return mScrollView.getScrollY();
+                }
+            }
+
             return 0;
         }
 
@@ -331,9 +448,13 @@ public class TipsPromoCoordinator {
             switch (currentScreen) {
                 case ScreenType.DETAIL_SCREEN:
                     mModel.set(TipsPromoProperties.CURRENT_SCREEN, ScreenType.MAIN_SCREEN);
+                    recordFeatureTipPromoEventType(
+                            mFeatureTipType, FeatureTipPromoEventType.DETAIL_PAGE_BACK_BUTTON);
                     break;
                 case ScreenType.MAIN_SCREEN:
                     mController.hideContent(this, /* animate= */ true);
+                    recordFeatureTipPromoEventType(
+                            mFeatureTipType, FeatureTipPromoEventType.DISMISSED);
                     break;
                 default:
                     assert false : "Invalid screen type: " + currentScreen;
@@ -345,7 +466,7 @@ public class TipsPromoCoordinator {
 
     // For testing methods.
 
-    BottomSheetContent getBottomSheetContentForTesting() {
+    TipsPromoSheetContent getBottomSheetContentForTesting() {
         return mSheetContent;
     }
 
@@ -359,5 +480,9 @@ public class TipsPromoCoordinator {
 
     void setLensControllerForTesting(LensController lensController) {
         mLensController = lensController;
+    }
+
+    void triggerConfigurationChangeForTesting(Configuration configuration) {
+        mComponentCallbacks.onConfigurationChanged(configuration);
     }
 }

@@ -18,6 +18,9 @@ try_.defaults.set(
     contact_team_email = "chrome-gpu-infra@google.com",
     cq_group = "cq",
     execution_timeout = 6 * time.hour,
+    experiments = {
+        "chromium_tests.resultdb_module": 100,
+    },
     # Max. pending time for builds. CQ considers builds pending >2h as timed
     # out: http://shortn/_8PaHsdYmlq. Keep this in sync.
     expiration_timeout = 2 * time.hour,
@@ -401,6 +404,15 @@ gpu_mac_builder(
     mirrors = [
         "ci/GPU FYI Mac Builder",
         "ci/Mac FYI Experimental Retina Release (AMD)",
+    ],
+    gn_args = "ci/GPU FYI Mac Builder",
+)
+
+gpu_mac_builder(
+    name = "gpu-fyi-try-mac-amd-retina-555x-rel",
+    mirrors = [
+        "ci/GPU FYI Mac Builder",
+        "ci/Mac FYI Retina Release (AMD Radeon Pro 555X)",
     ],
     gn_args = "ci/GPU FYI Mac Builder",
 )

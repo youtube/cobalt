@@ -58,6 +58,23 @@ bool ShouldEnableSkiaRenderer(content::WebContents* contents) {
       chrome_pdf::features::kPdfUseSkiaRenderer);
 }
 
+// Determines whether the PDF viewer should allow XFA forms based on the build
+// flag, users' choice, the enterprise policy and the finch experiment. The
+// priority hierarchy is: enterprise policy > user choice > finch experiment.
+bool ShouldEnableXfaForms(content::WebContents* contents) {
+  CHECK(contents);
+  const PrefService* prefs =
+      Profile::FromBrowserContext(contents->GetBrowserContext())->GetPrefs();
+
+  // When the enterprise policy is set.
+  if (prefs->IsManagedPreference(prefs::kPdfXfaFormsEnabled)) {
+    return prefs->GetBoolean(prefs::kPdfXfaFormsEnabled);
+  }
+
+  //  When the enterprise policy is not set, use finch/feature flag choice.
+  return base::FeatureList::IsEnabled(chrome_pdf::features::kPdfXfaSupport);
+}
+
 // Associates a `pdf::PdfStreamDelegate::StreamInfo` with the PDF extension's
 // or Print Preview's `blink::Document`.
 // `ChromePdfStreamDelegate::MapToOriginalUrl()` initializes this in
@@ -144,6 +161,7 @@ std::optional<GURL> ChromePdfStreamDelegate::MapToOriginalUrl(
     info.full_frame = !stream->embedded();
     info.allow_javascript = stream->pdf_plugin_attributes()->allow_javascript;
     info.use_skia = ShouldEnableSkiaRenderer(contents);
+    info.allow_xfa_forms = ShouldEnableXfaForms(contents);
     if (chrome_pdf::features::IsOopifPdfEnabled()) {
       net::HttpResponseHeaders* response_headers = stream->response_headers();
       if (response_headers) {
@@ -168,6 +186,7 @@ std::optional<GURL> ChromePdfStreamDelegate::MapToOriginalUrl(
     info.full_frame = false;
     info.allow_javascript = false;
     info.use_skia = ShouldEnableSkiaRenderer(contents);
+    info.allow_xfa_forms = false;
 #endif  // BUILDFLAG(ENABLE_PRINT_PREVIEW)
   } else {
     return std::nullopt;

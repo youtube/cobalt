@@ -69,29 +69,26 @@ base::TimeDelta GetMaxHighResolutionInterval() {
              : base::Milliseconds(32);
 }
 
+}  // namespace
+
 // Maintains a set of DOMTimers for a given ExecutionContext. Assigns IDs to
 // timers; these IDs are the ones returned to web authors from setTimeout or
 // setInterval. It also tracks recursive creation or iterative scheduling of
 // timers, which is used as a signal for throttling repetitive timers.
 class DOMTimerCoordinator : public GarbageCollected<DOMTimerCoordinator>,
-                            public Supplement<ExecutionContext> {
+                            public GarbageCollectedMixin {
  public:
-  static constexpr auto kSupplementIndex =
-      ExecutionContext::Supplements::kDOMTimerCoordinator;
-
   static DOMTimerCoordinator& From(ExecutionContext& context) {
     CHECK(!context.IsWorkletGlobalScope());
-    auto* coordinator =
-        Supplement<ExecutionContext>::From<DOMTimerCoordinator>(context);
+    DOMTimerCoordinator* coordinator = context.GetDOMTimerCoordinator();
     if (!coordinator) {
-      coordinator = MakeGarbageCollected<DOMTimerCoordinator>(context);
-      Supplement<ExecutionContext>::ProvideTo(context, coordinator);
+      coordinator = MakeGarbageCollected<DOMTimerCoordinator>();
+      context.SetDOMTimerCoordinator(coordinator);
     }
     return *coordinator;
   }
 
-  explicit DOMTimerCoordinator(ExecutionContext& context)
-      : Supplement<ExecutionContext>(context) {}
+  DOMTimerCoordinator() = default;
 
   int Install(DOMTimer* timer) {
     int timeout_id = NextID();
@@ -123,10 +120,7 @@ class DOMTimerCoordinator : public GarbageCollected<DOMTimerCoordinator>,
   // deeper timer nesting level, see DOMTimer::DOMTimer.
   void SetTimerNestingLevel(int level) { timer_nesting_level_ = level; }
 
-  void Trace(Visitor* visitor) const final {
-    visitor->Trace(timers_);
-    Supplement<ExecutionContext>::Trace(visitor);
-  }
+  void Trace(Visitor* visitor) const final { visitor->Trace(timers_); }
 
  private:
   int NextID() {
@@ -147,6 +141,8 @@ class DOMTimerCoordinator : public GarbageCollected<DOMTimerCoordinator>,
   int circular_sequential_id_ = 0;
   int timer_nesting_level_ = 0;
 };
+
+namespace {
 
 bool IsAllowed(ExecutionContext& context, bool is_eval, const String& source) {
   if (context.IsContextDestroyed()) {

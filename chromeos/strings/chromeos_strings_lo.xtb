@@ -74,6 +74,7 @@
 <translation id="1274654146705270731">ໝາກກ້ຽງ</translation>
 <translation id="1275718070701477396">​ເລືອກແລ້ວ</translation>
 <translation id="1290331692326790741">ສັນຍານອ່ອນ</translation>
+<translation id="1292474106138697109">ຈໍສະແດງຜົນເຄື່ອງມືສຳລັບຫ້ອງຮຽນ</translation>
 <translation id="1300115153046603471">APN ເປັນແບບຄ່າເລີ່ມຕົ້ນ ແລະ <ph name="ATTACH" />.</translation>
 <translation id="1301069673413256657">GSM</translation>
 <translation id="1301340234286078471">ປ່ຽນແປງ</translation>
@@ -1046,6 +1047,7 @@
 <translation id="5596627076506792578">ໂຕ​ເລືອກ​ເພີ່ມ​ເຕີມ</translation>
 <translation id="5600027863942488546">ທົດສອບປຸ່ມ <ph name="KEY_NAME" /> ແລ້ວ</translation>
 <translation id="5606865426897221650">ແຖບ</translation>
+<translation id="5612205513582918357">ເຄື່ອງມືສຳລັບຫ້ອງຮຽນກຳລັງແບ່ງປັນໜ້າຈໍຂອງທ່ານກັບ <ph name="RECEIVER_NAME" /></translation>
 <translation id="5613201299517339763">ທ່ານອອກຈາກລະບົບແລ້ວ</translation>
 <translation id="5620281292257375798">ສະ​ເພາະ​ພາຍ​ໃນ​ເທົ່າ​ນັ້ນ</translation>
 <translation id="5628106863521633649">ພາສາທີ່ສາມາດໃຊ້ໄດ້</translation>
@@ -1636,7 +1638,6 @@
 <translation id="8167413449582155132">ພາບພື້ນຫຼັງທີ່ຂັບເຄື່ອນໂດຍ Google AI</translation>
 <translation id="8171020708598805594">ຜູ້ສ້າງການຖອດຖ່າຍຂໍ້ຄວາມໂດຍອັດຕະໂນມັດ, ຮັບສະຫຼຸບການບັນທຶກໂດຍໃຊ້ Google AI ແລະ ຊອກຫາສຽງ. ສ້າງການບັນທຶກໄດ້ເຖິງແມ່ນວ່າທ່ານຈະບໍ່ໄດ້ເຊື່ອມຕໍ່ອິນເຕີເນັດ.</translation>
 <translation id="8179976553408161302">ປ້ອນເຂົ້າ</translation>
-<translation id="8181979490873420600">ການແບ່ງປັນໜ້າຈໍຂອງເຄື່ອງມືສຳລັບຫ້ອງຮຽນ</translation>
 <translation id="8183975772394450380">ຫາດຊາຍ</translation>
 <translation id="819278132617411009">ໃຊ້ Google AI ເພື່ອເຮັດວຽກຢ່າງມີຜະລິດຕະພາບຫຼາຍຂຶ້ນ</translation>
 <translation id="8200772114523450471">ເລີ່ມຕົ້ນປິດເປີດໃໝ່</translation>

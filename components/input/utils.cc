@@ -27,7 +27,7 @@ using perfetto::protos::pbzero::ChromeLatencyInfo2;
 bool InputUtils::initialized_ = false;
 bool InputUtils::has_security_update_ = false;
 
-jboolean JNI_InputUtils_IsTransferInputToVizSupported(JNIEnv* env) {
+static jboolean JNI_InputUtils_IsTransferInputToVizSupported(JNIEnv* env) {
   return InputUtils::IsTransferInputToVizSupported();
 }
 
@@ -204,3 +204,7 @@ ChromeLatencyInfo2::InputResultState InputEventResultStateToProto(
 }
 
 }  // namespace input
+
+#if BUILDFLAG(IS_ANDROID)
+DEFINE_JNI(InputUtils)
+#endif

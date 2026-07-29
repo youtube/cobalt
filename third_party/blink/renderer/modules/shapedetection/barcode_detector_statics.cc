@@ -4,38 +4,28 @@
 
 #include "third_party/blink/renderer/modules/shapedetection/barcode_detector_statics.h"
 
-#include "third_party/blink/public/common/privacy_budget/identifiability_metric_builder.h"
-#include "third_party/blink/public/common/privacy_budget/identifiability_study_settings.h"
-#include "third_party/blink/public/common/privacy_budget/identifiable_token_builder.h"
-#include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom-blink.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/public/platform/task_type.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/modules/shapedetection/barcode_detector.h"
-#include "third_party/blink/renderer/platform/privacy_budget/identifiability_digest_helpers.h"
 
 namespace blink {
-
-// static
-const unsigned BarcodeDetectorStatics::kSupplementIndex = static_cast<unsigned>(
-    ExecutionContext::Supplements::kBarcodeDetectorStatics);
 
 // static
 BarcodeDetectorStatics* BarcodeDetectorStatics::From(
     ExecutionContext* document) {
   DCHECK(document);
-  BarcodeDetectorStatics* statics =
-      Supplement<ExecutionContext>::From<BarcodeDetectorStatics>(*document);
+  BarcodeDetectorStatics* statics = document->GetBarcodeDetectorStatics();
   if (!statics) {
     statics = MakeGarbageCollected<BarcodeDetectorStatics>(*document);
-    Supplement<ExecutionContext>::ProvideTo(*document, statics);
+    document->SetBarcodeDetectorStatics(statics);
   }
   return statics;
 }
 
 BarcodeDetectorStatics::BarcodeDetectorStatics(ExecutionContext& document)
-    : Supplement<ExecutionContext>(document), service_(&document) {}
+    : execution_context_(document), service_(&document) {}
 
 BarcodeDetectorStatics::~BarcodeDetectorStatics() = default;
 
@@ -62,7 +52,7 @@ BarcodeDetectorStatics::EnumerateSupportedFormats(ScriptState* script_state) {
 }
 
 void BarcodeDetectorStatics::Trace(Visitor* visitor) const {
-  Supplement<ExecutionContext>::Trace(visitor);
+  visitor->Trace(execution_context_);
   visitor->Trace(service_);
   visitor->Trace(get_supported_format_requests_);
 }
@@ -71,7 +61,7 @@ void BarcodeDetectorStatics::EnsureServiceConnection() {
   if (service_.is_bound())
     return;
 
-  ExecutionContext* context = GetSupplementable();
+  ExecutionContext* context = execution_context_;
 
   // See https://bit.ly/2S0zRAS for task types.
   auto task_runner = context->GetTaskRunner(TaskType::kMiscPlatformAPI);
@@ -94,19 +84,6 @@ void BarcodeDetectorStatics::OnEnumerateSupportedFormats(
         V8BarcodeFormat(BarcodeDetector::BarcodeFormatToEnum(format)));
   }
 
-  if (IdentifiabilityStudySettings::Get()->ShouldSampleWebFeature(
-          WebFeature::kBarcodeDetector_GetSupportedFormats)) {
-    IdentifiableTokenBuilder builder;
-    for (const auto& format : results) {
-      builder.AddToken(IdentifiabilityBenignStringToken(format.AsString()));
-    }
-
-    ExecutionContext* context = GetSupplementable();
-    IdentifiabilityMetricBuilder(context->UkmSourceID())
-        .AddWebFeature(WebFeature::kBarcodeDetector_GetSupportedFormats,
-                       builder.GetToken())
-        .Record(context->UkmRecorder());
-  }
   resolver->Resolve(std::move(results));
 }
 

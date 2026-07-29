@@ -10,11 +10,13 @@
 #include "base/android/jni_android.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "chrome/browser/android/omnibox/composebox_query_controller_bridge.h"
 #include "chrome/browser/profiles/profile_keyed_service_factory.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/omnibox/browser/autocomplete_controller.h"
 #include "components/omnibox/browser/autocomplete_input.h"
 #include "content/public/browser/browser_context.h"
+#include "third_party/omnibox_proto/aim_tools_and_models.pb.h"
 
 class AutocompleteResult;
 class ChromeAutocompleteProviderClient;
@@ -40,20 +42,22 @@ class AutocompleteControllerAndroid : public AutocompleteController::Observer,
   ~AutocompleteControllerAndroid() override;
 
   // Methods that forward to AutocompleteController:
-  void Start(JNIEnv* env,
-             const base::android::JavaRef<jstring>& j_text,
-             jint j_cursor_pos,
-             const base::android::JavaRef<jstring>& j_desired_tld,
-             const base::android::JavaRef<jstring>& j_current_url,
-             jint j_page_classification,
-             bool prevent_inline_autocomplete,
-             bool prefer_keyword,
-             bool allow_exact_keyword_match,
-             bool want_asynchronous_matches);
+  void Start(
+      JNIEnv* env,
+      const base::android::JavaRef<jstring>& j_text,
+      jint j_cursor_pos,
+      const base::android::JavaRef<jstring>& j_desired_tld,
+      const base::android::JavaRef<jstring>& j_current_url,
+      ::metrics::OmniboxEventProto::PageClassification page_classification,
+      omnibox::ChromeAimToolsAndModels tool_mode,
+      bool prevent_inline_autocomplete,
+      bool prefer_keyword,
+      bool allow_exact_keyword_match,
+      bool want_asynchronous_matches);
   void StartPrefetch(
       JNIEnv* env,
       const base::android::JavaRef<jstring>& j_current_url,
-      jint j_page_classification,
+      ::metrics::OmniboxEventProto::PageClassification page_classification,
       const base::android::JavaParamRef<jobject>& j_web_contents);
   base::android::ScopedJavaLocalRef<jobject> Classify(
       JNIEnv* env,
@@ -62,7 +66,8 @@ class AutocompleteControllerAndroid : public AutocompleteController::Observer,
       JNIEnv* env,
       const base::android::JavaParamRef<jstring>& j_omnibox_text,
       const base::android::JavaParamRef<jstring>& j_current_url,
-      jint j_page_classification,
+      ::metrics::OmniboxEventProto::PageClassification page_classification,
+      omnibox::ChromeAimToolsAndModels tool_mode,
       const base::android::JavaParamRef<jstring>& j_current_title);
   void Stop(JNIEnv* env, bool clear_result);
   void ResetSession(JNIEnv* env);
@@ -73,7 +78,7 @@ class AutocompleteControllerAndroid : public AutocompleteController::Observer,
       int suggestion_line,
       const jint j_window_open_disposition,
       const base::android::JavaParamRef<jstring>& j_current_url,
-      jint j_page_classification,
+      ::metrics::OmniboxEventProto::PageClassification page_classification,
       jlong elapsed_time_since_first_modified,
       jint completed_length,
       const base::android::JavaParamRef<jobject>& j_web_contents,
@@ -103,6 +108,11 @@ class AutocompleteControllerAndroid : public AutocompleteController::Observer,
   void Shutdown() override;
 
   static void EnsureFactoryBuilt();
+
+  // Pass an instance of the ComposeboxQueryControllerBridge to improve Suggest.
+  void SetComposeboxQueryControllerBridge(
+      JNIEnv* env,
+      uintptr_t composebox_controller_bridge_ptr);
 
   // Pass detected voice matches down to VoiceSuggestionsProvider.
   void SetVoiceMatches(
@@ -152,6 +162,9 @@ class AutocompleteControllerAndroid : public AutocompleteController::Observer,
   };
 
  private:
+  // Responds to Lens signal indicating that the backend is done processing the
+  // attachment and can serve up-to-date suggestions.
+  void OnLensSignalsReady();
 
   // AutocompleteController::Observer implementation.
   void OnResultChanged(AutocompleteController* controller,
@@ -198,10 +211,14 @@ class AutocompleteControllerAndroid : public AutocompleteController::Observer,
   // destroyed.
   std::unique_ptr<AutocompleteController> autocomplete_controller_;
 
+  // The ComposeBoxQueryController instance related to the same input session.
+  // This may and often will be unset.
+  base::WeakPtr<ComposeboxQueryControllerBridge>
+      composebox_query_controller_bridge_;
+
   // Factory used to create asynchronously invoked callbacks.
   // Retained throughout the lifetime of the AutocompleteControllerAndroid.
-  const base::WeakPtrFactory<AutocompleteControllerAndroid> weak_ptr_factory_{
-      this};
+  base::WeakPtrFactory<AutocompleteControllerAndroid> weak_ptr_factory_{this};
 };
 
 #endif  // CHROME_BROWSER_ANDROID_OMNIBOX_AUTOCOMPLETE_CONTROLLER_ANDROID_H_

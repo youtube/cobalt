@@ -22,6 +22,8 @@ namespace {
 constexpr CGFloat kSpacingBeforeImageIfNoNavigationBar = 24;
 constexpr CGFloat kLabelBottomMargin = -40;
 constexpr CGFloat kLabelFontSize = 15;
+constexpr CGFloat kScreenshotViewTopOffset = 29;
+constexpr CGFloat kScreenshotViewTopOffsetiOS26 = 45;
 NSString* const kDarkModeAnimationSuffix = @"_darkmode";
 }  // namespace
 
@@ -76,7 +78,7 @@ NSString* const kDarkModeAnimationSuffix = @"_darkmode";
   [super viewDidLoad];
 
   self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc]
-      initWithBarButtonSystemItem:UIBarButtonSystemItemDone
+      initWithBarButtonSystemItem:UIBarButtonSystemItemClose
                            target:self
                            action:@selector(dismiss)];
 
@@ -151,7 +153,6 @@ NSString* const kDarkModeAnimationSuffix = @"_darkmode";
 - (void)configureAlertScreen {
   DCHECK(self.alertScreen);
   self.alertScreen.imageHasFixedSize = YES;
-  self.alertScreen.showDismissBarButton = NO;
   self.alertScreen.titleTextStyle = UIFontTextStyleTitle2;
   self.alertScreen.customSpacingBeforeImageIfNoNavigationBar =
       kSpacingBeforeImageIfNoNavigationBar;
@@ -224,7 +225,7 @@ NSString* const kDarkModeAnimationSuffix = @"_darkmode";
         constraintEqualToAnchor:self.view.trailingAnchor],
     [self.screenshotViewWrapper.animationView.topAnchor
         constraintEqualToAnchor:self.view.topAnchor
-                       constant:29],
+                       constant:[self screenshotViewTopOffset]],
     [self.screenshotViewWrapper.animationView.bottomAnchor
         constraintEqualToAnchor:self.view.centerYAnchor],
   ]];
@@ -274,6 +275,14 @@ NSString* const kDarkModeAnimationSuffix = @"_darkmode";
   } else {
     [self toggleDarkModeOnTraitChange];
   }
+}
+
+// Returns the top offset for the screenshot view.
+- (CGFloat)screenshotViewTopOffset {
+  if (@available(iOS 26, *)) {
+    return kScreenshotViewTopOffsetiOS26;
+  }
+  return kScreenshotViewTopOffset;
 }
 
 @end

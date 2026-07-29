@@ -12,6 +12,7 @@
 
 #include "base/apple/foundation_util.h"
 #include "base/memory/weak_ptr.h"
+#include "base/notimplemented.h"
 #include "content/browser/renderer_host/popup_menu_helper_ios.h"
 #include "content/browser/renderer_host/render_widget_host_view_ios.h"
 #include "content/browser/web_contents/web_contents_impl.h"
@@ -172,6 +173,17 @@ DropData* WebContentsViewIOS::GetDropData() const {
 gfx::Rect WebContentsViewIOS::GetViewBounds() const {
   return gfx::Rect(ui_view_->view_.contentSize.width,
                    ui_view_->view_.contentSize.height);
+}
+
+void WebContentsViewIOS::Resize(const gfx::Rect& new_bounds) {
+  NOTIMPLEMENTED();
+}
+
+gfx::Size WebContentsViewIOS::GetSize() const {
+  UIView* view = GetNativeView().Get();
+  DCHECK(view);
+  CGRect frame = view.frame;
+  return gfx::Size(frame.size.width, frame.size.height);
 }
 
 void WebContentsViewIOS::GotFocus(RenderWidgetHostImpl* render_widget_host) {

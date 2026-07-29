@@ -1072,10 +1072,6 @@ void FillMiscNavigationParams(
   navigation_params->content_settings =
       std::move(commit_params.content_settings);
 
-  if (commit_params.cookie_deprecation_label.has_value()) {
-    navigation_params->cookie_deprecation_label =
-        WebString::FromASCII(*commit_params.cookie_deprecation_label);
-  }
   navigation_params->initial_permission_statuses =
       std::move(commit_params.initial_permission_statuses);
 
@@ -4100,7 +4096,8 @@ void RenderFrameImpl::DidFinishSameDocumentNavigation(
     blink::mojom::SameDocumentNavigationType same_document_navigation_type,
     bool is_client_redirect,
     const std::optional<blink::SameDocNavigationScreenshotDestinationToken>&
-        screenshot_destination) {
+        screenshot_destination,
+    base::UnguessableToken same_document_metrics_token) {
   TRACE_EVENT1("navigation,rail",
                "RenderFrameImpl::didFinishSameDocumentNavigation",
                "frame_token", frame_token_);
@@ -4129,6 +4126,8 @@ void RenderFrameImpl::DidFinishSameDocumentNavigation(
       document_loader->ReplacesCurrentHistoryItem();
   same_document_params->navigation_entry_screenshot_destination =
       screenshot_destination;
+  same_document_params->same_document_metrics_token =
+      same_document_metrics_token;
 
   DidCommitNavigationInternal(
       commit_type, transition, navigation_state.get(),

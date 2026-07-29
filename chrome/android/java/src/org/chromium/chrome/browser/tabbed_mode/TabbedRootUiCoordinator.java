@@ -38,6 +38,7 @@ import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.base.supplier.OneshotSupplierImpl;
 import org.chromium.base.supplier.SupplierUtils;
 import org.chromium.base.version_info.VersionInfo;
+import org.chromium.build.BuildConfig;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ActivityTabProvider;
 import org.chromium.chrome.browser.ActivityTabProvider.ActivityTabTabObserver;
@@ -123,6 +124,7 @@ import org.chromium.chrome.browser.ntp.NewTabPageLaunchOrigin;
 import org.chromium.chrome.browser.ntp.NewTabPageUtils;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
 import org.chromium.chrome.browser.ntp_customization.edge_to_edge.TopInsetCoordinator;
+import org.chromium.chrome.browser.ntp_customization.theme.NtpSyncedThemeManager;
 import org.chromium.chrome.browser.offlinepages.indicator.OfflineIndicatorControllerV2;
 import org.chromium.chrome.browser.offlinepages.indicator.OfflineIndicatorInProductHelpController;
 import org.chromium.chrome.browser.omnibox.UrlFocusChangeListener;
@@ -297,6 +299,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
     private TipsOptInCoordinator mTipsOptInCoordinator;
     private final OneshotSupplier<ChromeInactivityTracker> mInactivityTrackerSupplier;
     private final InactivityObserver mInactivityObserver;
+    private @Nullable NtpSyncedThemeManager mNtpSyncedThemeManager;
 
     // Activity tab observer that updates the current tab used by various UI components.
     private class RootUiTabObserver extends ActivityTabTabObserver {
@@ -763,6 +766,10 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
             mInactivityTrackerSupplier.get().removeObserver(mInactivityObserver);
         }
 
+        if (mNtpSyncedThemeManager != null) {
+            mNtpSyncedThemeManager.destroy();
+        }
+
         super.onDestroy();
     }
 
@@ -1045,6 +1052,15 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                             });
             mTabGroupUiActionHandlerSupplier.set(mTabGroupSyncController);
         }
+
+        boolean isTablet = DeviceFormFactor.isNonMultiDisplayContextOnTablet(mActivity);
+        boolean isNewTabPageCustomizationV2Enabled =
+                isTablet
+                        || NtpCustomizationUtils.canEnableEdgeToEdgeForCustomizedTheme(
+                                mWindowAndroid, isTablet);
+        if (isNewTabPageCustomizationV2Enabled) {
+            mNtpSyncedThemeManager = new NtpSyncedThemeManager(mActivity, originalProfile);
+        }
     }
 
     /** Creates an instance of {@link IncognitoReauthCoordinatorFactory} for tabbed activity. */
@@ -1305,7 +1321,10 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
 
         if (!didTriggerPromo && PageZoomUtils.shouldShowZoomMenuItem()) {
             // Page Zoom IPH should only show if the menu item is visible, and not on NTP or CCT.
-            if (tab != null && tab.getWebContents() != null && !tab.isNativePage()) {
+            if (!BuildConfig.IS_FOR_TEST
+                    && tab != null
+                    && tab.getWebContents() != null
+                    && !tab.isNativePage()) {
                 PageZoomIphController mPageZoomIphController =
                         new PageZoomIphController(
                                 mActivity,
@@ -1328,8 +1347,10 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
     }
 
     private void maybeShowTipsOptInPromo(long timeSinceLastBackgroundedMs) {
-        // Only trigger the promo if the user has been 3 hours inactive and has not seen it before
-        // and the notifications toggle is not enabled, or a testing param is enabled.
+        // Only trigger the promo if the user has been 4 hours inactive and has not seen the promo
+        // before. The notifications toggle cannot enabled, or a testing param is enabled. The time
+        // limit ensures that the promo only shows on a cold startup, defined as the app being
+        // backgrounded by 4 hours or more and opening on an NTP to avoid clashes with other promos.
         if (ChromeFeatureList.sAndroidTipsNotifications.isEnabled()) {
             TipsUtils.areTipsNotificationsEnabled(
                     (enabled) -> {
@@ -1339,8 +1360,13 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                                                         ChromePreferenceKeys
                                                                 .TIPS_NOTIFICATIONS_OPT_IN_PROMO_SHOWN,
                                                         false)
-                                        && timeSinceLastBackgroundedMs > TimeUnit.HOURS.toMillis(3))
+                                        && timeSinceLastBackgroundedMs > TimeUnit.HOURS.toMillis(4))
                                 || TipsUtils.shouldAlwaysShowOptInPromo()) {
+                            if (mActivity == null
+                                    || mActivity.isFinishing()
+                                    || mActivity.isDestroyed()) {
+                                return;
+                            }
                             mTipsOptInCoordinator =
                                     new TipsOptInCoordinator(mActivity, getBottomSheetController());
                             mTipsOptInCoordinator.showBottomSheet();
@@ -1362,7 +1388,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                         && !sDisableTopControlsAnimationForTesting
                         && !AppHeaderUtils.isAppInDesktopWindow(getDesktopWindowStateManager());
         if (ChromeFeatureList.sTopControlsRefactor.isEnabled()) {
-            mTopControlsStacker.requestLayerUpdate(animate);
+            mTopControlsStacker.requestLayerUpdateSync(animate);
             return;
         }
 
@@ -1898,7 +1924,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
             if (mToolbarManager != null) {
                 mToolbarManager.setBookmarkBarHeightSupplier(mBookmarkBarHeightSupplier);
             }
-            mTopControlsStacker.requestLayerUpdate(false);
+            mTopControlsStacker.requestLayerUpdateSync(false);
         } else {
             mBookmarkBarCoordinator.setVisibility(true);
             // When toggling the visibility of the existing view, the LayoutChangeListener will not

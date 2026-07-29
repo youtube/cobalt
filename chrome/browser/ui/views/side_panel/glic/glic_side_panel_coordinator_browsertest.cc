@@ -19,6 +19,10 @@
 #include "content/public/test/browser_test.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if BUILDFLAG(IS_CHROMEOS)
+#include "chromeos/constants/chromeos_features.h"
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
 namespace glic {
 namespace {
 
@@ -34,8 +38,16 @@ class GlicSidePanelCoordinatorTest : public InProcessBrowserTest {
  public:
   GlicSidePanelCoordinatorTest() {
     scoped_feature_list_.InitWithFeatures(
-        {features::kGlic, features::kGlicRollout,
-         features::kTabstripComboButton, features::kGlicMultiInstance},
+        {
+            features::kGlic,
+            features::kGlicRollout,
+            features::kTabstripComboButton,
+            features::kGlicMultiInstance,
+#if BUILDFLAG(IS_CHROMEOS)
+            chromeos::features::kFeatureManagementGlic,
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
+        },
         {});
   }
 
@@ -82,7 +94,13 @@ IN_PROC_BROWSER_TEST_F(GlicSidePanelCoordinatorTest, EntryAdded) {
       SidePanelEntry::Key(SidePanelEntry::Id::kGlic)));
 }
 
-IN_PROC_BROWSER_TEST_F(GlicSidePanelCoordinatorTest, EntryNotAdded) {
+// TODO(crbug.com/460830593): Enable for ChromeOS.
+#if BUILDFLAG(IS_CHROMEOS)
+#define MAYBE_EntryNotAdded DISABLED_EntryNotAdded
+#else
+#define MAYBE_EntryNotAdded EntryNotAdded
+#endif
+IN_PROC_BROWSER_TEST_F(GlicSidePanelCoordinatorTest, MAYBE_EntryNotAdded) {
   EXPECT_FALSE(GlicEnabling::IsEnabledForProfile(profile()));
 
   CallOnGlicEnabledChanged();
@@ -91,8 +109,14 @@ IN_PROC_BROWSER_TEST_F(GlicSidePanelCoordinatorTest, EntryNotAdded) {
       SidePanelEntry::Key(SidePanelEntry::Id::kGlic)));
 }
 
+// TODO(crbug.com/460830593): Enable for ChromeOS.
+#if BUILDFLAG(IS_CHROMEOS)
+#define MAYBE_EligibilityChangesReflected DISABLED_EligibilityChangesReflected
+#else
+#define MAYBE_EligibilityChangesReflected EligibilityChangesReflected
+#endif
 IN_PROC_BROWSER_TEST_F(GlicSidePanelCoordinatorTest,
-                       EligibilityChangesReflected) {
+                       MAYBE_EligibilityChangesReflected) {
   EXPECT_FALSE(GlicEnabling::IsEnabledForProfile(profile()));
   // Start in a state when glic is not enabled. There should ne no side panel
   // entry.

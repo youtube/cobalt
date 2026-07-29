@@ -18,6 +18,7 @@
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/enterprise/browser_management/management_service_factory.h"
 #include "chrome/browser/image_fetcher/image_fetcher_service_factory.h"
+#include "chrome/browser/policy/chrome_browser_policy_connector.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_attributes_storage.h"
 #include "chrome/browser/profiles/profile_key.h"
@@ -34,6 +35,7 @@
 #include "components/image_fetcher/core/image_fetcher_service.h"
 #include "components/image_fetcher/core/image_fetcher_types.h"
 #include "components/image_fetcher/core/request_metadata.h"
+#include "components/policy/core/common/policy_namespace.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
 #include "components/signin/public/base/signin_metrics.h"
@@ -447,14 +449,30 @@ BrowserManagementNoticeState GetManagementNoticeStateForNTPFooter(
     return BrowserManagementNoticeState::kEnabledByPolicy;
   }
 
-  if (management_service->GetManagementAuthorityTrustworthiness() <=
-          policy::ManagementAuthorityTrustworthiness::LOW &&
-      !base::FeatureList::IsEnabled(
-          features::kEnterpriseBadgingForLocalManagemenetNtpFooter)) {
-    return BrowserManagementNoticeState::kNotApplicable;
-  }
+  size_t policies_count = g_browser_process->browser_policy_connector()
+                              ->GetPolicyService()
+                              ->GetPolicies(policy::PolicyNamespace(
+                                  policy::POLICY_DOMAIN_CHROME, std::string()))
+                              .size();
+  const bool is_low_trust =
+      management_service->GetManagementAuthorityTrustworthiness() <=
+      policy::ManagementAuthorityTrustworthiness::LOW;
 
-  if (base::FeatureList::IsEnabled(features::kEnterpriseBadgingForNtpFooter)) {
+  const bool show_for_high_trust =
+      !is_low_trust &&
+      base::FeatureList::IsEnabled(features::kEnterpriseBadgingForNtpFooter);
+  const bool show_for_local_management =
+      is_low_trust &&
+      base::FeatureList::IsEnabled(
+          features::kEnterpriseBadgingForLocalManagemenetNtpFooter);
+  const bool show_for_three_or_more_policies_local_management =
+      is_low_trust &&
+      base::FeatureList::IsEnabled(
+          features::kEnterpriseBadgingForNtpFooterWithOverThreePolicies) &&
+      policies_count > 3;
+
+  if (show_for_high_trust || show_for_local_management ||
+      show_for_three_or_more_policies_local_management) {
     return profile->GetPrefs()->GetBoolean(prefs::kNtpFooterVisible)
                ? BrowserManagementNoticeState::kEnabled
                : BrowserManagementNoticeState::kDisabled;
@@ -471,39 +489,42 @@ bool IsKnownConsumerDomain(const std::string& email_domain) {
 #if BUILDFLAG(IS_ANDROID)
 
 // static
-jboolean JNI_ManagedBrowserUtils_IsBrowserManaged(JNIEnv* env,
-                                                  Profile* profile) {
+static jboolean JNI_ManagedBrowserUtils_IsBrowserManaged(JNIEnv* env,
+                                                         Profile* profile) {
   return policy::ManagementServiceFactory::GetForProfile(profile)
       ->IsBrowserManaged();
 }
 
 // static
-jboolean JNI_ManagedBrowserUtils_IsProfileManaged(JNIEnv* env,
-                                                  Profile* profile) {
+static jboolean JNI_ManagedBrowserUtils_IsProfileManaged(JNIEnv* env,
+                                                         Profile* profile) {
   return policy::ManagementServiceFactory::GetForProfile(profile)
       ->IsAccountManaged();
 }
 
 // static
-std::u16string JNI_ManagedBrowserUtils_GetTitle(JNIEnv* env, Profile* profile) {
+static std::u16string JNI_ManagedBrowserUtils_GetTitle(JNIEnv* env,
+                                                       Profile* profile) {
   return GetManagementPageSubtitle(profile);
 }
 
 // static
-jboolean JNI_ManagedBrowserUtils_IsBrowserReportingEnabled(JNIEnv* env) {
+static jboolean JNI_ManagedBrowserUtils_IsBrowserReportingEnabled(JNIEnv* env) {
   return g_browser_process->local_state()->GetBoolean(
       enterprise_reporting::kCloudReportingEnabled);
 }
 
 // static
-jboolean JNI_ManagedBrowserUtils_IsProfileReportingEnabled(JNIEnv* env,
-                                                           Profile* profile) {
+static jboolean JNI_ManagedBrowserUtils_IsProfileReportingEnabled(
+    JNIEnv* env,
+    Profile* profile) {
   return profile->GetPrefs()->GetBoolean(
       enterprise_reporting::kCloudProfileReportingEnabled);
 }
 
 // static
-jboolean JNI_ManagedBrowserUtils_IsOnSecurityEventEnterpriseConnectorEnabled(
+static jboolean
+JNI_ManagedBrowserUtils_IsOnSecurityEventEnterpriseConnectorEnabled(
     JNIEnv* env,
     Profile* profile) {
   DCHECK(profile);
@@ -519,7 +540,7 @@ jboolean JNI_ManagedBrowserUtils_IsOnSecurityEventEnterpriseConnectorEnabled(
 }
 
 // static
-jboolean JNI_ManagedBrowserUtils_IsEnterpriseRealTimeUrlCheckModeEnabled(
+static jboolean JNI_ManagedBrowserUtils_IsEnterpriseRealTimeUrlCheckModeEnabled(
     JNIEnv* env,
     Profile* profile) {
   DCHECK(profile);
@@ -588,6 +609,20 @@ base::ScopedClosureRunner DisableAutomaticManagementDisclaimerUntilReset(
   }
   return disclaimer_service->DisableManagementDisclaimerUntilReset();
 }
+
+base::ScopedClosureRunner
+EnabledAutomaticManagementDisclaimerAcceptanceUntilReset(Profile* profile) {
+  auto* disclaimer_service =
+      ProfileManagementDisclaimerServiceFactory::GetForProfile(profile);
+  if (!disclaimer_service) {
+    return base::ScopedClosureRunner();
+  }
+  return disclaimer_service->AutoAcceptManagementDisclaimerUntilReset();
+}
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
 }  // namespace enterprise_util
+
+#if BUILDFLAG(IS_ANDROID)
+DEFINE_JNI(ManagedBrowserUtils)
+#endif

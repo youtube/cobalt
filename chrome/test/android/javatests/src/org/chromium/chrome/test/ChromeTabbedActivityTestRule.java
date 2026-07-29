@@ -10,6 +10,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.text.TextUtils;
 
+import androidx.test.core.app.ApplicationProvider;
 import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.lifecycle.Stage;
 
@@ -17,6 +18,7 @@ import org.junit.Assert;
 
 import org.chromium.base.ActivityState;
 import org.chromium.base.ApplicationStatus;
+import org.chromium.base.IntentUtils;
 import org.chromium.base.Log;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.ApplicationTestUtils;
@@ -24,6 +26,8 @@ import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
+import org.chromium.chrome.browser.IntentHandler;
+import org.chromium.chrome.browser.incognito.IncognitoUtils;
 import org.chromium.chrome.browser.omnibox.UrlBar;
 import org.chromium.chrome.browser.password_manager.PasswordManagerTestHelper;
 import org.chromium.chrome.browser.tab.Tab;
@@ -97,6 +101,19 @@ public class ChromeTabbedActivityTestRule extends ChromeActivityTestRule<ChromeT
         startMainActivityWithURL("about:blank");
     }
 
+    /** Starts the Main activity on a blank page in incognito mode. */
+    public void startMainActivityOnIncognitoBlankPage() {
+        Intent intent = new Intent(Intent.ACTION_VIEW);
+        intent.addCategory(Intent.CATEGORY_LAUNCHER);
+        intent.putExtra(IntentHandler.EXTRA_OPEN_NEW_INCOGNITO_TAB, true);
+        prepareUrlIntent(intent, "about:blank");
+        intent.putExtra(
+                android.provider.Browser.EXTRA_APPLICATION_ID,
+                ApplicationProvider.getApplicationContext().getPackageName());
+        IntentUtils.addTrustedIntentExtras(intent);
+        startMainActivityFromIntent(intent, "about:blank");
+    }
+
     /**
      * Starts the Main activity using the passed intent, and using the specified URL. This method
      * waits for DEFERRED_STARTUP to fire as well as a subsequent idle-sync of the main looper
@@ -128,8 +145,10 @@ public class ChromeTabbedActivityTestRule extends ChromeActivityTestRule<ChromeT
     }
 
     /**
-     * Open an incognito tab by invoking the 'new incognito' menu item.
-     * Returns when receiving the 'PAGE_LOAD_FINISHED' notification.
+     * Open an incognito tab by invoking the 'new incognito' menu item. Returns when receiving the
+     * 'PAGE_LOAD_FINISHED' notification.
+     *
+     * @deprecated Prefer public transit APIs when possible.
      */
     public Tab newIncognitoTabFromMenu() {
         final CallbackHelper createdCallback = new CallbackHelper();
@@ -181,14 +200,52 @@ public class ChromeTabbedActivityTestRule extends ChromeActivityTestRule<ChromeT
     }
 
     /**
-     * New multiple incognito tabs by invoking the 'new incognito' menu item n times.
-     * @param n The number of tabs you want to create.
+     * Opens a new incognito window from the app menu.
+     *
+     * <p>This method will return when the new incognito window is opened and its tab becomes
+     * active.
+     *
+     * @deprecated Please prefer public transit APIs when possible.
+     * @return The {@link ChromeTabbedActivity} for the incognito window.
      */
-    public void newIncognitoTabsFromMenu(int n) {
-        while (n > 0) {
-            newIncognitoTabFromMenu();
-            --n;
-        }
+    public ChromeTabbedActivity newIncognitoWindowFromMenu() {
+        assert IncognitoUtils.shouldOpenIncognitoAsWindow()
+                : "This method shouldn't be called when we shouldn't open incognito windows";
+
+        MenuUtils.invokeCustomMenuActionSync(
+                InstrumentationRegistry.getInstrumentation(),
+                getActivity(),
+                R.id.new_incognito_window_menu_id);
+
+        // Use an array of one element to capture the ChromeTabbedActivity in the lambda below.
+        // This is because we need something that's effectively final.
+        ChromeTabbedActivity[] chromeTabbedActivities = new ChromeTabbedActivity[1];
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    for (var activity : ApplicationStatus.getRunningActivities()) {
+                        if (!(activity instanceof ChromeTabbedActivity chromeTabbedActivity)) {
+                            continue;
+                        }
+                        if (!chromeTabbedActivity.isIncognitoWindow()) {
+                            continue;
+                        }
+
+                        var tab = chromeTabbedActivity.getActivityTabProvider().get();
+                        if (tab == null) {
+                            continue;
+                        }
+
+                        if (tab.isActivated()) {
+                            chromeTabbedActivities[0] = chromeTabbedActivity;
+                            return true;
+                        }
+                    }
+
+                    return false;
+                });
+
+        Log.d(TAG, "newIncognitoWindowFromMenu <<");
+        return chromeTabbedActivities[0];
     }
 
     /**

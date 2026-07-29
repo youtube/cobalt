@@ -27,6 +27,21 @@
 // The background color for the input item.
 @property(nonatomic, readonly) UIColor* inputItemBackgroundColor;
 
+// The background color for the close button.
+@property(nonatomic, readonly) UIColor* closeButtonBackgroundColor;
+
+// The color of the text in AIM button.
+- (UIColor*)aimButtonTextColorWithAIMEnabled:(BOOL)AIMEnabled;
+
+// The background color of the AIM button when enabled.
+- (UIColor*)aimButtonBackgroundColorWithAIMEnabled:(BOOL)AIMEnabled;
+
+// The color of the text in the image generation button.
+- (UIColor*)imageGenerationButtonTextColor;
+
+// The background color of the image generation button.
+- (UIColor*)imageGenerationButtonBackgroundColor;
+
 // Creates a newc instance with the given configuration
 - (instancetype)initWithInputPlatePosition:
     (ComposeboxInputPlatePosition)position;

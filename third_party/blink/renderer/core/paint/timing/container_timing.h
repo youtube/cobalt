@@ -11,7 +11,6 @@
 #include "third_party/blink/renderer/core/dom/element.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/timing/window_performance.h"
-#include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 #include "ui/gfx/geometry/rect_f.h"
 
@@ -20,12 +19,8 @@ namespace blink {
 // ContainerTiming is responsible for aggregating the text and image element
 // timing events for a given window.
 class CORE_EXPORT ContainerTiming final
-    : public GarbageCollected<ContainerTiming>,
-      public Supplement<LocalDOMWindow> {
+    : public GarbageCollected<ContainerTiming> {
  public:
-  static constexpr auto kSupplementIndex =
-      LocalDOMWindow::Supplements::kContainerTiming;
-
   explicit ContainerTiming(LocalDOMWindow&);
   ContainerTiming(const ContainerTiming&) = delete;
   ContainerTiming& operator=(const ContainerTiming&) = delete;
@@ -38,8 +33,6 @@ class CORE_EXPORT ContainerTiming final
   }
 
   bool CanReportToContainerTiming() const;
-  void MaybeUpdateContainerRootNestingPolicy(Element* element,
-                                             const AtomicString& new_value);
   void MaybeUpdateContainerRootIdentifier(Element* element,
                                           const AtomicString& new_value);
 
@@ -49,7 +42,7 @@ class CORE_EXPORT ContainerTiming final
                         Element* element,
                         const gfx::RectF& intersection_rect);
 
-  void Trace(Visitor* visitor) const override;
+  void Trace(Visitor* visitor) const;
 
  private:
   static Element* GetContainerRoot(Element*);
@@ -57,15 +50,10 @@ class CORE_EXPORT ContainerTiming final
   class Record final : public GarbageCollected<Record> {
    public:
     Record(const DOMPaintTimingInfo& paint_timing_info,
-           const AtomicString& identifier,
-           const AtomicString& nested_policy);
+           const AtomicString& identifier);
     Record(const Record&) = delete;
     Record& operator=(const Record&) = delete;
 
-    enum class NestingPolicy { kIgnore, kTransparent, kShadowed };
-    static NestingPolicy ToNestingPolicy(const AtomicString& str);
-
-    NestingPolicy GetNestingPolicy() const { return nesting_policy_; }
     const AtomicString& identifier() const { return identifier_; }
 
     void MaybeUpdateLastNewPaintedArea(
@@ -82,7 +70,6 @@ class CORE_EXPORT ContainerTiming final
    private:
     const DOMPaintTimingInfo first_paint_timing_info_;
     const AtomicString identifier_;
-    const NestingPolicy nesting_policy_ = NestingPolicy::kIgnore;
     DOMPaintTimingInfo last_new_painted_area_paint_timing_info_;
     WeakMember<Element> last_new_painted_area_element_;
     cc::Region painted_region_;

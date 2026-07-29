@@ -404,9 +404,13 @@ class CC_EXPORT InputHandler : public InputDelegateForCompositor {
 
   // Returns a new instance of `EventsMetricsManager::ScopedMonitor` to monitor
   // the scope of handling an event. If `done_callback` is not a null callback,
-  // it will be called when the scope ends. The callback should return
-  // `EventMetrics` associated with the event if it is interested in reporting
-  // event latency metrics for it.
+  // it will be called when the scope ends. If During the lifetime of the scoped
+  // monitor, `SetNeedsOneBeginImplFrame()` or `SetNeedsRedraw()` are called on
+  // `LayerTreeHostImpl` or a scroll animation is updated, the callback will be
+  // called in the end with `handled` argument set to true, denoting that the
+  // event was handled and the client should return `EventMetrics` associated
+  // with the event if it is interested in reporting event latency metrics for
+  // it.
   virtual std::unique_ptr<EventsMetricsManager::ScopedMonitor>
   GetScopedEventMetricsMonitor(
       EventsMetricsManager::ScopedMonitor::DoneCallback done_callback);
@@ -456,6 +460,9 @@ class CC_EXPORT InputHandler : public InputDelegateForCompositor {
           offset_tag_modifications);
 
   virtual void SetIsHandlingTouchSequence(bool is_handling_touch_sequence);
+
+  // Returns the ElementId of the currently latched scroller, or invalid id.
+  virtual ElementId LatchedScrollerElementId() const;
 
   bool CanConsumeDelta(const ScrollState& scroll_state,
                        const ScrollNode& scroll_node);
@@ -548,7 +555,7 @@ class CC_EXPORT InputHandler : public InputDelegateForCompositor {
   void DidUnregisterScrollbar(ElementId scroll_element_id,
                               ScrollbarOrientation orientation) override;
   void ScrollOffsetAnimationFinished(ElementId element_id) override;
-  void ElasticOverscrollAnimationFinished() override;
+  void ElasticOverscrollAnimationFinished(ElementId finished_id) override;
   void SetPrefersReducedMotion(bool prefers_reduced_motion) override;
   bool IsCurrentlyScrolling() const override;
   ActivelyScrollingType GetActivelyScrollingType() const override;
@@ -821,10 +828,10 @@ class CC_EXPORT InputHandler : public InputDelegateForCompositor {
   ElementId last_latched_scroller_;
 
   // Scroll animation can finish either before or after GSE arrival.
-  // deferred_scroll_end_ is set when the GSE has arrvied before scroll
+  // deferred_scroll_ends_ is set when the GSE has arrived before scroll
   // animation completion. ScrollEnd will get called once the animation is
   // over.
-  bool deferred_scroll_end_ = false;
+  base::flat_set<ElementId> deferred_scroll_ends_;
 
   // True iff some of the delta has been consumed for the current scroll
   // sequence on the specific axis.

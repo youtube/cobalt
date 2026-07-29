@@ -12,6 +12,7 @@
 #include "third_party/blink/renderer/core/css/css_color.h"
 #include "third_party/blink/renderer/core/css/css_color_mix_value.h"
 #include "third_party/blink/renderer/core/css/css_content_distribution_value.h"
+#include "third_party/blink/renderer/core/css/css_counter_content_value.h"
 #include "third_party/blink/renderer/core/css/css_counter_value.h"
 #include "third_party/blink/renderer/core/css/css_custom_ident_value.h"
 #include "third_party/blink/renderer/core/css/css_font_family_value.h"
@@ -56,11 +57,12 @@
 #include "third_party/blink/renderer/core/css/properties/longhands.h"
 #include "third_party/blink/renderer/core/css/properties/shorthands.h"
 #include "third_party/blink/renderer/core/css/style_color.h"
+#include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/frame/web_feature.h"
 #include "third_party/blink/renderer/core/layout/grid/layout_grid.h"
 #include "third_party/blink/renderer/core/layout/layout_block.h"
 #include "third_party/blink/renderer/core/layout/layout_box.h"
-#include "third_party/blink/renderer/core/layout/masonry/layout_masonry.h"
+#include "third_party/blink/renderer/core/layout/masonry/layout_grid_lanes.h"
 #include "third_party/blink/renderer/core/layout/svg/layout_svg_viewport_container.h"
 #include "third_party/blink/renderer/core/layout/svg/transform_helper.h"
 #include "third_party/blink/renderer/core/style/computed_style_constants.h"
@@ -765,15 +767,32 @@ CSSValue* ComputedStyleUtils::ValueForPositionOffset(
 
   const Length& offset = *positions.first;
   const Length& opposite = *positions.second;
-  const auto* box = DynamicTo<LayoutBox>(layout_object);
 
-  // In this case, the used value is the computed value, so we resolve directly.
+  // Just return the computed-value if:
+  //  - We don't have a layout-object.
+  //  - The layout-object isn't positioned.
+  //  - We just want the computed-value.
+  if (!layout_object || !layout_object->IsPositioned() ||
+      value_phase == CSSValuePhase::kComputedValue) {
+    return ZoomAdjustedPixelValueForLength(offset, style);
+  }
+
+  // Any fixed lengths can be directly resolved.
   if (offset.IsFixed()) {
     return ZoomAdjustedPixelValueForLength(offset, style);
   }
 
-  if (value_phase == CSSValuePhase::kResolvedValue && box &&
-      box->IsOutOfFlowPositioned()) {
+  auto& document = layout_object->GetDocument();
+  const auto* box = DynamicTo<LayoutBox>(layout_object);
+  if (layout_object->IsOutOfFlowPositioned()) {
+    // LayoutBox::OutOfFlowInsetsForGetComputedStyle() requires there to be
+    // layout results to get the right insets. If there are none, return early
+    // as this is considered an error case.
+    CHECK(box);
+    if (!box->PhysicalFragmentCount()) {
+      return ZoomAdjustedPixelValueForLength(offset, style);
+    }
+
     // LayoutBox::OutOfFlowInsetsForGetComputedStyle() are relative to the
     // container's writing direction. Convert it to physical.
     const PhysicalBoxStrut& insets =
@@ -799,39 +818,39 @@ CSSValue* ComputedStyleUtils::ValueForPositionOffset(
     return ZoomAdjustedPixelValue(inset, style);
   }
 
-  if (value_phase == CSSValuePhase::kResolvedValue &&
-      (offset.IsPercent() || offset.IsCalculated()) && box &&
-      box->IsPositioned()) {
-    LayoutUnit containing_block_size;
-    if (box->IsStickyPositioned()) {
-      const LayoutBox* scroll_container = box->ContainingScrollContainer();
+  if (layout_object->IsStickyPositioned()) {
+    if (offset.IsPercent() || offset.IsCalculated()) {
+      UseCounter::Count(document, WebFeature::kPercentOrCalcStickyUsedOffset);
+      const LayoutBox* scroll_container =
+          layout_object->ContainingScrollContainer();
       DCHECK(scroll_container);
-      bool use_inline_size =
-          is_horizontal_property == scroll_container->IsHorizontalWritingMode();
-      containing_block_size = use_inline_size
-                                  ? scroll_container->ContentLogicalWidth()
-                                  : scroll_container->ContentLogicalHeight();
-      UseCounter::Count(box->GetDocument(),
-                        WebFeature::kPercentOrCalcStickyUsedOffset);
-    } else {
-      DCHECK(box->IsRelPositioned());
-      containing_block_size =
-          is_horizontal_property ==
-                  box->ContainingBlock()->IsHorizontalWritingMode()
-              ? box->ContainingBlockLogicalWidthForContent()
-              : box->ContainingBlockLogicalHeightForRelPositioned();
-      UseCounter::Count(box->GetDocument(),
-                        WebFeature::kPercentOrCalcRelativeUsedOffset);
+      const LayoutUnit containing_block_size =
+          is_horizontal_property == scroll_container->IsHorizontalWritingMode()
+              ? scroll_container->ContentLogicalWidth()
+              : scroll_container->ContentLogicalHeight();
+      return ZoomAdjustedPixelValue(
+          ValueForLength(offset, containing_block_size), style);
     }
 
+    return ZoomAdjustedPixelValueForLength(offset, style);
+  }
+
+  DCHECK(layout_object->IsRelPositioned());
+
+  if ((offset.IsPercent() || offset.IsCalculated()) && box) {
+    const LayoutUnit containing_block_size =
+        is_horizontal_property ==
+                box->ContainingBlock()->IsHorizontalWritingMode()
+            ? box->ContainingBlockLogicalWidthForContent()
+            : box->ContainingBlockLogicalHeightForRelPositioned();
+    UseCounter::Count(box->GetDocument(),
+                      WebFeature::kPercentOrCalcRelativeUsedOffset);
     return ZoomAdjustedPixelValue(ValueForLength(offset, containing_block_size),
                                   style);
   }
 
-  if (value_phase == CSSValuePhase::kResolvedValue && offset.IsAuto() &&
-      layout_object && layout_object->IsRelPositioned()) {
-    UseCounter::Count(layout_object->GetDocument(),
-                      WebFeature::kAutoRelativeUsedOffset);
+  if (offset.IsAuto()) {
+    UseCounter::Count(document, WebFeature::kAutoRelativeUsedOffset);
     // If e.g. left is auto and right is not auto, then left's computed value
     // is negative right. So we get the opposite length unit and see if it is
     // auto.
@@ -855,12 +874,8 @@ CSSValue* ComputedStyleUtils::ValueForPositionOffset(
     }
 
     DCHECK_EQ(opposite.GetType(), Length::Type::kFixed);
-    Length negated_opposite = Length(-opposite.Pixels(), opposite.GetType());
+    Length negated_opposite(-opposite.Pixels(), opposite.GetType());
     return ZoomAdjustedPixelValueForLength(negated_opposite, style);
-  }
-
-  if (offset.IsAuto()) {
-    return CSSIdentifierValue::Create(CSSValueID::kAuto);
   }
 
   // Fixed lengths must have been handled by previous branches.
@@ -2058,7 +2073,7 @@ void PopulateGridTrackListComputedValues(CSSValueList* list,
 
 template <typename T>
 typename std::enable_if<std::is_same<T, LayoutGrid>::value ||
-                            std::is_same<T, LayoutMasonry>::value,
+                            std::is_same<T, LayoutGridLanes>::value,
                         CSSValue*>::type
 ValueForGridTrackList(GridTrackSizingDirection direction,
                       const LayoutObject* layout_object,
@@ -2067,7 +2082,7 @@ ValueForGridTrackList(GridTrackSizingDirection direction,
   const bool is_for_columns = direction == kForColumns;
   const ComputedGridTrackList& computed_grid_track_list =
       is_for_columns ? style.GridTemplateColumns() : style.GridTemplateRows();
-  const bool is_masonry = style.IsDisplayMasonryBox();
+  const bool is_grid_lanes = style.IsDisplayGridLanesBox();
   auto* container = DynamicTo<T>(layout_object);
 
   // Handle the 'none' case.
@@ -2108,7 +2123,7 @@ ValueForGridTrackList(GridTrackSizingDirection direction,
   const GridTrackList& track_list = computed_grid_track_list.GetTrackList();
 
   // Treat repeat(auto-fill, <intrinsic-track-size>) as none in Grid.
-  if (!is_masonry && track_list.HasIntrinsicSizedRepeater()) {
+  if (!is_grid_lanes && track_list.HasIntrinsicSizedRepeater()) {
     return CSSIdentifierValue::Create(CSSValueID::kNone);
   }
 
@@ -2185,8 +2200,8 @@ CSSValue* ComputedStyleUtils::ValueForGridTrackList(
     const LayoutObject* layout_object,
     const ComputedStyle& style,
     bool force_computed_value) {
-  if (style.IsDisplayMasonryBox()) {
-    return blink::ValueForGridTrackList<LayoutMasonry>(
+  if (style.IsDisplayGridLanesBox()) {
+    return blink::ValueForGridTrackList<LayoutGridLanes>(
         direction, layout_object, style, force_computed_value);
   }
   return blink::ValueForGridTrackList<LayoutGrid>(direction, layout_object,
@@ -3365,8 +3380,8 @@ CSSValue* CounterValueFromCounterData(const ContentData& content_data) {
   auto* separator = MakeGarbageCollected<CSSStringValue>(counter.Separator());
   auto* list_style =
       MakeGarbageCollected<CSSCustomIdentValue>(counter.ListStyle());
-  return MakeGarbageCollected<cssvalue::CSSCounterValue>(identifier, list_style,
-                                                         separator);
+  return MakeGarbageCollected<cssvalue::CSSCounterContentValue>(
+      identifier, list_style, separator);
 }
 
 }  // namespace
@@ -3432,13 +3447,13 @@ CSSValue* ComputedStyleUtils::ValueForCounterDirectives(
     bool is_valid_counter_value = false;
     switch (type) {
       case CountersAttachmentContext::Type::kIncrementType:
-        is_valid_counter_value = item.value.IsIncrement();
+        is_valid_counter_value = item.value.HasIncrement();
         break;
       case CountersAttachmentContext::Type::kResetType:
         is_valid_counter_value = item.value.IsReset();
         break;
       case CountersAttachmentContext::Type::kSetType:
-        is_valid_counter_value = item.value.IsSet();
+        is_valid_counter_value = item.value.HasSet();
         break;
     }
 
@@ -3446,23 +3461,35 @@ CSSValue* ComputedStyleUtils::ValueForCounterDirectives(
       continue;
     }
 
-    int32_t number = 0;
+    bool is_reversed = false;
+    std::optional<int32_t> number;
     switch (type) {
       case CountersAttachmentContext::Type::kIncrementType:
         number = item.value.IncrementValue();
         break;
-      case CountersAttachmentContext::Type::kResetType:
-        number = item.value.ResetValue();
+      case CountersAttachmentContext::Type::kResetType: {
+        if (item.value.IsResetReversed()) {
+          is_reversed = true;
+        }
+        const std::optional<int> reset_value = item.value.ResetValue();
+        if (reset_value.has_value()) {
+          number = reset_value.value();
+        }
         break;
+      }
       case CountersAttachmentContext::Type::kSetType:
         number = item.value.SetValue();
         break;
     }
-    list->Append(*MakeGarbageCollected<CSSValuePair>(
-        MakeGarbageCollected<CSSCustomIdentValue>(item.key),
-        CSSNumericLiteralValue::Create((double)number,
-                                       CSSPrimitiveValue::UnitType::kInteger),
-        CSSValuePair::IdenticalValuesPolicy::kDropIdenticalValues));
+    const CSSNumericLiteralValue* counter_value = nullptr;
+    if (number.has_value()) {
+      counter_value =
+          CSSNumericLiteralValue::Create(static_cast<double>(number.value()),
+                                         CSSPrimitiveValue::UnitType::kInteger);
+    }
+    list->Append(*MakeGarbageCollected<cssvalue::CSSCounterValue>(
+        *MakeGarbageCollected<CSSCustomIdentValue>(item.key), counter_value,
+        is_reversed));
   }
 
   if (!list->length()) {
@@ -4799,31 +4826,25 @@ CSSValue* ComputedStyleUtils::ValueForIntrinsicLength(
     return CSSIdentifierValue::Create(CSSValueID::kNone);
   }
 
-  if (intrinsic_length.MatchesElement()) {
-    DCHECK(RuntimeEnabledFeatures::ResponsiveIframesEnabled());
-    return CSSIdentifierValue::Create(CSSValueID::kFromElement);
-  }
+  const std::optional<Length>& length = intrinsic_length.GetLength();
+  CSSValue* length_value = length
+                               ? ZoomAdjustedPixelValueForLength(*length, style)
+                               : CSSIdentifierValue::Create(CSSValueID::kNone);
 
-  CSSValueList* list = CSSValueList::CreateSpaceSeparated();
+  CSSIdentifierValue* option = nullptr;
   if (intrinsic_length.HasAuto()) {
-    list->Append(*CSSIdentifierValue::Create(CSSValueID::kAuto));
-  }
-
-  if (const std::optional<Length>& length = intrinsic_length.GetLength()) {
-    list->Append(*ZoomAdjustedPixelValueForLength(*length, style));
+    option = CSSIdentifierValue::Create(CSSValueID::kAuto);
+  } else if (intrinsic_length.MatchesElement()) {
+    DCHECK(RuntimeEnabledFeatures::ResponsiveIframesEnabled());
+    option = CSSIdentifierValue::Create(CSSValueID::kFromElement);
   } else {
-    list->Append(*CSSIdentifierValue::Create(CSSValueID::kNone));
+    return length_value;
   }
+  DCHECK(option);
+  CSSValueList* list = CSSValueList::CreateSpaceSeparated();
+  list->Append(*option);
+  list->Append(*length_value);
   return list;
-}
-
-CSSValue* ComputedStyleUtils::ValueForScrollStart(const ComputedStyle& style,
-                                                  const ScrollStartData& data) {
-  if (data.value_type == ScrollStartValueType::kLengthOrPercentage) {
-    return ComputedStyleUtils::ZoomAdjustedPixelValueForLength(data.value,
-                                                               style);
-  }
-  return CSSIdentifierValue::Create(data.value_type);
 }
 
 namespace {
@@ -5116,7 +5137,7 @@ CSSValue* ComputedStyleUtils::ValueForFitText(const ComputedStyle& style,
   return list;
 }
 
-CSSValueList* ComputedStyleUtils::ValuesForMasonryShorthand(
+CSSValueList* ComputedStyleUtils::ValuesForGridLanesShorthand(
     const StylePropertyShorthand& shorthand,
     const ComputedStyle& style,
     const LayoutObject* layout_object,
@@ -5129,28 +5150,28 @@ CSSValueList* ComputedStyleUtils::ValuesForMasonryShorthand(
   // Note: `shorthand.properties()[1]` is intentionally not used here because it
   // always refers to `grid-template-columns`.
   // Instead, we use `GetCSSPropertyGridTemplateColumns()` or
-  // `GetCSSPropertyGridTemplateRows()` depending on the `masonry-direction`,
-  // since `grid-template-rows` is not listed in the `masonry` shorthand
+  // `GetCSSPropertyGridTemplateRows()` depending on the `grid-lanes-direction`,
+  // since `grid-template-rows` is not listed in the `grid-lanes` shorthand
   // property.
-  const CSSValue* masonry_direction_values =
+  const CSSValue* grid_lanes_direction_values =
       shorthand.properties()[2]->CSSValueFromComputedStyle(
           style, layout_object, allow_visited_style, value_phase);
-  DCHECK(masonry_direction_values);
-  const CSSValue* masonry_template_tracks_values =
-      CSSOMUtils::IsMasonryColumnDirectionValue(masonry_direction_values)
+  DCHECK(grid_lanes_direction_values);
+  const CSSValue* grid_lanes_template_tracks_values =
+      CSSOMUtils::IsGridLanesColumnDirectionValue(grid_lanes_direction_values)
           ? GetCSSPropertyGridTemplateColumns().CSSValueFromComputedStyle(
                 style, layout_object, allow_visited_style, value_phase)
           : GetCSSPropertyGridTemplateRows().CSSValueFromComputedStyle(
                 style, layout_object, allow_visited_style, value_phase);
-  DCHECK(masonry_template_tracks_values);
-  const CSSValue* masonry_fill_values =
+  DCHECK(grid_lanes_template_tracks_values);
+  const CSSValue* grid_lanes_fill_values =
       shorthand.properties()[3]->CSSValueFromComputedStyle(
           style, layout_object, allow_visited_style, value_phase);
-  DCHECK(masonry_fill_values);
+  DCHECK(grid_lanes_fill_values);
 
-  return CSSOMUtils::ComputedValueForMasonryShorthand(
-      masonry_template_tracks_values, template_area_values,
-      masonry_direction_values, masonry_fill_values);
+  return CSSOMUtils::ComputedValueForGridLanesShorthand(
+      grid_lanes_template_tracks_values, template_area_values,
+      grid_lanes_direction_values, grid_lanes_fill_values);
 }
 
 }  // namespace blink

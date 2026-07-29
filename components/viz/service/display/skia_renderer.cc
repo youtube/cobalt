@@ -1208,7 +1208,7 @@ void SkiaRenderer::SwapBuffersComplete(
   if (!release_fence.is_null()) {
     // Set release fences to return overlay resources for last frame.
     for (auto& lock : committed_overlay_locks_) {
-      lock.SetReleaseFence(release_fence.Clone());
+      lock.MaybeCopyReleaseFence(release_fence);
     }
     // Find all locks that have a read-lock fence associated with them and move
     // them to the back of locks. If we have a release fence, it's not safe to
@@ -2634,9 +2634,9 @@ void SkiaRenderer::DrawTextureQuad(const TextureDrawQuad* quad,
   const SkImage* image = builder.sk_image();
   if (!image)
     return;
-  gfx::RectF uv_rect = gfx::ScaleRect(
-      gfx::BoundingRect(quad->uv_top_left, quad->uv_bottom_right),
-      image->width(), image->height());
+
+  gfx::RectF uv_rect = quad->GetUnnormalizedTexCoords(
+      gfx::Size(image->width(), image->height()));
   params->vis_tex_coords = cc::MathUtil::ScaleRectProportional(
       uv_rect, gfx::RectF(quad->rect), params->visible_rect);
 

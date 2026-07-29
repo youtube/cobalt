@@ -36,6 +36,7 @@
   E_CPONLY(kColorAvatarButtonHighlightGuest) \
   E_CPONLY(kColorAvatarButtonHighlightSyncError) \
   E_CPONLY(kColorAvatarButtonHighlightSyncPaused) \
+  E_CPONLY(kColorAvatarButtonHighlightPasskeysLocked) \
   E_CPONLY(kColorAvatarButtonHighlightSigninPaused) \
   E_CPONLY(kColorAvatarButtonHighlightExplicitText) \
   E_CPONLY(kColorAvatarButtonHighlightIncognito) \
@@ -250,6 +251,7 @@
   E_CPONLY(kColorNewTabPageChipBackground) \
   E_CPONLY(kColorNewTabPageChipForeground) \
   E_CPONLY(kColorComposeboxBackground) \
+  E_CPONLY(kColorComposeboxFileChipSpinner) \
   E_CPONLY(kColorComposeboxFont) \
   E_CPONLY(kColorComposeboxFontLight) \
   E_CPONLY(kColorComposeboxCancelButton) \
@@ -278,9 +280,14 @@
   E_CPONLY(kColorComposeboxPdfChipIcon) \
   E_CPONLY(kColorComposeboxFileImageOverlay) \
   E_CPONLY(kColorComposeboxFileCarouselDivider) \
+  E_CPONLY(kColorComposeboxFileCarouselRemoveButton) \
+  E_CPONLY(kColorComposeboxFileCarouselRemoveGradientStart) \
+  E_CPONLY(kColorComposeboxFileCarouselRemoveGradientEnd) \
+  E_CPONLY(kColorComposeboxFileCarouselUrl) \
   E_CPONLY(kColorComposeboxContextEntrypointTextDisabled) \
   E_CPONLY(kColorComposeboxContextEntrypointHoverBackground) \
   E_CPONLY(kColorComposeboxLink) \
+  E_CPONLY(kColorNewTabPageCommonInputPlaceholder) \
   E_CPONLY(kColorNewTabPageControlBackgroundHovered) \
   E_CPONLY(kColorNewTabPageControlBackgroundSelected) \
   E_CPONLY(kColorNewTabPageFirstRunBackground) \
@@ -382,6 +389,7 @@
   E_CPONLY(kColorOmniboxComposeboxForegroundDisabled) \
   E_CPONLY(kColorOmniboxComposeboxPrimaryAction) \
   E_CPONLY(kColorOmniboxComposeboxSubmitButtonBackground) \
+  E_CPONLY(kColorOmniboxComposeboxSubmitButtonIcon) \
   E_CPONLY(kColorOmniboxContextEntrypointHoverBackground) \
   E_CPONLY(kColorOmniboxContextEntrypointText) \
   E_CPONLY(kColorOmniboxIconBackground) \

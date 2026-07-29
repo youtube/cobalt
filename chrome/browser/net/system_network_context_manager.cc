@@ -47,7 +47,6 @@
 #include "components/embedder_support/user_agent_utils.h"
 #include "components/net_log/net_export_file_writer.h"
 #include "components/net_log/net_log_proxy_source.h"
-#include "components/network_session_configurator/common/network_features.h"
 #include "components/os_crypt/sync/os_crypt.h"
 #include "components/policy/core/common/policy_namespace.h"
 #include "components/policy/core/common/policy_service.h"
@@ -1018,8 +1017,10 @@ SystemNetworkContextManager::GetNetExportFileWriter() {
 }
 
 void SystemNetworkContextManager::UpdateTrustAnchorIDs(
-    std::vector<std::vector<uint8_t>> trust_anchor_ids) {
-  ssl_config_service_manager_.UpdateTrustAnchorIDs(std::move(trust_anchor_ids));
+    std::vector<std::vector<uint8_t>> trust_anchor_ids,
+    std::vector<std::vector<uint8_t>> mtc_trust_anchor_ids) {
+  ssl_config_service_manager_.UpdateTrustAnchorIDs(
+      std::move(trust_anchor_ids), std::move(mtc_trust_anchor_ids));
 }
 
 // static

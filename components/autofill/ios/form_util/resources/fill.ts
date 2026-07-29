@@ -7,8 +7,8 @@ import '//components/autofill/ios/form_util/resources/fill_util.js';
 import * as fillConstants from '//components/autofill/ios/form_util/resources/fill_constants.js';
 import * as inferenceUtil from '//components/autofill/ios/form_util/resources/fill_element_inference_util.js';
 import * as fillUtil from '//components/autofill/ios/form_util/resources/fill_util.js';
-import {formOrFieldsetsToFormData, getFrameUrlOrOrigin} from '//components/autofill/ios/form_util/resources/fill_web_form.js';
-import {isFormControlElement} from '//components/autofill/ios/form_util/resources/form_utils.js';
+import {formOrFieldsetsToFormData, getFrameUrlOrOrigin, webFormElementToFormData} from '//components/autofill/ios/form_util/resources/fill_web_form.js';
+import {getFieldIdentifier} from '//components/autofill/ios/form_util/resources/form_utils.js';
 import {gCrWeb, gCrWebLegacy} from '//ios/web/public/js_messaging/resources/gcrweb.js';
 import {isTextField} from '//ios/web/public/js_messaging/resources/utils.js';
 
@@ -22,91 +22,6 @@ import {isTextField} from '//ios/web/public/js_messaging/resources/utils.js';
  */
 const autofillFormFeaturesApi =
   gCrWeb.getRegisteredApi('autofill_form_features');
-
-declare global {
-  // Defines an additional property, `__gcrweb`, on the Window object.
-  // This definition is needed in order to call into gCrWeb inside an iframe.
-  interface Window {
-    __gCrWeb: any;
-  }
-}
-
-/**
- * Fills |form| with the form data object corresponding to the
- * |formElement|. If |field| is non-NULL, also fills |field| with the
- * FormField object corresponding to the |formControlElement|.
- * |extract_mask| controls what data is extracted.
- * Returns true if |form| is filled out. Returns false if there are no
- * fields or too many fields in the |form|.
- *
- * It is based on the logic in
- *     bool WebFormElementToFormData(
- *         const blink::WebFormElement& form_element,
- *         const blink::WebFormControlElement& form_control_element,
- *         ExtractMask extract_mask,
- *         FormData* form,
- *         FormFieldData* field)
- * in
- * chromium/src/components/autofill/content/renderer/form_autofill_util.cc
- *
- * @param frame The window or frame where the
- *     formElement is in.
- * @param formElement The form element that will be processed.
- * @param formControlElement A control element in
- *     formElement, the FormField of which will be returned in field.
- * @param form Form to fill in the AutofillFormData
- *     information of formElement.
- * @param field Field to fill in the form field
- *     information of formControlElement.
- * @return Whether there are fields and not too many fields in the
- *     form.
- */
-gCrWebLegacy.fill.webFormElementToFormData = function(
-    frame: Window, formElement: HTMLFormElement,
-    formControlElement: fillConstants.FormControlElement,
-    form: fillUtil.AutofillFormData, field?: fillUtil.AutofillFormFieldData,
-    extractChildFrames: boolean = true): boolean {
-  if (!frame) {
-    return false;
-  }
-
-  form.name = gCrWebLegacy.form.getFormIdentifier(formElement);
-  form.origin = getFrameUrlOrOrigin(frame);
-  form.action = fillUtil.getCanonicalActionForForm(formElement);
-
-  // The raw name and id attributes, which may be empty.
-  form.name_attribute = formElement.getAttribute('name') || '';
-  form.id_attribute = formElement.getAttribute('id') || '';
-
-  form.renderer_id = fillUtil.getUniqueID(formElement);
-
-  form.host_frame = frame.__gCrWeb.getFrameId();
-
-  // Note different from form_autofill_util.cc version of this method, which
-  // computes |form.action| using document.completeURL(form_element.action())
-  // and falls back to formElement.action() if the computed action is invalid,
-  // here the action returned by |absoluteURL_| is always valid, which is
-  // computed by creating a <a> element, and we don't check if the action is
-  // valid.
-
-  const controlElements = gCrWebLegacy.form.getFormControlElements(formElement);
-
-  let iframeElements = extractChildFrames &&
-    autofillFormFeaturesApi.getFunction('isAutofillAcrossIframesEnabled')() ?
-    gCrWebLegacy.form.getIframeElements(formElement) :
-      [];
-
-  // To avoid performance bottlenecks, do not keep child frames if their
-  // quantity exceeds the allowed threshold.
-  if (iframeElements.length > fillConstants.MAX_EXTRACTABLE_FRAMES &&
-    autofillFormFeaturesApi.getFunction('isAutofillAcrossIframesThrottlingEnabled')()) {
-      iframeElements = [];
-  }
-
-  return formOrFieldsetsToFormData(
-      formElement, formControlElement, /*fieldsets=*/[], controlElements,
-      iframeElements, form, field);
-};
 
 /**
  * Fills out a FormField object from a given form control element.
@@ -130,7 +45,7 @@ gCrWebLegacy.fill.webFormControlElementToFormField = function(
   // The label is not officially part of a form control element; however, the
   // labels for all form control elements are scraped from the DOM and set in
   // form data.
-  field.identifier = gCrWebLegacy.form.getFieldIdentifier(element);
+  field.identifier = getFieldIdentifier(element);
   field.name = gCrWebLegacy.form.getFieldName(element);
 
   // The raw name and id attributes, which may be empty.
@@ -224,48 +139,9 @@ gCrWebLegacy.fill.webFormControlElementToFormField = function(
 gCrWebLegacy.fill.autofillSubmissionData =
     function(form: HTMLFormElement): fillUtil.AutofillFormData {
   const formData = new gCrWebLegacy['common'].JSONSafeObject();
-      gCrWebLegacy['fill'].webFormElementToFormData(window, form, null, formData, null);
+  webFormElementToFormData(window, form, null, formData);
   return formData;
 };
-
-/**
- * Get all form control elements from |elements| that are not part of a form.
- * Also append the fieldsets encountered that are not part of a form to
- * |fieldsets|.
- *
- * It is based on the logic in:
- *     std::vector<WebFormControlElement>
- *     GetUnownedAutofillableFormFieldElements(
- *         const WebElementCollection& elements,
- *         std::vector<WebElement>* fieldsets);
- * in chromium/src/components/autofill/content/renderer/form_autofill_util.cc.
- *
- * In the C++ version, |fieldsets| can be NULL, in which case we do not try to
- * append to it.
- *
- * @param elements elements to look through.
- * @param fieldsets out param for unowned fieldsets.
- * @return The elements that are not part of a form.
- */
-gCrWebLegacy.fill.getUnownedAutofillableFormFieldElements = function(
-    elements: fillConstants.FormControlElement[],
-    fieldsets: Element[]): fillConstants.FormControlElement[] {
-  const unownedFieldsetChildren: fillConstants.FormControlElement[] = [];
-  for (const element of elements) {
-    if (isFormControlElement(element)) {
-      if (!element.form) {
-        unownedFieldsetChildren.push(element);
-      }
-    }
-
-    if (inferenceUtil.hasTagName(element, 'fieldset') &&
-        !fillUtil.isElementInsideFormOrFieldSet(element)) {
-      fieldsets.push(element);
-    }
-  }
-  return extractAutofillableElementsFromSet(unownedFieldsetChildren);
-};
-
 
 /**
  * Fills |form| with the form data object corresponding to the unowned elements
@@ -370,29 +246,3 @@ gCrWebLegacy.fill.unownedFormElementsAndFieldSetsToFormData = function(
       form);
 };
 
-
-/**
- * Returns the auto-fillable form control elements in |formElement|.
- *
- * It is based on the logic in:
- *     std::vector<blink::WebFormControlElement>
- *     ExtractAutofillableElementsFromSet(
- *         const WebVector<WebFormControlElement>& control_elements);
- * in chromium/src/components/autofill/content/renderer/form_autofill_util.h.
- *
- * @param controlElements Set of control elements.
- * @return The array of autofillable elements.
- */
-function extractAutofillableElementsFromSet(
-    controlElements: fillConstants.FormControlElement[])
-    : fillConstants.FormControlElement[] {
-  const autofillableElements
-      : fillConstants.FormControlElement[] = [];
-  for (const element of controlElements) {
-    if (!inferenceUtil.isAutofillableElement(element)) {
-      continue;
-    }
-    autofillableElements.push(element);
-  }
-  return autofillableElements;
-}

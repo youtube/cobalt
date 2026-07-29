@@ -13,6 +13,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
+#include "base/unguessable_token.h"
 #include "components/page_load_metrics/browser/observers/core/largest_contentful_paint_handler.h"
 #include "components/page_load_metrics/browser/page_load_metrics_observer.h"
 #include "components/page_load_metrics/browser/page_load_metrics_observer_delegate.h"
@@ -43,7 +44,6 @@ class WebContents;
 
 namespace page_load_metrics {
 
-struct MemoryUpdate;
 class PageLoadMetricsEmbedderInterface;
 
 namespace internal {
@@ -293,8 +293,10 @@ class PageLoadTracker : public PageLoadMetricsUpdateDispatcher::Client,
   GetExperimentalLargestContentfulPaintHandler() const override;
   ukm::SourceId GetPageUkmSourceId() const override;
   mojom::SoftNavigationMetrics& GetSoftNavigationMetrics() const override;
-  ukm::SourceId GetUkmSourceIdForSoftNavigation() const override;
-  ukm::SourceId GetPreviousUkmSourceIdForSoftNavigation() const override;
+  // Maps main-frame same-document navigation identified
+  // by |same_document_metrics_token| to its UKM source id.
+  ukm::SourceId GetUkmSourceIdForSameDocumentNavigation(
+      base::UnguessableToken same_document_metrics_token) const override;
   bool IsFirstNavigationInWebContents() const override;
   bool IsOriginVisit() const override;
   bool IsTerminalVisit() const override;
@@ -437,9 +439,6 @@ class PageLoadTracker : public PageLoadMetricsUpdateDispatcher::Client,
 
   // Called when the previewed page was activated for the tab promotion.
   void DidActivatePreviewedPage(base::TimeTicks activation_time);
-
-  // Called when V8 per-frame memory usage updates are available.
-  void OnV8MemoryChanged(const std::vector<MemoryUpdate>& memory_updates);
 
   // Called when a `SharedStorageWorkletHost` is created.
   void OnSharedStorageWorkletHostCreated();
@@ -608,10 +607,10 @@ class PageLoadTracker : public PageLoadMetricsUpdateDispatcher::Client,
 
   mojom::SoftNavigationMetricsPtr soft_navigation_metrics_;
 
-  GURL potential_soft_navigation_url_;
-
-  ukm::SourceId potential_soft_navigation_source_id_ = ukm::kInvalidSourceId;
-  ukm::SourceId previous_soft_navigation_source_id_ = ukm::kInvalidSourceId;
+  // Maps main-frame same-document navigations identified
+  // by their token to their UKM source ids.
+  std::map<base::UnguessableToken, ukm::SourceId>
+      source_id_by_same_document_metrics_token_;
 
   const internal::PageLoadTrackerPageType page_type_;
 

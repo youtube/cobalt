@@ -11,6 +11,7 @@
 #include "base/memory/raw_ref.h"
 #include "base/memory/raw_span.h"
 #include "components/lens/lens_overlay_mime_type.h"
+#include "components/sessions/core/session_id.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "url/gurl.h"
 
@@ -46,13 +47,15 @@ struct ContextualInputData {
   std::optional<std::string> page_title;
   // If the context is a pdf, this is the current viewed page.
   std::optional<uint32_t> pdf_current_page;
-#if BUILDFLAG(IS_IOS)
+  // TODO(crbug.com/462520491): Set the tab handle from the contextual
+  // searchbox handler.
+  // If populated, the session id corresponding to the tab.
+  std::optional<SessionID> tab_session_id;
   // If the context is a webpage or pdf, this is the viewport screenshot.
   std::optional<std::vector<uint8_t>> viewport_screenshot_bytes;
-#else
-  // If the context is a webpage or pdf, this is the viewport screenshot.
+  // If the context is a webpage or pdf, and viewport_screenshot_bytes is null,
+  // this is the viewport screenshot.
   std::optional<SkBitmap> viewport_screenshot;
-#endif  // BUILDFLAG(IS_IOS)
   // Whether or not webpage or pdf context is eligible.
   std::optional<bool> is_page_context_eligible;
 };

@@ -171,6 +171,7 @@
 <translation id="2787357173144933081">ジャンプスタート アドレスバー</translation>
 <translation id="2789132527330338807">サイトが周囲の 3D マップの作成またはカメラ位置の追跡を要求できるようにする</translation>
 <translation id="2790501146643349491">オンにすると、最近閉じたサイトのデータの送受信を完了できます。オフにすると、最近閉じたサイトのデータの送受信を完了できません。</translation>
+<translation id="2794551654724114396">Chrome を最大限に活用するためのヒントを受け取るには、通知をオンにしてください</translation>
 <translation id="2795716239552913152">多くのサイトは、ローカル ニュースや近くのお店の情報などを取得するためにユーザーの位置情報を使用します。</translation>
 <translation id="2800760947029405028">画像をアップロード</translation>
 <translation id="2802908157808345702">サイトにポップアップの送信とリダイレクトの使用を許可しない</translation>
@@ -338,10 +339,12 @@
 <translation id="4635969503923889910">サイトに NFC デバイスの使用を許可しない</translation>
 <translation id="4644713492825682049">削除してリセット</translation>
 <translation id="4645575059429386691">保護者により管理されています</translation>
+<translation id="4652266463001779298">ブロック</translation>
 <translation id="4663373278480897665">カメラを使用できます</translation>
 <translation id="4670064810192446073">バーチャル リアリティ（VR）</translation>
 <translation id="4672315773691449562">[ブラウザアプリ]、[Chrome] をタップします</translation>
 <translation id="4676059169848868271"><ph name="APP_NAME" /> にハンド トラッキングの使用を許可するには、<ph name="BEGIN_LINK" />システム設定<ph name="END_LINK" />でもハンド トラッキングをオンにしてください。</translation>
+<translation id="4688045258817337666">カードを管理</translation>
 <translation id="4751476147751820511">モーション センサーまたは光センサー</translation>
 <translation id="4755971844837804407">オンにすると、サイトはユーザーにあらゆる広告を表示できます。オフにすると、サイトは煩わしい広告や誤解を招く広告を表示できません。</translation>
 <translation id="4779083564647765204">ズーム</translation>
@@ -678,6 +681,7 @@
 <translation id="8487700953926739672">オフラインでの利用</translation>
 <translation id="848952951823693243">常にモバイル版サイトを表示する</translation>
 <translation id="8492822722330266509">サイトがポップアップを送信したりリダイレクトを使用したりできるようにする</translation>
+<translation id="8493548450030356203">ポップアップ ズーム ウィンドウ</translation>
 <translation id="8499083585497694743">マイクのミュートを解除</translation>
 <translation id="8514955299594277296">サイトによるデバイスへのデータの保存を許可しない（非推奨）</translation>
 <translation id="851751545965956758">サイトからデバイスへの接続をブロックする</translation>

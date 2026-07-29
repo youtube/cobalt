@@ -144,7 +144,6 @@
 #include "content/common/pseudonymization_salt.h"
 #include "content/public/browser/browser_child_process_host.h"
 #include "content/public/browser/browser_context.h"
-#include "content/public/browser/browser_or_resource_context.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/child_process_host.h"
 #include "content/public/browser/devtools_agent_host.h"
@@ -174,7 +173,7 @@
 #include "google_apis/gaia/gaia_config.h"
 #include "google_apis/gaia/gaia_switches.h"
 #include "gpu/command_buffer/client/gpu_switches.h"
-#include "gpu/command_buffer/service/gpu_switches.h"
+#include "gpu/config/gpu_finch_features.h"
 #include "gpu/config/gpu_switches.h"
 #include "ipc/constants.mojom.h"
 #include "ipc/ipc_channel_factory.h"
@@ -301,9 +300,18 @@ namespace features {
 // channel is paused, and only flushed at OnProcessLaunched.
 BASE_FEATURE(kSkipIPCChannelPausingForNonGuests,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
 const base::FeatureParam<bool> skip_channel_pausing_for_internal_webui_only{
     &features::kSkipIPCChannelPausingForNonGuests, "internal_webui_only",
     false};
+
+#if BUILDFLAG(IS_ANDROID)
+// The feature flag is added for a holdback experiment to estimate
+// the performance impace of the first spare renderer not using the warm-up
+// process in webview.
+BASE_FEATURE(kSpareRendererUseWarmupConnection,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#endif
 
 }  // namespace features
 
@@ -1570,7 +1578,7 @@ RenderProcessHost* RenderProcessHostImpl::CreateRenderProcessHost(
 #if !BUILDFLAG(IS_ANDROID)
   if (site_instance) {
     const GURL& site_url = site_instance->GetSiteURL();
-    if (GetContentClient()->browser()->IsInitialWebUIScheme(site_url)) {
+    if (GetContentClient()->browser()->IsInitialWebUIURL(site_url)) {
       flags |= RenderProcessFlags::kForInitialWebUI;
     }
   }
@@ -1759,8 +1767,8 @@ RenderProcessHostImpl::~RenderProcessHostImpl() {
   UnregisterHost(GetID());
 
   // Remove the cache handles for the client at teardown if relevant.
-  if (!base::CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kDisableGpuShaderDiskCache)) {
+  if (features::IsShaderDiskCacheEnabled(
+          base::CommandLine::ForCurrentProcess())) {
     if (GetGpuDiskCacheFactorySingleton()) {
         gpu_client_->RemoveDiskCacheHandles();
     }
@@ -1826,8 +1834,8 @@ bool RenderProcessHostImpl::Init() {
   // stored on the channels. Note that we also check if the factory is
   // initialized because in tests the factory may never have been initialized.
   if (!GetBrowserContext()->IsOffTheRecord() &&
-      !base::CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kDisableGpuShaderDiskCache)) {
+      features::IsShaderDiskCacheEnabled(
+          base::CommandLine::ForCurrentProcess())) {
     if (auto* cache_factory = GetGpuDiskCacheFactorySingleton()) {
       for (const gpu::GpuDiskCacheType type : gpu::kGpuDiskCacheTypes) {
         auto handle = cache_factory->GetCacheHandle(
@@ -4685,8 +4693,7 @@ bool RenderProcessHostImpl::IsSuitableHost(
     RenderProcessHost* host,
     const IsolationContext& isolation_context,
     const SiteInfo& site_info) {
-  BrowserContext* browser_context =
-      isolation_context.browser_or_resource_context().ToBrowserContext();
+  BrowserContext* browser_context = isolation_context.browser_context();
   DCHECK(browser_context);
   if (run_renderer_in_process()) {
     DCHECK_EQ(host->GetBrowserContext(), browser_context)
@@ -5022,8 +5029,8 @@ RenderProcessHost* RenderProcessHostImpl::GetSoleProcessHostForSite(
     const IsolationContext& isolation_context,
     const SiteInfo& site_info) {
   // Look up the map of site to process for the given browser_context.
-  SiteProcessMap* map = GetSiteProcessMapForBrowserContext(
-      isolation_context.browser_or_resource_context().ToBrowserContext());
+  SiteProcessMap* map =
+      GetSiteProcessMapForBrowserContext(isolation_context.browser_context());
 
   // See if we have an existing process with appropriate bindings for this
   // site. If not, the caller should create a new process and register it.
@@ -5914,13 +5921,11 @@ void RenderProcessHostImpl::OnProcessLaunchFailed(int error_code) {
 
 #if BUILDFLAG(IS_ANDROID)
 bool RenderProcessHostImpl::CanUseWarmUpConnection() {
-  // We disable the spare renderer from using the warmed up connection
-  // because of potential failure to reset the binding state when the
-  // connection is not yet connected or already killed. In practice the
-  // warmed up connection is only created during the start up of the Chrome
-  // application and will not be used by the spare renderer. The filter is
-  // only added for test purposes.
-  return !HasSpareRendererPriority();
+  // TODO(crbug.com/455620851): Remove the function after finishing the
+  // holdback experiment.
+  return base::FeatureList::IsEnabled(
+             features::kSpareRendererUseWarmupConnection) ||
+         !HasSpareRendererPriority();
 }
 
 bool RenderProcessHostImpl::HasSpareRendererPriority() {

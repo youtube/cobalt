@@ -61,6 +61,7 @@
 #include "extensions/common/extension_features.h"
 #include "extensions/common/features/feature.h"
 #include "extensions/common/features/feature_provider.h"
+#include "extensions/common/manifest_handlers/background_info.h"
 #include "extensions/common/mojom/context_type.mojom.h"
 #include "extensions/common/permissions/permissions_data.h"
 #include "extensions/common/url_pattern.h"
@@ -71,6 +72,7 @@
 #include "net/http/http_util.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
 #include "services/network/public/mojom/web_transport.mojom.h"
+#include "third_party/blink/public/common/features_generated.h"
 #include "url/gurl.h"
 
 #if BUILDFLAG(ENABLE_GUEST_VIEW)
@@ -737,6 +739,10 @@ void WebRequestAPI::OnExtensionLoaded(content::BrowserContext* browser_context,
   if (HasAnyWebRequestPermissions(*extension)) {
     ++web_request_extension_count_;
     update_may_have_proxies = true;
+    if (BackgroundInfo::IsServiceWorkerBased(extension)) {
+      WebRequestEventRouter::Get(browser_context)
+          ->LoadPersistedLazyListeners(browser_context, extension->id());
+    }
   }
   if (HasAnyDeclarativeWebRequestPermissions(*extension)) {
     ++declarative_request_extension_count_;
@@ -915,6 +921,31 @@ WebRequestInternalAddEventListenerFunction::Run() {
                                    .GetByID(extension_id_safe());
   std::string extension_name =
       extension ? extension->name() : extension_id_safe();
+
+  if (extra_info_spec & ExtraInfoSpec::SECURITY_INFO) {
+    if (extension && extension->is_platform_app()) {
+      // The security info should not be available in Chrome Apps.
+      return RespondNow(Error(keys::kSecurityInfoAPINotAvailable));
+    }
+
+    if (extension) {
+      if (!base::FeatureList::IsEnabled(
+              extensions_features::kWebRequestSecurityInfo)) {
+        return RespondNow(Error(keys::kSecurityInfoFlagAbsentInExtensions));
+      }
+    } else {
+      if (!GetContextData()->HasControlledFrameCapability()) {
+        // Available only in extensions and Controlled Frame.
+        return RespondNow(Error(keys::kSecurityInfoAPINotAvailable));
+      }
+
+      if (!base::FeatureList::IsEnabled(
+              blink::features::kControlledFrameWebRequestSecurityInfo)) {
+        return RespondNow(
+            Error(keys::kSecurityInfoFlagAbsentInControlledFrame));
+      }
+    }
+  }
 
   if (web_view_instance_id) {
     // If a web view ID has been supplied and the call is from an extension

@@ -17,7 +17,6 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
-#include "base/hash/sha1.h"
 #include "base/location.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
@@ -36,6 +35,7 @@
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
+#include "crypto/hash.h"
 #include "http_request_info.h"
 #include "net/base/cache_type.h"
 #include "net/base/features.h"
@@ -65,6 +65,9 @@
 #endif
 
 namespace net {
+
+BASE_FEATURE(kHttpCacheInitializeDiskCacheBackendEarly,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 namespace {
 // True if any HTTP cache has been initialized.
@@ -151,6 +154,14 @@ void HttpCache::DefaultBackend::SetAppStatusListenerGetter(
   app_status_listener_getter_ = std::move(app_status_listener_getter);
 }
 #endif
+
+std::optional<CacheType> HttpCache::BackendFactory::GetCacheType() const {
+  return std::nullopt;
+}
+
+std::optional<CacheType> HttpCache::DefaultBackend::GetCacheType() const {
+  return type_;
+}
 
 //-----------------------------------------------------------------------------
 
@@ -459,6 +470,14 @@ HttpCache::HttpCache(
   }
 
   net_log_ = session->net_log();
+  if (base::FeatureList::IsEnabled(kHttpCacheInitializeDiskCacheBackendEarly) &&
+      backend_factory_) {
+    if (auto maybe_cache_type = backend_factory_->GetCacheType()) {
+      if (*maybe_cache_type == CacheType::DISK_CACHE) {
+        CreateBackend(CompletionOnceCallback());
+      }
+    }
+  }
 }
 
 HttpCache::~HttpCache() {
@@ -1493,11 +1512,11 @@ bool HttpCache::RemovePendingTransactionFromPendingOp(
 }
 
 void HttpCache::MarkKeyNoStore(const std::string& key) {
-  keys_marked_no_store_.Put(base::SHA1Hash(base::as_byte_span(key)));
+  keys_marked_no_store_.Put(crypto::hash::Sha256(key));
 }
 
 bool HttpCache::DidKeyLeadToNoStoreResponse(const std::string& key) {
-  return keys_marked_no_store_.Get(base::SHA1Hash(base::as_byte_span(key))) !=
+  return keys_marked_no_store_.Get(crypto::hash::Sha256(key)) !=
          keys_marked_no_store_.end();
 }
 

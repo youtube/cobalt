@@ -16,19 +16,15 @@ namespace android_webview::features {
 
 // Alphabetical:
 BASE_DECLARE_FEATURE(kWebViewAddQuicHints);
-BASE_DECLARE_FEATURE(kWebViewAutoSAA);
 BASE_DECLARE_FEATURE(kWebViewBackForwardCache);
 // TODO(crbug.com/455296998): Remove this code for M145.
 BASE_DECLARE_FEATURE(kWebViewBypassHttpCacheForPrefetchFromHeader);
 BASE_DECLARE_FEATURE(kWebViewConfigurableLibraryPrefetch);
-BASE_DECLARE_FEATURE(kWebViewDigitalAssetLinksLoadIncludes);
-BASE_DECLARE_FEATURE(kWebViewDrainPrefetchQueueDuringInit);
 BASE_DECLARE_FEATURE(kWebViewFileSystemAccess);
 BASE_DECLARE_FEATURE(kWebViewIgnoreDuplicateNavs);
 BASE_DECLARE_FEATURE(kWebViewInvokeZoomPickerOnGSU);
 BASE_DECLARE_FEATURE(kWebViewLazyFetchHandWritingIcon);
 BASE_DECLARE_FEATURE(kWebViewMixedContentAutoupgrades);
-BASE_DECLARE_FEATURE(kWebViewMuteAudio);
 BASE_DECLARE_FEATURE(kWebViewRenderDocument);
 BASE_DECLARE_FEATURE(kWebViewTestFeature);
 BASE_DECLARE_FEATURE(kWebViewUseMetricsUploadServiceOnlySdkRuntime);
@@ -41,20 +37,15 @@ BASE_DECLARE_FEATURE(kWebViewUseStartupTasksLogicP2);
 BASE_DECLARE_FEATURE(kWebViewUseInitialNetworkStateAtStartup);
 BASE_DECLARE_FEATURE(kWebViewReduceUAAndroidVersionDeviceModel);
 BASE_DECLARE_FEATURE(kWebViewEnableCrash);
-BASE_DECLARE_FEATURE(kWebViewPreloadClasses);
 BASE_DECLARE_FEATURE(kWebViewPrefetchNativeLibrary);
 extern const base::FeatureParam<bool> kWebViewPrefetchFromRenderer;
 BASE_DECLARE_FEATURE(kWebViewSkipInterceptsForPrefetch);
-BASE_DECLARE_FEATURE(kWebViewDoNotSendAccessibilityEventsOnGSU);
 BASE_DECLARE_FEATURE(kWebViewHyperlinkContextMenu);
 BASE_DECLARE_FEATURE(kCreateSpareRendererOnBrowserContextCreation);
 BASE_DECLARE_FEATURE(kWebViewWebauthn);
 BASE_DECLARE_FEATURE(kWebViewInterceptedCookieHeader);
 BASE_DECLARE_FEATURE(kWebViewInterceptedCookieHeaderReadWrite);
-BASE_DECLARE_FEATURE(kWebViewShortCircuitShouldInterceptRequest);
 BASE_DECLARE_FEATURE(kWebViewRecordAppCacheHistograms);
-BASE_DECLARE_FEATURE(kWebViewQuicConnectionTimeout);
-extern const base::FeatureParam<int> kWebViewQuicConnectionTimeoutSeconds;
 BASE_DECLARE_FEATURE(kWebViewCacheSizeLimitDerivedFromAppCacheQuota);
 extern const base::FeatureParam<double> kWebViewCacheSizeLimitMultiplier;
 extern const base::FeatureParam<int> kWebViewCacheSizeLimitMinimum;

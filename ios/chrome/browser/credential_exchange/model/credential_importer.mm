@@ -8,13 +8,14 @@
 
 #import "base/apple/foundation_util.h"
 #import "base/barrier_closure.h"
-#import "base/functional/callback_forward.h"
 #import "base/rand_util.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/task/thread_pool.h"
 #import "components/password_manager/core/browser/import/csv_password.h"
 #import "components/password_manager/core/browser/import/import_results.h"
 #import "components/password_manager/core/browser/import/password_importer.h"
+#import "components/password_manager/core/browser/password_manager_util.h"
+#import "components/password_manager/core/browser/ui/credential_utils.h"
 #import "components/password_manager/core/browser/ui/saved_passwords_presenter.h"
 #import "components/sync/protocol/webauthn_credential_specifics.pb.h"
 #import "components/webauthn/core/browser/import/import_processing_result.h"
@@ -23,6 +24,7 @@
 #import "components/webauthn/core/browser/passkey_model_utils.h"
 #import "ios/chrome/browser/credential_exchange/model/credential_exchange_passkey.h"
 #import "ios/chrome/browser/credential_exchange/model/credential_exchange_password.h"
+#import "ios/chrome/browser/data_import/public/password_import_item.h"
 #import "net/base/apple/url_conversions.h"
 #import "url/gurl.h"
 
@@ -66,6 +68,9 @@ std::string DataToString(NSData* data) {
   // Barrier closure that should run after initial processing finishes for all
   // supported credential types.
   base::RepeatingClosure _allCredentialTypesProcessedClosure;
+
+  // Count of different credential types that are present on the import list.
+  NSInteger _presentCredentialTypesCount;
 }
 
 - (instancetype)initWithDelegate:(id<CredentialImporterDelegate>)delegate
@@ -120,17 +125,29 @@ std::string DataToString(NSData* data) {
           }));
 }
 
-- (void)finishImport {
+- (void)finishImportWithSelectedPasswordIds:
+    (const std::vector<int>&)selectedPasswordIds {
   __weak __typeof(_delegate) weakDelegate = _delegate;
+  base::RepeatingClosure allCredentialTypesImportedClosure =
+      base::BarrierClosure(_presentCredentialTypesCount, base::BindOnce(^{
+                             [weakDelegate onImportFinished];
+                           }));
+
   if (_passwords.count > 0) {
-    // TODO(crbug.com/457354574): Handle passing selected_ids.
     _passwordImporter->ContinueImport(
-        /*selected_ids=*/{},
+        selectedPasswordIds,
         base::BindOnce(^(const password_manager::ImportResults& results) {
           [weakDelegate onPasswordsImported:results];
-        }));
+        }).Then(allCredentialTypesImportedClosure));
   }
-  // TODO(crbug.com/458337350): Implement resume in passkey importer.
+  if (_passkeys.count > 0) {
+    // TODO(crbug.com/450982128): Pass chosen ids from the conflict UI.
+    _passkeyImporter->FinishImport(
+        /*selected_conflicting_passkey_ids=*/{},
+        base::BindOnce(^(int passkeysImported) {
+          [weakDelegate onPasskeysImported:passkeysImported];
+        }).Then(allCredentialTypesImportedClosure));
+  }
 }
 
 #pragma mark - CredentialImportManagerDelegate
@@ -142,6 +159,8 @@ std::string DataToString(NSData* data) {
                                             passkeys {
   _passwords = passwords;
   _passkeys = passkeys;
+  _presentCredentialTypesCount =
+      (passwords.count > 0 ? 1 : 0) + (passkeys.count > 0 ? 1 : 0);
   [_delegate showImportScreenWithPasswordCount:passwords.count
                                   passkeyCount:passkeys.count];
 }
@@ -154,12 +173,34 @@ std::string DataToString(NSData* data) {
   std::vector<password_manager::CSVPassword> csvPasswords;
   csvPasswords.reserve(_passwords.count);
   for (CredentialExchangePassword* password : _passwords) {
-    csvPasswords.push_back(password_manager::CSVPassword(
-        net::GURLWithNSURL(password.URL),
-        base::SysNSStringToUTF8(password.username),
-        base::SysNSStringToUTF8(password.password),
-        base::SysNSStringToUTF8(password.note),
-        password_manager::CSVPassword::Status::kOK));
+    std::string username = base::SysNSStringToUTF8(password.username);
+    std::string passwordStr = base::SysNSStringToUTF8(password.password);
+    std::string note = base::SysNSStringToUTF8(password.note);
+
+    // Even though the URL might not be valid, this status is just about parsing
+    // the fields. `_passwordImporter` will handle the invalid URL internally.
+    password_manager::CSVPassword::Status status =
+        password_manager::CSVPassword::Status::kOK;
+
+    // URL field is optional, so it might be nil. Pass as empty and continue.
+    if (!password.URL) {
+      csvPasswords.emplace_back(password_manager::CSVPassword(
+          /*invalid_url=*/"", username, passwordStr, note, status));
+      continue;
+    }
+
+    // Password manager expects urls to be in HTTP or HTTPS scheme. The imported
+    // password might not contain it and e.g. just be an eTLD+1. Try adding the
+    // scheme and validate the result.
+    std::string urlStr = password.URL.absoluteString.UTF8String;
+    GURL url = password_manager_util::ConstructGURLWithScheme(urlStr);
+    if (password_manager::IsValidPasswordURL(url)) {
+      csvPasswords.emplace_back(password_manager::CSVPassword(
+          url, username, passwordStr, note, status));
+    } else {
+      csvPasswords.emplace_back(password_manager::CSVPassword(
+          urlStr, username, passwordStr, note, status));
+    }
   }
   return csvPasswords;
 }
@@ -261,15 +302,17 @@ std::string DataToString(NSData* data) {
 // types, triggers actual import of the data. Otherwise, notifies the delegate
 // to display conflict resolution UI first.
 - (void)onAllCredentialTypesProcessed {
-  // TODO(crbug.com/450982128): Parse `displayed_entries` to check for
-  // conflcts only and not other types of errors.
   if (_passkeyImportResult.conflicts.empty() &&
       _passwordImportResult.displayed_entries.empty()) {
-    [self finishImport];
+    [self finishImportWithSelectedPasswordIds:{}];
     return;
   }
 
-  // TODO(crbug.com/450982128): Display conflicts resolution screen.
+  // TODO(crbug.com/450982128): Pass passkey conflicts.
+  [_delegate
+      showConflictResolutionScreenWithPasswords:
+          [PasswordImportItem
+              passwordImportItemsFromImportResults:_passwordImportResult]];
 }
 
 @end

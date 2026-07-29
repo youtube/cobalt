@@ -279,6 +279,8 @@ const char* RequestResultToString(
       return "PERMISSION_DENIED";
     case blink::mojom::MediaStreamRequestResult::PERMISSION_DISMISSED:
       return "PERMISSION_DISMISSED";
+    case blink::mojom::MediaStreamRequestResult::MULTI_CAPTURE_NOT_SUPPORTED:
+      return "MULTI_CAPTURE_NOT_SUPPORTED";
     case blink::mojom::MediaStreamRequestResult::INVALID_STATE:
       return "INVALID_STATE";
     case blink::mojom::MediaStreamRequestResult::NO_HARDWARE:
@@ -319,6 +321,29 @@ const char* RequestResultToString(
       return "NO_TRANSIENT_ACTIVATION";
     case blink::mojom::MediaStreamRequestResult::CAPTURE_NOT_ALLOWED_BY_POLICY:
       return "CAPTURE_NOT_ALLOWED_BY_POLICY";
+    case blink::mojom::MediaStreamRequestResult::
+        INVALID_DISPLAY_CAPTURE_CONSTRAINTS:
+      return "INVALID_DISPLAY_CAPTURE_CONSTRAINTS";
+    case blink::mojom::MediaStreamRequestResult::INVALID_VIDEO_DEVICE_ID:
+      return "INVALID_VIDEO_DEVICE_ID";
+    case blink::mojom::MediaStreamRequestResult::
+        INVALID_GUM_TAB_CAPTURE_CONSTRAINTS:
+      return "INVALID_GUM_TAB_CAPTURE_CONSTRAINTS";
+    case blink::mojom::MediaStreamRequestResult::
+        INVALID_GUM_SCREEN_CAPTURE_CONSTRAINTS:
+      return "INVALID_GUM_SCREEN_CAPTURE_CONSTRAINTS";
+    case blink::mojom::MediaStreamRequestResult::STREAM_NOT_FOUND_IN_REGISTRY:
+      return "STREAM_NOT_FOUND_IN_REGISTRY";
+    case blink::mojom::MediaStreamRequestResult::
+        ANDROID_CANT_REQUEST_PERMISSION:
+      return "ANDROID_CANT_REQUEST_PERMISSION";
+    case blink::mojom::MediaStreamRequestResult::
+        PERMISSION_DENIED_BY_EMBEDDER_CONTEXT:
+      return "PERMISSION_DENIED_BY_EMBEDDER_CONTEXT";
+    case blink::mojom::MediaStreamRequestResult::DLP_PERMISSION_DENIED:
+      return "DLP_PERMISSION_DENIED";
+    case blink::mojom::MediaStreamRequestResult::REGISTRY_REQUEST_UNVERIFIED:
+      return "REGISTRY_REQUEST_UNVERIFIED";
     case blink::mojom::MediaStreamRequestResult::NUM_MEDIA_REQUEST_RESULTS:
       break;  // Not a valid enum value.
   }
@@ -626,6 +651,9 @@ class MediaStreamManager::DeviceRequest {
   void SetVideoType(MediaStreamType video_type) {
     DCHECK(blink::IsVideoInputMediaType(video_type) ||
            video_type == MediaStreamType::NO_SERVICE);
+    SendLogMessage(base::StringPrintf(
+        "DR::SetVideoType([requester_id=%d] {video_type=%s})", requester_id,
+        StreamTypeToString(video_type)));
     video_type_ = video_type;
   }
 
@@ -2682,8 +2710,9 @@ void MediaStreamManager::SetUpRequest(const std::string& label) {
       request->video_type() == MediaStreamType::DISPLAY_VIDEO_CAPTURE_SET ||
       request->audio_type() == MediaStreamType::DISPLAY_AUDIO_CAPTURE;
   if (is_display_capture && !SetUpDisplayCaptureRequest(request)) {
-    FinalizeRequestFailed(request_it,
-                          MediaStreamRequestResult::SCREEN_CAPTURE_FAILURE);
+    FinalizeRequestFailed(
+        request_it,
+        MediaStreamRequestResult::INVALID_DISPLAY_CAPTURE_CONSTRAINTS);
     return;
   }
 
@@ -2692,8 +2721,9 @@ void MediaStreamManager::SetUpRequest(const std::string& label) {
       request->video_type() == MediaStreamType::GUM_TAB_VIDEO_CAPTURE;
   if (is_tab_capture) {
     if (!SetUpTabCaptureRequest(request, label)) {
-      FinalizeRequestFailed(request_it,
-                            MediaStreamRequestResult::TAB_CAPTURE_FAILURE);
+      FinalizeRequestFailed(
+          request_it,
+          MediaStreamRequestResult::INVALID_GUM_TAB_CAPTURE_CONSTRAINTS);
     }
     return;
   }
@@ -2701,8 +2731,9 @@ void MediaStreamManager::SetUpRequest(const std::string& label) {
   const bool is_screen_capture =
       request->video_type() == MediaStreamType::GUM_DESKTOP_VIDEO_CAPTURE;
   if (is_screen_capture && !SetUpScreenCaptureRequest(request)) {
-    FinalizeRequestFailed(request_it,
-                          MediaStreamRequestResult::SCREEN_CAPTURE_FAILURE);
+    FinalizeRequestFailed(
+        request_it,
+        MediaStreamRequestResult::INVALID_GUM_SCREEN_CAPTURE_CONSTRAINTS);
     return;
   }
 
@@ -2865,8 +2896,8 @@ void MediaStreamManager::FinishTabCaptureRequestSetupWithDeviceId(
 
   // Received invalid device id.
   if (device_id.type != content::DesktopMediaID::TYPE_WEB_CONTENTS) {
-    FinalizeRequestFailed(request_it,
-                          MediaStreamRequestResult::TAB_CAPTURE_FAILURE);
+    FinalizeRequestFailed(
+        request_it, MediaStreamRequestResult::STREAM_NOT_FOUND_IN_REGISTRY);
     return;
   }
 

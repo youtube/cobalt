@@ -22,7 +22,6 @@ import androidx.annotation.IntDef;
 import androidx.annotation.VisibleForTesting;
 
 import com.google.android.material.textfield.TextInputEditText;
-import com.google.android.material.textfield.TextInputLayout;
 
 import org.chromium.base.Callback;
 import org.chromium.base.metrics.RecordUserAction;
@@ -96,6 +95,25 @@ public class UiUtils {
     }
 
     /**
+     * Checks whether the bulk close feature of Robust Window Management is enabled.
+     *
+     * @return {@code true} if bulk close is enabled, {@code false} otherwise.
+     */
+    public static boolean isRobustWindowManagementBulkCloseEnabled() {
+        return ChromeFeatureList.sRobustWindowManagementBulkClose.getValue();
+    }
+
+    /**
+     * Checks whether the Recently Closed Tabs and Windows feature is enabled.
+     *
+     * @return {@code true} if the Recently Closed Tabs and Windows feature is enabled, {@code
+     *     false} otherwise.
+     */
+    public static boolean isRecentlyClosedTabsAndWindowsEnabled() {
+        return ChromeFeatureList.isEnabled(ChromeFeatureList.RECENTLY_CLOSED_TABS_AND_WINDOWS);
+    }
+
+    /**
      * Checks whether the Android Open Incognito As Window feature is enabled.
      *
      * @deprecated Use {@link
@@ -136,7 +154,6 @@ public class UiUtils {
         ((TextView) dialog.findViewById(R.id.title))
                 .setText(res.getString(R.string.instance_switcher_name_window_confirm_header));
 
-        TextInputLayout textInputLayout = dialog.findViewById(R.id.new_window_title);
         TextInputEditText editText = dialog.findViewById(R.id.title_input_text);
         editText.setText(currentTitle);
         editText.requestFocus();
@@ -155,13 +172,10 @@ public class UiUtils {
                             recordChangeWindowNameUserAction(source);
                             nameChangedCallback.onResult(newTitle);
                         }
-                        dialog.dismiss();
                     } else {
-                        textInputLayout.setError(
-                                context.getString(
-                                        R.string.instance_switcher_name_window_missing_title));
-                        textInputLayout.requestFocus();
+                        nameChangedCallback.onResult(newTitle);
                     }
+                    dialog.dismiss();
                 });
 
         TextView negativeButton = dialog.findViewById(R.id.negative_button);

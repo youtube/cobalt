@@ -5,16 +5,21 @@
 #import "ios/chrome/browser/composebox/coordinator/composebox_tab_picker_mediator.h"
 
 #import "base/strings/string_number_conversions.h"
+#import "ios/chrome/browser/composebox/coordinator/composebox_constants.h"
+#import "ios/chrome/browser/composebox/coordinator/web_state_deferred_executor.h"
+#import "ios/chrome/browser/composebox/ui/composebox_snackbar_presenter.h"
 #import "ios/chrome/browser/composebox/ui/composebox_tab_picker_consumer.h"
 #import "ios/chrome/browser/intelligence/persist_tab_context/model/persist_tab_context_browser_agent.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/browser/snapshots/model/snapshot_tab_helper.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_collection_consumer.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/grid_item_identifier.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/grid_utils.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/selected_grid_items.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_grid_mode_holder.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_switcher_item.h"
+#import "ios/chrome/browser/web/model/page_placeholder_tab_helper.h"
 #import "ios/web/public/web_state.h"
 
 @implementation ComposeboxTabPickerMediator {
@@ -24,6 +29,13 @@
   __weak id<ComposeboxTabPickerConsumer> _tabPickerConsumer;
   /// The delegate for tabs attachment.
   __weak id<ComposeboxTabsAttachmentDelegate> _tabsAttachmentDelegate;
+  /// Stores the unique identifiers of web states that have valid cached APC
+  /// (Annotated Page Content) data.
+  std::set<std::string> _validAPCwebStatesIDs;
+  /// Stores the unique identifiers of web states that have failed to load.
+  NSMutableSet<GridItemIdentifier*>* _failedLoadedItemIDs;
+  /// Utility to delay execution of blocks until a web state is loaded.
+  WebStateDeferredExecutor* _webStateDeferredExecutor;
 }
 
 - (instancetype)initWithGridConsumer:(id<TabCollectionConsumer>)gridConsumer
@@ -39,6 +51,12 @@
     _gridConsumer = gridConsumer;
     _tabPickerConsumer = tabPickerConsumer;
     _tabsAttachmentDelegate = tabsAttachmentDelegate;
+
+    [_tabPickerConsumer
+        setSelectedTabsCount:self.selectedEditingItems.tabsCount];
+
+    _webStateDeferredExecutor = [[WebStateDeferredExecutor alloc] init];
+    _failedLoadedItemIDs = [[NSMutableSet alloc] init];
   }
 
   return self;
@@ -63,6 +81,30 @@
 
 #pragma mark - parent class methods
 
+- (BOOL)shouldShowSnapshotForItem:(GridItemIdentifier*)itemID {
+  CHECK(self.modeHolder.mode == TabGridMode::kSelection);
+  if (itemID.type == GridItemType::kTab) {
+    web::WebState* webState = GetWebState(
+        self.webStateList,
+        WebStateSearchCriteria{
+            .identifier = itemID.tabSwitcherItem.identifier,
+            .pinned_state = WebStateSearchCriteria::PinnedState::kNonPinned});
+
+    if (!webState) {
+      return NO;
+    }
+
+    if ([_failedLoadedItemIDs containsObject:itemID] || webState->IsCrashed()) {
+      return NO;
+    }
+
+    BOOL cached = _validAPCwebStatesIDs.contains(
+        base::NumberToString(webState->GetUniqueIdentifier().identifier()));
+    return cached || (webState->IsRealized() && !webState->IsLoading());
+  }
+  return [super shouldShowSnapshotForItem:itemID];
+}
+
 - (void)configureToolbarsButtons {
   // NO-OP
 }
@@ -77,13 +119,66 @@
   [_tabPickerConsumer setSelectedTabsCount:self.selectedEditingItems.tabsCount];
 }
 
+- (void)userTappedOnItemID:(GridItemIdentifier*)itemID {
+  CHECK_EQ(self.modeHolder.mode, TabGridMode::kSelection);
+  CHECK_EQ(itemID.type, GridItemType::kTab);
+  if ([self attachmentLimitReached:itemID]) {
+    ComposeboxSnackbarPresenter* snackbar =
+        [[ComposeboxSnackbarPresenter alloc] initWithBrowser:self.browser];
+    [snackbar showAttachmentLimitSnackbar];
+    return;
+  }
+
+    web::WebState* webState = GetWebState(
+        self.webStateList,
+        WebStateSearchCriteria{
+            .identifier = itemID.tabSwitcherItem.identifier,
+            .pinned_state = WebStateSearchCriteria::PinnedState::kNonPinned});
+    // If the tab's APC is cached avoid updating the snapshot.
+    BOOL cached =
+        webState && _validAPCwebStatesIDs.contains(base::NumberToString(
+                        webState->GetUniqueIdentifier().identifier()));
+    if (webState && !webState->IsRealized() && !cached) {
+      // If the web state is not realized, force it to realize in order to have
+      // the latest content and updated snapshot.
+      __weak ComposeboxTabPickerMediator* weakSelf = self;
+      [_webStateDeferredExecutor
+                     webState:webState
+          executeOnceRealized:^{
+            [weakSelf
+                cancelPlaceholderForRealizedWebState:webState->GetWeakPtr()];
+          }];
+      // Defer snapshot update and item reconfiguration until the web state is
+      // fully loaded.
+      [_webStateDeferredExecutor webState:webState
+                        executeOnceLoaded:^(BOOL success) {
+                          if (!success) {
+                            [weakSelf handleFailedTabLoad:itemID];
+                            return;
+                          }
+                          [weakSelf
+                              updateSnapshotForWebState:webState->GetWeakPtr()
+                                                 itemID:itemID];
+                        }];
+    }
+  [super userTappedOnItemID:itemID];
+}
+
 #pragma mark - ComposeboxTabPickerMutator
 
 - (void)attachSelectedTabs {
   if (self.selectedEditingItems.itemsIdentifiers.count) {
+    std::set<web::WebStateID> cachedWebStateIDs;
+    for (const auto& webStateID : self.selectedEditingItems.allTabs) {
+      if (_validAPCwebStatesIDs.contains(
+              base::NumberToString(webStateID.identifier()))) {
+        cachedWebStateIDs.insert(webStateID);
+      }
+    }
     [_tabsAttachmentDelegate
          attachSelectedTabs:self
-        selectedWebStateIDs:self.selectedEditingItems.allTabs];
+        selectedWebStateIDs:self.selectedEditingItems.allTabs
+          cachedWebStateIDs:cachedWebStateIDs];
   }
 }
 
@@ -95,16 +190,21 @@
 /// state list. The completion handler is called with the created items.
 - (void)createGridItemsWithCompletion:
     (void (^)(NSArray<GridItemIdentifier*>*))completion {
-  if (!IsComposeboxTabPickerCachedAPCEnabled()) {
-    completion(CreateTabItems(self.webStateList,
-                              TabGroupRange(0, self.webStateList->count())));
-    return;
+  NSMutableArray<GridItemIdentifier*>* items = [[NSMutableArray alloc] init];
+  for (int i = 0; i < self.webStateList->count(); i++) {
+    web::WebState* webState = self.webStateList->GetWebStateAt(i);
+    GridItemIdentifier* item = [GridItemIdentifier tabIdentifier:webState];
+    [items addObject:item];
+  }
+
+  if (completion) {
+    completion(items);
   }
 
   PersistTabContextBrowserAgent* persistTabContextBrowserAgent =
       PersistTabContextBrowserAgent::FromBrowser(self.browser);
-  if (!persistTabContextBrowserAgent) {
-    completion([[NSArray alloc] init]);
+  if (!IsComposeboxTabPickerCachedAPCEnabled() ||
+      !persistTabContextBrowserAgent) {
     return;
   }
   std::vector<std::string> webStateUniqueIDs;
@@ -140,19 +240,16 @@
     }
   }
 
+  _validAPCwebStatesIDs = validCachedwebStatesIDs;
   for (int i = 0; i < self.webStateList->count(); ++i) {
     web::WebState* webState = self.webStateList->GetWebStateAt(i);
     GridItemIdentifier* item = [GridItemIdentifier tabIdentifier:webState];
-    if (validCachedwebStatesIDs.contains(base::NumberToString(
-            webState->GetUniqueIdentifier().identifier()))) {
-      item.tabSwitcherItem.hidesSnapshot = NO;
-    } else {
-      item.tabSwitcherItem.hidesSnapshot = YES;
-    }
     [items addObject:item];
   }
 
-  completion(items);
+  if (completion) {
+    completion(items);
+  }
 }
 
 /// Populates the grid consumer with the given `items`. Also pre-selects any
@@ -176,6 +273,62 @@
   }
 
   [_gridConsumer populateItems:items selectedItemIdentifier:nil];
+}
+
+- (void)cancelPlaceholderForRealizedWebState:
+    (base::WeakPtr<web::WebState>)weakWebState {
+  web::WebState* webState = weakWebState.get();
+  if (!webState) {
+    return;
+  }
+  PagePlaceholderTabHelper::FromWebState(webState)
+      ->CancelPlaceholderForNextNavigation();
+}
+
+/// Updates the snapshot for the given web state and reconfigures the grid item.
+- (void)updateSnapshotForWebState:(base::WeakPtr<web::WebState>)weakWebState
+                           itemID:(GridItemIdentifier*)itemID {
+  web::WebState* webState = weakWebState.get();
+  if (!webState) {
+    return;
+  }
+
+  // This function is called when the web state successfully loaded, so it is
+  // not a failed loaded item anymore.
+  if ([_failedLoadedItemIDs containsObject:itemID]) {
+    [_failedLoadedItemIDs removeObject:itemID];
+  }
+
+  __weak ComposeboxTabPickerMediator* weakSelf = self;
+  SnapshotTabHelper::FromWebState(webState)->UpdateSnapshotWithCallback(
+      ^(UIImage* image) {
+        [weakSelf reconfigureGridItem:itemID];
+      });
+}
+
+/// Reconfigures the grid item to reflect updated state (e.g., new snapshot).
+- (void)reconfigureGridItem:(GridItemIdentifier*)itemID {
+  [_gridConsumer replaceItem:itemID withReplacementItem:itemID];
+}
+
+/// Checks if the attachment quota is full. Returns YES only if the limit is
+/// reached and the provided `itemID` is not already selected (since selecting
+/// an existing item implies removal).
+- (BOOL)attachmentLimitReached:(GridItemIdentifier*)itemID {
+  return ![self.selectedEditingItems containItem:itemID] &&
+         (self.selectedEditingItems.tabsCount +
+              [_tabsAttachmentDelegate nonTabAttachmentCount] >=
+          kAttachmentLimit);
+}
+
+/// Handles the scenario where a tab fails to load.
+- (void)handleFailedTabLoad:(GridItemIdentifier*)itemID {
+  ComposeboxSnackbarPresenter* snackbar =
+      [[ComposeboxSnackbarPresenter alloc] initWithBrowser:self.browser];
+  [snackbar showCannotReloadTabError];
+  [_failedLoadedItemIDs addObject:itemID];
+  [self removeFromSelectionItemID:itemID];
+  [self reconfigureGridItem:itemID];
 }
 
 @end

@@ -29,6 +29,7 @@ class MockContextDecorator : public ContextDecorator {
   MOCK_METHOD(void,
               DecorateContext,
               (std::unique_ptr<ContextualTaskContext> context,
+               ContextDecorationParams* params,
                base::OnceCallback<void(std::unique_ptr<ContextualTaskContext>)>
                    context_callback),
               (override));
@@ -42,7 +43,7 @@ ACTION(RunCallbackAsync) {
           std::move(
               const_cast<base::OnceCallback<void(
                   std::unique_ptr<contextual_tasks::ContextualTaskContext>)>&>(
-                  arg1)),
+                  arg2)),
           std::move(const_cast<
                     std::unique_ptr<contextual_tasks::ContextualTaskContext>&>(
               arg0))));
@@ -88,14 +89,16 @@ TEST_F(CompositeContextDecoratorTest, DecorateContext_EmptySources) {
   // InSequence is used to ensure that the decorators are called in the
   // correct order.
   testing::InSequence s;
-  EXPECT_CALL(*mock_decorator1_ptr, DecorateContext(testing::_, testing::_))
+  EXPECT_CALL(*mock_decorator1_ptr,
+              DecorateContext(testing::_, testing::_, testing::_))
       .WillOnce(RunCallbackAsync());
-  EXPECT_CALL(*mock_decorator2_ptr, DecorateContext(testing::_, testing::_))
+  EXPECT_CALL(*mock_decorator2_ptr,
+              DecorateContext(testing::_, testing::_, testing::_))
       .WillOnce(RunCallbackAsync());
 
   base::RunLoop run_loop;
   composite_decorator.DecorateContext(
-      std::move(context), {},
+      std::move(context), {}, nullptr,
       base::BindOnce(
           [](base::OnceClosure quit_closure,
              std::unique_ptr<ContextualTaskContext> context) {
@@ -118,14 +121,113 @@ TEST_F(CompositeContextDecoratorTest, DecorateContext_SingleSource) {
   ContextualTask task(base::Uuid::GenerateRandomV4());
   auto context = std::make_unique<ContextualTaskContext>(task);
 
-  EXPECT_CALL(*mock_decorator1_ptr, DecorateContext(testing::_, testing::_))
+  EXPECT_CALL(*mock_decorator1_ptr,
+              DecorateContext(testing::_, testing::_, testing::_))
       .Times(0);
-  EXPECT_CALL(*mock_decorator2_ptr, DecorateContext(testing::_, testing::_))
+  EXPECT_CALL(*mock_decorator2_ptr,
+              DecorateContext(testing::_, testing::_, testing::_))
       .WillOnce(RunCallbackAsync());
 
   base::RunLoop run_loop;
   composite_decorator.DecorateContext(
       std::move(context), {ContextualTaskContextSource::kFaviconService},
+      nullptr,
+      base::BindOnce(
+          [](base::OnceClosure quit_closure,
+             std::unique_ptr<ContextualTaskContext> context) {
+            std::move(quit_closure).Run();
+          },
+          run_loop.QuitClosure()));
+  run_loop.Run();
+}
+
+TEST_F(CompositeContextDecoratorTest,
+       DecorateContext_SpecificSources_RespectsEarlyOrder) {
+  std::map<ContextualTaskContextSource, std::unique_ptr<ContextDecorator>>
+      decorators;
+
+  // mock_decorator_other corresponds to kFallbackTitle (Enum 0)
+  auto* mock_decorator_other = AddMockDecorator(
+      &decorators, ContextualTaskContextSource::kFallbackTitle);
+
+  // mock_decorator_early corresponds to kPendingContextDecorator (Enum 4)
+  auto* mock_decorator_early = AddMockDecorator(
+      &decorators, ContextualTaskContextSource::kPendingContextDecorator);
+
+  CompositeContextDecorator composite_decorator(std::move(decorators));
+
+  ContextualTask task(base::Uuid::GenerateRandomV4());
+  auto context = std::make_unique<ContextualTaskContext>(task);
+
+  testing::InSequence s;
+
+  // Crucial Check: Even though kFallbackTitle (other) has a lower Enum ID,
+  // kPendingContextDecorator (early) MUST run first.
+  EXPECT_CALL(*mock_decorator_early,
+              DecorateContext(testing::_, testing::_, testing::_))
+      .WillOnce(RunCallbackAsync());
+
+  EXPECT_CALL(*mock_decorator_other,
+              DecorateContext(testing::_, testing::_, testing::_))
+      .WillOnce(RunCallbackAsync());
+
+  base::RunLoop run_loop;
+
+  // We explicitly request both sources.
+  // In a standard set, these would be sorted by ID (0 then 4).
+  // We want to prove our logic reorders them.
+  std::set<ContextualTaskContextSource> sources = {
+      ContextualTaskContextSource::kPendingContextDecorator,
+      ContextualTaskContextSource::kFallbackTitle};
+
+  composite_decorator.DecorateContext(
+      std::move(context), sources, {},
+      base::BindOnce(
+          [](base::OnceClosure quit_closure,
+             std::unique_ptr<ContextualTaskContext> context) {
+            std::move(quit_closure).Run();
+          },
+          run_loop.QuitClosure()));
+  run_loop.Run();
+}
+
+TEST_F(CompositeContextDecoratorTest,
+       DecorateContext_AllSources_RunsEarlyDecoratorsFirst) {
+  std::map<ContextualTaskContextSource, std::unique_ptr<ContextDecorator>>
+      decorators;
+
+  // kFallbackTitle has a lower Enum ID (0) than kPendingContextDecorator (4).
+  // Standard map iteration would run this FIRST.
+  auto* mock_decorator_other = AddMockDecorator(
+      &decorators, ContextualTaskContextSource::kFallbackTitle);
+
+  // kPendingContextDecorator has a higher Enum ID (4).
+  // Standard map iteration would run this LAST.
+  auto* mock_decorator_early = AddMockDecorator(
+      &decorators, ContextualTaskContextSource::kPendingContextDecorator);
+
+  CompositeContextDecorator composite_decorator(std::move(decorators));
+
+  ContextualTask task(base::Uuid::GenerateRandomV4());
+  auto context = std::make_unique<ContextualTaskContext>(task);
+
+  testing::InSequence s;
+
+  // We expect the "Early" decorator to run first, overriding the natural Enum
+  // ID order.
+  EXPECT_CALL(*mock_decorator_early,
+              DecorateContext(testing::_, testing::_, testing::_))
+      .WillOnce(RunCallbackAsync());
+
+  EXPECT_CALL(*mock_decorator_other,
+              DecorateContext(testing::_, testing::_, testing::_))
+      .WillOnce(RunCallbackAsync());
+
+  base::RunLoop run_loop;
+
+  // Passing empty sources triggers the "Run All" code path.
+  composite_decorator.DecorateContext(
+      std::move(context), {}, {},
       base::BindOnce(
           [](base::OnceClosure quit_closure,
              std::unique_ptr<ContextualTaskContext> context) {

@@ -517,7 +517,6 @@ if (!is_android) {
       "//chrome/browser/content_settings:content_settings_factory",
       "//chrome/browser/contextual_cueing",
       "//chrome/browser/favicon",
-      "//chrome/browser/fingerprinting_protection",
       "//chrome/browser/image_fetcher",
       "//chrome/browser/media/webrtc",
       "//chrome/browser/profiles",
@@ -547,6 +546,7 @@ if (!is_android) {
       "//chrome/browser/ui/toolbar",
       "//chrome/browser/ui/toolbar/pinned_toolbar",
       "//chrome/browser/ui/user_education",
+      "//chrome/browser/ui/views/contextual_tasks",
       "//chrome/browser/ui/views/intent_picker:intent_picker_page_action",
       "//chrome/browser/ui/views/interaction",
       "//chrome/browser/ui/views/location_bar",
@@ -561,11 +561,10 @@ if (!is_android) {
       "//chrome/browser/web_applications",
       "//components/browsing_topics",
       "//components/content_settings/core/browser",
+      "//components/contextual_tasks/public",
       "//components/favicon/content",
       "//components/favicon/core",
-      "//components/fingerprinting_protection_filter/common:features",
       "//components/image_fetcher/core",
-      "//components/ip_protection/common:ip_protection_status",
       "//components/lens",
       "//components/metrics:content",
       "//components/passage_embeddings",
@@ -593,7 +592,10 @@ if (!is_android) {
     }
 
     if (!is_android) {
-      deps += [ "//chrome/browser/ui/views/zoom" ]
+      deps += [
+        "//chrome/browser/ui/views/js_optimization:impl",
+        "//chrome/browser/ui/views/zoom",
+      ]
     }
 
     if (is_win || is_mac || is_linux || is_chromeos) {

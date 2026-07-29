@@ -4,6 +4,7 @@
 
 #include "extensions/browser/extension_registrar.h"
 
+#include "base/check_is_test.h"
 #include "base/check_op.h"
 #include "base/containers/contains.h"
 #include "base/debug/alias.h"
@@ -50,6 +51,8 @@ namespace {
 
 BASE_FEATURE(kExtensionUpdatesImmediatelyUnregisterWorker,
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+bool g_disable_lazy_context_spinup_for_test = false;
 
 }  // namespace
 
@@ -500,7 +503,7 @@ base::flat_set<int> ExtensionRegistrar::GetDisableReasonsOnInstalled(
     // the initial install if it is supposed to be, and this allows us to turn
     // this on for other platforms without disabling already-installed
     // extensions.
-    if (extension->GetType() != Manifest::TYPE_HOSTED_APP &&
+    if (extension->GetType() != Manifest::Type::kHostedApp &&
         Manifest::IsExternalLocation(extension->location()) &&
         !extension_prefs_->IsExternalExtensionAcknowledged(extension->id()) &&
         !is_update_from_same_type) {
@@ -905,6 +908,12 @@ void ExtensionRegistrar::GreylistExtensionForTest(
   }
 }
 
+// static
+base::AutoReset<bool> ExtensionRegistrar::DisableLazyContextSpinupForTest() {
+  CHECK_IS_TEST();
+  return base::AutoReset<bool>(&g_disable_lazy_context_spinup_for_test, true);
+}
+
 void ExtensionRegistrar::OnUnpackedExtensionReloadFailed(
     const base::FilePath& path) {
   failed_to_reload_unpacked_extensions_.insert(path);
@@ -1223,6 +1232,10 @@ bool ExtensionRegistrar::ReplaceReloadedExtension(
 void ExtensionRegistrar::MaybeSpinUpLazyContext(const Extension* extension,
                                                 bool is_newly_added) {
   DCHECK(BackgroundInfo::HasLazyContext(extension));
+
+  if (g_disable_lazy_context_spinup_for_test) {
+    return;
+  }
 
   // For orphaned devtools, we will reconnect devtools to it later in
   // DidCreateMainFrameForBackgroundPage().

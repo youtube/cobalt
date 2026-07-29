@@ -175,7 +175,8 @@ class WebSettings {
   virtual void SetHideScrollbars(bool) = 0;
   virtual void SetPrefersDefaultScrollbarStyles(bool) = 0;
   virtual void SetPasswordEchoDurationInSeconds(double) = 0;
-  virtual void SetPasswordEchoEnabled(bool) = 0;
+  virtual void SetPasswordEchoEnabledPhysical(bool) = 0;
+  virtual void SetPasswordEchoEnabledTouch(bool) = 0;
   virtual void SetPluginsEnabled(bool) = 0;
   virtual void SetPresentationReceiver(bool) = 0;
   virtual void SetAvailablePointerTypes(int) = 0;
@@ -280,6 +281,7 @@ class WebSettings {
   virtual void SetNavigationControls(NavigationControls) = 0;
   virtual void SetAriaModalPrunesAXTree(bool) = 0;
   virtual void SetSelectionClipboardBufferAvailable(bool) = 0;
+  virtual void SetMiddleClickPasteAllowed(bool) = 0;
   virtual void SetAccessibilityIncludeSvgGElement(bool) = 0;
   virtual void SetWebXRImmersiveArAllowed(bool) = 0;
   virtual void SetModalContextMenu(bool) = 0;

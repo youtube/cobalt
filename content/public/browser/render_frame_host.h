@@ -44,7 +44,6 @@
 #include "third_party/blink/public/mojom/page/page_visibility_state.mojom-forward.h"
 #include "third_party/perfetto/include/perfetto/tracing/traced_value_forward.h"
 #include "ui/accessibility/ax_node_id_forward.h"
-#include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/native_ui_types.h"
 
 #if BUILDFLAG(IS_ANDROID)
@@ -73,6 +72,7 @@ class MediaPlayerAction;
 
 namespace gfx {
 class Point;
+class Rect;
 class Size;
 }  // namespace gfx
 
@@ -1020,7 +1020,8 @@ class CONTENT_EXPORT RenderFrameHost : public IPC::Listener {
   // Returns true if this frame has fired DOMContentLoaded.
   virtual bool IsDOMContentLoaded() = 0;
 
-  // Update whether the frame is considered an ad frame by Ad Tagging.
+  // Update or retrieve whether the frame is considered an ad frame by Ad
+  // Tagging.
   //
   // Note: This ad status is currently maintained and updated *outside* content.
   // This is used to ensure the render frame proxies are in sync (since they
@@ -1028,6 +1029,7 @@ class CONTENT_EXPORT RenderFrameHost : public IPC::Listener {
   // this somewhat (maybe //content would be responsible for maintaining the
   // state, with some content client method used to update it).
   virtual void UpdateIsAdFrame(bool is_ad_frame) = 0;
+  virtual bool IsAdFrame() const = 0;
 
   // Tells the host that this is part of setting up a WebXR DOM Overlay. This
   // starts a short timer that permits entering fullscreen mode, similar to a

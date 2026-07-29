@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "gpu/command_buffer/client/client_shared_image.h"
 
 #include <GLES2/gl2.h>
@@ -367,7 +362,8 @@ ClientSharedImage::ClientSharedImage(
       creation_sync_token_(exported_si.creation_sync_token_),
       buffer_usage_(exported_si.buffer_usage_),
       sii_holder_(std::move(sii_holder)),
-      texture_target_(exported_si.texture_target_) {
+      texture_target_(exported_si.texture_target_),
+      is_software_(exported_si.is_software_) {
   if (exported_si.buffer_handle_) {
     mappable_buffer_ = CreateMappableBufferFromHandle(
         std::move(exported_si.buffer_handle_.value()), metadata_.size,
@@ -389,7 +385,8 @@ ClientSharedImage::ClientSharedImage(ExportedSharedImage exported_si)
       debug_label_(exported_si.debug_label_),
       creation_sync_token_(exported_si.creation_sync_token_),
       buffer_usage_(exported_si.buffer_usage_),
-      texture_target_(exported_si.texture_target_) {
+      texture_target_(exported_si.texture_target_),
+      is_software_(exported_si.is_software_) {
   if (exported_si.buffer_handle_) {
     mappable_buffer_ = CreateMappableBufferFromHandle(
         std::move(exported_si.buffer_handle_.value()), metadata_.size,
@@ -558,7 +555,7 @@ ExportedSharedImage ClientSharedImage::Export(bool with_buffer_handle) {
   }
   return ExportedSharedImage(mailbox_, metadata_, creation_sync_token_,
                              debug_label_, std::move(buffer_handle),
-                             buffer_usage, texture_target_);
+                             buffer_usage, texture_target_, is_software_);
 }
 
 scoped_refptr<ClientSharedImage> ClientSharedImage::ImportUnowned(
@@ -697,9 +694,26 @@ scoped_refptr<ClientSharedImage> ClientSharedImage::CreateForTesting(
 scoped_refptr<ClientSharedImage> ClientSharedImage::CreateForTesting(
     const SharedImageMetadata& metadata,
     uint32_t texture_target) {
-  return ImportUnowned(ExportedSharedImage(
-      Mailbox::Generate(), metadata, SyncToken(), "CSICreateForTesting",
-      std::nullopt, std::nullopt, texture_target));
+  return CreateForTesting(Mailbox::Generate(), metadata,  // IN-TEST
+                          SyncToken(), texture_target);
+}
+
+// static
+scoped_refptr<ClientSharedImage>
+ClientSharedImage::CreateForTesting(  // IN-TEST
+    const Mailbox& mailbox,
+    const SharedImageMetadata& metadata,
+    const SyncToken& sync_token,
+    uint32_t texture_target,
+    bool is_software) {
+  gpu::ExportedSharedImage exported_shared_image = gpu::ExportedSharedImage(
+      mailbox, metadata, sync_token, "CSICreateForTesting",
+      /*buffer_handle=*/std::nullopt, /*buffer_usage=*/std::nullopt,
+      texture_target, is_software);
+  auto shared_image =
+      gpu::ClientSharedImage::ImportUnowned(std::move(exported_shared_image));
+  shared_image->is_software_ = is_software;
+  return shared_image;
 }
 
 // static
@@ -707,6 +721,8 @@ scoped_refptr<ClientSharedImage> ClientSharedImage::CreateForTesting(
     const Mailbox& mailbox,
     const SharedImageMetadata& metadata,
     const SyncToken& sync_token,
+    bool premapped,
+    const AsyncMapInvokedCallback& callback,
     gfx::BufferUsage buffer_usage,
     scoped_refptr<SharedImageInterfaceHolder> sii_holder) {
   SharedImageInfo info(metadata, "CSICreateForTesting");
@@ -727,23 +743,6 @@ scoped_refptr<ClientSharedImage> ClientSharedImage::CreateForTesting(
   auto client_si = base::MakeRefCounted<ClientSharedImage>(
       mailbox, info, sync_token, sii_holder, gfx::SHARED_MEMORY_BUFFER);
   client_si->mappable_buffer_ = std::move(mappable_buffer);
-  client_si->buffer_usage_ = buffer_usage;
-  return client_si;
-}
-
-// static
-scoped_refptr<ClientSharedImage> ClientSharedImage::CreateForTesting(
-    const Mailbox& mailbox,
-    const SharedImageMetadata& metadata,
-    const SyncToken& sync_token,
-    bool premapped,
-    const AsyncMapInvokedCallback& callback,
-    gfx::BufferUsage buffer_usage,
-    scoped_refptr<SharedImageInterfaceHolder> sii_holder) {
-  SharedImageInfo info(metadata, "CSICreateForTesting");
-
-  auto client_si =
-      CreateForTesting(mailbox, metadata, sync_token, buffer_usage, sii_holder);
   client_si->async_map_invoked_callback_for_testing_ = callback;
   client_si->premapped_for_testing_ = premapped;
   client_si->buffer_usage_ = buffer_usage;
@@ -808,14 +807,16 @@ ExportedSharedImage::ExportedSharedImage(
     std::string debug_label,
     std::optional<gfx::GpuMemoryBufferHandle> buffer_handle,
     std::optional<gfx::BufferUsage> buffer_usage,
-    uint32_t texture_target)
+    uint32_t texture_target,
+    bool is_software)
     : mailbox_(mailbox),
       metadata_(metadata),
       creation_sync_token_(sync_token),
       debug_label_(debug_label),
       buffer_handle_(std::move(buffer_handle)),
       buffer_usage_(buffer_usage),
-      texture_target_(texture_target) {}
+      texture_target_(texture_target),
+      is_software_(is_software) {}
 
 ExportedSharedImage ExportedSharedImage::Clone() const {
   std::optional<gfx::GpuMemoryBufferHandle> handle = std::nullopt;
@@ -824,7 +825,7 @@ ExportedSharedImage ExportedSharedImage::Clone() const {
   }
   return ExportedSharedImage(mailbox_, metadata_, creation_sync_token_,
                              debug_label_, std::move(handle), buffer_usage_,
-                             texture_target_);
+                             texture_target_, is_software_);
 }
 
 SharedImageTexture::ScopedAccess::ScopedAccess(SharedImageTexture* texture,

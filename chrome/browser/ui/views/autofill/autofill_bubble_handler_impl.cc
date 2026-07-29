@@ -7,7 +7,6 @@
 #include <concepts>
 #include <memory>
 
-#include "base/functional/callback_forward.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
@@ -60,11 +59,13 @@ View* ShowBubble(ToolbarButtonProvider* toolbar_button_provider,
                  PageActionIconType page_action_icon_type,
                  bool is_user_gesture,
                  Args&&... args) {
-  views::View* const anchor_view =
-      toolbar_button_provider->GetAnchorView(action_id);
+  views::BubbleAnchor const anchor_view =
+      toolbar_button_provider->GetBubbleAnchor(action_id);
   auto bubble =
       std::make_unique<View>(anchor_view, std::forward<Args>(args)...);
-  if (!views::Button::AsButton(anchor_view)) {
+  // Handle view-based anchors for icon highlighting.
+  auto* view = std::get_if<views::View*>(&anchor_view);
+  if (view && !views::Button::AsButton(*view)) {
     views::Button* icon_view;
     if (IsPageActionMigrated(page_action_icon_type)) {
       CHECK(action_id.has_value());

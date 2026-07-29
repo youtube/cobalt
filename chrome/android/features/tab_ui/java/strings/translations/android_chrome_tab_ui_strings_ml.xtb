@@ -73,6 +73,7 @@
 <translation id="311432875115153175">ടാബ് ഗ്രൂപ്പ് ലിസ്‌റ്റ് അടച്ചു</translation>
 <translation id="3194464645767632461">റേറ്റിംഗ്</translation>
 <translation id="3269930881809501915">{TABS_COUNT,plural, =1{ഗ്രൂപ്പിലേക്ക് <ph name="TABS_COUNT_ONE" /> ടാബ് ചേർക്കുക}other{ഗ്രൂപ്പിലേക്ക് <ph name="TABS_COUNT_MANY" /> ടാബുകൾ ചേർക്കുക}}</translation>
+<translation id="3293080634164207409">ടാബുകൾ ചേർക്കുക</translation>
 <translation id="3328308545011660196">നിർദ്ദേശം: <ph name="NUMBER_OF_TABS" /> ടാബുകൾ സമാനമാണെന്ന് തോന്നുന്നു. അവ ഗ്രൂപ്പ് ചെയ്യണോ?</translation>
 <translation id="3330595302841061275">{DAY_COUNT,plural, =1{ഒരു ദിവസത്തിന് ശേഷം നിഷ്‌ക്രിയമായി}other{<ph name="DAY_COUNT_MANY" /> ദിവസത്തിന് ശേഷം നിഷ്‌ക്രിയമായി}}</translation>
 <translation id="358453129938375749">{NUMBER_OF_TABS_ADDED,plural, =1{പുതിയ <ph name="ONE_ADDED" /> ടാബ്}other{പുതിയ <ph name="MANY_ADDED" /> ടാബുകൾ}}</translation>
@@ -81,6 +82,7 @@
 <translation id="3649471731638882002">{TAB_COUNT,plural, =1{ഇനം അടയ്‌ക്കുക}other{ഇനങ്ങൾ അടയ്‌ക്കുക}}</translation>
 <translation id="3652027618765638838"><ph name="CURRENT_RATING" />/<ph name="RATING_BASELINE" /></translation>
 <translation id="374923079891132274">ഷെയർഷീറ്റ് പ്രിവ്യൂ തംബ്നൈൽ</translation>
+<translation id="3776329373944672717">ടാബ് ഗ്രൂപ്പിന്റെ പേര് <ph name="TITLE_OF_GROUP" /> ആണ്</translation>
 <translation id="3810973564298564668">നിയന്ത്രിക്കൂ</translation>
 <translation id="3849789634341518784">{TAB_COUNT,plural, =1{ടാബ് അൺപിൻ ചെയ്യുക}other{ടാബുകൾ അൺപിൻ ചെയ്യുക}}</translation>
 <translation id="3940195383040445971">ടാബുകളിൽ നിരക്കുകൾ ട്രാക്ക് ചെയ്യുക</translation>
@@ -193,6 +195,7 @@
 <translation id="7853202427316060426">പ്രവർത്തനം</translation>
 <translation id="7854360405711302755">{REVIEWS,plural, =1{ <ph name="CURRENT_RATING" />/<ph name="RATING_BASELINE" /> റേറ്റിംഗ്, <ph name="REVIEWS_COUNT_ONE" /> റിവ്യൂ}other{<ph name="CURRENT_RATING" />/<ph name="RATING_BASELINE" /> റേറ്റിംഗ്, <ph name="REVIEWS_COUNT_MANY" /> റിവ്യൂകൾ}}</translation>
 <translation id="7885132941432959125">ടാബ് വലത്തേക്ക് നീക്കുക</translation>
+<translation id="7887334752153342268">തനിപ്പകര്‍പ്പ്</translation>
 <translation id="7939917283308035850"><ph name="COLOR_NAME" /> തിരഞ്ഞെടുത്തില്ല</translation>
 <translation id="7961015016161918242">ഒരിക്കലും</translation>
 <translation id="7966321538264951561">നിർദ്ദേശങ്ങൾ ഡിസ്‌മിസ് ചെയ്യുക.</translation>
@@ -216,6 +219,7 @@
 <translation id="8428213095426709021">ക്രമീകരണം</translation>
 <translation id="855081842937141170">ടാബ് പിൻ ചെയ്യുക</translation>
 <translation id="8633025649649592204">സമീപകാല ആക്റ്റിവിറ്റി</translation>
+<translation id="8635822281281406185">10 ഫയലുകളോ ടാബുകളോ ചിത്രങ്ങളോ വരെ ചേർക്കുക</translation>
 <translation id="8712637175834984815">മനസ്സിലായി</translation>
 <translation id="8714939927607906138">കുറഞ്ഞ വില</translation>
 <translation id="8730621377337864115">പൂർത്തിയാക്കി</translation>

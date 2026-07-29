@@ -19,7 +19,7 @@ namespace payments {
 namespace android {
 
 // static
-jlong JNI_PaymentRequestSpec_Create(
+static jlong JNI_PaymentRequestSpec_Create(
     JNIEnv* env,
     const base::android::JavaParamRef<jobject>& joptions_byte_buffer,
     const base::android::JavaParamRef<jobject>& jdetails_byte_buffer,
@@ -122,3 +122,5 @@ PaymentRequestSpec::~PaymentRequestSpec() = default;
 
 }  // namespace android
 }  // namespace payments
+
+DEFINE_JNI(PaymentRequestSpec)

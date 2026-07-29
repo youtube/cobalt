@@ -4,6 +4,7 @@
 
 #import "ios/chrome/browser/content_suggestions/ui_bundled/cells/most_visited_tiles_stack_view.h"
 
+#import "base/apple/foundation_util.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/cells/content_suggestions_most_visited_item.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/cells/content_suggestions_most_visited_tile_view.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/cells/most_visited_tiles_commands.h"
@@ -32,24 +33,14 @@
   return self;
 }
 
-#pragma mark - MostVisitedTilesStackViewConsumer
-
-- (void)updateWithConfig:(MostVisitedTilesConfig*)config {
-  for (UIView* subview in self.arrangedSubviews) {
-    [subview removeFromSuperview];
-  }
-  [self populateStackViewWithTiles:config];
-}
-
 #pragma mark - Private
 
 - (void)populateStackViewWithTiles:(MostVisitedTilesConfig*)config {
   NSInteger index = 0;
   for (ContentSuggestionsMostVisitedItem* item in config.mostVisitedItems) {
     ContentSuggestionsMostVisitedTileView* view =
-        [[ContentSuggestionsMostVisitedTileView alloc]
-            initWithConfiguration:item];
-    view.menuElementsProvider = item.menuElementsProvider;
+        base::apple::ObjCCastStrict<ContentSuggestionsMostVisitedTileView>(
+            [item makeContentView]);
     view.accessibilityIdentifier = [NSString
         stringWithFormat:
             @"%@%li",
@@ -63,22 +54,10 @@
       if (!strongView || !strongItem) {
         return;
       }
-
       strongItem.attributes = attributes;
-
-      if (IsNTPBackgroundCustomizationEnabled()) {
-        [strongView applyBackgroundColors];
-      } else {
-        [strongView.faviconView configureWithAttributes:attributes];
-      }
+      strongView.configuration = strongItem;
     };
     [config.imageDataSource fetchFaviconForURL:item.URL completion:completion];
-    UITapGestureRecognizer* tapRecognizer = [[UITapGestureRecognizer alloc]
-        initWithTarget:config.commandHandler
-                action:@selector(mostVisitedTileTapped:)];
-    view.tapRecognizer = tapRecognizer;
-    [view addGestureRecognizer:tapRecognizer];
-    tapRecognizer.enabled = YES;
     [self addArrangedSubview:view];
     index++;
   }

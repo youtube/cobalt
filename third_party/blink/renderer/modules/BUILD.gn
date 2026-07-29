@@ -103,7 +103,6 @@ component("modules") {
     "//third_party/blink/renderer/modules/hid",
     "//third_party/blink/renderer/modules/idle",
     "//third_party/blink/renderer/modules/imagecapture",
-    "//third_party/blink/renderer/modules/cookie_deprecation_label",
     "//third_party/blink/renderer/modules/image_downloader",
     "//third_party/blink/renderer/modules/indexeddb",
     "//third_party/blink/renderer/modules/installation",
@@ -299,7 +298,6 @@ group("make_modules_generated") {
     ":make_modules_generated_event_names",
     ":make_modules_generated_event_target_names",
     ":make_modules_generated_indexed_db_names",
-    ":make_modules_generated_media_capabilities_names",
     "//components/payments/mojom:mojom_blink_headers",
     "//components/schema_org/common:mojom_blink_headers",
     "//components/services/filesystem/public/mojom:mojom_blink_headers",
@@ -374,12 +372,6 @@ make_names("make_modules_generated_indexed_db_names") {
   deps = []  # Don't use default deps (otherwise it will be circular).
 }
 
-make_names("make_modules_generated_media_capabilities_names") {
-  in_files = [ "media_capabilities/media_capabilities_names.json5" ]
-  output_dir = blink_modules_output_dir
-  deps = []  # Don't use default deps (otherwise it will be circular).
-}
-
 blink_modules_sources("modules_generated") {
   # Targets from above that generate outputs that need to be compiled.
   # All sources declared as outputs from these targets will be compiled
@@ -389,7 +381,6 @@ blink_modules_sources("modules_generated") {
     ":make_modules_generated_event_names",
     ":make_modules_generated_event_target_names",
     ":make_modules_generated_indexed_db_names",
-    ":make_modules_generated_media_capabilities_names",
   ]
 
   sources = []
@@ -436,7 +427,6 @@ source_set("unit_tests") {
     "canvas/canvas2d/canvas_rendering_context_2d_test.cc",
     "canvas/canvas2d/canvas_style_test_utils.cc",
     "canvas/canvas2d/canvas_style_test_utils.h",
-    "canvas/canvas2d/identifiability_study_helper_test.cc",
     "canvas/htmlcanvas/html_canvas_element_module_test.cc",
     "canvas/offscreencanvas/offscreen_canvas_rendering_api_ukm_metrics_test.cc",
     "canvas/offscreencanvas/offscreen_canvas_test.cc",

@@ -6,11 +6,14 @@
 
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/stringprintf.h"
+#include "base/strings/to_string.h"
 #include "base/trace_event/trace_event.h"
 #include "components/optimization_guide/core/model_execution/model_execution_util.h"
 #include "components/optimization_guide/core/model_execution/multimodal_message.h"
+#include "components/optimization_guide/core/model_execution/on_device_features.h"
 #include "components/optimization_guide/core/model_execution/repetition_checker.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
+#include "components/optimization_guide/public/mojom/model_broker.mojom-data-view.h"
 
 namespace optimization_guide {
 
@@ -38,56 +41,56 @@ void LogRequest(OptimizationGuideLogger* logger,
 }
 
 void LogRawResponse(OptimizationGuideLogger* logger,
-                    ModelBasedCapabilityKey feature,
+                    mojom::OnDeviceFeature feature,
                     const std::string& raw_response) {
   if (logger && logger->ShouldEnableDebugLogs()) {
     OPTIMIZATION_GUIDE_LOGGER(
         optimization_guide_common::mojom::LogSource::MODEL_EXECUTION, logger)
-        << "Model generates raw response with "
-        << std::string(GetStringNameForModelExecutionFeature(feature)) << ":\n"
+        << "Model generates raw response with " << base::ToString(feature)
+        << ":\n"
         << raw_response;
   }
 }
 
 void LogRepeatedResponse(OptimizationGuideLogger* logger,
-                         ModelBasedCapabilityKey feature,
+                         mojom::OnDeviceFeature feature,
                          const std::string& repeated_response) {
   if (logger && logger->ShouldEnableDebugLogs()) {
     OPTIMIZATION_GUIDE_LOGGER(
         optimization_guide_common::mojom::LogSource::MODEL_EXECUTION, logger)
-        << "Model generates repeated response with "
-        << std::string(GetStringNameForModelExecutionFeature(feature)) << ":\n"
+        << "Model generates repeated response with " << base::ToString(feature)
+        << ":\n"
         << repeated_response;
   }
 }
 
-void LogResponseHasRepeats(ModelBasedCapabilityKey feature, bool has_repeats) {
+void LogResponseHasRepeats(mojom::OnDeviceFeature feature, bool has_repeats) {
   base::UmaHistogramBoolean(
       base::StrCat(
           {"OptimizationGuide.ModelExecution.OnDeviceResponseHasRepeats.",
-           GetStringNameForModelExecutionFeature(feature)}),
+           GetVariantName(feature)}),
       has_repeats);
 }
 
-void LogResponseCompleteTime(ModelBasedCapabilityKey feature,
+void LogResponseCompleteTime(mojom::OnDeviceFeature feature,
                              base::TimeDelta time_to_completion) {
   base::UmaHistogramMediumTimes(
       base::StrCat(
           {"OptimizationGuide.ModelExecution.OnDeviceResponseCompleteTime.",
-           GetStringNameForModelExecutionFeature(feature)}),
+           GetVariantName(feature)}),
       time_to_completion);
 }
 
-void LogResponseCompleteTokens(ModelBasedCapabilityKey feature,
+void LogResponseCompleteTokens(mojom::OnDeviceFeature feature,
                                uint32_t tokens) {
   base::UmaHistogramCounts10000(
       base::StrCat(
           {"OptimizationGuide.ModelExecution.OnDeviceResponseCompleteTokens.",
-           GetStringNameForModelExecutionFeature(feature)}),
+           GetVariantName(feature)}),
       tokens);
 }
 
-void LogResponseTimeToNextToken(ModelBasedCapabilityKey feature,
+void LogResponseTimeToNextToken(mojom::OnDeviceFeature feature,
                                 uint32_t tokens,
                                 base::TimeDelta token_time) {
   if (tokens == 0) {
@@ -96,7 +99,7 @@ void LogResponseTimeToNextToken(ModelBasedCapabilityKey feature,
   base::UmaHistogramTimes(
       base::StrCat({"OptimizationGuide.ModelExecution."
                     "OnDeviceResponseTokensTimeToNextToken.",
-                    GetStringNameForModelExecutionFeature(feature)}),
+                    GetVariantName(feature)}),
       token_time / tokens);
 }
 
@@ -113,7 +116,7 @@ bool GetOnDeviceModelWithholdNewlines() {
 }  // namespace
 
 OnDeviceExecution::OnDeviceExecution(
-    ModelBasedCapabilityKey feature,
+    mojom::OnDeviceFeature feature,
     OnDeviceOptions opts,
     MultimodalMessage message,
     on_device_model::mojom::ResponseConstraintPtr constraint,
@@ -127,6 +130,7 @@ OnDeviceExecution::OnDeviceExecution(
       histogram_logger_(std::move(logger)),
       callback_(std::move(callback)),
       cleanup_callback_(std::move(cleanup_callback)) {
+  exec_log_.set_execution_id(GenerateExecutionId());
   exec_log_.mutable_on_device_model_execution_info()->add_execution_infos();
   start_ = base::TimeTicks::Now();
   *(exec_log_.mutable_on_device_model_execution_info()
@@ -143,7 +147,7 @@ OnDeviceExecution::~OnDeviceExecution() {
     base::UmaHistogramMediumTimes(
         base::StrCat({"OptimizationGuide.ModelExecution."
                       "OnDeviceDestroyedWhileWaitingForResponseTime.",
-                      GetStringNameForModelExecutionFeature(feature_)}),
+                      GetVariantName(feature_)}),
         base::TimeTicks::Now() - start_);
   }
 }
@@ -266,7 +270,7 @@ void OnDeviceExecution::OnResponse(
     base::UmaHistogramMediumTimes(
         base::StrCat(
             {"OptimizationGuide.ModelExecution.OnDeviceFirstResponseTime.",
-             GetStringNameForModelExecutionFeature(feature_)}),
+             GetVariantName(feature_)}),
         time_to_first_response);
     logged_response->set_time_to_first_response_millis(
         time_to_first_response.InMilliseconds());
@@ -498,20 +502,13 @@ void OnDeviceExecution::CancelPendingResponse(Result result,
   }
   OptimizationGuideModelExecutionError og_error =
       OptimizationGuideModelExecutionError::FromModelExecutionError(error);
-  std::unique_ptr<proto::ModelExecutionInfo> model_execution_info;
-  // TODO: crbug.com/372535824 - This probably doesn't need to be conditional?
-  if (og_error.ShouldLogModelQuality()) {
-    model_execution_info =
-        std::make_unique<proto::ModelExecutionInfo>(std::move(exec_log_));
-    exec_log_.Clear();
-    model_execution_info->set_execution_id(GenerateExecutionId());
-    model_execution_info->set_model_execution_error_enum(
-        static_cast<uint32_t>(og_error.error()));
-  }
+  exec_log_.set_model_execution_error_enum(
+      static_cast<uint32_t>(og_error.error()));
+
   auto self = weak_ptr_factory_.GetWeakPtr();
   std::move(callback_).Run(OptimizationGuideModelStreamingExecutionResult(
       base::unexpected(og_error), /*provided_by_on_device=*/true,
-      std::move(model_execution_info)));
+      std::make_unique<proto::ModelExecutionInfo>(std::move(exec_log_))));
   if (self) {
     self->Cleanup(/*healthy=*/true);
   }
@@ -533,15 +530,8 @@ void OnDeviceExecution::SendSuccessCompletionCallback(
   TRACE_EVENT("optimization_guide",
               "OnDeviceExecution::SendSuccessCompletionCallback", "feature",
               base::ToString(feature_));
-  // Complete the log entry and promise it to the ModelQualityUploaderService.
-  std::unique_ptr<ModelQualityLogEntry> log_entry;
   MutableLoggedResponse()->set_status(
       proto::ON_DEVICE_MODEL_SERVICE_RESPONSE_STATUS_SUCCESS);
-  auto model_execution_info =
-      std::make_unique<proto::ModelExecutionInfo>(std::move(exec_log_));
-  model_execution_info->set_execution_id(GenerateExecutionId());
-  exec_log_.Clear();
-
   // Return the execution response.
   auto self = weak_ptr_factory_.GetWeakPtr();
   std::move(callback_).Run(OptimizationGuideModelStreamingExecutionResult(
@@ -550,7 +540,8 @@ void OnDeviceExecution::SendSuccessCompletionCallback(
                             .is_complete = true,
                             .input_token_count = execute_input_token_count_,
                             .output_token_count = output_token_count_}),
-      /*provided_by_on_device=*/true, std::move(model_execution_info)));
+      /*provided_by_on_device=*/true,
+      std::make_unique<proto::ModelExecutionInfo>(std::move(exec_log_))));
   if (self) {
     self->Cleanup(/*healthy=*/true);
   }
@@ -575,7 +566,7 @@ OnDeviceExecution::ResultLogger::~ResultLogger() {
   base::UmaHistogramEnumeration(
       base::StrCat(
           {"OptimizationGuide.ModelExecution.OnDeviceExecuteModelResult.",
-           GetStringNameForModelExecutionFeature(feature_)}),
+           GetVariantName(feature_)}),
       result_);
 }
 

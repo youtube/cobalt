@@ -34,6 +34,7 @@
 #include "third_party/blink/renderer/core/css/css_color.h"
 #include "third_party/blink/renderer/core/css/css_color_mix_value.h"
 #include "third_party/blink/renderer/core/css/css_content_distribution_value.h"
+#include "third_party/blink/renderer/core/css/css_counter_content_value.h"
 #include "third_party/blink/renderer/core/css/css_counter_value.h"
 #include "third_party/blink/renderer/core/css/css_crossfade_value.h"
 #include "third_party/blink/renderer/core/css/css_cursor_image_value.h"
@@ -216,6 +217,8 @@ bool CSSValue::operator==(const CSSValue& other) const {
                                                                    other);
       case kCounterClass:
         return CompareCSSValues<cssvalue::CSSCounterValue>(*this, other);
+      case kCounterContentClass:
+        return CompareCSSValues<cssvalue::CSSCounterContentValue>(*this, other);
       case kCursorImageClass:
         return CompareCSSValues<cssvalue::CSSCursorImageValue>(*this, other);
       case kDynamicRangeLimitMixClass:
@@ -397,6 +400,8 @@ String CSSValue::CssText() const {
       return To<cssvalue::CSSUnresolvedColorValue>(this)->CustomCSSText();
     case kCounterClass:
       return To<cssvalue::CSSCounterValue>(this)->CustomCSSText();
+    case kCounterContentClass:
+      return To<cssvalue::CSSCounterContentValue>(this)->CustomCSSText();
     case kCursorImageClass:
       return To<cssvalue::CSSCursorImageValue>(this)->CustomCSSText();
     case kDynamicRangeLimitMixClass:
@@ -585,6 +590,7 @@ unsigned CSSValue::Hash() const {
     case kScopedKeywordClass:
     case kColorMixClass:
     case kCounterClass:
+    case kCounterContentClass:
     case kQuadClass:
     case kURIClass:
     case kLightDarkValuePairClass:
@@ -659,8 +665,8 @@ const CSSValue& CSSValue::PopulateWithTreeScope(
     case kScopedKeywordClass:
       return To<cssvalue::CSSScopedKeywordValue>(this)->PopulateWithTreeScope(
           tree_scope);
-    case kCounterClass:
-      return To<cssvalue::CSSCounterValue>(this)->PopulateWithTreeScope(
+    case kCounterContentClass:
+      return To<cssvalue::CSSCounterContentValue>(this)->PopulateWithTreeScope(
           tree_scope);
     case kCustomIdentClass:
       return To<CSSCustomIdentValue>(this)->PopulateWithTreeScope(tree_scope);
@@ -712,6 +718,9 @@ void CSSValue::Trace(Visitor* visitor) const {
       return;
     case kCounterClass:
       To<cssvalue::CSSCounterValue>(this)->TraceAfterDispatch(visitor);
+      return;
+    case kCounterContentClass:
+      To<cssvalue::CSSCounterContentValue>(this)->TraceAfterDispatch(visitor);
       return;
     case kCursorImageClass:
       To<cssvalue::CSSCursorImageValue>(this)->TraceAfterDispatch(visitor);
@@ -953,6 +962,8 @@ String CSSValue::ClassTypeToString() const {
       return "UnresolvedColorClass";
     case kCounterClass:
       return "CounterClass";
+    case kCounterContentClass:
+      return "CounterContentClass";
     case kQuadClass:
       return "QuadClass";
     case kCustomIdentClass:

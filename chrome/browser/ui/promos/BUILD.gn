@@ -8,6 +8,7 @@ source_set("utils") {
   deps = [
     "//base",
     "//chrome/browser/promos:utils",
+    "//components/desktop_to_mobile_promos",
   ]
 }
 
@@ -26,6 +27,7 @@ if (!is_android) {
       "//chrome/browser/ui/views/frame:toolbar_button_provider",
       "//chrome/browser/ui/views/location_bar",
       "//chrome/browser/ui/views/toolbar",
+      "//components/desktop_to_mobile_promos",
       "//components/feature_engagement/public",
       "//components/segmentation_platform/embedder/default_model",
       "//components/segmentation_platform/public",
@@ -47,7 +49,10 @@ if (!is_android) {
       ":utils",
       "//chrome/browser/profiles:profile",
       "//chrome/browser/ui/browser_window",
+      "//chrome/browser/ui/user_education",
       "//chrome/browser/ui/views/frame",
+      "//components/desktop_to_mobile_promos",
+      "//components/sync_device_info",
       "//ui/base/unowned_user_data",
     ]
 
@@ -66,8 +71,10 @@ if (!is_android) {
       "//base",
       "//chrome/browser/profiles:profile",
       "//chrome/browser/promos:utils",
+      "//chrome/browser/sync",
+      "//components/desktop_to_mobile_promos",
       "//components/keyed_service/core",
-      "//components/sharing_message",
+      "//components/prefs",
     ]
   }
 
@@ -85,10 +92,15 @@ if (!is_android) {
       "//base/test:test_support",
       "//chrome/browser/promos:utils",
       "//chrome/browser/sync",
+      "//chrome/browser/ui/user_education",
       "//chrome/test:test_support",
-      "//components/sync:test_support",
+      "//components/segmentation_platform/public",
+      "//components/send_tab_to_self",
+      "//components/sync/base",
+      "//components/sync/protocol",
       "//components/sync_device_info",
       "//components/sync_device_info:test_support",
+      "//components/sync_preferences",
       "//components/sync_preferences:features",
       "//components/sync_preferences:test_support",
       "//components/sync_preferences/cross_device_pref_tracker",

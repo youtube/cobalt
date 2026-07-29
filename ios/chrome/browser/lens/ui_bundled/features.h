@@ -43,9 +43,6 @@ BASE_DECLARE_FEATURE(kLensSingleTapTextSelectionDisabled);
 // Whether to disable gesture text selection.
 BASE_DECLARE_FEATURE(kLensGestureTextSelectionDisabled);
 
-// Whether to enable the unary client data header.
-BASE_DECLARE_FEATURE(kLensUnaryClientDataHeaderEnabled);
-
 // Whether to block fetch objects interaction RPCs on separate handshake.
 BASE_DECLARE_FEATURE(kLensBlockFetchObjectsInteractionRPCsOnSeparateHandshake);
 
@@ -78,5 +75,8 @@ BASE_DECLARE_FEATURE(kLensTripleCameraEnabled);
 
 // Whether to enable the Strokes API for Lens.
 BASE_DECLARE_FEATURE(kLensStrokesAPIEnabled);
+
+// Whether to enable the Shader V2 for Lens Omnient.
+BASE_DECLARE_FEATURE(kLensOmnientShaderV2Enabled);
 
 #endif  // IOS_CHROME_BROWSER_LENS_UI_BUNDLED_FEATURES_H_

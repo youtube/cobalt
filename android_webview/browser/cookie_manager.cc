@@ -798,8 +798,10 @@ base::FilePath CookieManager::GetContextPath() const {
   }
 }
 
-void JNI_AwCookieManager_DisablePartitionedCookies(JNIEnv* env) {
+static void JNI_AwCookieManager_DisablePartitionedCookies(JNIEnv* env) {
   net::CookiePartitionKey::DisablePartitioningInWebView();
 }
 
 }  // namespace android_webview
+
+DEFINE_JNI(AwCookieManager)

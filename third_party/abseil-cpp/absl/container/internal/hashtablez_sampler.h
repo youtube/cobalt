@@ -82,12 +82,12 @@ struct HashtablezInfo : public profiling_internal::Sample<HashtablezInfo> {
   std::atomic<size_t> capacity;
   std::atomic<size_t> size;
   std::atomic<size_t> num_erases;
+  std::atomic<size_t> num_insert_hits;
   std::atomic<size_t> num_rehashes;
   std::atomic<size_t> max_probe_length;
   std::atomic<size_t> total_probe_length;
   std::atomic<size_t> hashes_bitwise_or;
   std::atomic<size_t> hashes_bitwise_and;
-  std::atomic<size_t> hashes_bitwise_xor;
   std::atomic<size_t> max_reserve;
 
   // All of the fields below are set by `PrepareForSampling`, they must not be
@@ -110,6 +110,16 @@ struct HashtablezInfo : public profiling_internal::Sample<HashtablezInfo> {
 };
 
 void RecordRehashSlow(HashtablezInfo* info, size_t total_probe_length);
+
+// This is inline to avoid calling convention overhead for an otherwise
+// lightweight operation.
+inline void RecordInsertHitSlow(HashtablezInfo* info) {
+  // We avoid fetch_add since no other thread should be mutating the table
+  // simultaneously without synchronization.
+  info->num_insert_hits.store(
+      info->num_insert_hits.load(std::memory_order_relaxed) + 1,
+      std::memory_order_relaxed);
+}
 
 void RecordReservationSlow(HashtablezInfo* info, size_t target_capacity);
 
@@ -184,6 +194,11 @@ class HashtablezInfoHandle {
     RecordEraseSlow(info_);
   }
 
+  inline void RecordInsertHit() {
+    if (ABSL_PREDICT_TRUE(info_ == nullptr)) return;
+    RecordInsertHitSlow(info_);
+  }
+
   friend inline void swap(HashtablezInfoHandle& lhs,
                           HashtablezInfoHandle& rhs) {
     std::swap(lhs.info_, rhs.info_);
@@ -210,6 +225,7 @@ class HashtablezInfoHandle {
   inline void RecordInsertMiss(size_t /*hash*/,
                                size_t /*distance_from_desired*/) {}
   inline void RecordErase() {}
+  inline void RecordInsertHit() {}
 
   friend inline void swap(HashtablezInfoHandle& /*lhs*/,
                           HashtablezInfoHandle& /*rhs*/) {}

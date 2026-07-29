@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <optional>
+#include <ranges>
 
 #include "base/callback_list.h"
 #include "base/check_deref.h"
@@ -16,6 +17,7 @@
 #include "base/containers/to_vector.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/task/thread_pool.h"
@@ -103,11 +105,13 @@ NotifyObserversCallback(Functor&& functor, Args&&... args) {
 // that may affect type predictions.
 bool NeedsReparse(const FormData& live_form, const FormStructure& cached_form) {
   return live_form.version() >= cached_form.version() &&
-         !std::ranges::equal(live_form.fields(), cached_form.fields(),
-                             [](const FormFieldData& f,
-                                const std::unique_ptr<AutofillField>& g) {
-                               return FormFieldData::DeepEqual(f, *g);
-                             });
+         !std::ranges::equal(
+             live_form.fields(), cached_form.fields(),
+             [](const FormFieldData& f,
+                const std::unique_ptr<AutofillField>& g) {
+               return FormFieldData::IdenticalAndEquivalentDomElements(
+                   f, *g, {FormFieldData::Exclusion::kValue});
+             });
 }
 
 bool IsCreditCardFormForSignaturePurposes(const FormStructure& form_structure) {

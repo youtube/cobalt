@@ -726,6 +726,8 @@ void ReadAnythingAppController::RecordDistillationSuccess() {
     distillationStatus = read_anything::mojom::DistillationStatus::kFailure;
   }
 
+  page_handler_->OnDistillationStatus(distillationStatus,
+                                      model_.words_distilled());
   ukm::builders::Accessibility_ReadAnything_Distillation(
       model_.GetUkmSourceId())
       .SetDistillationStatus(static_cast<int>(distillationStatus))
@@ -1161,6 +1163,7 @@ gin::ObjectTemplateBuilder ReadAnythingAppController::GetObjectTemplateBuilder(
       .SetMethod("getHtmlTag", &ReadAnythingAppController::GetHtmlTag)
       .SetMethod("getLanguage", &ReadAnythingAppController::GetLanguage)
       .SetMethod("getTextContent", &ReadAnythingAppController::GetTextContent)
+      .SetMethod("getPrefixText", &ReadAnythingAppController::GetPrefixText)
       .SetMethod("getUrl", &ReadAnythingAppController::GetUrl)
       .SetMethod("getAltText", &ReadAnythingAppController::GetAltText)
       .SetMethod("shouldBold", &ReadAnythingAppController::ShouldBold)
@@ -1208,6 +1211,7 @@ gin::ObjectTemplateBuilder ReadAnythingAppController::GetObjectTemplateBuilder(
                  &ReadAnythingAppController::OnSelectionChange)
       .SetMethod("onCollapseSelection",
                  &ReadAnythingAppController::OnCollapseSelection)
+      .SetMethod("onDistilled", &ReadAnythingAppController::OnDistilled)
       .SetProperty("supportedFonts",
                    &ReadAnythingAppController::GetSupportedFonts)
       .SetProperty("allFonts", &ReadAnythingAppController::GetAllFonts)
@@ -1502,6 +1506,14 @@ std::u16string ReadAnythingAppController::GetTextContent(
   CHECK(ax_node);
 
   return a11y::GetTextContent(ax_node, model_.is_pdf(), IsGoogleDocs());
+}
+
+std::u16string ReadAnythingAppController::GetPrefixText(
+    ui::AXNodeID ax_node_id) const {
+  ui::AXNode* ax_node = model_.GetAXNode(ax_node_id);
+  CHECK(ax_node);
+
+  return a11y::GetPrefixText(ax_node, model_.is_pdf(), IsGoogleDocs());
 }
 
 std::string ReadAnythingAppController::GetTextDirection(
@@ -1812,6 +1824,10 @@ void ReadAnythingAppController::OnNoTextContent() {
   Distill();
 }
 
+void ReadAnythingAppController::OnDistilled(int word_count) {
+  model_.set_words_distilled(word_count);
+}
+
 void ReadAnythingAppController::UpdateWordsSeen(int words_seen) {
   model_.set_words_seen(words_seen);
 }
@@ -2089,9 +2105,12 @@ void ReadAnythingAppController::OnTtsEngineInstalled() {
 }
 #endif
 
-void ReadAnythingAppController::OnReadingModeHidden() {
+void ReadAnythingAppController::OnReadingModeHidden(bool tab_active) {
   model_.set_will_hide(true);
-  if (read_aloud_model_.speech_playing()) {
+  // If the tab is not active but RM is hidden, then the tab was switched and
+  // speech was not stopped. If the tab is still active and RM is hidden, then
+  // RM was closed, so log the speech stopped.
+  if (read_aloud_model_.speech_playing() && tab_active) {
     read_aloud_model_.LogSpeechStop(
         ReadAloudAppModel::ReadAloudStopSource::kCloseReadingMode);
   }

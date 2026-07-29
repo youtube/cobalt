@@ -13,10 +13,12 @@
 #include "base/strings/strcat.h"
 #include "base/strings/string_split.h"
 #include "base/strings/stringprintf.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
 #include "base/value_iterators.h"
 #include "base/values.h"
 #include "crypto/signature_verifier.h"
+#include "net/base/features.h"
 #include "net/device_bound_sessions/test_support.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
@@ -54,122 +56,14 @@ base::Value Base64UrlEncodedJsonToValue(std::string_view input) {
 
 }  // namespace
 
-TEST(SessionBindingUtilsTest, CreateLegacyKeyRegistrationHeaderAndPayload) {
-  auto [spki, jwk] = GetRS256SpkiAndJwkForTesting();
-
-  std::optional<std::string> result =
-      CreateLegacyKeyRegistrationHeaderAndPayload(
-          "test_challenge", GURL("https://accounts.example.test/RegisterKey"),
-          crypto::SignatureVerifier::SignatureAlgorithm::RSA_PKCS1_SHA256, spki,
-          base::Time::UnixEpoch() + base::Days(200) + base::Milliseconds(123),
-          /*authorization=*/"auth", /*session_identifier=*/"session_id");
-  ASSERT_TRUE(result.has_value());
-
-  std::vector<std::string_view> header_and_payload = base::SplitStringPiece(
-      *result, ".", base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL);
-  ASSERT_EQ(header_and_payload.size(), 2U);
-  base::Value actual_header =
-      Base64UrlEncodedJsonToValue(header_and_payload[0]);
-  base::Value actual_payload =
-      Base64UrlEncodedJsonToValue(header_and_payload[1]);
-
-  base::Value::Dict expected_header =
-      base::Value::Dict().Set("alg", "RS256").Set("typ", "dbsc+jwt");
-  base::Value::Dict expected_payload =
-      base::Value::Dict()
-          .Set("aud", "https://accounts.example.test/RegisterKey")
-          .Set("jti", "test_challenge")
-          .Set("iat", 17280000)
-          .Set("key",
-               base::JSONReader::Read(jwk, base::JSON_PARSE_CHROMIUM_EXTENSIONS)
-                   .value())
-          .Set("authorization", "auth")
-          .Set("sub", "session_id");
-
-  EXPECT_EQ(actual_header, expected_header);
-  EXPECT_EQ(actual_payload, expected_payload);
-}
-
-TEST(SessionBindingUtilsTest,
-     CreateLegacyKeyRegistrationHeaderAndPayloadWithNullAuth) {
-  auto [spki, jwk] = GetRS256SpkiAndJwkForTesting();
-
-  std::optional<std::string> result =
-      CreateLegacyKeyRegistrationHeaderAndPayload(
-          "test_challenge", GURL("https://accounts.example.test/RegisterKey"),
-          crypto::SignatureVerifier::SignatureAlgorithm::RSA_PKCS1_SHA256, spki,
-          base::Time::UnixEpoch() + base::Days(200) + base::Milliseconds(123),
-          /*authorization=*/std::nullopt, /*session_identifier=*/"session_id");
-  ASSERT_TRUE(result.has_value());
-
-  std::vector<std::string_view> header_and_payload = base::SplitStringPiece(
-      *result, ".", base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL);
-  ASSERT_EQ(header_and_payload.size(), 2U);
-  base::Value actual_header =
-      Base64UrlEncodedJsonToValue(header_and_payload[0]);
-  base::Value actual_payload =
-      Base64UrlEncodedJsonToValue(header_and_payload[1]);
-
-  base::Value::Dict expected_header =
-      base::Value::Dict().Set("alg", "RS256").Set("typ", "dbsc+jwt");
-  base::Value::Dict expected_payload =
-      base::Value::Dict()
-          .Set("aud", "https://accounts.example.test/RegisterKey")
-          .Set("jti", "test_challenge")
-          .Set("iat", 17280000)
-          .Set("key",
-               base::JSONReader::Read(jwk, base::JSON_PARSE_CHROMIUM_EXTENSIONS)
-                   .value())
-          .Set("sub", "session_id");
-
-  EXPECT_EQ(actual_header, expected_header);
-  EXPECT_EQ(actual_payload, expected_payload);
-}
-
-TEST(SessionBindingUtilsTest,
-     CreateLegacyKeyRegistrationHeaderAndPayloadWithNullSession) {
-  auto [spki, jwk] = GetRS256SpkiAndJwkForTesting();
-
-  std::optional<std::string> result =
-      CreateLegacyKeyRegistrationHeaderAndPayload(
-          "test_challenge", GURL("https://accounts.example.test/RegisterKey"),
-          crypto::SignatureVerifier::SignatureAlgorithm::RSA_PKCS1_SHA256, spki,
-          base::Time::UnixEpoch() + base::Days(200) + base::Milliseconds(123),
-          /*authorization=*/"authorization",
-          /*session_identifier=*/std::nullopt);
-  ASSERT_TRUE(result.has_value());
-
-  std::vector<std::string_view> header_and_payload = base::SplitStringPiece(
-      *result, ".", base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL);
-  ASSERT_EQ(header_and_payload.size(), 2U);
-  base::Value actual_header =
-      Base64UrlEncodedJsonToValue(header_and_payload[0]);
-  base::Value actual_payload =
-      Base64UrlEncodedJsonToValue(header_and_payload[1]);
-
-  base::Value::Dict expected_header =
-      base::Value::Dict().Set("alg", "RS256").Set("typ", "dbsc+jwt");
-  base::Value::Dict expected_payload =
-      base::Value::Dict()
-          .Set("aud", "https://accounts.example.test/RegisterKey")
-          .Set("jti", "test_challenge")
-          .Set("iat", 17280000)
-          .Set("key",
-               base::JSONReader::Read(jwk, base::JSON_PARSE_CHROMIUM_EXTENSIONS)
-                   .value())
-          .Set("authorization", "authorization");
-
-  EXPECT_EQ(actual_header, expected_header);
-  EXPECT_EQ(actual_payload, expected_payload);
-}
-
 TEST(SessionBindingUtilsTest, CreateKeyRegistrationHeaderAndPayload) {
   auto [spki, jwk] = GetRS256SpkiAndJwkForTesting();
 
   std::optional<std::string> result = CreateKeyRegistrationHeaderAndPayload(
       "test_challenge",
       crypto::SignatureVerifier::SignatureAlgorithm::RSA_PKCS1_SHA256, spki,
-      /*authorization=*/"auth");
+      /*authorization=*/"auth",
+      GURL("https://accounts.example.test/RegisterKey"));
   ASSERT_TRUE(result.has_value());
 
   std::vector<std::string_view> header_and_payload = base::SplitStringPiece(
@@ -195,6 +89,45 @@ TEST(SessionBindingUtilsTest, CreateKeyRegistrationHeaderAndPayload) {
   EXPECT_EQ(actual_payload, expected_payload);
 }
 
+TEST(SessionBindingUtilsTest, CreateKeyRegistrationHeaderAndPayloadWithAud) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      features::kDeviceBoundSessions, {{"IncludeAudFieldInJwt", "true"}});
+
+  auto [spki, jwk] = GetRS256SpkiAndJwkForTesting();
+
+  std::optional<std::string> result = CreateKeyRegistrationHeaderAndPayload(
+      "test_challenge",
+      crypto::SignatureVerifier::SignatureAlgorithm::RSA_PKCS1_SHA256, spki,
+      /*authorization=*/"auth",
+      GURL("https://accounts.example.test/RegisterKey"));
+  ASSERT_TRUE(result.has_value());
+
+  std::vector<std::string_view> header_and_payload = base::SplitStringPiece(
+      *result, ".", base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL);
+  ASSERT_EQ(header_and_payload.size(), 2U);
+  base::Value actual_header =
+      Base64UrlEncodedJsonToValue(header_and_payload[0]);
+  base::Value actual_payload =
+      Base64UrlEncodedJsonToValue(header_and_payload[1]);
+
+  base::Value::Dict expected_header =
+      base::Value::Dict()
+          .Set("alg", "RS256")
+          .Set("typ", "dbsc+jwt")
+          .Set("jwk",
+               base::JSONReader::Read(jwk, base::JSON_PARSE_CHROMIUM_EXTENSIONS)
+                   .value());
+  base::Value::Dict expected_payload =
+      base::Value::Dict()
+          .Set("jti", "test_challenge")
+          .Set("authorization", "auth")
+          .Set("aud", "https://accounts.example.test/RegisterKey");
+
+  EXPECT_EQ(actual_header, expected_header);
+  EXPECT_EQ(actual_payload, expected_payload);
+}
+
 TEST(SessionBindingUtilsTest,
      CreateKeyRegistrationHeaderAndPayloadWithNullAuth) {
   auto [spki, jwk] = GetRS256SpkiAndJwkForTesting();
@@ -202,7 +135,8 @@ TEST(SessionBindingUtilsTest,
   std::optional<std::string> result = CreateKeyRegistrationHeaderAndPayload(
       "test_challenge",
       crypto::SignatureVerifier::SignatureAlgorithm::RSA_PKCS1_SHA256, spki,
-      /*authorization=*/std::nullopt);
+      /*authorization=*/std::nullopt,
+      GURL("https://accounts.example.test/RegisterKey"));
   ASSERT_TRUE(result.has_value());
 
   std::vector<std::string_view> header_and_payload = base::SplitStringPiece(
@@ -230,7 +164,8 @@ TEST(SessionBindingUtilsTest,
 TEST(SessionBindingUtilsTest, CreateKeyRefreshHeaderAndPayload) {
   std::optional<std::string> result = CreateKeyRefreshHeaderAndPayload(
       "test_challenge",
-      crypto::SignatureVerifier::SignatureAlgorithm::RSA_PKCS1_SHA256);
+      crypto::SignatureVerifier::SignatureAlgorithm::RSA_PKCS1_SHA256,
+      GURL("https://accounts.example.test/RegisterKey"));
   ASSERT_TRUE(result.has_value());
 
   std::vector<std::string_view> header_and_payload = base::SplitStringPiece(
@@ -245,6 +180,36 @@ TEST(SessionBindingUtilsTest, CreateKeyRefreshHeaderAndPayload) {
       base::Value::Dict().Set("alg", "RS256").Set("typ", "dbsc+jwt");
   base::Value::Dict expected_payload =
       base::Value::Dict().Set("jti", "test_challenge");
+
+  EXPECT_EQ(actual_header, expected_header);
+  EXPECT_EQ(actual_payload, expected_payload);
+}
+
+TEST(SessionBindingUtilsTest, CreateKeyRefreshHeaderAndPayloadWithAud) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      features::kDeviceBoundSessions, {{"IncludeAudFieldInJwt", "true"}});
+
+  std::optional<std::string> result = CreateKeyRefreshHeaderAndPayload(
+      "test_challenge",
+      crypto::SignatureVerifier::SignatureAlgorithm::RSA_PKCS1_SHA256,
+      GURL("https://accounts.example.test/RegisterKey"));
+  ASSERT_TRUE(result.has_value());
+
+  std::vector<std::string_view> header_and_payload = base::SplitStringPiece(
+      *result, ".", base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL);
+  ASSERT_EQ(header_and_payload.size(), 2U);
+  base::Value actual_header =
+      Base64UrlEncodedJsonToValue(header_and_payload[0]);
+  base::Value actual_payload =
+      Base64UrlEncodedJsonToValue(header_and_payload[1]);
+
+  base::Value::Dict expected_header =
+      base::Value::Dict().Set("alg", "RS256").Set("typ", "dbsc+jwt");
+  base::Value::Dict expected_payload =
+      base::Value::Dict()
+          .Set("jti", "test_challenge")
+          .Set("aud", "https://accounts.example.test/RegisterKey");
 
   EXPECT_EQ(actual_header, expected_header);
   EXPECT_EQ(actual_payload, expected_payload);

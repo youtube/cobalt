@@ -49,16 +49,16 @@ AxisEdge AxisEdgeFromItemPosition(GridTrackSizingDirection track_direction,
   *is_overflow_safe = alignment.Overflow() == OverflowAlignment::kSafe;
 
   const bool applies_alignment = ([&]() {
-    if (!parent_grid_style.IsDisplayMasonryBox()) {
+    if (!parent_grid_style.IsDisplayGridLanesBox()) {
       return true;
     }
 
-    // We currently only apply alignment in the grid axis of a masonry
+    // We currently only apply alignment in the grid axis of a grid-lanes
     // container.
     //
     // TODO(almaher): Update alignment logic if needed once we resolve on
     // https://github.com/w3c/csswg-drafts/issues/10275.
-    return parent_grid_style.MasonryTrackSizingDirection() == track_direction;
+    return parent_grid_style.GridLanesTrackSizingDirection() == track_direction;
   })();
 
   // Auto-margins take precedence over any alignment properties.

@@ -18,7 +18,6 @@
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/contextual_cueing/contextual_cueing_helper.h"
 #include "chrome/browser/enterprise/data_protection/data_protection_navigation_controller.h"
-#include "chrome/browser/fingerprinting_protection/chrome_fingerprinting_protection_web_contents_helper_factory.h"
 #include "chrome/browser/image_fetcher/image_fetcher_service_factory.h"
 #include "chrome/browser/loader/from_gws_navigation_and_keep_alive_request_observer.h"
 #include "chrome/browser/net/http_auth_cache_status.h"
@@ -57,6 +56,7 @@
 #include "chrome/browser/ui/tabs/public/tab_dialog_manager.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/collaboration_messaging_page_action_controller.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/collaboration_messaging_tab_data.h"
+#include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_on_close_helper.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_web_contents_listener.h"
 #include "chrome/browser/ui/tabs/tab_creation_metrics_controller.h"
@@ -66,11 +66,15 @@
 #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model.h"
 #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_translate_action_listener.h"
 #include "chrome/browser/ui/ui_features.h"
+#include "chrome/browser/ui/views/bookmarks/bookmark_page_action_controller.h"
 #include "chrome/browser/ui/views/commerce/discounts_page_action_view_controller.h"
 #include "chrome/browser/ui/views/commerce/price_insights_page_action_view_controller.h"
+#include "chrome/browser/ui/views/contextual_tasks/contextual_tasks_page_action_controller.h"
 #include "chrome/browser/ui/views/file_system_access/file_system_access_page_action_controller.h"
 #include "chrome/browser/ui/views/intent_picker/intent_picker_view_page_action_controller.h"
+#include "chrome/browser/ui/views/js_optimization/js_optimizations_page_action_controller.h"
 #include "chrome/browser/ui/views/location_bar/cookie_controls/cookie_controls_page_action_controller.h"
+#include "chrome/browser/ui/views/location_bar/lens_overlay_homework_page_action_controller.h"
 #include "chrome/browser/ui/views/page_action/action_ids.h"
 #include "chrome/browser/ui/views/page_action/page_action_controller.h"
 #include "chrome/browser/ui/views/page_action/page_action_properties_provider.h"
@@ -82,6 +86,7 @@
 #include "chrome/browser/ui/views/zoom/zoom_view_controller.h"
 #include "chrome/browser/ui/web_applications/pwa_install_page_action.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
+#include "components/contextual_tasks/public/features.h"
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
     BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/wallet/chrome_walletable_pass_client.h"
@@ -92,9 +97,7 @@
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/browsing_topics/browsing_topics_service.h"
 #include "components/favicon/content/content_favicon_driver.h"
-#include "components/fingerprinting_protection_filter/common/fingerprinting_protection_filter_features.h"
 #include "components/image_fetcher/core/image_fetcher_service.h"
-#include "components/ip_protection/common/ip_protection_status.h"
 #include "components/lens/tab_contextualization_controller.h"
 #include "components/passage_embeddings/passage_embeddings_features.h"
 #include "components/permissions/permission_indicators_tab_data.h"
@@ -207,8 +210,9 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
 
     if (IsPageActionMigrated(PageActionIconType::kPriceInsights)) {
       commerce_price_insights_page_action_view_controller_ =
-          std::make_unique<commerce::PriceInsightsPageActionViewController>(
-              tab, *page_action_controller_);
+          GetUserDataFactory()
+              .CreateInstance<commerce::PriceInsightsPageActionViewController>(
+                  tab, tab, *page_action_controller_);
     }
 
     if (IsPageActionMigrated(PageActionIconType::kManagePasswords)) {
@@ -224,6 +228,33 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
                   tab, tab, *profile, *page_action_controller_);
       cookie_controls_page_action_controller_->Init();
     }
+
+    if (IsPageActionMigrated(PageActionIconType::kLensOverlayHomework)) {
+      lens_overlay_homework_page_action_controller_ =
+          GetUserDataFactory()
+              .CreateInstance<LensOverlayHomeworkPageActionController>(
+                  tab, tab, *profile, *page_action_controller_);
+    }
+
+    if (base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks) &&
+        (contextual_tasks::kShowEntryPoint.Get() ==
+         contextual_tasks::EntryPointOption::kPageActionRevisit)) {
+      contextual_tasks_page_action_controller_ =
+          GetUserDataFactory()
+              .CreateInstance<ContextualTasksPageActionController>(tab, &tab);
+    }
+
+    if (IsPageActionMigrated(PageActionIconType::kBookmarkStar) &&
+        tab.GetBrowserWindowInterface()->GetType() ==
+            BrowserWindowInterface::TYPE_NORMAL) {
+      bookmark_page_action_controller_ =
+          GetUserDataFactory().CreateInstance<BookmarkPageActionController>(
+              tab, tab, profile->GetPrefs(), *page_action_controller_);
+    }
+
+    js_optimizations_page_action_controller_ =
+        std::make_unique<JsOptimizationsPageActionController>(
+            tab, *page_action_controller_);
   }
 
   // Features that are only enabled for normal browser windows. By default most
@@ -282,6 +313,12 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
       saved_tab_group_web_contents_listener_ =
           std::make_unique<tab_groups::SavedTabGroupWebContentsListener>(
               tab_group_sync_service, &tab);
+
+      if (features::IsTabGroupMenuMoreEntryPointsEnabled()) {
+        saved_tab_group_on_close_helper_ =
+            std::make_unique<tab_groups::SavedTabGroupOnCloseHelper>(
+                tab_group_sync_service, &tab);
+      }
     }
 
     if (tab_groups::SavedTabGroupUtils::SupportsSharedTabGroups()) {
@@ -309,7 +346,7 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
           GetUserDataFactory().CreateInstance<glic::GlicTabIndicatorHelper>(
               tab, &tab);
     }
-    if (glic::GlicEnabling::IsMultiInstanceEnabledByFlags() &&
+    if (glic::GlicEnabling::IsMultiInstanceEnabled() &&
         glic::GlicKeyedService::Get(profile)) {
       glic_side_panel_coordinator_ =
           GetUserDataFactory().CreateInstance<glic::GlicSidePanelCoordinator>(
@@ -335,8 +372,9 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
   if (commerce_ui_tab_helper_) {
     if (IsPageActionMigrated(PageActionIconType::kDiscounts)) {
       commerce_discounts_page_action_view_controller_ =
-          std::make_unique<commerce::DiscountsPageActionViewController>(
-              tab, *page_action_controller_, *commerce_ui_tab_helper_);
+          GetUserDataFactory()
+              .CreateInstance<commerce::DiscountsPageActionViewController>(
+                  tab, tab, *page_action_controller_, *commerce_ui_tab_helper_);
     }
   }
 
@@ -369,20 +407,6 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
   read_anything_side_panel_controller_ =
       std::make_unique<ReadAnythingSidePanelController>(
           &tab, side_panel_registry_.get());
-
-  if (fingerprinting_protection_filter::features::
-          IsFingerprintingProtectionEnabledForIncognitoState(
-              profile->IsIncognitoProfile())) {
-    CreateFingerprintingProtectionWebContentsHelper(
-        tab.GetContents(), profile->GetPrefs(),
-        HostContentSettingsMapFactory::GetForProfile(profile),
-        profile->IsIncognitoProfile());
-  }
-
-  // Only create the IpProtectionStatus if the User Bypass feature is enabled.
-  if (net::features::kIpPrivacyEnableUserBypass.Get()) {
-    ip_protection::IpProtectionStatus::CreateForWebContents(tab.GetContents());
-  }
 
   // Create the HttpAuthCacheStatus to start observing resource load
   // completions.
@@ -475,6 +499,12 @@ TabFeatures::SetTabContextualizationControllerForTesting(
   tab_contextualization_controller_ =
       std::move(tab_contextualization_controller);
   return tab_contextualization_controller_.get();
+}
+
+autofill::BubbleManager* TabFeatures::SetBubbleManagerForTesting(
+    std::unique_ptr<autofill::BubbleManager> bubble_manager) {
+  autofill_bubble_manager_ = std::move(bubble_manager);
+  return autofill_bubble_manager_.get();
 }
 
 void TabFeatures::WillDiscardContents(tabs::TabInterface* tab,

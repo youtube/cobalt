@@ -6,8 +6,11 @@
 
 #include <atomic>
 #include <memory>
+#include <string_view>
 #include <utility>
 
+#include "base/check.h"
+#include "base/check_op.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/memory/unsafe_shared_memory_region.h"
@@ -15,72 +18,39 @@
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "components/persistent_cache/sqlite/vfs/sandboxed_file.h"
+#include "sql/database.h"
 
 namespace {
 
 std::atomic<uint64_t> g_file_set_id_generator(0);
-constexpr const char kPathSeperator[] = "_";
 
 }  // namespace
 
 namespace persistent_cache {
 
-// static
-std::optional<SqliteVfsFileSet> SqliteVfsFileSet::Create(
-    base::FilePath db_file_path,
-    base::FilePath journal_file_path) {
-  uint32_t create_flags = base::File::FLAG_OPEN_ALWAYS | base::File::FLAG_READ |
-                          base::File::FLAG_WRITE |
-                          base::File::FLAG_WIN_SHARE_DELETE |
-                          base::File::FLAG_CAN_DELETE_ON_CLOSE;
-
-  // Make sure handles to these files are safe to pass to untrusted processes.
-  create_flags = base::File::AddFlagsForPassingToUntrustedProcess(create_flags);
-
-  base::File db_file(db_file_path, create_flags);
-  if (!db_file.IsValid()) {
-    return std::nullopt;
-  }
-
-  base::File journal_file(journal_file_path, create_flags);
-  if (!journal_file.IsValid()) {
-    return std::nullopt;
-  }
-
-  auto shared_lock =
-      base::UnsafeSharedMemoryRegion::Create(sizeof(SharedAtomicLock));
-  if (!shared_lock.IsValid()) {
-    return std::nullopt;
-  }
-
-  auto mapped_shared_lock = shared_lock.Map();
-  if (!mapped_shared_lock.IsValid()) {
-    return std::nullopt;
-  }
-
-  return SqliteVfsFileSet(
-      std::make_unique<SandboxedFile>(std::move(db_file),
-                                      std::move(db_file_path),
-                                      SandboxedFile::AccessRights::kReadWrite,
-                                      std::move(mapped_shared_lock)),
-      std::make_unique<SandboxedFile>(std::move(journal_file),
-                                      std::move(journal_file_path),
-                                      SandboxedFile::AccessRights::kReadWrite),
-      std::move(shared_lock));
-}
-
-SqliteVfsFileSet::SqliteVfsFileSet(std::unique_ptr<SandboxedFile> db_file,
-                                   std::unique_ptr<SandboxedFile> journal_file,
-                                   base::UnsafeSharedMemoryRegion shared_lock)
+SqliteVfsFileSet::SqliteVfsFileSet(
+    std::unique_ptr<SandboxedFile> db_file,
+    std::unique_ptr<SandboxedFile> journal_file,
+    std::unique_ptr<SandboxedFile> wal_journal_file,
+    base::UnsafeSharedMemoryRegion shared_lock)
     : shared_lock_(std::move(shared_lock)),
       db_file_(std::move(db_file)),
       journal_file_(std::move(journal_file)),
-      virtual_fs_path_(
-          base::NumberToString(g_file_set_id_generator.fetch_add(1))),
+      wal_journal_file_(std::move(wal_journal_file)),
+      virtual_fs_path_(base::FilePath::FromASCII(
+          base::NumberToString(g_file_set_id_generator.fetch_add(1)))),
       read_only_(db_file_->access_rights() ==
                  SandboxedFile::AccessRights::kReadOnly) {
-  // It makes no sense to have a file writeable and not the other.
+  // It makes no sense to have one file writeable and not the other(s).
   CHECK_EQ(db_file_->access_rights(), journal_file_->access_rights());
+  if (wal_journal_file_) {
+    CHECK_EQ(db_file_->access_rights(), wal_journal_file_->access_rights());
+  }
+  // Write-ahead logging requires single connection.
+  CHECK(!wal_journal_file_ || !shared_lock_.IsValid());
+  // Write-ahead logging requires read-write access.
+  CHECK(!wal_journal_file_ ||
+        db_file_->access_rights() == SandboxedFile::AccessRights::kReadWrite);
 }
 
 SqliteVfsFileSet::SqliteVfsFileSet(SqliteVfsFileSet&& other) = default;
@@ -89,40 +59,35 @@ SqliteVfsFileSet& SqliteVfsFileSet::operator=(SqliteVfsFileSet&& other) =
 SqliteVfsFileSet::~SqliteVfsFileSet() = default;
 
 base::FilePath SqliteVfsFileSet::GetDbVirtualFilePath() const {
-  constexpr const char kDbFileName[] = "data.db";
-  return base::FilePath::FromASCII(
-      base::StrCat({virtual_fs_path_, kPathSeperator, kDbFileName}));
-}
+  static constexpr base::FilePath::StringViewType kDbFileName =
+      FILE_PATH_LITERAL("data");
 
-std::array<base::File, 2> SqliteVfsFileSet::DuplicateFiles(
-    bool read_write) const {
-  // Can't upgrade from read-only to read-write.
-  CHECK(!read_write || !read_only_);
-  const auto access_rights = read_write
-                                 ? SandboxedFile::AccessRights::kReadWrite
-                                 : SandboxedFile::AccessRights::kReadOnly;
-  return {db_file_->DuplicateFile(access_rights),
-          journal_file_->DuplicateFile(access_rights)};
-}
-
-base::UnsafeSharedMemoryRegion SqliteVfsFileSet::DuplicateLock() const {
-  return shared_lock_.Duplicate();
-}
-
-void SqliteVfsFileSet::Abandon() {
-  db_file_->Abandon();
+  return virtual_fs_path_.Append(kDbFileName);
 }
 
 base::FilePath SqliteVfsFileSet::GetJournalVirtualFilePath() const {
-  constexpr const char kJournalFileName[] = "data.db-journal";
-  return base::FilePath::FromASCII(
-      base::StrCat({virtual_fs_path_, kPathSeperator, kJournalFileName}));
+  return sql::Database::JournalPath(GetDbVirtualFilePath());
 }
 
-std::array<std::pair<base::FilePath, raw_ptr<SandboxedFile>>, 2>
-SqliteVfsFileSet::GetFiles() const {
-  return {std::make_pair(GetDbVirtualFilePath(), db_file_.get()),
-          std::make_pair(GetJournalVirtualFilePath(), journal_file_.get())};
+base::FilePath SqliteVfsFileSet::GetWalJournalVirtualFilePath() const {
+  return sql::Database::WriteAheadLogPath(GetDbVirtualFilePath());
+}
+
+const base::File& SqliteVfsFileSet::GetDbFile() const {
+  return db_file_->GetFile();
+}
+
+const base::File& SqliteVfsFileSet::GetJournalFile() const {
+  return journal_file_->GetFile();
+}
+
+const base::File& SqliteVfsFileSet::GetWalJournalFile() const {
+  CHECK(wal_journal_mode());
+  return wal_journal_file_->GetFile();
+}
+
+LockState SqliteVfsFileSet::Abandon() {
+  return db_file_->Abandon();
 }
 
 }  // namespace persistent_cache

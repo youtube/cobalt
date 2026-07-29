@@ -42,6 +42,7 @@
 #include "third_party/blink/public/web/web_css_origin.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/css/active_style_sheets.h"
+#include "third_party/blink/renderer/core/css/cascade_layer.h"
 #include "third_party/blink/renderer/core/css/color_scheme_flags.h"
 #include "third_party/blink/renderer/core/css/css_global_rule_set.h"
 #include "third_party/blink/renderer/core/css/css_to_length_conversion_data.h"
@@ -50,6 +51,7 @@
 #include "third_party/blink/renderer/core/css/layout_tree_rebuild_root.h"
 #include "third_party/blink/renderer/core/css/mixin_map.h"
 #include "third_party/blink/renderer/core/css/pending_sheet_type.h"
+#include "third_party/blink/renderer/core/css/random_caching_key.h"
 #include "third_party/blink/renderer/core/css/resolver/match_request.h"
 #include "third_party/blink/renderer/core/css/resolver/style_resolver_utils.h"
 #include "third_party/blink/renderer/core/css/rule_feature_set.h"
@@ -299,7 +301,8 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
   //
   // Note that this can return nullptr when the associated media query
   // does not match.
-  RuleSet* CreateUnconnectedRuleSet(CSSStyleSheet&, const MixinMap& mixins);
+  RuleSet* CreateUnconnectedRuleSet(CSSStyleSheet&,
+                                    const MixinMap& mixins) const;
 
   // A functional @media query is evaluated as a part of some function
   // during value resolution. This is different from regular media queries,
@@ -781,6 +784,23 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
   // has changed.
   void RoutesMayHaveChanged() { SetNeedsActiveStyleUpdate(GetDocument()); }
 
+  // Returns a random base value for CSS random() function.
+  // @param random_value_sharing <random-value-sharing> parameter of CSS
+  // random() function.
+  // https://drafts.csswg.org/css-values-5/#typedef-random-value-sharing
+  // @param element Pointer to the Element on which CSS random() function is
+  // used. Only used if RandomValueSharing is not element shared.
+  // @param property_name Name of the property CSS random() function is used.
+  // Only used if RandomValueSharing::isAuto() returns true.
+  // @param property_value_index Index of the random function among other random
+  // functions in the same property value. Only used if
+  // RandomValueSharing::isAuto() returns true.
+  // https://drafts.csswg.org/css-values-5/#random-caching
+  double GetCachedRandomBaseValue(RandomValueSharing random_value_sharing,
+                                  const Element* element,
+                                  AtomicString property_name,
+                                  size_t property_value_index);
+
  private:
   void UpdateCounters(const Element& element,
                       CountersAttachmentContext& context);
@@ -897,13 +917,13 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
   // Returns true if any @font-face rules are added.
   bool AddUserFontFaceRules(const RuleSet&);
   void AddUserKeyframeRules(const RuleSet&);
-  void AddUserKeyframeStyle(StyleRuleKeyframes*);
+  void AddUserKeyframeStyle(const CascadeLayered<StyleRuleKeyframes>&);
   void AddFontPaletteValuesRules(const RuleSet& rule_set);
   void AddFontFeatureValuesRules(const RuleSet& rule_set);
   void AddPropertyRules(AtRuleCascadeMap&, const RuleSet&, bool is_user_style);
   bool UserKeyframeStyleShouldOverride(
-      const StyleRuleKeyframes* new_rule,
-      const StyleRuleKeyframes* existing_rule) const;
+      const CascadeLayered<StyleRuleKeyframes>& new_rule,
+      const CascadeLayered<StyleRuleKeyframes>& existing_rule) const;
   void AddViewTransitionRules(const ActiveStyleSheetVector& sheets);
 
   CounterStyleMap& EnsureUserCounterStyleMap();
@@ -1106,7 +1126,7 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
   HeapVector<RuleSetGroup> user_rule_set_groups_;
 
   using KeyframesRuleMap =
-      HeapHashMap<AtomicString, Member<StyleRuleKeyframes>>;
+      HeapHashMap<AtomicString, CascadeLayered<StyleRuleKeyframes>>;
   KeyframesRuleMap keyframes_rule_map_;
 
   // Combined key consisting of the rule's name and the case-folded font-family
@@ -1191,7 +1211,7 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
   Member<LayoutObject> parent_for_detached_subtree_;
 
   // The @view-transition rule currently applying to the document.
-  Member<StyleRuleViewTransition> view_transition_rule_;
+  CascadeLayered<StyleRuleViewTransition> view_transition_rule_;
 
   // Cache for sharing ImageResourceContent between CSSValues referencing the
   // same URL.
@@ -1232,6 +1252,12 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
   // [1] CSSParserImpl::ConsumeMediaRule
   HeapHashMap<Member<const MediaQuerySet>, bool>
       functional_media_query_results_;
+
+  // Cache for random base values which are used for generating random values
+  // using CSS random() function.
+  // https://drafts.csswg.org/css-values-5/#random-caching
+  using RandomValueCache = HeapHashMap<Member<RandomCachingKey>, double>;
+  RandomValueCache random_base_value_cache_;
 };
 
 void PossiblyScheduleNthPseudoInvalidations(Node& node);

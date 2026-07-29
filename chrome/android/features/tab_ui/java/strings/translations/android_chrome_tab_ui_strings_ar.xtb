@@ -73,6 +73,7 @@
 <translation id="311432875115153175">تم إغلاق قائمة مجموعات علامات التبويب</translation>
 <translation id="3194464645767632461">التقييم</translation>
 <translation id="3269930881809501915">{TABS_COUNT,plural, =1{إضافة علامة تبويب واحدة (<ph name="TABS_COUNT_ONE" />) إلى المجموعة}zero{إضافة <ph name="TABS_COUNT_MANY" /> علامة تبويب إلى المجموعة}two{إضافة علامتَي تبويب (<ph name="TABS_COUNT_MANY" />) إلى المجموعة}few{إضافة <ph name="TABS_COUNT_MANY" /> علامات تبويب إلى المجموعة}many{إضافة <ph name="TABS_COUNT_MANY" /> علامة تبويب إلى المجموعة}other{إضافة <ph name="TABS_COUNT_MANY" /> علامة تبويب إلى المجموعة}}</translation>
+<translation id="3293080634164207409">إضافة علامات تبويب</translation>
 <translation id="3328308545011660196">اقتراح: يبدو أن هناك <ph name="NUMBER_OF_TABS" /> من علامات التبويب متشابهة. هل تريد تجميعها؟</translation>
 <translation id="3330595302841061275">{DAY_COUNT,plural, =1{بعد يوم واحد من عدم النشاط}zero{بعد <ph name="DAY_COUNT_MANY" /> يوم من عدم النشاط}two{بعد يومَين (<ph name="DAY_COUNT_MANY" />) من عدم النشاط}few{بعد <ph name="DAY_COUNT_MANY" /> أيام من عدم النشاط}many{بعد <ph name="DAY_COUNT_MANY" /> يومًا من عدم النشاط}other{بعد <ph name="DAY_COUNT_MANY" /> يوم من عدم النشاط}}</translation>
 <translation id="358453129938375749">{NUMBER_OF_TABS_ADDED,plural, =1{علامة تبويب (<ph name="ONE_ADDED" />) جديدة}zero{‫<ph name="MANY_ADDED" /> علامة تبويب جديدة}two{علامتا تبويب (<ph name="MANY_ADDED" />) جديدتان}few{‫<ph name="MANY_ADDED" /> علامات تبويب جديدة}many{‫<ph name="MANY_ADDED" /> علامة تبويب جديدة}other{‫<ph name="MANY_ADDED" /> علامة تبويب جديدة}}</translation>
@@ -81,6 +82,7 @@
 <translation id="3649471731638882002">{TAB_COUNT,plural, =1{إغلاق علامة التبويب}zero{إغلاق علامات التبويب}two{إغلاق علامتَي التبويب}few{إغلاق علامات التبويب}many{إغلاق علامات التبويب}other{إغلاق علامات التبويب}}</translation>
 <translation id="3652027618765638838"><ph name="CURRENT_RATING" />/<ph name="RATING_BASELINE" /></translation>
 <translation id="374923079891132274">صورة مصغّرة لمعاينة صفحة المشاركة</translation>
+<translation id="3776329373944672717">عنوان مجموعة علامات التبويب "<ph name="TITLE_OF_GROUP" />"</translation>
 <translation id="3810973564298564668">إدارة</translation>
 <translation id="3849789634341518784">{TAB_COUNT,plural, =1{إزالة تثبيت علامة تبويب واحدة}zero{إزالة تثبيت علامات التبويب}two{إزالة تثبيت علامتَي التبويب}few{إزالة تثبيت علامات التبويب}many{إزالة تثبيت علامات التبويب}other{إزالة تثبيت علامات التبويب}}</translation>
 <translation id="3940195383040445971">تتبُّع الأسعار في علامات التبويب</translation>
@@ -193,10 +195,11 @@
 <translation id="7853202427316060426">النشاط</translation>
 <translation id="7854360405711302755">{REVIEWS,plural, =1{ مراجعة واحدة (<ph name="REVIEWS_COUNT_ONE" />)، والتقييم: <ph name="CURRENT_RATING" />/<ph name="RATING_BASELINE" />}zero{<ph name="REVIEWS_COUNT_MANY" /> مراجعة، والتقييم: <ph name="CURRENT_RATING" />/<ph name="RATING_BASELINE" />}two{مراجعتان (<ph name="REVIEWS_COUNT_MANY" />)، والتقييم: <ph name="CURRENT_RATING" />/<ph name="RATING_BASELINE" />}few{<ph name="REVIEWS_COUNT_MANY" /> مراجعات، والتقييم: <ph name="CURRENT_RATING" />/<ph name="RATING_BASELINE" />}many{<ph name="REVIEWS_COUNT_MANY" /> مراجعة، والتقييم: <ph name="CURRENT_RATING" />/<ph name="RATING_BASELINE" />}other{<ph name="REVIEWS_COUNT_MANY" /> مراجعة، والتقييم: <ph name="CURRENT_RATING" />/<ph name="RATING_BASELINE" />}}</translation>
 <translation id="7885132941432959125">نقل علامة التبويب إلى اليسار</translation>
+<translation id="7887334752153342268">تكرار</translation>
 <translation id="7939917283308035850">لم يتم اختيار اللون <ph name="COLOR_NAME" />.</translation>
 <translation id="7961015016161918242">مطلقًا</translation>
 <translation id="7966321538264951561">رفض الاقتراحات</translation>
-<translation id="796696298310625748">{WINDOW_COUNT,plural, =1{نقل علامة التبويب إلى نافذة جديدة}zero{نقل علامة التبويب إلى نوافذ أخرى}two{نقل علامة التبويب إلى نافذتَين أخريَين}few{نقل علامة التبويب إلى نوافذ أخرى}many{نقل علامة التبويب إلى نوافذ أخرى}other{نقل علامة التبويب إلى نوافذ أخرى}}</translation>
+<translation id="796696298310625748">{WINDOW_COUNT,plural, =1{نقل علامة التبويب إلى نافذة جديدة}zero{نقل علامة التبويب إلى نافدة أخرى}two{نقل علامة التبويب إلى نافدة أخرى}few{نقل علامة التبويب إلى نافدة أخرى}many{نقل علامة التبويب إلى نافدة أخرى}other{نقل علامة التبويب إلى نافدة أخرى}}</translation>
 <translation id="799469866974412355">مجموعة جديدة من جهازك الآخر</translation>
 <translation id="8029301326595421733">يتم عرض المعلومات حول هذا المتجر بطول الشاشة.</translation>
 <translation id="8053770993984522566">قائمة مجموعات علامات التبويب، مفتوحة في نصف الشاشة</translation>
@@ -216,6 +219,7 @@
 <translation id="8428213095426709021">الإعدادات</translation>
 <translation id="855081842937141170">تثبيت علامة التبويب</translation>
 <translation id="8633025649649592204">الأنشطة الحديثة</translation>
+<translation id="8635822281281406185">لا يمكنك إضافة أكثر من 10 ملفات أو علامات تبويب أو صور</translation>
 <translation id="8712637175834984815">حسنًا</translation>
 <translation id="8714939927607906138">السعر المنخفض</translation>
 <translation id="8730621377337864115">تم</translation>

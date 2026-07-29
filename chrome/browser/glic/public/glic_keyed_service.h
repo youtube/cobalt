@@ -31,7 +31,6 @@
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
-#include "mojo/public/cpp/bindings/remote.h"
 
 class BrowserWindowInterface;
 class Profile;
@@ -125,6 +124,10 @@ class GlicKeyedService : public KeyedService,
   // manager.
   // TODO(crbug.com/454112198): Remove when multi-instance launches.
   void CloseAndShutdown();
+
+  // Close the active embedder and clear contents for an instance associated
+  // with this render frame host.
+  void CloseAndShutdown(content::RenderFrameHost* render_frame_host);
 
   // Close the panel. Virtual for testing.
   // TODO(crbug.com/448406730): Remove testing logic that relies on
@@ -326,6 +329,7 @@ class GlicKeyedService : public KeyedService,
   void RequestToShowUserConfirmationDialog(
       actor::TaskId task_id,
       const url::Origin& navigation_origin,
+      bool for_blocklisted_origin,
       actor::ActorTaskDelegate::UserConfirmationDialogCallback callback)
       override;
   void RequestToConfirmNavigation(
@@ -348,7 +352,8 @@ class GlicKeyedService : public KeyedService,
       std::vector<std::string> returned_suggestions);
 
   void FinishPreload(GlicPrewarmingChecksResult reason);
-  void FinishPreloadFre(GlicPrewarmingFreSource source, bool should_preload);
+  void FinishPreloadFre(GlicPrewarmingFreSource source,
+                        GlicPrewarmingChecksResult result);
 
   // List of callbacks to be notified when the client requests a change to the
   // context access indicator status.

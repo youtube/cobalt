@@ -31,6 +31,9 @@ import static org.chromium.chrome.browser.hub.HubToolbarProperties.SEARCH_BOX_VI
 import static org.chromium.chrome.browser.hub.HubToolbarProperties.SEARCH_LISTENER;
 import static org.chromium.chrome.browser.hub.HubToolbarProperties.SEARCH_LOUPE_VISIBLE;
 
+import android.animation.Animator;
+import android.animation.AnimatorSet;
+import android.animation.ObjectAnimator;
 import android.app.Activity;
 import android.content.res.ColorStateList;
 import android.graphics.drawable.GradientDrawable;
@@ -75,6 +78,7 @@ import org.chromium.chrome.browser.hub.HubToolbarProperties.PaneButtonLookup;
 import org.chromium.chrome.browser.toolbar.menu_button.MenuButton;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.components.omnibox.OmniboxFeatureList;
+import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.ui.base.TestActivity;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
@@ -169,6 +173,43 @@ public class HubToolbarViewUnitTest {
                 HubToolbarViewBinder::bind);
         when(mPane.getColorScheme()).thenReturn(HubColorScheme.DEFAULT);
         mFocusedPaneSupplier.set(mPane);
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ANDROID_PINNED_TABS + ":search_box_squish_animation/true")
+    public void testGetHubSearchBoxTransitionAnimation_pinnedTabsEnabled_SquishAnimationEnabled() {
+        HubToolbarView hubToolbarView = mToolbarContainer.findViewById(R.id.hub_toolbar);
+        AnimatorSet animatorSet = hubToolbarView.getHubSearchBoxTransitionAnimation(true);
+        ArrayList<Animator> animators = animatorSet.getChildAnimations();
+        assertEquals(2, animators.size());
+        boolean hasScaleY = false;
+        for (Animator animator : animators) {
+            if (animator instanceof ObjectAnimator objectAnimator) {
+                if (objectAnimator.getPropertyName().equals("scaleY")) {
+                    hasScaleY = true;
+                }
+            }
+        }
+        assertTrue(hasScaleY);
+    }
+
+    @Test
+    @DisableFeatures(ChromeFeatureList.ANDROID_PINNED_TABS)
+    public void testGetHubSearchBoxTransitionAnimation_pinnedTabsDisabled() {
+        HubToolbarView hubToolbarView = mToolbarContainer.findViewById(R.id.hub_toolbar);
+        AnimatorSet animatorSet = hubToolbarView.getHubSearchBoxTransitionAnimation(true);
+        ArrayList<Animator> animators = animatorSet.getChildAnimations();
+        assertEquals(2, animators.size());
+        boolean hasTranslateY = false;
+        for (Animator animator : animators) {
+            if (animator instanceof ObjectAnimator) {
+                ObjectAnimator objectAnimator = (ObjectAnimator) animator;
+                if (objectAnimator.getPropertyName().equals("translationY")) {
+                    hasTranslateY = true;
+                }
+            }
+        }
+        assertTrue(hasTranslateY);
     }
 
     private FullButtonData makeTestButtonData() {
@@ -411,6 +452,8 @@ public class HubToolbarViewUnitTest {
     @Test
     @EnableFeatures({OmniboxFeatureList.ANDROID_HUB_SEARCH_TAB_GROUPS})
     public void testUpdateIncognitoElementsWithTabGroups() {
+        OmniboxFeatures.sAndroidHubSearchEnableTabGroupStrings.setForTesting(true);
+
         mPropertyModel.set(IS_INCOGNITO, true);
         assertEquals(
                 mActivity.getString(R.string.hub_search_empty_hint_incognito),

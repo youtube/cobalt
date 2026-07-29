@@ -10,6 +10,7 @@
 #include "base/android/jni_string.h"
 #include "base/android/scoped_java_ref.h"
 #include "base/functional/callback.h"
+#include "chrome/browser/media/webrtc/desktop_media_list.h"
 #include "chrome/browser/media/webrtc/desktop_media_picker.h"
 #include "content/public/browser/desktop_media_id.h"
 
@@ -32,7 +33,7 @@ class MediaCapturePickerManagerBridge {
 
   // Called from Java via JNI when the dialog resolves.
   void OnPickTab(JNIEnv* env,
-                 const base::android::JavaParamRef<jobject>& java_web_contents,
+                 content::WebContents* web_contents,
                  bool audio_share);
 
   // Called from Java via JNI when the dialog resolves.
@@ -44,11 +45,19 @@ class MediaCapturePickerManagerBridge {
   // Called from Java via JNI when the dialog resolves.
   void OnCancel(JNIEnv* env);
 
+  // Called from Java via JNI to check if a tab should be filtered.
+  bool ShouldFilterWebContents(JNIEnv* env, content::WebContents* web_contents);
+
  private:
   DesktopMediaPicker::DoneCallback callback_;
+  DesktopMediaList::WebContentsFilter web_contents_filter_;
 
   // The corresponding java object.
   base::android::ScopedJavaGlobalRef<jobject> java_object_;
+
+  // The number of windows/ screens media source have been selected. This is
+  // used to generate an unique media id.
+  static int next_fake_id_;
 };
 
 #endif  // CHROME_BROWSER_MEDIA_ANDROID_MEDIA_CAPTURE_PICKER_MANAGER_BRIDGE_H_

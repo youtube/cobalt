@@ -7,6 +7,7 @@
 #include "base/numerics/ranges.h"
 #include "base/test/run_until.h"
 #include "base/test/test_future.h"
+#include "build/build_config.h"
 #include "cc/test/pixel_test_utils.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/actor_policy_checker.h"
@@ -14,6 +15,7 @@
 #include "chrome/browser/actor/actor_test_util.h"
 #include "chrome/browser/actor/ui/actor_ui_tab_controller.h"
 #include "chrome/browser/glic/browser_ui/context_sharing_border_view.h"
+#include "chrome/browser/glic/browser_ui/context_sharing_border_view_controller_impl.h"
 #include "chrome/browser/glic/test_support/glic_test_util.h"
 #include "chrome/browser/glic/test_support/interactive_glic_test.h"
 #include "chrome/browser/ui/browser.h"
@@ -182,10 +184,12 @@ class TesterImpl : public ContextSharingBorderView::Tester {
 
 class TestBorderView : public ContextSharingBorderView {
  public:
-  TestBorderView(Browser* browser,
+  TestBorderView(std::unique_ptr<ContextSharingBorderViewController> controller,
+                 Browser* browser,
                  ContentsWebView* contents_web_view,
                  std::unique_ptr<Tester> tester)
-      : ContextSharingBorderView(browser,
+      : ContextSharingBorderView(std::move(controller),
+                                 browser,
                                  contents_web_view,
                                  std::move(tester)) {}
   ~TestBorderView() override = default;
@@ -200,26 +204,37 @@ class TestFactory : public ContextSharingBorderView::Factory {
 
  protected:
   std::unique_ptr<ContextSharingBorderView> CreateBorderView(
+      std::unique_ptr<ContextSharingBorderViewController> controller,
       Browser* browser,
       ContentsWebView* contents_web_view) override {
-    ContextSharingBorderView* new_border = new TestBorderView(
-        browser, contents_web_view, std::make_unique<TesterImpl>());
+    ContextSharingBorderView* new_border =
+        new TestBorderView(std::move(controller), browser, contents_web_view,
+                           std::make_unique<TesterImpl>());
     TesterImpl* tester = static_cast<TesterImpl*>(new_border->tester());
     tester->set_border(new_border);
     return base::WrapUnique(new_border);
   }
 };
 
-class ContextSharingBorderViewUiTest : public test::InteractiveGlicTest {
+class ContextSharingBorderViewUiTestBase : public test::InteractiveGlicTest {
  public:
-  ContextSharingBorderViewUiTest() {
+  explicit ContextSharingBorderViewUiTestBase(bool enable_gpu_rasterization) {
+    std::string enabled_features;
+    // These features disable animation, so disable them here.
+    std::string disabled_features =
+        "GlicForceSimplifiedBorder,GlicForceNonSkSLBorder";
+
     // Toggling UiGpuRasterization is only possible via command line.
-    features_.InitFromCommandLine(
-        "UiGpuRasterization",
-        // These features disable animation, so disable them here.
-        "GlicForceSimplifiedBorder,GlicForceNonSkSLBorder");
+    if (enable_gpu_rasterization) {
+      enabled_features = "UiGpuRasterization";
+    } else {
+      disabled_features += ",UiGpuRasterization";
+    }
+
+    features_.InitFromCommandLine(enabled_features, disabled_features);
   }
-  ~ContextSharingBorderViewUiTest() override = default;
+
+  ~ContextSharingBorderViewUiTestBase() override = default;
 
   void SetUpOnMainThread() override {
     embedded_test_server()->ServeFilesFromSourceDirectory(
@@ -230,6 +245,12 @@ class ContextSharingBorderViewUiTest : public test::InteractiveGlicTest {
 
   void SetUpCommandLine(base::CommandLine* command_line) override {
     command_line->AppendSwitch(switches::kForcePrefersNoReducedMotion);
+
+    // This ensures that gpu rasterization (i.e hardware acceleration )is
+    // available regardless of device. (This is required for`
+    // ContextSharingBorderView` to animate - See
+    // `AnimatedEffectView::ForceSimplifiedShader()`)
+    command_line->AppendSwitch(switches::kIgnoreGpuBlocklist);
     test::InteractiveGlicTest::SetUpCommandLine(command_line);
   }
 
@@ -280,6 +301,15 @@ class ContextSharingBorderViewUiTest : public test::InteractiveGlicTest {
   base::test::ScopedFeatureList features_;
   TestFactory test_factory_;
 };
+
+class ContextSharingBorderViewUiTest
+    : public ContextSharingBorderViewUiTestBase {
+ public:
+  ContextSharingBorderViewUiTest()
+      : ContextSharingBorderViewUiTestBase(/*enable_gpu_rasterization=*/true) {}
+  ~ContextSharingBorderViewUiTest() override = default;
+};
+
 }  // namespace
 
 // Exercise that, the border is resized correctly whenever the browser's size
@@ -304,10 +334,18 @@ IN_PROC_BROWSER_TEST_F(ContextSharingBorderViewUiTest, BorderResize) {
   auto* contents_web_view = browser()->GetBrowserView().contents_web_view();
   EXPECT_EQ(border->GetVisibleBounds(), contents_web_view->GetVisibleBounds());
 
-  // Note: there is a minimal size that the desktop window can be. It seems to
-  // be around 500px by 500px.
-  const gfx::Size new_size(600, 600);
-  auto* browser_window = browser()->window();
+  // Resize the browser view to closer to its minimum size.
+  //
+  // Note: the widget will often be larger (for example, if it needs to render
+  // a shadow border; this is especially true on Linux.
+  const auto& browser_view = browser()->GetBrowserView();
+  const int widget_additional_width =
+      browser_view.GetWidget()->GetWindowBoundsInScreen().width() -
+      browser_view.width();
+  const int minimum_width =
+      browser_view.GetMinimumSize().width() + widget_additional_width;
+  const gfx::Size new_size(minimum_width, 600);
+  auto* const browser_window = browser()->window();
   const gfx::Rect new_bounds(browser_window->GetBounds().origin(), new_size);
   EXPECT_NE(browser_window->GetBounds(), new_bounds);
 
@@ -1223,25 +1261,19 @@ IN_PROC_BROWSER_TEST_F(ContextSharingBorderViewPrefersReducedMotionUiTest,
 
 namespace {
 class ContextSharingBorderViewWithoutHardwareAccelerationUiTest
-    : public ContextSharingBorderViewUiTest {
+    : public ContextSharingBorderViewUiTestBase {
  public:
-  ContextSharingBorderViewWithoutHardwareAccelerationUiTest() = default;
+  ContextSharingBorderViewWithoutHardwareAccelerationUiTest()
+      : ContextSharingBorderViewUiTestBase(/*enable_gpu_rasterization=*/false) {
+  }
   ~ContextSharingBorderViewWithoutHardwareAccelerationUiTest() override =
       default;
-
-  void SetUp() override {
-    UseSoftwareCompositing();
-    test::InteractiveGlicTest::SetUp();
-  }
 };
 }  // namespace
 
 // Ensures that when there is no hardware acceleration, the emphasis animation
 // is skipped and we just show an opacity ramp up and ramp down animation.
 // Note: Ramp up and ramp down duration in this case is 200ms.
-// Secondary Note: ChromeOS requires hardware acceleration, so this test doesn't
-// make sense on that platform.
-#if !BUILDFLAG(IS_CHROMEOS)
 IN_PROC_BROWSER_TEST_F(
     ContextSharingBorderViewWithoutHardwareAccelerationUiTest,
     BasicRampingUpAndDown) {
@@ -1304,7 +1336,6 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_NEAR(border->emphasis_for_testing(), 0.f, kFloatComparisonTolerance);
   EXPECT_FALSE(border->IsShowing());
 }
-#endif  // !BUILDFLAG(IS_CHROMEOS)
 
 // Regression test for crbug.com/409649143. Ensure we clear the "start ramp down
 // state" if StopShowing is called immediately after starting the ramp down.

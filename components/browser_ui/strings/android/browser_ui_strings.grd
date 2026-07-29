@@ -1152,6 +1152,9 @@
       <message name="IDS_PAGE_ZOOM_FULLSCREEN_BUTTON_CONTENT_DESCRIPTION" desc="Content description for the fullscreen button in the zoom menu.">
         Fullscreen
       </message>
+      <message name="IDS_PAGE_ZOOM_POPUP_WINDOW_CONTENT_DESCRIPTION" desc="Content description for the zoom popup window shown when the user taps the zoom indicator.">
+        Popup zoom window
+      </message>
 
       <!-- Search resumption module strings -->
       <message name="IDS_SEARCH_RESUMPTION_MODULE_TITLE" desc="Title of the search resumption module on NTP or Start surface.">
@@ -1201,6 +1204,9 @@
       </message>
       <message name="IDS_HOME_MODULES_CONFIGURATION" desc="The title for the configuration page which customizes the home modules settings.">
         New tab page cards
+      </message>
+      <message name="IDS_HOME_MODULES_MANAGE_CARDS_TITLE" desc="The title for the section of the page which allows the user to manage their NTP magic stack cards.">
+        Manage your cards
       </message>
       <message name="IDS_HOME_MODULES_SINGLE_TAB_TITLE" desc="Title for the single tab modul.">
          Continue with this tab
@@ -1325,6 +1331,15 @@
       </message>
       <message name="IDS_EDUCATIONAL_TIP_HISTORY_SYNC_BUTTON_CONTINUE" desc="Text on the clickable button on the history sync promo that invites users to turn on history sync in the educational tip module on NTP.">
         Continue
+      </message>
+      <message name="IDS_EDUCATIONAL_TIP_TIPS_NOTIFICATIONS_TITLE" desc="Title of the tips notifications promo that invites users to turn on tips notifications in the educational tip module on NTP.">
+        Get Chrome Tips notifications
+      </message>
+      <message name="IDS_EDUCATIONAL_TIP_TIPS_NOTIFICATIONS_DESCRIPTION" desc="Description of the tips notifications promo that invites users to turn on tips notifications in the educational tip module on NTP.">
+        Turn on notifications for useful tips to help you get the best of Chrome
+      </message>
+      <message name="IDS_EDUCATIONAL_TIP_TIPS_NOTIFICATIONS_BUTTON" desc="Text on the clickable button on the tips notifications promo that invites users to turn on tips notifications in the educational tip module on NTP.">
+        Notify me
       </message>
 
       <!-- Safety Hub Magic Stack strings -->

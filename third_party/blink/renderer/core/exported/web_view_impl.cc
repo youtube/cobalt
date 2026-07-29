@@ -555,9 +555,9 @@ void WebView::ResetVisitedLinkState(bool invalidate_visited_link_hashes) {
 void WebViewImpl::SetNoStatePrefetchClient(
     WebNoStatePrefetchClient* no_state_prefetch_client) {
   DCHECK(page_);
-  ProvideNoStatePrefetchClientTo(*page_,
-                                 MakeGarbageCollected<NoStatePrefetchClient>(
-                                     *page_, no_state_prefetch_client));
+  ProvideNoStatePrefetchClientTo(
+      *page_,
+      MakeGarbageCollected<NoStatePrefetchClient>(no_state_prefetch_client));
 }
 
 void WebViewImpl::CloseWindow() {
@@ -1692,7 +1692,9 @@ void WebView::ApplyWebPreferences(const web_pref::WebPreferences& prefs,
       prefs.strict_powerful_feature_restrictions);
   settings->SetAllowGeolocationOnInsecureOrigins(
       prefs.allow_geolocation_on_insecure_origins);
-  settings->SetPasswordEchoEnabled(prefs.password_echo_enabled);
+  settings->SetPasswordEchoEnabledPhysical(
+      prefs.password_echo_enabled_physical);
+  settings->SetPasswordEchoEnabledTouch(prefs.password_echo_enabled_touch);
   settings->SetShouldPrintBackgrounds(prefs.should_print_backgrounds);
   settings->SetShouldClearDocumentBackground(
       prefs.should_clear_document_background);
@@ -3607,6 +3609,11 @@ void WebViewImpl::UpdateRendererPreferences(
   GetSettings()->SetSelectionClipboardBufferAvailable(
       renderer_preferences_.selection_clipboard_buffer_available);
 #endif  // BUILDFLAG(IS_OZONE)
+
+#if BUILDFLAG(IS_LINUX)
+  GetSettings()->SetMiddleClickPasteAllowed(
+      renderer_preferences_.middle_click_paste_allowed);
+#endif  // BUILDFLAG(IS_LINUX)
 
   SetExplicitlyAllowedPorts(
       renderer_preferences_.explicitly_allowed_network_ports);

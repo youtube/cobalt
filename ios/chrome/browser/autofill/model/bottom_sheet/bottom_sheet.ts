@@ -3,7 +3,8 @@
 // found in the LICENSE file.
 
 import * as fillUtil from '//components/autofill/ios/form_util/resources/fill_util.js';
-import {gCrWeb, gCrWebLegacy} from '//ios/web/public/js_messaging/resources/gcrweb.js';
+import {getFieldIdentifier, getFormIdentifier} from '//components/autofill/ios/form_util/resources/form_utils.js';
+import {CrWebApi, gCrWeb, gCrWebLegacy} from '//ios/web/public/js_messaging/resources/gcrweb.js';
 import {sendWebKitMessage} from '//ios/web/public/js_messaging/resources/utils.js';
 
 /**
@@ -72,9 +73,9 @@ function showBottomSheet(hasUserGesture: boolean): void {
 
   const msg = {
     'frameID': gCrWeb.getFrameId(),
-    'formName': gCrWebLegacy.form.getFormIdentifier(form),
+    'formName': getFormIdentifier(form),
     'formRendererID': fillUtil.getUniqueID(form),
-    'fieldIdentifier': gCrWebLegacy.form.getFieldIdentifier(field),
+    'fieldIdentifier': getFieldIdentifier(field),
     'fieldRendererID': fillUtil.getUniqueID(field),
     'fieldType': fieldType,
     'type': 'focus',
@@ -244,8 +245,11 @@ function detachListeners(rendererIds: number[], refocus: boolean): void {
   }
 }
 
-gCrWebLegacy.bottomSheet = {
-  attachListeners,
-  detachListeners,
-  refocusLastBlurredElement,
-};
+const bottomSheetApi = new CrWebApi();
+
+bottomSheetApi.addFunction('attachListeners', attachListeners);
+bottomSheetApi.addFunction('detachListeners', detachListeners);
+bottomSheetApi.addFunction(
+    'refocusLastBlurredElement', refocusLastBlurredElement);
+
+gCrWeb.registerApi('bottomSheet', bottomSheetApi);

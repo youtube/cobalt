@@ -195,7 +195,8 @@ base::FilePath DownloadCollectionBridge::GetDisplayName(
   return base::FilePath();
 }
 
-jint JNI_DownloadCollectionBridge_GetExpirationDurationInDays(JNIEnv* env) {
+static jint JNI_DownloadCollectionBridge_GetExpirationDurationInDays(
+    JNIEnv* env) {
   std::string finch_value = base::GetFieldTrialParamValueByFeature(
       features::kRefreshExpirationDate, kDownloadExpirationDurationFinchKey);
   int days;
@@ -216,3 +217,5 @@ void DownloadCollectionBridge::ResetExistingFileNamesForTesting() {
 }
 
 }  // namespace download
+
+DEFINE_JNI(DownloadCollectionBridge)

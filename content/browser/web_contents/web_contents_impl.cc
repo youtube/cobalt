@@ -149,6 +149,7 @@
 #include "content/public/browser/context_menu_params.h"
 #include "content/public/browser/device_service.h"
 #include "content/public/browser/disallow_activation_reason.h"
+#include "content/public/browser/document_picture_in_picture_window_controller.h"
 #include "content/public/browser/download_manager.h"
 #include "content/public/browser/file_select_listener.h"
 #include "content/public/browser/focused_node_details.h"
@@ -160,6 +161,7 @@
 #include "content/public/browser/navigation_details.h"
 #include "content/public/browser/navigation_throttle_registry.h"
 #include "content/public/browser/permission_descriptor_util.h"
+#include "content/public/browser/picture_in_picture_window_controller.h"
 #include "content/public/browser/preload_pipeline_info.h"
 #include "content/public/browser/preview_cancel_reason.h"
 #include "content/public/browser/render_widget_host_iterator.h"
@@ -240,10 +242,12 @@
 #include "base/android/device_info.h"
 #include "base/android/scoped_service_binding_batch.h"
 #include "base/check.h"
+#include "components/viz/common/gpu/raster_context_provider.h"
 #include "content/browser/android/java_interfaces_impl.h"
 #include "content/browser/android/nfc_host.h"
 #include "content/browser/android/selection/selection_popup_controller.h"
 #include "content/browser/navigation_transitions/back_forward_transition_animation_manager_android.h"
+#include "content/browser/renderer_host/compositor_impl_android.h"
 #include "content/browser/web_contents/web_contents_android.h"
 #include "content/browser/web_contents/web_contents_view_android.h"
 #include "content/public/browser/android/child_process_importance.h"
@@ -269,11 +273,6 @@
 #include "ui/aura/window.h"
 #include "ui/wm/core/window_util.h"
 #endif
-
-#if !BUILDFLAG(IS_ANDROID)
-#include "content/public/browser/document_picture_in_picture_window_controller.h"
-#include "content/public/browser/picture_in_picture_window_controller.h"
-#endif  // !BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_IOS_TVOS)
 #include "content/browser/ios/nfc_host.h"
@@ -2517,7 +2516,13 @@ SiteInstanceImpl* WebContentsImpl::GetSiteInstance() {
 }
 
 bool WebContentsImpl::IsLoading() {
-  return primary_frame_tree_.IsLoadingIncludingInnerFrameTrees();
+  return primary_frame_tree_.IsLoadingIncludingInnerFrameTrees(
+      /*exclude_ad_subframes=*/false);
+}
+
+bool WebContentsImpl::IsLoadingExcludingAdSubframes() const {
+  return primary_frame_tree_.IsLoadingIncludingInnerFrameTrees(
+      /*exclude_ad_subframes=*/true);
 }
 
 double WebContentsImpl::GetLoadProgress() {
@@ -7583,6 +7588,36 @@ void WebContentsImpl::NotifyNavigationStateChangedFromController(
   NotifyNavigationStateChanged(changed_flags);
 }
 
+#if BUILDFLAG(IS_ANDROID)
+
+scoped_refptr<viz::RasterContextProvider>
+WebContentsImpl::GetRasterContextProvider() {
+  auto window = GetTopLevelNativeWindow();
+  if (!window) {
+    return nullptr;
+  }
+
+  auto* compositor = static_cast<CompositorImpl*>(window->GetCompositor());
+  if (!compositor) {
+    return nullptr;
+  }
+  return compositor->GetRasterContextProvider();
+}
+
+gfx::ColorSpace WebContentsImpl::GetOutputColorSpace(
+    gfx::ContentColorUsage color_usage,
+    bool needs_alpha) {
+  auto window = GetTopLevelNativeWindow();
+  if (!window) {
+    return gfx::ColorSpace();
+  }
+  return window->GetDisplayWithWindowColorSpace()
+      .GetColorSpaces()
+      .GetOutputColorSpace(color_usage, needs_alpha);
+}
+
+#endif  // BUILDFLAG(IS_ANDROID)
+
 input::TouchEmulator* WebContentsImpl::GetTouchEmulator(
     bool create_if_necessary) {
   CHECK(rwh_input_event_router_);
@@ -10059,8 +10094,7 @@ void WebContentsImpl::SetFocusedFrame(FrameTreeNode* node,
   CloseListenerManager::DidChangeFocusedFrame(this);
 }
 
-FrameTree* WebContentsImpl::GetOwnedPictureInPictureFrameTree() {
-#if !BUILDFLAG(IS_ANDROID)
+FrameTree* WebContentsImpl::GetOwnedDocumentPictureInPictureFrameTree() {
   if (has_picture_in_picture_document_) {
     WebContents* picture_in_picture_web_contents =
         PictureInPictureWindowController::
@@ -10071,20 +10105,21 @@ FrameTree* WebContentsImpl::GetOwnedPictureInPictureFrameTree() {
                    ->GetPrimaryFrameTree());
     }
   }
-#endif  // !BUILDFLAG(IS_ANDROID)
 
   return nullptr;
 }
 
-FrameTree* WebContentsImpl::GetPictureInPictureOpenerFrameTree() {
-#if !BUILDFLAG(IS_ANDROID)
+FrameTree* WebContentsImpl::GetDocumentPictureInPictureOpenerFrameTree() {
   if (picture_in_picture_opener_) {
     return &(static_cast<WebContentsImpl*>(picture_in_picture_opener_.get())
                  ->GetPrimaryFrameTree());
   }
-#endif  // !BUILDFLAG(IS_ANDROID)
 
   return nullptr;
+}
+
+WebContents* WebContentsImpl::GetDocumentPictureInPictureOpener() {
+  return picture_in_picture_opener_.get();
 }
 
 void WebContentsImpl::DidCallFocus() {
@@ -10134,8 +10169,7 @@ void WebContentsImpl::OnFocusedElementChangedInFrame(
                                 bounds_in_screen);
 
   FocusedNodeDetails details = {frame->has_focused_editable_element(),
-                                bounds_in_screen, bounds_in_root_view,
-                                focus_type};
+                                bounds_in_screen, focus_type};
   BrowserAccessibilityStateImpl::GetInstance()->OnFocusChangedInPage(details);
   observers_.NotifyObservers(&WebContentsObserver::OnFocusChangedInPage,
                              details);
@@ -10721,34 +10755,16 @@ WebContentsImpl::GetFaviconURLs() {
   return GetPrimaryMainFrame()->FaviconURLs();
 }
 
-// The Mac and iOS implementations of the next two methods are in
-// web_contents_impl_mac.mm and web_contents_impl_ios.mm.
-#if !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_IOS)
-
 void WebContentsImpl::Resize(const gfx::Rect& new_bounds) {
   OPTIONAL_TRACE_EVENT0("content", "WebContentsImpl::Resize");
-#if defined(USE_AURA)
-  aura::Window* window = GetNativeView();
-  window->SetBounds(gfx::Rect(window->bounds().origin(), new_bounds.size()));
-#elif BUILDFLAG(IS_ANDROID)
-  content::RenderWidgetHostView* view = GetRenderWidgetHostView();
-  if (view) {
-    view->SetBounds(new_bounds);
+  if (view_) {
+    view_->Resize(new_bounds);
   }
-#endif
 }
 
 gfx::Size WebContentsImpl::GetSize() {
-#if defined(USE_AURA)
-  aura::Window* window = GetNativeView();
-  return window->bounds().size();
-#elif BUILDFLAG(IS_ANDROID)
-  ui::ViewAndroid* view_android = GetNativeView();
-  return view_android->GetSizeDIPs();
-#endif
+  return view_ ? view_->GetSize() : gfx::Size();
 }
-
-#endif  // !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_IOS)
 
 gfx::Rect WebContentsImpl::GetWindowsControlsOverlayRect() const {
   return window_controls_overlay_rect_;
@@ -12116,7 +12132,8 @@ std::unique_ptr<PrerenderHandle> WebContentsImpl::StartPrerendering(
       std::move(prerender_navigation_handle_callback),
       base::WrapRefCounted(
           static_cast<PreloadPipelineInfoImpl*>(preload_pipeline_info.get())),
-      allow_reuse);
+      allow_reuse,
+      /*form_submission=*/false);
 #if BUILDFLAG(IS_ANDROID)
   attributes.additional_headers = std::move(additional_headers);
 #else

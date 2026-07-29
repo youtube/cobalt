@@ -13,21 +13,13 @@ export function getHtml(this: ContextualTasksAppElement) {
   return html`<!--_html_template_start_-->
   ${this.isShownInTab_ ? '' : html`
       <top-toolbar .title="${this.threadTitle_}"
-        @signin-click="${this.removeGsc_}"
-        @close-button-click="${this.onCloseButtonClick_}"
-        @new-thread-click="${this.onNewThreadClick_}"
-        @thread-history-click="${this.onThreadHistoryClick_}"
-        @open-in-new-tab-click="${this.onOpenInNewTabClick_}"
-        @open-chrome-settings-click="${this.onOpenChromeSettingsClick_}"
-        @my-activity-click="${this.onMyActivityClick_}"
-        @help-click="${this.onHelpClick_}">
+          @signin-click="${this.removeGsc_}"
+          @new-thread-click="${this.onNewThreadClick_}"
+          @thread-history-click="${this.onThreadHistoryClick_}">
       </top-toolbar>
   `}
   <webview id="threadFrame" src="${this.threadUrl_}"></webview>
-  <div id="composeboxContainer">
-    <cr-composebox id="composebox">
-    </cr-composebox>
-  </div>
+  <contextual-tasks-composebox></contextual-tasks-composebox>
   <!--_html_template_end_-->`;
 }
 // clang-format on

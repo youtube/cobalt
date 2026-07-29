@@ -20,7 +20,6 @@
 #include "components/input/render_input_router_latency_tracker.h"
 #include "components/viz/common/resources/peak_gpu_memory_tracker.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
-#include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "services/viz/public/mojom/hit_test/input_target_client.mojom.h"
@@ -102,6 +101,7 @@ class COMPONENT_EXPORT(INPUT) RenderInputRouter
       bool unadjusted_movement,
       InputRouterImpl::RequestMouseLockCallback response) override;
   gfx::Size GetRootWidgetViewportSize() override;
+  void OnUnconfirmedTapConvertedToTap() override;
 
   // InputRouterImplClient overrides.
   blink::mojom::InputEventResultState FilterInputEvent(

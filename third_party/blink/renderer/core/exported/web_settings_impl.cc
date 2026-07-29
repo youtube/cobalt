@@ -555,8 +555,12 @@ void WebSettingsImpl::SetStrictlyBlockBlockableMixedContent(bool enabled) {
   settings_->SetStrictlyBlockBlockableMixedContent(enabled);
 }
 
-void WebSettingsImpl::SetPasswordEchoEnabled(bool flag) {
-  settings_->SetPasswordEchoEnabled(flag);
+void WebSettingsImpl::SetPasswordEchoEnabledPhysical(bool flag) {
+  settings_->SetPasswordEchoEnabledPhysical(flag);
+}
+
+void WebSettingsImpl::SetPasswordEchoEnabledTouch(bool flag) {
+  settings_->SetPasswordEchoEnabledTouch(flag);
 }
 
 void WebSettingsImpl::SetPasswordEchoDurationInSeconds(
@@ -794,6 +798,10 @@ void WebSettingsImpl::SetAriaModalPrunesAXTree(bool enabled) {
 
 void WebSettingsImpl::SetSelectionClipboardBufferAvailable(bool available) {
   settings_->SetSelectionClipboardBufferAvailable(available);
+}
+
+void WebSettingsImpl::SetMiddleClickPasteAllowed(bool allowed) {
+  settings_->SetMiddleClickPasteAllowed(allowed);
 }
 
 void WebSettingsImpl::SetAccessibilityIncludeSvgGElement(bool include) {

@@ -1113,6 +1113,30 @@ void LocalFrameView::RequestSameDocumentNavigationPresentationTime(
   }
 }
 
+bool LocalFrameView::HasRunningAnchorTransformAnimation() const {
+  for (Frame* child = frame_->Tree().FirstChild(); child;
+       child = child->Tree().NextSibling()) {
+    const auto* child_view = DynamicTo<LocalFrameView>(child->View());
+    if (!child_view) {
+      // If this is not a local frame (in other words, it's typically a remote
+      // frame), there's no way of answering this. Err on the safe side.
+      return true;
+    }
+    if (child_view->HasRunningAnchorTransformAnimation()) {
+      return true;
+    }
+  }
+  if (LayoutView* layout_view = GetLayoutView()) {
+    if (layout_view->PhysicalFragmentCount()) {
+      DCHECK_EQ(layout_view->PhysicalFragmentCount(), 1u);
+      const PhysicalBoxFragment* root_fragment =
+          layout_view->GetPhysicalFragment(0);
+      return root_fragment->HasRunningAnchorTransformAnimation();
+    }
+  }
+  return false;
+}
+
 std::optional<NaturalSizingInfo> LocalFrameView::GetNaturalDimensions() const {
   if (LayoutSVGRoot* content_layout_object = EmbeddedReplacedContent()) {
     return content_layout_object->UnscaledNaturalSizingInfo();
@@ -1124,11 +1148,7 @@ std::optional<NaturalSizingInfo> LocalFrameView::GetNaturalDimensions() const {
   DCHECK(layout_view);
   const float unscaled_natural_height =
       AdjustForAbsoluteZoom::AdjustFloat(*natural_height_, *layout_view);
-  NaturalSizingInfo info;
-  info.size = gfx::SizeF(0, unscaled_natural_height);
-  info.has_width = false;
-  info.has_height = true;
-  return info;
+  return NaturalSizingInfo::MakeHeight(unscaled_natural_height);
 }
 
 void LocalFrameView::UpdateGeometry() {
@@ -2420,9 +2440,10 @@ void LocalFrameView::UpdateLifecyclePhasesInternal(
   }
 
   UpdateIntersectionObserverStatus();
-  if (HasActiveIntersectionObservations()) {
+  if (HasActiveIntersectionObservations() ||
+      HasRunningAnchorTransformAnimation()) {
     GetChromeClient()->RequestMainFrameOnCompositorAnimation(
-        *frame_, NeedsOcclusionTracking()
+        *frame_, NeedsOcclusionTracking() && HasActiveIntersectionObservations()
                      ? cc::PropertyChangeForcesCommitCriteria::kAny
                      : cc::PropertyChangeForcesCommitCriteria::kTransform);
   }
@@ -2655,8 +2676,7 @@ bool LocalFrameView::RunCompositingInputsLifecyclePhase(
       // and then painted during this lifecycle.
       if (LocalDOMWindow* window = frame_view.GetFrame().DomWindow()) {
         if (HighlightRegistry* highlight_registry =
-                window->Supplementable<LocalDOMWindow, 48>::RequireSupplement<
-                    HighlightRegistry>()) {
+                window->GetHighlightRegistry()) {
           highlight_registry->ValidateHighlightMarkers();
         }
       }

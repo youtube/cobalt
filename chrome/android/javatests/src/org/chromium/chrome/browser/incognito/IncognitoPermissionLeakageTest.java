@@ -115,8 +115,7 @@ public class IncognitoPermissionLeakageTest {
 
     @After
     public void tearDown() {
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> IncognitoDataTestUtils.closeTabs(mChromeActivityTestRule));
+        mChromeActivityTestRule.closeAllWindowsAndDeleteInstanceAndTabState();
     }
 
     private void requestLocationPermission(Tab tab) throws TimeoutException, ExecutionException {

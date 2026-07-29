@@ -6,12 +6,10 @@
 
 #include "base/notreached.h"
 #include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom-blink.h"
-#include "third_party/blink/public/common/privacy_budget/identifiability_metric_builder.h"
 #include "third_party/blink/public/mojom/permissions/permission_status.mojom-blink.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_permission_state.h"
-#include "third_party/blink/renderer/core/frame/dactyloscoper.h"
 #include "third_party/blink/renderer/core/frame/frame_console.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/frame/settings.h"
@@ -31,7 +29,7 @@ namespace blink {
 
 DeviceOrientationController::DeviceOrientationController(LocalDOMWindow& window)
     : DeviceSingleWindowEventController(window),
-      Supplement<LocalDOMWindow>(window),
+      local_dom_window_(window),
       permission_service_(&window) {}
 
 DeviceOrientationController::~DeviceOrientationController() = default;
@@ -45,10 +43,10 @@ void DeviceOrientationController::DidUpdateData() {
 DeviceOrientationController& DeviceOrientationController::From(
     LocalDOMWindow& window) {
   DeviceOrientationController* controller =
-      Supplement<LocalDOMWindow>::From<DeviceOrientationController>(window);
+      window.GetDeviceOrientationController();
   if (!controller) {
     controller = MakeGarbageCollected<DeviceOrientationController>(window);
-    ProvideTo(window, controller);
+    window.SetDeviceOrientationController(controller);
   }
   return *controller;
 }
@@ -75,8 +73,6 @@ void DeviceOrientationController::DidAddEventListener(
     return;
 
   UseCounter::Count(GetWindow(), WebFeature::kDeviceOrientationSecureOrigin);
-  Dactyloscoper::RecordDirectSurface(
-      &GetWindow(), WebFeature::kDeviceOrientationSecureOrigin, String());
 
   if (!has_requested_permission_) {
     UseCounter::Count(
@@ -164,7 +160,7 @@ void DeviceOrientationController::Trace(Visitor* visitor) const {
   visitor->Trace(orientation_event_pump_);
   visitor->Trace(permission_service_);
   DeviceSingleWindowEventController::Trace(visitor);
-  Supplement<LocalDOMWindow>::Trace(visitor);
+  visitor->Trace(local_dom_window_);
 }
 
 void DeviceOrientationController::RegisterWithOrientationEventPump(
@@ -178,7 +174,7 @@ void DeviceOrientationController::RegisterWithOrientationEventPump(
 
 ScriptPromise<V8PermissionState> DeviceOrientationController::RequestPermission(
     ScriptState* script_state) {
-  ExecutionContext* context = GetSupplementable();
+  ExecutionContext* context = local_dom_window_;
   DCHECK_EQ(context, ExecutionContext::From(script_state));
 
   has_requested_permission_ = true;

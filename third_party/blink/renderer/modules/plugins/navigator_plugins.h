@@ -6,7 +6,6 @@
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_PLUGINS_NAVIGATOR_PLUGINS_H_
 
 #include "third_party/blink/renderer/core/frame/navigator.h"
-#include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
 
@@ -16,10 +15,8 @@ class LocalDOMWindow;
 class Navigator;
 
 class NavigatorPlugins final : public GarbageCollected<NavigatorPlugins>,
-                               public Supplement<Navigator> {
+                               public GarbageCollectedMixin {
  public:
-  static const unsigned kSupplementIndex;
-
   static NavigatorPlugins& From(Navigator&);
   static NavigatorPlugins* ToNavigatorPlugins(Navigator&);
 
@@ -29,7 +26,7 @@ class NavigatorPlugins final : public GarbageCollected<NavigatorPlugins>,
 
   static bool javaEnabled(Navigator&);
 
-  explicit NavigatorPlugins(Navigator&);
+  NavigatorPlugins() = default;
 
   void Trace(Visitor*) const override;
 

@@ -4,6 +4,7 @@
 
 #include "base/sampling_heap_profiler/lock_free_bloom_filter.h"
 
+#include <math.h>
 #include <stdint.h>
 
 #include <memory>
@@ -22,6 +23,7 @@
 #include "base/time/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/abseil-cpp/absl/cleanup/cleanup.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 
 namespace base {
 
@@ -48,9 +50,11 @@ constexpr uintptr_t kEcho = 0x50;
 // the same set of filters.
 class WriterThread : public SimpleThread {
  public:
+  using LockFreeBloomFilterType = LockFreeBloomFilter<2>;
+
   WriterThread(uintptr_t start_value,
                uintptr_t max_value,
-               LockFreeBloomFilter& filter,
+               LockFreeBloomFilterType& filter,
                base::TestWaitableEvent& all_started_event,
                base::AtomicFlag& cancel_flag,
                base::RepeatingClosure on_started_closure)
@@ -94,7 +98,7 @@ class WriterThread : public SimpleThread {
  private:
   uintptr_t start_value_;
   uintptr_t max_value_;
-  raw_ref<LockFreeBloomFilter> filter_;
+  raw_ref<LockFreeBloomFilterType> filter_;
   raw_ref<base::TestWaitableEvent> all_started_event_;
   raw_ref<base::AtomicFlag> cancel_flag_;
   base::RepeatingClosure on_started_closure_;
@@ -103,9 +107,21 @@ class WriterThread : public SimpleThread {
 }  // namespace
 
 TEST(LockFreeBloomFilterTest, SingleHash) {
-  LockFreeBloomFilter filter(/*num_hash_functions=*/1);
-  filter.SetFakeHashFunctionsForTesting(true);
+  LockFreeBloomFilter</*BitsPerKey=*/1, /*UseFakeHashFunctionsForTesting=*/true>
+      filter;
   EXPECT_EQ(0, filter.CountBits());
+
+  // See the chart above the kAlpha definition for expected hash results.
+  EXPECT_EQ(filter.GetBitsForKey(reinterpret_cast<void*>(kAlfa)),
+            0x10'000);  // 2^16
+  EXPECT_EQ(filter.GetBitsForKey(reinterpret_cast<void*>(kBravo)),
+            0x20'000);  // 2^17
+  EXPECT_EQ(filter.GetBitsForKey(reinterpret_cast<void*>(kCharlie)),
+            0x40'000);  // 2^18
+  EXPECT_EQ(filter.GetBitsForKey(reinterpret_cast<void*>(kDelta)),
+            0x100'000'000);  // 2^32
+  EXPECT_EQ(filter.GetBitsForKey(reinterpret_cast<void*>(kEcho)),
+            0x10'000);  // 2^16
 
   EXPECT_FALSE(filter.MaybeContains(reinterpret_cast<void*>(kAlfa)));
   EXPECT_FALSE(filter.MaybeContains(reinterpret_cast<void*>(kBravo)));
@@ -131,12 +147,28 @@ TEST(LockFreeBloomFilterTest, SingleHash) {
   EXPECT_TRUE(filter.MaybeContains(reinterpret_cast<void*>(kCharlie)));
   EXPECT_FALSE(filter.MaybeContains(reinterpret_cast<void*>(kDelta)));
   EXPECT_TRUE(filter.MaybeContains(reinterpret_cast<void*>(kEcho)));
+
+  // Reset to only kAlfa.
+  filter.AtomicSetBits(filter.GetBitsForKey(reinterpret_cast<void*>(kAlfa)));
+  EXPECT_EQ(filter.GetBitsForTesting(), 0x10'000);
 }
 
 TEST(LockFreeBloomFilterTest, MultiHash) {
-  LockFreeBloomFilter filter(/*num_hash_functions=*/3);
-  filter.SetFakeHashFunctionsForTesting(true);
+  LockFreeBloomFilter</*BitsPerKey=*/3, /*UseFakeHashFunctionsForTesting=*/true>
+      filter;
   EXPECT_EQ(filter.CountBits(), 0);
+
+  // See the chart above the kAlpha definition for expected hash results.
+  EXPECT_EQ(filter.GetBitsForKey(reinterpret_cast<void*>(kAlfa)),
+            0x10'110);  // 2^16 | 2^8 | 2^4
+  EXPECT_EQ(filter.GetBitsForKey(reinterpret_cast<void*>(kBravo)),
+            0x20'110);  // 2^17 | 2^8 | 2^4
+  EXPECT_EQ(filter.GetBitsForKey(reinterpret_cast<void*>(kCharlie)),
+            0x40'210);  // 2^18 | 2^9 | 2^4
+  EXPECT_EQ(filter.GetBitsForKey(reinterpret_cast<void*>(kDelta)),
+            0x100'010'100);  // 2^32 | 2^16 | 2^8
+  EXPECT_EQ(filter.GetBitsForKey(reinterpret_cast<void*>(kEcho)),
+            0x10'000'110'000);  // 2^16 | 2^40 | 2^20
 
   EXPECT_FALSE(filter.MaybeContains(reinterpret_cast<void*>(kAlfa)));
   EXPECT_FALSE(filter.MaybeContains(reinterpret_cast<void*>(kBravo)));
@@ -169,14 +201,18 @@ TEST(LockFreeBloomFilterTest, MultiHash) {
   EXPECT_TRUE(filter.MaybeContains(reinterpret_cast<void*>(kCharlie)));
   EXPECT_FALSE(filter.MaybeContains(reinterpret_cast<void*>(kDelta)));
   EXPECT_FALSE(filter.MaybeContains(reinterpret_cast<void*>(kEcho)));
+
+  // Reset to only kAlfa.
+  filter.AtomicSetBits(filter.GetBitsForKey(reinterpret_cast<void*>(kAlfa)));
+  EXPECT_EQ(filter.GetBitsForTesting(), 0x10'110);  // 2^16 | 2^8 | 2^4
 }
 
 TEST(LockFreeBloomFilterTest, FalsePositivesWithSingleBitFilterCollisions) {
-  LockFreeBloomFilter filter(/*num_hash_functions=*/1);
+  LockFreeBloomFilter<1> filter;
 
   // Loop until a hash collision occurs. This is guaranteed to happen by the
-  // time kMaxBits keys are added.
-  for (size_t i = 0; i <= LockFreeBloomFilter::kMaxBits; ++i) {
+  // time kMaxLockFreeBloomFilterBits keys are added.
+  for (size_t i = 0; i <= kMaxLockFreeBloomFilterBits; ++i) {
     void* ptr = reinterpret_cast<void*>(i);
     if (filter.MaybeContains(ptr)) {
       // Hash collision occurred. Adding the new key should appear to succeed,
@@ -194,14 +230,14 @@ TEST(LockFreeBloomFilterTest, FalsePositivesWithSingleBitFilterCollisions) {
     EXPECT_TRUE(filter.MaybeContains(ptr));
   }
 
-  FAIL() << "Added " << LockFreeBloomFilter::kMaxBits
+  FAIL() << "Added " << kMaxLockFreeBloomFilterBits
          << " keys without a false positive";
 }
 
 TEST(LockFreeBloomFilterTest, EverythingMatches) {
   // Provide filter data with all bits set ON.
-  LockFreeBloomFilter filter(/*num_hash_functions=*/7);
-  filter.SetBitsForTesting(static_cast<LockFreeBloomFilter::BitStorage>(-1));
+  LockFreeBloomFilter<5> filter;
+  filter.AtomicSetBits(static_cast<LockFreeBloomFilterBits>(-1));
 
   EXPECT_TRUE(filter.MaybeContains(reinterpret_cast<void*>(kAlfa)));
   EXPECT_TRUE(filter.MaybeContains(reinterpret_cast<void*>(kBravo)));
@@ -215,7 +251,7 @@ TEST(LockFreeBloomFilterTest, ConcurrentAccess) {
   // does not disrupt the state of other keys. Each writer races to set the bits
   // for a single key. To get a high amount of parallelism they set the bits in
   // many filters.
-  LockFreeBloomFilter expected_filter(/*num_hash_functions=*/2);
+  WriterThread::LockFreeBloomFilterType expected_filter;
 
   // Add two dozen elements to `expected_filter`, in serial. Make sure this
   // doesn't saturate all the bits in the filter because that wouldn't be an
@@ -226,9 +262,9 @@ TEST(LockFreeBloomFilterTest, ConcurrentAccess) {
     void* ptr = reinterpret_cast<void*>(value);
     expected_filter.Add(ptr);
   }
-  ASSERT_LT(expected_filter.CountBits(), LockFreeBloomFilter::kMaxBits);
+  ASSERT_LT(expected_filter.CountBits(), kMaxLockFreeBloomFilterBits);
 
-  LockFreeBloomFilter filter(/*num_hash_functions=*/2);
+  WriterThread::LockFreeBloomFilterType filter;
 
   // Add the same elements to `filter`, in parallel, and expect the outcome
   // to be identical.
@@ -272,7 +308,32 @@ TEST(LockFreeBloomFilterTest, ConcurrentAccess) {
       // Don't starve the writer threads.
       PlatformThread::YieldCurrentThread();
     }
-    filter.SetBitsForTesting(0u);
+    filter.AtomicSetBits(0u);
+  }
+}
+
+TEST(LockFreeBloomFilterTest, IndependentHashes) {
+  LockFreeBloomFilter<3> filter;
+  // 32-bit platforms only have room for 5 bits per key.
+  LockFreeBloomFilter<sizeof(size_t) < 8 ? 5 : 8> filter2;
+
+  std::vector<void*> ptrs;
+  absl::Cleanup free_on_exit = [&ptrs] {
+    for (void* ptr : ptrs) {
+      free(ptr);
+    }
+  };
+
+  absl::flat_hash_set<LockFreeBloomFilterBits> bit_patterns;
+  absl::flat_hash_set<LockFreeBloomFilterBits> bit_patterns2;
+  for (int i = 1; i <= 1000; ++i) {
+    ptrs.push_back(malloc(64));
+    bit_patterns.insert(filter.GetBitsForKey(ptrs.back()));
+    bit_patterns2.insert(filter2.GetBitsForKey(ptrs.back()));
+    ASSERT_GE(bit_patterns.size(), floor(i * 0.8))
+        << i << " keys, " << bit_patterns.size() << " distinct bit patterns";
+    ASSERT_GE(bit_patterns2.size(), floor(i * 0.8))
+        << i << " keys, " << bit_patterns2.size() << " distinct bit patterns";
   }
 }
 

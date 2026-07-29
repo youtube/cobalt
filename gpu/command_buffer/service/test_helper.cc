@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "gpu/command_buffer/service/test_helper.h"
 
 #include <stddef.h>
@@ -17,6 +12,7 @@
 #include <cstdint>
 #include <string>
 
+#include "base/compiler_specific.h"
 #include "base/containers/span.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_number_conversions.h"
@@ -720,13 +716,7 @@ void TestHelper::SetupProgramSuccessExpectations(
     VaryingInfo* varyings,
     size_t num_varyings,
     base::span<ProgramOutputInfo> program_outputs,
-    size_t spanification_suspected_redundant_num_program_outputs,
     GLuint service_id) {
-  // TODO(crbug.com/431824301): Remove unneeded parameter once validated to be
-  // redundant in M143.
-  CHECK(spanification_suspected_redundant_num_program_outputs ==
-            program_outputs.size(),
-        base::NotFatalUntil::M143);
   EXPECT_CALL(*gl, GetProgramiv(service_id, GL_LINK_STATUS, _))
       .WillOnce(SetArgPointee<2>(1))
       .RetiresOnSaturation();
@@ -738,7 +728,7 @@ void TestHelper::SetupProgramSuccessExpectations(
       .RetiresOnSaturation();
   size_t max_attrib_len = 0;
   for (size_t ii = 0; ii < num_attribs; ++ii) {
-    size_t len = strlen(attribs[ii].name) + 1;
+    size_t len = strlen(UNSAFE_TODO(attribs[ii]).name) + 1;
     max_attrib_len = std::max(max_attrib_len, len);
   }
   EXPECT_CALL(*gl, GetProgramiv(service_id, GL_ACTIVE_ATTRIBUTE_MAX_LENGTH, _))
@@ -746,13 +736,14 @@ void TestHelper::SetupProgramSuccessExpectations(
       .RetiresOnSaturation();
 
   for (size_t ii = 0; ii < num_attribs; ++ii) {
-    const AttribInfo& info = attribs[ii];
+    const AttribInfo& info = UNSAFE_TODO(attribs[ii]);
     EXPECT_CALL(*gl,
                 GetActiveAttrib(service_id, ii, max_attrib_len, _, _, _, _))
         .WillOnce(DoAll(
             SetArgPointee<3>(strlen(info.name)), SetArgPointee<4>(info.size),
             SetArgPointee<5>(info.type),
-            SetArrayArgument<6>(info.name, info.name + strlen(info.name) + 1)))
+            SetArrayArgument<6>(
+                info.name, UNSAFE_TODO(info.name + strlen(info.name) + 1))))
         .RetiresOnSaturation();
     if (!ProgramManager::HasBuiltInPrefix(info.name)) {
       EXPECT_CALL(*gl, GetAttribLocation(service_id, StrEq(info.name)))
@@ -767,21 +758,21 @@ void TestHelper::SetupProgramSuccessExpectations(
   if (num_uniforms > 0) {
     size_t max_uniform_len = 0;
     for (size_t ii = 0; ii < num_uniforms; ++ii) {
-      size_t len = strlen(uniforms[ii].name) + 1;
+      size_t len = strlen(UNSAFE_TODO(uniforms[ii]).name) + 1;
       max_uniform_len = std::max(max_uniform_len, len);
     }
     EXPECT_CALL(*gl, GetProgramiv(service_id, GL_ACTIVE_UNIFORM_MAX_LENGTH, _))
         .WillOnce(SetArgPointee<2>(max_uniform_len))
         .RetiresOnSaturation();
     for (size_t ii = 0; ii < num_uniforms; ++ii) {
-      const UniformInfo& info = uniforms[ii];
+      const UniformInfo& info = UNSAFE_TODO(uniforms[ii]);
       EXPECT_CALL(*gl,
                   GetActiveUniform(service_id, ii, max_uniform_len, _, _, _, _))
-          .WillOnce(DoAll(SetArgPointee<3>(strlen(info.name)),
-                          SetArgPointee<4>(info.size),
-                          SetArgPointee<5>(info.type),
-                          SetArrayArgument<6>(
-                              info.name, info.name + strlen(info.name) + 1)))
+          .WillOnce(DoAll(
+              SetArgPointee<3>(strlen(info.name)), SetArgPointee<4>(info.size),
+              SetArgPointee<5>(info.type),
+              SetArrayArgument<6>(
+                  info.name, UNSAFE_TODO(info.name + strlen(info.name) + 1))))
           .RetiresOnSaturation();
 
       // Corresponds to early out in Program::UpdateUniforms
@@ -812,9 +803,7 @@ void TestHelper::SetupProgramSuccessExpectations(
 
   if (feature_info->gl_version_info().IsAtLeastGLES(3, 0) &&
       !feature_info->disable_shader_translator()) {
-    for (size_t ii = 0;
-         ii < spanification_suspected_redundant_num_program_outputs; ++ii) {
-      ProgramOutputInfo& info = program_outputs[ii];
+    for (auto& info : program_outputs) {
       if (ProgramManager::HasBuiltInPrefix(info.name))
         continue;
 
@@ -846,7 +835,7 @@ void TestHelper::SetupShaderExpectations(::gl::MockGLInterface* gl,
   EXPECT_CALL(*gl, LinkProgram(service_id)).Times(1).RetiresOnSaturation();
 
   SetupProgramSuccessExpectations(gl, feature_info, attribs, num_attribs,
-                                  uniforms, num_uniforms, nullptr, 0, {}, 0,
+                                  uniforms, num_uniforms, nullptr, 0, {},
                                   service_id);
 }
 
@@ -860,13 +849,7 @@ void TestHelper::SetupShaderExpectationsWithVaryings(
     VaryingInfo* varyings,
     size_t num_varyings,
     base::span<ProgramOutputInfo> program_outputs,
-    size_t spanification_suspected_redundant_num_program_outputs,
     GLuint service_id) {
-  // TODO(crbug.com/431824301): Remove unneeded parameter once validated to be
-  // redundant in M143.
-  CHECK(spanification_suspected_redundant_num_program_outputs ==
-            program_outputs.size(),
-        base::NotFatalUntil::M143);
   InSequence s;
 
   EXPECT_CALL(*gl,
@@ -874,10 +857,9 @@ void TestHelper::SetupShaderExpectationsWithVaryings(
       .Times(1)
       .RetiresOnSaturation();
 
-  SetupProgramSuccessExpectations(
-      gl, feature_info, attribs, num_attribs, uniforms, num_uniforms, varyings,
-      num_varyings, program_outputs,
-      spanification_suspected_redundant_num_program_outputs, service_id);
+  SetupProgramSuccessExpectations(gl, feature_info, attribs, num_attribs,
+                                  uniforms, num_uniforms, varyings,
+                                  num_varyings, program_outputs, service_id);
 }
 
 void TestHelper::DoBufferData(::gl::MockGLInterface* gl,

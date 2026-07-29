@@ -21,6 +21,7 @@
 #include "third_party/blink/renderer/core/css/css_color.h"
 #include "third_party/blink/renderer/core/css/css_color_mix_value.h"
 #include "third_party/blink/renderer/core/css/css_content_distribution_value.h"
+#include "third_party/blink/renderer/core/css/css_counter_value.h"
 #include "third_party/blink/renderer/core/css/css_crossfade_value.h"
 #include "third_party/blink/renderer/core/css/css_custom_ident_value.h"
 #include "third_party/blink/renderer/core/css/css_font_family_value.h"
@@ -41,6 +42,7 @@
 #include "third_party/blink/renderer/core/css/css_inherited_value.h"
 #include "third_party/blink/renderer/core/css/css_initial_value.h"
 #include "third_party/blink/renderer/core/css/css_light_dark_value_pair.h"
+#include "third_party/blink/renderer/core/css/css_markup.h"
 #include "third_party/blink/renderer/core/css/css_math_expression_node.h"
 #include "third_party/blink/renderer/core/css/css_math_function_value.h"
 #include "third_party/blink/renderer/core/css/css_numeric_literal_value.h"
@@ -141,7 +143,7 @@ bool IsOverflowKeyword(CSSValueID id) {
   return IdentMatches<CSSValueID::kUnsafe, CSSValueID::kSafe>(id);
 }
 
-bool IsMasonryDirectionOrFillKeyword(CSSValueID id) {
+bool IsGridLanesDirectionOrFillKeyword(CSSValueID id) {
   return IdentMatches<CSSValueID::kRow, CSSValueID::kRowReverse,
                       CSSValueID::kColumn, CSSValueID::kColumnReverse,
                       CSSValueID::kNormal, CSSValueID::kReverse>(id);
@@ -3235,29 +3237,26 @@ CSSValue* ConsumeAxis(CSSParserTokenStream& stream,
 
 CSSValue* ConsumeIntrinsicSizeLonghand(CSSParserTokenStream& stream,
                                        const CSSParserContext& context) {
-  if (RuntimeEnabledFeatures::ResponsiveIframesEnabled() &&
-      css_parsing_utils::IdentMatches<CSSValueID::kFromElement>(
-          stream.Peek().Id())) {
-    return css_parsing_utils::ConsumeIdent(stream);
-  }
-
-  if (css_parsing_utils::IdentMatches<CSSValueID::kNone>(stream.Peek().Id())) {
-    return css_parsing_utils::ConsumeIdent(stream);
-  }
-  CSSValueList* list = CSSValueList::CreateSpaceSeparated();
-  if (css_parsing_utils::IdentMatches<CSSValueID::kAuto>(stream.Peek().Id())) {
-    list->Append(*css_parsing_utils::ConsumeIdent(stream));
-  }
-  if (css_parsing_utils::IdentMatches<CSSValueID::kNone>(stream.Peek().Id())) {
-    list->Append(*css_parsing_utils::ConsumeIdent(stream));
-  } else {
-    CSSValue* length = css_parsing_utils::ConsumeLength(
-        stream, context, CSSPrimitiveValue::ValueRange::kNonNegative);
-    if (!length) {
+  // `[ auto | from-element ]? [ none | <length [0,∞]> ]`
+  CSSIdentifierValue* option =
+      RuntimeEnabledFeatures::ResponsiveIframesEnabled()
+          ? css_parsing_utils::ConsumeIdent<CSSValueID::kAuto,
+                                            CSSValueID::kFromElement>(stream)
+          : css_parsing_utils::ConsumeIdent<CSSValueID::kAuto>(stream);
+  CSSValue* length_or_none = css_parsing_utils::ConsumeLength(
+      stream, context, CSSPrimitiveValue::ValueRange::kNonNegative);
+  if (!length_or_none) {
+    length_or_none = css_parsing_utils::ConsumeIdent<CSSValueID::kNone>(stream);
+    if (!length_or_none) {
       return nullptr;
     }
-    list->Append(*length);
   }
+  if (!option) {
+    return length_or_none;
+  }
+  CSSValueList* list = CSSValueList::CreateSpaceSeparated();
+  list->Append(*option);
+  list->Append(*length_or_none);
   return list;
 }
 
@@ -4119,6 +4118,13 @@ bool IsCSSWideKeyword(StringView keyword) {
   // This function should match the overload before it.
 }
 
+bool IsInvalidFontFamily(const AtomicString& string) {
+  return (IsCSSWideKeyword(string) || IsDefaultKeyword(string) ||
+          FontFamily::InferredTypeFor(string) ==
+              FontFamily::Type::kGenericFamily ||
+          !IsCSSTokenizerIdentifier(string));
+}
+
 // https://drafts.csswg.org/css-cascade/#default
 bool IsRevertKeyword(StringView keyword) {
   return EqualIgnoringASCIICase(keyword, "revert");
@@ -4631,32 +4637,6 @@ CSSValue* ConsumeSingleTimelineInsetSide(CSSParserTokenStream& stream,
                                 CSSPrimitiveValue::ValueRange::kAll);
 }
 
-CSSValue* ConsumeTimelineTriggerValue(CSSPropertyID property,
-                                      CSSParserTokenStream& stream,
-                                      const CSSParserContext& context) {
-  switch (property) {
-    case CSSPropertyID::kTimelineTriggerName:
-      return css_parsing_utils::ConsumeSingleTimelineTriggerName(stream,
-                                                                 context);
-    case CSSPropertyID::kTimelineTriggerSource:
-      return css_parsing_utils::ConsumeAnimationTimeline(stream, context);
-    case CSSPropertyID::kTimelineTriggerRangeStart:
-      return css_parsing_utils::ConsumeAnimationRange(stream, context, 0.0,
-                                                      /*allow_auto=*/false);
-    case CSSPropertyID::kTimelineTriggerExitRangeStart:
-      return css_parsing_utils::ConsumeAnimationRange(stream, context, 0.0,
-                                                      /*allow_auto=*/true);
-    case CSSPropertyID::kTimelineTriggerRangeEnd:
-      return css_parsing_utils::ConsumeAnimationRange(stream, context, 100.0,
-                                                      /*allow_auto=*/false);
-    case CSSPropertyID::kTimelineTriggerExitRangeEnd:
-      return css_parsing_utils::ConsumeAnimationRange(stream, context, 100.0,
-                                                      /*allow_auto=*/true);
-    default:
-      NOTREACHED();
-  }
-}
-
 }  // namespace
 
 CSSValue* ConsumeSingleTimelineInset(CSSParserTokenStream& stream,
@@ -4695,46 +4675,50 @@ bool ConsumeTimelineTriggerShorthand(
     longhands[i] = CSSValueList::CreateCommaSeparated();
   }
 
+  auto add_value =
+      [&](CSSValue* value, unsigned index,
+          std::array<bool, kMaxNumTimelineTriggerLonghands>& parsed_longhand) {
+        if (value) {
+          longhands[index]->Append(*value);
+          parsed_longhand[index] = true;
+        }
+      };
+
   do {
     std::array<bool, kMaxNumTimelineTriggerLonghands> parsed_longhand = {};
-    bool found_any = false;
-    CSSValue* trigger_exit_range_start = nullptr;
-    CSSValue* trigger_range_start = nullptr;
-    // TODO(crbug.com/429392773): Extract this do-while into a separate
-    // function.
-    do {
-      bool found_property = false;
-      for (unsigned i = 0; i < longhand_count; ++i) {
-        if (parsed_longhand[i]) {
-          continue;
-        }
 
-        CSSValue* value = ConsumeTimelineTriggerValue(
-            shorthand.properties()[i]->PropertyID(), stream, context);
-        if (value) {
-          parsed_longhand[i] = true;
-          found_property = true;
-          found_any = true;
-          longhands[i]->Append(*value);
-          // If we don't get a trigger{-exit}-range-end, we'll need to infer
-          // based on the trigger{-exit}-range-start.
-          if (shorthand.properties()[i]->PropertyID() ==
-              CSSPropertyID::kTimelineTriggerExitRangeStart) {
-            trigger_exit_range_start = value;
-          } else if (shorthand.properties()[i]->PropertyID() ==
-                     CSSPropertyID::kTimelineTriggerRangeStart) {
-            trigger_range_start = value;
-          }
-          break;
-        }
-      }
-      if (!found_property) {
-        break;
-      }
-    } while (!stream.AtEnd() && stream.Peek().GetType() != kCommaToken);
+    CSSValue* trigger_name_value =
+        css_parsing_utils::ConsumeSingleTimelineTriggerName(stream, context);
+    add_value(trigger_name_value, 0, parsed_longhand);
 
-    if (!found_any) {
-      return false;
+    CSSValue* trigger_timeline_value =
+        css_parsing_utils::ConsumeAnimationTimeline(stream, context);
+    add_value(trigger_timeline_value, 1, parsed_longhand);
+
+    CSSValue* trigger_range_start_value =
+        css_parsing_utils::ConsumeAnimationRange(stream, context, 0.0,
+                                                 /*allow_auto=*/false);
+    add_value(trigger_range_start_value, 2, parsed_longhand);
+
+    CSSValue* trigger_range_end_value =
+        css_parsing_utils::ConsumeAnimationRange(stream, context, 100.0,
+                                                 /*allow_auto=*/false);
+    add_value(trigger_range_end_value, 3, parsed_longhand);
+
+    CSSValue* trigger_exit_range_start_value = nullptr;
+    if (ConsumeSlashIncludingWhitespace(stream)) {
+      trigger_exit_range_start_value =
+          css_parsing_utils::ConsumeAnimationRange(stream, context, 0.0,
+                                                   /*allow_auto=*/true);
+      if (!trigger_exit_range_start_value) {
+        return false;
+      }
+      add_value(trigger_exit_range_start_value, 4, parsed_longhand);
+
+      CSSValue* trigger_exit_range_end_value =
+          css_parsing_utils::ConsumeAnimationRange(stream, context, 100.0,
+                                                   /*allow_auto=*/true);
+      add_value(trigger_exit_range_end_value, 5, parsed_longhand);
     }
 
     for (unsigned i = 0; i < longhand_count; ++i) {
@@ -4744,13 +4728,14 @@ bool ConsumeTimelineTriggerShorthand(
         CSSValue* longhand_value = nullptr;
 
         // If we didn't get a trigger{-exit}-range-end, try to infer it from
-        // trigger{-exit}-range-start if we got one.
+        // trigger{-exit}-range-start if we got one. This allows, for example,
+        // 'contain 0%' to expand to 'contain 0% contain 100%'.
         if (property_id == CSSPropertyID::kTimelineTriggerExitRangeEnd) {
-          longhand_value =
-              css_parsing_utils::GetImpliedRangeEnd(trigger_exit_range_start);
+          longhand_value = css_parsing_utils::GetImpliedRangeEnd(
+              trigger_exit_range_start_value);
         } else if (property_id == CSSPropertyID::kTimelineTriggerRangeEnd) {
           longhand_value =
-              css_parsing_utils::GetImpliedRangeEnd(trigger_range_start);
+              css_parsing_utils::GetImpliedRangeEnd(trigger_range_start_value);
         }
 
         if (longhand_value) {
@@ -4761,9 +4746,6 @@ bool ConsumeTimelineTriggerShorthand(
       }
       parsed_longhand[i] = false;
     }
-
-    trigger_range_start = nullptr;
-    trigger_exit_range_start = nullptr;
   } while (ConsumeCommaIncludingWhitespace(stream));
 
   return true;
@@ -5715,26 +5697,67 @@ CSSValue* ConsumeGapLength(CSSParserTokenStream& stream,
                                 CSSPrimitiveValue::ValueRange::kNonNegative);
 }
 
-CSSValue* ConsumeCounter(CSSParserTokenStream& stream,
-                         const CSSParserContext& context,
-                         int default_value) {
+cssvalue::CSSCounterValue* ConsumeCounter(CSSParserTokenStream& stream,
+                                          const CSSParserContext& context,
+                                          int default_value,
+                                          bool accept_reversed_function) {
+  if (stream.Peek().Id() == CSSValueID::kNone) {
+    return nullptr;
+  }
+  const bool is_reversed = accept_reversed_function &&
+                           stream.Peek().FunctionId() == CSSValueID::kReversed;
+  CSSCustomIdentValue* counter_name;
+  if (is_reversed) {
+    {
+      CSSParserTokenStream::BlockGuard guard(stream);
+      stream.ConsumeWhitespace();
+      if (stream.Peek().Id() == CSSValueID::kNone) {
+        return nullptr;
+      }
+      counter_name = ConsumeCustomIdent(stream, context);
+    }
+    stream.ConsumeWhitespace();
+  } else {
+    counter_name = ConsumeCustomIdent(stream, context);
+  }
+  if (!counter_name) {
+    return nullptr;
+  }
+  CSSPrimitiveValue* value =
+      // <reversed-counter-name> has no starting value if not given.
+      is_reversed ? nullptr
+                  : CSSNumericLiteralValue::Create(
+                        default_value, CSSPrimitiveValue::UnitType::kInteger);
+  if (CSSPrimitiveValue* counter_value = ConsumeInteger(stream, context)) {
+    value = counter_value;
+  }
+  return MakeGarbageCollected<cssvalue::CSSCounterValue>(*counter_name, value,
+                                                         is_reversed);
+}
+
+// https://drafts.csswg.org/css-lists-3/#counter-reset
+// https://drafts.csswg.org/css-lists-3/#increment-set
+//
+// if |accept_reversed_function| is true:
+//   [ <counter-name> <integer>? | <reversed-counter-name> <integer>? ]+ | none
+// else:
+//   [ <counter-name> <integer>? ]+ | none
+CSSValue* ConsumeCounters(CSSParserTokenStream& stream,
+                          const CSSParserContext& context,
+                          int default_value,
+                          bool accept_reversed_function) {
   if (stream.Peek().Id() == CSSValueID::kNone) {
     return ConsumeIdent(stream);
   }
 
   CSSValueList* list = CSSValueList::CreateSpaceSeparated();
   do {
-    CSSCustomIdentValue* counter_name = ConsumeCustomIdent(stream, context);
-    if (!counter_name) {
+    CSSValue* counter_value = ConsumeCounter(stream, context, default_value,
+                                             accept_reversed_function);
+    if (!counter_value) {
       break;
     }
-    CSSPrimitiveValue* value = CSSNumericLiteralValue::Create(
-        default_value, CSSPrimitiveValue::UnitType::kInteger);
-    if (CSSPrimitiveValue* counter_value = ConsumeInteger(stream, context)) {
-      value = counter_value;
-    }
-    list->Append(*MakeGarbageCollected<CSSValuePair>(
-        counter_name, value, CSSValuePair::kDropIdenticalValues));
+    list->Append(*counter_value);
   } while (!stream.AtEnd());
   if (list->length() == 0) {
     return nullptr;
@@ -6491,7 +6514,7 @@ bool IsGridBreadthFixedSized(const CSSValue& value) {
 }
 
 bool IsGridTrackFixedSized(const CSSValue& value) {
-  // TODO(almaher): Do we want to update this defintion for Masonry?
+  // TODO(almaher): Do we want to update this definition for Grid Lanes?
   //
   // https://github.com/w3c/csswg-drafts/issues/12573
   auto* function = DynamicTo<CSSFunctionValue>(value);
@@ -6660,7 +6683,7 @@ bool ConsumeGridTrackRepeatFunction(
       }
       if (all_tracks_are_intrinsic_repeat_or_fixed_sized) {
         // Whether repeat(auto-fill, <intrinsic-track-size>) should be allowed,
-        // and if it should apply to both grid and masonry is still in
+        // and if it should apply to both grid and grid-lanes is still in
         // discussion in the CSSWG.
         //
         // TODO(almaher): Make adjustments once a resolution is made [1].
@@ -6859,7 +6882,7 @@ CSSValue* ConsumeGridLine(CSSParserTokenStream& stream,
 CSSValue* ConsumeGridTrackList(CSSParserTokenStream& stream,
                                const CSSParserContext& context,
                                TrackListType track_list_type,
-                               bool is_masonry_shorthand) {
+                               bool is_grid_lanes_shorthand) {
   bool allow_grid_line_names = track_list_type != TrackListType::kGridAuto;
   if (!allow_grid_line_names && stream.Peek().GetType() == kLeftBracketToken) {
     return nullptr;
@@ -6886,10 +6909,10 @@ CSSValue* ConsumeGridTrackList(CSSParserTokenStream& stream,
   auto IsRangeAtEnd = [](CSSParserTokenStream& stream) -> bool {
     return stream.AtEnd() || stream.Peek().GetType() == kDelimiterToken;
   };
-  auto HasMoreMasonryValues = [](CSSParserTokenStream& stream,
-                                 bool is_masonry_shorthand) -> bool {
-    return (is_masonry_shorthand &&
-            IsMasonryDirectionOrFillKeyword(stream.Peek().Id()));
+  auto HasMoreGridLanesValues = [](CSSParserTokenStream& stream,
+                                   bool is_grid_lanes_shorthand) -> bool {
+    return (is_grid_lanes_shorthand &&
+            IsGridLanesDirectionOrFillKeyword(stream.Peek().Id()));
   };
 
   do {
@@ -6938,12 +6961,12 @@ CSSValue* ConsumeGridTrackList(CSSParserTokenStream& stream,
     if (is_subgrid_track_list && !did_append_line_names &&
         stream.Peek().FunctionId() != CSSValueID::kRepeat) {
       return (IsRangeAtEnd(stream) ||
-              HasMoreMasonryValues(stream, is_masonry_shorthand))
+              HasMoreGridLanesValues(stream, is_grid_lanes_shorthand))
                  ? values
                  : nullptr;
     }
   } while (!(IsRangeAtEnd(stream) ||
-             HasMoreMasonryValues(stream, is_masonry_shorthand)));
+             HasMoreGridLanesValues(stream, is_grid_lanes_shorthand)));
 
   return values;
 }
@@ -7025,17 +7048,17 @@ bool ParseGridTemplateAreasRow(const String& grid_row_names,
 
 CSSValue* ConsumeGridTemplatesRowsOrColumns(CSSParserTokenStream& stream,
                                             const CSSParserContext& context,
-                                            bool is_masonry_shorthand) {
+                                            bool is_grid_lanes_shorthand) {
   switch (stream.Peek().Id()) {
     case CSSValueID::kNone:
       return ConsumeIdent(stream);
     case CSSValueID::kSubgrid:
       return ConsumeGridTrackList(stream, context,
                                   TrackListType::kGridTemplateSubgrid,
-                                  is_masonry_shorthand);
+                                  is_grid_lanes_shorthand);
     default:
       return ConsumeGridTrackList(stream, context, TrackListType::kGridTemplate,
-                                  is_masonry_shorthand);
+                                  is_grid_lanes_shorthand);
   }
 }
 
@@ -7126,27 +7149,29 @@ bool ConsumeGridTemplateShorthand(bool important,
   return false;
 }
 
-CSSValue* ParseMasonryTemplateAreasValue(const String& masonry_template_areas,
-                                         bool is_template_columns) {
+CSSValue* ParseGridLanesTemplateAreasValue(
+    const String& grid_lanes_template_areas,
+    bool is_template_columns) {
   NamedGridAreaMap grid_area_map;
   wtf_size_t row_count = 0;
   wtf_size_t column_count = 0;
 
   if (is_template_columns) {
-    // For template-columns, we treat the `masonry_template_areas` string
+    // For template-columns, we treat the `grid_lanes_template_areas` string
     // as a single row of grid areas and use the function below to construct the
     // `grid_area_map`.
-    if (!css_parsing_utils::ParseGridTemplateAreasRow(
-            masonry_template_areas, grid_area_map, row_count, column_count)) {
+    if (!css_parsing_utils::ParseGridTemplateAreasRow(grid_lanes_template_areas,
+                                                      grid_area_map, row_count,
+                                                      column_count)) {
       return nullptr;
     }
     ++row_count;
   } else {
-    // For template-rows, we need to convert the `masonry_template_areas` string
-    // into appropriate row values. For example, we want to transform "a b c"
-    // into separate row strings: "a", "b", "c".
+    // For template-rows, we need to convert the `grid_lanes_template_areas`
+    // string into appropriate row values. For example, we want to transform "a
+    // b c" into separate row strings: "a", "b", "c".
     Vector<String> rows =
-        ParseGridTemplateAreasColumnNames(masonry_template_areas);
+        ParseGridTemplateAreasColumnNames(grid_lanes_template_areas);
     for (const String& row : rows) {
       if (!css_parsing_utils::ParseGridTemplateAreasRow(
               row, grid_area_map, row_count, column_count)) {
@@ -8183,19 +8208,6 @@ CSSValue* ConsumeScrollPadding(CSSParserTokenStream& stream,
                                 UnitlessQuirk::kForbid);
 }
 
-CSSValue* ConsumeScrollStart(CSSParserTokenStream& stream,
-                             const CSSParserContext& context) {
-  if (CSSIdentifierValue* ident =
-          ConsumeIdent<CSSValueID::kAuto, CSSValueID::kStart,
-                       CSSValueID::kCenter, CSSValueID::kEnd, CSSValueID::kTop,
-                       CSSValueID::kBottom, CSSValueID::kLeft,
-                       CSSValueID::kRight>(stream)) {
-    return ident;
-  }
-  return ConsumeLengthOrPercent(stream, context,
-                                CSSPrimitiveValue::ValueRange::kNonNegative);
-}
-
 CSSValue* ConsumeOffsetPath(CSSParserTokenStream& stream,
                             const CSSParserContext& context) {
   if (CSSValue* none = ConsumeIdent<CSSValueID::kNone>(stream)) {
@@ -8691,6 +8703,11 @@ CSSValue* ConsumeTransformList(CSSParserTokenStream& stream,
   return list;
 }
 
+CSSValue* ConsumeTransitionBehavior(CSSParserTokenStream& stream) {
+  return css_parsing_utils::ConsumeIdent<CSSValueID::kNormal,
+                                         CSSValueID::kAllowDiscrete>(stream);
+}
+
 CSSValue* ConsumeTransitionProperty(CSSParserTokenStream& stream,
                                     const CSSParserContext& context) {
   const CSSParserToken& token = stream.Peek();
@@ -8723,29 +8740,6 @@ bool IsValidPropertyList(const CSSValueList& value_list) {
     auto* identifier_value = DynamicTo<CSSIdentifierValue>(value.Get());
     if (identifier_value &&
         identifier_value->GetValueID() == CSSValueID::kNone) {
-      return false;
-    }
-  }
-  return true;
-}
-
-bool IsValidTransitionBehavior(const CSSValueID& value) {
-  switch (value) {
-    case CSSValueID::kNormal:
-    case CSSValueID::kAllowDiscrete:
-      return true;
-    default:
-      return false;
-  }
-}
-
-bool IsValidTransitionBehaviorList(const CSSValueList& value_list) {
-  for (auto& value : value_list) {
-    auto* ident_value = DynamicTo<CSSIdentifierValue>(value.Get());
-    if (!ident_value) {
-      return false;
-    }
-    if (!IsValidTransitionBehavior(ident_value->GetValueID())) {
       return false;
     }
   }

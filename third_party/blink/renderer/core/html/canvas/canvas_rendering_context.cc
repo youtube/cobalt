@@ -29,7 +29,6 @@
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/platform/platform.h"
-#include "third_party/blink/renderer/bindings/core/v8/v8_canvas_hit_test_rect.h"
 #include "third_party/blink/renderer/core/animation_frame/worker_animation_frame_provider.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/html/canvas/canvas_context_creation_attributes_core.h"
@@ -46,6 +45,7 @@
 #include "third_party/blink/renderer/platform/graphics/unaccelerated_static_bitmap_image.h"
 #include "third_party/blink/renderer/platform/weborigin/security_origin.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
+#include "ui/gfx/geometry/size_conversions.h"
 
 namespace blink {
 
@@ -254,6 +254,8 @@ std::optional<cc::PaintRecord> CanvasRenderingContext::GetElementPaintRecord(
 
 scoped_refptr<StaticBitmapImage> CanvasRenderingContext::GetElementImage(
     Element* element,
+    std::optional<uint32_t> width,
+    std::optional<uint32_t> height,
     const String& func_name,
     ExceptionState& exception_state) {
   std::optional<cc::PaintRecord> paint_record =
@@ -262,19 +264,35 @@ scoped_refptr<StaticBitmapImage> CanvasRenderingContext::GetElementImage(
     return nullptr;
   }
 
-  SkSurfaceProps surface_props;
-  auto box_rect =
-      gfx::Rect(ToCeiledSize(element->GetLayoutBox()->StitchedSize()));
+  HTMLCanvasElement* canvas_element = static_cast<HTMLCanvasElement*>(Host());
+
+  // The default destination size for GetElementImage is the source content
+  // size scaled to canvas grid coordinates. This causes the element to have
+  // the same proportions when appearing inside the canvas as it would have
+  // were it painted outside the canvas.
+  gfx::SizeF intrinsic_size =
+      gfx::SizeF(element->GetLayoutBox()->StitchedSize());
+  gfx::Vector2dF canvas_scale =
+      canvas_element->PhysicalPixelToCanvasGridScaleFactor();
+  intrinsic_size.Scale(canvas_scale.x(), canvas_scale.y());
+  gfx::Size intrinsic_dest_size = gfx::ToCeiledSize(intrinsic_size);
+  gfx::Size dest_size(intrinsic_dest_size);
+  if (width && height) {
+    dest_size = gfx::Size(width.value(), height.value());
+    canvas_scale.Scale(
+        static_cast<float>(dest_size.width()) / intrinsic_dest_size.width(),
+        static_cast<float>(dest_size.height()) / intrinsic_dest_size.height());
+  }
+
   sk_sp<SkSurface> surface = SkSurfaces::Raster(
-      SkImageInfo::MakeN32Premul(box_rect.width(), box_rect.height()),
-      &surface_props);
+      SkImageInfo::MakeN32Premul(dest_size.width(), dest_size.height()),
+      /*surface_props*/ nullptr);
   if (!surface) {
     return nullptr;
   }
-
   SkiaPaintCanvas skia_paint_canvas(surface->getCanvas());
-  skia_paint_canvas.drawPicture(paint_record.value());
-
+  skia_paint_canvas.scale(canvas_scale.x(), canvas_scale.y());
+  skia_paint_canvas.drawPicture(*paint_record);
   return UnacceleratedStaticBitmapImage::Create(surface->makeImageSnapshot());
 }
 

@@ -305,7 +305,7 @@ class AutofillMetricsBaseTest : public WithTestAutofillClientDriverManager<
 
   MockCreditCardAccessManager& credit_card_access_manager() {
     return static_cast<MockCreditCardAccessManager&>(
-        autofill_manager().GetCreditCardAccessManager());
+        *autofill_manager().GetCreditCardAccessManager());
   }
 
   TestPersonalDataManager& personal_data() {
@@ -326,11 +326,6 @@ class AutofillMetricsBaseTest : public WithTestAutofillClientDriverManager<
 
   ukm::TestUkmRecorder& test_ukm_recorder() {
     return *autofill_client().GetUkmRecorder();
-  }
-
-  MockPaymentsAutofillClient& payments_autofill_client() {
-    return static_cast<MockPaymentsAutofillClient&>(
-        *autofill_client().GetPaymentsAutofillClient());
   }
 
   base::test::TaskEnvironment task_environment_{

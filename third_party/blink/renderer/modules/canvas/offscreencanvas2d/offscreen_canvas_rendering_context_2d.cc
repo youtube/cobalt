@@ -105,8 +105,6 @@ OffscreenCanvasRenderingContext2D::OffscreenCanvasRenderingContext2D(
                              attrs,
                              canvas->GetTopExecutionContext()->GetTaskRunner(
                                  TaskType::kInternalDefault)) {
-  identifiability_study_helper_.SetExecutionContext(
-      canvas->GetTopExecutionContext());
   is_valid_size_ = Host()->IsValidImageSize();
 
   ExecutionContext* execution_context = canvas->GetTopExecutionContext();
@@ -249,7 +247,7 @@ OffscreenCanvasRenderingContext2D::GetOrCreateResourceProvider() {
     // visible on screen, but at least readbacks will work. Failure to create
     // another type of resource prover above is a sign that the graphics
     // pipeline is in a bad state (e.g. gpu process crashed, out of memory)
-    provider = CanvasResourceProvider::CreateBitmapProvider(
+    provider = Canvas2DResourceProviderBitmap::Create(
         host->Size(), format, alpha_type, color_space,
         CanvasResourceProvider::ShouldInitialize::kCallClear, host);
   }
@@ -315,10 +313,9 @@ bool OffscreenCanvasRenderingContext2D::PushFrame() {
     return false;
 
   SkIRect damage_rect(dirty_rect_for_commit_);
-  FinalizeFrame(FlushReason::kOffscreenCanvasPushFrame);
-  bool ret = Host()->PushFrame(
-      ProduceCanvasResource(FlushReason::kOffscreenCanvasPushFrame),
-      damage_rect);
+  FinalizeFrame(FlushReason::kOther);
+  bool ret = Host()->PushFrame(ProduceCanvasResource(FlushReason::kOther),
+                               damage_rect);
   dirty_rect_for_commit_.setEmpty();
   GetOffscreenFontCache().PruneLocalFontCache(kMaxCachedFonts);
   return ret;
@@ -349,7 +346,7 @@ ImageBitmap* OffscreenCanvasRenderingContext2D::TransferToImageBitmap(
   if (!GetOrCreateResourceProvider()) {
     return nullptr;
   }
-  scoped_refptr<StaticBitmapImage> image = GetImage(FlushReason::kOther);
+  scoped_refptr<StaticBitmapImage> image = GetImage();
   if (!image)
     return nullptr;
   image->SetOriginClean(OriginClean());
@@ -360,12 +357,11 @@ ImageBitmap* OffscreenCanvasRenderingContext2D::TransferToImageBitmap(
   return MakeGarbageCollected<ImageBitmap>(std::move(image));
 }
 
-scoped_refptr<StaticBitmapImage> OffscreenCanvasRenderingContext2D::GetImage(
-    FlushReason reason) {
-  FinalizeFrame(reason);
+scoped_refptr<StaticBitmapImage> OffscreenCanvasRenderingContext2D::GetImage() {
+  FinalizeFrame(FlushReason::kOther);
   if (!IsPaintable())
     return nullptr;
-  scoped_refptr<StaticBitmapImage> image = resource_provider_->Snapshot(reason);
+  scoped_refptr<StaticBitmapImage> image = resource_provider_->Snapshot();
 
   return image;
 }

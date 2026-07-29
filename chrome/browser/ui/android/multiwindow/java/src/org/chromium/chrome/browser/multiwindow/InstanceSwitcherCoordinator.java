@@ -12,6 +12,7 @@ import android.annotation.SuppressLint;
 import android.app.Dialog;
 import android.content.Context;
 import android.content.res.Resources;
+import android.text.TextUtils;
 import android.util.Pair;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -546,7 +547,7 @@ public class InstanceSwitcherCoordinator {
         int instanceId = clickedItem.instanceId;
         boolean wasSelected = mSelectedItems.containsKey(instanceId);
 
-        if (UiUtils.isRobustWindowManagementEnabled()) {
+        if (UiUtils.isRobustWindowManagementBulkCloseEnabled()) {
             // Multi-selection is allowed. Toggle the clicked item.
             if (wasSelected) {
                 mSelectedItems.remove(instanceId);
@@ -578,7 +579,7 @@ public class InstanceSwitcherCoordinator {
         // 1. Update positive button state.
         boolean positiveButtonDisabled = true;
         if (selectionCount > 0) {
-            if (UiUtils.isRobustWindowManagementEnabled()) {
+            if (UiUtils.isRobustWindowManagementBulkCloseEnabled()) {
                 if (selectionCount == 1 && mActiveModelList.size() < mMaxInstanceCount) {
                     positiveButtonDisabled = false;
                 }
@@ -591,7 +592,7 @@ public class InstanceSwitcherCoordinator {
         mDialog.set(ModalDialogProperties.POSITIVE_BUTTON_DISABLED, positiveButtonDisabled);
 
         // 2. Update per-item buttons (for robust mode).
-        if (!UiUtils.isRobustWindowManagementEnabled()) return;
+        if (!UiUtils.isRobustWindowManagementBulkCloseEnabled()) return;
         boolean itemButtonsEnabled = selectionCount <= 1;
         for (ListItem li : getCurrentList()) {
             if (mIsInactiveListShowing) {
@@ -657,15 +658,21 @@ public class InstanceSwitcherCoordinator {
         if (mNewWindowEnabled) {
             mMaxInfoView.setVisibility(View.GONE);
         } else {
-            @StringRes
-            int textRes =
-                    mIsInactiveListShowing
-                            ? R.string.max_number_of_windows_instance_switcher_v2_inactive_tab
-                            : R.string.max_number_of_windows_instance_switcher_v2_active_tab;
-            String text = mContext.getString(textRes, mMaxInstanceCount - 1);
+            String text = mContext.getString(getMaxInfoTextRes(), mMaxInstanceCount - 1);
             mMaxInfoView.setText(text);
             mMaxInfoView.setVisibility(View.VISIBLE);
         }
+    }
+
+    private @StringRes int getMaxInfoTextRes() {
+        if (UiUtils.isRobustWindowManagementEnabled()) {
+            return mIsInactiveListShowing
+                    ? R.string.max_number_of_windows_instance_switcher_inactive_tab
+                    : R.string.max_number_of_windows_instance_switcher_active_tab;
+        }
+        return mIsInactiveListShowing
+                ? R.string.max_number_of_windows_instance_switcher_v2_inactive_tab
+                : R.string.max_number_of_windows_instance_switcher_v2_active_tab;
     }
 
     private int getTotalInstanceCount() {
@@ -781,13 +788,19 @@ public class InstanceSwitcherCoordinator {
 
         Callback<String> nameChangedCallback =
                 newTitle -> {
+                    String customTitle = newTitle;
+                    if (TextUtils.isEmpty(customTitle)) {
+                        // Default to active tab title if custom title is cleared.
+                        newTitle = item.title;
+                    }
+
                     listItem.model.set(InstanceSwitcherItemProperties.TITLE, newTitle);
                     listItem.model.set(
                             InstanceSwitcherItemProperties.MORE_MENU_CONTENT_DESCRIPTION,
                             mContext.getString(
                                     R.string.instance_switcher_item_more_menu_content_description,
                                     newTitle));
-                    mRenameWindowCallback.onResult(new Pair<>(item.instanceId, newTitle));
+                    mRenameWindowCallback.onResult(new Pair<>(item.instanceId, customTitle));
                 };
 
         UiUtils.showNameWindowDialog(

@@ -34,13 +34,30 @@ bool IsTabValidForSharing(content::WebContents* web_contents) {
       {GURL(), GURL(url::kAboutBlankURL),
        GURL(chrome::kChromeUINewTabPageThirdPartyURL),
        GURL(chrome::kChromeUINewTabPageURL), GURL(chrome::kChromeUINewTabURL),
-       GURL(chrome::kChromeUIWhatsNewURL)}};
+#if !BUILDFLAG(IS_CHROMEOS)
+       // "What's New" does not exist in the form of a tab on ChromeOS.
+       GURL(chrome::kChromeUIWhatsNewURL)
+#endif
+      }};
   if (!web_contents) {
     return false;
   }
   const GURL& url = web_contents->GetLastCommittedURL();
   return url.SchemeIsHTTPOrHTTPS() || url.SchemeIsFile() ||
          base::Contains(*kUrlAllowList, url);
+}
+
+GlicPinEvent GetEmptyPinEvent() {
+  return GlicPinEvent(GlicPinTrigger::kUnknown, base::TimeTicks::Now());
+}
+
+GlicPinnedTabUsage GetEmptyPinnedTabUsage() {
+  return GlicPinnedTabUsage(GetEmptyPinEvent());
+}
+
+GlicUnpinEvent GetEmptyUnpinEvent() {
+  return GlicUnpinEvent(GlicUnpinTrigger::kUnknown, GetEmptyPinnedTabUsage(),
+                        base::TimeTicks::Now());
 }
 
 GlicActiveTabForProfileTracker::GlicActiveTabForProfileTracker(Profile* profile)

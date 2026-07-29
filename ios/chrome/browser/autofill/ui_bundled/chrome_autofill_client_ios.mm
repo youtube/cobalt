@@ -382,15 +382,13 @@ void ChromeAutofillClientIOS::HideAutofillSuggestions(
 }
 
 bool ChromeAutofillClientIOS::IsAutofillEnabled() const {
-  return IsAutofillProfileEnabled() || IsAutofillPaymentMethodsEnabled();
+  return IsAutofillProfileEnabled() ||
+         AutofillClient::GetPaymentsAutofillClient()
+             ->IsAutofillPaymentMethodsEnabled();
 }
 
 bool ChromeAutofillClientIOS::IsAutofillProfileEnabled() const {
   return prefs::IsAutofillProfileEnabled(GetPrefs());
-}
-
-bool ChromeAutofillClientIOS::IsAutofillPaymentMethodsEnabled() const {
-  return prefs::IsAutofillPaymentMethodsEnabled(GetPrefs());
 }
 
 bool ChromeAutofillClientIOS::IsWalletStorageEnabled() const {
@@ -410,7 +408,8 @@ void ChromeAutofillClientIOS::DidFillForm(AutofillTriggerSource trigger_source,
                                           bool is_refill) {}
 
 bool ChromeAutofillClientIOS::IsContextSecure() const {
-  return IsContextSecureForWebState(web_state());
+  return consider_as_secure_for_testing_ ||
+         IsContextSecureForWebState(web_state());
 }
 
 FormInteractionsFlowId

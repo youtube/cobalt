@@ -4,15 +4,18 @@
 
 #include "chrome/browser/page_content_annotations/page_content_extraction_service.h"
 
+#include "base/base64.h"
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/time/time.h"
 #include "chrome/browser/page_content_annotations/annotate_page_content_request.h"
 #include "chrome/browser/page_content_annotations/page_content_annotations_web_contents_observer.h"
 #include "chrome/browser/page_content_annotations/page_content_extraction_types.h"
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
 #include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "components/page_content_annotations/core/page_content_annotations_features.h"
+#include "components/page_content_annotations/core/page_content_cache.h"
 #include "components/page_content_annotations/core/page_content_cache_handler.h"
 #include "components/page_content_annotations/core/web_state_wrapper.h"
 #include "content/public/browser/browser_context.h"
@@ -36,12 +39,16 @@ WebStateWrapper ToWebStateWrapper(content::WebContents* web_contents) {
 }
 
 optimization_guide::proto::PageContext ToPageContext(
-    optimization_guide::proto::AnnotatedPageContent apc,
-    content::WebContents* web_contents) {
+    const optimization_guide::proto::AnnotatedPageContent& apc,
+    content::WebContents* web_contents,
+    const std::vector<uint8_t>& screenshot_data) {
   optimization_guide::proto::PageContext page_context;
-  *page_context.mutable_annotated_page_content() = std::move(apc);
+  *page_context.mutable_annotated_page_content() = apc;
   page_context.set_url(web_contents->GetLastCommittedURL().spec());
   page_context.set_title(base::UTF16ToUTF8(web_contents->GetTitle()));
+  if (!screenshot_data.empty()) {
+    page_context.set_tab_screenshot(base::Base64Encode(screenshot_data));
+  }
   return page_context;
 }
 
@@ -54,8 +61,11 @@ PageContentExtractionService::PageContentExtractionService(
           base::FeatureList::IsEnabled(features::kPageContentCache)),
       page_content_cache_handler_(
           is_page_content_cache_enabled_
-              ? std::make_unique<PageContentCacheHandler>(os_crypt_async,
-                                                          profile_path)
+              ? std::make_unique<PageContentCacheHandler>(
+                    os_crypt_async,
+                    profile_path,
+                    base::Days(
+                        features::kPageContentCacheMaxCacheAgeInDays.Get()))
               : nullptr) {}
 
 PageContentExtractionService::~PageContentExtractionService() {
@@ -80,10 +90,12 @@ bool PageContentExtractionService::ShouldEnablePageContentExtraction() const {
 
 void PageContentExtractionService::OnPageContentExtracted(
     content::Page& page,
-    const optimization_guide::proto::AnnotatedPageContent& page_content,
+    const optimization_guide::proto::AnnotatedPageContent&
+        annotated_page_content,
+    const std::vector<uint8_t>& screenshot_data,
     std::optional<int> tab_id) {
   for (auto& observer : observers_) {
-    observer.OnPageContentExtracted(page, page_content);
+    observer.OnPageContentExtracted(page, annotated_page_content);
   }
 
   if (!is_page_content_cache_enabled_) {
@@ -98,7 +110,8 @@ void PageContentExtractionService::OnPageContentExtracted(
 
   page_content_cache_handler_->ProcessPageContentExtraction(
       tab_id, ToWebStateWrapper(web_contents),
-      ToPageContext(page_content, web_contents), base::Time::Now());
+      ToPageContext(annotated_page_content, web_contents, screenshot_data),
+      base::Time::Now());
 }
 
 std::optional<ExtractedPageContentResult>
@@ -130,8 +143,8 @@ void PageContentExtractionService::OnVisibilityChanged(
     if (extracted_result) {
       page_content_cache_handler_->OnVisibilityChanged(
           tab_id, ToWebStateWrapper(web_contents),
-          ToPageContext(std::move(extracted_result->page_content),
-                        web_contents),
+          ToPageContext(std::move(extracted_result->page_content), web_contents,
+                        std::move(extracted_result->screenshot_data)),
           extracted_result->extraction_timestamp);
     }
   }
@@ -143,6 +156,14 @@ void PageContentExtractionService::OnNewNavigation(
   if (is_page_content_cache_enabled_) {
     page_content_cache_handler_->OnNewNavigation(
         tab_id, ToWebStateWrapper(web_contents));
+  }
+}
+
+void PageContentExtractionService::RunCleanUpTasksWithActiveTabs(
+    const std::set<int64_t>& all_tab_ids) {
+  if (is_page_content_cache_enabled_) {
+    page_content_cache_handler_->page_content_cache()
+        ->RunCleanUpTasksWithActiveTabs(all_tab_ids);
   }
 }
 

@@ -7,6 +7,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -85,6 +86,7 @@
 #include "content/browser/renderer_host/navigation_state_keep_alive.h"
 #include "content/browser/renderer_host/navigator.h"
 #include "content/browser/renderer_host/navigator_delegate.h"
+#include "content/browser/renderer_host/network_restrictions_commit_deferring_condition.h"
 #include "content/browser/renderer_host/page_delegate.h"
 #include "content/browser/renderer_host/private_network_access_util.h"
 #include "content/browser/renderer_host/render_frame_host_csp_context.h"
@@ -1444,7 +1446,6 @@ std::unique_ptr<NavigationRequest> NavigationRequest::CreateRendererInitiated(
           net::StorageAccessApiStatus::kNone,
           /*browsing_context_group_info=*/std::nullopt,
           /*lcpp_hint=*/nullptr, blink::CreateDefaultRendererContentSettings(),
-          /*cookie_deprecation_label=*/std::nullopt,
           /*visited_link_salt=*/std::nullopt,
           /*local_surface_id=*/std::nullopt,
           frame_tree_node->current_frame_host()->GetCachedPermissionStatuses(),
@@ -1597,7 +1598,6 @@ NavigationRequest::CreateForSynchronousRendererCommit(
           net::StorageAccessApiStatus::kNone,
           /*browsing_context_group_info=*/std::nullopt,
           /*lcpp_hint=*/nullptr, blink::CreateDefaultRendererContentSettings(),
-          /*cookie_deprecation_label=*/std::nullopt,
           /*visited_link_salt=*/std::nullopt,
           /*local_surface_id=*/std::nullopt,
           render_frame_host->GetCachedPermissionStatuses(),
@@ -1741,7 +1741,8 @@ NavigationRequest::NavigationRequest(
       has_ad_auction_headers_attribute_(frame_tree_node->ad_auction_headers()),
       request_method_(common_params_->method),
       prerender_host_id_(
-          GetPrerenderHostRegistry().GetPrerenderHostIdForNavigation(this)) {
+          GetPrerenderHostRegistry().GetPrerenderHostIdForNavigation(this)),
+      network_restrictions_id_(std::nullopt) {
   TRACE_EVENT("navigation", "NavigationRequest::NavigationRequest",
               perfetto::Flow::FromPointer(this), "navigation_request", this);
   CHECK(!common_params_->initiator_base_url ||
@@ -3390,7 +3391,8 @@ const blink::DocumentToken& NavigationRequest::GetDocumentToken() const {
 
 const PolicyContainerPolicies& NavigationRequest::GetPolicyContainerPolicies()
     const {
-  DCHECK_GE(state_, READY_TO_COMMIT);
+  DCHECK(state_ >= WILL_PROCESS_RESPONSE &&
+         policy_container_builder_->HasComputedPolicies());
 
   return policy_container_builder_->FinalPolicies();
 }
@@ -7752,6 +7754,11 @@ bool NavigationRequest::IsSameDocument() const {
   return NavigationTypeUtils::IsSameDocument(common_params_->navigation_type);
 }
 
+std::optional<base::UnguessableToken>
+NavigationRequest::GetSameDocumentMetricsToken() const {
+  return same_document_metrics_token_;
+}
+
 bool NavigationRequest::IsHistory() const {
   return NavigationTypeUtils::IsHistory(common_params_->navigation_type);
 }
@@ -9088,13 +9095,13 @@ void NavigationRequest::SetPrerenderActivationNavigationState(
       replication_state;
 }
 
-void NavigationRequest::RemoveRequestHeader(const std::string& header_name) {
+void NavigationRequest::RemoveRequestHeader(std::string_view header_name) {
   DCHECK(state_ == WILL_REDIRECT_REQUEST);
-  removed_request_headers_.push_back(header_name);
+  removed_request_headers_.emplace_back(header_name);
 }
 
-void NavigationRequest::SetRequestHeader(const std::string& header_name,
-                                         const std::string& header_value) {
+void NavigationRequest::SetRequestHeader(std::string_view header_name,
+                                         std::string_view header_value) {
   DCHECK(state_ == WILL_START_REQUEST || state_ == WILL_REDIRECT_REQUEST);
   modified_request_headers_.SetHeader(header_name, header_value);
 }

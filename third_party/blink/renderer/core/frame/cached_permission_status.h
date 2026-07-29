@@ -33,11 +33,8 @@ class LocalDOMWindow;
 //   permission elements, it unregisters itself from permission updates.
 class CORE_EXPORT CachedPermissionStatus final
     : public GarbageCollected<CachedPermissionStatus>,
-      public mojom::blink::PermissionObserver,
-      public Supplement<LocalDOMWindow> {
+      public mojom::blink::PermissionObserver {
  public:
-  static const unsigned kSupplementIndex;
-
   // Returns the supplement, creating one as needed.
   static CachedPermissionStatus* From(LocalDOMWindow* window);
 
@@ -63,7 +60,7 @@ class CORE_EXPORT CachedPermissionStatus final
 
   ~CachedPermissionStatus() override = default;
 
-  void Trace(Visitor* visitor) const override;
+  void Trace(Visitor* visitor) const;
 
   void SetPermissionStatusMap(PermissionStatusMap map) {
     permission_status_map_ = std::move(map);
@@ -123,6 +120,8 @@ class CORE_EXPORT CachedPermissionStatus final
   PermissionObserverReceiverSet& GetPermissionObserverReceiversForTesting() {
     return permission_observer_receivers_;
   }
+
+  Member<LocalDOMWindow> local_dom_window_;
 
   HeapMojoRemote<mojom::blink::PermissionService> permission_service_;
 

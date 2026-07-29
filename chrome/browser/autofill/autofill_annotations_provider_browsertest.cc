@@ -26,6 +26,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/features_generated.h"
+#include "third_party/blink/public/mojom/content_extraction/ai_page_content.mojom.h"
 
 namespace autofill {
 
@@ -82,7 +83,7 @@ class AutofillAnnotationsProviderBrowserTest : public InProcessBrowserTest {
 
   void SetPageContent(
       base::OnceClosure quit_closure,
-      std::optional<optimization_guide::AIPageContentResult> page_content) {
+      optimization_guide::AIPageContentResultOrError page_content) {
     page_content_ = std::move(page_content->proto);
     std::move(quit_closure).Run();
   }

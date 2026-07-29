@@ -13,6 +13,7 @@
 #include "third_party/blink/renderer/core/frame/frame_test_helpers.h"
 #include "third_party/blink/renderer/core/frame/web_local_frame_impl.h"
 #include "third_party/blink/renderer/core/html/html_element.h"
+#include "third_party/blink/renderer/core/paint/timing/paint_timing.h"
 #include "third_party/blink/renderer/core/paint/timing/paint_timing_detector.h"
 #include "third_party/blink/renderer/core/paint/timing/paint_timing_record.h"
 #include "third_party/blink/renderer/core/paint/timing/paint_timing_test_helper.h"
@@ -86,7 +87,7 @@ class TextPaintTimingDetectorTest : public testing::Test {
   }
 
   LargestTextPaintManager& GetLargestTextPaintManager() {
-    return *GetTextPaintTimingDetector()->ltp_manager_;
+    return GetTextPaintTimingDetector()->ltp_manager_;
   }
 
   wtf_size_t CountRecordedSize() {
@@ -234,7 +235,7 @@ class TextPaintTimingDetectorTest : public testing::Test {
     return GetChildFrameView()
         .GetPaintTimingDetector()
         .GetTextPaintTimingDetector()
-        .ltp_manager_->LargestText();
+        .ltp_manager_.LargestText();
   }
 
   void SetFontSize(Element* font_element, uint16_t font_size) {
@@ -893,6 +894,64 @@ TEST_F(TextPaintTimingDetectorTest, OpacityZeroHTML2) {
   GetDocument().documentElement()->setAttribute(html_names::kStyleAttr,
                                                 AtomicString("opacity: 1"));
   CheckSizeOfTextQueuedForPaintTimeAfterUpdateLifecyclePhases(0u);
+}
+
+TEST_F(TextPaintTimingDetectorTest, OpacityZeroHTMLTextRecordedOnce) {
+  SetBodyInnerHTML(R"HTML(
+    <style>
+      :root {
+        opacity: 0;
+        will-change: opacity;
+      }
+    </style>
+    <div id="target">Text</div>
+  )HTML");
+  CheckSizeOfTextQueuedForPaintTimeAfterUpdateLifecyclePhases(0u);
+
+  // Change the opacity of documentElement, now the <div> should be a candidate.
+  GetDocument().documentElement()->setAttribute(html_names::kStyleAttr,
+                                                AtomicString("opacity: 1"));
+  UpdateAllLifecyclePhasesAndSimulatePresentationTime();
+  EXPECT_TRUE(TextRecordOfLargestTextPaint());
+
+  // Update the <div>'s text. This should not cause the `target` to be
+  // reconsidered for timing since it was already recorded.
+  Element* target = GetElement("target");
+  To<HTMLElement>(target)->setInnerText("Text Text Text");
+
+  UpdateAllLifecyclePhases();
+  EXPECT_EQ(TextQueuedForPaintTimeSize(GetFrameView()), 0);
+}
+
+TEST_F(TextPaintTimingDetectorTest, OpacityZeroHTMLWithInput) {
+  SetBodyInnerHTML(R"HTML(
+    <style>
+      :root {
+        opacity: 0;
+        will-change: opacity;
+      }
+    </style>
+    <div>Text</div>
+  )HTML");
+  CheckSizeOfTextQueuedForPaintTimeAfterUpdateLifecyclePhases(0u);
+
+  SimulateInputEvent();
+
+  // Change the opacity of documentElement. The div should not be a candidate
+  // because LCP stops on input.
+  GetDocument().documentElement()->setAttribute(html_names::kStyleAttr,
+                                                AtomicString("opacity: 1"));
+  UpdateAllLifecyclePhasesAndSimulatePresentationTime();
+  EXPECT_FALSE(TextRecordOfLargestTextPaint());
+
+  // FCP, however, should be marked, because that does not stop on input.
+  //
+  // Note: `PaintTiming` doesn't support `MockPaintTimingCallbackManager`, so
+  // check the paint time instead of presentation time.
+  base::TimeTicks fcp_timestamp =
+      PaintTiming::From(GetDocument())
+          .FirstContentfulPaintRenderedButNotPresentedAsMonotonicTime();
+  EXPECT_FALSE(fcp_timestamp.is_null());
 }
 
 TEST_F(TextPaintTimingDetectorTest,

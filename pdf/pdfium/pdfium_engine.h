@@ -87,10 +87,6 @@ struct WebPrintParams;
 }  // namespace blink
 
 #if BUILDFLAG(ENABLE_PDF_INK2)
-namespace base {
-class TimeDelta;
-}  // namespace base
-
 namespace ink {
 class Stroke;
 }  // namespace ink
@@ -433,7 +429,7 @@ class PDFiumEngine : public DocumentLoader::Client,
   // unknown if unable to find any "V2" paths within `timeout`. Virtual to
   // support testing.
   virtual PDFLoadedWithV2InkAnnotations ContainsV2InkPath(
-      const base::TimeDelta& timeout) const;
+      base::TimeDelta timeout) const;
 
   // Loads "V2" Ink paths from a page in the PDF identified by `page_index`. The
   // `page_index` must be in bounds.
@@ -603,10 +599,15 @@ class PDFiumEngine : public DocumentLoader::Client,
                          AddSearchResultCallback add_result_callback);
 
   // Sets whether caret browsing is enabled or not. Initializes `caret_` if it
-  // is the first time enabling caret browsing mode. If `enabled` is true, then
-  // moves the caret to the start of the first visible text run. If there is no
-  // visible text, the caret will not move. Virtual to support testing.
+  // is the first time enabling caret browsing mode. If the caret was disabled
+  // and is now enabled, then moves the caret to the start of the first visible
+  // text run. If there is no visible text, the caret will not move. Virtual to
+  // support testing.
   virtual void SetCaretBrowsingEnabled(bool enabled);
+
+  // Sets the blink interval for the caret. No-op if the caret was never
+  // initialized. Virtual to support testing.
+  virtual void SetCaretBlinkInterval(base::TimeDelta interval);
 
  private:
   // This is a base class for shared functions and data needed for change

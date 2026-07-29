@@ -5,7 +5,7 @@
 #import "ios/chrome/browser/authentication/test/signin_earl_grey.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_constants.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/new_tab_page_app_interface.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/set_up_list/constants.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/set_up_list/public/set_up_list_constants.h"
 #import "ios/chrome/browser/push_notification/ui_bundled/push_notifications_constants.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
@@ -86,8 +86,7 @@ id<GREYMatcher> OptInScreenMatcher() {
 
 // Asserts that the primary action button is enabled (or not).
 - (void)assertPrimaryButtonEnabled:(BOOL)enabled {
-  id<GREYMatcher> primaryButton =
-      grey_accessibilityID(kPromoStylePrimaryActionAccessibilityIdentifier);
+  id<GREYMatcher> primaryButton = chrome_test_util::ButtonStackPrimaryButton();
   id<GREYMatcher> enabledMatcher =
       enabled ? grey_enabled() : grey_not(grey_enabled());
   [[EarlGrey selectElementWithMatcher:primaryButton]
@@ -119,9 +118,8 @@ id<GREYMatcher> OptInScreenMatcher() {
   [self assertPrimaryButtonEnabled:NO];
 
   // Dismiss prompt by tapping on secondary action button.
-  [[EarlGrey selectElementWithMatcher:
-                 grey_accessibilityID(
-                     kPromoStyleSecondaryActionAccessibilityIdentifier)]
+  [[EarlGrey
+      selectElementWithMatcher:chrome_test_util::ButtonStackSecondaryButton()]
       performAction:grey_tap()];
   [[EarlGrey selectElementWithMatcher:OptInScreenMatcher()]
       assertWithMatcher:grey_notVisible()];

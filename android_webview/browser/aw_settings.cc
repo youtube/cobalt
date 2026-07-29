@@ -720,8 +720,11 @@ void AwSettings::PopulateWebPreferencesLocked(JNIEnv* env,
   web_prefs->reuse_global_for_unowned_main_frame =
       Java_AwSettings_getAllowEmptyDocumentPersistenceLocked(env, obj);
 
-  web_prefs->password_echo_enabled =
-      Java_AwSettings_getPasswordEchoEnabledLocked(env, obj);
+  web_prefs->password_echo_enabled_physical =
+      Java_AwSettings_getPasswordEchoEnabledPhysicalLocked(env, obj);
+  web_prefs->password_echo_enabled_touch =
+      Java_AwSettings_getPasswordEchoEnabledTouchLocked(env, obj);
+
   web_prefs->spatial_navigation_enabled =
       Java_AwSettings_getSpatialNavigationLocked(env, obj);
 
@@ -868,3 +871,5 @@ static ScopedJavaLocalRef<jobject> JNI_AwSettings_GetDefaultUserAgentMetadata(
 }
 
 }  // namespace android_webview
+
+DEFINE_JNI(AwSettings)

@@ -5,26 +5,20 @@
 #ifndef IOS_CHROME_BROWSER_COMPOSEBOX_COORDINATOR_COMPOSEBOX_INPUT_PLATE_COORDINATOR_H_
 #define IOS_CHROME_BROWSER_COMPOSEBOX_COORDINATOR_COMPOSEBOX_INPUT_PLATE_COORDINATOR_H_
 
-#import <PhotosUI/PhotosUI.h>
-#import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
-
-#import "ios/chrome/browser/composebox/public/composebox_theme.h"
-#import "ios/chrome/browser/composebox/ui/composebox_input_plate_view_controller.h"
 #import "ios/chrome/browser/shared/coordinator/chrome_coordinator/chrome_coordinator.h"
+#import "ios/chrome/browser/shared/public/commands/composebox_tab_picker_commands.h"
 
-@protocol ComposeboxAnimationContextProvider;
 @class ComposeboxInputPlateViewController;
 enum class ComposeboxEntrypoint;
+@class ComposeboxModeHolder;
+@class ComposeboxTheme;
 @protocol ComposeboxURLLoader;
 class Browser;
 @protocol OmniboxPopupPresenterDelegate;
 
-/// ComposeboxInputPlateCoordinator presents AIM composebox.
-@interface ComposeboxInputPlateCoordinator : ChromeCoordinator
-
-// The context provider for the animations.
-@property(nonatomic, readonly) id<ComposeboxAnimationContextProvider>
-    contextProvider;
+// The coordinator for the compose box input plate.
+@interface ComposeboxInputPlateCoordinator
+    : ChromeCoordinator <ComposeboxTabPickerCommands>
 
 // The view controller managed by this coordinator.
 @property(nonatomic, readonly)
@@ -42,6 +36,7 @@ class Browser;
                                      query:(NSString*)query
                                  URLLoader:(id<ComposeboxURLLoader>)URLLoader
                                      theme:(ComposeboxTheme*)theme
+                                modeHolder:(ComposeboxModeHolder*)modeHolder
     NS_DESIGNATED_INITIALIZER;
 
 - (instancetype)initWithBaseViewController:(UIViewController*)viewController

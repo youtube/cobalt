@@ -80,10 +80,14 @@ class MockTouchToFillPaymentMethodViewImpl : public TouchToFillPaymentMethodView
                base::span<const LoyaltyCard> affiliated_loyalty_cards,
                base::span<const LoyaltyCard> all_loyalty_cards,
                bool first_time_usage));
-  MOCK_METHOD(bool,
-              UpdateBnplPaymentMethod,
-              (std::optional<int64_t> extracted_amount,
-               bool is_amount_supported_by_any_issuer));
+  MOCK_METHOD(
+      bool,
+      OnPurchaseAmountExtracted,
+      (const TouchToFillPaymentMethodViewController& controller,
+       base::span<const payments::BnplIssuerContext> bnpl_issuer_contexts,
+       std::optional<int64_t> extracted_amount,
+       bool is_amount_supported_by_any_issuer,
+       const std::optional<std::string>& app_locale));
   MOCK_METHOD(bool,
               ShowProgressScreen,
               (TouchToFillPaymentMethodViewController * controller));
@@ -137,7 +141,10 @@ class MockTouchToFillDelegateAndroidImpl
               BnplSuggestionSelected,
               (std::optional<int64_t> extracted_amount),
               (override));
-  MOCK_METHOD(void, OnDismissed, (bool dismissed_by_user), (override));
+  MOCK_METHOD(void,
+              OnDismissed,
+              (bool dismissed_by_user, bool should_reshow),
+              (override));
   MOCK_METHOD(void,
               SetCancelCallback,
               (base::OnceClosure cancel_callback),
@@ -365,31 +372,44 @@ TEST_F(TouchToFillPaymentMethodControllerTest,
 }
 
 TEST_F(TouchToFillPaymentMethodControllerTest,
-       UpdateBnplPaymentMethodOnPreexistingView) {
+       OnPurchaseAmountExtractedOnPreexistingView) {
   std::optional<int64_t> extracted_amount = 12345;
+  std::optional<std::string> app_locale = "en-US";
   EXPECT_CALL(*mock_view_,
               ShowPaymentMethods(&payment_method_controller(),
                                  ElementsAreArray(suggestions_),
                                  /*should_show_scan_credit_card=*/true));
-  EXPECT_CALL(*mock_view_, UpdateBnplPaymentMethod(
-                               extracted_amount,
-                               /*is_amount_supported_by_any_issuer=*/true));
+  EXPECT_CALL(*mock_view_,
+              OnPurchaseAmountExtracted(
+                  Ref(payment_method_controller()),
+                  testing::ElementsAre(
+                      EqualBnplIssuerContext(bnpl_issuer_contexts_[0]),
+                      EqualBnplIssuerContext(bnpl_issuer_contexts_[1]),
+                      EqualBnplIssuerContext(bnpl_issuer_contexts_[2])),
+                  extracted_amount,
+                  /*is_amount_supported_by_any_issuer=*/true, app_locale));
 
   OnBeforeAskForValuesToFill();
   payment_method_controller().ShowPaymentMethods(
       std::move(mock_view_), ttf_delegate().GetWeakPointer(), suggestions_);
-  payment_method_controller().UpdateBnplPaymentMethod(
-      extracted_amount, /*is_amount_supported_by_any_issuer=*/true);
+  payment_method_controller().OnPurchaseAmountExtracted(
+      bnpl_issuer_contexts_, extracted_amount,
+      /*is_amount_supported_by_any_issuer=*/true, app_locale,
+      /*selected_issuer_callback=*/base::DoNothing(),
+      /*cancel_callback=*/base::DoNothing());
   OnAfterAskForValuesToFill();
 }
 
 TEST_F(TouchToFillPaymentMethodControllerTest,
-       UpdateBnplPaymentMethodAbortsIfNoViewAvailable) {
-  EXPECT_CALL(*mock_view_, UpdateBnplPaymentMethod(_, _)).Times(0);
+       OnPurchaseAmountExtractedAbortsIfNoViewAvailable) {
+  EXPECT_CALL(*mock_view_, OnPurchaseAmountExtracted).Times(0);
 
   OnBeforeAskForValuesToFill();
-  payment_method_controller().UpdateBnplPaymentMethod(
-      /*extracted_amount=*/12345, /*is_amount_supported_by_any_issuer=*/true);
+  payment_method_controller().OnPurchaseAmountExtracted(
+      bnpl_issuer_contexts_, /*extracted_amount=*/12345,
+      /*is_amount_supported_by_any_issuer=*/true,
+      /*app_locale=*/"en-US", /*selected_issuer_callback=*/base::DoNothing(),
+      /*cancel_callback=*/base::DoNothing());
   OnAfterAskForValuesToFill();
 }
 
@@ -527,7 +547,8 @@ TEST_F(TouchToFillPaymentMethodControllerTest,
   EXPECT_CALL(*mock_view_,
               ShowBnplIssuerTos(
                   Ref(payment_method_controller()),
-                  FieldsAre(IDR_AUTOFILL_GOOGLE_PAY_AFFIRM,
+                  FieldsAre(BnplIssuer::IssuerId::kBnplAffirm,
+                            IDR_AUTOFILL_GOOGLE_PAY_AFFIRM,
                             IDR_AUTOFILL_GOOGLE_PAY_AFFIRM_DARK, true,
                             u"Affirm", bnpl_tos_model.legal_message_lines)));
   EXPECT_CALL(ttf_delegate(), SetCancelCallback);
@@ -554,10 +575,11 @@ TEST_F(TouchToFillPaymentMethodControllerTest,
   // Test that the BNPL issuer ToS info have propagated to the view.
   EXPECT_CALL(
       *mock_view_,
-      ShowBnplIssuerTos(Ref(payment_method_controller()),
-                        FieldsAre(IDR_AUTOFILL_GOOGLE_PAY_ZIP,
-                                  IDR_AUTOFILL_GOOGLE_PAY_ZIP_DARK, false,
-                                  u"Zip", bnpl_tos_model.legal_message_lines)));
+      ShowBnplIssuerTos(
+          Ref(payment_method_controller()),
+          FieldsAre(BnplIssuer::IssuerId::kBnplZip, IDR_AUTOFILL_GOOGLE_PAY_ZIP,
+                    IDR_AUTOFILL_GOOGLE_PAY_ZIP_DARK, false, u"Zip",
+                    bnpl_tos_model.legal_message_lines)));
   EXPECT_CALL(ttf_delegate(), SetCancelCallback);
   EXPECT_CALL(ttf_delegate(), SetBnplTosAcceptCallback);
 
@@ -662,14 +684,15 @@ TEST_F(TouchToFillPaymentMethodControllerTest, OnDismissedIsCalled) {
   OnAfterAskForValuesToFill();
 
   EXPECT_CALL(ttf_delegate(), OnDismissed);
-  payment_method_controller().OnDismissed(nullptr, true);
+  payment_method_controller().OnDismissed(nullptr, true, false);
 }
 
 TEST_F(TouchToFillPaymentMethodControllerTest,
        OnDismissedPassesDismissedByUserToDelegate) {
   EXPECT_CALL(*mock_view_, ShowProgressScreen(&payment_method_controller()))
       .WillOnce(Return(true));
-  EXPECT_CALL(ttf_delegate(), OnDismissed(/*dismissed_by_user=*/true));
+  EXPECT_CALL(ttf_delegate(), OnDismissed(/*dismissed_by_user=*/true,
+                                          /*should_reshow=*/true));
 
   OnBeforeAskForValuesToFill();
   payment_method_controller().ShowPaymentMethods(
@@ -679,14 +702,16 @@ TEST_F(TouchToFillPaymentMethodControllerTest,
       /*cancel_callback=*/base::DoNothing());
   OnAfterAskForValuesToFill();
 
-  payment_method_controller().OnDismissed(nullptr, /*dismissed_by_user=*/true);
+  payment_method_controller().OnDismissed(nullptr, /*dismissed_by_user=*/true,
+                                          /*should_reshow=*/true);
 }
 
 TEST_F(TouchToFillPaymentMethodControllerTest,
        OnDismissedPassesNotDismissedByUserToDelegate) {
   EXPECT_CALL(*mock_view_, ShowProgressScreen(&payment_method_controller()))
       .WillOnce(Return(true));
-  EXPECT_CALL(ttf_delegate(), OnDismissed(/*dismissed_by_user=*/false));
+  EXPECT_CALL(ttf_delegate(), OnDismissed(/*dismissed_by_user=*/false,
+                                          /*should_reshow=*/false));
 
   OnBeforeAskForValuesToFill();
   payment_method_controller().ShowPaymentMethods(
@@ -696,7 +721,8 @@ TEST_F(TouchToFillPaymentMethodControllerTest,
       /*cancel_callback=*/base::DoNothing());
   OnAfterAskForValuesToFill();
 
-  payment_method_controller().OnDismissed(nullptr, /*dismissed_by_user=*/false);
+  payment_method_controller().OnDismissed(nullptr, /*dismissed_by_user=*/false,
+                                          /*should_reshow=*/false);
 }
 
 TEST_F(TouchToFillPaymentMethodControllerTest,

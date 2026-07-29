@@ -171,6 +171,7 @@ Avanceret beskyttelse styrer disse Chrome-indstillinger:
 <translation id="2787357173144933081">Åbn omnifeltet</translation>
 <translation id="2789132527330338807">Websites kan anmode om at oprette et 3D-kort over dine omgivelser eller registrere kamerapositionen</translation>
 <translation id="2790501146643349491">Når dette er slået til, kan nyligt lukkede websites gennemføre afsendelse og modtagelse af data. Når dette er slået fra, kan nyligt lukkede websites ikke sende eller modtage data.</translation>
+<translation id="2794551654724114396">Aktivér notifikationer for at få nyttige tips, der hjælper dig med at få mest muligt ud af Chrome</translation>
 <translation id="2795716239552913152">Websites bruger normalt din lokation til relevante formål eller oplysninger om lokale nyheder eller butikker i nærheden</translation>
 <translation id="2800760947029405028">Upload et billede</translation>
 <translation id="2802908157808345702">Tillad ikke, at websites sender pop op-vinduer og anvender omdirigeringer</translation>
@@ -338,10 +339,12 @@ Avanceret beskyttelse styrer disse Chrome-indstillinger:
 <translation id="4635969503923889910">Tillad ikke, at websites anvender NFC-enheder</translation>
 <translation id="4644713492825682049">Slet og gendan</translation>
 <translation id="4645575059429386691">Administreret af en af dine forældre</translation>
+<translation id="4652266463001779298">Ikke tilladt</translation>
 <translation id="4663373278480897665">Der er givet adgang til kameraet</translation>
 <translation id="4670064810192446073">Virtual reality</translation>
 <translation id="4672315773691449562">Tryk på Browserapp og derefter på Chrome</translation>
 <translation id="4676059169848868271">Aktivér desuden registrering af håndbevægelser i <ph name="BEGIN_LINK" />systemindstillingerne<ph name="END_LINK" /> for at give <ph name="APP_NAME" /> tilladelse til at bruge håndregistrering.</translation>
+<translation id="4688045258817337666">Administrer dine kort</translation>
 <translation id="4751476147751820511">Bevægelses- eller lyssensorer</translation>
 <translation id="4755971844837804407">Når dette er slået til, kan websites vise dig en hvilken som helst annonce. Når dette er slået fra, kan websites ikke vise påtrængende eller vildledende annoncer.</translation>
 <translation id="4779083564647765204">Zoom</translation>
@@ -678,6 +681,7 @@ Avanceret beskyttelse styrer disse Chrome-indstillinger:
 <translation id="8487700953926739672">Tilgængelig offline</translation>
 <translation id="848952951823693243">Anmod altid om mobilwebsite</translation>
 <translation id="8492822722330266509">Websites kan sende pop op-vinduer og bruge omdirigeringer</translation>
+<translation id="8493548450030356203">Pop op-vindue med zoom</translation>
 <translation id="8499083585497694743">Slå mikrofon til</translation>
 <translation id="8514955299594277296">Tillad ikke, at websites gemmer data på din enhed (anbefales ikke)</translation>
 <translation id="851751545965956758">Bloker websites fra at oprette forbindelse til enheder</translation>

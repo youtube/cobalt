@@ -239,16 +239,15 @@ void SessionStorageImpl::CloneNamespace(
         DCHECK_EQ(connection_state_, CONNECTION_FINISHED);
         // The namespace exists on disk but is not in-use, so do the appropriate
         // metadata operations to clone the namespace and set up the new object.
-        std::vector<AsyncDomStorageDatabase::BatchDatabaseTask> save_tasks;
         auto source_namespace_entry =
             metadata_.GetOrCreateNamespaceEntry(clone_from_namespace_id);
         auto namespace_entry =
             metadata_.GetOrCreateNamespaceEntry(clone_to_namespace_id);
         metadata_.RegisterShallowClonedNamespace(source_namespace_entry,
-                                                 namespace_entry, &save_tasks);
+                                                 namespace_entry);
         if (database_) {
-          database_->RunBatchDatabaseTasks(
-              RunBatchTasksContext::kCloneNamespace, std::move(save_tasks),
+          database_->PutMetadata(
+              SessionStorageMetadata::ToDomStorageMetadata(namespace_entry),
               base::BindOnce(&SessionStorageImpl::OnCommitResult,
                              weak_ptr_factory_.GetWeakPtr()));
         }
@@ -574,15 +573,23 @@ scoped_refptr<SessionStorageMetadata::MapData>
 SessionStorageImpl::RegisterNewAreaMap(
     SessionStorageMetadata::NamespaceEntry namespace_entry,
     const blink::StorageKey& storage_key) {
-  std::vector<AsyncDomStorageDatabase::BatchDatabaseTask> save_tasks;
   scoped_refptr<SessionStorageMetadata::MapData> map_entry =
-      metadata_.RegisterNewMap(namespace_entry, storage_key, &save_tasks);
+      metadata_.RegisterNewMap(namespace_entry, storage_key);
 
   if (database_) {
-    database_->RunBatchDatabaseTasks(
-        RunBatchTasksContext::kRegisterNewAreaMap, std::move(save_tasks),
-        base::BindOnce(&SessionStorageImpl::OnCommitResult,
-                       weak_ptr_factory_.GetWeakPtr()));
+    // Save the new map in the database.
+    DomStorageDatabase::Metadata metadata;
+    metadata.next_map_id = map_entry->map_id() + 1;
+    metadata.map_metadata.push_back({
+        .map_locator{
+            /*session_id=*/namespace_entry->first,
+            map_entry->storage_key(),
+            map_entry->map_id(),
+        },
+    });
+    database_->PutMetadata(std::move(metadata),
+                           base::BindOnce(&SessionStorageImpl::OnCommitResult,
+                                          weak_ptr_factory_.GetWeakPtr()));
   }
   return map_entry;
 }
@@ -623,8 +630,7 @@ void SessionStorageImpl::OnCommitResult(DbStatus status) {
     // Deleting StorageAreas in here could cause more commits (and commit
     // errors), but those commits won't reach OnCommitResult because the area
     // will have been deleted before the commit finishes.
-    DeleteAndRecreateDatabase(
-        "SessionStorageContext.OpenResultAfterCommitErrors");
+    DeleteAndRecreateDatabase();
   }
 }
 
@@ -647,8 +653,6 @@ void SessionStorageImpl::RegisterShallowClonedNamespace(
     SessionStorageMetadata::NamespaceEntry source_namespace_entry,
     const std::string& new_namespace_id,
     const SessionStorageNamespaceImpl::StorageKeyAreas& clone_from_areas) {
-  std::vector<AsyncDomStorageDatabase::BatchDatabaseTask> save_tasks;
-
   bool found = false;
   auto it = namespaces_.find(new_namespace_id);
   if (it != namespaces_.end()) {
@@ -663,11 +667,11 @@ void SessionStorageImpl::RegisterShallowClonedNamespace(
   DCHECK_EQ(connection_state_, CONNECTION_FINISHED);
   auto namespace_entry = metadata_.GetOrCreateNamespaceEntry(new_namespace_id);
   metadata_.RegisterShallowClonedNamespace(source_namespace_entry,
-                                           namespace_entry, &save_tasks);
+                                           namespace_entry);
+
   if (database_) {
-    database_->RunBatchDatabaseTasks(
-        RunBatchTasksContext::kRegisterShallowClonedNamespace,
-        std::move(save_tasks),
+    database_->PutMetadata(
+        SessionStorageMetadata::ToDomStorageMetadata(namespace_entry),
         base::BindOnce(&SessionStorageImpl::OnCommitResult,
                        weak_ptr_factory_.GetWeakPtr()));
   }
@@ -762,26 +766,11 @@ void SessionStorageImpl::InitiateConnection(bool in_memory_only) {
                      weak_ptr_factory_.GetWeakPtr()));
 }
 
-SessionStorageImpl::ValueAndStatus::ValueAndStatus() = default;
-
-SessionStorageImpl::ValueAndStatus::ValueAndStatus(ValueAndStatus&&) = default;
-
-SessionStorageImpl::ValueAndStatus::~ValueAndStatus() = default;
-
-SessionStorageImpl::KeyValuePairsAndStatus::KeyValuePairsAndStatus() = default;
-
-SessionStorageImpl::KeyValuePairsAndStatus::KeyValuePairsAndStatus(
-    KeyValuePairsAndStatus&&) = default;
-
-SessionStorageImpl::KeyValuePairsAndStatus::~KeyValuePairsAndStatus() = default;
-
 void SessionStorageImpl::OnDatabaseOpened(DbStatus status) {
   if (!status.ok()) {
-    LogDatabaseOpenResult(OpenResult::kDatabaseOpenFailed);
     // If we failed to open the database, try to delete and recreate the
     // database, or ultimately fallback to an in-memory database.
-    DeleteAndRecreateDatabase(
-        "SessionStorageContext.OpenResultAfterOpenFailed");
+    DeleteAndRecreateDatabase();
     return;
   }
 
@@ -792,79 +781,25 @@ void SessionStorageImpl::OnDatabaseOpened(DbStatus status) {
     return;
   }
 
-  database_->RunDatabaseTask(
-      base::BindOnce([](DomStorageDatabaseLevelDB& db) {
-        KeyValuePairsAndStatus namespaces;
-        namespaces.status = db.GetPrefixed(
-            base::span(SessionStorageMetadata::kNamespacePrefixBytes),
-            &namespaces.key_value_pairs);
-
-        ValueAndStatus next_map_id;
-        next_map_id.status =
-            db.Get(base::span(SessionStorageMetadata::kNextMapIdKeyBytes),
-                   &next_map_id.value);
-
-        return std::make_tuple(std::move(namespaces), std::move(next_map_id));
-      }),
+  database_->ReadAllMetadata(
       base::BindOnce(&SessionStorageImpl::OnGotDatabaseMetadata,
                      weak_ptr_factory_.GetWeakPtr()));
 }
 
 void SessionStorageImpl::OnGotDatabaseMetadata(
-    KeyValuePairsAndStatus namespaces,
-    ValueAndStatus next_map_id) {
-  if (connection_state_ == CONNECTION_SHUTDOWN)
-    return;
-
-  MetadataParseResult namespaces_parse = ParseNamespaces(std::move(namespaces));
-  if (namespaces_parse.open_result != OpenResult::kSuccess) {
-    LogDatabaseOpenResult(namespaces_parse.open_result);
-    DeleteAndRecreateDatabase(namespaces_parse.histogram_name);
+    StatusOr<DomStorageDatabase::Metadata> all_metadata) {
+  if (connection_state_ == CONNECTION_SHUTDOWN) {
     return;
   }
 
-  MetadataParseResult next_map_id_parse =
-      ParseNextMapId(std::move(next_map_id));
-  if (next_map_id_parse.open_result != OpenResult::kSuccess) {
-    LogDatabaseOpenResult(next_map_id_parse.open_result);
-    DeleteAndRecreateDatabase(next_map_id_parse.histogram_name);
+  if (!all_metadata.has_value()) {
+    DeleteAndRecreateDatabase();
     return;
   }
+
+  metadata_.Initialize(*std::move(all_metadata));
+
   OnConnectionFinished();
-}
-
-SessionStorageImpl::MetadataParseResult SessionStorageImpl::ParseNamespaces(
-    KeyValuePairsAndStatus namespaces) {
-  DCHECK_EQ(connection_state_, CONNECTION_IN_PROGRESS);
-
-  if (!namespaces.status.ok()) {
-    return {OpenResult::kNamespacesReadError,
-            "SessionStorageContext.OpenResultAfterReadNamespacesError"};
-  }
-
-  bool parsing_success =
-      metadata_.ParseNamespaces(std::move(namespaces.key_value_pairs));
-
-  if (!parsing_success) {
-    return {OpenResult::kNamespacesReadError,
-            "SessionStorageContext.OpenResultAfterReadNamespacesError"};
-  }
-  return {OpenResult::kSuccess, ""};
-}
-
-SessionStorageImpl::MetadataParseResult SessionStorageImpl::ParseNextMapId(
-    ValueAndStatus next_map_id) {
-  if (!next_map_id.status.ok()) {
-    if (next_map_id.status.IsNotFound())
-      return {OpenResult::kSuccess, ""};
-
-    // Other read error. Possibly database corruption.
-    return {OpenResult::kNamespacesReadError,
-            "SessionStorageContext.OpenResultAfterReadNextMapIdError"};
-  }
-
-  metadata_.ParseNextMapId(std::move(next_map_id.value));
-  return {OpenResult::kSuccess, ""};
 }
 
 void SessionStorageImpl::OnConnectionFinished() {
@@ -877,9 +812,6 @@ void SessionStorageImpl::OnConnectionFinished() {
   // to enable recreating the database on future errors.
   if (database_)
     tried_to_recreate_during_open_ = false;
-
-  LogDatabaseOpenResult(OpenResult::kSuccess);
-  open_result_histogram_ = nullptr;
 
   // |database_| should be known to either be valid or invalid by now. Run our
   // delayed bindings.
@@ -899,7 +831,7 @@ void SessionStorageImpl::PurgeAllNamespaces() {
   DCHECK(data_maps_.empty());
 }
 
-void SessionStorageImpl::DeleteAndRecreateDatabase(const char* histogram_name) {
+void SessionStorageImpl::DeleteAndRecreateDatabase() {
   if (connection_state_ == CONNECTION_SHUTDOWN)
     return;
 
@@ -913,7 +845,6 @@ void SessionStorageImpl::DeleteAndRecreateDatabase(const char* histogram_name) {
   receiver_.Pause();
   commit_error_count_ = 0;
   database_.reset();
-  open_result_histogram_ = histogram_name;
 
   bool recreate_in_memory = false;
 
@@ -968,15 +899,6 @@ void SessionStorageImpl::GetStatistics(size_t* total_cache_size,
     *total_cache_size += it.second->storage_area()->memory_used();
     if (it.second->binding_count() == 0)
       (*unused_area_count)++;
-  }
-}
-
-void SessionStorageImpl::LogDatabaseOpenResult(OpenResult result) {
-  if (result != OpenResult::kSuccess) {
-    UMA_HISTOGRAM_ENUMERATION("SessionStorageContext.OpenError", result);
-  }
-  if (open_result_histogram_) {
-    base::UmaHistogramEnumeration(open_result_histogram_, result);
   }
 }
 

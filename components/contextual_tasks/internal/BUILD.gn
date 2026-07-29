@@ -27,10 +27,13 @@ source_set("internal") {
     "favicon_context_decorator.h",
     "history_context_decorator.cc",
     "history_context_decorator.h",
+    "pending_context_decorator.cc",
+    "pending_context_decorator.h",
   ]
 
   deps = [
     "//base",
+    "//components/contextual_search:public",
     "//components/contextual_tasks/internal/proto",
     "//components/contextual_tasks/public",
     "//components/favicon/core",
@@ -61,12 +64,15 @@ source_set("unit_tests") {
     "fallback_title_context_decorator_unittest.cc",
     "favicon_context_decorator_unittest.cc",
     "history_context_decorator_unittest.cc",
+    "pending_context_decorator_unittest.cc",
   ]
 
   deps = [
     ":internal",
     "//base",
     "//base/test:test_support",
+    "//components/contextual_search:impl",
+    "//components/contextual_search:public",
     "//components/contextual_tasks/public",
     "//components/favicon/core/test:test_support",
     "//components/history/core/browser",

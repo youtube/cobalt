@@ -69,7 +69,8 @@ export function getHtml(this: ContextualEntrypointAndCarouselElement) {
             .fileNum="${this.files_.size}"
             .searchboxLayoutMode="${this.searchboxLayoutMode}"
             ?inputs-disabled="${this.inputsDisabled_}"
-            ?show-context-menu-description="${showDescription}">
+            ?show-context-menu-description="${showDescription}"
+            glif-animation-state="${this.contextMenuGlifAnimationState}">
         </cr-composebox-context-menu-entrypoint>
         ${
       this.searchboxLayoutMode === 'Compact' && this.showVoiceSearch ?

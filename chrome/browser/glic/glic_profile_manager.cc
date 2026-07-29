@@ -84,11 +84,10 @@ Profile* GlicProfileManager::GetProfileForLaunch() const {
   // If the glic window is currently showing detached use that profile. When
   // GlicMultiInstance is enabled, this profile is the one where a detached
   // instance was most recently used.
-  if (!GlicEnabling::IsMultiInstanceEnabledByFlags() && last_active_glic_ &&
+  if (!GlicEnabling::IsMultiInstanceEnabled() && last_active_glic_ &&
       last_active_glic_->IsWindowDetached()) {
     return last_active_glic_->profile();
-  } else if (GlicEnabling::IsMultiInstanceEnabledByFlags() &&
-             current_detached_glic_) {
+  } else if (GlicEnabling::IsMultiInstanceEnabled() && current_detached_glic_) {
     return current_detached_glic_->profile();
   }
 
@@ -168,7 +167,7 @@ void GlicProfileManager::OnLoadingClientForService(GlicKeyedService* glic) {
   }
 
   if (last_loaded_glic_ && last_loaded_glic_.get() != glic &&
-      !GlicEnabling::IsMultiInstanceEnabledByFlags()) {
+      !GlicEnabling::IsMultiInstanceEnabled()) {
     last_loaded_glic_->CloseAndShutdown();
   }
 
@@ -195,19 +194,6 @@ void GlicProfileManager::ShouldPreloadForProfile(
                        GlicPrewarmingChecksResult::kWarmingDisabled));
     return;
   }
-  if (!profile || IsProfileDirectoryMarkedForDeletion(profile->GetPath())) {
-    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(std::move(callback),
-                                  GlicPrewarmingChecksResult::kProfileGone));
-    return;
-  }
-  if (profile->ShutdownStarted()) {
-    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE,
-        base::BindOnce(std::move(callback),
-                       GlicPrewarmingChecksResult::kBrowserShuttingDown));
-    return;
-  }
   GlicPrewarmingChecksResult result;
   switch (GlicEnabling::GetProfileReadyState(profile)) {
     case mojom::ProfileReadyState::kReady:
@@ -232,22 +218,23 @@ void GlicProfileManager::ShouldPreloadForProfile(
 
 void GlicProfileManager::ShouldPreloadFreForProfile(
     Profile* profile,
-    base::OnceCallback<void(bool)> callback) {
-  if (!base::FeatureList::IsEnabled(features::kGlicFreWarming) ||
-      // We only want to preload the FRE if it has not been completed.
-      GlicEnabling::IsEnabledAndConsentForProfile(profile)) {
+    ShouldPreloadCallback callback) {
+  if (!base::FeatureList::IsEnabled(features::kGlicFreWarming)) {
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(std::move(callback), false));
+        FROM_HERE,
+        base::BindOnce(std::move(callback),
+                       GlicPrewarmingChecksResult::kWarmingDisabled));
     return;
   }
-  CanPreloadForProfile(
-      profile, base::BindOnce(
-                   [](base::OnceCallback<void(bool)> callback,
-                      GlicPrewarmingChecksResult reason) {
-                     std::move(callback).Run(
-                         reason == GlicPrewarmingChecksResult::kSuccess);
-                   },
-                   std::move(callback)));
+  if (GlicEnabling::IsEnabledAndConsentForProfile(profile)) {
+    // We only want to preload the FRE if it has not been completed.
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE,
+        base::BindOnce(std::move(callback),
+                       GlicPrewarmingChecksResult::kUserAlreadyWentTroughFre));
+    return;
+  }
+  CanPreloadForProfile(profile, std::move(callback));
 }
 
 GlicKeyedService* GlicProfileManager::GetLastActiveGlic() const {
@@ -275,8 +262,12 @@ void GlicProfileManager::ShowProfilePicker() {
   if (last_active_glic_) {
     last_active_glic_->window_controller().Close();
   }
+
+  // TODO(crbug.com/450679848): Profile Picker doesn't make sense on ChromeOS.
+#if !BUILDFLAG(IS_CHROMEOS)
   ProfilePicker::Show(
       ProfilePicker::Params::ForGlicManager(std::move(callback)));
+#endif
 }
 
 void GlicProfileManager::DidSelectProfile(Profile* profile) {
@@ -343,7 +334,6 @@ void GlicProfileManager::ForceConnectionTypeForTesting(
 }
 
 bool GlicProfileManager::IsUnderMemoryPressure() const {
-  // TODO(crbug.com/390719004): Look at discarding when pressure increases.
   base::MemoryPressureLevel memory_pressure = base::MEMORY_PRESSURE_LEVEL_NONE;
   if (g_forced_memory_pressure_level_) {
     memory_pressure = *g_forced_memory_pressure_level_;
@@ -362,7 +352,7 @@ void GlicProfileManager::CanPreloadForProfile(Profile* profile,
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         from_here, base::BindOnce(std::move(callback), result));
   };
-  if (!profile || profile->ShutdownStarted()) {
+  if (!profile || IsProfileDirectoryMarkedForDeletion(profile->GetPath())) {
     return produce_result(GlicPrewarmingChecksResult::kProfileGone);
   }
   if (profile->ShutdownStarted()) {

@@ -108,7 +108,8 @@ bool StructTraits<blink::mojom::WebPreferencesDataView,
   out->strictly_block_blockable_mixed_content =
       data.strictly_block_blockable_mixed_content();
   out->block_mixed_plugin_content = data.block_mixed_plugin_content();
-  out->password_echo_enabled = data.password_echo_enabled();
+  out->password_echo_enabled_physical = data.password_echo_enabled_physical();
+  out->password_echo_enabled_touch = data.password_echo_enabled_touch();
   out->disable_reading_from_canvas = data.disable_reading_from_canvas();
   out->should_clear_document_background =
       data.should_clear_document_background();
@@ -240,8 +241,6 @@ bool StructTraits<blink::mojom::WebPreferencesDataView,
   out->subapps_apis_require_user_gesture_and_authorization =
       data.require_transient_activation_and_user_confirmation_for_subapps_api();
   out->payment_request_enabled = data.payment_request_enabled();
-  out->content_based_fingerprinting_protection_enabled =
-      data.content_based_fingerprinting_protection_enabled();
   out->ai_prompt_api_enabled = data.ai_prompt_api_enabled();
 
 #if BUILDFLAG(IS_MAC)
