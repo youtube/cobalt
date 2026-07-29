@@ -17,8 +17,6 @@
 #include "build/build_config.h"
 #include "content/common/buildflags.h"
 #include "content/common/content_export.h"
-#include "ipc/ipc_listener.h"
-#include "ipc/ipc_sender.h"
 #include "mojo/public/cpp/bindings/scoped_interface_endpoint_handle.h"
 #include "mojo/public/cpp/system/message_pipe.h"
 #include "services/network/public/mojom/url_response_head.mojom-forward.h"
@@ -369,6 +367,10 @@ class CONTENT_EXPORT RenderFrameObserver {
  protected:
   explicit RenderFrameObserver(RenderFrame* render_frame);
   virtual ~RenderFrameObserver();
+
+  // This method exists for subclasses of Oilpan objects that need to clean up
+  // the RenderFrameObserver in their pre-finalizer.
+  void Dispose();
 
  private:
   friend class RenderFrameImpl;

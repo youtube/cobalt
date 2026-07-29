@@ -393,7 +393,6 @@ targets.bundle(
 targets.bundle(
     name = "android_cronet_clang_coverage_gtests",
     targets = [
-        "cronet_clang_coverage_additional_gtests",
         "cronet_gtests",
     ],
 )
@@ -5719,9 +5718,10 @@ targets.bundle(
             ],
         ),
         targets.bundle(
-            targets = "ios_eg2_cq_tests",
+            targets = "ios_vm_eg2_cq_tests",
             mixins = [
                 "xcodebuild_sim_runner",
+                "mac_15_vm_optional",
             ],
             variants = [
                 "SIM_IPHONE_14_17_5",
@@ -6815,6 +6815,47 @@ targets.bundle(
             swarming = targets.swarming(
                 shards = 8,
             ),
+        ),
+    },
+)
+
+targets.bundle(
+    name = "tvos_rel_tests",
+    targets = [
+        targets.bundle(
+            targets = "tvos_tests",
+            variants = [
+                "SIM_APPLE_TV_4K_3RD_GENERATION_18_5",
+            ],
+        ),
+    ],
+)
+
+targets.bundle(
+    name = "tvos_tests",
+    targets = [
+        "base_unittests",
+        "components_unittests",
+        "content_unittests",
+    ],
+    per_test_modifications = {
+        "base_unittests": targets.mixin(
+            args = [
+                "--test-launcher-bot-mode",
+                "--test-launcher-filter-file=testing/buildbot/filters/ios.base_unittests.filter",
+            ],
+        ),
+        "components_unittests": targets.mixin(
+            args = [
+                "--test-launcher-bot-mode",
+                "--test-launcher-filter-file=testing/buildbot/filters/ios.use_blink.components_unittests.filter",
+            ],
+        ),
+        "content_unittests": targets.mixin(
+            args = [
+                "--test-launcher-bot-mode",
+                "--test-launcher-filter-file=testing/buildbot/filters/ios.content_unittests.filter",
+            ],
         ),
     },
 )

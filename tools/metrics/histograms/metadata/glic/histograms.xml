@@ -198,6 +198,26 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Glic.Fre.WebUITerminationStatus" enum="TerminationStatus"
+    expires_after="2026-07-01">
+  <owner>birnie@google.com</owner>
+  <owner>cuianthony@google.com</owner>
+  <summary>
+    Records the termination status of the FRE WebUI process. This is logged when
+    the WebUI process associated with the FRE is terminated for any reason.
+  </summary>
+</histogram>
+
+<histogram name="Glic.Fre.WebviewLoadAbortReason"
+    enum="GlicFreWebviewLoadAbortReason" expires_after="2026-07-01">
+  <owner>birnie@google.com</owner>
+  <owner>cuianthony@google.com</owner>
+  <summary>
+    Records the reason why the FRE webview failed to load. This is logged when
+    the webview's `loadabort` event is fired.
+  </summary>
+</histogram>
+
 <histogram name="Glic.Fre.WidgetClosedReason" enum="WidgetClosedReason"
     expires_after="2026-07-01">
   <owner>birnie@google.com</owner>
@@ -294,6 +314,17 @@ chromium-metrics-reviews@google.com.
     Records for how long the web client was kept in an unresponsive state.
     Recorded when the state is swtiching from unresponsive to any other
     supported state.
+  </summary>
+</histogram>
+
+<histogram name="Glic.Host.WebView.AutoPlay" enum="WebViewAutoPlayProgress"
+    expires_after="2025-12-01">
+  <owner>carlosk@chromium.org</owner>
+  <owner>dewittj@google.com</owner>
+  <summary>
+    Debug histogram that tracks the internal steps that lead to the granting of
+    AutoPlay permissions to the renderer frame hosting Glic's embedded webview.
+    Samples are recorded when their respective events take place.
   </summary>
 </histogram>
 

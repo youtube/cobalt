@@ -749,8 +749,8 @@ class VaapiVideoEncodeAcceleratorTest
 
     auto buffer_format = gfx::BufferFormat::YUV_420_BIPLANAR;
     // Create a mappable shared image.
-    auto pixmap_handle =
-        gpu::CreatePixmapHandleForTesting(kDefaultEncodeSize, buffer_format);
+    auto pixmap_handle = gpu::TestSharedImageInterface::CreatePixmapHandle(
+        kDefaultEncodeSize, buffer_format);
     auto shared_image = test_sii->CreateSharedImage(
         {viz::GetSharedImageFormat(buffer_format), kDefaultEncodeSize,
          gfx::ColorSpace(), gpu::SharedImageUsageSet(si_usage),

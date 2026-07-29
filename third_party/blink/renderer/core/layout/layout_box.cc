@@ -1132,7 +1132,7 @@ PhysicalBoxStrut LayoutBox::MarginBoxOutsets() const {
 
 LayoutBlock* LayoutBox::GetScrollMarkerGroup() {
   NOT_DESTROYED();
-  if (Style()->ScrollMarkerGroup() == EScrollMarkerGroup::kNone) {
+  if (Style()->ScrollMarkerGroupNone()) {
     return nullptr;
   }
   LayoutBox* content_box = ContentLayoutBox();
@@ -1878,8 +1878,7 @@ bool LayoutBox::MapVisualRectToContainer(
     transform.PostTranslate(offset.left, offset.top);
   }
 
-  bool has_perspective = container_object && container_object->HasLayer() &&
-                         container_object->StyleRef().HasPerspective();
+  bool has_perspective = container_object && container_object->HasPerspective();
   if (has_perspective && container_object != NearestAncestorForElement()) {
     has_perspective = false;
 

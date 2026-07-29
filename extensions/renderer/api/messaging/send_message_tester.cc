@@ -13,7 +13,6 @@
 #include "extensions/renderer/bindings/api_binding_test_util.h"
 #include "extensions/renderer/native_extension_bindings_system_test_base.h"
 #include "extensions/renderer/script_context.h"
-#include "ipc/ipc_message.h"
 #include "v8/include/v8.h"
 
 namespace extensions {
@@ -166,7 +165,10 @@ void SendMessageTester::TestSendMessageOrRequest(
       });
   if (expected_port_status == CLOSED) {
     EXPECT_CALL(mock_message_port_host, PostMessage(message));
-    EXPECT_CALL(mock_message_port_host, ClosePort(true))
+    EXPECT_CALL(mock_message_port_host,
+                ClosePort(
+                    /*close_channel=*/true,
+                    /*error_message=*/testing::Eq(std::nullopt)))
         .WillOnce(base::test::RunClosure(run_loop.QuitClosure()));
   } else {
     EXPECT_CALL(mock_message_port_host, PostMessage(message))

@@ -7,9 +7,11 @@
 #include "base/test/test_future.h"
 #include "base/test/test_timeouts.h"
 #include "chrome/browser/actor/actor_features.h"
+#include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/actor_test_util.h"
 #include "chrome/browser/actor/execution_engine.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/common/chrome_features.h"
@@ -70,13 +72,17 @@ class ActorPageStabilityTest : public InProcessBrowserTest {
     ASSERT_TRUE(embedded_https_test_server().Start());
     auto execution_engine = std::make_unique<ExecutionEngine>(
         browser()->profile(), browser()->GetActiveTabInterface());
-    actor_task_ = std::make_unique<ActorTask>(std::move(execution_engine));
+    auto actor_task =
+        std::make_unique<ActorTask>(GetProfile(), std::move(execution_engine));
+    task_id_ = ActorKeyedService::Get(browser()->profile())
+                   ->AddActiveTask(std::move(actor_task));
   }
 
   void TearDownOnMainThread() override {
-    // The execution engine has a pointer to the profile, which must be released
-    // before the browser is torn down to avoid a dangling pointer.
-    actor_task_.reset();
+    // The ActorTask owned ExecutionEngine has a pointer to the profile, which
+    // must be released before the browser is torn down to avoid a dangling
+    // pointer.
+    ActorKeyedService::Get(browser()->profile())->ResetForTesting();
   }
 
   // Pause execution for 300ms - matching the busy work delay in
@@ -101,8 +107,9 @@ class ActorPageStabilityTest : public InProcessBrowserTest {
         .ExtractString();
   }
 
-  ExecutionEngine& execution_engine() {
-    return *actor_task_->GetExecutionEngine();
+  ActorTask& task() {
+    CHECK(task_id_);
+    return *ActorKeyedService::Get(browser()->profile())->GetTask(task_id_);
   }
 
   net::test_server::ControllableHttpResponse& fetch_response() {
@@ -117,10 +124,12 @@ class ActorPageStabilityTest : public InProcessBrowserTest {
     fetch_response_->Done();
   }
 
+ protected:
+  TaskId task_id_;
+
  private:
   std::unique_ptr<net::test_server::ControllableHttpResponse> fetch_response_;
   ScopedFeatureList scoped_feature_list_;
-  std::unique_ptr<ActorTask> actor_task_;
 };
 
 // Ensure the page isn't considered stable until after a network fetch is
@@ -135,9 +144,10 @@ IN_PROC_BROWSER_TEST_F(ActorPageStabilityTest, DISABLED_WaitOnNetworkFetch) {
 
   std::optional<int> button_id = GetDOMNodeId(*main_frame(), "#btnFetch");
   ASSERT_TRUE(button_id);
-  BrowserAction action = MakeClick(*main_frame(), button_id.value());
-  TestFuture<mojom::ActionResultPtr> result;
-  execution_engine().Act(action, result.GetCallback());
+  std::unique_ptr<ToolRequest> action =
+      MakeClickRequest(*main_frame(), button_id.value());
+  TestFuture<mojom::ActionResultPtr, std::optional<size_t>> result;
+  task().Act(ToRequestList(action), result.GetCallback());
 
   fetch_response().WaitForRequest();
 
@@ -167,9 +177,10 @@ IN_PROC_BROWSER_TEST_F(ActorPageStabilityTest, DISABLED_WaitOnFetchAndWork) {
   std::optional<int> button_id =
       GetDOMNodeId(*main_frame(), "#btnFetchAndWork");
   ASSERT_TRUE(button_id);
-  BrowserAction action = MakeClick(*main_frame(), button_id.value());
-  TestFuture<mojom::ActionResultPtr> result;
-  execution_engine().Act(action, result.GetCallback());
+  std::unique_ptr<ToolRequest> action =
+      MakeClickRequest(*main_frame(), button_id.value());
+  TestFuture<mojom::ActionResultPtr, std::optional<size_t>> result;
+  task().Act(ToRequestList(action), result.GetCallback());
   fetch_response().WaitForRequest();
 
   Sleep300ms();
@@ -244,9 +255,10 @@ IN_PROC_BROWSER_TEST_F(ActorPageStabilityGlobalTimeoutTest, NetworkTimeout) {
   std::optional<int> button_id =
       GetDOMNodeId(*main_frame(), "#btnFetchAndWork");
   ASSERT_TRUE(button_id);
-  BrowserAction action = MakeClick(*main_frame(), button_id.value());
-  TestFuture<mojom::ActionResultPtr> result;
-  execution_engine().Act(action, result.GetCallback());
+  std::unique_ptr<ToolRequest> action =
+      MakeClickRequest(*main_frame(), button_id.value());
+  TestFuture<mojom::ActionResultPtr, std::optional<size_t>> result;
+  task().Act(ToRequestList(action), result.GetCallback());
 
   // Never respond to the request
   fetch_response().WaitForRequest();
@@ -265,9 +277,10 @@ IN_PROC_BROWSER_TEST_F(ActorPageStabilityGlobalTimeoutTest, BusyMainThread) {
 
   std::optional<int> button_id = GetDOMNodeId(*main_frame(), "#btnWorkForever");
   ASSERT_TRUE(button_id);
-  BrowserAction action = MakeClick(*main_frame(), button_id.value());
-  TestFuture<mojom::ActionResultPtr> result;
-  execution_engine().Act(action, result.GetCallback());
+  std::unique_ptr<ToolRequest> action =
+      MakeClickRequest(*main_frame(), button_id.value());
+  TestFuture<mojom::ActionResultPtr, std::optional<size_t>> result;
+  task().Act(ToRequestList(action), result.GetCallback());
 
   // Ensure the stability monitor eventually allows completion.
   ExpectOkResult(result);
@@ -282,9 +295,10 @@ IN_PROC_BROWSER_TEST_F(ActorPageStabilityLocalTimeoutTest, BusyMainThread) {
 
   std::optional<int> button_id = GetDOMNodeId(*main_frame(), "#btnWorkForever");
   ASSERT_TRUE(button_id);
-  BrowserAction action = MakeClick(*main_frame(), button_id.value());
-  TestFuture<mojom::ActionResultPtr> result;
-  execution_engine().Act(action, result.GetCallback());
+  std::unique_ptr<ToolRequest> action =
+      MakeClickRequest(*main_frame(), button_id.value());
+  TestFuture<mojom::ActionResultPtr, std::optional<size_t>> result;
+  task().Act(ToRequestList(action), result.GetCallback());
 
   // Ensure the stability monitor eventually allows completion.
   ExpectOkResult(result);
@@ -419,9 +433,10 @@ IN_PROC_BROWSER_TEST_P(ActorPageStabilityNavigationTypesTest, Test) {
     subframe_delay.emplace(web_contents(), url_subframe);
   }
 
-  BrowserAction action = MakeClick(*main_frame(), link_id.value());
-  TestFuture<mojom::ActionResultPtr> result;
-  execution_engine().Act(action, result.GetCallback());
+  std::unique_ptr<ToolRequest> action =
+      MakeClickRequest(*main_frame(), link_id.value());
+  TestFuture<mojom::ActionResultPtr, std::optional<size_t>> result;
+  task().Act(ToRequestList(action), result.GetCallback());
 
   if (main_frame_delay) {
     CHECK(subframe_delay);

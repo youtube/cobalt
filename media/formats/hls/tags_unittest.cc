@@ -285,7 +285,39 @@ TEST(HlsTagsTest, ParseXStartTag) {
   RunTagIdentificationTest(ToTagName(CommonTagName::kXStart),
                            "#EXT-X-START:TIME-OFFSET=30,PRECISE=YES\n",
                            "TIME-OFFSET=30,PRECISE=YES");
-  // TODO(crbug.com/40057824): Implement the EXT-X-START tag.
+  RunTagIdentificationTest<XStartTag>(
+      "#EXT-X-START:TIME-OFFSET=5.0,PRECISE=YES\n",
+      "TIME-OFFSET=5.0,PRECISE=YES");
+
+  VariableDictionary dict = CreateBasicDictionary();
+  VariableDictionary::SubstitutionBuffer subs;
+
+  ErrorTest<XStartTag>("TIME-OFFSET=5.0,PRECISE=MALFORMED", dict, subs,
+                       ParseStatusCode::kMalformedTag);
+
+  ErrorTest<XStartTag>("TIME-OFFSET=NOT_A_NUMBER", dict, subs,
+                       ParseStatusCode::kMalformedTag);
+
+  ErrorTest<XStartTag>("PRECISE=YES", dict, subs,
+                       ParseStatusCode::kMalformedTag);
+
+  {
+    auto result = OkTest<XStartTag>("TIME-OFFSET=0.0,PRECISE=YES", dict, subs);
+    EXPECT_DOUBLE_EQ(result.tag.time_offset, 0.0);
+    EXPECT_TRUE(result.tag.precise);
+  }
+
+  {
+    auto result = OkTest<XStartTag>("TIME-OFFSET=3.5", dict, subs);
+    EXPECT_DOUBLE_EQ(result.tag.time_offset, 3.5);
+    EXPECT_FALSE(result.tag.precise);
+  }
+
+  {
+    auto result = OkTest<XStartTag>("TIME-OFFSET=10.0,PRECISE=NO", dict, subs);
+    EXPECT_DOUBLE_EQ(result.tag.time_offset, 10.0);
+    EXPECT_FALSE(result.tag.precise);
+  }
 }
 
 TEST(HlsTagsTest, ParseXVersionTag) {
@@ -335,7 +367,38 @@ TEST(HlsTagsTest, ParseXContentSteeringTag) {
       "#EXT-X-CONTENT-STEERING:SERVER-URI=\"https://google.com/"
       "manifest.json\"\n",
       "SERVER-URI=\"https://google.com/manifest.json\"");
-  // TODO(crbug.com/40057824): Implement the EXT-X-CONTENT-STEERING tag.
+  RunTagIdentificationTest<XContentSteeringTag>(
+      "#EXT-X-CONTENT-STEERING:SERVER-URI=\"http://example.com/"
+      "manifest\",PATHWAY-ID=\"pathway1\"\n",
+      "SERVER-URI=\"http://example.com/manifest\",PATHWAY-ID=\"pathway1\"");
+
+  VariableDictionary dict = CreateBasicDictionary();
+  VariableDictionary::SubstitutionBuffer subs;
+
+  ErrorTest<XContentSteeringTag>(
+      "SERVER-URI=\"http://example.com/manifest\",PATHWAY-ID=MALFORMED", dict,
+      subs, ParseStatusCode::kMalformedTag);
+
+  ErrorTest<XContentSteeringTag>("SERVER-URI=NOT_A_QUOTED_STRING", dict, subs,
+                                 ParseStatusCode::kMalformedTag);
+
+  ErrorTest<XContentSteeringTag>("PATHWAY-ID=\"pathway1\"", dict, subs,
+                                 ParseStatusCode::kMalformedTag);
+
+  {
+    auto result = OkTest<XContentSteeringTag>(
+        "SERVER-URI=\"http://example.com/manifest\"", dict, subs);
+    EXPECT_EQ(result.tag.server_uri.Str(), "http://example.com/manifest");
+    EXPECT_FALSE(result.tag.pathway_id.has_value());
+  }
+
+  {
+    auto result = OkTest<XContentSteeringTag>(
+        "SERVER-URI=\"http://example.com/manifest\",PATHWAY-ID=\"pathway1\"",
+        dict, subs);
+    EXPECT_EQ(result.tag.server_uri.Str(), "http://example.com/manifest");
+    EXPECT_EQ(result.tag.pathway_id.value().Str(), "pathway1");
+  }
 }
 
 TEST(HlsTagsTest, ParseXIFrameStreamInfTag) {
@@ -343,7 +406,75 @@ TEST(HlsTagsTest, ParseXIFrameStreamInfTag) {
       ToTagName(MultivariantPlaylistTagName::kXIFrameStreamInf),
       "#EXT-X-I-FRAME-STREAM-INF:URI=\"foo.m3u8\",BANDWIDTH=1000\n",
       "URI=\"foo.m3u8\",BANDWIDTH=1000");
-  // TODO(crbug.com/40057824): Implement the EXT-X-I-FRAME-STREAM-INF tag.
+  RunTagIdentificationTest<XIFrameStreamInfTag>(
+      "#EXT-X-I-FRAME-STREAM-INF:BANDWIDTH=128000,URI=\"iframe_playlist."
+      "m3u8\"\n",
+      "BANDWIDTH=128000,URI=\"iframe_playlist.m3u8\"");
+
+  VariableDictionary dict = CreateBasicDictionary();
+  VariableDictionary::SubstitutionBuffer subs;
+
+  ErrorTest<XIFrameStreamInfTag>(
+      "BANDWIDTH=128000,URI=\"iframe_playlist.m3u8\",AUDIO=\"audio\"\n", dict,
+      subs, ParseStatusCode::kMalformedTag);
+
+  ErrorTest<XIFrameStreamInfTag>("BANDWIDTH=128000", dict, subs,
+                                 ParseStatusCode::kMalformedTag);
+
+  {
+    auto result = OkTest<XIFrameStreamInfTag>(
+        "BANDWIDTH=128000,URI=\"iframe_playlist.m3u8\"", dict, subs);
+    EXPECT_EQ(result.tag.bandwidth, 128000u);
+    EXPECT_EQ(result.tag.uri.Str(), "iframe_playlist.m3u8");
+  }
+
+  {
+    auto result = OkTest<XIFrameStreamInfTag>(
+        "BANDWIDTH=256000,URI=\"another_iframe_playlist.m3u8\","
+        "AVERAGE-BANDWIDTH=240000",
+        dict, subs);
+    EXPECT_EQ(result.tag.bandwidth, 256000u);
+    EXPECT_EQ(result.tag.uri.Str(), "another_iframe_playlist.m3u8");
+    EXPECT_EQ(result.tag.average_bandwidth.value(), 240000u);
+  }
+
+  {
+    auto result = OkTest<XIFrameStreamInfTag>(
+        "BANDWIDTH=512000,URI=\"third_iframe_playlist.m3u8\","
+        "SCORE=9.5,CODECS=\"avc1.64001f\"",
+        dict, subs);
+    EXPECT_EQ(result.tag.bandwidth, 512000u);
+    EXPECT_EQ(result.tag.uri.Str(), "third_iframe_playlist.m3u8");
+    EXPECT_EQ(result.tag.score.value(), 9.5);
+    EXPECT_EQ(result.tag.codecs.value().size(), 1u);
+    EXPECT_EQ(result.tag.codecs.value()[0], "avc1.64001f");
+  }
+
+  {
+    auto result = OkTest<XIFrameStreamInfTag>(
+        "BANDWIDTH=512000,URI=\"third_iframe_playlist.m3u8\","
+        "SCORE=9.5,CODECS=\"avc1.64001f,vp9,hevc\"",
+        dict, subs);
+    EXPECT_EQ(result.tag.bandwidth, 512000u);
+    EXPECT_EQ(result.tag.uri.Str(), "third_iframe_playlist.m3u8");
+    EXPECT_EQ(result.tag.score.value(), 9.5);
+    EXPECT_EQ(result.tag.codecs.value().size(), 3u);
+    EXPECT_EQ(result.tag.codecs.value()[0], "avc1.64001f");
+    EXPECT_EQ(result.tag.codecs.value()[1], "vp9");
+    EXPECT_EQ(result.tag.codecs.value()[2], "hevc");
+  }
+
+  {
+    auto result = OkTest<XIFrameStreamInfTag>(
+        "BANDWIDTH=640000,URI=\"fourth_iframe_playlist.m3u8\","
+        "RESOLUTION=1280x720",
+        dict, subs);
+    EXPECT_EQ(result.tag.bandwidth, 640000u);
+    EXPECT_EQ(result.tag.uri.Str(), "fourth_iframe_playlist.m3u8");
+    EXPECT_TRUE(result.tag.resolution.has_value());
+    EXPECT_EQ(result.tag.resolution->width, 1280u);
+    EXPECT_EQ(result.tag.resolution->height, 720u);
+  }
 }
 
 TEST(HlsTagsTest, ParseXMediaTag) {
@@ -1068,7 +1199,34 @@ TEST(HlsTagsTest, ParseXSessionDataTag) {
       ToTagName(MultivariantPlaylistTagName::kXSessionData),
       "#EXT-X-SESSION-DATA:DATA-ID=\"com.google.key\",VALUE=\"value\"\n",
       "DATA-ID=\"com.google.key\",VALUE=\"value\"");
-  // TODO(crbug.com/40057824): Implement the EXT-X-SESSION-DATA tag.
+
+  VariableDictionary dict = CreateBasicDictionary();
+  VariableDictionary::SubstitutionBuffer subs;
+
+  ErrorTest<XSessionDataTag>(
+      "DATA-ID=\"com.google\",VALUE=\"FOO\",URI=\"google.com\"", dict, subs,
+      ParseStatusCode::kMalformedTag);
+
+  ErrorTest<XSessionDataTag>("DATA-ID=\"com.google\",LANGUAGE=\"eng\"", dict,
+                             subs, ParseStatusCode::kMalformedTag);
+
+  ErrorTest<XSessionDataTag>("VALUE=\"eng\"", dict, subs,
+                             ParseStatusCode::kMalformedTag);
+
+  {
+    auto result = OkTest<XSessionDataTag>(
+        "DATA-ID=\"com.google.key\",VALUE=\"value\"", dict, subs);
+    EXPECT_EQ(result.tag.data_id.Str(), "com.google.key");
+    EXPECT_EQ(result.tag.value.value().Str(), "value");
+  }
+
+  {
+    auto result = OkTest<XSessionDataTag>(
+        "DATA-ID=\"com.google\",URI=\"google.com\",FORMAT=JSON", dict, subs);
+    EXPECT_EQ(result.tag.data_id.Str(), "com.google");
+    EXPECT_EQ(result.tag.uri.value().Str(), "google.com");
+    EXPECT_TRUE(result.tag.format_is_json);
+  }
 }
 
 TEST(HlsTagsTest, ParseXSessionKeyTag) {

@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "base/functional/callback.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/task_environment.h"
 #include "components/autofill/core/browser/data_manager/payments/test_payments_data_manager.h"
 #include "components/autofill/core/browser/payments/payments_customer_data.h"
@@ -31,9 +32,6 @@ class PixAccountLinkingManagerTest : public testing::Test {
 
   PixAccountLinkingManagerTest() {
     manager_ = std::make_unique<PixAccountLinkingManager>(&client_);
-    multiple_request_payments_network_interface_ = std::make_unique<
-        MockMultipleRequestFacilitatedPaymentsNetworkInterface>(
-        *identity_test_env_.identity_manager(), *payments_data_manager_);
   }
 
   void SetUp() override {
@@ -49,6 +47,9 @@ class PixAccountLinkingManagerTest : public testing::Test {
     device_delegate_ = std::make_unique<MockDeviceDelegate>();
     ON_CALL(client_, GetDeviceDelegate)
         .WillByDefault(testing::Return(device_delegate_.get()));
+    multiple_request_payments_network_interface_ = std::make_unique<
+        MockMultipleRequestFacilitatedPaymentsNetworkInterface>(
+        *identity_test_env_.identity_manager(), *payments_data_manager_);
     ON_CALL(client_, GetMultipleRequestFacilitatedPaymentsNetworkInterface)
         .WillByDefault(testing::Return(
             multiple_request_payments_network_interface_.get()));
@@ -191,10 +192,24 @@ TEST_F(PixAccountLinkingManagerTest, UserNotReturnedToChrome_PromptNotShown) {
   manager()->MaybeShowPixAccountLinkingPrompt();
 }
 
+TEST_F(PixAccountLinkingManagerTest, DismissPrompt) {
+  // Verify that the prompt dismissal is triggered only once despite multiple
+  // calls to `DismissPrompt`.
+  EXPECT_CALL(client(), DismissPrompt);
+
+  // The show method is called so the internal UI state is correctly set.
+  manager()->MaybeShowPixAccountLinkingPrompt();
+  test_api().DismissPrompt();
+  // This call should not trigger prompt dismissal again.
+  test_api().DismissPrompt();
+}
+
 TEST_F(PixAccountLinkingManagerTest, OnAccepted) {
   EXPECT_CALL(client(), DismissPrompt);
   EXPECT_CALL(*device_delegate(), LaunchPixAccountLinkingPage);
 
+  // The show method is called so the internal UI state is correctly set.
+  manager()->MaybeShowPixAccountLinkingPrompt();
   test_api().OnAccepted();
 }
 
@@ -205,11 +220,77 @@ TEST_F(PixAccountLinkingManagerTest, PromptDeclined_UserPrefUpdated) {
 
   EXPECT_CALL(client(), DismissPrompt);
 
+  // The show method is called so the internal UI state is correctly set.
+  manager()->MaybeShowPixAccountLinkingPrompt();
   test_api().OnDeclined();
 
   // Verify that declining the prompt disables the account linking user pref.
   EXPECT_FALSE(autofill::prefs::IsFacilitatedPaymentsPixAccountLinkingEnabled(
       pref_service_.get()));
+}
+
+TEST_F(PixAccountLinkingManagerTest, Reset_PromptShowing_TriggersDismissal) {
+  manager()->MaybeShowPixAccountLinkingPrompt();
+
+  EXPECT_CALL(client(), DismissPrompt());
+
+  test_api().Reset();
+}
+
+TEST_F(PixAccountLinkingManagerTest,
+       Reset_NoPromptShowing_DoesNotTriggerDismissal) {
+  EXPECT_CALL(client(), DismissPrompt).Times(0);
+
+  test_api().Reset();
+}
+
+// During the account linking flow, the only async calls are server call to get
+// eligibility, and waiting for user to complete payment and return to Chrome.
+// Since these happen in parallel, and the latter call happens last, it is
+// sufficient to test the latter for invalidated weak pointer.
+TEST_F(PixAccountLinkingManagerTest,
+       Reset_BeforeReturningToChrome_PromptNotShown) {
+  base::OnceClosure on_return_to_chrome_callback;
+  // Override the default behavior of SetOnReturnToChromeCallback to capture the
+  // callback and simulate an async response.
+  ON_CALL(*device_delegate(), SetOnReturnToChromeCallback)
+      .WillByDefault(testing::Invoke([&](base::OnceClosure callback) {
+        on_return_to_chrome_callback = std::move(callback);
+      }));
+
+  EXPECT_CALL(client(), ShowPixAccountLinkingPrompt).Times(0);
+
+  manager()->MaybeShowPixAccountLinkingPrompt();
+  // Reset() is called before the user returns to Chrome. This should invalidate
+  // the weak pointer for the callback.
+  test_api().Reset();
+  // The user returns to Chrome.
+  ASSERT_TRUE(on_return_to_chrome_callback);
+  std::move(on_return_to_chrome_callback).Run();
+}
+
+TEST_F(PixAccountLinkingManagerTest, ScreenShown_PromptShownLogged) {
+  base::HistogramTester histogram_tester;
+
+  manager()->MaybeShowPixAccountLinkingPrompt();
+  test_api().OnUiScreenEvent(UiEvent::kNewScreenShown);
+
+  histogram_tester.ExpectUniqueSample(
+      "FacilitatedPayments.Pix.AccountLinkingPromptShown",
+      /*sample=*/true,
+      /*expected_bucket_count=*/1);
+}
+
+TEST_F(PixAccountLinkingManagerTest, ScreenNotShown_PromptShownNotLogged) {
+  base::HistogramTester histogram_tester;
+
+  manager()->MaybeShowPixAccountLinkingPrompt();
+  test_api().OnUiScreenEvent(UiEvent::kScreenCouldNotBeShown);
+
+  histogram_tester.ExpectUniqueSample(
+      "FacilitatedPayments.Pix.AccountLinkingPromptShown",
+      /*sample=*/true,
+      /*expected_bucket_count=*/0);
 }
 
 }  // namespace payments::facilitated

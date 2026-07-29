@@ -29,7 +29,6 @@
 #include "third_party/blink/renderer/core/css/document_style_sheet_collection.h"
 
 #include "third_party/blink/renderer/bindings/core/v8/v8_observable_array_css_style_sheet.h"
-#include "third_party/blink/renderer/core/css/css_default_style_sheets.h"
 #include "third_party/blink/renderer/core/css/document_style_sheet_collector.h"
 #include "third_party/blink/renderer/core/css/resolver/style_resolver.h"
 #include "third_party/blink/renderer/core/css/style_change_reason.h"
@@ -52,6 +51,8 @@ DocumentStyleSheetCollection::DocumentStyleSheetCollection(
 void DocumentStyleSheetCollection::CollectStyleSheetsFromCandidates(
     StyleEngine& engine,
     DocumentStyleSheetCollector& collector) {
+  StyleEngine::RuleSetScope rule_set_scope;
+
   for (Node* n : style_sheet_candidate_nodes_) {
     StyleSheetCandidate candidate(*n);
 
@@ -72,7 +73,13 @@ void DocumentStyleSheetCollection::CollectStyleSheetsFromCandidates(
     }
 
     CSSStyleSheet* css_sheet = To<CSSStyleSheet>(sheet);
-    collector.AppendActiveStyleSheet(css_sheet);
+    collector.AppendActiveStyleSheet(std::make_pair(
+        css_sheet, rule_set_scope.RuleSetForSheet(engine, css_sheet)));
+
+    if (css_sheet->Contents()->GetRuleSetDiff()) {
+      collector.AppendRuleSetDiff(css_sheet->Contents()->GetRuleSetDiff());
+      css_sheet->Contents()->ClearRuleSetDiff();
+    }
   }
 
   const TreeScope& tree_scope = GetTreeScope();
@@ -88,33 +95,35 @@ void DocumentStyleSheetCollection::CollectStyleSheetsFromCandidates(
     }
     DCHECK_EQ(GetDocument(), sheet->ConstructorDocument());
     collector.AppendSheetForList(sheet);
-    collector.AppendActiveStyleSheet(sheet);
+    collector.AppendActiveStyleSheet(
+        std::make_pair(sheet, engine.RuleSetForSheet(*sheet)));
   }
 }
 
 void DocumentStyleSheetCollection::CollectStyleSheets(
     StyleEngine& engine,
-    const MediaQueryEvaluator& medium,
     DocumentStyleSheetCollector& collector) {
   for (auto& sheet :
        GetDocument().GetStyleEngine().InjectedAuthorStyleSheets()) {
-    collector.AppendActiveStyleSheet(sheet.second);
+    collector.AppendActiveStyleSheet(std::make_pair(
+        sheet.second,
+        GetDocument().GetStyleEngine().RuleSetForSheet(*sheet.second)));
   }
   CollectStyleSheetsFromCandidates(engine, collector);
   for (CSSStyleSheet* inspector_sheet :
        GetDocument().GetStyleEngine().InspectorStyleSheets()) {
-    collector.AppendActiveStyleSheet(inspector_sheet);
+    collector.AppendActiveStyleSheet(std::make_pair(
+        inspector_sheet,
+        GetDocument().GetStyleEngine().RuleSetForSheet(*inspector_sheet)));
   }
-  collector.FinishCollectingStylesheets(engine, medium);
 }
 
 void DocumentStyleSheetCollection::UpdateActiveStyleSheets(
-    StyleEngine& engine,
-    const MediaQueryEvaluator& medium) {
+    StyleEngine& engine) {
   // StyleSheetCollection is GarbageCollected<>, allocate it on the heap.
   auto* collection = MakeGarbageCollected<StyleSheetCollection>();
   ActiveDocumentStyleSheetCollector collector(*collection);
-  CollectStyleSheets(engine, medium, collector);
+  CollectStyleSheets(engine, collector);
   ApplyActiveStyleSheetChanges(*collection);
 }
 

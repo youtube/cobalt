@@ -59,6 +59,7 @@ build_webui("build") {
   ts_files = [
     "app.html.ts",
     "app.ts",
+    "trace_util.ts",
     "trace_report.html.ts",
     "trace_report.ts",
     "traces_browser_proxy.ts",
@@ -75,6 +76,7 @@ build_webui("build") {
   css_files = [
     "app.css",
     "trace_recorder.css",
+    "config_toggle.css",
     "trace_report_list.css",
     "trace_report.css",
     "tracing_scenarios_config.css",

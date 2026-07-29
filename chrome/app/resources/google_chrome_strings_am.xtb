@@ -232,6 +232,7 @@
 <translation id="3785324443014631273">ሲገቡ በነበረ ስህተት ምክንያት ChromeOS Flex ውሂብዎን ማስመር አልቻለም።</translation>
 <translation id="3795971588916395511">Google ChromeOS</translation>
 <translation id="3809772425479558446">Google Chrome Windows 10 ወይም ከዚያ በላይ ያስፈልገዋል።</translation>
+<translation id="3810973564298564668">አደራጅ</translation>
 <translation id="383928141529488001">Google Chrome የብሉቱዝ መሣሪያዎችን ለማሰስ የብሉቱዝ መዳረሻ 
 ያስፈልገዋል። <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="386202838227397562">እባክዎ ሁሉንም የChrome መስኮቶች ይዝጉና እንደገና ይሞክሩ።</translation>
@@ -523,6 +524,7 @@ Google Chrome ቅንጅቶችዎን ማስመለስ አልቻለም።</translat
 <translation id="7583399374488819119"><ph name="COMPANY_NAME" /> ጫኝ</translation>
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
 <translation id="7626072681686626474"><ph name="MANAGER" /> ይህን መሣሪያ ከመጠቀምዎ በፊት የሚከተለውን የአገልግሎት ውል እንዲያነብቡ እና እንዲቀበሉ ይፈለጋል። ይህ ውል የGoogle ChromeOS ውሉን አያስፋፋውም፣ አይቀይረውም ወይም አይገድበውም።</translation>
+<translation id="7627609214560473136">ውሂብዎን ለመጠበቅ Chrome እርስዎ በቅርቡ ካልጎበኟቸው ጣቢያዎች ላይ ፈቃዶችን እንዲያስወግድ ይፍቀዱ።</translation>
 <translation id="7629695634924605473">Chrome የእርስዎ የይለፍ ቃላት ከተነጠቁ እርስዎ እንዲያውቁት ያደርግዎታል</translation>
 <translation id="7641148173327520642">የስርዓት አስተዳዳሪዎ Google Chrome <ph name="TARGET_URL_HOSTNAME" /> ለመድረስ <ph name="ALTERNATIVE_BROWSER_NAME" />ን እንዲከፍት አዋቅሮታል።</translation>
 <translation id="7649070708921625228">እገዛ</translation>
@@ -609,6 +611,7 @@ Google Chrome ቅንጅቶችዎን ማስመለስ አልቻለም።</translat
 <translation id="8649026945479135076">የሚጎበኟቸው ጣቢያዎች ልምድዎን ግላዊነት ማላበስ እንዲችሉ እርስዎ የሚፈልጓቸውን ነገሮች ማስታወስ የተለመደ ነው። እንዲሁም ጣቢያዎች ስለዝንባሌዎችዎ መረጃን በChrome አማካኝነት ማከማቸት ይችላሉ።</translation>
 <translation id="8669527147644353129">Google Chrome አጋዥ</translation>
 <translation id="8679801911857917785">እንዲሁም Chromeን ሲጀምሩት የሚታየውን ገፅ ይቆጣጠራል።</translation>
+<translation id="8712637175834984815">ገባኝ</translation>
 <translation id="8712767363896337380">ሊዘመን ጥቂት ቀርቶታል! ዝማኔውን ለማጠናቀቅ Chromeን እንደገና ያስጀምሩ።</translation>
 <translation id="8718062187489036808">ከChrome ዘግተው ይውጡ</translation>
 <translation id="873133009373065397">Google Chrome ነባሪ አሳሹን ማወቅ ወይም ማቀናበር አልቻለም</translation>

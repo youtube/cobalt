@@ -345,7 +345,7 @@ class StyleCascadeTest : public PageTestBase {
         CSSStyleSheet::Create(GetDocument(), init, exception_state);
     sheet->replaceSync(css_text, exception_state);
     sheet->Contents()->EnsureRuleSet(
-        MediaQueryEvaluator(GetDocument().GetFrame()), /*mixins=*/{});
+        MediaQueryEvaluator(GetDocument().GetFrame()));
     return sheet;
   }
 
@@ -365,12 +365,7 @@ class StyleCascadeTest : public PageTestBase {
     GetDocument()
         .GetStyleEngine()
         .GetDocumentStyleSheetCollection()
-        .AppendActiveStyleSheet(active_sheets[0].first);
-    GetDocument()
-        .GetStyleEngine()
-        .GetDocumentStyleSheetCollection()
-        .CreateRuleSets(GetDocument().GetStyleEngine(),
-                        MediaQueryEvaluator(GetDocument().GetFrame()));
+        .AppendActiveStyleSheet(active_sheets[0]);
   }
 
   Element* DocumentElement() const { return GetDocument().documentElement(); }

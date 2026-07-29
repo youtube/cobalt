@@ -312,6 +312,7 @@ Jika tidak, ini akan diblokir oleh setelan privasi Anda. Ini akan memungkinkan k
 <translation id="1521655867290435174">Google Spreadsheet</translation>
 <translation id="1524669537550112617">Rumah Kontrakan Berperabot Lengkap</translation>
 <translation id="1527263332363067270">Menunggu koneksi internet...</translation>
+<translation id="1527490370616010873">Google bukan penyedia layanan isi otomatis Anda. Untuk mengaktifkan setelan ini dan menggunakan info pembayaran dari Akun Google Anda, buka <ph name="BEGIN_LINK" />Setelan layanan isi otomatis<ph name="END_LINK" />.</translation>
 <translation id="1528311629279578926">Koneksi diblokir karena dimulai oleh halaman publik untuk terhubung ke perangkat atau server di jaringan pribadi. Muat ulang halaman ini untuk mengizinkan koneksi.</translation>
 <translation id="1529789484829130889">Baki 8</translation>
 <translation id="1530707389502320859">Situs yang baru saja Anda coba kunjungi terlihat palsu. Penyerang terkadang meniru situs dengan membuat perubahan kecil dan sulit terlihat pada URL situs.</translation>
@@ -421,7 +422,6 @@ Jika tidak, ini akan diblokir oleh setelan privasi Anda. Ini akan memungkinkan k
 <translation id="1706625117072057435">Tingkat perbesar/perkecil</translation>
 <translation id="1706922226983368260">Kunci sandi • "<ph name="PHONE_NAME" />"</translation>
 <translation id="1706954506755087368">{1,plural, =1{Server ini tidak dapat membuktikan bahwa ini adalah <ph name="DOMAIN" />; sertifikat keamanannya sepertinya dari esok hari. Hal ini mungkin disebabkan oleh kesalahan konfigurasi, atau ada penyerang yang memintas koneksi internet Anda.}other{Server ini tidak dapat membuktikan bahwa ini adalah <ph name="DOMAIN" />; sertifikat keamanannya sepertinya dari # hari mendatang. Hal ini mungkin disebabkan oleh kesalahan konfigurasi, atau ada penyerang yang memintas koneksi internet Anda.}}</translation>
-<translation id="1709711942721576168">Tombol Mode AI, aktifkan untuk bertanya ke Mode AI</translation>
 <translation id="1710259589646384581">OS</translation>
 <translation id="1711234383449478798">Diabaikan karena <ph name="POLICY_NAME" /> tidak disetel ke <ph name="VALUE" />.</translation>
 <translation id="1712552549805331520"><ph name="URL" /> ingin menyimpan data di komputer lokal Anda secara permanen</translation>
@@ -1118,6 +1118,7 @@ disusupi oleh penyerang. Hanya buka <ph name="BEGIN_LINK" />situs yang tidak ama
 <translation id="2902312830803030883">Tindakan lainnya</translation>
 <translation id="2903493209154104877">Alamat</translation>
 <translation id="290376772003165898">Halaman tidak dalam bahasa <ph name="LANGUAGE" />?</translation>
+<translation id="2904180982022726666">Organisasi membatasi apa saja yang dapat Anda bagikan</translation>
 <translation id="2905107382358353958">Notifikasi tentang setelan pembayaran baru</translation>
 <translation id="2909946352844186028">Perubahan jaringan terdeteksi.</translation>
 <translation id="2911255567212929079">Machine Learning &amp; Kecerdasan Buatan</translation>
@@ -1447,7 +1448,6 @@ disusupi oleh penyerang. Hanya buka <ph name="BEGIN_LINK" />situs yang tidak ama
 <translation id="343474037147570563">File yang Anda upload atau lampirkan akan dikirimkan ke Google Cloud atau pihak ketiga untuk dianalisis. Misalnya, file mungkin dipindai untuk mendeteksi data sensitif atau malware dan mungkin disimpan berdasarkan kebijakan perusahaan serta dapat dilihat oleh administrator Anda.</translation>
 <translation id="3435557549311968410">Berkelanjutan (Singkat)</translation>
 <translation id="3435738964857648380">Keamanan</translation>
-<translation id="3436118221454753036">Mode Tanya AI</translation>
 <translation id="3440783957068352691">persegi</translation>
 <translation id="3441653493275994384">Layar</translation>
 <translation id="3443504041532578451">Cakram Optis (Satin)</translation>
@@ -2415,6 +2415,7 @@ disusupi oleh penyerang. Hanya buka <ph name="BEGIN_LINK" />situs yang tidak ama
 <translation id="5043753287208271200">Kuning 3</translation>
 <translation id="5045550434625856497">Sandi salah</translation>
 <translation id="5048293684454354469">Topik iklan hanyalah salah satu dari banyak hal yang dapat digunakan situs untuk mempersonalisasi iklan. Bahkan tanpa topik iklan, situs tetap dapat menampilkan iklan kepada Anda, tetapi iklan tersebut mungkin kurang dipersonalisasi. Pelajari lebih lanjut cara <ph name="BEGIN_LINK" />mengelola privasi iklan<ph name="LINK_END" />.</translation>
+<translation id="5051254010007014901"><ph name="TOOLBELT_PRECEDING_MATCH_TEXT" />, Tekan tab untuk mendapatkan pintasan penelusuran lainnya yang tersedia setelah saran penelusuran ini</translation>
 <translation id="5052517576853118371">Topik aktif</translation>
 <translation id="5056425809654826431">{NUM_FILES,plural, =1{Untuk mengirim file ini menggunakan Berbagi Langsung, kosongkan ruang penyimpanan (<ph name="DISK_SPACE_SIZE" />) di perangkat Anda}other{Untuk mengirim file ini menggunakan Berbagi Langsung, kosongkan ruang penyimpanan (<ph name="DISK_SPACE_SIZE" />) di perangkat Anda}}</translation>
 <translation id="505757197798929356">Berikan alasan membuka (wajib)</translation>
@@ -3035,7 +3036,6 @@ disusupi oleh penyerang. Hanya buka <ph name="BEGIN_LINK" />situs yang tidak ama
 <translation id="6108849843016142864">Reptil &amp; Amfibi</translation>
 <translation id="610911394827799129">Akun Google Anda mungkin memiliki bentuk histori penjelajahan lainnya di <ph name="BEGIN_LINK" />myactivity.google.com<ph name="END_LINK" /></translation>
 <translation id="611018310643025551">Penelusuran Anda, kecocokan terbaik, dan konten halamannya dikirim ke Google dan dapat dilihat oleh petugas peninjau untuk meningkatkan kualitas fitur ini.</translation>
-<translation id="6115793664998531464"><ph name="STARTER_PACK_AI_MODE_FOCUSED_FRIENDLY_MATCH_TEXT" />, tekan Enter untuk bertanya ke Mode AI</translation>
 <translation id="6116338172782435947">Melihat teks dan gambar yang disalin ke papan klip</translation>
 <translation id="6117833587752089929">Foto (Satin)</translation>
 <translation id="6118782133429281336">Daftar asal kosong.</translation>
@@ -4703,6 +4703,7 @@ disusupi oleh penyerang. Hanya buka <ph name="BEGIN_LINK" />situs yang tidak ama
 <translation id="8975263830901772334">Nama file yang Anda cetak</translation>
 <translation id="8982884016487650216">Selesai memuat PDF</translation>
 <translation id="8983369100812962543">Anda sekarang dapat mengubah ukuran aplikasi</translation>
+<translation id="8984785270737450103">Fitur berbagi saat ini dinonaktifkan</translation>
 <translation id="8985112471026018799">Simpan kartu untuk checkout lebih cepat</translation>
 <translation id="8987245424886630962"><ph name="VIEW_CHROME_HISTORY_FOCUSED_FRIENDLY_MATCH_TEXT" />, Tekan tab lalu Enter untuk melihat histori penjelajahan Anda di Chrome</translation>
 <translation id="8987663052629670333">Jasa Cetak Foto</translation>
@@ -4832,6 +4833,7 @@ disusupi oleh penyerang. Hanya buka <ph name="BEGIN_LINK" />situs yang tidak ama
 <translation id="9174917557437862841">Tombol beralih tab, tekan Enter untuk beralih ke tab ini</translation>
 <translation id="9177283544810807743">PDF ini tidak dapat diakses. Mengekstrak teks, didukung oleh Google AI</translation>
 <translation id="9179703756951298733">Kelola informasi pembayaran dan kartu kredit Anda di setelan Chrome</translation>
+<translation id="9179766227052716237">Organisasi Anda menyatakan: "<ph name="CUSTOM_MESSAGE" />"</translation>
 <translation id="9179907736442194268">Dapatkan peringatan email jika ada diskon di situs mana pun</translation>
 <translation id="9183302530794969518">Google Dokumen</translation>
 <translation id="9183425211371246419"><ph name="HOST_NAME" /> menggunakan protokol yang tidak didukung.</translation>

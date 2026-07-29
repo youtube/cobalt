@@ -28,9 +28,17 @@
 
 namespace {
 
-// Returns whether the given flag is set in a flagset.
-bool IsClosingFlagSet(int flagset, WebStateList::ClosingFlags flag) {
-  return (flagset & flag) == flag;
+// Returns a WebStateListChangeDetach::DetachReason for `close_reason`.
+WebStateListChangeDetach::DetachReason DetachReasonFromClosingReason(
+    WebStateList::ClosingReason close_reason) {
+  switch (close_reason) {
+    case WebStateList::ClosingReason::kDefault:
+      return WebStateListChangeDetach::DetachReason::kClosed;
+    case WebStateList::ClosingReason::kUserAction:
+      return WebStateListChangeDetach::DetachReason::kClosedByUserAction;
+    case WebStateList::ClosingReason::kTabsCleanup:
+      return WebStateListChangeDetach::DetachReason::kClosedByTabsCleanup;
+  }
 }
 
 }  // namespace
@@ -39,6 +47,7 @@ WebStateList::ScopedBatchOperation::ScopedBatchOperation(
     WebStateList* web_state_list)
     : web_state_list_(web_state_list) {
   CHECK(web_state_list_);
+  DCHECK_CALLED_ON_VALID_SEQUENCE(web_state_list_->sequence_checker_);
   CHECK(!web_state_list_->batch_operation_in_progress_);
   web_state_list_->batch_operation_in_progress_ = true;
   for (auto& observer : web_state_list_->observers_) {
@@ -48,6 +57,7 @@ WebStateList::ScopedBatchOperation::ScopedBatchOperation(
 
 WebStateList::ScopedBatchOperation::~ScopedBatchOperation() {
   if (web_state_list_) {
+    DCHECK_CALLED_ON_VALID_SEQUENCE(web_state_list_->sequence_checker_);
     CHECK(web_state_list_->batch_operation_in_progress_);
     web_state_list_->batch_operation_in_progress_ = false;
     for (auto& observer : web_state_list_->observers_) {
@@ -65,27 +75,22 @@ WebStateList::ScopedBatchOperation::~ScopedBatchOperation() {
 // The static helper method helps construct a object that represents
 // a valid state.
 struct WebStateList::DetachParams {
-  static DetachParams Detaching();
-  // TODO(crbug.com/365701685): Refactor DetachParams::Closing to use an enum
-  // for the reason why a WebState is being closed.
-  static DetachParams Closing(bool is_user_action,
-                              bool by_browsing_data_remover);
+  DetachParams(WebStateListChangeDetach::DetachReason detach_reason)
+      : detach_reason(detach_reason) {}
 
-  const bool is_closing;
-  const bool is_user_action;
-  const bool by_browsing_data_remover;
+  static DetachParams Detaching();
+  static DetachParams Closing(WebStateList::ClosingReason close_reason);
+
+  const WebStateListChangeDetach::DetachReason detach_reason;
 };
 
 WebStateList::DetachParams WebStateList::DetachParams::Detaching() {
-  return {.is_closing = false, .is_user_action = false};
+  return DetachParams(WebStateListChangeDetach::DetachReason::kDetached);
 }
 
 WebStateList::DetachParams WebStateList::DetachParams::Closing(
-    bool is_user_action,
-    bool by_browsing_data_remover) {
-  return {.is_closing = true,
-          .is_user_action = is_user_action,
-          .by_browsing_data_remover = by_browsing_data_remover};
+    WebStateList::ClosingReason close_reason) {
+  return DetachParams(DetachReasonFromClosingReason(close_reason));
 }
 
 // Wrapper around a WebState stored in a WebStateList.
@@ -101,7 +106,8 @@ class WebStateList::WebStateWrapper {
   web::WebState* web_state() const { return web_state_.get(); }
 
   // Returns ownership of the wrapped WebState.
-  std::unique_ptr<web::WebState> ReleaseWebState();
+  static std::unique_ptr<web::WebState> ReleaseWebState(
+      std::unique_ptr<WebStateWrapper> wrapper);
 
   // Replaces the wrapped WebState and returns the old WebState after forfeiting
   // ownership. The opener is cleared, but the group is kept.
@@ -137,13 +143,11 @@ WebStateList::WebStateWrapper::WebStateWrapper(
 
 WebStateList::WebStateWrapper::~WebStateWrapper() = default;
 
-std::unique_ptr<web::WebState>
-WebStateList::WebStateWrapper::ReleaseWebState() {
-  std::unique_ptr<web::WebState> web_state;
-  std::swap(web_state, web_state_);
-  opener_ = WebStateOpener();
-  group_ = nullptr;
-  return web_state;
+// static
+std::unique_ptr<web::WebState> WebStateList::WebStateWrapper::ReleaseWebState(
+    std::unique_ptr<WebStateWrapper> wrapper) {
+  CHECK(wrapper->web_state_.get());
+  return std::move(wrapper->web_state_);
 }
 
 std::unique_ptr<web::WebState> WebStateList::WebStateWrapper::ReplaceWebState(
@@ -332,7 +336,7 @@ std::unique_ptr<web::WebState> WebStateList::DetachWebStateAt(int index) {
                               DetachParams::Detaching());
 }
 
-void WebStateList::CloseWebStateAt(int index, int close_flags) {
+void WebStateList::CloseWebStateAt(int index, ClosingReason close_reason) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   auto lock = LockForMutation();
 
@@ -342,12 +346,8 @@ void WebStateList::CloseWebStateAt(int index, int close_flags) {
   const int new_active_index =
       order_controller.DetermineNewActiveIndex(active_index_, {index});
 
-  const DetachParams detach_params =
-      DetachParams::Closing(IsClosingFlagSet(close_flags, CLOSE_USER_ACTION),
-                            IsClosingFlagSet(close_flags, CLOSE_TABS_CLEANUP));
-
-  std::unique_ptr<web::WebState> detached_web_state =
-      DetachWebStateAtImpl(index, new_active_index, detach_params);
+  std::unique_ptr<web::WebState> detached_web_state = DetachWebStateAtImpl(
+      index, new_active_index, DetachParams::Closing(close_reason));
 
   // Dropping detached_web_state will destroy it.
 }
@@ -359,21 +359,18 @@ void WebStateList::ActivateWebStateAt(int index) {
   return ActivateWebStateAtImpl(index);
 }
 
-void WebStateList::CloseWebStatesAtIndices(int close_flags,
+void WebStateList::CloseWebStatesAtIndices(ClosingReason close_reason,
                                            RemovingIndexes removing_indexes) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   auto lock = LockForMutation();
-
-  const DetachParams detach_params =
-      DetachParams::Closing(IsClosingFlagSet(close_flags, CLOSE_USER_ACTION),
-                            IsClosingFlagSet(close_flags, CLOSE_TABS_CLEANUP));
 
   // Detach all web states in a first pass, before destroying them at once
   // later. This avoids odd side effects as a result of WebStateImpl's
   // destructor notifying observers, including slowness during shutdown due to
   // quadratic behavior if observers iterate the WebStateList.
   std::vector<std::unique_ptr<web::WebState>> detached_web_states =
-      DetachWebStatesAtIndicesImpl(removing_indexes, detach_params);
+      DetachWebStatesAtIndicesImpl(removing_indexes,
+                                   DetachParams::Closing(close_reason));
 
   detached_web_states.clear();
 }
@@ -625,9 +622,9 @@ std::unique_ptr<web::WebState> WebStateList::ReplaceWebStateAtImpl(
 
   ClearOpenersReferencing(index);
 
-  web::WebState* web_state_ptr = web_state.get();
+  WebStateWrapper* wrapper = web_state_wrappers_[index].get();
   std::unique_ptr<web::WebState> replaced_web_state =
-      web_state_wrappers_[index]->ReplaceWebState(std::move(web_state));
+      wrapper->ReplaceWebState(std::move(web_state));
   delegate_->WillRemoveWebState(replaced_web_state.get());
 
   if (index == active_index_) {
@@ -636,7 +633,7 @@ std::unique_ptr<web::WebState> WebStateList::ReplaceWebStateAtImpl(
   }
 
   const WebStateListChangeReplace replace_change(replaced_web_state.get(),
-                                                 web_state_ptr, index);
+                                                 wrapper->web_state(), index);
   const WebStateListStatus status = {
       .old_active_web_state = (index == active_index_)
                                   ? replaced_web_state.get()
@@ -657,14 +654,30 @@ std::unique_ptr<web::WebState> WebStateList::DetachWebStateAtImpl(
   CHECK(locked_);
   CHECK(ContainsIndex(index));
 
+  const WebStateWrapper* wrapper = web_state_wrappers_[index].get();
+  const TabGroup* group = wrapper->group();
+
+  // Unless the WebState is detached with DetachReason::kClosed (which is
+  // used before destroying the WebStateList), check whether the delegate
+  // wants to instead insert a new WebState. If this happens, convert the
+  // DetachWebStateAtImpl(...) into a ReplaceWebStateAtImpl(...).
+  if (params.detach_reason != WebStateListChangeDetach::DetachReason::kClosed) {
+    if (ShouldInsertWebState(group)) {
+      std::unique_ptr<web::WebState> web_state_to_insert =
+          groups_delegate_->WebStateToAddToEmptyGroup();
+      CHECK(web_state_to_insert);
+
+      CHECK_EQ(group->range().count(), 1);
+      return ReplaceWebStateAtImpl(index, std::move(web_state_to_insert));
+    }
+  }
+
   const bool is_active_web_state_detached = (index == active_index_);
-  web::WebState* web_state = web_state_wrappers_[index]->web_state();
+  web::WebState* web_state = wrapper->web_state();
   delegate_->WillRemoveWebState(web_state);
 
-  const TabGroup* group = web_state_wrappers_[index]->group();
-  const WebStateListChangeDetach detach_change(
-      web_state, index, params.is_closing, params.is_user_action,
-      params.by_browsing_data_remover, group);
+  const WebStateListChangeDetach detach_change(web_state, index,
+                                               params.detach_reason, group);
 
   // `new_active_index` may be invalid e.g. when closing all the WebStates,
   // so use `ContainsIndex(...)` to avoid crashing in `GetWebStateAt(...)`.
@@ -673,33 +686,26 @@ std::unique_ptr<web::WebState> WebStateList::DetachWebStateAtImpl(
                                             ? GetWebStateAt(new_active_index)
                                             : nullptr;
 
-  int insertion_index = kInvalidIndex;
-  std::unique_ptr<web::WebState> web_state_to_insert;
-  // Do not insert web state when shuting down the app. All tabs are closed.
-  bool is_shutting_down = params.is_closing && !params.is_user_action &&
-                          !params.by_browsing_data_remover;
-  if (!is_shutting_down && ShouldInsertWebState(group)) {
-    // In case the group is empty but should be kept, add a new tab in it
-    // to prevent its deletion.
-    web_state_to_insert = groups_delegate_->WebStateToAddToEmptyGroup();
-    new_active_web_state = web_state_to_insert.get();
-    insertion_index = InsertWebStateImpl(
-        std::move(web_state_to_insert),
-        WebStateList::InsertionParams::Automatic().InGroup(group));
-  }
-
   const WebStateListStatus status = {
       .old_active_web_state = old_active_web_state,
-      .new_active_web_state = new_active_web_state};
+      .new_active_web_state = new_active_web_state,
+  };
 
   for (auto& observer : observers_) {
     observer.WebStateListWillChange(this, detach_change, status);
   }
 
   ClearOpenersReferencing(index);
-  std::unique_ptr<web::WebState> detached_web_state =
-      web_state_wrappers_[index]->ReleaseWebState();
+
+  // Past this point the WebState has been removed from the list but is
+  // still owned by detached_wrapper. The variables `group`, `wrapper`,
+  // and `web_state` are still valid.
+  std::unique_ptr<WebStateWrapper> detached_wrapper =
+      std::move(web_state_wrappers_[index]);
   web_state_wrappers_.erase(web_state_wrappers_.begin() + index);
+  CHECK(!base::Contains(web_state_wrappers_, detached_wrapper));
+  CHECK_EQ(detached_wrapper->web_state(), web_state);
+  CHECK_EQ(detached_wrapper.get(), wrapper);
 
   // Update the number of pinned tabs if necessary.
   if (index < pinned_tabs_count_) {
@@ -726,13 +732,6 @@ std::unique_ptr<web::WebState> WebStateList::DetachWebStateAtImpl(
     CHECK_GT(active_index_, 0);
     --active_index_;
   }
-  // If a web state is inserted, the newly inserted web state should become the
-  // active one to avoid crash see crbug.com/419042071.
-  if (insertion_index != kInvalidIndex) {
-    // Removes one to `insertion_index`, because the insertion happened before
-    // the removal of the web state.
-    active_index_ = --insertion_index;
-  }
 
   // Check that the active element (if there is one) is valid and expected.
   CHECK(active_index_ == kInvalidIndex || ContainsIndex(active_index_));
@@ -740,7 +739,7 @@ std::unique_ptr<web::WebState> WebStateList::DetachWebStateAtImpl(
 
   // Inform the delegate that the active WebState changed (it may decide to
   // force its realization, ...).
-  if (is_active_web_state_detached || insertion_index != kInvalidIndex) {
+  if (is_active_web_state_detached) {
     OnActiveWebStateChanged();
   }
 
@@ -751,15 +750,17 @@ std::unique_ptr<web::WebState> WebStateList::DetachWebStateAtImpl(
   // If the group is now empty, delete it.
   DeleteGroupIfEmpty(group);
 
-  return detached_web_state;
+  CHECK(!base::Contains(web_state_wrappers_, detached_wrapper));
+  return WebStateWrapper::ReleaseWebState(std::move(detached_wrapper));
 }
 
 bool WebStateList::ShouldInsertWebState(const TabGroup* group) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!group) {
     return false;
   }
-  const auto iter = groups_.find(group);
-  if (iter == groups_.end() || group->range().count() > 1) {
+  CHECK(ContainsGroup(group));
+  if (group->range().count() > 1) {
     return false;
   }
   return (groups_delegate_ && !groups_delegate_->ShouldDeleteGroup(group));
@@ -1168,11 +1169,13 @@ void WebStateList::MoveWebStateWrapperAt(int from_index,
     // to prevent group deletion.
     std::unique_ptr<web::WebState> web_state_to_insert =
         groups_delegate_->WebStateToAddToEmptyGroup();
-    int insertion_index =
+    CHECK(web_state_to_insert);
+    const int insertion_index =
         InsertWebStateImpl(std::move(web_state_to_insert),
                            WebStateList::InsertionParams::Automatic()
                                .InGroup(old_group)
                                .Activate());
+    CHECK_GT(insertion_index, from_index);
     if (insertion_index < to_index) {
       to_index++;
     }
@@ -1281,6 +1284,7 @@ void WebStateList::DeleteGroupIfEmpty(const TabGroup* group) {
 }
 
 void WebStateList::SetActiveIndex(int active_index) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (active_index_ == active_index) {
     return;
   }
@@ -1297,30 +1301,33 @@ void WebStateList::SetActiveIndex(int active_index) {
 }
 
 void WebStateList::OnActiveWebStateChanged() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   web::WebState* active_web_state = GetActiveWebState();
   if (active_web_state) {
     delegate_->WillActivateWebState(active_web_state);
   }
 }
 
-void CloseAllWebStates(WebStateList& web_state_list, int close_flags) {
+void CloseAllWebStates(WebStateList& web_state_list,
+                       WebStateList::ClosingReason close_reason) {
   const int count = web_state_list.count();
 
   const WebStateList::ScopedBatchOperation batch =
       web_state_list.StartBatchOperation();
-  web_state_list.CloseWebStatesAtIndices(close_flags, RemovingIndexes({
-                                                          .start = 0,
-                                                          .count = count,
-                                                      }));
+  web_state_list.CloseWebStatesAtIndices(close_reason, RemovingIndexes({
+                                                           .start = 0,
+                                                           .count = count,
+                                                       }));
 }
 
-void CloseAllNonPinnedWebStates(WebStateList& web_state_list, int close_flags) {
+void CloseAllNonPinnedWebStates(WebStateList& web_state_list,
+                                WebStateList::ClosingReason close_reason) {
   const int pinned_tabs_count = web_state_list.pinned_tabs_count();
   const int regular_tabs_count = web_state_list.count() - pinned_tabs_count;
 
   const WebStateList::ScopedBatchOperation batch =
       web_state_list.StartBatchOperation();
-  web_state_list.CloseWebStatesAtIndices(close_flags,
+  web_state_list.CloseWebStatesAtIndices(close_reason,
                                          RemovingIndexes({
                                              .start = pinned_tabs_count,
                                              .count = regular_tabs_count,
@@ -1329,12 +1336,12 @@ void CloseAllNonPinnedWebStates(WebStateList& web_state_list, int close_flags) {
 
 void CloseAllWebStatesInGroup(WebStateList& web_state_list,
                               const TabGroup* group,
-                              int close_flags) {
+                              WebStateList::ClosingReason close_reason) {
   const TabGroupRange range = group->range();
 
   const WebStateList::ScopedBatchOperation batch =
       web_state_list.StartBatchOperation();
-  web_state_list.CloseWebStatesAtIndices(close_flags,
+  web_state_list.CloseWebStatesAtIndices(close_reason,
                                          RemovingIndexes({
                                              .start = range.range_begin(),
                                              .count = range.count(),
@@ -1343,7 +1350,7 @@ void CloseAllWebStatesInGroup(WebStateList& web_state_list,
 
 void CloseOtherWebStates(WebStateList& web_state_list,
                          int index_to_keep,
-                         int close_flags) {
+                         WebStateList::ClosingReason close_reason) {
   const int count = web_state_list.count();
   const int pinned_count = web_state_list.pinned_tabs_count();
   std::vector<int> indexes_to_close;
@@ -1357,5 +1364,5 @@ void CloseOtherWebStates(WebStateList& web_state_list,
   const WebStateList::ScopedBatchOperation batch =
       web_state_list.StartBatchOperation();
   web_state_list.CloseWebStatesAtIndices(
-      close_flags, RemovingIndexes(std::move(indexes_to_close)));
+      close_reason, RemovingIndexes(std::move(indexes_to_close)));
 }

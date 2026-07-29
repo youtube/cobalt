@@ -124,6 +124,10 @@ PasswordManagerDelegate* AutofillClient::GetPasswordManagerDelegate(
   return nullptr;
 }
 
+OtpSuggestionDelegate* AutofillClient::GetOtpSuggestionDelegate() {
+  return nullptr;
+}
+
 void AutofillClient::GetAiPageContent(GetAiPageContentCallback callback) {
   std::move(callback).Run(std::nullopt);
 }
@@ -214,6 +218,10 @@ AutofillClient::GetAutofillSnackbarController() {
 void AutofillClient::TriggerUserPerceptionOfAutofillSurvey(
     FillingProduct filling_product,
     const std::map<std::string, std::string>& field_filling_stats_data) {
+  NOTIMPLEMENTED();
+}
+
+void AutofillClient::TriggerDeclinedSaveAddressReasonSurvey() {
   NOTIMPLEMENTED();
 }
 

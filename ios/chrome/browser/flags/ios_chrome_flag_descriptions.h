@@ -23,6 +23,9 @@ namespace flag_descriptions {
 extern const char kAddAddressManuallyName[];
 extern const char kAddAddressManuallyDescription[];
 
+extern const char kAIMPrototypeName[];
+extern const char kAIMPrototypeDescription[];
+
 extern const char kAppBackgroundRefreshName[];
 extern const char kAppBackgroundRefreshDescription[];
 
@@ -129,9 +132,6 @@ extern const char kAutofillUploadCardRequestTimeoutDescription[];
 
 extern const char kAutofillUseRendererIDsName[];
 extern const char kAutofillUseRendererIDsDescription[];
-
-extern const char kAutofillVcnEnrollRequestTimeoutName[];
-extern const char kAutofillVcnEnrollRequestTimeoutDescription[];
 
 extern const char kAutofillVcnEnrollStrikeExpiryTimeName[];
 extern const char kAutofillVcnEnrollStrikeExpiryTimeDescription[];
@@ -261,6 +261,9 @@ extern const char kEnableFeedCardMenuSignInPromoDescription[];
 
 extern const char kEnableTraitCollectionRegistrationName[];
 extern const char kEnableTraitCollectionRegistrationDescription[];
+
+extern const char kDiamondPrototypeName[];
+extern const char kDiamondPrototypeDescription[];
 
 extern const char kDisableAutofillStrikeSystemName[];
 extern const char kDisableAutofillStrikeSystemDescription[];
@@ -392,6 +395,9 @@ extern const char kIOSKeyboardAccessoryUpgradeDescription[];
 extern const char kIOSKeyboardAccessoryUpgradeForIPadName[];
 extern const char kIOSKeyboardAccessoryUpgradeForIPadDescription[];
 
+extern const char kIOSOmniboxAimShortcutName[];
+extern const char kIOSOmniboxAimShortcutDescription[];
+
 extern const char kIOSOneTapMiniMapRemoveSectionBreaksName[];
 extern const char kIOSOneTapMiniMapRemoveSectionBreaksDescription[];
 
@@ -409,6 +415,9 @@ extern const char kIOSPasswordBottomSheetAutofocusDescription[];
 
 extern const char kIOSProactivePasswordGenerationBottomSheetName[];
 extern const char kIOSProactivePasswordGenerationBottomSheetDescription[];
+
+extern const char kIOSTrustedVaultNotificationName[];
+extern const char kIOSTrustedVaultNotificationDescription[];
 
 extern const char kInvalidateSearchEngineChoiceOnDeviceRestoreDetectionName[];
 extern const char
@@ -651,6 +660,12 @@ extern const char kOmniboxMlUrlSearchBlendingDescription[];
 extern const char kOmniboxMobileParityUpdateName[];
 extern const char kOmniboxMobileParityUpdateDescription[];
 
+extern const char kOmniboxMobileParityUpdateV2Name[];
+extern const char kOmniboxMobileParityUpdateV2Description[];
+
+extern const char kOmniboxMobileParityUpdateV3Name[];
+extern const char kOmniboxMobileParityUpdateV3Description[];
+
 extern const char kOmniboxOnClobberFocusTypeOnIOSName[];
 extern const char kOmniboxOnClobberFocusTypeOnIOSDescription[];
 
@@ -800,9 +815,6 @@ extern const char
 
 extern const char kSegmentationPlatformTipsEphemeralCardName[];
 extern const char kSegmentationPlatformTipsEphemeralCardDescription[];
-
-extern const char kSegmentedDefaultBrowserPromoName[];
-extern const char kSegmentedDefaultBrowserPromoDescription[];
 
 extern const char kSendTabToSelfIOSPushNotificationsName[];
 extern const char kSendTabToSelfIOSPushNotificationsDescription[];

@@ -9083,7 +9083,7 @@ be describing additional metrics about the same event.
   <owner>payments-autofill-team@google.com</owner>
   <summary>
     An event that is logged after a likely Pix code is copied to the clipboard
-    on an allowlisted website.
+    on any website.
   </summary>
   <metric name="PixCodeCopied" enum="Boolean">
     <summary>
@@ -12979,6 +12979,19 @@ be describing additional metrics about the same event.
       </history>
     </aggregation>
   </metric>
+  <metric name="HomeworkActionChip">
+    <summary>
+      Time to first interaction when overlay invoked through the omnibox Lens
+      homework page action suggestion.
+    </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <quantiles type="std-percentiles"/>
+        </statistics>
+      </history>
+    </aggregation>
+  </metric>
   <metric name="Omnibox">
     <summary>
       Time to first interaction when overlay invoked through the omnibox.
@@ -13295,6 +13308,24 @@ be describing additional metrics about the same event.
       within a different reserved IP space than the loaded private page, 8 for
       resources requested by public pages that are suspected to be routers, and
       16 for localhost resources.
+    </summary>
+  </metric>
+</event>
+
+<event name="LoginDetectionV2" singular="True">
+  <owner>yigu@chromium.org</owner>
+  <owner>tbansal@chromium.org</owner>
+  <owner>web-identity-eng@chromium.org</owner>
+  <summary>
+    Records the info about login detected for sites based on different
+    heuristics. Recorded once per page load when OAuth login was detected on
+    page load. Note: the first version of LoginDetection recorded all pageload
+    types including password logins and no logins etc.
+  </summary>
+  <metric name="Page.LoginType" enum="LoginDetectionType">
+    <summary>
+      An enum for representing the different ways of user login to a site. At
+      this moment only OAuth logins are recorded in UKM.
     </summary>
   </metric>
 </event>
@@ -14543,6 +14574,23 @@ be describing additional metrics about the same event.
   <metric name="IsMainFrame">
     <summary>
       Indicates whether the event is fired from main frame.
+    </summary>
+  </metric>
+</event>
+
+<event name="Media.WebAudio.ScriptProcessorNode">
+  <owner>hongchan@chromium.org</owner>
+  <owner>mjwilson@chromium.org</owner>
+  <owner>webaudio-dev@chromium.org</owner>
+  <summary>
+    Records the creation of a ScriptProcessorNode to monitor usage of this
+    deprecated API. ScriptProcessorNode has been deprecated and developers are
+    strongly encouraged to use AudioWorklet instead. This data helps gauge
+    migration progress and the impact if it were to be removed.
+  </summary>
+  <metric name="Creation" enum="Boolean">
+    <summary>
+      Fired and set to true when a ScriptProcessorNode is constructed.
     </summary>
   </metric>
 </event>
@@ -23602,8 +23650,8 @@ be describing additional metrics about the same event.
 </event>
 
 <event name="SoftNavigation" singular="True">
-  <owner>iclelland@chromium.org</owner>
-  <owner>haoliuk@chromium.org</owner>
+  <owner>mmocny@chromium.org</owner>
+  <owner>speed-metrics-dev@chromium.org</owner>
   <summary>
     Records soft navigation metrics including LCP, CLS, INP. Soft navigation is
     DOM changes that are perceived to be navigation, but there is no page load.
@@ -24739,7 +24787,7 @@ be describing additional metrics about the same event.
       </history>
     </aggregation>
   </metric>
-  <metric name="TimeToLargestContentfulPaint.Cold">
+  <metric name="TimeToLargestContentfulPaint2.Cold">
     <summary>
       The timestamp of the largest contentful paint, relative to the Activity
       initialization timestamp passed from android-browser-helper. Split by
@@ -24754,7 +24802,7 @@ be describing additional metrics about the same event.
       </history>
     </aggregation>
   </metric>
-  <metric name="TimeToLargestContentfulPaint.Warm">
+  <metric name="TimeToLargestContentfulPaint2.Warm">
     <summary>
       The timestamp of the largest contentful paint, relative to the Activity
       initialization timestamp passed from android-browser-helper. Split by

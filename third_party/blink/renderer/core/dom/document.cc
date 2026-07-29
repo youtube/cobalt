@@ -491,7 +491,7 @@ std::optional<CharType> ParseNamespacePrefixNewSpec(
     // A string is a valid namespace prefix if its length is at least 1 and
     // it does not contain ASCII whitespace, U+0000 NULL, U+002F (/), or
     // U+003E (>).
-    if (c == '>' || c == '/' || !c || WTF::IsASCIISpaceWHATWG(c)) {
+    if (c == '>' || c == '/' || !c || IsASCIISpaceWHATWG(c)) {
       return c;
     }
   }
@@ -510,7 +510,7 @@ std::optional<CharType> ParseAttributeLocalNameNewSpec(
     // A string is a valid attribute local name if its length is at least 1
     // and it does not contain ASCII whitespace, U+0000 NULL, U+002F (/),
     // U+003D (=), or U+003E (>).
-    if (!c || WTF::IsASCIISpaceWHATWG(c) || c == '/' || c == '=' || c == '>') {
+    if (!c || IsASCIISpaceWHATWG(c) || c == '/' || c == '=' || c == '>') {
       return c;
     }
   }
@@ -532,8 +532,8 @@ std::optional<CharType> ParseElementLocalNameNewSpec(
       // If name contains ASCII whitespace, U+0000 NULL, U+002F (/), or U+003E
       // (>), then return false.
       next_char = characters[i];
-      if (!next_char || WTF::IsASCIISpaceWHATWG(next_char) ||
-          next_char == '/' || next_char == '>') {
+      if (!next_char || IsASCIISpaceWHATWG(next_char) || next_char == '/' ||
+          next_char == '>') {
         return next_char;
       }
     }
@@ -674,7 +674,7 @@ static bool IsValidElementNamePerHTMLParser(const String& name) {
   if (name.empty()) {
     return false;
   }
-  return WTF::VisitCharacters(
+  return VisitCharacters(
       name, [](auto chars) { return IsValidElementNamePerHTMLParser(chars); });
 }
 
@@ -686,7 +686,7 @@ bool IsValidElementName(Document* document, const String& name) {
     if (name.empty()) {
       return false;
     }
-    return WTF::VisitCharacters(
+    return VisitCharacters(
         name, [](auto chars) { return !ParseElementLocalNameNewSpec(chars); });
   }
 
@@ -1642,11 +1642,6 @@ Node* Document::adoptNode(Node* source, ExceptionState& exception_state) {
   return source;
 }
 
-CustomElementRegistry* Document::customElementRegistry() const {
-  DCHECK(RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled());
-  return dom_window_ ? dom_window_->customElements() : nullptr;
-}
-
 bool Document::HasValidNamespaceForElements(const QualifiedName& q_name) {
   // These checks are from DOM Core Level 2, createElementNS
   // http://www.w3.org/TR/DOM-Level-2-Core/core.html#ID-DocCrElNS
@@ -1983,7 +1978,7 @@ void Document::UpdateTitle(const String& title) {
   if (raw_title_.empty()) {
     title_ = String();
   } else {
-    title_ = WTF::VisitCharacters(
+    title_ = VisitCharacters(
         raw_title_, [](auto chars) { return CanonicalizedTitle(chars); });
   }
 
@@ -4114,20 +4109,17 @@ void Document::ImplicitClose() {
     return;
   }
 
-  if (HaveRenderBlockingStylesheetsLoaded()) {
-    // The initial empty document might be loaded synchronously.
-    // When this occurs and we also synchronously update the style and layout
-    // here, which is needed for things like autofill, it creates a chain
-    // reaction where inserting iframes without a src to a document causes
-    // expensive layout thrashing of the embedding document. Since this is a
-    // common scenario, special-casing it here, and avoiding that layout if
-    // this is an initial-empty document in a subframe.
-    if (!base::FeatureList::IsEnabled(
-            features::kAvoidForcedLayoutOnInitialEmptyDocumentInSubframe) ||
-        Loader()->HasLoadedNonInitialEmptyDocument() ||
-        GetFrame()->IsMainFrame()) {
-      UpdateStyleAndLayout(DocumentUpdateReason::kUnknown);
-    }
+  // The initial empty document might be loaded synchronously.
+  // When this occurs and we also synchronously update the style and layout
+  // here, which is needed for things like autofill, it creates a chain
+  // reaction where inserting iframes without a src to a document causes
+  // expensive layout thrashing of the embedding document. Since this is a
+  // common scenario, special-casing it here, and avoiding that layout if
+  // this is an initial-empty document in a subframe.
+  if (HaveRenderBlockingStylesheetsLoaded() &&
+      (Loader()->HasLoadedNonInitialEmptyDocument() ||
+       GetFrame()->IsMainFrame())) {
+    UpdateStyleAndLayout(DocumentUpdateReason::kUnknown);
   }
 
   load_event_progress_ = kLoadEventCompleted;
@@ -5446,7 +5438,8 @@ void Document::LayoutViewportWasResized() {
   // event *actually* completed; but we also need to fire a resize event if the
   // window size changes during load event dispatch.
   // Note that in the case of the initial empty document, the load may hav
-  // completed before performing the first layout.
+  // completed before performing the first layout. Also, we need to fire a
+  // resize event if the window size changes during load event dispatch.
   if ((View() && View()->DidFirstLayout()) ||
       load_event_progress_ == kLoadEventInProgress || IsLoadCompleted()) {
     EnqueueResizeEvent();
@@ -7115,7 +7108,7 @@ bool Document::IsValidName(const StringView& name) {
   unsigned length = name.length();
   if (!length)
     return false;
-  return WTF::VisitCharacters(name, [](auto chars) {
+  return VisitCharacters(name, [](auto chars) {
     if (IsValidNameASCII(chars)) {
       return true;
     }
@@ -7129,7 +7122,7 @@ bool Document::IsValidAttributeLocalNameNewSpec(const StringView& local_name) {
   if (local_name.empty()) {
     return false;
   }
-  return WTF::VisitCharacters(local_name, [](auto chars) {
+  return VisitCharacters(local_name, [](auto chars) {
     return !ParseAttributeLocalNameNewSpec(chars);
   });
 }
@@ -7139,7 +7132,7 @@ bool Document::IsValidElementLocalNameNewSpec(const StringView& local_name) {
   if (local_name.empty()) {
     return false;
   }
-  return WTF::VisitCharacters(local_name, [](auto chars) {
+  return VisitCharacters(local_name, [](auto chars) {
     return !ParseElementLocalNameNewSpec(chars);
   });
 }
@@ -7273,7 +7266,7 @@ bool Document::ParseQualifiedName(const AtomicString& qualified_name,
     return false;
   }
 
-  ParseQualifiedNameResult return_value = WTF::VisitCharacters(
+  ParseQualifiedNameResult return_value = VisitCharacters(
       qualified_name,
       [&qualified_name, &prefix, &local_name, &parsing_mode](auto chars) {
         if (RuntimeEnabledFeatures::RelaxDOMValidNamesEnabled()) {
@@ -7781,10 +7774,7 @@ void Document::FinishedParsing() {
       // of sync. Loader()->HasLoadedNonInitialEmptyDocument() is more correct.
       // Keeping both for now behind a flag so that it's finch-testable.
       if (GetFrame()->IsMainFrame() ||
-          Loader()->HasLoadedNonInitialEmptyDocument() ||
-          !base::FeatureList::IsEnabled(
-              blink::features::
-                  kAvoidForcedLayoutOnInitialEmptyDocumentInSubframe)) {
+          Loader()->HasLoadedNonInitialEmptyDocument()) {
         UpdateStyleAndLayoutTree();
         if (base::FeatureList::IsEnabled(
                 features::kPrerender2EarlyDocumentLifecycleUpdate) &&
@@ -9804,20 +9794,30 @@ Document* Document::parseHTMLInternal(ExecutionContext* context,
 
 // static
 Document* Document::parseHTMLUnsafe(ExecutionContext* context,
-                                    const String& html,
+                                    const V8UnionStringOrTrustedHTML* html,
                                     ExceptionState& exception_state) {
   UseCounter::Count(context, WebFeature::kHTMLUnsafeMethods);
-  return parseHTMLInternal(context, html, exception_state);
+  String compliant_html = TrustedTypesCheckForHTML(
+      html, context, "Document", "parseHTMLUnsafe", exception_state);
+  if (exception_state.HadException()) {
+    return nullptr;
+  }
+  return parseHTMLInternal(context, compliant_html, exception_state);
 }
 
 // static
 Document* Document::parseHTMLUnsafe(ExecutionContext* context,
-                                    const String& html,
+                                    const V8UnionStringOrTrustedHTML* html,
                                     SetHTMLUnsafeOptions* options,
                                     ExceptionState& exception_state) {
   UseCounter::Count(context, WebFeature::kHTMLUnsafeMethods);
   CHECK(RuntimeEnabledFeatures::SanitizerAPIEnabled());
-  Document* doc = parseHTMLInternal(context, html, exception_state);
+  String compliant_html = TrustedTypesCheckForHTML(
+      html, context, "Document", "parseHTMLUnsafe", exception_state);
+  if (exception_state.HadException()) {
+    return nullptr;
+  }
+  Document* doc = parseHTMLInternal(context, compliant_html, exception_state);
   SanitizerAPI::SanitizeUnsafeInternal(doc, options, exception_state);
   return doc;
 }

@@ -47,10 +47,16 @@ public class ContextMenuHelper {
     private @Nullable ContextMenuParams mCurrentContextMenuParams;
     private @Nullable ContextMenuUi mCurrentContextMenu;
     private @Nullable WindowAndroid mWindow;
-    private @Nullable Callback<Integer> mCallback;
     private @Nullable Runnable mOnMenuShown;
     private @Nullable Runnable mOnMenuClosed;
     private @Nullable ChipDelegate mChipDelegate;
+
+    private final Callback<Integer> mCallback =
+            (result) -> {
+                if (mCurrentPopulator == null) return;
+
+                mCurrentPopulator.onItemSelected(result);
+            };
 
     private ContextMenuHelper(long nativeContextMenuHelper, WebContents webContents) {
         mNativeContextMenuHelper = nativeContextMenuHelper;
@@ -114,12 +120,6 @@ public class ContextMenuHelper {
                         windowAndroid.getActivity().get(), params, mCurrentNativeDelegate);
         mCurrentContextMenuParams = params;
         mWindow = windowAndroid;
-        mCallback =
-                (result) -> {
-                    if (mCurrentPopulator == null) return;
-
-                    mCurrentPopulator.onItemSelected(result);
-                };
         mOnMenuShown =
                 () -> {
                     RecordHistogram.recordBooleanHistogram(
@@ -186,7 +186,6 @@ public class ContextMenuHelper {
         assert mCurrentNativeDelegate != null
                 && mWindow != null
                 && mCurrentContextMenuParams != null
-                && mCallback != null
                 && mOnMenuShown != null;
         final ContextMenuCoordinator menuCoordinator =
                 new ContextMenuCoordinator(topContentOffsetPx, mCurrentNativeDelegate);

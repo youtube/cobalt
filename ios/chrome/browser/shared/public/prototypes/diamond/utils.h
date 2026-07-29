@@ -1,0 +1,29 @@
+// Copyright 2025 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef IOS_CHROME_BROWSER_SHARED_PUBLIC_PROTOTYPES_DIAMOND_UTILS_H_
+#define IOS_CHROME_BROWSER_SHARED_PUBLIC_PROTOTYPES_DIAMOND_UTILS_H_
+
+#import <UIKit/UIKit.h>
+
+class Browser;
+
+// Height of the app bar.
+extern const CGFloat kChromeAppBarPrototypeHeight;
+
+// Starts the gemini panel for Diamond prototype.
+void DiamondPrototypeStartGemini(bool from_tab_grid,
+                                 bool incognito_grid,
+                                 Browser* regular_browser,
+                                 Browser* incognito_browser,
+                                 UIViewController* base_view_controller);
+
+// Starts the new tab sheet.
+void DiamondPrototypeStartNewTab(bool from_tab_grid,
+                                 bool incognito_grid,
+                                 Browser* regular_browser,
+                                 Browser* incognito_browser,
+                                 UIViewController* base_view_controller);
+
+#endif  // IOS_CHROME_BROWSER_SHARED_PUBLIC_PROTOTYPES_DIAMOND_UTILS_H_

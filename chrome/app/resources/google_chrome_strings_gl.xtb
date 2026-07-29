@@ -232,6 +232,7 @@
 <translation id="3785324443014631273">Chrome OS Flex non puido sincronizar os teus datos por mor dun erro durante o inicio de sesión.</translation>
 <translation id="3795971588916395511">Google Chrome OS</translation>
 <translation id="3809772425479558446">Para usar Chrome, precísase Windows 10 ou unha versión posterior.</translation>
+<translation id="3810973564298564668">Xestionar</translation>
 <translation id="383928141529488001">Google Chrome precisa acceso ao Bluetooth para explorar 
  os dispositivos Bluetooth. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="386202838227397562">Pecha todas as ventás de Google Chrome e téntao de novo.</translation>
@@ -523,6 +524,7 @@ Google Chrome non pode recuperar a túa configuración.</translation>
 <translation id="7583399374488819119">Instalador de <ph name="COMPANY_NAME" /></translation>
 <translation id="7606334485649076285">Google Chrome OS Flex</translation>
 <translation id="7626072681686626474"><ph name="MANAGER" /> require que leas e aceptes as seguintes Condicións de servizo antes de utilizar este dispositivo. Estas condicións non amplían, modifican nin limitan as de Google Chrome OS.</translation>
+<translation id="7627609214560473136">Para protexer os teus datos, Chrome quita permisos dos sitios que leves tempo sen visitar.</translation>
 <translation id="7629695634924605473">Chrome permíteche saber se os teus contrasinais están en risco nalgún momento</translation>
 <translation id="7641148173327520642">A persoa que administra o teu sistema configurou Google Chrome para abrir o navegador <ph name="TARGET_URL_HOSTNAME" /> co obxectivo de acceder a <ph name="ALTERNATIVE_BROWSER_NAME" />.</translation>
 <translation id="7649070708921625228">Axuda</translation>
@@ -609,6 +611,7 @@ Google Chrome non pode recuperar a túa configuración.</translation>
 <translation id="8649026945479135076">É habitual que os sitios que visitas lembren o que che interesa para personalizar a experiencia que se che ofrece neles. Os sitios tamén poden almacenar con Chrome información sobre os teus intereses.</translation>
 <translation id="8669527147644353129">Axudante de Google Chrome</translation>
 <translation id="8679801911857917785">Tamén controla a páxina que se mostra ao iniciar Chrome.</translation>
+<translation id="8712637175834984815">De acordo</translation>
 <translation id="8712767363896337380">A actualización está a piques de rematar. Para que finalice, reinicia Chrome.</translation>
 <translation id="8718062187489036808">Pechar sesión en Chrome</translation>
 <translation id="873133009373065397">Google Chrome non pode determinar nin establecer o navegador predeterminado</translation>

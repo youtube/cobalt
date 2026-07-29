@@ -55,6 +55,10 @@ GlicUI::GlicUI(content::WebUI* web_ui) : ui::MojoWebUIController(web_ui) {
        IDS_GLIC_INELIGIBLE_PROFILE_NOTICE_ACTION_BUTTON},
       {"ineligibleProfileNoticeHeader",
        IDS_GLIC_INELIGIBLE_PROFILE_NOTICE_HEADER},
+      {"disabledByAdminNotice", IDS_GLIC_DISABLED_BY_ADMIN_NOTICE},
+      {"disabledByAdminNoticeCloseButton",
+       IDS_GLIC_DISABLED_BY_ADMIN_NOTICE_CLOSE_BUTTON},
+      {"disabledByAdminNoticeHeader", IDS_GLIC_DISABLED_BY_ADMIN_NOTICE_HEADER},
       {"offlineNoticeAction", IDS_GLIC_OFFLINE_NOTICE_ACTION},
       {"offlineNoticeActionButton", IDS_GLIC_OFFLINE_NOTICE_ACTION_BUTTON},
       {"offlineNoticeHeader", IDS_GLIC_OFFLINE_NOTICE_HEADER},
@@ -146,6 +150,9 @@ GlicUI::GlicUI(content::WebUI* web_ui) : ui::MojoWebUIController(web_ui) {
                      features::kGlicClientResponsivenessCheckTimeoutMs.Get());
   source->AddInteger("clientUnresponsiveUiMaxTimeMs",
                      features::kGlicClientUnresponsiveUiMaxTimeMs.Get());
+  source->AddBoolean(
+      "clientResponsivenessCheckIgnoreWhenDebuggerAttached",
+      features::kGlicClientResponsivenessCheckIgnoreWhenDebuggerAttached.Get());
   source->AddBoolean("enableWebClientUnresponsiveMetrics",
                      base::FeatureList::IsEnabled(
                          features::kGlicWebClientUnresponsiveMetrics));

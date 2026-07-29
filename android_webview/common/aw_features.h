@@ -36,6 +36,7 @@ BASE_DECLARE_FEATURE(kWebViewTestFeature);
 BASE_DECLARE_FEATURE(kWebViewUseMetricsUploadService);
 BASE_DECLARE_FEATURE(kWebViewUseMetricsUploadServiceOnlySdkRuntime);
 BASE_DECLARE_FEATURE(kWebViewPropagateNetworkChangeSignals);
+BASE_DECLARE_FEATURE(kWebViewStartupTasksYieldToNative);
 BASE_DECLARE_FEATURE(kWebViewUnreducedProductVersion);
 BASE_DECLARE_FEATURE(kWebViewUseStartupTasksLogic);
 BASE_DECLARE_FEATURE(kWebViewUseStartupTasksLogicP2);
@@ -67,6 +68,7 @@ extern const base::FeatureParam<int> kWebViewCacheSizeLimitMinimum;
 extern const base::FeatureParam<int> kWebViewCacheSizeLimitMaximum;
 extern const base::FeatureParam<double> kWebViewCodeCacheSizeLimitMultiplier;
 BASE_DECLARE_FEATURE(kWebViewConnectToComponentProviderInBackground);
+BASE_DECLARE_FEATURE(kAndroidMetricsAsyncMetricLogging);
 }  // namespace android_webview::features
 
 #endif  // ANDROID_WEBVIEW_COMMON_AW_FEATURES_H_

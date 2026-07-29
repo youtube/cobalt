@@ -165,11 +165,6 @@ namespace crostini {
 class AppRestartDialog;
 }
 
-namespace enterprise_connectors {
-class ContentAnalysisDialogController;
-class ContentAnalysisDialogBehaviorBrowserTest;
-}  // namespace enterprise_connectors
-
 namespace exo {
 class ShellSurfaceBase;
 }
@@ -255,7 +250,6 @@ class SubAppsInstallDialogController;
 
 namespace webid {
 class AccountSelectionModalView;
-class TestAccountSelectionView;
 }  // namespace webid
 
 namespace views {
@@ -437,9 +431,6 @@ class VIEWS_EXPORT WidgetDelegate {
     friend class ::constrained_window::BrowserModalHelper;
     friend class ::content::ShellPlatformDelegate;
     friend class ::crostini::AppRestartDialog;
-    friend class ::enterprise_connectors::ContentAnalysisDialogController;
-    friend class ::enterprise_connectors::
-        ContentAnalysisDialogBehaviorBrowserTest;
     friend class ::exo::ShellSurfaceBase;
     friend class ::extensions::WebFileHandlersPermissionHandler;
     friend class ::javascript_dialogs::AppModalDialogViewViews;
@@ -452,7 +443,6 @@ class VIEWS_EXPORT WidgetDelegate {
     friend class ::web_app::IsolatedWebAppInstallerViewController;
     friend class ::web_app::SubAppsInstallDialogController;
     friend class ::webid::AccountSelectionModalView;
-    friend class ::webid::TestAccountSelectionView;
 
     OwnedByWidgetPassKey() = default;
   };

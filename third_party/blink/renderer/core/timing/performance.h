@@ -35,6 +35,7 @@
 #include "base/functional/callback_forward.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
+#include "third_party/blink/public/common/performance/performance_timeline_constants.h"
 #include "third_party/blink/public/mojom/timing/resource_timing.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_function.h"
@@ -192,6 +193,10 @@ class CORE_EXPORT Performance : public EventTarget {
   DEFINE_ATTRIBUTE_EVENT_LISTENER(resourcetimingbufferfull,
                                   kResourcetimingbufferfull)
 
+  virtual uint32_t NavigationId() const {
+    return blink::kNavigationIdDefaultValue;
+  }
+
   void AddLongTaskTiming(base::TimeTicks start_time,
                          base::TimeTicks end_time,
                          const AtomicString& name,
@@ -236,7 +241,6 @@ class CORE_EXPORT Performance : public EventTarget {
   void AddBackForwardCacheRestoration(base::TimeTicks start_time,
                                       base::TimeTicks pageshow_start_time,
                                       base::TimeTicks pageshow_end_time);
-
 
   // This enum is used to index different possible strings for for UMA enum
   // histogram. New enum values can be added, but existing enums must never be
@@ -369,6 +373,13 @@ class CORE_EXPORT Performance : public EventTarget {
   void ProcessUserFeatureMark(const PerformanceMarkOptions* mark_options);
 
  protected:
+  enum class ParserYieldState {
+    kInitial = 0,
+    kPaused = 1,
+    kResumed = 2,
+    kMaxValue = kResumed
+  };
+
   Performance(base::TimeTicks time_origin,
               bool cross_origin_isolated_capability,
               scoped_refptr<base::SingleThreadTaskRunner>,
@@ -447,7 +458,7 @@ class CORE_EXPORT Performance : public EventTarget {
   // user timing API is used as a signal to the document. crbug.com/425962649
   // for more details.
   TaskHandle parser_yield_task_handle_;
-  bool is_parser_yielded_ = false;
+  ParserYieldState parser_yield_state_ = ParserYieldState::kInitial;
 };
 
 }  // namespace blink

@@ -12,6 +12,7 @@
 #include "third_party/blink/renderer/core/css/style_scope_data.h"
 #include "third_party/blink/renderer/core/display_lock/display_lock_context.h"
 #include "third_party/blink/renderer/core/dom/attr.h"
+#include "third_party/blink/renderer/core/dom/css_pseudo_element.h"
 #include "third_party/blink/renderer/core/dom/dataset_dom_string_map.h"
 #include "third_party/blink/renderer/core/dom/dom_token_list.h"
 #include "third_party/blink/renderer/core/dom/explicitly_set_attr_elements_map.h"
@@ -28,6 +29,7 @@
 #include "third_party/blink/renderer/core/editing/ime/edit_context.h"
 #include "third_party/blink/renderer/core/html/anchor_element_observer.h"
 #include "third_party/blink/renderer/core/html/custom/custom_element_definition.h"
+#include "third_party/blink/renderer/core/html/custom/custom_element_registry.h"
 #include "third_party/blink/renderer/core/html/custom/element_internals.h"
 #include "third_party/blink/renderer/core/html/html_element.h"
 #include "third_party/blink/renderer/core/intersection_observer/element_intersection_observer_data.h"
@@ -466,6 +468,24 @@ ElementRareDataVector::GetScrollMarkerGroupContainerData() const {
       GetField(FieldId::kScrollMarkerGroupContainerData));
 }
 
+void ElementRareDataVector::CacheCSSPseudoElement(
+    PseudoId pseudo_id,
+    CSSPseudoElement& pseudo_element) {
+  auto& data =
+      EnsureField<CSSPseudoElementsCacheData>(FieldId::kCSSPseudoElementData);
+  data.CacheCSSPseudoElement(pseudo_id, pseudo_element);
+}
+
+CSSPseudoElement* ElementRareDataVector::GetCSSPseudoElement(
+    PseudoId pseudo_id) const {
+  auto* data = static_cast<CSSPseudoElementsCacheData*>(
+      GetField(FieldId::kCSSPseudoElementData));
+  if (!data) {
+    return {};
+  }
+  return data->GetCSSPseudoElement(pseudo_id);
+}
+
 AnchorPositionScrollData* ElementRareDataVector::GetAnchorPositionScrollData()
     const {
   return static_cast<AnchorPositionScrollData*>(
@@ -506,6 +526,15 @@ AnchorElementObserver& ElementRareDataVector::EnsureAnchorElementObserver(
 AnchorElementObserver* ElementRareDataVector::GetAnchorElementObserver() const {
   return static_cast<AnchorElementObserver*>(
       GetField(FieldId::kAnchorElementObserver));
+}
+
+CustomElementRegistry* ElementRareDataVector::GetCustomElementRegistry() const {
+  return static_cast<CustomElementRegistry*>(
+      GetField(FieldId::kCustomElementRegistry));
+}
+
+void ElementRareDataVector::SetCustomElementRegistry(CustomElementRegistry* registry) {
+  SetField(FieldId::kCustomElementRegistry, registry);
 }
 
 void ElementRareDataVector::IncrementImplicitlyAnchoredElementCount() {

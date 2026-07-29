@@ -1064,8 +1064,16 @@ IN_PROC_BROWSER_TEST_F(PlatformNotificationServiceBrowserTest,
       KeepAliveOrigin::PENDING_NOTIFICATION_CLOSE_EVENT));
 }
 
+// TODO(crbug.com/430163317): Re-enable this test
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_CloseBrowserDuringNotificationCloseEvent \
+  DISABLED_CloseBrowserDuringNotificationCloseEvent
+#else
+#define MAYBE_CloseBrowserDuringNotificationCloseEvent \
+  CloseBrowserDuringNotificationCloseEvent
+#endif
 IN_PROC_BROWSER_TEST_F(PlatformNotificationServiceBrowserTest,
-                       CloseBrowserDuringNotificationCloseEvent) {
+                       MAYBE_CloseBrowserDuringNotificationCloseEvent) {
   RequestAndAcceptPermission();
 
   // Show a notification with a close event that will take 3 seconds to
@@ -1115,8 +1123,16 @@ IN_PROC_BROWSER_TEST_F(PlatformNotificationServiceBrowserTest,
       content::PersistentNotificationStatus::kSuccess, 1);
 }
 
+// TODO(crbug.com/430163317): Re-enable this test
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_NotificationCloseEventAfterBrowserClosed \
+  DISABLED_NotificationCloseEventAfterBrowserClosed
+#else
+#define MAYBE_NotificationCloseEventAfterBrowserClosed \
+  NotificationCloseEventAfterBrowserClosed
+#endif
 IN_PROC_BROWSER_TEST_F(PlatformNotificationServiceBrowserTest,
-                       NotificationCloseEventAfterBrowserClosed) {
+                       MAYBE_NotificationCloseEventAfterBrowserClosed) {
   RequestAndAcceptPermission();
 
   // Show two notifications.  The first one will have a close event that takes 3

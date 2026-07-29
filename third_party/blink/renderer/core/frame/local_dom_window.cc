@@ -259,8 +259,7 @@ LocalDOMWindow::LocalDOMWindow(LocalFrame& frame, WindowAgent* agent)
       token_(frame.GetLocalFrameToken()),
       network_state_observer_(MakeGarbageCollected<NetworkStateObserver>(this)),
       closewatcher_stack_(
-          MakeGarbageCollected<CloseWatcher::WatcherStack>(this)),
-      navigation_id_(CreateCanonicalUUIDString()) {}
+          MakeGarbageCollected<CloseWatcher::WatcherStack>(this)) {}
 
 void LocalDOMWindow::BindContentSecurityPolicy() {
   DCHECK(!GetContentSecurityPolicy()->IsBound());
@@ -999,11 +998,9 @@ void LocalDOMWindow::DispatchPopstateEvent(
   std::optional<scheduler::TaskAttributionTracker::TaskScope>
       task_attribution_scope;
   if (task_state) {
-    auto* tracker = scheduler::TaskAttributionTracker::From(GetIsolate());
-    ScriptState* script_state = ToScriptStateForMainWorld(GetFrame());
-    if (script_state && tracker) {
+    if (auto* tracker = scheduler::TaskAttributionTracker::From(GetIsolate())) {
       task_attribution_scope = tracker->CreateTaskScope(
-          script_state, task_state,
+          task_state,
           scheduler::TaskAttributionTracker::TaskScopeType::kPopState);
     }
   }
@@ -1297,13 +1294,11 @@ void LocalDOMWindow::DispatchPostMessage(
   std::optional<scheduler::TaskAttributionTracker::TaskScope>
       task_attribution_scope;
   if (task_state) {
-    if (ScriptState* script_state = ToScriptStateForMainWorld(GetFrame())) {
-      auto* tracker = scheduler::TaskAttributionTracker::From(GetIsolate());
-      CHECK(tracker);
-      task_attribution_scope = tracker->CreateTaskScope(
-          script_state, task_state,
-          scheduler::TaskAttributionTracker::TaskScopeType::kPostMessage);
-    }
+    auto* tracker = scheduler::TaskAttributionTracker::From(GetIsolate());
+    CHECK(tracker);
+    task_attribution_scope = tracker->CreateTaskScope(
+        task_state,
+        scheduler::TaskAttributionTracker::TaskScopeType::kPostMessage);
   }
   DispatchMessageEventWithOriginCheck(intended_target_origin.get(), event,
                                       location, source_agent_cluster_id);
@@ -2692,10 +2687,6 @@ void LocalDOMWindow::SetStorageAccessApiStatus(
       break;
     }
   }
-}
-
-void LocalDOMWindow::GenerateNewNavigationId() {
-  navigation_id_ = CreateCanonicalUUIDString();
 }
 
 void LocalDOMWindow::SetHasBeenRevealed(bool revealed) {

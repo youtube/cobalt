@@ -2402,7 +2402,12 @@ static void RecordUsageAndDeprecationsOneSelector(
     const CSSSelector* selector,
     const CSSParserContext* context,
     bool* has_visited_pseudo) {
+  // Both the classic WebFeature and the newer WebDXFeature use counters can be
+  // recorded. Some WebFeature counters are mapped to WebDXFeature counters in
+  // webdx_feature_maps.cc. For new features, it's OK to only add a WebDXFeature
+  // counter instead of adding a classic counter and mapping it.
   std::optional<WebFeature> feature;
+  std::optional<WebDXFeature> webdx_feature;
   switch (selector->GetPseudoType()) {
     case CSSSelector::kPseudoAny:
       feature = WebFeature::kCSSSelectorPseudoAny;
@@ -2501,6 +2506,16 @@ static void RecordUsageAndDeprecationsOneSelector(
     case CSSSelector::kPseudoNot:
       feature = WebFeature::kCSSSelectorPseudoNot;
       break;
+    case CSSSelector::kPseudoAutofill:
+      webdx_feature = WebDXFeature::kAutofill;
+      break;
+    case CSSSelector::kPseudoDetailsContent:
+      webdx_feature = WebDXFeature::kDetailsContent;
+      break;
+    case CSSSelector::kPseudoPastCue:
+    case CSSSelector::kPseudoFutureCue:
+      webdx_feature = WebDXFeature::kTimeRelativeSelectors;
+      break;
     default:
       break;
   }
@@ -2510,6 +2525,9 @@ static void RecordUsageAndDeprecationsOneSelector(
     } else {
       context->Count(*feature);
     }
+  }
+  if (webdx_feature.has_value()) {
+    context->Count(*webdx_feature);
   }
   if (selector->Relation() == CSSSelector::kIndirectAdjacent) {
     context->Count(WebFeature::kCSSSelectorIndirectAdjacent);

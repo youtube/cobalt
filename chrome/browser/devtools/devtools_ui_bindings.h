@@ -246,8 +246,7 @@ class DevToolsUIBindings : public DevToolsEmbedderMessageDispatcher::Delegate,
                           const std::string& request,
                           int stream_id) override;
   void AidaCodeComplete(DispatchCallback callback,
-                        const std::string& request,
-                        int stream_id) override;
+                        const std::string& request) override;
   void RegisterAidaClientEvent(DispatchCallback callback,
                                const std::string& request) override;
 
@@ -306,7 +305,7 @@ class DevToolsUIBindings : public DevToolsEmbedderMessageDispatcher::Delegate,
       DevToolsInfoBarDelegate::Callback callback);
   void OnPermissionDialogResult(DevToolsInfoBarDelegate::Callback callback,
                                 permissions::PermissionAction result);
-  bool MaybeStartLogging();
+  void MaybeStartLogging();
   base::TimeDelta GetTimeSinceSessionStart();
   void HandleAidaRequestError(
       DispatchCallback callback,

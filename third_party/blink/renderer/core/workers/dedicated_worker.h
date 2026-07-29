@@ -44,6 +44,7 @@ class ExceptionState;
 class ExecutionContext;
 class PostMessageOptions;
 class ScriptState;
+class V8UnionTrustedScriptURLOrUSVString;
 class WebContentSettingsClient;
 class WorkerClassicScriptLoader;
 struct GlobalScopeCreationParams;
@@ -66,7 +67,7 @@ class CORE_EXPORT DedicatedWorker final
 
  public:
   static DedicatedWorker* Create(ExecutionContext*,
-                                 const String& url,
+                                 const V8UnionTrustedScriptURLOrUSVString* url,
                                  const WorkerOptions*,
                                  ExceptionState&);
 
@@ -141,7 +142,8 @@ class CORE_EXPORT DedicatedWorker final
 
   DEFINE_ATTRIBUTE_EVENT_LISTENER(message, kMessage)
 
-  void ContextLifecycleStateChanged(mojom::FrameLifecycleState state) override;
+  void ContextLifecycleStateChanged(
+      mojom::blink::FrameLifecycleState state) override;
   void Trace(Visitor*) const override;
 
  private:

@@ -19,7 +19,6 @@
 <translation id="1070689840697074178">你可以在這裡下載 PDF</translation>
 <translation id="107147699690128016">如果變更副檔名，這個檔案可能會在其他應用程式中開啟，並可能對裝置造成損害。</translation>
 <translation id="1080365971383768617">在所有裝置上都能使用自己的密碼</translation>
-<translation id="1087176310396019910">疑似垃圾內容</translation>
 <translation id="1087799850623149508">按住網址列即可移到底部</translation>
 <translation id="1089606299949659462">審查完成！</translation>
 <translation id="1094555143448724771">如要查看其他裝置上的分頁，請同步分頁和歷史記錄</translation>
@@ -112,6 +111,7 @@
 <translation id="1435593198351412143">自動開啟 PDF</translation>
 <translation id="1437543266176261764">在 <ph name="APP_NAME" /> 中執行</translation>
 <translation id="1448440926884431741">在書籤中整理所追蹤的產品</translation>
+<translation id="1455845192930279203">仍要從 <ph name="DOWNLOAD_DOMAIN" /> 下載「<ph name="FILE_NAME" />」(<ph name="FILE_SIZE" />) 嗎？</translation>
 <translation id="1460751212339734034">不必重複輸入網址，節省寶貴時間</translation>
 <translation id="1466383950273130737">選擇 Chrome 的顯示語言</translation>
 <translation id="1477626028522505441">伺服器發生問題，因此無法下載 <ph name="FILE_NAME" />。</translation>
@@ -233,6 +233,7 @@
 <translation id="2063047797624276601">貴機構已開啟安全瀏覽強化防護功能</translation>
 <translation id="2065944887543506430">{FILE_COUNT,plural, =1{無法完成 1 項下載作業}other{無法完成 # 項下載作業}}</translation>
 <translation id="2067805253194386918">文字</translation>
+<translation id="2074527029802029717">取消分頁固定</translation>
 <translation id="2079545284768500474">復原</translation>
 <translation id="2082238445998314030">第 <ph name="RESULT_NUMBER" /> 個結果，共 <ph name="TOTAL_RESULTS" /> 個</translation>
 <translation id="2088833076121753253">如要完成自動填入設定程序，請立即重新啟動 Chrome。你的分頁會自動重新開啟。</translation>
@@ -494,6 +495,7 @@
 <translation id="3250563604907490871">圖片說明功能將在你連線至 Wi-Fi 後恢復運作</translation>
 <translation id="3254409185687681395">把此頁加入書籤</translation>
 <translation id="3265093782546847662"><ph name="DOMAIN" /> 的所有頁面</translation>
+<translation id="3268048651973962414">向上拖曳即可查看搜尋結果</translation>
 <translation id="3269093882174072735">載入圖片</translation>
 <translation id="327204079441056603">我們調整了這部裝置的密碼儲存方式</translation>
 <translation id="3280562213547448728">語音搜尋</translation>
@@ -1056,11 +1058,13 @@
 <translation id="5809361687334836369">{HOURS,plural, =1{# 小時前}other{# 小時前}}</translation>
 <translation id="5810288467834065221">Copyright <ph name="YEAR" /> Google LLC. 保留所有權利。</translation>
 <translation id="5814749351757353073">掌握最愛網站的最新動態</translation>
+<translation id="5823093032261493462">仍要從 <ph name="DOWNLOAD_DOMAIN" /> 下載「<ph name="FILE_NAME" />」嗎？</translation>
 <translation id="5828921839638612740">你可以在 Chrome 設定中刪除資料</translation>
 <translation id="5829586821381540080">已儲存到「<ph name="FOLDER_NAME" />」</translation>
 <translation id="583281660410589416">未知</translation>
 <translation id="5833984609253377421">分享連結</translation>
 <translation id="5839058148541733625">Chrome 恐龍</translation>
+<translation id="5841444063256914865">仍要下載「<ph name="FILE_NAME" />」嗎？</translation>
 <translation id="5842871376175639063">閒置 <ph name="DAYS_INACTIVE" /> 天的分頁和分頁群組會移到這裡，<ph name="AUTODELETE_SECTION" />。你隨時可以前往「<ph name="SETTINGS_TITLE" />」變更。</translation>
 <translation id="5848257610304005265">要使用「<ph name="APP_NAME" />」開啟 PDF 嗎？</translation>
 <translation id="5849288995120328556">要停止共用嗎？</translation>
@@ -1156,6 +1160,7 @@
 <translation id="6232535412751077445">啟用「不追蹤」選項後，您的瀏覽流量會置入一項特定的要求，其作用則視網站是否回應要求，以及網站解讀要求的方式而定。
 
 舉例來說，部分網站可能會以顯示廣告的方式回應這類要求，而這些廣告並非根據您所造訪的其他網站記錄而產生。許多網站仍會收集您的瀏覽資料，並將這些資料用於下列目的：提高網站安全性、在網站上提供更相關的內容、廣告和推薦項目，以及產生報告統計資料。</translation>
+<translation id="623755660902014047">閱讀模式</translation>
 <translation id="6247557882553405851">Google 密碼管理工具</translation>
 <translation id="6251449557817521191">這裡會顯示 Chrome 歷史記錄</translation>
 <translation id="6254139308321626268">目前查看的是 PDF 檔案</translation>
@@ -1185,7 +1190,6 @@
 <translation id="6342069812937806050">剛剛</translation>
 <translation id="6343495912647200061">{SHIPPING_ADDRESS,plural, =1{<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 和另外 <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> 個地址}other{<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 和另外 <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> 個地址}}</translation>
 <translation id="6345878117466430440">標示為已讀取</translation>
-<translation id="6347010704471250799">顯示通知</translation>
 <translation id="6356893102071098867">請確認所選的帳戶是否正確</translation>
 <translation id="6363990818884053551">如要開始同步處理，請驗證你的身分</translation>
 <translation id="6364438453358674297">從歷史記錄中移除建議項目？</translation>
@@ -1281,6 +1285,7 @@
 <translation id="674388916582496364">一般來說，你造訪的網站會記住你感興趣的內容，以便提供個人化的服務體驗。此外，網站也可以將你的興趣喜好相關資訊儲存在 Chrome 中。</translation>
 <translation id="6746338529702829275">查看帳戶資料</translation>
 <translation id="6751521182688001123">快速開啟新分頁。按住這裡即可編輯這個捷徑。</translation>
+<translation id="6752130751133944215">如要還原新視窗，使用中與閒置視窗的總數量不得超過 <ph name="MAX_WINDOW_COUNT_MINUS_ONE" /> 個。視窗閒置 6 個月後就會刪除。</translation>
 <translation id="6754359471209693699">開始新的搜尋</translation>
 <translation id="6756507620369789050">提供意見</translation>
 <translation id="6762511428368667596"><ph name="NAME" />，<ph name="EMAIL" />。</translation>
@@ -1447,6 +1452,7 @@
 <translation id="7388615499319468910">網站和廣告主可以瞭解廣告成效。這項設定已關閉。</translation>
 <translation id="7400003506822844357">{FILE_COUNT,plural, =1{其他，清單中有 1 個檔案}other{其他，清單中有 # 個檔案}}</translation>
 <translation id="7400418766976504921">網址</translation>
+<translation id="7400424692675800399">如要開啟新視窗，使用中與閒置視窗的總數量不得超過 <ph name="MAX_WINDOW_COUNT_MINUS_ONE" /> 個。</translation>
 <translation id="7403691278183511381">Chrome 初次使用體驗</translation>
 <translation id="7411224099004328643">Google 帳戶使用者</translation>
 <translation id="7419565702166471774">一律使用安全連線</translation>
@@ -1623,7 +1629,6 @@
 <translation id="8090732854597034573">如需協助，請找家長幫忙</translation>
 <translation id="8101414242770404289"><ph name="TIME_PERIOD" />期間沒有要關閉的分頁</translation>
 <translation id="8103578431304235997">無痕式分頁</translation>
-<translation id="8105613260829665809">選擇繼續即表示您同意《<ph name="BEGIN_TOS_LINK" />服務條款<ph name="END_TOS_LINK" />》。\n為協助改善應用程式，Chrome 會將使用情形和當機資料傳送給 Google。<ph name="BEGIN_UMA_LINK" />管理設定<ph name="END_UMA_LINK" /></translation>
 <translation id="8105893657415066307"><ph name="DESCRIPTION" /> <ph name="SEPARATOR" /> <ph name="FILE_SIZE" /></translation>
 <translation id="8107530384992929318">關閉排序選項</translation>
 <translation id="8110024788458304985">協助改善 Chrome 的功能與效能</translation>
@@ -1793,6 +1798,7 @@
 <translation id="8816556050903368450">加入連結：<ph name="ORIGIN" /></translation>
 <translation id="881688628773363275">無法檢視分頁的預覽內容。</translation>
 <translation id="8820817407110198400">書籤</translation>
+<translation id="8824359129672223138">最多只能開啟 <ph name="MAX_WINDOW_COUNT" /> 個視窗。</translation>
 <translation id="8835786707922974220">確保你可以隨時存取已儲存的密碼</translation>
 <translation id="883806473910249246">下載這項內容時發生錯誤。</translation>
 <translation id="8840953339110955557">這個網頁可能會和線上版本有所不同。</translation>
@@ -1877,6 +1883,7 @@
 <translation id="9168847423516963845">將網址列移至底部</translation>
 <translation id="9169507124922466868">已在畫面下半部顯示瀏覽記錄</translation>
 <translation id="918419812064856259">Chrome Beta 版</translation>
+<translation id="9189607089796819144">仍要下載「<ph name="FILE_NAME" />」(<ph name="FILE_SIZE" />) 嗎？</translation>
 <translation id="9190276265094487094">所有已同步的裝置上都會有你的歷史記錄，方便你繼續執行先前的工作</translation>
 <translation id="9199368092038462496">{NUM_MINS,plural, =1{已在 1 分鐘前檢查}other{已在 # 分鐘前檢查}}</translation>
 <translation id="9204021776105550328">刪除中</translation>

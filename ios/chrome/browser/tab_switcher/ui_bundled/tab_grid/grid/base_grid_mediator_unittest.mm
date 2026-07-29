@@ -10,7 +10,11 @@
 #import <memory>
 
 #import "base/apple/foundation_util.h"
+#import "base/barrier_closure.h"
 #import "base/containers/contains.h"
+#import "base/functional/callback.h"
+#import "base/functional/callback_helpers.h"
+#import "base/run_loop.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/test/ios/wait_util.h"
 #import "base/test/metrics/histogram_tester.h"
@@ -38,7 +42,6 @@
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_opener.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/snapshots/model/snapshot_browser_agent.h"
-#import "ios/chrome/browser/snapshots/model/snapshot_tab_helper.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_collection_drag_drop_metrics.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/grid_item_identifier.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/grid_mediator_test.h"
@@ -158,8 +161,8 @@ TEST_P(BaseGridMediatorTest, DragAndDropClosedItem) {
   [mediator_
       addToSelectionItemID:[GridItemIdentifier tabIdentifier:web_state_ptr]];
 
-  browser_->GetWebStateList()->CloseWebStateAt(1,
-                                               WebStateList::CLOSE_USER_ACTION);
+  browser_->GetWebStateList()->CloseWebStateAt(
+      1, WebStateList::ClosingReason::kUserAction);
   EXPECT_EQ(0UL, [mediator_ allSelectedDragItems].count);
 }
 
@@ -192,7 +195,8 @@ TEST_P(BaseGridMediatorTest, ConsumerInsertItem) {
 // The selected web state at index 1 is removed. The web state originally
 // at index 2 should be the new selected item.
 TEST_P(BaseGridMediatorTest, ConsumerRemoveItem) {
-  browser_->GetWebStateList()->CloseWebStateAt(1, WebStateList::CLOSE_NO_FLAGS);
+  browser_->GetWebStateList()->CloseWebStateAt(
+      1, WebStateList::ClosingReason::kDefault);
   EXPECT_EQ(2UL, consumer_.items.size());
   // Expect that a different web state is selected now.
   EXPECT_NE(original_selected_identifier_,
@@ -946,7 +950,7 @@ TEST_P(BaseGridMediatorTest, CloseGroupFromAnotherBrowser) {
 // Tests that closing multiple selected items doesn't delete saved groups.
 TEST_P(BaseGridMediatorTest, CloseSelectedTabsAndGroups) {
   WebStateList* web_state_list = browser_->GetWebStateList();
-  CloseAllWebStates(*web_state_list, WebStateList::CLOSE_NO_FLAGS);
+  CloseAllWebStates(*web_state_list, WebStateList::ClosingReason::kDefault);
   WebStateListBuilderFromDescription builder(web_state_list);
   ASSERT_TRUE(builder.BuildWebStateListFromDescription(
       "| a b c [ 1 d e ] [ 2 f g ] h", browser_->GetProfile()));
@@ -1008,7 +1012,7 @@ TEST_P(BaseGridMediatorTest, CloseSelectedGroupInBatch) {
     WebStateList::ScopedBatchOperation lock =
         browser_->GetWebStateList()->StartBatchOperation();
     browser_->GetWebStateList()->CloseWebStateAt(
-        1, WebStateList::CLOSE_USER_ACTION);
+        1, WebStateList::ClosingReason::kUserAction);
   }
 
   EXPECT_EQ(0UL, [mediator_ allSelectedDragItems].count);
@@ -1019,7 +1023,7 @@ TEST_P(BaseGridMediatorTest, CloseSelectedGroupInBatch) {
 // the web state list or not.
 TEST_P(BaseGridMediatorTest, SelectionAfterChangingGroup) {
   WebStateList* web_state_list = browser_->GetWebStateList();
-  CloseAllWebStates(*web_state_list, WebStateList::CLOSE_NO_FLAGS);
+  CloseAllWebStates(*web_state_list, WebStateList::ClosingReason::kDefault);
   WebStateListBuilderFromDescription builder(web_state_list);
   ASSERT_TRUE(builder.BuildWebStateListFromDescription("| [ 1 a* b ] [ 2 c ]",
                                                        browser_->GetProfile()));
@@ -1043,7 +1047,7 @@ TEST_P(BaseGridMediatorTest, SelectionAfterChangingGroup) {
 // Tests dropping a local tab (e.g. drag from same window) in the grid.
 TEST_P(BaseGridMediatorTest, DropLocalTab) {
   WebStateList* web_state_list = browser_->GetWebStateList();
-  CloseAllWebStates(*web_state_list, WebStateList::CLOSE_NO_FLAGS);
+  CloseAllWebStates(*web_state_list, WebStateList::ClosingReason::kDefault);
 
   WebStateListBuilderFromDescription builder(web_state_list);
   ASSERT_TRUE(builder.BuildWebStateListFromDescription("| a* b c ",
@@ -1069,7 +1073,7 @@ TEST_P(BaseGridMediatorTest, DropLocalTab) {
 // Tests dropping a tabs from the tab group view in the grid.
 TEST_P(BaseGridMediatorTest, DropLocalTabFromTabGroup) {
   WebStateList* web_state_list = browser_->GetWebStateList();
-  CloseAllWebStates(*web_state_list, WebStateList::CLOSE_NO_FLAGS);
+  CloseAllWebStates(*web_state_list, WebStateList::ClosingReason::kDefault);
 
   WebStateListBuilderFromDescription builder(web_state_list);
   ASSERT_TRUE(builder.BuildWebStateListFromDescription("| a* b c [ 0 d e f ] g",
@@ -1117,7 +1121,7 @@ TEST_P(BaseGridMediatorTest, DropCrossWindowTab) {
   other_browser->GetWebStateList()->InsertWebState(std::move(other_web_state));
 
   WebStateList* web_state_list = browser_->GetWebStateList();
-  CloseAllWebStates(*web_state_list, WebStateList::CLOSE_NO_FLAGS);
+  CloseAllWebStates(*web_state_list, WebStateList::ClosingReason::kDefault);
 
   WebStateListBuilderFromDescription builder(web_state_list);
   ASSERT_TRUE(builder.BuildWebStateListFromDescription("| a* b c ",
@@ -1142,7 +1146,7 @@ TEST_P(BaseGridMediatorTest, DropCrossWindowTab) {
 // Tests dropping a local Tab Group (i.e. from the same window).
 TEST_P(BaseGridMediatorTest, DropLocalTabGroup) {
   WebStateList* web_state_list = browser_->GetWebStateList();
-  CloseAllWebStates(*web_state_list, WebStateList::CLOSE_NO_FLAGS);
+  CloseAllWebStates(*web_state_list, WebStateList::ClosingReason::kDefault);
 
   WebStateListBuilderFromDescription builder(web_state_list);
   ASSERT_TRUE(builder.BuildWebStateListFromDescription(
@@ -1168,7 +1172,7 @@ TEST_P(BaseGridMediatorTest, DropLocalTabGroup) {
 TEST_P(BaseGridMediatorTest, DropCrossBrowserTabGroup) {
   // Prepare the web state list in which the group will be dropped.
   WebStateList* web_state_list = browser_->GetWebStateList();
-  CloseAllWebStates(*web_state_list, WebStateList::CLOSE_NO_FLAGS);
+  CloseAllWebStates(*web_state_list, WebStateList::ClosingReason::kDefault);
 
   WebStateListBuilderFromDescription builder(web_state_list);
   ASSERT_TRUE(builder.BuildWebStateListFromDescription(
@@ -1211,7 +1215,7 @@ TEST_P(BaseGridMediatorTest, DropCrossBrowserTabGroup) {
 // Tests dropping an internal URL (e.g. drag from omnibox) in the grid.
 TEST_P(BaseGridMediatorTest, DropInternalURL) {
   WebStateList* web_state_list = browser_->GetWebStateList();
-  CloseAllWebStates(*web_state_list, WebStateList::CLOSE_NO_FLAGS);
+  CloseAllWebStates(*web_state_list, WebStateList::ClosingReason::kDefault);
   WebStateListBuilderFromDescription builder(web_state_list);
   ASSERT_TRUE(builder.BuildWebStateListFromDescription("| a* b c ",
                                                        browser_->GetProfile()));
@@ -1236,7 +1240,7 @@ TEST_P(BaseGridMediatorTest, DropInternalURL) {
 // Tests dropping an external URL in the grid.
 TEST_P(BaseGridMediatorTest, DropExternalURL) {
   WebStateList* web_state_list = browser_->GetWebStateList();
-  CloseAllWebStates(*web_state_list, WebStateList::CLOSE_NO_FLAGS);
+  CloseAllWebStates(*web_state_list, WebStateList::ClosingReason::kDefault);
   WebStateListBuilderFromDescription builder(web_state_list);
   ASSERT_TRUE(builder.BuildWebStateListFromDescription("| a* b c ",
                                                        browser_->GetProfile()));
@@ -1265,20 +1269,17 @@ TEST_P(BaseGridMediatorTest, DropExternalURL) {
 TEST_P(BaseGridMediatorTest, FetchTabSnapshotAndFavicon) {
   auto fake_web_state = std::make_unique<web::FakeWebState>();
   web::FakeWebState* web_state = fake_web_state.get();
-  SnapshotTabHelper::CreateForWebState(web_state);
   WebStateTabSwitcherItem* item =
       [[WebStateTabSwitcherItem alloc] initWithWebState:web_state];
-  __block int completion_block_called = 0;
-  auto completion_block = ^(TabSwitcherItem* inner_item,
-                            TabSnapshotAndFavicon* tab_snapshot_and_favicon) {
-    completion_block_called++;
-    ASSERT_LE(completion_block_called, 2);
-  };
-  [mediator_ fetchTabSnapshotAndFavicon:item completion:completion_block];
-  EXPECT_TRUE(base::test::ios::WaitUntilConditionOrTimeout(
-      TestTimeouts::action_timeout(), ^bool() {
-        return completion_block_called == 2;
-      }));
+
+  // Expects the completion to be called twice.
+  base::RunLoop run_loop;
+  auto barrier = base::CallbackToBlock(
+      base::IgnoreArgs<TabSwitcherItem*, TabSnapshotAndFavicon*>(
+          base::BarrierClosure(2, run_loop.QuitClosure())));
+
+  [mediator_ fetchTabSnapshotAndFavicon:item completion:barrier];
+  run_loop.Run();
 }
 
 INSTANTIATE_TEST_SUITE_P(

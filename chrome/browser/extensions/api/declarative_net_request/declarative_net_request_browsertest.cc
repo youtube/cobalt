@@ -123,7 +123,6 @@
 #include "extensions/common/url_pattern_set.h"
 #include "extensions/test/extension_background_page_waiter.h"
 #include "extensions/test/extension_test_message_listener.h"
-#include "ipc/ipc_message.h"
 #include "net/base/net_errors.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/http/http_request_headers.h"
@@ -7335,7 +7334,8 @@ IN_PROC_BROWSER_TEST_P(DeclarativeNetRequestBrowserTest,
   // Redirecting a bidder script, even to another bidder script, should cause
   // the request to fail, which causes the entire auction to fail, since there's
   // only one bidder script.
-  EXPECT_EQ(nullptr, content::EvalJs(web_contents(), run_auction_command));
+  EXPECT_EQ(base::Value(),
+            content::EvalJs(web_contents(), run_auction_command));
 }
 
 #if !BUILDFLAG(IS_ANDROID)

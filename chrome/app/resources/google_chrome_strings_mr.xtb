@@ -231,6 +231,7 @@
 <translation id="3785324443014631273">साइन इन करताना एरर आल्यामुळे ChromeOS Flex ला तुमचा डेटा सिंक करता आला नाही.</translation>
 <translation id="3795971588916395511">Google ChromeOS</translation>
 <translation id="3809772425479558446">Google Chrome साठी Windows 10 किंवा त्यावरील आवृत्ती आवश्यक आहे.</translation>
+<translation id="3810973564298564668">व्यवस्थापित करा</translation>
 <translation id="383928141529488001">ब्लूटूथ डिव्हाइस एक्सप्लोर करण्यासाठी Google Chrome ला 
  ब्लूटूथ चा ॲक्सेस हवा आहे. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="386202838227397562">कृपया सर्व Google Chrome विंडो बंद करा आणि पुन्हा प्रयत्न करा.</translation>
@@ -521,6 +522,7 @@ Google Chrome तुमची सेटिंग्ज पुन्हा मि
 <translation id="7583399374488819119"><ph name="COMPANY_NAME" /> इंस्टॉलर</translation>
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
 <translation id="7626072681686626474"><ph name="MANAGER" /> नुसार, तुम्ही हे डिव्हाइस वापरण्यापूर्वी खालील सेवा अटी वाचणे आणि स्वीकारणे आवश्यक आहे. या अटी Google ChromeOS अटी यांचा विस्तार करत नाहीत, त्यामध्ये सुधारणा करत नाहीत किंवा त्या मर्यादित करत नाहीत.</translation>
+<translation id="7627609214560473136">तुमचा डेटाचे संरक्षण करण्यासाठी, तुम्ही अलीकडील भेट न दिलेल्या साइटवरील परवानग्या Chrome ला काढून टाकू द्या.</translation>
 <translation id="7629695634924605473">तुमचे पासवर्ड कधीही धोक्यात असल्यास, Chrome तुम्हाला कळवते</translation>
 <translation id="7641148173327520642">तुमच्या सिस्टीम अ‍ॅडमिनिस्ट्रेटरने <ph name="TARGET_URL_HOSTNAME" /> अ‍ॅक्सेस करण्यासाठी <ph name="ALTERNATIVE_BROWSER_NAME" /> उघडण्याकरिता Google Chrome कॉन्फिगर केले आहे.</translation>
 <translation id="7649070708921625228">मदत</translation>
@@ -607,6 +609,7 @@ Google Chrome तुमची सेटिंग्ज पुन्हा मि
 <translation id="8649026945479135076">सर्वसाधारणपणे, तुम्ही भेट देता त्या साइट तुमचा अनुभव पर्सनलाइझ करण्यासाठी, तुम्हाला स्वारस्य असलेल्या गोष्टी लक्षात ठेवतात. साइट तुमच्या स्वारस्यांबद्दलची माहिती Chrome वापरून स्टोअरदेखील करू शकतात.</translation>
 <translation id="8669527147644353129">Google Chrome मदतनीस</translation>
 <translation id="8679801911857917785">तुम्ही Chrome सुरू करता तेव्हा कोणते पेज दर्शविले जाते हेदेखील हे नियंत्रित करते.</translation>
+<translation id="8712637175834984815">समजले</translation>
 <translation id="8712767363896337380">जवळजवळ अप टू डेट! अपडेट करणे पूर्ण करण्यासाठी, Chrome पुन्हा लाँच करा.</translation>
 <translation id="8718062187489036808">Chrome मधून साइन आउट करा</translation>
 <translation id="873133009373065397">Google Chrome डीफॉल्ट ब्राउझर निर्धारित करू शकत नाही किंवा सेट करू शकत नाही</translation>

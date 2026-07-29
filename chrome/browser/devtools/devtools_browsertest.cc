@@ -2046,9 +2046,6 @@ IN_PROC_BROWSER_TEST_F(DevToolsExtensionTest,
   std::unique_ptr<extensions::OffscreenDocumentHost> offscreen_document =
       std::make_unique<extensions::OffscreenDocumentHost>(
           *extension,
-          extensions::ProcessManager::Get(browser()->profile())
-              ->GetSiteInstanceForURL(offscreen_url)
-              .get(),
           browser()->profile(), offscreen_url);
   {
     extensions::ExtensionHostTestHelper offscreen_waiter(browser()->profile(),
@@ -3868,12 +3865,11 @@ IN_PROC_BROWSER_TEST_F(DevToolsSyncTest, GetSyncInformation) {
           Host.InspectorFrontendHost.getSyncInformation(resolve);
         });
       })();
-    )"));
-  ASSERT_TRUE(result.value.is_dict());
-  EXPECT_TRUE(*result.value.GetDict().FindBool("isSyncActive"));
-  EXPECT_TRUE(*result.value.GetDict().FindBool("arePreferencesSynced"));
-  EXPECT_EQ(*result.value.GetDict().FindString("accountEmail"),
-            "user1@gmail.com");
+    )"))
+                          .ExtractDict();
+  EXPECT_TRUE(*result.FindBool("isSyncActive"));
+  EXPECT_TRUE(*result.FindBool("arePreferencesSynced"));
+  EXPECT_EQ(*result.FindString("accountEmail"), "user1@gmail.com");
 
   DevToolsWindowTesting::CloseDevToolsWindowSync(window);
 }
@@ -4111,12 +4107,10 @@ IN_PROC_BROWSER_TEST_F(DevToolsConsoleInsightsTest, NotBeBlockedByFeatureFlag) {
         Host.InspectorFrontendHost.getHostConfig(resolve);
       });
     })();
-  )"));
-  ASSERT_TRUE(result.value.is_dict());
-  auto* configAidaAvailability =
-      result.value.GetDict().FindDict("aidaAvailability");
-  auto* configConsoleInsights =
-      result.value.GetDict().FindDict("devToolsConsoleInsights");
+  )"))
+                          .ExtractDict();
+  auto* configAidaAvailability = result.FindDict("aidaAvailability");
+  auto* configConsoleInsights = result.FindDict("devToolsConsoleInsights");
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
   EXPECT_TRUE(configAidaAvailability->FindBool("enabled").value());
 #else
@@ -4146,10 +4140,9 @@ IN_PROC_BROWSER_TEST_F(DevToolsConsoleInsightsTest,
         Host.InspectorFrontendHost.getHostConfig(resolve);
       });
     })();
-  )"));
-  ASSERT_TRUE(result.value.is_dict());
-  auto* configAidaAvailability =
-      result.value.GetDict().FindDict("aidaAvailability");
+  )"))
+                          .ExtractDict();
+  auto* configAidaAvailability = result.FindDict("aidaAvailability");
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
   EXPECT_TRUE(configAidaAvailability->FindBool("enabled").value());
   EXPECT_FALSE(
@@ -4179,10 +4172,9 @@ IN_PROC_BROWSER_TEST_F(DevToolsConsoleInsightsTest, IsBlockedByGeo) {
         Host.InspectorFrontendHost.getHostConfig(resolve);
       });
     })();
-  )"));
-  ASSERT_TRUE(result.value.is_dict());
-  auto* configAidaAvailability =
-      result.value.GetDict().FindDict("aidaAvailability");
+  )"))
+                          .ExtractDict();
+  auto* configAidaAvailability = result.FindDict("aidaAvailability");
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
   EXPECT_TRUE(configAidaAvailability->FindBool("enabled").value());
   EXPECT_FALSE(
@@ -4210,10 +4202,9 @@ IN_PROC_BROWSER_TEST_F(DevToolsConsoleInsightsTest, IsNotEnabledForMinors) {
         Host.InspectorFrontendHost.getHostConfig(resolve);
       });
     })();
-  )"));
-  ASSERT_TRUE(result.value.is_dict());
-  auto* configAidaAvailability =
-      result.value.GetDict().FindDict("aidaAvailability");
+  )"))
+                          .ExtractDict();
+  auto* configAidaAvailability = result.FindDict("aidaAvailability");
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
   EXPECT_TRUE(configAidaAvailability->FindBool("enabled").value());
   EXPECT_FALSE(
@@ -4259,10 +4250,9 @@ IN_PROC_BROWSER_TEST_F(DevToolsConsoleInsightsTest,
         Host.InspectorFrontendHost.getHostConfig(resolve);
       });
     })();
-  )"));
-  ASSERT_TRUE(result.value.is_dict());
-  auto* configAidaAvailability =
-      result.value.GetDict().FindDict("aidaAvailability");
+  )"))
+                          .ExtractDict();
+  auto* configAidaAvailability = result.FindDict("aidaAvailability");
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
   EXPECT_TRUE(configAidaAvailability->FindBool("enabled").value());
 #else
@@ -4295,10 +4285,9 @@ IN_PROC_BROWSER_TEST_F(DevToolsConsoleInsightsTest,
         Host.InspectorFrontendHost.getHostConfig(resolve);
       });
     })();
-  )"));
-  ASSERT_TRUE(result.value.is_dict());
-  auto* configAidaAvailability =
-      result.value.GetDict().FindDict("aidaAvailability");
+  )"))
+                          .ExtractDict();
+  auto* configAidaAvailability = result.FindDict("aidaAvailability");
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
   EXPECT_TRUE(configAidaAvailability->FindBool("enabled").value());
   EXPECT_FALSE(
@@ -4332,10 +4321,9 @@ IN_PROC_BROWSER_TEST_F(DevToolsConsoleInsightsTest,
         Host.InspectorFrontendHost.getHostConfig(resolve);
       });
     })();
-  )"));
-  ASSERT_TRUE(result.value.is_dict());
-  auto* configAidaAvailability =
-      result.value.GetDict().FindDict("aidaAvailability");
+  )"))
+                          .ExtractDict();
+  auto* configAidaAvailability = result.FindDict("aidaAvailability");
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
   EXPECT_TRUE(configAidaAvailability->FindBool("enabled").value());
   EXPECT_TRUE(configAidaAvailability->FindBool("disallowLogging").value());

@@ -64,10 +64,6 @@
 #include "content/public/test/browsing_data_remover_test_util.h"
 #include "content/public/test/test_renderer_host.h"
 #include "content/public/test/test_utils.h"
-#include "ipc/ipc_channel_factory.h"
-#include "ipc/ipc_logging.h"
-#include "ipc/ipc_message_macros.h"
-#include "ipc/ipc_sync_message.h"
 #include "third_party/zlib/google/compression_utils.h"
 #include "ui/events/keycodes/dom/dom_key.h"
 #include "ui/events/keycodes/keyboard_code_conversion.h"
@@ -2168,7 +2164,7 @@ bool TestRecipeReplayer::GetElementProperty(
                  "    }();"
                  "    return function(target){%s}(element);})();",
                  element_xpath.c_str(), get_property_function_body.c_str()));
-  if (result.error.empty() && result.value.is_string()) {
+  if (result.is_string()) {
     *property = result.ExtractString();
     return true;
   }
@@ -2245,13 +2241,12 @@ bool TestRecipeReplayer::PlaceFocusOnElement(
 
   content::EvalJsResult result =
       content::EvalJs(frame, focus_on_target_field_js);
-  if (result.error.empty() && result.value.is_bool() && result.ExtractBool()) {
+  if (result.error.empty() && result.is_bool() && result.ExtractBool()) {
     return true;
   } else {
     VLOG(1) << "Failed to focus element through script:"
             << (result.error.empty()
-                    ? (result.value.is_bool() ? "Not a valid bool"
-                                              : "Returned false")
+                    ? (result.is_bool() ? "Returned false" : "Not a valid bool")
                     : result.error);
 
     // Failing focusing on an element through script, use the less preferred

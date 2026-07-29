@@ -7,7 +7,6 @@
 <translation id="1086486568852410168">Kërko me "Lenten e Google"</translation>
 <translation id="1091252999271033193">Kjo do të thotë që Chromium do kërkojë sajtin në celular çdo herë.</translation>
 <translation id="1115463765356382667">Përfundo këto veprime të sugjeruara më poshtë për të përfituar sa më shumë nga Chromium.</translation>
-<translation id="1140315115515116765">Përdor Chromium si parazgjedhje për të marrë me lehtësi statistika për çmimet</translation>
 <translation id="1185134272377778587">Rreth Chromium</translation>
 <translation id="1229234641991056119">Përdor fjalëkalimet, historikun, faqeshënuesit dhe kartat e tua të kreditit nga Safari në Chromium</translation>
 <translation id="1257458525759135959">Për të ruajtur imazhet, trokit te "Cilësimet" për të lejuar që Chromium të shtojë te fotografitë e tua</translation>
@@ -92,7 +91,6 @@ Për më shumë cilësime që përdorin të dhënat për të përmirësuar përv
 <translation id="3102849287235003384">Për të dalë nga "Llogaria jote e Google" në të gjitha uebsajtet, <ph name="BEGIN_LINK" />dil nga Chromium<ph name="END_LINK" />.</translation>
 <translation id="3115956258722352278">Të bëhet Chromium shfletuesi yt i parazgjedhur?</translation>
 <translation id="3180939591219927904">Aktivizo "Kyç skedat 'e fshehta' kur mbyll Chromium"</translation>
-<translation id="3242612358525156339">Nga cilësimet e pajisjes sate, hap "<ph name="TEXT_OF_THE_SETTINGS_MENU_ITEM" />" dhe zgjidh "Chromium"</translation>
 <translation id="328933489847748230">{count,plural, =1{Tani po shfaqet 1 dritare e Chromium}other{Tani po shfaqen {count} dritare të Chromium}}</translation>
 <translation id="3344973607274501920">Chromium nuk mund t'i kontrollonte fjalëkalimet e tua. Provo të kontrollosh lidhjen e internetit.</translation>
 <translation id="3366305173356742781">Të dhënat e Chromium në llogarinë tënde</translation>
@@ -122,7 +120,6 @@ Provo të presësh për disa minuta para se të ndërrosh llogaritë. Nëse i nd
 <translation id="3855938650519180865">Ç'të reja ka në Chromium</translation>
 <translation id="3886689467633467988">Identifikohu në këtë sajt dhe Chromium për të marrë faqeshënuesit etj. në të gjitha pajisjet e tua.</translation>
 <translation id="3949514465204582407">Këshillë për Chromium: Merr fjalëkalimet e tua në çdo aplikacion</translation>
-<translation id="3983291422281996849">Caktoje Chromium si shfletuesin tënd të parazgjedhur për të monitoruar me lehtësi çmimet dhe për të marrë statistika për çmimet për gjërat që dëshiron të blesh.</translation>
 <translation id="4005283307739974863">Hap dhe ekzekuton kontrollin e sigurisë në Chromium.</translation>
 <translation id="4043291146360695975">Fjalëkalimet ruhen në "Menaxherin e fjalëkalimeve" vetëm në këtë pajisje.</translation>
 <translation id="4066426933127344530">Përdor Chromium si parazgjedhje</translation>
@@ -166,7 +163,6 @@ Për ta ndryshuar këtë cilësim, <ph name="BEGIN_LINK" />fshi të dhënat e Ch
 <translation id="5042011327527167688">Trokit te "Shiko me Google Maps në Chromium".</translation>
 <translation id="5044871537677053278">Chromium zbulon adresat dhe përdor Google Maps për të të dhënë udhëzime dhe informacione lokale.</translation>
 <translation id="5048140766121299007">Nga cilësimet e "<ph name="TEXT_OF_THE_SETTINGS_MENU_ITEM" />", aktivizo "Chromium"</translation>
-<translation id="5048795749726991615">Për t'i marrë me lehtësi fjalëkalimet e tua të ruajtura në aplikacionet e tjera, përdor Chromium për AutoFill</translation>
 <translation id="5053429694249468757">Po fshihen të dhënat e Chromium…</translation>
 <translation id="5071749685031362629">Chromium për iOS</translation>
 <translation id="5124429847818367226">Tani mund të përdorësh Chromium sa herë që shfleton ose troket te lidhjet në mesazhe, dokumente dhe aplikacione të tjera.</translation>
@@ -246,11 +242,9 @@ Gjëra për të pasur parasysh:
 <translation id="6852799557929001644">Qasu te fjalëkalimet e tua të Chromium etj. nëpër aplikacione të tjera në këtë pajisje.</translation>
 <translation id="6887138405044152640">Për ta dërguar këtë skedë te një pajisje tjetër, identifikohu në Chromium në të.</translation>
 <translation id="6911341667534646387">Vazhdo të përdorësh të dhënat e Chromium në "Llogarinë tënde të Google"</translation>
-<translation id="7006920032187763988">Fjalëkalimet që ke ruajtur në "Menaxherin e fjalëkalimeve" mund t'i përdorësh në aplikacione të tjera në iPad.</translation>
 <translation id="7018284295775193585">Chromium nuk mund të përditësohet</translation>
 <translation id="7055269218854630176">Organizata jote, <ph name="DOMAIN" />, menaxhon llogarinë ku je identifikuar dhe se si mund të përdoret Chromium. Administratori yt mund të konfigurojë ose të kufizojë veçori të caktuara.</translation>
 <translation id="7099326575020694068">Chromium nuk mund ta përdorë kamerën tënde në modalitetin e "Pamjes së ndarë"</translation>
-<translation id="7129379408282555630">Merr fuqinë e "Blerjeve" në Chromium</translation>
 <translation id="7165402419892018581">Zgjidh Chromium për AutoFill</translation>
 <translation id="7175400662502680481">Fjalëkalimi yt është ekspozuar në një nxjerrje të paautorizuar të të dhënave. "Menaxheri i fjalëkalimeve" rekomandon ta ndryshosh tani.</translation>
 <translation id="7185731475720473450">Mënyrat e pagesës dhe adresat nuk do të enkriptohen. Historiku i shfletimit nga Chromium nuk do të sinkronizohet.
@@ -302,7 +296,6 @@ Vetëm dikush me frazën tënde të kalimit mund të lexojë të dhënat e tua t
 <translation id="8390323835464055390">Identifikohu me çelësat e kalimit dhe fjalëkalimet e ruajtura nga çdo aplikacion duke përdorur Chromium për "Plotësimin automatik"</translation>
 <translation id="8409374867500149834">Ti ke sigurinë më të fortë të Chromium kundër sajteve të dëmshme të uebit</translation>
 <translation id="8543509361021925846">{THRESHOLD,plural, =1{Kjo ndodh kur Chromium nuk përdoret për {THRESHOLD} minutë. Të dhënat e ruajtura vetëm në këtë pajisje ndërkohë që ishte identifikuar do të fshihen. Kjo mund të përfshijë historikun dhe fjalëkalimet.}other{Kjo ndodh kur Chromium nuk përdoret për {THRESHOLD} minuta. Të dhënat e ruajtura vetëm në këtë pajisje ndërkohë që ishte identifikuar do të fshihen. Kjo mund të përfshijë historikun dhe fjalëkalimet.}}</translation>
-<translation id="858114650497379505">Fjalëkalimet që ke ruajtur në "Menaxherin e fjalëkalimeve" mund t'i përdorësh në aplikacione të tjera në iPhone.</translation>
 <translation id="8586442755830160949">Të drejtat e autorit <ph name="YEAR" /> Autorët e Chromium. Të gjitha të drejtat të rezervuara.</translation>
 <translation id="8602103377623855616">Faqe e Chromium</translation>
 <translation id="865600487977764604">Të mban të sigurt në Chrome dhe mund të përdoret për të përmirësuar sigurinë tënde në aplikacionet e tjera të Google kur je i/e identifikuar.</translation>

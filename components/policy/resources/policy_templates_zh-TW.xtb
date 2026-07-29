@@ -90,6 +90,13 @@
 
       如果設定這項政策，系統將一律以這項政策第一個值指定的語言代碼顯示登入畫面 (為了日後的相容性，系統會將政策定義為清單)。  如果未設定這項政策，或將政策設定為空白清單，系統將以上一個使用者工作階段的語言代碼顯示登入畫面。  如果這項政策設定的值不是有效的語言代碼，系統則將以備用語言代碼 (目前為 en-US) 顯示登入畫面。</translation>
 <translation id="1050158007881386475">停用裝置主機板狀態回報功能</translation>
+<translation id="1050897390688148222">有了智慧鏡頭重疊功能，只要使用目前頁面的螢幕截圖或提出相關問題，就能透過 Google 搜尋相關資訊。使用這項功能前需要先啟用。
+
+除非這項政策設為停用，否則只要使用者將預設搜尋引擎設為 Google，就能使用這項功能。
+
+如果將政策設為「0 - 允許」或未設定，使用者就能存取這項功能。如果將政策設為「1 - 不允許」，使用者就無法存取這項功能。
+
+從 <ph name="PRODUCT_NAME" /> 140 版開始，如果未設定這項政策，系統會根據 <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> 政策決定其行為。</translation>
 <translation id="1052499923181221200">除非 SamlInSessionPasswordChangeEnabled 設為 True，否則這項政策沒有影響。
       如果將該項政策設為 True，且將本政策設為 14 (舉例而言)，系統會在 14 天前通知 SAML 使用者，表示密碼即將在特定日期到期。
       這樣一來，使用者即可立即在工作階段中變更和更新密碼，以免密碼到期。
@@ -233,19 +240,6 @@
       如果將這項政策設為停用，則不會觸發登入攔截對話方塊。
       即使停用這項政策，只要 <ph name="MANAGED_ACCOUNTS_SIGNIN_RESTRICTION_POLICY_NAME" /> 強制執行受管理帳戶設定檔區隔功能，系統仍會顯示對話方塊。</translation>
 <translation id="1158844608156732189">Kerberos 設定 (每個陣列項目各占一行)，詳情請參閱 https://web.mit.edu/kerberos/krb5-1.12/doc/admin/conf_files/krb5_conf.html。</translation>
-<translation id="1159241725763211010">透過智慧鏡頭重疊功能，使用者可與目前網頁的螢幕截圖 (疊加在實際網頁內容上) 互動，使用 Google 搜尋相關資訊。此外，使用者也能根據目前網頁的內容，使用 Google 搜尋相關資訊。智慧鏡頭重疊功能會將網頁內容傳送給 Google，讓 Google 根據使用者目前所在網頁的內容回覆查詢，提供相關解答。
-
-此功能無法透過使用者設定操控，通常會提供給所有將預設搜尋引擎設為 Google 的使用者，除非這項政策設為停用。
-
-0 = 允許使用這項功能，並允許 Google 運用相關資料改善 AI 模型。相關資料可能包括提示詞、輸入內容、輸出內容、來源資料和文字意見回饋 (視功能而定)。這些資料也可能會送交專人審查，以改善 AI 模型。預設值為 0，但以下註明的情形除外。
-
-1 = 允許使用這項功能，但不允許 Google 運用使用者的內容 (包括提示詞、輸入內容、輸出內容、來源資料和文字意見回饋) 改善模型。如果是 <ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" />管理的企業版使用者，以及 <ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" /> 管理的教育版帳戶，預設值為 1。
-
-2 = 不允許使用這項功能。
-
-如果不設定這項政策，系統會根據 <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> 政策決定其行為。
-
-如要進一步瞭解生成式 AI 功能的資料處理方式，請前往 https://support.google.com/chrome/a?p=generative_ai_settings。</translation>
 <translation id="1160479894929412407">允許 QUIC 通訊協定</translation>
 <translation id="1160939557934457296">停用略過安全瀏覽警告網頁繼續進行</translation>
 <translation id="1161685818042751282">不要從平台信任存放區匯入使用者新增的 TLS 伺服器憑證。</translation>
@@ -354,7 +348,6 @@
 <translation id="1262993197422487260">在登入畫面和鎖定畫面上停用密碼顯示按鈕</translation>
 <translation id="1265053460044691532">限制透過 SAML 驗證的使用者可離線登入的時間</translation>
 <translation id="1265076559723566171">教育版使用者的控制項設定</translation>
-<translation id="1268561791350382977">允許使用智慧鏡頭重疊功能並改善 AI 模型。</translation>
 <translation id="1271811620059192171">啟用政策不可部分完成的群組</translation>
 <translation id="127264587838521316">啟用 <ph name="PRODUCT_NAME" /> 擴充功能安裝要求</translation>
 <translation id="1272798957154751008">允許將 Chromad 裝置遷移至雲端管理服務</translation>
@@ -469,7 +462,6 @@
 
 建議只有在第三方軟體發生相容性問題，導致列印服務無法在 LPAC 沙箱內正常運作時，才停用這項政策。</translation>
 <translation id="1369698103169067223">系統不會替使用者啟用 Glanceables。</translation>
-<translation id="1371626834351873151">系統將為所有來源啟用使用者代理程式縮減功能。</translation>
 <translation id="1371851989348083665">允許在網站上使用 <ph name="ASSISTANT_PRODUCT_NAME" /></translation>
 <translation id="1372618949173323717">停用 JavaScript</translation>
 <translation id="1376119291123231789">啟用進階充電模式</translation>
@@ -1325,7 +1317,6 @@
 <translation id="1977581177449752640">如果設定這項政策，遠端存取主機會使用用戶端憑證和指定核發機構一般名稱 (CN)，向 <ph name="REMOTE_ACCESS_HOST_TOKEN_VALIDATION_URL_POLICY_NAME" /> 進行驗證。如要使用任何可用的用戶端憑證，請將其設為 <ph name="WILDCARD_VALUE" />。如果設為空白或不設定，系統會停用這項功能。</translation>
 <translation id="1984934843478301531">應用程式啟動自動化作業</translation>
 <translation id="1985545260037812875">在登入時顯示「顯示大小」設定畫面</translation>
-<translation id="1985598967415986700">使用者代理程式縮減功能可透過 Field-Trials 和 Origin-Trials 功能控管。</translation>
 <translation id="1987789058026551147">啟用裝置資訊站工作階段回報功能</translation>
 <translation id="1988345404999458987">為可用的印表機伺服器提供設定。
 
@@ -2156,6 +2147,7 @@
 <translation id="2568488785376704318">這項政策已遭淘汰，請改用 <ph name="REMOTE_ACCESS_HOST_DOMAIN_LIST_POLICY_NAME" /> 政策。</translation>
 <translation id="2570059561924004903">停用互動朗讀功能</translation>
 <translation id="2570181623957732921">為清單中的第三方網域啟用 <ph name="DESK_API_NAME" /></translation>
+<translation id="2573850437942404034">不允許</translation>
 <translation id="2575198840408498393">停用漫遊設定檔建立功能</translation>
 <translation id="25765864042030871"><ph name="UNLOAD_EVENT_NAME" />事件處理常式即將淘汰。這類處理常式是否會觸發，取決於<ph name="UNLOAD_EVENT_NAME" />事件的「<ph name="PERMISSIONS_POLICY_NAME" />」。目前，政策預設為允許觸發，但日後會逐漸改為禁止觸發，而網站也必須透過「<ph name="PERMISSIONS_POLICY_NAME" />」標頭明確啟用這類處理常式。你可以透過這項企業政策，選擇不採用這個逐步淘汰機制，方法是強制將預設設定維持在啟用狀態。
 
@@ -2485,6 +2477,13 @@
 這項政策只能設為雲端使用者政策。</translation>
 <translation id="2846689894646472396">以毫秒為單位的網路事件檢查率。</translation>
 <translation id="2847788524147474533">平台機器政策的優先順序高於雲端機器政策</translation>
+<translation id="284877670305984807">這項政策可讓使用者啟動本機 (而非周邊裝置) 的韌體更新。
+
+      如果將這項政策設為啟用，使用者 (例如裝置擁有者) 就能啟動韌體更新。
+
+      如果將這項政策設為停用或未設定，所有使用者都無法套用韌體更新。
+
+      這項政策適用於 <ph name="PRODUCT_OS_FLEX_NAME" /> 裝置的內部元件韌體更新，不會影響 <ph name="PRODUCT_OS_NAME" /> 裝置的內部元件韌體更新。</translation>
 <translation id="2849051159985119151">允許使用生成式 AI 相片編輯功能，但不協助改善 AI 模型。</translation>
 <translation id="2849275596224278787">隱藏登入畫面系統匣選單中的無障礙選項</translation>
 <translation id="2853649500575897584">不要封鎖瀏覽器程序中的舊版擴充點</translation>
@@ -2797,7 +2796,6 @@
           這個政策為選擇性，如果你並未設定這項政策，系統就不會取代任何搜尋字詞。
 
           只有當你啟用「DefaultSearchProviderEnabled」政策時，這項政策才會生效。</translation>
-<translation id="305106159605171619">使用者代理程式縮減功能已停用，且並未透過 Field-Trials 或 Origin-Trials 功能啟用。</translation>
 <translation id="3053265701996417839">Microsoft Windows 7</translation>
 <translation id="3057459316145779761">不允許使用 Chrome for Testing</translation>
 <translation id="3059687162224942925">在 NTP 頁尾顯示管理聲明</translation>
@@ -3598,7 +3596,6 @@ SwiftShader 曾在沒有 GPU 加速功能的系統 (例如無頭系統或虛擬�
 
 如果設定這項政策，就能控制系統是否針對指定的遙測資料類型回報網站遙測資料。
 如果未設定，系統就不會回報網站遙測資料。</translation>
-<translation id="3651483357891254380">允許使用智慧鏡頭重疊功能，但不改善 AI 模型。</translation>
 <translation id="3652670852519271837">允許網站要求使用者授予透過 File System API 讀取檔案和目錄的權限</translation>
 <translation id="3653237928288822292">預設搜尋引擎圖示</translation>
 <translation id="3654906736796256792">允許執行音訊沙箱</translation>
@@ -4345,6 +4342,7 @@ SwiftShader 曾在沒有 GPU 加速功能的系統 (例如無頭系統或虛擬�
 <translation id="4192388905594723944">用於驗證遠端存取用戶端驗證憑證的網址</translation>
 <translation id="4195119404667420672">SpeculationRules 預先擷取可傳送到 ServiceWorkers 控管的網址。</translation>
 <translation id="4195698007674066525">輸入密碼時預設顯示數字鍵盤</translation>
+<translation id="4198531346233984110">已縮減使用者代理程式。</translation>
 <translation id="4203055629055264833">如果將這項政策設為啟用或不設定，代表使用者可透過工具列上的切換圖示開啟側邊面板，查看預設搜尋引擎的最新搜尋結果。
 
       如果將這項政策設為停用，則會從工具列中移除切換圖示，使用者無法開啟側邊面板查看預設搜尋引擎的搜尋結果。</translation>
@@ -4606,6 +4604,17 @@ SwiftShader 曾在沒有 GPU 加速功能的系統 (例如無頭系統或虛擬�
 <translation id="4426986640594727372">允許系統地理位置存取權</translation>
 <translation id="4427173305799125784">PDF 檢視器無法為 PDF 加註</translation>
 <translation id="4432762137771104529">啟用安全瀏覽模式的進階回報功能</translation>
+<translation id="4432772502174730966">這項政策會定義所有相關生成式 AI 功能的預設設定。舉例來說，如果將這項政策的值設為 1，1 就會是所有相關生成式 AI 功能的預設設定值。這不會影響任何手動設定的政策值。這項設定會定義 Chrome 中涵蓋的生成式 AI 功能預設值。如要查看相關功能的完整清單，請前往 https://support.google.com/chrome/a?p=generative_ai_settings。
+
+0 = 允許使用這項功能，並允許 Google 運用相關資料改良 AI 模型。相關資料可能包括提示詞、輸入內容、輸出內容、來源資料和文字意見回饋 (視功能而定)。這些資料也可能會送交專人審查，以改良 AI 模型。預設值為 0，但以下註明的情形除外。
+
+1 = 允許使用這項功能，但不允許 Google 運用使用者的內容 (包括提示詞、輸入內容、輸出內容、來源資料和文字意見回饋) 改良模型。如果是 <ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" />管理的企業版使用者，以及 <ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" /> 管理的教育版帳戶，預設值為 1。
+
+2 = 不允許使用這項功能。
+
+如果相關的 Chrome 功能沒有等同政策值，系統會使用較高但最接近的值。部分政策 (例如 <ph name="GEMINI_SETTINGS_POLICY_NAME" />) 只會有「允許」和「不允許」兩種狀態。如果將 <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> 政策設為 0 或 1，系統將允許使用這項功能；如果將政策設為 2，就會禁止使用。請參閱各項功能的說明文件，進一步瞭解這項政策中的值如何影響該功能。
+
+如要進一步瞭解生成式 AI 功能的資料處理方式，請前往 https://support.google.com/chrome/a?p=generative_ai_settings。</translation>
 <translation id="443454694385851356">舊版 (不安全)</translation>
 <translation id="4435032708588431506">允許 QUIC</translation>
 <translation id="443665821428652897">瀏覽器關閉時清除網站資料 (已淘汰)</translation>
@@ -5192,7 +5201,6 @@ SwiftShader 曾在沒有 GPU 加速功能的系統 (例如無頭系統或虛擬�
 
       如果將這項政策設為 False 或不予設定，系統將不會回報作業系統的更新資訊。如果設為 True，則系統會回報作業系統的更新資訊。</translation>
 <translation id="4857223512478723171">不允許使用全螢幕模式</translation>
-<translation id="4857888176748302062">允許來源查詢裝置屬性</translation>
 <translation id="4858735034935305895">允許全螢幕模式</translation>
 <translation id="4860900625632464759">允許使用者在手機和 Chromebook 間同步簡訊</translation>
 <translation id="486146220825734683">不允許使用者記住 Kerberos 密碼</translation>
@@ -5707,6 +5715,8 @@ SwiftShader 曾在沒有 GPU 加速功能的系統 (例如無頭系統或虛擬�
       如果將這項政策設為停用，系統就不會在使用者解鎖裝置時要求輸入密碼。
 
       如果不設定這項政策，使用者就可以選擇是否要讓系統在裝置解鎖時要求輸入密碼。</translation>
+<translation id="5194337341464164678">自 Chrome 110 起，系統預設縮減 <ph name="USER_AGENT_HEADER_NAME" /> HTTP 要求標頭，淘汰試用期已在 Chrome 113 版後結束。如要繼續接收詳細的平台資訊，請改用使用者代理程式用戶端提示，取代已淘汰的詳細使用者代理程式標頭：https://web.dev/articles/migrate-to-ua-ch
+      </translation>
 <translation id="5194683382395300627">允許在網站上使用 <ph name="ASSISTANT_PRODUCT_NAME" /> 執行操作，例如自動變更密碼</translation>
 <translation id="5196630732055960309">允許這些網頁應用程式上的 File Handling API</translation>
 <translation id="5205352023880027050">不啟用 EphemeralNetworkPolicies 功能。</translation>
@@ -6147,7 +6157,7 @@ SwiftShader 曾在沒有 GPU 加速功能的系統 (例如無頭系統或虛擬�
 <translation id="548137908954174608">啟用即時字幕</translation>
 <translation id="5483012943408894695">不適用不安全來源相關限制的來源或主機名稱模式</translation>
 <translation id="5483065054530244863">允許本機信任錨點核發的 SHA-1 簽署憑證</translation>
-<translation id="5485491014653571963">設定這項政策後，可允許整合 Gemini 應用程式。
+<translation id="5485491014653571963">你可以透過這項設定允許整合 Gemini 應用程式。
 
 0/未設定 = 使用者可以運用 Gemini 整合。
 
@@ -7359,11 +7369,6 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
 <translation id="6282524907402492171">顯示 <ph name="CLOUD_PRINT_NAME" />淘汰警告訊息</translation>
 <translation id="6282799760374509080">允許或拒絕擷取音訊</translation>
 <translation id="6284362063448764300">TLS 1.1</translation>
-<translation id="6286082501885452957">如果設定這項政策，清單上的來源就能使用 Device Attributes API 取得裝置屬性，例如序號和主機名稱。
-
-來源必須是使用 <ph name="WEB_APP_INSTALL_FORCE_LIST_POLICY_NAME" /> 或 <ph name="ISOLATED_WEB_APP_INSTALL_FORCE_LIST_POLICY_NAME" /> (自 125 版起) 政策強制安裝的網頁應用程式，或是設為資訊站應用程式的網頁應用程式。如需 Device Attributes API 規格，請參閱 https://wicg.github.io/WebApiDevice/device_attributes。
-
-如要進一步瞭解有效的<ph name="URL_LABEL" />模式 (自 127 版起)，請前往 https://cloud.google.com/docs/chrome-enterprise/policies/url-patterns。<ph name="WILDCARD_VALUE" /> 不是這項政策許可的值。</translation>
 <translation id="6287128640500683781">允許任何使用者登入</translation>
 <translation id="6287310684159482272">Cookie 設定</translation>
 <translation id="6287742528823584153">啟用<ph name="PRODUCT_NAME" />服務，並在登入時啟動遠端桌面</translation>
@@ -8123,7 +8128,6 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
       如果設為 True，在其他相關設定也允許這項操作的情況下，系統會為使用者啟用 <ph name="PLUGIN_VM_NAME" />。為了讓 <ph name="PLUGIN_VM_NAME" /> 順利執行，你必須將 <ph name="PLUGIN_VM_ALLOWED_POLICY_NAME" /> 和 <ph name="USER_PLUGIN_VM_ALLOWED_POLICY_NAME" /> 設為 True，並設定 <ph name="PLUGIN_VM_LICENSE_KEY_POLICY_NAME" /> 或 <ph name="PLUGIN_VM_USER_ID_POLICY_NAME" />。</translation>
 <translation id="6741318452269220158">如果將這項政策設為 True，Native Client 將繼續執行，無論 Native Client 是否停用預設行為。
 如果將這項政策設為 False 或不設定，系統將依預設行為運作。</translation>
-<translation id="6743006196954236593">不允許使用智慧鏡頭重疊功能。</translation>
 <translation id="6749641778238480311">允許直接呼叫 subApps API，不必透過舊使用者手勢或要求使用者確認。</translation>
 <translation id="6750902920405577210">要用於回報信號強度變更事件的遙測資料清單。
 
@@ -9124,12 +9128,6 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
 
       日後也可以使用 <ph name="LACROS_AVAILABILITY_LACROS_ONLY_VALUE" /> 一值，將 <ph name="LACROS_NAME" /> 設為 <ph name="PRODUCT_OS_NAME" /> 中唯一可用的瀏覽器。</translation>
 <translation id="751071954873065775">選取要預先下載的可下載內容 (DLC)</translation>
-<translation id="7512065400265675158">已排定縮減「<ph name="USER_AGENT_HEADER_NAME" />」要求標頭。為了方便測試及提高相容性，這項政策可以為所有網站啟用縮減功能，或停用來源試用或實際測試設定以啟用這項功能。
-
-      如要進一步瞭解「<ph name="USER_AGENT_REDUCTION_FEATURE_NAME" />」和其時間軸，請閱讀這篇文章：
-
-      https://blog.chromium.org/2021/09/user-agent-reduction-origin-trial-and-dates.html
-      </translation>
 <translation id="7512514325152952954">系統可透過 HTTP (而非 HTTPS) 下載 <ph name="PRODUCT_OS_NAME" /> 的自動更新酬載。這可讓 HTTP 以未加密方式快取 HTTP 下載內容。
 
 如果將這項政策設為 True，<ph name="PRODUCT_OS_NAME" /> 將嘗試透過 HTTP 下載自動更新酬載。如果設為 False 或未設定，系統則會透過 HTTPS 下載自動更新酬載。</translation>
@@ -9249,6 +9247,7 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
 
           注意：如果指定 <ph name="DEVICE_LOGIN_SCREEN_LARGE_CURSOR_ENABLED" />，這項政策會遭到覆寫。</translation>
 <translation id="7630403270894231662">請在新程式碼中使用 WeeklyTimeChecked。</translation>
+<translation id="7631736894032434210">允許使用者啟動內部韌體更新</translation>
 <translation id="7632147323011514740">受管理的訪客工作階段可開始執行 ARC 資料數據匯報更新程序的間隔</translation>
 <translation id="7632724434767231364">GSSAPI 資料庫名稱</translation>
 <translation id="7635106595080609261">如果將這項政策設為啟用或不設定，Chrome 可以顯示檔案選取對話方塊，使用者也可以開啟檔案選取對話方塊。
@@ -9904,6 +9903,7 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
 <translation id="8168359201203671567">彩虹鍵盤背光顏色</translation>
 <translation id="8169452762291746260">停用裝置健康狀態監控功能</translation>
 <translation id="8170359860920320269">篩選成人內容網站</translation>
+<translation id="8170672421195760161">完整 (舊版) 使用者代理程式。</translation>
 <translation id="8171262216089271568">在登入畫面上啟用大型游標</translation>
 <translation id="8171924760436219650">在登入畫面上將滑鼠的主要按鈕切換為右鍵</translation>
 <translation id="81724933026241365">允許使用者透過關機圖示或實體電源按鈕關閉裝置</translation>

@@ -35,9 +35,7 @@
 #include "base/unguessable_token.h"
 #include "components/services/storage/indexed_db/locks/partitioned_lock_id.h"
 #include "components/services/storage/indexed_db/locks/partitioned_lock_manager.h"
-#include "components/services/storage/privileged/mojom/indexed_db_client_state_checker.mojom-shared.h"
 #include "components/services/storage/privileged/mojom/indexed_db_client_state_checker.mojom.h"
-#include "components/services/storage/privileged/mojom/indexed_db_internals_types.mojom-forward.h"
 #include "components/services/storage/privileged/mojom/indexed_db_internals_types.mojom.h"
 #include "content/browser/indexed_db/indexed_db_external_object.h"
 #include "content/browser/indexed_db/indexed_db_value.h"
@@ -53,7 +51,7 @@
 #include "content/browser/indexed_db/instance/pending_connection.h"
 #include "content/browser/indexed_db/instance/transaction.h"
 #include "content/browser/indexed_db/status.h"
-#include "ipc/ipc_channel.h"
+#include "ipc/constants.mojom.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
 #include "mojo/public/cpp/bindings/pending_associated_receiver.h"
 #include "mojo/public/cpp/bindings/pending_associated_remote.h"
@@ -227,6 +225,22 @@ int64_t Database::version() const {
 
 bool Database::IsInitialized() const {
   return backing_store_db_ != nullptr;
+}
+
+StatusOr<int64_t> Database::DeleteDatabase(std::vector<PartitionedLock> locks,
+                                           base::OnceClosure on_complete) {
+  if (!backing_store_db_) {
+    return blink::IndexedDBDatabaseMetadata::DEFAULT_VERSION;
+  }
+
+  const int64_t old_version = version();
+  Status s = backing_store_db_->DeleteDatabase(std::move(locks),
+                                               std::move(on_complete));
+  backing_store_db_.reset();
+  if (!s.ok()) {
+    return base::unexpected(s);
+  }
+  return old_version;
 }
 
 std::vector<PartitionedLockManager::PartitionedLockRequest>
@@ -1056,14 +1070,14 @@ void Database::NotifyOfIdbInternalsRelevantChange() {
 }
 
 // kIDBMaxMessageSize is defined based on the original
-// IPC::Channel::kMaximumMessageSize value.  We use kIDBMaxMessageSize to
+// IPC::mojom::kChannelMaximumMessageSize value.  We use kIDBMaxMessageSize to
 // limit the size of arguments we pass into our Mojo calls.  We want to ensure
 // this value is always no bigger than the current kMaximumMessageSize value
 // which also ensures it is always no bigger than the current Mojo message
 // size limit.
 static_assert(
-    blink::mojom::kIDBMaxMessageSize <= IPC::Channel::kMaximumMessageSize,
-    "kIDBMaxMessageSize is bigger than IPC::Channel::kMaximumMessageSize");
+    blink::mojom::kIDBMaxMessageSize <= IPC::mojom::kChannelMaximumMessageSize,
+    "kIDBMaxMessageSize is bigger than IPC::mojom::kChannelMaximumMessageSize");
 
 void Database::CallUpgradeTransactionStartedForTesting(int64_t old_version) {
   connection_coordinator_.OnUpgradeTransactionStarted(old_version);

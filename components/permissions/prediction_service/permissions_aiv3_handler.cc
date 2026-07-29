@@ -24,6 +24,7 @@ PermissionsAiv3Handler::PermissionsAiv3Handler(
     optimization_guide::proto::OptimizationTarget optimization_target,
     RequestType request_type,
     scoped_refptr<base::SequencedTaskRunner> model_executor_task_runner,
+    scoped_refptr<base::SequencedTaskRunner> reply_task_runner,
     std::unique_ptr<PermissionsAiv3Encoder> model_executor)
     : ModelHandler<ModelOutput, const ModelInput&>(
           model_provider,
@@ -31,7 +32,8 @@ PermissionsAiv3Handler::PermissionsAiv3Handler(
           std::move(model_executor),
           /*model_inference_timeout=*/std::nullopt,
           optimization_target,
-          /*model_metadata=*/std::nullopt) {}
+          /*model_metadata=*/std::nullopt,
+          reply_task_runner) {}
 
 PermissionsAiv3Handler::PermissionsAiv3Handler(
     optimization_guide::OptimizationGuideModelProvider* model_provider,
@@ -41,9 +43,14 @@ PermissionsAiv3Handler::PermissionsAiv3Handler(
           model_provider,
           optimization_target,
           request_type,
+          /*model_executor_task_runner=*/
           base::ThreadPool::CreateSequencedTaskRunner(
-              {base::MayBlock(), base::TaskPriority::USER_VISIBLE}),
+              {base::MayBlock(), base::TaskPriority::USER_BLOCKING}),
+          /*reply_task_runner-=*/base::SequencedTaskRunner::GetCurrentDefault(),
+          /*model_executor=*/
           std::make_unique<PermissionsAiv3Encoder>(request_type)) {}
+
+PermissionsAiv3Handler::~PermissionsAiv3Handler() = default;
 
 void PermissionsAiv3Handler::OnModelUpdated(
     optimization_guide::proto::OptimizationTarget optimization_target,
@@ -56,15 +63,18 @@ void PermissionsAiv3Handler::OnModelUpdated(
     // The parent class should always set the model availability to true after
     // having received an updated model.
     DCHECK(ModelAvailable());
-    // TODO(crbug.com/405095664): Parse ModelMetadata as soon as we have it.
+    model_metadata_ =
+        ParsedSupportedFeaturesForLoadedModel<PermissionsAiv3ModelMetadata>();
   }
 }
 
-void PermissionsAiv3Handler::ExecuteModel(
-    ExecutionCallback callback,
-    std::unique_ptr<ModelInput> snapshot) {
+void PermissionsAiv3Handler::ExecuteModel(ExecutionCallback callback,
+                                          std::unique_ptr<SkBitmap> snapshot) {
   if (snapshot.get()) {
-    ExecuteModelWithInput(std::move(callback), *snapshot);
+    ModelInput input;
+    input.snapshot = *snapshot;
+    input.metadata = model_metadata_;
+    ExecuteModelWithInput(std::move(callback), input);
   } else {
     std::move(callback).Run(std::nullopt);
   }

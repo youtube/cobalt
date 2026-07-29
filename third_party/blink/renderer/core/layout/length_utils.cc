@@ -54,7 +54,7 @@ LayoutUnit ResolveInlineLengthInternal(
       DCHECK_GE(available_size, LayoutUnit());
       const BoxStrut margins = ComputeMarginsForSelf(constraint_space, style);
       LayoutUnit margins_to_subtract = margins.InlineSum();
-      if (length.GetType() == Length::kStretch) [[unlikely]] {
+      if (length.GetType() == Length::kStretch) {
         const LogicalBoxSides& ignore_margin_sides =
             constraint_space.IgnoreMarginsForStretch();
         margins_to_subtract = ignore_margin_sides.inline_start
@@ -62,6 +62,8 @@ LayoutUnit ResolveInlineLengthInternal(
                                   : margins.inline_start;
         margins_to_subtract +=
             ignore_margin_sides.inline_end ? LayoutUnit() : margins.inline_end;
+      } else {
+        DCHECK(!RuntimeEnabledFeatures::AliasWebkitFillAvailableEnabled());
       }
       return std::max(border_padding.InlineSum(),
                       available_size - margins_to_subtract);
@@ -195,7 +197,7 @@ LayoutUnit ResolveBlockLengthInternal(
       DCHECK_GE(available_size, LayoutUnit());
       const BoxStrut margins = ComputeMarginsForSelf(constraint_space, style);
       LayoutUnit margins_to_subtract = margins.BlockSum();
-      if (length.GetType() == Length::kStretch) [[unlikely]] {
+      if (length.GetType() == Length::kStretch) {
         const LogicalBoxSides& ignore_margin_sides =
             constraint_space.IgnoreMarginsForStretch();
         margins_to_subtract = ignore_margin_sides.block_start
@@ -203,6 +205,8 @@ LayoutUnit ResolveBlockLengthInternal(
                                   : margins.block_start;
         margins_to_subtract +=
             ignore_margin_sides.block_end ? LayoutUnit() : margins.block_end;
+      } else {
+        DCHECK(!RuntimeEnabledFeatures::AliasWebkitFillAvailableEnabled());
       }
       return std::max(border_padding.BlockSum(),
                       available_size - margins_to_subtract);
@@ -570,13 +574,13 @@ LayoutUnit ComputeInlineSizeForFragmentInternal(
       return Length::MinContent();
     }
     if (space.InlineAutoBehavior() == AutoSizeBehavior::kStretchExplicit) {
-      return Length::FillAvailable();
+      return Length::Stretch();
     }
     if (may_apply_aspect_ratio) {
       return Length::FitContent();
     }
     if (space.InlineAutoBehavior() == AutoSizeBehavior::kStretchImplicit) {
-      return Length::FillAvailable();
+      return Length::Stretch();
     }
     DCHECK_EQ(space.InlineAutoBehavior(), AutoSizeBehavior::kFitContent);
     return Length::FitContent();
@@ -843,13 +847,13 @@ LayoutUnit ComputeBlockSizeForFragmentInternal(
       return Length::FitContent();
     }
     if (space.BlockAutoBehavior() == AutoSizeBehavior::kStretchExplicit) {
-      return Length::FillAvailable();
+      return Length::Stretch();
     }
     if (may_apply_aspect_ratio) {
       return Length::FitContent();
     }
     if (space.BlockAutoBehavior() == AutoSizeBehavior::kStretchImplicit) {
-      return Length::FillAvailable();
+      return Length::Stretch();
     }
     DCHECK_EQ(space.BlockAutoBehavior(), AutoSizeBehavior::kFitContent);
     return Length::FitContent();
@@ -1094,7 +1098,7 @@ LogicalSize ComputeReplacedSizeInternal(const BlockNode& node,
               ? Length::FitContent()
               : Length::Auto();
       const Length& auto_block_length = space.IsBlockAutoBehaviorStretch()
-                                            ? Length::FillAvailable()
+                                            ? Length::Stretch()
                                             : non_stretch_length;
       const LayoutUnit block_size =
           RuntimeEnabledFeatures::LayoutNewReplacedLogicEnabled()
@@ -1188,7 +1192,7 @@ LogicalSize ComputeReplacedSizeInternal(const BlockNode& node,
               ? Length::FitContent()
               : Length::Auto();
       const Length& auto_length = space.IsInlineAutoBehaviorStretch()
-                                      ? Length::FillAvailable()
+                                      ? Length::Stretch()
                                       : non_stretch_length;
       const LayoutUnit inline_size =
           ResolveMainInlineLength(space, style, border_padding, MinMaxSizesFunc,
@@ -1222,7 +1226,7 @@ LogicalSize ComputeReplacedSizeInternal(const BlockNode& node,
       size = ResolveMainInlineLength(
           space, style, border_padding,
           [](SizeType) -> MinMaxSizesResult { NOTREACHED(); },
-          Length::FillAvailable(), /* auto_length */ nullptr,
+          Length::Stretch(), /* auto_length */ nullptr,
           /* override_available_size */ kIndefiniteSize);
     }
     if (RuntimeEnabledFeatures::LayoutNewReplacedLogicEnabled()) {
@@ -1474,11 +1478,16 @@ LayoutUnit ResolveRowGapForMulticol(const ComputedStyle& style,
 std::optional<LayoutUnit> ResolveItemToleranceLength(
     const ComputedStyle& style,
     LayoutUnit available_size) {
-  if (const auto& item_tolerance = style.ItemTolerance()) {
-    return MinimumValueForLength(*item_tolerance,
-                                 available_size.ClampIndefiniteToZero());
+  // TODO (celestepan): Account for when item-tolerance is set to infinite.
+  const ItemTolerance& item_tolerance = style.GetItemTolerance();
+  if (item_tolerance.IsNormal()) {
+    return std::nullopt;
   }
-  return std::nullopt;
+  if (item_tolerance.IsInfinite()) {
+    return LayoutUnit::Max();
+  }
+  return MinimumValueForLength(item_tolerance.GetLength(),
+                               available_size.ClampIndefiniteToZero());
 }
 
 LayoutUnit ResolveItemToleranceForMasonry(const ComputedStyle& style,

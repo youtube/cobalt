@@ -63,6 +63,7 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(kDocumentPolicyNegotiation);
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kEnableDevToolsJsErrorReporting);
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kEnforceSameDocumentOriginInvariants);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kEmbeddingRequiresOptIn);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kExperimentalContentSecurityPolicyFeatures);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kFedCmUseOtherAccountAndLabelsNewSyntax);
@@ -106,6 +107,7 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(kMediaStreamTrackTransfer);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kMojoDedicatedThread);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kMultipleSpareRPHs);
 CONTENT_EXPORT BASE_DECLARE_FEATURE_PARAM(size_t, kMultipleSpareRPHsCount);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kNavigationThrottleRegistryAttributeCache);
 #if !BUILDFLAG(IS_ANDROID)
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kPermissionsPolicyVerificationInContent);
 #endif
@@ -150,6 +152,9 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(kSkipEarlyCommitPendingForCrashedFrame);
 #if BUILDFLAG(IS_WIN)
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kSkipGrantAccessToDataPathIfAlreadySet);
 #endif
+#if BUILDFLAG(IS_ANDROID)
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kStrictHighRankProcessLRU);
+#endif
 #if BUILDFLAG(IS_MAC)
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kTextInputClient);
 CONTENT_EXPORT extern const base::FeatureParam<base::TimeDelta>
@@ -157,6 +162,10 @@ CONTENT_EXPORT extern const base::FeatureParam<base::TimeDelta>
 #endif
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kTouchpadOverscrollHistoryNavigation);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kTrustedTypesFromLiteral);
+#if BUILDFLAG(IS_WIN)
+CONTENT_EXPORT BASE_DECLARE_FEATURE(
+    kUpdateDirectManipulationHelperOnParentChange);
+#endif
 #if BUILDFLAG(IS_MAC)
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kValidateNetworkServiceProcessIdentity);
 #endif
@@ -171,6 +180,8 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(kLimitCrossOriginNonActivatedPaintHolding);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kDisallowRasterInterfaceWithoutSkiaBackend);
 
 // Please keep features in alphabetical order.
+
+CONTENT_EXPORT bool IsEnforceSameDocumentOriginInvariantsEnabled();
 
 }  // namespace features
 

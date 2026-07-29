@@ -7,6 +7,7 @@
 #include "base/test/mock_callback.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
+#include "components/strings/grit/components_strings.h"
 #include "components/user_education/common/ntp_promo/ntp_promo_registry.h"
 #include "components/user_education/common/ntp_promo/ntp_promo_specification.h"
 #include "components/user_education/common/user_education_data.h"
@@ -22,19 +23,27 @@ using ::testing::_;
 using ::testing::Return;
 
 constexpr char kPromoId[] = "promo";
+constexpr char kPromo2Id[] = "promo2";
+
+constexpr int kSessionNumber = 10;
 
 class NtpPromoControllerTest : public testing::Test {
  public:
-  NtpPromoControllerTest() : controller_(registry_, storage_service_) {}
+  NtpPromoControllerTest() : controller_(registry_, storage_service_) {
+    auto session = storage_service_.ReadSessionData();
+    session.session_number = kSessionNumber;
+    storage_service_.SaveSessionData(session);
+  }
 
  protected:
   void RegisterPromo(
       NtpPromoIdentifier id,
       NtpPromoSpecification::EligibilityCallback eligibility_callback,
       NtpPromoSpecification::ActionCallback action_callback) {
-    registry_.AddPromo(NtpPromoSpecification(
-        id, NtpPromoContent("", 0, 0), eligibility_callback, action_callback,
-        /*show_after=*/{}, user_education::Metadata()));
+    registry_.AddPromo(
+        NtpPromoSpecification(id, NtpPromoContent("", IDS_OK, IDS_CANCEL),
+                              eligibility_callback, action_callback,
+                              /*show_after=*/{}, user_education::Metadata()));
   }
 
   base::test::TaskEnvironment task_environment_{
@@ -150,6 +159,43 @@ TEST_F(NtpPromoControllerTest, ClickInvokesPromoAction) {
                 action_callback.Get());
   EXPECT_CALL(action_callback, Run(_));
   controller_.OnPromoClicked(kPromoId);
+}
+
+TEST_F(NtpPromoControllerTest, OnPromosShown_CompletedPromoOnly) {
+  const auto old_value = storage_service_.ReadNtpPromoData(kPromoId);
+  controller_.OnPromosShown({}, {kPromoId});
+  const auto new_value = storage_service_.ReadNtpPromoData(kPromoId);
+  EXPECT_EQ(old_value, new_value);
+}
+
+TEST_F(NtpPromoControllerTest, OnPromosShown_EligiblePromo_NoPreviousData) {
+  const auto old_value = storage_service_.ReadNtpPromoData(kPromoId);
+  EXPECT_EQ(std::nullopt, old_value);
+  controller_.OnPromosShown({kPromoId}, {});
+  const auto new_value = storage_service_.ReadNtpPromoData(kPromoId);
+  EXPECT_EQ(10, new_value->last_top_spot_session);
+  EXPECT_EQ(1, new_value->top_spot_session_count);
+}
+
+TEST_F(NtpPromoControllerTest, OnPromosShown_EligiblePromo_PreviousData) {
+  KeyedNtpPromoData old_value;
+  old_value.last_top_spot_session = kSessionNumber - 1;
+  old_value.top_spot_session_count = 2;
+  storage_service_.SaveNtpPromoData(kPromoId, old_value);
+  controller_.OnPromosShown({kPromoId}, {});
+  const auto new_value = storage_service_.ReadNtpPromoData(kPromoId);
+  EXPECT_EQ(10, new_value->last_top_spot_session);
+  EXPECT_EQ(3, new_value->top_spot_session_count);
+}
+
+TEST_F(NtpPromoControllerTest, OnPromosShown_MultiplePromos) {
+  const auto old_value2 = storage_service_.ReadNtpPromoData(kPromo2Id);
+  controller_.OnPromosShown({kPromoId, kPromo2Id}, {});
+  const auto new_value = storage_service_.ReadNtpPromoData(kPromoId);
+  const auto new_value2 = storage_service_.ReadNtpPromoData(kPromo2Id);
+  EXPECT_EQ(10, new_value->last_top_spot_session);
+  EXPECT_EQ(1, new_value->top_spot_session_count);
+  EXPECT_EQ(old_value2, new_value2);
 }
 
 }  // namespace user_education

@@ -2629,6 +2629,7 @@ interface FontFace
     getter style
     getter unicodeRange
     getter variant
+    getter variationSettings
     getter weight
     method constructor
     method load
@@ -2643,6 +2644,7 @@ interface FontFace
     setter style
     setter unicodeRange
     setter variant
+    setter variationSettings
     setter weight
 interface FontFaceSetLoadEvent : Event
     attribute @@toStringTag
@@ -4771,6 +4773,7 @@ interface HighlightRegistry
     method forEach
     method get
     method has
+    method highlightsFromPoint
     method keys
     method set
     method values

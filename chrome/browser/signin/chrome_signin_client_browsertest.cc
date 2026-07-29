@@ -4,16 +4,18 @@
 
 #include "chrome/browser/signin/chrome_signin_client.h"
 
-#include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
-#include "chrome/browser/bookmarks/bookmark_model_factory.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h"
+#include "chrome/browser/profiles/keep_alive/scoped_profile_keep_alive.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/hats/hats_service_factory.h"
+#include "chrome/browser/ui/hats/mock_hats_service.h"
+#include "chrome/browser/ui/hats/survey_config.h"
 #include "chrome/test/base/in_process_browser_test.h"
-#include "components/bookmarks/browser/bookmark_model.h"
-#include "components/bookmarks/browser/bookmark_node.h"
+#include "components/prefs/pref_service.h"
 #include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/base/signin_switches.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
@@ -21,208 +23,11 @@
 #include "content/public/test/browser_test.h"
 #include "url/gurl.h"
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-#include "extensions/browser/extension_registrar.h"
-#include "extensions/common/extension.h"
-#include "extensions/common/extension_builder.h"
-#endif
-
-class ChromeSigninClientBrowserTest : public InProcessBrowserTest {};
-
-// This test is intended to make sure the count of bookmarks is done accurately.
-IN_PROC_BROWSER_TEST_F(ChromeSigninClientBrowserTest,
-                       BookmarksMetricsRecordOnSignin_Sync) {
-  base::HistogramTester histogram_tester;
-
-  bookmarks::BookmarkModel* bookmark_model =
-      BookmarkModelFactory::GetForBrowserContext(browser()->profile());
-
-  // Constructing the bookmark graph.
-
-  // These two URLs are used twice to make sure they are counted twice as well.
-  GURL url1("http://url1");
-  GURL url4("http://url4");
-  const bookmarks::BookmarkNode* bookmark_bar =
-      bookmark_model->bookmark_bar_node();
-  bookmark_model->AddURL(bookmark_bar, bookmark_bar->children().size(),
-                         u"bookmark_bar_URL_1", url1);
-  const bookmarks::BookmarkNode* bar_folder = bookmark_model->AddFolder(
-      bookmark_bar, bookmark_bar->children().size(), u"bar_folder_1");
-  bookmark_model->AddURL(bookmark_bar, bookmark_bar->children().size(),
-                         u"bookmark_bar_URL_2", GURL("http://url2"));
-
-  bookmark_model->AddURL(bar_folder, bar_folder->children().size(),
-                         u"bar_URL_1", url4);
-  const bookmarks::BookmarkNode* bar_sub_folder = bookmark_model->AddFolder(
-      bar_folder, bar_folder->children().size(), u"bar_sub_folder");
-  bookmark_model->AddURL(bar_sub_folder, bar_sub_folder->children().size(),
-                         u"bar_sub_folderURL_1", url1);
-
-  const bookmarks::BookmarkNode* other_bookmarks = bookmark_model->other_node();
-  const bookmarks::BookmarkNode* other_folder = bookmark_model->AddFolder(
-      other_bookmarks, other_bookmarks->children().size(), u"other_folder_1");
-  bookmark_model->AddURL(other_bookmarks, other_bookmarks->children().size(),
-                         u"other_URL_1", GURL("http://url3"));
-  bookmark_model->AddURL(other_folder, other_folder->children().size(),
-                         u"other_folder_URL_1", url4);
-
-  // Bookmark graph:
-  //
-  // Bookmark Bar
-  // |- bookmark_bar_URL_1 (url1)
-  // |_ bar_folder_1
-  // |  |_ bar_URL_1 (url4)
-  // |  |_ bar_sub_folder
-  // |  |  |- bar_sub_folderURL_1 (url1)
-  // |_ bookmark_bar_URL_2 (url2)
-  // Other Bookmarks
-  // |_ other_folder_1
-  // |  |- other_folder_URL_1 (url4)
-  // |_ other_URL_1 (url3)
-
-  // Given the graph above:
-  //
-  // Count all bookmarks (even duplicates, without folders).
-  size_t expected_all_bookmarks_count = 6;
-  // Count only first layer of the bookmark bar (including folders).
-  size_t expected_bar_bookmarks_count = 3;
-
-  // Sign in to Chrome.
-  const std::string email = "alice@example.com";
-  signin::IdentityManager* identity_manager =
-      IdentityManagerFactory::GetForProfile(browser()->profile());
-  signin::MakePrimaryAccountAvailable(identity_manager, email,
-                                      signin::ConsentLevel::kSignin);
-
-  // Test signin histogram expectations.
-  histogram_tester.ExpectUniqueSample("Signin.Bookmarks.OnSignin.AllBookmarks",
-                                      expected_all_bookmarks_count, 1);
-  histogram_tester.ExpectUniqueSample("Signin.Bookmarks.OnSignin.BookmarksBar",
-                                      expected_bar_bookmarks_count, 1);
-  histogram_tester.ExpectUniqueSample(
-      "Signin.Bookmarks.OnSignin.AllBookmarks.Other",
-      expected_all_bookmarks_count, 1);
-  histogram_tester.ExpectUniqueSample(
-      "Signin.Bookmarks.OnSignin.BookmarksBar.Other",
-      expected_bar_bookmarks_count, 1);
-  // No values expected for sync.
-  base::HistogramTester::CountsMap expected_sync_counts;
-  EXPECT_THAT(
-      histogram_tester.GetTotalCountsForPrefix("Signin.Bookmarks.OnSync"),
-      testing::ContainerEq(expected_sync_counts));
-
-  //----------------------------------------------------------------------------
-
-  // Add 2 empty folders before syncing.
-  bookmark_model->AddFolder(bookmark_bar, bookmark_bar->children().size(),
-                            u"bar_folder_2");
-  // Should expect 1 more count for the bar bookmarks histograms.
-  size_t sync_expected_bar_bookmarks_count_count =
-      expected_bar_bookmarks_count + 1;
-  // But not for the all bookmarks count.
-  bookmark_model->AddFolder(other_bookmarks, other_bookmarks->children().size(),
-                            u"other_folder_1");
-
-  // New histogram tester for easier new values check.
-  base::HistogramTester histogram_tester_sync;
-  // Enable Sync.
-  signin::MakePrimaryAccountAvailable(identity_manager, email,
-                                      signin::ConsentLevel::kSync);
-
-  // Test sync histogram expectations.
-  histogram_tester.ExpectUniqueSample("Signin.Bookmarks.OnSync.AllBookmarks",
-                                      expected_all_bookmarks_count, 1);
-  histogram_tester.ExpectUniqueSample("Signin.Bookmarks.OnSync.BookmarksBar",
-                                      sync_expected_bar_bookmarks_count_count,
-                                      1);
-  histogram_tester.ExpectUniqueSample(
-      "Signin.Bookmarks.OnSync.AllBookmarks.Other",
-      expected_all_bookmarks_count, 1);
-  histogram_tester.ExpectUniqueSample(
-      "Signin.Bookmarks.OnSync.BookmarksBar.Other",
-      sync_expected_bar_bookmarks_count_count, 1);
-
-  // No new values expected for Signin histograms.
-  base::HistogramTester::CountsMap expected_signin_counts;
-  EXPECT_THAT(
-      histogram_tester_sync.GetTotalCountsForPrefix("Signin.Bookmarks.OnSign"),
-      testing::ContainerEq(expected_signin_counts));
-}
-
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-IN_PROC_BROWSER_TEST_F(ChromeSigninClientBrowserTest,
-                       ExtensionsMetricsRecordOnSignin_Sync) {
-  base::HistogramTester histogram_tester;
-
-  // Create 3 fake extensions and enable them.
-  // Setting the ManifestLocation to kInternal means that the extension is user
-  // installed. kComponent is an internal Chrome Exntension used for features,
-  // kExternalPolicy means that the extension was installed through a policy.
-  extensions::ExtensionRegistrar* extension_registrar =
-      extensions::ExtensionRegistrar::Get(browser()->profile());
-  auto extension1 =
-      extensions::ExtensionBuilder("Extension1")
-          .SetLocation(extensions::mojom::ManifestLocation::kInternal)
-          .Build();
-  extension_registrar->AddExtension(extension1);
-  auto extension2 =
-      extensions::ExtensionBuilder("Extension2")
-          .SetLocation(extensions::mojom::ManifestLocation::kComponent)
-          .Build();
-  extension_registrar->AddExtension(extension2);
-  auto extension3 =
-      extensions::ExtensionBuilder("Extension3")
-          .SetLocation(extensions::mojom::ManifestLocation::kExternalPolicy)
-          .Build();
-  extension_registrar->AddExtension(extension3);
-
-  // Only one of the 3 extensions is considered user_installed.
-  size_t expected_extensions_count = 1;
-  // Sign in to Chrome.
-  const std::string email = "alice@example.com";
-  signin::IdentityManager* identity_manager =
-      IdentityManagerFactory::GetForProfile(browser()->profile());
-  signin::MakePrimaryAccountAvailable(identity_manager, email,
-                                      signin::ConsentLevel::kSignin);
-
-  histogram_tester.ExpectUniqueSample("Signin.Extensions.OnSignin",
-                                      expected_extensions_count, 1);
-  histogram_tester.ExpectUniqueSample("Signin.Extensions.OnSignin.Other",
-                                      expected_extensions_count, 1);
-  // No values expected for OnSync.
-  base::HistogramTester::CountsMap expected_sync_counts;
-  EXPECT_THAT(
-      histogram_tester.GetTotalCountsForPrefix("Signin.Extensions.OnSync"),
-      testing::ContainerEq(expected_sync_counts));
-
-  // Add 1 more extension before syncing.
-  auto extension4 =
-      extensions::ExtensionBuilder("Extension4")
-          .SetLocation(extensions::mojom::ManifestLocation::kInternal)
-          .Build();
-  extension_registrar->AddExtension(extension4);
-  size_t sync_expected_extensions_count = expected_extensions_count + 1;
-
-  // New histogram tester for easier new values check.
-  base::HistogramTester histogram_tester_sync;
-  // Enable Sync.
-  signin::MakePrimaryAccountAvailable(identity_manager, email,
-                                      signin::ConsentLevel::kSync);
-
-  histogram_tester_sync.ExpectUniqueSample("Signin.Extensions.OnSync",
-                                           sync_expected_extensions_count, 1);
-  histogram_tester_sync.ExpectUniqueSample("Signin.Extensions.OnSync.Other",
-                                           sync_expected_extensions_count, 1);
-  // No values expected for OnSignin.
-  base::HistogramTester::CountsMap expected_signin_counts;
-  EXPECT_THAT(histogram_tester_sync.GetTotalCountsForPrefix(
-                  "Signin.Extensions.OnSignin"),
-              testing::ContainerEq(expected_signin_counts));
-}
-#endif
+using testing::_;
+using testing::Not;
 
 class ChromeSigninClientWithBookmarksInTransportModeBrowserTest
-    : public ChromeSigninClientBrowserTest,
+    : public InProcessBrowserTest,
       public testing::WithParamInterface<bool> {
  public:
   // Equivalent to `kSigninFromBookmarksBubbleSyntheticTrialGroupNamePref` that
@@ -294,3 +99,87 @@ IN_PROC_BROWSER_TEST_F(
           kSigninFromBookmarksBubbleSyntheticTrialGroupNamePrefForTesting),
       "scoped_feature_list_trial_group");
 }
+
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
+class ChromeSigninClientHatsSurveyBrowserTest : public InProcessBrowserTest {
+ public:
+  ChromeSigninClientHatsSurveyBrowserTest() {
+    feature_list_.InitWithFeatures(
+        /*enabled_features=*/
+        {{switches::kChromeIdentitySurveyPasswordBubbleSignin,
+          switches::kChromeIdentitySurveyFirstRunSignin}},
+        /*disabled_features=*/{});
+  }
+
+  void SetUpOnMainThread() override {
+    mock_hats_service_ = static_cast<MockHatsService*>(
+        HatsServiceFactory::GetInstance()->SetTestingFactoryAndUse(
+            browser()->profile(), base::BindRepeating(&BuildMockHatsService)));
+  }
+
+  void TearDownOnMainThread() override { mock_hats_service_ = nullptr; }
+
+  MockHatsService* mock_hats_service() { return mock_hats_service_; }
+
+ private:
+  raw_ptr<MockHatsService> mock_hats_service_ = nullptr;
+  base::test::ScopedFeatureList feature_list_;
+};
+
+// Tests that a HaTS survey is launched when a user signs in through an eligible
+// access point.
+IN_PROC_BROWSER_TEST_F(ChromeSigninClientHatsSurveyBrowserTest,
+                       HatsSurveyLaunchedOnSignin) {
+  // Expect the HaTS service to launch the password bubble sign-in survey.
+  EXPECT_CALL(*mock_hats_service(),
+              LaunchSurvey(kHatsSurveyTriggerIdentityPasswordBubbleSignin, _, _,
+                           _, _, _, _));
+  // Expect that the surveys for other access point will NOT be launched.
+  EXPECT_CALL(*mock_hats_service(),
+              LaunchSurvey(Not(kHatsSurveyTriggerIdentityPasswordBubbleSignin),
+                           _, _, _, _, _, _))
+      .Times(0);
+
+  // Simulate a user signing in via the password bubble, which should trigger
+  // the survey.
+  signin::MakeAccountAvailable(
+      IdentityManagerFactory::GetForProfile(browser()->profile()),
+      signin::AccountAvailabilityOptionsBuilder()
+          .AsPrimary(signin::ConsentLevel::kSignin)
+          .WithAccessPoint(signin_metrics::AccessPoint::kPasswordBubble)
+          .Build("alice@example.com"));
+}
+
+// Tests that if a user signs in when no browser is open, the HaTS survey is
+// launched immediately when a browser is subsequently created for that profile.
+IN_PROC_BROWSER_TEST_F(ChromeSigninClientHatsSurveyBrowserTest,
+                       HatsSurveyLaunchedOnBrowserCreationAfterSignin) {
+  // Keep the profile alive and close all existing browsers.
+  Profile* profile = browser()->profile();
+  ScopedProfileKeepAlive profile_keep_alive(
+      profile, ProfileKeepAliveOrigin::kProfilePickerView);
+  CloseAllBrowsers();
+
+  // Sign in to Chrome. The survey won't launch yet, as it requires an active
+  // browser.
+  signin::MakeAccountAvailable(
+      IdentityManagerFactory::GetForProfile(browser()->profile()),
+      signin::AccountAvailabilityOptionsBuilder()
+          .AsPrimary(signin::ConsentLevel::kSignin)
+          .WithAccessPoint(signin_metrics::AccessPoint::kForYouFre)
+          .Build("alice@example.com"));
+
+  // Expect the HaTS service to launch the first run sign-in survey.
+  EXPECT_CALL(
+      *mock_hats_service(),
+      LaunchSurvey(kHatsSurveyTriggerIdentityFirstRunSignin, _, _, _, _, _, _));
+  EXPECT_CALL(*mock_hats_service(),
+              LaunchSurvey(Not(kHatsSurveyTriggerIdentityFirstRunSignin), _, _,
+                           _, _, _, _))
+      .Times(0);
+
+  // Create a new browser for the signed-in profile, which should now trigger
+  // the survey.
+  CreateBrowser(profile);
+}
+#endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)

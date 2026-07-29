@@ -232,6 +232,7 @@
 <translation id="3785324443014631273">АС Chrome OS Flex не змагла сінхранізаваць даныя з-за памылкі ўваходу.</translation>
 <translation id="3795971588916395511">Google Chrome OS</translation>
 <translation id="3809772425479558446">Для браўзера Google Chrome патрабуецца Windows 10 або навейшая версія.</translation>
+<translation id="3810973564298564668">Кіраваць</translation>
 <translation id="383928141529488001">Браўзеру Google Chrome неабходны доступ да Bluetooth для пошуку прылад з Bluetooth. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="386202838227397562">Закрыйце ўсе вокны Google Chrome і паўтарыце спробу.</translation>
 <translation id="3873044882194371212">Адкрыць спасылку ў акне &amp;інкогніта Chrome</translation>
@@ -522,6 +523,7 @@
 <translation id="7583399374488819119">Усталёўшчык <ph name="COMPANY_NAME" /></translation>
 <translation id="7606334485649076285">Google Chrome OS Flex</translation>
 <translation id="7626072681686626474"><ph name="MANAGER" /> патрабуе ад вас прачытаць і прыняць наступныя Умовы выкарыстання, перш чым пачаць карыстацца прыладай. Гэтыя ўмовы не пашыраюць, не змяняюць і не абмяжоўваюць Умовы выкарыстання Google Chrome OS.</translation>
+<translation id="7627609214560473136">Каб абараніць свае даныя, дазвольце Chrome адклікаць дазволы ў сайтаў, якія вы не наведвалі ў апошні час.</translation>
 <translation id="7629695634924605473">Chrome апавяшчае вас у выпадку ўзлому вашых пароляў</translation>
 <translation id="7641148173327520642">Ваш сістэмны адміністратар наладзіў Google Chrome так, каб для доступу да <ph name="TARGET_URL_HOSTNAME" /> адкрываць <ph name="ALTERNATIVE_BROWSER_NAME" />.</translation>
 <translation id="7649070708921625228">Даведка</translation>
@@ -608,6 +610,7 @@
 <translation id="8649026945479135076">Гэта звычайная практыка, калі сайты, якія вы наведваеце, запамінаюць, што іменна вас цікавіць, каб персаналізаваць для вас сваё змесціва. Сайты таксама могуць захоўваць звесткі пра вашы інтарэсы ў браўзеры Chrome.</translation>
 <translation id="8669527147644353129">Памочнік Google Chrome</translation>
 <translation id="8679801911857917785">Таксама вызначае, якая старонка паказваецца пры запуску Chrome.</translation>
+<translation id="8712637175834984815">Зразумела</translation>
 <translation id="8712767363896337380">Амаль гатова! Каб завяршыць абнаўленне, перазапусціце Chrome.</translation>
 <translation id="8718062187489036808">Выйсці з Chrome</translation>
 <translation id="873133009373065397">Google Chrome не можа вызначыць або задаць стандартны браўзер</translation>

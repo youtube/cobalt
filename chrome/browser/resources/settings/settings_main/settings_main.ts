@@ -11,15 +11,25 @@ import 'chrome://resources/cr_elements/cr_shared_style.css.js';
 import 'chrome://resources/cr_elements/cr_view_manager/cr_view_manager.js';
 import 'chrome://resources/cr_elements/icons.html.js';
 import '../about_page/about_page.js';
+import '../appearance_page/appearance_page_index.js';
+import '../autofill_page/autofill_page_index.js';
 import '../basic_page/basic_page.js';
+import '../on_startup_page/on_startup_page.js';
+import '../performance_page/performance_page_index.js';
+import '../search_page/search_page_index.js';
+// <if expr="not is_chromeos">
+import '../default_browser_page/default_browser_page.js';
+
+// </if>
 
 import {getInstance as getAnnouncerInstance} from 'chrome://resources/cr_elements/cr_a11y_announcer/cr_a11y_announcer.js';
 import type {CrViewManagerElement} from 'chrome://resources/cr_elements/cr_view_manager/cr_view_manager.js';
 import {assert} from 'chrome://resources/js/assert.js';
 import {beforeNextRender, flush, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
+import {ensureLazyLoaded} from '../ensure_lazy_loaded.js';
 import {loadTimeData} from '../i18n_setup.js';
-// <if expr="not chromeos_ash">
+// <if expr="not is_chromeos">
 import type {LanguagesModel} from '../languages_page/languages_types.js';
 // </if>
 import {pageVisibility} from '../page_visibility.js';
@@ -39,14 +49,12 @@ function getTopLevelRoute() {
   }
 
   let guestTopLevelRoute = routes.SEARCH;
-  // <if expr="chromeos_ash">
+  // <if expr="is_chromeos">
   guestTopLevelRoute = routes.PRIVACY;
   // </if>
 
   return guestTopLevelRoute;
 }
-
-const TOP_LEVEL_EQUIVALENT_ROUTE: Route = getTopLevelRoute();
 
 export interface SettingsMainElement {
   $: {
@@ -78,7 +86,7 @@ export class SettingsMainElement extends SettingsMainElementBase {
 
       pageVisibility_: {
         type: Object,
-        value: pageVisibility || {},
+        value: () => pageVisibility || {},
       },
 
       lastRoute_: {
@@ -111,7 +119,7 @@ export class SettingsMainElement extends SettingsMainElementBase {
         notify: true,
       },
 
-      // <if expr="not chromeos_ash">
+      // <if expr="not is_chromeos">
       languages_: Object,
       // </if>
     };
@@ -125,9 +133,18 @@ export class SettingsMainElement extends SettingsMainElementBase {
   declare private showNoResultsFound_: boolean;
   declare toolbarSpinnerActive: boolean;
 
-  // <if expr="not chromeos_ash">
+  // <if expr="not is_chromeos">
   declare private languages_?: LanguagesModel;
   // </if>
+
+  private topLevelEquivalentRoute_: Route = getTopLevelRoute();
+
+  override connectedCallback() {
+    super.connectedCallback();
+
+    // Request loading of the lazy loaded module within an idle callback.
+    requestIdleCallback(() => ensureLazyLoaded());
+  }
 
   private beforeNextRenderPromise_(): Promise<void> {
     return new Promise(res => {
@@ -136,8 +153,14 @@ export class SettingsMainElement extends SettingsMainElementBase {
   }
 
   override async currentRouteChanged(route: Route) {
+    if (routes.ADVANCED && routes.ADVANCED.contains(route)) {
+      // Load the lazy module immediately, don't wait for requestIdleCallback()
+      // to fire. No-op if it has already fired.
+      ensureLazyLoaded();
+    }
+
     const effectiveRoute =
-        route === routes.BASIC ? TOP_LEVEL_EQUIVALENT_ROUTE : route;
+        route === routes.BASIC ? this.topLevelEquivalentRoute_ : route;
 
     if (this.lastRoute_ === effectiveRoute) {
       // Nothing to do.
@@ -146,7 +169,7 @@ export class SettingsMainElement extends SettingsMainElementBase {
 
     this.lastRoute_ = effectiveRoute;
 
-    if (!route.hasMigratedToPlugin) {
+    if (!effectiveRoute.hasMigratedToPlugin) {
       // Case where the requested section still resides within the old
       // <settings-basic-page> element. Show that element, and let it handle
       // showing the correct content.

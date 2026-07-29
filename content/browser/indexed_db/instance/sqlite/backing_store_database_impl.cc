@@ -15,15 +15,13 @@ BackingStoreDatabaseImpl::BackingStoreDatabaseImpl(
     base::WeakPtr<DatabaseConnection> db)
     : db_(std::move(db)) {}
 
-BackingStoreDatabaseImpl::~BackingStoreDatabaseImpl() = default;
+BackingStoreDatabaseImpl::~BackingStoreDatabaseImpl() {
+  DatabaseConnection::Release(std::move(db_));
+}
 
 const blink::IndexedDBDatabaseMetadata&
 BackingStoreDatabaseImpl::GetMetadata() {
-  if (db_) {
-    return db_->metadata();
-  }
-
-  return placeholder_metadata_;
+  return db_->metadata();
 }
 
 std::string BackingStoreDatabaseImpl::GetObjectStoreLockIdKey(
@@ -41,13 +39,9 @@ BackingStoreDatabaseImpl::CreateTransaction(
 Status BackingStoreDatabaseImpl::DeleteDatabase(
     std::vector<PartitionedLock> locks,
     base::OnceClosure on_complete) {
-  // Deletion of a non-existent database counts as success. This condition is
-  // hit when the database is deleted twice in a row.
-  if (db_) {
-    db_->DeleteIdbDatabase(PassKey());
-    CHECK(!db_);
-    std::move(on_complete).Run();
-  }
+  db_->DeleteIdbDatabase(PassKey());
+  CHECK(!db_);
+  std::move(on_complete).Run();
   return Status::OK();
 }
 

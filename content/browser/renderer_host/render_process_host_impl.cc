@@ -272,10 +272,6 @@
 #include "content/browser/renderer_host/plugin_registry_impl.h"
 #endif
 
-#if BUILDFLAG(IPC_MESSAGE_LOG_ENABLED)
-#include "ipc/ipc_logging.h"
-#endif
-
 #if BUILDFLAG(IS_OZONE)
 #include "ui/ozone/public/ozone_switches.h"
 #endif
@@ -3437,6 +3433,7 @@ void RenderProcessHostImpl::PropagateBrowserCommandLineToRenderer(
   // with any associated values) if present in the browser command line.
   static const char* const kSwitchNames[] = {
       switches::kDisableInProcessStackTraces,
+      sandbox::policy::switches::kDisableLandlockSandbox,
       sandbox::policy::switches::kDisableSeccompFilterSandbox,
       sandbox::policy::switches::kNoSandbox,
 #if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_CHROMEOS)
@@ -3734,6 +3731,11 @@ bool RenderProcessHostImpl::Shutdown(int exit_code) {
   if (!child_process_launcher_.get())
     return false;
 
+  // If a shutdown is already in progress, don't restart the timer.
+  if (!shutdown_requested_) {
+    shutdown_start_time_ = base::TimeTicks::Now();
+  }
+
   shutdown_exit_code_ = exit_code;
   shutdown_requested_ = true;
   return child_process_launcher_->Terminate(exit_code);
@@ -3894,10 +3896,6 @@ void RenderProcessHostImpl::OnChannelConnected(int32_t peer_pid) {
 
     ProvideSwapFileForRenderer();
   }
-
-#if BUILDFLAG(IPC_MESSAGE_LOG_ENABLED)
-  child_process_->SetIPCLoggingEnabled(IPC::Logging::GetInstance()->Enabled());
-#endif
 
 #if BUILDFLAG(CLANG_PROFILING_INSIDE_SANDBOX)
   child_process_->SetProfilingFile(OpenProfilingFile());
@@ -5003,6 +5001,9 @@ RenderProcessHost* RenderProcessHostImpl::GetProcessHostForSiteInstance(
       browser_context->GetStoragePartition(site_instance,
                                            false /* can_create */)));
 
+  base::UmaHistogramEnumeration(
+      "BrowserRenderProcessHost.SiteInstanceRenderProcessAssignment",
+      site_instance->GetLastProcessAssignmentOutcome());
   MAYBEVLOG(2) << __func__ << "(" << site_info << ") selected process host "
                << render_process_host->GetDeprecatedID()
                << " using assignment \""
@@ -5105,6 +5106,13 @@ void RenderProcessHostImpl::ProcessDied(
   // The OnChannelError notification can fire multiple times due to nested
   // sync calls to a renderer. If we don't have a valid channel here it means
   // we already handled the error.
+
+  // If the shutdown was intentional, record the time it took.
+  if (shutdown_requested_) {
+    base::UmaHistogramMediumTimes(
+        "Shutdown.Time.RenderProcess.Termination",
+        base::TimeTicks::Now() - shutdown_start_time_);
+  }
 
   // It should not be possible for us to be called re-entrantly.
   DCHECK(!within_process_died_observer_);

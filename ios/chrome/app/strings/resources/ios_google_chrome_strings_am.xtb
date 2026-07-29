@@ -16,7 +16,6 @@
 <translation id="1352919863522755794">Google የይለፍ ቃል አስተዳዳሪ የእርስዎን የይለፍ ቃላት ሊፈትሽ አልቻለም። የበይነመረብ ግንኙነትዎን ለመፈተሽ ይሞክሩ።</translation>
 <translation id="1394995526009609883">ምርጫዎችዎን በማንኛውም ጊዜ Chromium ቅንብሮች ውስጥ ማዘመን ይችላሉ።</translation>
 <translation id="1407843355326180937">በሁሉም መሣሪያዎችዎ ላይ የእርስዎን ዕልባቶች እና ሌሎችም ለማግኘት ወደዚህ ጣቢያ እና Chrome ይግቡ።</translation>
-<translation id="1426599484714342603">የChrome Shopping ኃይልን ያግኙ</translation>
 <translation id="1462727070346936664">ከChrome የሚችሉትን ሁሉ ለማግኘት በመለያ ይግቡ።</translation>
 <translation id="1493827051843127077">በሁሉም መሣሪያዎችዎ ላይ ትሮችዎን፣ የይለፍ ቃላትዎን እና የክፍያ መረጃዎን ለማስመር Chromeን እንደ ነባሪ ያዘጋጁ</translation>
 <translation id="1504372625950710826">Chrome ዝማኔዎች ካሉ መፈተሽ አልቻለም። የበይነመረብ ግንኙነትዎን ለመፈተሽ ይሞክሩ።</translation>
@@ -33,7 +32,6 @@
 <translation id="1554731936187952550">ከጎጂ ድር ጣቢያዎች የሚከላከል የChrome በጣም ጠንካራ ጥበቃ አለዎት</translation>
 <translation id="155816064895200734">እንደ ነባሪ አሳሽ Chrome ያቀናብሩ</translation>
 <translation id="1580570086594302477">አዲስ የChrome ማንነት የማያሳውቅ ትርን ይከፍታል።</translation>
-<translation id="1634522710245925681">የዋጋ ግንዛቤዎችን በቀላሉ ለማግኘት Chrome በነባሪ ይጠቀሙ</translation>
 <translation id="1646463005043273333">እንደ ነባሪ አሳሸ Chrome አድርጎ ለማቀናበር የChrome ቅንብርን ይከፍታል።</translation>
 <translation id="1670609221633730681">Chrome ጠቃሚ ምክር፦ የእርስዎን አድራሻ አሞሌ ቦታ ይምረጡ</translation>
 <translation id="1683863426423719967">ከChrome የትር አስታዋሾችን ለመቀበል በiOS ቅንብሮችዎ ውስጥ ማሳወቂያዎችን ያብሩ።</translation>
@@ -65,14 +63,12 @@
 <translation id="2423077901494354337">አሁን በመሣሪያዎ ላይ ከChrome ምርጡን ያገኛሉ።</translation>
 <translation id="2427791862912929107">Chrome እርስዎ የበይነመረብ ውሂብዎን እና ድረ-ገጾችን በምን ያህል ፍጥነት መጫን እንደሚችሉ እንዲያቀናብሩ የሚያስችሉዎት ባህሪያት አሉት።
 <ph name="BEGIN_LINK" />የበለጠ ለመረዳት<ph name="END_LINK" /></translation>
-<translation id="2444854139071078915">በሌሎች መተግበሪያዎችዎ ውስጥ የተቀመጡ የይለፍ ቃላትዎን በቀላሉ ለማግኘት Chrome ለራስ-ሙላን ይጠቀሙ።</translation>
 <translation id="2464852008153767546">{THRESHOLD,plural, =1{ይህ የሚሆነው Chrome ለ{THRESHOLD} ደቂቃ ጥቅም ላይ ሳይውል ሲቀር ነው። ይህ ታሪክን እና ራስ-ሙላን ሊያካትት ይችላል።}one{ይህ የሚሆነው Chrome ለ{THRESHOLD} ደቂቃዎች ጥቅም ላይ ሳይውል ሲቀር ነው። ይህ ታሪክን እና ራስ-ሙላን ሊያካትት ይችላል።}other{ይህ የሚሆነው Chrome ለ{THRESHOLD} ደቂቃዎች ጥቅም ላይ ሳይውል ሲቀር ነው። ይህ ታሪክን እና ራስ-ሙላን ሊያካትት ይችላል።}}</translation>
 <translation id="2561231791489583059">ከአደገኛ ጣቢያዎች እንዲጠበቁ እና የይለፍ ቃላትዎን ደህንነት ለመጠበቅ Chromeን እንደ ነባሪ አሳሽዎ ይጠቀሙ</translation>
 <translation id="2574249610672786438">Chromeን ከሚጠቀሙበት የትኛዉም ቦታ ትሮችን ለማየት በሁሉም መሣሪያዎችዎ ላይ ይግቡ</translation>
 <translation id="2576431527583832481">Chrome አሁን ተሻሽሏል! አዲስ ስሪት አለ።</translation>
 <translation id="257708665678654955">Google Chrome በሚቀጥለው ጊዜ ከዚህ ጣቢያ የመጡ የ<ph name="LANGUAGE_NAME" /> ገጾች እንዲተረጎምልዎ ይፈልጋሉ?</translation>
 <translation id="2668242166988961773">በChrome ውስጥ በድምፅ ይፈልጉ</translation>
-<translation id="2671426118752779020">በእርስዎ iPhone ላይ ባሉ ሌሎች መተግበሪያዎች ውስጥ ወደ የGoogle የይለፍ ቃል አስተዳዳሪ ያስቀመጧቸውን የይለፍ ቃላት መጠቀም ይችላሉ።</translation>
 <translation id="2689064829982324496">በሁሉም ድር ጣቢያዎች ላይ የእርስዎን የGoogle መለያ ዘግተው ለመውጣት <ph name="BEGIN_LINK" />ከChrome ዘግተው ይውጡ<ph name="END_LINK" />።</translation>
 <translation id="2695886661449553974">Chrome ዝማኔዎች ካሉ መፈተሽ አልቻለም። ቆይተው እንደገና ይሞክሩ።</translation>
 <translation id="2703746758996815929">አጋዥ የሆኑ የChromium ምክሮችን ለማግኘት፣ በiOS ቅንብሮችዎ ውስጥ ማሳወቂያዎችን ያብሩ።</translation>
@@ -222,7 +218,6 @@
 <translation id="6684809838922667136">Chromeን የተሻለ ያድርጉት</translation>
 <translation id="6695698548122852044">{THRESHOLD,plural, =1{ይህ የሚሆነው Chrome ለ{THRESHOLD} ደቂቃ ስራ ላይ ሳይውል ሲቀር ነው። በመለያ ገብተው ሳለ በዚህ መሣሪያ ላይ የተቀመጠ ውሂብ ብቻ ይሰረዛል። ይህ ታሪክን እና የይለፍ ቃላትን ሊያካትት ይችላል።}one{ይህ የሚሆነው Chrome ለ{THRESHOLD} ደቂቃ ስራ ላይ ሳይውል ሲቀር ነው። በመለያ ገብተው ሳለ በዚህ መሣሪያ ላይ የተቀመጠ ውሂብ ብቻ ይሰረዛል። ይህ ታሪክን እና የይለፍ ቃላትን ሊያካትት ይችላል።}other{ይህ የሚሆነው Chrome ለ{THRESHOLD} ደቂቃዎች ስራ ላይ ሳይውል ሲቀር ነው። በመለያ ገብተው ሳለ በዚህ መሣሪያ ላይ የተቀመጠ ውሂብ ብቻ ይሰረዛል። ይህ ታሪክን እና የይለፍ ቃላትን ሊያካትት ይችላል።}}</translation>
 <translation id="6709398533399187136">የይለፍ ቃልዎ በውሂብ ጥሰት ውስጥ ተጋልጧል። Google የይለፍ ቃል አስተዳዳሪ አሁን እንዲቀይሩት ይመክራል።</translation>
-<translation id="6788035488757621217">ከመሣሪያዎ ቅንብሮች ላይ ሆነው «<ph name="TEXT_OF_THE_SETTINGS_MENU_ITEM" />»ን ይክፈቱ እና «Chrome» የሚለውን ይምረጡ</translation>
 <translation id="6820553595690137150">የይለፍ ሐረግ ምስጠራ የመክፈያ ዘዴዎችን እና አድራሻዎችን አያካትትም።
 
 ይህን ቅንብር ለመለወጥ <ph name="BEGIN_LINK" />በመለያዎ ውስጥ ያለውን የChrome ውሂብ ይሰርዙ<ph name="END_LINK" />።</translation>
@@ -242,7 +237,6 @@
 <translation id="7175129790242719365">የChrome ጠቃሚ ምክር፦ ወደ Chrome ይግቡ</translation>
 <translation id="7187993566681480880">በChrome ላይ ደህንነትዎን ይጠብቃል፣ እና በመለያ በገቡባቸው ሌሎች የGoogle መተግበሪያዎች ላይ ደህንነትዎን ለማሻሻል ሥራ ላይ ሊውል ይችላል።</translation>
 <translation id="7200524487407690471">Chrome እርስዎን ከውሂብ ጥሰቶች፣ ደህንነታቸው ካልተጠበቁ ድር ጣቢያዎች እና ሌሎችም ደህንነትዎ እንደተጠበቀ ለማቆየት በየቀኑ የደህንነት ፍተሻን በራስ-ሰር ያሄዳል። ስለ የደህንነት ፍተሻ በቅንብሮች ውስጥ የበለጠ ማግኘት ይችላሉ።</translation>
-<translation id="72119412072970160">በእርስዎ iPad ላይ ባሉ ሌሎች መተግበሪያዎች ውስጥ ወደ የGoogle የይለፍ ቃል አስተዳዳሪ ያስቀመጧቸውን የይለፍ ቃላት መጠቀም ይችላሉ።</translation>
 <translation id="7214019116829172458">የChrome ማንነት የማያሳውቅ ትርን ክፈት</translation>
 <translation id="722167379782941918">Chrome የላቀ ጥበቃን ይመክራል</translation>
 <translation id="723787869754590019">ለራስ-ሙላ Chromeን ይጠቀሙ</translation>
@@ -288,7 +282,6 @@
 <translation id="8018153653741938705">በGoogle Chrome ደህንነትዎን ይጠብቁ</translation>
 <translation id="8022947259858476807">አገናኞችን ለመክፈት፣ ከመግብሮች ለመፈለግ እና በሌሎች መተግበሪያዎች ውስጥ የይለፍ ቃሎችን የራስ-ለመሙላት በነባሪነት Chrome ን ይጠቀሙ</translation>
 <translation id="804638182476029347">የዋጋ ቅናሽ ማንቂያዎችን ለማግኘት የChrome ማሳወቂያዎችን ይፍቀዱ</translation>
-<translation id="804756029368067824">ዋጋዎችን በቀላሉ ለመከታተል እና ለመግዛት ለሚፈልጓቸው ነገሮች የዋጋ ግንዛቤዎችን ለማግኘት Chromeን እንደ ነባሪ አሳሽዎ ያቀናብሩት።</translation>
 <translation id="8065292699993359127">ዩአርኤሎችን በChrome ውስጥ ማንነት በማያሳውቅ ሁነታ ይክፈቱ</translation>
 <translation id="8069507567842347179">ይህ ጥቅል አስቀድሞ Chrome ላይ ክትትል ተደርጎበታል።</translation>
 <translation id="8136856065410661948">ይህ ከChrome እና Google ሌንስ በእርስዎ Apple ቀን መቁጠሪያ ውስጥ ክስተቶችን ለመፍጠር ሥራ ላይ ይውላል።</translation>

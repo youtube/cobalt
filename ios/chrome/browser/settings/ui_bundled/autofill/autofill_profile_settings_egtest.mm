@@ -167,9 +167,7 @@ id<GREYMatcher> SettingsToolbarDoneButton() {
     config.features_enabled.push_back(
         kAutofillDynamicallyLoadsFieldsForAddressInput);
   }
-  if ([self isRunningTest:@selector
-            (testSwipeToDeleteBlockedForHomeAndWorkProfile)] ||
-      [self isRunningTest:@selector(testHomeAndWorkProfileEditPage)]) {
+  if ([self isRunningTest:@selector(testHomeAndWorkProfileEditPage)]) {
     config.features_enabled.push_back(
         autofill::features::kAutofillEnableSupportForHomeAndWork);
   }
@@ -226,12 +224,14 @@ id<GREYMatcher> SettingsToolbarDoneButton() {
 // Returns the delete button on the deletion confirmation action sheet.
 - (id<GREYMatcher>)confirmButtonForNumberOfAddressesBeingDeleted:
     (int)numberOfAddresses {
-  return grey_allOf(
+  id<GREYMatcher> baseMatcher = grey_allOf(
       grey_accessibilityLabel(l10n_util::GetPluralNSStringF(
           IDS_IOS_SETTINGS_AUTOFILL_DELETE_ADDRESS_CONFIRMATION_BUTTON,
           numberOfAddresses)),
       grey_accessibilityTrait(UIAccessibilityTraitButton),
       grey_userInteractionEnabled(), nil);
+
+  return grey_allOf(baseMatcher, grey_not(grey_descendant(baseMatcher)), nil);
 }
 
 // Returns the footer based on the count of errors due to the empty required
@@ -515,26 +515,6 @@ id<GREYMatcher> SettingsToolbarDoneButton() {
       selectElementWithMatcher:grey_accessibilityLabel(
                                    [AutofillAppInterface exampleProfileName])]
       assertWithMatcher:grey_notVisible()];
-}
-
-// Checks that no action is possible when a Home and Work account profile
-// is swiped to be deleted.
-- (void)testSwipeToDeleteBlockedForHomeAndWorkProfile {
-  [AutofillAppInterface saveExampleHomeAndWorkAccountProfile];
-  [self openAutofillProfilesSettings];
-
-  // Swipe until the "Delete" button is revealed.
-  [[EarlGrey
-      selectElementWithMatcher:grey_accessibilityLabel(
-                                   [AutofillAppInterface exampleProfileName])]
-      performAction:chrome_test_util::SwipeToShowDeleteButton()];
-
-  [ChromeEarlGreyUI waitForAppToIdle];
-
-  // Assert that "Delete" button is not displayed.
-  [[EarlGrey selectElementWithMatcher:grey_kindOfClassName(
-                                          @"UISwipeActionStandardButton")]
-      assertWithMatcher:grey_nil()];
 }
 
 // Checks that the country field is a selection field in the edit mode and the

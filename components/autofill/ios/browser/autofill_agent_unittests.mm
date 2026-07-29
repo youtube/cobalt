@@ -19,6 +19,7 @@
 #import "base/test/ios/wait_util.h"
 #import "base/test/test_timeouts.h"
 #import "base/values.h"
+#import "components/autofill/core/browser/autofill_field.h"
 #import "components/autofill/core/browser/data_model/payments/credit_card.h"
 #import "components/autofill/core/browser/filling/filling_product.h"
 #import "components/autofill/core/browser/foundations/test_autofill_client.h"
@@ -64,6 +65,7 @@ using autofill::FieldDataManager;
 using autofill::FieldRendererId;
 using autofill::FillingProduct;
 using autofill::FormRendererId;
+using autofill::Section;
 using autofill::SuggestionType;
 using base::test::ios::WaitUntilConditionOrTimeout;
 
@@ -236,13 +238,14 @@ TEST_F(AutofillAgentTests,
   fill_data.push_back(autofill::FormFieldData::FillData(field));
 
   [autofill_agent_ fillData:fill_data
+                    section:Section()
                     inFrame:fake_web_frames_manager_->GetMainWebFrame()];
   fake_web_state_.WasShown();
 
-  EXPECT_EQ(u"__gCrWeb.autofill.fillForm({\"fields\":{\"2\":{\"hostFormId\":0,"
-            u"\"section\":\"-default\",\"value\":\"number_value\"},\"3\":{"
-            u"\"hostFormId\":0,\"section\":\"-default\","
-            u"\"value\":\"name_value\"}}}, 0);",
+  EXPECT_EQ(u"__gCrWeb.callFunctionInGcrWeb('autofill', 'fillForm', "
+            u"[{\"fields\":{\"2\":{\"hostFormId\":0,\"section\":\"-default\","
+            u"\"value\":\"number_value\"},\"3\":{\"hostFormId\":0,\"section\":"
+            u"\"-default\",\"value\":\"name_value\"}}}, 0]);",
             fake_main_frame_->GetLastJavaScriptCall());
 }
 
@@ -264,9 +267,10 @@ TEST_F(AutofillAgentTests, FillSpecificFormField) {
                   withValue:u"mattwashere"
                     inFrame:fake_web_frames_manager_->GetMainWebFrame()];
   fake_web_state_.WasShown();
-  EXPECT_EQ(u"__gCrWeb.autofill.fillSpecificFormField({\"renderer_id\":"
-            u"2,\"value\":\"mattwashere\"});",
-            fake_main_frame_->GetLastJavaScriptCall());
+  EXPECT_EQ(
+      u"__gCrWeb.callFunctionInGcrWeb('autofill', 'fillSpecificFormField', "
+      u"[{\"renderer_id\":2,\"value\":\"mattwashere\"}]);",
+      fake_main_frame_->GetLastJavaScriptCall());
 }
 
 // Test that the updates are applied when filling specific form field is done
@@ -361,9 +365,10 @@ TEST_F(AutofillAgentTests, DriverFillSpecificFormField) {
       u"mattwashere");
 
   fake_web_state_.WasShown();
-  EXPECT_EQ(u"__gCrWeb.autofill.fillSpecificFormField({\"renderer_id\":"
-            u"2,\"value\":\"mattwashere\"});",
-            fake_main_frame_->GetLastJavaScriptCall());
+  EXPECT_EQ(
+      u"__gCrWeb.callFunctionInGcrWeb('autofill', 'fillSpecificFormField', "
+      u"[{\"renderer_id\":2,\"value\":\"mattwashere\"}]);",
+      fake_main_frame_->GetLastJavaScriptCall());
 }
 
 // Tests that `ApplyFieldAction` with `ActionPersistence::kPreview`in
@@ -938,7 +943,7 @@ TEST_F(AutofillAgentTests, FillData_UpdateWithResults) {
   fake_web_state_.WasShown();
 
   // Fill form data.
-  [autofill_agent_ fillData:fields inFrame:fake_main_frame_];
+  [autofill_agent_ fillData:fields section:Section() inFrame:fake_main_frame_];
 
   // Run queues to yield the filling results.
   web::test::WaitForBackgroundTasks();
@@ -979,7 +984,7 @@ TEST_F(AutofillAgentTests, FillData_UnknowFieldIdInResults) {
   fake_web_state_.WasShown();
 
   // Fill form data.
-  [autofill_agent_ fillData:fields inFrame:fake_main_frame_];
+  [autofill_agent_ fillData:fields section:Section() inFrame:fake_main_frame_];
 
   // Run queues to yield the filling results.
   web::test::WaitForBackgroundTasks();

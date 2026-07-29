@@ -69,12 +69,13 @@ void PixManager::OnPixCodeCopiedToClipboard(const GURL& render_frame_host_url,
       &PixManager::OnUiEvent, weak_ptr_factory_.GetWeakPtr()));
   pix_code_copied_timestamp_ = base::TimeTicks::Now();
   ukm_source_id_ = ukm_source_id;
+  LogPixCodeCopied(ukm_source_id_);
   // Check whether the domain for the render_frame_host_url is allowlisted.
   if (!IsMerchantAllowlisted(render_frame_host_url)) {
     // The merchant is not part of the allowlist, ignore the copy event.
+    LogPixFlowExitedReason(PixFlowExitedReason::kMerchantNotAllowlisted);
     return;
   }
-  LogPixCodeCopied(ukm_source_id_);
   initiate_payment_request_details_->merchant_payment_page_hostname_ =
       render_frame_host_url.host();
   // Trigger Pix code validation.
@@ -354,6 +355,10 @@ void PixManager::OnUiEvent(UiEvent ui_event_type) {
       }
       break;
     }
+    case UiEvent::kScreenCouldNotBeShown:
+      // TODO(crbug.com/427597144): Handle the "failure to show" case separately
+      // if required.
+      [[fallthrough]];  // Intentional fallthrough.
     case UiEvent::kScreenClosedNotByUser: {
       if (ui_state_ == UiState::kFopSelector) {
         LogPixFlowExitedReason(

@@ -667,8 +667,7 @@ SharedTabGroupDataSyncBridge::ApplyIncrementalSyncChanges(
       // Hence, duplicate GUIDs must have different collaboration IDs which
       // should never happen.
       return syncer::ModelError(
-          FROM_HERE,
-          "Received duplicate tab GUID with different collaboration IDs.");
+          FROM_HERE, syncer::ModelError::Type::kSharedTabGroupDuplicateTabGuid);
     }
   }
 
@@ -1034,6 +1033,7 @@ void SharedTabGroupDataSyncBridge::SavedTabGroupRemovedLocally(
   if (!IsReadyToSync()) {
     // Ignore any changes before the model is successfully initialized.
     DVLOG(2) << "SavedTabGroupRemovedLocally called while not initialized";
+    std::erase(tab_groups_waiting_for_commit_, removed_group.saved_guid());
     return;
   }
 
@@ -1199,7 +1199,9 @@ void SharedTabGroupDataSyncBridge::
 void SharedTabGroupDataSyncBridge::OnDatabaseSave(
     const std::optional<syncer::ModelError>& error) {
   if (error) {
-    change_processor()->ReportError({FROM_HERE, "Failed to store data."});
+    change_processor()->ReportError(
+        {FROM_HERE,
+         syncer::ModelError::Type::kSharedTabGroupDataDatabaseSaveFailed});
   }
 }
 
@@ -1250,7 +1252,8 @@ SharedTabGroupDataSyncBridge::AddGroupToLocalStorage(
       collaboration_metadata.collaboration_id()) {
     // Shared tab groups should never change collaboration IDs.
     return syncer::ModelError(
-        FROM_HERE, "Unexpected collaboration ID for a remote group.");
+        FROM_HERE, syncer::ModelError::Type::
+                       kSharedTabGroupUnexpectedCollaborationIdForGroup);
   }
 
   // Create new specifics in case some fields were merged.
@@ -1298,8 +1301,9 @@ SharedTabGroupDataSyncBridge::ApplyRemoteTabUpdate(
   if (existing_group->collaboration_id() !=
       CollaborationId(collaboration_metadata.collaboration_id())) {
     // Shared tabs must have the same collaboration ID as their group.
-    return syncer::ModelError(FROM_HERE,
-                              "Unexpected collaboration ID for a remote tab.");
+    return syncer::ModelError(
+        FROM_HERE, syncer::ModelError::Type::
+                       kSharedTabGroupUnexpectedCollaborationIdForTab);
   }
 
   if (existing_group->ContainsTab(tab_guid)) {
@@ -1557,7 +1561,13 @@ bool SharedTabGroupDataSyncBridge::IsReadyToSync() const {
 void SharedTabGroupDataSyncBridge::ProcessCommittedTabGroups() {
   for (const base::Uuid& group_guid : tab_groups_waiting_for_commit_) {
     const SavedTabGroup* group = model_wrapper_->GetGroup(group_guid);
-    CHECK(group);
+    if (!group) {
+      // The group is somehow erased. Cleanup from other relevant in-memory
+      // lists.
+      std::erase(tab_groups_waiting_for_commit_, group_guid);
+      continue;
+    }
+
     CHECK(group->is_shared_tab_group());
 
     if (change_processor()->IsEntityUnsynced(StorageKeyForGroup(*group))) {

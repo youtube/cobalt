@@ -393,8 +393,7 @@ public final class ChildProcessLauncherHelperImpl {
             long nativePointer,
             String[] commandLine,
             IFileDescriptorInfo[] filesToBeMapped,
-            boolean canUseWarmUpConnection,
-            @Nullable IBinder binderBox) {
+            boolean canUseWarmUpConnection) {
         assert LauncherThread.runningOnLauncherThread();
         String processType =
                 ContentSwitchUtils.getSwitchValue(commandLine, ContentSwitches.SWITCH_PROCESS_TYPE);
@@ -436,8 +435,7 @@ public final class ChildProcessLauncherHelperImpl {
                         sandboxed,
                         reducePriorityOnBackground,
                         canUseWarmUpConnection,
-                        binderCallback,
-                        binderBox);
+                        binderCallback);
         helper.start();
 
         if (sandboxed && !sCheckedServiceGroupImportance) {
@@ -490,13 +488,17 @@ public final class ChildProcessLauncherHelperImpl {
                                     new BindingManager(
                                             context,
                                             BindingManager.NO_MAX_SIZE,
-                                            sSandboxedChildConnectionRanking);
+                                            sSandboxedChildConnectionRanking,
+                                            ChildProcessLauncherHelperImpl
+                                                    ::onBindingChangedImplicitly);
                         } else {
                             sBindingManager =
                                     new BindingManager(
                                             context,
                                             allocator.getMaxNumberOfAllocations(),
-                                            sSandboxedChildConnectionRanking);
+                                            sSandboxedChildConnectionRanking,
+                                            ChildProcessLauncherHelperImpl
+                                                    ::onBindingChangedImplicitly);
                         }
                         ChildProcessConnectionMetrics.getInstance()
                                 .setBindingManager(sBindingManager);
@@ -514,7 +516,13 @@ public final class ChildProcessLauncherHelperImpl {
         LauncherThread.postDelayed(sDelayedBackgroundTask, delay);
         LauncherThread.post(
                 () -> {
-                    if (sBindingManager != null) sBindingManager.onSentToBackground();
+                    if (sBindingManager != null) {
+                        sBindingManager.onSentToBackground();
+                    }
+                    if (sSandboxedChildConnectionRanking != null) {
+                        sSandboxedChildConnectionRanking.recordProcessRanking();
+                        sSandboxedChildConnectionRanking.onSentToBackground();
+                    }
                 });
     }
 
@@ -523,6 +531,12 @@ public final class ChildProcessLauncherHelperImpl {
         for (ChildProcessLauncherHelperImpl helper : sLauncherByPid.values()) {
             if (!helper.mReducePriorityOnBackground) continue;
             helper.reducePriorityOnBackgroundOnLauncherThread();
+        }
+    }
+
+    private static void onBindingChangedImplicitly(ChildProcessConnection connection) {
+        if (sSandboxedChildConnectionRanking != null) {
+            sSandboxedChildConnectionRanking.onLowRankConnectionMayBeUpdated(connection);
         }
     }
 
@@ -552,11 +566,16 @@ public final class ChildProcessLauncherHelperImpl {
         LauncherThread.removeCallbacks(sDelayedBackgroundTask);
         LauncherThread.post(
                 () -> {
+                    if (sSandboxedChildConnectionRanking != null) {
+                        sSandboxedChildConnectionRanking.onBroughtToForeground();
+                    }
                     for (ChildProcessLauncherHelperImpl helper : sLauncherByPid.values()) {
                         if (!helper.mReducePriorityOnBackground) continue;
                         helper.raisePriorityOnForegroundOnLauncherThread();
                     }
-                    if (sBindingManager != null) sBindingManager.onBroughtToForeground();
+                    if (sBindingManager != null) {
+                        sBindingManager.onBroughtToForeground();
+                    }
                 });
     }
 
@@ -691,8 +710,7 @@ public final class ChildProcessLauncherHelperImpl {
             boolean sandboxed,
             boolean reducePriorityOnBackground,
             boolean canUseWarmUpConnection,
-            @Nullable IBinder binderCallback,
-            @Nullable IBinder binderBox) {
+            @Nullable IBinder binderCallback) {
         assert LauncherThread.runningOnLauncherThread();
 
         mNativeChildProcessLauncherHelper = nativePointer;
@@ -709,8 +727,7 @@ public final class ChildProcessLauncherHelperImpl {
                         commandLine,
                         filesToBeMapped,
                         connectionAllocator,
-                        binderCallback == null ? null : Arrays.asList(binderCallback),
-                        binderBox);
+                        binderCallback == null ? null : Arrays.asList(binderCallback));
         mProcessType =
                 ContentSwitchUtils.getSwitchValue(commandLine, ContentSwitches.SWITCH_PROCESS_TYPE);
 
@@ -1060,8 +1077,7 @@ public final class ChildProcessLauncherHelperImpl {
                         sandboxed,
                         reducePriorityOnBackground,
                         canUseWarmUpConnection,
-                        binderCallback,
-                        null);
+                        binderCallback);
         launcherHelper.mLauncher.start(doSetupConnection, /* queueIfNoFreeConnection= */ true);
         return launcherHelper;
     }

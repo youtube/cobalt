@@ -20,10 +20,9 @@ import org.chromium.build.annotations.Nullable;
 /** Represents the view inside the page info popup. */
 @NullMarked
 public class PageInfoView extends FrameLayout implements OnClickListener {
-    private static final int COOKIES_ROW_POSITION = 1;
-
     private final LinearLayout mRowWrapper;
     private final PageInfoRowView mConnectionRow;
+    private final ConnectionSecurityView mConnectionSecurityView;
     private final PageInfoRowView mPermissionsRow;
     private final PageInfoRowView mCookiesRow;
     private final Button mForgetSiteButton;
@@ -42,14 +41,12 @@ public class PageInfoView extends FrameLayout implements OnClickListener {
         LayoutInflater.from(context).inflate(R.layout.page_info, this, true);
         // Elevate the "Cookies and site data" item.
         LinearLayout rowWrapper = (LinearLayout) findViewById(R.id.page_info_row_wrapper);
-        PageInfoRowView cookiesRow = (PageInfoRowView) findViewById(R.id.page_info_cookies_row);
-        rowWrapper.removeView(cookiesRow);
-        rowWrapper.addView(cookiesRow, COOKIES_ROW_POSITION);
 
         mRowWrapper = rowWrapper;
-        mCookiesRow = cookiesRow;
+        mCookiesRow = findViewById(R.id.page_info_cookies_row);
         initializePageInfoViewChild(rowWrapper, true, null);
         mConnectionRow = findViewById(R.id.page_info_connection_row);
+        mConnectionSecurityView = findViewById(R.id.page_info_connection_security);
         mPermissionsRow = findViewById(R.id.page_info_permissions_row);
         mForgetSiteButton = findViewById(R.id.page_info_forget_site_button);
         initializePageInfoViewChild(mForgetSiteButton, false, null);
@@ -67,6 +64,10 @@ public class PageInfoView extends FrameLayout implements OnClickListener {
 
     public PageInfoRowView getConnectionRowView() {
         return mConnectionRow;
+    }
+
+    public ConnectionSecurityView getConnectionSecurityView() {
+        return mConnectionSecurityView;
     }
 
     public PageInfoRowView getPermissionsRowView() {

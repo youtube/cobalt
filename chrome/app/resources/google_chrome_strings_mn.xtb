@@ -232,6 +232,7 @@
 <translation id="3785324443014631273">Нэвтрэх алдааны улмаас ChromeOS Flex таны өгөгдлийг синк хийж чадсангүй.</translation>
 <translation id="3795971588916395511">Google ChromeOS</translation>
 <translation id="3809772425479558446">Google Chrome нь Windows 10 эсвэл түүнээс дээших хувилбарыг шаарддаг.</translation>
+<translation id="3810973564298564668">удирдах</translation>
 <translation id="383928141529488001">Google Chrome-д Bluetooth төхөөрөмжүүдийг судлахад 
  Bluetooth-н хандалт шаардлагатай. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="386202838227397562">Бүх Google Chrome-ын цонхнуудыг хааж дахин оролдоно уу.</translation>
@@ -318,6 +319,7 @@
 <translation id="4895437082222824641">Холбоосыг шинэ Chrome-н табад нээх</translation>
 <translation id="4918844574251943176">Зургийг хуулсан</translation>
 <translation id="492720062778050435">Chrome танд энэ өргөтгөлийг шалгахыг зөвлөж байна</translation>
+<translation id="4946912144186040233">Chrome маягтыг илүү сайн ойлгодог ба танд илүү хурдан автоматаар бөглөж өгөх боломжтой. Энэ тохиргоо унтраалттай байна.</translation>
 <translation id="4953650215774548573">Google Chrome-ыг өөрийн анхдагч веб хөтөч болгон тохируулна уу</translation>
 <translation id="495931528404527476">Chrome-д</translation>
 <translation id="4969674060580488087">Таны бүртгэлийн нэвтрэх дэлгэрэнгүй мэдээлэл хуучирсан тул ChromeOS Flex таны өгөгдлийг синк хийж чадсангүй.</translation>
@@ -326,6 +328,7 @@
 <translation id="4990567037958725628">Google Chrome цайвар шаргал өнгө</translation>
 <translation id="5003967926796347400">“Google Password Manager”-г товшино уу</translation>
 <translation id="504867494566807945">Дурын аппаас холбоосыг Chrome-д нээнэ үү. Түүнчлэн хялбар хандахад зориулж үүнийг таны ажлын хэсэгт бэхэлдэг.</translation>
+<translation id="5049567194145991071">Та 'Ойлголоо' дээр товших үедээ Chrome-д нэвтэрсэн дурын газраасаа Google Бүртгэлдээ нууц үг болон бусад зүйлийг хадгалах, ашиглах боломжтой. <ph name="LEARN_MORE" /></translation>
 <translation id="5114340746415930644"><ph name="USER_EMAIL" /> бүртгэлдээ Chrome-н өгөгдлийг ашиглах, хадгалахын тулд нэвтрэх үгээ оруулна уу</translation>
 <translation id="5120334927898581447">Та Google-н бусад үйлчилгээнд нэвтрэх үедээ Chrome-д нэвтэрнэ үү</translation>
 <translation id="5126049312684316860">Chrome таны зочлох магадлалтай илүү олон хуудсыг урьдчилан ачаалах бөгөөд ингэснээр тэдгээр нь таныг зочлох үед илүү хурдан ачаална</translation>
@@ -514,6 +517,7 @@ Google Chrome таны тохируулгыг дахин сэргээх боло
 <translation id="7481213027396403996">Chrome-н хамгийн хүчирхэг аюулгүй байдлыг аваарай</translation>
 <translation id="749228101751499733">Та нэвтэрсэн байхдаа Chrome-д Google Бүртгэлээсээ нууц үг болон бусад зүйлээ ашиглах боломжтой. <ph name="SHORTCUT" /> таны Google-н үйлчилгээний тохиргоог өөрчлөх боломжтой.</translation>
 <translation id="7496017508659652909">Chrome хуудаснуудыг урьдчилан ачаалах бөгөөд энэ нь үзэх, хайхыг илүү хурдан болгоно. <ph name="BEGIN_LINK" />Хуудас урьдчилан ачаалах талаар нэмэлт мэдээлэл авах<ph name="END_LINK" /></translation>
+<translation id="7510927761955779701">Chrome маягтыг илүү сайн ойлгодог ба танд илүү хурдан автоматаар бөглөж өгөх боломжтой. Энэ тохиргоо асаалттай байна.</translation>
 <translation id="7514258452813684157">Google Шинэчлэгч үйлчилгээ</translation>
 <translation id="7515191208480168435">Та Google Lens-г хялбархан хандахад зориулж бэхлэх боломжтой</translation>
 <translation id="7535429826459677826">Google Chrome Dev</translation>
@@ -523,6 +527,7 @@ Google Chrome таны тохируулгыг дахин сэргээх боло
 <translation id="7583399374488819119"><ph name="COMPANY_NAME" /> суулгагч</translation>
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
 <translation id="7626072681686626474"><ph name="MANAGER" /> танаас энэ төхөөрөмжийг ашиглахаасаа өмнө дараах үйлчилгээний нөхцөлийг уншиж, зөвшөөрөхийг шаардаж байна. Эдгээр нөхцөл нь Google ChromeOS-н нөхцөлийг өргөтгөх, өөрчлөх эсвэл хязгаарлахгүй.</translation>
+<translation id="7627609214560473136">Өгөгдлөө хамгаалахын тулд Chrome-д таны сүүлийн үед зочлоогүй сайтын зөвшөөрлийг хасахыг зөвшөөрнө үү.</translation>
 <translation id="7629695634924605473">Хэрэв таны нууц үг алдагдсан байвал Chrome танд мэдэгдэнэ</translation>
 <translation id="7641148173327520642">Таны системийн админ Google Chrome-г <ph name="TARGET_URL_HOSTNAME" />-д хандахын тулд <ph name="ALTERNATIVE_BROWSER_NAME" />-г нээхээр тохируулсан байна.</translation>
 <translation id="7649070708921625228">Тусламж</translation>
@@ -545,6 +550,7 @@ Google Chrome таны тохируулгыг дахин сэргээх боло
 <translation id="7801699035218095297">Google Chrome нь нууц үгс хуулахыг оролдож байна. Үүнийг зөвшөөрөхийн тулд Windows-н нууц үгээ бичнэ үү.</translation>
 <translation id="7808348361785373670">Кромоос хасах</translation>
 <translation id="7825851276765848807">Тодорхой бус шалтгаанаар суурьлуулалт амжилтгүй боллоо. Google Chrome-ыг дахин татаж авна уу.</translation>
+<translation id="7826342993930002256">Таны Chrome, дурын газраас нэвтрээрэй</translation>
 <translation id="7827099906024714326">Зарим өгөгдлийг таны Google Бүртгэлд хадгалж, бүх төхөөрөмж дээр тань ашиглах боломжтой болохын өмнө Chrome таныг мөн болохыг баталгаажуулах шаардлагатай. Хэрэв та одоо гарвал энэ өгөгдлийг устгана.</translation>
 <translation id="7845233973568007926">Суулгасанд баярлалаа. Та <ph name="BUNDLE_NAME" />-г ашиглахаасаа өмнө компьютероо дахин эхлүүлэх ёстой.</translation>
 <translation id="7872446069773932638">Татаж байна... <ph name="SECONDS" /> секунд үлдсэн</translation>
@@ -609,6 +615,7 @@ Google Chrome таны тохируулгыг дахин сэргээх боло
 <translation id="8649026945479135076">Таны зочилсон сайтууд таны сонирхдог зүйлсийг таны туршлагыг хувийн болгохын тулд санах нь түгээмэл юм. Сайтууд мөн Chrome-р таны сонирхлын талаарх мэдээллийг хадгалах боломжтой.</translation>
 <translation id="8669527147644353129">Google Chrome Туслагч</translation>
 <translation id="8679801911857917785">Энэ нь мөн таныг Chrome-ыг эхлүүлэх үед гарч ирдэг хуудсыг хянадаг.</translation>
+<translation id="8712637175834984815">Ойлголоо</translation>
 <translation id="8712767363896337380">Шинэчилж дуусаж байна! Шинэчилж дуусгахын тулд Chrome-г дахин ачаална уу.</translation>
 <translation id="8718062187489036808">Chrome-с гарах</translation>
 <translation id="873133009373065397">Google Chrome өгөгдмөл хөтчийг тодорхойлох эсвэл тохируулах боломжгүй</translation>

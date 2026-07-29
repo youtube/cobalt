@@ -1301,6 +1301,9 @@ enum HeaderBehaviour {
 // Returns 0 if the toolbar should be hidden.
 - (CGFloat)secondaryToolbarHeightWithInset {
   CGFloat height = self.toolbarCoordinator.expandedSecondaryToolbarHeight;
+  if (IsDiamondPrototypeEnabled()) {
+    return height;
+  }
   if (!height) {
     return 0.0;
   }
@@ -2507,8 +2510,9 @@ enum HeaderBehaviour {
                            "IOS.IncognitoLock.Overlay.CloseIncognitoTabs"));
                      }
                      if (webStateList) {
-                       CloseAllWebStates(*(webStateList),
-                                         WebStateList::CLOSE_USER_ACTION);
+                       CloseAllWebStates(
+                           *(webStateList),
+                           WebStateList::ClosingReason::kUserAction);
                      }
                      [reauthHandler manualAuthenticationOverride];
                    }]

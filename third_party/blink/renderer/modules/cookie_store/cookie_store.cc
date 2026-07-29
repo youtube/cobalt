@@ -36,6 +36,7 @@
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/weborigin/security_origin.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
@@ -80,6 +81,10 @@ std::unique_ptr<net::CanonicalCookie> ToCanonicalCookie(
   if (name.empty() && value.empty()) {
     exception_state.ThrowTypeError(
         "Cookie name and value both cannot be empty");
+    return nullptr;
+  }
+  if (name.Contains('=')) {
+    exception_state.ThrowTypeError("Cookie name cannot contain '='");
     return nullptr;
   }
 
@@ -165,13 +170,16 @@ std::unique_ptr<net::CanonicalCookie> ToCanonicalCookie(
   }
 
   net::CookieSameSite same_site;
-  if (options->sameSite() == "strict") {
-    same_site = net::CookieSameSite::STRICT_MODE;
-  } else if (options->sameSite() == "lax") {
-    same_site = net::CookieSameSite::LAX_MODE;
-  } else {
-    DCHECK_EQ(options->sameSite(), "none");
-    same_site = net::CookieSameSite::NO_RESTRICTION;
+  switch (options->sameSite().AsEnum()) {
+    case V8CookieSameSite::Enum::kStrict:
+      same_site = net::CookieSameSite::STRICT_MODE;
+      break;
+    case V8CookieSameSite::Enum::kLax:
+      same_site = net::CookieSameSite::LAX_MODE;
+      break;
+    case V8CookieSameSite::Enum::kNone:
+      same_site = net::CookieSameSite::NO_RESTRICTION;
+      break;
   }
 
   std::optional<net::CookiePartitionKey> cookie_partition_key = std::nullopt;
@@ -398,7 +406,7 @@ ScriptPromise<IDLUndefined> CookieStore::Delete(
 
   CookieInit* set_options = CookieInit::Create();
   set_options->setName(name);
-  set_options->setValue("deleted");
+  set_options->setValue(name.empty() ? "deleted" : "");
   set_options->setExpires(0);
   return DoWrite(script_state, set_options, exception_state);
 }
@@ -409,11 +417,11 @@ ScriptPromise<IDLUndefined> CookieStore::Delete(
     ExceptionState& exception_state) {
   CookieInit* set_options = CookieInit::Create();
   set_options->setName(options->name());
-  set_options->setValue("deleted");
+  set_options->setValue(options->name().empty() ? "deleted" : "");
   set_options->setExpires(0);
   set_options->setDomain(options->domain());
   set_options->setPath(options->path());
-  set_options->setSameSite("strict");
+  set_options->setSameSite(V8CookieSameSite::Enum::kStrict);
   set_options->setPartitioned(options->partitioned());
   return DoWrite(script_state, set_options, exception_state);
 }

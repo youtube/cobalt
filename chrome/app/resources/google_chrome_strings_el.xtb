@@ -230,6 +230,7 @@
 <translation id="3785324443014631273">Δεν ήταν δυνατός ο συγχρονισμός των δεδομένων σας από το ChromeOS Flex λόγω σφάλματος κατά τη σύνδεση.</translation>
 <translation id="3795971588916395511">Λειτουργικό σύστημα Chrome OS</translation>
 <translation id="3809772425479558446">Το Google Chrome απαιτεί Windows 10 ή νεότερη έκδοση.</translation>
+<translation id="3810973564298564668">Διαχείριση</translation>
 <translation id="383928141529488001">Το Google Chrome χρειάζεται πρόσβαση στο Bluetooth για εξερεύνηση 
  Συσκευών Bluetooth. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="386202838227397562">Κλείστε όλα τα παράθυρα του Google Chrome και προσπαθήστε ξανά.</translation>
@@ -519,6 +520,7 @@
 <translation id="7583399374488819119">Πρόγραμμα εγκατάστασης <ph name="COMPANY_NAME" /></translation>
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
 <translation id="7626072681686626474">Το <ph name="MANAGER" /> απαιτεί να διαβάσετε και να αποδεχτείτε τους παρακάτω Όρους Παροχής Υπηρεσιών πριν από τη χρήση αυτής της συσκευής. Οι συγκεκριμένοι όροι δεν επεκτείνουν, τροποποιούν ή περιορίζουν τους Όρους του Google Chrome OS.</translation>
+<translation id="7627609214560473136">Για την προστασία των δεδομένων σας, επιτρέψτε στο Chrome να καταργεί τις άδειες από τους ιστοτόπους που δεν έχετε επισκεφτεί πρόσφατα.</translation>
 <translation id="7629695634924605473">Το Chrome σας ενημερώνει σε περίπτωση παραβίασης των κωδικών πρόσβασής σας.</translation>
 <translation id="7641148173327520642">Ο διαχειριστής συστήματος έχει διαμορφώσει το Google Chrome έτσι ώστε να ανοίγει <ph name="ALTERNATIVE_BROWSER_NAME" /> για πρόσβαση σε <ph name="TARGET_URL_HOSTNAME" />.</translation>
 <translation id="7649070708921625228">Βοήθεια</translation>
@@ -605,6 +607,7 @@
 <translation id="8649026945479135076">Είναι σύνηθες οι ιστότοποι που επισκέπτεστε να απομνημονεύουν τα ενδιαφέροντά σας για να εξατομικεύουν την εμπειρία σας. Οι ιστότοποι μπορούν να αποθηκεύουν επίσης πληροφορίες σχετικά με τα ενδιαφέροντά σας στο Chrome.</translation>
 <translation id="8669527147644353129">Google Chrome Helper</translation>
 <translation id="8679801911857917785">Επίσης, ελέγχει τη σελίδα που εμφανίζεται κατά την εκκίνηση του Chrome.</translation>
+<translation id="8712637175834984815">Κατάλαβα!</translation>
 <translation id="8712767363896337380">Σχεδόν ενημερώθηκε! Επανεκκινήστε το Chrome για να ολοκληρώσετε την ενημέρωση.</translation>
 <translation id="8718062187489036808">Αποσύνδεση από το Chrome</translation>
 <translation id="873133009373065397">Το Google Chrome δεν μπορεί να καθορίσει ή να ορίσει το προεπιλεγμένο πρόγραμμα περιήγησης</translation>

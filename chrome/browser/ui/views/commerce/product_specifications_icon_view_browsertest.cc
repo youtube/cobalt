@@ -20,6 +20,7 @@
 #include "content/public/test/browser_test.h"
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/interaction/element_tracker.h"
+#include "ui/base/unowned_user_data/user_data_factory.h"
 #include "ui/views/interaction/element_tracker_views.h"
 
 class ProductSpecificationsIconViewBrowserTest : public UiBrowserTest {
@@ -29,7 +30,7 @@ class ProductSpecificationsIconViewBrowserTest : public UiBrowserTest {
   }
 
   void SetUp() override {
-    MockCommerceUiTabHelper::ReplaceFactory();
+    replace_commerce_ui_tab_helper_ = MockCommerceUiTabHelper::ReplaceFactory();
     UiBrowserTest::SetUp();
   }
 
@@ -84,6 +85,7 @@ class ProductSpecificationsIconViewBrowserTest : public UiBrowserTest {
 
  private:
   base::test::ScopedFeatureList test_features_;
+  ui::UserDataFactory::ScopedOverride replace_commerce_ui_tab_helper_;
 
   BrowserView* GetBrowserView() {
     return BrowserView::GetBrowserViewForBrowser(browser());

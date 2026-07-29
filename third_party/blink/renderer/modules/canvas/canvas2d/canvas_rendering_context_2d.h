@@ -29,6 +29,7 @@
 
 #include <stddef.h>
 
+#include <memory>
 #include <optional>
 
 #include "base/check.h"
@@ -165,7 +166,7 @@ class MODULES_EXPORT CanvasRenderingContext2D final
     }
 
     int buffer_count = 0;
-    auto* provider = Host()->GetResourceProviderForCanvas2D();
+    auto* provider = canvas()->GetResourceProviderForCanvas2D();
     if (provider) {
       buffer_count = 1;
       if (provider->IsAccelerated()) {
@@ -200,6 +201,10 @@ class MODULES_EXPORT CanvasRenderingContext2D final
 
   sk_sp<PaintFilter> StateGetFilter() final;
 
+  std::unique_ptr<CanvasResourceProvider> CreateCanvasResourceProvider()
+      override;
+
+  void PreFinalizeFrame() override;
   void FinalizeFrame(FlushReason) override;
 
   void drawElement(Element* element,
@@ -262,6 +267,9 @@ class MODULES_EXPORT CanvasRenderingContext2D final
     return GetTriggersForIntervention();
   }
 
+  CanvasResourceProvider* GetOrCreateCanvas2DResourceProvider() override;
+  CanvasResourceProvider* GetResourceProviderForCanvas2D() const override;
+
  protected:
   HTMLCanvasElement* HostAsHTMLCanvasElement() const final;
   UniqueFontSelector* GetFontSelector() const final;
@@ -317,7 +325,8 @@ class MODULES_EXPORT CanvasRenderingContext2D final
 
   void ColorSchemeMayHaveChanged() override;
 
-  CanvasResourceProvider* GetOrCreateCanvas2DResourceProvider() override;
+  std::unique_ptr<CanvasResourceProvider> ReplaceResourceProviderForCanvas2D(
+      std::unique_ptr<CanvasResourceProvider>) override;
 
   FilterOperations filter_operations_;
   HashMap<String, FontDescription> fonts_resolved_using_current_style_;

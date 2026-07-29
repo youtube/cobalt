@@ -21,10 +21,28 @@ enum WrappablePointerTag : uint16_t {
   // The type tags for gin::Wrappable start at the end of the value range to
   // avoid overlaps with the type tags of blink::ScriptWrappable.
   kFirstPointerTag = 1501,
-  kTestObject = 1501,          // gin::MyObject
-  kGamepadControllerBindings,  // content::GameControllerBindings
-  kTestObject2,                // gin::MyObject2
-  kLastPointerTag = kTestObject2
+  kAutomationPosition = 1501,          // ui::AutomationPosition
+  kChromePluginPlaceholder,            // ChromePluginPlaceholder
+  kDomAutomationController,            // content::DomAutomationController
+  kGamepadControllerBindings,          // content::GameControllerBindings
+  kGpuBenchmarking,                    // content::GpuBenchmarking
+  kJsBinding,                          // js_injection::JsBinding
+  kMojo,                               // ax::Mojo
+  kMojoHandle,                         // ax::MojoHandle
+  kNetErrorPageController,             // NetErrorPageController
+  kPDFPluginPlaceholder,               // PDFPluginPlaceholder
+  kPluginPlaceholder,                  // plugins::PluginPlaceholder
+  kReadAnythingAppController,          // ReadAnythingAppController
+  kSearchBoxBindings,                  // SearchBoxBindings
+  kSkiaBenchmarking,                   // content::SkiaBenchmarking
+  kStatsCollectionController,          // content::StatsCollectionController
+  kSupervisedUserErrorPageController,  // SupervisedUserErrorPageController
+  kTestGinWrappable,                   // GinWrappable
+  kTestObject,                         // gin::TestGinObject
+  kTestObject2,                        // gin::MyObject2
+  kTextDecoder,                        // ax::TextDecoder
+  kTextEncoder,                        // ax::TextEncoder
+  kLastPointerTag = kTextEncoder,
 };
 
 static_assert(kLastPointerTag <

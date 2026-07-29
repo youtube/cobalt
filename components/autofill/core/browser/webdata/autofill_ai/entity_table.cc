@@ -13,6 +13,7 @@
 
 #include "base/command_line.h"
 #include "base/feature_list.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
@@ -22,6 +23,7 @@
 #include "base/uuid.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_structured_address_component.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
+#include "components/autofill/core/browser/field_type_utils.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/webdata/autofill_table_utils.h"
 #include "components/autofill/core/common/autofill_features.h"
@@ -247,8 +249,10 @@ bool EntityTable::AddAttribute(const EntityInstance& entity,
     s.BindInt(2, type);
     if (std::string encrypted_value; encryptor()->EncryptString16(
             attribute.GetRawInfo(/*pass_key=*/{}, type), &encrypted_value)) {
+      base::UmaHistogramBoolean("Autofill.Ai.EntityTable.EncryptStatus", true);
       s.BindString(3, encrypted_value);
     } else {
+      base::UmaHistogramBoolean("Autofill.Ai.EntityTable.EncryptStatus", false);
       return false;
     }
     s.BindInt(4, static_cast<int>(attribute.GetVerificationStatus(type)));
@@ -368,8 +372,10 @@ EntityTable::LoadAttributes() const {
     std::underlying_type_t<FieldType> underlying_field_type = s.ColumnInt(2);
     std::u16string decrypted_value;
     if (!encryptor()->DecryptString16(s.ColumnString(3), &decrypted_value)) {
+      base::UmaHistogramBoolean("Autofill.Ai.EntityTable.DecryptStatus", false);
       continue;
     }
+    base::UmaHistogramBoolean("Autofill.Ai.EntityTable.DecryptStatus", true);
     std::underlying_type_t<VerificationStatus> underlying_verification_status =
         s.ColumnInt(4);
     attribute_records[std::move(entity_guid)][std::move(attribute_type_name)]

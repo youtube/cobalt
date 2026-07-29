@@ -118,7 +118,9 @@ enum class PixFlowExitedReason {
   kPurchaseActionCouldNotBeInvoked = 13,
   // Autofilling payment FOPs disabled.
   kAutofillPaymentMethodsDisabled = 14,
-  kMaxValue = kAutofillPaymentMethodsDisabled
+  // Pix code was copied on a merchant website that wasn't allowlisted.
+  kMerchantNotAllowlisted = 15,
+  kMaxValue = kMerchantNotAllowlisted
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/facilitated_payments/enums.xml:FacilitatedPayments.PixFlowExitedReason)
 
@@ -274,6 +276,9 @@ void LogFopSelectorShownLatency(
     FacilitatedPaymentsType payment_type,
     base::TimeDelta latency,
     std::optional<PaymentLinkValidator::Scheme> scheme = std::nullopt);
+
+// Logs that the Pix account linking prompt was shown.
+void LogPixAccountLinkingPromptShown();
 
 }  // namespace payments::facilitated
 

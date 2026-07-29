@@ -179,6 +179,8 @@ DEFINE_VARIATION_PARAM(kIPHTabGroupShareNotificationBubbleOnStripFeature,
                        "IPH_TabGroupSharedNotificationBubbleOnStrip");
 DEFINE_VARIATION_PARAM(kIPHTabGroupShareUpdateFeature,
                        "IPH_TabGroupShareUpdate");
+DEFINE_VARIATION_PARAM(kIPHTabGroupShareVersionUpdateFeature,
+                       "IPH_TabGroupShareVersionUpdate");
 DEFINE_VARIATION_PARAM(kIPHTabGroupsRemoteGroupFeature,
                        "IPH_TabGroupsRemoteGroup");
 DEFINE_VARIATION_PARAM(kIPHTabGroupsSurfaceFeature, "IPH_TabGroupsSurface");
@@ -667,6 +669,7 @@ inline constexpr flags_ui::FeatureEntry::FeatureVariation
         VARIATION_ENTRY(kIPHTabGroupCreationDialogSyncTextFeature),
         VARIATION_ENTRY(kIPHTabGroupShareNoticeFeature),
         VARIATION_ENTRY(kIPHTabGroupShareUpdateFeature),
+        VARIATION_ENTRY(kIPHTabGroupShareVersionUpdateFeature),
         VARIATION_ENTRY(kIPHTabGroupsDragAndDropFeature),
         VARIATION_ENTRY(kIPHTabGroupsRemoteGroupFeature),
         VARIATION_ENTRY(kIPHTabGroupsSurfaceFeature),
@@ -722,6 +725,7 @@ inline constexpr flags_ui::FeatureEntry::FeatureVariation
         VARIATION_ENTRY(kIPHiOSPromoPostRestoreFeature),
         VARIATION_ENTRY(kIPHiOSPromoCredentialProviderExtensionFeature),
         VARIATION_ENTRY(kIPHiOSHistoryOnOverflowMenuFeature),
+        VARIATION_ENTRY(kIPHiOSPromoGenericDefaultBrowserFeature),
         VARIATION_ENTRY(kIPHiOSPromoPostRestoreDefaultBrowserFeature),
         VARIATION_ENTRY(kIPHiOSPromoNonModalUrlPasteDefaultBrowserFeature),
         VARIATION_ENTRY(kIPHiOSPromoNonModalAppSwitcherDefaultBrowserFeature),

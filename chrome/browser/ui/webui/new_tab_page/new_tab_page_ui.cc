@@ -53,6 +53,7 @@
 #include "chrome/browser/ui/webui/new_tab_page/composebox/composebox_handler.h"
 #include "chrome/browser/ui/webui/new_tab_page/new_tab_page_handler.h"
 #include "chrome/browser/ui/webui/new_tab_page/ntp_pref_names.h"
+#include "chrome/browser/ui/webui/new_tab_page/ntp_promo/ntp_promo_handler.h"
 #include "chrome/browser/ui/webui/new_tab_page/untrusted_source.h"
 #include "chrome/browser/ui/webui/page_not_available_for_guest/page_not_available_for_guest_ui.h"
 #include "chrome/browser/ui/webui/sanitized_image_source.h"
@@ -60,6 +61,8 @@
 #include "chrome/browser/ui/webui/searchbox/searchbox_handler.h"
 #include "chrome/browser/ui/webui/theme_source.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
+#include "chrome/browser/user_education/user_education_service.h"
+#include "chrome/browser/user_education/user_education_service_factory.h"
 #include "chrome/common/channel_info.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/search/instant_types.h"
@@ -89,6 +92,7 @@
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/sync/service/sync_service.h"
+#include "components/user_education/common/user_education_features.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/url_data_source.h"
 #include "content/public/browser/web_ui_data_source.h"
@@ -456,6 +460,7 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
        IDS_NTP_MICROSOFT_AUTHENTICATION_SUBHEADING},
       {"modulesMicrosoftAuthSignIn",
        IDS_NTP_MICROSOFT_AUTHENTICATION_SIGN_IN_BUTTON_TEXT},
+      {"modulesTabGroupsTitle", IDS_NTP_MODULES_TAB_GROUPS_TITLE},
 
       // Middle slot promo.
       {"undoDismissPromoButtonToast", IDS_NTP_UNDO_DISMISS_PROMO_BUTTON_TOAST},
@@ -475,6 +480,7 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
        IDS_NTP_COMPOSE_FILE_UPLOAD_BUTTON_A11Y_LABEL},
       {"composeboxPlaceholderText", IDS_NTP_COMPOSE_PLACEHOLDER_TEXT},
       {"composeboxSubmitButtonTitle", IDS_NTP_COMPOSE_SUBMIT_BUTTON_A11Y_LABEL},
+      {"composeboxDeleteFileTitle", IDS_NTP_COMPOSE_DELETE_FILE_A11Y_LABEL},
   };
 
   source->AddLocalizedStrings(kStrings);
@@ -754,7 +760,8 @@ void NewTabPageUI::BindInterface(
           IdentityManagerFactory::GetForProfile(profile_),
           g_browser_process->shared_url_loader_factory(), chrome::GetChannel(),
           g_browser_process->GetApplicationLocale(),
-          TemplateURLServiceFactory::GetForProfile(profile_)),
+          TemplateURLServiceFactory::GetForProfile(profile_),
+          profile_->GetVariationsClient()),
       web_contents());
 }
 
@@ -807,6 +814,15 @@ void NewTabPageUI::BindInterface(
     help_bubble_handler_factory_receiver_.reset();
   }
   help_bubble_handler_factory_receiver_.Bind(std::move(pending_receiver));
+}
+
+void NewTabPageUI::BindInterface(
+    mojo::PendingReceiver<ntp_promo::mojom::NtpPromoHandlerFactory>
+        pending_receiver) {
+  if (ntp_promo_handler_factory_receiver_.is_bound()) {
+    ntp_promo_handler_factory_receiver_.reset();
+  }
+  ntp_promo_handler_factory_receiver_.Bind(std::move(pending_receiver));
 }
 
 void NewTabPageUI::CreatePageHandler(
@@ -878,6 +894,13 @@ void NewTabPageUI::CreateHelpBubbleHandler(
       std::vector<ui::ElementIdentifier>{
           NewTabPageUI::kCustomizeChromeButtonElementId,
           NewTabPageUI::kModulesCustomizeIPHAnchorElement});
+}
+
+void NewTabPageUI::CreateNtpPromoHandler(
+    mojo::PendingRemote<ntp_promo::mojom::NtpPromoClient> client,
+    mojo::PendingReceiver<ntp_promo::mojom::NtpPromoHandler> handler) {
+  ntp_promo_handler_ =
+      NtpPromoHandler::Create(std::move(client), std::move(handler), profile_);
 }
 
 // OnColorProviderChanged can be called during the destruction process and
@@ -962,10 +985,15 @@ void NewTabPageUI::OnLoad() {
   base::Value::Dict update;
   update.Set("navigationStartTime",
              navigation_start_time_.InMillisecondsFSinceUnixEpoch());
-  update.Set(
-      "modulesEnabled",
-      ntp::HasModulesEnabled(module_id_details_,
-                             IdentityManagerFactory::GetForProfile(profile_)));
+  const bool modules_enabled = ntp::HasModulesEnabled(
+      module_id_details_, IdentityManagerFactory::GetForProfile(profile_));
+  update.Set("modulesEnabled", modules_enabled);
+  const bool show_ntp_promos =
+      !modules_enabled && user_education::features::NtpBrowserPromosEnabled() &&
+      UserEducationServiceFactory::GetForBrowserContext(profile_)
+          ->ntp_promo_controller()
+          ->HasShowablePromos();
+  update.Set("browserPromosEnabled", show_ntp_promos);
   content::WebUIDataSource::Update(profile_, chrome::kChromeUINewTabPageHost,
                                    std::move(update));
 }

@@ -4,6 +4,8 @@
 
 #include "components/autofill/core/browser/filling/autofill_ai/field_filling_entity_util.h"
 
+#include <string>
+
 #include "base/containers/flat_set.h"
 #include "base/containers/to_vector.h"
 #include "base/strings/string_number_conversions.h"
@@ -12,6 +14,7 @@
 #include "components/autofill/core/browser/data_manager/autofill_ai/entity_data_manager.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #include "components/autofill/core/browser/data_quality/addresses/address_normalizer.h"
+#include "components/autofill/core/browser/field_type_utils.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/filling/autofill_ai/select_date_matching.h"
 #include "components/autofill/core/browser/filling/field_filling_util.h"
@@ -25,6 +28,13 @@
 namespace autofill {
 
 namespace {
+
+std::u16string MaybeStripPrefix(const std::u16string& value,
+                                size_t field_max_length) {
+  return field_max_length == 0 || field_max_length > value.size()
+             ? value
+             : value.substr(value.size() - field_max_length);
+}
 
 // Looks for the day, month, or year from `attribute` to fill into `field`.
 std::optional<std::u16string> GetValueForDateSelect(
@@ -75,10 +85,19 @@ std::u16string GetValueForInput(const AttributeInstance& attribute,
       attribute.GetInfo(type, app_locale, field.format_string());
   switch (field.Type().GetStorableType()) {
     case ADDRESS_HOME_STATE:
+    case DRIVERS_LICENSE_REGION:
+    case VEHICLE_PLATE_STATE:
       // TODO(crbug.com/389625753): Support countries other than the US.
       return GetStateTextForInput(value, /*country_code=*/"US",
                                   field.max_length(),
                                   /*failure_to_fill=*/nullptr);
+    case PASSPORT_NUMBER:
+    case DRIVERS_LICENSE_NUMBER:
+    case VEHICLE_LICENSE_PLATE:
+    case VEHICLE_VIN:
+      // Some websites ask for "Last X numbers" of a specific ID number, this
+      // logic takes care of returning only the required suffix.
+      return MaybeStripPrefix(value, field.max_length());
     default:
       return value;
   }
@@ -99,9 +118,12 @@ std::u16string GetValueForSelect(const AttributeInstance& attribute,
 
   switch (type) {
     case ADDRESS_HOME_COUNTRY:
+    case PASSPORT_ISSUING_COUNTRY:
       return GetCountrySelectControlValue(fill_value, field.options(),
                                           /*failure_to_fill=*/nullptr);
     case ADDRESS_HOME_STATE:
+    case DRIVERS_LICENSE_REGION:
+    case VEHICLE_PLATE_STATE:
       // TODO(crbug.com/389625753): Support countries other than the US.
       return GetStateSelectControlValue(fill_value, field.options(),
                                         /*country_code=*/"US",

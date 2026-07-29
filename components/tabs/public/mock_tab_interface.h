@@ -35,6 +35,7 @@ class MockTabInterface : public testing::NiceMock<TabInterface> {
               (WillDeactivateCallback),
               (override));
   MOCK_METHOD(bool, IsVisible, (), (const, override));
+  MOCK_METHOD(bool, IsSelected, (), (const, override));
   MOCK_METHOD(base::CallbackListSubscription,
               RegisterDidBecomeVisible,
               (DidBecomeVisibleCallback),
@@ -100,6 +101,11 @@ class MockTabInterface : public testing::NiceMock<TabInterface> {
               (base::PassKey<TabCollection>),
               (override));
   MOCK_METHOD(uint32_t, GetTabHandle, (), (const override));
+  MOCK_METHOD(ui::UnownedUserDataHost&, GetUnownedUserDataHost, (), (override));
+  MOCK_METHOD(const ui::UnownedUserDataHost&,
+              GetUnownedUserDataHost,
+              (),
+              (const, override));
 };
 
 }  // namespace tabs

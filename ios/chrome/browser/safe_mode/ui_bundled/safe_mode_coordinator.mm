@@ -28,7 +28,7 @@ const int kStartupCrashLoopThreshold = 3;
 
 - (instancetype)initWithSceneState:(SceneState*)sceneState {
   CHECK(sceneState);
-  if ((self = [super initWithBaseViewController:nil browser:nullptr])) {
+  if ((self = [super init])) {
     _sceneState = sceneState;
   }
   return self;
@@ -54,19 +54,15 @@ const int kStartupCrashLoopThreshold = 3;
   // General note: Safe mode should be safe; it should not depend on other
   // objects being created. Be extremely conservative when adding code to this
   // method.
-  SafeModeViewController* viewController =
+  UIWindow* window = _sceneState.window;
+  window.rootViewController =
       [[SafeModeViewController alloc] initWithDelegate:self];
-  [_sceneState setRootViewController:viewController makeKeyAndVisible:YES];
+  [window makeKeyAndVisible];
 
   // Reset the crash count; the user may change something based on the recovery
   // UI that will fix the crash, and having the next launch start in recovery
   // mode would be strange.
   crash_util::ResetFailedStartupAttemptCount();
-}
-
-// Override of ChildCoordinators method, which is not supported in this class.
-- (MutableCoordinatorArray*)childCoordinators {
-  NOTREACHED() << "Do not add child coordinators to SafeModeCoordinator.";
 }
 
 #pragma mark - SafeModeViewControllerDelegate implementation

@@ -3340,8 +3340,9 @@ class DeveloperPrivateApiWithMV2DeprecationDisabledUnitTest
     : public DeveloperPrivateApiUnitTest {
  public:
   DeveloperPrivateApiWithMV2DeprecationDisabledUnitTest() {
-    feature_list_.InitAndEnableFeature(
-        extensions_features::kExtensionManifestV2Disabled);
+    feature_list_.InitWithFeatures(
+        {extensions_features::kExtensionManifestV2Disabled},
+        {extensions_features::kExtensionManifestV2Unsupported});
   }
 
  private:
@@ -3379,8 +3380,7 @@ TEST_F(DeveloperPrivateApiWithMV2DeprecationWarningUnitTest,
 TEST_F(DeveloperPrivateApiWithMV2DeprecationWarningUnitTest,
        TestAcknowledgingANonAffectedExtension) {
   // Add an extension that is not affected by the MV2 deprecation.
-  scoped_refptr<const Extension> extension =
-      ExtensionBuilder("ext").SetManifestVersion(3).Build();
+  scoped_refptr<const Extension> extension = ExtensionBuilder("ext").Build();
   registrar()->AddExtension(extension.get());
 
   std::string args = base::StringPrintf(R"(["%s"])", extension->id().c_str());

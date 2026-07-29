@@ -636,6 +636,22 @@ void RecordSigninUserActionForAccessPoint(AccessPoint access_point) {
       base::RecordAction(base::UserMetricsAction(
           "Signin_Signin_FromNonModalSigninBookmarkPromo"));
       break;
+    case AccessPoint::kUserManagerWithPrefilledEmail:
+      base::RecordAction(base::UserMetricsAction(
+          "Signin_Signin_FromUserManagerWithPrefilledEmail"));
+      break;
+    case AccessPoint::kEnterpriseManagementDisclaimerAtStartup:
+      base::RecordAction(base::UserMetricsAction(
+          "Signin_Signin_FromEnterpriseManagementDisclaimerAtStartup"));
+      break;
+    case AccessPoint::kEnterpriseManagementDisclaimerAfterBrowserFocus:
+      base::RecordAction(base::UserMetricsAction(
+          "Signin_Signin_FromEnterpriseManagementDisclaimerAfterBrowserFocus"));
+      break;
+    case AccessPoint::kEnterpriseManagementDisclaimerAfterSignin:
+      base::RecordAction(base::UserMetricsAction(
+          "Signin_Signin_FromEnterpriseManagementDisclaimerAfterSignin"));
+      break;
   }
 }
 
@@ -767,6 +783,10 @@ void RecordSigninImpressionUserActionForAccessPoint(AccessPoint access_point) {
       base::RecordAction(
           base::UserMetricsAction("Signin_Impression_FromAddressBubble"));
       break;
+    case AccessPoint::kUserManagerWithPrefilledEmail:
+      base::RecordAction(base::UserMetricsAction(
+          "Signin_Impression_FromUserManagerWithPrefilledEmail"));
+      break;
     case AccessPoint::kEnterpriseSignoutCoordinator:
     case AccessPoint::kExtensions:
     case AccessPoint::kSupervisedUser:
@@ -812,6 +832,9 @@ void RecordSigninImpressionUserActionForAccessPoint(AccessPoint access_point) {
     case AccessPoint::kManagedProfileAutoSigninIos:
     case AccessPoint::kNonModalSigninPasswordPromo:
     case AccessPoint::kNonModalSigninBookmarkPromo:
+    case AccessPoint::kEnterpriseManagementDisclaimerAtStartup:
+    case AccessPoint::kEnterpriseManagementDisclaimerAfterBrowserFocus:
+    case AccessPoint::kEnterpriseManagementDisclaimerAfterSignin:
       NOTREACHED() << "Signin_Impression_From* user actions are not recorded "
                       "for access point "
                    << static_cast<int>(access_point);

@@ -279,7 +279,7 @@
         ],
         'mixins': [
           'chrome-swarming-pool',
-          'win10-any',
+          'win10',
         ],
         'test_suites': {
           'isolated_scripts': 'chrome_isolated_script_tests',
@@ -565,7 +565,7 @@
         ],
         'swarming': {
           'dimensions': {
-            'os': 'Windows-10',
+            'os': 'Windows-10-19045',
           },
         },
       },
@@ -911,16 +911,6 @@
     'name': 'internal.chromeos.fyi',
     'mixins': ['chrome-tester-service-account'],
     'machines': {
-       'chromeos-betty-chrome-tfc-fyi': {
-        'additional_compile_targets': [
-          'chromiumos_preflight',
-        ],
-        'test_suites': {
-          'skylab_tests': 'chromeos_tfc_tests',
-        },
-        'os_type': 'chromeos',
-        'cros_board': 'betty',
-      },
       'chromeos-betty-finch-smoke-chrome': {
         'mixins': [
           'chromeos-betty-finch',
@@ -983,6 +973,26 @@
       'chrome-tester-service-account',
     ],
     'machines': {
+      'ai_wpt-mac-arm64': {
+        'mixins': [
+          'chrome-swarming-pool',
+          'mac_default_arm64',
+        ],
+        'test_suites': {
+           'isolated_scripts': 'chrome_ai_wpt_tests_suite',
+        },
+        'os_type': 'mac',
+      },
+      'ai_wpt-mac-x64': {
+        'mixins': [
+          'chrome-swarming-pool',
+          'mac_default_x64',
+        ],
+        'test_suites': {
+           'isolated_scripts': 'chrome_ai_wpt_tests_suite',
+        },
+        'os_type': 'mac',
+      },
       'model_validation-linux': {
         'mixins': [
           'chrome-intelligence-swarming-pool',

@@ -955,8 +955,8 @@ TEST_F(WebFrameTest, RequestExecuteV8FunctionWhileSuspended) {
   v8::Local<v8::Function> function =
       v8::Function::New(context, callback).ToLocalChecked();
   main_frame->RequestExecuteV8Function(context, function,
-                                       v8::Undefined(context->GetIsolate()), 0,
-                                       nullptr, callback_helper.Callback());
+                                       v8::Undefined(v8::Isolate::GetCurrent()),
+                                       0, nullptr, callback_helper.Callback());
   RunPendingTasks();
   EXPECT_FALSE(callback_helper.DidComplete());
 
@@ -1221,7 +1221,7 @@ TEST_F(WebFrameTest, ChromePageNoJavascript) {
   // TODO(crbug.com/1329535): Remove if threaded preload scanner doesn't launch.
   // This is needed because the preload scanner creates a thread when loading a
   // page.
-  WTF::SetIsBeforeThreadCreatedForTest();
+  SetIsBeforeThreadCreatedForTest();
 #endif
   WebSecurityPolicy::RegisterURLSchemeAsNotAllowingJavascriptURLs("chrome");
   frame_test_helpers::LoadFrame(web_view_helper.GetWebView()->MainFrameImpl(),
@@ -4819,7 +4819,7 @@ class ContextLifetimeTestWebFrameClient
                  v8::Local<v8::Context> context,
                  int32_t world_id)
         : frame(frame),
-          context(context->GetIsolate(), context),
+          context(v8::Isolate::GetCurrent(), context),
           world_id(world_id) {}
 
     ~Notification() { context.Reset(); }
@@ -10626,7 +10626,7 @@ TEST_F(WebFrameTest, SiteForCookiesFromChildWithRemoteMainFrame) {
   // TODO(crbug.com/1329535): Remove if threaded preload scanner doesn't launch.
   // This is needed because the preload scanner creates a thread when loading a
   // page.
-  WTF::SetIsBeforeThreadCreatedForTest();
+  SetIsBeforeThreadCreatedForTest();
 #endif
   SchemeRegistry::RegisterURLSchemeAsFirstPartyWhenTopLevel("http");
   EXPECT_TRUE(net::SiteForCookies::FromUrl(GURL(not_base_url_))

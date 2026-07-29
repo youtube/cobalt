@@ -501,8 +501,6 @@ const gfx::VectorIcon& AutocompleteMatch::AnswerTypeToAnswerIcon(
       return omnibox::kAnswerSunriseChromeRefreshIcon;
     case omnibox::ANSWER_TYPE_TRANSLATION:
       return omnibox::kAnswerTranslationChromeRefreshIcon;
-    case omnibox::ANSWER_TYPE_WHEN_IS:
-      return omnibox::kAnswerWhenIsChromeRefreshIcon;
     default:
       return omnibox::kAnswerDefaultIcon;
   }
@@ -533,10 +531,12 @@ const gfx::VectorIcon& AutocompleteMatch::GetVectorIcon(
     }
   }
 
-  // If the user bookmarks 'chrome://history/q=query', a/ corresponding answer
-  // match shouldn't show the bookmark star.
-  if (is_bookmark && type != Type::HISTORY_EMBEDDINGS_ANSWER)
+  // Some match types should retain their traditional icon even when bookmarked.
+  if (is_bookmark && type != Type::HISTORY_EMBEDDINGS_ANSWER &&
+      type != Type::STARTER_PACK) {
     return omnibox::kBookmarkChromeRefreshIcon;
+  }
+
   if (answer_type != omnibox::ANSWER_TYPE_UNSPECIFIED) {
     return AnswerTypeToAnswerIcon(answer_type);
   }
@@ -695,9 +695,9 @@ bool AutocompleteMatch::MoreRelevant(const AutocompleteMatch& match1,
   // For equal-relevance matches, we sort alphabetically, so that providers
   // who return multiple elements at the same priority get a "stable" sort
   // across multiple updates.
-  return (match1.relevance == match2.relevance)
-             ? (match1.contents < match2.contents)
-             : (match1.relevance > match2.relevance);
+  return match1.relevance == match2.relevance
+             ? match1.contents < match2.contents
+             : match1.relevance > match2.relevance;
 }
 
 // static

@@ -17,6 +17,7 @@
 #include "components/lens/lens_overlay_mime_type.h"
 #include "components/lens/lens_overlay_request_id_generator.h"
 #include "components/search_engines/util.h"
+#include "components/variations/variations_client.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "third_party/lens_server_proto/lens_overlay_client_context.pb.h"
 #include "third_party/lens_server_proto/lens_overlay_cluster_info.pb.h"
@@ -25,6 +26,10 @@
 #include "url/gurl.h"
 
 class TemplateURLService;
+
+#if !BUILDFLAG(IS_IOS)
+#include "third_party/skia/include/core/SkBitmap.h"
+#endif  // !BUILDFLAG(IS_IOS)
 
 enum class SessionState {
   kNone = 0,
@@ -84,6 +89,16 @@ enum class Channel;
 namespace signin {
 class IdentityManager;
 }  // namespace signin
+
+namespace composebox {
+// Image encoding options for an uploaded image.
+struct ImageEncodingOptions {
+  int max_size;
+  int max_height;
+  int max_width;
+  int compression_quality;
+};
+}  // namespace composebox
 
 // Callback type alias for the OAuth headers created.
 using OAuthHeadersCreatedCallback =
@@ -199,14 +214,16 @@ class ComposeboxQueryController {
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
       version_info::Channel channel,
       std::string locale,
-      TemplateURLService* template_url_service);
+      TemplateURLService* template_url_service,
+      variations::VariationsClient* variations_client);
   virtual ~ComposeboxQueryController();
 
   // Session management. Virtual for testing.
   virtual void NotifySessionStarted();
   virtual void NotifySessionAbandoned();
-  // Called when a query has been submitted.
-  GURL CreateAimUrl(const std::string& query_text);
+  // Called when a query has been submitted. `query_start_time` is the time
+  // that the user clicked the submit button.
+  GURL CreateAimUrl(const std::string& query_text, base::Time query_start_time);
 
   // Observer management.
   void AddObserver(FileUploadStatusObserver* obs);
@@ -218,7 +235,10 @@ class ComposeboxQueryController {
   // internal map. Call after setting the file info fields. Virtual for testing.
   virtual void StartFileUploadFlow(
       std::unique_ptr<FileInfo> file_info,
-      scoped_refptr<base::RefCountedBytes> file_data);
+      scoped_refptr<base::RefCountedBytes> file_data,
+      std::optional<composebox::ImageEncodingOptions> image_options);
+  // Removes file from file cache.
+  virtual bool DeleteFile(const base::UnguessableToken& file_token);
 
  protected:
   // Returns the EndpointFetcher to use with the given params. Protected to
@@ -280,10 +300,21 @@ class ComposeboxQueryController {
                               FileUploadStatus status,
                               std::optional<FileUploadErrorType> error_type);
 
+#if !BUILDFLAG(IS_IOS)
+  // Handler for when the image from an image file upload is decoded. Creates
+  // the request body proto and calls the callback with the request.
+  void ProcessDecodedImageAndContinue(
+      lens::LensOverlayRequestId request_id,
+      const composebox::ImageEncodingOptions& options,
+      RequestBodyProtoCreatedCallback callback,
+      const SkBitmap& bitmap);
+#endif  // !BUILDFLAG(IS_IOS)
+
   // Creates the request body proto and calls the callback with the request.
   void CreateFileUploadRequestBodyAndContinue(
       const base::UnguessableToken& file_token,
       scoped_refptr<base::RefCountedBytes> file_data,
+      std::optional<composebox::ImageEncodingOptions> options,
       RequestBodyProtoCreatedCallback callback);
 
   // Asynchronous handler for when the file upload request body is ready.
@@ -350,7 +381,11 @@ class ComposeboxQueryController {
   // Task runner used to create the file upload request proto asynchronously.
   scoped_refptr<base::TaskRunner> create_request_task_runner_;
 
-  raw_ptr<TemplateURLService> template_url_service_;
+  // Owned by the Profile, and thus guaranteed to outlive this instance.
+  const raw_ptr<TemplateURLService> template_url_service_;
+
+  // Owned by the Profile, and thus guaranteed to outlive this instance.
+  const raw_ptr<variations::VariationsClient> variations_client_;
 
   base::WeakPtrFactory<ComposeboxQueryController> weak_ptr_factory_{this};
 };

@@ -7,6 +7,7 @@ package org.chromium.chrome.browser.ntp_customization.theme;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -34,7 +35,10 @@ import org.robolectric.Robolectric;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.browser.ntp_customization.BottomSheetDelegate;
+import org.chromium.chrome.browser.ntp_customization.NtpCustomizationConfigManager;
+import org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator.BottomSheetType;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationViewProperties;
+import org.chromium.chrome.browser.ntp_customization.theme.theme_collections.NtpThemeCollectionsCoordinator;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.ui.modelutil.PropertyModel;
 
@@ -47,6 +51,8 @@ public class NtpThemeMediatorUnitTest {
     @Mock private BottomSheetDelegate mBottomSheetDelegate;
     @Mock private Profile mProfile;
     @Mock private View mView;
+    @Mock private NtpCustomizationConfigManager mNtpCustomizationConfigManager;
+    @Mock private NtpThemeCollectionsCoordinator mNtpThemeCollectionsCoordinator;
 
     private PropertyModel mBottomSheetPropertyModel;
     private PropertyModel mThemePropertyModel;
@@ -84,6 +90,8 @@ public class NtpThemeMediatorUnitTest {
     @Test
     public void testDestroy() {
         createMediator(/* shouldShowAlone= */ false);
+        mMediator.setNtpThemeCollectionsCoordinatorForTesting(mNtpThemeCollectionsCoordinator);
+
         assertNotNull(mBottomSheetPropertyModel.get(BACK_PRESS_HANDLER));
         assertNotNull(mThemePropertyModel.get(LEARN_MORE_BUTTON_CLICK_LISTENER));
 
@@ -91,6 +99,8 @@ public class NtpThemeMediatorUnitTest {
 
         assertNull(mBottomSheetPropertyModel.get(BACK_PRESS_HANDLER));
         assertNull(mThemePropertyModel.get(LEARN_MORE_BUTTON_CLICK_LISTENER));
+
+        verify(mNtpThemeCollectionsCoordinator).destroy();
     }
 
     @Test
@@ -115,6 +125,24 @@ public class NtpThemeMediatorUnitTest {
     }
 
     @Test
+    public void testOnClickListeners_DefaultSectionClick() {
+        createMediator(/* shouldShowAlone= */ true);
+
+        mMediator.handleChromeDefaultSectionClick(mView);
+        verify(mNtpCustomizationConfigManager).onBackgroundChanged(eq(null));
+    }
+
+    @Test
+    public void testHandleThemeCollectionsSectionClick() {
+        createMediator(/* shouldShowAlone= */ true);
+
+        mMediator.handleThemeCollectionsSectionClick(mView);
+
+        // Verify it tries to show the theme collections bottom sheet.
+        verify(mBottomSheetDelegate).showBottomSheet(eq(BottomSheetType.THEME_COLLECTIONS));
+    }
+
+    @Test
     public void testSetLeadingIconForThemeCollectionsSection() {
         createMediator(/* shouldShowAlone= */ true);
 
@@ -127,9 +155,12 @@ public class NtpThemeMediatorUnitTest {
         when(mBottomSheetDelegate.shouldShowAlone()).thenReturn(shouldShowAlone);
         mMediator =
                 new NtpThemeMediator(
+                        mActivity,
                         mBottomSheetPropertyModel,
                         mThemePropertyModel,
                         mBottomSheetDelegate,
-                        mProfile);
+                        mProfile,
+                        mNtpCustomizationConfigManager,
+                        null);
     }
 }

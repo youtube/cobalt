@@ -33,6 +33,7 @@ class StyleColor;
 class StyleIntrinsicLength;
 class StylePropertyShorthand;
 class StyleTimeline;
+class ItemTolerance;
 
 enum class CSSGapDecorationPropertyDirection : int;
 
@@ -163,7 +164,7 @@ class CORE_EXPORT ComputedStyleUtils {
                                          const ComputedStyle&,
                                          bool force_computed_value = false);
   static CSSValue* ValueForGridPosition(const GridPosition&);
-  static CSSValue* ValueForItemTolerance(const std::optional<Length>&,
+  static CSSValue* ValueForItemTolerance(const ItemTolerance&,
                                          const ComputedStyle&);
   static gfx::SizeF UsedBoxSize(const LayoutObject&);
   static CSSValue* RenderTextDecorationFlagsToCSSValue(TextDecorationLine);
@@ -312,7 +313,7 @@ class CORE_EXPORT ComputedStyleUtils {
                                  CSSValuePhase value_phase);
   static CSSValueList* ValueForBorderRadiusShorthand(const ComputedStyle&);
   static CSSValueList* ValueForCornerShapeShorthand(const ComputedStyle&);
-  static CSSValue* StrokeDashArrayToCSSValueList(const SVGDashArray&,
+  static CSSValue* StrokeDashArrayToCSSValueList(const SVGDashArray*,
                                                  const ComputedStyle&);
   static const CSSValue* ValueForSVGPaint(const SVGPaint&,
                                           const ComputedStyle&);
@@ -442,6 +443,11 @@ class CORE_EXPORT ComputedStyleUtils {
   static CSSValue* ValueForPositionArea(const blink::PositionArea&);
   static CSSValue* ValueForPositionTryFallbacks(const PositionTryFallbacks&);
   static CSSValue* ValueForFitText(const ComputedStyle&, const FitText&);
+  static CSSValueList* ValuesForMasonryShorthand(const StylePropertyShorthand&,
+                                                 const ComputedStyle&,
+                                                 const LayoutObject*,
+                                                 bool allow_visited_style,
+                                                 CSSValuePhase value_phase);
   static std::unique_ptr<CrossThreadStyleValue>
   CrossThreadStyleValueFromCSSStyleValue(CSSStyleValue* style_value);
 

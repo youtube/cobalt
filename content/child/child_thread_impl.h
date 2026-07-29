@@ -24,9 +24,8 @@
 #include "content/common/child_process.mojom.h"
 #include "content/public/child/child_thread.h"
 #include "ipc/ipc.mojom.h"
-#include "ipc/ipc_buildflags.h"  // For BUILDFLAG(IPC_MESSAGE_LOG_ENABLED).
+#include "ipc/ipc_listener.h"
 #include "ipc/ipc_platform_file.h"
-#include "ipc/message_router.h"
 #include "mojo/public/cpp/bindings/associated_receiver_set.h"
 #include "mojo/public/cpp/bindings/generic_pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_associated_receiver.h"
@@ -42,7 +41,6 @@
 
 namespace IPC {
 class SyncChannel;
-class SyncMessageFilter;
 class UrgentMessageObserver;
 }  // namespace IPC
 
@@ -100,10 +98,6 @@ class ChildThreadImpl : public IPC::Listener, virtual public ChildThread {
                           const std::string& group_name) override;
 
   IPC::SyncChannel* channel() { return channel_.get(); }
-
-  IPC::SyncMessageFilter* sync_message_filter() const {
-    return sync_message_filter_.get();
-  }
 
   scoped_refptr<base::SingleThreadTaskRunner> main_thread_runner() const {
     return main_thread_runner_;
@@ -184,9 +178,6 @@ class ChildThreadImpl : public IPC::Listener, virtual public ChildThread {
 #endif
 
   std::unique_ptr<IPC::SyncChannel> channel_;
-
-  // Allows threads other than the main thread to send sync messages.
-  scoped_refptr<IPC::SyncMessageFilter> sync_message_filter_;
 
   // The OnChannelError() callback was invoked - the channel is dead, don't
   // attempt to communicate.

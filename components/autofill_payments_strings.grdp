@@ -934,6 +934,9 @@
   <message name="IDS_AUTOFILL_CARD_BNPL_SELECT_PROVIDER_PAYMENT_OPTION_ZIP" desc="Text for the payment option button in the BNPL select provider screen, explaining that users can pay monthly or in installments. It is specifically for Zip options.">
       Pay in easy installments (subject to eligibility, fees apply)
   </message>
+  <message name="IDS_AUTOFILL_CARD_BNPL_SELECT_PROVIDER_PAYMENT_OPTION_KLARNA" desc="Text for the payment option button in the BNPL select provider screen, explaining that users can pay monthly or in installments. It is specifically for Klarna options.">
+      Pay in 4 or monthly (subject to eligibility)
+  </message>
   <message name="IDS_AUTOFILL_CARD_BNPL_SELECT_PROVIDER_PAYMENT_OPTION_NOT_SUPPORTED_BY_MERCHANT" desc="Text for the disabled payment option button in the BNPL select provider screen, explaining that the provider is not supported by the merchant based on the page's URL.">
       Not supported by merchant
   </message>
@@ -1059,6 +1062,9 @@
   </message>
   <message name="IDS_AUTOFILL_BNPL_AFTER_PAY" desc="Name of Buy Now Pay Later provider AfterPay.">
     AfterPay
+  </message>
+  <message name="IDS_AUTOFILL_BNPL_KLARNA" desc="Name of Buy Now Pay Later provider Klarna.">
+    Klarna
   </message>
   <message name="IDS_AUTOFILL_BNPL_FILLED_CARD_INFORMATION_BUBBLE_TITLE" desc="Title for the Autofill filled card information bubble for the Buy Now Pay Later flow.">
     Virtual card for <ph name="BNPL_ISSUER_NAME">$1<ex>PayLater</ex></ph> filled
@@ -1311,6 +1317,18 @@
     </message>
     <message name="IDS_AUTOFILL_PAYMENT_METHOD_BOTTOM_SHEET_CLOSED" desc="Accessibility string read when the bottom sheet showing a list of the user's payment methods is closed." formatter_data="android_java">
       List of payment methods is closed.
+    </message>
+    <message name="IDS_AUTOFILL_LOYALTY_CARD_BOTTOM_SHEET_CONTENT_DESCRIPTION" desc="Accessibility string read when the bottom sheet is opened. It describes the bottom sheet where a user can pick a loyalty card to fill into a form." formatter_data="android_java">
+      Loyalty cards available to be filled on touch. Keyboard hidden.
+    </message>
+    <message name="IDS_AUTOFILL_LOYALTY_CARD_BOTTOM_SHEET_HALF_HEIGHT" desc="Accessibility string read when the bottom sheet showing a list of the user's loyalty cards is opened at half height. The sheet will occupy the bottom half the screen." formatter_data="android_java">
+      Loyalty cards available to be filled on touch opened at half height.
+    </message>
+    <message name="IDS_AUTOFILL_LOYALTY_CARD_BOTTOM_SHEET_FULL_HEIGHT" desc="Accessibility string read when the bottom sheet showing a list of the user's loyalty cards is opened at full height. The sheet will occupy the entire screen." formatter_data="android_java">
+      Loyalty cards available to be filled on touch opened at full height.
+    </message>
+    <message name="IDS_AUTOFILL_LOYALTY_CARD_BOTTOM_SHEET_CLOSED" desc="Accessibility string read when the bottom sheet showing a list of the user's loyalty cards is closed." formatter_data="android_java">
+      List of loyalty cards is closed.
     </message>
     <message name="IDS_AUTOFILL_PAYMENT_METHOD_A11Y_ITEM_COLLECTION_INFO" desc="A template message for a fillable item content description, provides its position in the list info (e.g. 'Item label, 2 of 4')." formatter_data="android_java">
       <ph name="ITEM_LABEL">%1$s<ex>Card info</ex></ph>, <ph name="ITEM_POSITION">%2$s<ex>2</ex></ph> of <ph name="ITEMS_TOTAL">%3$s<ex>8</ex></ph>.

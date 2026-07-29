@@ -94,6 +94,7 @@
 #include "third_party/blink/renderer/core/svg/svg_tspan_element.h"
 #include "third_party/blink/renderer/core/svg/svg_use_element.h"
 #include "third_party/blink/renderer/core/svg_names.h"
+#include "third_party/blink/renderer/core/view_transition/view_transition.h"
 #include "third_party/blink/renderer/platform/geometry/length.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
@@ -462,7 +463,8 @@ void StyleAdjuster::AdjustStyleForCombinedText(ComputedStyleBuilder& builder) {
 #endif
 }
 
-static void AdjustStyleForFirstLetter(ComputedStyleBuilder& builder) {
+static void AdjustStyleForFirstLetter(ComputedStyleBuilder& builder,
+                                      const ComputedStyle& parent_style) {
   if (builder.StyleType() != kPseudoIdFirstLetter) {
     return;
   }
@@ -470,6 +472,7 @@ static void AdjustStyleForFirstLetter(ComputedStyleBuilder& builder) {
   // Force inline display (except for floating first-letters).
   builder.SetDisplay(builder.IsFloating() ? EDisplay::kBlock
                                           : EDisplay::kInline);
+  builder.SetContainerFont(parent_style.GetFont());
 }
 
 static void AdjustStyleForMarker(ComputedStyleBuilder& builder,
@@ -1113,7 +1116,7 @@ void StyleAdjuster::AdjustComputedStyle(StyleResolverState& state,
 
     // We don't adjust the first letter style earlier because we may change the
     // display setting in AdjustStyleForHTMLElement() above.
-    AdjustStyleForFirstLetter(builder);
+    AdjustStyleForFirstLetter(builder, parent_style);
     AdjustStyleForMarker(builder, parent_style, &state.GetElement());
 
     if (builder.StyleType() != kPseudoIdScrollMarker) {
@@ -1150,7 +1153,7 @@ void StyleAdjuster::AdjustComputedStyle(StyleResolverState& state,
       builder.SetBackdropFilter(FilterOperations());
     }
   } else {
-    AdjustStyleForFirstLetter(builder);
+    AdjustStyleForFirstLetter(builder, parent_style);
   }
 
   builder.SetForcesStackingContext(false);
@@ -1171,8 +1174,17 @@ void StyleAdjuster::AdjustComputedStyle(StyleResolverState& state,
       builder.Overlay() == EOverlay::kAuto ||
       builder.StyleType() == kPseudoIdBackdrop ||
       builder.StyleType() == kPseudoIdViewTransition ||
-      IsCanvasWithDrawElements(element)) {
+      IsCanvasWithDrawElements(element) ||
+      (builder.Contain() & kContainsViewTransition)) {
     builder.SetForcesStackingContext(true);
+  } else if (element) {
+    // The scoped element of a view transition requires a stacking context.
+    if (const ViewTransition* view_transition =
+            ViewTransitionUtils::GetTransition(*element)) {
+      if (view_transition->Scope() == element) {
+        builder.SetForcesStackingContext(true);
+      }
+    }
   }
 
   if (builder.OverflowX() != EOverflow::kVisible ||

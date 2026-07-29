@@ -16,13 +16,18 @@ import androidx.appcompat.content.res.AppCompatResources;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 /** This is an item decorator for lists of items displayed in Touch to Fill BottomSheets. */
 @NullMarked
 public abstract class ItemDividerBase extends RecyclerView.ItemDecoration {
     protected final Context mContext;
 
-    private void loadBackgroundDrawable(View view, @DrawableRes int backgroundId) {
+    private void loadBackgroundDrawable(@Nullable View view, @DrawableRes int backgroundId) {
+        if (view == null) {
+            // RecyclerView might return a {@code null} view if it's not displayed to the user.
+            return;
+        }
         GradientDrawable background =
                 (GradientDrawable) AppCompatResources.getDrawable(mContext, backgroundId);
         TouchToFillUtil.addColorAndRippleToBackground(view, background, mContext);
@@ -86,16 +91,9 @@ public abstract class ItemDividerBase extends RecyclerView.ItemDecoration {
 
     /**
      * Used as helper to determine undecorated items like headers and buttons.
+     *
      * @param type A type of an item in the list on the {@link BottomSheet}.
      * @return True if the item of the said type should be undecorated.
      */
     protected abstract boolean shouldSkipItemType(int type);
-
-    /**
-     * Used as a helper to determine the appropriate background shape for the decorated items in the
-     * list.
-     * @param parent The {@link RecyclerView} containing the items on the {@link BottomSheet}.
-     * @return True if the last item in the list is a button.
-     */
-    protected abstract boolean containsFillButton(RecyclerView parent);
 }

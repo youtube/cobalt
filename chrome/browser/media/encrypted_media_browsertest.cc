@@ -1094,9 +1094,18 @@ IN_PROC_BROWSER_TEST_P(MseEncryptedMediaTest, Playback_Check_Ukm) {
       {Media_EME_Usage::kApiName, Media_EME_Usage::kIsPersistentSessionName,
        Media_EME_Usage::kKeySystemName,
        Media_EME_Usage::kUseHardwareSecureCodecsName});
-  EXPECT_EQ(usage_entries.size(), 1u);
+  EXPECT_EQ(usage_entries.size(), 2u);
   EXPECT_THAT(
       usage_entries[0].metrics,
+      UnorderedElementsAre(
+          Pair(Media_EME_Usage::kApiName,
+               /*blink::EmeApiType::kGenerateRequest=*/4),
+          Pair(Media_EME_Usage::kIsPersistentSessionName, /*false=*/0),
+          Pair(Media_EME_Usage::kKeySystemName,
+               media::GetKeySystemIntForUKM(CurrentKeySystem())),
+          Pair(Media_EME_Usage::kUseHardwareSecureCodecsName, /*false=*/0)));
+  EXPECT_THAT(
+      usage_entries[1].metrics,
       UnorderedElementsAre(
           Pair(Media_EME_Usage::kApiName, /*blink::EmeApiType::kUpdate=*/6),
           Pair(Media_EME_Usage::kIsPersistentSessionName, /*false=*/0),
@@ -1214,15 +1223,9 @@ IN_PROC_BROWSER_TEST_P(ECKEncryptedMediaTest, InitializeCDMFail) {
                        kEmeNotSupportedError);
 }
 
-// TODO(crbug.com/40105240): Failing on Windows.
-#if BUILDFLAG(IS_WIN)
-#define MAYBE_CDMCrashDuringDecode DISABLED_CDMCrashDuringDecode
-#else
-#define MAYBE_CDMCrashDuringDecode CDMCrashDuringDecode
-#endif
 // When CDM crashes, we should still get a decode error and all sessions should
 // be closed.
-IN_PROC_BROWSER_TEST_P(ECKEncryptedMediaTest, MAYBE_CDMCrashDuringDecode) {
+IN_PROC_BROWSER_TEST_P(ECKEncryptedMediaTest, CDMCrashDuringDecode) {
   TestNonPlaybackCases(media::kExternalClearKeyCrashKeySystem,
                        kEmeSessionClosedAndError);
 }

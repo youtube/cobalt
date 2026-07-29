@@ -11,7 +11,6 @@
 #include "ash/ambient/test/ambient_ash_test_helper.h"
 #include "ash/app_list/test/app_list_test_helper.h"
 #include "ash/assistant/assistant_controller_impl.h"
-#include "ash/assistant/test/test_assistant_service.h"
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_switches.h"
 #include "ash/display/display_configuration_controller_test_api.h"
@@ -124,7 +123,10 @@ class AshTestHelper::PowerPolicyControllerInitializer {
 
 AshTestHelper::AshTestHelper(ui::ContextFactory* context_factory)
     : AuraTestHelper(context_factory),
-      system_monitor_(std::make_unique<base::SystemMonitor>()) {
+      system_monitor_(std::make_unique<base::SystemMonitor>()),
+      session_manager_(!session_manager::SessionManager::Get()
+                           ? std::make_unique<session_manager::SessionManager>()
+                           : nullptr) {
   views::ViewsTestHelperAura::SetFallbackTestViewsDelegateFactory(
       &MakeTestViewsDelegate);
 
@@ -228,7 +230,6 @@ void AshTestHelper::TearDown() {
   bluez_dbus_manager_initializer_.reset();
   floss_dbus_manager_initializer_.reset();
   system_tray_client_.reset();
-  assistant_service_.reset();
   notifier_settings_controller_.reset();
   prefs_provider_.reset();
   statistics_provider_.reset();
@@ -386,8 +387,6 @@ void AshTestHelper::SetUp(InitParams init_params) {
 
   // Cursor is visible by default in tests.
   shell->cursor_manager()->ShowCursor();
-
-  shell->assistant_controller()->SetAssistant(assistant_service_.get());
 
   shell->system_tray_model()->SetClient(system_tray_client_.get());
   prefs_provider_ = std::make_unique<TestPrefServiceProvider>();

@@ -297,6 +297,9 @@ ci.builder(
             target_platform = builder_config.target_platform.CHROMEOS,
         ),
     ),
+    builder_config_settings = builder_config.ci_settings(
+        retry_failed_shards = True,
+    ),
     gn_args = gn_args.config(
         configs = [
             "chromeos_with_codecs",
@@ -1617,9 +1620,23 @@ fyi_ios_builder(
         ],
     ),
     targets = targets.bundle(
+        targets = [
+            "tvos_rel_tests",
+        ],
         additional_compile_targets = [
+            "base_unittests",
             "content_shell",
+            "components_unittests",
             "content_unittests",
+        ],
+        mixins = [
+            "expand-as-isolated-script",
+            "has_native_resultdb_integration",
+            "mac_default_arm64",
+            "mac_toolchain",
+            "out_dir_arg",
+            "xcode_16_beta",
+            "xctest",
         ],
     ),
     builderless = True,
@@ -1827,7 +1844,7 @@ fyi_ios_builder(
         mixins = [
             "expand-as-isolated-script",
             "has_native_resultdb_integration",
-            "mac_15_arm64",
+            "mac_15_beta_arm64",
             "mac_toolchain",
             "out_dir_arg",
             "xcode_26_beta",
@@ -1941,7 +1958,7 @@ fyi_ios_builder(
         mixins = [
             "expand-as-isolated-script",
             "has_native_resultdb_integration",
-            "mac_15_arm64",
+            "mac_15_beta_arm64",
             "mac_toolchain",
             "out_dir_arg",
             "xcode_26_beta",
@@ -2002,7 +2019,7 @@ fyi_ios_builder(
         mixins = [
             "expand-as-isolated-script",
             "has_native_resultdb_integration",
-            "mac_15_arm64",
+            "mac_15_beta_arm64",
             "mac_toolchain",
             "out_dir_arg",
             "xcode_26_beta",

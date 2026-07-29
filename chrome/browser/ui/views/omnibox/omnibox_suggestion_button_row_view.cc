@@ -23,6 +23,7 @@
 #include "components/omnibox/browser/omnibox_edit_model.h"
 #include "components/omnibox/browser/omnibox_field_trial.h"
 #include "components/omnibox/browser/vector_icons.h"
+#include "components/omnibox/common/omnibox_feature_configs.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/vector_icons/vector_icons.h"
 #include "third_party/metrics_proto/omnibox_event.pb.h"
@@ -341,9 +342,13 @@ void OmniboxSuggestionButtonRowView::UpdateFromModel() {
 
   // Only build views if there was a structural change. Without this check,
   // performance could be impacted by frequent unnecessary rebuilds.
+  // Note, the toolbelt is always rebuilt because its action count is mostly
+  // constant but selection changes frequently invalidate button focus states.
   // TODO(crbug.com/429029560): try removing this optimization or making the
   // conditions smarter.
-  if (action_buttons_.size() != match().actions.size()) {
+  if (action_buttons_.size() != match().actions.size() ||
+      (match().IsToolbelt() &&
+       omnibox_feature_configs::Toolbelt::Get().rebuild_button_row_views)) {
     BuildViews();
   }
 
@@ -480,6 +485,11 @@ void OmniboxSuggestionButtonRowView::ButtonPressed(
       popup_view_->model()->AcceptKeyword(entry_method);
     }
   } else {
+    if (omnibox_feature_configs::Toolbelt::Get()
+            .select_toolbelt_before_opening &&
+        match().IsToolbelt()) {
+      popup_view_->model()->SetPopupSelection(selection);
+    }
     WindowOpenDisposition disposition =
         ui::DispositionFromEventFlags(event.flags());
     popup_view_->model()->OpenSelection(selection, event.time_stamp(),

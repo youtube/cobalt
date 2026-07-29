@@ -35,6 +35,8 @@ void ReaderModeTest::SetUp() {
 }
 
 std::unique_ptr<web::FakeWebState> ReaderModeTest::CreateWebState() {
+  CHECK(profile()) << "SetUp must be called prior to web state creation";
+
   std::unique_ptr<web::FakeWebState> web_state =
       std::make_unique<web::FakeWebState>();
   web_state->SetBrowserState(profile_.get());
@@ -138,4 +140,21 @@ void ReaderModeTest::AddReadabilityHeuristicResultToFrame(
   }
   web_frame->AddResultForExecutedJs(readability_heuristic_value_.get(),
                                     readability_heuristic_script);
+}
+
+// static
+std::string ReaderModeTest::TestParametersReaderModeHeuristicResultToString(
+    testing::TestParamInfo<ReaderModeHeuristicResult> info) {
+  switch (info.param) {
+    case ReaderModeHeuristicResult::kMalformedResponse:
+      return "MalformedResponse";
+    case ReaderModeHeuristicResult::kReaderModeEligible:
+      return "ReaderModeEligible";
+    case ReaderModeHeuristicResult::kReaderModeNotEligibleContentOnly:
+      return "ReaderModeNotEligibleContentOnly";
+    case ReaderModeHeuristicResult::kReaderModeNotEligibleContentLength:
+      return "ReaderModeNotEligibleContentLength";
+    case ReaderModeHeuristicResult::kReaderModeNotEligibleContentAndLength:
+      return "ReaderModeNotEligibleContentAndLength";
+  }
 }

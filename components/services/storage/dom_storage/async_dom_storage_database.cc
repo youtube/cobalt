@@ -10,6 +10,7 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/sequenced_task_runner.h"
+#include "third_party/leveldatabase/env_chromium.h"
 #include "third_party/leveldatabase/src/include/leveldb/write_batch.h"
 
 namespace storage {
@@ -23,7 +24,7 @@ std::unique_ptr<AsyncDomStorageDatabase> AsyncDomStorageDatabase::OpenDirectory(
     scoped_refptr<base::SequencedTaskRunner> blocking_task_runner,
     StatusCallback callback) {
   std::unique_ptr<AsyncDomStorageDatabase> db(new AsyncDomStorageDatabase);
-  DomStorageDatabase::OpenDirectory(
+  DomStorageDatabaseFactory::OpenDirectory(
       directory, dbname, memory_dump_id, std::move(blocking_task_runner),
       base::BindOnce(&AsyncDomStorageDatabase::OnDatabaseOpened,
                      db->weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
@@ -38,7 +39,7 @@ std::unique_ptr<AsyncDomStorageDatabase> AsyncDomStorageDatabase::OpenInMemory(
     scoped_refptr<base::SequencedTaskRunner> blocking_task_runner,
     StatusCallback callback) {
   std::unique_ptr<AsyncDomStorageDatabase> db(new AsyncDomStorageDatabase);
-  DomStorageDatabase::OpenInMemory(
+  DomStorageDatabaseFactory::OpenInMemory(
       tracking_name, memory_dump_id, std::move(blocking_task_runner),
       base::BindOnce(&AsyncDomStorageDatabase::OnDatabaseOpened,
                      db->weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
@@ -124,29 +125,20 @@ void AsyncDomStorageDatabase::RemoveCommitter(Committer* source) {
 void AsyncDomStorageDatabase::InitiateCommit(Committer* source) {
   std::vector<Commit> commits;
   std::vector<base::OnceCallback<void(DbStatus)>> commit_dones;
-  size_t total_data_size = 0u;
   if (base::FeatureList::IsEnabled(kCoalesceStorageAreaCommits)) {
     commits.reserve(committers_.size());
     commit_dones.reserve(committers_.size());
     for (Committer* committer : committers_) {
       std::optional<Commit> commit = committer->CollectCommit();
       if (commit) {
-        total_data_size += commit->data_size;
         commits.emplace_back(std::move(*commit));
         commit_dones.emplace_back(committer->GetCommitCompleteCallback());
       }
     }
   } else {
     commits.emplace_back(*source->CollectCommit());
-    total_data_size += commits.back().data_size;
     commit_dones.emplace_back(source->GetCommitCompleteCallback());
   }
-
-  base::UmaHistogramCustomCounts("DOMStorage.CommitSizeBytesAggregated",
-                                 total_data_size,
-                                 /*min=*/100,
-                                 /*exclusive_max=*/12 * 1024 * 1024,
-                                 /*buckets=*/100);
 
   auto run_all = base::BindOnce(
       [](std::vector<base::OnceCallback<void(DbStatus)>> callbacks,

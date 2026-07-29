@@ -254,12 +254,6 @@ def AddCommonOptions(parser):
       action='store_true',
       help='Uses a persistent shell connection for the adb connection.')
 
-  parser.add_argument('--disable-test-server',
-                      action='store_true',
-                      help='Disables SpawnedTestServer which doesn'
-                      't work with remote adb. '
-                      'WARNING: Will break tests which require the server.')
-
   # This is currently only implemented for gtests and instrumentation tests.
   parser.add_argument(
       '--gtest_also_run_disabled_tests', '--gtest-also-run-disabled-tests',
@@ -488,14 +482,12 @@ def AddGTestOptions(parser):
       help='Do not push new files to the device, instead using existing APK '
       'and test data. Only use when running the same test for multiple '
       'iterations.')
-  # This is currently only implemented for gtests tests.
-  # TODO(crbug.com/40200835): Remove this flag when PRE tests run properly.
-  parser.add_argument('--gtest_also_run_pre_tests',
-                      '--gtest-also-run-pre-tests',
+  parser.add_argument('--gtest_skip_pre_tests',
+                      '--gtest-skip-pre-tests',
                       dest='run_pre_tests',
-                      action='store_true',
+                      action='store_false',
                       default=True,
-                      help='Also run PRE_ tests if applicable.')
+                      help='Do not run PRE_ tests if applicable.')
 
 
 def AddInstrumentationTestOptions(parser):

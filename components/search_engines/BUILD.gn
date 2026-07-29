@@ -89,6 +89,7 @@ static_library("search_engines") {
     "//components/pref_registry",
     "//components/regional_capabilities",
     "//components/regional_capabilities:country_access_reason",
+    "//components/regional_capabilities:data",
     "//components/search_provider_logos:switches",
     "//components/signin/public/base",
     "//components/strings",
@@ -128,18 +129,15 @@ static_library("search_engines") {
     ]
   }
 
-  if (!is_android) {
-    deps += [
-      "//components/resources:components_scaled_resources_grit",
-      "//ui/resources",
-    ]
+  deps += [
+    "//components/resources:components_scaled_resources_grit",
+    "//ui/resources",
+  ]
 
-    if (enable_builtin_search_provider_assets) {
-      sources += [ "search_engine_choice/generated_marketing_snippets.cc" ]
-      deps += [
-        "//third_party/search_engines_data:search_engines_scaled_resources",
-      ]
-    }
+  if (enable_builtin_search_provider_assets) {
+    sources += [ "search_engine_choice/generated_marketing_snippets.cc" ]
+    deps +=
+        [ "//third_party/search_engines_data:search_engines_scaled_resources" ]
   }
 
   if (is_linux || is_win || is_mac || is_chromeos) {
@@ -241,6 +239,7 @@ source_set("unit_tests") {
     "//components/prefs",
     "//components/prefs:test_support",
     "//components/regional_capabilities",
+    "//components/regional_capabilities:data",
     "//components/sync:test_support",
     "//components/sync_preferences:test_support",
     "//components/variations:test_support",

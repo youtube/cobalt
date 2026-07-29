@@ -232,6 +232,7 @@
 <translation id="3785324443014631273">ChromeOS Flex не може да ги синхронизира вашите податоци поради грешка при најавување.</translation>
 <translation id="3795971588916395511">Google Chrome OS</translation>
 <translation id="3809772425479558446">Google Chrome бара Windows 10 или понова верзија.</translation>
+<translation id="3810973564298564668">Управувај</translation>
 <translation id="383928141529488001">Google Chrome бара пристап до Bluetooth за да открива 
  уреди со Bluetooth. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="386202838227397562">Затворете ги сите прозорци на Google Chrome и пробајте повторно.</translation>
@@ -523,6 +524,7 @@ Google Chrome не може да ги обнови вашите поставки
 <translation id="7583399374488819119">Инсталатор на <ph name="COMPANY_NAME" /></translation>
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
 <translation id="7626072681686626474"><ph name="MANAGER" /> бара да ги прочитате и да ги прифатите следните „Услови за користење“ пред да го користите уредов. Овие услови не ги прошируваат, менуваат или ограничуваат „Условите на Google Chrome OS“.</translation>
+<translation id="7627609214560473136">За да ги заштитите вашите податоци, дозволете му на Chrome да ги отстрани дозволите за сајтовите што не сте ги посетиле неодамна.</translation>
 <translation id="7629695634924605473">Chrome ве известува дали вашите лозинки се компромитирани</translation>
 <translation id="7641148173327520642">Системскиот администратор го конфигурирал Google Chrome да отвора <ph name="ALTERNATIVE_BROWSER_NAME" /> за пристап до <ph name="TARGET_URL_HOSTNAME" />.</translation>
 <translation id="7649070708921625228">Помош</translation>
@@ -609,6 +611,7 @@ Google Chrome не може да ги обнови вашите поставки
 <translation id="8649026945479135076">Нормално е сајтовите што ги посетувате да ги помнат работите што ве интересираат за да го персонализираат вашето доживување. Сајтовите можат и да зачувуваат податоци со Chrome за вашите интереси.</translation>
 <translation id="8669527147644353129">Google Chrome Helper</translation>
 <translation id="8679801911857917785">Контролира и која страница се прикажува кога ќе стартувате Chrome.</translation>
+<translation id="8712637175834984815">Сфатив</translation>
 <translation id="8712767363896337380">Речиси сте готови! Рестартирајте го Chrome за да заврши ажурирањето.</translation>
 <translation id="8718062187489036808">Одјави се од Chrome</translation>
 <translation id="873133009373065397">Google Chrome не може да го одреди или постави стандардниот прелистувач</translation>

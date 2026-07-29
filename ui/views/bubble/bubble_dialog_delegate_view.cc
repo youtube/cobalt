@@ -905,9 +905,6 @@ void BubbleDialogDelegate::BubbleUmaLogger::LogMetric(
     void (*uma_func)(std::string_view, Value),
     std::string_view histogram_name,
     Value value) const {
-  if (!base::FeatureList::IsEnabled(::features::kBubbleMetricsApi)) {
-    return;
-  }
   // Record histogram for all BDDV subclasses under a generic name
   uma_func(base::StrCat({"Bubble.All.", histogram_name}), value);
   // Record histograms for specific BDDV subclasses
@@ -1127,8 +1124,11 @@ void BubbleDialogDelegate::UpdateFrameColor() {
     frame_view->SetBackgroundColor(background_color());
   }
 
+  // If layer_type() is LAYER_NOT_DRAWN, then the BubbleFrameView (and
+  // BubbleBorderBackground) will not be painted, so shouldn't worry about what
+  // contents are doing.
   const bool contents_layer_opaque =
-      contents_view->layer() &&
+      layer_type() != ui::LAYER_NOT_DRAWN && contents_view->layer() &&
       contents_view->layer()->type() != ui::LAYER_NOT_DRAWN &&
       contents_view->layer()->fills_bounds_opaquely();
   if (contents_layer_opaque) {

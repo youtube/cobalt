@@ -16,7 +16,6 @@
 <translation id="1352919863522755794">Správci hesel Google se vaše hesla nepodařilo zkontrolovat. Zkuste zkontrolovat připojení k internetu.</translation>
 <translation id="1394995526009609883">Svůj výběr můžete v nastavení Chromu kdykoli aktualizovat.</translation>
 <translation id="1407843355326180937">Když se na tento web a do Chromu přihlásíte, budete mít své záložky a další položky k dispozici na všech svých zařízeních.</translation>
-<translation id="1426599484714342603">Získejte nákupní funkce Chromu</translation>
 <translation id="1462727070346936664">Pokud z Chromu chcete získat maximum, přihlaste se.</translation>
 <translation id="1493827051843127077">Nastavte si Chrome jako výchozí prohlížeč a karty, hesla a platební údaje se budou synchronizovat na všechna vaše zařízení</translation>
 <translation id="1504372625950710826">Chrome nemůže vyhledat dostupné aktualizace. Zkuste zkontrolovat připojení k internetu.</translation>
@@ -33,7 +32,6 @@ Co je třeba zvážit:
 <translation id="1554731936187952550">Máte nejsilnější zabezpečení prohlížeče Chrome proti škodlivým webům</translation>
 <translation id="155816064895200734">Nastavit Chrome jako výchozí prohlížeč</translation>
 <translation id="1580570086594302477">Otevře novou anonymní kartu prohlížeče Chrome.</translation>
-<translation id="1634522710245925681">Používejte Chrome ve výchozím nastavení, abyste snadno získali informace o cenách</translation>
 <translation id="1646463005043273333">Otevře nastavení prohlížeče Chrome, pomocí něhož ho lze nastavit jako výchozí prohlížeč.</translation>
 <translation id="1670609221633730681">Tip pro Chrome: Vyberte si umístění adresního řádku</translation>
 <translation id="1683863426423719967">Pokud z Chromu chcete dostávat připomenutí ohledně karet, zapněte oznámení v nastavení systému iOS.</translation>
@@ -65,14 +63,12 @@ Co je třeba zvážit:
 <translation id="2423077901494354337">Nyní využijete Chrome na svém zařízení na maximum.</translation>
 <translation id="2427791862912929107">Chrome obsahuje funkce, které pomáhají spravovat přenosy dat z internetu a umožňují zrychlit načítání webových stránek.
 <ph name="BEGIN_LINK" />Další informace<ph name="END_LINK" /></translation>
-<translation id="2444854139071078915">Pokud chcete mít uložená hesla snadno k dispozici v jiných aplikacích, používejte Chrome k automatickému vyplňování</translation>
 <translation id="2464852008153767546">{THRESHOLD,plural, =1{K tomuto dochází, když Chrome {THRESHOLD} minutu nepoužíváte. Může to zahrnovat historii a automatické vyplňování.}few{K tomuto dochází, když Chrome {THRESHOLD} minuty nepoužíváte. Může to zahrnovat historii a automatické vyplňování.}many{K tomuto dochází, když Chrome {THRESHOLD} minuty nepoužíváte. Může to zahrnovat historii a automatické vyplňování.}other{K tomuto dochází, když Chrome {THRESHOLD} minut nepoužíváte. Může to zahrnovat historii a automatické vyplňování.}}</translation>
 <translation id="2561231791489583059">Používejte Chrome jako výchozí prohlížeč – ochrání vás před nebezpečnými weby a vaše hesla budou v bezpečí</translation>
 <translation id="2574249610672786438">Chcete-li mít své karty k dispozici všude, kde používáte Chrome, na všech zařízeních se přihlaste</translation>
 <translation id="2576431527583832481">Chrome je opět o něco lepší. K dispozici je nová verze.</translation>
 <translation id="257708665678654955">Chcete, aby Google Chrome příště pro stránky v jazyce <ph name="LANGUAGE_NAME" /> z tohoto webu nabízel překlad?</translation>
 <translation id="2668242166988961773">Vyhledávat hlasem v Chromu.</translation>
-<translation id="2671426118752779020">Hesla, která jste si uložili do Správce hesel Google, můžete používat v jiných aplikacích na svém iPhonu.</translation>
 <translation id="2689064829982324496">Pokud se chcete odhlásit z účtu Google na všech webech, <ph name="BEGIN_LINK" />odhlaste se z Chromu<ph name="END_LINK" />.</translation>
 <translation id="2695886661449553974">Chrome nemůže vyhledat dostupné aktualizace. Zkuste to znovu později.</translation>
 <translation id="2703746758996815929">Pokud chcete dostávat užitečné tipy pro Chrome, v nastavení systému iOS zapněte oznámení.</translation>
@@ -222,7 +218,6 @@ Vaše data jsou šifrována pomocí heslové fráze. Pokud chcete používat a 
 <translation id="6684809838922667136">Vylepšujeme Chrome</translation>
 <translation id="6695698548122852044">{THRESHOLD,plural, =1{K tomuto dochází, když Chrome {THRESHOLD} minutu nepoužíváte. Data uložená pouze na tomto zařízení v době, kdy jste byli přihlášeni, se vymažou. Může to zahrnovat historii a hesla.}few{K tomuto dochází, když Chrome {THRESHOLD} minuty nepoužíváte. Data uložená pouze na tomto zařízení v době, kdy jste byli přihlášeni, se vymažou. Může to zahrnovat historii a hesla.}many{K tomuto dochází, když Chrome {THRESHOLD} minuty nepoužíváte. Data uložená pouze na tomto zařízení v době, kdy jste byli přihlášeni, se vymažou. Může to zahrnovat historii a hesla.}other{K tomuto dochází, když Chrome {THRESHOLD} minut nepoužíváte. Data uložená pouze na tomto zařízení v době, kdy jste byli přihlášeni, se vymažou. Může to zahrnovat historii a hesla.}}</translation>
 <translation id="6709398533399187136">Vaše heslo bylo vyzrazeno při porušení zabezpečení údajů. Správce hesel Google doporučuje ihned ho změnit.</translation>
-<translation id="6788035488757621217">V nastavení svého zařízení otevřete sekci <ph name="TEXT_OF_THE_SETTINGS_MENU_ITEM" /> a vyberte Chrome</translation>
 <translation id="6820553595690137150">Šifrování pomocí heslové fráze se nevztahuje na platební metody a adresy.
 
 Pokud toto nastavení chcete změnit, <ph name="BEGIN_LINK" />vymažte data prohlížeče Chrome ve svém účtu<ph name="END_LINK" />.</translation>
@@ -242,7 +237,6 @@ Další nastavení využití dat ke zlepšení prostředí v prohlížeči Chro
 <translation id="7175129790242719365">Tip pro Chrome: Přihlaste se do Chromu</translation>
 <translation id="7187993566681480880">Zajišťuje vám bezpečí v Chromu a může zvýšit vaši bezpečnost v jiných aplikacích Google, když jste přihlášeni.</translation>
 <translation id="7200524487407690471">Chrome každý den automaticky spouští bezpečnostní kontrolu, aby vás ochránil před porušením zabezpečení údajů, nebezpečnými weby a dalšími hrozbami. Další informace o bezpečnostní kontrole najdete v Nastavení.</translation>
-<translation id="72119412072970160">Hesla, která jste si uložili do Správce hesel Google, můžete používat v jiných aplikacích na svém iPadu.</translation>
 <translation id="7214019116829172458">Otevřít anonymní kartu prohlížeče Chrome</translation>
 <translation id="722167379782941918">Chrome doporučuje vylepšenou ochranu</translation>
 <translation id="723787869754590019">Používejte Chrome pro automatické vyplňování</translation>
@@ -288,7 +282,6 @@ Další nastavení využití dat ke zlepšení prostředí v prohlížeči Chro
 <translation id="8018153653741938705">S Google Chrome budete v bezpečí</translation>
 <translation id="8022947259858476807">Používejte Chrome jako výchozí prohlížeč k otevírání odkazů, vyhledávání z widgetů a automatickému vyplňování hesel v jiných aplikacích</translation>
 <translation id="804638182476029347">Pokud chcete dostávat upozornění na pokles ceny, povolte oznámení prohlížeče Chrome</translation>
-<translation id="804756029368067824">Nastavte si Chrome jako výchozí prohlížeč, abyste mohli snadno sledovat ceny a získávat informace o cenách věcí, které chcete koupit.</translation>
 <translation id="8065292699993359127">Otevírat adresy URL v Chromu v anonymním režimu</translation>
 <translation id="8069507567842347179">Tuto zásilku již v prohlížeči Chrome sledujete.</translation>
 <translation id="8136856065410661948">Tyto údaje poslouží k vytváření událostí v Kalendáři Apple z Chromu a Google Lens.</translation>

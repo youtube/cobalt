@@ -18,6 +18,7 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
+#include "chrome/browser/ui/views/page_action/page_action_view.h"
 #include "chrome/browser/ui/views/passwords/manage_passwords_icon_views.h"
 #include "chrome/browser/ui/views/passwords/manage_passwords_view.h"
 #include "chrome/browser/ui/views/passwords/move_to_account_store_bubble_view.h"
@@ -86,8 +87,7 @@ void PasswordBubbleViewBase::ShowBubble(content::WebContents* web_contents,
   // icon as the highlighted button here.
   if (!views::Button::AsButton(anchor_view)) {
     g_manage_passwords_bubble_->SetHighlightedButton(
-        button_provider->GetPageActionIconView(
-            PageActionIconType::kManagePasswords));
+        button_provider->GetPageActionView(kActionShowPasswordsBubbleOrPage));
   }
 
   views::BubbleDialogDelegateView::CreateBubble(g_manage_passwords_bubble_);

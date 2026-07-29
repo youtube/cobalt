@@ -24,6 +24,8 @@ sys.path.insert(0, os.path.join(_SRC_PATH, 'third_party', 'protobuf',
 
 from google.protobuf.message import DecodeError
 from google.protobuf import json_format
+from google.protobuf import text_format
+
 
 def build(outdir: str):
     subprocess.run([
@@ -33,6 +35,7 @@ def build(outdir: str):
                    stdout=sys.stdout,
                    stderr=sys.stderr,
                    check=True)
+
 
 class RequestHandler(http.server.SimpleHTTPRequestHandler):
     directory = None
@@ -67,9 +70,29 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
         except DecodeError:
             self.send_error(400, 'proto could not be parsed')
 
+    def _parse_apc_text(self):
+        """Deserializes AnnotatedPageContent from the request payload and
+           converts it to TEXTPROTO (which is sent as a response)."""
+        try:
+            # TODO: gklassen - refactor into a common function.
+            content_length = int(self.headers['Content-Length'])
+            serialized_apc = self.rfile.read(content_length)
+            import common_quality_data_pb2
+            apc = common_quality_data_pb2.AnnotatedPageContent()
+            apc.ParseFromString(serialized=serialized_apc)
+            result = text_format.MessageToString(apc)
+            self.send_response(200)
+            self.send_header('Content-type', 'text/plain')
+            self.end_headers()
+            self.wfile.write(result.encode())
+        except text_format.ParseError:
+            self.send_error(400, 'proto could not be parsed')
+
     def do_POST(self):
         if self.path == '/parse-apc':
             self._parse_apc()
+        elif self.path == '/parse-apc-text':
+            self._parse_apc_text()
         else:
             self.send_error(404, f'invalid path: ${self.path}')
 
@@ -121,7 +144,8 @@ def main():
               file=sys.stderr)
         sys.exit(1)
 
-    # Allows us to import generated proto bindings for common_quality_data.proto.
+    # Allows us to import generated proto bindings for
+    # common_quality_data.proto.
     sys.path.insert(
         0,
         os.path.join(args.outdir, 'pyproto', 'components',
@@ -131,7 +155,11 @@ def main():
 
     with socketserver.ThreadingTCPServer((server_addr, args.port),
                                          RequestHandler) as httpd:
-        print("Server started at localhost:" + str(args.port))
+        url_prefix = f"http://localhost:{args.port}/glic/test_client"
+        print(f"Server started on port {args.port}.",
+              "Use the following command line arguments to connect to it:")
+        print(f'--glic-fre-url="{url_prefix}/fre.html"',
+              f'--glic-guest-url="{url_prefix}/index.html"')
         httpd.serve_forever()
 
 

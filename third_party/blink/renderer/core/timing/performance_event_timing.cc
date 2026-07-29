@@ -23,11 +23,12 @@ PerformanceEventTiming* PerformanceEventTiming::Create(
     EventTimingReportingInfo reporting_info,
     bool cancelable,
     Node* target,
-    DOMWindow* source) {
+    DOMWindow* source,
+    uint32_t navigation_id) {
   CHECK(source);
   return MakeGarbageCollected<PerformanceEventTiming>(
       event_type, performance_entry_names::kEvent, std::move(reporting_info),
-      cancelable, target, source);
+      cancelable, target, source, navigation_id);
 }
 
 // static
@@ -37,7 +38,7 @@ PerformanceEventTiming* PerformanceEventTiming::CreateFirstInputTiming(
       MakeGarbageCollected<PerformanceEventTiming>(
           entry->name(), performance_entry_names::kFirstInput,
           *entry->GetEventTimingReportingInfo(), entry->cancelable(),
-          entry->target(), entry->source());
+          entry->target(), entry->source(), entry->navigationId());
   first_input->SetDuration(entry->duration_);
   if (entry->HasKnownInteractionID()) {
     first_input->SetInteractionIdAndOffset(entry->interactionId(),
@@ -46,20 +47,44 @@ PerformanceEventTiming* PerformanceEventTiming::CreateFirstInputTiming(
   return first_input;
 }
 
+// static
+String PerformanceEventTiming::FallbackReasonToString(FallbackReason reason) {
+  switch (reason) {
+    case FallbackReason::kNone:
+      return "None";
+    case FallbackReason::kUnexpectedFrameSource:
+      return "UnexpectedFrameSource";
+    case FallbackReason::kVisibilityChange:
+      return "VisibilityChange";
+    case FallbackReason::kModalDialog:
+      return "ModalDialog";
+    case FallbackReason::kSwapPromiseBroken:
+      return "SwapPromiseBroken";
+    case FallbackReason::kMacOSArtificialEvent:
+      return "MacOSArtificialEvent";
+    case FallbackReason::kDoesNotNeedNextPaint:
+      return "DoesNotNeedNextPaint";
+    default:
+      return "None";
+  }
+}
+
 PerformanceEventTiming::PerformanceEventTiming(
     const AtomicString& event_type,
     const AtomicString& entry_type,
     EventTimingReportingInfo reporting_info,
     bool cancelable,
     Node* target,
-    DOMWindow* source)
+    DOMWindow* source,
+    uint32_t navigation_id)
     : PerformanceEntry(
+          /*duration=*/0.0,
           event_type,
           DOMWindowPerformance::performance(*source->ToLocalDOMWindow())
               ->MonotonicTimeToDOMHighResTimeStamp(
                   reporting_info.creation_time),
-          0.0,
-          source),
+          source,
+          navigation_id),
       entry_type_(entry_type),
       cancelable_(cancelable),
       target_(target),
@@ -134,10 +159,13 @@ base::TimeTicks PerformanceEventTiming::GetEndTime() const {
   return reporting_info_.presentation_time;
 }
 
-void PerformanceEventTiming::UpdateFallbackTime(base::TimeTicks fallback_time) {
+void PerformanceEventTiming::UpdateFallbackTime(base::TimeTicks fallback_time,
+                                                FallbackReason reason) {
   if (reporting_info_.fallback_time.is_null() ||
       fallback_time < reporting_info_.fallback_time) {
     reporting_info_.fallback_time = fallback_time;
+
+    reporting_info_.fallback_reason = reason;
   }
 }
 

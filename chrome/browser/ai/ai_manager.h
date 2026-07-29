@@ -25,7 +25,6 @@
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "mojo/public/cpp/bindings/remote_set.h"
-#include "third_party/blink/public/mojom/ai/ai_common.mojom-forward.h"
 #include "third_party/blink/public/mojom/ai/ai_common.mojom.h"
 #include "third_party/blink/public/mojom/ai/ai_language_model.mojom-forward.h"
 #include "third_party/blink/public/mojom/ai/ai_manager.mojom.h"
@@ -77,15 +76,16 @@ class AIManager : public base::SupportsUserData::Data,
 
   // Returns if all of the language codes in `languages` are supported.
   static bool IsLanguagesSupported(
-      const std::vector<AILanguageCodePtr>& languages);
+      const std::vector<AILanguageCodePtr>& languages,
+      const base::flat_set<std::string_view>& allowed_languages);
 
   // Returns if `output` and all of the language codes in `input` and `context`
   // are supported.
   static bool IsLanguagesSupported(
       const std::vector<AILanguageCodePtr>& input,
       const std::vector<AILanguageCodePtr>& context,
-      const AILanguageCodePtr& output);
-
+      const AILanguageCodePtr& output,
+      const base::flat_set<std::string_view>& allowed_languages);
   // Return the default and max sampling params for the LanguageModel API.
   blink::mojom::AILanguageModelParamsPtr GetLanguageModelParams();
 

@@ -975,7 +975,8 @@ bool ComputedStyle::DiffNeedsFullLayout(const Document& document,
     if (HasStroke() != other.HasStroke()) {
       return true;
     }
-    if (HasDashArray() != other.HasDashArray()) {
+    if (static_cast<bool>(StrokeDashArray()) !=
+        static_cast<bool>(other.StrokeDashArray())) {
       return true;
     }
   }
@@ -2785,7 +2786,6 @@ bool ComputedStyle::MarkerShouldBeInside(
     if (IsA<HTMLLIElement>(parent) && !IsInsideListElement() &&
         PseudoElementLayoutObjectIsNeeded(kPseudoIdMarker, marker_style,
                                           &parent)) {
-      parent.GetDocument().CountUse(WebFeature::kInsideListMarkerPositionQuirk);
       return true;
     }
   }
@@ -2993,6 +2993,8 @@ const ComputedStyle* ComputedStyleBuilder::CloneStyle() const {
   ResetAccess();
   has_own_inherited_variables_ = false;
   has_own_non_inherited_variables_ = false;
+  has_own_animations_ = false;
+  has_own_transitions_ = false;
   return MakeGarbageCollected<ComputedStyle>(ComputedStyle::BuilderPassKey(),
                                              *this);
 }

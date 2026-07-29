@@ -221,6 +221,14 @@ bool WebAppBrowserController::HasReloadButton() const {
   return true;
 }
 
+bool WebAppBrowserController::HasPendingUpdate() const {
+  if (!base::FeatureList::IsEnabled(features::kWebAppPredictableAppUpdating)) {
+    return false;
+  }
+  const WebApp* app = registrar().GetAppById(app_id());
+  return app && app->pending_update_info().has_value();
+}
+
 #if !BUILDFLAG(IS_CHROMEOS)
 bool WebAppBrowserController::HasProfileMenuButton() const {
 #if BUILDFLAG(IS_MAC)
@@ -374,6 +382,10 @@ gfx::ImageSkia WebAppBrowserController::GetFallbackHomeTabIcon() const {
   return provider_->icon_manager().GetFaviconImageSkia(app_id());
 }
 
+gfx::ImageSkia WebAppBrowserController::GetAppMenuIcon() const {
+  return provider_->icon_manager().GetFaviconImageSkia(app_id());
+}
+
 ui::ImageModel WebAppBrowserController::GetWindowIcon() const {
   return GetWindowAppIcon();
 }
@@ -446,11 +458,11 @@ std::optional<SkColor> WebAppBrowserController::GetBackgroundColor() const {
   return result;
 }
 
-GURL WebAppBrowserController::GetAppStartUrl() const {
+const GURL& WebAppBrowserController::GetAppStartUrl() const {
   return registrar().GetAppStartUrl(app_id());
 }
 
-GURL WebAppBrowserController::GetAppNewTabUrl() const {
+const GURL& WebAppBrowserController::GetAppNewTabUrl() const {
   return registrar().GetAppNewTabUrl(app_id());
 }
 

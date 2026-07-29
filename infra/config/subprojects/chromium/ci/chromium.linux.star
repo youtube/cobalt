@@ -732,6 +732,10 @@ ci.thin_tester(
                 # https://crbug.com/1192997
                 args = [
                     "--test-launcher-filter-file=../../testing/buildbot/filters/ozone-linux.interactive_ui_tests_weston.filter",
+                    # TODO(crbug.com/334413759) Until bubble subsurfaces can be
+                    # properly tested using weston, disable the feature when
+                    # running tests there.
+                    "--disable-accelerated-subwindows-for-testing",
                 ],
             ),
             "ozone_x11_unittests": targets.remove(
@@ -1152,11 +1156,8 @@ ci.builder(
     ),
     gn_args = gn_args.config(
         configs = [
+            "ci/Linux Builder",
             "libcxx_modules",
-            "linux",
-            "release_builder",
-            "remoteexec",
-            "x64",
         ],
     ),
     targets = targets.bundle(
@@ -1164,8 +1165,6 @@ ci.builder(
             "all",
         ],
     ),
-    cores = 32,
-    ssd = True,
     gardener_rotations = args.ignore_default(None),
     tree_closing = False,
     console_view_entry = consoles.console_view_entry(
@@ -1178,6 +1177,7 @@ ci.builder(
     execution_timeout = 6 * time.hour,
     notifies = args.ignore_default([]),
     siso_keep_going = True,
+    siso_remote_linking = True,
 )
 
 ci.builder(

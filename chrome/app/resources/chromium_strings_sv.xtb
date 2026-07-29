@@ -211,6 +211,7 @@ Vissa funktioner kanske inte är tillgängliga och ändringar i inställningarna
 <translation id="3790262771324122253">Läs mer om varför vissa nedladdningar blockeras i Chromium</translation>
 <translation id="379589255253486813">Chromium meddelar dig om något behöver granskas</translation>
 <translation id="3802055581630249637">Sidor som du troligen kommer att besöka läses in i förväg i Chromium så att de läses in snabbare när du besöker dem</translation>
+<translation id="3810973564298564668">Hantera</translation>
 <translation id="3848258323044014972"><ph name="PAGE_TITLE" /> – Chromium</translation>
 <translation id="3885770153807205175">Språkväljare</translation>
 <translation id="388648406173476553">Anpassa och kontrollera Chromium. Någonting behöver ses över. Klicka här för mer information.</translation>
@@ -493,6 +494,7 @@ Chromium kan inte återställa dina inställningar.</translation>
 <translation id="7483335560992089831">Det går inte att installera samma version av Chromium som den som redan körs. Stäng Chromium och försök igen.</translation>
 <translation id="751935028865900641">Webbplatser bör fungera som förväntat. Du loggas ut från de flesta webbplatser när du stänger alla fönster i Chromium, med undantag för Google-kontot om du är inloggad i Chromium.</translation>
 <translation id="753534427205733210">{0,plural, =1{Om en minut startas Chromium om}other{Om # minuter startas Chromium om}}</translation>
+<translation id="7565444033145385702">Låt Chromium ta bort behörigheter från webbplatser som du inte har besökt nyligen för att skydda din data.</translation>
 <translation id="7582945390259497898">Chromium kan göra en uppskattning av dina intressen. Senare kan en webbplats fråga efter dina intressen i Chromium för att anpassa vilka annonser som visas.</translation>
 <translation id="7583399374488819119">Installationsprogram för <ph name="COMPANY_NAME" /></translation>
 <translation id="7585391435984513350">Du har inte besökt webbplatsen nyligen. Chromium har tagit bort <ph name="PERMISSION" /></translation>
@@ -578,6 +580,7 @@ Chromium kan inte återställa dina inställningar.</translation>
 <translation id="8648201657708811153">Google Chrome for Testing kan inte användas som standardwebbläsare.</translation>
 <translation id="8697124171261953979">Det styr också vilken sida som visas när du startar Chromium eller söker i adressfältet.</translation>
 <translation id="8704119203788522458">Det här är Chromium</translation>
+<translation id="8712637175834984815">Uppfattat</translation>
 <translation id="8719993436687031146">Vill du logga in i Chromium?</translation>
 <translation id="8747073452963259673">nedre vänstra hörnet av sökområdet: <ph name="LEFT" /> % åt vänster, <ph name="BOTTOM" /> % nedåt</translation>
 <translation id="8768722695577490596">Lösenord kan bara raderas utanför Chromium</translation>

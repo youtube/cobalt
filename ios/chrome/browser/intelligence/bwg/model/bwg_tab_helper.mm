@@ -12,12 +12,14 @@
 #import "components/prefs/scoped_user_pref_update.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_service.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_service_factory.h"
+#import "ios/chrome/browser/intelligence/bwg/model/bwg_snapshot_utils.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/model/url/url_util.h"
 #import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
+#import "ios/chrome/browser/snapshots/model/snapshot_tab_helper.h"
 #import "ios/web/public/navigation/navigation_context.h"
 #import "ios/web/public/web_state.h"
 #import "ios/web/util/content_type_util.h"
@@ -43,7 +45,7 @@ std::optional<const base::Value::Dict*> GetSessionDictFromPrefs(
   }
 
   std::optional<double> creation_timestamp =
-      current_session_dict->FindInt(kLastInteractionTimestampDictKey);
+      current_session_dict->FindDouble(kLastInteractionTimestampDictKey);
   if (!creation_timestamp) {
     return std::nullopt;
   }
@@ -70,8 +72,15 @@ BwgTabHelper::~BwgTabHelper() {}
 void BwgTabHelper::SetBwgUiShowing(bool showing) {
   is_bwg_ui_showing_ = showing;
 
+  // UI was foregrounded, so can no longer be active in background.
   if (is_bwg_ui_showing_) {
     is_bwg_session_active_in_background_ = false;
+  }
+
+  // UI was hidden but the session is not active, so update the snapshot to
+  // remove the overlay from it.
+  if (!is_bwg_ui_showing_ && !is_bwg_session_active_in_background_) {
+    UpdateWebStateSnapshotInStorage();
   }
 }
 
@@ -80,15 +89,23 @@ bool BwgTabHelper::GetIsBwgSessionActiveInBackground() {
 }
 
 bool BwgTabHelper::ShouldShowZeroState() {
-  bool is_srp = google_util::IsGoogleSearchUrl(web_state_->GetVisibleURL());
-
   std::optional<std::string> last_interaction_url = GetURLOnLastInteraction();
+  // Show zero-state if no last interaction URL was found.
   if (!last_interaction_url.has_value()) {
-    return !is_srp;
+    return true;
   }
 
-  return !is_srp && !web_state_->GetVisibleURL().EqualsIgnoringRef(
-                        GURL(last_interaction_url.value()));
+  // Show zero-state if the last interaction URL is different from the current
+  // one.
+  return !web_state_->GetVisibleURL().EqualsIgnoringRef(
+      GURL(last_interaction_url.value()));
+}
+
+bool BwgTabHelper::ShouldShowSuggestionChips() {
+  // Show suggestion chips if we should show zero-state and we're not currently
+  // on a Search results page.
+  return ShouldShowZeroState() &&
+         !google_util::IsGoogleSearchUrl(web_state_->GetVisibleURL());
 }
 
 void BwgTabHelper::CreateOrUpdateBwgSessionInStorage(std::string server_id) {
@@ -108,7 +125,7 @@ bool BwgTabHelper::IsBwgAvailableForWebState() {
   const bool is_profile_eligible =
       !profile->IsOffTheRecord() && bwg_service->IsEligibleForBwg();
 
-  // The web state is eligible for HTML and images that use http/https schemas,
+  // The web state is eligible for HTML and images that use http/https schemes.
   const GURL& url = web_state_->GetVisibleURL();
   const std::string mime_type = web_state_->GetContentsMimeType();
   const BOOL is_web_state_eligible =
@@ -148,14 +165,19 @@ void BwgTabHelper::SetBwgCommandsHandler(id<BWGCommands> handler) {
 
 void BwgTabHelper::WasShown(web::WebState* web_state) {
   if (is_bwg_session_active_in_background_) {
-    [bwg_commands_handler_ startBWGFlow];
+    [bwg_commands_handler_
+        startBWGFlowWithEntryPoint:bwg::EntryPoint::TabReopen];
   }
 }
 
 void BwgTabHelper::WasHidden(web::WebState* web_state) {
   if (is_bwg_ui_showing_) {
     is_bwg_session_active_in_background_ = true;
-    [bwg_commands_handler_ dismissBWGFlow];
+
+    // Update the snapshot before backgrounding BWG.
+    UpdateWebStateSnapshotInStorage();
+
+    [bwg_commands_handler_ dismissBWGFlowWithCompletion:nil];
   }
 }
 
@@ -214,4 +236,23 @@ std::optional<std::string> BwgTabHelper::GetURLOnLastInteraction() {
   }
 
   return std::nullopt;
+}
+
+void BwgTabHelper::UpdateWebStateSnapshotInStorage() {
+  SnapshotTabHelper* snapshot_tab_helper =
+      SnapshotTabHelper::FromWebState(web_state_);
+
+  if (!snapshot_tab_helper) {
+    return;
+  }
+
+  if (is_bwg_ui_showing_) {
+    UIImage* snapshot =
+        bwg_snapshot_utils::GetCroppedFullscreenSnapshot(web_state_->GetView());
+    if (snapshot) {
+      snapshot_tab_helper->UpdateSnapshotStorageWithImage(snapshot);
+    }
+  } else {
+    snapshot_tab_helper->UpdateSnapshotWithCallback(nil);
+  }
 }

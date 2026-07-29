@@ -483,9 +483,9 @@ TEST_F(RenderWidgetHostViewAndroidTest,
           env, /*downTime=*/0, /*eventTime=*/0, /*action=*/0, /*x=*/0, /*y=*/0,
           /*metaState=*/0);
   ui::MotionEventAndroidJava touch_down(
-      env, obj.obj(), 1.f, 0, 0, 0, base::TimeTicks::FromJavaNanoTime(time_ns),
+      env, obj, 1.f, 0, 0, 0, base::TimeTicks::FromJavaNanoTime(time_ns),
       ui::MotionEventAndroid::GetAndroidAction(action), 1, 0, 0, 0, 0, 0, 0, 0,
-      0, false, &p, nullptr);
+      false, &p, nullptr);
 
   EXPECT_CALL(*handler, OnTouchEventImpl(_, _)).WillOnce(Return(true));
   EXPECT_EQ(gesture_provider.GetCurrentDownEvent(), nullptr);
@@ -511,9 +511,9 @@ TEST_F(RenderWidgetHostViewAndroidTest, ResetGestureDetectionGeneratesCancel) {
           env, /*downTime=*/0, /*eventTime=*/0, /*action=*/0, /*x=*/0, /*y=*/0,
           /*metaState=*/0);
   ui::MotionEventAndroidJava touch_down(
-      env, obj.obj(), 1.f, 0, 0, 0, base::TimeTicks::FromJavaNanoTime(time_ns),
+      env, obj, 1.f, 0, 0, 0, base::TimeTicks::FromJavaNanoTime(time_ns),
       ui::MotionEventAndroid::GetAndroidAction(action), 1, 0, 0, 0, 0, 0, 0, 0,
-      0, false, &p, nullptr);
+      false, &p, nullptr);
   rwhva->OnTouchEvent(touch_down);
 
   auto& gesture_provider = rwhva->GetGestureProvider();
@@ -580,9 +580,9 @@ TEST_F(RenderWidgetHostViewAndroidTest, StopFlingingOnViz) {
           env, /*downTime=*/0, /*eventTime=*/0, /*action=*/0, /*x=*/0, /*y=*/0,
           /*metaState=*/0);
   ui::MotionEventAndroidJava touch_down1(
-      env, obj1.obj(), 1.f, 0, 0, 0, base::TimeTicks::FromJavaNanoTime(time_ns),
+      env, obj1, 1.f, 0, 0, 0, base::TimeTicks::FromJavaNanoTime(time_ns),
       ui::MotionEventAndroid::GetAndroidAction(action), 1, 0, 0, 0, 0, 0, 0, 0,
-      0, false, &p, nullptr);
+      false, &p, nullptr);
 
   EXPECT_CALL(*handler, OnTouchEventImpl(_, _)).WillOnce(Return(true));
   rwhva->OnTouchEvent(touch_down1);
@@ -594,9 +594,9 @@ TEST_F(RenderWidgetHostViewAndroidTest, StopFlingingOnViz) {
           env, /*downTime=*/0, /*eventTime=*/0, /*action=*/0, /*x=*/0, /*y=*/0,
           /*metaState=*/0);
   ui::MotionEventAndroidJava touch_down2(
-      env, obj2.obj(), 1.f, 0, 0, 0, base::TimeTicks::FromJavaNanoTime(time_ns),
+      env, obj2, 1.f, 0, 0, 0, base::TimeTicks::FromJavaNanoTime(time_ns),
       ui::MotionEventAndroid::GetAndroidAction(action), 1, 0, 0, 0, 0, 0, 0, 0,
-      0, false, &p, nullptr);
+      false, &p, nullptr);
 
   EXPECT_CALL(*handler, OnTouchEventImpl(_, _)).WillOnce(Return(false));
   rwhva->OnTouchEvent(touch_down2);
@@ -604,6 +604,70 @@ TEST_F(RenderWidgetHostViewAndroidTest, StopFlingingOnViz) {
   // been transferred to VizCompositorThread for handling.
   EXPECT_CALL(rir_delegate, StopFlingingOnViz).Times(1);
   base::RunLoop().RunUntilIdle();
+}
+
+// Test for scaling.
+class RenderWidgetHostViewAndroidScalingTest
+    : public RenderWidgetHostViewAndroidTest {
+ public:
+  RenderWidgetHostViewAndroidScalingTest() = default;
+  ~RenderWidgetHostViewAndroidScalingTest() override = default;
+
+  void SetScreenInfo(display::ScreenInfo screen_info) {
+    static_cast<CustomScreenInfoRenderWidgetHostViewAndroid*>(
+        render_widget_host_view_android())
+        ->SetScreenInfo(screen_info);
+  }
+
+  void OnPhysicalBackingSizeChanged(const gfx::Size& size) {
+    render_widget_host_view_android()
+        ->GetNativeView()
+        ->OnPhysicalBackingSizeChanged(size);
+  }
+
+  void OnVisibleViewportSizeChanged(int width, int height) {
+    GetParentView()->OnSizeChanged(width, height);
+  }
+
+ protected:
+  RenderWidgetHostViewAndroid* CreateRenderWidgetHostViewAndroid(
+      RenderWidgetHostImpl* widget_host) override {
+    return new CustomScreenInfoRenderWidgetHostViewAndroid(
+        widget_host, GetParentView(), GetParentLayer());
+  }
+};
+
+TEST_F(RenderWidgetHostViewAndroidScalingTest, UpdateOverrideScale) {
+  RenderWidgetHostViewAndroid* rwhva = render_widget_host_view_android();
+  ui::ViewAndroid* view = rwhva->GetNativeView();
+
+  const gfx::Size view_size_dip(100, 200);
+  const gfx::Size view_size_px =
+      ScaleToFlooredSize(view_size_dip, view->GetDipScale());
+  OnVisibleViewportSizeChanged(view_size_dip.width(), view_size_dip.height());
+
+  const gfx::Size backing_size_px(200, 400);
+  OnPhysicalBackingSizeChanged(backing_size_px);
+  EXPECT_EQ(backing_size_px, rwhva->GetCompositorViewportPixelSize());
+  EXPECT_EQ(view_size_dip, rwhva->GetRequestedRendererSize());
+  EXPECT_EQ(view_size_px, rwhva->GetRequestedRendererSizeDevicePx());
+  EXPECT_EQ(view_size_dip, rwhva->GetVisibleViewportSize());
+  EXPECT_EQ(view_size_px, rwhva->GetVisibleViewportSizeDevicePx());
+
+  display::ScreenInfo screen_info;
+  screen_info.device_scale_factor = 3.0f;
+  SetScreenInfo(screen_info);
+  EXPECT_EQ(3.0f, rwhva->GetDeviceScaleFactor());
+
+  const gfx::Size scaled_view_size_px = ScaleToFlooredSize(
+      view_size_dip, view->GetDipScale() * screen_info.device_scale_factor);
+  const gfx::Size scaled_backing_size_px =
+      ScaleToFlooredSize(backing_size_px, screen_info.device_scale_factor);
+  EXPECT_EQ(scaled_backing_size_px, rwhva->GetCompositorViewportPixelSize());
+  EXPECT_EQ(view_size_dip, rwhva->GetRequestedRendererSize());
+  EXPECT_EQ(scaled_view_size_px, rwhva->GetRequestedRendererSizeDevicePx());
+  EXPECT_EQ(view_size_dip, rwhva->GetVisibleViewportSize());
+  EXPECT_EQ(scaled_view_size_px, rwhva->GetVisibleViewportSizeDevicePx());
 }
 
 // Tests rotation and fullscreen cases that are supported by visual properties

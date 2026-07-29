@@ -26,6 +26,8 @@ enum ProfileReadyState {
   kReady,
   // The profile is not eligible for Glic.
   kIneligible,
+  // Similar to kIneligible, but the admin has explicitly disabled Glic.
+  kDisabledByAdmin,
 };
 
 // Functions provided by the WebUI page.
@@ -77,6 +79,8 @@ enum WebUiState {
   kSignIn = 10,
   // Web view is displayed, but it is an error page.
   kGuestError = 11,
+  // Similar to kUnavailable, but the admin has explicitly disabled Glic.
+  kDisabledByAdmin = 12,
 };
 
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:WebUiState)
@@ -133,6 +137,9 @@ enum PerformActionsErrorReason {
   [Default] kUnknown = 0,
   // The serialized actions proto failed to parse.
   [MinVersion=1] kInvalidProto = 1,
+
+  // The actions proto did not set a task id.
+  [MinVersion=2] kMissingTaskId = 2,
 };
 
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:PerformActionsErrorReason)
@@ -246,6 +253,8 @@ struct WebClientInitialState {
   bool enable_maybe_refresh_user_status;
   // Whether multi tab is enabled.
   bool enable_multi_tab;
+  // The list of capabilities of the host.
+  array<HostCapability> host_capabilities;
 };
 
 // Options for getting tab context.
@@ -256,7 +265,7 @@ struct GetTabContextOptions {
   uint32 inner_text_bytes_limit;
   // Whether to include a viewport screenshot in the response.
   bool include_viewport_screenshot;
-  // Whether to include annotated page content in the response.
+  // Whether to include  in the response.
   bool include_annotated_page_content;
   // Maximum number of meta tags (per Document)to include in the response.
   uint32 max_meta_tags;
@@ -265,6 +274,11 @@ struct GetTabContextOptions {
   // Maximum size of PDF data returned. If PDF data exceeds this size, no PDF
   // data is returned.
   uint32 pdf_size_limit;
+  // The mode of the annotated page content if included in the response. This
+  // maps directly to the AnnotatedPageContentMode enum in the proto.
+  //
+  // If invalid, falls back to using ANNOTATED_PAGE_CONTENT_MODE_DEFAULT.
+  uint32 annotated_page_content_mode = 0;
 };
 
 // Options for requesting pin candidates.
@@ -691,6 +705,11 @@ interface WebClientHandler {
   // For example, an RPC may have been rejected due to the the service being
   // disabled.
   MaybeRefreshUserStatus();
+
+  // Returns whether the debugger is attached to the webview.
+  // This is useful for debugging the webview without having the responsiveness
+  // check get in the way.
+  IsDebuggerAttached() => (bool is_attached_to_webview);
 };
 
 // Data sent from the browser to the web client with panel opening information.
@@ -1005,4 +1024,10 @@ struct OpenSettingsOptions {
   // Optionally select a field to be highlighted while opening the Glic settings
   // page.
   SettingsPageField highlightField;
+};
+
+// Describes the capability of the glic host.
+enum HostCapability {
+  // Glic host supports ScrollTo() with PDF documents.
+  kScrollToPdf = 0,
 };

@@ -50,7 +50,8 @@ void LogicalLineBuilder::CreateLine(LineInfo* line_info,
   const ComputedStyle& line_style = line_info->LineStyle();
   box_states_->SetIsEmptyLine(line_info->IsEmptyLine());
   InlineBoxState* box = box_states_->OnBeginPlaceItems(
-      node_, line_style, baseline_type_, quirks_mode_, line_box);
+      node_, line_style, *line_items, baseline_type_, quirks_mode_,
+      should_scale_line_height_, line_box);
 #if EXPENSIVE_DCHECKS_ARE_ON()
   if (main_line_helper) {
     main_line_helper->CheckBoxStates(*line_info, should_scale_line_height_);
@@ -62,7 +63,12 @@ void LogicalLineBuilder::CreateLine(LineInfo* line_info,
   // have been to make sure that there's always room for the list item marker,
   // but that doesn't explain why it's done for every line...
   if (quirks_mode_ && ComputedStyle::IsDisplayListItem(line_style.Display())) {
-    box->ComputeTextMetrics(line_style, *box->font, baseline_type_);
+    box->ComputeTextMetrics(
+        line_style, *box->font, baseline_type_,
+        should_scale_line_height_
+            ? FindTextScale(*line_items, /* start_index */ 0,
+                            /* initial_nesting_level */ 0)
+            : 1.0f);
   }
 
 #if DCHECK_IS_ON()
@@ -123,7 +129,8 @@ InlineBoxState* LogicalLineBuilder::HandleItemResults(
     LogicalLineItems* line_box,
     InlineLayoutAlgorithm* main_line_helper,
     InlineBoxState* box) {
-  for (InlineItemResult& item_result : line_items) {
+  for (wtf_size_t i = 0; i < line_items.size(); ++i) {
+    InlineItemResult& item_result = line_items[i];
     DCHECK(item_result.item);
     const InlineItem& item = *item_result.item;
     if (item.Type() == InlineItem::kText) {
@@ -142,11 +149,15 @@ InlineBoxState* LogicalLineBuilder::HandleItemResults(
       }
       DCHECK(item_result.shape_result);
 
-      float block_scale = item_result.fit_text_scale.is_scaled_inline_only
-                              ? 1.0f
-                              : item_result.fit_text_scale.scale;
+      float scale = 1.0f;
+      float block_scale = 1.0f;
+      if (const auto* fit_text_scale = item_result.fit_text_scale.Get()) {
+        scale = fit_text_scale->scale;
+        block_scale = fit_text_scale->is_scaled_inline_only ? 1.0f : scale;
+      }
       if (quirks_mode_) [[unlikely]] {
-        box->EnsureTextMetrics(*item.Style(), *box->font, baseline_type_);
+        box->EnsureTextMetrics(*item.Style(), *box->font, baseline_type_,
+                               block_scale);
       }
 
       // Take all used fonts into account if 'line-height: normal'.
@@ -161,8 +172,7 @@ InlineBoxState* LogicalLineBuilder::HandleItemResults(
         LayoutUnit hyphen_inline_size = item_result.hyphen.InlineSize();
         line_box->AddChild(
             item, item_result, item_result.TextOffset(), box->text_top,
-            LayoutUnit((item_result.inline_size - hyphen_inline_size) *
-                       item_result.fit_text_scale.scale),
+            LayoutUnit((item_result.inline_size - hyphen_inline_size) * scale),
             box->text_height, item.BidiLevel());
         PlaceHyphen(item_result, hyphen_inline_size, line_box, box);
       } else if (node_.IsTextCombine()) [[unlikely]] {
@@ -177,8 +187,7 @@ InlineBoxState* LogicalLineBuilder::HandleItemResults(
       } else {
         line_box->AddChild(item, item_result, item_result.TextOffset(),
                            box->text_top,
-                           LayoutUnit(item_result.inline_size *
-                                      item_result.fit_text_scale.scale),
+                           LayoutUnit(item_result.inline_size * scale),
                            box->text_height, item.BidiLevel());
       }
 
@@ -189,7 +198,10 @@ InlineBoxState* LogicalLineBuilder::HandleItemResults(
       PlaceControlItem(item, line_info.ItemsData().text_content, &item_result,
                        line_box, box);
     } else if (item.Type() == InlineItem::kOpenTag) {
-      box = HandleOpenTag(item, item_result, line_box);
+      float text_scale = should_scale_line_height_
+                             ? FindTextScale(line_items, i + 1, 0u)
+                             : 1.0f;
+      box = HandleOpenTag(item, item_result, text_scale, line_box);
     } else if (item.Type() == InlineItem::kCloseTag) {
       box = HandleCloseTag(item, item_result, line_box, box);
     } else if (item.Type() == InlineItem::kAtomicInline) {
@@ -269,15 +281,18 @@ InlineBoxState* LogicalLineBuilder::HandleItemResults(
 InlineBoxState* LogicalLineBuilder::HandleOpenTag(
     const InlineItem& item,
     const InlineItemResult& item_result,
+    float text_scale,
     LogicalLineItems* line_box) {
-  InlineBoxState* box = box_states_->OnOpenTag(
-      constraint_space_, item, item_result, baseline_type_, line_box);
+  InlineBoxState* box =
+      box_states_->OnOpenTag(constraint_space_, item, item_result,
+                             baseline_type_, text_scale, line_box);
   // Compute text metrics for all inline boxes since even empty inlines
   // influence the line height, except when quirks mode and the box is empty
   // for the purpose of empty block calculation.
   // https://drafts.csswg.org/css2/visudet.html#line-height
   if (!quirks_mode_ || !item.IsEmptyItem()) {
-    box->ComputeTextMetrics(*item.Style(), *box->font, baseline_type_);
+    box->ComputeTextMetrics(*item.Style(), *box->font, baseline_type_,
+                            text_scale);
   }
 
   if (item.Style()->HasMask()) {
@@ -296,7 +311,11 @@ InlineBoxState* LogicalLineBuilder::HandleCloseTag(
     LogicalLineItems* line_box,
     InlineBoxState* box) {
   if (quirks_mode_ && !item.IsEmptyItem()) [[unlikely]] {
-    box->EnsureTextMetrics(*item.Style(), *box->font, baseline_type_);
+    // The following EnsureTextMetrics is helpful only if this line doesn't
+    // have text in the tag. We don't need to scale this metrics.
+    constexpr float kFixedScale = 1.0f;
+    box->EnsureTextMetrics(*item.Style(), *box->font, baseline_type_,
+                           kFixedScale);
   }
   box =
       box_states_->OnCloseTag(constraint_space_, line_box, box, baseline_type_);
@@ -341,7 +360,10 @@ void LogicalLineBuilder::PlaceControlItem(const InlineItem& item,
   }
 
   if (quirks_mode_ && !box->HasMetrics()) [[unlikely]] {
-    box->EnsureTextMetrics(*item.Style(), *box->font, baseline_type_);
+    // Control items are not scaled.
+    constexpr float kFixedScale = 1.0f;
+    box->EnsureTextMetrics(*item.Style(), *box->font, baseline_type_,
+                           kFixedScale);
   }
 
   line_box->AddChild(item, std::move(item_result->shape_result),
@@ -359,10 +381,13 @@ void LogicalLineBuilder::PlaceHyphen(const InlineItemResult& item_result,
   DCHECK(item_result.hyphen);
   DCHECK_EQ(hyphen_inline_size, item_result.hyphen.InlineSize());
   const InlineItem& item = *item_result.item;
-  hyphen_inline_size *= item_result.fit_text_scale.scale;
+  const auto* fit_text_scale = item_result.fit_text_scale.Get();
+  if (fit_text_scale) {
+    hyphen_inline_size *= fit_text_scale->scale;
+  }
   line_box->AddChild(
       item, ShapeResultView::Create(&item_result.hyphen.GetShapeResult()),
-      item_result.hyphen.Text(), item_result.fit_text_scale, box->text_top,
+      item_result.hyphen.Text(), fit_text_scale, box->text_top,
       hyphen_inline_size, box->text_height, item.BidiLevel());
 }
 
@@ -388,7 +413,10 @@ InlineBoxState* LogicalLineBuilder::PlaceAtomicInline(
   } else {
     // The metrics should be as text instead of atomic inline box.
     const auto& style = layout_object->Parent()->StyleRef();
-    box->ComputeTextMetrics(style, *style.GetFont(), baseline_type_);
+    // TextCombine items are not scaled.
+    constexpr float kFixedScale = 1.0f;
+    box->ComputeTextMetrics(style, *style.GetFont(), baseline_type_,
+                            kFixedScale);
     // Note: |item_result->spacing_before| is non-zero if this |item_result|
     // is |LayoutTextCombine| and after CJK character.
     // See "text-combine-justify.html".
@@ -575,8 +603,10 @@ void LogicalLineBuilder::PlaceRubyAnnotation(
 void LogicalLineBuilder::PlaceListMarker(const InlineItem& item,
                                          InlineItemResult* item_result) {
   if (quirks_mode_) [[unlikely]] {
+    // kListMarker items are not scaled.
+    constexpr float kFixedScale = 1.0f;
     box_states_->LineBoxState().EnsureTextMetrics(
-        *item.Style(), *item.Style()->GetFont(), baseline_type_);
+        *item.Style(), *item.Style()->GetFont(), baseline_type_, kFixedScale);
   }
 }
 
@@ -624,6 +654,7 @@ void LogicalLineBuilder::BidiReorder(
     }
     levels.push_back(item.bidi_level);
   }
+  DCHECK_EQ(line_box->size(), levels.size());
 
   // For opaque items, copy bidi levels from adjacent items.
   if (has_opaque_items) {
@@ -691,13 +722,19 @@ void LogicalLineBuilder::RebuildBoxStates(const LineInfo& line_info,
 
   // Create box states for tags that are not closed yet.
   LogicalLineItems& line_box = context_->AcquireTempLogicalLineItems();
-  box_states_->OnBeginPlaceItems(node_, line_info.LineStyle(), baseline_type_,
-                                 quirks_mode_, &line_box);
-  for (const InlineItem* item : open_items) {
+  box_states_->OnBeginPlaceItems(
+      node_, line_info.LineStyle(), line_info.Results(), baseline_type_,
+      quirks_mode_, should_scale_line_height_, &line_box);
+  for (wtf_size_t i = 0; i < open_items.size(); ++i) {
+    const InlineItem* item = open_items[i];
     InlineItemResult item_result;
     LineBreaker::ComputeOpenTagResult(*item, constraint_space_,
                                       node_.IsSvgText(), &item_result);
-    HandleOpenTag(*item, item_result, &line_box);
+    float text_scale =
+        should_scale_line_height_
+            ? FindTextScale(line_info.Results(), 0u, open_items.size() - i - 1)
+            : 1.0f;
+    HandleOpenTag(*item, item_result, text_scale, &line_box);
   }
   context_->ReleaseTempLogicalLineItems(line_box);
 }

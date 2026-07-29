@@ -167,6 +167,7 @@ source_set("profile_util_impl") {
     "//chrome/browser/profiles",
     "//chrome/browser/safe_browsing",
     "//chrome/browser/ui:ui_features",
+    "//chrome/browser/ui/profiles",
     "//chrome/common",
     "//chrome/common:constants",
     "//components/account_id",
@@ -259,7 +260,9 @@ source_set("profiles_extra_parts_impl") {
     "//chrome/browser/safe_browsing:verdict_cache_manager_factory",
     "//chrome/browser/search_engine_choice",
     "//chrome/browser/search_engines",
+    "//chrome/browser/segmentation_platform",
     "//chrome/browser/serial",
+    "//chrome/browser/signin",
     "//chrome/browser/storage_access_api",
     "//chrome/browser/sync",
     "//chrome/browser/ui",
@@ -395,7 +398,10 @@ source_set("profiles_extra_parts_impl") {
   }
 
   if (enable_dice_support) {
-    deps += [ "//chrome/browser/ui/signin" ]
+    deps += [
+      "//chrome/browser/profiles/batch_upload",
+      "//chrome/browser/ui/signin",
+    ]
   }
 }
 

@@ -232,6 +232,7 @@
 <translation id="3785324443014631273">ছাইন ইন কৰোঁতে কিবা আসোঁৱাহ হোৱাৰ কাৰণে ChromeOS Flexএ আপোনাৰ ডেটা ছিংক কৰিব নোৱাৰিলে।</translation>
 <translation id="3795971588916395511">Google ChromeOS</translation>
 <translation id="3809772425479558446">Google Chromeৰ বাবে Windows 10 অথবা তাৰ পাছৰ সংস্কৰণৰ আৱশ্যক।</translation>
+<translation id="3810973564298564668">পৰিচালনা কৰক</translation>
 <translation id="383928141529488001">Google Chromeক ব্লুটুথ ডিভাইচসমূহ অন্বেষণ কৰিবলৈ 
  ব্লুটুথ এক্সেছৰ আৱশ্যক। <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="386202838227397562">অনুগ্ৰহ কৰি Google Chrome windows বন্ধ কৰি পুনৰ চেষ্টা কৰক।</translation>
@@ -523,6 +524,7 @@ Google Chromeএ আপোনাৰ ছেটিংসমূহ পুনৰু�
 <translation id="7583399374488819119"><ph name="COMPANY_NAME" /> ইনষ্টলাৰ</translation>
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
 <translation id="7626072681686626474"><ph name="MANAGER" />ৰ বাবে আপুনি এই ডিভাইচটো ব্যৱহাৰ কৰাৰ পূৰ্বে তলত উল্লেখ কৰা সেৱাৰ চৰ্তাৱলী পঢ়ি তাত সন্মতি দিয়াৰ আৱশ্যক। এই চৰ্তাৱলীয়ে ChromeOSৰ চৰ্তাৱলী বিস্তাৰ, সংশোধন অথবা সীমিত নকৰে।</translation>
+<translation id="7627609214560473136">আপোনাৰ ডেটা সুৰক্ষিত কৰিবলৈ, আপুনি শেহতীয়াকৈ নোচোৱা ছাইটসমূহৰ পৰা Chromeক অনুমতিসমূহ আঁতৰাবলৈ দিয়ক।</translation>
 <translation id="7629695634924605473">Chromeএ আপোনাৰ পাছৱৰ্ডসমূহ কেতিয়াবা হেক কৰা হৈছিল নেকি আপোনাক জানিবলৈ দিয়ে</translation>
 <translation id="7641148173327520642">আপোনাৰ ছিষ্টেমৰ প্ৰশাসকে <ph name="TARGET_URL_HOSTNAME" /> এক্সেছ কৰিবৰ কাৰণে <ph name="ALTERNATIVE_BROWSER_NAME" /> খুলিবলৈ Google Chromeক কনফিগাৰ কৰিছে।</translation>
 <translation id="7649070708921625228">সহায়</translation>
@@ -609,6 +611,7 @@ Google Chromeএ আপোনাৰ ছেটিংসমূহ পুনৰু�
 <translation id="8649026945479135076">আপোনাৰ অভিজ্ঞতা ব্যক্তিগতকৃত কৰিবলৈ, আপুনি চোৱা ছাইটে আপোনাৰ আগ্ৰহৰ বিষয়সমূহ মনত ৰখাটো সাধাৰণ কথা। ছাইটে আপোনাৰ আগ্ৰহৰ বিষয়ে তথ্য Chromeৰ জৰিয়তে ষ্ট’ৰ কৰিবও পাৰে।</translation>
 <translation id="8669527147644353129">Google Chrome সহায়ক</translation>
 <translation id="8679801911857917785">আপুনি Chrome আৰম্ভ কৰিলে কি পৃষ্ঠা দেখুওৱা হ’ব সেয়াও ই নিয়ন্ত্ৰণ কৰে।</translation>
+<translation id="8712637175834984815">বুজি পালোঁ</translation>
 <translation id="8712767363896337380">প্ৰায় আপ টু ডে’ট হৈছে! আপডে’ট হোৱাটো সম্পূৰ্ণ কৰিবলৈ Chrome পুনৰ লঞ্চ কৰক।</translation>
 <translation id="8718062187489036808">Chromeৰ পৰা ছাইন আউট কৰক</translation>
 <translation id="873133009373065397">Google Chromeএ ডিফ’ল্ট ব্ৰাউজাৰ নির্ধাৰণ বা ছেট কৰিব নোৱাৰে</translation>

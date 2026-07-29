@@ -9,11 +9,11 @@
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/extensions/chrome_content_browser_client_extensions_part.h"
-#include "chrome/browser/extensions/chrome_extension_host_delegate.h"
 #include "chrome/browser/extensions/chrome_extensions_browser_client.h"
 #include "chrome/browser/extensions/chrome_extensions_browser_interface_binders.h"
 #include "chrome/browser/extensions/chrome_kiosk_delegate.h"
 #include "chrome/browser/extensions/chrome_process_manager_delegate.h"
+#include "chrome/browser/extensions/chrome_safe_browsing_delegate.h"
 #include "chrome/browser/extensions/error_console/error_console.h"
 #include "chrome/browser/extensions/menu_manager.h"
 #include "chrome/browser/extensions/user_script_listener.h"
@@ -23,7 +23,6 @@
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/common/url_constants.h"
 #include "content/public/browser/site_instance.h"
-#include "extensions/browser/api/content_settings/content_settings_service.h"
 #include "extensions/browser/extensions_browser_interface_binders.h"
 
 namespace extensions {
@@ -33,12 +32,9 @@ void ChromeExtensionsBrowserClient::Init() {
 
   // Must occur after g_browser_process is initialized.
   user_script_listener_ = std::make_unique<UserScriptListener>();
-}
 
-void ChromeExtensionsBrowserClient::GetEarlyExtensionPrefsObservers(
-    content::BrowserContext* context,
-    std::vector<EarlyExtensionPrefsObserver*>* observers) const {
-  observers->push_back(ContentSettingsService::Get(context));
+  // Full safe browsing is supported so use the Chrome delegate.
+  safe_browsing_delegate_ = std::make_unique<ChromeSafeBrowsingDelegate>();
 }
 
 ProcessManagerDelegate*
@@ -53,11 +49,6 @@ ChromeExtensionsBrowserClient::GetControlledFrameEmbedderURLLoader(
     content::BrowserContext* browser_context) {
   return web_app::IsolatedWebAppURLLoaderFactory::CreateForFrame(
       browser_context, app_origin, frame_tree_node_id);
-}
-
-std::unique_ptr<ExtensionHostDelegate>
-ChromeExtensionsBrowserClient::CreateExtensionHostDelegate() {
-  return std::make_unique<ChromeExtensionHostDelegate>();
 }
 
 void ChromeExtensionsBrowserClient::RegisterBrowserInterfaceBindersForFrame(

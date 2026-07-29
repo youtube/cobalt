@@ -137,8 +137,8 @@ scoped_refptr<const ::blink::SecurityOrigin> ConvertToBlink(
 template <
     typename InElement,
     typename OutElement = decltype(ConvertToBlink(std::declval<InElement>()))>
-Vector<OutElement> ConvertToBlink(const std::vector<InElement>& in) {
-  Vector<OutElement> out;
+::blink::Vector<OutElement> ConvertToBlink(const std::vector<InElement>& in) {
+  ::blink::Vector<OutElement> out;
   out.reserve(base::checked_cast<wtf_size_t>(in.size()));
   for (const auto& element : in) {
     out.push_back(ConvertToBlink(element));
@@ -150,9 +150,9 @@ template <typename InKey,
           typename InValue,
           typename OutKey = decltype(ConvertToBlink(std::declval<InKey>())),
           typename OutValue = decltype(ConvertToBlink(std::declval<InValue>()))>
-HashMap<OutKey, OutValue> ConvertToBlink(
+::blink::HashMap<OutKey, OutValue> ConvertToBlink(
     const base::flat_map<InKey, InValue>& in) {
-  HashMap<OutKey, OutValue> out;
+  ::blink::HashMap<OutKey, OutValue> out;
   for (const auto& element : in) {
     out.insert(ConvertToBlink(element.first), ConvertToBlink(element.second));
   }
@@ -177,22 +177,24 @@ blink::IntegrityPolicy::Source ConvertToBlink(
   return blink::IntegrityPolicy::Source(in);
 }
 
-blink::CSPHashSourcePtr ConvertToBlink(const CSPHashSourcePtr& in) {
+blink::IntegrityMetadataPtr ConvertToBlink(const IntegrityMetadataPtr& in) {
   CHECK(in);
-  Vector<uint8_t> hash_value = ConvertToBlink(in->value);
+  ::blink::Vector<uint8_t> hash_value = ConvertToBlink(in->value);
 
-  return blink::CSPHashSource::New(in->algorithm, std::move(hash_value));
+  return blink::IntegrityMetadata::New(in->algorithm, std::move(hash_value));
 }
 
 blink::CSPSourceListPtr ConvertToBlink(const CSPSourceListPtr& source_list) {
   CHECK(source_list);
 
+  using ::blink::Vector;
   Vector<blink::CSPSourcePtr> sources = ConvertToBlink(source_list->sources);
   Vector<::blink::String> nonces = ConvertToBlink(source_list->nonces);
-  Vector<blink::CSPHashSourcePtr> hashes = ConvertToBlink(source_list->hashes);
-  Vector<blink::CSPHashSourcePtr> url_hashes =
+  Vector<blink::IntegrityMetadataPtr> hashes =
+      ConvertToBlink(source_list->hashes);
+  Vector<blink::IntegrityMetadataPtr> url_hashes =
       ConvertToBlink(source_list->url_hashes);
-  Vector<blink::CSPHashSourcePtr> eval_hashes =
+  Vector<blink::IntegrityMetadataPtr> eval_hashes =
       ConvertToBlink(source_list->eval_hashes);
 
   return blink::CSPSourceList::New(
@@ -201,8 +203,9 @@ blink::CSPSourceListPtr ConvertToBlink(const CSPSourceListPtr& source_list) {
       source_list->allow_star, source_list->allow_inline,
       source_list->allow_inline_speculation_rules, source_list->allow_eval,
       source_list->allow_wasm_eval, source_list->allow_wasm_unsafe_eval,
-      source_list->allow_dynamic, source_list->allow_unsafe_hashes,
-      source_list->report_sample, source_list->report_hash_algorithm);
+      source_list->allow_dynamic, source_list->allow_dynamic_url,
+      source_list->allow_unsafe_hashes, source_list->report_sample,
+      source_list->report_hash_algorithm);
 }
 
 blink::ContentSecurityPolicyHeaderPtr ConvertToBlink(
@@ -213,7 +216,7 @@ blink::ContentSecurityPolicyHeaderPtr ConvertToBlink(
 }
 
 blink::IntegrityPolicyPtr ConvertToBlink(const IntegrityPolicyPtr& in) {
-  Vector<blink::IntegrityPolicy::Destination> blocked_destinations =
+  ::blink::Vector<blink::IntegrityPolicy::Destination> blocked_destinations =
       ConvertToBlink(in->blocked_destinations);
   return blink::IntegrityPolicy::New(
       std::move(blocked_destinations), ConvertToBlink(in->sources),

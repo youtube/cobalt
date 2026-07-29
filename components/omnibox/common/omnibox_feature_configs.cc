@@ -246,6 +246,18 @@ Toolbelt::Toolbelt() {
       base::FeatureParam<bool>(&kOmniboxToolbelt, "ShowTabsActionOnNtp",
                                enabled)
           .Get();
+  rebuild_button_row_views =
+      base::FeatureParam<bool>(&kOmniboxToolbelt, "RebuildButtonRowViews",
+                               enabled)
+          .Get();
+  use_action_icons_in_location_bar =
+      base::FeatureParam<bool>(&kOmniboxToolbelt, "UseActionIconsInLocationBar",
+                               enabled)
+          .Get();
+  select_toolbelt_before_opening =
+      base::FeatureParam<bool>(&kOmniboxToolbelt, "SelectToolbeltBeforeOpening",
+                               enabled)
+          .Get();
 }
 
 DocumentProvider::DocumentProvider() {

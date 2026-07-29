@@ -19,26 +19,6 @@
 #import "ios/chrome/common/channel_info.h"
 #import "ui/base/device_form_factor.h"
 
-BASE_FEATURE(kSegmentedDefaultBrowserPromo,
-             "SegmentedDefaultBrowserPromo",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-const char kSegmentedDefaultBrowserExperimentType[] =
-    "SegmentedDefaultBrowserExperimentType";
-
-bool IsSegmentedDefaultBrowserPromoEnabled() {
-  return base::FeatureList::IsEnabled(kSegmentedDefaultBrowserPromo);
-}
-
-SegmentedDefaultBrowserExperimentType
-SegmentedDefaultBrowserExperimentTypeEnabled() {
-  return static_cast<SegmentedDefaultBrowserExperimentType>(
-      base::GetFieldTrialParamByFeatureAsInt(
-          kSegmentedDefaultBrowserPromo, kSegmentedDefaultBrowserExperimentType,
-          /*default_value=*/
-          (int)SegmentedDefaultBrowserExperimentType::kStaticPromo));
-}
-
 BASE_FEATURE(kIOSKeyboardAccessoryUpgradeForIPad,
              "IOSKeyboardAccessoryUpgradeForIPad",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -265,6 +245,10 @@ const char kNTPMIAEntrypointParamEnlargedFakeboxNoIncognito[] =
 BASE_FEATURE(kNTPMIAEntrypoint,
              "kNTPMIAEntrypoint",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When enabled the AIM ZPS entrypoint will open the AIM prototype which
+// contains temporary UI exploration for AIM.
+BASE_FEATURE(kAIMPrototype, "AIMPrototype", base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kEnableTraitCollectionWorkAround,
              "EnableTraitCollectionWorkAround",
@@ -1010,8 +994,7 @@ BASE_FEATURE(kDefaultBrowserBannerPromo,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 constexpr base::FeatureParam<int> kDefaultBrowserBannerPromoImpressionLimit{
-    &kDefaultBrowserBannerPromo, "DefaultBrowserBannerPromoImpressionLimit",
-    10};
+    &kDefaultBrowserBannerPromo, "DefaultBrowserBannerPromoImpressionLimit", 5};
 
 bool IsDefaultBrowserBannerPromoEnabled() {
   return base::FeatureList::IsEnabled(kDefaultBrowserBannerPromo);
@@ -1293,4 +1276,23 @@ bool IsFeedbackIncludeGWSVariationsEnabled() {
 bool IsDefaultBrowserPromoPropensityModelEnabled() {
   return base::FeatureList::IsEnabled(
       segmentation_platform::features::kDefaultBrowserPromoPropensityModel);
+}
+
+BASE_FEATURE(kIOSTrustedVaultNotification,
+             "IOSTrustedVaultNotification",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsIOSTrustedVaultNotificationEnabled() {
+  return base::FeatureList::IsEnabled(kIOSTrustedVaultNotification);
+}
+
+BASE_FEATURE(kDiamondPrototype,
+             "DiamondPrototype",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsDiamondPrototypeEnabled() {
+  if (ui::GetDeviceFormFactor() != ui::DEVICE_FORM_FACTOR_PHONE) {
+    return false;
+  }
+  return base::FeatureList::IsEnabled(kDiamondPrototype);
 }

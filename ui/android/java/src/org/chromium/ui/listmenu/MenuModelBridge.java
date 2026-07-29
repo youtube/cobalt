@@ -4,6 +4,8 @@
 
 package org.chromium.ui.listmenu;
 
+import static org.chromium.ui.listmenu.ListMenuItemProperties.CLICK_LISTENER;
+
 import android.graphics.Bitmap;
 
 import org.jni_zero.CalledByNative;
@@ -73,7 +75,7 @@ public class MenuModelBridge {
                         .with(ListMenuItemProperties.TITLE, label)
                         .with(ListMenuItemProperties.START_ICON_BITMAP, bitmap)
                         .with(ListMenuItemProperties.ENABLED, isEnabled)
-                        .with(ListMenuItemProperties.CLICK_LISTENER, (view) -> callback.run());
+                        .with(CLICK_LISTENER, (view) -> callback.run());
         mItems.add(new ListItem(ListItemType.CONTEXT_MENU_ITEM, modelBuilder.build()));
     }
 
@@ -96,7 +98,7 @@ public class MenuModelBridge {
                         .with(ContextMenuCheckItemProperties.TITLE, label)
                         .with(ContextMenuCheckItemProperties.CHECKED, isChecked)
                         .with(ContextMenuCheckItemProperties.ENABLED, isEnabled)
-                        .with(ContextMenuCheckItemProperties.ON_CLICK, callback);
+                        .with(CLICK_LISTENER, (view) -> callback.run());
         mItems.add(
                 new ListItem(ListItemType.CONTEXT_MENU_ITEM_WITH_CHECKBOX, modelBuilder.build()));
     }
@@ -120,10 +122,24 @@ public class MenuModelBridge {
                         .with(ContextMenuRadioItemProperties.TITLE, label)
                         .with(ContextMenuRadioItemProperties.SELECTED, isSelected)
                         .with(ContextMenuRadioItemProperties.ENABLED, isEnabled)
-                        .with(ContextMenuRadioItemProperties.ON_CLICK, callback);
+                        .with(CLICK_LISTENER, (view) -> callback.run());
         mItems.add(
                 new ListItem(
                         ListItemType.CONTEXT_MENU_ITEM_WITH_RADIO_BUTTON, modelBuilder.build()));
+    }
+
+    /** Adds a context menu item that is a submenu parent. */
+    @CalledByNative
+    private void addSubmenu(
+            @JniType("std::u16string") final String label,
+            final boolean isEnabled,
+            MenuModelBridge submenuItems) {
+        PropertyModel.Builder modelBuilder =
+                new PropertyModel.Builder(ContextMenuSubmenuItemProperties.ALL_KEYS)
+                        .with(ContextMenuSubmenuItemProperties.TITLE, label)
+                        .with(ListMenuItemProperties.ENABLED, isEnabled)
+                        .with(ContextMenuSubmenuItemProperties.SUBMENU_ITEMS, submenuItems.mItems);
+        mItems.add(new ListItem(ListItemType.CONTEXT_MENU_ITEM_WITH_SUBMENU, modelBuilder.build()));
     }
 
     /** Adds a divider to the context menu. */

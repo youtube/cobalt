@@ -66,7 +66,8 @@ class GraphBuilderOrt {
       const mojom::GraphInfo& graph_info,
       ContextProperties context_properties,
       base::flat_map<OperandId, std::unique_ptr<WebNNConstantOperand>>
-          constant_operands);
+          constant_operands,
+      bool is_external_data_supported);
 
   GraphBuilderOrt(const GraphBuilderOrt&) = delete;
   GraphBuilderOrt& operator=(const GraphBuilderOrt&) = delete;
@@ -78,7 +79,8 @@ class GraphBuilderOrt {
       const mojom::GraphInfo& graph_info,
       ContextProperties context_properties,
       base::flat_map<OperandId, std::unique_ptr<WebNNConstantOperand>>
-          constant_operands);
+          constant_operands,
+      bool is_external_data_supported);
 
   const mojom::Operand& GetOperand(OperandId operand_id) const;
 
@@ -120,6 +122,13 @@ class GraphBuilderOrt {
   std::string CreateInt64InitializerForUint32Array(
       base::span<const uint32_t> array);
 
+  // A helper method wrapping the `CreateScalarInitializer` method above. It
+  // adds a scalar initializer with the given float value to the graph,
+  // returning the name of the initializer. The data type of the initializer is
+  // determined by the `data_type` parameter.
+  std::string CreateScalarInitializerForFloat(OperandDataType data_type,
+                                              float value);
+
   void AddCastNode(base::cstring_view node_name,
                    base::cstring_view input,
                    base::cstring_view output,
@@ -136,6 +145,16 @@ class GraphBuilderOrt {
                      base::span<const uint32_t> shape);
   std::string CreateExpandNode(base::cstring_view input,
                                base::span<const uint32_t> shape);
+
+  void AddReshapeNode(base::cstring_view node_name,
+                      base::cstring_view input,
+                      base::cstring_view output,
+                      base::span<const uint32_t> shape);
+  std::string CreateReshapeNode(base::cstring_view input,
+                                base::span<const uint32_t> shape);
+  void InsertReshapeNode(base::cstring_view input,
+                         base::cstring_view output,
+                         base::span<const uint32_t> shape);
 
   void AddSliceNode(base::cstring_view node_name,
                     base::cstring_view input,
@@ -170,6 +189,8 @@ class GraphBuilderOrt {
   void AddClampOperation(const mojom::Clamp& clamp);
   void AddConcatOperation(const mojom::Concat& concat);
   void AddConv2dOperation(const mojom::Conv2d& conv2d);
+  void AddCumulativeSumOperation(const mojom::CumulativeSum& cumulative_sum);
+  void AddEluOperation(const mojom::Elu& elu);
   void AddLogicalBinaryOperation(const mojom::ElementWiseBinary& logical_binary,
                                  base::cstring_view op_type);
   void AddLogicalNotOperation(const mojom::ElementWiseUnary& logical_not);
@@ -181,9 +202,15 @@ class GraphBuilderOrt {
   void AddExpandOperation(const mojom::Expand& expand);
   void AddGatherNDOperation(const mojom::GatherND& gather_nd);
   void AddGemmOperation(const mojom::Gemm& gemm);
+  void AddHardSigmoidOperation(const mojom::HardSigmoid& hard_sigmoid);
   void AddLeakyReluOperation(const mojom::LeakyRelu& leaky_relu);
+  void AddLinearOperation(const mojom::Linear& linear);
+  void AddMatMulOperation(const mojom::Matmul& matmul);
+  void AddPadOperation(const mojom::Pad& pad);
   void AddPool2dOperation(const mojom::Pool2d& pool2d);
   void AddPreluOperation(const mojom::Prelu& prelu);
+  void AddReduceOperation(const mojom::Reduce& reduce);
+  void AddResample2dOperation(const mojom::Resample2d& resample2d);
   void AddReshapeOperation(const mojom::Reshape& reshape);
   void AddReverseOperation(const mojom::Reverse& reverse);
   void AddScatterElementsOperation(
@@ -194,6 +221,8 @@ class GraphBuilderOrt {
   void AddSplitOperation(const mojom::Split& split);
   void AddTileOperation(const mojom::Tile& tile);
   void AddTransposeOperation(const mojom::Transpose& transpose);
+  void AddTriangularOperation(const mojom::Triangular& triangular);
+  void AddWhereOperation(const mojom::Where& where);
 
   [[nodiscard]] base::expected<std::unique_ptr<ModelEditor::ModelInfo>,
                                mojom::ErrorPtr>

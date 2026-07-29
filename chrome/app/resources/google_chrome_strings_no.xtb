@@ -228,6 +228,7 @@
 <translation id="3785324443014631273">ChromeOS Flex kunne ikke synkronisere dataene dine på grunn av en påloggingsfeil.</translation>
 <translation id="3795971588916395511">Google ChromeOS</translation>
 <translation id="3809772425479558446">Google Chrome krever Windows 10 eller nyere.</translation>
+<translation id="3810973564298564668">Administrer</translation>
 <translation id="383928141529488001">Google Chrome trenger Bluetooth-tilgang for å utforske 
  Bluetooth-enheter. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="386202838227397562">Lukk alle Google Chrome-vinduer og prøv på nytt.</translation>
@@ -515,6 +516,7 @@
 <translation id="7583399374488819119"><ph name="COMPANY_NAME" />-installasjonsprogram</translation>
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
 <translation id="7626072681686626474"><ph name="MANAGER" /> krever at du leser og godtar følgende vilkår før du bruker denne enheten. Disse vilkårene verken utvider, endrer eller begrenser Google ChromeOS-vilkårene.</translation>
+<translation id="7627609214560473136">Du kan beskytte dataene dine ved å la Chrome fjerne tillatelser fra nettsteder du ikke har besøkt nylig.</translation>
 <translation id="7629695634924605473">Med Chrome får du beskjed hvis passordene dine noensinne utsettes for sikkerhetsbrudd</translation>
 <translation id="7641148173327520642">Systemadministratoren din har konfigurert Google Chrome til å åpne <ph name="ALTERNATIVE_BROWSER_NAME" /> for å få tilgang til <ph name="TARGET_URL_HOSTNAME" />.</translation>
 <translation id="7649070708921625228">Hjelp</translation>
@@ -601,6 +603,7 @@
 <translation id="8649026945479135076">Det er vanlig at nettsteder du besøker, husker ting du er interessert i, for å gi opplevelsen din personlig preg. Nettsteder kan også lagre informasjon om interessene dine i Chrome.</translation>
 <translation id="8669527147644353129">Google Chrome-hjelper</translation>
 <translation id="8679801911857917785">Den styrer også hvilken side som vises når du starter Chrome.</translation>
+<translation id="8712637175834984815">Skjønner</translation>
 <translation id="8712767363896337380">Nesten ferdig oppdatert! Start Chrome på nytt for å fullføre oppdateringen.</translation>
 <translation id="8718062187489036808">Logg av Chrome</translation>
 <translation id="873133009373065397">Google Chrome kan ikke fastslå eller angi standardnettleseren</translation>

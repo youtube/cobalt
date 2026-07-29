@@ -16,6 +16,11 @@ const char kAddAddressManuallyName[] =
 const char kAddAddressManuallyDescription[] =
     "When enabled, allows users to manually enter and save an address.";
 
+const char kAIMPrototypeName[] = "Enable the AIM prototype";
+const char kAIMPrototypeDescription[] =
+    "When enabled the AIM ZPS entrypoint will open the AIM prototype which "
+    "contains temporary UI exploration for AIM.";
+
 const char kAppBackgroundRefreshName[] = "Enable app background refresh";
 const char kAppBackgroundRefreshDescription[] =
     "Schedules app background refresh after some minimum period of time has "
@@ -224,13 +229,6 @@ const char kAutofillUseRendererIDsName[] =
 const char kAutofillUseRendererIDsDescription[] =
     "When enabled, Autofill logic uses unique numeric renderer IDs instead "
     "of string form and field identifiers in form filling logic.";
-
-const char kAutofillVcnEnrollRequestTimeoutName[] =
-    "Timeout for the credit card VCN enrollment request";
-const char kAutofillVcnEnrollRequestTimeoutDescription[] =
-    "When enabled, sets a client-side timeout on the Autofill credit card "
-    "VCN enrollment request. Upon timeout, the client will terminate the VCN "
-    "enrollment UI, but the request may still succeed server-side.";
 
 const char kAutofillVcnEnrollStrikeExpiryTimeName[] =
     "Expiry duration for VCN enrollment strikes";
@@ -453,6 +451,9 @@ const char kEnableFeedHeaderSettingsName[] =
     "Enables the feed header settings.";
 const char kEnableFeedHeaderSettingsDescription[] =
     "When enabled, some UI elements of the feed header can be modified.";
+
+const char kDiamondPrototypeName[] = "Enable the diamon prototype";
+const char kDiamondPrototypeDescription[] = "Turn on prototype for diamond.";
 
 const char kDisableAutofillStrikeSystemName[] =
     "Disable the Autofill strike system";
@@ -691,6 +692,11 @@ const char kIOSKeyboardAccessoryUpgradeForIPadDescription[] =
     "When enabled, the upgraded keyboard accessory UI will be presented on "
     "iPads.";
 
+const char kIOSOmniboxAimShortcutName[] = "Enable the omnibox aim shortcut";
+const char kIOSOmniboxAimShortcutDescription[] =
+    "When enabled, an aim shortcut entrypoint will be displayed when the "
+    "omnibox is on edit mode.";
+
 const char kIOSOneTapMiniMapRemoveSectionBreaksName[] =
     "Remove section break for address detection.";
 const char kIOSOneTapMiniMapRemoveSectionBreaksDescription[] =
@@ -809,6 +815,12 @@ const char kIOSStartTimeStartupRemediationsName[] =
 const char kIOSStartTimeStartupRemediationsDescription[] =
     "Enables potential remediations for startup regressions caused by the "
     "reduction of Bling Start time from 6 hours to 4.";
+
+const char kIOSTrustedVaultNotificationName[] =
+    "Enable the trusted vault notification on iOS";
+const char kIOSTrustedVaultNotificationDescription[] =
+    "When enabled and when the trusted vault key is missing, the provisional "
+    "notification will be delivered.";
 
 const char kIOSReactivationNotificationsName[] = "Reactivation Notifications";
 const char kIOSReactivationNotificationsDescription[] =
@@ -1093,6 +1105,17 @@ const char kOmniboxMobileParityUpdateDescription[] =
     "When set, applies certain assets to match Desktop visuals and "
     "descriptions";
 
+const char kOmniboxMobileParityUpdateV2Name[] =
+    "Omnibox Mobile parity update V2";
+const char kOmniboxMobileParityUpdateV2Description[] =
+    "When set, applies certain assets to match Desktop visuals and "
+    "descriptions";
+
+const char kOmniboxMobileParityUpdateV3Name[] =
+    "Omnibox Mobile parity update V3";
+const char kOmniboxMobileParityUpdateV3Description[] =
+    "When set, shows the search engine logo in the NTP";
+
 const char kOmniboxMlUrlScoreCachingName[] = "Omnibox ML URL Score Caching";
 const char kOmniboxMlUrlScoreCachingDescription[] =
     "Enables in-memory caching of ML URL scores.";
@@ -1371,12 +1394,6 @@ const char kSegmentationPlatformTipsEphemeralCardName[] =
     "Enable Tips (Magic Stack)";
 const char kSegmentationPlatformTipsEphemeralCardDescription[] =
     "When enabled, the Tips module will be displayed in the Magic Stack.";
-
-const char kSegmentedDefaultBrowserPromoName[] =
-    "Enable Personalized Messaging in Default Browser Promos";
-const char kSegmentedDefaultBrowserPromoDescription[] =
-    "Enables Default Browser promos with personalized messaging (using "
-    "Segmentation Platform).";
 
 const char kSendTabToSelfIOSPushNotificationsName[] =
     "Send tab to self iOS push notifications";

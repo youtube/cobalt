@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_header_view.h"
 
 #import <UIKit/UIKit.h>
@@ -17,6 +22,7 @@
 #import "ios/chrome/browser/content_suggestions/ui_bundled/content_suggestions_collection_utils.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/ntp_home_constant.h"
 #import "ios/chrome/browser/lens/ui_bundled/lens_availability.h"
+#import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_color_palette.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_constants.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_delegate.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_feature.h"
@@ -27,6 +33,7 @@
 #import "ios/chrome/browser/omnibox/ui/omnibox_container_view.h"
 #import "ios/chrome/browser/omnibox/ui/omnibox_text_field_ios.h"
 #import "ios/chrome/browser/shared/model/profile/features.h"
+#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/elements/extended_touch_target_button.h"
 #import "ios/chrome/browser/shared/ui/elements/new_feature_badge_view.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
@@ -287,6 +294,9 @@ CGFloat MIAAnimationOpacityForScrollProgress(CGFloat percent) {
   UIView* _miaAnimationView;
   // Whether MIA is allowed by policy.
   BOOL _MIAAllowedByPolicy;
+
+  // The current NTP color palette.
+  NewTabPageColorPalette* _colorPalette;
 }
 
 #pragma mark - Public
@@ -475,7 +485,7 @@ CGFloat MIAAnimationOpacityForScrollProgress(CGFloat percent) {
 }
 
 - (void)addSearchEngineLogoIfNeededToSearchField:(UIView*)searchField {
-  if (!base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdate)) {
+  if (!base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdateV2)) {
     return;
   }
 
@@ -835,6 +845,32 @@ CGFloat MIAAnimationOpacityForScrollProgress(CGFloat percent) {
   _MIAAllowedByPolicy = policyAllowed;
 }
 
+- (void)updateBackgroundWithColorPalette:(NewTabPageColorPalette*)colorPalette {
+  _colorPalette = colorPalette;
+
+  if (colorPalette) {
+    [_fakeLocationBar setStartColor:colorPalette.omniboxColor
+                           endColor:colorPalette.omniboxColor];
+
+    _customizationMenuButton.backgroundColor = colorPalette.secondaryColor;
+    _customizationMenuButton.tintColor = colorPalette.tintColor;
+  } else {
+    [_fakeLocationBar setStartColor:FakeboxTopColor()
+                           endColor:FakeboxBottomColor()];
+
+    UIColor* backgroundColor =
+        IsSignInButtonNoAvatarEnabled()
+            ? [[UIColor colorNamed:kSolidWhiteColor]
+                  colorWithAlphaComponent:0.75]
+            : [[UIColor colorNamed:@"fake_omnibox_solid_background_color"]
+                  colorWithAlphaComponent:0.8];
+    _customizationMenuButton.backgroundColor = backgroundColor;
+    _customizationMenuButton.tintColor = [UIColor
+        colorNamed:(IsSignInButtonNoAvatarEnabled() ? kBlue600Color
+                                                    : kTextSecondaryColor)];
+  }
+}
+
 #pragma mark - UITraitEnvironment
 
 #if !defined(__IPHONE_17_0) || __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_17_0
@@ -1073,8 +1109,12 @@ CGFloat MIAAnimationOpacityForScrollProgress(CGFloat percent) {
   // Use a quadratic curve interpolation.
   progress = progress * progress;
   [_fakeLocationBar
-      setStartColor:BlendColors(FakeboxTopColor(), pinnedColor, progress)
-           endColor:BlendColors(FakeboxBottomColor(), pinnedColor, progress)];
+      setStartColor:BlendColors(_colorPalette ? _colorPalette.omniboxColor
+                                              : FakeboxTopColor(),
+                                pinnedColor, progress)
+           endColor:BlendColors(_colorPalette ? _colorPalette.omniboxColor
+                                              : FakeboxBottomColor(),
+                                pinnedColor, progress)];
 }
 
 // Creates a thin grey divider that acts as a visual separator.
@@ -1281,7 +1321,7 @@ CGFloat MIAAnimationOpacityForScrollProgress(CGFloat percent) {
 }
 
 - (CGFloat)hintLabelFakeboxLeadingSpace {
-  if (base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdate)) {
+  if (base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdateV2)) {
     return kHintLabelFakeboxLeadingSpaceWithIcon;
   } else {
     return kHintLabelFakeboxLeadingSpace;
@@ -1289,7 +1329,7 @@ CGFloat MIAAnimationOpacityForScrollProgress(CGFloat percent) {
 }
 
 - (CGFloat)hintLabelOmniboxLeadingSpace {
-  if (base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdate)) {
+  if (base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdateV2)) {
     return kHintLabelOmniboxLeadingSpaceWithIcon;
   } else {
     return kHintLabelOmniboxLeadingSpace;

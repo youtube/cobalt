@@ -4,6 +4,7 @@
 
 #include "chrome/browser/android/tab_interface_android.h"
 
+#include "base/notreached.h"
 #include "chrome/browser/android/tab_android.h"
 #include "components/tabs/public/tab_interface.h"
 
@@ -69,6 +70,13 @@ bool TabInterfaceAndroid::IsVisible() const {
     return false;
   }
   return weak_tab_android_->IsVisible();
+}
+
+bool TabInterfaceAndroid::IsSelected() const {
+  if (!weak_tab_android_) {
+    return false;
+  }
+  return weak_tab_android_->IsSelected();
 }
 
 base::CallbackListSubscription TabInterfaceAndroid::RegisterDidBecomeVisible(
@@ -220,4 +228,13 @@ void TabInterfaceAndroid::OnAncestorChanged(
     return;
   }
   return weak_tab_android_->OnAncestorChanged(pass_key);
+}
+
+ui::UnownedUserDataHost& TabInterfaceAndroid::GetUnownedUserDataHost() {
+  return unowned_user_data_host_;
+}
+
+const ui::UnownedUserDataHost& TabInterfaceAndroid::GetUnownedUserDataHost()
+    const {
+  return unowned_user_data_host_;
 }

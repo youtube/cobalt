@@ -241,6 +241,7 @@ static const char* const kSwitchNames[] = {
     sandbox::policy::switches::kGpuSandboxAllowSysVShm,
     sandbox::policy::switches::kGpuSandboxFailuresFatal,
     sandbox::policy::switches::kDisableGpuSandbox,
+    sandbox::policy::switches::kDisableLandlockSandbox,
     sandbox::policy::switches::kNoSandbox,
 #if BUILDFLAG(IS_WIN)
     sandbox::policy::switches::kAllowThirdPartyModules,
@@ -329,6 +330,8 @@ static const char* const kSwitchNames[] = {
 #if BUILDFLAG(IS_WIN)
     switches::kWebNNOrtLoggingLevel,
     switches::kWebNNOrtDumpModel,
+    switches::kWebNNOrtLibraryPathForTesting,
+    switches::kWebNNOrtEpLibraryPathForTesting,
 #endif
 };
 

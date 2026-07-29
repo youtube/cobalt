@@ -101,6 +101,7 @@ class EntityDataManager;
 class FieldClassificationModelHandler;
 class FormDataImporter;
 class LogManager;
+class OtpSuggestionDelegate;
 class PersonalDataManager;
 class SingleFieldFillRouter;
 class StrikeDatabase;
@@ -361,6 +362,10 @@ class AutofillClient {
   virtual PasswordManagerDelegate* GetPasswordManagerDelegate(
       const FieldGlobalId& field_id);
 
+  // Returns the `OtpSuggestionDelegate` associated with the profile of
+  // the window of this tab.
+  virtual OtpSuggestionDelegate* GetOtpSuggestionDelegate();
+
   // TODO(crbug.com/365494310): Move these methods to a plus-address-specific
   // client class.
 
@@ -542,6 +547,9 @@ class AutofillClient {
   virtual void TriggerUserPerceptionOfAutofillSurvey(
       FillingProduct filling_product,
       const std::map<std::string, std::string>& field_filling_stats_data);
+
+  // Triggers a survey to ask the user why they declined saving an address.
+  virtual void TriggerDeclinedSaveAddressReasonSurvey();
 
   // Returns true if either Profile or CreditCard Autofill is enabled.
   virtual bool IsAutofillEnabled() const = 0;

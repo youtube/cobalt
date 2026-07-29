@@ -7,7 +7,6 @@
 <translation id="1086486568852410168">Maghanap gamit ang Google Lens</translation>
 <translation id="1091252999271033193">Nangangahulugan itong hihilingin ng Chromium ang pang-mobile na site sa lahat ng pagkakataon.</translation>
 <translation id="1115463765356382667">Kumpletuhin ang mga iminumungkahing pagkilos na ito sa ibaba para masulit ang Chromium.</translation>
-<translation id="1140315115515116765">Gamitin ang Chromium bilang default para madaling makakuha ng mga insight sa presyo</translation>
 <translation id="1185134272377778587">Tungkol sa Chromium</translation>
 <translation id="1229234641991056119">Gamitin sa Chromium ang iyong mga password, history, mga bookmark, at mga credit card sa Safari</translation>
 <translation id="1257458525759135959">Para makapag-save ng mga larawan, mag-tap sa Mga Setting para payagan ang Chromium na magdagdag sa iyong mga larawan</translation>
@@ -92,7 +91,6 @@ Para sa higit pang setting na gumagamit ng data para pahusayin ang iyong experie
 <translation id="3102849287235003384">Para mag-sign out sa iyong Google Account sa lahat ng website, <ph name="BEGIN_LINK" />mag-sign out sa Chromium<ph name="END_LINK" />.</translation>
 <translation id="3115956258722352278">Gawing default na browser mo ang Chromium?</translation>
 <translation id="3180939591219927904">I-on ang "I-lock ang mga tab na Incognito kapag isinara mo ang Chromium"</translation>
-<translation id="3242612358525156339">Sa mga setting ng iyong device, buksan ang "<ph name="TEXT_OF_THE_SETTINGS_MENU_ITEM" />" at piliin ang "Chromium"</translation>
 <translation id="328933489847748230">{count,plural, =1{Nagpapakita ngayon ng 1 window ng Chromium}one{Nagpapakita ngayon ng {count} window ng Chromium}other{Nagpapakita ngayon ng {count} na window ng Chromium}}</translation>
 <translation id="3344973607274501920">Hindi masuri ng Chromium ang iyong mga password. Subukang tingnan ang iyong koneksyon sa internet.</translation>
 <translation id="3366305173356742781">Data sa Chromium sa iyong account</translation>
@@ -122,7 +120,6 @@ Subukang maghintay nang ilang minuto bago lumipat ng account. Kung lilipat ka ng
 <translation id="3855938650519180865">Ano'ng Bago sa Chromium</translation>
 <translation id="3886689467633467988">Mag-sign in sa site na ito at sa Chromium para makuha mo ang iyong mga bookmark at higit pa sa lahat ng device mo.</translation>
 <translation id="3949514465204582407">Tip sa Chromium: Makuha ang iyong mga password sa anumang app</translation>
-<translation id="3983291422281996849">Itakda ang Chromium bilang iyong default browser para madaling ma-track ang mga presyo at makakuha ng mga insight sa presyo para sa mga bagay na gusto mong bilhin.</translation>
 <translation id="4005283307739974863">Magbubukas at Magpapatakbo ng Pag-check sa Kaligtasan sa Chromium.</translation>
 <translation id="4043291146360695975">Sine-save ang mga password sa Password Manager sa device lang na ito.</translation>
 <translation id="4066426933127344530">Gamitin ang Chromium bilang default</translation>
@@ -166,7 +163,6 @@ Para baguhin ang setting na ito, <ph name="BEGIN_LINK" />i-delete ang data sa Ch
 <translation id="5042011327527167688">I-tap ang “Tingnan gamit ang Google Maps sa Chromium.”</translation>
 <translation id="5044871537677053278">Dine-detect ng Chromium ang mga address at ginagamit nito ang Google Maps para bigyan ka ng mga direksyon at lokal na impormasyon.</translation>
 <translation id="5048140766121299007">Mula sa mga setting na "<ph name="TEXT_OF_THE_SETTINGS_MENU_ITEM" />," i-on ang "Chromium"</translation>
-<translation id="5048795749726991615">Para madaling makuha ang iyong mga naka-save na password sa iba mo pang app, gamitin ang Chromium para sa AutoFill</translation>
 <translation id="5053429694249468757">Dine-delete ang data sa Chromium…</translation>
 <translation id="5071749685031362629">Chromium para sa iOS</translation>
 <translation id="5124429847818367226">Magagamit mo na ngayon ang Chromium sa tuwing magba-browse o magta-tap ka ng mga link sa mga mensahe, dokumento, at iba pang app.</translation>
@@ -247,17 +243,16 @@ Mga bagay na dapat isaalang-alang:
 <translation id="6852799557929001644">I-access ang iyong mga password sa Chromium at higit pa sa iba pang app sa device na ito.</translation>
 <translation id="6887138405044152640">Para maipadala ang tab na ito sa ibang device, mag-sign in sa Chromium doon.</translation>
 <translation id="6911341667534646387">Patuloy na gamitin ang data ng Chromium sa iyong Google Account</translation>
-<translation id="7006920032187763988">Puwede mong gamitin ang mga password na na-save mo sa Password Manager sa iba pang app sa iyong iPad.</translation>
 <translation id="7018284295775193585">Hindi makapag-update ang Chromium</translation>
 <translation id="7055269218854630176">Pinapamahalaan ng iyong organisasyong <ph name="DOMAIN" /> ang account kung saan ka nagsa-sign in at kung paano magagamit ang Chromium. Puwedeng i-set up o paghigpitan ng iyong administrator ang ilang partikular na feature.</translation>
 <translation id="7099326575020694068">Hindi magamit ng Chromium ang iyong camera sa Split View mode</translation>
-<translation id="7129379408282555630">Makuha ang kakayahan ng Chromium sa Shopping</translation>
 <translation id="7165402419892018581">Piliin ang Chromium para sa AutoFill</translation>
 <translation id="7175400662502680481">Na-expose ang password mo sa isang paglabag sa data. Inirerekomenda ng Password Manager na palitan na ito ngayon.</translation>
 <translation id="7185731475720473450">Hindi mae-encrypt ang mga paraan ng pagbabayad at address. Hindi masi-sync ang history ng pag-browse mula sa Chromium.
 
 Ang taong may passphrase mo lang ang makakapagbasa ng iyong naka-encrypt na data. Hindi ipinapadala sa o hindi sino-store ng Google ang passphrase. Kung makakalimutan mo ang iyong passphrase o gusto mong baguhin ang setting na ito, <ph name="BEGIN_LINK" />i-delete ang data sa Chromium sa iyong account<ph name="END_LINK" />.</translation>
 <translation id="7192111075364461693">Kasalukuyang naka-off ang mga notification sa Chromium sa mga setting ng iyong device.</translation>
+<translation id="7195217321165708458">Gemini sa Chromium</translation>
 <translation id="7219205286115692265">Mas mabilis na i-access ang Chromium mula sa dock ng home screen ng iyong iPad.</translation>
 <translation id="7222001353246886083">Hanapin ang ${searchPhrase} sa Chromium</translation>
 <translation id="7228180817326917122">Tip sa Chromium: Piliin ang posisyon ng iyong address bar</translation>
@@ -303,7 +298,6 @@ Ang taong may passphrase mo lang ang makakapagbasa ng iyong naka-encrypt na data
 <translation id="8390323835464055390">Mag-sign in sa pamamagitan ng iyong mga naka-save na password at passkey mula sa anumang app gamit ang Chromium para sa AutoFill</translation>
 <translation id="8409374867500149834">Nasa iyo ang pinakamaigting na seguridad ng Chromium laban sa mga mapaminsalang website</translation>
 <translation id="8543509361021925846">{THRESHOLD,plural, =1{Nangyayari ito kapag hindi ginamit ang Chromium nang {THRESHOLD} minuto. Ang naka-save lang na data sa device na ito habang naka-sign in ka ang ide-delete. Puwedeng kabilang dito ang history at mga password.}one{Nangyayari ito kapag hindi ginamit ang Chromium nang {THRESHOLD} minuto. Ang naka-save lang na data sa device na ito habang naka-sign in ka ang ide-delete. Puwedeng kabilang dito ang history at mga password.}other{Nangyayari ito kapag hindi ginamit ang Chromium nang {THRESHOLD} na minuto. Ang naka-save lang na data sa device na ito habang naka-sign in ka ang ide-delete. Puwedeng kabilang dito ang history at mga password.}}</translation>
-<translation id="858114650497379505">Puwede mong gamitin ang mga password na na-save mo sa Password Manager sa iba pang app sa iyong iPhone.</translation>
 <translation id="8586442755830160949">Copyright <ph name="YEAR" /> Ang Mga May-akda ng Chromium. Nakalaan ang lahat ng karapatan.</translation>
 <translation id="8602103377623855616">Page ng Chromium</translation>
 <translation id="865600487977764604">Pinapanatili kang ligtas sa Chromium at puwedeng gamitin para paigtingin ang iyong seguridad sa iba pang Google app kapag naka-sign in ka.</translation>

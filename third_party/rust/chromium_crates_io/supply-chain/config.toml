@@ -74,7 +74,7 @@ criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 [policy."calendrical_calculations:0.2.0"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
-[policy."cc:1.2.27"]
+[policy."cc:1.2.29"]
 criteria = []
 
 [policy."cfg-if:1.0.1"]
@@ -260,7 +260,7 @@ criteria = []
 [policy."litemap:0.8.0"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
-[policy."llguidance:1.0.0"]
+[policy."llguidance:1.0.1"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
 [policy."log:0.4.27"]
@@ -395,7 +395,7 @@ criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 [policy."tinystr:0.8.1"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
-[policy."toktrie:1.0.0"]
+[policy."toktrie:1.0.1"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
 [policy."tzif:0.4.0"]

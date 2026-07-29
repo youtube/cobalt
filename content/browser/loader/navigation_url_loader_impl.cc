@@ -72,6 +72,7 @@
 #include "content/public/browser/url_loader_throttles.h"
 #include "content/public/browser/web_ui_url_loader_factory.h"
 #include "content/public/common/content_client.h"
+#include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/common/referrer.h"
 #include "content/public/common/url_constants.h"
@@ -345,14 +346,15 @@ std::unique_ptr<network::ResourceRequest> CreateResourceRequest(
         *frame_tree_node->current_frame_host()->GetPermissionsPolicy();
   }
 
+  base::UmaHistogramBoolean(
+      "Navigation.URLLoader.HasClientHintsControllerDelegate",
+      client_hints_controller_delegate != nullptr);
   if (base::FeatureList::IsEnabled(
-          network::features::kOffloadAcceptCHFrameCheck)) {
-    CHECK(client_hints_controller_delegate);
-    // TODO(crbug.com/406407746): rename the function name upon
-    // https://chromium-review.googlesource.com/c/chromium/src/+/6677314/comment/781e24f0_4b7eebc7/
-    new_request->trusted_params->enabled_client_hints =
-        GetAddedClientHints(url::Origin::Create(new_request->url),
-                            frame_tree_node, client_hints_controller_delegate);
+          network::features::kOffloadAcceptCHFrameCheck) &&
+      client_hints_controller_delegate) {
+    new_request->trusted_params->enabled_client_hints = GetEnabledClientHints(
+        url::Origin::Create(new_request->url), frame_tree_node,
+        client_hints_controller_delegate);
   }
 
   return new_request;
@@ -1265,7 +1267,13 @@ void NavigationURLLoaderImpl::OnReceiveRedirect(
   LogQueueTimeHistogram("Navigation.QueueTime.OnReceiveRedirect",
                         resource_request_->is_outermost_main_frame);
   net::Error error = net::OK;
-  if (!bypass_redirect_checks_ &&
+
+  bool bypass_redirect_checks =
+      base::FeatureList::IsEnabled(features::kBypassRedirectChecksPerRequest)
+          ? head->bypass_redirect_checks
+          : bypass_redirect_checks_;
+
+  if (!bypass_redirect_checks &&
       !IsSafeRedirectTarget(url_, redirect_info.new_url)) {
     error = net::ERR_UNSAFE_REDIRECT;
   } else if (--redirect_limit_ == 0) {

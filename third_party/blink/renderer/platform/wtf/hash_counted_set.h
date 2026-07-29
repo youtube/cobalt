@@ -23,18 +23,19 @@
 
 #include "base/check_op.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/partition_allocator.h"
+#include "third_party/blink/renderer/platform/wtf/gc_plugin.h"
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
 #include "third_party/blink/renderer/platform/wtf/type_traits.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
-namespace WTF {
+namespace blink {
 
 // An unordered hash set that keeps track of how many times you added an item to
 // the set. The iterators have fields ->key and ->value that return the set
 // members and their counts, respectively.
 template <typename Value,
           typename Traits = HashTraits<Value>,
-          typename Allocator = PartitionAllocator>
+          typename Allocator = WTF::PartitionAllocator>
 class HashCountedSet {
   USE_ALLOCATOR(HashCountedSet, Allocator);
 
@@ -56,8 +57,8 @@ class HashCountedSet {
 
   void swap(HashCountedSet& other) { impl_.swap(other.impl_); }
 
-  unsigned size() const { return impl_.size(); }
-  unsigned Capacity() const { return impl_.capacity(); }
+  wtf_size_t size() const { return impl_.size(); }
+  wtf_size_t Capacity() const { return impl_.capacity(); }
   bool empty() const { return impl_.empty(); }
 
   // Iterators iterate over pairs of values (called key) and counts (called
@@ -111,13 +112,13 @@ class HashCountedSet {
   }
 
  private:
-  ImplType impl_;
+  GC_PLUGIN_IGNORE("crbug.com/428987863") ImplType impl_;
 
   struct TypeConstraints {
     constexpr TypeConstraints() {
-      static_assert(!IsStackAllocatedTypeV<Value>);
+      static_assert(!WTF::IsStackAllocatedTypeV<Value>);
       static_assert(Allocator::kIsGarbageCollected ||
-                        !IsPointerToGarbageCollectedType<Value>,
+                        !WTF::IsPointerToGarbageCollectedType<Value>,
                     "Cannot put raw pointers to garbage-collected classes into "
                     "an off-heap HashCountedSet. Use "
                     "HeapHashCountedSet<Member<T>> instead.");
@@ -166,8 +167,6 @@ inline void HashCountedSet<T, U, V>::RemoveAll(iterator it) {
   impl_.erase(it);
 }
 
-}  // namespace WTF
-
-using WTF::HashCountedSet;
+}  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_HASH_COUNTED_SET_H_

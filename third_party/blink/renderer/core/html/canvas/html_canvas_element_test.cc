@@ -23,6 +23,7 @@
 #include "third_party/blink/renderer/core/script/classic_script.h"
 #include "third_party/blink/renderer/core/testing/core_unit_test_helper.h"
 #include "third_party/blink/renderer/platform/testing/paint_test_configurations.h"
+#include "third_party/perfetto/protos/perfetto/config/trace_config.gen.h"
 
 using ::blink_testing::ClearRectFlags;
 using ::blink_testing::FillFlags;
@@ -72,8 +73,7 @@ TEST_P(HTMLCanvasElementTest, CleanCanvasResizeDoesntClearFrameBuffer) {
 
   auto* canvas =
       To<HTMLCanvasElement>(GetDocument().getElementById(AtomicString("c")));
-  CanvasResourceProvider* provider =
-      canvas->GetOrCreateCanvasResourceProviderForCanvas2D();
+  CanvasResourceProvider* provider = canvas->GetResourceProviderForCanvas2D();
 
   cc::PaintFlags fill_flags = FillFlags();
   fill_flags.setColor(SkColors::kBlue);
@@ -106,8 +106,7 @@ TEST_P(HTMLCanvasElementTest, CanvasResizeClearsFrameBuffer) {
 
   auto* canvas =
       To<HTMLCanvasElement>(GetDocument().getElementById(AtomicString("c")));
-  CanvasResourceProvider* provider =
-      canvas->GetOrCreateCanvasResourceProviderForCanvas2D();
+  CanvasResourceProvider* provider = canvas->GetResourceProviderForCanvas2D();
 
   cc::PaintFlags fill_flags = FillFlags();
   fill_flags.setColor(SkColors::kBlue);

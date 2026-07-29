@@ -215,19 +215,27 @@ class GPU_COMMAND_BUFFER_CLIENT_EXPORT ClientSharedImage
       const SharedImageMetadata& metadata,
       uint32_t texture_target);
 
-  // Used to defer execution of `MapAsync()` result callback. The callbacks
-  // will be passed to the configured instance of this class, which can execute
-  // them as the test requires.
-  class MapCallbackControllerForTesting {
-   public:
-    virtual void RegisterCallback(base::OnceCallback<void(bool)> result_cb) = 0;
-  };
+  using AsyncMapCompletionCallback = base::OnceCallback<void(bool)>;
 
   static scoped_refptr<ClientSharedImage> CreateForTesting(
       const Mailbox& mailbox,
       const SharedImageMetadata& metadata,
       const SyncToken& sync_token,
       std::unique_ptr<gfx::GpuMemoryBuffer> gpu_memory_buffer,
+      gfx::BufferUsage buffer_usage,
+      scoped_refptr<SharedImageInterfaceHolder> sii_holder);
+
+  // Used to control execution of `MapAsync()` completion callbacks. On a
+  // `MapAsync()` invocation the completion callback will be passed to this
+  // callback, which can execute it as the test requires.
+  using AsyncMapInvokedCallback =
+      base::RepeatingCallback<void(AsyncMapCompletionCallback)>;
+  static scoped_refptr<ClientSharedImage> CreateForTesting(
+      const Mailbox& mailbox,
+      const SharedImageMetadata& metadata,
+      const SyncToken& sync_token,
+      bool premapped,
+      const AsyncMapInvokedCallback& callback,
       gfx::BufferUsage buffer_usage,
       scoped_refptr<SharedImageInterfaceHolder> sii_holder);
 
@@ -275,6 +283,7 @@ class GPU_COMMAND_BUFFER_CLIENT_EXPORT ClientSharedImage
       const gfx::Size& size,
       gfx::BufferFormat format,
       gfx::BufferUsage usage,
+      gpu::SharedImageUsageSet si_usage,
       GpuMemoryBufferImpl::CopyNativeBufferToShMemCallback
           copy_native_buffer_to_shmem_callback =
               GpuMemoryBufferImpl::CopyNativeBufferToShMemCallback(),

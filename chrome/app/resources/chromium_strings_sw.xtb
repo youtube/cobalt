@@ -211,6 +211,7 @@ Baadhi ya vipengele huenda visipatikane na mabadiliko katika mapendeleo hayatahi
 <translation id="3790262771324122253">Fahamu kwa nini Chromium huzuia baadhi ya vipakuliwa</translation>
 <translation id="379589255253486813">Chromium itakufahamisha ikiwa kuna chochote kinachohitaji ukague</translation>
 <translation id="3802055581630249637">Chromium hupakia mapema kurasa unazoweza kutembelea, ili zipakiwe kwa haraka zaidi unapozitembelea</translation>
+<translation id="3810973564298564668">Dhibiti</translation>
 <translation id="3848258323044014972"><ph name="PAGE_TITLE" /> - Chromium</translation>
 <translation id="3885770153807205175">Kiteua lugha</translation>
 <translation id="388648406173476553">Dhibiti na uweke mapendeleo kwenye Chromium. Unahitaji kushughulikia jambo fulani. Bofya ili upate maelezo.</translation>
@@ -493,6 +494,7 @@ Chromium haiwezi kufufua mipangilio yako.</translation>
 <translation id="7483335560992089831">Haiwezi kusakinisha toleo sawia la Chromium ambalo linaendeshwa hivi sasa. Tafadhali funga Chromium na ujaribu tena.</translation>
 <translation id="751935028865900641">Huenda tovuti zitafanya kazi kama inavyotarajiwa. Utaondolewa kwenye tovuti nyingi ukifunga madirisha yote ya Chromium, isipokuwa katika Akaunti yako ya Google ikiwa umeingia katika Chromium.</translation>
 <translation id="753534427205733210">{0,plural, =1{Chromium itafunguka upya ndani ya dakika 1}other{Chromium itafunguka upya ndani ya dakika #}}</translation>
+<translation id="7565444033145385702">Ili kulinda data yako, ruhusu Chromium iondoe ruhusa kwenye tovuti ambazo hujatembelea hivi karibuni.</translation>
 <translation id="7582945390259497898">Chromium inaweza kukadiria mambo yanayokuvutia. Baadaye, tovuti unayoitembelea inaweza kuiomba Chromium ili ione mambo yanayokuvutia na iweze kukuonyesha matangazo kulingana na mapendeleo yako.</translation>
 <translation id="7583399374488819119">Kisakinishaji cha <ph name="COMPANY_NAME" /></translation>
 <translation id="7585391435984513350">Hujatembelea hivi majuzi. Chromium imeondoa <ph name="PERMISSION" /></translation>
@@ -578,6 +580,7 @@ Chromium haiwezi kufufua mipangilio yako.</translation>
 <translation id="8648201657708811153">Huwezi kufanya Google Chrome ya Majaribio iwe kivinjari chako chaguomsingi.</translation>
 <translation id="8697124171261953979">Pia inadhibiti ukurasa unaoonyeshwa unapoanzisha Chromium au unapotafuta kutoka Sanduku Kuu.</translation>
 <translation id="8704119203788522458">Hii ni Chromium yako</translation>
+<translation id="8712637175834984815">Nimeelewa</translation>
 <translation id="8719993436687031146">Ungependa kuingia kwenye Chromium?</translation>
 <translation id="8747073452963259673">kona ya chini kushoto ya eneo la utafutaji: kushoto asilimia <ph name="LEFT" />, chini asilimia <ph name="BOTTOM" /></translation>
 <translation id="8768722695577490596">Unaweza tu kufuta manenosiri nje ya Chromium</translation>

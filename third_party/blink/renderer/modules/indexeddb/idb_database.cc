@@ -293,9 +293,18 @@ IDBObjectStore* IDBDatabase::createObjectStore(
   version_change_transaction_->CreateObjectStore(object_store_id, name,
                                                  key_path, auto_increment);
 
-  scoped_refptr<IDBObjectStoreMetadata> store_metadata = base::AdoptRef(
-      new IDBObjectStoreMetadata(name, object_store_id, key_path,
-                                 auto_increment, IDBDatabase::kMinimumIndexId));
+  scoped_refptr<IDBObjectStoreMetadata> store_metadata =
+      base::AdoptRef(new IDBObjectStoreMetadata(name, object_store_id, key_path,
+                                                auto_increment));
+  // The LevelDB backing store needs the minimum index ID to be a specific value
+  // (indexed_db_leveldb_coding.cc:kMinimumIndexId). To maintain consistency
+  // between the metadata copies in blink and content, set the same value here.
+  //
+  // Note that the SQLite backing store does not have this requirement and does
+  // not persist `max_index_id` to disk, so indexes added to object stores after
+  // the database has been closed and reopened can have smaller IDs.
+  // TODO(crbug.com/40253999): Don't set this when the SQLite flag is enabled.
+  store_metadata->max_index_id = 30;
   auto* object_store = MakeGarbageCollected<IDBObjectStore>(
       store_metadata, version_change_transaction_.Get());
   version_change_transaction_->ObjectStoreCreated(name, object_store);
@@ -376,9 +385,10 @@ IDBTransaction* IDBDatabase::transaction(
   mojom::blink::IDBTransactionDurability durability =
       mojom::blink::IDBTransactionDurability::Default;
   DCHECK(options);
-  if (options->durability() == indexed_db_names::kRelaxed) {
+  if (options->durability() == V8IDBTransactionDurability::Enum::kRelaxed) {
     durability = mojom::blink::IDBTransactionDurability::Relaxed;
-  } else if (options->durability() == indexed_db_names::kStrict) {
+  } else if (options->durability() ==
+             V8IDBTransactionDurability::Enum::kStrict) {
     durability = mojom::blink::IDBTransactionDurability::Strict;
   }
 
@@ -566,8 +576,7 @@ void IDBDatabase::ContextLifecycleStateChanged(
     return;
   }
 
-  if (state == mojom::blink::FrameLifecycleState::kFrozen ||
-      state == mojom::blink::FrameLifecycleState::kFrozenAutoResumeMedia) {
+  if (state == mojom::blink::FrameLifecycleState::kFrozen) {
     DidBecomeInactive();
   }
 }

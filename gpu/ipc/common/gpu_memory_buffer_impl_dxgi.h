@@ -23,7 +23,6 @@
 #include "gpu/ipc/common/gpu_ipc_common_export.h"
 #include "gpu/ipc/common/gpu_memory_buffer_impl.h"
 #include "ui/gfx/color_space.h"
-#include "ui/gfx/gpu_memory_buffer.h"
 
 namespace gpu {
 
@@ -44,11 +43,8 @@ class GPU_IPC_COMMON_EXPORT GpuMemoryBufferImplDXGI
   static std::unique_ptr<GpuMemoryBufferImplDXGI> CreateFromHandleForTesting(
       gfx::GpuMemoryBufferHandle handle,
       const gfx::Size& size,
-      gfx::BufferFormat format,
-      gfx::BufferUsage usage,
-      DestructionCallback callback) {
-    return CreateFromHandle(std::move(handle), size, format, usage,
-                            std::move(callback));
+      gfx::BufferFormat format) {
+    return CreateFromHandle(std::move(handle), size, format);
   }
 
   static base::OnceClosure AllocateForTesting(
@@ -89,17 +85,13 @@ class GPU_IPC_COMMON_EXPORT GpuMemoryBufferImplDXGI
       gfx::GpuMemoryBufferHandle handle,
       const gfx::Size& size,
       gfx::BufferFormat format,
-      gfx::BufferUsage usage,
-      DestructionCallback callback,
       CopyNativeBufferToShMemCallback copy_native_buffer_to_shmem_callback =
           CopyNativeBufferToShMemCallback(),
       scoped_refptr<base::UnsafeSharedMemoryPool> pool = nullptr);
 
   GpuMemoryBufferImplDXGI(
-      gfx::GpuMemoryBufferId id,
       const gfx::Size& size,
       gfx::BufferFormat format,
-      DestructionCallback callback,
       gfx::DXGIHandle dxgi_handle,
       CopyNativeBufferToShMemCallback copy_native_buffer_to_shmem_callback,
       scoped_refptr<base::UnsafeSharedMemoryPool> pool);

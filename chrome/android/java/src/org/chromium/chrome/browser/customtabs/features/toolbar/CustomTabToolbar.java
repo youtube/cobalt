@@ -196,6 +196,7 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
     private BrowserServicesIntentDataProvider mIntentDataProvider;
     private Supplier<AppMenuHandler> mAppMenuHandler = () -> null;
     private AppMenuObserver mAppMenuObserver;
+    private Activity mActivity;
 
     private final Handler mTaskHandler = new Handler();
     private final ButtonVisibilityRule mButtonVisibilityRule =
@@ -490,6 +491,7 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
             Activity activity,
             Supplier<AppMenuHandler> appMenuHandler,
             BrowserServicesIntentDataProvider intentDataProvider) {
+        mActivity = activity;
         mAppMenuHandler = appMenuHandler;
         if (mIntentDataProvider == null) {
             mIntentDataProvider = intentDataProvider;
@@ -813,7 +815,9 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
 
     private boolean isInMultiWindowMode() {
         Activity activity = getActivityFromCurrentTab();
-        return MultiWindowUtils.getInstance().isInMultiWindowMode(activity);
+        if (activity == null) return false;
+        return !activity.isInPictureInPictureMode()
+                && MultiWindowUtils.getInstance().isInMultiWindowMode(activity);
     }
 
     /** Returns {@code true} if the optional button will be shown. */
@@ -1572,10 +1576,9 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
                     new OptionalButtonCoordinator(
                             optionalButton,
                             /* userEducationHelper= */ () -> {
-                                Tab currentTab = getCurrentTab();
                                 return new UserEducationHelper(
-                                        currentTab.getWindowAndroid().getActivity().get(),
-                                        () -> currentTab.getProfile(),
+                                        mActivity,
+                                        () -> getCurrentTab().getProfile(),
                                         new Handler());
                             },
                             /* transitionRoot= */ CustomTabToolbar.this,
@@ -1648,7 +1651,7 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
             var buttonVariant = buttonData.getButtonSpec().getButtonVariant();
             if (showOptionalButton) {
                 RecordHistogram.recordEnumeratedHistogram(
-                        "CustomTab.AdaptiveToolbarButton.Shown",
+                        "CustomTabs.AdaptiveToolbarButton.Shown",
                         buttonVariant,
                         AdaptiveToolbarButtonVariant.MAX_VALUE);
             } else {

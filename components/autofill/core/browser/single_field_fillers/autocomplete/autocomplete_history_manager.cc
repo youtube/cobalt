@@ -36,58 +36,37 @@ namespace {
 // text input element in a form.
 const int kMaxAutocompleteMenuItems = 6;
 
-// Returns true if the field has a meaningful name.
-// An input field name 'field_2' bears no semantic meaning and there is a chance
-// that a different website or different form uses the same field name for a
-// totally different purpose.
-bool IsMeaningfulFieldName(const std::u16string& name) {
-  static constexpr char16_t kRegex[] =
-      u"^(((field|input|mat-input)(_|-)?\\d+)|title|otp|tan)$|"
-      u"(cvc|cvn|cvv|captcha)";
-  return !MatchesRegex<kRegex>(name);
-}
-
 }  // namespace
 
 AutocompleteHistoryManager::AutocompleteHistoryManager() = default;
 
 AutocompleteHistoryManager::~AutocompleteHistoryManager() {
-  CancelPendingQueries();
+  CancelPendingQuery();
 }
 
-bool AutocompleteHistoryManager::OnGetSingleFieldSuggestions(
+void AutocompleteHistoryManager::OnGetSingleFieldSuggestions(
     const FormFieldData& field,
     const AutofillClient& client,
-    SingleFieldFillRouter::OnSuggestionsReturnedCallback&
+    SingleFieldFillRouter::OnSuggestionsReturnedCallback
         on_suggestions_returned) {
   if (!field.should_autocomplete()) {
-    return false;
+    std::move(on_suggestions_returned).Run(field.global_id(), {});
+    return;
   }
 
-  CancelPendingQueries();
+  CancelPendingQuery();
 
-  if (!IsMeaningfulFieldName(field.name()) || !client.IsAutocompleteEnabled() ||
+  if (!IsFieldNameMeaningfulForAutocomplete(field.name()) ||
+      !client.IsAutocompleteEnabled() ||
       field.form_control_type() == FormControlType::kTextArea ||
       field.form_control_type() == FormControlType::kContentEditable ||
       IsInAutofillSuggestionsDisabledExperiment()) {
     SendSuggestions({}, QueryHandler(field.global_id(), field.value(),
                                      std::move(on_suggestions_returned)));
-    return true;
+    return;
   }
 
-  if (profile_database_) {
-    auto query_handle = profile_database_->GetFormValuesForElementName(
-        field.name(), field.value(), kMaxAutocompleteMenuItems,
-        base::BindOnce(&AutocompleteHistoryManager::OnWebDataServiceRequestDone,
-                       weak_ptr_factory_.GetWeakPtr()));
-
-    // We can simply insert, since |query_handle| is always unique.
-    pending_queries_.insert(
-        {query_handle, QueryHandler(field.global_id(), field.value(),
-                                    std::move(on_suggestions_returned))});
-    return true;
-  }
-  return false;
+  GetFormValuesForElementName(field, std::move(on_suggestions_returned));
 }
 
 void AutocompleteHistoryManager::OnWillSubmitFormWithFields(
@@ -108,13 +87,11 @@ void AutocompleteHistoryManager::OnWillSubmitFormWithFields(
   }
 }
 
-void AutocompleteHistoryManager::CancelPendingQueries() {
-  if (profile_database_) {
-    for (const auto& [handle, query_handler] : pending_queries_) {
-      profile_database_->CancelRequest(handle);
-    }
+void AutocompleteHistoryManager::CancelPendingQuery() {
+  if (profile_database_ && pending_query_) {
+      profile_database_->CancelRequest(*pending_query_);
   }
-  pending_queries_.clear();
+  pending_query_.reset();
 }
 
 void AutocompleteHistoryManager::OnRemoveCurrentSingleFieldSuggestion(
@@ -178,35 +155,35 @@ void AutocompleteHistoryManager::Init(
     if (version_info::GetMajorVersionNumberAsInt() > last_cleaned_version) {
       // Trigger the cleanup.
       profile_database_->RemoveExpiredAutocompleteEntries(base::BindOnce(
-          &AutocompleteHistoryManager::OnWebDataServiceRequestDone,
-          weak_ptr_factory_.GetWeakPtr()));
+        &AutocompleteHistoryManager::OnAutofillCleanupReturned,
+        weak_ptr_factory_.GetWeakPtr()));
     }
   }
 }
 
-void AutocompleteHistoryManager::OnWebDataServiceRequestDone(
-    WebDataServiceBase::Handle current_handle,
-    std::unique_ptr<WDTypedResult> result) {
-  DCHECK(current_handle);
+bool AutocompleteHistoryManager::IsFieldNameMeaningfulForAutocomplete(
+    const std::u16string& name) {
+  static constexpr char16_t kRegex[] =
+      u"^(((field|input|mat-input)(_|-)?\\d+)|title|otp|tan)$|"
+      u"(cvc|cvn|cvv|captcha)";
+  return !MatchesRegex<kRegex>(name);
+}
 
-  if (!result) {
-    // Returning early here if |result| is null.  We've seen this happen on
-    // Linux due to NFS dismounting and causing sql failures.
-    // See http://crbug.com/68783.
+void AutocompleteHistoryManager::GetFormValuesForElementName(
+    const FormFieldData& field,
+    SingleFieldFillRouter::OnSuggestionsReturnedCallback
+        on_suggestions_returned) {
+  if (!profile_database_) {
+    std::move(on_suggestions_returned).Run(field.global_id(), {});
     return;
   }
 
-  WDResultType result_type = result->GetType();
-  switch (result_type) {
-    case AUTOFILL_VALUE_RESULT:
-      OnAutofillValuesReturned(current_handle, std::move(result));
-      break;
-    case AUTOFILL_CLEANUP_RESULT:
-      OnAutofillCleanupReturned(current_handle, std::move(result));
-      break;
-    default:
-      break;
-  }
+  pending_query_ = profile_database_->GetFormValuesForElementName(
+      field.name(), field.value(), kMaxAutocompleteMenuItems,
+      base::BindOnce(&AutocompleteHistoryManager::OnAutofillValuesReturned,
+                      weak_ptr_factory_.GetWeakPtr(),
+                      QueryHandler(field.global_id(), field.value(),
+                                  std::move(on_suggestions_returned))));
 }
 
 AutocompleteHistoryManager::QueryHandler::QueryHandler(
@@ -214,12 +191,15 @@ AutocompleteHistoryManager::QueryHandler::QueryHandler(
     std::u16string prefix,
     SingleFieldFillRouter::OnSuggestionsReturnedCallback
         on_suggestions_returned)
-    : field_id_(field_id),
-      prefix_(std::move(prefix)),
-      on_suggestions_returned_(std::move(on_suggestions_returned)) {}
+    : field_id(field_id),
+      prefix(std::move(prefix)),
+      on_suggestions_returned(std::move(on_suggestions_returned)) {}
 
 AutocompleteHistoryManager::QueryHandler::QueryHandler(QueryHandler&&) =
     default;
+
+AutocompleteHistoryManager::QueryHandler&
+AutocompleteHistoryManager::QueryHandler::operator=(QueryHandler&&) = default;
 
 AutocompleteHistoryManager::QueryHandler::~QueryHandler() = default;
 
@@ -229,7 +209,7 @@ void AutocompleteHistoryManager::SendSuggestions(
   // If there is only one suggestion that is the exact same string as
   // what is in the input box, then don't show the suggestion.
   bool hide_suggestions =
-      entries.size() == 1 && query_handler.prefix_ == entries[0].key().value();
+      entries.size() == 1 && query_handler.prefix == entries[0].key().value();
 
   std::vector<Suggestion> suggestions;
   last_entries_.clear();
@@ -241,27 +221,29 @@ void AutocompleteHistoryManager::SendSuggestions(
     }
   }
 
-  std::move(query_handler.on_suggestions_returned_)
-      .Run(query_handler.field_id_, suggestions);
+  std::move(query_handler.on_suggestions_returned)
+      .Run(query_handler.field_id, suggestions);
 }
 
 void AutocompleteHistoryManager::OnAutofillValuesReturned(
+    QueryHandler query_handler,
     WebDataServiceBase::Handle current_handle,
     std::unique_ptr<WDTypedResult> result) {
-  DCHECK(result);
+  if (!result) {
+    // Returning early here if `result` is null.  We've seen this happen on
+    // Linux due to NFS dismounting and causing sql failures.
+    // See http://crbug.com/68783.
+    return;
+  }
   DCHECK_EQ(AUTOFILL_VALUE_RESULT, result->GetType());
 
-  auto pending_queries_iter = pending_queries_.find(current_handle);
-  if (pending_queries_iter == pending_queries_.end()) {
+  if (!pending_query_ || *pending_query_ != current_handle) {
     // There's no handler for this query, hence nothing to do.
     return;
   }
 
-  // Moving the handler since we're erasing the entry.
-  auto query_handler = std::move(pending_queries_iter->second);
-
   // Removing the query, as it is no longer pending.
-  pending_queries_.erase(pending_queries_iter);
+  pending_query_.reset();
 
   const WDResult<std::vector<AutocompleteEntry>>* autocomplete_result =
       static_cast<const WDResult<std::vector<AutocompleteEntry>>*>(
@@ -296,7 +278,7 @@ bool AutocompleteHistoryManager::IsFieldValueSaveable(
   // value is neither empty nor only whitespaces.
   bool is_value_valid = std::ranges::any_of(
       field.value(), std::not_fn(base::IsUnicodeWhitespace<char16_t>));
-  return is_value_valid && IsMeaningfulFieldName(field.name()) &&
+  return is_value_valid && IsFieldNameMeaningfulForAutocomplete(field.name()) &&
          !field.name().empty() && field.IsTextInputElement() &&
          !field.IsPasswordInputElement() &&
          field.form_control_type() != FormControlType::kInputNumber &&

@@ -232,6 +232,7 @@ Kai kurios funkcijos gali būti nepasiekiamos ir nuostatų pakeitimai nebus išs
 <translation id="3785324443014631273">„ChromeOS Flex“ negalėjo sinchronizuoti duomenų, nes prisijungiant įvyko klaida.</translation>
 <translation id="3795971588916395511">„Google Chrome“ OS</translation>
 <translation id="3809772425479558446">Kad būtų galima naudoti „Google Chrome“, reikalinga 10 ar naujesnės versijos „Windows“.</translation>
+<translation id="3810973564298564668">Tvarkyti</translation>
 <translation id="383928141529488001">„Google Chrome“ reikalinga „Bluetooth“ prieiga, kad galėtų naršyti 
  „Bluetooth“ įrenginius. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="386202838227397562">Uždarykite visus „Google Chrome“ langus ir bandykite dar kartą.</translation>
@@ -523,6 +524,7 @@ Kai kurios funkcijos gali būti nepasiekiamos. Nurodykite kitą profilio katalog
 <translation id="7583399374488819119">„<ph name="COMPANY_NAME" />“ diegimo programa</translation>
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
 <translation id="7626072681686626474"><ph name="MANAGER" /> reikia, kad prieš naudodami šį įrenginį perskaitytumėte toliau pateiktas paslaugų teikimo sąlygas ir su jomis sutiktumėte. Šios sąlygos neišplečia, nepakeičia ir neapriboja „Google Chrome“ OS sąlygų.</translation>
+<translation id="7627609214560473136">Kad apsaugotumėte duomenis, leiskite „Chrome“ pašalinti svetainių, kuriose pastaruoju metu nesilankėte, leidimus.</translation>
 <translation id="7629695634924605473">„Chrome“ praneš, jei slaptažodžiai bus pažeisti</translation>
 <translation id="7641148173327520642">Sistemos administratorius sukonfigūravo „Google Chrome“ atidaryti alternatyvią naršyklę <ph name="ALTERNATIVE_BROWSER_NAME" />, norint pasiekti <ph name="TARGET_URL_HOSTNAME" />.</translation>
 <translation id="7649070708921625228">Pagalba</translation>
@@ -609,6 +611,7 @@ Kai kurios funkcijos gali būti nepasiekiamos. Nurodykite kitą profilio katalog
 <translation id="8649026945479135076">Įprasta, kad svetainės, kuriose lankotės, įsimena, kuo domitės, kad galėtų suasmeninti jūsų patirtį. Svetainėse taip pat gali būti renkama su „Chrome“ susijusi informacija apie jūsų pomėgius.</translation>
 <translation id="8669527147644353129">„Google Chrome“ pagalbos priemonė</translation>
 <translation id="8679801911857917785">Ji taip pat kontroliuoja, koks puslapis rodomas, kai paleidžiate „Chrome“.</translation>
+<translation id="8712637175834984815">Supratau</translation>
 <translation id="8712767363896337380">Beveik atnaujinta! Paleiskite „Chrome“ iš naujo, kad būtų užbaigtas atnaujinimas.</translation>
 <translation id="8718062187489036808">Atsijungti nuo „Chrome“</translation>
 <translation id="873133009373065397">„Google Chrome“ nepavyko aptikti arba nustatyti numatytosios naršyklės</translation>

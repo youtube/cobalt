@@ -63,26 +63,25 @@
 
 @implementation TabLifecycleMediator {
   // Bridge to observe the web state list from Objective-C.
-  std::unique_ptr<TabsDependencyInstallerBridge> _dependencyInstallerBridge;
+  TabsDependencyInstallerBridge _dependencyInstallerBridge;
 }
 
 - (instancetype)initWithWebStateList:(WebStateList*)webStateList {
   if ((self = [super init])) {
-    _dependencyInstallerBridge =
-        std::make_unique<TabsDependencyInstallerBridge>(self, webStateList);
+    _dependencyInstallerBridge.StartObserving(
+        self, webStateList, TabsDependencyInstaller::Policy::kOnlyRealized);
   }
   return self;
 }
 
 - (void)disconnect {
-  // Deleting the installer bridge will cause all web states to have
-  // dependencies uninstalled.
-  _dependencyInstallerBridge.reset();
+  // Stop observing the WebStateList before destroying the bridge object.
+  _dependencyInstallerBridge.StopObserving();
 }
 
 #pragma mark - TabsDependencyInstalling
 
-- (void)installDependencyForWebState:(web::WebState*)webState {
+- (void)webStateInserted:(web::WebState*)webState {
   // If there is a prerender service, this webstate shouldn't be a prerendered
   // one. (There's no prerender service in incognito, for example).
   DCHECK(!_prerenderService ||
@@ -235,7 +234,7 @@
   }
 }
 
-- (void)uninstallDependencyForWebState:(web::WebState*)webState {
+- (void)webStateRemoved:(web::WebState*)webState {
   // Only realized webstates should have dependencies uninstalled.
   DCHECK(webState->IsRealized());
 
@@ -336,6 +335,15 @@
   if (BWGTabHelper) {
     BWGTabHelper->SetBwgCommandsHandler(nil);
   }
+}
+
+- (void)webStateDeleted:(web::WebState*)webState {
+  // Nothing to do.
+}
+
+- (void)newWebStateActivated:(web::WebState*)newActive
+           oldActiveWebState:(web::WebState*)oldActive {
+  // Nothing to do.
 }
 
 @end

@@ -47,6 +47,7 @@
 #include "chrome/browser/chrome_browser_main.h"
 #include "chrome/browser/client_hints/client_hints_factory.h"
 #include "chrome/browser/collaboration/collaboration_service_factory.h"
+#include "chrome/browser/collaboration/comments/comments_service_factory.h"
 #include "chrome/browser/collaboration/messaging/messaging_backend_service_factory.h"
 #include "chrome/browser/commerce/shopping_service_factory.h"
 #include "chrome/browser/consent_auditor/consent_auditor_factory.h"
@@ -72,7 +73,9 @@
 #include "chrome/browser/enterprise/remote_commands/user_remote_commands_service_factory.h"
 #include "chrome/browser/enterprise/reporting/cloud_profile_reporting_service_factory.h"
 #include "chrome/browser/enterprise/reporting/legacy_tech/legacy_tech_service.h"
+#include "chrome/browser/enterprise/signals/user_permission_service_factory.h"
 #include "chrome/browser/enterprise/signin/enterprise_identity_service_factory.h"
+#include "chrome/browser/enterprise/signin/profile_management_disclaimer_service_factory.h"
 #include "chrome/browser/favicon/favicon_service_factory.h"
 #include "chrome/browser/favicon/history_ui_favicon_request_handler_factory.h"
 #include "chrome/browser/feature_engagement/tracker_factory.h"
@@ -140,8 +143,8 @@
 #include "chrome/browser/permissions/origin_keyed_permission_action_service_factory.h"
 #include "chrome/browser/permissions/permission_actions_history_factory.h"
 #include "chrome/browser/permissions/permission_decision_auto_blocker_factory.h"
-#include "chrome/browser/permissions/prediction_model_handler_provider_factory.h"
-#include "chrome/browser/permissions/prediction_service_factory.h"
+#include "chrome/browser/permissions/prediction_service/prediction_model_handler_provider_factory.h"
+#include "chrome/browser/permissions/prediction_service/prediction_service_factory.h"
 #include "chrome/browser/persisted_state_db/session_proto_db_factory.h"
 #include "chrome/browser/plugins/plugin_prefs_factory.h"
 #include "chrome/browser/plus_addresses/plus_address_service_factory.h"
@@ -193,6 +196,7 @@
 #include "chrome/browser/signin/chrome_signin_client_factory.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/signin/signin_metrics_service_factory.h"
+#include "chrome/browser/signin/signin_policy_service_factory.h"
 #include "chrome/browser/signin/signin_profile_attributes_updater_factory.h"
 #include "chrome/browser/ssl/https_first_mode_settings_tracker.h"
 #include "chrome/browser/ssl/sct_reporting_service_factory.h"
@@ -251,7 +255,6 @@
 #include "components/commerce/core/proto/persisted_state_db_content.pb.h"
 #include "components/enterprise/buildflags/buildflags.h"
 #include "components/enterprise/content/clipboard_restriction_service.h"
-#include "components/manta/features.h"
 #include "components/offline_pages/buildflags/buildflags.h"
 #include "components/omnibox/browser/autocomplete_controller_emitter.h"
 #include "components/optimization_guide/core/optimization_guide_util.h"
@@ -415,7 +418,6 @@
     BUILDFLAG(IS_WIN)
 #include "chrome/browser/enterprise/connectors/device_trust/device_trust_connector_service_factory.h"
 #include "chrome/browser/enterprise/connectors/device_trust/device_trust_service_factory.h"
-#include "chrome/browser/enterprise/signals/user_permission_service_factory.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/collaboration_messaging_observer_factory.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
 #endif
@@ -814,6 +816,7 @@ void ChromeBrowserMainExtraPartsProfiles::
   }
 #endif
   collaboration::CollaborationServiceFactory::GetInstance();
+  collaboration::comments::CommentsServiceFactory::GetInstance();
   collaboration::messaging::MessagingBackendServiceFactory::GetInstance();
 #if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || \
     BUILDFLAG(IS_WIN)
@@ -900,7 +903,7 @@ void ChromeBrowserMainExtraPartsProfiles::
   enterprise_signals::SignalsAggregatorFactory::GetInstance();
 #endif
 #if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || \
-    BUILDFLAG(IS_WIN)
+    BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID)
   enterprise_signals::UserPermissionServiceFactory::GetInstance();
 #endif
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
@@ -1003,9 +1006,7 @@ void ChromeBrowserMainExtraPartsProfiles::
 #if !BUILDFLAG(IS_ANDROID)
   ManagedConfigurationAPIFactory::GetInstance();
 #endif
-  if (manta::features::IsMantaServiceEnabled()) {
-    manta::MantaServiceFactory::GetInstance();
-  }
+  manta::MantaServiceFactory::GetInstance();
   MediaDeviceSaltServiceFactory::GetInstance();
 #if !BUILDFLAG(IS_ANDROID)
   media_router::AccessCodeCastSinkServiceFactory::GetInstance();
@@ -1049,6 +1050,9 @@ void ChromeBrowserMainExtraPartsProfiles::
   net::ServerCertificateDatabaseServiceFactory::GetInstance();
 #endif
   PreloadingModelKeyedServiceFactory::GetInstance();
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+  ProfileManagementDisclaimerServiceFactory::GetInstance();
+#endif
 #if BUILDFLAG(IS_CHROMEOS)
   NearbySharingServiceFactory::GetInstance();
   if (base::FeatureList::IsEnabled(ash::features::kNearbyPresence)) {
@@ -1336,6 +1340,7 @@ void ChromeBrowserMainExtraPartsProfiles::
   SigninManagerFactory::GetInstance();
 #endif
   SigninMetricsServiceFactory::GetInstance();
+  SigninPolicyServiceFactory::GetInstance();
   SigninProfileAttributesUpdaterFactory::GetInstance();
   if (site_engagement::SiteEngagementService::IsEnabled()) {
     site_engagement::SiteEngagementServiceFactory::GetInstance();

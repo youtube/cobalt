@@ -122,7 +122,6 @@
 <ph name="BEGIN_LINK" />Saiba mais<ph name="END_LINK" /></translation>
 <translation id="147982357559798527">Alterado</translation>
 <translation id="1480152980057770392">Mostrar Lista de leitura</translation>
-<translation id="1484758781961275277">Tire o máximo partido do navegador de computador que conhece e adora no seu iPad.</translation>
 <translation id="1485907716209290998">Acompanhamento de encomendas</translation>
 <translation id="1486096554574027028">Pesquisar palavras-passe</translation>
 <translation id="1491277525950327607">Toque duas vezes para ativar ou desativar a definição</translation>
@@ -294,6 +293,7 @@
 <translation id="2119636449201577317">Abrir na app…</translation>
 <translation id="2120553909046681540">A sua organização desativou a navegação anónima.</translation>
 <translation id="2122754583996902531">O seu navegador é gerido. <ph name="BEGIN_LINK" />Saiba mais<ph name="END_LINK" /></translation>
+<translation id="21243612977487926">Os chats da sua organização não são usados para melhorar os nossos modelos. O Gemini pode apresentar informações incorretas, inclusive sobre pessoas, por isso, verifique-as. <ph name="YOUR_PRIVACY_GEMINI" /></translation>
 <translation id="2139867232736819575">Pesquisar o texto que copiou</translation>
 <translation id="2147127444698817042">Disponível apenas no iPhone</translation>
 <translation id="2148799636999124959">Inicie sessão rapidamente em sites e apps com as suas palavras-passe guardadas.</translation>
@@ -383,6 +383,7 @@ Os sites não podem utilizar cookies para ver a sua atividade de navegação em 
 <translation id="2468444275314013497">Está tudo bem no seu navegador</translation>
 <translation id="2473876017985765807">Já guardou uma palavra-passe para <ph name="WEBSITE" /></translation>
 <translation id="247430852844518481">Pode definir um lembrete para consultar esta página mais tarde</translation>
+<translation id="2478246185006364308">Termos de Utilização da Google</translation>
 <translation id="2479148705183875116">Aceder às Definições</translation>
 <translation id="2482878487686419369">Notificações</translation>
 <translation id="2484459871750294497">Como posso ativar esta funcionalidade?</translation>
@@ -407,7 +408,6 @@ Os sites não podem utilizar cookies para ver a sua atividade de navegação em 
 <translation id="2577522251608256362">Bairro</translation>
 <translation id="2579713773888829241">Discos partilhados</translation>
 <translation id="2593272815202181319">Monoespaço</translation>
-<translation id="2597486707832946298">Tire o máximo partido do navegador de computador que conhece e adora no seu iPhone.</translation>
 <translation id="2601778637777010194">Acompanhe as quedas de preços de produtos</translation>
 <translation id="260378315836159338">Na parte superior do ecrã, toque em +</translation>
 <translation id="2612676031748830579">Número do cartão</translation>
@@ -520,6 +520,7 @@ O seu motor de pesquisa é o <ph name="DSE_NAME" />. Se aplicável, consulte as 
 <translation id="3059270601560379555">Nova pesquisa</translation>
 <translation id="3064547930554042309">Faça a gestão das transferências</translation>
 <translation id="3072279342064724558">A palavra-passe já existe</translation>
+<translation id="3073633853887034268">OK</translation>
 <translation id="3076846064362030967">A sessão na sua Conta Google não é terminada. Podem ser guardadas <ph name="BEGIN_LINK" />outras formas de atividade<ph name="END_LINK" /> na sua Conta Google quando tem sessão iniciada. Pode eliminá-las em qualquer altura.
 
 
@@ -528,7 +529,6 @@ Se aplicável, consulte as instruções do motor de pesquisa para eliminar o his
 <translation id="3081338492074632642">Certifique-se de que a palavra-passe que está a guardar corresponde à sua palavra-passe para <ph name="WEBSITE" />.</translation>
 <translation id="3087734570205094154">Parte inferior</translation>
 <translation id="309710370695886264">Tem 1 palavra-passe reutilizada. Corrija-a agora para manter a sua segurança.</translation>
-<translation id="3102139268911534961">Tire o máximo partido do navegador para dispositivos móveis que conhece e adora no seu iPhone.</translation>
 <translation id="3102790820790869053">Pesquise separadores recentes</translation>
 <translation id="3106690631878101882">Ocultar Traduzir</translation>
 <translation id="310900540163454140">Eliminar a palavra-passe de <ph name="WEBSITE" />?</translation>
@@ -625,6 +625,7 @@ Se aplicável, consulte as instruções do motor de pesquisa para eliminar o his
 <translation id="3530767473765895035">Gerir contas neste dispositivo…</translation>
 <translation id="3533436815740441613">Novo separador</translation>
 <translation id="3533860663366814939">Abra as definições de Preenchimento automático e palavras-passe</translation>
+<translation id="3546122170015471515">Pré-visualizações do Maps em Google.com</translation>
 <translation id="3547356470684043247">Leia as avaliações dos clientes sobre produtos, serviços ou experiências para tomar decisões informadas com críticas</translation>
 <translation id="3557336313807607643">Adicionar aos contactos</translation>
 <translation id="355765753469272474">Anular</translation>
@@ -744,13 +745,11 @@ Se aplicável, consulte as instruções do motor de pesquisa para eliminar o his
 <translation id="4039829422386964954">Explorar galeria</translation>
 <translation id="4042870976416480368">Localizar na página</translation>
 <translation id="4045441967987592849">Reabrir</translation>
-<translation id="4045648459118332842">Obtenha as palavras-passe guardadas em qualquer app com um toque</translation>
 <translation id="4047337302138771011">Partilhe as suas palavras-passe</translation>
 <translation id="4049419681095579435">Encomenda já acompanhada</translation>
 <translation id="4049507953662678203">Certifique-se de que tem uma ligação de rede e tente novamente.</translation>
 <translation id="4056223980640387499">Sépia</translation>
 <translation id="4070132839822635162">Não iniciar sessão</translation>
-<translation id="4094361089640885693">Monitorize os preços e veja facilmente estatísticas de preço.</translation>
 <translation id="4099756562043439968">Definir lembrete</translation>
 <translation id="4108998448622696017">Deteta e envia-lhe avisos sobre a ocorrência de eventos perigosos.</translation>
 <translation id="4111985840824673503">Marcar tudo como lido</translation>
@@ -795,7 +794,6 @@ Se aplicável, consulte as instruções do motor de pesquisa para eliminar o his
 <translation id="4242533952199664413">Abrir definições</translation>
 <translation id="4250432749243022864">{count,plural, =0{Abrir {count} separador}=1{Abrir {count} separador}other{Abrir {count} separadores}}</translation>
 <translation id="4250680216510889253">Não</translation>
-<translation id="4251531167342733205">Desfrute do melhor do navegador que adora.</translation>
 <translation id="4253168017788158739">Nota</translation>
 <translation id="4256782883801055595">Licenças de código aberto</translation>
 <translation id="4263576668337963058">Mostrar ações de página disponíveis</translation>
@@ -984,6 +982,7 @@ Se aplicável, consulte as instruções do motor de pesquisa para eliminar o his
 <translation id="4949302115427722371">Gerir definições…</translation>
 <translation id="4958444002117714549">Expandir lista</translation>
 <translation id="496392417432935267">Aberta noutro local</translation>
+<translation id="4970724460420203313">Usar o Chrome com a sua conta gerida ajuda a manter a navegação relacionada com a sua organização (incluindo separadores, histórico e palavras-passe) separada da restante navegação</translation>
 <translation id="4971735654804503942">Proteção proativa mais rápida contra transferências, extensões e Webistes perigosos. Envia-lhe avisos sobre violações de palavras-passe. Requer o envio de dados de navegação para a Google.</translation>
 <translation id="4979397965658815378">Inicie sessão com a sua Conta Google para aceder aos marcadores, às palavras-passe, ao histórico e a outras definições em todos os dispositivos</translation>
 <translation id="4985921635659180565">Quando é agendada a eliminação de um ficheiro, não é possível cancelá-la.</translation>
@@ -1098,6 +1097,7 @@ Se aplicável, consulte as instruções do motor de pesquisa para eliminar o his
 <translation id="5454211924362324495">Para impedir que outras pessoas usem a sua palavra-passe, <ph name="BEGIN_LINK" />altere-a em <ph name="WEBSITE" /><ph name="END_LINK" /></translation>
 <translation id="5457082343331641453">Adicione à sua pesquisa</translation>
 <translation id="5457226814769348910">Abrir versão offline</translation>
+<translation id="5467163657366219870">Desativar Pré-visualizações do Maps</translation>
 <translation id="5478327362747197944">Crie eventos do Calendário diretamente ao clicar numa data numa página Web.</translation>
 <translation id="5482922178977937393">Quer receber notificações de notícias, desporto e muito mais com base nos seus interesses?</translation>
 <translation id="5483838506518938965">O processo está concluído</translation>
@@ -1154,6 +1154,7 @@ A Entrega também tem de estar ativada na secção Geral das Definições e os s
 <translation id="5656431592348714536">Calendário melhorado</translation>
 <translation id="5657156137487675418">Mostrar todos os cookies</translation>
 <translation id="5659593005791499971">Email</translation>
+<translation id="5665739277590037307">Aplicam-se os <ph name="GOOGLE_TERMS" /> e o <ph name="GEMINI_APPS_PRIVACY" />. O Gemini pode cometer erros, por isso, verifique as informações.</translation>
 <translation id="5666313630530585305">Inicie sessão num Website.</translation>
 <translation id="5669335982068190158">Como parte da reposição do iPhone, a sua sessão foi terminada. Toque em Continuar abaixo para iniciar sessão.</translation>
 <translation id="5669528293118408608">www</translation>
@@ -1186,6 +1187,7 @@ A Entrega também tem de estar ativada na secção Geral das Definições e os s
 <translation id="5756525336488841345">Ocultar Marcadores</translation>
 <translation id="5758631781033351321">A sua lista de leitura será apresentada aqui</translation>
 <translation id="57586589942790530">Número de cartão inválido</translation>
+<translation id="5758759241456233788">Pré-visualizações do Maps desativadas. Ative-as nas Definições.</translation>
 <translation id="5759484603608560822">Ocultar Transferências</translation>
 <translation id="5767099457279594162">A palavra-passe não foi partilhada</translation>
 <translation id="5779117921996157216">{count,plural, =1{Tem {count} palavras-passe comprometida que pode pôr a sua segurança em risco. Corrija-a agora para manter a sua segurança.}other{Tem {count} palavras-passe comprometidas que podem pôr a sua segurança em risco. Corrija-as agora para manter a sua segurança.}}</translation>
@@ -1327,6 +1329,7 @@ A Entrega também tem de estar ativada na secção Geral das Definições e os s
 <translation id="6331836477476466332">Um navegador mais seguro e poderoso para si</translation>
 <translation id="6335744088476213315">Este cartão mostra produtos que viu recentemente e que pode ter interesse em acompanhar para receber alertas de queda de preço</translation>
 <translation id="6337234675334993532">Encriptação</translation>
+<translation id="6337313937331295309">Aviso de Privacidade das Apps Gemini</translation>
 <translation id="633809752005859102">Algo correu muito mal. Estamos a tratar do assunto.</translation>
 <translation id="6339793034470834130">Para usar o Web Inspector, ligue-se ao Safari no computador com um cabo e aceda ao iPhone a partir do menu do programador. Pode ativar o menu do programador na secção Avançadas das definições do Safari no computador.</translation>
 <translation id="6340285871011301182">Tradução parcial não disponível.</translation>
@@ -1352,7 +1355,6 @@ A Entrega também tem de estar ativada na secção Geral das Definições e os s
 <translation id="6404422529625928907">Abrir no Google Drive</translation>
 <translation id="6404511346730675251">Editar marcador</translation>
 <translation id="6406506848690869874">Sincronização</translation>
-<translation id="6410005280995367944">Palavras-passe noutras apps</translation>
 <translation id="6410390304316730527">A Navegação segura permite-lhe proteger-se contra os atacantes que o podem enganar no sentido de fazer algo perigoso, como instalar software malicioso, ou revelar informações pessoais, como palavras-passe, números de telefone ou cartões de crédito. Se a desativar, tenha cuidado ao navegar em sites desconhecidos ou pouco credíveis.</translation>
 <translation id="6410883413783534063">Abra separadores para visitar várias páginas em simultâneo.</translation>
 <translation id="6416807286621280684">As suas embalagens acompanhadas e atualizações da entrega.</translation>
@@ -1426,7 +1428,6 @@ Os sites não podem utilizar cookies para ver a sua atividade de navegação em 
 <translation id="6640268266988685324">Separador aberto</translation>
 <translation id="6641465290890659327">Partilhe uma cópia da sua palavra-passe</translation>
 <translation id="6642362222295953972">Mudar para um separador existente</translation>
-<translation id="6644512095122093795">Propor guardar palavras-passe</translation>
 <translation id="664573288952458293">Grelha de separadores normais</translation>
 <translation id="6645899968535965230">Código QR: <ph name="PAGE_TITLE" /></translation>
 <translation id="6647441008198474441">Os URLs que visitar são enviados para a Google para prever os sites que pode visitar a seguir</translation>
@@ -1465,7 +1466,6 @@ Quando estiver na Navegação anónima, os sites não podem utilizar cookies par
 <translation id="6759709389246683070">Pode tocar sem soltar neste separador para definir um lembrete para consultar mais tarde</translation>
 <translation id="6761393919622941301">Áudio</translation>
 <translation id="6770452996697898492">[RESERVADO]</translation>
-<translation id="6775647281444147078">Os chats da sua organização não são usados para melhorar os nossos modelos. O Gemini pode apresentar informações incorretas, inclusive sobre pessoas, por isso, verifique-as. A sua privacidade e o Gemini</translation>
 <translation id="6779455296366983087">Os seus dados de navegação vão ser eliminados</translation>
 <translation id="6790502149545262384">Em breve, vão ser apresentadas notícias de <ph name="CHANNEL_NAME" /> quando abrir um novo separador.</translation>
 <translation id="6791425686608802741">Toque em "Adicionar separador a novo grupo"</translation>
@@ -1557,8 +1557,8 @@ Quando estiver na Navegação anónima, os sites não podem utilizar cookies par
 <translation id="7173721738069475737">{count,plural, =1{Marcador guardado}other{{count} marcadores guardados}}</translation>
 <translation id="7176183551031110427">Diminuir zoom</translation>
 <translation id="7186568385131859684">Controle a forma como o histórico de navegação é usado com os seus outros dados nos serviços Google</translation>
-<translation id="718807879214459529">Tire o máximo partido do navegador para dispositivos móveis que conhece e adora no seu iPad.</translation>
 <translation id="719133302483559673">Faça a gestão dos seus interesses e preferências.</translation>
+<translation id="7203496777391039568">Os dados da sua organização são privados e estão seguros</translation>
 <translation id="720399613139435155">Falha ao traduzir</translation>
 <translation id="7204922488054642675">Notícias personalizadas</translation>
 <translation id="7206979415662233817">Termos de Utilização</translation>
@@ -1575,6 +1575,7 @@ Quando estiver na Navegação anónima, os sites não podem utilizar cookies par
 <translation id="7266578100016339897">Isto ajuda a manter a organização. Pode alterar esta opção nas definições em qualquer altura.</translation>
 <translation id="7272437679830969316">Não é possível validar a sua identidade. Palavra-passe não copiada.</translation>
 <translation id="728025568708172005">Iniciar visita guiada</translation>
+<translation id="7281202269687163394">A sua privacidade e o Gemini.</translation>
 <translation id="7293429513719260019">Selecionar idioma</translation>
 <translation id="7300448350764260141">Adicione uma camada extra de proteção contra ameaças online.</translation>
 <translation id="7311244614769792472">Não foram encontrados resultados</translation>
@@ -1631,7 +1632,6 @@ Quando estiver na Navegação anónima, os sites não podem utilizar cookies par
 <translation id="7506817096924591340"><ph name="FILENAME" /> (<ph name="FILESIZE" />).</translation>
 <translation id="7508728395076009983">Para bloquear os separadores de navegação anónima, configure o Touch ID, o Face ID ou um código secreto.</translation>
 <translation id="750886945254958667">Mantenha este grupo para adicionar separadores mais tarde ou saia do grupo se já não quiser aceder a este</translation>
-<translation id="7512075701202892785">O navegador que adora agora no iPad</translation>
 <translation id="7512909159512473473">Introduzir frase de acesso…</translation>
 <translation id="7514365320538308">Transferir</translation>
 <translation id="7514530647142300459">Continue a usar as palavras-passe na sua Conta Google <ph name="EMAIL" /></translation>
@@ -1640,7 +1640,6 @@ Quando estiver na Navegação anónima, os sites não podem utilizar cookies par
 <translation id="75362970626182391">Novo grupo de separadores</translation>
 <translation id="7537586195939242955">De momento não é possível instalar a sua Palavra-passe no Passbook.</translation>
 <translation id="754655535278952384">Última verificação: <ph name="TIME" /></translation>
-<translation id="7553234618121028547">Para desativar, abra as <ph name="BEGIN_LINK" />Definições<ph name="END_LINK" /> e aceda a Opções de palavras-passe.</translation>
 <translation id="7557508262441527045">Sessão terminada</translation>
 <translation id="7561196759112975576">Sempre</translation>
 <translation id="7561982940498449837">Fechar menu</translation>
@@ -1658,7 +1657,6 @@ Quando estiver na Navegação anónima, os sites não podem utilizar cookies par
 <translation id="760667371114328991">Desative as notificações da verificação de segurança</translation>
 <translation id="7612619742409846846">Iniciou sessão no Google como</translation>
 <translation id="7612849887607288481">Abrir menu Criar protótipo de IA</translation>
-<translation id="7615581988398168124">Aplicam-se os Termos de Utilização da Google e o Aviso de Privacidade das Apps Gemini. O Gemini pode cometer erros, por isso verifique as informações.</translation>
 <translation id="7620522820075868385">Cancelar</translation>
 <translation id="7638584964844754484">Frase de acesso incorreta</translation>
 <translation id="7639276194483401980">{COUNT,plural, =0{Palavras-passe comprometidas}=1{{COUNT} palavra-passe comprometida}other{{COUNT} palavras-passe comprometidas}}</translation>
@@ -1987,7 +1985,6 @@ Os sites podem utilizar cookies para ver a sua atividade de navegação em difer
 <translation id="8820817407110198400">Marcadores</translation>
 <translation id="8822421075653507124">Para garantir que este dispositivo pode ser usado em segurança, a sua organização pode ter de ver informações sobre o sistema operativo, o navegador, as definições e que software está instalado no dispositivo.</translation>
 <translation id="8825562130641217944">Obtenha os seus marcadores, palavras-passe e muito mais.</translation>
-<translation id="8827154289515190290">O navegador que adora agora no iOS</translation>
 <translation id="8831208860914609320">Fechar todos os inativos</translation>
 <translation id="8831944931153286232">Adicionar à Lista de leitura</translation>
 <translation id="8837654851594567190">Ordenar por publicador</translation>
@@ -2000,7 +1997,6 @@ Os sites podem utilizar cookies para ver a sua atividade de navegação em difer
 <translation id="8863067612494559785">A enviar para <ph name="DEVICE_NAME" />…</translation>
 <translation id="8863431381414769983">Obtenha direções e informações locais do Google Maps</translation>
 <translation id="886477344907998366">Mostrar marcadores</translation>
-<translation id="8869239474428371589">Desfrute do melhor do navegador que adora</translation>
 <translation id="8871974300055371298">Definições de conteúdo</translation>
 <translation id="8877788021141246043">Definir um lembrete</translation>
 <translation id="8879604564928138696">Toque duas vezes para experimentar</translation>
@@ -2093,7 +2089,6 @@ Os sites podem utilizar cookies para ver a sua atividade de navegação em difer
 <translation id="9206887540681440657">Velocidade</translation>
 <translation id="9223358826628549784">Relatório de falha enviado.</translation>
 <translation id="926455622548529175">Mudar e eliminar</translation>
-<translation id="927162192666499119">Os dados da sua organização são privados e estão seguros</translation>
 <translation id="929748059769569925">Texto realçado</translation>
 <translation id="932305336591073205">{count,plural, =1{Fechar separador}other{Fechar separadores}}</translation>
 <translation id="932327136139879170">Página inicial</translation>

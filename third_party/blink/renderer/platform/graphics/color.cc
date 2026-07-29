@@ -937,15 +937,15 @@ void Color::UnpremultiplyColor() {
 }
 
 unsigned Color::GetHash() const {
-  unsigned result = WTF::HashInt(static_cast<uint8_t>(color_space_));
-  WTF::AddFloatToHash(result, param0_);
-  WTF::AddFloatToHash(result, param1_);
-  WTF::AddFloatToHash(result, param2_);
-  WTF::AddFloatToHash(result, alpha_);
-  WTF::AddIntToHash(result, param0_is_none_);
-  WTF::AddIntToHash(result, param1_is_none_);
-  WTF::AddIntToHash(result, param2_is_none_);
-  WTF::AddIntToHash(result, alpha_is_none_);
+  unsigned result = HashInt(static_cast<uint8_t>(color_space_));
+  AddFloatToHash(result, param0_);
+  AddFloatToHash(result, param1_);
+  AddFloatToHash(result, param2_);
+  AddFloatToHash(result, alpha_);
+  AddIntToHash(result, param0_is_none_);
+  AddIntToHash(result, param1_is_none_);
+  AddIntToHash(result, param2_is_none_);
+  AddIntToHash(result, alpha_is_none_);
   return result;
 }
 
@@ -974,7 +974,7 @@ bool Color::ParseHexColor(base::span<const UChar> name, Color& color) {
 bool Color::ParseHexColor(const StringView& name, Color& color) {
   if (name.empty())
     return false;
-  return WTF::VisitCharacters(name, [&color](auto chars) {
+  return VisitCharacters(name, [&color](auto chars) {
     return ParseHexColorInternal(chars, color);
   });
 }
@@ -990,7 +990,7 @@ bool Color::SetFromString(const String& name) {
   // TODO(https://crbug.com/1434423): Implement CSS Color level 4 parsing.
   if (name[0] != '#')
     return SetNamedColor(name);
-  return WTF::VisitCharacters(name, [this](auto chars) {
+  return VisitCharacters(name, [this](auto chars) {
     return ParseHexColorInternal(chars.template subspan<1>(), *this);
   });
 }

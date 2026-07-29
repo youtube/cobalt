@@ -14,6 +14,8 @@ import org.chromium.chrome.browser.tab.TabId;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab.TabSelectionType;
 
+import java.util.Set;
+
 /**
  * TabModel organizes all the open tabs and allows you to create new ones. Regular and Incognito
  * tabs are kept in different TabModels.
@@ -151,4 +153,39 @@ public interface TabModel extends SupportsTabModelObserver, TabList {
 
     /** Broadcast a native-side notification that all tabs are now loaded from storage. */
     void broadcastSessionRestoreComplete();
+
+    /**
+     * Sets the multi-selected state for a collection of tabs in a single batch operation.
+     *
+     * @param tabIds A Set of tab IDs to either add to or remove from the multi-selection.
+     * @param isSelected If true, the tab IDs will be added to the selection; if false, they will be
+     *     removed.
+     */
+    void setTabsMultiSelected(Set<Integer> tabIds, boolean isSelected);
+
+    /**
+     * Clears the entire multi-selection set.
+     *
+     * @param notifyObservers If true, observers will be notified of the change. This can be set to
+     *     false to avoid redundant notifications when this clear is part of a larger operation.
+     */
+    void clearMultiSelection(boolean notifyObservers);
+
+    /**
+     * Checks if a tab is part of the current selection. A tab is considered selected if it is
+     * either the currently active tab or has been explicitly added to the multi-selection group.
+     *
+     * @param tabId The ID of the tab to check.
+     * @return true if the tab is selected, false otherwise.
+     */
+    boolean isTabMultiSelected(int tabId);
+
+    /**
+     * Gets the total number of selected tabs. This includes the currently active tab plus any other
+     * tabs explicitly added to the multi-selection group. If no tabs are multi-selected, this will
+     * return 1 (for the active tab). If there are no tabs in the model, this will return 0.
+     *
+     * @return The total count of selected tabs.
+     */
+    int getMultiSelectedTabsCount();
 }

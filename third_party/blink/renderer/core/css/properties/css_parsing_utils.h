@@ -105,6 +105,7 @@ using IsPositionKeyword = bool (*)(CSSValueID);
 
 constexpr size_t kMaxNumAnimationLonghands = 12;
 constexpr size_t kMaxNumAnimationTriggerLonghands = 6;
+constexpr size_t kMaxNumTimelineTriggerLonghands = 7;
 
 void Complete4Sides(std::array<CSSValue*, 4>&);
 
@@ -410,10 +411,16 @@ CSSValue* ConsumeSingleTimelineName(CSSParserTokenStream&,
 CSSValue* ConsumeSingleTimelineInset(CSSParserTokenStream&,
                                      const CSSParserContext&);
 
-bool ConsumeAnimationTriggerShorthand(const StylePropertyShorthand&,
-                                      HeapVector<Member<CSSValueList>, kMaxNumAnimationTriggerLonghands>&,
-                                      CSSParserTokenStream&,
-                                      const CSSParserContext&);
+bool ConsumeAnimationTriggerShorthand(
+    const StylePropertyShorthand&,
+    HeapVector<Member<CSSValueList>, kMaxNumAnimationTriggerLonghands>&,
+    CSSParserTokenStream&,
+    const CSSParserContext&);
+bool ConsumeTimelineTriggerShorthand(
+    const StylePropertyShorthand&,
+    HeapVector<Member<CSSValueList>, kMaxNumTimelineTriggerLonghands>&,
+    CSSParserTokenStream&,
+    const CSSParserContext&);
 
 CSSValue* GetImpliedRangeEnd(const CSSValue* start_range);
 
@@ -524,7 +531,7 @@ CSSValue* ConsumeMathDepth(CSSParserTokenStream& stream,
 CSSValue* ConsumeFontPalette(CSSParserTokenStream&, const CSSParserContext&);
 CSSValue* ConsumePaletteMixFunction(CSSParserTokenStream&,
                                     const CSSParserContext&);
-CSSValueList* ConsumeFontFamily(CSSParserTokenStream&);
+CSSValueList* ConsumeFontFamily(CSSParserTokenStream&, const CSSParserContext&);
 CSSValueList* ConsumeNonGenericFamilyNameList(CSSParserTokenStream& stream);
 CSSValue* ConsumeGenericFamily(CSSParserTokenStream&);
 CSSValue* ConsumeFamilyName(CSSParserTokenStream&);
@@ -548,13 +555,15 @@ bool IsSupportedKeywordFormat(CSSValueID keyword);
 CSSValue* ConsumeGridLine(CSSParserTokenStream&, const CSSParserContext&);
 CSSValue* ConsumeGridTrackList(CSSParserTokenStream&,
                                const CSSParserContext&,
-                               TrackListType);
+                               TrackListType,
+                               bool is_masonry_shorthand = false);
 bool ParseGridTemplateAreasRow(const WTF::String& grid_row_names,
                                NamedGridAreaMap&,
                                const wtf_size_t row_count,
                                wtf_size_t& column_count);
 CSSValue* ConsumeGridTemplatesRowsOrColumns(CSSParserTokenStream&,
-                                            const CSSParserContext&);
+                                            const CSSParserContext&,
+                                            bool is_masonry_shorthand = false);
 bool ConsumeGridItemPositionShorthand(bool important,
                                       CSSParserTokenStream&,
                                       const CSSParserContext&,
@@ -566,6 +575,9 @@ bool ConsumeGridTemplateShorthand(bool important,
                                   const CSSValue*& template_rows,
                                   const CSSValue*& template_columns,
                                   const CSSValue*& template_areas);
+
+CSSValue* ParseMasonryTemplateAreasValue(const String& masonry_template_areas,
+                                         bool is_template_columns);
 
 CSSValue* ConsumeItemTolerance(CSSParserTokenStream&, const CSSParserContext&);
 

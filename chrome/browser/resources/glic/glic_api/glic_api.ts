@@ -601,6 +601,11 @@ export declare interface GlicBrowserHost {
    */
   getZeroStateSuggestions?(options?: ZeroStateSuggestionsOptions):
       ObservableValue<ZeroStateSuggestionsV2>;
+
+  /**
+   * Returns the list of capabilities of the glic host.
+   */
+  getHostCapabilities?(): Set<HostCapability>;
 }
 /** Fields of interest from the system settings page. */
 export type OsPermissionType = 'media'|'geolocation';
@@ -910,6 +915,11 @@ export declare interface TabContextOptions {
    * will never be returned.
    */
   pdfSizeLimit?: number;
+  /**
+   * The mode of the annotated page content if included in the response. This
+   * maps directly to the AnnotatedPageContentMode enum in the proto.
+   */
+  annotatedPageContentMode?: number;
 }
 
 /**
@@ -1488,6 +1498,12 @@ export declare interface SuggestionContent {
   suggestion: string;
 }
 
+/** Describes the capability of the glic host. */
+export enum HostCapability {
+  /** Glic host supports scrollTo() on PDF documents. */
+  SCROLL_TO_PDF = 0,
+}
+
 //
 // Types used in presubmit check.
 //
@@ -1548,4 +1564,5 @@ export interface ExtensibleEnums {
   createTaskErrorReason: typeof CreateTaskErrorReason;
   performActionsErrorReason: typeof PerformActionsErrorReason;
   settingsPageField: typeof SettingsPageField;
+  hostCapability: typeof HostCapability;
 }

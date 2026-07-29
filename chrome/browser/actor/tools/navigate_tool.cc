@@ -4,6 +4,7 @@
 
 #include "chrome/browser/actor/tools/navigate_tool.h"
 
+#include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/site_policy.h"
 #include "chrome/browser/actor/tools/observation_delay_controller.h"
 #include "chrome/browser/actor/tools/tool_callbacks.h"
@@ -19,6 +20,7 @@
 
 using content::NavigationHandle;
 using content::WebContents;
+using tabs::TabInterface;
 
 namespace actor {
 
@@ -33,9 +35,12 @@ mojom::ActionResultPtr MayActOnUrlToResult(bool may_act) {
 
 NavigateTool::NavigateTool(TaskId task_id,
                            AggregatedJournal& journal,
-                           WebContents& web_contents,
+                           TabInterface& tab,
                            const GURL& url)
-    : Tool(task_id, journal), WebContentsObserver(&web_contents), url_(url) {}
+    : Tool(task_id, journal),
+      WebContentsObserver(tab.GetContents()),
+      url_(url),
+      tab_handle_(tab.GetHandle()) {}
 
 NavigateTool::~NavigateTool() = default;
 
@@ -48,6 +53,7 @@ void NavigateTool::Validate(ValidateCallback callback) {
   }
 
   MayActOnUrl(url_,
+              /*allow_insecure_http=*/false,
               Profile::FromBrowserContext(web_contents()->GetBrowserContext()),
               journal(), task_id(),
               base::BindOnce(&MayActOnUrlToResult).Then(std::move(callback)));
@@ -56,7 +62,7 @@ void NavigateTool::Validate(ValidateCallback callback) {
 void NavigateTool::Invoke(InvokeCallback callback) {
   content::OpenURLParams params(
       url_, content::Referrer(), WindowOpenDisposition::CURRENT_TAB,
-      ui::PageTransition::PAGE_TRANSITION_AUTO_TOPLEVEL,
+      ::ui::PageTransition::PAGE_TRANSITION_AUTO_TOPLEVEL,
       false /* is_renderer_initiated */);
 
   CHECK(web_contents());
@@ -82,6 +88,10 @@ std::unique_ptr<ObservationDelayController>
 NavigateTool::GetObservationDelayer() const {
   return std::make_unique<ObservationDelayController>(
       *web_contents()->GetPrimaryMainFrame());
+}
+
+void NavigateTool::UpdateTaskBeforeInvoke(ActorTask& task) const {
+  task.AddToTabSet(tab_handle_);
 }
 
 void NavigateTool::DidFinishNavigation(NavigationHandle* navigation_handle) {

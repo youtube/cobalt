@@ -232,6 +232,7 @@
 <translation id="3785324443014631273">‏ChromeOS Flex سائن ان میں ایک خرابی کی وجہ سے آپ کے ڈیٹا کی مطابقت پذیری نہیں کر سکا۔</translation>
 <translation id="3795971588916395511">Google ChromeOS</translation>
 <translation id="3809772425479558446">‏Google Chrome کے لیے Windows 10 یا اس کے بعد کا ورژن درکار ہے۔</translation>
+<translation id="3810973564298564668">نظم کریں</translation>
 <translation id="383928141529488001">‏‫Google Chrome کو بلوٹوتھ آلات دریافت کرنے کے لیے بلوٹوتھ تک رسائی درکار ہے۔ <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="386202838227397562">‏براہ کرم سبھی Google Chrome ونڈوز بند کریں اور دوبارہ کوشش کریں۔</translation>
 <translation id="3873044882194371212">‏لنک کو Chrome &amp;پوشیدگی ونڈو میں کھولیں</translation>
@@ -317,6 +318,7 @@
 <translation id="4895437082222824641">‏لنک کو نئے Chrome &amp;ٹیب میں کھولیں</translation>
 <translation id="4918844574251943176">تصویر کاپی ہو گئی</translation>
 <translation id="492720062778050435">‏Chrome تجویز کرتا ہے کہ آپ اس ایکسٹینشن کا جائزہ لیں</translation>
+<translation id="4946912144186040233">‏‫Chrome فارمز کو بہتر طور پر سمجھتا ہے اور آپ کے لیے انہیں تیزی سے آٹو فل کر سکتا ہے۔ یہ ترتیب آف ہے۔</translation>
 <translation id="4953650215774548573">‏Google Chrome کو اپنے ڈیفالٹ براؤزر کے بطور سیٹ کریں</translation>
 <translation id="495931528404527476">‏Chrome میں</translation>
 <translation id="4969674060580488087">‏ChromeOS Flex آپ کے اکاؤنٹ کی سائن ان تفصیلات پرانی ہونے کی وجہ سے آپ کے ڈیٹا کی مطابقت پذیری نہیں کر سکا۔</translation>
@@ -325,6 +327,7 @@
 <translation id="4990567037958725628">‏Google Chrome کینیری</translation>
 <translation id="5003967926796347400">‏"Google پاس ورڈ مینیجر" پر کلک کریں</translation>
 <translation id="504867494566807945">‏کسی بھی ایپ سے Chrome میں لنکس کھولیں۔ اس کے علاوہ آسان رسائی کے لیے، یہ آپ کے ٹاسک بار میں پن ہو جاتا ہے۔</translation>
+<translation id="5049567194145991071">‏جب آپ 'سمجھ آ گئی' پر کلک کرتے ہیں تو آپ اپنے Google اکاؤنٹ میں پاس ورڈز اور مزید کو محفوظ کر سکتے ہیں اور Chrome میں سائن ان کرنے پر انہیں استعمال کر سکتے ہیں۔ <ph name="LEARN_MORE" /></translation>
 <translation id="5114340746415930644">‏اپنے اکاؤنٹ، <ph name="USER_EMAIL" /> میں Chrome ڈیٹا کا استعمال کرنے اور محفوظ کرنے کے لیے اپنا پاس فریز درج کریں</translation>
 <translation id="5120334927898581447">‏دیگر Google سروسز میں سائن ان کرتے وقت Chrome میں سائن ان کریں</translation>
 <translation id="5126049312684316860">‏Chrome ایسے اور بھی مزید صفحات کو پیشگی لوڈ کرتا ہے جنہیں آپ ممکنہ طور پر ملاحظہ کر سکتے ہیں، تاکہ وہ آپ کے ملاحظہ کرتے وقت مزید تیزی سے لوڈ ہو سکیں</translation>
@@ -513,6 +516,7 @@ Google Chrome آپ کی ترتیبات کو بازیافت کرنے سے قاص�
 <translation id="7481213027396403996">‏Chrome کی مضبوط ترین سیکیورٹی حاصل کریں</translation>
 <translation id="749228101751499733">‏جب آپ سائن ان ہوتے ہیں، آپ Chrome میں اپنے Google اکاؤنٹ سے اپنے پاس ورڈز وغیرہ استعمال کر سکتے ہیں۔ <ph name="SHORTCUT" /> آپ کی Google سروسز کی ترتیبات کو تبدیل کر سکتا ہے۔</translation>
 <translation id="7496017508659652909">‏‫Chrome صفحات کو پہلے سے لوڈ کرتا ہے جس براؤزنگ اور تلاش کا عمل زیادہ تیز ہو جاتا ہے۔ <ph name="BEGIN_LINK" />پیشگی لوڈ کے صفحات کے بارے میں مزید جانیں<ph name="END_LINK" /></translation>
+<translation id="7510927761955779701">‏‫Chrome فارمز کو بہتر طور پر سمجھتا ہے اور آپ کے لیے انہیں تیزی سے آٹو فل کر سکتا ہے۔ یہ ترتیب آن ہے۔</translation>
 <translation id="7514258452813684157">‏‫Google اپڈیٹر سروس</translation>
 <translation id="7515191208480168435">‏آپ آسان رسائی کے لیے Google لینز کو پن کر سکتے ہیں</translation>
 <translation id="7535429826459677826">Google Chrome Dev</translation>
@@ -522,6 +526,7 @@ Google Chrome آپ کی ترتیبات کو بازیافت کرنے سے قاص�
 <translation id="7583399374488819119"><ph name="COMPANY_NAME" /> انسٹالر</translation>
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
 <translation id="7626072681686626474">‏<ph name="MANAGER" /> تقاضہ کرتا ہے کہ آپ یہ آلہ استعمال کرنے سے پہلے مندرجہ ذیل سروس کی شرائط کو پڑھیں اور قبول کریں۔ یہ شرائط Google ChromeOS کی شرائط کی توسیع، ان میں ترمیم یا انہیں محدود نہیں کرتی ہیں۔</translation>
+<translation id="7627609214560473136">‏اپنے ڈیٹا کی حفاظت کے لیے، Chrome کو ان سائٹس سے اجازتیں ہٹانے کی اجازت دیں جنہیں آپ نے حال ہی میں ملاحظہ نہیں کیا ہے۔</translation>
 <translation id="7629695634924605473">‏Chrome آپ کو بتاتا ہے کہ آیا آپ کے پاس ورڈز کے ساتھ کبھی چھیڑ چھاڑ کی گئی ہے</translation>
 <translation id="7641148173327520642">‏آپ کے سسٹم کے منتظم نے <ph name="TARGET_URL_HOSTNAME" /> تک رسائی حاصل کرنے کیلئے Google Chrome کو <ph name="ALTERNATIVE_BROWSER_NAME" /> کھولنے کیلئے کنفیگر کیا ہے۔</translation>
 <translation id="7649070708921625228">مدد</translation>
@@ -544,6 +549,7 @@ Google Chrome آپ کی ترتیبات کو بازیافت کرنے سے قاص�
 <translation id="7801699035218095297">‏Google Chrome پاس ورڈز کاپی کرنے کی کوشش کر رہا ہے۔ اس کی اجازت دینے کے لیے اپنا Windows پاس ورڈ ٹائپ کریں۔</translation>
 <translation id="7808348361785373670">‏Chrome سے ہٹائیں…</translation>
 <translation id="7825851276765848807">‏غیر متعین خرابی کی وجہ سے انسٹالیشن ناکام ہو گیا۔ براہ کرم Google Chrome دوبارہ ڈاؤن لوڈ کریں۔</translation>
+<translation id="7826342993930002256">‏آپ کا Chrome، ہر جگہ</translation>
 <translation id="7827099906024714326">‏آپ کے Google اکاؤنٹ میں کچھ ڈیٹا کو محفوظ کرنے اور آپ کے تمام آلات پر اس کا استعمال کرنے سے پہلے Chrome کو اس بات کی توثیق کرنے کی ضرورت ہے کہ یہ آپ ہی ہیں۔ اگر آپ ابھی سائن آؤٹ کرتے ہیں تو یہ ڈیٹا حذف ہو جائے گا۔</translation>
 <translation id="7845233973568007926">انسٹال کرنے کا شکریہ۔ آپ کو <ph name="BUNDLE_NAME" /> استعمال کرنے سے پہلے اپنا کمپیوٹر لازمی طور سے ری اسٹارٹ کرنا چاہیے۔</translation>
 <translation id="7872446069773932638">ڈاؤن لوڈ ہو رہی ہے… <ph name="SECONDS" /> سیکنڈ(سیکنڈز) باقی ہے</translation>
@@ -608,6 +614,7 @@ Google Chrome آپ کی ترتیبات کو بازیافت کرنے سے قاص�
 <translation id="8649026945479135076">‏جن سائٹس کو آپ ملاحظہ کرتے ہیں ان میں آپ کی دلچسپیوں کو یاد رکھنا سائٹس کے لئے عام بات ہے تاکہ وہ آپ کے تجربے کو ذاتی نوعیت کا بنا سکیں۔ سائٹس Chrome کے ساتھ آپ کی دلچسپیوں کے بارے میں معلومات بھی اسٹور کر سکتی ہیں۔</translation>
 <translation id="8669527147644353129">‏Google Chrome مدد کنندہ</translation>
 <translation id="8679801911857917785">‏یہ آپ کی جانب سے Chrome شروع کیے جانے پر دکھائی دینے والے صفحہ کو بھی کنٹرول کرتا ہے۔</translation>
+<translation id="8712637175834984815">سمجھ آ گئی</translation>
 <translation id="8712767363896337380">‏تقریباً اپ ٹو ڈیٹ! اپ ڈیٹ مکمل کرنے کے لیے Chrome کو بند کر کے دوبارہ چلائیں۔</translation>
 <translation id="8718062187489036808">‏Chrome سے سائن آؤٹ کریں</translation>
 <translation id="873133009373065397">‏Google Chrome ڈیفالٹ براؤزر کا تعین یا اس کو سیٹ نہیں کر سکتا ہے</translation>

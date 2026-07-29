@@ -162,7 +162,7 @@
       self.toolbarHeightDelegate;
   [self.secondaryToolbarCoordinator start];
 
-  if (base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdate)) {
+  if (base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdateV2)) {
     self.orchestrator = [[OmniboxFocusOrchestratorParity alloc] init];
   } else {
     self.orchestrator = [[OmniboxFocusOrchestrator alloc] init];
@@ -386,6 +386,9 @@
   }
   CGFloat height =
       self.secondaryToolbarViewController.view.intrinsicContentSize.height;
+  if (IsDiamondPrototypeEnabled()) {
+    height = 0;
+  }
   if (_omniboxPosition == ToolbarType::kSecondary) {
     height += ToolbarExpandedHeight(
         self.traitEnvironment.traitCollection.preferredContentSizeCategory);
@@ -658,7 +661,7 @@
 /// an incognito browser, the NTP is displayed, and whether the fakebox was
 /// pinned if it was selected.
 - (OmniboxFocusTrigger)omniboxFocusTrigger {
-  if (base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdate)) {
+  if (base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdateV2)) {
     web::WebState* webState =
         self.browser->GetWebStateList()->GetActiveWebState();
     if (!webState) {

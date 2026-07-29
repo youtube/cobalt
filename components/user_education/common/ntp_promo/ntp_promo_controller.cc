@@ -5,8 +5,11 @@
 #include "components/user_education/common/ntp_promo/ntp_promo_controller.h"
 
 #include "base/time/time.h"
+#include "components/user_education/common/ntp_promo/ntp_promo_identifier.h"
 #include "components/user_education/common/user_education_data.h"
 #include "components/user_education/common/user_education_storage_service.h"
+#include "ui/base/l10n/l10n_util.h"
+
 namespace user_education {
 
 namespace {
@@ -15,9 +18,21 @@ constexpr base::TimeDelta kCompletedPromoShowDuration = base::Days(7);
 
 }  // namespace
 
-using KeyedNtpPromoData = user_education::KeyedNtpPromoData;
-
 using Eligibility = NtpPromoSpecification::Eligibility;
+
+NtpShowablePromo::NtpShowablePromo() = default;
+NtpShowablePromo::NtpShowablePromo(std::string_view id_,
+                                   std::string_view icon_name_,
+                                   std::string_view body_text_,
+                                   std::string_view action_button_text_)
+    : id(id_),
+      icon_name(icon_name_),
+      body_text(body_text_),
+      action_button_text(action_button_text_) {}
+NtpShowablePromo::NtpShowablePromo(const NtpShowablePromo& other) = default;
+NtpShowablePromo& NtpShowablePromo::operator=(const NtpShowablePromo& other) =
+    default;
+NtpShowablePromo::~NtpShowablePromo() = default;
 
 NtpShowablePromos::NtpShowablePromos() = default;
 NtpShowablePromos::~NtpShowablePromos() = default;
@@ -25,16 +40,24 @@ NtpShowablePromos::NtpShowablePromos(NtpShowablePromos&&) noexcept = default;
 NtpShowablePromos& NtpShowablePromos::operator=(NtpShowablePromos&&) noexcept =
     default;
 
-NtpShowablePromos::Promo::Promo(NtpPromoIdentifier id,
-                                const NtpPromoContent& content)
-    : id(id), content(content) {}
-
 NtpPromoController::NtpPromoController(
     NtpPromoRegistry& registry,
     UserEducationStorageService& storage_service)
     : registry_(registry), storage_service_(storage_service) {}
 
 NtpPromoController::~NtpPromoController() = default;
+
+bool NtpPromoController::HasShowablePromos() const {
+  for (const auto& id : registry_->GetNtpPromoIdentifiers()) {
+    if (const auto* spec = registry_->GetNtpPromoSpecification(id)) {
+      if (spec->eligibility_callback().Run(nullptr) !=
+          NtpPromoSpecification::Eligibility::kIneligible) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
 
 NtpShowablePromos NtpPromoController::GenerateShowablePromos() {
   NtpShowablePromos showable_promos;
@@ -69,21 +92,49 @@ NtpShowablePromos NtpPromoController::GenerateShowablePromos() {
       continue;
     }
 
+    NtpShowablePromo promo(
+        spec->id(), spec->content().icon_name(),
+        l10n_util::GetStringUTF8(spec->content().body_text_string_id()),
+        l10n_util::GetStringUTF8(
+            spec->content().action_button_text_string_id()));
     (prefs.completed.is_null() ? showable_promos.pending
                                : showable_promos.completed)
-        .emplace_back(id, spec->content());
+        .push_back(std::move(promo));
   }
 
   return showable_promos;
+}
+
+void NtpPromoController::OnPromosShown(
+    const std::vector<NtpPromoIdentifier>& eligible_shown,
+    const std::vector<NtpPromoIdentifier>& completed_shown) {
+  // In the current implementation, only the top eligible promo needs to be
+  // updated. However, metrics should be output for every promo shown in this
+  // way.
+  if (!eligible_shown.empty()) {
+    OnPromoShownInTopSpot(eligible_shown[0]);
+  }
 }
 
 void NtpPromoController::OnPromoClicked(NtpPromoIdentifier id) {
   registry_->GetNtpPromoSpecification(id)->action_callback().Run(nullptr);
 }
 
-base::TimeDelta NtpPromoController::GetCompletedPromoShowDurationForTest()
-    const {
+// static
+base::TimeDelta NtpPromoController::GetCompletedPromoShowDurationForTest() {
   return kCompletedPromoShowDuration;
+}
+
+void NtpPromoController::OnPromoShownInTopSpot(NtpPromoIdentifier id) {
+  const int current_session = storage_service_->GetSessionNumber();
+  // If no data is present, default-construct.
+  auto data =
+      storage_service_->ReadNtpPromoData(id).value_or(KeyedNtpPromoData());
+  if (data.last_top_spot_session != current_session) {
+    data.last_top_spot_session = current_session;
+    ++data.top_spot_session_count;
+    storage_service_->SaveNtpPromoData(id, data);
+  }
 }
 
 }  // namespace user_education

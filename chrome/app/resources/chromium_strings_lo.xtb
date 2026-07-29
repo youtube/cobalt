@@ -211,6 +211,7 @@
 <translation id="3790262771324122253">ສຶກສາວ່າເປັນຫຍັງ Chromium ຈຶ່ງບລັອກການດາວໂຫຼດບາງລາຍການ</translation>
 <translation id="379589255253486813">Chromium ຈະແຈ້ງໃຫ້ທ່ານຮູ້ຫາກມີສິ່ງໃດທີ່ທ່ານຕ້ອງກວດສອບ</translation>
 <translation id="3802055581630249637">Chromium ໂຫຼດໜ້າເວັບທີ່ທ່ານອາດຈະເຂົ້າເບິ່ງໄວ້ກ່ອນລ່ວງໜ້າ, ເພື່ອໃຫ້ພວກມັນໂຫຼດໄວຂຶ້ນເມື່ອທ່ານເຂົ້າເບິ່ງ</translation>
+<translation id="3810973564298564668">ຈັດການ</translation>
 <translation id="3848258323044014972"><ph name="PAGE_TITLE" /> - Chromium</translation>
 <translation id="3885770153807205175">ຕົວເລືອກພາສາ</translation>
 <translation id="388648406173476553">ປັບແຕ່ງ ແລະ ຄວບຄຸມ Chromium. ມີບາງຢ່າງທີ່ທ່ານຕ້ອງດຳເນີນການ - ຄລິກສຳລັບລາຍລະອຽດ.</translation>
@@ -493,6 +494,7 @@ Chromium ບໍ່ສາມາດກູ້ການຕັ້ງຄ່າຂອ�
 <translation id="7483335560992089831">ບໍ່ສາມາດຕິດຕັ້ງ Chromium ລຸ້ນດຽວກັບທີ່ກໍາລັງແລ່ນຢູ່ໃນປະຈຸບັນ​ໄດ້. ກະລຸນາປິດ Chromium ແລະລອງໃໝ່ອີກ.</translation>
 <translation id="751935028865900641">ເວັບໄຊອາດເຮັດວຽກຕາມທີ່ຄາດໄວ້. ທ່ານຈະອອກຈາກລະບົບຂອງເວັບໄຊສ່ວນໃຫຍ່ເມື່ອທ່ານປິດໜ້າຈໍ Chromium ທັງໝົດຍົກເວັ້ນບັນຊີ Google ຂອງທ່ານຫາກທ່ານເຂົ້າສູ່ລະບົບ Chromium.</translation>
 <translation id="753534427205733210">{0,plural, =1{Chromium ຈະເປີດຄືນໃໝ່ໃນ 1 ນາທີ}other{Chromium ຈະເປີດຄືນໃໝ່ໃນ # ນາທີ}}</translation>
+<translation id="7565444033145385702">ເພື່ອປົກປ້ອງຂໍ້ມູນຂອງທ່ານ, ກະລຸນາອະນຸຍາດໃຫ້ Chromium ລຶບການອະນຸຍາດອອກຈາກເວັບໄຊທີ່ທ່ານບໍ່ໄດ້ເຂົ້າເບິ່ງເມື່ອບໍ່ດົນມານີ້.</translation>
 <translation id="7582945390259497898">Chromium ສາມາດປະເມີນຄວາມສົນໃຈຂອງທ່ານໄດ້. ເວັບໄຊໃດໜຶ່ງທີ່ທ່ານເຂົ້າເບິ່ງຈະສາມາດຂໍ Chromium ເພື່ອເບິ່ງຄວາມສົນໃຈຂອງທ່ານໃນພາຍຫຼັງໄດ້ເພື່ອປັບແຕ່ງໂຄສະນາທີ່ທ່ານເຫັນໃຫ້ເປັນສ່ວນຕົວ.</translation>
 <translation id="7583399374488819119">ຕົວຕິດຕັ້ງ <ph name="COMPANY_NAME" /></translation>
 <translation id="7585391435984513350">ທ່ານບໍ່ໄດ້ເຂົ້າເບິ່ງເມື່ອບໍ່ດົນມານີ້. Chromium ໄດ້ລຶບສິດເຂົ້າເຖິງ <ph name="PERMISSION" /> ອອກແລ້ວ</translation>
@@ -578,6 +580,7 @@ Chromium ບໍ່ສາມາດກູ້ການຕັ້ງຄ່າຂອ�
 <translation id="8648201657708811153">ບໍ່ສາມາດຕັ້ງ Google Chrome ສຳລັບການທົດສອບເປັນໂປຣແກຣມທ່ອງເວັບເລີ່ມຕົ້ນຂອງທ່ານໄດ້.</translation>
 <translation id="8697124171261953979">ມັນຍັງຄວບຄຸມວ່າຈະໃຫ້ສະແດງໜ້າໃດຂຶ້ນ ເມື່ອທ່ານເລີ່ມຕົ້ນເປີດ Chromium ຫຼືຄົ້ນຫາຈາກ Omnibox.</translation>
 <translation id="8704119203788522458">ນີ້​ແມ່ນ Chromium ຂອງ​ທ່ານ</translation>
+<translation id="8712637175834984815">ເຂົ້າໃຈແລ້ວ</translation>
 <translation id="8719993436687031146">ເຂົ້າສູ່ລະບົບ Chromium ບໍ?</translation>
 <translation id="8747073452963259673">ມຸມຊ້າຍລຸ່ມຂອງພື້ນທີ່ຊອກຫາ: ຊ້າຍ <ph name="LEFT" />%, ລຸ່ມ <ph name="BOTTOM" />%</translation>
 <translation id="8768722695577490596">ທ່ານສາມາດລຶບລະຫັດຜ່ານໄດ້ພາຍນອກ Chromium ເທົ່ານັ້ນ</translation>
