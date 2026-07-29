@@ -1,0 +1,5 @@
+declare_args() {
+  # Includes `//starboard/contrib/cast/cast_starboard_api/samples:cast` into
+  # `//starboard:gn_all`.
+  use_contrib_cast = false
+}
