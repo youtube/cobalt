@@ -109,10 +109,9 @@ constexpr SkColor kMonochromeIconBgColor = SkColorSetARGB(255, 237, 242, 250);
 // The text color of the letter monochrome icons.
 constexpr SkColor kMonochromeIconTextColor = SkColorSetARGB(255, 71, 71, 71);
 
-// Returns the name of the network for payment method icons, empty string
-// otherwise.
+// Returns the name of the network for payment method icons, for home/work
+// address a11y labels and empty string otherwise.
 std::u16string GetIconAccessibleName(Suggestion::Icon icon) {
-  // Networks for which icons are currently shown.
   switch (icon) {
     case Suggestion::Icon::kCardAmericanExpress:
       return l10n_util::GetStringUTF16(IDS_AUTOFILL_CC_AMEX);
@@ -141,6 +140,12 @@ std::u16string GetIconAccessibleName(Suggestion::Icon icon) {
       return l10n_util::GetStringUTF16(IDS_AUTOFILL_CC_GENERIC);
     case Suggestion::Icon::kIban:
       return l10n_util::GetStringUTF16(IDS_AUTOFILL_IBAN_GENERIC);
+    case Suggestion::Icon::kHome:
+      return l10n_util::GetStringUTF16(
+          IDS_AUTOFILL_HOME_PROFILE_ICON_ACCESSIBILITY_LABEL);
+    case Suggestion::Icon::kWork:
+      return l10n_util::GetStringUTF16(
+          IDS_AUTOFILL_WORK_PROFILE_ICON_ACCESSIBILITY_LABEL);
     case Suggestion::Icon::kAccount:
     case Suggestion::Icon::kBnpl:
     case Suggestion::Icon::kClear:
@@ -159,7 +164,6 @@ std::u16string GetIconAccessibleName(Suggestion::Icon icon) {
     case Suggestion::Icon::kGooglePay:
     case Suggestion::Icon::kGoogleWallet:
     case Suggestion::Icon::kGoogleWalletMonochrome:
-    case Suggestion::Icon::kHome:
     case Suggestion::Icon::kHttpsInvalid:
     case Suggestion::Icon::kHttpWarning:
     case Suggestion::Icon::kIdCard:
@@ -179,7 +183,6 @@ std::u16string GetIconAccessibleName(Suggestion::Icon icon) {
     case Suggestion::Icon::kSettings:
     case Suggestion::Icon::kSettingsAndroid:
     case Suggestion::Icon::kUndo:
-    case Suggestion::Icon::kWork:
     case Suggestion::Icon::kAndroidMessages:
       return std::u16string();
   }
@@ -453,7 +456,31 @@ std::u16string GetVoiceOverStringFromSuggestion(const Suggestion& suggestion) {
 
   add_if_not_empty(GetIconAccessibleName(suggestion.icon));
   text.push_back(suggestion.main_text.value);
-  if (!suggestion.minor_texts.empty()) {
+
+  const bool is_vcn =
+      suggestion.type == SuggestionType::kVirtualCreditCardEntry;
+  const bool is_iban = suggestion.type == SuggestionType::kIbanEntry;
+  const bool has_subtext =
+      !suggestion.labels.empty() && !suggestion.labels[0][0].value.empty();
+
+  std::u16string badge_text;
+  if (is_vcn) {
+    badge_text = l10n_util::GetStringUTF16(
+        IDS_AUTOFILL_VIRTUAL_CARD_SUGGESTION_OPTION_VALUE);
+  } else if (is_iban) {
+    badge_text =
+        l10n_util::GetStringUTF16(IDS_AUTOFILL_IBAN_SUGGESTION_OPTION_VALUE);
+  }
+
+  // A badge is applied as a label view for the following cases:
+  // - A virtual card that does not have a product description or nickname.
+  // - An IBAN that does not have a nickname.
+  bool badge_used_as_minor_text = false;
+  if ((is_vcn && !suggestion.minor_texts.empty()) ||
+      (is_iban && !has_subtext)) {
+    add_if_not_empty(badge_text);
+    badge_used_as_minor_text = true;
+  } else if (!suggestion.minor_texts.empty()) {
     std::vector<std::u16string> text_values;
     for (const auto& minor_text : suggestion.minor_texts) {
       text_values.push_back(minor_text.value);
@@ -462,11 +489,26 @@ std::u16string GetVoiceOverStringFromSuggestion(const Suggestion& suggestion) {
     add_if_not_empty(sublabel);
   }
 
+  bool badge_added_to_labels = false;
   for (const std::vector<Suggestion::Text>& row : suggestion.labels) {
+    std::vector<std::u16string> row_values;
     for (const Suggestion::Text& label : row) {
       // `label_text` is not populated for footers or autocomplete entries.
-      add_if_not_empty(label.value);
+      if (!label.value.empty()) {
+        row_values.push_back(label.value);
+      }
     }
+    // If a badge is present and not used as minor text, apply it as a
+    // label view for these specific cases:
+    // - Virtual card that has a product description or nickname.
+    // - IBAN that has a nickname.
+    if (!badge_text.empty() && !badge_used_as_minor_text &&
+        !badge_added_to_labels) {
+      row_values.push_back(badge_text);
+      badge_added_to_labels = true;
+    }
+
+    add_if_not_empty(base::JoinString(row_values, u" "));
   }
 
   // `additional_label` is only populated in a passwords context.

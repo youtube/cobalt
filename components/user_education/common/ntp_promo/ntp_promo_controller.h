@@ -63,8 +63,10 @@ class NtpPromoController {
   NtpPromoController(NtpPromoRegistry& registry,
                      UserEducationStorageService& storage_service);
 
-  // Determines if there are any showable proms.
-  virtual bool HasShowablePromos(Profile* profile) const;
+  // Determines if there are any showable promos. For consistency, this is
+  // essentially a wrapper around promo-list-generation logic, which may mutate
+  // stored prefs.
+  virtual bool HasShowablePromos(Profile* profile);
 
   // Provides ordered lists of eligible and completed promos, intended to be
   // displayed by the NTP. May update prefs as a side effect.
@@ -81,6 +83,14 @@ class NtpPromoController {
   virtual void OnPromoClicked(NtpPromoIdentifier id,
                               BrowserWindowInterface* browser);
 
+  // Sets or resets the snoozed state. Snooze, when set, will last for a fixed
+  // period of time.
+  virtual void SetAllPromosSnoozed(bool snooze);
+
+  // Sets or resets the disabled state. Disable, when set, will last
+  // indefinitely.
+  virtual void SetAllPromosDisabled(bool disable);
+
   // Returns the duration for which a promo can be shown after completion.
   static base::TimeDelta GetCompletedPromoShowDurationForTest();
 
@@ -88,12 +98,21 @@ class NtpPromoController {
   static base::TimeDelta GetClickedPromoHideDurationForTest();
 
  private:
+  // Internal variation of promo list generation, shared between "has promos"
+  // and "make promo lists" logic. When only checking if there are promos to
+  // show, the (relatively expensive) ordering logic can be skipped.
+  NtpShowablePromos GenerateShowablePromos(Profile* profile,
+                                           bool apply_ordering);
+
   // Updates the data on the promo shown in the top spot.
   void OnPromoShownInTopSpot(NtpPromoIdentifier id);
 
   // Checks which promo ID (if any) was most recently shown in the top spot.
   // Returns an empty string if there is no recorded top-spot promo.
   NtpPromoIdentifier GetMostRecentTopSpotPromo();
+
+  // Returns whether promos are disabled or snoozed.
+  bool ArePromosBlocked() const;
 
   // Assembles a vector of showable promo objects (ie. the presentation parts
   // of the promo) to be sent to the NTP.

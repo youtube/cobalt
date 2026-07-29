@@ -34,6 +34,7 @@
 <translation id="1982637982196732906">Áthelyezés az inaktív szakaszba</translation>
 <translation id="2050597508048557928">{TABS_COUNT,plural, =1{<ph name="TABS_COUNT_ONE" /> kiválasztott lap felvétele a könyvjelzők közé}other{<ph name="TABS_COUNT_MANY" /> kiválasztott lap felvétele a könyvjelzők közé}}</translation>
 <translation id="2055057176188061528">Válasszon ki egy lapcsoportot, vagy hozzon létre újat</translation>
+<translation id="2074527029802029717">Ne legyen rögzítve</translation>
 <translation id="2118649612461486615">Üzletadatok</translation>
 <translation id="2123073051266141035">{INCOGNITO_TABS_COUNT,plural, =1{A bezárt lapok és csoportok újra megnyithatók a Nemrég megnyitott lapok és a Lapcsoportok szakaszban. Az inkognitó lap nem lesz hozzáférhető.}other{A bezárt lapok és csoportok újra megnyithatók a Nemrég megnyitott lapok és a Lapcsoportok szakaszban. # inkognitó lap nem lesz hozzáférhető.}}</translation>
 <translation id="2162620598375156287">Most <ph name="CURRENT_PRICE" /> áron a következő webhelyen: <ph name="SOURCE_WEBSITE" /></translation>
@@ -62,6 +63,7 @@
 <translation id="2894757982205307093">Új lap a csoportban</translation>
 <translation id="2918484639460781603">Ugrás a beállításokhoz</translation>
 <translation id="2928243913527329289">Google | Az üzletről</translation>
+<translation id="2978860912612699943">{ITEMS_COUNT,plural, =1{<ph name="ITEMS_COUNT_ONE" /> kiválasztva}other{<ph name="ITEMS_COUNT_MANY" /> kiválasztva}}</translation>
 <translation id="3008554597174452548">Termék nyomon követésének leállítása</translation>
 <translation id="3026391124054406831">Csoportokat hozhat létre a lapok rendszerezéséhez.</translation>
 <translation id="3051031624272448591">Az előzmények között bármikor újra megnyithatja őket.</translation>

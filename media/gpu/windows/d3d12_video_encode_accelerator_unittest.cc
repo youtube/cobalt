@@ -4,6 +4,7 @@
 
 #include "media/gpu/windows/d3d12_video_encode_accelerator.h"
 
+#include "base/strings/stringprintf.h"
 #include "base/test/task_environment.h"
 #include "components/viz/common/resources/shared_image_format.h"
 #include "gpu/command_buffer/client/test_shared_image_interface.h"
@@ -103,6 +104,7 @@ class MockVideoEncoderDelegateFactory
     EXPECT_TRUE(video_device);
     VideoEncodeAccelerator::SupportedProfile profile(kSupportedProfile,
                                                      kSupportedSize, 30, 1);
+    profile.scalability_modes.push_back(SVCScalabilityMode::kL1T1);
     profile.gpu_supported_pixel_formats.push_back(PIXEL_FORMAT_NV12);
     return {profile};
   }
@@ -209,13 +211,29 @@ TEST_F(D3D12VideoEncodeAcceleratorTest, SupportedProfilesCanBeInitialized) {
   for (const auto& profile :
        d3d12_video_encode_accelerator->GetSupportedProfiles()) {
     auto config = SupportedProfileToConfig(profile);
-    EXPECT_TRUE(d3d12_video_encode_accelerator
-                    ->Initialize(config, client_.get(), media_log_->Clone())
-                    .is_ok());
-    EXPECT_CALL(*client_, NotifyEncoderInfoChange(_)).Times(1);
-    EXPECT_CALL(*client_, NotifyErrorStatus(_)).Times(0);
-    WaitForEncoderTasksToComplete();
-    Mock::VerifyAndClearExpectations(&client_);
+    for (SVCScalabilityMode svc_mode : profile.scalability_modes) {
+      SCOPED_TRACE(base::StringPrintf("Testing profile %s, scalability mode %s",
+                                      GetProfileName(profile.profile).c_str(),
+                                      GetScalabilityModeName(svc_mode)));
+      ASSERT_GE(svc_mode, SVCScalabilityMode::kL1T1);
+      ASSERT_LE(svc_mode, SVCScalabilityMode::kL1T3);
+      config.spatial_layers = {{
+          .width = config.input_visible_size.width(),
+          .height = config.input_visible_size.height(),
+          .bitrate_bps = config.bitrate.target_bps(),
+          .framerate = config.framerate,
+          .num_of_temporal_layers = static_cast<uint8_t>(
+              static_cast<int>(svc_mode) -
+              static_cast<int>(SVCScalabilityMode::kL1T1) + 1u),
+      }};
+      EXPECT_TRUE(d3d12_video_encode_accelerator
+                      ->Initialize(config, client_.get(), media_log_->Clone())
+                      .is_ok());
+      EXPECT_CALL(*client_, NotifyEncoderInfoChange(_)).Times(1);
+      EXPECT_CALL(*client_, NotifyErrorStatus(_)).Times(0);
+      WaitForEncoderTasksToComplete();
+      Mock::VerifyAndClearExpectations(&client_);
+    }
   }
 }
 
@@ -251,10 +269,28 @@ TEST_F(D3D12VideoEncodeAcceleratorTest, RejectsUnsupportedConfig) {
     WaitForEncoderTasksToComplete();
     Mock::VerifyAndClearExpectations(&client_);
   }
+
+  // Unsupported number of temporal layers.
+  auto bad_config = supported_config;
+  bad_config.spatial_layers = {{
+      .width = supported_config.input_visible_size.width(),
+      .height = supported_config.input_visible_size.height(),
+      .bitrate_bps = supported_config.bitrate.target_bps(),
+      .framerate = supported_config.framerate,
+      .num_of_temporal_layers = 4,  // Unsupported number of temporal layers.
+  }};
+
+  EXPECT_FALSE(d3d12_video_encode_accelerator
+                   ->Initialize(bad_config, client_.get(), media_log_->Clone())
+                   .is_ok());
+  EXPECT_CALL(*client_, NotifyEncoderInfoChange(_)).Times(0);
+  EXPECT_CALL(*client_, NotifyErrorStatus(_)).Times(0);
+  WaitForEncoderTasksToComplete();
+  Mock::VerifyAndClearExpectations(&client_);
 }
 
 TEST_F(D3D12VideoEncodeAcceleratorTest,
-       InputFramesQueueAndBitstreamBuffersAreEitherEmpty) {
+       InputFramesQueueAndBitstreamBuffersAreEitherEmptyForGMBEncoding) {
   auto* d3d12_video_encode_accelerator =
       static_cast<D3D12VideoEncodeAccelerator*>(
           video_encode_accelerator_.get());
@@ -297,6 +333,59 @@ TEST_F(D3D12VideoEncodeAcceleratorTest,
     WaitForEncoderTasksToComplete();
     CheckInputFramesQueueAndBitstreamBuffersAreEitherEmpty();
   }
+}
+
+TEST_F(D3D12VideoEncodeAcceleratorTest, FlushEncoder) {
+  auto* d3d12_video_encode_accelerator =
+      static_cast<D3D12VideoEncodeAccelerator*>(
+          video_encode_accelerator_.get());
+  auto supported_profiles =
+      d3d12_video_encode_accelerator->GetSupportedProfiles();
+  EXPECT_FALSE(supported_profiles.empty());
+  auto profile = supported_profiles.front();
+  auto supported_config = SupportedProfileToConfig(profile);
+
+  unsigned bitstream_buffer_count = 0;
+  size_t bitstream_buffer_size = 0;
+  EXPECT_CALL(*client_, RequireBitstreamBuffers(_, _, _))
+      .WillOnce(Invoke(
+          [&](unsigned int count, const gfx::Size& size, size_t size_in_bytes) {
+            bitstream_buffer_count = count;
+            bitstream_buffer_size = size_in_bytes;
+          }));
+  EXPECT_TRUE(
+      d3d12_video_encode_accelerator
+          ->Initialize(supported_config, client_.get(), media_log_->Clone())
+          .is_ok());
+  WaitForEncoderTasksToComplete();
+  Mock::VerifyAndClearExpectations(&client_);
+
+  // Add a few bitstream buffers
+  for (unsigned i = 0; i < 4; ++i) {
+    BitstreamBuffer bitstream_buffer(
+        i, base::UnsafeSharedMemoryRegion::Create(bitstream_buffer_size),
+        bitstream_buffer_size);
+    d3d12_video_encode_accelerator->UseOutputBitstreamBuffer(
+        std::move(bitstream_buffer));
+  }
+
+  // Add a few frames to encode
+  for (unsigned i = 0; i < 3; ++i) {
+    d3d12_video_encode_accelerator->Encode(CreateTestVideoFrame(), false);
+  }
+
+  EXPECT_TRUE(d3d12_video_encode_accelerator->IsFlushSupported());
+
+  bool flush_done = false;
+  d3d12_video_encode_accelerator->Flush(base::BindOnce(
+      [](bool* flush_done, bool success) {
+        *flush_done = true;
+        EXPECT_TRUE(success);
+      },
+      &flush_done));
+
+  WaitForEncoderTasksToComplete();
+  EXPECT_TRUE(flush_done);
 }
 
 }  // namespace media

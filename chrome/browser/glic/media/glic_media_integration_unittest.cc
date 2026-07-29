@@ -12,9 +12,7 @@
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "components/live_caption/live_caption_controller.h"
 #include "components/live_caption/pref_names.h"
-#include "components/optimization_guide/content/browser/page_content_proto_provider.h"
-#include "components/pref_registry/pref_registry_syncable.h"
-#include "components/prefs/testing_pref_service.h"
+#include "components/optimization_guide/content/browser/media_transcript_provider.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
 #include "content/public/browser/web_contents.h"
 #include "media/base/media_switches.h"
@@ -66,6 +64,10 @@ class GlicMediaIntegrationTest : public ChromeRenderViewHostTestHarness {
     return GlicMediaIntegration::GetFor(web_contents());
   }
 
+  optimization_guide::MediaTranscriptProvider* GetMediaTranscriptProvider() {
+    return optimization_guide::MediaTranscriptProvider::GetFor(web_contents());
+  }
+
   GlicMediaContext* GetContext() {
     return GlicMediaContext::GetForCurrentDocument(
         web_contents()->GetPrimaryMainFrame());
@@ -106,15 +108,20 @@ class GlicMediaIntegrationTest : public ChromeRenderViewHostTestHarness {
 TEST_F(GlicMediaIntegrationTest, GetWithNullReturnsNull) {
   // Make sure this doesn't crash.
   EXPECT_EQ(GlicMediaIntegration::GetFor(nullptr), nullptr);
+  EXPECT_EQ(GetMediaTranscriptProvider(), nullptr);
 }
 
 TEST_F(GlicMediaIntegrationTest, GetReturnsNullIfSwitchIsOff) {
   EXPECT_EQ(GlicMediaIntegration::GetFor(web_contents()), nullptr);
+  EXPECT_EQ(GetMediaTranscriptProvider(), nullptr);
 }
 
 TEST_F(GlicMediaIntegrationTest, GetReturnsNonNullIfSwitchIsOn) {
+  // This does not exist if integration is not created yet.
+  EXPECT_EQ(GetMediaTranscriptProvider(), nullptr);
   // Right now, this doesn't depend on the headless pref, but likely it should.
   EXPECT_NE(GetIntegration(), nullptr);
+  EXPECT_NE(GetMediaTranscriptProvider(), nullptr);
 }
 
 TEST_F(GlicMediaIntegrationTest, ContextContainsTranscript) {

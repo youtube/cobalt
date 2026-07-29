@@ -15,6 +15,8 @@ namespace autofill::features {
 // All features in alphabetical order.
 #if BUILDFLAG(IS_IOS)
 COMPONENT_EXPORT(AUTOFILL)
+BASE_DECLARE_FEATURE(kAutofillCreditCardScannerIos);
+COMPONENT_EXPORT(AUTOFILL)
 BASE_DECLARE_FEATURE(kAutofillDisableDefaultSaveCardFixFlowDetection);
 #endif
 COMPONENT_EXPORT(AUTOFILL)
@@ -60,9 +62,9 @@ COMPONENT_EXPORT(AUTOFILL)
 BASE_DECLARE_FEATURE(kAutofillEnableFlatRateCardBenefitsFromCurinos);
 COMPONENT_EXPORT(AUTOFILL)
 BASE_DECLARE_FEATURE(kAutofillEnableFpanRiskBasedAuthentication);
-
 COMPONENT_EXPORT(AUTOFILL)
-BASE_DECLARE_FEATURE(kAutofillEnableLogFormEventsToAllParsedFormTypes);
+BASE_DECLARE_FEATURE(kAutofillEnableLoadBnplAllowlistAfterSyncing);
+
 COMPONENT_EXPORT(AUTOFILL)
 BASE_DECLARE_FEATURE(
     kAutofillEnableMultipleRequestInVirtualCardDownstreamEnrollment);

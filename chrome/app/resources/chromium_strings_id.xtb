@@ -188,6 +188,7 @@
 <translation id="3313189106987092621">Chromium akan memperingatkan Anda sebelum memuat situs apa pun menggunakan koneksi yang tidak aman</translation>
 <translation id="3316771292331273802">Anda akan logout dari sebagian besar situs saat menutup semua jendela Chromium, kecuali Akun Google Anda jika Anda login ke Chromium. Agar situs mengingat Anda, <ph name="SETTINGS_LINK" />.</translation>
 <translation id="3352986031709923790">pojok kanan atas area penelusuran: kanan <ph name="RIGHT" />%, atas <ph name="TOP" />%</translation>
+<translation id="3366305173356742781">Data Chromium di akun Anda</translation>
 <translation id="3369405342922656244">Telusuri halaman ini dengan Penelusuran Gambar</translation>
 <translation id="3387527074123400161">ChromiumOS</translation>
 <translation id="3406848076815591792">Beralih ke profil Chromium yang sudah ada?</translation>
@@ -283,6 +284,7 @@
 <translation id="4598116752460667024">Telusuri proses apa saja dari daftar.</translation>
 <translation id="4613863813562375431">Versi ChromiumOS</translation>
 <translation id="4621240073146040695">Hampir selesai diperbarui! Luncurkan ulang Chromium untuk menyelesaikan pembaruan.</translation>
+<translation id="4625064703209785397">Mempercepat situs dengan mesin V8 Chromium, tetapi membuat Chromium sedikit lebih rentan terhadap serangan</translation>
 <translation id="4654936675281451226">Chromium memahami formulir lebih baik dan dapat melakukan pengisian otomatis lebih cepat untuk Anda. Setelan ini aktif.</translation>
 <translation id="4665829708273112819">Peringatan: Chromium tidak dapat mencegah ekstensi merekam histori penjelajahan Anda. Untuk menonaktifkan ekstensi ini dalam mode Samaran, batalkan pilihan opsi ini.</translation>
 <translation id="4673151026126227699">Jika Anda juga membagikan laporan penggunaan Chromium, laporan tersebut akan menyertakan URL yang Anda buka</translation>
@@ -328,6 +330,7 @@
 <translation id="5386450000063123300">Memperbarui Chromium (<ph name="PROGRESS_PERCENT" />)</translation>
 <translation id="538767207339317086">Izinkan login Chromium</translation>
 <translation id="5405650547142096840">Hapus dari Chromium</translation>
+<translation id="5424544524441439284">Menurunkan performa tetapi membuat Chromium lebih tahan terhadap serangan</translation>
 <translation id="5427571867875391349">Setel Chromium sebagai browser default</translation>
 <translation id="5438241569118040789"><ph name="PAGE_TITLE" /> - Chromium Beta</translation>
 <translation id="5460618461609401056">{NUM_TABS,plural, =1{Chromium Merekomendasikan untuk Menjeda Tab yang Memperlambat Browser Anda}other{Chromium Merekomendasikan untuk Menjeda Tab yang Memperlambat Browser Anda}}</translation>
@@ -372,6 +375,7 @@
 <translation id="5987687638152509985">Perbarui Chromium untuk memulai sinkronisasi</translation>
 <translation id="5988505247484123880">Situs yang Anda buka biasanya mengingat hal-hal yang Anda minati agar dapat mempersonalisasi pengalaman Anda. Situs juga dapat menyimpan informasi tentang minat Anda ke Chromium.</translation>
 <translation id="6003112304606738118">Mendownload... <ph name="HOURS" /> jam lagi</translation>
+<translation id="6009821354356307391">Ajukan pertanyaan lanjutan</translation>
 <translation id="6040143037577758943">Tutup</translation>
 <translation id="6058380562449900225">Untuk melindungi data Anda, izinkan Chromium menghapus izin dari situs yang tidak Anda kunjungi baru-baru ini. Tindakan ini tidak menghentikan notifikasi.</translation>
 <translation id="6063093106622310249">&amp;Buka di Chromium</translation>

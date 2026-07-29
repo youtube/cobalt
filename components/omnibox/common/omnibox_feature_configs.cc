@@ -44,14 +44,22 @@ CalcProvider::CalcProvider() {
           .Get();
 }
 
-BASE_FEATURE(AiModeEchoMatch::kAiModeEchoMatch,
-             "AiModeEchoMatch",
+BASE_FEATURE(AiMode::kAiModeEchoMatchTweaks,
+             "kAiModeEchoMatchTweaks",
              base::FEATURE_ENABLED_BY_DEFAULT);
-AiModeEchoMatch::AiModeEchoMatch() {
-  enabled = base::FeatureList::IsEnabled(kAiModeEchoMatch);
+AiMode::AiMode() {
+  ai_mode_echo_match_tweaks =
+      base::FeatureList::IsEnabled(kAiModeEchoMatchTweaks);
   do_not_dedupe_aim_suggestions =
-      base::FeatureParam<bool>(&kAiModeEchoMatch, "DoNotDedupeAimSuggestions",
+      base::FeatureParam<bool>(&kAiModeEchoMatchTweaks,
+                               "DoNotDedupeAimSuggestions",
                                do_not_dedupe_aim_suggestions)
+          .Get();
+
+  do_not_show_historic_aim_suggestions =
+      base::FeatureParam<bool>(&kAiModeEchoMatchTweaks,
+                               "DoNotShowHistoricAimSuggestions",
+                               do_not_show_historic_aim_suggestions)
           .Get();
 }
 
@@ -121,6 +129,10 @@ BASE_FEATURE(ContextualSearch::kShowSuggestionsOnNoApc,
              "ShowSuggestionsOnNoApc",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(ContextualSearch::kOpenLensActionUITweaks,
+             "OpenLensActionUITweaks",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 ContextualSearch::ContextualSearch() {
   // Meta-feature turns on/off other features, but only if it's overridden by
   // the user. If not then each feature is controlled separately.
@@ -172,6 +184,8 @@ ContextualSearch::ContextualSearch() {
   use_apc_paywall_signal = feature_enabled(kUseApcPaywallSignal);
   show_suggestions_on_no_apc =
       base::FeatureList::IsEnabled(kShowSuggestionsOnNoApc);
+  open_lens_action_ui_tweaks =
+      base::FeatureList::IsEnabled(kOpenLensActionUITweaks);
 }
 
 ContextualSearch::ContextualSearch(const ContextualSearch&) = default;

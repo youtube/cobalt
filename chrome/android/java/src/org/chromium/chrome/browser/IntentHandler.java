@@ -954,9 +954,8 @@ public class IntentHandler {
                 }
                 Bundle multiTabBundle = intent.getBundleExtra(EXTRA_MULTI_TAB_REPARENTING_METADATA);
                 ArrayList<Integer> tabIds =
-                        multiTabBundle.getIntegerArrayList("MultiTabReparentingIdsKey");
-                ArrayList<String> urls =
-                        multiTabBundle.getStringArrayList("MultiTabReparentingUrlsKey");
+                        multiTabBundle.getIntegerArrayList(MULTI_TAB_KEY_TAB_IDS);
+                ArrayList<String> urls = multiTabBundle.getStringArrayList(MULTI_TAB_KEY_TAB_URLS);
 
                 if (urls == null || tabIds == null || urls.size() != tabIds.size()) {
                     assert false : "Urls and tabIds size are mismatched or empty.";
@@ -1530,6 +1529,26 @@ public class IntentHandler {
         newIntent.putExtra(Browser.EXTRA_CREATE_NEW_TAB, true);
         newIntent.putExtra(Browser.EXTRA_APPLICATION_ID, context.getPackageName());
         newIntent.putExtra(IntentHandler.EXTRA_OPEN_NEW_INCOGNITO_TAB, incognito);
+        IntentUtils.addTrustedIntentExtras(newIntent);
+
+        return newIntent;
+    }
+
+    /**
+     * Creates an Intent that will launch a new ChromeTabbedActivity window on the new tab page. The
+     * Intent will be trusted and therefore able to launch Incognito windows.
+     *
+     * @param context A {@link Context} to access class and package information.
+     * @param incognito Whether incognito or regular window should be opened.
+     * @return The {@link Intent} to launch.
+     */
+    public static Intent createTrustedOpenNewWindowIntent(Context context, boolean incognito) {
+        Intent newIntent = new Intent();
+        newIntent.setClass(context, ChromeLauncherActivity.class);
+        newIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        newIntent.addFlags(Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
+        newIntent.putExtra(IntentHandler.EXTRA_PREFER_NEW, true);
+        newIntent.putExtra(IntentHandler.EXTRA_OPEN_NEW_INCOGNITO_WINDOW, incognito);
         IntentUtils.addTrustedIntentExtras(newIntent);
 
         return newIntent;

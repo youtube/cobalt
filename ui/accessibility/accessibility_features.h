@@ -158,6 +158,10 @@ AX_BASE_EXPORT bool IsAccessibilityOnScreenAXModeEnabled();
 AX_BASE_EXPORT BASE_DECLARE_FEATURE(kIChromeAccessible);
 AX_BASE_EXPORT bool IsIChromeAccessibleEnabled();
 
+// Enables calls to UiaDisconnectProvider when destroying a AXFragmentRootWin's
+// HWND.
+AX_BASE_EXPORT BASE_DECLARE_FEATURE(kUiaDisconnectRootProviders);
+
 // Use the browser's UIA provider when requested by
 // an accessibility client.
 AX_BASE_EXPORT BASE_DECLARE_FEATURE(kUiaProvider);
@@ -180,10 +184,6 @@ AX_BASE_EXPORT bool IsAccessibilityAcceleratorEnabled();
 // Adds option to limit the movement on the screen.
 AX_BASE_EXPORT BASE_DECLARE_FEATURE(kAccessibilityReducedAnimations);
 AX_BASE_EXPORT bool IsAccessibilityReducedAnimationsEnabled();
-
-// Integrate with FaceGaze.
-AX_BASE_EXPORT BASE_DECLARE_FEATURE(kAccessibilityFaceGaze);
-AX_BASE_EXPORT bool IsAccessibilityFaceGazeEnabled();
 
 // Adds reduced animations toggle to kiosk quick settings.
 AX_BASE_EXPORT BASE_DECLARE_FEATURE(kAccessibilityReducedAnimationsInKiosk);

@@ -26,6 +26,7 @@ import org.chromium.base.SysUtils;
 import org.chromium.base.UserData;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
+import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.base.supplier.Supplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -53,6 +54,9 @@ import org.chromium.chrome.browser.tab.TabHidingType;
 import org.chromium.chrome.browser.tab.TabSelectionType;
 import org.chromium.chrome.browser.tab.TabUtils;
 import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonVariant;
+import org.chromium.chrome.browser.ui.messages.snackbar.Snackbar;
+import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
+import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManagerProvider;
 import org.chromium.components.dom_distiller.core.DistilledPagePrefs;
 import org.chromium.components.dom_distiller.core.DomDistillerFeatures;
 import org.chromium.components.dom_distiller.core.DomDistillerUrlUtils;
@@ -541,9 +545,9 @@ public class ReaderModeManager extends EmptyTabObserver
         if (!shouldUseReaderModeMessages(mTab)) return;
 
         if (mTab.isCustomTab() && ChromeFeatureList.sCctAdaptiveButton.isEnabled()) {
-            // If the manager hasn't been notified of the CPA yet, or the reader mode button is
-            // already showing on the toolbar, don't show the prompt.
-            if (!mHasBeenNotifiedOfCpa || mIsReaderModeButtonShowingOnToolbar) return;
+            // If the manager hasn't been notified of the CPA yet, don't show the prompt for now.
+            // Later it will be shown if CPA is determined to be hidden.
+            if (!mHasBeenNotifiedOfCpa) return;
         }
 
         // Test if the user is requesting the desktop site. Ignore this if distiller is set to
@@ -665,7 +669,8 @@ public class ReaderModeManager extends EmptyTabObserver
     }
 
     /** Navigate the current tab to a Reader Mode URL. */
-    private void navigateToReaderMode() {
+    @VisibleForTesting
+    void navigateToReaderMode() {
         WebContents webContents = mTab.getWebContents();
         if (webContents == null) return;
 
@@ -687,7 +692,33 @@ public class ReaderModeManager extends EmptyTabObserver
             browserControlsVisibilityManager.getBrowserVisibilityDelegate().showControlsTransient();
         }
 
-        DomDistillerTabUtils.distillCurrentPageAndView(webContents);
+        DomDistillerTabUtils.distillCurrentPageAndViewIfSuccessful(
+                webContents,
+                (success) -> {
+                    // If successful, or any of the dependencies needed to show a bottom sheet
+                    // aren't available then return early.
+                    if (success || mTab == null || mTab.getWindowAndroid() == null) {
+                        return;
+                    }
+                    SnackbarManager snackbarManager =
+                            SnackbarManagerProvider.from(mTab.getWindowAndroid());
+                    if (snackbarManager == null) {
+                        return;
+                    }
+
+                    snackbarManager.showSnackbar(
+                            Snackbar.make(
+                                            mTab.getContext()
+                                                    .getString(
+                                                            R.string
+                                                                    .reader_mode_unavailable_snackbar_message),
+                                            new SnackbarManager.SnackbarController() {},
+                                            Snackbar.TYPE_NOTIFICATION,
+                                            Snackbar.UMA_UNKNOWN)
+                                    .setAction(
+                                            mTab.getContext().getString(R.string.chrome_dismiss),
+                                            null));
+                });
     }
 
     /**
@@ -901,24 +932,37 @@ public class ReaderModeManager extends EmptyTabObserver
      * contextual page action UI is enabled to update the rate limiting logic and to suppress the
      * message prompt if the current tab is a CCT.
      *
-     * @param isReaderMode Whether the reader mode UI is the current CPA being shown.
+     * @param showCpaButton Whether the reader mode UI is the current CPA being shown.
      */
-    public void onContextualPageActionShown(boolean isReaderMode) {
+    public void onContextualPageActionShown(OneshotSupplier<Boolean> showCpaButton) {
         // If the feature is enabled and the tab is a custom tab, the manager should be aware if the
         // displayed contextual page action is the reader one. Once determined, #tryShowingPrompt
         // can successfully decide between showing a message prompt or suppressing it in favor of
         // the contextual page action's UI.
         if (ChromeFeatureList.sCctAdaptiveButton.isEnabled() && mTab.isCustomTab()) {
             mHasBeenNotifiedOfCpa = true;
-            mIsReaderModeButtonShowingOnToolbar = isReaderMode;
-            tryShowingPrompt();
+            showCpaButton.runSyncOrOnAvailable(
+                    show -> {
+                        mIsReaderModeButtonShowingOnToolbar = show;
+                        if (show) {
+                            markUrlAsShown();
+                        } else {
+                            tryShowingPrompt();
+                        }
+                    });
         }
+        if (showCpaButton.hasValue() && showCpaButton.get()) {
+            markUrlAsShown();
+        }
+    }
+
+    private void markUrlAsShown() {
+        if (mMessageShown) return;
+
         // Contextual page actions can't be dismissed, so we consider an unused button as
         // "dismissed". Interacting with the button will undo this "mute" logic.
-        if (isReaderMode) {
-            addUrlToMutedSites(mDistillerUrl);
-            mMessageShown = true;
-        }
+        addUrlToMutedSites(mDistillerUrl);
+        mMessageShown = true;
     }
 
     // Describes the end-state of the distillation result, used for metrics reporting. Do not

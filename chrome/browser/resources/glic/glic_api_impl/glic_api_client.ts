@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import type {AnnotatedPageData, ChromeVersion, CreateTabOptions, DraggableArea, FocusedTabData, GetPinCandidatesOptions, GlicBrowserHost, GlicBrowserHostJournal, GlicBrowserHostMetrics, GlicHostRegistry, GlicWebClient, HostCapability, Journal, Observable, ObservableValue, OpenPanelInfo, OpenSettingsOptions, PanelOpeningData, PanelState, PdfDocumentData, PinCandidate, ResizeWindowOptions, Screenshot, ScrollToParams, TabContextOptions, TabContextResult, TabData, UserProfileInfo, ViewChangedNotification, ViewChangeRequest, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../glic_api/glic_api.js';
-import {ActorTaskState} from '../glic_api/glic_api.js';
+import type {AnnotatedPageData, ChromeVersion, CreateTabOptions, DraggableArea, FocusedTabData, GetPinCandidatesOptions, GlicBrowserHost, GlicBrowserHostJournal, GlicBrowserHostMetrics, GlicHostRegistry, GlicWebClient, HostCapability, Journal, Observable, ObservableValue, OnResponseStoppedDetails, OpenPanelInfo, OpenSettingsOptions, PanelOpeningData, PanelState, PdfDocumentData, PinCandidate, ResizeWindowOptions, Screenshot, ScrollToParams, TabContextOptions, TabContextResult, TabData, UserProfileInfo, ViewChangedNotification, ViewChangeRequest, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../glic_api/glic_api.js';
+import {ActorTaskPauseReason, ActorTaskState, ActorTaskStopReason} from '../glic_api/glic_api.js';
 import {ObservableValue as ObservableValueImpl, Subject} from '../observable.js';
 
 import {replaceProperties} from './conversions.js';
@@ -462,13 +462,18 @@ class GlicBrowserHostImpl implements GlicBrowserHost {
     return result.actionsResult;
   }
 
-  stopActorTask?(taskId?: number): void {
-    this.sender.requestNoResponse(
-        'glicBrowserStopActorTask', {taskId: taskId ?? 0});
+  stopActorTask?(taskId?: number, stopReason?: ActorTaskStopReason): void {
+    this.sender.requestNoResponse('glicBrowserStopActorTask', {
+      taskId: taskId ?? 0,
+      stopReason: stopReason ?? ActorTaskStopReason.TASK_COMPLETE,
+    });
   }
 
-  pauseActorTask?(taskId: number): void {
-    this.sender.requestNoResponse('glicBrowserPauseActorTask', {taskId});
+  pauseActorTask?(taskId: number, pauseReason?: ActorTaskPauseReason): void {
+    this.sender.requestNoResponse('glicBrowserPauseActorTask', {
+      taskId,
+      pauseReason: pauseReason ?? ActorTaskPauseReason.PAUSED_BY_MODEL,
+    });
   }
 
   async resumeActorTask?(taskId: number, tabContextOptions: TabContextOptions):
@@ -798,8 +803,8 @@ class GlicBrowserHostMetricsImpl implements GlicBrowserHostMetrics {
     this.sender.requestNoResponse('glicBrowserOnResponseStarted', undefined);
   }
 
-  onResponseStopped(): void {
-    this.sender.requestNoResponse('glicBrowserOnResponseStopped', undefined);
+  onResponseStopped(details?: OnResponseStoppedDetails): void {
+    this.sender.requestNoResponse('glicBrowserOnResponseStopped', {details});
   }
 
   onSessionTerminated(): void {

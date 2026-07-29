@@ -12,16 +12,19 @@
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ref.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/safe_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/observer_list_types.h"
+#include "base/scoped_observation.h"
 #include "base/sequence_checker.h"
 #include "base/types/pass_key.h"
 #include "base/values.h"
 #include "base/version.h"
 #include "components/optimization_guide/core/model_execution/performance_class.h"
+#include "components/optimization_guide/core/model_execution/usage_tracker.h"
 #include "components/optimization_guide/core/optimization_guide_enums.h"
 #include "components/optimization_guide/proto/on_device_base_model_metadata.pb.h"
 #include "components/prefs/pref_change_registrar.h"
@@ -40,6 +43,7 @@ inline constexpr std::string_view kOnDeviceModelCrxId =
 class OnDeviceModelComponentState;
 
 enum class ModelBasedCapabilityKey;
+class UsageTracker;
 
 // Status of the on-device model.
 //
@@ -77,19 +81,18 @@ enum class OnDeviceModelStatus {
 
 std::ostream& operator<<(std::ostream& out, OnDeviceModelStatus status);
 
-// Wraps the specification needed to determine compatibility of the
-// on-device base model with any feature specific code.
+// Identifies a specific on-device base model and the performance hint that
+// it will be used with.
 struct OnDeviceBaseModelSpec {
   using PerformanceHints =
       base::EnumSet<proto::OnDeviceModelPerformanceHint,
                     proto::OnDeviceModelPerformanceHint_MIN,
                     proto::OnDeviceModelPerformanceHint_MAX>;
 
-  OnDeviceBaseModelSpec();
   OnDeviceBaseModelSpec(
       const std::string& model_name,
       const std::string& model_version,
-      PerformanceHints supported_performance_hints);
+      proto::OnDeviceModelPerformanceHint selected_performance_hint);
   ~OnDeviceBaseModelSpec();
   OnDeviceBaseModelSpec(const OnDeviceBaseModelSpec&);
 
@@ -99,14 +102,14 @@ struct OnDeviceBaseModelSpec {
   std::string model_name;
   // The version of the base model currently available on-device.
   std::string model_version;
-  // The supported performance hints for this device and base model.
-  PerformanceHints supported_performance_hints;
+  // The selected performance hint for this device and base model.
+  proto::OnDeviceModelPerformanceHint selected_performance_hint;
 };
 
 // Manages the state of the on-device component.
 // This object needs to have lifetime equal to the browser process, and outside
 // of tests is created by a static NoDestructor initializer.
-class OnDeviceModelComponentStateManager final {
+class OnDeviceModelComponentStateManager final : public UsageTracker::Observer {
  public:
   class Delegate {
    public:
@@ -140,12 +143,6 @@ class OnDeviceModelComponentStateManager final {
     // Called whenever the on-device component state changes. `state` is null if
     // the component is not available.
     virtual void StateChanged(const OnDeviceModelComponentState* state) = 0;
-
-    // Called when on-device eligible `feature` was used for the first time.
-    // This is called when at startup the feature was not used, and then gets
-    // used for the first time.
-    virtual void OnDeviceEligibleFeatureFirstUsed(
-        ModelBasedCapabilityKey feature) {}
   };
 
   struct RegistrationCriteria {
@@ -190,8 +187,9 @@ class OnDeviceModelComponentStateManager final {
   OnDeviceModelComponentStateManager(
       PrefService* local_state,
       base::SafeRef<PerformanceClassifier> performance_classifier,
+      UsageTracker& usage_tracker,
       std::unique_ptr<Delegate> delegate);
-  ~OnDeviceModelComponentStateManager();
+  ~OnDeviceModelComponentStateManager() override;
 
   // Returns whether the component installation is valid.
   static bool VerifyInstallation(const base::FilePath& install_dir,
@@ -200,9 +198,6 @@ class OnDeviceModelComponentStateManager final {
   // Called at startup. Triggers install or uninstall of the component if
   // necessary.
   void OnStartup();
-
-  // Should be called whenever an on-device eligible feature was used.
-  void OnDeviceEligibleFeatureUsed(ModelBasedCapabilityKey feature);
 
   // Should be called whenever the device performance class changes.
   void OnPerformanceClassAvailable();
@@ -279,12 +274,12 @@ class OnDeviceModelComponentStateManager final {
   // Continuation of `UpdateRegistration()` after async work.
   void CompleteUpdateRegistration(int64_t disk_space_free_bytes);
 
+  // UsageTracker::Observer:
+  void OnDeviceEligibleFeatureUsed(ModelBasedCapabilityKey feature) override;
+
   void OnGenAILocalFoundationalModelEnterprisePolicyChanged();
 
   void NotifyStateChanged();
-
-  // Notifies the observers of the `feature` used for the first time.
-  void NotifyOnDeviceEligibleFeatureFirstUsed(ModelBasedCapabilityKey feature);
 
   raw_ptr<PrefService> local_state_ GUARDED_BY_CONTEXT(sequence_checker_);
   base::SafeRef<PerformanceClassifier> performance_classifier_
@@ -306,6 +301,10 @@ class OnDeviceModelComponentStateManager final {
   int64_t disk_space_available_ GUARDED_BY_CONTEXT(sequence_checker_) = 0;
 
   SEQUENCE_CHECKER(sequence_checker_);
+  base::raw_ref<UsageTracker> usage_tracker_
+      GUARDED_BY_CONTEXT(sequence_checker_);
+  base::ScopedObservation<UsageTracker, UsageTracker::Observer>
+      usage_tracker_observation_{this};
 
   base::WeakPtrFactory<OnDeviceModelComponentStateManager> weak_ptr_factory_{
       this};
@@ -314,7 +313,9 @@ class OnDeviceModelComponentStateManager final {
 // State of the on-device model component.
 class OnDeviceModelComponentState {
  public:
-  OnDeviceModelComponentState();
+  OnDeviceModelComponentState(base::FilePath install_dir,
+                              base::Version component_version,
+                              OnDeviceBaseModelSpec model_spec);
   OnDeviceModelComponentState(const OnDeviceModelComponentState&);
   ~OnDeviceModelComponentState();
 

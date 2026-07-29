@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
-#pragma allow_unsafe_buffers
-#endif
-
 #ifndef PARTITION_ALLOC_PARTITION_ALLOC_BASE_COMPILER_SPECIFIC_H_
 #define PARTITION_ALLOC_PARTITION_ALLOC_BASE_COMPILER_SPECIFIC_H_
 
@@ -495,7 +490,7 @@ inline constexpr bool AnalyzerAssumeTrue(bool arg) {
 
 // Annotates code indicating that it should be permanently exempted from
 // `-Wunsafe-buffer-usage`. For temporary cases such as migrating callers to
-// safer patterns, use `UNSAFE_TODO()` instead;
+// safer patterns, use `PA_UNSAFE_TODO()` instead;
 #if defined(__clang__)
 // Disabling `clang-format` allows each `_Pragma` to be on its own line, as
 // recommended by https://gcc.gnu.org/onlinedocs/cpp/Pragmas.html.

@@ -46,7 +46,6 @@
 #include "chrome/common/pref_names.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
-#include "chrome/test/base/scoped_testing_local_state.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/browsing_data/content/browsing_data_helper.h"
@@ -58,6 +57,7 @@
 #include "components/file_access/test/mock_scoped_file_access_delegate.h"
 #include "components/network_session_configurator/common/network_switches.h"
 #include "components/policy/core/common/policy_pref_names.h"
+#include "components/prefs/testing_pref_service.h"
 #include "components/privacy_sandbox/privacy_sandbox_features.h"
 #include "components/privacy_sandbox/tracking_protection_prefs.h"
 #include "components/search_engines/template_url_service.h"
@@ -158,6 +158,7 @@
 #if BUILDFLAG(IS_WIN)
 #include "base/test/mock_entropy_provider.h"
 #include "chrome/test/base/scoped_metrics_service_for_synthetic_trials.h"
+#include "ui/accessibility/accessibility_features.h"
 #endif
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
@@ -595,8 +596,7 @@ class BlinkSettingsFieldTrialTest : public testing::Test {
   static const char kFakeGroupName[];
 
   BlinkSettingsFieldTrialTest()
-      : command_line_(base::CommandLine::NO_PROGRAM),
-        testing_local_state_(TestingBrowserProcess::GetGlobal()) {}
+      : command_line_(base::CommandLine::NO_PROGRAM) {}
 
   void SetUp() override {
     command_line_.AppendSwitchASCII(switches::kProcessType,
@@ -639,7 +639,6 @@ class BlinkSettingsFieldTrialTest : public testing::Test {
   base::CommandLine command_line_;
 
   content::BrowserTaskEnvironment task_environment_;
-  ScopedTestingLocalState testing_local_state_;
 };
 
 const char BlinkSettingsFieldTrialTest::kDisallowFetchFieldTrialName[] =
@@ -913,21 +912,13 @@ TEST_F(ChromeContentBrowserClientTest, RedirectCertManagerFeatureOn) {
 
 #endif  // BUILDFLAG(CHROME_ROOT_STORE_CERT_MANAGEMENT_UI)
 
-class ChromeContentSettingsRedirectTest
-    : public ChromeContentBrowserClientTest {
- public:
-  ChromeContentSettingsRedirectTest()
-      : testing_local_state_(TestingBrowserProcess::GetGlobal()) {}
-
- protected:
-  ScopedTestingLocalState testing_local_state_;
-};
+using ChromeContentSettingsRedirectTest = ChromeContentBrowserClientTest;
 
 TEST_F(ChromeContentSettingsRedirectTest, RedirectDebugURL) {
   TestChromeContentBrowserClient test_content_browser_client;
   // Disable the internal only uis pref.
-  testing_local_state_.Get()->SetBoolean(chrome_urls::kInternalOnlyUisEnabled,
-                                         false);
+  TestingBrowserProcess::GetGlobal()->local_state()->SetBoolean(
+      chrome_urls::kInternalOnlyUisEnabled, false);
 
   // chrome://local-state is an internal debugging page available on all
   // platforms.
@@ -940,8 +931,8 @@ TEST_F(ChromeContentSettingsRedirectTest, RedirectDebugURL) {
             dest_url.query());
 
   // Enable the internal only uis pref.
-  testing_local_state_.Get()->SetBoolean(chrome_urls::kInternalOnlyUisEnabled,
-                                         true);
+  TestingBrowserProcess::GetGlobal()->local_state()->SetBoolean(
+      chrome_urls::kInternalOnlyUisEnabled, true);
   dest_url = debug_url;
   test_content_browser_client.HandleWebUI(&dest_url, &profile_);
   EXPECT_EQ(debug_url, dest_url);
@@ -957,7 +948,7 @@ TEST_F(ChromeContentSettingsRedirectTest, RedirectSettingsURL) {
 
   base::Value::List list;
   list.Append(static_cast<int>(policy::SystemFeature::kBrowserSettings));
-  testing_local_state_.Get()->SetUserPref(
+  TestingBrowserProcess::GetGlobal()->GetTestingLocalState()->SetUserPref(
       policy::policy_prefs::kSystemFeaturesDisableList, std::move(list));
 
   dest_url = settings_url;
@@ -972,7 +963,7 @@ TEST_F(ChromeContentSettingsRedirectTest, RedirectExploreURL) {
   test_content_browser_client.HandleWebUI(&dest_url, &profile_);
   EXPECT_EQ(help_url, dest_url);
 
-  testing_local_state_.Get()->SetUserPref(
+  TestingBrowserProcess::GetGlobal()->GetTestingLocalState()->SetUserPref(
       policy::policy_prefs::kSystemFeaturesDisableList,
       base::Value::List().Append(
           static_cast<int>(policy::SystemFeature::kExplore)));
@@ -992,7 +983,7 @@ TEST_F(ChromeContentSettingsRedirectTest, RedirectGuestExploreURL) {
   test_content_browser_client.HandleWebUI(&dest_url, &profile_);
   EXPECT_EQ(help_url, dest_url);
 
-  testing_local_state_.Get()->SetUserPref(
+  TestingBrowserProcess::GetGlobal()->GetTestingLocalState()->SetUserPref(
       policy::policy_prefs::kSystemFeaturesDisableList,
       base::Value::List().Append(
           static_cast<int>(policy::SystemFeature::kExplore)));
@@ -1009,7 +1000,7 @@ TEST_F(ChromeContentSettingsRedirectTest, RedirectGalleryURL) {
   test_content_browser_client.HandleWebUI(&dest_url, &profile_);
   EXPECT_EQ(gallery_url, dest_url);
 
-  testing_local_state_.Get()->SetUserPref(
+  TestingBrowserProcess::GetGlobal()->GetTestingLocalState()->SetUserPref(
       policy::policy_prefs::kSystemFeaturesDisableList,
       base::Value::List().Append(
           static_cast<int>(policy::SystemFeature::kGallery)));
@@ -1028,7 +1019,7 @@ TEST_F(ChromeContentSettingsRedirectTest, RedirectGuestGalleryURL) {
   test_content_browser_client.HandleWebUI(&dest_url, &profile_);
   EXPECT_EQ(gallery_url, dest_url);
 
-  testing_local_state_.Get()->SetUserPref(
+  TestingBrowserProcess::GetGlobal()->GetTestingLocalState()->SetUserPref(
       policy::policy_prefs::kSystemFeaturesDisableList,
       base::Value::List().Append(
           static_cast<int>(policy::SystemFeature::kGallery)));
@@ -1048,7 +1039,7 @@ TEST_F(ChromeContentSettingsRedirectTest, RedirectTerminalURL) {
   test_content_browser_client.HandleWebUI(&dest_url, &profile_);
   EXPECT_EQ(terminal_url, dest_url);
 
-  testing_local_state_.Get()->SetUserPref(
+  TestingBrowserProcess::GetGlobal()->GetTestingLocalState()->SetUserPref(
       policy::policy_prefs::kSystemFeaturesDisableList,
       base::Value::List().Append(
           static_cast<int>(policy::SystemFeature::kTerminal)));
@@ -1066,7 +1057,7 @@ TEST_F(ChromeContentSettingsRedirectTest, RedirectPrintJobsURL) {
   test_content_browser_client.HandleWebUI(&dest_url, &profile_);
   EXPECT_EQ(print_jobs_url, dest_url);
 
-  testing_local_state_.Get()->SetUserPref(
+  TestingBrowserProcess::GetGlobal()->GetTestingLocalState()->SetUserPref(
       policy::policy_prefs::kSystemFeaturesDisableList,
       base::Value::List().Append(
           static_cast<int>(policy::SystemFeature::kPrintJobs)));
@@ -1084,7 +1075,7 @@ TEST_F(ChromeContentSettingsRedirectTest, RedirectKeyShortcutsURL) {
   test_content_browser_client.HandleWebUI(&dest_url, &profile_);
   EXPECT_EQ(key_shortcuts_url, dest_url);
 
-  testing_local_state_.Get()->SetUserPref(
+  TestingBrowserProcess::GetGlobal()->GetTestingLocalState()->SetUserPref(
       policy::policy_prefs::kSystemFeaturesDisableList,
       base::Value::List().Append(
           static_cast<int>(policy::SystemFeature::kKeyShortcuts)));
@@ -1103,7 +1094,7 @@ TEST_F(ChromeContentSettingsRedirectTest, RedirectOSSettingsURL) {
 
   base::Value::List list;
   list.Append(static_cast<int>(policy::SystemFeature::kOsSettings));
-  testing_local_state_.Get()->SetUserPref(
+  TestingBrowserProcess::GetGlobal()->GetTestingLocalState()->SetUserPref(
       policy::policy_prefs::kSystemFeaturesDisableList, std::move(list));
 
   dest_url = os_settings_url;
@@ -1127,7 +1118,7 @@ TEST_F(ChromeContentSettingsRedirectTest, RedirectRecorderURL) {
   test_content_browser_client.HandleWebUI(&dest_url, &profile_);
   EXPECT_EQ(recorder_url, dest_url);
 
-  testing_local_state_.Get()->SetUserPref(
+  TestingBrowserProcess::GetGlobal()->GetTestingLocalState()->SetUserPref(
       policy::policy_prefs::kSystemFeaturesDisableList,
       base::Value::List().Append(
           static_cast<int>(policy::SystemFeature::kRecorder)));
@@ -1146,7 +1137,7 @@ TEST_F(ChromeContentSettingsRedirectTest, RedirectScanningAppURL) {
 
   base::Value::List list;
   list.Append(static_cast<int>(policy::SystemFeature::kScanning));
-  testing_local_state_.Get()->SetUserPref(
+  TestingBrowserProcess::GetGlobal()->GetTestingLocalState()->SetUserPref(
       policy::policy_prefs::kSystemFeaturesDisableList, std::move(list));
 
   dest_url = scanning_app_url;
@@ -1165,7 +1156,7 @@ TEST_F(ChromeContentSettingsRedirectTest, RedirectCameraAppURL) {
 
   base::Value::List list;
   list.Append(static_cast<int>(policy::SystemFeature::kCamera));
-  testing_local_state_.Get()->SetUserPref(
+  TestingBrowserProcess::GetGlobal()->GetTestingLocalState()->SetUserPref(
       policy::policy_prefs::kSystemFeaturesDisableList, std::move(list));
 
   dest_url = camera_app_url;
@@ -1182,7 +1173,7 @@ TEST_F(ChromeContentSettingsRedirectTest, RedirectHelpURL) {
 
   base::Value::List list;
   list.Append(static_cast<int>(policy::SystemFeature::kBrowserSettings));
-  testing_local_state_.Get()->SetUserPref(
+  TestingBrowserProcess::GetGlobal()->GetTestingLocalState()->SetUserPref(
       policy::policy_prefs::kSystemFeaturesDisableList, std::move(list));
 
   dest_url = help_url;
@@ -1515,8 +1506,7 @@ TEST_F(ChromeContentBrowserClientTest, UseCorrectGeoAPIKey) {
 class ChromeContentBrowserClientSwitchTest
     : public ChromeRenderViewHostTestHarness {
  public:
-  ChromeContentBrowserClientSwitchTest()
-      : testing_local_state_(TestingBrowserProcess::GetGlobal()) {}
+  ChromeContentBrowserClientSwitchTest() = default;
 
  protected:
   void AppendSwitchInCurrentProcess(std::string_view switch_string) {
@@ -1534,7 +1524,6 @@ class ChromeContentBrowserClientSwitchTest
   }
 
  private:
-  ScopedTestingLocalState testing_local_state_;
   ChromeContentBrowserClient client_;
 };
 
@@ -1837,11 +1826,16 @@ class ChromeContentBrowserClientFieldTrialTest
         "UiaProviderWin", 100, "Default_1234", entropy_provider);
   }
 
+  void SetUp() override {
+    if (features::kUiaProvider.default_state ==
+        base::FEATURE_ENABLED_BY_DEFAULT) {
+      GTEST_SKIP() << "UiaProvider is enabled by default";
+    }
+  }
+
   ChromeContentBrowserClient& client() { return client_; }
 
  private:
-  ScopedTestingLocalState testing_local_state_{
-      TestingBrowserProcess::GetGlobal()};
   ScopedMetricsServiceForSyntheticTrials metrics_service_{
       TestingBrowserProcess::GetGlobal()};
   ChromeContentBrowserClient client_;

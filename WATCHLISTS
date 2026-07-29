@@ -70,6 +70,9 @@
     'agent_scheduling_group': {
       'filepath': '.*agent_scheduling_group|.*agent_group_scheduler',
     },
+    'agents': {
+      'filepath': '^agents/',
+    },
     'ai_page_content' : {
       'filepath': 'chrome/browser/ai/ai_data_keyed_service|' \
                   'chrome/browser/glic/host/context/|' \
@@ -1151,11 +1154,6 @@
     'disk_cache': {
       'filepath': 'net/disk_cache/|http_cache',
     },
-    'display': {
-      'filepath': 'ui/display/|'\
-                  'ash/display/|'\
-                  'chrome/browser/ui/webui/ash/settings/pages/device/display_settings/',
-    },
     'dom_storage': {
       'filepath': 'content/common/dom_storage/|'\
                   'content/browser/dom_storage/|'\
@@ -2180,6 +2178,10 @@
         '|chrome/browser/ui/views/tabs/tab_renderer_data'\
         '|media/audio/audio_(output_controller|power_monitor)',
     },
+    'tab_alerts': {
+      'filepath': 'chrome/browser/ui/tabs/alert/'\
+        '|chrome/browser/ui/views/tabs/tab_renderer_data'
+    },
     'tab_capture': {
       # TODO: Watch code in media/audio & audio service for tab audio capture
       'filepath': 'chrome/browser/extensions/api/tab_capture/'\
@@ -2487,7 +2489,6 @@
     'accelerators': ['jimmyxgong+watch-accelerators@chromium.org',
                      'cambickel+watch-accelerators@google.com',
                      'longbowei+watch-accelerators@google.com',
-                     'zhangwenyu+watch-accelerators@google.com',
                      'michaelcheco+watch-accelerators@google.com'],
     'accessibility': ['abigailbklein+watch@google.com',
                       'akihiroota@chromium.org',
@@ -2504,8 +2505,7 @@
                                            'shannc+watch@chromium.org'],
     'accessibility_features_ash': ['hirokisato+watch@chromium.org',
                                    'katie+watch@chromium.org'],
-      'accessibility_minimal_core': ['aleventhal+watcha11y@chromium.org',
-        'kbabbitt@microsoft.com',
+      'accessibility_minimal_core': ['kbabbitt@microsoft.com',
         'lucasradaelli+watch@google.com'],
     'accessibility_reading': ['lwinston+watch-readinga11y@google.com',
                               'trewin+watch@google.com'],
@@ -2519,6 +2519,7 @@
                           'webapks-watchlist@chromium.org'],
     'agent_scheduling_group': ['blink-isolation-reviews@chromium.org',
                                'chikamune+watch@chromium.org'],
+    'agents': ['estaab+watch@chromium.org'],
     'ai_page_content': ['mfoltz+watch@chromium.org'],
     'ai_settings_page_desktop': ['rainhard+watch@chromium.org'],
     'android_accessibility': ['mschillaci+watcha11y@google.com',
@@ -2584,11 +2585,9 @@
     'assistive': ['croissant-eng+reviews@chromium.org'],
     'attribution_reporting': ['apaseltiner+watch@chromium.org'],
     'audio_service': ['marinaciocea+watch@chromium.org',
-                      'olka+watch@chromium.org',
-                      'zhangwenyu+watch@google.com'],
+                      'olka+watch@chromium.org'],
     'audio_settings': ['michaelcheco+audio-settings-watch@google.com',
-                       'owenzhang+audio-settings-watch@google.com',
-                       'zhangwenyu+audio-settings-watch@google.com'],
+                       'owenzhang+audio-settings-watch@google.com'],
     'aura': ['sadrul@chromium.org'],
     'aura_compositor': ['jbauman+watch@chromium.org'],
     'autofill': ['rouslan+autofillwatch@chromium.org'],
@@ -2928,16 +2927,13 @@
     'devtools': ['devtools-reviews@chromium.org'],
     'diagnostics_mojo': ['ashleydp+watch-diagnostics_mojo@google.com',
                          'gavindodd+watch-diagnostics_mojo@google.com',
-                         'michaelcheco+watch-diagnostics_mojo@google.com',
-                         'zhangwenyu+watch-diagnostics_mojo@google.com'],
+                         'michaelcheco+watch-diagnostics_mojo@google.com'],
     'diagnostics_ui': ['gavinwill+diagnostics-watch@chromium.org',
                        'michaelcheco+diagnostics-watch@google.com',
                        'gavindodd+diagnostics-watch@google.com',
-                       'ashleydp+diagnostics-watch@google.com',
-                       'zhangwenyu+diagnostics-watch@google.com'],
+                       'ashleydp+diagnostics-watch@google.com'],
     'discardable_memory': ['thiabaud+watch-discardable-memory@google.com'],
     'disk_cache': ['gavinp+disk@chromium.org'],
-    'display': ['zhangwenyu+watch@google.com'],
     'dom_storage': ['dmurph+watchingdomstorage@chromium.org',
                     'edgestoragedev@microsoft.com'],
     'download': ['dtrainor+watch@chromium.org'],
@@ -3160,8 +3156,7 @@
                        'longbowei+feedback-watch@google.com',
                        'wangdanny+feedback-watch@google.com',
                        'xiangdongkong+feedback-watch@google.com',
-                       'yyhyyh+feedback-watch@google.com',
-                       'zhangwenyu+feedback-watch@google.com'],
+                       'yyhyyh+feedback-watch@google.com'],
     'ozone': ['ozone-reviews@chromium.org'],
     'ozone_fuchsia': ['dworsham@google.com',
                       'emircan@google.com',
@@ -3315,6 +3310,7 @@
     'switch_access': ['anastasi+watch@google.com'],
     'syncfs': ['kinuko+fileapi@chromium.org'],
     'tab_alert_indicators': ['jophba+watch@chromium.org'],
+    'tab_alerts': ['stluong@chromium.org'],
     'tab_capture': ['jophba+watch@chromium.org',
                     'mfoltz+watch@chromium.org'],
     'tab_contents': ['ajwong+watch@chromium.org',

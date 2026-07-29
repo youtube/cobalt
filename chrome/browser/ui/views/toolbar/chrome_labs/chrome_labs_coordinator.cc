@@ -10,11 +10,13 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_actions.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/toolbar/chrome_labs/chrome_labs_utils.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/toolbar/chrome_labs/chrome_labs_bubble_view.h"
 #include "chrome/browser/ui/views/toolbar/chrome_labs/chrome_labs_view_controller.h"
-#include "chrome/browser/ui/views/toolbar/pinned_toolbar_actions_container.h"
+#include "chrome/browser/ui/views/toolbar/pinned_toolbar_actions_controller.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "components/webui/flags/pref_service_flags_storage.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
@@ -32,20 +34,25 @@ ChromeLabsCoordinator::ChromeLabsCoordinator(Browser* browser)
   pinned_actions_observation_.Observe(
       PinnedToolbarActionsModel::Get(browser->profile()));
 
+  chrome_labs_action_item_ = actions::ActionManager::Get().FindAction(
+      kActionShowChromeLabs, browser->browser_actions()->root_action_item());
+  CHECK(chrome_labs_action_item_);
+
   MaybeInstallDotIndicator();
 }
 
 ChromeLabsCoordinator::~ChromeLabsCoordinator() {
   TearDown();
+}
+
+void ChromeLabsCoordinator::TearDown() {
   if (BubbleExists()) {
     GetChromeLabsBubbleView()->GetWidget()->CloseWithReason(
         views::Widget::ClosedReason::kUnspecified);
     chrome_labs_bubble_view_tracker_.SetView(nullptr);
   }
-}
-
-void ChromeLabsCoordinator::TearDown() {
   pinned_actions_observation_.Reset();
+  chrome_labs_action_item_ = nullptr;
 }
 
 bool ChromeLabsCoordinator::BubbleExists() {
@@ -73,14 +80,17 @@ void ChromeLabsCoordinator::Show(ShowUserType user_type) {
 
   flags_state_ = about_flags::GetCurrentFlagsState();
 
-  BrowserView::GetBrowserViewForBrowser(browser_)
-      ->toolbar()
-      ->pinned_toolbar_actions_container()
+  browser_->GetFeatures()
+      .pinned_toolbar_actions_controller()
       ->ShowActionEphemerallyInToolbar(kActionShowChromeLabs, true);
 
   auto chrome_labs_bubble_view =
       std::make_unique<ChromeLabsBubbleView>(GetChromeLabsButton(), browser_);
   chrome_labs_bubble_view_tracker_.SetView(chrome_labs_bubble_view.get());
+  chrome_labs_action_item_->SetIsShowingBubble(true);
+  chrome_labs_bubble_view_tracker_.SetIsDeletingCallback(
+      base::BindOnce(&ChromeLabsCoordinator::OnChromeLabsBubbleClosing,
+                     base::Unretained(this)));
 
   controller_ = std::make_unique<ChromeLabsViewController>(
       chrome_labs_bubble_view.get(), browser_, flags_state_,
@@ -105,11 +115,6 @@ void ChromeLabsCoordinator::Hide() {
   if (BubbleExists()) {
     GetChromeLabsBubbleView()->GetWidget()->CloseWithReason(
         views::Widget::ClosedReason::kUnspecified);
-    // Closing the widget will eventually result in the view tracked being set
-    // to nullptr, but we also set it to nullptr here since we know the widget
-    // will now be destroyed and we shouldn't be accessing the
-    // ChromeLabsBubbleView anymore.
-    chrome_labs_bubble_view_tracker_.SetView(nullptr);
   }
 }
 
@@ -159,19 +164,26 @@ void ChromeLabsCoordinator::ShowOrHide() {
 }
 
 PinnedActionToolbarButton* ChromeLabsCoordinator::GetChromeLabsButton() {
-  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser_);
-  if (browser_view && browser_view->toolbar()) {
-    return browser_view->toolbar()
-        ->pinned_toolbar_actions_container()
-        ->GetButtonFor(kActionShowChromeLabs);
-  }
-  return nullptr;
+  PinnedToolbarActionsController* pinned_toolbar_actions_controller =
+      browser_->GetFeatures().pinned_toolbar_actions_controller();
+  return pinned_toolbar_actions_controller
+             ? pinned_toolbar_actions_controller->GetButtonFor(
+                   kActionShowChromeLabs)
+             : nullptr;
 }
 
 ChromeLabsBubbleView* ChromeLabsCoordinator::GetChromeLabsBubbleView() {
   return BubbleExists() ? static_cast<ChromeLabsBubbleView*>(
                               chrome_labs_bubble_view_tracker_.view())
                         : nullptr;
+}
+
+void ChromeLabsCoordinator::OnChromeLabsBubbleClosing() {
+  chrome_labs_action_item_->SetIsShowingBubble(false);
+
+  browser_->GetFeatures()
+      .pinned_toolbar_actions_controller()
+      ->ShowActionEphemerallyInToolbar(kActionShowChromeLabs, false);
 }
 
 void ChromeLabsCoordinator::MaybeInstallDotIndicator() {

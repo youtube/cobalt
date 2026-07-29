@@ -317,6 +317,7 @@ public class ToolbarManager
     private final ToolbarLongPressMenuHandler mToolbarLongPressMenuHandler;
     private final OverrideUrlLoadingDelegateImpl mOverrideUrlLoadingDelegate;
     private final ObservableSupplier<TopInsetCoordinator> mTopInsetCoordinatorSupplier;
+    private final ObservableSupplierImpl<@ControlsPosition Integer> mToolbarPositionSupplier;
 
     private HomeButtonCoordinator mHomeButtonCoordinator;
     private HomePageButtonsCoordinator mHomePageButtonsCoordinator;
@@ -841,7 +842,9 @@ public class ToolbarManager
                         && ChromeFeatureList.sNewTabPageCustomizationToolbarButton.isEnabled();
 
         mToolbarLayout = mActivity.findViewById(R.id.toolbar);
+        mToolbarPositionSupplier = new ObservableSupplierImpl<>(ControlsPosition.NONE);
         mNtpDelegate = createNewTabPageDelegate();
+
         mLocationBarModel =
                 new LocationBarModel(
                         activity,
@@ -860,7 +863,8 @@ public class ToolbarManager
                                 TraceEvent.end("isOfflinePage");
                                 return ret;
                             }
-                        });
+                        },
+                        mToolbarPositionSupplier);
         mControlContainer = controlContainer;
         mToolbarHairline = mControlContainer.findViewById(R.id.toolbar_hairline);
 
@@ -1005,8 +1009,7 @@ public class ToolbarManager
                             mActivityTabProvider,
                             mTabModelSelectorSupplier,
                             browsingModeThemeColorProvider,
-                            mIncognitoStateProvider,
-                            profileSupplier);
+                            mIncognitoStateProvider);
         }
 
         NavigationPopup.HistoryDelegate historyDelegate =
@@ -1786,7 +1789,8 @@ public class ToolbarManager
                         controlContainerHeightSupplier,
                         mTopInsetCoordinatorSupplier,
                         new Handler(Looper.getMainLooper()),
-                        mActivity);
+                        mActivity,
+                        mToolbarPositionSupplier);
         if (ChromeFeatureList.sMiniOriginBar.isEnabled()) {
             mMiniOriginBarController =
                     new MiniOriginBarController(
@@ -3267,6 +3271,18 @@ public class ToolbarManager
      */
     public boolean containsKeyboardFocus() {
         return mToolbar.containsKeyboardFocus();
+    }
+
+    /**
+     * Reorders the focused item, if there is one.
+     *
+     * @param toLeft Whether the focused item should be reordered to the left (note: this is still
+     *     left in RTL).
+     * @return Whether the item was reordered.
+     */
+    public boolean reorderKeyboardFocusedItem(boolean toLeft) {
+        if (mStripLayoutHelperManager == null) return false;
+        return mStripLayoutHelperManager.reorderKeyboardFocusedItem(toLeft);
     }
 
     public void onXrSpaceModeChanged(Boolean fullSpaceMode) {

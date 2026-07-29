@@ -34,6 +34,7 @@
 <translation id="1982637982196732906">Mover a la sección de pestañas inactivas</translation>
 <translation id="2050597508048557928">{TABS_COUNT,plural, =1{Agregar <ph name="TABS_COUNT_ONE" /> pestaña seleccionada a favoritos}other{Agregar <ph name="TABS_COUNT_MANY" /> pestañas seleccionadas a favoritos}}</translation>
 <translation id="2055057176188061528">Selecciona un grupo de pestañas o crea uno nuevo.</translation>
+<translation id="2074527029802029717">Anular fijación de pestaña</translation>
 <translation id="2118649612461486615">Información sobre la tienda</translation>
 <translation id="2123073051266141035">{INCOGNITO_TABS_COUNT,plural, =1{Puedes volver a abrir las pestañas y los grupos cerrados desde las secciones Pestañas recientes y Grupos de pestañas. Tu pestaña de incógnito no estará disponible.}other{Puedes volver a abrir las pestañas y los grupos cerrados desde las secciones Pestañas recientes y Grupos de pestañas. Tus # pestañas de incógnito no estarán disponibles.}}</translation>
 <translation id="2162620598375156287">Ahora <ph name="CURRENT_PRICE" /> en <ph name="SOURCE_WEBSITE" /></translation>
@@ -62,6 +63,7 @@
 <translation id="2894757982205307093">Nueva pestaña en el grupo</translation>
 <translation id="2918484639460781603">Ir a Configuración</translation>
 <translation id="2928243913527329289">Google | Acerca de esta tienda</translation>
+<translation id="2978860912612699943">{ITEMS_COUNT,plural, =1{<ph name="ITEMS_COUNT_ONE" /> seleccionado}other{<ph name="ITEMS_COUNT_MANY" /> seleccionados}}</translation>
 <translation id="3008554597174452548">Dejar de seguir el precio del producto</translation>
 <translation id="3026391124054406831">Crea grupos para organizar tus pestañas.</translation>
 <translation id="3051031624272448591">Puedes recuperarlas desde el historial en cualquier momento</translation>

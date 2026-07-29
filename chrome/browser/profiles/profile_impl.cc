@@ -110,6 +110,7 @@
 #include "chrome/browser/tpcd/support/top_level_trial_service_factory.h"
 #include "chrome/browser/tpcd/support/tpcd_support_service_factory.h"
 #include "chrome/browser/transition_manager/full_browser_transition_manager.h"
+#include "chrome/browser/ui/signin/dice_migration_service.h"
 #include "chrome/browser/ui/startup/startup_browser_creator.h"
 #include "chrome/browser/ui/webui/prefs_internals_source.h"
 #include "chrome/browser/updates/announcement_notification/announcement_notification_service.h"
@@ -159,6 +160,7 @@
 #include "components/safe_search_api/safe_search_util.h"
 #include "components/security_interstitials/content/stateful_ssl_host_state_delegate.h"
 #include "components/signin/public/base/signin_pref_names.h"
+#include "components/signin/public/base/signin_switches.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/site_isolation/site_isolation_policy.h"
 #include "components/spellcheck/spellcheck_buildflags.h"
@@ -226,7 +228,6 @@
 #else
 #include "chrome/browser/accessibility/ax_main_node_annotator_controller_factory.h"
 #include "chrome/browser/first_run/first_run.h"
-#include "chrome/browser/profiles/guest_profile_creation_logger.h"
 #include "content/public/common/page_zoom.h"
 #include "ui/accessibility/accessibility_features.h"
 #endif
@@ -771,15 +772,6 @@ void ProfileImpl::DoFinalInit(CreateMode create_mode) {
   }
 #endif
 
-#if !BUILDFLAG(IS_ANDROID)
-  if (IsGuestSession()) {
-    // Note: We need to record the creation of the guest parent before the
-    // `delegate_`'s `OnProfileCreationFinished()` callback executes, as it
-    // might trigger the creation of a child OTR profile.
-    profile::RecordGuestParentCreation(this);
-  }
-#endif  // !BUILDFLAG(IS_ANDROID)
-
 #if !BUILDFLAG(IS_CHROMEOS)
   // Listen for bookmark model load, to bootstrap the sync service.
   // Not necessary for profiles that don't have a BookmarkModel.
@@ -1143,9 +1135,29 @@ void ProfileImpl::OnLocaleReady(CreateMode create_mode) {
   arc::ArcServiceLauncher::Get()->MaybeSetProfile(this);
 #endif
 
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+  // Revert the DICe migration as early as possible to avoid user-visible theme
+  // changes upon startup.
+  if (base::FeatureList::IsEnabled(switches::kRollbackDiceMigration)) {
+    DiceMigrationService::RevertDiceMigration(GetPrefs());
+  }
+#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
+
   FullBrowserTransitionManager::Get()->OnProfileCreated(this);
 
   SimpleDependencyManager::GetInstance()->CreateServices(GetProfileKey());
+
+#if !BUILDFLAG(IS_ANDROID)
+  // Check that the IdentityManager was not created before the browser context
+  // services were created. This ensures that browser tests can override the
+  // IdentityManager with a fake.
+
+  // TODO(msarda): This invariant is violated on Android. Remove this check
+  // once the IdentityManager is no longer created as part of the initialization
+  // of the storage partition on Android.
+  CHECK(!IdentityManagerFactory::GetForProfileIfExists(this));
+#endif
+
   BrowserContextDependencyManager::GetInstance()->CreateBrowserContextServices(
       this);
 

@@ -34,6 +34,7 @@
 <translation id="1982637982196732906">Déplacer vers la section inactive</translation>
 <translation id="2050597508048557928">{TABS_COUNT,plural, =1{Ajouter <ph name="TABS_COUNT_ONE" /> onglet sélectionné aux favoris}one{Ajouter <ph name="TABS_COUNT_MANY" /> onglet sélectionné aux favoris}other{Ajouter <ph name="TABS_COUNT_MANY" /> onglets sélectionnés aux favoris}}</translation>
 <translation id="2055057176188061528">Sélectionner un groupe d'onglets ou en créer un</translation>
+<translation id="2074527029802029717">Annuler l'épinglage de l'onglet</translation>
 <translation id="2118649612461486615">Renseignements sur le magasin</translation>
 <translation id="2123073051266141035">{INCOGNITO_TABS_COUNT,plural, =1{Vos onglets et vos groupes fermés peuvent être rouverts à partir des sections Onglets récents et Groupes d'onglets. Votre onglet de navigation privée ne sera pas accessible.}one{Vos onglets et vos groupes fermés peuvent être rouverts à partir des sections Onglets récents et Groupes d'onglets. # onglet de navigation privée ne sera pas accessible.}other{Vos onglets et vos groupes fermés peuvent être rouverts à partir des sections Onglets récents et Groupes d'onglets. Vos # onglets de navigation privée ne seront pas accessibles.}}</translation>
 <translation id="2162620598375156287">Maintenant <ph name="CURRENT_PRICE" /> sur <ph name="SOURCE_WEBSITE" /></translation>
@@ -62,6 +63,7 @@
 <translation id="2894757982205307093">Nouvel onglet dans le groupe</translation>
 <translation id="2918484639460781603">Accéder aux paramètres</translation>
 <translation id="2928243913527329289">Google | À propos de cette boutique</translation>
+<translation id="2978860912612699943">{ITEMS_COUNT,plural, =1{<ph name="ITEMS_COUNT_ONE" /> élément sélectionné}one{<ph name="ITEMS_COUNT_MANY" /> élément sélectionné}other{<ph name="ITEMS_COUNT_MANY" /> éléments sélectionnés}}</translation>
 <translation id="3008554597174452548">Arrêter de suivre ce produit</translation>
 <translation id="3026391124054406831">Créez des groupes pour organiser vos onglets.</translation>
 <translation id="3051031624272448591">Vous pouvez toujours les retrouver dans l'historique</translation>

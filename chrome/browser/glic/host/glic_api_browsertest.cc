@@ -1844,6 +1844,17 @@ IN_PROC_BROWSER_TEST_F(GlicApiTestWithOneTab, testGetPinCandidatesSingleTab) {
   ExecuteJsTest();
 }
 
+IN_PROC_BROWSER_TEST_F(GlicApiTestWithOneTab,
+                       testGetPinCandidatesWithPanelClosed) {
+  ExecuteJsTest();
+  RunTestSequence(AddInstrumentedTab(
+      kSecondTab, embedded_test_server()->GetURL("/glic/test.html")));
+  ContinueJsTest();
+  // Opens the panel again.
+  RunTestSequence(ToggleGlicWindow(GlicWindowMode::kDetached));
+  ContinueJsTest();
+}
+
 class GlicGetHostCapabilityApiTest
     : public GlicApiTestWithOneTab,
       public ::testing::WithParamInterface<bool> {
@@ -1891,6 +1902,9 @@ IN_PROC_BROWSER_TEST_P(GlicGetHostCapabilityApiTest, testGetHostCapabilities) {
     ExecuteJsTest();
   }
 }
+
+// TODO(crbug.com/422442409): Add API tests for the OnViewChanged updates and
+// client interactions.
 
 INSTANTIATE_TEST_SUITE_P(
     /* no prefix */,

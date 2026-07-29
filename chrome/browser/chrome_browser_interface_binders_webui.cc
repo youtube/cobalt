@@ -140,10 +140,13 @@
 #include "chrome/browser/ui/webui/web_app_internals/web_app_internals.mojom.h"
 #include "chrome/browser/ui/webui/web_app_internals/web_app_internals_ui.h"
 #include "chrome/browser/ui/webui/webui_gallery/webui_gallery_ui.h"
+#include "chrome/browser/ui/webui_browser/webui_browser.h"
+#include "chrome/browser/ui/webui_browser/webui_browser_ui.h"
 #include "chrome/common/chrome_features.h"
 #include "components/autofill/core/browser/ml_model/logging/autofill_ml_internals.mojom.h"
 #include "components/commerce/core/mojom/product_specifications.mojom.h"
 #include "components/commerce/core/mojom/shopping_service.mojom.h"  // nogncheck crbug.com/1125897
+#include "components/guest_contents/common/guest_contents.mojom.h"
 #include "components/omnibox/browser/searchbox.mojom.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/page_image_service/mojom/page_image_service.mojom.h"
@@ -563,7 +566,8 @@ void PopulateChromeWebUIFrameBinders(
   RegisterWebUIControllerInterfaceBinder<
       new_tab_page::mojom::PageHandlerFactory, NewTabPageUI>(map);
 
-  if (user_education::features::NtpBrowserPromosEnabled()) {
+  if (user_education::features::GetNtpBrowserPromoType() !=
+      user_education::features::NtpBrowserPromoType::kNone) {
     RegisterWebUIControllerInterfaceBinder<
         ntp_promo::mojom::NtpPromoHandlerFactory, NewTabPageUI>(map);
   }
@@ -1314,6 +1318,11 @@ void PopulateChromeWebUIFrameBinders(
   RegisterWebUIControllerInterfaceBinder<watermark::mojom::PageHandlerFactory,
                                          WatermarkUI>(map);
 #endif
+
+#if !BUILDFLAG(IS_ANDROID)
+  RegisterWebUIControllerInterfaceBinder<
+      guest_contents::mojom::GuestContentsHost, WebUIBrowserUI>(map);
+#endif
 }
 
 void PopulateChromeWebUIFrameInterfaceBrokers(
@@ -1412,6 +1421,7 @@ void PopulateChromeWebUIFrameInterfaceBrokers(
         .Add<lens::mojom::LensGhostLoaderPageHandlerFactory>()
         .Add<searchbox::mojom::PageHandler>()
         .Add<help_bubble::mojom::HelpBubbleHandlerFactory>()
+        .Add<composebox::mojom::PageHandlerFactory>()
         .Add<color_change_listener::mojom::PageHandler>();
   }
   if (lens::features::IsLensOverlayEnabled()) {
@@ -1434,6 +1444,11 @@ void PopulateChromeWebUIFrameInterfaceBrokers(
   registry.ForWebUI<NtpMicrosoftAuthUntrustedUI>()
       .Add<new_tab_page::mojom::
                MicrosoftAuthUntrustedDocumentInterfacesFactory>();
+
+  if (webui_browser::IsWebUIBrowserEnabled()) {
+    registry.ForWebUI<WebUIBrowserUI>()
+        .Add<webui_browser::mojom::PageHandlerFactory>();
+  }
 
 #endif  // !BUILDFLAG(IS_ANDROID)
 }

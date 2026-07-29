@@ -245,11 +245,6 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
       !cmd.HasSwitch(::switches::kDisableCheckerImaging) && is_threaded;
 
 #if BUILDFLAG(IS_ANDROID)
-  // WebView should always raster in the default color space.
-  // Synchronous compositing indicates WebView.
-  if (!platform->IsSynchronousCompositingEnabledForAndroidWebView())
-    settings.prefer_raster_in_srgb = ::features::IsDynamicColorGamutEnabled();
-
   // We can use a more aggressive limit on Android since decodes tend to take
   // longer on these devices.
   settings.min_image_bytes_to_checker = 512 * 1024;  // 512kB
@@ -496,8 +491,15 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
     settings.scrollbar_animator = cc::LayerTreeSettings::AURA_OVERLAY;
     settings.scrollbar_thinning_duration =
         ui::kOverlayScrollbarThinningDuration;
-    settings.scrollbar_flash_after_any_scroll_update =
-        !settings.enable_fluent_overlay_scrollbar;
+    if (!settings.enable_fluent_overlay_scrollbar) {
+      // Set scrollbar flash behavior based on feature flags
+      const bool flash_once_enabled = base::FeatureList::IsEnabled(
+          ::features::kOverlayScrollbarFlashOnlyOnceVisibleOnViewport);
+      settings.scrollbar_flash_once_after_scroll_update = flash_once_enabled;
+      settings.scrollbar_flash_after_any_scroll_update = !flash_once_enabled;
+      settings.scrollbar_flash_once_visible_on_viewport =
+          settings.scrollbar_flash_once_after_scroll_update;
+    }
     // Avoid animating in web tests to improve reliability.
     if (settings.enable_fluent_overlay_scrollbar) {
       settings.scrollbar_thinning_duration =

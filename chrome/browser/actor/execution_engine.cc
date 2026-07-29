@@ -334,7 +334,7 @@ void ExecutionEngine::ExecuteNextAction() {
 
   SetState(State::kToolCreateAndVerify);
   tool_controller_->CreateToolAndValidate(
-      GetInProgressAction(), last_observed_page_content_.get(),
+      GetInProgressAction(),
       base::BindOnce(&ExecutionEngine::PostToolCreate, GetWeakPtr()));
 }
 
@@ -422,18 +422,6 @@ void ExecutionEngine::CompleteActions(mojom::ActionResultPtr result,
   action_sequence_.clear();
   next_action_index_ = 0;
   actions_weak_ptr_factory_.InvalidateWeakPtrs();
-  // TODO(crbug.com/409559623): Conceptually this should also reset
-  // `last_observed_page_content_`.
-}
-
-void ExecutionEngine::DidObserveContext(
-    const mojo_base::ProtoWrapper& apc_proto) {
-  last_observed_page_content_ = std::make_unique<AnnotatedPageContent>(
-      apc_proto.As<AnnotatedPageContent>().value());
-}
-
-const AnnotatedPageContent* ExecutionEngine::GetLastObservedPageContent() {
-  return last_observed_page_content_.get();
 }
 
 base::WeakPtr<ExecutionEngine> ExecutionEngine::GetWeakPtr() {
@@ -448,9 +436,12 @@ actor_login::ActorLoginService& ExecutionEngine::GetActorLoginService() {
   return *actor_login_service_;
 }
 
-void ExecutionEngine::SetActorLoginServiceForTesting(
-    std::unique_ptr<actor_login::ActorLoginService> test_service) {
-  actor_login_service_ = std::move(test_service);
+void ExecutionEngine::PromptToSelectCredential(
+    const std::vector<actor_login::Credential>& credentials,
+    ToolDelegate::CredentialSelectedCallback callback) {
+  CHECK(!credentials.empty());
+  // TODO(crbug.com/427817882): Wire this up to the WebClient.
+  std::move(callback).Run(credentials.front());
 }
 
 const ToolRequest& ExecutionEngine::GetNextAction() const {

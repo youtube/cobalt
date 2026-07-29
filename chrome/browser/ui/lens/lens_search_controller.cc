@@ -14,6 +14,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/hats/hats_service.h"
 #include "chrome/browser/ui/hats/hats_service_factory.h"
+#include "chrome/browser/ui/lens/lens_composebox_controller.h"
 #include "chrome/browser/ui/lens/lens_overlay_controller.h"
 #include "chrome/browser/ui/lens/lens_overlay_event_handler.h"
 #include "chrome/browser/ui/lens/lens_overlay_image_helper.h"
@@ -95,6 +96,8 @@ void LensSearchController::Initialize(
 
   lens_searchbox_controller_ = CreateLensSearchboxController();
 
+  lens_composebox_controller_ = CreateLensComposeboxController();
+
   lens_contextualization_controller_ =
       CreateLensSearchContextualizationController();
   // Create the page context eligibility API as soon as possible as it is needed
@@ -130,6 +133,20 @@ void LensSearchController::OpenLensOverlay(
                       /*permission_granted_callback=*/base::BindRepeating(
                           &LensSearchController::OpenLensOverlay,
                           weak_ptr_factory_.GetWeakPtr(), invocation_source))) {
+    return;
+  }
+
+  // If flag enabled, perform an empty contextual query instead of opening the
+  // overlay as normal. For internal debugging only.
+  if (lens::features::IsLensOverlayForceEmptyCsbQueryEnabled()) {
+    IssueContextualSearchRequestWithQuery(
+        lens::LensOverlayInvocationSource::kContentAreaContextMenuText,
+        /*query_text=*/"",
+        /*additional_query_parameters=*/{},
+        // TODO(crbug.com/432490312): Match type here is likely not ideal.
+        // Investigate removing match type from this function.
+        AutocompleteMatchType::Type::SEARCH_SUGGEST,
+        /*is_zero_prefix_suggestion=*/false);
     return;
   }
 
@@ -223,14 +240,6 @@ void LensSearchController::IssueContextualSearchRequestWithQuery(
     std::map<std::string, std::string> additional_query_parameters,
     AutocompleteMatchType::Type match_type,
     bool is_zero_prefix_suggestion) {
-  // This method should only be used by the omnibox contextual suggestion flow
-  // or the homework action chip flow. There is no dependency on the callers, so
-  // this check is solely to ensure a new flow is not accidentally added.
-  CHECK(invocation_source ==
-            lens::LensOverlayInvocationSource::kOmniboxContextualSuggestion ||
-        invocation_source ==
-            lens::LensOverlayInvocationSource::kHomeworkActionChip);
-
   // If the eligibility checks fail, do not procced with opening any UI.
   if (!RunLensEligibilityChecks(
           invocation_source,
@@ -417,6 +426,12 @@ LensSearchController::lens_searchbox_controller() {
   return lens_searchbox_controller_.get();
 }
 
+lens::LensComposeboxController*
+LensSearchController::lens_composebox_controller() {
+  CheckInitialized(initialized_);
+  return lens_composebox_controller_.get();
+}
+
 lens::LensOverlayEventHandler*
 LensSearchController::lens_overlay_event_handler() {
   CheckInitialized(initialized_);
@@ -479,6 +494,11 @@ LensSearchController::CreateLensOverlaySidePanelCoordinator() {
 std::unique_ptr<lens::LensSearchboxController>
 LensSearchController::CreateLensSearchboxController() {
   return std::make_unique<lens::LensSearchboxController>(this);
+}
+
+std::unique_ptr<lens::LensComposeboxController>
+LensSearchController::CreateLensComposeboxController() {
+  return std::make_unique<lens::LensComposeboxController>(this);
 }
 
 std::unique_ptr<lens::LensSearchContextualizationController>
@@ -559,8 +579,15 @@ bool LensSearchController::RunLensEligibilityChecks(
 }
 
 void LensSearchController::NotifyOverlayOpened() {
-  CHECK(state() == State::kInitializing);
-  state_ = State::kActive;
+  CHECK(state() != State::kOff);
+  // The search controller could be backgrounded as the overlay controller
+  // is being initialized. If so, set the backgrounded state to active and
+  // record the invocation instead of setting the current state to active.
+  if (state_ == State::kBackground) {
+    backgrounded_state_ = State::kActive;
+  } else {
+    state_ = State::kActive;
+  }
 
   // Record the UMA for lens overlay invocation.
   lens_session_metrics_logger_->RecordInvocation();
@@ -573,6 +600,7 @@ void LensSearchController::CloseLensPart2(
   // dependent on the overlay controller.
   lens_overlay_controller_->CloseUI(dismissal_source);
   lens_searchbox_controller_->CloseUI();
+  lens_composebox_controller_->CloseUI();
   lens_permission_bubble_controller_.reset();
   lens_contextualization_controller_->ResetState();
   lens_overlay_side_panel_coordinator_->DeregisterEntryAndCleanup();
@@ -679,7 +707,7 @@ void LensSearchController::TabForegrounded(tabs::TabInterface* tab) {
   // restore to the previous state.
   lens_overlay_controller_->TabForegrounded(tab);
 
-  state_ = State::kActive;
+  state_ = backgrounded_state_;
 }
 
 void LensSearchController::TabWillEnterBackground(tabs::TabInterface* tab) {
@@ -692,10 +720,20 @@ void LensSearchController::TabWillEnterBackground(tabs::TabInterface* tab) {
     return;
   }
 
+  // If the overlay is not active when the tab is backgrounded, then the entire
+  // Lens session should be closed. Note that the overlay is considered active
+  // when it is hidden and the side panel is open.
+  if (!lens_overlay_controller_->IsOverlayActive()) {
+    CloseLensSync(
+        lens::LensOverlayDismissalSource::kTabBackgroundedWhileScreenshotting);
+    return;
+  }
+
   // Notify the overlay controller of the tab will enter background event so
   // it can hide the overlay.
   lens_overlay_controller_->TabWillEnterBackground(tab);
 
+  backgrounded_state_ = state_;
   state_ = State::kBackground;
 }
 

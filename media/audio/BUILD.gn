@@ -30,8 +30,6 @@ source_set("audio") {
   # is a roll-up target which is part of the //media component. Most other DEPs
   # should be using //media and not directly DEP this roll-up target.
   visibility = [
-    ":flac_audio_handler_fuzzer",
-    ":wav_audio_handler_fuzzer",
     "//media",
     "//media/renderers",
 
@@ -187,6 +185,8 @@ source_set("audio") {
       "mac/audio_loopback_input_mac_impl.mm",
       "mac/audio_manager_mac.cc",
       "mac/audio_manager_mac.h",
+      "mac/avfoundation_output_stream.h",
+      "mac/avfoundation_output_stream.mm",
       "mac/catap_api.h",
       "mac/catap_api.mm",
       "mac/catap_audio_input_stream.h",
@@ -496,6 +496,7 @@ source_set("unit_tests") {
       "mac/audio_device_listener_mac_unittest.cc",
       "mac/audio_loopback_input_mac_unittest.mm",
       "mac/audio_manager_mac_unittest.cc",
+      "mac/avfoundation_output_stream_unittest.mm",
       "mac/catap_audio_input_stream_unittest.mm",
     ]
     deps += [ "//third_party/ocmock" ]
@@ -564,7 +565,6 @@ source_set("unit_tests") {
 fuzzer_test("wav_audio_handler_fuzzer") {
   sources = [ "wav_audio_handler_fuzzer.cc" ]
   deps = [
-    ":audio",
     "//base",
     "//media:test_support",
   ]
@@ -573,7 +573,6 @@ fuzzer_test("wav_audio_handler_fuzzer") {
 fuzzer_test("flac_audio_handler_fuzzer") {
   sources = [ "flac_audio_handler_fuzzer.cc" ]
   deps = [
-    ":audio",
     "//base",
     "//media:test_support",
   ]

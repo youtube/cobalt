@@ -21,6 +21,9 @@ import './elements/viewer_text_side_panel.js';
 // </if>
 import './elements/viewer_pdf_sidenav.js';
 import './elements/viewer_properties_dialog.js';
+// <if expr="enable_pdf_save_to_drive">
+import './elements/viewer_save_to_drive_bubble.js';
+// </if> enable_pdf_save_to_drive
 import './elements/viewer_toolbar.js';
 
 import type {CrToastElement} from 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
@@ -40,6 +43,9 @@ import type {Attachment, DocumentMetadata, ExtendedKeyEvent, Point} from './cons
 import {AnnotationMode} from './constants.js';
 // </if>
 import {FittingType, FormFieldFocusType} from './constants.js';
+// <if expr="enable_pdf_save_to_drive">
+import {SaveToDriveState} from './constants.js';
+// </if> enable_pdf_save_to_drive
 import type {MessageData} from './controller.js';
 import {PluginController} from './controller.js';
 // <if expr="enable_pdf_ink2">
@@ -58,6 +64,9 @@ import type {ViewerPasswordDialogElement} from './elements/viewer_password_dialo
 // <if expr="enable_ink">
 import type {ViewerPdfSidenavElement} from './elements/viewer_pdf_sidenav.js';
 //</if>
+// <if expr="enable_pdf_save_to_drive">
+import type {ViewerSaveToDriveBubbleElement} from './elements/viewer_save_to_drive_bubble.js';
+// </if> enable_pdf_save_to_drive
 // <if expr="enable_pdf_ink2">
 import type {Ink2ThumbnailData} from './elements/viewer_thumbnail_bar.js';
 //</if>
@@ -155,7 +164,9 @@ const LOCAL_STORAGE_SIDENAV_COLLAPSED_KEY: string = 'sidenavCollapsed';
  */
 // LINT.IfChange(PdfBackgroundColor)
 const BACKGROUND_COLOR: number = 0xff282828;
-// LINT.ThenChange(//components/pdf/common/pdf_util.cc:PdfBackgroundColor)
+// clang-format off
+// LINT.ThenChange(//chrome/browser/resources/pdf/pdf_embedder.css:PdfBackgroundColor, //components/pdf/common/pdf_util.cc:PdfBackgroundColor)
+// clang-format on
 
 export interface PdfViewerElement {
   $: {
@@ -255,6 +266,7 @@ export class PdfViewerElement extends PdfViewerBaseElement {
   protected accessor attachments_: Attachment[] = [];
   protected accessor bookmarks_: Bookmark[] = [];
   private accessor canSerializeDocument_: boolean = false;
+  private caretBrowsingEnabled_: boolean = false;
   protected accessor clockwiseRotations_: number = 0;
   protected accessor docLength_: number = 0;
   protected accessor documentHasFocus_: boolean = false;
@@ -462,7 +474,8 @@ export class PdfViewerElement extends PdfViewerBaseElement {
 
     // Let the viewport handle directional key events.
     if (this.viewport.handleDirectionalKeyEvent(
-            e, this.formFieldFocus_ !== FormFieldFocusType.NONE)) {
+            e, this.formFieldFocus_ !== FormFieldFocusType.NONE,
+            this.caretBrowsingEnabled_)) {
       return;
     }
 
@@ -1073,6 +1086,12 @@ export class PdfViewerElement extends PdfViewerBaseElement {
         const navigateData = data as unknown as NavigateMessageData;
         this.handleNavigate_(navigateData.url, navigateData.disposition);
         return;
+      case 'rendererPreferencesUpdated':
+        const caretBrowsingEnabledData =
+            data as unknown as {caretBrowsingEnabled: boolean};
+        this.caretBrowsingEnabled_ =
+            caretBrowsingEnabledData.caretBrowsingEnabled;
+        return;
       case 'sendKeyEvent':
         const keyEventData = data as unknown as KeyEventData;
         const keyEvent =
@@ -1368,6 +1387,15 @@ export class PdfViewerElement extends PdfViewerBaseElement {
   // <if expr="enable_pdf_save_to_drive">
   protected onSaveToDrive_(e: CustomEvent<SaveRequestType>) {
     PdfViewerPrivateProxyImpl.getInstance().saveToDrive(e.detail);
+    // TODO(crbug.com/427449996): Implement the save PDF to drive logics. This
+    // includes initiating the upload, showing the bubble if upload in progress,
+    // cancel upload, open Drive, manage storage, and retry if error.
+    const bubble =
+        this.shadowRoot.querySelector<ViewerSaveToDriveBubbleElement>(
+            'viewer-save-to-drive-bubble');
+    assert(bubble);
+    bubble.state = SaveToDriveState.UPLOADING;
+    bubble.showAt(this.$.toolbar.getSaveToDriveBubbleAnchor());
   }
   // </if> enable_pdf_save_to_drive
 
