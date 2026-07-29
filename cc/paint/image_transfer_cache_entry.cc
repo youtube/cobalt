@@ -6,15 +6,22 @@
 
 #include <algorithm>
 #include <array>
+#include <cstring>
 #include <type_traits>
 #include <utility>
 
 #include "base/compiler_specific.h"
+#include "base/containers/circular_deque.h"
+#include "base/feature_list.h"
+#include "base/features.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
+#include "base/no_destructor.h"
 #include "base/notreached.h"
 #include "base/numerics/checked_math.h"
 #include "base/numerics/safe_conversions.h"
+#include "base/synchronization/lock.h"
+#include "build/build_config.h"
 #include "cc/paint/paint_op_reader.h"
 #include "cc/paint/paint_op_writer.h"
 #include "third_party/skia/include/core/SkCPURecorder.h"
@@ -34,6 +41,79 @@
 
 namespace cc {
 namespace {
+
+#if BUILDFLAG(IS_COBALT)
+struct InProcessImageTransferCachePayload {
+  sk_sp<SkImage> image;
+  std::vector<sk_sp<SkImage>> yuv_planes;
+  std::optional<SkYUVAInfo> yuva_info;
+  sk_sp<SkColorSpace> yuv_color_space;
+
+  sk_sp<SkImage> gainmap_image;
+  std::optional<SkGainmapInfo> gainmap_info;
+  std::optional<gfx::HDRMetadata> hdr_metadata;
+  sk_sp<SkColorSpace> target_color_space;
+  bool needs_mips = false;
+
+  // Unref underlying decoded image on destruction.
+  base::ScopedClosureRunner unref_runner;
+};
+
+class InProcessImageTransferCachePayloadRegistry {
+ public:
+  static InProcessImageTransferCachePayloadRegistry& GetInstance() {
+    static base::NoDestructor<InProcessImageTransferCachePayloadRegistry>
+        instance;
+    return *instance;
+  }
+
+  InProcessImageTransferCachePayloadRegistry(
+      const InProcessImageTransferCachePayloadRegistry&) = delete;
+  InProcessImageTransferCachePayloadRegistry& operator=(
+      const InProcessImageTransferCachePayloadRegistry&) = delete;
+
+  void Register(InProcessImageTransferCachePayload* payload) {
+    base::AutoLock lock(lock_);
+    entries_.push_back(payload);
+  }
+
+  bool Take(InProcessImageTransferCachePayload* payload) {
+    base::AutoLock lock(lock_);
+    auto it = std::find(entries_.begin(), entries_.end(), payload);
+    if (it != entries_.end()) {
+      entries_.erase(it);
+      return true;
+    }
+    return false;
+  }
+
+  void Clear() {
+    base::circular_deque<InProcessImageTransferCachePayload*> to_clear;
+    {
+      base::AutoLock lock(lock_);
+      to_clear.swap(entries_);
+    }
+    for (auto* payload : to_clear) {
+      delete payload;
+    }
+  }
+
+ private:
+  friend class base::NoDestructor<InProcessImageTransferCachePayloadRegistry>;
+
+  InProcessImageTransferCachePayloadRegistry() = default;
+  ~InProcessImageTransferCachePayloadRegistry() = default;
+
+  base::Lock lock_;
+  // Uses circular_deque because transfer cache entries are predominantly
+  // created and deserialized in FIFO order as the GPU process parses sequential
+  // command buffer streams, allowing O(1) push and pop without memory shifting.
+  // A fallback search handles any out-of-order interleaving from concurrent
+  // worker threads.
+  base::circular_deque<InProcessImageTransferCachePayload*> entries_
+      GUARDED_BY(lock_);
+};
+#endif  // BUILDFLAG(IS_COBALT)
 
 struct Context {
   const std::vector<sk_sp<SkImage>> sk_planes_;
@@ -527,6 +607,59 @@ uint32_t ClientImageTransferCacheEntry::Id() const {
   return id_;
 }
 
+#if BUILDFLAG(IS_COBALT)
+uint32_t ClientImageTransferCacheEntry::SerializedSizeInProcess() const {
+  return sizeof(InProcessImageTransferCachePayload*);
+}
+
+bool ClientImageTransferCacheEntry::SerializeInProcess(
+    base::span<uint8_t> data,
+    base::ScopedClosureRunner unref_runner) const {
+  auto* payload = new InProcessImageTransferCachePayload();
+  if (IsYuv()) {
+    const int num_pixmaps = NumPixmapsForYUVConfig(image_.yuv_plane_config);
+    for (int i = 0; i < num_pixmaps; ++i) {
+      if (image_.pixmaps[i]) {
+        payload->yuv_planes.push_back(
+            SkImages::RasterFromPixmap(*image_.pixmaps[i], nullptr, nullptr));
+      }
+    }
+    if (!payload->yuv_planes.empty() && image_.pixmaps[0]) {
+      payload->yuva_info = SkYUVAInfo(
+          image_.pixmaps[0]->dimensions(), image_.yuv_plane_config,
+          image_.yuv_subsampling, image_.yuv_color_space);
+    }
+    if (image_.color_space) {
+      payload->yuv_color_space = sk_ref_sp(image_.color_space.get());
+    }
+  } else {
+    if (image_.pixmaps[0]) {
+      payload->image =
+          SkImages::RasterFromPixmap(*image_.pixmaps[0], nullptr, nullptr);
+    }
+  }
+  if (gainmap_image_.has_value() && gainmap_image_->pixmaps[0]) {
+    payload->gainmap_image =
+        SkImages::RasterFromPixmap(*gainmap_image_->pixmaps[0], nullptr, nullptr);
+    payload->gainmap_info = gainmap_info_;
+  }
+  payload->needs_mips = needs_mips_;
+  payload->hdr_metadata = hdr_metadata_;
+  payload->target_color_space = target_color_space_;
+  payload->unref_runner = std::move(unref_runner);
+
+  InProcessImageTransferCachePayloadRegistry::GetInstance().Register(payload);
+
+  UNSAFE_BUFFERS(std::memcpy(data.data(), &payload, sizeof(payload)));
+  return true;
+}
+
+// static
+void ClientImageTransferCacheEntry::ClearInProcessRegistry() {
+  InProcessImageTransferCachePayloadRegistry::GetInstance().Clear();
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 bool ClientImageTransferCacheEntry::Serialize(base::span<uint8_t> data) const {
   DCHECK_GE(data.size(), SerializedSize());
   // We don't need to populate the SerializeOptions here since the writer is
@@ -654,6 +787,17 @@ bool ServiceImageTransferCacheEntry::Deserialize(
     base::span<const uint8_t> data) {
   gr_context_ = gr_context;
   graphite_recorder_ = graphite_recorder;
+
+#if BUILDFLAG(IS_COBALT)
+  // Standard serialized images require at least ~64 bytes for headers and
+  // metadata, so a size equal to sizeof(InProcessImageTransferCachePayload*) (8 bytes) uniquely
+  // identifies an in-process direct payload pointer.
+  if (base::FeatureList::IsEnabled(
+          base::features::kCobaltInProcessImageTransferCache) &&
+      data.size() == sizeof(InProcessImageTransferCachePayload*)) {
+    return DeserializeInProcess(gr_context, data);
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 
   // We don't need to populate the DeSerializeOptions here since the reader is
   // only used for de-serializing primitives.
@@ -784,6 +928,117 @@ bool ServiceImageTransferCacheEntry::Deserialize(
   }
   return true;
 }
+
+#if BUILDFLAG(IS_COBALT)
+bool ServiceImageTransferCacheEntry::DeserializeInProcess(
+    GrDirectContext* gr_context,
+    base::span<const uint8_t> data) {
+  DCHECK_EQ(data.size(), sizeof(InProcessImageTransferCachePayload*));
+  if (data.size() != sizeof(InProcessImageTransferCachePayload*)) {
+    return false;
+  }
+  InProcessImageTransferCachePayload* raw_payload = nullptr;
+  UNSAFE_BUFFERS(std::memcpy(&raw_payload, data.data(), sizeof(raw_payload)));
+  if (!raw_payload ||
+      !InProcessImageTransferCachePayloadRegistry::GetInstance().Take(
+          raw_payload)) {
+    return false;
+  }
+  std::unique_ptr<InProcessImageTransferCachePayload> payload(raw_payload);
+
+  has_gainmap_ = payload->gainmap_image != nullptr;
+  hdr_metadata_ = payload->hdr_metadata;
+  const bool mip_mapped_for_upload =
+      payload->needs_mips && !payload->target_color_space;
+
+  // In Cobalt, all rasterization is GPU-driven and image dimensions are
+  // bounded within hardware texture limits by GpuImageDecodeCache.
+  // SkImages::TextureFromImage internally validates against maxTextureSize and
+  // returns nullptr on failure, so explicit max size checks and CPU-backed
+  // fallback copies are skipped.
+  if (payload->yuva_info.has_value()) {
+    std::vector<sk_sp<SkImage>> uploaded_planes;
+    for (auto& plane : payload->yuv_planes) {
+      sk_sp<SkImage> uploaded_plane =
+          UploadImageInProcess(gr_context, plane, mip_mapped_for_upload);
+      if (!uploaded_plane) {
+        DLOG(ERROR) << "Failed to upload in-process YUV plane";
+        return false;
+      }
+      uploaded_planes.push_back(std::move(uploaded_plane));
+    }
+    image_ = MakeYUVImageFromUploadedPlanes(
+        gr_context, /*graphite_recorder=*/nullptr, uploaded_planes,
+        payload->yuva_info.value(), payload->yuv_color_space);
+    if (!image_) {
+      DLOG(ERROR) << "Failed to make YUV image from uploaded planes";
+      return false;
+    }
+  } else {
+    image_ = UploadImageInProcess(gr_context, payload->image,
+                                  mip_mapped_for_upload);
+    if (!image_) {
+      DLOG(ERROR) << "Failed to upload in-process image to texture";
+      return false;
+    }
+  }
+
+  if (has_gainmap_) {
+    gainmap_image_ = UploadImageInProcess(gr_context, payload->gainmap_image,
+                                          mip_mapped_for_upload);
+    if (!gainmap_image_) {
+      return false;
+    }
+    if (payload->gainmap_info.has_value()) {
+      gainmap_info_ = payload->gainmap_info.value();
+    }
+  }
+
+  // Determine if this image will be tone mapped.
+  const bool is_tone_mapped =
+      has_gainmap_ ||
+      ToneMapUtil::UseGlobalToneMapFilter(image_->colorSpace());
+
+  // Perform color conversion (if no tone mapping is needed).
+  if (payload->target_color_space && !is_tone_mapped) {
+    image_ = image_->makeColorSpace(nullptr, payload->target_color_space, {});
+    if (payload->needs_mips && gr_context && image_ &&
+        image_->isTextureBacked()) {
+      image_ = SkImages::TextureFromImage(
+          gr_context, image_, skgpu::Mipmapped::kYes, skgpu::Budgeted::kNo);
+    }
+    if (!image_) {
+      DLOG(ERROR) << "Failed image color conversion.";
+      return false;
+    }
+  }
+
+  size_ = image_->textureSize();
+  if (gainmap_image_) {
+    size_ += gainmap_image_->textureSize();
+  }
+
+  return true;
+}
+
+// Uploads a single in-process raster-backed SkImage to a GPU texture.
+// Note: This currently only supports RGBA images.
+sk_sp<SkImage> ServiceImageTransferCacheEntry::UploadImageInProcess(
+    GrDirectContext* gr_context,
+    sk_sp<SkImage> img,
+    bool mip_mapped_for_upload) {
+  if (!img) {
+    return nullptr;
+  }
+  if (gr_context) {
+    img = SkImages::TextureFromImage(
+        gr_context, img,
+        mip_mapped_for_upload ? skgpu::Mipmapped::kYes : skgpu::Mipmapped::kNo,
+        skgpu::Budgeted::kNo);
+  }
+  return img;
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 const sk_sp<SkImage>& ServiceImageTransferCacheEntry::GetPlaneImage(
     size_t index) const {

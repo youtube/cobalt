@@ -574,6 +574,35 @@ class VIZ_SERVICE_EXPORT GpuServiceImpl
   const bool clear_shader_cache_;
 
   base::WeakPtr<GpuServiceImpl> weak_ptr_;
+#if BUILDFLAG(IS_COBALT)
+  // Represents a deferred EstablishGpuChannel request received while the
+  // application is backgrounded / concealed.
+  struct PendingEstablishGpuChannelRequest {
+    PendingEstablishGpuChannelRequest(int32_t client_id,
+                                      uint64_t client_tracing_id,
+                                      bool is_gpu_host,
+                                      EstablishGpuChannelCallback callback);
+    PendingEstablishGpuChannelRequest(
+        PendingEstablishGpuChannelRequest&& other);
+    PendingEstablishGpuChannelRequest& operator=(
+        PendingEstablishGpuChannelRequest&& other);
+    ~PendingEstablishGpuChannelRequest();
+
+    int32_t client_id;
+    uint64_t client_tracing_id;
+    bool is_gpu_host;
+    EstablishGpuChannelCallback callback;
+  };
+
+  // Queue of EstablishGpuChannel requests received while backgrounded. When
+  // backgrounded, GPU resources are torn down and incoming channel establishment
+  // requests are queued rather than rejected with transient failures. This
+  // prevents upstream retry loops from spinning between the browser compositor
+  // and GPU thread during suspend. All queued requests are flushed and fulfilled
+  // upon resume in OnForegroundedOnMainThread().
+  std::vector<PendingEstablishGpuChannelRequest>
+      pending_establish_gpu_channel_requests_;
+#endif
   base::WeakPtrFactory<GpuServiceImpl> weak_ptr_factory_{this};
 };
 

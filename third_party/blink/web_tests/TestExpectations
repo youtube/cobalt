@@ -9629,6 +9629,7 @@ crbug.com/439456643 [ Linux ] external/wpt/content-security-policy/parsing/inval
 crbug.com/428101918 [ Linux ] external/wpt/service-workers/service-worker/same-site-cookies.https.html [ Failure Timeout ]
 crbug.com/395962971 [ Linux ] external/wpt/webdriver/tests/bidi/browsing_context/navigate/navigate_beforeunload.py [ Failure Timeout ]
 crbug.com/439269634 [ Linux ] external/wpt/webdriver/tests/classic/execute_script/arguments.py [ Failure Timeout ]
+
 crbug.com/440589865 [ Mac14-arm64 ] virtual/webnn-service-with-gpu/external/wpt/webnn/conformance_tests/tensor.https.any.html?gpu [ Failure ]
 crbug.com/440589865 [ Mac15-arm64 ] virtual/webnn-service-with-gpu/external/wpt/webnn/conformance_tests/tensor.https.any.html?gpu [ Failure ]
 crbug.com/440589865 [ Mac14-arm64 ] virtual/webnn-service-with-gpu/external/wpt/webnn/conformance_tests/tensor.https.any.serviceworker.html?gpu [ Failure ]
@@ -9638,6 +9639,7 @@ crbug.com/440589865 [ Mac15-arm64 ] virtual/webnn-service-with-gpu/external/wpt/
 crbug.com/440589865 [ Mac14-arm64 ] virtual/webnn-service-with-gpu/external/wpt/webnn/conformance_tests/tensor.https.any.worker.html?gpu [ Failure ]
 crbug.com/440589865 [ Mac15-arm64 ] virtual/webnn-service-with-gpu/external/wpt/webnn/conformance_tests/tensor.https.any.worker.html?gpu [ Failure ]
 
+<<<<<<< HEAD
 # Gardener 2025-08-27
 crbug.com/419705502 [ Win10.20h2 ] http/tests/devtools/elements/styles-2/nested-pseudo-elements.js [ Failure Pass ]
 
@@ -9650,3 +9652,17 @@ crbug.com/441826647 [ Linux ] external/wpt/webdriver/tests/bidi/browsing_context
 
 # Gardener 2025-09-01
 crbug.com/442030691 compositing/video/video-poster.html [ Failure Pass ]
+=======
+# Cobalt bug: b/461834934.
+wpt_internal/cobalt/HTMLVideoElementExtension/getAndSetMaxVideoCapabilities.html [ Timeout ]
+
+# Cobalt bug: b/405993906.
+wpt_internal/cobalt/h5vcc-runtime/* [ Failure ]
+
+# Cobalt bug: b/405997906.
+wpt_internal/cobalt/h5vcc-system/h5vcc-system-advertisingId.https.any.html [ Failure Timeout ]
+wpt_internal/cobalt/h5vcc-system/h5vcc-system-exit.https.any.html [ Failure Timeout ]
+wpt_internal/cobalt/h5vcc-system/h5vcc-system-limitAdTracking.https.any.html [ Failure Timeout ]
+wpt_internal/cobalt/h5vcc-system/h5vcc-system-trackingAuthorizationStatus.https.any.html [ Failure Timeout ]
+wpt_internal/cobalt/h5vcc-system/h5vcc-system-userOnExitStrategy.https.any.html [ Failure Timeout ]
+>>>>>>> parent of ceeb47705e0 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)

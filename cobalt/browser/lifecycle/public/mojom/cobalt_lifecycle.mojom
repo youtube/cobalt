@@ -1,0 +1,40 @@
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+module cobalt.mojom;
+
+// Interface for the Renderer to notify the Browser about lifecycle events.
+interface CobaltLifecycleObserver {
+  // Notify the Browser that the page visibility has changed in the Renderer.
+  OnPageVisibilityChanged(bool visible);
+
+  // Notify the Browser that the page has lost focus in the Renderer.
+  OnPageBlurred();
+
+  // Notify the Browser that the page has gained focus in the Renderer.
+  OnPageFocused();
+
+  // Notify the Browser that the page has resumed in the Renderer.
+  OnPageResumed();
+
+  // Notify the Browser that the frame is ready to handle lifecycle events.
+  OnFrameReady();
+};
+
+// Interface for the Browser to eagerly create an observer in the Renderer
+// to monitor lifecycle events (visibility, focus) without relying on JS.
+interface CobaltLifecycleController {
+  // Sets the observer for the Renderer to notify the Browser.
+  SetObserver(pending_remote<CobaltLifecycleObserver> observer);
+};

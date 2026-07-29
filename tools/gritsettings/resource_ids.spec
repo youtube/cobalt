@@ -1570,6 +1570,9 @@
   "third_party/search_engines_data/resources_internal/search_engines_scaled_resources.grd": {
     "structures": [10100],
   },
+  "cobalt/shell/shell_resources.grd": {
+    "includes": [31500]
+  },
 
   "third_party/search_engines_data/resources_internal/search_engine_descriptions_strings.grd": {
     "messages": [10120],

@@ -16,6 +16,11 @@ SISO_ENV = os.path.join(THIS_DIR, ".sisoenv")
 
 _BACKEND_STAR = os.path.join(THIS_DIR, "backend_config", "backend.star")
 
+_COBALT_STAR = os.path.join(THIS_DIR, "backend_config", "cobalt.star")
+_KNOWN_COBALT_PROJECTS = (
+    'cobalt-actions-prod',
+)
+
 _GOOGLE_STAR = os.path.join(THIS_DIR, "backend_config", "google.star")
 _KNOWN_GOOGLE_PROJECTS = (
     'goma-foundry-experiments',
@@ -93,8 +98,16 @@ def main():
     if reapi_address:
       f.write("SISO_REAPI_ADDRESS=%s\n" % reapi_address)
 
+<<<<<<< HEAD
   reapi_backend_config_path = args.reapi_backend_config_path
   if project and not reapi_backend_config_path:
+=======
+  if project:
+    if project in _KNOWN_COBALT_PROJECTS:
+      if os.path.exists(_BACKEND_STAR):
+        os.remove(_BACKEND_STAR)
+      shutil.copy2(_COBALT_STAR, _BACKEND_STAR)
+>>>>>>> parent of ceeb47705e0 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     if project in _KNOWN_GOOGLE_PROJECTS:
       reapi_backend_config_path = _GOOGLE_STAR
     elif project.startswith('chromeos-') and project.endswith('-bot'):
