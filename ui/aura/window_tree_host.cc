@@ -609,7 +609,9 @@ void WindowTreeHost::OnHostResizedInPixels(
   // from GetBoundsInPixels() on Windows to contain extra space for window
   // transition animations and should be used to set compositor size instead of
   // GetBoundsInPixels() in such case.
+#if !BUILDFLAG(IS_STARBOARD)
   UpdateCompositorScaleAndSize(new_size_in_pixels);
+#endif
 
   observers_.Notify(&WindowTreeHostObserver::OnHostResized, this);
 }

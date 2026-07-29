@@ -16,7 +16,9 @@
 
 #if BUILDFLAG(ENABLE_VULKAN) && \
     (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID))
+#if !BUILDFLAG(IS_STARBOARD)
 #include <vulkan/vulkan_core.h>
+#endif  // !BUILDFLAG(IS_STARBOARD)
 #include "third_party/angle/src/gpu_info_util/SystemInfo.h"  // nogncheck
 #endif  // BUILDFLAG(ENABLE_VULKAN) && (BUILDFLAG(IS_LINUX) ||
         // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID))
@@ -323,7 +325,9 @@ bool IsDefaultANGLEVulkan() {
   }
 #endif  // BUILDFLAG(IS_ANDROID)
 #if BUILDFLAG(ENABLE_VULKAN) && \
-    (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID))
+    (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)) \
+    && !BUILDFLAG(IS_STARBOARD)
+
   angle::SystemInfo system_info;
   {
     GPU_STARTUP_TRACE_EVENT("angle::GetSystemInfoVulkan");

@@ -1,0 +1,67 @@
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "cobalt/browser/features.h"
+
+namespace cobalt {
+namespace features {
+
+// Enables the variations config expiration check.
+BASE_FEATURE(kExperimentConfigExpiration,
+             "ExperimentConfigExpiration",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Test feature, does not enable any features.
+BASE_FEATURE(kTestFinchFeature,
+             "TestFinchFeature",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<std::string> kTestFinchFeatureParam{
+    &kTestFinchFeature, "TestFinchFeatureParam", ""};
+
+BASE_FEATURE(kHangReporting,
+             "HangReporting",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kUseIPv4ForDNS,
+             "UseIPv4ForDNS",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kCobaltMetricsIntervalFeature,
+             "CobaltMetricsInterval",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<int> kCpuMetricsIntervalParam{
+    &kCobaltMetricsIntervalFeature, "cpu-metrics-interval", 300};
+
+const base::FeatureParam<int> kMemoryMetricsIntervalParam{
+    &kCobaltMetricsIntervalFeature, "memory-metrics-interval", 300};
+
+BASE_FEATURE(kCobaltMemoryAttributionManager,
+             "CobaltMemoryAttributionManager",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<int> kCobaltMemoryAttributionReportIntervalParam{
+    &kCobaltMemoryAttributionManager, "report-interval", 600};
+
+// Enables custom memory buffer size for in-memory updates.
+BASE_FEATURE(kInMemoryUpdatesMemoryBuffer,
+             "InMemoryUpdatesMemoryBuffer",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<int> kInMemoryUpdatesMemoryBufferParam{
+    &kInMemoryUpdatesMemoryBuffer, "memory_buffer_bytes", 35 * 1024 * 1024};
+
+}  // namespace features
+}  // namespace cobalt

@@ -53,6 +53,18 @@ VerifierResult Verify(
     std::string* crx_id,
     std::vector<uint8_t>* compressed_verified_contents);
 
+#if defined(IN_MEMORY_UPDATES)
+// An overload that instead verifies |crx_str| as a valid Crx.
+VerifierResult Verify(
+    const std::string& crx_str,
+    const VerifierFormat& format,
+    const std::vector<std::vector<uint8_t>>& required_key_hashes,
+    const std::vector<uint8_t>& required_file_hash,
+    std::string* public_key,
+    std::string* crx_id,
+    std::vector<uint8_t>* compressed_verified_contents);
+#endif
+
 }  // namespace crx_file
 
 #endif  // COMPONENTS_CRX_FILE_CRX_VERIFIER_H_
