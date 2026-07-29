@@ -500,6 +500,7 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl implements Acti
                             type,
                             assumeNonNull(readUrl(i)),
                             assumeNonNull(readTitle(i)),
+                            /* customTitle= */ null,
                             readTabCount(i),
                             readIncognitoTabCount(i),
                             readIncognitoSelected(i),
@@ -559,10 +560,17 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl implements Acti
 
         // If asked to always create a fresh new instance, not from persistent state, do it here.
         if (preferNew) {
-            for (int i = 0; i < mMaxInstances; ++i) {
-                if (!instanceEntryExists(i)) {
-                    logNewInstanceId(i);
-                    return Pair.create(i, InstanceAllocationType.PREFER_NEW_INSTANCE_NEW_TASK);
+            // It is possible in a downgraded instance limit scenario that some or all ids of
+            // persisted instances are outside the range bounded by the current |mMaxInstances|. In
+            // this case, we want to avoid allocating an available id in the new range if we are at
+            // or over instance limit, so that we avoid allowing successful creation of the current
+            // activity in this scenario.
+            if (MultiWindowUtils.getInstanceCount() < mMaxInstances) {
+                for (int i = 0; i < mMaxInstances; ++i) {
+                    if (!instanceEntryExists(i)) {
+                        logNewInstanceId(i);
+                        return Pair.create(i, InstanceAllocationType.PREFER_NEW_INSTANCE_NEW_TASK);
+                    }
                 }
             }
             return Pair.create(
@@ -1074,6 +1082,11 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl implements Acti
         MultiWindowUtils.writeLastAccessedTime(index);
     }
 
+    @VisibleForTesting
+    static String profileTypeKey(int index) {
+        return ChromePreferenceKeys.MULTI_INSTANCE_PROFILE_TYPE.createKey(String.valueOf(index));
+    }
+
     /**
      * @return The window IDs of the currently running ChromeTabbedActivity's. It is possible to
      *     have more number of saved instances than the number of currently running activities (for
@@ -1297,6 +1310,7 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl implements Acti
         prefs.removeKey(incognitoTabCountKey(index));
         prefs.removeKey(incognitoSelectedKey(index));
         prefs.removeKey(lastAccessedTimeKey(index));
+        prefs.removeKey(profileTypeKey(index));
     }
 
     @Override

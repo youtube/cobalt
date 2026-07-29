@@ -12,7 +12,6 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/time/time.h"
 #include "components/autofill/core/browser/proto/strike_data.pb.h"
-#include "components/autofill/core/common/autofill_clock.h"
 
 namespace autofill {
 
@@ -24,7 +23,7 @@ int TestInMemoryStrikeDatabase::AddStrikes(int strikes_increase,
                                            const std::string& key) {
   DCHECK_GT(strikes_increase, 0);
   int num_strikes =
-      strike_map_cache_.count(key)  // Cache has entry for |key|.
+      strike_map_cache_.contains(key)
           ? strike_map_cache_[key].num_strikes() + strikes_increase
           : strikes_increase;
   SetStrikeData(key, num_strikes);
@@ -94,16 +93,17 @@ void TestInMemoryStrikeDatabase::SetStrikeData(const std::string& key,
   StrikeData data;
   data.set_num_strikes(num_strikes);
   data.set_last_update_timestamp(
-      AutofillClock::Now().ToDeltaSinceWindowsEpoch().InMicroseconds());
+      base::Time::Now().ToDeltaSinceWindowsEpoch().InMicroseconds());
   strike_map_cache_[key] = data;
 }
 
-int64_t TestInMemoryStrikeDatabase::GetLastUpdatedTimestamp(
+base::Time TestInMemoryStrikeDatabase::GetLastUpdatedTimestamp(
     const std::string& key) {
   auto iter = strike_map_cache_.find(key);
-  return (iter != strike_map_cache_.end())
-             ? iter->second.last_update_timestamp()
-             : 0;
+  return iter != strike_map_cache_.end()
+             ? base::Time::FromDeltaSinceWindowsEpoch(
+                   base::Microseconds(iter->second.last_update_timestamp()))
+             : base::Time();
 }
 
 }  // namespace autofill

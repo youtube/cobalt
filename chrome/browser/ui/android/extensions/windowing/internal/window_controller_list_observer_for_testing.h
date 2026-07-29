@@ -12,10 +12,13 @@ namespace extensions {
 class WindowController;
 }  // namespace extensions
 
-class ExtensionWindowControllerBridge;
-
-// |WindowControllerListObserver| for tests to observe window events received
-// by extension internals.
+// A singleton |WindowControllerListObserver| for tests to observe window
+// events received by extension internals.
+//
+// The reasons we make this a singleton are:
+// (1) Tests can observe events received by all windows; and
+// (2) Allow the observer to exist before window creation and after window
+// destruction so that we can observe those events.
 //
 // This will help Java integration tests more than native unit tests:
 //
@@ -30,15 +33,16 @@ class ExtensionWindowControllerBridge;
 class WindowControllerListObserverForTesting final
     : public extensions::WindowControllerListObserver {
  public:
-  explicit WindowControllerListObserverForTesting(
-      ExtensionWindowControllerBridge* bridge);
+  // Returns the singleton instance.
+  static WindowControllerListObserverForTesting* GetInstance();
 
   // Implements |WindowControllerListObserver|.
+  void OnWindowControllerAdded(
+      extensions::WindowController* window_controller) override;
+  void OnWindowControllerRemoved(
+      extensions::WindowController* window_controller) override;
   void OnWindowBoundsChanged(
       extensions::WindowController* window_controller) override;
-
- private:
-  const raw_ref<ExtensionWindowControllerBridge> bridge_;
 };
 
 // Events to be relayed by |WindowControllerListObserverForTesting| so that
@@ -46,6 +50,11 @@ class WindowControllerListObserverForTesting final
 //
 // GENERATED_JAVA_ENUM_PACKAGE: (
 //   org.chromium.chrome.browser.ui.extensions.windowing)
-enum class ExtensionInternalWindowEventForTesting { UNKNOWN, BOUNDS_CHANGED };
+enum class ExtensionInternalWindowEventForTesting {
+  UNKNOWN,
+  BOUNDS_CHANGED,
+  CREATED,
+  REMOVED
+};
 
 #endif  // CHROME_BROWSER_UI_ANDROID_EXTENSIONS_WINDOWING_INTERNAL_WINDOW_CONTROLLER_LIST_OBSERVER_FOR_TESTING_H_

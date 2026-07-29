@@ -1064,6 +1064,19 @@ void LocalFrameView::RecordNaturalDimensions() {
   natural_height_ = layout_overflow_size_.height();
 }
 
+void LocalFrameView::RequestSameDocumentNavigationPresentationTime(
+    base::OnceCallback<void(const viz::FrameTimingDetails&)> callback) {
+  if (RuntimeEnabledFeatures::RecordSameDocumentPresentationTimeOnceEnabled(
+          GetFrame().DomWindow())) {
+    GetFrame()
+        .LocalFrameRoot()
+        .View()
+        ->same_document_presentation_time_callback_ = std::move(callback);
+  } else if (auto* frame_widget = GetFrame().GetWidgetForLocalRoot()) {
+    frame_widget->NotifyPresentationTime(std::move(callback));
+  }
+}
+
 std::optional<NaturalSizingInfo> LocalFrameView::GetNaturalDimensions() const {
   if (LayoutSVGRoot* content_layout_object = EmbeddedReplacedContent()) {
     return content_layout_object->UnscaledNaturalSizingInfo();
@@ -2081,6 +2094,14 @@ void LocalFrameView::PrepareForLifecycleUpdateRecursive() {
       child.PrepareForLifecycleUpdateRecursive();
     });
   }
+
+  if (same_document_presentation_time_callback_) {
+    if (auto* frame_widget = GetFrame().GetWidgetForLocalRoot()) {
+      frame_widget->NotifyPresentationTime(
+          std::move(same_document_presentation_time_callback_));
+    }
+    same_document_presentation_time_callback_.Reset();
+  }
 }
 
 // TODO(leviw): We don't assert lifecycle information from documents in child
@@ -2160,7 +2181,7 @@ bool LocalFrameView::UpdateLifecyclePhases(
           "blink",
           "LocalFrameView::UpdateLifecyclePhases - start of lifecycle tasks");
       ForAllNonThrottledLocalFrameViews([](LocalFrameView& frame_view) {
-        WTF::Vector<base::OnceClosure> tasks;
+        Vector<base::OnceClosure> tasks;
         frame_view.start_of_lifecycle_tasks_.swap(tasks);
         for (auto& task : tasks)
           std::move(task).Run();
@@ -3047,7 +3068,7 @@ void LocalFrameView::PushPaintArtifactToCompositor(bool repainted) {
     }
   });
 
-  WTF::Vector<std::unique_ptr<ViewTransitionRequest>> view_transition_requests;
+  Vector<std::unique_ptr<ViewTransitionRequest>> view_transition_requests;
   AppendViewTransitionRequests(view_transition_requests);
 
 #if BUILDFLAG(IS_ANDROID)
@@ -3063,7 +3084,7 @@ void LocalFrameView::PushPaintArtifactToCompositor(bool repainted) {
 }
 
 void LocalFrameView::AppendViewTransitionRequests(
-    WTF::Vector<std::unique_ptr<ViewTransitionRequest>>& requests) {
+    Vector<std::unique_ptr<ViewTransitionRequest>>& requests) {
   DCHECK(frame_ && frame_->GetDocument());
   DCHECK(frame_->IsLocalRoot());
 

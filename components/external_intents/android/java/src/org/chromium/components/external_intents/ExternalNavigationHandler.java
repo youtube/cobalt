@@ -43,6 +43,7 @@ import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.Supplier;
 import org.chromium.build.BuildConfig;
+import org.chromium.build.annotations.Contract;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.components.embedder_support.util.UrlConstants;
@@ -159,16 +160,16 @@ public class ExternalNavigationHandler {
     }
 
     // A Supplier that only evaluates when needed then caches the value.
-    protected static class LazySupplier<T> implements Supplier<T> {
+    protected static class LazySupplier<T extends @Nullable Object> implements Supplier<T> {
         private @Nullable T mValue;
         private @Nullable Supplier<T> mInnerSupplier;
 
         public LazySupplier(Supplier<T> innerSupplier) {
-            assert innerSupplier != null : "innerSupplier cannot be null";
             mInnerSupplier = innerSupplier;
         }
 
         @Override
+        @SuppressWarnings("NullAway") // Using mInnerSupplier as condition for mValue.
         public T get() {
             if (mInnerSupplier != null) {
                 mValue = mInnerSupplier.get();
@@ -177,12 +178,7 @@ public class ExternalNavigationHandler {
                 // references it may have held.
                 mInnerSupplier = null;
             }
-            return assumeNonNull(mValue);
-        }
-
-        @Override
-        public boolean hasValue() {
-            return true;
+            return mValue;
         }
     }
 
@@ -972,7 +968,8 @@ public class ExternalNavigationHandler {
         return false;
     }
 
-    private boolean externalIntentRequestsDisabledForUrl(ExternalNavigationParams params) {
+    private boolean externalIntentRequestsDisabledForUrl(
+            ExternalNavigationParams params, Intent intent) {
         // TODO(changwan): check if we need to handle URL even when external intent is off.
         if (CommandLine.getInstance()
                 .hasSwitch(ExternalIntentsSwitches.DISABLE_EXTERNAL_INTENT_REQUESTS)) {
@@ -980,7 +977,7 @@ public class ExternalNavigationHandler {
             return true;
         }
 
-        if (mDelegate.shouldDisableExternalIntentRequestsForUrl(params.getUrl())) {
+        if (mDelegate.shouldDisableExternalIntentRequestsForUrl(params, intent)) {
             if (debug()) Log.i(TAG, "Delegate disables external intent requests for URL.");
             return true;
         }
@@ -1617,7 +1614,7 @@ public class ExternalNavigationHandler {
 
         // This should come after file intents, but before any returns of
         // OVERRIDE_WITH_EXTERNAL_INTENT.
-        if (externalIntentRequestsDisabledForUrl(params)) {
+        if (externalIntentRequestsDisabledForUrl(params, targetIntent)) {
             return OverrideUrlLoadingResult.forNoOverride();
         }
 
@@ -2630,11 +2627,13 @@ public class ExternalNavigationHandler {
 
     /**
      * Parses the scheme out of the URL if possible, trimming and getting rid of unsafe characters.
-     * This is useful for determining if a URL has a sneaky, unsafe scheme, e.g. "java  script" or
+     * This is useful for determining if a URL has a sneaky, unsafe scheme, e.g. "java script" or
      * "j$a$r". See: http://crbug.com/248398
+     *
      * @return The sanitized URL scheme or null if no scheme is specified.
      */
-    public static @Nullable String getSanitizedUrlScheme(String url) {
+    @Contract("null -> null")
+    public static @Nullable String getSanitizedUrlScheme(@Nullable String url) {
         if (url == null) {
             return null;
         }

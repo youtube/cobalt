@@ -30,6 +30,7 @@
 #include "components/signin/public/identity_manager/account_managed_status_finder_outcome.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/identity_utils.h"
+#include "components/signin/public/identity_manager/primary_account_mutator.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/user_education/common/user_education_features.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -60,6 +61,7 @@ constexpr char kDialogNotShownReasonHistogram[] =
     "Signin.DiceMigrationDialog.NotShownReason";
 constexpr char kRestoredFromBackupHistogram[] =
     "Signin.DiceMigration.RestoredFromBackup";
+constexpr char kForceMigratedHistogram[] = "Signin.DiceMigration.ForceMigrated";
 
 void LogDialogCloseReason(DiceMigrationService::DialogCloseReason reason) {
   base::UmaHistogramEnumeration(kDialogCloseReasonHistogram, reason);
@@ -160,6 +162,22 @@ bool MaybeShowToast(Browser* browser) {
   return true;
 }
 
+bool ForceMigrateUserIfEligible(Profile* profile) {
+  if (!IsUserEligibleForDiceMigration(profile)) {
+    return false;
+  }
+  signin::IdentityManager* identity_manager =
+      IdentityManagerFactory::GetForProfile(profile);
+  CHECK(identity_manager);
+  // Remove the primary account, but keep the tokens. This will make the user
+  // signed in only to the web.
+  // TODO(crbug.com/437083916): DICe users with account management should
+  // instead be migrated to explicitly signed-in state.
+  return identity_manager->GetPrimaryAccountMutator()
+      ->RemovePrimaryAccountButKeepTokens(
+          signin_metrics::ProfileSignout::kForcedDiceMigration);
+}
+
 }  // namespace
 
 const char kDiceMigrationDialogShownCount[] =
@@ -193,28 +211,47 @@ class DiceMigrationService::AvatarButtonObserver
     CHECK(dice_migration_service_);
     CHECK(dice_migration_service_->dialog_widget_);
     avatar_button_observation_.Observe(avatar_button);
+
+    const std::u16string& avatar_button_text = base::ASCIIToUTF16(
+        dice_migration_service_->primary_account_info_.email);
+    if (!avatar_button_text.empty()) {
+      clear_avatar_button_effects_callback_ =
+          avatar_button->SetExplicitButtonState(
+              avatar_button_text, /*accessibility_label=*/std::nullopt,
+              /*explicit_action=*/std::nullopt);
+    }
   }
 
  private:
   // `AvatarToolbarButton::Observer`:
   void OnButtonPressed() override {
     CHECK(dice_migration_service_->dialog_widget_);
+    avatar_button_observation_.Reset();
     dice_migration_service_->StopTimerOrCloseDialog(
         DialogCloseReason::kAvatarButtonClicked);
-    avatar_button_observation_.Reset();
   }
 
   base::ScopedObservation<AvatarToolbarButton, AvatarToolbarButton::Observer>
       avatar_button_observation_{this};
   raw_ptr<DiceMigrationService> dice_migration_service_;
+
+  // Callback to reset the expanded avatar button.
+  base::ScopedClosureRunner clear_avatar_button_effects_callback_;
 };
 
 DiceMigrationService::DiceMigrationService(
     Profile* profile,
     scoped_refptr<base::SingleThreadTaskRunner> task_runner_for_testing)
     : profile_(profile) {
-  CHECK(base::FeatureList::IsEnabled(switches::kOfferMigrationToDiceUsers));
   CHECK(profile_);
+  if (base::FeatureList::IsEnabled(switches::kForcedDiceMigration)) {
+    // Force migration all implicitly signed-in users.
+    const bool migrated = ForceMigrateUserIfEligible(profile_);
+    base::UmaHistogramBoolean(kForceMigratedHistogram, migrated);
+    return;
+  }
+
+  CHECK(base::FeatureList::IsEnabled(switches::kOfferMigrationToDiceUsers));
   const std::optional<DialogNotShownReason> not_shown_reason =
       ShouldStartDialogTriggerTimer();
   base::UmaHistogramBoolean(kDialogTimerStartedHistogram,
@@ -223,6 +260,9 @@ DiceMigrationService::DiceMigrationService(
     LogDialogNotShownReason(not_shown_reason.value());
     return;
   }
+  // If the flag is enabled, the user should have already been migrated and
+  // the above return statement should have returned.
+  CHECK(!base::FeatureList::IsEnabled(switches::kForcedDiceMigration));
 
   signin::IdentityManager* identity_manager =
       IdentityManagerFactory::GetForProfile(profile_);
@@ -394,7 +434,7 @@ DiceMigrationService::ShowDiceMigrationOfferDialogIfUserEligible() {
         base::DoNothing(),
         ui::DialogModel::Button::Params()
             .SetId(kCancelButtonElementId)
-            .SetLabel(l10n_util::GetStringUTF16(IDS_NOT_NOW)));
+            .SetLabel(l10n_util::GetStringUTF16(IDS_PROMO_SNOOZE_BUTTON)));
   }
   builder.DisableCloseOnDeactivate();
   builder.SetIsAlertDialog();
@@ -415,7 +455,8 @@ DiceMigrationService::ShowDiceMigrationOfferDialogIfUserEligible() {
   // never interacts with it.
   UpdateDialogShownCountAndTime();
 
-  // Close the dialog when the avatar pill is clicked.
+  // Close the dialog when the avatar pill is clicked. This is also responsible
+  // for expanding the avatar pill when the dialog is showing.
   avatar_button_observer_ =
       std::make_unique<AvatarButtonObserver>(avatar_button, this);
 

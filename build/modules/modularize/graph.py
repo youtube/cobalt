@@ -194,6 +194,45 @@ class Target:
   def __lt__(self, other):
     return self.name < other.name
 
+  def __eq__(self, other):
+    return self.name == other.name
+
+  def __hash__(self):
+    return hash(self.name)
+
+  @property
+  def kwargs(self) -> dict[str, set[str]]:
+    """The kwargs associated with a build target.
+
+    eg. if you have kwargs = {"defines": ["FOO"]}, then it outputs:
+
+    target_type(target.name) {
+      defines = ["FOO"]
+    }
+    """
+    kwargs = collections.defaultdict(set)
+    for header in self.headers:
+      for single in header.group:
+        for dep in {single} | single.required_textual_deps:
+          for k, v in dep.kwargs.items():
+            kwargs[k].update(v)
+    return kwargs
+
+  @property
+  def header_deps(self) -> set[Header]:
+    direct_deps = set()
+    for hdr in self.headers:
+      direct_deps.update(hdr.required_deps)
+    return direct_deps
+
+  @property
+  def public_deps(self) -> list[str]:
+    return sorted(
+        set([
+            hdr.root_module for hdr in self.header_deps
+            if hdr.root_module is not None and hdr.root_module != self.name
+        ]))
+
 
 def run_build(graph: dict[str, Header]) -> list[Target]:
   """Calculates the correct way to run a build."""

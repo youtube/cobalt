@@ -320,7 +320,7 @@ void NativeWidgetAura::InitNativeWidget(Widget::InitParams params) {
       // If a parent or context is specified but no bounds are given, use the
       // origin of the display so that the widget will be added to the same
       // display as the parent or context.
-      gfx::Rect bounds = display::Screen::GetScreen()
+      gfx::Rect bounds = display::Screen::Get()
                              ->GetDisplayNearestWindow(parent_or_context)
                              .bounds();
       window_bounds.set_origin(bounds.origin());
@@ -490,9 +490,8 @@ void NativeWidgetAura::CenterWindow(const gfx::Size& size) {
   // When centering window, we take the intersection of the host and
   // the parent. We assume the root window represents the visible
   // rect of a single screen.
-  gfx::Rect work_area = display::Screen::GetScreen()
-                            ->GetDisplayNearestWindow(window_)
-                            .work_area();
+  gfx::Rect work_area =
+      display::Screen::Get()->GetDisplayNearestWindow(window_).work_area();
 
   aura::client::ScreenPositionClient* screen_position_client =
       aura::client::GetScreenPositionClient(window_->GetRootWindow());
@@ -626,7 +625,12 @@ gfx::Rect NativeWidgetAura::GetRestoredBounds() const {
 }
 
 std::string NativeWidgetAura::GetWorkspace() const {
-  int desk_index = window_->GetProperty(aura::client::kWindowWorkspaceKey);
+  if (!window_) {
+    return std::string();
+  }
+
+  const int desk_index =
+      window_->GetProperty(aura::client::kWindowWorkspaceKey);
   if (desk_index == aura::client::kWindowWorkspaceUnassignedWorkspace ||
       desk_index == aura::client::kWindowWorkspaceVisibleOnAllWorkspaces) {
     return std::string();
@@ -645,7 +649,7 @@ void NativeWidgetAura::SetBounds(const gfx::Rect& bounds) {
 void NativeWidgetAura::SetBoundsInternal(const gfx::Rect& bounds,
                                          std::optional<int64_t> display_id) {
   display::Display dst_display;
-  auto* screen = display::Screen::GetScreen();
+  auto* screen = display::Screen::Get();
   // TODO(crbug.com/40281188): Call SetBoundsInScreen directly.
   if (!display_id ||
       !screen->GetDisplayWithDisplayId(display_id.value(), &dst_display)) {
@@ -997,9 +1001,7 @@ gfx::Rect NativeWidgetAura::GetWorkAreaBoundsInScreen() const {
   if (!window_) {
     return gfx::Rect();
   }
-  return display::Screen::GetScreen()
-      ->GetDisplayNearestWindow(window_)
-      .work_area();
+  return display::Screen::Get()->GetDisplayNearestWindow(window_).work_area();
 }
 
 Widget::MoveLoopResult NativeWidgetAura::RunMoveLoop(

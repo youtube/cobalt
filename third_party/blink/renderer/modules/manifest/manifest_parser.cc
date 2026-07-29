@@ -4,48 +4,59 @@
 
 #include "third_party/blink/renderer/modules/manifest/manifest_parser.h"
 
+#include <cstddef>
+#include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
 
+#include "base/check.h"
 #include "base/compiler_specific.h"
 #include "base/feature_list.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/notreached.h"
 #include "net/base/mime_util.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
+#include "services/device/public/mojom/screen_orientation_lock_types.mojom-blink.h"
 #include "services/network/public/cpp/permissions_policy/origin_with_possible_wildcards.h"
 #include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
 #include "third_party/blink/public/common/features.h"
-#include "third_party/blink/public/common/manifest/manifest.h"
 #include "third_party/blink/public/common/manifest/manifest_util.h"
-#include "third_party/blink/public/common/mime_util/mime_util.h"
 #include "third_party/blink/public/common/safe_url_pattern.h"
 #include "third_party/blink/public/common/security/protocol_handler_security_level.h"
-#include "third_party/blink/public/mojom/manifest/manifest.mojom-blink-forward.h"
+#include "third_party/blink/public/mojom/manifest/display_mode.mojom-blink.h"
 #include "third_party/blink/public/mojom/manifest/manifest.mojom-blink.h"
-#include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom-shared.h"
-#include "third_party/blink/public/mojom/use_counter/metrics/webdx_feature.mojom-shared.h"
+#include "third_party/blink/public/mojom/manifest/manifest_launch_handler.mojom-blink.h"
 #include "third_party/blink/public/platform/url_conversion.h"
 #include "third_party/blink/public/platform/web_icon_sizes_parser.h"
 #include "third_party/blink/public/platform/web_string.h"
 #include "third_party/blink/renderer/core/css/media_list.h"
-#include "third_party/blink/renderer/core/css/media_query_evaluator.h"
-#include "third_party/blink/renderer/core/css/media_values.h"
-#include "third_party/blink/renderer/core/css/media_values_cached.h"
 #include "third_party/blink/renderer/core/css/parser/css_parser.h"
-#include "third_party/blink/renderer/core/css_value_keywords.h"
+#include "third_party/blink/renderer/core/frame/web_feature.h"
 #include "third_party/blink/renderer/core/permissions_policy/permissions_policy_parser.h"
+#include "third_party/blink/renderer/core/permissions_policy/policy_helper.h"
 #include "third_party/blink/renderer/modules/navigatorcontentutils/navigator_content_utils.h"
+#include "third_party/blink/renderer/platform/graphics/color.h"
+#include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
 #include "third_party/blink/renderer/platform/json/json_parser.h"
 #include "third_party/blink/renderer/platform/json/json_values.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/weborigin/security_origin.h"
+#include "third_party/blink/renderer/platform/wtf/hash_map.h"
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
+#include "third_party/blink/renderer/platform/wtf/text/string_impl.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_utf8_adaptor.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_view.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
+#include "third_party/blink/renderer/platform/wtf/text/wtf_uchar.h"
+#include "third_party/blink/renderer/platform/wtf/wtf_size_t.h"
 #include "third_party/liburlpattern/parse.h"
+#include "third_party/liburlpattern/part.h"
 #include "third_party/liburlpattern/pattern.h"
 #include "third_party/liburlpattern/utils.h"
-#include "url/gurl.h"
 #include "url/url_constants.h"
 #include "url/url_util.h"
 
@@ -282,7 +293,7 @@ ManifestParser::ManifestParser(const String& data,
       execution_context_(execution_context),
       failed_(false) {}
 
-ManifestParser::~ManifestParser() {}
+ManifestParser::~ManifestParser() = default;
 
 // static
 void ManifestParser::SetFileHandlerExtensionLimitForTesting(int limit) {
@@ -713,10 +724,9 @@ Enum ManifestParser::ParseFirstValidEnum(const JSONObject* object,
     return invalid_value;
   }
 
-  for (wtf_size_t i = 0; i < list->size(); ++i) {
-    const JSONValue* item = list->at(i);
-    if (!item->AsString(&string_value)) {
-      AddErrorInfo(StrCat({key, " value '", item->ToJSONString(),
+  for (const JSONValue& entry : *list) {
+    if (!entry.AsString(&string_value)) {
+      AddErrorInfo(StrCat({key, " value '", entry.ToJSONString(),
                            "' ignored, string expected."}));
       continue;
     }
@@ -884,12 +894,12 @@ Vector<mojom::blink::DisplayMode> ManifestParser::ParseDisplayOverride(
     return display_override;
   }
 
-  for (wtf_size_t i = 0; i < display_override_list->size(); ++i) {
+  for (const JSONValue& value : *display_override_list) {
     String display_enum_string;
     // AsString will return an empty string if a type error occurs,
     // which will cause DisplayModeFromString to return kUndefined,
     // resulting in this entry being ignored.
-    display_override_list->at(i)->AsString(&display_enum_string);
+    value.AsString(&display_enum_string);
     display_enum_string = display_enum_string.StripWhiteSpace();
     mojom::blink::DisplayMode display_enum =
         DisplayModeFromString(display_enum_string.Utf8());
@@ -1093,8 +1103,8 @@ Vector<mojom::blink::ManifestScreenshotPtr> ManifestParser::ParseScreenshots(
     return screenshots;
   }
 
-  for (wtf_size_t i = 0; i < screenshots_list->size(); ++i) {
-    JSONObject* screenshot_object = JSONObject::Cast(screenshots_list->at(i));
+  for (const JSONValue& value : *screenshots_list) {
+    auto* screenshot_object = JSONObject::Cast(&value);
     if (!screenshot_object) {
       continue;
     }
@@ -1131,8 +1141,8 @@ ManifestParser::ParseImageResourceArray(const String& key,
     return icons;
   }
 
-  for (wtf_size_t i = 0; i < icons_list->size(); ++i) {
-    auto icon = ParseImageResource(icons_list->at(i));
+  for (const JSONValue& value : *icons_list) {
+    auto icon = ParseImageResource(&value);
     if (icon.has_value()) {
       icons.push_back(std::move(*icon));
     }
@@ -1291,10 +1301,9 @@ Vector<String> ManifestParser::ParseFileFilterAccept(const JSONObject* object) {
     return accept_types;
   }
 
-  for (wtf_size_t i = 0; i < accept_list->size(); ++i) {
-    JSONValue* accept_value = accept_list->at(i);
+  for (const JSONValue& accept_value : *accept_list) {
     String accept_string;
-    if (!accept_value || !accept_value->AsString(&accept_string)) {
+    if (!accept_value.AsString(&accept_string)) {
       // A particular 'accept' entry is invalid - just drop that one entry.
       AddErrorInfo("'accept' entry ignored, expected to be of type string.");
       continue;
@@ -1328,8 +1337,8 @@ Vector<mojom::blink::ManifestFileFilterPtr> ManifestParser::ParseTargetFiles(
     ParseFileFilter(file_object, &files);
     return files;
   }
-  for (wtf_size_t i = 0; i < file_list->size(); ++i) {
-    const JSONObject* file_object = JSONObject::Cast(file_list->at(i));
+  for (const JSONValue& value : *file_list) {
+    auto* file_object = JSONObject::Cast(&value);
     if (!file_object) {
       AddErrorInfo("files must be a sequence of non-empty file entries.");
       continue;
@@ -1525,8 +1534,8 @@ Vector<mojom::blink::ManifestFileHandlerPtr> ManifestParser::ParseFileHandlers(
   }
 
   Vector<mojom::blink::ManifestFileHandlerPtr> result;
-  for (wtf_size_t i = 0; i < entry_array->size(); ++i) {
-    JSONObject* json_entry = JSONObject::Cast(entry_array->at(i));
+  for (const JSONValue& value : *entry_array) {
+    auto* json_entry = JSONObject::Cast(&value);
     if (!json_entry) {
       AddErrorInfo("FileHandler ignored, type object expected.");
       continue;
@@ -1611,16 +1620,15 @@ HashMap<String, Vector<String>> ManifestParser::ParseFileHandlerAccept(
     String extension;
     JSONArray* extensions_array = JSONArray::Cast(entry.second);
     if (extensions_array) {
-      for (wtf_size_t j = 0; j < extensions_array->size(); ++j) {
-        JSONValue* value = extensions_array->at(j);
-        if (!value->AsString(&extension)) {
+      for (const JSONValue& value : *extensions_array) {
+        if (!value.AsString(&extension)) {
           AddErrorInfo(
               "property 'accept' file extension ignored, type string "
               "expected.");
           continue;
         }
 
-        if (!ParseFileHandlerAcceptExtension(value, &extension)) {
+        if (!ParseFileHandlerAcceptExtension(&value, &extension)) {
           // Errors are added by ParseFileHandlerAcceptExtension.
           continue;
         }
@@ -1690,8 +1698,8 @@ ManifestParser::ParseProtocolHandlers(const JSONObject* from) {
     return protocols;
   }
 
-  for (wtf_size_t i = 0; i < protocol_list->size(); ++i) {
-    const JSONObject* protocol_object = JSONObject::Cast(protocol_list->at(i));
+  for (const JSONValue& value : *protocol_list) {
+    auto* protocol_object = JSONObject::Cast(&value);
     if (!protocol_object) {
       AddErrorInfo("protocol_handlers entry ignored, type object expected.");
       continue;
@@ -2030,9 +2038,8 @@ ManifestParser::ParseRelatedApplications(const JSONObject* object) {
     return applications;
   }
 
-  for (wtf_size_t i = 0; i < applications_list->size(); ++i) {
-    const JSONObject* application_object =
-        JSONObject::Cast(applications_list->at(i));
+  for (const JSONValue& entry : *applications_list) {
+    auto* application_object = JSONObject::Cast(&entry);
     if (!application_object) {
       continue;
     }
@@ -2166,17 +2173,9 @@ Vector<String> ManifestParser::ParseOriginAllowlist(
     const JSONArray* json_allowlist,
     const String& feature) {
   Vector<String> out;
-  for (wtf_size_t i = 0; i < json_allowlist->size(); ++i) {
-    JSONValue* json_value = json_allowlist->at(i);
-    if (!json_value) {
-      AddErrorInfo(
-          "permissions_policy entry ignored, required property 'origin' is "
-          "invalid.");
-      return Vector<String>();
-    }
-
+  for (const JSONValue& json_value : *json_allowlist) {
     String origin_string;
-    if (!json_value->AsString(&origin_string) || origin_string.IsNull()) {
+    if (!json_value.AsString(&origin_string) || origin_string.IsNull()) {
       AddErrorInfo(
           "permissions_policy entry ignored, required property 'origin' "
           "contains "
@@ -2309,7 +2308,8 @@ mojom::blink::ManifestTabStripPtr ManifestParser::ParseTabStrip(
       home_tab_params->icons = ParseIcons(home_tab_object);
     }
 
-    home_tab_params->scope_patterns = ParseScopePatterns(home_tab_object);
+    home_tab_params->scope_patterns =
+        ParseUrlPatterns(home_tab_object, "scope_patterns");
 
     result->home_tab =
         mojom::blink::HomeTabUnion::NewParams(std::move(home_tab_params));
@@ -2355,24 +2355,21 @@ ManifestParser::ParseTabStripMemberVisibility(const JSONValue* json_value) {
   return mojom::blink::TabStripMemberVisibility::kAuto;
 }
 
-Vector<SafeUrlPattern> ManifestParser::ParseScopePatterns(
-    const JSONObject* object) {
+Vector<SafeUrlPattern> ManifestParser::ParseUrlPatterns(
+    const JSONObject* object,
+    const String& field_name) {
   Vector<SafeUrlPattern> result;
 
-  if (!object->Get("scope_patterns")) {
+  auto* url_patterns = object->GetArray(field_name);
+  if (!url_patterns) {
     return result;
   }
 
-  JSONArray* scope_patterns_list = object->GetArray("scope_patterns");
-  if (!scope_patterns_list) {
-    return result;
-  }
-
-  for (wtf_size_t i = 0; i < scope_patterns_list->size(); ++i) {
+  for (const JSONValue& entry : *url_patterns) {
     // TODO(b/330640840): allow strings to be passed through here and parsed via
     // liburlpattern::ConstructorStringParser. The result of the parse can then
     // be used to create a PatternInit object for the rest of the process.
-    JSONObject* pattern_object = JSONObject::Cast(scope_patterns_list->at(i));
+    auto* pattern_object = JSONObject::Cast(&entry);
     if (!pattern_object) {
       continue;
     }
@@ -2381,7 +2378,7 @@ Vector<SafeUrlPattern> ManifestParser::ParseScopePatterns(
     if (init.has_value()) {
       auto base_url = init->base_url.IsValid() ? init->base_url : manifest_url_;
       std::optional<SafeUrlPattern> pattern =
-          ParseScopePattern(init.value(), base_url);
+          ParseUrlPattern(field_name, init.value(), base_url);
       if (pattern.has_value()) {
         result.push_back(std::move(pattern.value()));
       }
@@ -2391,7 +2388,8 @@ Vector<SafeUrlPattern> ManifestParser::ParseScopePatterns(
   return result;
 }
 
-std::optional<SafeUrlPattern> ManifestParser::ParseScopePattern(
+std::optional<SafeUrlPattern> ManifestParser::ParseUrlPattern(
+    const String& field_name,
     const PatternInit& init,
     const KURL& base_url) {
   auto url_pattern = std::make_optional<SafeUrlPattern>();
@@ -2403,8 +2401,8 @@ std::optional<SafeUrlPattern> ManifestParser::ParseScopePattern(
         ParsePatternInitField(init.protocol, base_url.Protocol());
     if (!part_list.has_value()) {
       AddErrorInfo(
-          "property 'protocol in home tab scope pattern could not be parsed or "
-          "contains banned regex.");
+          StrCat({"property 'protocol' in '", field_name,
+                  "' pattern could not be parsed or contains banned regex."}));
       return std::nullopt;
     }
     url_pattern->protocol = std::move(part_list.value());
@@ -2422,8 +2420,8 @@ std::optional<SafeUrlPattern> ManifestParser::ParseScopePattern(
         ParsePatternInitField(init.username, default_username);
     if (!part_list.has_value()) {
       AddErrorInfo(
-          "property 'username'in home tab scope pattern could not be parsed or "
-          "contains banned regex.");
+          StrCat({"property 'username' in '", field_name,
+                  "' pattern could not be parsed or contains banned regex."}));
       return std::nullopt;
     }
     url_pattern->username = std::move(part_list.value());
@@ -2441,8 +2439,8 @@ std::optional<SafeUrlPattern> ManifestParser::ParseScopePattern(
         ParsePatternInitField(init.password, default_password);
     if (!part_list.has_value()) {
       AddErrorInfo(
-          "property 'password' in home tab scope pattern could not be parsed "
-          "or contains banned regex.");
+          StrCat({"property 'password' in '", field_name,
+                  "' pattern could not be parsed or contains banned regex."}));
       return std::nullopt;
     }
     url_pattern->password = std::move(part_list.value());
@@ -2459,8 +2457,8 @@ std::optional<SafeUrlPattern> ManifestParser::ParseScopePattern(
         ParsePatternInitField(init.hostname, default_hostname);
     if (!part_list.has_value()) {
       AddErrorInfo(
-          "property 'hostname' in home tab scope pattern could not be parsed "
-          "or contains banned regex.");
+          StrCat({"property 'hostname' in '", field_name,
+                  "' pattern could not be parsed or contains banned regex."}));
       return std::nullopt;
     }
     url_pattern->hostname = std::move(part_list.value());
@@ -2478,8 +2476,8 @@ std::optional<SafeUrlPattern> ManifestParser::ParseScopePattern(
         ParsePatternInitField(init.port, default_port);
     if (!part_list.has_value()) {
       AddErrorInfo(
-          "property 'port'in home tab scope pattern could not be parsed or "
-          "contains banned regex.");
+          StrCat({"property 'port' in '", field_name,
+                  "' pattern could not be parsed or contains banned regex."}));
       return std::nullopt;
     }
     url_pattern->port = std::move(part_list.value());
@@ -2502,8 +2500,8 @@ std::optional<SafeUrlPattern> ManifestParser::ParseScopePattern(
         ParsePatternInitField(std::nullopt, default_path);
     if (!part_list.has_value()) {
       AddErrorInfo(
-          "property 'pathname'in home tab scope pattern could not be parsed or "
-          "contains banned regex.");
+          StrCat({"property 'pathname' in '", field_name,
+                  "' pattern could not be parsed or contains banned regex."}));
       return std::nullopt;
     }
     url_pattern->pathname = std::move(part_list.value());
@@ -2521,8 +2519,8 @@ std::optional<SafeUrlPattern> ManifestParser::ParseScopePattern(
         ParsePatternInitField(init.search, default_search);
     if (!part_list.has_value()) {
       AddErrorInfo(
-          "property 'search' in home tab scope pattern could not be parsed "
-          "or contains banned regex.");
+          StrCat({"property 'search' in '", field_name,
+                  "' pattern could not be parsed or contains banned regex."}));
       return std::nullopt;
     }
     url_pattern->search = std::move(part_list.value());
@@ -2541,8 +2539,8 @@ std::optional<SafeUrlPattern> ManifestParser::ParseScopePattern(
         ParsePatternInitField(init.hash, default_hash);
     if (!part_list.has_value()) {
       AddErrorInfo(
-          "property 'hash' in home tab scope pattern could not be parsed "
-          "or contains banned regex.");
+          StrCat({"property 'hash' in '", field_name,
+                  "' pattern could not be parsed or contains banned regex."}));
       return std::nullopt;
     }
     url_pattern->hash = std::move(part_list.value());

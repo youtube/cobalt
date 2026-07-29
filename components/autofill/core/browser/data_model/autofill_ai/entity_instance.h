@@ -45,31 +45,6 @@ class EntityTable;
 // An attribute instance is a typed string value with additional metadata.
 // It is associated with an EntityInstance. Attributes are used in order to fill
 // fields with information of certain types.
-//
-// If kAutofillAiNoTagTypes is disabled:
-// Note that there are two concepts of types that are relevant here:
-// - AttributeType: This is the type of the attribute itself and determines the
-//   structure of the attribute.
-// - FieldType: This is the type of data that can be requested by consumers from
-//   the attribute.
-//
-// If kAutofillAiNoTagTypes is disabled:
-// `AutofillField` computes two types for the field: One is available through
-// `AutofillField::GetAutofillAiServerTypePredictions()` and represents the
-// type used in order to figure out the appropriate AttributeInstance to fill
-// the field. The other is available through `AutofillField::Type()` and
-// represents the general classification of the field (through Autofill server
-// and heuristic prediction logic).
-//
-// If kAutofillAiNoTagTypes is disabled:
-// It could happen that these two types are totally unrelated (e.g., the former
-// returns PASSPORT_NAME_TAG and the latter returns PHONE_HOME_WHOLE_NUMBER)
-// or that the two types are equal (e.g., both return PASSPORT_NAME_TAG). This
-// is a small problem for setter/getter API that (1) assumes that the provided
-// field type to a given method is supported and (2) doesn't have support for
-// `FieldType`s of group `FieldTypeGroup::kAutofillAi`. See
-// `AttributeInstance::GetNormalizedType()` and the getter/setter methods for
-// how this problem is handled.
 class AttributeInstance final {
  public:
   // Transparent less-than relation based on the AttributeType.
@@ -205,15 +180,47 @@ struct AttributeInstance::CompareByType {
 // metadata. The type is an EntityType.
 class EntityInstance final {
  public:
+  // A globally unique identifier for entities.
+  // Use `base::Uuid` whenever you can for new entities, as it would be
+  // preferred to migrate from this to `base::Uuid`, which is currently not
+  // possible unfortunately because some legacy entities still have IDs with
+  // different formats.
+  struct EntityId : public base::StrongAlias<struct EntityIdTag, std::string> {
+   public:
+    using base::StrongAlias<struct EntityIdTag, std::string>::StrongAlias;
+    explicit EntityId(const base::Uuid uuid)
+        : EntityId(uuid.AsLowercaseString()) {}
+  };
+
+  // Controls whether the attributes of the entity instance can be edited by the
+  // user.
+  using AreAttributesReadOnly =
+      base::StrongAlias<class AreAttributesReadOnlyTag, bool>;
+
+  // These values are persisted to a database. Entries should not be renumbered
+  // and numeric values should never be reused.
+  enum class RecordType {
+    // The entity was created/saved locally, it exists only in the local
+    // `EntityTable`.
+    kLocal = 0,
+    // The entity is stored in Wallet and the current instance is only a local
+    // copy. Changes happening locally or on the Wallet server are synced among
+    // all local storages sharing this entity.
+    kServerWallet = 1,
+  };
+
   // `attributes` must be non-empty and their type must be identical to `type`.
   EntityInstance(EntityType type,
                  base::flat_set<AttributeInstance,
                                 AttributeInstance::CompareByType> attributes,
-                 base::Uuid guid,
+                 EntityId guid,
                  std::string nickname,
                  base::Time date_modified,
                  size_t use_count,
-                 base::Time use_date);
+                 base::Time use_date,
+                 RecordType record_type,
+                 AreAttributesReadOnly are_attributes_read_only =
+                     AreAttributesReadOnly(false));
 
   EntityInstance(const EntityInstance&);
   EntityInstance& operator=(const EntityInstance&);
@@ -256,7 +263,7 @@ class EntityInstance final {
   }
 
   // Globally unique identifier of this entity.
-  const base::Uuid& guid() const LIFETIME_BOUND { return guid_; }
+  const EntityId& guid() const LIFETIME_BOUND { return guid_; }
 
   // The nickname assigned to this instance by the user.
   const std::string& nickname() const LIFETIME_BOUND { return nickname_; }
@@ -273,6 +280,15 @@ class EntityInstance final {
 
   // Returns how many times an entity was used to fill a form.
   size_t use_count() const { return use_count_; }
+
+  // Returns true if the attributes of this entity instance cannot be edited by
+  // the user.
+  AreAttributesReadOnly are_attributes_read_only() const {
+    return are_attributes_read_only_;
+  }
+
+  // Returns the type of storage used for the specific entity.
+  RecordType record_type() const { return record_type_; }
 
   struct EntityMergeability {
     EntityMergeability();
@@ -292,7 +308,7 @@ class EntityInstance final {
     bool is_subset = false;
   };
 
-  // - If `this` is a proper superset of `newer`,
+  // - If `newer` is a proper superset of `this`,
   //   `EntityMergeability::mergeable_attributes` contains the list of
   //   attributes that `newer` has, but `this` does not. These attributes can be
   //   set on `this` to update it.
@@ -315,11 +331,13 @@ class EntityInstance final {
   EntityType type_;
   base::flat_set<AttributeInstance, AttributeInstance::CompareByType>
       attributes_;
-  base::Uuid guid_;
+  EntityId guid_;
   std::string nickname_;
   base::Time date_modified_;
   size_t use_count_;
   base::Time use_date_;
+  RecordType record_type_;
+  AreAttributesReadOnly are_attributes_read_only_;
 };
 
 std::ostream& operator<<(std::ostream& os, const AttributeInstance& a);
@@ -328,11 +346,11 @@ std::ostream& operator<<(std::ostream& os, const EntityInstance& e);
 struct EntityInstance::CompareByGuid {
   using is_transparent = void;
 
-  bool operator()(const EntityInstance& lhs, const base::Uuid& rhs) const {
+  bool operator()(const EntityInstance& lhs, const EntityId& rhs) const {
     return lhs.guid() < rhs;
   }
 
-  bool operator()(const base::Uuid& lhs, const EntityInstance& rhs) const {
+  bool operator()(const EntityId& lhs, const EntityInstance& rhs) const {
     return lhs < rhs.guid();
   }
 

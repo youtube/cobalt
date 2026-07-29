@@ -43,9 +43,11 @@
 #include "build/build_config.h"
 #include "components/history_embeddings/history_embeddings_features.h"
 #include "components/lens/lens_features.h"
+#include "components/omnibox/browser/actions/contextual_search_action.h"
 #include "components/omnibox/browser/actions/omnibox_action_in_suggest.h"
 #include "components/omnibox/browser/actions/omnibox_answer_action.h"
 #include "components/omnibox/browser/actions/omnibox_pedal_provider.h"
+#include "components/omnibox/browser/aim_eligibility_service.h"
 #include "components/omnibox/browser/autocomplete_enums.h"
 #include "components/omnibox/browser/autocomplete_input.h"
 #include "components/omnibox/browser/autocomplete_match.h"
@@ -1103,6 +1105,10 @@ bool AutocompleteController::ShouldRunProvider(
            provider->type() == AutocompleteProvider::TYPE_ZERO_SUGGEST;
   }
 
+  if (omnibox::IsComposebox(input_.current_page_classification())) {
+    return provider->type() == AutocompleteProvider::TYPE_ZERO_SUGGEST;
+  }
+
 #if BUILDFLAG(IS_ANDROID)
   if (omnibox::IsAndroidHub(input_.current_page_classification())) {
     return provider->type() == AutocompleteProvider::TYPE_SEARCH ||
@@ -1484,7 +1490,7 @@ void AutocompleteController::UpdateResult(UpdateType update_type,
       autocomplete_provider_client()->IsPagePaywalled());
   const bool mia_enabled =
       omnibox_feature_configs::MiaZPS::Get().enabled &&
-      omnibox::IsAimAllowedByPolicy(provider_client_->GetPrefs());
+      AimEligibilityService::IsAimAllowedByPolicy(provider_client_->GetPrefs());
 
   if (update_type == UpdateType::kSyncPass ||
       update_type == UpdateType::kAsyncPass ||
@@ -2108,6 +2114,20 @@ void AutocompleteController::UpdateSearchboxStats(AutocompleteResult* result) {
                 match->GetTemplateURL(template_url_service_, false),
                 *search_terms_args)
                 .spec());
+      }
+    }
+
+    // If the match's takeover action is contextual search fulfillment, update
+    // it's destination url with the updated search_terms_args.
+    if (match->takeover_action) {
+      auto* contextual_takover_action =
+          ContextualSearchFulfillmentAction::FromAction(
+              match->takeover_action.get());
+      if (contextual_takover_action) {
+        contextual_takover_action->set_fulfillment_url(
+            ComputeURLFromSearchTermsArgs(
+                match->GetTemplateURL(template_url_service_, false),
+                *match->search_terms_args));
       }
     }
   }

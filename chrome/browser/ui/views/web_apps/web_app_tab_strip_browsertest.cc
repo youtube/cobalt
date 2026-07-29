@@ -13,6 +13,7 @@
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
 #include "chrome/browser/apps/app_service/browser_app_launcher.h"
 #include "chrome/browser/apps/link_capturing/link_capturing_feature_test_support.h"
+#include "chrome/browser/platform_util.h"
 #include "chrome/browser/themes/theme_service.h"
 #include "chrome/browser/themes/theme_service_factory.h"
 #include "chrome/browser/ui/browser_command_controller.h"
@@ -27,6 +28,7 @@
 #include "chrome/browser/ui/unload_controller.h"
 #include "chrome/browser/ui/views/frame/browser_non_client_frame_view.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
 #include "chrome/browser/ui/views/location_bar/custom_tab_bar_view.h"
 #include "chrome/browser/ui/views/tabs/tab_icon.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
@@ -37,6 +39,7 @@
 #include "chrome/browser/ui/web_applications/web_app_browser_controller.h"
 #include "chrome/browser/ui/web_applications/web_app_browsertest_base.h"
 #include "chrome/browser/ui/web_applications/web_app_launch_utils.h"
+#include "chrome/browser/ui/web_applications/web_app_tabbed_utils.h"
 #include "chrome/browser/web_applications/manifest_update_manager.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom.h"
 #include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
@@ -64,6 +67,10 @@
 #include "content/public/test/url_loader_interceptor.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/features.h"
+
+#if BUILDFLAG(IS_CHROMEOS)
+#include "ash/wm/window_pin_util.h"
+#endif
 
 using content::OpenURLParams;
 using content::Referrer;
@@ -420,10 +427,12 @@ IN_PROC_BROWSER_TEST_P(WebAppTabStripBrowserTest, MonochromeAppIconOnHomeTab) {
   Browser* app_browser = LaunchWebAppBrowser(app_id);
   TabStripModel* tab_strip = app_browser->tab_strip_model();
 
-  TabIcon* tab_icon = BrowserView::GetBrowserViewForBrowser(app_browser)
-                          ->tabstrip()
-                          ->tab_at(0)
-                          ->GetTabIconForTesting();
+  TabIcon* tab_icon =
+      static_cast<TabStripRegionView*>(
+          BrowserView::GetBrowserViewForBrowser(app_browser)->tab_strip_view())
+          ->tab_strip()
+          ->tab_at(0)
+          ->GetTabIconForTesting();
 
   EXPECT_TRUE(registrar().IsTabbedWindowModeEnabled(app_id));
 
@@ -1007,7 +1016,11 @@ IN_PROC_BROWSER_TEST_P(WebAppTabStripBrowserTest,
   EXPECT_EQ(tab_strip_model->GetWebContentsAt(0)->GetVisibleURL(), start_url);
   EXPECT_EQ(tab_strip_model->active_index(), 0);
 
-  BrowserView* view = BrowserView::GetBrowserViewForBrowser(app_browser);
+  BrowserView* browser_view =
+      BrowserView::GetBrowserViewForBrowser(app_browser);
+  ::TabStrip* tab_strip =
+      static_cast<TabStripRegionView*>(browser_view->tab_strip_view())
+          ->tab_strip();
 
   // Open another tab.
   OpenUrlAndWait(app_browser,
@@ -1015,18 +1028,15 @@ IN_PROC_BROWSER_TEST_P(WebAppTabStripBrowserTest,
   EXPECT_EQ(tab_strip_model->count(), 2);
 
   // Home tab should not be closable.
-  view->tabstrip()->CloseTab(view->tabstrip()->tab_at(0),
-                             CloseTabSource::kFromMouse);
+  tab_strip->CloseTab(tab_strip->tab_at(0), CloseTabSource::kFromMouse);
   EXPECT_EQ(tab_strip_model->count(), 2);
 
   // Non home tab should be closable.
-  view->tabstrip()->CloseTab(view->tabstrip()->tab_at(1),
-                             CloseTabSource::kFromMouse);
+  tab_strip->CloseTab(tab_strip->tab_at(1), CloseTabSource::kFromMouse);
   EXPECT_EQ(tab_strip_model->count(), 1);
 
   // The home tab is the only tab open so it can be closed.
-  view->tabstrip()->CloseTab(view->tabstrip()->tab_at(0),
-                             CloseTabSource::kFromMouse);
+  tab_strip->CloseTab(tab_strip->tab_at(0), CloseTabSource::kFromMouse);
   EXPECT_EQ(tab_strip_model->count(), 0);
 }
 
@@ -1351,6 +1361,12 @@ IN_PROC_BROWSER_TEST_P(WebAppTabStripForOnTaskBrowserTest,
   ASSERT_EQ(tab_strip_model->count(), 1);
   ASSERT_TRUE(tab_strip_model->IsTabPinned(0));
 
+  PinWindow(app_browser->window()->GetNativeWindow(), /*trusted=*/true);
+  // TODO(crbug.com/429215055): This should happen as a part of pin state
+  // transition.
+  app_browser->command_controller()->LockedFullscreenStateChanged();
+  ASSERT_TRUE(platform_util::IsBrowserLockedFullscreen(app_browser));
+
   // Open another tab so we can test tab close behavior on both home and
   // non-home tabs.
   OpenUrlAndWait(app_browser,
@@ -1358,8 +1374,11 @@ IN_PROC_BROWSER_TEST_P(WebAppTabStripForOnTaskBrowserTest,
   ASSERT_EQ(tab_strip_model->count(), 2);
 
   // Verify home tab cannot be closed.
-  auto* const tab_strip =
-      BrowserView::GetBrowserViewForBrowser(app_browser)->tabstrip();
+  BrowserView* browser_view =
+      BrowserView::GetBrowserViewForBrowser(app_browser);
+  ::TabStrip* tab_strip =
+      static_cast<TabStripRegionView*>(browser_view->tab_strip_view())
+          ->tab_strip();
   tab_strip->CloseTab(tab_strip->tab_at(0), CloseTabSource::kFromMouse);
   ASSERT_EQ(tab_strip_model->count(), 2);
 
@@ -1389,8 +1408,11 @@ IN_PROC_BROWSER_TEST_P(WebAppTabStripForOnTaskBrowserTest,
   ASSERT_EQ(tab_strip_model->count(), 2);
 
   // Verify home tab cannot be closed (default behavior on tabbed web apps).
-  auto* const tab_strip =
-      BrowserView::GetBrowserViewForBrowser(app_browser)->tabstrip();
+  BrowserView* browser_view =
+      BrowserView::GetBrowserViewForBrowser(app_browser);
+  ::TabStrip* tab_strip =
+      static_cast<TabStripRegionView*>(browser_view->tab_strip_view())
+          ->tab_strip();
   tab_strip->CloseTab(tab_strip->tab_at(0), CloseTabSource::kFromMouse);
   ASSERT_EQ(tab_strip_model->count(), 2);
 

@@ -47,14 +47,11 @@ namespace {
 // other VideoFrameSubmitter living on the same thread with the same parent
 // FrameSinkId. This is used to aggregate Viz communication and substantially
 // reduce IPC traffic when many VideoFrameSubmitters are active within a frame.
-BASE_FEATURE(kUseVideoFrameSinkBundle,
-             "UseVideoFrameSinkBundle",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(UseVideoFrameSinkBundle, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When VideoFrameSubmitter::ReclaimResources() is called in background,
 // trigger a clean of recycled video frames.
-BASE_FEATURE(kClearVideoFrameResourcesInBackground,
-             "ClearVideoFrameResourcesInBackground",
+BASE_FEATURE(ClearVideoFrameResourcesInBackground,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Builds a cc::FrameInfo representing a video frame, which is considered
@@ -551,7 +548,9 @@ void VideoFrameSubmitter::OnReceivedContextProvider(
 
   if (!use_gpu_compositing) {
     shared_image_interface_ = std::move(shared_image_interface);
-    if (!shared_image_interface_) {
+    if (!shared_image_interface_ ||
+        !shared_image_interface_->gpu_channel()->AddObserverIfNotAlreadyLost(
+            this)) {
       base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
           FROM_HERE,
           base::BindOnce(
@@ -562,7 +561,6 @@ void VideoFrameSubmitter::OnReceivedContextProvider(
       return;
     }
 
-    shared_image_interface_->gpu_channel()->AddObserver(this);
     resource_provider_->Initialize(nullptr, shared_image_interface_);
     if (frame_sink_id_.is_valid()) {
       StartSubmitting();

@@ -5,6 +5,7 @@
 #import "ios/chrome/browser/home_customization/coordinator/home_customization_coordinator.h"
 
 #import "components/image_fetcher/ios/ios_image_data_fetcher_wrapper.h"
+#import "components/prefs/pref_service.h"
 #import "ios/chrome/browser/discover_feed/model/discover_feed_visibility_browser_agent.h"
 #import "ios/chrome/browser/google/model/google_logo_service_factory.h"
 #import "ios/chrome/browser/home_customization/coordinator/home_customization_background_picker_action_sheet_coordinator.h"
@@ -13,7 +14,6 @@
 #import "ios/chrome/browser/home_customization/model/home_background_customization_service_factory.h"
 #import "ios/chrome/browser/home_customization/ui/home_customization_background_color_picker_view_controller.h"
 #import "ios/chrome/browser/home_customization/ui/home_customization_background_picker_presentation_delegate.h"
-#import "ios/chrome/browser/home_customization/ui/home_customization_color_palette_provider.h"
 #import "ios/chrome/browser/home_customization/ui/home_customization_discover_view_controller.h"
 #import "ios/chrome/browser/home_customization/ui/home_customization_magic_stack_view_controller.h"
 #import "ios/chrome/browser/home_customization/ui/home_customization_main_view_controller.h"
@@ -25,6 +25,7 @@
 #import "ios/chrome/browser/search_engines/model/template_url_service_factory.h"
 #import "ios/chrome/browser/shared/coordinator/alert/action_sheet_coordinator.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
+#import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_params.h"
@@ -44,8 +45,7 @@ CGFloat const kSheetCornerRadius = 30;
 @interface HomeCustomizationCoordinator () <
     UISheetPresentationControllerDelegate,
     HomeCustomizationBackgroundPickerPresentationDelegate,
-    HomeCustomizationSearchEngineLogoMediatorProvider,
-    HomeCustomizationColorPaletteProvider> {
+    HomeCustomizationSearchEngineLogoMediatorProvider> {
   // Displays the background picker action sheet.
   HomeCustomizationBackgroundPickerActionSheetCoordinator*
       _backgroundPickerActionSheetCoordinator;
@@ -111,12 +111,16 @@ CGFloat const kSheetCornerRadius = 30;
 }
 
 - (void)stop {
+  [self.mediator saveCurrentTheme];
+
   [self.baseViewController dismissViewControllerAnimated:YES completion:nil];
 
+  [self dismissBackgroundPickerActionSheet];
+
+  _mediator = nil;
   _mainViewController = nil;
   _magicStackViewController = nil;
   _discoverViewController = nil;
-  _mediator = nil;
 
   [super stop];
 }
@@ -191,7 +195,9 @@ CGFloat const kSheetCornerRadius = 30;
       self.mainViewController.backgroundPickerPresentationDelegate = self;
       self.mainViewController.mutator = _mediator;
       self.mainViewController.searchEngineLogoMediatorProvider = self;
-      self.mainViewController.colorPaletteProvider = self;
+      self.mainViewController.isNTPCustomBackgroundEnabledByPolicy =
+          self.profile->GetPrefs()->GetBoolean(
+              prefs::kNTPCustomBackgroundEnabledByPolicy);
       self.mediator.mainPageConsumer = self.mainViewController;
       [self.mediator configureMainPageData];
       menuPage = self.mainViewController;
@@ -286,15 +292,31 @@ CGFloat const kSheetCornerRadius = 30;
 
 #pragma mark - HomeCustomizationBackgroundPickerPresentationDelegate
 
-- (void)showBackgroundPickerOptions {
+- (void)showBackgroundPickerOptionsFromSourceView:(UIView*)sourceView {
   _backgroundPickerActionSheetCoordinator =
       [[HomeCustomizationBackgroundPickerActionSheetCoordinator alloc]
           initWithBaseViewController:self.mainViewController
-                             browser:self.browser];
+                             browser:self.browser
+                          sourceView:sourceView];
+  _backgroundPickerActionSheetCoordinator.presentationDelegate = self;
   _backgroundPickerActionSheetCoordinator.searchEngineLogoMediatorProvider =
       self;
-
   [_backgroundPickerActionSheetCoordinator start];
+  // Disable customization interactions while the background picker views are
+  // open so the user can't choose a new background from the main menu while in
+  // the process of dismissing the picker views.
+  self.mainViewController.backgroundCustomizationUserInteractionEnabled = NO;
+}
+
+- (void)dismissBackgroundPicker {
+  [self.delegate dismissCustomizationMenu];
+}
+
+- (void)cancelBackgroundPicker {
+  // Reenable interaction when the picker is canceled, as the main menu is now
+  // active again.
+  self.mainViewController.backgroundCustomizationUserInteractionEnabled = YES;
+  [self dismissBackgroundPickerActionSheet];
 }
 
 #pragma mark - HomeCustomizationSearchEngineLogoMediator
@@ -327,15 +349,6 @@ CGFloat const kSheetCornerRadius = 30;
   }
 
   return searchEngineLogoMediator;
-}
-
-#pragma mark - HomeCustomizationColorPaletteProvider
-
-- (NewTabPageColorPalette*)
-    provideColorPaletteFromSeedColor:(UIColor*)seedColor
-                        colorVariant:
-                            (ui::ColorProviderKey::SchemeVariant)colorVariant {
-  return CreateColorPaletteFromSeedColor(seedColor, colorVariant);
 }
 
 @end

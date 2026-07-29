@@ -114,6 +114,7 @@
 #include "components/signin/public/base/signin_pref_names.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/strings/grit/components_strings.h"
+#include "components/sync/base/features.h"
 #include "components/user_education/common/feature_promo/feature_promo_controller.h"
 #include "components/vector_icons/vector_icons.h"
 #include "components/webapps/browser/banners/app_banner_manager.h"
@@ -639,9 +640,18 @@ bool ProfileSubMenuModel::BuildSyncSection() {
                                      IDS_PROFILE_ROW_SYNC_IS_ON,
                                      vector_icons::kSyncChromeRefreshIcon);
   } else {
-    AddItemWithStringIdAndVectorIcon(this, IDC_TURN_ON_SYNC,
-                                     IDS_PROFILE_ROW_TURN_ON_SYNC,
-                                     vector_icons::kSyncOffChromeRefreshIcon);
+    if (base::FeatureList::IsEnabled(
+            syncer::kReplaceSyncPromosWithSignInPromos)) {
+      if (!identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSignin)) {
+        AddItemWithStringIdAndVectorIcon(this, IDC_SHOW_SIGNIN,
+                                         IDS_PROFILE_MENU_SIGNIN_PROMO_BUTTON,
+                                         vector_icons::kAccountCircleIcon);
+      }
+    } else {
+      AddItemWithStringIdAndVectorIcon(this, IDC_TURN_ON_SYNC,
+                                       IDS_PROFILE_ROW_TURN_ON_SYNC,
+                                       vector_icons::kSyncOffChromeRefreshIcon);
+    }
   }
   return true;
 }
@@ -888,7 +898,7 @@ void ToolsMenuModel::Build(Browser* browser) {
   // items.
   bool is_tablet_mode = false;
 #if BUILDFLAG(IS_CHROMEOS)
-  is_tablet_mode = display::Screen::GetScreen()->InTabletMode();
+  is_tablet_mode = display::Screen::Get()->InTabletMode();
 #endif  // BUILDFLAG(IS_CHROMEOS)
   if (!is_tablet_mode) {
     if (features::HasTabSearchToolbarButton()) {
@@ -1586,6 +1596,13 @@ void AppMenuModel::LogMenuMetrics(int command_id) {
       }
       LogMenuAction(MENU_SHOW_SYNC_SETTINGS);
       break;
+    case IDC_SHOW_SIGNIN:
+      if (!uma_action_recorded_) {
+        base::UmaHistogramMediumTimes("WrenchMenu.TimeToAction.ShowSignin",
+                                      delta);
+      }
+      LogMenuAction(MENU_SHOW_SIGNIN);
+      break;
     case IDC_TURN_ON_SYNC:
       if (!uma_action_recorded_) {
         base::UmaHistogramMediumTimes("WrenchMenu.TimeToAction.ShowTurnOnSync",
@@ -1976,7 +1993,7 @@ void AppMenuModel::Build() {
 
 #if BUILDFLAG(IS_CHROMEOS)
   // Always show this option if we're in tablet mode on Chrome OS.
-  if (display::Screen::GetScreen()->InTabletMode()) {
+  if (display::Screen::Get()->InTabletMode()) {
     AddItemWithStringIdAndVectorIcon(this, IDC_TOGGLE_REQUEST_TABLET_SITE,
                                      IDS_TOGGLE_REQUEST_TABLET_SITE,
                                      chrome::IsRequestingTabletSite(browser_)

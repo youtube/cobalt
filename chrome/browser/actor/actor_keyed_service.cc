@@ -151,7 +151,7 @@ void ActorKeyedService::RequestTabObservation(
   const GURL& last_committed_url = tab.GetContents()->GetLastCommittedURL();
   auto journal_entry = journal_.CreatePendingAsyncEntry(
       last_committed_url, task_id, mojom::JournalTrack::kActor,
-      "RequestTabOservation", "");
+      "RequestTabObservation", "");
   page_content_annotations::FetchPageContextOptions options;
   options.include_viewport_screenshot = true;
   options.annotated_page_content_options =
@@ -166,40 +166,45 @@ void ActorKeyedService::RequestTabObservation(
              const GURL& last_committed_url,
              page_content_annotations::FetchPageContextResultCallbackArg
                  result) {
-            if (result.has_value()) {
-              // Context for actor observations should always have an APC and a
-              // screenshot, return failure if either is missing.
-              auto& fetch_result = **result;
-              bool has_apc =
-                  fetch_result.annotated_page_content_result.has_value();
-              bool has_screenshot = fetch_result.screenshot_result.has_value();
-              if (!has_apc || !has_screenshot) {
-                std::move(callback).Run(base::unexpected(absl::StrFormat(
-                    "Failed Observation: hasAPC[%g] hasScreenshot[%g]", has_apc,
-                    has_screenshot)));
-                return;
-              }
-
-              size_t size = fetch_result.annotated_page_content_result->proto
-                                .ByteSizeLong();
-              std::vector<uint8_t> buffer(size);
-              fetch_result.annotated_page_content_result->proto
-                  .SerializeToArray(buffer.data(), size);
-              pending_journal_entry->GetJournal().LogAnnotatedPageContent(
-                  last_committed_url, pending_journal_entry->GetTaskId(),
-                  buffer);
-
-              auto& data = fetch_result.screenshot_result->jpeg_data;
-              pending_journal_entry->GetJournal().LogScreenshot(
-                  last_committed_url, pending_journal_entry->GetTaskId(),
-                  kMimeTypeJpeg, base::as_byte_span(data));
-              if (tab) {
-                actor::ActorTabData::From(tab.get())->DidObserveContent(
-                    fetch_result.annotated_page_content_result->proto);
-              }
-
-              std::move(callback).Run(std::move(result).value());
+            if (!result.has_value()) {
+              std::move(callback).Run(base::unexpected(absl::StrFormat(
+                  "Failed Observation: code[%s] message[%s]",
+                  page_content_annotations::ToString(result.error().error_code),
+                  result.error().message)));
+              return;
             }
+
+            // Context for actor observations should always have an APC and a
+            // screenshot, return failure if either is missing.
+            auto& fetch_result = **result;
+            bool has_apc =
+                fetch_result.annotated_page_content_result.has_value();
+            bool has_screenshot = fetch_result.screenshot_result.has_value();
+            if (!has_apc || !has_screenshot) {
+              std::move(callback).Run(base::unexpected(absl::StrFormat(
+                  "Failed Observation: hasAPC[%g] hasScreenshot[%g]", has_apc,
+                  has_screenshot)));
+              return;
+            }
+
+            size_t size = fetch_result.annotated_page_content_result->proto
+                              .ByteSizeLong();
+            std::vector<uint8_t> buffer(size);
+            fetch_result.annotated_page_content_result->proto.SerializeToArray(
+                buffer.data(), size);
+            pending_journal_entry->GetJournal().LogAnnotatedPageContent(
+                last_committed_url, pending_journal_entry->GetTaskId(), buffer);
+
+            auto& data = fetch_result.screenshot_result->jpeg_data;
+            pending_journal_entry->GetJournal().LogScreenshot(
+                last_committed_url, pending_journal_entry->GetTaskId(),
+                kMimeTypeJpeg, base::as_byte_span(data));
+            if (tab) {
+              actor::ActorTabData::From(tab.get())->DidObserveContent(
+                  fetch_result.annotated_page_content_result->proto);
+            }
+
+            std::move(callback).Run(std::move(result).value());
           },
           tab.GetWeakPtr(), std::move(callback), std::move(journal_entry),
           last_committed_url));
@@ -349,16 +354,16 @@ ActorUiStateManagerInterface* ActorKeyedService::GetActorUiStateManager() {
   return actor_ui_state_manager_.get();
 }
 
-bool ActorKeyedService::IsAnyTaskActingOnTab(
+TaskId ActorKeyedService::IsAnyTaskActingOnTab(
     const tabs::TabInterface& tab) const {
   tabs::TabHandle handle = tab.GetHandle();
-  for (auto task_pair : GetActiveTasks()) {
-    if (task_pair.second->IsActingOnTab(handle)) {
-      return true;
+  for (auto [task_id, task] : GetActiveTasks()) {
+    if (task->IsActingOnTab(handle)) {
+      return task_id;
     }
   }
 
-  return false;
+  return TaskId();
 }
 
 Profile* ActorKeyedService::GetProfile() {

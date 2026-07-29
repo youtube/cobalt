@@ -16,7 +16,7 @@ import androidx.core.os.BuildCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import org.chromium.base.ApkInfo;
-import org.chromium.base.BuildInfo;
+import org.chromium.base.DeviceInfo;
 import org.chromium.base.Log;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.base.metrics.RecordHistogram;
@@ -33,6 +33,7 @@ import org.chromium.components.browser_ui.display_cutout.DisplayCutoutController
 import org.chromium.content_public.browser.WebContentsObserver;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.display.DisplayUtil;
+import org.chromium.ui.edge_to_edge.EdgeToEdgeStateProvider;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -99,8 +100,7 @@ public class EdgeToEdgeUtils {
      * Whether the draw edge to edge infrastructure is on. When this is enabled, Chrome will start
      * drawing edge to edge on start up.
      *
-     * <p>To check if Chrome is aware of edge-to-edge, use {@link
-     * org.chromium.components.browser_ui.edge_to_edge.EdgeToEdgeStateProvider#get()}
+     * <p>To check if Chrome is aware of edge-to-edge, use {@link EdgeToEdgeStateProvider#get()}
      *
      * @deprecated Avoid new usage. Check corresponding feature flags inline.
      */
@@ -150,9 +150,8 @@ public class EdgeToEdgeUtils {
             return false;
         }
 
-        return isBottomChinFeatureEnabled()
-                && !BuildInfo.getInstance().isAutomotive
-                && !hasTappableNavigationBar(activity.getWindow());
+        if (!isBottomChinFeatureEnabled()) return false;
+        return !DeviceInfo.isAutomotive() && !hasTappableNavigationBar(activity.getWindow());
     }
 
     /**
@@ -210,7 +209,7 @@ public class EdgeToEdgeUtils {
             return false;
         }
 
-        if (BuildInfo.getInstance().isAutomotive) {
+        if (DeviceInfo.isAutomotive()) {
             return false;
         }
 
@@ -224,11 +223,6 @@ public class EdgeToEdgeUtils {
             Log.i(TAG, "sIsTargetSdkEnforceEdgeToEdge " + sIsTargetSdkEnforceEdgeToEdge);
         }
         return sIsTargetSdkEnforceEdgeToEdge;
-    }
-
-    /** Whether turn on the debug paint for edge to edge layout. */
-    public static boolean isEdgeToEdgeEverywhereDebugging() {
-        return ChromeFeatureList.sEdgeToEdgeEverywhereIsDebugging.getValue();
     }
 
     /** Whether key native pages should draw to edge. */
@@ -280,7 +274,7 @@ public class EdgeToEdgeUtils {
                     IneligibilityReason.NUM_TYPES);
         }
 
-        if (BuildInfo.getInstance().isAutomotive) {
+        if (DeviceInfo.isAutomotive()) {
             eligible = false;
             RecordHistogram.recordEnumeratedHistogram(
                     INELIGIBLE_REASON_HISTOGRAM,

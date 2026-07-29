@@ -30,6 +30,7 @@ import static org.junit.Assert.assertTrue;
 
 import static org.chromium.components.content_settings.PrefNames.COOKIE_CONTROLS_MODE;
 import static org.chromium.components.content_settings.PrefNames.IN_CONTEXT_COOKIE_CONTROLS_OPENED;
+import static org.chromium.components.permissions.PermissionUtil.getGeolocationType;
 import static org.chromium.ui.test.util.ViewUtils.clickOnClickableSpan;
 import static org.chromium.ui.test.util.ViewUtils.hasBackgroundColor;
 import static org.chromium.ui.test.util.ViewUtils.onViewWaiting;
@@ -54,7 +55,6 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
@@ -97,8 +97,8 @@ import org.chromium.chrome.test.ChromeJUnit4RunnerDelegate;
 import org.chromium.chrome.test.R;
 import org.chromium.chrome.test.transit.AutoResetCtaTransitTestRule;
 import org.chromium.chrome.test.transit.ChromeTransitTestRules;
-import org.chromium.components.browser_ui.settings.SettingsNavigation;
 import org.chromium.components.browser_ui.site_settings.ContentSettingException;
+import org.chromium.components.browser_ui.site_settings.GeolocationSetting;
 import org.chromium.components.browser_ui.site_settings.RwsCookieInfo;
 import org.chromium.components.browser_ui.site_settings.Website;
 import org.chromium.components.browser_ui.site_settings.WebsiteAddress;
@@ -116,6 +116,8 @@ import org.chromium.components.location.LocationUtils;
 import org.chromium.components.page_info.PageInfoAdPersonalizationController;
 import org.chromium.components.page_info.PageInfoController;
 import org.chromium.components.page_info.PageInfoCookiesController;
+import org.chromium.components.permissions.PermissionsAndroidFeatureList;
+import org.chromium.components.permissions.PermissionsAndroidFeatureMap;
 import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.content_public.browser.ContentFeatureList;
 import org.chromium.content_public.browser.NavigationHandle;
@@ -277,8 +279,6 @@ public class PageInfoViewTest {
                             .name("ProtectionsActive"));
         }
     }
-
-    @Mock private SettingsNavigation mSettingsNavigation;
 
     private FakePrivacySandboxBridge mFakePrivacySandboxBridge;
 
@@ -451,12 +451,24 @@ public class PageInfoViewTest {
         GURL url = new GURL(urlString);
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    WebsitePreferenceBridge.setContentSettingDefaultScope(
-                            ProfileManager.getLastUsedRegularProfile(),
-                            ContentSettingsType.GEOLOCATION,
-                            url,
-                            url,
-                            ContentSettingValues.ALLOW);
+                    if (PermissionsAndroidFeatureMap.isEnabled(
+                            PermissionsAndroidFeatureList.APPROXIMATE_GEOLOCATION_PERMISSION)) {
+                        WebsitePreferenceBridgeJni.get()
+                                .setGeolocationSettingForOrigin(
+                                        ProfileManager.getLastUsedRegularProfile(),
+                                        ContentSettingsType.GEOLOCATION_WITH_OPTIONS,
+                                        urlString,
+                                        urlString,
+                                        ContentSettingValues.ALLOW,
+                                        ContentSettingValues.ALLOW);
+                    } else {
+                        WebsitePreferenceBridge.setContentSettingDefaultScope(
+                                ProfileManager.getLastUsedRegularProfile(),
+                                ContentSettingsType.GEOLOCATION,
+                                url,
+                                url,
+                                ContentSettingValues.ALLOW);
+                    }
                     WebsitePreferenceBridge.setContentSettingDefaultScope(
                             ProfileManager.getLastUsedRegularProfile(),
                             ContentSettingsType.NOTIFICATIONS,
@@ -482,14 +494,26 @@ public class PageInfoViewTest {
                                             ContentSettingsType.NOTIFICATIONS,
                                             url,
                                             url));
-                    assertEquals(
-                            expectAllow,
-                            WebsitePreferenceBridgeJni.get()
-                                    .getPermissionSettingForOrigin(
-                                            ProfileManager.getLastUsedRegularProfile(),
-                                            ContentSettingsType.GEOLOCATION,
-                                            url,
-                                            "*"));
+                    if (PermissionsAndroidFeatureMap.isEnabled(
+                            PermissionsAndroidFeatureList.APPROXIMATE_GEOLOCATION_PERMISSION)) {
+                        assertEquals(
+                                new GeolocationSetting(expectAllow, expectAllow),
+                                WebsitePreferenceBridgeJni.get()
+                                        .getGeolocationSettingForOrigin(
+                                                ProfileManager.getLastUsedRegularProfile(),
+                                                ContentSettingsType.GEOLOCATION_WITH_OPTIONS,
+                                                url,
+                                                "*"));
+                    } else {
+                        assertEquals(
+                                expectAllow,
+                                WebsitePreferenceBridgeJni.get()
+                                        .getPermissionSettingForOrigin(
+                                                ProfileManager.getLastUsedRegularProfile(),
+                                                ContentSettingsType.GEOLOCATION,
+                                                url,
+                                                "*"));
+                    }
                 });
     }
 
@@ -813,7 +837,7 @@ public class PageInfoViewTest {
                     WebsitePreferenceBridgeJni.get()
                             .setEphemeralGrantForTesting(
                                     ProfileManager.getLastUsedRegularProfile(),
-                                    ContentSettingsType.GEOLOCATION,
+                                    getGeolocationType(),
                                     url,
                                     url);
                     WebsitePreferenceBridge.setContentSettingDefaultScope(
@@ -1793,7 +1817,7 @@ public class PageInfoViewTest {
     public void testShowWithPermissionsAndHighlight() throws IOException {
         addSomePermissions(mTestServerRule.getServer().getURL("/"));
         loadUrlAndOpenPageInfoWithPermission(
-                mTestServerRule.getServer().getURL(sSimpleHtml), ContentSettingsType.GEOLOCATION);
+                mTestServerRule.getServer().getURL(sSimpleHtml), getGeolocationType());
         onView(withId(R.id.page_info_permissions_row))
                 .check(matches(hasBackgroundColor(R.color.iph_highlight_blue)));
     }
@@ -1807,7 +1831,7 @@ public class PageInfoViewTest {
     public void testShowPermissionsSubpageWithHighlight() throws IOException {
         addSomePermissions(mTestServerRule.getServer().getURL("/"));
         loadUrlAndOpenPageInfoWithPermission(
-                mTestServerRule.getServer().getURL(sSimpleHtml), ContentSettingsType.GEOLOCATION);
+                mTestServerRule.getServer().getURL(sSimpleHtml), getGeolocationType());
         onView(withId(R.id.page_info_permissions_row)).perform(click());
         onViewWaiting(allOf(withText("Control this site's access to your device"), isDisplayed()));
         Context context = ApplicationProvider.getApplicationContext();

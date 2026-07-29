@@ -36,6 +36,9 @@ namespace device {
 struct OpenXrExtensionMethods {
   OpenXrExtensionMethods();
   ~OpenXrExtensionMethods();
+  // General Methods
+  OPENXR_DECLARE_FN(xrPollFutureEXT);
+
   // Hand Tracking
   OPENXR_DECLARE_FN(xrCreateHandTrackerEXT);
   OPENXR_DECLARE_FN(xrDestroyHandTrackerEXT);
@@ -57,6 +60,16 @@ struct OpenXrExtensionMethods {
   OPENXR_DECLARE_FN(xrGetSceneComponentsMSFT);
   OPENXR_DECLARE_FN(xrLocateSceneComponentsMSFT);
   OPENXR_DECLARE_FN(xrGetSceneMeshBuffersMSFT);
+
+  // Spatial Entities
+  OPENXR_DECLARE_FN(xrCreateSpatialContextAsyncEXT);
+  OPENXR_DECLARE_FN(xrCreateSpatialContextCompleteEXT);
+  OPENXR_DECLARE_FN(xrCreateSpatialDiscoverySnapshotAsyncEXT);
+  OPENXR_DECLARE_FN(xrCreateSpatialDiscoverySnapshotCompleteEXT);
+  OPENXR_DECLARE_FN(xrDestroySpatialContextEXT);
+  OPENXR_DECLARE_FN(xrDestroySpatialSnapshotEXT);
+  OPENXR_DECLARE_FN(xrEnumerateSpatialCapabilitiesEXT);
+  OPENXR_DECLARE_FN(xrEnumerateSpatialCapabilityComponentTypesEXT);
 
 #if BUILDFLAG(IS_WIN)
   // Time
@@ -88,6 +101,7 @@ struct OpenXrExtensionMethods {
 // Ensure that we don't export our helper macro.
 #undef OPENXR_DECLARE_FN
 
+class OpenXrApiWrapper;
 class OpenXrExtensionEnumeration {
  public:
   OpenXrExtensionEnumeration();
@@ -143,6 +157,7 @@ class OpenXrExtensionHelper {
 
   std::unique_ptr<OpenXRSceneUnderstandingManager>
   CreateSceneUnderstandingManager(
+      OpenXrApiWrapper* openxr,
       XrSession session,
       XrSpace base_space,
       const std::vector<mojom::XRSessionFeature>& required_features,

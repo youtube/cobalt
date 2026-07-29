@@ -9,12 +9,14 @@
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/global_features.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/test/mock_browser_window_interface.h"
 #include "chrome/browser/ui/tabs/glic_actor_task_icon_controller.h"
 #include "chrome/browser/ui/tabs/test_tab_strip_model_delegate.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/commerce/product_specifications_button.h"
 #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
+#include "chrome/browser/ui/views/interaction/browser_elements_views.h"
 #include "chrome/browser/ui/views/tabs/fake_base_tab_strip_controller.h"
 #include "chrome/browser/ui/views/tabs/glic_button.h"
 #include "chrome/browser/ui/views/tabs/tab_strip_nudge_button.h"
@@ -133,7 +135,7 @@ class TabStripActionContainerTest : public ChromeViewsTestBase {
     browser_window_interface_ = std::make_unique<MockBrowserWindowInterface>();
     ON_CALL(*browser_window_interface_, GetTabStripModel())
         .WillByDefault(::testing::Return(tab_strip_model_.get()));
-    ON_CALL(*browser_window_interface_, GetProfile)
+    ON_CALL(*browser_window_interface_, GetProfile())
         .WillByDefault(
             ::testing::Return(tab_strip_->controller()->GetProfile()));
     ON_CALL(*browser_window_interface_, GetActiveTabInterface)

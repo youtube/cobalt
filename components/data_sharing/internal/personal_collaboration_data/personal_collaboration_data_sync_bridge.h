@@ -8,6 +8,8 @@
 #include <optional>
 #include <unordered_map>
 
+#include "base/containers/circular_deque.h"
+#include "base/functional/callback.h"
 #include "base/observer_list.h"
 #include "base/observer_list_types.h"
 #include "base/sequence_checker.h"
@@ -32,9 +34,17 @@ class PersonalCollaborationDataSyncBridge : public syncer::DataTypeSyncBridge {
     Observer& operator=(const Observer&) = delete;
     ~Observer() override = default;
 
+    // Called when the bridge(database) has been loaded. Will be called
+    // immediately if the bridge has already initialized.
+    virtual void OnInitialized() {}
+
     // Called when specifics have changed.
     virtual void OnEntityAddedOrUpdatedFromSync(
+        const std::string& storage_key,
         const sync_pb::SharedTabGroupAccountDataSpecifics& data) {}
+
+    // Called when specifics have been removed.
+    virtual void OnEntityRemovedFromSync(const std::string& storage_key) {}
   };
 
   void AddObserver(Observer* observer);
@@ -85,10 +95,21 @@ class PersonalCollaborationDataSyncBridge : public syncer::DataTypeSyncBridge {
   std::optional<sync_pb::SharedTabGroupAccountDataSpecifics>
   GetSpecificsForStorageKey(const std::string& storage_key) const;
 
+  std::optional<sync_pb::SharedTabGroupAccountDataSpecifics>
+  GetTrimmedRemoteSpecifics(const std::string& storage_key) const;
+
+  const std::unordered_map<std::string,
+                           sync_pb::SharedTabGroupAccountDataSpecifics>&
+  GetAllSpecifics() const;
+
   // Update the local copy and sync with the new data.
   void CreateOrUpdateSpecifics(
       const std::string& storage_key,
       const sync_pb::SharedTabGroupAccountDataSpecifics& specifics);
+
+  // Delete an entity from sync. Also deletes from local storage and in-memory
+  // cache.
+  void RemoveSpecifics(const std::string& storage_key);
 
  private:
   // Loads the data already stored in the DataTypeStore.
@@ -109,9 +130,9 @@ class PersonalCollaborationDataSyncBridge : public syncer::DataTypeSyncBridge {
   void WriteEntityToSync(const std::string& storage_key,
                          std::unique_ptr<syncer::EntityData> entity);
 
-  // Delete an entity from sync. Also deletes from local storage and in-memory
-  // cache.
-  void RemoveEntitySpecifics(const std::string& storage_key);
+  // Processes any pending actions that were queued before the bridge was
+  // initialized.
+  void ProcessPendingActions();
 
   SEQUENCE_CHECKER(sequence_checker_);
 
@@ -127,6 +148,9 @@ class PersonalCollaborationDataSyncBridge : public syncer::DataTypeSyncBridge {
 
   // List of observers.
   base::ObserverList<PersonalCollaborationDataSyncBridge::Observer> observers_;
+
+  // A list of pending actions to be performed once the bridge is initialized.
+  base::circular_deque<base::OnceClosure> pending_actions_;
 
   // Allows safe temporary use of the PersonalCollaborationDataSyncBridge
   // object if it exists at the time of use.

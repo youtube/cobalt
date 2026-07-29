@@ -20,10 +20,11 @@
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/types/pass_key.h"
 #include "components/user_education/common/help_bubble/help_bubble.h"
 #include "components/user_education/common/help_bubble/help_bubble_params.h"
 #include "components/user_education/webui/help_bubble_webui.h"
-#include "components/user_education/webui/tracked_element_webui.h"
+#include "components/user_education/webui/tracked_element_help_bubble_webui_anchor.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/visibility.h"
 #include "content/public/browser/web_contents.h"
@@ -122,7 +123,7 @@ struct HelpBubbleHandlerBase::ElementData {
   bool visible = false;
   gfx::RectF last_known_bounds;
 
-  std::unique_ptr<TrackedElementWebUI> element;
+  std::unique_ptr<TrackedElementHelpBubbleWebUIAnchor> element;
   std::unique_ptr<HelpBubbleParams> params;
   raw_ptr<HelpBubbleWebUI> help_bubble = nullptr;
   base::CallbackListSubscription external_bubble_subscription;
@@ -154,7 +155,8 @@ HelpBubbleHandlerBase::HelpBubbleHandlerBase(
     const auto it = element_data_.emplace(identifier, ElementData());
     DCHECK(it.second) << "Duplicate identifier not allowed: " << identifier;
     it.first->second.element =
-        std::make_unique<TrackedElementWebUI>(this, identifier, context);
+        std::make_unique<TrackedElementHelpBubbleWebUIAnchor>(this, identifier,
+                                                              context);
   }
 }
 
@@ -588,7 +590,7 @@ HelpBubbleHandler::HelpBubbleHandler(
           std::make_unique<ClientProvider>(std::move(pending_client)),
           std::make_unique<VisibilityProvider>(),
           identifiers,
-          ui::ElementContext(controller)),
+          ui::ElementContext(controller, base::PassKey<HelpBubbleHandler>())),
       receiver_(this, std::move(pending_handler)),
       controller_(controller) {
   DCHECK(controller);

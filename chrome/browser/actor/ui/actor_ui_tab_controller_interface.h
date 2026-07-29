@@ -10,6 +10,7 @@
 #include "chrome/browser/actor/ui/states/actor_overlay_state.h"
 #include "chrome/browser/actor/ui/states/handoff_button_state.h"
 #include "components/tabs/public/tab_interface.h"
+#include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 
 namespace actor::ui {
 class HandoffButtonController;
@@ -34,7 +35,7 @@ inline std::ostream& operator<<(std::ostream& os, UiTabState state) {
             << "}";
 }
 
-static constexpr base::TimeDelta kUpdateStateDebounceDelay =
+static constexpr base::TimeDelta kUpdateUiDebounceDelay =
     base::Milliseconds(150);
 
 class ActorUiTabControllerFactoryInterface {
@@ -48,9 +49,14 @@ class ActorUiTabControllerFactoryInterface {
 
 class ActorUiTabControllerInterface {
  public:
-  virtual ~ActorUiTabControllerInterface() = default;
+  DECLARE_USER_DATA(ActorUiTabControllerInterface);
+  explicit ActorUiTabControllerInterface(tabs::TabInterface& tab);
+  virtual ~ActorUiTabControllerInterface();
 
-  // Called whenever the UiTabState changes.
+  // Called whenever the UiTabState changes. These calls will be debounced by a
+  // kUpdateUiDebounceDelay period of time. This means the callback will always
+  // be executed, however it may happen after the UI reaches a future state
+  // beyond the one the callback was passed to.
   virtual void OnUiTabStateChange(const UiTabState& ui_tab_state,
                                   UiResultCallback callback) = 0;
 
@@ -67,14 +73,6 @@ class ActorUiTabControllerInterface {
   virtual void OnTabActiveStatusChanged(bool tab_active_status,
                                         tabs::TabInterface* tab) = 0;
 
-  // Sets the last active task id actuating on this tab.
-  // TODO(crbug.com/425952887): At most one task should be acting on a tab at
-  // once. In the future we should implement a callback to halt Actor execution
-  // if the active_task_id is already set and stop Actor actuation.
-  virtual void SetActiveTaskId(TaskId task_id) = 0;
-  // Clears the last active task id actuating on this tab.
-  virtual void ClearActiveTaskId() = 0;
-
   // Called when the hover status changes on the overlay and handoff button.
   virtual void SetOverlayHoverStatus(bool is_hovering) = 0;
   virtual void SetHandoffButtonHoverStatus(bool is_hovering) = 0;
@@ -89,11 +87,21 @@ class ActorUiTabControllerInterface {
   // Sets a callback to run when the controller is idle, for tests.
   virtual void SetCallbackForTesting(base::OnceClosure callback) = 0;
 
+  // Retrieves an ActorUiTabControllerInterface from the provided tab, or
+  // nullptr if it does not exist.
+  static ActorUiTabControllerInterface* From(tabs::TabInterface* tab);
+  // Returns the current UiTabState.
+  virtual UiTabState GetCurrentUiTabState() const = 0;
+
   using ActorTabIndicatorStateChangedCallback =
       base::RepeatingCallback<void(bool)>;
   virtual base::CallbackListSubscription
   RegisterActorTabIndicatorStateChangedCallback(
       ActorTabIndicatorStateChangedCallback callback) = 0;
+
+ private:
+  ::ui::ScopedUnownedUserData<ActorUiTabControllerInterface>
+      scoped_unowned_user_data_;
 };
 
 }  // namespace actor::ui

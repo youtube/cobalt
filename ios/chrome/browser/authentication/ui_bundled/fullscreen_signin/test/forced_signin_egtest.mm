@@ -209,8 +209,8 @@ void OpenGoogleServicesSettings() {
 }
 
 void CompleteSigninFlow() {
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::
-                                          WebSigninPrimaryButtonMatcher()]
+  [[EarlGrey selectElementWithMatcher:
+                 chrome_test_util::ConsistencySigninPrimaryButtonMatcher()]
       performAction:grey_tap()];
   //  Dismiss signin in confirmation snackbar.
   [SigninEarlGreyUI
@@ -635,8 +635,8 @@ void CompleteSigninFlow() {
   SetSigninEnterprisePolicyValue(BrowserSigninMode::kForced);
 
   // Dismiss the regular sign-in prompt by skipping it.
-  [[EarlGrey
-      selectElementWithMatcher:chrome_test_util::WebSigninSkipButtonMatcher()]
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::
+                                          ConsistencySigninSkipButtonMatcher()]
       performAction:grey_tap()];
 
   // Wait and verify that the forced sign-in screen is shown when the policy is
@@ -647,6 +647,11 @@ void CompleteSigninFlow() {
 // Tests that the forced sign-in prompt isn't shown when sign-in is done from
 // the regular sign-in prompt.
 - (void)testNoSignInScreenWhenSigninFromRegularSigninPrompt {
+  // TODO(crbug.com/439982418): Re-enable the test on iOS26.
+  if (base::ios::IsRunningOnIOS26OrLater()) {
+    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
+  }
+
   // Restart the app to reset the policies.
   [self restartAppWithoutEnterprisePolicy];
 
@@ -746,8 +751,8 @@ void CompleteSigninFlow() {
   SimulateExternalAppURLOpeningWithURL(URLToOpen);
 
   // Dismiss the regular sign-in prompt by skipping it.
-  [[EarlGrey
-      selectElementWithMatcher:chrome_test_util::WebSigninSkipButtonMatcher()]
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::
+                                          ConsistencySigninSkipButtonMatcher()]
       performAction:grey_tap()];
 
   // Wait and verify that the forced sign-in screen is shown when the policy is
@@ -769,6 +774,11 @@ void CompleteSigninFlow() {
 // Tests that intents are handled when sign-in is done from the regular sign-in
 // prompt, where the forced sign-in prompt is skipped.
 - (void)testHandlingIntentWhenSigninFromRegularPrompt {
+  // TODO(crbug.com/439554897): Re-enable the test on iOS26.
+  if (base::ios::IsRunningOnIOS26OrLater()) {
+    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
+  }
+
   // Serve the test page locally using the internal embedded server.
   self.testServer->RegisterRequestHandler(
       base::BindRepeating(&PageHttpResponse));

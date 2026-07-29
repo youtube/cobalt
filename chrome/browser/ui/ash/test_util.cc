@@ -46,7 +46,7 @@ void ChromeOSBrowserUITest::TearDownOnMainThread() {
 }
 
 bool ChromeOSBrowserUITest::InTabletMode() {
-  return display::Screen::GetScreen()->InTabletMode();
+  return display::Screen::Get()->InTabletMode();
 }
 
 void ChromeOSBrowserUITest::EnterTabletMode() {
@@ -96,7 +96,7 @@ void ChromeOSBrowserUITest::SnapWindow(aura::Window* window,
 }
 
 void ChromeOSBrowserUITest::PinWindow(aura::Window* window, bool trusted) {
-  ::PinWindow(window, trusted);
+  ash::PinWindow(window, trusted);
 }
 
 bool ChromeOSBrowserUITest::IsIsShelfVisibleSupported() {

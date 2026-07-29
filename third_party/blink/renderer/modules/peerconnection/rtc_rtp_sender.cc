@@ -70,8 +70,7 @@ namespace features {
 
 // Killswitch for requesting key frames via setParameterOptions.
 // TODO(crbug.com/1354101): remove after rollout.
-BASE_FEATURE(kWebRtcRequestKeyFrameViaSetParameterOptions,
-             "WebRtcRequestKeyFrameViaSetParameterOptions",
+BASE_FEATURE(WebRtcRequestKeyFrameViaSetParameterOptions,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 }  // namespace features
@@ -1387,9 +1386,9 @@ void RTCRtpSender::setTransform(RTCRtpScriptTransform* transform,
     transform_ = nullptr;
     return;
   }
-  if (transform->IsAttached()) {
+  if (transform->HasBeenUsed()) {
     exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
-                                      "Transform is already in use");
+                                      "Transform cannot be reused");
     return;
   }
   if (transform_) {

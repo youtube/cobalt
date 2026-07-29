@@ -48,6 +48,12 @@ BASE_DECLARE_FEATURE(kAutofillPasswordUserPerceptionSurvey);
 // the autofill dropdown. This is now decoupled from
 // "PasswordManualFallbackAvailable" flag.
 BASE_DECLARE_FEATURE(kWebAuthnUsePasskeyFromAnotherDeviceInContextMenu);
+
+// Undoes the effect of WebAuthnUsePasskeyFromAnotherDeviceInContextMenu by
+// adding the hybrid item back into the dropdown. It also adds the entry point
+// to autofill dropdowns.
+// Needs autofill::features::AutofillAndPasswordsInSameSurface to be enabled.
+BASE_DECLARE_FEATURE(kAutofillReintroduceHybridPasskeyDropdownItem);
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
 // Enables Biometrics for the Touch To Fill feature. This only effects Android.
@@ -73,11 +79,6 @@ BASE_DECLARE_FEATURE(kClearUndecryptablePasswordsOnSync);
 BASE_DECLARE_FEATURE(kEnablePasswordManagerMojoApi);
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
-#if BUILDFLAG(IS_ANDROID)
-// Enables reading credentials from SharedPreferences.
-BASE_DECLARE_FEATURE(kFetchGaiaHashOnSignIn);
-#endif  // BUILDFLAG(IS_ANDROID)
-
 // Enables the experiment for the password manager to only fill on account
 // selection, rather than autofilling on page load, with highlighting of fields.
 BASE_DECLARE_FEATURE(kFillOnAccountSelect);
@@ -99,10 +100,6 @@ BASE_DECLARE_FEATURE(kIosCleanupHangingPasswordFormExtractionRequests);
 // milliseconds before the form extraction request times out.
 extern const base::FeatureParam<int>
     kIosPasswordFormExtractionRequestsTimeoutMs;
-
-// Enables the second version of the bottom sheet to fix a few bugs that we've
-// seen in production since the launch of the V1 of the feature.
-BASE_DECLARE_FEATURE(kIOSPasswordBottomSheetV2);
 
 // Enables password generation bottom sheet to be displayed (on iOS) when a user
 // is signed-in and taps on a new password field.
@@ -132,18 +129,10 @@ BASE_DECLARE_FEATURE(kPasswordManualFallbackAvailable);
 // terminal.
 BASE_DECLARE_FEATURE(kPasswordManagerLogToTerminal);
 
-// Detects password reuse based on hashed password values.
-BASE_DECLARE_FEATURE(kReuseDetectionBasedOnPasswordHashes);
-
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 // Enables "Needs access to keychain, restart chrome" bubble and banner.
 BASE_DECLARE_FEATURE(kRestartToGainAccessToKeychain);
 #endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-
-#if BUILDFLAG(IS_CHROMEOS)
-// Enables biometric authentication on for Password Autofill on ChromeOS.
-BASE_DECLARE_FEATURE(kBiometricsAuthForPwdFill);
-#endif  // BUILDFLAG(IS_CHROMEOS)
 
 // Sets request criticality when calling leak check service to detect leaked
 // passwords.

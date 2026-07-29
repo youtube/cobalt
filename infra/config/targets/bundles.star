@@ -1376,11 +1376,12 @@ targets.bundle(
     name = "chromeos_jacuzzi_rel_skylab_tests",
     targets = [
         targets.bundle(
-            targets = "chromeos_chrome_all_tast_tests",
+            targets = "chromeos_chrome_all_tast_tests_tfc",
             mixins = [
                 "chromeos-tast-public-builder",
-                # jacuzzi is slow. So that we use more number of shards.
-                "skylab-shards-30",
+                "tfc-exclude-public",
+                # jacuzzi is slow. So that we use run fewer tests per shard.
+                "skylab-20-tests-per-shard",
             ],
             variants = [
                 "CROS_PUBLIC_LKGM",
@@ -1390,6 +1391,7 @@ targets.bundle(
             targets = "chromeos_chrome_criticalstaging_tast_tests",
             mixins = [
                 "chromeos-tast-public-builder",
+                "skylab-20-tests-per-shard",
             ],
             variants = [
                 "CROS_PUBLIC_LKGM",
@@ -1399,6 +1401,8 @@ targets.bundle(
             targets = "chromeos_chrome_disabled_tast_tests",
             mixins = [
                 "chromeos-tast-public-builder",
+                "tfc-run-public",
+                "skylab-20-tests-per-shard",
             ],
             variants = [
                 "CROS_PUBLIC_LKGM",
@@ -1433,27 +1437,32 @@ targets.bundle(
     name = "chromeos_octopus_rel_skylab_tests",
     targets = [
         targets.bundle(
-            targets = "chromeos_chrome_all_tast_tests",
+            targets = "chromeos_chrome_all_tast_tests_tfc",
             mixins = [
                 "chromeos-tast-public-builder",
+                "tfc-exclude-public",
+                "skylab-50-tests-per-shard",
             ],
             variants = [
                 "CROS_PUBLIC_LKGM",
             ],
         ),
         targets.bundle(
-            targets = "chromeos_chrome_criticalstaging_tast_tests",
+            targets = "chromeos_chrome_criticalstaging_tast_tests_tfc",
             mixins = [
                 "chromeos-tast-public-builder",
+                "skylab-50-tests-per-shard",
             ],
             variants = [
                 "CROS_PUBLIC_LKGM",
             ],
         ),
         targets.bundle(
-            targets = "chromeos_chrome_disabled_tast_tests",
+            targets = "chromeos_chrome_disabled_tast_tests_tfc",
             mixins = [
                 "chromeos-tast-public-builder",
+                "tfc-run-public",
+                "skylab-20-tests-per-shard",
             ],
             variants = [
                 "CROS_PUBLIC_LKGM",
@@ -1770,6 +1779,7 @@ targets.bundle(
                 "oreo-x86-emulator",
                 "pie-x86-emulator",
                 "10-x86-emulator",
+                "16-x64-emulator",
             ],
         ),
         "base_junit_tests": targets.per_test_modification(
@@ -1780,6 +1790,7 @@ targets.bundle(
                 "oreo-x86-emulator",
                 "pie-x86-emulator",
                 "10-x86-emulator",
+                "16-x64-emulator",
             ],
         ),
         "build_junit_tests": targets.per_test_modification(
@@ -1790,6 +1801,7 @@ targets.bundle(
                 "oreo-x86-emulator",
                 "pie-x86-emulator",
                 "10-x86-emulator",
+                "16-x64-emulator",
             ],
         ),
         "chrome_java_test_pagecontroller_junit_tests": targets.per_test_modification(
@@ -1800,6 +1812,7 @@ targets.bundle(
                 "oreo-x86-emulator",
                 "pie-x86-emulator",
                 "10-x86-emulator",
+                "16-x64-emulator",
             ],
         ),
         "chrome_junit_tests": targets.per_test_modification(
@@ -1810,6 +1823,7 @@ targets.bundle(
                 "oreo-x86-emulator",
                 "pie-x86-emulator",
                 "10-x86-emulator",
+                "16-x64-emulator",
             ],
         ),
         "components_junit_tests": targets.per_test_modification(
@@ -1820,6 +1834,7 @@ targets.bundle(
                 "oreo-x86-emulator",
                 "pie-x86-emulator",
                 "10-x86-emulator",
+                "16-x64-emulator",
             ],
         ),
         "content_junit_tests": targets.per_test_modification(
@@ -1830,6 +1845,7 @@ targets.bundle(
                 "oreo-x86-emulator",
                 "pie-x86-emulator",
                 "10-x86-emulator",
+                "16-x64-emulator",
             ],
         ),
         "device_junit_tests": targets.per_test_modification(
@@ -1840,6 +1856,7 @@ targets.bundle(
                 "oreo-x86-emulator",
                 "pie-x86-emulator",
                 "10-x86-emulator",
+                "16-x64-emulator",
             ],
         ),
         "junit_unit_tests": targets.per_test_modification(
@@ -1850,6 +1867,7 @@ targets.bundle(
                 "oreo-x86-emulator",
                 "pie-x86-emulator",
                 "10-x86-emulator",
+                "16-x64-emulator",
             ],
         ),
         "keyboard_accessory_junit_tests": targets.per_test_modification(
@@ -1860,6 +1878,7 @@ targets.bundle(
                 "oreo-x86-emulator",
                 "pie-x86-emulator",
                 "10-x86-emulator",
+                "16-x64-emulator",
             ],
         ),
         "media_base_junit_tests": targets.per_test_modification(
@@ -1870,6 +1889,7 @@ targets.bundle(
                 "oreo-x86-emulator",
                 "pie-x86-emulator",
                 "10-x86-emulator",
+                "16-x64-emulator",
             ],
         ),
         "module_installer_junit_tests": targets.per_test_modification(
@@ -1880,6 +1900,7 @@ targets.bundle(
                 "oreo-x86-emulator",
                 "pie-x86-emulator",
                 "10-x86-emulator",
+                "16-x64-emulator",
             ],
         ),
         "net_junit_tests": targets.per_test_modification(
@@ -1890,6 +1911,7 @@ targets.bundle(
                 "oreo-x86-emulator",
                 "pie-x86-emulator",
                 "10-x86-emulator",
+                "16-x64-emulator",
             ],
         ),
         "paint_preview_junit_tests": targets.per_test_modification(
@@ -1900,6 +1922,7 @@ targets.bundle(
                 "oreo-x86-emulator",
                 "pie-x86-emulator",
                 "10-x86-emulator",
+                "16-x64-emulator",
             ],
         ),
         "password_manager_junit_tests": targets.per_test_modification(
@@ -1910,6 +1933,7 @@ targets.bundle(
                 "oreo-x86-emulator",
                 "pie-x86-emulator",
                 "10-x86-emulator",
+                "16-x64-emulator",
             ],
         ),
         "services_junit_tests": targets.per_test_modification(
@@ -1920,6 +1944,7 @@ targets.bundle(
                 "oreo-x86-emulator",
                 "pie-x86-emulator",
                 "10-x86-emulator",
+                "16-x64-emulator",
             ],
         ),
         "touch_to_fill_junit_tests": targets.per_test_modification(
@@ -1930,6 +1955,7 @@ targets.bundle(
                 "oreo-x86-emulator",
                 "pie-x86-emulator",
                 "10-x86-emulator",
+                "16-x64-emulator",
             ],
         ),
         "ui_junit_tests": targets.per_test_modification(
@@ -1940,6 +1966,7 @@ targets.bundle(
                 "oreo-x86-emulator",
                 "pie-x86-emulator",
                 "10-x86-emulator",
+                "16-x64-emulator",
             ],
         ),
         "webapk_client_junit_tests": targets.per_test_modification(
@@ -1950,6 +1977,7 @@ targets.bundle(
                 "oreo-x86-emulator",
                 "pie-x86-emulator",
                 "10-x86-emulator",
+                "16-x64-emulator",
             ],
         ),
         "webapk_shell_apk_h2o_junit_tests": targets.per_test_modification(
@@ -1960,6 +1988,7 @@ targets.bundle(
                 "oreo-x86-emulator",
                 "pie-x86-emulator",
                 "10-x86-emulator",
+                "16-x64-emulator",
             ],
         ),
         "webapk_shell_apk_junit_tests": targets.per_test_modification(
@@ -1970,6 +1999,7 @@ targets.bundle(
                 "oreo-x86-emulator",
                 "pie-x86-emulator",
                 "10-x86-emulator",
+                "16-x64-emulator",
             ],
         ),
     },
@@ -4831,7 +4861,7 @@ targets.bundle(
             targets = "ios_common_tests",
             variants = [
                 "SIM_IPAD_AIR_5TH_GEN_26_0",
-                "SIM_IPHONE_14_26_0",
+                "SIM_IPHONE_16_26_0",
             ],
         ),
         targets.bundle(
@@ -4841,7 +4871,7 @@ targets.bundle(
             ],
             variants = [
                 "SIM_IPAD_AIR_5TH_GEN_26_0",
-                "SIM_IPHONE_14_26_0",
+                "SIM_IPHONE_16_26_0",
             ],
         ),
         targets.bundle(
@@ -4851,7 +4881,7 @@ targets.bundle(
             ],
             variants = [
                 "SIM_IPAD_AIR_5TH_GEN_26_0",
-                "SIM_IPHONE_14_26_0",
+                "SIM_IPHONE_16_26_0",
             ],
         ),
         targets.bundle(
@@ -4862,14 +4892,14 @@ targets.bundle(
             ],
             variants = [
                 "SIM_IPAD_AIR_5TH_GEN_26_0",
-                "SIM_IPHONE_14_26_0",
+                "SIM_IPHONE_16_26_0",
             ],
         ),
         targets.bundle(
             targets = "ios_passing_screen_size_dependent_tests",
             variants = [
                 "SIM_IPAD_AIR_5TH_GEN_26_0",
-                "SIM_IPHONE_14_26_0",
+                "SIM_IPHONE_16_26_0",
                 "SIM_IPHONE_SE_3RD_GEN_26_0",
             ],
         ),
@@ -4883,7 +4913,7 @@ targets.bundle(
             targets = "ios_common_tests",
             variants = [
                 "SIM_IPAD_AIR_5TH_GEN_26_0",
-                "SIM_IPHONE_14_26_0",
+                "SIM_IPHONE_16_26_0",
             ],
         ),
         targets.bundle(
@@ -4893,7 +4923,7 @@ targets.bundle(
             ],
             variants = [
                 "SIM_IPAD_AIR_5TH_GEN_26_0",
-                "SIM_IPHONE_14_26_0",
+                "SIM_IPHONE_16_26_0",
             ],
         ),
         targets.bundle(
@@ -4904,7 +4934,7 @@ targets.bundle(
             ],
             variants = [
                 "SIM_IPAD_AIR_5TH_GEN_26_0",
-                "SIM_IPHONE_14_26_0",
+                "SIM_IPHONE_16_26_0",
             ],
         ),
         targets.bundle(
@@ -4915,14 +4945,14 @@ targets.bundle(
             ],
             variants = [
                 "SIM_IPAD_AIR_5TH_GEN_26_0",
-                "SIM_IPHONE_14_26_0",
+                "SIM_IPHONE_16_26_0",
             ],
         ),
         targets.bundle(
             targets = "ios_screen_size_dependent_tests",
             variants = [
                 "SIM_IPAD_AIR_5TH_GEN_26_0",
-                "SIM_IPHONE_14_26_0",
+                "SIM_IPHONE_16_26_0",
                 "SIM_IPHONE_SE_3RD_GEN_26_0",
             ],
         ),
@@ -4940,7 +4970,7 @@ targets.bundle(
             ],
             variants = [
                 "SIM_IPAD_AIR_5TH_GEN_26_0",
-                "SIM_IPHONE_14_26_0",
+                "SIM_IPHONE_16_26_0",
             ],
         ),
         targets.bundle(
@@ -4950,14 +4980,14 @@ targets.bundle(
             ],
             variants = [
                 "SIM_IPAD_AIR_5TH_GEN_26_0",
-                "SIM_IPHONE_14_26_0",
+                "SIM_IPHONE_16_26_0",
             ],
         ),
         targets.bundle(
             targets = "ios_failing_screen_size_dependent_tests",
             variants = [
                 "SIM_IPAD_AIR_5TH_GEN_26_0",
-                "SIM_IPHONE_14_26_0",
+                "SIM_IPHONE_16_26_0",
                 "SIM_IPHONE_SE_3RD_GEN_26_0",
             ],
         ),
@@ -5406,56 +5436,6 @@ targets.bundle(
 )
 
 targets.bundle(
-    name = "ios_m1_simulator_tests",
-    targets = [
-        targets.bundle(
-            targets = "ios_common_tests",
-            variants = [
-                "SIM_IPHONE_14_17_5",
-                "SIM_IPHONE_15_18_2",
-            ],
-        ),
-        targets.bundle(
-            targets = "ios_eg2_cq_tests",
-            mixins = [
-                "xcodebuild_sim_runner",
-                "record_failed_tests",
-            ],
-            variants = [
-                "SIM_IPAD_PRO_6TH_GEN_17_5",
-                "SIM_IPAD_PRO_7TH_GEN_18_2",
-                "SIM_IPHONE_14_17_5",
-                "SIM_IPHONE_15_18_2",
-            ],
-        ),
-        targets.bundle(
-            targets = "ios_eg2_tests",
-            mixins = [
-                "xcodebuild_sim_runner",
-                "record_failed_tests",
-            ],
-            variants = [
-                "SIM_IPAD_AIR_5TH_GEN_17_5",
-                "SIM_IPAD_AIR_6TH_GEN_18_2",
-                "SIM_IPHONE_14_17_5",
-                "SIM_IPHONE_15_18_2",
-            ],
-        ),
-        targets.bundle(
-            targets = "ios_screen_size_dependent_tests",
-            variants = [
-                "SIM_IPAD_AIR_5TH_GEN_17_5",
-                "SIM_IPAD_AIR_6TH_GEN_18_2",
-                "SIM_IPHONE_14_17_5",
-                "SIM_IPHONE_14_PRO_MAX_17_5",
-                "SIM_IPHONE_15_18_2",
-                "SIM_IPHONE_15_PRO_MAX_18_2",
-            ],
-        ),
-    ],
-)
-
-targets.bundle(
     name = "ios_passing_eg2_cq_tests",
     targets = [
         "ios_web_shell_eg2tests_module",
@@ -5686,7 +5666,7 @@ targets.bundle(
         "ios_chrome_integration_eg2tests_module": [
             targets.mixin(
                 swarming = targets.swarming(
-                    shards = 9,
+                    shards = 10,
                 ),
             ),
         ],
@@ -5702,14 +5682,14 @@ targets.bundle(
                 "xcodebuild_sim_runner",
             ],
             variants = [
-                "SIM_IPHONE_14_18_2",
+                "SIM_IPHONE_16_26_0",
             ],
         ),
         targets.bundle(
             targets = "ios_vm_unittests",
             variants = [
-                "SIM_IPAD_10TH_GEN_18_2",
-                "SIM_IPHONE_14_18_2",
+                "SIM_IPAD_10TH_GEN_26_0",
+                "SIM_IPHONE_16_26_0",
             ],
         ),
     ],
@@ -6796,7 +6776,7 @@ targets.bundle(
         "content_unittests": targets.mixin(
             args = [
                 "--test-launcher-bot-mode",
-                "--test-launcher-filter-file=testing/buildbot/filters/ios.content_unittests.filter",
+                "--test-launcher-filter-file=testing/buildbot/filters/ios.content_unittests.filter;testing/buildbot/filters/tvos.content_unittests.filter",
             ],
         ),
         "media_unittests": targets.mixin(

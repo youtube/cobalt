@@ -115,6 +115,11 @@ bool PageNodeImpl::IsVisible() const {
   return is_visible_.value();
 }
 
+bool PageNodeImpl::IsClosing() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return is_closing_.value();
+}
+
 base::TimeTicks PageNodeImpl::GetLastVisibilityChangeTime() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return visibility_change_time_;
@@ -207,14 +212,14 @@ const GURL& PageNodeImpl::GetMainFrameUrl() const {
   return main_frame_url_.value();
 }
 
-uint64_t PageNodeImpl::EstimateMainFramePrivateFootprintSize() const {
+base::ByteCount PageNodeImpl::EstimateMainFramePrivateFootprintSize() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  uint64_t total = 0;
+  base::ByteCount total;
   FrameNodeImpl* main_frame = main_frame_node();
   if (main_frame) {
     performance_manager::GraphImplOperations::VisitFrameAndChildrenPreOrder(
         main_frame, [&total](FrameNodeImpl* frame_node) {
-          total += frame_node->GetPrivateFootprintKbEstimate();
+          total += frame_node->GetPrivateFootprintEstimate();
           return true;
         });
   }
@@ -235,23 +240,23 @@ base::WeakPtr<content::WebContents> PageNodeImpl::GetWebContents() const {
   return web_contents_;
 }
 
-uint64_t PageNodeImpl::EstimateResidentSetSize() const {
+base::ByteCount PageNodeImpl::EstimateResidentSetSize() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  uint64_t total = 0;
+  base::ByteCount total;
   performance_manager::GraphOperations::VisitFrameTreePreOrder(
       this, [&total](const FrameNode* frame_node) {
-        total += frame_node->GetResidentSetKbEstimate();
+        total += frame_node->GetResidentSetEstimate();
         return true;
       });
   return total;
 }
 
-uint64_t PageNodeImpl::EstimatePrivateFootprintSize() const {
+base::ByteCount PageNodeImpl::EstimatePrivateFootprintSize() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  uint64_t total = 0;
+  base::ByteCount total;
   performance_manager::GraphOperations::VisitFrameTreePreOrder(
       this, [&total](const FrameNode* frame_node) {
-        total += frame_node->GetPrivateFootprintKbEstimate();
+        total += frame_node->GetPrivateFootprintEstimate();
         return true;
       });
   return total;
@@ -331,6 +336,11 @@ void PageNodeImpl::SetIsVisible(bool is_visible) {
     // NowTicks.
     visibility_change_time_ = base::TimeTicks::Now();
   }
+}
+
+void PageNodeImpl::SetIsClosing(bool is_closing) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  is_closing_.SetAndMaybeNotify(this, is_closing);
 }
 
 void PageNodeImpl::SetIsAudible(bool is_audible) {

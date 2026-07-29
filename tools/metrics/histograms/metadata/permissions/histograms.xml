@@ -283,7 +283,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.Action.WithDisposition.{DispositionType}"
-    enum="PermissionAction" expires_after="2025-12-21">
+    enum="PermissionAction" expires_after="2026-02-22">
   <owner>andypaicu@chromium.org</owner>
   <owner>engedy@chromium.org</owner>
   <owner>hkamila@chromium.org</owner>
@@ -328,7 +328,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.Action.{PermissionType}.CrossOriginFrame"
-    enum="PermissionAction" expires_after="2025-12-14">
+    enum="PermissionAction" expires_after="2026-02-22">
   <owner>tungnh@chromium.org</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
   <summary>
@@ -509,6 +509,18 @@ chromium-metrics-reviews@google.com.
     required during the AIv4 model execution flow. Recorded for pages in English
     on which rendered text could be acquired with success and the text is
     considered suitable as input for the AIv4 model (i.e. it's long enough).
+  </summary>
+</histogram>
+
+<histogram name="Permissions.AIv4.EmbedderMetadataValid" enum="BooleanValid"
+    expires_after="2026-02-01">
+  <owner>elklm@chromium.org</owner>
+  <owner>hempjudith@google.com</owner>
+  <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
+  <summary>
+    Records whether the passage embedder metadata was valid when the AIv4
+    workflow was initiated. Recorded when the PassageEmbedderDelegate attempts
+    to retrieve the passage embedder.
   </summary>
 </histogram>
 
@@ -697,7 +709,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.CrowdDeny.SafeBrowsing.RequestDuration" units="ms"
-    expires_after="2025-12-14">
+    expires_after="2026-02-22">
   <owner>andypaicu@chromium.org</owner>
   <owner>engedy@chromium.org</owner>
   <owner>hkamila@chromium.org</owner>
@@ -1332,7 +1344,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.Prompt.Shown{PermissionRequestGesture}"
-    enum="PermissionRequestType" expires_after="2025-12-21">
+    enum="PermissionRequestType" expires_after="2026-02-22">
   <owner>engedy@chromium.org</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
   <summary>
@@ -1852,7 +1864,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.Usage.ElapsedTimeSinceLastUsage.{PermissionType}"
-    units="ms" expires_after="2025-12-14">
+    units="ms" expires_after="2026-02-22">
   <owner>lyf@chromium.org</owner>
   <owner>elklm@chromium.org</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
@@ -1915,7 +1927,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.{PredictionModel}.ModelExecutionAlreadyInProgress"
-    enum="BooleanSuccess" expires_after="2025-12-02">
+    enum="BooleanSuccess" expires_after="2026-02-22">
   <owner>elklm@chromium.org</owner>
   <owner>hempjudith@google.com</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
@@ -1937,17 +1949,6 @@ chromium-metrics-reviews@google.com.
     timeout, hence the execution was terminated.
   </summary>
   <token key="PredictionModel" variants="SnapshotBasedPredictionModels"/>
-</histogram>
-
-<histogram name="Permissions.{PredictionModel}.PermissionRequestRelevance"
-    enum="PermissionRequestRelevance" expires_after="2026-03-07">
-  <owner>elklm@chromium.org</owner>
-  <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
-  <summary>
-    Records the generated relevance signal after a successful execution of the
-    available model.
-  </summary>
-  <token key="PredictionModel" variants="RelevanceOutputPredictionModels"/>
 </histogram>
 
 <histogram name="Permissions.{PredictionModel}.RenderedTextAcquireSuccess"
@@ -2003,7 +2004,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram
-    name="Permissions.{Version}.{PermissionType}.PermissionRequestRelevance"
+    name="Permissions.{PredictionModel}.{PermissionType}.PermissionRequestRelevance"
     enum="PermissionRequestRelevance" expires_after="2026-03-07">
   <owner>elklm@chromium.org</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
@@ -2011,10 +2012,7 @@ chromium-metrics-reviews@google.com.
     Records the generated relevance signal after a successful execution of the
     available model.
   </summary>
-  <token key="Version">
-    <variant name="AIv1"/>
-    <variant name="AIv3"/>
-  </token>
+  <token key="PredictionModel" variants="RelevanceOutputPredictionModels"/>
   <token key="PermissionType">
     <variant name="Geolocation"/>
     <variant name="Notifications"/>

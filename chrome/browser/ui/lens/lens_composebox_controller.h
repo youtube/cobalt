@@ -9,6 +9,7 @@
 #include <set>
 
 #include "base/memory/raw_ptr.h"
+#include "chrome/browser/profiles/profile.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -18,7 +19,7 @@
 class LensSearchController;
 
 namespace lens {
-
+class LensSessionMetricsLogger;
 class LensComposeboxHandler;
 
 // Controller for the Lens compose box. This class is responsible for handling
@@ -29,7 +30,8 @@ class LensComposeboxHandler;
 class LensComposeboxController {
  public:
   explicit LensComposeboxController(
-      LensSearchController* lens_search_controller);
+      LensSearchController* lens_search_controller,
+      Profile* profile);
   ~LensComposeboxController();
 
   // This method is used to set up communication between this instance and the
@@ -46,11 +48,17 @@ class LensComposeboxController {
   // session query.
   void IssueComposeboxQuery(const std::string& query_text);
 
+  // Called when the focus state of the composebox changes.
+  void OnFocusChanged(bool focused);
+
   // Cleans up any any state associated with this UI instance.
   void CloseUI();
 
   // Handles AIM messages from the side panel remote UI.
   void OnAimMessage(const std::vector<uint8_t>& message);
+
+  // Returns the session metrics logger for the current Lens session.
+  LensSessionMetricsLogger* GetSessionMetricsLogger();
 
   LensComposeboxHandler* composebox_handler_for_testing() {
     return composebox_handler_.get();
@@ -64,6 +72,9 @@ class LensComposeboxController {
 
   // Owns this.
   const raw_ptr<LensSearchController> lens_search_controller_;
+
+  // Guarantee to outlive this.
+  const raw_ptr<Profile> profile_;
 
   // The remote UI's capabilities.
   std::set<lens::FeatureCapability> remote_ui_capabilities_;

@@ -10,6 +10,7 @@ import android.animation.ObjectAnimator;
 import android.content.Context;
 import android.graphics.Rect;
 import android.util.AttributeSet;
+import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -22,6 +23,7 @@ import android.widget.LinearLayout;
 import androidx.annotation.NonNull;
 import androidx.annotation.Px;
 import androidx.annotation.VisibleForTesting;
+import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import androidx.core.view.ViewCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -54,6 +56,7 @@ class KeyboardAccessoryView extends LinearLayout {
     private boolean mShouldSkipClosingAnimation;
     private boolean mDisableAnimations;
     private boolean mAllowClicksWhileObscured;
+    private boolean mHasStickyLastItem;
 
     protected RecyclerView mBarItemsView;
 
@@ -103,7 +106,8 @@ class KeyboardAccessoryView extends LinearLayout {
 
         private int getItemOffsetInternal(
                 final View view, final RecyclerView parent, RecyclerView.State state) {
-            if (!isLastItem(parent, view, parent.getAdapter().getItemCount())) {
+            if (!isLastItem(parent, view, parent.getAdapter().getItemCount())
+                    || !mHasStickyLastItem) {
                 return mHorizontalMargin;
             }
             if (view.getWidth() == 0 && state.didStructureChange()) {
@@ -281,9 +285,14 @@ class KeyboardAccessoryView extends LinearLayout {
         return provider;
     }
 
-    void setBottomOffset(int bottomOffset) {
-        MarginLayoutParams params = (MarginLayoutParams) getLayoutParams();
-        params.setMargins(params.leftMargin, params.topMargin, params.rightMargin, bottomOffset);
+    void setOffsetAndGravity(@Px int offset, int gravity) {
+        CoordinatorLayout.LayoutParams params = (CoordinatorLayout.LayoutParams) getLayoutParams();
+        if (gravity == Gravity.TOP) {
+            params.setMargins(params.leftMargin, offset, params.rightMargin, 0);
+        } else if (gravity == Gravity.BOTTOM) {
+            params.setMargins(params.leftMargin, 0, params.rightMargin, offset);
+        }
+        params.gravity = gravity;
         setLayoutParams(params);
     }
 
@@ -309,6 +318,10 @@ class KeyboardAccessoryView extends LinearLayout {
 
     boolean areClicksAllowedWhenObscured() {
         return mAllowClicksWhileObscured;
+    }
+
+    void setHasStickyLastItem(boolean hasStickyLastItem) {
+        mHasStickyLastItem = hasStickyLastItem;
     }
 
     void setAccessibilityMessage(boolean hasSuggestions) {

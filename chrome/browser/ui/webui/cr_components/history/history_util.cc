@@ -6,6 +6,8 @@
 
 #include "chrome/browser/history_embeddings/history_embeddings_utils.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/signin/identity_manager_factory.h"
+#include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/ui/webui/cr_components/history_clusters/history_clusters_util.h"
 #include "chrome/browser/ui/webui/favicon_source.h"
 #include "chrome/browser/ui/webui/history/history_sign_in_state_watcher.h"
@@ -13,6 +15,7 @@
 #include "chrome/grit/history_resources.h"
 #include "chrome/grit/history_resources_map.h"
 #include "chrome/grit/locale_settings.h"
+#include "components/browsing_data/core/features.h"
 #include "components/favicon_base/favicon_url_parser.h"
 #include "components/history/core/common/pref_names.h"
 #include "components/history_clusters/core/history_clusters_prefs.h"
@@ -46,6 +49,7 @@ content::WebUIDataSource* HistoryUtil::PopulateCommonSourceForHistory(
       {"entrySummary", IDS_HISTORY_ENTRY_SUMMARY},
       {"expandSessionButton", IDS_HISTORY_OTHER_SESSIONS_EXPAND_SESSION},
       {"foundSearchResults", IDS_HISTORY_FOUND_SEARCH_RESULTS},
+      {"actorTaskTooltip", IDS_ACTOR_TASK},
       {"historyMenuButton", IDS_HISTORY_HISTORY_MENU_DESCRIPTION},
       {"historyMenuItem", IDS_HISTORY_HISTORY_MENU_ITEM},
       {"itemsSelected", IDS_HISTORY_ITEMS_SELECTED},
@@ -79,8 +83,17 @@ content::WebUIDataSource* HistoryUtil::PopulateCommonSourceForHistory(
   source->AddBoolean("isSignInAllowed",
                      prefs->GetBoolean(prefs::kSigninAllowed));
 
-  source->AddInteger(kSignInStateKey,
-                     static_cast<int>(GetHistorySignInState(profile)));
+  source->AddBoolean(
+      "enableBrowsingHistoryActorIntegrationM1",
+      base::FeatureList::IsEnabled(
+          browsing_data::features::kBrowsingHistoryActorIntegrationM1));
+
+  signin::IdentityManager* identity_manager =
+      IdentityManagerFactory::GetForProfile(profile);
+  syncer::SyncService* sync_service =
+      SyncServiceFactory::GetForProfile(profile);
+  source->AddInteger(kSignInStateKey, static_cast<int>(GetHistorySignInState(
+                                          identity_manager, sync_service)));
 
   source->AddInteger(
       "lastSelectedTab",

@@ -408,7 +408,7 @@ public abstract class XrTestFramework {
                         runJavaScriptOrFail("testPassed", POLL_TIMEOUT_SHORT_MS, webContents));
         if (testPassed) {
             return TestStatus.PASSED;
-        } else if (!testPassed && resultString.equals("\"\"")) {
+        } else if (resultString.equals("\"\"")) {
             return TestStatus.RUNNING;
         } else {
             // !testPassed && !resultString.equals("\"\"")
@@ -664,7 +664,7 @@ public abstract class XrTestFramework {
     }
 
     public View getCurrentContentView() {
-        return mRule.getActivity().getActivityTab().getContentView();
+        return mRule.getActivityTab().getContentView();
     }
 
     public WebContents getCurrentWebContents() {
@@ -676,7 +676,7 @@ public abstract class XrTestFramework {
     }
 
     public void simulateRendererKilled() {
-        final Tab tab = getRule().getActivity().getActivityTab();
+        final Tab tab = getRule().getActivityTab();
         ThreadUtils.runOnUiThreadBlocking(
                 () -> ChromeTabUtils.simulateRendererKilledForTesting(tab));
 

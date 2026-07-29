@@ -107,6 +107,8 @@ body {
   align-items: flex-start;
   /* Allow controls to wrap on smaller screens */
   flex-wrap: wrap;
+  /* Add a visual distinction between the controls and the text display area */
+  border-bottom: 1px solid var(--dropdown-border-color);
 }
 
 .google-button {
@@ -123,6 +125,8 @@ body {
   cursor: pointer;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
   transition: background-color 0.3s ease;
+  /* Do not allow the user to highlight the text inside the button */
+  user-select: none;
 }
 
 .google-button:hover {
@@ -132,6 +136,22 @@ body {
 
 .google-button i {
   margin-right: 8px;
+}
+
+.button-with-feedback {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.feedback-text {
+  position: absolute;
+  bottom: -20px;
+  left: 10px;
+  color: red;
+  font-size: 12px;
+  /* Prevents the text from wrapping, keeping height consistent */
+  white-space: nowrap;
 }
 
 .dropdown {
@@ -152,6 +172,8 @@ body {
   align-items: center;
   font-size: 15px;
   font-weight: 500;
+  /* Do not allow the user to highlight the text inside the dropdown header */
+  user-select: none;
 }
 
 .dropdown-header i {

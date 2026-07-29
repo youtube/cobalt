@@ -35,7 +35,7 @@
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
-#include "chrome/browser/actor/actor_keyed_service.h"
+#include "chrome/browser/actor/actor_util.h"
 #include "chrome/browser/actor/execution_engine.h"
 #include "chrome/browser/app_mode/app_mode_utils.h"
 #include "chrome/browser/background/background_contents.h"
@@ -102,6 +102,7 @@
 #include "chrome/browser/ui/browser_live_tab_context.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
+#include "chrome/browser/ui/browser_select_file_dialog_controller.h"
 #include "chrome/browser/ui/browser_tab_strip_model_delegate.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_ui_prefs.h"
@@ -109,7 +110,6 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/desktop_browser_window_capabilities.h"
 #include "chrome/browser/ui/chrome_pages.h"
-#include "chrome/browser/ui/chrome_select_file_policy.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/browser/ui/exclusive_access/fullscreen_controller.h"
 #include "chrome/browser/ui/exclusive_access/pointer_lock_controller.h"
@@ -246,7 +246,6 @@
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/text_elider.h"
 #include "ui/gfx/text_utils.h"
-#include "ui/shell_dialogs/selected_file_info.h"
 #include "url/origin.h"
 #include "url/scheme_host_port.h"
 
@@ -456,16 +455,6 @@ base::FunctionRef<bool(const Browser*)> MaybeLazyIsFullscreen(
                                               : &AlwaysReturnFalse;
 }
 
-bool IsActorOperatingOnWebContents(Profile* profile, content::WebContents* wc) {
-  auto* actor_service = actor::ActorKeyedService::Get(profile);
-  if (!actor_service) {
-    return false;
-  }
-
-  const auto* tab_interface = tabs::TabInterface::MaybeGetFromContents(wc);
-  return tab_interface && actor_service->IsAnyTaskActingOnTab(*tab_interface);
-}
-
 }  // namespace
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -650,6 +639,8 @@ Browser::Browser(const CreateParams& params)
   ProfileMetrics::LogProfileLaunch(profile_);
 
   if (params.skip_window_init_for_testing) {
+    // This is as initialized as the window will ever get.
+    is_initialized_ = true;
     return;
   }
 
@@ -774,12 +765,6 @@ Browser::~Browser() {
     // An incognito profile is no longer needed, this indirectly frees
     // its cache and cookies once it gets destroyed at the appropriate time.
     ProfileDestroyer::DestroyOTRProfileWhenAppropriate(profile_);
-  }
-
-  // There may be pending file dialogs, we need to tell them that we've gone
-  // away so they don't try and call back to us.
-  if (select_file_dialog_.get()) {
-    select_file_dialog_->ListenerDestroyed();
   }
 }
 
@@ -1111,7 +1096,6 @@ std::vector<StatusBubble*> Browser::GetStatusBubblesForTesting() {
   return GetStatusBubbles();
 }
 
-
 views::WebView* Browser::GetWebView() {
   return window_->GetContentsWebView();
 }
@@ -1120,6 +1104,9 @@ Profile* Browser::GetProfile() {
   return profile();
 }
 
+const Profile* Browser::GetProfile() const {
+  return profile();
+}
 
 void Browser::OpenGURL(const GURL& gurl, WindowOpenDisposition disposition) {
   OpenURL(content::OpenURLParams(gurl, content::Referrer(), disposition,
@@ -1479,29 +1466,9 @@ bool Browser::CanSupportWindowFeature(WindowFeature feature) const {
 }
 
 void Browser::OpenFile() {
-  // Ignore if there is already a select file dialog.
-  if (select_file_dialog_) {
-    return;
-  }
-
-  base::RecordAction(UserMetricsAction("OpenFile"));
-  select_file_dialog_ = ui::SelectFileDialog::Create(
-      this, std::make_unique<ChromeSelectFilePolicy>(
-                tab_strip_model_->GetActiveWebContents()));
-
-  if (!select_file_dialog_) {
-    return;
-  }
-
-  const base::FilePath directory = profile_->last_selected_directory();
-  // TODO(beng): figure out how to juggle this.
-  gfx::NativeWindow parent_window = window_->GetNativeWindow();
-  ui::SelectFileDialog::FileTypeInfo file_types;
-  file_types.allowed_paths =
-      ui::SelectFileDialog::FileTypeInfo::ANY_PATH_OR_URL;
-  select_file_dialog_->SelectFile(ui::SelectFileDialog::SELECT_OPEN_FILE,
-                                  std::u16string(), directory, &file_types, 0,
-                                  base::FilePath::StringType(), parent_window);
+  GetFeatures().browser_select_file_dialog_controller()->OpenFile(
+      tab_strip_model_->GetActiveWebContents(), window_->GetNativeWindow(),
+      base::BindOnce(&Browser::OnFileSelectedFromDialog, AsWeakPtr()));
 }
 
 bool Browser::CanSaveContents(content::WebContents* web_contents) const {
@@ -2165,7 +2132,7 @@ content::WebContents* Browser::AddNewContents(
   // However if this Browser is for an app or the popup is being requested on a
   // different display, we don't want to turn popups into new tabs. Popups
   // should open as new windows instead.
-  display::Screen* screen = display::Screen::GetScreen();
+  display::Screen* screen = display::Screen::Get();
   bool targeting_different_display =
       screen && source && source->GetContentNativeView() &&
       screen->GetDisplayNearestView(source->GetContentNativeView()) !=
@@ -2392,7 +2359,7 @@ bool Browser::IsWebContentsCreationOverridden(
     const GURL& opener_url,
     const std::string& frame_name,
     const GURL& target_url) {
-  if (IsActorOperatingOnWebContents(
+  if (actor::IsActorOperatingOnWebContents(
           profile(), content::WebContents::FromRenderFrameHost(opener))) {
     // If an ExecutionEngine is acting on the opener, prevent it from creating
     // a new WebContents. We'll instead force the navigation to happen in the
@@ -2416,7 +2383,7 @@ WebContents* Browser::CreateCustomWebContents(
     const content::StoragePartitionConfig& partition_config,
     content::SessionStorageNamespace* session_storage_namespace) {
   if (auto* opener_contents = content::WebContents::FromRenderFrameHost(opener);
-      IsActorOperatingOnWebContents(profile(), opener_contents)) {
+      actor::IsActorOperatingOnWebContents(profile(), opener_contents)) {
     // If an ExecutionEngine is acting on the opener, we force the navigation
     // to happen in the same tab.
     content::NavigationController::LoadURLParams params(target_url);
@@ -2972,7 +2939,7 @@ void Browser::SetWebContentsBlocked(content::WebContents* web_contents,
   }
 
   if (contents_is_active) {
-    window_->SetContentScrimVisibility(/*visible=*/blocked);
+    window_->SetContentScrimVisibility(web_contents, /*visible=*/blocked);
   }
 }
 
@@ -3005,33 +2972,6 @@ void Browser::OnZoomChanged(
     // Change the zoom commands state based on the zoom state
     GetCommandController()->ZoomStateChanged();
   }
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Browser, ui::SelectFileDialog::Listener implementation:
-
-void Browser::FileSelected(const ui::SelectedFileInfo& file_info, int index) {
-  // Transfer the ownership of select file dialog so that the ref count is
-  // released after the function returns. This is needed because the passed-in
-  // data such as |file_info| and |params| could be owned by the dialog.
-  scoped_refptr<ui::SelectFileDialog> dialog = std::move(select_file_dialog_);
-
-  profile_->set_last_selected_directory(file_info.file_path.DirName());
-
-  GURL url =
-      file_info.url.value_or(net::FilePathToFileURL(file_info.local_path));
-
-  if (url.is_empty()) {
-    return;
-  }
-
-  OpenURL(OpenURLParams(url, Referrer(), WindowOpenDisposition::CURRENT_TAB,
-                        ui::PAGE_TRANSITION_TYPED, false),
-          /*navigation_handle_callback=*/{});
-}
-
-void Browser::FileSelectionCanceled() {
-  select_file_dialog_.reset();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -3166,14 +3106,14 @@ void Browser::OnActiveTabChanged(WebContents* old_contents,
   BookmarkBarController::From(this)->UpdateBookmarkBarState(
       BookmarkBarController::StateChangeReason::kTabSwitch);
 
-  bool is_blocked = tab_strip_model_->IsTabBlocked(index);
-  window_->SetContentScrimVisibility(/*visible=*/is_blocked);
-
   // Let the BrowserWindow do its handling.  On e.g. views this changes the
   // focused object, which should happen before we update the toolbar below,
-  // since the omnibox expects the correct element to already be focused when it
-  // is updated.
+  // since the omnibox expects the correct element to already be focused when
+  // it is updated.
   window_->OnActiveTabChanged(old_contents, new_contents, index, reason);
+
+  bool is_blocked = tab_strip_model_->IsTabBlocked(index);
+  window_->SetContentScrimVisibility(new_contents, /*visible=*/is_blocked);
 
   browser_window_features()->exclusive_access_manager()->OnTabDetachedFromView(
       old_contents);
@@ -3434,6 +3374,12 @@ void Browser::RemoveScheduledUpdatesFor(WebContents* contents) {
   if (i != scheduled_updates_.end()) {
     scheduled_updates_.erase(i);
   }
+}
+
+void Browser::OnFileSelectedFromDialog(const GURL& url) {
+  OpenURL(OpenURLParams(url, Referrer(), WindowOpenDisposition::CURRENT_TAB,
+                        ui::PAGE_TRANSITION_TYPED, false),
+          /*navigation_handle_callback=*/{});
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -3790,7 +3736,6 @@ bool Browser::SupportsWindowFeatureImpl(WindowFeature feature,
                                                           check_can_support);
   }
 }
-
 
 bool Browser::IsBrowserClosing() const {
   BrowserList* browser_list = BrowserList::GetInstance();

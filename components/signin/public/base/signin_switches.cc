@@ -38,6 +38,12 @@ const base::FeatureParam<int> kHistoryOptInEducationalTipVariation(
     "history_opt_in_educational_tip_param",
     0);
 
+// When enabled a new library is used to fetch accounts via
+// AccountManagerAccountManagerDelegate
+BASE_FEATURE(kMigrateAccountManagerDelegate,
+             "MigrateAccountManagerDelegate",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Feature to bypass double-checking that signin callers have correctly gotten
 // the user to accept account management. This check is slow and not strictly
 // necessary, so disable it while we work on adding caching.
@@ -60,7 +66,12 @@ BASE_FEATURE(kMakeAccountsAvailableInIdentityManager,
 BASE_FEATURE(kSmartEmailLineBreaking,
              "SmartEmailLineBreaking",
              base::FEATURE_ENABLED_BY_DEFAULT);
-#endif
+
+// Killswitch for the support of AddSession in web sign-in flow.
+BASE_FEATURE(kSupportWebSigninAddSession,
+             "SupportWebSigninAddSession",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 // Enables the History Sync Opt-in on Desktop.
@@ -207,12 +218,10 @@ BASE_FEATURE(kInterceptBubblesDismissibleByAvatarButton,
              "InterceptBubblesDismissibleByAvatarButton",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+
 BASE_FEATURE(kOfferMigrationToDiceUsers,
              "OfferMigrationToDiceUsers",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kRollbackDiceMigration,
-             "RollbackDiceMigration",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE_PARAM(base::TimeDelta,
@@ -233,6 +242,16 @@ BASE_FEATURE_PARAM(base::TimeDelta,
                    "offer_migration_to_dice_users_min_time_between_dialogs",
                    base::Days(7));
 
+BASE_FEATURE(kRollbackDiceMigration,
+             "RollbackDiceMigration",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kForcedDiceMigration,
+             "ForcedDiceMigration",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
+
 #if BUILDFLAG(IS_IOS)
 
 BASE_FEATURE(kEnableIdentityInAuthError,
@@ -250,6 +269,11 @@ BASE_FEATURE(kEnableASWebAuthenticationSession,
 BASE_FEATURE(kAllowlistScopesForMdmErrors,
              "AllowlistScopesForMdmErrors",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kSupportAddSessionEmailPrefill,
+             "SupportAddSessionEmailPrefill",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 #endif
 
 BASE_FEATURE(kEnableExtensionsExplicitBrowserSignin,

@@ -410,8 +410,7 @@ int BrowserNonClientFrameViewChromeOS::NonClientHitTest(
   // large click target above the tabs to drag the window, so redirect clicks in
   // the tab's shadow to caption.
   if (hit_test == HTCLIENT && !frame()->IsMaximized() &&
-      !frame()->IsFullscreen() &&
-      !display::Screen::GetScreen()->InTabletMode()) {
+      !frame()->IsFullscreen() && !display::Screen::Get()->InTabletMode()) {
     // TODO(crbug.com/40768579): Tab Strip hit calculation and bounds logic
     // should reside in the TabStrip class.
     gfx::Point client_point(point);
@@ -864,7 +863,7 @@ bool BrowserNonClientFrameViewChromeOS::ShouldEnableImmersiveModeController()
       !GetFrameWindow()->GetProperty(chromeos::kUseImmersiveInTrustedPinned)) {
     return false;
   }
-  if (display::Screen::GetScreen()->InTabletMode() &&
+  if (display::Screen::Get()->InTabletMode() &&
       (IsSnapped() || frame()->IsMaximized())) {
     // Snapped or maximized browser windows that doesn't have tabstrip uses
     // immersive frame to hide frame in tablet mode.
@@ -881,6 +880,10 @@ bool BrowserNonClientFrameViewChromeOS::ShouldEnableImmersiveModeController()
   return frame()->IsFullscreen() &&
          !fullscreen_controller->IsExtensionFullscreenOrPending() &&
          fullscreen_controller->IsFullscreenForBrowser();
+}
+
+bool BrowserNonClientFrameViewChromeOS::IsTrustedPinned() const {
+  return ash::WindowState::Get(frame()->GetNativeWindow())->IsTrustedPinned();
 }
 
 void BrowserNonClientFrameViewChromeOS::PaintAsActiveChanged() {
@@ -914,9 +917,12 @@ bool BrowserNonClientFrameViewChromeOS::GetShowCaptionButtons() const {
 
 bool BrowserNonClientFrameViewChromeOS::GetShowCaptionButtonsWhenNotInOverview()
     const {
-  // Show the caption buttons if the app happens to be locked for OnTask. Only
-  // relevant for non-web browser scenarios.
-  if (browser_view()->browser()->IsLockedForOnTask()) {
+  // Show the caption buttons if an immersive mode is enabled for trusted pined
+  // state. This is to show the three dot menu which is a part of caption button
+  // container, rather than showing buttons. Only relevant for non-web browser
+  // scenarios.
+  if (IsTrustedPinned() &&
+      GetFrameWindow()->GetProperty(chromeos::kUseImmersiveInTrustedPinned)) {
     return true;
   }
 
@@ -931,7 +937,7 @@ bool BrowserNonClientFrameViewChromeOS::GetShowCaptionButtonsWhenNotInOverview()
 
   // Browsers in tablet mode still show their caption buttons in float state,
   // even with the webUI tab strip.
-  if (display::Screen::GetScreen()->InTabletMode()) {
+  if (display::Screen::Get()->InTabletMode()) {
     return IsFloated();
   }
 
@@ -1231,10 +1237,6 @@ bool BrowserNonClientFrameViewChromeOS::IsFloated() const {
 
 bool BrowserNonClientFrameViewChromeOS::IsSnapped() const {
   return ash::WindowState::Get(frame()->GetNativeWindow())->IsSnapped();
-}
-
-bool BrowserNonClientFrameViewChromeOS::IsTrustedPinned() const {
-  return ash::WindowState::Get(frame()->GetNativeWindow())->IsTrustedPinned();
 }
 
 bool BrowserNonClientFrameViewChromeOS::UseWebUITabStrip() const {

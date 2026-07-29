@@ -36,7 +36,27 @@ enum class OAuthConsumerId {
   kNtpDriveService = 22,
   kForceSigninVerifier = 23,
   kCaptureModeDelegate = 24,
-  kMaxValue = kCaptureModeDelegate,
+  // TODO(crbug.com/434619290): Remove this once not used anymore.
+  kFcmInvalidation = 25,
+  kNearbyShare = 26,
+  kAdvancedProtectionStatusManager = 27,
+  kPushNotification = 28,
+  kKAnonymityService = 29,
+  kFeedbackUploader = 30,
+  kPasswordSharingRecipientsDownloader = 31,
+  kWebHistoryService = 32,
+  kComposeboxQueryController = 33,
+  kDocumentSuggestionsService = 34,
+  kEnterpriseSearchAggregator = 35,
+  kParentPermissionDialog = 36,
+  kUserCloudSigninRestrictionPolicyFetcher = 37,
+  kCloudPolicyClientRegistration = 38,
+  kSafeBrowsing = 39,
+  kTailoredSecurityService = 40,
+  kLensOverlayQueryController = 41,
+  kTrustedVaultFrontend = 42,
+  kFeedNetwork = 43,
+  kMaxValue = kFeedNetwork,
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/signin/enums.xml:OAuthConsumerId)
 

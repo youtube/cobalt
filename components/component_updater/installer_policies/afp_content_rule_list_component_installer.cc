@@ -16,6 +16,8 @@
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/json/json_reader.h"
+#include "base/json/json_writer.h"
 #include "base/memory/ref_counted.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/path_service.h"
@@ -71,14 +73,80 @@ std::optional<std::string> LoadContentRuleListFromDisk(
   return json;
 }
 
-void PopulateContentRuleListData(std::optional<std::string> json) {
-  if (!json) {
-    return;
+}  // namespace
+
+// TODO(crbug.com/436881800): Clean up the dry-run feature flag after the
+// experiment.
+// static
+std::string AntiFingerprintingContentRuleListComponentInstallerPolicy::
+    TransformJsonForDryRun(std::string json) {
+#if BUILDFLAG(IS_IOS)
+  if (base::FeatureList::IsEnabled(
+          fingerprinting_protection_filter::features::
+              kEnableFingerprintingProtectionFilteriOSDryRun)) {
+    std::optional<base::Value> value = base::JSONReader::Read(json);
+    if (!value) {
+      base::UmaHistogramEnumeration(
+          "FingerprintingProtection.IOSDryRun.TransformResult",
+          IOSDryRunTransformResult::kJsonParseFailed);
+      return json;
+    }
+
+    int total_rules = 0;
+    int transformed_rules = 0;
+    if (base::Value::List* list = value->GetIfList()) {
+      total_rules = list->size();
+      for (base::Value& rule : *list) {
+        base::Value::Dict* rule_dict = rule.GetIfDict();
+        if (!rule_dict) {
+          continue;
+        }
+        base::Value::Dict* action = rule_dict->FindDict("action");
+        if (!action) {
+          continue;
+        }
+        std::string* type = action->FindString("type");
+        if (!type || *type != "block") {
+          continue;
+        }
+        action->Set("type", "ignore-previous-rules");
+        transformed_rules++;
+      }
+    }
+
+    base::UmaHistogramCounts1000(
+        "FingerprintingProtection.IOSDryRun.TotalRules", total_rules);
+    base::UmaHistogramCounts1000(
+        "FingerprintingProtection.IOSDryRun.SkippedRules",
+        total_rules - transformed_rules);
+
+    if (transformed_rules > 0) {
+      base::UmaHistogramEnumeration(
+          "FingerprintingProtection.IOSDryRun.TransformResult",
+          IOSDryRunTransformResult::kSuccessRulesTransformed);
+      std::string modified_json;
+      base::JSONWriter::Write(*value, &modified_json);
+      return modified_json;
+    } else {
+      base::UmaHistogramEnumeration(
+          "FingerprintingProtection.IOSDryRun.TransformResult",
+          IOSDryRunTransformResult::kSuccessNoRulesToTransform);
+    }
   }
-  script_blocking::ContentRuleListData::GetInstance().SetContentRuleList(*json);
+#endif  // BUILDFLAG(IS_IOS)
+  return json;
 }
 
-}  // namespace
+// static
+void AntiFingerprintingContentRuleListComponentInstallerPolicy::
+    PopulateContentRuleListData(std::optional<std::string> json) {
+  std::optional<std::string> transformed_json;
+  if (json.has_value()) {
+    transformed_json = TransformJsonForDryRun(std::move(*json));
+  }
+  script_blocking::ContentRuleListData::GetInstance().SetContentRuleList(
+      std::move(transformed_json));
+}
 
 AntiFingerprintingContentRuleListComponentInstallerPolicy::
     AntiFingerprintingContentRuleListComponentInstallerPolicy(
@@ -138,7 +206,17 @@ void AntiFingerprintingContentRuleListComponentInstallerPolicy::ComponentReady(
   base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE, {base::MayBlock(), base::TaskPriority::BEST_EFFORT},
       base::BindOnce(&LoadContentRuleListFromDisk, json_path),
-      base::BindOnce(on_load_complete_));
+      base::BindOnce(
+          [](OnLoadCompleteCallback cb, std::optional<std::string> json) {
+            if (!json.has_value()) {
+              // `VerifyInstallation` ran before this and logged `kSuccess`
+              // because the path exists. Therefore, if loading the string
+              // fails here, it must be a file read error.
+              WriteMetrics(InstallationResult::kFileReadError);
+            }
+            std::move(cb).Run(std::move(json));
+          },
+          on_load_complete_));
 }
 
 base::FilePath AntiFingerprintingContentRuleListComponentInstallerPolicy::
@@ -181,7 +259,8 @@ AntiFingerprintingContentRuleListComponentInstallerPolicy::
   };
 }
 
-void RegisterAntiFingerprintingContentRuleListComponent(
+// static
+void AntiFingerprintingContentRuleListComponentInstallerPolicy::Register(
     ComponentUpdateService* cus) {
   if (!fingerprinting_protection_filter::features::
           IsFingerprintingProtectionFeatureEnabled()) {

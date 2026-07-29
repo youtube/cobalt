@@ -119,6 +119,7 @@
   E(kActionOpenGuestProfile, IDC_OPEN_GUEST_PROFILE) \
   E(kActionAddNewProfile, IDC_ADD_NEW_PROFILE) \
   E(kActionManageChromeProfiles, IDC_MANAGE_CHROME_PROFILES) \
+  E(kActionShowSignin, IDC_SHOW_SIGNIN) \
   /* Zoom */ \
   E(kActionZoomMenu, IDC_ZOOM_MENU) \
   E(kActionZoomPlus, IDC_ZOOM_PLUS) \
@@ -503,7 +504,6 @@
   /*Commerce*/ \
   E(kActionCommercePriceInsights) \
   E(kActionCommerceDiscounts) \
-  E(kActionCommerceProductSpecifications) \
 
 #if BUILDFLAG(IS_CHROMEOS)
 #define CHROME_PLATFORM_SPECIFIC_ACTION_IDS \
@@ -538,6 +538,7 @@
   E(kActionSidePanelShowCustomizeChromeFooter) \
   E(kActionSidePanelShowCustomizeChromeToolbar) \
   E(kActionSidePanelShowFeed) \
+  E(kActionSidePanelShowGlic) \
   E(kActionSidePanelShowHistoryCluster) \
   E(kActionSidePanelShowHistory) \
   E(kActionSidePanelShowLens) \

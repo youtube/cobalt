@@ -128,6 +128,8 @@ content::WebUIDataSource* CreateAndAddPasswordsUIHTMLSource(
        IDS_PASSWORD_MANAGER_UI_BACK_TO_CHECKUP_ARIA_DESCRIPTION},
       {"backToPasswords",
        IDS_PASSWORD_MANAGER_UI_BACK_TO_PASSWORDS_ARIA_DESCRIPTION},
+      {"backToSettings",
+       IDS_PASSWORD_MANAGER_UI_BACK_TO_PASSWORD_SETTINGS_ARIA_DESCRIPTION},
       {"backupPasswordDetailsCardAriaLabel",
        IDS_PASSWORD_MANAGER_UI_BACKUP_PASSWORD_DETAILS_CARD_ARIA_LABEL},
       {"blockedSitesDescription",
@@ -348,10 +350,6 @@ content::WebUIDataSource* CreateAndAddPasswordsUIHTMLSource(
       {"passkeyUpgradeSettingsToggleSubLabel",
        IDS_PASSWORD_MANAGER_UI_PASSKEY_UPGRADE_TOGGLE_SUBLABEL},
       {"passwordChangeSettingLabel", IDS_SETTINGS_PASSWORD_CHANGE_LABEL},
-      // TODO(crbug.com/376632724): Add link placeholder in sublabel string.
-      {"passwordChangeSettingSubLabel", IDS_SETTINGS_PASSWORD_CHANGE_SUBLABEL},
-      {"passwordChangeSettingLearnMore",
-       IDS_PASSWORD_MANAGER_UI_PASSWORD_CHANGE_LEAK_DIALOG_LINK_WITH_PRIVACY_NOTICE},
       {"passwordChangeSettingDataBreach",
        IDS_SETTINGS_PASSWORD_CHANGE_DATA_BREACH},
       {"passwordChangeSettingWhereSaved",
@@ -518,6 +516,11 @@ content::WebUIDataSource* CreateAndAddPasswordsUIHTMLSource(
           IDS_PASSWORD_MANAGER_UI_SHARE_PASSWORD_NO_OTHER_FAMILY_MEMBERS,
           chrome::kFamilyGroupViewURL));
 
+  source->AddString("passwordChangeSettingSubLabel",
+                    l10n_util::GetStringFUTF16(
+                        IDS_SETTINGS_PASSWORD_CHANGE_SUBLABEL_WITH_LEARN_MORE,
+                        chrome::kPasswordChangeLearnMoreURL));
+
   source->AddString("familyGroupViewURL", chrome::kFamilyGroupViewURL);
 
   source->AddString(
@@ -542,9 +545,6 @@ content::WebUIDataSource* CreateAndAddPasswordsUIHTMLSource(
 
   source->AddString("passwordManagerLearnMoreURL",
                     chrome::kPasswordManagerLearnMoreURL);
-
-  source->AddString("passwordChangeSettingLearnMoreURL",
-                    chrome::kPasswordChangeLearnMoreURL);
 
   ui::Accelerator undo_accelerator(ui::VKEY_Z, ui::EF_PLATFORM_ACCELERATOR);
   source->AddString("undoDescription", l10n_util::GetStringFUTF16(

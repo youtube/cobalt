@@ -52,15 +52,14 @@ class ChromeSigninClient : public SigninClient {
   //   destruction (See ChromeSigninClient::PreSignOut(),
   //   PrimaryAccountPolicyManager::EnsurePrimaryAccountAllowedForProfile()).
   // - Supervised users on Android.IsRevokeSyncConsentAllowed
-  bool IsClearPrimaryAccountAllowed(bool has_sync_account) const override;
+  bool IsClearPrimaryAccountAllowed() const override;
 
   // TODO(crbug.com/40240844): Remove revoke sync restriction when allowing
   // enterprise users to revoke sync fully launches.
   bool IsRevokeSyncConsentAllowed() const override;
   void PreSignOut(
       base::OnceCallback<void(SignoutDecision)> on_signout_decision_reached,
-      signin_metrics::ProfileSignout signout_source_metric,
-      bool has_sync_account) override;
+      signin_metrics::ProfileSignout signout_source_metric) override;
   scoped_refptr<network::SharedURLLoaderFactory> GetURLLoaderFactory() override;
   network::mojom::CookieManager* GetCookieManager() override;
   network::mojom::NetworkContext* GetNetworkContext() override;
@@ -100,18 +99,16 @@ class ChromeSigninClient : public SigninClient {
   virtual void LockForceSigninProfile(const base::FilePath& profile_path);
 
  private:
-  // Returns what kind of signout is possible given `has_sync_account` and the
-  // optional `signout_source`. If `signout_source` is provided, it will be
-  // check against some sources that must always allow signout regardless of any
-  // restriction, otherwise the decision is made based on the profile's status.
+  // Returns what kind of signout is possible given the optional
+  // `signout_source`. If `signout_source` is provided, it will be check against
+  // some sources that must always allow signout regardless of any restriction,
+  // otherwise the decision is made based on the profile's status.
   SigninClient::SignoutDecision GetSignoutDecision(
-      bool has_sync_account,
       const std::optional<signin_metrics::ProfileSignout> signout_source) const;
   void VerifySyncToken();
   void OnCloseBrowsersSuccess(
       const signin_metrics::ProfileSignout signout_source_metric,
       bool should_sign_out,
-      bool has_sync_account,
       const base::FilePath& profile_path);
   void OnCloseBrowsersAborted(const base::FilePath& profile_path);
 

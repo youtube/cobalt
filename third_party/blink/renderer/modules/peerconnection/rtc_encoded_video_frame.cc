@@ -23,8 +23,7 @@
 namespace blink {
 
 // Allow all fields to be set when calling RTCEncodedVideoFrame.setMetadata.
-BASE_FEATURE(kAllowRTCEncodedVideoFrameSetMetadataAllFields,
-             "AllowRTCEncodedVideoFrameSetMetadataAllFields",
+BASE_FEATURE(AllowRTCEncodedVideoFrameSetMetadataAllFields,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 namespace {
@@ -67,8 +66,8 @@ base::expected<void, String> ValidateMetadata(
     return base::unexpected("new metadata has member(s) missing.");
   }
 
-  // This might happen if the dependency descriptor is not set.
-  if (!metadata->hasFrameId() && metadata->hasDependencies()) {
+  if (!metadata->hasFrameId() && metadata->hasDependencies() &&
+      !metadata->dependencies().empty()) {
     return base::unexpected(
         "new metadata has frameID missing, but has dependencies");
   }

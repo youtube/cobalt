@@ -1,6 +1,4 @@
 This is a testharness.js-based test.
-[FAIL] "uncustomized" :defined doesn't care about your registry'
-  assert_equals: expected object "[object CustomElementRegistry]" but got null
-[FAIL] pseudo-class-defined
-  assert_true: expected true got false
+All subtests passed and are omitted for brevity.
+See https://chromium.googlesource.com/chromium/src/+/HEAD/docs/testing/writing_web_tests.md#Text-Test-Baselines for details.
 Harness: the test ran to completion.

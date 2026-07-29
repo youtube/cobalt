@@ -28,8 +28,10 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &switches::kSyncEnableBookmarksInTransportMode,
     &switches::kHistoryOptInEducationalTip,
     &switches::kMakeAccountsAvailableInIdentityManager,
+    &switches::kMigrateAccountManagerDelegate,
     &switches::kFullscreenSignInPromoUseDate,
     &switches::kSmartEmailLineBreaking,
+    &switches::kSupportWebSigninAddSession,
 };
 
 // static

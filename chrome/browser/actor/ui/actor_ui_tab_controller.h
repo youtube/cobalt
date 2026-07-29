@@ -37,20 +37,18 @@ class ActorUiTabController : public ActorUiTabControllerInterface {
       std::unique_ptr<ActorUiTabControllerFactoryInterface> controller_factory);
   ~ActorUiTabController() override;
   DECLARE_USER_DATA(ActorUiTabController);
-  static ActorUiTabController* From(tabs::TabInterface* tab);
 
   // ActorUiTabControllerInterface:
   void OnUiTabStateChange(const UiTabState& ui_tab_state,
                           UiResultCallback callback) override;
   void OnTabActiveStatusChanged(bool tab_active_status,
                                 tabs::TabInterface* tab) override;
-  void SetActiveTaskId(TaskId task_id) override;
-  void ClearActiveTaskId() override;
   void SetActorTaskPaused() override;
   void SetActorTaskResume() override;
   void SetOverlayHoverStatus(bool is_hovering) override;
   void SetHandoffButtonHoverStatus(bool is_hovering) override;
   void SetCallbackForTesting(base::OnceClosure callback) override;
+  UiTabState GetCurrentUiTabState() const override;
   bool ShouldShowActorTabIndicator() override;
   base::WeakPtr<ActorUiTabControllerInterface> GetWeakPtr() override;
 
@@ -66,10 +64,8 @@ class ActorUiTabController : public ActorUiTabControllerInterface {
   // Called only once on startup to initialize tab subscriptions.
   void RegisterTabSubscriptions();
 
-  // Called to propagate a UiTabState and tab status change to UI controllers.
-  // This is passed through a debounce timer to stabilize updates.
-  void MaybeUpdateState(UiResultCallback callback);
-  void UpdateState(UiResultCallback callback);
+  // Called to propagate state and visibility changes to UI controllers.
+  void UpdateUi();
 
   // Computes whether the Actor Overlay is visible based on the current state.
   bool ComputeActorOverlayVisibility();
@@ -97,19 +93,14 @@ class ActorUiTabController : public ActorUiTabControllerInterface {
 
   // The current active status of the tab.
   bool current_tab_active_status_ = false;
-  // The last active task id actuating on this tab.
-  TaskId active_task_id_;
 
   bool is_hovering_overlay_ = false;
   bool is_hovering_button_ = false;
 
-  // How many outstanding callbacks are pending for the debounce timer.
+  // How many outstanding UpdateUi calls are pending for the debounce timer.
   int in_progress_updates_int_ = 0;
-
-  // TODO(crbug.com/425952887): Look into replacing oneshottimer with
-  // retainingoneshottimer.
-  base::OneShotTimer update_state_debounce_timer_;
-  base::OnceClosure on_idle_for_testing_;
+  // How many outstanding callbacks are pending, used for metrics/tracking.
+  int pending_update_ui_callbacks_size_ = 0;
 
   // Owns this class via TabModel.
   const raw_ref<tabs::TabInterface> tab_;
@@ -132,6 +123,12 @@ class ActorUiTabController : public ActorUiTabControllerInterface {
   std::unique_ptr<ActorUiTabControllerFactoryInterface> controller_factory_;
 
   bool should_show_actor_tab_indicator_ = false;
+  base::RetainingOneShotTimer update_ui_debounce_timer_;
+  base::OnceClosure on_idle_for_testing_;
+
+  base::OnceCallbackList<void(bool)> pending_update_ui_callbacks_;
+  // Holds subscriptions for pending update ui callbacks.
+  std::vector<base::CallbackListSubscription> update_ui_callback_subscription_;
 
   ::ui::ScopedUnownedUserData<ActorUiTabController> scoped_unowned_user_data_;
 

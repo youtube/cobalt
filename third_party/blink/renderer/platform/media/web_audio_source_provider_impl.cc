@@ -26,8 +26,7 @@
 namespace blink {
 
 // TODO(crbug.com/420150619): Re-enable this feature.
-BASE_FEATURE(kDelayStopForMediaElementSourceNode,
-             "DelayStopForMediaElementSourceNode",
+BASE_FEATURE(DelayStopForMediaElementSourceNode,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // TeeFilter is a RenderCallback implementation that allows for a client to get
@@ -158,7 +157,7 @@ void WebAudioSourceProviderImpl::SetClient(
     // The client will now take control by calling provideInput() periodically.
     client_ = client;
 
-    set_format_cb_ = base::BindPostTaskToCurrentDefault(WTF::BindRepeating(
+    set_format_cb_ = base::BindPostTaskToCurrentDefault(blink::BindRepeating(
         &WebAudioSourceProviderImpl::OnSetFormat, weak_factory_.GetWeakPtr()));
 
     // If |tee_filter_| is Initialize()d - then run |set_format_cb_| to send
@@ -339,8 +338,8 @@ void WebAudioSourceProviderImpl::GetOutputDeviceInfoAsync(
   // underlying audio renderer will prefer the media parameters. See
   // IsOptimizedForHardwareParameters() for more details.
   base::BindPostTaskToCurrentDefault(
-      WTF::BindOnce(std::move(info_cb),
-                    media::OutputDeviceInfo(media::OUTPUT_DEVICE_STATUS_OK)))
+      blink::BindOnce(std::move(info_cb),
+                      media::OutputDeviceInfo(media::OUTPUT_DEVICE_STATUS_OK)))
       .Run();
 }
 

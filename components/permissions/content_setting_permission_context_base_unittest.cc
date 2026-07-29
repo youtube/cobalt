@@ -37,6 +37,7 @@
 #include "components/ukm/content/source_url_recorder.h"
 #include "components/ukm/test_ukm_recorder.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/permission_descriptor_util.h"
 #include "content/public/browser/permission_result.h"
@@ -82,8 +83,8 @@ class TestPermissionContext : public ContentSettingPermissionContextBase {
 
   // Once a decision for the requested permission has been made, run the
   // callback.
-  void TrackPermissionDecision(PermissionStatus permission_status) {
-    permission_statuses_.push_back(permission_status);
+  void TrackPermissionDecision(content::PermissionResult permission_result) {
+    permission_statuses_.push_back(permission_result.status);
     // Null check required here as the quit_closure_ can also be run and reset
     // first from within DecidePermission.
     if (quit_closure_) {

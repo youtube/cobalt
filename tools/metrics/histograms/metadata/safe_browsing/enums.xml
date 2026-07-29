@@ -601,6 +601,16 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="Malware"/>
 </enum>
 
+<!-- LINT.IfChange(SBExtensionTelemetrySearchVsSerpCount) -->
+
+<enum name="SBExtensionTelemetrySearchVsSerpCount">
+  <int value="0" label="SearchCountIsLessThanSerpCount"/>
+  <int value="1" label="SearchCountEqualsSerpCount"/>
+  <int value="2" label="SearchCountIsGreaterThanSerpCount"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/safe_browsing/extension_telemetry/search_hijacking_detector.cc:SearchVsSerpCount) -->
+
 <enum name="SBExtensionTelemetrySignalsSignalType">
   <int value="0" label="TabsExecuteScript"/>
   <int value="1" label="RemoteHostsContacted"/>
@@ -774,6 +784,25 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(//components/safe_browsing/core/browser/db/hash_prefix_map.cc:WriteError) -->
+
+<!-- LINT.IfChange(V8IframeState) -->
+
+<enum name="V8IframeState">
+  <int value="0"
+      label="v8 optimizer enabled for frame which finished navigation and for
+             topmost frame"/>
+  <int value="1"
+      label="v8 optimizer enabled for frame which finished navigation but
+             disabled for topmost frame"/>
+  <int value="2"
+      label="v8 optimizer disabled for frame which finished navigation but
+             enabled for topmost frame"/>
+  <int value="3"
+      label="v8 optimizer disabled for frame which finished navigation and
+             for topmost frame"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/site_protection/site_protection_metrics.h:IframeV8OptimizerState) -->
 
 </enums>
 

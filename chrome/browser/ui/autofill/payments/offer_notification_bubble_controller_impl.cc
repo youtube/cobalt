@@ -13,6 +13,7 @@
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/autofill/autofill_bubble_base.h"
 #include "chrome/browser/ui/autofill/autofill_bubble_handler.h"
+#include "chrome/browser/ui/autofill/bubble_manager.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_finder.h"
@@ -142,25 +143,48 @@ void OfferNotificationBubbleControllerImpl::ShowOfferNotificationIfApplicable(
     return;
   }
 
-  offer_ = offer;
+  const bool bubble_manager_enabled = base::FeatureList::IsEnabled(
+      features::kAutofillShowBubblesBasedOnPriorities);
+
+  if (bubble_manager_enabled) {
+    auto* manager = BubbleManager::GetForWebContents(web_contents());
+    if (!manager || manager->HasPendingBubble(*this)) {
+      // Early return if a pre-existing of similar type is in the queue or the
+      // manager does not exist.
+      return;
+    }
+  }
 
   // Hides the old bubble. Sets bubble_state_ to show icon here since we are
   // going to show another bubble anyway.
   HideBubbleAndClearTimestamp(/*should_show_icon=*/true);
+
+  SetupOfferNotification(offer, card);
+
+  if (options.show_notification_automatically) {
+    if (bubble_manager_enabled) {
+      if (auto* manager = BubbleManager::GetForWebContents(web_contents())) {
+        manager->RequestShowController(*this);
+      }
+    } else {
+      ShowBubble();
+    }
+  } else {
+    HideBubbleAndClearTimestamp(/*should_show_icon=*/true);
+  }
+}
+
+void OfferNotificationBubbleControllerImpl::SetupOfferNotification(
+    AutofillOfferData offer,
+    const CreditCard* card) {
+  offer_ = std::move(offer);
 
   DCHECK(IsIconVisible());
 
   if (card) {
     card_ = *card;
   }
-
   is_user_gesture_ = false;
-
-  if (options.show_notification_automatically) {
-    ShowBubble();
-  } else {
-    HideBubbleAndClearTimestamp(/*should_show_icon=*/true);
-  }
 }
 
 void OfferNotificationBubbleControllerImpl::ReshowBubble() {

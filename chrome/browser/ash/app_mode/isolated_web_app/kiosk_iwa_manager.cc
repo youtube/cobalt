@@ -17,6 +17,7 @@
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/raw_ref.h"
+#include "base/notreached.h"
 #include "chrome/browser/ash/app_mode/isolated_web_app/kiosk_iwa_data.h"
 #include "chrome/browser/ash/app_mode/kiosk_app_manager_base.h"
 #include "chrome/browser/ash/app_mode/kiosk_app_types.h"
@@ -83,7 +84,6 @@ KioskIwaManager::~KioskIwaManager() {
 KioskAppManagerBase::AppList KioskIwaManager::GetApps() const {
   AppList result;
   for (const auto& iwa_app_data : isolated_web_apps_) {
-    // TODO(crbug.com/361017701): fill in the install url
     result.emplace_back(*iwa_app_data);
   }
   return result;
@@ -212,8 +212,7 @@ void KioskIwaManager::ProcessDeviceLocalAccount(
     return;
   }
 
-  // TODO(crbug.com/378065964): Revisit app data processing below after
-  // implementing icon and title.
+  // Check the new app entry against existing apps.
   auto previous_match = previous_apps.find(new_iwa_data->app_id());
   if (previous_match != previous_apps.end()) {
     // Keep this app from deletion.

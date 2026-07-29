@@ -155,6 +155,7 @@ class CORE_EXPORT StyleSheetContents final
     if (rule_set_diff_) {
       rule_set_diff_->MarkUnrepresentable();
     }
+    has_cached_mixins_ = false;
   }
 
   // Get/clear the diff between last time we did StartMutation()
@@ -248,6 +249,14 @@ class CORE_EXPORT StyleSheetContents final
 
   bool DidLoadErrorOccur() const { return did_load_error_occur_; }
 
+  // NOTE: “medium” must be the same as is later used for EnsureRuleSet(),
+  // or the set of mixins and the rule set may be inconsistent.
+  //
+  // If mixins were not already cached, and there is or previously was
+  // at least one mixin, the generation counter will be increased.
+  MixinMap& ExtractMixins(const MediaQueryEvaluator& medium,
+                          uint64_t& mixin_generation);
+
   RuleSet& GetRuleSet() {
     DCHECK(rule_set_);
     return *rule_set_.Get();
@@ -307,6 +316,20 @@ class CORE_EXPORT StyleSheetContents final
 
   HeapHashSet<WeakMember<CSSStyleSheet>> loading_clients_;
   HeapHashSet<WeakMember<CSSStyleSheet>> completed_clients_;
+
+  // Mixins extracted from this stylesheet. We cache this not because
+  // it is expensive to compute (it isn't), but to have better control
+  // over when we need to invalidate based on mixins changing.
+  // Generally cleared whenever rule_set_ is; this isn't strictly
+  // required (if this style sheet only exports mixins that it doesn't
+  // use itself), but it simplifies things a bit as long as we don't
+  // have precise mixin invalidation.
+  //
+  // Note that if has_cached_mixins_ = false, mixins_ will contain the
+  // _previous_ mixin map, which helps us to know if we have any mixins
+  // that may have been removed.
+  MixinMap mixins_;
+  bool has_cached_mixins_ = false;
 
   Member<RuleSet> rule_set_;
   // If we have modified the style sheet since last creating

@@ -12,7 +12,6 @@ import android.app.Instrumentation.ActivityMonitor;
 import android.app.Instrumentation.ActivityResult;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.view.View;
 import android.widget.ImageView;
@@ -32,7 +31,6 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.mockito.quality.Strictness;
@@ -163,7 +161,6 @@ public class AppBannerManagerTest {
     }
 
     private MockAppDetailsDelegate mDetailsDelegate;
-    @Mock private PackageManager mPackageManager;
     private EmbeddedTestServer mTestServer;
     private UiDevice mUiDevice;
     private BottomSheetController mBottomSheetController;
@@ -239,6 +236,18 @@ public class AppBannerManagerTest {
                             getAppBannerManager(rule.getActivityTab().getWebContents());
                     Criteria.checkThat(mDetailsDelegate.mNumRetrieved, Matchers.is(numExpected));
                     Criteria.checkThat(manager.isRunningForTesting(), Matchers.is(false));
+                });
+    }
+
+    private void checkPromotabilityStatus(
+            ChromeActivityTestRule<? extends ChromeActivity> rule,
+            final boolean isProbablyPromotable) {
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    Assert.assertEquals(
+                            AppBannerManager.isProbablyPromotable(
+                                    rule.getActivity().getActivityTab().getWebContents()),
+                            isProbablyPromotable);
                 });
     }
 
@@ -382,6 +391,10 @@ public class AppBannerManagerTest {
                         "Got appinstalled: listener, attr")
                 .waitForTitleUpdate(3);
 
+        // In most test environments, the install action will fail and a shortcut
+        // will be added instead. This does not affect the promotability status since
+        // a new APK was not installed.
+        checkPromotabilityStatus(mTabbedActivityTestRule.getActivityTestRule(), true);
         ThreadUtils.runOnUiThread(
                 () -> {
                     Assert.assertEquals(
@@ -416,6 +429,7 @@ public class AppBannerManagerTest {
                         "Got appinstalled: listener, attr")
                 .waitForTitleUpdate(3);
 
+        checkPromotabilityStatus(mCustomTabActivityTestRule, true);
         ThreadUtils.runOnUiThread(
                 () -> {
                     Assert.assertEquals(
@@ -448,6 +462,7 @@ public class AppBannerManagerTest {
         new TabTitleObserver(mTabbedActivityTestRule.getActivityTab(), "Got userChoice: accepted")
                 .waitForTitleUpdate(3);
 
+        checkPromotabilityStatus(mTabbedActivityTestRule.getActivityTestRule(), false);
         Assert.assertEquals(
                 0, RecordHistogram.getHistogramTotalCountForTesting(INSTALL_PATH_HISTOGRAM_NAME));
     }
@@ -470,6 +485,7 @@ public class AppBannerManagerTest {
         new TabTitleObserver(mTabbedActivityTestRule.getActivityTab(), "Got userChoice: accepted")
                 .waitForTitleUpdate(3);
 
+        checkPromotabilityStatus(mTabbedActivityTestRule.getActivityTestRule(), false);
         Assert.assertEquals(
                 0, RecordHistogram.getHistogramTotalCountForTesting(INSTALL_PATH_HISTOGRAM_NAME));
     }
@@ -497,6 +513,7 @@ public class AppBannerManagerTest {
                         mCustomTabActivityTestRule.getActivityTab(), "Got userChoice: accepted")
                 .waitForTitleUpdate(3);
 
+        checkPromotabilityStatus(mCustomTabActivityTestRule, false);
         Assert.assertEquals(
                 0, RecordHistogram.getHistogramTotalCountForTesting(INSTALL_PATH_HISTOGRAM_NAME));
     }
@@ -518,6 +535,7 @@ public class AppBannerManagerTest {
         new TabTitleObserver(mTabbedActivityTestRule.getActivityTab(), "Got userChoice: dismissed")
                 .waitForTitleUpdate(3);
 
+        checkPromotabilityStatus(mTabbedActivityTestRule.getActivityTestRule(), true);
         Assert.assertEquals(
                 0, RecordHistogram.getHistogramTotalCountForTesting(INSTALL_PATH_HISTOGRAM_NAME));
     }
@@ -541,6 +559,7 @@ public class AppBannerManagerTest {
         new TabTitleObserver(mTabbedActivityTestRule.getActivityTab(), "Got userChoice: dismissed")
                 .waitForTitleUpdate(3);
 
+        checkPromotabilityStatus(mTabbedActivityTestRule.getActivityTestRule(), false);
         Assert.assertEquals(
                 0, RecordHistogram.getHistogramTotalCountForTesting(INSTALL_PATH_HISTOGRAM_NAME));
     }

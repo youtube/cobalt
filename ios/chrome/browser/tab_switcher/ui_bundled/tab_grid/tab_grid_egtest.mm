@@ -79,6 +79,7 @@ namespace {
 const char kSearchEngineURL[] = "http://searchengine/?q={searchTerms}";
 const char kSearchEngineHost[] = "searchengine";
 
+char kCountryCode[] = "us";
 char kURL1[] = "http://firstURL";
 char kURL2[] = "http://secondURL";
 char kURL3[] = "http://thirdURL";
@@ -224,19 +225,10 @@ void PerformTabGridSearch(NSString* text) {
   [ChromeEarlGrey simulatePhysicalKeyboardEvent:@"\n" flags:0];
 }
 
-// Taps the edit button in the tab grid and close the keyboard if it apprears on
-// iOS 26.
+// Taps the edit button in the tab grid.
 void TapVisibleTabGridEditButton() {
   [[EarlGrey selectElementWithMatcher:VisibleTabGridEditButton()]
       performAction:grey_tap()];
-
-  if (@available(iOS 19, *)) {
-    // TODO(crbug.com/428928323): Investigate why the keyboard appears. Remove
-    // this workaround when it's not needed anymore.
-    // On iOS 26, the keyboard appears when the "Edit" button is tapped and it
-    // hides the elements behind. Close the keyboard by typing a return key.
-    [ChromeEarlGrey simulatePhysicalKeyboardEvent:@"\\n" flags:0];
-  }
 }
 
 #pragma mark - TestResponseProvider
@@ -504,6 +496,8 @@ void EchoURLDefaultSearchEngineResponseProvider::GetResponseHeadersAndBody(
 }
 
 - (void)testPriceDrops {
+  // TODO(crbug.com/439174222) mock ShoppingService rather than
+  // OptimizationGuide.
   commerce::PriceTrackingData price_tracking_data;
   price_tracking_data.mutable_product_update()->set_offer_id(kOfferId);
   price_tracking_data.mutable_product_update()
@@ -518,6 +512,13 @@ void EchoURLDefaultSearchEngineResponseProvider::GetResponseHeadersAndBody(
   price_tracking_data.mutable_product_update()
       ->mutable_old_price()
       ->set_amount_micros(kPreviousPriceMicros);
+  price_tracking_data.mutable_buyable_product()->set_country_code(kCountryCode);
+  price_tracking_data.mutable_buyable_product()
+      ->mutable_current_price()
+      ->set_currency_code(kCurrencyCode);
+  price_tracking_data.mutable_buyable_product()
+      ->mutable_current_price()
+      ->set_amount_micros(kCurrentPriceMicros);
 
   std::string serialized_price_tracking_data;
   price_tracking_data.SerializeToString(&serialized_price_tracking_data);
@@ -1997,6 +1998,11 @@ void EchoURLDefaultSearchEngineResponseProvider::GetResponseHeadersAndBody(
 // Tests that add to reading list action works successfully from the long press
 // context menu on search results.
 - (void)testSearchOpenTabsContextMenuAddToReadingList {
+  // TODO(crbug.com/440041762): Re-enable the test on iOS26.
+  if (base::ios::IsRunningOnIOS26OrLater()) {
+    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
+  }
+
   // Clear the Reading List.
   GREYAssertNil([ReadingListAppInterface clearEntries],
                 @"Unable to clear Reading List entries");

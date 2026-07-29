@@ -12,6 +12,11 @@ namespace prefs {
 inline constexpr char kAddressBarSettingsNewBadgeShownCount[] =
     "ios.address_bar_settings_new_badge_shown_count";
 
+// Timestamp marking when the "new" badge for the AI Hub icon should stop
+// showing.
+inline constexpr char kAIHubNewBadgeExpirationTime[] =
+    "ios.ai_hub_new_badge_expiration_time";
+
 // The application locale.
 inline constexpr char kApplicationLocale[] = "intl.app_locale";
 
@@ -411,6 +416,10 @@ inline constexpr char kIosSavedThemeSpecificsIos[] =
 inline constexpr char kIosUserUploadedBackground[] =
     "ios.user_uploaded_background";
 
+// List pref storing recently used NTP backgrounds.
+inline constexpr char kIosRecentlyUsedBackgrounds[] =
+    "ios.recently_used_backgrounds";
+
 // String preference containing the default account to use for saving images to
 // Google Photos.
 inline constexpr char kIosSaveToPhotosDefaultGaiaId[] =
@@ -486,6 +495,11 @@ inline constexpr char kNTPContentSuggestionsEnabled[] =
 // users on the NTP are enabled.
 inline constexpr char kNTPContentSuggestionsForSupervisedUserEnabled[] =
     "ios.ntp.supervised.content_suggestions_enabled";
+
+// Preference that holds a boolean indicating whether users can customize their
+// NTP backgrounds, as determined by enterprise policy.
+inline constexpr char kNTPCustomBackgroundEnabledByPolicy[] =
+    "ios.ntp.custom_background_enabled_by_policy";
 
 // Preference that represents the sorting order of the Following feed content.
 inline constexpr char kNTPFollowingFeedSortType[] =
@@ -826,6 +840,20 @@ inline constexpr char kMultiProfileForcedMigrationDone[] =
 // A bool checking that multi-profile support for widgets is available.
 inline constexpr char kWidgetsForMultiProfile[] =
     "ios.multi_profile_for_widgets";
+
+// An integer pref to store the placement ID of the acceptance data if the
+// install was attributable to the external promo.
+inline constexpr char kIOSGMOSKOLastAttributionPlacementID[] =
+    "ios.gmosko_last_attribution_placement_id";
+
+// A time pref to store the date after which the placement ID can be logged.
+inline constexpr char kIOSGMOSKOPlacementIDNextLogDate[] =
+    "ios.gmosko_placement_id_next_log_date";
+
+// An integer storing whether the install attribution was attributable within
+// the short window or the long window.
+inline constexpr char kIOSGMOSKOLastAttributionWindowType[] =
+    "ios.gmosko_last_attribution_window_type";
 
 }  // namespace prefs
 

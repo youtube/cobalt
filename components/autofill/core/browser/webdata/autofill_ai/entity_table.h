@@ -14,19 +14,15 @@
 
 #include "base/time/time.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_structured_address_component.h"
+#include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/webdata/common/web_database_table.h"
 
 class WebDatabase;
 
-namespace base {
-class Uuid;
-}
-
 namespace autofill {
 
 class AttributeInstance;
-class EntityInstance;
 
 // This class manages the tables to store `EntityInstance` objects and their
 // `AttributeInstance`s within the SQLite database passed to the constructor. It
@@ -42,6 +38,11 @@ class EntityInstance;
 //   nickname               The instance's string nickname.
 //   date_modified          The date on which this instance was last modified,
 //                          in time_t.
+//   record_type            Information about the original storage of the
+//                          entity (local/server).
+//   attributes_read_only   Boolean flag backed by an integer. If 1,
+//                          the attributes of the entity instance are not
+//                          editable by the user.
 // -----------------------------------------------------------------------------
 // attributes               Contains the attribute instances of the entity
 //                          instances from the `entities` table.
@@ -82,7 +83,7 @@ class EntityTable : public WebDatabaseTable {
 
   // Returns true if removing the entity succeeded, even if there were zero or
   // multiple matches.
-  bool RemoveEntityInstance(const base::Uuid& guid);
+  bool RemoveEntityInstance(const EntityInstance::EntityId& guid);
 
   // Removes all stored entities and their attributes that were modified in the
   // given range [`delete_begin`, `delete_end`).
@@ -124,7 +125,8 @@ class EntityTable : public WebDatabaseTable {
 
   // Loads the content of `attributes` table into memory. The 2D map returned is
   // keyed by UUID and AttributeTypeName of the loaded attributes.
-  std::map<base::Uuid, std::map<std::string, std::vector<AttributeRecord>>>
+  std::map<EntityInstance::EntityId,
+           std::map<std::string, std::vector<AttributeRecord>>>
   LoadAttributes() const;
 
   // Attempts to create an `EntityInstance` object provided information loaded
@@ -132,13 +134,15 @@ class EntityTable : public WebDatabaseTable {
   // and `std::nullopt` otherwise.
   std::optional<EntityInstance> ValidateInstance(
       std::string_view type_name,
-      base::Uuid guid,
+      EntityInstance::EntityId guid,
       std::string nickname,
       base::Time date_modified,
       int use_count,
       base::Time use_date,
-      std::map<std::string, std::vector<AttributeRecord>> attribute_records)
-      const;
+      std::underlying_type_t<EntityInstance::RecordType>
+          underlying_storage_type,
+      std::map<std::string, std::vector<AttributeRecord>> attribute_records,
+      EntityInstance::AreAttributesReadOnly are_attributes_read_only) const;
 
   friend class EntityTableTestApi;
 };

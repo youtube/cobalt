@@ -97,6 +97,12 @@ BASE_DECLARE_FEATURE(kDevToolsVerticalDrawer);
 BASE_DECLARE_FEATURE(kDevToolsAiSubmenuPrompts);
 BASE_DECLARE_FEATURE(kDevToolsAiDebugWithAi);
 
+BASE_DECLARE_FEATURE(kDevToolsGlobalAiButton);
+extern const base::FeatureParam<bool> kDevToolsGlobalAiButtonPromotionEnabled;
+
+BASE_DECLARE_FEATURE(kDevToolsGdpProfiles);
+extern const base::FeatureParam<bool> kDevToolsGdpProfilesStarterBadgeEnabled;
+
 }  // namespace features
 
 #endif  // CHROME_BROWSER_DEVTOOLS_FEATURES_H_

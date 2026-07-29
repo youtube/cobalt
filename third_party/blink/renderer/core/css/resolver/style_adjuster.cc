@@ -132,14 +132,9 @@ TouchAction AdjustTouchActionForElement(TouchAction touch_action,
   bool is_child_document =
       element == document_element && element->GetDocument().LocalOwner();
   if (scrolls_overflow || is_child_document) {
-    touch_action |= TouchAction::kPan | TouchAction::kInternalPanXScrolls |
-                    TouchAction::kInternalNotWritable;
-    // TODO(crbug.com/378027646): Remove after making a decision regarding
-    // handwriting enablement.
-    touch_action |= TouchAction::kInternalHandwritingPanningRules;
-  }
-  if (is_child_document) {
-    touch_action |= TouchAction::kInternalHandwriting;
+    return touch_action | TouchAction::kPan |
+           TouchAction::kInternalPanXScrolls |
+           TouchAction::kInternalNotWritable;
   }
   return touch_action;
 }
@@ -516,7 +511,15 @@ static void AdjustStyleForMarker(ComputedStyleBuilder& builder,
 static void AdjustStyleForHTMLElement(ComputedStyleBuilder& builder,
                                       HTMLElement& element) {
   if (builder.HasBaseSelectAppearance()) {
-    builder.SetInBaseSelectAppearance(true);
+    HTMLSelectElement* select = DynamicTo<HTMLSelectElement>(element);
+    if (!select) {
+      select = HTMLSelectElement::GetSelectForPopoverPickerElement(&element);
+    }
+    if (select && !select->SupportsBaseAppearance()) {
+      builder.SetInBaseSelectAppearance(false);
+    } else {
+      builder.SetInBaseSelectAppearance(true);
+    }
   }
 
   // <div> and <span> are the most common elements on the web, we skip all the
@@ -937,45 +940,18 @@ void StyleAdjuster::AdjustEffectiveTouchAction(
     element_touch_action &= ~TouchAction::kInternalPanXScrolls;
   }
 
-  const bool is_writable = IsEditableElement(element, builder) &&
-                           !IsPasswordFieldWithUnrevealedPassword(element);
   // TODO(crbug.com/40232387): Full style invalidation is needed when this
   // feature status changes at runtime as it affects the computed style.
   if (RuntimeEnabledFeatures::StylusHandwritingEnabled() &&
       (element_touch_action & TouchAction::kPan) == TouchAction::kPan &&
-      is_writable) {
+      IsEditableElement(element, builder) &&
+      !IsPasswordFieldWithUnrevealedPassword(element)) {
     element_touch_action &= ~TouchAction::kInternalNotWritable;
   }
 
-  const TouchAction effective_touch_action =
-      (element_touch_action & inherited_action) | enforced_by_policy;
   // Apply the adjusted parent effective touch actions.
-  builder.SetEffectiveTouchAction(effective_touch_action);
-
-  if (is_writable && effective_touch_action != TouchAction::kNone) {
-    const auto would_lose_handwriting =
-        [effective_touch_action](TouchAction handwriting_touch_action) {
-          return (effective_touch_action & handwriting_touch_action) !=
-                 handwriting_touch_action;
-        };
-    // TODO(crbug.com/378027646) : This use counter counts how many pages would
-    // lose handwriting capabilities on platforms that support it if the
-    // handwriting keyword were implemented on this CSS attribute.
-    if (would_lose_handwriting(TouchAction::kInternalHandwriting)) {
-      UseCounter::Count(
-          element->GetDocument(),
-          WebFeature::kNonNoneTouchActionWouldLoseEditableHandwriting);
-    }
-    // Similar to the use counter above, but this will measure how many pages
-    // would lose handwriting capabilities if the handwriting keyword follows
-    // the rules for panning (being re-enabled when on a scrollable element).
-    if (would_lose_handwriting(TouchAction::kInternalHandwritingPanningRules)) {
-      UseCounter::Count(
-          element->GetDocument(),
-          WebFeature::
-              kNonNoneTouchActionWouldLoseEditableHandwritingRestoredByScroller);
-    }
-  }
+  builder.SetEffectiveTouchAction((element_touch_action & inherited_action) |
+                                  enforced_by_policy);
 
   // Propagate touch action to child frames.
   if (auto* frame_owner = DynamicTo<HTMLFrameOwnerElement>(element)) {

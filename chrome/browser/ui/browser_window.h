@@ -318,7 +318,7 @@ class BrowserWindow : public ui::BaseWindow {
 
   // Tries to focus the location bar.  Clears the window focus (to avoid
   // inconsistent state) if this fails.
-  virtual void SetFocusToLocationBar(bool select_all) = 0;
+  virtual void SetFocusToLocationBar(bool is_user_initiated) = 0;
 
   // Informs the view whether or not a load is in progress for the current tab.
   // The view can use this notification to update the reload/stop button.
@@ -335,8 +335,10 @@ class BrowserWindow : public ui::BaseWindow {
   // transition if |animate| is true.
   virtual void UpdateCustomTabBarVisibility(bool visible, bool animate) = 0;
 
-  // Updates the visibility of the scrim that covers the content area.
-  virtual void SetContentScrimVisibility(bool visible) = 0;
+  // Updates the visibility of the scrim that covers the content area associated
+  // with |contents|.
+  virtual void SetContentScrimVisibility(content::WebContents* contents,
+                                         bool visible) = 0;
 
   // Updates the visibility of the scrim that covers the devtools area.
   virtual void SetDevToolsScrimVisibility(bool visible) = 0;

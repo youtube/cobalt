@@ -93,10 +93,6 @@ void CleanupTask::Run(base::OnceClosure callback) {
           [](UpdaterScope scope) {
             CleanupGoogleUpdate(scope);
             CleanupOldUpdaterVersions(scope);
-#if BUILDFLAG(IS_MAC)
-            // TODO(crbug.com/394302692): Delete after M140.
-            CleanOldCrxCache();
-#endif  // IS_MAC
           },
           scope_),
       base::BindOnce(
@@ -104,6 +100,9 @@ void CleanupTask::Run(base::OnceClosure callback) {
             config->GetCrxCache()->RemoveIfNot(
                 config->GetUpdaterPersistedData()->GetAppIds(),
                 std::move(callback));
+            if (config->GetUpdaterPersistedData()->HasApp("")) {
+              config->GetUpdaterPersistedData()->RemoveApp("");
+            }
           },
           config_, std::move(callback)));
 }

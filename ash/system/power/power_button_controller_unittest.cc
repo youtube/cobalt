@@ -127,7 +127,7 @@ class PowerButtonControllerTest : public PowerButtonTestBase {
   // Press the power button to show the menu.
   void OpenPowerButtonMenu() {
     PressPowerButton();
-    if (display::Screen::GetScreen()->InTabletMode()) {
+    if (display::Screen::Get()->InTabletMode()) {
       EXPECT_TRUE(power_button_test_api_->PowerButtonMenuTimerIsRunning());
       ASSERT_TRUE(power_button_test_api_->TriggerPowerButtonMenuTimeout());
     }
@@ -155,7 +155,6 @@ class PowerButtonControllerTest : public PowerButtonTestBase {
 };
 
 TEST_F(PowerButtonControllerTest, LockScreenIfRequired) {
-  Initialize(ButtonType::NORMAL, LoginStatus::USER);
   EnableTabletMode(true);
   SetShouldLockScreenAutomatically(true);
   ASSERT_FALSE(GetLockedState());
@@ -386,7 +385,6 @@ TEST_F(PowerButtonControllerTest, HoldPowerButtonWhileMenuShownInLaptopMode) {
 // Tests press lock button and power button in sequence.
 TEST_F(PowerButtonControllerTest, PressAfterAnotherReleased) {
   // Tap power button after press lock button should still turn screen off.
-  Initialize(ButtonType::NORMAL, LoginStatus::USER);
   EnableTabletMode(true);
   PressLockButton();
   ReleaseLockButton();
@@ -408,7 +406,6 @@ TEST_F(PowerButtonControllerTest, PressAfterAnotherReleased) {
 TEST_F(PowerButtonControllerTest, PressBeforeAnotherReleased) {
   // Press lock button when power button is still being pressed will be ignored
   // and continue to turn screen off.
-  Initialize(ButtonType::NORMAL, LoginStatus::USER);
   EnableTabletMode(true);
   EXPECT_FALSE(power_manager_client()->backlights_forced_off());
   PressPowerButton();
@@ -825,7 +822,7 @@ TEST_F(PowerButtonControllerTest, MenuItemsToLoginAndLockedStatus) {
   // Should have sign out and feedback items if in guest mode (or, generally,
   // if screen locking is disabled).
   ClearLogin();
-  Initialize(ButtonType::NORMAL, LoginStatus::GUEST);
+  SimulateGuestLogin();
   OpenPowerButtonMenu();
   EXPECT_FALSE(GetLockedState());
   EXPECT_TRUE(power_button_test_api_->MenuHasSignOutItem());
@@ -1173,17 +1170,12 @@ class PowerButtonControllerWithPositionTest
   }
 
   // Returns true if it is in tablet mode.
-  bool IsTabletMode() const {
-    return display::Screen::GetScreen()->InTabletMode();
-  }
+  bool IsTabletMode() const { return display::Screen::Get()->InTabletMode(); }
 
   // Returns true if the menu is at the center of the display.
   bool IsMenuCentered() const {
     return power_button_test_api_->GetMenuBoundsInScreen().CenterPoint() ==
-           display::Screen::GetScreen()
-               ->GetPrimaryDisplay()
-               .bounds()
-               .CenterPoint();
+           display::Screen::Get()->GetPrimaryDisplay().bounds().CenterPoint();
   }
 
   PowerButtonPosition power_button_position() const {
@@ -1410,11 +1402,17 @@ TEST_P(PowerButtonControllerWithPositionTest, AdjustMenuShownForDisplaySize) {
       power_button_test_api_->GetMenuBoundsInScreen()));
 }
 
+class PowerButtonControllerLegacyTest : public PowerButtonControllerTest {
+ public:
+  PowerButtonControllerLegacyTest() {
+    base::CommandLine::ForCurrentProcess()->AppendSwitch(
+        switches::kAuraLegacyPowerButton);
+  }
+};
+
 // Tests that a power button press before the menu is fully shown will not
 // create a new menu.
-TEST_F(PowerButtonControllerTest, LegacyPowerButtonIgnoreExtraPress) {
-  Initialize(ButtonType::LEGACY, LoginStatus::USER);
-
+TEST_F(PowerButtonControllerLegacyTest, LegacyPowerButtonIgnoreExtraPress) {
   // Enable animations so that we can make sure that they occur.
   ui::ScopedAnimationDurationScaleMode regular_animations(
       ui::ScopedAnimationDurationScaleMode::NON_ZERO_DURATION);

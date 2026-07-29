@@ -8,7 +8,7 @@ import io
 import pathlib
 
 from compiler import Compiler
-from graph import Header
+import config
 from graph import IncludeDir
 from graph import Target
 
@@ -20,12 +20,47 @@ _HEADER = """# Copyright 2025 The Chromium Authors
 # To regenerate, see instructions at build/modules/modularize/README.md
 
 """
+_RULE_MAP = {
+    IncludeDir.Builtin: 'builtin_module',
+    IncludeDir.Framework: 'framework_module',
+    IncludeDir.LibCxx: 'libcxx_module',
+    IncludeDir.Sysroot: 'sysroot_module',
+    IncludeDir.SysrootModule: 'apple_sysroot_module',
+}
 
 _SYSROOT_MODULEMAP = """modulemap_config("sysroot_modulemap") {
   source = "module.modulemap"
 }
 
 """
+
+
+def _filter_targets(targets: list[Target], compiler: Compiler) -> list[Target]:
+  module_to_modulemap = compiler.modulemaps_for_modules()
+  modulemap_to_modules = collections.defaultdict(list)
+  for k, v in module_to_modulemap.items():
+    modulemap_to_modules[v].append(k)
+
+  remaining = [target for target in targets if config.should_compile(target)]
+  compiled = set(remaining)
+  targets = {target.name: target for target in targets}
+  while remaining:
+    target = remaining.pop()
+    for dep in target.public_deps:
+      dep = targets[dep]
+      if dep not in compiled:
+        compiled.add(dep)
+        remaining.append(dep)
+
+    # If we use -fmodule-map-file=c_standard_library.modulemap for one target,
+    # all modules in c_standard_library.modulemap need to be precompiled.
+    if dep.name not in module_to_modulemap:
+      continue
+    for module in modulemap_to_modules[module_to_modulemap[dep.name]]:
+      if module in targets and targets[module] not in compiled:
+        compiled.add(targets[module])
+        remaining.append(targets[module])
+  return sorted(compiled)
 
 
 def _update_content(path: pathlib.Path, content: str):
@@ -81,38 +116,45 @@ def _render_string_list(f, indent: int, key: str, values: list[str]):
 def render_build_gn(out_dir: pathlib.Path, targets: list[Target],
                     compiler: Compiler):
   """Renders a BUILD.gn file for a specific platform to {out_dir}"""
+  targets = _filter_targets(targets, compiler)
+
   f = io.StringIO()
   f.write(_HEADER)
   f.write('import("//buildtools/third_party/libc++/modules.gni")\n\n')
-  all_modulemap_configs = []
+  all_modulemap_configs = set()
   if compiler.sysroot_dir == IncludeDir.Sysroot:
-    all_modulemap_configs.append("sysroot_modulemap")
+    all_modulemap_configs.add("sysroot_modulemap")
     f.write(_SYSROOT_MODULEMAP)
 
-  for target in sorted(targets):
-    direct_deps = set()
-    for hdr in target.headers:
-      direct_deps.update(hdr.required_deps)
-    public_deps = sorted({
-        f':{hdr.root_module}'
-        for hdr in direct_deps
-        if hdr.root_module is not None and hdr.root_module != target.name
-    })
+  module_to_modulemaps = compiler.modulemaps_for_modules()
 
-    rule = {
-        IncludeDir.LibCxx: 'libcxx_module',
-        IncludeDir.Sysroot: 'sysroot_module',
-        IncludeDir.Builtin: 'builtin_module',
-    }[target.include_dir]
+  for target in sorted(targets):
+    rule = _RULE_MAP[target.include_dir]
+
+    modulemap_target = None
+    if target.name in module_to_modulemaps:
+      kind, rel = compiler.split_path(module_to_modulemaps[target.name])
+      modulemap_target = rel.removesuffix('/module.modulemap').removesuffix(
+          '.modulemap').replace('/', '_') + '_modulemap'
+      if kind == IncludeDir.Framework and modulemap_target not in all_modulemap_configs:
+        f.write(f'framework_modulemap("{modulemap_target}") {{\n')
+        f.write(f'  name = "{modulemap_target.removesuffix("_modulemap")}"\n')
+        f.write('}\n')
+        all_modulemap_configs.add(modulemap_target)
+      elif kind == IncludeDir.SysrootModule and modulemap_target not in all_modulemap_configs:
+        f.write(f'apple_sysroot_modulemap("{modulemap_target}") {{\n')
+        f.write(f'  sysroot_path = "{rel}"\n')
+        f.write('}\n')
+        all_modulemap_configs.add(modulemap_target)
+
     f.write(f'{rule}("{target.name}") {{\n')
-    _render_string_list(f, 2, 'public_deps', public_deps)
-    kwargs = collections.defaultdict(set)
-    for header in target.headers:
-      for single in header.group:
-        for dep in {single} | single.required_textual_deps:
-          for k, v in dep.kwargs.items():
-            kwargs[k].update(v)
-    for k, v in sorted(kwargs.items()):
+    if target.include_dir in [IncludeDir.SysrootModule, IncludeDir.Framework] and modulemap_target is not None:
+      f.write(f'  modulemap = ":{modulemap_target}"\n')
+      if kind == IncludeDir.SysrootModule:
+        f.write(f'  modulemap_path = "{rel}"\n')
+    _render_string_list(f, 2, 'public_deps',
+                        [f':{dep}' for dep in target.public_deps])
+    for k, v in sorted(target.kwargs.items()):
       _render_string_list(f, 2, k, sorted(v))
     f.write('}\n\n')
 

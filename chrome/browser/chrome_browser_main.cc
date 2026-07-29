@@ -239,6 +239,7 @@
 #endif  // BUILDFLAG(ENABLE_BACKGROUND_MODE)
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
+#include "extensions/browser/pref_names.h"
 #include "extensions/components/javascript_dialog_extensions_client/javascript_dialog_extension_client_impl.h"
 #endif
 
@@ -393,8 +394,6 @@ StartupProfileInfo CreateInitialProfile(
   if (profile_info.mode == StartupProfileMode::kError &&
       !last_used_profile_set) {
     profile_info = GetFallbackStartupProfile();
-    base::UmaHistogramEnumeration(
-        "ProfilePicker.StartupMode.FallbackProfileUsed", profile_info.mode);
   }
 
   if (profile_info.mode == StartupProfileMode::kError) {
@@ -452,13 +451,7 @@ void ProcessSingletonNotificationCallbackImpl(
   StartupProfilePathInfo startup_profile_path_info =
       GetStartupProfilePath(current_directory, command_line,
                             /*ignore_profile_picker=*/false);
-  DCHECK_NE(startup_profile_path_info.reason, StartupProfileModeReason::kError);
-  base::UmaHistogramEnumeration(
-      "ProfilePicker.StartupMode.NotificationCallback",
-      StartupProfileModeFromReason(startup_profile_path_info.reason));
-  base::UmaHistogramEnumeration(
-      "ProfilePicker.StartupReason.NotificationCallback",
-      startup_profile_path_info.reason);
+  DCHECK_NE(startup_profile_path_info.mode, StartupProfileMode::kError);
 
   StartupBrowserCreator::ProcessCommandLineAlreadyRunning(
       command_line, current_directory, startup_profile_path_info);
@@ -1528,8 +1521,6 @@ int ChromeBrowserMainParts::PreMainMessageLoopRunImpl() {
   // and more directly Profile.CreateAndInitializeProfile.
   StartupProfileInfo profile_info = CreateInitialProfile(
       user_data_dir_, *base::CommandLine::ForCurrentProcess());
-  base::UmaHistogramEnumeration(
-      "ProfilePicker.StartupMode.CreateInitialProfile", profile_info.mode);
 
   if (profile_info.mode == StartupProfileMode::kError)
     return content::RESULT_CODE_NORMAL_EXIT;
@@ -1600,6 +1591,16 @@ int ChromeBrowserMainParts::PreMainMessageLoopRunImpl() {
         first_run::StartBookmarksImportFromDict(
             profile, std::move(master_prefs_->import_bookmarks_dict));
       }
+
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+      if (base::FeatureList::IsEnabled(features::kInitialExternalExtensions)) {
+        // Store the initial extension IDs into the profile's prefs so that
+        // InitialExternalExtensionLoader can later pick them up.
+        profile->GetPrefs()->SetList(
+            extensions::pref_names::kInitialInstallList,
+            std::move(master_prefs_->initial_extensions));
+      }
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
     }
 
     // Note: This can pop-up the first run consent dialog on Linux & Mac.

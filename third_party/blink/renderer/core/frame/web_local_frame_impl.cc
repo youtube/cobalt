@@ -274,6 +274,7 @@
 #include "third_party/blink/renderer/platform/loader/fetch/url_loader/url_loader_factory.h"
 #include "third_party/blink/renderer/platform/scheduler/public/frame_scheduler.h"
 #include "third_party/blink/renderer/platform/scheduler/public/scheduling_policy.h"
+#include "third_party/blink/renderer/platform/scheduler/public/thread_scheduler.h"
 #include "third_party/blink/renderer/platform/text/text_direction.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/weborigin/scheme_registry.h"
@@ -1256,6 +1257,12 @@ void WebLocalFrameImpl::DeprecatedStopLoading() {
 
 void WebLocalFrameImpl::RequestNetworkIdleCallback(base::OnceClosure callback) {
   GetFrame()->RequestNetworkIdleCallback(std::move(callback));
+}
+
+void WebLocalFrameImpl::PostIdleTask(
+    const base::Location& location,
+    base::OnceCallback<void(base::TimeTicks deadline)> callback) {
+  ThreadScheduler::Current()->PostIdleTask(location, std::move(callback));
 }
 
 void WebLocalFrameImpl::ReplaceSelection(const WebString& text) {
@@ -3321,14 +3328,14 @@ WebLocalFrameImpl::ConvertNotRestoredReasons(
     for (const auto& reason_to_copy : reasons_to_copy->reasons) {
       mojom::blink::BFCacheBlockingDetailedReasonPtr reason =
           mojom::blink::BFCacheBlockingDetailedReason::New();
-      reason->name = WTF::String(reason_to_copy->name);
+      reason->name = String(reason_to_copy->name);
       if (reason_to_copy->source) {
         CHECK_GT(reason_to_copy->source->line_number, 0U);
         CHECK_GT(reason_to_copy->source->column_number, 0U);
         mojom::blink::ScriptSourceLocationPtr source_location =
             mojom::blink::ScriptSourceLocation::New(
                 KURL(reason_to_copy->source->url),
-                WTF::String(reason_to_copy->source->function_name),
+                String(reason_to_copy->source->function_name),
                 reason_to_copy->source->line_number,
                 reason_to_copy->source->column_number);
         reason->source = std::move(source_location);

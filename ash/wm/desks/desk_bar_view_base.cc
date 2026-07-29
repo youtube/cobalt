@@ -140,7 +140,7 @@ void MaybeSetupBackgroundView(DeskBarViewBase* bar_view) {
   const ui::ColorId background_color_id =
       chromeos::features::IsSystemBlurEnabled()
           ? static_cast<ui::ColorId>(kColorAshShieldAndBase80)
-          : cros_tokens::kCrosSysSystemBaseElevatedOpaque;
+          : cros_tokens::kCrosSysSystemOnBaseOpaque;
   view->SetBackground(views::CreateSolidBackground(background_color_id));
 }
 
@@ -1088,8 +1088,7 @@ void DeskBarViewBase::NudgeDeskName(int desk_index) {
   if (type_ == Type::kOverview) {
     // If we're in tablet mode and there are no external keyboards, open up the
     // virtual keyboard.
-    if (display::Screen::GetScreen()->InTabletMode() &&
-        !HasExternalKeyboard()) {
+    if (display::Screen::Get()->InTabletMode() && !HasExternalKeyboard()) {
       keyboard::KeyboardUIController::Get()->ShowKeyboard(/*lock=*/false);
     }
   }
@@ -1220,7 +1219,7 @@ bool DeskBarViewBase::ShouldShowLibraryUi() {
   // Only update visibility when needed. This will save a lot of repeated work.
   if (library_ui_visibility_ == LibraryUiVisibility::kToBeChecked) {
     if (!saved_desk_util::ShouldShowSavedDesksOptions() ||
-        display::Screen::GetScreen()->InTabletMode()) {
+        display::Screen::Get()->InTabletMode()) {
       library_ui_visibility_ = LibraryUiVisibility::kHidden;
     } else {
       auto* desk_model = Shell::Get()->saved_desk_delegate()->GetDeskModel();

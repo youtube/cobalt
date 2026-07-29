@@ -45,6 +45,7 @@
 #include "components/input/utils.h"
 #include "components/viz/common/features.h"
 #include "components/viz/common/gpu/context_provider.h"
+#include "components/viz/common/gpu/raster_context_provider.h"
 #include "components/viz/common/quads/compositor_frame.h"
 #include "components/viz/common/surfaces/local_surface_id.h"
 #include "components/viz/common/surfaces/surface_range.h"
@@ -97,9 +98,8 @@ NOINLINE void FatalSurfaceFailure() {
 
 gpu::SharedMemoryLimits GetCompositorContextSharedMemoryLimits(
     gfx::NativeWindow window) {
-  const gfx::Size screen_size = display::Screen::GetScreen()
-                                    ->GetDisplayNearestWindow(window)
-                                    .GetSizeInPixel();
+  const gfx::Size screen_size =
+      display::Screen::Get()->GetDisplayNearestWindow(window).GetSizeInPixel();
   return gpu::SharedMemoryLimits::ForDisplayCompositor(screen_size);
 }
 
@@ -358,6 +358,7 @@ void CompositorImpl::SetVisible(bool visible) {
     // Hide the LayerTreeHost and release its frame sink.
     host_->SetVisible(false);
     host_->ReleaseLayerTreeFrameSink();
+    raster_context_provider_.reset();
     pending_frames_ = 0;
 
     // Notify CompositorDependenciesAndroid of visibility changes last, to
@@ -523,7 +524,7 @@ void CompositorImpl::OnGpuChannelEstablished(
 
   constexpr bool support_locking = false;
   constexpr bool automatic_flushes = false;
-  display_color_spaces_ = display::Screen::GetScreen()
+  display_color_spaces_ = display::Screen::Get()
                               ->GetDisplayNearestWindow(root_window_)
                               .GetColorSpaces();
 
@@ -547,6 +548,7 @@ void CompositorImpl::OnGpuChannelEstablished(
     return;
   }
 
+  raster_context_provider_ = context_provider;
   InitializeVizLayerTreeFrameSink(std::move(context_provider));
 }
 
@@ -606,6 +608,7 @@ void CompositorImpl::DidReceiveCompositorFrameAck() {
 
 void CompositorImpl::DidLoseLayerTreeFrameSink() {
   TRACE_EVENT0("compositor", "CompositorImpl::DidLoseLayerTreeFrameSink");
+  raster_context_provider_.reset();
   client_->DidSwapFrame(0);
 }
 
@@ -670,9 +673,8 @@ void CompositorImpl::RemoveChildFrameSink(
 
 void CompositorImpl::OnDisplayMetricsChanged(const display::Display& display,
                                              uint32_t changed_metrics) {
-  if (display.id() != display::Screen::GetScreen()
-                          ->GetDisplayNearestWindow(root_window_)
-                          .id()) {
+  if (display.id() !=
+      display::Screen::Get()->GetDisplayNearestWindow(root_window_).id()) {
     return;
   }
 
@@ -723,7 +725,7 @@ void CompositorImpl::OnAdaptiveRefreshRateInfoChanged() {
     display_private_->SetAdaptiveRefreshRateInfo(
         arr_info.supports_adaptive_refresh_rate,
         arr_info.suggested_frame_rate_high,
-        display::Screen::GetScreen()
+        display::Screen::Get()
             ->GetDisplayNearestWindow(root_window_)
             .device_scale_factor());
   }
@@ -769,7 +771,7 @@ void CompositorImpl::InitializeVizLayerTreeFrameSink(
   root_params->display_client = display_client_->GetBoundRemote(task_runner);
 
   const auto& display_props =
-      display::Screen::GetScreen()->GetDisplayNearestWindow(root_window_);
+      display::Screen::Get()->GetDisplayNearestWindow(root_window_);
 
   viz::RendererSettings renderer_settings;
   renderer_settings.partial_swap_enabled = true;
@@ -936,6 +938,11 @@ void CompositorImpl::AddFrameSubmissionObserver(
 void CompositorImpl::RemoveFrameSubmissionObserver(
     FrameSubmissionObserver* observer) {
   frame_submission_observers_.RemoveObserver(observer);
+}
+
+scoped_refptr<viz::RasterContextProvider>
+CompositorImpl::GetRasterContextProvider() {
+  return raster_context_provider_;
 }
 
 }  // namespace content

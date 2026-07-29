@@ -506,15 +506,6 @@ id<GREYMatcher> VisibleContextMenuItem(int message_id) {
                      kReaderModeOptionsFontFamilyButtonAccessibilityIdentifier)]
       performAction:grey_tap()];
 
-  if (@available(iOS 26, *)) {
-    // TODO(crbug.com/428928323): Investigate why the keyboard appears. Remove
-    // this workaround when it's not needed anymore.
-    // On iOS 26, the keyboard appears when the change font family button is
-    // tapped and it hides the elements behind. Close the keyboard by typing a
-    // return key.
-    [ChromeEarlGrey simulatePhysicalKeyboardEvent:@"\\n" flags:0];
-  }
-
   [[EarlGrey selectElementWithMatcher:
                  VisibleContextMenuItem(
                      IDS_IOS_READER_MODE_OPTIONS_FONT_FAMILY_SERIF_LABEL)]
@@ -1199,6 +1190,45 @@ id<GREYMatcher> VisibleContextMenuItem(int message_id) {
       selectElementWithMatcher:grey_accessibilityID(
                                    kReaderModeChipViewAccessibilityIdentifier)]
       assertWithMatcher:grey_hidden(YES)];
+}
+
+// Tests that Reader Mode can be toggled on and off for a URL with an empty
+// fragment.
+- (void)testToggleReaderModeWithEmptyRef {
+  [ChromeEarlGrey loadURL:self.testServer->GetURL("/article.html#")];
+  [ChromeEarlGrey waitForPageToFinishLoading];
+
+  // Turn on Reader Mode.
+  GREYAssertTrue(
+      [ChromeEarlGrey showReaderModeAndWaitUntilReaderModeWebStateIsReady],
+      @"Reader mode content could not be loaded");
+  [ChromeEarlGrey
+      waitForSufficientlyVisibleElementWithMatcher:
+          grey_accessibilityID(kReaderModeViewAccessibilityIdentifier)];
+  [ChromeEarlGrey
+      waitForSufficientlyVisibleElementWithMatcher:
+          grey_accessibilityID(kReaderModeChipViewAccessibilityIdentifier)];
+
+  // Turn off Reader Mode.
+  [ChromeEarlGrey hideReaderMode];
+  [ChromeEarlGrey
+      waitForUIElementToDisappearWithMatcher:
+          grey_accessibilityID(kReaderModeViewAccessibilityIdentifier)];
+  [[EarlGrey
+      selectElementWithMatcher:grey_accessibilityID(
+                                   kReaderModeChipViewAccessibilityIdentifier)]
+      assertWithMatcher:grey_hidden(YES)];
+
+  // Turn on Reader Mode again.
+  GREYAssertTrue(
+      [ChromeEarlGrey showReaderModeAndWaitUntilReaderModeWebStateIsReady],
+      @"Reader mode content could not be loaded");
+  [ChromeEarlGrey
+      waitForSufficientlyVisibleElementWithMatcher:
+          grey_accessibilityID(kReaderModeViewAccessibilityIdentifier)];
+  [ChromeEarlGrey
+      waitForSufficientlyVisibleElementWithMatcher:
+          grey_accessibilityID(kReaderModeChipViewAccessibilityIdentifier)];
 }
 
 @end

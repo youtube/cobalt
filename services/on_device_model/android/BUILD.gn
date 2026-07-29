@@ -15,11 +15,14 @@ source_set("android") {
     "model_downloader_android.h",
     "on_device_model_bridge.cc",
     "on_device_model_bridge.h",
+    "sequence_checker_helper.cc",
+    "sequence_checker_helper.h",
   ]
 
   deps = [
     ":jni_headers",
     "//base",
+    "//components/optimization_guide/core:core_util",
     "//components/optimization_guide/proto:optimization_guide_proto",
     "//mojo/public/cpp/bindings",
     "//services/on_device_model:backend_interfaces",
@@ -58,6 +61,7 @@ android_library("java") {
     "java/src/org/chromium/on_device_model/AiCoreSessionBackendUpstreamImpl.java",
     "java/src/org/chromium/on_device_model/AiCoreSessionWrapper.java",
     "java/src/org/chromium/on_device_model/DownloaderResponder.java",
+    "java/src/org/chromium/on_device_model/JniSafeCallback.java",
     "java/src/org/chromium/on_device_model/GenerateOptionsHelper.java",
     "java/src/org/chromium/on_device_model/InputPieceHelper.java",
     "java/src/org/chromium/on_device_model/OnDeviceModelBridge.java",

@@ -32,6 +32,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.coordinatorlayout.widget.CoordinatorLayout;
 
 import org.chromium.base.Callback;
 import org.chromium.base.CallbackController;
@@ -144,6 +145,7 @@ import org.chromium.chrome.browser.toolbar.bottom.BottomControlsContentDelegate;
 import org.chromium.chrome.browser.toolbar.bottom.BottomControlsCoordinator;
 import org.chromium.chrome.browser.toolbar.bottom.ScrollingBottomViewResourceFrameLayout;
 import org.chromium.chrome.browser.toolbar.extensions.ExtensionToolbarCoordinator;
+import org.chromium.chrome.browser.toolbar.forward_button.ForwardButtonCoordinator;
 import org.chromium.chrome.browser.toolbar.home_button.HomeButtonCoordinator;
 import org.chromium.chrome.browser.toolbar.home_page_button.HomePageButtonsCoordinator;
 import org.chromium.chrome.browser.toolbar.load_progress.LoadProgressCoordinator;
@@ -270,6 +272,7 @@ public class ToolbarManager
     private TemplateUrlService mTemplateUrlService;
     private TemplateUrlServiceObserver mTemplateUrlObserver;
     private LocationBar mLocationBar;
+    private final Supplier<LocationBar> mLocationBarSupplier = () -> mLocationBar;
     private FindToolbarManager mFindToolbarManager;
 
     private LayoutManagerImpl mLayoutManager;
@@ -323,6 +326,7 @@ public class ToolbarManager
     private HomePageButtonsCoordinator mHomePageButtonsCoordinator;
     private ToggleTabStackButtonCoordinator mTabSwitcherButtonCoordinator;
     private @Nullable BackButtonCoordinator mBackButtonCoordinator;
+    private @Nullable ForwardButtonCoordinator mForwardButtonCoordinator;
     private @Nullable ExtensionToolbarCoordinator mExtensionToolbarCoordinator;
 
     private final BrowserStateBrowserControlsVisibilityDelegate mControlsVisibilityDelegate;
@@ -834,9 +838,7 @@ public class ToolbarManager
         mTabBookmarkerSupplier = tabBookmarkerSupplier;
         mTopInsetCoordinatorSupplier = topInsetCoordinatorSupplier;
         mIsTablet = DeviceFormFactor.isNonMultiDisplayContextOnTablet(mActivity);
-        mCustomTabCount =
-                new CustomTabCount(
-                        tabModelSelectorSupplier.get().getCurrentModelTabCountSupplier());
+        mCustomTabCount = new CustomTabCount(tabModelSelectorSupplier);
         mProfileSupplier = profileSupplier;
         mIsNewTabPageCustomizationToolbarButtonEnabled =
                 !mIsTablet
@@ -918,12 +920,7 @@ public class ToolbarManager
         mToolbarTabController =
                 new ToolbarTabControllerImpl(
                         mLocationBarModel::getTab,
-                        () -> {
-                            Profile profile = mProfileSupplier.get();
-                            return profile != null
-                                    ? TrackerFactory.getTrackerForProfile(profile)
-                                    : null;
-                        },
+                        () -> TrackerFactory.getTrackerForProfile(mProfileSupplier),
                         mBottomControlsCoordinatorSupplier,
                         ToolbarManager::homepageUrl,
                         this::updateButtonStatus,
@@ -1028,7 +1025,9 @@ public class ToolbarManager
                                 homeButton,
                                 this::onHomePageButtonClick,
                                 this::onHomeButtonMenuClick,
-                                HomepagePolicyManager::isHomepageLocationManaged);
+                                HomepagePolicyManager::isHomepageLocationManaged,
+                                browsingModeThemeColorProvider,
+                                mIncognitoStateProvider);
             }
         } else {
             View homePageButtonsContainer =
@@ -1037,7 +1036,7 @@ public class ToolbarManager
                 mHomePageButtonsCoordinator =
                         new HomePageButtonsCoordinator(
                                 mActivity,
-                                mProfileSupplier,
+                                profileSupplier,
                                 homePageButtonsContainer,
                                 this::onHomeButtonMenuClick,
                                 HomepagePolicyManager::isHomepageLocationManaged,
@@ -1061,6 +1060,21 @@ public class ToolbarManager
                             /* isWebApp= */ false);
         }
 
+        ChromeImageButton forwardButton = mControlContainer.findViewById(R.id.forward_button);
+        if (forwardButton != null) {
+            mForwardButtonCoordinator =
+                    new ForwardButtonCoordinator(
+                            mActivity,
+                            mLocationBarModel,
+                            mToolbarTabController,
+                            mLocationBarSupplier,
+                            mActivityLifecycleDispatcher,
+                            forwardButton,
+                            historyDelegate,
+                            browsingModeThemeColorProvider,
+                            mIncognitoStateProvider);
+        }
+
         ViewStub extensionToolbarStub =
                 controlContainer.findViewById(R.id.extension_toolbar_container_stub);
         if (extensionToolbarStub != null) {
@@ -1078,7 +1092,7 @@ public class ToolbarManager
         mToolbarLongPressMenuHandler =
                 new ToolbarLongPressMenuHandler(
                         /* context= */ mActivity,
-                        mProfileSupplier,
+                        profileSupplier,
                         mIsCustomTab,
                         this::shouldSuppressToolbarLongPress,
                         mActivityLifecycleDispatcher,
@@ -1159,7 +1173,7 @@ public class ToolbarManager
                     new LocationBarCoordinator(
                             mActivity.findViewById(R.id.location_bar),
                             mToolbarLayout,
-                            mProfileSupplier,
+                            profileSupplier,
                             mLocationBarModel,
                             mActionModeController.getActionModeCallback(),
                             windowAndroid,
@@ -1652,7 +1666,7 @@ public class ToolbarManager
                         mProfileSupplier.removeObserver(this);
                     }
                 };
-        mProfileSupplier.addObserver(profileObserver);
+        profileSupplier.addObserver(profileObserver);
         mReadAloudControllerSupplier = readAloudControllerSupplier;
         mReadAloudControllerSupplier.addObserver(
                 readAloudController -> {
@@ -1739,10 +1753,7 @@ public class ToolbarManager
         }
         setUrlBarFocus(false, OmniboxFocusReason.UNFOCUS);
         mToolbarTabController.openHomepage();
-        Tracker tracker =
-                mProfileSupplier.hasValue()
-                        ? TrackerFactory.getTrackerForProfile(mProfileSupplier.get())
-                        : null;
+        Tracker tracker = TrackerFactory.getTrackerForProfile(mProfileSupplier);
         boolean isPartnerHomepageEnabled =
                 PartnerBrowserCustomizations.getInstance().isHomepageProviderAvailableAndEnabled();
         if (tracker != null && isPartnerHomepageEnabled) {
@@ -1888,6 +1899,7 @@ public class ToolbarManager
                         mActivityTabProvider,
                         mToolbarNavControlsEnabledSupplier,
                         mBackButtonCoordinator,
+                        mForwardButtonCoordinator,
                         mIsNewTabPageCustomizationToolbarButtonEnabled
                                 ? mHomePageButtonsCoordinator
                                 : mHomeButtonCoordinator,
@@ -2539,6 +2551,10 @@ public class ToolbarManager
             mBackButtonCoordinator.destroy();
         }
 
+        if (mHomeButtonCoordinator != null) {
+            mHomeButtonCoordinator.destroy();
+        }
+
         if (mOverviewModeMenuButtonCoordinator != null) {
             mOverviewModeMenuButtonCoordinator.destroy();
             mOverviewModeMenuButtonCoordinator = null;
@@ -2859,6 +2875,21 @@ public class ToolbarManager
     }
 
     /**
+     * Sets a new anchor view for the progress bar, which is anchored to the bottom of a given view.
+     * By default the progress bar is anchored to the control_container, but when the Bookmark Bar
+     * is visible, it should be anchored below that.
+     *
+     * @param anchorId The ID of the new anchor view
+     */
+    public void setProgressBarAnchorView(int anchorId) {
+        // TODO(crbug.com/417238089): Position should be controlled by the TopControlsStacker.
+        CoordinatorLayout.LayoutParams params =
+                (CoordinatorLayout.LayoutParams) mProgressBarContainer.getLayoutParams();
+        params.setAnchorId(anchorId);
+        mProgressBarContainer.setLayoutParams(params);
+    }
+
+    /**
      * Same as {@code #setUrlBarFocus(boolean, @OmniboxFocusReason int)}, with the additional option
      * to set URL bar text.
      *
@@ -2945,7 +2976,6 @@ public class ToolbarManager
 
         mToolbar.updateButtonVisibility();
         onBackPressStateChanged();
-        mToolbar.updateForwardButtonVisibility(currentTab != null && currentTab.canGoForward());
         updateReloadState(tabCrashed);
         updateBookmarkButtonStatus();
         mMenuButtonCoordinator.setVisibility(true);
@@ -3249,6 +3279,7 @@ public class ToolbarManager
     public void setBookmarkBarHeightSupplier(
             @Nullable Supplier<Integer> bookmarkBarHeightSupplier) {
         mBookmarkBarHeightSupplier = bookmarkBarHeightSupplier;
+        mToolbar.setBookmarkBarHeightSupplier(mBookmarkBarHeightSupplier);
     }
 
     public static boolean isRightEdgeGoesForwardGestureNavEnabled() {

@@ -6,6 +6,7 @@
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "content/public/browser/browser_context.h"
+#include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/ssl_status.h"
 #include "content/public/browser/web_contents.h"
@@ -34,10 +35,8 @@ JNI_CertificateChainHelper_GetCertificateChain(
     return ScopedJavaLocalRef<jobjectArray>();
 
   std::vector<std::string> cert_chain;
-  cert_chain.reserve(1 + cert->intermediate_buffers().size());
-  cert_chain.emplace_back(
-      net::x509_util::CryptoBufferAsStringPiece(cert->cert_buffer()));
-  for (const auto& handle : cert->intermediate_buffers()) {
+  cert_chain.reserve(cert->cert_buffers().size());
+  for (const auto& handle : cert->cert_buffers()) {
     cert_chain.emplace_back(
         net::x509_util::CryptoBufferAsStringPiece(handle.get()));
   }

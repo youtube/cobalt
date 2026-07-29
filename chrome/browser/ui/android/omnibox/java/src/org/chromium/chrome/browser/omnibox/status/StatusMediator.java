@@ -332,6 +332,10 @@ public class StatusMediator
         mModel.set(StatusProperties.STATUS_ICON_ALPHA, alpha);
     }
 
+    public void setUseSmallWidget(boolean useSmallWidget) {
+        mModel.set(StatusProperties.USE_SMALL_WIDGET, useSmallWidget);
+    }
+
     void updateStatusVisibility() {
         // This logic doesn't apply to tablets.
         if (mIsTablet) return;
@@ -730,8 +734,9 @@ public class StatusMediator
     }
 
     private void startIph() {
-        if (!mProfileSupplier.hasValue()) return;
-        mPageInfoIphController.onPermissionDialogShown(mProfileSupplier.get(), getIphTimeout());
+        Profile profile = mProfileSupplier.get();
+        if (profile == null) return;
+        mPageInfoIphController.onPermissionDialogShown(profile, getIphTimeout());
     }
 
     void setStoreIconController() {
@@ -848,9 +853,9 @@ public class StatusMediator
 
     public void onUrlChanged(boolean isTabChanging) {
         var currentTab = mLocationBarDataProvider.getTab();
+        Profile profile = mProfileSupplier.get();
         if (mProfileSupplier.hasValue() && currentTab != null) {
             WebContents webContents = currentTab.getWebContents();
-            Profile profile = mProfileSupplier.get();
 
             if (webContents != null && profile != null) {
                 BrowserContextHandle originalBrowserContext =

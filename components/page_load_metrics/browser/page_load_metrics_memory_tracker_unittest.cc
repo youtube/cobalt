@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "base/byte_count.h"
 #include "base/containers/flat_map.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/singleton.h"
@@ -74,9 +75,9 @@ class TestPageLoadMetricsEmbedder
   page_load_metrics::PageLoadMetricsMemoryTracker memory_tracker_;
 };
 
-class TestMestricsWebContentsObserver : public MetricsWebContentsObserver {
+class TestMetricsWebContentsObserver : public MetricsWebContentsObserver {
  public:
-  TestMestricsWebContentsObserver(
+  TestMetricsWebContentsObserver(
       content::WebContents* web_contents,
       std::unique_ptr<PageLoadMetricsEmbedderInterface> embedder_interface)
       : MetricsWebContentsObserver(web_contents,
@@ -84,7 +85,8 @@ class TestMestricsWebContentsObserver : public MetricsWebContentsObserver {
 
   int num_updates_received() const { return num_updates_received_; }
 
-  const base::flat_map<int, int64_t>& last_memory_deltas_received() const {
+  const base::flat_map<int, base::ByteCount>& last_memory_deltas_received()
+      const {
     return last_memory_deltas_received_;
   }
 
@@ -104,7 +106,7 @@ class TestMestricsWebContentsObserver : public MetricsWebContentsObserver {
   }
 
  private:
-  base::flat_map<int, int64_t> last_memory_deltas_received_;
+  base::flat_map<int, base::ByteCount> last_memory_deltas_received_;
   int num_updates_received_ = 0;
 };
 
@@ -132,9 +134,9 @@ class PageLoadMetricsMemoryTrackerTest
     auto embedder_interface =
         std::make_unique<TestPageLoadMetricsEmbedder>(web_contents());
     embedder_interface_ = embedder_interface.get();
-    observer_ = new TestMestricsWebContentsObserver(
+    observer_ = new TestMetricsWebContentsObserver(
         web_contents(), std::move(embedder_interface));
-    web_contents()->SetUserData(TestMestricsWebContentsObserver::UserDataKey(),
+    web_contents()->SetUserData(TestMetricsWebContentsObserver::UserDataKey(),
                                 base::WrapUnique(observer_.get()));
 
     tracker_ = embedder_interface_->GetMemoryTrackerForBrowserContext(
@@ -177,7 +179,7 @@ class PageLoadMetricsMemoryTrackerTest
 
   void SimulateMemoryMeasurementUpdate(
       content::RenderFrameHost* render_frame_host,
-      uint64_t bytes) {
+      base::ByteCount bytes) {
     if (!render_frame_host || !render_frame_host->GetProcess()) {
       return;
     }
@@ -191,14 +193,15 @@ class PageLoadMetricsMemoryTrackerTest
     ASSERT_TRUE(process_node);
 
     V8DetailedMemoryExecutionContextData::CreateForTesting(frame_node.get())
-        ->set_v8_bytes_used(bytes);
+        ->set_v8_memory_used(base::ByteCount(bytes));
     V8DetailedMemoryProcessData process_data;
     tracker_->OnV8MemoryMeasurementAvailable(process_node, &process_data);
   }
 
   int num_updates_received() const { return observer_->num_updates_received(); }
 
-  const base::flat_map<int, int64_t>& last_memory_deltas_received() const {
+  const base::flat_map<int, base::ByteCount>& last_memory_deltas_received()
+      const {
     return observer_->last_memory_deltas_received();
   }
 
@@ -207,7 +210,7 @@ class PageLoadMetricsMemoryTrackerTest
 
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
-  raw_ptr<TestMestricsWebContentsObserver, DanglingUntriaged> observer_;
+  raw_ptr<TestMetricsWebContentsObserver, DanglingUntriaged> observer_;
   raw_ptr<TestPageLoadMetricsEmbedder, DanglingUntriaged> embedder_interface_;
   PageLoadMetricsTestContentBrowserClient browser_client_;
   raw_ptr<content::ContentBrowserClient> original_browser_client_ = nullptr;
@@ -228,20 +231,20 @@ TEST_F(PageLoadMetricsMemoryTrackerTest,
       CreateAndNavigateSubFrame(kOtherSubUrl, sub_frame1);
   int sub_frame2_id = sub_frame2->GetRoutingID();
 
-  SimulateMemoryMeasurementUpdate(main_frame, 100 * 1024);
-  SimulateMemoryMeasurementUpdate(sub_frame1, 200 * 1024);
-  SimulateMemoryMeasurementUpdate(sub_frame2, 300 * 1024);
+  SimulateMemoryMeasurementUpdate(main_frame, base::KiB(100));
+  SimulateMemoryMeasurementUpdate(sub_frame1, base::KiB(200));
+  SimulateMemoryMeasurementUpdate(sub_frame2, base::KiB(300));
 
   auto deltas_received = last_memory_deltas_received();
   EXPECT_EQ(3, num_updates_received());
   ASSERT_EQ(3UL, deltas_received.size());
 
   EXPECT_TRUE(deltas_received.find(main_id) != deltas_received.end());
-  EXPECT_EQ(100L, deltas_received[main_id] / 1024);
+  EXPECT_EQ(base::KiB(100), deltas_received[main_id]);
   EXPECT_TRUE(deltas_received.find(sub_frame1_id) != deltas_received.end());
-  EXPECT_EQ(200L, deltas_received[sub_frame1_id] / 1024);
+  EXPECT_EQ(base::KiB(200), deltas_received[sub_frame1_id]);
   EXPECT_TRUE(deltas_received.find(sub_frame2_id) != deltas_received.end());
-  EXPECT_EQ(300L, deltas_received[sub_frame2_id] / 1024);
+  EXPECT_EQ(base::KiB(300), deltas_received[sub_frame2_id]);
 }
 
 TEST_F(PageLoadMetricsMemoryTrackerTest, SecondUpdates_CorrectDeltasReceived) {
@@ -256,25 +259,25 @@ TEST_F(PageLoadMetricsMemoryTrackerTest, SecondUpdates_CorrectDeltasReceived) {
       CreateAndNavigateSubFrame(kOtherSubUrl, sub_frame1);
   int sub_frame2_id = sub_frame2->GetRoutingID();
 
-  SimulateMemoryMeasurementUpdate(main_frame, 100 * 1024);
-  SimulateMemoryMeasurementUpdate(sub_frame1, 200 * 1024);
-  SimulateMemoryMeasurementUpdate(sub_frame2, 300 * 1024);
+  SimulateMemoryMeasurementUpdate(main_frame, base::KiB(100));
+  SimulateMemoryMeasurementUpdate(sub_frame1, base::KiB(200));
+  SimulateMemoryMeasurementUpdate(sub_frame2, base::KiB(300));
 
   // Simulate second round of updates.
-  SimulateMemoryMeasurementUpdate(main_frame, 50 * 1024);
-  SimulateMemoryMeasurementUpdate(sub_frame1, 300 * 1024);
-  SimulateMemoryMeasurementUpdate(sub_frame2, 100 * 1024);
+  SimulateMemoryMeasurementUpdate(main_frame, base::KiB(50));
+  SimulateMemoryMeasurementUpdate(sub_frame1, base::KiB(300));
+  SimulateMemoryMeasurementUpdate(sub_frame2, base::KiB(100));
 
   auto deltas_received = last_memory_deltas_received();
   EXPECT_EQ(6, num_updates_received());
   ASSERT_EQ(3UL, deltas_received.size());
 
   EXPECT_TRUE(deltas_received.find(main_id) != deltas_received.end());
-  EXPECT_EQ(-50L, deltas_received[main_id] / 1024);
+  EXPECT_EQ(base::KiB(-50), deltas_received[main_id]);
   EXPECT_TRUE(deltas_received.find(sub_frame1_id) != deltas_received.end());
-  EXPECT_EQ(100L, deltas_received[sub_frame1_id] / 1024);
+  EXPECT_EQ(base::KiB(100), deltas_received[sub_frame1_id]);
   EXPECT_TRUE(deltas_received.find(sub_frame2_id) != deltas_received.end());
-  EXPECT_EQ(-200L, deltas_received[sub_frame2_id] / 1024);
+  EXPECT_EQ(base::KiB(-200), deltas_received[sub_frame2_id]);
 }
 
 TEST_F(PageLoadMetricsMemoryTrackerTest, FrameDeleted_CorrectDeltasReceived) {
@@ -284,8 +287,8 @@ TEST_F(PageLoadMetricsMemoryTrackerTest, FrameDeleted_CorrectDeltasReceived) {
       CreateAndNavigateSubFrame(kSubUrl, main_frame);
   int sub_frame_id = sub_frame->GetRoutingID();
 
-  SimulateMemoryMeasurementUpdate(main_frame, 100 * 1024);
-  SimulateMemoryMeasurementUpdate(sub_frame, 200 * 1024);
+  SimulateMemoryMeasurementUpdate(main_frame, base::KiB(100));
+  SimulateMemoryMeasurementUpdate(sub_frame, base::KiB(200));
 
   // Delete |sub_frame| and refresh the usage map. An update should have been
   // received that will make the usage corresponding to |sub_frame| zero.
@@ -296,9 +299,9 @@ TEST_F(PageLoadMetricsMemoryTrackerTest, FrameDeleted_CorrectDeltasReceived) {
   ASSERT_EQ(2UL, deltas_received.size());
 
   EXPECT_TRUE(deltas_received.find(main_id) != deltas_received.end());
-  EXPECT_EQ(100L, deltas_received[main_id] / 1024);
+  EXPECT_EQ(base::KiB(100), deltas_received[main_id]);
   EXPECT_TRUE(deltas_received.find(sub_frame_id) != deltas_received.end());
-  EXPECT_EQ(-200L, deltas_received[sub_frame_id] / 1024);
+  EXPECT_EQ(base::KiB(-200), deltas_received[sub_frame_id]);
 }
 
 }  // namespace page_load_metrics

@@ -1003,7 +1003,7 @@ IN_PROC_BROWSER_TEST_P(ContextMenuForLockedFullscreenBrowserTest,
   }
 
   // Set locked fullscreen state.
-  PinWindow(browser()->window()->GetNativeWindow(), /*trusted=*/true);
+  ash::PinWindow(browser()->window()->GetNativeWindow(), /*trusted=*/true);
 
   // Verify aforementioned commands are disabled in locked fullscreen.
   for (int command_id : kCommandsToTest) {
@@ -1039,7 +1039,7 @@ IN_PROC_BROWSER_TEST_P(ContextMenuForLockedFullscreenBrowserTest,
   browser()->SetLockedForOnTask(true);
 
   // Set locked fullscreen state.
-  PinWindow(browser()->window()->GetNativeWindow(), /*trusted=*/true);
+  ash::PinWindow(browser()->window()->GetNativeWindow(), /*trusted=*/true);
 
   // Verify page navigation commands and some contextual content commands remain
   // enabled.
@@ -3026,7 +3026,7 @@ class LoadImageRequestObserver : public content::WebContentsObserver {
       const content::GlobalRequestID& request_id,
       const blink::mojom::ResourceLoadInfo& resource_load_info) override {
     if (resource_load_info.original_url.path() == path_) {
-      ASSERT_GT(resource_load_info.raw_body_bytes, 0);
+      ASSERT_TRUE(resource_load_info.raw_body_bytes.is_positive());
       ASSERT_EQ(resource_load_info.mime_type, "image/png");
       run_loop_.Quit();
     }

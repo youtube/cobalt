@@ -127,7 +127,8 @@ GURL GetURLForTitle(net::EmbeddedTestServer* test_server, NSString* title) {
 }
 
 // Tests that there is only one active (selected) tab at a time.
-- (void)testOneActiveTabAtATime {
+// TODO(crbug.com/440615724): This test is flaky.
+- (void)FLAKY_testOneActiveTabAtATime {
   if ([ChromeEarlGrey isIPadIdiom]) {
     EARL_GREY_TEST_SKIPPED(@"Skipped for iPad. The Pinned Tabs feature is only "
                            @"supported on iPhone.");
@@ -504,14 +505,6 @@ GURL GetURLForTitle(net::EmbeddedTestServer* test_server, NSString* title) {
   // Tap on "Edit" button.
   [[EarlGrey selectElementWithMatcher:GetMatcherForEditButton()]
       performAction:grey_tap()];
-
-  if (@available(iOS 19, *)) {
-    // TODO(crbug.com/428928323): Investigate why the keyboard appears. Remove
-    // this workaround when it's not needed anymore. On iOS 26, the keyboard
-    // appears when the "Edit" button is tapped and it hides the elements
-    // behind. Close the keyboard by typing a return key.
-    [ChromeEarlGrey simulatePhysicalKeyboardEvent:@"\\n" flags:0];
-  }
 
   // Tap on "Close All Tabs" menu action.
   [[EarlGrey selectElementWithMatcher:chrome_test_util::

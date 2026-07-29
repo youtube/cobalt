@@ -264,14 +264,15 @@ _BANNED_JAVA_FUNCTIONS: Sequence[BanRule] = (
     BanRule(
         pattern=(r'/((DeviceInfo\.isDesktop\()|IS_DESKTOP_ANDROID|PackageManager\.FEATURE_PC)'),
         explanation=(
-            'Do not add new uses of IS_DESKTOP_ANDROID build flag or '
-            'DeviceInfo.isDesktop() until you have the approval of tedchoc@ '
-            'or twellington@.',
-            'Once approved, please use centralized util DeviceInfo.isDesktop() '
-            'instead of direct build flag or PackageManager.FEATURE_PC checks.',
-            'See https://source.chromium.org/chromium/chromium/src/+/main:docs/ui/android/device_form_factor.md for guidelines.'
+            'Usage of IS_DESKTOP_ANDROID build flag or DeviceInfo.isDesktop() '
+            'is discouraged. Use system affordances to determine feature '
+            'availablility. Refer to https://source.chromium.org/chromium/chromium/src/+/main:docs/ui/android/device_form_factor.md for guidelines.'
+            'To request an exception, file a bug at '
+            'https://b.corp.google.com/issues/new?component=1753515&template=2172655'
+            'Once approved, use centralized util DeviceInfo.isDesktop() '
+            'instead of direct build flag or PackageManager.FEATURE_PC checks.'
             'Allowances may be granted to only the directories below: '
-            '[build/, chrome/, components/, extensions/, infra/, tools/]',
+            '[build/, chrome/, components/, extensions/, infra/, tools/]'
             'Note: in particular we need to avoid components shared with '
             'WebView.',
         ),
@@ -1004,10 +1005,6 @@ _BANNED_CPP_FUNCTIONS: Sequence[BanRule] = (
             r'components/ip_protection/.*',
 
             # Needed to integrate with //third_party/nearby
-            r'chrome/services/sharing/nearby/platform/input_file.cc',
-            r'chrome/services/sharing/nearby/platform/input_file.h',
-            r'chrome/services/sharing/nearby/platform/output_file.cc',
-            r'chrome/services/sharing/nearby/platform/output_file.h',
             r'components/cross_device/nearby/system_clock.cc',
             _THIRD_PARTY_EXCEPT_BLINK  # Not an error in third_party folders.
         ],
@@ -2134,12 +2131,15 @@ _BANNED_CPP_FUNCTIONS: Sequence[BanRule] = (
     BanRule(
         pattern=(r'IS_DESKTOP_ANDROID'),
         explanation=(
-            'Do not add new uses of IS_DESKTOP_ANDROID build flag until you '
-            'have the approval of tedchoc@ or twellington@. '
-            'Background: it is highly important to reduce the divergence of '
-            'features across platforms. '
+            'Usage of IS_DESKTOP_ANDROID build flag '
+            'is discouraged. Use system affordances to determine feature '
+            'availablility. Refer to https://source.chromium.org/chromium/chromium/src/+/main:docs/ui/android/device_form_factor.md for guidelines.'
+            'To request an exception, file a bug at '
+            'https://b.corp.google.com/issues/new?component=1753515&template=2172655'
+            'Once approved, use centralized util DeviceInfo.isDesktop() '
+            'instead of direct build flag or PackageManager.FEATURE_PC checks.'
             'Allowances may be granted to only the directories below: '
-            '[build/, chrome/, components/, extensions/, infra/, tools/] ',
+            '[build/, chrome/, components/, extensions/, infra/, tools/]'
             'Note: in particular we need to avoid components shared with '
             'WebView.',
         ),
@@ -7878,3 +7878,41 @@ def CheckNoBrowserStarInUnittests(input_api, output_api):
     or determine if a browser_test is more appropriate.
     """
     return [output_api.PresubmitPromptWarning(WARNING_MSG, items=problems)]
+
+
+def CheckEnabledByDefaultCommitMessage(input_api, output_api):
+    """Checks that if a change enables a feature by default, the commit message
+    contains an Enabled-by-default-reason: tag. This helps reviewers understand
+    the reason the flag is being enabled and acts as an additional guard
+    against accidentally enabling a feature by default when it was not intended.
+    For example, this could happen if a flag is being enabled during local
+    development, but should be turned off when committing the change."""
+
+    files_with_string = set()
+    for f, _, line in input_api.RightHandSideLines(
+            source_file_filter=lambda x: _IsCPlusPlusFile(
+                input_api, x.LocalPath())):
+        if 'FEATURE_ENABLED_BY_DEFAULT' in line:
+            files_with_string.add(f.LocalPath())
+
+    if not files_with_string:
+        return []
+
+    pattern = input_api.re.compile(r'Enabled-by-default-reason[:=]',
+                                   input_api.re.IGNORECASE)
+    if any(
+            pattern.search(line)
+            for line in input_api.change.DescriptionText().splitlines()):
+        return []
+
+    error_message = (
+        'The string "FEATURE_ENABLED_BY_DEFAULT" was found in a C++ file, '
+        'which suggests a feature is being enabled by default.\n'
+        'Please add a line to your commit description with a reason the flag '
+        'is being enabled by default. E.g. "launching" or "killswitch".\n'
+        'Use the format:\n'
+        'Enabled-by-default-reason: [reason]\n\n'
+        'Files containing "ENABLED_BY_DEFAULT":\n' +
+        '\n'.join('  ' + f for f in sorted(list(files_with_string))))
+
+    return [output_api.PresubmitError(error_message)]

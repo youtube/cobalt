@@ -8,9 +8,13 @@
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/actor_keyed_service_factory.h"
 #include "chrome/browser/actor/actor_keyed_service_fake.h"
+#include "chrome/browser/actor/ui/actor_ui_tab_controller.h"
 #include "chrome/browser/actor/ui/mocks/mock_actor_ui_tab_controller.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/test/mock_browser_window_interface.h"
+#include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/tabs/test_tab_strip_model_delegate.h"
 #include "chrome/common/actor.mojom-forward.h"
 #include "chrome/common/actor/action_result.h"
 #include "chrome/common/chrome_features.h"
@@ -20,6 +24,7 @@
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/base/unowned_user_data/unowned_user_data_host.h"
 
 namespace actor::ui {
 namespace {
@@ -35,45 +40,6 @@ using ::testing::Return;
 using ::testing::ValuesIn;
 
 using enum HandoffButtonState::ControlOwnership;
-
-base::TimeDelta CompletedTaskExpiryDelay() {
-  return base::Seconds(
-      features::kGlicActorUiCompletedTaskExpiryDelaySeconds.Get());
-}
-
-class ActorUiStateManagerFake : public ActorUiStateManager {
- public:
-  explicit ActorUiStateManagerFake(ActorKeyedService& actor_service)
-      : ActorUiStateManager(actor_service) {
-    mock_tab_controller_ = std::make_unique<MockActorUiTabController>();
-    ON_CALL(*mock_tab_controller_, OnUiTabStateChange(_, _))
-        .WillByDefault(Invoke(
-            [this](UiTabState state, base::OnceCallback<void(bool)> callback) {
-              this->SetUiTabState(state, std::move(callback));
-            }));
-  }
-
-  ActorUiTabControllerInterface* GetUiTabController(
-      tabs::TabInterface* tab) override {
-    return mock_tab_controller_.get();
-  }
-
-  void SetUiTabState(UiTabState ui_tab_state,
-                     base::OnceCallback<void(bool)> callback) {
-    ui_tab_state_ = ui_tab_state;
-    std::move(callback).Run(true);
-  }
-
-  UiTabState GetUiTabState() { return ui_tab_state_; }
-
-  void SetTaskIconUiStateForTesting(TaskIconUiState new_state) {
-    task_icon_state_ = new_state;
-  }
-
- private:
-  UiTabState ui_tab_state_;
-  std::unique_ptr<MockActorUiTabController> mock_tab_controller_;
-};
 
 class ActorUiStateManagerTest : public testing::Test {
  public:
@@ -93,6 +59,17 @@ class ActorUiStateManagerTest : public testing::Test {
                            &ActorUiStateManagerTest::BuildActorKeyedService,
                            base::Unretained(this)))
                    .Build();
+
+    test_tab_strip_model_delegate_.SetBrowserWindowInterface(
+        &mock_browser_window_interface_);
+    tab_strip_model_ = std::make_unique<TabStripModel>(
+        &test_tab_strip_model_delegate_, profile());
+    ON_CALL(mock_browser_window_interface_, GetTabStripModel())
+        .WillByDefault(Return(tab_strip_model_.get()));
+
+    MockActorUiTabController::SetupDefaultBrowserWindow(
+        mock_tab(), mock_browser_window_interface_, user_data_host_);
+    mock_actor_ui_tab_controller_.emplace(mock_tab());
   }
 
   std::unique_ptr<KeyedService> BuildActorKeyedService(
@@ -102,7 +79,7 @@ class ActorUiStateManagerTest : public testing::Test {
     actor_keyed_service_fake_ = actor_keyed_service.get();
 
     auto actor_ui_state_manager_fake =
-        std::make_unique<ActorUiStateManagerFake>(*actor_keyed_service);
+        std::make_unique<ActorUiStateManager>(*actor_keyed_service);
     actor_ui_state_manager_fake_ = actor_ui_state_manager_fake.get();
     actor_keyed_service->SetActorUiStateManagerForTesting(
         std::move(actor_ui_state_manager_fake));
@@ -119,7 +96,16 @@ class ActorUiStateManagerTest : public testing::Test {
     loop.Run();
   }
 
-  ActorUiStateManagerFake* actor_ui_state_manager() {
+  void ExpectUiTabStateChange(const UiTabState& expected_state) {
+    ON_CALL(*mock_actor_ui_tab_controller(), OnUiTabStateChange(_, _))
+        .WillByDefault(Invoke(
+            [&](UiTabState state, base::OnceCallback<void(bool)> callback) {
+              EXPECT_EQ(state, expected_state);
+              std::move(callback).Run(true);
+            }));
+  }
+
+  ActorUiStateManager* actor_ui_state_manager() {
     return actor_ui_state_manager_fake_;
   }
 
@@ -132,6 +118,12 @@ class ActorUiStateManagerTest : public testing::Test {
   }
 
   TestingProfile* profile() { return profile_.get(); }
+
+  MockTabInterface& mock_tab() { return mock_tab_; }
+
+  MockActorUiTabController* mock_actor_ui_tab_controller() {
+    return &mock_actor_ui_tab_controller_.value();
+  }
 
   // TODO(crbug.com/424495020): Refactor the actor_keyed_service_fake to remove
   // manual setting of task states in the below tests.
@@ -164,199 +156,29 @@ class ActorUiStateManagerTest : public testing::Test {
     }
   }
 
-  MockBrowserWindowInterface* browser_window_interface() {
-    return browser_window_interface_.get();
-  }
-
  private:
   content::BrowserTaskEnvironment task_environment_;
+  base::test::ScopedFeatureList scoped_feature_list_;
   std::unique_ptr<TestingProfile> profile_;
   raw_ptr<ActorKeyedServiceFake> actor_keyed_service_fake_;
-  raw_ptr<ActorUiStateManagerFake> actor_ui_state_manager_fake_;
-  base::test::ScopedFeatureList scoped_feature_list_;
-  std::unique_ptr<MockBrowserWindowInterface> browser_window_interface_;
+  raw_ptr<ActorUiStateManager> actor_ui_state_manager_fake_;
+  ::ui::UnownedUserDataHost user_data_host_;
+  MockBrowserWindowInterface mock_browser_window_interface_;
+  MockTabInterface mock_tab_;
+  TestTabStripModelDelegate test_tab_strip_model_delegate_;
+  std::unique_ptr<TabStripModel> tab_strip_model_;
+  std::optional<MockActorUiTabController> mock_actor_ui_tab_controller_;
 };
 
-#if BUILDFLAG(ENABLE_GLIC)
-TEST_F(ActorUiStateManagerTest, GlicUpdateFloatyState_NotifiesTaskIcon) {
+TEST_F(ActorUiStateManagerTest, SingleTask_RapidTaskStateChanges_Debounced) {
   std::vector<base::CallbackListSubscription> subscriptions;
-  actor_ui_state_manager()->SetTaskIconUiStateForTesting(
-      ActorUiStateManager::TaskIconUiState::kNeedsAttention);
-
-  bool callback_called = false;
-  subscriptions.push_back(actor_ui_state_manager()->RegisterTaskIconStateChange(
-      base::BindLambdaForTesting(
-          [&callback_called](
-              ActorUiStateManager::TaskIconUiState actual_ui_state,
-              glic::GlicWindowController::State actual_glic_state,
-              glic::mojom::CurrentView actual_glic_view) {
-            EXPECT_EQ(actual_ui_state,
-                      ActorUiStateManager::TaskIconUiState::kNeedsAttention);
-            EXPECT_EQ(actual_glic_state,
-                      glic::GlicWindowController::State::kOpen);
-            EXPECT_EQ(actual_glic_view,
-                      glic::mojom::CurrentView::kConversation);
-            callback_called = true;
-          })));
-  actor_ui_state_manager()->OnGlicUpdateFloatyState(
-      glic::GlicWindowController::State::kOpen,
-      glic::mojom::CurrentView::kConversation);
-  EXPECT_TRUE(callback_called);
-
-  callback_called = false;
-  subscriptions.clear();
-
-  subscriptions.push_back(actor_ui_state_manager()->RegisterTaskIconStateChange(
-      base::BindLambdaForTesting(
-          [&callback_called](
-              ActorUiStateManager::TaskIconUiState actual_ui_state,
-              glic::GlicWindowController::State actual_glic_state,
-              glic::mojom::CurrentView actual_glic_view) {
-            EXPECT_EQ(actual_ui_state,
-                      ActorUiStateManager::TaskIconUiState::kNeedsAttention);
-            EXPECT_EQ(actual_glic_state,
-                      glic::GlicWindowController::State::kClosed);
-            EXPECT_EQ(actual_glic_view, glic::mojom::CurrentView::kActuation);
-            callback_called = true;
-          })));
-  actor_ui_state_manager()->OnGlicUpdateFloatyState(
-      glic::GlicWindowController::State::kClosed,
-      glic::mojom::CurrentView::kActuation);
-  EXPECT_TRUE(callback_called);
-}
-
-TEST_F(ActorUiStateManagerTest,
-       GlicUpdateFloatyState_TaskIconHiddenDoesNotNotify) {
-  std::vector<base::CallbackListSubscription> subscriptions;
-  actor_ui_state_manager()->SetTaskIconUiStateForTesting(
-      ActorUiStateManager::TaskIconUiState::kShown);
-  actor_ui_state_manager()->OnGlicUpdateFloatyState(
-      glic::GlicWindowController::State::kOpen,
-      glic::mojom::CurrentView::kConversation);
+  int callback_count = 0;
 
   subscriptions.push_back(
-      actor_ui_state_manager()->RegisterTaskIconStateChange(base::BindRepeating(
-          [](ActorUiStateManager::TaskIconUiState actual_ui_state,
-             glic::GlicWindowController::State actual_glic_state,
-             glic::mojom::CurrentView actual_glic_view) {
-            // Callback should not be called, so should not be reached.
-            NOTREACHED();
-          })));
+      actor_ui_state_manager()->RegisterActorTaskStateChange(
+          base::BindLambdaForTesting(
+              [&callback_count]() { callback_count++; })));
 
-  actor_ui_state_manager()->SetTaskIconUiStateForTesting(
-      ActorUiStateManager::TaskIconUiState::kHidden);
-  actor_ui_state_manager()->OnGlicUpdateFloatyState(
-      glic::GlicWindowController::State::kClosed,
-      glic::mojom::CurrentView::kActuation);
-}
-
-TEST_F(ActorUiStateManagerTest,
-       GlicUpdateFloatyState_ConversationViewNotifiesTaskIconState) {
-  std::vector<base::CallbackListSubscription> subscriptions;
-  actor_ui_state_manager()->SetTaskIconUiStateForTesting(
-      ActorUiStateManager::TaskIconUiState::kNeedsAttention);
-  subscriptions.push_back(
-      actor_ui_state_manager()->RegisterTaskIconStateChange(base::BindRepeating(
-          [](ActorUiStateManager::TaskIconUiState actual_ui_state,
-             glic::GlicWindowController::State actual_glic_state,
-             glic::mojom::CurrentView actual_glic_view) {
-            EXPECT_EQ(actual_ui_state,
-                      ActorUiStateManager::TaskIconUiState::kNeedsAttention);
-          })));
-  actor_ui_state_manager()->OnGlicUpdateFloatyState(
-      glic::GlicWindowController::State::kOpen,
-      glic::mojom::CurrentView::kConversation);
-}
-
-TEST_F(ActorUiStateManagerTest,
-       GlicUpdateFloatyState_ActuationViewResetsTaskIconState) {
-  std::vector<base::CallbackListSubscription> subscriptions;
-  actor_ui_state_manager()->SetTaskIconUiStateForTesting(
-      ActorUiStateManager::TaskIconUiState::kNeedsAttention);
-  subscriptions.push_back(
-      actor_ui_state_manager()->RegisterTaskIconStateChange(base::BindRepeating(
-          [](ActorUiStateManager::TaskIconUiState actual_ui_state,
-             glic::GlicWindowController::State actual_glic_state,
-             glic::mojom::CurrentView actual_glic_view) {
-            EXPECT_EQ(actual_ui_state,
-                      ActorUiStateManager::TaskIconUiState::kShown);
-          })));
-  actor_ui_state_manager()->OnGlicUpdateFloatyState(
-      glic::GlicWindowController::State::kOpen,
-      glic::mojom::CurrentView::kActuation);
-  actor_ui_state_manager()->OnGlicUpdateFloatyState(
-      glic::GlicWindowController::State::kOpen,
-      glic::mojom::CurrentView::kConversation);
-  actor_ui_state_manager()->OnGlicUpdateFloatyState(
-      glic::GlicWindowController::State::kOpen,
-      glic::mojom::CurrentView::kActuation);
-}
-#endif
-
-TEST_F(ActorUiStateManagerTest, NoTask_ReturnsHiddenTaskIconState) {
-  EXPECT_EQ(actor_ui_state_manager()->GetTaskIconUiState(),
-            ActorUiStateManager::TaskIconUiState::kHidden);
-}
-
-TEST_F(ActorUiStateManagerTest, SingleTask_ReturnsCorrectTaskIconState) {
-  // Create a task.
-  TaskId task_id = actor_keyed_service()->CreateTaskForTesting();
-  StartTask start_task_event(task_id);
-  actor_ui_state_manager()->OnUiEvent(start_task_event);
-  EXPECT_EQ(actor_ui_state_manager()->GetTaskIconUiState(),
-            ActorUiStateManager::TaskIconUiState::kShown);
-
-  // Pause the task, since it's paused from the actor we want to notify the
-  // user.
-  PauseActorTask(task_id, /*from_actor=*/true);
-  task_environment().FastForwardBy(kProfileScopedUiUpdateDebounceDelay);
-  EXPECT_EQ(actor_ui_state_manager()->GetTaskIconUiState(),
-            ActorUiStateManager::TaskIconUiState::kNeedsAttention);
-
-  // Resume the task.
-  ResumeActorTask(task_id);
-  task_environment().FastForwardBy(kProfileScopedUiUpdateDebounceDelay);
-  EXPECT_EQ(actor_ui_state_manager()->GetTaskIconUiState(),
-            ActorUiStateManager::TaskIconUiState::kShown);
-
-  // Pause the task, since it's paused from the user, we shouldn't notify.
-  PauseActorTask(task_id, /*from_actor=*/false);
-  task_environment().FastForwardBy(kProfileScopedUiUpdateDebounceDelay);
-  EXPECT_EQ(actor_ui_state_manager()->GetTaskIconUiState(),
-            ActorUiStateManager::TaskIconUiState::kShown);
-
-  ResumeActorTask(task_id);
-  task_environment().FastForwardBy(kProfileScopedUiUpdateDebounceDelay);
-  EXPECT_EQ(actor_ui_state_manager()->GetTaskIconUiState(),
-            ActorUiStateManager::TaskIconUiState::kShown);
-
-  // Stop the task.
-  StopActorTask(task_id, /*success=*/true);
-  task_environment().FastForwardBy(kProfileScopedUiUpdateDebounceDelay);
-  EXPECT_EQ(actor_ui_state_manager()->GetTaskIconUiState(),
-            ActorUiStateManager::TaskIconUiState::kCompleteTasks);
-  task_environment().FastForwardBy(CompletedTaskExpiryDelay());
-  EXPECT_EQ(actor_ui_state_manager()->GetTaskIconUiState(),
-            ActorUiStateManager::TaskIconUiState::kHidden);
-}
-
-TEST_F(ActorUiStateManagerTest, SingleTaskCancelled_TaskIconStateIsHidden) {
-  // Create a task.
-  TaskId task_id = actor_keyed_service()->CreateTaskForTesting();
-  StartTask start_task_event(task_id);
-  actor_ui_state_manager()->OnUiEvent(start_task_event);
-  EXPECT_EQ(actor_ui_state_manager()->GetTaskIconUiState(),
-            ActorUiStateManager::TaskIconUiState::kShown);
-
-  // Stop the task.
-  StopActorTask(task_id, /*success=*/false);
-  task_environment().FastForwardBy(kProfileScopedUiUpdateDebounceDelay);
-  EXPECT_EQ(actor_ui_state_manager()->GetTaskIconUiState(),
-            ActorUiStateManager::TaskIconUiState::kHidden);
-}
-
-TEST_F(ActorUiStateManagerTest,
-       SingleTask_RapidTaskIconStateChanges_Debounced) {
   // 1. Create a task.
   TaskId task_id = actor_keyed_service()->CreateTaskForTesting();
   StartTask start_task_event(task_id);
@@ -366,127 +188,10 @@ TEST_F(ActorUiStateManagerTest,
   PauseActorTask(task_id, /*from_actor=*/true);
   ResumeActorTask(task_id);
 
-  // The debounce delay timer has not yet fired so the task icon should still be
-  // shown.
-  EXPECT_EQ(actor_ui_state_manager()->GetTaskIconUiState(),
-            ActorUiStateManager::TaskIconUiState::kShown);
+  EXPECT_EQ(callback_count, 0);
 
-  // The last action was resuming, so we should never be in the kNeedsAttention
-  // state.
   task_environment().FastForwardBy(kProfileScopedUiUpdateDebounceDelay);
-  EXPECT_EQ(actor_ui_state_manager()->GetTaskIconUiState(),
-            ActorUiStateManager::TaskIconUiState::kShown);
-}
-
-TEST_F(ActorUiStateManagerTest,
-       MultiTask_OneTaskPaused_ReturnsCorrectTaskIconState) {
-  TaskId task_id = actor_keyed_service()->CreateTaskForTesting();
-  StartTask start_task_event(task_id);
-  actor_ui_state_manager()->OnUiEvent(start_task_event);
-  EXPECT_EQ(actor_ui_state_manager()->GetTaskIconUiState(),
-            ActorUiStateManager::TaskIconUiState::kShown);
-
-  // Pause the first task, the state should now be in kNeedsAttention.
-  PauseActorTask(task_id, /*from_actor=*/true);
-  task_environment().FastForwardBy(kProfileScopedUiUpdateDebounceDelay);
-  EXPECT_EQ(actor_ui_state_manager()->GetTaskIconUiState(),
-            ActorUiStateManager::TaskIconUiState::kNeedsAttention);
-
-  // Create another task, the state should still be in kNeedsAttention.
-  TaskId task_id2 = actor_keyed_service()->CreateTaskForTesting();
-  StartTask start_task_event2(task_id2);
-  MockTabInterface mock_tab2;
-  actor_ui_state_manager()->OnUiEvent(start_task_event2);
-  EXPECT_EQ(actor_ui_state_manager()->GetTaskIconUiState(),
-            ActorUiStateManager::TaskIconUiState::kNeedsAttention);
-
-  // Stop the second task, the state should still be in kNeedsAttention.
-  StopActorTask(task_id2, /*success=*/true);
-  task_environment().FastForwardBy(kProfileScopedUiUpdateDebounceDelay);
-  EXPECT_EQ(actor_ui_state_manager()->GetTaskIconUiState(),
-            ActorUiStateManager::TaskIconUiState::kNeedsAttention);
-
-  // Resume the first task, the state should now be in kCompleteTasks due to the
-  // second task.
-  ResumeActorTask(task_id);
-  task_environment().FastForwardBy(kProfileScopedUiUpdateDebounceDelay);
-  EXPECT_EQ(actor_ui_state_manager()->GetTaskIconUiState(),
-            ActorUiStateManager::TaskIconUiState::kCompleteTasks);
-
-  // After the completed task delay, the task icon state should be
-  // kShown due to the first task still being active.
-  task_environment().FastForwardBy(CompletedTaskExpiryDelay());
-  EXPECT_EQ(actor_ui_state_manager()->GetTaskIconUiState(),
-            ActorUiStateManager::TaskIconUiState::kShown);
-}
-
-TEST_F(ActorUiStateManagerTest,
-       MultiTask_OneTaskComplete_ReturnsCorrectTaskIconState) {
-  TaskId task_id = actor_keyed_service()->CreateTaskForTesting();
-  StartTask start_task_event(task_id);
-  actor_ui_state_manager()->OnUiEvent(start_task_event);
-  EXPECT_EQ(actor_ui_state_manager()->GetTaskIconUiState(),
-            ActorUiStateManager::TaskIconUiState::kShown);
-
-  // Stop first task.
-  StopActorTask(task_id, /*success=*/true);
-  task_environment().FastForwardBy(kProfileScopedUiUpdateDebounceDelay);
-  EXPECT_EQ(actor_ui_state_manager()->GetTaskIconUiState(),
-            ActorUiStateManager::TaskIconUiState::kCompleteTasks);
-
-  // Create another task.
-  TaskId task_id2 = actor_keyed_service()->CreateTaskForTesting();
-  StartTask start_task_event2(task_id2);
-  actor_ui_state_manager()->OnUiEvent(start_task_event2);
-  EXPECT_EQ(actor_ui_state_manager()->GetTaskIconUiState(),
-            ActorUiStateManager::TaskIconUiState::kCompleteTasks);
-
-  // The task icon should still be shown due to task2 after the expiry period.
-  task_environment().FastForwardBy(CompletedTaskExpiryDelay());
-  EXPECT_EQ(actor_ui_state_manager()->GetTaskIconUiState(),
-            ActorUiStateManager::TaskIconUiState::kShown);
-
-  // When both tasks stop, then the task icon should be hidden.
-  StopActorTask(task_id2, /*success=*/true);
-  task_environment().FastForwardBy(CompletedTaskExpiryDelay());
-  EXPECT_EQ(actor_ui_state_manager()->GetTaskIconUiState(),
-            ActorUiStateManager::TaskIconUiState::kHidden);
-}
-
-TEST_F(ActorUiStateManagerTest,
-       MultiTask_MultipleTasksComplete_ReturnsCorrectTaskIconState) {
-  TaskId task_id = actor_keyed_service()->CreateTaskForTesting();
-  StartTask start_task_event(task_id);
-  actor_ui_state_manager()->OnUiEvent(start_task_event);
-  EXPECT_EQ(actor_ui_state_manager()->GetTaskIconUiState(),
-            ActorUiStateManager::TaskIconUiState::kShown);
-
-  // Create another task.
-  TaskId task_id2 = actor_keyed_service()->CreateTaskForTesting();
-  StartTask start_task_event2(task_id2);
-  actor_ui_state_manager()->OnUiEvent(start_task_event2);
-  EXPECT_EQ(actor_ui_state_manager()->GetTaskIconUiState(),
-            ActorUiStateManager::TaskIconUiState::kShown);
-
-  // Stop both tasks within delay of each other.
-  base::Time task1_finish_time = base::Time::Now();
-  StopActorTask(task_id, /*success=*/true);
-  task_environment().FastForwardBy(base::Seconds(1));
-  StopActorTask(task_id2, /*success=*/true);
-
-  base::TimeDelta delay =
-      CompletedTaskExpiryDelay() - (base::Time::Now() - task1_finish_time);
-  task_environment().FastForwardBy((delay.is_positive()) ? delay
-                                                         : base::TimeDelta());
-  // Even though the first task expired, we should still be in the correct
-  // state.
-  EXPECT_EQ(actor_ui_state_manager()->GetTaskIconUiState(),
-            ActorUiStateManager::TaskIconUiState::kCompleteTasks);
-
-  // After both tasks expire, the task icon should be hidden.
-  task_environment().FastForwardBy(CompletedTaskExpiryDelay());
-  EXPECT_EQ(actor_ui_state_manager()->GetTaskIconUiState(),
-            ActorUiStateManager::TaskIconUiState::kHidden);
+  EXPECT_EQ(callback_count, 1);
 }
 
 TEST_F(ActorUiStateManagerTest, OnActorTaskState_kCreatedNewStateCrashes) {
@@ -498,16 +203,18 @@ TEST_F(ActorUiStateManagerTest, OnActorTaskState_kCreatedNewStateCrashes) {
 class ActorUiStateManagerActorTaskUiTabScopedTest
     : public ActorUiStateManagerTest,
       public testing::WithParamInterface<
-          std::tuple<ActorTask::State, UiTabState>> {};
+          std::tuple<ActorTask::State, UiTabState>> {
+ public:
+  void SetUp() override { ActorUiStateManagerTest::SetUp(); }
+};
 
 TEST_P(ActorUiStateManagerActorTaskUiTabScopedTest,
        OnActorTaskState_UpdateTabScopedUi) {
   TaskId task_id = actor_keyed_service()->CreateTaskForTesting();
-  MockTabInterface mock_tab;
 
   base::RunLoop loop;
   actor_keyed_service()->GetTask(task_id)->AddTab(
-      mock_tab.GetHandle(),
+      mock_tab().GetHandle(),
       base::BindLambdaForTesting([&](ActionResultPtr result) {
         EXPECT_TRUE(IsOk(*result));
         loop.Quit();
@@ -515,8 +222,8 @@ TEST_P(ActorUiStateManagerActorTaskUiTabScopedTest,
   loop.Run();
 
   auto [task_state, expected_ui_tab_state] = GetParam();
+  ExpectUiTabStateChange(expected_ui_tab_state);
   actor_ui_state_manager()->OnUiEvent(TaskStateChanged(task_id, task_state));
-  EXPECT_EQ(actor_ui_state_manager()->GetUiTabState(), expected_ui_tab_state);
 }
 
 const auto kActorTaskTestValues =
@@ -570,18 +277,17 @@ INSTANTIATE_TEST_SUITE_P(ActorUiStateManagerActorTaskUiTabScopedTest,
 class ActorUiStateManagerUiEventUiTabScopedTest
     : public ActorUiStateManagerTest {
  public:
+  void SetUp() override { ActorUiStateManagerTest::SetUp(); }
+
   void VerifyUiEvent(AsyncUiEvent event, UiTabState expected_state) {
+    ExpectUiTabStateChange(expected_state);
     OnUiEventComplete(event);
-    EXPECT_EQ(actor_ui_state_manager()->GetUiTabState(), expected_state);
   }
 
   void VerifyUiEvent(SyncUiEvent event, UiTabState expected_state) {
+    ExpectUiTabStateChange(expected_state);
     actor_ui_state_manager()->OnUiEvent(event);
-    EXPECT_EQ(actor_ui_state_manager()->GetUiTabState(), expected_state);
   }
-
- protected:
-  MockTabInterface mock_tab_;
 };
 
 TEST_F(ActorUiStateManagerUiEventUiTabScopedTest,
@@ -592,7 +298,7 @@ TEST_F(ActorUiStateManagerUiEventUiTabScopedTest,
       .tab_indicator_visible = true,
       .border_glow_visible = true,
   };
-  VerifyUiEvent(StartingToActOnTab{mock_tab_.GetHandle(), TaskId(123)},
+  VerifyUiEvent(StartingToActOnTab{mock_tab().GetHandle(), TaskId(123)},
                 expected_ui_tab_state);
 }
 
@@ -604,7 +310,7 @@ TEST_F(ActorUiStateManagerUiEventUiTabScopedTest,
       .tab_indicator_visible = false,
       .border_glow_visible = false,
   };
-  VerifyUiEvent(StoppedActingOnTab{mock_tab_.GetHandle()},
+  VerifyUiEvent(StoppedActingOnTab{mock_tab().GetHandle()},
                 expected_ui_tab_state);
 }
 
@@ -618,7 +324,7 @@ TEST_F(ActorUiStateManagerUiEventUiTabScopedTest,
       .tab_indicator_visible = true,
       .border_glow_visible = true,
   };
-  VerifyUiEvent(MouseMove{mock_tab_.GetHandle(), gfx::Point(100, 200),
+  VerifyUiEvent(MouseMove{mock_tab().GetHandle(), gfx::Point(100, 200),
                           TargetSource::kToolRequest},
                 expected_ui_tab_state);
 }
@@ -632,7 +338,7 @@ TEST_F(ActorUiStateManagerUiEventUiTabScopedTest,
       .tab_indicator_visible = true,
       .border_glow_visible = true,
   };
-  VerifyUiEvent(MouseClick{mock_tab_.GetHandle(), MouseClickType::kLeft,
+  VerifyUiEvent(MouseClick{mock_tab().GetHandle(), MouseClickType::kLeft,
                            MouseClickCount::kSingle},
                 expected_ui_tab_state);
 }

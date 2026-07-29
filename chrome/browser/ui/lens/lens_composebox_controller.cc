@@ -4,11 +4,14 @@
 
 #include "chrome/browser/ui/lens/lens_composebox_controller.h"
 
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/lens/lens_composebox_handler.h"
 #include "chrome/browser/ui/lens/lens_overlay_query_controller.h"
 #include "chrome/browser/ui/lens/lens_overlay_side_panel_coordinator.h"
 #include "chrome/browser/ui/lens/lens_search_contextualization_controller.h"
 #include "chrome/browser/ui/lens/lens_search_controller.h"
+#include "chrome/browser/ui/lens/lens_search_feature_flag_utils.h"
+#include "chrome/browser/ui/lens/lens_session_metrics_logger.h"
 #include "components/lens/lens_features.h"
 #include "components/lens/lens_overlay_mime_type.h"
 #include "third_party/lens_server_proto/aim_communication.pb.h"
@@ -30,8 +33,9 @@ lens::LensOverlayVisualInputType LensMimeTypeToVisualInputType(
 namespace lens {
 
 LensComposeboxController::LensComposeboxController(
-    LensSearchController* lens_search_controller)
-    : lens_search_controller_(lens_search_controller) {}
+    LensSearchController* lens_search_controller,
+    Profile* profile)
+    : lens_search_controller_(lens_search_controller), profile_(profile) {}
 
 LensComposeboxController::~LensComposeboxController() = default;
 
@@ -40,16 +44,23 @@ void LensComposeboxController::BindComposebox(
     mojo::PendingRemote<composebox::mojom::Page> pending_page,
     mojo::PendingReceiver<searchbox::mojom::PageHandler>
         pending_searchbox_handler) {
-  // The composebox handler should only be bound once.
-  CHECK(composebox_handler_ == nullptr);
+  composebox_handler_.reset();
   composebox_handler_ = std::make_unique<LensComposeboxHandler>(
       this, std::move(pending_handler), std::move(pending_page),
       std::move(pending_searchbox_handler));
+
+  // Record that the composebox was shown. The composebox handler is always
+  // bound, so check if the composebox is actually enabled before logging as
+  // shown.
+  if (lens::IsAimM3Enabled(profile_) &&
+      lens::features::GetAimSearchboxEnabled()) {
+    GetSessionMetricsLogger()->OnAimComposeboxShown();
+  }
 }
 
 void LensComposeboxController::IssueComposeboxQuery(
     const std::string& query_text) {
-  if (!lens::features::GetAimSearchboxEnabled()) {
+  if (!lens::IsAimM3Enabled(profile_)) {
     return;
   }
   // Can only issue a query if the remote UI supports the DEFAULT feature.
@@ -70,6 +81,31 @@ void LensComposeboxController::IssueComposeboxQuery(
   // Send the message to the remote UI.
   lens_search_controller_->lens_overlay_side_panel_coordinator()
       ->SendClientMessageToAim(serialized_message);
+
+  // Record that a query was issued.
+  GetSessionMetricsLogger()->OnAimQueryIssued();
+}
+
+void LensComposeboxController::OnFocusChanged(bool focused) {
+  // Ignore if the user left focus.
+  if (!focused) {
+    return;
+  }
+
+  // Record that the composebox was focused.
+  GetSessionMetricsLogger()->OnAimComposeboxFocused();
+
+  // Ignore if recontextualization on focus is disabled.
+  if (!lens::features::GetShouldComposeboxContextualizeOnFocus()) {
+    return;
+  }
+
+  // If the composebox becomes focused, the user is showing intent to issue a
+  // new query. Upload the new page content for contextualization. The content
+  // is updated asynchronously, but this class does not need to wait for the
+  // update to complete, so a callback is not needed.
+  lens_search_controller_->lens_search_contextualization_controller()
+      ->TryUpdatePageContextualization(base::DoNothing());
 }
 
 void LensComposeboxController::CloseUI() {
@@ -78,6 +114,10 @@ void LensComposeboxController::CloseUI() {
 
 void LensComposeboxController::OnAimMessage(
     const std::vector<uint8_t>& message) {
+  // Ignore the message if the searchbox is disabled.
+  if (!lens::IsAimM3Enabled(profile_)) {
+    return;
+  }
   // Try and parse the message as an AimToClientMessage. Since it is the only
   // message type we expect, if parsing fails, we can assume it is a malformed
   // message and ignore it.
@@ -87,6 +127,7 @@ void LensComposeboxController::OnAimMessage(
   }
 
   if (aim_to_client_message.has_handshake_response()) {
+    remote_ui_capabilities_.clear();
     // Store the remote UI's capabilities. This should only be done once.
     for (int capability_int :
          aim_to_client_message.handshake_response().capabilities()) {
@@ -96,7 +137,13 @@ void LensComposeboxController::OnAimMessage(
 
     lens_search_controller_->lens_overlay_side_panel_coordinator()
         ->AimHandshakeReceived();
+    GetSessionMetricsLogger()->OnAimHandshakeCompleted();
   }
+}
+
+lens::LensSessionMetricsLogger*
+LensComposeboxController::GetSessionMetricsLogger() {
+  return lens_search_controller_->lens_session_metrics_logger();
 }
 
 lens::ClientToAimMessage LensComposeboxController::BuildSubmitQueryMessage(

@@ -57,6 +57,7 @@
 #include "chrome/browser/ui/views/data_sharing/collaboration_controller_delegate_desktop.h"
 #include "chrome/browser/ui/views/data_sharing/data_sharing_bubble_controller.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/frame/tab_strip_view_interface.h"
 #include "chrome/browser/ui/views/global_media_controls/media_item_ui_helper.h"
 #include "chrome/browser/ui/views/tabs/color_picker_view.h"
 #include "chrome/browser/ui/views/tabs/groups/avatar_container_view.h"
@@ -189,22 +190,23 @@ std::u16string GetAcceleratorText(int command_id, const Browser* browser) {
 namespace saved_tab_group_prefs = tab_groups::saved_tab_groups::prefs;
 namespace shared_tab_group_metrics = tab_groups::saved_tab_groups::metrics;
 
+DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(TabGroupEditorBubbleView,
+                                      kTabGroupEditorBubbleViewId);
+
 // static
 views::Widget* TabGroupEditorBubbleView::Show(
     Browser* browser,
     const tab_groups::TabGroupId& group,
-    TabGroupHeader* header_view,
-    std::optional<gfx::Rect> anchor_rect,
     views::View* anchor_view,
+    std::optional<gfx::Rect> anchor_rect,
     bool stop_context_menu_propagation) {
   feature_engagement::TrackerFactory::GetForBrowserContext(browser->profile())
       ->NotifyEvent("tab_group_editor_shown");
 
   // If `header_view` is not null, use `header_view` as the `anchor_view`.
   TabGroupEditorBubbleView* tab_group_editor_bubble_view =
-      new TabGroupEditorBubbleView(browser, group,
-                                   header_view ? header_view : anchor_view,
-                                   anchor_rect, stop_context_menu_propagation);
+      new TabGroupEditorBubbleView(browser, group, anchor_view, anchor_rect,
+                                   stop_context_menu_propagation);
   views::Widget* const widget =
       BubbleDialogDelegateView::CreateBubble(tab_group_editor_bubble_view);
   tab_group_editor_bubble_view->set_adjust_if_offscreen(true);
@@ -309,6 +311,7 @@ TabGroupEditorBubbleView::TabGroupEditorBubbleView(
   SetButtons(static_cast<int>(ui::mojom::DialogButton::kNone));
   SetCloseCallback(base::BindOnce(&TabGroupEditorBubbleView::OnBubbleClose,
                                   base::Unretained(this)));
+  SetProperty(views::kElementIdentifierKey, kTabGroupEditorBubbleViewId);
 
   RebuildMenuContents();
 
@@ -866,9 +869,10 @@ void TabGroupEditorBubbleView::ShareOrManagePressed() {
 }
 
 void TabGroupEditorBubbleView::RecentActivityPressed() {
-  auto* tab_group_header =
-      BrowserView::GetBrowserViewForBrowser(browser_)->tabstrip()->group_header(
-          group_);
+  views::View* tab_group_header =
+      BrowserView::GetBrowserViewForBrowser(browser_)
+          ->tab_strip_view()
+          ->GetTabGroupAnchorView(group_);
 
   auto* bubble_coordinator = RecentActivityBubbleCoordinator::From(browser_);
   CHECK(bubble_coordinator);

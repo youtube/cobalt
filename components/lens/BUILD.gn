@@ -17,6 +17,7 @@ buildflag_header("buildflags") {
 
 static_library("lens") {
   sources = [
+    "lens_composebox_user_action.h",
     "lens_constants.h",
     "lens_entrypoints.h",
     "lens_metadata.cc",
@@ -41,6 +42,7 @@ static_library("lens") {
     "lens_testing_utils.h",
     "lens_url_utils.cc",
     "lens_url_utils.h",
+    "ref_counted_lens_overlay_client_logs.cc",
     "ref_counted_lens_overlay_client_logs.h",
   ]
   deps = [
@@ -80,7 +82,10 @@ component("features") {
     "lens_features.h",
   ]
 
-  deps = [ "//base" ]
+  deps = [
+    "//base",
+    "//build:branding_buildflags",
+  ]
 }
 
 mojom("lens_mojo") {

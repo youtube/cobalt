@@ -40,6 +40,32 @@ constexpr char kEnclaveManagerName[] = "enclave_manager";
 constexpr char kNtpDriveServiceName[] = "ntp_drive_service";
 constexpr char kForceSigninVerifierName[] = "force_signin_verifier";
 constexpr char kCaptureModeDelegateName[] = "capture_mode_delegate";
+constexpr char kFcmInvalidationName[] = "fcm_invalidation";
+constexpr char kNearbyShareName[] = "nearby_share";
+constexpr char kAdvancedProtectionStatusManagerName[] =
+    "advanced_protection_status_manager";
+constexpr char kPushNotificationName[] = "push_notification";
+constexpr char kKAnonymityServiceName[] = "k_anonymity_service";
+constexpr char kFeedbackUploaderName[] = "feedback_uploader";
+constexpr char kPasswordSharingRecipientsDownloaderName[] =
+    "password_sharing_recipients_downloader";
+constexpr char kWebHistoryServiceName[] = "web_history";
+constexpr char kComposeboxQueryControllerName[] = "ComposeboxQueryController";
+constexpr char kDocumentSuggestionsServiceName[] =
+    "document_suggestions_service";
+constexpr char kEnterpriseSearchAggregatorName[] =
+    "enterprise_search_aggregator";
+constexpr char kParentPermissionDialogName[] = "parent_permission_dialog";
+constexpr char kUserCloudSigninRestrictionPolicyFetcherName[] =
+    "user_cloud_signin_restriction_policy_fetcher";
+constexpr char kCloudPolicyClientRegistrationName[] =
+    "cloud_policy_client_registration";
+constexpr char kSafeBrowsingName[] = "safe_browsing_service";
+constexpr char kTailoredSecurityServiceName[] = "tailored_security_service";
+constexpr char kLensOverlayQueryControllerName[] =
+    "lens_overlay_query_controller";
+constexpr char kTrustedVaultFrontendName[] = "trusted_vault_frontend";
+constexpr char kFeedNetworkName[] = "feed_network";
 
 }  // namespace
 
@@ -176,6 +202,83 @@ OAuthConsumer GetOAuthConsumerFromId(OAuthConsumerId oauth_consumer_id) {
       return OAuthConsumer(
           /*name=*/kCaptureModeDelegateName,
           /*scopes=*/{GaiaConstants::kSupportContentOAuth2Scope});
+    case OAuthConsumerId::kFcmInvalidation:
+      return OAuthConsumer(
+          /*name=*/kFcmInvalidationName,
+          /*scopes=*/{GaiaConstants::kFCMOAuthScope});
+    case OAuthConsumerId::kNearbyShare:
+      return OAuthConsumer(
+          /*name=*/kNearbyShareName,
+          /*scopes=*/{GaiaConstants::kNearbyShareOAuth2Scope});
+    case OAuthConsumerId::kAdvancedProtectionStatusManager:
+      return OAuthConsumer(
+          /*name=*/kAdvancedProtectionStatusManagerName,
+          /*scopes=*/{GaiaConstants::kOAuth1LoginScope});
+    case OAuthConsumerId::kPushNotification:
+      return OAuthConsumer(
+          /*name=*/kPushNotificationName,
+          /*scopes=*/{GaiaConstants::kPushNotificationOAuth2Scope});
+    case OAuthConsumerId::kKAnonymityService:
+      return OAuthConsumer(
+          /*name=*/kKAnonymityServiceName,
+          /*scopes=*/{GaiaConstants::kKAnonymityServiceOAuth2Scope});
+    case OAuthConsumerId::kFeedbackUploader:
+      return OAuthConsumer(
+          /*name=*/kFeedbackUploaderName,
+          /*scopes=*/{GaiaConstants::kSupportContentOAuth2Scope});
+    case OAuthConsumerId::kPasswordSharingRecipientsDownloader:
+      return OAuthConsumer(
+          /*name=*/kPasswordSharingRecipientsDownloaderName,
+          /*scopes=*/{GaiaConstants::kChromeSyncOAuth2Scope});
+    case OAuthConsumerId::kWebHistoryService:
+      return OAuthConsumer(
+          /*name=*/kWebHistoryServiceName,
+          /*scopes=*/{GaiaConstants::kChromeSyncOAuth2Scope});
+    case OAuthConsumerId::kComposeboxQueryController:
+      return OAuthConsumer(
+          /*name=*/kComposeboxQueryControllerName,
+          /*scopes=*/{GaiaConstants::kLensOAuth2Scope});
+    case OAuthConsumerId::kDocumentSuggestionsService:
+      return OAuthConsumer(
+          /*name=*/kDocumentSuggestionsServiceName,
+          /*scopes=*/{GaiaConstants::kCloudSearchQueryOAuth2Scope});
+    case OAuthConsumerId::kEnterpriseSearchAggregator:
+      return OAuthConsumer(
+          /*name=*/kEnterpriseSearchAggregatorName,
+          /*scopes=*/{GaiaConstants::kDiscoveryEngineCompleteQueryOAuth2Scope});
+    case OAuthConsumerId::kParentPermissionDialog:
+      return OAuthConsumer(
+          /*name=*/kParentPermissionDialogName,
+          /*scopes=*/{GaiaConstants::kAccountsReauthOAuth2Scope});
+    case OAuthConsumerId::kUserCloudSigninRestrictionPolicyFetcher:
+      return OAuthConsumer(
+          /*name=*/kUserCloudSigninRestrictionPolicyFetcherName,
+          /*scopes=*/{GaiaConstants::kSecureConnectOAuth2Scope});
+    case OAuthConsumerId::kCloudPolicyClientRegistration:
+      return OAuthConsumer(
+          /*name=*/kCloudPolicyClientRegistrationName,
+          /*scopes=*/{GaiaConstants::kDeviceManagementServiceOAuth,
+                      GaiaConstants::kGoogleUserInfoEmail});
+    case OAuthConsumerId::kSafeBrowsing:
+      return OAuthConsumer(
+          /*name=*/kSafeBrowsingName,
+          /*scopes=*/{GaiaConstants::kChromeSafeBrowsingOAuth2Scope});
+    case OAuthConsumerId::kTailoredSecurityService:
+      return OAuthConsumer(
+          /*name=*/kTailoredSecurityServiceName,
+          /*scopes=*/{GaiaConstants::kChromeSafeBrowsingOAuth2Scope});
+    case OAuthConsumerId::kLensOverlayQueryController:
+      return OAuthConsumer(
+          /*name=*/kLensOverlayQueryControllerName,
+          /*scopes=*/{GaiaConstants::kLensOAuth2Scope});
+    case OAuthConsumerId::kTrustedVaultFrontend:
+      return OAuthConsumer(
+          /*name=*/kTrustedVaultFrontendName,
+          /*scopes=*/{GaiaConstants::kCryptAuthOAuth2Scope});
+    case OAuthConsumerId::kFeedNetwork:
+      return OAuthConsumer(
+          /*name=*/kFeedNetworkName,
+          /*scopes=*/{GaiaConstants::kFeedOAuth2Scope});
   }
   NOTREACHED();
 }

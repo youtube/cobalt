@@ -40,6 +40,7 @@
 #include "chrome/browser/ui/views/side_panel/side_panel_entry.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_entry_id.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_entry_key.h"
+#include "chrome/browser/ui/views/side_panel/side_panel_entry_waiter.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_header.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_web_ui_view.h"
 #include "chrome/browser/ui/views/toolbar/pinned_toolbar_actions_container.h"
@@ -180,68 +181,10 @@ std::unique_ptr<views::Label> CreateTitle() {
   return title;
 }
 
-using PopulateSidePanelCallback = base::OnceCallback<void(
-    SidePanelEntry* entry,
-    std::optional<std::unique_ptr<views::View>> content_view)>;
-
 }  // namespace
 
-// This class uses the SidePanelContentProxy to wait for the SidePanelEntry's
-// content view to be ready to be shown.
-class SidePanelCoordinator::SidePanelEntryWaiter {
- public:
-  // Calling this method cancels all previous calls to this method.
-  // If the entry is destroyed while waiting, the callback is not invoked.
-  void WaitForEntry(SidePanelEntry* entry, PopulateSidePanelCallback callback) {
-    DCHECK(entry);
-    ResetLoadingEntryIfNecessary();
-    auto content_view = entry->GetContent();
-    SidePanelContentProxy* content_proxy =
-        SidePanelUtil::GetSidePanelContentProxy(content_view.get());
-    if (content_proxy->IsAvailable() || show_immediately_for_testing_) {
-      std::move(callback).Run(entry, std::move(content_view));
-    } else {
-      entry->CacheView(std::move(content_view));
-      loading_entry_ = entry->GetWeakPtr();
-      loaded_callback_.Reset(
-          base::BindOnce(&SidePanelEntryWaiter::RunLoadedCallback,
-                         base::Unretained(this), std::move(callback)));
-      content_proxy->SetAvailableCallback(loaded_callback_.callback());
-    }
-  }
-
-  void ResetLoadingEntryIfNecessary() {
-    loading_entry_.reset();
-    loaded_callback_.Cancel();
-  }
-
-  void SetNoDelaysForTesting(bool no_delays_for_testing) {
-    show_immediately_for_testing_ = no_delays_for_testing;
-  }
-
-  SidePanelEntry* loading_entry() const { return loading_entry_.get(); }
-
- private:
-  void RunLoadedCallback(PopulateSidePanelCallback callback) {
-    // content_proxy is owned by content_view which is owned by SidePanelEntry.
-    // If this callback runs then loading_entry_ must be valid.
-    CHECK(loading_entry_);
-    SidePanelEntry* entry = loading_entry_.get();
-    loading_entry_.reset();
-    std::move(callback).Run(entry, std::nullopt);
-  }
-
-  // When true, don't delay switching panels.
-  bool show_immediately_for_testing_ = false;
-  // Tracks the entry that is loading.
-  base::WeakPtr<SidePanelEntry> loading_entry_;
-  // This class will load at most one entry at a time. If a new one is
-  // requested, the old one is canceled automatically.
-  base::CancelableOnceClosure loaded_callback_;
-};
-
 SidePanelCoordinator::SidePanelCoordinator(BrowserView* browser_view)
-    : browser_view_(browser_view) {
+    : SidePanelUIBase(browser_view->browser()), browser_view_(browser_view) {
   pinned_model_observation_.Observe(
       PinnedToolbarActionsModel::Get(browser_view_->GetProfile()));
   // When the SidePanelPinning feature is enabled observe changes to the
@@ -251,14 +194,7 @@ SidePanelCoordinator::SidePanelCoordinator(BrowserView* browser_view)
   extensions_model_observation_.Observe(
       ToolbarActionsModel::Get(browser_view_->browser()->profile()));
 
-  window_registry_ =
-      std::make_unique<SidePanelRegistry>(browser_view_->browser());
-
-  browser_view_->browser()->tab_strip_model()->AddObserver(this);
-
   browser_view_->unified_side_panel()->AddHeaderView(CreateHeader());
-
-  waiter_ = std::make_unique<SidePanelEntryWaiter>();
 }
 
 SidePanelCoordinator::~SidePanelCoordinator() = default;
@@ -270,10 +206,6 @@ void SidePanelCoordinator::Init(Browser* browser) {
 void SidePanelCoordinator::TearDownPreBrowserWindowDestruction() {
   extensions_model_observation_.Reset();
   pinned_model_observation_.Reset();
-}
-
-SidePanelRegistry* SidePanelCoordinator::GetWindowRegistry() {
-  return window_registry_.get();
 }
 
 void SidePanelCoordinator::OnToolbarPinnedActionsChanged() {
@@ -300,20 +232,6 @@ actions::ActionItem* SidePanelCoordinator::GetActionItem(
   CHECK(action_id.has_value());
   return actions::ActionManager::Get().FindAction(
       action_id.value(), browser_actions->root_action_item());
-}
-
-void SidePanelCoordinator::Show(
-    SidePanelEntry::Id entry_id,
-    std::optional<SidePanelUtil::SidePanelOpenTrigger> open_trigger) {
-  Show(SidePanelEntry::Key(entry_id), open_trigger);
-}
-
-void SidePanelCoordinator::Show(
-    SidePanelEntry::Key entry_key,
-    std::optional<SidePanelUtil::SidePanelOpenTrigger> open_trigger) {
-  std::optional<UniqueKey> unique_key = GetUniqueKeyForKey(entry_key);
-  CHECK(unique_key.has_value());
-  Show(unique_key.value(), open_trigger, /*suppress_animations=*/false);
 }
 
 void SidePanelCoordinator::Close() {
@@ -584,22 +502,6 @@ SidePanelEntry* SidePanelCoordinator::GetEntryForKey(
   return window_registry_->GetEntryForKey(entry_key);
 }
 
-std::optional<SidePanelCoordinator::UniqueKey>
-SidePanelCoordinator::GetUniqueKeyForKey(
-    const SidePanelEntry::Key& entry_key) const {
-  if (GetActiveContextualRegistry() &&
-      GetActiveContextualRegistry()->GetEntryForKey(entry_key)) {
-    return UniqueKey{
-        browser_view_->browser()->GetActiveTabInterface()->GetHandle(),
-        entry_key};
-  }
-
-  if (window_registry_->GetEntryForKey(entry_key)) {
-    return UniqueKey{/*tab_handle=*/std::nullopt, entry_key};
-  }
-  return std::nullopt;
-}
-
 SidePanelEntry* SidePanelCoordinator::GetActiveContextualEntryForKey(
     const SidePanelEntry::Key& entry_key) const {
   return GetActiveContextualRegistry()
@@ -692,16 +594,6 @@ void SidePanelCoordinator::ClearCachedEntryViews() {
         browser_view_->browser()->tab_strip_model()->GetTabAtIndex(index);
     tab->GetTabFeatures()->side_panel_registry()->ClearCachedEntryViews();
   }
-}
-
-SidePanelRegistry* SidePanelCoordinator::GetActiveContextualRegistry() const {
-  if (browser_view_->browser()->tab_strip_model()->empty()) {
-    return nullptr;
-  }
-  return browser_view_->browser()
-      ->GetActiveTabInterface()
-      ->GetTabFeatures()
-      ->side_panel_registry();
 }
 
 std::unique_ptr<views::View> SidePanelCoordinator::CreateHeader() {

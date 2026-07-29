@@ -4,6 +4,7 @@
 
 #include "net/http/http_cache_transaction.h"
 
+#include "base/byte_count.h"
 #include "build/build_config.h"  // For IS_POSIX
 
 #if BUILDFLAG(IS_POSIX)
@@ -1141,9 +1142,19 @@ int HttpCache::Transaction::DoInitEntry() {
     // then for some reason the result was unusable. Record the time lost as a
     // result. See the histogram "HttpCache.NoVarySearch.UseResult" for
     // information about what went wrong.
-    base::UmaHistogramTimes(
-        "HttpCache.NoVarySearch.NotUsableLostTime2",
-        base::TimeTicks::Now() - first_nvs_cache_lookup_end_time_);
+    const base::TimeDelta elapsed =
+        base::TimeTicks::Now() - first_nvs_cache_lookup_end_time_;
+
+    base::UmaHistogramTimes("HttpCache.NoVarySearch.NotUsableLostTime2",
+                            elapsed);
+    if (no_vary_search_use_result_ == NoVarySearchUseResult::kNotSuitable) {
+      // In this case, we detected that the entry was unusable using in-memory
+      // hints, so we should have returned to this point extremely quickly. This
+      // histogram verifies that we did.
+      base::UmaHistogramCustomMicrosecondsTimes(
+          "HttpCache.NoVarySearch.NotUsableLostTime2.NotSuitable", elapsed,
+          base::Microseconds(1), base::Seconds(1), 50);
+    }
     first_nvs_cache_lookup_end_time_ = base::TimeTicks();
   }
 
@@ -1647,15 +1658,16 @@ int HttpCache::Transaction::DoCacheReadResponseComplete(int result) {
     return OnCacheReadError(result, true);
   }
 
-  // TODO(crbug.com/40516423) Only get data size if there is no other
+  // TODO(https://crbug.com/40516423): Only get data size if there is no other
   // transaction currently writing the response body due to the data race
   // mentioned in the associated bug.
   if (!entry_->IsWritingInProgress()) {
     int current_size = entry_->GetEntry()->GetDataSize(kResponseContentIndex);
-    int64_t full_response_length = response_.headers->GetContentLength();
+    std::optional<base::ByteCount> content_length =
+        response_.headers->GetContentLength();
 
     // Some resources may have slipped in as truncated when they're not.
-    if (full_response_length == current_size) {
+    if (content_length && content_length->InBytes() == current_size) {
       truncated_ = false;
     }
 
@@ -1664,11 +1676,11 @@ int HttpCache::Transaction::DoCacheReadResponseComplete(int result) {
     // sparse cache entry. While the state machine is reworked to resolve this,
     // the following logic is put in place to defer such requests to the
     // network. The cache should not be storing multi gigabyte resources. See
-    // http://crbug.com/89567.
+    // https://crbug.com/40598279.
     if ((truncated_ ||
          response_.headers->response_code() == HTTP_PARTIAL_CONTENT) &&
-        !range_requested_ &&
-        full_response_length > std::numeric_limits<int32_t>::max()) {
+        !range_requested_ && content_length &&
+        content_length->InBytes() > std::numeric_limits<int32_t>::max()) {
       DCHECK(!partial_);
 
       // Doom the entry so that no other transaction gets added to this entry
@@ -3115,7 +3127,7 @@ bool HttpCache::Transaction::MaybeRejectBasedOnEntryInMemoryData(
     uint8_t in_memory_info) {
   HttpCacheEntryRejectionStatus status =
       GetHttpCacheEntryRejectionStatus(in_memory_info);
-  base::UmaHistogramEnumeration("HttpCache.EntryRejectionStatus", status);
+  UMA_HISTOGRAM_ENUMERATION("HttpCache.EntryRejectionStatus", status);
 
   return status == HttpCacheEntryRejectionStatus::kRejection;
 }
@@ -3716,7 +3728,9 @@ bool HttpCache::Transaction::CanResume(bool has_data) {
 
   // Note that if this is a 206, content-length was already fixed after calling
   // PartialData::ResponseHeadersOK().
-  if (response_.headers->GetContentLength() <= 0 ||
+  std::optional<base::ByteCount> content_length =
+      response_.headers->GetContentLength();
+  if (!content_length.has_value() || content_length->is_zero() ||
       response_.headers->HasHeaderValue("Accept-Ranges", "none") ||
       !response_.headers->HasStrongValidators()) {
     return false;
@@ -3820,11 +3834,14 @@ void HttpCache::Transaction::RecordHistograms() {
       }
       CACHE_STATUS_HISTOGRAMS(".CSS");
     } else if (mime_type.starts_with("image/")) {
-      int64_t content_length = response_headers->GetContentLength();
-      if (content_length >= 0 && content_length < 100) {
-        CACHE_STATUS_HISTOGRAMS(".TinyImage");
-      } else if (content_length >= 100) {
-        CACHE_STATUS_HISTOGRAMS(".NonTinyImage");
+      std::optional<base::ByteCount> content_length =
+          response_headers->GetContentLength();
+      if (content_length) {
+        if (content_length->InBytes() >= 0 && content_length->InBytes() < 100) {
+          CACHE_STATUS_HISTOGRAMS(".TinyImage");
+        } else if (content_length->InBytes() >= 100) {
+          CACHE_STATUS_HISTOGRAMS(".NonTinyImage");
+        }
       }
       CACHE_STATUS_HISTOGRAMS(".Image");
     } else if (mime_type.ends_with("javascript") ||
@@ -4128,11 +4145,25 @@ bool HttpCache::Transaction::IsUsingURLFromNoVarySearchCache() const {
 
 HttpCache::Transaction::NoVarySearchUseResult
 HttpCache::Transaction::LookupRequestInNoVarySearchCache() {
+  // In order to conditionally log HttpCache.NoVarySearch.LookupTime.{Hit,Miss},
+  // this doesn't use the SCOPED_UMA_HISTOGRAM_TIMER_MICROS macro, but the
+  // bucket definitions are identical.
+  const auto start_time = base::Time::Now();
   std::optional<NoVarySearchCache::LookupResult> maybe_result =
       cache_->no_vary_search_cache_->Lookup(*request_);
+  const auto elapsed = base::Time::Now() - start_time;
+  UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES("HttpCache.NoVarySearch.LookupTime",
+                                          elapsed, base::Microseconds(1),
+                                          base::Seconds(1), 50);
   if (!maybe_result) {
+    UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
+        "HttpCache.NoVarySearch.LookupTime.Miss", elapsed,
+        base::Microseconds(1), base::Seconds(1), 50);
     return NoVarySearchUseResult::kNoMatch;
   }
+  UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
+      "HttpCache.NoVarySearch.LookupTime.Hit", elapsed, base::Microseconds(1),
+      base::Seconds(1), 50);
   if (maybe_result->original_url == request_->url) {
     return NoVarySearchUseResult::kURLUnchanged;
   }

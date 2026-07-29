@@ -19,11 +19,9 @@
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "components/privacy_sandbox/canonical_topic.h"
-#include "components/privacy_sandbox/privacy_sandbox_prefs.h"
 #include "components/privacy_sandbox/privacy_sandbox_settings.h"
 #include "components/privacy_sandbox/tracking_protection_settings.h"
 #include "components/profile_metrics/browser_profile_type.h"
-#include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/user_education/common/product_messaging_controller.h"
 #include "content/public/browser/interest_group_manager.h"
 #include "net/base/schemeful_site.h"
@@ -326,8 +324,14 @@ class PrivacySandboxServiceImpl : public PrivacySandboxService {
   // or newly set reason), false otherwise.
   bool UpdateAndGetSuppressionReason();
 
+  // Returns whether the prompt should be disabled.
+  bool ShouldDisablePrompt();
+
   // Helper function to set the prompt suppression reason.
   void SetPromptSuppressedReason(PromptSuppressedReason reason);
+
+  // Internal implementation for `GetRequiredPromptType`.
+  PromptType GetRequiredPromptTypeInternal(SurfaceType surface_type);
 
   raw_ptr<Profile> profile_;
   raw_ptr<privacy_sandbox::PrivacySandboxSettings> privacy_sandbox_settings_;

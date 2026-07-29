@@ -47,6 +47,7 @@ import org.chromium.ui.dragdrop.DragDropMetricUtils.DragDropType;
 
 import java.lang.ref.WeakReference;
 import java.util.Arrays;
+import java.util.List;
 
 @RunWith(org.chromium.base.test.BaseRobolectricTestRunner.class)
 public class ChromeTabbedOnDragListenerUnitTest {
@@ -54,6 +55,7 @@ public class ChromeTabbedOnDragListenerUnitTest {
     @Rule public MockitoRule mMockitoProcessorRule = MockitoJUnit.rule();
     @Mock private MultiInstanceManager mMultiInstanceManager;
     @Mock private TabModelSelector mTabModelSelector;
+    @Mock private TabModel mTabModel;
     @Mock private Tab mTab;
     @Mock private Tab mCurrentTab;
     @Mock private NewTabPage mOriginalNtp;
@@ -93,7 +95,8 @@ public class ChromeTabbedOnDragListenerUnitTest {
         when(mCurrentTab.isIncognito()).thenReturn(false);
         when(mCurrentTab.getId()).thenReturn(1);
         when(mTab.isIncognitoBranded()).thenReturn(false);
-        when(mTabModelSelector.getModel(false)).thenReturn(Mockito.mock(TabModel.class));
+        when(mTabModel.iterator()).thenAnswer(invocation -> List.of(mTab, mCurrentTab).iterator());
+        when(mTabModelSelector.getModel(false)).thenReturn(mTabModel);
         when(mMultiInstanceManager.getCurrentInstanceId()).thenReturn(SOURCE_INSTANCE_ID);
         when(mDragDropGlobalState.isDragSourceInstance(SOURCE_INSTANCE_ID)).thenReturn(true);
         DragDropGlobalState.setInstanceForTesting(mDragDropGlobalState);
@@ -190,7 +193,8 @@ public class ChromeTabbedOnDragListenerUnitTest {
     private void doTestOnDragActionDropInTabSwitcher(boolean isGroupDrag, boolean isMultiTabDrag) {
         String resultHistogram =
                 String.format(
-                        "Android.DragDrop.%s.FromStrip.Result", isGroupDrag ? "TabGroup" : "Tab");
+                        "Android.DragDrop.%s.FromStrip.Result",
+                        getTabSelectionType(isGroupDrag, isMultiTabDrag));
         HistogramWatcher histogramExpectation =
                 HistogramWatcher.newBuilder()
                         .expectIntRecord(resultHistogram, DragDropResult.IGNORED_TAB_SWITCHER)
@@ -244,7 +248,8 @@ public class ChromeTabbedOnDragListenerUnitTest {
     private void doTestOnDragActionDropInSameInstance(boolean isGroupDrag, boolean isMultiTabDrag) {
         String resultHistogram =
                 String.format(
-                        "Android.DragDrop.%s.FromStrip.Result", isGroupDrag ? "TabGroup" : "Tab");
+                        "Android.DragDrop.%s.FromStrip.Result",
+                        getTabSelectionType(isGroupDrag, isMultiTabDrag));
         AppHeaderUtils.setAppInDesktopWindowForTesting(true);
         HistogramWatcher histogramExpectation =
                 HistogramWatcher.newBuilder()
@@ -396,7 +401,9 @@ public class ChromeTabbedOnDragListenerUnitTest {
     private void verifyActionDropSuccess(
             boolean isInDesktopWindow, boolean isGroupDrag, boolean isMultiTabDrag) {
         String histogram =
-                String.format("Android.DragDrop.%s.Type", isGroupDrag ? "TabGroup" : "Tab");
+                String.format(
+                        "Android.DragDrop.%s.Type",
+                        getTabSelectionType(isGroupDrag, isMultiTabDrag));
         AppHeaderUtils.setAppInDesktopWindowForTesting(isInDesktopWindow);
 
         HistogramWatcher.Builder builder =
@@ -514,6 +521,16 @@ public class ChromeTabbedOnDragListenerUnitTest {
         } else {
             when(mDragDropGlobalState.getData())
                     .thenReturn(new ChromeTabDropDataAndroid.Builder().withTab(mTab).build());
+        }
+    }
+
+    private String getTabSelectionType(boolean isGroupDrag, boolean isMultiTabDrag) {
+        if (isGroupDrag) {
+            return "TabGroup";
+        } else if (isMultiTabDrag) {
+            return "MultiTab";
+        } else {
+            return "Tab";
         }
     }
 }

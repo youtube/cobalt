@@ -87,6 +87,7 @@
 #include "components/sync/service/sync_service.h"
 #include "components/vector_icons/vector_icons.h"
 #include "net/base/url_util.h"
+#include "ui/base/interaction/element_tracker.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/models/image_model.h"
 #include "ui/base/resource/resource_bundle.h"
@@ -118,9 +119,7 @@ std::u16string GetSyncErrorButtonText(Profile* profile,
   switch (error) {
     case AvatarSyncErrorType::kUnrecoverableError:
       if (!ChromeSigninClientFactory::GetForProfile(profile)
-               ->IsClearPrimaryAccountAllowed(
-                   IdentityManagerFactory::GetForProfile(profile)
-                       ->HasPrimaryAccount(signin::ConsentLevel::kSync))) {
+               ->IsClearPrimaryAccountAllowed()) {
         // As opposed to the corresponding error in an unmanaged account,
         // sign-out hasn't happened here yet. The button directs to the sign-out
         // confirmation dialog in settings.
@@ -200,10 +199,10 @@ std::u16string GetSyncPromoButtonLabel() {
 bool ProfileMenuView::close_on_deactivate_for_testing_ = true;
 
 ProfileMenuView::ProfileMenuView(
-    views::Button* anchor_button,
+    ui::TrackedElement* anchor_element,
     Browser* browser,
     std::optional<signin_metrics::AccessPoint> explicit_signin_access_point)
-    : ProfileMenuViewBase(anchor_button, browser),
+    : ProfileMenuViewBase(anchor_element, browser),
       browser_(raw_ref<Browser>::from_ptr(browser)),
       explicit_signin_access_point_(explicit_signin_access_point) {
   set_close_on_deactivate(close_on_deactivate_for_testing_);
@@ -333,6 +332,14 @@ void ProfileMenuView::OnSyncSettingsButtonClicked() {
   chrome::ShowSettingsSubPage(&browser(), chrome::kSyncSetupSubPage);
 }
 
+void ProfileMenuView::OnAccountSettingsButtonClicked() {
+  OnActionableItemClicked(ActionableItem::kAccountSettingsButton);
+  if (!perform_menu_actions()) {
+    return;
+  }
+  chrome::ShowSettingsSubPage(&browser(), chrome::kPeopleSubPage);
+}
+
 void ProfileMenuView::OnSyncErrorButtonClicked(AvatarSyncErrorType error) {
   OnActionableItemClicked(ActionableItem::kSyncErrorButton);
   if (!perform_menu_actions()) {
@@ -347,9 +354,7 @@ void ProfileMenuView::OnSyncErrorButtonClicked(AvatarSyncErrorType error) {
       // Managed users get directed to the sign-out confirmation dialog in
       // settings.
       if (!ChromeSigninClientFactory::GetForProfile(&profile())
-               ->IsClearPrimaryAccountAllowed(
-                   identity_manager->HasPrimaryAccount(
-                       signin::ConsentLevel::kSync))) {
+               ->IsClearPrimaryAccountAllowed()) {
         chrome::ShowSettingsSubPage(&browser(), chrome::kSignOutSubPage);
         break;
       }
@@ -426,11 +431,8 @@ void ProfileMenuView::OnSigninButtonClicked(
 }
 
 void ProfileMenuView::OnSignoutButtonClicked() {
-  signin::IdentityManager* identity_manager =
-      IdentityManagerFactory::GetForProfile(&profile());
   DCHECK(ChromeSigninClientFactory::GetForProfile(&profile())
-             ->IsClearPrimaryAccountAllowed(identity_manager->HasPrimaryAccount(
-                 signin::ConsentLevel::kSync)))
+             ->IsClearPrimaryAccountAllowed())
       << "Clear primary account is not allowed. Signout should not be offered "
          "in the UI.";
 
@@ -853,6 +855,35 @@ void ProfileMenuView::MaybeBuildChromeAccountSettingsButton() {
     return;
   }
 
+  // Show the settings button only when signed in to Chrome or pending sign in.
+  switch (signin_util::GetSignedInState(identity_manager)) {
+    case signin_util::SignedInState::kSignInPending:
+    case signin_util::SignedInState::kSignedIn:
+      break;
+    case signin_util::SignedInState::kSyncPaused:
+    case signin_util::SignedInState::kSignedOut:
+    case signin_util::SignedInState::kWebOnlySignedIn:
+    case signin_util::SignedInState::kSyncing:
+      return;
+  }
+
+  AddFeatureButton(
+      l10n_util::GetStringUTF16(IDS_PROFILE_MENU_ACCOUNT_SETTINGS_BUTTON),
+      base::BindRepeating(&ProfileMenuView::OnAccountSettingsButtonClicked,
+                          base::Unretained(this)),
+      vector_icons::kSettingsChromeRefreshIcon);
+}
+
+void ProfileMenuView::MaybeBuildChromeAccountSettingsButtonWithSync() {
+  CHECK(!profile().IsGuestSession());
+
+  signin::IdentityManager* identity_manager =
+      IdentityManagerFactory::GetForProfile(&profile());
+
+  if (!identity_manager) {
+    return;
+  }
+
   // Show the settings button when signed in to Chrome or to the web, or if
   // signin is disallowed.
   const bool should_show_settings_button =
@@ -883,26 +914,21 @@ void ProfileMenuView::MaybeBuildManageGoogleAccountButton() {
   CHECK(!profile().IsGuestSession());
   signin::IdentityManager* identity_manager =
       IdentityManagerFactory::GetForProfile(&profile());
-
   if (!identity_manager) {
     return;
   }
 
-  bool show_button = true;
   switch (signin_util::GetSignedInState(identity_manager)) {
     case signin_util::SignedInState::kSignInPending:
     case signin_util::SignedInState::kSyncPaused:
     case signin_util::SignedInState::kSignedOut:
     case signin_util::SignedInState::kWebOnlySignedIn:
-      show_button = false;
-      break;
+      // Do not show the button.
+      return;
     case signin_util::SignedInState::kSignedIn:
     case signin_util::SignedInState::kSyncing:
       // Show the button.
       break;
-  }
-  if (!show_button) {
-    return;
   }
 
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
@@ -918,7 +944,8 @@ void ProfileMenuView::MaybeBuildManageGoogleAccountButton() {
   AddFeatureButton(
       l10n_util::GetStringUTF16(IDS_SETTINGS_MANAGE_GOOGLE_ACCOUNT),
       base::BindRepeating(&ProfileMenuView::OnManageGoogleAccountButtonClicked,
-                          base::Unretained(this)));
+                          base::Unretained(this)),
+      vector_icons::kFilterIcon);
 #endif
 }
 
@@ -1000,7 +1027,9 @@ void ProfileMenuView::BuildFeatureButtons() {
   BuildAutofillSettingsButton();
   MaybeBuildManageGoogleAccountButton();
   BuildCustomizeProfileButton();
-  MaybeBuildChromeAccountSettingsButton();
+  base::FeatureList::IsEnabled(syncer::kReplaceSyncPromosWithSignInPromos)
+      ? MaybeBuildChromeAccountSettingsButton()
+      : MaybeBuildChromeAccountSettingsButtonWithSync();
   MaybeBuildCloseBrowsersButton();
   MaybeBuildSignoutButton();
 }

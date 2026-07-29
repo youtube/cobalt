@@ -9,12 +9,15 @@
 
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/exclusive_access/exclusive_access_context.h"
 #include "content/public/browser/web_contents.h"
+#include "ui/base/accelerators/accelerator.h"
 #include "ui/color/color_provider_key.h"
 #include "ui/color/color_provider_source.h"
 #include "ui/views/widget/widget.h"
 
 namespace views {
+class NativeWidget;
 class WebView;
 class Widget;
 }  // namespace views
@@ -27,7 +30,10 @@ class WebUILocationBar;
 // A BrowserWindow implementation that uses WebUI for its primary UI. It still
 // uses views::Widget for windowing management.
 class WebUIBrowserWindow : public BrowserWindow,
-                           public ui::ColorProviderSource {
+                           public ExclusiveAccessContext,
+                           public ui::ColorProviderSource,
+                           public ui::AcceleratorProvider,
+                           public ui::AcceleratorTarget {
  public:
   explicit WebUIBrowserWindow(std::unique_ptr<Browser> browser);
   ~WebUIBrowserWindow() override;
@@ -76,12 +82,13 @@ class WebUIBrowserWindow : public BrowserWindow,
   autofill::AutofillBubbleHandler* GetAutofillBubbleHandler() override;
   void ExecutePageActionIconForTesting(PageActionIconType type) override;
   LocationBar* GetLocationBar() const override;
-  void SetFocusToLocationBar(bool select_all) override;
+  void SetFocusToLocationBar(bool is_user_initiated) override;
   void UpdateReloadStopState(bool is_loading, bool force) override;
   void UpdateToolbar(content::WebContents* contents) override;
   bool UpdateToolbarSecurityState() override;
   void UpdateCustomTabBarVisibility(bool visible, bool animate) override;
-  void SetContentScrimVisibility(bool visible) override;
+  void SetContentScrimVisibility(content::WebContents* contents,
+                                 bool visible) override;
   void SetDevToolsScrimVisibility(bool visible) override;
   void ResetToolbarTabState(content::WebContents* contents) override;
   void FocusToolbar() override;
@@ -210,7 +217,7 @@ class WebUIBrowserWindow : public BrowserWindow,
   gfx::Rect GetBounds() const override;
   bool IsMaximized() const override;
   bool IsMinimized() const override;
-  bool IsFullscreen() const override;
+  bool IsFullscreen() const override;  // Also in ExclusiveAccessContext.
   gfx::Rect GetRestoredBounds() const override;
   ui::mojom::WindowShowState GetRestoredState() const override;
   void Maximize() override;
@@ -227,7 +234,27 @@ class WebUIBrowserWindow : public BrowserWindow,
       ui::ColorProviderKey::ColorMode color_mode,
       ui::ColorProviderKey::ForcedColors forced_colors) const override;
 
+  // ExclusiveAccessContext:
+  Profile* GetProfile() override;
+  void EnterFullscreen(const url::Origin& origin,
+                       ExclusiveAccessBubbleType bubble_type,
+                       const int64_t display_id) override;
+  void ExitFullscreen() override;
+  void UpdateExclusiveAccessBubble(
+      const ExclusiveAccessBubbleParams& params,
+      ExclusiveAccessBubbleHideCallback first_hide_callback) override;
+  bool IsExclusiveAccessBubbleDisplayed() const override;
+  void OnExclusiveAccessUserInput() override;
+  content::WebContents* GetWebContentsForExclusiveAccess() override;
+  bool CanUserEnterFullscreen() const override;
+  bool CanUserExitFullscreen() const override;
+
+  // ui::AcceleratorProvider:
+  bool GetAcceleratorForCommandId(int command_id,
+                                  ui::Accelerator* accelerator) const override;
+
   Browser* browser() { return browser_.get(); }
+  views::Widget* widget() { return widget_.get(); }
 
  protected:
   void DestroyBrowser() override;
@@ -235,15 +262,39 @@ class WebUIBrowserWindow : public BrowserWindow,
  private:
   class WidgetDelegate;
 
+  // Creates and returns the native widget.
+  // Note that this class uses CLIENT_OWNS_WIDGET ownership model whereby
+  // the NativeWidget owns itself (i.e. NativeWidget*::WindowDestroyed() frees
+  // itself) so this method returns a pointer rather than a unique_ptr.
+  views::NativeWidget* CreateNativeWidget();
+
+  // ui::AcceleratorTarget:
+  bool AcceleratorPressed(const ui::Accelerator& accelerator) override;
+  bool CanHandleAccelerators() const override;
+
+  // Retrieves the Chrome command ID associated with |accelerator|. The function
+  // returns false if |accelerator| is unknown. Otherwise |command_id| will be
+  // set to the Chrome command ID defined in //chrome/app/chrome_command_ids.h.
+  bool FindCommandIdForAccelerator(const ui::Accelerator& accelerator,
+                                   int* command_id) const;
+
+  // Load accelerators into |accelerator_table_| and |accelerator_manager_|.
+  void LoadAccelerators();
+
   void OnWindowCloseRequested(views::Widget::ClosedReason close_reason);
   WebUIBrowserUI* GetWebUIBrowserUI() const;
 
+  std::unique_ptr<Browser> browser_;
   std::unique_ptr<WebUIBrowserWebContentsDelegate> web_contents_delegate_;
   std::unique_ptr<WidgetDelegate> widget_delegate_;
-  std::unique_ptr<Browser> browser_;
   std::unique_ptr<views::Widget> widget_;
   raw_ptr<views::WebView> web_view_ = nullptr;
   std::unique_ptr<WebUILocationBar> location_bar_;
+
+  // A mapping between accelerators and Chrome command IDs as defined in
+  // //chrome/app/chrome_command_ids.h.
+  std::map<ui::Accelerator, int> accelerator_table_;
+  ui::AcceleratorManager accelerator_manager_;
 };
 
 #endif  // CHROME_BROWSER_UI_WEBUI_BROWSER_WEBUI_BROWSER_WINDOW_H_

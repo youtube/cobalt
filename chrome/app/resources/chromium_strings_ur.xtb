@@ -83,6 +83,7 @@
 <translation id="2008474315282236005">‏یہ اس آلہ سے 1 آئٹم کو حذف کر دے گا۔ بعد میں اپنا ڈیٹا بازیافت کرنے کیلئے، Chromium میں <ph name="USER_EMAIL" /> کے بطور سائن ان کریں۔</translation>
 <translation id="2018879682492276940">انسٹالیشن ناکام ہو گئی۔ دوبارہ کوشش کریں۔</translation>
 <translation id="2020032459870799438">‏یہ دیکھنے کے لئے کہ آیا آپ کے دیگر پاس ورڈز ڈیٹا کی خلاف ورزیوں اور دیگر سیکیورٹی مسائل سے محفوظ ہیں، <ph name="BEGIN_LINK" />Chromium میں سائن ان کریں<ph name="END_LINK" />۔</translation>
+<translation id="2039417478970545937">ترتیبات۔</translation>
 <translation id="2049376729098081731">‏منتخب کریں کہ آیا Google سروسز میں مزید ذاتی نوعیت کے تجربات کے لیے Chromium کی سرگزشت کو شامل کریں</translation>
 <translation id="2054039611381840095">‏مستقبل میں Chromium اپ ڈیٹس حاصل کرنے کے لیے آپ کو macOS 12 یا اس کے بعد کے ورژن کی ضرورت ہوگی۔ یہ کمپیوٹر macOS 11 کا استعمال کر رہا ہے۔</translation>
 <translation id="2086476982681781442">‏Chromium نے اس ڈاؤن لوڈ کو مسدود کر دیا کیونکہ یہ فائل فریب والی ہے اور آپ کے آلے میں غیر متوقع تبدیلیاں کر سکتی ہے</translation>
@@ -195,6 +196,7 @@
 <translation id="3387527074123400161">ChromiumOS</translation>
 <translation id="3406848076815591792">‏موجودہ Chromium پروفائل پر سوئچ کریں؟</translation>
 <translation id="3412460710772753638">اس آلہ پر پاس ورڈ مینیجر میں</translation>
+<translation id="3461644266919055473">‏‫Chromium کو اپنے لحاظ سے سیٹ کرنا...</translation>
 <translation id="347328004046849135">‏جب آپ کسی متاثرہ پاس ورڈ سے سائن ان کریں گے تو Chromium آپ کو مطلع کرے گا</translation>
 <translation id="3474745554856756813">‏یہ اس آلہ سے <ph name="ITEMS_COUNT" /> آئٹمز کو حذف کر دے گا۔ بعد میں اپنے ڈیٹا کی بازیافت کرنے کیلئے، Chromium میں <ph name="USER_EMAIL" /> کے بطور سائن ان کریں۔</translation>
 <translation id="3497319089134299931">‏<ph name="SHORTCUT" /> سے Chromium پروفائل کے درمیان سوئچ کیا جا سکتا ہے</translation>
@@ -314,6 +316,7 @@
 <translation id="5123973130450702873">‏آپ کے ہاتھوں کو ٹریک کرنے کے لیے Chromium کو اجازت درکار ہے</translation>
 <translation id="5141988424377517949">‏آپ نے حال ہی میں ملاحظہ نہیں کیا ہے۔ ‫Chromium نے <ph name="PERMISSION_1" />، <ph name="PERMISSION_2" />، <ph name="PERMISSION_3" /> کو ہٹا دیا۔</translation>
 <translation id="5174969993834422967">آپ عام طور پر اطلاعات کو مسدود کرتے ہیں۔ اس سائٹ کو آپ کو مطلع کرنے کی اجازت دینے کے لیے، اپنے مقام بار کے دائیں کونے میں نوٹیفکیشن آئیکن پر کلک کریں۔</translation>
+<translation id="5174983315706567306">ڈسک میں کافی اسپیس نہیں ہے۔</translation>
 <translation id="5187123684706427865">‏‫Chromium اکاؤنٹ میں دوبارہ تصدیق درکار ہے</translation>
 <translation id="5224391634244552924">‏کوئی محفوظ کردہ پاس ورڈ نہیں۔ جب آپ پاس ورڈز کو محفوظ کرتے ہیں تو Chromium انہیں چیک کر سکتا ہے۔</translation>
 <translation id="5231355151045086930">‏Chromium سے سائن آؤٹ کریں</translation>
@@ -441,6 +444,7 @@
 <translation id="6598877126913850652">‏Chromium کی اطلاع کی ترتیبات پر جائیں</translation>
 <translation id="6600016381025017075">اس صفحہ پر کچھ بھی تلاش کریں</translation>
 <translation id="6613594504749178791">‏آپ کی تبدیلیاں Chromium کو اگلی بار آپ کے دوبارہ شروع کرنے کے وقت نافذ ہوں گی۔</translation>
+<translation id="6648212540664651655">‏جہاں آپ نے چھوڑا تھا وہیں سے جاری رکھیں: Chromium نے آپ کے آخری سیشن سے آپ کے ٹیبز کو بحال کیا۔ آپ اسے درج ذیل میں آف کر سکتے ہیں</translation>
 <translation id="665732753414869868">‏Chromium کو آپ کے اطراف کا 3D نقشہ تخلیق کرنے کے لیے کیمرے کی اجازت درکار ہے</translation>
 <translation id="6669284030132180248">‏اگر آپ اپنے بُک مارکس کو اپنے Google اکاؤنٹ میں بھی محفوظ کرتے ہیں تو آپ Chromium میں پروڈکٹ کی قیمتوں کو ٹریک کر سکتے ہیں اور قیمت میں گراوٹ ہونے پر اطلاع حاصل کر سکتے ہیں</translation>
 <translation id="6676384891291319759">انٹرنیٹ تک رسائی حاصل کریں</translation>
@@ -505,6 +509,7 @@ Chromium آپ کی ترتیبات کو بازیافت کرنے سے قاصر ہ�
 <translation id="7352651011704765696">کچھ غلط ہو گیا</translation>
 <translation id="7376384068949534168">‏آپ نے حال ہی میں ملاحظہ نہیں کیا ہے۔ ‫Chromium نے <ph name="PERMISSION_1" />، <ph name="PERMISSION_2" /> کو ہٹا دیا۔</translation>
 <translation id="7384121030444253939">‏یہ ایکسٹینشنز اب مزید تعاون یافتہ نہیں ہے۔ اس کے بجائے Chromium تجویز کرتا ہے کہ آپ اسے ہٹا دیں</translation>
+<translation id="7413153308467572558">‏وہیں سے جاری رکھیں جہاں سے آپ نے چھوڑا تھا: جب بھی آپ ری سٹارٹ کرتے ہیں تو Chromium آپ کے ٹیبز کو بحال کرتا ہے۔ اسے آف کرنے کے لیے، اس پر جائیں</translation>
 <translation id="7449453770951226939"><ph name="PAGE_TITLE" /> - Chromium Dev</translation>
 <translation id="7450541714075000668">متن کاپی ہو گیا</translation>
 <translation id="7451052299415159299">‏Chromium کو اس سائٹ کیلئے آپ کے کیمرے تک رسائی کی اجازت درکار ہے</translation>
@@ -610,6 +615,7 @@ Chromium آپ کی ترتیبات کو بازیافت کرنے سے قاصر ہ�
 <translation id="8747073452963259673">تلاش کے حلقے کا نیچے والا دایاں کونا: <ph name="LEFT" /> فیصد دائیں، <ph name="BOTTOM" /> فیصد نیچے</translation>
 <translation id="878572486461146056">انسٹال سے متعلق خرابی: آپ کے نیٹ ورک کے منتظم نے ایک گروپ پالیسی کا اطلاق کیا ہے جو انسٹالیشن کو روکتی ہے: <ph name="INSTALL_ERROR" /></translation>
 <translation id="8796602469536043152">‏Chromium کو اس سائٹ کیلئے آپ کے کیمرے اور مائیکروفون تک رسائی کی اجازت درکار ہے</translation>
+<translation id="880560872634367429">ڈاؤن لوڈ کی توثیق ہو رہی ہے...</translation>
 <translation id="8818550178040858407">‏Chromium میں سائن ان کریں؟</translation>
 <translation id="8826492472752484139">"پاس ورڈ مینیجر" پر کلک کریں</translation>
 <translation id="8833697763442816810">‏ChromiumOS سسٹم</translation>
@@ -636,6 +642,7 @@ Chromium آپ کی ترتیبات کو بازیافت کرنے سے قاصر ہ�
 <translation id="911206726377975832">نیز آپ کا براؤزنگ ڈیٹا حذف کریں؟</translation>
 <translation id="9134482777260927479">ہوم ورک میں مدد</translation>
 <translation id="9148058034647219655">خارج ہوں</translation>
+<translation id="9155105544013854680">‏جہاں آپ نے چھوڑا تھا وہیں سے جاری رکھیں: جب بھی آپ ری سٹارٹ کریں گے Chromium آپ کے ٹیبز کو بحال کر سکتا ہے۔ اسے آن کرنے کے لیے، اس پر جائیں</translation>
 <translation id="9158494823179993217">‏آپ کے سسٹم کے منتظم نے <ph name="TARGET_URL_HOSTNAME" /> تک رسائی حاصل کرنے کے لیے Chromium کو ایک متبادل براؤزر کھولنے کے لیے کنفیگر کیا ہے۔</translation>
 <translation id="9185526690718004400">‏Chromium&amp; کو اپ ڈیٹ کرنے کیلئے بند کر کے دوبارہ چلائیں</translation>
 <translation id="9190841055450128916">‎Chromium (mDNS-In)‎</translation>

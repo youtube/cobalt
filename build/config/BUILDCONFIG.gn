@@ -320,12 +320,6 @@ is_fuchsia = current_os == "fuchsia"
 is_ios = current_os == "ios"
 is_linux = current_os == "linux"
 is_mac = current_os == "mac"
-
-# TODO(crbug.com/40511454): Remove is_nacl from all build files, then
-#                           remove the is_nacl variable.
-assert(current_os != "nacl")
-is_nacl = false
-
 is_wasm = current_os == "emscripten"
 is_watchos = current_os == "watchos"
 is_win = current_os == "win" || current_os == "winuwp"
@@ -410,7 +404,7 @@ if (is_android) {
       [ "//build/config/android:default_orderfile_instrumentation" ]
 }
 
-if (is_clang && !is_nacl) {
+if (is_clang) {
   default_compiler_configs += [
     "//build/config/clang:extra_warnings",
     "//build/config/clang:find_bad_constructs",
@@ -576,16 +570,18 @@ foreach(_target_type,
         public_deps = []
       }
 
-      # When Clang modules are used, libc++ headers must be copied (to the gen
-      # directory) regardless of whether the libc++ module is used in this
-      # target.
-      public_deps += [
-        "//buildtools/third_party/libc++:copy_custom_headers($default_toolchain)",
-        "//buildtools/third_party/libc++:copy_libcxx_headers($default_toolchain)",
-      ]
+      if (is_clang) {
+        # When clang is used, some target may use clang module. This dependency
+        # is required for things to work, regardless of whether the libc++
+        # module is used in this target or not.
+        public_deps += [
+          "//buildtools/third_party/libc++:custom_headers",
+          "//buildtools/third_party/libc++:libcxx_headers",
+        ]
+      }
 
       if (!defined(use_libcxx_modules)) {
-        use_libcxx_modules = true
+        use_libcxx_modules = is_clang
       }
 
       if (filter_include(
@@ -695,16 +691,18 @@ foreach(_target_type,
         public_deps = []
       }
 
-      # When Clang modules are used, libc++ headers must be copied (to the gen
-      # directory) regardless of whether the libc++ module is used in this
-      # target.
-      public_deps += [
-        "//buildtools/third_party/libc++:copy_custom_headers($default_toolchain)",
-        "//buildtools/third_party/libc++:copy_libcxx_headers($default_toolchain)",
-      ]
+      if (is_clang) {
+        # When clang is used, some target may use clang module. This dependency
+        # is required for things to work, regardless of whether the libc++
+        # module is used in this target or not.
+        public_deps += [
+          "//buildtools/third_party/libc++:custom_headers",
+          "//buildtools/third_party/libc++:libcxx_headers",
+        ]
+      }
 
       if (!defined(use_libcxx_modules)) {
-        use_libcxx_modules = true
+        use_libcxx_modules = is_clang
       }
 
       if (filter_include(

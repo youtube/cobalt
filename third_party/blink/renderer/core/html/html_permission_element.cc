@@ -52,6 +52,7 @@
 #include "third_party/blink/renderer/core/inspector/console_message.h"
 #include "third_party/blink/renderer/core/intersection_observer/intersection_observer_entry.h"
 #include "third_party/blink/renderer/core/page/page.h"
+#include "third_party/blink/renderer/core/paint/paint_layer.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
 #include "third_party/blink/renderer/core/style/computed_style_base_constants.h"
 #include "third_party/blink/renderer/platform/fonts/font_description.h"
@@ -562,6 +563,28 @@ bool HTMLPermissionElement::IsRenderered() const {
   return false;
 }
 
+void HTMLPermissionElement::setType(const AtomicString& type) {
+  // `type` should only take effect once, when is added to the permission
+  // element. Removing, or modifying the attribute has no effect.
+  if (!type_.IsNull()) {
+    return;
+  }
+
+  type_ = type;
+
+  CHECK(permission_descriptors_.empty());
+  permission_descriptors_ = ParsePermissionDescriptorsFromString(GetType());
+  if (permission_descriptors_.empty()) {
+    AddConsoleError(StrCat({"The permission type '", GetType().GetString(),
+                            "' is not supported by the permission element."}));
+    EnableFallbackMode();
+    return;
+  }
+
+  CHECK_LE(permission_descriptors_.size(), 2U)
+      << "Unexpected permissions size " << permission_descriptors_.size();
+}
+
 // static
 Vector<PermissionDescriptorPtr>
 HTMLPermissionElement::ParsePermissionDescriptorsForTesting(
@@ -716,26 +739,7 @@ void HTMLPermissionElement::LangAttributeChanged() {
 void HTMLPermissionElement::AttributeChanged(
     const AttributeModificationParams& params) {
   if (params.name == html_names::kTypeAttr) {
-    // `type` should only take effect once, when is added to the permission
-    // element. Removing, or modifying the attribute has no effect.
-    if (!type_.IsNull()) {
-      return;
-    }
-
-    type_ = params.new_value;
-
-    CHECK(permission_descriptors_.empty());
-    permission_descriptors_ = ParsePermissionDescriptorsFromString(GetType());
-    if (permission_descriptors_.empty()) {
-      AddConsoleError(
-          StrCat({"The permission type '", GetType().GetString(),
-                  "' is not supported by the permission element."}));
-      EnableFallbackMode();
-      return;
-    }
-
-    CHECK_LE(permission_descriptors_.size(), 2U)
-        << "Unexpected permissions size " << permission_descriptors_.size();
+    setType(params.new_value);
   }
 
   MaybeRegisterPageEmbeddedPermissionControl();
@@ -1499,7 +1503,23 @@ void HTMLPermissionElement::OnIntersectionChanged(
           WrapWeakPersistent(this)));
 }
 
+bool HTMLPermissionElement::IsMaskedByAncestor() const {
+  if (LayoutObject* layout_object = GetLayoutObject()) {
+    for (PaintLayer* layer = layout_object->EnclosingLayer(); layer;
+         layer = layer->Parent()) {
+      if (layer->GetLayoutObject().HasMask()) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 bool HTMLPermissionElement::IsStyleValid() {
+  if (IsMaskedByAncestor()) {
+    return false;
+  }
+
   const ComputedStyle* style = GetComputedStyle();
 
   // No computed style when using `display: none`.

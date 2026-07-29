@@ -36,7 +36,6 @@
 using ::testing::_;
 using ::testing::DoAll;
 using ::testing::InSequence;
-using ::testing::Invoke;
 using ::testing::InvokeWithoutArgs;
 using ::testing::Mock;
 using ::testing::SaveArg;
@@ -58,9 +57,9 @@ class MockMojoVideoCaptureHost : public media::mojom::blink::VideoCaptureHost {
  public:
   MockMojoVideoCaptureHost() : released_buffer_count_(0) {
     ON_CALL(*this, GetDeviceSupportedFormatsMock(_, _, _))
-        .WillByDefault(WithArgs<2>(Invoke(RunEmptyFormatsCallback)));
+        .WillByDefault(WithArgs<2>(RunEmptyFormatsCallback));
     ON_CALL(*this, GetDeviceFormatsInUseMock(_, _, _))
-        .WillByDefault(WithArgs<2>(Invoke(RunEmptyFormatsCallback)));
+        .WillByDefault(WithArgs<2>(RunEmptyFormatsCallback));
     ON_CALL(*this, ReleaseBuffer(_, _, _))
         .WillByDefault(InvokeWithoutArgs(
             this, &MockMojoVideoCaptureHost::increase_released_buffer_count));
@@ -202,11 +201,11 @@ class VideoCaptureImplTest : public ::testing::Test {
                void(const Vector<media::VideoCaptureFormat>&));
 
   void StartCapture(int client_id, const media::VideoCaptureParams& params) {
-    const auto state_update_callback = WTF::BindRepeating(
+    const auto state_update_callback = BindRepeating(
         &VideoCaptureImplTest::OnStateUpdate, base::Unretained(this));
-    const auto frame_ready_callback = WTF::BindRepeating(
+    const auto frame_ready_callback = blink::BindRepeating(
         &VideoCaptureImplTest::OnFrameReady, base::Unretained(this));
-    const auto frame_dropped_callback = WTF::BindRepeating(
+    const auto frame_dropped_callback = BindRepeating(
         &VideoCaptureImplTest::OnFrameDropped, base::Unretained(this));
 
     VideoCaptureCallbacks video_capture_callbacks;
@@ -257,12 +256,12 @@ class VideoCaptureImplTest : public ::testing::Test {
 
   void GetDeviceSupportedFormats() {
     video_capture_impl_->GetDeviceSupportedFormats(
-        WTF::BindOnce(&VideoCaptureImplTest::OnDeviceSupportedFormats,
-                      base::Unretained(this)));
+        BindOnce(&VideoCaptureImplTest::OnDeviceSupportedFormats,
+                 base::Unretained(this)));
   }
 
   void GetDeviceFormatsInUse() {
-    video_capture_impl_->GetDeviceFormatsInUse(WTF::BindOnce(
+    video_capture_impl_->GetDeviceFormatsInUse(BindOnce(
         &VideoCaptureImplTest::OnDeviceFormatsInUse, base::Unretained(this)));
   }
 
@@ -443,13 +442,12 @@ TEST_F(VideoCaptureImplTest, BufferReceived_GpuMemoryBufferHandle) {
   EXPECT_CALL(*this, OnStateUpdate(blink::VIDEO_CAPTURE_STATE_STARTED));
   EXPECT_CALL(*this, OnStateUpdate(blink::VIDEO_CAPTURE_STATE_STOPPED));
   EXPECT_CALL(*this, OnFrameReady(_, _))
-      .WillOnce(
-          Invoke([&](scoped_refptr<media::VideoFrame> f, base::TimeTicks t) {
-            // Hold on a reference to the video frame to emulate that we're
-            // actively using the buffer.
-            frame = f;
-            frame_ready_event.Signal();
-          }));
+      .WillOnce([&](scoped_refptr<media::VideoFrame> f, base::TimeTicks t) {
+        // Hold on a reference to the video frame to emulate that we're
+        // actively using the buffer.
+        frame = f;
+        frame_ready_event.Signal();
+      });
   EXPECT_CALL(mock_video_capture_host_, DoStart(_, session_id_, params_small_));
   EXPECT_CALL(mock_video_capture_host_, Stop(_));
   EXPECT_CALL(mock_video_capture_host_, ReleaseBuffer(_, kArbitraryBufferId, _))
@@ -855,14 +853,13 @@ TEST_F(VideoCaptureImplTest, FallbacksToPremappedGmbsWhenNotSupported) {
   EXPECT_CALL(mock_video_capture_host_, DoStart(_, session_id_, params_small_));
   EXPECT_CALL(mock_video_capture_host_, Stop(_));
   EXPECT_CALL(mock_video_capture_host_, ReleaseBuffer(_, kArbitraryBufferId, _))
-      .WillOnce(
-          Invoke([&](const base::UnguessableToken& device_id, int32_t buffer_id,
-                     const media::VideoCaptureFeedback& fb) {
-            // Hold on a reference to the video frame to emulate that we're
-            // actively using the buffer.
-            feedback = fb;
-            frame_ready_event.Signal();
-          }));
+      .WillOnce([&](const base::UnguessableToken& device_id, int32_t buffer_id,
+                    const media::VideoCaptureFeedback& fb) {
+        // Hold on a reference to the video frame to emulate that we're
+        // actively using the buffer.
+        feedback = fb;
+        frame_ready_event.Signal();
+      });
 
   // The first half of the test: Create and queue the GpuMemoryBufferHandle.
   // VideoCaptureImpl would:

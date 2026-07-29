@@ -25,8 +25,6 @@ import org.chromium.content_public.browser.ContentFeatureList;
 import org.chromium.content_public.browser.ContentFeatureMap;
 import org.chromium.content_public.browser.HostZoomMap;
 import org.chromium.content_public.common.ContentSwitches;
-import org.chromium.device.DeviceFeatureList;
-import org.chromium.device.DeviceFeatureMap;
 import org.chromium.url.Origin;
 
 import java.util.ArrayList;
@@ -354,17 +352,6 @@ public class WebsitePermissionsFetcher {
                 return;
             }
 
-            // The serial guard permission controls access to the Web Serial API, which enables
-            // sites to request access to connect specific serial ports. Users are presented with a
-            // chooser prompt in which they must select the serial port they would like to allow the
-            // site to connect to. Therefore, this permission also displays a list of permitted
-            // serial ports that each site can connect to.
-            // Remove this check after the flag is removed.
-            if (contentSettingsType == ContentSettingsType.SERIAL_GUARD
-                    && !DeviceFeatureMap.isEnabled(DeviceFeatureList.BLUETOOTH_RFCOMM_ANDROID)) {
-                return;
-            }
-
             switch (websitePermissionsType) {
                 case CONTENT_SETTING_EXCEPTION:
                     queue.add(new ExceptionInfoFetcher(contentSettingsType));
@@ -467,7 +454,7 @@ public class WebsitePermissionsFetcher {
                 // convert the embedder to add the scheme or the wildcard to create a
                 // unique key (and thus row) per pattern.
                 if (mSiteSettingsDelegate.isDisplayWildcardInContentSettingsEnabled()
-                        && embedder != null) {
+                        && embedder != null && !embedder.isEmpty()) {
                     embedder =
                             containsPatternWildcards(embedder)
                                     ? embedder

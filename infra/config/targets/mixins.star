@@ -531,6 +531,13 @@ targets.mixin(
 )
 
 targets.mixin(
+    name = "skylab-50-tests-per-shard",
+    skylab = targets.skylab(
+        cros_test_max_in_shard = 50,
+    ),
+)
+
+targets.mixin(
     name = "skylab-40-tests-per-shard",
     skylab = targets.skylab(
         cros_test_max_in_shard = 40,
@@ -541,6 +548,22 @@ targets.mixin(
     name = "skylab-20-tests-per-shard",
     skylab = targets.skylab(
         cros_test_max_in_shard = 20,
+    ),
+)
+
+targets.mixin(
+    name = "tfc-exclude-public",
+    generate_pyl_entry = False,
+    skylab = targets.skylab(
+        cros_test_names_exclude_from_file = ["chromeos/tast_control_disabled_tests.txt", "chromeos/tast_control_disabled_tests_public_builders.txt"],
+    ),
+)
+
+targets.mixin(
+    name = "tfc-run-public",
+    generate_pyl_entry = False,
+    skylab = targets.skylab(
+        cros_test_names_from_file = ["chromeos/tast_control_disabled_tests.txt", "chromeos/tast_control_disabled_tests_public_builders.txt"],
     ),
 )
 
@@ -2541,7 +2564,7 @@ targets.mixin(
     swarming = targets.swarming(
         dimensions = {
             "display_attached": "1",
-            "gpu": "10de:2783-32.0.15.6070",
+            "gpu": "10de:2783-32.0.15.6070|10de:2783-32.0.15.8088",
             "os": "Windows-11",
             "pool": "chromium.tests.gpu",
         },
@@ -2634,6 +2657,7 @@ targets.mixin(
 
 targets.mixin(
     name = "xcode_16_main",
+    generate_pyl_entry = False,
     args = [
         "--xcode-build-version",
         "16c5032a",
@@ -2670,12 +2694,28 @@ targets.mixin(
     generate_pyl_entry = False,
     args = [
         "--xcode-build-version",
-        "17a5295f",
+        "17a5305f",
     ],
     swarming = targets.swarming(
         named_caches = [
             swarming.cache(
-                name = "xcode_ios_17a5295f",
+                name = "xcode_ios_17a5305f",
+                path = "Xcode.app",
+            ),
+        ],
+    ),
+)
+
+targets.mixin(
+    name = "xcode_26_main",
+    args = [
+        "--xcode-build-version",
+        "17a5305f",
+    ],
+    swarming = targets.swarming(
+        named_caches = [
+            swarming.cache(
+                name = "xcode_ios_17a5305f",
                 path = "Xcode.app",
             ),
         ],

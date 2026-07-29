@@ -84,6 +84,16 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
         type: Boolean,
         value: () => loadTimeData.getBoolean('enableAimSearchbox'),
       },
+      enableFloatingGForHeader: {
+        reflectToAttribute: true,
+        type: Boolean,
+        value: () => loadTimeData.getBoolean('enableFloatingGForHeader'),
+      },
+      enableClientSideAimHeader: {
+        reflectToAttribute: true,
+        type: Boolean,
+        value: () => loadTimeData.getBoolean('enableClientSideAimHeader'),
+      },
       enableCsbMotionTweaks: {
         reflectToAttribute: true,
         type: Boolean,
@@ -187,6 +197,11 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
         type: Number,
         value: 0,
       },
+      isOnAimResults: {
+        type: Boolean,
+        value: false,
+        reflectToAttribute: true,
+      },
     };
   }
 
@@ -217,6 +232,10 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
   declare private autocompleteRequestStarted: boolean;
   // Whether the AIM searchbox is enabled via feature flag.
   declare private enableAimSearchbox: boolean;
+  // Whether the floating G for header is enabled via feature flag.
+  declare private enableFloatingGForHeader: boolean;
+  // Whether the client side header is enabled via feature flag.
+  declare private enableClientSideAimHeader: boolean;
   declare private isErrorPageVisible: boolean;
   // Whether the results iframe is currently loading. This needs to be done via
   // browser because the iframe is cross-origin. Default true since the side
@@ -247,6 +266,8 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
   declare private toastMessage: string;
   // The number of suggestions currently being shown to the user.
   declare private searchboxSuggestionCount: number;
+  // Whether the results in the iframe are currently on the AIM UI.
+  declare private isOnAimResults: boolean;
   private eventTracker_: EventTracker = new EventTracker();
 
   private searchboxBoundingClientRectObserver: ResizeObserver =
@@ -292,6 +313,8 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
           this.pageContentTypeChanged.bind(this)),
       this.browserProxy.callbackRouter.showToast.addListener(
           this.showMessageToast.bind(this)),
+      this.browserProxy.callbackRouter.aimResultsChanged.addListener(
+          this.onAimResultsChanged.bind(this)),
     ];
     this.eventTracker_.add(this.$.searchbox, 'mousedown', () => {
       this.suppressGhostLoader = false;
@@ -552,6 +575,10 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
     }
   }
 
+  private onAimResultsChanged(onAim: boolean) {
+    this.isOnAimResults = onAim;
+  }
+
   private async showToast(toast: CrToastElement, message?: string) {
     if (toast.open) {
       // If toast already open, wait after hiding so that animation is
@@ -589,5 +616,23 @@ declare global {
     'lens-side-panel-app': LensSidePanelAppElement;
   }
 }
+
+// Register the custom property for the composebox gradient color.
+// Custom properties are ignored by the browser in shadow DOMs, so need to
+// register them globally here. Additionally, the property can only by
+// registered once per document, so this must be done in the main window, rather
+// than in the class itself.
+window.CSS.registerProperty({
+  name: '--search-background-color',
+  syntax: '<color>',
+  inherits: true,
+  initialValue: 'white',
+});
+window.CSS.registerProperty({
+  name: '--ntp-composebox-background-color',
+  syntax: '<color>',
+  inherits: true,
+  initialValue: 'white',
+});
 
 customElements.define(LensSidePanelAppElement.is, LensSidePanelAppElement);

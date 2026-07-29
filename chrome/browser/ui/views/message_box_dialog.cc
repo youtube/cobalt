@@ -26,7 +26,7 @@
 #include "ui/base/mojom/ui_base_types.mojom-shared.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/display/screen.h"
-#include "ui/gfx/native_widget_types.h"
+#include "ui/gfx/native_window_types.h"
 #include "ui/views/controls/message_box_view.h"
 #include "ui/views/views_delegate.h"
 #include "ui/views/widget/widget.h"
@@ -122,7 +122,7 @@ bool CanUseViewsMessageBox() {
   }
 
   // aura::WindowTreeHost observes display::Screen for device scale change.
-  if (!display::Screen::GetScreen()) {
+  if (!display::Screen::Get()) {
     return false;
   }
 

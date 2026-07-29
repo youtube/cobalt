@@ -69,8 +69,11 @@ import java.util.concurrent.atomic.AtomicReference;
 public class UrlBarTest {
     public static final String EXAMPLE_STRING = "example string";
     private UrlBar mUrlBar;
+
+    @Rule
     public ReusedCtaTransitTestRule<WebPageStation> mActivityTestRule =
             ChromeTransitTestRules.blankPageStartReusedActivityRule();
+
     private OmniboxTestUtils mOmnibox;
     private WebPageStation mStartingPage;
 
@@ -85,7 +88,7 @@ public class UrlBarTest {
         mActivityTestRule.getActivityTestRule().waitForDeferredStartup();
 
         mOmnibox = new OmniboxTestUtils(mStartingPage.getActivity());
-        mUrlBar = mStartingPage.urlBarElement.get();
+        mUrlBar = mStartingPage.urlBarElement.value();
         InstrumentationRegistry.getInstrumentation().waitForIdleSync();
 
         // Start with an empty Omnibox and disable all automatic features.

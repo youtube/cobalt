@@ -18,17 +18,17 @@
 #include "base/trace_event/trace_event.h"
 #include "content/browser/webid/accounts_fetcher.h"
 #include "content/browser/webid/delegation/federated_sd_jwt_handler.h"
-#include "content/browser/webid/fedcm_metrics.h"
 #include "content/browser/webid/identity_provider_info.h"
 #include "content/browser/webid/identity_registry.h"
 #include "content/browser/webid/identity_registry_delegate.h"
 #include "content/browser/webid/idp_network_request_manager.h"
 #include "content/browser/webid/idp_registration_handler.h"
+#include "content/browser/webid/metrics.h"
 #include "content/browser/webid/url_computations.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/document_service.h"
 #include "content/public/browser/web_contents.h"
-#include "content/public/browser/webid/federated_auth_autofill_source.h"
+#include "content/public/browser/webid/autofill_source.h"
 #include "content/public/browser/webid/federated_identity_api_permission_context_delegate.h"
 #include "content/public/browser/webid/federated_identity_permission_context_delegate.h"
 #include "content/public/browser/webid/identity_request_dialog_controller.h"
@@ -69,7 +69,7 @@ class CONTENT_EXPORT FederatedAuthRequestImpl
       public FederatedIdentityPermissionContextDelegate::
           IdpSigninStatusObserver,
       public IdentityRegistryDelegate,
-      public FederatedAuthAutofillSource {
+      public webid::AutofillSource {
  public:
   static constexpr char kWildcardDomainHint[] = "any";
 
@@ -130,7 +130,7 @@ class CONTENT_EXPORT FederatedAuthRequestImpl
                         const url::Origin& expected,
                         const url::Origin& actual) override;
 
-  // content::FederatedAuthAutofillSource
+  // content::webid::AutofillSource
   const std::optional<std::vector<IdentityRequestAccountPtr>>
   GetAutofillSuggestions() const override;
   void NotifyAutofillSuggestionAccepted(
@@ -174,7 +174,9 @@ class CONTENT_EXPORT FederatedAuthRequestImpl
 
   // These values are persisted to logs. Entries should not be renumbered and
   // numeric values should never be reused.
-  enum DialogType {
+  // LINT.IfChange(DialogType)
+
+  enum class DialogType {
     kNone = 0,
     kSelectAccount = 1,
     kAutoReauth = 2,
@@ -186,9 +188,10 @@ class CONTENT_EXPORT FederatedAuthRequestImpl
     kLoginToIdpPopup = 5,
     kContinueOnPopup = 6,
     kErrorUrlPopup = 7,
-
     kMaxValue = kErrorUrlPopup
   };
+
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/blink/enums.xml:FedCmDialogType)
 
   DialogType GetDialogType() const { return dialog_type_; }
 
@@ -215,7 +218,7 @@ class CONTENT_EXPORT FederatedAuthRequestImpl
     return idps_user_tried_to_signin_to_.contains(idp_config_url);
   }
 
-  FedCmUseOtherAccountResult ComputeUseOtherAccountResult(
+  webid::UseOtherAccountResult ComputeUseOtherAccountResult(
       blink::mojom::FederatedAuthRequestResult result,
       const std::optional<GURL>& selected_idp_config_url);
 
@@ -230,7 +233,7 @@ class CONTENT_EXPORT FederatedAuthRequestImpl
   void OnFetchDataForIdpFailed(
       std::unique_ptr<IdentityProviderInfo> idp_info,
       blink::mojom::FederatedAuthRequestResult result,
-      std::optional<content::FedCmRequestIdTokenStatus> token_status,
+      std::optional<webid::RequestIdTokenStatus> token_status,
       bool should_delay_callback);
 
   // Called when all of the data needed to display the FedCM prompt has been
@@ -263,7 +266,7 @@ class CONTENT_EXPORT FederatedAuthRequestImpl
   // Return the FedCmMetrics for use by FedCmAccountsFetcher.
   // TODO(crbug.com/417784830): Remove this once code has been refactored and
   // FedCmAccountsFetcher can hold a raw pointer to FedCmMetrics.
-  FedCmMetrics* fedcm_metrics() { return fedcm_metrics_.get(); }
+  webid::Metrics* fedcm_metrics() { return fedcm_metrics_.get(); }
 
   // Called when there is an error fetching information to show the prompt for a
   // given IDP, and because of the mismatch this IDP must be present in the
@@ -272,18 +275,17 @@ class CONTENT_EXPORT FederatedAuthRequestImpl
 
   void CompleteRequestWithError(
       blink::mojom::FederatedAuthRequestResult result,
-      std::optional<content::FedCmRequestIdTokenStatus> token_status,
+      std::optional<webid::RequestIdTokenStatus> token_status,
       bool should_delay_callback);
 
   // Completes request. Displays a dialog if there is an error and the error is
   // during a fetch triggered by an IdP sign-in status change.
-  void CompleteRequest(
-      blink::mojom::FederatedAuthRequestResult result,
-      std::optional<content::FedCmRequestIdTokenStatus> token_status,
-      std::optional<TokenError> token_error,
-      const std::optional<GURL>& selected_idp_config_url,
-      const std::string& token,
-      bool should_delay_callback);
+  void CompleteRequest(blink::mojom::FederatedAuthRequestResult result,
+                       std::optional<webid::RequestIdTokenStatus> token_status,
+                       std::optional<TokenError> token_error,
+                       const std::optional<GURL>& selected_idp_config_url,
+                       const std::string& token,
+                       bool should_delay_callback);
 
  private:
   friend class FederatedAuthRequestImplTest;
@@ -319,7 +321,7 @@ class CONTENT_EXPORT FederatedAuthRequestImpl
 
   void MaybeShowAccountsDialog();
   void OnShouldShowAccountsPassiveDialogResult(
-      bool did_succeed_for_at_least_one_idp,
+      const std::set<GURL>& unique_idps,
       bool should_show);
   // To be called immediately after ShowAccountsDialog for correct devtools
   // integration and metrics reporting.
@@ -443,7 +445,7 @@ class CONTENT_EXPORT FederatedAuthRequestImpl
   void OnRegisterIdPPermissionResponse(RegisterIdPCallback callback,
                                        const GURL& idp,
                                        bool accepted);
-  std::unique_ptr<FedCmMetrics> CreateFedCmMetrics();
+  std::unique_ptr<webid::Metrics> CreateFedCmMetrics();
 
   bool IsNewlyLoggedIn(const IdentityRequestAccount& account);
 
@@ -460,7 +462,7 @@ class CONTENT_EXPORT FederatedAuthRequestImpl
 
   // Helper that records FedCM UMA and UKM metrics. Initialized in the
   // RequestToken() method, so all metrics must be recorded after that.
-  std::unique_ptr<FedCmMetrics> fedcm_metrics_;
+  std::unique_ptr<webid::Metrics> fedcm_metrics_;
 
   // Populated by OnFetchDataForIdpSucceeded() and OnIdpMismatch().
   base::flat_map<GURL, std::unique_ptr<IdentityProviderInfo>> idp_infos_;
@@ -571,7 +573,7 @@ class CONTENT_EXPORT FederatedAuthRequestImpl
   // If dialog_type_ is kError, this is the token error.
   std::optional<TokenError> token_error_;
 
-  DialogType dialog_type_ = kNone;
+  DialogType dialog_type_ = DialogType::kNone;
   MediationRequirement mediation_requirement_;
   IdentitySelectionType identity_selection_type_ = kExplicit;
   RpMode rp_mode_{RpMode::kPassive};
@@ -602,14 +604,14 @@ class CONTENT_EXPORT FederatedAuthRequestImpl
 
   // Keeps track of the state of the use other account flow. Is std::nullopt
   // when the flow is not active.
-  std::optional<FedCmUseOtherAccountResult> use_other_account_account_result_;
+  std::optional<webid::UseOtherAccountResult> use_other_account_account_result_;
 
   // Whether a token request has been sent.
   bool has_sent_token_request_{false};
 
   // Keeps track of the state of the verifying dialog. Is std::nullopt when the
   // verifying dialog has not been shown.
-  std::optional<FedCmVerifyingDialogResult> verifying_dialog_result_;
+  std::optional<webid::VerifyingDialogResult> verifying_dialog_result_;
 
   perfetto::NamedTrack perfetto_track_;
 

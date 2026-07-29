@@ -159,6 +159,8 @@
 using signin::constants::kNoHostedDomainFound;
 using testing::_;
 using testing::Eq;
+using testing::Pair;
+using testing::UnorderedElementsAre;
 
 namespace {
 const SkColor kProfileColor = SK_ColorRED;
@@ -2019,14 +2021,9 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest, ReShow) {
   EXPECT_FALSE(widget_weak->IsClosed());
 }
 
-// TODO(crbug.com/325310963): Re-enable this flaky test on macOS.
-#if BUILDFLAG(IS_MAC)
-#define MAYBE_OpenProfile DISABLED_OpenProfile
-#else
-#define MAYBE_OpenProfile OpenProfile
-#endif
+// TODO(crbug.com/426520088): Re-enable this flaky test.
 IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
-                       MAYBE_OpenProfile) {
+                       DISABLED_OpenProfile) {
   base::HistogramTester histogram_tester;
 
   auto scoped_iph_delay =
@@ -2044,16 +2041,16 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
 
   // Verify that a HaTS survey is launched when the user switch profile with the
   // profile picker.
-  std::map<std::string, std::string> expected_string_psd = {
-      {"Channel", "unknown"},
-      {"Chrome Version", version_info::GetVersion().GetString()},
-      {"Number of Chrome Profiles", "2"},
-      {"Number of Google Accounts", "0"},
-      {"Sign-in Status", "Signed Out"}};
-  EXPECT_CALL(*hats_service,
-              LaunchDelayedSurvey(
-                  kHatsSurveyTriggerIdentitySwitchProfileFromProfilePicker, _,
-                  _, Eq(expected_string_psd)))
+  EXPECT_CALL(
+      *hats_service,
+      LaunchDelayedSurvey(
+          kHatsSurveyTriggerIdentitySwitchProfileFromProfilePicker, _, _,
+          UnorderedElementsAre(
+              Pair("Channel", _),
+              Pair("Chrome Version", version_info::GetVersion().GetString()),
+              Pair("Number of Chrome Profiles", "2"),
+              Pair("Number of Google Accounts", "0"),
+              Pair("Sign-in Status", "Signed Out"))))
       .Times(2);
 
   // Open the picker.

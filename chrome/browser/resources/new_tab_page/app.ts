@@ -207,15 +207,14 @@ export class AppElement extends AppElementBase {
         notify: true,
       },
 
-      closingComposebox: {
-        type: Boolean,
-        reflect: true,
-      },
       composeboxCloseByClickOutside_: {type: Boolean},
       composeboxEnabled: {type: Boolean},
       composeButtonEnabled: {type: Boolean},
 
       browserPromoType_: {type: String},
+      browserPromoLimit_: {type: Number},
+      browserPromoCompletedLimit_: {type: Number},
+
       realboxShown_: {type: Boolean},
       logoEnabled_: {type: Boolean},
       oneGoogleBarEnabled_: {type: Boolean},
@@ -302,6 +301,10 @@ export class AppElement extends AppElementBase {
       loadTimeData.getBoolean('modulesEnabled');
   protected accessor browserPromoType_: string =
       loadTimeData.getString('browserPromoType');
+  protected accessor browserPromoLimit_: number =
+      loadTimeData.getInteger('browserPromoLimit');
+  protected accessor browserPromoCompletedLimit_: number =
+      loadTimeData.getInteger('browserPromoCompletedLimit');
   private accessor middleSlotPromoLoaded_: boolean = false;
   private accessor modulesLoaded_: boolean = false;
   protected accessor modulesShownToUser: boolean = false;
@@ -317,7 +320,6 @@ export class AppElement extends AppElementBase {
   protected accessor wallpaperSearchButtonEnabled_: boolean =
       loadTimeData.getBoolean('wallpaperSearchButtonEnabled');
   protected accessor showWallpaperSearchButton_: boolean = false;
-  accessor closingComposebox: boolean = false;
   accessor composeButtonEnabled: boolean =
       loadTimeData.getBoolean('searchboxShowComposeEntrypoint');
   protected accessor composeboxCloseByClickOutside_: boolean =
@@ -603,26 +605,13 @@ export class AppElement extends AppElementBase {
         changedPrivateProperties.has('showComposebox_')) {
       this.updateOneGoogleBarAppearance_();
     }
-
-    if (changedPrivateProperties.has('showComposebox_')) {
-      if (this.showComposebox_) {
-        // Set Timeout since browser needs time to render the initial
-        // state before the final state is applied to run the transition.
-        setTimeout(() => {
-          const composeboxScrim =
-              this.shadowRoot.querySelector<HTMLElement>('#composeboxScrim');
-          assert(composeboxScrim);
-          composeboxScrim.classList.add('fade');
-        }, 0);
-      }
-    }
   }
 
   // Called to update the OGB of relevant NTP state changes.
   private updateOneGoogleBarAppearance_() {
     if (this.oneGoogleBarLoaded_) {
       let isNtpDarkTheme;
-      if (this.isComposeboxVisible_()) {
+      if (this.showComposebox_) {
         isNtpDarkTheme = this.theme_ && this.theme_.isDark;
       } else {
         isNtpDarkTheme = this.theme_ &&
@@ -660,7 +649,7 @@ export class AppElement extends AppElementBase {
   private computeRealboxShown_(): boolean {
     // Do not show the realbox if the upload dialog is showing.
     return !!this.theme_ && !this.showLensUploadDialog_ &&
-        !this.isComposeboxVisible_();
+        !this.showComposebox_;
   }
 
   private computePromoAndModulesLoaded_(): boolean {
@@ -677,10 +666,12 @@ export class AppElement extends AppElementBase {
     // Integration tests use this attribute to determine when lazy load has
     // completed.
     document.documentElement.setAttribute('lazy-loaded', String(true));
-    this.registerHelpBubble(
-        CUSTOMIZE_CHROME_BUTTON_ELEMENT_ID,
-        ['ntp-customize-buttons', '#customizeButton'], {fixed: true});
-    this.pageHandler_.maybeShowFeaturePromo(IphFeature.kCustomizeChrome);
+    if (!this.isFooterVisible_) {
+      this.registerHelpBubble(
+          CUSTOMIZE_CHROME_BUTTON_ELEMENT_ID,
+          ['ntp-customize-buttons', '#customizeButton'], {fixed: true});
+      this.pageHandler_.maybeShowFeaturePromo(IphFeature.kCustomizeChrome);
+    }
     if (this.showWallpaperSearchButton_) {
       this.customizeButtonsHandler_.incrementWallpaperSearchButtonShownCount();
     }
@@ -719,31 +710,10 @@ export class AppElement extends AppElementBase {
         this.shadowRoot.querySelector<ComposeboxElement>('#composebox');
     assert(composebox);
     composebox.resetText();
-    this.fadeoutScrim_();
-  }
-
-  private fadeoutScrim_() {
-    const composeboxScrim =
-        this.shadowRoot.querySelector<HTMLElement>('#composeboxScrim');
-    assert(composeboxScrim);
-    composeboxScrim.addEventListener('transitionend', (e: TransitionEvent) => {
-      if (e.propertyName === 'opacity') {  // Match the animation name
-        this.toggleComposebox_();
-        this.closingComposebox = false;
-      }
-    });
-    composeboxScrim.classList.remove('fade');
-    const composebox = this.shadowRoot.querySelector('#composebox');
-    assert(composebox);
-    composebox.classList.add('fade-out');
-    this.closingComposebox = true;
+    this.toggleComposebox_();
     this.logoColor_ = this.computeLogoColor_();
     this.singleColoredLogo_ = this.computeSingleColoredLogo_();
     this.updateOneGoogleBarAppearance_();
-  }
-
-  private isComposeboxVisible_() {
-    return this.showComposebox_ && !this.closingComposebox;
   }
 
   protected onOpenVoiceSearch_() {
@@ -907,7 +877,7 @@ export class AppElement extends AppElementBase {
       return null;
     }
 
-    if (this.isComposeboxVisible_()) {
+    if (this.showComposebox_) {
       return this.theme_.isDark ? hexColorToSkColor('#ffffff') : null;
     }
 
@@ -916,7 +886,7 @@ export class AppElement extends AppElementBase {
   }
 
   private computeSingleColoredLogo_(): boolean {
-    if (this.isComposeboxVisible_()) {
+    if (this.showComposebox_) {
       return !!this.theme_ && this.theme_.isDark;
     }
     return !!this.theme_ && (!!this.theme_.logoColor || this.theme_.isDark);

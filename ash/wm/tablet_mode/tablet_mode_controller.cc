@@ -65,9 +65,7 @@
 
 namespace ash {
 
-BASE_FEATURE(kBlockUiTabletModeInKiosk,
-             "BlockUiTabletModeInKiosk",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(BlockUiTabletModeInKiosk, base::FEATURE_ENABLED_BY_DEFAULT);
 
 namespace {
 
@@ -468,7 +466,7 @@ void TabletModeController::AddWindow(aura::Window* window) {
 
 bool TabletModeController::ShouldAutoHideTitlebars(views::Widget* widget) {
   DCHECK(widget);
-  if (!display::Screen::GetScreen()->InTabletMode()) {
+  if (!display::Screen::Get()->InTabletMode()) {
     return false;
   }
   return widget->IsMaximized() ||
@@ -493,7 +491,7 @@ void TabletModeController::MaybeObserveBoundsAnimation(aura::Window* window) {
   StopObservingAnimation(/*record_stats=*/false, /*delete_screenshot=*/false);
 
   if (!display::IsTabletStateChanging(
-          display::Screen::GetScreen()->GetTabletState())) {
+          display::Screen::Get()->GetTabletState())) {
     return;
   }
 
@@ -853,7 +851,7 @@ void TabletModeController::OnLayerAnimationScheduled(
         animating_layer_->GetCompositor()->RequestNewCompositorMetricsTracker();
     transition_tracker_->Start(metrics_util::ForSmoothnessV3(
         base::BindRepeating(&ReportTrasitionSmoothness,
-                            display::Screen::GetScreen()->GetTabletState() ==
+                            display::Screen::Get()->GetTabletState() ==
                                 display::TabletState::kEnteringTabletMode)));
     return;
   }
@@ -898,7 +896,7 @@ bool TabletModeController::CanEnterTabletMode() const {
 // TabletModeController, private:
 
 void TabletModeController::SetTabletModeEnabledInternal(bool should_enable) {
-  DCHECK_NE(display::Screen::GetScreen()->InTabletMode(), should_enable);
+  DCHECK_NE(display::Screen::Get()->InTabletMode(), should_enable);
 
   // Hide the context menu on entering tablet mode to prevent users from
   // accessing forbidden options. Hide the context menu on exiting tablet mode
@@ -1111,9 +1109,8 @@ void TabletModeController::RecordLidAngle() {
 
 TabletModeController::TabletModeIntervalType
 TabletModeController::CurrentTabletModeIntervalType() {
-  return display::Screen::GetScreen()->InTabletMode()
-             ? TABLET_MODE_INTERVAL_ACTIVE
-             : TABLET_MODE_INTERVAL_INACTIVE;
+  return display::Screen::Get()->InTabletMode() ? TABLET_MODE_INTERVAL_ACTIVE
+                                                : TABLET_MODE_INTERVAL_INACTIVE;
 }
 
 void TabletModeController::HandlePointingDeviceAddedOrRemoved() {
@@ -1188,8 +1185,7 @@ void TabletModeController::UpdateInternalInputDevicesEventBlocker() {
   // setting the brightness to 0.
   const bool should_block_internal_events =
       tablet_mode_behavior_.block_internal_input_device &&
-      (display::Screen::GetScreen()->InTabletMode() ||
-       is_in_tablet_physical_state_);
+      (display::Screen::Get()->InTabletMode() || is_in_tablet_physical_state_);
 
   if (should_block_internal_events == AreInternalInputDeviceEventsBlocked()) {
     if (force_notify_events_blocking_changed_) {
@@ -1223,7 +1219,7 @@ void TabletModeController::ResetPauser() {
 
 void TabletModeController::FinishInitTabletMode() {
   DCHECK_EQ(display::TabletState::kEnteringTabletMode,
-            display::Screen::GetScreen()->GetTabletState());
+            display::Screen::Get()->GetTabletState());
 
   // Transition shelf to tablet mode state, now that the screenshot for tablet
   // mode transition was taken. Taking screenshot recreates shelf container
@@ -1444,8 +1440,7 @@ bool TabletModeController::SetIsInTabletPhysicalState(bool new_state) {
 
 bool TabletModeController::UpdateUiTabletState() {
   const bool should_be_in_tablet_mode = ShouldUiBeInTabletMode();
-  if (should_be_in_tablet_mode ==
-      display::Screen::GetScreen()->InTabletMode()) {
+  if (should_be_in_tablet_mode == display::Screen::Get()->InTabletMode()) {
     return false;
   }
 

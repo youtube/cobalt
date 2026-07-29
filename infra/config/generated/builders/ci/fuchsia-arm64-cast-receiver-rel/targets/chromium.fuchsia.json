@@ -9,6 +9,8 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//third_party/abseil-cpp:absl_hardening_tests/",
+        "module_scheme": "gtest",
         "name": "absl_hardening_tests",
         "resultdb": {
           "enable": true,
@@ -29,6 +31,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//ui/accessibility:accessibility_unittests/",
         "name": "accessibility_unittests",
         "resultdb": {
           "enable": true,
@@ -49,6 +52,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//ui/aura:aura_unittests/",
         "name": "aura_unittests",
         "resultdb": {
           "enable": true,
@@ -69,6 +73,8 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//base:base_unittests/",
+        "module_scheme": "gtest",
         "name": "base_unittests",
         "resultdb": {
           "enable": true,
@@ -89,6 +95,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//third_party/blink/common:blink_common_unittests/",
         "name": "blink_common_unittests",
         "resultdb": {
           "enable": true,
@@ -109,6 +116,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//third_party/blink/renderer/platform:blink_fuzzer_unittests/",
         "name": "blink_fuzzer_unittests",
         "resultdb": {
           "enable": true,
@@ -129,6 +137,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//third_party/blink/renderer/platform/heap:blink_heap_unittests/",
         "name": "blink_heap_unittests",
         "resultdb": {
           "enable": true,
@@ -152,6 +161,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//third_party/blink/renderer/platform:blink_platform_unittests/",
         "name": "blink_platform_unittests",
         "precommit_args": [
           "--gerrit-issue=${patch_issue}",
@@ -177,6 +187,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//third_party/blink/renderer/controller:blink_unittests/",
         "name": "blink_unittests",
         "resultdb": {
           "enable": true,
@@ -197,6 +208,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//third_party/boringssl:boringssl_crypto_tests/",
         "name": "boringssl_crypto_tests",
         "resultdb": {
           "enable": true,
@@ -217,6 +229,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//third_party/boringssl:boringssl_ssl_tests/",
         "name": "boringssl_ssl_tests",
         "resultdb": {
           "enable": true,
@@ -237,6 +250,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//media/capture:capture_unittests/",
         "name": "capture_unittests",
         "resultdb": {
           "enable": true,
@@ -257,6 +271,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//fuchsia_web/runners:cast_runner_browsertests/",
         "name": "cast_runner_browsertests",
         "resultdb": {
           "enable": true,
@@ -277,6 +292,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//fuchsia_web/runners:cast_runner_integration_tests/",
         "name": "cast_runner_integration_tests",
         "resultdb": {
           "enable": true,
@@ -297,6 +313,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//fuchsia_web/runners:cast_runner_unittests/",
         "name": "cast_runner_unittests",
         "resultdb": {
           "enable": true,
@@ -317,6 +334,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//media/cast:cast_unittests/",
         "name": "cast_unittests",
         "resultdb": {
           "enable": true,
@@ -337,6 +355,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//cc:cc_unittests/",
         "name": "cc_unittests",
         "resultdb": {
           "enable": true,
@@ -362,6 +381,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//components:components_browsertests/",
         "name": "components_browsertests",
         "resultdb": {
           "enable": true,
@@ -382,6 +402,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//components:components_unittests/",
         "name": "components_unittests",
         "resultdb": {
           "enable": true,
@@ -403,6 +424,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//ui/compositor:compositor_unittests/",
         "name": "compositor_unittests",
         "resultdb": {
           "enable": true,
@@ -428,6 +450,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//content/test:content_browsertests/",
         "name": "content_browsertests",
         "resultdb": {
           "enable": true,
@@ -449,6 +472,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//content/test:content_unittests/",
         "name": "content_unittests",
         "resultdb": {
           "enable": true,
@@ -469,6 +493,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//crypto:crypto_unittests/",
         "name": "crypto_unittests",
         "resultdb": {
           "enable": true,
@@ -489,6 +514,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//ui/display:display_unittests/",
         "name": "display_unittests",
         "resultdb": {
           "enable": true,
@@ -509,6 +535,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//ui/events:events_unittests/",
         "name": "events_unittests",
         "resultdb": {
           "enable": true,
@@ -529,6 +556,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//components/services/filesystem:filesystem_service_unittests/",
         "name": "filesystem_service_unittests",
         "resultdb": {
           "enable": true,
@@ -549,6 +577,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//google_apis/gcm:gcm_unit_tests/",
         "name": "gcm_unit_tests",
         "resultdb": {
           "enable": true,
@@ -569,6 +598,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//ui/gfx:gfx_unittests/",
         "name": "gfx_unittests",
         "resultdb": {
           "enable": true,
@@ -589,6 +619,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//gin:gin_unittests/",
         "name": "gin_unittests",
         "resultdb": {
           "enable": true,
@@ -609,6 +640,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//google_apis:google_apis_unittests/",
         "name": "google_apis_unittests",
         "resultdb": {
           "enable": true,
@@ -629,6 +661,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//gpu:gpu_unittests/",
         "name": "gpu_unittests",
         "resultdb": {
           "enable": true,
@@ -649,6 +682,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//components/gwp_asan:gwp_asan_unittests/",
         "name": "gwp_asan_unittests",
         "resultdb": {
           "enable": true,
@@ -669,6 +703,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//headless:headless_browsertests/",
         "name": "headless_browsertests",
         "resultdb": {
           "enable": true,
@@ -689,6 +724,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//headless:headless_unittests/",
         "name": "headless_unittests",
         "resultdb": {
           "enable": true,
@@ -709,6 +745,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//ipc:ipc_tests/",
         "name": "ipc_tests",
         "resultdb": {
           "enable": true,
@@ -729,6 +766,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//ui/latency:latency_unittests/",
         "name": "latency_unittests",
         "resultdb": {
           "enable": true,
@@ -753,6 +791,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//cc:cc_unittests/",
         "name": "layer_list_mode_cc_unittests",
         "swarming": {
           "dimensions": {
@@ -769,6 +808,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//third_party/libjingle_xmpp:libjingle_xmpp_unittests/",
         "name": "libjingle_xmpp_unittests",
         "resultdb": {
           "enable": true,
@@ -789,6 +829,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//third_party/liburlpattern:liburlpattern_unittests/",
         "name": "liburlpattern_unittests",
         "resultdb": {
           "enable": true,
@@ -809,6 +850,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//media:media_unittests/",
         "name": "media_unittests",
         "resultdb": {
           "enable": true,
@@ -829,6 +871,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//ui/message_center:message_center_unittests/",
         "name": "message_center_unittests",
         "resultdb": {
           "enable": true,
@@ -849,6 +892,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//media/midi:midi_unittests/",
         "name": "midi_unittests",
         "resultdb": {
           "enable": true,
@@ -869,6 +913,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//mojo:mojo_unittests/",
         "name": "mojo_unittests",
         "resultdb": {
           "enable": true,
@@ -889,6 +934,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//ui/native_theme:native_theme_unittests/",
         "name": "native_theme_unittests",
         "resultdb": {
           "enable": true,
@@ -912,6 +958,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//net:net_unittests/",
         "name": "net_unittests",
         "resultdb": {
           "enable": true,
@@ -935,6 +982,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//ui/ozone/gl:ozone_gl_unittests/",
         "name": "ozone_gl_unittests",
         "resultdb": {
           "enable": true,
@@ -955,6 +1003,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//ui/ozone:ozone_unittests/",
         "name": "ozone_unittests",
         "resultdb": {
           "enable": true,
@@ -975,6 +1024,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//third_party/perfetto:perfetto_unittests/",
         "name": "perfetto_unittests",
         "resultdb": {
           "enable": true,
@@ -995,6 +1045,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//testing/rust_gtest_interop:rust_gtest_interop_unittests/",
         "name": "rust_gtest_interop_unittests",
         "resultdb": {
           "enable": true,
@@ -1018,6 +1069,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//services:services_unittests/",
         "name": "services_unittests",
         "resultdb": {
           "enable": true,
@@ -1038,6 +1090,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//ui/shell_dialogs:shell_dialogs_unittests/",
         "name": "shell_dialogs_unittests",
         "resultdb": {
           "enable": true,
@@ -1058,6 +1111,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//skia:skia_unittests/",
         "name": "skia_unittests",
         "resultdb": {
           "enable": true,
@@ -1078,6 +1132,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//ui/snapshot:snapshot_unittests/",
         "name": "snapshot_unittests",
         "resultdb": {
           "enable": true,
@@ -1098,6 +1153,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//sql:sql_unittests/",
         "name": "sql_unittests",
         "resultdb": {
           "enable": true,
@@ -1118,6 +1174,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//storage:storage_unittests/",
         "name": "storage_unittests",
         "resultdb": {
           "enable": true,
@@ -1141,6 +1198,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//ui/base:ui_base_unittests/",
         "name": "ui_base_unittests",
         "resultdb": {
           "enable": true,
@@ -1161,6 +1219,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//ui/touch_selection:ui_touch_selection_unittests/",
         "name": "ui_touch_selection_unittests",
         "resultdb": {
           "enable": true,
@@ -1181,6 +1240,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//ui/tests:ui_unittests/",
         "name": "ui_unittests",
         "resultdb": {
           "enable": true,
@@ -1201,6 +1261,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//url:url_unittests/",
         "name": "url_unittests",
         "resultdb": {
           "enable": true,
@@ -1224,6 +1285,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//ui/views/examples:views_examples_unittests/",
         "name": "views_examples_unittests",
         "resultdb": {
           "enable": true,
@@ -1247,6 +1309,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//ui/views:views_unittests/",
         "name": "views_unittests",
         "resultdb": {
           "enable": true,
@@ -1270,6 +1333,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//components/viz:viz_unittests/",
         "name": "viz_unittests",
         "resultdb": {
           "enable": true,
@@ -1290,6 +1354,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//fuchsia_web/webengine:web_engine_browsertests/",
         "name": "web_engine_browsertests",
         "resultdb": {
           "enable": true,
@@ -1310,6 +1375,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//fuchsia_web/webengine:web_engine_integration_tests/",
         "name": "web_engine_integration_tests",
         "resultdb": {
           "enable": true,
@@ -1330,6 +1396,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//fuchsia_web/webengine:web_engine_unittests/",
         "name": "web_engine_unittests",
         "resultdb": {
           "enable": true,
@@ -1350,6 +1417,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//ui/wm:wm_unittests/",
         "name": "wm_unittests",
         "resultdb": {
           "enable": true,
@@ -1370,6 +1438,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//third_party/blink/renderer/platform/wtf:wtf_unittests/",
         "name": "wtf_unittests",
         "resultdb": {
           "enable": true,
@@ -1390,6 +1459,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//third_party/zlib:zlib_unittests/",
         "name": "zlib_unittests",
         "resultdb": {
           "enable": true,
@@ -1412,6 +1482,7 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//third_party/angle/src/tests:angle_unittests/",
         "name": "angle_unittests",
         "resultdb": {
           "enable": true,
@@ -1439,6 +1510,7 @@
           ],
           "script": "//tools/perf/process_perf_results.py"
         },
+        "module_name": "//tools/fuchsia/size_tests:fuchsia_sizes/",
         "name": "fuchsia_sizes",
         "swarming": {
           "dimensions": {

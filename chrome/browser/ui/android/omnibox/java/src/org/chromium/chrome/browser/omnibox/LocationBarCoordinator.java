@@ -38,6 +38,7 @@ import org.chromium.chrome.browser.locale.LocaleManager;
 import org.chromium.chrome.browser.merchant_viewer.MerchantTrustSignalsCoordinator;
 import org.chromium.chrome.browser.omnibox.LocationBarMediator.OmniboxUma;
 import org.chromium.chrome.browser.omnibox.geo.GeolocationHeader;
+import org.chromium.chrome.browser.omnibox.navattach.NavigationAttachmentsCoordinator;
 import org.chromium.chrome.browser.omnibox.status.StatusCoordinator;
 import org.chromium.chrome.browser.omnibox.status.StatusCoordinator.PageInfoAction;
 import org.chromium.chrome.browser.omnibox.status.StatusView;
@@ -102,6 +103,7 @@ public class LocationBarCoordinator
     private UrlBarCoordinator mUrlCoordinator;
     private AutocompleteCoordinator mAutocompleteCoordinator;
     private StatusCoordinator mStatusCoordinator;
+    private NavigationAttachmentsCoordinator mNavigationAttachmentsCoordinator;
     private final WindowAndroid mWindowAndroid;
     private LocationBarMediator mLocationBarMediator;
     private View mUrlBar;
@@ -110,6 +112,7 @@ public class LocationBarCoordinator
     private @Nullable View mLensButton;
     private @Nullable View mComposeplateButton;
     private @Nullable View mBookmarksButton;
+    private @Nullable View mInstallButton;
     private CallbackController mCallbackController = new CallbackController();
     private boolean mDestroyed;
 
@@ -245,7 +248,8 @@ public class LocationBarCoordinator
                         isToolbarMicEnabledSupplier,
                         mOmniboxDropdownEmbedderImpl,
                         tabModelSelectorSupplier,
-                        browserControlsStateProvider);
+                        browserControlsStateProvider,
+                        modalDialogManagerSupplier);
         if (backPressManager != null) {
             backPressManager.addHandler(mLocationBarMediator, BackPressHandler.Type.LOCATION_BAR);
         }
@@ -296,8 +300,11 @@ public class LocationBarCoordinator
                         pageInfoAction,
                         merchantTrustSignalsCoordinatorSupplier,
                         browserControlsVisibilityDelegate);
+        mNavigationAttachmentsCoordinator =
+                new NavigationAttachmentsCoordinator(context, windowAndroid, mLocationBarLayout);
         mLocationBarMediator.setCoordinators(
                 mUrlCoordinator, mAutocompleteCoordinator, mStatusCoordinator);
+        mLocationBarMediator.addUrlFocusChangeListener(mNavigationAttachmentsCoordinator);
 
         mLocationBarMediator.addUrlFocusChangeListener(mAutocompleteCoordinator);
         mLocationBarMediator.addUrlFocusChangeListener(mUrlCoordinator);
@@ -315,6 +322,9 @@ public class LocationBarCoordinator
         if (ChromeFeatureList.sAndroidComposeplate.isEnabled()) {
             mComposeplateButton.setOnClickListener(mLocationBarMediator::composeplateButtonClicked);
         }
+
+        mInstallButton = mLocationBarLayout.findViewById(R.id.install_button);
+        mInstallButton.setOnClickListener(mLocationBarMediator::installButtonClicked);
 
         mUrlCoordinator.setTextChangeListener(mAutocompleteCoordinator::onTextChanged);
         mUrlCoordinator.setKeyDownListener(mLocationBarMediator);
@@ -388,6 +398,9 @@ public class LocationBarCoordinator
         mComposeplateButton.setOnClickListener(null);
         mComposeplateButton = null;
 
+        mInstallButton.setOnClickListener(null);
+        mInstallButton = null;
+
         if (mBookmarksButton != null) {
             mBookmarksButton.setOnClickListener(null);
             mBookmarksButton = null;
@@ -405,6 +418,11 @@ public class LocationBarCoordinator
 
         mStatusCoordinator.destroy();
         mStatusCoordinator = null;
+
+        if (mNavigationAttachmentsCoordinator != null) {
+            mNavigationAttachmentsCoordinator.destroy();
+            mNavigationAttachmentsCoordinator = null;
+        }
 
         mLocationBarLayout.destroy();
         mLocationBarLayout = null;
@@ -533,6 +551,7 @@ public class LocationBarCoordinator
     @Override
     public void setUrlBarUsesSmallText(boolean useSmallText) {
         mUrlCoordinator.setUseSmallText(useSmallText);
+        mStatusCoordinator.setUseSmallWidget(useSmallText);
     }
 
     @Override
@@ -665,7 +684,8 @@ public class LocationBarCoordinator
     /** Initiates a pre-fetch of autocomplete suggestions. */
     public void startAutocompletePrefetch() {
         if (!mNativeInitialized) return;
-        mAutocompleteCoordinator.prefetchZeroSuggestResults();
+        mAutocompleteCoordinator.prefetchZeroSuggestResults(
+                mLocationBarMediator.getLocationBarDataProvider().getTab());
     }
 
     /**

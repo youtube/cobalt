@@ -1193,7 +1193,7 @@ void URLRequestHttpJob::ProcessDeviceBoundSessionsHeader() {
   // appropriately, trigger a registration request per header value to attempt
   // to create a new session.
   if (request_->allows_device_bound_session_registration() ||
-      features::kDeviceBoundSessionsForceEnableForTesting.Get()) {
+      !features::kDeviceBoundSessionsRequireOriginTrialTokens.Get()) {
     std::vector<device_bound_sessions::RegistrationFetcherParam> params =
         device_bound_sessions::RegistrationFetcherParam::CreateIfValid(
             request_url, headers);
@@ -1773,8 +1773,9 @@ bool URLRequestHttpJob::ShouldFixMismatchedContentLength(int rv) const {
   if (rv == ERR_CONTENT_LENGTH_MISMATCH ||
       rv == ERR_INCOMPLETE_CHUNKED_ENCODING) {
     if (request_->response_headers()) {
-      int64_t expected_length =
+      std::optional<base::ByteCount> content_length =
           request_->response_headers()->GetContentLength();
+      int expected_length = content_length ? content_length->InBytes() : -1;
       VLOG(1) << __func__ << "() \"" << request_->url().spec() << "\""
               << " content-length = " << expected_length
               << " pre total = " << prefilter_bytes_read()

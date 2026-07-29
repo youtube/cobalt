@@ -106,7 +106,10 @@
 #include "third_party/blink/renderer/core/html/html_image_element.h"
 #include "third_party/blink/renderer/core/html/html_li_element.h"
 #include "third_party/blink/renderer/core/html/html_map_element.h"
+#include "third_party/blink/renderer/core/html/html_menu_bar_element.h"
 #include "third_party/blink/renderer/core/html/html_menu_element.h"
+#include "third_party/blink/renderer/core/html/html_menu_item_element.h"
+#include "third_party/blink/renderer/core/html/html_menu_list_element.h"
 #include "third_party/blink/renderer/core/html/html_meter_element.h"
 #include "third_party/blink/renderer/core/html/html_olist_element.h"
 #include "third_party/blink/renderer/core/html/html_paragraph_element.h"
@@ -581,17 +584,6 @@ bool IsAddedOnlyViaSpecialTraversal(const Node* node) {
       node->IsScrollButtonPseudoElement()) {
     return true;
   }
-
-  if (RuntimeEnabledFeatures::SelectAccessibilityReparentInputEnabled()) {
-    // The first descendant <input> in a <select> gets taken out of the listbox
-    // because it is not an <option>. It controls the listbox.
-    if (auto* input = DynamicTo<HTMLInputElement>(node)) {
-      if (input->IsFirstTextInputInAncestorSelect()) {
-        return true;
-      }
-    }
-  }
-
   return false;
 }
 
@@ -1023,14 +1015,12 @@ AXObjectInclusion AXNodeObject::ShouldIncludeBasedOnSemantics(
 
   // Don't ignored legends, because JAWS uses them to determine redundant text.
   if (IsA<HTMLLegendElement>(node)) {
-    if (RuntimeEnabledFeatures::CustomizableSelectEnabled()) {
-      // When a <legend> is used inside an <optgroup>, it is used to set the
-      // name of the <optgroup> and shouldn't be redundantly repeated.
-      for (auto* ancestor = node->parentNode(); ancestor;
-           ancestor = ancestor->parentNode()) {
-        if (IsA<HTMLOptGroupElement>(ancestor)) {
-          return kIgnoreObject;
-        }
+    // When a <legend> is used inside an <optgroup>, it is used to set the
+    // name of the <optgroup> and shouldn't be redundantly repeated.
+    for (auto* ancestor = node->parentNode(); ancestor;
+         ancestor = ancestor->parentNode()) {
+      if (IsA<HTMLOptGroupElement>(ancestor)) {
+        return kIgnoreObject;
       }
     }
     return kIncludeObject;
@@ -1256,7 +1246,6 @@ bool AXNodeObject::ComputeIsIgnored(IgnoredReasons* ignored_reasons) const {
       // them aren't ignored, then they will make it into the mappings. The
       // button can't be pruned from the tree because it is used to compute the
       // value of the MenuList.
-      if (RuntimeEnabledFeatures::CustomizableSelectEnabled()) {
         for (const AXObject* ancestor = this;
              ancestor && ancestor != ax_menu_list;
              ancestor = ancestor->ParentObject()) {
@@ -1264,7 +1253,6 @@ bool AXNodeObject::ComputeIsIgnored(IgnoredReasons* ignored_reasons) const {
             return true;
           }
         }
-      }
 
       return ax_menu_list->IsIgnored();
     }
@@ -2238,6 +2226,18 @@ ax::mojom::blink::Role AXNodeObject::RoleFromLayoutObjectOrNode() const {
     return ax::mojom::blink::Role::kButton;
   }
 
+  if (IsA<HTMLMenuBarElement>(node)) {
+    return ax::mojom::blink::Role::kMenuBar;
+  }
+
+  if (IsA<HTMLMenuItemElement>(node)) {
+    return ax::mojom::blink::Role::kMenuItem;
+  }
+
+  if (IsA<HTMLMenuListElement>(node)) {
+    return ax::mojom::blink::Role::kMenu;
+  }
+
   // Anything that needs to be exposed but doesn't have a more specific role
   // should be considered a generic container. Examples are layout blocks with
   // no node, in-page link targets, and plain elements such as a <span> with
@@ -2430,8 +2430,7 @@ ax::mojom::blink::Role AXNodeObject::NativeRoleIgnoringAria() const {
 
   if (ParentObjectIfPresent() && ParentObjectIfPresent()->RoleValue() ==
                                      ax::mojom::blink::Role::kComboBoxSelect) {
-    if (!RuntimeEnabledFeatures::CustomizableSelectEnabled() ||
-        HTMLSelectElement::IsPopoverPickerElement(GetNode())) {
+    if (HTMLSelectElement::IsPopoverPickerElement(GetNode())) {
       return ax::mojom::blink::Role::kMenuListPopup;
     }
   }
@@ -4537,23 +4536,6 @@ KURL AXNodeObject::Url() const {
 }
 
 AXObject* AXNodeObject::ChooserPopup() const {
-  if (RuntimeEnabledFeatures::SelectAccessibilityReparentInputEnabled() ||
-      RuntimeEnabledFeatures::SelectAccessibilityNestedInputEnabled()) {
-    // The first input inside of a select filters the listbox, and therefore
-    // controls it.
-    if (auto* input = DynamicTo<HTMLInputElement>(GetNode())) {
-      if (input->IsTextField()) {
-        if (auto* select = input->FirstAncestorSelectElement()) {
-          if (auto* popover = select->PopoverPickerElement()) {
-            if (auto* axobject = AXObjectCache().Get(popover)) {
-              return axobject;
-            }
-          }
-        }
-      }
-    }
-  }
-
   // When color & date chooser popups are visible, they can be found in the tree
   // as a group child of the <input> control itself.
   switch (native_role_) {
@@ -4616,8 +4598,7 @@ String AXNodeObject::GetValueForControl(AXObjectSet& visited) const {
     // If the author replaced the button by providing their own <button> on a
     // customizable select, then use the text inside that button:
     // https://github.com/openui/open-ui/issues/1117
-    if (RuntimeEnabledFeatures::CustomizableSelectEnabled() &&
-        select_element->IsAppearanceBase()) {
+    if (select_element->IsAppearanceBase()) {
       if (auto* button = select_element->SlottedButton()) {
         if (AXObject* button_object = AXObjectCache().Get(button)) {
           return button_object->TextFromDescendants(visited, nullptr, false);
@@ -6012,19 +5993,6 @@ void AXNodeObject::AddNodeChildren() {
   }
 }
 
-void AXNodeObject::AddSelectChildren() {
-  auto* select = DynamicTo<HTMLSelectElement>(GetNode());
-  if (RuntimeEnabledFeatures::SelectAccessibilityReparentInputEnabled() &&
-      select) {
-    if (auto* input = select->FirstDescendantTextInput()) {
-      // Reparent the first descendant <input> element of this <select> to be
-      // adjacent to the listbox in the a11y tree.
-      AddNodeChild(input);
-    }
-  }
-  AddNodeChildren();
-}
-
 void AXNodeObject::AddOwnedChildren() {
   AXObjectVector owned_children;
   AXObjectCache().ValidatedAriaOwnedChildren(this, owned_children);
@@ -6074,9 +6042,7 @@ void AXNodeObject::AddChildrenImpl() {
     AddValidationMessageChild();
   CHECK_ATTACHED();
 
-  if (IsA<HTMLSelectElement>(GetNode())) {
-    AddSelectChildren();
-  } else if (HasValidHTMLTableStructureAndLayout()) {
+  if (HasValidHTMLTableStructureAndLayout()) {
     AddTableChildren();
   } else if (GetNode() && GetNode()->IsScrollMarkerGroupPseudoElement()) {
     AddScrollMarkerGroupChildren();
@@ -6349,14 +6315,10 @@ bool AXNodeObject::CanHaveChildren() const {
   bool result = !GetElement() || AXObject::CanHaveChildren(*GetElement());
   switch (native_role_) {
     case ax::mojom::blink::Role::kListBoxOption:
-      if (RuntimeEnabledFeatures::CustomizableSelectEnabled()) {
-        // When CustomizableSelect is enabled, then options are allowed to have
-        // children as per the new content model.
-        break;
-      }
-      [[fallthrough]];
+      // Option elements are allowed to have children according to the content
+      // model in the HTML spec.
+      break;
     case ax::mojom::blink::Role::kCheckBox:
-    case ax::mojom::blink::Role::kMenuItem:
     case ax::mojom::blink::Role::kMenuItemCheckBox:
     case ax::mojom::blink::Role::kMenuItemRadio:
     case ax::mojom::blink::Role::kProgressIndicator:
@@ -6372,6 +6334,7 @@ bool AXNodeObject::CanHaveChildren() const {
                       << "\n* Aria role: " << RawAriaRole();
       break;
     case ax::mojom::blink::Role::kComboBoxSelect:
+    case ax::mojom::blink::Role::kMenuItem:
     case ax::mojom::blink::Role::kPopUpButton:
     case ax::mojom::blink::Role::kStaticText:
       // Note: these can have AXInlineTextBox children, but when adding them, we

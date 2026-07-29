@@ -56,8 +56,6 @@ TEST(AutofillEntityInstanceTest, Attributes) {
 // subtype (as per AttributeType::field_subtypes()) and defaults to the overall
 // type (AttributeType::field_type()).
 TEST(AutofillEntityInstanceTest, Attributes_NormalizedType) {
-  base::test::ScopedFeatureList scoped_feature_list{
-      features::kAutofillAiNoTagTypes};
   AttributeInstance passport_name((AttributeType(kPassportName)));
   passport_name.SetInfo(NAME_FULL, u"John Doe",
                         /*app_locale=*/"", /*format_string=*/u"",
@@ -278,7 +276,6 @@ TEST(AutofillEntityInstanceTest, FrecencyOrder_SortEntitiesByFrecency) {
 
   // Set first passport as have been used once.
   EntityInstance& top_entity = entities[0];
-  base::Uuid first_top_entity_guid = top_entity.guid();
   top_entity.RecordEntityUsed(test::kJune2017);
   sort_entities();
   EXPECT_EQ(entities[0].guid(), top_entity.guid());
@@ -286,11 +283,26 @@ TEST(AutofillEntityInstanceTest, FrecencyOrder_SortEntitiesByFrecency) {
   // Now set second passport as have been used twice. Note that the second use
   // date is the same as the one for the first passport.
   top_entity = entities[1];
-  base::Uuid second_top_entity_guid = top_entity.guid();
   top_entity.RecordEntityUsed(test::kJanuary2017);
   top_entity.RecordEntityUsed(test::kJune2017);
   sort_entities();
   EXPECT_EQ(entities[0].guid(), top_entity.guid());
+}
+
+TEST(AutofillEntityInstanceTest, AreAttributesReadOnly_ForReadOnlyEntity) {
+  EntityInstance entity = test::GetPassportEntityInstance(
+      {.are_attributes_read_only =
+           EntityInstance::AreAttributesReadOnly{true}});
+
+  EXPECT_TRUE(entity.are_attributes_read_only());
+}
+
+TEST(AutofillEntityInstanceTest, AreAttributesReadOnly_ForMutableEntity) {
+  EntityInstance entity = test::GetPassportEntityInstance(
+      {.are_attributes_read_only =
+           EntityInstance::AreAttributesReadOnly{false}});
+
+  EXPECT_FALSE(entity.are_attributes_read_only());
 }
 
 }  // namespace

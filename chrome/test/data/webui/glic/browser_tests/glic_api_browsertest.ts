@@ -28,15 +28,6 @@ class ApiTests extends ApiTestFixtureBase {
     }
   }
 
-  async testAllTestsAreRegistered() {
-    const allNames = [];
-    for (const fixture of TEST_FIXTURES) {
-      allNames.push(...Object.getOwnPropertyNames(fixture.prototype)
-                        .filter(name => name.startsWith('test')));
-    }
-    await this.advanceToNextStep(allNames);
-  }
-
   async testRequestHeader() {}
 
   async testCreateTab() {
@@ -137,6 +128,23 @@ class ApiTests extends ApiTestFixtureBase {
     // Close the browser.
     await this.advanceToNextStep();
     assertTrue(!await isBrowserOpen.next());
+  }
+
+  async testActiveBrowser() {
+    assertDefined(this.host.activeBrowser);
+    const activeBrowserSeq = observeSequence(this.host.activeBrowser());
+    let activeBrowser = await activeBrowserSeq.next();
+    assertDefined(activeBrowser);
+    const firstWindowId = activeBrowser.windowId;
+    assertNotEquals(firstWindowId, '');
+    assertTrue(activeBrowser.usingThisProfile);
+
+    // Open another browser window on a different profile.
+    await this.advanceToNextStep();
+    activeBrowser = await activeBrowserSeq.next();
+    assertDefined(activeBrowser);
+    assertNotEquals(activeBrowser.windowId, firstWindowId);
+    assertFalse(activeBrowser.usingThisProfile);
   }
 
   async testEnableDragResize() {
@@ -1139,6 +1147,7 @@ class ApiTests extends ApiTestFixtureBase {
 
   async testFetchInactiveTabScreenshot() {
     const context = await this.fetchInactiveTabScreenshot();
+    assertFalse(checkDefined(context.tabData.isObservable));
     const screenshot = checkDefined(context.viewportScreenshot);
     assertEquals(screenshot.mimeType, 'image/jpeg');
     assertTrue(screenshot.data.byteLength > 0);
@@ -1152,6 +1161,7 @@ class ApiTests extends ApiTestFixtureBase {
     // Ideally this would work, but it currently times out and provides no
     // screenshot on some platforms.
     const context = await this.fetchInactiveTabScreenshot();
+    assertFalse(checkDefined(context.tabData.isObservable));
 
     if (shouldGetScreenshot) {
       assertDefined(context.viewportScreenshot);
@@ -1599,7 +1609,7 @@ class ApiTestWithoutOpen extends ApiTestFixtureBase {
     // While still hidden (preloaded), focused tab extraction should fail.
     await assertRejects(this.host.getContextFromFocusedTab({}), {
       withErrorMessage:
-          'tabContext failed: permission denied: window not showing',
+          'GetContextFromFocusedTab not allowed while backgrounded',
     });
 
     // Glic panel is open, so both focused and arbitrary tab extraction should
@@ -1628,11 +1638,10 @@ class ApiTestWithoutOpen extends ApiTestFixtureBase {
     await observeSequence(this.host.panelActive()).waitForValue(false);
     await assertRejects(this.host.getContextFromFocusedTab({}), {
       withErrorMessage:
-          'tabContext failed: permission denied: window not showing',
+          'GetContextFromFocusedTab not allowed while backgrounded',
     });
     await assertRejects(this.host.getContextFromTab(tabId, {}), {
-      withErrorMessage:
-          'tabContext failed: permission denied: window not showing',
+      withErrorMessage: 'GetContextFromTab not allowed while backgrounded',
     });
   }
 }

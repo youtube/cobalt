@@ -58,6 +58,7 @@
 <translation id="1227113644794103810">Mga hindi aktibong tab</translation>
 <translation id="1231733316453485619">I-on ang pag-sync?</translation>
 <translation id="1253032109800629289">I-hide ang "Makatanggap ng Mga Notification sa Pagsubaybay sa Presyo"</translation>
+<translation id="1254424942107648268">Hanapin ang Nakaraan</translation>
 <translation id="1258491128795710625">Ano'ng Bago</translation>
 <translation id="1262724000444746916">I-hide ang Idagdag sa Mga Bookmark</translation>
 <translation id="1263231323834454256">Listahan ng babasahin</translation>
@@ -77,7 +78,6 @@
 <translation id="1310362642333088424">Kailangan mo ng higit pang storage space para makapag-download ng mga file, larawan, at higit pa.</translation>
 <translation id="1312168552565502328">Cookies, data ng site</translation>
 <translation id="1312721752506309252">Naka-on ang pinaigting na proteksyon</translation>
-<translation id="1317821187353201763">Isara ang tab</translation>
 <translation id="1321993286294231467">Nagka-error sa pag-save ng larawan.</translation>
 <translation id="1322735045095424339">Ipinag-aatas ng iyong organisasyon na mag-browse sa Incognito mode</translation>
 <translation id="1323735185997015385">I-delete</translation>
@@ -92,7 +92,6 @@
 <translation id="1358214951266274152">Bisitahin Ang Link Na Kinopya Mo</translation>
 <translation id="1360432990279830238">Mag-sign out at i-off ang pag-sync?</translation>
 <translation id="1363028406613469049">Track</translation>
-<translation id="1364367057792633742">Bagong tab</translation>
 <translation id="1365106417372288489">Na-restore kamakailan ang iPhone mo, na posibleng nagpabago sa iyong default na browser.</translation>
 <translation id="1366297852155605523">Na-share Sa Akin</translation>
 <translation id="1369286077209859800">Ipakita ang lahat ng tab sa grupo ng tab</translation>
@@ -122,7 +121,6 @@
 <translation id="1469381646033328562">Pinapamahalaan ng iyong magulang ang account mo.
 <ph name="BEGIN_LINK" />Matuto pa<ph name="END_LINK" /></translation>
 <translation id="147982357559798527">Binago</translation>
-<translation id="1480152980057770392">Ipakita ang listahan ng babasahin</translation>
 <translation id="1485907716209290998">Pag-track sa package</translation>
 <translation id="1486096554574027028">Maghanap ng mga password</translation>
 <translation id="1491277525950327607">I-double tap upang i-toggle ang setting</translation>
@@ -150,6 +148,7 @@
 <translation id="1547610699249301703">Mag-share ng mga password</translation>
 <translation id="1554477036522844996">Bagong Window</translation>
 <translation id="1558391695376153246">Isara ang mga Incognito tab</translation>
+<translation id="1565371473877914088">Bagong Tab na Incognito</translation>
 <translation id="1571780780926010134">Mga tab na incognito</translation>
 <translation id="1580715474678097352">Manatiling protektado laban sa mga mapanganib na website</translation>
 <translation id="1580783302095112590">Naipadala na ang mail.</translation>
@@ -300,7 +299,6 @@
 <translation id="2120553909046681540">In-off ng iyong organisasyon ang pribadong pag-browse.</translation>
 <translation id="2122754583996902531">Pinapamahalaan ang iyong browser. <ph name="BEGIN_LINK" />Matuto Pa<ph name="END_LINK" /></translation>
 <translation id="21243612977487926">Hindi ginagamit ang mga chat ng iyong organisayon para mapahusay ang aming mga modelo. Puwedeng magpakita ng hindi tumpak na impormasyon ang Gemini, kabilang ang tungkol sa mga tao, kaya i-double check ito. <ph name="YOUR_PRIVACY_GEMINI" /></translation>
-<translation id="2126034128616392756">Hindi na-import ang mga sumusunod na password sa Google Password Manager, dahil hindi tumutugma ang mga ito sa mga requirement.</translation>
 <translation id="2139867232736819575">Maghanap para sa Text na Kinopya Mo</translation>
 <translation id="2147127444698817042">Available lang sa iPhone</translation>
 <translation id="2148799636999124959">Mabilis na mag-sign in sa mga site at app gamit ang iyong mga naka-save na password.</translation>
@@ -366,8 +364,6 @@
 <translation id="2359808026110333948">Magpatuloy</translation>
 <translation id="2360196772093551345">Hilingin ang Pang-mobile na Site</translation>
 <translation id="2362083820973145409">Naka-sign in bilang <ph name="USER_NAME" />. <ph name="USER_EMAIL" />. Binubuksan ang mga setting.</translation>
-<translation id="2377230674627603057">Grid ng mga grupo ng tab</translation>
-<translation id="2377336083033403521">Maghanap sa mga tab…</translation>
 <translation id="2381405137052800939">Mga Pangunahing Kaalaman</translation>
 <translation id="2384692388811649784">I-hide ang mga tab na Incognito</translation>
 <translation id="2386793615875593361">1 ang napili</translation>
@@ -397,6 +393,7 @@
 <translation id="2484459871750294497">Paano ko ie-enable ang feature na ito?</translation>
 <translation id="2493269659028026145">I-lock kaagad gamit ang <ph name="BIOMETRIC_AUTHENITCATION_TYPE" /></translation>
 <translation id="2496180316473517155">History ng Pag-browse</translation>
+<translation id="2496626742194544812">Pumunta sa Unang Tab</translation>
 <translation id="2497852260688568942">Na-disable ng iyong administrator ang pag-sync</translation>
 <translation id="2499505845365628575">Makikita mo ang lahat ng iyong history ng pag-browse sa <ph name="HISTORY_BUTTON_ACCESSIBILITY_LABEL" />.</translation>
 <translation id="2511117522375201202">Mayroon kang <ph name="NUMBER_OF_PASSWORDS" /> (na) nakompromisong password na puwedeng maglagay ng iyong seguridad sa panganib.</translation>
@@ -473,6 +470,7 @@
 <translation id="2789552044937754463">{COUNT,plural, =1{Na-save ang password sa iyong Google Account na {EMAIL}}one{Na-save ang mga password sa iyong Google Account na {EMAIL}}other{Na-save ang mga password sa iyong Google Account na {EMAIL}}}</translation>
 <translation id="2791174088547598693">Magdagdag ng password…</translation>
 <translation id="2793703503584038325">Pumili ng password at i-tap ang icon na "i-share"</translation>
+<translation id="2797029671965852011">Ipakita ang History</translation>
 <translation id="2797302972324086597">Country code</translation>
 <translation id="2810376924814601526">{COUNT,plural, =1{{COUNT} file}one{{COUNT} file}other{{COUNT} na file}}</translation>
 <translation id="2816489851009559785">Menu → Mga Setting → Default browser</translation>
@@ -533,6 +531,7 @@
 <translation id="3059270601560379555">Bagong paghahanap</translation>
 <translation id="3064547930554042309">Pamahalaan ang Mga Download</translation>
 <translation id="3072279342064724558">May ganito nang password</translation>
+<translation id="3073258549280822127">Hindi gumagana</translation>
 <translation id="3073633853887034268">OK</translation>
 <translation id="3076846064362030967">Hindi ka masa-sign out sa iyong Google Account. Posibleng ma-save sa iyong Google Account ang <ph name="BEGIN_LINK" />iba pang anyo ng aktibidad<ph name="END_LINK" /> kapag naka-sign in ka. Puwede mong i-delete ang mga ito anumang oras.
 
@@ -557,6 +556,7 @@ Tingnan ang mga tagubilin ng iyong search engine para sa pag-delete sa history n
 <translation id="3140825265190223781">Mga naka-save na password at passkey</translation>
 <translation id="3143515551205905069">Kanselahin ang pag-sync</translation>
 <translation id="3144126448740580210">TAPOS NA</translation>
+<translation id="3148052723910099040">Grid ng Regular na Tab</translation>
 <translation id="3157387275655328056">Idagdag sa Listahan ng Babasahin</translation>
 <translation id="315778507796115851">History</translation>
 <translation id="31652791196570636">I-dismiss</translation>
@@ -588,6 +588,8 @@ Tingnan ang mga tagubilin ng iyong search engine para sa pag-delete sa history n
 <translation id="3273510436356991673">I-customize ang iyong home screen</translation>
 <translation id="3277021493514034324">Nakopya ang address ng site</translation>
 <translation id="3280562213547448728">Paghahanap gamit ang boses</translation>
+<translation id="3289505634533552500">Voice Search</translation>
+<translation id="3295904109373959849">Grid ng Mga Grupo ng Tab</translation>
 <translation id="3302837541200840455"><ph name="TAB_TITLE" />, bagong aktibidad</translation>
 <translation id="3305294846493618482">higit pa</translation>
 <translation id="3311748811247479259">Naka-off</translation>
@@ -624,6 +626,7 @@ Tingnan ang mga tagubilin ng iyong search engine para sa pag-delete sa history n
 <translation id="3474048842645761983">{COUNT,plural, =1{para sa {COUNT} site o app}one{para sa {COUNT} site at app}other{para sa {COUNT} na site at app}}</translation>
 <translation id="3474624961160222204">Magpatuloy bilang si <ph name="NAME" /></translation>
 <translation id="3476450923187944815">I-access ang iyong mga password sa iba pang app.</translation>
+<translation id="3485558910355485767">Bagong Incognito Window</translation>
 <translation id="3488501490964659223">Isinara ang mga tab at na-delete ang data mula sa pag-browse. Na-sign out ka</translation>
 <translation id="3493531032208478708"><ph name="BEGIN_LINK" />Matuto pa<ph name="END_LINK" /> tungkol sa iminumungkahing content</translation>
 <translation id="349446645805573740">Piliin kung saan ise-save ang "<ph name="BEGIN_BOLD" /><ph name="FILENAME" /><ph name="END_BOLD" />"</translation>
@@ -642,6 +645,7 @@ Tingnan ang mga tagubilin ng iyong search engine para sa pag-delete sa history n
 <translation id="3530767473765895035">Pamahalaan ang mga account sa device na ito…</translation>
 <translation id="3533436815740441613">Bagong Tab</translation>
 <translation id="3533860663366814939">Buksan ang mga setting ng Autofill &amp; Password</translation>
+<translation id="3540141921715814660">Idagdag sa Mga Bookmark</translation>
 <translation id="3546122170015471515">Mga Preview ng Maps sa Google.com</translation>
 <translation id="3547356470684043247">Magbasa ng mga pagsusuri ng customer sa mga produkto, serbisyo, o experience para makatulong na mapagbatayan mo ng iyong mga desisyon ang mga review</translation>
 <translation id="3547933853190131743">Maghanap gamit ang AI Mode</translation>
@@ -674,7 +678,6 @@ Tingnan ang mga tagubilin ng iyong search engine para sa pag-delete sa history n
 <translation id="368329460027487650">Naka-sign out. Magbubukas ng mga opsyon sa pag-sign in.</translation>
 <translation id="3695446226812920698">Alamin kung paano</translation>
 <translation id="3700134753671613714">Mag-sign in upang makuha ang iyong mga bookmark sa lahat ng device.</translation>
-<translation id="3706112388989951153">I-edit ang bookmark</translation>
 <translation id="3708944822379815019">{COUNT,plural, =1{Mase-save lang ang {COUNT} password sa device na ito. Para magamit ito sa iba mo pang device, i-save ito sa iyong Google Account na {EMAIL}.}one{Mase-save lang ang {COUNT} password sa device na ito. Para magamit ang mga ito sa iba mo pang device, i-save ang mga ito sa iyong Google Account na {EMAIL}.}other{Mase-save lang ang {COUNT} na password sa device na ito. Para magamit ang mga ito sa iba mo pang device, i-save ang mga ito sa iyong Google Account na {EMAIL}.}}</translation>
 <translation id="371230970611282515">Hinuhulaan ang mga mapanganib na event at binibigyan ka ng babala tungkol sa mga ito bago mangyari ang mga ito.</translation>
 <translation id="372115889256123713">mga naka-cache na file</translation>
@@ -686,6 +689,7 @@ Tingnan ang mga tagubilin ng iyong search engine para sa pag-delete sa history n
 <translation id="3751873026576444885">Ihinto ang paghahanap sa iyong screen gamit ang Google Lens</translation>
 <translation id="3753408171347588045">Tina-track ang mga presyo</translation>
 <translation id="3762232513783804601">Ginawa Para sa Iyong iPad</translation>
+<translation id="3768725474733206671">Buksan Ulit ang Huling Isinarang Tab</translation>
 <translation id="3779810277399252432">Walang koneksyon sa internet.</translation>
 <translation id="3782614601387961027">I-dismiss ang babala</translation>
 <translation id="3789841737615482174">Mag-install</translation>
@@ -696,10 +700,12 @@ Tingnan ang mga tagubilin ng iyong search engine para sa pag-delete sa history n
 <translation id="381219490185664296">I-ungroup ang grupo ng tab?</translation>
 <translation id="3812308602011798782">Mga Review</translation>
 <translation id="3813175908845379029">Mga kapaki-pakinabang na suhestyon na mas magpapahusay at magpapadali sa pag-browse</translation>
+<translation id="3818293389945649617">Hanapin ang Susunod</translation>
 <translation id="3819183753496523827">Offline ka. Suriin ang iyong koneksyon sa internet at subukan ulit.</translation>
 <translation id="3828924571679282172">{COUNT,plural, =1{1 paraan ng pagbabayad}one{# paraan ng pagbabayad}other{# na paraan ng pagbabayad}}</translation>
 <translation id="3831560640878483188">I-dismiss ang babala?</translation>
 <translation id="3832419617903252251">Na-save lang ang password sa device na ito</translation>
+<translation id="3835964409414434850">Pumunta sa Susunod na Tab</translation>
 <translation id="3838691874161539578">Tingnan ang iyong mga naka-save na password para mapaigting ang seguridad mo at manatiling mas ligtas online</translation>
 <translation id="3838985624086228724">May pagbaba ng presyo sa iyong tracked product, <ph name="PRICE" /> na dating <ph name="PREVIOUS_PRICE" />, <ph name="PRODUCT_NAME" />, <ph name="DOMAIN" /></translation>
 <translation id="385051799172605136">Bumalik</translation>
@@ -742,7 +748,6 @@ Tingnan ang mga tagubilin ng iyong search engine para sa pag-delete sa history n
 <translation id="3967327056943561740">Mga Bookmark</translation>
 <translation id="3967822245660637423">Tapos na ang pag-download</translation>
 <translation id="3973560090698854095">Dine-delete nito ang mga address na naka-save sa iyong Google Account na <ph name="USER_EMAIL" />.</translation>
-<translation id="3982893814825393515">Mag-ulat ng isyu…</translation>
 <translation id="398604237578616937">Naka-sign in bilang <ph name="USER_EMAIL" />. Buksan ang menu ng account.</translation>
 <translation id="3986739045730058129">Pumunta sa tab</translation>
 <translation id="3992684624889376114">Tungkol sa page na ito</translation>
@@ -769,12 +774,12 @@ Tingnan ang mga tagubilin ng iyong search engine para sa pag-delete sa history n
 <translation id="4049419681095579435">Tina-track na ang package</translation>
 <translation id="4049507953662678203">Tiyaking mayroon kang koneksyon sa network, at subukan ulit.</translation>
 <translation id="4070132839822635162">Huwag mag-sign in</translation>
+<translation id="4092655288299341041">Ipakita ang Tulong</translation>
 <translation id="4099756562043439968">Magtakda ng Paalala</translation>
 <translation id="4108998448622696017">Nagde-detect ng mga mapanganib na event at nagbibigay sa iyo ng babala tungkol sa mga ito kapag nangyari ang mga ito.</translation>
 <translation id="4111985840824673503">Markahan ang lahat bilang nabasa na</translation>
 <translation id="411254640334432676">Hindi na-download.</translation>
 <translation id="4112644173421521737">Maghanap</translation>
-<translation id="4112786312631440274">Pumunta sa susunod na tab</translation>
 <translation id="4113030288477039509">Pinamamahalaan ng iyong administrator</translation>
 <translation id="4113957097611235433">Palitan ang Iyong Mga Password</translation>
 <translation id="4120936477286528673">Paulit-ulit na sinusubukang buksan ng site na ito ang isa pang application.</translation>
@@ -852,6 +857,7 @@ Tingnan ang mga tagubilin ng iyong search engine para sa pag-delete sa history n
 <translation id="4405320213589929829">Gamitin ang mga address sa mga web page para makakuha ng lokal na impormasyon at mga direksyon.</translation>
 <translation id="441218095371040430">Gamitin ang keyboard</translation>
 <translation id="4415276339145661267">Pamahalaan ang iyong Google Account</translation>
+<translation id="4420409367264901497">I-edit ang Bookmark</translation>
 <translation id="4425365312778464779">Pinapamahalaan ang account na ito</translation>
 <translation id="4430277756566635951">Kasalukuyang pinili ang <ph name="EMAIL" />. Pumili ng account.</translation>
 <translation id="4430505936695785931">Makuha ang mga naka-save na password sa iba pang app</translation>
@@ -870,9 +876,7 @@ Tingnan ang mga tagubilin ng iyong search engine para sa pag-delete sa history n
 <translation id="4474494258097106883">Ginawa Para sa Iyong iPhone</translation>
 <translation id="4488754974567924717">Ipapaalam namin sa iyo kung nakompromiso ang mga password mo</translation>
 <translation id="4489536976005181779">{count,plural, =1{Naidagdag ang page sa iyong listahan ng babasahin sa account mo na {email}}one{Naidagdag ang mga page sa iyong listahan ng babasahin sa account mo na {email}}other{Naidagdag ang mga page sa iyong listahan ng babasahin sa account mo na {email}}}</translation>
-<translation id="4490794477009017910">Pumunta sa nakaraang tab</translation>
 <translation id="4493604894403585654">Naka-sign in ka bilang si <ph name="USER_EMAIL" /> Puwede mong ihinto ang pag-sync anumang oras sa mga setting. Puwedeng i-personalize ng Google ang Search at iba pang serbisyo batay sa iyong history.</translation>
-<translation id="4495516234578759322">Hanapin ang susunod</translation>
 <translation id="4502423230170890588">Alisin sa device na ito</translation>
 <translation id="4508750114462689118">Isara ang promo sa pag-sign in</translation>
 <translation id="4509345063551561634">Lokasyon:</translation>
@@ -900,12 +904,10 @@ Tingnan ang mga tagubilin ng iyong search engine para sa pag-delete sa history n
 <translation id="461440297010471931">Paghahanap gamit ang Google</translation>
 <translation id="4619564267100705184">I-verify na ikaw ito</translation>
 <translation id="4621768135601674446">Buksan ang mga opsyon sa Reading mode</translation>
-<translation id="4624080227980645783">Bagong Incognito window</translation>
 <translation id="4627107755957573804">Payagan ang mga site at app na i-upgrade ang mga kasalukuyang account para gumamit ng mga passkey</translation>
 <translation id="4629065796475200039">Hindi na-import ang iyong password</translation>
 <translation id="4630212057753624203">Sample na bubble</translation>
 <translation id="4631335160486397366"><ph name="COUNT" /> (na) password na ginamit ulit</translation>
-<translation id="4631890462758052414">Bagong tab na Incognito</translation>
 <translation id="4632655012900268062">I-customize ang mga card</translation>
 <translation id="4634124774493850572">Gamitin ang password</translation>
 <translation id="4636930964841734540">Impormasyon</translation>
@@ -928,6 +930,7 @@ Tingnan ang mga tagubilin ng iyong search engine para sa pag-delete sa history n
 <translation id="4682496302933121474">Isalin ang page?</translation>
 <translation id="4682686630151240767">1. Buksan ang Mga Setting ng iPhone</translation>
 <translation id="4691892551491778176">Kapag ginamit mo ang feature na ito, ipapadala ang content ng page at mga URL sa Google pero hindi ito gagamitin para mapahusay ang mga generative AI model. Puwede mo itong i-off sa mga setting anumang oras.</translation>
+<translation id="4697240968720007067">Kunin ang pinakamahuhusay na app ng Google, sa isang pag-tap lang</translation>
 <translation id="4699172675775169585">Mga naka-cache na larawan at file</translation>
 <translation id="4709570498586527752">Ang mga pinakanauugnay na feature para sa iyo sa iba't ibang pagkakataon</translation>
 <translation id="4717844083556844785">Nasa Incognito ang kasalukuyang webpage</translation>
@@ -982,6 +985,7 @@ Tingnan ang mga tagubilin ng iyong search engine para sa pag-delete sa history n
 <translation id="4876665338492917862">Binuksan noong <ph name="LAST_OPENING_DATE" /></translation>
 <translation id="4877597489778380935">Ipaalala sa akin sa ibang pagkakataon</translation>
 <translation id="4881695831933465202">Buksan</translation>
+<translation id="4883766694719903356">Grid ng Tab na Incognito</translation>
 <translation id="488785315393301722">Ipakita ang Mga Detalye</translation>
 <translation id="4889521386764567563">Kasalukuyang profile</translation>
 <translation id="4893713555726946316">I-hide ang Hanapin sa Page</translation>
@@ -1099,6 +1103,7 @@ Tingnan ang mga tagubilin ng iyong search engine para sa pag-delete sa history n
 <translation id="5343472494710226394">Balita, sports, at content batay sa iyong mga interes.</translation>
 <translation id="5352128922772839949">I-save ang file</translation>
 <translation id="5355191726083956201">Naka-on ang Enhanced Protection</translation>
+<translation id="536067926684072644">Ipakita ang Mga Bookmark</translation>
 <translation id="5371112366564891538">Palakihin ang text</translation>
 <translation id="537853552771686272">Pamahalaan ang mga paksa at site kung saan ka interesado</translation>
 <translation id="5390458669633674385">{count,plural, =1{{count} ang isinara}one{{count} ang isinara}other{{count} ang isinara}}</translation>
@@ -1151,7 +1156,6 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="5565871407246142825">Mga credit card</translation>
 <translation id="5567439033041178034">MATUTO PA</translation>
 <translation id="5572648434713976849">Makakakuha ka ng mas magagandang suhestyon sa address bar</translation>
-<translation id="5576885723883013398">Bagong window</translation>
 <translation id="5578795271662203820">Hanapin sa <ph name="SEARCH_ENGINE" /> ang larawan</translation>
 <translation id="5579012242779565775">I-hide ang Listahan ng Babasahin</translation>
 <translation id="5581786858144165447">Ask AI mode</translation>
@@ -1209,6 +1213,7 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="5740123193752401435">Maghanap sa mga tab…</translation>
 <translation id="5744274077973758795">Na-on ang mga notification sa <ph name="FEATURE_NAME" /></translation>
 <translation id="5745598824054949526">Walang nakitang text</translation>
+<translation id="5745916533876677730">Pumunta sa Nakaraang Tab</translation>
 <translation id="574762237186762643">Mga Event</translation>
 <translation id="5749158352074143502">Magpatuloy sa tab na ito</translation>
 <translation id="5753021559215751319">I-save ang password</translation>
@@ -1230,6 +1235,7 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="5819208479324046259">Pinapamahalaan ng <ph name="MANAGER" />. <ph name="BEGIN_LINK" />Matuto pa<ph name="END_LINK" /></translation>
 <translation id="5827266244928330802">Safari</translation>
 <translation id="5829649908290113115">Nagsi-sync…</translation>
+<translation id="5838430324585198889">Mag-unlock ng higit pang feature para sa iyong iPad sa pamamagitan ng mga Google app</translation>
 <translation id="583923961930319521">Gamitin ang mga password sa lahat ng iyong device</translation>
 <translation id="5843013299019689749">Itim na kulay ng background</translation>
 <translation id="5844284118433003733">Kapag naka-sign in ka, naka-link ang data na ito sa iyong Google Account para protektahan ka sa lahat ng serbisyo ng Google, halimbawa, pagpapaigting ng proteksyon sa Gmail pagkatapos ng isang insidente sa seguridad.</translation>
@@ -1270,6 +1276,7 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="5988097621740394599">Tingnan ang mga pagbaba ng presyo sa iyong mga tab.</translation>
 <translation id="5988851877894965432">Buksan ang mga URL sa Chrome</translation>
 <translation id="6001839398155993679">Tara na</translation>
+<translation id="6006672969046233841">Bagong Tab</translation>
 <translation id="6011308810877101166">Pahusayin ang mga suhestyon sa paghahanap</translation>
 <translation id="6012140227487808125">Ine-encrypt…</translation>
 <translation id="6027619584715411062">Mag-sign in para makuha ang iyong mga bookmark, password, at higit pa sa lahat ng device mo.</translation>
@@ -1338,9 +1345,9 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="6231782223312638214">Iminungkahi</translation>
 <translation id="6232329973559504466">Paghahanap na Incognito</translation>
 <translation id="6234310016144827337">Tingnan ang iyong koneksyon at subukan ulit</translation>
-<translation id="6234438496206735891">Ipakita ang mga download</translation>
 <translation id="6236952928980352967">I-restore ang Babala</translation>
 <translation id="623755660902014047">Reading mode</translation>
+<translation id="6241132809279377987">Mag-unlock ng higit pang feature para sa iyong iPhone sa pamamagitan ng mga Google app</translation>
 <translation id="6247557882553405851">Google Password Manager</translation>
 <translation id="6251835855431997163">I-autofill ang <ph name="VALUE" /></translation>
 <translation id="6254066287920239840">Buksan ang mga link sa app sa halip na sa browser.</translation>
@@ -1383,6 +1390,7 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="6368102751067608420">Para ma-delete ang lahat ng data ng passwords manager</translation>
 <translation id="6372558618707314581">Pumunta sa anumang page na gusto mo</translation>
 <translation id="6374469231428023295">Subukan Ulit</translation>
+<translation id="6383719166112032471">Buksan ang Lokasyon…</translation>
 <translation id="6387994324662817823">Sine-save ang mga password sa Google Password Manager sa device lang na ito.</translation>
 <translation id="6393156038355142111">Magmungkahi ng malakas na password</translation>
 <translation id="6404422529625928907">Buksan sa Google Drive</translation>
@@ -1395,6 +1403,7 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="6421038304268477484">Na-translate na text</translation>
 <translation id="6429213933892582367">Buksan ang Mga Opsyon sa Password</translation>
 <translation id="6434591244308415567">Nagkaroon ng error. Subukang muli sa ibang pagkakataon.</translation>
+<translation id="6435236283694032571">Idagdag sa Listahan ng Babasahin</translation>
 <translation id="6435307030888827407">Manatiling naka-sign out</translation>
 <translation id="6436318499800111867">Na-share sa akin noong <ph name="SHARED_WITH_ME_DATE" /></translation>
 <translation id="6442697326824312960">I-unpin ang Tab</translation>
@@ -1434,7 +1443,6 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="6574225511994820656">Mag-set up</translation>
 <translation id="6579867704846662339">Puwede mong piliing buksan sa Incognito ang mga papasok na URL mula sa iba pang app.</translation>
 <translation id="6583087784430677195">Para i-off, buksan ang <ph name="BEGIN_LINK" />Mga Setting<ph name="END_LINK" /> at pumunta sa I-autofill ang Mga Password.</translation>
-<translation id="6585048665672348661">I-delete ang data mula sa pag-browse…</translation>
 <translation id="6585618849026997638">Mababalikan mo ang isang page na mahalaga sa iyo sa pamamagitan ng pagdaragdag ng bookmark</translation>
 <translation id="659407965921887085">Ipinapakita ng card na ito ang mga pagbaba ng presyo sa buong web sa mga produktong kasalukuyan mong sinusubaybayan</translation>
 <translation id="6596481460663245319">Hanapin ang Larawan gamit ang Google</translation>
@@ -1456,7 +1464,6 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="6640268266988685324">Bukas na Tab</translation>
 <translation id="6641465290890659327">Mag-share ng kopya ng iyong password</translation>
 <translation id="6642362222295953972">Lumipat sa kasalukuyang tab</translation>
-<translation id="664573288952458293">Grid ng regular na tab</translation>
 <translation id="6645899968535965230">QR Code: <ph name="PAGE_TITLE" /></translation>
 <translation id="6647441008198474441">Ipinapadala sa Google ang mga URL na binibisita mo para mahulaan kung anong mga site ang posibleng susunod mong bibisitahin</translation>
 <translation id="6657585470893396449">Password</translation>
@@ -1469,7 +1476,6 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="6676349090816247042">Mga opsyon sa pag-sign in.</translation>
 <translation id="667999046851023355">Dokumento</translation>
 <translation id="6680416467695217368">I-customize ang Menu</translation>
-<translation id="6681586159478273915">Paghahanap gamit ang boses</translation>
 <translation id="6681791404926413601">{count,plural, =1{{count} opsyon sa paraan ng pagbabayad ang available sa itaas ng iyong keyboard.}one{{count} opsyon sa paraan ng pagbabayad ang available sa itaas ng iyong keyboard.}other{{count} na opsyon sa paraan ng pagbabayad ang available sa itaas ng iyong keyboard.}}</translation>
 <translation id="6682680306647339111">Inalis ang paalala</translation>
 <translation id="6684262542644248484">Mag-sign in sa isang website</translation>
@@ -1515,6 +1521,7 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="6867400383614725881">Bagong tab na Incognito</translation>
 <translation id="686831807558000905">Huwag mag-sign in</translation>
 <translation id="686899695320434745">Hindi naka-encrypt ang mga address gamit ang iyong passphrase. Binibigyang-daan ka nitong magamit ang mga ito sa iba pang serbisyo ng Google.</translation>
+<translation id="687135068089457384">Ipakita ang Mga Setting</translation>
 <translation id="6871397658902960384">Magsimulang mag-browse</translation>
 <translation id="6874328931822449112">{COUNT,plural, =1{I-save ang password sa account}one{I-save ang mga password sa account}other{I-save ang mga password sa account}}</translation>
 <translation id="6875166646976836138">Puwede mo ring tingnan at pamahalaan ang mga item na ito sa iyong mga bookmark, listahan ng babasahin, o password manager.</translation>
@@ -1562,7 +1569,6 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="7039345315346323556">Kamakailan</translation>
 <translation id="704692552158601232">Default na Browser App</translation>
 <translation id="7055240621761583113">I-autofill ang password</translation>
-<translation id="7058455400288852416">Pumunta sa tab switcher</translation>
 <translation id="7063811929043357292">Pinapamahalaan ng iyong magulang ang account mo.
 <ph name="BEGIN_LINK" />Matuto Pa<ph name="END_LINK" /></translation>
 <translation id="7067610207756299941">Para protektahan ang seguridad ng iyong organisasyon, made-delete ang hindi naka-save na data sa device na ito. Puwedeng kabilang dito ang mga password, history, at higit pa.</translation>
@@ -1598,6 +1604,7 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="7215621211572884440">Pinapayagan ang mga pop-up</translation>
 <translation id="7218491361283758048">Zip code</translation>
 <translation id="7221173315674413369">Mag-explore ng mga bagong feature at tip sa Ano’ng Bago</translation>
+<translation id="7223102419539744003">Isara ang Tab</translation>
 <translation id="7223134495231529579">I-save sa Mga Download</translation>
 <translation id="722339453342442311">Suriin ngayon</translation>
 <translation id="7227235818314667565">Pamahalaan ang Pag-share</translation>
@@ -1623,7 +1630,6 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="736564850024123010">Baguhin ang posisyon ng iyong address bar para sa naka-customize na experience.</translation>
 <translation id="7366909168761621528">Data sa pag-browse</translation>
 <translation id="7367530036083223701">Secure na i-access ang iyong mga password mula sa home screen gamit ang widget ng Password Manager.</translation>
-<translation id="7369285139974632858">Idagdag sa mga bookmark</translation>
 <translation id="7380220816562673297">Sa ngayon, puwede ka lang mag-share ng mga password sa mga miyembro ng pamilya. <ph name="BEGIN_LINK" />Gumawa ng grupo ng pamilya<ph name="END_LINK" /> na may hanggang 6 na miyembro at mas sulitin ang iyong mga produkto at subscription sa buong Google.</translation>
 <translation id="7380698179418029202">Piliin ang iyong file na Safari export <ph name="BEGIN_BOLD" />.zip<ph name="END_BOLD" /></translation>
 <translation id="739101637685146669">Anong URL ang gusto mong i-bookmark?</translation>
@@ -1678,6 +1684,7 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="75362970626182391">Bagong Grupo ng Tab</translation>
 <translation id="7537586195939242955">Paumahin, hindi ma-install ngayon ang Pass mo sa Passbook.</translation>
 <translation id="754655535278952384">Na-check noong <ph name="TIME" /></translation>
+<translation id="7554645225856321710">Isara Lahat</translation>
 <translation id="7554791636758816595">Bagong Tab</translation>
 <translation id="7557508262441527045">Nag-sign out</translation>
 <translation id="7561196759112975576">Palagi</translation>
@@ -1729,6 +1736,7 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="7729458878441927652">Para makita ang mga tab mula sa iba mong device, i-sync ang iyong mga tab at history.</translation>
 <translation id="7730020510075123961">Hindi, i-merge ang data</translation>
 <translation id="7733646263819020771"><ph name="BOOKMRK_NAME" />. Sa device lang na ito.</translation>
+<translation id="7738120385185846461">Mag-ulat ng Isyu…</translation>
 <translation id="7744192722284567281">Nakita sa paglabag sa data</translation>
 <translation id="7749790401023484470">Wala kang piniling anumang text.</translation>
 <translation id="7757015014239760147">Walang username ••••••</translation>
@@ -1754,6 +1762,7 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="7840771868269352570">Maaalis ang mga pinili mong item.</translation>
 <translation id="7841180087127694526">Maghanap para sa kinopyang text</translation>
 <translation id="7841418003178675048">Piliin kung anong mga card ang makikita mo sa iyong page ng bagong tab.</translation>
+<translation id="7845466610722898">Ipakita ang Listahan ng Babasahin</translation>
 <translation id="7846161022626028328">Nagka-error. Subukan ulit.</translation>
 <translation id="784623644169604270">Walang kamakailang aktibidad</translation>
 <translation id="7846296061357476882">Mga serbisyo ng Google</translation>
@@ -1766,6 +1775,7 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="7865127013871431856">Mga opsyon sa pagsasalin</translation>
 <translation id="7866872729285243843">Para makuha ang iyong listahan ng babasahin sa lahat ng device mo, i-on ang “Listahan ng Babasahin” sa mga setting.</translation>
 <translation id="7874107544081154809">I-autofill ang form gamit ang <ph name="CELL_ACCESSIBILITY_LABEL" /></translation>
+<translation id="7879275349003161544">Ipakita ang Mga Download</translation>
 <translation id="7883882164760409935">Mayroon kang mga password na ginamit ulit.</translation>
 <translation id="7887174313503389866">Magsagawa ng guided tour tungkol sa mga pangunahing kontrol sa privacy at seguridad. Para sa higit pang opsyon, pumunta sa mga indibidwal na setting.</translation>
 <translation id="7887198238286927132">Para protektahan ang iyong privacy, hindi io-autofill ng Chrome ang field na ito.</translation>
@@ -1781,6 +1791,7 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="7930998711684428189">Binibigyan ka ng babala kung malalantad ang mga password sa paglabag sa data.</translation>
 <translation id="7933880123415105005">Maghanap sa <ph name="SEARCH_PROVIDER" /></translation>
 <translation id="7938254975914653459">FaceTime</translation>
+<translation id="7939856641500914040">I-delete ang Data mula sa Pag-browse…</translation>
 <translation id="7941578031639087549">{count,plural, =1{Naidagdag ang page sa iyong listahan ng babasahin sa account mo na {email}}one{Naidagdag ang {count} page sa iyong listahan ng babasahin sa account mo na {email}}other{Naidagdag ang {count} na page sa iyong listahan ng babasahin sa account mo na {email}}}</translation>
 <translation id="7952353944614086413">Ang iyong mga nakabukas na tab at grupo</translation>
 <translation id="7952670906562503188">Ide-delete mo ang {passkey_count} (na) passkey at ang listahan ng mga site at app na pinili mong hinding-hindi magse-save ng impormasyon sa pag-sign in. Hindi made-delete ang anumang account na ginawa mo para sa mga site at app.</translation>
@@ -1852,7 +1863,6 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="8193953846147532858"><ph name="BEGIN_LINK" />Ang iyong mga device<ph name="END_LINK" /> · <ph name="EMAIL" /></translation>
 <translation id="8195191503358432289">Magdagdag ng password</translation>
 <translation id="8195936400946057039">Proteksyon laban sa mga banta online</translation>
-<translation id="8202744799033457229">Ipakita ang history</translation>
 <translation id="8205564605687841303">Kanselahin</translation>
 <translation id="8206354486702514201">Ipinapatupad ng iyong administrator ang setting na ito.</translation>
 <translation id="8209050860603202033">Buksan ang larawan</translation>
@@ -1861,7 +1871,6 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="8214293972734702249">Naka-pin ang <ph name="TAB_TITLE" /></translation>
 <translation id="8219424187226230983">Tingnan ang offline na bersyon sa bagong tab</translation>
 <translation id="8221665793629393739">Ang iyong paalalang bumisita ulit</translation>
-<translation id="8230355548492839438">Hanapin ang nakaraan</translation>
 <translation id="8232956427053453090">Panatilihin ang data</translation>
 <translation id="8233237502828137700">Isara ang banner ng promo</translation>
 <translation id="8258734532103758067">Na-export ko na ang aking data</translation>
@@ -1913,7 +1922,6 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="8407831512155324054">Mukhang malakas ang iyong password</translation>
 <translation id="8414283596511250978">Huwag kailanman kalimutan ang iyong mga password</translation>
 <translation id="842523302461531262">Gawing default sa mga setting…</translation>
-<translation id="8425826545759040372">Grid ng tab na incognito</translation>
 <translation id="8428045167754449968">Lungsod / Bayan</translation>
 <translation id="8428213095426709021">Mga Setting</translation>
 <translation id="8428634594422941299">OK</translation>
@@ -1928,14 +1936,13 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="8481184073299279701">I-tap ang button na "Simulan ang pag-log" para kolektahin ang mga log ng JavaScript console at error mula sa lahat ng tab sa hinaharap. Kokolektahin (at iso-store lang sa memory) ang mga log hanggang sa isara ang page na ito o i-tap ang "Huminto sa pag-log."</translation>
 <translation id="8487667956631253959">Naka-on</translation>
 <translation id="8487700953926739672">Available sa offline</translation>
+<translation id="8488923644885757471">Bagong Window</translation>
 <translation id="8490629238792920282">Hindi makagawa ng link</translation>
 <translation id="8501469528283376592">Awtomatikong i-delete ang mga download</translation>
 <translation id="8503813439785031346">Username</translation>
 <translation id="8505361906966222822">I-save sa…</translation>
 <translation id="850600235656508448">Buksan sa Incognito</translation>
-<translation id="8511141513131731477">Pumunta sa unang tab</translation>
 <translation id="8515534223594179607">I-export ang Data mula sa Pag-browse</translation>
-<translation id="852075982791215701">Pumunta sa huling tab</translation>
 <translation id="8522147671363140027">{count,plural, =1{Mase-save lang ang {count} password at iba pang item sa device na ito. Para magamit ang mga ito sa iba mo pang device, i-save ang mga ito sa iyong Google Account na {email}.}one{Mase-save lang ang {count} password at iba pang item sa device na ito. Para magamit ang mga ito sa iba mo pang device, i-save ang mga ito sa iyong Google Account na {email}.}other{Mase-save lang ang {count} na password at iba pang item sa device na ito. Para magamit ang mga ito sa iba mo pang device, i-save ang mga ito sa iyong Google Account na {email}.}}</translation>
 <translation id="8524799873541103884">Mga Tab na <ph name="INCOGNITO" /> <ph name="FIRST_VISIBLE_TAB" /> hanggang <ph name="LAST_VISIBLE_TAB" /> ng <ph name="NUMBER_OF_OPEN_TABS" /></translation>
 <translation id="8528009254289981965">Magbukas ng mga link mula sa iba pang app sa Incognito</translation>
@@ -1964,6 +1971,7 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="8605219856220328675">Isara ang tab.</translation>
 <translation id="8609743333007776886">Idagdag ang ${url} sa mga bookmark</translation>
 <translation id="8611922158252451755">Mae-edit ng sinumang may link ang lahat ng tab, kaya mag-ingat sa pag-share. Mag-e-expire ang link sa loob ng 48 oras.</translation>
+<translation id="8614671330774943747">Pumunta sa Tab Switcher</translation>
 <translation id="8620640915598389714">I-edit</translation>
 <translation id="8625706492572042370">I-edit ang Home Screen</translation>
 <translation id="8631370184731241854">Mga naka-lock na tab na Incognito</translation>
@@ -1981,7 +1989,6 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="8668210798914567634">Na-save na ang page na ito sa iyong Listahan ng Babasahin.</translation>
 <translation id="8672642291731179042">Isalin ang mga page</translation>
 <translation id="8672733398999596205">I-enable Lahat</translation>
-<translation id="8672993423386237345">Ipakita ang tulong</translation>
 <translation id="8674716540979958118">Mayroon kang mga nakompromisong password.</translation>
 <translation id="8679900250380464358">Idagdag sa Listahan ng Babasahin</translation>
 <translation id="8680786875305615692">Tumulong na pahusayin ang seguridad sa Web para sa lahat</translation>
@@ -1996,7 +2003,6 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="8706253136355675497">Temperatura</translation>
 <translation id="8706806585855470492">Magagawa mong mag-share ng, sumali sa, at makipag-collaborate sa mga grupo ng tab</translation>
 <translation id="8709409604518538305">Isinara ang mga tab</translation>
-<translation id="8712534545803964353">Hanapin sa page…</translation>
 <translation id="8712637175834984815">Nakuha ko</translation>
 <translation id="8717864919010420084">Kopyahin ang Link</translation>
 <translation id="8722229818691036192">Mga account sa device na ito</translation>
@@ -2005,7 +2011,6 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="872371143724482722">{COUNT,plural, =1{{COUNT} tab}one{{COUNT} tab}other{{COUNT} na tab}}</translation>
 <translation id="8725066075913043281">Subukan ulit</translation>
 <translation id="8726523474917941818">Ipaalala</translation>
-<translation id="8728922029615312208">Isara lahat</translation>
 <translation id="8730621377337864115">Tapos na</translation>
 <translation id="8731268612289859741">Panseguridad na code</translation>
 <translation id="87371078663613140">I-explore ang mga opsyon sa menu bar</translation>
@@ -2016,6 +2021,7 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="8748678031495824833">Buksan ang mga AI tool sa page</translation>
 <translation id="8750037785291841318">Makikita mo rito ang iyong mga tab</translation>
 <translation id="8756969031206844760">I-update ang password?</translation>
+<translation id="8763613688786959833">Pumunta sa Huling Tab</translation>
 <translation id="8764015330924122850">Huwag nang subaybayan ang <ph name="DOMAIN_NAME" /></translation>
 <translation id="8766790350274092814">Made-delete ang mga password para sa <ph name="WEBSITE" /> at <ph name="SECOND_WEBSITE" />. Hindi made-delete ang iyong mga account.</translation>
 <translation id="8775144690796719618">Di-wastong URL</translation>
@@ -2031,18 +2037,17 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="8819155700324279105">Magdagdag pa ng proteksyon laban sa mga banta online</translation>
 <translation id="8820817407110198400">Mga Bookmark</translation>
 <translation id="8822421075653507124">Para matiyak na magagamit nang ligtas ang device na ito, posibleng kailanganing tingnan ng iyong organisasyon ang impormasyon tungkol sa operating system, browser, at mga setting nito, at kung anong software ang naka-install sa device.</translation>
+<translation id="882557203579758546">Hanapin sa Page…</translation>
+<translation id="8829809207373502270">Hindi na gumagana ang passkey na ito. Na-delete ito sa <ph name="WEBSITE" /> at malapit na itong i-delete dito. <ph name="BEGIN_LINK" />Tungkol sa mga passkey<ph name="END_LINK" /></translation>
 <translation id="8831208860914609320">Isara ang lahat ng hindi aktibo</translation>
-<translation id="8831944931153286232">Idagdag sa listahan ng babasahin</translation>
 <translation id="8837654851594567190">Pagbukud-bukurin ayon sa publisher</translation>
 <translation id="8840513115188359703">Hindi ka masa-sign out sa iyong Google Account.</translation>
 <translation id="8848286253339013170">Sine-save ang larawan sa Google Photos para sa <ph name="USER_EMAIL" />…</translation>
 <translation id="8849001918648564819">Nakatago</translation>
 <translation id="8855242995793521265">Hindi kapansin-pansing pababagalin ang iyong browser o device.</translation>
 <translation id="8856643812068084733">Mga Archive</translation>
-<translation id="8859598907209490382">Ipakita ang mga setting</translation>
 <translation id="8863067612494559785">Ipinapadala kay/sa <ph name="DEVICE_NAME" />…</translation>
 <translation id="8863431381414769983">Makakuha ng mga direksyon at lokal na impormasyon mula sa Google Maps</translation>
-<translation id="886477344907998366">Ipakita ang mga bookmark</translation>
 <translation id="8871974300055371298">Mga setting ng content 
 </translation>
 <translation id="8877788021141246043">Magtakda ng paalala</translation>
@@ -2067,7 +2072,6 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="8928426232677696166"><ph name="EMAIL" />, pinapamahalaan ng iyong organisasyon, kasalukuyang pinili. Pumili ng account.</translation>
 <translation id="894191600409472540">Gumawa ng malalakas na password</translation>
 <translation id="8943780400130412484">Magsimula ng bagong pag-download?</translation>
-<translation id="8944844131570002190">Buksan ang lokasyon…</translation>
 <translation id="8953046091948372197">Makikita mo rito ang iyong mga password</translation>
 <translation id="8953602327115378731">{count,plural, =1{{count} opsyon sa autocomplete ang available sa itaas ng iyong keyboard.}one{{count} opsyon sa autocomplete ang available sa itaas ng iyong keyboard.}other{{count} na opsyon sa autocomplete ang available sa itaas ng iyong keyboard.}}</translation>
 <translation id="895541991026785598">Mag-ulat ng Isyu</translation>
@@ -2140,6 +2144,7 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="9203951165704618409">Ilipat ang iyong address bar sa ibaba mula sa itaas para sa naka-customize na experience sa pag-browse.</translation>
 <translation id="9205189991633470489">Pag-lock sa Incognito</translation>
 <translation id="9206887540681440657">Bilis</translation>
+<translation id="9219154867334666734">Maghanap sa Mga Tab…</translation>
 <translation id="9223358826628549784">Nagpadala ng ulat sa pag-crash.</translation>
 <translation id="926455622548529175">Lumipat at I-delete</translation>
 <translation id="929748059769569925">Naka-highlight na text</translation>
@@ -2162,7 +2167,6 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="972084300091883657">{COUNT,plural, =0{Sumali sa grupo ng tab kasama ni <ph name="OWNER_NAME" />}=1{Sumali sa grupo ng tab kasama ni <ph name="OWNER_NAME" /> at {COUNT} pa}one{Sumali sa grupo ng tab kasama ni <ph name="OWNER_NAME" /> at {COUNT} pa}other{Sumali sa grupo ng tab kasama ni <ph name="OWNER_NAME" /> at {COUNT} pa}}</translation>
 <translation id="973493300226275298">Subaybayan ang presyo ng produkto sa mga online store. Makakatanggap ka ng mga alerto kapag bumaba ang presyo.</translation>
 <translation id="973788791897303708">Puno na ang grupo ng tab na ito</translation>
-<translation id="976392601789283511">Buksan ulit ang huling isinarang tab</translation>
 <translation id="981498610235328462">Pinapayagan ka lang ng iyong organisasyon na mag-sign in gamit ang ilang partikular na account. Nakatago ang mga account na hindi pinapayagan.</translation>
 <translation id="984275831282074731">Mga paraan ng pagbabayad</translation>
 <translation id="985379595344853742">Isara ang lahat ng tab na Incognito</translation>

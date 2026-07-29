@@ -23,6 +23,8 @@
 #include "ui/base/dragdrop/os_exchange_data.h"
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/compositor/layer_tree_owner.h"
+#include "ui/gfx/animation/animation.h"
+#include "ui/gfx/animation/animation_test_api.h"
 #include "ui/gfx/geometry/point_f.h"
 #include "ui/views/view_class_properties.h"
 
@@ -464,7 +466,6 @@ TEST_F(MultiContentsViewDropTargetControllerDragTest, ShowAndHideNudge) {
   EXPECT_EQ(drop_target_view().state().value(),
             MultiContentsDropTargetView::DropTargetState::kNudge);
 
-  // Dragging to the center should not hide it.
   // Dragging within 40% of the edge should not hide the target.
   DragURLTo(gfx::Point(kMultiContentsViewSize.width() * 0.39f,
                        kMultiContentsViewSize.height()));
@@ -542,10 +543,13 @@ TEST_F(MultiContentsViewDropTargetControllerDragTest, NudgeToFullToHidden) {
   // Exiting the drag should not hide the expanded nudge.
   controller().OnDragExited();
   EXPECT_TRUE(drop_target_view().GetVisible());
+  EXPECT_FALSE(drop_target_view().IsClosing());
 
-  // Dragging to the center should not hide it.
-  DragURLTo(kDragPointForHiddenTargets);
+  // Dragging to within 40% of screen should not hide it.
+  DragURLTo(gfx::Point(kMultiContentsViewSize.width() * 0.39f,
+                       kMultiContentsViewSize.height()));
   EXPECT_TRUE(drop_target_view().GetVisible());
+  EXPECT_FALSE(drop_target_view().IsClosing());
 }
 
 TEST_F(MultiContentsViewDropTargetControllerDragTest, HandleTabDrop) {
@@ -635,6 +639,47 @@ TEST_F(MultiContentsViewDropTargetControllerDragTest, DragDelegateMethods) {
   std::unique_ptr<ui::LayerTreeOwner> drag_image;
   std::move(callback).Run(drop_event, output_op, std::move(drag_image));
   EXPECT_FALSE(drop_target_view().GetVisible());
+}
+
+TEST_F(MultiContentsViewDropTargetControllerDragTest,
+       ShowsFullDropTargetWhenAnimationsDisabled) {
+  ASSERT_TRUE(
+      base::FeatureList::IsEnabled(features::kSideBySideDropTargetNudge));
+  auto animation_mode_reset = gfx::AnimationTestApi::SetRichAnimationRenderMode(
+      gfx::Animation::RichAnimationRenderMode::FORCE_DISABLED);
+  ASSERT_FALSE(drop_target_view().ShouldShowAnimation());
+  ASSERT_FALSE(drop_target_view().GetVisible());
+
+  // Drag to the start of the screen.
+  DragURLTo(kDragPointForStartDropTargetShow);
+  FastForward();
+
+  EXPECT_TRUE(drop_target_view().GetVisible());
+  EXPECT_EQ(drop_target_view().state().value(),
+            MultiContentsDropTargetView::DropTargetState::kFull);
+}
+
+TEST_F(MultiContentsViewDropTargetControllerDragTest,
+       FullToNudgeTransitionNotAllowed) {
+  // Drag to the start of the screen should show the nudge on the start side.
+  DragURLTo(kDragPointForStartDropTargetShow);
+  EXPECT_TRUE(drop_target_view().GetVisible());
+  EXPECT_EQ(drop_target_view().state().value(),
+            MultiContentsDropTargetView::DropTargetState::kNudge);
+
+  // Fire the drag entered event to expand the nudge.
+  const ui::DropTargetEvent event(ui::OSExchangeData(), gfx::PointF(),
+                                  gfx::PointF(), ui::DragDropTypes::DRAG_LINK);
+  controller().OnDragEntered(event);
+  EXPECT_TRUE(drop_target_view().GetVisible());
+  EXPECT_EQ(drop_target_view().state().value(),
+            MultiContentsDropTargetView::DropTargetState::kNudgeToFull);
+
+  // Dragging to the nudge area should not transition back to nudge.
+  DragURLTo(kDragPointForStartDropTargetShow);
+  EXPECT_TRUE(drop_target_view().GetVisible());
+  EXPECT_EQ(drop_target_view().state().value(),
+            MultiContentsDropTargetView::DropTargetState::kNudgeToFull);
 }
 
 }  // namespace

@@ -112,6 +112,7 @@
 #include "content/public/browser/back_forward_cache.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/child_process_security_policy.h"
+#include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/page.h"
@@ -518,13 +519,6 @@ bool ChromePasswordManagerClient::PromptUserToChooseCredentials(
 void ChromePasswordManagerClient::ShowPasswordManagerErrorMessage(
     password_manager::ErrorMessageFlowType flow_type,
     password_manager::PasswordStoreBackendErrorType error_type) {
-  using enum password_manager::PasswordStoreBackendErrorType;
-  if (error_type == kGMSCoreOutdatedSavingDisabled ||
-      error_type == kGMSCoreOutdatedSavingPossible) {
-    // Warning messages about old GMS Core versions should not be shown if there
-    // is no store or if the login DB deprecation has begun.
-    return;
-  }
   if (!password_manager_error_message_delegate_) {
     password_manager_error_message_delegate_ =
         std::make_unique<PasswordManagerErrorMessageDelegate>(

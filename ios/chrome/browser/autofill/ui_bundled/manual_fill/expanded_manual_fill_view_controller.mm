@@ -117,11 +117,23 @@ UIImageSymbolConfiguration* GetCloseButtonSymbolConfiguration() {
                            scale:UIImageSymbolScaleMedium];
 }
 
+// Returns the foreground color to use for the close button color palette.
+UIColor* GetCloseButtonForegroundColor() {
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
+  if (@available(iOS 26, *)) {
+    return [UIColor colorNamed:kTextPrimaryColor];
+  }
+#endif
+
+  return [[UIColor secondaryLabelColor] colorWithAlphaComponent:0.6];
+}
+
 // Returns the constant to apply to the header view top constraint.
 CGFloat GetHeaderViewTopConstraintConstant(bool is_compact_height) {
 #if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
   if (@available(iOS 26, *)) {
-    if (!is_compact_height) {
+    if (!(is_compact_height ||
+          ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET)) {
       return -kHeaderViewTopPadding;
     }
   }
@@ -425,10 +437,7 @@ CGFloat GetHeaderViewTopConstraintConstant(bool is_compact_height) {
   UIImage* buttonImage = SymbolWithPalette(
       DefaultSymbolWithConfiguration(kXMarkCircleFillSymbol,
                                      symbolConfiguration),
-      @[
-        [[UIColor secondaryLabelColor] colorWithAlphaComponent:0.6],
-        [UIColor tertiarySystemFillColor]
-      ]);
+      @[ GetCloseButtonForegroundColor(), [UIColor tertiarySystemFillColor] ]);
   [closeButton setImage:buttonImage forState:UIControlStateNormal];
 
   [closeButton setContentHuggingPriority:UILayoutPriorityRequired

@@ -67,11 +67,9 @@ bool ContentSettingsInfo::IsDefaultSettingValid(ContentSetting setting) const {
 
 bool ContentSettingsInfo::Delegate::IsValid(
     const PermissionSetting& setting) const {
-  auto* content_setting = std::get_if<ContentSetting>(&setting);
-  if (!content_setting) {
-    return false;
-  }
-  return info_->IsSettingValid(*content_setting);
+  DCHECK(std::holds_alternative<ContentSetting>(setting)) << setting;
+  auto content_setting = std::get<ContentSetting>(setting);
+  return info_->IsSettingValid(content_setting);
 }
 
 PermissionSetting ContentSettingsInfo::Delegate::InheritInIncognito(
@@ -136,6 +134,9 @@ base::Value ContentSettingsInfo::Delegate::ToValue(
 
 std::optional<PermissionSetting> ContentSettingsInfo::Delegate::FromValue(
     const base::Value& value) const {
+  if (value.is_none()) {
+    return std::nullopt;
+  }
   return ParseContentSettingValue(value);
 }
 

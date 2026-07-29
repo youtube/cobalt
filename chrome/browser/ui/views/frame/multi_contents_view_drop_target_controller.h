@@ -107,9 +107,20 @@ class MultiContentsViewDropTargetController final
   // Shows the drop target that should be displayed at the end of the delay.
   void ShowTimerDelayedDropTarget();
 
+  // Timer to hides the drop target if the drag isn't over web contents or
+  // drop target.
+  void StartDropTargetHideTimer();
+
+  // Used to determine if the drop target should be hidden because the OS drop
+  // target would be visible. Estimation based on when OS drop targets typically
+  // show. Only returns true if the browser is maximized.
+  bool PointOverlapsWithOSDropTarget(const gfx::Point& point_in_view);
+
   // This timer is used for showing the drop target a delay, and may be
   // canceled in case a drag exits the drop area before the target is shown.
   std::optional<DropTargetShowTimer> show_drop_target_timer_ = std::nullopt;
+
+  base::OneShotTimer hide_drop_target_timer_;
 
   // The view that is displayed when drags hover over the "drop" region of
   // the content area.

@@ -250,6 +250,7 @@ class ReadAnythingAppController
   void OnCollapseSelection() const;
   bool IsGoogleDocs() const;
   bool IsReadAloudEnabled() const;
+  bool IsTsTextSegmentationEnabled() const;
   bool IsChromeOsAsh() const;
   bool IsPhraseHighlightingEnabled() const;
   void OnLetterSpacingChange(int value);
@@ -306,6 +307,19 @@ class ReadAnythingAppController
   // moment, this will return the length of the node's text. Returns -1 if the
   // node isn't in the current segment.
   int GetCurrentTextEndIndex(ui::AXNodeID node_id);
+
+  // Returns a list of nodes and ranges representing the next nodes that should
+  // be spoken and highlighted with Read Aloud. The ranges are represented as a
+  // start offset and a length. Multiple nodes are returned if the segment spans
+  // over more than one node. This defaults to returning the first granularity
+  // until MovePositionTo<Next,Previous>Granularity() moves the position. If the
+  // the current processed_granularity_index_ has not been calculated yet,
+  // GetNextNodes() is called which updates the AXPosition.
+  v8::Local<v8::Value> GetCurrentTextSegments();
+
+  // Returns the actual text content representing by the nodes returned by
+  // GetCurrentTextSegments().
+  std::u16string GetCurrentTextContent();
 
   int GetAccessibleBoundary(const std::u16string& text, int max_text_length);
 

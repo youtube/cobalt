@@ -44,6 +44,7 @@ BASE_DECLARE_FEATURE(kExtensionsCollapseMainMenu);
 #if BUILDFLAG(IS_WIN)
 BASE_DECLARE_FEATURE(kOfferPinToTaskbarWhenSettingToDefault);
 BASE_DECLARE_FEATURE(kOfferPinToTaskbarInFirstRunExperience);
+BASE_DECLARE_FEATURE(kOfferPinToTaskbarInSettings);
 #endif
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
@@ -145,6 +146,7 @@ BASE_DECLARE_FEATURE(KScrimForTabModal);
 BASE_DECLARE_FEATURE(kSideBySide);
 
 BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kSideBySideShowDropTargetDelay);
+BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kSideBySideHideDropTargetDelay);
 
 // Feature params for the width of the multi-contents drop target.
 // If the `kSideBySideDropTargetNudge` feature is enabled, then these only
@@ -152,6 +154,7 @@ BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kSideBySideShowDropTargetDelay);
 BASE_DECLARE_FEATURE_PARAM(int, kSideBySideDropTargetMinWidth);
 BASE_DECLARE_FEATURE_PARAM(int, kSideBySideDropTargetMaxWidth);
 BASE_DECLARE_FEATURE_PARAM(int, kSideBySideDropTargetTargetWidthPercentage);
+BASE_DECLARE_FEATURE_PARAM(int, kSideBySideDropTargetHideForOSWidth);
 
 // Feature and params to control the "nudge" behavior of drop targets.
 BASE_DECLARE_FEATURE(kSideBySideDropTargetNudge);
@@ -351,7 +354,6 @@ BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationFileSystemAccess);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationPwaInstall);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationPriceInsights);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationDiscounts);
-BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationProductSpecifications);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationManagePasswords);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationCookieControls);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationAutofillAddress);
@@ -390,6 +392,8 @@ bool HasTabSearchToolbarButton();
 // Controls whether to add new tabs to active tab group or to the end of the
 // tab strip.
 BASE_DECLARE_FEATURE(kNewTabAddsToActiveGroup);
+
+bool IsNewTabAddsToActiveGroupEnabled();
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 // Controls whether to show a toast for Chrome non milestone update.

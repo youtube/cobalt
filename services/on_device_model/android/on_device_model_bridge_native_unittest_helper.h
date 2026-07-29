@@ -30,7 +30,9 @@ class OnDeviceModelBridgeNativeUnitTestHelper {
   void SetGenerateResult(BackendSessionImplAndroid::GenerateResult result);
 
   void SetCompleteAsync();
+  void SetCallbackOnDifferentThread();
   void ResumeOnCompleteCallback();
+  void SetDownloaderCallbackOnDifferentThread();
 
   void TriggerDownloaderOnUnavailable(
       ModelDownloaderAndroid::DownloadFailureReason reason);

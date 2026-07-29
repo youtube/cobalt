@@ -186,6 +186,15 @@ export class ApiTestFixtureBase {
   getStepCount(): number {
     return this.testStepCount;
   }
+
+  async testAllTestsAreRegistered() {
+    const allNames = [];
+    for (const fixture of testRunner.testFixtures) {
+      allNames.push(...Object.getOwnPropertyNames(fixture.prototype)
+                        .filter(name => name.startsWith('test')));
+    }
+    await this.advanceToNextStep(allNames);
+  }
 }
 
 function findTestFixture(testFixtures: any[], testName: string): any {
@@ -193,6 +202,10 @@ function findTestFixture(testFixtures: any[], testName: string): any {
     if (Object.getOwnPropertyNames(fixture.prototype).includes(testName)) {
       return fixture;
     }
+  }
+  // testAllTestsAreRegistered is provided by the fixture base class.
+  if (testName === 'testAllTestsAreRegistered') {
+    return testFixtures[0];
   }
   return undefined;
 }
@@ -215,7 +228,7 @@ class TestRunner implements TestStepper {
   testDone: Promise<void>|undefined;
   testFound = false;
   stepFailures: ApiTestError[] = [];
-  constructor(private testName: string, private testFixtures: any[]) {
+  constructor(private testName: string, public testFixtures: any[]) {
     console.info(`TestRunner(${testName})`);
   }
 
@@ -253,7 +266,7 @@ class TestRunner implements TestStepper {
   // If `run()` or `stepComplete()` returns 'next-step', this function is called
   // to continue running the test.
   stepComplete(payload: any): Promise<TestResult> {
-    console.info(`Continue test${this.testName}`);
+    console.info(`Continue ${this.testName}`);
     if (payload !== null) {
       this.fixture!.testParams = payload;
     }

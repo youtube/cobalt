@@ -23,8 +23,9 @@ export {MenuStateItem} from './menus/menu_util.js';
 export type {RateMenuElement} from './menus/rate_menu.js';
 export type {SimpleActionMenuElement} from './menus/simple_action_menu.js';
 export {MetricsBrowserProxy, MetricsBrowserProxyImpl, ReadAloudHighlightState, ReadAloudSettingsChange, ReadAnythingNewPage, ReadAnythingSettingsChange, ReadAnythingSpeechError, ReadAnythingVoiceType} from './metrics_browser_proxy.js';
-export {COUNT_WORDS_SEEN_DELAY_MS, NodeStore} from './node_store.js';
+export {ESTIMATED_WORDS_PER_MS, MIN_MS_TO_READ, NodeStore} from './node_store.js';
 export {currentReadHighlightClass, previousReadHighlightClass, ReadAloudHighlighter} from './read_aloud/highlighter.js';
+export {AxReadAloudNode, getReadAloudModel, ReadAloudModelBrowserProxy} from './read_aloud/read_aloud_model_browser_proxy.js';
 export {MAX_SPEECH_LENGTH, SpeechController, SpeechListener} from './read_aloud/speech_controller.js';
 export {PauseActionSource, SpeechEngineState, SpeechModel} from './read_aloud/speech_model.js';
 export {VoiceLanguageController, VoiceLanguageListener} from './read_aloud/voice_language_controller.js';
@@ -35,6 +36,7 @@ export {ReadAnythingLogger, SpeechControls, TimeFrom} from './read_anything_logg
 export type {ReadAnythingToolbarElement} from './read_anything_toolbar.js';
 export {IMAGES_DISABLED_ICON, IMAGES_ENABLED_ICON, IMAGES_TOGGLE_BUTTON_ID, LINK_TOGGLE_BUTTON_ID, LINKS_DISABLED_ICON, LINKS_ENABLED_ICON, moreOptionsClass} from './read_anything_toolbar.js';
 export {SpeechBrowserProxy, SpeechBrowserProxyImpl} from './speech_browser_proxy.js';
+export {TextSegmenter} from './text_segmenter.js';
 export {AVAILABLE_GOOGLE_TTS_LOCALES, convertLangOrLocaleForVoicePackManager, convertLangOrLocaleToExactVoicePackLocale, convertLangToAnAvailableLangIfPresent, createInitialListOfEnabledLanguages, EXTENSION_RESPONSE_TIMEOUT_MS, getFilteredVoiceList, getNotification, getVoicePackConvertedLangIfExists, mojoVoicePackStatusToVoicePackStatusEnum, NotificationType, PACK_MANAGER_SUPPORTED_LANGS_AND_LOCALES, VoiceClientSideStatusCode, VoicePackServerStatusErrorCode, VoicePackServerStatusSuccessCode} from './voice_language_util.js';
 export {VoiceNotificationListener, VoiceNotificationManager} from './voice_notification_manager.js';
 export type {VoiceSelectionMenuElement} from './voice_selection_menu.js';

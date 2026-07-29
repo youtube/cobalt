@@ -335,14 +335,13 @@ class GPU_GLES2_EXPORT SkiaImageRepresentation
   class GPU_GLES2_EXPORT GraphiteTextureHolder
       : public base::RefCountedThreadSafe<GraphiteTextureHolder> {
    public:
-    explicit GraphiteTextureHolder(skgpu::graphite::BackendTexture texture)
-        : texture_(std::move(texture)) {}
+    explicit GraphiteTextureHolder(skgpu::graphite::BackendTexture texture);
 
     const skgpu::graphite::BackendTexture& texture() { return texture_; }
 
    protected:
     friend class base::RefCountedThreadSafe<GraphiteTextureHolder>;
-    virtual ~GraphiteTextureHolder() = default;
+    virtual ~GraphiteTextureHolder();
 
     skgpu::graphite::BackendTexture texture_;
   };
@@ -941,9 +940,9 @@ class GPU_GLES2_EXPORT WebNNTensorRepresentation
   virtual void ConsumeWebNNTensor(
       base::WeakPtr<webnn::native::d3d12::WebNNTensor> webnn_tensor);
 #endif  // BUILDFLAG(IS_WIN)
-#if BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_APPLE)
   virtual IOSurfaceRef GetIOSurface() const;
-#endif  // BUILDFLAG(IS_MAC)
+#endif  // BUILDFLAG(IS_APPLE)
  protected:
   virtual bool BeginAccess() = 0;
   virtual void EndAccess() = 0;

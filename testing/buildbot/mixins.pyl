@@ -734,6 +734,11 @@
       'cros_test_max_in_shard': 40
     },
   },
+  'skylab-50-tests-per-shard': {
+    'skylab': {
+      'cros_test_max_in_shard': 50
+    },
+  },
   'skylab-shards-20': {
     'skylab': {
       'shards': 20,
@@ -902,7 +907,7 @@
     'swarming': {
       'dimensions': {
         'display_attached': '1',
-        'gpu': '10de:2783-32.0.15.6070',
+        'gpu': '10de:2783-32.0.15.6070|10de:2783-32.0.15.8088',
         'os': 'Windows-11',
         'pool': 'chromium.tests.gpu',
       },
@@ -929,15 +934,15 @@
       },
     },
   },
-  'xcode_16_main': {
+  'xcode_26_main': {
     'args': [
       '--xcode-build-version',
-      '16c5032a',
+      '17a5305f',
     ],
     'swarming': {
       'named_caches': [
         {
-          'name': 'xcode_ios_16c5032a',
+          'name': 'xcode_ios_17a5305f',
           'path': 'Xcode.app',
         },
       ],

@@ -21,22 +21,23 @@
 #include "components/prefs/pref_service.h"
 #include "components/search/search.h"
 #include "components/search_engines/template_url_service.h"
+#include "net/base/load_flags.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/cpp/simple_url_loader.h"
+#include "services/network/public/mojom/url_response_head.mojom.h"
 #include "third_party/omnibox_proto/aim_eligibility_response.pb.h"
 #include "url/gurl.h"
+
+BASE_FEATURE(kAimServerEligibilityEnabled,
+             "AimServerEligibilityEnabled",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 namespace {
 
 // If disabled, AIM is completely turned off (kill switch).
 BASE_FEATURE(kAimEnabled, "AimEnabled", base::FEATURE_ENABLED_BY_DEFAULT);
-
-// If enabled, uses the server response for AIM eligibility for all locales.
-BASE_FEATURE(kAimServerEligibilityEnabled,
-             "AimServerEligibilityEnabled",
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // If enabled, uses the server response for AIM eligibility for English locales.
 // Has no effect if kAimServerEligibilityEnabled is enabled.
@@ -53,20 +54,31 @@ static constexpr char kUmaServerRequestStatusHistogramName[] =
 // Which AIM features were eligible according to the server request.
 static constexpr char kUmaServerEligibilityHistogramPrefix[] =
     "Omnibox.AimEligibility.ServerEligibility.";
-// These values are persisted to logs. Entries should not be renumbered and
-// numeric values should never be reused.
-// LINT.IfChange(ServerAimEligibilityRequestStatus)
-enum class ServerRequestStatus {
-  kSent = 0,
-  kErrorResponse = 1,
-  kFailedToParse = 2,
-  kSuccess = 3,
-  kMaxValue = kSuccess,
-};
-// LINT.ThenChange(//tools/metrics/histograms/metadata/omnibox/enums.xml:ServerAimEligibilityRequestStatus)
 
-static constexpr char kRequestEndpoint[] =
-    "http://www.google.com/async/folae?async=_fmt:pb";
+static constexpr char kRequestPath[] = "/async/folae";
+static constexpr char kRequestQuery[] = "async=_fmt:pb";
+
+// The default value for the AIM policy pref; 0 = allowed, 1 = disallowed.
+constexpr int kAIModeAllowedDefault = 0;
+
+// Returns the request URL or an empty GURL if a valid URL cannot be created;
+// e.g., Google is not the default search provider.
+GURL GetRequestUrl(const TemplateURLService* template_url_service) {
+  if (!search::DefaultSearchProviderIsGoogle(template_url_service)) {
+    return GURL();
+  }
+
+  GURL base_gurl(
+      template_url_service->search_terms_data().GoogleBaseURLValue());
+  if (!base_gurl.is_valid()) {
+    return GURL();
+  }
+
+  GURL::Replacements replacements;
+  replacements.SetPathStr(kRequestPath);
+  replacements.SetQueryStr(kRequestQuery);
+  return base_gurl.ReplaceComponents(replacements);
+}
 
 const net::NetworkTrafficAnnotationTag kRequestTrafficAnnotation =
     net::DefineNetworkTrafficAnnotation("aim_eligibility_fetch", R"(
@@ -90,7 +102,8 @@ const net::NetworkTrafficAnnotationTag kRequestTrafficAnnotation =
         last_reviewed: "2025-08-06"
       }
       policy {
-        cookies_allowed: NO
+        cookies_allowed: YES
+        cookies_store: "user"
         setting: "Coupled to Google default search."
         policy_exception_justification:
           "Not gated by policy. Setting AIModeSetting to '1' prevents the "
@@ -99,28 +112,41 @@ const net::NetworkTrafficAnnotationTag kRequestTrafficAnnotation =
           "the policy is unset."
       })");
 
+// Parses `response_string` into `response_proto`. Does not modify
+// `response_proto` if parsing fails. Returns false on failure.
+bool ParseResponseString(const std::string& response_string,
+                         omnibox::AimEligibilityResponse* response_proto) {
+  omnibox::AimEligibilityResponse proto;
+  if (!proto.ParseFromString(response_string)) {
+    return false;
+  }
+  *response_proto = proto;
+  return true;
+}
+
 }  // namespace
 
 // static
 void AimEligibilityService::RegisterProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterStringPref(kResponsePrefName, "");
+  registry->RegisterIntegerPref(omnibox::kAIModeSettings,
+                                kAIModeAllowedDefault);
+}
+
+bool AimEligibilityService::IsAimAllowedByPolicy(const PrefService* prefs) {
+  return prefs->GetInteger(omnibox::kAIModeSettings) == kAIModeAllowedDefault;
 }
 
 AimEligibilityService::AimEligibilityService(
     PrefService& pref_service,
-    TemplateURLService& template_url_service,
+    TemplateURLService* template_url_service,
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory)
     : pref_service_(pref_service),
       template_url_service_(template_url_service),
       url_loader_factory_(url_loader_factory) {
-  // TODO(crbug.com/436898763): Call `StartServerEligibilityRequest()` to
-  // refresh the server response when service is constructed and when user state
-  // changes. E.g. user signs in/out, starts/stops syncing, switches profiles.
-  // Some of those actions may create a new service; if so, we don't need to
-  // listen to those events and start StartServerEligibilityRequest manually,
-  // because it'll be called in the constructor anyways. Switching profiles
-  // probably creates a new service.
-  ReadFromPref();
+  if (base::FeatureList::IsEnabled(kAimEnabled)) {
+    Initialize();
+  }
 }
 
 AimEligibilityService::~AimEligibilityService() = default;
@@ -160,8 +186,8 @@ bool AimEligibilityService::IsAimLocallyEligible() const {
   }
 
   // Always check Google DSE and Policy requirements.
-  if (!search::DefaultSearchProviderIsGoogle(&template_url_service_.get()) ||
-      !omnibox::IsAimAllowedByPolicy(&pref_service_.get())) {
+  if (!search::DefaultSearchProviderIsGoogle(template_url_service_) ||
+      !IsAimAllowedByPolicy(&pref_service_.get())) {
     return false;
   }
 
@@ -182,49 +208,95 @@ bool AimEligibilityService::IsAimEligible() const {
   return true;
 }
 
+// Private methods -------------------------------------------------------------
+
+void AimEligibilityService::Initialize() {
+  // The service should not be initialized if AIM is disabled.
+  CHECK(base::FeatureList::IsEnabled(kAimEnabled));
+  // The service should not be initialized twice.
+  CHECK(!initialized_);
+
+  if (!template_url_service_) {
+    return;
+  }
+
+  if (!template_url_service_->loaded()) {
+    template_url_service_subscription_ =
+        template_url_service_->RegisterOnLoadedCallback(base::BindOnce(
+            &AimEligibilityService::Initialize, weak_factory_.GetWeakPtr()));
+    return;
+  }
+
+  initialized_ = true;
+
+  LoadMostRecentResponse();
+  // TODO(crbug.com/436898763): Call `StartServerEligibilityRequest()` to
+  // refresh the server response when user sign-in state changes.
+  StartServerEligibilityRequest();
+}
+
 void AimEligibilityService::NotifyObservers() const {
+  CHECK(initialized_);
+
   for (auto& observer : observers_) {
     observer.OnAimEligibilityChanged();
   }
 }
 
-bool AimEligibilityService::ParseResponseString(
-    const std::string& response_string) {
-  // Parse into a temporary variable 1st so that if parsing fails,
-  // `most_recent_response_` isn't cleared.
-  omnibox::AimEligibilityResponse response_proto;
-  if (!response_proto.ParseFromString(response_string)) {
-    return false;
-  }
+void AimEligibilityService::UpdateMostRecentResponse(
+    const omnibox::AimEligibilityResponse& response_proto) {
+  CHECK(initialized_);
+
+  std::string response_string;
+  response_proto.SerializeToString(&response_string);
+  std::string encoded_response = base::Base64Encode(response_string);
+  pref_service_->SetString(kResponsePrefName, encoded_response);
+
   most_recent_response_ = response_proto;
-  return true;
 }
 
-void AimEligibilityService::WriteToPref(
-    const std::string& response_string) const {
-  pref_service_->SetString(kResponsePrefName,
-                           base::Base64Encode(response_string));
-}
+void AimEligibilityService::LoadMostRecentResponse() {
+  CHECK(initialized_);
 
-void AimEligibilityService::ReadFromPref() {
-  const std::string& read_string = pref_service_->GetString(kResponsePrefName);
-  std::string decoded;
-  if (base::Base64Decode(read_string, &decoded)) {
-    ParseResponseString(decoded);
+  std::string encoded_response = pref_service_->GetString(kResponsePrefName);
+  if (encoded_response.empty()) {
+    return;
   }
+
+  std::string response_string;
+  if (!base::Base64Decode(encoded_response, &response_string)) {
+    return;
+  }
+
+  omnibox::AimEligibilityResponse response_proto;
+  if (!ParseResponseString(response_string, &response_proto)) {
+    return;
+  }
+
+  most_recent_response_ = response_proto;
 }
 
 void AimEligibilityService::StartServerEligibilityRequest() {
-  // Don't make server requests if AIM or server requests are disabled.
-  if (!base::FeatureList::IsEnabled(kAimEnabled) ||
-      !IsServerEligibilityEnabled()) {
+  CHECK(initialized_);
+
+  // URLLoaderFactory may be null in tests.
+  if (!url_loader_factory_) {
+    return;
+  }
+
+  // Request URL may be invalid.
+  GURL request_url = GetRequestUrl(template_url_service_.get());
+  if (!request_url.is_valid()) {
     return;
   }
 
   std::unique_ptr<network::ResourceRequest> request =
       std::make_unique<network::ResourceRequest>();
-  request->url = GURL{kRequestEndpoint};
-  request->credentials_mode = network::mojom::CredentialsMode::kOmit;
+  request->url = request_url;
+  request->credentials_mode = network::mojom::CredentialsMode::kInclude;
+  request->load_flags = net::LOAD_DO_NOT_SAVE_COOKIES;
+  // Set the SiteForCookies to the request URL's site to avoid cookie blocking.
+  request->site_for_cookies = net::SiteForCookies::FromUrl(request->url);
   std::unique_ptr<network::SimpleURLLoader> loader =
       network::SimpleURLLoader::Create(std::move(request),
                                        kRequestTrafficAnnotation);
@@ -239,26 +311,37 @@ void AimEligibilityService::StartServerEligibilityRequest() {
 void AimEligibilityService::OnServerEligibilityResponse(
     std::unique_ptr<network::SimpleURLLoader> loader,
     std::unique_ptr<std::string> response_string) {
-  // TODO(crbug.com/436900259): Add UMA metrics for whether the response
-  //   returned 200, was parsed successfully, and which features were eligible.
-  //   This will let us know how watered down UMA and finch are compared due to
-  //   mismatched server eligibility criteria and estimate the actual population
-  //   size.
-  if (!response_string) {
+  CHECK(initialized_);
+
+  const int response_code =
+      loader->ResponseInfo() && loader->ResponseInfo()->headers
+          ? loader->ResponseInfo()->headers->response_code()
+          : 0;
+
+  if (response_code != 200 || !response_string) {
     base::UmaHistogramEnumeration(kUmaServerRequestStatusHistogramName,
                                   ServerRequestStatus::kErrorResponse);
     return;
   }
-  if (!ParseResponseString(*response_string)) {
+  omnibox::AimEligibilityResponse response_proto;
+  if (!ParseResponseString(*response_string, &response_proto)) {
     base::UmaHistogramEnumeration(kUmaServerRequestStatusHistogramName,
                                   ServerRequestStatus::kFailedToParse);
     return;
   }
   base::UmaHistogramEnumeration(kUmaServerRequestStatusHistogramName,
                                 ServerRequestStatus::kSuccess);
+
   base::UmaHistogramBoolean(
       base::StrCat({kUmaServerEligibilityHistogramPrefix, "is_eligible"}),
-      most_recent_response_.is_eligible());
-  WriteToPref(*response_string);
+      response_proto.is_eligible());
+
+  // Update the most recent response if server eligibility checking is enabled.
+  // This ensures the prefs are not tainted until server eligibility checking is
+  // rolled out.
+  if (IsServerEligibilityEnabled()) {
+    UpdateMostRecentResponse(response_proto);
+  }
+
   NotifyObservers();
 }

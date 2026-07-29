@@ -69,9 +69,7 @@ using base::TimeTicks;
 
 namespace blink {
 
-BASE_FEATURE(kMediaRecorderSeekableWebm,
-             "MediaRecorderSeekableWebm",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(MediaRecorderSeekableWebm, base::FEATURE_ENABLED_BY_DEFAULT);
 
 namespace {
 
@@ -615,8 +613,8 @@ bool MediaRecorderHandler::Start(int timeslice,
   }
 
   auto write_callback =
-      WTF::BindRepeating(&MediaRecorderHandler::WriteData,
-                         WrapPersistent(weak_factory_.GetWeakCell()));
+      blink::BindRepeating(&MediaRecorderHandler::WriteData,
+                           WrapPersistent(weak_factory_.GetWeakCell()));
   if (use_mp4_muxer) {
     muxer = std::make_unique<media::Mp4Muxer>(
         audio_codec, use_video_tracks, use_audio_tracks,
@@ -640,9 +638,8 @@ bool MediaRecorderHandler::Start(int timeslice,
              base::FeatureList::IsEnabled(kMediaRecorderSeekableWebm)) {
     // Write a seekable WebM instead of a live one.
     auto delegate = std::make_unique<media::MemoryWebmMuxerDelegate>(
-        write_callback,
-        WTF::BindOnce(&MediaRecorderHandler::OnStarted,
-                      WrapPersistent(weak_factory_.GetWeakCell())));
+        write_callback, BindOnce(&MediaRecorderHandler::OnStarted,
+                                 WrapPersistent(weak_factory_.GetWeakCell())));
     // Hold on to a raw_ptr for the delegate so we can fall back to live mode
     // if a requestData() call comes in.
     memory_muxer_delegate_ = delegate.get();
@@ -942,8 +939,8 @@ void MediaRecorderHandler::OnStreamChanged(const String& message) {
     // https://www.w3.org/TR/mediastream-recording/#dom-mediarecorder-start
     // step 14.4.
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, WTF::BindOnce(&MediaRecorder::OnStreamChanged,
-                                 WrapWeakPersistent(recorder_.Get()), message));
+        FROM_HERE, BindOnce(&MediaRecorder::OnStreamChanged,
+                            WrapWeakPersistent(recorder_.Get()), message));
   }
 }
 

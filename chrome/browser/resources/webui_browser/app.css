@@ -4,11 +4,21 @@
 
 /* #css_wrapper_metadata_start
  * #type=style-lit
+ * #import=//resources/cr_elements/cr_icons_lit.css.js
  * #scheme=relative
+ * #include=cr-icons-lit
  * #css_wrapper_metadata_end */
 
-#exampleWebview {
-  height: 400px;
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: var(--color-frame-active);
+  color: var(--color-toolbar-text);
+  position: relative; /* Needed for absolute positioning of controls */
+  overflow: hidden;
 }
 
 .caption-button {
@@ -18,10 +28,12 @@
   --cr-button-border-color: transparent;
   --iron-icon-width: 16px;
   --iron-icon-height: 16px;
-  --iron-icon-stroke-color: black;
+  --iron-icon-stroke-color: var(--color-tab-foreground-active-frame-active);
   --iron-icon-fill-color: transparent;
+  stroke-width: 3px;
   height: 43px;
-  min-width: 45px;
+  min-width: 30px;
+  padding: 0;
   shape-rendering: crispEdges;
 }
 
@@ -33,6 +45,14 @@
   user-select: none;
   margin-left: 8px;
   margin-right: 8px;
+}
+
+cr-icon-button {
+  --cr-icon-button-icon-size: 20px;
+  --cr-icon-button-margin-end: 0;
+  --cr-icon-button-margin-start: 0;
+  --cr-icon-button-size: 35px;
+  --cr-icon-button-fill-color: var(--color-toolbar-button-icon);
 }
 
 cr-searchbox {
@@ -83,4 +103,34 @@ cr-searchbox[dropdown-is-visible] {
   display: flex;
   flex: none;
   padding: 7px;
+}
+
+#searchBar #address {
+  flex: 1;
+}
+
+#rootContainer {
+  display: grid;
+  height: 100%;
+  /* *
+   * #topContainer (natural height)
+   * #main (remaining height)
+   * */
+  grid-template-rows: auto 1fr;
+}
+
+#topContainer {
+  grid-row: 1;
+}
+
+#main {
+  grid-row: 2;
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  background-color: var(--color-toolbar);
+}
+
+content-region {
+  border-top: 1px var(--color-toolbar-separator) solid;
 }

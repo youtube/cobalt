@@ -76,7 +76,7 @@
 #include "components/autofill/core/browser/integrators/identity_credential/mock_identity_credential_delegate.h"
 #include "components/autofill/core/browser/integrators/optimization_guide/mock_autofill_optimization_guide.h"
 #include "components/autofill/core/browser/integrators/password_form_classification.h"
-#include "components/autofill/core/browser/integrators/password_manager/mock_otp_suggestion_delegate.h"
+#include "components/autofill/core/browser/integrators/password_manager/mock_otp_delegate.h"
 #include "components/autofill/core/browser/integrators/password_manager/mock_password_manager_delegate.h"
 #include "components/autofill/core/browser/integrators/password_manager/password_manager_delegate.h"
 #include "components/autofill/core/browser/integrators/plus_addresses/autofill_plus_address_delegate.h"
@@ -126,6 +126,7 @@
 #include "components/autofill/core/common/signatures.h"
 #include "components/feature_engagement/public/feature_constants.h"
 #include "components/optimization_guide/proto/features/common_quality_data.pb.h"
+#include "components/password_manager/core/browser/features/password_features.h"
 #include "components/prefs/pref_service.h"
 #include "components/security_interstitials/core/pref_names.h"
 #include "components/security_state/core/security_state.h"
@@ -159,6 +160,7 @@ using test::AddFieldPredictionsToForm;
 using test::CreateFieldPrediction;
 using test::CreateTestAddressFormData;
 using test::CreateTestFormField;
+using test::CreateTestHybridSignUpFormData;
 using test::CreateTestIbanFormData;
 using ::testing::_;
 using ::testing::AllOf;
@@ -1845,6 +1847,125 @@ TEST_F(BrowserAutofillManagerTest, GetProfileSuggestions_EmptyValue) {
        Suggestion(SuggestionType::kSeparator),
        CreateManageAddressesSuggestion()});
 }
+
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+// Tests that the `kWebauthnSignInWithAnotherDevice` suggestion is present if
+// the `PasswordManagerDelegate` returns it.
+TEST_F(BrowserAutofillManagerTest, WebauthnSignInWithAnotherDeviceSuggestion) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures(
+      /*enabled_features=*/
+      {
+          autofill::features::kAutofillAndPasswordsInSameSurface,
+          password_manager::features::
+              kAutofillReintroduceHybridPasskeyDropdownItem,
+      },
+      /*disabled_features=*/{});
+  FormData form = CreateTestHybridSignUpFormData();
+  FormsSeen({form});
+
+  auto password_manager_delegate =
+      std::make_unique<NiceMock<MockPasswordManagerDelegate>>();
+  ON_CALL(*password_manager_delegate,
+          GetWebauthnSignInWithAnotherDeviceSuggestion)
+      .WillByDefault(
+          Return(Suggestion(SuggestionType::kWebauthnSignInWithAnotherDevice)));
+  client().set_password_manager_delegate(std::move(password_manager_delegate));
+
+  OnAskForValuesToFill(form, form.fields()[0]);
+
+  EXPECT_THAT(
+      external_delegate()->suggestions(),
+      Contains(Suggestion(SuggestionType::kWebauthnSignInWithAnotherDevice)));
+}
+
+TEST_F(BrowserAutofillManagerTest,
+       WebauthnSignInWithAnotherDeviceSuggestion_FlagDisabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures(
+      /*enabled_features=*/{autofill::features::
+                                kAutofillAndPasswordsInSameSurface},
+      /*disabled_features=*/{
+          password_manager::features::
+              kAutofillReintroduceHybridPasskeyDropdownItem});
+  FormData form = CreateTestHybridSignUpFormData();
+  FormsSeen({form});
+
+  auto password_manager_delegate =
+      std::make_unique<NiceMock<MockPasswordManagerDelegate>>();
+  // This ON_CALL should not be decisive since the flag is off.
+  ON_CALL(*password_manager_delegate,
+          GetWebauthnSignInWithAnotherDeviceSuggestion)
+      .WillByDefault(
+          Return(Suggestion(SuggestionType::kWebauthnSignInWithAnotherDevice)));
+  client().set_password_manager_delegate(std::move(password_manager_delegate));
+
+  OnAskForValuesToFill(form, form.fields()[0]);
+
+  EXPECT_THAT(external_delegate()->suggestions(),
+              Not(Contains(Suggestion(
+                  SuggestionType::kWebauthnSignInWithAnotherDevice))));
+}
+
+TEST_F(BrowserAutofillManagerTest,
+       WebauthnSignInWithAnotherDeviceSuggestion_NonWebauthnField) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures(
+      /*enabled_features=*/
+      {
+          autofill::features::kAutofillAndPasswordsInSameSurface,
+          password_manager::features::
+              kAutofillReintroduceHybridPasskeyDropdownItem,
+      },
+      /*disabled_features=*/{});
+  FormData form = CreateTestHybridSignUpFormData();
+  form.set_fields({CreateTestFormField(
+      "Email", "email", "", FormControlType::kInputEmail, "username")});
+  FormsSeen({form});
+
+  auto password_manager_delegate =
+      std::make_unique<NiceMock<MockPasswordManagerDelegate>>();
+  ON_CALL(*password_manager_delegate,
+          GetWebauthnSignInWithAnotherDeviceSuggestion)
+      .WillByDefault(
+          Return(Suggestion(SuggestionType::kWebauthnSignInWithAnotherDevice)));
+  client().set_password_manager_delegate(std::move(password_manager_delegate));
+
+  OnAskForValuesToFill(form, form.fields()[0]);
+
+  EXPECT_THAT(external_delegate()->suggestions(),
+              Not(Contains(Suggestion(
+                  SuggestionType::kWebauthnSignInWithAnotherDevice))));
+}
+
+TEST_F(BrowserAutofillManagerTest,
+       WebauthnSignInWithAnotherDeviceSuggestion_NullOpt) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures(
+      /*enabled_features=*/
+      {
+          autofill::features::kAutofillAndPasswordsInSameSurface,
+          password_manager::features::
+              kAutofillReintroduceHybridPasskeyDropdownItem,
+      },
+      /*disabled_features=*/{});
+  FormData form = CreateTestHybridSignUpFormData();
+  FormsSeen({form});
+
+  auto password_manager_delegate =
+      std::make_unique<NiceMock<MockPasswordManagerDelegate>>();
+  ON_CALL(*password_manager_delegate,
+          GetWebauthnSignInWithAnotherDeviceSuggestion)
+      .WillByDefault(Return(std::nullopt));  // Explicitly return nullopt
+  client().set_password_manager_delegate(std::move(password_manager_delegate));
+
+  OnAskForValuesToFill(form, form.fields()[0]);
+
+  EXPECT_THAT(external_delegate()->suggestions(),
+              Not(Contains(Suggestion(
+                  SuggestionType::kWebauthnSignInWithAnotherDevice))));
+}
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
 // Test that we return only matching address profile suggestions when the
 // selected form field has been partially filled out.
@@ -3543,8 +3664,6 @@ TEST_F(BrowserAutofillManagerTest,
   manager().FillOrPreviewForm(mojom::ActionPersistence::kFill, form,
                               form.fields().front().global_id(), &local_card,
                               AutofillTriggerSource::kPopup);
-  EXPECT_THAT(test_api(form_data_importer()).fetched_card_instrument_id(),
-              testing::Optional(local_card.instrument_id()));
 }
 
 TEST_F(BrowserAutofillManagerTest,
@@ -3560,8 +3679,6 @@ TEST_F(BrowserAutofillManagerTest,
   manager().FillOrPreviewForm(mojom::ActionPersistence::kFill, form,
                               form.fields().front().global_id(), &server_card,
                               AutofillTriggerSource::kPopup);
-  EXPECT_THAT(test_api(form_data_importer()).fetched_card_instrument_id(),
-              testing::Optional(server_card.instrument_id()));
 }
 
 TEST_F(BrowserAutofillManagerTest,
@@ -3586,8 +3703,6 @@ TEST_F(BrowserAutofillManagerTest,
   manager().FillOrPreviewForm(mojom::ActionPersistence::kFill, form,
                               form.fields().front().global_id(), &filled_card,
                               AutofillTriggerSource::kPopup);
-  EXPECT_THAT(test_api(form_data_importer()).fetched_card_instrument_id(),
-              testing::Optional(filled_card.instrument_id()));
 }
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
@@ -3655,8 +3770,6 @@ TEST_F(BrowserAutofillManagerTest,
   manager().FillOrPreviewForm(mojom::ActionPersistence::kFill, form,
                               form.fields().front().global_id(), &card,
                               AutofillTriggerSource::kPopup);
-  EXPECT_THAT(test_api(form_data_importer()).fetched_card_instrument_id(),
-              testing::Optional(filled_card.instrument_id()));
 }
 
 // BNPL suggestion is limited to Windows, macOS, Linux, and ChromeOS.
@@ -3832,6 +3945,33 @@ TEST_F(BrowserAutofillManagerTest,
 
   // Simulate form submission.
   FormSubmitted(response_data);
+}
+
+TEST_F(BrowserAutofillManagerTest, FormSubmission_NotifiesSaveAndFillManager) {
+  EXPECT_CALL(*client().GetPaymentsAutofillClient()->GetSaveAndFillManager(),
+              OnCreditCardFormSubmitted());
+
+  FormData form =
+      CreateTestCreditCardFormData(/*is_https=*/true, /*use_month_type=*/false);
+
+  FormsSeen({form});
+  FormSubmitted(form);
+}
+
+TEST_F(BrowserAutofillManagerTest,
+       SaveAndFillSuggestionShownTwice_NotifiesManagerTwice) {
+  EXPECT_CALL(*client().GetPaymentsAutofillClient()->GetSaveAndFillManager(),
+              OnSuggestionOffered())
+      .Times(2);
+
+  FormData form =
+      CreateTestCreditCardFormData(/*is_https=*/true, /*use_month_type=*/false);
+  FormsSeen({form});
+
+  DidShowSuggestions(form, /*field_index=*/0,
+                     SuggestionType::kSaveAndFillCreditCardEntry);
+  DidShowSuggestions(form, /*field_index=*/0,
+                     SuggestionType::kSaveAndFillCreditCardEntry);
 }
 
 // Test the field log events at the form submission.
@@ -7213,15 +7353,11 @@ class BrowserAutofillManagerTest_AutofillAi
       add_predictions(
           form.fields()[0],
           {CreateFieldPrediction(NAME_FIRST,
-                                 FieldPrediction::SOURCE_AUTOFILL_DEFAULT),
-           CreateFieldPrediction(PASSPORT_NAME_TAG,
-                                 FieldPrediction::SOURCE_AUTOFILL_AI)});
+                                 FieldPrediction::SOURCE_AUTOFILL_DEFAULT)});
       add_predictions(
           form.fields()[1],
           {CreateFieldPrediction(NAME_LAST,
-                                 FieldPrediction::SOURCE_AUTOFILL_DEFAULT),
-           CreateFieldPrediction(PASSPORT_NAME_TAG,
-                                 FieldPrediction::SOURCE_AUTOFILL_AI)});
+                                 FieldPrediction::SOURCE_AUTOFILL_DEFAULT)});
       add_predictions(
           form.fields()[2],
           {CreateFieldPrediction(PASSPORT_NUMBER,
@@ -7283,12 +7419,12 @@ TEST_F(BrowserAutofillManagerTest_AutofillAi,
 }
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
-// Tests that if a field has an Autofill AI TAG type and the EntityDataManager
-// can serve that TAG type (e.g., PASSPORT_NAME_TAG) but not the specific type
-// of the field (e.g., NAME_MIDDLE), there are no suggestions shown on that
-// specific field. In particular, even if there are matching address
-// suggestions, these are ignored. See crbug.com/402397312 for a concrete
-// example.
+// Tests that if a name field is dynamically assigned to an Autofill AI entity
+// but the EntityDataManager cannot fill that specific field, there are no
+// suggestions shown on that specific field.
+//
+// In particular, even if there are matching address suggestions, these are
+// ignored. See crbug.com/402397312 for a concrete example.
 TEST_F(BrowserAutofillManagerTest_AutofillAi, ShowNoSuggestionsIfCollision) {
   SeeForm(/*may_run_model=*/false);
 
@@ -7409,6 +7545,11 @@ class BrowserAutofillManagerTest_AutofillAi_WithModel
 // available and the form is not contained in the cache.
 TEST_F(BrowserAutofillManagerTest_AutofillAi_WithModel,
        AutofillAiServerModelRun) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      features::kAutofillAiServerModel,
+      {{"autofill_ai_model_send_apc", "false"}});
+
   ON_CALL(cache(), Contains).WillByDefault(Return(false));
   EXPECT_CALL(client(), GetAiPageContent).Times(0);
   EXPECT_CALL(executor(), GetPredictions);
@@ -7494,12 +7635,10 @@ TEST_F(BrowserAutofillManagerTest_AutofillAi_WithModel, CacheResultUsed) {
   // Check that we set predictions on the form.
   const FormStructure* const fs = manager().FindCachedFormById(form_id);
   ASSERT_TRUE(fs);
-  if (base::FeatureList::IsEnabled(features::kAutofillAiNoTagTypes)) {
-    EXPECT_THAT(fs->field(0)->Type().GetAutofillAiTypes(),
-                ElementsAre(NAME_FIRST));
-    EXPECT_THAT(fs->field(1)->Type().GetAutofillAiTypes(),
-                ElementsAre(NAME_LAST));
-  }
+  EXPECT_THAT(fs->field(0)->Type().GetAutofillAiTypes(),
+              ElementsAre(NAME_FIRST));
+  EXPECT_THAT(fs->field(1)->Type().GetAutofillAiTypes(),
+              ElementsAre(NAME_LAST));
   EXPECT_THAT(fs->field(2)->Type().GetAutofillAiTypes(),
               ElementsAre(PASSPORT_NUMBER));
   EXPECT_THAT(fs->field(3)->Type().GetAutofillAiTypes(),
@@ -9122,13 +9261,11 @@ class BrowserAutofillManagerOtpSuggestionsTest
  protected:
   void SetUp() override {
     BrowserAutofillManagerTest::SetUp();
-    client().set_otp_suggestion_delegate(
-        std::make_unique<NiceMock<MockOtpSuggestionDelegate>>());
+    client().set_otp_delegate(std::make_unique<NiceMock<MockOtpDelegate>>());
   }
 
-  MockOtpSuggestionDelegate& otp_suggestion_delegate() {
-    return static_cast<MockOtpSuggestionDelegate&>(
-        *client().GetOtpSuggestionDelegate());
+  MockOtpDelegate& otp_delegate() {
+    return static_cast<MockOtpDelegate&>(*client().GetOtpDelegate());
   }
 };
 
@@ -9152,20 +9289,20 @@ TEST_F(BrowserAutofillManagerOtpSuggestionsTest, OtpSuggestions) {
 
   // Check that suggestions are offered for the first field if the OTP delegate
   // suggests that.
-  EXPECT_CALL(otp_suggestion_delegate(),
+  EXPECT_CALL(otp_delegate(),
               IsFieldEligibleForOtpFilling(form.global_id(),
                                            form.fields()[0].global_id()))
       .WillOnce(Return(true));
   const std::vector<std::string> otp_values = {"123456"};
   EXPECT_CALL(
-      otp_suggestion_delegate(),
+      otp_delegate(),
       GetOtpSuggestions(form.global_id(), form.fields()[0].global_id(), _))
       .WillOnce(RunOnceCallback<2>(otp_values));
   OnAskForValuesToFill(form, form.fields()[0]);
   EXPECT_TRUE(external_delegate()->on_suggestions_returned_seen());
 
   // Also check that there are no suggestions for the second field.
-  EXPECT_CALL(otp_suggestion_delegate(),
+  EXPECT_CALL(otp_delegate(),
               IsFieldEligibleForOtpFilling(form.global_id(),
                                            form.fields()[1].global_id()))
       .WillOnce(Return(false));
@@ -9186,8 +9323,8 @@ TEST_F(BrowserAutofillManagerOtpSuggestionsTest, OtpFilling) {
   manager().AddSeenFormStructure(std::move(form_structure));
 
   std::u16string otp_value = u"123456";
-  Suggestion::OneTimePasswordPayload otp_filling_payload(
-      {{form.fields()[0].global_id(), otp_value}});
+  OtpFillData otp_fill_data;
+  otp_fill_data[form.fields()[0].global_id()] = otp_value;
 
   base::flat_map<FieldGlobalId, FieldType> expected_types = {
       {form.fields()[0].global_id(), ONE_TIME_CODE}};
@@ -9196,10 +9333,10 @@ TEST_F(BrowserAutofillManagerOtpSuggestionsTest, OtpFilling) {
                                         mojom::ActionPersistence::kFill, _, _,
                                         expected_types, _))
       .WillOnce(DoAll(SaveArgElementsTo<2>(&filled_fields),
-                      Return(std::vector<FieldGlobalId>{})));
-  manager().FillOrPreviewForm(
-      mojom::ActionPersistence::kFill, form, form.fields()[0].global_id(),
-      &otp_filling_payload.filling_data, AutofillTriggerSource::kPopup);
+                      Return(base::flat_set<FieldGlobalId>{})));
+  manager().FillOrPreviewForm(mojom::ActionPersistence::kFill, form,
+                              form.fields()[0].global_id(), &otp_fill_data,
+                              AutofillTriggerSource::kPopup);
   ASSERT_EQ(1u, filled_fields.size());
   EXPECT_EQ(form.fields()[0].global_id(), filled_fields[0].global_id());
   EXPECT_EQ(otp_value, filled_fields[0].value());

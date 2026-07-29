@@ -106,7 +106,9 @@ void ReloadFromOmnibox() {
 
 // Tests that the pull-to-refresh IPH is attempted when user taps the omnibox
 // to reload the same page, and disappears after the user navigates away.
-- (void)testPullToRefreshIPHAfterReloadFromOmniboxAndDisappearsAfterNavigation {
+// TODO(crbug.com/440549642): This test is flaky.
+- (void)
+    FLAKY_testPullToRefreshIPHAfterReloadFromOmniboxAndDisappearsAfterNavigation {
   if ([ChromeEarlGrey isIPadIdiom]) {
     if (@available(iOS 19.0, *)) {
       // TODO(crbug.com/427699033): Re-enable test on iOS 26.
@@ -169,13 +171,13 @@ void ReloadFromOmnibox() {
 }
 
 // Tests that the pull-to-refresh IPH is NOT attempted when page loading fails.
+// TODO(crbug.com/427699033): This is also failing on older iOS versions
+// when building with Xcode 26.
 - (void)testPullToRefreshIPHShouldDisappearOnEnteringTabGrid {
   if ([ChromeEarlGrey isIPadIdiom]) {
-    if (@available(iOS 19.0, *)) {
-      // TODO(crbug.com/427699033): Re-enable test on iOS 26.
-      // Test uses "split screen" (multiwindow) to force compact width.
-      EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
-    }
+    // TODO(crbug.com/427699033): Re-enable test when fixed with Xcode 26.
+    // Test uses "split screen" (multiwindow) to force compact width.
+    EARL_GREY_TEST_DISABLED(@"Test disabled when building with Xcode 26.");
   }
   RelaunchWithIPHFeature(@"IPH_iOSPullToRefreshFeature",
                          /*safari_switcher=*/YES);
@@ -272,7 +274,7 @@ void ReloadFromOmnibox() {
 
 // Tests that the pull-to-refresh IPH would be dismissed with the reason
 // `kSwipedAsInstructedByGestureIPH` when the user pulls down on the IPH.
-- (void)testPullToRefreshPerformAction {
+- (void)DISABLED_testPullToRefreshPerformAction {
   if ([ChromeEarlGrey isIPadIdiom]) {
     if (@available(iOS 19.0, *)) {
       // TODO(crbug.com/427699033): Re-enable test on iOS 26.

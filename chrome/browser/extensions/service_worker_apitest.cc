@@ -42,7 +42,6 @@
 #include "chrome/browser/notifications/notification_permission_context.h"
 #include "chrome/browser/notifications/stub_notification_display_service.h"
 #include "chrome/browser/push_messaging/push_messaging_app_identifier.h"
-#include "chrome/browser/push_messaging/push_messaging_features.h"
 #include "chrome/browser/push_messaging/push_messaging_service_factory.h"
 #include "chrome/browser/push_messaging/push_messaging_service_impl.h"
 #include "chrome/browser/ui/browser.h"
@@ -55,6 +54,7 @@
 #include "components/content_settings/core/common/content_settings_types.h"
 #include "components/gcm_driver/fake_gcm_profile_service.h"
 #include "components/gcm_driver/instance_id/fake_gcm_driver_for_instance_id.h"
+#include "components/push_messaging/push_messaging_features.h"
 #include "components/version_info/channel.h"
 #include "components/version_info/version_info.h"
 #include "content/public/browser/console_message.h"
@@ -1171,7 +1171,7 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerTest, OnBeforeRequest) {
       "/extensions/api_test/service_worker/"
       "webrequest/webpage.html");
   content::WebContents* web_contents = GetActiveWebContents();
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), page_url));
+  ASSERT_TRUE(NavigateToURL(web_contents, page_url));
   EXPECT_TRUE(content::WaitForLoadStop(web_contents));
 
   EXPECT_EQ("ready", content::EvalJs(web_contents, "register();"));
@@ -1886,7 +1886,7 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerTest,
       "/extensions/api_test/service_worker/content_script_fetch/"
       "controlled_page/index.html");
   content::WebContents* tab = GetActiveWebContents();
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), page_url));
+  ASSERT_TRUE(NavigateToURL(tab, page_url));
   EXPECT_TRUE(content::WaitForLoadStop(tab));
 
   EXPECT_EQ("SW controlled", content::EvalJs(tab, "register();"));
@@ -1904,9 +1904,8 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerPushMessagingTest, OnPush) {
   GrantNotificationPermissionForTest(extension_url);
 
   GURL url = extension->GetResourceURL("page.html");
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
-
-  content::WebContents* web_contents = GetActiveWebContents();
+  auto* web_contents = GetActiveWebContents();
+  ASSERT_TRUE(NavigateToURL(web_contents, url));
 
   // Start the ServiceWorker.
   ExtensionTestMessageListener ready_listener("SERVICE_WORKER_READY");
@@ -2058,7 +2057,7 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerBasedBackgroundTest, TabsQuerySplit) {
   ASSERT_TRUE(ready_incognito.WaitUntilSatisfied());
 
   // Load a new tab in both browsers.
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("chrome:version")));
+  ASSERT_TRUE(NavigateToURL(GetActiveWebContents(), GURL("chrome:version")));
   ASSERT_TRUE(
       ui_test_utils::NavigateToURL(browser_incognito, GURL("chrome:about")));
 
@@ -2108,7 +2107,7 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerBasedBackgroundTest,
   ASSERT_TRUE(ready_incognito.WaitUntilSatisfied());
 
   // Load a new tab in both browsers.
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("chrome:version")));
+  ASSERT_TRUE(NavigateToURL(GetActiveWebContents(), GURL("chrome:version")));
   ASSERT_TRUE(
       ui_test_utils::NavigateToURL(browser_incognito, GURL("chrome:about")));
 
@@ -2150,7 +2149,7 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerBasedBackgroundTest, TabsQuerySpanning) {
   ASSERT_TRUE(ready_listener.WaitUntilSatisfied());
 
   // Load a new tab in both browsers.
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("chrome:version")));
+  ASSERT_TRUE(NavigateToURL(GetActiveWebContents(), GURL("chrome:version")));
   ASSERT_TRUE(
       ui_test_utils::NavigateToURL(browser_incognito, GURL("chrome:about")));
 
@@ -2186,7 +2185,7 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerBasedBackgroundTest, TabsOnUpdatedSplit) {
   ASSERT_TRUE(ready_incognito.WaitUntilSatisfied());
 
   // Load a new tab in both browsers.
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("chrome:version")));
+  ASSERT_TRUE(NavigateToURL(GetActiveWebContents(), GURL("chrome:version")));
   ASSERT_TRUE(
       ui_test_utils::NavigateToURL(browser_incognito, GURL("chrome:about")));
 
@@ -2300,7 +2299,7 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerBasedBackgroundTest,
   ExtensionTestMessageListener tabs_listener;
 
   // Load a new tab in both browsers.
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("chrome:version")));
+  ASSERT_TRUE(NavigateToURL(GetActiveWebContents(), GURL("chrome:version")));
   ASSERT_TRUE(
       ui_test_utils::NavigateToURL(browser_incognito, GURL("chrome:about")));
 

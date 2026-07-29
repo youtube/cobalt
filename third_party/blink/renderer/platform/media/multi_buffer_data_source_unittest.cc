@@ -37,7 +37,6 @@ namespace blink {
 
 using ::testing::_;
 using ::testing::Assign;
-using ::testing::Invoke;
 using ::testing::InSequence;
 using ::testing::NiceMock;
 using ::testing::StrictMock;
@@ -214,8 +213,8 @@ class MockMultiBufferDataSource : public MultiBufferDataSource {
             std::move(url_data),
             media_log,
             host,
-            WTF::BindRepeating(&MockMultiBufferDataSource::set_downloading,
-                               WTF::Unretained(this))),
+            BindRepeating(&MockMultiBufferDataSource::set_downloading,
+                          Unretained(this))),
         downloading_(false) {}
 
   MockMultiBufferDataSource(const MockMultiBufferDataSource&) = delete;
@@ -245,9 +244,9 @@ class MultiBufferDataSourceTest : public testing::Test {
  public:
   MultiBufferDataSourceTest() : preload_(MultiBufferDataSource::AUTO) {
     ON_CALL(fetch_context_, CreateUrlLoader(_))
-        .WillByDefault(Invoke([](const WebAssociatedURLLoaderOptions&) {
+        .WillByDefault([](const WebAssociatedURLLoaderOptions&) {
           return std::make_unique<NiceMock<MockWebAssociatedURLLoader>>();
-        }));
+        });
   }
 
   MultiBufferDataSourceTest(const MultiBufferDataSourceTest&) = delete;
@@ -271,8 +270,8 @@ class MultiBufferDataSourceTest : public testing::Test {
         std::make_unique<TestResponseGenerator>(url, file_size);
     EXPECT_CALL(*this, OnInitialize(expected));
     data_source_->SetIsClientAudioElement(is_client_audio_element_);
-    data_source_->Initialize(WTF::BindOnce(
-        &MultiBufferDataSourceTest::OnInitialize, WTF::Unretained(this)));
+    data_source_->Initialize(
+        BindOnce(&MultiBufferDataSourceTest::OnInitialize, Unretained(this)));
     base::RunLoop().RunUntilIdle();
 
     // Not really loading until after OnInitialize is called.
@@ -371,9 +370,9 @@ class MultiBufferDataSourceTest : public testing::Test {
   MOCK_METHOD1(ReadCallback, void(int size));
 
   void ReadAt(int64_t position, int howmuch = kDataSize) {
-    data_source_->Read(position, howmuch, buffer_,
-                       WTF::BindOnce(&MultiBufferDataSourceTest::ReadCallback,
-                                     WTF::Unretained(this)));
+    data_source_->Read(
+        position, howmuch, buffer_,
+        BindOnce(&MultiBufferDataSourceTest::ReadCallback, Unretained(this)));
     base::RunLoop().RunUntilIdle();
   }
 
@@ -931,9 +930,9 @@ TEST_F(MultiBufferDataSourceTest, StopDuringRead) {
   InitializeWith206Response();
 
   uint8_t buffer[256];
-  data_source_->Read(kDataSize, std::size(buffer), buffer,
-                     WTF::BindOnce(&MultiBufferDataSourceTest::ReadCallback,
-                                   WTF::Unretained(this)));
+  data_source_->Read(
+      kDataSize, std::size(buffer), buffer,
+      BindOnce(&MultiBufferDataSourceTest::ReadCallback, Unretained(this)));
 
   // The outstanding read should fail before the stop callback runs.
   {
@@ -1047,8 +1046,8 @@ TEST_F(MultiBufferDataSourceTest, Http_ShareData) {
   // This call would not be expected if we were not sharing data.
   EXPECT_CALL(host2, SetTotalBytes(response_generator_->content_length()));
   EXPECT_CALL(host2, AddBufferedByteRange(0, kDataSize * 2));
-  source2.Initialize(WTF::BindOnce(&MultiBufferDataSourceTest::OnInitialize,
-                                   WTF::Unretained(this)));
+  source2.Initialize(
+      BindOnce(&MultiBufferDataSourceTest::OnInitialize, Unretained(this)));
   base::RunLoop().RunUntilIdle();
 
   // Always loading after initialize.
@@ -1388,9 +1387,9 @@ TEST_F(MultiBufferDataSourceTest,
   EXPECT_CALL(host_, AddBufferedByteRange(0, kDataSize * 4));
   ReceiveData(kDataSize);
   EXPECT_EQ(data_source_->downloading(), false);
-  data_source_->Read(kDataSize * 10, kDataSize, buffer_,
-                     WTF::BindOnce(&MultiBufferDataSourceTest::ReadCallback,
-                                   WTF::Unretained(this)));
+  data_source_->Read(
+      kDataSize * 10, kDataSize, buffer_,
+      BindOnce(&MultiBufferDataSourceTest::ReadCallback, Unretained(this)));
   data_source_->StopPreloading();
   EXPECT_TRUE(active_loader_allownull());
   EXPECT_CALL(*this, ReadCallback(-1));
@@ -1514,8 +1513,8 @@ TEST_F(MultiBufferDataSourceTest, SeekPastEOF) {
   response_generator_ =
       std::make_unique<TestResponseGenerator>(url, kDataSize + 1);
   EXPECT_CALL(*this, OnInitialize(true));
-  data_source_->Initialize(WTF::BindOnce(
-      &MultiBufferDataSourceTest::OnInitialize, WTF::Unretained(this)));
+  data_source_->Initialize(
+      BindOnce(&MultiBufferDataSourceTest::OnInitialize, Unretained(this)));
   base::RunLoop().RunUntilIdle();
 
   // Not really loading until after OnInitialize is called.
@@ -1650,8 +1649,8 @@ TEST_F(MultiBufferDataSourceTest, PreserveCachingModeAfterRedirect) {
         std::make_unique<TestResponseGenerator>(start, kFileSize);
     data_source->SetIsClientAudioElement(false);
     EXPECT_CALL(*this, OnInitialize(true));
-    data_source->Initialize(WTF::BindOnce(
-        &MultiBufferDataSourceTest::OnInitialize, WTF::Unretained(this)));
+    data_source->Initialize(
+        BindOnce(&MultiBufferDataSourceTest::OnInitialize, Unretained(this)));
     base::RunLoop().RunUntilIdle();
     EXPECT_EQ(data_source->downloading(), false);
     EXPECT_CALL(url_index_,
@@ -1680,8 +1679,8 @@ TEST_F(MultiBufferDataSourceTest, PreserveCachingModeAfterRedirect) {
         std::make_unique<TestResponseGenerator>(start, kFileSize);
     data_source->SetIsClientAudioElement(false);
     EXPECT_CALL(*this, OnInitialize(true));
-    data_source->Initialize(WTF::BindOnce(
-        &MultiBufferDataSourceTest::OnInitialize, WTF::Unretained(this)));
+    data_source->Initialize(
+        BindOnce(&MultiBufferDataSourceTest::OnInitialize, Unretained(this)));
     base::RunLoop().RunUntilIdle();
     EXPECT_EQ(data_source->downloading(), false);
     EXPECT_CALL(url_index_, NotifyNewUrlData(redir, _, _)).Times(0);
@@ -1710,8 +1709,8 @@ TEST_F(MultiBufferDataSourceTest, PreserveCachingModeAfterRedirect) {
         std::make_unique<TestResponseGenerator>(start, kFileSize);
     data_source->SetIsClientAudioElement(false);
     EXPECT_CALL(*this, OnInitialize(true));
-    data_source->Initialize(WTF::BindOnce(
-        &MultiBufferDataSourceTest::OnInitialize, WTF::Unretained(this)));
+    data_source->Initialize(
+        BindOnce(&MultiBufferDataSourceTest::OnInitialize, Unretained(this)));
     base::RunLoop().RunUntilIdle();
     EXPECT_EQ(data_source->downloading(), false);
     EXPECT_CALL(url_index_,
@@ -1995,8 +1994,8 @@ TEST_F(MultiBufferDataSourceTest, Http_CheckLoadingTransition) {
   response_generator_ =
       std::make_unique<TestResponseGenerator>(url, kDataSize * 1);
   EXPECT_CALL(*this, OnInitialize(true));
-  data_source_->Initialize(WTF::BindOnce(
-      &MultiBufferDataSourceTest::OnInitialize, WTF::Unretained(this)));
+  data_source_->Initialize(
+      BindOnce(&MultiBufferDataSourceTest::OnInitialize, Unretained(this)));
   base::RunLoop().RunUntilIdle();
 
   // Not really loading until after OnInitialize is called.
@@ -2014,9 +2013,9 @@ TEST_F(MultiBufferDataSourceTest, Http_CheckLoadingTransition) {
   data_provider()->DidFinishLoading();
 
   EXPECT_CALL(*this, ReadCallback(1));
-  data_source_->Read(kDataSize, 2, buffer_,
-                     WTF::BindOnce(&MultiBufferDataSourceTest::ReadCallback,
-                                   WTF::Unretained(this)));
+  data_source_->Read(
+      kDataSize, 2, buffer_,
+      BindOnce(&MultiBufferDataSourceTest::ReadCallback, Unretained(this)));
   base::RunLoop().RunUntilIdle();
 
   // Make sure we're not downloading anymore.

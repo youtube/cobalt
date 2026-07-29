@@ -716,8 +716,8 @@ bool PdfInkModule::FinishStroke(const gfx::PointF& position,
     }
 
     client_->Invalidate(CanonicalInkEnvelopeToInvalidationScreenRect(
-        invalidate_envelope, client_->GetOrientation(),
-        client_->GetPageContentsRect(state.page_index), client_->GetZoom()));
+        invalidate_envelope,
+        GetCanonicalToEventTransformForPage(state.page_index)));
   }
 
   client_->StrokeFinished(/*modified=*/true);
@@ -910,8 +910,7 @@ void PdfInkModule::EraseHelper(const gfx::PointF& position, int page_index) {
 
   // If `invalidate_envelope` isn't empty, then something got erased.
   client_->Invalidate(CanonicalInkEnvelopeToInvalidationScreenRect(
-      invalidate_envelope, client_->GetOrientation(),
-      client_->GetPageContentsRect(page_index), client_->GetZoom()));
+      invalidate_envelope, GetCanonicalToEventTransformForPage(page_index)));
 
   CHECK(erased_stroke || erased_partitioned_mesh);
   EraserState& state = erasing_stroke_state();
@@ -1031,11 +1030,11 @@ bool PdfInkModule::FinishTextHighlight(const gfx::PointF& position,
 }
 
 ink::Stroke PdfInkModule::GetHighlightStrokeFromSelectionRect(
-    const gfx::Rect& selection_rect) {
+    const gfx::RectF& selection_rect) {
   CHECK(is_text_highlighting());
 
   TextSelectionHighlightStrokeData stroke_data =
-      GetTextSelectionHighlightStrokeData(gfx::RectF(selection_rect));
+      GetTextSelectionHighlightStrokeData(selection_rect);
 
   ink::StrokeInputBatch batch;
   ink::StrokeInput input = CreateInkStrokeInput(
@@ -1067,43 +1066,27 @@ PdfInkModule::GetTextSelectionHighlightStrokeData(
   // size equal the smallest dimension.
   float brush_size = std::min(selection_rect.width(), selection_rect.height());
   bool is_vertical_stroke = brush_size == selection_rect.width();
-  brush_size /= client_->GetZoom();
-  PageOrientation orientation = client_->GetOrientation();
 
   // The first input point will always either be the top center of the text
-  // characters or the left center of the text characters, depending on the
-  // orientation and whether `selection_rect` is longer vertically. The second
-  // input point will be on the opposite end of the rect.
+  // characters or the left center of the text characters, depending on whether
+  // `selection_rect` is longer vertically. The second input point will be on
+  // the opposite end of the rect.
   gfx::PointF start;
   gfx::PointF end;
   if (is_vertical_stroke) {
     start = selection_rect.top_center();
     end = selection_rect.bottom_center();
-    if (orientation == PageOrientation::kClockwise180 ||
-        orientation == PageOrientation::kClockwise270) {
-      std::swap(start, end);
-    }
   } else {
     start = selection_rect.left_center();
     end = selection_rect.right_center();
-    if (orientation == PageOrientation::kClockwise90 ||
-        orientation == PageOrientation::kClockwise180) {
-      std::swap(start, end);
-    }
   }
-
-  int page_index = client_->PageIndexFromPoint(selection_rect.origin());
-  CHECK_GE(page_index, 0);
-  gfx::Transform transform = GetEventToCanonicalTransformForPage(page_index);
-  start = transform.MapPoint(start);
-  end = transform.MapPoint(end);
 
   // These points need to be offset to account for brush size. Depending on the
   // direction of the stroke, the points will need to be offset in either the x
   // or y axis. Strokes will always be drawn along the largest dimension of the
   // rectangle.
   gfx::Vector2dF offset(brush_size / 2, 0);
-  if (is_vertical_stroke != IsTransposedPageOrientation(orientation)) {
+  if (is_vertical_stroke) {
     offset.Transpose();
   }
   start += offset;
@@ -1119,9 +1102,11 @@ PdfInkModule::GetTextSelectionAsStrokes() {
        client_->GetSelectionRectMap()) {
     auto& page_result = result[page_index];
     page_result.reserve(selection_rects.size());
+    const gfx::Transform transform =
+        client_->GetCanonicalToPdfTransform(page_index).GetCheckedInverse();
     for (const auto& selection_rect : selection_rects) {
-      page_result.push_back(
-          {GetHighlightStrokeFromSelectionRect(selection_rect)});
+      page_result.push_back({GetHighlightStrokeFromSelectionRect(
+          transform.MapRect(selection_rect.AsGfxRectF()))});
     }
   }
   return result;
@@ -1408,6 +1393,11 @@ gfx::Transform PdfInkModule::GetEventToCanonicalTransformForPage(
                                       page_contents_rect, client_->GetZoom());
 }
 
+gfx::Transform PdfInkModule::GetCanonicalToEventTransformForPage(
+    int page_index) {
+  return GetEventToCanonicalTransformForPage(page_index).GetCheckedInverse();
+}
+
 bool PdfInkModule::RecordStrokePosition(const gfx::PointF& position,
                                         base::TimeTicks timestamp,
                                         ink::StrokeInput::ToolType tool_type) {
@@ -1505,8 +1495,7 @@ void PdfInkModule::ApplyUndoRedoCommandsHelper(
     }
 
     client_->Invalidate(CanonicalInkEnvelopeToInvalidationScreenRect(
-        invalidate_envelope, client_->GetOrientation(),
-        client_->GetPageContentsRect(page_index), client_->GetZoom()));
+        invalidate_envelope, GetCanonicalToEventTransformForPage(page_index)));
     page_indices_with_ink_thumbnail_updates.insert(page_index);
 
     if (stroke_ids.empty()) {
@@ -1547,8 +1536,7 @@ void PdfInkModule::ApplyUndoRedoCommandsHelper(
     }
 
     client_->Invalidate(CanonicalInkEnvelopeToInvalidationScreenRect(
-        invalidate_envelope, client_->GetOrientation(),
-        client_->GetPageContentsRect(page_index), client_->GetZoom()));
+        invalidate_envelope, GetCanonicalToEventTransformForPage(page_index)));
     page_indices_with_pdf_thumbnail_updates.insert(page_index);
 
     if (shape_ids.empty()) {

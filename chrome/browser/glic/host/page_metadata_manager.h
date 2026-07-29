@@ -15,6 +15,7 @@
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 #include "third_party/blink/public/mojom/page/page.mojom-forward.h"
 
 namespace content {
@@ -34,7 +35,7 @@ namespace glic {
 // client. It also handles caching of metadata when the Glic panel is inactive.
 class PageMetadataManager {
  public:
-  PageMetadataManager(mojo::Remote<glic::mojom::WebClient>* web_client);
+  explicit PageMetadataManager(glic::mojom::WebClient* web_client);
   ~PageMetadataManager();
 
   PageMetadataManager(const PageMetadataManager&) = delete;
@@ -46,9 +47,6 @@ class PageMetadataManager {
       int32_t tab_id,
       const std::vector<std::string>& names,
       glic::mojom::WebClientHandler::SubscribeToPageMetadataCallback callback);
-
-  // Pauses or unpauses emission of metadata events.
-  void SetPaused(bool paused);
 
  private:
   struct PageMetadataSubscription;
@@ -62,13 +60,10 @@ class PageMetadataManager {
                                  blink::mojom::PageMetadataPtr page_metadata);
 
   // Unowned. The client is owned by the owner of this PageMetadataManager.
-  const raw_ptr<mojo::Remote<glic::mojom::WebClient>> web_client_;
-  bool paused_ = true;
+  const raw_ptr<glic::mojom::WebClient> web_client_;
 
   absl::flat_hash_map<int32_t, PageMetadataSubscription>
       tab_id_to_page_metadata_subscriptions_;
-  absl::flat_hash_map<int32_t, blink::mojom::PageMetadataPtr>
-      tab_id_to_cached_page_metadata_;
 };
 
 }  // namespace glic

@@ -16,6 +16,7 @@
 #import "ios/chrome/browser/download/model/document_download_tab_helper.h"
 #import "ios/chrome/browser/download/model/download_directory_util.h"
 #import "ios/chrome/browser/download/model/download_manager_tab_helper.h"
+#import "ios/chrome/browser/download/model/download_record_service.h"
 #import "ios/chrome/browser/download/model/external_app_util.h"
 #import "ios/chrome/browser/drive/model/drive_availability.h"
 #import "ios/chrome/browser/drive/model/drive_tab_helper.h"
@@ -61,6 +62,12 @@ void DownloadManagerMediator::SetPrefService(PrefService* pref_service) {
   pref_service_ = pref_service;
 }
 
+void DownloadManagerMediator::SetDownloadRecordService(
+    DownloadRecordService* download_record_service) {
+  CHECK(IsDownloadListEnabled());
+  download_record_service_ = download_record_service;
+}
+
 void DownloadManagerMediator::SetConsumer(
     id<DownloadManagerConsumer> consumer) {
   consumer_ = consumer;
@@ -101,20 +108,25 @@ UploadTask* DownloadManagerMediator::GetUploadTask() {
 void DownloadManagerMediator::StartDownloading() {
   base::FilePath download_dir;
   if (!GetTempDownloadsDirectory(&download_dir)) {
-    [consumer_ setState:kDownloadManagerStateFailed];
+    [consumer_ setState:DownloadManagerState::kFailed];
     return;
   }
 
   // Download will start once writer is created by background task, however it
   // OK to change consumer state now to preven further user interactions with
   // "Start Download" button.
-  [consumer_ setState:kDownloadManagerStateInProgress];
+  [consumer_ setState:DownloadManagerState::kInProgress];
 
   download_task_->Start(
       download_dir.Append(download_task_->GenerateFileName()));
   // If an upload task associated with the current download task exists, start
   // to observe it.
   UpdateUploadTask();
+
+  // Record regular downloads (excludes Drive uploads).
+  if (download_record_service_ && download_task_ && upload_task_ == nullptr) {
+    download_record_service_->RecordDownload(download_task_);
+  }
 }
 
 DownloadManagerState DownloadManagerMediator::GetDownloadManagerState() const {
@@ -122,31 +134,31 @@ DownloadManagerState DownloadManagerMediator::GetDownloadManagerState() const {
   // `download_task_` and `upload_task_`.
   switch (download_task_->GetState()) {
     case web::DownloadTask::State::kNotStarted:
-      return kDownloadManagerStateNotStarted;
+      return DownloadManagerState::kNotStarted;
     case web::DownloadTask::State::kInProgress:
-      return kDownloadManagerStateInProgress;
+      return DownloadManagerState::kInProgress;
     case web::DownloadTask::State::kComplete:
       if (!upload_task_) {
-        return kDownloadManagerStateSucceeded;
+        return DownloadManagerState::kSucceeded;
       }
       switch (upload_task_->GetState()) {
         case UploadTask::State::kNotStarted:
         case UploadTask::State::kInProgress:
-          return kDownloadManagerStateInProgress;
+          return DownloadManagerState::kInProgress;
         case UploadTask::State::kCancelled:
-          return kDownloadManagerStateNotStarted;
+          return DownloadManagerState::kNotStarted;
         case UploadTask::State::kComplete:
-          return kDownloadManagerStateSucceeded;
+          return DownloadManagerState::kSucceeded;
         case UploadTask::State::kFailed:
-          return kDownloadManagerStateFailed;
+          return DownloadManagerState::kFailed;
       }
     case web::DownloadTask::State::kFailed:
-      return kDownloadManagerStateFailed;
+      return DownloadManagerState::kFailed;
     case web::DownloadTask::State::kFailedNotResumable:
-      return kDownloadManagerStateFailedNotResumable;
+      return DownloadManagerState::kFailedNotResumable;
     case web::DownloadTask::State::kCancelled:
       // Download Manager should dismiss the UI after download cancellation.
-      return kDownloadManagerStateNotStarted;
+      return DownloadManagerState::kNotStarted;
   }
 }
 
@@ -268,11 +280,11 @@ void DownloadManagerMediator::SetGoogleDriveAppInstalled(bool installed) {
 
 int DownloadManagerMediator::GetDownloadManagerA11yAnnouncement() const {
   switch (GetDownloadManagerState()) {
-    case kDownloadManagerStateNotStarted:
+    case DownloadManagerState::kNotStarted:
       return IDS_IOS_DOWNLOAD_MANAGER_REQUESTED_ACCESSIBILITY_ANNOUNCEMENT;
-    case kDownloadManagerStateSucceeded:
-    case kDownloadManagerStateFailed:
-    case kDownloadManagerStateFailedNotResumable: {
+    case DownloadManagerState::kSucceeded:
+    case DownloadManagerState::kFailed:
+    case DownloadManagerState::kFailedNotResumable: {
       bool has_error = download_task_->GetErrorCode();
       if (!has_error && upload_task_) {
         has_error = upload_task_->GetError();
@@ -281,7 +293,7 @@ int DownloadManagerMediator::GetDownloadManagerA11yAnnouncement() const {
                  ? IDS_IOS_DOWNLOAD_MANAGER_FAILED_ACCESSIBILITY_ANNOUNCEMENT
                  : IDS_IOS_DOWNLOAD_MANAGER_SUCCEEDED_ACCESSIBILITY_ANNOUNCEMENT;
     }
-    case kDownloadManagerStateInProgress:
+    case DownloadManagerState::kInProgress:
       return -1;
   }
 }

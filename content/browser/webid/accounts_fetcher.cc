@@ -17,8 +17,8 @@
 
 using ::blink::mojom::FederatedAuthRequestResult;
 using LoginState = content::IdentityRequestAccount::LoginState;
-using SignInStateMatchStatus = content::FedCmSignInStateMatchStatus;
-using TokenStatus = content::FedCmRequestIdTokenStatus;
+using SignInStateMatchStatus = content::webid::SignInStateMatchStatus;
+using TokenStatus = content::webid::RequestIdTokenStatus;
 
 namespace content::webid {
 
@@ -283,6 +283,7 @@ void AccountsFetcher::OnAccountsResponseReceived(
     return;
   }
   RecordRawAccountsSize(accounts.size());
+  RecordAccountFieldsType(accounts);
   FilterAccountsWithLabel(idp_info->metadata.requested_label, accounts);
   FilterAccountsWithLoginHint(idp_info->provider->login_hint, accounts);
   FilterAccountsWithDomainHint(idp_info->provider->domain_hint, accounts);

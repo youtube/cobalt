@@ -13,6 +13,8 @@
 #include "content/public/browser/web_contents_observer.h"
 #include "third_party/blink/public/mojom/page/draggable_region.mojom.h"
 
+class WebUIBrowserWindow;
+
 // The delegate for the WebContents managing the UI in WebUI-based browser.
 class WebUIBrowserWebContentsDelegate : public content::WebContentsDelegate,
                                         public content::WebContentsObserver {
@@ -23,7 +25,7 @@ class WebUIBrowserWebContentsDelegate : public content::WebContentsDelegate,
         const std::vector<blink::mojom::DraggableRegionPtr>& regions) = 0;
   };
 
-  WebUIBrowserWebContentsDelegate();
+  explicit WebUIBrowserWebContentsDelegate(WebUIBrowserWindow* window);
   ~WebUIBrowserWebContentsDelegate() override;
 
   void SetUIWebContents(content::WebContents* ui_web_contents);
@@ -41,12 +43,19 @@ class WebUIBrowserWebContentsDelegate : public content::WebContentsDelegate,
       const content::OpenURLParams& params,
       base::OnceCallback<void(content::NavigationHandle&)>
           navigation_handle_callback) override;
+  void SetFocusToLocationBar() override;
+  content::KeyboardEventProcessingResult PreHandleKeyboardEvent(
+      content::WebContents* source,
+      const input::NativeWebKeyboardEvent& event) override;
+  bool HandleKeyboardEvent(content::WebContents* source,
+                           const input::NativeWebKeyboardEvent& event) override;
 
   // WebContentsObserver implementation.
   void RenderFrameCreated(content::RenderFrameHost* render_frame_host) override;
 
   void EnableDraggableRegions();
 
+  raw_ptr<WebUIBrowserWindow> window_;
   base::ObserverList<Observer> observers_;
 };
 

@@ -178,10 +178,26 @@ void OnSerializedRecordingFileCreated(
 
 PaintPreviewClient::PaintPreviewParams::PaintPreviewParams(
     RecordingPersistence persistence)
+    : PaintPreviewClient::PaintPreviewParams(persistence,
+                                             base::UnguessableToken::Create()) {
+}
+
+PaintPreviewClient::PaintPreviewParams::PaintPreviewParams(
+    RecordingPersistence persistence,
+    base::UnguessableToken document_guid)
     : persistence(persistence),
-      inner(RecordingParams(base::UnguessableToken::Create())) {}
+      inner(RecordingParams(std::move(document_guid))) {}
 
 PaintPreviewClient::PaintPreviewParams::~PaintPreviewParams() = default;
+
+// static
+PaintPreviewClient::PaintPreviewParams
+PaintPreviewClient::PaintPreviewParams::CreateForTesting(
+    RecordingPersistence persistence,
+    base::UnguessableToken document_guid) {
+  return PaintPreviewClient::PaintPreviewParams(persistence,
+                                                std::move(document_guid));
+}
 
 PaintPreviewClient::InProgressDocumentCaptureState::
     InProgressDocumentCaptureState() = default;
@@ -348,7 +364,17 @@ void PaintPreviewClient::CapturePaintPreview(
   chromeVersion->set_minor(current_chrome_version.components()[1]);
   chromeVersion->set_build(current_chrome_version.components()[2]);
   chromeVersion->set_patch(current_chrome_version.components()[3]);
-  document_data.callback = std::move(callback);
+  document_data.callback = base::BindOnce(
+      [](base::WeakPtr<PaintPreviewClient> client,
+         PaintPreviewCallback callback, base::UnguessableToken guid,
+         mojom::PaintPreviewStatus status,
+         std::unique_ptr<CaptureResult> result) {
+        if (client) {
+          client->all_document_data_.erase(guid);
+        }
+        std::move(callback).Run(guid, status, std::move(result));
+      },
+      weak_ptr_factory_.GetWeakPtr(), std::move(callback));
 
   // Ensure the frame is not under prerendering state as the UKM cannot be
   // recorded while prerendering. Current callers pass frames that are under
@@ -386,8 +412,11 @@ void PaintPreviewClient::CaptureSubframePaintPreview(
 
   auto* document_data = base::FindOrNull(all_document_data_, guid);
   if (!document_data) {
+    // If the screenshot has already failed, there's no need to request a
+    // subframe paint.
     return;
   }
+  CHECK(document_data->callback);
 
   RecordingParams params(guid);
   params.clip_rect = rect;

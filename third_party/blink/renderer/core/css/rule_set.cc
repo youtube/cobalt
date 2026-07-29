@@ -1024,8 +1024,7 @@ void RuleSet::AddChildRules(StyleRule* parent_rule,
                     apply_mixins_stack);
     } else if (auto* apply_mixin_rule = DynamicTo<StyleRuleApplyMixin>(rule)) {
       auto it = mixins.mixins.find(apply_mixin_rule->GetName());
-      if (it != mixins.mixins.end() &&
-          it->value->FakeParentRule().ChildRules()) {
+      if (it != mixins.mixins.end()) {
         if (std::ranges::find_if(apply_mixins_stack,
                                  [&](const ApplyingMixin& entry) {
                                    return entry.mixin == it->value;
@@ -1037,9 +1036,9 @@ void RuleSet::AddChildRules(StyleRule* parent_rule,
         }
         apply_mixins_stack.push_back(ApplyingMixin{
             .mixin = it->value.Get(), .invoking_apply_rule = apply_mixin_rule});
-        AddChildRules(parent_rule, *it->value->FakeParentRule().ChildRules(),
-                      medium, mixins, add_rule_flags, container_query,
-                      cascade_layer, style_scope, apply_mixins_stack);
+        AddChildRules(parent_rule, it->value->ChildRules(), medium, mixins,
+                      add_rule_flags, container_query, cascade_layer,
+                      style_scope, apply_mixins_stack);
         apply_mixins_stack.pop_back();
 
         // If the @mixin we are applying (or currently: any @mixin) was defined
@@ -1049,6 +1048,14 @@ void RuleSet::AddChildRules(StyleRule* parent_rule,
         features_.MutableMediaQueryResultFlags().Add(
             mixins.media_query_result_flags);
         media_query_set_results_.AppendVector(mixins.media_query_set_results);
+
+        // Mark that we are using some mixin, and which generation of mixin map
+        // it came from, so that we can invalidate if anything should change.
+        if (based_on_mixin_generation_ !=
+            std::numeric_limits<uint64_t>::max()) {
+          CHECK_EQ(based_on_mixin_generation_, mixins.generation);
+        }
+        based_on_mixin_generation_ = mixins.generation;
       }
     } else if (auto* contents_rule =
                    DynamicTo<StyleRuleContentsStatement>(rule)) {
@@ -1102,6 +1109,8 @@ void RuleSet::AddRulesFromSheet(const StyleSheetContents* sheet,
       GetOrAddSubLayer(cascade_layer, name);
     }
   }
+
+  based_on_mixin_generation_ = std::numeric_limits<uint64_t>::max();
 
   const HeapVector<Member<StyleRuleImport>>& import_rules =
       sheet->ImportRules();

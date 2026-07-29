@@ -9,7 +9,6 @@
 #include "base/files/scoped_temp_dir.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
-#include "components/autofill/core/browser/strike_databases/autofill_profile_save_strike_database.h"
 #include "components/autofill/core/browser/strike_databases/strike_database.h"
 #include "components/history/core/browser/history_types.h"
 #include "components/history/core/browser/url_row.h"
@@ -53,7 +52,7 @@ class HistoryClearableStrikeDatabaseTest : public ::testing::Test {
   }
 
   void TearDown() override {
-    // The destruction of |strike_database_service_|'s components is posted
+    // The destruction of `strike_database_service_`'s components is posted
     // to a task runner, requires running the loop to complete.
     strike_database_.reset();
     strike_database_service_.reset();

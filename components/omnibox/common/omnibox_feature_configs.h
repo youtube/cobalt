@@ -163,6 +163,14 @@ struct AiMode : Config<AiMode> {
   bool check_ai_eligibility_gws_side = false;
 };
 
+// If enabled, show the AIM entrypoint in the omnibox.
+struct AiModeOmniboxEntryPoint : Config<AiModeOmniboxEntryPoint> {
+  AiModeOmniboxEntryPoint();
+  bool enabled;
+  // Whether to hide the AIM hint text on NTP open.
+  bool hide_aim_hint_text_on_ntp_open;
+};
+
 // A config struct for features related to contextual search in omnibox.
 struct ContextualSearch : Config<ContextualSearch> {
   ContextualSearch();
@@ -275,6 +283,11 @@ struct MiaZPS : Config<MiaZPS> {
   DECLARE_FEATURE(kOmniboxMiaZPS);
 
   MiaZPS();
+  MiaZPS(const MiaZPS&);
+  MiaZPS(MiaZPS&&);
+  MiaZPS& operator=(const MiaZPS&);
+  MiaZPS& operator=(MiaZPS&&);
+  ~MiaZPS();
   bool enabled;
   // Whether to use non-normalized text for local history zp suggestions.
   bool local_history_non_normalized_contents;
@@ -359,6 +372,11 @@ struct AdjustOmniboxIndent : Config<AdjustOmniboxIndent> {
 // met.
 struct DocumentProvider : Config<DocumentProvider> {
   DocumentProvider();
+  DocumentProvider(const DocumentProvider&);
+  DocumentProvider(DocumentProvider&&);
+  DocumentProvider& operator=(const DocumentProvider&);
+  DocumentProvider& operator=(DocumentProvider&&);
+  ~DocumentProvider();
   bool enabled;
   // The minimum input length required before requesting document suggestions.
   size_t min_query_length;
@@ -384,6 +402,11 @@ struct DocumentProvider : Config<DocumentProvider> {
 struct ForceAllowedToBeDefault : Config<ForceAllowedToBeDefault> {
   DECLARE_FEATURE(kForceAllowedToBeDefault);
   ForceAllowedToBeDefault();
+  ForceAllowedToBeDefault(const ForceAllowedToBeDefault&);
+  ForceAllowedToBeDefault(ForceAllowedToBeDefault&&);
+  ForceAllowedToBeDefault& operator=(const ForceAllowedToBeDefault&);
+  ForceAllowedToBeDefault& operator=(ForceAllowedToBeDefault&&);
+  ~ForceAllowedToBeDefault();
   bool enabled;
 };
 
@@ -393,6 +416,15 @@ struct RealboxContextualAndTrendingSuggestions
     : Config<RealboxContextualAndTrendingSuggestions> {
   DECLARE_FEATURE(kRealboxContextualAndTrendingSuggestions);
   RealboxContextualAndTrendingSuggestions();
+  RealboxContextualAndTrendingSuggestions(
+      const RealboxContextualAndTrendingSuggestions&);
+  RealboxContextualAndTrendingSuggestions(
+      RealboxContextualAndTrendingSuggestions&&);
+  RealboxContextualAndTrendingSuggestions& operator=(
+      const RealboxContextualAndTrendingSuggestions&);
+  RealboxContextualAndTrendingSuggestions& operator=(
+      RealboxContextualAndTrendingSuggestions&&);
+  ~RealboxContextualAndTrendingSuggestions();
   bool enabled;
 
   // The total number of matches a Section can contain across all Groups.
@@ -492,12 +524,22 @@ struct SearchAggregatorProvider : Config<SearchAggregatorProvider> {
 struct SuggestionAnswerMigration : Config<SuggestionAnswerMigration> {
   DECLARE_FEATURE(kOmniboxSuggestionAnswerMigration);
   SuggestionAnswerMigration();
+  SuggestionAnswerMigration(const SuggestionAnswerMigration&);
+  SuggestionAnswerMigration(SuggestionAnswerMigration&&);
+  SuggestionAnswerMigration& operator=(const SuggestionAnswerMigration&);
+  SuggestionAnswerMigration& operator=(SuggestionAnswerMigration&&);
+  ~SuggestionAnswerMigration();
   bool enabled;
 };
 
 struct OmniboxZpsSuggestionLimit : Config<OmniboxZpsSuggestionLimit> {
   DECLARE_FEATURE(kOmniboxZpsSuggestionLimit);
   OmniboxZpsSuggestionLimit();
+  OmniboxZpsSuggestionLimit(const OmniboxZpsSuggestionLimit&);
+  OmniboxZpsSuggestionLimit(OmniboxZpsSuggestionLimit&&);
+  OmniboxZpsSuggestionLimit& operator=(const OmniboxZpsSuggestionLimit&);
+  OmniboxZpsSuggestionLimit& operator=(OmniboxZpsSuggestionLimit&&);
+  ~OmniboxZpsSuggestionLimit();
   bool enabled;
   // Max number of zps suggestions to show.
   size_t max_suggestions;
@@ -541,6 +583,15 @@ struct HappinessTrackingSurveyForOmniboxOnFocusZps
     : Config<HappinessTrackingSurveyForOmniboxOnFocusZps> {
   DECLARE_FEATURE(kHappinessTrackingSurveyForOmniboxOnFocusZps);
   HappinessTrackingSurveyForOmniboxOnFocusZps();
+  HappinessTrackingSurveyForOmniboxOnFocusZps(
+      const HappinessTrackingSurveyForOmniboxOnFocusZps&);
+  HappinessTrackingSurveyForOmniboxOnFocusZps(
+      HappinessTrackingSurveyForOmniboxOnFocusZps&&);
+  HappinessTrackingSurveyForOmniboxOnFocusZps& operator=(
+      const HappinessTrackingSurveyForOmniboxOnFocusZps&);
+  HappinessTrackingSurveyForOmniboxOnFocusZps& operator=(
+      HappinessTrackingSurveyForOmniboxOnFocusZps&&);
+  ~HappinessTrackingSurveyForOmniboxOnFocusZps();
   bool enabled;
   // Number of times the omnibox must be focused on SRP/Web before the survey
   // may be shown
@@ -551,6 +602,23 @@ struct HappinessTrackingSurveyForOmniboxOnFocusZps
   std::string happiness_trigger_id;
   // Trigger ID of Usefulness and Distraction survey.
   std::string utility_trigger_id;
+};
+
+struct ComposeboxSuggestionLimit : Config<ComposeboxSuggestionLimit> {
+  DECLARE_FEATURE(kComposeboxSuggestionLimit);
+  ComposeboxSuggestionLimit();
+  ComposeboxSuggestionLimit(const ComposeboxSuggestionLimit&);
+  ComposeboxSuggestionLimit(ComposeboxSuggestionLimit&&);
+  ComposeboxSuggestionLimit& operator=(const ComposeboxSuggestionLimit&);
+  ComposeboxSuggestionLimit& operator=(ComposeboxSuggestionLimit&&);
+  ~ComposeboxSuggestionLimit();
+  bool enabled;
+  // Max number of zps suggestions to show.
+  size_t max_suggestions;
+  // Max number of aim zps suggestions to show.
+  size_t max_aim_suggestions;
+  // Max number of contextual zps suggestions to show.
+  size_t max_contextual_suggestions;
 };
 
 // Do not add new configs here at the bottom by default. They should be ordered

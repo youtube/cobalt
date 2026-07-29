@@ -367,7 +367,8 @@ class RegistrationFetcherImpl : public RegistrationFetcher {
     // same-site with the scope origin. But we still need to validate
     // that this subdomain is allowed to register a session for the
     // whole site.
-    if (base::FeatureList::IsEnabled(
+    if (features::kDeviceBoundSessionsCheckSubdomainRegistration.Get() &&
+        base::FeatureList::IsEnabled(
             features::kDeviceBoundSessionsOriginTrialFeedback) &&
         !IsForRefreshRequest() && params_or_error->scope.include_site &&
         // Skip all validations if the fetcher endpoint is not a subdomain but
@@ -382,7 +383,7 @@ class RegistrationFetcherImpl : public RegistrationFetcher {
       url_fetcher_ = std::make_unique<URLFetcher>(context_, well_known_url,
                                                   net_log_source_);
       url_fetcher_->request().set_method("GET");
-      url_fetcher_->request().set_allow_credentials(false);
+      url_fetcher_->request().set_allow_credentials(true);
       url_fetcher_->request().set_site_for_cookies(
           isolation_info_.site_for_cookies());
       url_fetcher_->request().set_initiator(original_request_initiator_);

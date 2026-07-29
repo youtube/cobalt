@@ -11,6 +11,7 @@ import static org.chromium.chrome.browser.keyboard_accessory.bar_component.Keybo
 
 import android.content.Context;
 import android.graphics.drawable.Drawable;
+import android.view.Gravity;
 import android.view.View;
 
 import androidx.annotation.Nullable;
@@ -41,11 +42,11 @@ import org.chromium.components.autofill.AutofillDelegate;
 import org.chromium.components.autofill.AutofillSuggestion;
 import org.chromium.components.autofill.ImageSize;
 import org.chromium.components.autofill.SuggestionType;
-import org.chromium.components.browser_ui.edge_to_edge.EdgeToEdgeSupplier;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.ui.AsyncViewProvider;
 import org.chromium.ui.AsyncViewStub;
 import org.chromium.ui.ViewProvider;
+import org.chromium.ui.edge_to_edge.EdgeToEdgeSupplier;
 import org.chromium.ui.insets.InsetObserver;
 import org.chromium.ui.modelutil.LazyConstructionPropertyMcp;
 import org.chromium.ui.modelutil.ListModel;
@@ -140,6 +141,9 @@ public class KeyboardAccessoryCoordinator implements KeyboardAccessoryVisualStat
      * @param edgeToEdgeControllerSupplier A {@link Supplier<EdgeToEdgeController>}.
      * @param insetObserver An {@link InsetObserver}.
      * @param barStub A {@link AsyncViewStub} for the accessory bar layout.
+     * @param isLargeFormFactorSupplier A {@link Supplier} that checks whether the device is in
+     *     Large Form Factor mode.
+     * @param dismissRunnable A {@link Runnable} used to dismiss the Keyboard Accessory bar.
      */
     public KeyboardAccessoryCoordinator(
             Profile profile,
@@ -147,7 +151,9 @@ public class KeyboardAccessoryCoordinator implements KeyboardAccessoryVisualStat
             AccessorySheetCoordinator.SheetVisibilityDelegate sheetVisibilityDelegate,
             ObservableSupplier<EdgeToEdgeController> edgeToEdgeControllerSupplier,
             InsetObserver insetObserver,
-            AsyncViewStub barStub) {
+            AsyncViewStub barStub,
+            Supplier<Boolean> isLargeFormFactorSupplier,
+            Runnable dismissRunnable) {
         this(
                 barStub.getContext(),
                 profile,
@@ -156,7 +162,9 @@ public class KeyboardAccessoryCoordinator implements KeyboardAccessoryVisualStat
                 sheetVisibilityDelegate,
                 edgeToEdgeControllerSupplier,
                 insetObserver,
-                AsyncViewProvider.of(barStub, R.id.keyboard_accessory));
+                AsyncViewProvider.of(barStub, R.id.keyboard_accessory),
+                isLargeFormFactorSupplier,
+                dismissRunnable);
     }
 
     /**
@@ -167,6 +175,9 @@ public class KeyboardAccessoryCoordinator implements KeyboardAccessoryVisualStat
      * @param viewProvider A provider for the accessory.
      * @param edgeToEdgeControllerSupplier A {@link Supplier<EdgeToEdgeController>}.
      * @param insetObserver An {@link InsetObserver}.
+     * @param isLargeFormFactorSupplier A {@link Supplier} that checks whether the device is in
+     *     Large Form Factor mode.
+     * @param dismissRunnable A {@link Runnable} used to dismiss the Keyboard Accessory bar.
      */
     @VisibleForTesting
     public KeyboardAccessoryCoordinator(
@@ -177,7 +188,9 @@ public class KeyboardAccessoryCoordinator implements KeyboardAccessoryVisualStat
             AccessorySheetCoordinator.SheetVisibilityDelegate sheetVisibilityDelegate,
             ObservableSupplier<EdgeToEdgeController> edgeToEdgeControllerSupplier,
             InsetObserver insetObserver,
-            ViewProvider<KeyboardAccessoryView> viewProvider) {
+            ViewProvider<KeyboardAccessoryView> viewProvider,
+            Supplier<Boolean> isLargeFormFactorSupplier,
+            Runnable dismissRunnable) {
         mButtonGroup = buttonGroup;
         mModel = KeyboardAccessoryProperties.defaultModelBuilder().build();
         mEdgeToEdgeControllerSupplier = edgeToEdgeControllerSupplier;
@@ -190,7 +203,9 @@ public class KeyboardAccessoryCoordinator implements KeyboardAccessoryVisualStat
                         sheetVisibilityDelegate,
                         mButtonGroup.getTabSwitchingDelegate(),
                         mButtonGroup.getSheetOpenerCallbacks(),
-                        () -> SemanticColorUtils.getDefaultBgColor(context));
+                        () -> SemanticColorUtils.getDefaultBgColor(context),
+                        isLargeFormFactorSupplier,
+                        dismissRunnable);
         viewProvider.whenLoaded(
                 view -> {
                     mView = view;
@@ -325,12 +340,24 @@ public class KeyboardAccessoryCoordinator implements KeyboardAccessoryVisualStat
     }
 
     /**
-     * Sets the offset to the end of the activity - which is usually 0, the height of the keyboard
-     * or the height of a bottom sheet.
-     * @param bottomOffset The offset in pixels.
+     * Sets the vertical offset and gravity for the component.
+     *
+     * <p>The gravity determines whether the offset is applied from the top ({@link Gravity#TOP}) or
+     * the bottom ({@link Gravity#BOTTOM}) of the view.
+     *
+     * @param offset The vertical offset in pixels.
+     * @param gravity The gravity flag, either {@link Gravity#TOP} or {@link Gravity#BOTTOM}.
      */
-    public void setBottomOffset(@Px int bottomOffset) {
-        mMediator.setBottomOffset(bottomOffset);
+    public void setOffsetAndGravity(@Px int offset, int gravity) {
+        mMediator.setOffsetAndGravity(offset, gravity);
+    }
+
+    /**
+     * Defines whether the last item in the Keyboard Accessory bar should be aligned to the end of
+     * the bar.
+     */
+    public void setHasStickyLastItem(boolean hasStickyLastItem) {
+        mMediator.setHasStickyLastItem(hasStickyLastItem);
     }
 
     /** Triggers the accessory to be shown. */

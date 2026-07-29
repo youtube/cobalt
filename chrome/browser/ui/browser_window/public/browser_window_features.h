@@ -16,7 +16,12 @@
 namespace glic {
 class GlicButtonController;
 class GlicIphController;
+class GlicSidePanelCoordinator;
 }  // namespace glic
+
+namespace tabs {
+class GlicActorTaskIconController;
+}  // namespace tabs
 #endif
 
 class ActorOverlayWindowController;
@@ -44,8 +49,10 @@ class CookieControlsBubbleCoordinator;
 class DataSharingBubbleController;
 class DesktopBrowserWindowCapabilities;
 class DevtoolsUIController;
+class ExtensionKeybindingRegistryViews;
 class ExclusiveAccessManager;
 class FindBarController;
+class FullscreenControlHost;
 class HistoryClustersSidePanelCoordinator;
 class HistorySidePanelCoordinator;
 class IncognitoClearBrowsingDataDialogCoordinator;
@@ -56,6 +63,7 @@ class PinnedToolbarActionsController;
 class ProfileMenuCoordinator;
 class ReadingListSidePanelCoordinator;
 class RecentActivityBubbleCoordinator;
+class BrowserSelectFileDialogController;
 class SidePanelCoordinator;
 class SidePanelUI;
 class SigninViewController;
@@ -114,7 +122,6 @@ class ProductSpecificationsEntryPointController;
 
 namespace tabs {
 class GlicNudgeController;
-class GlicActorTaskIconController;
 }  // namespace tabs
 
 namespace enterprise_data_protection {
@@ -231,6 +238,12 @@ class BrowserWindowFeatures {
     return comments_side_panel_coordinator_.get();
   }
 
+#if BUILDFLAG(ENABLE_GLIC)
+  glic::GlicSidePanelCoordinator* glic_side_panel_coordinator() {
+    return glic_side_panel_coordinator_.get();
+  }
+#endif
+
   PinnedToolbarActionsController* pinned_toolbar_actions_controller() {
     return pinned_toolbar_actions_controller_.get();
   }
@@ -295,6 +308,10 @@ class BrowserWindowFeatures {
 
   extensions::ExtensionSidePanelManager* extension_side_panel_manager() {
     return extension_side_panel_manager_.get();
+  }
+
+  ExtensionKeybindingRegistryViews* extension_keybinding_registry() {
+    return extension_keybinding_registry_.get();
   }
 
 #if !BUILDFLAG(IS_CHROMEOS)
@@ -388,6 +405,10 @@ class BrowserWindowFeatures {
   }
 #endif  // defined(USE_AURA)
 
+  BrowserSelectFileDialogController* browser_select_file_dialog_controller() {
+    return browser_select_file_dialog_controller_.get();
+  }
+
   // Get the FindBarController for this browser window, creating it if it does
   // not yet exist.
   FindBarController* GetFindBarController();
@@ -395,12 +416,12 @@ class BrowserWindowFeatures {
   // Returns true if a FindBarController exists for this browser window.
   bool HasFindBarController() const;
 
-  DataSharingBubbleController* data_sharing_bubble_controller() {
-    return data_sharing_bubble_controller_.get();
-  }
-
   ExclusiveAccessManager* exclusive_access_manager() {
     return exclusive_access_manager_.get();
+  }
+
+  FullscreenControlHost* fullscreen_control_host() {
+    return fullscreen_control_host_.get();
   }
 
   HistoryClustersSidePanelCoordinator*
@@ -467,6 +488,8 @@ class BrowserWindowFeatures {
 
   std::unique_ptr<ExclusiveAccessManager> exclusive_access_manager_;
 
+  std::unique_ptr<FullscreenControlHost> fullscreen_control_host_;
+
   std::unique_ptr<lens::LensOverlayEntryPointController>
       lens_overlay_entry_point_controller_;
 
@@ -515,6 +538,10 @@ class BrowserWindowFeatures {
   std::unique_ptr<extensions::ExtensionSidePanelManager>
       extension_side_panel_manager_;
 
+  // The class that registers for keyboard shortcuts for extension commands.
+  std::unique_ptr<ExtensionKeybindingRegistryViews>
+      extension_keybinding_registry_;
+
   std::unique_ptr<media_router::CastBrowserController> cast_browser_controller_;
 
 #if !BUILDFLAG(IS_CHROMEOS)
@@ -526,14 +553,17 @@ class BrowserWindowFeatures {
 
   std::unique_ptr<ActorBorderViewController> actor_border_view_controller_;
 
+  std::unique_ptr<BrowserSelectFileDialogController>
+      browser_select_file_dialog_controller_;
+
   std::unique_ptr<tabs::GlicNudgeController> glic_nudge_controller_;
 
+#if BUILDFLAG(ENABLE_GLIC)
   std::unique_ptr<tabs::GlicActorTaskIconController>
       glic_actor_task_icon_controller_;
-
-#if BUILDFLAG(ENABLE_GLIC)
   std::unique_ptr<glic::GlicButtonController> glic_button_controller_;
   std::unique_ptr<glic::GlicIphController> glic_iph_controller_;
+  std::unique_ptr<glic::GlicSidePanelCoordinator> glic_side_panel_coordinator_;
 #endif
 
   std::unique_ptr<tab_groups::MostRecentSharedTabUpdateStore>

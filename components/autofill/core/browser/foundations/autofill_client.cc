@@ -124,7 +124,7 @@ PasswordManagerDelegate* AutofillClient::GetPasswordManagerDelegate(
   return nullptr;
 }
 
-OtpSuggestionDelegate* AutofillClient::GetOtpSuggestionDelegate() {
+OtpDelegate* AutofillClient::GetOtpDelegate() {
   return nullptr;
 }
 
@@ -265,6 +265,10 @@ void AutofillClient::UpdateAutofillSuggestions(
     FillingProduct main_filling_product,
     AutofillSuggestionTriggerSource trigger_source) {
   NOTIMPLEMENTED();
+}
+
+bool AutofillClient::IsCvcSavingSupported() const {
+  return true;
 }
 
 void AutofillClient::set_test_addresses(

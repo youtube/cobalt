@@ -126,6 +126,7 @@ component("gfx") {
     "interpolated_transform.h",
     "monogram_utils.cc",
     "monogram_utils.h",
+    "native_window_util.h",
     "overlay_layer_id.cc",
     "overlay_layer_id.h",
     "overlay_plane_data.cc",
@@ -203,6 +204,7 @@ component("gfx") {
       "mac/nswindow_frame_controls.mm",
       "mac/scoped_cocoa_disable_screen_updates.h",
       "mac/scoped_cocoa_disable_screen_updates.mm",
+      "native_window_util_mac.mm",
       "platform_font_mac.h",
       "platform_font_mac.mm",
       "scoped_cg_context_save_gstate_mac.h",
@@ -448,6 +450,10 @@ component("gfx") {
       "nine_image_painter.h",
     ]
   }
+
+  if (use_aura) {
+    sources += [ "native_window_util_aura.cc" ]
+  }
 }
 
 component("color_space") {
@@ -530,7 +536,10 @@ group("native_widget_types") {
 source_set("native_widget_types_sources") {
   visibility = [ ":*" ]  # Depend on through ":native_widget_types".
 
-  public = [ "native_widget_types.h" ]
+  public = [
+    "native_widget_types.h",
+    "native_window_types.h",
+  ]
 
   public_deps = [ "//base" ]
 
@@ -539,7 +548,7 @@ source_set("native_widget_types_sources") {
   deps = [ "//build:blink_buildflags" ]
 
   if (is_mac) {
-    sources = [ "native_widget_types_mac.mm" ]
+    sources = [ "native_window_types_mac.mm" ]
     frameworks = [ "AppKit.framework" ]
   }
 }

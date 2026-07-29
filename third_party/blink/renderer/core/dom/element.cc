@@ -750,8 +750,13 @@ bool Element::IsFocusableStyle(UpdateBehavior update_behavior) const {
       return false;
     }
 
-    const HTMLCanvasElement* canvas =
-        Traversal<HTMLCanvasElement>::FirstAncestorOrSelf(*this);
+    const HTMLCanvasElement* canvas = nullptr;
+    for (const Element* element = this; element;
+         element = element->ParentOrShadowHostElement()) {
+      if ((canvas = DynamicTo<HTMLCanvasElement>(element))) {
+        break;
+      }
+    }
     DCHECK(canvas);
     if (LayoutObject* layout_object = canvas->GetLayoutObject()) {
       return layout_object->IsCanvas() &&
@@ -1250,16 +1255,17 @@ GCedHeapVector<Member<Element>>* Element::GetAttrAssociatedElements(
       GetExplicitlySetElementsForAttr(name);
   if (explicitly_set_elements) {
     // 3. If reflectedTarget's explicitly set attr-elements is not null:
-    for (auto attr_element : *explicitly_set_elements) {
+    for (const auto& attr_element : *explicitly_set_elements) {
       // 3.1. If attrElement is not a descendant of any of element's
       // shadow-including ancestors, then continue.
       if (ElementIsDescendantOfShadowIncludingAncestor(*this, *attr_element)) {
         // 3.NEW. Resolve the referenceTarget of attr_element
-        attr_element = attr_element->GetShadowReferenceTargetOrSelf(name);
+        Element* reference_target =
+            attr_element->GetShadowReferenceTargetOrSelf(name);
 
         // 3.2. Append attrElement to elements.
-        if (attr_element) {
-          result_elements->push_back(attr_element);
+        if (reference_target) {
+          result_elements->push_back(reference_target);
         }
       }
     }
@@ -1294,7 +1300,7 @@ GCedHeapVector<Member<Element>>* Element::GetAttrAssociatedElements(
     attribute_value = attribute_value.SimplifyWhiteSpace();
     attribute_value.Split(' ', tokens);
 
-    for (auto id : tokens) {
+    for (const auto& id : tokens) {
       // 4.3.1. Let candidate be the first element, in tree order, that meets
       // [certain criteria].
       Element* candidate =
@@ -1407,7 +1413,7 @@ void Element::SetElementArrayAttribute(
     stored_elements->clear();
   }
 
-  for (auto element : *given_elements) {
+  for (const auto& element : *given_elements) {
     stored_elements->insert(element);
   }
 
@@ -3775,6 +3781,11 @@ Node::InsertionNotificationRequest Element::InsertedInto(
 
   RecomputeDirectionFromParent();
 
+  auto* parent = ParentOrShadowHostElement();
+  if (parent && parent->IsCanvasOrInCanvasSubtree()) {
+    SetIsCanvasOrInCanvasSubtree(true);
+  }
+
   if (AnchorElementObserver* observer = GetAnchorElementObserver()) {
     observer->Notify();
   }
@@ -3854,10 +3865,6 @@ Node::InsertionNotificationRequest Element::InsertedInto(
   EditContext* edit_context = editContext();
   if (edit_context && edit_context->GetExecutionContext() != context) {
     edit_context->SetExecutionContext(context);
-  }
-
-  if (parentElement() && parentElement()->IsCanvasOrInCanvasSubtree()) {
-    SetIsCanvasOrInCanvasSubtree(true);
   }
 
   if (GetDocument().StatePreservingAtomicMoveInProgress() &&
@@ -4424,7 +4431,8 @@ const ComputedStyle* Element::StyleForLayoutObject(
   }
 
   if (style->DependsOnSizeContainerQueries() ||
-      style->GetPositionTryFallbacks() || style->HasAnchorFunctions()) {
+      style->GetPositionTryFallbacks() || style->HasAnchorFunctions() ||
+      style->HasAnimationTrigger()) {
     GetDocument().GetStyleEngine().SetStyleAffectedByLayout();
   }
 
@@ -4723,11 +4731,9 @@ void Element::RecalcStyle(const StyleRecalcChange change,
                           child_recalc_context);
     }
 
-    if (HTMLSelectElement::CustomizableSelectEnabled(this)) {
-      if (DynamicTo<HTMLOptionElement>(this)) {
-        UpdatePseudoElement(kPseudoIdCheckMark, child_change,
-                            child_recalc_context);
-      }
+    if (DynamicTo<HTMLOptionElement>(this)) {
+      UpdatePseudoElement(kPseudoIdCheckMark, child_change,
+                          child_recalc_context);
     }
 
     UpdatePseudoElement(kPseudoIdBefore, child_change, child_recalc_context);
@@ -4755,11 +4761,9 @@ void Element::RecalcStyle(const StyleRecalcChange change,
   if (child_change.TraversePseudoElements(*this)) {
     UpdatePseudoElement(kPseudoIdAfter, child_change, child_recalc_context);
 
-    if (HTMLSelectElement::CustomizableSelectEnabled(this)) {
-      if (IsA<HTMLSelectElement>(this)) {
-        UpdatePseudoElement(kPseudoIdPickerIcon, child_change,
-                            child_recalc_context);
-      }
+    if (IsA<HTMLSelectElement>(this)) {
+      UpdatePseudoElement(kPseudoIdPickerIcon, child_change,
+                          child_recalc_context);
     }
 
     if (RuntimeEnabledFeatures::HTMLInterestForInterestHintPseudoEnabled(
@@ -5247,10 +5251,16 @@ StyleRecalcChange Element::RecalcOwnStyle(
       // anchor_evaluator is reset for children so that that elements
       // recalculated for anchored() queries will be invalidates as normal.
       apply_changes = LayoutObject::ApplyStyleChanges::kNo;
-    } else if (new_style->HasAnchorFunctionsWithoutEvaluator()) {
+    } else if (new_style->HasAnchorFunctionsWithoutEvaluator() ||
+               (IsFirstLetterPseudoElement() &&
+                !layout_style->InitialLetter().IsNormal())) {
       // For regular (non-interleaved) recalcs that depend on anchor*()
       // functions, we need to invalidate layout even without a diff,
       // see ComputedStyle::HasAnchorFunctionsWithoutEvaluator.
+      //
+      // For ::first-letter pseudo elements with initial-letter, we may need to
+      // compute new font styling for the initial letter text box if a new font
+      // was available.
       apply_changes = LayoutObject::ApplyStyleChanges::kYes;
     }
     layout_object->SetStyle(layout_style, apply_changes);
@@ -6255,7 +6265,7 @@ void Element::RecalcCustomHighlightPseudoStyle(
   }
 
   StyleHighlightData& highlights = builder.AccessHighlightData();
-  for (auto highlight_name : *highlight_names) {
+  for (const auto& highlight_name : *highlight_names) {
     const ComputedStyle* highlight_parent =
         parent_highlights ? parent_highlights->CustomHighlight(highlight_name)
                           : nullptr;
@@ -9136,6 +9146,11 @@ bool Element::ShouldStoreComputedStyle(const ComputedStyle& style) const {
   return style.Display() == EDisplay::kContents;
 }
 
+bool Element::IsInCanvasSubtree() const {
+  auto* parent = ParentOrShadowHostElement();
+  return parent && parent->IsCanvasOrInCanvasSubtree();
+}
+
 AtomicString Element::ComputeInheritedLanguage() const {
   const Node* n = this;
   AtomicString value;
@@ -11266,9 +11281,9 @@ void Element::ChangeInterestState(Element* target, InterestState new_state) {
     invoker_data->SetInterestState(new_state);
     invoker_data->SetActiveInterestTarget(target);
   }
-  PseudoStateChanged(CSSSelector::kPseudoHasInterest);
+  PseudoStateChanged(CSSSelector::kPseudoInterestSource);
   if (target) {
-    target->PseudoStateChanged(CSSSelector::kPseudoTargetOfInterest);
+    target->PseudoStateChanged(CSSSelector::kPseudoInterestTarget);
   }
 }
 

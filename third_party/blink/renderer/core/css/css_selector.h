@@ -257,13 +257,14 @@ class CORE_EXPORT CSSSelector {
     kPseudoFocusVisible,
     kPseudoFocusWithin,
     kPseudoFullPageMedia,
-    kPseudoHasInterest,
     kPseudoHasSlotted,
     kPseudoHorizontal,
     kPseudoHover,
     kPseudoIncrement,
     kPseudoIndeterminate,
     kPseudoInterestHint,
+    kPseudoInterestSource,
+    kPseudoInterestTarget,
     kPseudoInvalid,
     kPseudoIs,
     kPseudoLang,
@@ -312,7 +313,6 @@ class CORE_EXPORT CSSSelector {
     kPseudoStart,
     kPseudoState,
     kPseudoTarget,
-    kPseudoTargetOfInterest,
     kPseudoUnknown,
     // Something that was unparsable, but contained either a nesting
     // selector (&), or a :scope pseudo-class, and must therefore be kept
@@ -372,6 +372,8 @@ class CORE_EXPORT CSSSelector {
     kPseudoVideoPersistent,
     kPseudoVideoPersistentAncestor,
 
+    kPseudoTargetAfter,
+    kPseudoTargetBefore,
     // Active ::scroll-marker styling.
     // https://drafts.csswg.org/css-overflow-5/#active-scroll-marker
     kPseudoTargetCurrent,

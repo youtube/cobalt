@@ -40,8 +40,8 @@ import androidx.lifecycle.LifecycleObserver;
 import androidx.lifecycle.LifecycleRegistry;
 
 import org.chromium.base.ActivityState;
+import org.chromium.base.ApkInfo;
 import org.chromium.base.ApplicationStatus;
-import org.chromium.base.BuildInfo;
 import org.chromium.base.Callback;
 import org.chromium.base.CallbackController;
 import org.chromium.base.CallbackUtils;
@@ -280,6 +280,7 @@ import org.chromium.chrome.browser.ui.AppLaunchDrawBlocker;
 import org.chromium.chrome.browser.ui.IncognitoRestoreAppLaunchDrawBlockerFactory;
 import org.chromium.chrome.browser.ui.RootUiCoordinator;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuPropertiesDelegate;
+import org.chromium.chrome.browser.ui.browser_window.BrowserWindowType;
 import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTaskTrackerFactory;
 import org.chromium.chrome.browser.ui.desktop_windowing.AppHeaderUtils;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeUtils;
@@ -296,8 +297,6 @@ import org.chromium.chrome.browser.util.ChromeAccessibilityUtil;
 import org.chromium.chrome.browser.xr.scenecore.XrSceneCoreSessionInitializerImpl;
 import org.chromium.chrome.browser.xr.scenecore.XrSceneCoreSessionManagerImpl;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
-import org.chromium.components.browser_ui.edge_to_edge.SystemBarColorHelper;
-import org.chromium.components.browser_ui.edge_to_edge.TabbedSystemBarColorHelper;
 import org.chromium.components.browser_ui.util.BrowserControlsVisibilityDelegate;
 import org.chromium.components.browser_ui.util.ComposedBrowserControlsVisibilityDelegate;
 import org.chromium.components.browser_ui.util.FirstDrawDetector;
@@ -330,6 +329,8 @@ import org.chromium.ui.dragdrop.DragAndDropDelegate;
 import org.chromium.ui.dragdrop.DragAndDropDelegateImpl;
 import org.chromium.ui.dragdrop.DragDropMetricUtils;
 import org.chromium.ui.dragdrop.DragDropMetricUtils.UrlIntentSource;
+import org.chromium.ui.edge_to_edge.SystemBarColorHelper;
+import org.chromium.ui.edge_to_edge.TabbedSystemBarColorHelper;
 import org.chromium.ui.util.XrUtils;
 import org.chromium.ui.widget.Toast;
 import org.chromium.ui.xr.scenecore.XrSceneCoreSessionInitializer;
@@ -444,12 +445,14 @@ public class ChromeTabbedActivity extends ChromeActivity {
 
     /** The type of tab/profile the activity supports. */
     @IntDef({
+        SupportedProfileType.UNSET,
         SupportedProfileType.REGULAR,
         SupportedProfileType.OFF_THE_RECORD,
         SupportedProfileType.MIXED
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface SupportedProfileType {
+        int UNSET = 0;
         int REGULAR = 1;
         int OFF_THE_RECORD = 2;
         int MIXED = 3;
@@ -628,7 +631,7 @@ public class ChromeTabbedActivity extends ChromeActivity {
                     LazyOneshotSupplier.fromSupplier(this::createXrSceneCoreSessionManager);
     private final Callback<Boolean> mOnXrSpaceModeChanged = this::onXrSpaceModeChanged;
     private XrSceneCoreSessionInitializer mXrSceneCoreSessionInitializer;
-    private @SupportedProfileType int mSupportedProfileType;
+    private @SupportedProfileType int mSupportedProfileType = SupportedProfileType.UNSET;
 
     /** Constructs a ChromeTabbedActivity. */
     public ChromeTabbedActivity() {
@@ -670,22 +673,6 @@ public class ChromeTabbedActivity extends ChromeActivity {
                 () -> {
                     minimizeAppAndCloseTabOnBackPress(getActivityTab());
                 });
-
-        Intent intent = getIntent();
-        if (IncognitoUtils.shouldOpenIncognitoAsWindow()) {
-            boolean hasIncognitoExtra =
-                    intent != null
-                            && (intent.getBooleanExtra(
-                                            IntentHandler.EXTRA_OPEN_NEW_INCOGNITO_TAB, false)
-                                    || intent.getBooleanExtra(
-                                            IntentHandler.EXTRA_OPEN_NEW_INCOGNITO_WINDOW, false));
-            mSupportedProfileType =
-                    hasIncognitoExtra
-                            ? SupportedProfileType.OFF_THE_RECORD
-                            : SupportedProfileType.REGULAR;
-        } else {
-            mSupportedProfileType = SupportedProfileType.MIXED;
-        }
     }
 
     @Override
@@ -759,7 +746,7 @@ public class ChromeTabbedActivity extends ChromeActivity {
                 // explicitly told not to. Hopefully we'll get enough reports to find where
                 // these intents come from.
                 if (IntentHandler.isExternalIntentSourceChrome(intent)
-                        && BuildInfo.isDebugApp()
+                        && ApkInfo.isDebugApp()
                         && !CommandLine.getInstance()
                                 .hasSwitch(ChromeSwitches.DONT_CRASH_ON_VIEW_MAIN_INTENTS)) {
                     String intentInfo = intent.toString();
@@ -771,9 +758,9 @@ public class ChromeTabbedActivity extends ChromeActivity {
                     String message =
                             String.format(
                                     """
-                                    VIEW intent sent to .Main activity alias was not dispatched. \
-                                    PLEASE report the following info to crbug.com/789732: \
-                                    "%s". Use --%s flag to disable this check.""",
+                                            VIEW intent sent to .Main activity alias was not dispatched. \
+                                            PLEASE report the following info to crbug.com/789732: \
+                                            "%s". Use --%s flag to disable this check.""",
                                     intentInfo, ChromeSwitches.DONT_CRASH_ON_VIEW_MAIN_INTENTS);
                     throw new IllegalStateException(message);
                 }
@@ -1263,7 +1250,9 @@ public class ChromeTabbedActivity extends ChromeActivity {
             var activityWindowAndroid = getWindowAndroid();
             assert activityWindowAndroid != null;
 
-            var chromeAndroidTask = chromeAndroidTaskTracker.obtainTask(activityWindowAndroid);
+            var chromeAndroidTask =
+                    chromeAndroidTaskTracker.obtainTask(
+                            BrowserWindowType.NORMAL, activityWindowAndroid);
 
             mTabModelSelector
                     .getCurrentModel()
@@ -1822,7 +1811,8 @@ public class ChromeTabbedActivity extends ChromeActivity {
                         IntentUtils.safeGetStringExtra(intent, Browser.EXTRA_APPLICATION_ID),
                         tabIdToBringToFront,
                         intent);
-        if (IntentHandler.getPinnedState(intent)) {
+        boolean shouldPin = IntentHandler.getPinnedState(intent);
+        if (shouldPin && !tab.getIsPinned()) {
             getTabModelSelector().getModel(tab.isIncognito()).pinTab(tab.getId());
         }
         int destTabId = IntentHandler.getDestTabId(intent);
@@ -2392,7 +2382,7 @@ public class ChromeTabbedActivity extends ChromeActivity {
     private void maybeRecordExternalAppClickInfo(
             @IntentHandler.ExternalAppId int externalId, Intent intent) {
         if (externalId != ExternalAppId.PIXEL_LAUNCHER
-                || externalId != ExternalAppId.SAMSUNG_LAUNCHER) {
+                && externalId != ExternalAppId.SAMSUNG_LAUNCHER) {
             return;
         }
 
@@ -2742,7 +2732,8 @@ public class ChromeTabbedActivity extends ChromeActivity {
                 ChromeDragDropUtils.getDragDropTypeFromIntent(intent),
                 AppHeaderUtils.isAppInDesktopWindow(
                         mRootUiCoordinator.getDesktopWindowStateManager()),
-                /* isTabGroup= */ false);
+                /* isTabGroup= */ false,
+                /* isMultiTab= */ false);
         return true;
     }
 
@@ -2767,7 +2758,12 @@ public class ChromeTabbedActivity extends ChromeActivity {
 
         mMultiInstanceManager.moveTabsToWindow(this, tabs, /* atIndex= */ 0);
 
-        // TODO(crbug.com/404074503): Add metrics for multi tab drag.
+        DragDropMetricUtils.recordDragDropType(
+                ChromeDragDropUtils.getDragDropTypeFromIntent(intent),
+                AppHeaderUtils.isAppInDesktopWindow(
+                        mRootUiCoordinator.getDesktopWindowStateManager()),
+                /* isTabGroup= */ false,
+                /* isMultiTab= */ true);
         return true;
     }
 
@@ -2787,7 +2783,8 @@ public class ChromeTabbedActivity extends ChromeActivity {
                 ChromeDragDropUtils.getDragDropTypeFromIntent(intent),
                 AppHeaderUtils.isAppInDesktopWindow(
                         mRootUiCoordinator.getDesktopWindowStateManager()),
-                /* isTabGroup= */ true);
+                /* isTabGroup= */ true,
+                /* isMultiTab= */ false);
         return true;
     }
 
@@ -3207,6 +3204,7 @@ public class ChromeTabbedActivity extends ChromeActivity {
     protected void createTabModels() {
         assert mTabModelSelector == null;
         assert mWindowId != INVALID_WINDOW_ID;
+        assert mSupportedProfileType != SupportedProfileType.UNSET;
 
         Bundle savedInstanceState = getSavedInstanceState();
 
@@ -3227,6 +3225,7 @@ public class ChromeTabbedActivity extends ChromeActivity {
                         getProfileProviderSupplier(),
                         this,
                         mNextTabPolicySupplier,
+                        mMultiInstanceManager,
                         mMismatchedIndicesHandler,
                         mWindowId);
         if (!tabModelWasCreated) {
@@ -3295,6 +3294,17 @@ public class ChromeTabbedActivity extends ChromeActivity {
                     }
                 };
         if (startIncognito) mTabModelSelector.selectModel(true);
+        // TODO(crbug.com/439670064): Only preserve regular and incognito type until we finalize the
+        // upgrade path.
+        if (IncognitoUtils.shouldOpenIncognitoAsWindow()
+                && (mSupportedProfileType == SupportedProfileType.REGULAR
+                        || mSupportedProfileType == SupportedProfileType.OFF_THE_RECORD)) {
+            ChromeSharedPreferences.getInstance()
+                    .writeInt(
+                            ChromePreferenceKeys.MULTI_INSTANCE_PROFILE_TYPE.createKey(
+                                    String.valueOf(mWindowId)),
+                            mSupportedProfileType);
+        }
     }
 
     TabModelSelectorObserver getTabModelSelectorObserverForTesting() {
@@ -3497,7 +3507,7 @@ public class ChromeTabbedActivity extends ChromeActivity {
         } else if (mMultiInstanceManager != null) {
             // |allocInstanceId| doesn't do any disk I/O that would add a long-running task
             // to pre-inflation startup.
-            boolean preferNew = getExtraPreferNewFromIntent(intent);
+            boolean preferNew = MultiWindowUtils.getExtraPreferNewFromIntent(intent);
             Pair<Integer, Integer> instanceIdInfo =
                     mMultiInstanceManager.allocInstanceId(
                             windowId, ApplicationStatus.getTaskId(this), preferNew);
@@ -3530,6 +3540,35 @@ public class ChromeTabbedActivity extends ChromeActivity {
                     TAG_MULTI_INSTANCE,
                     "Window ID allocated: " + mWindowId + ", instance-task map: " + taskMap);
         }
+
+        if (IncognitoUtils.shouldOpenIncognitoAsWindow()) {
+            boolean hasIncognitoExtra =
+                    intent != null
+                            && (intent.getBooleanExtra(
+                                            IntentHandler.EXTRA_OPEN_NEW_INCOGNITO_TAB, false)
+                                    || intent.getBooleanExtra(
+                                            IntentHandler.EXTRA_OPEN_NEW_INCOGNITO_WINDOW, false));
+            mSupportedProfileType =
+                    hasIncognitoExtra
+                            ? SupportedProfileType.OFF_THE_RECORD
+                            : SupportedProfileType.REGULAR;
+
+            int profileTypeFromPreferences =
+                    ChromeSharedPreferences.getInstance()
+                            .readInt(
+                                    ChromePreferenceKeys.MULTI_INSTANCE_PROFILE_TYPE.createKey(
+                                            String.valueOf(mWindowId)),
+                                    SupportedProfileType.UNSET);
+            if (profileTypeFromPreferences != SupportedProfileType.UNSET) {
+                // Intent and ChromeSharedPreferences should not conflict. Intent should only
+                // specify SupportedProfileType for the new window, which will not have value in
+                // ChromeSharedPreferences.
+                mSupportedProfileType = profileTypeFromPreferences;
+            }
+        } else {
+            mSupportedProfileType = SupportedProfileType.MIXED;
+        }
+        assert mSupportedProfileType != SupportedProfileType.UNSET;
 
         if (mMultiInstanceManager != null
                 && !mMultiInstanceManager.isStartedUpCorrectly(ApplicationStatus.getTaskId(this))) {
@@ -3621,10 +3660,6 @@ public class ChromeTabbedActivity extends ChromeActivity {
                 IntentUtils.safeGetIntExtra(
                         intent, IntentHandler.EXTRA_WINDOW_ID, INVALID_WINDOW_ID);
         return IntentUtils.isTrustedIntentFromSelf(intent) ? windowId : INVALID_WINDOW_ID;
-    }
-
-    private static boolean getExtraPreferNewFromIntent(Intent intent) {
-        return IntentUtils.safeGetBooleanExtra(intent, IntentHandler.EXTRA_PREFER_NEW, false);
     }
 
     @Override

@@ -72,6 +72,8 @@ PERFETTO_DEFINE_CATEGORIES_IN_NAMESPACE_WITH_ATTRS(
     perfetto::Category("audio").SetTags("audio"),
     perfetto::Category("base").SetTags("toplevel"),
     perfetto::Category("benchmark").SetTags("input"),
+    perfetto::Category("tracing.background").SetDescription(
+      "Events related to background tracing, scenarios and triggers."),
     perfetto::Category("blink").SetTags("javascript", "rendering"),
     perfetto::Category("blink.animations"),
     perfetto::Category("blink.bindings"),
@@ -152,6 +154,8 @@ PERFETTO_DEFINE_CATEGORIES_IN_NAMESPACE_WITH_ATTRS(
     perfetto::Category("input").SetTags("input"),
     perfetto::Category("input.scrolling").SetTags("input"),
     perfetto::Category("io"),
+    perfetto::Category("ip_protection").SetDescription(
+      "Traces for //components/ip_protection."),
     perfetto::Category("ipc").SetTags("ipc"),
     perfetto::Category("Java"),
     perfetto::Category("jni"),
@@ -545,7 +549,6 @@ PERFETTO_DEFINE_CATEGORIES_IN_NAMESPACE_WITH_ATTRS(
     perfetto::Category::Group("startup,rail"),
     perfetto::Category::Group("toplevel,graphics.pipeline"),
     perfetto::Category::Group("toplevel,Java"),
-    perfetto::Category::Group("toplevel,latency"),
     perfetto::Category::Group("toplevel,mojom"),
     perfetto::Category::Group("toplevel,viz"),
     perfetto::Category::Group("toplevel.flow,mojom.flow"),

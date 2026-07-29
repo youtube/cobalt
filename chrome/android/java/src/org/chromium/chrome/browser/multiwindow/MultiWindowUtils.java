@@ -4,6 +4,9 @@
 
 package org.chromium.chrome.browser.multiwindow;
 
+import static android.os.Build.VERSION.SDK_INT;
+import static android.os.Build.VERSION.SDK_INT_FULL;
+
 import static org.chromium.chrome.browser.tabwindow.TabWindowManager.INVALID_WINDOW_ID;
 
 import android.app.Activity;
@@ -17,6 +20,8 @@ import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.os.Build;
+import android.os.Build.VERSION_CODES;
+import android.os.Build.VERSION_CODES_FULL;
 import android.provider.Browser;
 import android.text.TextUtils;
 import android.util.SparseBooleanArray;
@@ -29,7 +34,6 @@ import org.chromium.base.ActivityState;
 import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.base.ApplicationStatus;
 import org.chromium.base.ApplicationStatus.ActivityStateListener;
-import org.chromium.base.BuildInfo;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.DeviceInfo;
 import org.chromium.base.IntentUtils;
@@ -259,7 +263,7 @@ public class MultiWindowUtils implements ActivityStateListener {
         if (activity == null) return false;
         if (!isInMultiWindowMode(activity) && !isInMultiDisplayMode(activity)) return false;
         // Automotive is currently restricted to a single window.
-        if (BuildInfo.getInstance().isAutomotive) return false;
+        if (DeviceInfo.isAutomotive()) return false;
 
         return getOpenInOtherWindowActivity(activity) != null;
     }
@@ -272,7 +276,7 @@ public class MultiWindowUtils implements ActivityStateListener {
     public boolean isMoveToOtherWindowSupported(
             Activity activity, TabModelSelector tabModelSelector) {
         // Not supported on automotive devices.
-        if (BuildInfo.getInstance().isAutomotive) return false;
+        if (DeviceInfo.isAutomotive()) return false;
 
         // Do not allow move for last tab when homepage enabled and is set to a custom url.
         if (hasAtMostOneTabWithHomepageEnabled(tabModelSelector)) {
@@ -348,7 +352,7 @@ public class MultiWindowUtils implements ActivityStateListener {
      */
     public boolean canEnterMultiWindowMode() {
         // Automotive is currently restricted to a single window.
-        if (BuildInfo.getInstance().isAutomotive) return false;
+        if (DeviceInfo.isAutomotive()) return false;
 
         return aospMultiWindowModeSupported() || customMultiWindowModeSupported();
     }
@@ -454,6 +458,29 @@ public class MultiWindowUtils implements ActivityStateListener {
             IntentUtils.addTrustedIntentExtras(intent);
         }
         return intent;
+    }
+
+    /**
+     * @param intent The {@link Intent} to determine whether creation of a new instance is
+     *     preferred.
+     * @return {@code true} if creation of a new instance from {@code intent} is preferred, {@code
+     *     false} otherwise.
+     */
+    public static boolean getExtraPreferNewFromIntent(Intent intent) {
+        // Default to creating a new instance when FLAG_ACTIVITY_MULTIPLE_TASK is set. This is
+        // required to fulfill new window creation requests initiated for MAIN intents from the OS.
+        // This logic is gated behind the OS version that includes a fix that this assumption is
+        // dependent on, see crbug.com/436477060 for more details.
+        int flags = intent.getFlags();
+        boolean preferNew = false;
+        if (SDK_INT >= VERSION_CODES.BAKLAVA) {
+            preferNew =
+                    SDK_INT_FULL > VERSION_CODES_FULL.BAKLAVA
+                            && Intent.ACTION_MAIN.equals(intent.getAction())
+                            && (flags & Intent.FLAG_ACTIVITY_MULTIPLE_TASK) != 0
+                            && (flags & Intent.FLAG_ACTIVITY_NEW_TASK) != 0;
+        }
+        return IntentUtils.safeGetBooleanExtra(intent, IntentHandler.EXTRA_PREFER_NEW, preferNew);
     }
 
     /**
@@ -684,11 +711,10 @@ public class MultiWindowUtils implements ActivityStateListener {
             ChromeTabbedActivity lastResumedActivity = mLastResumedTabbedActivity.get();
             if (lastResumedActivity != null) {
                 Class<?> lastResumedClassName = lastResumedActivity.getClass();
-                if (tabbedTaskRunning && lastResumedClassName.equals(ChromeTabbedActivity.class)) {
+                if (lastResumedClassName.equals(ChromeTabbedActivity.class)) {
                     return ChromeTabbedActivity.class;
                 }
-                if (tabbed2TaskRunning
-                        && lastResumedClassName.equals(ChromeTabbedActivity2.class)) {
+                if (lastResumedClassName.equals(ChromeTabbedActivity2.class)) {
                     return ChromeTabbedActivity2.class;
                 }
             }
@@ -1034,8 +1060,7 @@ public class MultiWindowUtils implements ActivityStateListener {
         List<TabModel> models = tabModelSelector.getModels();
         int totalCount = 0;
         for (TabModel model : models) {
-            for (int i = 0; i < model.getCount(); i++) {
-                Tab tab = model.getTabAtChecked(i);
+            for (Tab tab : model) {
                 if (!TabPersistentStore.shouldSkipTab(tab)) {
                     totalCount++;
                 }

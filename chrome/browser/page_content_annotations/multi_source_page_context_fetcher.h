@@ -73,6 +73,10 @@ enum class FetchPageContextError {
   kPageContextNotEligible,
 };
 
+std::string ToString(FetchPageContextError error);
+
+// TODO(bokan): message is redundant with error_code. Replace usage with
+// ToString.
 struct FetchPageContextErrorDetails {
   FetchPageContextError error_code = FetchPageContextError::kUnknown;
   std::string message;
@@ -81,8 +85,22 @@ using FetchPageContextResultCallbackArg =
     base::expected<std::unique_ptr<FetchPageContextResult>,
                    FetchPageContextErrorDetails>;
 
+// Controls scaling and quality of tab screenshots.
+BASE_DECLARE_FEATURE(kGlicTabScreenshotExperiment);
+
+extern const base::FeatureParam<int> kMaxScreenshotWidthParam;
+
+extern const base::FeatureParam<int> kMaxScreenshotHeightParam;
+
+extern const base::FeatureParam<int> kScreenshotJpegQuality;
+
+extern const base::FeatureParam<base::TimeDelta> kScreenshotTimeout;
+
 // Enables the Paint Preview backend for taking screenshots.
 BASE_DECLARE_FEATURE(kGlicTabScreenshotPaintPreviewBackend);
+
+// Enables page context eligibility checks.
+BASE_DECLARE_FEATURE(kGlicPageContextEligibility);
 
 using FetchPageContextResultCallback =
     base::OnceCallback<void(FetchPageContextResultCallbackArg)>;

@@ -3,13 +3,15 @@
 // found in the LICENSE file.
 
 import './bookmark_bar.js';
+import './content_region.js';
 import './icons.html.js';
 import '/strings.m.js';
 import './tab_strip.js';
 import './webview.js';
-import '//resources/cr_components/searchbox/searchbox.js';
+import 'chrome://resources/cr_components/searchbox/searchbox.js';
 
-import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
+import type {SearchboxElement} from 'chrome://resources/cr_components/searchbox/searchbox.js';
+import {TrackedElementManager} from 'chrome://resources/js/tracked_element/tracked_element_manager.js';
 import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 
 import {getCss} from './app.css.js';
@@ -17,11 +19,20 @@ import {getHtml} from './app.html.js';
 import type {BookmarkBar} from './bookmark_bar.js';
 import {BookmarkBarController} from './bookmark_bar_controller.js';
 import {BrowserProxy} from './browser_proxy.js';
+import type {ContentRegion} from './content_region.js';
+import {TabStrip} from './tab_strip.js';
 import type {LayoutManager} from './tab_strip_controller.js';
 import {TabStripController} from './tab_strip_controller.js';
 
 export interface WebuiBrowserAppElement {
-  $: {bookmarkBar: BookmarkBar};
+  $: {
+    address: SearchboxElement,
+    appMenuButton: HTMLElement,
+    avatarButton: HTMLElement,
+    bookmarkBar: BookmarkBar,
+    contentRegion: ContentRegion,
+    tabstrip: TabStrip,
+  };
 }
 
 export class WebuiBrowserAppElement extends CrLitElement implements
@@ -38,30 +49,36 @@ export class WebuiBrowserAppElement extends CrLitElement implements
     return getHtml.bind(this)();
   }
 
+  static override get properties() {
+    return {
+      backButtonDisabled_: {state: true, type: Boolean},
+      forwardButtonDisabled_: {state: true, type: Boolean},
+    };
+  }
+
   private bookmarkBarController_: BookmarkBarController;
   private tabStripController_: TabStripController;
-  protected backButtonDisabled_: boolean = true;
-  protected forwardButtonDisabled_: boolean = true;
+  private trackedElementManager_: TrackedElementManager;
+  protected accessor backButtonDisabled_: boolean = true;
+  protected accessor forwardButtonDisabled_: boolean = true;
 
   constructor() {
     super();
 
     this.bookmarkBarController_ = new BookmarkBarController();
-    this.tabStripController_ = new TabStripController(this);
+    this.tabStripController_ =
+        new TabStripController(this, this.$.tabstrip, this.$.contentRegion);
+    this.trackedElementManager_ = new TrackedElementManager();
   }
 
   override connectedCallback() {
     // Important. Properties are not reactive without calling
     // super.connectedCallback().
     super.connectedCallback();
-  }
-
-  static override get properties() {
-    return {
-      guestId_: {type: Number},
-      backButtonDisabled_: {state: true, type: Boolean},
-      forwardButtonDisabled_: {state: true, type: Boolean},
-    };
+    this.trackedElementManager_.startTracking(
+        this.$.appMenuButton, 'kToolbarAppMenuButtonElementId');
+    this.trackedElementManager_.startTracking(
+        this.$.avatarButton, 'kToolbarAvatarButtonElementId');
   }
 
   // LayoutManager:
@@ -69,14 +86,16 @@ export class WebuiBrowserAppElement extends CrLitElement implements
     this.updateToolbarButtons_();
   }
 
-  protected accessor guestId_: number = loadTimeData.getInteger('testGuestId');
-
   protected onLaunchDevtoolsClick_(_: Event) {
     BrowserProxy.getPageHandler().launchDevToolsForBrowser();
   }
 
   protected onAppMenuClick_(_: Event) {
     BrowserProxy.getPageHandler().openAppMenu();
+  }
+
+  protected onAvatarClick_(_: Event) {
+    BrowserProxy.getPageHandler().openProfileMenu();
   }
 
   protected onMinimizeClick_(_: Event) {
@@ -96,22 +115,25 @@ export class WebuiBrowserAppElement extends CrLitElement implements
   }
 
   protected onBackClick_(_: Event) {
-    /* TODO(webium): Once ContentRegion is implemented:
-    if (this.$.contentRegion.activeWebview_) {
-      this.$.contentRegion.activeWebview_.goBack();
-    }*/
+    if (this.$.contentRegion.activeWebview) {
+      this.$.contentRegion.activeWebview.goBack();
+    }
   }
 
   protected onForwardClick_(_: Event) {
-    /* TODO(webium): Once ContentRegion is implemented:
-    if (this.$.contentRegion.activeWebview_) {
-      this.$.contentRegion.activeWebview_.goForward();
-    }*/
+    if (this.$.contentRegion.activeWebview) {
+      this.$.contentRegion.activeWebview.goForward();
+    }
+  }
+
+  protected onRefreshClick_(_: Event) {
+    if (this.$.contentRegion.activeWebview) {
+      this.$.contentRegion.activeWebview.refresh();
+    }
   }
 
   private async updateToolbarButtons_() {
-    /* TODO(webium): Once ContentRegion is implemented:
-    const webview = this.$.contentRegion.activeWebview_;
+    const webview = this.$.contentRegion.activeWebview;
     if (webview) {
       const [canGoBack, canGoForward] =
           await Promise.all([webview.canGoBack(), webview.canGoForward()]);
@@ -120,11 +142,7 @@ export class WebuiBrowserAppElement extends CrLitElement implements
     } else {
       this.backButtonDisabled_ = true;
       this.forwardButtonDisabled_ = true;
-    }*/
-  }
-
-  protected onTabstripAdded_(e: CustomEvent) {
-    this.tabStripController_.init(e.detail.tabstrip);
+    }
   }
 
   protected onTabClick_(e: CustomEvent) {
@@ -146,6 +164,8 @@ export class WebuiBrowserAppElement extends CrLitElement implements
 
   protected override firstUpdated() {
     this.bookmarkBarController_.init(this.$.bookmarkBar);
+    BrowserProxy.getInstance().callbackRouter.setFocusToLocationBar.addListener(
+        this.setFocusToLocationBar.bind(this));
   }
 
   protected onShowBookmarkBar_() {
@@ -159,6 +179,38 @@ export class WebuiBrowserAppElement extends CrLitElement implements
   protected onBookmarkButtonClick_(e: CustomEvent) {
     const bookmarkId = e.detail.bookmarkId;
     this.bookmarkBarController_.launchBookmark(bookmarkId);
+  }
+
+  protected onTabDragMouseDown_(e: MouseEvent) {
+    if (e.target instanceof TabStrip) {
+      this.$.tabstrip.dragMouseDown(e);
+      this.addEventListener('mouseup', this.onTabDragMouseUp_);
+      this.addEventListener('mousemove', this.onTabDragMouseMove_);
+    }
+  }
+
+  protected onTabDragMouseUp_(_: MouseEvent) {
+    this.$.tabstrip.closeDragElement();
+    this.removeEventListener('mouseup', this.onTabDragMouseUp_);
+    this.removeEventListener('mousemove', this.onTabDragMouseMove_);
+  }
+
+  protected onTabDragMouseMove_(e: MouseEvent) {
+    this.$.tabstrip.elementDrag(e);
+  }
+
+  protected setFocusToLocationBar(isUserInitiated: boolean) {
+    this.$.address.focusInput();
+
+    // If the user initiated the selection (e.g. by pressing Ctrl-L) we want to
+    // select everything in order to make it easy to replace the URL. This is
+    // also useful for some cases where we auto-focus (e.g. about:blank set as
+    // the NTP) if they're not actively using the omnibox, which we check by
+    // looking at the focus. See OmniBoxViewViews::SetFocus() for the
+    // inspiration.
+    if (isUserInitiated || this.shadowRoot.activeElement !== this.$.address) {
+      this.$.address.selectAll();
+    }
   }
 }
 

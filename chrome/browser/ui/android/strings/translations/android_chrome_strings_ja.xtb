@@ -115,7 +115,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="1493287004536771723"><ph name="SITE_NAME" /> をフォローしています</translation>
 <translation id="1496514951988037011">ユーザー名</translation>
 <translation id="1501480321619201731">グループを削除</translation>
-<translation id="1502010315804028179">パスワードを管理するには、Google Play 開発者サービスを更新してください</translation>
 <translation id="1506061864768559482">検索エンジン</translation>
 <translation id="1513352483775369820">ブックマークとウェブ履歴</translation>
 <translation id="1515901671075971249">タブ ナビゲーションのショートカット</translation>
@@ -421,6 +420,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="2979639724566107830">新しいウィンドウで開く</translation>
 <translation id="2983102365694924129">ユーザーのウェブサイト上でのアクティビティに基づいて提案されます。この設定は無効になっています。</translation>
 <translation id="2983398917942897288">無効（<ph name="ITEM_COUNT" />）</translation>
+<translation id="2983835398644161987">ピクチャー イン ピクチャーを終了</translation>
 <translation id="2984978667043170458">Google 検索に周辺のテキストを含める</translation>
 <translation id="2988638966064514052">パスワードの安全性を強化</translation>
 <translation id="2989523299700148168">最近のアクセス</translation>
@@ -487,6 +487,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="3305130791745726624">デバイスに送信</translation>
 <translation id="3305795716056605962">[その他のオプション] からページを翻訳できます</translation>
 <translation id="3307355280394823921">履歴を開く</translation>
+<translation id="3309978850836730073">ここからいつでもリーディング モードを使用できます</translation>
 <translation id="331080746368555063">非公開サイトには、会社のイントラネットなどが含まれます</translation>
 <translation id="3311330810461485557">アプリや日付などで検索します。</translation>
 <translation id="3334729583274622784">ファイル拡張子を変更しますか？</translation>
@@ -549,7 +550,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="3619255692378312441">アクセスを管理</translation>
 <translation id="3622349720008044802">ウィンドウの管理</translation>
 <translation id="3623240789707551553">{DOMAIN_COUNT,plural, =1{と 1 つのサイト}other{と # つのサイト}}</translation>
-<translation id="3623464286911819905">リーダーモードは使用できません</translation>
 <translation id="3625870480639975468">ズームをリセットする</translation>
 <translation id="3631987586758005671"><ph name="DEVICE_NAME" /> と共有しています</translation>
 <translation id="363484704507524488">ID チェックは盗難保護の設定で管理できます。<ph name="BEGIN_LINK" />設定に移動<ph name="END_LINK" /></translation>
@@ -591,7 +591,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="3823019343150397277">IBAN</translation>
 <translation id="38243391581572867">このアカウントではレンズをご利用いただけません。</translation>
 <translation id="38258275871320156">小さなウィンドウでのみ使用できます</translation>
-<translation id="3830886834687455630">Google Play 開発者サービスを更新してパスワードを確認する</translation>
 <translation id="3845098929839618392">シークレット タブで開く</translation>
 <translation id="3847319713229060696">すべてのユーザーのウェブ上のセキュリティ強化に協力する</translation>
 <translation id="385051799172605136">戻る</translation>
@@ -814,6 +813,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="4807098396393229769">カード名義人（半角英文字）</translation>
 <translation id="480990236307250886">ホームページを開く</translation>
 <translation id="4822710610088666676">「<ph name="TAB_GROUP_TITLE" />」タブグループを閉じて保存しました</translation>
+<translation id="482405935591409882">タブとグループを検索</translation>
 <translation id="4834250788637067901">Google Pay を使用したお支払方法、クーポン、住所</translation>
 <translation id="4835385943915508971">Chrome はリクエストされたリソースにアクセスできません。</translation>
 <translation id="483742037940503070">{TAB_COUNT,plural, =1{<ph name="TAB_COUNT_ONE" /> 個のタブのタブグループ（<ph name="COLOR_NAME" />）を新しいバックグラウンドのタブグループとして復元します。}other{<ph name="TAB_COUNT_MANY" /> 個のタブのタブグループ（<ph name="COLOR_NAME" />）を新しいバックグラウンドのタブグループとして復元します。}}</translation>
@@ -876,7 +876,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="5091199029769593641">まもなく、新しいタブを開くと、<ph name="SITE_NAME" /> のストーリーが表示されるようになります。フォローしたサイトは Google アカウントに保存され、Discover の設定で管理できます。</translation>
 <translation id="509429900233858213">エラーが発生しました。</translation>
 <translation id="5096775069898886423">サイトで安全な接続がサポートされていない場合は、サイトにアクセスする前に警告が表示されます</translation>
-<translation id="5097349930204431044">ユーザーが訪れた広告主のウェブサイトがユーザーの興味 / 関心を判断し、後に訪問する別のウェブサイトで広告を提案することができます</translation>
 <translation id="510275257476243843">残り 1 時間</translation>
 <translation id="5114895953710637392">アプリのフィルタシートが閉じています。</translation>
 <translation id="5115811374190515607"><ph name="PRODUCT_NAME" /> に移動</translation>
@@ -992,7 +991,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="5683547024293500885">Chrome がアップデートを確認できません</translation>
 <translation id="5683916195767086779">タブグループ</translation>
 <translation id="5686790454216892815">ファイル名が長すぎます</translation>
-<translation id="5687606994963670306">Chrome では、30 日以上経過したウェブサイトは自動削除されます。ウェブサイトにもう一度アクセスすると、リストに再度表示される場合もあります。広告の提案を行わないようウェブサイトをブロックすることもできます。詳しくは、<ph name="BEGIN_LINK" />Chrome で広告のプライバシーを管理する<ph name="END_LINK" />をご確認ください。</translation>
 <translation id="569536719314091526">[その他のオプション] から、このページを任意の言語に翻訳できます</translation>
 <translation id="5696597120588531049">Chrome でデータ侵害や安全でないウェブサイトなどの脅威から保護されているか確認します</translation>
 <translation id="5698878456427040674">選択したアカウントがサポートされているかどうかを確認してください。</translation>
@@ -1124,7 +1122,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="6232535412751077445">「Do Not Track」を有効にすると、リクエストが閲覧トラフィックに含まれるようになります。ウェブサイトがリクエストに応答するかどうか、またリクエストがどのように解釈されるかによって、この影響は異なります。
 
 たとえば一部のウェブサイトでは、このリクエストに対して、ユーザーが過去にアクセスしたウェブサイトとは関係のない広告が表示されます。トラッキングを拒否しても、実際のところ多くのウェブサイトではユーザーの閲覧データが収集され利用されています。その用途としては、セキュリティの強化や、コンテンツ、サービス、広告、おすすめの表示、レポート統計情報の作成などが挙げられます。</translation>
-<translation id="623755660902014047">リーディング モード</translation>
 <translation id="6247557882553405851">Google パスワード マネージャー</translation>
 <translation id="6251449557817521191">Chrome 履歴がここに表示されます</translation>
 <translation id="6254139308321626268">PDF ファイルを表示しています</translation>
@@ -1243,7 +1240,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="6723740634201835758">Google アカウント</translation>
 <translation id="6734310707649923383">アクセスしたページを確認したり履歴から削除したりできます</translation>
 <translation id="6738867403308150051">ダウンロードしています…</translation>
-<translation id="674388916582496364">多くのウェブサイトでは、アクセスしたユーザーの興味 / 関心を記録して、ユーザー体験をパーソナライズするのが一般的です。そうしたウェブサイトでは、ユーザーの興味 / 関心についての情報を Chrome に保存する場合があります。</translation>
 <translation id="6746338529702829275">アカウントのデータを確認します</translation>
 <translation id="6751521182688001123">新しいタブをすばやく開きます。このショートカットを編集するには、長押ししてください。</translation>
 <translation id="6752130751133944215">新しいウィンドウを復元するには、アクティブなウィンドウとアクティブでないウィンドウの合計数を <ph name="MAX_WINDOW_COUNT_MINUS_ONE" /> 個以下に減らしてください。アクティブでないウィンドウは 6 か月後に削除されます。</translation>
@@ -1261,6 +1257,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="679956319013005046">自動入力サービスを設定するには、まず使用するサービスを <ph name="BEGIN_LINK" />Android 設定<ph name="END_LINK" />で追加します。</translation>
 <translation id="6802555630140434547">ウィンドウが閉じられます</translation>
 <translation id="6803791793483522764">通知の確認</translation>
+<translation id="6809470175540814047">シークレット ウィンドウで開く</translation>
 <translation id="6811034713472274749">ページを表示できます</translation>
 <translation id="6813359536773993594">{FILE_COUNT,plural, =1{画像、リストの 1 件の画像}other{画像、リストの # 件の画像}}</translation>
 <translation id="6813446258015311409">Chrome にログイン、の画面が開きました。</translation>
@@ -1604,7 +1601,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="8212799748012101103">タブ検索を開く</translation>
 <translation id="8215740705341534369">サイドシート</translation>
 <translation id="8218622182176210845">アカウントを管理</translation>
-<translation id="8221401890884589479">広告主のウェブサイトを訪れた後、その企業からの広告を希望しない場合はブロックすることができます。また、30 日以上経過した広告主のウェブサイトはリストから自動削除されます。<ph name="BEGIN_LINK" />詳細<ph name="END_LINK" /></translation>
 <translation id="8221985041778490865">閲覧履歴データを削除しています</translation>
 <translation id="8223642481677794647">フィードカード メニュー</translation>
 <translation id="82296173028782770">検索語句「<ph name="SEARCH_QUERY" />」を編集します</translation>
@@ -1729,7 +1725,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="8766529642647037772">このようなハイライト表示されたリンクを作成しますか？</translation>
 <translation id="8788265440806329501">ナビゲーション履歴は閉じられています</translation>
 <translation id="8790193082819560975">タップして、商品の購入オプションを新しいタブで検索します。</translation>
-<translation id="879027982257117598">たとえば、長距離ランニング用シューズを販売しているウェブサイトにアクセスすると、ウェブサイトが、そのユーザーはマラソンに興味があると判断するかもしれません。その後、ユーザーがアクセスした別のウェブサイトでは、最初にアクセスしたウェブサイトからの提案によってランニング用シューズの広告を表示することができます。</translation>
 <translation id="8798449543960971550">既読</translation>
 <translation id="8803526663383843427">有効にした場合</translation>
 <translation id="8803797964927776877">{ITEMS_COUNT,plural, =1{Google アカウント（<ph name="ACCOUNT_EMAIL" />）にアイテムを保存しました。}other{Google アカウント（<ph name="ACCOUNT_EMAIL" />）にアイテムを保存しました。}}</translation>
@@ -1816,6 +1811,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="9157212632995922070"><ph name="SITE_ETLD_PLUS_ONE" /> で続行するアカウントを選択してください</translation>
 <translation id="9158770349521403363">コンテンツのみ共有</translation>
 <translation id="9161172953291434881">このサイトを信頼してデータの使用を許可しますか？</translation>
+<translation id="916607977885256133">ピクチャー イン ピクチャー</translation>
 <translation id="9168847423516963845">アドレスバーを下部に移動</translation>
 <translation id="9169507124922466868">ナビゲーション履歴が半分開いています</translation>
 <translation id="9189607089796819144">「<ph name="FILE_NAME" />」（<ph name="FILE_SIZE" />）をダウンロードしますか？</translation>

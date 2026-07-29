@@ -6,6 +6,7 @@
 
 #include <optional>
 
+#include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/notreached.h"
 #include "base/uuid.h"
@@ -110,6 +111,12 @@ PersonalCollaborationDataSyncBridge::~PersonalCollaborationDataSyncBridge() {
 
 void PersonalCollaborationDataSyncBridge::AddObserver(Observer* observer) {
   observers_.AddObserver(observer);
+
+  // If the observer is added late and missed the init signal, send the signal
+  // now.
+  if (is_initialized_) {
+    observer->OnInitialized();
+  }
 }
 
 void PersonalCollaborationDataSyncBridge::RemoveObserver(Observer* observer) {
@@ -148,6 +155,7 @@ PersonalCollaborationDataSyncBridge::ApplyIncrementalSyncChanges(
   for (const std::unique_ptr<syncer::EntityChange>& change :
        entity_change_list) {
     const sync_pb::EntitySpecifics& entity_specifics = change->data().specifics;
+    const std::string& storage_key = change->storage_key();
 
     switch (change->type()) {
       case syncer::EntityChange::ACTION_ADD:
@@ -156,13 +164,19 @@ PersonalCollaborationDataSyncBridge::ApplyIncrementalSyncChanges(
         const sync_pb::SharedTabGroupAccountDataSpecifics& specifics =
             entity_specifics.shared_tab_group_account_data();
 
-        specifics_[change->storage_key()] = specifics;
-        batch->WriteData(change->storage_key(), specifics.SerializeAsString());
+        specifics_[storage_key] = specifics;
+        batch->WriteData(storage_key, specifics.SerializeAsString());
+        for (auto& observer : observers_) {
+          observer.OnEntityAddedOrUpdatedFromSync(storage_key, specifics);
+        }
         break;
       }
       case syncer::EntityChange::ACTION_DELETE:
-        specifics_.erase(change->storage_key());
-        batch->DeleteData(change->storage_key());
+        specifics_.erase(storage_key);
+        batch->DeleteData(storage_key);
+        for (auto& observer : observers_) {
+          observer.OnEntityRemovedFromSync(storage_key);
+        }
         break;
     }
   }
@@ -321,15 +335,61 @@ PersonalCollaborationDataSyncBridge::GetSpecificsForStorageKey(
              : std::nullopt;
 }
 
+std::optional<sync_pb::SharedTabGroupAccountDataSpecifics>
+PersonalCollaborationDataSyncBridge::GetTrimmedRemoteSpecifics(
+    const std::string& storage_key) const {
+  sync_pb::EntitySpecifics specifics =
+      change_processor()->GetPossiblyTrimmedRemoteSpecifics(storage_key);
+  if (specifics.has_shared_tab_group_account_data()) {
+    return specifics.shared_tab_group_account_data();
+  }
+  return std::nullopt;
+}
+
+const std::unordered_map<std::string,
+                         sync_pb::SharedTabGroupAccountDataSpecifics>&
+PersonalCollaborationDataSyncBridge::GetAllSpecifics() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return specifics_;
+}
+
 void PersonalCollaborationDataSyncBridge::CreateOrUpdateSpecifics(
     const std::string& storage_key,
     const sync_pb::SharedTabGroupAccountDataSpecifics& specifics) {
   if (!is_initialized_ || !change_processor()->IsTrackingMetadata()) {
-    // Ignore any changes before the model is successfully initialized.
+    // The model is not ready. Store in a pending list to be processed later.
+    pending_actions_.emplace_back(base::BindOnce(
+        &PersonalCollaborationDataSyncBridge::CreateOrUpdateSpecifics,
+        weak_ptr_factory_.GetWeakPtr(), storage_key, specifics));
     return;
   }
 
   WriteEntityToSync(storage_key, CreateEntityDataFromSpecifics(specifics));
+}
+
+void PersonalCollaborationDataSyncBridge::RemoveSpecifics(
+    const std::string& storage_key) {
+  if (!is_initialized_ || !change_processor()->IsTrackingMetadata()) {
+    // The model is not ready. Store in a pending list to be processed later.
+    pending_actions_.emplace_back(
+        base::BindOnce(&PersonalCollaborationDataSyncBridge::RemoveSpecifics,
+                       weak_ptr_factory_.GetWeakPtr(), storage_key));
+    return;
+  }
+
+  std::unique_ptr<syncer::DataTypeStore::WriteBatch> batch =
+      store_->CreateWriteBatch();
+
+  // Remove the entity from in-memory cache, storage, and sync.
+  specifics_.erase(storage_key);
+  batch->DeleteData(storage_key);
+  change_processor()->Delete(storage_key, syncer::DeletionOrigin::Unspecified(),
+                             batch->GetMetadataChangeList());
+  store_->CommitWriteBatch(
+      std::move(batch),
+      base::BindOnce(
+          &PersonalCollaborationDataSyncBridge::OnDataTypeStoreCommit,
+          weak_ptr_factory_.GetWeakPtr()));
 }
 
 void PersonalCollaborationDataSyncBridge::OnStoreCreated(
@@ -370,6 +430,10 @@ void PersonalCollaborationDataSyncBridge::OnReadAllDataAndMetadata(
   }
 
   is_initialized_ = true;
+  ProcessPendingActions();
+  for (auto& observer : observers_) {
+    observer.OnInitialized();
+  }
   change_processor()->ModelReadyToSync(std::move(metadata_batch));
 }
 
@@ -402,6 +466,15 @@ void PersonalCollaborationDataSyncBridge::WriteEntityToSync(
       base::BindOnce(
           &PersonalCollaborationDataSyncBridge::OnDataTypeStoreCommit,
           weak_ptr_factory_.GetWeakPtr()));
+}
+
+void PersonalCollaborationDataSyncBridge::ProcessPendingActions() {
+  DCHECK(is_initialized_);
+  while (!pending_actions_.empty()) {
+    auto callback = std::move(pending_actions_.front());
+    pending_actions_.pop_front();
+    std::move(callback).Run();
+  }
 }
 
 }  // namespace data_sharing::personal_collaboration_data

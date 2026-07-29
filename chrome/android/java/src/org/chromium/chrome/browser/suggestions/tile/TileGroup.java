@@ -143,6 +143,13 @@ public class TileGroup implements MostVisitedSites.Observer {
          */
         void onCustomTileCreation(Tile tile);
 
+        /**
+         * Called on Custom Tile reorder.
+         *
+         * @param newPos The new position of the selected tile that was moved.
+         */
+        void onCustomTileReorder(int newPos);
+
         /** Called on Custom Tile add, pin, unpin, unpin-undo, update. */
         void onCustomTileNonReorderChange();
     }
@@ -169,7 +176,10 @@ public class TileGroup implements MostVisitedSites.Observer {
 
     /** Delegate for handling interactions with tiles. */
     public interface TileInteractionDelegate
-            extends View.OnClickListener, View.OnLongClickListener, View.OnTouchListener {
+            extends View.OnClickListener,
+                    View.OnKeyListener,
+                    View.OnLongClickListener,
+                    View.OnTouchListener {
         /**
          * Set a runnable for click events on the tile. This is primarily used to track interaction
          * with the tile used by feature engagement purposes.
@@ -266,8 +276,6 @@ public class TileGroup implements MostVisitedSites.Observer {
     private final Observer mObserver;
     private final TileRenderer mTileRenderer;
     private final CustomTileModificationDelegate mCustomTileModificationDelegate;
-    // Used for TileInteractionDelegateImpl.
-    private final int mPrerenderDelay;
 
     /**
      * Tracks the tasks currently in flight.
@@ -306,7 +314,6 @@ public class TileGroup implements MostVisitedSites.Observer {
                             mTileGroupDelegate,
                             mTileDragDelegate,
                             mCustomTileModificationDelegate,
-                            mPrerenderDelay,
                             tile,
                             view);
                 }
@@ -356,8 +363,6 @@ public class TileGroup implements MostVisitedSites.Observer {
         mOfflineModelObserver = new OfflineModelObserver(offlinePageBridge);
         mUiDelegate.addDestructionObserver(mOfflineModelObserver);
         mCustomTileModificationDelegate = new CustomTileModificationDelegateImpl();
-
-        mPrerenderDelay = 0;
     }
 
     @Override
@@ -755,10 +760,15 @@ public class TileGroup implements MostVisitedSites.Observer {
         private boolean reorderCustomLinkAndUpdateOnSuccess(
                 GURL url, int newPos, Runnable onSuccessCallback) {
             // On success, onSiteSuggestionsAvailable() triggers.
+            Runnable newOnSuccessCallback =
+                    () -> {
+                        onSuccessCallback.run();
+                        mObserver.onCustomTileReorder(newPos);
+                    };
+            mPendingChanges.taskToRunAfterTileReload.add(newOnSuccessCallback);
             boolean success = mTileGroupDelegate.reorderCustomLink(url, newPos);
-            mPendingChanges.taskToRunAfterTileReload.add(onSuccessCallback);
             if (!success) {
-                mPendingChanges.taskToRunAfterTileReload.removeLastOccurrence(onSuccessCallback);
+                mPendingChanges.taskToRunAfterTileReload.removeLastOccurrence(newOnSuccessCallback);
             }
             return success;
         }

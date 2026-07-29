@@ -507,6 +507,20 @@ class IntegrationTest : public ::testing::Test {
     test_commands_->RunHandoff(app_id);
   }
 
+  void InstallScheduledTask(const std::string& task_name,
+                            bool use_task_subfolders) {
+    test_commands_->InstallScheduledTask(task_name, use_task_subfolders);
+  }
+  void IsScheduledTaskRegisteredFromMedium(const std::string& task_name,
+                                           bool use_task_subfolders) {
+    test_commands_->IsScheduledTaskRegisteredFromMedium(task_name,
+                                                        use_task_subfolders);
+  }
+  void DeleteScheduledTask(const std::string& task_name,
+                           bool use_task_subfolders) {
+    test_commands_->DeleteScheduledTask(task_name, use_task_subfolders);
+  }
+
 #endif  // BUILDFLAG(IS_WIN)
 
   void InstallAppViaService(
@@ -1339,6 +1353,13 @@ TEST_F(IntegrationTest, SelfUpdateAfterEulaAcceptedViaRegistry) {
   ASSERT_NO_FATAL_FAILURE(ExpectUninstallPing(&test_server));
   ASSERT_NO_FATAL_FAILURE(Uninstall());
 }
+
+TEST_F(IntegrationTest, TaskSchedulerHighToMedium) {
+  ASSERT_NO_FATAL_FAILURE(InstallScheduledTask("Task1", true));
+  ASSERT_NO_FATAL_FAILURE(IsScheduledTaskRegisteredFromMedium("Task1", true));
+  ASSERT_NO_FATAL_FAILURE(DeleteScheduledTask("Task1", true));
+}
+
 #endif  // BUILDFLAG(IS_WIN)
 
 #if !BUILDFLAG(IS_LINUX)
@@ -2883,20 +2904,6 @@ TEST_F(IntegrationTestDeviceManagement, QualifyUpdaterWhenUpdateDisabled) {
   ExpectInstallEvent(*test_server_, kApp1.appid);
   ASSERT_NO_FATAL_FAILURE(InstallTestApp(kApp1, /*install_v1=*/true));
 
-// Register the companion app, to avoid the qualifying app from registering it
-// for the first time. Once GetRealUpdaterLowerVersions.back() is new enough,
-// the old updater won't send an install ping for the registration and this
-// block can be safely deleted. If this started failing after an autoroll,
-// it's probably time to delete this block.
-#if BUILDFLAG(IS_MAC)
-  ExpectInstallEvent(*test_server_, enterprise_companion::kCompanionAppId);
-  RegistrationRequest registration;
-  registration.app_id = enterprise_companion::kCompanionAppId;
-  registration.version = base::Version("0.0.0.2919");
-  registration.existence_checker_path = base::FilePath::FromUTF8Unsafe("/tmp");
-  ASSERT_NO_FATAL_FAILURE(test_commands_->RegisterApp(registration));
-#endif
-
   ASSERT_NO_FATAL_FAILURE(Install());
   ASSERT_NO_FATAL_FAILURE(ExpectInstalled());
   ASSERT_TRUE(WaitForUpdaterExit());
@@ -2948,20 +2955,6 @@ TEST_F(IntegrationTestDeviceManagement,
   // does not uninstall all updaters due to appearing unused.
   ExpectInstallEvent(*test_server_, kApp1.appid);
   ASSERT_NO_FATAL_FAILURE(InstallTestApp(kApp1, /*install_v1=*/true));
-
-// Register the companion app, to avoid the qualifying app from registering it
-// for the first time. Once GetRealUpdaterLowerVersions.back() is new enough,
-// the old updater won't send an install ping for the registration and this
-// block can be safely deleted. If this started failing after an autoroll,
-// it's probably time to delete this block.
-#if BUILDFLAG(IS_MAC)
-  ExpectInstallEvent(*test_server_, enterprise_companion::kCompanionAppId);
-  RegistrationRequest registration;
-  registration.app_id = enterprise_companion::kCompanionAppId;
-  registration.version = base::Version("0.0.0.2919");
-  registration.existence_checker_path = base::FilePath::FromUTF8Unsafe("/tmp");
-  ASSERT_NO_FATAL_FAILURE(test_commands_->RegisterApp(registration));
-#endif
 
   ASSERT_NO_FATAL_FAILURE(Install());
   ASSERT_NO_FATAL_FAILURE(ExpectInstalled());

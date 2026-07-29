@@ -84,6 +84,7 @@ BASE_DECLARE_FEATURE(kBrowserControlsEarlyResize);
 BASE_DECLARE_FEATURE(kCacheActivityTaskID);
 BASE_DECLARE_FEATURE(kCacheIsMultiInstanceApi31Enabled);
 BASE_DECLARE_FEATURE(kCastDeviceFilter);
+BASE_DECLARE_FEATURE(kCleanupLegacyTabState);
 BASE_DECLARE_FEATURE(kCCTAdaptiveButton);
 BASE_DECLARE_FEATURE(kCCTAdaptiveButtonTestSwitch);
 BASE_DECLARE_FEATURE(kCCTAuthTab);
@@ -107,7 +108,6 @@ BASE_DECLARE_FEATURE(kCCTGoogleBottomBarVariantLayouts);
 BASE_DECLARE_FEATURE(kCCTOpenInBrowserButtonIfAllowedByEmbedder);
 BASE_DECLARE_FEATURE(kCCTOpenInBrowserButtonIfEnabledByEmbedder);
 BASE_DECLARE_FEATURE(kCCTPredictiveBackGesture);
-BASE_DECLARE_FEATURE(kCCTPrewarmTab);
 BASE_DECLARE_FEATURE(kCCTRealtimeEngagementEventsInBackground);
 BASE_DECLARE_FEATURE(kCCTReportParallelRequestStatus);
 BASE_DECLARE_FEATURE(kCCTReportPrerenderEvents);
@@ -241,7 +241,6 @@ BASE_DECLARE_FEATURE(kShowCloseAllIncognitoTabsButton);
 BASE_DECLARE_FEATURE(kSmallerTabStripTitleLimit);
 BASE_DECLARE_FEATURE(kSubmenusTabContextMenuLffTabStrip);
 BASE_DECLARE_FEATURE(kSuppressToolbarCapturesAtGestureEnd);
-BASE_DECLARE_FEATURE(kSwapNewTabAndNewTabInGroupAndroid);
 BASE_DECLARE_FEATURE(kTabArchivalDragDropAndroid);
 BASE_DECLARE_FEATURE(kTabClosureMethodRefactor);
 BASE_DECLARE_FEATURE(kTabCollectionAndroid);
@@ -275,6 +274,7 @@ BASE_DECLARE_FEATURE(kTouchToSearchCallout);
 BASE_DECLARE_FEATURE(kTraceBinderIpc);
 BASE_DECLARE_FEATURE(kStartSurfaceReturnTime);
 BASE_DECLARE_FEATURE(kUmaBackgroundSessions);
+BASE_DECLARE_FEATURE(kUmaSessionCorrectnessFixes);
 BASE_DECLARE_FEATURE(kUpdateCompositorForSurfaceControl);
 BASE_DECLARE_FEATURE(kUseActivityManagerForTabActivation);
 BASE_DECLARE_FEATURE(kUseInitialNetworkStateAtStartup);
@@ -301,11 +301,6 @@ constexpr base::FeatureParam<size_t> kAuxiliarySearchMaxTabsCountParam(
     &kAuxiliarySearchDonation,
     "auxiliary_search_max_donation_tab",
     100);
-
-constexpr base::FeatureParam<bool> kEdgeToEdgeBottomChinDebugParam(
-    &kEdgeToEdgeBottomChin,
-    "debug_bottom_chin",
-    /*default_value=*/false);
 
 constexpr base::FeatureParam<bool> kCCTNavigationalPrefetchHoldback(
     &kCCTNavigationalPrefetch,

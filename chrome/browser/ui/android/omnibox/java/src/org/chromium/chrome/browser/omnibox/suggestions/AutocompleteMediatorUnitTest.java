@@ -13,6 +13,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
@@ -51,8 +52,8 @@ import org.robolectric.shadows.ShadowPausedSystemClock;
 import org.chromium.base.ActivityState;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
@@ -98,6 +99,7 @@ import org.chromium.url.JUnitTestGURLs;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -152,7 +154,7 @@ public class AutocompleteMediatorUnitTest {
     private AutocompleteResult mAutocompleteResult;
     private ModelList mSuggestionModels;
     private ObservableSupplierImpl<TabWindowManager> mTabWindowManagerSupplier;
-    private Supplier<@ControlsPosition Integer> mToolbarPositionSupplier;
+    private ObservableSupplier<@ControlsPosition Integer> mToolbarPositionSupplier;
     private Context mContext;
 
     // Interface abstracting calls to CachedZeroSuggestionsManager, making interactions with that
@@ -190,7 +192,7 @@ public class AutocompleteMediatorUnitTest {
         LargeIconBridgeJni.setInstanceForTesting(mLargeIconBridgeJniMock);
         OmniboxActionFactoryJni.setInstanceForTesting(mActionFactoryJni);
         AutocompleteControllerJni.setInstanceForTesting(mControllerJniMock);
-        mToolbarPositionSupplier = () -> ControlsPosition.TOP;
+        mToolbarPositionSupplier = new ObservableSupplierImpl(ControlsPosition.TOP);
 
         lenient().doReturn(mAutocompleteController).when(mControllerJniMock).getForProfile(any());
 
@@ -201,6 +203,7 @@ public class AutocompleteMediatorUnitTest {
                         .build();
 
         mTabWindowManagerSupplier = new ObservableSupplierImpl<>();
+        lenient().doAnswer(inv -> Collections.emptyList().iterator()).when(mTabModel).iterator();
         lenient().doReturn(mInsetObserver).when(mWindowAndroid).getInsetObserver();
         lenient().doReturn(mWindow).when(mWindowAndroid).getWindow();
         lenient().doReturn(mDecorView).when(mWindow).getDecorView();
@@ -1045,6 +1048,7 @@ public class AutocompleteMediatorUnitTest {
         doReturn(ActivityState.RESUMED).when(mMockWindowAndroid).getActivityState();
         doReturn(mTabModel).when(mTabManager).getTabModelForTab(any());
         doReturn(1).when(mTabModel).getCount();
+        doAnswer(inv -> List.of(mTab).iterator()).when(mTabModel).iterator();
         doReturn(mTab).when(mTabModel).getTabAt(anyInt());
         assertTrue(mMediator.maybeSwitchToTab(null));
     }

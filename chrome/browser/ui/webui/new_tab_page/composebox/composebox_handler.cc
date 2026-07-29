@@ -34,8 +34,7 @@ ComposeboxOmniboxClient::~ComposeboxOmniboxClient() = default;
 
 metrics::OmniboxEventProto::PageClassification
 ComposeboxOmniboxClient::GetPageClassification(bool is_prefetch) const {
-  // TODO(crbug.com/434711904): Create new page classification
-  return metrics::OmniboxEventProto::NTP_REALBOX;
+  return metrics::OmniboxEventProto::NTP_COMPOSEBOX;
 }
 
 }  // namespace
@@ -102,6 +101,11 @@ void ComposeboxHandler::SubmitQuery(const std::string& query_text,
       SessionState::kNavigationOccurred);
   metrics_recorder_->RecordQueryMetrics(
       query_text.size(), query_controller_->num_files_in_request());
+}
+
+void ComposeboxHandler::FocusChanged(bool focused) {
+  // Unimplemented. Currently the composebox session is tied to when it is
+  // connected/disconnected from the DOM, so this is not needed.
 }
 
 void ComposeboxHandler::OpenUrl(GURL url,

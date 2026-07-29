@@ -35,6 +35,7 @@ chromium-metrics-reviews@google.com.
 <!-- LINT.IfChange(TriggerTypeAndEagerness) -->
 
 <variants name="TriggerTypeAndEagerness">
+  <variant name="Embedder_BookmarkBar" summary="Embedder trigger, BookmarkBar"/>
   <variant name="Embedder_ChromeCustomTabs"
       summary="Embedder trigger, ChromeCustomTabs"/>
   <variant name="Embedder_DefaultSearchEngine"
@@ -75,7 +76,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Prefetch.BlockUntilHeadDuration.PerMatchingCandidate.{PrerenderOrNonPrerender}.{WasServed}.{TriggerTypeAndEagerness}"
-    units="ms" expires_after="2025-12-21">
+    units="ms" expires_after="2026-02-22">
   <owner>kenoss@chromium.org</owner>
   <owner>taiyo@chromium.org</owner>
   <owner>chrome-loading@chromium.org</owner>
@@ -104,7 +105,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Prefetch.BlockUntilHeadDuration.PerMatchingCandidate.{WasServed}.{TriggerTypeAndEagerness}"
-    units="ms" expires_after="2025-12-21">
+    units="ms" expires_after="2026-02-22">
   <owner>kenoss@chromium.org</owner>
   <owner>taiyo@chromium.org</owner>
   <owner>chrome-loading@chromium.org</owner>
@@ -240,6 +241,35 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram
+    name="Prefetch.PrefetchContainer.PrefetchMatchMissedToPrefetchStarted.{TriggerTypeAndEagerness}"
+    units="ms" expires_after="2025-12-21">
+  <owner>wbjacksonjr@chromium.org</owner>
+  <owner>taiyo@chromium.org</owner>
+  <owner>chrome-loading@chromium.org</owner>
+  <summary>
+    Records the time delta between a missed prefetch matching and a subsequent
+    prefetch for the same resource. This is logged when a prefetch request is
+    sent to the network for a URL that was recently navigated to by the user and
+    that could have been served by the prefetch if it had been available. A
+    smaller time delta indicates a potential race condition between the
+    navigation and the prefetch. This metric is logged in milliseconds and is
+    only recorded against the latest navigation that could've matched with the
+    prefetch.
+
+    Note that this is calculated from non-SW-controlled `PrefetchMatchResolver`
+    i.e. it is calculated for each redirect, and it ignores SW-controlled
+    `PrefetchMatchResolver` case. Also, this information of being unmatched is
+    stored in an LRU with a limited size, so older mismatches might not be taken
+    into account. Please see
+    `PrefetchService::recent_unmatched_navigated_keys_for_metrics_` for more
+    details.
+
+    This histogram is only recorded for prefetches of {TriggerTypeAndEagerness}.
+  </summary>
+  <token key="TriggerTypeAndEagerness" variants="TriggerTypeAndEagerness"/>
+</histogram>
+
+<histogram
     name="Prefetch.PrefetchContainer.PrefetchStartedToHeaderDeterminedSuccessfully.{TriggerTypeAndEagerness}"
     units="ms" expires_after="2026-01-11">
   <owner>taiyo@chromium.org</owner>
@@ -318,7 +348,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Prefetch.PrefetchMatchingBlockedNavigation.PerMatchingCandidate.{PrerenderOrNonPrerender}.{TriggerTypeAndEagerness}"
-    enum="Boolean" expires_after="2025-12-14">
+    enum="Boolean" expires_after="2026-02-22">
   <owner>kouhei@chromium.org</owner>
   <owner>kenoss@chromium.org</owner>
   <owner>taiyo@chromium.org</owner>
@@ -345,7 +375,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Prefetch.PrefetchMatchingBlockedNavigation.PerMatchingCandidate.{TriggerTypeAndEagerness}"
-    enum="Boolean" expires_after="2025-12-14">
+    enum="Boolean" expires_after="2026-02-22">
   <owner>kouhei@chromium.org</owner>
   <owner>kenoss@chromium.org</owner>
   <owner>taiyo@chromium.org</owner>
@@ -690,7 +720,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PrefetchProxy.Prefetch.Mainframe.RespCode"
-    enum="HttpResponseCode" expires_after="2025-12-14">
+    enum="HttpResponseCode" expires_after="2026-02-15">
   <owner>kouhei@chromium.org</owner>
   <owner>chrome-loading@chromium.org</owner>
   <summary>

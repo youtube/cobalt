@@ -33,6 +33,7 @@ import org.chromium.services.network.NetworkServiceFeatures;
 import org.chromium.services.tracing.TracingServiceFeatures;
 import org.chromium.ui.accessibility.AccessibilityFeatures;
 import org.chromium.ui.base.UiAndroidFeatures;
+import org.chromium.ui.base.UiBaseFeatures;
 import org.chromium.ui.gfx.GfxSwitches;
 
 /**
@@ -309,6 +310,10 @@ public final class ProductionSupportedFlagList {
                 AutofillFeatures.AUTOFILL_SUPPORT_SPLIT_ZIP_CODE,
                 "When enabled, two-part zip codes are splitted into two fields while filling and"
                         + " imported from two adjacent fields."),
+        Flag.baseFeature(
+                AutofillFeatures.AUTOFILL_ZIP_CODE_VALIDATION_AND_MERGING,
+                "When enabled, zip code validation is extended to support more countries and new"
+                        + " zip code merging logic applied."),
         Flag.baseFeature(
                 AutofillFeatures.AUTOFILL_USE_NEGATIVE_PATTERN_FOR_ALL_ATTRIBUTES,
                 "When enabled, parser won't try to match other attributes if any of the negative"
@@ -699,6 +704,7 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(
                 BaseFeatures.PARTITION_ALLOC_SCHEDULER_LOOP_QUARANTINE,
                 "Enables PartitionAlloc's FreeFlags::kSchedulerLoopQuarantine"),
+        Flag.baseFeature("PartitionAllocSchedulerLoopQuarantineTaskObserverForBrowserUIThread"),
         Flag.baseFeature(
                 BaseFeatures.POST_POWER_MONITOR_BROADCAST_RECEIVER_INIT_TO_BACKGROUND,
                 "If enabled, it posts PowerMonitor broadcast receiver init to a background"
@@ -741,6 +747,9 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(
                 MediaFeatures.LIBAOM_USE_CHROME_THREADS,
                 "Attaches libaom threads to the chromium thread system."),
+        Flag.baseFeature(
+                MediaFeatures.PAUSE_MUTED_BACKGROUND_AUDIO,
+                "Prevents inaudble audio from decoding in background tabs (experimental)."),
         Flag.baseFeature(
                 BlinkFeatures.BACK_FORWARD_CACHE_SEND_NOT_RESTORED_REASONS,
                 "Expose NotRestoredReasons via PerformanceNavigationTiming API."),
@@ -1057,6 +1066,10 @@ public final class ProductionSupportedFlagList {
                     + " asynchronous.\n"
                     + " Note: This also enables the same behaviour as WebViewUseStartupTasksLogic"
                     + " and WebViewUseStartupTasksLogicP2, with minor additions."),
+        Flag.commandLine(
+                AwSwitches.STARTUP_NON_BLOCKING_WEBVIEW_CONSTRUCTOR,
+                "When enabled, WebView constructor will not block on WebView process global"
+                        + " startup"),
         Flag.baseFeature(
                 AccessibilityFeatures.ACCESSIBILITY_TEXT_FORMATTING,
                 "Enables text formatting information to be surfaced as Spans on"
@@ -1095,10 +1108,6 @@ public final class ProductionSupportedFlagList {
                 BaseFeatures.UPDATE_STATE_BEFORE_UNBINDING,
                 "Update child process binding state before unbinding."),
         Flag.baseFeature(
-                ContentFeatures.GROUP_REBINDING_FOR_GROUP_IMPORTANCE,
-                "Apply consecutive service group importance changes with a single service rebind"
-                        + " call."),
-        Flag.baseFeature(
                 BaseFeatures.USE_SHARED_REBIND_SERVICE_CONNECTION,
                 "Use a shared service connection to apply service group importance changes."),
         Flag.baseFeature(
@@ -1115,6 +1124,10 @@ public final class ProductionSupportedFlagList {
                 AwSwitches.WEBVIEW_USE_BACKGROUND_THREAD_FOR_GMS,
                 "Tells the Google Service, GMS, to use a background thread for its Service bind and"
                         + " connection calls."),
+        Flag.baseFeature(
+                UiBaseFeatures.SEND_EMPTY_GESTURE_SCROLL_UPDATE,
+                "Send GestureScrollUpdates together with TouchMoves, including empty GSUs for 0"
+                        + " delta moves."),
         // Add new commandline switches and features above. The final entry should have a
         // trailing comma for cleaner diffs.
     };

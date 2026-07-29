@@ -6,6 +6,7 @@
 #define IOS_CHROME_BROWSER_HOME_CUSTOMIZATION_COORDINATOR_HOME_CUSTOMIZATION_BACKGROUND_PICKER_ACTION_SHEET_COORDINATOR_H_
 
 @protocol HomeCustomizationSearchEngineLogoMediatorProvider;
+@protocol HomeCustomizationBackgroundPickerPresentationDelegate;
 
 #import "ios/chrome/browser/shared/coordinator/alert/action_sheet_coordinator.h"
 
@@ -17,11 +18,17 @@
 
 // Initializes the background picker action sheet coordinator.
 - (instancetype)initWithBaseViewController:(UIViewController*)viewController
-                                   browser:(Browser*)browser;
+                                   browser:(Browser*)browser
+                                sourceView:(UIView*)sourceView;
 
 // A provider responsible for supplying a logo vendor object.
 @property(nonatomic, weak) id<HomeCustomizationSearchEngineLogoMediatorProvider>
     searchEngineLogoMediatorProvider;
+
+// Delegate to inform about presentation events.
+@property(nonatomic, weak)
+    id<HomeCustomizationBackgroundPickerPresentationDelegate>
+        presentationDelegate;
 
 @end
 

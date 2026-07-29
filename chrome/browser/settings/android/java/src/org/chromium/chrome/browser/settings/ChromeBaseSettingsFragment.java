@@ -49,8 +49,6 @@ public abstract class ChromeBaseSettingsFragment extends PreferenceFragmentCompa
      */
     private @Nullable SettingsItemBackgroundDecoration mItemBackgroundDecoration;
 
-    protected @Nullable SettingsStylingController mStylingController;
-
     @NonNull
     @Override
     public RecyclerView onCreateRecyclerView(
@@ -61,10 +59,7 @@ public abstract class ChromeBaseSettingsFragment extends PreferenceFragmentCompa
                 super.onCreateRecyclerView(inflater, parent, savedInstanceState);
 
         if (ChromeFeatureList.sAndroidSettingsContainment.isEnabled()) {
-            mItemBackgroundDecoration = new SettingsItemBackgroundDecoration(getContext());
-            mStylingController =
-                    new SettingsStylingController(
-                            Objects.requireNonNull(getContext()), getPreferenceScreen());
+            mItemBackgroundDecoration = new SettingsItemBackgroundDecoration();
             recyclerView.addItemDecoration(mItemBackgroundDecoration);
         }
         return recyclerView;
@@ -83,9 +78,13 @@ public abstract class ChromeBaseSettingsFragment extends PreferenceFragmentCompa
     protected void updateBackgrounds(RecyclerView recyclerView) {
         recyclerView.post(
                 () -> {
-                    if (mItemBackgroundDecoration == null || mStylingController == null) return;
-                    mItemBackgroundDecoration.updateBackgroundStyleDetails(
-                            mStylingController.generateBackgroundStyleDetails());
+                    if (mItemBackgroundDecoration == null) return;
+                    SettingsStylingController stylingController =
+                            new SettingsStylingController(
+                                    Objects.requireNonNull(getContext()), getPreferenceScreen());
+
+                    mItemBackgroundDecoration.updatePreferenceStyles(
+                            stylingController.generatePreferenceStyles());
                     recyclerView.invalidateItemDecorations();
                 });
     }

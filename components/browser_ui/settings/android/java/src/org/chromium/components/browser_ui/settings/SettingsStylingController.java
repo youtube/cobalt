@@ -4,6 +4,9 @@
 
 package org.chromium.components.browser_ui.settings;
 
+import static org.chromium.components.browser_ui.settings.CustomStyledPreference.DEFAULT_COLOR;
+import static org.chromium.components.browser_ui.settings.CustomStyledPreference.DEFAULT_MARGIN;
+
 import android.content.Context;
 
 import androidx.annotation.NonNull;
@@ -13,29 +16,22 @@ import androidx.preference.PreferenceGroup;
 import androidx.preference.PreferenceScreen;
 
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.components.browser_ui.settings.CustomStyledPreference.BackgroundStyle;
+import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 
 import java.util.ArrayList;
 
 /** Controller to assign styling to preferences in a settings screen. */
 @NullMarked
 public class SettingsStylingController {
-    /** A class that holds the background style details for a preference screen. */
-    public static class BackgroundStyleDetails {
-        public final float topRadius;
-        public final float bottomRadius;
-
-        /** An empty style with no background. */
-        public static final BackgroundStyleDetails EMPTY = new BackgroundStyleDetails(0, 0);
-
-        private BackgroundStyleDetails(float topRadius, float bottomRadius) {
-            this.topRadius = topRadius;
-            this.bottomRadius = bottomRadius;
-        }
-    }
 
     private final PreferenceScreen mPreferenceScreen;
-    private final float mOuterRadius;
+    private final float mDefaultRadius;
     private final float mInnerRadius;
+    private final int mDefaultVerticalMargin;
+    private final int mDefaultHorizontalMargin;
+    private final int mSectionBottomAdditionalMargin;
+    private final int mDefaultBackgroundColor;
 
     /**
      * Constructor for the styling controller.
@@ -46,27 +42,37 @@ public class SettingsStylingController {
     public SettingsStylingController(
             @NonNull Context context, @NonNull PreferenceScreen preferenceScreen) {
         mPreferenceScreen = preferenceScreen;
-        mOuterRadius =
+        mDefaultRadius =
                 context.getResources()
-                        .getDimensionPixelSize(R.dimen.settings_item_rounded_corner_radius_outer);
+                        .getDimensionPixelSize(R.dimen.settings_item_rounded_corner_radius_default);
         mInnerRadius =
                 context.getResources()
                         .getDimensionPixelSize(R.dimen.settings_item_rounded_corner_radius_inner);
+        mDefaultVerticalMargin =
+                context.getResources().getDimensionPixelSize(R.dimen.settings_item_vertical_margin);
+        mDefaultHorizontalMargin =
+                context.getResources()
+                        .getDimensionPixelSize(R.dimen.settings_item_horizontal_margin);
+        mSectionBottomAdditionalMargin =
+                context.getResources()
+                        .getDimensionPixelSize(R.dimen.settings_section_bottom_margin);
+        mDefaultBackgroundColor =
+                SemanticColorUtils.getColorSurfaceContainerLowest(mPreferenceScreen.getContext());
     }
 
     /**
-     * Traverses the preference screen and returns a list of background style details for each
-     * visible preference.
+     * Traverses the preference screen and returns a list of preference styles for each visible
+     * preference.
      *
-     * @return A list of {@link BackgroundStyleDetails} objects.
+     * @return A list of {@link PreferenceStyle} objects.
      */
-    public ArrayList<BackgroundStyleDetails> generateBackgroundStyleDetails() {
+    public ArrayList<PreferenceStyle> generatePreferenceStyles() {
         ArrayList<Preference> visiblePreferences = getVisiblePreferences();
-        ArrayList<BackgroundStyleDetails> backgroundStyles = new ArrayList<>();
+        ArrayList<PreferenceStyle> preferenceStyles = new ArrayList<>();
         for (int i = 0; i < visiblePreferences.size(); i++) {
-            backgroundStyles.add(getBackgroundStyleDetailsForPosition(visiblePreferences, i));
+            preferenceStyles.add(getPreferenceStyleForPosition(visiblePreferences, i));
         }
-        return backgroundStyles;
+        return preferenceStyles;
     }
 
     private ArrayList<Preference> getVisiblePreferences() {
@@ -102,22 +108,22 @@ public class SettingsStylingController {
     }
 
     /**
-     * Returns whether the given preference should be excluded from background styling decoration.
+     * Returns whether the given preference requires custom styling.
      *
      * @param preference The preference to check.
-     * @return Whether to skip decoration.
+     * @return Whether the preference has custom styling.
      */
-    private boolean shouldSkipDecoration(Preference preference) {
+    private boolean hasCustomStyling(Preference preference) {
         return preference instanceof PreferenceCategory
-                || preference instanceof TextMessagePreference;
+                || preference instanceof CustomStyledPreference;
     }
 
-    private @NonNull BackgroundStyleDetails getBackgroundStyleDetailsForPosition(
+    private @NonNull PreferenceStyle getPreferenceStyleForPosition(
             ArrayList<Preference> visiblePreferences, int position) {
-
         Preference currentPref = visiblePreferences.get(position);
-        if (shouldSkipDecoration(currentPref)) {
-            return BackgroundStyleDetails.EMPTY;
+
+        if (hasCustomStyling(currentPref)) {
+            return getPreferenceStyleForCustomPreference(currentPref);
         }
 
         Preference prefAbove = (position > 0) ? visiblePreferences.get(position - 1) : null;
@@ -126,17 +132,68 @@ public class SettingsStylingController {
                         ? visiblePreferences.get(position + 1)
                         : null;
 
-        boolean isTop = (prefAbove == null) || shouldSkipDecoration(prefAbove);
-        boolean isBottom = (prefBelow == null) || shouldSkipDecoration(prefBelow);
+        float topRadius = mDefaultRadius;
+        float bottomRadius = mDefaultRadius;
+        int bottomMargin = mDefaultVerticalMargin;
+
+        boolean isTop = (prefAbove == null) || hasCustomStyling(prefAbove);
+        boolean isBottom = (prefBelow == null) || hasCustomStyling(prefBelow);
 
         if (isTop && isBottom) {
-            return new BackgroundStyleDetails(mOuterRadius, mOuterRadius);
+            // Standalone items have an additional bottom margin
+            bottomMargin = mSectionBottomAdditionalMargin + mDefaultVerticalMargin;
         } else if (isTop) {
-            return new BackgroundStyleDetails(mOuterRadius, mInnerRadius);
+            bottomRadius = mInnerRadius;
         } else if (isBottom) {
-            return new BackgroundStyleDetails(mInnerRadius, mOuterRadius);
+            // Items at the end of a section have an additional bottom margin
+            bottomMargin = mSectionBottomAdditionalMargin + mDefaultVerticalMargin;
+            topRadius = mInnerRadius;
         } else {
-            return new BackgroundStyleDetails(mInnerRadius, mInnerRadius);
+            topRadius = mInnerRadius;
+            bottomRadius = mInnerRadius;
         }
+        return new PreferenceStyle.Builder()
+                .setTopRadius(topRadius)
+                .setBottomRadius(bottomRadius)
+                .setTopMargin(mDefaultVerticalMargin)
+                .setBottomMargin(bottomMargin)
+                .setHorizontalMargin(mDefaultHorizontalMargin)
+                .setBackgroundColor(mDefaultBackgroundColor)
+                .build();
+    }
+
+    private PreferenceStyle getPreferenceStyleForCustomPreference(Preference preference) {
+        if (preference instanceof PreferenceCategory) {
+            return PreferenceStyle.EMPTY;
+        } else if (preference instanceof CustomStyledPreference customStyledPreference) {
+            if (customStyledPreference.getCustomBackgroundStyle() == BackgroundStyle.CARD) {
+                int topMargin = customStyledPreference.getCustomTopMargin();
+                if (topMargin == DEFAULT_MARGIN) topMargin = mDefaultVerticalMargin;
+
+                int bottomMargin = customStyledPreference.getCustomBottomMargin();
+                if (bottomMargin == DEFAULT_MARGIN) {
+                    bottomMargin = mDefaultVerticalMargin + mSectionBottomAdditionalMargin;
+                }
+
+                int horizontalMargin = customStyledPreference.getCustomHorizontalMargin();
+                if (horizontalMargin == DEFAULT_MARGIN) {
+                    horizontalMargin = mDefaultHorizontalMargin;
+                }
+
+                int backgroundColor = customStyledPreference.getCustomBackgroundColor();
+                if (backgroundColor == DEFAULT_COLOR) backgroundColor = mDefaultBackgroundColor;
+
+                return new PreferenceStyle.Builder()
+                        .setTopRadius(mDefaultRadius)
+                        .setBottomRadius(mDefaultRadius)
+                        .setTopMargin(topMargin)
+                        .setBottomMargin(bottomMargin)
+                        .setHorizontalMargin(horizontalMargin)
+                        .setBackgroundColor(backgroundColor)
+                        .build();
+            }
+        }
+
+        return PreferenceStyle.EMPTY;
     }
 }

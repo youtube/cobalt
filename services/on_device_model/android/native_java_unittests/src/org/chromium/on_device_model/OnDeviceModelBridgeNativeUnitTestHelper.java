@@ -27,6 +27,9 @@ public class OnDeviceModelBridgeNativeUnitTestHelper {
         // If true, the onComplete callback will be called asynchronously through
         // resumeOnCompleteCallback. This field should be set before generate() is called.
         private boolean mCompleteAsync;
+        // If true, the callbacks will be called asynchronously through a different thread. This
+        // field should be set before generate() is called.
+        private boolean mCallbackOnDifferentThread;
         private @GenerateResult int mGenerateResult;
         private boolean mNativeDestroyed;
         // Below are the params received in the generate() call.
@@ -72,6 +75,15 @@ public class OnDeviceModelBridgeNativeUnitTestHelper {
                         break;
                 }
             }
+            if (mCallbackOnDifferentThread) {
+                new Thread(
+                                () -> {
+                                    responder.onResponse(sb.toString());
+                                    responder.onComplete(mGenerateResult);
+                                })
+                        .start();
+                return;
+            }
             responder.onResponse(sb.toString());
             if (mCompleteAsync) {
                 mResponder = responder;
@@ -101,6 +113,9 @@ public class OnDeviceModelBridgeNativeUnitTestHelper {
     public static class MockAiCoreModelDownloaderBackend implements AiCoreModelDownloaderBackend {
         private DownloaderResponder mResponder;
         private boolean mNativeDestroyed;
+        // If true, the callbacks will be called asynchronously through a different thread. This
+        // field should be set before startDownload() is called.
+        private boolean mCallbackOnDifferentThread;
 
         @Override
         public void startDownload(DownloaderResponder responder) {
@@ -114,13 +129,25 @@ public class OnDeviceModelBridgeNativeUnitTestHelper {
 
         public void onAvailable(String name, String version) {
             if (!mNativeDestroyed) {
-                mResponder.onAvailable(name, version);
+                if (mCallbackOnDifferentThread) {
+                    new Thread(() -> mResponder.onAvailable(name, version)).start();
+                } else {
+                    mResponder.onAvailable(name, version);
+                }
             }
         }
 
         public void onUnavailable(@DownloadFailureReason int reason) {
             if (!mNativeDestroyed) {
-                mResponder.onUnavailable(reason);
+                if (mCallbackOnDifferentThread) {
+                    new Thread(
+                                    () -> {
+                                        mResponder.onUnavailable(reason);
+                                    })
+                            .start();
+                } else {
+                    mResponder.onUnavailable(reason);
+                }
             }
         }
     }
@@ -180,6 +207,11 @@ public class OnDeviceModelBridgeNativeUnitTestHelper {
     }
 
     @CalledByNative
+    public void setCallbackOnDifferentThread() {
+        mMockAiCoreFactory.mSessionBackend.mCallbackOnDifferentThread = true;
+    }
+
+    @CalledByNative
     public void resumeOnCompleteCallback() {
         mMockAiCoreFactory.mSessionBackend.resumeOnCompleteCallback();
     }
@@ -187,6 +219,11 @@ public class OnDeviceModelBridgeNativeUnitTestHelper {
     @CalledByNative
     public void setGenerateResult(int generateResult) {
         mMockAiCoreFactory.mSessionBackend.mGenerateResult = generateResult;
+    }
+
+    @CalledByNative
+    public void setDownloaderCallbackOnDifferentThread() {
+        mMockAiCoreFactory.mDownloaderBackend.mCallbackOnDifferentThread = true;
     }
 
     @CalledByNative

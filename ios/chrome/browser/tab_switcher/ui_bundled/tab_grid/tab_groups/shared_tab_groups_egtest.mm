@@ -5,6 +5,7 @@
 #import <Foundation/Foundation.h>
 
 #import "base/feature_list.h"
+#import "base/ios/ios_util.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/test/ios/wait_util.h"
 #import "components/collaboration/public/features.h"
@@ -718,14 +719,6 @@ void WaitForFakeJoinFlowView() {
   [[EarlGrey selectElementWithMatcher:TabGridCellAtIndex(0)]
       performAction:grey_tap()];
   LongPressOn(chrome_test_util::ShowTabsButton());
-  if (@available(iOS 26, *)) {
-    // TODO(crbug.com/428928323): Investigate why the keyboard appears. Remove
-    // this workaround when it's not needed anymore.
-    // On iOS 26, the keyboard appears when the show tabs button is long pressed
-    // and it hides the elements behind. Close the keyboard by typing a return
-    // key.
-    [ChromeEarlGrey simulatePhysicalKeyboardEvent:@"\\n" flags:0];
-  }
   [[EarlGrey selectElementWithMatcher:
                  grey_allOf(chrome_test_util::ButtonWithAccessibilityLabelId(
                                 IDS_IOS_CONTENT_CONTEXT_CLOSETAB),
@@ -1191,7 +1184,8 @@ void WaitForFakeJoinFlowView() {
 
 // Tests that tapping items on Recent Activity takes an action corresponded to
 // the item.
-- (void)testTapRecentActivityItems {
+// TODO(crbug.com/440612088): This test is flaky.
+- (void)FLAKY_testTapRecentActivityItems {
   AddSharedGroup(/*owner=*/YES, self.testServer);
   [ChromeEarlGrey waitForMainTabCount:1];
 
@@ -1319,6 +1313,11 @@ void WaitForFakeJoinFlowView() {
 // Tests that the activity label on a group cell and a grid cell is updated when
 // a shared group is updated.
 - (void)testActivityLabel {
+  // TODO(crbug.com/439552737): Re-enable the test on iOS26.
+  if (base::ios::IsRunningOnIOS26OrLater()) {
+    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
+  }
+
   AddSharedGroup(/*owner=*/YES, self.testServer);
   [ChromeEarlGrey waitForMainTabCount:1];
 
@@ -1366,6 +1365,11 @@ void WaitForFakeJoinFlowView() {
 // Tests that the badge on the tab switcher appears when a shared group is
 // updated and disappears when a user visits the updated page.
 - (void)testTabSwitcherBadge {
+  // TODO(crbug.com/440475033): Re-enable the test on iOS26.
+  if (base::ios::IsRunningOnIOS26OrLater()) {
+    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
+  }
+
   AddSharedGroup(/*owner=*/YES, self.testServer);
   [ChromeEarlGrey waitForMainTabCount:1];
 

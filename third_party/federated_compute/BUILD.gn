@@ -2,8 +2,26 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//third_party/protobuf/proto_library.gni")
+
 config("confidential_compute_include") {
   include_dirs = [ "src" ]
+}
+
+proto_library("confidential_compute_proto") {
+  sources = [
+    "src/fcp/protos/confidentialcompute/data_upload_config.proto",
+    "src/fcp/protos/confidentialcompute/signed_endorsements.proto",
+    "src/fcp/protos/federatedcompute/confidential_encryption_config.proto",
+  ]
+
+  deps = [ "//third_party/oak:oak_proto" ]
+
+  import_dirs = [ "//third_party/oak/chromium" ]
+
+  proto_in_dir = "src"
+
+  cc_generator_options = "lite"
 }
 
 source_set("confidential_compute") {
@@ -27,6 +45,11 @@ source_set("confidential_compute") {
   configs += [ "//build/config/compiler:no_chromium_code" ]
 
   public_configs = [ ":confidential_compute_include" ]
+
+  public_deps = [
+    ":confidential_compute_proto",
+    "//third_party/oak:oak_proto",
+  ]
 
   deps = [
     "//third_party/abseil-cpp:absl",

@@ -53,6 +53,14 @@ public interface ChromeAndroidTask {
     int getId();
 
     /**
+     * Returns the browser window type of this {@link ChromeAndroidTask}.
+     *
+     * <p>The types are defined in the native {@code BrowserWindowInterface::Type} enum.
+     */
+    @BrowserWindowType
+    int getBrowserWindowType();
+
+    /**
      * Sets the current {@link ActivityWindowAndroid} in this Task.
      *
      * <p>As a {@link ChromeAndroidTask} is meant to track an Android Task, but an {@link
@@ -115,6 +123,15 @@ public interface ChromeAndroidTask {
      */
     boolean isActive();
 
+    /** Returns whether this {@link ChromeAndroidTask} is currently maximized. */
+    boolean isMaximized();
+
+    /** Returns true if the window is minimized. */
+    boolean isMinimized();
+
+    /** Returns whether this {@link ChromeAndroidTask} is currently in fullscreen mode. */
+    boolean isFullscreen();
+
     /**
      * Returns the most recent timestamp when this {@link ChromeAndroidTask} became active, i.e.,
      * when its state changed from nonexistent or inactive (minimized/unfocused), to the active
@@ -127,6 +144,9 @@ public interface ChromeAndroidTask {
     /** Returns current bounds of the window. */
     Rect getBounds();
 
+    /** Returns true if the window is visible. */
+    boolean isVisible();
+
     /** Closes this {@link ChromeAndroidTask}. */
     void close();
 
@@ -135,6 +155,19 @@ public interface ChromeAndroidTask {
      * state if necessary.
      */
     void activate();
+
+    /** Maximize this {@link ChromeAndroidTask}. */
+    void maximize();
+
+    /** Minimizes this {@link ChromeAndroidTask}. */
+    void minimize();
+
+    /**
+     * Sets the {@link ChromeAndroidTask}'s size and position to the specified values.
+     *
+     * @param bounds The new bounds of the {@link ChromeAndroidTask}.
+     */
+    void setBounds(Rect bounds);
 
     /** Returns all {@link ChromeAndroidTaskFeature}s for testing. */
     List<ChromeAndroidTaskFeature> getAllFeaturesForTesting();

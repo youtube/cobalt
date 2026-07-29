@@ -192,6 +192,42 @@ std::unique_ptr<net::test_server::HttpResponse> HandleCachableRequestHandler(
   return std::move(response);
 }
 
+struct DecoupleComputedWidthCase {
+  const char* property_name;
+  WebFeature feature;
+};
+
+static const DecoupleComputedWidthCase kDecoupleComputedWidthCases[] = {
+    {
+        "border-top-width",
+        WebFeature::kComputedBorderTopWidthWithNoneOrHiddenStyle,
+    },
+    {
+        "border-right-width",
+        WebFeature::kComputedBorderRightWidthWithNoneOrHiddenStyle,
+    },
+    {
+        "border-bottom-width",
+        WebFeature::kComputedBorderBottomWidthWithNoneOrHiddenStyle,
+    },
+    {
+        "border-left-width",
+        WebFeature::kComputedBorderLeftWidthWithNoneOrHiddenStyle,
+    },
+    {
+        "border-width",
+        WebFeature::kComputedBorderWidthWithNoneOrHiddenStyle,
+    },
+    {
+        "column-rule-width",
+        WebFeature::kComputedColumnRuleWidthWithNoneOrHiddenStyle,
+    },
+    {
+        "outline-width",
+        WebFeature::kComputedOutlineWidthWithNoneOrHiddenStyle,
+    },
+};
+
 }  // namespace
 
 class PageLoadMetricsBrowserTest : public InProcessBrowserTest {
@@ -1951,6 +1987,54 @@ IN_PROC_BROWSER_TEST_F(PageLoadMetricsBrowserTestWithAutoupgradesDisabled,
                                        WebDXFeature::kWebAnimations, 1);
 }
 
+class PageLoadMetricsBrowserTestWithDecoupleComputedBorderWidthFromStyle
+    : public PageLoadMetricsBrowserTest,
+      public testing::WithParamInterface<DecoupleComputedWidthCase> {
+ public:
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    PageLoadMetricsBrowserTest::SetUpCommandLine(command_line);
+    feature_list_.InitAndEnableFeature(
+        blink::features::kDecoupleComputedBorderWidthFromStyle);
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    PageLoadMetricsBrowserTestWithDecoupleComputedBorderWidthFromStyle,
+    testing::ValuesIn(kDecoupleComputedWidthCases));
+
+IN_PROC_BROWSER_TEST_P(
+    PageLoadMetricsBrowserTestWithDecoupleComputedBorderWidthFromStyle,
+    UseCounterForSingleProperty) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  // Expect 0 hits before we query for the property.
+  histogram_tester_->ExpectBucketCount("Blink.UseCounter.Features",
+                                       GetParam().feature, 0);
+
+  auto waiter = CreatePageLoadMetricsTestWaiter("waiter");
+  waiter->AddPageExpectation(TimingField::kLoadEvent);
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_test_server()->GetURL(
+                     "/page_load_metrics/use_counter_features.html")));
+  waiter->Wait();
+
+  content::EvalJsResult result =
+      EvalJs(browser()->tab_strip_model()->GetActiveWebContents(),
+             base::StringPrintf("document.getElementById('width-no-style')."
+                                "computedStyleMap().get('%s');",
+                                GetParam().property_name));
+  EXPECT_TRUE(result.is_ok());
+
+  NavigateToUntrackedUrl();
+
+  histogram_tester_->ExpectBucketCount("Blink.UseCounter.Features",
+                                       GetParam().feature, 1);
+}
+
 IN_PROC_BROWSER_TEST_F(PageLoadMetricsBrowserTest,
                        UseCounterFeaturesInNonSecureMainFrame) {
   ASSERT_TRUE(embedded_test_server()->Start());
@@ -2571,7 +2655,7 @@ IN_PROC_BROWSER_TEST_P(PageLoadMetricsResourceLoadBrowserTest,
       browser(), embedded_test_server()->GetURL(
                      "foo.com", "/cross_site_iframe_factory.html?foo")));
   waiter->Wait();
-  int64_t one_frame_page_size = waiter->current_network_bytes();
+  base::ByteCount one_frame_page_size = waiter->current_network_bytes();
 
   waiter = CreatePageLoadMetricsTestWaiter("waiter");
   waiter->AddPageExpectation(TimingField::kLoadEvent);
@@ -2581,7 +2665,8 @@ IN_PROC_BROWSER_TEST_P(PageLoadMetricsResourceLoadBrowserTest,
           "a.com", "/cross_site_iframe_factory.html?a(b,c,d(e,f,g))")));
   // Verify that 7 iframes are fetched, with some amount of tolerance since
   // favicon is fetched only once.
-  waiter->AddMinimumNetworkBytesExpectation(7 * (one_frame_page_size - 100));
+  waiter->AddMinimumNetworkBytesExpectation(
+      7 * (one_frame_page_size - base::ByteCount(100)));
   waiter->Wait();
 }
 
@@ -2622,7 +2707,8 @@ IN_PROC_BROWSER_TEST_P(PageLoadMetricsResourceLoadBrowserTest,
   waiter->Wait();
 
   // Verify that overheads for each chunk are not reported as body bytes.
-  EXPECT_EQ(waiter->current_network_body_bytes(), kChunkSize * kNumChunks);
+  EXPECT_EQ(waiter->current_network_body_bytes().InBytes(),
+            kChunkSize * kNumChunks);
 }
 
 IN_PROC_BROWSER_TEST_P(PageLoadMetricsResourceLoadBrowserTest,
@@ -2661,7 +2747,7 @@ IN_PROC_BROWSER_TEST_P(PageLoadMetricsResourceLoadBrowserTest,
   main_html_response->Send(std::string(1000, ' '));
   main_html_response->Done();
   waiter->AddMinimumCompleteResourcesExpectation(1);
-  waiter->AddMinimumNetworkBytesExpectation(1000);
+  waiter->AddMinimumNetworkBytesExpectation(base::ByteCount(1000));
   waiter->Wait();
 
   script_response->WaitForRequest();
@@ -2673,18 +2759,18 @@ IN_PROC_BROWSER_TEST_P(PageLoadMetricsResourceLoadBrowserTest,
   script_response->Send(std::string(1000, ' '));
   // Data received but resource not complete
   waiter->AddMinimumCompleteResourcesExpectation(1);
-  waiter->AddMinimumNetworkBytesExpectation(2000);
+  waiter->AddMinimumNetworkBytesExpectation(base::ByteCount(2000));
 
   if (!IsReduceTransferSizeUpdatedIPCEnabled()) {
     // When ReduceTransferSizeUpdatedIPC is disabled, network bytes information
     // is sent almost every time when the body data is received. So we can call
-    // Wait() before finising `script_response`,
+    // Wait() before finishing `script_response`,
     waiter->Wait();
     script_response->Done();
   } else {
     // But when ReduceTransferSizeUpdatedIPC is enabled, network bytes
     // information is sent only when the resource is complete. So we need to
-    // call Wait() after finising `script_response`.
+    // call Wait() after finishing `script_response`.
     script_response->Done();
     waiter->Wait();
   }
@@ -2697,7 +2783,7 @@ IN_PROC_BROWSER_TEST_P(PageLoadMetricsResourceLoadBrowserTest,
   iframe_response->Send(std::string(2000, ' '));
   iframe_response->Done();
   waiter->AddMinimumCompleteResourcesExpectation(3);
-  waiter->AddMinimumNetworkBytesExpectation(4000);
+  waiter->AddMinimumNetworkBytesExpectation(base::ByteCount(4000));
   waiter->Wait();
 }
 

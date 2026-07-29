@@ -11,7 +11,9 @@
 #include "pdf/page_character_index.h"
 #include "pdf/pdf_caret_client.h"
 #include "pdf/region_data.h"
+#include "third_party/blink/public/common/input/web_keyboard_event.h"
 #include "third_party/skia/include/core/SkColor.h"
+#include "ui/events/keycodes/keyboard_codes_win.h"
 #include "ui/gfx/geometry/rect.h"
 
 namespace chrome_pdf {
@@ -88,6 +90,19 @@ void PdfCaret::OnGeometryChanged() {
   caret_screen_rect_ = GetScreenRectForCaret();
   if (!caret_screen_rect_.IsEmpty()) {
     client_->InvalidateRect(caret_screen_rect_);
+  }
+}
+
+bool PdfCaret::OnKeyDown(const blink::WebKeyboardEvent& event) {
+  switch (event.windows_key_code) {
+    case ui::KeyboardCode::VKEY_LEFT:
+      MoveToNextChar(/*move_right=*/false);
+      return true;
+    case ui::KeyboardCode::VKEY_RIGHT:
+      MoveToNextChar(/*move_right=*/true);
+      return true;
+    default:
+      return false;
   }
 }
 
@@ -175,6 +190,61 @@ void PdfCaret::Draw(const RegionData& region, const gfx::Rect& rect) const {
       }
     }
   }
+}
+
+void PdfCaret::MoveToNextChar(bool move_right) {
+  if (!WillCaretExitPage(index_, move_right)) {
+    const int delta = move_right ? 1 : -1;
+    PageCharacterIndex next_char = {index_.page_index,
+                                    index_.char_index + delta};
+    // Newlines synthetically created by PDFium have empty screen rects.
+    // Skip consecutive newlines.
+    if (IndexHasChar(index_) && IndexHasChar(next_char) &&
+        client_->IsSynthesizedNewline(index_) &&
+        client_->IsSynthesizedNewline(next_char)) {
+      // Synthetic newlines cannot be the first or last char on a page.
+      CHECK(!WillCaretExitPage(next_char, move_right));
+
+      // There cannot be more than two consecutive synthetic newlines.
+      next_char.char_index += delta;
+    }
+    SetChar(next_char);
+    return;
+  }
+
+  uint32_t page_index = index_.page_index;
+
+  // If `move_right` is true, move one page to the right if possible.
+  if (move_right) {
+    ++page_index;
+    if (!client_->PageIndexInBounds(page_index)) {
+      // There is no next page. Stay at current position.
+      return;
+    }
+    SetChar({page_index, 0});
+    return;
+  }
+
+  // Otherwise, move one page to the left if possible.
+  if (page_index == 0) {
+    // There is no previous page. Stay at current position.
+    return;
+  }
+
+  --page_index;
+  SetChar({page_index, client_->GetCharCount(page_index)});
+}
+
+bool PdfCaret::WillCaretExitPage(const PageCharacterIndex& index,
+                                 bool move_right) const {
+  if (move_right) {
+    return index.char_index == client_->GetCharCount(index.page_index);
+  }
+  return index.char_index == 0;
+}
+
+bool PdfCaret::IndexHasChar(const PageCharacterIndex& index) const {
+  return index.char_index < client_->GetCharCount(index.page_index);
 }
 
 }  // namespace chrome_pdf

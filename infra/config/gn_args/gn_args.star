@@ -412,6 +412,16 @@ gn_args.config(
 )
 
 gn_args.config(
+    name = "rust_tot",
+    args = {
+        "rust_force_head_revision": True,
+    },
+    configs = [
+        "clang",
+    ],
+)
+
+gn_args.config(
     name = "no_treat_warnings_as_errors",
     args = {
         "treat_warnings_as_errors": False,
@@ -782,6 +792,13 @@ gn_args.config(
         "headless",
         "no_codecs",
     ],
+)
+
+gn_args.config(
+    name = "hwasan",
+    args = {
+        "is_hwasan": True,
+    },
 )
 
 gn_args.config(

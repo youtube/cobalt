@@ -4,6 +4,7 @@
 //
 package org.chromium.chrome.browser.share.share_sheet;
 
+import static org.chromium.build.NullUtil.assertNonNull;
 import static org.chromium.build.NullUtil.assumeNonNull;
 
 import android.app.Activity;
@@ -32,8 +33,8 @@ import androidx.appcompat.content.res.AppCompatResources;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import org.chromium.base.BuildInfo;
 import org.chromium.base.ContextUtils;
+import org.chromium.base.DeviceInfo;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -168,7 +169,7 @@ class ShareSheetBottomSheetContent implements BottomSheetContent, OnItemClickLis
 
         RecyclerView thirdParty = this.getContentView().findViewById(R.id.share_sheet_other_apps);
         // Disable third party share options for automotive.
-        if (BuildInfo.getInstance().isAutomotive) {
+        if (DeviceInfo.isAutomotive()) {
             thirdParty.setVisibility(View.GONE);
             this.getContentView().findViewById(R.id.share_sheet_divider).setVisibility(View.GONE);
             return;
@@ -300,7 +301,7 @@ class ShareSheetBottomSheetContent implements BottomSheetContent, OnItemClickLis
             subtitle = mParams.getText();
             setSubtitleMaxLines(2);
         } else {
-            fetchFavicon(mParams.getUrl());
+            fetchFavicon(assertNonNull(mParams.getUrl()));
         }
 
         if (shareSheetLinkToggleCoordinator.shouldShowToggle()) {

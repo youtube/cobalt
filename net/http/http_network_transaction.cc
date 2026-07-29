@@ -314,9 +314,7 @@ void LogIfDuplicateRequest(const GURL& url, bool is_main_frame_navigation) {
 // When this feature is enabled, GET requests with identical URLs within 10
 // seconds will result in the Net.NetworkTransaction.DuplicateRequestInterval
 // histogram being recorded.
-BASE_FEATURE(kLogDuplicateRequests,
-             "LogDuplicateRequests",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(LogDuplicateRequests, base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace
 
@@ -1704,11 +1702,13 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
   // Note: This will report a success for a redirect even if an error is
   // encountered later while draining the body.
   int response_code = response_.headers->response_code();
+  std::optional<base::ByteCount> content_length =
+      response_.headers->GetContentLength();
   if ((response_code >= 400 && response_code < 600) ||
       response_code == HTTP_NO_CONTENT || response_code == HTTP_RESET_CONTENT ||
       response_code == HTTP_NOT_MODIFIED || request_->method == "HEAD" ||
-      response_.headers->GetContentLength() == 0 ||
-      response_.headers->IsRedirect(nullptr /* location */)) {
+      (content_length && content_length->is_zero()) ||
+      response_.headers->IsRedirect(/*location=*/nullptr)) {
     GenerateNetworkErrorLoggingReport(OK);
   }
 #endif  // BUILDFLAG(ENABLE_REPORTING)

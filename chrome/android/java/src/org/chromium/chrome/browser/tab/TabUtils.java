@@ -21,17 +21,19 @@ import android.view.Display;
 import android.widget.ImageView;
 import android.widget.ImageView.ScaleType;
 
+import androidx.annotation.DrawableRes;
 import androidx.annotation.IntDef;
 import androidx.annotation.VisibleForTesting;
 
-import org.chromium.base.BuildInfo;
 import org.chromium.base.ContextUtils;
+import org.chromium.base.DeviceInfo;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.media.MediaCaptureDevicesDispatcherAndroid;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.tab.Tab.MediaState;
 import org.chromium.chrome.browser.tasks.tab_management.TabUiThemeProvider;
 import org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridge;
 import org.chromium.components.browser_ui.util.AutomotiveUtils;
@@ -319,7 +321,7 @@ public class TabUtils {
      */
     public static void setDrawableAndUpdateImageMatrix(
             ImageView view, Drawable drawable, Size destinationSize) {
-        if (BuildInfo.getInstance().isAutomotive) {
+        if (DeviceInfo.isAutomotive()) {
             if (drawable instanceof BitmapDrawable bitmapDrawable) {
                 Bitmap bitmap = bitmapDrawable.getBitmap();
                 assert bitmap != null;
@@ -393,5 +395,10 @@ public class TabUtils {
         final int thumbnailMargin =
                 (int) context.getResources().getDimension(R.dimen.tab_grid_card_thumbnail_margin);
         return 2 * (tabGridCardMargin + thumbnailMargin);
+    }
+
+    public static @DrawableRes int getMediaIndicatorDrawable(@MediaState int mediaState) {
+        // TODO(crbug.com/430072416): Add other media indicators.
+        return mediaState == MediaState.AUDIBLE ? R.drawable.volume_up_24dp : Resources.ID_NULL;
     }
 }

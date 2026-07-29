@@ -59,6 +59,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/supports_user_data.h"
 #include "base/system/sys_info.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/threading/thread.h"
@@ -71,6 +72,7 @@
 #include "build/build_config.h"
 #include "cc/base/switches.h"
 #include "components/embedder_support/switches.h"
+#include "components/input/features.h"
 #include "components/input/utils.h"
 #include "components/metrics/histogram_controller.h"
 #include "components/metrics/single_sample_metrics.h"
@@ -824,7 +826,7 @@ class SiteProcessCountTracker : public base::SupportsUserData::Data,
       RenderProcessHost* host = GetAllHosts().Lookup(host_info.first);
       DCHECK(host);
 
-      bool is_locked_to_site = host->GetProcessLock().is_locked_to_site();
+      bool is_locked_to_site = host->GetProcessLock().IsLockedToSite();
       output += base::StringPrintf("\tProcess Host ID %d (PID %s, %s):\n",
                                    host_info.first.GetUnsafeValue(),
                                    GetRendererPidAsString(host).c_str(),
@@ -1197,8 +1199,7 @@ void InvokeVideoDecoderEventCB(RenderProcessHostImpl::VideoDecoderEvent event) {
 #if !BUILDFLAG(IS_ANDROID)
 // Enables kUserVisible process priority. Otherwise when feature is disabled,
 // Priority::kUserVisible has same behavior as Priority::kUserBlocking.
-BASE_FEATURE(kUserVisibleProcessPriority,
-             "UserVisibleProcessPriority",
+BASE_FEATURE(UserVisibleProcessPriority,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
@@ -1303,6 +1304,24 @@ bool IsRendererUnresponsive(RenderProcessHost* render_process_host) {
         }
       });
   return is_unresponsive;
+}
+
+void RecordMissedReuseOpportunityMetric(
+    SiteInstanceImpl* site_instance,
+    const ProcessAllocationContext& allocation_context) {
+  // This metric is only relevant for navigations. In other contexts,
+  // such as service worker creation, skip recording.
+  if (!allocation_context.IsForNavigation()) {
+    return;
+  }
+
+  auto context = allocation_context.navigation_context->is_outermost_main_frame
+                     ? RecentlyDestroyedHosts::Context::kMainFrame
+                     : RecentlyDestroyedHosts::Context::kSubframe;
+  RecentlyDestroyedHosts::RecordMetricIfReusableHostRecentlyDestroyed(
+      context, base::TimeTicks::Now(),
+      ProcessLock::FromSiteInfo(site_instance->GetSiteInfo()),
+      site_instance->GetBrowserContext());
 }
 
 }  // namespace
@@ -1498,7 +1517,7 @@ RenderProcessHost* RenderProcessHostImpl::CreateRenderProcessHost(
 
   if (site_instance &&
       GetContentClient()->browser()->DisallowV8FeatureFlagOverridesForSite(
-          site_instance->GetSiteInfo().process_lock_url())) {
+          site_instance->GetSiteInfo().GetProcessLockURL())) {
     flags |= RenderProcessFlags::kDisallowV8FeatureFlagOverrides;
   }
 
@@ -2231,18 +2250,6 @@ void RenderProcessHostImpl::CreateNotificationService(
       break;
     }
   }
-}
-
-void RenderProcessHostImpl::CreateWebSocketConnector(
-    const blink::StorageKey& storage_key,
-    mojo::PendingReceiver<blink::mojom::WebSocketConnector> receiver) {
-  // TODO(jam): is it ok to not send extraHeaders for sockets created from
-  // shared and service workers?
-  mojo::MakeSelfOwnedReceiver(
-      std::make_unique<WebSocketConnectorImpl>(
-          GetDeprecatedID(), IPC::mojom::kRoutingIdNone, storage_key.origin(),
-          storage_key.ToPartialNetIsolationInfo()),
-      std::move(receiver));
 }
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -3240,7 +3247,7 @@ void RenderProcessHostImpl::SetProcessLock(
 }
 
 bool RenderProcessHostImpl::IsProcessLockedToSiteForTesting() {
-  return GetProcessLock().is_locked_to_site();
+  return GetProcessLock().IsLockedToSite();
 }
 
 void RenderProcessHostImpl::NotifyRendererOfLockedStateUpdate() {
@@ -3268,7 +3275,7 @@ void RenderProcessHostImpl::NotifyRendererOfLockedStateUpdate() {
           switches::kDisableWebSecurity));
 
   if (GetContentClient()->browser()->IsWebUIBundledCodeCachingEnabled(
-          process_lock.lock_url())) {
+          process_lock.GetProcessLockURL())) {
     auto url_to_code_cache_map =
         GetContentClient()->browser()->GetWebUIResourceUrlToCodeCacheMap();
     if (!url_to_code_cache_map.empty()) {
@@ -3278,7 +3285,7 @@ void RenderProcessHostImpl::NotifyRendererOfLockedStateUpdate() {
   }
 
   if (process_lock.IsASiteOrOrigin()) {
-    CHECK(process_lock.is_locked_to_site());
+    CHECK(process_lock.IsLockedToSite());
     GetRendererInterface()->SetIsLockedToSite();
   }
 
@@ -3728,10 +3735,32 @@ void RenderProcessHostImpl::SetUnresponsiveDocumentJSCallStackAndToken(
 }
 
 void RenderProcessHostImpl::InterruptJavaScriptIsolateAndCollectCallStack() {
-  GetJavaScriptCallStackGeneratorInterface()->CollectJavaScriptCallStack(
-      base::BindOnce(
-          &RenderProcessHostImpl::SetUnresponsiveDocumentJSCallStackAndToken,
-          instance_weak_factory_.GetWeakPtr()));
+  blink::mojom::CallStackGenerator* js_interface =
+      GetJavaScriptCallStackGeneratorInterface();
+  js_interface->CollectJavaScriptCallStack(base::BindOnce(
+      &RenderProcessHostImpl::SetUnresponsiveDocumentJSCallStackAndToken,
+      instance_weak_factory_.GetWeakPtr()));
+  if (base::FeatureList::IsEnabled(
+          input::features::kUnresponsiveMultipleStackCollection)) {
+    for (size_t i = 1;
+         i < input::features::kUnresponsiveMultipleStackCollectionCount.Get();
+         i++) {
+      base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+          FROM_HERE,
+          base::BindOnce(
+              &RenderProcessHostImpl::CollectDelayedJavaScriptCallStack,
+              instance_weak_factory_.GetWeakPtr()),
+          input::features::kUnresponsiveMultipleStackCollectionDelay.Get() * i);
+    }
+  }
+}
+
+void RenderProcessHostImpl::CollectDelayedJavaScriptCallStack() {
+  blink::mojom::CallStackGenerator* js_interface =
+      GetJavaScriptCallStackGeneratorInterface();
+  js_interface->CollectJavaScriptCallStack(base::BindOnce(
+      &RenderProcessHostImpl::SetUnresponsiveDocumentJSCallStackAndToken,
+      instance_weak_factory_.GetWeakPtr()));
 }
 
 bool RenderProcessHostImpl::Shutdown(int exit_code) {
@@ -4524,7 +4553,7 @@ bool RenderProcessHostImpl::IsSuitableHost(
   // can't be reused.
   if (host->DisallowV8FeatureFlagOverrides() !=
       GetContentClient()->browser()->DisallowV8FeatureFlagOverridesForSite(
-          site_info.process_lock_url())) {
+          site_info.GetProcessLockURL())) {
     return false;
   }
 
@@ -4575,7 +4604,7 @@ bool RenderProcessHostImpl::IsSuitableHost(
       return false;
     }
 
-    if (process_lock.is_locked_to_site()) {
+    if (process_lock.IsLockedToSite()) {
       // If this process is locked to a site, it cannot be reused for a
       // destination that doesn't require a dedicated process, even for the
       // same site. This can happen with dynamic isolated origins (see
@@ -4591,7 +4620,7 @@ bool RenderProcessHostImpl::IsSuitableHost(
       // Even when this process is not locked to a site, it is still associated
       // with a particular isolation configuration.  Ensure that it cannot be
       // reused for destinations with incompatible isolation requirements.
-      if (process_lock.allows_any_site() &&
+      if (process_lock.AllowsAnySite() &&
           !process_lock.IsCompatibleWithWebExposedIsolation(site_info)) {
         return false;
       }
@@ -4876,22 +4905,12 @@ RenderProcessHost* RenderProcessHostImpl::GetProcessHostForSiteInstance(
     case ProcessReusePolicy::REUSE_PENDING_OR_COMMITTED_SITE_WORKER: {
       render_process_host = FindReusableProcessHostForSiteInstance(
           site_instance, process_reuse_policy);
-      const base::TimeTicks reusable_host_lookup_time = base::TimeTicks::Now();
       UMA_HISTOGRAM_BOOLEAN(
           "SiteIsolation.ReusePendingOrCommittedSite.CouldReuse2",
           render_process_host != nullptr);
       if (render_process_host) {
         is_unmatched_service_worker = false;
         render_process_host->StopTrackingProcessForShutdownDelay();
-      } else {
-        if (process_reuse_policy ==
-            ProcessReusePolicy::REUSE_PENDING_OR_COMMITTED_SITE_SUBFRAME) {
-          RecentlyDestroyedHosts::RecordMetricIfReusableHostRecentlyDestroyed(
-              RecentlyDestroyedHosts::Context::kSubframe,
-              reusable_host_lookup_time,
-              ProcessLock::FromSiteInfo(site_instance->GetSiteInfo()),
-              site_instance->GetBrowserContext());
-        }
       }
       break;
     }
@@ -4952,6 +4971,12 @@ RenderProcessHost* RenderProcessHostImpl::GetProcessHostForSiteInstance(
     render_process_host = spare_process_manager.MaybeTakeSpare(
         browser_context, site_instance, allocation_context);
     if (render_process_host) {
+      // A spare process is being taken, which is a fallback from reusing an
+      // existing live process. Record this as a potential missed opportunity to
+      // have reused a recently destroyed process instead. This informs process
+      // keep-alive strategies.
+      RecordMissedReuseOpportunityMetric(site_instance, allocation_context);
+
       site_instance->set_process_assignment(
           SiteInstanceProcessAssignment::USED_SPARE_PROCESS);
       spare_was_taken = true;
@@ -4992,16 +5017,11 @@ RenderProcessHost* RenderProcessHostImpl::GetProcessHostForSiteInstance(
 
   // Otherwise, create a new RenderProcessHost.
   if (!render_process_host) {
-    // This is our last chance before creating a new process. If this is for
-    // a main frame navigation, check if we recently destroyed a suitable
-    // process to record a corresponding metric.
-    if (allocation_context.IsForNavigation() &&
-        allocation_context.navigation_context->is_outermost_main_frame) {
-      RecentlyDestroyedHosts::RecordMetricIfReusableHostRecentlyDestroyed(
-          RecentlyDestroyedHosts::Context::kMainFrame, base::TimeTicks::Now(),
-          ProcessLock::FromSiteInfo(site_instance->GetSiteInfo()),
-          site_instance->GetBrowserContext());
-    }
+    // All other process reuse strategies have failed. Before creating a new
+    // process, which is the most expensive fallback, check if a suitable
+    // process was recently destroyed. This metric helps evaluate the
+    // effectiveness of process keep-alive heuristics.
+    RecordMissedReuseOpportunityMetric(site_instance, allocation_context);
 
     // Pass a null StoragePartition. Tests with TestBrowserContext using a
     // RenderProcessHostFactory may not instantiate a StoragePartition, and

@@ -27,8 +27,10 @@ import zipfile
 
 _SCRIPT_DIR = os.path.normpath(os.path.dirname(__file__))
 _GOLDENS_DIR = os.path.join(_SCRIPT_DIR, 'golden')
-_EXTRA_INCLUDES = 'third_party/jni_zero/jni_zero_helper.h'
+_EXTRA_INCLUDES = 'extra_include.h'
 _JAVA_SRC_DIR = os.path.join(_SCRIPT_DIR, 'java', 'src', 'org', 'jni_zero')
+_JAVA_BIN_DIR = os.path.join(_SCRIPT_DIR, os.pardir, os.pardir, 'jdk',
+                             'current', 'bin')
 
 # Set this environment variable in order to regenerate the golden text
 # files.
@@ -65,7 +67,12 @@ class CliOptions:
     self.__dict__.update(kwargs)
 
   def to_args(self):
-    ret = [os.path.join(_SCRIPT_DIR, os.pardir, 'jni_zero.py'), self.action]
+    ret = [
+        os.path.join(_SCRIPT_DIR, os.pardir, 'jni_zero.py'),
+        self.action,
+        '--include-path-prefix=overridden/',
+        '--enable-legacy-natives',
+    ]
     if self.enable_jni_multiplexing:
       ret.append('--enable-jni-multiplexing')
     if self.enable_definition_macros:
@@ -179,6 +186,7 @@ class BaseTest(unittest.TestCase):
 
       options.output_dir = tdir
       cmd = options.to_args()
+      cmd += ['--allow-private-called-by-natives']
 
       if srcjar:
         srcjar_path = os.path.join(tdir, 'srcjar.jar')
@@ -191,9 +199,12 @@ class BaseTest(unittest.TestCase):
       if per_file_natives:
         cmd += ['--per-file-natives']
 
-      logging.info('Running: %s', shlex.join(cmd))
-      subprocess.check_call(cmd)
+      env = os.environ.copy()
+      if _JAVA_BIN_DIR not in env['PATH']:
+        env['PATH'] = os.pathsep.join([_JAVA_BIN_DIR, env['PATH']])
 
+      logging.info('Running: %s', shlex.join(cmd))
+      subprocess.check_call(cmd, env=env)
       for o in options.output_files:
         output_path = os.path.join(tdir, o)
         with open(output_path, 'r') as f:

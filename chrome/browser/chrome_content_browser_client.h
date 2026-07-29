@@ -239,6 +239,7 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
       bool is_for_isolated_world,
       bool is_for_service_worker,
       network::mojom::URLLoaderFactoryParams* factory_params) override;
+  bool IsURLAccessibleByHistoryNavigation(const GURL& url) override;
   void GetAdditionalWebUISchemes(
       std::vector<std::string>* additional_schemes) override;
   bool IsInternalScheme(const GURL& url) override;
@@ -982,7 +983,8 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
   CreateDigitalIdentityProvider() override;
 
 #if !BUILDFLAG(IS_ANDROID)
-  base::TimeDelta GetKeepaliveTimerTimeout(content::BrowserContext* context);
+  static base::TimeDelta GetKeepaliveTimerTimeout(
+      content::BrowserContext* context);
 #endif  // !BUILDFLAG(IS_ANDROID)
 
   bool SuppressDifferentOriginSubframeJSDialogs(
@@ -1158,9 +1160,6 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
       base::OnceCallback<void(std::optional<blink::mojom::RelatedApplication>)>
           callback) override;
 #endif  // !BUILDFLAG(IS_ANDROID)
-
-  bool IsSaveableNavigation(
-      content::NavigationHandle* navigation_handle) override;
 
 #if BUILDFLAG(IS_WIN)
   void OnUiaProviderRequested(bool uia_provider_enabled) override;

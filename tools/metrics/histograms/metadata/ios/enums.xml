@@ -78,6 +78,39 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="Apple Calendar"/>
 </enum>
 
+<!-- LINT.IfChange(FingerprintingProtectionRuleListApplyTrigger) -->
+
+<enum name="FingerprintingProtectionRuleListApplyTrigger">
+  <int value="0" label="Rules were applied on initial load."/>
+  <int value="1" label="Rules were applied because the component was updated."/>
+  <int value="2"
+      label="Rules were applied because Fingerprinting Protection was
+             toggled."/>
+  <int value="3"
+      label="Rules were applied because a site exception was changed."/>
+</enum>
+
+<!-- LINT.ThenChange(//ios/chrome/browser/script_blocking/model/script_blocking_rule_applier_service.h:FingerprintingProtectionRuleListApplyTrigger) -->
+
+<!-- LINT.IfChange(FingerprintingProtectionRuleListBuildOutcome) -->
+
+<enum name="FingerprintingProtectionRuleListBuildOutcome">
+  <int value="0"
+      label="The rule list was updated and exceptions were applied."/>
+  <int value="1"
+      label="The rule list was updated and no exceptions were applied."/>
+  <int value="2"
+      label="The rule list was removed as Fingerprinting Protection was
+             disabled."/>
+  <int value="3"
+      label="The rule list was removed as no base rules were provided."/>
+  <int value="4"
+      label="The rule list was removed as the provided base rules were
+             invalid."/>
+</enum>
+
+<!-- LINT.ThenChange(//ios/chrome/browser/script_blocking/model/script_blocking_rule_applier_service.h:FingerprintingProtectionRuleListBuildOutcome) -->
+
 <!-- LINT.IfChange(FullscreenModeTransitionReason) -->
 
 <enum name="FullscreenModeTransitionReason">
@@ -634,8 +667,9 @@ chromium-metrics-reviews@google.com.
 <!-- LINT.IfChange(IOSInstallAttributionType) -->
 
 <enum name="IOSInstallAttributionType">
-  <int value="0" label="Within 24 hours"/>
-  <int value="1" label="Within 15 days"/>
+  <int value="0" label="None"/>
+  <int value="1" label="Within 24 hours"/>
+  <int value="2" label="Within 15 days"/>
 </enum>
 
 <!-- LINT.ThenChange(/ios/chrome/browser/default_browser/model/install_attribution/install_attribution_helper.h:InstallAttributionType) -->
@@ -687,7 +721,7 @@ chromium-metrics-reviews@google.com.
   <int value="8" label="Obsolete in M123 - Safety Check Multi Row"/>
   <int value="9" label="Obsolete in M123 - Safety Check Multi Row Overflow"/>
   <int value="10" label="Tab Resumption"/>
-  <int value="11" label="Parcel Tracking"/>
+  <int value="11" label="Obsolete in M134 - Parcel Tracking"/>
   <int value="12" label="Obsolete in M123 - Parcel Tracking See More"/>
   <int value="13" label="Set Up List Notifications"/>
   <int value="14" label="Placeholder"/>

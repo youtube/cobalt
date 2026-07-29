@@ -86,6 +86,8 @@ bool SupportsInvalidation(CSSSelector::PseudoType type) {
     case CSSSelector::kPseudoIndeterminate:
     case CSSSelector::kPseudoTarget:
     case CSSSelector::kPseudoTargetCurrent:
+    case CSSSelector::kPseudoTargetBefore:
+    case CSSSelector::kPseudoTargetAfter:
     case CSSSelector::kPseudoCurrent:
     case CSSSelector::kPseudoCheckMark:
     case CSSSelector::kPseudoBefore:
@@ -180,8 +182,8 @@ bool SupportsInvalidation(CSSSelector::PseudoType type) {
     case CSSSelector::kPseudoViewTransitionOld:
     case CSSSelector::kPseudoActiveViewTransition:
     case CSSSelector::kPseudoActiveViewTransitionType:
-    case CSSSelector::kPseudoHasInterest:
-    case CSSSelector::kPseudoTargetOfInterest:
+    case CSSSelector::kPseudoInterestSource:
+    case CSSSelector::kPseudoInterestTarget:
     case CSSSelector::kPseudoHasSlotted:
       return true;
     case CSSSelector::kPseudoUnknown:
@@ -1665,6 +1667,8 @@ RuleInvalidationDataVisitor<VisitorType>::InvalidationSetForSimpleSelector(
       case CSSSelector::kPseudoIndeterminate:
       case CSSSelector::kPseudoTarget:
       case CSSSelector::kPseudoTargetCurrent:
+      case CSSSelector::kPseudoTargetBefore:
+      case CSSSelector::kPseudoTargetAfter:
       case CSSSelector::kPseudoLang:
       case CSSSelector::kPseudoDir:
       case CSSSelector::kPseudoFullScreen:
@@ -1690,8 +1694,8 @@ RuleInvalidationDataVisitor<VisitorType>::InvalidationSetForSimpleSelector(
       case CSSSelector::kPseudoSelectorFragmentAnchor:
       case CSSSelector::kPseudoActiveViewTransition:
       case CSSSelector::kPseudoActiveViewTransitionType:
-      case CSSSelector::kPseudoHasInterest:
-      case CSSSelector::kPseudoTargetOfInterest:
+      case CSSSelector::kPseudoInterestSource:
+      case CSSSelector::kPseudoInterestTarget:
       case CSSSelector::kPseudoHasSlotted:
         return EnsurePseudoInvalidationSet(selector.GetPseudoType(), type,
                                            position, in_nth_child);

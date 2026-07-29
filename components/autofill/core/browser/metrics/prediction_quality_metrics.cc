@@ -395,7 +395,6 @@ int GetFieldTypeGroupPredictionQualityMetric(FieldType field_type,
         case CREDIT_CARD_STANDALONE_VERIFICATION_CODE:
         case SINGLE_USERNAME_FORGOT_PASSWORD:
         case SINGLE_USERNAME_WITH_INTERMEDIATE_VALUES:
-        case PASSPORT_NAME_TAG:
         case PASSPORT_NUMBER:
         case PASSPORT_ISSUING_COUNTRY:
         case PASSPORT_EXPIRATION_DATE:
@@ -403,14 +402,12 @@ int GetFieldTypeGroupPredictionQualityMetric(FieldType field_type,
         case LOYALTY_MEMBERSHIP_PROGRAM:
         case LOYALTY_MEMBERSHIP_PROVIDER:
         case LOYALTY_MEMBERSHIP_ID:
-        case VEHICLE_OWNER_TAG:
         case VEHICLE_LICENSE_PLATE:
         case VEHICLE_VIN:
         case VEHICLE_MAKE:
         case VEHICLE_MODEL:
         case VEHICLE_YEAR:
         case VEHICLE_PLATE_STATE:
-        case DRIVERS_LICENSE_NAME_TAG:
         case DRIVERS_LICENSE_REGION:
         case DRIVERS_LICENSE_NUMBER:
         case DRIVERS_LICENSE_EXPIRATION_DATE:
@@ -694,7 +691,8 @@ void LogPredictionQualityMetrics(
     const FormStructure& form,
     const AutofillField& field,
     QualityMetricType metric_type,
-    bool log_rationalization_metrics) {
+    bool log_rationalization_metrics,
+    base::TimeTicks now) {
   // Generate histogram names.
   const char* source = GetQualityMetricPredictionSource(prediction_source);
   const char* suffix = GetQualityMetricTypeSuffix(metric_type);
@@ -722,7 +720,7 @@ void LogPredictionQualityMetrics(
   form_interactions_ukm_logger.LogFieldType(
       source_id, form.form_parsed_timestamp(), form.form_signature(),
       field.GetFieldSignature(), prediction_source, metric_type, predicted_type,
-      actual_type);
+      actual_type, now);
 
   // NO_SERVER_DATA is the equivalent of predicting UNKNOWN.
   if (predicted_type == NO_SERVER_DATA) {
@@ -762,11 +760,12 @@ void LogHeuristicPredictionQualityMetrics(
     ukm::SourceId source_id,
     const FormStructure& form,
     const AutofillField& field,
-    QualityMetricType metric_type) {
+    QualityMetricType metric_type,
+    base::TimeTicks now) {
   LogPredictionQualityMetrics(
       PREDICTION_SOURCE_HEURISTIC, field.heuristic_type(),
       form_interactions_ukm_logger, source_id, form, field, metric_type,
-      /*log_rationalization_metrics=*/false);
+      /*log_rationalization_metrics=*/false, now);
   if (metric_type == TYPE_SUBMISSION) {
     LogHeuristicPredictionQualityPerLabelSourceMetric(field);
   }
@@ -797,39 +796,40 @@ void LogMlPredictionQualityMetrics(
     ukm::SourceId source_id,
     const FormStructure& form,
     const AutofillField& field,
-    QualityMetricType metric_type) {
+    QualityMetricType metric_type,
+    base::TimeTicks now) {
   LogPredictionQualityMetrics(
       PREDICTION_SOURCE_ML_PREDICTIONS,
       field.heuristic_type(HeuristicSource::kAutofillMachineLearning),
       form_interactions_ukm_logger, source_id, form, field, metric_type,
-      /*log_rationalization_metrics=*/false);
+      /*log_rationalization_metrics=*/false, now);
 }
 
-// static
 void LogServerPredictionQualityMetrics(
     FormInteractionsUkmLogger& form_interactions_ukm_logger,
     ukm::SourceId source_id,
     const FormStructure& form,
     const AutofillField& field,
-    QualityMetricType metric_type) {
+    QualityMetricType metric_type,
+    base::TimeTicks now) {
   LogPredictionQualityMetrics(PREDICTION_SOURCE_SERVER, field.server_type(),
                               form_interactions_ukm_logger, source_id, form,
                               field, metric_type,
-                              /*log_rationalization_metrics=*/false);
+                              /*log_rationalization_metrics=*/false, now);
 }
 
-// static
 void LogOverallPredictionQualityMetrics(
     FormInteractionsUkmLogger& form_interactions_ukm_logger,
     ukm::SourceId source_id,
     const FormStructure& form,
     const AutofillField& field,
-    QualityMetricType metric_type) {
+    QualityMetricType metric_type,
+    base::TimeTicks now) {
   for (FieldType field_type : field.Type().GetTypes()) {
     LogPredictionQualityMetrics(PREDICTION_SOURCE_OVERALL, field_type,
                                 form_interactions_ukm_logger, source_id, form,
                                 field, metric_type,
-                                /*log_rationalization_metrics=*/true);
+                                /*log_rationalization_metrics=*/true, now);
   }
 }
 

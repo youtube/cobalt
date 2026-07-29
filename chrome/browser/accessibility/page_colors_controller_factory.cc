@@ -24,14 +24,12 @@ PageColorsControllerFactory::PageColorsControllerFactory()
     : ProfileKeyedServiceFactory(
           "PageColorsController",
           ProfileSelections::Builder()
-              // The incognito profile shares the PageColors with it's original
-              // profile.
+              // The incognito profile shares the PageColorsController with its
+              // original profile.
               .WithRegular(ProfileSelection::kRedirectedToOriginal)
               .WithGuest(ProfileSelection::kNone)
               .WithSystem(ProfileSelection::kNone)
-              // TODO(crbug.com/41488885): Check if this service is needed for
-              // Ash Internals.
-              .WithAshInternals(ProfileSelection::kRedirectedToOriginal)
+              .WithAshInternals(ProfileSelection::kNone)
               .Build()) {}
 
 PageColorsControllerFactory::~PageColorsControllerFactory() = default;
@@ -43,8 +41,6 @@ bool PageColorsControllerFactory::ServiceIsCreatedWithBrowserContext() const {
 std::unique_ptr<KeyedService>
 PageColorsControllerFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  auto page_colors_controller = std::make_unique<PageColorsController>(
+  return std::make_unique<PageColorsController>(
       Profile::FromBrowserContext(context)->GetPrefs());
-  page_colors_controller->Init();
-  return page_colors_controller;
 }

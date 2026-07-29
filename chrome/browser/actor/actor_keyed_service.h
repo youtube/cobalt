@@ -110,14 +110,16 @@ class ActorKeyedService : public KeyedService {
   // The associated ActorUiStateManager for the associated profile.
   ui::ActorUiStateManagerInterface* GetActorUiStateManager();
 
-  bool IsAnyTaskActingOnTab(const tabs::TabInterface& tab) const;
+  // Returns an acting task on provided `tab`. A null TaskId is returned if no
+  // task is acting on `tab`.
+  TaskId IsAnyTaskActingOnTab(const tabs::TabInterface& tab) const;
   Profile* GetProfile();
 
   using TabObservationResult = base::expected<
       std::unique_ptr<page_content_annotations::FetchPageContextResult>,
       std::string>;
 
-  // Request a TabOservation be generated from the given tab.
+  // Request a TabObservation be generated from the given tab.
   void RequestTabObservation(
       tabs::TabInterface& tab,
       TaskId task_id,
@@ -165,11 +167,6 @@ class ActorKeyedService : public KeyedService {
       std::vector<optimization_guide::proto::ScriptToolResult>
           script_tool_results,
       TabObservationResult context_result);
-  void OnTabOservationResult(
-      base::OnceCallback<void(TabObservationResult)> callback,
-      base::expected<
-          std::unique_ptr<page_content_annotations::FetchPageContextResult>,
-          std::string> result);
 
   // Needs to be declared before the tasks, as they will indirectly have a
   // reference to it. This ensures the correct destruction order.

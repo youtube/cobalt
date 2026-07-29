@@ -6,13 +6,20 @@
 
 #include <memory>
 
+#include "ash/wm/window_pin_util.h"
 #include "chrome/browser/ash/boca/on_task/on_task_system_web_app_manager_impl.h"
 #include "chrome/browser/ash/browser_delegate/browser_controller.h"
 #include "chrome/browser/ash/browser_delegate/browser_delegate.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_command_controller.h"
+#include "chrome/browser/ui/browser_list.h"
+#include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chromeos/ash/components/boca/on_task/on_task_blocklist.h"
 #include "content/public/browser/browser_context.h"
+#include "ui/aura/window.h"
 #include "url/gurl.h"
 
 namespace ash::boca {
@@ -98,11 +105,41 @@ void LockedQuizSessionManager::OnBocaSWALaunched(
       window_id, LockedNavigationOptions::DOMAIN_NAVIGATION);
 
   auto* const browser = GetBrowserWindowWithID(window_id);
-  if (!browser) {
-    LOG(WARNING) << "Successfully configured Boca SWA window but could not "
-                 << "find its Browser instance for window_id: " << window_id;
+  LOG_IF(WARNING, !browser)
+      << "Successfully configured Boca SWA window but could not "
+      << "find its Browser instance for window_id: " << window_id;
+
+  // Activate SWA window to ensure it remains the active/focused window.
+  if (browser) {
+    browser->window()->Activate();
   }
   std::move(callback).Run(browser);
+}
+
+void LockedQuizSessionManager::SetLockedFullscreenState(Browser* browser,
+                                                        bool pinned) {
+  // TODO(crbug.com/438498962): Replace with the
+  // `SetPinStateForSystemWebAppWindow` helper in `OnTaskSystemWebAppManager`.
+  aura::Window* const window = browser->window()->GetNativeWindow();
+  DCHECK(window);
+
+  CHECK_NE(GetWindowPinType(window), chromeos::WindowPinType::kPinned)
+      << "Extensions only set Trusted Pinned";
+
+  // As this gets triggered from extensions, we might encounter this case.
+  if (IsWindowPinned(window) == pinned) {
+    return;
+  }
+
+  if (pinned) {
+    // Pins from extension are always trusted.
+    PinWindow(window, /*trusted=*/true);
+  } else {
+    UnpinWindow(window);
+  }
+
+  // Update the set of available browser commands.
+  browser->command_controller()->LockedFullscreenStateChanged();
 }
 
 }  // namespace ash::boca

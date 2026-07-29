@@ -44,6 +44,7 @@ class EntropyProviders;
 struct CreateTrialsResult {
   bool applied_seed = false;
   std::optional<bool> seed_has_active_limited_layer;
+  bool AppliedSeedHasActiveLimitedLayer() const;
 };
 
 // Just maps one set of enum values to another. Nothing to see here.
@@ -101,7 +102,6 @@ enum LoadPermanentConsistencyCountryResult {
 };
 
 class PlatformFieldTrials;
-class SafeSeedManagerBase;
 class VariationsServiceClient;
 
 // Used to set up field trials based on stored variations seed data.
@@ -167,7 +167,7 @@ class VariationsFieldTrialCreator {
       std::unique_ptr<base::FeatureList> feature_list,
       metrics::MetricsStateManager* metrics_state_manager,
       PlatformFieldTrials* platform_field_trials,
-      SafeSeedManagerBase* safe_seed_manager,
+      SafeSeedManager* safe_seed_manager,
       bool add_entropy_source_to_variations_ids,
       const EntropyProviders& entropy_providers);
 
@@ -278,7 +278,7 @@ class VariationsFieldTrialCreator {
   CreateTrialsResult CreateTrialsFromSeed(
       const EntropyProviders& entropy_providers,
       base::FeatureList* feature_list,
-      SafeSeedManagerBase* safe_seed_manager,
+      SafeSeedManager* safe_seed_manager,
       std::unique_ptr<ClientFilterableState> client_state);
 
   // Reads a seed's data and signature from the file at |json_seed_path| and

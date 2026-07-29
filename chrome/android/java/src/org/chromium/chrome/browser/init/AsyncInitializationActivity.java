@@ -203,9 +203,7 @@ public abstract class AsyncInitializationActivity extends ChromeBaseAppCompatAct
     /** Controls the parameter of {@link NativeInitializationController#startBackgroundTasks}. */
     @VisibleForTesting
     public boolean shouldAllocateChildConnection() {
-        // If a spare WebContents exists, a child connection has already been allocated that will be
-        // used by the next created tab.
-        return !WarmupManager.getInstance().hasSpareWebContents();
+        return false;
     }
 
     @Override

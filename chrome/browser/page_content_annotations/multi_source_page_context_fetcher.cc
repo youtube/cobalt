@@ -44,23 +44,6 @@ namespace page_content_annotations {
 
 namespace {
 
-// Controls scaling and quality of tab screenshots.
-BASE_FEATURE(kGlicTabScreenshotExperiment,
-             "GlicTabScreenshotExperiment",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-const base::FeatureParam<int> kMaxScreenshotWidthParam{
-    &kGlicTabScreenshotExperiment, "max_screenshot_width", 1024};
-
-const base::FeatureParam<int> kMaxScreenshotHeightParam{
-    &kGlicTabScreenshotExperiment, "max_screenshot_height", 1024};
-
-const base::FeatureParam<int> kScreenshotJpegQuality{
-    &kGlicTabScreenshotExperiment, "screenshot_jpeg_quality", 40};
-
-const base::FeatureParam<base::TimeDelta> kScreenshotTimeout{
-    &kGlicTabScreenshotExperiment, "screenshot_timeout_ms", base::Seconds(1)};
-
 gfx::Size GetScreenshotSize(const gfx::Size& original_size) {
   // By default, no scaling.
   if (!base::FeatureList::IsEnabled(kGlicTabScreenshotExperiment)) {
@@ -405,7 +388,8 @@ class PageContextFetcher : public content::WebContentsObserver {
       return;
     }
 
-    if (!pending_result_->annotated_page_content_result) {
+    if (!pending_result_->annotated_page_content_result ||
+        !base::FeatureList::IsEnabled(kGlicPageContextEligibility)) {
       std::move(callback_).Run(base::ok(std::move(pending_result_)));
       return;
     }
@@ -479,9 +463,40 @@ class PageContextFetcher : public content::WebContentsObserver {
 
 }  // namespace
 
+std::string ToString(FetchPageContextError error) {
+  switch (error) {
+    case FetchPageContextError::kUnknown:
+      return "kUnknown";
+    case FetchPageContextError::kWebContentsChanged:
+      return "kWebContentsChanged";
+    case FetchPageContextError::kPageContextNotEligible:
+      return "kPageContextNotEligible";
+  }
+}
+
+BASE_FEATURE(kGlicTabScreenshotExperiment,
+             "GlicTabScreenshotExperiment",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<int> kMaxScreenshotWidthParam{
+    &kGlicTabScreenshotExperiment, "max_screenshot_width", 1024};
+
+const base::FeatureParam<int> kMaxScreenshotHeightParam{
+    &kGlicTabScreenshotExperiment, "max_screenshot_height", 1024};
+
+const base::FeatureParam<int> kScreenshotJpegQuality{
+    &kGlicTabScreenshotExperiment, "screenshot_jpeg_quality", 40};
+
+const base::FeatureParam<base::TimeDelta> kScreenshotTimeout{
+    &kGlicTabScreenshotExperiment, "screenshot_timeout_ms", base::Seconds(5)};
+
 BASE_FEATURE(kGlicTabScreenshotPaintPreviewBackend,
              "GlicTabScreenshotPaintPreviewBackend",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kGlicPageContextEligibility,
+             "GlicPageContextEligibility",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 FetchPageContextOptions::FetchPageContextOptions() = default;
 

@@ -26,9 +26,11 @@
 #include "chrome/browser/actor/browser_action_util.h"
 #include "chrome/browser/actor/site_policy.h"
 #include "chrome/browser/actor/task_id.h"
+#include "chrome/browser/actor/tools/navigate_tool_request.h"
 #include "chrome/browser/actor/tools/tool_controller.h"
 #include "chrome/browser/actor/tools/tool_request.h"
 #include "chrome/browser/actor/ui/event_dispatcher.h"
+#include "chrome/browser/favicon/favicon_service_factory.h"
 #include "chrome/browser/password_manager/actor_login/actor_login_service.h"
 #include "chrome/browser/password_manager/actor_login/actor_login_service_impl.h"
 #include "chrome/browser/profiles/profile.h"
@@ -37,6 +39,7 @@
 #include "chrome/common/actor.mojom.h"
 #include "chrome/common/actor/action_result.h"
 #include "chrome/common/chrome_features.h"
+#include "components/keyed_service/core/service_access_type.h"
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
 #include "components/optimization_guide/proto/features/actions_data.pb.h"
 #include "components/tabs/public/tab_interface.h"
@@ -167,9 +170,15 @@ bool ExecutionEngine::ShouldGateNavigation(
   }
 
   const GURL& navigation_url = navigation_handle.GetURL();
+
+  for (const auto& origin : allowed_navigation_origins_) {
+    if (origin.IsSameOriginWith(navigation_url)) {
+      return false;
+    }
+  }
+
   const std::optional<url::Origin>& initiator_origin =
       navigation_handle.GetInitiatorOrigin();
-
   return initiator_origin &&
          !initiator_origin->IsSameOriginWith(navigation_url);
 }
@@ -219,38 +228,23 @@ void ExecutionEngine::Act(std::vector<std::unique_ptr<ToolRequest>>&& actions,
   absl::flat_hash_set<int32_t> acting_tab_handles;
 
   action_sequence_ = std::move(actions);
+  bool origin_gating_enabled =
+      base::FeatureList::IsEnabled(kGlicCrossOriginNavigationGating);
   for (const std::unique_ptr<ToolRequest>& action : action_sequence_) {
     CHECK(action);
     if (action->GetTabHandle() != tabs::TabHandle::Null()) {
       acting_tab_handles.insert(action->GetTabHandle().raw_value());
     }
+    if (origin_gating_enabled) {
+      if (std::optional<url::Origin> maybe_origin =
+              action->AssociatedOriginGrant();
+          maybe_origin) {
+        allowed_navigation_origins_.insert(maybe_origin.value());
+      }
+    }
   }
 
-  if (state_ == State::kInit) {
-    // This is the first Act() by this ExecutionEngine, so we should notify
-    // the UI, then kickoff the first action.
-    //
-    // TODO(crbug.com/411462297): Make sure we're property dispatching
-    // StartingToActOnTab UiEvents when tasks aren't scoped to a single tab.
-    // This won't work if the first action sequence is creating the tab on which
-    // following sequences will act.
-    // TODO(crbug.com/420669167): This needs to support taking multiple tabs. Is
-    // it even the right interface? Different sets of tabs might be acted on in
-    // followup sequences...
-    ui_event_dispatcher_->OnPreFirstAct(
-        ui::UiEventDispatcher::FirstActInfo{
-            .task_id = task_->id(),
-            .tab_handle = acting_tab_handles.empty()
-                              ? std::nullopt
-                              : std::make_optional(tabs::TabHandle(
-                                    *acting_tab_handles.begin()))},
-        base::BindOnce(&ExecutionEngine::KickOffNextAction, GetWeakPtr()));
-  } else {
-    // We previously notified the UI, so just kickoff the first action.
-    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(&ExecutionEngine::KickOffNextAction,
-                                  GetWeakPtr(), MakeOkResult()));
-  }
+  KickOffNextAction(MakeOkResult());
 }
 
 void ExecutionEngine::KickOffNextAction(
@@ -453,6 +447,11 @@ base::WeakPtr<ExecutionEngine> ExecutionEngine::GetWeakPtr() {
   return actions_weak_ptr_factory_.GetWeakPtr();
 }
 
+favicon::FaviconService* ExecutionEngine::GetFaviconService() {
+  return FaviconServiceFactory::GetForProfile(
+      profile_, ServiceAccessType::EXPLICIT_ACCESS);
+}
+
 AggregatedJournal& ExecutionEngine::GetJournal() {
   return *journal_;
 }
@@ -463,6 +462,7 @@ actor_login::ActorLoginService& ExecutionEngine::GetActorLoginService() {
 
 void ExecutionEngine::PromptToSelectCredential(
     const std::vector<actor_login::Credential>& credentials,
+    const base::flat_map<GURL, gfx::Image>& favicons,
     ToolDelegate::CredentialSelectedCallback callback) {
   CHECK(!credentials.empty());
   // TODO(crbug.com/427817882): Wire this up to the WebClient.

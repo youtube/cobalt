@@ -17,6 +17,8 @@
 #include "chrome/browser/ui/hats/mock_hats_service.h"
 #include "chrome/browser/ui/hats/survey_config.h"
 #include "chrome/test/base/in_process_browser_test.h"
+#include "components/keep_alive_registry/keep_alive_types.h"
+#include "components/keep_alive_registry/scoped_keep_alive.h"
 #include "components/prefs/pref_service.h"
 #include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/base/signin_switches.h"
@@ -28,6 +30,8 @@
 using testing::_;
 using testing::Eq;
 using testing::Not;
+using testing::Pair;
+using testing::UnorderedElementsAre;
 
 class ChromeSigninClientWithBookmarksInTransportModeBrowserTest
     : public InProcessBrowserTest,
@@ -135,16 +139,16 @@ IN_PROC_BROWSER_TEST_F(ChromeSigninClientHatsSurveyBrowserTest,
                        HatsSurveyLaunchedOnSignin) {
   // Expect the HaTS service to launch the password bubble sign-in survey.
   // TODO(crbug.com/430925046): Investigate the number of Google Accounts.
-  std::map<std::string, std::string> expected_string_psd = {
-      {"Channel", "unknown"},
-      {"Chrome Version", version_info::GetVersion().GetString()},
-      {"Number of Chrome Profiles", "1"},
-      {"Number of Google Accounts", "0"},
-      {"Sign-in Status", "Signed In"}};
   EXPECT_CALL(
       *mock_hats_service(),
-      LaunchDelayedSurvey(kHatsSurveyTriggerIdentityPasswordBubbleSignin, _, _,
-                          Eq(expected_string_psd)));
+      LaunchDelayedSurvey(
+          kHatsSurveyTriggerIdentityPasswordBubbleSignin, _, _,
+          UnorderedElementsAre(
+              Pair("Channel", _),
+              Pair("Chrome Version", version_info::GetVersion().GetString()),
+              Pair("Number of Chrome Profiles", "1"),
+              Pair("Number of Google Accounts", "0"),
+              Pair("Sign-in Status", "Signed In"))));
   // Expect that the surveys for other access point will NOT be launched.
   EXPECT_CALL(*mock_hats_service(),
               LaunchDelayedSurvey(
@@ -164,19 +168,15 @@ IN_PROC_BROWSER_TEST_F(ChromeSigninClientHatsSurveyBrowserTest,
   signin::WaitForRefreshTokensLoaded(identity_manager);
 }
 
-// TODO(crbug.com/433498793): Re-enable this flaky test on Windows.
-#if BUILDFLAG(IS_WIN)
-#define MAYBE_HatsSurveyLaunchedOnBrowserCreationAfterSignin DISABLED_HatsSurveyLaunchedOnBrowserCreationAfterSignin
-#else
-#define MAYBE_HatsSurveyLaunchedOnBrowserCreationAfterSignin HatsSurveyLaunchedOnBrowserCreationAfterSignin
-#endif
-
 // Tests that if a user signs in when no browser is open, the HaTS survey is
 // launched immediately when a browser is subsequently created for that profile.
 IN_PROC_BROWSER_TEST_F(ChromeSigninClientHatsSurveyBrowserTest,
-  MAYBE_HatsSurveyLaunchedOnBrowserCreationAfterSignin) {
-  // Keep the profile alive and close all existing browsers.
+                       HatsSurveyLaunchedOnBrowserCreationAfterSignin) {
   Profile* profile = browser()->profile();
+  // Keep the browser process running while browsers are closed.
+  ScopedKeepAlive keep_alive(KeepAliveOrigin::BROWSER,
+                             KeepAliveRestartOption::DISABLED);
+  // Keep the profile alive and close all existing browsers.
   ScopedProfileKeepAlive profile_keep_alive(
       profile, ProfileKeepAliveOrigin::kProfilePickerView);
   CloseAllBrowsers();
@@ -184,7 +184,7 @@ IN_PROC_BROWSER_TEST_F(ChromeSigninClientHatsSurveyBrowserTest,
   // Sign in to Chrome. The survey won't launch yet, as it requires an active
   // browser.
   signin::MakeAccountAvailable(
-      IdentityManagerFactory::GetForProfile(browser()->profile()),
+      IdentityManagerFactory::GetForProfile(profile),
       signin::AccountAvailabilityOptionsBuilder()
           .AsPrimary(signin::ConsentLevel::kSignin)
           .WithAccessPoint(signin_metrics::AccessPoint::kForYouFre)
@@ -207,6 +207,7 @@ IN_PROC_BROWSER_TEST_F(ChromeSigninClientHatsSurveyBrowserTest,
 
   // Create a new browser for the signed-in profile, which should now trigger
   // the survey.
-  CreateBrowser(profile);
+  Browser* new_browser = CreateBrowser(profile);
+  ASSERT_TRUE(new_browser);
 }
 #endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)

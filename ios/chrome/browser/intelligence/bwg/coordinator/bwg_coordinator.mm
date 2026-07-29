@@ -38,8 +38,7 @@ const CGFloat kPromoMaxImpressionCount = 3;
 }  // namespace
 
 @interface BWGCoordinator () <UISheetPresentationControllerDelegate,
-                              BWGMediatorDelegate,
-                              BWGFREWrapperViewControllerDelegate>
+                              BWGMediatorDelegate>
 
 @end
 
@@ -144,13 +143,13 @@ const CGFloat kPromoMaxImpressionCount = 3;
     _prefService->SetInteger(
         prefs::kIOSBWGPromoImpressionCount,
         _prefService->GetInteger(prefs::kIOSBWGPromoImpressionCount) + 1);
+    [_mediator logAIHubNewBadgeExpirationTime];
   }
 
   _FREWrapperViewController = [[BWGFREWrapperViewController alloc]
          initWithPromo:showPromo
       isAccountManaged:[self isManagedAccount]];
   _FREWrapperViewController.sheetPresentationController.delegate = self;
-  _FREWrapperViewController.BWGFREWrapperViewControllerDelegate = self;
   _FREWrapperViewController.mutator = _mediator;
 
   BwgTabHelper* BWGTabHelper = [self activeWebStateBWGTabHelper];
@@ -191,14 +190,6 @@ const CGFloat kPromoMaxImpressionCount = 3;
     (UIPresentationController*)presentationController {
   // TODO(crbug.com/419064727): Add metric for dismissing coordinator.
   [_BWGCommandsHandler dismissBWGFlowWithCompletion:nil];
-}
-
-#pragma mark - BWGFREWrapperViewControllerDelegate
-
-- (void)promoWasDismissed:(BWGFREWrapperViewController*)wrapperViewController {
-  if (_entryPoint == bwg::EntryPoint::Promo) {
-    [self.promosUIHandler promoWasDismissed];
-  }
 }
 
 #pragma mark - Private

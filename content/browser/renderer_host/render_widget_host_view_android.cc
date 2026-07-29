@@ -44,6 +44,7 @@
 #include "components/input/web_input_event_builders_android.h"
 #include "components/viz/common/features.h"
 #include "components/viz/common/frame_sinks/copy_output_request.h"
+#include "components/viz/common/gpu/raster_context_provider.h"
 #include "components/viz/common/quads/compositor_frame.h"
 #include "components/viz/common/surfaces/frame_sink_id_allocator.h"
 #include "components/viz/common/surfaces/parent_local_surface_id_allocator.h"
@@ -90,6 +91,7 @@
 #include "third_party/skia/include/core/SkColor.h"
 #include "third_party/skia/include/core/SkImageInfo.h"
 #include "ui/android/browser_controls_offset_tag_definitions.h"
+#include "ui/android/ui_android_features.h"
 #include "ui/android/view_android_observer.h"
 #include "ui/android/window_android.h"
 #include "ui/android/window_android_compositor.h"
@@ -1879,6 +1881,26 @@ void RenderWidgetHostViewAndroid::CopyFromExactSurfaceWithIpcDelay(
       /*capture_exact_surface_id=*/true, ipc_delay);
 }
 
+void RenderWidgetHostViewAndroid::CopySharedImageFromExactSurface(
+    const gfx::Rect& src_rect,
+    const gfx::Size& output_size,
+    base::OnceCallback<void(scoped_refptr<gpu::ClientSharedImage>)> callback) {
+  CHECK(IsSurfaceAvailableForCopy())
+      << "To copy the exact surface, it must be available for copy (embedded "
+         "via the browser).";
+  CHECK(using_browser_compositor_);
+  CHECK(delegated_frame_host_);
+  auto context_provider = GetRasterContextProvider();
+  if (!context_provider) {
+    std::move(callback).Run(nullptr);
+    return;
+  }
+
+  delegated_frame_host_->CopySharedImageFromCompositingSurface(
+      std::move(context_provider), src_rect, output_size, std::move(callback),
+      /*capture_exact_surface_id=*/true);
+}
+
 void RenderWidgetHostViewAndroid::EnsureSurfaceSynchronizedForWebTest() {
   ++latest_capture_sequence_number_;
   SynchronizeVisualProperties(cc::DeadlinePolicy::UseInfiniteDeadline(),
@@ -2201,17 +2223,10 @@ void RenderWidgetHostViewAndroid::OnDidUpdateVisualPropertiesComplete(
     SynchronizeVisualProperties(cc::DeadlinePolicy::UseDefaultDeadline(),
                                 metadata.local_surface_id);
 
-  if (using_browser_compositor_) {
-    ui::WindowAndroid* window = view_.GetWindowAndroid();
-    if (!window) {
-      return;
+    auto* compositor = GetCompositorImpl();
+    if (compositor) {
+      compositor->MaybeCompositeNow();
     }
-    ui::WindowAndroidCompositor* compositor = window->GetCompositor();
-    if (!compositor) {
-      return;
-    }
-    static_cast<CompositorImpl*>(compositor)->MaybeCompositeNow();
-  }
 }
 
 void RenderWidgetHostViewAndroid::OnFinishGetContentBitmap(
@@ -2361,9 +2376,18 @@ void RenderWidgetHostViewAndroid::TransformPointToRootSurface(
     *point += gfx::Vector2d(0, rvh_delegate_view->GetTopControlsHeight());
 }
 
-// TODO(jrg): Find out the implications and answer correctly here,
-// as we are returning the WebView and not root window bounds.
 gfx::Rect RenderWidgetHostViewAndroid::GetBoundsInRootWindow() {
+  if (base::FeatureList::IsEnabled(ui::kAndroidUseCorrectWindowBounds)) {
+    ui::WindowAndroid* window_android = view_.GetWindowAndroid();
+    if (window_android) {
+      const std::optional<gfx::Rect> bounds =
+          window_android->GetBoundsInScreenCoordinates();
+      if (bounds.has_value()) {
+        return bounds.value();
+      }
+    }
+  }
+
   return GetViewBounds();
 }
 
@@ -2434,7 +2458,7 @@ blink::mojom::PointerLockResult RenderWidgetHostViewAndroid::LockPointer(
 
   JNIEnv* env = base::android::AttachCurrentThread();
   Java_RenderWidgetHostViewImpl_showPointerLockToast(
-      env, obj_, window_android->GetJavaObject());
+      env, GetJavaObject(), window_android->GetJavaObject());
 
   return blink::mojom::PointerLockResult::kSuccess;
 }
@@ -2477,7 +2501,7 @@ void RenderWidgetHostViewAndroid::UnlockPointer() {
 
   window_android->ReleasePointerLock(view_);
   JNIEnv* env = base::android::AttachCurrentThread();
-  Java_RenderWidgetHostViewImpl_hidePointerLockToast(env, obj_);
+  Java_RenderWidgetHostViewImpl_hidePointerLockToast(env, GetJavaObject());
   host_->LostPointerLock();
 }
 
@@ -2984,6 +3008,7 @@ void RenderWidgetHostViewAndroid::OnDetachCompositor() {
   overscroll_controller_.reset();
   if (using_browser_compositor_)
     delegated_frame_host_->DetachFromCompositor();
+  DismissTextHandles();
 }
 
 void RenderWidgetHostViewAndroid::OnAnimate(base::TimeTicks begin_frame_time) {
@@ -3541,6 +3566,15 @@ const cc::slim::SurfaceLayer* RenderWidgetHostViewAndroid::GetSurfaceLayer()
   return delegated_frame_host_->content_layer();
 }
 
+scoped_refptr<viz::RasterContextProvider>
+RenderWidgetHostViewAndroid::GetRasterContextProvider() {
+  auto* compositor = GetCompositorImpl();
+  if (!compositor) {
+    return nullptr;
+  }
+  return compositor->GetRasterContextProvider();
+}
+
 void RenderWidgetHostViewAndroid::RegisterOffsetTags(
     const ui::BrowserControlsOffsetTagDefinitions& tag_definitions) {
   if (delegated_frame_host_) {
@@ -3639,6 +3673,17 @@ void RenderWidgetHostViewAndroid::EndRotationAndSyncIfNecessary() {
 void RenderWidgetHostViewAndroid::EvictInternal() {
   screen_state_change_handler_.WasEvicted();
   local_surface_id_allocator_.Invalidate();
+}
+
+CompositorImpl* RenderWidgetHostViewAndroid::GetCompositorImpl() {
+  if (!using_browser_compositor_) {
+    return nullptr;
+  }
+  ui::WindowAndroid* window = view_.GetWindowAndroid();
+  if (!window) {
+    return nullptr;
+  }
+  return static_cast<CompositorImpl*>(window->GetCompositor());
 }
 
 }  // namespace content

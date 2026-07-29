@@ -24,29 +24,6 @@
 namespace tab_groups {
 namespace {
 
-// Convert proto int64 microseconds since Windows-epoch to base::Time.
-base::Time DeserializeTime(int64_t proto_time) {
-  return base::Time::FromDeltaSinceWindowsEpoch(base::Microseconds(proto_time));
-}
-
-// Client tag consists of the tab guid concatenated with collaboration id.
-std::string CreateClientTagForSharedTab(const SavedTabGroup& group,
-                                        const SavedTabGroupTab& tab) {
-  return tab.saved_tab_guid().AsLowercaseString() + "|" +
-         group.collaboration_id().value().value();
-}
-
-// Client tag consists of the tab guid concatenated with collaboration id.
-std::string CreateClientTagForSharedTab(const CollaborationId& collaboration_id,
-                                        const base::Uuid& tab_guid) {
-  return tab_guid.AsLowercaseString() + "|" + collaboration_id.value();
-}
-
-std::string CreateClientTagForSharedGroup(const SavedTabGroup& group) {
-  return group.saved_guid().AsLowercaseString() + "|" +
-         group.collaboration_id().value().value();
-}
-
 // Returns the client tag for this specifics object. Note that
 // SharedTabGroupAccountDataSpecifics uses the client tag as a storage key.
 std::string GetClientTagFromSpecifics(
@@ -768,15 +745,14 @@ SharedTabGroupAccountDataSyncBridge::CreateEntityDataFromSharedTabGroup(
   // WARNING: if you are adding support for new
   // `SharedTabGroupAccountDataSpecifics` fields, you need to update the
   // following functions accordingly: `TrimSpecifics`.
-  sync_pb::SharedTabGroupAccountDataSpecifics old_specifics =
+  sync_pb::SharedTabGroupAccountDataSpecifics specifics =
       change_processor()
           ->GetPossiblyTrimmedRemoteSpecifics(
               CreateClientTagForSharedGroup(tab_group))
           .shared_tab_group_account_data();
 
-  sync_pb::SharedTabGroupAccountDataSpecifics specifics =
-      CreatePersonalCollaborationSpecificsFromSharedTabGroup(tab_group,
-                                                             old_specifics);
+  PopulatePersonalCollaborationSpecificsFromSharedTabGroup(tab_group,
+                                                           &specifics);
 
   return CreateEntityDataFromSpecifics(specifics);
 }
@@ -791,15 +767,14 @@ SharedTabGroupAccountDataSyncBridge::CreateEntityDataFromSavedTabGroupTab(
   // WARNING: if you are adding support for new
   // `SharedTabGroupAccountDataSpecifics` fields, you need to update the
   // following functions accordingly: `TrimSpecifics`.
-  sync_pb::SharedTabGroupAccountDataSpecifics old_specifics =
+  sync_pb::SharedTabGroupAccountDataSpecifics specifics =
       change_processor()
           ->GetPossiblyTrimmedRemoteSpecifics(
               CreateClientTagForSharedTab(*group, tab))
           .shared_tab_group_account_data();
 
-  sync_pb::SharedTabGroupAccountDataSpecifics specifics =
-      CreatePersonalCollaborationSpecificsFromSavedTabGroupTab(*group, tab,
-                                                               old_specifics);
+  PopulatePersonalCollaborationSpecificsFromSavedTabGroupTab(*group, tab,
+                                                             &specifics);
 
   return CreateEntityDataFromSpecifics(specifics);
 }

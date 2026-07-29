@@ -567,8 +567,8 @@ class ScriptExecutionCallbackHelper final {
   bool DidComplete() const { return did_complete_; }
 
   WebScriptExecutionCallback Callback() {
-    return WTF::BindOnce(&ScriptExecutionCallbackHelper::Completed,
-                         WTF::Unretained(this));
+    return blink::BindOnce(&ScriptExecutionCallbackHelper::Completed,
+                           Unretained(this));
   }
 
   // Returns true if any results (even if they were empty) were passed to the
@@ -7268,9 +7268,9 @@ class TestAccessInitialDocumentLocalFrameHost
   void Init(blink::AssociatedInterfaceProvider* provider) {
     provider->OverrideBinderForTesting(
         mojom::blink::LocalMainFrameHost::Name_,
-        WTF::BindRepeating(
+        BindRepeating(
             &TestAccessInitialDocumentLocalFrameHost::BindFrameHostReceiver,
-            WTF::Unretained(this)));
+            Unretained(this)));
   }
 
   // LocalMainFrameHost:
@@ -8256,7 +8256,7 @@ TEST_F(WebFrameTest, CurrentHistoryItem) {
   // After navigation, there is.
   HistoryItem* item = main_frame_loader.GetDocumentLoader()->GetHistoryItem();
   ASSERT_TRUE(item);
-  EXPECT_EQ(WTF::String(url.data()), item->UrlString());
+  EXPECT_EQ(String(url.data()), item->UrlString());
 }
 
 class FailCreateChildFrame : public frame_test_helpers::TestWebFrameClient {
@@ -14199,7 +14199,7 @@ class TestUpdateFaviconURLLocalFrameHost : public FakeLocalFrameHost {
 
   // FakeLocalFrameHost:
   void UpdateFaviconURL(
-      WTF::Vector<blink::mojom::blink::FaviconURLPtr> favicon_urls) override {
+      Vector<blink::mojom::blink::FaviconURLPtr> favicon_urls) override {
     did_notify_ = true;
   }
 

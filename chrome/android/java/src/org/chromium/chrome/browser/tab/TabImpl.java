@@ -833,14 +833,14 @@ class TabImpl implements Tab {
         Referrer referrer = params.getReferrer();
         mWebContentsState =
                 WebContentsStateBridge.appendPendingNavigation(
+                        mProfile,
                         assumeNonNull(mWebContentsState),
                         title,
                         params.getUrl(),
                         referrer != null ? referrer.getUrl() : null,
                         // Policy will be ignored for null referrer url, 0 is just a placeholder.
                         referrer != null ? referrer.getPolicy() : 0,
-                        params.getInitiatorOrigin(),
-                        isOffTheRecord());
+                        params.getInitiatorOrigin());
 
         // The only reason this should still be null is if we failed to allocate a byte buffer,
         // which probably means we are close to an OOM.
@@ -880,16 +880,8 @@ class TabImpl implements Tab {
 
         if (mPendingLoadParams != null) {
             assert isFrozen();
-            // TODO(crbug.com/366242716): This codepath can also be used by CCT, but it's not
-            // clear whether multi-network CCT will ever end up here. As such, we should investigate
-            // whether the parameter targetsNetwork should ever be set to true.
             WebContents webContents =
-                    WarmupManager.getInstance()
-                            .takeSpareWebContents(
-                                    isIncognito(), isHidden(), /* targetsNetwork= */ false);
-            if (webContents == null) {
-                webContents = WebContentsFactory.createWebContents(mProfile, isHidden(), false);
-            }
+                    WebContentsFactory.createWebContents(mProfile, isHidden(), false);
             initWebContents(webContents);
             loadUrl(mPendingLoadParams);
             mPendingLoadParams = null;
@@ -1288,20 +1280,9 @@ class TabImpl implements Tab {
 
             boolean creatingWebContents = webContents == null;
             if (creatingWebContents) {
-                // TODO(crbug.com/366242716): This codepath can also be used by CCT, but it's not
-                // clear whether multi-network CCT will ever end up here. As such, we should
-                // investigate whether the parameter targetsNetwork should ever be set to true.
                 webContents =
-                        WarmupManager.getInstance()
-                                .takeSpareWebContents(
-                                        isIncognito(),
-                                        initiallyHidden,
-                                        /* targetsNetwork= */ false);
-                if (webContents == null) {
-                    webContents =
-                            WebContentsFactory.createWebContents(
-                                    mProfile, initiallyHidden, initializeRenderer);
-                }
+                        WebContentsFactory.createWebContents(
+                                mProfile, initiallyHidden, initializeRenderer);
             }
 
             assumeNonNull(webContents);
@@ -2226,7 +2207,7 @@ class TabImpl implements Tab {
 
             WebContents webContents =
                     WebContentsStateBridge.restoreContentsFromByteBuffer(
-                            mWebContentsState, isHidden());
+                            mWebContentsState, getProfile(), isHidden());
 
             String failedRestoreUrl = UrlConstants.NTP_URL;
             if (webContents == null) {
@@ -2407,6 +2388,10 @@ class TabImpl implements Tab {
         mTabGroupId = tabGroupId;
         for (TabObserver observer : mObservers) {
             observer.onTabGroupIdChanged(this, tabGroupId);
+        }
+        // This may be called before the native TabAndroid is initialized.
+        if (mNativeTabAndroid != 0) {
+            TabImplJni.get().notifyTabGroupChanged(mNativeTabAndroid, tabGroupId);
         }
     }
 
@@ -2698,6 +2683,10 @@ class TabImpl implements Tab {
         for (TabObserver observer : mObservers) {
             observer.onTabPinnedStateChanged(this, isPinned);
         }
+        // This may be called before the native tab is initialized.
+        if (mNativeTabAndroid != 0) {
+            TabImplJni.get().notifyPinnedStateChanged(mNativeTabAndroid, isPinned);
+        }
     }
 
     @Override
@@ -2806,6 +2795,12 @@ class TabImpl implements Tab {
         boolean handleNonNavigationAboutURL(GURL url);
 
         void onShow(long nativeTabAndroid);
+
+        void notifyPinnedStateChanged(long nativeTabAndroid, boolean isPinned);
+
+        void notifyTabGroupChanged(
+                long nativeTabAndroid,
+                @JniType("std::optional<base::Token>") @Nullable Token tabGroupId);
     }
 
     @VisibleForTesting

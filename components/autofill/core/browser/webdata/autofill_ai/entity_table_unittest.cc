@@ -65,6 +65,18 @@ TEST_F(EntityTableTest, BasicWriteThenRead) {
   EXPECT_THAT(table().GetEntityInstances(), UnorderedElementsAre(pp, dl));
 }
 
+// Tests that the entity table preserves read only flag between write and read.
+TEST_F(EntityTableTest, BasicWriteThenRead_ReadOnlyInstance) {
+  EntityInstance pp =
+      test::GetPassportEntityInstance(test::PassportEntityOptions{
+          .are_attributes_read_only =
+              EntityInstance::AreAttributesReadOnly{true}});
+
+  ASSERT_TRUE(table().AddOrUpdateEntityInstance(pp));
+
+  EXPECT_THAT(table().GetEntityInstances(), UnorderedElementsAre(pp));
+}
+
 // Tests updating entity instances.
 TEST_F(EntityTableTest, AddOrUpdateEntityInstance) {
   EntityInstance pp = test::GetPassportEntityInstance(
@@ -158,7 +170,7 @@ TEST_F(EntityTableTest, GetEntityInstancesSkipsEmptyInstances) {
       R"(UPDATE autofill_ai_attributes
          SET attribute_type = attribute_type || 'some-garbage-suffix'
          WHERE entity_guid = ?)"));
-  attributes_update.BindString(0, pp.guid().AsLowercaseString());
+  attributes_update.BindString(0, *pp.guid());
   ASSERT_TRUE(attributes_update.Run())
       << "The UPDATE failed: " << test_api(table()).db()->GetErrorMessage()
       << " (Check the table and column names in the "

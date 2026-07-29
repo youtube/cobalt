@@ -21,8 +21,6 @@ const CGFloat kSymbolAddBackgroundPointSize = 12;
 #pragma mark - HomeCustomizationBackgroundCell
 
 - (void)setupContentView:(UIView*)contentView {
-  contentView.backgroundColor = [UIColor colorNamed:kGrey200Color];
-
   UIImage* plusIcon = SymbolWithPalette(
       CustomSymbolWithPointSize(kPlusCircleFillSymbol,
                                 kSymbolAddBackgroundPointSize),
@@ -48,6 +46,12 @@ const CGFloat kSymbolAddBackgroundPointSize = 12;
       [[UITapGestureRecognizer alloc] initWithTarget:self
                                               action:@selector(handleTap)];
   [self.contentView addGestureRecognizer:tapGesture];
+
+  [self applyTheme];
+}
+
+- (void)applyTheme {
+  self.innerContentView.backgroundColor = [UIColor colorNamed:kGrey200Color];
 }
 
 #pragma mark - Private
@@ -55,7 +59,7 @@ const CGFloat kSymbolAddBackgroundPointSize = 12;
 // Handles tap gesture by notifying the delegate to display background picker
 // options.
 - (void)handleTap {
-  [self.delegate showBackgroundPickerOptions];
+  [self.delegate showBackgroundPickerOptionsFromSourceView:self.contentView];
 }
 
 @end

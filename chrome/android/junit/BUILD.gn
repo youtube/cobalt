@@ -239,7 +239,6 @@ if (is_android) {
       "//components/browser_ui/desktop_windowing/android:java",
       "//components/browser_ui/device_lock/android:java",
       "//components/browser_ui/display_cutout/android:java",
-      "//components/browser_ui/edge_to_edge/android:java",
       "//components/browser_ui/media/android:java",
       "//components/browser_ui/media/android:java_resources",
       "//components/browser_ui/modaldialog/android:java",
@@ -396,6 +395,7 @@ if (is_android) {
       "//ui/android:ui_junit_test_support",
       "//ui/base/ime/mojom:mojom_java",
       "//ui/base/mojom:mojom_java",
+      "//ui/edge_to_edge:java",
       "//url:gurl_java",
       "//url:gurl_junit_test_support",
       "//url/mojom:url_mojom_gurl_java",
@@ -549,7 +549,6 @@ if (is_android) {
       "src/org/chromium/chrome/browser/compositor/layouts/StaticLayoutUnitTest.java",
       "src/org/chromium/chrome/browser/compositor/layouts/content/TitleBitmapFactoryUnitTest.java",
       "src/org/chromium/chrome/browser/compositor/layouts/eventfilter/AreaMotionEventFilterUnitTest.java",
-      "src/org/chromium/chrome/browser/compositor/overlays/strip/MultiSelectedTabsContextMenuCoordinatorUnitTest.java",
       "src/org/chromium/chrome/browser/compositor/overlays/strip/ScrollDelegateUnitTest.java",
       "src/org/chromium/chrome/browser/compositor/overlays/strip/ScrollingStripStackerUnitTest.java",
       "src/org/chromium/chrome/browser/compositor/overlays/strip/StripLayoutContextMenuCoordinatorTestUtils.java",
@@ -1091,6 +1090,7 @@ if (is_android) {
     deps = [
       ":chrome_junit_tests_helper",
       "//chrome/browser/tabpersistence:java",
+      "//components/visited_url_ranking/public:public_java",
     ]
   }
 
@@ -1106,9 +1106,11 @@ if (is_android) {
       "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/MoveTabUtilsUnitTest.java",
       "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/PersistentVersioningMessageMediatorUnitTest.java",
       "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/PriceWelcomeMessageControllerUnitTest.java",
+      "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/RecyclerViewScrollerUnitTest.java",
       "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/SharedGroupObserverUnitTest.java",
       "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/TabArchiveSettingsFragmentUnitTest.java",
       "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/TabBubblerUnitTest.java",
+      "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/TabCardHighlightHandlerUnitTest.java",
       "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/TabCardViewBinderUtilsUnitTest.java",
       "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/TabGridContextMenuCoordinatorUnitTest.java",
       "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/TabGridDialogMenuCoordinatorUnitTest.java",
@@ -1164,6 +1166,9 @@ if (is_android) {
       "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/TransitiveSharedGroupObserverUnitTest.java",
       "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/archived_tabs_auto_delete_promo/ArchivedTabsAutoDeletePromoCoordinatorTest.java",
       "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/archived_tabs_auto_delete_promo/ArchivedTabsAutoDeletePromoManagerTest.java",
+      "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/pinned_tabs_strip/PinnedTabStripCoordinatorTest.java",
+      "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/pinned_tabs_strip/PinnedTabStripMediatorTest.java",
+      "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/pinned_tabs_strip/PinnedTabStripViewBinderTest.java",
       "//chrome/android/features/tab_ui/junit/src/org/chromium/chrome/browser/tasks/tab_management/ArchivedTabsCardViewBinderUnitTest.java",
       "//chrome/android/features/tab_ui/junit/src/org/chromium/chrome/browser/tasks/tab_management/ArchivedTabsDialogCoordinatorUnitTest.java",
       "//chrome/android/features/tab_ui/junit/src/org/chromium/chrome/browser/tasks/tab_management/ArchivedTabsMessageServiceUnitTest.java",
@@ -1200,10 +1205,12 @@ if (is_android) {
       "//chrome/android/features/tab_ui/junit/src/org/chromium/chrome/browser/tasks/tab_management/TabListMediatorUnitTest.java",
       "//chrome/android/features/tab_ui/junit/src/org/chromium/chrome/browser/tasks/tab_management/TabStripSnapshotterTest.java",
       "//chrome/android/features/tab_ui/junit/src/org/chromium/chrome/browser/tasks/tab_management/TabUiMetricsHelperUnitTest.java",
+      "//chrome/android/features/tab_ui/junit/src/org/chromium/chrome/browser/tasks/tab_management/pinned_tabs_strip/PinnedTabStripItemViewBinderUnitTest.java",
     ]
 
     deps = [
       ":chrome_junit_tests_helper",
+      "//base:base_junit_test_support",
       "//base:holder_java",
     ]
   }
@@ -1280,7 +1287,10 @@ if (is_android) {
       "src/org/chromium/chrome/browser/display_cutout/DisplayCutoutControllerTest.java",
       "src/org/chromium/chrome/browser/dom_distiller/ReaderModeActionRateLimiterTest.java",
       "src/org/chromium/chrome/browser/dom_distiller/ReaderModeBottomSheetCoordinatorTest.java",
+      "src/org/chromium/chrome/browser/dom_distiller/ReaderModeIphControllerTest.java",
       "src/org/chromium/chrome/browser/dom_distiller/ReaderModeManagerTest.java",
+      "src/org/chromium/chrome/browser/dom_distiller/ReaderModeMetricsTest.java",
+      "src/org/chromium/chrome/browser/dom_distiller/ReaderModePrefsViewTest.java",
       "src/org/chromium/chrome/browser/dom_distiller/ReaderModeToolbarButtonControllerTest.java",
       "src/org/chromium/chrome/browser/dom_distiller/TabDistillabilityProviderTest.java",
       "src/org/chromium/chrome/browser/feed/FeedActionDelegateImplTest.java",
@@ -1336,6 +1346,8 @@ if (is_android) {
       "//base:holder_java",
       "//chrome/browser/privacy:privacy_preference_manager_java",
       "//components/dom_distiller/content/browser/android:dom_distiller_content_java",
+      "//components/dom_distiller/core/android:dom_distiller_core_java",
+      "//components/dom_distiller/core/mojom:mojom_java",
     ]
   }
 }

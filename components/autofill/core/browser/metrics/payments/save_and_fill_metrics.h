@@ -5,6 +5,9 @@
 #ifndef COMPONENTS_AUTOFILL_CORE_BROWSER_METRICS_PAYMENTS_SAVE_AND_FILL_METRICS_H_
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_METRICS_PAYMENTS_SAVE_AND_FILL_METRICS_H_
 
+#include "base/time/time.h"
+#include "components/autofill/core/browser/metrics/autofill_metrics.h"
+
 namespace autofill::autofill_metrics {
 
 // These values are persisted to logs. Entries should not be renumbered and
@@ -20,7 +23,43 @@ enum class SaveAndFillFormEvent {
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/autofill/enums.xml:SaveAndFillFormEvent)
 
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+//
+// LINT.IfChange(SaveAndFillSuggestionNotShownReason)
+enum class SaveAndFillSuggestionNotShownReason {
+  // The user has at least one credit card saved.
+  kHasSavedCards = 0,
+  // The suggestion is blocked by the strike database (e.g., max strikes
+  // reached or required delay has not passed).
+  kBlockedByStrikeDatabase = 1,
+  // The user is in incognito mode.
+  kUserInIncognito = 2,
+  // The credit card form is not complete.
+  kIncompleteCreditCardForm = 3,
+  kMaxValue = kIncompleteCreditCardForm,
+};
+// LINT.ThenChange(/tools/metrics/histograms/metadata/autofill/enums.xml:SaveAndFillSuggestionNotShownReason)
+
 void LogSaveAndFillFormEvent(SaveAndFillFormEvent event);
+
+// Logs the reason why the Save and Fill suggestion was not shown.
+void LogSaveAndFillSuggestionNotShownReason(
+    SaveAndFillSuggestionNotShownReason reason);
+
+// Logs the latency for the GetDetailsForCreateCard & CreateCard request. Logs
+// to parent histogram with no breakdown by result and child histograms with
+// specific result (success/failure) of the request. This is due to the latency
+// of the failed requests having a larger variation and possible long tails.
+void LogSaveAndFillGetDetailsForCreateCardResultAndLatency(
+    bool succeeded,
+    base::TimeDelta latency);
+void LogSaveAndFillCreateCardResultAndLatency(bool succeeded,
+                                              base::TimeDelta latency);
+
+void LogSaveAndFillStrikeDatabaseBlockReason(
+    AutofillMetrics::AutofillStrikeDatabaseBlockReason reason);
+void LogSaveAndFillNumOfStrikesPresentWhenDialogAccepted(int strike_count);
 
 }  // namespace autofill::autofill_metrics
 

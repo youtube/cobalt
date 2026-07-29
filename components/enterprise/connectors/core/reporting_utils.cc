@@ -175,6 +175,9 @@ proto::DataTransferEventTrigger ToProtoDataTransferEventTrigger(
   if (trigger == kPagePrintDataTransferEventTrigger) {
     return proto::DataTransferEventTrigger::PAGE_PRINT;
   }
+  if (trigger == kClipboardCopyDataTransferEventTrigger) {
+    return proto::DataTransferEventTrigger::CLIPBOARD_COPY;
+  }
   if (trigger == kUrlVisitedDataTransferEventTrigger) {
     return proto::DataTransferEventTrigger::URL_VISITED;
   }
@@ -637,6 +640,7 @@ proto::DlpSensitiveDataEvent GetDlpSensitiveDataEvent(
     const int64_t content_size,
     const ContentAnalysisResponse::Result& result,
     const ReferrerChain& referrer_chain,
+    const FrameUrlChain& frame_url_chain,
     EventResult event_result) {
   proto::DlpSensitiveDataEvent event;
   event.set_url(url.spec());
@@ -692,6 +696,8 @@ proto::DlpSensitiveDataEvent GetDlpSensitiveDataEvent(
   event.set_event_result(GetEventResult(event_result));
   event.set_clicked_through(event_result == EventResult::BYPASSED);
 
+  *event.mutable_iframe_urls() = frame_url_chain;
+
   return event;
 }
 
@@ -711,6 +717,7 @@ proto::SafeBrowsingDangerousDownloadEvent GetDangerousDownloadEvent(
     const std::string& profile_username,
     const int64_t content_size,
     const ReferrerChain& referrer_chain,
+    const FrameUrlChain& frame_url_chain,
     EventResult event_result) {
   proto::SafeBrowsingDangerousDownloadEvent event;
   event.set_url(url.spec());
@@ -751,6 +758,8 @@ proto::SafeBrowsingDangerousDownloadEvent GetDangerousDownloadEvent(
 
   event.set_event_result(GetEventResult(event_result));
   event.set_clicked_through(event_result == EventResult::BYPASSED);
+
+  *event.mutable_iframe_urls() = frame_url_chain;
 
   return event;
 }
@@ -833,6 +842,16 @@ void AddReferrerChainToEvent(
     }
   }
   event.Set(kKeyReferrers, std::move(referrers));
+}
+
+void AddFrameUrlChainToEvent(
+    const google::protobuf::RepeatedPtrField<std::string>& frame_url_chain,
+    base::Value::Dict& event) {
+  base::Value::List iframe_urls;
+  for (const auto& frame_url : frame_url_chain) {
+    iframe_urls.Append(frame_url);
+  }
+  event.Set(kKeyIframeUrls, std::move(iframe_urls));
 }
 
 }  // namespace enterprise_connectors

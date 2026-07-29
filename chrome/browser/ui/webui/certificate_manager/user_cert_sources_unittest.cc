@@ -66,12 +66,6 @@ class FakeCertificateManagerPage
 
 class UserCertSourcesUnitTest : public ChromeRenderViewHostTestHarness {
  public:
-  UserCertSourcesUnitTest() {
-    feature_list_.InitWithFeatures({features::kEnableCertManagementUIV2,
-                                    features::kEnableCertManagementUIV2Write},
-                                   {});
-  }
-
   void TearDown() override {
     ui::SelectFileDialog::SetFactory(nullptr);
     ChromeRenderViewHostTestHarness::TearDown();
@@ -106,8 +100,6 @@ class UserCertSourcesUnitTest : public ChromeRenderViewHostTestHarness {
     return get_certs_future.Take();
   }
 
- private:
-  base::test::ScopedFeatureList feature_list_;
 };
 
 TEST_F(UserCertSourcesUnitTest, TestGetCertificateInfos) {

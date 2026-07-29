@@ -274,91 +274,6 @@ ci.builder(
 )
 
 ci.builder(
-    name = "linux-chromeos-dbg-oslogin",
-    description_html = "This builder is used to debug spefically oslogin issues related " +
-                       "to linux-chromeos-dbg-oslogin",
-    builder_spec = builder_config.builder_spec(
-        gclient_config = builder_config.gclient_config(
-            config = "chromium",
-            apply_configs = [
-                "chromeos",
-            ],
-        ),
-        chromium_config = builder_config.chromium_config(
-            config = "chromium",
-            apply_configs = [
-                "mb",
-            ],
-            build_config = builder_config.build_config.DEBUG,
-            target_arch = builder_config.target_arch.INTEL,
-            target_bits = 64,
-            target_platform = builder_config.target_platform.CHROMEOS,
-        ),
-    ),
-    builder_config_settings = builder_config.ci_settings(
-        retry_failed_shards = True,
-    ),
-    gn_args = gn_args.config(
-        configs = [
-            "chromeos_with_codecs",
-            "debug_builder",
-            "remoteexec",
-            "use_cups",
-            "x64",
-        ],
-    ),
-    targets = targets.bundle(
-        targets = [
-            "linux_chromeos_gtests",
-            "linux_chromeos_isolated_scripts",
-        ],
-        mixins = [
-            "x86-64",
-            "linux-jammy",
-            "chromium-tests-oslogin",
-        ],
-        per_test_modifications = {
-            "browser_tests": targets.mixin(
-                swarming = targets.swarming(
-                    shards = 140,
-                ),
-            ),
-            "content_browsertests": targets.mixin(
-                swarming = targets.swarming(
-                    shards = 16,
-                ),
-            ),
-            "interactive_ui_tests": targets.mixin(
-                swarming = targets.swarming(
-                    shards = 12,
-                ),
-            ),
-            "net_unittests": targets.mixin(
-                swarming = targets.swarming(
-                    shards = 2,
-                ),
-            ),
-            "pthreadpool_unittests": targets.remove(
-                reason = "pthreadpool is not built for ChromeOS currently.",
-            ),
-            "unit_tests": targets.mixin(
-                swarming = targets.swarming(
-                    shards = 4,
-                ),
-            ),
-            "wayland_client_perftests": targets.remove(
-                reason = "https://crbug.com/859307",
-            ),
-        },
-    ),
-    os = os.LINUX_DEFAULT,
-    console_view_entry = consoles.console_view_entry(
-        category = "linux",
-    ),
-    contact_team_email = "chrome-dev-infra-team@google.com",
-)
-
-ci.builder(
     name = "linux-chromeos-annotator-rel",
     builder_spec = builder_config.builder_spec(
         gclient_config = builder_config.gclient_config(
@@ -400,6 +315,141 @@ ci.builder(
     execution_timeout = 3 * time.hour,
     notifies = ["annotator-rel"],
     siso_remote_jobs = siso.remote_jobs.HIGH_JOBS_FOR_CI,
+)
+
+ci.builder(
+    name = "chromeos-structured-test-ids-amd64-generic-rel-fyi",
+    description_html = ("This is a builder for Ash chrome that runs " +
+                        "with an experiment for structured test ids."),
+    builder_spec = builder_config.builder_spec(
+        gclient_config = builder_config.gclient_config(
+            config = "chromium",
+            apply_configs = [
+                "chromeos",
+                # This is necessary due to a child builder running the
+                # telemetry_perf_unittests suite.
+                "chromium_with_telemetry_dependencies",
+            ],
+        ),
+        chromium_config = builder_config.chromium_config(
+            config = "chromium",
+            apply_configs = [
+                "mb",
+                "shared_build_dir",
+            ],
+            build_config = builder_config.build_config.RELEASE,
+            target_arch = builder_config.target_arch.INTEL,
+            target_bits = 64,
+            target_platform = builder_config.target_platform.CHROMEOS,
+            target_cros_boards = [
+                "amd64-generic",
+            ],
+            cros_boards_with_qemu_images = "amd64-generic-vm",
+        ),
+    ),
+    gn_args = gn_args.config(
+        configs = [
+            "chromeos_device",
+            "dcheck_off",
+            "remoteexec",
+            "amd64-generic-vm",
+            "ozone_headless",
+            "use_fake_dbus_clients",
+            "x64",
+        ],
+    ),
+    targets = targets.bundle(
+        targets = [
+            "gpu_chromeos_telemetry_tests",
+            "chromeos_vm_gtests",
+            "chromeos_isolated_scripts",
+            "chromeos_vm_tast",
+        ],
+        mixins = [
+            "chromeos-generic-vm",
+        ],
+        per_test_modifications = {
+            "chrome_all_tast_tests": targets.mixin(
+                args = [
+                    "--tast-shard-method=hash",
+                ],
+            ),
+        },
+    ),
+    targets_settings = targets.settings(
+        browser_config = targets.browser_config.CROS_CHROME,
+        os_type = targets.os_type.CROS,
+    ),
+    os = os.LINUX_DEFAULT,
+    console_view_entry = consoles.console_view_entry(
+        category = "simple|release|x64",
+        short_name = "compile_RDB",
+    ),
+    contact_team_email = "chrome-browser-infra-team@google.com",
+    experiments = {
+        "chromium_tests.resultdb_module": 100,
+    },
+    siso_remote_jobs = siso.remote_jobs.LOW_JOBS_FOR_CI,
+)
+
+fyi_ios_builder(
+    name = "ios-structured-test-ids-simulator-fyi",
+    description_html = "iOS builder for running tests with an experiment for" +
+                       " structured test ids.",
+    builder_spec = builder_config.builder_spec(
+        gclient_config = builder_config.gclient_config(
+            config = "ios",
+        ),
+        chromium_config = builder_config.chromium_config(
+            config = "chromium",
+            apply_configs = [
+                "mb",
+                "mac_toolchain",
+            ],
+            build_config = builder_config.build_config.DEBUG,
+            target_bits = 64,
+            target_platform = builder_config.target_platform.IOS,
+        ),
+    ),
+    gn_args = gn_args.config(
+        configs = [
+            "debug_static_builder",
+            "remoteexec",
+            "ios_simulator",
+            "arm64",
+            "xctest",
+        ],
+    ),
+    targets = targets.bundle(
+        targets = [
+            "ios_simulator_tests",
+        ],
+        mixins = [
+            "expand-as-isolated-script",
+            "has_native_resultdb_integration",
+            "isolate_profile_data",
+            "mac_default_arm64",
+            "mac_toolchain",
+            "out_dir_arg",
+            "xcode_16_main",
+            "xctest",
+        ],
+    ),
+    builderless = True,
+    os = os.MAC_DEFAULT,
+    cpu = cpu.ARM64,
+    console_view_entry = [
+        consoles.console_view_entry(
+            category = "ios|default",
+            short_name = "sim_RDB",
+        ),
+    ],
+    cq_mirrors_console_view = "mirrors",
+    contact_team_email = "chrome-browser-infra-team@google.com",
+    experiments = {
+        "chromium_tests.resultdb_module": 100,
+    },
+    siso_remote_jobs = siso.remote_jobs.LOW_JOBS_FOR_CI,
 )
 
 ci.builder(
@@ -780,7 +830,7 @@ fyi_ios_builder(
             "mac_default_arm64",
             "mac_toolchain",
             "out_dir_arg",
-            "xcode_16_main",
+            "xcode_26_main",
             "xctest",
         ],
     ),
@@ -1130,7 +1180,7 @@ fyi_ios_builder(
             "ioswpt-chromium-swarming-pool",
             "mac_14_x64",
             "mac_toolchain",
-            "xcode_16_main",
+            "xcode_26_main",
         ],
     ),
     builderless = True,
@@ -1462,6 +1512,8 @@ ci.builder(
     targets = targets.bundle(
         targets = [
             "chromium_gtests",
+            "flatbuffers_unittests",
+            "variations_smoke_tests",
         ],
         mixins = [
             "linux-jammy",
@@ -1724,7 +1776,7 @@ fyi_ios_builder(
             "mac_vm",
             "mac_toolchain",
             "out_dir_arg",
-            "xcode_16_main",
+            "xcode_26_main",
             "xctest",
         ],
     ),
@@ -1780,7 +1832,7 @@ fyi_ios_builder(
             "mac_default_x64",
             "mac_toolchain",
             "out_dir_arg",
-            "xcode_16_main",
+            "xcode_26_main",
             "xctest",
         ],
     ),

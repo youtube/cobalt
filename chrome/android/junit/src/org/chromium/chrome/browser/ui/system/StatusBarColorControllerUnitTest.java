@@ -39,13 +39,14 @@ import org.chromium.chrome.browser.ActivityTabProvider;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.layouts.LayoutManager;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
+import org.chromium.chrome.browser.ntp_customization.NtpCustomizationConfigManager;
 import org.chromium.chrome.browser.tasks.tab_management.TabUiThemeUtil;
 import org.chromium.chrome.browser.theme.TopUiThemeColorProvider;
 import org.chromium.chrome.browser.ui.desktop_windowing.AppHeaderUtils;
 import org.chromium.chrome.browser.ui.system.StatusBarColorController.StatusBarColorProvider;
 import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager;
-import org.chromium.components.browser_ui.edge_to_edge.EdgeToEdgeSystemBarColorHelper;
 import org.chromium.ui.base.TestActivity;
+import org.chromium.ui.edge_to_edge.EdgeToEdgeSystemBarColorHelper;
 import org.chromium.ui.util.ColorUtils;
 
 /* Unit tests for StatusBarColorController behavior. */
@@ -195,7 +196,28 @@ public class StatusBarColorControllerUnitTest {
                 mStatusBarColorController.getStatusBarColorWithoutStatusIndicator());
     }
 
+    @Test
+    public void testAddHomepageStateListener() {
+        int size = NtpCustomizationConfigManager.getInstance().getListenersSizeForTesting();
+
+        initialize(
+                /* isTablet= */ false,
+                /* isInDesktopWindow= */ false,
+                /* supportEdgeToEdge= */ true);
+        assertEquals(
+                size + 1, NtpCustomizationConfigManager.getInstance().getListenersSizeForTesting());
+
+        mStatusBarColorController.onDestroy();
+        assertEquals(
+                size, NtpCustomizationConfigManager.getInstance().getListenersSizeForTesting());
+    }
+
     private void initialize(boolean isTablet, boolean isInDesktopWindow) {
+        initialize(isTablet, isInDesktopWindow, /* supportEdgeToEdge= */ false);
+    }
+
+    private void initialize(
+            boolean isTablet, boolean isInDesktopWindow, boolean supportEdgeToEdge) {
         OneshotSupplierImpl<DesktopWindowStateManager> desktopWindowStateManagerSupplier =
                 new OneshotSupplierImpl<>();
         desktopWindowStateManagerSupplier.set(mDesktopWindowStateManager);
@@ -212,7 +234,8 @@ public class StatusBarColorControllerUnitTest {
                         mTopUiThemeColorProvider,
                         mSystemBarColorHelper,
                         desktopWindowStateManagerSupplier,
-                        mOverviewColorSupplier);
+                        mOverviewColorSupplier,
+                        supportEdgeToEdge);
         ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
     }
 }

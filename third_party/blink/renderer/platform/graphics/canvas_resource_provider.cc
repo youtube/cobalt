@@ -339,8 +339,9 @@ class CanvasResourceProviderSharedImage : public CanvasResourceProvider,
 
     // NOTE: The above invocation of WillDrawInternal() ensures that this
     // invocation of GetSyncToken() will generate a new sync token.
+    gpu::SyncToken sync_token = resource_->GetSyncToken();
     if (internal_access_sync_token) {
-      *internal_access_sync_token = resource_->GetSyncToken();
+      *internal_access_sync_token = sync_token;
     }
 
     return resource_->GetClientSharedImage();
@@ -480,6 +481,16 @@ class CanvasResourceProviderSharedImage : public CanvasResourceProvider,
         return nullptr;
       }
 
+      // Getting the high entropy canvas operations should be done before
+      // flushing the canvas as flushing discards the recording (including the
+      // associated HighEntropyCanvasOpTypes).
+      HighEntropyCanvasOpType high_entropy_canvas_op_types =
+          GetRecorderHighEntropyCanvasOpTypes();
+      if (ShouldPropagateHighEntropyCanvasOpTypes(high_entropy_canvas_op_types,
+                                                  IsAccelerated())) {
+        output_resource->SetHighEntropyCanvasOpTypes(
+            high_entropy_canvas_op_types);
+      }
       FlushCanvas(reason);
 
       // Note that the resource *must* be a CanvasResourceSharedImage as this
@@ -493,6 +504,11 @@ class CanvasResourceProviderSharedImage : public CanvasResourceProvider,
     if (IsGpuContextLost())
       return nullptr;
 
+    // Getting the high entropy canvas operations should be done before
+    // flushing the canvas as flushing discards the recording (including the
+    // associated HighEntropyCanvasOpTypes).
+    HighEntropyCanvasOpType high_entropy_canvas_op_types =
+        GetRecorderHighEntropyCanvasOpTypes();
     FlushCanvas(reason);
     // Its important to end read access and ref the resource before the WillDraw
     // call below. Since it relies on resource ref-count to trigger
@@ -515,6 +531,10 @@ class CanvasResourceProviderSharedImage : public CanvasResourceProvider,
       WillDraw();
     }
 
+    if (ShouldPropagateHighEntropyCanvasOpTypes(high_entropy_canvas_op_types,
+                                                IsAccelerated())) {
+      resource->SetHighEntropyCanvasOpTypes(high_entropy_canvas_op_types);
+    }
     return resource;
   }
 
@@ -1083,11 +1103,20 @@ class CanvasResourceProviderSwapChain final : public CanvasResourceProvider {
     if (!IsValid())
       return nullptr;
 
+    // Getting the high entropy canvas operations should be done before
+    // flushing the canvas as flushing discards the recording (including the
+    // associated HighEntropyCanvasOpTypes).
+    HighEntropyCanvasOpType high_entropy_canvas_op_types =
+        GetRecorderHighEntropyCanvasOpTypes();
     FlushIfNeeded(reason);
 
     if (needs_present_) {
       resource_->PresentSwapChain();
       needs_present_ = false;
+    }
+    if (ShouldPropagateHighEntropyCanvasOpTypes(high_entropy_canvas_op_types,
+                                                IsAccelerated())) {
+      resource_->SetHighEntropyCanvasOpTypes(high_entropy_canvas_op_types);
     }
     return resource_;
   }
@@ -1551,20 +1580,14 @@ bool CanvasResourceProvider::CanvasImageProvider::IsHardwareDecodeCache()
 }
 
 #if BUILDFLAG(IS_WIN)
-BASE_FEATURE(kUseCRPSIForLowLatencyOnWindows,
-             "UseCRPSIForLowLatencyOnWindows",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(UseCRPSIForLowLatencyOnWindows, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
-BASE_FEATURE(kCanvas2DAutoFlushParams,
-             "Canvas2DAutoFlushParams",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(Canvas2DAutoFlushParams, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, unused resources (ready to be recycled) are reclaimed after a
 // delay.
-BASE_FEATURE(kCanvas2DReclaimUnusedResources,
-             "Canvas2DReclaimUnusedResources",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(Canvas2DReclaimUnusedResources, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // The following parameters attempt to reach a compromise between not flushing
 // too often, and not accumulating an unreasonable backlog. Flushing too

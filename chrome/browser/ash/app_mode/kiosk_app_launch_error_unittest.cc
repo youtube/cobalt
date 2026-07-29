@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "base/check_deref.h"
 #include "chrome/browser/ash/app_mode/kiosk_chrome_app_manager.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/testing_browser_process.h"
@@ -98,27 +99,34 @@ TEST_F(KioskAppLaunchErrorTest, GetErrorMessage) {
 TEST_F(KioskAppLaunchErrorTest, SaveError) {
   // No launch error is stored before it is saved.
   EXPECT_FALSE(GetKioskDictionary().contains(kKeyLaunchError));
-  KioskAppLaunchError::Save(KioskAppLaunchError::Error::kUserCancel);
+  KioskAppLaunchError::Save(*TestingBrowserProcess::GetGlobal()->local_state(),
+                            KioskAppLaunchError::Error::kUserCancel);
 
   // The launch error can be retrieved.
   std::optional<int> out_error = GetKioskDictionary().FindInt(kKeyLaunchError);
   EXPECT_TRUE(out_error.has_value());
   EXPECT_EQ(out_error.value(),
             static_cast<int>(KioskAppLaunchError::Error::kUserCancel));
-  EXPECT_EQ(KioskAppLaunchError::Get(),
+  EXPECT_EQ(KioskAppLaunchError::Get(
+                CHECK_DEREF(TestingBrowserProcess::GetGlobal()->local_state())),
             KioskAppLaunchError::Error::kUserCancel);
 
   // The launch error is cleaned up after clear operation.
-  KioskAppLaunchError::RecordMetricAndClear();
+  KioskAppLaunchError::RecordMetricAndClear(
+      CHECK_DEREF(TestingBrowserProcess::GetGlobal()->local_state()));
   EXPECT_FALSE(GetKioskDictionary().contains(kKeyLaunchError));
-  EXPECT_EQ(KioskAppLaunchError::Get(), KioskAppLaunchError::Error::kNone);
+  EXPECT_EQ(KioskAppLaunchError::Get(
+                CHECK_DEREF(TestingBrowserProcess::GetGlobal()->local_state())),
+            KioskAppLaunchError::Error::kNone);
 }
 
 TEST_F(KioskAppLaunchErrorTest, SaveCryptohomeFailure) {
   // No cryptohome failure is stored before it is saved.
   EXPECT_FALSE(GetKioskDictionary().contains(kKeyCryptohomeFailure));
   AuthFailure auth_failure(AuthFailure::FailureReason::AUTH_DISABLED);
-  KioskAppLaunchError::SaveCryptohomeFailure(auth_failure);
+  KioskAppLaunchError::SaveCryptohomeFailure(
+      CHECK_DEREF(TestingBrowserProcess::GetGlobal()->local_state()),
+      auth_failure);
 
   // The cryptohome failure can be retrieved.
   std::optional<int> out_error =
@@ -127,7 +135,8 @@ TEST_F(KioskAppLaunchErrorTest, SaveCryptohomeFailure) {
   EXPECT_EQ(out_error.value(), auth_failure.reason());
 
   // The cryptohome failure is cleaned up after clear operation.
-  KioskAppLaunchError::RecordMetricAndClear();
+  KioskAppLaunchError::RecordMetricAndClear(
+      CHECK_DEREF(TestingBrowserProcess::GetGlobal()->local_state()));
   EXPECT_FALSE(GetKioskDictionary().contains(kKeyCryptohomeFailure));
 }
 

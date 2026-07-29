@@ -8,6 +8,12 @@
 
 namespace autofill::features {
 
+namespace {
+constexpr bool IS_AUTOFILL_AI_PLATFORM = BUILDFLAG(IS_CHROMEOS) ||
+                                         BUILDFLAG(IS_LINUX) ||
+                                         BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN);
+}
+
 // LINT.IfChange(autofill_across_iframes_ios)
 // Controls whether to flatten and fill cross-iframe forms on iOS.
 // TODO(crbug.com/40266699) Remove once launched.
@@ -152,20 +158,6 @@ BASE_FEATURE(kAutofillAiRedressNumber,
              "AutofillAiRedressNumber",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// If enabled, `*_TAG` types are replaced with dynamic attribute assignments.
-// This is a kill switch.
-//
-// For example, if the feature is disabled, a passport name field requires a
-// `PASSPORT_NAME_TAG` prediction along with a classical `NAME_*` type.
-//
-// If the feature is enabled, `PASSPORT_NAME_TAG` is ignored and the assignment
-// to the passport entity is derived from the surrounding fields.
-//
-// TODO(crbug.com/422563282): Remove after the M140 branch point (2025-08-04).
-BASE_FEATURE(kAutofillAiNoTagTypes,
-             "AutofillAiNoTagTypes",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // If enabled, this makes the autofill classification logic prefer the
 // AutofillAi predictions sent via the server response over local heuristic
 // predictions.
@@ -177,7 +169,8 @@ BASE_FEATURE(kAutofillAiPreferModelResponseOverHeuristics,
 // predictions.
 BASE_FEATURE(kAutofillAiServerModel,
              "AutofillAiServerModel",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             IS_AUTOFILL_AI_PLATFORM ? base::FEATURE_ENABLED_BY_DEFAULT
+                                     : base::FEATURE_DISABLED_BY_DEFAULT);
 
 // The maximum duration for which an AutofillAI server model response is kept in
 // the local cache. NOTE: It is advisable to choose a value that is at least as
@@ -194,12 +187,12 @@ const base::FeatureParam<int> kAutofillAiServerModelCacheSize{
 const base::FeatureParam<base::TimeDelta>
     kAutofillAiServerModelExecutionTimeout{
         &kAutofillAiServerModel, "autofill_ai_model_execution_timeout",
-        base::Seconds(10)};
+        base::Seconds(60)};
 
 // Whether AnnotatedPageContent is included in the request to the AutofillAI
 // model.
 const base::FeatureParam<bool> kAutofillAiServerModelSendPageContent{
-    &kAutofillAiServerModel, "autofill_ai_model_send_apc", false};
+    &kAutofillAiServerModel, "autofill_ai_model_send_apc", true};
 
 // Whether the page's full URL is included in the data sent to the model.
 const base::FeatureParam<bool> kAutofillAiServerModelSendPageUrl{
@@ -218,37 +211,25 @@ BASE_FEATURE(kAutofillAiVoteForFormatStringsForAffixes,
              "AutofillAiVoteForFormatStringsForAffixes",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// If enabled, votes for date format strings from individual fields are
-// uploaded. For example, <input type=text value=31/12/2025> leads to the format
-// strings DD/MM/YYYY and D/M/YYYY.
-BASE_FEATURE(kAutofillAiVoteForFormatStringsFromSingleFields,
-             "AutofillAiVoteForFormatStringsFromSingleFields",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// If enabled, votes for date format strings from multiple fields are uploaded.
-// For example, <input type=text value=31> <input type=text value=12> <input
-// type=text value=2025> leads to the format strings DD and D, MM and M, YYYY,
-// respectively.
-BASE_FEATURE(kAutofillAiVoteForFormatStringsFromMultipleFields,
-             "AutofillAiVoteForFormatStringsFromMultipleFields",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Enables the second iteration AutofillAI.
 BASE_FEATURE(kAutofillAiWithDataSchema,
              "AutofillAiWithDataSchema",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             IS_AUTOFILL_AI_PLATFORM ? base::FEATURE_ENABLED_BY_DEFAULT
+                                     : base::FEATURE_DISABLED_BY_DEFAULT);
 
 // This parameter enables adding an experiment id to requests to the Autofill
 // to enable Autofill AI predictions. The experiment id is not used for other
 // backends.
 const base::FeatureParam<int> kAutofillAiWithDataSchemaServerExperimentId{
-    &kAutofillAiWithDataSchema, "autofill_ai_server_experiment_id", 0};
+    &kAutofillAiWithDataSchema, "autofill_ai_server_experiment_id",
+    IS_AUTOFILL_AI_PLATFORM ? 3314871 : 0};
 
 // When enabled, requests and responses of client-triggered Autofill AI model
 // runs are uploaded to MQLS.
 BASE_FEATURE(kAutofillAiUploadModelRequestAndResponse,
              "AutofillAiUploadModelRequestAndResponse",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             IS_AUTOFILL_AI_PLATFORM ? base::FEATURE_ENABLED_BY_DEFAULT
+                                     : base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Guards the refactoring to allow showing Autofill and Password suggestions in
 // the same surface instead of being mutually exclusive.
@@ -515,7 +496,7 @@ BASE_FEATURE(kAutofillUseSubmittedFormInHtmlSubmission,
 // TODO(crbug.com/408497919): Remove when launched.
 BASE_FEATURE(kAutofillUnifyRationalizationAndSectioningOrder,
              "AutofillUnifyRationalizationAndSectioningOrder",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Replaces blink::WebFormElementObserver usage in FormTracker by updated logic
 // for tracking the disappearance of forms as well as other submission
@@ -547,7 +528,7 @@ BASE_FEATURE(kAutofillReplaceFormElementObserver,
 // TODO(crbug.com/324199622) When abandoned, remove FormFieldData::is_visible.
 BASE_FEATURE(kAutofillDetectFieldVisibility,
              "AutofillDetectFieldVisibility",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, new heuristics are applied for disambiguating multiple possible
 // types in a form field. Otherwise, only the already established heuristic for
@@ -582,6 +563,13 @@ BASE_FEATURE(kAutofillSupportLastNamePrefix,
 // TODO(crbug.com/369503318): Clean up when launched.
 BASE_FEATURE(kAutofillSupportSplitZipCode,
              "AutofillSupportSplitZipCode",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables extended zip code validation
+// and new zip code merging logic.
+// TODO(crbug.com/434140055): Clean up when launched.
+BASE_FEATURE(kAutofillZipCodeValidationAndMerging,
+             "AutofillZipCodeValidationAndMerging",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, the form field parser won't try to match other attributes if
@@ -923,6 +911,7 @@ BASE_FEATURE(kUseSettingsAddressEditorInPaymentsRequest,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
+
 // If enabled, on Android desktop, the Autofill keyboard accessory will have a
 // new behavior and design.
 // TODO(crbug.com/438125774): Remove when launched.
@@ -954,6 +943,12 @@ BASE_FEATURE(kAutofillThirdPartyModeContentProvider,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 #endif  // BUILDFLAG(IS_ANDROID)
+
+// Defines if the "Your Saved Info" page is eligible to be shown in Chrome
+// settings.
+BASE_FEATURE(kYourSavedInfoSettingsPage,
+             "YourSavedInfoSettingsPage",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 namespace test {
 

@@ -437,6 +437,11 @@ public class InstanceSwitcherCoordinator {
                 builder.with(
                         InstanceSwitcherItemProperties.CLOSE_BUTTON_CLICK_LISTENER,
                         (view) -> closeWindow(item));
+                builder.with(
+                        InstanceSwitcherItemProperties.CLOSE_BUTTON_CONTENT_DESCRIPTION,
+                        mContext.getString(
+                                R.string.instance_switcher_item_close_content_description,
+                                item.title));
             }
             String lastAccessedString =
                     isCurrentWindow
@@ -474,7 +479,9 @@ public class InstanceSwitcherCoordinator {
     private void buildMoreMenu(PropertyModel.Builder builder, InstanceInfo item) {
         ModelList moreMenu = new ModelList();
         if (UiUtils.isInstanceSwitcherV2Enabled()) {
-            moreMenu.add(buildSimpleMenuItem(R.string.instance_switcher_name_window));
+            if (UiUtils.isRobustWindowManagementEnabled()) {
+                moreMenu.add(buildSimpleMenuItem(R.string.instance_switcher_name_window));
+            }
             moreMenu.add(buildSimpleMenuItem(R.string.close));
         } else {
             moreMenu.add(buildSimpleMenuItem(R.string.instance_switcher_close_window));

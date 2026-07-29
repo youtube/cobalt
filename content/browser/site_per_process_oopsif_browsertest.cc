@@ -445,8 +445,15 @@ IN_PROC_BROWSER_TEST_P(OriginKeyedProcessIsolatedSandboxedIframeTest,
   GURL expected_root_site_url = origin_keyed_processes_by_default_enabled
                                     ? url::Origin::Create(main_url).GetURL()
                                     : GURL("https://a.com/");
-  EXPECT_EQ(origin_keyed_processes_by_default_enabled,
-            root_site_info.requires_origin_keyed_process());
+  if (origin_keyed_processes_by_default_enabled) {
+    EXPECT_TRUE(root_site_info.agent_cluster_key().IsOriginKeyed());
+    EXPECT_EQ(AgentClusterKey::OACStatus::kOriginKeyedByDefault,
+              root_site_info.oac_status());
+  } else {
+    EXPECT_FALSE(root_site_info.agent_cluster_key().IsOriginKeyed());
+    EXPECT_EQ(AgentClusterKey::OACStatus::kSiteKeyedByDefault,
+              root_site_info.oac_status());
+  }
   EXPECT_EQ(expected_root_site_url, root_site_info.site_url());
   EXPECT_FALSE(root_site_info.is_sandboxed());
 
@@ -458,8 +465,15 @@ IN_PROC_BROWSER_TEST_P(OriginKeyedProcessIsolatedSandboxedIframeTest,
        SiteIsolationPolicy::AreIsolatedSandboxedIframesEnabled())
           ? url::Origin::Create(main_url).GetURL()
           : GURL("https://a.com/");
-  EXPECT_EQ(origin_keyed_processes_by_default_enabled,
-            child_site_info.requires_origin_keyed_process());
+  if (origin_keyed_processes_by_default_enabled) {
+    EXPECT_TRUE(child_site_info.agent_cluster_key().IsOriginKeyed());
+    EXPECT_EQ(AgentClusterKey::OACStatus::kOriginKeyedByDefault,
+              root_site_info.oac_status());
+  } else {
+    EXPECT_FALSE(child_site_info.agent_cluster_key().IsOriginKeyed());
+    EXPECT_EQ(AgentClusterKey::OACStatus::kSiteKeyedByDefault,
+              root_site_info.oac_status());
+  }
   EXPECT_EQ(expected_child_site_url, child_site_info.site_url());
   EXPECT_TRUE(child_site_info.is_sandboxed());
 }
@@ -1317,9 +1331,11 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessIsolatedSandboxedIframeTest,
   // Because the subframe is a data: URL, the process should be locked to the
   // initiator origin's site, which is the parent in this case. Unlike the
   // parent, the data: subframe process should be sandboxed.
-  EXPECT_EQ(
-      child->current_frame_host()->GetProcess()->GetProcessLock().lock_url(),
-      root->current_frame_host()->GetLastCommittedOrigin().GetURL());
+  EXPECT_EQ(child->current_frame_host()
+                ->GetProcess()
+                ->GetProcessLock()
+                .GetProcessLockURL(),
+            root->current_frame_host()->GetLastCommittedOrigin().GetURL());
   EXPECT_TRUE(child->current_frame_host()
                   ->GetSiteInstance()
                   ->GetSiteInfo()
@@ -1488,9 +1504,12 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessIsolatedSandboxedIframeTest,
                   .is_sandboxed());
 
   // The child process should be in a process of its initiator origin.
-  EXPECT_EQ(
-      child->current_frame_host()->GetProcess()->GetProcessLock().lock_url(),
-      b_origin.GetTupleOrPrecursorTupleIfOpaque().GetURL());
+  EXPECT_EQ(child->current_frame_host()
+                ->GetProcess()
+                ->GetProcessLock()
+                .agent_cluster_key()
+                .GetSite(),
+            b_origin.GetTupleOrPrecursorTupleIfOpaque().GetURL());
 
   // Go back and ensure the data: URL remains sandboxed, and committed in a
   // different SiteInstance from the original navigation. From the spec:

@@ -21,8 +21,11 @@ source_set("ui") {
   ]
   deps = [
     "//base",
+    "//build:branding_buildflags",
+    "//ios/chrome/browser/shared/ui/elements",
     "//ios/chrome/browser/shared/ui/symbols",
     "//ios/chrome/common/ui/colors",
     "//ios/chrome/common/ui/util",
+    "//ios/public/provider/chrome/browser/glow_effect:glow_effect_api",
   ]
 }

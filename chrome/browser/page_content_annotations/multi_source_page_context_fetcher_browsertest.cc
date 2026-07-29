@@ -64,8 +64,24 @@ class MultiSourcePageContextFetcherBrowserTest
       public testing::WithParamInterface<bool> {
  public:
   MultiSourcePageContextFetcherBrowserTest() {
-    features_.InitWithFeatureState(kGlicTabScreenshotPaintPreviewBackend,
-                                   use_paint_preview_screenshot_backend());
+    std::vector<base::test::FeatureRefAndParams> enabled_features{
+        {kGlicTabScreenshotExperiment,
+         {
+             {"max_screenshot_width", "0"},
+             {"max_screenshot_height", "0"},
+             {"screenshot_jpeg_quality", "100"},
+             {"screenshot_timeout_ms", "10s"},
+         }},
+    };
+    std::vector<base::test::FeatureRef> disabled_features;
+    if (use_paint_preview_screenshot_backend()) {
+      enabled_features.push_back({kGlicTabScreenshotPaintPreviewBackend, {}});
+    } else {
+      disabled_features.emplace_back(kGlicTabScreenshotPaintPreviewBackend);
+    }
+
+    features_.InitWithFeaturesAndParameters(enabled_features,
+                                            disabled_features);
   }
 
   ~MultiSourcePageContextFetcherBrowserTest() override = default;

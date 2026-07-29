@@ -20,8 +20,11 @@
 
 namespace {
 
-const char kHistogramPrerenderBookmarkBarIsPrerenderingSrpUrl[] =
+constexpr char kHistogramPrerenderBookmarkBarIsPrerenderingSrpUrl[] =
     "Prerender.IsPrerenderingSRPUrl.Embedder_BookmarkBar";
+
+// TODO(crbug.com/413259638): Create `preloading_utils` and move this to it.
+constexpr char kBookmarkBarMetricSuffix[] = "BookmarkBar";
 
 void AttachBookmarkBarNavigationHandleUserData(
     content::NavigationHandle& navigation_handle) {
@@ -48,23 +51,52 @@ BookmarkBarPreloadPipeline::BookmarkBarPreloadPipeline(GURL url)
 
 BookmarkBarPreloadPipeline::~BookmarkBarPreloadPipeline() = default;
 
-bool BookmarkBarPreloadPipeline::StartPrerender(
+void BookmarkBarPreloadPipeline::StartPrefetch(
     content::WebContents& web_contents,
     content::PreloadingPredictor predictor) {
-  if (base::FeatureList::IsEnabled(
-          features::kBookmarkTriggerForPrerender2KillSwitch)) {
-    return false;
+  CHECK(!prerender_handle_);
+  // Don't trigger prefetch if already triggered.
+  if (prefetch_handle_) {
+    return;
   }
 
+  auto* preloading_data =
+      content::PreloadingData::GetOrCreateForWebContents(&web_contents);
+
+  content::PreloadingURLMatchCallback same_url_matcher =
+      content::PreloadingData::GetSameURLMatcher(url_);
+  content::PreloadingAttempt* attempt = preloading_data->AddPreloadingAttempt(
+      predictor, content::PreloadingType::kPrefetch,
+      std::move(same_url_matcher),
+      web_contents.GetPrimaryMainFrame()->GetPageUkmSourceId());
+
+  prefetch_handle_ = web_contents.StartPrefetch(
+      url_, /*use_prefetch_proxy=*/false, kBookmarkBarMetricSuffix,
+      blink::mojom::Referrer(), /*referring_origin=*/std::nullopt,
+      /*no_vary_search_hint=*/std::nullopt, /*priority=*/std::nullopt,
+      pipeline_info_, attempt->GetWeakPtr(),
+      /*holdback_status_override=*/std::nullopt, /*ttl=*/std::nullopt);
+}
+
+void BookmarkBarPreloadPipeline::StartPrerender(
+    content::WebContents& web_contents,
+    content::PreloadingPredictor predictor) {
+  CHECK(!base::FeatureList::IsEnabled(features::kBookmarkTriggerForPrefetch) ||
+        prefetch_handle_);
+  if (base::FeatureList::IsEnabled(
+          features::kBookmarkTriggerForPrerender2KillSwitch)) {
+    return;
+  }
+
+  // Don't trigger prerender if already triggered.
+  if (prerender_handle_) {
+    return;
+  }
   // Helpers to create content::PreloadingAttempt.
   auto* preloading_data =
       content::PreloadingData::GetOrCreateForWebContents(&web_contents);
   content::PreloadingURLMatchCallback same_url_matcher =
       content::PreloadingData::GetSameURLMatcher(url_);
-
-  if (prerender_handle_ && prerender_handle_->IsValid()) {
-    return true;
-  }
 
   bool is_search_url = IsSearchUrl(web_contents, url_);
   base::UmaHistogramBoolean(kHistogramPrerenderBookmarkBarIsPrerenderingSrpUrl,
@@ -80,14 +112,14 @@ bool BookmarkBarPreloadPipeline::StartPrerender(
   if (is_search_url) {
     preloading_attempt->SetEligibility(ToPreloadingEligibility(
         ChromePreloadingEligibility::KDisallowSearchUrl));
-    return false;
+    return;
   }
 
   // BookmarkBar only allows https protocol.
   if (!url_.SchemeIs("https")) {
     preloading_attempt->SetEligibility(
         content::PreloadingEligibility::kHttpsOnly);
-    return false;
+    return;
   }
 
   base::RepeatingCallback<void(content::NavigationHandle&)>
@@ -109,5 +141,15 @@ bool BookmarkBarPreloadPipeline::StartPrerender(
       /*url_match_predicate=*/{},
       std::move(prerender_navigation_handle_callback),
       /*allow_reuse=*/false);
-  return prerender_handle_ != nullptr;
+}
+
+void BookmarkBarPreloadPipeline::
+    SetOnPrefetchCompletedOrFailedCallbackForTesting(
+        base::RepeatingCallback<
+            void(const network::URLLoaderCompletionStatus& completion_status,
+                 const std::optional<int>& response_code)>
+            on_prefetch_completed_or_failed) {
+  CHECK(prefetch_handle_);
+  prefetch_handle_->SetOnPrefetchCompletedOrFailedCallback(
+      std::move(on_prefetch_completed_or_failed));
 }

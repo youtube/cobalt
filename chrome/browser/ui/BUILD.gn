@@ -275,6 +275,7 @@ static_library("ui") {
     "//chrome/browser:global_features",
     "//chrome/browser/affiliations",
     "//chrome/browser/autocomplete",
+    "//chrome/browser/autocomplete:aim_eligibility_service",
     "//chrome/browser/autofill",
     "//chrome/browser/bitmap_fetcher",
     "//chrome/browser/breadcrumbs",
@@ -284,7 +285,6 @@ static_library("ui") {
     "//chrome/browser/content_settings:content_settings_factory_impl",
     "//chrome/browser/content_settings:content_settings_util",
     "//chrome/browser/content_settings:content_settings_util_impl",
-    "//chrome/browser/content_settings:impl",
     "//chrome/browser/crash_upload_list",
     "//chrome/browser/devtools",
     "//chrome/browser/favicon",
@@ -338,6 +338,7 @@ static_library("ui") {
     "//chrome/browser/ui/blocked_content:impl",
     "//chrome/browser/ui/bluetooth",
     "//chrome/browser/ui/bluetooth:impl",
+    "//chrome/browser/ui/browser_window",
     "//chrome/browser/ui/cookie_controls",
     "//chrome/browser/ui/digital_credentials",
     "//chrome/browser/ui/extensions",
@@ -731,8 +732,6 @@ static_library("ui") {
     # TODO(crbug.com/366272539): It includes //c/b/ui/browser_dialogs.h.
     "//chrome/browser/ui/file_system_access:impl",
 
-    "//chrome/browser/content_settings:content_settings_factory_impl",
-    "//chrome/browser/content_settings:impl",
     "//chrome/browser/content_settings:content_settings_util_impl",
     "//chrome/browser/updates/announcement_notification:impl",
     "//chrome/browser/prefs:impl",
@@ -974,6 +973,8 @@ static_library("ui") {
         "android/extensions/extension_actions_bridge_factory.h",
         "android/extensions/extension_keybinding_registry_android.cc",
         "android/extensions/extension_keybinding_registry_android.h",
+        "android/extensions/extension_util_bridge.cc",
+        "android/extensions/extension_util_bridge.h",
       ]
 
       deps += [
@@ -984,6 +985,8 @@ static_library("ui") {
   } else {
     # !is_android
     sources += [
+      "accelerator_table.cc",
+      "accelerator_table.h",
       "breadcrumb_manager_browser_agent.cc",
       "breadcrumb_manager_browser_agent.h",
       "browser.cc",
@@ -1009,6 +1012,8 @@ static_library("ui") {
       "browser_navigator.h",
       "browser_otr_state.cc",
       "browser_otr_state.h",
+      "browser_select_file_dialog_controller.cc",
+      "browser_select_file_dialog_controller.h",
       "browser_tab_menu_model_delegate.cc",
       "browser_tab_menu_model_delegate.h",
       "browser_tab_restorer.cc",
@@ -1052,6 +1057,8 @@ static_library("ui") {
       "views/eye_dropper/eye_dropper.h",
       "views/file_system_access/file_system_access_scroll_panel.cc",
       "views/file_system_access/file_system_access_scroll_panel.h",
+      "views/frame/contents_rounded_corner.cc",
+      "views/frame/contents_rounded_corner.h",
       "views/search_engine_choice/search_engine_choice_dialog_view.cc",
       "views/search_engine_choice/search_engine_choice_dialog_view.h",
       "webui/bookmarks/bookmark_prefs.cc",
@@ -1364,6 +1371,7 @@ static_library("ui") {
       "//chrome/browser/first_party_sets",
       "//chrome/browser/lifetime:termination_notification",
       "//chrome/browser/password_manager/factories",
+      "//chrome/browser/privacy_sandbox:countries",
       "//chrome/browser/privacy_sandbox/notice:desktop_entrypoint_handlers_helper",
       "//chrome/browser/privacy_sandbox/notice:notice_mojom",
       "//chrome/browser/ui/interaction",
@@ -1475,6 +1483,7 @@ static_library("ui") {
       "//chrome/browser/ui/views/new_tab_footer",
       "//chrome/browser/ui/views/side_panel:side_panel_enums",
       "//chrome/browser/ui/views/toolbar",
+      "//chrome/browser/ui/views/toolbar:impl",
       "//chrome/browser/ui/views/zoom",
       "//chrome/browser/ui/webui:webui_util",
       "//chrome/browser/ui/webui/actor_internals",
@@ -1654,6 +1663,7 @@ static_library("ui") {
       "//chrome/browser/ui/webui/customize_buttons",
       "//chrome/browser/ui/webui/customize_buttons:impl",
       "//chrome/browser/ui/views/toolbar",
+      "//chrome/browser/ui/views/toolbar:impl",
       "//chrome/browser/ui/views/page_action",
       "//chrome/browser/ui/views/new_tab_footer",
       "//chrome/browser/ui/webui/searchbox",
@@ -2657,7 +2667,6 @@ static_library("ui") {
       "//chrome/browser/ui/ash/assistant",
       "//chrome/browser/ui/ash/back_gesture",
       "//chrome/browser/ui/ash/birch",
-      "//chrome/browser/ui/ash/boca",
       "//chrome/browser/ui/ash/capture_mode",
       "//chrome/browser/ui/ash/desks",
       "//chrome/browser/ui/ash/device_scheduled_reboot",
@@ -3358,8 +3367,6 @@ static_library("ui") {
       "bubble_anchor_util.h",
       "toolbar_controller_util.cc",
       "toolbar_controller_util.h",
-      "views/accelerator_table.cc",
-      "views/accelerator_table.h",
       "views/accessibility/caption_bubble_context_views.cc",
       "views/accessibility/caption_bubble_context_views.h",
       "views/accessibility/caption_bubble_session_observer_views.cc",
@@ -3593,8 +3600,6 @@ static_library("ui") {
       "views/commerce/product_specifications_button.h",
       "views/commerce/product_specifications_icon_view.cc",
       "views/commerce/product_specifications_icon_view.h",
-      "views/commerce/product_specifications_page_action_view_controller.cc",
-      "views/commerce/product_specifications_page_action_view_controller.h",
       "views/commerce/shopping_collection_iph_view.cc",
       "views/commerce/shopping_collection_iph_view.h",
       "views/confirm_bubble_views.cc",
@@ -3849,20 +3854,6 @@ static_library("ui") {
       "views/location_bar/ai_mode_page_action_icon_view.h",
       "views/location_bar/content_setting_image_view.cc",
       "views/location_bar/content_setting_image_view.h",
-      "views/location_bar/cookie_controls/cookie_controls_bubble_coordinator.cc",
-      "views/location_bar/cookie_controls/cookie_controls_bubble_coordinator.h",
-      "views/location_bar/cookie_controls/cookie_controls_bubble_view.cc",
-      "views/location_bar/cookie_controls/cookie_controls_bubble_view.h",
-      "views/location_bar/cookie_controls/cookie_controls_bubble_view_controller.cc",
-      "views/location_bar/cookie_controls/cookie_controls_bubble_view_controller.h",
-      "views/location_bar/cookie_controls/cookie_controls_bubble_view_impl.cc",
-      "views/location_bar/cookie_controls/cookie_controls_bubble_view_impl.h",
-      "views/location_bar/cookie_controls/cookie_controls_content_view.cc",
-      "views/location_bar/cookie_controls/cookie_controls_content_view.h",
-      "views/location_bar/cookie_controls/cookie_controls_icon_view.cc",
-      "views/location_bar/cookie_controls/cookie_controls_icon_view.h",
-      "views/location_bar/cookie_controls/cookie_controls_page_action_controller.cc",
-      "views/location_bar/cookie_controls/cookie_controls_page_action_controller.h",
       "views/location_bar/custom_tab_bar_view.cc",
       "views/location_bar/custom_tab_bar_view.h",
       "views/location_bar/find_bar_icon.cc",
@@ -4646,12 +4637,15 @@ static_library("ui") {
       "//chrome/browser/ui/views/intent_picker:intent_picker_page_action",
       "//chrome/browser/ui/views/interaction",
       "//chrome/browser/ui/views/location_bar:impl",
+      "//chrome/browser/ui/views/location_bar/cookie_controls",
+      "//chrome/browser/ui/views/location_bar/cookie_controls:impl",
       "//chrome/browser/ui/views/page_action",
       "//chrome/browser/ui/views/page_info",
       "//chrome/browser/ui/views/page_info:impl",
       "//chrome/browser/ui/views/permissions",
       "//chrome/browser/ui/views/permissions/chip",
       "//chrome/browser/ui/views/permissions/chip:impl",
+      "//chrome/browser/ui/views/tabs/vertical",
       "//chrome/browser/ui/views/user_education",
 
       # TODO(crbug.com/432061436) Remove this dependency when the following headers get
@@ -4733,6 +4727,15 @@ static_library("ui") {
       "//chrome/browser/ui/views/permissions/chip:impl",
       "//chrome/browser/ui/views/page_info:impl",
       "//chrome/browser/ui/window_name_prompt",
+
+      # TODO(crbug.com/408801109): Remove this circular dependency when the following
+      # headers get componentized:
+      # c/b/ui/browser.h, browser_finder.h, browser_window.h
+      # c/b/ui/views/chrome_layout_provider.h
+      # c/b/ui/views/accessibility/non_accessible_image_view.h
+      # c/b/ui/views/controls/rich_controls_container_view.h, rich_hover_button.h
+      # c/b/ui/views/frame/browser_view.h
+      "//chrome/browser/ui/views/location_bar/cookie_controls:impl",
 
       # TODO(crbug.com/434882143): Remove this circular dependency when the following
       # headers get componentized:
@@ -5102,7 +5105,11 @@ static_library("ui") {
       "views/save_to_drive/account_chooser_view.cc",
       "views/save_to_drive/account_chooser_view.h",
     ]
-    deps += [ "//chrome/browser/ui/save_to_drive" ]
+    deps += [
+      "//chrome/browser/ui/save_to_drive",
+      "//chrome/browser/ui/save_to_drive:get_account",
+      "//chrome/browser/ui/views/save_to_drive:get_account_impl",
+    ]
   }
 
   if (enable_printing) {

@@ -224,10 +224,10 @@ def _RunLint(custom_lint_jar_path,
     # Generating new baselines is only done locally, and requires more memory to
     # avoid OOMs.
     creating_baseline = True
-    lint_xmx = '4G'
+    lint_xmx = '6G'
   else:
     creating_baseline = False
-    lint_xmx = '3G'
+    lint_xmx = '4G'
 
   # Lint requires this directory to exist and be cleared.
   # See b/324598620
@@ -333,6 +333,9 @@ def _RunLint(custom_lint_jar_path,
         # If all the warnings are filtered, we should not fail on the final
         # summary line.
         r'\d+ errors?, \d+ warnings?',
+        # Not sure why, these were new starting 32.0.0-alpha01. Remove when
+        # https://crbug.com/439854682 is fixed.
+        'WARNING: skipping method null',
     ]
     return build_utils.FilterLines(output, '|'.join(filter_patterns))
 

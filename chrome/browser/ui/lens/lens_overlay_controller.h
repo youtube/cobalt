@@ -445,11 +445,12 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
   void ShowUI(lens::LensOverlayInvocationSource invocation_sourc,
               lens::LensOverlayQueryController* lens_overlay_query_controller);
 
-  // Issues a contextual search request for Lens to fulfill.
+  // Issues a text search request for Lens to fulfill, which may or may not be
+  // contextualized.
   // No-op if the Lens Overlay is off or closing. If the Lens Overlay is in the
   // process of opening, the request will be queued until the overlay is fully
   // opened.
-  void IssueContextualSearchRequest(
+  void IssueTextSearchRequest(
       std::string query_text,
       std::map<std::string, std::string> additional_query_parameters,
       lens::LensOverlayQueryController* lens_overlay_query_controller,
@@ -671,9 +672,8 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
 
   class UnderlyingWebContentsObserver;
 
-  // Implementation of IssueContextualSearchRequest() for passing
-  // query_start_time.
-  void IssueContextualSearchRequestInner(
+  // Implementation of IssueTextSearchRequest() for passing query_start_time.
+  void IssueTextSearchRequestInner(
       base::Time query_start_time,
       std::string query_text,
       std::map<std::string, std::string> additional_query_parameters,
@@ -1068,6 +1068,9 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
   // not guarantee the screenshot is sent on initialization, as that is still
   // dependent on whether the page is context eligible or not.
   bool should_send_screenshot_on_init_ = false;
+
+  // Indicates whether live blur should be enabled when the overlay is shown.
+  bool should_enable_live_blur_on_show_ = false;
 
   // TODO(384778180): The two `pre_initialization_*` fields below are used to
   // store data that came back before the initialization data was ready. This

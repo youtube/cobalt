@@ -205,18 +205,12 @@ AppearanceValue LayoutTheme::AdjustAppearanceWithElementType(
     case AppearanceValue::kMediaControl:
       return appearance;
     case AppearanceValue::kBaseSelect: {
-      if (!HTMLSelectElement::CustomizableSelectEnabled(element)) {
-        return auto_appearance;
+      const HTMLSelectElement* select = DynamicTo<HTMLSelectElement>(element);
+      if (!select) {
+        select = HTMLSelectElement::GetSelectForPopoverPickerElement(element);
       }
-      bool base_appearance_allowed = false;
-      if (auto* select = DynamicTo<HTMLSelectElement>(element)) {
-        base_appearance_allowed =
-            !select->IsMultiple() ||
-            RuntimeEnabledFeatures::CustomizableSelectInPageEnabled();
-      } else if (HTMLSelectElement::IsPopoverPickerElement(element)) {
-        base_appearance_allowed = true;
-      }
-      return base_appearance_allowed ? appearance : auto_appearance;
+      return select && select->SupportsBaseAppearance() ? appearance
+                                                        : auto_appearance;
     }
 
     // Aliases of 'auto'.

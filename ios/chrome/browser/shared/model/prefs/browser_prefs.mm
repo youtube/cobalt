@@ -40,6 +40,7 @@
 #import "components/network_time/network_time_tracker.h"
 #import "components/ntp_tiles/most_visited_sites.h"
 #import "components/ntp_tiles/popular_sites_impl.h"
+#import "components/omnibox/browser/aim_eligibility_service.h"
 #import "components/omnibox/browser/omnibox_prefs.h"
 #import "components/omnibox/browser/zero_suggest_provider.h"
 #import "components/optimization_guide/core/model_execution/model_execution_prefs.h"
@@ -77,6 +78,7 @@
 #import "components/sync/service/sync_prefs.h"
 #import "components/sync_device_info/device_info_prefs.h"
 #import "components/sync_sessions/session_sync_prefs.h"
+#import "components/themes/pref_names.h"
 #import "components/translate/core/browser/translate_pref_names.h"
 #import "components/translate/core/browser/translate_prefs.h"
 #import "components/unified_consent/unified_consent_service.h"
@@ -623,6 +625,12 @@ void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
 
   registry->RegisterTimePref(prefs::kNextSSORecallTime, base::Time());
 
+  // Prefs for managing the logging of install attribution.
+  registry->RegisterIntegerPref(prefs::kIOSGMOSKOLastAttributionPlacementID, 0);
+  registry->RegisterTimePref(prefs::kIOSGMOSKOPlacementIDNextLogDate,
+                             base::Time());
+  registry->RegisterIntegerPref(prefs::kIOSGMOSKOLastAttributionWindowType, 0);
+
   // Deprecated 09/2024.
   registry->RegisterBooleanPref(kBrowsingDataMigrationHasBeenPossible, false);
 
@@ -686,6 +694,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   autofill::prefs::RegisterProfilePrefs(registry);
   collaboration::prefs::RegisterProfilePrefs(registry);
   commerce::RegisterPrefs(registry);
+  AimEligibilityService::RegisterProfilePrefs(registry);
   dom_distiller::DistilledPagePrefs::RegisterProfilePrefs(registry);
   enterprise::RegisterIdentifiersProfilePrefs(registry);
   enterprise_connectors::RegisterProfilePrefs(registry);
@@ -872,8 +881,16 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
       prefs::kIosChooseFromDriveFilePickerPolicySettings,
       static_cast<int>(ChooseFromDrivePolicySettings::kEnabled));
 
+  // Preferences related to ntp browser theme color set by enterprise policy.
+  registry->RegisterIntegerPref(themes::prefs::kPolicyThemeColor,
+                                SK_ColorTRANSPARENT);
+
   // Preferences related to download restrictions enterprise policy.
   registry->RegisterIntegerPref(policy::policy_prefs::kDownloadRestrictions, 0);
+
+  // Preferences related to ntp customization enterprise policy.
+  registry->RegisterBooleanPref(prefs::kNTPCustomBackgroundEnabledByPolicy,
+                                true);
 
   // Preferences related to enterprise cloud profile reporting.
   registry->RegisterBooleanPref(
@@ -1046,9 +1063,9 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterTimePref(prefs::kIosSyncInfobarErrorLastDismissedTimestamp,
                              base::Time());
 
-  registry->RegisterIntegerPref(omnibox::kAIModeSettings, 0);
-
   registry->RegisterIntegerPref(prefs::kGeminiEnabledByPolicy, 0);
+
+  registry->RegisterTimePref(prefs::kAIHubNewBadgeExpirationTime, base::Time());
 
   // Deprecated 09/2024 (migrated to localState prefs).
   registry->RegisterBooleanPref(prefs::kIncognitoInterstitialEnabled, false);

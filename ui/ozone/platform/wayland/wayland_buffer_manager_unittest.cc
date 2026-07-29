@@ -185,7 +185,7 @@ class WaylandBufferManagerTest : public WaylandTest {
       EXPECT_CALL(*callback, Run(_))
           .Times(1)
           .WillRepeatedly(
-              ::testing::Invoke([this, callback](std::string error_string) {
+              [this, callback](std::string error_string) {
                 channel_destroyed_error_message_ = error_string;
 
                 manager_host_->OnChannelDestroyed();
@@ -193,8 +193,12 @@ class WaylandBufferManagerTest : public WaylandTest {
                 manager_host_->SetTerminateGpuCallback(callback->Get());
 
                 auto interface_ptr = manager_host_->BindInterface();
-                // Recreate the gpu side manager (the production code does the
-                // same).
+
+                // Reset the surface factory's buffer manager to avoid a
+                // dangling pointer.
+                surface_factory_->SetBufferManagerForTesting(nullptr);
+                // Recreate the gpu side manager (the production code does
+                // the same).
                 buffer_manager_gpu_ =
                     std::make_unique<WaylandBufferManagerGpu>();
                 buffer_manager_gpu_->Initialize(
@@ -204,7 +208,9 @@ class WaylandBufferManagerTest : public WaylandTest {
                     /*supports_acquire_fence=*/false,
                     /*supports_overlays=*/true,
                     /*supports_single_pixel_buffer=*/true);
-              }));
+                surface_factory_->SetBufferManagerForTesting(
+                    buffer_manager_gpu_.get());
+              });
     }
   }
 
@@ -224,7 +230,7 @@ class WaylandBufferManagerTest : public WaylandTest {
     SetTerminateCallbackExpectationAndDestroyChannel(&callback_, fail);
     buffer_manager_gpu_->CreateDmabufBasedBuffer(
         std::move(fd), kDefaultSize, strides, offsets, modifiers, format,
-        planes_count, buffer_id);
+        planes_count, gfx::ColorSpace(), gfx::HDRMetadata(), buffer_id);
 
     base::RunLoop().RunUntilIdle();
   }

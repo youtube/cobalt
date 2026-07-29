@@ -10,11 +10,13 @@
 #include "base/files/scoped_temp_dir.h"
 #include "base/strings/strcat.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/test/bind.h"
 #include "base/test/test_future.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
 #include "components/paint_preview/browser/paint_preview_base_service_test_factory.h"
 #include "components/paint_preview/browser/paint_preview_file_mixin.h"
+#include "components/paint_preview/common/mock_paint_preview_recorder.h"
 #include "components/paint_preview/common/mojom/paint_preview_recorder.mojom.h"
 #include "components/paint_preview/common/mojom/paint_preview_types.mojom.h"
 #include "components/paint_preview/common/serialized_recording.h"
@@ -73,42 +75,14 @@ base::FilePath CreateDir(scoped_refptr<FileManager> manager,
 
 }  // namespace
 
-class MockPaintPreviewRecorder : public mojom::PaintPreviewRecorder {
+class NoGuidMockPaintPreviewRecorder : public MockPaintPreviewRecorder {
  public:
-  MockPaintPreviewRecorder() = default;
-  ~MockPaintPreviewRecorder() override = default;
+  NoGuidMockPaintPreviewRecorder() = default;
+  ~NoGuidMockPaintPreviewRecorder() override = default;
 
-  void CapturePaintPreview(
-      mojom::PaintPreviewCaptureParamsPtr params,
-      mojom::PaintPreviewRecorder::CapturePaintPreviewCallback callback)
-      override {
-    {
-      base::ScopedAllowBlockingForTesting scope;
-      CheckParams(std::move(params));
-      std::move(callback).Run(status_, std::move(response_));
-    }
-  }
-
-  void SetExpectedParams(mojom::PaintPreviewCaptureParamsPtr params) {
-    expected_params_ = std::move(params);
-  }
-
-  void SetResponse(mojom::PaintPreviewStatus status,
-                   mojom::PaintPreviewCaptureResponsePtr response) {
-    status_ = status;
-    response_ = std::move(response);
-  }
-
-  void BindRequest(mojo::ScopedInterfaceEndpointHandle handle) {
-    binding_.Bind(mojo::PendingAssociatedReceiver<mojom::PaintPreviewRecorder>(
-        std::move(handle)));
-  }
-
-  MockPaintPreviewRecorder(const MockPaintPreviewRecorder&) = delete;
-  MockPaintPreviewRecorder& operator=(const MockPaintPreviewRecorder&) = delete;
-
- private:
-  void CheckParams(mojom::PaintPreviewCaptureParamsPtr input_params) {
+ protected:
+  void CheckParams(
+      const mojom::PaintPreviewCaptureParamsPtr& input_params) override {
     // Ignore GUID and File as this is internal information not known by the
     // Keyed Service API.
     EXPECT_EQ(input_params->clip_rect, expected_params_->clip_rect);
@@ -125,11 +99,6 @@ class MockPaintPreviewRecorder : public mojom::PaintPreviewRecorder {
     }
     EXPECT_EQ(input_params->is_main_frame, expected_params_->is_main_frame);
   }
-
-  mojom::PaintPreviewCaptureParamsPtr expected_params_;
-  mojom::PaintPreviewStatus status_;
-  mojom::PaintPreviewCaptureResponsePtr response_;
-  mojo::AssociatedReceiver<mojom::PaintPreviewRecorder> binding_{this};
 };
 
 class PaintPreviewBaseServiceTest
@@ -161,12 +130,12 @@ class PaintPreviewBaseServiceTest
         web_contents(), GURL("https://www.chromium.org"));
   }
 
-  void OverrideInterface(MockPaintPreviewRecorder* service) {
+  void OverrideInterface(NoGuidMockPaintPreviewRecorder* service) {
     blink::AssociatedInterfaceProvider* remote_interfaces =
         main_rfh()->GetRemoteAssociatedInterfaces();
     remote_interfaces->OverrideBinderForTesting(
         mojom::PaintPreviewRecorder::Name_,
-        base::BindRepeating(&MockPaintPreviewRecorder::BindRequest,
+        base::BindRepeating(&NoGuidMockPaintPreviewRecorder::BindRequest,
                             base::Unretained(service)));
   }
 
@@ -208,7 +177,7 @@ class PaintPreviewBaseServiceTest
 };
 
 TEST_P(PaintPreviewBaseServiceTest, CaptureMainFrame) {
-  MockPaintPreviewRecorder recorder;
+  NoGuidMockPaintPreviewRecorder recorder;
   auto params = mojom::PaintPreviewCaptureParams::New();
   params->clip_rect = gfx::Rect(0, 0, 0, 0);
   params->clip_x_coord_override =
@@ -238,13 +207,10 @@ TEST_P(PaintPreviewBaseServiceTest, CaptureMainFrame) {
           web_contents(), &path, GetParam(), gfx::Rect(0, 0, 0, 0),
           mojom::ClipCoordOverride::kCenterOnScrollOffset,
           mojom::ClipCoordOverride::kScrollOffset, true, 50, 1000),
-      base::BindOnce(
-          [](base::OnceClosure quit_closure,
-             PaintPreviewBaseService::CaptureStatus expected_status,
-             const base::FilePath& expected_path,
-             PaintPreviewBaseService::CaptureStatus status,
-             std::unique_ptr<CaptureResult> result) {
-            EXPECT_EQ(status, expected_status);
+      base::BindLambdaForTesting(
+          [&](PaintPreviewBaseService::CaptureStatus status,
+              std::unique_ptr<CaptureResult> result) {
+            EXPECT_EQ(status, PaintPreviewBaseService::CaptureStatus::kOk);
             EXPECT_TRUE(result->proto.has_root_frame());
             EXPECT_EQ(result->proto.subframes_size(), 0);
             EXPECT_TRUE(result->proto.root_frame().is_main_frame());
@@ -255,17 +221,17 @@ TEST_P(PaintPreviewBaseServiceTest, CaptureMainFrame) {
             switch (GetParam()) {
               case RecordingPersistence::kFileSystem: {
 #if BUILDFLAG(IS_WIN)
-                base::FilePath path = base::FilePath(
+                base::FilePath received_path = base::FilePath(
                     base::UTF8ToWide(result->proto.root_frame().file_path()));
                 base::FilePath name(
                     base::UTF8ToWide(base::StrCat({token.ToString(), ".skp"})));
 #else
-                base::FilePath path =
+                base::FilePath received_path =
                     base::FilePath(result->proto.root_frame().file_path());
                 base::FilePath name(base::StrCat({token.ToString(), ".skp"}));
 #endif
-                EXPECT_EQ(path.DirName(), expected_path);
-                EXPECT_EQ(path.BaseName(), name);
+                EXPECT_EQ(received_path.DirName(), path);
+                EXPECT_EQ(received_path.BaseName(), name);
               } break;
 
               case RecordingPersistence::kMemoryBuffer: {
@@ -276,15 +242,13 @@ TEST_P(PaintPreviewBaseServiceTest, CaptureMainFrame) {
               default:
                 NOTREACHED();
             }
-            std::move(quit_closure).Run();
-          },
-          loop.QuitClosure(), PaintPreviewBaseService::CaptureStatus::kOk,
-          path));
+            loop.Quit();
+          }));
   loop.Run();
 }
 
 TEST_P(PaintPreviewBaseServiceTest, CaptureFailed) {
-  MockPaintPreviewRecorder recorder;
+  NoGuidMockPaintPreviewRecorder recorder;
   auto params = mojom::PaintPreviewCaptureParams::New();
   params->clip_rect = gfx::Rect(0, 0, 0, 0);
   params->clip_x_coord_override =
@@ -311,22 +275,19 @@ TEST_P(PaintPreviewBaseServiceTest, CaptureFailed) {
                           mojom::ClipCoordOverride::kCenterOnScrollOffset,
                           mojom::ClipCoordOverride::kScrollOffset, true, 0,
                           std::numeric_limits<uint64_t>::max()),
-      base::BindOnce(
-          [](base::OnceClosure quit_closure,
-             PaintPreviewBaseService::CaptureStatus expected_status,
-             PaintPreviewBaseService::CaptureStatus status,
-             std::unique_ptr<CaptureResult> result) {
-            EXPECT_EQ(status, expected_status);
+      base::BindLambdaForTesting(
+          [&](PaintPreviewBaseService::CaptureStatus status,
+              std::unique_ptr<CaptureResult> result) {
+            EXPECT_EQ(status,
+                      PaintPreviewBaseService::CaptureStatus::kCaptureFailed);
             EXPECT_EQ(result, nullptr);
-            std::move(quit_closure).Run();
-          },
-          loop.QuitClosure(),
-          PaintPreviewBaseService::CaptureStatus::kCaptureFailed));
+            loop.Quit();
+          }));
   loop.Run();
 }
 
 TEST_P(PaintPreviewBaseServiceTest, CaptureDisallowed) {
-  MockPaintPreviewRecorder recorder;
+  NoGuidMockPaintPreviewRecorder recorder;
   auto params = mojom::PaintPreviewCaptureParams::New();
   params->clip_rect = gfx::Rect(0, 0, 0, 0);
   params->clip_x_coord_override =
@@ -353,24 +314,25 @@ TEST_P(PaintPreviewBaseServiceTest, CaptureDisallowed) {
                           mojom::ClipCoordOverride::kCenterOnScrollOffset,
                           mojom::ClipCoordOverride::kScrollOffset, true, 0,
                           std::numeric_limits<uint64_t>::max()),
-      base::BindOnce(
-          [](base::OnceClosure quit_closure,
-             PaintPreviewBaseService::CaptureStatus expected_status,
-             PaintPreviewBaseService::CaptureStatus status,
-             std::unique_ptr<CaptureResult> result) {
-            EXPECT_EQ(status, expected_status);
+      base::BindLambdaForTesting(
+          [&](PaintPreviewBaseService::CaptureStatus status,
+              std::unique_ptr<CaptureResult> result) {
+            EXPECT_EQ(
+                status,
+                PaintPreviewBaseService::CaptureStatus::kContentUnsupported);
             EXPECT_EQ(result, nullptr);
-            std::move(quit_closure).Run();
-          },
-          loop.QuitClosure(),
-          PaintPreviewBaseService::CaptureStatus::kContentUnsupported));
+            loop.Quit();
+          }));
   loop.Run();
 }
 
-INSTANTIATE_TEST_SUITE_P(All,
-                         PaintPreviewBaseServiceTest,
-                         testing::Values(RecordingPersistence::kFileSystem,
-                                         RecordingPersistence::kMemoryBuffer),
-                         PersistenceParamToString);
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    PaintPreviewBaseServiceTest,
+    testing::Values(RecordingPersistence::kFileSystem,
+                    RecordingPersistence::kMemoryBuffer),
+    [](const testing::TestParamInfo<RecordingPersistence>& info) {
+      return std::string(PersistenceToString(info.param));
+    });
 
 }  // namespace paint_preview

@@ -39,6 +39,7 @@
 #include "components/autofill/core/common/autofill_features.h"
 #include "content/public/common/content_features.h"
 #include "media/audio/audio_features.h"
+#include "media/base/media_switches.h"
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -119,10 +120,6 @@ void ChromeBrowserFieldTrials::RegisterFeatureOverrides(
     feature_overrides.DisableFeature(features::kEyeDropper);
   }
 #elif BUILDFLAG(IS_ANDROID)  // BUILDFLAG(IS_LINUX)
-  // TODO(crbug.com/422902880): Remove when tablet rollout is complete.
-  feature_overrides.EnableFeature(
-      base::features::kUseSharedRebindServiceConnection);
-  feature_overrides.EnableFeature(features::kGroupRebindingForGroupImportance);
 #if BUILDFLAG(IS_DESKTOP_ANDROID)
   // Nota bene: Anything here is expected to be short-lived, unless deemed too
   // risky to launch to non-desktop platforms. New features being added here
@@ -172,6 +169,9 @@ void ChromeBrowserFieldTrials::RegisterFeatureOverrides(
   // TODO(b/432367402): Use a new Android API to replace this hack with a proper
   // solution.
   feature_overrides.EnableFeature(features::kAndroidCaptureKeyEvents);
+  // TODO(crbug.com/438369690): Remove when we enable DevTools frontend for all
+  // clank users.
+  feature_overrides.EnableFeature(features::kAndroidDevToolsFrontend);
   // TODO(crbug.com/430304112): Remove when rollout is complete to all form
   // factors.
   feature_overrides.EnableFeature(
@@ -188,6 +188,16 @@ void ChromeBrowserFieldTrials::RegisterFeatureOverrides(
   // TODO(crbug.com/437004266): Remove when the feature is stable.
   feature_overrides.EnableFeature(
       features::kAlwaysUseAudioManagerOutputFramesPerBuffer);
+  // TODO(crbug.com/440210010): Remove when the feature experiment is done.
+  feature_overrides.EnableFeature(
+      features::kAudioStereoInputStreamParameters);
+  // Enables picture-in-picture in the right-click context menu.
+  // TODO(crbug.com/403851785): Remove when the feature is verified to be stable
+  // on desktop Android.
+  feature_overrides.EnableFeature(media::kContextMenuPictureInPictureAndroid);
+  // Disables the enhanced pip transition and uses the default animation.
+  // TODO(crbug.com/440384447): Remove when enhanced pip transition is fixed.
+  feature_overrides.DisableFeature(media::kAllowEnhancedPipTransition);
 #endif  // BUILDFLAG(IS_DESKTOP_ANDROID)
   // Desktop-first features which are past incubation should either end up here,
   // or to a finch trial that enables it for all form factors.

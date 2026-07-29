@@ -385,9 +385,9 @@ void PageLoadMetricsObserverTester::RegisterObservers(
 
 void PageLoadMetricsObserverTester::SimulateMemoryUpdate(
     content::RenderFrameHost* render_frame_host,
-    int64_t delta_bytes) {
+    base::ByteCount delta_bytes) {
   DCHECK(render_frame_host);
-  if (delta_bytes != 0) {
+  if (!delta_bytes.is_zero()) {
     std::vector<MemoryUpdate> update(
         {MemoryUpdate(render_frame_host->GetGlobalId(), delta_bytes)});
     metrics_web_contents_observer_->OnV8MemoryChanged(update);

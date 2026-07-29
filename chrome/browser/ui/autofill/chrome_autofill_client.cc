@@ -114,9 +114,9 @@
 #include "components/password_manager/core/browser/password_manager_util.h"
 #include "components/password_manager/core/browser/password_requirements_service.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
+#include "components/plus_addresses/core/browser/plus_address_hats_utils.h"
 #include "components/plus_addresses/core/browser/plus_address_types.h"
 #include "components/plus_addresses/core/common/features.h"
-#include "components/plus_addresses/plus_address_hats_utils.h"
 #include "components/prefs/pref_service.h"
 #include "components/profile_metrics/browser_profile_type.h"
 #include "components/security_state/content/security_state_tab_helper.h"
@@ -129,6 +129,7 @@
 #include "components/unified_consent/pref_names.h"
 #include "components/variations/service/google_groups_manager.h"
 #include "components/variations/service/variations_service.h"
+#include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/ssl_status.h"
@@ -492,7 +493,7 @@ PasswordManagerDelegate* ChromeAutofillClient::GetPasswordManagerDelegate(
   return client ? client->GetAutofillDelegate(field_id) : nullptr;
 }
 
-OtpSuggestionDelegate* ChromeAutofillClient::GetOtpSuggestionDelegate() {
+OtpDelegate* ChromeAutofillClient::GetOtpDelegate() {
   ChromePasswordManagerClient* client =
       ChromePasswordManagerClient::FromWebContents(web_contents());
   return client ? client->GetOtpManager() : nullptr;

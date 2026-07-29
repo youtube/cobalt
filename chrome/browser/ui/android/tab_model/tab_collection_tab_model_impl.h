@@ -64,12 +64,12 @@ class TabCollectionTabModelImpl {
                        const std::optional<base::Token>& j_new_tab_group_id,
                        bool new_is_pinned);
 
-  // Adds a tab to the tab model.
-  void AddTabRecursive(JNIEnv* env,
-                       TabAndroid* tab,
-                       size_t index,
-                       const std::optional<base::Token>& j_tab_group_id,
-                       bool is_pinned);
+  // Adds a tab to the tab model. Returns the final index of the tab.
+  int AddTabRecursive(JNIEnv* env,
+                      TabAndroid* tab,
+                      size_t index,
+                      const std::optional<base::Token>& j_tab_group_id,
+                      bool is_pinned);
 
   // Removes a list of tabs from the tab model.
   void RemoveTabRecursive(JNIEnv* env, TabAndroid* tab);
@@ -91,6 +91,25 @@ class TabCollectionTabModelImpl {
   // vector.
   std::vector<TabAndroid*> GetTabsInGroup(JNIEnv* env,
                                           const base::Token& token);
+
+  // Returns the number of tabs in a group. If the group is not found, returns
+  // 0.
+  int GetTabCountForGroup(JNIEnv* env, const base::Token& token);
+
+  // Returns whether a tab group with tabs exists.
+  bool TabGroupExists(JNIEnv* env, const base::Token& token);
+
+  // Returns the number of individual tabs and tab groups.
+  int GetIndividualTabAndGroupCount(JNIEnv* env);
+
+  // Returns the number of tab groups.
+  int GetTabGroupCount(JNIEnv* env);
+
+  // Returns the index of a tab within its group. Returns -1 if tab is not in a
+  // group or not found.
+  int GetIndexOfTabInGroup(JNIEnv* env,
+                           TabAndroid* tab,
+                           const base::Token& token);
 
   // Update tab group visual data.
   void UpdateTabGroupVisualData(

@@ -206,6 +206,7 @@ public class MultiInstanceManagerApi31UnitTest {
             new OneshotSupplierImpl<>();
 
     private MultiInstanceManagerApi31 createMultiInstanceManager(Activity activity) {
+        when(activity.getSystemService(Context.ACTIVITY_SERVICE)).thenReturn(mActivityManager);
         return new TestMultiInstanceManagerApi31(
                 activity,
                 mTabModelOrchestratorSupplier,
@@ -270,6 +271,7 @@ public class MultiInstanceManagerApi31UnitTest {
                                 type,
                                 MultiInstanceManagerApi31.readUrl(instanceId),
                                 "",
+                                /* customTitle= */ null,
                                 0,
                                 0,
                                 false,
@@ -427,7 +429,8 @@ public class MultiInstanceManagerApi31UnitTest {
                             ModalDialogManager modalDialogManager,
                             OneshotSupplier<ProfileProvider> profileProviderSupplier,
                             TabCreatorManager tabCreatorManager,
-                            NextTabPolicySupplier nextTabPolicySupplier) {
+                            NextTabPolicySupplier nextTabPolicySupplier,
+                            MultiInstanceManager multiInstanceManager) {
                         return new MockTabModelSelector(mProfile, mIncognitoProfile, 0, 0, null);
                     }
 
@@ -567,6 +570,7 @@ public class MultiInstanceManagerApi31UnitTest {
                                 mProfileProviderSupplier,
                                 null,
                                 null,
+                                null,
                                 mMismatchedIndicesHandler,
                                 index);
         int instanceId = pair.first;
@@ -595,6 +599,7 @@ public class MultiInstanceManagerApi31UnitTest {
                                 mActivityTask57,
                                 mModalDialogManager,
                                 mProfileProviderSupplier,
+                                null,
                                 null,
                                 null,
                                 mMismatchedIndicesHandler,
@@ -639,6 +644,37 @@ public class MultiInstanceManagerApi31UnitTest {
         assertEquals(
                 finalIndex,
                 allocInstanceIndex(PASSED_ID_INVALID, mActivityTask61, /* preferNew= */ true));
+    }
+
+    @Test
+    public void testAllocInstanceId_preferNew_atDowngradedInstanceLimit() {
+        // Set initial instance limit and allocate ids for max instances.
+        MultiWindowUtils.setMaxInstancesForTesting(3);
+        assertEquals(0, allocInstanceIndex(PASSED_ID_INVALID, mActivityTask56));
+        assertEquals(1, allocInstanceIndex(PASSED_ID_INVALID, mActivityTask57));
+        assertEquals(2, allocInstanceIndex(PASSED_ID_INVALID, mActivityTask58));
+
+        // Decrease instance limit.
+        MultiWindowUtils.setMaxInstancesForTesting(2);
+
+        // Simulate deletion of instance0, so id=0 becomes available.
+        MultiInstanceManagerApi31.removeInstanceInfo(0);
+
+        // Trying to allocate a new instance with preferNew should fail.
+        Pair<Integer, Integer> instanceIdInfo =
+                createMultiInstanceManager(mActivityTask59)
+                        .allocInstanceId(
+                                PASSED_ID_INVALID,
+                                mActivityTask59.getTaskId(),
+                                /* preferNew= */ true);
+        assertEquals(
+                "Should not allocate valid instance id when at limit.",
+                INVALID_WINDOW_ID,
+                (int) instanceIdInfo.first);
+        assertEquals(
+                "Should return PREFER_NEW_INVALID_INSTANCE.",
+                MultiWindowUtils.InstanceAllocationType.PREFER_NEW_INVALID_INSTANCE,
+                (int) instanceIdInfo.second);
     }
 
     @Test
@@ -1034,6 +1070,8 @@ public class MultiInstanceManagerApi31UnitTest {
         ChromeSharedPreferences.getInstance().writeBoolean(incognitoSelectedKey, false);
         String lastAccessedTimeKey = MultiInstanceManagerApi31.lastAccessedTimeKey(index);
         ChromeSharedPreferences.getInstance().writeLong(lastAccessedTimeKey, 1);
+        String profileTypeKey = MultiInstanceManagerApi31.profileTypeKey(index);
+        ChromeSharedPreferences.getInstance().writeInt(profileTypeKey, 1);
 
         MultiInstanceManagerApi31.removeInstanceInfo(index);
         assertFalse(
@@ -1057,6 +1095,9 @@ public class MultiInstanceManagerApi31UnitTest {
         assertFalse(
                 "Shared preference key should be removed.",
                 ChromeSharedPreferences.getInstance().contains(lastAccessedTimeKey));
+        assertFalse(
+                "Shared preference key should be removed.",
+                ChromeSharedPreferences.getInstance().contains(profileTypeKey));
     }
 
     private void triggerSelectTab(TabModelObserver tabModelObserver, Tab tab) {
@@ -1109,6 +1150,7 @@ public class MultiInstanceManagerApi31UnitTest {
                                 activity,
                                 mModalDialogManager,
                                 mProfileProviderSupplier,
+                                null,
                                 null,
                                 null,
                                 mMismatchedIndicesHandler,
@@ -1410,6 +1452,7 @@ public class MultiInstanceManagerApi31UnitTest {
                         InstanceInfo.Type.ADJACENT,
                         "https://id-4.com",
                         "",
+                        /* customTitle= */ null,
                         0,
                         0,
                         false,
@@ -1445,6 +1488,7 @@ public class MultiInstanceManagerApi31UnitTest {
                         InstanceInfo.Type.ADJACENT,
                         "https://id-4.com",
                         "",
+                        /* customTitle= */ null,
                         0,
                         0,
                         false,
@@ -1471,6 +1515,7 @@ public class MultiInstanceManagerApi31UnitTest {
                         InstanceInfo.Type.ADJACENT,
                         "https://id-4.com",
                         "",
+                        /* customTitle= */ null,
                         0,
                         0,
                         false,

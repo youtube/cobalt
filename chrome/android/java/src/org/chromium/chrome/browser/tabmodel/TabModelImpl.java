@@ -6,6 +6,8 @@ package org.chromium.chrome.browser.tabmodel;
 
 import static org.chromium.build.NullUtil.assumeNonNull;
 
+import android.app.Activity;
+
 import com.google.common.collect.ImmutableList;
 
 import org.chromium.base.MathUtils;
@@ -274,6 +276,16 @@ public class TabModelImpl extends TabModelJniBridge {
         return getTabCreator(isIncognitoBranded());
     }
 
+    @Override
+    public void moveTabToWindow(Tab tab, Activity activity, int newIndex) {
+        mModelDelegate.moveTabToWindow(tab, activity, newIndex);
+    }
+
+    @Override
+    public void moveTabGroupToWindow(Token tabGroupId, Activity activity, int newIndex) {
+        mModelDelegate.moveTabGroupToWindow(tabGroupId, activity, newIndex, isIncognito());
+    }
+
     /**
      * Initializes the newly created tab, adds it to controller, and dispatches creation step
      * notifications.
@@ -290,7 +302,8 @@ public class TabModelImpl extends TabModelJniBridge {
                     : "Attempting to add a tab with a duplicate id=" + tab.getId();
 
             for (TabModelObserver obs : mObservers) obs.willAddTab(tab, type);
-
+            // Clear the multi-selection set before adding the tab.
+            clearMultiSelection(/* notifyObservers= */ false);
             boolean selectTab =
                     mOrderController.willOpenInForeground(type, isIncognitoBranded())
                             || (mTabs.size() == 0
@@ -521,7 +534,9 @@ public class TabModelImpl extends TabModelJniBridge {
         }
 
         allowUndo &= supportsPendingClosures();
-
+        if (isTabMultiSelected(tabToClose.getId())) {
+            setTabsMultiSelected(Collections.singleton(tabToClose.getId()), /* isSelected= */ false);
+        }
         startTabClosure(tabToClose, recommendedNextTab, uponExit, allowUndo, tabCloseType);
         List<Tab> tabsToClose = Collections.singletonList(tabToClose);
         if (notifyPending && allowUndo) {

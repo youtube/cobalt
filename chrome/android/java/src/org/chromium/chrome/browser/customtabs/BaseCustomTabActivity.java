@@ -494,10 +494,7 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
     }
 
     @Override
-    public void performPreInflationStartup() {
-        // This must be requested before adding content.
-        supportRequestWindowFeature(Window.FEATURE_ACTION_MODE_OVERLAY);
-
+    protected void onPreCreate() {
         // Parse the data from the Intent before calling super to allow the Intent to customize
         // the Activity parameters, including the background of the page.
         // Note that color scheme is fixed for the lifetime of Activity: if the system setting
@@ -510,6 +507,14 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
             this.finishAndRemoveTask();
             return;
         }
+
+        super.onPreCreate();
+    }
+
+    @Override
+    public void performPreInflationStartup() {
+        // This must be requested before adding content.
+        supportRequestWindowFeature(Window.FEATURE_ACTION_MODE_OVERLAY);
 
         InstalledWebappDataRegister.prefetchPreferences();
 
@@ -804,8 +809,7 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
             RecordHistogram.recordBooleanHistogram("CustomTabs.SpareRenderer", true);
             Profile profile = getProfileProviderSupplier().get().getOriginalProfile();
             PostTask.postTask(
-                    TaskTraits.UI_DEFAULT,
-                    () -> CustomTabsConnection.createSpareWebContents(profile));
+                    TaskTraits.UI_DEFAULT, () -> CustomTabsConnection.createSpareTab(profile));
         } else {
             RecordHistogram.recordBooleanHistogram("CustomTabs.SpareRenderer", false);
         }

@@ -526,6 +526,8 @@ static_library("browser") {
     "enterprise/connectors/interstitials/enterprise_warn_controller_client.h",
     "enterprise/connectors/interstitials/enterprise_warn_page.cc",
     "enterprise/connectors/interstitials/enterprise_warn_page.h",
+    "enterprise/connectors/referrer_cache_utils.cc",
+    "enterprise/connectors/referrer_cache_utils.h",
     "enterprise/core/dependency_factory_impl.cc",
     "enterprise/core/dependency_factory_impl.h",
     "enterprise/identifiers/profile_id_delegate_impl.cc",
@@ -904,6 +906,8 @@ static_library("browser") {
     "notifications/system_notification_helper.h",
     "ntp_tiles/chrome_custom_links_manager_factory.cc",
     "ntp_tiles/chrome_custom_links_manager_factory.h",
+    "ntp_tiles/chrome_enterprise_shortcuts_manager_factory.cc",
+    "ntp_tiles/chrome_enterprise_shortcuts_manager_factory.h",
     "ntp_tiles/chrome_most_visited_sites_factory.cc",
     "ntp_tiles/chrome_most_visited_sites_factory.h",
     "ntp_tiles/chrome_popular_sites_factory.cc",
@@ -1270,7 +1274,6 @@ static_library("browser") {
     "privacy_sandbox/privacy_sandbox_policy_handler.cc",
     "privacy_sandbox/privacy_sandbox_policy_handler.h",
     "privacy_sandbox/privacy_sandbox_service_factory.cc",
-    "privacy_sandbox/privacy_sandbox_service_factory.h",
     "privacy_sandbox/privacy_sandbox_service_impl.cc",
     "privacy_sandbox/privacy_sandbox_service_impl.h",
     "privacy_sandbox/privacy_sandbox_settings_delegate.cc",
@@ -1326,10 +1329,6 @@ static_library("browser") {
     "push_messaging/budget_database.h",
     "push_messaging/push_messaging_app_identifier.cc",
     "push_messaging/push_messaging_app_identifier.h",
-    "push_messaging/push_messaging_constants.cc",
-    "push_messaging/push_messaging_constants.h",
-    "push_messaging/push_messaging_features.cc",
-    "push_messaging/push_messaging_features.h",
     "push_messaging/push_messaging_notification_manager.cc",
     "push_messaging/push_messaging_notification_manager.h",
     "push_messaging/push_messaging_refresher.cc",
@@ -1340,8 +1339,6 @@ static_library("browser") {
     "push_messaging/push_messaging_service_impl.h",
     "push_messaging/push_messaging_unsubscribed_entry.cc",
     "push_messaging/push_messaging_unsubscribed_entry.h",
-    "push_messaging/push_messaging_utils.cc",
-    "push_messaging/push_messaging_utils.h",
     "reduce_accept_language/reduce_accept_language_factory.cc",
     "reduce_accept_language/reduce_accept_language_factory.h",
     "renderer_context_menu/context_menu_content_type_factory.cc",
@@ -1489,6 +1486,7 @@ static_library("browser") {
     "site_isolation/site_details.cc",
     "site_isolation/site_details.h",
     "site_protection/site_familiarity_heuristic_name.h",
+    "site_protection/site_protection_metrics.h",
     "site_protection/site_protection_metrics_observer.cc",
     "site_protection/site_protection_metrics_observer.h",
     "speech/chrome_speech_recognition_manager_delegate.cc",
@@ -2204,6 +2202,7 @@ static_library("browser") {
     "//components/data_sharing/internal",
     "//components/data_sharing/internal:personal_collaboration_data_internal",
     "//components/data_sharing/public",
+    "//components/data_sharing/public:personal_collaboration_data",
     "//components/device_event_log",
     "//components/device_reauth",
     "//components/device_signals/core/browser",
@@ -2362,9 +2361,9 @@ static_library("browser") {
     "//components/permissions/prediction_service",
     "//components/permissions/prediction_service:prediction_service_messages_proto",
     "//components/plus_addresses",
-    "//components/plus_addresses:hats_utils",
+    "//components/plus_addresses/core/browser:hats_utils",
+    "//components/plus_addresses/core/browser/settings",
     "//components/plus_addresses/core/common:prefs",
-    "//components/plus_addresses/settings",
     "//components/plus_addresses/webdata",
     "//components/policy:generated",
     "//components/policy/content:safe_sites_navigation_throttle",
@@ -2387,6 +2386,7 @@ static_library("browser") {
     "//components/privacy_sandbox/privacy_sandbox_attestations",
     "//components/profile_metrics",
     "//components/proxy_config",
+    "//components/push_messaging",
     "//components/qr_code_generator:bitmap_generator",
     "//components/query_parser",
     "//components/reading_list/core",
@@ -2417,6 +2417,7 @@ static_library("browser") {
     "//components/safe_browsing/content/browser/web_ui",
     "//components/safe_browsing/content/common/proto:download_file_types_proto",
     "//components/safe_browsing/core/browser",
+    "//components/safe_browsing/core/browser:referrer_chain_provider",
     "//components/safe_browsing/core/browser:referring_app_info",
     "//components/safe_browsing/core/browser:safe_browsing_metrics_collector",
     "//components/safe_browsing/core/browser:verdict_cache_manager",
@@ -2685,7 +2686,10 @@ static_library("browser") {
   }
 
   if (is_win || is_mac || is_linux) {
-    deps += [ "//chrome/browser/ui/views/session_restore_infobar" ]
+    deps += [
+      "//chrome/browser/ui/views/session_restore_infobar",
+      "//components/themes:policy",
+    ]
   }
 
   # Platforms that have a network diagnostics dialog. All others fall through
@@ -2759,6 +2763,8 @@ static_library("browser") {
       "android/compositor/resources/resource_factory.cc",
       "android/compositor/resources/toolbar_resource.cc",
       "android/compositor/resources/toolbar_resource.h",
+      "android/compositor/scene_layer/bookmark_bar_scene_layer.cc",
+      "android/compositor/scene_layer/bookmark_bar_scene_layer.h",
       "android/compositor/scene_layer/contextual_search_scene_layer.cc",
       "android/compositor/scene_layer/contextual_search_scene_layer.h",
       "android/compositor/scene_layer/edge_to_edge_bottom_chin_scene_layer.cc",
@@ -3325,8 +3331,12 @@ static_library("browser") {
       "supervised_user/child_accounts/child_account_service_android.h",
       "tab/tab_state_storage_backend.cc",
       "tab/tab_state_storage_backend.h",
+      "tab/tab_state_storage_database.cc",
+      "tab/tab_state_storage_database.h",
       "tab/tab_state_storage_service.cc",
       "tab/tab_state_storage_service.h",
+      "tab/tab_state_storage_service_android.cc",
+      "tab/tab_state_storage_service_android.h",
       "tab/tab_state_storage_service_factory.cc",
       "tab/tab_state_storage_service_factory.h",
       "tab/web_contents_state.cc",
@@ -4464,9 +4474,11 @@ static_library("browser") {
       "//chrome/browser/ui/views/download",
       "//chrome/browser/ui/views/infobars",
       "//chrome/browser/ui/views/infobars:impl",
+      "//chrome/browser/ui/views/location_bar/cookie_controls:impl",
       "//chrome/browser/ui/views/new_tab_footer",
       "//chrome/browser/ui/views/side_panel",
       "//chrome/browser/ui/views/toolbar",
+      "//chrome/browser/ui/views/toolbar:impl",
       "//chrome/browser/ui/web_applications:impl",
       "//chrome/browser/ui/webui:webui_util",
       "//chrome/browser/ui/webui/commerce",
@@ -4638,7 +4650,15 @@ static_library("browser") {
       "//chrome/browser/ui/tabs/organization:impl",
 
       "//chrome/browser/ui/browser_window/internal",
+
+      # TODO(crbug.com/434882143): Remove this circular dependency when the following files get
+      # componentized:
+      # - c/b/bookmarks/bookmark_merged_surface_service_observer.h
+      # - c/b/lifetime/browser_close_manager.h
+      # - c/b/command_observer.h
       "//chrome/browser/ui/views/toolbar",
+
+      "//chrome/browser/ui/views/toolbar:impl",
       "//chrome/browser/ui/views/new_tab_footer",
       "//chrome/browser/ui/webui/searchbox",
       "//chrome/browser/ui/webui/top_chrome:impl",
@@ -4680,6 +4700,10 @@ static_library("browser") {
       # - app_mode/app_mode_utils.h
       # ... get componentized.
       "//chrome/browser/ui/web_applications:impl",
+
+      # TODO(crbug.com/434882143): Remove this circular dependency when
+      # c/b/privacy_sandbox/tracking_protection_settings_factory.h gets componentized.
+      "//chrome/browser/ui/views/location_bar/cookie_controls:impl",
     ]
 
     #!is_android
@@ -5562,7 +5586,6 @@ static_library("browser") {
       "//chrome/browser/ui/ash/assistant",
       "//chrome/browser/ui/ash/birch",
       "//chrome/browser/ui/ash/capture_mode",
-      "//chrome/browser/ui/ash/clipboard",
       "//chrome/browser/ui/ash/desks",
       "//chrome/browser/ui/ash/device_scheduled_reboot",
       "//chrome/browser/ui/ash/focus_mode",
@@ -6061,7 +6084,6 @@ static_library("browser") {
       "//chrome/browser/ui/ash/assistant",
       "//chrome/browser/ui/ash/birch",
       "//chrome/browser/ui/ash/capture_mode",
-      "//chrome/browser/ui/ash/clipboard",
       "//chrome/browser/ui/ash/desks",
       "//chrome/browser/ui/ash/device_scheduled_reboot",
       "//chrome/browser/ui/ash/focus_mode",
@@ -7883,8 +7905,8 @@ static_library("browser") {
       # TODO(https://crbug.com/356905053): These files are temporary workarounds
       # allow for a lightweight extensions runtime in desktop-android builds.
       # They should be removed.
-      "extensions/extension_menu_delegate_android.cc",
-      "extensions/extension_menu_delegate_android.h",
+      "extensions/extension_menu_model_android.cc",
+      "extensions/extension_menu_model_android.h",
     ]
 
     deps += [

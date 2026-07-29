@@ -28,6 +28,7 @@
 #include "content/browser/service_worker/service_worker_main_resource_handle.h"
 #include "content/browser/storage_partition_impl.h"
 #include "content/browser/url_loader_factory_params_helper.h"
+#include "content/browser/websockets/websocket_connector_impl.h"
 #include "content/browser/webtransport/web_transport_connector_impl.h"
 #include "content/browser/worker_host/shared_worker_content_settings_proxy_impl.h"
 #include "content/browser/worker_host/shared_worker_service_impl.h"
@@ -62,6 +63,7 @@
 #include "third_party/blink/public/mojom/devtools/console_message.mojom.h"
 #include "third_party/blink/public/mojom/renderer_preference_watcher.mojom.h"
 #include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom.h"
+#include "third_party/blink/public/mojom/worker/shared_worker_exception_details.mojom.h"
 #include "third_party/blink/public/mojom/worker/shared_worker_info.mojom.h"
 #include "third_party/blink/public/mojom/worker/worker_content_settings_proxy.mojom.h"
 
@@ -603,6 +605,18 @@ void SharedWorkerHost::CreateWebTransportConnector(
       std::move(receiver));
 }
 
+void SharedWorkerHost::CreateWebSocketConnector(
+    mojo::PendingReceiver<blink::mojom::WebSocketConnector> receiver) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  const blink::StorageKey& storage_key = instance_.storage_key();
+
+  mojo::MakeSelfOwnedReceiver(
+      std::make_unique<WebSocketConnectorImpl>(
+          GetProcessHost()->GetDeprecatedID(), IPC::mojom::kRoutingIdNone,
+          storage_key.origin(), storage_key.ToPartialNetIsolationInfo()),
+      std::move(receiver));
+}
+
 void SharedWorkerHost::BindCacheStorage(
     mojo::PendingReceiver<blink::mojom::CacheStorage> receiver) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
@@ -763,6 +777,13 @@ void SharedWorkerHost::OnReadyForInspection(
 void SharedWorkerHost::OnScriptLoadFailed(const std::string& error_message) {
   for (const ClientInfo& info : clients_) {
     info.client->OnScriptLoadFailed(error_message);
+  }
+}
+
+void SharedWorkerHost::OnReportException(
+    blink::mojom::SharedWorkerExceptionDetailsPtr details) {
+  for (const ClientInfo& info : clients_) {
+    info.client->OnReportException(details.Clone());
   }
 }
 

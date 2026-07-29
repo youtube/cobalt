@@ -656,6 +656,16 @@ void LensOverlaySidePanelCoordinator::AimHandshakeReceived() {
   }
 }
 
+void LensOverlaySidePanelCoordinator::AimResultsChanged(bool on_aim) {
+  // Close the overlay if the user transitions to the AIM UI.
+  if (on_aim && lens::features::ShouldCloseOverlayOnAimTransition()) {
+    lens_search_controller_->HideOverlay();
+  }
+  if (side_panel_page_) {
+    side_panel_page_->AimResultsChanged(on_aim);
+  }
+}
+
 void LensOverlaySidePanelCoordinator::SuppressGhostLoader() {
   if (side_panel_page_) {
     side_panel_page_->SuppressGhostLoader();
@@ -828,10 +838,14 @@ void LensOverlaySidePanelCoordinator::DidStartNavigation(
   SetSidePanelIsOffline(net::NetworkChangeNotifier::IsOffline());
   SetSidePanelNewTabUrl(GURL());
 
+  // Notify the side panel that the results have moved to/from the AIM UI.
+  const bool is_aim_query = IsAimQuery(nav_url);
+  AimResultsChanged(is_aim_query);
+
   // If this is an AIM query, to be opened in the side panel, exit early to
   // prevent the ghost loader from being shown. AIM supports soft navigations to
   // handle custom animations, and showing the ghost loader would cover those.
-  if (lens::features::GetSidePanelGhostLoaderDisabledForAim() && IsAimQuery(nav_url)) {
+  if (lens::features::GetSidePanelGhostLoaderDisabledForAim() && is_aim_query) {
     return;
   }
   SetSidePanelIsLoadingResults(true);

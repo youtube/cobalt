@@ -12,6 +12,7 @@ source_set("feature_flag") {
 
 source_set("webui_browser") {
   sources = [
+    "browser_elements_webui_browser.h",
     "webui_browser_ui.h",
     "webui_browser_window.h",
     "webui_location_bar.h",
@@ -20,7 +21,9 @@ source_set("webui_browser") {
     ":browser_mojo_bindings",
     ":feature_flag",
     "//base",
+    "//chrome/browser/ui/exclusive_access",
     "//chrome/browser/ui/location_bar",
+    "//chrome/browser/ui/views/interaction",
     "//chrome/browser/ui/views/side_panel",
     "//components/guest_contents/common:mojom",
     "//content/public/browser",
@@ -35,6 +38,7 @@ source_set("impl") {
   sources = [
     "bookmark_bar_page_handler.cc",
     "bookmark_bar_page_handler.h",
+    "browser_elements_webui_browser.cc",
     "webui_browser.cc",
     "webui_browser_client_view.cc",
     "webui_browser_client_view.h",
@@ -47,6 +51,10 @@ source_set("impl") {
     "webui_location_bar.cc",
   ]
 
+  if (is_mac) {
+    sources += [ "webui_browser_window_mac.mm" ]
+  }
+
   deps = [
     ":browser_mojo_bindings",
     ":webui_browser",
@@ -54,9 +62,11 @@ source_set("impl") {
     "//chrome/browser:browser_public_dependencies",
     "//chrome/browser/devtools",
     "//chrome/browser/profiles",
+    "//chrome/browser/resources/tab_strip_api:resources",
     "//chrome/browser/resources/webui_browser:resources",
     "//chrome/browser/themes",
     "//chrome/browser/ui/bookmarks",
+    "//chrome/browser/ui/browser_window",
     "//chrome/browser/ui/find_bar",
     "//chrome/browser/ui/location_bar",
     "//chrome/browser/ui/tabs/tab_strip_api",
@@ -70,9 +80,23 @@ source_set("impl") {
     "//components/sharing_message",
     "//content/public/browser",
     "//ui/base",
+    "//ui/content_accelerators",
     "//ui/views",
     "//ui/views/controls/webview",
+    "//ui/webui/tracked_element",
   ]
+
+  if (is_mac) {
+    deps += [
+      "//chrome/browser/apps/app_shim",
+      "//components/remote_cocoa/app_shim",
+      "//ui/base/accelerators/global_accelerator_listener",
+    ]
+  }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 mojom("browser_mojo_bindings") {
@@ -81,6 +105,7 @@ mojom("browser_mojo_bindings") {
     "browser.mojom",
   ]
   public_deps = [
+    "//chrome/browser/ui/tabs/tab_strip_api:mojom",
     "//mojo/public/mojom/base",
     "//url/mojom:url_mojom_gurl",
   ]

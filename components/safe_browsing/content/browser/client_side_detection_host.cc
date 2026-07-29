@@ -44,6 +44,7 @@
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/global_routing_id.h"
+#include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
@@ -671,6 +672,16 @@ class ClientSideDetectionHost::ShouldClassifyUrlRequest {
 
   base::WeakPtrFactory<ShouldClassifyUrlRequest> weak_factory_{this};
 };
+
+// static
+ClientSideDetectionHost::IntelligentScanDelegate::IntelligentScanResult
+ClientSideDetectionHost::IntelligentScanDelegate::IntelligentScanResult::
+    Failure(int model_version) {
+  return {.brand = "",
+          .intent = "",
+          .model_version = model_version,
+          .execution_success = false};
+}
 
 // static
 std::unique_ptr<ClientSideDetectionHost> ClientSideDetectionHost::Create(
@@ -1410,7 +1421,8 @@ void ClientSideDetectionHost::OnInquireOnDeviceModelDone(
     intelligent_scan_info.set_no_info_reason(
         IntelligentScanInfo::ON_DEVICE_MODEL_OUTPUT_MISSING);
   }
-  if (response.model_version > 0) {
+  if (response.model_version != IntelligentScanDelegate::IntelligentScanResult::
+                                    kModelVersionUnavailable) {
     intelligent_scan_info.set_model_version(response.model_version);
   }
   *verdict->mutable_intelligent_scan_info() = std::move(intelligent_scan_info);
