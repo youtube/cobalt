@@ -235,7 +235,9 @@ Result<void> MediaCodecAudioDecoder::InitializeCodec() {
 
 void MediaCodecAudioDecoder::ProcessOutputBuffer(
     MediaCodec* media_codec_bridge,
-    const DequeueOutputResult& dequeue_output_result) {
+    const DequeueOutputResult& dequeue_output_result,
+    int number_of_pending_inputs) {
+  SB_UNREFERENCED_PARAMETER(number_of_pending_inputs);
   SB_DCHECK(media_codec_bridge);
   SB_DCHECK(output_cb_);
   SB_DCHECK_GE(dequeue_output_result.index, 0);

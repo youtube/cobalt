@@ -261,10 +261,10 @@ void AudioTrackAudioSink::AudioThreadFunc() {
 
   SB_LOG(INFO) << "AudioTrackAudioSink thread started.";
 
-  int accumulated_written_frames = 0;
+  int64_t accumulated_written_frames = 0;
   int64_t last_playback_head_event_at = -1;  // microseconds
 
-  int last_playback_head_position = 0;
+  int64_t last_playback_head_position = 0;
 
   bool release_frames_after_audio_starts = features::FeatureList::IsEnabled(
       features::kReleaseVideoFramesAfterAudioStarts);
@@ -284,7 +284,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       continue;
     }
 
-    int playback_head_position = 0;
+    int64_t playback_head_position = 0;
     int64_t frames_consumed_at = 0;
     if (audio_track_->GetAndResetHasAudioDeviceChanged()) {
       SB_LOG(INFO) << "Audio device changed, raising a capability changed "
@@ -515,7 +515,7 @@ void AudioTrackAudioSink::ReportError(bool capability_changed,
   }
 }
 
-int64_t AudioTrackAudioSink::GetFramesDurationUs(int frames) const {
+int64_t AudioTrackAudioSink::GetFramesDurationUs(int64_t frames) const {
   return frames * 1'000'000LL / sampling_frequency_hz_;
 }
 
