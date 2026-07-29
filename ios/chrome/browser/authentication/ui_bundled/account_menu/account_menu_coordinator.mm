@@ -39,6 +39,7 @@
 #import "ios/chrome/browser/settings/ui_bundled/google_services/manage_accounts/manage_accounts_coordinator_delegate.h"
 #import "ios/chrome/browser/settings/ui_bundled/google_services/sync_error_settings_command_handler.h"
 #import "ios/chrome/browser/settings/ui_bundled/settings_controller_protocol.h"
+#import "ios/chrome/browser/settings/ui_bundled/settings_navigation_controller.h"
 #import "ios/chrome/browser/settings/ui_bundled/settings_root_view_controlling.h"
 #import "ios/chrome/browser/settings/ui_bundled/sync/sync_encryption_passphrase_table_view_controller.h"
 #import "ios/chrome/browser/settings/ui_bundled/sync/sync_encryption_table_view_controller.h"
@@ -86,8 +87,9 @@ void maybeShowSettingsIPH(Browser* browser) {
 
 @interface AccountMenuCoordinator () <
     AccountMenuMediatorDelegate,
-    ManageAccountsCoordinatorDelegate,
+    SettingsNavigationControllerDelegate,
     SyncErrorSettingsCommandHandler,
+    SyncEncryptionPassphraseTableViewControllerPresentationDelegate,
     TrustedVaultReauthenticationCoordinatorDelegate,
     UIAdaptivePresentationControllerDelegate>
 
@@ -105,8 +107,8 @@ void maybeShowSettingsIPH(Browser* browser) {
   // Dismiss callback for account details view.
   SystemIdentityManager::DismissViewCallback
       _accountDetailsControllerDismissCallback;
-  // The coordinators for the "Edit account list"
-  ManageAccountsCoordinator* _manageAccountsCoordinator;
+  // The view controller for the "Edit account list"
+  SettingsNavigationController* _manageAccountsNavigationController;
   // The coordinator for the action sheet to sign out.
   SignoutActionSheetCoordinator* _signoutActionSheetCoordinator;
   raw_ptr<syncer::SyncService> _syncService;
@@ -216,7 +218,7 @@ void maybeShowSettingsIPH(Browser* browser) {
     return;
   }
   [self stopTrustedVaultReauthenticationCoordinator];
-  [self stopChildrenAndViewController];
+  [self stopChildrenAndViewControllerAnimated:NO];
   [_syncEncryptionPassphraseTableViewController settingsWillBeDismissed];
   _syncEncryptionPassphraseTableViewController = nil;
 
@@ -271,14 +273,15 @@ void maybeShowSettingsIPH(Browser* browser) {
 }
 
 - (void)didTapManageAccounts {
-  CHECK(!_manageAccountsCoordinator);
-  _manageAccountsCoordinator = [[ManageAccountsCoordinator alloc]
-      initWithBaseViewController:_navigationController
-                         browser:self.browser
-       closeSettingsOnAddAccount:NO];
-  _manageAccountsCoordinator.delegate = self;
-  _manageAccountsCoordinator.signoutDismissalByParentCoordinator = YES;
-  [_manageAccountsCoordinator start];
+  CHECK(!_manageAccountsNavigationController);
+  _manageAccountsNavigationController = [SettingsNavigationController
+             accountsControllerForBrowser:self.browser
+                       baseViewController:_navigationController
+                                 delegate:self
+                closeSettingsOnAddAccount:NO
+                        showSignoutButton:NO
+                           showDoneButton:YES
+      signoutDismissalByParentCoordinator:YES];
 }
 
 - (void)signOutFromTargetRect:(CGRect)targetRect
@@ -333,7 +336,7 @@ void maybeShowSettingsIPH(Browser* browser) {
                     signedIdentity:(id<SystemIdentity>)signedIdentity
                    userTappedClose:(BOOL)userTappedClose {
   CHECK_EQ(mediator, _mediator);
-  [self stopChildrenAndViewController];
+  [self stopChildrenAndViewControllerAnimated:YES];
   [self.delegate accountMenuCoordinatorWantsToBeStopped:self];
 
   if (userTappedClose) {
@@ -378,7 +381,8 @@ void maybeShowSettingsIPH(Browser* browser) {
 
 - (void)openPassphraseDialogWithModalPresentation:(BOOL)presentModally {
   CHECK(presentModally);
-  if (self.sceneState.isUIBlocked) {
+  if (self.sceneState.isUIBlocked ||
+      _syncEncryptionPassphraseTableViewController) {
     // This could occur due to race condition with multiple windows and
     // simultaneous taps. See crbug.com/368310663.
     return;
@@ -388,6 +392,7 @@ void maybeShowSettingsIPH(Browser* browser) {
   _syncEncryptionPassphraseTableViewController =
       [[SyncEncryptionPassphraseTableViewController alloc]
           initWithBrowser:self.browser];
+  _syncEncryptionPassphraseTableViewController.presentationDelegate = self;
   _syncEncryptionPassphraseTableViewController.presentModally = YES;
   UINavigationController* navigationController = [[UINavigationController alloc]
       initWithRootViewController:_syncEncryptionPassphraseTableViewController];
@@ -480,12 +485,14 @@ void maybeShowSettingsIPH(Browser* browser) {
   [_addAccountSigninCoordinator start];
 }
 
-#pragma mark - ManageAccountsCoordinatorDelegate
+#pragma mark - SettingsNavigationControllerDelegate
 
-- (void)manageAccountsCoordinatorWantsToBeStopped:
-    (ManageAccountsCoordinator*)coordinator {
-  CHECK_EQ(coordinator, _manageAccountsCoordinator);
-  [self stopManageAccountsCoordinator];
+- (void)closeSettings {
+  [self stopManageAccountsNavigationController];
+}
+
+- (void)settingsWasDismissed {
+  [self stopManageAccountsNavigationController];
 }
 
 #pragma mark - Private
@@ -503,14 +510,16 @@ void maybeShowSettingsIPH(Browser* browser) {
 
 // Clean up the add account coordinator.
 - (void)signinCoordinatorCompletion {
-  [self.mediator accountAddedIsDone];
+  [self.mediator accountMenuIsUsable];
   [self stopAddAccountCoordinator];
 }
 
-- (void)stopManageAccountsCoordinator {
-  [_manageAccountsCoordinator stop];
-  _manageAccountsCoordinator.delegate = nil;
-  _manageAccountsCoordinator = nil;
+- (void)stopManageAccountsNavigationController {
+  [_manageAccountsNavigationController dismissViewControllerAnimated:YES
+                                                          completion:nil];
+  [_manageAccountsNavigationController cleanUpSettings];
+  _manageAccountsNavigationController.delegate = nil;
+  _manageAccountsNavigationController = nil;
 }
 
 - (void)resetAccountDetailsControllerDismissCallback {
@@ -534,7 +543,7 @@ void maybeShowSettingsIPH(Browser* browser) {
 
 // Stops all children, then dismiss the view controller. Executes
 // `completion` synchronously.
-- (void)stopChildrenAndViewController {
+- (void)stopChildrenAndViewControllerAnimated:(BOOL)animated {
   // Stopping all potentially open children views.
   if (!_accountDetailsControllerDismissCallback.is_null()) {
     std::move(_accountDetailsControllerDismissCallback).Run(/*animated=*/false);
@@ -543,8 +552,8 @@ void maybeShowSettingsIPH(Browser* browser) {
   [self stopAddAccountCoordinator];
   // Add Account coordinator should be stopped before the Manage Accounts
   // Coordinator, as the former may be presented by the latter.
-  [self stopManageAccountsCoordinator];
-  [self dismissViewControllerAnimated:NO completion:nil];
+  [self stopManageAccountsNavigationController];
+  [self dismissViewControllerAnimated:animated completion:nil];
 }
 
 // Unplugs the view and navigation controller. Dismisses the navigation
@@ -563,6 +572,18 @@ void maybeShowSettingsIPH(Browser* browser) {
   _viewController = nil;
   [navigationController dismissViewControllerAnimated:animated
                                            completion:completion];
+}
+
+#pragma mark - SyncEncryptionPassphraseTableViewControllerPresentationDelegate
+
+- (void)syncEncryptionPassphraseTableViewControllerDidDisappear:
+    (SyncEncryptionPassphraseTableViewController*)viewController {
+  CHECK_EQ(_syncEncryptionPassphraseTableViewController, viewController,
+           base::NotFatalUntil::M142);
+  _syncEncryptionPassphraseTableViewController.presentationDelegate = nil;
+  [_syncEncryptionPassphraseTableViewController settingsWillBeDismissed];
+  _syncEncryptionPassphraseTableViewController = nil;
+  [_mediator accountMenuIsUsable];
 }
 
 #pragma mark - TrustedVaultReauthenticationCoordinatorDelegate

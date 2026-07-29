@@ -22,6 +22,7 @@ webrtc_public_deps = [
   "//third_party/webrtc/api:array_view",
   "//third_party/webrtc/api:async_dns_resolver",
   "//third_party/webrtc/api:candidate",
+  "//third_party/webrtc/api:create_modular_peer_connection_factory",
   "//third_party/webrtc/api:dtls_transport_interface",
   "//third_party/webrtc/api:enable_media",
   "//third_party/webrtc/api:field_trials_view",
@@ -248,7 +249,7 @@ source_set("field_trial") {
     "//third_party/webrtc/rtc_base/system:rtc_export",
   ]
 
-  if (!is_castos && !is_cast_android && !is_nacl) {
+  if (!is_castos && !is_cast_android) {
     sources += [ "field_trial_legacy.cc" ]
   }
 }

@@ -589,7 +589,8 @@ id<GREYMatcher> TabGroupsPanelCellAtIndex(unsigned int index);
 // Returns a matcher for the group cell created just now in the Tab Groups panel
 // for the given `group_name` and `tab_count`.
 id<GREYMatcher> TabGroupsPanelCellWithName(NSString* group_name,
-                                           NSInteger tab_count);
+                                           NSInteger tab_count,
+                                           bool shared = false);
 
 // Returns a matcher for the recent activity log cell at `index` in the recent
 // activity in the tab group.
@@ -605,10 +606,6 @@ id<GREYMatcher> TabGroupActivityLabelOnGridCellAtIndex(unsigned int index);
 
 // Returns a matcher for the button that closes the tab grid.
 id<GREYMatcher> TabGridDoneButton();
-
-// Returns a matcher for the button that closes all the tabs in the tab
-// grid.
-id<GREYMatcher> TabGridCloseAllButton();
 
 // Returns a matcher for the button that reverts the close all tabs action
 // in the tab grid.
@@ -744,6 +741,10 @@ id<GREYMatcher> ActivityViewHeader(NSString* url_host, NSString* page_title);
 // Returns a matcher for the button to accept the generated password.
 id<GREYMatcher> UseSuggestedPasswordMatcher();
 
+// Matcher for Toolbar element item corresponding to the given accessibility ID
+// `button_id`.
+id<GREYMatcher> ToolbarButtonWithID(NSString* button_id);
+
 #pragma mark - Promo style view controller
 
 // Returns matcher for the primary action button.
@@ -803,6 +804,9 @@ id<GREYMatcher> SiteInfoDestinationButton();
 
 // Returns a matcher for the settings destination button in the overflow menu.
 id<GREYMatcher> SettingsDestinationButton();
+
+// Returns a matcher for the translate destination button in the overflow menu.
+id<GREYMatcher> TranslateDestinationButton();
 
 // Returns a matcher for the What's New destination button in the overflow menu.
 id<GREYMatcher> WhatsNewDestinationButton();

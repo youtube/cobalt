@@ -5,9 +5,16 @@
 package org.chromium.chrome.browser.ntp_customization.most_visited_tiles;
 
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationViewProperties.BACK_PRESS_HANDLER;
+import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationViewProperties.IS_MVT_SWITCH_CHECKED;
+import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationViewProperties.MVT_SWITCH_ON_CHECKED_CHANGE_LISTENER;
+import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationViewProperties.SET_MVT_SWITCH_CONTENT_DESCRIPTION_RES_ID;
+
+import android.support.annotation.VisibleForTesting;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.ntp_customization.BottomSheetDelegate;
+import org.chromium.chrome.browser.ntp_customization.NtpCustomizationConfigManager;
+import org.chromium.chrome.browser.ntp_customization.R;
 import org.chromium.ui.modelutil.PropertyModel;
 
 /** Mediator for the Most Visited Tiles settings bottom sheet. */
@@ -27,9 +34,27 @@ public class MvtSettingsMediator {
                 delegate.shouldShowAlone()
                         ? null
                         : v -> mBottomSheetDelegate.backPressOnCurrentBottomSheet());
+        mBottomSheetPropertyModel.set(IS_MVT_SWITCH_CHECKED, isMvtTurnedOn());
+        mBottomSheetPropertyModel.set(
+                MVT_SWITCH_ON_CHECKED_CHANGE_LISTENER,
+                (compoundButton, isChecked) -> onMvtSwitchToggled(isChecked));
+        mBottomSheetPropertyModel.set(
+                SET_MVT_SWITCH_CONTENT_DESCRIPTION_RES_ID,
+                R.string.ntp_customization_turn_on_mvt_settings);
+    }
+
+    /** Returns whether the most visited tiles section are turned on and visible to the user. */
+    boolean isMvtTurnedOn() {
+        return NtpCustomizationConfigManager.getInstance().getPrefIsMvtVisible();
+    }
+
+    @VisibleForTesting
+    void onMvtSwitchToggled(boolean isEnabled) {
+        NtpCustomizationConfigManager.getInstance().setPrefIsMvtVisible(isEnabled);
     }
 
     void destroy() {
         mBottomSheetPropertyModel.set(BACK_PRESS_HANDLER, null);
+        mBottomSheetPropertyModel.set(MVT_SWITCH_ON_CHECKED_CHANGE_LISTENER, null);
     }
 }

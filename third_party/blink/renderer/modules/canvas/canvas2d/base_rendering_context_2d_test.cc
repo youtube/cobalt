@@ -169,12 +169,20 @@ class TestRenderingContext2D final
     return true;
   }
 
+  CanvasResourceProvider* GetResourceProviderForCanvas2D() const override {
+    return nullptr;
+  }
+
   CanvasResourceProvider* GetOrCreateCanvas2DResourceProvider() override {
     return nullptr;
   }
 
   // Implementing pure virtual functions from CanvasRenderingContext.
   scoped_refptr<StaticBitmapImage> GetImage(FlushReason) override {
+    return nullptr;
+  }
+  std::unique_ptr<CanvasResourceProvider> ReplaceResourceProviderForCanvas2D(
+      std::unique_ptr<CanvasResourceProvider>) override {
     return nullptr;
   }
 

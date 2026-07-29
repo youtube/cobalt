@@ -1342,21 +1342,9 @@ class CORE_EXPORT LayoutObject : public GarbageCollected<LayoutObject>,
   }
   bool IsAnonymousBlockFlow() const {
     NOT_DESTROYED();
-    if (RuntimeEnabledFeatures::LayoutIsAnonymousBlockFixEnabled()) {
-      return IsAnonymous() && IsLayoutBlockFlow() &&
-             StyleRef().Display() == EDisplay::kBlock &&
-             !IsLayoutFlowThread() && !IsLayoutMultiColumnSet();
-    }
-    // This function is kept in sync with anonymous block creation conditions in
-    // LayoutBlock::createAnonymousBlock(). This includes creating an anonymous
-    // LayoutBlock having a BLOCK or BOX display. Other classes such as
-    // LayoutTextFragment are not LayoutBlocks and will return false.
-    // See https://bugs.webkit.org/show_bug.cgi?id=56709.
-    return IsAnonymous() &&
-           (StyleRef().Display() == EDisplay::kBlock ||
-            StyleRef().Display() == EDisplay::kWebkitBox) &&
-           StyleRef().StyleType() == kPseudoIdNone && IsLayoutBlock() &&
-           !IsLayoutFlowThread() && !IsLayoutMultiColumnSet();
+    return IsAnonymous() && IsLayoutBlockFlow() &&
+           StyleRef().Display() == EDisplay::kBlock && !IsLayoutFlowThread() &&
+           !IsLayoutMultiColumnSet();
   }
 
   bool IsFloating() const {
@@ -1588,6 +1576,11 @@ class CORE_EXPORT LayoutObject : public GarbageCollected<LayoutObject>,
   bool IsTransformApplicable() const {
     NOT_DESTROYED();
     return IsBox() || IsSVG();
+  }
+
+  bool HasPerspective() const {
+    NOT_DESTROYED();
+    return StyleRef().HasPerspective() && HasLayer() && IsTransformApplicable();
   }
 
   bool HasMask() const {
@@ -3370,11 +3363,11 @@ class CORE_EXPORT LayoutObject : public GarbageCollected<LayoutObject>,
     return bitfields_.TransformAffectsVectorEffect();
   }
 
-  bool SVGDescendantMayHaveTransformRelatedAnimation() const {
+  bool SVGDescendantMayHaveTransformRelatedOperations() const {
     NOT_DESTROYED();
-    return bitfields_.SVGDescendantMayHaveTransformRelatedAnimation();
+    return bitfields_.SVGDescendantMayHaveTransformRelatedOperations();
   }
-  void SetSVGDescendantMayHaveTransformRelatedAnimation();
+  void SetSVGDescendantMayHaveTransformRelatedOperations();
 
   bool HasViewportDependence() const {
     NOT_DESTROYED();
@@ -3594,10 +3587,10 @@ class CORE_EXPORT LayoutObject : public GarbageCollected<LayoutObject>,
     bitfields_.SetTransformAffectsVectorEffect(b);
   }
 
-  void ClearSVGDescendantMayHaveTransformRelatedAnimation() {
+  void ClearSVGDescendantMayHaveTransformRelatedOperations() {
     NOT_DESTROYED();
     DCHECK(IsSVGChild());
-    bitfields_.SetSVGDescendantMayHaveTransformRelatedAnimation(false);
+    bitfields_.SetSVGDescendantMayHaveTransformRelatedOperations(false);
   }
 
   void SetMightTraversePhysicalFragments(bool b) {
@@ -3832,7 +3825,7 @@ class CORE_EXPORT LayoutObject : public GarbageCollected<LayoutObject>,
           is_grid_placement_dirty_(true),
           is_subgrid_min_max_sizes_cache_dirty_(true),
           transform_affects_vector_effect_(false),
-          svg_descendant_may_have_transform_related_animation_(false),
+          svg_descendant_may_have_transform_related_operations_(false),
           should_skip_next_layout_shift_tracking_(true),
           should_assume_paint_offset_translation_for_layout_shift_tracking_(
               false),
@@ -4134,12 +4127,13 @@ class CORE_EXPORT LayoutObject : public GarbageCollected<LayoutObject>,
                          TransformAffectsVectorEffect);
 
     // For SVG child objects, indicates if this object or any descendant may
-    // have transform-related animation. This flag is set on all ancestors up
-    // to the SVG root (not included) when an SVG child starts a
-    // transform-related animation. It's cleared lazily during layout of an
-    // SVG container if the container doesn't have any animating descendants.
-    ADD_BOOLEAN_BITFIELD(svg_descendant_may_have_transform_related_animation_,
-                         SVGDescendantMayHaveTransformRelatedAnimation);
+    // have transform-related operations. This flag is set on all ancestors up
+    // to the SVG root (not included) when an SVG child has a
+    // transform-related operation. It's cleared lazily during layout of an
+    // SVG container if the container doesn't have any descendants with
+    // transforms applied to them.
+    ADD_BOOLEAN_BITFIELD(svg_descendant_may_have_transform_related_operations_,
+                         SVGDescendantMayHaveTransformRelatedOperations);
 
     // For SVG objects, indicates if this object or any descendant depends on
     // the dimensions of the viewport. Updated during layout.

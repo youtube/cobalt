@@ -33,25 +33,19 @@
 #include "third_party/skia/include/core/SkImage.h"
 #include "third_party/skia/include/core/SkSurface.h"
 
-namespace WTF {
+namespace blink {
+
 // Template specialization of [1], needed to be able to pass callbacks
 // that have ScopedPromiseResolver parameters across threads.
 //
 // [1] third_party/blink/renderer/platform/wtf/cross_thread_copier.h.
 template <typename T>
-struct CrossThreadCopier<blink::ScopedPromiseResolver<T>>
-    : public CrossThreadCopierPassThrough<blink::ScopedPromiseResolver<T>> {
+struct CrossThreadCopier<ScopedPromiseResolver<T>>
+    : public CrossThreadCopierPassThrough<ScopedPromiseResolver<T>> {
   STATIC_ONLY(CrossThreadCopier);
-  using Type = blink::ScopedPromiseResolver<T>;
-  static blink::ScopedPromiseResolver<T> Copy(
-      blink::ScopedPromiseResolver<T> value) {
-    return value;
-  }
+  using Type = ScopedPromiseResolver<T>;
+  static Type Copy(Type value) { return value; }
 };
-
-}  // namespace WTF
-
-namespace blink {
 
 // Ref-counted class to receive a single VideoFrame on IO thread, convert it and
 // send it to |task_runner|, where this class is created and destroyed.
@@ -189,16 +183,17 @@ void ImageCaptureFrameGrabber::SingleShotFrameHandler::ConvertAndDeliverFrame(
 
     // NV12 is the only supported pixel format at the moment.
     DCHECK_EQ(frame->format(), media::PIXEL_FORMAT_NV12);
-    int y_stride = static_cast<int>(scoped_mapping->Stride(0));
-    int uv_stride = static_cast<int>(scoped_mapping->Stride(1));
-    const uint8_t* y_plane = UNSAFE_TODO(
-        (static_cast<uint8_t*>(scoped_mapping->Memory(0)) +
-         frame->visible_rect().x() + (frame->visible_rect().y() * y_stride)));
+    size_t y_stride = scoped_mapping->Stride(media::VideoFrame::Plane::kY);
+    size_t uv_stride = scoped_mapping->Stride(media::VideoFrame::Plane::kUV);
+    auto y_plane = scoped_mapping->GetMemoryAsSpan(media::VideoFrame::Plane::kY)
+                       .subspan(frame->visible_rect().x() +
+                                (frame->visible_rect().y() * y_stride));
     // UV plane of NV12 has 2-byte pixel width, with half chroma subsampling
     // both horizontally and vertically.
-    const uint8_t* uv_plane = UNSAFE_TODO(
-        scoped_mapping->Memory(1) + ((frame->visible_rect().x() * 2) / 2) +
-        ((frame->visible_rect().y() / 2) * uv_stride));
+    auto uv_plane =
+        scoped_mapping->GetMemoryAsSpan(media::VideoFrame::Plane::kUV)
+            .subspan(((frame->visible_rect().x() * 2) / 2) +
+                     ((frame->visible_rect().y() / 2) * uv_stride));
 
     if (need_rotate) {
       // Transform to I420 first to be later on rotated.
@@ -207,7 +202,7 @@ void ImageCaptureFrameGrabber::SingleShotFrameHandler::ConvertAndDeliverFrame(
           original_size, base::TimeDelta());
 
       libyuv::NV12ToI420(
-          y_plane, y_stride, uv_plane, uv_stride,
+          y_plane.data(), y_stride, uv_plane.data(), uv_stride,
           i420_frame->GetWritableVisibleData(media::VideoFrame::Plane::kY),
           i420_frame->stride(media::VideoFrame::Plane::kY),
           i420_frame->GetWritableVisibleData(media::VideoFrame::Plane::kU),
@@ -218,13 +213,13 @@ void ImageCaptureFrameGrabber::SingleShotFrameHandler::ConvertAndDeliverFrame(
     } else {
       switch (destination_pixel_format) {
         case libyuv::FOURCC_ABGR:
-          libyuv::NV12ToABGR(y_plane, y_stride, uv_plane, uv_stride,
-                             destination_plane, destination_stride,
+          libyuv::NV12ToABGR(y_plane.data(), y_stride, uv_plane.data(),
+                             uv_stride, destination_plane, destination_stride,
                              destination_width, destination_height);
           break;
         case libyuv::FOURCC_ARGB:
-          libyuv::NV12ToARGB(y_plane, y_stride, uv_plane, uv_stride,
-                             destination_plane, destination_stride,
+          libyuv::NV12ToARGB(y_plane.data(), y_stride, uv_plane.data(),
+                             uv_stride, destination_plane, destination_stride,
                              destination_width, destination_height);
           break;
         default:

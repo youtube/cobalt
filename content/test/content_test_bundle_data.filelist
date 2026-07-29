@@ -1979,6 +1979,7 @@ data/accessibility/crash/progress-meter-crash.html
 data/accessibility/crash/relation-points-to-invalid-nodes-crash.html
 data/accessibility/crash/reload-selection-crash.html
 data/accessibility/crash/reparent-crash.html
+data/accessibility/crash/rt-in-select-crash.html
 data/accessibility/crash/select-expand-many-options-crash.html
 data/accessibility/crash/slot-creation-crash.html
 data/accessibility/crash/xml-in-iframe-crash.html
@@ -6412,6 +6413,7 @@ data/attribution_reporting/databases/version_66.sql
 data/attribution_reporting/databases/version_67.sql
 data/attribution_reporting/databases/version_68.sql
 data/attribution_reporting/databases/version_69.sql
+data/attribution_reporting/databases/version_70.sql
 data/attribution_reporting/interop/aggregatable_budget.json
 data/attribution_reporting/interop/aggregatable_contributions_creation.json
 data/attribution_reporting/interop/aggregatable_contributions_with_filtering_ids.json
@@ -6487,6 +6489,9 @@ data/attribution_reporting/interop/max_event_level_reports_per_source.json
 data/attribution_reporting/interop/max_trigger_state_cardinality.json
 data/attribution_reporting/interop/most_recent_source.json
 data/attribution_reporting/interop/multiple_destinations.json
+data/attribution_reporting/interop/navigation_retry_first_attempt.json
+data/attribution_reporting/interop/navigation_retry_second_attempt.json
+data/attribution_reporting/interop/navigation_retry_third_attempt.json
 data/attribution_reporting/interop/null_aggregatable_report.json
 data/attribution_reporting/interop/os_debug_reports.json
 data/attribution_reporting/interop/parse_failures.json
@@ -7480,6 +7485,8 @@ data/indexeddb/database_callbacks_second.html
 data/indexeddb/database_test.html
 data/indexeddb/database_test.js
 data/indexeddb/delete_compact.html
+data/indexeddb/delete_open_use.html
+data/indexeddb/delete_open_use.js
 data/indexeddb/delete_over_quota.html
 data/indexeddb/disk_full_on_commit.html
 data/indexeddb/empty_blob.html
@@ -7487,6 +7494,8 @@ data/indexeddb/fill_quota.html
 data/indexeddb/fill_up_5k.html
 data/indexeddb/force_close_event.html
 data/indexeddb/force_close_event.js
+data/indexeddb/index_deletion_regression_tests.html
+data/indexeddb/index_deletion_regression_tests.js
 data/indexeddb/index_test.html
 data/indexeddb/index_test.js
 data/indexeddb/key_path_test.html
@@ -7558,6 +7567,10 @@ data/indexeddb/write_4mb_blob.html
 data/indexeddb/write_and_read_blob.html
 data/indexeddb/write_and_read_large_value.html
 data/infinitely_loading_image.html
+data/inner_text/subframe-a.html
+data/inner_text/subframe-b.html
+data/inner_text/test1.html
+data/inner_text/test2.html
 data/input_box.html
 data/input_in_iframe.html
 data/interaction-mq-dynamic.html
@@ -7849,6 +7862,7 @@ data/media/too_many_web_media_players_intervention_test.html
 data/media/tulip2.webm
 data/media/video-player-autoplay.html
 data/media/video-player-autoplay.html.mock-http-headers
+data/media/video-player-pip.html
 data/media/video-player.html
 data/media/video_audio_element_capture_test.html
 data/media/video_capture_test.html
@@ -8678,6 +8692,8 @@ data/workers/simple.html
 data/workers/simple_shared_worker.html
 data/workers/single_shared_worker.html
 data/workers/single_worker.html
+data/workers/websocket_shared_worker.html
+data/workers/websocket_worker_simple.js
 data/workers/worker.js
 data/workers/worker_auth.html
 data/workers/worker_close.html

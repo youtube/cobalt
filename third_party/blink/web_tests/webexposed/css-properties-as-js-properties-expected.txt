@@ -325,6 +325,7 @@ maskPosition
 maskRepeat
 maskSize
 maskType
+masonry
 masonryDirection
 masonryFill
 masonryFlow
@@ -535,6 +536,7 @@ textWrap
 textWrapMode
 textWrapStyle
 timelineScope
+timelineTrigger
 timelineTriggerBehavior
 timelineTriggerExitRangeEnd
 timelineTriggerExitRangeStart

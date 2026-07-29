@@ -41,6 +41,14 @@ BASE_FEATURE_PARAM(int,
                    "ad-auction-signals-max-size-bytes",
                    10000);
 
+#if BUILDFLAG(IS_ANDROID)
+// If enabled, then use desktop page webprefs for Android devices that have
+// large displays, specifically tablets and desktops.
+BASE_FEATURE(kAndroidDesktopWebPrefsLargeDisplays,
+             "AndroidDesktopWebPrefsLargeDisplays",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
+
 // Avoids copying ResourceRequest::TrustedParams when possible.
 BASE_FEATURE(kAvoidTrustedParamsCopies,
              "AvoidTrustedParamsCopies",
@@ -137,14 +145,14 @@ BASE_FEATURE_PARAM(bool,
                    "holdback",
                    false);
 
-BASE_FEATURE(kAvoidForcedLayoutOnInitialEmptyDocumentInSubframe,
-             "AvoidForcedLayoutOnInitialEmptyDocumentInSubframe",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // TODO(https://crbug.com/327075943): Delete this.
 BASE_FEATURE(kBFCacheOpenBroadcastChannel,
              "BFCacheOpenBroadcastChannel",
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kBFCacheWithSharedWorker,
+             "BFCacheWithSharedWorker",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kBackForwardCacheDWCOnJavaScriptExecution,
              "BackForwardCacheDWCOnJavaScriptExecution",
@@ -439,11 +447,6 @@ BASE_FEATURE(kClientHintsDeviceMemory_DEPRECATED,
 BASE_FEATURE(kClientHintsResourceWidth_DEPRECATED,
              "ClientHintsResourceWidth_DEPRECATED",
              base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Enable `form-factor` client hint for XR devices.
-BASE_FEATURE(kClientHintsXRFormFactor,
-             "ClientHintsXRFormFactor",
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enable legacy `viewport-width` client hint.
 BASE_FEATURE(kClientHintsViewportWidth_DEPRECATED,
@@ -1983,6 +1986,10 @@ BASE_FEATURE(kNoForcedFrameUpdatesForWebTests,
              "NoForcedFrameUpdatesForWebTests",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kNoReferrerForPreloadFromSubresource,
+             "NoReferrerForPreloadFromSubresource",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 BASE_FEATURE(kNoThrottlingVisibleAgent,
              "NoThrottlingVisibleAgent",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -2357,7 +2364,12 @@ BASE_FEATURE(kScriptStreaming,
 // Enables script streaming for non-http scripts.
 BASE_FEATURE(kScriptStreamingForNonHTTP,
              "ScriptStreamingForNonHTTP",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+#if BUILDFLAG(IS_ANDROID)
+             base::FEATURE_DISABLED_BY_DEFAULT
+#else
+             base::FEATURE_ENABLED_BY_DEFAULT
+#endif
+);
 
 // Enables sending Sec-Purpose: "prefetch" header for rel="prefetch".
 BASE_FEATURE(kSecPurposePrefetchHeaderRelPrefetch,
@@ -2527,6 +2539,15 @@ BASE_FEATURE_PARAM(bool,
                    "prioritize_restore",
                    false);
 
+// Bypasses the enforcement of fetch() requests that set HTTP forbidden headers
+// (https://developer.mozilla.org/en-US/docs/Glossary/Forbidden_request_header)
+// when the context has origin access to the fetch() target.
+// TODO(crbug.com/418811955): This only controls the renderer side now. Expand
+// to also have this control the browser side.
+BASE_FEATURE(kBypassRequestForbiddenHeadersCheck,
+             "BypassRequestForbiddenHeadersCheck",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Freeze scheduler task queues in background after allowed grace time.
 // "stop" is a legacy name.
 BASE_FEATURE(kStopInBackground,
@@ -2616,6 +2637,11 @@ BASE_FEATURE(kUACHOverrideBlank,
 // https://crbug.com/1502591
 BASE_FEATURE(kEmulateLoadStartedForInspectorOncePerResource,
              "kEmulateLoadStartedForInspectorOncePerResource",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Whether force-showing popovers is enabled.
+BASE_FEATURE(kDevToolsAllowPopoverForcing,
+             "DevToolsAllowPopoverForcing",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, the usage of unload handlers causes a blocklisted reason for
@@ -2832,14 +2858,6 @@ BASE_FEATURE(kWorkerThreadSequentialShutdown,
 // WorkerThread termination respects the current thread termination request.
 BASE_FEATURE(kWorkerThreadRespectTermRequest,
              "WorkerThreadRespectTermRequest",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kNoReferrerForPreloadFromSubresource,
-             "NoReferrerForPreloadFromSubresource",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kRespectUserAgentOverrideInSearchPrefetch,
-             "RespectUserAgentOverrideInSearchPrefetch",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When adding new features or constants for features, please keep the features

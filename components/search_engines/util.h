@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 
+#include "base/time/time.h"
 #include "components/lens/lens_overlay_mime_type.h"
 #include "components/search_engines/keyword_web_data_service.h"
 #include "components/search_engines/template_url_service.h"
@@ -219,14 +220,18 @@ TemplateURLService::OwnedTemplateURLVector::iterator FindTemplateURL(
 
 // Retrieves the URL for the AIM web page.
 // `aim_entrypoint` (aep) is required as it identifies the source of the
-// request.
+// request. `query_start_time` is the time that the user clicked the submit
+// button.
 GURL GetUrlForAim(TemplateURLService* turl_service,
                   const std::string& aim_entrypoint,
+                  const base::Time& query_start_time,
                   const std::u16string& query_text = std::u16string());
 
 // Retrieves the URL for the AIM web page if the a file was uploaded as part
 // of the input.
 // `aim_entrypoint` (aep) is the source of the request.
+// `search_session_id` (gsessionid) is the search session id from the cluster
+// info.
 // `request_id` (vsrid) is the visual search request id used by lens to obtain
 // the uploaded context.
 // `mime_type` (vit) is the type of the file that has been uploaded.
@@ -235,6 +240,8 @@ GURL GetUrlForAim(TemplateURLService* turl_service,
 GURL GetUrlForMultimodalAim(
     TemplateURLService* turl_service,
     const std::string& aim_entrypoint,
+    const base::Time& query_start_time,
+    const std::string& search_session_id,
     const std::unique_ptr<lens::LensOverlayRequestId> request_id,
     const lens::MimeType mime_type,
     const std::u16string& query_text = std::u16string());

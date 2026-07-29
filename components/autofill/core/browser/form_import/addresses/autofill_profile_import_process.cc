@@ -12,6 +12,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "components/autofill/core/browser/data_manager/addresses/address_data_cleaner.h"
 #include "components/autofill/core/browser/data_manager/addresses/address_data_manager.h"
+#include "components/autofill/core/browser/data_manager/addresses/home_and_work_metadata_store.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile_comparator.h"
 #include "components/autofill/core/browser/data_quality/addresses/profile_requirement_utils.h"
@@ -213,10 +214,16 @@ void ProfileImportProcess::DetermineProfileImportType() {
     bool silent_updates_present = !silently_updated_profiles_.empty();
 
     if (merge_candidate_.has_value()) {
-      import_type_ =
-          silent_updates_present
-              ? AutofillProfileImportType::kConfirmableMergeAndSilentUpdate
-              : AutofillProfileImportType::kConfirmableMerge;
+      // TODO(crbug.com/429508491): Ensure that importing a superset of an
+      // existing Home & Work superset does not create a new profile.
+      if (import_candidate_->IsHomeAndWorkProfile()) {
+        import_type_ = AutofillProfileImportType::kHomeAndWorkSuperset;
+      } else {
+        import_type_ =
+            silent_updates_present
+                ? AutofillProfileImportType::kConfirmableMergeAndSilentUpdate
+                : AutofillProfileImportType::kConfirmableMerge;
+      }
     } else if (number_of_blocked_profile_updates > 0) {
       import_type_ =
           silent_updates_present
@@ -268,17 +275,11 @@ void ProfileImportProcess::DetermineSourceOfImportCandidate() {
 void ProfileImportProcess::MaybeSetMigrationCandidate(
     std::optional<AutofillProfile>& migration_candidate,
     const AutofillProfile& profile) const {
-  // Basic checks: No migration candidate was selected yet, prompts can be shown
-  // (i.e. not only silent updates) and the `profile` is not stored in the
-  // user's account already.
   if (migration_candidate || allow_only_silent_updates_ ||
-      profile.IsAccountProfile()) {
+      !IsEligibleForMigrationToAccount(*address_data_manager_, profile)) {
     return;
   }
-  // Check the eligiblity of the user and profile.
-  if (IsEligibleForMigrationToAccount(*address_data_manager_, profile)) {
-    migration_candidate = profile;
-  }
+  migration_candidate = profile;
 }
 
 void ProfileImportProcess::ApplyImport() {
@@ -289,8 +290,13 @@ void ProfileImportProcess::ApplyImport() {
   }
 
   // Apply silent updates.
+  HomeAndWorkMetadataStore* home_and_work_metadata_store =
+      address_data_manager_->home_and_work_metadata_store();
   for (const AutofillProfile& updated_profile : silently_updated_profiles_) {
     address_data_manager_->UpdateProfile(updated_profile);
+    if (home_and_work_metadata_store) {
+      home_and_work_metadata_store->RecordSilentUpdate(updated_profile);
+    }
   }
 
   if (!confirmed_import_candidate_.has_value()) {
@@ -303,6 +309,11 @@ void ProfileImportProcess::ApplyImport() {
     address_data_manager_->MigrateProfileToAccount(confirmed_profile);
   } else if (is_confirmable_update()) {
     address_data_manager_->UpdateProfile(confirmed_profile);
+  } else if (import_type() == AutofillProfileImportType::kHomeAndWorkSuperset) {
+    // Home & Work profiles can't be added, so superset profiles need to have
+    // `kAccount` record type.
+    address_data_manager_->AddProfile(
+        confirmed_import_candidate_->ConvertToAccountProfile());
   } else {
     address_data_manager_->AddProfile(confirmed_profile);
   }

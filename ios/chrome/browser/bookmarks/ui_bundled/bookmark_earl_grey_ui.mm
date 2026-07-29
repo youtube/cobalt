@@ -427,10 +427,12 @@ id<GREYMatcher> SearchIconButton() {
 
 - (void)verifyContextBarInDefaultStateWithSelectEnabled:(BOOL)selectEnabled
                                        newFolderEnabled:(BOOL)newFolderEnabled {
-  // Verify the context bar is shown.
-  [[EarlGrey selectElementWithMatcher:grey_accessibilityID(
-                                          kBookmarksHomeUIToolbarIdentifier)]
-      assertWithMatcher:grey_notNil()];
+  if (!iOS26_OR_ABOVE()) {
+    // Verify the context bar is shown.
+    [[EarlGrey selectElementWithMatcher:grey_accessibilityID(
+                                            kBookmarksHomeUIToolbarIdentifier)]
+        assertWithMatcher:grey_notNil()];
+  }
 
   // Verify context bar shows enabled "New Folder" and enabled "Select".
   [[EarlGrey selectElementWithMatcher:ContextBarLeadingButtonWithLabel(
@@ -458,10 +460,12 @@ id<GREYMatcher> SearchIconButton() {
 }
 
 - (void)verifyContextBarInEditMode {
-  // Verify the context bar is shown.
-  [[EarlGrey selectElementWithMatcher:grey_accessibilityID(
-                                          kBookmarksHomeUIToolbarIdentifier)]
-      assertWithMatcher:grey_notNil()];
+  if (!iOS26_OR_ABOVE()) {
+    // Verify the context bar is shown.
+    [[EarlGrey selectElementWithMatcher:grey_accessibilityID(
+                                            kBookmarksHomeUIToolbarIdentifier)]
+        assertWithMatcher:grey_notNil()];
+  }
 
   [[EarlGrey
       selectElementWithMatcher:ContextBarCenterButtonWithLabel(
@@ -530,8 +534,10 @@ id<GREYMatcher> SearchIconButton() {
 
   // The search bar should not be visible when the illustrated empty state is
   // shown.
-  [[EarlGrey selectElementWithMatcher:grey_accessibilityTrait(
-                                          UIAccessibilityTraitSearchField)]
+  [[EarlGrey
+      selectElementWithMatcher:grey_allOf(grey_accessibilityTrait(
+                                              UIAccessibilityTraitSearchField),
+                                          grey_sufficientlyVisible(), nil)]
       assertWithMatcher:grey_nil()];
 }
 

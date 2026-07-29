@@ -36,6 +36,7 @@ using test_helpers::SetPasswordFormFillData;
 using ::testing::AllOf;
 using ::testing::ElementsAre;
 using ::testing::Field;
+using ::testing::FieldsAre;
 
 namespace {
 // Test data.
@@ -223,27 +224,6 @@ TEST_F(AccountSelectFillDataTest,
       false));
 }
 
-TEST_F(AccountSelectFillDataTest, RetrieveSuggestionsOneForm) {
-  AccountSelectFillData account_select_fill_data;
-  account_select_fill_data.Add(form_data_[0],
-                               /*always_populate_realm=*/false);
-
-  for (bool is_password_field : {false, true}) {
-    const FieldRendererId field_id =
-        is_password_field ? form_data_[0].password_element_renderer_id
-                          : form_data_[0].username_element_renderer_id;
-    std::vector<UsernameAndRealm> suggestions =
-        account_select_fill_data.RetrieveSuggestions(
-            form_data_[0].form_renderer_id, field_id, is_password_field);
-    EXPECT_EQ(2u, suggestions.size());
-    EXPECT_EQ(base::ASCIIToUTF16(kUsernames[0]), suggestions[0].username);
-    EXPECT_EQ(std::string(), suggestions[0].realm);
-    EXPECT_EQ(base::ASCIIToUTF16(kAdditionalUsernames[0]),
-              suggestions[1].username);
-    EXPECT_EQ(std::string(), suggestions[1].realm);
-  }
-}
-
 TEST_F(AccountSelectFillDataTest, RetrieveSuggestionsTwoForm) {
   // Test that after adding two PasswordFormFillData, suggestions for both forms
   // are shown, with credentials from the second PasswordFormFillData. That
@@ -402,53 +382,14 @@ TEST_F(AccountSelectFillDataTest, RetrievePSLMatchedSuggestions) {
       account_select_fill_data.RetrieveSuggestions(
           form_data_[0].form_renderer_id,
           form_data_[0].username_element_renderer_id, false);
-  EXPECT_EQ(2u, suggestions.size());
-  EXPECT_EQ(base::ASCIIToUTF16(kUsernames[0]), suggestions[0].username);
-  EXPECT_EQ(kRealm, suggestions[0].realm);
-  EXPECT_EQ(base::ASCIIToUTF16(kAdditionalUsernames[0]),
-            suggestions[1].username);
-  EXPECT_EQ(kAdditionalRealm, suggestions[1].realm);
-}
-
-TEST_F(AccountSelectFillDataTest, GetFillData) {
-  AccountSelectFillData account_select_fill_data;
-  account_select_fill_data.Add(form_data_[0],
-                               /*always_populate_realm=*/false);
-  account_select_fill_data.Add(form_data_[1],
-                               /*always_populate_realm=*/false);
-
-  for (bool is_password_field : {false, true}) {
-    for (size_t form_i = 0; form_i < std::size(form_data_); ++form_i) {
-      const auto& form_data = form_data_[form_i];
-      // Suggestions should be shown on any password field on the form. So in
-      // case of clicking on a password field it is taken an id different from
-      // existing field ids.
-      const FieldRendererId password_field_id =
-          is_password_field ? FieldRendererId(1000)
-                            : form_data.password_element_renderer_id;
-      const FieldRendererId clicked_field =
-          is_password_field ? password_field_id
-                            : form_data.username_element_renderer_id;
-
-      // GetFillData() doesn't have form identifier in arguments, it should be
-      // provided in RetrieveSuggestions().
-      account_select_fill_data.RetrieveSuggestions(
-          form_data.form_renderer_id, clicked_field, is_password_field);
-      FillDataRetrievalResult result = account_select_fill_data.GetFillData(
-          base::ASCIIToUTF16(kUsernames[1]));
-      ASSERT_TRUE(result.has_value());
-      const FillData* fill_data = result.value().get();
-
-      ASSERT_TRUE(fill_data);
-      EXPECT_EQ(form_data.url, fill_data->origin);
-      EXPECT_EQ(form_data.form_renderer_id.value(), fill_data->form_id.value());
-      EXPECT_EQ(kUsernameUniqueIDs[form_i],
-                fill_data->username_element_id.value());
-      EXPECT_EQ(base::ASCIIToUTF16(kUsernames[1]), fill_data->username_value);
-      EXPECT_EQ(password_field_id, fill_data->password_element_id);
-      EXPECT_EQ(base::ASCIIToUTF16(kPasswords[1]), fill_data->password_value);
-    }
-  }
+  EXPECT_THAT(
+      suggestions,
+      ElementsAre(AllOf(Field(&UsernameAndRealm::username,
+                              base::ASCIIToUTF16(kUsernames[0])),
+                        Field(&UsernameAndRealm::realm, kRealm)),
+                  AllOf(Field(&UsernameAndRealm::username,
+                              base::ASCIIToUTF16(kAdditionalUsernames[0])),
+                        Field(&UsernameAndRealm::realm, kAdditionalRealm))));
 }
 
 TEST_F(AccountSelectFillDataTest, GetFillDataOldCredentials) {
@@ -466,54 +407,10 @@ TEST_F(AccountSelectFillDataTest, GetFillDataOldCredentials) {
 
   // AccountSelectFillData should keep only last credentials. Check that in
   // request of old credentials nothing is returned.
-  FillDataRetrievalResult result =
-      account_select_fill_data.GetFillData(base::ASCIIToUTF16(kUsernames[0]));
+  FillDataRetrievalResult result = account_select_fill_data.GetFillData(
+      base::ASCIIToUTF16(kUsernames[0]), /*is_backup_credential=*/false);
   EXPECT_FALSE(result.has_value());
   EXPECT_EQ(FillDataRetrievalStatus::kNoCredentials, result.error());
-}
-
-// Tests that the GetFillData() interface to be used when in stateless mode
-// works correctly.
-TEST_F(AccountSelectFillDataTest, GetFillData_WhenStateless) {
-  base::test::ScopedFeatureList scoped_feature_list{
-      password_manager::features::kIOSStatelessFillDataFlow};
-
-  AccountSelectFillData account_select_fill_data;
-  account_select_fill_data.Add(form_data_[0],
-                               /*always_populate_realm=*/false);
-  account_select_fill_data.Add(form_data_[1],
-                               /*always_populate_realm=*/false);
-
-  for (bool is_password_field : {false, true}) {
-    for (size_t form_i = 0; form_i < std::size(form_data_); ++form_i) {
-      const auto& form_data = form_data_[form_i];
-      // Suggestions should be shown on any password field on the form. So in
-      // case of clicking on a password field it is taken an id different from
-      // existing field ids.
-      const FieldRendererId password_field_id =
-          is_password_field ? FieldRendererId(1000)
-                            : form_data.password_element_renderer_id;
-      const FieldRendererId clicked_field =
-          is_password_field ? password_field_id
-                            : form_data.username_element_renderer_id;
-
-      // GetFillData() when in stateless mode doesn't need to call
-      // RetrieveSuggestions() first.
-      FillDataRetrievalResult result = account_select_fill_data.GetFillData(
-          base::ASCIIToUTF16(kUsernames[1]), form_data.form_renderer_id,
-          clicked_field, is_password_field);
-      ASSERT_TRUE(result.has_value());
-      const FillData* fill_data = result.value().get();
-      ASSERT_TRUE(fill_data);
-      EXPECT_EQ(form_data.url, fill_data->origin);
-      EXPECT_EQ(form_data.form_renderer_id.value(), fill_data->form_id.value());
-      EXPECT_EQ(kUsernameUniqueIDs[form_i],
-                fill_data->username_element_id.value());
-      EXPECT_EQ(base::ASCIIToUTF16(kUsernames[1]), fill_data->username_value);
-      EXPECT_EQ(password_field_id, fill_data->password_element_id);
-      EXPECT_EQ(base::ASCIIToUTF16(kPasswords[1]), fill_data->password_value);
-    }
-  }
 }
 
 // Tests that the right status will be returned when there is no form with fill
@@ -528,7 +425,8 @@ TEST_F(AccountSelectFillDataTest,
   // GetFillData() when in stateless mode doesn't need to call
   // RetrieveSuggestions() first.
   FillDataRetrievalResult result = account_select_fill_data.GetFillData(
-      u"test-user", form_data_[0].form_renderer_id,
+      u"test-user", /*is_backup_credential=*/false,
+      form_data_[0].form_renderer_id,
       form_data_[0].username_element_renderer_id,
       /*is_password_field=*/false);
 
@@ -549,29 +447,12 @@ TEST_F(AccountSelectFillDataTest,
   // GetFillData() when in stateless mode doesn't need to call
   // RetrieveSuggestions() first.
   FillDataRetrievalResult result = account_select_fill_data.GetFillData(
-      u"test-user", form_data_[0].form_renderer_id, UnexistingFieldRendererId(),
+      u"test-user", /*is_backup_credential=*/false,
+      form_data_[0].form_renderer_id, UnexistingFieldRendererId(),
       /*is_password_field=*/false);
 
   EXPECT_FALSE(result.has_value());
   EXPECT_EQ(FillDataRetrievalStatus::kNoFieldMatch, result.error());
-}
-
-TEST_F(AccountSelectFillDataTest, CrossOriginSuggestionHasRealm) {
-  AccountSelectFillData account_select_fill_data;
-  account_select_fill_data.Add(form_data_[0],
-                               /*always_populate_realm=*/true);
-
-  for (bool is_password_field : {false, true}) {
-    const FieldRendererId field_id =
-        is_password_field ? form_data_[0].password_element_renderer_id
-                          : form_data_[0].username_element_renderer_id;
-    std::vector<UsernameAndRealm> suggestions =
-        account_select_fill_data.RetrieveSuggestions(
-            form_data_[0].form_renderer_id, field_id, is_password_field);
-    EXPECT_EQ(2u, suggestions.size());
-    EXPECT_EQ(kUrl, suggestions[0].realm);
-    EXPECT_EQ(kUrl, suggestions[1].realm);
-  }
 }
 
 // Tests getting existing form info for an existing username field.
@@ -586,14 +467,13 @@ TEST_F(AccountSelectFillDataTest, GetFormInfo_FocusedOnExistingUsernameField) {
       /*is_password_field=*/false);
 
   ASSERT_TRUE(result.has_value());
-  const FormInfo* form_info = result.value();
-
-  EXPECT_EQ(form_data.url, form_info->origin);
-  EXPECT_EQ(form_data.form_renderer_id, form_info->form_id);
-  EXPECT_EQ(form_data.username_element_renderer_id,
-            form_info->username_element_id);
-  EXPECT_EQ(form_data.password_element_renderer_id,
-            form_info->password_element_id);
+  EXPECT_THAT(
+      *result.value(),
+      FieldsAre(
+          /*origin=*/form_data.url,
+          /*form_id=*/form_data.form_renderer_id,
+          /*username_element_id=*/form_data.username_element_renderer_id,
+          /*password_element_id=*/form_data.password_element_renderer_id));
 }
 
 // Tests getting form info for an unexisting username field that was no added to
@@ -628,14 +508,13 @@ TEST_F(AccountSelectFillDataTest, GetFormInfo_FocusedOnPasswordField) {
       /*is_password_field=*/true);
 
   EXPECT_TRUE(result.has_value());
-  const FormInfo* form_info = result.value();
-
-  EXPECT_EQ(form_data.url, form_info->origin);
-  EXPECT_EQ(form_data.form_renderer_id, form_info->form_id);
-  EXPECT_EQ(form_data.username_element_renderer_id,
-            form_info->username_element_id);
-  EXPECT_EQ(form_data.password_element_renderer_id,
-            form_info->password_element_id);
+  EXPECT_THAT(*result.value(),
+              FieldsAre(/*origin=*/form_data.url,
+                        /*form_id=*/form_data.form_renderer_id,
+                        /*username_element_id=*/
+                        form_data.username_element_renderer_id,
+                        /*password_element_id=*/
+                        form_data.password_element_renderer_id));
 }
 
 // Test getting form info when there is no data for the form.
@@ -651,5 +530,200 @@ TEST_F(AccountSelectFillDataTest, GetFormInfo_NoMatch) {
   EXPECT_FALSE(result.has_value());
   EXPECT_EQ(FormInfoRetrievalError::kNoFormMatch, result.error());
 }
+
+// This test fixture is parametrized to run tests on a password and a
+// non-password field.
+class AccountSelectFillDataFieldTypeTest
+    : public AccountSelectFillDataTest,
+      public testing::WithParamInterface<bool> {
+ public:
+  bool IsPasswordField() const { return GetParam(); }
+};
+
+TEST_P(AccountSelectFillDataFieldTypeTest, RetrieveSuggestionsOneForm) {
+  AccountSelectFillData account_select_fill_data;
+  account_select_fill_data.Add(form_data_[0],
+                               /*always_populate_realm=*/false);
+
+  const bool is_password_field = IsPasswordField();
+  const FieldRendererId field_id =
+      is_password_field ? form_data_[0].password_element_renderer_id
+                        : form_data_[0].username_element_renderer_id;
+  std::vector<UsernameAndRealm> suggestions =
+      account_select_fill_data.RetrieveSuggestions(
+          form_data_[0].form_renderer_id, field_id, is_password_field);
+  EXPECT_THAT(
+      suggestions,
+      ElementsAre(AllOf(Field(&UsernameAndRealm::username,
+                              base::ASCIIToUTF16(kUsernames[0])),
+                        Field(&UsernameAndRealm::realm, std::string())),
+                  AllOf(Field(&UsernameAndRealm::username,
+                              base::ASCIIToUTF16(kAdditionalUsernames[0])),
+                        Field(&UsernameAndRealm::realm, std::string()))));
+}
+
+TEST_P(AccountSelectFillDataFieldTypeTest, GetFillData) {
+  AccountSelectFillData account_select_fill_data;
+  account_select_fill_data.Add(form_data_[0],
+                               /*always_populate_realm=*/false);
+  account_select_fill_data.Add(form_data_[1],
+                               /*always_populate_realm=*/false);
+
+  const bool is_password_field = IsPasswordField();
+  for (size_t form_i = 0; form_i < std::size(form_data_); ++form_i) {
+    const auto& form_data = form_data_[form_i];
+    // Suggestions should be shown on any password field on the form. So in
+    // case of clicking on a password field it is taken an id different from
+    // existing field ids.
+    const FieldRendererId password_field_id =
+        is_password_field ? FieldRendererId(1000)
+                          : form_data.password_element_renderer_id;
+    const FieldRendererId clicked_field =
+        is_password_field ? password_field_id
+                          : form_data.username_element_renderer_id;
+
+    // GetFillData() doesn't have form identifier in arguments, it should be
+    // provided in RetrieveSuggestions().
+    account_select_fill_data.RetrieveSuggestions(
+        form_data.form_renderer_id, clicked_field, is_password_field);
+    FillDataRetrievalResult result = account_select_fill_data.GetFillData(
+        base::ASCIIToUTF16(kUsernames[1]), /*is_backup_credential=*/false);
+    ASSERT_TRUE(result.has_value());
+    EXPECT_THAT(
+        *result.value(),
+        FieldsAre(/*origin=*/form_data.url,
+                  /*form_id=*/form_data.form_renderer_id,
+                  /*username_element_id=*/
+                  FieldRendererId(kUsernameUniqueIDs[form_i]),
+                  /*username_value=*/base::ASCIIToUTF16(kUsernames[1]),
+                  /*password_element_id=*/password_field_id,
+                  /*password_value=*/base::ASCIIToUTF16(kPasswords[1])));
+  }
+}
+
+// Tests that the GetFillData() interface to be used when in stateless mode
+// works correctly.
+TEST_P(AccountSelectFillDataFieldTypeTest, GetFillData_WhenStateless) {
+  base::test::ScopedFeatureList scoped_feature_list{
+      password_manager::features::kIOSStatelessFillDataFlow};
+
+  AccountSelectFillData account_select_fill_data;
+  account_select_fill_data.Add(form_data_[0],
+                               /*always_populate_realm=*/false);
+  account_select_fill_data.Add(form_data_[1],
+                               /*always_populate_realm=*/false);
+
+  const bool is_password_field = IsPasswordField();
+  for (size_t form_i = 0; form_i < std::size(form_data_); ++form_i) {
+    const auto& form_data = form_data_[form_i];
+    // Suggestions should be shown on any password field on the form. So in
+    // case of clicking on a password field it is taken an id different from
+    // existing field ids.
+    const FieldRendererId password_field_id =
+        is_password_field ? FieldRendererId(1000)
+                          : form_data.password_element_renderer_id;
+    const FieldRendererId clicked_field =
+        is_password_field ? password_field_id
+                          : form_data.username_element_renderer_id;
+
+    // GetFillData() when in stateless mode doesn't need to call
+    // RetrieveSuggestions() first.
+    FillDataRetrievalResult result = account_select_fill_data.GetFillData(
+        base::ASCIIToUTF16(kUsernames[1]), /*is_backup_credential=*/false,
+        form_data.form_renderer_id, clicked_field, is_password_field);
+    ASSERT_TRUE(result.has_value());
+    EXPECT_THAT(
+        *result.value(),
+        FieldsAre(/*origin=*/form_data.url,
+                  /*form_id=*/form_data.form_renderer_id,
+                  /*username_element_id=*/
+                  FieldRendererId(kUsernameUniqueIDs[form_i]),
+                  /*username_value=*/base::ASCIIToUTF16(kUsernames[1]),
+                  /*password_element_id=*/password_field_id,
+                  /*password_value=*/base::ASCIIToUTF16(kPasswords[1])));
+  }
+}
+
+TEST_P(AccountSelectFillDataFieldTypeTest, CrossOriginSuggestionHasRealm) {
+  AccountSelectFillData account_select_fill_data;
+  account_select_fill_data.Add(form_data_[0],
+                               /*always_populate_realm=*/true);
+
+  const bool is_password_field = IsPasswordField();
+  const FieldRendererId field_id =
+      is_password_field ? form_data_[0].password_element_renderer_id
+                        : form_data_[0].username_element_renderer_id;
+  std::vector<UsernameAndRealm> suggestions =
+      account_select_fill_data.RetrieveSuggestions(
+          form_data_[0].form_renderer_id, field_id, is_password_field);
+  EXPECT_EQ(2u, suggestions.size());
+  EXPECT_EQ(kUrl, suggestions[0].realm);
+  EXPECT_EQ(kUrl, suggestions[1].realm);
+}
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         AccountSelectFillDataFieldTypeTest,
+                         testing::Bool());
+
+// This test fixture is parameterized to run tests on password and non-password
+// fields, and to verify the behavior for a main credential and its backup.
+class AccountSelectFillDataFieldAndCredentialTypeTest
+    : public AccountSelectFillDataTest,
+      public testing::WithParamInterface<std::tuple<bool, bool>> {
+ public:
+  bool IsPasswordField() const { return std::get<0>(GetParam()); }
+  bool IsBackupCredential() const { return std::get<1>(GetParam()); }
+};
+
+// Tests that the right fill data is returned when there's a credential that
+// comes with a backup password.
+TEST_P(AccountSelectFillDataFieldAndCredentialTypeTest,
+       GetFillData_WithBackupPasswords) {
+  // Enable the iOS backup password feature.
+  base::test::ScopedFeatureList scoped_feature_list{
+      password_manager::features::kIOSFillRecoveryPassword};
+
+  PasswordFormFillData form_data = form_data_[0];
+  form_data.preferred_login.backup_password_value = kBackupPassword;
+
+  AccountSelectFillData account_select_fill_data;
+  account_select_fill_data.Add(form_data, /*always_populate_realm=*/false);
+
+  const bool is_password_field = IsPasswordField();
+  const bool is_backup_credential = IsBackupCredential();
+
+  // Suggestions should be shown on any password field on the form. So in
+  // case of clicking on a password field it is taken an id different from
+  // existing field ids.
+  const FieldRendererId password_field_id =
+      is_password_field ? FieldRendererId(1000)
+                        : form_data.password_element_renderer_id;
+  const FieldRendererId clicked_field =
+      is_password_field ? password_field_id
+                        : form_data.username_element_renderer_id;
+
+  // GetFillData() doesn't have form identifier in arguments, it should be
+  // provided in RetrieveSuggestions().
+  account_select_fill_data.RetrieveSuggestions(
+      form_data.form_renderer_id, clicked_field, is_password_field);
+  FillDataRetrievalResult result = account_select_fill_data.GetFillData(
+      base::ASCIIToUTF16(kUsernames[0]), is_backup_credential);
+  ASSERT_TRUE(result.has_value());
+  EXPECT_THAT(*result.value(),
+              FieldsAre(
+                  /*origin=*/form_data.url,
+                  /*form_id=*/form_data.form_renderer_id,
+                  /*username_element_id=*/
+                  FieldRendererId(kUsernameUniqueIDs[0]),
+                  /*username_value=*/base::ASCIIToUTF16(kUsernames[0]),
+                  /*password_element_id=*/password_field_id,
+                  /*password_value=*/
+                  is_backup_credential ? kBackupPassword
+                                       : base::ASCIIToUTF16(kPasswords[0])));
+}
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         AccountSelectFillDataFieldAndCredentialTypeTest,
+                         testing::Combine(testing::Bool(), testing::Bool()));
 
 }  // namespace

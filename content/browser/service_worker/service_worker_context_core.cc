@@ -52,7 +52,6 @@
 #include "content/public/browser/service_worker_registration_information.h"
 #include "content/public/browser/service_worker_running_info.h"
 #include "content/public/common/url_utils.h"
-#include "ipc/ipc_message.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_response_info.h"
 #include "storage/browser/quota/quota_manager_proxy.h"
@@ -948,7 +947,7 @@ void ServiceWorkerContextCore::RemoveLiveVersion(int64_t id) {
       const std::optional<ServiceWorkerRunningInfo> running_info =
           wrapper_->GetRunningServiceWorkerInfo(id);
       if (running_info.has_value()) {
-        observer.OnStopped(id, /*worker_info=*/running_info.value());
+        observer.OnStopped(id, version->scope());
       }
     }
   }
@@ -1021,8 +1020,7 @@ void ServiceWorkerContextCore::DeleteAndStartOver(StatusCallback callback) {
       const std::optional<ServiceWorkerRunningInfo> running_info =
           wrapper_->GetRunningServiceWorkerInfo(live_version->version_id());
       if (running_info.has_value()) {
-        observer.OnStopped(live_version->version_id(),
-                           /*worker_info=*/running_info.value());
+        observer.OnStopped(live_version->version_id(), live_version->scope());
       }
     }
   }
@@ -1239,8 +1237,7 @@ void ServiceWorkerContextCore::OnRunningStateChanged(
         const std::optional<ServiceWorkerRunningInfo> running_info =
             wrapper_->GetRunningServiceWorkerInfo(version->version_id());
         if (running_info.has_value()) {
-          observer.OnStopped(version->version_id(),
-                             /*worker_info=*/running_info.value());
+          observer.OnStopped(version->version_id(), version->scope());
         }
       }
       break;
@@ -1264,8 +1261,7 @@ void ServiceWorkerContextCore::OnRunningStateChanged(
         const std::optional<ServiceWorkerRunningInfo> running_info =
             wrapper_->GetRunningServiceWorkerInfo(version->version_id());
         if (running_info.has_value()) {
-          observer.OnStopping(version->version_id(),
-                              /*worker_info=*/running_info.value());
+          observer.OnStopping(version->version_id(), version->scope());
         }
       }
       break;

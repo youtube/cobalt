@@ -38,7 +38,12 @@ export class Panel implements PanelInterface {
   private originalStickyState_ = false;
   private pendingCallback_: AsyncCallback | null = null;
   private sessionState_ = '';
-  private tutorial_: Object | null = null;
+  private tutorial_: Object|null = null;
+  // TODO(crbug.com/388867840): encapsulate these testing members (and others
+  // below) in a separate class.
+  private userActionMonitorCreatedCount_ = 0;
+  private userActionMonitorDestroyedCount_ = 0;
+  private isForcedActionPathActive_ = false;
 
   private brailleContainer_ = $('braille-container');
   private brailleTableElement_ = $('braille-table') as HTMLTableElement;
@@ -118,6 +123,10 @@ export class Panel implements PanelInterface {
         () => this.disableErrorMsgForTest_());
     BridgeHelper.registerHandler(
         BridgeConstants.PanelTest.TARGET,
+        BridgeConstants.PanelTest.Action.DISABLE_TUTORIAL_RESTART_NUDGES,
+        () => this.disableTutorialRestartNudgesForTest_());
+    BridgeHelper.registerHandler(
+        BridgeConstants.PanelTest.TARGET,
         BridgeConstants.PanelTest.Action.FIRE_MOCK_EVENT,
         (key: string) => this.fireMockEventForTest_(key));
     BridgeHelper.registerHandler(
@@ -134,8 +143,76 @@ export class Panel implements PanelInterface {
         () => this.getActiveSearchMenuDataForTest_());
     BridgeHelper.registerHandler(
         BridgeConstants.PanelTest.TARGET,
+        BridgeConstants.PanelTest.Action.GET_TUTORIAL_ACTIVE_LESSON_INDEX,
+        () => this.getTutorialActiveLessonIndexForTest_());
+    BridgeHelper.registerHandler(
+        BridgeConstants.PanelTest.TARGET,
+        BridgeConstants.PanelTest.Action.GET_TUTORIAL_ACTIVE_SCREEN,
+        () => this.getTutorialActiveScreenForTest_());
+    BridgeHelper.registerHandler(
+        BridgeConstants.PanelTest.TARGET,
+        BridgeConstants.PanelTest.Action.GET_TUTORIAL_INTERACTIVE_MODE,
+        () => this.getTutorialInteractiveModeForTest_());
+    BridgeHelper.registerHandler(
+        BridgeConstants.PanelTest.TARGET,
+        BridgeConstants.PanelTest.Action.GET_TUTORIAL_READY,
+        () => this.tutorialReadyForTesting_);
+    BridgeHelper.registerHandler(
+        BridgeConstants.PanelTest.TARGET,
+        BridgeConstants.PanelTest.Action.GET_FORCED_ACTION_PATH_CREATED_COUNT,
+        () => this.getForcedActionPathCreatedCountForTest_());
+    BridgeHelper.registerHandler(
+        BridgeConstants.PanelTest.TARGET,
+        BridgeConstants.PanelTest.Action.GET_FORCED_ACTION_PATH_DESTROYED_COUNT,
+        () => this.getForcedActionPathDestroyedCountForTest_());
+    BridgeHelper.registerHandler(
+        BridgeConstants.PanelTest.TARGET,
+        BridgeConstants.PanelTest.Action.GET_IS_FORCED_ACTION_PATH_ACTIVE,
+        () => this.getIsForcedActionPathActiveForTest_());
+    BridgeHelper.registerHandler(
+        BridgeConstants.PanelTest.TARGET,
+        BridgeConstants.PanelTest.Action.GIVE_TUTORIAL_NUDGE,
+        () => this.giveTutorialNudgeForTest_());
+    BridgeHelper.registerHandler(
+        BridgeConstants.PanelTest.TARGET,
+        BridgeConstants.PanelTest.Action.INITIALIZE_TUTORIAL_NUDGES,
+        (context: string) => this.initializeTutorialNudgesForTest_(context));
+    BridgeHelper.registerHandler(
+        BridgeConstants.PanelTest.TARGET,
         BridgeConstants.PanelTest.Action.REPLACE_MENU_MANAGER,
         () => this.replaceMenuManager_());
+    BridgeHelper.registerHandler(
+        BridgeConstants.PanelTest.TARGET,
+        BridgeConstants.PanelTest.Action.RESTART_TUTORIAL_NUDGES,
+        () => this.restartTutorialNudgesForTest_());
+    BridgeHelper.registerHandler(
+        BridgeConstants.PanelTest.TARGET,
+        BridgeConstants.PanelTest.Action.SWAP_FORCED_ACTION_PATH_METHODS,
+        () => this.swapForcedActionPathMethodsForTest_());
+    BridgeHelper.registerHandler(
+        BridgeConstants.PanelTest.TARGET,
+        BridgeConstants.PanelTest.Action.SET_TUTORIAL_CURRICULUM,
+        (curriculum: string) => this.setTutorialCurriculumForTest_(curriculum));
+    BridgeHelper.registerHandler(
+        BridgeConstants.PanelTest.TARGET,
+        BridgeConstants.PanelTest.Action.SET_TUTORIAL_MEDIUM,
+        (medium: string) => this.setTutorialMediumForTest_(medium));
+    BridgeHelper.registerHandler(
+        BridgeConstants.PanelTest.TARGET,
+        BridgeConstants.PanelTest.Action.SHOW_TUTORIAL_LESSON,
+        (lessonNum: number) => this.showTutorialLessonForTest_(lessonNum));
+    BridgeHelper.registerHandler(
+        BridgeConstants.PanelTest.TARGET,
+        BridgeConstants.PanelTest.Action.SHOW_TUTORIAL_LESSON_MENU,
+        () => this.showTutorialLessonMenuForTest_());
+    BridgeHelper.registerHandler(
+        BridgeConstants.PanelTest.TARGET,
+        BridgeConstants.PanelTest.Action.SHOW_TUTORIAL_MAIN_MENU,
+        () => this.showTutorialMainMenuForTest_());
+    BridgeHelper.registerHandler(
+        BridgeConstants.PanelTest.TARGET,
+        BridgeConstants.PanelTest.Action.SHOW_TUTORIAL_NEXT_LESSON,
+        () => this.showTutorialNextLessonForTest_());
   }
 
   /** Initialize the panel. */
@@ -171,12 +248,6 @@ export class Panel implements PanelInterface {
     return this.sessionState_;
   }
 
-  /** Adds BackgroundBridge to the global object so that tests can mock it. */
-  static exportBackgroundBridgeForTesting(): void {
-    // @ts-ignore: Exports for testing.
-    window['BackgroundBridge'] = BackgroundBridge;
-  }
-
   /**
    * Update the display based on prefs.
    * TODO(b/314203187): Not nulls asserted, check that this is correct.
@@ -204,6 +275,13 @@ export class Panel implements PanelInterface {
 
   private disableErrorMsgForTest_() {
     MenuManager.disableMissingMsgsErrorsForTesting = true;
+  }
+
+  private disableTutorialRestartNudgesForTest_(): void {
+    if (this.tutorial_) {
+      (this.tutorial_ as {restartNudges: (() => void) | null}).restartNudges =
+          null;
+    }
   }
 
   private fireMockEventForTest_(key: string): void {
@@ -236,8 +314,126 @@ export class Panel implements PanelInterface {
     return {};
   }
 
+  private getTutorialActiveLessonIndexForTest_(): number {
+    if (this.tutorial_) {
+      return (this.tutorial_ as {activeLessonIndex: number}).activeLessonIndex;
+    }
+    return -1;
+  }
+
+  private getTutorialActiveScreenForTest_(): string {
+    if (this.tutorial_) {
+      return (this.tutorial_ as {activeScreen: string}).activeScreen;
+    }
+    return '';
+  }
+
+  private getTutorialInteractiveModeForTest_(): boolean {
+    if (this.tutorial_) {
+      return (this.tutorial_ as {interactiveMode_: boolean}).interactiveMode_;
+    }
+    return false;
+  }
+
+  private getForcedActionPathCreatedCountForTest_(): number {
+    return this.userActionMonitorCreatedCount_;
+  }
+
+  private getForcedActionPathDestroyedCountForTest_(): number {
+    return this.userActionMonitorDestroyedCount_;
+  }
+
+  private getIsForcedActionPathActiveForTest_(): boolean {
+    return this.isForcedActionPathActive_;
+  }
+
+  private giveTutorialNudgeForTest_(): void {
+    if (this.tutorial_) {
+      (this.tutorial_ as {giveNudge: () => void}).giveNudge();
+    }
+  }
+
+  private initializeTutorialNudgesForTest_(context: string): void {
+    if (this.tutorial_) {
+      (this.tutorial_ as {
+        initializeNudges: (context: string) => void
+      }).initializeNudges(context);
+    }
+  }
+
   private replaceMenuManager_() {
     this.menuManager_ = new MenuManagerWithTestEndpoints();
+  }
+
+  private restartTutorialNudgesForTest_(): Promise<void> {
+    return new Promise(resolve => {
+      if (this.tutorial_) {
+        (this.tutorial_ as {restartNudges: () => void}).restartNudges = resolve;
+      }
+    });
+  }
+
+  private swapForcedActionPathMethodsForTest_(): void {
+    this.userActionMonitorCreatedCount_ = 0;
+    this.userActionMonitorDestroyedCount_ = 0;
+    this.isForcedActionPathActive_ = false;
+    BackgroundBridge.ForcedActionPath.listenFor = () => {
+      this.userActionMonitorCreatedCount_ += 1;
+      this.isForcedActionPathActive_ = true;
+      return new Promise((resolve) => {
+        // In production, this will resolve when the forced action path has
+        // been fulfilled. For example, if the forced action path is for the
+        // user to press the space bar, then this will resolve when the space
+        // bar is pressed. For the purposes of testing, we don't want this to
+        // resolve because that gives a false signal that the forced action
+        // path has been completed. To prevent this from resolving, we use a
+        // timeout.
+        setTimeout(resolve, 30 * 1000);
+      })
+    };
+    BackgroundBridge.ForcedActionPath.stopListening = () => {
+      this.userActionMonitorDestroyedCount_ += 1;
+      this.isForcedActionPathActive_ = false;
+      return Promise.resolve();
+    };
+  }
+
+  private setTutorialCurriculumForTest_(curriculum: string): void {
+    if (this.tutorial_) {
+      (this.tutorial_ as {curriculum: string}).curriculum = curriculum;
+    }
+  }
+
+  private setTutorialMediumForTest_(medium: string): void {
+    if (this.tutorial_) {
+      (this.tutorial_ as {medium: string}).medium = medium;
+    }
+  }
+
+  private showTutorialLessonForTest_(lessonNum: number): void {
+    if (this.tutorial_) {
+      (this.tutorial_ as {
+        showLesson_: (lesson: number) => void
+      }).showLesson_(lessonNum);
+    }
+  }
+
+  private showTutorialLessonMenuForTest_(): void {
+    if (this.tutorial_) {
+      (this.tutorial_ as {showLessonMenu_: () => void}).showLessonMenu_();
+    }
+  }
+
+  private showTutorialMainMenuForTest_(): void {
+    if (this.tutorial_) {
+      (this.tutorial_ as {showMainMenu_: () => void}).showMainMenu_();
+    }
+  }
+
+  private showTutorialNextLessonForTest_(): void {
+    if (this.tutorial_) {
+      (this.tutorial_ as {showNextLesson: () => void}).showNextLesson();
+    }
   }
 
 
@@ -596,7 +792,7 @@ export class Panel implements PanelInterface {
       await BackgroundBridge.ForcedActionPath.listenFor(actions);
       await BackgroundBridge.ForcedActionPath.stopListening();
       const tutorial = this.tutorial_ as {showNextLesson: VoidFunction};
-      if (this.tutorial_ && tutorial.showNextLesson) {
+      if (tutorial && tutorial.showNextLesson) {
         tutorial.showNextLesson();
       }
     });
@@ -615,7 +811,7 @@ export class Panel implements PanelInterface {
       BackgroundBridge.Earcons.cancelEarcon(earconId);
     });
     elementInPage.addEventListener('readyfortesting', () => {
-      this.tutorialReadyForTesting_ ||= true;
+      this.tutorialReadyForTesting_ = true;
     });
     elementInPage.addEventListener('openUrl', async evt => {
       const url = (evt as CustomEvent).detail.url;

@@ -12,6 +12,7 @@
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/base/testing_profile_manager.h"
 #include "components/enterprise/common/proto/synced/browser_events.pb.h"
+#include "components/enterprise/connectors/core/common.h"
 #include "components/enterprise/connectors/core/reporting_constants.h"
 #include "components/enterprise/connectors/core/reporting_test_utils.h"
 #include "components/policy/core/common/cloud/mock_cloud_policy_client.h"
@@ -35,6 +36,13 @@ using ReferrerChain =
 using UrlInfo = ::chrome::cros::reporting::proto::UrlInfo;
 
 constexpr char kFakeProfileUsername[] = "Fakeuser";
+
+#if BUILDFLAG(ENTERPRISE_CONTENT_ANALYSIS)
+const std::set<std::string>* ZipMimeType() {
+  static std::set<std::string> set = {"application/zip"};
+  return &set;
+}
+#endif  // BUILDFLAG(ENTERPRISE_CONTENT_ANALYSIS)
 
 }  // namespace
 
@@ -140,6 +148,8 @@ TEST_P(ReportingEventRouterTest, TestOnLoginEvent) {
       /*enabled_opt_in_events=*/{{kKeyLoginEvent, {"*"}}});
 
   test::EventReportValidatorBase validator(client_.get());
+  base::RunLoop run_loop;
+  validator.SetDoneClosure(run_loop.QuitClosure());
   chrome::cros::reporting::proto::LoginEvent expected_event;
 
   if (use_proto_format()) {
@@ -159,6 +169,7 @@ TEST_P(ReportingEventRouterTest, TestOnLoginEvent) {
   reporting_event_router_->OnLoginEvent(GURL("https://www.example.com/"),
                                         url::SchemeHostPort().IsValid(),
                                         url::SchemeHostPort(), u"Fakeuser");
+  run_loop.Run();
 }
 
 TEST_P(ReportingEventRouterTest, TestOnLoginEventNoMatchingUrlPattern) {
@@ -182,6 +193,8 @@ TEST_P(ReportingEventRouterTest, TestOnLoginEventWithEmailAsLoginUsername) {
       /*enabled_opt_in_events=*/{{kKeyLoginEvent, {"*"}}});
 
   test::EventReportValidatorBase validator(client_.get());
+  base::RunLoop run_loop;
+  validator.SetDoneClosure(run_loop.QuitClosure());
   chrome::cros::reporting::proto::LoginEvent expected_event;
 
   if (use_proto_format()) {
@@ -201,6 +214,7 @@ TEST_P(ReportingEventRouterTest, TestOnLoginEventWithEmailAsLoginUsername) {
   reporting_event_router_->OnLoginEvent(
       GURL("https://www.example.com/"), url::SchemeHostPort().IsValid(),
       url::SchemeHostPort(), u"Fakeuser@example.com");
+  run_loop.Run();
 }
 
 TEST_P(ReportingEventRouterTest, TestOnLoginEventFederated) {
@@ -210,6 +224,8 @@ TEST_P(ReportingEventRouterTest, TestOnLoginEventFederated) {
       /*enabled_opt_in_events=*/{{kKeyLoginEvent, {"*"}}});
 
   test::EventReportValidatorBase validator(client_.get());
+  base::RunLoop run_loop;
+  validator.SetDoneClosure(run_loop.QuitClosure());
   chrome::cros::reporting::proto::LoginEvent expected_event;
 
   if (use_proto_format()) {
@@ -233,6 +249,7 @@ TEST_P(ReportingEventRouterTest, TestOnLoginEventFederated) {
   reporting_event_router_->OnLoginEvent(GURL("https://www.example.com/"),
                                         federated_origin.IsValid(),
                                         federated_origin, u"Fakeuser");
+  run_loop.Run();
 }
 
 TEST_P(ReportingEventRouterTest, TestOnPasswordBreach) {
@@ -242,6 +259,8 @@ TEST_P(ReportingEventRouterTest, TestOnPasswordBreach) {
       /*enabled_opt_in_events=*/{{kKeyPasswordBreachEvent, {"*"}}});
 
   test::EventReportValidatorBase validator(client_.get());
+  base::RunLoop run_loop;
+  validator.SetDoneClosure(run_loop.QuitClosure());
   chrome::cros::reporting::proto::PasswordBreachEvent expected_event;
   if (use_proto_format()) {
     chrome::cros::reporting::proto::PasswordBreachEvent::Identity identity_1;
@@ -274,6 +293,7 @@ TEST_P(ReportingEventRouterTest, TestOnPasswordBreach) {
           {GURL("https://first.example.com"), u"first_user_name"},
           {GURL("https://second.example.com"), u"second_user_name@gmail.com"},
       });
+  run_loop.Run();
 }
 
 TEST_P(ReportingEventRouterTest, TestOnPasswordBreachNoMatchingUrlPattern) {
@@ -305,6 +325,8 @@ TEST_P(ReportingEventRouterTest,
   // The event is only enabled on secondexample.com, so expect only the
   // information related to that origin to be reported.
   test::EventReportValidatorBase validator(client_.get());
+  base::RunLoop run_loop;
+  validator.SetDoneClosure(run_loop.QuitClosure());
   chrome::cros::reporting::proto::PasswordBreachEvent expected_event;
 
   if (use_proto_format()) {
@@ -333,6 +355,7 @@ TEST_P(ReportingEventRouterTest,
           {GURL("https://firstexample.com"), u"first_user_name"},
           {GURL("https://secondexample.com"), u"second_user_name"},
       });
+  run_loop.Run();
 }
 
 TEST_P(ReportingEventRouterTest, TestOnUrlFilteringInterstitial_Blocked) {
@@ -343,6 +366,8 @@ TEST_P(ReportingEventRouterTest, TestOnUrlFilteringInterstitial_Blocked) {
       /*enabled_opt_in_events=*/{});
 
   test::EventReportValidatorBase validator(client_.get());
+  base::RunLoop run_loop;
+  validator.SetDoneClosure(run_loop.QuitClosure());
   chrome::cros::reporting::proto::UrlFilteringInterstitialEvent expected_event;
 
   expected_event.set_url("https://filteredurl.com/");
@@ -378,6 +403,7 @@ TEST_P(ReportingEventRouterTest, TestOnUrlFilteringInterstitial_Blocked) {
   reporting_event_router_->OnUrlFilteringInterstitial(
       GURL("https://filteredurl.com"), "ENTERPRISE_BLOCKED_SEEN", response,
       referrer_chain);
+  run_loop.Run();
 }
 
 TEST_P(ReportingEventRouterTest, TestOnUrlFilteringInterstitial_Warned) {
@@ -388,6 +414,8 @@ TEST_P(ReportingEventRouterTest, TestOnUrlFilteringInterstitial_Warned) {
       /*enabled_opt_in_events=*/{});
 
   test::EventReportValidatorBase validator(client_.get());
+  base::RunLoop run_loop;
+  validator.SetDoneClosure(run_loop.QuitClosure());
   chrome::cros::reporting::proto::UrlFilteringInterstitialEvent expected_event;
 
   expected_event.set_url("https://filteredurl.com/");
@@ -425,6 +453,7 @@ TEST_P(ReportingEventRouterTest, TestOnUrlFilteringInterstitial_Warned) {
   reporting_event_router_->OnUrlFilteringInterstitial(
       GURL("https://filteredurl.com"), "ENTERPRISE_WARNED_SEEN", response,
       referrer_chain);
+  run_loop.Run();
 }
 
 TEST_P(ReportingEventRouterTest, TestOnUrlFilteringInterstitial_Bypassed) {
@@ -435,6 +464,8 @@ TEST_P(ReportingEventRouterTest, TestOnUrlFilteringInterstitial_Bypassed) {
       /*enabled_opt_in_events=*/{});
 
   test::EventReportValidatorBase validator(client_.get());
+  base::RunLoop run_loop;
+  validator.SetDoneClosure(run_loop.QuitClosure());
   chrome::cros::reporting::proto::UrlFilteringInterstitialEvent expected_event;
 
   expected_event.set_url("https://filteredurl.com/");
@@ -473,6 +504,7 @@ TEST_P(ReportingEventRouterTest, TestOnUrlFilteringInterstitial_Bypassed) {
   reporting_event_router_->OnUrlFilteringInterstitial(
       GURL("https://filteredurl.com"), "ENTERPRISE_WARNED_BYPASS", response,
       referrer_chain);
+  run_loop.Run();
 }
 
 TEST_P(ReportingEventRouterTest,
@@ -484,6 +516,8 @@ TEST_P(ReportingEventRouterTest,
       /*enabled_opt_in_events=*/{});
 
   test::EventReportValidatorBase validator(client_.get());
+  base::RunLoop run_loop;
+  validator.SetDoneClosure(run_loop.QuitClosure());
   chrome::cros::reporting::proto::UrlFilteringInterstitialEvent expected_event;
 
   expected_event.set_url("https://filteredurl.com/");
@@ -518,6 +552,7 @@ TEST_P(ReportingEventRouterTest,
 
   reporting_event_router_->OnUrlFilteringInterstitial(
       GURL("https://filteredurl.com"), "", response, referrer_chain);
+  run_loop.Run();
 }
 
 TEST_P(ReportingEventRouterTest, TestInterstitialShownWarned) {
@@ -528,6 +563,8 @@ TEST_P(ReportingEventRouterTest, TestInterstitialShownWarned) {
       /*enabled_opt_in_events=*/{});
 
   test::EventReportValidatorBase validator(client_.get());
+  base::RunLoop run_loop;
+  validator.SetDoneClosure(run_loop.QuitClosure());
   chrome::cros::reporting::proto::SafeBrowsingInterstitialEvent expected_event;
 
   if (use_proto_format()) {
@@ -554,6 +591,7 @@ TEST_P(ReportingEventRouterTest, TestInterstitialShownWarned) {
   referrer_chain.Add(test::MakeReferrerChainEntry());
   reporting_event_router_->OnSecurityInterstitialShown(
       GURL("https://phishing.com/"), "PHISHING", 0, false, referrer_chain);
+  run_loop.Run();
 }
 
 TEST_P(ReportingEventRouterTest, TestInterstitialShownBlocked) {
@@ -564,6 +602,8 @@ TEST_P(ReportingEventRouterTest, TestInterstitialShownBlocked) {
       /*enabled_opt_in_events=*/{});
 
   test::EventReportValidatorBase validator(client_.get());
+  base::RunLoop run_loop;
+  validator.SetDoneClosure(run_loop.QuitClosure());
   chrome::cros::reporting::proto::SafeBrowsingInterstitialEvent expected_event;
 
   if (use_proto_format()) {
@@ -589,6 +629,7 @@ TEST_P(ReportingEventRouterTest, TestInterstitialShownBlocked) {
   referrer_chain.Add(test::MakeReferrerChainEntry());
   reporting_event_router_->OnSecurityInterstitialShown(
       GURL("https://phishing.com/"), "PHISHING", 0, true, referrer_chain);
+  run_loop.Run();
 }
 
 TEST_P(ReportingEventRouterTest, TestInterstitialProceeded) {
@@ -599,6 +640,8 @@ TEST_P(ReportingEventRouterTest, TestInterstitialProceeded) {
       /*enabled_opt_in_events=*/{});
 
   test::EventReportValidatorBase validator(client_.get());
+  base::RunLoop run_loop;
+  validator.SetDoneClosure(run_loop.QuitClosure());
   chrome::cros::reporting::proto::SafeBrowsingInterstitialEvent expected_event;
 
   if (use_proto_format()) {
@@ -624,6 +667,7 @@ TEST_P(ReportingEventRouterTest, TestInterstitialProceeded) {
   referrer_chain.Add(test::MakeReferrerChainEntry());
   reporting_event_router_->OnSecurityInterstitialProceeded(
       GURL("https://phishing.com/"), "PHISHING", 0, referrer_chain);
+  run_loop.Run();
 }
 
 TEST_P(ReportingEventRouterTest, TestPasswordReuseWarned) {
@@ -633,6 +677,8 @@ TEST_P(ReportingEventRouterTest, TestPasswordReuseWarned) {
       /*enabled_opt_in_events=*/{});
 
   test::EventReportValidatorBase validator(client_.get());
+  base::RunLoop run_loop;
+  validator.SetDoneClosure(run_loop.QuitClosure());
   chrome::cros::reporting::proto::SafeBrowsingPasswordReuseEvent expected_event;
   if (use_proto_format()) {
     expected_event.set_url("https://phishing.com/");
@@ -653,6 +699,7 @@ TEST_P(ReportingEventRouterTest, TestPasswordReuseWarned) {
   reporting_event_router_->OnPasswordReuse(
       GURL("https://phishing.com/"), "user_name_1", /*is_phishing_url*/ true,
       /*warning_shown*/ true);
+  run_loop.Run();
 }
 
 TEST_P(ReportingEventRouterTest, TestPasswordReuseAllowed) {
@@ -662,6 +709,8 @@ TEST_P(ReportingEventRouterTest, TestPasswordReuseAllowed) {
       /*enabled_opt_in_events=*/{});
 
   test::EventReportValidatorBase validator(client_.get());
+  base::RunLoop run_loop;
+  validator.SetDoneClosure(run_loop.QuitClosure());
   chrome::cros::reporting::proto::SafeBrowsingPasswordReuseEvent expected_event;
   if (use_proto_format()) {
     expected_event.set_url("https://phishing.com/");
@@ -682,6 +731,7 @@ TEST_P(ReportingEventRouterTest, TestPasswordReuseAllowed) {
   reporting_event_router_->OnPasswordReuse(
       GURL("https://phishing.com/"), "user_name_1", /*is_phishing_url*/ true,
       /*warning_shown*/ false);
+  run_loop.Run();
 }
 
 TEST_P(ReportingEventRouterTest, TestPasswordChanged) {
@@ -691,6 +741,8 @@ TEST_P(ReportingEventRouterTest, TestPasswordChanged) {
       /*enabled_opt_in_events=*/{});
 
   test::EventReportValidatorBase validator(client_.get());
+  base::RunLoop run_loop;
+  validator.SetDoneClosure(run_loop.QuitClosure());
   chrome::cros::reporting::proto::SafeBrowsingPasswordChangedEvent
       expected_event;
 
@@ -706,7 +758,83 @@ TEST_P(ReportingEventRouterTest, TestPasswordChanged) {
   }
 
   reporting_event_router_->OnPasswordChanged("user_name_1");
+  run_loop.Run();
 }
+
+#if BUILDFLAG(ENTERPRISE_CONTENT_ANALYSIS)
+TEST_P(ReportingEventRouterTest, TestOnUnscannedFileEvent_Allowed) {
+  if (use_proto_format()) {
+    return;
+  }
+
+  test::SetOnSecurityEventReporting(
+      profile_->GetPrefs(), /*enabled=*/true,
+      /*enabled_event_names=*/{kKeyUnscannedFileEvent},
+      /*enabled_opt_in_events=*/{});
+
+  test::EventReportValidator validator(client_.get());
+
+  validator.ExpectUnscannedFileEvent(
+      /*expected_url=*/"about:blank", /*expected_tab_url=*/"tab:about:blank",
+      /*expected_source=*/"exampleSource",
+      /*expected_destination=*/"exampleDestination",
+      /*expected_filename=*/"encrypted.zip",
+      /*expected_sha256=*/"sha256_of_data", /*expected_trigger=*/"FILE_UPLOAD",
+      /*expected_reason=*/"FILE_PASSWORD_PROTECTED",
+      /*expected_mimetypes=*/ZipMimeType(), /*expected_content_size=*/12345,
+      /* expected_result=*/"EVENT_RESULT_ALLOWED",
+      /*expected_profile_username=*/profile_->GetProfileUserName(),
+      /*expected_profile_identifier=*/GetProfileIdentifier(),
+      /*expected_content_transfer_method*/
+      "CONTENT_TRANSFER_METHOD_DRAG_AND_DROP");
+
+  ReferrerChain referrer_chain;
+  referrer_chain.Add(test::MakeReferrerChainEntry());
+  reporting_event_router_->OnUnscannedFileEvent(
+      GURL("about:blank"), GURL("tab:about:blank"), "exampleSource",
+      "exampleDestination", "encrypted.zip", "sha256_of_data",
+      "application/zip", "FILE_UPLOAD", "FILE_PASSWORD_PROTECTED",
+      "CONTENT_TRANSFER_METHOD_DRAG_AND_DROP", 12345, referrer_chain,
+      EventResult::ALLOWED);
+}
+
+TEST_P(ReportingEventRouterTest, TestOnUnscannedFileEvent_Blocked) {
+  if (use_proto_format()) {
+    return;
+  }
+
+  test::SetOnSecurityEventReporting(
+      profile_->GetPrefs(), /*enabled=*/true,
+      /*enabled_event_names=*/{kKeyUnscannedFileEvent},
+      /*enabled_opt_in_events=*/{});
+
+  test::EventReportValidator validator(client_.get());
+
+  validator.ExpectUnscannedFileEvent(
+      /*expected_url=*/"about:blank", /*expected_tab_url=*/"tab:about:blank",
+      /*expected_source=*/"exampleSource",
+      /*expected_destination=*/"exampleDestination",
+      /*expected_filename=*/"encrypted.zip",
+      /*expected_sha256=*/"sha256_of_data",
+      /*expected_trigger=*/"FILE_DOWNLOAD",
+      /*expected_reason=*/"FILE_PASSWORD_PROTECTED",
+      /*expected_mimetypes=*/ZipMimeType(), /*expected_content_size=*/12345,
+      /* expected_result=*/"EVENT_RESULT_BLOCKED",
+      /*expected_profile_username=*/profile_->GetProfileUserName(),
+      /*expected_profile_identifier=*/GetProfileIdentifier(),
+      /*expected_content_transfer_method*/
+      "CONTENT_TRANSFER_METHOD_UNKNOWN");
+
+  ReferrerChain referrer_chain;
+  referrer_chain.Add(test::MakeReferrerChainEntry());
+  reporting_event_router_->OnUnscannedFileEvent(
+      GURL("about:blank"), GURL("tab:about:blank"), "exampleSource",
+      "exampleDestination", "encrypted.zip", "sha256_of_data",
+      "application/zip", "FILE_DOWNLOAD", "FILE_PASSWORD_PROTECTED",
+      "CONTENT_TRANSFER_METHOD_UNKNOWN", 12345, referrer_chain,
+      EventResult::BLOCKED);
+}
+#endif  // BUILDFLAG(ENTERPRISE_CONTENT_ANALYSIS)
 
 INSTANTIATE_TEST_SUITE_P(, ReportingEventRouterTest, ::testing::Bool());
 

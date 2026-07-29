@@ -9,9 +9,9 @@
 #include <vector>
 
 #include "base/callback_list.h"
-#include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/common/buildflags.h"
+#include "ui/base/unowned_user_data/user_data_factory.h"
 
 class FileSystemAccessPageActionController;
 class FromGWSNavigationAndKeepAliveRequestObserver;
@@ -84,10 +84,6 @@ class PrivacySandboxTabObserver;
 class PrivacySandboxIncognitoTabObserver;
 }  // namespace privacy_sandbox
 
-namespace metrics {
-class DwaWebContentsObserver;
-}  // namespace metrics
-
 namespace sync_sessions {
 class SyncSessionsRouterTabHelper;
 }  // namespace sync_sessions
@@ -120,20 +116,11 @@ class InactiveWindowMouseEventController;
 // tab. It can be subclassed by tests to perform dependency injection.
 class TabFeatures {
  public:
-  static std::unique_ptr<TabFeatures> CreateTabFeatures();
-  virtual ~TabFeatures();
+  TabFeatures();
+  ~TabFeatures();
 
   TabFeatures(const TabFeatures&) = delete;
   TabFeatures& operator=(const TabFeatures&) = delete;
-
-  // Call this method to stub out TabFeatures for tests.
-  using TabFeaturesFactory =
-      base::RepeatingCallback<std::unique_ptr<TabFeatures>()>;
-  static void ReplaceTabFeaturesForTesting(TabFeaturesFactory factory);
-
-  LensSearchController* lens_search_controller() {
-    return lens_search_controller_.get();
-  }
 
   enterprise_data_protection::DataProtectionNavigationController*
   data_protection_controller() {
@@ -177,10 +164,6 @@ class TabFeatures {
   privacy_sandbox::PrivacySandboxIncognitoTabObserver*
   privacy_sandbox_incognito_tab_observer() {
     return privacy_sandbox_incognito_tab_observer_.get();
-  }
-
-  metrics::DwaWebContentsObserver* dwa_web_contents_observer() {
-    return dwa_web_contents_observer_.get();
   }
 
   extensions::ExtensionSidePanelManager* extension_side_panel_manager() {
@@ -279,22 +262,16 @@ class TabFeatures {
   }
 
   // Called exactly once to initialize features.
-  // Can be overridden in tests to initialize nothing.
-  virtual void Init(TabInterface& tab, Profile* profile);
+  void Init(TabInterface& tab, Profile* profile);
 
- protected:
-  TabFeatures();
-
-  // Override these methods to stub out individual feature controllers for
-  // testing.
-  virtual std::unique_ptr<LensSearchController> CreateLensController(
-      TabInterface* tab);
-
-  virtual std::unique_ptr<commerce::CommerceUiTabHelper>
-  CreateCommerceUiTabHelper(TabInterface& tab, Profile* profile);
+  static ui::UserDataFactoryWithOwner<TabInterface>&
+  GetUserDataFactoryForTesting();
 
  private:
   bool initialized_ = false;
+
+  // Returns the factory used to create owned components.
+  static ui::UserDataFactoryWithOwner<TabInterface>& GetUserDataFactory();
 
   // TODO(https://crbug.com/347770670): Delete this code when tab-discarding no
   // longer swizzles WebContents.
@@ -332,9 +309,6 @@ class TabFeatures {
 
   std::unique_ptr<privacy_sandbox::PrivacySandboxIncognitoTabObserver>
       privacy_sandbox_incognito_tab_observer_;
-
-  std::unique_ptr<metrics::DwaWebContentsObserver>
-      dwa_web_contents_observer_;
 
   // The tab-scoped extension side-panel manager. There is a separate
   // window-scoped extension side-panel manager.

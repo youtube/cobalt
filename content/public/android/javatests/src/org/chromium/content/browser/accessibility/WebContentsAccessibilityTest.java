@@ -124,6 +124,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import org.chromium.base.Log;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
@@ -164,6 +165,8 @@ import java.util.concurrent.ExecutionException;
 @Restriction(DeviceRestriction.RESTRICTION_TYPE_NON_AUTO)
 @TestAnimations.EnableAnimations
 public class WebContentsAccessibilityTest {
+    private static final String TAG = "WebContentsAXTest";
+
     // Test output error messages
     private static final String DISABLED_COMBOBOX_ERROR =
             "disabled combobox child elements should not be clickable";
@@ -321,14 +324,19 @@ public class WebContentsAccessibilityTest {
                 () -> mActivityTestRule.mNodeProvider.createAccessibilityNodeInfo(virtualViewId));
     }
 
+    private void clearNodeInfoCacheForGivenId(int virtualViewId) {
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> mActivityTestRule.mWcax.clearNodeInfoCacheForGivenId(virtualViewId));
+    }
+
     /**
      * Helper method for sending text related events and confirming that the associated text
      * selection and traversal events have been dispatched before continuing with test.
      *
-     * @param viewId            int virtualViewId of the text field
-     * @param action            AccessibilityActionCompat action to perform
-     * @param args              Bundle optional arguments
-     * @throws ExecutionException   Error
+     * @param viewId int virtualViewId of the text field
+     * @param action AccessibilityActionCompat action to perform
+     * @param args Bundle optional arguments
+     * @throws ExecutionException Error
      */
     private void performTextActionOnUiThread(
             int viewId, AccessibilityNodeInfoCompat.AccessibilityActionCompat action, Bundle args)
@@ -347,6 +355,14 @@ public class WebContentsAccessibilityTest {
                             && mTestData.hasReceivedSelectionEvent();
                 },
                 TEXT_SELECTION_AND_TRAVERSAL_ERROR);
+    }
+
+    private void printAccessibilityNodeInfoTree() {
+        Log.d(TAG, "AccessibilityNodeInfo tree:");
+        String tree = mActivityTestRule.generateAccessibilityNodeInfoTree();
+        for (String line : tree.split("\n")) {
+            Log.d(TAG, line);
+        }
     }
 
     // ------------------ Tests of WebContentsAccessibilityImpl methods ------------------ //
@@ -1729,7 +1745,7 @@ public class WebContentsAccessibilityTest {
                 () -> {
                     mActivityTestRule.mWcax.addSpellingErrorForTesting(textNodeVirtualViewId, 4, 9);
                 });
-        mActivityTestRule.mWcax.clearNodeInfoCacheForGivenId(textNodeVirtualViewId);
+        clearNodeInfoCacheForGivenId(textNodeVirtualViewId);
 
         // Focus on the node so the suggestions get populated.
         focusNode(textNodeVirtualViewId);
@@ -3122,7 +3138,39 @@ public class WebContentsAccessibilityTest {
                         // new SpanRange(new AbsoluteSizeSpan(0), 22, 31),
                         new SpanRange(new AbsoluteSizeSpan(16), 31, 36)));
 
+        StringBuilder sb = new StringBuilder();
+        sb.append("Simple contenteditable example with bold, italic, and underline text.\n");
+        sb.append("Also monospace, big, and red text with yellow background and bold style.");
+        String simpleContentEditableText = sb.toString();
+        testCases.put(
+                simpleContentEditableText,
+                List.of(
+                        new SpanRange(new StyleSpan(Typeface.BOLD), 36, 40),
+                        new SpanRange(new StyleSpan(Typeface.ITALIC), 42, 48),
+                        new SpanRange(new UnderlineSpan(), 54, 63),
+                        new SpanRange(new TypefaceSpan(monospaceFont), 75, 86),
+                        new SpanRange(new TypefaceSpan(monospaceFont), 86, 89),
+                        new SpanRange(new AbsoluteSizeSpan(20), 86, 89),
+                        new SpanRange(new TypefaceSpan(monospaceFont), 95, 109),
+                        new SpanRange(new ForegroundColorSpan(0xFFFF0000), 95, 109),
+                        new SpanRange(new TypefaceSpan(monospaceFont), 109, 131),
+                        new SpanRange(new ForegroundColorSpan(0xFFFF0000), 109, 131),
+                        new SpanRange(new BackgroundColorSpan(0xFFFFFF00), 109, 131),
+                        new SpanRange(new StyleSpan(Typeface.BOLD), 131, 135),
+                        new SpanRange(new TypefaceSpan(monospaceFont), 131, 135),
+                        new SpanRange(new ForegroundColorSpan(0xFFFF0000), 131, 135)
+                        // TODO: crbug.com/421462039 - Update wrong background color span after fix.
+                        // new SpanRange(new BackgroundColorSpan(0xFFFFFF00), 131, 135)
+                        ));
+
         // TODO: crbug.com/399652531 - Add contenteditable test cases.
+        sb.setLength(0);
+        sb.append("Example ContentEditable - Monospace Font\n");
+        sb.append("Example ContentEditable - Bold Text\n");
+        sb.append("Example ContentEditable - Small red superscript\n");
+        sb.append("Example ContentEditable - Large bold italic strikethrough underlined serif");
+        String complexContentEditableText = sb.toString();
+        testCases.put(complexContentEditableText, List.of());
 
         // Iterate over test cases
         for (Entry<String, List<SpanRange>> entry : testCases.entrySet()) {
@@ -3175,6 +3223,145 @@ public class WebContentsAccessibilityTest {
                     .that(actualSpans)
                     .containsNoDuplicates();
         }
+
+        if (expect.hasFailures()) {
+            printAccessibilityNodeInfoTree();
+        }
+    }
+
+    @Test
+    @SmallTest
+    @EnableFeatures(AccessibilityFeatures.ACCESSIBILITY_TEXT_FORMATTING)
+    public void testAccessibilityNodeInfo_textFormatting_histogramsWithStyleData()
+            throws Throwable {
+        setupTestWithHTML("<div>Some text with <b>bold</b> styling.</div>");
+        String expectedString = "Some text with bold styling.";
+        int expectedRangeCount = 16;
+
+        int vvid = waitForNodeMatching(sTextMatcher, expectedString);
+        focusNode(vvid);
+        clearNodeInfoCacheForGivenId(vvid);
+
+        var histogramWatcher =
+                HistogramWatcher.newBuilder()
+                        .expectAnyRecord(
+                                "Accessibility.Android.TextFormatting.Performance.TotalDuration")
+                        .expectNoRecords(
+                                "Accessibility.Android.TextFormatting.Performance.TotalDuration.NoStyleData")
+                        .expectAnyRecord(
+                                "Accessibility.Android.TextFormatting.Performance.GetTextContentDuration")
+                        .expectNoRecords(
+                                "Accessibility.Android.TextFormatting.Performance.GetTextContentDuration.NoStyleData")
+                        .expectAnyRecord(
+                                "Accessibility.Android.TextFormatting.Performance.ToJavaDataDuration")
+                        .expectNoRecords(
+                                "Accessibility.Android.TextFormatting.Performance.ToJavaDataDuration.NoStyleData")
+                        .expectAnyRecord(
+                                "Accessibility.Android.TextFormatting.Performance.SetAniTextDuration")
+                        .expectNoRecords(
+                                "Accessibility.Android.TextFormatting.Performance.SetAniTextDuration.NoStyleData")
+                        .expectAnyRecord(
+                                "Accessibility.Android.TextFormatting.Performance.DurationForRangeCount.11To20")
+                        .expectIntRecord(
+                                "Accessibility.Android.TextFormatting.Ranges.TotalCount",
+                                expectedRangeCount)
+                        .expectIntRecord(
+                                "Accessibility.Android.TextFormatting.Ranges.CountForTextLength.26To50",
+                                expectedRangeCount)
+                        .expectIntRecord(
+                                "Accessibility.Android.TextFormatting.TextLength",
+                                expectedString.length())
+                        .expectNoRecords(
+                                "Accessibility.Android.TextFormatting.TextLength.NoStyleData")
+                        .build();
+
+        mNodeInfo = createAccessibilityNodeInfo(vvid);
+        Assert.assertNotNull(NODE_TIMEOUT_ERROR, mNodeInfo);
+
+        histogramWatcher.assertExpected();
+    }
+
+    @Test
+    @SmallTest
+    @EnableFeatures(AccessibilityFeatures.ACCESSIBILITY_TEXT_FORMATTING)
+    public void testAccessibilityNodeInfo_textFormatting_histogramsWithoutStyleData() {
+        setupTestWithHTML("<p>Example Text</p>");
+        String expectedText = "Example Text";
+
+        int vvid = waitForNodeMatching(sTextMatcher, expectedText);
+        clearNodeInfoCacheForGivenId(vvid);
+
+        var histogramWatcher =
+                HistogramWatcher.newBuilder()
+                        .expectNoRecords(
+                                "Accessibility.Android.TextFormatting.Performance.TotalDuration")
+                        .expectAnyRecord(
+                                "Accessibility.Android.TextFormatting.Performance.TotalDuration.NoStyleData")
+                        .expectNoRecords(
+                                "Accessibility.Android.TextFormatting.Performance.GetTextContentDuration")
+                        .expectAnyRecord(
+                                "Accessibility.Android.TextFormatting.Performance.GetTextContentDuration.NoStyleData")
+                        .expectNoRecords(
+                                "Accessibility.Android.TextFormatting.Performance.ToJavaDataDuration")
+                        .expectAnyRecord(
+                                "Accessibility.Android.TextFormatting.Performance.ToJavaDataDuration.NoStyleData")
+                        .expectNoRecords(
+                                "Accessibility.Android.TextFormatting.Performance.SetAniTextDuration")
+                        .expectAnyRecord(
+                                "Accessibility.Android.TextFormatting.Performance.SetAniTextDuration.NoStyleData")
+                        .expectNoRecords("Accessibility.Android.TextFormatting.TextLength")
+                        .expectIntRecord(
+                                "Accessibility.Android.TextFormatting.TextLength.NoStyleData",
+                                expectedText.length())
+                        .build();
+
+        mNodeInfo = createAccessibilityNodeInfo(vvid);
+        Assert.assertNotNull(NODE_TIMEOUT_ERROR, mNodeInfo);
+
+        histogramWatcher.assertExpected();
+    }
+
+    @Test
+    @SmallTest
+    @DisableFeatures(AccessibilityFeatures.ACCESSIBILITY_TEXT_FORMATTING)
+    public void testAccessibilityNodeInfo_textFormatting_histogramsWithFeatureOff()
+            throws Throwable {
+        setupTestWithHTML("<p>Example <b>bold</b> text</p>");
+        String expectedText = "Example bold text";
+
+        int vvid = waitForNodeMatching(sTextMatcher, expectedText);
+        focusNode(vvid);
+        clearNodeInfoCacheForGivenId(vvid);
+
+        var histogramWatcher =
+                HistogramWatcher.newBuilder()
+                        .expectAnyRecord(
+                                "Accessibility.Android.TextFormatting.Performance.TotalDuration")
+                        .expectNoRecords(
+                                "Accessibility.Android.TextFormatting.Performance.TotalDuration.NoStyleData")
+                        .expectAnyRecord(
+                                "Accessibility.Android.TextFormatting.Performance.ToJavaDataDuration")
+                        .expectNoRecords(
+                                "Accessibility.Android.TextFormatting.Performance.GetTextContentDuration.NoStyleData")
+                        .expectAnyRecord(
+                                "Accessibility.Android.TextFormatting.Performance.GetTextContentDuration")
+                        .expectNoRecords(
+                                "Accessibility.Android.TextFormatting.Performance.ToJavaDataDuration.NoStyleData")
+                        .expectAnyRecord(
+                                "Accessibility.Android.TextFormatting.Performance.SetAniTextDuration")
+                        .expectNoRecords(
+                                "Accessibility.Android.TextFormatting.Performance.SetAniTextDuration.NoStyleData")
+                        .expectIntRecord(
+                                "Accessibility.Android.TextFormatting.TextLength",
+                                expectedText.length())
+                        .expectNoRecords(
+                                "Accessibility.Android.TextFormatting.TextLength.NoStyleData")
+                        .build();
+
+        mNodeInfo = createAccessibilityNodeInfo(vvid);
+        Assert.assertNotNull(NODE_TIMEOUT_ERROR, mNodeInfo);
+
+        histogramWatcher.assertExpected();
     }
 
     private void assertActionsContainNoScrolls(AccessibilityNodeInfoCompat nodeInfo) {

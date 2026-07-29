@@ -27,10 +27,6 @@ class BrowserWindowInterface;
 class Profile;
 class ProfileManager;
 
-namespace actor {
-class ExecutionEngine;
-}  // namespace actor
-
 namespace contextual_cueing {
 class ContextualCueingService;
 }  // namespace contextual_cueing
@@ -177,13 +173,6 @@ class GlicKeyedService : public KeyedService {
   void OnRequestStarted();
   void OnResponseStarted();
   void OnResponseStopped();
-
-  // Returns true if the associated ExecutionEngine is active on the given
-  // `tab`. This can be used by callers to customize certain behaviour that
-  // might interfere with the ExecutionEngine.
-  bool IsExecutionEngineActingOnTab(const content::WebContents* tab) const;
-
-  actor::ExecutionEngine& GetExecutionEngineForTesting(tabs::TabInterface* tab);
 
   void CaptureScreenshot(
       glic::mojom::WebClientHandler::CaptureScreenshotCallback callback);

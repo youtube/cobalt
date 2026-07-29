@@ -289,6 +289,10 @@ if (_is_default_toolchain) {
     if (enable_screen_capture) {
       deps += [ "//chrome/browser:screen_capture_java_resources" ]
     }
+
+    if (enable_extensions_core) {
+      deps += [ "//chrome/browser/ui/android/extensions:java_resources" ]
+    }
   }
 
   android_resources("java_overlay_resources") {
@@ -325,6 +329,7 @@ if (_is_default_toolchain) {
       "$google_play_services_package:google_play_services_vision_common_java",
       "$google_play_services_package:google_play_services_vision_java",
       "//base:content_uri_utils_java",
+      "//base:flagged_apis_java",
       "//base:service_loader_java",
       "//base:task_executor_java",
       "//base/version_info/android:version_constants_java",
@@ -362,6 +367,7 @@ if (_is_default_toolchain) {
       "//chrome/browser/bookmarks/android:java",
       "//chrome/browser/browser_controls/android:java",
       "//chrome/browser/browsing_data/android:java",
+      "//chrome/browser/collaboration:comments_factory_java",
       "//chrome/browser/collaboration:factory_java",
       "//chrome/browser/collaboration:internal_java",
       "//chrome/browser/collaboration:messaging_factory_java",
@@ -384,6 +390,7 @@ if (_is_default_toolchain) {
       "//chrome/browser/data_sharing:factory_java",
       "//chrome/browser/data_sharing:instant_message_delegate_factory_java",
       "//components/credential_management/android:java",
+      "//components/visited_url_ranking/public:public_java",
       "//google_apis/gaia/android:java",
 
       # TODO(ssid): Decouple dependency on internal library.
@@ -1182,6 +1189,10 @@ if (_is_default_toolchain) {
       "//components/segmentation_platform/public:junit",
       "//components/translate/content/android:junit",
     ]
+
+    if (enable_extensions_core) {
+      deps += [ "//chrome/browser/ui/android/extensions:junit" ]
+    }
   }
 
   # Files used by chrome integration and unit javatests.
@@ -1370,6 +1381,7 @@ if (_is_default_toolchain) {
       "//chrome/browser/android/metrics:ukm_javatests",
       "//chrome/browser/auxiliary_search:javatests",
       "//chrome/browser/bookmarks/android:javatests",
+      "//chrome/browser/collaboration:comments_javatests",
       "//chrome/browser/collaboration:javatests",
       "//chrome/browser/collaboration:messaging_javatests",
       "//chrome/browser/commerce/android:javatests",
@@ -1410,6 +1422,7 @@ if (_is_default_toolchain) {
       "//components/browser_ui/site_settings/android:javatests",
       "//components/language/android:javatests",
       "//components/paint_preview/player/android:javatests",
+      "//components/payments/content/android:javatests",
       "//components/privacy_sandbox/android:javatests",
       "//services:services_javatests",
       "//third_party/android_deps/local_modifications/preconditions/javatests",
@@ -1462,6 +1475,7 @@ if (_is_default_toolchain) {
       "//content/test/data/media/getusermedia.html",
       "//content/test/data/media/session/",
       "//content/test/data/media/video-player.html",
+      "//content/test/data/media/video-player-pip.html",
       "//content/test/data/media/webrtc_test_utilities.js",
       "//media/test/data/bear-av1.mp4",
       "//media/test/data/bear-hevc-frag.mp4",
@@ -3298,6 +3312,7 @@ if (_is_default_toolchain) {
       "//chrome/browser/android/cookies:jni_headers",
       "//chrome/browser/android/metrics:jni_headers",
       "//chrome/browser/battery/android:jni_headers",
+      "//chrome/browser/collaboration:comments_jni_headers",
       "//chrome/browser/collaboration:internal_jni_headers",
       "//chrome/browser/collaboration:jni_headers",
       "//chrome/browser/collaboration:messaging_jni_headers",

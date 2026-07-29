@@ -4,16 +4,19 @@
 
 #import "ios/chrome/browser/intelligence/bwg/ui/bwg_consent_view_controller.h"
 
+#import "base/strings/string_util.h"
+#import "base/strings/sys_string_conversions.h"
 #import "ios/chrome/browser/intelligence/bwg/ui/bwg_consent_mutator.h"
 #import "ios/chrome/browser/intelligence/bwg/ui/bwg_ui_utils.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
+#import "ios/chrome/common/string_util.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/promo_style/promo_style_view_controller_delegate.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 #import "ios/chrome/grit/ios_strings.h"
-#import "ui/base/l10n/l10n_util_mac.h"
+#import "ui/base/l10n/l10n_util.h"
 #import "url/gurl.h"
 
 namespace {
@@ -35,18 +38,17 @@ const CGFloat kBoxesStackViewCornerRadius = 16.0;
 const CGFloat kInnerStackViewSpacing = 6.0;
 const CGFloat kInnerStackViewPadding = 12.0;
 
-// TODO(crbug.com/414778685): Add strings.
 // Action identifier on a tap on links in the footnote.
 NSString* const kFirstFootnoteLinkAction = @"firstFootnoteLinkAction";
 NSString* const kSecondFootnoteLinkAction = @"secondFootnoteLinkAction";
 NSString* const kFootnoteLinkActionManagedAccount =
     @"footnoteLinkActionManagedAccount";
-
-// TODO(crbug.com/423816346): Change link when clicking on the attributed
-// strings.
-const char kFirstFootnoteLinkURL[] = "https://google.com";
-const char kSecondFootnoteLinkURL[] = "https://youtube.com";
-const char kFootnoteLinkURLManagedAccount[] = "https://gmail.com";
+NSString* const kSecondBoxLinkActionManagedAccount =
+    @"secondBoxLinkActionManagedAccount";
+NSString* const kSecondBoxLink1ActionNonManagedAccount =
+    @"secondBoxLink1ActionNonManagedAccount";
+NSString* const kSecondBoxLink2ActionNonManagedAccount =
+    @"secondBoxLink2ActionNonManagedAccount";
 
 }  // namespace
 
@@ -134,52 +136,165 @@ const char kFootnoteLinkURLManagedAccount[] = "https://gmail.com";
   [_contentStackView addArrangedSubview:[self createFootnoteView]];
 }
 
-// TODO(crbug.com/423816346): Manage links for attributes strings.
-// Creates an attributed string for the footnote with hyperlinks.
-- (NSAttributedString*)createFootnoteAttributedText {
-  NSString* text = l10n_util::GetNSString(
-      _isAccountManaged ? IDS_IOS_BWG_CONSENT_MANAGED_FOOTNOTE
-                        : IDS_IOS_BWG_CONSENT_NON_MANAGED_FOOTNOTE);
-
-  NSMutableParagraphStyle* centeredTextStyle =
-      [[NSMutableParagraphStyle alloc] init];
-  centeredTextStyle.alignment = NSTextAlignmentCenter;
-  NSDictionary* textAttributes = @{
-    NSFontAttributeName :
-        [UIFont preferredFontForTextStyle:UIFontTextStyleCaption2],
-    NSParagraphStyleAttributeName : centeredTextStyle,
-    NSForegroundColorAttributeName : [UIColor labelColor],
-  };
-
+// Creates an attributed string with links for a given text.
+- (NSAttributedString*)createAttributedString:(NSString*)text
+                              withLinkActions:(NSArray<NSString*>*)linkActions
+                                     inRanges:(NSArray<NSValue*>*)linkRanges
+                               textAttributes:(NSDictionary*)textAttributes
+                                    fontStyle:(UIFontTextStyle)fontStyle {
   NSMutableAttributedString* attributedText =
       [[NSMutableAttributedString alloc] initWithString:text
                                              attributes:textAttributes];
 
-  NSDictionary* firstLinkAttributes = @{
-    NSLinkAttributeName : kFirstFootnoteLinkAction,
+  [linkRanges enumerateObjectsUsingBlock:^(NSValue* rangeValue, NSUInteger i,
+                                           BOOL* stop) {
+    NSRange range = rangeValue.rangeValue;
+
+    NSString* linkAction = linkActions[i];
+
+    NSDictionary* linkAttributes = @{
+      NSLinkAttributeName : linkAction,
+      NSForegroundColorAttributeName : [UIColor colorNamed:kBlue600Color],
+      NSUnderlineStyleAttributeName : @(NSUnderlineStyleNone),
+      NSFontAttributeName :
+          PreferredFontForTextStyle(fontStyle, UIFontWeightSemibold)
+    };
+
+    [attributedText addAttributes:linkAttributes range:range];
+  }];
+
+  return [attributedText copy];
+}
+
+// Creates an attributed string for the footnote with hyperlinks.
+- (NSAttributedString*)createFootnoteAttributedText {
+  NSMutableParagraphStyle* paragraphStyle =
+      [[NSMutableParagraphStyle alloc] init];
+  paragraphStyle.alignment = NSTextAlignmentCenter;
+
+  NSDictionary* textAttributes = @{
+    NSFontAttributeName :
+        [UIFont preferredFontForTextStyle:UIFontTextStyleFootnote],
+    NSForegroundColorAttributeName : [UIColor colorNamed:kTextSecondaryColor],
+    NSParagraphStyleAttributeName : paragraphStyle,
   };
 
-  NSDictionary* secondLinkAttributes = @{
-    NSLinkAttributeName : kSecondFootnoteLinkAction,
-  };
-
-  NSDictionary* linkAttributesManagedAccount = @{
-    NSLinkAttributeName : kFootnoteLinkActionManagedAccount,
-  };
+  UIFontTextStyle fontStyle = UIFontTextStyleFootnote;
 
   if (_isAccountManaged) {
-    NSRange linkRange = [text rangeOfString:@"TESTING - Your privacy & Gemini"];
-    [attributedText addAttributes:linkAttributesManagedAccount range:linkRange];
-  } else {
-    NSRange firstLinkRange = [text rangeOfString:@"TESTING - Google Terms"];
-    [attributedText addAttributes:firstLinkAttributes range:firstLinkRange];
+    NSString* linkText =
+        l10n_util::GetNSString(IDS_IOS_BWG_CONSENT_FOOTNOTE_MANAGED_LINK);
+    std::u16string formatStringUTF16 =
+        l10n_util::GetStringUTF16(IDS_IOS_BWG_CONSENT_FOOTNOTE_MANAGED_TEXT);
 
-    NSRange secondLinkRange =
-        [text rangeOfString:@"TESTING - Gemini Apps Privacy Notice"];
-    [attributedText addAttributes:secondLinkAttributes range:secondLinkRange];
+    std::vector<std::u16string> substitutions;
+    substitutions.push_back(base::SysNSStringToUTF16(linkText));
+    std::u16string fullTextUTF16 = base::ReplaceStringPlaceholders(
+        formatStringUTF16, substitutions, nullptr);
+    NSString* fullText = base::SysUTF16ToNSString(fullTextUTF16);
+
+    NSRange linkRange = [fullText rangeOfString:linkText];
+
+    return [self createAttributedString:fullText
+                        withLinkActions:@[ kFootnoteLinkActionManagedAccount ]
+                               inRanges:@[ [NSValue valueWithRange:linkRange] ]
+                         textAttributes:textAttributes
+                              fontStyle:fontStyle];
   }
 
-  return attributedText;
+  NSString* link1NSString =
+      l10n_util::GetNSString(IDS_IOS_BWG_CONSENT_FOOTNOTE_NON_MANAGED_LINK_1);
+  NSString* link2NSString =
+      l10n_util::GetNSString(IDS_IOS_BWG_CONSENT_FOOTNOTE_NON_MANAGED_LINK_2);
+
+  std::vector<std::u16string> substitutions;
+  substitutions.push_back(base::SysNSStringToUTF16(link1NSString));
+  substitutions.push_back(base::SysNSStringToUTF16(link2NSString));
+
+  std::u16string fullTextUTF16 = base::ReplaceStringPlaceholders(
+      l10n_util::GetStringUTF16(IDS_IOS_BWG_CONSENT_FOOTNOTE_NON_MANAGED_TEXT),
+      substitutions, nullptr);
+
+  NSString* fullText = base::SysUTF16ToNSString(fullTextUTF16);
+
+  NSRange link1Range = [fullText rangeOfString:link1NSString];
+  NSRange link2Range = [fullText rangeOfString:link2NSString];
+
+  NSArray<NSString*>* linkActions =
+      @[ kFirstFootnoteLinkAction, kSecondFootnoteLinkAction ];
+  NSArray<NSValue*>* linkRanges = @[
+    [NSValue valueWithRange:link1Range], [NSValue valueWithRange:link2Range]
+  ];
+
+  return [self createAttributedString:fullText
+                      withLinkActions:linkActions
+                             inRanges:linkRanges
+                       textAttributes:textAttributes
+                            fontStyle:fontStyle];
+}
+
+// Creates an attributed string for the second box body with a link.
+- (NSAttributedString*)createSecondBoxBodyAttributedText {
+  NSDictionary* textAttributes = @{
+    NSFontAttributeName :
+        [UIFont preferredFontForTextStyle:UIFontTextStyleBody],
+    NSForegroundColorAttributeName : [UIColor colorNamed:kTextSecondaryColor],
+  };
+  UIFontTextStyle fontStyle = UIFontTextStyleBody;
+
+  if (_isAccountManaged) {
+    NSString* linkText = l10n_util::GetNSString(
+        IDS_IOS_BWG_CONSENT_MANAGED_SECOND_BOX_BODY_LINK);
+    std::u16string formatStringUTF16 =
+        l10n_util::GetStringUTF16(IDS_IOS_BWG_CONSENT_MANAGED_SECOND_BOX_BODY);
+
+    std::vector<std::u16string> substitutions;
+    substitutions.push_back(base::SysNSStringToUTF16(linkText));
+    std::u16string fullTextUTF16 = base::ReplaceStringPlaceholders(
+        formatStringUTF16, substitutions, nullptr);
+    NSString* fullText = base::SysUTF16ToNSString(fullTextUTF16);
+
+    NSRange linkRange = [fullText rangeOfString:linkText];
+
+    return [self createAttributedString:fullText
+                        withLinkActions:@[ kSecondBoxLinkActionManagedAccount ]
+                               inRanges:@[ [NSValue valueWithRange:linkRange] ]
+                         textAttributes:textAttributes
+                              fontStyle:fontStyle];
+  }
+
+  NSString* link1NSString = l10n_util::GetNSString(
+      IDS_IOS_BWG_CONSENT_NON_MANAGED_SECOND_BOX_BODY_LINK_1);
+  NSString* link2NSString = l10n_util::GetNSString(
+      IDS_IOS_BWG_CONSENT_NON_MANAGED_SECOND_BOX_BODY_LINK_2);
+
+  std::vector<std::u16string> substitutions;
+  substitutions.push_back(base::SysNSStringToUTF16(link1NSString));
+  substitutions.push_back(base::SysNSStringToUTF16(link2NSString));
+
+  std::u16string fullTextUTF16 = base::ReplaceStringPlaceholders(
+      l10n_util::GetStringUTF16(
+          IDS_IOS_BWG_CONSENT_NON_MANAGED_SECOND_BOX_BODY),
+      substitutions, nullptr);
+
+  NSString* fullText = base::SysUTF16ToNSString(fullTextUTF16);
+
+  NSRange link1Range = [fullText rangeOfString:link1NSString];
+  NSRange link2Range = [fullText rangeOfString:link2NSString];
+
+  NSArray<NSString*>* linkActions = @[
+    kSecondBoxLink1ActionNonManagedAccount,
+    kSecondBoxLink2ActionNonManagedAccount
+  ];
+  NSArray<NSValue*>* linkRanges = @[
+    [NSValue valueWithRange:link1Range], [NSValue valueWithRange:link2Range]
+  ];
+
+  return [self createAttributedString:fullText
+                      withLinkActions:linkActions
+                             inRanges:linkRanges
+                       textAttributes:textAttributes
+                            fontStyle:fontStyle];
 }
 
 // Configures the main stack view.
@@ -229,19 +344,15 @@ const char kFootnoteLinkURLManagedAccount[] = "https://gmail.com";
   UIView* firstBox = [self
       createHorizontalBoxWithIcon:firstIconImageView
                           boxView:
-                              [self createBoxWithTitle:
+                              [self createFirstBoxWithTitle:
                                         l10n_util::GetNSString(
                                             IDS_IOS_BWG_CONSENT_FIRST_BOX_TITLE)
-                                              bodyText:firstBody]];
+                                                   bodyText:firstBody]];
   [boxesStackView addArrangedSubview:firstBox];
 
   NSString* secondTitle = l10n_util::GetNSString(
       _isAccountManaged ? IDS_IOS_BWG_CONSENT_MANAGED_SECOND_BOX_TITLE
                         : IDS_IOS_BWG_CONSENT_NON_MANAGED_SECOND_BOX_TITLE);
-
-  NSString* secondBody = l10n_util::GetNSString(
-      _isAccountManaged ? IDS_IOS_BWG_CONSENT_MANAGED_SECOND_BOX_BODY
-                        : IDS_IOS_BWG_CONSENT_NON_MANAGED_SECOND_BOX_BODY);
 
   UIImageView* secondIconImageView =
       _isAccountManaged
@@ -253,10 +364,13 @@ const char kFootnoteLinkURLManagedAccount[] = "https://gmail.com";
 
   secondIconImageView.contentMode = UIViewContentModeScaleAspectFit;
 
-  UIView* secondBox =
-      [self createHorizontalBoxWithIcon:secondIconImageView
-                                boxView:[self createBoxWithTitle:secondTitle
-                                                        bodyText:secondBody]];
+  NSAttributedString* secondBodyAttributed =
+      [self createSecondBoxBodyAttributedText];
+  UIView* secondBoxView = [self createSecondBoxWithTitle:secondTitle
+                                      bodyAttributedText:secondBodyAttributed];
+
+  UIView* secondBox = [self createHorizontalBoxWithIcon:secondIconImageView
+                                                boxView:secondBoxView];
   [boxesStackView addArrangedSubview:secondBox];
   return boxesStackView;
 }
@@ -296,9 +410,9 @@ const char kFootnoteLinkURLManagedAccount[] = "https://gmail.com";
   return horizontalStackView;
 }
 
-// Creates the bow view containing the text and the title.
-- (UIView*)createBoxWithTitle:(NSString*)titleText
-                     bodyText:(NSString*)bodyText {
+// Creates the first box view containing the text and the title.
+- (UIView*)createFirstBoxWithTitle:(NSString*)titleText
+                          bodyText:(NSString*)bodyText {
   UIView* boxView = [[UIView alloc] init];
   boxView.translatesAutoresizingMaskIntoConstraints = NO;
 
@@ -327,8 +441,50 @@ const char kFootnoteLinkURLManagedAccount[] = "https://gmail.com";
   bodyLabel.text = bodyText;
   bodyLabel.font = PreferredFontForTextStyle(UIFontTextStyleBody);
   bodyLabel.numberOfLines = 0;
-  bodyLabel.textColor = [UIColor colorNamed:kGrey700Color];
+  bodyLabel.textColor = [UIColor colorNamed:kTextSecondaryColor];
   [innerStackView addArrangedSubview:bodyLabel];
+
+  return boxView;
+}
+
+// Creates the second box view containing the title and an attributed body text.
+- (UIView*)createSecondBoxWithTitle:(NSString*)titleText
+                 bodyAttributedText:(NSAttributedString*)bodyAttributedText {
+  UIView* boxView = [[UIView alloc] init];
+  boxView.translatesAutoresizingMaskIntoConstraints = NO;
+
+  UIStackView* innerStackView = [[UIStackView alloc] init];
+  innerStackView.axis = UILayoutConstraintAxisVertical;
+  innerStackView.alignment = UIStackViewAlignmentLeading;
+  innerStackView.spacing = kInnerStackViewSpacing;
+
+  innerStackView.translatesAutoresizingMaskIntoConstraints = NO;
+  [boxView addSubview:innerStackView];
+
+  CGFloat innerPadding = kInnerStackViewPadding;
+  AddSameConstraintsWithInsets(
+      innerStackView, boxView,
+      NSDirectionalEdgeInsetsMake(innerPadding, 0, innerPadding, innerPadding));
+
+  UILabel* titleLabel = [[UILabel alloc] init];
+  titleLabel.text = titleText;
+  titleLabel.font =
+      PreferredFontForTextStyle(UIFontTextStyleHeadline, UIFontWeightSemibold);
+
+  titleLabel.numberOfLines = 0;
+  [innerStackView addArrangedSubview:titleLabel];
+
+  UITextView* bodyTextView = [[UITextView alloc] init];
+  bodyTextView.backgroundColor = [UIColor clearColor];
+  bodyTextView.scrollEnabled = NO;
+  bodyTextView.editable = NO;
+  bodyTextView.delegate = self;
+  bodyTextView.textContainerInset = UIEdgeInsetsZero;
+  bodyTextView.textContainer.lineFragmentPadding = 0;
+  bodyTextView.linkTextAttributes =
+      @{NSForegroundColorAttributeName : [UIColor colorNamed:kBlue600Color]};
+  bodyTextView.attributedText = bodyAttributedText;
+  [innerStackView addArrangedSubview:bodyTextView];
 
   return boxView;
 }
@@ -339,13 +495,13 @@ const char kFootnoteLinkURLManagedAccount[] = "https://gmail.com";
   footNoteTextView.backgroundColor = [UIColor clearColor];
   footNoteTextView.scrollEnabled = NO;
   footNoteTextView.editable = NO;
+  footNoteTextView.delegate = self;
 
   footNoteTextView.textContainerInset = UIEdgeInsetsZero;
   footNoteTextView.linkTextAttributes =
-      @{NSForegroundColorAttributeName : [UIColor colorNamed:kBlueColor]};
+      @{NSForegroundColorAttributeName : [UIColor colorNamed:kBlue600Color]};
   footNoteTextView.attributedText = [self createFootnoteAttributedText];
 
-  // TODO(crbug.com/423816346): Manage links for attributes strings.
   return footNoteTextView;
 }
 
@@ -410,6 +566,30 @@ const char kFootnoteLinkURLManagedAccount[] = "https://gmail.com";
     __weak __typeof(self) weakSelf = self;
     return [UIAction actionWithHandler:^(UIAction* action) {
       [weakSelf.mutator openNewTabWithURL:GURL(kFootnoteLinkURLManagedAccount)];
+    }];
+  }
+  if ([textItem.link.absoluteString
+          isEqualToString:kSecondBoxLinkActionManagedAccount]) {
+    __weak __typeof(self) weakSelf = self;
+    return [UIAction actionWithHandler:^(UIAction* action) {
+      [weakSelf.mutator
+          openNewTabWithURL:GURL(kSecondBoxLinkURLManagedAccount)];
+    }];
+  }
+  if ([textItem.link.absoluteString
+          isEqualToString:kSecondBoxLink1ActionNonManagedAccount]) {
+    __weak __typeof(self) weakSelf = self;
+    return [UIAction actionWithHandler:^(UIAction* action) {
+      [weakSelf.mutator
+          openNewTabWithURL:GURL(kSecondBoxLink1URLNonManagedAccount)];
+    }];
+  }
+  if ([textItem.link.absoluteString
+          isEqualToString:kSecondBoxLink2ActionNonManagedAccount]) {
+    __weak __typeof(self) weakSelf = self;
+    return [UIAction actionWithHandler:^(UIAction* action) {
+      [weakSelf.mutator
+          openNewTabWithURL:GURL(kSecondBoxLink2URLNonManagedAccount)];
     }];
   }
   return defaultAction;

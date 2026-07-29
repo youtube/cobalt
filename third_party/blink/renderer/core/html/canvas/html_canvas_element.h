@@ -214,7 +214,6 @@ class CORE_EXPORT HTMLCanvasElement final
   void DoDeferredPaintInvalidation();
 
   void InitializeLayerWithCSSProperties(cc::Layer* layer) override;
-  void PreFinalizeFrame() override;
   void PostFinalizeFrame(FlushReason) override;
 
   CanvasResourceDispatcher* GetOrCreateResourceDispatcher() override;
@@ -269,8 +268,9 @@ class CORE_EXPORT HTMLCanvasElement final
   bool IsHibernating() const override;
   void SetTransferToGPUTextureWasInvoked() override;
   UkmParameters GetUkmParameters() override;
+
   std::unique_ptr<CanvasResourceProvider> ReplaceResourceProviderForCanvas2D(
-      std::unique_ptr<CanvasResourceProvider>) override;
+      std::unique_ptr<CanvasResourceProvider>);
 
   // This method attempts to ensure that the canvas' resource exists on the GPU.
   // A HTMLCanvasElement can downgrade itself from GPU to CPU when readback
@@ -381,6 +381,15 @@ class CORE_EXPORT HTMLCanvasElement final
   void SetHitTestRegions(VectorOf<ElementHitTestRegion> hit_test_regions);
   const VectorOf<ElementHitTestRegion>& GetHitTestRegions() const;
 
+  // `resource_provider_` must be null.
+  void SetResourceProviderForCanvas2D(
+      std::unique_ptr<CanvasResourceProvider> resource_provider) {
+    CHECK(IsRenderingContext2D());
+    CHECK(!resource_provider_for_canvas2d_);
+    resource_provider_for_canvas2d_ = std::move(resource_provider);
+    UpdateMemoryUsage();
+  }
+
  protected:
   void DidMoveToNewDocument(Document& old_document) override;
   void DidRecalcStyle(const StyleRecalcChange change) override;
@@ -399,10 +408,7 @@ class CORE_EXPORT HTMLCanvasElement final
   void UpdatePreferred2DRasterMode();
 
   // Recreates the resource provider.
-  // TODO(crbug.com/40280152): Remove parameter once the hibernation handler is
-  // an instance variable of this class.
-  CanvasResourceProvider* RecreateCanvasResourceProviderForCanvas2D(
-      CanvasHibernationHandler& hibernation_handler);
+  CanvasResourceProvider* RecreateCanvasResourceProviderForCanvas2D();
   void CreateCanvasResourceProviderForCanvas2D();
 
   void ColorSchemeMayHaveChanged();
@@ -460,15 +466,6 @@ class CORE_EXPORT HTMLCanvasElement final
       float device_scale_factor);
 
   bool RecreateCanvasInGPURasterModeForCanvas2D();
-
-  // `resource_provider_` must be null.
-  void SetResourceProviderForCanvas2D(
-      std::unique_ptr<CanvasResourceProvider> resource_provider) {
-    CHECK(IsRenderingContext2D());
-    CHECK(!resource_provider_for_canvas2d_);
-    resource_provider_for_canvas2d_ = std::move(resource_provider);
-    UpdateMemoryUsage();
-  }
 
   FRIEND_TEST_ALL_PREFIXES(HTMLCanvasElementTest, BrokenCanvasHighRes);
 

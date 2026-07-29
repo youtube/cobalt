@@ -18,8 +18,8 @@
 #include "third_party/blink/renderer/core/scheduler/dom_task_continuation.h"
 #include "third_party/blink/renderer/core/scheduler/dom_task_signal.h"
 #include "third_party/blink/renderer/core/scheduler/scheduler_task_context.h"
-#include "third_party/blink/renderer/core/scheduler/script_wrappable_task_state.h"
 #include "third_party/blink/renderer/core/scheduler/task_attribution_info_impl.h"
+#include "third_party/blink/renderer/core/scheduler/task_attribution_task_state.h"
 #include "third_party/blink/renderer/platform/bindings/enumeration_base.h"
 #include "third_party/blink/renderer/platform/bindings/exception_code.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
@@ -194,13 +194,13 @@ ScriptPromise<IDLUndefined> DOMScheduler::yield(
 
 SchedulerTaskContext* DOMScheduler::GetSchedulerTaskContextForYield() {
   auto* inherited_state =
-      ScriptWrappableTaskState::GetCurrent(GetExecutionContext()->GetIsolate());
+      TaskAttributionTaskState::GetCurrent(GetExecutionContext()->GetIsolate());
   if (!inherited_state) {
     return nullptr;
   }
 
   SchedulerTaskContext* task_context =
-      inherited_state->WrappedState()->GetSchedulerTaskContext();
+      inherited_state->GetSchedulerTaskContext();
   if (!task_context) {
     return nullptr;
   }
@@ -226,12 +226,10 @@ SchedulerTaskContext* DOMScheduler::GetSchedulerTaskContextForYield() {
   return can_use_context ? task_context : nullptr;
 }
 
-scheduler::TaskAttributionIdType DOMScheduler::taskId(
-    ScriptState* script_state) {
+scheduler::TaskAttributionIdType DOMScheduler::taskId(v8::Isolate* isolate) {
   // `tracker` will be null if TaskAttributionInfrastructureDisabledForTesting
   // is enabled.
-  if (auto* tracker =
-          scheduler::TaskAttributionTracker::From(script_state->GetIsolate())) {
+  if (auto* tracker = scheduler::TaskAttributionTracker::From(isolate)) {
     // `task_state` is null if there's nothing to propagate.
     if (scheduler::TaskAttributionInfo* task_state =
             tracker->CurrentTaskState()) {
@@ -241,9 +239,9 @@ scheduler::TaskAttributionIdType DOMScheduler::taskId(
   return 0;
 }
 
-void DOMScheduler::setTaskId(ScriptState* script_state,
+void DOMScheduler::setTaskId(v8::Isolate* isolate,
                              scheduler::TaskAttributionIdType task_id) {
-  if (!scheduler::TaskAttributionTracker::From(script_state->GetIsolate())) {
+  if (!scheduler::TaskAttributionTracker::From(isolate)) {
     // This will be null if TaskAttributionInfrastructureDisabledForTesting is
     // enabled.
     return;
@@ -251,7 +249,7 @@ void DOMScheduler::setTaskId(ScriptState* script_state,
   auto* task_state = MakeGarbageCollected<TaskAttributionInfoImpl>(
       scheduler::TaskAttributionId(task_id),
       /*soft_navigation_context=*/nullptr);
-  ScriptWrappableTaskState::SetCurrent(script_state, task_state);
+  TaskAttributionTaskState::SetCurrent(isolate, task_state);
   auto* scheduler = ThreadScheduler::Current()->ToMainThreadScheduler();
   // This test API is only available on the main thread.
   CHECK(scheduler);
@@ -259,10 +257,10 @@ void DOMScheduler::setTaskId(ScriptState* script_state,
   // a task scope on the stack to clear it.
   scheduler->ExecuteAfterCurrentTaskForTesting(
       WTF::BindOnce(
-          [](ScriptState* script_state) {
-            ScriptWrappableTaskState::SetCurrent(script_state, nullptr);
+          [](v8::Isolate* isolate) {
+            TaskAttributionTaskState::SetCurrent(isolate, nullptr);
           },
-          WrapPersistent(script_state)),
+          WTF::Unretained(isolate)),
       ExecuteAfterCurrentTaskRestricted{});
 }
 

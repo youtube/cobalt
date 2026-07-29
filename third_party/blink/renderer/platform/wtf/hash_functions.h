@@ -28,7 +28,7 @@
 
 #include "base/bit_cast.h"
 
-namespace WTF {
+namespace blink {
 
 namespace internal {
 
@@ -151,6 +151,6 @@ constexpr void AddFloatToHash(unsigned& hash, float value) {
   AddIntToHash(hash, HashFloat(value));
 }
 
-}  // namespace WTF
+}  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_HASH_FUNCTIONS_H_

@@ -170,6 +170,11 @@ const char kDisableGpuWatchdog[] = "disable-gpu-watchdog";
 // can be used.
 const char kDisableIpcFloodingProtection[] = "disable-ipc-flooding-protection";
 
+// Disables the IgnoreDuplicateNavs feature. This prevent navigations from
+// being unintentionally ignored in tests.
+const char kDisableIgnoreDuplicateNavsForTesting[] =
+    "disable-ignore-duplicate-navs-for-testing";
+
 // Disable the RenderThread's HistogramCustomizer.
 const char kDisableHistogramCustomizer[]    = "disable-histogram-customizer";
 
@@ -791,6 +796,10 @@ const char kUtilityStartupDialog[] = "utility-startup-dialog";
 // services offered by the process, but is added to the command line to make
 // it easier to identify the purpose of the utility process.
 const char kUtilitySubType[] = "utility-sub-type";
+
+// Crash the Utility process early in start-up, for testing.
+const char kUtilityImmediateCrashForTesting[] =
+    "utility-immediate-crash-for-testing";
 
 // Causes tests to attempt to verify pixel output.
 const char kVerifyPixels[] = "browser-ui-tests-verify-pixels";

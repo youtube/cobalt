@@ -135,7 +135,6 @@
 #include "content/public/renderer/render_frame_visitor.h"
 #include "extensions/buildflags/buildflags.h"
 #include "extensions/renderer/extensions_renderer_api_provider.h"
-#include "ipc/ipc_sync_channel.h"
 #include "media/base/media_switches.h"
 #include "media/media_buildflags.h"
 #include "mojo/public/cpp/bindings/generic_pending_receiver.h"
@@ -686,8 +685,15 @@ void ChromeContentRendererClient::RenderFrameCreated(
     subresource_filter_agent->Initialize();
   }
 
-  if (fingerprinting_protection_filter::features::
-          IsFingerprintingProtectionFeatureEnabled() &&
+  if (render_frame->IsMainFrame() && !render_frame->IsInFencedFrameTree()) {
+    // This web pref applies at the level of the current browser session and may
+    // change when settings are modified, so we copy the latest value every time
+    // a new top-level main frame is created for a new page.
+    content_based_fingerprinting_protection_enabled_ =
+        render_frame->GetBlinkPreferences()
+            .content_based_fingerprinting_protection_enabled;
+  }
+  if (content_based_fingerprinting_protection_enabled_ &&
       fingerprinting_protection_ruleset_dealer_) {
     auto* fingerprinting_protection_renderer_agent =
         new fingerprinting_protection_filter::RendererAgent(
@@ -1306,7 +1312,7 @@ ChromeContentRendererClient::CreateWebSocketHandshakeThrottleProvider() {
 bool ChromeContentRendererClient::ShouldUseCodeCacheWithHashing(
     const blink::WebURL& request_url) const {
   if (content::HasWebUIScheme(request_url)) {
-    return chrome::ShouldUseCodeCacheForWebUIUrl(GURL(request_url));
+    return ShouldUseCodeCacheForWebUIUrl(GURL(request_url));
   }
   return true;
 }
@@ -1578,6 +1584,11 @@ void ChromeContentRendererClient::AppendContentSecurityPolicy(
                   network::mojom::ContentSecurityPolicyType::kEnforce,
                   network::mojom::ContentSecurityPolicySource::kHTTP});
 #endif
+}
+
+bool ChromeContentRendererClient::
+    IsContentBasedFingerprintingProtectionEnabled() {
+  return content_based_fingerprinting_protection_enabled_;
 }
 
 std::unique_ptr<blink::WebLinkPreviewTriggerer>

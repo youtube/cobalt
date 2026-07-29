@@ -55,6 +55,7 @@ android_library("java") {
     "java/src/org/chromium/components/signin/identitymanager/AccountInfoServiceProvider.java",
     "java/src/org/chromium/components/signin/identitymanager/AccountManagedStatusFinder.java",
     "java/src/org/chromium/components/signin/identitymanager/IdentityManager.java",
+    "java/src/org/chromium/components/signin/identitymanager/IdentityManagerImpl.java",
     "java/src/org/chromium/components/signin/identitymanager/IdentityMutator.java",
     "java/src/org/chromium/components/signin/identitymanager/PrimaryAccountChangeEvent.java",
     "java/src/org/chromium/components/signin/identitymanager/ProfileOAuth2TokenServiceDelegate.java",
@@ -77,7 +78,7 @@ generate_jni("jni_headers") {
     "java/src/org/chromium/components/signin/base/AccountInfo.java",
     "java/src/org/chromium/components/signin/base/CoreAccountInfo.java",
     "java/src/org/chromium/components/signin/identitymanager/AccountManagedStatusFinder.java",
-    "java/src/org/chromium/components/signin/identitymanager/IdentityManager.java",
+    "java/src/org/chromium/components/signin/identitymanager/IdentityManagerImpl.java",
     "java/src/org/chromium/components/signin/identitymanager/IdentityMutator.java",
     "java/src/org/chromium/components/signin/identitymanager/PrimaryAccountChangeEvent.java",
     "java/src/org/chromium/components/signin/identitymanager/ProfileOAuth2TokenServiceDelegate.java",
@@ -124,6 +125,7 @@ android_library("signin_java_test_support") {
     "//third_party/android_deps:guava_android_java",
     "//third_party/androidx:androidx_annotation_annotation_java",
     "//third_party/androidx:androidx_appcompat_appcompat_resources_java",
+    "//third_party/hamcrest:hamcrest_core_java",
     "//third_party/jni_zero:jni_zero_java",
     "//third_party/mockito:mockito_java",
   ]
@@ -135,6 +137,7 @@ android_library("signin_java_test_support") {
     "java/src/org/chromium/components/signin/test/util/FakeAccountInfoService.java",
     "java/src/org/chromium/components/signin/test/util/FakeAccountManagerDelegate.java",
     "java/src/org/chromium/components/signin/test/util/FakeAccountManagerFacade.java",
+    "java/src/org/chromium/components/signin/test/util/SigninMatchers.java",
     "java/src/org/chromium/components/signin/test/util/TestAccounts.java",
   ]
   resources_package = "org.chromium.components.signin.test.util"

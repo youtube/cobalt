@@ -350,7 +350,7 @@ TEST_F(InspectorCSSAgentTest, DashedFunctionUnknown) {
 }
 
 TEST_F(InspectorCSSAgentTest, SameFunctionNamesAcrossShadows) {
-  GetDocument().body()->setHTMLUnsafe(R"HTML(
+  GetDocument().body()->SetHTMLUnsafeWithoutTrustedTypes(R"HTML(
     <style>
       @function --a() {
         result: 10px;
@@ -445,6 +445,42 @@ TEST_P(PercentageResolutionTest, ResolvePercentagesSimple) {
   )HTML");
 
   String value("calc(1px + 10%)");
+
+  CSSPropertyID property_id = GetParam();
+  AtomicString property_name =
+      CSSProperty::Get(property_id).GetCSSPropertyName().ToAtomicString();
+
+  StringBuilder html_string;
+  html_string.Append("<div id=inner style=\"position: absolute; ");
+  html_string.Append(property_name);
+  html_string.Append(": ");
+  html_string.Append(value);
+  html_string.Append(";\"></div>");
+  GetElementById("outer")->SetInnerHTMLWithoutTrustedTypes(
+      html_string.ToString());
+
+  UpdateAllLifecyclePhasesForTest();
+
+  Element* element = GetElementById("inner");
+  String expected = GetComputedStyle(element, property_id);
+  String actual = InspectorResolvePercentageValues(element, property_id, value);
+  EXPECT_EQ(actual, expected);
+}
+
+TEST_P(PercentageResolutionTest, ResolvePercentagesEffectiveZoom) {
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
+    <style>
+      #outer {
+        width: 100px;
+        height: 300px;
+        zoom: 3;
+      }
+    </style>
+    <div id=outer>
+    </div>
+  )HTML");
+
+  String value("10%");
 
   CSSPropertyID property_id = GetParam();
   AtomicString property_name =

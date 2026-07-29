@@ -44,7 +44,15 @@ enum class SBPhishingClassifierEvent {
   kDestructedBeforeClassificationDone = 4,
   // Scorer is updated and classifier is ready within timeout.
   kScorerUpdatedWithinRetryTimeout = 5,
-  kMaxValue = kScorerUpdatedWithinRetryTimeout,
+  // Phishing classifier begins.
+  kClassificationBegin = 6,
+  // Phishing classifier completes.
+  kClassificationComplete = 7,
+  // Phishing classifier callback is empty on classification completion.
+  kPhishingClasifierCallbackEmptyOnCompletion = 8,
+  // Phishing classification request responded.
+  kPhishingClassifierRequestResponded = 9,
+  kMaxValue = kPhishingClassifierRequestResponded,
 };
 
 class PhishingClassifierDelegate : public content::RenderFrameObserver,
@@ -182,7 +190,7 @@ class PhishingClassifierDelegate : public content::RenderFrameObserver,
   bool awaiting_retry_ = false;
 
   // Trigger request type given by the client side detection host class.
-  safe_browsing::mojom::ClientSideDetectionType request_type_;
+  std::optional<safe_browsing::mojom::ClientSideDetectionType> request_type_;
 
   // The callback from the most recent call to StartPhishingDetection.
   StartPhishingDetectionCallback callback_;

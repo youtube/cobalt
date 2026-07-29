@@ -35,7 +35,7 @@ source_set("commerce") {
     "//content/public/browser",
     "//ui/gfx",
   ]
-  deps = [ "//chrome/browser/ui/unowned_user_data" ]
+  deps = [ "//ui/base/unowned_user_data" ]
 }
 
 source_set("impl") {
@@ -121,6 +121,7 @@ source_set("unit_tests") {
     "//components/image_fetcher/core:test_support",
     "//components/image_fetcher/core:test_support",
     "//components/tabs:test_support",
+    "//ui/base/unowned_user_data",
   ]
 }
 

@@ -46,7 +46,7 @@ extern NSString* const kSettingsDoneButtonId;
 
 // Controller to modify user settings.
 @interface SettingsNavigationController
-    : UINavigationController <SettingsCommands, KeyCommandActions>
+    : UINavigationController <KeyCommandActions, SettingsCommands>
 
 // Creates a new SettingsTableViewController and the chrome around it.
 // `browser` is the browser where settings are being displayed and should not be
@@ -59,11 +59,30 @@ extern NSString* const kSettingsDoneButtonId;
 
 // Creates a new ManageAccountsTableViewController and the chrome around it.
 // `browser` is the browser where settings are being displayed and should not be
+// nil.
+//`showSignoutButton` whether the view should contains a "signout" button.
+//`showDoneButton` whether the navigation controller top trailing corner should
+// have a "Done" button.
+// `signoutDismissalByParentCoordinator` if `YES` the view should not dismiss
+// itself when the user is signed-out, the owning coordinator will do it.
++ (instancetype)
+           accountsControllerForBrowser:(Browser*)browser
+                     baseViewController:(UIViewController*)baseViewController
+                               delegate:
+                                   (id<SettingsNavigationControllerDelegate>)
+                                       delegate
+              closeSettingsOnAddAccount:(BOOL)closeSettingsOnAddAccount
+                      showSignoutButton:(BOOL)showSignoutButton
+                         showDoneButton:(BOOL)showDoneButton
+    signoutDismissalByParentCoordinator:
+        (BOOL)signoutDismissalByParentCoordinator;
+
+// Creates a new SettingsNavigationController and the chrome around it.
+// `browser` is the browser where settings are being displayed and should not be
 // nil. `delegate` may be nil.
 + (instancetype)
-    accountsControllerForBrowser:(Browser*)browser
-                        delegate:
-                            (id<SettingsNavigationControllerDelegate>)delegate;
+    BWGControllerForBrowser:(Browser*)browser
+                   delegate:(id<SettingsNavigationControllerDelegate>)delegate;
 
 // Creates a new GoogleServicesSettingsCollectionViewController and the chrome
 // around it. `browser` is the browser where settings are being displayed and

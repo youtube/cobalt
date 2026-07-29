@@ -195,13 +195,22 @@ declare_args() {
   # debugging information which is required by some specialized
   # debugging tools.
   simple_template_names = is_clang && !is_win && !is_apple
+
+  # This switch is used to enable -Wexit-time-destructors by default. This
+  # warning serves as a flip switch to allow a gradual migration of targets
+  # away from the opt-in wexit_time_destructors config, and into the default
+  # compiler config.
+  # TODO(crbug.com/40031409): This argument will eventually default to true,
+  # but ultimately the goal is for it to eventually be removed, once this mode
+  # is stable enough.
+  is_wexit_time_destructors_default = false
 }
 
 declare_args() {
   # Set to true to use icf, Identical Code Folding.
   use_icf = (is_posix || is_fuchsia) && !is_debug && !using_sanitizer &&
-            !use_clang_coverage && current_os != "zos" &&
-            !(is_android && use_order_profiling) && use_lld && !is_wasm
+            !use_clang_coverage && !(is_android && use_order_profiling) &&
+            use_lld && !is_wasm
 }
 
 if (is_android) {
@@ -2163,6 +2172,13 @@ config("default_warnings") {
     if (cc_wrapper == "ccache" || cc_wrapper == "icecc") {
       cflags += [ "-Wno-gnu-line-marker" ]
     }
+
+    if (is_wexit_time_destructors_default) {
+      # TODO(crbug.com/40031409): We are migrating towards making this warning
+      # enabled by default, and once that is completed, the warning
+      # should always be added for clang builds.
+      cflags = [ "-Wexit-time-destructors" ]
+    }
   }
 
   # TODO(crbug.com/354162568): Clean up and enable.
@@ -2513,10 +2529,20 @@ config("unnecessary_virtual_specifier_warning") {
 
 # This will generate warnings when using Clang if code generates exit-time
 # destructors, which will slow down closing the program.
-# TODO(thakis): Make this a blocklist instead, http://crbug.com/101600
+# TODO(crbug.com/40031409): Remove this config once -Wexit-time-destructors is
+# being passed by default and shown to be working stable enough.
 config("wexit_time_destructors") {
-  if (is_clang) {
+  if (!is_wexit_time_destructors_default && is_clang) {
     cflags = [ "-Wexit-time-destructors" ]
+  }
+}
+
+# This config should be used to disable `Wexit-time-destructors` warnings in
+# targets that are not ready to handle this warning, or that require such
+# exclusion.
+config("no_exit_time_destructors") {
+  if (is_clang) {
+    cflags = [ "-Wno-exit-time-destructors" ]
   }
 }
 
@@ -2633,13 +2659,17 @@ if (is_win) {
     common_optimize_on_ldflags += [ "-Wl,--gc-sections" ]
   }
 
-  # We cannot rely on errno being set after math functions,
-  # especially since glibc does not set it. Thus, use -fno-math-errno
-  # so that the compiler knows it can inline math functions.
-  # Note that this is different from -ffast-math (even though -ffast-math
-  # implies -fno-math-errno), which also allows a number of unsafe
-  # optimizations.
-  common_optimize_on_cflags += [ "-fno-math-errno" ]
+  # Do not add -fno-math-errno when `is_debug` is true and `use_libcxx_modules` is true,
+  # as this flag is incompatible with debug builds using modules.
+  if (!is_debug || !use_libcxx_modules) {
+    # We cannot rely on errno being set after math functions,
+    # especially since glibc does not set it. Thus, use -fno-math-errno
+    # so that the compiler knows it can inline math functions.
+    # Note that this is different from -ffast-math (even though -ffast-math
+    # implies -fno-math-errno), which also allows a number of unsafe
+    # optimizations.
+    common_optimize_on_cflags += [ "-fno-math-errno" ]
+  }
 }
 
 config("default_stack_frames") {
@@ -3032,18 +3062,7 @@ config("symbols") {
       ldflags += [ "-gsplit-dwarf" ]
     }
 
-    # TODO(thakis): Figure out if there's a way to make this go for 32-bit,
-    # currently we get "warning:
-    # obj/native_client/src/trusted/service_runtime/sel_asm/nacl_switch_32.o:
-    # DWARF info may be corrupt; offsets in a range list entry are in different
-    # sections" there.  Maybe just a bug in nacl_switch_32.S.
-    _enable_gdb_index =
-        symbol_level == 2 && !is_apple && current_cpu != "x86" &&
-        current_os != "zos" && use_lld && !is_wasm &&
-        # Disable on non-fission 32-bit Android because it pushes
-        # libcomponents_unittests over the 4gb size limit.
-        !(is_android && !use_debug_fission && current_cpu != "x64" &&
-          current_cpu != "arm64")
+    _enable_gdb_index = symbol_level == 2 && !is_apple && use_lld && !is_wasm
     if (_enable_gdb_index) {
       if (is_clang) {
         # This flag enables the GNU-format pubnames and pubtypes sections,
@@ -3056,7 +3075,7 @@ config("symbols") {
     }
   }
 
-  # Compress debug on 32-bit ARM to stay under 4GB file size limit.
+  # Compress debug on 32-bit to stay under 4GB file size limit.
   # https://b/243982712, https://crbug.com/1354616, https://crbug.com/334073642
   if (symbol_level == 2 && !use_debug_fission && !is_win &&
       (current_cpu == "arm" || current_cpu == "x86")) {

@@ -10,11 +10,21 @@ StartTask::StartTask(actor::TaskId id) : task_id(id) {}
 StartTask::~StartTask() = default;
 StartTask::StartTask(const StartTask&) = default;
 
+TaskStateChanged::TaskStateChanged(actor::TaskId id, ActorTask::State state)
+    : task_id(id), state(state) {}
+TaskStateChanged::TaskStateChanged(const TaskStateChanged&) = default;
+TaskStateChanged::~TaskStateChanged() = default;
+
 StartingToActOnTab::StartingToActOnTab(tabs::TabInterface::Handle th,
                                        actor::TaskId id)
     : tab_handle(th), task_id(id) {}
 StartingToActOnTab::~StartingToActOnTab() = default;
 StartingToActOnTab::StartingToActOnTab(const StartingToActOnTab&) = default;
+
+StoppedActingOnTab::StoppedActingOnTab(tabs::TabInterface::Handle th)
+    : tab_handle(th) {}
+StoppedActingOnTab::~StoppedActingOnTab() = default;
+StoppedActingOnTab::StoppedActingOnTab(const StoppedActingOnTab&) = default;
 
 MouseClick::MouseClick(tabs::TabInterface::Handle th,
                        MouseClickType ct,

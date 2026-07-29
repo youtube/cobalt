@@ -566,13 +566,15 @@ prefs when the profile is loaded.  -->
 </histogram>
 
 <histogram name="Signin.AddAccountToDevice.HostedDomainFetchDuration.{Status}"
-    units="ms" expires_after="2025-08-19">
+    units="ms" expires_after="2026-04-01">
   <owner>jlebel@chromium.org</owner>
-  <owner>chrome-signin-team@google.com</owner>
+  <owner>chrome-signin-mobile-team@google.com</owner>
   <summary>
     This histogram records the time to load the hosted domain.
 
     Recorded right after an account was added by the user action when {Status}.
+
+    Only logged on iOS.
   </summary>
   <token key="Status">
     <variant name="Failed" summary="add account failed"/>
@@ -582,14 +584,16 @@ prefs when the profile is loaded.  -->
 
 <histogram
     name="Signin.AddAccountToDevice.IsSubjectToEnterprisePoliciesFetchDuration.{Status}"
-    units="ms" expires_after="2025-08-19">
+    units="ms" expires_after="2026-04-01">
   <owner>jlebel@chromium.org</owner>
-  <owner>chrome-signin-team@google.com</owner>
+  <owner>chrome-signin-mobile-team@google.com</owner>
   <summary>
     This histogram records the time to load IsSubjectToEnterprisePolicies
     account capability.
 
     Recorded right after an account was added by the user action when {Status}.
+
+    Only logged on iOS.
   </summary>
   <token key="Status">
     <variant name="Failed" summary="add account failed"/>
@@ -756,36 +760,6 @@ prefs when the profile is loaded.  -->
     Records that sync was turned on while the user had account storage for
     bookmarks enabled. The record happens when the user opts in to sync.
   </summary>
-</histogram>
-
-<histogram name="Signin.Bookmarks.{ConsentLevel}.{BookmarkGroup}{AccessPoint}"
-    units="count" expires_after="2025-12-07">
-  <owner>rsult@google.com</owner>
-  <owner>droger@chromium.org</owner>
-  <owner>chrome-signin-team@google.com</owner>
-  <summary>
-    Recording the count of {BookmarkGroup}. The record happens when the user is
-    {ConsentLevel} Chrome via {AccessPoint} access point.
-  </summary>
-  <token key="ConsentLevel">
-    <variant name="OnSignin" summary="signing in to"/>
-    <variant name="OnSync" summary="enabling sync in"/>
-  </token>
-  <token key="BookmarkGroup">
-    <variant name="AllBookmarks" summary="all bookmarks"/>
-    <variant name="BookmarksBar"
-        summary="bookmarks in the main bar (only bookmarks on the first layer
-                 of the bar, folder counts as 1, disregarding sub-folder or
-                 bookmarks in folders)"/>
-  </token>
-  <token key="AccessPoint">
-    <variant name="" summary="any"/>
-    <variant name=".Other" summary="any other"/>
-    <variant name=".PreUnoWebSignin" summary="a regular web sign in (pre UNO)"/>
-    <variant name=".ProfileCreation" summary="any profile creation"/>
-    <variant name=".ProfileMenu" summary="the profile menu (avatar button)"/>
-    <variant name=".UnoSigninBubble" summary="the Chrome Signin bubble"/>
-  </token>
 </histogram>
 
 <histogram
@@ -1354,7 +1328,7 @@ prefs when the profile is loaded.  -->
 </histogram>
 
 <histogram name="Signin.ExplicitSigninMigration" enum="ExplicitSigninMigration"
-    expires_after="2025-11-02">
+    expires_after="2026-01-04">
   <owner>droger@chromium.org</owner>
   <owner>rsult@google.com</owner>
   <summary>
@@ -1439,29 +1413,6 @@ prefs when the profile is loaded.  -->
   </summary>
 </histogram>
 
-<histogram name="Signin.Extensions.{ConsentLevel}{AccessPoint}"
-    units="extensions" expires_after="2025-12-14">
-  <owner>rsult@google.com</owner>
-  <owner>droger@chromium.org</owner>
-  <owner>chrome-signin-team@google.com</owner>
-  <summary>
-    Recording the number of extensions enabled. The record happens when the user
-    is {ConsentLevel} Chrome via {AccessPoint} access point.
-  </summary>
-  <token key="ConsentLevel">
-    <variant name="OnSignin" summary="signing in to"/>
-    <variant name="OnSync" summary="enabling sync in"/>
-  </token>
-  <token key="AccessPoint">
-    <variant name="" summary="any"/>
-    <variant name=".Other" summary="any other"/>
-    <variant name=".PreUnoWebSignin" summary="a regular web sign in (pre UNO)"/>
-    <variant name=".ProfileCreation" summary="any profile creation"/>
-    <variant name=".ProfileMenu" summary="the profile menu (avatar button)"/>
-    <variant name=".UnoSigninBubble" summary="the Chrome Signin bubble"/>
-  </token>
-</histogram>
-
 <histogram name="Signin.GaiaCookieManager.Logout"
     enum="SigninGaiaCookieManagerLogout" expires_after="never">
 <!-- expires-never: monitors logout requests to http://accounts.google.com/Logout endpoint -->
@@ -1505,9 +1456,9 @@ prefs when the profile is loaded.  -->
 </histogram>
 
 <histogram name="Signin.GetAccountsBackoffRetries" units="retries"
-    expires_after="2025-08-08">
+    expires_after="2026-04-01">
   <owner>samarchehade@google.com</owner>
-  <owner>chrome-signin-team@google.com</owner>
+  <owner>chrome-signin-mobile-team@google.com</owner>
   <summary>
     Android only. The number of backoff retries necessary before fetching user
     accounts information from Google Play services succeeded. Recorded after
@@ -1544,7 +1495,7 @@ prefs when the profile is loaded.  -->
 </histogram>
 
 <histogram name="Signin.HistoryOptInState.{ConsentLevel}" enum="BooleanOptedIn"
-    expires_after="2025-11-02">
+    expires_after="2026-01-04">
   <owner>treib@google.com</owner>
   <owner>rsult@google.com</owner>
   <owner>droger@chromium.org</owner>
@@ -1602,7 +1553,7 @@ prefs when the profile is loaded.  -->
 </histogram>
 
 <histogram name="Signin.IdentityConfirmationSnackbarDecision"
-    enum="IdentityConfirmationSnackbarDecision" expires_after="2025-11-02">
+    enum="IdentityConfirmationSnackbarDecision" expires_after="2026-01-04">
   <owner>jlebel@chromium.org</owner>
   <owner>jood@google.com</owner>
   <owner>treib@chromium.org</owner>
@@ -2691,6 +2642,19 @@ OAuth Multilogin call. -->
   </summary>
 </histogram>
 
+<histogram name="Signin.ShowManageAccountFromGaia.BrowserType"
+    enum="ChromeBrowserType" expires_after="2026-05-01">
+  <owner>jlebel@chromium.org</owner>
+  <owner>chrome-signin-mobile-team@google.com</owner>
+  <summary>
+    Logs the browser type when the Gaia server triggers the manage account
+    dialog. Most likely, this is recorded when the user taps on a manage
+    accounts button in Google web site (like gmail, drive, etc…).
+
+    Only logged on iOS.
+  </summary>
+</histogram>
+
 <histogram
     name="Signin.ShowSigninCoordinatorWhenAlreadyPresent.DurationBetweenTwoSigninCoordinatorCreation"
     units="ms" expires_after="2025-08-03">
@@ -2706,7 +2670,7 @@ OAuth Multilogin call. -->
 
 <histogram
     name="Signin.ShowSigninCoordinatorWhenAlreadyPresent.{View}AccessPoint"
-    enum="SigninAccessPoint" expires_after="2025-11-02">
+    enum="SigninAccessPoint" expires_after="2026-01-04">
   <owner>arthurmilchior@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <owner>msarda@chromium.org</owner>

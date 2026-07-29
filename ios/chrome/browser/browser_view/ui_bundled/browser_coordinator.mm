@@ -126,6 +126,7 @@
 #import "ios/chrome/browser/infobars/model/infobar_ios.h"
 #import "ios/chrome/browser/infobars/model/infobar_manager_impl.h"
 #import "ios/chrome/browser/intelligence/bwg/coordinator/bwg_coordinator.h"
+#import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
 #import "ios/chrome/browser/intelligence/enhanced_calendar/coordinator/enhanced_calendar_coordinator.h"
 #import "ios/chrome/browser/intelligence/enhanced_calendar/model/enhanced_calendar_configuration.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
@@ -1458,7 +1459,8 @@ enum class ToolbarKind {
   [self.vcardCoordinator start];
 
   self.printCoordinator =
-      [[PrintCoordinator alloc] initWithBaseViewController:self.viewController];
+      [[PrintCoordinator alloc] initWithBaseViewController:self.viewController
+                                                   browser:self.browser];
   // Updates the printControllar value inside tabLifecycleMediator.
   self.tabLifecycleMediator.printCoordinator = self.printCoordinator;
 
@@ -2377,7 +2379,8 @@ enum class ToolbarKind {
     snapshotView.frame = contentArea.frame;
   }
 
-  webStateList->CloseWebStateAt(active_index, WebStateList::CLOSE_USER_ACTION);
+  webStateList->CloseWebStateAt(active_index,
+                                WebStateList::ClosingReason::kUserAction);
 
   if (!canShowTabStrip) {
     [contentArea addSubview:snapshotView];
@@ -2570,7 +2573,7 @@ enum class ToolbarKind {
   _contextualPanelEntrypointHelpPresenter.ignoreWebContentAreaInteractions =
       YES;
   _contextualPanelEntrypointHelpPresenter.customBubbleVisibilityDuration =
-      LargeContextualPanelEntrypointDisplayedInSeconds();
+      config_ref.GetLargeEntrypointDisplayedDuration().InSecondsF();
 
   // Early return if the bubble wouldn't fit in its parent view.
   if (![_contextualPanelEntrypointHelpPresenter
@@ -2817,9 +2820,11 @@ enum class ToolbarKind {
 }
 
 - (void)hideFindUI {
+  web::WebState* activeWebState = self.activeWebState;
+  if (!activeWebState) {
+    return;
+  }
   if (IsNativeFindInPageAvailable()) {
-    web::WebState* activeWebState = self.activeWebState;
-    DCHECK(activeWebState);
     auto* helper = FindTabHelper::FromWebState(activeWebState);
     helper->DismissFindNavigator();
   } else {
@@ -2952,17 +2957,17 @@ enum class ToolbarKind {
 
 #pragma mark - BWGCommands
 
-- (void)startBWGFlow {
-  _BWGCoordinator = [[BWGCoordinator alloc]
-      initWithBaseViewController:self.viewController
-                         browser:self.browser
-                  fromEntryPoint:bwg::EntryPointOverflow];
+- (void)startBWGFlowWithEntryPoint:(bwg::EntryPoint)entryPoint {
+  _BWGCoordinator =
+      [[BWGCoordinator alloc] initWithBaseViewController:self.viewController
+                                                 browser:self.browser
+                                          fromEntryPoint:entryPoint];
   _BWGCoordinator.promosUIHandler = self.promosManagerCoordinator;
   [_BWGCoordinator start];
 }
 
-- (void)dismissBWGFlow {
-  [_BWGCoordinator stop];
+- (void)dismissBWGFlowWithCompletion:(ProceduralBlock)completion {
+  [_BWGCoordinator stopWithCompletion:completion];
   _BWGCoordinator = nil;
 }
 
@@ -3064,12 +3069,7 @@ enum class ToolbarKind {
     BOOL isNTP = NTPHelper && NTPHelper->IsActive();
 
     if (!isNTP) {
-      _BWGCoordinator = [[BWGCoordinator alloc]
-          initWithBaseViewController:self.viewController
-                             browser:self.browser
-                      fromEntryPoint:bwg::EntryPointPromo];
-      _BWGCoordinator.promosUIHandler = self.promosManagerCoordinator;
-      [_BWGCoordinator start];
+      [self startBWGFlowWithEntryPoint:bwg::EntryPoint::Promo];
     }
   }
 }
@@ -3667,7 +3667,8 @@ enum class ToolbarKind {
 
   int index = GetWebStateIndex(webStateList, searchCriteria);
   if (index != WebStateList::kInvalidIndex) {
-    webStateList->CloseWebStateAt(index, WebStateList::CLOSE_USER_ACTION);
+    webStateList->CloseWebStateAt(index,
+                                  WebStateList::ClosingReason::kUserAction);
   }
   _lastTabClosingAlert = nil;
 }
@@ -4503,9 +4504,9 @@ enum class ToolbarKind {
   [_quickDeleteCoordinator stop];
 
   _quickDeleteCoordinator = [[QuickDeleteCoordinator alloc]
-          initWithBaseViewController:top_view_controller::
-                                         TopPresentedViewControllerFrom(
-                                             self.sceneState.rootViewController)
+          initWithBaseViewController:
+              top_view_controller::TopPresentedViewControllerFrom(
+                  self.sceneState.window.rootViewController)
                              browser:self.browser
       canPerformTabsClosureAnimation:canPerformTabsClosureAnimation];
   [_quickDeleteCoordinator start];

@@ -37,9 +37,11 @@ import org.chromium.content_public.browser.WebContents;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * This is the implementation of the synchronous {@link TabModel} for the {@link
@@ -78,12 +80,14 @@ public class TabModelImpl extends TabModelJniBridge {
     private final ObservableSupplierImpl<Integer> mTabCountSupplier =
             new ObservableSupplierImpl<>();
     private final boolean mIsArchivedTabModel;
+    private final Set<Integer> mMultiSelectedTabs = new HashSet<>();
 
     /** This specifies the current {@link Tab} in {@link #mTabs}. */
     private int mIndex = INVALID_TAB_INDEX;
 
     private boolean mActive;
     private boolean mInitializationComplete;
+    private final PinnedTabReorderManager mPinnedTabReorderManager = new PinnedTabReorderManager();
 
     // Undo State Tracking -------------------------------------------------------------------------
 
@@ -99,7 +103,7 @@ public class TabModelImpl extends TabModelJniBridge {
             if (mIndex >= insertIndex) mIndex++;
             assert !tab.isDestroyed() : "Attempting to undo tab that is destroyed.";
             mTabs.add(insertIndex, tab);
-            tab.onAddedToTabModel(mCurrentTabSupplier);
+            tab.onAddedToTabModel(mCurrentTabSupplier, TabModelImpl.this::isTabMultiSelected);
             mTabIdToTabs.put(tab.getId(), tab);
             mTabCountSupplier.set(mTabs.size());
 
@@ -153,6 +157,36 @@ public class TabModelImpl extends TabModelJniBridge {
             if (undoRunnable != null) {
                 undoRunnable.run();
             }
+        }
+    }
+
+    /** Manages the order of pinned tabs in the tab model. */
+    private class PinnedTabReorderManager {
+        /**
+         * Returns the index of the first non-pinned tab in the model.
+         *
+         * @return The index of the first non-pinned tab, or {@link TabModel#INVALID_TAB_INDEX} if
+         *     all tabs are pinned or the model is empty.
+         */
+        int findFirstNonPinnedTabIndex() {
+            int low = 0;
+            int high = mTabs.size() - 1;
+            int firstNonPinnedIndex = INVALID_TAB_INDEX;
+
+            while (low <= high) {
+                int mid = low + (high - low) / 2;
+                Tab tab = mTabs.get(mid);
+                if (tab.getIsPinned()) {
+                    // The first non-pinned tab must be after this index.
+                    low = mid + 1;
+                } else {
+                    // This might be the first non-pinned tab, but there might be an earlier one.
+                    firstNonPinnedIndex = mid;
+                    high = mid - 1;
+                }
+            }
+
+            return firstNonPinnedIndex;
         }
     }
 
@@ -306,7 +340,7 @@ public class TabModelImpl extends TabModelJniBridge {
                     mIndex++;
                 }
             }
-            tab.onAddedToTabModel(mCurrentTabSupplier);
+            tab.onAddedToTabModel(mCurrentTabSupplier, this::isTabMultiSelected);
             mTabIdToTabs.put(tab.getId(), tab);
             mTabCountSupplier.set(mTabs.size());
 
@@ -373,12 +407,35 @@ public class TabModelImpl extends TabModelJniBridge {
 
     @Override
     public void pinTab(int tabId) {
-        // TODO(crbug.com/426530785): Implement this method.
+        int availableIndex = mPinnedTabReorderManager.findFirstNonPinnedTabIndex();
+        if (availableIndex == INVALID_TAB_INDEX) return;
+
+        Tab tab = getTabById(tabId);
+        if (tab == null) return;
+
+        moveTab(tab.getId(), availableIndex);
+
+        notifyWillChangeInPinState(tab);
+        tab.setIsPinned(true);
+        notifyDidChangeInPinState(tab);
     }
 
     @Override
     public void unpinTab(int tabId) {
-        // TODO(crbug.com/426530785): Implement this method.
+        int nextAvailableIndex = mPinnedTabReorderManager.findFirstNonPinnedTabIndex();
+        if (nextAvailableIndex == INVALID_TAB_INDEX) {
+            nextAvailableIndex = mTabs.size();
+        }
+        Tab tab = getTabById(tabId);
+        if (tab == null) return;
+
+        // The index before the first non-pinned tab is the last pinned tab. Hence move the tab to
+        // the last pinned tab.
+        moveTab(tab.getId(), nextAvailableIndex - 1);
+
+        notifyWillChangeInPinState(tab);
+        tab.setIsPinned(false);
+        notifyDidChangeInPinState(tab);
     }
 
     @Override
@@ -729,13 +786,15 @@ public class TabModelImpl extends TabModelJniBridge {
             }
 
             Tab tab = TabModelUtils.getCurrentTab(this);
-
             mModelDelegate.requestToShowTab(tab, type);
-
             mCurrentTabSupplier.set(tab);
             if (tab != null) {
-                for (TabModelObserver obs : mObservers) obs.didSelectTab(tab, type, lastId);
-
+                for (TabModelObserver obs : mObservers) {
+                    obs.didSelectTab(tab, type, lastId);
+                    // Required, otherwise the previously active tab will have MULTISELECTED as its
+                    // VisualState.
+                    obs.onTabSelectionChanged();
+                }
                 boolean wasAlreadySelected = tab.getId() == lastId;
                 if (!wasAlreadySelected && type == TabSelectionType.FROM_USER) {
                     // We only want to record when the user actively switches to a different tab.
@@ -994,5 +1053,50 @@ public class TabModelImpl extends TabModelJniBridge {
         for (TabModelObserver obs : mObservers) {
             obs.onFinishingMultipleTabClosure(tabs, saveToTabRestoreService);
         }
+    }
+
+    /**
+     * Notifies observers that the pin state of the given tab will change.
+     *
+     * @param tab The tab whose pin state will change.
+     */
+    private void notifyWillChangeInPinState(Tab tab) {
+        for (TabModelObserver obs : mObservers) {
+            obs.willChangePinState(tab);
+        }
+    }
+
+    /**
+     * Notifies observers that the pin state of the given tab has changed.
+     *
+     * @param tab The tab whose pin state has changed.
+     */
+    private void notifyDidChangeInPinState(Tab tab) {
+        for (TabModelObserver obs : mObservers) {
+            obs.didChangePinState(tab);
+        }
+    }
+
+    @Override
+    public void setTabsMultiSelected(Set<Integer> tabIds, boolean isSelected) {
+        TabModelImplUtil.setTabsMultiSelected(tabIds, isSelected, mMultiSelectedTabs, mObservers);
+    }
+
+    @Override
+    public void clearMultiSelection(boolean notifyObservers) {
+        TabModelImplUtil.clearMultiSelection(notifyObservers, mMultiSelectedTabs, mObservers);
+    }
+
+    @Override
+    public boolean isTabMultiSelected(int tabId) {
+        return TabModelImplUtil.isTabMultiSelected(tabId, mMultiSelectedTabs, this);
+    }
+
+    @Override
+    public int getMultiSelectedTabsCount() {
+        if (mTabs.isEmpty()) return 0;
+        // If no other tabs are in multi-selection, this returns 1, as the active tab is always
+        // considered selected.
+        return mMultiSelectedTabs.isEmpty() ? 1 : mMultiSelectedTabs.size();
     }
 }

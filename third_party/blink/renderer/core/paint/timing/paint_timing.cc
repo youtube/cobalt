@@ -308,7 +308,10 @@ void PaintTiming::MarkPaintTimingInternal() {
              SoftNavigationHeuristics* soft_navigation_heuristics,
              const base::TimeTicks& raw_presentation_timestamp,
              const DOMPaintTimingInfo& paint_timing_info) {
-            if (!performance) {
+            // If the frame was detached between scheduling the coarsening task
+            // and running it, do nothing. This matches the non-coarsening case,
+            // which already checks detach via `GetPerformanceInstance()`.
+            if (!performance || !performance->GetExecutionContext()) {
               return;
             }
 
@@ -428,10 +431,10 @@ void PaintTiming::MarkPaintTimingInternal() {
                   .InMillisecondsF();
         }
 
-        auto flush =
-            BindOnce(std::move(flush_paint_timings),
-                     frame_timing_details.presentation_feedback.timestamp,
-                     paint_timing_info);
+        auto flush = blink::BindOnce(
+            std::move(flush_paint_timings),
+            frame_timing_details.presentation_feedback.timestamp,
+            paint_timing_info);
 
         if (coarsen) {
           // 12.3.2 Wait until the current high resolution time is

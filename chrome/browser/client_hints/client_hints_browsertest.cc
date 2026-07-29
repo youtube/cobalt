@@ -2200,11 +2200,20 @@ IN_PROC_BROWSER_TEST_F(ClientHintsBrowserTest, Default) {
                                     update_event_count);
 
   // One fetch when initially add the client hints head, one fetch for look up
-  // commit client hints when navigation commits.
-  histogram_tester.ExpectTotalCount("ClientHints.FetchLatency_Total", 2);
-  histogram_tester.ExpectTotalCount("ClientHints.FetchLatency_PrefRead", 2);
+  // commit client hints when navigation commits. When
+  // kOffloadAcceptCHFrameCheck is enabled, an additional fetch is performed
+  // from the URLLoader during resource request creation.
+  const int expected_fetch_count =
+      base::FeatureList::IsEnabled(
+          network::features::kOffloadAcceptCHFrameCheck)
+          ? 3
+          : 2;
+  histogram_tester.ExpectTotalCount("ClientHints.FetchLatency_Total",
+                                    expected_fetch_count);
+  histogram_tester.ExpectTotalCount("ClientHints.FetchLatency_PrefRead",
+                                    expected_fetch_count);
   histogram_tester.ExpectTotalCount("ClientHints.FetchLatency_PrerenderHost",
-                                    2);
+                                    expected_fetch_count);
   histogram_tester.ExpectTotalCount("ClientHints.FetchLatency_OriginTrialCheck",
                                     0);
 
@@ -4808,40 +4817,6 @@ IN_PROC_BROWSER_TEST_F(ClientHintsBrowserTest, UpdatedGREASEByDefault) {
   std::string ua_ch_result = main_frame_ua_observed();
 
   ASSERT_TRUE(SawUpdatedGrease(ua_ch_result) && !SawOldGrease(ua_ch_result));
-}
-
-class XRClientHintsTest : public ClientHintsBrowserTest {
-  // Enables ClientHintsXRFormFactor feature in addition to the default ones.
-  void SetUpScopedFeatureList(
-      base::test::ScopedFeatureList& scoped_feature_list) override {
-    std::unique_ptr<base::FeatureList> feature_list(new base::FeatureList);
-    feature_list->InitFromCommandLine(
-        base::StrCat({kDefaultFeatures, ",ClientHintsXRFormFactor"}), "");
-    scoped_feature_list.InitWithFeatureList(std::move(feature_list));
-  }
-};
-
-// Tests that form_factors client hints include "XR" when
-// ClientHintsXRFormFactor is enabled.
-IN_PROC_BROWSER_TEST_F(XRClientHintsTest, UAHintsXRMode) {
-  const GURL gurl = accept_ch_url();
-
-  // First request: no high-entropy hints send in the request header because we
-  // don't know server preferences.
-  SetClientHintExpectationsOnMainFrame(false);
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), gurl));
-  EXPECT_TRUE(main_frame_ua_form_factors_observed().empty());
-
-  // Send request: we should expect the high-entropy client hints send in the
-  // request header.
-  SetClientHintExpectationsOnMainFrame(true);
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), gurl));
-
-  auto form_factors =
-      base::SplitString(main_frame_ua_form_factors_observed(), ",",
-                        base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
-  EXPECT_TRUE(base::Contains(form_factors, "\"XR\""))
-      << main_frame_ua_form_factors_observed();
 }
 
 // Tests that user-agent reduction on a redirect request.

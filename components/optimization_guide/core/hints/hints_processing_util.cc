@@ -185,9 +185,13 @@ std::string GetStringNameForOptimizationType(
       return "FedCmClickthroughRate";
     case proto::OptimizationType::DIGITAL_CREDENTIALS_LOW_FRICTION:
       return "DigitalCredentialsLowFriction";
+    case proto::OptimizationType::A2A_MERCHANT_ALLOWLIST:
+      return "A2AMerchantAllowlist";
     case proto::OptimizationType::
         SHARED_CREDIT_CARD_FLAT_RATE_BENEFITS_BLOCKLIST:
       return "SharedCreditCardFlatRateBenefitBlocklist";
+    case proto::OptimizationType::WALLETABLE_PASS_DETECTION_ALLOWLIST:
+      return "WalletablePassDetectionAllowlist";
   }
 
   // The returned string is used to record histograms for the optimization type.

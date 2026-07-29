@@ -37,6 +37,7 @@ import org.chromium.chrome.browser.tab_ui.TabContentManager;
 import org.chromium.chrome.browser.tab_ui.TabContentManagerThumbnailProvider;
 import org.chromium.chrome.browser.tab_ui.TabThumbnailView;
 import org.chromium.chrome.browser.tab_ui.ThumbnailProvider;
+import org.chromium.chrome.browser.tab_ui.ThumbnailProvider.MultiThumbnailMetadata;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tasks.tab_management.MultiThumbnailCardProvider;
@@ -197,7 +198,15 @@ public class StripDragShadowView extends FrameLayout {
 
         mFaviconUpdateTabObserver = getFaviconUpdateTabObserver();
         tab.addObserver(mFaviconUpdateTabObserver);
-        prepareForDrag(mSingleThumbnailCardProvider, tab, sourceWidthPx);
+        prepareForDrag(
+                mSingleThumbnailCardProvider,
+                tab,
+                MultiThumbnailMetadata.createMetadataWithoutUrls(
+                        tab.getId(),
+                        /* isInTabGroup= */ false,
+                        isIncognito,
+                        /* tabGroupColor= */ null),
+                sourceWidthPx);
     }
 
     /**
@@ -244,10 +253,19 @@ public class StripDragShadowView extends FrameLayout {
         // Clear the tab favicon if needed
         mFaviconView.setImageBitmap(null);
 
-        prepareForDrag(mMultiThumbnailCardProvider, tab, sourceWidthPx);
+        prepareForDrag(
+                mMultiThumbnailCardProvider,
+                tab,
+                MultiThumbnailMetadata.createMetadataWithoutUrls(
+                        tab.getId(), /* isInTabGroup= */ true, isIncognito, colorId),
+                sourceWidthPx);
     }
 
-    private void prepareForDrag(ThumbnailProvider thumbnailProvider, Tab tab, int sourceWidthPx) {
+    private void prepareForDrag(
+            ThumbnailProvider thumbnailProvider,
+            Tab tab,
+            MultiThumbnailMetadata metadata,
+            int sourceWidthPx) {
         mTab = tab;
         mSourceWidthPx = sourceWidthPx;
 
@@ -268,7 +286,7 @@ public class StripDragShadowView extends FrameLayout {
         // Request the thumbnail.
         Size thumbnailSize = TabUtils.deriveThumbnailSize(cardSize, getContext());
         thumbnailProvider.getTabThumbnailWithCallback(
-                tab.getId(),
+                metadata,
                 thumbnailSize,
                 /* isSelected= */ false,
                 result -> {
@@ -281,7 +299,7 @@ public class StripDragShadowView extends FrameLayout {
                     mShadowUpdateHost.requestUpdate();
                 });
         mThumbnailView.updateThumbnailPlaceholder(
-                tab.isIncognitoBranded(), /* isSelected= */ false, /* colorId */ null);
+                tab.isIncognitoBranded(), /* isSelected= */ false, /* colorId= */ null);
     }
 
     /** Clear state on tab drag end. */

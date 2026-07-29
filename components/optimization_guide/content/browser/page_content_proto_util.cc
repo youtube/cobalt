@@ -40,6 +40,12 @@ optimization_guide::proto::ClickabilityReason ConvertClickabilityReason(
       return optimization_guide::proto::CLICKABILITY_REASON_CURSOR_POINTER;
     case blink::mojom::AIPageContentClickabilityReason::kAriaRole:
       return optimization_guide::proto::CLICKABILITY_REASON_ARIA_ROLE;
+    case blink::mojom::AIPageContentClickabilityReason::kAriaHasPopup:
+      return optimization_guide::proto::CLICKABILITY_REASON_ARIA_HAS_POPUP;
+    case blink::mojom::AIPageContentClickabilityReason::kAriaExpandedTrue:
+      return optimization_guide::proto::CLICKABILITY_REASON_ARIA_EXPANDED_TRUE;
+    case blink::mojom::AIPageContentClickabilityReason::kAriaExpandedFalse:
+      return optimization_guide::proto::CLICKABILITY_REASON_ARIA_EXPANDED_FALSE;
   }
   NOTREACHED();
 }
@@ -170,29 +176,22 @@ void ConvertNodeInteractionInfo(
     ConvertScrollerInfo(*mojom_node_interaction_info.scroller_info,
                         proto_interaction_info->mutable_scroller_info());
   }
-  proto_interaction_info->set_is_selectable(
-      mojom_node_interaction_info.is_selectable);
-  proto_interaction_info->set_is_editable(
-      mojom_node_interaction_info.is_editable);
-  proto_interaction_info->set_can_resize_horizontal(
-      mojom_node_interaction_info.can_resize_horizontal);
-  proto_interaction_info->set_can_resize_vertical(
-      mojom_node_interaction_info.can_resize_vertical);
-  proto_interaction_info->set_is_focusable(
-      mojom_node_interaction_info.is_focusable);
-  proto_interaction_info->set_is_draggable(
-      mojom_node_interaction_info.is_draggable);
   proto_interaction_info->set_is_clickable(
       mojom_node_interaction_info.is_clickable);
+  proto_interaction_info->set_is_focusable(
+      mojom_node_interaction_info.is_focusable);
 
   if (mojom_node_interaction_info.document_scoped_z_order) {
     proto_interaction_info->set_document_scoped_z_order(
         *mojom_node_interaction_info.document_scoped_z_order);
   }
 
-  for (const auto& reason :
-       mojom_node_interaction_info.debug_clickability_reasons) {
+  for (const auto& reason : mojom_node_interaction_info.clickability_reasons) {
+    // TODO(khushalsagar): Remove this once consumers move to the new field.
     proto_interaction_info->add_debug_clickability_reasons(
+        ConvertClickabilityReason(reason));
+
+    proto_interaction_info->add_clickability_reasons(
         ConvertClickabilityReason(reason));
   }
 }

@@ -18,6 +18,8 @@
 #include "base/time/time.h"
 #include "base/types/expected.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
+#include "chrome/browser/actor/browser_action_util.h"
+#include "chrome/browser/actor/tools/tool_request.h"
 #include "chrome/browser/actor/ui/actor_ui_state_manager_interface.h"
 #include "chrome/browser/contextual_cueing/contextual_cueing_service.h"
 #include "chrome/browser/contextual_cueing/contextual_cueing_service_factory.h"
@@ -46,6 +48,7 @@
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
+#include "chrome/common/actor/action_result.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_switches.h"
 #include "components/guest_view/browser/guest_view_base.h"
@@ -58,6 +61,7 @@
 #include "mojo/public/cpp/base/proto_wrapper.h"
 #include "mojo/public/cpp/bindings/callback_helpers.h"
 #include "net/log/net_log_with_source.h"
+#include "third_party/abseil-cpp/absl/strings/str_format.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/views/widget/widget.h"
@@ -326,12 +330,6 @@ void GlicKeyedService::CreateTab(
 }
 
 void GlicKeyedService::ClosePanel() {
-  if (base::FeatureList::IsEnabled(features::kGlicActorUiStateManager)) {
-    actor::ui::ActorUiStateManagerInterface* actor_ui_state_manager =
-        actor::ActorKeyedService::Get(profile_)->GetActorUiStateManager();
-    actor_ui_state_manager->MaybeShowToast();
-  }
-
   window_controller_->Close();
   SetContextAccessIndicator(false);
   screenshot_capturer_->CloseScreenPicker();
@@ -377,8 +375,11 @@ void GlicKeyedService::CreateTask(
 
 void PerformActionsFinished(
     mojom::WebClientHandler::PerformActionsCallback callback,
-    optimization_guide::proto::ActionsResult actions_results) {
-  std::move(callback).Run(mojo_base::ProtoWrapper(actions_results));
+    actor::mojom::ActionResultCode result_code,
+    std::optional<size_t> index_of_failed_action) {
+  optimization_guide::proto::ActionsResult response =
+      actor::BuildActionsResult(result_code, index_of_failed_action);
+  std::move(callback).Run(mojo_base::ProtoWrapper(response));
 }
 
 void GlicKeyedService::PerformActions(
@@ -391,8 +392,31 @@ void GlicKeyedService::PerformActions(
     return;
   }
 
-  actor::ActorKeyedService::Get(profile_)->PerformActions(
-      std::move(actions),
+  if (!actions.has_task_id()) {
+    std::move(callback).Run(
+        base::unexpected(mojom::PerformActionsErrorReason::kMissingTaskId));
+    return;
+  }
+
+  actor::TaskId task_id(actions.task_id());
+  auto* actor_service = actor::ActorKeyedService::Get(profile_);
+
+  actor::BuildToolRequestResult requests = actor::BuildToolRequest(actions);
+  if (!requests.has_value()) {
+    actor_service->GetJournal().Log(
+        GURL::EmptyGURL(), task_id, "Act Failed",
+        absl::StrFormat("Failed to convert proto::Actions[%d] to ToolRequest",
+                        requests.error()));
+    optimization_guide::proto::ActionsResult response =
+        actor::BuildActionsResult(
+            actor::mojom::ActionResultCode::kArgumentsInvalid,
+            requests.error());
+    std::move(callback).Run(mojo_base::ProtoWrapper(response));
+    return;
+  }
+
+  actor_service->PerformActions(
+      task_id, std::move(requests.value()),
       base::BindOnce(PerformActionsFinished, std::move(callback)));
 }
 
@@ -414,9 +438,21 @@ void GlicKeyedService::ActInFocusedTab(
   }
 
   CHECK(actor_controller_);
+
+  auto* actor_service = actor::ActorKeyedService::Get(profile_);
+  CHECK(actor_service);
+
+  actor::ActorTask* task = actor_service->GetMostRecentTask();
+  if (task && (!action.has_task_id() || action.task_id() == 0)) {
+    action.set_task_id(task->id().value());
+  }
+
   actor_controller_->Act(action, options, std::move(callback));
 }
 
+// TODO(crbug.com/411462297): Stop/Pause/Resume task need to be routed to go
+// through the ActorKeyedService, rather than the deprecated ActorController
+// which ignores the task_id.
 void GlicKeyedService::StopActorTask(actor::TaskId task_id) {
   CHECK(base::FeatureList::IsEnabled(features::kGlicActor));
   CHECK(actor_controller_);
@@ -463,18 +499,6 @@ void GlicKeyedService::OnResponseStopped() {
   if (actor_controller_) {
     actor_controller_->OnResponseStopped();
   }
-}
-
-bool GlicKeyedService::IsExecutionEngineActingOnTab(
-    const content::WebContents* tab) const {
-  return actor_controller_ &&
-         actor_controller_->IsExecutionEngineActingOnTab(tab);
-}
-
-actor::ExecutionEngine& GlicKeyedService::GetExecutionEngineForTesting(
-    tabs::TabInterface* tab) {
-  CHECK(actor_controller_);
-  return actor_controller_->GetExecutionEngineForTesting(tab);  // IN-TEST
 }
 
 void GlicKeyedService::CaptureScreenshot(

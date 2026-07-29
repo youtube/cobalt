@@ -5,12 +5,15 @@
 #ifndef CHROME_BROWSER_EXTENSIONS_API_TABS_TABS_API_H_
 #define CHROME_BROWSER_EXTENSIONS_API_TABS_TABS_API_H_
 
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ref.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/values.h"
+#include "chrome/browser/extensions/window_controller.h"
 #include "chrome/common/extensions/api/tabs.h"
 #include "components/translate/core/browser/translate_driver.h"
 #include "components/zoom/zoom_controller.h"
@@ -47,6 +50,34 @@ class PrefRegistrySyncable;
 }
 
 namespace extensions {
+
+// A helper class to extract popular properties from different arguments.
+// TODO(devlin): Move this to the .cc file when it's no longer needed in
+// multiple .cc's (tabs_api_non_android.cc and tabs_api.cc).
+template <typename T>
+class ApiParameterExtractor {
+ public:
+  explicit ApiParameterExtractor(std::optional<T>& params) : params_(*params) {}
+  ~ApiParameterExtractor() = default;
+
+  bool populate_tabs() {
+    if (params_->query_options && params_->query_options->populate) {
+      return *params_->query_options->populate;
+    }
+    return false;
+  }
+
+  WindowController::TypeFilter type_filters() {
+    if (params_->query_options && params_->query_options->window_types) {
+      return WindowController::GetFilterFromWindowTypes(
+          *params_->query_options->window_types);
+    }
+    return WindowController::kNoWindowFilter;
+  }
+
+ private:
+  raw_ref<T> params_;
+};
 
 // Converts a ZoomMode to its ZoomSettings representation.
 void ZoomModeToZoomSettings(zoom::ZoomController::ZoomMode zoom_mode,
@@ -114,6 +145,10 @@ class TabsQueryFunction : public ExtensionFunction {
   ~TabsQueryFunction() override = default;
   ResponseAction Run() override;
   DECLARE_EXTENSION_FUNCTION("tabs.query", TABS_QUERY)
+#if BUILDFLAG(IS_ANDROID)
+  ResponseAction GetTabsMatchingUrl(const api::tabs::Query::Params& params);
+  ResponseAction GetActiveTab(const api::tabs::Query::Params& params);
+#endif  // BUILDFLAG(IS_ANDROID)
 };
 class TabsCreateFunction : public ExtensionFunction {
   ~TabsCreateFunction() override = default;
@@ -174,15 +209,18 @@ class TabsRemoveFunction : public ExtensionFunction {
   void TabDestroyed();
 
  private:
-  class WebContentsDestroyedObserver;
   ~TabsRemoveFunction() override;
   ResponseAction Run() override;
   bool RemoveTab(int tab_id, std::string* error);
 
   int remaining_tabs_count_ = 0;
   bool triggered_all_tab_removals_ = false;
+
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+  class WebContentsDestroyedObserver;
   std::vector<std::unique_ptr<WebContentsDestroyedObserver>>
       web_contents_destroyed_observers_;
+#endif
   DECLARE_EXTENSION_FUNCTION("tabs.remove", TABS_REMOVE)
 };
 class TabsGroupFunction : public ExtensionFunction {
@@ -204,6 +242,7 @@ class TabsDetectLanguageFunction
   ~TabsDetectLanguageFunction() override = default;
   ResponseAction Run() override;
 
+#if BUILDFLAG(ENABLE_EXTENSIONS)
   // content::WebContentsObserver:
   void NavigationEntryCommitted(
       const content::LoadCommittedDetails& load_details) override;
@@ -220,13 +259,16 @@ class TabsDetectLanguageFunction
   // Indicates if this instance is observing the tabs' WebContents and the
   // ContentTranslateDriver, in which case the observers must be unregistered.
   bool is_observing_ = false;
+#endif
 
   DECLARE_EXTENSION_FUNCTION("tabs.detectLanguage", TABS_DETECTLANGUAGE)
 };
 
-class TabsCaptureVisibleTabFunction
-    : public extensions::WebContentsCaptureClient,
-      public ExtensionFunction {
+class TabsCaptureVisibleTabFunction :
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+    public extensions::WebContentsCaptureClient,
+#endif
+    public ExtensionFunction {
  public:
   TabsCaptureVisibleTabFunction();
 
@@ -243,8 +285,10 @@ class TabsCaptureVisibleTabFunction
 
   // ExtensionFunction implementation.
   ResponseAction Run() override;
+#if BUILDFLAG(ENABLE_EXTENSIONS)
   void GetQuotaLimitHeuristics(QuotaLimitHeuristics* heuristics) const override;
   bool ShouldSkipQuotaLimiting() const override;
+#endif
 
  protected:
   ~TabsCaptureVisibleTabFunction() override = default;
@@ -252,7 +296,6 @@ class TabsCaptureVisibleTabFunction
  private:
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   ChromeExtensionFunctionDetails chrome_details_;
-#endif
 
   content::WebContents* GetWebContentsForID(int window_id, std::string* error);
 
@@ -262,6 +305,7 @@ class TabsCaptureVisibleTabFunction
   bool ClientAllowsTransparency() override;
   void OnCaptureSuccess(const SkBitmap& bitmap) override;
   void OnCaptureFailure(CaptureResult result) override;
+#endif
 
   void EncodeBitmapOnWorkerThread(
       scoped_refptr<base::TaskRunner> reply_task_runner,
@@ -271,7 +315,9 @@ class TabsCaptureVisibleTabFunction
  private:
   DECLARE_EXTENSION_FUNCTION("tabs.captureVisibleTab", TABS_CAPTUREVISIBLETAB)
 
+#if BUILDFLAG(ENABLE_EXTENSIONS)
   static std::string CaptureResultToErrorMessage(CaptureResult result);
+#endif
 
   static bool disable_throttling_for_test_;
 };
@@ -297,10 +343,10 @@ class ExecuteCodeInTabFunction : public ExecuteCodeFunction {
  private:
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   const ChromeExtensionFunctionDetails chrome_details_;
-#endif
 
   // Id of tab which executes code.
   int execute_tab_id_;
+#endif
 };
 
 class TabsExecuteScriptFunction : public ExecuteCodeInTabFunction {

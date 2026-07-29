@@ -104,6 +104,7 @@
         "PseudoElementCreated",
         "TopLayerElementsChanged",
         "PseudoElementDestroyed",
+        "WillHidePopover",
         "WillModifyDOMAttr",
         "WillPopShadowRoot",
         "WillRemoveDOMNode",
@@ -148,6 +149,7 @@
     InspectorEmulationAgent: {
       probes: [
         "ApplyAcceptLanguageOverride",
+        "ApplyDataSaverOverride",
         "ApplyHardwareConcurrencyOverride",
         "ApplyUserAgentOverride",
         "ApplyUserAgentMetadataOverride",

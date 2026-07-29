@@ -6,6 +6,7 @@
 
 #include "base/feature_list.h"
 #include "base/metrics/field_trial_params.h"
+#include "third_party/blink/public/common/features.h"
 
 namespace features {
 
@@ -175,6 +176,21 @@ BASE_FEATURE(kEnableDevToolsJsErrorReporting,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 
+// When enabled, enforces that same-document navigations must not change
+// the committed origin, insecure request policy, or insecure navigations set.
+// Any mismatch will result in a renderer kill via bad_message handling.
+//
+// This defends against renderer misbehavior and session history corruption,
+// and helps catch violations of same-document invariants.
+//
+// This feature acts as a kill switch for https://crbug.com/40580002.
+//
+// Note: This feature remains disabled if
+// blink::features::kTreatMhtmlInitialDocumentLoadsAsCrossDocument is disabled.
+BASE_FEATURE(kEnforceSameDocumentOriginInvariants,
+             "EnforceSameDocumentOriginInvariants",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Content counterpart of ExperimentalContentSecurityPolicyFeatures in
 // third_party/blink/renderer/platform/runtime_enabled_features.json5. Enables
 // experimental Content Security Policy features ('navigate-to').
@@ -339,6 +355,12 @@ BASE_FEATURE_PARAM(size_t,
                    &kMultipleSpareRPHs,
                    "count",
                    1u);
+
+// When enabled, NavigationThrottleRegistry will cache attribute query results
+// for the next same query. See https://crbug.com/424460302.
+BASE_FEATURE(kNavigationThrottleRegistryAttributeCache,
+             "NavigationThrottleRegistryAttributeCache",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // This feature enables Permissions Policy verification in the Browser process
 // in content/. Additionally only for //chrome Permissions Policy verification
@@ -521,6 +543,15 @@ BASE_FEATURE(kSkipGrantAccessToDataPathIfAlreadySet,
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
+#if BUILDFLAG(IS_ANDROID)
+// When enabled, ensure high-rank processes are on the LRU list while app is in
+// background or the effective binding state is in conflict with low rank
+// processes.
+BASE_FEATURE(kStrictHighRankProcessLRU,
+             "StrictHighRankProcessLRU",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
+
 #if BUILDFLAG(IS_MAC)
 BASE_FEATURE(kTextInputClient,
              "TextInputClient",
@@ -545,6 +576,16 @@ BASE_FEATURE(kTrustedTypesFromLiteral,
              "TrustedTypesFromLiteral",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Optimize DirectManipulationHelper by updating its event handler when the
+// window parent changes instead of tearing down and recreating the whole
+// helper. This is a temporary flag to test the performance impact of the
+// optimization.
+#if BUILDFLAG(IS_WIN)
+BASE_FEATURE(kUpdateDirectManipulationHelperOnParentChange,
+             "UpdateDirectManipulationHelperOnParentChange",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
+
 // Validate the code signing identity of the network process before establishing
 // a Mojo connection with it.
 #if BUILDFLAG(IS_MAC)
@@ -568,7 +609,12 @@ BASE_FEATURE(kWebAssemblyDynamicTiering,
 // Enables in-process resource loading for WebUI renderer processes.
 BASE_FEATURE(kWebUIInProcessResourceLoading,
              "WebUIInProcessResourceLoading",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+#if BUILDFLAG(IS_ANDROID)
+             base::FEATURE_DISABLED_BY_DEFAULT
+#else
+             base::FEATURE_ENABLED_BY_DEFAULT
+#endif
+);
 
 // Enables WebOTP calls in cross-origin iframes if allowed by Permissions
 // Policy.
@@ -587,5 +633,11 @@ BASE_FEATURE(kDisallowRasterInterfaceWithoutSkiaBackend,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Please keep features in alphabetical order.
+
+bool IsEnforceSameDocumentOriginInvariantsEnabled() {
+  return base::FeatureList::IsEnabled(kEnforceSameDocumentOriginInvariants) &&
+         base::FeatureList::IsEnabled(
+             blink::features::kTreatMhtmlInitialDocumentLoadsAsCrossDocument);
+}
 
 }  // namespace features

@@ -12,6 +12,7 @@
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/types/expected.h"
 #include "build/build_config.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/aggregated_journal.h"
@@ -22,29 +23,28 @@
 #include "components/optimization_guide/proto/features/model_prototyping.pb.h"
 #include "components/tabs/public/tab_interface.h"
 
-#if BUILDFLAG(ENABLE_GLIC)
-#include "chrome/browser/glic/host/glic.mojom-forward.h"
-#include "chrome/common/actor.mojom-forward.h"
-#endif
-
 class Profile;
 
 namespace content {
 class BrowserContext;
 }  // namespace content
 
+namespace page_content_annotations {
+struct FetchPageContextResult;
+}  // namespace page_content_annotations
+
 namespace actor {
 namespace ui {
 class ActorUiStateManagerInterface;
 }
 
+class ToolRequest;
+
 // This class owns all ActorTasks for a given profile. ActorTasks are kept in
 // memory until the process is destroyed.
 class ActorKeyedService : public KeyedService {
  public:
-  explicit ActorKeyedService(
-      Profile* profile,
-      std::unique_ptr<ui::ActorUiStateManagerInterface> ui_state_manager);
+  explicit ActorKeyedService(Profile* profile);
   ActorKeyedService(const ActorKeyedService&) = delete;
   ActorKeyedService& operator=(const ActorKeyedService&) = delete;
   ~ActorKeyedService() override;
@@ -52,30 +52,37 @@ class ActorKeyedService : public KeyedService {
   // Convenience method, may return nullptr.
   static ActorKeyedService* Get(content::BrowserContext* context);
 
+  // TODO(crbug.com/428014205): Create a mock ActorKeyedService for testing so
+  // we can remove this function.
+  void SetActorUiStateManagerForTesting(
+      std::unique_ptr<ui::ActorUiStateManagerInterface> ausm);
+
   // Starts tracking an existing task. Returns the new task ID.
   TaskId AddActiveTask(std::unique_ptr<ActorTask> task);
 
-  const std::map<TaskId, const ActorTask*> GetActiveTasks();
-  const std::map<TaskId, const ActorTask*> GetInactiveTasks();
+  const std::map<TaskId, const ActorTask*> GetActiveTasks() const;
+  const std::map<TaskId, const ActorTask*> GetInactiveTasks() const;
+
+  // Stop and clear all active and inactive tasks for testing only.
+  void ResetForTesting();
 
   // Starts a new task with an execution engine and returns the new task's id.
   TaskId CreateTask();
 
-  // Executes the given actions using the execution engine. The actions proto
-  // must explicitly specify the task_id of an existing task started using
-  // CreateTask. Once all actions have been completed, returns the ActionsResult
-  // proto which includes new observations and an error code for the first
-  // failed action.
-  // TODO(crbug.com/411462297): The result doesn't yet include observations.
-  void PerformActions(
-      optimization_guide::proto::Actions actions,
-      base::OnceCallback<void(optimization_guide::proto::ActionsResult)>
-          callback);
+  // Executes the given ToolRequest actions using the execution engine for the
+  // given task id.
+  using PerformActionsCallback = base::OnceCallback<void(
+      mojom::ActionResultCode /*result_code*/,
+      std::optional<size_t> /*index_of_failing_action*/)>;
+  void PerformActions(TaskId task_id,
+                      std::vector<std::unique_ptr<ToolRequest>>&& actions,
+                      PerformActionsCallback callback);
 
   // TODO(crbug.com/411462297): DEPRECATED - to be replaced with PerformActions.
   // Executes an actor action.
   void ExecuteAction(
-      optimization_guide::proto::BrowserAction action,
+      TaskId task_id,
+      std::vector<std::unique_ptr<ToolRequest>>&& actions,
       base::OnceCallback<void(optimization_guide::proto::BrowserActionResult)>
           callback);
 
@@ -95,6 +102,11 @@ class ActorKeyedService : public KeyedService {
   // exist.
   ActorTask* GetTask(TaskId task_id);
 
+  // TODO(crbug.com/411462297): This is a temporary shim to allow removing
+  // GlicActorController's notion of "current task". Eventually all actions will
+  // supply a task id.
+  ActorTask* GetMostRecentTask();
+
   // The associated journal for the associated profile.
   AggregatedJournal& GetJournal() LIFETIME_BOUND { return journal_; }
 
@@ -103,6 +115,22 @@ class ActorKeyedService : public KeyedService {
 
   // Called whenever an actor task state changes.
   void OnActorTaskStateChanged(TaskId task_id, ActorTask::State task_state);
+
+  bool IsAnyTaskActingOnTab(const tabs::TabInterface& tab) const;
+  Profile* GetProfile();
+
+  using TabObservationResult =
+      base::expected<std::unique_ptr<optimization_guide::proto::TabObservation>,
+                     std::string>;
+
+  // Request a TabOservation be generated from the given tab.
+  void RequestTabObservation(
+      const tabs::TabInterface& tab,
+      base::OnceCallback<void(TabObservationResult)> callback);
+
+ protected:
+  // Holds subscriptions for ActorTask callbacks.
+  std::map<TaskId, base::CallbackListSubscription> actor_task_subscriptions_;
 
  private:
   // Start task is currently asynchronous.
@@ -113,27 +141,32 @@ class ActorKeyedService : public KeyedService {
       base::OnceCallback<
           void(optimization_guide::proto::BrowserStartTaskResult)> callback);
 
-#if BUILDFLAG(ENABLE_GLIC)
-  void ConvertToBrowserActionResult(
-      base::OnceCallback<void(optimization_guide::proto::BrowserActionResult)>
-          callback,
-      int task_id,
-      int32_t tab_id,
-      actor::mojom::ActionResultPtr action_result,
-      glic::mojom::GetContextResultPtr result);
   // Called when the actor coordinator has finished an action which required
   // task creation.
   void OnActionFinished(
       base::OnceCallback<void(optimization_guide::proto::BrowserActionResult)>
           callback,
       int task_id,
-      actor::mojom::ActionResultPtr action_result);
-#endif
+      actor::mojom::ActionResultPtr action_result,
+      std::optional<size_t> index_of_failed_action);
 
-  void OnActionsFinished(
-      base::OnceCallback<void(optimization_guide::proto::ActionsResult)>
+  // The callback used for ExecutorEngine::Act.
+  void OnActionsFinished(PerformActionsCallback callback,
+                         actor::mojom::ActionResultPtr action_result,
+                         std::optional<size_t> index_of_failed_action);
+
+  void ConvertToBrowserActionResult(
+      base::OnceCallback<void(optimization_guide::proto::BrowserActionResult)>
           callback,
-      optimization_guide::proto::ActionsResult result);
+      int task_id,
+      int32_t tab_id,
+      actor::mojom::ActionResultPtr action_result,
+      TabObservationResult context_result);
+  void OnTabOservationResult(
+      base::OnceCallback<void(TabObservationResult)> callback,
+      base::expected<
+          std::unique_ptr<page_content_annotations::FetchPageContextResult>,
+          std::string> result);
 
   std::map<TaskId, std::unique_ptr<ActorTask>> active_tasks_;
   // Stores completed tasks. May want to add cancelled tasks in the future.
@@ -141,12 +174,12 @@ class ActorKeyedService : public KeyedService {
 
   std::unique_ptr<ui::ActorUiStateManagerInterface> actor_ui_state_manager_;
 
-  // Holds subscriptions for ActorTask callbacks.
-  std::vector<base::CallbackListSubscription> actor_task_subscriptions_;
-
   TaskId::Generator next_task_id_;
 
   AggregatedJournal journal_;
+
+  // TODO(crbug.com/411462297): Remove
+  TaskId last_created_task_id_;
 
   // Owns this.
   raw_ptr<Profile> profile_;

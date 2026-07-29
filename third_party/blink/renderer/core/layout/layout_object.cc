@@ -3637,7 +3637,7 @@ bool LayoutObject::ShouldUseTransformFromContainer(
   // or perspective. We just care about transform, so check the layer's
   // transform directly.
   return (HasLayer() && To<LayoutBoxModelObject>(this)->Layer()->Transform()) ||
-         (container_object && container_object->StyleRef().HasPerspective());
+         (container_object && container_object->HasPerspective());
 }
 
 void LayoutObject::GetTransformFromContainer(
@@ -3661,8 +3661,7 @@ void LayoutObject::GetTransformFromContainer(
   transform.PostTranslate(offset_in_container.left.ToFloat(),
                           offset_in_container.top.ToFloat());
 
-  bool has_perspective = container_object && container_object->HasLayer() &&
-                         container_object->StyleRef().HasPerspective();
+  bool has_perspective = container_object && container_object->HasPerspective();
   if (has_perspective && container_object != NearestAncestorForElement()) {
     has_perspective = false;
 
@@ -4323,18 +4322,26 @@ const ComputedStyle* LayoutObject::FirstLineStyleWithoutFallback() const {
             std::move(first_line_style), kPseudoIdFirstLine, g_null_atom);
       }
     }
-  } else if (!IsAnonymous() && IsLayoutInline() &&
-             !GetNode()->IsFirstLetterPseudoElement()) {
+  } else if ((!IsAnonymous() && IsLayoutInline() &&
+              !GetNode()->IsFirstLetterPseudoElement()) ||
+             (RuntimeEnabledFeatures::QuoteFirstLineStyleEnabled() &&
+              IsQuote())) {
     if (const ComputedStyle* cached =
             StyleRef().GetCachedPseudoElementStyle(kPseudoIdFirstLineInherited))
       return cached;
 
+    // Quote doesn't have an associated Node because it's generated thus always
+    // anonymous. So, we need to access a parent LayoutObject.
+    const auto* layout_object =
+        RuntimeEnabledFeatures::QuoteFirstLineStyleEnabled() && IsQuote()
+            ? Parent()
+            : this;
     if (const ComputedStyle* parent_first_line_style =
-            Parent()->FirstLineStyleWithoutFallback()) {
+            layout_object->Parent()->FirstLineStyleWithoutFallback()) {
       // A first-line style is in effect. Get uncached first line style based on
       // parent_first_line_style and cache the result in this object's style.
       if (const ComputedStyle* first_line_style =
-              GetUncachedPseudoElementStyle(StyleRequest(
+              layout_object->GetUncachedPseudoElementStyle(StyleRequest(
                   kPseudoIdFirstLineInherited, parent_first_line_style))) {
         return StyleRef().AddCachedPseudoElementStyle(
             std::move(first_line_style), kPseudoIdFirstLineInherited,
@@ -5265,21 +5272,24 @@ void LayoutObject::MarkSelfPaintingLayerForVisualOverflowRecalc() {
 #endif
 }
 
-void LayoutObject::SetSVGDescendantMayHaveTransformRelatedAnimation() {
+void LayoutObject::SetSVGDescendantMayHaveTransformRelatedOperations() {
   NOT_DESTROYED();
   auto* object = this;
   while (!object->IsSVGRoot()) {
     DCHECK(object->IsSVGChild());
-    if (object->SVGDescendantMayHaveTransformRelatedAnimation())
+    if (object->SVGDescendantMayHaveTransformRelatedOperations()) {
       break;
-    if (object->IsSVGHiddenContainer())
+    }
+    if (object->IsSVGHiddenContainer()) {
       return;
-    object->bitfields_.SetSVGDescendantMayHaveTransformRelatedAnimation(true);
+    }
+    object->bitfields_.SetSVGDescendantMayHaveTransformRelatedOperations(true);
     object = object->Parent();
-    if (!object)
+    if (!object) {
       return;
+    }
   }
-  // If we have set SetSVGDescendantMayHaveTransformRelatedAnimation() for
+  // If we have set SetSVGDescendantMayHaveTransformRelatedOperations() for
   // any object, set the enclosing layer needs repaint because some
   // LayoutSVGContainer may paint differently by ignoring the cull rect.
   // See SVGContainerPainter.

@@ -41,7 +41,7 @@
 // "buffer"; so what might be called "frame duration" is instead "buffer
 // duration", and so on.
 
-namespace WTF {
+namespace blink {
 
 template <>
 struct CrossThreadCopier<std::optional<media::AudioEncoder::CodecDescription>>
@@ -50,9 +50,11 @@ struct CrossThreadCopier<std::optional<media::AudioEncoder::CodecDescription>>
   STATIC_ONLY(CrossThreadCopier);
 };
 
-}  // namespace WTF
-
-namespace blink {
+template <>
+struct CrossThreadCopier<media::EncoderStatus>
+    : public CrossThreadCopierPassThrough<media::EncoderStatus> {
+  STATIC_ONLY(CrossThreadCopier);
+};
 
 // Max size of buffers passed on to encoders.
 const int kMaxChunkedBufferDurationMs = 60;

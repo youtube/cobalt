@@ -317,4 +317,18 @@ BASE_FEATURE(kWebViewUseStartupTasksLogicP2,
              "WebViewUseStartupTasksLogicP2",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Enables running native startup tasks asynchronously if WebView startup is
+// asynchronous.
+BASE_FEATURE(kWebViewStartupTasksYieldToNative,
+             "WebViewStartupTasksYieldToNative",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// This results in the metric logging being run on a separate thread and
+// blocking until the results are retrieved.
+// When this is disabled, logging is initiated on the main thread and a success
+// status is reported to the chromium metrics service immediately.
+BASE_FEATURE(kAndroidMetricsAsyncMetricLogging,
+             "AndroidMetricsAsyncMetricLogging",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 }  // namespace android_webview::features

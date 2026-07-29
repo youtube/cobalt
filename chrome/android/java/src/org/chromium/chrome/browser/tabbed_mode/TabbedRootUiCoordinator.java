@@ -7,8 +7,6 @@ package org.chromium.chrome.browser.tabbed_mode;
 import static android.view.ViewGroup.LayoutParams.MATCH_PARENT;
 import static android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
 
-import static org.chromium.chrome.browser.tab.Tab.INVALID_TAB_ID;
-
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
@@ -150,8 +148,9 @@ import org.chromium.chrome.browser.tab.RequestDesktopUtils;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabAssociatedApp;
 import org.chromium.chrome.browser.tab.TabFavicon;
-import org.chromium.chrome.browser.tab.TabId;
 import org.chromium.chrome.browser.tab.TabLaunchType;
+import org.chromium.chrome.browser.tab_group_suggestion.toolbar.GroupSuggestionsButtonController;
+import org.chromium.chrome.browser.tab_group_suggestion.toolbar.GroupSuggestionsButtonControllerFactory;
 import org.chromium.chrome.browser.tab_group_sync.TabGroupSyncControllerImpl;
 import org.chromium.chrome.browser.tab_group_sync.TabGroupSyncFeatures;
 import org.chromium.chrome.browser.tab_group_sync.TabGroupSyncServiceFactory;
@@ -932,7 +931,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
 
         new OneShotCallback<>(mProfileSupplier, this::initCollaborationDelegatesOnProfile);
 
-        if (BookmarkBarUtils.isFeatureEnabled(mActivity)) {
+        if (BookmarkBarUtils.isDeviceBookmarkBarCompatible(mActivity)) {
             mBookmarkBarVisibilityProvider =
                     new BookmarkBarVisibilityProvider(
                             mActivity, mActivityLifecycleDispatcher, mProfileSupplier);
@@ -950,6 +949,13 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
     @Override
     protected AdaptiveToolbarBehavior createAdaptiveToolbarBehavior(
             Supplier<Tracker> trackerSupplier) {
+
+        Supplier<GroupSuggestionsButtonController> groupSuggestionsButtonControllerSupplier =
+                () -> {
+                    Profile profile = mProfileSupplier.get();
+                    return GroupSuggestionsButtonControllerFactory.getForProfile(profile);
+                };
+
         return new TabbedAdaptiveToolbarBehavior(
                 mActivity,
                 mActivityLifecycleDispatcher,
@@ -957,7 +963,9 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                 mTabBookmarkerSupplier,
                 mBookmarkModelSupplier,
                 mActivityTabProvider,
-                () -> addVoiceSearchAdaptiveButton(trackerSupplier));
+                () -> addVoiceSearchAdaptiveButton(trackerSupplier),
+                groupSuggestionsButtonControllerSupplier,
+                mTabModelSelectorSupplier.get().getTabGroupModelFilterProvider());
     }
 
     @Override
@@ -1276,8 +1284,15 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
         final int tabStripHeight = mToolbarManager.getTabStripHeightSupplier().get();
         final int bookmarkBarHeight =
                 mBookmarkBarCoordinator != null ? mBookmarkBarCoordinator.getTopControlHeight() : 0;
-        topControlsNewHeight =
-                bookmarkBarHeight + toolbarHeight + tabStripHeight + mStatusIndicatorHeight;
+
+        // When the refactor feature is enabled, fetch height from the TopControlsStacker.
+        if (ChromeFeatureList.isEnabled(ChromeFeatureList.TOP_CONTROLS_REFACTOR)) {
+            topControlsNewHeight = mTopControlsStacker.getVisibleTopControlsTotalHeight();
+        } else {
+            topControlsNewHeight =
+                    bookmarkBarHeight + toolbarHeight + tabStripHeight + mStatusIndicatorHeight;
+        }
+
         if (tabStripHeight > 0 && !isTablet) {
             String msg =
                     "Non-zero tab strip height found on non-tablet form factor. tabStripHeight="
@@ -1485,8 +1500,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                                 .get()
                                 .getTabGroupModelFilterProvider()
                                 .getTabGroupModelFilter(false);
-                @TabId int rootId = filter.getRootIdFromTabGroupId(tabGroupId);
-                if (rootId == INVALID_TAB_ID) {
+                if (!filter.tabGroupExists(tabGroupId)) {
                     // This method is only supposed to be called when the tab group is in the local
                     // model. However it's possible that something has recently changed. In which
                     // case just be defensive and give up.
@@ -1498,11 +1512,12 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                 // remain as a safegaurd against bugs as internally it will noop if the tab switcher
                 // is already opened. It could be removed in the future with some care taken to add
                 // an assert and verify no callers are using it in an unexpected flow.
+                int tabId = filter.getGroupLastShownTabId(tabGroupId);
                 TabSwitcherUtils.navigateToTabSwitcher(
                         mLayoutManager,
                         /* animate= */ false,
                         () -> {
-                            mTabSwitcherSupplier.get().requestOpenTabGroupDialog(rootId);
+                            mTabSwitcherSupplier.get().requestOpenTabGroupDialog(tabId);
                         });
             }
 
@@ -1811,16 +1826,22 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
             viewStub.setId(R.id.bookmark_bar_stub);
             viewStub.setInflatedId(R.id.bookmark_bar);
             parent.addView(viewStub, index, new LayoutParams(MATCH_PARENT, WRAP_CONTENT));
+
+            updateTopControlsHeight();
         }
     }
 
     private void updateBookmarkBarIfNecessary(boolean visible) {
         if (visible) {
+            // We create the BookmarkBar, but we do not update the Top Controls height here since
+            // the view's height requires a layout pass to be correct (until then it will return the
+            // intrinsic height, and being a LinearLayout inside a WRAP_CONTENT ViewStub, this will
+            // be 0). The BookmarkBarCoordinator adds a LayoutChangeListener to the view; during
+            // onLayoutChange we will have the correct height and update the top controls then.
             createBookmarkBarIfNecessary();
         } else {
             destroyBookmarkBarIfNecessary();
         }
-        updateTopControlsHeight();
     }
 
     public static void setDisableTopControlsAnimationsForTesting(boolean disable) {
@@ -1849,7 +1870,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
             if (mBookmarkBarCoordinator != null) mBookmarkBarCoordinator.requestFocus();
             return true;
         } else if (id == R.id.toggle_bookmark_bar) {
-            if (BookmarkBarUtils.isFeatureAllowed(mActivity)) {
+            if (BookmarkBarUtils.isActivityStateBookmarkBarCompatible(mActivity)) {
                 BookmarkBarUtils.toggleSettingEnabled(mProfileSupplier.get());
                 return true;
             }

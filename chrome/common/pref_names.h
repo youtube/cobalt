@@ -1286,6 +1286,11 @@ inline constexpr char kFloatingSsoDomainBlocklistExceptions[] =
 // cookies from the previous device onto another, on ChromeOS.
 inline constexpr char kFloatingSsoEnabled[] = "floating_sso_enabled";
 
+// Boolean pref that determine whether session cookies will be included or not
+// when user switches between ChromeOS devices.
+inline constexpr char kFloatingSsoSessionCookiesIncluded[] =
+    "floating_sso_session_cookies_included";
+
 // This boolean controls whether the first window shown on first run should be
 // unconditionally maximized, overriding the heuristic that normally chooses the
 // window size.
@@ -2086,6 +2091,15 @@ inline constexpr char kBrowserSuppressDefaultBrowserPrompt[] =
 // Used to implement the sticky experiment tracking.
 inline constexpr char kDefaultBrowserPromptRefreshStudyGroup[] =
     "browser.default_browser_prompt_refresh_study_group";
+
+#if BUILDFLAG(IS_WIN)
+// The time at which the pin-to-taskbar infobar was last shown.
+inline constexpr char kPinInfoBarLastShown[] = "browser.pin_infobar_last_shown";
+
+// How many times the pin-to-taskbar infobar has been shown.
+inline constexpr char kPinInfoBarTimesShown[] =
+    "browser.pin_infobar_times_shown";
+#endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 // The time at which the default-PDF-viewer infobar was last shown.
@@ -3943,13 +3957,6 @@ inline constexpr char kMediaAppLensEnabled[] = "media_app.enable_lens";
 inline constexpr char kExplicitlyAllowedNetworkPorts[] =
     "net.explicitly_allowed_network_ports";
 
-#if !BUILDFLAG(IS_ANDROID)
-// Pref name for whether force-installed web apps (origins) are able to query
-// device attributes.
-inline constexpr char kDeviceAttributesAllowedForOrigins[] =
-    "policy.device_attributes_allowed_for_origins";
-#endif
-
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
 // A boolean indicating whether the desktop sharing hub is enabled by enterprise
 // policy.
@@ -4128,7 +4135,8 @@ inline constexpr char kReadAloudVoiceSettings[] = "readaloud.voices";
 // is 2.0, etc.
 inline constexpr char kReadAloudSpeed[] = "readaloud.speed";
 
-// Integer indicating Read Aloud playback mode (enum). Default is 0 (UNSPECIFIED).
+// Integer indicating Read Aloud playback mode (enum). Default is 0
+// (UNSPECIFIED).
 inline constexpr char kReadAloudPlaybackMode[] = "readaloud.playback_mode";
 
 // Boolean that specifies whether Read Aloud highlights words on the page during
@@ -4262,6 +4270,10 @@ inline constexpr char kManagedLocalNetworkAccessRestrictionsEnabled[] =
 // ServiceWorker-controlled URLs.
 inline constexpr char kPrefetchWithServiceWorkerEnabled[] =
     "preloading.prefetch_with_service_worker_enabled";
+
+// Boolean that specifies whether ServiceWorkerAutoPreload is enabled.
+inline constexpr char kServiceWorkerAutoPreloadEnabled[] =
+    "worker.service_worker_auto_preload_enabled";
 
 }  // namespace prefs
 

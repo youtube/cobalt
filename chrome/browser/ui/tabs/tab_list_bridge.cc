@@ -10,17 +10,18 @@
 DEFINE_USER_DATA(TabListBridge);
 
 TabListBridge::TabListBridge(TabStripModel& tab_strip_model,
-                             UnownedUserDataHost& unowned_user_data_host)
+                             ui::UnownedUserDataHost& unowned_user_data_host)
     : tab_strip_(tab_strip_model),
       scoped_data_holder_(unowned_user_data_host, *this) {}
 
 TabListBridge::~TabListBridge() = default;
 
-// static
-TabListInterface* TabListBridge::From(
-    BrowserWindowInterface* browser_window_interface) {
-  return ScopedUnownedUserData<TabListBridge>::Get(
-      browser_window_interface->GetUnownedUserDataHost());
+int TabListBridge::GetTabCount() const {
+  return tab_strip_->count();
+}
+
+int TabListBridge::GetActiveIndex() const {
+  return tab_strip_->active_index();
 }
 
 void TabListBridge::OpenTab(const GURL& url, int index) {}
@@ -40,7 +41,13 @@ void TabListBridge::MoveTab(tabs::TabHandle tab, int index) {}
 void TabListBridge::CloseTab(tabs::TabHandle tab) {}
 
 std::vector<tabs::TabInterface*> TabListBridge::GetAllTabs() {
-  return {};
+  std::vector<tabs::TabInterface*> all_tabs;
+  size_t tab_count = tab_strip_->count();
+  all_tabs.reserve(tab_count);
+  for (size_t i = 0; i < tab_count; ++i) {
+    all_tabs.push_back(tab_strip_->GetTabAtIndex(i));
+  }
+  return all_tabs;
 }
 
 void TabListBridge::PinTab(tabs::TabHandle tab) {}
@@ -56,3 +63,11 @@ std::optional<tab_groups::TabGroupId> TabListBridge::AddTabsToGroup(
 void TabListBridge::Ungroup(const std::set<tabs::TabHandle>& tabs) {}
 
 void TabListBridge::MoveGroupTo(tab_groups::TabGroupId group_id, int index) {}
+
+// static
+// From //chrome/browser/ui/tabs/tab_list_interface.h
+TabListInterface* TabListInterface::From(
+    BrowserWindowInterface* browser_window_interface) {
+  return ui::ScopedUnownedUserData<TabListBridge>::Get(
+      browser_window_interface->GetUnownedUserDataHost());
+}

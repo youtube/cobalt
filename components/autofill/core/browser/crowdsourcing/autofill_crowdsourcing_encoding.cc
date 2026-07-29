@@ -468,13 +468,19 @@ void EncodeFormFieldsForUpload(
     }
 
     if (field_options) {
-      for (const std::u16string& format_string :
-           field_options->format_strings) {
-        DCHECK(data_util::IsValidDateFormat(format_string));
+      for (const auto& [type, string] : field_options->format_strings) {
+        DCHECK([&]() {
+          switch (type) {
+            case FormatString_Type_AFFIX:
+              return data_util::IsValidAffixFormat(string);
+            case FormatString_Type_DATE:
+              return data_util::IsValidDateFormat(string);
+          }
+          return false;
+        }());
         auto* added_format_string = added_field->add_format_string();
-        added_format_string->set_type(FormatString_Type_DATE);
-        added_format_string->set_format_string(
-            base::UTF16ToUTF8(format_string));
+        added_format_string->set_type(type);
+        added_format_string->set_format_string(base::UTF16ToUTF8(string));
       }
     }
 
@@ -1024,6 +1030,7 @@ void ProcessServerPredictionsQueryResponse(
       }
       if (field_suggestion->has_format_string()) {
         switch (field_suggestion->format_string().type()) {
+          case FormatString_Type_AFFIX:
           case FormatString_Type_DATE:
             field->set_format_string_unless_overruled(
                 base::UTF8ToUTF16(

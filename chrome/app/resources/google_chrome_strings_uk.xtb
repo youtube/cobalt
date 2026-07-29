@@ -228,6 +228,7 @@
 <translation id="3785324443014631273">ОС Chrome Flex не змогла синхронізувати ваші дані через помилку входу в систему.</translation>
 <translation id="3795971588916395511">Google ChromeOS</translation>
 <translation id="3809772425479558446">Для роботи Google Chrome потрібно мати ОС Windows 10 або новішої версії.</translation>
+<translation id="3810973564298564668">Керувати</translation>
 <translation id="383928141529488001">Для пошуку пристроїв із Bluetooth вебпереглядачу
 Google Chrome потрібен доступ до Bluetooth. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="386202838227397562">Закрийте всі вікна Google Chrome і повторіть спробу.</translation>
@@ -515,6 +516,7 @@ Google Chrome потрібен доступ до Bluetooth. <ph name="IDS_SERIAL
 <translation id="7583399374488819119">Програма встановлення <ph name="COMPANY_NAME" /></translation>
 <translation id="7606334485649076285">ОС Google Chrome Flex</translation>
 <translation id="7626072681686626474">Перш ніж використовувати цей пристрій, потрібно прочитати й прийняти наведені нижче Умови використання <ph name="MANAGER" />. Вони не розширюють, не змінюють і не обмежують Умови використання ОС Google Chrome.</translation>
+<translation id="7627609214560473136">Щоб захистити ваші дані, дозвольте Chrome скасовувати дозволи для сайтів, які ви останнім часом не відвідували.</translation>
 <translation id="7629695634924605473">Якщо ваші паролі колись викрадуть, Chrome повідомить вас про це</translation>
 <translation id="7641148173327520642">Ваш системний адміністратор налаштував Google Chrome відкривати сторінку <ph name="TARGET_URL_HOSTNAME" /> в <ph name="ALTERNATIVE_BROWSER_NAME" />.</translation>
 <translation id="7649070708921625228">Довідка</translation>
@@ -601,6 +603,7 @@ Google Chrome потрібен доступ до Bluetooth. <ph name="IDS_SERIAL
 <translation id="8649026945479135076">Зазвичай сайти, які ви відвідуєте, запам’ятовують, що вас цікавить, щоб персоналізувати для вас оголошення. Також сайти можуть зберігати в Chrome інформацію про ваші інтереси.</translation>
 <translation id="8669527147644353129">Помічник Google Chrome</translation>
 <translation id="8679801911857917785">Розширення також змінило сторінку, яка відкривається під час запуску Chrome.</translation>
+<translation id="8712637175834984815">OK</translation>
 <translation id="8712767363896337380">Майже готово. Перезапустіть Chrome, щоб завершити оновлення.</translation>
 <translation id="8718062187489036808">Вийти з облікового запису Chrome</translation>
 <translation id="873133009373065397">Google Chrome не може визначити чи встановити веб-переглядач за умовчанням</translation>

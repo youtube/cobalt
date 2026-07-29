@@ -231,6 +231,7 @@ void BackForwardCacheMetrics::DidCommitNavigation(
                  page_store_result_->ToString());
     RecordHistoryNavigationUMA(navigation, back_forward_cache_allowed);
     RecordHistoryNavigationUKM(navigation);
+    SCOPED_CRASH_KEY_BOOL("crbug/427426299", "pstr", !!page_store_tree_result_);
     if (!navigation->IsServedFromBackForwardCache()) {
       devtools_instrumentation::BackForwardCacheNotUsed(
           navigation, page_store_result_.get(), page_store_tree_result_.get());
@@ -241,10 +242,12 @@ void BackForwardCacheMetrics::DidCommitNavigation(
           std::move(page_store_tree_result_));
     }
   }
+  SCOPED_CRASH_KEY_BOOL("crbug/427426299", "before_gni", true);
   // Save the information about the last cross-document main frame navigation
   // that uses this metrics object.
   last_committed_cross_document_main_frame_navigation_id_ =
       navigation->GetNavigationId();
+  SCOPED_CRASH_KEY_BOOL("crbug/427426299", "after_gni", true);
 
   // BackForwardCacheMetrics can be reused in some cases. Reset fields for UKM
   // for the next navigation.
@@ -573,11 +576,14 @@ void BackForwardCacheMetrics::RecordHistoryNavigationUMA(
         "BackForwardCache.AllSites.HistoryNavigationOutcome.NotRestoredReason",
         reason);
     if (reason == NotRestoredReason::kRendererProcessKilled) {
-      DCHECK(renderer_killed_timestamp_);
-      DCHECK(navigated_away_from_main_document_timestamp_);
+      CHECK(renderer_killed_timestamp_);
+      // It's possible (https://crbug.com/427426299) for the renderer to be
+      // killed before we record this timestamp. In that case, record 0.
       base::TimeDelta time =
-          renderer_killed_timestamp_.value() -
-          navigated_away_from_main_document_timestamp_.value();
+          navigated_away_from_main_document_timestamp_
+              ? (renderer_killed_timestamp_.value() -
+                 navigated_away_from_main_document_timestamp_.value())
+              : base::Seconds(0);
       UMA_HISTOGRAM_LONG_TIMES(
           "BackForwardCache.Eviction.TimeUntilProcessKilled", time);
     }

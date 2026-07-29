@@ -603,6 +603,7 @@ chromium-metrics-reviews@google.com.
   <int value="4" label="Privacy Screen"/>
   <int value="5" label="Screenshare"/>
   <int value="6" label="Files"/>
+  <int value="7" label="File download"/>
 </enum>
 
 <enum name="EnterpriseEnrollmentType">
@@ -2185,7 +2186,6 @@ chromium-metrics-reviews@google.com.
   <int value="1312" label="NTPSharepointCardVisible"/>
   <int value="1313" label="SharedWorkerBlobURLFixEnabled"/>
   <int value="1314" label="DeviceNativeClientForceAllowed"/>
-  <int value="1315" label="GenAiLensOverlaySettings"/>
   <int value="1316" label="PasswordManagerPasskeysEnabled"/>
   <int value="1317" label="FilePickerChooseFromDriveSettings"/>
   <int value="1318" label="LiveTranslateEnabled"/>
@@ -2242,6 +2242,13 @@ chromium-metrics-reviews@google.com.
   <int value="1372" label="LocalNetworkAccessBlockedForUrls"/>
   <int value="1373" label="DeviceBluetoothJustWorksPairingEnabled"/>
   <int value="1374" label="LiveCaptionEnabled"/>
+  <int value="1375"
+      label="DeviceUserInitiatedFlexSystemFirmwareUpdatesEnabled"/>
+  <int value="1376" label="AutomatedPasswordChangeSettings"/>
+  <int value="1377" label="DefaultDeviceAttributesSetting"/>
+  <int value="1378" label="DeviceAttributesBlockedForOrigins"/>
+  <int value="1379" label="FloatingSsoSessionCookiesIncluded"/>
+  <int value="1380" label="ServiceWorkerAutoPreload"/>
 </enum>
 
 <enum name="EnterprisePoliciesSources">

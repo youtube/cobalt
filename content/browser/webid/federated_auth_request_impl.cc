@@ -41,12 +41,12 @@
 #include "content/browser/webid/webid_utils.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/content_browser_client.h"
-#include "content/public/browser/federated_identity_api_permission_context_delegate.h"
-#include "content/public/browser/federated_identity_auto_reauthn_permission_context_delegate.h"
-#include "content/public/browser/federated_identity_permission_context_delegate.h"
-#include "content/public/browser/identity_request_account.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/browser/webid/federated_identity_api_permission_context_delegate.h"
+#include "content/public/browser/webid/federated_identity_auto_reauthn_permission_context_delegate.h"
+#include "content/public/browser/webid/federated_identity_permission_context_delegate.h"
+#include "content/public/browser/webid/identity_request_account.h"
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/common/page_visibility_state.h"
@@ -483,7 +483,7 @@ void FederatedAuthRequestImpl::RequestToken(
         CompleteRequestWithError(
             FederatedAuthRequestResult::kSilentMediationFailure,
             TokenStatus::kSilentMediationFailure,
-            /*should_delay_callback=*/false);
+            /*should_delay_callback=*/true);
         return;
       }
 
@@ -518,15 +518,14 @@ void FederatedAuthRequestImpl::RequestToken(
   if (IsFedCmMultipleIdentityProvidersEnabled() && unique_idps.empty()) {
     // At this point either all IDPs are signed out or mediation:silent was used
     // and there are no returning accounts.
-    bool should_delay_callback =
-        mediation_requirement_ == MediationRequirement::kSilent ? false : true;
     auto result = mediation_requirement_ == MediationRequirement::kSilent
                       ? FederatedAuthRequestResult::kSilentMediationFailure
                       : FederatedAuthRequestResult::kNotSignedInWithIdp;
     auto token_status = mediation_requirement_ == MediationRequirement::kSilent
                             ? TokenStatus::kSilentMediationFailure
                             : TokenStatus::kNotSignedInWithIdp;
-    CompleteRequestWithError(result, token_status, should_delay_callback);
+    CompleteRequestWithError(result, token_status,
+                             /*should_delay_callback=*/true);
     return;
   }
 
@@ -1049,12 +1048,8 @@ void FederatedAuthRequestImpl::MaybeShowAccountsDialog() {
 
       // By this moment we know that the user has granted permission in the past
       // for the RP/IdP. Because otherwise we have returned already in
-      // `ShouldFailBeforeFetchingAccounts`. It means that we can do the
-      // following without privacy cost:
-      // 1. Reject the promise immediately without delay
-      // 2. Not to show any UI to respect `mediation: silent`
-      // TODO(crbug.com/40266561): validate the statement above with
-      // stakeholders
+      // `ShouldFailBeforeFetchingAccounts`. It means that we don't need to show
+      // any UI to respect `mediation: silent`.
       render_frame_host().AddMessageToConsole(
           blink::mojom::ConsoleMessageLevel::kError,
           "Silent mediation issue: the user has used FedCM with multiple "
@@ -1062,7 +1057,7 @@ void FederatedAuthRequestImpl::MaybeShowAccountsDialog() {
       CompleteRequestWithError(
           FederatedAuthRequestResult::kSilentMediationFailure,
           TokenStatus::kSilentMediationFailure,
-          /*should_delay_callback=*/false);
+          /*should_delay_callback=*/true);
       return;
     }
 

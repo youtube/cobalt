@@ -58,6 +58,10 @@ BASE_FEATURE(kUseHostedDomainForManagementCheckOnSignin,
 BASE_FEATURE(kMakeAccountsAvailableInIdentityManager,
              "MakeAccountsAvailableInIdentityManager",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kSmartEmailLineBreaking,
+             "SmartEmailLineBreaking",
+             base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
@@ -228,12 +232,7 @@ BASE_FEATURE(kAllowlistScopesForMdmErrors,
 
 BASE_FEATURE(kEnableExtensionsExplicitBrowserSignin,
              "EnableExtensionsExplicitBrowserSignin",
-#if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID)
-             base::FEATURE_ENABLED_BY_DEFAULT
-#else
-             base::FEATURE_DISABLED_BY_DEFAULT
-#endif
-);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsExtensionsExplicitBrowserSigninEnabled() {
   return base::FeatureList::IsEnabled(kEnableExtensionsExplicitBrowserSignin);
@@ -257,13 +256,53 @@ BASE_FEATURE(kSignInPromoMaterialNextUI,
              "SignInPromoMaterialNextUI",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Enables surveys to measure the effectiveness of the identity model.
-// These surveys would be displayed after interactions such as signin, profile
-// switching, etc.
-BASE_FEATURE(kChromeIdentitySurvey,
-             "ChromeIdentitySurvey",
+BASE_FEATURE(kChromeIdentitySurveyDiceWebSigninAccepted,
+             "ChromeIdentitySurveyDiceWebSigninAccepted",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kChromeIdentitySurveyDiceWebSigninDeclined,
+             "ChromeIdentitySurveyDiceWebSigninDeclined",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kChromeIdentitySurveyFirstRunSignin,
+             "ChromeIdentitySurveyFirstRunSignin",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kChromeIdentitySurveyProfilePickerAddProfileSignin,
+             "ChromeIdentitySurveyProfilePickerAddProfileSignin",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kChromeIdentitySurveyProfileMenuSignin,
+             "ChromeIdentitySurveyProfileMenuSignin",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kChromeIdentitySurveyPasswordBubbleSignin,
+             "ChromeIdentitySurveyPasswordBubbleSignin",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kChromeIdentitySurveyAddressBubbleSignin,
+             "ChromeIdentitySurveyAddressBubbleSignin",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kChromeIdentitySurveySigninInterceptProfileSeparation,
+             "ChromeIdentitySurveySigninInterceptProfileSeparation",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kChromeIdentitySurveySigninPromoBubbleDismissed,
+             "ChromeIdentitySurveyBubbleSigninPromoDismissed",
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+// Enables the management disclaimer for managed signed profiles. All signed in
+// profiles that never saw the management disclaimer will be shown the
+// management disclaimer when they open Chrome. Every time the primary signed in
+// account changes to a managed account, the management disclaimer will be
+// shown. This is only for desktop platforms.
+BASE_FEATURE(kEnforceManagementDisclaimer,
+             "EnforceManagementDisclaimer",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
 
 }  // namespace switches
 

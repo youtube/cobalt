@@ -4,11 +4,13 @@
 
 #include "chrome/browser/ai/ai_language_model.h"
 
+#include <algorithm>
 #include <memory>
 #include <optional>
 #include <sstream>
 
 #include "base/check_op.h"
+#include "base/containers/fixed_flat_set.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_forward.h"
 #include "base/metrics/histogram_functions.h"
@@ -213,10 +215,14 @@ class AILanguageModel::PromptState
   bool IsValid() const { return !!responder_; }
 
   mojo::Remote<on_device_model::mojom::Session> TakeSession() {
+    // Clear disconnect handler to avoid referencing `this`.
+    session_.set_disconnect_handler(base::DoNothing());
     return std::move(session_);
   }
 
   mojo::Remote<blink::mojom::ModelStreamingResponder> TakeResponder() {
+    // Clear disconnect handler to avoid referencing `this`.
+    responder_.set_disconnect_handler(base::DoNothing());
     return std::move(responder_);
   }
 
@@ -493,6 +499,23 @@ uint32_t GetMaxTokens(optimization_guide::ModelClient* model_client) {
   return result;
 }
 
+// static
+base::flat_set<std::string_view>
+AILanguageModel::GetSupportedLanguageBaseCodes() {
+  // Comma-separated list of languages that are enabled for the Prompt API.
+  // Specify "*" to enable all supported languages.
+  const base::FeatureParam<std::string> kAIPromptAPILanguagesEnabled{
+      &blink::features::kAIPromptAPI, "langs", /*default_value=*/"en"};
+  auto kSupportedBaseLanguages =
+      base::MakeFixedFlatSet<std::string_view>({"en", "ja", "es"});
+
+  // TODO(crbug.com/394841624): Using the model execution config instead
+  // of using the hardcoded list.
+  return AIUtils::RestrictSupportedLanguagesForFeature(
+      base::MakeFlatSet<std::string_view>(kSupportedBaseLanguages),
+      kAIPromptAPILanguagesEnabled);
+}
+
 AILanguageModel::AILanguageModel(
     AIContextBoundObjectSet& context_bound_object_set,
     on_device_model::mojom::SessionParamsPtr session_params,
@@ -601,6 +624,7 @@ void AILanguageModel::Destroy() {
 void AILanguageModel::MeasureInputUsage(
     std::vector<blink::mojom::AILanguageModelPromptPtr> prompts,
     MeasureInputUsageCallback callback) {
+  EnsureSessionConnected();
   auto input = ConvertToInputForExecute(std::move(prompts),
                                         session_params_->capabilities);
   if (!input) {
@@ -729,6 +753,7 @@ void AILanguageModel::InitializeSafetyChecksComplete(
     return;
   }
   if (input) {
+    initial_input_ = input.Clone();
     // No ContextClient is passed here since this operation should never be
     // cancelled unless the session is destroyed.
     initial_session_->Append(MakeAppendOptions(std::move(input)), {});
@@ -965,6 +990,20 @@ void AILanguageModel::GetSizeInTokens(
                                                       std::nullopt)));
 }
 
+void AILanguageModel::EnsureSessionConnected() {
+  if (!model_client_ || initial_session_) {
+    return;
+  }
+  model_client_->solution().CreateSession(
+      initial_session_.BindNewPipeAndPassReceiver(), session_params_.Clone());
+  initial_session_.reset_on_disconnect();
+  initial_session_->SetPriority(context_bound_object_set_->priority());
+  if (initial_input_) {
+    initial_session_->Append(MakeAppendOptions(initial_input_.Clone()), {});
+  }
+  HandleOverflow();
+}
+
 void AILanguageModel::AddToQueue(QueueCallback task) {
   queue_.push(std::move(task));
   RunNext();
@@ -986,6 +1025,8 @@ void AILanguageModel::RunNext() {
   task_running_ = true;
   auto task = std::move(queue_.front());
   queue_.pop();
+  // Make sure the session is active before running the next task.
+  EnsureSessionConnected();
   // Wrap the completion callback in a default invoke to allow tasks to avoid
   // having to explicitly call in every error code path.
   std::move(task).Run(

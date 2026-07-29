@@ -120,11 +120,6 @@ class AutoDidCommitTransaction {
 };
 
 namespace {
-// Threshold for the tombstones which were encountered during the
-// lifetime of the cursor. Crossing it will cause scheduling of the
-// `LevelDBCleanupScheduler`.
-constexpr int kCursorTombstoneThreshold = 1000;
-
 std::string ComputeOriginIdentifier(
     const storage::BucketLocator& bucket_locator) {
   return storage::GetIdentifierFromOrigin(bucket_locator.storage_key.origin()) +
@@ -1087,9 +1082,9 @@ Status ReadObjectStores(
       }
     }
 
-    blink::IndexedDBObjectStoreMetadata metadata(object_store_name,
-                                                 object_store_id, key_path,
-                                                 auto_increment, max_index_id);
+    blink::IndexedDBObjectStoreMetadata metadata(
+        object_store_name, object_store_id, key_path, auto_increment);
+    metadata.max_index_id = max_index_id;
     s = ReadIndexes(db, database_id, object_store_id, &metadata.indexes);
     if (!s.ok()) {
       break;
@@ -1245,6 +1240,12 @@ Status BackingStore::Initialize(bool clean_active_journal) {
     }
   }
   return s;
+}
+
+bool BackingStore::CanOpportunisticallyClose() const {
+  // For LevelDB, the logic here is implemented at the BucketContext level, so
+  // just return true here.
+  return true;
 }
 
 void BackingStore::TearDown(base::WaitableEvent* signal_on_destruction) {
@@ -1892,7 +1893,7 @@ Status BackingStore::Transaction::CreateObjectStore(
   metadata.id = object_store_id;
   metadata.key_path = std::move(key_path);
   metadata.auto_increment = auto_increment;
-  metadata.max_index_id = blink::IndexedDBObjectStoreMetadata::kMinimumIndexId;
+  metadata.max_index_id = kMinimumIndexId;
   database_->metadata().object_stores[object_store_id] = std::move(metadata);
 
   DCHECK_LT(database_->metadata().max_object_store_id, object_store_id);
@@ -2983,6 +2984,13 @@ StatusOr<IndexedDBKey> BackingStore::Transaction::GetFirstPrimaryKeyForIndexKey(
   return base::unexpected(InvalidDBKeyStatus());
 }
 
+StatusOr<bool> BackingStore::DatabaseExists(std::u16string_view database_name) {
+  return GetDatabaseNames().transform(
+      [&](const std::vector<std::u16string>& names) {
+        return base::Contains(names, database_name);
+      });
+}
+
 StatusOr<std::vector<std::u16string>> BackingStore::GetDatabaseNames() {
   ASSIGN_OR_RETURN(
       std::vector<blink::mojom::IDBNameAndVersionPtr> names_and_versions,
@@ -3147,7 +3155,7 @@ BackingStore::Cursor::Cursor(base::WeakPtr<Transaction> transaction,
 }
 
 BackingStore::Cursor::~Cursor() {
-  if (tombstones_count_ > kCursorTombstoneThreshold) {
+  if (tombstones_count_ > LevelDBCleanupScheduler::kTombstoneThreshold) {
     transaction_->SetTombstoneThresholdExceeded(true);
   }
 }
@@ -4035,8 +4043,8 @@ void BackingStore::Transaction::Begin(std::vector<PartitionedLock> locks) {
   // During a VersionChange txn, and only a VersionChange txn, the database
   // metadata may change. VersionChange transactions also hold exclusive locks
   // over the whole database (not just a subset of object stores). So if and
-  // when `this` is rolled back, the db's metadata will be reset to the state it
-  // was in before `this` started.
+  // when `this` is rolled back, the db's metadata will be reset to the state
+  // it was in before `this` started.
   if (mode_ == blink::mojom::IDBTransactionMode::VersionChange) {
     metadata_before_transaction_.emplace(database_->metadata());
   }

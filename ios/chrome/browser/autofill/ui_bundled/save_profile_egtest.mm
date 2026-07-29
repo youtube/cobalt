@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #import <memory>
 #import <string_view>
 
@@ -246,6 +251,9 @@ void TypeTextInXframeField(NSString* fieldID, NSString* text) {
             (testSubmissionDetection_defaultPrevented_whenNotAllowed)]) {
     config.features_disabled.push_back(
         kAutofillAllowDefaultPreventedSubmission);
+    // The testing setup for this feature needs capture mode disabled.
+    config.features_disabled.push_back(
+        kAutofillFormSubmissionEventsInCaptureMode);
   }
 
   if ([self isRunningTest:@selector(testSubmissionDetectionWithDeduping)]) {

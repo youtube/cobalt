@@ -23,19 +23,15 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "third_party/blink/renderer/platform/wtf/text/string_hasher.h"
 
+#include "base/compiler_specific.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 #include "third_party/blink/renderer/platform/wtf/text/case_folding_hash.h"
 #include "third_party/blink/renderer/platform/wtf/text/convert_to_8bit_hash_reader.h"
 
-namespace WTF {
+namespace blink {
 
 namespace {
 
@@ -85,7 +81,7 @@ TEST(StringHasherTest, StringHasher_ComputeHashAndMaskTop8Bits) {
   const char kStr[] = "A quick browñ föx jumps over thé lazy dog";
   UChar kWideStr[sizeof(kStr)];
   for (unsigned i = 0; i < sizeof(kStr); ++i) {
-    kWideStr[i] = static_cast<uint8_t>(kStr[i]);
+    UNSAFE_TODO(kWideStr[i]) = static_cast<uint8_t>(UNSAFE_TODO(kStr[i]));
   }
   EXPECT_EQ(StringHasher::ComputeHashAndMaskTop8Bits(kStr, strlen(kStr)),
             StringHasher::ComputeHashAndMaskTop8Bits<ConvertTo8BitHashReader>(
@@ -134,8 +130,8 @@ TEST(StringHasherTest, ContractionAndExpansion) {
     String s16 = s8;
     s16.Ensure16Bit();
     EXPECT_EQ(CaseFoldingHash::GetHash(s8), CaseFoldingHash::GetHash(s16));
-    EXPECT_EQ(WTF::GetHash(s8), WTF::GetHash(s16));
+    EXPECT_EQ(GetHash(s8), GetHash(s16));
   }
 }
 
-}  // namespace WTF
+}  // namespace blink

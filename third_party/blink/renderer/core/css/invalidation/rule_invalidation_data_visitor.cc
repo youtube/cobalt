@@ -179,9 +179,7 @@ bool SupportsInvalidation(CSSSelector::PseudoType type) {
     case CSSSelector::kPseudoActiveViewTransition:
     case CSSSelector::kPseudoActiveViewTransitionType:
     case CSSSelector::kPseudoHasInterest:
-    case CSSSelector::kPseudoHasPartialInterest:
     case CSSSelector::kPseudoTargetOfInterest:
-    case CSSSelector::kPseudoTargetOfPartialInterest:
     case CSSSelector::kPseudoHasSlotted:
       return true;
     case CSSSelector::kPseudoUnknown:
@@ -1668,9 +1666,7 @@ RuleInvalidationDataVisitor<VisitorType>::InvalidationSetForSimpleSelector(
       case CSSSelector::kPseudoActiveViewTransition:
       case CSSSelector::kPseudoActiveViewTransitionType:
       case CSSSelector::kPseudoHasInterest:
-      case CSSSelector::kPseudoHasPartialInterest:
       case CSSSelector::kPseudoTargetOfInterest:
-      case CSSSelector::kPseudoTargetOfPartialInterest:
       case CSSSelector::kPseudoHasSlotted:
         return EnsurePseudoInvalidationSet(selector.GetPseudoType(), type,
                                            position, in_nth_child);
@@ -1860,7 +1856,7 @@ void RuleInvalidationDataVisitor<VisitorType>::AddFeaturesToInvalidationSet(
     }
   }
   // TODO(crbug.com/337076014): Record entries in InvalidationSetToSelectorMap
-  // for ::slotted() and ::part().
+  // for ::slotted().
   if (features.invalidation_flags.InvalidatesSlotted()) {
     if constexpr (is_builder()) {
       invalidation_set->SetInvalidatesSlotted();
@@ -1873,6 +1869,9 @@ void RuleInvalidationDataVisitor<VisitorType>::AddFeaturesToInvalidationSet(
     if constexpr (is_builder()) {
       invalidation_set->SetInvalidatesParts();
     }
+    InvalidationSetToSelectorMap::RecordInvalidationSetEntry(
+        invalidation_set,
+        InvalidationSetToSelectorMap::SelectorFeatureType::kPart, g_empty_atom);
   }
   if (features.content_pseudo_crossing ||
       features.invalidation_flags.WholeSubtreeInvalid()) {

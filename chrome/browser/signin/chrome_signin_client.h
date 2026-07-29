@@ -123,16 +123,6 @@ class ChromeSigninClient : public SigninClient {
   void OnTokenFetchComplete(bool token_is_valid);
 #endif
 
-  // virtual for unit testing: cut down dependency on `BookmarkModel`.
-  // The following two functions will return `std::nullopt` if the
-  // `BookmarkModel` is nullptr.
-  virtual std::optional<size_t> GetAllBookmarksCount();
-  virtual std::optional<size_t> GetBookmarkBarBookmarksCount();
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-  // Returns `std::nullopt` if the `ExtensionRegistry` is nullptr.
-  virtual std::optional<size_t> GetExtensionsCount();
-#endif
-
 #if !BUILDFLAG(IS_CHROMEOS)
   void RecordOpenTabCount(signin_metrics::AccessPoint access_point,
                           signin::ConsentLevel consent_level);
@@ -150,6 +140,10 @@ class ChromeSigninClient : public SigninClient {
   // registers it. Only registers the group if it was previously set in the
   // pref.
   static void RegisterSyntheticTrialsFromPrefs();
+
+  // Attempts to launch a HaTS survey for users who signed in from the specified
+  // access point. The survey may be deferred if no browser is active.
+  void LaunchHatsSurveyForAccessPoint(signin_metrics::AccessPoint access_point);
 
   const std::unique_ptr<WaitForNetworkCallbackHelper>
       wait_for_network_callback_helper_;

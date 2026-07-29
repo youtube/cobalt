@@ -340,7 +340,9 @@ const base::TimeDelta kSearchWithCameraTooltipHintDelay = base::Seconds(2.0);
 
 - (void)searchImageWithLens:(UIImage*)image
                  entrypoint:(LensOverlayEntrypoint)entrypoint
+    initialPresentationBase:(UIViewController*)initialPresentationBase
                  completion:(void (^)(BOOL))completion {
+  _presentationBaseViewController = initialPresentationBase;
   BOOL success = [self prepareOverlayWithEntrypoint:entrypoint];
   if (!success) {
     if (completion) {
@@ -1179,8 +1181,7 @@ const base::TimeDelta kSearchWithCameraTooltipHintDelay = base::Seconds(2.0);
 
 // Returns whether or not the consent dialog should be shown.
 - (BOOL)shouldShowConsentFlow {
-  if (lens::IsLVFEntrypoint(_entrypoint) ||
-      lens::IsImageContextMenuEntrypoint(_entrypoint)) {
+  if (!lens::EntrypointRequiresUserConsent(_entrypoint)) {
     return NO;
   }
 
@@ -1202,8 +1203,7 @@ const base::TimeDelta kSearchWithCameraTooltipHintDelay = base::Seconds(2.0);
 
 // Asserts that the terms of service has been accepted.
 - (void)checkTermsOfServiceIfNeeded {
-  if (lens::IsLVFEntrypoint(_entrypoint) ||
-      lens::IsImageContextMenuEntrypoint(_entrypoint)) {
+  if (!lens::EntrypointRequiresUserConsent(_entrypoint)) {
     return;
   }
 

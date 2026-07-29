@@ -101,7 +101,8 @@ class MockAutofillDriver : public TestAutofillDriver {
                mojom::ActionPersistence action_persistence,
                base::span<const FormFieldData> data,
                const url::Origin& triggered_origin,
-               (const base::flat_map<FieldGlobalId, FieldType>&)),
+               (const base::flat_map<FieldGlobalId, FieldType>&),
+               (const Section&)),
               (override));
   MOCK_METHOD(void,
               ApplyFieldAction,
@@ -1584,7 +1585,7 @@ TEST_F(FormFillerTest, FillPassportEntity) {
 
   std::vector<FormFieldData> filled_fields =
       FillAutofillFormData(form, form.fields()[0], &passport).fields();
-  EXPECT_EQ(filled_fields[0].value(), u"123");
+  EXPECT_EQ(filled_fields[0].value(), u"LR1234567");
   EXPECT_EQ(filled_fields[1].value(), u"Pippi");
   EXPECT_EQ(filled_fields[2].value(), u"Långstrump");
   EXPECT_EQ(filled_fields[3].value(), u"Sweden");

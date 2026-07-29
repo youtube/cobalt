@@ -296,7 +296,7 @@ struct RangeContext {
   const unsigned start;
   const unsigned end;
   const PooledHarfBuzzBuffer buffer;
-  FontFeatures font_features;
+  FontFeatureRanges font_features;
   Deque<ReshapeQueueItem> reshape_queue;
   const ShapeOptions options;
 
@@ -359,7 +359,7 @@ void RoundHarfBuzzBufferPositions(hb_buffer_t* buffer) {
 }
 
 inline bool ShapeRange(hb_buffer_t* buffer,
-                       const FontFeatures& font_features,
+                       const FontFeatureRanges& font_features,
                        const SimpleFontData* current_font,
                        const UnicodeRangeSet* current_font_range_set,
                        UScriptCode current_run_script,
@@ -373,7 +373,7 @@ inline bool ShapeRange(hb_buffer_t* buffer,
     return false;
   }
 
-  std::optional<FontFeatures> variant_features;
+  std::optional<FontFeatureRanges> variant_features;
   if (const ResolvedFontFeatures& resolved_features =
           platform_data.ResolvedFeatures();
       !resolved_features.empty()) {
@@ -385,7 +385,7 @@ inline bool ShapeRange(hb_buffer_t* buffer,
     }
     variant_features->AppendVector(font_features);
   }
-  const FontFeatures& argument_features =
+  const FontFeatureRanges& argument_features =
       variant_features ? *variant_features : font_features;
 
   hb_buffer_set_language(buffer, language);
@@ -844,7 +844,7 @@ class CapsFeatureSettingsScopedOverlay final {
   STACK_ALLOCATED();
 
  public:
-  CapsFeatureSettingsScopedOverlay(FontFeatures*,
+  CapsFeatureSettingsScopedOverlay(FontFeatureRanges*,
                                    FontDescription::FontVariantCaps);
   CapsFeatureSettingsScopedOverlay() = delete;
   ~CapsFeatureSettingsScopedOverlay();
@@ -852,12 +852,12 @@ class CapsFeatureSettingsScopedOverlay final {
  private:
   void OverlayCapsFeatures(FontDescription::FontVariantCaps);
   void PrependCounting(const FontFeatureRange&);
-  FontFeatures* features_;
+  FontFeatureRanges* features_;
   wtf_size_t count_features_;
 };
 
 CapsFeatureSettingsScopedOverlay::CapsFeatureSettingsScopedOverlay(
-    FontFeatures* features,
+    FontFeatureRanges* features,
     FontDescription::FontVariantCaps variant_caps)
     : features_(features), count_features_(0) {
   OverlayCapsFeatures(variant_caps);
@@ -1039,10 +1039,11 @@ void HarfBuzzShaper::ShapeSegment(
         CanvasRotationForRun(adjusted_font->PlatformData().Orientation(),
                              segment.render_orientation, font_description);
 
+    FontFeatureRanges& font_features = range_data->font_features;
     CapsFeatureSettingsScopedOverlay caps_overlay(
-        &range_data->font_features,
-        caps_support.FontFeatureToUse(small_caps_behavior));
+        &font_features, caps_support.FontFeatureToUse(small_caps_behavior));
     hb_direction_t direction = range_data->HarfBuzzDirection(canvas_rotation);
+    FontFeatureRangesSaver font_features_saver(&font_features);
     HanKerning han_kerning(
         text_, shape_start, shape_end, *adjusted_font, font_description,
         {.is_horizontal = HB_DIRECTION_IS_HORIZONTAL(direction),
@@ -1052,7 +1053,7 @@ void HarfBuzzShaper::ShapeSegment(
                         range_data->start == shape_start,
          .apply_end = range_data->options.han_kerning_end &&
                       range_data->end == shape_end},
-        &range_data->font_features);
+        &font_features);
 
     if (!ShapeRange(range_data->buffer.Get(), range_data->font_features,
                     adjusted_font, current_font_data_for_range_set->Ranges(),

@@ -3551,6 +3551,7 @@ component("ash") {
     "//gpu/command_buffer/client",
     "//gpu/command_buffer/client:gles2_interface",
     "//gpu/ipc/client",
+    "//ipc:mojom_constants",
     "//media",
     "//media/capture:capture_lib",
     "//net",
@@ -3675,6 +3676,10 @@ component("ash") {
       "//chromeos/ash/resources/internal/strings",
     ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 action("dbus_service_files") {
@@ -3802,22 +3807,6 @@ test("ash_unittests") {
     "app_menu/notification_menu_controller_unittest.cc",
     "app_menu/notification_menu_view_unittest.cc",
     "app_menu/notification_overflow_view_unittest.cc",
-    "assistant/assistant_alarm_timer_controller_unittest.cc",
-    "assistant/assistant_controller_impl_unittest.cc",
-    "assistant/assistant_notification_controller_impl_unittest.cc",
-    "assistant/assistant_setup_controller_unittest.cc",
-    "assistant/assistant_state_controller_unittest.cc",
-    "assistant/assistant_suggestions_controller_impl_unittest.cc",
-    "assistant/model/assistant_query_history_unittest.cc",
-    "assistant/ui/assistant_web_container_view_unittest.cc",
-    "assistant/ui/base/assistant_button_unittest.cc",
-    "assistant/ui/main_stage/assistant_opt_in_view_unittest.cc",
-    "assistant/ui/main_stage/assistant_query_view_unittest.cc",
-    "assistant/ui/main_stage/assistant_text_element_view_unittest.cc",
-    "assistant/ui/main_stage/assistant_zero_state_view_unittest.cc",
-    "assistant/ui/main_stage/launcher_search_iph_view_unittest.cc",
-    "assistant/ui/main_stage/suggestion_chip_view_unittest.cc",
-    "assistant/ui/main_stage/ui_element_container_view_unittest.cc",
     "assistant/util/deep_link_util_unittest.cc",
     "assistant/util/resource_util_unittest.cc",
     "auth/test/active_session_auth_controller_unittest.cc",
@@ -4767,6 +4756,7 @@ test("ash_unittests") {
     "//components/password_manager/core/browser:hash_password_manager",
     "//components/peripherals/logging:logging",
     "//components/prefs:test_support",
+    "//components/proxy_config",
     "//components/quirks",
     "//components/services/app_service",
     "//components/session_manager/core",
@@ -4895,6 +4885,10 @@ test("ash_unittests") {
       "//chromeos/ash/resources/internal/strings",
     ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 test("ash_pixeltests") {
@@ -5018,6 +5012,10 @@ test("ash_pixeltests") {
     "//ui/touch_selection",
     "//ui/views:test_support",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 # TODO(oshima): Remove or migrate to new ash_ui_perftests
@@ -5106,18 +5104,8 @@ static_library("test_support") {
     "app_list/test/test_focus_change_listener.h",
     "app_list/test_app_list_client.cc",
     "app_list/test_app_list_client.h",
-    "app_list/views/assistant/assistant_test_api_impl.cc",
-    "app_list/views/assistant/assistant_test_api_impl.h",
     "app_menu/notification_menu_view_test_api.cc",
     "app_menu/notification_menu_view_test_api.h",
-    "assistant/test/assistant_ash_test_base.cc",
-    "assistant/test/assistant_ash_test_base.h",
-    "assistant/test/mocked_assistant_interaction.cc",
-    "assistant/test/mocked_assistant_interaction.h",
-    "assistant/test/test_assistant_service.cc",
-    "assistant/test/test_assistant_service.h",
-    "assistant/test/test_assistant_setup.cc",
-    "assistant/test/test_assistant_setup.h",
     "auth/views/test_support/mock_active_session_auth_view_observer.cc",
     "auth/views/test_support/mock_active_session_auth_view_observer.h",
     "auth/views/test_support/mock_auth_container_view_observer.cc",
@@ -5295,7 +5283,6 @@ static_library("test_support") {
     "public/cpp/system_tray_test_api.h",
     "public/cpp/test/accessibility_controller_test_api.h",
     "public/cpp/test/app_list_test_api.h",
-    "public/cpp/test/assistant_test_api.h",
     "public/cpp/test/shell_test_api.h",
     "rotator/screen_rotation_animator_test_api.cc",
     "rotator/screen_rotation_animator_test_api.h",
@@ -5564,4 +5551,8 @@ static_library("test_support") {
     "//ui/wm",
     "//ui/wm/public",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }

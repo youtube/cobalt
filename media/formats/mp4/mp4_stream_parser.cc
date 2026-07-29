@@ -115,8 +115,10 @@ base::HeapArray<uint8_t> PrependIADescriptors(
   const size_t descriptors_size = iacb.ia_descriptors.size();
   const size_t total_size = frame_buf.size() + descriptors_size;
   auto output_buffer = base::HeapArray<uint8_t>::Uninit(total_size);
-  output_buffer.copy_from(iacb.ia_descriptors);
-  output_buffer.last(frame_buf.size()).copy_from(frame_buf);
+  auto [output_ia_descriptors, output_frame_buf] =
+      base::span(output_buffer).split_at(descriptors_size);
+  output_ia_descriptors.copy_from_nonoverlapping(iacb.ia_descriptors);
+  output_frame_buf.copy_from_nonoverlapping(frame_buf);
 
   if (subsamples->empty()) {
     subsamples->emplace_back(descriptors_size, frame_buf.size());
@@ -368,8 +370,8 @@ ParseResult MP4StreamParser::ParseBox() {
   }
 
   std::unique_ptr<BoxReader> reader;
-  ParseResult result =
-      BoxReader::ReadTopLevelBox(buf, size, media_log_, &reader);
+  ParseResult result = BoxReader::ReadTopLevelBox(
+      base::span(buf, base::checked_cast<size_t>(size)), media_log_, &reader);
   if (result != ParseResult::kOk)
     return result;
 
@@ -1219,7 +1221,9 @@ bool MP4StreamParser::ReadAndDiscardMDATsUntil(int64_t max_clear_offset) {
 
     FourCC type;
     size_t box_sz;
-    result = BoxReader::StartTopLevelBox(buf, size, media_log_, &type, &box_sz);
+    result = BoxReader::StartTopLevelBox(
+        base::span(buf, base::checked_cast<size_t>(size)), media_log_, &type,
+        &box_sz);
     if (result != ParseResult::kOk)
       break;
 

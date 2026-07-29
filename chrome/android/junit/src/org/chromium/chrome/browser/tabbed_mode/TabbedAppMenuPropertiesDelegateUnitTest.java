@@ -35,7 +35,6 @@ import android.view.View;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import org.chromium.base.DeviceInfo;
 import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Assert;
@@ -52,6 +51,7 @@ import org.robolectric.annotation.Config;
 import org.robolectric.shadows.ShadowPackageManager;
 
 import org.chromium.base.ContextUtils;
+import org.chromium.base.DeviceInfo;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.OneshotSupplierImpl;
@@ -109,11 +109,11 @@ import org.chromium.chrome.browser.translate.TranslateBridgeJni;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuDelegate;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuHandler;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuItemProperties;
-import org.chromium.chrome.browser.ui.extensions.ExtensionUi;
-import org.chromium.chrome.browser.ui.extensions.ExtensionUiBackend;
 import org.chromium.chrome.browser.ui.extensions.ExtensionsBuildflags;
+import org.chromium.chrome.browser.ui.extensions.FakeExtensionUiBackendRule;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.ui.native_page.NativePage;
+import org.chromium.chrome.test.OverrideContextWrapperTestRule;
 import org.chromium.components.browser_ui.accessibility.PageZoomCoordinator;
 import org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridge;
 import org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridgeJni;
@@ -132,7 +132,6 @@ import org.chromium.components.sync.SyncService;
 import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.components.user_prefs.UserPrefsJni;
 import org.chromium.components.webapps.AppBannerManager;
-import org.chromium.chrome.test.OverrideContextWrapperTestRule;
 import org.chromium.components.webapps.AppBannerManagerJni;
 import org.chromium.content_public.browser.NavigationController;
 import org.chromium.content_public.browser.WebContents;
@@ -156,7 +155,6 @@ import java.util.List;
 @RunWith(BaseRobolectricTestRunner.class)
 @DisableFeatures({
     ChromeFeatureList.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_PAGE_SUMMARY,
-    ChromeFeatureList.BLOCK_INSTALLING_EXTENSIONS_ON_DESKTOP_ANDROID,
     ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION,
     DomDistillerFeatures.READER_MODE_IMPROVEMENTS
 })
@@ -189,6 +187,10 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
     @Rule
     public OverrideContextWrapperTestRule mOverrideContextWrapperTestRule =
             new OverrideContextWrapperTestRule();
+
+    @Rule
+    public FakeExtensionUiBackendRule mFakeExtensionUiBackendRule =
+            new FakeExtensionUiBackendRule();
 
     @Mock private ActivityTabProvider mActivityTabProvider;
     @Mock private Tab mTab;
@@ -300,14 +302,6 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
 
         when(mSyncService.isSyncFeatureEnabled()).thenReturn(true);
         SyncServiceFactory.setInstanceForTesting(mSyncService);
-
-        ExtensionUi.setBackendForTesting(
-                new ExtensionUiBackend() {
-                    @Override
-                    public boolean isEnabled(Profile profile) {
-                        return ExtensionsBuildflags.ENABLE_DESKTOP_ANDROID_EXTENSIONS;
-                    }
-                });
 
         IncognitoUtilsJni.setInstanceForTesting(mIncognitoUtilsJniMock);
 
@@ -1786,6 +1780,42 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         assertFalse(
                 "AI PDF menu item should not be visible",
                 isMenuVisible(modelList, R.id.ai_pdf_menu_id));
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ANDROID_PINNED_TABS)
+    public void testPinTabToggleMenuItem_tabNotPinned_shouldShowPinTabItem() {
+        setUpMocksForPageMenu();
+        when(mTab.getUrl()).thenReturn(JUnitTestGURLs.URL_1);
+        when(mTab.getIsPinned()).thenReturn(false);
+
+        MVCListAdapter.ModelList modelList = mTabbedAppMenuPropertiesDelegate.getMenuItems();
+
+        assertTrue(
+                "Pin tab menu item should be visible",
+                isMenuVisible(modelList, R.id.pin_tab_menu_id));
+
+        assertFalse(
+                "Unpin tab menu item should not be visible",
+                isMenuVisible(modelList, R.id.unpin_tab_menu_id));
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ANDROID_PINNED_TABS)
+    public void testPinTabToggleMenuItem_tabPinned_shouldShowUnpinTabItem() {
+        setUpMocksForPageMenu();
+        when(mTab.getUrl()).thenReturn(JUnitTestGURLs.URL_1);
+        when(mTab.getIsPinned()).thenReturn(true);
+
+        MVCListAdapter.ModelList modelList = mTabbedAppMenuPropertiesDelegate.getMenuItems();
+
+        assertTrue(
+                "Unpin tab menu item should be visible",
+                isMenuVisible(modelList, R.id.unpin_tab_menu_id));
+
+        assertFalse(
+                "Pin tab menu item should not be visible",
+                isMenuVisible(modelList, R.id.pin_tab_menu_id));
     }
 
     @Test

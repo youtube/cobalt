@@ -6,12 +6,15 @@ source_set("ui") {
   sources = [
     "interactive_lens_overlay_promo_view_controller.h",
     "interactive_lens_overlay_promo_view_controller.mm",
+    "lens_overlay_promo_container_view_controller.h",
+    "lens_overlay_promo_container_view_controller.mm",
   ]
   deps = [
     "//base",
     "//ios/chrome/app/strings",
     "//ios/chrome/browser/bubble/ui_bundled:bubble_view",
     "//ios/chrome/browser/bubble/ui_bundled:constants",
+    "//ios/chrome/browser/first_run/ui_bundled/interactive_lens/ui/resources",
     "//ios/chrome/common/ui/colors",
     "//ios/chrome/common/ui/elements",
     "//ios/chrome/common/ui/promo_style",

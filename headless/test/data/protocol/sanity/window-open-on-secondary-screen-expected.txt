@@ -1,2 +1,0 @@
-Tests window open on a secondary screen.
-Page2 screen: 2nd screen

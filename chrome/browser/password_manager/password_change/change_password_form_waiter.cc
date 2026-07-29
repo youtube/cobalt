@@ -31,7 +31,7 @@ ChangePasswordFormWaiter::ChangePasswordFormWaiter(
     content::WebContents* web_contents,
     PasswordFormFoundCallback callback)
     : web_contents_(web_contents), callback_(std::move(callback)) {
-  GetFormCache(web_contents).SetObserver(weak_ptr_factory_.GetWeakPtr());
+  GetFormCache(web_contents).AddObserver(this);
   if (web_contents->IsDocumentOnLoadCompletedInPrimaryMainFrame()) {
     DocumentOnLoadCompletedInPrimaryMainFrame();
   } else {
@@ -41,7 +41,7 @@ ChangePasswordFormWaiter::ChangePasswordFormWaiter(
 
 ChangePasswordFormWaiter::~ChangePasswordFormWaiter() {
   CHECK(web_contents_);
-  GetFormCache(web_contents_).ResetObserver();
+  GetFormCache(web_contents_).RemoveObserver(this);
 }
 
 void ChangePasswordFormWaiter::OnPasswordFormParsed(
@@ -57,7 +57,16 @@ void ChangePasswordFormWaiter::OnPasswordFormParsed(
   // to <form>-less forms.
   if (parsed_form->form_data.renderer_id() &&
       parsed_form->username_element_renderer_id) {
-    return;
+    auto username_element =
+        std::ranges::find(parsed_form->form_data.fields(),
+                          parsed_form->username_element_renderer_id,
+                          &autofill::FormFieldData::renderer_id);
+    CHECK(username_element != parsed_form->form_data.fields().end());
+    // Username must be focusable, otherwise it's hidden or non-editable which
+    // isn't an issue.
+    if (username_element->is_focusable()) {
+      return;
+    }
   }
 
   // New password field must be present in a change password form.

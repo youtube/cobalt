@@ -1353,6 +1353,9 @@
       <message name="IDS_NTP_CUSTOMIZATION_TURN_ON_FEED_SETTINGS" desc="Accessibility string to announce the currently selected item is a toggle to control the visibility of the discover feed section." is_accessibility_with_no_ui="true">
         Turn on discover feed
       </message>
+      <message name="IDS_NTP_CUSTOMIZATION_TURN_ON_MVT_SETTINGS" desc="Accessibility string to announce the currently selected item is a toggle to control the visibility of the most visited tiles section." is_accessibility_with_no_ui="true">
+        Turn on shortcuts
+      </message>
       <message name="IDS_NTP_CUSTOMIZATION_SHOW_MORE" desc="Accessibility string that describes clicking on the currently selected item will show more details about it." is_accessibility_with_no_ui="true">
         Show More
       </message>
@@ -1373,6 +1376,15 @@
       </message>
       <message name="IDS_NTP_CUSTOMIZATION_THEME_BOTTOM_SHEET_THEME_COLLECTIONS_OPTION" desc="Title of the theme collections option in the new tab page customization theme bottom sheet">
         Theme Collections
+      </message>
+      <message name="IDS_NTP_CUSTOMIZATION_THEME_COLLECTIONS_TITLE" desc="Open all available theme collections when click the theme collection section in the NTP appearance bottom sheet">
+        Theme
+      </message>
+      <message name="IDS_NTP_CUSTOMIZATION_THEME_COLLECTIONS_BOTTOM_SHEET" desc="Accessibility string to announce the currently displaying bottom sheet is the new tab page appearance theme collections bottom sheet.">
+        New tab page appearance theme collections bottom sheet
+      </message>
+      <message name="IDS_NTP_CUSTOMIZATION_THEME_COLLECTIONS_BOTTOM_SHEET_OPENED_FULL" desc="Accessibility string that describes the new tab page appearance theme collections bottom sheet is fully opened.">
+        New tab page appearance theme collections bottom sheet opened at full height
       </message>
 
       <!-- Time Last Accessed strings -->

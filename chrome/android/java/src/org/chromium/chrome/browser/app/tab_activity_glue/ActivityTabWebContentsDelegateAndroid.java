@@ -6,11 +6,14 @@ package org.chromium.chrome.browser.app.tab_activity_glue;
 
 import android.app.Activity;
 import android.app.ActivityManager;
+import android.app.ActivityManager.AppTask;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.Resources;
 import android.graphics.Rect;
+import android.graphics.RectF;
 import android.media.AudioManager;
+import android.util.Pair;
 import android.view.KeyEvent;
 import android.view.View;
 
@@ -18,10 +21,13 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.collection.ArrayMap;
 
+import org.chromium.base.AconfigFlaggedApiDelegate;
 import org.chromium.base.ActivityState;
 import org.chromium.base.ApplicationStatus;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
+import org.chromium.base.ServiceLoaderUtil;
+import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.Supplier;
 import org.chromium.blink.mojom.DisplayMode;
@@ -54,12 +60,14 @@ import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tabmodel.TabModelUtils;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeUtils;
+import org.chromium.chrome.browser.util.AndroidTaskUtils;
 import org.chromium.chrome.browser.util.WindowFeatures;
 import org.chromium.components.embedder_support.contextmenu.ContextMenuUtils;
 import org.chromium.components.embedder_support.delegate.WebContentsDelegateAndroid;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.common.ResourceRequestBody;
 import org.chromium.ui.base.WindowAndroid;
+import org.chromium.ui.display.DisplayUtil;
 import org.chromium.ui.modaldialog.DialogDismissalCause;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modaldialog.ModalDialogProperties;
@@ -203,8 +211,12 @@ public class ActivityTabWebContentsDelegateAndroid extends TabWebContentsDelegat
         if (mTab.isClosing()) return false;
 
         boolean openingPopup =
-                PopupCreator.arePopupsEnabled(mActivity)
+                PopupCreator.arePopupsEnabled(mTab.getWindowAndroid().getDisplay())
                         && (disposition == WindowOpenDisposition.NEW_POPUP);
+        if (disposition == WindowOpenDisposition.NEW_POPUP) {
+            RecordHistogram.recordBooleanHistogram(
+                    "Android.MultiWindowMode.PopupOpensInNewWindow", openingPopup);
+        }
 
         // Auxiliary navigations starting in a PWA will always cause a tab reparenting, we
         // want to prevent UI effects caused by adding the Tab to the TabModel.
@@ -291,7 +303,30 @@ public class ActivityTabWebContentsDelegateAndroid extends TabWebContentsDelegat
 
     @Override
     protected void setContentsBounds(WebContents source, Rect bounds) {
-        // Do nothing.
+        if (!ChromeFeatureList.isEnabled(ChromeFeatureList.ANDROID_WINDOW_POPUP_LARGE_SCREEN)) {
+            return;
+        }
+
+        if (!isPopup()) {
+            return;
+        }
+
+        final AconfigFlaggedApiDelegate delegate =
+                ServiceLoaderUtil.maybeCreate(AconfigFlaggedApiDelegate.class);
+        if (delegate == null) {
+            return;
+        }
+
+        final AppTask appTask = AndroidTaskUtils.getAppTaskFromId(mActivity, mActivity.getTaskId());
+        if (appTask == null) {
+            Log.e(TAG, "Got a null AppTask in setContentsBounds()");
+            return;
+        }
+
+        final Pair<Integer, Rect> localCoordinatesPx =
+                DisplayUtil.getLocalCoordinatesPx(
+                        new RectF(bounds), mTab.getWindowAndroid().getDisplay());
+        delegate.moveTaskTo(appTask, localCoordinatesPx.first, localCoordinatesPx.second);
     }
 
     @Override
@@ -548,6 +583,11 @@ public class ActivityTabWebContentsDelegateAndroid extends TabWebContentsDelegat
     @Override
     protected boolean isCustomTab() {
         return mIsCustomTab;
+    }
+
+    @Override
+    protected boolean isPopup() {
+        return false;
     }
 
     private void showRepostFormWarningTabModalDialog() {

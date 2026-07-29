@@ -11,15 +11,33 @@ export function getHtml(this: ComposeboxFileThumbnailElement) {
   return html`<!--_html_template_start_-->
 <div id="container">
   ${this.file.objectUrl ? html`
-    <img class="thumbnail" src="${this.file.objectUrl}">
-    </img>` : html`
-    <!-- TODO(): Replace with icon for file type -->
-    <p class="thumbnail">${this.file.name}</p>
+    <div id="imgChip" aria-label="${this.file.name}">
+      <img class="img-thumbnail"
+           src="${this.file.objectUrl}"></img>
+        <cr-icon-button
+            class="img-overlay"
+            id="removeImgButton"
+            iron-icon="cr:clear"
+            title="${this.deleteFileButtonTitle}"
+            @click="${this.deleteFile_}">
+        </cr-icon-button>
+    </div>` : html`
+    <div id="pdfChip">
+      <div id="pdfThumbnail">
+        <cr-icon icon="thumbnail:pdf" class="pdf-icon">
+        </cr-icon>
+        <div class="pdf-overlay">
+          <cr-icon-button
+              id="removePdfButton"
+              iron-icon="cr:clear"
+              title="${this.deleteFileButtonTitle}"
+              @click="${this.deleteFile_}">
+          </cr-icon-button>
+        </div>
+      </div>
+      <p class="pdf-title">${this.file.name}</p>
+    </div>
   `}
-  <cr-icon-button id="deleteButton"
-      iron-icon="cr:delete"
-      @click=${this.deleteFile_}>
-  </cr-icon-button>
 </div>
 <!--_html_template_end_-->`;
   // clang-format on

@@ -994,9 +994,9 @@ SkiaRenderer::SkiaRenderer(const RendererSettings* settings,
   // It's possible to use BufferQueue with DComp textures, so we can optionally
   // enable it behind a feature flag.
   const bool want_buffer_queue =
-      base::FeatureList::IsEnabled(kBufferQueue) &&
       output_surface_->capabilities().dc_support_level >=
-          OutputSurface::DCSupportLevel::kDCompTexture;
+          OutputSurface::DCSupportLevel::kDCompDynamicTexture &&
+      base::FeatureList::IsEnabled(kBufferQueue);
 #else
   const bool want_buffer_queue = true;
 #endif
@@ -2773,11 +2773,12 @@ void SkiaRenderer::DrawTextureQuad(const TextureDrawQuad* quad,
       hdr_metadata.ndwl = gfx::HdrMetadataNdwl(
           current_frame()->display_color_spaces.GetSDRMaxLuminanceNits());
     }
+    // TODO(https://crbug.com/428575083): Change this to use log2 based
+    // headroom.
     cc::ToneMapUtil::AddGlobalToneMapFilterToPaint(
         paint, image, hdr_metadata,
-        quad->dynamic_range_limit.ComputeHdrHeadroom(
-            current_frame()
-                ->display_color_spaces.GetHDRMaxLuminanceRelative()));
+        std::exp2(quad->dynamic_range_limit.ComputeEffectiveHdrHeadroom(
+            current_frame()->display_color_spaces.GetHdrHeadroom())));
   }
 
   // From gl_renderer, the final src color will be

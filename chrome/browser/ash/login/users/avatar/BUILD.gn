@@ -26,7 +26,6 @@ static_library("avatar") {
   public_deps = [
     "//base",
     "//chrome/browser:browser_public_dependencies",
-    "//chrome/browser/image_decoder",
     "//components/session_manager/core",
     "//components/sync_preferences",
     "//components/user_manager",
@@ -46,6 +45,7 @@ static_library("avatar") {
     "//chrome/browser/ash/profiles",
     "//chrome/browser/prefs:util",
     "//chrome/browser/profiles:profile",
+    "//chrome/browser/signin",
     "//chrome/common:constants",
     "//chromeos/ash/components/browser_context_helper",
     "//components/account_id",
@@ -82,7 +82,7 @@ static_library("test_support") {
   public_deps = [
     ":avatar",
     "//base",
-    "//chrome/browser/image_decoder",
+    "//base/test:test_support",
     "//components/user_manager",
     "//content/public/browser",
     "//testing/gmock",
@@ -114,6 +114,7 @@ source_set("browser_tests") {
     "//chrome/browser/ash/policy/core:test_support",
     "//chrome/browser/ash/policy/external_data:test_support",
     "//chrome/browser/profiles:profile",
+    "//chrome/browser/signin",
     "//chrome/common:constants",
     "//chrome/test:test_support",
     "//chrome/test:test_support_ui",

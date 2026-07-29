@@ -476,7 +476,9 @@ TEST_F(AutofillCrowdsourcingEncoding, EncodeUploadRequestWithFormatStrings) {
   form.set_fields(
       {CreateTestFormField("First Name", "firstname", "",
                            FormControlType::kInputText),
-       CreateTestFormField("Date", "date", "", FormControlType::kInputText)});
+       CreateTestFormField("Date", "date", "", FormControlType::kInputText),
+       CreateTestFormField("Last four digits of ID", "passport-number", "",
+                           FormControlType::kInputText)});
 
   form_structure = std::make_unique<FormStructure>(form);
   for (auto& fs_field : *form_structure) {
@@ -520,12 +522,26 @@ TEST_F(AutofillCrowdsourcingEncoding, EncodeUploadRequestWithFormatStrings) {
     }
   }
 
+  {
+    AutofillUploadContents::Field* upload_date_field = upload.add_field_data();
+    upload_date_field->set_signature(
+        *form_structure->field(2)->GetFieldSignature());
+    {
+      auto* added_format_string = upload_date_field->add_format_string();
+      added_format_string->set_type(FormatString_Type_AFFIX);
+      added_format_string->set_format_string("-4");
+    }
+  }
+
   EncodeUploadRequestOptions options;
   options.encoder = RandomizedEncoder(
       "seed for testing", AutofillRandomizedValue_EncodingType_ALL_BITS,
       /*anonymous_url_collection_is_enabled=*/true);
   options.fields[form_structure->fields()[1]->global_id()].format_strings = {
-      u"DD/MM/YYYY", u"MM/DD/YYYY"};
+      {FormatString_Type_DATE, u"DD/MM/YYYY"},
+      {FormatString_Type_DATE, u"MM/DD/YYYY"}};
+  options.fields[form_structure->fields()[2]->global_id()].format_strings = {
+      {FormatString_Type_AFFIX, u"-4"}};
   options.available_field_types = {NAME_FIRST};
   options.observed_submission = true;
 

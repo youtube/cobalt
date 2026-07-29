@@ -72,14 +72,14 @@ LayoutUnit ClampAndRound(LayoutUnit value, LayoutUnit min, LayoutUnit max) {
 LayoutUnit ComputeCharacterWidthAtOffset(const InlineCursor& cursor,
                                          unsigned offset,
                                          const ComputedStyle& style) {
-  const LocalFrameView* frame_view =
-      cursor.Current().GetLayoutObject()->GetFrameView();
   unsigned cluster_size =
       LengthOfGraphemeCluster(cursor.CurrentText().ToString(), offset);
+  // The width calculation takes into account font information from style.
+  // The zoom value is baked into the font size already.
   float width = ComputeTextWidth(
       StringView(cursor.CurrentText(), offset, cluster_size), style);
 
-  return frame_view->ScaleCssPixelForCaret(width);
+  return LayoutUnit(width);
 }
 
 LogicalRect ComputeNextCharacterLogicalRect(const InlineCursor& cursor,
@@ -175,9 +175,7 @@ LogicalRect ComputeLogicalCaretRectAtTextOffset(const InlineCursor& cursor,
   LogicalRect caret_rect;
   LayoutUnit cursor_block_size =
       converter.ToLogical(cursor.Current().Size()).block_size;
-  if (caret_shape != CaretShape::kBar &&
-      !IsA<LayoutTextCombine>(cursor.Current().GetLayoutObject()->Parent()))
-      [[unlikely]] {
+  if (caret_shape != CaretShape::kBar) [[unlikely]] {
     // Get the width of the "next" character, or width of the last visible
     // character if there is no visible next character.
     caret_rect = ComputeNextCharacterLogicalRect(cursor, offset, caret_shape);
@@ -227,11 +225,13 @@ PhysicalRect ComputeLocalCaretRectAtTextOffset(const InlineCursor& cursor,
       physical_caret_rect.offset + cursor.Current().OffsetInContainerFragment();
   const auto* const text_combine = DynamicTo<LayoutTextCombine>(
       cursor.Current().GetLayoutObject()->Parent());
-  // TODO(https://crbug.com/353713061): Add caret-shape support for combine
-  // text.
   if (text_combine) [[unlikely]] {
     caret_location =
         text_combine->AdjustOffsetForLocalCaretRect(caret_location);
+    if (caret_shape != CaretShape::kBar) {
+      physical_caret_rect =
+          text_combine->AdjustRectForBoundingBox(physical_caret_rect);
+    }
   }
 
   const PhysicalBoxFragment& fragment = cursor.ContainerFragment();

@@ -34,6 +34,8 @@
 #include "third_party/blink/renderer/platform/wtf/linked_hash_set.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
+namespace blink {
+
 namespace {
 const size_t kHardMaxCachedFonts = 250;
 const size_t kMaxCachedFonts = 25;
@@ -67,8 +69,8 @@ class OffscreenFontCache {
   }
 
  private:
-  HashMap<blink::String, blink::FontDescription> fonts_resolved_;
-  LinkedHashSet<blink::String> font_lru_list_;
+  blink::HashMap<blink::String, blink::FontDescription> fonts_resolved_;
+  blink::LinkedHashSet<blink::String> font_lru_list_;
 };
 
 OffscreenFontCache& GetOffscreenFontCache() {
@@ -78,8 +80,6 @@ OffscreenFontCache& GetOffscreenFontCache() {
 }
 
 }  // namespace
-
-namespace blink {
 
 CanvasRenderingContext* OffscreenCanvasRenderingContext2D::Factory::Create(
     CanvasRenderingContextHost* host,
@@ -133,7 +133,7 @@ void OffscreenCanvasRenderingContext2D::FinalizeFrame(FlushReason reason) {
   if (!GetOrCreateCanvas2DResourceProvider()) {
     return;
   }
-  Host()->FlushRecordingForCanvas2D(reason);
+  resource_provider_->FlushCanvas(reason);
 }
 
 // BaseRenderingContext2D implementation
@@ -172,9 +172,8 @@ OffscreenCanvasRenderingContext2D::GetOrCreateCanvas2DResourceProvider() {
     return nullptr;
   }
 
-  if (CanvasResourceProvider* provider =
-          host->GetResourceProviderForCanvas2D()) {
-    if (!provider->IsValid()) {
+  if (resource_provider_) {
+    if (!resource_provider_->IsValid()) {
       // The canvas context is not lost but the provider is invalid. This
       // happens if the GPU process dies in the middle of a render task. The
       // canvas is notified of GPU context losses via the `NotifyGpuContextLost`
@@ -187,7 +186,7 @@ OffscreenCanvasRenderingContext2D::GetOrCreateCanvas2DResourceProvider() {
       // `TryRestoreContextEvent` wait for the GPU process to up again.
       return nullptr;
     }
-    return provider;
+    return resource_provider_.get();
   }
 
   if (!host->IsValidImageSize() && !host->Size().IsEmpty()) {
@@ -249,27 +248,39 @@ OffscreenCanvasRenderingContext2D::GetOrCreateCanvas2DResourceProvider() {
         CanvasResourceProvider::ShouldInitialize::kCallClear, host);
   }
 
-  host->SetResourceProviderForCanvas2D(std::move(provider));
+  resource_provider_ = std::move(provider);
+  Host()->UpdateMemoryUsage();
 
-  if (host->GetResourceProviderForCanvas2D() &&
-      host->GetResourceProviderForCanvas2D()->IsValid()) {
-    base::UmaHistogramBoolean(
-        "Blink.Canvas.ResourceProviderIsAccelerated",
-        host->GetResourceProviderForCanvas2D()->IsAccelerated());
-    base::UmaHistogramEnumeration(
-        "Blink.Canvas.ResourceProviderType",
-        host->GetResourceProviderForCanvas2D()->GetType());
+  if (resource_provider_ && resource_provider_->IsValid()) {
+    base::UmaHistogramBoolean("Blink.Canvas.ResourceProviderIsAccelerated",
+                              resource_provider_->IsAccelerated());
+    base::UmaHistogramEnumeration("Blink.Canvas.ResourceProviderType",
+                                  resource_provider_->GetType());
     host->DidDraw();
   }
-  return host->GetResourceProviderForCanvas2D();
+  return resource_provider_.get();
+}
+
+std::unique_ptr<CanvasResourceProvider>
+OffscreenCanvasRenderingContext2D::ReplaceResourceProviderForCanvas2D(
+    std::unique_ptr<CanvasResourceProvider> provider) {
+  std::unique_ptr<CanvasResourceProvider> old_resource_provider =
+      std::move(resource_provider_);
+  resource_provider_ = std::move(provider);
+  Host()->UpdateMemoryUsage();
+  if (old_resource_provider) {
+    old_resource_provider->SetDelegate(nullptr);
+  }
+  return old_resource_provider;
 }
 
 CanvasResourceProvider*
-OffscreenCanvasRenderingContext2D::GetCanvasResourceProvider() const {
-  return Host()->GetResourceProviderForCanvas2D();
+OffscreenCanvasRenderingContext2D::GetResourceProviderForCanvas2D() const {
+  return resource_provider_.get();
 }
 
 void OffscreenCanvasRenderingContext2D::Reset() {
+  resource_provider_ = nullptr;
   Host()->DiscardResources();
   BaseRenderingContext2D::ResetInternal();
   // Because the host may have changed to a zero size
@@ -340,6 +351,7 @@ ImageBitmap* OffscreenCanvasRenderingContext2D::TransferToImageBitmap(
   // to fully resolve the snapshot.
   image->PaintImageForCurrentFrame().FlushPendingSkiaOps();
 
+  resource_provider_ = nullptr;
   Host()->DiscardResources();
 
   return MakeGarbageCollected<ImageBitmap>(std::move(image));
@@ -350,8 +362,7 @@ scoped_refptr<StaticBitmapImage> OffscreenCanvasRenderingContext2D::GetImage(
   FinalizeFrame(reason);
   if (!IsPaintable())
     return nullptr;
-  scoped_refptr<StaticBitmapImage> image =
-      GetCanvasResourceProvider()->Snapshot(reason);
+  scoped_refptr<StaticBitmapImage> image = resource_provider_->Snapshot(reason);
 
   return image;
 }
@@ -382,20 +393,12 @@ const cc::PaintCanvas* OffscreenCanvasRenderingContext2D::GetPaintCanvas()
   if (!is_valid_size_ || isContextLost()) [[unlikely]] {
     return nullptr;
   }
-  CanvasResourceProvider* const provider = GetCanvasResourceProvider();
-  if (provider == nullptr) [[unlikely]] {
-    return nullptr;
-  }
-  return &provider->Canvas();
+  return resource_provider_ ? &resource_provider_->Canvas() : nullptr;
 }
 
 const MemoryManagedPaintRecorder* OffscreenCanvasRenderingContext2D::Recorder()
     const {
-  const CanvasResourceProvider* provider = GetCanvasResourceProvider();
-  if (provider == nullptr) [[unlikely]] {
-    return nullptr;
-  }
-  return &provider->Recorder();
+  return resource_provider_ ? &resource_provider_->Recorder() : nullptr;
 }
 
 void OffscreenCanvasRenderingContext2D::WillDraw(
@@ -409,16 +412,19 @@ void OffscreenCanvasRenderingContext2D::WillDraw(
   } else {
     Host()->DidDraw(dirty_rect_for_commit_);
   }
-  if (CanvasResourceProvider* provider =
-          Host()->GetResourceProviderForCanvas2D();
-      layer_count_ == 0 && provider != nullptr) [[likely]] {
+  if (layer_count_ == 0 && resource_provider_ != nullptr) [[likely]] {
     // TODO(crbug.com/1246486): Make auto-flushing layer friendly.
-    provider->FlushIfRecordingLimitExceeded();
+    resource_provider_->FlushIfRecordingLimitExceeded();
   }
 }
 
 sk_sp<PaintFilter> OffscreenCanvasRenderingContext2D::StateGetFilter() {
   return GetState().GetFilterForOffscreenCanvas(Host()->Size(), this);
+}
+
+void OffscreenCanvasRenderingContext2D::Dispose() {
+  resource_provider_.reset();
+  CanvasRenderingContext::Dispose();
 }
 
 void OffscreenCanvasRenderingContext2D::LoseContext(LostContextMode lost_mode) {
@@ -427,6 +433,7 @@ void OffscreenCanvasRenderingContext2D::LoseContext(LostContextMode lost_mode) {
   context_lost_mode_ = lost_mode;
   ResetInternal();
   if (CanvasRenderingContextHost* host = Host()) [[likely]] {
+    resource_provider_ = nullptr;
     host->DiscardResources();
     host->DiscardResourceDispatcher();
   }
@@ -436,7 +443,7 @@ void OffscreenCanvasRenderingContext2D::LoseContext(LostContextMode lost_mode) {
 }
 
 bool OffscreenCanvasRenderingContext2D::IsPaintable() const {
-  return Host()->GetResourceProviderForCanvas2D();
+  return !!resource_provider_;
 }
 
 bool OffscreenCanvasRenderingContext2D::WritePixels(
@@ -447,15 +454,14 @@ bool OffscreenCanvasRenderingContext2D::WritePixels(
     int y) {
   DCHECK(IsCanvas2DBufferValid());
 
-  Host()->FlushRecordingForCanvas2D(FlushReason::kWritePixels);
+  resource_provider_->FlushCanvas(FlushReason::kWritePixels);
 
   // Short-circuit out if an error occurred while flushing the recording.
-  if (!Host()->GetResourceProviderForCanvas2D()->IsValid()) {
+  if (!resource_provider_->IsValid()) {
     return false;
   }
 
-  return Host()->GetResourceProviderForCanvas2D()->WritePixels(
-      orig_info, pixels, row_bytes, x, y);
+  return resource_provider_->WritePixels(orig_info, pixels, row_bytes, x, y);
 }
 
 bool OffscreenCanvasRenderingContext2D::ResolveFont(const String& new_font) {
@@ -486,17 +492,14 @@ bool OffscreenCanvasRenderingContext2D::ResolveFont(const String& new_font) {
 
 bool OffscreenCanvasRenderingContext2D::IsCanvas2DBufferValid() {
   if (IsPaintable())
-    return GetCanvasResourceProvider()->IsValid();
+    return resource_provider_->IsValid();
   return false;
 }
 
 std::optional<cc::PaintRecord> OffscreenCanvasRenderingContext2D::FlushCanvas(
     FlushReason reason) {
-  if (CanvasResourceProvider* provider = GetCanvasResourceProvider())
-      [[likely]] {
-    return provider->FlushCanvas(reason);
-  }
-  return std::nullopt;
+  return resource_provider_ ? resource_provider_->FlushCanvas(reason)
+                            : std::nullopt;
 }
 
 OffscreenCanvas* OffscreenCanvasRenderingContext2D::HostAsOffscreenCanvas()

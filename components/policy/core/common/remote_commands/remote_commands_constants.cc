@@ -10,7 +10,6 @@
 
 #include "base/feature_list.h"
 #include "base/notreached.h"
-#include "components/invalidation/invalidation_constants.h"
 #include "components/policy/core/common/cloud/cloud_policy_constants.h"
 #include "components/policy/core/common/cloud/policy_invalidation_scope.h"
 
@@ -21,25 +20,13 @@ BASE_FEATURE(kDeviceRemoteCommandsInvalidationWithDirectMessagesEnabled,
              base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kUserRemoteCommandsInvalidationWithDirectMessagesEnabled,
              "UserRemoteCommandsInvalidationWithDirectMessagesEnabled",
-#if BUILDFLAG(IS_CHROMEOS)
-             base::FEATURE_ENABLED_BY_DEFAULT
-#else
-             // TODO(crbug.com/407807110): Change to enabled once rollout is
-             // complete.
-             base::FEATURE_DISABLED_BY_DEFAULT
-#endif  // BUILDFLAG(IS_CHROMEOS)
-);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kCbcmRemoteCommandsInvalidationWithDirectMessagesEnabled,
              "CbcmRemoteCommandsInvalidationWithDirectMessagesEnabled",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 namespace {
-
-// GCP number to be used for remote commands invalidations. Remote commands are
-// considered critical to receive invalidation.
-constexpr int64_t kRemoteCommandsInvalidationsProjectNumber =
-    invalidation::kCriticalInvalidationsProjectNumber;
 
 bool IsDirectInvalidationEnabledForScope(PolicyInvalidationScope scope) {
   switch (scope) {

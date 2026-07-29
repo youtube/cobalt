@@ -8,7 +8,7 @@
 #include <variant>
 
 #include "base/strings/strcat.h"
-#include "chrome/browser/actor/ui/variant_visitor.h"
+#include "chrome/browser/actor/variant_visitor.h"
 #include "third_party/abseil-cpp/absl/strings/str_format.h"
 
 namespace actor::ui {
@@ -51,9 +51,17 @@ constexpr Visitor UiEventToDebugStringFn{
     [](const StartTask& e) -> std::string {
       return absl::StrFormat("StartTask[id=%d]", e.task_id.value());
     },
+    [](const TaskStateChanged& e) -> std::string {
+      return absl::StrFormat("TaskStateChanged[task_id=%d, state=%s]",
+                             e.task_id.value(), ToString(e.state));
+    },
     [](const StartingToActOnTab& e) -> std::string {
       return absl::StrFormat("StartingToActOnTab[task_id=%d, tab=%d]",
                              e.task_id.value(), e.tab_handle.raw_value());
+    },
+    [](const StoppedActingOnTab& e) -> std::string {
+      return absl::StrFormat("StoppedActingOnTab[tab=%d]",
+                             e.tab_handle.raw_value());
     },
     [](const MouseClick& e) -> std::string {
       return absl::StrFormat("MouseClick[type=%s, count=%s]",
@@ -67,6 +75,14 @@ constexpr Visitor UiEventToDebugStringFn{
 }  // namespace
 
 std::string DebugString(const UiEvent& event) {
+  return std::visit(UiEventToDebugStringFn, event);
+}
+
+std::string DebugString(const AsyncUiEvent& event) {
+  return std::visit(UiEventToDebugStringFn, event);
+}
+
+std::string DebugString(const SyncUiEvent& event) {
   return std::visit(UiEventToDebugStringFn, event);
 }
 

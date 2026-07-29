@@ -51,13 +51,6 @@
             </settings-section>
           </template>
         </template>
-        <template is="dom-if" if="[[showPage_(pageVisibility_.autofill)]]"
-            restamp>
-          <settings-section page-title="$i18n{autofillPageTitle}"
-              section="autofill">
-            <settings-autofill-page prefs="{{prefs}}"></settings-autofill-page>
-          </settings-section>
-        </template>
         <settings-section id="privacyGuidePromoSection" page-title=""
             hidden$="[[!showPrivacyGuidePromo_]]" nest-under-section="privacy"
             no-search>
@@ -84,89 +77,5 @@
             </settings-privacy-page>
           </settings-section>
         </template>
-        <template is="dom-if"
-            if="[[showPage_(pageVisibility_.performance)]]"
-            restamp>
-          <settings-section page-title="$i18n{generalPageTitle}"
-              section="performance" id="performanceSettingsSection"
-<if expr="_google_chrome">
-              show-send-feedback-button
-              on-send-feedback="onSendPerformanceFeedbackClick_"
-</if>
-              >
-            <settings-performance-page prefs="{{prefs}}">
-            </settings-performance-page>
-          </settings-section>
-          <settings-section page-title="$i18n{memoryPageTitle}"
-              section="memory" nest-under-section="performance"
-              id="memorySettingsSection"
-<if expr="_google_chrome">
-              show-send-feedback-button
-              on-send-feedback="onSendMemorySaverFeedbackClick_"
-</if>
-              >
-            <settings-memory-page prefs="{{prefs}}">
-            </settings-memory-page>
-          </settings-section>
-          <settings-section page-title="$i18n{batteryPageTitle}"
-              section="battery" nest-under-section="performance"
-              id="batterySettingsSection" hidden="[[!showBatterySettings_]]"
-<if expr="_google_chrome">
-              show-send-feedback-button
-              on-send-feedback="onSendBatterySaverFeedbackClick_"
-</if>
-              >
-            <settings-battery-page prefs="{{prefs}}">
-            </settings-battery-page>
-          </settings-section>
-          <settings-section page-title="$i18n{speedPageTitle}"
-              section="speed" nest-under-section="performance"
-              id="speedSettingsSection"
-<if expr="_google_chrome">
-              show-send-feedback-button
-              on-send-feedback="onSendSpeedFeedbackClick_"
-</if>
-              >
-            <settings-speed-page prefs="{{prefs}}"></settings-speed-page>
-          </settings-section>
-        </template>
-        <template is="dom-if" if="[[showPage_(pageVisibility_.appearance)]]"
-            restamp>
-          <settings-section page-title="$i18n{appearancePageTitle}"
-              section="appearance">
-            <settings-appearance-page prefs="{{prefs}}">
-            </settings-appearance-page>
-          </settings-section>
-        </template>
-        <settings-section page-title="$i18n{searchPageTitle}"
-            section="search">
-          <settings-search-page prefs="{{prefs}}"></settings-search-page>
-        </settings-section>
-<if expr="not is_chromeos">
-        <template is="dom-if" if="[[showPage_(pageVisibility_.defaultBrowser)]]"
-            restamp>
-          <settings-section page-title="$i18n{defaultBrowser}"
-              section="defaultBrowser">
-            <settings-default-browser-page></settings-default-browser-page>
-          </settings-section>
-        </template>
-</if>
-        <template is="dom-if" if="[[showPage_(pageVisibility_.onStartup)]]"
-            restamp>
-          <settings-section page-title="$i18n{onStartup}" section="onStartup">
-            <settings-on-startup-page prefs="{{prefs}}">
-            </settings-on-startup-page>
-          </settings-section>
-        </template>
       </div>
-    </template>
-    <template is="dom-if"
-        if="[[showAdvancedSettings_(pageVisibility_.advancedSettings)]]">
-      <!-- TODO(crbug.com/424223101): Remove settings-idle-load and move the
-          lazy-loading logic in settings-main. -->
-      <settings-idle-load id="advancedPageTemplate">
-        <template>
-          <div id="advancedPage"></div>
-        </template>
-      </settings-idle-load>
     </template>

@@ -30,9 +30,11 @@
 #include <optional>
 
 #include "base/containers/to_vector.h"
+#include "base/feature_list.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/trace_event/trace_event.h"
 #include "mojo/public/cpp/base/big_buffer_mojom_traits.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/blob/blob.mojom-blink.h"
 #include "third_party/blink/public/mojom/messaging/transferable_message.mojom-blink.h"
 #include "third_party/blink/public/platform/task_type.h"
@@ -67,7 +69,13 @@ MessagePort::MessagePort(ExecutionContext& execution_context)
                                             : &execution_context),
       // Ports in a destroyed context start out in a closed state.
       closed_(execution_context.IsContextDestroyed()),
-      task_runner_(execution_context.GetTaskRunner(TaskType::kPostedMessage)),
+      accept_message_task_runner_(
+          base::FeatureList::IsEnabled(features::kBFCacheWithSharedWorker)
+              ? execution_context.GetTaskRunner(
+                    TaskType::kBackForwardCachePostedMessage)
+              : execution_context.GetTaskRunner(TaskType::kPostedMessage)),
+      dispatch_event_task_runner_(
+          execution_context.GetTaskRunner(TaskType::kPostedMessage)),
       post_message_task_container_(
           MakeGarbageCollected<PostMessageTaskContainer>()) {}
 
@@ -183,7 +191,7 @@ void MessagePort::start() {
     return;
 
   started_ = true;
-  connector_->StartReceiving(task_runner_);
+  connector_->StartReceiving(accept_message_task_runner_);
 }
 
 void MessagePort::close() {
@@ -345,11 +353,40 @@ bool MessagePort::Accept(mojo::Message* mojo_message) {
   }
 
   ExecutionContext* context = GetExecutionContext();
+  if (base::FeatureList::IsEnabled(features::kBFCacheWithSharedWorker) &&
+      context->is_in_back_forward_cache()) {
+    if (IsSharedWorkerPort()) {
+      // Evict the page on a message to the default SharedWorker port. This
+      // handles both incoming messages and those queued right before caching.
+      // See crbug.com/426454597 for the task-ordering investigation.
+      auto* dom_window = DomWindow();
+      CHECK(dom_window);
+      dom_window->GetFrame()->EvictFromBackForwardCache(
+          mojom::blink::RendererEvictionReason::kSharedWorkerMessage,
+          /*source_location=*/nullptr);
+      // If the page is in back/forward cache, it should be evicted. So no need
+      // to dispatch the message.
+      return true;
+    }
+    // Re-post task as kPostedMessage.
+    // TODO(crbug.com/426454597): Investigate task-ordering impact of re-queuing
+    // BFCache tasks.
+    dispatch_event_task_runner_->PostTask(
+        FROM_HERE, WTF::BindOnce(&MessagePort::DispatchMessageEvent,
+                                 WrapPersistent(this), std::move(message)));
+  } else {
+    MessagePort::DispatchMessageEvent(std::move(message));
+  }
+  return true;
+}
+
+void MessagePort::DispatchMessageEvent(BlinkTransferableMessage message) {
+  ExecutionContext* context = GetExecutionContext();
   // WorkerGlobalScope::close() in Worker onmessage handler should prevent
   // the next message from dispatching.
   if (auto* scope = DynamicTo<WorkerGlobalScope>(context)) {
     if (scope->IsClosing())
-      return true;
+      return;
   }
 
   Event* evt = CreateMessageEvent(message);
@@ -362,32 +399,22 @@ bool MessagePort::Accept(mojo::Message* mojo_message) {
       message.sender_origin->IsSameOriginWith(context->GetSecurityOrigin()) &&
       context->IsSameAgentCluster(message.sender_agent_cluster_id) &&
       context->IsWindow()) {
-    // TODO(crbug.com/1351643): It is not correct to assume we're running in the
-    // main world here. Even though we're in Window, this could be running in an
-    // isolated world context. At the same time, even if we are running in such
-    // a context, the TaskScope creation here will not leak any meaningful
-    // information to that world. At worst, TaskAttributionTracking will return
-    // the wrong ancestor for tasks initiated by MessagePort::PostMessage inside
-    // of extensions. TaskScope is using the v8::Context in order to store the
-    // current TaskAttributionId in the context's
-    // EmbedderPreservedContinuationData, and it's only used later for
-    // attributing continuations to that original task.
-    // We cannot check `content->GetCurrentWorld()->IsMainWorld()` here, as the
-    // v8::Context may still be empty (and hence
-    // ExecutionContext::GetCurrentWorld returns null).
-    if (ScriptState* script_state = ToScriptStateForMainWorld(context)) {
-      if (auto* tracker = scheduler::TaskAttributionTracker::From(
-              script_state->GetIsolate())) {
-        // Since `initially_entangled_port_` is not nullptr, neither should be
-        // its `post_message_task_container_`.
-        CHECK(entangled_port->post_message_task_container_);
-        scheduler::TaskAttributionInfo* task_state =
-            entangled_port->post_message_task_container_
-                ->GetAndDecrementPostMessageTask(message.task_state_id);
-        task_attribution_scope = tracker->CreateTaskScope(
-            script_state, task_state,
-            scheduler::TaskAttributionTracker::TaskScopeType::kPostMessage);
-      }
+    // It is not correct to assume we're running in the main world here,
+    // although if `task_state` is non-null, the message must have originated
+    // from the main world. And given isolated worlds cannot access main world
+    // variables and message ports aren't exposed through the DOM, we can assume
+    // we're propagating this in the main world.
+    if (auto* tracker =
+            scheduler::TaskAttributionTracker::From(context->GetIsolate())) {
+      // Since `initially_entangled_port_` is not nullptr, neither should be
+      // its `post_message_task_container_`.
+      CHECK(entangled_port->post_message_task_container_);
+      scheduler::TaskAttributionInfo* task_state =
+          entangled_port->post_message_task_container_
+              ->GetAndDecrementPostMessageTask(message.task_state_id);
+      task_attribution_scope = tracker->CreateTaskScope(
+          task_state,
+          scheduler::TaskAttributionTracker::TaskScopeType::kPostMessage);
     }
   }
 
@@ -398,7 +425,6 @@ bool MessagePort::Accept(mojo::Message* mojo_message) {
   DispatchEvent(*evt);
   if (debugger)
     debugger->ExternalAsyncTaskFinished(message.sender_stack_trace_id);
-  return true;
 }
 
 Event* MessagePort::CreateMessageEvent(BlinkTransferableMessage& message) {

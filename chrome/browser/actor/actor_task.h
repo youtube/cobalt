@@ -10,26 +10,43 @@
 
 #include "base/callback_list.h"
 #include "base/functional/callback.h"
+#include "base/memory/weak_ptr.h"
 #include "base/types/pass_key.h"
 #include "chrome/browser/actor/task_id.h"
+#include "chrome/browser/actor/tools/tool_request.h"
+#include "chrome/common/actor.mojom-forward.h"
+#include "components/optimization_guide/proto/features/actions_data.pb.h"
+#include "components/tabs/public/tab_interface.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 
+class Profile;
 namespace actor {
 
 class ActorKeyedService;
 class ExecutionEngine;
+namespace ui {
+class UiEventDispatcher;
+}
 
 // Represents a task that Chrome is executing on behalf of the user.
 class ActorTask {
  public:
-  ActorTask();
-  explicit ActorTask(std::unique_ptr<ExecutionEngine> execution_engine);
+  using ActionResultCallback = base::OnceCallback<void(mojom::ActionResultPtr)>;
+  using ActCallback =
+      base::OnceCallback<void(mojom::ActionResultPtr, std::optional<size_t>)>;
+
+  ActorTask() = delete;
+  ActorTask(Profile* profile,
+            std::unique_ptr<ExecutionEngine> execution_engine);
   ActorTask(const ActorTask&) = delete;
   ActorTask& operator=(const ActorTask&) = delete;
   ~ActorTask();
 
   // Can only be called by ActorKeyedService
   void SetId(base::PassKey<ActorKeyedService>, TaskId id);
-  TaskId id() { return id_; }
+  TaskId id() const { return id_; }
+  // Can only be called by unit tests.
+  void SetIdForTesting(int id);
 
   // Once state leaves kCreated it should never go back. One state enters
   // kFinished it should never change. We may want to add a kCancelled in the
@@ -46,6 +63,14 @@ class ActorTask {
   void SetState(State state);
 
   base::Time GetEndTime() const;
+
+  // TODO(crbug.com/411462297): Deprecated, new callers should use the
+  // ToolRequest version below.
+  void Act(const optimization_guide::proto::BrowserAction& action,
+           ActionResultCallback callback);
+
+  void Act(std::vector<std::unique_ptr<ToolRequest>>&& actions,
+           ActCallback callback);
 
   // Sets State to kFinished and cancels any pending actions.
   void Stop();
@@ -68,8 +93,33 @@ class ActorTask {
   base::CallbackListSubscription RegisterTaskStateChange(
       TaskStateChangeCallback callback);
 
+  // Ensures the given tab handle is added (or already exists) in the set of
+  // tabs this task operates over.
+  void AddToTabSet(tabs::TabHandle tab);
+
+  // Returns true if the given tab is part of this task's acting set.
+  bool HasActedOnTab(tabs::TabHandle tab) const;
+
+  // Returns the tab to use to capture new context observations after an
+  // execution turn. In the future this will be extended to multiple tabs and
+  // windows. Currently this returns the first live tab in the set, since the
+  // actor framework doesn't yet support multi-tab.
+  // TODO(crbug.com/411462297): This will be replaced by GetTabs soon.
+  tabs::TabInterface* GetTabForObservation() const;
+
+  const absl::flat_hash_set<tabs::TabHandle>& GetTabs() const {
+    return tab_handles_;
+  }
+
  private:
+  void OnFinishedAct(ActCallback callback,
+                     mojom::ActionResultPtr result,
+                     std::optional<size_t> index_of_failed_action);
+  void OnFinishedActDeprecated(ActionResultCallback callback,
+                               mojom::ActionResultPtr result);
+
   State state_ = State::kCreated;
+  raw_ptr<Profile> profile_;
 
   // The time at which the task was completed or cancelled.
   base::Time end_time_;
@@ -78,14 +128,22 @@ class ActorTask {
   // ExecutionEngine.
   std::unique_ptr<ExecutionEngine> execution_engine_;
 
+  std::unique_ptr<ui::UiEventDispatcher> ui_event_dispatcher_;
+
   TaskId id_;
+
+  // The set of all tabs this task has acted upon.
+  absl::flat_hash_set<tabs::TabHandle> tab_handles_;
 
   using TaskStateChangeCallbackList =
       base::RepeatingCallbackList<void(TaskId, ActorTask::State)>;
   TaskStateChangeCallbackList task_state_change_callback_list_;
+
+  base::WeakPtrFactory<ActorTask> weak_ptr_factory_{this};
 };
 
 std::ostream& operator<<(std::ostream& os, const ActorTask::State& state);
+std::string ToString(const ActorTask::State& state);
 
 }  // namespace actor
 

@@ -230,6 +230,18 @@ BASE_FEATURE(kChromeStructuredMetrics,
              "ChromeStructuredMetrics",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// Enables new fallback behaviour for Chrome profile creation controlled by
+// a command line flag when Chrome is launched with profile-email switch.
+BASE_FEATURE(kCreateProfileIfNoneExists,
+             "CreateProfileIfNoneExists",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When enabled, allows parsing of `tab_group_color_palette` theme key, else
+// ignores it.
+BASE_FEATURE(kCustomizeTabGroupColorPalette,
+             "CustomizeTabGroupColorPalette",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Moves the Extensions "puzzle piece" icon from the title bar into the app menu
 // for web app windows.
 BASE_FEATURE(kDesktopPWAsElidedExtensionsMenu,
@@ -346,6 +358,11 @@ const base::FeatureParam<base::TimeDelta> kGlicActorPageStabilityLocalTimeout{
 // The overall observation timeout when waiting on a renderer tool to complete.
 const base::FeatureParam<base::TimeDelta> kGlicActorPageStabilityTimeout{
     &kGlicActor, "glic-actor-page-stability-timeout", base::Seconds(10)};
+
+// Controls whether the task icon in the actor ui is enabled.
+BASE_FEATURE(kGlicActorTaskIcon,
+             "GlicActorTaskIcon",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(ENABLE_GLIC)
 // Controls whether the Glic feature is enabled.
@@ -551,6 +568,12 @@ const base::FeatureParam<int> kGlicClientResponsivenessCheckTimeoutMs{
 const base::FeatureParam<int> kGlicClientUnresponsiveUiMaxTimeMs{
     &kGlicClientResponsivenessCheck, "glic-client-unresponsive-ui-max-time-ms",
     5000};
+// When true, the responsiveness check will be ignored when the debugger is
+// attached to the webview.
+const base::FeatureParam<bool>
+    kGlicClientResponsivenessCheckIgnoreWhenDebuggerAttached{
+        &kGlicClientResponsivenessCheck,
+        "glic-client-responsiveness-check-ignore-when-debugger-attached", true};
 
 BASE_FEATURE(kGlicUseShaderCache,
              "GlicUseShaderCache",
@@ -591,7 +614,7 @@ BASE_FEATURE(kGlicDisableWarming,
 // Controls the amount of time from the GlicButtonController scheduling
 // preload to the start of preloading (if preloading is possible).
 const base::FeatureParam<int> kGlicWarmingDelayMs{
-    &kGlicWarming, "glic-warming-delay-ms", 30 * 1000};
+    &kGlicWarming, "glic-warming-delay-ms", 20 * 1000};
 
 // Adds noise to the warming delay. The effective delay is increased by a
 // random positive number of milliseconds between 0 and kGlicWarmingJitterMs.
@@ -657,11 +680,13 @@ const base::FeatureParam<int> kGlicPanelResetOnSessionTimeoutDelayH{
     &kGlicPanelResetOnSessionTimeout,
     "glic-panel-reset-session-timeout-delay-h", 4};
 
+BASE_FEATURE(kGlicRecordActorJournal,
+             "GlicRecordActorJournal",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kGlicWebClientUnresponsiveMetrics,
              "GlicWebClientUnresponsiveMetrics",
              base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kGlicTabGlow, "GlicTabGlow", base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicParameterizedShader,
              "GlicParameterizedShader",
@@ -1828,7 +1853,7 @@ BASE_FEATURE(kWebAppManifestIconUpdating,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kWebAppUsePrimaryIcon,
-             "WebAppPrimaryIcon",
+             "WebAppUsePrimaryIcon",
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // !BUILDFLAG(IS_ANDROID)
 

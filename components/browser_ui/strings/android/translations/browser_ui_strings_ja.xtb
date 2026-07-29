@@ -13,6 +13,7 @@
 <translation id="1073417869336441572">Chrome の改善に役立てるため、サードパーティ Cookie を許可した理由をお聞かせください。<ph name="BEGIN_LINK" />フィードバックを送信<ph name="END_LINK" /></translation>
 <translation id="1074758928858737435">サイトの PC 版を表示するようリクエストできます</translation>
 <translation id="1085696779717592361">Chrome をデフォルトに設定する</translation>
+<translation id="1178015372320901893">カスタム ショートカットのボトムシート</translation>
 <translation id="1178581264944972037">一時停止</translation>
 <translation id="1181037720776840403">削除</translation>
 <translation id="1192844206376121885"><ph name="ORIGIN" /> により保存されたデータと Cookie がすべて削除されます。</translation>
@@ -62,6 +63,7 @@
 <translation id="1704230497453185209">サイトに音声の再生を許可しない</translation>
 <translation id="1717218214683051432">モーション センサー</translation>
 <translation id="1717996979683942279">オンにすると、サイトは全ディスプレイのウィンドウ管理をリクエストできます。オフにすると、サイトは全ディスプレイのウィンドウ管理を行えません。</translation>
+<translation id="1738912554587725807">新しいタブページの外観テーマ コレクションのボトムシート</translation>
 <translation id="1743802530341753419">サイトがデバイスに接続する前に確認する（推奨）</translation>
 <translation id="1777815584158991902">Discover フィードのボトムシート</translation>
 <translation id="1779089405699405702">画像デコーダー</translation>
@@ -355,6 +357,7 @@
 <translation id="5100237604440890931">折りたたまれています - クリックすると展開します。</translation>
 <translation id="5116239826668864748">メッセージ、ドキュメント、他のアプリでタップしたリンクを常に Chrome で開くよう設定できます</translation>
 <translation id="5123685120097942451">シークレット タブ</translation>
+<translation id="512938610812707830">新しいタブページの外観テーマ コレクションのボトムシートが画面全体に表示されています</translation>
 <translation id="5139253256813381453">{PRICE_DROP_COUNT,plural, =1{開いているタブの値下げ情報}other{開いているタブの値下げ情報}}</translation>
 <translation id="5186036860380548585">設定は画面上部にあります</translation>
 <translation id="5197729504361054390">選択した連絡先が <ph name="BEGIN_BOLD" /><ph name="SITE" /><ph name="END_BOLD" /> と共有されます。</translation>
@@ -457,6 +460,7 @@
 <translation id="6262191102408817757">最後のタブに基づく</translation>
 <translation id="6262279340360821358"><ph name="PERMISSION_1" />、<ph name="PERMISSION_2" />をブロック</translation>
 <translation id="6270391203985052864">通知を送信するかどうかの確認をサイトに許可する</translation>
+<translation id="6278428485366576908">モード</translation>
 <translation id="6295158916970320988">すべてのサイト</translation>
 <translation id="6320088164292336938">バイブレーション</translation>
 <translation id="6367753977865761591">特定のサイトのサードパーティのログインをブロックします。</translation>
@@ -562,6 +566,7 @@
 <translation id="7681597159868843240">多くのサイトは、バーチャル リアリティやフィットネス トラッキングなどの機能にデバイスのモーション センサーを使用します</translation>
 <translation id="7688240020069572972">Chrome のヒントカードを非表示にする</translation>
 <translation id="7719367874908701697">ページのズーム</translation>
+<translation id="775043444390799886">権限を取り消す</translation>
 <translation id="7759147511335618829">MIDI デバイスの操作と再プログラム</translation>
 <translation id="7781829728241885113">昨日</translation>
 <translation id="7791543448312431591">追加</translation>
@@ -641,6 +646,7 @@
 <translation id="8549127125482561383">リクエストの表示方法</translation>
 <translation id="8558480467877843976">ブラウジングするときや、メッセージ、ドキュメント、他のアプリのリンクをタップしたときに、常に Chrome が使えるようになります。</translation>
 <translation id="857943718398505171">許可（推奨）</translation>
+<translation id="8580511488901768832">カスタム ショートカットのボトムシートが画面全体に表示されています</translation>
 <translation id="8593422116412089302">オンにすると、サイトはあなたに関する保存済みの情報の使用を要求できます。オフにすると、サイトはあなたに関する保存済みの情報の使用を要求できません。</translation>
 <translation id="8609465669617005112">上に移動</translation>
 <translation id="8617611086246832542">オンにすると、ウェブサイトのデスクトップ ビューが表示されます。オフにすると、ウェブサイトのモバイルビューが表示されます。</translation>

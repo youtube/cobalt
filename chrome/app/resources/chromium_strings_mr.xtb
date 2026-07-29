@@ -210,6 +210,7 @@
 <translation id="3790262771324122253">Chromium काही डाउनलोड ब्लॉक का करते हे जाणून घ्या</translation>
 <translation id="379589255253486813">तुम्ही एखाद्या गोष्टीचे पुनरावलोकन करणे आवश्यक असल्यास, Chromium तुम्हाला कळवेल</translation>
 <translation id="3802055581630249637">Chromium तुम्ही भेट देण्याची शक्यता असलेली पेज प्रीलोड करते, जेणेकरून तुम्ही त्यांना भेट देता, तेव्हा ती अधिक जलद लोड होतात</translation>
+<translation id="3810973564298564668">व्यवस्थापित करा</translation>
 <translation id="3848258323044014972"><ph name="PAGE_TITLE" /> - Chromium</translation>
 <translation id="3885770153807205175">भाषा निवडक</translation>
 <translation id="388648406173476553">Chromium कस्टमाइझ करा आणि नियंत्रित करा. एका गोष्टीवर तुम्ही लक्ष द्यायला हवे - तपशिलांसाठी क्लिक करा.</translation>
@@ -492,6 +493,7 @@ Chromium तुमची सेटिंग्ज रिकव्हर कर�
 <translation id="7483335560992089831">सध्‍या सुरू असलेल्‍या सारख्याच Chromium आवृत्तीची स्‍थापना होऊ शकत नाही. कृपया Chromium बंद करा आणि पुन्‍हा प्रयत्‍न करा.</translation>
 <translation id="751935028865900641">साइट कदाचित अपेक्षेप्रमाणे काम करतील. तुम्ही Chromium वर साइन इन केले असल्यास, सर्व Chromium विंडो बंद केल्यावर तुमचे Google खाते वगळता तुम्हाला बहुतांश साइटवरून साइन आउट केले जाईल.</translation>
 <translation id="753534427205733210">{0,plural, =1{Chromium एका मिनिटामध्ये पुन्हा लॉंच होईल}other{Chromium # मिनिटांमध्ये पुन्हा लाँच होईल}}</translation>
+<translation id="7565444033145385702">तुमच्या डेटाचे संरक्षण करण्यासाठी, तुम्ही अलीकडील भेट न दिलेल्या साइटवरील परवानग्या Chromium ला काढून टाकू द्या.</translation>
 <translation id="7582945390259497898">Chromium तुमच्या स्वारस्यांबाबत अंदाज लावू शकते. त्यानंतर, तुम्ही पाहता त्या जाहिराती पर्सनलाइझ करण्यासाठी, तुम्ही भेट देता ती साइट Chromium कडे तुमची स्वारस्ये पाहण्याची अनुमती मागू शकते.</translation>
 <translation id="7583399374488819119"><ph name="COMPANY_NAME" /> इंस्टॉलर</translation>
 <translation id="7585391435984513350">तुम्ही अलीकडे भेट दिलेली नाही. Chromium ने <ph name="PERMISSION" /> परवानगी काढून टाकली</translation>
@@ -577,6 +579,7 @@ Chromium तुमची सेटिंग्ज रिकव्हर कर�
 <translation id="8648201657708811153">Google Chrome for Testing ला तुमचा डीफॉल्ट ब्राउझर बनवू शकत नाही.</translation>
 <translation id="8697124171261953979">तुम्ही Chromium सुरू करता किंवा तुम्ही ओम्निबॉक्समधून शोध घेता तेव्हा कोणते पेज दाखवावे हेदेखील ते नियंत्रित करते.</translation>
 <translation id="8704119203788522458">हे तुमचे Chromium आहे</translation>
+<translation id="8712637175834984815">समजले</translation>
 <translation id="8719993436687031146">Chromium मध्ये साइन इन करायचे आहे का?</translation>
 <translation id="8747073452963259673">शोध क्षेत्राच्या तळाशी डावा कोपरा: डावीकडे <ph name="LEFT" />%, तळाशी <ph name="BOTTOM" />%</translation>
 <translation id="8768722695577490596">पासवर्ड फक्त Chromium च्या बाहेर हटवले जाऊ शकतात</translation>

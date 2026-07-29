@@ -389,12 +389,12 @@ bool HTMLCanvasElement::PrepareTransferableResource(
   if (printed_in_current_task || IsPrinting()) {
     reason = FlushReason::kCanvasPushFrameWhilePrinting;
   }
-  FlushRecordingForCanvas2D(reason);
+  GetResourceProviderForCanvas2D()->FlushCanvas(reason);
 
   // If the context is lost, we don't know if we should be producing GPU or
   // software frames, until we get a new context, since the compositor will
   // be trying to get a new context and may change modes.
-  if (!GetOrCreateCanvasResourceProviderForCanvas2D()) {
+  if (!GetResourceProviderForCanvas2D()->IsValid()) {
     return false;
   }
 
@@ -840,19 +840,9 @@ void HTMLCanvasElement::InitializeLayerWithCSSProperties(cc::Layer* layer) {
   layer->SetDynamicRangeLimit(dynamic_range_limit_);
 }
 
-void HTMLCanvasElement::PreFinalizeFrame() {
+void HTMLCanvasElement::PostFinalizeFrame(FlushReason reason) {
   RecordCanvasSizeToUMA();
 
-  // Low-latency 2d canvases produce their frames after the resource gets single
-  // buffered.
-  // TODO(crbug.com/40280152): Analyze whether this call is redundant (i.e.,
-  // whether the CRP is guaranteed to always be present).
-  if (IsRenderingContext2D() && LowLatencyEnabled() && !dirty_rect_.IsEmpty()) {
-    GetOrCreateCanvasResourceProviderForCanvas2D();
-  }
-}
-
-void HTMLCanvasElement::PostFinalizeFrame(FlushReason reason) {
   if (IsWebGL()) {
     context_->ClearMarkedCanvasDirty();
     if (LowLatencyEnabled()) {
@@ -873,7 +863,8 @@ void HTMLCanvasElement::PostFinalizeFrame(FlushReason reason) {
     }
   } else if (IsRenderingContext2D() && LowLatencyEnabled() &&
              frame_dispatcher_ && !dirty_rect_.IsEmpty() &&
-             GetOrCreateCanvasResourceProviderForCanvas2D()) {
+             GetResourceProviderForCanvas2D() &&
+             GetResourceProviderForCanvas2D()->IsValid()) {
     if (scoped_refptr<CanvasResource> canvas_resource =
             GetResourceProviderForCanvas2D()->ProduceCanvasResource(reason)) {
       const gfx::Rect src_rect(Size());
@@ -1235,7 +1226,7 @@ void HTMLCanvasElement::PaintInternal(GraphicsContext& context,
   if (IsPrinting() && IsRenderingContext2D() &&
       GetResourceProviderForCanvas2D()) {
     auto* provider = GetResourceProviderForCanvas2D();
-    FlushRecordingForCanvas2D(FlushReason::kPrinting);
+    provider->FlushCanvas(FlushReason::kPrinting);
     // `FlushRecording` might be a no-op if a flush already happened before.
     // Fortunately, the last flush recording was kept by the provider.
     const std::optional<cc::PaintRecord>& last_recording =
@@ -2253,8 +2244,7 @@ void HTMLCanvasElement::DropAndRecreateExistingCanvas2DResourceProvider() {
 
   // Bail out if it's not possible to create a new provider.
   CanvasResourceProvider* new_provider =
-      RecreateCanvasResourceProviderForCanvas2D(
-          CHECK_DEREF(hibernation_handler_.get()));
+      RecreateCanvasResourceProviderForCanvas2D();
   if (!new_provider) {
     return;
   }
@@ -2310,8 +2300,7 @@ HTMLCanvasElement::GetOrCreateCanvasResourceProviderForCanvas2D() {
     hibernation_handler_ = std::make_unique<CanvasHibernationHandler>(*this);
   }
 
-  resource_provider = RecreateCanvasResourceProviderForCanvas2D(
-      CHECK_DEREF(hibernation_handler_.get()));
+  resource_provider = RecreateCanvasResourceProviderForCanvas2D();
 
   UpdateMemoryUsage();
 
@@ -2323,14 +2312,15 @@ HTMLCanvasElement::GetOrCreateCanvasResourceProviderForCanvas2D() {
 }
 
 CanvasResourceProvider*
-HTMLCanvasElement::RecreateCanvasResourceProviderForCanvas2D(
-    CanvasHibernationHandler& hibernation_handler) {
+HTMLCanvasElement::RecreateCanvasResourceProviderForCanvas2D() {
   CHECK(IsRenderingContext2D());
+  CHECK(hibernation_handler_);
 
   auto* resource_provider = GetResourceProviderForCanvas2D();
   if (!resource_provider && !did_fail_to_create_resource_provider_) {
     if (IsValidImageSize()) {
-      CreateCanvasResourceProviderForCanvas2D();
+      SetResourceProviderForCanvas2D(
+          RenderingContext()->CreateCanvasResourceProvider());
       resource_provider = GetResourceProviderForCanvas2D();
     }
     if (!resource_provider) {
@@ -2346,7 +2336,7 @@ HTMLCanvasElement::RecreateCanvasResourceProviderForCanvas2D(
     return nullptr;
   }
 
-  if (!hibernation_handler.IsHibernating()) {
+  if (!hibernation_handler_->IsHibernating()) {
     return resource_provider;
   }
 
@@ -2366,116 +2356,19 @@ HTMLCanvasElement::RecreateCanvasResourceProviderForCanvas2D(
   }
 
   PaintImageBuilder builder = PaintImageBuilder::WithDefault();
-  builder.set_image(hibernation_handler.GetImage(),
+  builder.set_image(hibernation_handler_->GetImage(),
                     PaintImage::GetNextContentId());
   builder.set_id(PaintImage::GetNextId());
   resource_provider->RestoreBackBuffer(builder.TakePaintImage());
-  resource_provider->SetRecorder(hibernation_handler.ReleaseRecorder());
+  resource_provider->SetRecorder(hibernation_handler_->ReleaseRecorder());
   // The hibernation image is no longer valid, clear it.
-  hibernation_handler.Clear();
-  DCHECK(!hibernation_handler.IsHibernating());
+  hibernation_handler_->Clear();
+  DCHECK(!hibernation_handler_->IsHibernating());
 
   // shouldBeDirectComposited() may have changed.
   SetNeedsCompositingUpdate();
 
   return resource_provider;
-}
-
-void HTMLCanvasElement::CreateCanvasResourceProviderForCanvas2D() {
-  CHECK(!GetResourceProviderForCanvas2D());
-
-  base::WeakPtr<CanvasResourceDispatcher> dispatcher =
-      GetOrCreateResourceDispatcher()
-          ? GetOrCreateResourceDispatcher()->GetWeakPtr()
-          : nullptr;
-
-  std::unique_ptr<CanvasResourceProvider> provider;
-  const SkAlphaType alpha_type = GetRenderingContextAlphaType();
-  const viz::SharedImageFormat format = GetRenderingContextFormat();
-  const gfx::ColorSpace color_space = GetRenderingContextColorSpace();
-  const bool use_gpu = ShouldTryToUseGpuRaster() && ShouldAccelerate2dContext();
-  constexpr auto kShouldInitialize =
-      CanvasResourceProvider::ShouldInitialize::kCallClear;
-  if (use_gpu && LowLatencyEnabled()) {
-    // If we can use the gpu and low latency is enabled, we will try to use a
-    // SwapChain if possible.
-    provider = CanvasResourceProvider::CreateSwapChainProvider(
-        Size(), format, alpha_type, color_space, kShouldInitialize,
-        SharedGpuContext::ContextProviderWrapper(), this);
-    // If SwapChain failed or it was not possible, we will try a SharedImage
-    // with a set of flags trying to add Usage Display and Usage Scanout and
-    // Concurrent Read and Write if possible.
-    if (!provider) {
-      gpu::SharedImageUsageSet shared_image_usage_flags =
-          gpu::SHARED_IMAGE_USAGE_DISPLAY_READ;
-      if (SharedGpuContext::MaySupportImageChromium() &&
-          (RuntimeEnabledFeatures::Canvas2dImageChromiumEnabled() ||
-           base::FeatureList::IsEnabled(
-               features::kLowLatencyCanvas2dImageChromium))) {
-        shared_image_usage_flags |= gpu::SHARED_IMAGE_USAGE_SCANOUT;
-        shared_image_usage_flags |=
-            gpu::SHARED_IMAGE_USAGE_CONCURRENT_READ_WRITE;
-      }
-      provider = CanvasResourceProvider::CreateSharedImageProvider(
-          Size(), format, alpha_type, color_space, kShouldInitialize,
-          SharedGpuContext::ContextProviderWrapper(), RasterMode::kGPU,
-          shared_image_usage_flags, this);
-    }
-  } else if (use_gpu) {
-    // First try to be optimized for displaying on screen. In the case we are
-    // hardware compositing, we also try to enable the usage of the image as
-    // scanout buffer (overlay)
-    gpu::SharedImageUsageSet shared_image_usage_flags =
-        gpu::SHARED_IMAGE_USAGE_DISPLAY_READ;
-    if (SharedGpuContext::MaySupportImageChromium() &&
-        RuntimeEnabledFeatures::Canvas2dImageChromiumEnabled()) {
-      shared_image_usage_flags |= gpu::SHARED_IMAGE_USAGE_SCANOUT;
-    }
-    provider = CanvasResourceProvider::CreateSharedImageProvider(
-        Size(), format, alpha_type, color_space, kShouldInitialize,
-        SharedGpuContext::ContextProviderWrapper(), RasterMode::kGPU,
-        shared_image_usage_flags, this);
-  } else if (SharedGpuContext::MaySupportImageChromium() &&
-             RuntimeEnabledFeatures::Canvas2dImageChromiumEnabled()) {
-    // In this case, we are using CPU raster and GPU compositing and native
-    // mappable buffers are supported. Try to use a
-    // CanvasResourceProviderSharedImage, which if successful will result in
-    // using a SharedImage that can be mapped onto the CPU for software raster
-    // writes and then read by the display compositor (and potentially used as
-    // an overlay).
-    const gpu::SharedImageUsageSet shared_image_usage_flags =
-        gpu::SHARED_IMAGE_USAGE_DISPLAY_READ | gpu::SHARED_IMAGE_USAGE_SCANOUT;
-    provider = CanvasResourceProvider::CreateSharedImageProvider(
-        Size(), format, alpha_type, color_space, kShouldInitialize,
-        SharedGpuContext::ContextProviderWrapper(), RasterMode::kCPU,
-        shared_image_usage_flags, this);
-  }
-
-  // If either of the other modes failed and / or it was not possible to do, we
-  // will backup with a software SharedImage, and if that was not possible with
-  // a Bitmap provider.
-  if (!provider && !SharedGpuContext::IsGpuCompositingEnabled()) {
-    // In this case, we are using CPU raster and CPU compositing. Create a
-    // CanvasResourceProvider that uses a SharedImage backed by a shared-memory
-    // buffer that can be written by canvas raster and read by the compositor.
-    provider =
-        CanvasResourceProvider::CreateSharedImageProviderForSoftwareCompositor(
-            Size(), format, alpha_type, color_space, kShouldInitialize,
-            SharedGpuContext::SharedImageInterfaceProvider(), this);
-  }
-  if (!provider) {
-    // The final fallback is to raster into a bitmap that will then either be
-    // uploaded into GPU memory (for GPU compositing) or copied into the Viz
-    // process (for software compositing).
-    provider = CanvasResourceProvider::CreateBitmapProvider(
-        Size(), format, alpha_type, color_space, kShouldInitialize, this);
-  }
-
-  if (provider) {
-    provider->SetResourceRecyclingEnabled(true);
-  }
-
-  SetResourceProviderForCanvas2D(std::move(provider));
 }
 
 scoped_refptr<StaticBitmapImage> HTMLCanvasElement::GetTransparentImage() {

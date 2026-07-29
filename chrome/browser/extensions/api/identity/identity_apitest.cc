@@ -43,6 +43,8 @@
 #include "chrome/browser/extensions/extension_browsertest.h"
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/profiles/profile_manager.h"
+#include "chrome/browser/profiles/profile_test_util.h"
 #include "chrome/browser/signin/account_consistency_mode_manager.h"
 #include "chrome/browser/signin/account_reconcilor_factory.h"
 #include "chrome/browser/signin/chrome_signin_client_factory.h"
@@ -57,6 +59,7 @@
 #include "chrome/common/extensions/api/identity.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/in_process_browser_test.h"
+#include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/crx_file/id_util.h"
 #include "components/guest_view/browser/guest_view_base.h"
@@ -345,14 +348,15 @@ CreateLaunchWebAuthFlowFunction() {
 // pattern: "https://%s.chromiumapp.org/".
 void SimulateUrlRedirect(const std::string& url_prefix,
                          content::WebContents* auth_web_contents) {
-  ASSERT_EQ(nullptr, content::EvalJs(auth_web_contents,
-                                     "apply_consent(\"" + url_prefix + "\");"));
+  ASSERT_EQ(base::Value(),
+            content::EvalJs(auth_web_contents,
+                            "apply_consent(\"" + url_prefix + "\");"));
 }
 
 // Similar to SimulateUrlRedirect, but uses provided url instead of the pattern
 void SimulateCustomUrlRedirect(const std::string& redirect_url,
                                content::WebContents* auth_web_contents) {
-  ASSERT_EQ(nullptr,
+  ASSERT_EQ(base::Value(),
             content::EvalJs(auth_web_contents, "window.location.replace(\"" +
                                                    redirect_url + "\");"));
 }
@@ -3755,7 +3759,7 @@ IN_PROC_BROWSER_TEST_F(LaunchWebAuthFlowFunctionTest, UserCloseWindow) {
 }
 
 #if !BUILDFLAG(IS_CHROMEOS)
-IN_PROC_BROWSER_TEST_F(LaunchWebAuthFlowFunctionTest, ProfileShutDown) {
+IN_PROC_BROWSER_TEST_F(LaunchWebAuthFlowFunctionTest, CloseBrowser) {
   std::unique_ptr<net::EmbeddedTestServer> https_server =
       std::make_unique<net::EmbeddedTestServer>(
           net::EmbeddedTestServer::TYPE_HTTPS);
@@ -3774,14 +3778,54 @@ IN_PROC_BROWSER_TEST_F(LaunchWebAuthFlowFunctionTest, ProfileShutDown) {
   RunFunctionAsync(function.get(), args);
   CloseBrowserSynchronously(browser());
 
-  // Because the navigation to auth_url is still ongoing when profile shutdown
-  // starts, it will be canceled before proceeding with shutdown, and hence the
-  // error message below will reflect a canceled navigation.
-  EXPECT_EQ(std::string(errors::kPageLoadFailure),
+  // The ongoing navigation to auth_url will be skipped if the profile shutdown
+  // has already started, hence the error message below will reflect a shutdown
+  // context.
+  EXPECT_EQ(std::string(errors::kBrowserContextShutDown),
             WaitForError(function.get()));
   base::SingleThreadTaskRunner::GetCurrentDefault()->DeleteSoon(
       FROM_HERE, std::move(keep_alive));
 }
+
+IN_PROC_BROWSER_TEST_F(LaunchWebAuthFlowFunctionTest, DestroyProfile) {
+  ProfileManager* profile_manager = g_browser_process->profile_manager();
+  base::FilePath path_profile2 =
+      profile_manager->GenerateNextProfileDirectoryPath();
+  // Create an additional profile.
+  Profile& profile2 =
+      profiles::testing::CreateProfileSync(profile_manager, path_profile2);
+
+  std::unique_ptr<net::EmbeddedTestServer> https_server =
+      std::make_unique<net::EmbeddedTestServer>(
+          net::EmbeddedTestServer::TYPE_HTTPS);
+  net::test_server::RegisterDefaultHandlers(https_server.get());
+  EXPECT_TRUE(https_server->Start());
+  // Make sure we can shutdown profile before getting response.
+  GURL auth_url(https_server->GetURL("/hung"));
+  auto keep_alive = std::make_unique<ScopedKeepAlive>(
+      KeepAliveOrigin::BROWSER, KeepAliveRestartOption::DISABLED);
+  scoped_refptr<IdentityLaunchWebAuthFlowFunction> function =
+      CreateLaunchWebAuthFlowFunction();
+  std::string args =
+      "[{\"interactive\": true, \"url\": \"" + auth_url.spec() + "\"}]";
+
+  AsyncFunctionRunner func_runner;
+  func_runner.RunFunctionAsync(function.get(), args, &profile2);
+
+  // Destroy profile while waiting for a response.
+  g_browser_process->profile_manager()
+      ->GetDeleteProfileHelper()
+      .MaybeScheduleProfileForDeletion(
+          profile2.GetPath(), base::DoNothing(),
+          ProfileMetrics::DELETE_PROFILE_USER_MANAGER);
+
+  // The ongoing navigation to auth_url will be skipped if the profile shutdown
+  // has already started, hence the error message below will reflect a shutdown
+  // context.
+  EXPECT_EQ(std::string(errors::kBrowserContextShutDown),
+            func_runner.WaitForError(function.get()));
+}
+
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 
 // Regression test for http://b/290733700.

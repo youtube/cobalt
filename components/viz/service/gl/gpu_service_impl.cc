@@ -213,8 +213,8 @@ GpuServiceImpl::GpuServiceImpl(
     bool is_native_gl =
         gpu_info_.gpu.vendor_id != 0xffff && gpu_info_.gpu.vendor_id != 0;
 
-    const bool is_thread_safe =
-        features::IsDrDcEnabled() && !gpu_driver_bug_workarounds_.disable_drdc;
+    const bool is_thread_safe = features::IsDrDcEnabled(gpu_feature_info);
+
     // If GL is using a real GPU, the gpu_info will be passed in and vulkan will
     // use the same GPU.
     vulkan_context_provider_ = VulkanInProcessContextProvider::Create(
@@ -525,7 +525,7 @@ void GpuServiceImpl::InitializeWithHostInternal(
       gpu_channel_manager_.get());
 
   // Create and Initialize compositor gpu thread.
-  {
+  if (features::IsDrDcEnabled(gpu_feature_info_)) {
     CompositorGpuThread::CreateParams params;
     params.gpu_channel_manager = gpu_channel_manager_.get();
     params.display =
@@ -543,7 +543,8 @@ void GpuServiceImpl::InitializeWithHostInternal(
 #if BUILDFLAG(SKIA_USE_DAWN)
     params.dawn_context_provider = dawn_context_provider_.get();
 #endif
-    compositor_gpu_thread_ = CompositorGpuThread::MaybeCreate(params);
+
+    compositor_gpu_thread_ = CompositorGpuThread::Create(params);
   }
 
 #if BUILDFLAG(IS_WIN)
@@ -1330,7 +1331,7 @@ gpu::SharedImageManager* GpuServiceImpl::CreateSharedImageManager(
   // access to SharedImageManager on the viz thread to obtain the buffer
   // corresponding to a mailbox.
   const bool display_context_on_another_thread =
-      features::IsDrDcEnabled() && !gpu_driver_bug_workarounds_.disable_drdc;
+      features::IsDrDcEnabled(gpu_feature_info_);
 
   // Record the crash key for DrDC.
   if (display_context_on_another_thread) {

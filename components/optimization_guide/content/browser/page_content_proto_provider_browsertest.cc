@@ -358,11 +358,19 @@ IN_PROC_BROWSER_TEST_F(PageContentProtoProviderBrowserTest, ForLabel) {
 
   const auto& input = ActionableContentRootNode().children_nodes()[0];
   ASSERT_TRUE(input.content_attributes().has_interaction_info());
-  EXPECT_TRUE(input.content_attributes().interaction_info().is_clickable());
+  EXPECT_THAT(
+      input.content_attributes()
+          .interaction_info()
+          .debug_clickability_reasons(),
+      testing::UnorderedElementsAre(
+          optimization_guide::proto::CLICKABILITY_REASON_CLICKABLE_CONTROL));
 
   const auto& label = ActionableContentRootNode().children_nodes()[1];
   ASSERT_TRUE(label.content_attributes().has_interaction_info());
-  EXPECT_TRUE(label.content_attributes().interaction_info().is_clickable());
+  EXPECT_TRUE(label.content_attributes()
+                  .interaction_info()
+                  .debug_clickability_reasons()
+                  .empty());
   EXPECT_EQ(label.content_attributes().label_for_dom_node_id(),
             input.content_attributes().common_ancestor_dom_node_id());
 }
@@ -388,7 +396,35 @@ IN_PROC_BROWSER_TEST_F(PageContentProtoProviderBrowserTest,
           optimization_guide::proto::CLICKABILITY_REASON_KEY_EVENTS,
           optimization_guide::proto::CLICKABILITY_REASON_EDITABLE,
           optimization_guide::proto::CLICKABILITY_REASON_CURSOR_POINTER,
-          optimization_guide::proto::CLICKABILITY_REASON_ARIA_ROLE));
+          optimization_guide::proto::CLICKABILITY_REASON_ARIA_ROLE,
+          optimization_guide::proto::CLICKABILITY_REASON_ARIA_HAS_POPUP));
+  EXPECT_THAT(
+      button_node.content_attributes()
+          .interaction_info()
+          .clickability_reasons(),
+      testing::UnorderedElementsAre(
+          optimization_guide::proto::CLICKABILITY_REASON_CLICKABLE_CONTROL,
+          optimization_guide::proto::CLICKABILITY_REASON_CLICK_HANDLER,
+          optimization_guide::proto::CLICKABILITY_REASON_MOUSE_EVENTS,
+          optimization_guide::proto::CLICKABILITY_REASON_KEY_EVENTS,
+          optimization_guide::proto::CLICKABILITY_REASON_EDITABLE,
+          optimization_guide::proto::CLICKABILITY_REASON_CURSOR_POINTER,
+          optimization_guide::proto::CLICKABILITY_REASON_ARIA_ROLE,
+          optimization_guide::proto::CLICKABILITY_REASON_ARIA_HAS_POPUP));
+
+  const auto& expanded = ActionableContentRootNode().children_nodes()[1];
+  ASSERT_TRUE(expanded.content_attributes().has_interaction_info());
+  EXPECT_THAT(
+      expanded.content_attributes().interaction_info().clickability_reasons(),
+      testing::UnorderedElementsAre(
+          optimization_guide::proto::CLICKABILITY_REASON_ARIA_EXPANDED_TRUE));
+
+  const auto& collapsed = ActionableContentRootNode().children_nodes()[2];
+  ASSERT_TRUE(collapsed.content_attributes().has_interaction_info());
+  EXPECT_THAT(
+      collapsed.content_attributes().interaction_info().clickability_reasons(),
+      testing::UnorderedElementsAre(
+          optimization_guide::proto::CLICKABILITY_REASON_ARIA_EXPANDED_FALSE));
 }
 
 IN_PROC_BROWSER_TEST_F(PageContentProtoProviderBrowserTest,
@@ -403,7 +439,12 @@ IN_PROC_BROWSER_TEST_F(PageContentProtoProviderBrowserTest,
 
   const auto& input = ActionableContentRootNode().children_nodes()[0];
   ASSERT_TRUE(input.content_attributes().has_interaction_info());
-  EXPECT_TRUE(input.content_attributes().interaction_info().is_clickable());
+  EXPECT_THAT(
+      input.content_attributes()
+          .interaction_info()
+          .debug_clickability_reasons(),
+      testing::UnorderedElementsAre(
+          optimization_guide::proto::CLICKABILITY_REASON_CLICKABLE_CONTROL));
 
   const auto& label = ActionableContentRootNode().children_nodes()[1];
   EXPECT_FALSE(label.content_attributes().has_interaction_info());
@@ -421,7 +462,11 @@ IN_PROC_BROWSER_TEST_F(PageContentProtoProviderBrowserTest, AriaRole) {
   EXPECT_EQ(ActionableContentRootNode().children_nodes().size(), 1);
   const auto& button = ActionableContentRootNode().children_nodes()[0];
   ASSERT_TRUE(button.content_attributes().has_interaction_info());
-  EXPECT_TRUE(button.content_attributes().interaction_info().is_clickable());
+  EXPECT_THAT(button.content_attributes()
+                  .interaction_info()
+                  .debug_clickability_reasons(),
+              testing::UnorderedElementsAre(
+                  optimization_guide::proto::CLICKABILITY_REASON_ARIA_ROLE));
   EXPECT_EQ(button.content_attributes().aria_role(),
             optimization_guide::proto::AXRole::AX_ROLE_BUTTON);
 }

@@ -30,7 +30,7 @@
 #include "third_party/blink/renderer/platform/wtf/type_traits.h"
 #include "third_party/blink/renderer/platform/wtf/vector_backed_linked_list.h"
 
-namespace WTF {
+namespace blink {
 
 // LinkedHashSet provides a Set interface like HashSet, but also has a
 // predictable iteration order. It has O(1) insertion, removal, and test for
@@ -51,7 +51,7 @@ namespace WTF {
 // Note: empty/deleted values as defined in HashTraits are not allowed.
 template <typename ValueArg,
           typename TraitsArg = HashTraits<ValueArg>,
-          typename Allocator = PartitionAllocator>
+          typename Allocator = WTF::PartitionAllocator>
 class LinkedHashSet {
   USE_ALLOCATOR(LinkedHashSet, Allocator);
 
@@ -271,14 +271,14 @@ class LinkedHashSet {
     return reverse_iterator(it, value_to_index_);
   }
 
-  Map value_to_index_;
-  ListType list_;
+  GC_PLUGIN_IGNORE("crbug.com/428987863") Map value_to_index_;
+  GC_PLUGIN_IGNORE("crbug.com/428987863") ListType list_;
 
   struct TypeConstraints {
     constexpr TypeConstraints() {
-      static_assert(!IsStackAllocatedTypeV<Value>);
+      static_assert(!WTF::IsStackAllocatedTypeV<Value>);
       static_assert(Allocator::kIsGarbageCollected ||
-                        !IsPointerToGarbageCollectedType<Value>,
+                        !WTF::IsPointerToGarbageCollectedType<Value>,
                     "Cannot put raw pointers to garbage-collected classes into "
                     "an off-heap LinkedHashSet. Use "
                     "HeapLinkedHashSet<Member<T>> instead.");
@@ -473,8 +473,6 @@ LinkedHashSet<T, TraitsArg, Allocator>::InsertOrMoveBefore(
   return AddResult(&*moved_position_iterator, false);
 }
 
-}  // namespace WTF
-
-using WTF::LinkedHashSet;
+}  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_LINKED_HASH_SET_H_

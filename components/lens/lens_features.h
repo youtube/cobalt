@@ -388,12 +388,6 @@ extern bool UseVideoContextForMultimodalLensOverlayRequests();
 COMPONENT_EXPORT(LENS_FEATURES)
 extern std::string GetLensOverlayClusterInfoEndpointUrl();
 
-// Returns whether or not to send the search session and visual
-// search request ids in suggest requests from the contextual
-// search box.
-COMPONENT_EXPORT(LENS_FEATURES)
-extern bool GetLensOverlaySendLensInputsForContextualSuggest();
-
 // Returns whether or not to send the search session, visual
 // search request id, and visual interaction type in suggest requests from the
 // Lens search box. These params replace the existing "iil" image signals
@@ -417,28 +411,10 @@ extern uint32_t GetLensOverlayFileUploadLimitBytes();
 
 // Returns the number of characters to be retrieved from the PDF for generating
 // suggestions. This is a target and not a hard limit. The actual number of
-// characters returned may be more than this value since the characters are
 // rounded to the nearest page. The actual number of characters may also be
 // less than this value if the PDF is too small.
 COMPONENT_EXPORT(LENS_FEATURES)
 extern uint32_t GetLensOverlayPdfSuggestCharacterTarget();
-
-// Returns whether to use the &vit=pdf param for the search request.
-COMPONENT_EXPORT(LENS_FEATURES)
-extern bool UsePdfVitParam();
-
-// Returns whether to use the &vit=wp param for the search request.
-COMPONENT_EXPORT(LENS_FEATURES)
-extern bool UseWebpageVitParam();
-
-// Returns whether to use the PDF_QUERY interaction type for PDF queries.
-COMPONENT_EXPORT(LENS_FEATURES)
-extern bool UsePdfInteractionType();
-
-// Returns whether to use the WEBPAGE_QUERY interaction type for webpage
-// queries.
-COMPONENT_EXPORT(LENS_FEATURES)
-extern bool UseWebpageInteractionType();
 
 // Returns the number of characters that should be present per page if the PDF
 // is not scanned. This value is compared to the average number of characters
@@ -446,33 +422,12 @@ extern bool UseWebpageInteractionType();
 COMPONENT_EXPORT(LENS_FEATURES)
 extern int GetScannedPdfCharacterPerPageHeuristic();
 
-// Returns whether to use the new content fields when sending content data
-// in the request payload.
-COMPONENT_EXPORT(LENS_FEATURES)
-extern bool UseUpdatedContextFields();
-
-// Returns whether to include PDFs from the underlying page in the request to be
-// used as page context.
-COMPONENT_EXPORT(LENS_FEATURES)
-extern bool UsePdfsAsContext();
-
 // Returns whether to include the inner text from the underlying page in the
 // request to be used as page context. This is for webpages and sends text
 // equivalent to document.body.innerText. Must have UseUpdatedContextFields
 // enabled when combined with other page content types.
 COMPONENT_EXPORT(LENS_FEATURES)
 extern bool UseInnerTextAsContext();
-
-// Returns whether to include the inner html from the underlying page in the
-// request to be used as page context. Must have UseUpdatedContextFields enabled
-// when combined with other page content types.
-COMPONENT_EXPORT(LENS_FEATURES)
-extern bool UseInnerHtmlAsContext();
-
-// Returns whether to send the client context to the cluster info request for
-// contextual suggest.
-COMPONENT_EXPORT(LENS_FEATURES)
-extern bool SendClientContextToClusterInfoRequestForContextualSuggest();
 
 // Returns whether to include the Annotated Page Content from the underlying
 // page in the inner HTML requests used as page context. Must have
@@ -753,18 +708,6 @@ extern bool IsLensOverlayRoutingInfoEnabled();
 COMPONENT_EXPORT(LENS_FEATURES)
 extern bool HandleSidePanelTextDirectivesEnabled();
 
-// Whether to hold contextual queries until the user acknowledges the
-// contextual searchbox. If this is disabled, the contextual queries will be
-// sent immediately after the page content upload request is sent. If this is
-// enabled, the contextual queries will be sent after the server responds to the
-// page content upload request.
-COMPONENT_EXPORT(LENS_FEATURES)
-extern bool ShouldHoldContextualQueriesUntilAck();
-
-// Whether to compress the PDF bytes using zstd before sending them to the
-// server.
-COMPONENT_EXPORT(LENS_FEATURES)
-extern bool ShouldZstdCompressPdfBytes();
 
 // The compression level to use when compressing the PDF bytes using zstd.
 // Higher values mean better compression but also take longer to compress.
@@ -772,10 +715,6 @@ extern bool ShouldZstdCompressPdfBytes();
 // details.
 COMPONENT_EXPORT(LENS_FEATURES)
 extern int GetZstdCompressionLevel();
-
-// Whether to show the upload progress bar in the side panel.
-COMPONENT_EXPORT(LENS_FEATURES)
-extern bool ShouldShowUploadProgressBar();
 
 // This is a heuristic value that determines when to show the upload progress
 // bar. The value is a percentage of the total page content upload that is
@@ -871,19 +810,9 @@ extern bool GetVisualSelectionUpdatesHideCsbEllipsis();
 COMPONENT_EXPORT(LENS_FEATURES)
 extern bool GetVisualSelectionUpdatesEnableCloseButtonTweaks();
 
-// Whether to fix the request id for page content upload requests. When enabled,
-// this will not increment the image upload request ID when the page content
-// upload request is sent.
-COMPONENT_EXPORT(LENS_FEATURES)
-extern bool PageContentUploadRequestIdFixEnabled();
-
 // Whether to update the viewport on each contextual query.
 COMPONENT_EXPORT(LENS_FEATURES)
 extern bool UpdateViewportEachQueryEnabled();
-
-// Whether to send the current page for PDFs.
-COMPONENT_EXPORT(LENS_FEATURES)
-extern bool SendPdfCurrentPageEnabled();
 
 // Whether to show zero prefix suggestions in the contextual searchbox.
 COMPONENT_EXPORT(LENS_FEATURES)

@@ -279,7 +279,7 @@ public class TripBuilder {
     }
 
     /** Build and perform the Transition synchronously. */
-    public void complete() {
+    public Trip complete() {
         assert !mIsComplete : "Transition already completed";
         assert mTrigger != null : "Trigger not set";
         assert !mInNewTask || mDestinationStation != null
@@ -324,7 +324,12 @@ public class TripBuilder {
         }
 
         if (mOriginStation != null) {
-            mFacilitiesToExit.addAll(mOriginStation.getFacilitiesWithPhase(Phase.ACTIVE));
+            for (Facility<?> facility : mOriginStation.getFacilitiesWithPhase(Phase.ACTIVE)) {
+                // Avoid trying to exit the same facility multiple times.
+                if (!mFacilitiesToExit.contains(facility)) {
+                    mFacilitiesToExit.add(facility);
+                }
+            }
         }
 
         if (!mConditions.isEmpty()) {
@@ -334,7 +339,7 @@ public class TripBuilder {
                             mOptions);
         }
 
-        Transition trip =
+        Trip trip =
                 new Trip(
                         mOriginStation,
                         mDestinationStation,
@@ -347,5 +352,15 @@ public class TripBuilder {
         trip.transitionSync();
 
         mIsComplete = true;
+        return trip;
+    }
+
+    /**
+     * Build and perform the Transition synchronously.
+     *
+     * @return the entered ConditionalState of type |stateClass|.
+     */
+    public <StateT extends ConditionalState> StateT completeAndGet(Class<StateT> stateClass) {
+        return complete().get(stateClass);
     }
 }

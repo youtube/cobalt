@@ -18,6 +18,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
+#include "base/trace_event/trace_config.h"
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/extensions/unpacked_installer.h"
 #include "chrome/browser/profiles/profile.h"
@@ -139,9 +140,9 @@ base::Value TabCapturePerformanceTestBase::SendMessageToExtension(
   auto* const web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
   for (;;) {
-    const auto result = content::EvalJs(web_contents, javascript);
+    auto result = content::EvalJs(web_contents, javascript);
     if (result.error.empty()) {
-      return result.value.Clone();
+      return std::move(result).TakeValue();
     }
     LOG(INFO) << "Race condition: Waiting for extension to come up, before "
                  "'sendMessage' retry...";

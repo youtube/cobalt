@@ -102,18 +102,36 @@ id<GREYMatcher> SupervisedIncognitoMessage() {
 
   [[EarlGrey selectElementWithMatcher:ShowTabsButton()]
       performAction:grey_longPress()];
+  if (@available(iOS 26, *)) {
+    // TODO(crbug.com/428928323): Investigate why the keyboard appears. Remove
+    // this workaround when it's not needed anymore.
+    // On iOS 26, the keyboard appears when the change font family button is
+    // tapped and it hides the elements behind. Close the keyboard by typing a
+    // return key.
+    [ChromeEarlGrey simulatePhysicalKeyboardEvent:@"\\n" flags:0];
+  }
+
   policy::AssertButtonInCollectionEnabled(IDS_IOS_TOOLS_MENU_NEW_TAB);
   policy::AssertButtonInCollectionDisabled(
       IDS_IOS_TOOLS_MENU_NEW_INCOGNITO_TAB);
 
   // Dismiss the popup menu by tapping anywhere.
-  [[EarlGrey selectElementWithMatcher:ShowTabsButton()]
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::FakeOmnibox()]
       performAction:grey_tap()];
 
   [SigninEarlGrey signOut];
 
   [[EarlGrey selectElementWithMatcher:ShowTabsButton()]
       performAction:grey_longPress()];
+  if (@available(iOS 26, *)) {
+    // TODO(crbug.com/428928323): Investigate why the keyboard appears. Remove
+    // this workaround when it's not needed anymore.
+    // On iOS 26, the keyboard appears when the change font family button is
+    // tapped and it hides the elements behind. Close the keyboard by typing a
+    // return key.
+    [ChromeEarlGrey simulatePhysicalKeyboardEvent:@"\\n" flags:0];
+  }
+
   policy::AssertButtonInCollectionEnabled(IDS_IOS_TOOLS_MENU_NEW_TAB);
   policy::AssertButtonInCollectionEnabled(IDS_IOS_TOOLS_MENU_NEW_INCOGNITO_TAB);
 }
@@ -284,7 +302,9 @@ id<GREYMatcher> SupervisedIncognitoMessage() {
       assertWithMatcher:grey_sufficientlyVisible()];
 
   // Check that the edit button is disabled.
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::TabGridEditButton()]
+  [[EarlGrey
+      selectElementWithMatcher:grey_allOf(chrome_test_util::TabGridEditButton(),
+                                          grey_sufficientlyVisible(), nil)]
       assertWithMatcher:grey_not(grey_enabled())];
 }
 

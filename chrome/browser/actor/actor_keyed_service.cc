@@ -10,18 +10,17 @@
 #include "base/types/pass_key.h"
 #include "chrome/browser/actor/actor_keyed_service_factory.h"
 #include "chrome/browser/actor/actor_task.h"
+#include "chrome/browser/actor/aggregated_journal.h"
+#include "chrome/browser/actor/browser_action_util.h"
 #include "chrome/browser/actor/execution_engine.h"
 #include "chrome/browser/actor/task_id.h"
-#include "chrome/browser/actor/ui/actor_ui_state_manager_interface.h"
+#include "chrome/browser/actor/tools/tool_request.h"
+#include "chrome/browser/actor/ui/actor_ui_state_manager.h"
+#include "chrome/browser/page_content_annotations/multi_source_page_context_fetcher.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/common/actor.mojom.h"
 #include "chrome/common/actor/action_result.h"
-
-#if BUILDFLAG(ENABLE_GLIC)
-#include "chrome/browser/glic/host/context/glic_page_context_fetcher.h"
-#include "chrome/browser/glic/host/glic.mojom.h"
-#endif
 
 namespace {
 
@@ -31,16 +30,6 @@ namespace {
 // lines of complex code that tries to precisely wait for navigation commit, but
 // that would be overkill.
 constexpr base::TimeDelta kDelayForNewTab = base::Seconds(1);
-
-#if BUILDFLAG(ENABLE_GLIC)
-glic::mojom::GetTabContextOptions DefaultOptions() {
-  glic::mojom::GetTabContextOptions options;
-  options.include_annotated_page_content = true;
-  options.include_viewport_screenshot = true;
-  return options;
-}
-
-#endif
 
 void RunLater(base::OnceClosure task) {
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(FROM_HERE,
@@ -53,10 +42,9 @@ namespace actor {
 
 using ui::ActorUiStateManagerInterface;
 
-ActorKeyedService::ActorKeyedService(
-    Profile* profile,
-    std::unique_ptr<ActorUiStateManagerInterface> ui_state_manager)
-    : actor_ui_state_manager_(std::move(ui_state_manager)), profile_(profile) {}
+ActorKeyedService::ActorKeyedService(Profile* profile) : profile_(profile) {
+  actor_ui_state_manager_ = std::make_unique<ui::ActorUiStateManager>(*this);
+}
 
 ActorKeyedService::~ActorKeyedService() = default;
 
@@ -65,22 +53,32 @@ ActorKeyedService* ActorKeyedService::Get(content::BrowserContext* context) {
   return ActorKeyedServiceFactory::GetActorKeyedService(context);
 }
 
+void ActorKeyedService::SetActorUiStateManagerForTesting(
+    std::unique_ptr<ui::ActorUiStateManagerInterface> ausm) {
+  actor_ui_state_manager_ = std::move(ausm);
+}
+
 TaskId ActorKeyedService::AddActiveTask(std::unique_ptr<ActorTask> task) {
   TaskId task_id = next_task_id_.GenerateNextId();
+  last_created_task_id_ = task_id;
   task->SetId(base::PassKey<ActorKeyedService>(), task_id);
+  task->GetExecutionEngine()->SetOwner(task.get());
   active_tasks_[task_id] = std::move(task);
   return task_id;
 }
 
-const std::map<TaskId, const ActorTask*> ActorKeyedService::GetActiveTasks() {
+const std::map<TaskId, const ActorTask*> ActorKeyedService::GetActiveTasks()
+    const {
   std::map<TaskId, const ActorTask*> active_tasks;
   for (const auto& [id, task] : active_tasks_) {
+    CHECK_NE(task->GetState(), actor::ActorTask::State::kFinished);
     active_tasks[id] = task.get();
   }
   return active_tasks;
 }
 
-const std::map<TaskId, const ActorTask*> ActorKeyedService::GetInactiveTasks() {
+const std::map<TaskId, const ActorTask*> ActorKeyedService::GetInactiveTasks()
+    const {
   std::map<TaskId, const ActorTask*> inactive_tasks;
   for (const auto& [id, task] : inactive_tasks_) {
     inactive_tasks[id] = task.get();
@@ -88,35 +86,42 @@ const std::map<TaskId, const ActorTask*> ActorKeyedService::GetInactiveTasks() {
   return inactive_tasks;
 }
 
+void ActorKeyedService::ResetForTesting() {
+  for (auto it = active_tasks_.begin(); it != active_tasks_.end();) {
+    StopTask((it++)->first);
+  }
+  active_tasks_.clear();
+  inactive_tasks_.clear();
+}
+
 void ActorKeyedService::ExecuteAction(
-    optimization_guide::proto::BrowserAction action,
+    TaskId task_id,
+    std::vector<std::unique_ptr<ToolRequest>>&& actions,
     base::OnceCallback<void(optimization_guide::proto::BrowserActionResult)>
         callback) {
-  auto* task = GetTask(actor::TaskId(action.task_id()));
-  bool always_fail = false;
-#if !BUILDFLAG(ENABLE_GLIC)
-  // The current implementation relies on glic::FetchPageContext().
-  always_fail = true;
-#endif
-  if (!task || always_fail) {
+  auto* task = GetTask(task_id);
+  if (!task) {
     VLOG(1) << "Execute Action failed: Task not found.";
     optimization_guide::proto::BrowserActionResult result;
     result.set_action_result(0);
     RunLater(base::BindOnce(std::move(callback), std::move(result)));
     return;
   }
-#if BUILDFLAG(ENABLE_GLIC)
-  task->GetExecutionEngine()->Act(
-      std::move(action), base::BindOnce(&ActorKeyedService::OnActionFinished,
-                                        weak_ptr_factory_.GetWeakPtr(),
-                                        std::move(callback), action.task_id()));
-#endif
+  task->Act(std::move(actions),
+            base::BindOnce(&ActorKeyedService::OnActionFinished,
+                           weak_ptr_factory_.GetWeakPtr(), std::move(callback),
+                           task_id.value()));
 }
 
 TaskId ActorKeyedService::CreateTask() {
   auto execution_engine = std::make_unique<ExecutionEngine>(profile_.get());
-  auto actor_task = std::make_unique<ActorTask>(std::move(execution_engine));
+  auto actor_task =
+      std::make_unique<ActorTask>(profile_.get(), std::move(execution_engine));
   TaskId task_id = AddActiveTask(std::move(actor_task));
+  actor_task_subscriptions_.emplace(
+      task_id, GetTask(task_id)->RegisterTaskStateChange(base::BindRepeating(
+                   &ActorKeyedService::OnActorTaskStateChanged,
+                   weak_ptr_factory_.GetWeakPtr())));
   return task_id;
 }
 
@@ -165,12 +170,13 @@ void ActorKeyedService::FinishStartTask(
     execution_engine = std::make_unique<actor::ExecutionEngine>(profile_.get());
   }
 
-  auto actor_task =
-      std::make_unique<actor::ActorTask>(std::move(execution_engine));
-  actor_task_subscriptions_.push_back(actor_task->RegisterTaskStateChange(
-      base::BindRepeating(&ActorKeyedService::OnActorTaskStateChanged,
-                          weak_ptr_factory_.GetWeakPtr())));
+  auto actor_task = std::make_unique<actor::ActorTask>(
+      profile_.get(), std::move(execution_engine));
   actor::TaskId task_id = AddActiveTask(std::move(actor_task));
+  actor_task_subscriptions_.emplace(
+      task_id, GetTask(task_id)->RegisterTaskStateChange(base::BindRepeating(
+                   &ActorKeyedService::OnActorTaskStateChanged,
+                   weak_ptr_factory_.GetWeakPtr())));
 
   optimization_guide::proto::BrowserStartTaskResult result;
   result.set_task_id(task_id.value());
@@ -180,41 +186,75 @@ void ActorKeyedService::FinishStartTask(
       FROM_HERE, base::BindOnce(std::move(callback), std::move(result)));
 }
 
-#if BUILDFLAG(ENABLE_GLIC)
+void ActorKeyedService::RequestTabObservation(
+    const tabs::TabInterface& tab,
+    base::OnceCallback<void(TabObservationResult)> callback) {
+  page_content_annotations::FetchPageContextOptions options;
+  options.include_viewport_screenshot = true;
+  options.annotated_page_content_options =
+      optimization_guide::ActionableAIPageContentOptions();
+  page_content_annotations::FetchPageContext(
+      *tab.GetContents(), options,
+      base::BindOnce(&ActorKeyedService::OnTabOservationResult,
+                     weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
+}
+
+void ActorKeyedService::OnTabOservationResult(
+    base::OnceCallback<void(TabObservationResult)> callback,
+    page_content_annotations::FetchPageContextResultCallbackArg fetch_result) {
+  if (!fetch_result.has_value()) {
+    std::move(callback).Run(base::unexpected(fetch_result.error()));
+    return;
+  }
+  auto& page_context = **fetch_result;
+  if (!page_context.screenshot_result.has_value() ||
+      !page_context.annotated_page_content_result.has_value()) {
+    std::move(callback).Run(
+        base::unexpected<std::string>("Failed Observation"));
+    return;
+  }
+  std::unique_ptr<optimization_guide::proto::TabObservation> result =
+      std::make_unique<optimization_guide::proto::TabObservation>();
+  if (page_context.screenshot_result) {
+    auto& data = page_context.screenshot_result->jpeg_data;
+    if (data.size() != 0) {
+      result->set_screenshot_mime_type("image/jpeg");
+      result->set_screenshot(data.data(), data.size());
+    }
+  }
+  if (page_context.annotated_page_content_result) {
+    result->mutable_annotated_page_content()->Swap(
+        &page_context.annotated_page_content_result->proto);
+  }
+  std::move(callback).Run(std::move(result));
+}
+
 void ActorKeyedService::ConvertToBrowserActionResult(
     base::OnceCallback<void(optimization_guide::proto::BrowserActionResult)>
         callback,
     int task_id,
     int32_t tab_id,
     actor::mojom::ActionResultPtr action_result,
-    glic::mojom::GetContextResultPtr context_result) {
+    base::expected<std::unique_ptr<optimization_guide::proto::TabObservation>,
+                   std::string> context_result) {
   optimization_guide::proto::BrowserActionResult browser_action_result;
-  if (context_result->is_error_reason()) {
+  if (!context_result.has_value()) {
     VLOG(1) << "Execute Action failed: Error fetching context.";
     browser_action_result.set_action_result(0);
     RunLater(
         base::BindOnce(std::move(callback), std::move(browser_action_result)));
     return;
   }
-  if (context_result->get_tab_context() &&
-      context_result->get_tab_context()->annotated_page_data &&
-      context_result->get_tab_context()
-          ->annotated_page_data->annotated_page_content) {
-    auto apc = context_result->get_tab_context()
-                   ->annotated_page_data->annotated_page_content.value()
-                   .As<optimization_guide::proto::AnnotatedPageContent>();
-    if (apc.has_value()) {
-      auto apc_value = *std::move(apc);
-      browser_action_result.mutable_annotated_page_content()->Swap(&apc_value);
-    }
+  auto& tab_observation = **context_result;
+  if (tab_observation.has_annotated_page_content()) {
+    browser_action_result.mutable_annotated_page_content()->Swap(
+        tab_observation.mutable_annotated_page_content());
   }
-  if (context_result->get_tab_context()->viewport_screenshot &&
-      context_result->get_tab_context()->viewport_screenshot->data.size() !=
-          0) {
-    auto& data = context_result->get_tab_context()->viewport_screenshot->data;
-    browser_action_result.set_screenshot(data.data(), data.size());
+  if (tab_observation.has_screenshot()) {
+    browser_action_result.set_screenshot(tab_observation.screenshot().data(),
+                                         tab_observation.screenshot().size());
     browser_action_result.set_screenshot_mime_type(
-        context_result->get_tab_context()->viewport_screenshot->mime_type);
+        tab_observation.screenshot_mime_type());
   }
   browser_action_result.set_task_id(task_id);
   browser_action_result.set_tab_id(tab_id);
@@ -227,10 +267,11 @@ void ActorKeyedService::OnActionFinished(
     base::OnceCallback<void(optimization_guide::proto::BrowserActionResult)>
         callback,
     int task_id,
-    actor::mojom::ActionResultPtr action_result) {
+    actor::mojom::ActionResultPtr action_result,
+    std::optional<size_t> index_of_failed_action) {
   auto* task = GetTask(actor::TaskId(task_id));
   CHECK(task);
-  tabs::TabInterface* tab = task->GetExecutionEngine()->GetTabOfCurrentTask();
+  tabs::TabInterface* tab = task->GetTabForObservation();
   if (!tab) {
     VLOG(1) << "Execute Action failed: Tab not found.";
     optimization_guide::proto::BrowserActionResult result;
@@ -238,48 +279,62 @@ void ActorKeyedService::OnActionFinished(
     RunLater(base::BindOnce(std::move(callback), std::move(result)));
     return;
   }
-  // TODO(https://crbug.com/398271171): Remove when the actor coordinator
-  // handles getting a new observation.
   int32_t tab_id = tab->GetHandle().raw_value();
-  glic::FetchPageContext(
-      tab, DefaultOptions(), /*include_actionable_data=*/true,
-      base::BindOnce(&ActorKeyedService::ConvertToBrowserActionResult,
-                     weak_ptr_factory_.GetWeakPtr(), std::move(callback),
-                     task_id, tab_id, std::move(action_result)));
+  RequestTabObservation(
+      *tab, base::BindOnce(&ActorKeyedService::ConvertToBrowserActionResult,
+                           weak_ptr_factory_.GetWeakPtr(), std::move(callback),
+                           task_id, tab_id, std::move(action_result)));
 }
-#endif
 
 void ActorKeyedService::PerformActions(
-    optimization_guide::proto::Actions actions,
-    base::OnceCallback<void(optimization_guide::proto::ActionsResult)>
-        callback) {
-  auto* task = GetTask(actor::TaskId(actions.task_id()));
+    TaskId task_id,
+    std::vector<std::unique_ptr<ToolRequest>>&& actions,
+    PerformActionsCallback callback) {
+  auto* task = GetTask(task_id);
   if (!task) {
     VLOG(1) << "PerformActions failed: Task not found.";
-    optimization_guide::proto::ActionsResult result;
-    result.set_action_result(
-        static_cast<int32_t>(mojom::ActionResultCode::kTaskWentAway));
-    RunLater(base::BindOnce(std::move(callback), std::move(result)));
+    RunLater(base::BindOnce(std::move(callback),
+                            mojom::ActionResultCode::kTaskWentAway,
+                            std::nullopt));
     return;
   }
-  task->GetExecutionEngine()->Act(
+
+  if (actions.empty()) {
+    VLOG(1) << "PerformActions failed: No actions provided.";
+    RunLater(base::BindOnce(std::move(callback),
+                            mojom::ActionResultCode::kEmptyActionSequence,
+                            std::nullopt));
+    return;
+  }
+
+  task->Act(
       std::move(actions),
       base::BindOnce(&ActorKeyedService::OnActionsFinished,
                      weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
 }
 
 void ActorKeyedService::OnActionsFinished(
-    base::OnceCallback<void(optimization_guide::proto::ActionsResult)> callback,
-    optimization_guide::proto::ActionsResult result) {
-  RunLater(base::BindOnce(std::move(callback), std::move(result)));
+    PerformActionsCallback callback,
+    mojom::ActionResultPtr result,
+    std::optional<size_t> index_of_failed_action) {
+  // If the result if Ok then we must not have a failed action.
+  CHECK(!IsOk(*result) || !index_of_failed_action);
+  RunLater(base::BindOnce(std::move(callback), result->code,
+                          index_of_failed_action));
 }
 
 void ActorKeyedService::StopTask(TaskId task_id) {
+  if (task_id == last_created_task_id_) {
+    last_created_task_id_ = TaskId();
+  }
+
   auto task = active_tasks_.extract(task_id);
   if (!task.empty()) {
-    task.mapped()->Stop();
-    inactive_tasks_.insert(std::move(task));
+    auto ret = inactive_tasks_.insert(std::move(task));
+    ret.position->second->Stop();
   }
+
+  actor_task_subscriptions_.erase(task_id);
 }
 
 ActorTask* ActorKeyedService::GetTask(TaskId task_id) {
@@ -294,6 +349,10 @@ ActorTask* ActorKeyedService::GetTask(TaskId task_id) {
   return nullptr;
 }
 
+ActorTask* ActorKeyedService::GetMostRecentTask() {
+  return GetTask(last_created_task_id_);
+}
+
 ActorUiStateManagerInterface* ActorKeyedService::GetActorUiStateManager() {
   return actor_ui_state_manager_.get();
 }
@@ -301,6 +360,22 @@ ActorUiStateManagerInterface* ActorKeyedService::GetActorUiStateManager() {
 void ActorKeyedService::OnActorTaskStateChanged(TaskId task_id,
                                                 ActorTask::State task_state) {
   GetActorUiStateManager()->OnActorTaskStateChange(task_id, task_state);
+}
+
+bool ActorKeyedService::IsAnyTaskActingOnTab(
+    const tabs::TabInterface& tab) const {
+  tabs::TabHandle handle = tab.GetHandle();
+  for (auto task_pair : GetActiveTasks()) {
+    if (task_pair.second->HasActedOnTab(handle)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+Profile* ActorKeyedService::GetProfile() {
+  return profile_;
 }
 
 }  // namespace actor

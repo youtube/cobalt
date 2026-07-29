@@ -7,6 +7,7 @@
 #import <UIKit/UIKit.h>
 
 #import "base/functional/callback_helpers.h"
+#import "base/metrics/histogram_functions.h"
 #import "components/signin/core/browser/account_reconcilor.h"
 #import "components/signin/ios/browser/account_consistency_service.h"
 #import "ios/chrome/browser/authentication/ui_bundled/account_menu/account_menu_constants.h"
@@ -16,6 +17,7 @@
 #import "ios/chrome/browser/shared/model/profile/features.h"
 #import "ios/chrome/browser/shared/model/profile/profile_attributes_storage_ios.h"
 #import "ios/chrome/browser/shared/model/profile/profile_manager_ios.h"
+#import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/public/commands/application_commands.h"
 #import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
@@ -26,14 +28,13 @@
 #import "ios/chrome/browser/signin/model/account_reconcilor_factory.h"
 #import "ios/chrome/browser/tabs/model/tabs_dependency_installer.h"
 #import "ios/chrome/browser/web/model/web_navigation_browser_agent.h"
+#import "ios/web/public/navigation/referrer.h"
 
 AccountConsistencyBrowserAgent::AccountConsistencyBrowserAgent(
     Browser* browser,
     UIViewController* base_view_controller)
     : BrowserUserData(browser), base_view_controller_(base_view_controller) {
-  installation_helper_ = std::make_unique<TabsDependencyInstallationHelper>(
-      browser->GetWebStateList(), this);
-  browser_->AddObserver(this);
+  StartObserving(browser->GetWebStateList(), Policy::kOnlyRealized);
   application_handler_ =
       HandlerForProtocol(browser_->GetCommandDispatcher(), ApplicationCommands);
   settings_handler_ =
@@ -42,6 +43,7 @@ AccountConsistencyBrowserAgent::AccountConsistencyBrowserAgent(
 
 AccountConsistencyBrowserAgent::~AccountConsistencyBrowserAgent() {
   StopSigninCoordinator(SigninCoordinatorResultInterrupted, nil);
+  StopObserving();
 }
 
 void AccountConsistencyBrowserAgent::StopSigninCoordinator(
@@ -51,7 +53,7 @@ void AccountConsistencyBrowserAgent::StopSigninCoordinator(
   add_account_coordinator_ = nil;
 }
 
-void AccountConsistencyBrowserAgent::InstallDependency(
+void AccountConsistencyBrowserAgent::OnWebStateInserted(
     web::WebState* web_state) {
   if (AccountConsistencyService* accountConsistencyService =
           ios::AccountConsistencyServiceFactory::GetForProfile(
@@ -60,13 +62,24 @@ void AccountConsistencyBrowserAgent::InstallDependency(
   }
 }
 
-void AccountConsistencyBrowserAgent::UninstallDependency(
+void AccountConsistencyBrowserAgent::OnWebStateRemoved(
     web::WebState* web_state) {
   if (AccountConsistencyService* accountConsistencyService =
           ios::AccountConsistencyServiceFactory::GetForProfile(
               browser_->GetProfile())) {
     accountConsistencyService->RemoveWebStateHandler(web_state);
   }
+}
+
+void AccountConsistencyBrowserAgent::OnWebStateDeleted(
+    web::WebState* web_state) {
+  // Nothing to do.
+}
+
+void AccountConsistencyBrowserAgent::OnActiveWebStateChanged(
+    web::WebState* old_active,
+    web::WebState* new_active) {
+  // Nothing to do.
 }
 
 void AccountConsistencyBrowserAgent::OnRestoreGaiaCookies() {
@@ -78,6 +91,12 @@ void AccountConsistencyBrowserAgent::OnRestoreGaiaCookies() {
 }
 
 void AccountConsistencyBrowserAgent::OnManageAccounts(const GURL& url) {
+  Browser::Type browser_type = browser_->type();
+  base::UmaHistogramEnumeration("Signin.ShowManageAccountFromGaia.BrowserType",
+                                browser_type);
+  if (browser_type != Browser::Type::kRegular) {
+    return;
+  }
   signin_metrics::LogAccountReconcilorStateOnGaiaResponse(
       ios::AccountReconcilorFactory::GetForProfile(browser_->GetProfile())
           ->GetState());
@@ -146,11 +165,6 @@ void AccountConsistencyBrowserAgent::OnGoIncognito(const GURL& url) {
       inBackground:NO
           appendTo:OpenPosition::kLastTab];
   [application_handler_ openURLInNewTab:command];
-}
-
-void AccountConsistencyBrowserAgent::BrowserDestroyed(Browser* browser) {
-  installation_helper_.reset();
-  browser_->RemoveObserver(this);
 }
 
 bool AccountConsistencyBrowserAgent::ShouldShowAccountMenu() const {

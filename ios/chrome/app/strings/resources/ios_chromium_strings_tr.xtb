@@ -7,7 +7,6 @@
 <translation id="1086486568852410168">Google Lens ile ara</translation>
 <translation id="1091252999271033193">Bu durumda Chromium her seferinde mobil siteyi ister.</translation>
 <translation id="1115463765356382667">Chromium'dan en iyi şekilde yararlanmak için aşağıdaki önerilen işlemleri tamamlayın.</translation>
-<translation id="1140315115515116765">Fiyat analizlerini kolayca almak İçin varsayılan olarak Chromium'u kullanın</translation>
 <translation id="1185134272377778587">Chromium hakkında</translation>
 <translation id="1229234641991056119">Chromium'da Safari şifrelerinizi, geçmişinizi, yer işaretlerinizi ve kredi kartlarınızı kullanın</translation>
 <translation id="1257458525759135959">Resimleri kaydetmek için Ayarlar'a dokunup Chromium'un resimlerinize eklemesine izin verin</translation>
@@ -92,7 +91,6 @@ Veri kullanarak Chromium deneyiminizi iyileştiren daha fazla ayar görmek için
 <translation id="3102849287235003384">Tüm web sitelerinde Google Hesabınızın oturumunu kapatmak için <ph name="BEGIN_LINK" />Chromium oturumunu kapatın<ph name="END_LINK" />.</translation>
 <translation id="3115956258722352278">Chromium varsayılan tarayıcı yapılsın mı?</translation>
 <translation id="3180939591219927904">"Chromium'u kapattığınızda Gizli sekmeler kilitlensin" seçeneğini etkinleştirin</translation>
-<translation id="3242612358525156339">Cihazınızda Ayarlar'dan, "<ph name="TEXT_OF_THE_SETTINGS_MENU_ITEM" />" bölümünü açıp "Chromium"u seçin</translation>
 <translation id="328933489847748230">{count,plural, =1{Şu anda 1 Chromium penceresi gösteriliyor}other{Şu anda {count} Chromium penceresi gösteriliyor}}</translation>
 <translation id="3344973607274501920">Chromium, şifrelerinizi kontrol edemedi. İnternet bağlantınızı kontrol etmeyi deneyin.</translation>
 <translation id="3366305173356742781">Hesabınızdaki Chromium verileri</translation>
@@ -122,7 +120,6 @@ Hesap değiştirmeden önce birkaç dakika beklemeyi deneyin. Hesabı şimdi de�
 <translation id="3855938650519180865">Chromium'daki Yenilikler</translation>
 <translation id="3886689467633467988">Yer işaretlerinize ve daha fazlasına tüm cihazlarınızdan ulaşmak için bu sitede ve Chromium'da oturum açın.</translation>
 <translation id="3949514465204582407">Chromium İpucu: Şifrelerinizi tüm uygulamalarda görün</translation>
-<translation id="3983291422281996849">Fiyatları kolayca takip etmek ve satın almak istediğiniz ürünlerin fiyat analizlerini almak için Chromium'u varsayılan tarayıcınız olarak ayarlayın.</translation>
 <translation id="4005283307739974863">Chromium'da Güvenlik Kontrolü'nü açar ve yürütür.</translation>
 <translation id="4043291146360695975">Şifreler yalnızca bu cihazda Şifre Yöneticisi'ne kaydedilir.</translation>
 <translation id="4066426933127344530">Varsayılan olarak Chromium kullanma</translation>
@@ -166,7 +163,6 @@ Bu ayarı değiştirmek için <ph name="BEGIN_LINK" />hesabınızdaki Chromium v
 <translation id="5042011327527167688">"Chromium'da Google Haritalar ile görüntüle"ye dokunun.</translation>
 <translation id="5044871537677053278">Chromium, adresleri algılayıp size yol tarifleri ve yerel bilgiler vermek için Google Haritalar'ı kullanır.</translation>
 <translation id="5048140766121299007">"<ph name="TEXT_OF_THE_SETTINGS_MENU_ITEM" />" ayarlarından "Chromium"u etkinleştirin</translation>
-<translation id="5048795749726991615">Kayıtlı şifrelerinizi diğer uygulamalarınızda da kolayca görmek amacıyla Otomatik Doldurma için Chromium'u kullanın</translation>
 <translation id="5053429694249468757">Chromium verileri siliniyor…</translation>
 <translation id="5071749685031362629">iOS için Chromium</translation>
 <translation id="5124429847818367226">Artık mesajlardaki, dokümanlardaki ve diğer uygulamalardaki bağlantılara göz attığınızda veya dokunduğunuzda Chromium'u kullanabilirsiniz.</translation>
@@ -247,11 +243,9 @@ Dikkate alınması gereken noktalar:
 <translation id="6852799557929001644">Bu cihazdaki diğer uygulamalardan Chromium şifrelerinize ve daha fazlasına erişin.</translation>
 <translation id="6887138405044152640">Bu sekmeyi başka bir cihaza göndermek için ilgili cihazda Chromium'da oturum açın.</translation>
 <translation id="6911341667534646387">Google Hesabınızdaki Chromium verilerini kullanmaya devam edin</translation>
-<translation id="7006920032187763988">Şifre Yöneticisi'ne kaydettiğiniz şifreleri iPad'inizdeki diğer uygulamalarda kullanabilirsiniz.</translation>
 <translation id="7018284295775193585">Chromium güncellenemiyor</translation>
 <translation id="7055269218854630176">Oturum açtığınız hesabı ve Chromium'un nasıl kullanılabileceğini kuruluşunuz <ph name="DOMAIN" /> yönetiyor. Yöneticiniz belirli özellikleri ayarlayabilir veya kısıtlayabilir.</translation>
 <translation id="7099326575020694068">Chromium, kameranızı Bölünmüş Görünüm modunda kullanamıyor</translation>
-<translation id="7129379408282555630">Chromium Alışveriş'in gücünden yararlanın</translation>
 <translation id="7165402419892018581">Otomatik doldurma için Chromium'u seçin</translation>
 <translation id="7175400662502680481">Şifreniz bir veri ihlali nedeniyle açığa çıktı. Şifre Yöneticisi bu şifreyi hemen değiştirmenizi öneriyor.</translation>
 <translation id="7185731475720473450">Ödeme yöntemleri ve adresler şifrelenmez. Chromium'daki tarama geçmişi senkronize edilmez.
@@ -303,7 +297,6 @@ Sadece parolanıza sahip olan kişiler şifrelenmiş verilerinizi okuyabilir. Pa
 <translation id="8390323835464055390">Otomatik doldurma için Chromium'u kullanarak kayıtlı şifreleriniz ve geçiş anahtarlarınızla tüm uygulamalardan oturum açın</translation>
 <translation id="8409374867500149834">Zararlı web sitelerine karşı Chromium'un en güçlü güvenlik avantajına sahipsiniz</translation>
 <translation id="8543509361021925846">{THRESHOLD,plural, =1{Bu işlem, Chromium {THRESHOLD} dakika boyunca kullanılmadığında gerçekleşir. Yalnızca oturumunuz açıkken bu cihaza kaydedilen veriler silinir. Geçmiş ve şifreler bu kapsamda yer alabilir.}other{Bu işlem, Chromium {THRESHOLD} dakika boyunca kullanılmadığında gerçekleşir. Yalnızca oturumunuz açıkken bu cihaza kaydedilen veriler silinir. Geçmiş ve şifreler bu kapsamda yer alabilir.}}</translation>
-<translation id="858114650497379505">Şifre Yöneticisi'ne kaydettiğiniz şifreleri iPhone'unuzdaki diğer uygulamalarda kullanabilirsiniz.</translation>
 <translation id="8586442755830160949">Telif Hakkı <ph name="YEAR" /> The Chromium Authors. Tüm hakları saklıdır.</translation>
 <translation id="8602103377623855616">Chromium sayfası</translation>
 <translation id="865600487977764604">Chromium'da güvende kalmanızı sağlar ve oturum açtığınızda diğer Google uygulamalarında güvenliğinizi artırmak için kullanılabilir.</translation>

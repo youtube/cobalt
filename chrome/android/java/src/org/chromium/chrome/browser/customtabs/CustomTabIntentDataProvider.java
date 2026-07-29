@@ -52,6 +52,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.Px;
 import androidx.annotation.VisibleForTesting;
+import androidx.browser.customtabs.CustomContentAction;
 import androidx.browser.customtabs.CustomTabsIntent;
 import androidx.browser.customtabs.CustomTabsIntent.ActivityHeightResizeBehavior;
 import androidx.browser.customtabs.CustomTabsIntent.ActivitySideSheetDecorationType;
@@ -59,6 +60,7 @@ import androidx.browser.customtabs.CustomTabsIntent.ActivitySideSheetRoundedCorn
 import androidx.browser.customtabs.CustomTabsIntent.CloseButtonPosition;
 import androidx.browser.customtabs.CustomTabsIntent.OpenInBrowserState;
 import androidx.browser.customtabs.CustomTabsSessionToken;
+import androidx.browser.customtabs.ExperimentalCustomContentAction;
 import androidx.browser.customtabs.ExperimentalOpenInBrowser;
 import androidx.browser.customtabs.TrustedWebUtils;
 import androidx.browser.trusted.FileHandlingData;
@@ -1734,9 +1736,20 @@ public class CustomTabIntentDataProvider extends BrowserServicesIntentDataProvid
         return mShareState;
     }
 
+    @ExperimentalCustomContentAction
+    @Override
+    public List<CustomContentAction> getCustomContentActions() {
+        if (ChromeFeatureList.sCctContextualMenuItems.isEnabled()) {
+            return CustomTabsIntent.getCustomContentActions(mIntent);
+        }
+        return List.of();
+    }
+
     @Override
     public boolean isOptionalButtonSupported() {
-        return ChromeFeatureList.sCctAdaptiveButton.isEnabled() && !isTrustedWebActivity();
+        return ChromeFeatureList.sCctAdaptiveButton.isEnabled()
+                && !isTrustedWebActivity()
+                && mUiType == CustomTabsUiType.DEFAULT;
     }
 
     private @DisplayMode.EnumType int resolveDisplayMode() {

@@ -8,9 +8,9 @@
 #include <memory>
 
 #include "base/memory/raw_ptr.h"
-#include "chrome/browser/ui/unowned_user_data/user_data_factory.h"
 #include "chrome/common/buildflags.h"
 #include "extensions/buildflags/buildflags.h"
+#include "ui/base/unowned_user_data/user_data_factory.h"
 
 #if BUILDFLAG(ENABLE_GLIC)
 namespace glic {
@@ -19,9 +19,13 @@ class GlicIphController;
 }  // namespace glic
 #endif
 
+class BookmarkBarController;
 class BookmarksSidePanelCoordinator;
+class BreadcrumbManagerBrowserAgent;
 class Browser;
+class BrowserContentSettingBubbleModelDelegate;
 class BrowserInstantController;
+class BrowserLiveTabContext;
 class BrowserLocationBarModelDelegate;
 class BrowserSyncedWindowDelegate;
 class BrowserUserEducationInterface;
@@ -38,6 +42,7 @@ class FindBarController;
 class HistoryClustersSidePanelCoordinator;
 class HistorySidePanelCoordinator;
 class IncognitoClearBrowsingDataDialogCoordinator;
+class ImmersiveModeController;
 class LocationBarModel;
 class MemorySaverOptInIPHController;
 class ProfileMenuCoordinator;
@@ -56,6 +61,9 @@ class TranslateBubbleController;
 class UpgradeNotificationController;
 
 #if BUILDFLAG(IS_WIN)
+namespace default_browser {
+class PinInfoBarController;
+}  // namespace default_browser
 class WindowsTaskbarIconUpdater;
 #endif
 
@@ -88,6 +96,7 @@ class ProductSpecificationsEntryPointController;
 
 namespace tabs {
 class GlicNudgeController;
+class GlicActorTaskIconController;
 }
 
 namespace tab_groups {
@@ -178,9 +187,19 @@ class BrowserWindowFeatures {
     return bookmarks_side_panel_coordinator_.get();
   }
 
+  BookmarkBarController* bookmark_bar_controller() {
+    return bookmark_bar_controller_.get();
+  }
+
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
   pdf::infobar::PdfInfoBarController* pdf_infobar_controller() {
     return pdf_infobar_controller_.get();
+  }
+#endif
+
+#if BUILDFLAG(IS_WIN)
+  default_browser::PinInfoBarController* pin_infobar_controller() {
+    return pin_infobar_controller_.get();
   }
 #endif
 
@@ -210,6 +229,10 @@ class BrowserWindowFeatures {
 
   tabs::GlicNudgeController* glic_nudge_controller() {
     return glic_nudge_controller_.get();
+  }
+
+  tabs::GlicActorTaskIconController* glic_actor_task_icon_controller() {
+    return glic_actor_task_icon_controller_.get();
   }
 
   TabStripModel* tab_strip_model() { return tab_strip_model_; }
@@ -275,11 +298,6 @@ class BrowserWindowFeatures {
     return tab_group_deletion_dialog_controller_.get();
   }
 
-  // TODO(https://crbug.com/428946261): Update callers to use
-  // BrowserExtensionWindowController::From() and remove this method.
-  extensions::BrowserExtensionWindowController* extension_window_controller() {
-    return extension_window_controller_.get();
-  }
 
   SigninViewController* signin_view_controller() {
     return signin_view_controller_.get();
@@ -348,15 +366,30 @@ class BrowserWindowFeatures {
     return history_clusters_side_panel_coordinator_.get();
   }
 
+  ImmersiveModeController* immersive_mode_controller() {
+    return immersive_mode_controller_.get();
+  }
+  const ImmersiveModeController* immersive_mode_controller() const {
+    return immersive_mode_controller_.get();
+  }
+
   UpgradeNotificationController* upgrade_notification_controller() {
     return upgrade_notification_controller_.get();
   }
 
-  static UserDataFactoryWithOwner<BrowserWindowInterface>&
+  BrowserContentSettingBubbleModelDelegate*
+  content_setting_bubble_model_delegate() {
+    return content_setting_bubble_model_delegate_.get();
+  }
+
+  BrowserLiveTabContext* live_tab_context() { return live_tab_context_.get(); }
+
+  static ui::UserDataFactoryWithOwner<BrowserWindowInterface>&
   GetUserDataFactoryForTesting();
 
  private:
-  static UserDataFactoryWithOwner<BrowserWindowInterface>& GetUserDataFactory();
+  static ui::UserDataFactoryWithOwner<BrowserWindowInterface>&
+  GetUserDataFactory();
 
   // A collection of features specific to desktop versions of Chrome.
   std::unique_ptr<DesktopBrowserWindowCapabilities>
@@ -364,6 +397,8 @@ class BrowserWindowFeatures {
 
   // Features that are per-browser window will each have a controller. e.g.
   // std::unique_ptr<FooFeature> foo_feature_;
+
+  std::unique_ptr<BookmarkBarController> bookmark_bar_controller_;
 
   std::unique_ptr<BrowserInstantController> instant_controller_;
 
@@ -374,6 +409,8 @@ class BrowserWindowFeatures {
 
   std::unique_ptr<commerce::ProductSpecificationsEntryPointController>
       product_specifications_entry_point_controller_;
+
+  std::unique_ptr<ImmersiveModeController> immersive_mode_controller_;
 
   std::unique_ptr<ExclusiveAccessManager> exclusive_access_manager_;
 
@@ -400,6 +437,11 @@ class BrowserWindowFeatures {
   std::unique_ptr<pdf::infobar::PdfInfoBarController> pdf_infobar_controller_;
 #endif
 
+#if BUILDFLAG(IS_WIN)
+  std::unique_ptr<default_browser::PinInfoBarController>
+      pin_infobar_controller_;
+#endif
+
   std::unique_ptr<SidePanelCoordinator> side_panel_coordinator_;
 
   std::unique_ptr<tab_groups::SessionServiceTabGroupSyncObserver>
@@ -418,6 +460,9 @@ class BrowserWindowFeatures {
   std::unique_ptr<DownloadToolbarUIController> download_toolbar_ui_controller_;
 
   std::unique_ptr<tabs::GlicNudgeController> glic_nudge_controller_;
+
+  std::unique_ptr<tabs::GlicActorTaskIconController>
+      glic_actor_task_icon_controller_;
 
 #if BUILDFLAG(ENABLE_GLIC)
   std::unique_ptr<glic::GlicButtonController> glic_button_controller_;
@@ -493,10 +538,21 @@ class BrowserWindowFeatures {
   std::unique_ptr<UpgradeNotificationController>
       upgrade_notification_controller_;
 
+  // Helper which implements the ContentSettingBubbleModel interface.
+  std::unique_ptr<BrowserContentSettingBubbleModelDelegate>
+      content_setting_bubble_model_delegate_;
+
+  // Helper which implements the LiveTabContext interface.
+  std::unique_ptr<BrowserLiveTabContext> live_tab_context_;
+
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   std::unique_ptr<extensions::ExtensionBrowserWindowHelper>
       extension_browser_window_helper_;
 #endif
+
+  // Listens for browser-related breadcrumb events to be added to crash reports.
+  std::unique_ptr<BreadcrumbManagerBrowserAgent>
+      breadcrumb_manager_browser_agent_;
 
   // TODO(crbug.com/423956131): Remove this.
   raw_ptr<BrowserWindowInterface> browser_ = nullptr;

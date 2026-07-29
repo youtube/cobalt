@@ -33,8 +33,10 @@ import static org.chromium.components.signin.test.util.TestAccounts.MANAGED_ACCO
 import static org.chromium.ui.test.util.ViewUtils.onViewWaiting;
 
 import android.graphics.Color;
+import android.view.View;
 
 import androidx.annotation.IdRes;
+import androidx.recyclerview.widget.RecyclerView;
 import androidx.test.filters.MediumTest;
 
 import org.junit.Before;
@@ -61,6 +63,7 @@ import org.chromium.chrome.browser.data_sharing.FakeDataSharingUIDelegateImpl;
 import org.chromium.chrome.browser.firstrun.FirstRunStatus;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
+import org.chromium.chrome.browser.hub.PaneId;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.sync.SyncTestRule;
 import org.chromium.chrome.browser.tab.Tab;
@@ -71,6 +74,7 @@ import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.R;
 import org.chromium.chrome.test.util.ChromeRenderTestRule;
 import org.chromium.chrome.test.util.browser.sync.SyncTestUtil;
+import org.chromium.components.browser_ui.widget.RecyclerViewTestUtils;
 import org.chromium.components.collaboration.CollaborationService;
 import org.chromium.components.collaboration.CollaborationServiceShareOrManageEntryPoint;
 import org.chromium.components.data_sharing.DataSharingSDKDelegateBridge;
@@ -85,6 +89,7 @@ import org.chromium.components.signin.identitymanager.ConsentLevel;
 import org.chromium.components.tab_group_sync.EitherId.EitherGroupId;
 import org.chromium.components.tab_group_sync.LocalTabGroupId;
 import org.chromium.components.tab_group_sync.TabGroupSyncService;
+import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.test.util.DeviceRestriction;
 import org.chromium.ui.test.util.GmsCoreVersionRestriction;
 import org.chromium.ui.test.util.RenderTestRule.Component;
@@ -682,5 +687,78 @@ public class CollaborationIntegrationTest {
 
         memberJoinsSharedGroup(TEST_COLLABORATION_ID, MANAGED_ACCOUNT);
         mRenderTestRule.render(cta.findViewById(targetId), "tiles_dialog_two_plus_count");
+    }
+
+    @Test
+    @MediumTest
+    @Feature({"RenderTest"})
+    public void testTilesGroupPaneRender() throws Exception {
+        mDataSharingUIDelegate.overrideAvatarColor(ACCOUNT1.getGaiaId(), Color.RED);
+        mDataSharingUIDelegate.overrideAvatarColor(ACCOUNT2.getGaiaId(), Color.BLUE);
+        final ChromeTabbedActivity cta = mActivityTestRule.getActivity();
+        mCollaborationTestUtils.setUpSyncAndSignIn();
+
+        LocalTabGroupId localTabGroupId = createTabGroup();
+        enterTabSwitcher(cta);
+        ThreadUtils.runOnUiThreadBlocking(
+                () ->
+                        cta.getHubManagerSupplierForTesting()
+                                .get()
+                                .getPaneManager()
+                                .focusPane(PaneId.TAB_GROUPS));
+
+        RecyclerView recyclerView = cta.findViewById(R.id.tab_group_list_recycler_view);
+        RecyclerViewTestUtils.waitForStableRecyclerView(recyclerView);
+        RecyclerView.LayoutManager layoutManager = recyclerView.getLayoutManager();
+        mRenderTestRule.render(layoutManager.getChildAt(0), "tiles_group_pane_not_shared");
+
+        linkLocalGroupToSharedIdForOwner(localTabGroupId, TEST_COLLABORATION_ID, ACCOUNT1);
+        RecyclerViewTestUtils.waitForStableRecyclerView(recyclerView);
+        mRenderTestRule.render(layoutManager.getChildAt(0), "tiles_group_pane_only_owner");
+
+        memberJoinsSharedGroup(TEST_COLLABORATION_ID, ACCOUNT2);
+        RecyclerViewTestUtils.waitForStableRecyclerView(recyclerView);
+        mRenderTestRule.render(layoutManager.getChildAt(0), "tiles_group_pane_two_faces");
+
+        memberJoinsSharedGroup(TEST_COLLABORATION_ID, CHILD_ACCOUNT);
+        RecyclerViewTestUtils.waitForStableRecyclerView(recyclerView);
+        mRenderTestRule.render(layoutManager.getChildAt(0), "tiles_group_pane_three_faces");
+
+        memberJoinsSharedGroup(TEST_COLLABORATION_ID, MANAGED_ACCOUNT);
+        RecyclerViewTestUtils.waitForStableRecyclerView(recyclerView);
+        mRenderTestRule.render(layoutManager.getChildAt(0), "tiles_group_pane_two_plus_count");
+    }
+
+    @Test
+    @MediumTest
+    @Feature({"RenderTest"})
+    @Restriction(DeviceFormFactor.PHONE)
+    public void testTilesBottomStripRender() throws Exception {
+        mDataSharingUIDelegate.overrideAvatarColor(ACCOUNT1.getGaiaId(), Color.RED);
+        mDataSharingUIDelegate.overrideAvatarColor(ACCOUNT2.getGaiaId(), Color.BLUE);
+        final ChromeTabbedActivity cta = mActivityTestRule.getActivity();
+        mCollaborationTestUtils.setUpSyncAndSignIn();
+
+        LocalTabGroupId localTabGroupId = createTabGroup();
+        CriteriaHelper.pollUiThread(() -> cta.findViewById(R.id.tab_group_ui_toolbar_view) != null);
+        View targetView = cta.findViewById(R.id.tab_group_ui_toolbar_view);
+        // While the tiles are not within the RecyclerView, the tab favicons do have a RecyclerView.
+        CriteriaHelper.pollUiThread(
+                () -> targetView.findViewById(R.id.tab_list_recycler_view) != null);
+        RecyclerView recyclerView = targetView.findViewById(R.id.tab_list_recycler_view);
+        RecyclerViewTestUtils.waitForStableRecyclerView(recyclerView);
+        mRenderTestRule.render(targetView, "tiles_bottom_strip_not_shared");
+
+        linkLocalGroupToSharedIdForOwner(localTabGroupId, TEST_COLLABORATION_ID, ACCOUNT1);
+        mRenderTestRule.render(targetView, "tiles_bottom_strip_only_owner");
+
+        memberJoinsSharedGroup(TEST_COLLABORATION_ID, ACCOUNT2);
+        mRenderTestRule.render(targetView, "tiles_bottom_strip_two_faces");
+
+        memberJoinsSharedGroup(TEST_COLLABORATION_ID, CHILD_ACCOUNT);
+        mRenderTestRule.render(targetView, "tiles_bottom_strip_three_faces");
+
+        memberJoinsSharedGroup(TEST_COLLABORATION_ID, MANAGED_ACCOUNT);
+        mRenderTestRule.render(targetView, "tiles_bottom_strip_two_plus_count");
     }
 }

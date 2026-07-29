@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROME_BROWSER_PERMISSIONS_CONTEXTUAL_NOTIFICATION_PERMISSION_UI_SELECTOR_H_
-#define CHROME_BROWSER_PERMISSIONS_CONTEXTUAL_NOTIFICATION_PERMISSION_UI_SELECTOR_H_
+#ifndef CHROME_BROWSER_PERMISSIONS_PREDICTION_SERVICE_CONTEXTUAL_NOTIFICATION_PERMISSION_UI_SELECTOR_H_
+#define CHROME_BROWSER_PERMISSIONS_PREDICTION_SERVICE_CONTEXTUAL_NOTIFICATION_PERMISSION_UI_SELECTOR_H_
 
 #include <optional>
 
 #include "base/functional/callback.h"
 #include "chrome/browser/permissions/crowd_deny_preload_data.h"
 #include "chrome/browser/permissions/crowd_deny_safe_browsing_request.h"
-#include "components/permissions/permission_ui_selector.h"
+#include "components/permissions/prediction_service/permission_ui_selector.h"
 
 namespace permissions {
 class PermissionRequest;
@@ -68,4 +68,4 @@ class ContextualNotificationPermissionUiSelector
       weak_factory_{this};
 };
 
-#endif  // CHROME_BROWSER_PERMISSIONS_CONTEXTUAL_NOTIFICATION_PERMISSION_UI_SELECTOR_H_
+#endif  // CHROME_BROWSER_PERMISSIONS_PREDICTION_SERVICE_CONTEXTUAL_NOTIFICATION_PERMISSION_UI_SELECTOR_H_

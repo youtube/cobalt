@@ -321,7 +321,8 @@ NSMutableArray<TabStripItemIdentifier*>* CreateItemIdentifiers(
     _consumer = consumer;
     _messagingService = messagingService;
     _tabImagesConfigurator =
-        std::make_unique<TabSnapshotAndFaviconConfigurator>(faviconLoader);
+        std::make_unique<TabSnapshotAndFaviconConfigurator>(faviconLoader,
+                                                            nullptr);
     if (_messagingService) {
       _messagingBackendServiceBridge =
           std::make_unique<MessagingBackendServiceBridge>(self);
@@ -445,7 +446,7 @@ NSMutableArray<TabStripItemIdentifier*>* CreateItemIdentifiers(
   }
   base::RecordAction(base::UserMetricsAction("MobileTabStripDeleteGroup"));
   CloseAllWebStatesInGroup(*_webStateList, tabGroupItem.tabGroup,
-                           WebStateList::CLOSE_USER_ACTION);
+                           WebStateList::ClosingReason::kUserAction);
 }
 
 - (void)leaveSharedGroup:(TabGroupItem*)tabGroupItem {
@@ -479,7 +480,8 @@ NSMutableArray<TabStripItemIdentifier*>* CreateItemIdentifiers(
   }
   CHECK_EQ(tabGroupItem.tabGroup,
            self.webStateList->GetGroupOfWebStateAt(index));
-  self.webStateList->CloseWebStateAt(index, WebStateList::CLOSE_USER_ACTION);
+  self.webStateList->CloseWebStateAt(index,
+                                     WebStateList::ClosingReason::kUserAction);
   _tabToClose = nil;
 }
 
@@ -888,7 +890,8 @@ NSMutableArray<TabStripItemIdentifier*>* CreateItemIdentifiers(
                                     closing:YES];
     return;
   } else {
-    self.webStateList->CloseWebStateAt(index, WebStateList::CLOSE_USER_ACTION);
+    self.webStateList->CloseWebStateAt(
+        index, WebStateList::ClosingReason::kUserAction);
   }
 }
 
@@ -926,7 +929,7 @@ NSMutableArray<TabStripItemIdentifier*>* CreateItemIdentifiers(
 
   // Closes all non-pinned items except for `item`.
   CloseOtherWebStates(*(self.webStateList), indexToKeep,
-                      WebStateList::CLOSE_USER_ACTION);
+                      WebStateList::ClosingReason::kUserAction);
 
   // Show the tab group snackbar if some groups have been closed.
   if (IsTabGroupSyncEnabled() && closedGroupCount > 0) {
@@ -1025,7 +1028,7 @@ NSMutableArray<TabStripItemIdentifier*>* CreateItemIdentifiers(
     [self.tabStripHandler showTabStripTabGroupSnackbarAfterClosingGroups:1];
   } else {
     CloseAllWebStatesInGroup(*self.webStateList, tabGroupItem.tabGroup,
-                             WebStateList::CLOSE_USER_ACTION);
+                             WebStateList::ClosingReason::kUserAction);
   }
 }
 

@@ -29,7 +29,6 @@
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "extensions/buildflags/buildflags.h"
-#include "ipc/ipc_channel_proxy.h"
 #include "pdf/buildflags.h"
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
@@ -315,6 +314,15 @@ bool PageSpecificContentSettingsDelegate::IsFrameAllowlistedForJavaScript(
 #endif  // BUILDFLAG(ENABLE_PDF)
 
   return false;
+}
+
+bool PageSpecificContentSettingsDelegate::IsPiPWindow(
+    content::WebContents* web_contents) {
+  DCHECK(web_contents);
+  content::WebContents* child_web_contents =
+      PictureInPictureWindowManager::GetInstance()->GetChildWebContents();
+
+  return child_web_contents == web_contents;
 }
 
 void PageSpecificContentSettingsDelegate::PrimaryPageChanged(
