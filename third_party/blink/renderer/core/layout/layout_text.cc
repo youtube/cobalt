@@ -738,7 +738,7 @@ PositionWithAffinity LayoutText::PositionForPoint(
   return CreatePositionWithAffinity(0);
 }
 
-PhysicalRect LayoutText::LocalCaretRect(int caret_offset) const {
+PhysicalRect LayoutText::LocalCaretRect(int caret_offset, CaretShape) const {
   NOT_DESTROYED();
   return PhysicalRect();
 }
@@ -935,13 +935,9 @@ String LayoutText::TransformAndSecureText(const String& original,
     }
     auto [masked, secure_map] = SecureText(transformed, mask);
     if (!secure_map.IsEmpty()) {
-      if (RuntimeEnabledFeatures::TextOffsetMapCrashFixEnabled()) {
-        offset_map =
-            TextOffsetMap(original.length(), offset_map, transformed.length(),
-                          secure_map, masked.length());
-      } else {
-        offset_map = TextOffsetMap(offset_map, secure_map);
-      }
+      offset_map =
+          TextOffsetMap(original.length(), offset_map, transformed.length(),
+                        secure_map, masked.length());
     }
     return masked;
   }
@@ -1062,8 +1058,16 @@ void LayoutText::TextDidChange() {
 void LayoutText::TextDidChangeWithoutInvalidation() {
   NOT_DESTROYED();
   TextOffsetMap offset_map;
-  wtf_size_t original_length = text_.length();
-  text_ = TransformAndSecureText(text_, offset_map);
+  bool is_password_echo_enabled =
+      GetDocument().GetSettings() &&
+      GetDocument().GetSettings()->GetPasswordEchoEnabled();
+  String original_text =
+      (RuntimeEnabledFeatures::UseOriginalDomOffsetsForOffsetMapEnabled() &&
+       OriginalText() && is_password_echo_enabled)
+          ? OriginalText()
+          : text_;
+  wtf_size_t original_length = original_text.length();
+  text_ = TransformAndSecureText(original_text, offset_map);
   SetVariableLengthTransformResult(original_length, offset_map);
   if (auto* secure_text_timer = SecureTextTimer::ActiveInstanceFor(this)) {
     // text_ may be updated later before timer fires. We invalidate the

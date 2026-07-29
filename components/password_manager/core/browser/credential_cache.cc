@@ -19,6 +19,28 @@
 
 namespace password_manager {
 
+namespace {
+
+using IsBackupCredential = UiCredential::IsBackupCredential;
+
+std::optional<UiCredential> GetBackupCredential(const PasswordForm& form,
+                                                const url::Origin& origin) {
+#if !BUILDFLAG(IS_ANDROID)
+  return std::nullopt;
+#else
+  std::u16string backup_password = form.GetPasswordBackupNote();
+  if (backup_password.empty() ||
+      !base::FeatureList::IsEnabled(features::kFillRecoveryPassword)) {
+    return std::nullopt;
+  }
+  PasswordForm backup_form = form;
+  backup_form.password_value = backup_password;
+  UiCredential credential{backup_form, origin, IsBackupCredential(true)};
+  return credential;
+#endif  // !BUILDFLAG(IS_ANDROID)
+}
+
+}  // namespace
 CredentialCache::CredentialCache() = default;
 CredentialCache::~CredentialCache() = default;
 
@@ -30,14 +52,20 @@ void CredentialCache::SaveCredentialsAndBlocklistedForOrigin(
   credentials.reserve(best_matches.size());
   for (const PasswordForm& form : best_matches) {
     credentials.emplace_back(form, origin);
+    if (std::optional<UiCredential> backup_credential =
+            GetBackupCredential(form, origin)) {
+      credentials.push_back(std::move(backup_credential.value()));
+    }
   }
 
-  // Sort by origin, then username.
-  std::sort(credentials.begin(), credentials.end(),
-            [](const UiCredential& lhs, const UiCredential& rhs) {
-              return std::tie(lhs.origin(), lhs.username()) <
-                     std::tie(rhs.origin(), rhs.username());
-            });
+  // Sort by origin, then username, then whether the credential is a backup
+  // credential or not. Backup credentials should appear after main credentials
+  // and will have the same origin and username as the main one.
+  std::ranges::sort(credentials, std::less<>{}, [](const UiCredential& cred) {
+    return std::make_tuple(cred.origin(), cred.username(),
+                           cred.is_backup_credential());
+  });
+
   // Move credentials with exactly matching origins to the top.
   std::stable_partition(credentials.begin(), credentials.end(),
                         [&origin](const UiCredential& credential) {

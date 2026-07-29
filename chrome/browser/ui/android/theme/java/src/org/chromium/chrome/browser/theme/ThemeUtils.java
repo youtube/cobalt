@@ -214,9 +214,15 @@ public class ThemeUtils {
                             ? R.color.default_icon_color_light_tint_list
                             : R.color.toolbar_icon_unfocused_activity_incognito_color;
         } else if (brandedColorScheme == BrandedColorScheme.LIGHT_BRANDED_THEME) {
-            colorId = R.color.default_icon_color_dark_tint_list;
+            colorId =
+                    isActivityFocused
+                            ? R.color.default_icon_color_dark_tint_list
+                            : R.color.toolbar_icon_unfocused_activity_dark_color;
         } else if (brandedColorScheme == BrandedColorScheme.DARK_BRANDED_THEME) {
-            colorId = R.color.default_icon_color_white_tint_list;
+            colorId =
+                    isActivityFocused
+                            ? R.color.default_icon_color_white_tint_list
+                            : R.color.toolbar_icon_unfocused_activity_light_color;
         }
         return colorId;
     }
@@ -258,8 +264,12 @@ public class ThemeUtils {
                     : SemanticColorUtils.getDividerLineBgColor(context);
         }
 
-        @ColorInt
-        int hairlineColor = ContextCompat.getColor(context, R.color.toolbar_hairline_overlay);
+        @ColorInt int hairlineColor;
+        if (ColorUtils.shouldUseLightForegroundOnBackground(toolbarColor)) {
+            hairlineColor = ContextCompat.getColor(context, R.color.toolbar_hairline_overlay_light);
+        } else {
+            hairlineColor = ContextCompat.getColor(context, R.color.toolbar_hairline_overlay_dark);
+        }
         return ColorUtils.overlayColor(toolbarColor, hairlineColor);
     }
 

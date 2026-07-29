@@ -10,6 +10,10 @@ import '../controls/settings_toggle_button.js';
 import 'chrome://resources/cr_elements/cr_expand_button/cr_expand_button.js';
 import 'chrome://resources/cr_elements/cr_icon/cr_icon.js';
 import '../icons.html.js';
+// <if expr="_google_chrome">
+import '../internal/icons.html.js';
+
+// </if>
 
 import {PrefsMixin} from '/shared/settings/prefs/prefs_mixin.js';
 import {CrSettingsPrefs} from '/shared/settings/prefs/prefs_types.js';
@@ -40,6 +44,7 @@ export enum SettingsGlicPageFeaturePrefName {
   MICROPHONE_ENABLED = 'glic.microphone_enabled',
   SETTINGS_POLICY = 'browser.gemini_settings',
   TAB_CONTEXT_ENABLED = 'glic.tab_context_enabled',
+  TABSTRIP_BUTTON_ENABLED = 'glic.pinned_to_tabstrip',
 }
 
 // browser_element_identifiers constants
@@ -287,6 +292,12 @@ export class SettingsGlicPageElement extends SettingsGlicPageElementBase {
     const enabled = (event.target as SettingsToggleButtonElement).checked;
     this.metricsBrowserProxy_.recordAction(
         'Glic.Settings.ClosedCaptions.' + (enabled ? 'Enabled' : 'Disabled'));
+  }
+
+  private onTabstripButtonToggleChange_(event: Event) {
+    const enabled = (event.target as SettingsToggleButtonElement).checked;
+    this.metricsBrowserProxy_.recordAction(
+        'Glic.Settings.TabstripButton.' + (enabled ? 'Enabled' : 'Disabled'));
   }
 }
 
