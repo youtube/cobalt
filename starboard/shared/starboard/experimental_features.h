@@ -181,6 +181,11 @@ inline constexpr ExperimentalFeatureKey<bool>
     kMediaEnableVideoRendererVspAdjustment(
         "Media.EnableVideoRendererVspAdjustment");
 
+// To check the regression of the fix for the bug that pending frame grows
+// 2000+. For details, see http://b/517914191.
+inline constexpr ExperimentalFeatureKey<bool>
+    kMediaFixNeedMoreInputBackpressure("Media.FixNeedMoreInputBackpressure");
+
 inline constexpr ExperimentalFeatureKey<bool> kMediaFlushAudioTrackDuringSeek(
     "Media.FlushAudioTrackDuringSeek");
 

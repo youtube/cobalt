@@ -24,7 +24,7 @@ namespace {
 
 class StarboardMemoryAllocatorTest : public ::testing::TestWithParam<bool> {
  protected:
-  StarboardMemoryAllocatorTest() : allocator_(GetParam()) {}
+  StarboardMemoryAllocatorTest() : allocator_(GetParam(), GetParam()) {}
   StarboardMemoryAllocator allocator_;
 };
 
@@ -78,7 +78,8 @@ INSTANTIATE_TEST_SUITE_P(EnableDecommit,
 
 TEST(StarboardMemoryAllocatorDecommitSpecificTest,
      AllocateForAlignmentUpdatesSizeWhenDecommitEnabled) {
-  StarboardMemoryAllocator allocator(/*enable_decommit=*/true);
+  StarboardMemoryAllocator allocator(/*enable_decommit=*/true,
+                                     /*enable_page_alignment=*/true);
 
   const size_t page_size = sysconf(_SC_PAGESIZE);
   const size_t initial_size = page_size / 2;  // A size smaller than page size
@@ -95,7 +96,8 @@ TEST(StarboardMemoryAllocatorDecommitSpecificTest,
 
 TEST(StarboardMemoryAllocatorDecommitSpecificTest,
      AllocateForAlignmentDoesNotUpdateSizeWhenDecommitDisabled) {
-  StarboardMemoryAllocator allocator(/*enable_decommit=*/false);
+  StarboardMemoryAllocator allocator(/*enable_decommit=*/false,
+                                     /*enable_page_alignment=*/false);
 
   const size_t page_size = sysconf(_SC_PAGESIZE);
   const size_t initial_size = page_size / 2;

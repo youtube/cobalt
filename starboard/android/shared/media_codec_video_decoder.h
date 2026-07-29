@@ -148,7 +148,8 @@ class MediaCodecVideoDecoder : public VideoDecoder,
 
   void WriteInputBuffersInternal(const InputBuffers& input_buffers);
   void ProcessOutputBuffer(MediaCodec* media_codec_bridge,
-                           const DequeueOutputResult& output) override;
+                           const DequeueOutputResult& output,
+                           int number_of_pending_inputs) override;
   void OnEndOfStreamWritten(MediaCodec* media_codec_bridge) override;
   void RefreshOutputFormat(MediaCodec* media_codec_bridge) override;
   bool Tick(MediaCodec* media_codec_bridge) override;
@@ -223,6 +224,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   const bool ignore_mediacodec_callbacks_during_flushing_;
   const bool enable_trivial_optimizations_;
   const bool enable_ndk_video_;
+  const bool fix_need_more_input_backpressure_;
 
   // On some platforms tunnel mode is only supported in the secure pipeline.  So
   // we create a dummy drm system to force the video playing in secure pipeline
