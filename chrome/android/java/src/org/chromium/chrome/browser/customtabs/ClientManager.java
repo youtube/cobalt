@@ -28,7 +28,6 @@ import androidx.browser.customtabs.PostMessageServiceConnection;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.SysUtils;
 import org.chromium.base.metrics.RecordHistogram;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
 import org.chromium.chrome.browser.IntentHandler;
@@ -38,6 +37,7 @@ import org.chromium.chrome.browser.browserservices.intents.SessionHolder;
 import org.chromium.chrome.browser.browserservices.verification.ChromeOriginVerifier;
 import org.chromium.chrome.browser.browserservices.verification.ChromeOriginVerifierFactory;
 import org.chromium.chrome.browser.customtabs.content.EngagementSignalsHandler;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.init.ChromeBrowserInitializer;
 import org.chromium.components.content_relationship_verification.OriginVerifier.OriginVerificationListener;
 import org.chromium.components.embedder_support.util.Origin;
@@ -56,6 +56,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Supplier;
 
 /** Manages the clients' state for Custom Tabs. This class is threadsafe. */
 class ClientManager {
@@ -137,7 +138,7 @@ class ClientManager {
 
     /** To be called when a client gets disconnected. */
     public interface DisconnectCallback {
-        public void run(SessionHolder<?> session);
+        void run(SessionHolder<?> session);
     }
 
     private static class KeepAliveServiceConnection implements ServiceConnection {
@@ -825,7 +826,8 @@ class ClientManager {
     }
 
     public boolean shouldGetPageLoadMetrics(SessionHolder<?> session) {
-        return callOnSession(session, false, params -> params.mShouldGetPageLoadMetrics);
+        return ChromeFeatureList.isEnabled(ChromeFeatureList.CCT_NAVIGATION_METRICS)
+                || callOnSession(session, false, params -> params.mShouldGetPageLoadMetrics);
     }
 
     /** Returns the uid associated with the session, {@code -1} if there is no matching session. */

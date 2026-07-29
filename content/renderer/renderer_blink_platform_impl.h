@@ -177,10 +177,15 @@ class CONTENT_EXPORT RendererBlinkPlatformImpl : public BlinkPlatformImpl {
   bool AllowsLoopbackInPeerConnection() override;
   blink::WebVideoCaptureImplManager* GetVideoCaptureImplManager() override;
   std::unique_ptr<blink::WebGraphicsContext3DProvider>
-  CreateOffscreenGraphicsContext3DProvider(
-      const blink::Platform::ContextAttributes& attributes,
+  CreateWebGLGraphicsContextProvider(
+      bool prefer_low_power_gpu,
+      bool fail_if_major_performance_caveat,
+      blink::Platform::ContextType context_type,
       const blink::WebURL& document_url,
       blink::Platform::GraphicsInfo* gl_info) override;
+  std::unique_ptr<blink::WebGraphicsContext3DProvider>
+  CreateRasterGraphicsContextProvider(
+      const blink::WebURL& document_url) override;
   std::unique_ptr<blink::WebGraphicsContext3DProvider>
   CreateSharedOffscreenGraphicsContext3DProvider() override;
   std::unique_ptr<blink::WebGraphicsContext3DProvider>

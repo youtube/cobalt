@@ -26,12 +26,14 @@ import androidx.core.view.WindowCompat;
 import org.chromium.base.ApplicationStatus;
 import org.chromium.base.Log;
 import org.chromium.base.TimeUtils;
+import org.chromium.base.supplier.Supplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcherProvider;
 import org.chromium.chrome.browser.lifecycle.ConfigurationChangedObserver;
 import org.chromium.chrome.browser.lifecycle.TopResumedActivityChangedWithNativeObserver;
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.ui.base.ActivityWindowAndroid;
 
 import java.lang.ref.WeakReference;
@@ -68,6 +70,7 @@ final class ChromeAndroidTaskImpl
     private final int mId;
 
     private final AndroidBrowserWindow mAndroidBrowserWindow;
+    private final Supplier<Profile> mProfileSupplier;
 
     /**
      * Contains all {@link ChromeAndroidTaskFeature}s associated with this {@link
@@ -117,10 +120,13 @@ final class ChromeAndroidTaskImpl
     }
 
     ChromeAndroidTaskImpl(
-            @BrowserWindowType int browserWindowType, ActivityWindowAndroid activityWindowAndroid) {
+            @BrowserWindowType int browserWindowType,
+            ActivityWindowAndroid activityWindowAndroid,
+            Supplier<Profile> profileSupplier) {
         mBrowserWindowType = browserWindowType;
         mId = getActivity(activityWindowAndroid).getTaskId();
         mAndroidBrowserWindow = new AndroidBrowserWindow(/* chromeAndroidTask= */ this);
+        mProfileSupplier = profileSupplier;
         setActivityWindowAndroidInternal(activityWindowAndroid);
     }
 
@@ -249,9 +255,7 @@ final class ChromeAndroidTaskImpl
             if (activity == null) return false;
             Window window = activity.getWindow();
             var windowManager = activity.getWindowManager();
-            /**
-             * See {@link CompositorViewHolder#isInFullscreenMode}.
-             */
+            /** See {@link CompositorViewHolder#isInFullscreenMode}. */
             return !windowManager
                             .getMaximumWindowMetrics()
                             .getWindowInsets()
@@ -270,9 +274,34 @@ final class ChromeAndroidTaskImpl
     }
 
     @Override
+    public Profile getProfile() {
+        Profile profile = mProfileSupplier.get();
+        assert profile != null;
+        return profile;
+    }
+
+    @Override
     public Rect getBounds() {
         synchronized (mActivityWindowAndroidLock) {
             return getBoundsInternalLocked();
+        }
+    }
+
+    @Override
+    public void show() {
+        synchronized (mActivityWindowAndroidLock) {
+            var activityWindowAndroid =
+                    getActivityWindowAndroidInternalLocked(/* assertAlive= */ true);
+            var activity =
+                    activityWindowAndroid != null
+                            ? activityWindowAndroid.getActivity().get()
+                            : null;
+            if (activity == null) return;
+            // Activate the Task if it's already visible.
+            // TODO(http://crbug.com/424860292): create a new window when task is invisible.
+            if (isVisibleInternalLocked(activity)) {
+                activateInternalLocked(activity);
+            }
         }
     }
 
@@ -282,8 +311,15 @@ final class ChromeAndroidTaskImpl
             var activityWindowAndroid =
                     getActivityWindowAndroidInternalLocked(/* assertAlive= */ true);
             if (activityWindowAndroid == null) return false;
-            return ApplicationStatus.isTaskVisible(getActivity(activityWindowAndroid).getTaskId());
+            var activity = activityWindowAndroid.getActivity().get();
+            if (activity == null) return false;
+            return isVisibleInternalLocked(activity);
         }
+    }
+
+    @Override
+    public void showInactive() {
+        deactivate();
     }
 
     @Override
@@ -333,16 +369,13 @@ final class ChromeAndroidTaskImpl
             if (activityWindowAndroid == null) return;
             Activity activity = activityWindowAndroid.getActivity().get();
             if (activity == null) return;
-            ActivityManager activityManager =
-                    (ActivityManager) activity.getSystemService(Context.ACTIVITY_SERVICE);
-            for (ActivityManager.AppTask task : activityManager.getAppTasks()) {
-                if (activity.getTaskId() == task.getTaskInfo().id) {
-                    task.moveToFront();
-                    return;
-                }
-            }
-            throw new IllegalStateException("Target task not found");
+            activateInternalLocked(activity);
         }
+    }
+
+    @Override
+    public void deactivate() {
+        ChromeAndroidTaskTrackerImpl.getInstance().activatePenultimatelyActivatedTask();
     }
 
     @Override
@@ -497,6 +530,18 @@ final class ChromeAndroidTaskImpl
         // prevents the other activity from being brought back to the top of the stack.
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
         activity.startActivity(intent, options.toBundle());
+    }
+
+    @GuardedBy("mActivityWindowAndroidLock")
+    private boolean isVisibleInternalLocked(Activity activity) {
+        return ApplicationStatus.isTaskVisible(activity.getTaskId());
+    }
+
+    @GuardedBy("mActivityWindowAndroidLock")
+    private void activateInternalLocked(Activity activity) {
+        ActivityManager activityManager =
+                (ActivityManager) activity.getSystemService(Context.ACTIVITY_SERVICE);
+        activityManager.moveTaskToFront(activity.getTaskId(), 0);
     }
 
     @RequiresApi(api = VERSION_CODES.R)

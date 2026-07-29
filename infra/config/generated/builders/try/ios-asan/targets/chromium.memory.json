@@ -36,7 +36,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -86,7 +86,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -136,7 +136,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -186,7 +186,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -220,6 +220,7 @@
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
         "module_name": "//third_party/boringssl:boringssl_crypto_tests/",
+        "module_scheme": "gtest",
         "name": "boringssl_crypto_tests iPad Air (6th generation) 18.2",
         "resultdb": {
           "enable": true,
@@ -235,7 +236,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -269,6 +270,7 @@
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
         "module_name": "//third_party/boringssl:boringssl_crypto_tests/",
+        "module_scheme": "gtest",
         "name": "boringssl_crypto_tests iPhone 15 18.2",
         "resultdb": {
           "enable": true,
@@ -284,7 +286,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -318,6 +320,7 @@
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
         "module_name": "//third_party/boringssl:boringssl_ssl_tests/",
+        "module_scheme": "gtest",
         "name": "boringssl_ssl_tests iPad Air (6th generation) 18.2",
         "resultdb": {
           "enable": true,
@@ -333,7 +336,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -367,6 +370,7 @@
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
         "module_name": "//third_party/boringssl:boringssl_ssl_tests/",
+        "module_scheme": "gtest",
         "name": "boringssl_ssl_tests iPhone 15 18.2",
         "resultdb": {
           "enable": true,
@@ -382,7 +386,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -416,6 +420,7 @@
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
         "module_name": "//components:components_unittests/",
+        "module_scheme": "gtest",
         "name": "components_unittests iPad Air (6th generation) 18.2",
         "resultdb": {
           "enable": true,
@@ -431,7 +436,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -465,6 +470,7 @@
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
         "module_name": "//components:components_unittests/",
+        "module_scheme": "gtest",
         "name": "components_unittests iPhone 15 18.2",
         "resultdb": {
           "enable": true,
@@ -480,7 +486,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -514,6 +520,7 @@
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
         "module_name": "//crypto:crypto_unittests/",
+        "module_scheme": "gtest",
         "name": "crypto_unittests iPad Air (6th generation) 18.2",
         "resultdb": {
           "enable": true,
@@ -529,7 +536,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -563,6 +570,7 @@
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
         "module_name": "//crypto:crypto_unittests/",
+        "module_scheme": "gtest",
         "name": "crypto_unittests iPhone 15 18.2",
         "resultdb": {
           "enable": true,
@@ -578,7 +586,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -612,6 +620,7 @@
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
         "module_name": "//ui/gfx:gfx_unittests/",
+        "module_scheme": "gtest",
         "name": "gfx_unittests iPad Air (6th generation) 18.2",
         "resultdb": {
           "enable": true,
@@ -627,7 +636,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -661,6 +670,7 @@
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
         "module_name": "//ui/gfx:gfx_unittests/",
+        "module_scheme": "gtest",
         "name": "gfx_unittests iPhone 15 18.2",
         "resultdb": {
           "enable": true,
@@ -676,7 +686,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -710,6 +720,7 @@
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
         "module_name": "//google_apis:google_apis_unittests/",
+        "module_scheme": "gtest",
         "name": "google_apis_unittests iPad Air (6th generation) 18.2",
         "resultdb": {
           "enable": true,
@@ -725,7 +736,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -759,6 +770,7 @@
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
         "module_name": "//google_apis:google_apis_unittests/",
+        "module_scheme": "gtest",
         "name": "google_apis_unittests iPhone 15 18.2",
         "resultdb": {
           "enable": true,
@@ -774,7 +786,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -808,6 +820,7 @@
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
         "module_name": "//components/gwp_asan:gwp_asan_unittests/",
+        "module_scheme": "gtest",
         "name": "gwp_asan_unittests iPad Air (6th generation) 18.2",
         "resultdb": {
           "enable": true,
@@ -823,7 +836,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -857,6 +870,7 @@
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
         "module_name": "//components/gwp_asan:gwp_asan_unittests/",
+        "module_scheme": "gtest",
         "name": "gwp_asan_unittests iPhone 15 18.2",
         "resultdb": {
           "enable": true,
@@ -872,7 +886,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -923,7 +937,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -975,7 +989,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -1027,7 +1041,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -1079,7 +1093,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -1133,7 +1147,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -1146,7 +1160,7 @@
             }
           ],
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
-          "shards": 8
+          "shards": 9
         },
         "test": "ios_chrome_integration_eg2tests_module",
         "test_id_prefix": "ninja://ios/chrome/test/earl_grey2:ios_chrome_integration_eg2tests_module/",
@@ -1187,7 +1201,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -1200,7 +1214,7 @@
             }
           ],
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
-          "shards": 8
+          "shards": 9
         },
         "test": "ios_chrome_integration_eg2tests_module",
         "test_id_prefix": "ninja://ios/chrome/test/earl_grey2:ios_chrome_integration_eg2tests_module/",
@@ -1241,7 +1255,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -1254,7 +1268,7 @@
             }
           ],
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
-          "shards": 8
+          "shards": 9
         },
         "test": "ios_chrome_integration_eg2tests_module",
         "test_id_prefix": "ninja://ios/chrome/test/earl_grey2:ios_chrome_integration_eg2tests_module/",
@@ -1295,7 +1309,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -1308,7 +1322,7 @@
             }
           ],
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
-          "shards": 8
+          "shards": 9
         },
         "test": "ios_chrome_integration_eg2tests_module",
         "test_id_prefix": "ninja://ios/chrome/test/earl_grey2:ios_chrome_integration_eg2tests_module/",
@@ -1349,7 +1363,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -1403,7 +1417,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -1457,7 +1471,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -1511,7 +1525,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -1563,7 +1577,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -1615,7 +1629,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -1667,7 +1681,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -1719,7 +1733,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -1771,7 +1785,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -1822,7 +1836,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -1873,7 +1887,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -1924,7 +1938,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -1977,7 +1991,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -2031,7 +2045,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -2085,7 +2099,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -2139,7 +2153,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -2190,7 +2204,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -2240,7 +2254,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -2291,7 +2305,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -2343,7 +2357,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -2395,7 +2409,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -2447,7 +2461,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -2498,7 +2512,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -2548,7 +2562,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -2598,7 +2612,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -2649,7 +2663,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -2700,7 +2714,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -2750,7 +2764,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -2800,7 +2814,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -2850,7 +2864,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -2901,7 +2915,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -2952,7 +2966,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -3003,7 +3017,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -3054,7 +3068,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -3104,7 +3118,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -3154,7 +3168,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -3204,7 +3218,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -3254,7 +3268,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -3304,7 +3318,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -3354,7 +3368,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -3388,6 +3402,7 @@
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
         "module_name": "//net:net_unittests/",
+        "module_scheme": "gtest",
         "name": "net_unittests iPad Air (6th generation) 18.2",
         "resultdb": {
           "enable": true,
@@ -3403,7 +3418,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -3437,6 +3452,7 @@
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
         "module_name": "//net:net_unittests/",
+        "module_scheme": "gtest",
         "name": "net_unittests iPhone 15 18.2",
         "resultdb": {
           "enable": true,
@@ -3452,7 +3468,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -3486,6 +3502,7 @@
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
         "module_name": "//services:services_unittests/",
+        "module_scheme": "gtest",
         "name": "services_unittests iPad Air (6th generation) 18.2",
         "resultdb": {
           "enable": true,
@@ -3501,7 +3518,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -3535,6 +3552,7 @@
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
         "module_name": "//services:services_unittests/",
+        "module_scheme": "gtest",
         "name": "services_unittests iPhone 15 18.2",
         "resultdb": {
           "enable": true,
@@ -3550,7 +3568,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -3584,6 +3602,7 @@
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
         "module_name": "//skia:skia_unittests/",
+        "module_scheme": "gtest",
         "name": "skia_unittests iPad Air (6th generation) 18.2",
         "resultdb": {
           "enable": true,
@@ -3599,7 +3618,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -3633,6 +3652,7 @@
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
         "module_name": "//skia:skia_unittests/",
+        "module_scheme": "gtest",
         "name": "skia_unittests iPhone 15 18.2",
         "resultdb": {
           "enable": true,
@@ -3648,7 +3668,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -3682,6 +3702,7 @@
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
         "module_name": "//sql:sql_unittests/",
+        "module_scheme": "gtest",
         "name": "sql_unittests iPad Air (6th generation) 18.2",
         "resultdb": {
           "enable": true,
@@ -3697,7 +3718,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -3731,6 +3752,7 @@
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
         "module_name": "//sql:sql_unittests/",
+        "module_scheme": "gtest",
         "name": "sql_unittests iPhone 15 18.2",
         "resultdb": {
           "enable": true,
@@ -3746,7 +3768,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -3780,6 +3802,7 @@
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
         "module_name": "//ui/base:ui_base_unittests/",
+        "module_scheme": "gtest",
         "name": "ui_base_unittests iPad Air (6th generation) 18.2",
         "resultdb": {
           "enable": true,
@@ -3795,7 +3818,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -3829,6 +3852,7 @@
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
         "module_name": "//ui/base:ui_base_unittests/",
+        "module_scheme": "gtest",
         "name": "ui_base_unittests iPhone 15 18.2",
         "resultdb": {
           "enable": true,
@@ -3844,7 +3868,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -3878,6 +3902,7 @@
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
         "module_name": "//url:url_unittests/",
+        "module_scheme": "gtest",
         "name": "url_unittests iPad Air (6th generation) 18.2",
         "resultdb": {
           "enable": true,
@@ -3893,7 +3918,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {
@@ -3927,6 +3952,7 @@
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
         "module_name": "//url:url_unittests/",
+        "module_scheme": "gtest",
         "name": "url_unittests iPhone 15 18.2",
         "resultdb": {
           "enable": true,
@@ -3942,7 +3968,7 @@
           ],
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-15"
+            "os": "Mac-15.5"
           },
           "named_caches": [
             {

@@ -176,12 +176,6 @@ BASE_FEATURE(BlockInsecurePrivateNetworkRequests,
 BASE_FEATURE(BlockInsecurePrivateNetworkRequestsFromPrivate,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Enables use of the PrivateNetworkAccessNonSecureContextsAllowed deprecation
-// trial. This is a necessary yet insufficient condition: documents that wish to
-// make use of the trial must additionally serve a valid origin trial token.
-BASE_FEATURE(BlockInsecurePrivateNetworkRequestsDeprecationTrial,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Broker file operations on disk cache in the Network Service.
 // This is no-op if the network service is hosted in the browser process.
 BASE_FEATURE(BrokerFileOperationsOnDiskCacheInNetworkService,
@@ -423,6 +417,9 @@ BASE_FEATURE(FedCmWithoutWellKnownEnforcement,
 
 // Enables Lightweight FedCM Mode
 BASE_FEATURE(FedCmLightweightMode, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables Nonce usage in Params
+BASE_FEATURE(FedCmNonceInParams, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables browser-side focus verification when crossing fenced boundaries.
 BASE_FEATURE(FencedFramesEnforceFocus, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -839,21 +836,6 @@ BASE_FEATURE(ProcessPerSiteUpToMainFrameThreshold,
 constexpr base::FeatureParam<int> kProcessPerSiteMainFrameThreshold{
     &kProcessPerSiteUpToMainFrameThreshold, "ProcessPerSiteMainFrameThreshold",
     2};
-
-// Allows process reuse for localhost and IP based hosts when
-// `kProcessPerSiteUpToMainFrameThreshold` is enabled.
-constexpr base::FeatureParam<bool> kProcessPerSiteMainFrameAllowIPAndLocalhost{
-    &kProcessPerSiteUpToMainFrameThreshold,
-    "ProcessPerSiteMainFrameAllowIPAndLocalhost", false};
-
-// When `kProcessPerSiteUpToMainFrameThreshold` is enabled, allows process reuse
-// even when DevTools was ever attached. This allows developers to test the
-// process sharing mode, since DevTools normally disables it for the field
-// trial participants.
-constexpr base::FeatureParam<bool>
-    kProcessPerSiteMainFrameAllowDevToolsAttached{
-        &kProcessPerSiteUpToMainFrameThreshold,
-        "ProcessPerSiteMainFrameAllowDevToolsAttached", false};
 
 // Specifies the scaling factor for `kProcessPerSiteUpToMainFrameThreshold`
 // feature. This factor will be multiplied to the calculated size of a top
@@ -1345,6 +1327,11 @@ BASE_FEATURE(kWebauthnDisabledOnAuto,
              "WebAuthenticationDisabledOnAuto",
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
+
+// Enables Exclusive Access Manager on Android platform
+#if BUILDFLAG(IS_ANDROID)
+BASE_FEATURE(EnableExclusiveAccessManager, base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
 
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(KeyboardLockApiOnAndroid, base::FEATURE_DISABLED_BY_DEFAULT);

@@ -52,6 +52,7 @@
 #import "components/history/core/browser/features.h"
 #import "components/ntp_tiles/features.h"
 #import "components/ntp_tiles/switches.h"
+#import "components/omnibox/browser/aim_eligibility_service.h"
 #import "components/omnibox/browser/omnibox_field_trial.h"
 #import "components/omnibox/common/omnibox_feature_configs.h"
 #import "components/omnibox/common/omnibox_features.h"
@@ -93,6 +94,7 @@
 #import "crypto/features.h"
 #import "ios/chrome/app/background_mode_buildflags.h"
 #import "ios/chrome/browser/aim/prototype/public/features.h"
+#import "ios/chrome/browser/autofill/model/features.h"
 #import "ios/chrome/browser/badges/model/features.h"
 #import "ios/chrome/browser/browsing_data/model/browsing_data_features.h"
 #import "ios/chrome/browser/crash_report/model/features.h"
@@ -831,11 +833,21 @@ const FeatureEntry::FeatureParam kSendTabPromoForceHideArm[] = {
 // App Bundle Promo
 const FeatureEntry::FeatureParam kAppBundlePromoForceShowArm[] = {
     {segmentation_platform::features::kEphemeralCardRankerForceShowCardParam,
-     segmentation_platform::kAppBundlePromo},
+     segmentation_platform::kAppBundlePromoEphemeralModule},
 };
 const FeatureEntry::FeatureParam kAppBundlePromoForceHideArm[] = {
     {segmentation_platform::features::kEphemeralCardRankerForceHideCardParam,
-     segmentation_platform::kAppBundlePromo},
+     segmentation_platform::kAppBundlePromoEphemeralModule},
+};
+
+// Default Browser Promo
+const FeatureEntry::FeatureParam kDefaultBrowserPromoForceShowArm[] = {
+    {segmentation_platform::features::kEphemeralCardRankerForceShowCardParam,
+     segmentation_platform::kDefaultBrowserPromoEphemeralModule},
+};
+const FeatureEntry::FeatureParam kDefaultBrowserPromoForceHideArm[] = {
+    {segmentation_platform::features::kEphemeralCardRankerForceHideCardParam,
+     segmentation_platform::kDefaultBrowserPromoEphemeralModule},
 };
 
 // ShopCard experiment arms
@@ -933,6 +945,12 @@ const FeatureEntry::FeatureVariation kEphemeralCardRankerCardOverrideOptions[] =
          std::size(kAppBundlePromoForceShowArm), nullptr},
         {"- Force Hide App Bundle Promo", kAppBundlePromoForceHideArm,
          std::size(kAppBundlePromoForceHideArm), nullptr},
+
+        // Default Browser Promo.
+        {"- Force Show Default Browser Promo", kDefaultBrowserPromoForceShowArm,
+         std::size(kDefaultBrowserPromoForceShowArm), nullptr},
+        {"- Force Hide Default Browser Promo", kDefaultBrowserPromoForceHideArm,
+         std::size(kDefaultBrowserPromoForceHideArm), nullptr},
 };
 
 const FeatureEntry::FeatureParam
@@ -1461,17 +1479,6 @@ const FeatureEntry::FeatureVariation kMobilePromoOnDesktopVariations[] = {
      std::size(kMobilePromoOnDesktopAutofillNotification), nullptr},
 };
 
-const FeatureEntry::FeatureParam kDefaultBrowserMagicStackDeviceSettings[] = {
-    {kDefaultBrowserMagicStackVariation, "0"}};
-const FeatureEntry::FeatureParam kDefaultBrowserMagicStackInAppSettings[] = {
-    {kDefaultBrowserMagicStackVariation, "1"}};
-
-const FeatureEntry::FeatureVariation kDefaultBrowserMagicStackVariations[] = {
-    {" - Tap to Device Settings", kDefaultBrowserMagicStackDeviceSettings,
-     std::size(kDefaultBrowserMagicStackDeviceSettings), nullptr},
-    {" - Tap to In App Settings", kDefaultBrowserMagicStackInAppSettings,
-     std::size(kDefaultBrowserMagicStackInAppSettings), nullptr}};
-
 // To add a new entry, add to the end of kFeatureEntries. There are four
 // distinct types of entries:
 // . ENABLE_DISABLE_VALUE: entry is either enabled, disabled, or uses the
@@ -1575,6 +1582,10 @@ const flags_ui::FeatureEntry kFeatureEntries[] = {
      FEATURE_WITH_PARAMS_VALUE_TYPE(omnibox::kOmniboxAimShortcutTypedState,
                                     kOmniboxAimShortcutTypedStateVariations,
                                     "OmniboxAimShortcutTypedState")},
+    {"aim-server-eligibility",
+     flag_descriptions::kIOSOmniboxAimServerEligibilityName,
+     flag_descriptions::kIOSOmniboxAimServerEligibilityDescription,
+     flags_ui::kOsIos, FEATURE_VALUE_TYPE(kAimServerEligibilityEnabled)},
     {"omnibox-ui-max-autocomplete-matches",
      flag_descriptions::kOmniboxUIMaxAutocompleteMatchesName,
      flag_descriptions::kOmniboxUIMaxAutocompleteMatchesDescription,
@@ -2898,11 +2909,19 @@ const flags_ui::FeatureEntry kFeatureEntries[] = {
      flag_descriptions::kRemoveAutofillBadgesDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kAutofillBadgeRemoval)},
     {"ios-default-browser-magic-stack",
-     flag_descriptions::kDefaultBrowserMagicStackName,
-     flag_descriptions::kDefaultBrowserMagicStackDescription, flags_ui::kOsIos,
-     FEATURE_WITH_PARAMS_VALUE_TYPE(kDefaultBrowserMagicStack,
-                                    kDefaultBrowserMagicStackVariations,
-                                    "DefaultBrowserMagicStack")},
+     flag_descriptions::kDefaultBrowserMagicStackIosName,
+     flag_descriptions::kDefaultBrowserMagicStackIosDescription,
+     flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(
+         segmentation_platform::features::kDefaultBrowserMagicStackIos)},
+    {"lens-search-headers-check-enabled",
+     flag_descriptions::kLensSearchHeadersCheckEnabledName,
+     flag_descriptions::kLensSearchHeadersCheckEnabledDescription,
+     flags_ui::kOsIos, FEATURE_VALUE_TYPE(kLensSearchHeadersCheckEnabled)},
+    {"autofill-bottom-sheet-new-blur",
+     flag_descriptions::kAutofillBottomSheetNewBlurName,
+     flag_descriptions::kAutofillBottomSheetNewBlurDescription,
+     flags_ui::kOsIos, FEATURE_VALUE_TYPE(kAutofillBottomSheetNewBlur)},
 };
 
 bool SkipConditionalFeatureEntry(const flags_ui::FeatureEntry& entry) {

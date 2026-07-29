@@ -245,7 +245,7 @@ void SetUpCreditCardAndBenefitData(
     const CreditCardBenefit& benefit,
     const std::string& benefit_source,
     TestPersonalDataManager& personal_data,
-    AutofillOptimizationGuide* optimization_guide);
+    AutofillOptimizationGuideDecider* optimization_guide);
 
 // A unit testing utility that is common to a number of the Autofill unit
 // tests.  |SetProfileInfo| provides a quick way to populate a profile with
@@ -348,6 +348,7 @@ struct PassportEntityOptionsT {
   EntityInstance::RecordType record_type = EntityInstance::RecordType::kLocal;
   EntityInstance::AreAttributesReadOnly are_attributes_read_only =
       EntityInstance::AreAttributesReadOnly(false);
+  int use_count = 0;
 };
 using PassportEntityOptions = PassportEntityOptionsT<>;
 
@@ -372,6 +373,7 @@ struct DriversLicenseOptionsT {
   EntityInstance::RecordType record_type = EntityInstance::RecordType::kLocal;
   EntityInstance::AreAttributesReadOnly are_attributes_read_only =
       EntityInstance::AreAttributesReadOnly(false);
+  int use_count = 0;
 };
 using DriversLicenseOptions = DriversLicenseOptionsT<>;
 
@@ -389,10 +391,12 @@ struct VehicleOptionsT {
   const char16_t* state = u"California";
   std::string_view guid = "00000000-0000-4000-8000-200000000000";
   std::string_view nickname = "Vehicle";
+  base::Time date_modified = kJune2017;
   std::string_view app_locale = "en-US";
   EntityInstance::RecordType record_type = EntityInstance::RecordType::kLocal;
   EntityInstance::AreAttributesReadOnly are_attributes_read_only =
       EntityInstance::AreAttributesReadOnly(false);
+  int use_count = 0;
 };
 using VehicleOptions = VehicleOptionsT<>;
 
@@ -410,6 +414,7 @@ struct NationalIdCardOptionsT {
   EntityInstance::RecordType record_type = EntityInstance::RecordType::kLocal;
   EntityInstance::AreAttributesReadOnly are_attributes_read_only =
       EntityInstance::AreAttributesReadOnly(false);
+  int use_count = 0;
 };
 using NationalIdCardOptions = NationalIdCardOptionsT<>;
 
@@ -426,6 +431,7 @@ struct KnownTravelerNumberOptionsT {
   EntityInstance::RecordType record_type = EntityInstance::RecordType::kLocal;
   EntityInstance::AreAttributesReadOnly are_attributes_read_only =
       EntityInstance::AreAttributesReadOnly(false);
+  int use_count = 0;
 };
 using KnownTravelerNumberOptions = KnownTravelerNumberOptionsT<>;
 
@@ -441,6 +447,7 @@ struct RedressNumberOptionsT {
   EntityInstance::RecordType record_type = EntityInstance::RecordType::kLocal;
   EntityInstance::AreAttributesReadOnly are_attributes_read_only =
       EntityInstance::AreAttributesReadOnly(false);
+  int use_count = 0;
 };
 using RedressNumberOptions = RedressNumberOptionsT<>;
 

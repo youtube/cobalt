@@ -4,6 +4,7 @@
 
 #include "chrome/browser/web_applications/isolated_web_apps/commands/isolated_web_app_prepare_and_store_update_command.h"
 
+#include <cstddef>
 #include <memory>
 #include <optional>
 #include <ostream>
@@ -49,7 +50,7 @@ namespace web_app {
 
 IsolatedWebAppUpdatePrepareAndStoreCommandSuccess::
     IsolatedWebAppUpdatePrepareAndStoreCommandSuccess(
-        base::Version update_version,
+        IwaVersion update_version,
         IsolatedWebAppStorageLocation destination_location)
     : update_version(std::move(update_version)),
       location(std::move(destination_location)) {}
@@ -143,7 +144,7 @@ void IsolatedWebAppUpdatePrepareAndStoreCommand::StartWithLock(
 
 void IsolatedWebAppUpdatePrepareAndStoreCommand::ReportVersionValidationFailure(
     VersionChangeValidationResult validation_result,
-    const base::Version& candidate_version) {
+    const IwaVersion& candidate_version) {
   CHECK(installed_version_.has_value());
 
   std::string failure_message;
@@ -174,10 +175,12 @@ void IsolatedWebAppUpdatePrepareAndStoreCommand::CheckIfUpdateIsStillApplicable(
       const WebApp& iwa,
       GetIsolatedWebAppById(lock_->registrar(), url_info_.app_id()),
       [&](const std::string& error) { ReportFailure(error); });
+
   const auto& isolation_data = *iwa.isolation_data();
   installed_version_ = isolation_data.version();
+
   GetMutableDebugValue().Set("installed_version",
-                             installed_version_->GetString());
+                             installed_version_.value().GetString());
 
   switch (LookupRotatedKey(url_info_.web_bundle_id(), GetMutableDebugValue())) {
     case KeyRotationLookupResult::kNoKeyRotation:
@@ -305,20 +308,18 @@ void IsolatedWebAppUpdatePrepareAndStoreCommand::SetPendingUpdateInfo(
 
   VersionChangeValidationResult validation_result =
       ValidateVersionChangeFeasibility(
-          install_info.isolated_web_app_version().version(),
-          *installed_version_, allow_downgrades_,
-          same_version_update_allowed_by_key_rotation_);
+          install_info.isolated_web_app_version(), installed_version_.value(),
+          allow_downgrades_, same_version_update_allowed_by_key_rotation_);
 
   if (validation_result != VersionChangeValidationResult::kAllowed) {
-    ReportVersionValidationFailure(
-        validation_result, install_info.isolated_web_app_version().version());
+    ReportVersionValidationFailure(validation_result,
+                                   install_info.isolated_web_app_version());
     return;
   }
 
-  ScopedRegistryUpdate update = lock_->sync_bridge().BeginUpdate(
-      base::BindOnce(&IsolatedWebAppUpdatePrepareAndStoreCommand::OnFinalized,
-                     weak_factory_.GetWeakPtr(),
-                     install_info.isolated_web_app_version().version()));
+  ScopedRegistryUpdate update = lock_->sync_bridge().BeginUpdate(base::BindOnce(
+      &IsolatedWebAppUpdatePrepareAndStoreCommand::OnFinalized,
+      weak_factory_.GetWeakPtr(), install_info.isolated_web_app_version()));
 
   WebApp* app_to_update = update->UpdateApp(url_info_.app_id());
   CHECK(app_to_update);
@@ -327,13 +328,13 @@ void IsolatedWebAppUpdatePrepareAndStoreCommand::SetPendingUpdateInfo(
       IsolationData::Builder(*app_to_update->isolation_data())
           .SetPendingUpdateInfo(IsolationData::PendingUpdateInfo(
               *destination_storage_location_,
-              install_info.isolated_web_app_version().version(),
+              install_info.isolated_web_app_version(),
               std::move(integrity_block_data_)))
           .Build());
 }
 
 void IsolatedWebAppUpdatePrepareAndStoreCommand::OnFinalized(
-    const base::Version& update_version,
+    const IwaVersion& update_version,
     bool success) {
   if (success) {
     ReportSuccess(update_version);
@@ -352,7 +353,7 @@ void IsolatedWebAppUpdatePrepareAndStoreCommand::ReportFailure(
 }
 
 void IsolatedWebAppUpdatePrepareAndStoreCommand::ReportSuccess(
-    const base::Version& update_version) {
+    const IwaVersion& update_version) {
   // Reset `destination_storage_location_` to prevent cleanup in the
   // destructor.
   auto destination_storage_location =
@@ -371,7 +372,7 @@ Profile& IsolatedWebAppUpdatePrepareAndStoreCommand::profile() {
 IsolatedWebAppUpdatePrepareAndStoreCommandUpdateInfo::
     IsolatedWebAppUpdatePrepareAndStoreCommandUpdateInfo(
         IwaSourceWithModeAndFileOp source,
-        std::optional<base::Version> expected_version,
+        std::optional<IwaVersion> expected_version,
         bool allow_downgrades)
     : source_(std::move(source)),
       expected_version_(std::move(expected_version)),

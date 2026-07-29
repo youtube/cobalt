@@ -49,11 +49,26 @@ GpuMemoryBufferImplIOSurface::GpuMemoryBufferImplIOSurface(
     gfx::BufferFormat format,
     gfx::GpuMemoryBufferHandle handle,
     uint32_t lock_flags)
-    : GpuMemoryBufferImpl(size, format),
+    : size_(size),
+      format_(format),
       handle_(std::move(handle)),
       lock_flags_(lock_flags) {}
 
-GpuMemoryBufferImplIOSurface::~GpuMemoryBufferImplIOSurface() {}
+GpuMemoryBufferImplIOSurface::~GpuMemoryBufferImplIOSurface() {
+#if DCHECK_IS_ON()
+  {
+    base::AutoLock auto_lock(map_lock_);
+    DCHECK_EQ(map_count_, 0u);
+  }
+#endif
+}
+
+void GpuMemoryBufferImplIOSurface::AssertMapped() {
+#if DCHECK_IS_ON()
+  base::AutoLock auto_lock(map_lock_);
+  DCHECK_GT(map_count_, 0u);
+#endif
+}
 
 // static
 std::unique_ptr<GpuMemoryBufferImplIOSurface>
@@ -202,6 +217,15 @@ gfx::GpuMemoryBufferType GpuMemoryBufferImplIOSurface::GetType() const {
 
 gfx::GpuMemoryBufferHandle GpuMemoryBufferImplIOSurface::CloneHandle() const {
   return handle_.Clone();
+}
+
+void GpuMemoryBufferImplIOSurface::MapAsync(
+    base::OnceCallback<void(bool)> callback) {
+  std::move(callback).Run(Map());
+}
+
+bool GpuMemoryBufferImplIOSurface::AsyncMappingIsNonBlocking() const {
+  return false;
 }
 
 }  // namespace gpu

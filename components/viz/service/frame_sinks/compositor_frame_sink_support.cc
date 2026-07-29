@@ -5,6 +5,7 @@
 #include "components/viz/service/frame_sinks/compositor_frame_sink_support.h"
 
 #include <algorithm>
+#include <limits>
 #include <string>
 #include <utility>
 #include <variant>
@@ -580,6 +581,10 @@ void CompositorFrameSinkSupport::SetAutoNeedsBeginFrame() {
   auto_needs_begin_frame_ = true;
 }
 
+void CompositorFrameSinkSupport::SetNoCompositorFrameAcks() {
+  no_compositor_frame_acks_ = true;
+}
+
 bool CompositorFrameSinkSupport::WantsAnimateOnlyBeginFrames() const {
   return wants_animate_only_begin_frames_;
 }
@@ -763,7 +768,8 @@ SubmitResult CompositorFrameSinkSupport::MaybeSubmitCompositorFrame(
 
   // TODO(crbug.com/40578019): It should be possible to use
   // |frame.metadata.frame_token| instead of maintaining a |last_frame_index_|.
-  uint64_t frame_index = ++last_frame_index_;
+  CHECK_LT(last_frame_index_, std::numeric_limits<uint32_t>::max());
+  uint32_t frame_index = ++last_frame_index_;
 
   if (features::ShouldOnBeginFrameThrottleVideo()) {
     const auto& interval_info =
@@ -970,6 +976,12 @@ void CompositorFrameSinkSupport::DidReceiveCompositorFrameAck() {
 
   if (!client_)
     return;
+
+  if (no_compositor_frame_acks_) {
+    client_->ReclaimResources(std::move(surface_returned_resources_));
+    surface_returned_resources_.clear();
+    return;
+  }
 
   // TODO(https://crbug.com/40902503): Drawing from a layer context is indeed
   // local, but we'll likely want to use a different resource return policy.
@@ -1413,7 +1425,7 @@ bool CompositorFrameSinkSupport::ShouldSendBeginFrame(
 
     DCHECK(surface);
     DCHECK(surface->HasActiveFrame());
-    uint64_t active_frame_index = surface->GetActiveFrameIndex();
+    uint32_t active_frame_index = surface->GetActiveFrameIndex();
 
     // Since we have an active frame, and frame indexes strictly increase
     // during the lifetime of the CompositorFrameSinkSupport, our active frame

@@ -12,7 +12,6 @@ import org.chromium.base.MathUtils;
 import org.chromium.base.Token;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.ObservableSupplierImpl;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.chrome.browser.compositor.overlays.strip.AnimationHost;
 import org.chromium.chrome.browser.compositor.overlays.strip.ScrollDelegate;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutGroupTitle;
@@ -32,6 +31,7 @@ import org.chromium.ui.base.LocalizationUtils;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Supplier;
 
 /** Tab reorder - drag tab past other tabs or into/out of groups within the tab strip. */
 public class TabReorderStrategy extends ReorderStrategyBase {
@@ -271,7 +271,9 @@ public class TabReorderStrategy extends ReorderStrategyBase {
 
         // Case A: Not interacting with tab groups.
         if (!mayDragInOrOutOfGroup) {
-            if (adjTab == null || Math.abs(offset) <= getTabSwapThreshold()) return false;
+            if (adjTab == null || Math.abs(offset) <= getTabSwapThreshold(curTabPinned)) {
+                return false;
+            }
 
             int destIndex = towardEnd ? curIndex + 1 : curIndex - 1;
             mModel.moveTab(interactingTab.getTabId(), destIndex);

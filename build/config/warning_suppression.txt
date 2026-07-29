@@ -50,7 +50,7 @@ src:*{/,\\}v8{/,\\}*
 src:*{/,\\}third_party{/,\\}angle{/,\\}*
 src:*{/,\\}third_party{/,\\}crashpad{/,\\}crashpad{/,\\}third_party{/,\\}cpp-httplib{/,\\}*
 src:*{/,\\}third_party{/,\\}crc32c{/,\\}src{/,\\}src{/,\\}*
-src:*{/,\\}third_party{/,\\}dawn{/,\\}src{/,\\}dawn{/,\\}*
+src:*{/,\\}third_party{/,\\}dawn{/,\\}*
 src:*{/,\\}third_party{/,\\}fuzztest{/,\\}src{/,\\}*
 src:*{/,\\}third_party{/,\\}gemmlowp{/,\\}*
 src:*{/,\\}third_party{/,\\}googletest{/,\\}src{/,\\}googlemock{/,\\}src{/,\\}*
@@ -65,6 +65,5 @@ src:*{/,\\}third_party{/,\\}tflite{/,\\}src{/,\\}third_party{/,\\}xla{/,\\}*
 src:*{/,\\}third_party{/,\\}vulkan-utility-libraries{/,\\}*
 src:*{/,\\}third_party{/,\\}webrtc{/,\\}*
 src:*{/,\\}third_party{/,\\}webrtc_overrides{/,\\}test{/,\\}*
-src:*{/,\\}v8{/,\\}*
 # TODO(crbug.com/439492886): This suppression must be fixed internally.
 src:*{/,\\}chrome{/,\\}browser{/,\\}platform_experience{/,\\}*

@@ -87,8 +87,6 @@ class ExecutionEngine : public ToolDelegate {
   // ExecutionEngine, then the ActorTask.
   void SetOwner(ActorTask* task);
 
-  static void RegisterWithProfile(Profile* profile);
-
   // Cancels any in-progress actions with the reason: "kTaskPaused".
   void CancelOngoingActions(mojom::ActionResultCode reason);
 
@@ -111,6 +109,11 @@ class ExecutionEngine : public ToolDelegate {
       const std::vector<actor_login::Credential>& credentials,
       const base::flat_map<GURL, gfx::Image>& favicons,
       ToolDelegate::CredentialSelectedCallback callback) override;
+
+  // Callback for when a credential is selected, in response to
+  // `ToolDelegate::PromptToSelectCredential()`.
+  void OnCredentialSelected(
+      webui::mojom::SelectCredentialDialogResponsePtr response);
 
   static std::string StateToString(State state);
 
@@ -180,18 +183,21 @@ class ExecutionEngine : public ToolDelegate {
   // The index of the next action that will be started when ExecuteNextAction is
   // reached.
   size_t next_action_index_ = 0;
+  base::TimeTicks action_start_time_;
 
   // If set, the currently executing tool should be considered failed once it
   // completes.
   std::optional<mojom::ActionResultCode> external_tool_failure_reason_;
 
-  // The results for script tool invocations so far.
-  std::vector<optimization_guide::proto::ScriptToolResult> script_tool_results_;
+  // The results for actions so far.
+  std::vector<ActionResultWithLatencyInfo> action_results_;
 
   // Origins which the browser is allowed to navigate to under actor control
   // without prompting the user. This is applied to all navigations, including
   // those initiated by the renderer with web content.
   std::set<url::Origin> allowed_navigation_origins_;
+
+  ToolDelegate::CredentialSelectedCallback credential_selected_callback_;
 
   SEQUENCE_CHECKER(sequence_checker_);
 

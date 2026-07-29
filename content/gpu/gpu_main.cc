@@ -31,6 +31,7 @@
 #include "base/task/thread_pool/thread_pool_instance.h"
 #include "base/threading/hang_watcher.h"
 #include "base/threading/platform_thread.h"
+#include "base/threading/platform_thread_metrics.h"
 #include "base/threading/thread.h"
 #include "base/time/time.h"
 #include "base/timer/hi_res_timer_manager.h"
@@ -398,6 +399,11 @@ int GpuMain(MainFunctionParams parameters) {
     base::HangWatcher::GetInstance()->Start();
   }
 
+#if BUILDFLAG(IS_ANDROID)
+  base::PlatformThreadPriorityMonitor::Get().RegisterCurrentThread("GpuMain");
+  base::PlatformThreadPriorityMonitor::Get().Start();
+#endif  // BUILDFLAG(IS_ANDROID)
+
   // Startup tracing creates a tracing thread, which is incompatible on
   // platforms that require single-threaded sandbox initialization. In these
   // cases, startup tracing is either initialized right after sandbox
@@ -531,9 +537,11 @@ bool StartSandboxLinux(gpu::GpuWatchdogThread* watchdog_thread,
   // Video decoding of many video streams can use thousands of FDs as well as
   // Exo clients.
   // See https://crbug.com/1417237
+  // With MappableSI the number of active GMBs has doubled.
+  // See https://crbug.com/404365358
   const auto current_max_fds =
       base::saturated_cast<unsigned int>(base::GetMaxFds());
-  constexpr unsigned int kMaxFDsDelta = 1u << 13;
+  constexpr unsigned int kMaxFDsDelta = 1u << 14;
   const auto new_max_fds =
       static_cast<unsigned int>(base::ClampMax(current_max_fds, kMaxFDsDelta));
   base::IncreaseFdLimitTo(new_max_fds);

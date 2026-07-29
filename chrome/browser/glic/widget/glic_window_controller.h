@@ -71,7 +71,11 @@ class GlicWindowController : public Host::Delegate {
   GlicWindowController(const GlicWindowController&) = delete;
   GlicWindowController& operator=(const GlicWindowController&) = delete;
   GlicWindowController() = default;
-  virtual ~GlicWindowController() = default;
+  ~GlicWindowController() override = default;
+
+  // TODO(refactor): Add multi-instance Host getters
+  virtual Host& host() const = 0;
+  virtual HostManager& host_manager() = 0;
 
   // Show, summon, or activate the panel if needed, or close it if it's already
   // active and prevent_close is false.
@@ -90,7 +94,6 @@ class GlicWindowController : public Host::Delegate {
                                            mojom::InvocationSource source) = 0;
 
   virtual void FocusIfOpen() = 0;
-
 
   // Destroy the glic panel and its web contents.
   virtual void Shutdown() = 0;
@@ -200,22 +203,17 @@ class GlicWindowController : public Host::Delegate {
   //   * Open (aka showing, visible)
   //   * Detaching - the panel should not be considered open since the view
   //     might not exist.
-  //   * Closing to reopen detached when the global hotkey is used and glic is
-  //     attached to a non-active browser window.
   enum class State {
     kClosed,
     kWaitingForGlicToLoad,
     kOpen,
     kDetaching,
-    kClosingToReopenDetached,
   };
   virtual State state() const = 0;
 
   virtual GlicWindowAnimator* window_animator() = 0;
 
   virtual Profile* profile() = 0;
-
-  virtual bool IsDragging() = 0;
 
   virtual gfx::Rect GetInitialBounds(Browser* browser) = 0;
 

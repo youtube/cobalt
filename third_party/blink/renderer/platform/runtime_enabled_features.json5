@@ -533,7 +533,7 @@
     },
     {
       name: "AriaNotify",
-      status: {"Android": "experimental", "Win": "experimental", "Mac": "experimental", "Linux": "experimental"},
+      status: {"Android": "stable", "Win": "stable", "Mac": "stable", "Linux": "stable"},
       implied_by: ["AriaNotifyV2"],
     },
     {
@@ -591,6 +591,11 @@
     {
       name: "AudioVideoTracks",
       status: "experimental",
+    },
+    {
+      name: "AuthenticatorPasswordsOnlyImmediateRequests",
+      base_feature: "none",
+      public: true,
     },
     {
       name: "AutoDarkMode",
@@ -818,7 +823,7 @@
       status: "test",
     },
     {
-      // Remove the restriction that drawElement can only draw immediate
+      // Remove the restriction that drawHTMLElement can only draw immediate
       // children of the canvas, and allow drawing canvas descendants.
       name: "CanvasDrawElementInSubtree",
       depends_on: ["CanvasDrawElement"],
@@ -963,8 +968,8 @@
       status: "stable",
     },
     {
+      // TODO(crbug.com/440374239): Disabled due to https://crbug.com/440374239.
       name: "ClipElementVisibleBoundsInLocalRoot",
-      status: "stable",
     },
     {
       name: "ClipPathNestedRasterOptimization",
@@ -994,6 +999,13 @@
     {
       name: "ColorSpaceRec2100Linear",
       status: "experimental",
+    },
+    {
+      // Makes the command event not composed. Launched in M141.
+      // https://github.com/whatwg/html/pull/11255
+      // https://issues.chromium.org/issues/414826954
+      name: "CommandEventNotComposed",
+      status: "stable",
     },
     {
       name: "CompositeBGColorAnimation",
@@ -1166,6 +1178,13 @@
       // Support for the anchor-scope property.
       // https://drafts.csswg.org/css-anchor-position-1/#anchor-scope
       name: "CSSAnchorScope",
+      status: "stable",
+    },
+    {
+      // An anchor-positioned element should stay within its containing block,
+      // and not "escape" beyond the fragmentation context root and use the
+      // bounding box of the fragmented anchor with fragmentation applied.
+      name: "CSSAnchorSimplifiedFragmentation",
       status: "stable",
     },
     {
@@ -1488,6 +1507,10 @@
       status: "stable",
     },
     {
+      name: "CSSRevertRule",
+      status: "experimental",
+    },
+    {
       name: "CSSSafePrintableInset",
       status: "experimental",
     },
@@ -1550,6 +1573,11 @@
       status: "stable",
     },
     {
+      // scroll-target-group property sets aria-current=true on :target-current html scroll marker.
+      name: "CSSScrollTargetGroupAriaCurrent",
+      status: "experimental",
+    },
+    {
       name: "CSSSelectorFragmentAnchor",
       status: "experimental",
       base_feature: "CssSelectorFragmentAnchor",
@@ -1566,11 +1594,6 @@
     },
     {
       name: "CSSSignRelatedFunctions",
-      status: "stable",
-    },
-    {
-      // Explainer: https://drafts.csswg.org/css-values/#round-func
-      name: "CSSSteppedValueFunctions",
       status: "stable",
     },
     {
@@ -2460,6 +2483,7 @@
       // crbug.com/421421332
       // https://github.com/MicrosoftEdge/MSEdgeExplainers/blob/main/FormControlRange/explainer.md
       name: "FormControlRange",
+      status: "test",
     },
     {
       // TODO(crbug.com/1419161): Remove this feature after M113 has been stable
@@ -2536,7 +2560,7 @@
     },
     {
       name: "GetUserMediaEchoCancellationModes",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "GroupEffect",
@@ -3194,6 +3218,13 @@
       status: "stable",
     },
     {
+      // Experimental support for Multicast in Direct Sockets API.
+      // https://github.com/explainers-by-googlers/multicast-in-direct-sockets
+      name: "MulticastInDirectSockets",
+      status: "test",
+      depends_on: ["DirectSockets"]
+    },
+    {
       name: "MulticolColumnWrapping",
       status: "experimental",
     },
@@ -3202,7 +3233,7 @@
     },
     {
       name: "NavigateEventCommitBehavior",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "NavigateEventPopstateLimitations",
@@ -3738,14 +3769,6 @@
       status: "stable",
     },
     {
-      name: "PrivateNetworkAccessNonSecureContextsAllowed",
-      origin_trial_feature_name: "PrivateNetworkAccessNonSecureContextsAllowed",
-      origin_trial_type: "deprecation",
-      origin_trial_allows_insecure: true,
-      status: "experimental",
-      base_feature: "none",
-    },
-    {
       name: "PrivateNetworkAccessNullIpAddress",
       status: "experimental",
       base_feature: "none",
@@ -4146,7 +4169,7 @@
     },
     {
       name: "RTCRtpScriptTransform",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "RTCRtpTransport",
@@ -4495,9 +4518,7 @@
     },
     {
       name: "SignatureBasedIntegrity",
-      status: "experimental",
-      origin_trial_feature_name: "SignatureBasedIntegrity",
-      origin_trial_allows_third_party: true,
+      status: "stable",
     },
     {
       name: "SkipAd",
@@ -4680,6 +4701,10 @@
       name: "Svg2Cascade",
     },
     {
+      name: "SvgAnchorElementDownloadAttribute",
+      status: "experimental",
+    },
+    {
       name: "SvgAnchorElementRelAttributes",
       status: "stable",
     },
@@ -4728,6 +4753,10 @@
     {
       name: "SvgScriptElementAsyncAttribute",
       status: "experimental",
+    },
+    {
+      name: "SvgSmilPruneInstanceTimes",
+      status: "stable",
     },
     {
       name: "SvgTextCentralBaselineTextDecorationFix",
@@ -4997,13 +5026,13 @@
     // Please see https://issues.chromium.org/40823294
     {
       name: "TouchDragAndContextMenu",
-      implied_by: ["TouchDragOnShortPress"],
       base_feature: "none",
       public: true,
     },
     // This feature enables drag and drop using touch input devices. Replaces
     // the old "--enable-touch-drag-drop" and "--disable-touch-drag-drop"
     // switches.
+    // Enabled by default in Android and ChromeOS.
     {
       name: "TouchDragAndDrop",
       base_feature: "none",
@@ -5014,9 +5043,6 @@
     {
       name: "TouchDragOnShortPress",
       depends_on: ["TouchDragAndDrop"],
-      status: {
-        "Win": "stable",
-      },
     },
     // Many websites disable mouse support when touch APIs are available.  We'd
     // like to enable this always but can't until more websites fix this bug.
@@ -5113,12 +5139,7 @@
     },
     {
       name: "UnencodedDigest",
-      status: "experimental",
-      implied_by: ["SignatureBasedIntegrity"],
-      // It's unclear whether we'll trial this feature separately from
-      // `SignatureBasedIntegrity`, but we must specify an origin trial feature
-      // name in order for the `implied_by` relationship above to function.
-      origin_trial_feature_name: "UnencodedDigest"
+      status: "stable",
     },
     {
       name: "UnexposedTaskIds",
@@ -5576,12 +5597,8 @@
     },
     {
       name: "WebIdentityDigitalCredentials",
-      origin_trial_feature_name: "WebIdentityDigitalCredentials",
-      origin_trial_os: ["android", "win", "mac", "linux", "chromeos"],
-      origin_trial_allows_third_party: true,
-      implied_by: ["WebIdentityDigitalCredentialsCreation"],
       public: true,
-      status: "experimental",
+      status: "stable",
       base_feature: "none",
     },
     {
@@ -5639,6 +5656,11 @@
     {
       name: "WebSpeechRecognitionContext",
       status: "experimental",
+    },
+    {
+      name: "WebTransportApplicationProtocol",
+      status: "experimental",
+      base_feature: "none",
     },
     {
       name: "WebTransportCustomCertificates",
@@ -5779,7 +5801,7 @@
     },
     {
       name: "WidthAndHeightAsPresentationAttributesOnNestedSvg",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "WidthAndHeightStylePropertiesOnUseAndSymbol",
@@ -5791,6 +5813,10 @@
     // no problems are encountered.
     {
       name: "WindowDefaultStatus",
+    },
+    {
+      name: "WordSpacingWhiteSpacePre",
+      status: "stable",
     },
     {
       name: "XMLSerializerConsistentDefaultNsDeclMatching",

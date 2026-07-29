@@ -91,6 +91,7 @@ public class TopInsetCoordinatorUnitTest {
     }
 
     @Test
+    @SuppressWarnings("DirectInvocationOnMock")
     public void testOnApplyWindowInsets_ConsumeTopInset() {
         Mockito.clearInvocations(mObserver);
         mTopInsetCoordinator.onTabSwitched(mNtpTab);
@@ -161,7 +162,7 @@ public class TopInsetCoordinatorUnitTest {
         mTopInsetCoordinator.onTabSwitched(mNonNtpTab1);
         mTopInsetCoordinator.destroy();
 
-        mInsetObserver.removeInsetsConsumer(eq(mTopInsetCoordinator));
+        verify(mInsetObserver).removeInsetsConsumer(any(InsetObserver.WindowInsetsConsumer.class));
         verify(mNonNtpTab1).removeObserver(any(TabObserver.class));
         assertEquals(0, mTopInsetCoordinator.getObserverCountForTesting());
     }

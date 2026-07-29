@@ -428,6 +428,7 @@ if (is_android) {
   robolectric_library("chrome_junit_tests_org.chromium.chrome.browser.app") {
     sources = [
       "src/org/chromium/chrome/browser/app/appmenu/AppMenuPropertiesDelegateUnitTest.java",
+      "src/org/chromium/chrome/browser/app/download/home/DownloadPageUnitTest.java",
       "src/org/chromium/chrome/browser/app/flags/ChromeCachedFlagsUnitTest.java",
       "src/org/chromium/chrome/browser/app/metrics/LaunchCauseMetricsTest.java",
       "src/org/chromium/chrome/browser/app/metrics/TabbedActivityLaunchCauseMetricsUnitTest.java",
@@ -444,6 +445,7 @@ if (is_android) {
       ":chrome_junit_tests_helper",
       "//base:flagged_apis_java",
       "//chrome/browser/tabpersistence:java",
+      "//chrome/browser/ui/android/edge_to_edge:factory_java",
     ]
   }
 
@@ -497,6 +499,17 @@ if (is_android) {
     ]
 
     deps = [ ":chrome_junit_tests_helper" ]
+  }
+
+  robolectric_library(
+      "chrome_junit_tests_org.chromium.chrome.browser.bookmarks") {
+    sources = [
+      "src/org/chromium/chrome/browser/bookmarks/BookmarkPageUnitTest.java",
+    ]
+    deps = [
+      ":chrome_junit_tests_helper",
+      "//chrome/browser/ui/android/edge_to_edge:factory_java",
+    ]
   }
 
   robolectric_library(
@@ -1160,6 +1173,7 @@ if (is_android) {
       "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/TabSwitcherPaneDrawableViewBinderUnitTest.java",
       "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/TabSwitcherPaneMediatorUnitTest.java",
       "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/TabSwitcherPaneUnitTest.java",
+      "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/TabUiThemeProviderUnitTest.java",
       "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/TabUiUtilsUnitTest.java",
       "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/TabsSettingsUnitTest.java",
       "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/ThumbnailFetcherUnitTest.java",

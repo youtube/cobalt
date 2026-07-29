@@ -1831,6 +1831,7 @@ interface Document : Node
     getter xmlVersion
     method adoptNode
     method append
+    method ariaNotify
     method captureEvents
     method caretPositionFromPoint
     method caretRangeFromPoint
@@ -2189,6 +2190,7 @@ interface Element : Node
     method after
     method animate
     method append
+    method ariaNotify
     method attachShadow
     method before
     method checkVisibility
@@ -5928,6 +5930,10 @@ interface NavigationHistoryEntry : EventTarget
     method constructor
     method getState
     setter ondispose
+interface NavigationPrecommitController
+    attribute @@toStringTag
+    method constructor
+    method redirect
 interface NavigationPreloadManager
     attribute @@toStringTag
     method constructor
@@ -5937,6 +5943,7 @@ interface NavigationPreloadManager
     method setHeaderValue
 interface NavigationTransition
     attribute @@toStringTag
+    getter committed
     getter finished
     getter from
     getter navigationType
@@ -6915,6 +6922,7 @@ interface RTCRtpReceiver
     getter playoutDelayHint
     getter rtcpTransport
     getter track
+    getter transform
     getter transport
     method constructor
     method createEncodedStreams
@@ -6924,12 +6932,17 @@ interface RTCRtpReceiver
     method getSynchronizationSources
     setter jitterBufferTarget
     setter playoutDelayHint
+    setter transform
+interface RTCRtpScriptTransform
+    attribute @@toStringTag
+    method constructor
 interface RTCRtpSender
     static method getCapabilities
     attribute @@toStringTag
     getter dtmf
     getter rtcpTransport
     getter track
+    getter transform
     getter transport
     method constructor
     method createEncodedStreams
@@ -6938,6 +6951,7 @@ interface RTCRtpSender
     method replaceTrack
     method setParameters
     method setStreams
+    setter transform
 interface RTCRtpTransceiver
     attribute @@toStringTag
     getter currentDirection

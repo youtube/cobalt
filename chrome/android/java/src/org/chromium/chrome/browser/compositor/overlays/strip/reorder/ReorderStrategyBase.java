@@ -21,7 +21,6 @@ import org.chromium.base.MathUtils;
 import org.chromium.base.Token;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.ObservableSupplierImpl;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.chrome.browser.compositor.overlays.strip.AnimationHost;
 import org.chromium.chrome.browser.compositor.overlays.strip.ScrollDelegate;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutGroupTitle;
@@ -42,6 +41,7 @@ import org.chromium.ui.base.LocalizationUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 
 /** Base class for {@link ReorderStrategy} implementations. */
 abstract class ReorderStrategyBase implements ReorderStrategy {
@@ -186,7 +186,8 @@ abstract class ReorderStrategyBase implements ReorderStrategy {
             boolean isMovingOutOfGroup,
             boolean throughGroupTitle,
             @NonNull List<Animator> animators) {
-        float effectiveTabWidth = StripLayoutUtils.getEffectiveTabWidth(mTabWidthSupplier);
+        float effectiveTabWidth =
+                StripLayoutUtils.getEffectiveTabWidth(mTabWidthSupplier, /* isPinned= */ false);
         float endWidth =
                 StripLayoutUtils.calculateBottomIndicatorWidth(
                         groupTitle,
@@ -241,8 +242,11 @@ abstract class ReorderStrategyBase implements ReorderStrategy {
             boolean shouldHaveTrailingMargin,
             @NonNull List<Animator> animationList) {
         // Avoid triggering updates if trailing margin isn't actually changing.
-        float halfTabWidth = StripLayoutUtils.getHalfTabWidth(mTabWidthSupplier);
-        float trailingMargin = shouldHaveTrailingMargin ? halfTabWidth : 0f;
+        float trailingMargin =
+                shouldHaveTrailingMargin
+                        ? StripLayoutUtils.getHalfTabWidth(
+                                mTabWidthSupplier, TabStripDragHandler.isDraggedItemPinned())
+                        : 0f;
         if (stripView.getTrailingMargin() == trailingMargin) return;
 
         // Update group title bottom indicator width if needed.
@@ -256,7 +260,8 @@ abstract class ReorderStrategyBase implements ReorderStrategy {
                                     groupTitle,
                                     StripLayoutUtils.getNumOfTabsInGroup(
                                             mTabGroupModelFilter, groupTitle),
-                                    StripLayoutUtils.getEffectiveTabWidth(mTabWidthSupplier))
+                                    StripLayoutUtils.getEffectiveTabWidth(
+                                            mTabWidthSupplier, /* isPinned= */ false))
                             + trailingMargin;
 
             animationList.add(
@@ -304,7 +309,7 @@ abstract class ReorderStrategyBase implements ReorderStrategy {
      */
     protected void setEdgeMarginsForReorder(StripLayoutTab[] stripTabs) {
         float marginWidth =
-                StripLayoutUtils.getHalfTabWidth(mTabWidthSupplier)
+                StripLayoutUtils.getHalfTabWidth(mTabWidthSupplier, /* isPinned= */ false)
                         * StripLayoutUtils.REORDER_OVERLAP_SWITCH_PERCENTAGE;
 
         // 1. Set the start margin. Update the scroll offset to prevent any apparent movement.
@@ -416,15 +421,18 @@ abstract class ReorderStrategyBase implements ReorderStrategy {
     // Threshold helpers
     // ============================================================================================
 
-    /** Returns the threshold to swap the interacting views with an adjacent tab. */
-    protected float getTabSwapThreshold() {
-        return StripLayoutUtils.getEffectiveTabWidth(mTabWidthSupplier)
+    /**
+     * @param isPinned Whether the tab is pinned.
+     * @return The threshold to swap the interacting views with an adjacent tab.
+     */
+    protected float getTabSwapThreshold(boolean isPinned) {
+        return StripLayoutUtils.getEffectiveTabWidth(mTabWidthSupplier, isPinned)
                 * StripLayoutUtils.REORDER_OVERLAP_SWITCH_PERCENTAGE;
     }
 
     /** Returns the threshold to drag into a group. */
     protected float getDragInThreshold() {
-        return StripLayoutUtils.getHalfTabWidth(mTabWidthSupplier)
+        return StripLayoutUtils.getHalfTabWidth(mTabWidthSupplier, /* isPinned= */ false)
                 * StripLayoutUtils.REORDER_OVERLAP_SWITCH_PERCENTAGE;
     }
 
@@ -435,7 +443,7 @@ abstract class ReorderStrategyBase implements ReorderStrategy {
      */
     protected float getDragOutThreshold(StripLayoutGroupTitle groupTitle, boolean towardEnd) {
         float dragOutThreshold =
-                StripLayoutUtils.getHalfTabWidth(mTabWidthSupplier)
+                StripLayoutUtils.getHalfTabWidth(mTabWidthSupplier, /* isPinned= */ false)
                         * StripLayoutUtils.REORDER_OVERLAP_SWITCH_PERCENTAGE;
         return dragOutThreshold + (towardEnd ? 0 : groupTitle.getWidth());
     }

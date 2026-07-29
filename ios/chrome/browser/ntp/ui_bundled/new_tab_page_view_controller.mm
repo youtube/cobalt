@@ -19,6 +19,7 @@
 #import "ios/chrome/browser/content_suggestions/ui_bundled/magic_stack/magic_stack_collection_view.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/magic_stack/magic_stack_constants.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/ntp_home_constant.h"
+#import "ios/chrome/browser/home_customization/ui/home_customization_image_view.h"
 #import "ios/chrome/browser/ntp/shared/metrics/feed_metrics_constants.h"
 #import "ios/chrome/browser/ntp/shared/metrics/feed_metrics_recorder.h"
 #import "ios/chrome/browser/ntp/ui_bundled/discover_feed_constants.h"
@@ -188,8 +189,9 @@ CGFloat SpaceBetweenModules() {
   NSLayoutConstraint* _moduleWidth;
   // The current background image.
   UIImage* _backgroundImage;
+  HomeCustomizationFramingCoordinates* _framingCoordinates;
   // The image view to display the current background image.
-  UIImageView* _backgroundImageView;
+  HomeCustomizationImageView* _backgroundImageView;
   // The view controller holding the NTP quick actions buttons.
   // Only created when the fakebox buttons are replaced.
   NewTabPageQuickActionsViewController* _quickActionsViewController;
@@ -248,9 +250,8 @@ CGFloat SpaceBetweenModules() {
             self.traitCollection.userInterfaceStyle];
 
   if (IsNTPBackgroundCustomizationEnabled()) {
-    _backgroundImageView = [[UIImageView alloc] init];
+    _backgroundImageView = [[HomeCustomizationImageView alloc] init];
     _backgroundImageView.translatesAutoresizingMaskIntoConstraints = NO;
-    _backgroundImageView.contentMode = UIViewContentModeScaleAspectFill;
     [self updateBackgroundImageView];
     [self.view addSubview:_backgroundImageView];
     AddSameConstraints(_backgroundImageView, self.view);
@@ -503,6 +504,7 @@ CGFloat SpaceBetweenModules() {
           .translatesAutoresizingMaskIntoConstraints = NO;
       [_feedContainer addSubview:_feedVisualEffectBackgroundView];
       AddSameConstraints(_feedContainer, _feedVisualEffectBackgroundView);
+      [self applyBackgroundThemeToFeedContainer];
     } else {
       _feedContainer.backgroundColor = [UIColor colorNamed:kBackgroundColor];
     }
@@ -645,6 +647,7 @@ CGFloat SpaceBetweenModules() {
   if (_feedContainer) {
     [_feedContainer removeFromSuperview];
     _feedContainer = nil;
+    _feedVisualEffectBackgroundView = nil;
   }
 
   [self removeFromViewHierarchy:self.feedWrapperViewController];
@@ -670,7 +673,7 @@ CGFloat SpaceBetweenModules() {
   // offset to the top is important since the MVTiles and Google doodle are aync
   // fetched/displayed, thus needed a reset. However, in the instance where the
   // omnibox is focused, it is more important to keep that focused state and not
-  // show a "double" omibox state.
+  // show a "double" omnibox state.
   // TODO(crbug.com/40241297): Replace the -setContentOffsetForWebState: call
   // with calls directly from all async updates to the NTP.
   if (self.omniboxFocused) {
@@ -850,8 +853,11 @@ CGFloat SpaceBetweenModules() {
   }
 }
 
-- (void)setBackgroundImage:(UIImage*)backgroundImage {
+- (void)setBackgroundImage:(UIImage*)backgroundImage
+        framingCoordinates:
+            (HomeCustomizationFramingCoordinates*)framingCoordinates {
   _backgroundImage = backgroundImage;
+  _framingCoordinates = framingCoordinates;
 
   [self updateBackgroundImageView];
 }
@@ -1118,11 +1124,11 @@ CGFloat SpaceBetweenModules() {
 // Sets the background using the current color palette, or defaults if none is
 // set.
 - (void)applyBackgroundTheme {
+  [self applyBackgroundThemeToFeedContainer];
+
   BOOL hasImageBackground =
       [self.traitCollection boolForNewTabPageImageBackgroundTrait];
   if (hasImageBackground) {
-    _feedContainer.backgroundColor = UIColor.clearColor;
-    _feedVisualEffectBackgroundView.hidden = NO;
     _backgroundGradientView.hidden = YES;
     self.view.backgroundColor = [UIColor colorNamed:@"ntp_background_color"];
     return;
@@ -1130,7 +1136,6 @@ CGFloat SpaceBetweenModules() {
 
   _backgroundGradientView.hidden =
       self.traitCollection.userInterfaceStyle == UIUserInterfaceStyleLight;
-  _feedVisualEffectBackgroundView.hidden = YES;
 
   NewTabPageColorPalette* colorPalette =
       [self.traitCollection objectForNewTabPageTrait];
@@ -1139,14 +1144,32 @@ CGFloat SpaceBetweenModules() {
     self.view.backgroundColor = colorPalette.primaryColor;
     [_backgroundGradientView setStartColor:colorPalette.secondaryColor
                                   endColor:colorPalette.primaryColor];
-    _feedContainer.backgroundColor = colorPalette.secondaryCellColor;
   } else {
     self.view.backgroundColor = [UIColor colorNamed:@"ntp_background_color"];
     [_backgroundGradientView
         setStartColor:[UIColor colorNamed:kSecondaryBackgroundColor]
              endColor:[UIColor colorNamed:kPrimaryBackgroundColor]];
-    _feedContainer.backgroundColor = [UIColor colorNamed:kBackgroundColor];
   }
+}
+
+// Sets the feed container's background views correctly based on the current
+// theme settings.
+- (void)applyBackgroundThemeToFeedContainer {
+  BOOL hasImageBackground =
+      [self.traitCollection boolForNewTabPageImageBackgroundTrait];
+  if (hasImageBackground) {
+    _feedContainer.backgroundColor = UIColor.clearColor;
+    _feedVisualEffectBackgroundView.hidden = NO;
+    return;
+  }
+  _feedVisualEffectBackgroundView.hidden = YES;
+
+  NewTabPageColorPalette* colorPalette =
+      [self.traitCollection objectForNewTabPageTrait];
+
+  _feedContainer.backgroundColor = colorPalette
+                                       ? colorPalette.secondaryCellColor
+                                       : [UIColor colorNamed:kBackgroundColor];
 }
 
 - (void)setNTPShortcutsHandler:
@@ -1735,7 +1758,8 @@ CGFloat SpaceBetweenModules() {
 
 // Updates the background image view's state based on the current data.
 - (void)updateBackgroundImageView {
-  _backgroundImageView.image = _backgroundImage;
+  [_backgroundImageView setImage:_backgroundImage
+              framingCoordinates:_framingCoordinates];
   _backgroundImageView.hidden = !_backgroundImage;
 }
 

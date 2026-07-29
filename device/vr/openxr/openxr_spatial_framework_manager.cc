@@ -49,7 +49,8 @@ OpenXrSpatialFrameworkManager::OpenXrSpatialFrameworkManager(
   }
 
   if (supported_features.contains(device::mojom::XRSessionFeature::ANCHORS)) {
-    anchor_manager_ = std::make_unique<OpenXrSpatialAnchorManager>();
+    anchor_manager_ = std::make_unique<OpenXrSpatialAnchorManager>(
+        extension_helper_.get(), *this, base_space_);
     anchor_manager_->PopulateCapabilityConfiguration(capability_configuration);
   }
 
@@ -225,7 +226,13 @@ OpenXrSpatialFrameworkManagerFactory::~OpenXrSpatialFrameworkManagerFactory() =
 
 const base::flat_set<std::string_view>&
 OpenXrSpatialFrameworkManagerFactory::GetRequestedExtensions() const {
+  if (!base::FeatureList::IsEnabled(features::kOpenXrSpatialEntities)) {
+    static base::NoDestructor<base::flat_set<std::string_view>> kEmptySet({});
+    return *kEmptySet;
+  }
+
   static base::NoDestructor<base::flat_set<std::string_view>> kExtensions({
+      XR_EXT_FUTURE_EXTENSION_NAME,
       XR_EXT_SPATIAL_ENTITY_EXTENSION_NAME,
       XR_EXT_SPATIAL_ANCHOR_EXTENSION_NAME,
       XR_EXT_SPATIAL_PLANE_TRACKING_EXTENSION_NAME,

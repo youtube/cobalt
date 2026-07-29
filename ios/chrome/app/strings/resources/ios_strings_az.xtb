@@ -21,6 +21,7 @@
 <translation id="1072476005125066234">Maraqlarınıza əsasən rəylər</translation>
 <translation id="1074827084851510304">{password_count} parolu və girişi yadda saxlamamağı seçdiyiniz sayt və tətbiqlərin siyahısını silmək üzrəsiniz. Sayt və tətbiqlər üçün yaratdığınız hər hansı hesab silinməyəcək.</translation>
 <translation id="1076421457278169141">Kod skan olundu</translation>
+<translation id="1081114897601629648">Aşağıdakı parollar tələblərə uyğun olmadığı üçün Google Parol Menecerinə import edilmədi.</translation>
 <translation id="1081932398873105675">{count,plural, =1{{count} tab}other{{count} tab}}</translation>
 <translation id="1082554859195167538">Sizin üçün məhsul rəyləri</translation>
 <translation id="1084365883616172403">Facebook paylaşımı tamamlandı.</translation>
@@ -121,7 +122,6 @@
 <translation id="1469381646033328562">Hesabı valideyn idarə edir.
 <ph name="BEGIN_LINK" />Ətraflı məlumat<ph name="END_LINK" /></translation>
 <translation id="147982357559798527">Dəyişdirildi</translation>
-<translation id="1485907716209290998">Bağlamanın izlənməsi</translation>
 <translation id="1486096554574027028">Parolları axtarın</translation>
 <translation id="1491277525950327607">Ayarı dəyişmək üçün iki dəfə klikləyin</translation>
 <translation id="1491965206608166851">İstənilən tətbiqdə saxlanmış parol və giriş açarlarınız ilə daxil olun</translation>
@@ -241,6 +241,7 @@
 <translation id="1902277226107477495">Ünvanın aşkarlanması sönülüdür. Onu Ayarlarda yenidən yandırın.</translation>
 <translation id="1904580727789512086">Ziyarət etdiyiniz keçidlər Google Hesabınızda saxlanılır</translation>
 <translation id="1911619930368729126">Google Diskə yükləyin</translation>
+<translation id="1925706052394657380">iOS-da <ph name="BEGIN_BOLD" />Defolt tətbiqlər<ph name="END_BOLD" /> ayarlarını açın</translation>
 <translation id="1941314575388338491">Kopyalamaq üçün iki dəfə tıklayın.</translation>
 <translation id="1943478190258551035">Menyu → Ayarlar</translation>
 <translation id="1952728750904661634">İdarə olunan hesab ilə daxil olun</translation>
@@ -250,6 +251,7 @@
 <translation id="1962348300797608157"><ph name="BEGIN_BOLD" /><ph name="FULL_NAME" /><ph name="END_BOLD" /> <ph name="WEBSITE" /> üçün parol paylaşıb</translation>
 <translation id="1962969542251276847">Ekranı kilidləyin</translation>
 <translation id="1963976881984600709">Standart qoruma</translation>
+<translation id="1964507856799750384"><ph name="BEGIN_BOLD" />Brauzer tətbiqinə<ph name="END_BOLD" /> toxunun</translation>
 <translation id="1966313166384086081">sayt datası</translation>
 <translation id="1967461193809857427">{count,plural, =1{Android-də qaldığınız tabdan davam edilsin?}other{Android-də qaldığınız tablardan davam edilsin?}}</translation>
 <translation id="1972325230031091483">Cari veb səhifə ziyarətinizə əsasən məzmun proaktiv şəkildə yükləndiyinə görə daha sürətli gözdən keçirəcəksiniz</translation>
@@ -599,7 +601,6 @@ Axtarış tarixçənizi silmək üçün axtarış mexanizminizin təlimatlarına
 <translation id="333229797575847124">Bu funksiyanı aktivləşdirmə qaydası</translation>
 <translation id="3344485292736684439">{count,plural, =1{Əlfəcin hesabda ({email}) "{title}" bölməsində saxlandı}other{Əlfəcinlər hesabda ({email}) "{title}" bölməsində saxlandı}}</translation>
 <translation id="334690320928261823">Son tablar</translation>
-<translation id="3348387552617855658">Bu kart bağlamaları izləmək imkanı və vacib çatdırılma məlumatları təmin edir.</translation>
 <translation id="3349031117032695619">Popapları bloklayın</translation>
 <translation id="3349676726073650389">İzlədiyiniz sayt və axtarışlar Google Hesabında yadda saxlanır. Ayarlarda izlədiklərinizi idarə edə bilərsiniz.</translation>
 <translation id="3353037916374303415"><ph name="EMAIL" />. Bu hesab idarə edilir.</translation>
@@ -1398,7 +1399,6 @@ Handoff Ayarların Ümumi bölməsindən də aktiv edilə bilər və cihazların
 <translation id="6406506848690869874">Sinx</translation>
 <translation id="6410390304316730527">Təhlükəsiz Baxış sizi zərərli proqram təminatı quraşdırmaq və ya parol, telefon nömrəsi, kredit kartı kimi şəxsi məlumatlarınızı aşkar etmək kimi təhlükəli əməliyyatlara sövq etmək üçün aldada biləcək hücumlardan qoruyur. Bu xüsusiyyəti söndürsəniz, tanış və ya məşhur olmayan saytlara baxarkən ehtiyatlı olun.</translation>
 <translation id="6410883413783534063">Müxtəlif səhifələrə eyni vaxtda daxil olmaq üçün tabları açın</translation>
-<translation id="6416807286621280684">İzlənilən paketləriniz və çatdırılma bildirişləriniz.</translation>
 <translation id="6418346271604475326">PDF hazırlanır</translation>
 <translation id="6421038304268477484">Tərcümə olunmuş mətn</translation>
 <translation id="6429213933892582367">Parol Seçimlərini açın</translation>

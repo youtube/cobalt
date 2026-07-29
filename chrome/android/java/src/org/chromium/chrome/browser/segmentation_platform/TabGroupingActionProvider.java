@@ -6,7 +6,6 @@ package org.chromium.chrome.browser.segmentation_platform;
 
 import static org.chromium.build.NullUtil.assumeNonNull;
 
-import org.chromium.base.supplier.Supplier;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
 import org.chromium.build.annotations.NullMarked;
@@ -16,6 +15,8 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab_group_suggestion.toolbar.GroupSuggestionsButtonController;
 import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonVariant;
 import org.chromium.ui.base.DeviceFormFactor;
+
+import java.util.function.Supplier;
 
 @NullMarked
 public class TabGroupingActionProvider implements ContextualPageActionController.ActionProvider {
@@ -30,7 +31,8 @@ public class TabGroupingActionProvider implements ContextualPageActionController
 
     @Override
     public void onActionShown(@Nullable Tab tab, @AdaptiveToolbarButtonVariant int action) {
-        if (!mGroupSuggestionsButtonControllerSupplier.hasValue()) {
+        var groupSuggestionsButtonController = mGroupSuggestionsButtonControllerSupplier.get();
+        if (groupSuggestionsButtonController == null) {
             return;
         }
 
@@ -49,7 +51,7 @@ public class TabGroupingActionProvider implements ContextualPageActionController
                 () -> {
                     if (tab == null
                             || tab.getWindowAndroid() == null
-                            || !mGroupSuggestionsButtonControllerSupplier.hasValue()) {
+                            || !(mGroupSuggestionsButtonControllerSupplier.get() != null)) {
                         signalAccumulator.setSignal(
                                 AdaptiveToolbarButtonVariant.TAB_GROUPING, false);
                         return;

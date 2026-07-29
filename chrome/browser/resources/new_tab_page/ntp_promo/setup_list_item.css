@@ -15,7 +15,7 @@
   --setup-list-icon-foreground: var(--color-sys-on-tonal-container);
   --setup-list-action-icon-foreground: var(--color-sys-on-surface-subtle);
   --setup-list-completed-foreground: var(--color-sys-state-disabled);
-  --setup-list-completed-icon-background: var(--color-sys-neutral-container);
+  --setup-list-completed-icon-background: var(--color-sys-tertiary-container);
   --setup-list-completed-icon-foreground: var(--color-sys-on-surface-subtle);
   --setup-list-element-spacing: 24px;
   --setup-list-icon-background: var(--color-sys-tonal-container);
@@ -26,13 +26,18 @@
   display: flex;
 }
 
+/* This styling includes overriding default <button> properties. */
 #backing {
   align-items: center;
+  background-color: transparent;
+  border: none;
   color: var(--setup-list-foreground);
   cursor: pointer;
   display: flex;
   flex-grow: 1;
+  font: inherit;
   padding: var(--setup-list-padding);
+  text-align: start;
 }
 
 #backing.pending:hover {
@@ -92,6 +97,10 @@
   );
   text-align: center;
   width: var(--setup-list-icon-size);
+}
+
+#actionIcon:dir(rtl) {
+  transform: scaleX(-1);
 }
 
 .completed #actionIcon {

@@ -42,6 +42,12 @@ content::DropData ValidUrlDropData() {
   return valid_url_data;
 }
 
+content::DropData NonStandardUrlDropData() {
+  content::DropData valid_url_data;
+  valid_url_data.url = GURL("mailto:me@google.com");
+  return valid_url_data;
+}
+
 void SetRTL(bool rtl) {
   // Override the current locale/direction.
   base::i18n::SetICUDefaultLocale(rtl ? "he" : "en");
@@ -53,7 +59,8 @@ class MockDropDelegate
  public:
   MOCK_METHOD(void,
               HandleLinkDrop,
-              (MultiContentsDropTargetView::DropSide, const std::vector<GURL>&),
+              (MultiContentsDropTargetView::DropSide,
+               const ui::DropTargetEvent&),
               (override));
   MOCK_METHOD(void,
               HandleTabDrop,
@@ -228,6 +235,16 @@ TEST_F(MultiContentsViewDropTargetControllerNudgeDisabledTest,
 }
 
 // Tests that the drop target is not shown when an invalid url is being dragged.
+TEST_F(MultiContentsViewDropTargetControllerNudgeDisabledTest,
+       OnWebContentsDragUpdate_HideDropTargetOnNonStandardURL) {
+  controller().OnWebContentsDragUpdate(NonStandardUrlDropData(),
+                                       kDragPointForStartDropTargetShow, false);
+  FastForward();
+  EXPECT_FALSE(drop_target_view().GetVisible());
+}
+
+// Tests that the drop target is not shown when a non-standard url is being
+// dragged.
 TEST_F(MultiContentsViewDropTargetControllerNudgeDisabledTest,
        OnWebContentsDragUpdate_HideDropTargetOnInvalidURL) {
   controller().OnWebContentsDragUpdate(content::DropData(),
@@ -631,9 +648,9 @@ TEST_F(MultiContentsViewDropTargetControllerDragTest, DragDelegateMethods) {
   drop_data.SetURL(url, u"Google");
   const ui::DropTargetEvent drop_event(drop_data, gfx::PointF(), gfx::PointF(),
                                        ui::DragDropTypes::DRAG_LINK);
-  EXPECT_CALL(drop_delegate(),
-              HandleLinkDrop(MultiContentsDropTargetView::DropSide::START,
-                             testing::ElementsAre(url)));
+  EXPECT_CALL(
+      drop_delegate(),
+      HandleLinkDrop(MultiContentsDropTargetView::DropSide::START, testing::_));
   views::View::DropCallback callback = controller().GetDropCallback(drop_event);
   ui::mojom::DragOperation output_op = ui::mojom::DragOperation::kNone;
   std::unique_ptr<ui::LayerTreeOwner> drag_image;

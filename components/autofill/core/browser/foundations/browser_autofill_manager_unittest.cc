@@ -63,6 +63,7 @@
 #include "components/autofill/core/browser/form_structure_test_api.h"
 #include "components/autofill/core/browser/foundations/autofill_client.h"
 #include "components/autofill/core/browser/foundations/browser_autofill_manager_test_api.h"
+#include "components/autofill/core/browser/foundations/mock_autofill_manager_observer.h"
 #include "components/autofill/core/browser/foundations/test_autofill_client.h"
 #include "components/autofill/core/browser/foundations/test_autofill_driver.h"
 #include "components/autofill/core/browser/foundations/test_autofill_manager_waiter.h"
@@ -74,7 +75,7 @@
 #include "components/autofill/core/browser/integrators/compose/mock_autofill_compose_delegate.h"
 #include "components/autofill/core/browser/integrators/identity_credential/identity_credential_delegate.h"
 #include "components/autofill/core/browser/integrators/identity_credential/mock_identity_credential_delegate.h"
-#include "components/autofill/core/browser/integrators/optimization_guide/mock_autofill_optimization_guide.h"
+#include "components/autofill/core/browser/integrators/optimization_guide/mock_autofill_optimization_guide_decider.h"
 #include "components/autofill/core/browser/integrators/password_form_classification.h"
 #include "components/autofill/core/browser/integrators/password_manager/mock_otp_delegate.h"
 #include "components/autofill/core/browser/integrators/password_manager/mock_password_manager_delegate.h"
@@ -964,8 +965,8 @@ class MockAmountExtractionManager : public payments::AmountExtractionManager {
  public:
   explicit MockAmountExtractionManager(TestBrowserAutofillManager* test_manager)
       : AmountExtractionManager(test_manager) {
-    ON_CALL(*static_cast<MockAutofillOptimizationGuide*>(
-                test_manager->client().GetAutofillOptimizationGuide()),
+    ON_CALL(*static_cast<MockAutofillOptimizationGuideDecider*>(
+                test_manager->client().GetAutofillOptimizationGuideDecider()),
             IsUrlEligibleForBnplIssuer)
         .WillByDefault(Return(true));
   }
@@ -991,6 +992,8 @@ class TestBrowserAutofillManager : public autofill::TestBrowserAutofillManager {
   }
 
   using autofill::TestBrowserAutofillManager::TestBrowserAutofillManager;
+
+  using AutofillManager::GetCurrentPageLanguage;
 };
 
 AutofillProfile FillDataToAutofillProfile(const TestAddressFillData& data) {
@@ -2284,7 +2287,8 @@ TEST_F(BrowserAutofillManagerTestValuables,
       test::GetFormData({.fields = {{.role = EMAIL_OR_LOYALTY_MEMBERSHIP_ID},
                                     {.role = PASSWORD}}});
   auto form_structure = std::make_unique<FormStructure>(form_data);
-  form_structure->DetermineHeuristicTypes(GeoIpCountryCode(""), nullptr);
+  form_structure->DetermineHeuristicTypes(GeoIpCountryCode(""),
+                                          LanguageCode(""), nullptr);
 
   test_api(*form_structure)
       .SetFieldTypes({EMAIL_OR_LOYALTY_MEMBERSHIP_ID, PASSWORD},
@@ -2357,7 +2361,8 @@ TEST_F(BrowserAutofillManagerTestValuables,
       test::GetFormData({.fields = {{.role = EMAIL_OR_LOYALTY_MEMBERSHIP_ID},
                                     {.role = PASSWORD}}});
   auto form_structure = std::make_unique<FormStructure>(form_data);
-  form_structure->DetermineHeuristicTypes(GeoIpCountryCode(""), nullptr);
+  form_structure->DetermineHeuristicTypes(GeoIpCountryCode(""),
+                                          LanguageCode(""), nullptr);
 
   test_api(*form_structure)
       .SetFieldTypes({EMAIL_OR_LOYALTY_MEMBERSHIP_ID, PASSWORD},
@@ -3122,7 +3127,7 @@ TEST_F(BrowserAutofillManagerTest,
        ShouldTriggerAmountExtraction_IfCreditCardFormIsClicked) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitWithFeatures(
-      /*enabled_features=*/{features::kAutofillEnableAmountExtractionDesktop,
+      /*enabled_features=*/{features::kAutofillEnableAmountExtraction,
                             features::kAutofillEnableBuyNowPayLaterSyncing,
                             features::kAutofillEnableBuyNowPayLater},
       /*disabled_features=*/{});
@@ -3140,7 +3145,7 @@ TEST_F(BrowserAutofillManagerTest,
 
   // Verify that the amount extraction is triggered.
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
-    BUILDFLAG(IS_CHROMEOS)
+    BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
   EXPECT_CALL(amount_extraction_manager(), TriggerCheckoutAmountExtraction)
       .Times(1);
   EXPECT_CALL(*manager().GetPaymentsBnplManager(), NotifyOfSuggestionGeneration)
@@ -3148,7 +3153,8 @@ TEST_F(BrowserAutofillManagerTest,
 #else
   EXPECT_CALL(amount_extraction_manager(), TriggerCheckoutAmountExtraction)
       .Times(0);
-#endif
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
+        // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
 
   OnAskForValuesToFill(form, card_number_field);
 
@@ -3163,7 +3169,7 @@ TEST_F(BrowserAutofillManagerTest,
        ShouldNotTriggerAmountExtraction_IfNonCreditCardFormIsClicked) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitWithFeatures(
-      /*enabled_features=*/{features::kAutofillEnableAmountExtractionDesktop,
+      /*enabled_features=*/{features::kAutofillEnableAmountExtraction,
                             features::kAutofillEnableBuyNowPayLaterSyncing,
                             features::kAutofillEnableBuyNowPayLater},
       /*disabled_features=*/{});
@@ -3196,7 +3202,7 @@ TEST_F(BrowserAutofillManagerTest,
        ShouldNotTriggerAmountExtraction_IfNoSuggestion) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitWithFeatures(
-      /*enabled_features=*/{features::kAutofillEnableAmountExtractionDesktop,
+      /*enabled_features=*/{features::kAutofillEnableAmountExtraction,
                             features::kAutofillEnableBuyNowPayLaterSyncing,
                             features::kAutofillEnableBuyNowPayLater},
       /*disabled_features=*/{});
@@ -3234,7 +3240,7 @@ TEST_F(BrowserAutofillManagerTest,
        ShouldNotTriggerAmountExtraction_IfAutofillDisabled) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitWithFeatures(
-      /*enabled_features=*/{features::kAutofillEnableAmountExtractionDesktop,
+      /*enabled_features=*/{features::kAutofillEnableAmountExtraction,
                             features::kAutofillEnableBuyNowPayLaterSyncing,
                             features::kAutofillEnableBuyNowPayLater},
       /*disabled_features=*/{});
@@ -4066,17 +4072,17 @@ TEST_F(BrowserAutofillManagerWithLogEventsTest, LogEventsAtFormSubmitted) {
 
   const std::vector<AutofillField::FieldLogEventType> focus_field_log_events =
       autofill_field->field_log_events();
-  ASSERT_EQ(u"First Name", autofill_field->parseable_label());
+  ASSERT_EQ(u"First Name", autofill_field->label());
   const TriggerFillFieldLogEvent* trigger_fill_field_log_event =
       FindFirstEventOfType<TriggerFillFieldLogEvent>(focus_field_log_events);
   ASSERT_TRUE(trigger_fill_field_log_event);
 
   for (const auto& autofill_field_ptr : *form_structure) {
-    SCOPED_TRACE(autofill_field_ptr->parseable_label());
+    SCOPED_TRACE(autofill_field_ptr->label());
     std::vector<AutofillField::FieldLogEventType> expected_events =
         ToFieldTypeEvents(*autofill_field_ptr);
 
-    if (autofill_field_ptr->parseable_label() == u"First Name") {
+    if (autofill_field_ptr->label() == u"First Name") {
       // The "First Name" field is the trigger field, so it contains the
       // TriggerFillFieldLogEvent followed by a FillFieldLogEvent.
       expected_events.push_back(TriggerFillFieldLogEvent{
@@ -4145,7 +4151,7 @@ TEST_F(BrowserAutofillManagerWithLogEventsTest,
 
   const std::vector<AutofillField::FieldLogEventType>& focus_field_log_events =
       autofill_field->field_log_events();
-  ASSERT_EQ(u"First Name", autofill_field->parseable_label());
+  ASSERT_EQ(u"First Name", autofill_field->label());
   const TriggerFillFieldLogEvent* trigger_fill_field_log_event =
       FindFirstEventOfType<TriggerFillFieldLogEvent>(focus_field_log_events);
   ASSERT_TRUE(trigger_fill_field_log_event);
@@ -4154,11 +4160,11 @@ TEST_F(BrowserAutofillManagerWithLogEventsTest,
   // all following FillFieldLogEvents.
   FillEventId fill_event_id = trigger_fill_field_log_event->fill_event_id;
   for (const auto& autofill_field_ptr : *form_structure) {
-    SCOPED_TRACE(autofill_field_ptr->parseable_label());
+    SCOPED_TRACE(autofill_field_ptr->label());
     std::vector<AutofillField::FieldLogEventType> expected_events =
         ToFieldTypeEvents(*autofill_field_ptr);
 
-    if (autofill_field_ptr->parseable_label() == u"First Name") {
+    if (autofill_field_ptr->label() == u"First Name") {
       // The "First Name" field is the trigger field, so it contains the
       // TriggerFillFieldLogEvent followed by a FillFieldLogEvent.
       expected_events.push_back(
@@ -4175,8 +4181,8 @@ TEST_F(BrowserAutofillManagerWithLogEventsTest,
           .filling_prevented_by_iframe_security_policy =
               OptionalBoolean::kFalse,
       });
-    } else if (autofill_field_ptr->parseable_label() == u"Phone Number" ||
-               autofill_field_ptr->parseable_label() == u"Email") {
+    } else if (autofill_field_ptr->label() == u"Phone Number" ||
+               autofill_field_ptr->label() == u"Email") {
       // Not filled because the address profile contained no data to fill.
       expected_events.push_back(FillFieldLogEvent{
           .fill_event_id = fill_event_id,
@@ -4187,7 +4193,7 @@ TEST_F(BrowserAutofillManagerWithLogEventsTest,
           .filling_prevented_by_iframe_security_policy =
               OptionalBoolean::kUndefined,
       });
-    } else if (autofill_field_ptr->parseable_label() == u"Last Name") {
+    } else if (autofill_field_ptr->label() == u"Last Name") {
       // Not filled because the field contained a user typed value already.
       expected_events.push_back(FillFieldLogEvent{
           .fill_event_id = fill_event_id,
@@ -4256,7 +4262,7 @@ TEST_F(BrowserAutofillManagerWithLogEventsTest, LogEventsAtRefillForm) {
 
   const std::vector<AutofillField::FieldLogEventType>& focus_field_log_events =
       autofill_field->field_log_events();
-  ASSERT_EQ(u"First Name", autofill_field->parseable_label());
+  ASSERT_EQ(u"First Name", autofill_field->label());
   const TriggerFillFieldLogEvent* trigger_fill_field_log_event1 =
       FindNthEventOfType<TriggerFillFieldLogEvent>(focus_field_log_events, 1);
   ASSERT_TRUE(trigger_fill_field_log_event1);
@@ -4276,11 +4282,11 @@ TEST_F(BrowserAutofillManagerWithLogEventsTest, LogEventsAtRefillForm) {
   };
 
   for (const auto& autofill_field_ptr : *form_structure) {
-    SCOPED_TRACE(autofill_field_ptr->parseable_label());
+    SCOPED_TRACE(autofill_field_ptr->label());
     std::vector<AutofillField::FieldLogEventType> expected_events =
         ToFieldTypeEvents(*autofill_field_ptr);
 
-    if (autofill_field_ptr->parseable_label() == u"First Name") {
+    if (autofill_field_ptr->label() == u"First Name") {
       // The "First Name" field is the trigger field, so it contains the
       // TriggerFillFieldLogEvent followed by a FillFieldLogEvent.
       expected_events.push_back(TriggerFillFieldLogEvent{
@@ -4302,8 +4308,8 @@ TEST_F(BrowserAutofillManagerWithLogEventsTest, LogEventsAtRefillForm) {
           .had_value_after_filling = OptionalBoolean::kTrue,
           .filling_prevented_by_iframe_security_policy =
               OptionalBoolean::kFalse});
-    } else if (autofill_field_ptr->parseable_label() == u"Phone Number" ||
-               autofill_field_ptr->parseable_label() == u"Email") {
+    } else if (autofill_field_ptr->label() == u"Phone Number" ||
+               autofill_field_ptr->label() == u"Email") {
       FillFieldLogEvent expected_event = expected_fill_field_log_event1;
       expected_event.was_autofilled_before_security_policy =
           OptionalBoolean::kFalse;
@@ -4367,7 +4373,7 @@ TEST_F(BrowserAutofillManagerWithLogEventsTest, LogEventsAtUserTypingInField) {
 
   const std::vector<AutofillField::FieldLogEventType>& focus_field_log_events =
       autofill_field->field_log_events();
-  ASSERT_EQ(u"First Name", autofill_field->parseable_label());
+  ASSERT_EQ(u"First Name", autofill_field->label());
   const TriggerFillFieldLogEvent* trigger_fill_field_log_event =
       FindFirstEventOfType<TriggerFillFieldLogEvent>(focus_field_log_events);
   ASSERT_TRUE(trigger_fill_field_log_event);
@@ -4385,11 +4391,11 @@ TEST_F(BrowserAutofillManagerWithLogEventsTest, LogEventsAtUserTypingInField) {
   };
 
   for (const auto& autofill_field_ptr : *form_structure) {
-    SCOPED_TRACE(autofill_field_ptr->parseable_label());
+    SCOPED_TRACE(autofill_field_ptr->label());
     std::vector<AutofillField::FieldLogEventType> expected_events =
         ToFieldTypeEvents(*autofill_field_ptr);
 
-    if (autofill_field_ptr->parseable_label() == u"First Name") {
+    if (autofill_field_ptr->label() == u"First Name") {
       // The "First Name" field is the trigger field, so it contains the
       // TriggerFillFieldLogEvent followed by a FillFieldLogEvent.
       expected_events.push_back(TriggerFillFieldLogEvent{
@@ -4441,7 +4447,7 @@ TEST_F(BrowserAutofillManagerWithLogEventsTest,
 
   const std::vector<AutofillField::FieldLogEventType>& focus_field_log_events =
       autofill_field->field_log_events();
-  ASSERT_EQ(u"Name on Card", autofill_field->parseable_label());
+  ASSERT_EQ(u"Name on Card", autofill_field->label());
   const TriggerFillFieldLogEvent* trigger_fill_field_log_event =
       FindFirstEventOfType<TriggerFillFieldLogEvent>(focus_field_log_events);
   ASSERT_TRUE(trigger_fill_field_log_event);
@@ -4459,11 +4465,11 @@ TEST_F(BrowserAutofillManagerWithLogEventsTest,
   };
 
   for (const auto& autofill_field_ptr : *form_structure) {
-    SCOPED_TRACE(autofill_field_ptr->parseable_label());
+    SCOPED_TRACE(autofill_field_ptr->label());
     std::vector<AutofillField::FieldLogEventType> expected_events =
         ToFieldTypeEvents(*autofill_field_ptr);
 
-    if (autofill_field_ptr->parseable_label() == u"Name on Card") {
+    if (autofill_field_ptr->label() == u"Name on Card") {
       // The "Name on Card" field gets focus and shows a suggestion so it
       // contains the AskForValuesToFillFieldLogEvent.
       expected_events.push_back(AskForValuesToFillFieldLogEvent{
@@ -4478,7 +4484,7 @@ TEST_F(BrowserAutofillManagerWithLogEventsTest,
       // The "Name on Card" field is the trigger field, so it contains the
       // TriggerFillFieldLogEvent followed by a FillFieldLogEvent.
       expected_events.push_back(expected_fill_field_log_event);
-    } else if (autofill_field_ptr->parseable_label() == u"CVC") {
+    } else if (autofill_field_ptr->label() == u"CVC") {
       // CVC field is not autofilled.
       expected_events.push_back(FillFieldLogEvent{
           .fill_event_id = trigger_fill_field_log_event->fill_event_id,
@@ -4521,17 +4527,18 @@ TEST_F(BrowserAutofillManagerWithLogEventsTest,
   // Simulate having seen this form on page load.
   auto form_structure_instance = std::make_unique<FormStructure>(form);
   FormStructure* form_structure = form_structure_instance.get();
-  form_structure->DetermineHeuristicTypes(GeoIpCountryCode(""), nullptr);
+  form_structure->DetermineHeuristicTypes(GeoIpCountryCode(""),
+                                          LanguageCode(""), nullptr);
   manager().AddSeenFormStructure(std::move(form_structure_instance));
 
   // Simulate form submission.
   FormSubmitted(form);
 
   for (const auto& autofill_field_ptr : *form_structure) {
-    SCOPED_TRACE(autofill_field_ptr->parseable_label());
+    SCOPED_TRACE(autofill_field_ptr->label());
     std::vector<AutofillField::FieldLogEventType> expected_events =
         ToFieldTypeEvents(*autofill_field_ptr);
-    if (autofill_field_ptr->parseable_label() != u"Middle name") {
+    if (autofill_field_ptr->label() != u"Middle name") {
       expected_events.insert(expected_events.begin(),
                              AutocompleteAttributeFieldLogEvent{
                                  .html_type = autofill_field_ptr->html_type(),
@@ -4571,7 +4578,8 @@ TEST_F(BrowserAutofillManagerWithLogEventsTest,
   // Simulate having seen this form on page load.
   auto form_structure_instance = std::make_unique<FormStructure>(form);
   FormStructure* form_structure = form_structure_instance.get();
-  form_structure->DetermineHeuristicTypes(GeoIpCountryCode(""), nullptr);
+  form_structure->DetermineHeuristicTypes(GeoIpCountryCode(""),
+                                          LanguageCode(""), nullptr);
   manager().AddSeenFormStructure(std::move(form_structure_instance));
 
   // Make API response with suggestions.
@@ -4616,22 +4624,22 @@ TEST_F(BrowserAutofillManagerWithLogEventsTest,
   FormSubmitted(form);
 
   for (const auto& autofill_field_ptr : *form_structure) {
-    SCOPED_TRACE(autofill_field_ptr->parseable_label());
+    SCOPED_TRACE(autofill_field_ptr->label());
     std::vector<AutofillField::FieldLogEventType> expected_events =
         ToFieldTypeEvents(*autofill_field_ptr);
     // The autofill server applies two predictions on the "Name" field.
     std::optional<FieldType> server_type2 =
-        autofill_field_ptr->parseable_label() == u"Name"
+        autofill_field_ptr->label() == u"Name"
             ? std::optional<FieldType>(USERNAME)
             : std::nullopt;
     FieldPrediction::Source prediction_source2 =
-        autofill_field_ptr->parseable_label() == u"Name"
+        autofill_field_ptr->label() == u"Name"
             ? FieldPrediction::SOURCE_PASSWORDS_DEFAULT
             : FieldPrediction::SOURCE_UNSPECIFIED;
     // The server prediction overrides the type predicted by local heuristic on
     // the field of label "Street".
     bool server_type_prediction_is_override =
-        autofill_field_ptr->parseable_label() == u"Street" ? true : false;
+        autofill_field_ptr->label() == u"Street" ? true : false;
     expected_events.push_back(ServerPredictionFieldLogEvent{
         .server_type1 = autofill_field_ptr->server_type(),
         .prediction_source1 =
@@ -4679,7 +4687,8 @@ TEST_F(BrowserAutofillManagerWithLogEventsTest,
   // Simulate having seen this form on page load.
   auto form_structure_instance = std::make_unique<FormStructure>(form);
   FormStructure* form_structure = form_structure_instance.get();
-  form_structure->DetermineHeuristicTypes(GeoIpCountryCode(""), nullptr);
+  form_structure->DetermineHeuristicTypes(GeoIpCountryCode(""),
+                                          LanguageCode(""), nullptr);
   manager().AddSeenFormStructure(std::move(form_structure_instance));
 
   // Make API response with suggestions.
@@ -4712,7 +4721,7 @@ TEST_F(BrowserAutofillManagerWithLogEventsTest,
   FormSubmitted(form);
 
   for (const auto& autofill_field_ptr : *form_structure) {
-    SCOPED_TRACE(autofill_field_ptr->parseable_label());
+    SCOPED_TRACE(autofill_field_ptr->label());
     size_t field_signature_rank =
         autofill_field_ptr->heuristic_type() == ADDRESS_HOME_LINE2 ? 2 : 1;
     std::vector<AutofillField::FieldLogEventType> expected_events =
@@ -4728,7 +4737,7 @@ TEST_F(BrowserAutofillManagerWithLogEventsTest,
     });
     // Rationalization.
     bool type_changed =
-        autofill_field_ptr->parseable_label() == u"Address" ? true : false;
+        autofill_field_ptr->label() == u"Address" ? true : false;
     expected_events.push_back(RationalizationFieldLogEvent{
         .field_type = autofill_field_ptr->Type().GetAddressType(),
         .section_id = 1,
@@ -5025,7 +5034,8 @@ TEST_F(BrowserAutofillManagerTest, OnLoadedServerPredictionsFromApi) {
   // Simulate having seen this form on page load.
   auto form_structure_instance = std::make_unique<FormStructure>(form);
   FormStructure* form_structure = form_structure_instance.get();
-  form_structure->DetermineHeuristicTypes(GeoIpCountryCode(""), nullptr);
+  form_structure->DetermineHeuristicTypes(GeoIpCountryCode(""),
+                                          LanguageCode(""), nullptr);
   manager().AddSeenFormStructure(std::move(form_structure_instance));
 
   // Second form on the page.
@@ -5044,7 +5054,8 @@ TEST_F(BrowserAutofillManagerTest, OnLoadedServerPredictionsFromApi) {
   auto form_structure_instance2 = std::make_unique<FormStructure>(form2);
   // This pointer is valid as long as autofill manager lives.
   FormStructure* form_structure2 = form_structure_instance2.get();
-  form_structure2->DetermineHeuristicTypes(GeoIpCountryCode(""), nullptr);
+  form_structure2->DetermineHeuristicTypes(GeoIpCountryCode(""),
+                                           LanguageCode(""), nullptr);
   manager().AddSeenFormStructure(std::move(form_structure_instance2));
 
   // Make API response with suggestions.
@@ -5112,7 +5123,8 @@ TEST_F(BrowserAutofillManagerTest, OnLoadedServerPredictions_ResetManager) {
   // Simulate having seen this form on page load.
   // |form_structure| will be owned by |manager()|.
   auto form_structure = std::make_unique<FormStructure>(form);
-  form_structure->DetermineHeuristicTypes(GeoIpCountryCode(""), nullptr);
+  form_structure->DetermineHeuristicTypes(GeoIpCountryCode(""),
+                                          LanguageCode(""), nullptr);
   std::vector<FormSignature> signatures =
       test::GetEncodedSignatures(*form_structure);
   manager().AddSeenFormStructure(std::move(form_structure));
@@ -5162,7 +5174,8 @@ TEST_F(BrowserAutofillManagerTest, DetermineHeuristicsWithOverallPrediction) {
   FormStructure* form_structure = [&] {
     auto form_structure = std::make_unique<FormStructure>(form);
     FormStructure* ptr = form_structure.get();
-    form_structure->DetermineHeuristicTypes(GeoIpCountryCode(""), nullptr);
+    form_structure->DetermineHeuristicTypes(GeoIpCountryCode(""),
+                                            LanguageCode(""), nullptr);
     manager().AddSeenFormStructure(std::move(form_structure));
     return ptr;
   }();
@@ -5723,6 +5736,18 @@ TEST_F(BrowserAutofillManagerTest,
   EXPECT_FALSE(test_api(form_seen_by_ahm).field(0).should_autocomplete());
 }
 
+// Regression test for crbug.com/428900385.
+TEST_F(BrowserAutofillManagerTest, NullAutofillFieldDoesNotCrash) {
+  FormData form = test::GetFormData({.fields = {
+                                         {.role = LOYALTY_MEMBERSHIP_ID},
+                                     }});
+
+  manager().FillOrPreviewField(
+      mojom::ActionPersistence::kFill, mojom::FieldActionType::kReplaceAll,
+      form, form.fields().front(), u"12345678",
+      SuggestionType::kLoyaltyCardEntry, LOYALTY_MEMBERSHIP_ID);
+}
+
 TEST_F(BrowserAutofillManagerTest, DontOfferToSavePaymentsCard) {
   FormData form;
   PrepareForRealPanResponse(&form);
@@ -5935,7 +5960,8 @@ TEST_F(BrowserAutofillManagerTest,
                                        FormControlType::kInputText)});
 
   auto form_structure = std::make_unique<FormStructure>(form);
-  form_structure->DetermineHeuristicTypes(GeoIpCountryCode(""), nullptr);
+  form_structure->DetermineHeuristicTypes(GeoIpCountryCode(""),
+                                          LanguageCode(""), nullptr);
   // Make sure the form can not be autofilled now.
   ASSERT_FALSE(std::ranges::any_of(
       form_structure->fields(),
@@ -6086,25 +6112,25 @@ TEST_F(BrowserAutofillManagerTest,
 }
 
 TEST_F(BrowserAutofillManagerTest,
-       IbanFormProcessed_AutofillOptimizationGuidePresent) {
+       IbanFormProcessed_AutofillOptimizationGuideDeciderPresent) {
   FormData form_data = CreateTestIbanFormData();
   FormStructure form_structure{form_data};
   test_api(form_structure).SetFieldTypes({IBAN_VALUE}, {IBAN_VALUE});
 
-  EXPECT_CALL(*client().GetAutofillOptimizationGuide(), OnDidParseForm)
+  EXPECT_CALL(*client().GetAutofillOptimizationGuideDecider(), OnDidParseForm)
       .Times(1);
 
   test_api(manager()).OnFormProcessed(form_data, form_structure);
 }
 
 TEST_F(BrowserAutofillManagerTest,
-       IbanFormProcessed_AutofillOptimizationGuideNotPresent) {
+       IbanFormProcessed_AutofillOptimizationGuideDeciderNotPresent) {
   FormData form_data = CreateTestIbanFormData();
   FormStructure form_structure{form_data};
   test_api(form_structure).SetFieldTypes({IBAN_VALUE}, {IBAN_VALUE});
 
   // Test that form processing doesn't crash when we have an IBAN form but no
-  // AutofillOptimizationGuide present.
+  // AutofillOptimizationGuideDecider present.
   test_api(manager()).OnFormProcessed(form_data, form_structure);
 }
 
@@ -6773,14 +6799,14 @@ TEST_F(BrowserAutofillManagerTest, PageLanguageGetsCorrectlySet) {
   FormStructure* parsed_form = manager().FindCachedFormById(form.global_id());
 
   ASSERT_TRUE(parsed_form);
-  ASSERT_EQ(LanguageCode(), parsed_form->current_page_language());
+  EXPECT_EQ(manager().GetCurrentPageLanguage(), LanguageCode(""));
 
   client().GetLanguageState()->SetCurrentLanguage("zh");
 
   manager().OnFormsSeen({form}, {});
   parsed_form = manager().FindCachedFormById(form.global_id());
 
-  ASSERT_EQ(LanguageCode("zh"), parsed_form->current_page_language());
+  EXPECT_EQ(manager().GetCurrentPageLanguage(), LanguageCode("zh"));
 }
 
 // Test language detection on frames depending on whether the frame is active or
@@ -6805,25 +6831,19 @@ TEST_P(BrowserAutofillManagerTestPageLanguageDetection, GetsCorrectlyDetected) {
   FormData form = CreateTestAddressFormData();
 
   manager().OnFormsSeen({form}, {});
-  FormStructure* parsed_form = manager().FindCachedFormById(form.global_id());
-
-  ASSERT_TRUE(parsed_form);
-  ASSERT_EQ(LanguageCode(), parsed_form->current_page_language());
 
   translate::LanguageDetectionDetails language_detection_details;
   language_detection_details.adopted_language = "hu";
   client().GetLanguageState()->SetCurrentLanguage("hu");
 
+  MockAutofillManagerObserver observer;
+  base::ScopedObservation<AutofillManager, MockAutofillManagerObserver>
+      observation{&observer};
+  observation.Observe(&manager());
+  EXPECT_CALL(observer, OnBeforeLanguageDetermined).Times(is_active());
+
   driver().SetIsActive(is_active());
   manager().OnLanguageDetermined(language_detection_details);
-
-  parsed_form = manager().FindCachedFormById(form.global_id());
-
-  // Language detection is used only for active frames.
-  auto expected_language_code =
-      is_active() ? LanguageCode("hu") : LanguageCode();
-
-  ASSERT_EQ(*expected_language_code, *parsed_form->current_page_language());
 }
 
 INSTANTIATE_TEST_SUITE_P(All,
@@ -6903,7 +6923,8 @@ TEST_F(BrowserAutofillManagerTest, AutocompleteMetrics) {
   }
   // Override the types and simulate seeing the form on page load.
   auto form_structure = std::make_unique<FormStructure>(form);
-  form_structure->DetermineHeuristicTypes(GeoIpCountryCode(""), nullptr);
+  form_structure->DetermineHeuristicTypes(GeoIpCountryCode(""),
+                                          LanguageCode(""), nullptr);
   test_api(*form_structure).SetFieldTypes(heuristic_types, server_types);
   manager().AddSeenFormStructure(std::move(form_structure));
 
@@ -7303,6 +7324,7 @@ class BrowserAutofillManagerTest_AutofillAi
   void SetUp() override {
     BrowserAutofillManagerTest::SetUp();
     client().set_entity_data_manager(std::make_unique<EntityDataManager>(
+        client().GetPrefs(), client().GetIdentityManager(),
         webdata_helper_.autofill_webdata_service(), /*history_service=*/nullptr,
         /*strike_database=*/nullptr));
     client().GetEntityDataManager()->AddOrUpdateEntityInstance(
@@ -7329,7 +7351,8 @@ class BrowserAutofillManagerTest_AutofillAi
     {
       auto fs = std::make_unique<FormStructure>(form);
       form_structure = fs.get();
-      fs->DetermineHeuristicTypes(GeoIpCountryCode(""), nullptr);
+      fs->DetermineHeuristicTypes(GeoIpCountryCode(""), LanguageCode(""),
+                                  nullptr);
       manager().AddSeenFormStructure(std::move(fs));
     }
 

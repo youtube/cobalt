@@ -82,6 +82,7 @@
 <translation id="2008474315282236005">এটি এই ডিভাইস থেকে ১টি আইটেম মুছে দেবে। আপনার ডেটা পরে পুনরুদ্ধার করার জন্য, Chromium-এ <ph name="USER_EMAIL" /> হিসেবে সাইন-ইন করুন।</translation>
 <translation id="2018879682492276940">ইনস্টল করা যায়নি। আবার চেষ্টা করুন।</translation>
 <translation id="2020032459870799438">আপনার অন্যান্য পাসওয়ার্ড ডেটার নিরাপত্তা লঙ্ঘন এবং অন্যান্য নিরাপত্তা সংক্রান্ত সমস্যা থেকে সুরক্ষিত কিনা তা চেক করতে <ph name="BEGIN_LINK" />Chromium-এ সাইন-ইন করুন<ph name="END_LINK" />।</translation>
+<translation id="2039417478970545937">সেটিংস।</translation>
 <translation id="2049376729098081731">Google পরিষেবাতে আরও পছন্দমতো অভিজ্ঞতার জন্য Chromium ইতিহাস অন্তর্ভুক্ত করবেন কিনা তা বেছে নিন</translation>
 <translation id="2054039611381840095">আপনার কাছে macOS 12 বা তার পরের ভার্সন থাকলে, তবেই ভবিষ্যতে Chromium আপডেট পাবেন। এই কম্পিউটারে macOS 11 ভার্সন ব্যবহার করা হচ্ছে।</translation>
 <translation id="2086476982681781442">এই ফাইলটি প্রতারণামূলক এবং এটি ডিভাইসে অপ্রত্যাশিত পরিবর্তন করে দিতে পারে, তাই Chromium এই ডাউনলোডটি ব্লক করে দিয়েছে</translation>
@@ -310,10 +311,12 @@
 <translation id="494490797786467921">Chromium-এ সাইন-ইন করার জন্য় ডায়ালগ বন্ধ করতে, ক্লিক করুন</translation>
 <translation id="4950660488495335294">Chromium প্রোফাইল থেকে আপনার সব Chromium-এ থাকা ডেটা আলাদা করতে পারবেন। বন্ধু এবং পরিবারের জন্য প্রোফাইল তৈরি করুন অথবা অফিস এবং বিনোদনের প্রোফাইল আলাদা আলাদা রাখুন।</translation>
 <translation id="4987820182225656817">অতিথিগণ কোনো কিছুর জন্য অভাব বোধ না করেই Chromium ব্যবহার করতে পারবেন৷</translation>
+<translation id="4992938037305302429">Chromium-এ আপনার অ্যাকাউন্ট</translation>
 <translation id="4994636714258228724">Chromium এর সাথে নিজেকে যোগ করুন</translation>
 <translation id="5123973130450702873">আপনার হাত ট্র্যাক করতে Chromium-এর অনুমতি প্রয়োজন</translation>
 <translation id="5141988424377517949">আপনি সম্প্রতি ভিজিট করেননি। Chromium <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, <ph name="PERMISSION_3" /> সম্পর্কিত অনুমতি সরিয়ে দিয়েছে।</translation>
 <translation id="5174969993834422967">আপনি সাধারণত বিজ্ঞপ্তি ব্লক করেন। এই সাইট থেকে বিজ্ঞপ্তি পেতে, আপনার লোকেশন বারের ডানদিকের কোণায় বিজ্ঞপ্তির আইকনে ক্লিক করুন।</translation>
+<translation id="5174983315706567306">ডিস্ক স্টোরেজে যথেষ্ট খালি জায়গা নেই।</translation>
 <translation id="5187123684706427865">Chromium অ্যাকাউন্ট আবার যাচাই করতে হবে</translation>
 <translation id="5224391634244552924">কোনও পাসওয়ার্ড সেভ করা নেই। আপনি পাসওয়ার্ড সেভ করলে Chromium সেটি চেক করতে পারবে।</translation>
 <translation id="5231355151045086930">Chromium থেকে সাইন-আউট করুন</translation>
@@ -387,6 +390,7 @@
 <translation id="6072463441809498330">Chromium-এর ব্যবহার আরও দ্রুত করে তোলা</translation>
 <translation id="6096348254544841612">Chromium কে কাস্টমাইজ এবং নিয়ন্ত্রণ করুন৷ আপডেট পাওয়া যাবে৷</translation>
 <translation id="6107893135096467929">চালু আছে • Chromium এই এক্সটেনশনের সোর্স যাচাই করতে পারে না</translation>
+<translation id="611228897408671387">Chromium-এ আপনার অ্যাকাউন্ট</translation>
 <translation id="6119438414301547735">Chromium টুলবারে অ্যাক্সেস সংক্রান্ত অনুরোধ দেখাতে এক্সটেনশনকে অনুমতি দিন</translation>
 <translation id="6129621093834146363"><ph name="FILE_NAME" /> বিপজ্জনক, তাই Chromium এটিকে অবরুদ্ধ করেছে।</translation>
 <translation id="6132897690380286411">Chromium শীঘ্রই বন্ধ হয়ে যাবে এবং ডেটা মুছে ফেলা হবে</translation>
@@ -441,6 +445,7 @@
 <translation id="6598877126913850652">Chromium বিজ্ঞপ্তি সেটিংসে যান</translation>
 <translation id="6600016381025017075">এই পৃষ্ঠাতে যেকোনও তথ্য খুঁজুন</translation>
 <translation id="6613594504749178791">আপনার পরিবর্তনগুলি পরবর্তী সময় আপনি Chromium আবার চালু হলে ফলপ্রদ হবে৷</translation>
+<translation id="6648212540664651655">আপনি যেখান থেকে শেষ করেছিলেন সেখান থেকেই চালিয়ে যান: আপনার শেষ সেশন থেকে Chromium আপনার ট্যাব ফিরিয়ে এনেছে। আপনি এখানে এটি বন্ধ করতে পারবেন</translation>
 <translation id="665732753414869868">আপনার আশেপাশের জায়গার একটি 3D ম্যাপ তৈরি করার জন্য Chromium-এর ক্যামেরা অ্যাক্সেসের অনুমতি প্রয়োজন</translation>
 <translation id="6669284030132180248">এছাড়াও, আপনি বুকমার্ক Google অ্যাকাউন্টে সেভ করলে Chromium-এ প্রোডাক্টের দাম ট্র্যাক করার সুবিধা পাবেন এবং সেই সাথে প্রোডাক্টের দাম কমলে আপনাকে বিজ্ঞপ্তি দিয়ে জানানো হবে</translation>
 <translation id="6676384891291319759">ইন্টারনেটটি অ্যাক্সেস করুন</translation>
@@ -503,6 +508,7 @@ Chromium আপনার সেটিংস পুনরুদ্ধার ক�
 <translation id="7352651011704765696">কিছু সমস্যা হয়েছে</translation>
 <translation id="7376384068949534168">আপনি সম্প্রতি ভিজিট করেননি। Chromium <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> সম্পর্কিত অনুমতি সরিয়ে দিয়েছে।</translation>
 <translation id="7384121030444253939">এই এক্সটেনশন আর কাজ করবে না। পরিবর্তে, Chromium আপনাকে এটি সরিয়ে দেওয়ার সাজেশন দেয়।</translation>
+<translation id="7413153308467572558">আপনি যেখান থেকে শেষ করেছিলেন সেখান থেকেই চালিয়ে যান: আপনি প্রত্যেকবার রিস্টার্ট করার সময় Chromium আপনার ট্যাব ফিরিয়ে আনে। এটি বন্ধ করতে, এখানে যান</translation>
 <translation id="7449453770951226939"><ph name="PAGE_TITLE" /> - Chromium Dev</translation>
 <translation id="7450541714075000668">টেক্সট কপি করা হয়েছে</translation>
 <translation id="7451052299415159299">এই সাইটটির জন্য Chromium কে আপনার ক্যামেরায় অ্যাক্সেস দিতে হবে</translation>
@@ -634,6 +640,7 @@ Chromium আপনার সেটিংস পুনরুদ্ধার ক�
 <translation id="911206726377975832">আপনার ব্রাউজিং ডেটাও মুছে দেবেন?</translation>
 <translation id="9134482777260927479">হোমওয়ার্কে সহায়তা</translation>
 <translation id="9148058034647219655">প্রস্থান করুন</translation>
+<translation id="9155105544013854680">আপনি যেখান থেকে শেষ করেছিলেন সেখান থেকেই চালিয়ে যান: আপনি প্রত্যেকবার রিস্টার্ট করার সময় Chromium আপনার ট্যাব ফিরিয়ে আনতে পারবে। এটি চালু করতে, এখানে যান</translation>
 <translation id="9158494823179993217"><ph name="TARGET_URL_HOSTNAME" /> অ্যাক্সেস করতে অন্য ব্রাউজার খোলার জন্য আপনার সিস্টেম অ্যাডমিনিস্ট্রেটর Chromium কনফিগার করেছেন।</translation>
 <translation id="9185526690718004400">&amp;Chromium আপডেট করতে আবার লঞ্চ করুন</translation>
 <translation id="9190841055450128916">Chromium (mDNS-In)</translation>

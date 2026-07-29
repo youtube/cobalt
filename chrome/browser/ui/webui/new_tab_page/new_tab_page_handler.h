@@ -31,6 +31,7 @@
 #include "chrome/browser/ui/views/new_tab_footer/footer_controller_observer.h"
 #include "chrome/browser/ui/webui/new_tab_page/new_tab_page.mojom.h"
 #include "chrome/common/search/ntp_logging_events.h"
+#include "components/ntp_tiles/tile_type.h"
 #include "components/optimization_guide/core/model_execution/settings_enabled_observer.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "components/search_provider_logos/logo_common.h"
@@ -43,10 +44,8 @@
 #include "mojo/public/cpp/bindings/remote.h"
 #include "ui/native_theme/native_theme.h"
 #include "ui/native_theme/native_theme_observer.h"
-#include "ui/shell_dialogs/select_file_dialog.h"
 
 class GURL;
-class NtpBackgroundService;
 class Profile;
 class MicrosoftAuthService;
 class NTPUserDataLogger;
@@ -81,8 +80,6 @@ class NewTabPageHandler
       public ui::NativeThemeObserver,
       public ThemeServiceObserver,
       public NtpCustomBackgroundServiceObserver,
-      public NtpBackgroundServiceObserver,
-      public ui::SelectFileDialog::Listener,
       public PromoServiceObserver,
       public optimization_guide::SettingsEnabledObserver,
       public MicrosoftAuthServiceObserver,
@@ -125,23 +122,9 @@ class NewTabPageHandler
           child_untrusted_document_remote);
 
   // new_tab_page::mojom::PageHandler:
-  void SetMostVisitedSettings(bool custom_links_enabled, bool visible) override;
+  void SetMostVisitedSettings(ntp_tiles::TileType type, bool visible) override;
   void GetMostVisitedSettings(GetMostVisitedSettingsCallback callback) override;
-  void SetBackgroundImage(const std::string& attribution_1,
-                          const std::string& attribution_2,
-                          const GURL& attribution_url,
-                          const GURL& image_url,
-                          const GURL& thumbnail_ur,
-                          const std::string& collection_id) override;
-  void SetDailyRefreshCollectionId(const std::string& collection_id) override;
-  void SetNoBackgroundImage() override;
-  void GetBackgroundCollections(
-      GetBackgroundCollectionsCallback callback) override;
-  void GetBackgroundImages(const std::string& collection_id,
-                           GetBackgroundImagesCallback callback) override;
   void GetDoodle(GetDoodleCallback callback) override;
-  void ChooseLocalCustomBackground(
-      ChooseLocalCustomBackgroundCallback callback) override;
   void UpdatePromoData() override;
   void BlocklistPromo(const std::string& promo_id) override;
   void UndoBlocklistPromo(const std::string& promo_id) override;
@@ -188,12 +171,6 @@ class NewTabPageHandler
   // NtpCustomBackgroundServiceObserver:
   void OnCustomBackgroundImageUpdated() override;
 
-  // NtpBackgroundServiceObserver:
-  void OnCollectionInfoAvailable() override;
-  void OnCollectionImagesAvailable() override;
-  void OnNextCollectionImageAvailable() override;
-  void OnNtpBackgroundServiceShuttingDown() override;
-
   // PromoServiceObserver:
   void OnPromoDataUpdated() override;
   void OnPromoServiceShuttingDown() override;
@@ -203,10 +180,6 @@ class NewTabPageHandler
 
   // MicrosoftAuthServiceObserver:
   void OnAuthStateUpdated() override;
-
-  // SelectFileDialog::Listener:
-  void FileSelected(const ui::SelectedFileInfo& file, int index) override;
-  void FileSelectionCanceled() override;
 
   // new_tab_footer::NewTabFooterControllerObserver:
   void OnFooterVisibilityUpdated(bool visible) override;
@@ -232,7 +205,7 @@ class NewTabPageHandler
                         bool success,
                         std::unique_ptr<std::string> body);
 
-  bool IsCustomLinksEnabled() const;
+  ntp_tiles::TileType GetTileType() const;
   bool IsShortcutsVisible() const;
   void MaybeLaunchInteractionSurvey(std::string_view interaction,
                                     const std::string& module_id,
@@ -257,8 +230,6 @@ class NewTabPageHandler
   // loadable.
   bool SyncMicrosoftModulesWithAuth();
 
-  ChooseLocalCustomBackgroundCallback choose_local_custom_background_callback_;
-  raw_ptr<NtpBackgroundService> ntp_background_service_;
   raw_ptr<NtpCustomBackgroundService> ntp_custom_background_service_;
   raw_ptr<search_provider_logos::LogoService> logo_service_;
   raw_ptr<const ui::ThemeProvider> theme_provider_;
@@ -267,14 +238,8 @@ class NewTabPageHandler
   raw_ptr<segmentation_platform::SegmentationPlatformService>
       segmentation_platform_service_;
   GURL last_blocklisted_;
-  GetBackgroundCollectionsCallback background_collections_callback_;
-  base::TimeTicks background_collections_request_start_time_;
-  std::string images_request_collection_id_;
-  GetBackgroundImagesCallback background_images_callback_;
-  base::TimeTicks background_images_request_start_time_;
   std::optional<base::TimeTicks> one_google_bar_load_start_time_;
   raw_ptr<Profile> profile_;
-  scoped_refptr<ui::SelectFileDialog> select_file_dialog_;
   raw_ptr<content::WebContents> web_contents_;
   std::unique_ptr<NewTabPageFeaturePromoHelper> feature_promo_helper_;
   base::Time ntp_navigation_start_time_;

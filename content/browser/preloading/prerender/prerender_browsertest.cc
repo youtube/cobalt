@@ -80,6 +80,7 @@
 #include "content/public/browser/prerender_web_contents_delegate.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
+#include "content/public/browser/site_isolation_policy.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/common/isolated_world_ids.h"
 #include "content/public/test/back_forward_cache_util.h"
@@ -849,6 +850,14 @@ class PrerenderBrowserTest : public ContentBrowserTest,
 
   bool PageHideReceived() {
     return pagehide_event_receiver_->has_received_request();
+  }
+
+  // Returns the process host for a prerendered page.
+  RenderProcessHost* GetProcessForPrerenderHost(
+      FrameTreeNodeId prerender_host_id) {
+    FrameTreeNode* frame_tree_node =
+        FrameTreeNode::GloballyFindByID(prerender_host_id);
+    return frame_tree_node->current_frame_host()->GetProcess();
   }
 
   // Stores all the navigation_ids for all navigations. This is used to check
@@ -15475,80 +15484,6 @@ IN_PROC_BROWSER_TEST_F(PrerenderTargetHintKillSwitchBrowserTest,
   ASSERT_EQ(prerender_web_contents, web_contents_impl());
 }
 
-class PrerenderUntilScriptBrowserTest : public PrerenderBrowserTest {
- public:
-  PrerenderUntilScriptBrowserTest() {
-    feature_list_.InitAndEnableFeature(blink::features::kPrerenderUntilScript);
-  }
-
- private:
-  base::test::ScopedFeatureList feature_list_;
-};
-
-// Tests that prerender_until_script action can trigger prerendering
-IN_PROC_BROWSER_TEST_F(PrerenderUntilScriptBrowserTest,
-                       PrerenderUntilScriptTriggering) {
-  // Navigate to an initial page.
-  GURL url = GetUrl("/empty.html");
-  ASSERT_TRUE(NavigateToURL(web_contents(), url));
-
-  // Start prerender-until-script.
-  GURL prerender_url = GetUrl("/title2.html");
-  prerender_helper()->AddPrerenderUntilScriptAsync(prerender_url);
-
-  test::PrerenderTestHelper::WaitForPrerenderLoadCompletion(*web_contents(),
-                                                            prerender_url);
-  FrameTreeNodeId host_id =
-      test::PrerenderTestHelper::GetHostForUrl(*web_contents(), prerender_url);
-  ASSERT_TRUE(host_id);
-
-  PrerenderHost* prerender_host =
-      web_contents_impl()->GetPrerenderHostRegistry()->FindNonReservedHostById(
-          host_id);
-  ASSERT_TRUE(prerender_host);
-  EXPECT_TRUE(prerender_host->should_pause_javascript_execution());
-}
-
-// Tests that prerender_until_script pages can defer async scripts.
-// TODO(https://crbug.com/428500219): Migrate this test to WPT. For now the
-// prerender WPTs require script execution, which is suspended by
-// prerender-until-script, and we need to update the test infra first.
-IN_PROC_BROWSER_TEST_F(PrerenderUntilScriptBrowserTest, AsyncScript) {
-  // Navigate to an initial page.
-  GURL url = GetUrl("/empty.html");
-  ASSERT_TRUE(NavigateToURL(web_contents(), url));
-
-  // Start prerender-until-script.
-  GURL prerender_url = GetUrl("/prerender/async_script.html");
-  test::PrerenderHostRegistryObserver observer(*web_contents_impl());
-  prerender_helper()->AddPrerenderUntilScriptAsync(prerender_url);
-  observer.WaitForTrigger(prerender_url);
-
-  FrameTreeNodeId host_id =
-      test::PrerenderTestHelper::GetHostForUrl(*web_contents(), prerender_url);
-  ASSERT_TRUE(host_id);
-
-  PrerenderHost* prerender_host =
-      web_contents_impl()->GetPrerenderHostRegistry()->FindNonReservedHostById(
-          host_id);
-  ASSERT_TRUE(prerender_host);
-  EXPECT_TRUE(prerender_host->should_pause_javascript_execution());
-
-  // Prerender-until-script does not pause downloading async scripts.
-  GURL script_url = GetUrl("/prerender/status_script.js");
-  prerender_helper()->WaitForRequest(script_url, 1);
-
-  // Parsing and subresource loading are not affected while async scripts are
-  // paused.
-  GURL image_url = GetUrl("/blank.jpg");
-  prerender_helper()->WaitForRequest(image_url, 1);
-  NavigatePrimaryPage(prerender_url);
-
-  // Make sure the deferred script runs after activation.
-  ASSERT_EQ(false, EvalJs(web_contents_impl(), "document.prerendering"));
-  EXPECT_EQ(false, EvalJs(web_contents_impl(), "executed_during_prerendering"));
-}
-
 // Tests the PrerenderHostId of the navigations in main frame and subframes.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
                        PrerenderHostIdAssignedToNavigationRequest) {
@@ -15590,6 +15525,292 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   prerender_helper()->NavigatePrimaryPageAsync(prerendering_url);
   EXPECT_TRUE(subframe_navigation_manager.WaitForNavigationFinished());
   prerender_observer.WaitForActivation();
+}
+
+IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
+                       ProcessIsOnlyHostingPrerenderedFramesOrEmpty) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  // 1. Navigate to an initial page.
+  const GURL initial_url =
+      embedded_test_server()->GetURL("b.test", "/page_with_iframe.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  RenderFrameHost* original_subframe_host =
+      ChildFrameAt(web_contents()->GetPrimaryMainFrame(), 0);
+  RenderProcessHost* original_subframe_process =
+      original_subframe_host->GetProcess();
+  ASSERT_TRUE(original_subframe_process);
+
+  // 2. Prerender the first page.
+  const GURL prerender_url1 =
+      embedded_test_server()->GetURL("a.test", "/title1.html");
+  // The cross-site prerender page must be triggered by the browser.
+  auto prerender_handle1 = AddEmbedderTriggeredPrerenderAsync(prerender_url1);
+  prerender_helper()->WaitForPrerenderLoadCompletion(prerender_url1);
+  FrameTreeNodeId host_id1 = prerender_helper()->GetHostForUrl(prerender_url1);
+  ASSERT_NE(host_id1, FrameTreeNodeId());
+  RenderProcessHostImpl* process1 =
+      static_cast<RenderProcessHostImpl*>(GetProcessForPrerenderHost(host_id1));
+  ASSERT_TRUE(process1);
+  EXPECT_TRUE(process1->IsOnlyHostingPrerenderedFramesOrEmpty());
+
+  // 3. Create a subframe navigation. It is same site as the prerender page
+  // but different site with the current page.
+  WebContents* active_web_contents = web_contents();
+  const GURL navigation_url =
+      embedded_test_server()->GetURL("a.test", "/title2.html");
+  EXPECT_TRUE(
+      NavigateIframeToURL(active_web_contents, "test_iframe", navigation_url));
+  RenderFrameHost* subframe_host =
+      ChildFrameAt(active_web_contents->GetPrimaryMainFrame(), 0);
+  ASSERT_TRUE(subframe_host);
+
+  RenderProcessHostImpl* process2 =
+      static_cast<RenderProcessHostImpl*>(subframe_host->GetProcess());
+  if (AreAllSitesIsolatedForTesting()) {
+    // If the site isolation is enabled, the subframe process reuse feature
+    // will locate the frame in the same process
+    EXPECT_EQ(process1, process2);
+    EXPECT_FALSE(process1->IsOnlyHostingPrerenderedFramesOrEmpty());
+  } else {
+    // If the site isolation is not enabled, the navigation in the subframe will
+    // reuse the same RFH and RPH as b.test rather than allocating a new RFH.
+    EXPECT_EQ(original_subframe_process, process2);
+    EXPECT_TRUE(process1->IsOnlyHostingPrerenderedFramesOrEmpty());
+  }
+
+  // 4. Remove the subframe. Since the frame in the active page is removed,
+  // the original process shall be considered only hosting prerendered frames
+  // again.
+  RenderFrameDeletedObserver delete_observer(subframe_host);
+  const std::string remove_iframe_script = R"(
+      const subframe = document.getElementById('test_iframe');
+      subframe.remove();
+  )";
+  EXPECT_TRUE(ExecJs(shell(), remove_iframe_script));
+  delete_observer.WaitUntilDeleted();
+  EXPECT_TRUE(process1->IsOnlyHostingPrerenderedFramesOrEmpty());
+}
+
+class PrerenderProcessReuseBrowserTest : public PrerenderBrowserTest {
+ public:
+  PrerenderProcessReuseBrowserTest() {
+    feature_list_.InitWithFeatures(
+        {features::kReusePrerenderingProcessForMainFrames},
+        {features::kProcessPerSiteUpToMainFrameThreshold});
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(PrerenderProcessReuseBrowserTest,
+                       ReusePrerenderProcessInNavigation) {
+  // The test assumes site isolation. Otherwise the navigation will reuse the
+  // RFH and the RPH of the current active frame rather than the prerender ones.
+  if (!AreAllSitesIsolatedForTesting()) {
+    return;
+  }
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  // 1. Navigate to an initial page.
+  const GURL initial_url =
+      embedded_test_server()->GetURL("b.test", "/page_with_iframe.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+
+  // 2. Prerender a cross-site page.
+  const GURL prerender_url =
+      embedded_test_server()->GetURL("a.test", "/title1.html");
+  // The cross-site prerender page must be triggered by the browser.
+  std::unique_ptr<PrerenderHandle> prerender_handle1 =
+      AddEmbedderTriggeredPrerenderAsync(prerender_url);
+  prerender_helper()->WaitForPrerenderLoadCompletion(prerender_url);
+  FrameTreeNodeId prerender_host_id =
+      prerender_helper()->GetHostForUrl(prerender_url);
+  ASSERT_TRUE(prerender_host_id);
+  RenderProcessHostImpl* prerender_process =
+      static_cast<RenderProcessHostImpl*>(
+          GetProcessForPrerenderHost(prerender_host_id));
+  ASSERT_TRUE(prerender_process);
+  ASSERT_TRUE(prerender_process->IsOnlyHostingPrerenderedFramesOrEmpty());
+
+  // 3. Navigate to a page same site as the prerender page.
+  const GURL navigation_url =
+      embedded_test_server()->GetURL("a.test", "/title2.html");
+  EXPECT_TRUE(NavigateToURL(shell(), navigation_url));
+  RenderProcessHost* navigation_process = current_frame_host()->GetProcess();
+  EXPECT_EQ(navigation_process, prerender_process);
+
+  // 4. Create a second tab and navigation to the same site.
+  const GURL new_window_url =
+      embedded_test_server()->GetURL("a.test", "/red.html");
+  Shell* new_window_shell =
+      Shell::CreateNewWindow(shell()->web_contents()->GetBrowserContext(),
+                             initial_url, nullptr, gfx::Size());
+  EXPECT_TRUE(NavigateToURL(new_window_shell, navigation_url));
+  FrameTreeNode* new_window_root =
+      static_cast<WebContentsImpl*>(new_window_shell->web_contents())
+          ->GetPrimaryFrameTree()
+          .root();
+  RenderFrameHostImpl* new_window_rfh = new_window_root->current_frame_host();
+  RenderProcessHost* new_window_process = new_window_rfh->GetProcess();
+  // Since the prerender process is hosting both a prerendered page and the page
+  // for the original tab, we will create a new process for the new tab
+  // navigation.
+  ASSERT_TRUE(new_window_process);
+  EXPECT_NE(new_window_process, prerender_process);
+}
+
+class PrerenderUntilScriptBrowserTest : public PrerenderBrowserTest {
+ public:
+  PrerenderUntilScriptBrowserTest() {
+    feature_list_.InitAndEnableFeature(blink::features::kPrerenderUntilScript);
+  }
+
+  void StartPrerenderUntilScript(const GURL& prerender_url) {
+    test::PrerenderHostRegistryObserver observer(*web_contents_impl());
+    prerender_helper()->AddPrerenderUntilScriptAsync(prerender_url);
+    observer.WaitForTrigger(prerender_url);
+    FrameTreeNodeId host_id = test::PrerenderTestHelper::GetHostForUrl(
+        *web_contents(), prerender_url);
+    ASSERT_TRUE(host_id);
+    PrerenderHost* prerender_host = web_contents_impl()
+                                        ->GetPrerenderHostRegistry()
+                                        ->FindNonReservedHostById(host_id);
+    ASSERT_TRUE(prerender_host);
+    EXPECT_TRUE(prerender_host->should_pause_javascript_execution());
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+// Tests that inline scripts will be deferred until activation.
+// TODO(https://crbug.com/428500219): Migrate this test to WPT. For now the
+// prerender WPTs require script execution, which is suspended by
+// prerender-until-script, and we need to update the test infra first.
+IN_PROC_BROWSER_TEST_F(PrerenderUntilScriptBrowserTest, InlineScript) {
+  // Navigate to an initial page.
+  GURL url = GetUrl("/empty.html");
+  ASSERT_TRUE(NavigateToURL(web_contents(), url));
+
+  // Start prerender-until-script.
+  GURL prerender_url = GetUrl("/prerender/inline_script.html");
+  StartPrerenderUntilScript(prerender_url);
+
+  // Verify after stylesheet is loaded, the parser continues.
+  GURL before_script_element_url = GetUrl("/image.jpg");
+  prerender_helper()->WaitForRequest(before_script_element_url, 1);
+  // Though the parser is paused due to delayed script execution, preloader
+  // should fetch external subresources.
+  GURL image_url = GetUrl("/blank.jpg");
+  prerender_helper()->WaitForRequest(image_url, 1);
+
+  // Activate.
+  NavigatePrimaryPage(prerender_url);
+
+  // A script in the prerendered page sends the beacon request. Since its
+  // execution should be deferred until activation, we can verify the script
+  // execution is resumed automatically by checking the server's log.
+  GURL beacon_url = GetUrl("/activation-beacon");
+  prerender_helper()->WaitForRequest(beacon_url, 1);
+
+  // Make sure the deferred script runs after activation.
+  ASSERT_EQ(false, EvalJs(web_contents_impl(), "document.prerendering"));
+  EXPECT_EQ(false, EvalJs(web_contents_impl(), "executed_during_prerendering"));
+}
+
+// Tests that external sync scripts will be deferred until activation.
+// TODO(https://crbug.com/428500219): Migrate this test to WPT. For now the
+// prerender WPTs require script execution, which is suspended by
+// prerender-until-script, and we need to update the test infra first.
+IN_PROC_BROWSER_TEST_F(PrerenderUntilScriptBrowserTest, ExternalSyncScript) {
+  // Navigate to an initial page.
+  GURL url = GetUrl("/empty.html");
+  ASSERT_TRUE(NavigateToURL(web_contents(), url));
+
+  // Start prerender-until-script.
+  GURL prerender_url = GetUrl("/prerender/external_sync_script.html");
+  StartPrerenderUntilScript(prerender_url);
+
+  // Though the parser is paused due to delayed script execution, preloader
+  // should fetch external subresources.
+  GURL image_url = GetUrl("/blank.jpg");
+  prerender_helper()->WaitForRequest(image_url, 1);
+  // Activate.
+  NavigatePrimaryPage(prerender_url);
+
+  // A script in the prerendered page sends the beacon request. Since its
+  // execution should be deferred until activation, we can verify the script
+  // execution is resumed automatically by checking the server's log.
+  GURL beacon_url = GetUrl("/activation-beacon");
+  prerender_helper()->WaitForRequest(beacon_url, 1);
+
+  // Ensure the state has been propagated to renderer processes.
+  ASSERT_EQ(false, EvalJs(web_contents_impl(), "document.prerendering"));
+  EXPECT_EQ(false, EvalJs(web_contents_impl(), "executed_during_prerendering"));
+}
+
+// Tests that prerender_until_script pages can defer async scripts.
+// TODO(https://crbug.com/428500219): Migrate this test to WPT. For now the
+// prerender WPTs require script execution, which is suspended by
+// prerender-until-script, and we need to update the test infra first.
+IN_PROC_BROWSER_TEST_F(PrerenderUntilScriptBrowserTest, AsyncScript) {
+  // Navigate to an initial page.
+  GURL url = GetUrl("/empty.html");
+  ASSERT_TRUE(NavigateToURL(web_contents(), url));
+
+  // Start prerender-until-script.
+  GURL prerender_url = GetUrl("/prerender/async_script.html");
+  StartPrerenderUntilScript(prerender_url);
+
+  // Prerender-until-script does not pause downloading async scripts.
+  GURL script_url = GetUrl("/prerender/status_script.js");
+  prerender_helper()->WaitForRequest(script_url, 1);
+
+  // Parsing and subresource loading are not affected while async scripts are
+  // paused.
+  GURL image_url = GetUrl("/blank.jpg");
+  prerender_helper()->WaitForRequest(image_url, 1);
+
+  // Activate.
+  NavigatePrimaryPage(prerender_url);
+
+  // A script in the prerendered page sends the beacon request. Since its
+  // execution should be deferred until activation, we can verify the script
+  // execution is resumed automatically by checking the server's log.
+  GURL beacon_url = GetUrl("/activation-beacon");
+  prerender_helper()->WaitForRequest(beacon_url, 1);
+
+  // Make sure the deferred script runs after activation.
+  ASSERT_EQ(false, EvalJs(web_contents_impl(), "document.prerendering"));
+  EXPECT_EQ(false, EvalJs(web_contents_impl(), "executed_during_prerendering"));
+}
+
+// Tests that scripts with defer attribute are delayed until activation.
+// TODO(https://crbug.com/428500219): Migrate this test to WPT. For now the
+// prerender WPTs require script execution, which is suspended by
+// prerender-until-script, and we need to update the test infra first.
+IN_PROC_BROWSER_TEST_F(PrerenderUntilScriptBrowserTest, DeferredScript) {
+  // Navigate to an initial page.
+  GURL url = GetUrl("/empty.html");
+  ASSERT_TRUE(NavigateToURL(web_contents(), url));
+
+  // Start prerender-until-script.
+  GURL prerender_url = GetUrl("/prerender/deferred_script.html");
+  StartPrerenderUntilScript(prerender_url);
+
+  GURL image_url = GetUrl("/blank.jpg");
+  prerender_helper()->WaitForRequest(image_url, 1);
+  NavigatePrimaryPage(prerender_url);
+
+  // A script in the prerendered page sends the beacon request. Since its
+  // execution should be deferred until activation, we can verify the script
+  // execution is resumed automatically by checking the server's log.
+  GURL beacon_url = GetUrl("/activation-beacon");
+  prerender_helper()->WaitForRequest(beacon_url, 1);
+  ASSERT_EQ(false, EvalJs(web_contents_impl(), "document.prerendering"));
+  EXPECT_EQ(false, EvalJs(web_contents_impl(), "executed_during_prerendering"));
 }
 
 }  // namespace content

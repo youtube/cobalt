@@ -16,10 +16,8 @@
 #include "components/autofill/core/browser/payments/virtual_card_enrollment_manager.h"
 #include "components/autofill/core/browser/single_field_fillers/payments/merchant_promo_code_manager.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
-#include "components/autofill/core/browser/ui/payments/bnpl_tos_controller.h"
 #include "components/autofill/core/browser/ui/payments/bubble_show_options.h"
 #include "components/autofill/core/browser/ui/payments/card_unmask_prompt_options.h"
-#include "components/autofill/core/browser/ui/payments/select_bnpl_issuer_dialog_controller.h"
 
 #if !BUILDFLAG(IS_IOS)
 #include "components/webauthn/core/browser/internal_authenticator.h"
@@ -179,12 +177,6 @@ void PaymentsAutofillClient::ShowUnmaskPrompt(
 void PaymentsAutofillClient::OnUnmaskVerificationResult(
     PaymentsRpcResult result) {}
 
-void PaymentsAutofillClient::ShowBnplTos(BnplTosModel bnpl_tos_model,
-                                         base::OnceClosure accept_callback,
-                                         base::OnceClosure cancel_callback) {}
-
-void PaymentsAutofillClient::CloseBnplTos() {}
-
 VirtualCardEnrollmentManager*
 PaymentsAutofillClient::GetVirtualCardEnrollmentManager() {
   return nullptr;
@@ -282,6 +274,14 @@ PaymentsAutofillClient::UserProvidedCardSaveAndFillDetails::
     UserProvidedCardSaveAndFillDetails() = default;
 
 PaymentsAutofillClient::UserProvidedCardSaveAndFillDetails::
+    UserProvidedCardSaveAndFillDetails(
+        const UserProvidedCardSaveAndFillDetails&) = default;
+
+PaymentsAutofillClient::UserProvidedCardSaveAndFillDetails&
+PaymentsAutofillClient::UserProvidedCardSaveAndFillDetails::operator=(
+    const UserProvidedCardSaveAndFillDetails&) = default;
+
+PaymentsAutofillClient::UserProvidedCardSaveAndFillDetails::
     ~UserProvidedCardSaveAndFillDetails() = default;
 
 void PaymentsAutofillClient::ShowCreditCardLocalSaveAndFillDialog(
@@ -299,19 +299,15 @@ payments::SaveAndFillManager* PaymentsAutofillClient::GetSaveAndFillManager() {
   return nullptr;
 }
 
-void PaymentsAutofillClient::ShowSelectBnplIssuerDialog(
-    std::vector<BnplIssuerContext> bnpl_issuer_context,
-    std::string app_locale,
-    base::OnceCallback<void(BnplIssuer)> selected_issuer_callback,
-    base::OnceClosure cancel_callback) {}
-
-void PaymentsAutofillClient::DismissSelectBnplIssuerDialog() {}
-
 bool PaymentsAutofillClient::IsTabModalPopupDeprecated() const {
   return false;
 }
 
 BnplStrategy* PaymentsAutofillClient::GetBnplStrategy() {
+  return nullptr;
+}
+
+BnplUiDelegate* PaymentsAutofillClient::GetBnplUiDelegate() {
   return nullptr;
 }
 

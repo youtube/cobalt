@@ -10,7 +10,6 @@
 #include "base/task/thread_pool/thread_pool_instance.h"
 #include "base/trace_event/trace_log.h"
 #include "build/build_config.h"
-#include "components/tracing/common/trace_to_console.h"
 #include "components/tracing/common/tracing_switches.h"
 #include "services/tracing/public/cpp/perfetto/perfetto_config.h"
 #include "services/tracing/public/cpp/perfetto/perfetto_traced_process.h"
@@ -56,12 +55,6 @@ void InitTracingPostFeatureList(
   DCHECK(base::FeatureList::GetInstance());
   DCHECK(!g_tracing_initialized_after_featurelist);
   g_tracing_initialized_after_featurelist = true;
-
-  // Initialize the client library's TrackRegistry to support trace points
-  // during startup tracing. We don't setup the client library completely here
-  // yet, because we don't have field trials loaded yet (which influence which
-  // backends we enable).
-  perfetto::internal::TrackRegistry::InitializeInstance();
 
   // Create the PerfettoTracedProcess.
   auto& traced_process =

@@ -216,11 +216,6 @@ BASE_FEATURE(DesktopPWAsTabStripSettings, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(DisplayEdgeToEdgeFullscreen, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
-// Enables Exclusive Access Mnager on Android platform
-#if BUILDFLAG(IS_ANDROID)
-BASE_FEATURE(EnableExclusiveAccessManager, base::FEATURE_DISABLED_BY_DEFAULT);
-#endif
-
 // Enables Fullscreen to Screen on Android platform
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(EnableFullscreenToAnyScreenAndroid,
@@ -344,6 +339,9 @@ BASE_FEATURE(Glic, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Controls whether the Glic feature is always detached.
 BASE_FEATURE(GlicDetached, base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Controls whether the Glic feature uses multiple instances or not.
+BASE_FEATURE(GlicMultiInstance, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Controls whether the Glic feature's z order changes based on the webclient
 // mode.
@@ -599,7 +597,7 @@ BASE_FEATURE(GlicClosedCaptioning, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicDefaultTabContextSetting,
              "GlicDefaultTabContextSetting",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(GlicUnloadOnClose, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -635,11 +633,13 @@ extern const base::FeatureParam<std::string>
 BASE_FEATURE(GlicWebClientUnresponsiveMetrics,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(GlicParameterizedShader, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(GlicParameterizedShader, base::FEATURE_ENABLED_BY_DEFAULT);
 extern const base::FeatureParam<std::string> kGlicParameterizedShaderColors{
-    &kGlicParameterizedShader, "glic-parameterized-shader-colors", ""};
+    &kGlicParameterizedShader, "glic-parameterized-shader-colors",
+    "#3186FF#346BF1#4FA0FF#FF4641#FFCC00#0EBC5F"};
 extern const base::FeatureParam<std::string> kGlicParameterizedShaderFloats{
-    &kGlicParameterizedShader, "glic-parameterized-shader-floats", ""};
+    &kGlicParameterizedShader, "glic-parameterized-shader-floats",
+    "5#0.1#0.3#0.7#1.0#0.5#0.5#0.3"};
 
 BASE_FEATURE(GlicTabFocusDataDedupDebounce, base::FEATURE_ENABLED_BY_DEFAULT);
 const base::FeatureParam<int> kGlicTabFocusDataDebounceDelayMs{
@@ -648,15 +648,16 @@ const base::FeatureParam<int> kGlicTabFocusDataDebounceDelayMs{
 const base::FeatureParam<int> kGlicTabFocusDataMaxDebounces{
     &kGlicTabFocusDataDedupDebounce, "glic-tab-focus-data-max-debounces", 5};
 
-BASE_FEATURE(GlicAssetsV2, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(GlicAssetsV2, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(GlicFaviconDataUrls, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(GlicExtensions, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(GlicMultitabUnderlines, base::FEATURE_DISABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(ENABLE_GLIC)
 
+BASE_FEATURE(GlicWindowDragRegions, base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(ENABLE_GLIC)
 // Force Privacy Guide to be available even if it would be unavailable
 // otherwise. This is meant for development and test purposes only.
 BASE_FEATURE(PrivacyGuideForceAvailable, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -915,14 +916,6 @@ BASE_FEATURE(ImmersiveFullscreenPWAs, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(IncognitoFingerprintingInterventions,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-#if BUILDFLAG(IS_WIN)
-// A feature that controls whether Chrome warns about incompatible applications.
-// This feature requires Windows 10 or higher to work because it depends on
-// the "Apps & Features" system settings.
-BASE_FEATURE(IncompatibleApplicationsWarning,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-#endif
-
 #if !BUILDFLAG(IS_ANDROID)
 // A feature that controls whether Instant uses a spare renderer.
 BASE_FEATURE(InstantUsesSpareRenderer, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1117,6 +1110,10 @@ BASE_FEATURE(SafetyHubExtensionsOffStoreTrigger,
 #endif
 
 BASE_FEATURE(SafetyHubThreeDotDetails, base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kSafetyHubUnusedPermissionRevocationForAllSurfaces,
+             "SafetyHubUnusedPermissionRevocationForAllSurfaces",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(SafetyHubDisruptiveNotificationRevocation,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1337,15 +1334,6 @@ BASE_FEATURE(TPMFirmwareUpdate, base::FEATURE_ENABLED_BY_DEFAULT);
 // Enables the Support Tool to include a screenshot in the exported support tool
 // packet.
 BASE_FEATURE(SupportToolScreenshot, base::FEATURE_DISABLED_BY_DEFAULT);
-#endif
-
-#if BUILDFLAG(IS_WIN)
-// Enables the blocking of third-party modules. This feature requires Windows 8
-// or higher because it depends on the ProcessExtensionPointDisablePolicy
-// mitigation, which was not available on Windows 7.
-// Note: Due to a limitation in the implementation of this feature, it is
-// required to start the browser two times to fully enable or disable it.
-BASE_FEATURE(ThirdPartyModulesBlocking, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
 // Disable downloads of unsafe file types over insecure transports if initiated
@@ -1573,10 +1561,6 @@ BASE_FEATURE(UmaStorageDimensions, base::FEATURE_DISABLED_BY_DEFAULT);
 // Kill switch for pinning PWA Shortcut to the Windows taskbar with the Taskbar
 // pinning Limited Access Feature.
 BASE_FEATURE(WinPinPWAShortcutWithLAF, base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Enables the accelerated default browser flow for Windows 10.
-BASE_FEATURE(Win10AcceleratedDefaultBrowserFlow,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(IS_CHROMEOS)

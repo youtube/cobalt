@@ -31,6 +31,7 @@
 #include "chrome/updater/app/app_uninstall_self.h"
 #include "chrome/updater/app/app_unzip_worker.h"
 #include "chrome/updater/app/app_update.h"
+#include "chrome/updater/app/app_update_apps.h"
 #include "chrome/updater/app/app_wake.h"
 #include "chrome/updater/app/app_wakeall.h"
 #include "chrome/updater/configurator.h"
@@ -50,7 +51,9 @@
 #if BUILDFLAG(IS_WIN)
 #include <sysinfoapi.h>
 
+#include "base/cpu.h"
 #include "base/debug/alias.h"
+#include "base/strings/to_string.h"
 #include "base/win/process_startup_helper.h"
 #include "base/win/scoped_com_initializer.h"
 #include "base/win/windows_version.h"
@@ -70,7 +73,6 @@
 //    --enable-logging --vmodule=*/chrome/updater/*=2,*/components/winhttp/*=2.
 
 namespace updater {
-
 namespace {
 
 void ReinitializeLoggingAfterCrashHandler(UpdaterScope updater_scope) {
@@ -177,6 +179,10 @@ int HandleUpdaterCommands(UpdaterScope updater_scope,
 
   if (command_line->HasSwitch(kUpdateSwitch)) {
     return MakeAppUpdate()->Run();
+  }
+
+  if (command_line->HasSwitch(kUpdateAppsSwitch)) {
+    return MakeAppUpdateApps()->Run();
   }
 
 #if BUILDFLAG(IS_WIN)
@@ -360,6 +366,19 @@ void EnsureEnoughMemory() {
 
   VLOG(1) << MemoryStatus();
 }
+
+void RecordCpuFeaturesForCrash() {
+#if defined(ARCH_CPU_X86_FAMILY)
+  base::CPU cpu;
+  static crash_reporter::CrashKeyString<6> crash_key_aesni("aesni");
+  crash_key_aesni.Set(base::ToString(cpu.has_aesni()));
+  static crash_reporter::CrashKeyString<6> crash_key_avx512f("avx512f");
+  crash_key_avx512f.Set(base::ToString(cpu.has_avx512_f()));
+  static crash_reporter::CrashKeyString<6> crash_key_in_vm("invm");
+  crash_key_in_vm.Set(base::ToString(cpu.is_running_in_vm()));
+#endif
+}
+
 #endif  // IS_WIN
 
 }  // namespace
@@ -398,6 +417,7 @@ int UpdaterMain(int argc, const char* const* argv) {
           << base::GetParentProcessId(base::GetCurrentProcessHandle());
 #if BUILDFLAG(IS_WIN)
   EnsureEnoughMemory();
+  RecordCpuFeaturesForCrash();  // TODO(crbug.com/441591130): remove when fixed.
 #endif  // IS_WIN
   const int exit_code = HandleUpdaterCommands(updater_scope, command_line);
   VLOG(1) << __func__ << " (--" << GetUpdaterCommand(command_line) << ")"

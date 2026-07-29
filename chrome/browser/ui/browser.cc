@@ -1184,6 +1184,12 @@ Browser::GetWebContentsModalDialogHostForWindow() {
   return window_->GetWebContentsModalDialogHost();
 }
 
+web_modal::WebContentsModalDialogHost*
+Browser::GetWebContentsModalDialogHostForTab(
+    tabs::TabInterface* tab_interface) {
+  return GetWebContentsModalDialogHost(tab_interface->GetContents());
+}
+
 bool Browser::IsActive() const {
 // TODO(https://crbug.com/376306245): This is a temporary workaround for the
 // fact that window_->IsActive() does not return the right result for macOS
@@ -1817,11 +1823,6 @@ void Browser::SetFocusToLocationBar() {
   //     renderer initiated focus (this method is a WebContentsDelegate
   //     override).
   window_->SetFocusToLocationBar(false);
-}
-
-bool Browser::PreHandleMouseEvent(content::WebContents* source,
-                                  const blink::WebMouseEvent& event) {
-  return window()->PreHandleMouseEvent(event);
 }
 
 void Browser::PreHandleDragUpdate(const content::DropData& drop_data,
@@ -2598,7 +2599,8 @@ void Browser::EnterFullscreenModeForTab(
   browser_window_features()
       ->exclusive_access_manager()
       ->fullscreen_controller()
-      ->EnterFullscreenModeForTab(requesting_frame, options.display_id);
+      ->EnterFullscreenModeForTab(requesting_frame,
+                                  FullscreenTabParams{options.display_id});
 }
 
 void Browser::ExitFullscreenModeForTab(WebContents* web_contents) {
@@ -2937,15 +2939,11 @@ void Browser::SetWebContentsBlocked(content::WebContents* web_contents,
   if (!blocked && contents_is_active && browser_active) {
     web_contents->Focus();
   }
-
-  if (contents_is_active) {
-    window_->SetContentScrimVisibility(web_contents, /*visible=*/blocked);
-  }
 }
 
-web_modal::WebContentsModalDialogHost*
-Browser::GetWebContentsModalDialogHost() {
-  return window_->GetWebContentsModalDialogHost();
+web_modal::WebContentsModalDialogHost* Browser::GetWebContentsModalDialogHost(
+    content::WebContents* web_contents) {
+  return window_->GetWebContentsModalDialogHostFor(web_contents);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -3111,9 +3109,6 @@ void Browser::OnActiveTabChanged(WebContents* old_contents,
   // since the omnibox expects the correct element to already be focused when
   // it is updated.
   window_->OnActiveTabChanged(old_contents, new_contents, index, reason);
-
-  bool is_blocked = tab_strip_model_->IsTabBlocked(index);
-  window_->SetContentScrimVisibility(new_contents, /*visible=*/is_blocked);
 
   browser_window_features()->exclusive_access_manager()->OnTabDetachedFromView(
       old_contents);

@@ -422,11 +422,11 @@ BASE_FEATURE(ContextMenuCopyVideoFrame,
 );
 
 // Enables the "Save Video Frame As" context menu item.
-BASE_FEATURE(ContextMenuSaveVideoFrameAs,
+BASE_FEATURE_2(kContextMenuSaveVideoFrameAs,
 #if BUILDFLAG(IS_ANDROID)
-             base::FEATURE_DISABLED_BY_DEFAULT
+               base::FEATURE_DISABLED_BY_DEFAULT
 #else
-             base::FEATURE_ENABLED_BY_DEFAULT
+               base::FEATURE_ENABLED_BY_DEFAULT
 #endif
 );
 
@@ -443,7 +443,7 @@ BASE_FEATURE(ChromeWideEchoCancellation, base::FEATURE_ENABLED_BY_DEFAULT);
 // If echo cancellation for a mic signal is requested, use system loopback
 // audio as reference signal to be able to cancel echo from all audio processes
 // and not only audio from Chrome.
-BASE_FEATURE(SystemLoopbackAsAecReference, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(SystemLoopbackAsAecReference, base::FEATURE_ENABLED_BY_DEFAULT);
 const base::FeatureParam<bool> kSystemLoopbackAsAecReferenceForcedOn{
     &kSystemLoopbackAsAecReference, "forced_on", false};
 // If we are using system loopback as AEC reference, we delay the capture
@@ -1551,7 +1551,7 @@ bool IsMacSckSystemLoopbackCaptureSupported() {
 #endif  // BUILDFLAG(IS_MAC)
 
 #if BUILDFLAG(IS_WIN)
-bool IsWindowsSystemLoopbackCaptureSupported() {
+bool IsWindowsProcessLoopbackCaptureSupported() {
   return (base::win::GetVersion() >= base::win::Version::WIN11);
 }
 #endif  // BUILDFLAG(IS_WIN)
@@ -1577,7 +1577,7 @@ bool IsSystemLoopbackAsAecReferenceEnabled() {
     return false;
   }
 #elif BUILDFLAG(IS_WIN)
-  if (!IsWindowsSystemLoopbackCaptureSupported()) {
+  if (!IsWindowsProcessLoopbackCaptureSupported()) {
     return false;
   }
 #endif
@@ -1681,7 +1681,7 @@ bool IsRestrictOwnAudioSupported() {
   return IsMacCatapSystemLoopbackCaptureSupported() &&
          base::FeatureList::IsEnabled(kMacCatapLoopbackAudioForScreenShare);
 #elif BUILDFLAG(IS_WIN)
-  return IsWindowsSystemLoopbackCaptureSupported();
+  return IsWindowsProcessLoopbackCaptureSupported();
 #else
   return false;
 #endif

@@ -109,7 +109,7 @@ void LogPixCodeCopied(ukm::SourceId ukm_source_id) {
 }
 
 void LogPaymentLinkDetected(ukm::SourceId ukm_source_id) {
-  base::UmaHistogramBoolean("FacilitatedPayments.Ewallet.PaymentLinkDetected",
+  base::UmaHistogramBoolean("FacilitatedPayments.PaymentLinkDetected",
                             /*sample=*/true);
   ukm::builders::FacilitatedPayments_PaymentLinkDetected(ukm_source_id)
       .SetPaymentLinkDetected(true)
@@ -453,6 +453,25 @@ void LogPaymentLinkFopSelectorShownLatency(
                       PaymentLinkFopSelectorTypesToString(
                           payment_link_fop_selector_type),
                       ".FopSelectorShown.LatencyAfterDetectingPaymentLink.",
+                      SchemeToString(*scheme)}),
+        latency);
+  }
+}
+
+void LogInvokePaymentAppResultAndLatency(
+    bool result,
+    base::TimeDelta latency,
+    std::optional<PaymentLinkValidator::Scheme> scheme) {
+  std::string result_string = ResultToString(result);
+  base::UmaHistogramLongTimes(
+      base::StrCat({"FacilitatedPayments.A2A.InvokePaymentApp.", result_string,
+                    ".LatencyAfterDetectingPaymentLink"}),
+      latency);
+
+  if (scheme.has_value() && *scheme != PaymentLinkValidator::Scheme::kInvalid) {
+    base::UmaHistogramLongTimes(
+        base::StrCat({"FacilitatedPayments.A2A.InvokePaymentApp.",
+                      result_string, ".LatencyAfterDetectingPaymentLink.",
                       SchemeToString(*scheme)}),
         latency);
   }

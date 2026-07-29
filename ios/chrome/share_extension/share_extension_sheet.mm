@@ -26,14 +26,18 @@ enum SharedItemType {
   kText,
 };
 
-CGFloat const kInnerViewWidthPadding = 32;
+CGFloat const kInnerViewWidthPadding = 40;
 CGFloat const kMainViewHeightPadding = 34;
 CGFloat const kMainViewCornerRadius = 12;
-CGFloat const kSnapshotViewSize = 72;
-CGFloat const kURLStackSpacing = 2;
+CGFloat const kSnapshotViewSize = 150;
+CGFloat const kURLStackSpacing = 8;
+CGFloat const kDefaultSnapshotViewSize = 60;
+CGFloat const kLinkIconSize = 26.0;
+CGFloat const kQuoteIconSize = 26.0;
+CGFloat const kTextStackSpacing = 30.0;
 
 // The horizontal spacing between image preview and the URL stack.
-CGFloat const kInnerViewSpacing = 16;
+CGFloat const kInnerViewSpacing = 30;
 
 CGFloat const kSharedImageHeight = 181;
 
@@ -50,10 +54,14 @@ CGFloat const kTitleViewSpacing = 3.0;
 NSString* const kCustomMinimizedDetentIdentifier = @"customMinimizedDetent";
 
 // Constants for the MIM configuration.
-CGFloat const kMIMStackSpacing = 8.0;
+CGFloat const kMIMStackSpacing = 16.0;
 CGFloat const kAccountRowHeight = 57.0;
-CGFloat const kMIMViewCornerRadius = 10;
+CGFloat const kMIMViewCornerRadius = 25.0;
+CGFloat const kAccountCellCornerRadius = 10.0;
 CGFloat const kAvatarImageDimension = 30.0;
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
+CGFloat const kUpdatedMainViewCornerRadius = 32.0;
+#endif
 
 }  // namespace
 
@@ -323,7 +331,8 @@ CGFloat const kAvatarImageDimension = 30.0;
   _customDetent = [UISheetPresentationControllerDetent
       customDetentWithIdentifier:kCustomMinimizedDetentIdentifier
                         resolver:resolver];
-  presentationController.detents = @[ _customDetent ];
+  presentationController.detents =
+      @[ [UISheetPresentationControllerDetent largeDetent] ];
   presentationController.selectedDetentIdentifier =
       kCustomMinimizedDetentIdentifier;
 }
@@ -381,6 +390,11 @@ CGFloat const kAvatarImageDimension = 30.0;
 
   mainView.backgroundColor = [UIColor colorNamed:kGrey100Color];
   mainView.layer.cornerRadius = kMainViewCornerRadius;
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
+  if (@available(iOS 26, *)) {
+    mainView.layer.cornerRadius = kUpdatedMainViewCornerRadius;
+  }
+#endif
 
   innerView.translatesAutoresizingMaskIntoConstraints = NO;
   mainView.translatesAutoresizingMaskIntoConstraints = NO;
@@ -400,8 +414,13 @@ CGFloat const kAvatarImageDimension = 30.0;
 
 - (UIStackView*)createUnderTitleViewWithMIM {
   UIView* mainView = [self configureMainView];
-  mainView.backgroundColor = [UIColor colorNamed:kTertiaryBackgroundColor];
+  mainView.backgroundColor = [UIColor colorNamed:kGrey200Color];
   mainView.layer.cornerRadius = kMIMViewCornerRadius;
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
+  if (@available(iOS 26, *)) {
+    mainView.layer.cornerRadius = kUpdatedMainViewCornerRadius;
+  }
+#endif
 
   _accountTableView = [self createSelectedAccountTableView];
   UIStackView* underTitleView = [[UIStackView alloc]
@@ -416,7 +435,12 @@ CGFloat const kAvatarImageDimension = 30.0;
   UITableView* containerTable = [[UITableView alloc] initWithFrame:CGRectZero];
   containerTable.rowHeight = kAccountRowHeight;
   containerTable.separatorStyle = UITableViewCellSeparatorStyleNone;
-  containerTable.layer.cornerRadius = kMIMViewCornerRadius;
+  containerTable.layer.cornerRadius = kAccountCellCornerRadius;
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
+  if (@available(iOS 26, *)) {
+    containerTable.layer.cornerRadius = kUpdatedMainViewCornerRadius;
+  }
+#endif
   containerTable.scrollEnabled = NO;
   [containerTable registerClass:[UITableViewCell class]
          forCellReuseIdentifier:@"Account"];
@@ -430,35 +454,20 @@ CGFloat const kAvatarImageDimension = 30.0;
 - (UIStackView*)configureSharedURLView {
   UIImageView* snapshotView = [self configureSnapshotView];
   UIStackView* URLStackView = [self configureURLView];
-  URLStackView.translatesAutoresizingMaskIntoConstraints = NO;
-  UIView* URLView = [[UIView alloc] init];
-
-  [URLView addSubview:URLStackView];
 
   UIStackView* containerStack;
   if (snapshotView) {
     containerStack = [[UIStackView alloc]
-        initWithArrangedSubviews:@[ snapshotView, URLView ]];
+        initWithArrangedSubviews:@[ snapshotView, URLStackView ]];
   } else {
     containerStack =
-        [[UIStackView alloc] initWithArrangedSubviews:@[ URLView ]];
+        [[UIStackView alloc] initWithArrangedSubviews:@[ URLStackView ]];
   }
 
-  containerStack.axis = UILayoutConstraintAxisHorizontal;
+  containerStack.axis = UILayoutConstraintAxisVertical;
   containerStack.translatesAutoresizingMaskIntoConstraints = NO;
   containerStack.spacing = kInnerViewSpacing;
   containerStack.alignment = UIStackViewAlignmentCenter;
-  URLView.translatesAutoresizingMaskIntoConstraints = NO;
-  [NSLayoutConstraint activateConstraints:@[
-    [URLView.heightAnchor
-        constraintGreaterThanOrEqualToAnchor:snapshotView.heightAnchor],
-    [URLView.heightAnchor
-        constraintGreaterThanOrEqualToAnchor:URLStackView.heightAnchor],
-    [URLStackView.widthAnchor constraintEqualToAnchor:URLView.widthAnchor],
-    [containerStack.heightAnchor
-        constraintGreaterThanOrEqualToAnchor:URLView.heightAnchor],
-  ]];
-  AddSameCenterConstraints(URLView, URLStackView);
 
   return containerStack;
 }
@@ -478,41 +487,78 @@ CGFloat const kAvatarImageDimension = 30.0;
 }
 
 - (UIView*)configureSharedTextView {
+  UIImageSymbolConfiguration* configuration = [UIImageSymbolConfiguration
+      configurationWithPointSize:kQuoteIconSize
+                          weight:UIImageSymbolWeightRegular
+                           scale:UIImageSymbolScaleMedium];
+  UIImageView* quoteImageView = [[UIImageView alloc]
+      initWithImage:[UIImage systemImageNamed:@"quote.opening"
+                            withConfiguration:configuration]];
+  quoteImageView.contentMode = UIViewContentModeCenter;
+
+  UIView* imageContainer = [[UIView alloc] init];
+  imageContainer.backgroundColor = [UIColor whiteColor];
+  imageContainer.translatesAutoresizingMaskIntoConstraints = NO;
+  [imageContainer addSubview:quoteImageView];
+  quoteImageView.translatesAutoresizingMaskIntoConstraints = NO;
+  imageContainer.layer.cornerRadius = kMainViewCornerRadius;
+  imageContainer.clipsToBounds = YES;
+
+  [NSLayoutConstraint activateConstraints:@[
+    [imageContainer.widthAnchor
+        constraintEqualToConstant:kDefaultSnapshotViewSize],
+    [imageContainer.heightAnchor
+        constraintEqualToConstant:kDefaultSnapshotViewSize],
+    [quoteImageView.centerXAnchor
+        constraintEqualToAnchor:imageContainer.centerXAnchor],
+    [quoteImageView.centerYAnchor
+        constraintEqualToAnchor:imageContainer.centerYAnchor],
+  ]];
+
   UILabel* sharedTextLabel = [[UILabel alloc] init];
   sharedTextLabel.font =
-      [UIFont preferredFontForTextStyle:UIFontTextStyleSubheadline];
+      [UIFont preferredFontForTextStyle:UIFontTextStyleHeadline];
   sharedTextLabel.adjustsFontForContentSizeCategory = YES;
   sharedTextLabel.numberOfLines = 0;
   if (!self.displayMaxLimit) {
     sharedTextLabel.text = self.sharedText;
-    return sharedTextLabel;
+  } else {
+    NSMutableAttributedString* sharedTextAttributedString =
+        [[NSMutableAttributedString alloc] initWithString:self.sharedText];
+
+    NSMutableAttributedString* attributedSpace =
+        [[NSMutableAttributedString alloc] initWithString:@" "];
+    NSMutableAttributedString* maxLimitString =
+        [[NSMutableAttributedString alloc]
+            initWithString:NSLocalizedString(
+                               @"IDS_IOS_SEARCH_MAX_LIMIT",
+                               @"The text at the end of the shared text.")
+                attributes:@{
+                  NSForegroundColorAttributeName :
+                      [UIColor colorNamed:kTextTertiaryColor],
+                  NSFontAttributeName : [UIFont
+                      preferredFontForTextStyle:UIFontTextStyleFootnote],
+                }];
+
+    [sharedTextAttributedString appendAttributedString:attributedSpace];
+    [sharedTextAttributedString appendAttributedString:maxLimitString];
+    sharedTextLabel.attributedText = sharedTextAttributedString;
+    sharedTextLabel.textAlignment = NSTextAlignmentCenter;
   }
 
-  NSMutableAttributedString* sharedTextAttributedString =
-      [[NSMutableAttributedString alloc] initWithString:self.sharedText];
+  UIStackView* stackView = [[UIStackView alloc]
+      initWithArrangedSubviews:@[ imageContainer, sharedTextLabel ]];
+  stackView.axis = UILayoutConstraintAxisVertical;
+  stackView.spacing = kTextStackSpacing;
+  stackView.alignment = UIStackViewAlignmentCenter;
+  stackView.translatesAutoresizingMaskIntoConstraints = NO;
 
-  NSMutableAttributedString* attributedSpace =
-      [[NSMutableAttributedString alloc] initWithString:@" "];
-  NSMutableAttributedString* maxLimitString = [[NSMutableAttributedString alloc]
-      initWithString:NSLocalizedString(
-                         @"IDS_IOS_SEARCH_MAX_LIMIT",
-                         @"The text at the end of the shared text.")
-          attributes:@{
-            NSForegroundColorAttributeName :
-                [UIColor colorNamed:kTextTertiaryColor],
-            NSFontAttributeName :
-                [UIFont preferredFontForTextStyle:UIFontTextStyleFootnote],
-          }];
-
-  [sharedTextAttributedString appendAttributedString:attributedSpace];
-  [sharedTextAttributedString appendAttributedString:maxLimitString];
-  sharedTextLabel.attributedText = sharedTextAttributedString;
-  return sharedTextLabel;
+  return stackView;
 }
 
 - (UIImageView*)configureSnapshotView {
   if (!_sharedURLPreview) {
-    return nil;
+    return [self configureDefaultSnapshotView];
   }
 
   UIImageView* snapshotView =
@@ -538,27 +584,58 @@ CGFloat const kAvatarImageDimension = 30.0;
 
   titleLabel.text = _sharedTitle;
   UIFontDescriptor* fontDescriptor = [UIFontDescriptor
-      preferredFontDescriptorWithTextStyle:UIFontTextStyleSubheadline];
+      preferredFontDescriptorWithTextStyle:UIFontTextStyleHeadline];
   titleLabel.font = [UIFont systemFontOfSize:fontDescriptor.pointSize
                                       weight:UIFontWeightSemibold];
   titleLabel.lineBreakMode = NSLineBreakByTruncatingTail;
+  titleLabel.textAlignment = NSTextAlignmentCenter;
   titleLabel.numberOfLines = 2;
 
   URLLabel.text = [_sharedURL absoluteString];
-  URLLabel.font = [UIFont preferredFontForTextStyle:UIFontTextStyleFootnote];
+  UIFontDescriptor* URLfontDescriptor = [UIFontDescriptor
+      preferredFontDescriptorWithTextStyle:UIFontTextStyleCallout];
+  URLLabel.font = [UIFont systemFontOfSize:URLfontDescriptor.pointSize
+                                    weight:UIFontWeightRegular];
   URLLabel.textColor = [UIColor colorNamed:kTextTertiaryColor];
   URLLabel.lineBreakMode = NSLineBreakByTruncatingTail;
+  URLLabel.textAlignment = NSTextAlignmentCenter;
   URLLabel.numberOfLines = 2;
 
   UIStackView* URLStackView =
       [[UIStackView alloc] initWithArrangedSubviews:@[ titleLabel, URLLabel ]];
 
   URLStackView.axis = UILayoutConstraintAxisVertical;
-  URLStackView.alignment = UIStackViewAlignmentLeading;
+  URLStackView.alignment = UIStackViewAlignmentCenter;
+  URLStackView.distribution = UIStackViewDistributionEqualCentering;
   URLStackView.spacing = kURLStackSpacing;
   URLStackView.translatesAutoresizingMaskIntoConstraints = NO;
 
   return URLStackView;
+}
+
+- (UIImageView*)configureDefaultSnapshotView {
+  CHECK(!_sharedURLPreview);
+  UIImageSymbolConfiguration* configuration = [UIImageSymbolConfiguration
+      configurationWithPointSize:kLinkIconSize
+                          weight:UIImageSymbolWeightMedium
+                           scale:UIImageSymbolScaleMedium];
+  _sharedURLPreview = [UIImage systemImageNamed:@"link"
+                              withConfiguration:configuration];
+  UIImageView* snapshotView =
+      [[UIImageView alloc] initWithImage:_sharedURLPreview];
+  snapshotView.backgroundColor = [UIColor whiteColor];
+  snapshotView.layer.cornerRadius = kMainViewCornerRadius;
+
+  snapshotView.contentMode = UIViewContentModeCenter;
+  snapshotView.layer.masksToBounds = YES;
+  snapshotView.translatesAutoresizingMaskIntoConstraints = NO;
+  [NSLayoutConstraint activateConstraints:@[
+    [snapshotView.widthAnchor
+        constraintEqualToConstant:kDefaultSnapshotViewSize],
+    [snapshotView.heightAnchor
+        constraintEqualToConstant:kDefaultSnapshotViewSize],
+  ]];
+  return snapshotView;
 }
 
 @end

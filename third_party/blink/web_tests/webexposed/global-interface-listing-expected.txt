@@ -121,11 +121,6 @@ interface AnimationTimeline
 interface AnimationTrigger
     attribute @@toStringTag
     getter behavior
-    getter exitRangeEnd
-    getter exitRangeStart
-    getter rangeEnd
-    getter rangeStart
-    getter timeline
     method addAnimation
     method constructor
     method removeAnimation
@@ -1295,6 +1290,7 @@ interface CanvasRenderingContext2D
     method createRadialGradient
     method drawElement
     method drawFocusIfNeeded
+    method drawHTMLElement
     method drawImage
     method drawMesh
     method ellipse
@@ -3070,6 +3066,9 @@ interface FontFace
 interface FontFaceSetLoadEvent : Event
     attribute @@toStringTag
     getter fontfaces
+    method constructor
+interface FormControlRange : AbstractRange
+    attribute @@toStringTag
     method constructor
 interface FormData
     attribute @@toStringTag
@@ -8331,12 +8330,14 @@ interface Rewriter
     method rewriteStreaming
 interface SVGAElement : SVGGraphicsElement
     attribute @@toStringTag
+    getter download
     getter href
     getter interestForElement
     getter rel
     getter relList
     getter target
     method constructor
+    setter download
     setter interestForElement
     setter rel
     setter relList
@@ -10303,6 +10304,14 @@ interface TimeRanges
     method constructor
     method end
     method start
+interface TimelineTrigger : AnimationTrigger
+    attribute @@toStringTag
+    getter exitRangeEnd
+    getter exitRangeStart
+    getter rangeEnd
+    getter rangeStart
+    getter timeline
+    method constructor
 interface TimestampTrigger
     attribute @@toStringTag
     getter timestamp
@@ -11605,6 +11614,7 @@ interface WebGL2RenderingContext
     method stencilOp
     method stencilOpSeparate
     method texElement2D
+    method texHTMLElement2D
     method texImage2D
     method texImage3D
     method texParameterf
@@ -12109,6 +12119,7 @@ interface WebGLRenderingContext
     method stencilOp
     method stencilOpSeparate
     method texElement2D
+    method texHTMLElement2D
     method texImage2D
     method texParameterf
     method texParameteri
@@ -12280,6 +12291,7 @@ interface WebTransport
     getter datagrams
     getter incomingBidirectionalStreams
     getter incomingUnidirectionalStreams
+    getter protocol
     getter ready
     method close
     method constructor

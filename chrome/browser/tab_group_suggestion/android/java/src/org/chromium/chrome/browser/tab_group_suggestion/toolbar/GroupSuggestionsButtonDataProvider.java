@@ -8,7 +8,6 @@ import android.content.Context;
 import android.graphics.drawable.Drawable;
 import android.view.View;
 
-import org.chromium.base.supplier.Supplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.tab.Tab;
@@ -16,6 +15,8 @@ import org.chromium.chrome.browser.tab_group_suggestion.R;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonVariant;
 import org.chromium.chrome.browser.toolbar.optional_button.BaseButtonDataProvider;
+
+import java.util.function.Supplier;
 
 /** Defines the UI details and click handler for the tab grouping toolbar button. */
 @NullMarked
@@ -57,20 +58,18 @@ public class GroupSuggestionsButtonDataProvider extends BaseButtonDataProvider {
 
     @Override
     public void onClick(View view) {
-        if (!mActiveTabSupplier.hasValue()
-                || !mGroupSuggestionsButtonControllerSupplier.hasValue()
-                || !mTabModelSelectorSupplier.hasValue()) {
-            return;
-        }
+        Tab activeTab = mActiveTabSupplier.get();
+        if (activeTab == null) return;
+        GroupSuggestionsButtonController groupController =
+                mGroupSuggestionsButtonControllerSupplier.get();
+        if (groupController == null) return;
+        TabModelSelector selector = mTabModelSelectorSupplier.get();
+        if (selector == null) return;
 
-        mGroupSuggestionsButtonControllerSupplier
-                .get()
-                .onButtonClicked(
-                        mActiveTabSupplier.get(),
-                        mTabModelSelectorSupplier
-                                .get()
-                                .getTabGroupModelFilterProvider()
-                                .getTabGroupModelFilter(/* isIncognito= */ false));
+        groupController.onButtonClicked(
+                activeTab,
+                selector.getTabGroupModelFilterProvider()
+                        .getTabGroupModelFilter(/* isIncognito= */ false));
         notifyObservers(false);
     }
 }

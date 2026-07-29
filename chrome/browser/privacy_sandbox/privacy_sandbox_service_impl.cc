@@ -371,6 +371,27 @@ std::optional<PromptType> GetRequiredPromptTypeOverride() {
   return std::nullopt;
 }
 
+// Helper to convert from std::vector of Notices to a PromptType.
+PromptType ToPromptType(const std::vector<PrivacySandboxNotice>& notices) {
+  if (notices.empty()) {
+    return PromptType::kNone;
+  }
+
+  // Only consider the first returned notice for the purposes of the migration.
+  switch (notices[0]) {
+    case PrivacySandboxNotice::kTopicsConsentNotice:
+      return PromptType::kM1Consent;
+    case PrivacySandboxNotice::kProtectedAudienceMeasurementNotice:
+      return PromptType::kM1NoticeEEA;
+    case PrivacySandboxNotice::kThreeAdsApisNotice:
+      return PromptType::kM1NoticeROW;
+    case PrivacySandboxNotice::kMeasurementNotice:
+      return PromptType::kM1NoticeRestricted;
+  }
+
+  return PromptType::kNone;
+}
+
 }  // namespace
 
 PrivacySandboxServiceImpl::PrivacySandboxServiceImpl(
@@ -494,6 +515,22 @@ PrivacySandboxServiceImpl::PrivacySandboxServiceImpl(
 
 PrivacySandboxServiceImpl::~PrivacySandboxServiceImpl() = default;
 
+void PrivacySandboxServiceImpl::Shutdown() {
+  user_prefs_registrar_.RemoveAll();
+  privacy_sandbox_countries_ = nullptr;
+  product_messaging_controller_ = nullptr;
+  first_party_sets_policy_service_ = nullptr;
+  browsing_topics_service_ = nullptr;
+  host_content_settings_map_ = nullptr;
+  browsing_data_remover_ = nullptr;
+  interest_group_manager_ = nullptr;
+  pref_service_ = nullptr;
+  cookie_settings_ = nullptr;
+  tracking_protection_settings_ = nullptr;
+  privacy_sandbox_settings_ = nullptr;
+  profile_ = nullptr;
+}
+
 bool PrivacySandboxServiceImpl::
     CheckAndRegisterAllowPromptForBlocked3PCookiesTrial() {
   pref_service_->SetBoolean(prefs::kPrivacySandboxAllowNoticeFor3PCBlockedTrial,
@@ -611,10 +648,6 @@ bool PrivacySandboxServiceImpl::ShouldDisablePrompt() {
 
 PromptType PrivacySandboxServiceImpl::GetRequiredPromptTypeInternal(
     SurfaceType surface_type) {
-  if (auto prompt_override = GetRequiredPromptTypeOverride()) {
-    return *prompt_override;
-  }
-
   if (ShouldDisablePrompt()) {
     return PromptType::kNone;
   }
@@ -666,10 +699,28 @@ PromptType PrivacySandboxServiceImpl::GetRequiredPromptTypeInternal(
 
 PromptType PrivacySandboxServiceImpl::GetRequiredPromptType(
     SurfaceType surface_type) {
-  // TODO(crbug.com/420707919) Call the NoticeService's GetRequiredNotices here
-  // and compare against the current implementation's output, and emit
-  // histograms on diffs.
-  return GetRequiredPromptTypeInternal(surface_type);
+  // TODO(crbug.com/441942835) deprecate the user of force prompt test params.
+  if (auto prompt_override = GetRequiredPromptTypeOverride()) {
+    return *prompt_override;
+  }
+  PromptType ps_prompt_type = GetRequiredPromptTypeInternal(surface_type);
+  PromptType notice_service_prompt_type = PromptType::kNone;
+  if (auto* notice_service =
+          PrivacySandboxNoticeServiceFactory::GetForProfile(profile_)) {
+    notice_service_prompt_type = ToPromptType(
+        notice_service->GetRequiredNotices(ToNoticeSurfaceType(surface_type)));
+  }
+
+  base::UmaHistogramEnumeration(
+      "PrivacySandbox.Notice.Migration.PromptTypeCombination",
+      static_cast<PromptTypeCombination>(
+          static_cast<int>(ps_prompt_type) |
+          (static_cast<int>(notice_service_prompt_type) << 3)));
+
+  return base::FeatureList::IsEnabled(
+             privacy_sandbox::kPrivacySandboxGetPromptFromNoticeService)
+             ? notice_service_prompt_type
+             : ps_prompt_type;
 }
 
 void MaybeUpdateNoticeService(
@@ -1570,14 +1621,70 @@ bool PrivacySandboxServiceImpl::IsRestrictedNoticeRequired() {
 }
 
 EligibilityLevel PrivacySandboxServiceImpl::GetTopicsApiEligibility() {
-  return kNotEligible;
+  if (ShouldDisablePrompt() || UpdateAndGetSuppressionReason()) {
+    return kNotEligible;
+  }
+  if (privacy_sandbox_settings_->IsSubjectToM1NoticeRestricted()) {
+    return kNotEligible;
+  }
+
+  if (IsConsentRequired()) {
+    // Required to take into consideration profiles that were onboarded prior to
+    // the notice framework.
+    if (pref_service_->GetBoolean(
+            prefs::kPrivacySandboxM1ConsentDecisionMade)) {
+      return kNotEligible;
+    }
+    return kEligibleConsent;
+  }
+
+  if (IsNoticeRequired()) {
+    // Required to take into consideration profiles that were onboarded prior to
+    // the notice framework.
+    if (pref_service_->GetBoolean(
+            prefs::kPrivacySandboxM1ConsentDecisionMade) ||
+        pref_service_->GetBoolean(
+            prefs::kPrivacySandboxM1RowNoticeAcknowledged)) {
+      return kNotEligible;
+    }
+
+    return kEligibleNotice;
+  }
+  NOTREACHED();
 }
 
 EligibilityLevel
 PrivacySandboxServiceImpl::GetProtectedAudienceApiEligibility() {
-  return kNotEligible;
+  if (ShouldDisablePrompt() || UpdateAndGetSuppressionReason()) {
+    return kNotEligible;
+  }
+
+  if (privacy_sandbox_settings_->IsSubjectToM1NoticeRestricted()) {
+    return kNotEligible;
+  }
+
+  // Required to take into consideration profiles that were onboarded prior to
+  // the notice framework.
+  if (pref_service_->GetBoolean(
+          prefs::kPrivacySandboxM1RowNoticeAcknowledged) ||
+      pref_service_->GetBoolean(
+          prefs::kPrivacySandboxM1EEANoticeAcknowledged)) {
+    return kNotEligible;
+  }
+
+  return kEligibleNotice;
 }
 
 EligibilityLevel PrivacySandboxServiceImpl::GetAdMeasurementApiEligibility() {
-  return kNotEligible;
+  if (ShouldDisablePrompt() || UpdateAndGetSuppressionReason()) {
+    return kNotEligible;
+  }
+
+  // Required to take into consideration profiles that were onboarded prior to
+  // the notice framework.
+  if (HasAckedAnyMeasurementNotice(pref_service_)) {
+    return kNotEligible;
+  }
+
+  return kEligibleNotice;
 }

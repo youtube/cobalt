@@ -168,6 +168,7 @@ public class AutocompleteMediatorUnitTest {
     // CachedZeroSuggestionsManager shadow that helps us intercept interactions with manager's
     // static methods.
     @Implements(CachedZeroSuggestionsManager.class)
+    @SuppressWarnings("DirectInvocationOnMock")
     public static class ShadowCachedSuggestionsManager {
         public static CachedZeroSuggestionsManagerCalls mock =
                 mock(CachedZeroSuggestionsManagerCalls.class);
@@ -703,6 +704,7 @@ public class AutocompleteMediatorUnitTest {
 
     @Test
     @SmallTest
+    @SuppressWarnings("DirectInvocationOnMock")
     public void onSuggestionsReceived_sendsOnSuggestionsChanged() {
         mMediator.onNativeInitialized();
         mMediator.onOmniboxSessionStateChange(true);
@@ -1017,6 +1019,7 @@ public class AutocompleteMediatorUnitTest {
 
     @Test
     @SmallTest
+    @SuppressWarnings("DirectInvocationOnMock")
     public void switchToTab_invalidTabModelAssociation() {
         mMediator.setAutocompleteProfile(mProfile);
 

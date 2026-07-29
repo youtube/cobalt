@@ -43,6 +43,7 @@
 #include "base/test/gtest_util.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_entropy_provider.h"
+#include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/simple_test_clock.h"
 #include "base/test/task_environment.h"
@@ -94,6 +95,7 @@
 #include "net/cookies/cookie_store_test_callbacks.h"
 #include "net/cookies/cookie_util.h"
 #include "net/cookies/site_for_cookies.h"
+#include "services/network/devtools_durable_msg_collector.h"
 #include "services/network/public/cpp/permissions_policy/permissions_policy.h"
 #include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom-shared.h"
 
@@ -2825,67 +2827,6 @@ TEST_F(NetworkContextTest, ClearEmptyHttpAuthCache) {
   run_loop.Run();
 
   EXPECT_EQ(0u, cache->GetEntriesSizeForTesting());
-}
-
-std::optional<net::AuthCredentials> GetAuthCredentials(
-    NetworkContext* network_context,
-    const GURL& origin,
-    const net::NetworkAnonymizationKey& network_anonymization_key) {
-  base::RunLoop run_loop;
-  std::optional<net::AuthCredentials> result;
-  network_context->LookupServerBasicAuthCredentials(
-      origin, network_anonymization_key,
-      base::BindLambdaForTesting(
-          [&](const std::optional<net::AuthCredentials>& credentials) {
-            result = credentials;
-            run_loop.Quit();
-          }));
-  run_loop.Run();
-  return result;
-}
-
-TEST_F(NetworkContextTest, LookupServerBasicAuthCredentials) {
-  GURL origin("http://foo.test");
-  GURL origin2("http://bar.test");
-  GURL origin3("http://baz.test");
-  const auto network_anonymization_key1 =
-      net::NetworkAnonymizationKey::CreateSameSite(
-          net::SchemefulSite(url::Origin::Create(origin)));
-  const auto network_anonymization_key2 =
-      net::NetworkAnonymizationKey::CreateSameSite(
-          net::SchemefulSite(url::Origin::Create(origin2)));
-  std::unique_ptr<NetworkContext> network_context =
-      CreateContextWithParams(CreateNetworkContextParamsForTesting());
-  network_context->SetSplitAuthCacheByNetworkAnonymizationKey(true);
-  net::HttpAuthCache* cache = network_context->url_request_context()
-                                  ->http_transaction_factory()
-                                  ->GetSession()
-                                  ->http_auth_cache();
-
-  std::u16string user = u"user";
-  std::u16string password = u"pass";
-  cache->Add(url::SchemeHostPort(origin), net::HttpAuth::AUTH_SERVER, "Realm",
-             net::HttpAuth::AUTH_SCHEME_BASIC, network_anonymization_key1,
-             "basic realm=Realm", net::AuthCredentials(user, password), "/");
-  cache->Add(url::SchemeHostPort(origin2), net::HttpAuth::AUTH_PROXY, "Realm",
-             net::HttpAuth::AUTH_SCHEME_BASIC, network_anonymization_key1,
-             "basic realm=Realm", net::AuthCredentials(user, password), "/");
-
-  std::optional<net::AuthCredentials> result = GetAuthCredentials(
-      network_context.get(), origin, network_anonymization_key1);
-  ASSERT_TRUE(result.has_value());
-  EXPECT_EQ(user, result->username());
-  EXPECT_EQ(password, result->password());
-
-  // Nothing should be returned when using a different NIK.
-  EXPECT_FALSE(GetAuthCredentials(network_context.get(), origin,
-                                  network_anonymization_key2)
-                   .has_value());
-
-  // Proxy credentials should not be returned
-  result = GetAuthCredentials(network_context.get(), origin2,
-                              network_anonymization_key1);
-  EXPECT_FALSE(result.has_value());
 }
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -8589,6 +8530,76 @@ TEST_P(NetworkContextSplitCacheTest,
   EXPECT_EQ(resource_entry->GetLastUsed(), kNow2);
 }
 
+TEST_F(NetworkContextTest, AddHttpAuthCacheEntryWithNetworkAnonymizationKey) {
+  mojom::NetworkContextParamsPtr context_params =
+      CreateNetworkContextParamsForTesting();
+  context_params->split_auth_cache_by_network_anonymization_key = true;
+  std::unique_ptr<NetworkContext> network_context =
+      CreateContextWithParams(std::move(context_params));
+  net::HttpAuthCache* cache = network_context->url_request_context()
+                                  ->http_transaction_factory()
+                                  ->GetSession()
+                                  ->http_auth_cache();
+  ASSERT_TRUE(cache);
+  // If this isn't true, the rest of this test is pretty meaningless.
+  ASSERT_TRUE(cache->key_server_entries_by_network_anonymization_key());
+
+  // Add an AUTH_SERVER cache entry.
+  url::Origin origin = url::Origin::Create(GURL("http://example.test/"));
+  auto site = net::SchemefulSite(origin);
+  url::SchemeHostPort scheme_host_port =
+      origin.GetTupleOrPrecursorTupleIfOpaque();
+  net::NetworkIsolationKey network_isolation_key(site, site);
+  auto network_anonymization_key =
+      net::NetworkAnonymizationKey::CreateSameSite(site);
+  net::AuthChallengeInfo challenge;
+  challenge.is_proxy = false;
+  challenge.challenger = scheme_host_port;
+  challenge.scheme = "basic";
+  challenge.realm = "testrealm";
+  const char16_t kUsername[] = u"test_user";
+  const char16_t kPassword[] = u"test_pass";
+  ASSERT_FALSE(cache->Lookup(scheme_host_port, net::HttpAuth::AUTH_SERVER,
+                             challenge.realm, net::HttpAuth::AUTH_SCHEME_BASIC,
+                             network_anonymization_key));
+  base::RunLoop run_loop;
+  network_context->AddAuthCacheEntry(challenge, network_anonymization_key,
+                                     net::AuthCredentials(kUsername, kPassword),
+                                     run_loop.QuitClosure());
+  run_loop.Run();
+  net::HttpAuthCache::Entry* entry = cache->Lookup(
+      scheme_host_port, net::HttpAuth::AUTH_SERVER, challenge.realm,
+      net::HttpAuth::AUTH_SCHEME_BASIC, network_anonymization_key);
+  ASSERT_TRUE(entry);
+  EXPECT_EQ(scheme_host_port, entry->scheme_host_port());
+  EXPECT_EQ(challenge.realm, entry->realm());
+  EXPECT_EQ(net::HttpAuth::StringToScheme(challenge.scheme), entry->scheme());
+  EXPECT_EQ(kUsername, entry->credentials().username());
+  EXPECT_EQ(kPassword, entry->credentials().password());
+  // Entry should only be accessible when using the correct
+  // NetworkAnonymizationKey.
+  EXPECT_FALSE(cache->Lookup(scheme_host_port, net::HttpAuth::AUTH_SERVER,
+                             challenge.realm, net::HttpAuth::AUTH_SCHEME_BASIC,
+                             net::NetworkAnonymizationKey()));
+}
+
+TEST_F(NetworkContextTest,
+       AddHttpAuthCacheEntryWithNetworkAnonymizationKeySettingDisabled) {
+  mojom::NetworkContextParamsPtr context_params =
+      CreateNetworkContextParamsForTesting();
+  context_params->split_auth_cache_by_network_anonymization_key = false;
+  std::unique_ptr<NetworkContext> network_context =
+      CreateContextWithParams(std::move(context_params));
+  net::HttpAuthCache* cache = network_context->url_request_context()
+                                  ->http_transaction_factory()
+                                  ->GetSession()
+                                  ->http_auth_cache();
+  ASSERT_TRUE(cache);
+  // Since the split_auth_cache_by_network_anonymization_key is being set to
+  // false expect this to also be false.
+  ASSERT_FALSE(cache->key_server_entries_by_network_anonymization_key());
+}
+
 TEST_F(NetworkContextTest, EnableTrustTokensForFledge) {
   std::unique_ptr<NetworkContext> network_context =
       CreateContextWithParams(CreateNetworkContextParamsForTesting());
@@ -11906,6 +11917,52 @@ TEST_P(StorageAccessHeaderNetworkContextParameterizedTest, RetryAfterInactive) {
         net::cookie_util::SecFetchStorageAccessOutcome::kValueNone,
         /*expected_count=*/1);
   }
+}
+
+TEST_F(NetworkContextTest, EnableDurableMessageCollector) {
+  std::unique_ptr<NetworkContext> network_context =
+      CreateContextWithParams(CreateNetworkContextParamsForTesting());
+  const base::UnguessableToken kThrottlingProfileId =
+      base::UnguessableToken::Create();
+
+  EXPECT_EQ(
+      0u,
+      network_context->num_devtools_durable_message_collectors_for_testing());
+
+  // Add a collector.
+  mojo::Remote<mojom::DurableMessageCollector> collector;
+  network_context->EnableDurableMessageCollector(
+      kThrottlingProfileId, collector.BindNewPipeAndPassReceiver());
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return network_context
+               ->num_devtools_durable_message_collectors_for_testing() == 1;
+  }));
+
+  EXPECT_EQ(
+      1u,
+      network_context->num_devtools_durable_message_collectors_for_testing());
+
+  // Configure the same collector again.
+  mojo::Remote<mojom::DurableMessageCollector> collector2;
+  network_context->EnableDurableMessageCollector(
+      kThrottlingProfileId, collector2.BindNewPipeAndPassReceiver());
+  collector2.FlushForTesting();
+
+  EXPECT_EQ(
+      1u,
+      network_context->num_devtools_durable_message_collectors_for_testing());
+
+  // Disconnect the mojo remote.
+  collector.reset();
+  collector2.reset();
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return network_context
+               ->num_devtools_durable_message_collectors_for_testing() == 0;
+  }));
+
+  EXPECT_EQ(
+      0u,
+      network_context->num_devtools_durable_message_collectors_for_testing());
 }
 
 }  // namespace

@@ -1433,6 +1433,11 @@
                   'ios/chrome/common/ui|'\
                   'ios/chrome/credential_provider_extension',
     },
+    'ios_enterprise': {
+      'filepath': 'ios/chrome/browser/enterprise/|'\
+                  'ios/chrome/browser/policy/|'\
+                  'ios/chrome/browser/webui/ui_bundled/management/',
+    },
     'ios_flags': {
       'filepath': 'ios/chrome/browser/about_flags\.(h|mm)|'\
                   'ios/chrome/browser/experimental_flags\.(h|mm)|'\
@@ -2518,7 +2523,8 @@
                                    'katie+watch@chromium.org'],
       'accessibility_minimal_core': ['kbabbitt@microsoft.com',
         'lucasradaelli+watch@google.com'],
-    'accessibility_reading': ['lwinston+watch-readinga11y@google.com',
+    'accessibility_reading': ['jatapiaro+watch-readinga11y@google.com',
+                              'lwinston+watch-readinga11y@google.com',
                               'trewin+watch@google.com'],
     'accessibility_service': ['hirokisato+watch@chromium.org',
                               'katie+watch@chromium.org'],
@@ -3035,6 +3041,7 @@
     'ios_clean': ['ios-reviews+clean@chromium.org',
                   'marq+scrutinize@chromium.org'],
     'ios_credential_provider': ['rkgibson+watch@chromium.org'],
+    'ios_enterprise': ['eic+watch@google.com'],
     'ios_flags': ['noyau+watch@chromium.org'],
     'ios_ntp': ['thegreenfrog+watch@chromium.org'],
     'ios_payments_autofill': ['slobodan+watch@chromium.org'],
@@ -3321,7 +3328,7 @@
     'switch_access': ['anastasi+watch@google.com'],
     'syncfs': ['kinuko+fileapi@chromium.org'],
     'tab_alert_indicators': ['jophba+watch@chromium.org'],
-    'tab_alerts': ['stluong@chromium.org'],
+    'tab_alerts': ['stluong+watch@chromium.org'],
     'tab_capture': ['jophba+watch@chromium.org',
                     'mfoltz+watch@chromium.org'],
     'tab_contents': ['ajwong+watch@chromium.org',

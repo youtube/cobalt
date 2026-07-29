@@ -101,13 +101,6 @@ AmountExtractionManager::GetEligibleFeatures(const SuggestionsContext& context,
     return {};
   }
 
-  // None of the projects that use amount extraction are intended to be enabled
-  // in off-the-record mode, so do not run amount extraction in off-the-record
-  // mode.
-  if (autofill_manager_->client().IsOffTheRecord()) {
-    return {};
-  }
-
   const DenseSet<EligibleFeature> eligible_features =
       CheckEligibilityForFeaturesRequiringAmountExtraction();
 
@@ -115,7 +108,7 @@ AmountExtractionManager::GetEligibleFeatures(const SuggestionsContext& context,
   // flag for eligible users.
   if (!eligible_features.empty() &&
       base::FeatureList::IsEnabled(
-          ::autofill::features::kAutofillEnableAmountExtractionDesktop)) {
+          ::autofill::features::kAutofillEnableAmountExtraction)) {
     return eligible_features;
   }
 

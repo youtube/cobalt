@@ -22,7 +22,6 @@
 #include <utility>
 #include <vector>
 
-#include "ash/constants/ash_features.h"
 #include "ash/constants/ash_pref_names.h"
 #include "ash/constants/web_app_id_constants.h"
 #include "ash/display/display_configuration_controller.h"
@@ -3578,7 +3577,7 @@ TEST_F(ChromeShelfControllerTest, SyncUpdates) {
   InsertUpdatePinChange(&sync_list, 1, ash::kGmailAppId);
   InsertUpdatePinChange(&sync_list, 2, extension2_->id());
   SendPinChanges(sync_list, false);
-  std::reverse(expected_pinned_apps.begin(), expected_pinned_apps.end());
+  std::ranges::reverse(expected_pinned_apps);
   GetPinnedAppIds(shelf_controller_.get(), &actual_pinned_apps);
   EXPECT_EQ(expected_pinned_apps, actual_pinned_apps);
 
@@ -5579,7 +5578,6 @@ class ChromeShelfControllerPromiseAppsTest : public ChromeShelfControllerTest,
  public:
   ChromeShelfControllerPromiseAppsTest() {
     auto_start_arc_test_ = true;
-    feature_list_.InitAndEnableFeature(ash::features::kPromiseIcons);
   }
   ~ChromeShelfControllerPromiseAppsTest() override = default;
 
@@ -5635,7 +5633,6 @@ class ChromeShelfControllerPromiseAppsTest : public ChromeShelfControllerTest,
   }
 
  private:
-  base::test::ScopedFeatureList feature_list_;
   base::ScopedObservation<ash::ShelfModel, ash::ShelfModelObserver> obs_{this};
   std::unique_ptr<base::RunLoop> wait_run_loop_;
 };

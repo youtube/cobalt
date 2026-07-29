@@ -25,6 +25,7 @@
 #import "components/enterprise/browser/identifiers/identifiers_prefs.h"
 #import "components/enterprise/browser/reporting/common_pref_names.h"
 #import "components/enterprise/connectors/core/connectors_prefs.h"
+#import "components/enterprise/data_controls/core/browser/prefs.h"
 #import "components/enterprise/idle/idle_pref_names.h"
 #import "components/feature_engagement/public/pref_names.h"
 #import "components/feed/core/v2/public/ios/pref_names.h"
@@ -62,6 +63,7 @@
 #import "components/saved_tab_groups/public/pref_names.h"
 #import "components/search_engines/template_url_prepopulate_data.h"
 #import "components/segmentation_platform/embedder/default_model/device_switcher_result_dispatcher.h"
+#import "components/segmentation_platform/embedder/home_modules/home_modules_card_registry.h"
 #import "components/segmentation_platform/embedder/home_modules/tips_manager/tips_manager.h"
 #import "components/segmentation_platform/public/segmentation_platform_service.h"
 #import "components/send_tab_to_self/pref_names.h"
@@ -111,7 +113,6 @@
 #import "ios/chrome/browser/ntp/model/set_up_list_prefs.h"
 #import "ios/chrome/browser/ntp/shared/metrics/feed_metrics_constants.h"
 #import "ios/chrome/browser/ntp_tiles/model/tab_resumption/tab_resumption_prefs.h"
-#import "ios/chrome/browser/parcel_tracking/parcel_tracking_prefs.h"
 #import "ios/chrome/browser/photos/model/photos_policy.h"
 #import "ios/chrome/browser/policy/model/policy_util.h"
 #import "ios/chrome/browser/prerender/model/prerender_pref.h"
@@ -218,6 +219,9 @@ inline constexpr char kInvalidationClientIDCache[] =
     "invalidation.per_sender_client_id_cache";
 inline constexpr char kInvalidationTopicsToHandler[] =
     "invalidation.per_sender_topics_to_handler";
+inline constexpr char kParcelTrackingDisabled[] = "parcel_tracking.disabled";
+inline constexpr char kHomeCustomizationMagicStackParcelTrackingEnabled[] =
+    "ios.home_customization.magic_stack.parcel_tracking.enabled";
 
 // Migrates a boolean pref from source to target PrefService.
 void MigrateBooleanPref(std::string_view pref_name,
@@ -429,12 +433,13 @@ void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
   policy::PolicyStatisticsCollector::RegisterPrefs(registry);
   PrefProxyConfigTrackerImpl::RegisterPrefs(registry);
   segmentation_platform::TipsManager::RegisterLocalPrefs(registry);
+  segmentation_platform::home_modules::HomeModulesCardRegistry::
+      RegisterLocalStatePrefs(registry);
   sessions::SessionIdGenerator::RegisterPrefs(registry);
   set_up_list_prefs::RegisterPrefs(registry);
   signin::ActivePrimaryAccountsMetricsRecorder::RegisterLocalStatePrefs(
       registry);
   tab_resumption_prefs::RegisterLocalStatePrefs(registry);
-  RegisterParcelTrackingPrefs(registry);
   update_client::RegisterPrefs(registry);
   variations::VariationsService::RegisterPrefs(registry);
   component_updater::RegisterComponentUpdateServicePrefs(registry);
@@ -565,6 +570,9 @@ void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
   // Bottom omnibox preferences.
   registry->RegisterBooleanPref(prefs::kBottomOmnibox, false);
   registry->RegisterBooleanPref(prefs::kBottomOmniboxByDefault, false);
+  registry->RegisterBooleanPref(
+      omnibox::kIsOmniboxInBottomPosition, false,
+      user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
 
   // Preferences related to the Docking Promo feature (used only if
   // `kIOSDockingPromoForEligibleUsersOnly` is enabled).
@@ -695,6 +703,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   collaboration::prefs::RegisterProfilePrefs(registry);
   commerce::RegisterPrefs(registry);
   AimEligibilityService::RegisterProfilePrefs(registry);
+  data_controls::RegisterProfilePrefs(registry);
   dom_distiller::DistilledPagePrefs::RegisterProfilePrefs(registry);
   enterprise::RegisterIdentifiersProfilePrefs(registry);
   enterprise_connectors::RegisterProfilePrefs(registry);
@@ -978,8 +987,6 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
       prefs::kHomeCustomizationMagicStackSafetyCheckEnabled, true);
   registry->RegisterBooleanPref(
       prefs::kHomeCustomizationMagicStackTabResumptionEnabled, true);
-  registry->RegisterBooleanPref(
-      prefs::kHomeCustomizationMagicStackParcelTrackingEnabled, true);
 
   safety_check_prefs::RegisterPrefs(registry);
 
@@ -1051,7 +1058,9 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
 
   // BWG prefs.
   registry->RegisterDictionaryPref(prefs::kBwgSessionMap);
-  registry->RegisterBooleanPref(prefs::kIOSBwgConsent, false);
+  registry->RegisterBooleanPref(
+      prefs::kIOSBwgConsent, false,
+      user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
   registry->RegisterBooleanPref(prefs::kIOSBWGPreciseLocationSetting, false);
   registry->RegisterBooleanPref(prefs::kIOSBWGPageContentSetting, true);
   registry->RegisterIntegerPref(prefs::kIOSBWGPromoImpressionCount, 0);
@@ -1136,6 +1145,9 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   // Deprecated 08/2025.
   registry->RegisterDictionaryPref(kInvalidationClientIDCache);
   registry->RegisterDictionaryPref(kInvalidationTopicsToHandler);
+  registry->RegisterBooleanPref(kParcelTrackingDisabled, false);
+  registry->RegisterBooleanPref(
+      kHomeCustomizationMagicStackParcelTrackingEnabled, false);
 }
 
 // This method should be periodically pruned of year+ old migrations.
@@ -1344,6 +1356,8 @@ void MigrateObsoleteProfilePrefs(PrefService* prefs) {
   // Added 08/2025.
   prefs->ClearPref(kInvalidationClientIDCache);
   prefs->ClearPref(kInvalidationTopicsToHandler);
+  prefs->ClearPref(kParcelTrackingDisabled);
+  prefs->ClearPref(kHomeCustomizationMagicStackParcelTrackingEnabled);
 }
 
 void MigrateObsoleteUserDefault() {

@@ -156,8 +156,8 @@ std::vector<std::string> ProcessorEntityTracker::RemoveInactiveCollaborations(
   CHECK(
       IsInitialSyncAtLeastPartiallyDone(data_type_state_.initial_sync_state()));
   std::vector<std::string> removed_storage_keys;
-  std::erase_if(entities_, [&removed_storage_keys,
-                            &active_collaborations](const auto& item) {
+  absl::erase_if(entities_, [&removed_storage_keys,
+                             &active_collaborations](const auto& item) {
     const std::unique_ptr<ProcessorEntity>& entity = item.second;
     if (!active_collaborations.contains(
             entity->metadata().collaboration().collaboration_id())) {
@@ -233,6 +233,15 @@ ProcessorEntityTracker::GetAllEntitiesIncludingTombstones() const {
     entities.push_back(entity.get());
   }
   return entities;
+}
+
+std::vector<std::string> ProcessorEntityTracker::GetAllStorageKeys() const {
+  std::vector<std::string> storage_keys;
+  storage_keys.reserve(storage_key_to_tag_hash_.size());
+  for (const auto& [storage_key, client_tag_hash] : storage_key_to_tag_hash_) {
+    storage_keys.push_back(storage_key);
+  }
+  return storage_keys;
 }
 
 std::vector<ProcessorEntity*>

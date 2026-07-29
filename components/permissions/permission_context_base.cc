@@ -216,6 +216,7 @@ void PermissionContextBase::RequestPermission(
         PermissionUmaUtil::RecordPermissionRequestedFromFrame(
             content_settings_type_, rfh);
         break;
+      case content::PermissionStatusSource::ACTOR_OVERRIDE:
       case content::PermissionStatusSource::FENCED_FRAME:
       case content::PermissionStatusSource::INSECURE_ORIGIN:
       case content::PermissionStatusSource::VIRTUAL_URL_DIFFERENT_ORIGIN:
@@ -295,6 +296,18 @@ content::PermissionResult PermissionContextBase::GetPermissionStatus(
   if (IsPermissionKillSwitchOn()) {
     return content::PermissionResult(
         PermissionStatus::DENIED, content::PermissionStatusSource::KILL_SWITCH);
+  }
+
+  if (render_frame_host) {
+    content::WebContents* web_contents =
+        content::WebContents::FromRenderFrameHost(render_frame_host);
+    if (base::FeatureList::IsEnabled(
+            features::kGlicActorPermissionsAutoReject) &&
+        PermissionsClient::Get()->IsActorOperatingOnWebContents(web_contents)) {
+      return content::PermissionResult(
+          PermissionStatus::DENIED,
+          content::PermissionStatusSource::ACTOR_OVERRIDE);
+    }
   }
 
   if (!IsPermissionAvailableToOrigins(requesting_origin, embedding_origin)) {
@@ -731,10 +744,6 @@ void PermissionContextBase::UpdateSetting(
   if (info && content_settings::CanBeAutoRevokedAsUnusedPermission(
                   content_settings_type(), info->delegate().ToValue(setting),
                   is_one_time)) {
-    // For #2, by definition, that should be all of them. If that changes in
-    // the future, consider whether revocation for such permission makes
-    // sense, and/or change this to an early return so that we don't
-    // unnecessarily record timestamps where we don't need them.
     constraints.set_track_last_visit_for_autoexpiration(true);
   }
 

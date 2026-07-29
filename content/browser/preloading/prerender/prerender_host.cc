@@ -677,6 +677,19 @@ void PrerenderHost::DidFinishNavigation(NavigationHandle* navigation_handle) {
     return;
   }
 
+  if (PreloadServingMetrics::IsEnabled()) {
+    // If `DidFinishNavigation()` is called multiple times, ignore
+    // `PreloadServingMetrics` of that navigation and keep the first one.
+    if (!prerender_initial_preload_serving_metrics_) {
+      // Take `PreloadServingMetrics` of prerender initial navigation.
+      auto& initial_preload_serving_metrics_holder =
+          *PreloadServingMetricsHolder::GetOrCreateForNavigationHandle(
+              *navigation_handle);
+      prerender_initial_preload_serving_metrics_ =
+          initial_preload_serving_metrics_holder.Take();
+    }
+  }
+
   const bool is_prerender_main_frame =
       navigation_request->GetFrameTreeNodeId() == frame_tree_node_id_;
 
@@ -838,6 +851,17 @@ std::unique_ptr<StoredPage> PrerenderHost::Activate(
       PersistAcceptCH(origin, *(target_frame_tree.root()),
                       client_hints_delegate, client_hint);
     }
+  }
+
+  // Associate `PreloadServingMetrics` of prerender initial navigation to ones
+  // of activation.
+  if (PreloadServingMetrics::IsEnabled()) {
+    auto& activation_preload_serving_metrics_holder =
+        *PreloadServingMetricsHolder::GetOrCreateForNavigationHandle(
+            navigation_request);
+    activation_preload_serving_metrics_holder
+        .SetPrerenderInitialPreloadServingMetrics(
+            std::move(prerender_initial_preload_serving_metrics_));
   }
 
   RecordActivation(navigation_request);
@@ -1747,6 +1771,68 @@ void PrerenderHost::AddAdditionalRequestHeaders(
 void PrerenderHost::NotifyReused() {
   for (auto& observer : observers_) {
     observer.OnHostReused();
+  }
+}
+
+void PrerenderHost::OnWillBeCancelled(
+    const PrerenderCancellationReason& reason) {
+  if (!PreloadServingMetrics::IsEnabled()) {
+    return;
+  }
+
+  [&]() {
+    // There are two cases:
+    //
+    // 1. `DidFinishNavigation()` is already called and then prerender is
+    //    cancelled.
+    // 2. Cancelled before `DidFinishNavigation()`. (E.g.
+    //    `PrerenderURLLoaderThrottle`.)
+    //
+    // In the case 1, `prerender_initial_preload_serving_metrics_` is already
+    // set. So, nothing to do and return.
+    if (prerender_initial_preload_serving_metrics_) {
+      return;
+    }
+
+    // We believe that `NavigationRequest` exist in this case, but some tests
+    // fails If we use `CHECK` for `frame_tree_node` and `navigation_request`.
+    // (We don't check which causes the failure.) Give up to record metrics in
+    // such case.
+    //
+    // TODO(crbug.com/360094997): Investigate why and Use `CHECK` instead if
+    // possible.
+    auto* frame_tree_node =
+        FrameTreeNode::GloballyFindByID(frame_tree_node_id_);
+    if (!frame_tree_node) {
+      return;
+    }
+
+    NavigationRequest* navigation_request =
+        frame_tree_node->navigation_request();
+    if (!navigation_request) {
+      // Cancellation can be occur in prerender initial navigation or after
+      // `DidFinishNavigation()`. `!navigation_request` implies that the latter
+      // case, but it is handled in `DidFinishNavigation()` and already taken
+      // the log.
+      //
+      // TODO(crbug.com/360094997): Ditto. Investigate test failure. Use
+      // `DUMP_WILL_BE_NOTREACHED` instead.
+      // TODO(crbug.com/360094997): Use `CHECK` instead once we checked the
+      // safety by `DUMP_WILL_BE_NOTREACHED`.
+      return;
+    }
+
+    // Take `PreloadServingMetrics` of prerender initial navigation.
+    auto& initial_preload_serving_metrics_holder =
+        *PreloadServingMetricsHolder::GetOrCreateForNavigationHandle(
+            *navigation_request);
+    prerender_initial_preload_serving_metrics_ =
+        initial_preload_serving_metrics_holder.Take();
+  }();
+
+  if (prerender_initial_preload_serving_metrics_) {
+    prerender_initial_preload_serving_metrics_
+        ->RecordMetricsForPrerenderInitialNavigationFailed();
   }
 }
 

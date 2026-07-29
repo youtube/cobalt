@@ -39,7 +39,6 @@
 #include "components/google/core/common/google_util.h"
 #include "components/omnibox/common/omnibox_features.h"
 #include "components/search_engines/regulatory_extension_type.h"
-#include "components/search_engines/search_engine_choice/search_engine_choice_utils.h"
 #include "components/search_engines/search_engine_utils.h"
 #include "components/search_engines/search_engines_switches.h"
 #include "components/search_engines/search_terms_data.h"
@@ -57,6 +56,10 @@
 #include "ui/base/device_form_factor.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "url/gurl.h"
+
+#if BUILDFLAG(ENABLE_BUILTIN_SEARCH_PROVIDER_ASSETS) && !BUILDFLAG(IS_ANDROID)
+#include "third_party/search_engines_data/search_engine_descriptions_strings_map.h"
+#endif
 
 namespace {
 
@@ -1824,23 +1827,30 @@ std::optional<std::string_view> TemplateURL::GetBaseBuiltinResourceId() const {
 std::string TemplateURL::GetBuiltinImageResourceId() const {
   std::optional<std::string_view> base_resource_id = GetBaseBuiltinResourceId();
   if (base_resource_id.has_value()) {
-    return base::StrCat({base_resource_id.value(), "_IMAGE"});
+    return base::StrCat({"IDR_", base_resource_id.value(), "_IMAGE"});
   }
   return "IDR_DEFAULT_FAVICON";
 }
 
+std::string TemplateURL::GetBuiltinDescriptionResourceId() const {
+  std::optional<std::string_view> base_resource_id = GetBaseBuiltinResourceId();
+  if (base_resource_id.has_value()) {
+    return base::StrCat({"IDS_", base_resource_id.value(), "_DESCRIPTION"});
+  }
+  return {};
+}
+
 std::optional<std::u16string> TemplateURL::GetBuiltinMarketingSnippet() const {
-#if !BUILDFLAG(IS_ANDROID)
-  // TODO(crbug.com/420943295): `GetMarketingSnippetResourceId()` is generated
-  // code. The flag-gating should be moved there directly.
+#if BUILDFLAG(ENABLE_BUILTIN_SEARCH_PROVIDER_ASSETS) && !BUILDFLAG(IS_ANDROID)
+  auto resource_id = GetBuiltinDescriptionResourceId();
+  if (!resource_id.empty()) {
+    auto iter = std::ranges::find_if(
+        kSearchEngineDescriptionsStrings,
+        [&](const auto& resource) { return resource.path == resource_id; });
 
-  int snippet_resource_id =
-      kEnableBuiltinSearchProviderAssets
-          ? search_engines::GetMarketingSnippetResourceId(keyword())
-          : -1;
-
-  if (snippet_resource_id != -1) {
-    return l10n_util::GetStringUTF16(snippet_resource_id);
+    if (iter != std::end(kSearchEngineDescriptionsStrings)) {
+      return l10n_util::GetStringUTF16(iter->id);
+    }
   }
 #endif
   return std::nullopt;

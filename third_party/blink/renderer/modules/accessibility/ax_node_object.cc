@@ -1258,8 +1258,8 @@ bool AXNodeObject::ComputeIsIgnored(IgnoredReasons* ignored_reasons) const {
     }
 
     // Fallback elements inside of a <canvas> are invisible, but are not ignored
-    if (IsHiddenViaStyle() || !node || !node->parentElement() ||
-        !node->parentElement()->IsCanvasOrInCanvasSubtree()) {
+    if (IsHiddenViaStyle() || !node || !node->ParentOrShadowHostElement() ||
+        !node->ParentOrShadowHostElement()->IsCanvasOrInCanvasSubtree()) {
       return true;
     }
   }
@@ -1278,6 +1278,15 @@ bool AXNodeObject::ComputeIsIgnored(IgnoredReasons* ignored_reasons) const {
     // explicitly hidden, e.g. is in a <canvas> fallback or is display locked.
     if (IsA<Text>(node)) {
       return false;
+    }
+    // Similarly, elements in <canvas> fallback should not be ignored.
+    if (node->ParentOrShadowHostElement() &&
+        node->ParentOrShadowHostElement()->IsCanvasOrInCanvasSubtree()) {
+      // TODO: We should not exclude display: contents (crbug.com/41384724) in
+      // canvas.
+      if (!GetElement() || !GetElement()->HasDisplayContentsStyle()) {
+        return false;
+      }
     }
     if (ignored_reasons) {
       ignored_reasons->push_back(IgnoredReason(kAXUninteresting));
@@ -1330,11 +1339,14 @@ bool AXNodeObject::ComputeIsIgnored(IgnoredReasons* ignored_reasons) const {
 
     // A 1x1 canvas is too small for the user to see and thus ignored.
     const auto* canvas = DynamicTo<LayoutHTMLCanvas>(GetLayoutObject());
-    if (canvas && (canvas->Size().height <= 1 || canvas->Size().width <= 1)) {
-      if (ignored_reasons) {
-        ignored_reasons->push_back(IgnoredReason(kAXProbablyPresentational));
+    if (canvas) {
+      PhysicalSize size = canvas->StitchedSize();
+      if (size.height <= 1 || size.width <= 1) {
+        if (ignored_reasons) {
+          ignored_reasons->push_back(IgnoredReason(kAXProbablyPresentational));
+        }
+        return true;
       }
-      return true;
     }
 
     // Otherwise fall through; use presence of help text, title, or description
@@ -1980,8 +1992,8 @@ bool AXNodeObject::IsDataTable() const {
 
       const LayoutBlock* cell_layout_block =
           To<LayoutBlock>(cell_layout_object);
-      if (cell_layout_block->Size().width < 1 ||
-          cell_layout_block->Size().height < 1) {
+      PhysicalSize size = cell_layout_block->StitchedSize();
+      if (size.width < 1 || size.height < 1) {
         continue;
       }
 
@@ -3287,26 +3299,34 @@ AccessibilityExpanded AXNodeObject::IsExpanded() const {
     return is_expanded ? kExpandedExpanded : kExpandedCollapsed;
   }
 
-  // For button elements that act as commandFor triggers, aria-expanded may be
-  // set depending on the command type. This results in the same mapping as
-  // popovertarget, but takes precedence in the case of conflicting markup as
-  // the HTML spec invokers commandfor functionality first, and only
-  // popovertarget after, if commandfor was not executed.
+  HTMLElement* command_for_element = nullptr;
   if (auto* button = DynamicTo<HTMLButtonElement>(element)) {
-    if (HTMLElement* command_for =
-            DynamicTo<HTMLElement>(button->commandForElement())) {
-      const AtomicString& action =
-          button->FastGetAttribute(html_names::kCommandAttr);
-      bool is_valid_popover_command = command_for->IsValidBuiltinPopoverCommand(
-          *button,
-          HTMLButtonElement::GetCommandEventType(
-              action, command_for->GetDocument().GetExecutionContext()));
-      bool is_child = button->IsDescendantOrShadowDescendantOf(command_for);
-      // Buttons for popovers should indicate the expanded/collapsed state.
-      if (is_valid_popover_command && !is_child) {
-        return command_for->popoverOpen() ? kExpandedExpanded
-                                          : kExpandedCollapsed;
-      }
+    command_for_element = DynamicTo<HTMLElement>(button->commandForElement());
+  } else if (auto* menuitem = DynamicTo<HTMLMenuItemElement>(element)) {
+    DCHECK(RuntimeEnabledFeatures::MenuElementsEnabled());
+    command_for_element = DynamicTo<HTMLElement>(menuitem->commandForElement());
+  }
+
+  // For menuitem and button elements that act as commandFor triggers,
+  // aria-expanded may be set depending on the command type. This results in the
+  // same mapping as popovertarget, but takes precedence in the case of
+  // conflicting markup as the HTML spec invokers commandfor functionality
+  // first, and only.
+  if (command_for_element) {
+    const AtomicString& action =
+        element->FastGetAttribute(html_names::kCommandAttr);
+    bool is_valid_popover_command =
+        command_for_element->IsValidBuiltinPopoverCommand(
+            *DynamicTo<HTMLElement>(element),
+            HTMLButtonElement::GetCommandEventType(
+                action,
+                command_for_element->GetDocument().GetExecutionContext()));
+    bool is_child =
+        element->IsDescendantOrShadowDescendantOf(command_for_element);
+    // Popover invokers should indicate the expanded/collapsed state.
+    if (is_valid_popover_command && !is_child) {
+      return command_for_element->popoverOpen() ? kExpandedExpanded
+                                                : kExpandedCollapsed;
     }
   }
 
@@ -4208,6 +4228,19 @@ ax::mojom::blink::AriaCurrentState AXNodeObject::GetAriaCurrentState() const {
   const AtomicString& attribute_value =
       AriaTokenAttribute(html_names::kAriaCurrentAttr);
   if (attribute_value.IsNull()) {
+    if (RuntimeEnabledFeatures::CSSScrollTargetGroupAriaCurrentEnabled()) {
+      // If aria-current is not set, check if the anchor element is selected
+      // in a scroll marker group (it's now a :target-current). If so, set
+      // aria-current="true" on the element.
+      if (auto* anchor_element = DynamicTo<HTMLAnchorElement>(GetNode())) {
+        if (ScrollMarkerGroupData* data =
+                anchor_element->GetScrollTargetGroupContainerData()) {
+          if (data->Selected() == anchor_element) {
+            return ax::mojom::blink::AriaCurrentState::kTrue;
+          }
+        }
+      }
+    }
     return ax::mojom::blink::AriaCurrentState::kNone;
   }
   if (EqualIgnoringASCIICase(attribute_value, "false")) {
@@ -5524,8 +5557,8 @@ void AXNodeObject::GetRelativeBounds(AXObject** out_container,
   Element* element = GetElement();
   // If it's in a canvas but doesn't have an explicit rect, or has display:
   // contents set, get the bounding rect of its children.
-  if ((GetNode()->parentElement() &&
-       GetNode()->parentElement()->IsCanvasOrInCanvasSubtree()) ||
+  if ((GetNode()->ParentOrShadowHostElement() &&
+       GetNode()->ParentOrShadowHostElement()->IsCanvasOrInCanvasSubtree()) ||
       (element && element->HasDisplayContentsStyle())) {
     Vector<gfx::RectF> rects;
     for (Node& child : NodeTraversal::ChildrenOf(*GetNode())) {

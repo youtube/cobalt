@@ -177,6 +177,13 @@ const char kIOSPageActionMenuIPHUsed[] = "page_action_menu_iph_used";
 const char kIOSFirstRunComplete[] = "ios_first_run_complete";
 const char kIOSFREBadgeHoldbackPeriodElapsed[] =
     "ios_fre_badge_holdback_period_elapsed";
+const char kIOSReaderModeUsed[] = "ios_reader_mode_used";
+const char kIOSIPHBadgedReaderModeTriggered[] =
+    "ios_iph_badged_reader_mode_triggered";
+const char kIOSAIHubNewBadgeTriggered[] = "ios_new_ai_hub_badge_triggered";
+const char kIOSAIHubNewBadgeUsed[] = "ios_new_ai_hub_badge_used";
+const char kIOSGeminiPromoFirstCompletion[] =
+    "ios_gemini_promo_first_completion";
 #endif  // BUILDFLAG(IS_IOS)
 
 #if BUILDFLAG(IS_ANDROID)

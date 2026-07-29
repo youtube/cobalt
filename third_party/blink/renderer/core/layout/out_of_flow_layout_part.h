@@ -143,6 +143,8 @@ class CORE_EXPORT OutOfFlowLayoutPart {
     bool is_hidden_for_paint;
     // Size and offset of the container.
     LogicalRect rect;
+    // https://drafts.csswg.org/css-position-4/#scrollable-containing-block
+    std::optional<LogicalRect> scroll_rect;
     // The relative positioned offset to be applied after fragmentation is
     // completed.
     LogicalOffset relative_offset;
@@ -326,9 +328,11 @@ class CORE_EXPORT OutOfFlowLayoutPart {
   AnchorEvaluatorImpl CreateAnchorEvaluator(
       const ContainingBlockInfo& container_info,
       const BlockNode& candidate,
+      bool is_inside_fragmentation_context,
       const StitchedAnchorQueries* anchor_queries) const;
 
   LogicalRect ApplyPositionAreaOffsets(
+      const LogicalRect& base_rect,
       const PositionAreaOffsets& offsets,
       PhysicalOffset default_anchor_scroll_shift,
       const ContainingBlockInfo& container_info) const;
@@ -344,6 +348,7 @@ class CORE_EXPORT OutOfFlowLayoutPart {
   // changing this to a more accurate name.
   OffsetInfo CalculateOffset(
       const NodeInfo& node_info,
+      bool is_inside_fragmentation_context,
       const StitchedAnchorQueries* anchor_queries = nullptr);
   // Calculates offsets with the given ComputedStyle. Returns nullopt if
   // |try_fit_available_space| is true and the layout result does not fit the
@@ -445,8 +450,8 @@ class CORE_EXPORT OutOfFlowLayoutPart {
   // The OutOfFlowLayoutPart for the outer block fragmentation context when this
   // is an inner layout of nested block fragmentation.
   OutOfFlowLayoutPart* outer_oof_layout_part_ = nullptr;
-  ContainingBlockInfo default_containing_block_info_for_absolute_;
-  ContainingBlockInfo default_containing_block_info_for_fixed_;
+  ContainingBlockInfo default_containing_block_;
+  std::optional<ContainingBlockInfo> viewport_containing_block_;
   HeapHashMap<Member<const LayoutObject>, ContainingBlockInfo>
       containing_blocks_map_;
 

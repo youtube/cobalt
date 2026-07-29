@@ -25,6 +25,17 @@ chromium-metrics-reviews@google.com.
 
 <enums>
 
+<!-- LINT.IfChange(ActiveRegionalProgram) -->
+
+<enum name="ActiveRegionalProgram">
+  <int value="0" label="Default"/>
+  <int value="1" label="Mixed"/>
+  <int value="2" label="Waffle"/>
+  <int value="3" label="Taiyaki"/>
+</enum>
+
+<!-- LINT.ThenChange(/components/regional_capabilities/regional_capabilities_metrics.h:ActiveRegionalProgram) -->
+
 <!-- LINT.IfChange(CountryMatchingStatus) -->
 
 <enum name="CountryMatchingStatus">
@@ -50,6 +61,27 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(/components/regional_capabilities/regional_capabilities_metrics.h:LoadedCountrySource) -->
+
+<!-- LINT.IfChange(RegionalCapabilitiesFunnelStage) -->
+
+<enum name="RegionalCapabilitiesFunnelStage">
+  <int value="0" label="NotInRegionalScope"/>
+  <int value="1" label="AlreadyCompleted"/>
+  <int value="2" label="Eligible"/>
+  <int value="3" label="NotEligible"/>
+</enum>
+
+<!-- LINT.ThenChange(/components/regional_capabilities/regional_capabilities_metrics.h:FunnelStage) -->
+
+<!-- LINT.IfChange(RegionalProgramAndLocationMatch) -->
+
+<enum name="RegionalProgramAndLocationMatch">
+  <int value="0" label="SameAsProfileCountry"/>
+  <int value="1" label="SameRegionAsProgram"/>
+  <int value="2" label="NoMatch"/>
+</enum>
+
+<!-- LINT.ThenChange(/components/regional_capabilities/regional_capabilities_metrics.h:ProgramAndLocationMatch) -->
 
 </enums>
 

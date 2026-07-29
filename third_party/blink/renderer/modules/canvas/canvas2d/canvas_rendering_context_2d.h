@@ -241,6 +241,18 @@ class MODULES_EXPORT CanvasRenderingContext2D final
                    double dheight,
                    Canvas2DDrawElementOption* options,
                    ExceptionState& exception_state);
+  void drawHTMLElement(Element* element,
+                       double x,
+                       double y,
+                       Canvas2DDrawElementOption* options,
+                       ExceptionState& exception_state);
+  void drawHTMLElement(Element* element,
+                       double x,
+                       double y,
+                       double dwidth,
+                       double dheight,
+                       Canvas2DDrawElementOption* options,
+                       ExceptionState& exception_state);
   void setHitTestRegions(VectorOf<CanvasElementHitTestRegion> hit_test_regions,
                          ExceptionState& exception_state);
 
@@ -354,7 +366,8 @@ class MODULES_EXPORT CanvasRenderingContext2D final
       std::unique_ptr<CanvasResourceProvider>) override;
   void DropAndRecreateExistingCanvas2DResourceProvider() override;
 
-  CanvasResourceProvider* RecreateCanvasResourceProviderForCanvas2D();
+  // This method should be called only when `resource_provider_` is null.
+  void RecreateCanvasResourceProviderForCanvas2D();
 
   FilterOperations filter_operations_;
   HashMap<String, FontDescription> fonts_resolved_using_current_style_;

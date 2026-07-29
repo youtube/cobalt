@@ -37,7 +37,9 @@
 #include "components/endpoint_fetcher/endpoint_fetcher.h"
 #include "components/lens/lens_features.h"
 #include "components/lens/lens_overlay_mime_type.h"
+#include "components/lens/lens_payload_construction.h"
 #include "components/lens/lens_request_construction.h"
+#include "components/lens/lens_url_utils.h"
 #include "components/lens/proto/server/lens_overlay_response.pb.h"
 #include "components/lens/ref_counted_lens_overlay_client_logs.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
@@ -67,7 +69,6 @@
 #include "third_party/lens_server_proto/lens_overlay_service_deps.pb.h"
 #include "third_party/lens_server_proto/lens_overlay_surface.pb.h"
 #include "third_party/lens_server_proto/lens_overlay_visual_search_interaction_data.pb.h"
-#include "third_party/zstd/src/lib/zstd.h"
 #include "ui/gfx/geometry/rect.h"
 
 using endpoint_fetcher::CredentialsMode;
@@ -89,10 +90,6 @@ constexpr char kSessionIdQueryParameterKey[] = "gsessionid";
 constexpr char kGen204IdentifierQueryParameter[] = "plla";
 constexpr char kVisualSearchInteractionDataQueryParameterKey[] = "vsint";
 constexpr char kVisualInputTypeQueryParameterKey[] = "vit";
-constexpr char kPdfVisualInputTypeQueryParameterValue[] = "pdf";
-constexpr char kWebpageVisualInputTypeQueryParameterValue[] = "wp";
-constexpr char kImageVisualInputTypeQueryParameterValue[] = "img";
-constexpr char kContextualVisualInputTypeQueryParameterValue[] = "video";
 
 constexpr net::NetworkTrafficAnnotationTag kTrafficAnnotationTag =
     net::DefineNetworkTrafficAnnotation("lens_overlay", R"(
@@ -173,34 +170,10 @@ lens::CenterRotatedBox ConvertToServerCenterRotatedBox(
   return out_box;
 }
 
-std::string VitQueryParamValueForMimeType(lens::MimeType mime_type) {
-  // Default contextual visual input type.
-  std::string vitValue = kContextualVisualInputTypeQueryParameterValue;
-  switch (mime_type) {
-    case lens::MimeType::kPdf:
-      vitValue = kPdfVisualInputTypeQueryParameterValue;
-      break;
-    case lens::MimeType::kHtml:
-    case lens::MimeType::kPlainText:
-    case lens::MimeType::kAnnotatedPageContent:
-      vitValue = kWebpageVisualInputTypeQueryParameterValue;
-      break;
-    case lens::MimeType::kUnknown:
-      break;
-    case lens::MimeType::kImage:
-    case lens::MimeType::kVideo:
-    case lens::MimeType::kAudio:
-    case lens::MimeType::kJson:
-      // These content types are not supported for the page content upload flow.
-      NOTREACHED() << "Unsupported option in page content upload";
-  }
-  return vitValue;
-}
-
 std::map<std::string, std::string> AddVisualInputTypeQueryParam(
     std::map<std::string, std::string> additional_search_query_params,
     lens::MimeType content_type) {
-  std::string vitValue = VitQueryParamValueForMimeType(content_type);
+  std::string vitValue = lens::VitQueryParamValueForMimeType(content_type);
   additional_search_query_params.insert(
       {kVisualInputTypeQueryParameterKey, vitValue});
   return additional_search_query_params;
@@ -225,28 +198,6 @@ lens::LensOverlayInteractionRequestMetadata::Type ContentTypeToInteractionType(
       NOTREACHED() << "Unsupported option in page content upload";
   }
   return lens::LensOverlayInteractionRequestMetadata::CONTEXTUAL_SEARCH_QUERY;
-}
-
-lens::ContentData::ContentType MimeTypeToContentType(
-    lens::MimeType content_type) {
-  switch (content_type) {
-    case lens::MimeType::kPdf:
-      return lens::ContentData::CONTENT_TYPE_PDF;
-    case lens::MimeType::kHtml:
-      return lens::ContentData::CONTENT_TYPE_INNER_HTML;
-    case lens::MimeType::kPlainText:
-      return lens::ContentData::CONTENT_TYPE_INNER_TEXT;
-    case lens::MimeType::kUnknown:
-      return lens::ContentData::CONTENT_TYPE_UNSPECIFIED;
-    case lens::MimeType::kAnnotatedPageContent:
-      return lens::ContentData::CONTENT_TYPE_ANNOTATED_PAGE_CONTENT;
-    case lens::MimeType::kImage:
-    case lens::MimeType::kVideo:
-    case lens::MimeType::kAudio:
-    case lens::MimeType::kJson:
-      // These content types are not supported for the page content upload flow.
-      NOTREACHED() << "Unsupported option in page content upload";
-  }
 }
 
 lens::LensOverlayClientLogs::LensOverlayEntryPoint
@@ -285,31 +236,6 @@ LenOverlayEntryPointFromInvocationSource(
   return lens::LensOverlayClientLogs::UNKNOWN_ENTRY_POINT;
 }
 
-// Compresses the given bytes using Zstd and store them into `dst_bytes`.
-// Returns true if the compression is successful.
-bool ZstdCompressBytes(base::span<const uint8_t> src_bytes,
-                       std::string* dst_bytes) {
-  CHECK(dst_bytes);
-  size_t uncompressed_size = src_bytes.size();
-  size_t buffer_bounds = ZSTD_compressBound(uncompressed_size);
-
-  // Resize the output buffer to the upper bound of the compressed size.
-  dst_bytes->resize(buffer_bounds);
-
-  // Do the compression.
-  const size_t compressed_size = ZSTD_compress(
-      dst_bytes->data(), buffer_bounds, src_bytes.data(), uncompressed_size,
-      lens::features::GetZstdCompressionLevel());
-
-  if (ZSTD_isError(compressed_size)) {
-    return false;
-  }
-
-  // Resize the output vector to the actual compressed size.
-  dst_bytes->resize(compressed_size);
-  return true;
-}
-
 // Divides the content_bytes into small chunks, which are then compressed.
 std::vector<std::string> MakeChunks(base::span<const uint8_t> content_bytes) {
   base::SpanReader reader(content_bytes);
@@ -322,7 +248,7 @@ std::vector<std::string> MakeChunks(base::span<const uint8_t> content_bytes) {
     CHECK(current_chunk.has_value());
 
     std::string chunk;
-    const bool success = ZstdCompressBytes(current_chunk.value(), &chunk);
+    const bool success = lens::ZstdCompressBytes(current_chunk.value(), &chunk);
     if (!success) {
       // If any of the chunks fail to compress, then the request should fail.
       return std::vector<std::string>();
@@ -341,18 +267,7 @@ lens::LensOverlayUploadChunkRequest CreateUploadChunkRequest(
     lens::LensOverlayRequestContext request_context) {
   lens::LensOverlayUploadChunkRequest request;
   request.mutable_request_context()->CopyFrom(request_context);
-
-  if (lens::features::IsLensOverlayUploadChunkingUseDebugOptionsEnabled()) {
-    // Only the first chunk should have this value set.
-    if (chunk_id == 0) {
-      request.mutable_debug_options()->set_total_chunks(total_chunks);
-    }
-    // Only the last chunk should set query chunks.
-    if (chunk_id == (total_chunks - 1)) {
-      request.mutable_debug_options()->set_query_chunks(true);
-    }
-  }
-
+  request.mutable_debug_options()->set_total_chunks(total_chunks);
   request.set_chunk_id(chunk_id);
   request.mutable_chunk_bytes()->assign(chunk.begin(), chunk.end());
   return request;
@@ -377,7 +292,8 @@ lens::Payload CreatePageContentPayloadForChunks(
   }
 
   auto* content_data = content->add_content_data();
-  content_data->set_content_type(MimeTypeToContentType(primary_content_type));
+  content_data->set_content_type(
+      lens::MimeTypeToContentType(primary_content_type));
   content_data->mutable_stored_chunk_options()->set_read_stored_chunks(true);
   content_data->mutable_stored_chunk_options()->set_total_stored_chunks(
       total_stored_chunks);
@@ -410,8 +326,8 @@ lens::Payload CreatePageContentPayload(
     if (page_content.content_type_ == lens::MimeType::kPdf) {
       // If compression is successful, set the compression type and return.
       // Otherwise, fall back to the original bytes.
-      if (ZstdCompressBytes(page_content.bytes_,
-                            content_data->mutable_data())) {
+      if (lens::ZstdCompressBytes(page_content.bytes_,
+                                  content_data->mutable_data())) {
         content_data->set_compression_type(lens::CompressionType::ZSTD);
         continue;
       }
@@ -424,16 +340,6 @@ lens::Payload CreatePageContentPayload(
   }
 
   return payload;
-}
-
-std::string Base64EncodeRequestId(lens::LensOverlayRequestId request_id) {
-  std::string serialized_request_id;
-  CHECK(request_id.SerializeToString(&serialized_request_id));
-  std::string encoded_request_id;
-  base::Base64UrlEncode(serialized_request_id,
-                        base::Base64UrlEncodePolicy::OMIT_PADDING,
-                        &encoded_request_id);
-  return encoded_request_id;
 }
 
 }  // namespace
@@ -512,7 +418,7 @@ void LensOverlayQueryController::StartQueryFlow(
 
   if (primary_content_type_ != lens::MimeType::kUnknown) {
     suggest_inputs_.set_contextual_visual_input_type(
-        VitQueryParamValueForMimeType(primary_content_type_));
+        lens::VitQueryParamValueForMimeType(primary_content_type_));
     RunSuggestInputsCallback();
   }
 
@@ -1297,7 +1203,9 @@ void LensOverlayQueryController::PrepareAndFetchPageContentRequest() {
   compression_task_tracker_->TryCancelAll();
   page_contents_request_start_time_ = base::TimeTicks::Now();
   page_content_request_in_progress_ = true;
+  chunk_upload_in_progress_ = false;
   remaining_upload_chunk_responses_ = 0;
+  remaining_chunk_retries = lens::features::GetLensOverlayUploadChunkRetries();
 
   // The initial request id should be set by the time we get here. If not, call
   // below will crash.
@@ -1309,6 +1217,7 @@ void LensOverlayQueryController::PrepareAndFetchPageContentRequest() {
       primary_content_type_ == lens::MimeType::kPdf &&
       underlying_page_contents_.front().bytes_.size() >
           lens::features::GetLensOverlayChunkSizeBytes()) {
+    chunk_upload_in_progress_ = true;
     // Post MakeChunks to a task off the main thread so compression does not
     // throttle the main thread.
     compression_task_tracker_->PostTaskAndReplyWithResult(
@@ -1352,12 +1261,17 @@ void LensOverlayQueryController::PrepareAndFetchUploadChunkRequests(
   if (!chunks.size()) {
     return;
   }
+  chunk_progress = std::vector<size_t>(chunks.size());
+  total_chunk_progress_ = 0;
+  total_chunk_upload_size_ = 0;
+
   lens::LensOverlayRequestContext request_context;
   request_context.mutable_request_id()->CopyFrom(request_id);
   request_context.mutable_client_context()->CopyFrom(CreateClientContext());
 
   std::vector<lens::LensOverlayUploadChunkRequest> requests;
   for (size_t i = 0; i < chunks.size(); i++) {
+    total_chunk_upload_size_ += chunks[i].size();
     requests.push_back(
         CreateUploadChunkRequest(i, chunks.size(), chunks[i], request_context));
   }
@@ -1397,17 +1311,16 @@ void LensOverlayQueryController::FetchUploadChunkRequest(
       base::BindOnce(&LensOverlayQueryController::UploadChunkResponseHandler,
                      weak_ptr_factory_.GetWeakPtr(),
                      request.request_context().request_id(),
-                     pending_upload_chunk_requests_.size(),
-                     /*is_last=*/chunk_request_index ==
-                         pending_upload_chunk_requests_.size() - 1),
-      base::NullCallback(),
+                     pending_upload_chunk_requests_.size()),
+      base::BindRepeating(
+          &LensOverlayQueryController::UploadChunkProgressHandler,
+          weak_ptr_factory_.GetWeakPtr(), chunk_request_index),
       GURL(lens::features::GetLensOverlayUploadChunkEndpointURL()));
 }
 
 void LensOverlayQueryController::UploadChunkResponseHandler(
     lens::LensOverlayRequestId request_id,
     size_t total_chunks,
-    bool is_last,
     std::unique_ptr<EndpointResponse> response) {
   // If there is a newer sequence id, a new request has been initiated before
   // this one has completed. Do nothing and return.
@@ -1416,12 +1329,9 @@ void LensOverlayQueryController::UploadChunkResponseHandler(
   }
 
   remaining_upload_chunk_responses_--;
-
-  // If this is the last chunk in sequence, perform the page content request.
-  // Note: in the case that this is also the last chunk to receive a response,
-  // PrepareAndFetchPageContentRequestPart2() is expected to send the gen204
-  // ping.
-  if (is_last) {
+  // If this is the last chunk to receive a response, perform the page content
+  // request.
+  if (remaining_upload_chunk_responses_ == 0) {
     base::SequencedTaskRunner::GetCurrentDefault()->PostTaskAndReplyWithResult(
         FROM_HERE,
         base::BindOnce(&CreatePageContentPayloadForChunks,
@@ -1430,13 +1340,7 @@ void LensOverlayQueryController::UploadChunkResponseHandler(
         base::BindOnce(
             &LensOverlayQueryController::PrepareAndFetchPageContentRequestPart2,
             weak_ptr_factory_.GetWeakPtr(), request_id));
-    return;
   }
-
-  // If the page content request has already finished, and this is the last
-  // chunk to receive a response, this will send the gen204 ping and clear the
-  // endpoint fetchers.
-  MaybeSendPageContentUploadLatencyGen204(request_id);
 }
 
 void LensOverlayQueryController::PrepareAndFetchPageContentRequestPart2(
@@ -1452,6 +1356,9 @@ void LensOverlayQueryController::PrepareAndFetchPageContentRequestPart2(
       request_context);
 
   request.mutable_objects_request()->mutable_payload()->CopyFrom(payload);
+
+  // Save the request in case it needs to be resent.
+  pending_page_content_request_.CopyFrom(request);
 
   page_content_access_token_fetcher_ = CreateOAuthHeadersAndContinue(
       base::BindOnce(&LensOverlayQueryController::PerformPageContentRequest,
@@ -1474,15 +1381,26 @@ void LensOverlayQueryController::PerformPageContentRequest(
       base::BindOnce(&LensOverlayQueryController::PageContentResponseHandler,
                      weak_ptr_factory_.GetWeakPtr(),
                      request.objects_request().request_context().request_id()),
-      base::BindRepeating(
-          &LensOverlayQueryController::PageContentUploadProgressHandler,
-          weak_ptr_factory_.GetWeakPtr()));
+      // If this is a chunked upload, upload progress will have already been
+      // reported by the chunk uploads, so skip passing in the upload progress
+      // handler here.
+      chunk_upload_in_progress_
+          ? base::NullCallback()
+          : base::BindRepeating(
+                &LensOverlayQueryController::PageContentUploadProgressHandler,
+                weak_ptr_factory_.GetWeakPtr()));
 }
 
 void LensOverlayQueryController::PageContentResponseHandler(
     lens::LensOverlayRequestId request_id,
     std::unique_ptr<EndpointResponse> response) {
   page_content_endpoint_fetcher_.reset();
+
+  // Ensure the page content upload doesn't need to be retried.
+  // If it does, exit early.
+  if (MaybeRetryPageContentUpload(std::move(response))) {
+    return;
+  }
 
   // The upload progress handler is not guaranteed to execute, so if a response
   // is received, mark the request as no longer in progress to allow the
@@ -1492,6 +1410,57 @@ void LensOverlayQueryController::PageContentResponseHandler(
   // If the chunk uploads have already completed, or if upload chunking was not
   // done, this will send the gen204 ping and clear the endpoint fetchers.
   MaybeSendPageContentUploadLatencyGen204(request_id);
+}
+
+bool LensOverlayQueryController::MaybeRetryPageContentUpload(
+    std::unique_ptr<EndpointResponse> response) {
+  // Check if the server response contains missing chunk errors to handle.
+  // Proceed without handling if out of retries.
+  if (remaining_chunk_retries > 0) {
+    remaining_chunk_retries--;
+    lens::LensOverlayServerResponse server_response;
+    const std::string response_string = response->response;
+    bool parse_successful = server_response.ParseFromArray(
+        response_string.data(), response_string.size());
+    if (parse_successful &&
+        server_response.error().error_type() ==
+            LensOverlayServerError_ErrorType::
+                LensOverlayServerError_ErrorType_MISSING_CHUNKS) {
+      auto missing_chunks_metadata =
+          server_response.error().missing_chunks_metadata();
+      if (!missing_chunks_metadata.has_chunk_metadata()) {
+        // Interaction request likely misrouted. Resend it.
+        page_content_access_token_fetcher_ =
+            CreateOAuthHeadersAndContinue(base::BindOnce(
+                &LensOverlayQueryController::PerformPageContentRequest,
+                weak_ptr_factory_.GetWeakPtr(), pending_page_content_request_));
+        return true;
+      }
+      if (missing_chunks_metadata.missing_chunk_ids_size() > 0) {
+        // Missing chunks. Resend the missing chunks.
+        chunk_upload_access_token_fetcher_ =
+            CreateOAuthHeadersAndContinue(base::BindOnce(
+                &LensOverlayQueryController::RetryUploadChunkRequests,
+                weak_ptr_factory_.GetWeakPtr(),
+                server_response.error()
+                    .missing_chunks_metadata()
+                    .missing_chunk_ids()));
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+void LensOverlayQueryController::RetryUploadChunkRequests(
+    const google::protobuf::RepeatedField<int64_t>& chunk_ids,
+    std::vector<std::string> headers) {
+  chunk_upload_access_token_fetcher_.reset();
+  pending_upload_chunk_headers_ = headers;
+  remaining_upload_chunk_responses_ = chunk_ids.size();
+  for (int64_t chunk_id : chunk_ids) {
+    FetchUploadChunkRequest(chunk_id);
+  }
 }
 
 void LensOverlayQueryController::MaybeSendPageContentUploadLatencyGen204(
@@ -1517,8 +1486,36 @@ void LensOverlayQueryController::PageContentUploadProgressHandler(
   }
 }
 
+void LensOverlayQueryController::UploadChunkProgressHandler(
+    size_t chunk_request_index,
+    uint64_t position,
+    uint64_t total) {
+  // Caller of this callback should be sequenced.
+
+  // Save the reported position of each chunk to the chunk_progress vector.
+  // Instead of repeatedly summing over the entire vector, increment the total
+  // chunk progress by the difference between the currently reported position
+  // and the last reported position of the chunk.
+  total_chunk_progress_ += position - chunk_progress[chunk_request_index];
+  chunk_progress[chunk_request_index] = position;
+
+  // Overhead causes the total progress to be very slightly above the total
+  // upload size (by about 0.01%). Cap to avoid reporting progress > 100%.
+  if (total_chunk_progress_ > total_chunk_upload_size_) {
+    total_chunk_progress_ = total_chunk_upload_size_;
+  }
+
+  if (page_content_upload_progress_callback_) {
+    page_content_upload_progress_callback_.Run(total_chunk_progress_,
+                                               total_chunk_upload_size_);
+  }
+}
+
 void LensOverlayQueryController::PageContentUploadFinished() {
+  pending_page_content_request_.Clear();
   page_content_request_in_progress_ = false;
+  chunk_upload_in_progress_ = false;
+  chunk_progress.clear();
   if (pending_contextual_query_callback_) {
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, std::move(pending_contextual_query_callback_));

@@ -28,7 +28,6 @@ import androidx.core.content.ContextCompat;
 
 import org.chromium.base.Callback;
 import org.chromium.base.metrics.RecordUserAction;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.build.annotations.MonotonicNonNull;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -54,6 +53,7 @@ import org.chromium.ui.widget.Toast;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * Object responsible for handling the creation, showing, hiding of the AppMenu and notifying the
@@ -326,7 +326,7 @@ class AppMenuHandlerImpl
                 mWindowAndroid.getKeyboardDelegate();
 
         // If keyboard is showing, wait until keyboard disappears to set appRect
-        if (keyboardVisibilityDelegate.isKeyboardShowing(mContext, anchorView)) {
+        if (keyboardVisibilityDelegate.isKeyboardShowing(anchorView)) {
             View finalAnchorView = anchorView;
             boolean finalIsByPermanentButton = isByPermanentButton;
             mKeyboardVisibilityListener =

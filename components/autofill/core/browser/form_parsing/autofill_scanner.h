@@ -10,19 +10,18 @@
 #include <memory>
 #include <vector>
 
+#include "base/compiler_specific.h"
 #include "base/memory/raw_ptr.h"
 
 namespace autofill {
 
-class AutofillField;
+class FormFieldData;
 
-// A helper class for parsing a stream of |AutofillField|'s with lookahead.
+// A helper class for parsing a stream of |FormFieldData|'s with lookahead.
 class AutofillScanner {
  public:
   explicit AutofillScanner(
-      const std::vector<raw_ptr<AutofillField, VectorExperimental>>& fields);
-  explicit AutofillScanner(
-      const std::vector<std::unique_ptr<AutofillField>>& fields);
+      const std::vector<raw_ptr<const FormFieldData>>& fields LIFETIME_BOUND);
 
   AutofillScanner(const AutofillScanner&) = delete;
   AutofillScanner& operator=(const AutofillScanner&) = delete;
@@ -32,9 +31,11 @@ class AutofillScanner {
   // Advances the cursor by one step, if possible.
   void Advance();
 
-  // Returns the current field in the stream, or |NULL| if there are no more
-  // fields in the stream.
-  AutofillField* Cursor() const;
+  // Returns the current field in the stream.
+  const FormFieldData* Cursor() const;
+
+  // Returns the field before Cursor(), or nullptr if there is none.
+  const FormFieldData* Predecessor() const;
 
   // Returns |true| if the cursor has reached the end of the stream.
   bool IsEnd() const;
@@ -53,26 +54,17 @@ class AutofillScanner {
   size_t CursorPosition();
 
  private:
-  void Init(
-      const std::vector<raw_ptr<AutofillField, VectorExperimental>>& fields);
-
   // Indicates the current position in the stream, represented as a vector.
-  std::vector<raw_ptr<AutofillField, VectorExperimental>>::const_iterator
-      cursor_;
+  std::vector<raw_ptr<const FormFieldData>>::const_iterator cursor_;
 
   // The most recently saved cursor.
-  std::vector<raw_ptr<AutofillField, VectorExperimental>>::const_iterator
-      saved_cursor_;
+  std::vector<raw_ptr<const FormFieldData>>::const_iterator saved_cursor_;
 
   // The beginning pointer for the stream.
-  std::vector<raw_ptr<AutofillField, VectorExperimental>>::const_iterator
-      begin_;
+  std::vector<raw_ptr<const FormFieldData>>::const_iterator begin_;
 
   // The past-the-end pointer for the stream.
-  std::vector<raw_ptr<AutofillField, VectorExperimental>>::const_iterator end_;
-
-  // The storage of non-owning pointers, used for the unique_ptr constructor.
-  std::vector<raw_ptr<AutofillField, VectorExperimental>> non_owning_;
+  std::vector<raw_ptr<const FormFieldData>>::const_iterator end_;
 };
 
 }  // namespace autofill

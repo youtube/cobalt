@@ -425,7 +425,7 @@ ScriptPromise<IDLUndefined> WebGLRenderingContextWebGPUBase::initAsync(
 
   // Request the adapter, making it resolve the result promise when it is done.
   auto* callback =
-      MakeWGPUOnceCallback(resolver->WrapCallbackInScriptScope(WTF::BindOnce(
+      MakeWGPUOnceCallback(resolver->WrapCallbackInScriptScope(blink::BindOnce(
           &WebGLRenderingContextWebGPUBase::InitRequestAdapterCallback,
           WrapPersistent(this), WrapPersistent(script_state))));
 
@@ -446,17 +446,17 @@ void WebGLRenderingContextWebGPUBase::InitRequestAdapterCallback(
   if (status != wgpu::RequestAdapterStatus::Success) {
     resolver->RejectWithDOMException(
         DOMExceptionCode::kOperationError,
-        WTF::String::FromUTF8WithLatin1Fallback(error_message));
+        String::FromUTF8WithLatin1Fallback(error_message));
     return;
   }
 
   adapter_ = std::move(adapter);
 
   // Request the device.
-  auto* callback = MakeWGPUOnceCallback(
-      WTF::BindOnce(&WebGLRenderingContextWebGPUBase::InitRequestDeviceCallback,
-                    WrapPersistent(this), WrapPersistent(script_state),
-                    WrapPersistent(resolver)));
+  auto* callback = MakeWGPUOnceCallback(blink::BindOnce(
+      &WebGLRenderingContextWebGPUBase::InitRequestDeviceCallback,
+      WrapPersistent(this), WrapPersistent(script_state),
+      WrapPersistent(resolver)));
 
   adapter_.RequestDevice(nullptr, wgpu::CallbackMode::AllowSpontaneous,
                          callback->UnboundCallback(), callback->AsUserdata());
@@ -472,7 +472,7 @@ void WebGLRenderingContextWebGPUBase::InitRequestDeviceCallback(
   if (status != wgpu::RequestDeviceStatus::Success) {
     resolver->RejectWithDOMException(
         DOMExceptionCode::kOperationError,
-        WTF::String::FromUTF8WithLatin1Fallback(error_message));
+        String::FromUTF8WithLatin1Fallback(error_message));
     return;
   }
 
@@ -2226,6 +2226,17 @@ void WebGLRenderingContextWebGPUBase::texImage2D(
     GLenum type,
     MaybeShared<DOMArrayBufferView> data,
     int64_t src_offset) {
+  NOTIMPLEMENTED();
+}
+
+void WebGLRenderingContextWebGPUBase::texHTMLElement2D(
+    GLenum target,
+    GLint level,
+    GLint internalformat,
+    GLenum format,
+    GLenum type,
+    Element* element,
+    ExceptionState& exception_state) {
   NOTIMPLEMENTED();
 }
 

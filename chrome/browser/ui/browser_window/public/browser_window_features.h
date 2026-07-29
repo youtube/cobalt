@@ -64,6 +64,7 @@ class ProfileMenuCoordinator;
 class ReadingListSidePanelCoordinator;
 class RecentActivityBubbleCoordinator;
 class BrowserSelectFileDialogController;
+class ScrimViewController;
 class SidePanelCoordinator;
 class SidePanelUI;
 class SigninViewController;
@@ -76,6 +77,7 @@ class ToastController;
 class ToastService;
 class TranslateBubbleController;
 class UpgradeNotificationController;
+class WebUIBrowserSidePanelUI;
 
 #if BUILDFLAG(IS_WIN)
 class WindowsTaskbarIconUpdater;
@@ -160,8 +162,12 @@ class SendTabToSelfToolbarBubbleController;
 }  // namespace send_tab_to_self
 
 namespace split_tabs {
-class SplitTabScrimController;
+class SplitTabHighlightController;
 }  // namespace split_tabs
+
+namespace ui {
+class AcceleratorProvider;
+}  // namespace ui
 
 namespace web_app {
 class AppBrowserController;
@@ -382,8 +388,8 @@ class BrowserWindowFeatures {
     return devtools_ui_controller_.get();
   }
 
-  split_tabs::SplitTabScrimController* split_tab_scrim_controller() {
-    return split_tab_scrim_controller_.get();
+  split_tabs::SplitTabHighlightController* split_tab_highlight_controller() {
+    return split_tab_highlight_controller_.get();
   }
 
   ContentsBorderController* contents_border_controller() {
@@ -446,6 +452,10 @@ class BrowserWindowFeatures {
   }
 
   BrowserLiveTabContext* live_tab_context() { return live_tab_context_.get(); }
+
+  ui::AcceleratorProvider* accelerator_provider() {
+    return accelerator_provider_;
+  }
 
   static ui::UserDataFactoryWithOwner<BrowserWindowInterface>&
   GetUserDataFactoryForTesting();
@@ -525,7 +535,11 @@ class BrowserWindowFeatures {
       pin_infobar_controller_;
 #endif
 
+  std::unique_ptr<ScrimViewController> scrim_view_controller_;
+
   std::unique_ptr<SidePanelCoordinator> side_panel_coordinator_;
+
+  std::unique_ptr<WebUIBrowserSidePanelUI> webui_browser_side_panel_ui_;
 
   std::unique_ptr<tab_groups::SessionServiceTabGroupSyncObserver>
       session_service_tab_group_sync_observer_;
@@ -660,8 +674,8 @@ class BrowserWindowFeatures {
   // TODO(crbug.com/423956131): Remove this.
   raw_ptr<BrowserWindowInterface> browser_ = nullptr;
 
-  std::unique_ptr<split_tabs::SplitTabScrimController>
-      split_tab_scrim_controller_;
+  std::unique_ptr<split_tabs::SplitTabHighlightController>
+      split_tab_highlight_controller_;
 
   std::unique_ptr<RecentActivityBubbleCoordinator>
       recent_activity_bubble_coordinator_;
@@ -673,6 +687,11 @@ class BrowserWindowFeatures {
 #endif
 
   std::unique_ptr<BrowserUserEducationInterface> user_education_;
+
+  // TODO(webium): Current both BrowserView and WebUIBrowserWindow implement
+  // AcceleratorProvider. Consider eliminating this inheritance and composing
+  // this functionality into its own class.
+  raw_ptr<ui::AcceleratorProvider> accelerator_provider_;
 };
 
 #endif  // CHROME_BROWSER_UI_BROWSER_WINDOW_PUBLIC_BROWSER_WINDOW_FEATURES_H_

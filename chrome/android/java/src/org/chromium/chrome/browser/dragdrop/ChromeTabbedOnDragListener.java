@@ -12,7 +12,6 @@ import android.view.View;
 import android.view.View.OnDragListener;
 
 import org.chromium.base.metrics.RecordUserAction;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.build.annotations.Contract;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -35,6 +34,7 @@ import org.chromium.ui.dragdrop.DragDropMetricUtils.DragDropType;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Supplier;
 
 /**
  * Define the default behavior when {@link ChromeTabbedActivity} receive drag events that's not
@@ -48,7 +48,7 @@ public class ChromeTabbedOnDragListener implements OnDragListener {
     private final WindowAndroid mWindowAndroid;
     private final Supplier<LayoutStateProvider> mLayoutStateProviderSupplier;
     private final @Nullable DesktopWindowStateManager mDesktopWindowStateManager;
-    private @Nullable NativePage mNtpToEnableFakeBox;
+    private @Nullable Tab mTabToEnableFakeBox;
 
     /**
      * Drag and Drop listener defines the default behavior {@link ChromeTabbedActivity} receive drag
@@ -86,7 +86,9 @@ public class ChromeTabbedOnDragListener implements OnDragListener {
                 }
                 Tab selectedTab = mTabModelSelector.getCurrentTab();
                 assumeNonNull(selectedTab);
-                mNtpToEnableFakeBox = selectedTab.getNativePage();
+                if (selectedTab.getNativePage() instanceof NewTabPage) {
+                    mTabToEnableFakeBox = selectedTab;
+                }
                 return true;
             case DragEvent.ACTION_DROP:
                 // This is to prevent tab switcher from receiving drops. We might support dropping
@@ -118,13 +120,11 @@ public class ChromeTabbedOnDragListener implements OnDragListener {
                 }
             case DragEvent.ACTION_DRAG_ENDED:
                 // Re-enable the NTP we disabled at DRAG_STARTED if any.
-                final NewTabPage originallyDisabled =
-                        (mNtpToEnableFakeBox != null
-                                        && mNtpToEnableFakeBox instanceof NewTabPage ntp)
-                                ? ntp
-                                : null;
-                if (originallyDisabled != null) {
-                    originallyDisabled.enableSearchBoxEditText(true);
+                if (mTabToEnableFakeBox != null) {
+                    NativePage nativePage = mTabToEnableFakeBox.getNativePage();
+                    if (nativePage instanceof NewTabPage ntp) {
+                        ntp.enableSearchBoxEditText(true);
+                    }
                 }
 
                 // If the selected tab changed to a different NTP during the drag, re-enable that
@@ -136,7 +136,7 @@ public class ChromeTabbedOnDragListener implements OnDragListener {
                                 ? ntp
                                 : null;
 
-                if (currentNtp != null && currentNtp != originallyDisabled) {
+                if (currentNtp != null) {
                     currentNtp.enableSearchBoxEditText(true);
                 }
         }

@@ -9,7 +9,9 @@
 #include "base/test/scoped_feature_list.h"
 #include "components/commerce/core/commerce_feature_list.h"
 #include "components/prefs/testing_pref_service.h"
+#include "components/segmentation_platform/embedder/home_modules/app_bundle_promo_ephemeral_module.h"
 #include "components/segmentation_platform/embedder/home_modules/constants.h"
+#include "components/segmentation_platform/embedder/home_modules/default_browser_promo_ephemeral_module.h"
 #include "components/segmentation_platform/embedder/home_modules/test_utils.h"
 #include "components/segmentation_platform/embedder/home_modules/tips_manager/constants.h"
 #include "components/segmentation_platform/embedder/home_modules/tips_manager/signal_constants.h"
@@ -32,14 +34,18 @@ class HomeModulesCardRegistryTest : public testing::Test {
 
   void SetUp() override {
     Test::SetUp();
-    HomeModulesCardRegistry::RegisterProfilePrefs(pref_service_.registry());
+    HomeModulesCardRegistry::RegisterProfilePrefs(
+        profile_pref_service_.registry());
+    HomeModulesCardRegistry::RegisterLocalStatePrefs(
+        local_state_pref_service_.registry());
   }
 
   void TearDown() override { Test::TearDown(); }
 
  protected:
   std::unique_ptr<HomeModulesCardRegistry> registry_;
-  TestingPrefServiceSimple pref_service_;
+  TestingPrefServiceSimple profile_pref_service_;
+  TestingPrefServiceSimple local_state_pref_service_;
   base::test::ScopedFeatureList feature_list_;
 };
 
@@ -50,7 +56,8 @@ TEST_F(HomeModulesCardRegistryTest, TestPriceTrackingNotificationPromoCard) {
   feature_list_.InitWithFeatures(
       {commerce::kPriceTrackingPromo},
       {features::kSegmentationPlatformTipsEphemeralCard});
-  registry_ = std::make_unique<HomeModulesCardRegistry>(&pref_service_);
+  registry_ = std::make_unique<HomeModulesCardRegistry>(
+      &profile_pref_service_, &local_state_pref_service_);
 
   ASSERT_EQ(2u, registry_->all_output_labels().size());
   ASSERT_EQ(0u, registry_->get_label_index(kPlaceholderEphemeralModuleLabel));
@@ -72,7 +79,8 @@ TEST_F(HomeModulesCardRegistryTest, TestPriceTrackingNotificationPromoCard) {
 TEST_F(HomeModulesCardRegistryTest, TestTipsEphemeralModuleCards) {
   feature_list_.InitWithFeatures(
       {features::kSegmentationPlatformTipsEphemeralCard}, {});
-  registry_ = std::make_unique<HomeModulesCardRegistry>(&pref_service_);
+  registry_ = std::make_unique<HomeModulesCardRegistry>(
+      &profile_pref_service_, &local_state_pref_service_);
 
   ASSERT_EQ(6u, registry_->all_output_labels().size());
   ASSERT_EQ(0u, registry_->get_label_index(kPlaceholderEphemeralModuleLabel));
@@ -104,7 +112,8 @@ TEST_F(HomeModulesCardRegistryTest, TestSendTabEphemeralModuleCard) {
         {{send_tab_to_self::kSendTabIOSPushNotificationsWithMagicStackCardParam,
           "true"}}}},
       {features::kSegmentationPlatformTipsEphemeralCard});
-  registry_ = std::make_unique<HomeModulesCardRegistry>(&pref_service_);
+  registry_ = std::make_unique<HomeModulesCardRegistry>(
+      &profile_pref_service_, &local_state_pref_service_);
 
   ASSERT_EQ(3u, registry_->all_output_labels().size());
   ASSERT_EQ(0u, registry_->get_label_index(kPlaceholderEphemeralModuleLabel));
@@ -124,6 +133,58 @@ TEST_F(HomeModulesCardRegistryTest, TestSendTabEphemeralModuleCard) {
                     ->second.find("send_tab_infobar_received_in_last_session")
                     ->second);
 }
+
+// Tests that the Registry registers the `AppBundlePromoEphemeralModule` card
+// when its feature is enabled.
+TEST_F(HomeModulesCardRegistryTest, TestAppBundlePromoCard) {
+  feature_list_.InitAndEnableFeature(features::kAppBundlePromoEphemeralCard);
+  registry_ = std::make_unique<HomeModulesCardRegistry>(
+      &profile_pref_service_, &local_state_pref_service_);
+  // Check that the `kAppBundlePromoEphemeralModule` label is included in the
+  // registry's card labels.
+  EXPECT_THAT(registry_->all_output_labels(),
+              Contains(kAppBundlePromoEphemeralModule));
+
+  // Check that the `kAppBundlePromoEphemeralModule` card name is included in
+  // the list of registered cards.
+  const std::vector<std::unique_ptr<CardSelectionInfo>>& all_cards =
+      registry_->get_all_cards_by_priority();
+  std::vector<std::string> card_names = ExtractCardNames(all_cards);
+  EXPECT_THAT(card_names, Contains(kAppBundlePromoEphemeralModule));
+
+  // Check that the signal keys for the `AppBundlePromoEphemeralModule` are
+  // correctly mapped to the card.
+  const CardSignalMap& signal_map = registry_->get_card_signal_map();
+  std::vector<std::string> signalKeys =
+      GetSignalKeys(signal_map, kAppBundlePromoEphemeralModule);
+  EXPECT_THAT(signalKeys, Contains(kAppBundleAppsInstalledCountSignalKey));
+}
+
+// Tests that the Registry registers the `DefaultBrowserPromoEphemeralModule`
+// card when its feature is enabled.
+TEST_F(HomeModulesCardRegistryTest, TestDefaultBrowserPromoCard) {
+  feature_list_.InitAndEnableFeature(features::kDefaultBrowserMagicStackIos);
+  registry_ = std::make_unique<HomeModulesCardRegistry>(
+      &profile_pref_service_, &local_state_pref_service_);
+  // Check that the `kDefaultBrowserPromoEphemeralModule` label is included in
+  // the registry's card labels.
+  EXPECT_THAT(registry_->all_output_labels(),
+              Contains(kDefaultBrowserPromoEphemeralModule));
+
+  // Check that the `kDefaultBrowserPromoEphemeralModule` card name is included
+  // in the list of registered cards.
+  const std::vector<std::unique_ptr<CardSelectionInfo>>& all_cards =
+      registry_->get_all_cards_by_priority();
+  std::vector<std::string> card_names = ExtractCardNames(all_cards);
+  EXPECT_THAT(card_names, Contains(kDefaultBrowserPromoEphemeralModule));
+
+  // Check that the signal keys for the `DefaultBrowserPromoEphemeralModule` are
+  // correctly mapped to the card.
+  const CardSignalMap& signal_map = registry_->get_card_signal_map();
+  std::vector<std::string> signalKeys =
+      GetSignalKeys(signal_map, kDefaultBrowserPromoEphemeralModule);
+  EXPECT_THAT(signalKeys, Contains(kIsDefaultBrowserSignalKey));
+}
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
@@ -131,7 +192,8 @@ TEST_F(HomeModulesCardRegistryTest, TestSendTabEphemeralModuleCard) {
 // feature is enabled.
 TEST_F(HomeModulesCardRegistryTest, TestDefaultBrowserPromoCardEnabled) {
   feature_list_.InitWithFeatures({features::kEducationalTipModule}, {});
-  registry_ = std::make_unique<HomeModulesCardRegistry>(&pref_service_);
+  registry_ = std::make_unique<HomeModulesCardRegistry>(
+      &profile_pref_service_, &local_state_pref_service_);
 
   EXPECT_THAT(registry_->all_output_labels(), Contains(kDefaultBrowserPromo));
   EXPECT_GE(registry_->all_cards_input_size(), 3u);
@@ -154,9 +216,10 @@ TEST_F(HomeModulesCardRegistryTest, TestDefaultBrowserPromoCardEnabled) {
 // is disabled because of user's interaction history.
 TEST_F(HomeModulesCardRegistryTest, TestDefaultBrowserPromoCardDisabled) {
   feature_list_.InitWithFeatures({features::kEducationalTipModule}, {});
-  pref_service_.SetUserPref(kDefaultBrowserPromoImpressionCounterPref,
-                            std::make_unique<base::Value>(4));
-  registry_ = std::make_unique<HomeModulesCardRegistry>(&pref_service_);
+  profile_pref_service_.SetUserPref(kDefaultBrowserPromoImpressionCounterPref,
+                                    std::make_unique<base::Value>(4));
+  registry_ = std::make_unique<HomeModulesCardRegistry>(
+      &profile_pref_service_, &local_state_pref_service_);
 
   EXPECT_THAT(registry_->all_output_labels(),
               Not(Contains(kDefaultBrowserPromo)));
@@ -182,7 +245,8 @@ TEST_F(HomeModulesCardRegistryTest, TestDefaultBrowserPromoCardDisabled) {
 // enabled.
 TEST_F(HomeModulesCardRegistryTest, TestTabGroupPromoCardEnabled) {
   feature_list_.InitWithFeatures({features::kEducationalTipModule}, {});
-  registry_ = std::make_unique<HomeModulesCardRegistry>(&pref_service_);
+  registry_ = std::make_unique<HomeModulesCardRegistry>(
+      &profile_pref_service_, &local_state_pref_service_);
 
   EXPECT_THAT(registry_->all_output_labels(), Contains(kTabGroupPromo));
   EXPECT_GE(registry_->all_cards_input_size(), 5u);
@@ -205,9 +269,10 @@ TEST_F(HomeModulesCardRegistryTest, TestTabGroupPromoCardEnabled) {
 // disabled because of user's interaction history.
 TEST_F(HomeModulesCardRegistryTest, TestTabGroupPromoCardDisabled) {
   feature_list_.InitWithFeatures({features::kEducationalTipModule}, {});
-  pref_service_.SetUserPref(kTabGroupPromoImpressionCounterPref,
-                            std::make_unique<base::Value>(11));
-  registry_ = std::make_unique<HomeModulesCardRegistry>(&pref_service_);
+  profile_pref_service_.SetUserPref(kTabGroupPromoImpressionCounterPref,
+                                    std::make_unique<base::Value>(11));
+  registry_ = std::make_unique<HomeModulesCardRegistry>(
+      &profile_pref_service_, &local_state_pref_service_);
 
   EXPECT_THAT(registry_->all_output_labels(), Not(Contains(kTabGroupPromo)));
   EXPECT_GE(registry_->all_cards_input_size(), 0u);
@@ -234,7 +299,8 @@ TEST_F(HomeModulesCardRegistryTest,
       {{features::kEducationalTipModule,
         {{"names_of_ephemeral_cards_to_show", kTabGroupSyncPromo}}}},
       {});
-  registry_ = std::make_unique<HomeModulesCardRegistry>(&pref_service_);
+  registry_ = std::make_unique<HomeModulesCardRegistry>(
+      &profile_pref_service_, &local_state_pref_service_);
 
   EXPECT_THAT(registry_->all_output_labels(), Not(Contains(kTabGroupPromo)));
   EXPECT_GE(registry_->all_cards_input_size(), 0u);
@@ -249,7 +315,8 @@ TEST_F(HomeModulesCardRegistryTest,
 // rather than every time it is displayed.
 TEST_F(HomeModulesCardRegistryTest, TestShouldNotifyCardShownPerSession) {
   feature_list_.InitWithFeatures({features::kEducationalTipModule}, {});
-  registry_ = std::make_unique<HomeModulesCardRegistry>(&pref_service_);
+  registry_ = std::make_unique<HomeModulesCardRegistry>(
+      &profile_pref_service_, &local_state_pref_service_);
   const char* card_name_1 = "TabGroupPromo";
   const char* card_name_2 = "TabGroupSyncPromo";
   EXPECT_TRUE(registry_->ShouldNotifyCardShownPerSession(card_name_1));
@@ -262,7 +329,8 @@ TEST_F(HomeModulesCardRegistryTest, TestShouldNotifyCardShownPerSession) {
 // is enabled.
 TEST_F(HomeModulesCardRegistryTest, TestTabGroupSyncPromoCardEnabled) {
   feature_list_.InitWithFeatures({features::kEducationalTipModule}, {});
-  registry_ = std::make_unique<HomeModulesCardRegistry>(&pref_service_);
+  registry_ = std::make_unique<HomeModulesCardRegistry>(
+      &profile_pref_service_, &local_state_pref_service_);
 
   EXPECT_THAT(registry_->all_output_labels(), Contains(kTabGroupSyncPromo));
   EXPECT_GE(registry_->all_cards_input_size(), 3u);
@@ -283,9 +351,10 @@ TEST_F(HomeModulesCardRegistryTest, TestTabGroupSyncPromoCardEnabled) {
 // disabled because of user's interaction history.
 TEST_F(HomeModulesCardRegistryTest, TestTabGroupSyncPromoCardDisabled) {
   feature_list_.InitWithFeatures({features::kEducationalTipModule}, {});
-  pref_service_.SetUserPref(kTabGroupSyncPromoImpressionCounterPref,
-                            std::make_unique<base::Value>(11));
-  registry_ = std::make_unique<HomeModulesCardRegistry>(&pref_service_);
+  profile_pref_service_.SetUserPref(kTabGroupSyncPromoImpressionCounterPref,
+                                    std::make_unique<base::Value>(11));
+  registry_ = std::make_unique<HomeModulesCardRegistry>(
+      &profile_pref_service_, &local_state_pref_service_);
 
   EXPECT_THAT(registry_->all_output_labels(),
               Not(Contains(kTabGroupSyncPromo)));
@@ -311,7 +380,8 @@ TEST_F(HomeModulesCardRegistryTest,
       {{features::kEducationalTipModule,
         {{"names_of_ephemeral_cards_to_show", kTabGroupPromo}}}},
       {});
-  registry_ = std::make_unique<HomeModulesCardRegistry>(&pref_service_);
+  registry_ = std::make_unique<HomeModulesCardRegistry>(
+      &profile_pref_service_, &local_state_pref_service_);
 
   EXPECT_THAT(registry_->all_output_labels(),
               Not(Contains(kTabGroupSyncPromo)));
@@ -326,7 +396,8 @@ TEST_F(HomeModulesCardRegistryTest,
 // is enabled.
 TEST_F(HomeModulesCardRegistryTest, TestQuickDeletePromoCardEnabled) {
   feature_list_.InitWithFeatures({features::kEducationalTipModule}, {});
-  registry_ = std::make_unique<HomeModulesCardRegistry>(&pref_service_);
+  registry_ = std::make_unique<HomeModulesCardRegistry>(
+      &profile_pref_service_, &local_state_pref_service_);
 
   EXPECT_THAT(registry_->all_output_labels(), Contains(kQuickDeletePromo));
   EXPECT_GE(registry_->all_cards_input_size(), 5u);
@@ -350,9 +421,10 @@ TEST_F(HomeModulesCardRegistryTest, TestQuickDeletePromoCardEnabled) {
 // disabled because of user's interaction history.
 TEST_F(HomeModulesCardRegistryTest, TestQuickDeletePromoCardDisabled) {
   feature_list_.InitWithFeatures({features::kEducationalTipModule}, {});
-  pref_service_.SetUserPref(kQuickDeletePromoImpressionCounterPref,
-                            std::make_unique<base::Value>(11));
-  registry_ = std::make_unique<HomeModulesCardRegistry>(&pref_service_);
+  profile_pref_service_.SetUserPref(kQuickDeletePromoImpressionCounterPref,
+                                    std::make_unique<base::Value>(11));
+  registry_ = std::make_unique<HomeModulesCardRegistry>(
+      &profile_pref_service_, &local_state_pref_service_);
 
   EXPECT_THAT(registry_->all_output_labels(), Not(Contains(kQuickDeletePromo)));
   EXPECT_GE(registry_->all_cards_input_size(), 0u);
@@ -381,7 +453,8 @@ TEST_F(HomeModulesCardRegistryTest,
       {{features::kEducationalTipModule,
         {{"names_of_ephemeral_cards_to_show", kTabGroupPromo}}}},
       {});
-  registry_ = std::make_unique<HomeModulesCardRegistry>(&pref_service_);
+  registry_ = std::make_unique<HomeModulesCardRegistry>(
+      &profile_pref_service_, &local_state_pref_service_);
 
   EXPECT_THAT(registry_->all_output_labels(), Not(Contains(kQuickDeletePromo)));
   EXPECT_GE(registry_->all_cards_input_size(), 0u);
@@ -395,7 +468,8 @@ TEST_F(HomeModulesCardRegistryTest,
 // feature is enabled.
 TEST_F(HomeModulesCardRegistryTest, TestAuxiliarySearchPromoCardEnabled) {
   feature_list_.InitWithFeatures({features::kAndroidAppIntegrationModule}, {});
-  registry_ = std::make_unique<HomeModulesCardRegistry>(&pref_service_);
+  registry_ = std::make_unique<HomeModulesCardRegistry>(
+      &profile_pref_service_, &local_state_pref_service_);
 
   EXPECT_THAT(registry_->all_output_labels(), Contains(kAuxiliarySearch));
   EXPECT_GE(registry_->all_cards_input_size(), 1u);
@@ -414,9 +488,10 @@ TEST_F(HomeModulesCardRegistryTest, TestAuxiliarySearchPromoCardEnabled) {
 // is disabled because of user's interaction history.
 TEST_F(HomeModulesCardRegistryTest, TestAuxiliarySearchPromoCardDisabled) {
   feature_list_.InitWithFeatures({features::kAndroidAppIntegrationModule}, {});
-  pref_service_.SetUserPref(kAuxiliarySearchPromoImpressionCounterPref,
-                            std::make_unique<base::Value>(4));
-  registry_ = std::make_unique<HomeModulesCardRegistry>(&pref_service_);
+  profile_pref_service_.SetUserPref(kAuxiliarySearchPromoImpressionCounterPref,
+                                    std::make_unique<base::Value>(4));
+  registry_ = std::make_unique<HomeModulesCardRegistry>(
+      &profile_pref_service_, &local_state_pref_service_);
 
   EXPECT_THAT(registry_->all_output_labels(), Not(Contains(kAuxiliarySearch)));
   EXPECT_GE(registry_->all_cards_input_size(), 0u);
@@ -437,7 +512,8 @@ TEST_F(HomeModulesCardRegistryTest, TestHistorySyncPromoCardEnabled) {
   feature_list_.InitWithFeatures(
       {features::kEducationalTipModule, switches::kHistoryOptInEducationalTip},
       {});
-  registry_ = std::make_unique<HomeModulesCardRegistry>(&pref_service_);
+  registry_ = std::make_unique<HomeModulesCardRegistry>(
+      &profile_pref_service_, &local_state_pref_service_);
 
   EXPECT_THAT(registry_->all_output_labels(), Contains(kHistorySyncPromo));
   EXPECT_GE(registry_->all_cards_input_size(), 3u);
@@ -460,9 +536,10 @@ TEST_F(HomeModulesCardRegistryTest, TestHistorySyncPromoCardDisabled) {
   feature_list_.InitWithFeatures(
       {features::kEducationalTipModule, switches::kHistoryOptInEducationalTip},
       {});
-  pref_service_.SetUserPref(kHistorySyncPromoImpressionCounterPref,
-                            std::make_unique<base::Value>(11));
-  registry_ = std::make_unique<HomeModulesCardRegistry>(&pref_service_);
+  profile_pref_service_.SetUserPref(kHistorySyncPromoImpressionCounterPref,
+                                    std::make_unique<base::Value>(11));
+  registry_ = std::make_unique<HomeModulesCardRegistry>(
+      &profile_pref_service_, &local_state_pref_service_);
 
   EXPECT_THAT(registry_->all_output_labels(), Not(Contains(kHistorySyncPromo)));
   EXPECT_GE(registry_->all_cards_input_size(), 0u);
@@ -487,7 +564,8 @@ TEST_F(HomeModulesCardRegistryTest,
       {{features::kEducationalTipModule,
         {{"names_of_ephemeral_cards_to_show", kTabGroupSyncPromo}}}},
       {});
-  registry_ = std::make_unique<HomeModulesCardRegistry>(&pref_service_);
+  registry_ = std::make_unique<HomeModulesCardRegistry>(
+      &profile_pref_service_, &local_state_pref_service_);
 
   EXPECT_THAT(registry_->all_output_labels(), Not(Contains(kHistorySyncPromo)));
   EXPECT_GE(registry_->all_cards_input_size(), 0u);

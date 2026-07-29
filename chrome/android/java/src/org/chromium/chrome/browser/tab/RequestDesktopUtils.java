@@ -33,7 +33,7 @@ import org.chromium.components.browser_ui.site_settings.SingleCategorySettingsCo
 import org.chromium.components.browser_ui.site_settings.SiteSettingsCategory;
 import org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridge;
 import org.chromium.components.browser_ui.util.ConversionUtils;
-import org.chromium.components.content_settings.ContentSettingValues;
+import org.chromium.components.content_settings.ContentSetting;
 import org.chromium.components.content_settings.ContentSettingsType;
 import org.chromium.components.feature_engagement.EventConstants;
 import org.chromium.components.feature_engagement.FeatureConstants;
@@ -141,18 +141,16 @@ public class RequestDesktopUtils {
                 ContentSettingsType.REQUEST_DESKTOP_SITE,
                 url.getHost(),
                 /* secondaryPattern= */ SITE_WILDCARD,
-                ContentSettingValues.DEFAULT);
+                ContentSetting.DEFAULT);
 
-        @ContentSettingValues
+        @ContentSetting
         int defaultValue =
                 WebsitePreferenceBridge.getDefaultContentSetting(
                         profile, ContentSettingsType.REQUEST_DESKTOP_SITE);
-        assert defaultValue == ContentSettingValues.ALLOW
-                || defaultValue == ContentSettingValues.BLOCK;
-        boolean rdsGlobalSetting = defaultValue == ContentSettingValues.ALLOW;
-        @ContentSettingValues
-        int contentSettingValue =
-                useDesktopUserAgent ? ContentSettingValues.ALLOW : ContentSettingValues.BLOCK;
+        assert defaultValue == ContentSetting.ALLOW || defaultValue == ContentSetting.BLOCK;
+        boolean rdsGlobalSetting = defaultValue == ContentSetting.ALLOW;
+        @ContentSetting
+        int contentSettingValue = useDesktopUserAgent ? ContentSetting.ALLOW : ContentSetting.BLOCK;
         // For normal profile, remove domain level setting if it matches the global setting.
         // For incognito profile, keep the domain level setting to override the settings from normal
         // profile.
@@ -160,7 +158,7 @@ public class RequestDesktopUtils {
             // Keep the domain settings when the window setting preference is ON.
             PrefService prefService = UserPrefs.get(profile);
             if (!prefService.getBoolean(DESKTOP_SITE_WINDOW_SETTING_ENABLED)) {
-                contentSettingValue = ContentSettingValues.DEFAULT;
+                contentSettingValue = ContentSetting.DEFAULT;
             }
         }
 
@@ -171,33 +169,6 @@ public class RequestDesktopUtils {
                 domainWildcardPattern,
                 /* secondaryPattern= */ SITE_WILDCARD,
                 contentSettingValue);
-    }
-
-    /**
-     * Upgrade a non-default tab level RDS setting to a domain level setting when RDS exceptions is
-     * supported. This method is expected to be invoked only once after support is added for domain
-     * level exceptions.
-     * @param tab The {@link Tab} for which the RDS setting will be upgraded.
-     * @param profile The {@link Profile} used to upgrade the RDS setting.
-     * @param tabUserAgent The current {@link TabUserAgent} set for the tab.
-     * @param url The {@link GURL} for which a domain level exception will be added.
-     */
-    public static void maybeUpgradeTabLevelDesktopSiteSetting(
-            Tab tab, Profile profile, @TabUserAgent int tabUserAgent, @Nullable GURL url) {
-        if (url == null) {
-            return;
-        }
-
-        // If the tab UA is UNSET, it represents a state before tab level settings were applied for
-        // the tab, so the domain level setting cannot be upgraded to at this time.
-        if (tabUserAgent == TabUserAgent.UNSET) {
-            return;
-        }
-
-        RequestDesktopUtils.setRequestDesktopSiteContentSettingsForUrl(
-                profile, url, tabUserAgent == TabUserAgent.DESKTOP);
-        // Reset the tab level setting after upgrade.
-        tab.setUserAgent(TabUserAgent.DEFAULT);
     }
 
     /**

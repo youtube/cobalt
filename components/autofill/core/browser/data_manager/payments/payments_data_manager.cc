@@ -25,7 +25,7 @@
 #include "components/autofill/core/browser/data_model/payments/ewallet.h"
 #include "components/autofill/core/browser/data_model/payments/payment_instrument.h"
 #include "components/autofill/core/browser/geo/autofill_country.h"
-#include "components/autofill/core/browser/integrators/optimization_guide/autofill_optimization_guide.h"
+#include "components/autofill/core/browser/integrators/optimization_guide/autofill_optimization_guide_decider.h"
 #include "components/autofill/core/browser/metrics/autofill_settings_metrics.h"
 #include "components/autofill/core/browser/metrics/payments/bnpl_metrics.h"
 #include "components/autofill/core/browser/metrics/payments/card_metadata_metrics.h"
@@ -239,8 +239,10 @@ PaymentsDataManager::PaymentsDataManager(
     syncer::SyncService* sync_service,
     signin::IdentityManager* identity_manager,
     GeoIpCountryCode variations_country_code,
-    std::string app_locale)
+    std::string app_locale,
+    AutofillOptimizationGuideDecider* autofill_optimization_guide_decider)
     : image_fetcher_(image_fetcher),
+      autofill_optimization_guide_decider_(autofill_optimization_guide_decider),
       shared_storage_handler_(std::move(shared_storage_handler)),
       sync_service_(sync_service),
       identity_manager_(identity_manager),
@@ -468,6 +470,10 @@ void PaymentsDataManager::OnWebDataServiceRequestDone(
     PaymentsDataCleaner(this).CleanupPaymentsData();
   }
 
+  if (autofill_optimization_guide_decider_) {
+    autofill_optimization_guide_decider_->OnPaymentsDataLoaded(*this);
+  }
+
   NotifyObservers();
 }
 
@@ -673,7 +679,7 @@ std::u16string
 PaymentsDataManager::GetApplicableBenefitDescriptionForCardAndOrigin(
     const CreditCard& credit_card,
     const url::Origin& origin,
-    const AutofillOptimizationGuide* optimization_guide) const {
+    const AutofillOptimizationGuideDecider* optimization_guide) const {
   // Ensures that benefit suggestions can be displayed.
   if (ShouldBlockCardBenefitSuggestionLabels()) {
     return std::u16string();
@@ -1307,7 +1313,7 @@ void PaymentsDataManager::
   prefs::IncrementPaymentMethodsMandatoryReauthPromoShownCounter(pref_service_);
 }
 
-bool PaymentsDataManager::IsPaymentCvcStorageEnabled() {
+bool PaymentsDataManager::IsPaymentCvcStorageEnabled() const {
   return base::FeatureList::IsEnabled(
              features::kAutofillEnableCvcStorageAndFilling) &&
          prefs::IsPaymentCvcStorageEnabled(pref_service_);

@@ -15,7 +15,6 @@ import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.Spinner;
 
-import org.chromium.base.supplier.Supplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
@@ -32,13 +31,14 @@ import org.chromium.ui.modaldialog.DialogDismissalCause;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 
 import java.util.List;
+import java.util.function.Supplier;
 
 /** The base class for credit card settings. */
 @NullMarked
 public abstract class AutofillCreditCardEditor extends AutofillEditorBase
         implements ProfileDependentSetting {
     private @Nullable Profile mProfile;
-    private @Nullable Supplier<ModalDialogManager> mModalDialogManagerSupplier;
+    private @Nullable Supplier<@Nullable ModalDialogManager> mModalDialogManagerSupplier;
 
     protected CreditCard mCard;
     protected Spinner mBillingAddress;
@@ -139,7 +139,7 @@ public abstract class AutofillCreditCardEditor extends AutofillEditorBase
      * AutofillDeletePaymentMethodConfirmationDialog}.
      */
     public void setModalDialogManagerSupplier(
-            Supplier<ModalDialogManager> modalDialogManagerSupplier) {
+            Supplier<@Nullable ModalDialogManager> modalDialogManagerSupplier) {
         mModalDialogManagerSupplier = modalDialogManagerSupplier;
     }
 

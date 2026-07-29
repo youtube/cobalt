@@ -9,6 +9,7 @@
 #include "base/check_deref.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/no_destructor.h"
 #include "base/types/expected_macros.h"
 #include "base/types/optional_util.h"
@@ -19,6 +20,7 @@
 #include "chrome/browser/web_applications/isolated_web_apps/update_manifest/update_manifest_fetcher.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/common/chrome_features.h"
+#include "chromeos/components/kiosk/kiosk_utils.h"
 #include "components/webapps/isolated_web_apps/download/bundle_downloader.h"
 #include "components/webapps/isolated_web_apps/iwa_key_distribution_info_provider.h"
 #include "components/webapps/isolated_web_apps/types/source.h"
@@ -103,14 +105,32 @@ std::optional<UpdateManifest::VersionEntry> GetVersionWithOptions(
     const UpdateManifest& update_manifest,
     const IsolatedWebAppExternalInstallOptions& install_options) {
   if (install_options.pinned_version().has_value()) {
-    // TODO(crbug.com/437038363): Adjust to IwaVersion.
-    return update_manifest.GetVersion(
-        IwaVersion::Create(install_options.pinned_version()->components())
-            .value(),
-        install_options.update_channel());
+    return update_manifest.GetVersion(*install_options.pinned_version(),
+                                      install_options.update_channel());
   } else {
     return update_manifest.GetLatestVersion(install_options.update_channel());
   }
+}
+constexpr std::string_view kNonAllowlistedAppInstallationRejectedHistogramName =
+    "WebApp.Isolated.NonAllowlistedAppInstallationRejected";
+
+enum class ManagedSessionType {
+  kManagedUserSession = 0,
+  kManagedGuestSession = 1,
+  kKiosk = 2,
+  kMaxValue = kKiosk,
+};
+
+ManagedSessionType GetCurrentManagedSessionType() {
+#if BUILDFLAG(IS_CHROMEOS)
+  if (chromeos::IsManagedGuestSession()) {
+    return ManagedSessionType::kManagedGuestSession;
+  }
+  if (chromeos::IsKioskSession()) {
+    return ManagedSessionType::kKiosk;
+  }
+#endif  // BUILDFLAG(IS_CHROMEOS)
+  return ManagedSessionType::kManagedUserSession;
 }
 
 }  // namespace
@@ -129,7 +149,7 @@ void IwaInstaller::IwaInstallCommandWrapperImpl::Install(
   // will be re-attempted the next time they start, assuming that the policy is
   // still set.
   provider_->scheduler().InstallIsolatedWebApp(
-      url_info, install_source, expected_version.version(),
+      url_info, install_source, expected_version,
       /*optional_keep_alive=*/nullptr,
       /*optional_profile_keep_alive=*/nullptr, std::move(callback));
 }
@@ -171,6 +191,9 @@ IwaInstaller::~IwaInstaller() = default;
 void IwaInstaller::Start() {
   if (!IwaKeyDistributionInfoProvider::GetInstance().IsManagedInstallPermitted(
           install_options_.web_bundle_id().id())) {
+    base::UmaHistogramEnumeration(
+        kNonAllowlistedAppInstallationRejectedHistogramName,
+        GetCurrentManagedSessionType());
     Finish(Result(Result::Type::kErrorAppNotInAllowlist,
                   "Not in the managed allowlist."));
     return;
@@ -193,17 +216,11 @@ void IwaInstaller::Start() {
         IsolatedWebAppUrlInfo::CreateFromSignedWebBundleId(
             install_options_.web_bundle_id());
 
-    // TODO(crbug.com/437038363): Adjust to IwaVersion.
-    std::optional<IwaVersion> pinned_version;
-    if (install_options_.pinned_version().has_value()) {
-      pinned_version = base::OptionalFromExpected(
-          IwaVersion::Create(install_options_.pinned_version()->components()));
-    }
-
     CHECK_DEREF(provider_.get())
         .scheduler()
         .GetIsolatedWebAppBundleCachePath(
-            url_info, pinned_version, IwaCacheClient::GetCurrentSessionType(),
+            url_info, install_options_.pinned_version(),
+            IwaCacheClient::GetCurrentSessionType(),
             base::BindOnce(&IwaInstaller::OnBundleCachePathReceived,
                            weak_factory_.GetWeakPtr()));
     return;

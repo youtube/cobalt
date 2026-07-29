@@ -135,10 +135,13 @@ CustomizeChromeUI::CustomizeChromeUI(content::WebUI* web_ui)
       {"newTabPageManagedByA11yLabel",
        IDS_NTP_CUSTOMIZE_CHROME_MANAGED_NEW_TAB_PAGE_ACCESSIBILITY},
       // Shortcut strings.
-      {"mostVisited", IDS_NTP_CUSTOMIZE_MOST_VISITED_LABEL},
+      {"topSites", IDS_NTP_CUSTOMIZE_MOST_VISITED_LABEL},
       {"myShortcuts", IDS_NTP_CUSTOMIZE_MY_SHORTCUTS_LABEL},
+      {"enterpriseShortcuts", IDS_NTP_CUSTOMIZE_ENTERPRISE_SHORTCUTS_LABEL},
       {"shortcutsCurated", IDS_NTP_CUSTOMIZE_MY_SHORTCUTS_DESC},
       {"shortcutsSuggested", IDS_NTP_CUSTOMIZE_MOST_VISITED_DESC},
+      {"enterpriseShortcutsCurated",
+       IDS_NTP_CUSTOMIZE_ENTERPRISE_SHORTCUTS_DESC},
       {"showShortcutsToggle", IDS_NTP_CUSTOMIZE_SHOW_SHORTCUTS_LABEL},
       // Card strings.
       {"showCardsToggleTitle", IDS_NTP_CUSTOMIZE_SHOW_CARDS_LABEL},

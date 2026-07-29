@@ -974,6 +974,7 @@ android_library("chrome_test_java_org.chromium.chrome.browser.payments") {
   resources_package = "org.chromium.chrome.test"
 
   sources = [
+    "src/org/chromium/chrome/browser/payments/AndroidPaymentAppFinderCanMakePaymentTest.java",
     "src/org/chromium/chrome/browser/payments/AndroidPaymentAppFinderTest.java",
     "src/org/chromium/chrome/browser/payments/AndroidPaymentAppFinderUnitTest.java",
     "src/org/chromium/chrome/browser/payments/ExpandablePaymentHandlerTest.java",
@@ -1182,7 +1183,6 @@ android_library("chrome_test_java_org.chromium.chrome.browser.site_settings") {
     "src/org/chromium/chrome/browser/site_settings/AllSiteSettingsTest.java",
     "src/org/chromium/chrome/browser/site_settings/ChromeSiteSettingsDelegateTest.java",
     "src/org/chromium/chrome/browser/site_settings/CookieControlsBridgeTest.java",
-    "src/org/chromium/chrome/browser/site_settings/CookieControlsServiceBridgeTest.java",
     "src/org/chromium/chrome/browser/site_settings/CookieSettingsTest.java",
     "src/org/chromium/chrome/browser/site_settings/FakeRwsPrivacySandboxBridge.java",
     "src/org/chromium/chrome/browser/site_settings/FamilyLinkControlsTest.java",
@@ -1340,8 +1340,8 @@ android_library("chrome_test_java_org.chromium.chrome.browser.tabmodel") {
 
   deps = [
     ":chrome_test_java_helper",
-    "//chrome/browser/ui/browser_window:factory_java",
-    "//chrome/browser/ui/browser_window:java",
+    "//chrome/browser/ui/browser_window/public/android:factory_java",
+    "//chrome/browser/ui/browser_window/public/android:java",
   ]
 }
 

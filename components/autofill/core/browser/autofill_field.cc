@@ -426,9 +426,7 @@ AutofillField::AutofillField(FieldSignature field_signature) : AutofillField() {
 AutofillField::AutofillField(const FormFieldData& field)
     : FormFieldData(field),
       field_signature_(
-          CalculateFieldSignatureByNameAndType(name(), form_control_type())),
-      parseable_name_(name()),
-      parseable_label_(label()) {
+          CalculateFieldSignatureByNameAndType(name(), form_control_type())) {
   local_type_predictions_.fill(NO_SERVER_DATA);
 }
 

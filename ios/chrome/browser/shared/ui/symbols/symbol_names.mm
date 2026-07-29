@@ -248,6 +248,10 @@ NSString* const kSunFillSymbol = @"sun.max.fill";
 NSString* const kCalendarSymbol = @"calendar";
 NSString* const kArrowLeftSymbol = @"arrow.left";
 NSString* const kArrowRightSymbol = @"arrow.right";
+NSString* const kArrowLeftSquareSymbol = @"arrow.left.square";
+NSString* const kArrowRightSquareSymbol = @"arrow.right.square";
+NSString* const kArrowLeftToLineSquareSymbol = @"arrow.left.to.line.square";
+NSString* const kArrowRightToLineSquareSymbol = @"arrow.right.to.line.square";
 NSString* const kClockArrowTriangleheadCounterclockwiseRotate90Symbol =
     @"clock.arrow.trianglehead.counterclockwise.rotate.90";
 NSString* const kTabsSymbol = @"square.on.square";
@@ -264,7 +268,6 @@ NSString* const kMovePlatterToTopPhoneSymbol =
 NSString* const kMovePlatterToBottomPhoneSymbol =
     @"platter.filled.bottom.and.arrow.down.iphone";
 NSString* const kMapSymbol = @"map";
-NSString* const kShippingBoxSymbol = @"shippingbox";
 NSString* const kSliderHorizontalSymbol = @"slider.horizontal.3";
 NSString* const kMacbookAndIPhoneSymbol = @"macbook.and.iphone";
 NSString* const kCheckmarkShieldSymbol = @"checkmark.shield";

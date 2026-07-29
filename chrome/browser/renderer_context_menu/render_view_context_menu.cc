@@ -1025,10 +1025,14 @@ void RenderViewContextMenu::IssuePreconnectionToUrl(
 ui::IsNewFeatureAtValue RenderViewContextMenu::GetIsNewFeatureAtValue(
     const std::string& feature_name) const {
   Profile* profile = Profile::FromBrowserContext(browser_context_);
+  UserEducationService* user_education_service =
+      UserEducationServiceFactory::GetForBrowserContext(profile);
+  if (!user_education_service ||
+      !user_education_service->new_badge_registry()) {
+    return ui::IsNewFeatureAtValue();
+  }
   auto& feature_data =
-      UserEducationServiceFactory::GetForBrowserContext(profile)
-          ->new_badge_registry()
-          ->feature_data();
+      user_education_service->new_badge_registry()->feature_data();
   for (const auto& [feature, spec] : feature_data) {
     if (feature_name == feature->name) {
       return UserEducationService::MaybeShowNewBadge(browser_context_,
@@ -2848,8 +2852,12 @@ bool RenderViewContextMenu::IsCommandIdEnabled(int id) const {
     case IDC_CONTENT_CONTEXT_OPENLINKNEWTAB:
     case IDC_CONTENT_CONTEXT_OPENLINKNEWWINDOW:
     case IDC_CONTENT_CONTEXT_OPENLINKPREVIEW:
+      return navigation_allowed && params_.link_url.is_valid() &&
+             IsOpenLinkAllowedByDlp(params_.link_url);
+
     case IDC_CONTENT_CONTEXT_OPENLINKSPLITVIEW:
       return navigation_allowed && params_.link_url.is_valid() &&
+             params_.link_url.IsStandard() &&
              IsOpenLinkAllowedByDlp(params_.link_url);
 
     case IDC_CONTENT_CONTEXT_COPYLINKLOCATION:
@@ -4416,11 +4424,6 @@ void RenderViewContextMenu::ExecRegionSearch(
   // TODO(crbug.com/428031945): Clean up once LensOverlayKeyboardSelection
   // lands.
   const bool use_fullscreen_capture = use_keyboard_accessibility_fallback;
-
-  if (!lens_region_search_controller_) {
-    lens_region_search_controller_ =
-        std::make_unique<lens::LensRegionSearchController>();
-  }
   const lens::AmbientSearchEntryPoint entry_point =
       lens_overlay_for_region_search_enabled
           ? lens::AmbientSearchEntryPoint::
@@ -4429,9 +4432,10 @@ void RenderViewContextMenu::ExecRegionSearch(
           ? lens::AmbientSearchEntryPoint::
                 CONTEXT_MENU_SEARCH_REGION_WITH_GOOGLE_LENS
           : lens::AmbientSearchEntryPoint::CONTEXT_MENU_SEARCH_REGION_WITH_WEB;
-  lens_region_search_controller_->Start(
+  browser->GetFeatures().lens_region_search_controller()->Start(
       embedder_web_contents_, use_fullscreen_capture,
       is_google_default_search_provider, entry_point);
+  lens_region_search_controller_started_for_testing_ = true;
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
 }
 

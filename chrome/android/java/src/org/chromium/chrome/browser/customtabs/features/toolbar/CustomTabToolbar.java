@@ -69,7 +69,6 @@ import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.base.supplier.OneshotSupplierImpl;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
 import org.chromium.chrome.R;
@@ -156,6 +155,7 @@ import org.chromium.url.GURL;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /** The Toolbar layout to be used for a custom tab. This is used for both phone and tablet UIs. */
 public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickListener {
@@ -936,7 +936,8 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
         // determined the first time its visibility is examined in #initializeOptionalButton:
         // 1) if we already have 2 dev buttons
         // 2) Width constraint hides the optional button.
-        if (!mOptionalButtonVisibilitySupplier.hasValue()) {
+        var optionalButtonVisibility = mOptionalButtonVisibilitySupplier.get();
+        if (optionalButtonVisibility == null) {
             if (hasMultipleDevButtons()) {
                 mOptionalButtonVisibilitySupplier.set(false);
             } else {
@@ -1791,7 +1792,8 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
                         CustomTabMtbHiddenReason.COUNT);
             }
             var buttonVariant = buttonData.getButtonSpec().getButtonVariant();
-            if (!mOptionalButtonVisibilitySupplier.hasValue()) {
+            var optionalButtonVisibility = mOptionalButtonVisibilitySupplier.get();
+            if (optionalButtonVisibility == null) {
                 mOptionalButtonVisibilitySupplier.set(showOptionalButton);
             }
             if (showOptionalButton) {

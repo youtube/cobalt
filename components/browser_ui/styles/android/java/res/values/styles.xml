@@ -24,9 +24,6 @@ found in the LICENSE file.
         <item name="android:scaleY">@fraction/material_switch_scale_fraction</item>
         <item name="android:minHeight">@dimen/switch_pre_scale_min_height</item>
     </style>
-    <style name="Widget.BrowserUI.Switch.Incognito">
-        <item name="materialThemeOverlay">@style/ThemeOverlay.BrowserUI.Switch.Incognito</item>
-    </style>
     <!-- TextInputLayout style -->
     <style name="Widget.BrowserUI.TextInputLayout" parent="Widget.Design.TextInputLayout">
         <item name="errorTextAppearance">@style/TextAppearance.ErrorCaption</item>
@@ -152,6 +149,11 @@ found in the LICENSE file.
 
     <style name="TextAppearance.DensityAdaptive.TextLarge.Primary">
         <item name="android:textColor">@color/default_text_color_list</item>
+    </style>
+
+    <style name="TextAppearance.DensityAdaptive.TextLarge.Primary.Baseline.Light"
+        parent="TextAppearance.DensityAdaptive.TextLarge">
+        <item name="android:textColor">@color/default_text_color_light_list</item>
     </style>
 
     <!-- Primary text styles -->

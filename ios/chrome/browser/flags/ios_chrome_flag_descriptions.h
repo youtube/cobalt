@@ -44,6 +44,9 @@ extern const char kApplyClientsideModelPredictionsForOtpsDescription[];
 extern const char kAutofillAcrossIframesName[];
 extern const char kAutofillAcrossIframesDescription[];
 
+extern const char kAutofillBottomSheetNewBlurName[];
+extern const char kAutofillBottomSheetNewBlurDescription[];
+
 extern const char kAutofillCreditCardScannerIosName[];
 extern const char kAutofillCreditCardScannerIosDescription[];
 
@@ -263,8 +266,8 @@ extern const char kDataSharingSharedDataTypesEnabledWithUi[];
 extern const char kDefaultBrowserBannerPromoName[];
 extern const char kDefaultBrowserBannerPromoDescription[];
 
-extern const char kDefaultBrowserMagicStackName[];
-extern const char kDefaultBrowserMagicStackDescription[];
+extern const char kDefaultBrowserMagicStackIosName[];
+extern const char kDefaultBrowserMagicStackIosDescription[];
 
 extern const char kDefaultBrowserOffCyclePromoName[];
 extern const char kDefaultBrowserOffCyclePromoDescription[];
@@ -441,6 +444,9 @@ extern const char kIOSKeyboardAccessoryUpgradeForIPadDescription[];
 extern const char kIOSOmniboxAimShortcutName[];
 extern const char kIOSOmniboxAimShortcutDescription[];
 
+extern const char kIOSOmniboxAimServerEligibilityName[];
+extern const char kIOSOmniboxAimServerEligibilityDescription[];
+
 extern const char kIOSOneTapMiniMapRemoveSectionBreaksName[];
 extern const char kIOSOneTapMiniMapRemoveSectionBreaksDescription[];
 
@@ -585,6 +591,9 @@ extern const char kLensPrewarmHardStickinessInInputSelectionDescription[];
 
 extern const char kLensPrewarmHardStickinessInQueryFormulationName[];
 extern const char kLensPrewarmHardStickinessInQueryFormulationDescription[];
+
+extern const char kLensSearchHeadersCheckEnabledName[];
+extern const char kLensSearchHeadersCheckEnabledDescription[];
 
 extern const char kLensSingleTapTextSelectionDisabledName[];
 extern const char kLensSingleTapTextSelectionDisabledDescription[];

@@ -14,7 +14,6 @@ import org.chromium.base.MathUtils;
 import org.chromium.base.Token;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.ObservableSupplierImpl;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.chrome.browser.compositor.overlays.strip.AnimationHost;
 import org.chromium.chrome.browser.compositor.overlays.strip.ScrollDelegate;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutGroupTitle;
@@ -32,6 +31,7 @@ import org.chromium.ui.base.LocalizationUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 
 /** Tab group reorder - drag collapsed or expanded group within the tab strip. */
 public class GroupReorderStrategy extends ReorderStrategyBase {
@@ -300,7 +300,7 @@ public class GroupReorderStrategy extends ReorderStrategyBase {
             movePastAdjacentGroup(stripTabs, interactingTabGroupId, adjTitle, towardEnd);
         } else {
             // Case B: Attempt to drab past ungrouped tab.
-            if (Math.abs(offset) <= getTabSwapThreshold()) return false;
+            if (Math.abs(offset) <= getTabSwapThreshold(/* isPinned= */ false)) return false;
 
             @TabId int tabId = mTabGroupModelFilter.getGroupLastShownTabId(interactingTabGroupId);
             mTabGroupModelFilter.moveRelatedTabs(tabId, adjTabIndex);

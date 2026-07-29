@@ -463,7 +463,7 @@ FieldType AutofillProfile::GetStorableTypeOf(FieldType type) const {
   if (group == FieldTypeGroup::kAddress) {
     return address_.GetRoot().GetStorableTypeOf(type).value_or(type);
   } else if (group == FieldTypeGroup::kName) {
-    return name_.GetStructuredName().GetStorableTypeOf(type).value_or(type);
+    return name_.GetStorableTypeOf(type).value_or(type);
   } else if (group == FieldTypeGroup::kPhone) {
     // The only storable phone number type is PHONE_HOME_WHOLE_NUMBER.
     return PHONE_HOME_WHOLE_NUMBER;
@@ -658,10 +658,7 @@ bool AutofillProfile::IsSubsetOfForFieldSet(
         return false;
       }
     } else if (type == NAME_FULL) {
-      if (!comparator.IsNameVariantOf(
-              normalization::NormalizeForComparison(
-                  profile.GetInfo(NAME_FULL, app_locale)),
-              normalization::NormalizeForComparison(value))) {
+      if (!profile.GetNameInfo().IsNameVariantOf(value, app_locale)) {
         // Check whether the full name of |this| can be derived from the full
         // name of |profile| if the form contains a full name field.
         //
@@ -786,7 +783,9 @@ bool AutofillProfile::MergeDataFrom(const AutofillProfile& profile,
   // accepting updates instead of preserving the original data. I.e., passing
   // the incoming profile first accepts case and diacritic changes, for example,
   // the other ways does not.
-  if (!comparator.MergeNames(profile, *this, name) ||
+  if (!NameInfo::MergeNames(profile.GetNameInfo(),
+                            profile.GetAddressCountryCode(), GetNameInfo(),
+                            GetAddressCountryCode(), name) ||
       !comparator.MergeEmailAddresses(profile, *this, email) ||
       !comparator.MergeCompanyNames(profile, *this, company) ||
       !comparator.MergePhoneNumbers(profile, *this, phone_number) ||
@@ -1071,7 +1070,7 @@ VerificationStatus AutofillProfile::GetVerificationStatus(
 }
 
 std::u16string AutofillProfile::GetInfo(const AutofillType& type,
-                                        const std::string& app_locale) const {
+                                        std::string_view app_locale) const {
   const FormGroup* form_group = FormGroupForType(type.GetAddressType());
   if (!form_group) {
     return std::u16string();

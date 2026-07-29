@@ -28,7 +28,7 @@ const VIDEO_FRAME_DIMENSIONS = 192;
 
 /** The wasm loader JS is checked in under this path. */
 const WASM_LOADER_PATH =
-    'accessibility_common/third_party/mediapipe_task_vision/' +
+    'accessibility_common/mv3/third_party/mediapipe_task_vision/' +
     'vision_wasm_internal.js';
 
 /** A helper class to support test. */
@@ -59,6 +59,9 @@ class TestSupport {
         OffscreenCommandType.FACEGAZE_SET_CAMERA_RETRIES_FOR_TEST,
         (message: {retries: number}) =>
             this.setWebCamRetriesRemaining(message));
+    Messenger.registerHandler(
+        OffscreenCommandType.FACEGAZE_HAS_FACE_LANDMARKER_FOR_TEST,
+        () => Promise.resolve(this.hasFaceLandmarker()));
   }
 
   mockNoCamera_(): void {
@@ -109,6 +112,11 @@ class TestSupport {
   setWebCamRetriesRemaining(message: {retries: number}): void {
     // @ts-ignore Private member access.
     this.owner_.connectToWebCamRetriesRemaining_ = message.retries;
+  }
+
+  hasFaceLandmarker(): boolean {
+    // @ts-ignore Private member access.
+    return !!this.owner_.faceLandmarker_;
   }
 }
 

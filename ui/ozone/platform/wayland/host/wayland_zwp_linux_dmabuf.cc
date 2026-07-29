@@ -300,7 +300,11 @@ void WaylandZwpLinuxDmabuf::OnMainDevice(void* data,
   // listener, and the CHECK above ensures there is 1 element in the wl_array.
   self->main_dev_ = UNSAFE_BUFFERS(reinterpret_cast<dev_t*>(device->data)[0]);
   drmDevicePtr raw_device;
-  drmGetDeviceFromDevId(self->main_dev_, 0, &raw_device);
+  int ret = drmGetDeviceFromDevId(self->main_dev_, 0, &raw_device);
+  if (ret < 0) {
+    PLOG(ERROR) << "drmGetDeviceFromDevId() returned an error";
+    return;
+  }
   ScopedDrmDevice drm_device(raw_device);
 
   if (!drm_device || !(drm_device->available_nodes & 1 << DRM_NODE_RENDER)) {
@@ -314,10 +318,10 @@ void WaylandZwpLinuxDmabuf::OnMainDevice(void* data,
   base::ScopedFD drm_fd(open(drm_device_path, O_RDWR));
 
   self->connection_->SetRenderNodePath(drm_fd, drm_device_path);
-#endif  // defined(WAYLAND_GBM)
 
   // Prepare to receive new formats and modifiers
   self->supported_buffer_formats_with_modifiers_.clear();
+#endif  // defined(WAYLAND_GBM)
 }
 
 void WaylandZwpLinuxDmabuf::OnTrancheDone(

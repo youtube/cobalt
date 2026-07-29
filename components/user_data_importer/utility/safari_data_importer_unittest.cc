@@ -11,6 +11,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/path_service.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
 #include "base/test/run_until.h"
@@ -19,11 +20,14 @@
 #include "base/time/default_clock.h"
 #include "components/affiliations/core/browser/fake_affiliation_service.h"
 #include "components/autofill/core/browser/foundations/test_autofill_client.h"
+#include "components/autofill/core/common/autofill_prefs.h"
 #include "components/bookmarks/browser/bookmark_model.h"
+#include "components/bookmarks/common/bookmark_pref_names.h"
 #include "components/bookmarks/test/bookmark_test_helpers.h"
 #include "components/bookmarks/test/test_bookmark_client.h"
 #include "components/bookmarks/test/test_matchers.h"
 #include "components/history/core/browser/history_service.h"
+#include "components/history/core/common/pref_names.h"
 #include "components/history/core/test/history_service_test_util.h"
 #include "components/password_manager/core/browser/features/password_manager_features_util.h"
 #include "components/password_manager/core/browser/import/csv_password_sequence.h"
@@ -33,7 +37,9 @@
 #include "components/password_manager/core/browser/ui/credential_ui_entry.h"
 #include "components/password_manager/core/browser/ui/saved_passwords_presenter.h"
 #include "components/password_manager/core/common/password_manager_constants.h"
+#include "components/password_manager/core/common/password_manager_pref_names.h"
 #include "components/password_manager/services/csv_password/fake_password_parser_service.h"
+#include "components/prefs/testing_pref_service.h"
 #include "components/reading_list/core/fake_reading_list_model_storage.h"
 #include "components/reading_list/core/reading_list_model.h"
 #include "components/reading_list/core/reading_list_model_impl.h"
@@ -116,6 +122,7 @@ class SafariDataImporterTest : public testing::Test {
   SafariDataImporterTest& operator=(const SafariDataImporterTest&) = delete;
 
   syncer::TestSyncService sync_service_;
+  TestingPrefServiceSimple pref_service_;
 
  protected:
 #if BUILDFLAG(IS_IOS)
@@ -148,6 +155,15 @@ class SafariDataImporterTest : public testing::Test {
 
     storage_ptr->TriggerLoadCompletion();
 
+    pref_service_.registry()->RegisterBooleanPref(
+        password_manager::prefs::kCredentialsEnableService, true);
+    pref_service_.registry()->RegisterBooleanPref(
+        prefs::kSavingBrowserHistoryDisabled, false);
+    pref_service_.registry()->RegisterBooleanPref(
+        bookmarks::prefs::kEditBookmarksEnabled, true);
+    pref_service_.registry()->RegisterBooleanPref(
+        autofill::prefs::kAutofillCreditCardEnabled, true);
+
 #if BUILDFLAG(IS_IOS)
     auto parser = MakeBookmarkParser();
 #else
@@ -160,7 +176,8 @@ class SafariDataImporterTest : public testing::Test {
         &client_, &presenter_,
         &autofill_client_.GetPersonalDataManager().payments_data_manager(),
         history_service_.get(), bookmark_model_.get(),
-        reading_list_model_.get(), &sync_service_, std::move(parser), "en-US");
+        reading_list_model_.get(), &sync_service_, &pref_service_,
+        std::move(parser), "en-US");
 
     mojo::PendingRemote<password_manager::mojom::CSVPasswordParser>
         pending_remote{receiver_.BindNewPipeAndPassRemote()};
@@ -183,7 +200,9 @@ class SafariDataImporterTest : public testing::Test {
   void TearDown() override {
     account_store_->ShutdownOnUIThread();
     profile_store_->ShutdownOnUIThread();
+    history_service_->Shutdown();
     Synchronize();
+    task_tracker_.TryCancelAll();
   }
 
   const std::vector<ImportedBookmarkEntry>& GetPendingBookmarks() const {
@@ -324,6 +343,35 @@ class SafariDataImporterTest : public testing::Test {
     EXPECT_THAT(account_store()->stored_passwords(), IsEmpty());
   }
 
+  // Helper to set up common expectations for the "Ready" phase of an
+  // end-to-end file import.
+  void SetUpEndToEndPrepareExpectations() {
+    EXPECT_CALL(client_, OnPasswordsReady(AllOf(
+                             Field(&ImportResults::number_imported, 0u),
+                             Field(&ImportResults::number_to_import, 3u))));
+
+#if BUILDFLAG(IS_IOS)
+    ExpectBookmarksReady(6u);
+#else
+    ExpectBookmarksReady(5u);
+#endif
+
+    EXPECT_CALL(client_, OnPaymentCardsReady(3u));
+    EXPECT_CALL(client_, OnHistoryReady(13u, _));  // Approximation.
+  }
+
+  // Helper to set up common expectations for the "Imported" phase of an
+  // end-to-end file import.
+  void SetUpEndToEndCompleteExpectations() {
+    EXPECT_CALL(client_, OnPasswordsImported(AllOf(
+                             Field(&ImportResults::number_imported, 3u),
+                             Field(&ImportResults::number_to_import, 0u))));
+
+    EXPECT_CALL(client_, OnBookmarksImported(5u));
+    EXPECT_CALL(client_, OnPaymentCardsImported(3u));
+    EXPECT_CALL(client_, OnHistoryImported(7u));  // Actual.
+  }
+
   ReadingListModel* GetReadingListModel() { return reading_list_model_.get(); }
 
   password_manager::TestPasswordStore* profile_store() {
@@ -333,7 +381,13 @@ class SafariDataImporterTest : public testing::Test {
     return account_store_.get();
   }
 
+  autofill::TestAutofillClient* autofill_client() { return &autofill_client_; }
+
+  history::HistoryService* history_service() { return history_service_.get(); }
+
   testing::StrictMock<MockSafariDataImportClient> client_;
+
+  base::CancelableTaskTracker task_tracker_;
 
  private:
   void WaitUntilPresenterIsReady() {
@@ -833,33 +887,22 @@ TEST_F(SafariDataImporterTest, CancelImport) {
 }
 
 TEST_F(SafariDataImporterTest, ImportFileEndToEnd) {
-  EXPECT_CALL(client_, OnPasswordsReady(
-                           AllOf(Field(&ImportResults::number_imported, 0u),
-                                 Field(&ImportResults::number_to_import, 3u))));
-
-#if BUILDFLAG(IS_IOS)
-  ExpectBookmarksReady(6u);
-#else
-  ExpectBookmarksReady(5u);
-#endif
-
-  EXPECT_CALL(client_, OnPaymentCardsReady(3u));
-  EXPECT_CALL(client_, OnHistoryReady(13u, _));  // Approximation.
+  SetUpEndToEndPrepareExpectations();
+  SetUpEndToEndCompleteExpectations();
 
   PrepareImportFromFile();
 
   // Use a small history size threshold so that ParseHistoryCallback gets called
   // multiple times internally.
   SetHistorySizeThreshold(3u);
+  CompleteImport({});
+}
 
-  EXPECT_CALL(client_, OnPasswordsImported(
-                           AllOf(Field(&ImportResults::number_imported, 3u),
-                                 Field(&ImportResults::number_to_import, 0u))));
+TEST_F(SafariDataImporterTest, ImportFileEndToEndWithDefaultThreshold) {
+  SetUpEndToEndPrepareExpectations();
+  SetUpEndToEndCompleteExpectations();
 
-  EXPECT_CALL(client_, OnBookmarksImported(5u));
-  EXPECT_CALL(client_, OnPaymentCardsImported(3u));
-  EXPECT_CALL(client_, OnHistoryImported(7u));  // Actual.
-
+  PrepareImportFromFile();
   CompleteImport({});
 }
 
@@ -1156,6 +1199,183 @@ TEST_F(SafariDataImporterTest, ImportToBothStoresSequentially) {
   account_store()->Clear();
 
   PasswordsImportToProfileStore();
+}
+
+// Tests that password import is blocked when disabled by enterprise policy.
+TEST_F(SafariDataImporterTest, ImportPasswordsBlockedByPolicy) {
+  pref_service_.SetManagedPref(
+      password_manager::prefs::kCredentialsEnableService,
+      std::make_unique<base::Value>(false));
+
+  constexpr char kTestCSVInput[] =
+      "Url,Username,Password,Note\n"
+      "https://account.example.com,user1,pass1,note1\n";
+
+  EXPECT_CALL(client_, OnPasswordsReady(
+                           AllOf(Field(&ImportResults::number_imported, 0u),
+                                 Field(&ImportResults::number_to_import, 0u))));
+  PreparePasswords(kTestCSVInput);
+
+  EXPECT_CALL(client_, OnPasswordsImported(
+                           AllOf(Field(&ImportResults::number_imported, 0u),
+                                 Field(&ImportResults::number_to_import, 0u))));
+  EXPECT_CALL(client_, OnBookmarksImported(0));
+  EXPECT_CALL(client_, OnHistoryImported(0));
+  EXPECT_CALL(client_, OnPaymentCardsImported(0));
+
+  CompleteImport({});
+
+  EXPECT_THAT(profile_store()->stored_passwords(), IsEmpty());
+  EXPECT_THAT(account_store()->stored_passwords(), IsEmpty());
+}
+
+// Tests that password import is directed to the local store when password sync
+// is disabled by the SyncTypesListDisabled policy.
+TEST_F(SafariDataImporterTest,
+       PasswordsImportLocallyWithSyncTypesListDisabled) {
+  sync_service_.SetSignedIn(signin::ConsentLevel::kSignin);
+  ASSERT_TRUE(
+      password_manager::features_util::IsAccountStorageEnabled(&sync_service_));
+
+  syncer::UserSelectableTypeSet types =
+      sync_service_.GetUserSettings()->GetRegisteredSelectableTypes();
+  types.Remove(syncer::UserSelectableType::kPasswords);
+  sync_service_.GetUserSettings()->SetSelectedTypes(/*sync_everything=*/false,
+                                                    types);
+
+  constexpr char kTestCSVInput[] =
+      "Url,Username,Password,Note\n"
+      "https://local.example.com,user1,pass1,note1\n";
+
+  EXPECT_CALL(client_, OnPasswordsReady(
+                           AllOf(Field(&ImportResults::number_imported, 0u),
+                                 Field(&ImportResults::number_to_import, 1u))));
+  PreparePasswords(kTestCSVInput);
+
+  EXPECT_CALL(client_, OnPasswordsImported(
+                           AllOf(Field(&ImportResults::number_imported, 1u),
+                                 Field(&ImportResults::number_to_import, 0u))));
+  EXPECT_CALL(client_, OnBookmarksImported(0));
+  EXPECT_CALL(client_, OnHistoryImported(0));
+  EXPECT_CALL(client_, OnPaymentCardsImported(0));
+
+  CompleteImport({});
+
+  EXPECT_THAT(profile_store()->stored_passwords(), SizeIs(1));
+  EXPECT_THAT(account_store()->stored_passwords(), IsEmpty());
+}
+
+// Tests that history import is blocked when disabled by enterprise policy.
+TEST_F(SafariDataImporterTest, ImportHistoryBlockedByPolicy) {
+  pref_service_.SetManagedPref(prefs::kSavingBrowserHistoryDisabled,
+                               std::make_unique<base::Value>(true));
+
+  EXPECT_CALL(client_, OnPasswordsReady(
+                           AllOf(Field(&ImportResults::number_imported, 0u),
+                                 Field(&ImportResults::number_to_import, 3u))));
+#if BUILDFLAG(IS_IOS)
+  ExpectBookmarksReady(6u);
+#else
+  ExpectBookmarksReady(5u);
+#endif
+  EXPECT_CALL(client_, OnPaymentCardsReady(3u));
+  EXPECT_CALL(client_, OnHistoryReady(0, _));
+
+  PrepareImportFromFile();
+
+  EXPECT_CALL(client_, OnPasswordsImported(
+                           AllOf(Field(&ImportResults::number_imported, 3u),
+                                 Field(&ImportResults::number_to_import, 0u))));
+  EXPECT_CALL(client_, OnBookmarksImported(5u));
+  EXPECT_CALL(client_, OnPaymentCardsImported(3u));
+  EXPECT_CALL(client_, OnHistoryImported(0));
+
+  CompleteImport({});
+
+  // TODO(crbug.com/407587751): Move this into a helper method to be
+  // reused by other tests.
+  history::QueryResults results;
+  history_service()->QueryHistory(
+      u"", history::QueryOptions(),
+      base::BindLambdaForTesting(
+          [&](history::QueryResults r) { results = std::move(r); }),
+      &task_tracker_);
+  history::BlockUntilHistoryProcessesPendingRequests(history_service());
+
+  EXPECT_TRUE(results.empty());
+}
+
+// Tests that bookmark import is blocked when disabled by enterprise policy.
+TEST_F(SafariDataImporterTest, ImportBookmarksBlockedByPolicy) {
+  pref_service_.SetManagedPref(bookmarks::prefs::kEditBookmarksEnabled,
+                               std::make_unique<base::Value>(false));
+
+  ExpectBookmarksReady(0u);
+  PrepareBookmarks(R"(
+      <!DOCTYPE NETSCAPE-Bookmark-file-1>
+      <DL><DT><A HREF="https://www.google.com/">Google</A></DL>)");
+
+  EXPECT_CALL(client_, OnPasswordsImported(_));
+  EXPECT_CALL(client_, OnBookmarksImported(0));
+  EXPECT_CALL(client_, OnHistoryImported(0));
+  EXPECT_CALL(client_, OnPaymentCardsImported(0));
+
+  CompleteImport({});
+
+  EXPECT_THAT(GetOtherBookmarkNode()->children(), IsEmpty());
+}
+
+#if BUILDFLAG(IS_IOS)
+// Tests that reading list import is blocked when disabled by enterprise policy.
+TEST_F(SafariDataImporterTest, ImportReadingListBlockedByPolicy) {
+  pref_service_.SetManagedPref(bookmarks::prefs::kEditBookmarksEnabled,
+                               std::make_unique<base::Value>(false));
+
+  ExpectBookmarksReady(0u);
+  PrepareBookmarks(
+      R"(<!DOCTYPE NETSCAPE-Bookmark-file-1>
+          <DL>
+            <DT><H3 id="com.apple.ReadingList">Reading List</H3>
+            <DL>
+              <DT><A HREF="https://www.item1.com/">First Item</A>
+            </DL>
+          </DL>)");
+
+  EXPECT_CALL(client_, OnPasswordsImported(_));
+  EXPECT_CALL(client_, OnBookmarksImported(0));
+  EXPECT_CALL(client_, OnHistoryImported(0));
+  EXPECT_CALL(client_, OnPaymentCardsImported(0));
+
+  CompleteImport({});
+
+  EXPECT_TRUE(GetReadingListModel()->GetKeys().empty());
+}
+#endif  // BUILDFLAG(IS_IOS)
+
+// Tests that payment card import is blocked when disabled by enterprise policy.
+TEST_F(SafariDataImporterTest, ImportPaymentCardsBlockedByPolicy) {
+  pref_service_.SetManagedPref(autofill::prefs::kAutofillCreditCardEnabled,
+                               std::make_unique<base::Value>(false));
+
+  EXPECT_CALL(client_, OnPaymentCardsReady(0));
+  PreparePaymentCards({PaymentCardEntry{.card_number = u"1234567812345678",
+                                        .card_name = u"Test Card",
+                                        .cardholder_name = "Test Name",
+                                        .card_expiration_month = 12,
+                                        .card_expiration_year = 2025}});
+
+  EXPECT_CALL(client_, OnPasswordsImported(_));
+  EXPECT_CALL(client_, OnBookmarksImported(0));
+  EXPECT_CALL(client_, OnHistoryImported(0));
+  EXPECT_CALL(client_, OnPaymentCardsImported(0));
+
+  CompleteImport({});
+
+  EXPECT_TRUE(autofill_client()
+                  ->GetPersonalDataManager()
+                  .payments_data_manager()
+                  .GetCreditCards()
+                  .empty());
 }
 
 }  // namespace user_data_importer

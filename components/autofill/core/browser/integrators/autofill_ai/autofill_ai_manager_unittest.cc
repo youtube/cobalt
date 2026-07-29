@@ -8,12 +8,14 @@
 #include "base/task/current_thread.h"
 #include "base/test/gmock_callback_support.h"
 #include "base/test/gmock_move_support.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "base/time/time.h"
 #include "components/autofill/core/browser/data_manager/autofill_ai/entity_data_manager.h"
+#include "components/autofill/core/browser/data_model/addresses/autofill_structured_address_component.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type_names.h"
@@ -133,6 +135,8 @@ class AutofillAiManagerTest : public testing::Test {
         autofill_client().GetPrefs());
     autofill_client().set_entity_data_manager(
         std::make_unique<EntityDataManager>(
+            autofill_client().GetPrefs(),
+            autofill_client().GetIdentityManager(),
             webdata_helper_.autofill_webdata_service(),
             /*history_service=*/nullptr,
             /*strike_database=*/nullptr));
@@ -551,7 +555,7 @@ TEST_F(AutofillAiManagerImportFormTest, AcceptingResetsStrikesPerUrl) {
   constexpr char16_t kOtherLicensePlate[] = u"MU-LJ-4500";
 
   AutofillClient::EntitySaveOrUpdatePromptResult decline{
-      /*did_user_interact=*/true, std::nullopt};
+      /*did_user_decline=*/true, std::nullopt};
   AutofillClient::EntitySaveOrUpdatePromptResult accept = {
       /*did_user_decline=*/false,
       test::GetPassportEntityInstance({.number = kDefaultPassportNumber})};
@@ -805,71 +809,96 @@ TEST_F(AutofillAiManagerImportFormTest, NewEntity_ShowPromptAndAccept) {
       u"1234321");
 }
 
-TEST_F(AutofillAiManagerImportFormTest, UpdateEntity_ShowPromptAndAccept) {
+TEST_F(AutofillAiManagerImportFormTest, UpdateEntity_NewInfo) {
   using enum AttributeTypeName;
-  // The submitted form will have issue date info.
+  // The submitted form will have expiration date info.
   std::unique_ptr<FormStructure> form =
-      CreateFormStructure({NAME_FULL, PASSPORT_NUMBER, PASSPORT_ISSUE_DATE,
-                           PASSPORT_EXPIRATION_DATE, PASSPORT_EXPIRATION_DATE,
-                           PASSPORT_EXPIRATION_DATE});
+      CreateFormStructure({PASSPORT_NUMBER, PASSPORT_EXPIRATION_DATE});
 
   // The current entity however does not.
-  EntityInstance existing_entity_without_issue_and_expiry_dates =
-      test::GetPassportEntityInstance(
-          {.expiry_date = nullptr, .issue_date = nullptr});
-  AddOrUpdateEntityInstance(existing_entity_without_issue_and_expiry_dates);
+  EntityInstance existing_entity_without_expiry_dates =
+      test::GetPassportEntityInstance({.expiry_date = nullptr});
+  AddOrUpdateEntityInstance(existing_entity_without_expiry_dates);
 
   // Set the filled values to be the same as the ones already stored in the
-  // existing entity, also fill the issue and expiry dates.
-  form->field(0)->set_value(
-      GetValueFromEntity(existing_entity_without_issue_and_expiry_dates,
-                         AttributeType(kPassportName)));
-  form->field(1)->set_value(
-      GetValueFromEntity(existing_entity_without_issue_and_expiry_dates,
-                         AttributeType(kPassportNumber)));
-  // Issue date.
-  form->field(2)->set_value(u"01/02/16");
-  form->field(2)->set_format_string_unless_overruled(
+  // existing entity, and also fill the expiry date.
+  form->field(0)->set_value(GetValueFromEntity(
+      existing_entity_without_expiry_dates, AttributeType(kPassportNumber)));
+  form->field(1)->set_value(u"01/02/20");
+  form->field(1)->set_format_string_unless_overruled(
       u"DD/MM/YY", AutofillField::FormatStringSource::kServer);
-  // Expiry date.
-  form->field(3)->set_value(u"01");
-  form->field(3)->set_format_string_unless_overruled(
-      u"DD", AutofillField::FormatStringSource::kServer);
-  form->field(4)->set_value(u"02");
-  form->field(4)->set_format_string_unless_overruled(
-      u"MM", AutofillField::FormatStringSource::kServer);
-  form->field(5)->set_value(u"2020");
-  form->field(5)->set_format_string_unless_overruled(
-      u"YYYY", AutofillField::FormatStringSource::kServer);
 
-  std::optional<EntityInstance> entity;
+  std::optional<EntityInstance> new_entity;
   std::optional<EntityInstance> old_entity;
   AutofillClient::EntitySaveOrUpdatePromptResultCallback save_callback;
   EXPECT_CALL(autofill_client(), ShowEntitySaveOrUpdateBubble)
-      .WillOnce(DoAll(SaveArg<0>(&entity), SaveArg<1>(&old_entity),
+      .WillOnce(DoAll(SaveArg<0>(&new_entity), SaveArg<1>(&old_entity),
                       MoveArg<2>(&save_callback)));
-  EXPECT_TRUE(manager().OnFormSubmitted(*form, /*ukm_source_id=*/{}));
-  // This is an update bubble, `old_entity` should exist.
-  ASSERT_TRUE(old_entity.has_value());
-  EXPECT_EQ(*old_entity, existing_entity_without_issue_and_expiry_dates);
 
+  // An update bubble should be shown.
+  ASSERT_TRUE(manager().OnFormSubmitted(*form, /*ukm_source_id=*/{}));
+  ASSERT_TRUE(old_entity.has_value());
   // Accept the bubble.
   std::move(save_callback)
       .Run(AutofillClient::EntitySaveOrUpdatePromptResult(
-          /*did_user_interact=*/true, entity));
-  // Tests that the expected entity was updated.
-  base::span<const EntityInstance> saved_entities = GetEntityInstances();
+          /*did_user_decline=*/true, *new_entity));
 
   // Only one entity should exist, as it was updated.
+  base::span<const EntityInstance> saved_entities = GetEntityInstances();
   ASSERT_EQ(saved_entities.size(), 1u);
-  const EntityInstance& saved_entity = *saved_entities.begin();
-  EXPECT_EQ(saved_entity, *entity);
-  EXPECT_EQ(saved_entity.guid(),
-            existing_entity_without_issue_and_expiry_dates.guid());
+  const EntityInstance& saved_entity = saved_entities.front();
+
+  EXPECT_EQ(*old_entity, existing_entity_without_expiry_dates);
+  EXPECT_EQ(*new_entity, saved_entity);
+  EXPECT_EQ(saved_entity.guid(), old_entity->guid());
+  // The new expiry date information should be added accordingly.
   EXPECT_EQ(GetValueFromEntityForAttributeTypeName(
-                saved_entity, AttributeTypeName::kPassportIssueDate,
+                saved_entity, AttributeTypeName::kPassportExpirationDate,
                 /*app_locale=*/""),
-            u"2016-02-01");
+            u"2020-02-01");
+}
+
+TEST_F(AutofillAiManagerImportFormTest, UpdateEntity_UpdateInfo) {
+  using enum AttributeTypeName;
+  std::unique_ptr<FormStructure> form =
+      CreateFormStructure({PASSPORT_NUMBER, PASSPORT_EXPIRATION_DATE});
+  EntityInstance existing_entity =
+      test::GetPassportEntityInstance({.expiry_date = u"2019-01-02"});
+  AddOrUpdateEntityInstance(existing_entity);
+
+  // Set the filled values to be the same as the ones already stored in the
+  // existing entity, and also fill the expiry date.
+  form->field(0)->set_value(
+      GetValueFromEntity(existing_entity, AttributeType(kPassportNumber)));
+  // Set a new expiry date value, different from the one currently stored.
+  form->field(1)->set_value(u"01/02/20");
+  form->field(1)->set_format_string_unless_overruled(
+      u"DD/MM/YY", AutofillField::FormatStringSource::kServer);
+
+  std::optional<EntityInstance> new_entity;
+  std::optional<EntityInstance> old_entity;
+  AutofillClient::EntitySaveOrUpdatePromptResultCallback save_callback;
+  EXPECT_CALL(autofill_client(), ShowEntitySaveOrUpdateBubble)
+      .WillOnce(DoAll(SaveArg<0>(&new_entity), SaveArg<1>(&old_entity),
+                      MoveArg<2>(&save_callback)));
+
+  // An update bubble should be shown.
+  ASSERT_TRUE(manager().OnFormSubmitted(*form, /*ukm_source_id=*/{}));
+  ASSERT_TRUE(old_entity.has_value());
+  // Accept the bubble.
+  std::move(save_callback)
+      .Run(AutofillClient::EntitySaveOrUpdatePromptResult(
+          /*did_user_decline=*/true, new_entity));
+
+  // Only one entity should exist, as it was updated.
+  base::span<const EntityInstance> saved_entities = GetEntityInstances();
+  ASSERT_EQ(saved_entities.size(), 1u);
+  const EntityInstance& saved_entity = saved_entities.front();
+
+  EXPECT_EQ(*old_entity, existing_entity);
+  EXPECT_EQ(*new_entity, saved_entity);
+  EXPECT_EQ(saved_entity.guid(), old_entity->guid());
+  // The expiry date information should be updated accordingly.
   EXPECT_EQ(GetValueFromEntityForAttributeTypeName(
                 saved_entity, AttributeTypeName::kPassportExpirationDate,
                 /*app_locale=*/""),
@@ -907,6 +936,36 @@ TEST_F(AutofillAiManagerImportFormTest,
   // Since the current entity instance is read only, no prompt should be shown.
   EXPECT_CALL(autofill_client(), ShowEntitySaveOrUpdateBubble).Times(0);
   EXPECT_FALSE(manager().OnFormSubmitted(*form, /*ukm_source_id=*/{}));
+}
+
+TEST_F(AutofillAiManagerImportFormTest, PromptSuppressionMetric) {
+  std::unique_ptr<FormStructure> form =
+      CreateFormStructure({DRIVERS_LICENSE_NUMBER, VEHICLE_VIN, VEHICLE_YEAR});
+
+  EntityInstance vehicle =
+      test::GetVehicleEntityInstance({.number = u"987654", .year = u""});
+  // Clear vehicle year information so that we can simulate an update prompt
+  // later at submission time.
+  AddOrUpdateEntityInstance(vehicle);
+
+  // This should create a save prompt for the driver's license.
+  form->field(0)->set_value(u"123456");
+
+  // this should create an update prompt for the vehicle.
+  form->field(1)->set_value(
+      vehicle.attribute(AttributeType(AttributeTypeName::kVehicleVin))
+          ->GetRawInfo(VEHICLE_VIN));
+  form->field(2)->set_value(u"2025");
+
+  base::HistogramTester histogram_tester;
+  EXPECT_TRUE(manager().OnFormSubmitted(*form, /*ukm_source_id=*/{}));
+
+  // Expect that the save prompt for the driver's license was shown and
+  // consequently suppressed the update prompt for the vehicle.
+  histogram_tester.ExpectUniqueSample(
+      "Autofill.Ai.PromptSuppression.SavePrompt.DriversLicense", 0, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Autofill.Ai.PromptSuppression.UpdatePrompt.Vehicle", 1, 1);
 }
 
 }  // namespace

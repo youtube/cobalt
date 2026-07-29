@@ -13,7 +13,6 @@ import android.view.View;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.metrics.RecordUserAction;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
@@ -31,6 +30,8 @@ import org.chromium.components.feature_engagement.EventConstants;
 import org.chromium.components.feature_engagement.FeatureConstants;
 import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.ui.base.DeviceFormFactor;
+
+import java.util.function.Supplier;
 
 /**
  * Optional toolbar button which opens a new tab. May be used by {@link
@@ -78,7 +79,7 @@ public class OptionalNewTabButtonController extends BaseButtonDataProvider
     private final Context mContext;
 
     private final Delegate mDelegate;
-    private final Supplier<Tracker> mTrackerSupplier;
+    private final Supplier<@Nullable Tracker> mTrackerSupplier;
 
     private boolean mIsTablet;
     private final ActivityLifecycleDispatcher mActivityLifecycleDispatcher;
@@ -89,10 +90,10 @@ public class OptionalNewTabButtonController extends BaseButtonDataProvider
      * @param context The Context for retrieving resources, etc.
      * @param buttonDrawable Drawable for the new tab button.
      * @param activityLifecycleDispatcher Dispatcher for activity lifecycle events, e.g.
-     *         configuration changes.
+     *     configuration changes.
      * @param tabCreatorManagerSupplier Used to open new tabs.
      * @param activeTabSupplier Used to access the current tab.
-     * @param trackerSupplier  Supplier for the current profile tracker.
+     * @param trackerSupplier Supplier for the current profile tracker.
      */
     public OptionalNewTabButtonController(
             Context context,
@@ -100,7 +101,7 @@ public class OptionalNewTabButtonController extends BaseButtonDataProvider
             ActivityLifecycleDispatcher activityLifecycleDispatcher,
             Supplier<@Nullable TabCreatorManager> tabCreatorManagerSupplier,
             Supplier<@Nullable Tab> activeTabSupplier,
-            Supplier<Tracker> trackerSupplier) {
+            Supplier<@Nullable Tracker> trackerSupplier) {
         super(
                 activeTabSupplier,
                 /* modalDialogManager= */ null,
@@ -134,10 +135,9 @@ public class OptionalNewTabButtonController extends BaseButtonDataProvider
         RecordUserAction.record("MobileTopToolbarOptionalButtonNewTab");
         tabCreatorManager.getTabCreator(isIncognito).launchNtp();
 
-        if (mTrackerSupplier.hasValue()) {
-            mTrackerSupplier
-                    .get()
-                    .notifyEvent(EventConstants.ADAPTIVE_TOOLBAR_CUSTOMIZATION_NEW_TAB_OPENED);
+        Tracker tracker = mTrackerSupplier.get();
+        if (tracker != null) {
+            tracker.notifyEvent(EventConstants.ADAPTIVE_TOOLBAR_CUSTOMIZATION_NEW_TAB_OPENED);
         }
     }
 

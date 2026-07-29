@@ -45,9 +45,11 @@
 #include "components/ukm/content/source_url_recorder.h"
 #include "components/ukm/test_ukm_recorder.h"
 #include "components/user_manager/scoped_user_manager.h"
+#include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
+#include "chrome/browser/ash/app_mode/kiosk_cryptohome_remover.h"
 #include "chrome/browser/ash/app_mode/web_app/kiosk_web_app_manager.h"
 #include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #endif
@@ -147,7 +149,12 @@ class ChromePermissionRequestManagerTest
     user_manager->AddKioskWebAppUser(account_id);
     user_manager->LoginUser(account_id);
 
-    auto kiosk_app_manager = std::make_unique<ash::KioskWebAppManager>();
+    ash::KioskCryptohomeRemover cryptohome_remover(
+        TestingBrowserProcess::GetGlobal()->local_state());
+    auto kiosk_app_manager = std::make_unique<ash::KioskWebAppManager>(
+        TestingBrowserProcess::GetGlobal()->local_state(),
+        TestingBrowserProcess::GetGlobal()->shared_url_loader_factory(),
+        &cryptohome_remover);
     kiosk_app_manager->AddAppForTesting(account_id, app_url);
 
     NavigateAndCommit(url);

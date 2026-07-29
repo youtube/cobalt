@@ -49,6 +49,8 @@ source_set("blocklist_data") {
 
 source_set("browser") {
   sources = [
+    "plus_address_cache.cc",
+    "plus_address_cache.h",
     "plus_address_ui_utils.cc",
     "plus_address_ui_utils.h",
   ]
@@ -71,5 +73,23 @@ source_set("unit_tests") {
     ":blocklist_data",
     "//base/test:test_support",
     "//testing/gmock",
+  ]
+}
+
+static_library("test_support") {
+  testonly = true
+  sources = [
+    "plus_address_test_environment.cc",
+    "plus_address_test_environment.h",
+  ]
+  deps = [
+    "//components/plus_addresses/core/common:prefs",
+    "//testing/gmock",
+  ]
+  public_deps = [
+    "//components/affiliations/core/browser:test_support",
+    "//components/plus_addresses/core/browser/settings:test_support",
+    "//components/prefs:test_support",
+    "//components/signin/public/identity_manager:test_support",
   ]
 }

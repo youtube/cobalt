@@ -312,6 +312,7 @@
 #include "chrome/browser/ui/webui/new_tab_footer/new_tab_footer_ui.h"
 #include "chrome/browser/ui/webui/new_tab_page/new_tab_page_handler.h"
 #include "chrome/browser/ui/webui/new_tab_page/new_tab_page_ui.h"
+#include "chrome/browser/ui/webui/new_tab_page/ntp_pref_names.h"
 #include "chrome/browser/ui/webui/settings/settings_ui.h"
 #include "chrome/browser/ui/webui/side_panel/read_anything/read_anything_prefs.h"
 #include "chrome/browser/ui/webui/tab_search/tab_search_prefs.h"
@@ -386,6 +387,7 @@
 #include "chrome/browser/ash/login/session/user_session_manager.h"
 #include "chrome/browser/ash/login/signin/legacy_token_handle_fetcher.h"
 #include "chrome/browser/ash/login/signin/signin_error_notifier.h"
+#include "chrome/browser/ash/login/signin/token_handle_store_impl.h"
 #include "chrome/browser/ash/login/startup_utils.h"
 #include "chrome/browser/ash/login/users/avatar/user_image_manager_impl.h"
 #include "chrome/browser/ash/login/users/avatar/user_image_prefs.h"
@@ -1111,6 +1113,14 @@ constexpr char kObsoleteAccountStorageNoticeShown[] =
     "password_manager.account_storage_notice_shown";
 #endif  // BUILDFLAG(IS_ANDROID)
 
+#if !BUILDFLAG(IS_ANDROID)
+// Deprecated 08/2025.
+constexpr char kObsoleteAutofillableCredentialsProfileStoreLoginDatabase[] =
+    "password_manager.autofillable_credentials_profile_store_login_database";
+constexpr char kObsoleteAutofillableCredentialsAccountStoreLoginDatabase[] =
+    "password_manager.autofillable_credentials_account_store_login_database";
+#endif  // BUILDFLAG(IS_ANDROID)
+
 #if BUILDFLAG(IS_CHROMEOS)
 // Deprecated 08/2025.
 constexpr char kAutoScreenBrightnessMetricsDailySample[] =
@@ -1129,7 +1139,8 @@ constexpr char kAutoScreenBrightnessMetricsSupportedAlsUserAdjustmentCount[] =
     "auto_screen_brightness.metrics.supported_als_user_adjustment_count";
 constexpr char kAutoScreenBrightnessMetricsUnsupportedAlsUserAdjustmentCount[] =
     "auto_screen_brightness.metrics.unsupported_als_user_adjustment_count";
-
+constexpr char kDesksLacrosProfileIdList[] =
+    "ash.desks.desks_lacros_profile_id_list";
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 // Register local state used only for migration (clearing or moving to a new
@@ -1619,6 +1630,24 @@ void RegisterProfilePrefsForMigration(
   // Deprecated 08/2025.
   registry->RegisterBooleanPref(kObsoleteAccountStorageNoticeShown, false);
 #endif  // BUILDFLAG(IS_ANDROID)
+
+#if !BUILDFLAG(IS_ANDROID)
+  // Deprecated 08/2025.
+  registry->RegisterBooleanPref(
+      kObsoleteAutofillableCredentialsProfileStoreLoginDatabase, false);
+  registry->RegisterBooleanPref(
+      kObsoleteAutofillableCredentialsAccountStoreLoginDatabase, false);
+#endif  // !BUILDFLAG(IS_ANDROID)
+
+#if !BUILDFLAG(IS_ANDROID)
+  // Deprecated 08/2025.
+  registry->RegisterBooleanPref(ntp_prefs::kNtpUseMostVisitedTiles, false);
+#endif  // !BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_CHROMEOS)
+  // Deprecated 08/2025.
+  registry->RegisterListPref(kDesksLacrosProfileIdList);
+#endif  // BUILDFLAG(IS_CHROMEOS)
 }
 
 }  // namespace
@@ -2378,6 +2407,12 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   registry->RegisterDictionaryPref(prefs::kReportingEndpoints);
 
   registry->RegisterBooleanPref(prefs::kViewSourceLineWrappingEnabled, false);
+
+#if BUILDFLAG(IS_ANDROID)
+  registry->RegisterBooleanPref(
+      omnibox::kIsOmniboxInBottomPosition, false,
+      user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
+#endif
 }
 
 void RegisterUserProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
@@ -2394,6 +2429,7 @@ void RegisterUserProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
 #if BUILDFLAG(IS_CHROMEOS)
   ash::RegisterUserProfilePrefs(registry, locale);
   ash::LegacyTokenHandleFetcher::RegisterPrefs(registry);
+  ash::TokenHandleStoreImpl::RegisterPrefs(registry);
 #endif
 }
 
@@ -2938,6 +2974,24 @@ void MigrateObsoleteProfilePrefs(PrefService* profile_prefs,
   // Added 08/2025.
   profile_prefs->ClearPref(kObsoleteAccountStorageNoticeShown);
 #endif  // BUILDFLAG(IS_ANDROID)
+
+#if !BUILDFLAG(IS_ANDROID)
+  // Deprecated 08/2025.
+  profile_prefs->ClearPref(
+      kObsoleteAutofillableCredentialsProfileStoreLoginDatabase);
+  profile_prefs->ClearPref(
+      kObsoleteAutofillableCredentialsAccountStoreLoginDatabase);
+#endif  // !BUILDFLAG(IS_ANDROID)
+
+#if !BUILDFLAG(IS_ANDROID)
+  // Added 08/2025.
+  NewTabPageUI::MigrateDeprecatedUseMostVisitedTilesPref(profile_prefs);
+#endif  // !BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_CHROMEOS)
+  // Added 08/2025.
+  profile_prefs->ClearPref(kDesksLacrosProfileIdList);
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
   // Please don't delete the following line. It is used by PRESUBMIT.py.
   // END_MIGRATE_OBSOLETE_PROFILE_PREFS

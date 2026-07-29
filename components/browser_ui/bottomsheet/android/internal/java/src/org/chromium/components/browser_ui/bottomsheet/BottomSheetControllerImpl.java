@@ -16,7 +16,6 @@ import androidx.annotation.VisibleForTesting;
 import org.chromium.base.Callback;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.build.annotations.MonotonicNonNull;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -35,6 +34,7 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.PriorityQueue;
+import java.util.function.Supplier;
 
 /**
  * This class is responsible for managing the content shown by the {@link BottomSheet}. Features
@@ -349,9 +349,10 @@ class BottomSheetControllerImpl implements ManagedBottomSheetController, ScrimCo
     public void setBottomControlsHeight(int bottomControlsHeight) {
         if (mBottomControlsHeight == bottomControlsHeight) return;
         mBottomControlsHeight = bottomControlsHeight;
-        if (mScrimManagerSupplier.hasValue()) {
+        var scrimManager = mScrimManagerSupplier.get();
+        if (scrimManager != null) {
             // Set the appropriate offset for the current scrim state.
-            scrimVisibilityChanged(mScrimManagerSupplier.get().isShowingScrim());
+            scrimVisibilityChanged(scrimManager.isShowingScrim());
         }
     }
 

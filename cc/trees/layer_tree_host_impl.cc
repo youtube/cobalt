@@ -354,6 +354,13 @@ void LayerTreeHostImpl::DidEndScroll() {
 #endif
 }
 
+void LayerTreeHostImpl::DidMouseEnterNonViewportScroller(ElementId element_id) {
+  if (ScrollbarAnimationController* animation_controller =
+          ScrollbarAnimationControllerForElementId(element_id)) {
+    animation_controller->DidScrollUpdate();
+  }
+}
+
 void LayerTreeHostImpl::DidMouseLeave() {
   for (auto& pair : scrollbar_animation_controllers_)
     pair.second->DidMouseLeave();
@@ -511,7 +518,7 @@ LayerTreeHostImpl::LayerTreeHostImpl(
   // LTHI always has an active tree.
   active_tree_ = std::make_unique<LayerTreeImpl>(
       *this, viz::BeginFrameArgs(), new SyncedScale, new SyncedBrowserControls,
-      new SyncedBrowserControls, new SyncedElasticOverscroll);
+      new SyncedBrowserControls);
   active_tree_->property_trees()->set_is_active(true);
 
   viewport_ = Viewport::Create(this);
@@ -529,8 +536,9 @@ LayerTreeHostImpl::LayerTreeHostImpl(
           switches::kDisableLayerTreeHostMemoryPressure)) {
     memory_pressure_listener_ =
         std::make_unique<base::AsyncMemoryPressureListener>(
-            FROM_HERE, base::BindRepeating(&LayerTreeHostImpl::OnMemoryPressure,
-                                           base::Unretained(this)));
+            FROM_HERE, base::MemoryPressureListenerTag::kLayerTreeHostImpl,
+            base::BindRepeating(&LayerTreeHostImpl::OnMemoryPressure,
+                                base::Unretained(this)));
   }
 
   SetDebugState(settings.initial_debug_state);
@@ -1887,8 +1895,7 @@ void LayerTreeHostImpl::ResetTreesForTesting() {
   active_tree_ = std::make_unique<LayerTreeImpl>(
       *this, CurrentBeginFrameArgs(), active_tree()->page_scale_factor(),
       active_tree()->top_controls_shown_ratio(),
-      active_tree()->bottom_controls_shown_ratio(),
-      active_tree()->elastic_overscroll());
+      active_tree()->bottom_controls_shown_ratio());
   active_tree_->property_trees()->set_is_active(true);
   active_tree_->property_trees()->clear();
   if (pending_tree_)
@@ -2901,12 +2908,14 @@ std::optional<SubmitInfo> LayerTreeHostImpl::DrawLayers(FrameData* frame) {
 
     layer_tree_frame_sink_->ExportFrameTiming();
 
-    // For the display compositor we should have already submitted at display
-    // Immediately queue a DidReceiveCompositorFrameAck.
-    GetTaskRunner()->PostTask(
-        FROM_HERE,
-        base::BindOnce(&LayerTreeHostImpl::DidReceiveCompositorFrameAck,
-                       weak_factory_.GetWeakPtr()));
+    if (!base::FeatureList::IsEnabled(features::kNoCompositorFrameAcks)) {
+      // For the display compositor we should have already submitted at display
+      // Immediately queue a DidReceiveCompositorFrameAck.
+      GetTaskRunner()->PostTask(
+          FROM_HERE,
+          base::BindOnce(&LayerTreeHostImpl::DidReceiveCompositorFrameAck,
+                         weak_factory_.GetWeakPtr()));
+    }
   } else {
     TRACE_EVENT(
         "viz,benchmark,graphics.pipeline", "Graphics.Pipeline",
@@ -3847,8 +3856,7 @@ void LayerTreeHostImpl::CreatePendingTree() {
     pending_tree_ = std::make_unique<LayerTreeImpl>(
         *this, CurrentBeginFrameArgs(), active_tree()->page_scale_factor(),
         active_tree()->top_controls_shown_ratio(),
-        active_tree()->bottom_controls_shown_ratio(),
-        active_tree()->elastic_overscroll());
+        active_tree()->bottom_controls_shown_ratio());
   }
   pending_tree_fully_painted_ = false;
 
@@ -5057,9 +5065,6 @@ LayerTreeHostImpl::ProcessCompositorDeltas(
           main_thread_mutator_host);
   commit_data->bottom_controls_delta =
       active_tree()->bottom_controls_shown_ratio()->PullDeltaForMainThread(
-          main_thread_mutator_host);
-  commit_data->elastic_overscroll_delta =
-      active_tree_->elastic_overscroll()->PullDeltaForMainThread(
           main_thread_mutator_host);
   commit_data->swap_promises.swap(swap_promises_for_main_thread_scroll_update_);
 

@@ -2118,7 +2118,7 @@ TEST_F(SurfaceSynchronizationTest, FrameIndexWithPendingFrames) {
                           std::vector<TransferableResource>()));
   Surface* parent_surface =
       frame_sink_manager().surface_manager()->GetSurfaceForId(parent_id);
-  uint64_t initial_frame_index = parent_surface->GetActiveFrameIndex();
+  uint32_t initial_frame_index = parent_surface->GetActiveFrameIndex();
 
   // Submit frames with unresolved dependencies. GetActiveFrameIndex should
   // return the same value as before.
@@ -2175,7 +2175,7 @@ TEST_F(SurfaceSynchronizationTest, ActiveFrameIndex) {
       child_id2.local_surface_id(),
       MakeDefaultInteractiveCompositorFrame(kBeginFrameSourceId));
   EXPECT_TRUE(parent_surface()->HasActiveFrame());
-  uint64_t expected_index = kFrameIndexStart;
+  uint32_t expected_index = kFrameIndexStart;
   EXPECT_EQ(expected_index, parent_surface()->GetActiveFrameIndex());
 }
 
@@ -2982,7 +2982,7 @@ TEST_F(SurfaceSynchronizationTest,
 
   // Killing the child sink should unblock the frame because it is known
   // the dependency can never fulfill.
-  frame_sink_manager().InvalidateFrameSinkId(kChildFrameSink1);
+  frame_sink_manager().InvalidateFrameSinkId(kChildFrameSink1, {});
   EXPECT_TRUE(parent_surface()->HasActiveFrame());
   EXPECT_FALSE(parent_surface()->HasPendingFrame());
   EXPECT_EQ(parent_id, parent_support().last_activated_surface_id());

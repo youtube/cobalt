@@ -489,7 +489,7 @@ class UserMediaProcessorUnderTest : public UserMediaProcessor {
       RequestState* state)
       : UserMediaProcessor(
             frame,
-            WTF::BindRepeating(
+            BindRepeating(
                 // Note: this uses a lambda because binding a non-static method
                 // with a weak receiver triggers special cancellation handling,
                 // which cannot handle non-void return types.
@@ -597,17 +597,15 @@ class UserMediaProcessorUnderTest : public UserMediaProcessor {
       // RunUntilIdle is required for this task to complete.
       blink::scheduler::GetSingleThreadTaskRunnerForTesting()->PostTask(
           FROM_HERE,
-          WTF::BindOnce(&UserMediaProcessorUnderTest::SignalSourceReady,
-                        std::move(source_ready),
-                        WTF::Unretained(source.get())));
+          blink::BindOnce(&UserMediaProcessorUnderTest::SignalSourceReady,
+                          std::move(source_ready), Unretained(source.get())));
     } else if (source_creation_status_ ==
                    SourceCreationStatus::kFailedSystemPermissionError &&
                local_audio_source_) {
       blink::scheduler::GetSingleThreadTaskRunnerForTesting()->PostTask(
           FROM_HERE,
-          WTF::BindOnce(
-              &UserMediaProcessorUnderTest::SignalSystemPermissionError,
-              WTF::Unretained(local_audio_source_.get())));
+          BindOnce(&UserMediaProcessorUnderTest::SignalSystemPermissionError,
+                   Unretained(local_audio_source_.get())));
     }
 
     return source;
@@ -2162,17 +2160,19 @@ TEST_F(UserMediaClientTest,
     ASSERT_TRUE(ec_mode.has_value());
     echo_cancellation_modes.push_back(*ec_mode);
   }
-  EXPECT_THAT(
-      echo_cancellation_modes,
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
-      testing::UnorderedElementsAre(EchoCancellationMode::kDisabled,
-                                    EchoCancellationMode::kBrowserDecides)
-#else
-      testing::UnorderedElementsAre(EchoCancellationMode::kDisabled,
-                                    EchoCancellationMode::kBrowserDecides,
-                                    EchoCancellationMode::kRemoteOnly)
+
+  Vector<EchoCancellationMode> expected_echo_cancellation_modes = {
+      EchoCancellationMode::kDisabled, EchoCancellationMode::kBrowserDecides};
+#if !(BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS))
+  expected_echo_cancellation_modes.push_back(EchoCancellationMode::kRemoteOnly);
 #endif
-  );
+  if (media::IsSystemLoopbackAsAecReferenceEnabled()) {
+    // If loopback AEC is available it can be used to provide
+    // EchoCancellationMode::kAll despite lack of platform AEC support.
+    expected_echo_cancellation_modes.push_back(EchoCancellationMode::kAll);
+  }
+  EXPECT_THAT(echo_cancellation_modes, testing::UnorderedElementsAreArray(
+                                           expected_echo_cancellation_modes));
 }
 
 TEST_F(UserMediaClientTest, RestrictOwnAudioTrackCapabilities) {

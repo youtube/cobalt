@@ -3,11 +3,11 @@
 // found in the LICENSE file.
 #include "chrome/browser/ui/webui/ash/borealis_motd/borealis_motd_dialog.h"
 
+#include "ash/strings/grit/ash_strings.h"
 #include "base/strings/stringprintf.h"
 #include "base/version.h"
 #include "chrome/browser/ui/browser_dialogs.h"
 #include "chrome/common/chrome_features.h"
-#include "chrome/common/url_constants.h"
 #include "chrome/grit/borealis_motd_resources.h"
 #include "chrome/grit/borealis_motd_resources_map.h"
 #include "chrome/grit/generated_resources.h"
@@ -66,9 +66,9 @@ BorealisMOTDUI::BorealisMOTDUI(content::WebUI* web_ui)
 
   static constexpr webui::LocalizedString kStrings[] = {
       // Localized strings (alphabetical order).
-      {"dismissText", IDS_BOREALIS_MOTD_DISMISS_TEXT},
-      {"placeholderText", IDS_BOREALIS_MOTD_PLACEHOLDER_TEXT},
-      {"titleText", IDS_BOREALIS_MOTD_TITLE_TEXT},
+      {"dismissText", IDS_ASH_BOREALIS_MOTD_DISMISS_TEXT},
+      {"placeholderText", IDS_ASH_BOREALIS_MOTD_PLACEHOLDER_TEXT},
+      {"titleText", IDS_ASH_BOREALIS_MOTD_TITLE_TEXT},
   };
   source->AddLocalizedStrings(kStrings);
 

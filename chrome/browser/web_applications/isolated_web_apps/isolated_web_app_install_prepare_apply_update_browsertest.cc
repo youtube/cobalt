@@ -6,7 +6,6 @@
 #include <optional>
 #include <string>
 
-#include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/test/gmock_expected_support.h"
@@ -15,7 +14,6 @@
 #include "base/test/test_future.h"
 #include "base/threading/thread_restrictions.h"
 #include "chrome/browser/component_updater/iwa_key_distribution_component_installer.h"
-#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/web_applications/test/isolated_web_app_test_utils.h"
 #include "chrome/browser/web_applications/isolated_web_apps/commands/install_isolated_web_app_command.h"
 #include "chrome/browser/web_applications/isolated_web_apps/commands/isolated_web_app_apply_update_command.h"
@@ -46,7 +44,6 @@ namespace {
 
 using base::test::ErrorIs;
 using base::test::HasValue;
-using base::test::ValueIs;
 using ::testing::_;
 using ::testing::Eq;
 using ::testing::Field;
@@ -62,8 +59,7 @@ class IsolatedWebAppInstallPrepareApplyUpdateCommandBrowserTest
   using PrepareAndStoreUpdateResult =
       IsolatedWebAppUpdatePrepareAndStoreCommandResult;
   using ApplyUpdateResult =
-      base::expected<IsolatedWebAppApplyUpdateCommandSuccess,
-                     IsolatedWebAppApplyUpdateCommandError>;
+      base::expected<void, IsolatedWebAppApplyUpdateCommandError>;
 
   IsolatedWebAppInstallSource GetInstallSource(
       const base::FilePath& bundle_path) const {
@@ -86,7 +82,7 @@ class IsolatedWebAppInstallPrepareApplyUpdateCommandBrowserTest
 
   InstallResult Install(const web_package::SignedWebBundleId& web_bundle_id,
                         const base::FilePath& bundle_path,
-                        const std::optional<base::Version>& expected_version) {
+                        const std::optional<IwaVersion>& expected_version) {
     base::test::TestFuture<InstallResult> future;
     provider()->scheduler().InstallIsolatedWebApp(
         IsolatedWebAppUrlInfo::CreateFromSignedWebBundleId(web_bundle_id),
@@ -103,7 +99,7 @@ class IsolatedWebAppInstallPrepareApplyUpdateCommandBrowserTest
     base::test::TestFuture<PrepareAndStoreUpdateResult> future;
     provider()->scheduler().PrepareAndStoreIsolatedWebAppUpdate(
         IsolatedWebAppUpdatePrepareAndStoreCommand::UpdateInfo(
-            GetUpdateSource(update_bundle_path), update_version.version()),
+            GetUpdateSource(update_bundle_path), update_version),
         IsolatedWebAppUrlInfo::CreateFromSignedWebBundleId(web_bundle_id),
         /*optional_keep_alive=*/nullptr,
         /*optional_profile_keep_alive=*/nullptr, future.GetCallback());
@@ -165,14 +161,14 @@ IN_PROC_BROWSER_TEST_P(
                                        test::GetDefaultEcdsaP256KeyPair()});
 
   // Step 1: Install `iwa` and validate web app data.
-  ASSERT_OK_AND_ASSIGN(auto install_result, Install(web_bundle_id, iwa->path(),
-                                                    iwa->version().version()));
+  ASSERT_OK_AND_ASSIGN(auto install_result,
+                       Install(web_bundle_id, iwa->path(), iwa->version()));
 
   ASSERT_THAT(
       GetIsolatedWebAppFor(web_bundle_id),
       test::IwaIs(Eq("installed app"),
                   test::IsolationDataIs(
-                      install_result.location, iwa->version().version(),
+                      install_result.location, iwa->version(),
                       /*controlled_frame_partitions=*/_,
                       /*pending_update_info=*/std::nullopt,
                       /*integrity_block_data=*/
@@ -187,38 +183,34 @@ IN_PROC_BROWSER_TEST_P(
   ASSERT_THAT(
       prep_store_update_result,
       Field(&IsolatedWebAppUpdatePrepareAndStoreCommandSuccess::update_version,
-            Eq(update_iwa->version().version())));
+            Eq(update_iwa->version())));
 
   ASSERT_THAT(
       GetIsolatedWebAppFor(web_bundle_id),
-      test::IwaIs(Eq("installed app"),
-                  test::IsolationDataIs(
-                      install_result.location, iwa->version().version(),
-                      /*controlled_frame_partitions=*/_,
-                      /*pending_update_info=*/
-                      test::PendingUpdateInfoIs(
-                          prep_store_update_result.location,
-                          update_iwa->version().version(),
-                          test::IntegrityBlockDataPublicKeysAre(
-                              test::GetDefaultEd25519KeyPair().public_key,
-                              test::GetDefaultEcdsaP256KeyPair().public_key)),
-                      /*integrity_block_data=*/
-                      test::IntegrityBlockDataPublicKeysAre(
-                          test::GetDefaultEd25519KeyPair().public_key))));
+      test::IwaIs(
+          Eq("installed app"),
+          test::IsolationDataIs(
+              install_result.location, iwa->version(),
+              /*controlled_frame_partitions=*/_,
+              /*pending_update_info=*/
+              test::PendingUpdateInfoIs(
+                  prep_store_update_result.location, update_iwa->version(),
+                  test::IntegrityBlockDataPublicKeysAre(
+                      test::GetDefaultEd25519KeyPair().public_key,
+                      test::GetDefaultEcdsaP256KeyPair().public_key)),
+              /*integrity_block_data=*/
+              test::IntegrityBlockDataPublicKeysAre(
+                  test::GetDefaultEd25519KeyPair().public_key))));
 
   // Step 3: Apply the update and ensure that pending info has been successfully
   // transferred.
-  EXPECT_THAT(
-      ApplyUpdate(web_bundle_id),
-      ValueIs(IsolatedWebAppApplyUpdateCommandSuccess(
-          update_iwa->version().version(), prep_store_update_result.location)));
+  EXPECT_THAT(ApplyUpdate(web_bundle_id), HasValue());
 
   ASSERT_THAT(
       GetIsolatedWebAppFor(web_bundle_id),
       test::IwaIs(Eq("updated app"),
                   test::IsolationDataIs(
-                      prep_store_update_result.location,
-                      update_iwa->version().version(),
+                      prep_store_update_result.location, update_iwa->version(),
                       /*controlled_frame_partitions=*/_,
                       /*pending_update_info=*/std::nullopt,
                       /*integrity_block_data=*/
@@ -254,13 +246,13 @@ IN_PROC_BROWSER_TEST_P(
 
   // Step 1: Install `iwa` and validate web app data.
   ASSERT_OK_AND_ASSIGN(auto install_result,
-                       Install(web_bundle_id, iwa->path(), version.version()));
+                       Install(web_bundle_id, iwa->path(), version));
 
   ASSERT_THAT(
       GetIsolatedWebAppFor(web_bundle_id),
       test::IwaIs(Eq("installed app"),
                   test::IsolationDataIs(
-                      install_result.location, version.version(),
+                      install_result.location, version,
                       /*controlled_frame_partitions=*/_,
                       /*pending_update_info=*/std::nullopt,
                       /*integrity_block_data=*/
@@ -287,32 +279,30 @@ IN_PROC_BROWSER_TEST_P(
   ASSERT_THAT(
       prep_store_update_result,
       Field(&IsolatedWebAppUpdatePrepareAndStoreCommandSuccess::update_version,
-            Eq(version.version())));
+            Eq(version)));
 
   ASSERT_THAT(
       GetIsolatedWebAppFor(web_bundle_id),
       test::IwaIs(Eq("installed app"),
                   test::IsolationDataIs(
-                      install_result.location, version.version(),
+                      install_result.location, version,
                       /*controlled_frame_partitions=*/_,
                       /*pending_update_info=*/
                       test::PendingUpdateInfoIs(
-                          prep_store_update_result.location, version.version(),
+                          prep_store_update_result.location, version,
                           test::IntegrityBlockDataPublicKeysAre(ecdsa_p256_pk)),
                       /*integrity_block_data=*/
                       test::IntegrityBlockDataPublicKeysAre(ed25519_pk))));
 
   // Step 5: Apply the update and ensure that pending info has been
   // successfully transferred.
-  EXPECT_THAT(ApplyUpdate(web_bundle_id),
-              ValueIs(IsolatedWebAppApplyUpdateCommandSuccess(
-                  version.version(), prep_store_update_result.location)));
+  EXPECT_THAT(ApplyUpdate(web_bundle_id), HasValue());
 
   ASSERT_THAT(
       GetIsolatedWebAppFor(web_bundle_id),
       test::IwaIs(Eq("updated app"),
                   test::IsolationDataIs(
-                      prep_store_update_result.location, version.version(),
+                      prep_store_update_result.location, version,
                       /*controlled_frame_partitions=*/_,
                       /*pending_update_info=*/std::nullopt,
                       /*integrity_block_data=*/

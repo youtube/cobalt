@@ -270,6 +270,9 @@
       <message name="IDS_IOS_AI_HUB_GEMINI_LABEL" translateable="false" desc="The button label for the Gemini entry point of the AI hub.">
         Ask Gemini
       </message>
+      <message name="IDS_IOS_AI_HUB_HIDE_BUTTON_LABEL" desc="The button label for hiding feature entry points in the AI hub.">
+        Turn off
+      </message>
       <message name="IDS_IOS_AI_HUB_HIDE_READER_MODE_LABEL" desc="The button label for hiding Reader mode when it's active from the AI hub.">
         Hide Reader
       </message>
@@ -277,7 +280,7 @@
         Search screen
       </message>
       <message name="IDS_IOS_AI_HUB_READER_MODE_LABEL" desc="The button label for the Reader mode entry point of the AI hub.">
-        Reading mode
+        Reading Mode
       </message>
       <message name="IDS_IOS_AI_HUB_READER_MODE_OPTIONS_BUTTON_TITLE" desc="Title of a button to customise Reader mode options from the AI hub.">
         Open Reading mode options
@@ -1805,6 +1808,9 @@ See your search engine’s instructions for deleting your search history, if app
       <message name="IDS_IOS_CREDENTIAL_PROVIDER_VIEW_PASSKEY" desc="Button label to view a recently created passkey in the password manager. [iOS only]">
         View
       </message>
+      <message name="IDS_IOS_CREDIT_CARD_SCANNER_VIEWPORT_CAPTION" desc="Message displayed below the Credit Card scanner viewport instructing the user to position the Credit Card inside the viewport. [iOS only]">
+        Position credit card in this frame
+      </message>
       <message name="IDS_IOS_CREDIT_CARD_SETTINGS_ADD_PAYMENT_METHOD_TITLE" desc="Title of the view that allow user to enter the details for a new credit card to add it to the list the credit cards. [iOS only]">
           Add payment method
       </message>
@@ -2871,9 +2877,6 @@ See your search engine’s instructions for deleting your search history, if app
       <message name="IDS_IOS_HOME_CUSTOMIZATION_MAGIC_STACK_SUBTITLE" desc="The subtitle of the Shortcuts toggle in the Home Customization menu's main page.">
         The most relevant features for you at different times
       </message>
-      <message name="IDS_IOS_HOME_CUSTOMIZATION_MAGIC_STACK_SUBTITLE_PARCEL_TRACKING" desc="The subtitle text for the Parcel Tracking toggle in the Home Customization menu.">
-        Your tracked packages and delivery updates.
-      </message>
       <message name="IDS_IOS_HOME_CUSTOMIZATION_MAGIC_STACK_SUBTITLE_SAFETY_CHECK" desc="The subtitle text for the Safety Check toggle in the Home Customization menu.">
         Know if you have the safest settings or need to review anything
       </message>
@@ -2888,9 +2891,6 @@ See your search engine’s instructions for deleting your search history, if app
       </message>
       <message name="IDS_IOS_HOME_CUSTOMIZATION_MAGIC_STACK_TITLE" desc="The title of the Shortcuts toggle in the Home Customization menu's main page.">
         Cards
-      </message>
-      <message name="IDS_IOS_HOME_CUSTOMIZATION_MAGIC_STACK_TITLE_PARCEL_TRACKING" desc="The title text for the Parcel Tracking toggle in the Home Customization menu.">
-        Package tracking
       </message>
       <message name="IDS_IOS_HOME_CUSTOMIZATION_MAGIC_STACK_TITLE_SAFETY_CHECK" desc="The title text for the Safety Check toggle in the Home Customization menu.">
         Safety Check
@@ -5453,6 +5453,9 @@ Handoff must also be enabled in the General section of Settings, and your device
       <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_INSTRUCTIONS_TWO" desc="Instructions view to teach users how to import data from Safari - step 2. [iOS only]">
         Select your Safari export <ph name="BEGIN_BOLD">BEGIN_BOLD</ph>.zip<ph name="END_BOLD">END_BOLD</ph> file
       </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_ITEM_BLOCKED_BY_POLICY" desc="The detailed text shown for a data type that cannot be imported from Safari because it is blocked by an enterprise policy. [iOS only]">
+        Disabled by your administrator
+      </message>
       <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_ITEM_TYPE_IMPORTED_DETAILED_TEXT_BOOKMARKS" desc="The detailed text of the 'Bookmarks' row displayed on Safari import screen displaying the number of bookmarks imported. [iOS only]">
         {count, plural,
           =1 {Imported {count} bookmark}
@@ -5901,10 +5904,10 @@ Handoff must also be enabled in the General section of Settings, and your device
           Search for copied text
       </message>
       <message name="IDS_IOS_SEARCH_ENGINE_ACCESSIBILITY_COLLAPSE_SNIPPET" desc="Accessibility action to collapse the search engine description, using the chevron.">
-        Hide search engine details
+        Hide <ph name="SEARCH_ENGINE_NAME">$1<ex>Google</ex></ph> details
       </message>
       <message name="IDS_IOS_SEARCH_ENGINE_ACCESSIBILITY_EXPAND_SNIPPET" desc="Accessibility action to expand the search engine description, using the chevron.">
-        Show search engine details
+        Show <ph name="SEARCH_ENGINE_NAME">$1<ex>Google</ex></ph> details
       </message>
       <message name="IDS_IOS_SEARCH_ENGINE_ACCESSIBILITY_SNIPPET_COLLAPSED" desc="Accessibility feedback after the user collapses the chevron to hide the search engine snippet.">
         Details hidden

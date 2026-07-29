@@ -21,6 +21,7 @@
 #include "third_party/blink/renderer/core/layout/floats_utils.h"
 #include "third_party/blink/renderer/core/layout/fragmentation_utils.h"
 #include "third_party/blink/renderer/core/layout/inline/fit_text_scale.h"
+#include "third_party/blink/renderer/core/layout/inline/fit_text_utils.h"
 #include "third_party/blink/renderer/core/layout/inline/inline_cursor.h"
 #include "third_party/blink/renderer/core/layout/inline/inline_node.h"
 #include "third_party/blink/renderer/core/layout/inline/physical_line_box_fragment.h"
@@ -675,20 +676,23 @@ const LayoutResult* BlockLayoutAlgorithm::LayoutInlineChild(
       cloned_param.column_spanner_path = column_spanner_path_;
       cloned_param.previous_result = previous_result_;
       BlockLayoutAlgorithm cloned_algorithm(cloned_param);
-      paragraph_scale =
-          cloned_algorithm.LayoutInlineChild(node, std::nullopt).second;
+      const LayoutResult* result =
+          cloned_algorithm.LayoutInlineChild(node, std::nullopt);
+      paragraph_scale = MeasurePerBlockScale(
+          InlineNode(To<LayoutBlockFlow>(Node().GetLayoutBox())),
+          result->GetPhysicalFragment(), ChildAvailableSize().inline_size);
       if ((paragraph_scale < 1.0f && !shrink_consistent) ||
           (paragraph_scale > 1.0f && !grow_consistent)) {
         paragraph_scale = 1.0f;
       }
     }
   }
-  return LayoutInlineChild(node, paragraph_scale).first;
+  return LayoutInlineChild(node, paragraph_scale);
 }
 
-NOINLINE std::pair<const LayoutResult*, float>
-BlockLayoutAlgorithm::LayoutInlineChild(const InlineNode& node,
-                                        std::optional<float> paragraph_scale) {
+NOINLINE const LayoutResult* BlockLayoutAlgorithm::LayoutInlineChild(
+    const InlineNode& node,
+    std::optional<float> paragraph_scale) {
   const TextWrapStyle wrap = node.Style().GetTextWrapStyle();
   if (wrap == TextWrapStyle::kPretty) [[unlikely]] {
     UseCounter::Count(node.GetDocument(), WebFeature::kTextWrapPretty);
@@ -708,19 +712,17 @@ BlockLayoutAlgorithm::LayoutInlineChild(const InlineNode& node,
 
   SimpleInlineChildLayoutContext context(node, &container_builder_);
   context.EnableMeasuringModeIfNecessary(paragraph_scale);
-  const LayoutResult* result = Layout(&context);
-  return {result, context.MeasuredScale()};
+  return Layout(&context);
 }
 
 template <wtf_size_t capacity>
-NOINLINE std::pair<const LayoutResult*, float>
+NOINLINE const LayoutResult*
 BlockLayoutAlgorithm::LayoutWithOptimalInlineChildLayoutContext(
     const InlineNode& child,
     std::optional<float> paragraph_scale) {
   OptimalInlineChildLayoutContext<capacity> context(child, &container_builder_);
   context.EnableMeasuringModeIfNecessary(paragraph_scale);
-  const LayoutResult* result = Layout(&context);
-  return {result, context.MeasuredScale()};
+  return Layout(&context);
 }
 
 NOINLINE const LayoutResult* BlockLayoutAlgorithm::RelayoutIgnoringLineClamp() {

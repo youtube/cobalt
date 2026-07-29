@@ -14,7 +14,6 @@ import org.chromium.base.Callback;
 import org.chromium.base.DeviceInfo;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.supplier.ObservableSupplier;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.magic_stack.HomeModulesConfigManager;
 import org.chromium.chrome.browser.magic_stack.ModuleConfigChecker;
@@ -27,6 +26,8 @@ import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
+
+import java.util.function.Supplier;
 
 /** {@link ModuleProviderBuilder} that builds the Safety Hub Magic Stack module. */
 @NullMarked
@@ -93,7 +94,8 @@ public class SafetyHubMagicStackBuilder implements ModuleProviderBuilder, Module
         // The Safety Hub is not fully supported on Automotive.
         if (DeviceInfo.isAutomotive()) return false;
 
-        if (!mProfileSupplier.hasValue()) return false;
+        Profile profile = mProfileSupplier.get();
+        if (profile == null) return false;
 
         return true;
     }

@@ -33,7 +33,6 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
 import org.chromium.base.supplier.ObservableSupplierImpl;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.bookmarks.BookmarkManagerOpener;
@@ -54,6 +53,7 @@ import org.chromium.ui.widget.AnchoredPopupWindow;
 import org.chromium.url.JUnitTestGURLs;
 
 import java.util.List;
+import java.util.function.Supplier;
 
 /** Unit tests for the {@link BookmarkBarMediator}. */
 @RunWith(BaseRobolectricTestRunner.class)
@@ -76,7 +76,6 @@ public class BookmarkBarMediatorTest {
     @Mock private AnchoredPopupWindow mAnchoredPopupWindow;
     @Mock private BasicListMenu mMockListMenu;
     @Mock private BookmarkBarItemsLayoutManager mLayoutManager;
-    @Mock private Runnable mHandleBookmarkBarChange;
 
     private Activity mActivity;
     private BookmarkBarMediator mMediator;
@@ -106,8 +105,7 @@ public class BookmarkBarMediatorTest {
                         mBookmarkOpener,
                         new ObservableSupplierImpl<>(mBookmarkManagerOpener),
                         mItemsRecyclerView,
-                        mBookmarkBarView,
-                        mHandleBookmarkBarChange);
+                        mBookmarkBarView);
     }
 
     @After
@@ -176,6 +174,7 @@ public class BookmarkBarMediatorTest {
 
     @Test
     @SmallTest
+    @SuppressWarnings("DirectInvocationOnMock")
     public void testBuildMenuModelListFromIds_showsOnlyHiddenItems() {
         // Create 5 bookmarks in the desktop folder.
         BookmarkId desktopFolder = mBookmarkModel.getDesktopFolderId();

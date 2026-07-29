@@ -81,6 +81,7 @@
 <translation id="2008474315282236005">การดำเนินการนี้จะลบ 1 รายการออกจากอุปกรณ์นี้ หากต้องการดึงข้อมูลภายหลัง ให้ลงชื่อเข้าใช้ Chromium ด้วย <ph name="USER_EMAIL" /></translation>
 <translation id="2018879682492276940">การติดตั้งไม่สำเร็จ โปรดลองอีกครั้ง</translation>
 <translation id="2020032459870799438"><ph name="BEGIN_LINK" />ลงชื่อเข้าใช้ Chromium<ph name="END_LINK" /> เพื่อตรวจสอบว่ารหัสผ่านรายการอื่นไม่ได้รับผลกระทบจากการละเมิดข้อมูลและปัญหาด้านความปลอดภัยอื่นๆ</translation>
+<translation id="2039417478970545937">การตั้งค่า</translation>
 <translation id="2049376729098081731">เลือกว่าจะรวมประวัติการเข้าชม Chromium เพื่อรับประสบการณ์ที่ปรับเปลี่ยนในแบบของคุณมากขึ้นในบริการของ Google หรือไม่</translation>
 <translation id="2054039611381840095">คุณจะต้องใช้ macOS 12 ขึ้นไปเพื่อรับการอัปเดต Chromium ในอนาคต คอมพิวเตอร์เครื่องนี้ใช้ macOS 11</translation>
 <translation id="2086476982681781442">Chromium บล็อกการดาวน์โหลดนี้เนื่องจากไฟล์มีการหลอกลวงและอาจทำการเปลี่ยนแปลงที่ไม่คาดคิดกับอุปกรณ์</translation>
@@ -309,10 +310,12 @@
 <translation id="494490797786467921">คลิกเพื่อปิดกล่องโต้ตอบการลงชื่อเข้าใช้ Chromium</translation>
 <translation id="4950660488495335294">โปรไฟล์ Chromium ช่วยให้คุณแยกข้อมูลต่างๆ ใน Chromium ออกจากกันได้ สร้างโปรไฟล์สำหรับเพื่อนและครอบครัว หรือแยกการทำงานออกจากความบันเทิง</translation>
 <translation id="4987820182225656817">ผู้เยี่ยมชมสามารถใช้ Chromium โดยไม่ทิ้งร่องรอยไว้</translation>
+<translation id="4992938037305302429">บัญชีของคุณใน Chromium</translation>
 <translation id="4994636714258228724">เพิ่มตัวคุณเองใน Chromium</translation>
 <translation id="5123973130450702873">Chromium ต้องการสิทธิ์ในการติดตามการเคลื่อนไหวของมือ</translation>
 <translation id="5141988424377517949">คุณไม่ได้เข้าชมเมื่อเร็วๆ นี้ Chromium นำสิทธิ์เข้าถึง<ph name="PERMISSION_1" /> <ph name="PERMISSION_2" /> และ<ph name="PERMISSION_3" />ออกแล้ว</translation>
 <translation id="5174969993834422967">คุณมักจะบล็อกการแจ้งเตือน หากต้องการให้เว็บไซต์ส่งการแจ้งเตือน ให้คลิกไอคอนการแจ้งเตือนที่มุมขวาของแถบตําแหน่ง</translation>
+<translation id="5174983315706567306">มีพื้นที่ในดิสก์ไม่เพียงพอ</translation>
 <translation id="5187123684706427865">บัญชี Chromium ต้องมีการตรวจสอบสิทธิ์อีกครั้ง</translation>
 <translation id="5224391634244552924">ไม่มีรหัสผ่านที่บันทึกไว้ Chromium จะตรวจสอบรหัสผ่านได้เมื่อคุณบันทึกรหัสผ่านไว้</translation>
 <translation id="5231355151045086930">ออกจากระบบ Chromium</translation>
@@ -386,6 +389,7 @@
 <translation id="6072463441809498330">ทำให้ Chromium เร็วขึ้น</translation>
 <translation id="6096348254544841612">ปรับแต่งและควบคุม Chromium มีการอัปเดต</translation>
 <translation id="6107893135096467929">เปิด • Chromium ยืนยันไม่ได้ว่าส่วนขยายนี้มาจากไหน</translation>
+<translation id="611228897408671387">บัญชีของคุณใน Chromium</translation>
 <translation id="6119438414301547735">อนุญาตให้ส่วนขยายแสดงคำขอเข้าถึงในแถบเครื่องมือ Chromium</translation>
 <translation id="6129621093834146363"><ph name="FILE_NAME" /> เป็นอันตราย Chromium จึงบล็อกไว้</translation>
 <translation id="6132897690380286411">Chromium จะปิดและลบข้อมูลเร็วๆ นี้</translation>
@@ -440,6 +444,7 @@
 <translation id="6598877126913850652">ไปที่การตั้งค่าการแจ้งเตือน Chromium</translation>
 <translation id="6600016381025017075">ค้นหาอะไรก็ได้ในหน้านี้</translation>
 <translation id="6613594504749178791">การเปลี่ยนแปลงของคุณจะมีผลในครั้งถัดไปที่คุณเปิด Chromium ขึ้นอีก</translation>
+<translation id="6648212540664651655">ดำเนินการต่อจากที่ค้างไว้: Chromium ได้คืนค่าแท็บจากการเข้าชมล่าสุด คุณปิดตัวเลือกนี้ได้ใน</translation>
 <translation id="665732753414869868">Chromium ต้องการสิทธิ์เข้าถึงกล้องเพื่อสร้างแผนที่ 3 มิติของสิ่งที่อยู่รอบตัวคุณ</translation>
 <translation id="6669284030132180248">หากบันทึกบุ๊กมาร์กไว้ในบัญชี Google ด้วย คุณก็จะติดตามราคาผลิตภัณฑ์ใน Chromium และรับการแจ้งเตือนเมื่อราคาต่ำลงได้</translation>
 <translation id="6676384891291319759">เข้าถึงอินเทอร์เน็ต</translation>
@@ -504,6 +509,7 @@ Chromium ไม่สามารถกู้คืนการตั้งค�
 <translation id="7352651011704765696">มีข้อผิดพลาดเกิดขึ้น</translation>
 <translation id="7376384068949534168">คุณไม่ได้เข้าชมเมื่อเร็วๆ นี้ Chromium นำสิทธิ์เข้าถึง<ph name="PERMISSION_1" />และ<ph name="PERMISSION_2" />ออกแล้ว</translation>
 <translation id="7384121030444253939">ระบบไม่รองรับส่วนขยายนี้แล้ว Chromium แนะนำให้คุณนำออกแทน</translation>
+<translation id="7413153308467572558">ดำเนินการต่อจากที่ค้างไว้: Chromium จะคืนค่าแท็บทุกครั้งที่คุณรีสตาร์ท หากต้องการปิดตัวเลือกนี้ ให้ไปที่</translation>
 <translation id="7449453770951226939"><ph name="PAGE_TITLE" /> - Chromium Dev</translation>
 <translation id="7450541714075000668">คัดลอกข้อความแล้ว</translation>
 <translation id="7451052299415159299">Chromium ต้องการสิทธิ์เข้าถึงกล้องถ่ายรูปของคุณสำหรับเว็บไซต์นี้</translation>
@@ -635,6 +641,7 @@ Chromium ไม่สามารถกู้คืนการตั้งค�
 <translation id="911206726377975832">ลบข้อมูลการท่องเว็บด้วยหรือไม่</translation>
 <translation id="9134482777260927479">ความช่วยเหลือเรื่องการบ้าน</translation>
 <translation id="9148058034647219655">ออก</translation>
+<translation id="9155105544013854680">ดำเนินการต่อจากที่ค้างไว้: Chromium สามารถคืนค่าแท็บทุกครั้งที่คุณรีสตาร์ท หากต้องการเปิดตัวเลือกนี้ ให้ไปที่</translation>
 <translation id="9158494823179993217">ผู้ดูแลระบบของคุณกำหนดค่าให้ Chromium เปิดเบราว์เซอร์สำรองเพื่อเข้าถึง <ph name="TARGET_URL_HOSTNAME" /></translation>
 <translation id="9185526690718004400">เปิดอีกครั้งเพื่ออัปเดต Chromium</translation>
 <translation id="9190841055450128916">Chromium (mDNS-In)</translation>

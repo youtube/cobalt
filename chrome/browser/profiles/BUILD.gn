@@ -244,6 +244,7 @@ source_set("profiles_extra_parts_impl") {
     "//chrome/browser/ip_protection",
     "//chrome/browser/media/router",
     "//chrome/browser/media/webrtc",
+    "//chrome/browser/notifications",
     "//chrome/browser/omnibox",
     "//chrome/browser/optimization_guide",
     "//chrome/browser/page_content_annotations:extraction_service",
@@ -266,6 +267,7 @@ source_set("profiles_extra_parts_impl") {
     "//chrome/browser/search_engine_choice",
     "//chrome/browser/search_engines",
     "//chrome/browser/segmentation_platform",
+    "//chrome/browser/send_tab_to_self",
     "//chrome/browser/serial",
     "//chrome/browser/signin",
     "//chrome/browser/storage_access_api",
@@ -274,7 +276,6 @@ source_set("profiles_extra_parts_impl") {
     "//chrome/browser/ui",
     "//chrome/browser/ui:ui_features",
     "//chrome/browser/ui/autofill",
-    "//chrome/browser/ui/cookie_controls",
     "//chrome/browser/ui/find_bar",
     "//chrome/browser/ui/hats",
     "//chrome/browser/ui/prefs",
@@ -314,6 +315,7 @@ source_set("profiles_extra_parts_impl") {
 
   if (is_android) {
     deps += [
+      "//chrome/browser/auxiliary_search",
       "//chrome/browser/commerce/merchant_viewer:merchant_viewer_data_manager",
       "//chrome/browser/fast_checkout",
       "//chrome/browser/password_manager/android/one_time_passwords:backend",

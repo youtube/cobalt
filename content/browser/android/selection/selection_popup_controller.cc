@@ -11,19 +11,21 @@
 #include "base/android/scoped_java_ref.h"
 #include "base/feature_list.h"
 #include "content/browser/android/selection/composited_touch_handle_drawable.h"
-#include "content/browser/gpu/gpu_data_manager_impl.h"
 #include "content/browser/renderer_host/render_widget_host_view_android.h"
 #include "content/browser/web_contents/web_contents_impl.h"
 #include "content/browser/web_contents/web_contents_view_android.h"
 #include "content/common/features.h"
+#include "content/public/browser/android/selection_popup_delegate.h"
 #include "content/public/browser/context_menu_params.h"
 #include "content/public/common/content_features.h"
 #include "third_party/blink/public/common/context_menu_data/edit_flags.h"
 #include "third_party/blink/public/mojom/context_menu/context_menu.mojom.h"
 #include "third_party/blink/public/mojom/input/input_handler.mojom.h"
+#include "ui/base/models/menu_model.h"
 #include "ui/base/mojom/menu_source_type.mojom.h"
 #include "ui/gfx/android/android_surface_control_compat.h"
 #include "ui/gfx/geometry/point_conversions.h"
+#include "ui/menus/android/menu_model_bridge.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "content/public/android/content_jni_headers/SelectionPopupControllerImpl_jni.h"
@@ -32,6 +34,7 @@ using base::android::AttachCurrentThread;
 using base::android::ConvertUTF16ToJavaString;
 using base::android::ConvertUTF8ToJavaString;
 using base::android::JavaParamRef;
+using base::android::ScopedJavaGlobalRef;
 using base::android::ScopedJavaLocalRef;
 
 namespace content {
@@ -59,11 +62,6 @@ bool IsOffsetAdjustValid(
 
 namespace {
 
-bool IsAndroidSurfaceControlMagnifierEnabled() {
-  static bool enabled = gfx::SurfaceControl::SupportsSurfacelessControl();
-  return enabled;
-}
-
 BASE_FEATURE(DismissMagnifierOnViewSwap,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -72,12 +70,8 @@ BASE_FEATURE(DismissMagnifierOnViewSwap,
 static jboolean
 JNI_SelectionPopupControllerImpl_IsMagnifierWithSurfaceControlSupported(
     JNIEnv* env) {
-  GpuDataManagerImpl* manager = GpuDataManagerImpl::GetInstance();
-  return manager->IsGpuFeatureInfoAvailable() &&
-         manager->GetFeatureStatus(
-             gpu::GpuFeatureType::GPU_FEATURE_TYPE_ANDROID_SURFACE_CONTROL) ==
-             gpu::kGpuFeatureStatusEnabled &&
-         IsAndroidSurfaceControlMagnifierEnabled();
+  static bool enabled = gfx::SurfaceControl::SupportsSurfacelessControl();
+  return enabled;
 }
 
 jlong JNI_SelectionPopupControllerImpl_Init(
@@ -312,6 +306,17 @@ bool SelectionPopupController::ShowSelectionMenu(
       params.source_type == ui::mojom::MenuSourceType::kTouch ||
       params.source_type == ui::mojom::MenuSourceType::kLongPress;
 
+  menu_model_bridge_ = std::make_unique<ui::MenuModelBridge>();
+  if (selection_popup_delegate_) {
+    extra_items_menu_model_.reset();
+    extra_items_menu_model_ =
+        selection_popup_delegate_->GetSelectionPopupExtraItems(
+            *render_frame_host, params);
+    if (extra_items_menu_model_) {
+      menu_model_bridge_->AddExtensionItems(extra_items_menu_model_.get());
+    }
+  }
+
   Java_SelectionPopupControllerImpl_showSelectionMenu(
       env, obj, params.x, params.y, params.selection_rect.x(),
       params.selection_rect.y(), params.selection_rect.right(),
@@ -319,7 +324,8 @@ bool SelectionPopupController::ShowSelectionMenu(
       is_password_type, jselected_text, params.selection_start_offset,
       can_select_all, can_edit_richly, should_suggest,
       static_cast<int>(params.source_type),
-      render_frame_host->GetJavaRenderFrameHost());
+      render_frame_host->GetJavaRenderFrameHost(),
+      menu_model_bridge_->GetJavaObject());
   return true;
 }
 
@@ -350,6 +356,8 @@ void SelectionPopupController::HidePopupsAndPreserveSelection() {
   if (obj.is_null())
     return;
 
+  menu_model_bridge_.reset();
+  extra_items_menu_model_.reset();
   Java_SelectionPopupControllerImpl_hidePopupsAndPreserveSelection(env, obj);
 }
 
@@ -358,7 +366,6 @@ void SelectionPopupController::RestoreSelectionPopupsIfNecessary() {
   ScopedJavaLocalRef<jobject> obj = java_obj_.get(env);
   if (obj.is_null())
     return;
-
   Java_SelectionPopupControllerImpl_restoreSelectionPopupsIfNecessary(env, obj);
 }
 

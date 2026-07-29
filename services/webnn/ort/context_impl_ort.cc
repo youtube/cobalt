@@ -147,6 +147,8 @@ ContextProperties ContextImplOrt::GetContextProperties(
        /*logical_xor_input=*/
        {DataTypeConstraint::kUint8, kMaxRank},
        /*logical_not_input=*/{DataTypeConstraint::kUint8, kMaxRank},
+       /*is_nan_input=*/{DataTypeConstraint::kFloat16To32, kMaxRank},
+       /*is_infinite_input*/ {DataTypeConstraint::kFloat16To32, kMaxRank},
        /*logical_output=*/DataTypeConstraint::kUint8,
        /*abs_input=*/{DataTypeConstraint::kAllDataTypesAtLeast8bits, kMaxRank},
        /*ceil_input=*/{DataTypeConstraint::kFloat16To32, kMaxRank},
@@ -158,6 +160,7 @@ ContextProperties ContextImplOrt::GetContextProperties(
        /*log_input=*/{DataTypeConstraint::kFloat16To32, kMaxRank},
        /*neg_input=*/{DataTypeConstraint::kFloat16To32Int8To64, kMaxRank},
        /*reciprocal_input=*/{DataTypeConstraint::kFloat16To32, kMaxRank},
+       /*round_even_input*/ {DataTypeConstraint::kFloat16To32, kMaxRank},
        /*sign_input=*/{DataTypeConstraint::kAllDataTypesAtLeast8bits, kMaxRank},
        /*sin_input=*/{DataTypeConstraint::kFloat16To32, kMaxRank},
        /*sqrt_input=*/{DataTypeConstraint::kFloat16To32, kMaxRank},

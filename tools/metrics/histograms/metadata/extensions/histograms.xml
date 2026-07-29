@@ -941,7 +941,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 
 <histogram
     name="Extensions.DeclarativeNetRequest.AddRulesetCalledTwiceInSuccession"
-    enum="BooleanSuccess" expires_after="2025-09-15">
+    enum="BooleanSuccess" expires_after="2026-03-15">
   <owner>kelvinjiang@chromium.org</owner>
   <owner>src/extensions/OWNERS</owner>
   <summary>
@@ -979,7 +979,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 
 <histogram
     name="Extensions.DeclarativeNetRequest.EvaluateHeadersReceivedTime.SingleExtension2"
-    units="microseconds" expires_after="2025-06-30">
+    units="microseconds" expires_after="2025-12-30">
   <owner>kelvinjiang@chromium.org</owner>
   <owner>src/extensions/OWNERS</owner>
   <summary>
@@ -987,6 +987,9 @@ This is emitted for two scenarios when a worker may be unregistered:
     extension ruleset for rules matched after a request's response headers have
     been received. Emitted for each network request that is visible to the
     extension. This is only emitted for users with high resolution clocks.
+
+    Note: this histogram was expired from 2025-06-30 to 2025-08-28; data may be
+    missing.
   </summary>
 </histogram>
 
@@ -1082,7 +1085,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 
 <histogram
     name="Extensions.DeclarativeNetRequest.RedundantSetReadyToExecuteApiCalls"
-    enum="BooleanSuccess" expires_after="2025-09-15">
+    enum="BooleanSuccess" expires_after="2026-03-15">
   <owner>kelvinjiang@chromium.org</owner>
   <owner>src/extensions/OWNERS</owner>
   <summary>
@@ -3971,20 +3974,6 @@ This is emitted for two scenarios when a worker may be unregistered:
     finished. Emitted immediately after the call to notify the
     ServiceWorkerContext is made as part of decrementing the service worker
     keepalive count.
-  </summary>
-</histogram>
-
-<histogram
-    name="Extensions.ServiceWorkerBackground.ProcessManagerStartingExternalRequestResult"
-    enum="ServiceWorkerExternalRequestResult" expires_after="2026-01-11">
-  <owner>rdevlin.cronin@chromium.org</owner>
-  <owner>extensions-core@chromium.org</owner>
-  <summary>
-    The result from the extension process manager notifying the
-    ServiceWorkerContext of a service worker-based extension that an external
-    request has started as part of incrementing the service worker keepalive
-    count. Emitted immediately after the call to to notify the
-    ServiceWorkerContext is made.
   </summary>
 </histogram>
 

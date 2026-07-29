@@ -296,6 +296,7 @@ after discussions on the right group.
       <annotation id="birch_calendar_provider"/>
       <annotation id="recovery_key_store_fetch"/>
       <annotation id="enterprise_logo_fetcher"/>
+      <annotation id="private_metrics_encryption_key"/>
       <annotation id="remoting_corp_logging_report_session_disconnected"/>
       <annotation id="focus_mode_sounds_image_downloader"/>
       <annotation id="help_me_write_request"/>
@@ -385,6 +386,8 @@ after discussions on the right group.
       <annotation id="glic_fre_web_ui"/>
       <annotation id="aim_eligibility_fetch"/>
       <annotation id="enterprise_logo_fetcher_for_browser"/>
+      <annotation id="devtools_gdp_service"/>
+      <annotation id="save_to_drive"/>
     </sender>
   </group>
   <group name="Admin Features" hidden="true">

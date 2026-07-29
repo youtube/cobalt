@@ -372,6 +372,10 @@ bool DecodeSortableDouble(std::string_view& data, double* output) {
 
   base::byte_span_from_ref(base::allow_nonunique_obj, *output)
       .copy_from_nonoverlapping(base::byte_span_from_ref(host_bits));
+
+  if (std::isnan(*output)) {
+    return false;
+  }
   return true;
 }
 
@@ -868,7 +872,7 @@ IndexedDBKey DecodeSortableIDBKey(std::string_view serialized) {
           return InvalidKey();
         }
         *into = DecodeSortableKeyNonArray(value_type, data);
-        if (!into->IsValid()) {
+        if (!into->IsValid() || (key_arrays.empty() && !data.empty())) {
           return InvalidKey();
         }
         continue;
@@ -880,20 +884,19 @@ IndexedDBKey DecodeSortableIDBKey(std::string_view serialized) {
         IndexedDBKey keys(std::move(key_arrays.back()));
         key_arrays.pop_back();
         if (key_arrays.empty()) {
+          if (!data.empty()) {
+            return InvalidKey();
+          }
           value = std::move(keys);
-          break;
+        } else {
+          key_arrays.back().emplace_back(std::move(keys));
         }
-
-        key_arrays.back().emplace_back(std::move(keys));
         continue;
       }
 
       default:
         return InvalidKey();
     }
-  }
-  if (!data.empty()) {
-    return InvalidKey();
   }
   return value;
 }

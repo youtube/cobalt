@@ -302,9 +302,8 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
       const GURL& url) override;
   bool IsIsolatedContextAllowedForUrl(content::BrowserContext* browser_context,
                                       const GURL& lock_url) override;
-  void CheckGetAllScreensMediaAllowed(
-      content::RenderFrameHost* render_frame_host,
-      base::OnceCallback<void(bool)> callback) override;
+  bool IsMultiCaptureAllowed(
+      content::RenderFrameHost* render_frame_host) override;
   bool IsFileAccessAllowed(const base::FilePath& path,
                            const base::FilePath& absolute_path,
                            const base::FilePath& profile_path) override;
@@ -543,6 +542,9 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
       content::WebContents* web_contents,
       content::SiteInstance& main_frame_site,
       blink::web_pref::WebPreferences* prefs) override;
+  bool WebPreferencesNeedUpdateForColorRelatedStateChanges(
+      content::WebContents& web_contents,
+      const content::SiteInstance& main_frame_site) const override;
   void BrowserURLHandlerCreated(content::BrowserURLHandler* handler) override;
   base::FilePath GetDefaultDownloadDirectory() override;
   std::string GetDefaultDownloadName() override;
@@ -1207,6 +1209,9 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
 
   bool ShouldEnableCanvasNoise(content::BrowserContext* browser_context,
                                const GURL& origin) override;
+
+  bool UsePrefetchPrerenderIntegration() override;
+  bool UsePreloadServingMetrics() override;
 
  protected:
   static bool HandleWebUI(GURL* url, content::BrowserContext* browser_context);

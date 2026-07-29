@@ -23,6 +23,7 @@
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/logging.h"
+#include "base/memory/raw_ref.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/path_service.h"
@@ -45,8 +46,6 @@
 #include "chrome/browser/ash/login/session/user_session_manager.h"
 #include "chrome/browser/ash/policy/core/browser_policy_connector_ash.h"
 #include "chrome/browser/ash/policy/core/device_local_account.h"
-#include "chrome/browser/browser_process.h"
-#include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/browser/chromeos/app_mode/chrome_kiosk_app_installer.h"
 #include "chrome/browser/chromeos/app_mode/chrome_kiosk_external_loader_broker.h"
 #include "chrome/browser/chromeos/app_mode/kiosk_browser_session.h"
@@ -106,16 +105,15 @@ scoped_refptr<base::SequencedTaskRunner> GetBackgroundTaskRunner() {
 }
 
 std::unique_ptr<chromeos::ExternalCache> CreateExternalCache(
+    scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory,
     chromeos::ExternalCacheDelegate* delegate) {
   if (g_test_overrides) {
     return g_test_overrides->CreateExternalCache(delegate, true);
   }
 
-  scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory =
-      g_browser_process->shared_url_loader_factory();
   auto cache = std::make_unique<chromeos::ExternalCacheImpl>(
-      GetCrxCacheDir(), shared_url_loader_factory, GetBackgroundTaskRunner(),
-      delegate, /*always_check_updates=*/true,
+      GetCrxCacheDir(), std::move(shared_url_loader_factory),
+      GetBackgroundTaskRunner(), delegate, /*always_check_updates=*/true,
       /*wait_for_cache_initialization=*/false,
       /*allow_scheduled_updates=*/true);
   cache->set_flush_on_put(true);
@@ -296,7 +294,8 @@ void KioskChromeAppManager::AddAppForTest(
   }
 
   apps_.emplace_back(KioskAppData::CreateForTest(
-      *this, app_id, account_id, update_url, required_platform_version));
+      &local_state_.get(), shared_url_loader_factory_, *this, app_id,
+      account_id, update_url, required_platform_version));
 }
 
 std::string KioskChromeAppManager::GetAutoLaunchAppRequiredPlatformVersion()
@@ -507,9 +506,14 @@ bool KioskChromeAppManager::IsPlatformCompliantWithApp(
   return IsPlatformCompliant(info->required_platform_version);
 }
 
-KioskChromeAppManager::KioskChromeAppManager() {
+KioskChromeAppManager::KioskChromeAppManager(
+    PrefService* local_state,
+    scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory,
+    KioskCryptohomeRemover* cryptohome_remover)
+    : KioskAppManagerBase(local_state, cryptohome_remover),
+      shared_url_loader_factory_(std::move(shared_url_loader_factory)) {
   CHECK(!g_instance);  // Only one instance is allowed.
-  external_cache_ = CreateExternalCache(this);
+  external_cache_ = CreateExternalCache(shared_url_loader_factory_, this);
   g_instance = this;
   UpdateAppsFromPolicy();
 }
@@ -581,11 +585,12 @@ void KioskChromeAppManager::UpdateAppsFromPolicy() {
                                .value_or(CachedCrxInfo());
 
       apps_.push_back(std::make_unique<KioskAppData>(
-          *this, device_local_account.kiosk_app_id, account_id,
+          &local_state_.get(), shared_url_loader_factory_, *this,
+          device_local_account.kiosk_app_id, account_id,
           GURL(device_local_account.kiosk_app_update_url), crx_path));
       apps_.back()->Load();
     }
-    KioskCryptohomeRemover::CancelDelayedCryptohomeRemoval(account_id);
+    cryptohome_remover_->CancelDelayedCryptohomeRemoval(account_id);
   }
 
   std::vector<const KioskAppDataBase*> apps_to_remove;

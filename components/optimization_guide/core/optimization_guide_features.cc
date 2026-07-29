@@ -210,6 +210,10 @@ BASE_FEATURE(kOptimizationGuideProactivePersonalizedHintsFetching,
              "OptimizationGuideProactivePersonalizedHintsFetching",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kOptimizationGuideBypassFormsClassificationAuth,
+             "OptimizationGuideBypassFormsClassificationAuth",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // The default value here is a bit of a guess.
 // TODO(crbug.com/40163041): This should be tuned once metrics are available.
 base::TimeDelta PageTextExtractionOutstandingRequestsGracePeriod() {
@@ -613,6 +617,12 @@ bool GetOnDeviceModelRetractUnsafeContent() {
 
 bool ShouldUseTextSafetyClassifierModel() {
   return base::FeatureList::IsEnabled(kTextSafetyClassifier);
+}
+
+bool ShouldUseGeneralizedSafetyModel() {
+  static const base::FeatureParam<bool> kUseGeneralizedSafetyModel{
+      &kTextSafetyClassifier, "use_generalized_safety_model", false};
+  return kUseGeneralizedSafetyModel.Get();
 }
 
 double GetOnDeviceModelLanguageDetectionMinimumReliability() {

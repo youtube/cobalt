@@ -5,9 +5,11 @@
 #include "components/regional_capabilities/program_settings.h"
 
 #include "base/containers/contains.h"
+#include "base/feature_list.h"
 #include "base/notreached.h"
 #include "components/country_codes/country_codes.h"
 #include "components/regional_capabilities/eea_countries_ids.h"
+#include "components/regional_capabilities/regional_capabilities_switches.h"
 #include "ui/base/device_form_factor.h"
 
 namespace regional_capabilities {
@@ -21,7 +23,12 @@ constexpr ProgramSettings kWaffleSettings{
         kEeaChoiceCountriesIds.begin(),
         kEeaChoiceCountriesIds.end()),
     .search_engine_list_type = SearchEngineListType::kShuffled,
-    .can_show_search_engine_choice_screen = true,
+    .choice_screen_eligibility_config =
+        ChoiceScreenEligibilityConfig{
+            .should_preserve_non_prepopulated_dse = true,
+            .should_preserve_imported_choice = false,
+            .should_preserve_non_google_dse = true,
+        },
 };
 
 constexpr ProgramSettings kTaiyakiSettings{
@@ -29,17 +36,47 @@ constexpr ProgramSettings kTaiyakiSettings{
     .associated_countries =
         base::raw_span<const country_codes::CountryId>(&kTaiyakiCountry, 1u),
     .search_engine_list_type = SearchEngineListType::kShuffled,
-    .can_show_search_engine_choice_screen = true,
+    .choice_screen_eligibility_config =
+        ChoiceScreenEligibilityConfig{
+            .should_preserve_non_prepopulated_dse = false,
+            .should_preserve_imported_choice = true,
+            .should_preserve_non_google_dse = false,
+        },
 };
 
 constexpr ProgramSettings kDefaultSettings{
     .program = Program::kDefault,
     .associated_countries = base::raw_span<const country_codes::CountryId>(),
     .search_engine_list_type = SearchEngineListType::kTopN,
-    .can_show_search_engine_choice_screen = false,
+    .choice_screen_eligibility_config = std::nullopt,
 };
 
+// "Fake" program used for baseline checks. Announces itself as Taiyaki, but
+// actually behaves like Default. Used when the `switches::kTaiyaki` feature is
+// disabled.
+constexpr ProgramSettings kNoOpTaiyakiSettings = []() {
+  ProgramSettings ret = kDefaultSettings;
+  ret.program = kTaiyakiSettings.program;
+  ret.associated_countries = kTaiyakiSettings.associated_countries;
+  return ret;
+}();
+
 }  // namespace
+
+int SerializeProgram(Program program) {
+  return static_cast<int>(program);
+}
+
+bool IsValidSerializedProgram(int serialized_program) {
+  switch (static_cast<Program>(serialized_program)) {
+    case Program::kDefault:
+    case Program::kTaiyaki:
+    case Program::kWaffle:
+      return true;
+  }
+
+  return false;
+}
 
 bool IsInProgramRegion(Program program,
                        const country_codes::CountryId& country_id) {
@@ -68,17 +105,24 @@ bool IsClientCompatibleWithProgram(Program program) {
     case Program::kDefault:
       return true;
   }
+  NOTREACHED();
 }
 
 const ProgramSettings& GetSettingsForProgram(Program program) {
   switch (program) {
     case Program::kTaiyaki:
-      return kTaiyakiSettings;
+#if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID)
+      if (base::FeatureList::IsEnabled(switches::kTaiyaki)) {
+        return kTaiyakiSettings;
+      }
+#endif
+      return kNoOpTaiyakiSettings;
     case Program::kWaffle:
       return kWaffleSettings;
     case Program::kDefault:
       return kDefaultSettings;
   }
+  NOTREACHED();
 }
 
 }  // namespace regional_capabilities

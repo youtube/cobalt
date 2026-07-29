@@ -41,6 +41,7 @@
 #include "third_party/blink/renderer/bindings/modules/v8/v8_media_device_kind.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_media_track_capabilities.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_restriction_target.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_union_boolean_mediatrackconstraints.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_user_media_stream_constraints.h"
 #include "third_party/blink/renderer/core/dom/events/event.h"
 #include "third_party/blink/renderer/core/dom/events/event_listener.h"
@@ -55,6 +56,7 @@
 #include "third_party/blink/renderer/modules/mediastream/media_permission_testing_platform.h"
 #include "third_party/blink/renderer/modules/mediastream/restriction_target.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
+#include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
 #include "third_party/blink/renderer/platform/testing/testing_platform_support.h"
 #include "third_party/blink/renderer/platform/weborigin/security_origin.h"
@@ -63,7 +65,6 @@
 
 namespace blink {
 
-using ::base::HistogramTester;
 using ::blink::mojom::blink::MediaDeviceInfoPtr;
 using ::testing::_;
 using ::testing::ElementsAre;
@@ -750,6 +751,8 @@ class MediaDevicesTest : public PageTestBase {
         ->SetMicrophonePermission(has_permission);
   }
 
+  base::HistogramTester& histogram_tester() { return histogram_tester_; }
+
  private:
   ScopedTestingPlatformSupport<MediaPermissionTestingPlatform,
                                std::unique_ptr<media::MediaPermission>>
@@ -865,8 +868,8 @@ TEST_F(MediaDevicesTest, ObserveDeviceChangeEvent) {
       MakeGarbageCollected<StrictMock<MockDeviceChangeEventListener>>();
   AddDeviceChangeListener(event_listener);
   EXPECT_TRUE(dispatcher_host().listener());
-  dispatcher_host().listener().set_disconnect_handler(WTF::BindOnce(
-      &MediaDevicesTest::OnListenerConnectionError, WTF::Unretained(this)));
+  dispatcher_host().listener().set_disconnect_handler(
+      BindOnce(&MediaDevicesTest::OnListenerConnectionError, Unretained(this)));
 
   // Send a device change notification from the dispatcher host. The event is
   // not fired because devices did not actually change.
@@ -1290,17 +1293,147 @@ TEST_F(MediaDevicesTest, DistinctIdsForDistinctTypes) {
   EXPECT_TRUE(second_tester.IsFulfilled());
   EXPECT_FALSE(scope.GetExceptionState().HadException());
 
-  const WTF::String first_result =
-      ToSubCaptureTarget(first_tester.Value())->GetId();
+  const String first_result = ToSubCaptureTarget(first_tester.Value())->GetId();
   ASSERT_FALSE(first_result.empty());
 
-  const WTF::String second_result =
+  const String second_result =
       ToSubCaptureTarget(second_tester.Value())->GetId();
   ASSERT_FALSE(second_result.empty());
 
   EXPECT_NE(first_result, second_result);
 }
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+
+TEST_F(MediaDevicesTest, MetricsFailedEnumerateDevicesThenGetUserMedia) {
+  {
+    V8TestingScope scope;
+    MediaDevices* const media_devices = GetMediaDevices(scope.GetWindow());
+    media_devices->ReportCompletedEnumerateDevices(/*is_successful=*/false);
+    media_devices->ReportSuccessfulGetUserMedia();
+    histogram_tester().ExpectTotalCount(
+        "Media.MediaDevices.EnumerateDevices.GetUserMediaInteraction", 2);
+    histogram_tester().ExpectBucketCount(
+        "Media.MediaDevices.EnumerateDevices.GetUserMediaInteraction",
+        EnumerateDevicesGetUserMediaInteraction::kFailedEnumerateDevicesFirst,
+        1);
+    histogram_tester().ExpectBucketCount(
+        "Media.MediaDevices.EnumerateDevices.GetUserMediaInteraction",
+        EnumerateDevicesGetUserMediaInteraction::
+            kFailedEnumerateDevicesThenGetUserMedia,
+        1);
+  }
+  histogram_tester().ExpectUniqueSample(
+      "Media.MediaDevices.EnumerateDevices.FirstStateOnContextDestroyed",
+      EnumerateDevicesFirstStateOnContextDestroyed::kFailed, 1);
+}
+
+TEST_F(MediaDevicesTest, MetricsSuccessfulEnumerateDevicesThenGetUserMedia) {
+  {
+    V8TestingScope scope;
+    MediaDevices* const media_devices = GetMediaDevices(scope.GetWindow());
+    media_devices->ReportCompletedEnumerateDevices(/*is_successful=*/true);
+    media_devices->ReportSuccessfulGetUserMedia();
+    histogram_tester().ExpectTotalCount(
+        "Media.MediaDevices.EnumerateDevices.GetUserMediaInteraction", 2);
+    histogram_tester().ExpectBucketCount(
+        "Media.MediaDevices.EnumerateDevices.GetUserMediaInteraction",
+        EnumerateDevicesGetUserMediaInteraction::
+            kSuccessfulEnumerateDevicesFirst,
+        1);
+    histogram_tester().ExpectBucketCount(
+        "Media.MediaDevices.EnumerateDevices.GetUserMediaInteraction",
+        EnumerateDevicesGetUserMediaInteraction::
+            kSuccessfulEnumerateDevicesThenGetUserMedia,
+        1);
+  }
+  histogram_tester().ExpectUniqueSample(
+      "Media.MediaDevices.EnumerateDevices.FirstStateOnContextDestroyed",
+      EnumerateDevicesFirstStateOnContextDestroyed::
+          kSuccessfulFollowedByGetUserMedia,
+      1);
+}
+
+TEST_F(MediaDevicesTest, MetricsGetUserMediaThenSuccessfulEnumerateDevices) {
+  {
+    V8TestingScope scope;
+    MediaDevices* const media_devices = GetMediaDevices(scope.GetWindow());
+    media_devices->ReportSuccessfulGetUserMedia();
+    media_devices->ReportCompletedEnumerateDevices(/*is_successful=*/true);
+    histogram_tester().ExpectTotalCount(
+        "Media.MediaDevices.EnumerateDevices.GetUserMediaInteraction", 2);
+    histogram_tester().ExpectBucketCount(
+        "Media.MediaDevices.EnumerateDevices.GetUserMediaInteraction",
+        EnumerateDevicesGetUserMediaInteraction::kGetUserMediaFirst, 1);
+    histogram_tester().ExpectBucketCount(
+        "Media.MediaDevices.EnumerateDevices.GetUserMediaInteraction",
+        EnumerateDevicesGetUserMediaInteraction::
+            kGetUserMediaThenSuccessfulEnumerateDevices,
+        1);
+  }
+  histogram_tester().ExpectUniqueSample(
+      "Media.MediaDevices.EnumerateDevices.FirstStateOnContextDestroyed",
+      EnumerateDevicesFirstStateOnContextDestroyed::
+          kSuccessfulAfterGetUserMedia,
+      1);
+}
+
+TEST_F(MediaDevicesTest, MetricsGetUserMediaThenFailedEnumerateDevices) {
+  {
+    V8TestingScope scope;
+    MediaDevices* const media_devices = GetMediaDevices(scope.GetWindow());
+    media_devices->ReportSuccessfulGetUserMedia();
+    media_devices->ReportCompletedEnumerateDevices(/*is_successful=*/false);
+    histogram_tester().ExpectTotalCount(
+        "Media.MediaDevices.EnumerateDevices.GetUserMediaInteraction", 2);
+    histogram_tester().ExpectBucketCount(
+        "Media.MediaDevices.EnumerateDevices.GetUserMediaInteraction",
+        EnumerateDevicesGetUserMediaInteraction::kGetUserMediaFirst, 1);
+    histogram_tester().ExpectBucketCount(
+        "Media.MediaDevices.EnumerateDevices.GetUserMediaInteraction",
+        EnumerateDevicesGetUserMediaInteraction::
+            kGetUserMediaThenFailedEnumerateDevices,
+        1);
+  }
+  histogram_tester().ExpectUniqueSample(
+      "Media.MediaDevices.EnumerateDevices.FirstStateOnContextDestroyed",
+      EnumerateDevicesFirstStateOnContextDestroyed::kFailed, 1);
+}
+
+TEST_F(MediaDevicesTest, MetricsEnumerateDevicesOnly) {
+  {
+    V8TestingScope scope;
+    ScriptPromiseTester(scope.GetScriptState(),
+                        GetMediaDevices(scope.GetWindow())
+                            ->enumerateDevices(scope.GetScriptState(),
+                                               scope.GetExceptionState()))
+        .WaitUntilSettled();
+    histogram_tester().ExpectUniqueSample(
+        "Media.MediaDevices.EnumerateDevices.GetUserMediaInteraction",
+        EnumerateDevicesGetUserMediaInteraction::
+            kSuccessfulEnumerateDevicesFirst,
+        1);
+  }
+  histogram_tester().ExpectUniqueSample(
+      "Media.MediaDevices.EnumerateDevices.FirstStateOnContextDestroyed",
+      EnumerateDevicesFirstStateOnContextDestroyed::
+          kSuccessfulNeverGetUserMedia,
+      1);
+}
+
+TEST_F(MediaDevicesTest, MetricsGetUserMediaOnly) {
+  {
+    V8TestingScope scope;
+    MediaDevices* const media_devices = GetMediaDevices(scope.GetWindow());
+    // A full getUserMedia() call cannot be mocked in this test, so just use the
+    // report function.
+    media_devices->ReportSuccessfulGetUserMedia();
+    histogram_tester().ExpectUniqueSample(
+        "Media.MediaDevices.EnumerateDevices.GetUserMediaInteraction",
+        EnumerateDevicesGetUserMediaInteraction::kGetUserMediaFirst, 1);
+  }
+  histogram_tester().ExpectTotalCount(
+      "Media.MediaDevices.EnumerateDevices.FirstStateOnContextDestroyed", 0);
+}
 
 class ProduceSubCaptureTargetTest
     : public MediaDevicesTest,
@@ -1431,11 +1564,11 @@ TEST_P(ProduceSubCaptureTargetTest, DuplicateId) {
   EXPECT_TRUE(second_tester->IsFulfilled());
   EXPECT_FALSE(scope.GetExceptionState().HadException());
 
-  const WTF::String first_result =
+  const String first_result =
       ToSubCaptureTarget(first_tester->Value())->GetId();
   ASSERT_FALSE(first_result.empty());
 
-  const WTF::String second_result =
+  const String second_result =
       ToSubCaptureTarget(second_tester->Value())->GetId();
   ASSERT_FALSE(second_result.empty());
 
@@ -1493,7 +1626,7 @@ TEST_P(ProduceSubCaptureTargetTest, IdStringFormat) {
   EXPECT_FALSE(scope.GetExceptionState().HadException());
 
   const SubCaptureTarget* const target = ToSubCaptureTarget(tester->Value());
-  const WTF::String& id = target->GetId();
+  const String& id = target->GetId();
   EXPECT_TRUE(id.ContainsOnlyASCIIOrEmpty());
   EXPECT_TRUE(base::Uuid::ParseLowercase(id.Ascii()).is_valid());
 }

@@ -38,6 +38,7 @@
 #include "components/webapps/browser/install_result_code.h"
 #include "components/webapps/browser/web_contents/web_app_url_loader.h"
 #include "components/webapps/isolated_web_apps/test_support/signing_keys.h"
+#include "components/webapps/isolated_web_apps/types/iwa_version.h"
 #include "components/webapps/isolated_web_apps/types/source.h"
 #include "components/webapps/isolated_web_apps/types/storage_location.h"
 #include "content/public/browser/web_contents.h"
@@ -53,7 +54,6 @@ namespace {
 
 using base::test::ErrorIs;
 using base::test::HasValue;
-using base::test::ValueIs;
 using ::testing::ElementsAre;
 using ::testing::Eq;
 using ::testing::Field;
@@ -78,7 +78,7 @@ std::vector<base::FilePath> GetDirContents(const base::FilePath& directory) {
 }
 
 blink::mojom::ManifestPtr CreateDefaultManifest(const GURL& application_url,
-                                                const base::Version version) {
+                                                const IwaVersion& version) {
   auto manifest = blink::mojom::Manifest::New();
   manifest->id = application_url.DeprecatedGetOriginAsURL();
   manifest->scope = application_url.Resolve("/");
@@ -144,12 +144,10 @@ class IsolatedWebAppApplyUpdateCommandTest : public WebAppTest {
     base::WriteFile(installed_path, "");
   }
 
-  base::expected<IsolatedWebAppApplyUpdateCommandSuccess,
-                 IsolatedWebAppApplyUpdateCommandError>
+  base::expected<void, IsolatedWebAppApplyUpdateCommandError>
   ApplyPendingUpdate() {
     base::test::TestFuture<
-        base::expected<IsolatedWebAppApplyUpdateCommandSuccess,
-                       IsolatedWebAppApplyUpdateCommandError>>
+        base::expected<void, IsolatedWebAppApplyUpdateCommandError>>
         future;
     fake_provider().scheduler().ApplyPendingIsolatedWebAppUpdate(
         url_info_, /*optional_keep_alive=*/nullptr,
@@ -225,11 +223,11 @@ class IsolatedWebAppApplyUpdateCommandTest : public WebAppTest {
 
   IsolatedWebAppStorageLocation installed_location_ =
       IwaStorageOwnedBundle{"installed_folder", /*dev_mode=*/false};
-  base::Version installed_version_ = base::Version("1.0.0");
+  IwaVersion installed_version_ = *IwaVersion::Create("1.0.0");
 
   IwaStorageOwnedBundle update_bundle_location_{"update_folder",
                                                 /*dev_mode=*/false};
-  base::Version update_version_ = base::Version("2.0.0");
+  IwaVersion update_version_ = *IwaVersion::Create("2.0.0");
 };
 
 TEST_F(IsolatedWebAppApplyUpdateCommandTest, Succeeds) {
@@ -242,9 +240,7 @@ TEST_F(IsolatedWebAppApplyUpdateCommandTest, Succeeds) {
       url_info_.origin().GetURL().Resolve(kIconPath));
   icon_state.bitmaps = {web_app::CreateSquareIcon(32, SK_ColorWHITE)};
 
-  EXPECT_THAT(ApplyPendingUpdate(),
-              ValueIs(IsolatedWebAppApplyUpdateCommandSuccess(
-                  update_version_, update_bundle_location_)));
+  EXPECT_THAT(ApplyPendingUpdate(), HasValue());
 
   const WebApp* web_app =
       fake_provider().registrar_unsafe().GetAppById(url_info_.app_id());
@@ -303,7 +299,7 @@ TEST_F(IsolatedWebAppApplyUpdateCommandTest, FailsIfInstalledAppIsNotIsolated) {
 TEST_F(IsolatedWebAppApplyUpdateCommandTest,
        FailsIfInstalledAppHasNoPendingUpdate) {
   test::AwaitStartWebAppProviderAndSubsystems(profile());
-  installed_version_ = base::Version("3.0.0");
+  installed_version_ = *IwaVersion::Create("3.0.0");
   InstallIwa(/*pending_update_info=*/std::nullopt);
   CreateDefaultPageState();
 

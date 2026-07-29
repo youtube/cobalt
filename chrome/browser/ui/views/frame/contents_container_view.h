@@ -11,11 +11,13 @@
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "chrome/browser/devtools/devtools_contents_resizing_strategy.h"
+#include "chrome/browser/ui/views/frame/tab_modal_dialog_host.h"
 #include "ui/views/focus/external_focus_tracker.h"
 #include "ui/views/layout/delegating_layout_manager.h"
 #include "ui/views/view.h"
 
 class BrowserView;
+class ContentsContainerOutline;
 class ContentsWebView;
 class MultiContentsViewMiniToolbar;
 class ScrimView;
@@ -80,12 +82,17 @@ class ContentsContainerView : public views::View,
   new_tab_footer::NewTabFooterWebView* new_tab_footer_view() {
     return new_tab_footer_view_;
   }
-  ScrimView* inactive_split_scrim_view() { return inactive_split_scrim_view_; }
   views::Widget* capture_contents_border_widget() {
     return capture_contents_border_widget_.get();
   }
   enterprise_watermark::WatermarkView* watermark_view() {
     return watermark_view_;
+  }
+  const ContentsContainerOutline* contents_outline_view() const {
+    return container_outline_;
+  }
+  TabModalDialogHost* web_contents_modal_dialog_host() {
+    return &web_contents_modal_dialog_host_;
   }
 
   // Sets the contents resizing strategy.
@@ -102,7 +109,7 @@ class ContentsContainerView : public views::View,
 
   void UpdateBorderAndOverlay(bool is_in_split,
                               bool is_active,
-                              bool show_scrim);
+                              bool is_highlighted);
 
   void ShowCaptureContentsBorder(std::optional<gfx::Rect> border_location);
   void HideCaptureContentsBorder();
@@ -135,6 +142,8 @@ class ContentsContainerView : public views::View,
   raw_ptr<BrowserView> browser_view_ = nullptr;
   raw_ptr<ContentsWebView> contents_view_ = nullptr;
 
+  TabModalDialogHost web_contents_modal_dialog_host_;
+
   // The view that contains devtools window for the WebContents.
   raw_ptr<views::WebView> devtools_web_view_ = nullptr;
   // The scrim view that covers the devtools area when a tab-modal dialog is
@@ -156,10 +165,6 @@ class ContentsContainerView : public views::View,
   // open.
   raw_ptr<ScrimView> contents_scrim_view_ = nullptr;
 
-  // Scrim view shown on the inactive side of a split view when the omnibox is
-  // focused or site permissions dialogs are showing.
-  raw_ptr<ScrimView> inactive_split_scrim_view_ = nullptr;
-
   // The view that contains the Glic Actor Overlay. The Actor Overlay is a UI
   // overlay that is shown on top of the web contents.
   raw_ptr<views::View> actor_overlay_view_ = nullptr;
@@ -168,6 +173,8 @@ class ContentsContainerView : public views::View,
   raw_ptr<glic::GlicBorderView> glic_border_ = nullptr;
 
   raw_ptr<MultiContentsViewMiniToolbar> mini_toolbar_ = nullptr;
+
+  raw_ptr<ContentsContainerOutline> container_outline_ = nullptr;
 
   std::unique_ptr<views::Widget> capture_contents_border_widget_;
   std::optional<gfx::Rect> dynamic_capture_content_border_bounds_;

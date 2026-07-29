@@ -22,7 +22,6 @@ import org.chromium.base.Callback;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.IntentUtils;
 import org.chromium.base.PackageManagerUtils;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ChromeTabbedActivity2;
@@ -45,6 +44,7 @@ import org.chromium.ui.base.WindowAndroid;
 import org.chromium.url.GURL;
 
 import java.util.List;
+import java.util.function.Supplier;
 
 /** The main implementation of the {@link ExternalNavigationDelegate}. */
 @NullMarked
@@ -138,12 +138,11 @@ public class ExternalNavigationDelegateImpl implements ExternalNavigationDelegat
     @Override
     public void closeTab() {
         if (!hasValidTab()) return;
-        if (mTabModelSelectorSupplier == null || !mTabModelSelectorSupplier.hasValue()) return;
-        mTabModelSelectorSupplier
-                .get()
-                .tryCloseTab(
-                        TabClosureParams.closeTab(mTab).allowUndo(false).build(),
-                        /* allowDialog= */ false);
+        if (mTabModelSelectorSupplier == null) return;
+        TabModelSelector tabModelSelector = mTabModelSelectorSupplier.get();
+        if (tabModelSelector == null) return;
+        tabModelSelector.tryCloseTab(
+                TabClosureParams.closeTab(mTab).allowUndo(false).build(), /* allowDialog= */ false);
     }
 
     @Override

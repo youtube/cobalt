@@ -5902,7 +5902,7 @@ class CheckEnabledByDefaultCommitMessageTest(unittest.TestCase):
             mock_input_api, MockOutputApi())
         self.assertEqual([], results)
 
-    def testFeatureEnabledByDefaultWithoutTag(self):
+    def testFeatureEnabledByDefaultWithoutTag_WarningOnUpload(self):
         mock_input_api = MockInputApi()
         mock_input_api.files = [
             MockAffectedFile('foo.cc', ['FEATURE_ENABLED_BY_DEFAULT'])
@@ -5914,6 +5914,22 @@ class CheckEnabledByDefaultCommitMessageTest(unittest.TestCase):
         self.assertEqual(1, len(results))
         self.assertIn('The string "FEATURE_ENABLED_BY_DEFAULT" was found',
                       results[0].message)
+        self.assertEqual('notify', results[0].type)
+
+    def testFeatureEnabledByDefaultWithoutTag_ErrorOnCommit(self):
+        mock_input_api = MockInputApi()
+        mock_input_api.is_committing = True
+        mock_input_api.files = [
+            MockAffectedFile('foo.cc', ['FEATURE_ENABLED_BY_DEFAULT'])
+        ]
+        mock_input_api.change.DescriptionText = lambda: 'Enable my feature'
+
+        results = PRESUBMIT.CheckEnabledByDefaultCommitMessage(
+            mock_input_api, MockOutputApi())
+        self.assertEqual(1, len(results))
+        self.assertIn('The string "FEATURE_ENABLED_BY_DEFAULT" was found',
+                      results[0].message)
+        self.assertEqual('error', results[0].type)
 
     def testNoFeatureEnabledByDefault(self):
         mock_input_api = MockInputApi()

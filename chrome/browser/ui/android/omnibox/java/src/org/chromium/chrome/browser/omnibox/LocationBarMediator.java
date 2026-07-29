@@ -37,7 +37,6 @@ import org.chromium.base.metrics.TimingMetric;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.OneshotSupplier;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
 import org.chromium.build.annotations.Initializer;
@@ -102,6 +101,7 @@ import org.chromium.url.GURL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BooleanSupplier;
+import java.util.function.Supplier;
 
 /**
  * Mediator for the LocationBar component. Intended location for LocationBar business logic;
@@ -291,8 +291,9 @@ class LocationBarMediator
     @SuppressWarnings("NullAway")
     /* package */ void destroy() {
         mCallbackController.destroy();
-        if (mTemplateUrlServiceSupplier.hasValue()) {
-            mTemplateUrlServiceSupplier.get().removeObserver(this);
+        TemplateUrlService templateUrlService = mTemplateUrlServiceSupplier.get();
+        if (templateUrlService != null) {
+            templateUrlService.removeObserver(this);
         }
         if (mSearchEngineUtils != null) {
             mSearchEngineUtils.removeSearchBoxHintTextObserver(this);
@@ -341,14 +342,15 @@ class LocationBarMediator
         if (hasFocus
                 && mLocationBarDataProvider.hasTab()
                 && !mLocationBarDataProvider.isIncognito()) {
-            if (mTemplateUrlServiceSupplier.hasValue()) {
+            TemplateUrlService templateUrlService = mTemplateUrlServiceSupplier.get();
+            if (templateUrlService != null) {
                 GeolocationHeader.primeLocationForGeoHeaderIfEnabled(
-                        mProfileSupplier.get(), mTemplateUrlServiceSupplier.get());
+                        mProfileSupplier.get(), templateUrlService);
             } else {
                 mTemplateUrlServiceSupplier.onAvailable(
-                        (templateUrlService) -> {
+                        (service) -> {
                             GeolocationHeader.primeLocationForGeoHeaderIfEnabled(
-                                    mProfileSupplier.get(), templateUrlService);
+                                    mProfileSupplier.get(), service);
                         });
             }
             hintZeroSuggestRefresh();
@@ -667,16 +669,14 @@ class LocationBarMediator
                         ResourceRequestBody.createFromBytes(omniboxLoadUrlParams.postData));
             }
 
-            if (omniboxLoadUrlParams.openInNewTab
-                    && mTabModelSelectorSupplier != null
-                    && mTabModelSelectorSupplier.get() != null) {
-                mTabModelSelectorSupplier
-                        .get()
-                        .openNewTab(
-                                loadUrlParams,
-                                TabLaunchType.FROM_OMNIBOX,
-                                currentTab,
-                                currentTab.isIncognito());
+            TabModelSelector tabModelSelector =
+                    mTabModelSelectorSupplier == null ? null : mTabModelSelectorSupplier.get();
+            if (omniboxLoadUrlParams.openInNewTab && tabModelSelector != null) {
+                tabModelSelector.openNewTab(
+                        loadUrlParams,
+                        TabLaunchType.FROM_OMNIBOX,
+                        currentTab,
+                        currentTab.isIncognito());
             } else {
                 currentTab.loadUrl(loadUrlParams);
             }
@@ -770,15 +770,17 @@ class LocationBarMediator
 
     /** package */
     void composeplateButtonClicked(View view) {
-        if (!mNativeInitialized
-                || mLocationBarDataProvider == null
-                || mTabModelSelectorSupplier == null
-                || !mTabModelSelectorSupplier.hasValue()) return;
+        TabModelSelector tabModelSelector =
+                mTabModelSelectorSupplier == null ? null : mTabModelSelectorSupplier.get();
+        if (!mNativeInitialized || mLocationBarDataProvider == null || tabModelSelector == null)
+            return;
 
-        Tab tab = mTabModelSelectorSupplier.get().getCurrentTab();
-        if (tab == null || tab.isIncognito() || !mTemplateUrlServiceSupplier.hasValue()) return;
+        Tab tab = tabModelSelector.getCurrentTab();
+        TemplateUrlService templateUrlService = mTemplateUrlServiceSupplier.get();
 
-        GURL url = mTemplateUrlServiceSupplier.get().getComposeplateUrl();
+        if (tab == null || tab.isIncognito() || templateUrlService == null) return;
+
+        GURL url = templateUrlService.getComposeplateUrl();
         if (url == null) return;
 
         tab.loadUrl(new LoadUrlParams(url));
@@ -1833,11 +1835,11 @@ class LocationBarMediator
     @Override
     public void onResumeWithNative() {
         Profile profile = mProfileSupplier.get();
+        TemplateUrlService templateUrlService = mTemplateUrlServiceSupplier.get();
         if (OmniboxFeatures.sUseFusedLocationProvider.isEnabled()
                 && profile != null
-                && mTemplateUrlServiceSupplier.hasValue()) {
-            GeolocationHeader.primeLocationForGeoHeaderIfEnabled(
-                    profile, mTemplateUrlServiceSupplier.get());
+                && templateUrlService != null) {
+            GeolocationHeader.primeLocationForGeoHeaderIfEnabled(profile, templateUrlService);
         }
     }
 

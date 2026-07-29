@@ -13,7 +13,6 @@ import org.chromium.base.DeviceInfo;
 import org.chromium.base.MathUtils;
 import org.chromium.base.Token;
 import org.chromium.base.metrics.RecordHistogram;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
@@ -30,6 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Supplier;
 
 @NullMarked
 public class StripLayoutUtils {
@@ -42,6 +42,9 @@ public class StripLayoutUtils {
     public static final float MIN_TAB_WIDTH_DP = shouldApplyMoreDensity() ? 76.f : 108.f;
     public static final float MAX_TAB_WIDTH_DP = TabUiThemeUtil.getMaxTabStripTabWidthDp();
     public static final float TAB_OVERLAP_WIDTH_DP = 28.f;
+
+    // Pinned tab width.
+    public static final float PINNED_TAB_WIDTH_DP = MIN_TAB_WIDTH_DP;
 
     // Animation Constants.
     public static final int ANIM_TAB_MOVE_MS = 125;
@@ -107,6 +110,26 @@ public class StripLayoutUtils {
             List<Tab> relatedTabs = modelFilter.getRelatedTabList(tab.getId());
             Tab lastTab = relatedTabs.get(relatedTabs.size() - 1);
             return tab.getId() != lastTab.getId();
+        }
+        return false;
+    }
+
+    /**
+     * @param stripTabs The list of {@link StripLayoutTab}.
+     * @param view The {@link StripLayoutView} to check whether is the last pinned tab.
+     * @return Whether the view is the last pinned tab.
+     */
+    public static boolean isLastPinnedTab(StripLayoutTab[] stripTabs, StripLayoutView view) {
+        StripLayoutTab tab = (view instanceof StripLayoutTab) ? (StripLayoutTab) view : null;
+        if (tab == null) return false;
+        for (int i = 0; i < stripTabs.length; i++) {
+            if (!stripTabs[i].getIsPinned()) {
+                if (i > 0) {
+                    return tab == stripTabs[i - 1];
+                } else {
+                    break;
+                }
+            }
         }
         return false;
     }
@@ -180,21 +203,36 @@ public class StripLayoutUtils {
     // Tab util methods
     // ============================================================================================
 
-    /** Returns half of {@code mEffectiveTabWidth}. */
-    public static float getHalfTabWidth(Supplier<Float> tabWidthSupplier) {
-        return getEffectiveTabWidth(tabWidthSupplier) / 2;
+    /**
+     * @param tabWidthSupplier supplies the cached tab width for non-pinned tabs
+     * @param isPinned Whether the tab is pinned; currently always false for grouped tabs.
+     * @return Returns half of {@code mEffectiveTabWidth}.
+     */
+    public static float getHalfTabWidth(Supplier<Float> tabWidthSupplier, boolean isPinned) {
+        return getEffectiveTabWidth(tabWidthSupplier, isPinned) / 2;
     }
 
-    /** Returns the current effective tab width (accounting for overlap). */
-    public static float getEffectiveTabWidth(Supplier<Float> tabWidthSupplier) {
-        return (tabWidthSupplier.get() - TAB_OVERLAP_WIDTH_DP);
+    /**
+     * @param tabWidthSupplier supplies the cached tab width for non-pinned tabs.
+     * @param isPinned Whether the tab is pinned; currently always false for grouped tabs.
+     * @return Returns the current effective tab width (accounting for overlap).
+     */
+    public static float getEffectiveTabWidth(Supplier<Float> tabWidthSupplier, boolean isPinned) {
+        float tabWidth = isPinned ? PINNED_TAB_WIDTH_DP : tabWidthSupplier.get();
+        return (tabWidth - TAB_OVERLAP_WIDTH_DP);
     }
 
-    /** Shifts x by half tab width to accommodate for tab drop. */
-    public static float adjustXForTabDrop(float x, Supplier<Float> tabWidthSupplier) {
+    /**
+     * @param x raw drag X in strip coordinates.
+     * @param tabWidthSupplier supplies the cached tab width for non-pinned tabs.
+     * @param isPinned Whether the tab is pinned; currently always false for grouped tabs.
+     * @return Returns x shifted by half tab width to accommodate for tab drop.
+     */
+    public static float adjustXForTabDrop(
+            float x, Supplier<Float> tabWidthSupplier, boolean isPinned) {
         return x
                 - MathUtils.flipSignIf(
-                        StripLayoutUtils.getHalfTabWidth(tabWidthSupplier),
+                        StripLayoutUtils.getHalfTabWidth(tabWidthSupplier, isPinned),
                         LocalizationUtils.isLayoutRtl());
     }
 

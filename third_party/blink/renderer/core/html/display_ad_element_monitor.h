@@ -30,7 +30,7 @@ class CORE_EXPORT DisplayAdElementMonitor
 
   // Stop receiving LifecycleNotificationObserver notifications, and
   // notify `PageTimingMetricsSender` of the removal.
-  void OnElementRemoved();
+  void OnElementRemovedOrUntagged();
 
   // LocalFrameView::LifecycleNotificationObserver
   void DidFinishLifecycleUpdate(
@@ -50,8 +50,6 @@ class CORE_EXPORT DisplayAdElementMonitor
   bool started_ = false;
 
   base::TimeTicks last_overlay_check_time_;
-
-  bool ad_use_counter_recorded_ = false;
 
   // The last rectangle reported to the `PageTimingMetricsSender`.
   // `last_reported_rect_` is empty if there's no report before, or if the last

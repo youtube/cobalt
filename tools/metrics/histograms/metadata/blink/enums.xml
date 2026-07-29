@@ -4418,7 +4418,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="3956" label="SameSiteNoneIncludedBySameSiteLax"/>
   <int value="3957" label="SameSiteNoneIncludedBySameSiteStrict"/>
   <int value="3958"
-      label="PrivateNetworkAccessNonSecureContextsAllowedDeprecationTrial"/>
+      label="OBSOLETE_PrivateNetworkAccessNonSecureContextsAllowedDeprecationTrial"/>
   <int value="3959" label="V8URLPattern_Constructor"/>
   <int value="3960" label="V8URLPattern_Test_Method"/>
   <int value="3961" label="V8URLPattern_Exec_Method"/>
@@ -4792,7 +4792,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="4309" label="SendBeaconWithURLSearchParams"/>
   <int value="4310" label="SendBeaconWithUSVString"/>
   <int value="4311" label="ReplacedElementPaintedWithOverflow"/>
-  <int value="4312" label="ImageAd"/>
+  <int value="4312" label="OBSOLETE_kImageAd"/>
   <int value="4313" label="LinkRelPrefetchAsDocumentSameOrigin"/>
   <int value="4314" label="LinkRelPrefetchAsDocumentCrossOrigin"/>
   <int value="4315" label="PersistentQuotaType"/>
@@ -4836,7 +4836,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="4350" label="AudioContextSetSinkId"/>
   <int value="4351" label="ViewportDependentLazyLoadedImageWithSizesAttribute"/>
   <int value="4352" label="XRWebGLBindingGetCameraImage"/>
-  <int value="4353" label="SelectiveInOrderScript"/>
+  <int value="4353" label="OBSOLETE_SelectiveInOrderScript"/>
   <int value="4354" label="V8AsyncStackTaggingCreateTaskCall"/>
   <int value="4355" label="WebkitBoxWithoutWebkitLineClamp"/>
   <int value="4356" label="DataUrlInSvgUse"/>
@@ -6284,6 +6284,8 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5649" label="ComputedOutlineWidthWithNoneOrHiddenStyle"/>
   <int value="5650" label="NavigationNavigateJavaScriptURL"/>
   <int value="5651" label="V8WasmCustomDescriptors"/>
+  <int value="5652" label="SRIIntegrityAttributeOnInlineScript"/>
+  <int value="5653" label="CredentialsGetImmediateMediationWithPasswordsOnly"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom:WebFeature) -->
@@ -8063,6 +8065,7 @@ Called by update_use_counter_css.py.-->
   <int value="879" label="masonry"/>
   <int value="880" label="continue"/>
   <int value="881" label="max-lines"/>
+  <int value="882" label="block-ellipsis"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/css_property_id.mojom:CSSSampleId) -->
@@ -8584,6 +8587,8 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="395" label="RegexpStaticProperties"/>
   <int value="396" label="JsonModules"/>
   <int value="397" label="DRAFT_WasmCustomDescriptors"/>
+  <int value="398" label="FetchRequestStreams"/>
+  <int value="399" label="TransferableStreams"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/webdx_feature.mojom:WebDXFeature) -->

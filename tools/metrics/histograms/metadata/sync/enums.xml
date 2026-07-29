@@ -357,6 +357,7 @@ chromium-metrics-reviews@google.com.
   <int value="92" label="FingerprintingProtectionEnabled"/>
   <int value="93" label="AutofillNameAndEmailProfileSignature"/>
   <int value="94" label="AutofillNameAndEmailProfileNotSelectedCounter"/>
+  <int value="95" label="IsOmniboxInBottomPosition"/>
 <!-- LINT.ThenChange(/components/sync_preferences/common_syncable_prefs_database.cc:CommonSyncablePref)-->
 
 <!-- LINT.IfChange(ChromeSyncablePref) -->
@@ -742,6 +743,7 @@ chromium-metrics-reviews@google.com.
   <int value="200008" label="SearchSuggestEnabled_IOS"/>
   <int value="200009" label="TrackPricesOnTabsEnabled"/>
   <int value="200010" label="VoiceSearchLocale"/>
+  <int value="200011" label="IOSBwgConsent"/>
 <!-- LINT.ThenChange(/ios/chrome/browser/sync/model/prefs/ios_chrome_syncable_prefs_database.cc:IosSyncablePref)-->
 
 </enum>

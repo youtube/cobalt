@@ -27,6 +27,8 @@
 #include "components/policy/core/common/policy_service.h"
 #include "components/policy/policy_constants.h"
 #include "components/prefs/pref_service.h"
+#include "components/regional_capabilities/program_settings.h"
+#include "components/regional_capabilities/regional_capabilities_service.h"
 #include "components/search_engines/choice_made_location.h"
 #include "components/search_engines/search_engine_type.h"
 #include "components/search_engines/search_engines_pref_names.h"
@@ -39,11 +41,6 @@
 #include "components/strings/grit/components_strings.h"
 #include "ui/base/l10n/l10n_util.h"
 
-#if !BUILDFLAG(IS_ANDROID)
-#include "components/grit/components_scaled_resources.h"  // nogncheck
-#include "ui/resources/grit/ui_resources.h"               // nogncheck
-#endif
-
 using ::country_codes::CountryId;
 
 namespace search_engines {
@@ -53,6 +50,26 @@ namespace {
 constexpr char kDisplayStateCountryIdKey[] = "country_id";
 constexpr char kDisplayStateSearchEnginesKey[] = "search_engines";
 constexpr char kDisplayStateSelectedEngineIndexKey[] = "selected_engine_index";
+
+// Returns a serialised program from the given `preference`, or `std::nullopt`
+// if the preference is not a valid program.
+std::optional<int> SerializedProgramFromPreference(
+    const PrefService::Preference& preference) {
+  if (preference.IsDefaultValue()) {
+    // If the preference has no set value, we assume the choice was made before
+    // we started persisting the program, and Waffle was the only supported
+    // program at the time.
+    return regional_capabilities::SerializeProgram(
+        regional_capabilities::Program::kWaffle);
+  }
+
+  int serialized_program = preference.GetValue()->GetInt();
+  if (regional_capabilities::IsValidSerializedProgram(serialized_program)) {
+    return serialized_program;
+  }
+
+  return std::nullopt;
+}
 
 }  // namespace
 
@@ -189,6 +206,8 @@ void WipeSearchEngineChoicePrefs(PrefService& profile_prefs,
   profile_prefs.ClearPref(
       prefs::kDefaultSearchProviderChoiceScreenCompletionVersion);
   profile_prefs.ClearPref(
+      prefs::kDefaultSearchProviderChoiceScreenCompletionProgram);
+  profile_prefs.ClearPref(
       prefs::kDefaultSearchProviderPendingChoiceScreenDisplayState);
   profile_prefs.ClearPref(
       prefs::kDefaultSearchProviderChoiceInvalidationTimestamp);
@@ -234,9 +253,18 @@ GetChoiceCompletionMetadata(const PrefService& prefs) {
         ChoiceCompletionMetadata::ParseError::kNullTimestamp);
   }
 
+  std::optional<int> serialized_choice_program =
+      SerializedProgramFromPreference(CHECK_DEREF(prefs.FindPreference(
+          prefs::kDefaultSearchProviderChoiceScreenCompletionProgram)));
+  if (!serialized_choice_program.has_value()) {
+    return base::unexpected(
+        ChoiceCompletionMetadata::ParseError::kInvalidProgram);
+  }
+
   return ChoiceCompletionMetadata{
       .timestamp = timestamp,
       .version = version,
+      .serialized_program = *serialized_choice_program,
   };
 }
 
@@ -244,7 +272,7 @@ void ClearSearchEngineChoiceInvalidation(PrefService& prefs) {
   prefs.ClearPref(prefs::kDefaultSearchProviderChoiceInvalidationTimestamp);
 }
 
-bool IsSearchEngineChoiceInvalid(PrefService& prefs) {
+bool IsSearchEngineChoiceInvalid(const PrefService& prefs) {
   if (!base::FeatureList::IsEnabled(
           switches::kInvalidateSearchEngineChoiceOnDeviceRestoreDetection)) {
     // Ensure that we never consider a search engine choice invalid when the
@@ -257,17 +285,34 @@ bool IsSearchEngineChoiceInvalid(PrefService& prefs) {
              prefs::kDefaultSearchProviderChoiceInvalidationTimestamp) > 0;
 }
 
+ChoiceCompletionMetadata CreateChoiceCompletionMetadataWithProgram(
+    int serialized_program) {
+  return ChoiceCompletionMetadata{
+      .timestamp = base::Time::Now(),
+      .version = version_info::GetVersion(),
+      .serialized_program = serialized_program,
+  };
+}
+
+ChoiceCompletionMetadata CreateChoiceCompletionMetadataForCurrentState(
+    regional_capabilities::RegionalCapabilitiesService&
+        regional_capabilities_service) {
+  return CreateChoiceCompletionMetadataWithProgram(
+      regional_capabilities_service.GetSerializedActiveProgram());
+}
+
 void SetChoiceCompletionMetadata(PrefService& prefs,
                                  ChoiceCompletionMetadata metadata) {
   // Verify that any invalidation has already been cleared. Otherwise the
-  // completion
-  // will be ignored.
+  // completion will be ignored.
   CHECK(!IsSearchEngineChoiceInvalid(prefs), base::NotFatalUntil::M140);
 
   prefs.SetInt64(prefs::kDefaultSearchProviderChoiceScreenCompletionTimestamp,
                  metadata.timestamp.ToDeltaSinceWindowsEpoch().InSeconds());
   prefs.SetString(prefs::kDefaultSearchProviderChoiceScreenCompletionVersion,
                   metadata.version.GetString());
+  prefs.SetInteger(prefs::kDefaultSearchProviderChoiceScreenCompletionProgram,
+                   metadata.serialized_program);
 }
 
 std::optional<base::Time> GetChoiceScreenCompletionTimestamp(

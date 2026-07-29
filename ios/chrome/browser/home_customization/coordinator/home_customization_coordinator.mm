@@ -4,6 +4,7 @@
 
 #import "ios/chrome/browser/home_customization/coordinator/home_customization_coordinator.h"
 
+#import "base/feature_list.h"
 #import "components/image_fetcher/ios/ios_image_data_fetcher_wrapper.h"
 #import "components/prefs/pref_service.h"
 #import "ios/chrome/browser/discover_feed/model/discover_feed_visibility_browser_agent.h"
@@ -12,6 +13,7 @@
 #import "ios/chrome/browser/home_customization/coordinator/home_customization_delegate.h"
 #import "ios/chrome/browser/home_customization/coordinator/home_customization_mediator.h"
 #import "ios/chrome/browser/home_customization/model/home_background_customization_service_factory.h"
+#import "ios/chrome/browser/home_customization/model/user_uploaded_image_manager_factory.h"
 #import "ios/chrome/browser/home_customization/ui/home_customization_background_color_picker_view_controller.h"
 #import "ios/chrome/browser/home_customization/ui/home_customization_background_picker_presentation_delegate.h"
 #import "ios/chrome/browser/home_customization/ui/home_customization_discover_view_controller.h"
@@ -32,6 +34,13 @@
 #import "services/network/public/cpp/shared_url_loader_factory.h"
 
 namespace {
+
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
+// Enables the liquid glass effect for the home customization menu background.
+BASE_FEATURE(kHomeCustomizationLiquidGlassBackground,
+             "HomeCustomizationLiquidGlassBackground",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#endif
 
 // The height of the menu's initial detent, which roughly represents a header
 // and 3 cells.
@@ -91,6 +100,8 @@ CGFloat const kSheetCornerRadius = 30;
   image_fetcher::ImageFetcherService* imageFetcherService =
       ImageFetcherServiceFactory::GetForProfile(self.profile);
   _activeSearchEngineLogoMediator = [NSMutableDictionary dictionary];
+  UserUploadedImageManager* userUploadedImageManager =
+      UserUploadedImageManagerFactory::GetForProfile(self.profile);
 
   _mediator = [[HomeCustomizationMediator alloc]
                      initWithPrefService:self.profile->GetPrefs()
@@ -99,7 +110,8 @@ CGFloat const kSheetCornerRadius = 30;
                        backgroundService:
                            HomeBackgroundCustomizationServiceFactory::
                                GetForProfile(self.profile)
-                     imageFetcherService:imageFetcherService];
+                     imageFetcherService:imageFetcherService
+                userUploadedImageManager:userUploadedImageManager];
   _mediator.navigationDelegate = self;
 
   // The Customization menu consists of a stack of presenting view controllers.
@@ -228,6 +240,13 @@ CGFloat const kSheetCornerRadius = 30;
   // Configure the navigation controller.
   UINavigationController* navigationController =
       [[UINavigationController alloc] initWithRootViewController:menuPage];
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
+  if (@available(iOS 26, *)) {
+    if (base::FeatureList::IsEnabled(kHomeCustomizationLiquidGlassBackground)) {
+      menuPage.view.backgroundColor = [UIColor clearColor];
+    }
+  }
+#endif
   navigationController.modalPresentationStyle = UIModalPresentationFormSheet;
 
   // Configure the presentation controller with a custom initial detent.

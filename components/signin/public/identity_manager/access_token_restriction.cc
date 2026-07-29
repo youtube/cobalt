@@ -127,8 +127,17 @@ bool IsUnconsentedSignedInOAuth2Scopes(const std::string& scope) {
       // Used by DevTools GenAI features
       GaiaConstants::kAidaOAuth2Scope,
 
+      // Used by DevTools Google Developer Program features
+      GaiaConstants::kGdpOAuth2Scope,
+
       // Required for certain Gemini features.
       GaiaConstants::kGeminiOAuth2Scope,
+
+      // Used by private webstore extension API.
+      GaiaConstants::kWebstoreOAuth2Scope,
+
+      // Required for Save to Drive and ChromeOS.
+      GaiaConstants::kDriveOAuth2Scope,
 
     // Required by ChromeOS only.
 #if BUILDFLAG(IS_CHROMEOS)
@@ -137,7 +146,6 @@ bool IsUnconsentedSignedInOAuth2Scopes(const std::string& scope) {
       GaiaConstants::kCastBackdropOAuth2Scope,
       GaiaConstants::kClearCutOAuth2Scope,
       GaiaConstants::kClientChannelOAuth2Scope,
-      GaiaConstants::kDriveOAuth2Scope,
       GaiaConstants::kExperimentsAndConfigsOAuth2Scope,
       GaiaConstants::kGCMGroupServerOAuth2Scope,
       GaiaConstants::kNearbyDevicesOAuth2Scope,

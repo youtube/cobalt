@@ -2755,6 +2755,7 @@ test("content_unittests") {
     "../browser/preloading/prefetch/prefetch_type_unittest.cc",
     "../browser/preloading/prefetch/prefetch_url_loader_interceptor_unittest.cc",
     "../browser/preloading/prefetcher_unittest.cc",
+    "../browser/preloading/preload_serving_metrics_unittest.cc",
     "../browser/preloading/preloading_attempt_impl_unittest.cc",
     "../browser/preloading/preloading_config_unittest.cc",
     "../browser/preloading/preloading_data_impl_unittest.cc",
@@ -2942,13 +2943,13 @@ test("content_unittests") {
     "../browser/webid/delegation/jwt_signer_unittest.cc",
     "../browser/webid/delegation/sd_jwt_unittest.cc",
     "../browser/webid/federated_auth_disconnect_request_unittest.cc",
-    "../browser/webid/federated_auth_request_impl_multiple_frames_unittest.cc",
-    "../browser/webid/federated_auth_request_impl_registry_unittest.cc",
-    "../browser/webid/federated_auth_request_impl_unittest.cc",
     "../browser/webid/identity_registry_unittest.cc",
     "../browser/webid/idp_network_request_manager_unittest.cc",
     "../browser/webid/mappers_unittest.cc",
     "../browser/webid/metrics_unittest.cc",
+    "../browser/webid/request_service_multiple_frames_unittest.cc",
+    "../browser/webid/request_service_registry_unittest.cc",
+    "../browser/webid/request_service_unittest.cc",
     "../browser/webid/test/delegated_idp_network_request_manager.cc",
     "../browser/webid/test/delegated_idp_network_request_manager.h",
     "../browser/webid/test/federated_auth_request_request_token_callback_helper.cc",
@@ -3071,6 +3072,12 @@ test("content_unittests") {
     ]
   }
 
+  if (is_ios) {
+    sources += [
+      "../browser/renderer_host/render_widget_host_view_ios_uiview_unittest.mm",
+    ]
+  }
+
   if (is_ios && target_platform == "iphoneos") {
     sources += [
       "../browser/date_time_chooser/ios/date_time_chooser_util_unittest.mm",
@@ -3172,6 +3179,7 @@ test("content_unittests") {
 
   deps = [
     ":content_test_mojo_bindings",
+    ":default_content_test_launcher",
     ":run_all_unittests",
     ":test_interfaces",
     ":test_support",

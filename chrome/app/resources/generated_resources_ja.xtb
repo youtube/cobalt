@@ -1186,6 +1186,7 @@
 <translation id="1805967612549112634">PIN の確認</translation>
 <translation id="1806335016774576568">別の開いているアプリに切り替える</translation>
 <translation id="1807246157184219062">ライト</translation>
+<translation id="1808571181382454540">設定ページに移動</translation>
 <translation id="1808805149659872686">新しいエントリ</translation>
 <translation id="1809201888580326312">このサイトやアプリのパスワードは保存しないよう設定しています</translation>
 <translation id="1809734401532861917">自分のブックマーク、履歴、パスワード、その他の設定を <ph name="USER_EMAIL_ADDRESS" /> に追加します</translation>
@@ -1554,6 +1555,7 @@
 <translation id="2059913712424898428">タイムゾーン</translation>
 <translation id="2060375639911876205">eSIM プロファイルの削除</translation>
 <translation id="2061366302742593739">表示するものがありません</translation>
+<translation id="2061589908388230480">一般に報告されているデータ侵害でパスワードが検出された場合、Google パスワード マネージャーによってログイン時にパスワードの変更を促すメッセージが表示されます。<ph name="BEGIN_LINK" />自動パスワード変更の詳細<ph name="END_LINK" /></translation>
 <translation id="2062354623176996748">シークレット ウィンドウを使うと、閲覧履歴を残さずにウェブを閲覧できます</translation>
 <translation id="206308717637808771">すべてのウィンドウを閉じるときにデータを削除します。データは表示しているサイトと同じように扱われます</translation>
 <translation id="2065405795449409761">Chrome は自動テスト ソフトウェアによって制御されています。</translation>
@@ -2448,6 +2450,7 @@
 <translation id="2669241540496514785"><ph name="APP_NAME" /> を開けませんでした</translation>
 <translation id="2669454659051515572">ダウンロードしたファイルは、このデバイスを使用するすべてのユーザーが確認できます</translation>
 <translation id="2670102641511624474"><ph name="APP_NAME" /> が Chrome タブを共有しています。</translation>
+<translation id="2670168377011445813">一般に報告されているデータ侵害でパスワードが検出された場合、Google パスワード マネージャーによってログイン時にパスワードの変更を促すメッセージが表示されます。<ph name="BEGIN_LINK" />自動パスワード変更の詳細<ph name="END_LINK" /></translation>
 <translation id="2670350619068134931">アニメーションを減らす</translation>
 <translation id="2670403088701171361">サイトにクリップボード内のテキストや画像へのアクセスを許可しない</translation>
 <translation id="2671423594960767771">グループを共有</translation>
@@ -3223,6 +3226,7 @@
 <translation id="3226487301970807183">左揃えのサイドパネルを切り替えます</translation>
 <translation id="322708765617468434">設定後にいつでも別のユーザーをデバイスに追加できます。ユーザーごとに使用環境をカスタマイズして、データのプライバシーを確保できます。</translation>
 <translation id="3227137524299004712">マイク</translation>
+<translation id="3227701057281907159">パッチ適用中</translation>
 <translation id="3228985231489269630">{NUM_EXTENSIONS,plural, =1{削除するか、<ph name="BEGIN_LINK" />Chrome ウェブストア<ph name="END_LINK" />にある同様の拡張機能に置き換えてください。}other{削除するか、<ph name="BEGIN_LINK" />Chrome ウェブストア<ph name="END_LINK" />にある同様の拡張機能に置き換えてください。}}</translation>
 <translation id="3229254977651514276">日付を確認してください</translation>
 <translation id="3230539834943294477">ヘルプ記事やデバイスのサポートを確認できます</translation>
@@ -3387,6 +3391,7 @@
 <translation id="3347086966102161372">画像アドレスをコピー(&amp;C)</translation>
 <translation id="3348038390189153836">リムーバブル デバイスが検出されました</translation>
 <translation id="3348131053948466246">絵文字の候補です。上または下矢印キーで移動し、Enter キーで挿入します。</translation>
+<translation id="3348973040180736882">解凍中</translation>
 <translation id="3349933790966648062">メモリ使用量</translation>
 <translation id="3350450887151703713">10 秒巻き戻し</translation>
 <translation id="3351472127384196879">ペンのボタンを追加または指定する</translation>
@@ -3541,6 +3546,7 @@
 <translation id="3450056559545492516">Chrome の機能やヒントに関するシステム通知を表示する</translation>
 <translation id="3450157232394774192">アイドル状態の占有率（%）</translation>
 <translation id="3450180775417907283"><ph name="MANAGER" /> が、Wi-Fi に接続して、今すぐアップデートをダウンロードするよう求めています。</translation>
+<translation id="3450251767853793660"><ph name="WINDOW_TITLE" /> - このタブは Gemini と共有されています</translation>
 <translation id="345078987193237421">カメラへのアクセス権を持つアプリとウェブサイト、システム サービスに対して、カメラへのアクセスを許可します</translation>
 <translation id="3451362021220965191">独立したウェブアプリは、スマートカード リーダーを操作して、挿入または提示されたスマートカードにアクセスできます。通常、スマートカードには、操作の認証や承認、サービスへのログインなどに使用される ID が含まれます。</translation>
 <translation id="3452999110156026232">保護者によるアクセス</translation>
@@ -4534,7 +4540,6 @@
 <translation id="4109135793348361820"><ph name="USER_NAME" />（<ph name="USER_EMAIL" />）にウィンドウを移動</translation>
 <translation id="4110485659976215879">警告を復元</translation>
 <translation id="4112194537011183136"><ph name="DEVICE_NAME" />（オフライン）</translation>
-<translation id="4113030288477039509">管理者により管理されています</translation>
 <translation id="4113743276555482284">ファイルのパスワード</translation>
 <translation id="4113888471797244232"><ph name="BEGIN_PARAGRAPH1" />[位置情報の精度] をオンにした場合、Wi-Fi アクセス ポイントやモバイル ネットワーク基地局などのワイヤレス シグナルに関する情報と、加速度計やジャイロスコープなどのデバイスのセンサーデータに基づき、デバイスのより正確な位置情報が推定され、Android アプリやサービスの位置情報を利用した機能で使用されます。この設定では、クラウドソースのワイヤレス シグナルを利用した位置情報の向上に役立てるため、デバイスのセンサーに関する情報やユーザーの付近のワイヤレス シグナルが Google で定期的に処理されます。<ph name="END_PARAGRAPH1" />
 　　　　<ph name="BEGIN_PARAGRAPH2" />Google は、ユーザーを特定することなく、位置情報の精度と、位置情報を利用したサービスを改善し、Google のサービスを全般的に改善、提供、維持する目的で、この情報を使用します。また、ユーザーのニーズに応えるうえでの Google およびサードパーティの正当な利益に基づき、この情報を処理します。<ph name="END_PARAGRAPH2" />
@@ -4983,7 +4988,6 @@
 <translation id="443196770280837407">キーボード ショートカットで Gemini を開きます。</translation>
 <translation id="4432621511648257259">パスワードが正しくありません。</translation>
 <translation id="4434611816075088065">他に確認の必要な項目はありません</translation>
-<translation id="443475966875174318">互換性のないアプリケーションの更新または削除</translation>
 <translation id="443503224864902151">ほとんどのサイトからログアウトします。ただし、同期データを削除できるように Google アカウントへのログイン状態は維持されます。</translation>
 <translation id="4437879751057074691">パスワードとパスキーを保存するか確認する</translation>
 <translation id="4437947179446780764">カスタム DNS サービス プロバイダを追加</translation>
@@ -5397,7 +5401,6 @@
 <translation id="4742334355511750246">画像の表示を許可しないサイト</translation>
 <translation id="4742795653798179840">Chrome データを削除しました</translation>
 <translation id="4742970037960872810">テキストの選択を解除</translation>
-<translation id="4743260470722568160"><ph name="BEGIN_LINK" />アプリケーションの更新方法を確認<ph name="END_LINK" /></translation>
 <translation id="4743990041512863976">許可 – <ph name="PERMISSION_DETAILS" />。<ph name="LINK_BEGIN" />システムのマイクへのアクセス<ph name="LINK_END" />をオンにする。</translation>
 <translation id="4744260496658845719">キーボード バックライトの明るさ</translation>
 <translation id="4744268813103118742">サイトに移動</translation>
@@ -6065,7 +6068,6 @@
 <translation id="5213114823401215820">閉じたグループを開く</translation>
 <translation id="5213481667492808996">「<ph name="NAME" />」データサービスを使用できるようになりました</translation>
 <translation id="5213891612754844763">プロキシ設定を表示</translation>
-<translation id="5214484632844730228">他のデバイスのタブを表示しますか？</translation>
 <translation id="5214639857958972833">ブックマーク「<ph name="BOOKMARK_TITLE" />」が作成されました。</translation>
 <translation id="5215450412607891876">セキュリティ アップデートの延長を有効化</translation>
 <translation id="5215502535566372932">国を選択</translation>
@@ -7139,7 +7141,6 @@
 <translation id="5989497858237037960">サイトを閲覧すると、そのページのコンテンツが暗号化されてデバイスに保存されます（この処理は Chrome のパフォーマンスに影響する可能性があります）</translation>
 <translation id="5990266201903445068">Wi-Fi のみ</translation>
 <translation id="5990386583461751448">翻訳済み</translation>
-<translation id="599131315899248751">{NUM_APPLICATIONS,plural, =1{今後もウェブ ブラウジングを続けられるように、管理者にこのアプリケーションの削除を依頼してください。}other{今後もウェブ ブラウジングを続けられるように、管理者にこれらのアプリケーションの削除を依頼してください。}}</translation>
 <translation id="5992225669837656567">すべてのマウスの接続を解除しました</translation>
 <translation id="5992652489368666106">余白なし</translation>
 <translation id="5993508466487156420">{NUM_SITES,plural, =1{1 件のサイトの確認が完了しました}other{{NUM_SITES} 件のサイトの確認が完了しました}}</translation>
@@ -7359,6 +7360,7 @@
 <translation id="6151128161396960693">この招待状の送信元が信頼できるか確認してください</translation>
 <translation id="6151771661215463137">このファイルはダウンロード フォルダにすでにあります。</translation>
 <translation id="6152918902620844577">次の処理を待機しています</translation>
+<translation id="6152929108650354050">このタブは Gemini と共有されています</translation>
 <translation id="6153439704237222699">トラッキング拒否の詳細</translation>
 <translation id="6154240335466762404">すべてのポートを削除</translation>
 <translation id="615436196126345398">プロトコル</translation>
@@ -8627,7 +8629,6 @@
 <translation id="7039951224110875196">お子様用の Google アカウントを作成する</translation>
 <translation id="7039968672732182060">この Chromebook は、セキュリティ アップデートの提供が終了しました。最新のセキュリティとソフトウェアにアップグレードしましょう。特典の利用規約が適用されます。</translation>
 <translation id="7042116641003232070">デバイスへのデータの保存を許可しました</translation>
-<translation id="7043108582968290193">完了しました。互換性のないアプリケーションは見つかりませんでした。</translation>
 <translation id="7044124535091449260">サイトアクセスの詳細</translation>
 <translation id="7044207729381622209">タブで表示中のものも含め、これらのサイトからログアウトします</translation>
 <translation id="7044211973375150246"><ph name="APP_NAME" /> と同じリンクを開くよう設定されているアプリがあります。設定を変更すると、<ph name="APP_NAME_2" /> で対応リンクを開けなくなります。</translation>
@@ -8963,7 +8964,6 @@
 <translation id="7299588179200441056"><ph name="URL" />～<ph name="FOLDER" /></translation>
 <translation id="730068416968462308">アニメーション</translation>
 <translation id="7301812050652048720">パスキーを削除しました</translation>
-<translation id="730289542559375723">{NUM_APPLICATIONS,plural, =1{このアプリケーションは、Chrome の正常な動作を妨げる可能性があります。}other{これらのアプリケーションは、Chrome の正常な動作を妨げる可能性があります。}}</translation>
 <translation id="7303281435234579599">デモモードの設定中にエラーが発生しました。</translation>
 <translation id="7303485269821975179"><ph name="DEVICE_TYPE" /> のパスワードを設定する</translation>
 <translation id="7303900363563182677">このサイトでは、クリップボードにコピーされているテキストや画像へのアクセスがブロックされています</translation>
@@ -10429,7 +10429,6 @@
 <translation id="8280848878018088610">砕け散る海の波と、幻想的な市街と城郭、暗い雰囲気の背景。</translation>
 <translation id="828180235270931531">その他の利用可能なプリンタ</translation>
 <translation id="8281886186245836920">スキップ</translation>
-<translation id="8283802069507225582">他のデバイスで中断したところから再開するには、履歴とタブを <ph name="ACCOUNT_EMAIL" /> に同期します</translation>
 <translation id="8284279544186306258"><ph name="WEBSITE_1" /> の全サイト</translation>
 <translation id="8284326494547611709">字幕</translation>
 <translation id="8285625579699113397">お客様のアカウント</translation>
@@ -10644,7 +10643,6 @@
 <translation id="8431190899827883166">タップを表示</translation>
 <translation id="843173223122814223">AI で背景を作成</translation>
 <translation id="8431977087510901105">カーソルの設定がリセットされました</translation>
-<translation id="843210078733508372">ログイン後にパスワードの変更を続行します</translation>
 <translation id="8433186206711564395">ネットワーク設定</translation>
 <translation id="8434109185104929038">読書コーナー</translation>
 <translation id="8434837876193928924">タブグループの詳細</translation>
@@ -10658,7 +10656,6 @@
 <translation id="844059392176531372">「<ph name="GROUP_NAME" />」タブグループを共有</translation>
 <translation id="8440630305826533614">Linux アプリ</translation>
 <translation id="844063558976952706">常にこのサイトのプラグインを実行する</translation>
-<translation id="8440730169421032987">複数のデバイスでブラウジングしますか？</translation>
 <translation id="8441313165929432954">テザリングを有効または無効にする</translation>
 <translation id="8443986842926457191">URL が 2048 文字を超えています</translation>
 <translation id="8445281870900174108">このタブはカメラを使用しています</translation>
@@ -10705,7 +10702,6 @@
 <translation id="8472623782143987204">ハードウェア式</translation>
 <translation id="8473540203671727883">カーソル部分のテキストを読み上げる</translation>
 <translation id="8473863474539038330">住所やその他の情報</translation>
-<translation id="847433688444405067">複数のデバイスでブラウジング</translation>
 <translation id="8474378002946546633">通知を許可する</translation>
 <translation id="8474561048882755118">同様の商品を並べて表示して、重要な情報を簡単に比較できるようにします</translation>
 <translation id="8475313423285172237">パソコン上の別のプログラムにより、Chrome の動作方法を変更する可能性のある拡張機能が追加されました。</translation>
@@ -10784,6 +10780,7 @@
 <translation id="8528962588711550376">ログインしています。</translation>
 <translation id="8531367864749403520">タブバーからグループを削除するには、[グループを非表示] を選択します</translation>
 <translation id="8531701051932785007">セーフ ブラウジング保護強化機能はオフになっています</translation>
+<translation id="8533411848724153701">Gemini</translation>
 <translation id="8533670235862049797">セーフ ブラウジングはオンになっています</translation>
 <translation id="853377257670044988">{GROUP_COUNT,plural, =1{タブはこのデバイスで引き続き表示されますが、グループは <ph name="EMAIL" /> にログインしているすべてのデバイスから削除されます}other{タブはこのデバイスで引き続き表示されますが、グループは <ph name="EMAIL" /> にログインしているすべてのデバイスから削除されます}}</translation>
 <translation id="8535005006684281994">Netscape 証明書更新 URL</translation>
@@ -11120,7 +11117,6 @@
 <translation id="8754200782896249056">&lt;p&gt;<ph name="PRODUCT_NAME" /> をサポート対象のデスクトップ環境で実行するとシステムのプロキシ設定が使用されますが、お使いのシステムがサポートされていないか、システム設定の適用で問題が発生した可能性があります。&lt;/p&gt;
 
           &lt;p&gt;コマンドラインからの設定は可能です。フラグや環境変数について詳しくは、&lt;code&gt;man <ph name="PRODUCT_BINARY_NAME" />&lt;/code&gt; を実行してご確認ください。&lt;/p&gt;</translation>
-<translation id="8754810799862630650">他のパソコンやスマートフォンで開いているタブを表示するには、履歴とタブを <ph name="ACCOUNT_EMAIL" /> に同期します</translation>
 <translation id="8755175579224030324">デバイスに保存された証明書やキーの管理など、組織のセキュリティ関連のタスクを実行する</translation>
 <translation id="875532100880844232"><ph name="DEVICE_NAME" /> のキーごとにアクションを選択します</translation>
 <translation id="8755376271068075440">拡大(&amp;L)</translation>
@@ -11748,6 +11744,7 @@
 <translation id="9173063514323762371">ブックマーク バーを非表示(&amp;H)</translation>
 <translation id="917350715406657904">保護者が設定した <ph name="APP_NAME" /> の利用時間の上限に達しました。明日は <ph name="TIME_LIMIT" />まで使えます。</translation>
 <translation id="9174401638287877180">使用状況データや診断データを送信します。診断データやデバイスとアプリの使用状況データを Google に自動送信して、お子様向けの Android 機能の向上にご協力ください。この情報を使ってお子様個人が特定されることはありません。この情報は、システムとアプリの安定性の向上やその他の機能の改善に役立てられます。また、Google のアプリやパートナー（Android デベロッパーなど）も、集計データとしてこの情報を活用します。お子様の [その他のウェブとアプリのアクティビティ] の設定がオンになっている場合、このデータはお子様の Google アカウントに保存されます。</translation>
+<translation id="9174854240439014335">ウィンドウの左端または右端で分割ビューのドラッグ＆ドロップを許可する</translation>
 <translation id="9176611096776448349"><ph name="WINDOW_TITLE" /> - Bluetooth デバイスに接続されています</translation>
 <translation id="9177859716483578738">続行すると、<ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> からこのサイトに <ph name="FIELDS_STRING" /> が共有されます。このサイトの<ph name="BEGIN_LINK" />プライバシー ポリシー<ph name="END_LINK" />をご確認ください。</translation>
 <translation id="9178061802301856367">ログインデータの削除</translation>
@@ -11855,7 +11852,6 @@
 <translation id="962802172452141067">ブックマーク フォルダ ツリー</translation>
 <translation id="963000966785016697"><ph name="VISUAL_SEARCH_PROVIDER" /> で画像を検索</translation>
 <translation id="964286338916298286">お使いのデバイスの Chrome 特典は IT 管理者によって無効にされています。</translation>
-<translation id="964439421054175458">{NUM_APLLICATIONS,plural, =1{アプリケーション}other{アプリケーション}}</translation>
 <translation id="964790508619473209">画面の配置</translation>
 <translation id="96535553604365597">Google Cast の問題を報告</translation>
 <translation id="965470117154635268">{NUM_SITES,plural, =1{最近、通知を多数受け取った 1 件のサイトを確認する}other{最近、通知を多数受け取った {NUM_SITES} 件のサイトを確認する}}</translation>

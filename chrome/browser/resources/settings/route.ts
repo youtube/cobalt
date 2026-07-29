@@ -29,12 +29,14 @@ function addPrivacyChildRoutes(r: Partial<SettingsRoutes>) {
     r.PRIVACY_GUIDE = r.PRIVACY.createChild('guide');
   }
   r.SITE_SETTINGS = r.PRIVACY.createChild('/content');
+  r.SITE_SETTINGS.hasMigratedToPlugin = true;
   r.SECURITY = r.PRIVACY.createChild('/security');
 
   r.COOKIES = r.PRIVACY.createChild('/cookies');
   r.COOKIES.hasMigratedToPlugin = true;
   if (loadTimeData.getBoolean('enableIncognitoTrackingProtections') ) {
     r.INCOGNITO_TRACKING_PROTECTIONS = r.PRIVACY.createChild('/incognito');
+    r.INCOGNITO_TRACKING_PROTECTIONS.hasMigratedToPlugin = true;
   }
 
   if (!loadTimeData.getBoolean('isPrivacySandboxRestricted')) {
@@ -73,6 +75,7 @@ function addPrivacyChildRoutes(r: Partial<SettingsRoutes>) {
       r.SITE_SETTINGS_ALL.createChild('/content/siteDetails');
 
   r.SITE_SETTINGS_HANDLERS = r.SITE_SETTINGS.createChild('/handlers');
+  r.SITE_SETTINGS_HANDLERS.hasMigratedToPlugin = true;
 
   // TODO(tommycli): Find a way to refactor these repetitive category
   // routes.
@@ -109,12 +112,15 @@ function addPrivacyChildRoutes(r: Partial<SettingsRoutes>) {
   r.SITE_SETTINGS_JAVASCRIPT_OPTIMIZER = r.SITE_SETTINGS.createChild('v8');
   if (loadTimeData.getBoolean('enableKeyboardLockPrompt')) {
     r.SITE_SETTINGS_KEYBOARD_LOCK = r.SITE_SETTINGS.createChild('keyboardLock');
+    r.SITE_SETTINGS_KEYBOARD_LOCK.hasMigratedToPlugin = true;
   }
   r.SITE_SETTINGS_SOUND = r.SITE_SETTINGS.createChild('sound');
   r.SITE_SETTINGS_SENSORS = r.SITE_SETTINGS.createChild('sensors');
   r.SITE_SETTINGS_LOCATION = r.SITE_SETTINGS.createChild('location');
+  r.SITE_SETTINGS_LOCATION.hasMigratedToPlugin = true;
   r.SITE_SETTINGS_MICROPHONE = r.SITE_SETTINGS.createChild('microphone');
   r.SITE_SETTINGS_NOTIFICATIONS = r.SITE_SETTINGS.createChild('notifications');
+  r.SITE_SETTINGS_NOTIFICATIONS.hasMigratedToPlugin = true;
   r.SITE_SETTINGS_POPUPS = r.SITE_SETTINGS.createChild('popups');
   r.SITE_SETTINGS_MIDI_DEVICES = r.SITE_SETTINGS.createChild('midiDevices');
   r.SITE_SETTINGS_USB_DEVICES = r.SITE_SETTINGS.createChild('usbDevices');
@@ -128,7 +134,9 @@ function addPrivacyChildRoutes(r: Partial<SettingsRoutes>) {
         r.SITE_SETTINGS.createChild('bluetoothDevices');
   }
   r.SITE_SETTINGS_ZOOM_LEVELS = r.SITE_SETTINGS.createChild('zoomLevels');
+  r.SITE_SETTINGS_ZOOM_LEVELS.hasMigratedToPlugin = true;
   r.SITE_SETTINGS_PDF_DOCUMENTS = r.SITE_SETTINGS.createChild('pdfDocuments');
+  r.SITE_SETTINGS_PDF_DOCUMENTS.hasMigratedToPlugin = true;
   r.SITE_SETTINGS_PROTECTED_CONTENT =
       r.SITE_SETTINGS.createChild('protectedContent');
   if (loadTimeData.getBoolean('enablePaymentHandlerContentSetting')) {
@@ -140,6 +148,7 @@ function addPrivacyChildRoutes(r: Partial<SettingsRoutes>) {
         r.SITE_SETTINGS.createChild('federatedIdentityApi');
   }
   r.SITE_SETTINGS_SITE_DATA = r.SITE_SETTINGS.createChild('siteData');
+  r.SITE_SETTINGS_SITE_DATA.hasMigratedToPlugin = true;
   r.SITE_SETTINGS_VR = r.SITE_SETTINGS.createChild('vr');
   if (loadTimeData.getBoolean('enableExperimentalWebPlatformFeatures')) {
     r.SITE_SETTINGS_BLUETOOTH_SCANNING =
@@ -155,13 +164,16 @@ function addPrivacyChildRoutes(r: Partial<SettingsRoutes>) {
   r.SITE_SETTINGS_STORAGE_ACCESS = r.SITE_SETTINGS.createChild('storageAccess');
   r.SITE_SETTINGS_AUTOMATIC_FULLSCREEN =
       r.SITE_SETTINGS.createChild('automaticFullScreen');
+  r.SITE_SETTINGS_AUTOMATIC_FULLSCREEN.hasMigratedToPlugin = true;
   if (loadTimeData.getBoolean('enableWebAppInstallation')) {
     r.SITE_SETTINGS_WEB_APP_INSTALLATION =
         r.SITE_SETTINGS.createChild('webApplications');
+    r.SITE_SETTINGS_WEB_APP_INSTALLATION.hasMigratedToPlugin = true;
   }
   if (loadTimeData.getBoolean('enableLocalNetworkAccessSetting')) {
     r.SITE_SETTINGS_LOCAL_NETWORK_ACCESS =
         r.SITE_SETTINGS.createChild('localNetworkAccess');
+    r.SITE_SETTINGS_LOCAL_NETWORK_ACCESS.hasMigratedToPlugin = true;
   }
 }
 

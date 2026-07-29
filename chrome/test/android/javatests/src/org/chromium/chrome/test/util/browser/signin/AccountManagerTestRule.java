@@ -6,23 +6,17 @@ package org.chromium.chrome.test.util.browser.signin;
 
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
 
-import android.graphics.Bitmap;
-import android.graphics.Canvas;
-import android.graphics.drawable.Drawable;
 import android.view.View;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.appcompat.content.res.AppCompatResources;
 
 import org.hamcrest.Matcher;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 
-import org.chromium.base.ContextUtils;
 import org.chromium.base.ThreadUtils;
-import org.chromium.chrome.R;
 import org.chromium.components.signin.AccountManagerFacadeProvider;
 import org.chromium.components.signin.base.AccountInfo;
 import org.chromium.components.signin.identitymanager.AccountInfoServiceProvider;
@@ -47,9 +41,6 @@ public class AccountManagerTestRule implements TestRule {
     // The matcher for the cancel button in the fake add account activity.
     public static final Matcher<View> CANCEL_ADD_ACCOUNT_BUTTON_MATCHER =
             withId(FakeAccountManagerFacade.AddAccountActivityStub.CANCEL_BUTTON_ID);
-
-    // TODO(crbug.com/40890215): Use TEST_ACCOUNT_1 instead.
-    @Deprecated public static final String TEST_ACCOUNT_EMAIL = "test@gmail.com";
 
     private final @NonNull FakeAccountManagerFacade mFakeAccountManagerFacade;
     // TODO(crbug.com/40234741): Revise this test rule and make this non-nullable.
@@ -107,42 +98,6 @@ public class AccountManagerTestRule implements TestRule {
      */
     public void observeIdentityManager(IdentityManager identityManager) {
         identityManager.addObserver(mFakeAccountInfoService);
-    }
-
-    // TODO(crbug.com/40890215): Remove deprecated `addAccount` overloads.
-    /**
-     * Adds an account of the given accountName to the fake AccountManagerFacade.
-     *
-     * @return The CoreAccountInfo for the account added.
-     */
-    @Deprecated
-    public AccountInfo addAccount(String accountName) {
-        final String baseName = accountName.split("@", 2)[0];
-        AccountInfo accountInfo =
-                new AccountInfo.Builder(accountName, FakeAccountManagerFacade.toGaiaId(accountName))
-                        .fullName(baseName + ".full")
-                        .givenName(baseName + ".given")
-                        .accountImage(createAvatar())
-                        .build();
-        addAccount(accountInfo);
-        return accountInfo;
-    }
-
-    /**
-     * Adds an account to the fake AccountManagerFacade and {@link AccountInfo} to {@link
-     * FakeAccountInfoService}.
-     */
-    @Deprecated
-    public AccountInfo addAccount(
-            String email, String fullName, String givenName, @Nullable Bitmap avatar) {
-        AccountInfo accountInfo =
-                new AccountInfo.Builder(email, FakeAccountManagerFacade.toGaiaId(email))
-                        .fullName(fullName)
-                        .givenName(givenName)
-                        .accountImage(avatar)
-                        .build();
-        addAccount(accountInfo);
-        return accountInfo;
     }
 
     /**
@@ -207,27 +162,6 @@ public class AccountManagerTestRule implements TestRule {
                     mFakeAccountManagerFacade.addOrUpdateAccessTokenError(accountId, authError);
                     identityManager.updateAuthErrorForTesting(accountId, authError);
                 });
-    }
-
-    /**
-     * Returns an avatar image created from test resource.
-     *
-     * <p>TODO(crbug.com/40890215): Remove this after deleting the deprecated `addAccount` overload
-     * which calls it.
-     */
-    private static Bitmap createAvatar() {
-        Drawable drawable =
-                AppCompatResources.getDrawable(
-                        ContextUtils.getApplicationContext(), R.drawable.test_profile_picture);
-        Bitmap bitmap =
-                Bitmap.createBitmap(
-                        drawable.getIntrinsicWidth(),
-                        drawable.getIntrinsicHeight(),
-                        Bitmap.Config.ARGB_8888);
-        Canvas canvas = new Canvas(bitmap);
-        drawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
-        drawable.draw(canvas);
-        return bitmap;
     }
 
     /**

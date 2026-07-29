@@ -40,7 +40,6 @@ extern NSString* const kCustomizationToggleDiscoverIdentifier;
 extern NSString* const kCustomizationToggleSetUpListIdentifier;
 extern NSString* const kCustomizationToggleSafetyCheckIdentifier;
 extern NSString* const kCustomizationToggleTabResumptionIdentifier;
-extern NSString* const kCustomizationToggleParcelTrackingIdentifier;
 extern NSString* const kCustomizationToggleShopCardPriceTrackingIdentifier;
 extern NSString* const kCustomizationToggleShopCardReviewsIdentifier;
 extern NSString* const kCustomizationToggleTipsIdentifier;
@@ -99,7 +98,6 @@ enum class CustomizationToggleType : NSInteger {
   kSetUpList,
   kSafetyCheck,
   kTapResumption,
-  kParcelTracking,
   kShopCard,
 };
 

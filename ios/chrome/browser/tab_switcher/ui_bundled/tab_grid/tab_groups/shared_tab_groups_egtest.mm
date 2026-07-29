@@ -320,6 +320,11 @@ void WaitForFakeJoinFlowView() {
 // Checks opening the Share flow from the Tab Grid and actually sharing. Then
 // checks opening the Manage flow. Using the face pile.
 - (void)testShareGroupAndManageGroupUsingFacePile {
+  // TODO(crbug.com/441923004): Re-enable this test on iOS26.
+  if (base::ios::IsRunningOnIOS26OrLater()) {
+    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
+  }
+
   // Open the tab grid.
   [ChromeEarlGreyUI openTabGrid];
 
@@ -387,6 +392,11 @@ void WaitForFakeJoinFlowView() {
 // Checks opening the Share flow from the Tab Grid and actually sharing. Then
 // checks opening the Manage flow. Using context menus.
 - (void)testShareGroupAndManageGroupUsingContextMenus {
+  // TODO(crbug.com/442331038): Re-enable this flaky test on iOS26.
+  if (base::ios::IsRunningOnIOS26OrLater()) {
+    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
+  }
+
   // Open the tab grid.
   [ChromeEarlGreyUI openTabGrid];
 
@@ -454,9 +464,7 @@ void WaitForFakeJoinFlowView() {
 
 // Checks that the IPH is presented when the user foreground the app with a
 // shared tab group active.
-// TODO(crbug.com/411064928): This fails on simulator.
-// TODO(crbug.com/414607496): This fails on device.
-- (void)DISABLED_testForegroundIPH {
+- (void)testForegroundIPH {
   if ([ChromeEarlGrey isIPadIdiom]) {
     // Not available on iPad.
     return;

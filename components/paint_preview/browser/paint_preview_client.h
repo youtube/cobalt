@@ -9,6 +9,7 @@
 
 #include <memory>
 
+#include "base/compiler_specific.h"
 #include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
 #include "base/files/file_path.h"
@@ -42,13 +43,22 @@ class PaintPreviewClient
                               std::unique_ptr<CaptureResult>)>;
 
   using RecordingRequestParamsReadyCallback =
-      base::OnceCallback<void(mojom::PaintPreviewStatus,
+      base::OnceCallback<void(RecordingParams,
+                              mojom::PaintPreviewStatus,
                               mojom::PaintPreviewCaptureParamsPtr)>;
 
   // Augmented version of mojom::PaintPreviewServiceParams.
   struct PaintPreviewParams {
     explicit PaintPreviewParams(RecordingPersistence persistence);
+
+    PaintPreviewParams(const PaintPreviewParams&) = delete;
+    PaintPreviewParams& operator=(const PaintPreviewParams&) = delete;
+    PaintPreviewParams(PaintPreviewParams&&) = default;
+    PaintPreviewParams& operator=(PaintPreviewParams&&) = default;
+
     ~PaintPreviewParams();
+
+    PaintPreviewParams Clone() const;
 
     // Indicates where the PaintPreviewRecorder should store its intermediate
     // artifacts.
@@ -78,7 +88,7 @@ class PaintPreviewClient
   // passed the main frame or for just a specific subframe depending on
   // |render_frame_host|. |callback| is invoked on completion, and must be
   // non-null.
-  void CapturePaintPreview(const PaintPreviewParams& params,
+  void CapturePaintPreview(PaintPreviewParams params,
                            content::RenderFrameHost* render_frame_host,
                            PaintPreviewCallback callback);
 
@@ -165,6 +175,9 @@ class PaintPreviewClient
     // description of the effects of this flag.
     bool skip_accelerated_content = false;
 
+    // Controls optional redaction of iframes.
+    RedactionParams redaction_params;
+
     // Returns whether the given frame is allowed to be captured.
     bool IsAllowedToCapture(const base::UnguessableToken& frame_token) const;
 
@@ -183,7 +196,7 @@ class PaintPreviewClient
     // |persistence| is |RecordingPersistence::kFileSystem|, this will create
     // the file that will act as the sink for the recording.
     void PrepareRecordingRequestParams(
-        const RecordingParams& capture_params,
+        RecordingParams capture_params,
         const base::UnguessableToken& frame_guid,
         RecordingRequestParamsReadyCallback ready_callback) const;
 
@@ -211,7 +224,7 @@ class PaintPreviewClient
   // Sets up for a capture of a frame on |render_frame_host| according to
   // |params|.
   void CapturePaintPreviewInternal(
-      const RecordingParams& params,
+      RecordingParams params,
       content::RenderFrameHost* render_frame_host,
       const InProgressDocumentCaptureState& document_data);
 
@@ -221,8 +234,8 @@ class PaintPreviewClient
   // the File stored in |result| (base::File isn't aware of its file path).
   void RequestCaptureOnUIThread(
       const base::UnguessableToken& frame_guid,
-      const RecordingParams& params,
       const content::GlobalRenderFrameHostId& render_frame_id,
+      RecordingParams params,
       mojom::PaintPreviewStatus status,
       mojom::PaintPreviewCaptureParamsPtr capture_params);
 
@@ -230,8 +243,8 @@ class PaintPreviewClient
   // complete.
   void OnPaintPreviewCapturedCallback(
       const base::UnguessableToken& frame_guid,
-      const RecordingParams& params,
       const content::GlobalRenderFrameHostId& render_frame_id,
+      RecordingParams params,
       mojom::PaintPreviewStatus status,
       mojom::PaintPreviewCaptureResponsePtr response);
 
@@ -244,6 +257,36 @@ class PaintPreviewClient
   // Handles finishing the capture once all frames are received.
   void OnFinished(base::UnguessableToken guid,
                   InProgressDocumentCaptureState& document_data);
+
+  // Performs bookkeeping and requests geometry metadata necessary for iframe
+  // redaction.
+  void BeginSubframeRedaction(const base::UnguessableToken& guid,
+                              RecordingParams params,
+                              content::RenderFrameHost* render_subframe_host,
+                              InProgressDocumentCaptureState& document_data);
+
+  // Synthesizes a redacted subframe and persists it appropriately, then resumes
+  // the capture.
+  void RedactSubframe(
+      const base::UnguessableToken& frame_guid,
+      const content::GlobalRenderFrameHostId& render_frame_id,
+      RecordingParams params,
+      base::OnceCallback<void(RecordingParams,
+                              mojom::PaintPreviewStatus,
+                              mojom::PaintPreviewCaptureResponsePtr)> callback,
+      mojom::GeometryMetadataResponsePtr response);
+
+  // Performs bookkeeping to keep track of the fact that this frame's capture is
+  // still pending.
+  void AwaitSubframeCapture(const base::UnguessableToken& frame_guid,
+                            const RecordingParams& params,
+                            InProgressDocumentCaptureState& document_data);
+
+  // Returns a reference to the PaintPreviewRecorder remote for the given frame.
+  // If no such remote exists yet, one is created.
+  mojo::AssociatedRemote<mojom::PaintPreviewRecorder>& GetOrInsertRecorder(
+      const base::UnguessableToken& frame_guid,
+      content ::RenderFrameHost& render_frame_host) LIFETIME_BOUND;
 
   // Storage ------------------------------------------------------------------
 

@@ -56,7 +56,10 @@ enum class OAuthConsumerId {
   kLensOverlayQueryController = 41,
   kTrustedVaultFrontend = 42,
   kFeedNetwork = 43,
-  kMaxValue = kFeedNetwork,
+  kAutofillPayments = 44,
+  kPaymentsAccessTokenFetcher = 45,
+  kSaveToDrive = 46,
+  kMaxValue = kSaveToDrive,
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/signin/enums.xml:OAuthConsumerId)
 

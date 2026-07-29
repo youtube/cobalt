@@ -14,6 +14,7 @@
 #include "chrome/browser/ui/webui_browser/browser.mojom.h"
 #include "chrome/browser/ui/webui_browser/webui_browser_window.h"
 #include "components/guest_contents/common/guest_contents.mojom.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui_controller.h"
 #include "content/public/browser/webui_config.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -81,7 +82,10 @@ class WebUIBrowserUI : public ui::MojoWebUIController,
     return static_cast<WebUIBrowserWindow*>(browser_->window());
   }
 
-  webui_browser::mojom::Page* page() { return page_.get(); }
+  webui_browser::mojom::Page* page() {
+    // get() should only be called if bound, so check first.
+    return page_.is_bound() ? page_.get() : nullptr;
+  }
 
   base::WeakPtr<WebUIBrowserUI> GetWeakPtr();
 

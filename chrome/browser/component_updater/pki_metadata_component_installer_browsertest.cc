@@ -766,6 +766,9 @@ IN_PROC_BROWSER_TEST_F(PKIMetadataComponentChromeRootStoreUpdateTest,
 
 IN_PROC_BROWSER_TEST_F(PKIMetadataComponentChromeRootStoreUpdateTest,
                        UpdateTrustAnchorIDs) {
+  // TODO(crbug.com/440207613): This test has temporary debug logging to try to
+  // narrow down a flaky test timeout. Remove debug logging when done.
+  LOG(ERROR) << "UpdateTrustAnchorIDs start";
   content::StoragePartition* partition =
       chrome_test_utils::GetActiveWebContents(this)
           ->GetBrowserContext()
@@ -780,6 +783,7 @@ IN_PROC_BROWSER_TEST_F(PKIMetadataComponentChromeRootStoreUpdateTest,
   scoped_refptr<net::X509Certificate> intermediate2 = net::ImportCertFromFile(
       net::GetTestCertsDirectory(), "verisign_intermediate_ca_2016.pem");
   ASSERT_TRUE(intermediate2);
+  LOG(ERROR) << "UpdateTrustAnchorIDs after loading test certs";
 
   // Test that the initial set of Trust Anchor IDs comes from the compiled-in
   // root store.
@@ -788,8 +792,12 @@ IN_PROC_BROWSER_TEST_F(PKIMetadataComponentChromeRootStoreUpdateTest,
         net::TrustStoreChrome::GetTrustAnchorIDsFromCompiledInRootStore();
     mojo::ScopedAllowSyncCallForTesting allow_sync_call;
     std::vector<std::vector<uint8_t>> trust_anchor_ids;
+    LOG(ERROR)
+        << "UpdateTrustAnchorIDs before 1st GetTrustAnchorIDsForTesting call";
     partition->GetNetworkContext()->GetTrustAnchorIDsForTesting(
         &trust_anchor_ids);
+    LOG(ERROR)
+        << "UpdateTrustAnchorIDs after 1st GetTrustAnchorIDsForTesting call";
     EXPECT_THAT(trust_anchor_ids,
                 testing::UnorderedElementsAreArray(expected_trust_anchor_ids));
   }
@@ -802,15 +810,21 @@ IN_PROC_BROWSER_TEST_F(PKIMetadataComponentChromeRootStoreUpdateTest,
         root_store_proto.add_trust_anchors();
     anchor->set_der(std::string(
         net::x509_util::CryptoBufferAsStringPiece(root_cert->cert_buffer())));
+    LOG(ERROR) << "UpdateTrustAnchorIDs before 1st InstallCRSUpdate call";
     InstallCRSUpdate(std::move(root_store_proto));
+    LOG(ERROR) << "UpdateTrustAnchorIDs after 1st InstallCRSUpdate call";
     // Ensure that SSLConfigClients have been notified of the new trust anchor
     // IDs.
     SystemNetworkContextManager::GetInstance()
         ->FlushSSLConfigManagerForTesting();
     mojo::ScopedAllowSyncCallForTesting allow_sync_call;
     std::vector<std::vector<uint8_t>> trust_anchor_ids;
+    LOG(ERROR)
+        << "UpdateTrustAnchorIDs before 2nd GetTrustAnchorIDsForTesting call";
     partition->GetNetworkContext()->GetTrustAnchorIDsForTesting(
         &trust_anchor_ids);
+    LOG(ERROR)
+        << "UpdateTrustAnchorIDs after 2nd GetTrustAnchorIDsForTesting call";
     EXPECT_TRUE(trust_anchor_ids.empty());
   }
 
@@ -842,7 +856,9 @@ IN_PROC_BROWSER_TEST_F(PKIMetadataComponentChromeRootStoreUpdateTest,
     additional_cert2->set_trust_anchor_id({0x02, 0x03});
     additional_cert2->set_tls_trust_anchor(true);
 
+    LOG(ERROR) << "UpdateTrustAnchorIDs before 2nd InstallCRSUpdate call";
     InstallCRSUpdate(std::move(root_store_proto));
+    LOG(ERROR) << "UpdateTrustAnchorIDs after 2nd InstallCRSUpdate call";
 
     // Ensure that SSLConfigClients have been notified of the new trust anchor
     // IDs.
@@ -851,12 +867,17 @@ IN_PROC_BROWSER_TEST_F(PKIMetadataComponentChromeRootStoreUpdateTest,
 
     mojo::ScopedAllowSyncCallForTesting allow_sync_call;
     std::vector<std::vector<uint8_t>> trust_anchor_ids;
+    LOG(ERROR)
+        << "UpdateTrustAnchorIDs before 3rd GetTrustAnchorIDsForTesting call";
     partition->GetNetworkContext()->GetTrustAnchorIDsForTesting(
         &trust_anchor_ids);
+    LOG(ERROR)
+        << "UpdateTrustAnchorIDs after 3rd GetTrustAnchorIDsForTesting call";
     EXPECT_THAT(trust_anchor_ids, testing::UnorderedElementsAre(
                                       std::vector<uint8_t>({0x01, 0x02, 0x3}),
                                       std::vector<uint8_t>({0x02, 0x03})));
   }
+  LOG(ERROR) << "UpdateTrustAnchorIDs end";
 }
 
 // Tests that when new network contexts are created after a Trust Anchor IDs
@@ -1527,7 +1548,11 @@ class TestDnsOverHttpsConfigSource : public DnsOverHttpsConfigSource {
   std::string GetDnsOverHttpsTemplates() const override {
     return dns_over_https_templates_;
   }
-  bool IsConfigManaged() const override { return false; }
+  bool IsConfigManaged() const override {
+    // Return managed=true, otherwise the test config will be ignored if the
+    // test is run on an enterprise enrolled device.
+    return true;
+  }
   void SetDohChangeCallback(base::RepeatingClosure callback) override {}
 
  private:
@@ -1809,10 +1834,9 @@ class PKIMetadataComponentChromeRootStoreUpdateWithStaleDoHServerTest
   }
 };
 
-// TODO(crbug.com/414630735): debug the failures and re-enable
 IN_PROC_BROWSER_TEST_F(
     PKIMetadataComponentChromeRootStoreUpdateWithStaleDoHServerTest,
-    DISABLED_TrustAnchorIDsRetry) {
+    TrustAnchorIDsRetry) {
   // Install CRS update that contains two trusted Trust Anchor IDs, including
   // one that is advertised by the server corresponding to its intermediate
   // certificate, and one that is advertised by the server but not actually used
@@ -1876,9 +1900,14 @@ IN_PROC_BROWSER_TEST_F(
   // the test hit the expected result. After the connection is successful
   // another entry may be recorded for the favicon fetch, but it should record
   // kDnsSuccessInitial since it will use TLS session resumption.
-  histogram_tester.ExpectBucketCount(
-      "Net.SSL.TrustAnchorIDsResult",
-      net::SSLClientSocket::TrustAnchorIDsResult::kDnsSuccessRetry, 1);
+  //
+  // Sometimes (on builds where browser_tests isn't using
+  // fieldtrial_testing_config), the browser makes two connections. So just
+  // check that the bucket has been logged at least once.
+  EXPECT_GE(histogram_tester.GetBucketCount(
+                "Net.SSL.TrustAnchorIDsResult",
+                net::SSLClientSocket::TrustAnchorIDsResult::kDnsSuccessRetry),
+            1);
 
   // TODO(crbug.com/427778127): when Trust Anchor ID netlogs are added, check
   // them here.

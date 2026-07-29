@@ -312,8 +312,8 @@ class CanvasResourceProviderSharedImage : public CanvasResourceProvider,
 
   scoped_refptr<gpu::ClientSharedImage>
   GetBackingClientSharedImageForExternalWrite(
-      gpu::SyncToken* internal_access_sync_token,
       gpu::SharedImageUsageSet required_shared_image_usages,
+      gpu::SyncToken& internal_access_sync_token,
       bool* was_copy_performed) override {
     // This may cause the current resource and all cached resources to become
     // unusable. WillDrawInternal() will detect this case, drop all cached
@@ -339,10 +339,7 @@ class CanvasResourceProviderSharedImage : public CanvasResourceProvider,
 
     // NOTE: The above invocation of WillDrawInternal() ensures that this
     // invocation of GetSyncToken() will generate a new sync token.
-    gpu::SyncToken sync_token = resource_->GetSyncToken();
-    if (internal_access_sync_token) {
-      *internal_access_sync_token = sync_token;
-    }
+    internal_access_sync_token = resource_->GetSyncToken();
 
     return resource_->GetClientSharedImage();
   }
@@ -466,6 +463,7 @@ class CanvasResourceProviderSharedImage : public CanvasResourceProvider,
                             copy_rect.width(), copy_rect.height());
     completion_sync_token =
         gpu::RasterScopedAccess::EndAccess(std::move(ri_access));
+    resource()->GetSyncToken();
     return true;
   }
 
@@ -529,6 +527,7 @@ class CanvasResourceProviderSharedImage : public CanvasResourceProvider,
       // even though we are not technically writing to the texture, only to its
       // parameters. This issue is Android-WebView specific: crbug.com/585250.
       WillDraw();
+      resource->GetSyncToken();
     }
 
     if (ShouldPropagateHighEntropyCanvasOpTypes(high_entropy_canvas_op_types,

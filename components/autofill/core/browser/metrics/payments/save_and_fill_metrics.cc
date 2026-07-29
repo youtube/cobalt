@@ -53,4 +53,14 @@ void LogSaveAndFillNumOfStrikesPresentWhenDialogAccepted(int strike_count) {
       strike_count);
 }
 
+void LogSaveAndFillDialogResult(SaveAndFillDialogResult result) {
+  base::UmaHistogramEnumeration("Autofill.SaveAndFill.DialogResult", result);
+}
+
+void LogSaveAndFillDialogShown(bool is_upload) {
+  base::UmaHistogramBoolean(base::StrCat({"Autofill.SaveAndFill.DialogShown.",
+                                          is_upload ? "Upload" : "Local"}),
+                            /*sample=*/true);
+}
+
 }  // namespace autofill::autofill_metrics

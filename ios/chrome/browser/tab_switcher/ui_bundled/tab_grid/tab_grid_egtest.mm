@@ -2266,6 +2266,11 @@ void EchoURLDefaultSearchEngineResponseProvider::GetResponseHeadersAndBody(
 // Tests that interacting with the Tab Grid search UI shows the correct header
 // at each step.
 - (void)testSearchHeaderWithInactiveTabs {
+  // TODO(crbug.com/441293287): Re-enable the test on iOS26.
+  if (base::ios::IsRunningOnIOS26OrLater()) {
+    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
+  }
+
   [self loadTestURLsInNewTabs];
   [self relaunchAppWithInactiveTabsTestMode];
 
@@ -2420,6 +2425,11 @@ void EchoURLDefaultSearchEngineResponseProvider::GetResponseHeadersAndBody(
 // Ensures that when users tap on a tab from tab search result and this tab is
 // in another window currently displaying tab grid, the tab is opened.
 - (void)testOpenSearchedTabFromAnotherWindowWhenTabGridIsVisible {
+  // TODO(crbug.com/442326188): Re-enable this flaky test on iOS26.
+  if (base::ios::IsRunningOnIOS26OrLater()) {
+    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
+  }
+
   if (![ChromeEarlGrey areMultipleWindowsSupported]) {
     EARL_GREY_TEST_DISABLED(@"Multiple windows can't be opened.");
   }

@@ -41,7 +41,7 @@
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
         "module_name": "//chrome/android:chrome_public_test_apk/",
-        "module_scheme": "gtest",
+        "module_scheme": "junit",
         "name": "site_per_process_chrome_public_test_apk",
         "precommit_args": [
           "--gerrit-issue=${patch_issue}",
@@ -75,6 +75,7 @@
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
         "module_name": "//chrome/android:chrome_public_unit_test_apk/",
+        "module_scheme": "junit",
         "name": "site_per_process_chrome_public_unit_test_apk",
         "precommit_args": [
           "--gerrit-issue=${patch_issue}",
@@ -106,6 +107,7 @@
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
         "module_name": "//components:components_browsertests/",
+        "module_scheme": "gtest",
         "name": "site_per_process_components_browsertests",
         "resultdb": {
           "enable": true,
@@ -132,6 +134,7 @@
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
         "module_name": "//components:components_unittests/",
+        "module_scheme": "gtest",
         "name": "site_per_process_components_unittests",
         "resultdb": {
           "enable": true,
@@ -160,6 +163,7 @@
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
         "module_name": "//content/test:content_browsertests/",
+        "module_scheme": "gtest",
         "name": "site_per_process_content_browsertests",
         "resultdb": {
           "enable": true,
@@ -187,6 +191,7 @@
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
         "module_name": "//content/shell/android:content_shell_test_apk/",
+        "module_scheme": "junit",
         "name": "site_per_process_content_shell_test_apk",
         "resultdb": {
           "enable": true,
@@ -214,6 +219,7 @@
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
         "module_name": "//content/test:content_unittests/",
+        "module_scheme": "gtest",
         "name": "site_per_process_content_unittests",
         "resultdb": {
           "enable": true,
@@ -240,6 +246,7 @@
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
         "module_name": "//chrome/test:unit_tests/",
+        "module_scheme": "gtest",
         "name": "site_per_process_unit_tests",
         "resultdb": {
           "enable": true,

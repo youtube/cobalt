@@ -65,7 +65,7 @@
       "fullscreen"
     ],
     "args": [
-      "--enable-features=OverlayScrollbar",
+      "--enable-features=OverlayScrollbar,FluentOverlayScrollbar",
       "--enable-threaded-compositing",
       "--enable-prefer-compositing-to-lcd-text",
       "--enable-overscroll-notifications",
@@ -724,6 +724,7 @@
     "bases": [
       "external/wpt/css/css-overflow/line-clamp",
       "external/wpt/css/css-overflow/parsing",
+      "external/wpt/css/css-overflow/inheritance.html",
       "external/wpt/css/css-inline/text-box-trim/text-box-trim-line-clamp-001.html",
       "external/wpt/css/css-text/white-space/text-wrap-balance-005.html",
       "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-001.html",
@@ -2186,7 +2187,7 @@
     ],
     "bases": [],
     "args": [
-      "--disable-features=OverlayScrollbar"
+      "--disable-features=OverlayScrollbar,FluentOverlayScrollbar"
     ],
     "expires": "never",
     "owners": [
@@ -2352,7 +2353,6 @@
     "prefix": "overlay-scrollbar",
     "platforms": [
       "Linux",
-      "Mac",
       "Win"
     ],
     "bases": [
@@ -2360,7 +2360,7 @@
       "external/wpt/css/css-ui/pointer-events-no-scrollbars-002.html"
     ],
     "args": [
-      "--enable-features=OverlayScrollbar"
+      "--enable-features=OverlayScrollbar,FluentOverlayScrollbar"
     ],
     "expires": "never",
     "owners": [
@@ -4250,24 +4250,6 @@
       "jkarlin@chromium.org"
     ]
   },
-  {
-    "prefix": "sri-message-signatures",
-    "platforms": [
-      "Linux"
-    ],
-    "bases": [
-      "external/wpt/subresource-integrity/signatures/tentative/server-initiated.window.html",
-      "http/tests/inspector-protocol/issues/sri-message-signatures/"
-    ],
-    "exclusive_tests": "ALL",
-    "args": [
-      "--enable-features=SRIMessageSignatureEnforcement"
-    ],
-    "owners": [
-      "mkwst@chromium.org"
-    ],
-    "expires": "May 1, 2025"
-  },
   "The stable suite tests for conformance to HTML/web specifications, and",
   "detects unintentional changes to web exposed surface, so should not expire.",
   "Owners are part of third_party/blink/API_OWNERS.",
@@ -5097,6 +5079,8 @@
       "external/wpt/webnn/conformance_tests/inputs-are-not-modified.https.any.worker.html?cpu",
       "external/wpt/webnn/conformance_tests/inputs-with-special-names.https.any.html?cpu",
       "external/wpt/webnn/conformance_tests/instance_normalization.https.any.html?cpu",
+      "external/wpt/webnn/conformance_tests/is_nan.https.any.html?cpu",
+      "external/wpt/webnn/conformance_tests/is_infinite.https.any.html?cpu",
       "external/wpt/webnn/conformance_tests/l2Pool2d.https.any.html?cpu",
       "external/wpt/webnn/conformance_tests/layer_normalization.https.any.html?cpu",
       "external/wpt/webnn/conformance_tests/leaky_relu.https.any.html?cpu",
@@ -5145,6 +5129,7 @@
       "external/wpt/webnn/conformance_tests/resample2d.https.any.html?cpu",
       "external/wpt/webnn/conformance_tests/reshape.https.any.html?cpu",
       "external/wpt/webnn/conformance_tests/reverse.https.any.html?cpu",
+      "external/wpt/webnn/conformance_tests/round_even.https.any.html?cpu",
       "external/wpt/webnn/conformance_tests/scalars.https.any.html?cpu",
       "external/wpt/webnn/conformance_tests/scalars.https.any.serviceworker.html?cpu",
       "external/wpt/webnn/conformance_tests/scalars.https.any.sharedworker.html?cpu",
@@ -5228,6 +5213,8 @@
       "external/wpt/webnn/validation_tests/elementwise-logical.https.any.html?op=logicalOr&device=cpu",
       "external/wpt/webnn/validation_tests/elementwise-logical.https.any.html?op=logicalXor&device=cpu",
       "external/wpt/webnn/validation_tests/elementwise-logical.https.any.html?op=logicalNot&device=cpu",
+      "external/wpt/webnn/validation_tests/elementwise-logical.https.any.html?op=isNaN&device=cpu",
+      "external/wpt/webnn/validation_tests/elementwise-logical.https.any.html?op=isInfinite&device=cpu",
       "external/wpt/webnn/validation_tests/elementwise-unary.https.any.html?cpu",
       "external/wpt/webnn/validation_tests/elu.https.any.html?cpu",
       "external/wpt/webnn/validation_tests/expand.https.any.html?cpu",
@@ -5360,6 +5347,8 @@
       "external/wpt/webnn/conformance_tests/inputs-are-not-modified.https.any.worker.html?npu",
       "external/wpt/webnn/conformance_tests/inputs-with-special-names.https.any.html?npu",
       "external/wpt/webnn/conformance_tests/instance_normalization.https.any.html?npu",
+      "external/wpt/webnn/conformance_tests/is_nan.https.any.html?npu",
+      "external/wpt/webnn/conformance_tests/is_infinite.https.any.html?npu",
       "external/wpt/webnn/conformance_tests/l2Pool2d.https.any.html?npu",
       "external/wpt/webnn/conformance_tests/layer_normalization.https.any.html?npu",
       "external/wpt/webnn/conformance_tests/leaky_relu.https.any.html?npu",
@@ -5408,6 +5397,7 @@
       "external/wpt/webnn/conformance_tests/resample2d.https.any.html?npu",
       "external/wpt/webnn/conformance_tests/reshape.https.any.html?npu",
       "external/wpt/webnn/conformance_tests/reverse.https.any.html?npu",
+      "external/wpt/webnn/conformance_tests/round_even.https.any.html?npu",
       "external/wpt/webnn/conformance_tests/scalars.https.any.html?npu",
       "external/wpt/webnn/conformance_tests/scalars.https.any.serviceworker.html?npu",
       "external/wpt/webnn/conformance_tests/scalars.https.any.sharedworker.html?npu",
@@ -5491,6 +5481,8 @@
       "external/wpt/webnn/validation_tests/elementwise-logical.https.any.html?op=logicalOr&device=npu",
       "external/wpt/webnn/validation_tests/elementwise-logical.https.any.html?op=logicalXor&device=npu",
       "external/wpt/webnn/validation_tests/elementwise-logical.https.any.html?op=logicalNot&device=npu",
+      "external/wpt/webnn/validation_tests/elementwise-logical.https.any.html?op=isNaN&device=npu",
+      "external/wpt/webnn/validation_tests/elementwise-logical.https.any.html?op=isInfinite&device=npu",
       "external/wpt/webnn/validation_tests/elementwise-unary.https.any.html?npu",
       "external/wpt/webnn/validation_tests/elu.https.any.html?npu",
       "external/wpt/webnn/validation_tests/expand.https.any.html?npu",
@@ -5624,6 +5616,8 @@
       "external/wpt/webnn/conformance_tests/inputs-are-not-modified.https.any.worker.html?gpu",
       "external/wpt/webnn/conformance_tests/inputs-with-special-names.https.any.html?gpu",
       "external/wpt/webnn/conformance_tests/instance_normalization.https.any.html?gpu",
+      "external/wpt/webnn/conformance_tests/is_nan.https.any.html?gpu",
+      "external/wpt/webnn/conformance_tests/is_infinite.https.any.html?gpu",
       "external/wpt/webnn/conformance_tests/l2Pool2d.https.any.html?gpu",
       "external/wpt/webnn/conformance_tests/layer_normalization.https.any.html?gpu",
       "external/wpt/webnn/conformance_tests/leaky_relu.https.any.html?gpu",
@@ -5672,6 +5666,7 @@
       "external/wpt/webnn/conformance_tests/resample2d.https.any.html?gpu",
       "external/wpt/webnn/conformance_tests/reshape.https.any.html?gpu",
       "external/wpt/webnn/conformance_tests/reverse.https.any.html?gpu",
+      "external/wpt/webnn/conformance_tests/round_even.https.any.html?gpu",
       "external/wpt/webnn/conformance_tests/scalars.https.any.html?gpu",
       "external/wpt/webnn/conformance_tests/scalars.https.any.serviceworker.html?gpu",
       "external/wpt/webnn/conformance_tests/scalars.https.any.sharedworker.html?gpu",
@@ -5755,6 +5750,8 @@
       "external/wpt/webnn/validation_tests/elementwise-logical.https.any.html?op=logicalOr&device=gpu",
       "external/wpt/webnn/validation_tests/elementwise-logical.https.any.html?op=logicalXor&device=gpu",
       "external/wpt/webnn/validation_tests/elementwise-logical.https.any.html?op=logicalNot&device=gpu",
+      "external/wpt/webnn/validation_tests/elementwise-logical.https.any.html?op=isNaN&device=gpu",
+      "external/wpt/webnn/validation_tests/elementwise-logical.https.any.html?op=isInfinite&device=gpu",
       "external/wpt/webnn/validation_tests/elementwise-unary.https.any.html?gpu",
       "external/wpt/webnn/validation_tests/elu.https.any.html?gpu",
       "external/wpt/webnn/validation_tests/expand.https.any.html?gpu",

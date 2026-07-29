@@ -27,6 +27,7 @@ import androidx.annotation.VisibleForTesting;
 import org.chromium.base.ActivityState;
 import org.chromium.base.ApplicationStatus;
 import org.chromium.base.ApplicationStatus.ActivityStateListener;
+import org.chromium.base.Callback;
 import org.chromium.base.CallbackUtils;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.IntentUtils;
@@ -36,7 +37,6 @@ import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.shared_preferences.SharedPreferencesManager;
 import org.chromium.base.supplier.ObservableSupplier;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.build.BuildConfig;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -94,6 +94,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -128,6 +129,7 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl implements Acti
 
     private final Supplier<DesktopWindowStateManager> mDesktopWindowStateManagerSupplier;
     private final MultiInstanceStateObserver mOnMultiInstanceStateChanged;
+    private final Callback<Pair<Integer, String>> mRenameCallback;
 
     MultiInstanceManagerApi31(
             Activity activity,
@@ -147,6 +149,10 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl implements Acti
         mModalDialogManagerSupplier = modalDialogManagerSupplier;
         mDesktopWindowStateManagerSupplier = desktopWindowStateManagerSupplier;
         mOnMultiInstanceStateChanged = this::onMultiInstanceStateChanged;
+        mRenameCallback =
+                (pair) -> {
+                    writeCustomTitle(pair.first, pair.second);
+                };
 
         // Check if instance limit has changed and update SharedPrefs.
         SharedPreferencesManager prefs = ChromeSharedPreferences.getInstance();
@@ -204,10 +210,14 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl implements Acti
                         cleanupSyncedTabGroupsIfLastInstance();
                     }
                 },
-                (pair) -> writeTitle(pair.first, pair.second),
+                mRenameCallback,
                 () -> openNewWindow("Android.WindowManager.NewWindow", /* incognito= */ false),
                 MultiWindowUtils.getMaxInstances(),
                 info);
+    }
+
+    Callback<Pair<Integer, String>> getRenameCallbackForTesting() {
+        return mRenameCallback;
     }
 
     @Override
@@ -284,7 +294,7 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl implements Acti
     @Override
     public void moveTabsToWindowAndMergeToDest(InstanceInfo info, List<Tab> tabs, int destTabId) {
         Activity targetActivity = getActivityById(info.instanceId);
-        if (BuildConfig.ENABLE_ASSERTS){
+        if (BuildConfig.ENABLE_ASSERTS) {
             for (Tab tab : tabs) {
                 assert tab.getTabGroupId() == null : "Tab should not be part of a group.";
             }
@@ -325,7 +335,8 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl implements Acti
         Intent intent =
                 MultiWindowUtils.createNewWindowIntent(
                         mActivity, instanceId, preferNew, openAdjacently, addTrustedIntentExtras);
-        beginReparentingTabs(tabs, intent, /* startActivityOptions= */ null, /* finalizeCallback= */ null);
+        beginReparentingTabs(
+                tabs, intent, /* startActivityOptions= */ null, /* finalizeCallback= */ null);
     }
 
     @VisibleForTesting
@@ -447,6 +458,13 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl implements Acti
                 || mMultiWindowModeStateDispatcher.isInMultiDisplayMode()) {
             intent.addFlags(Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT);
         }
+
+        // Remove LAUNCH_ADJACENT flag if shouldOpenInAdjacentWindow() is false and if the Activity
+        // is in a full screen window.
+        if (!mActivity.isInMultiWindowMode() && !MultiWindowUtils.shouldOpenInAdjacentWindow()) {
+            intent.setFlags(intent.getFlags() & ~Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT);
+        }
+
         mActivity.startActivity(intent);
         Log.i(TAG_MULTI_INSTANCE, "Opening new window from action: " + umaAction);
         RecordUserAction.record(umaAction);
@@ -500,7 +518,7 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl implements Acti
                             type,
                             assumeNonNull(readUrl(i)),
                             assumeNonNull(readTitle(i)),
-                            /* customTitle= */ null,
+                            readCustomTitle(i),
                             readTabCount(i),
                             readIncognitoTabCount(i),
                             readIncognitoSelected(i),
@@ -1012,8 +1030,18 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl implements Acti
     }
 
     @VisibleForTesting
+    static String customTitleKey(int index) {
+        return ChromePreferenceKeys.MULTI_INSTANCE_CUSTOM_TITLE.createKey(String.valueOf(index));
+    }
+
+    @VisibleForTesting
     static @Nullable String readTitle(int index) {
         return ChromeSharedPreferences.getInstance().readString(titleKey(index), null);
+    }
+
+    @VisibleForTesting
+    static @Nullable String readCustomTitle(int index) {
+        return ChromeSharedPreferences.getInstance().readString(customTitleKey(index), null);
     }
 
     private static void writeTitle(int index, Tab tab) {
@@ -1023,6 +1051,10 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl implements Acti
 
     private static void writeTitle(int index, String title) {
         ChromeSharedPreferences.getInstance().writeString(titleKey(index), title);
+    }
+
+    private static void writeCustomTitle(int index, String customTitle) {
+        ChromeSharedPreferences.getInstance().writeString(customTitleKey(index), customTitle);
     }
 
     @VisibleForTesting
@@ -1241,11 +1273,7 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl implements Acti
             @Nullable Bundle startActivityOptions,
             @Nullable Runnable finalizeCallback) {
         ReparentingTabsTask.from(tabs)
-                .begin(
-                        mActivity,
-                        intent,
-                        startActivityOptions,
-                        finalizeCallback);
+                .begin(mActivity, intent, startActivityOptions, finalizeCallback);
     }
 
     @VisibleForTesting
@@ -1311,6 +1339,7 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl implements Acti
         prefs.removeKey(incognitoSelectedKey(index));
         prefs.removeKey(lastAccessedTimeKey(index));
         prefs.removeKey(profileTypeKey(index));
+        prefs.removeKey(customTitleKey(index));
     }
 
     @Override

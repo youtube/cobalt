@@ -41,6 +41,7 @@ import("//build/util/process_version.gni")
 import("//build_overrides/build.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 import("//testing/test.gni")
+import("//third_party/protobuf/proto_library.gni")
 
 if (is_ios) {
   # Used to access target_environment and target_platform.
@@ -48,11 +49,6 @@ if (is_ios) {
 
   # Used to access ios_is_app_extension variable definition.
   import("//build/config/ios/ios_sdk.gni")
-}
-
-if (is_mac) {
-  # Used to generate fuzzer corpus :base_mach_port_rendezvous_convert_corpus.
-  import("//third_party/protobuf/proto_library.gni")
 }
 
 if (is_win) {
@@ -448,6 +444,8 @@ component("base") {
     "metrics/dummy_histogram.h",
     "metrics/field_trial.cc",
     "metrics/field_trial.h",
+    "metrics/field_trial_entry.cc",
+    "metrics/field_trial_entry.h",
     "metrics/field_trial_list_including_low_anonymity.cc",
     "metrics/field_trial_list_including_low_anonymity.h",
     "metrics/field_trial_param_associator.cc",
@@ -910,7 +908,6 @@ component("base") {
     "trace_event/trace_id_helper.h",
     "traits_bag.h",
     "tuple.h",
-    "types/always_false.h",
     "types/cxx23_from_range.h",
     "types/cxx23_is_scoped_enum.h",
     "types/cxx23_to_underlying.h",
@@ -1577,7 +1574,6 @@ component("base") {
     "memory/discardable_memory_internal.h",
     "metrics/persistent_histogram_storage.cc",
     "metrics/persistent_histogram_storage.h",
-    "native_library.cc",
     "native_library.h",
     "path_service.cc",
     "path_service.h",
@@ -3321,6 +3317,13 @@ source_set("path_service_unittest") {
   }
 }
 
+if (is_win) {
+  # Used by win_util_unittest.cc to test delayload helpers.
+  config("delayload_esent_dll") {
+    ldflags = [ "/DELAYLOAD:esent.dll" ]
+  }
+}
+
 test("base_unittests") {
   sources = [
     "allocator/dispatcher/dispatcher_unittest.cc",
@@ -3733,15 +3736,7 @@ test("base_unittests") {
     "strings/string_piece_rust_unittest.cc",
   ]
 
-  if (use_safe_libcxx || use_safe_libstdcxx) {
-    sources += [ "libcpp_hardening_test.cc" ]
-  }
-
   fuzztests = [ "JSONReaderTest.CanParseAnythingWithoutCrashing" ]
-
-  if (is_clang) {
-    sources += [ "compiler_hardening_test.cc" ]
-  }
 
   defines = []
   frameworks = []
@@ -3751,12 +3746,12 @@ test("base_unittests") {
     ":base_stack_sampling_profiler_test_util",
     ":check_version_internal",
     ":feature_list_buildflags",
+    ":hardening_tests",
     ":i18n",
     ":path_service_unittest",
     ":sanitizer_buildflags",
     "//base/allocator:buildflags",
     "//base/numerics:unittests",
-    "//base/test:native_library_test_utils",
     "//base/test:proto_test_support",
     "//base/test:run_all_unittests",
     "//base/test:test_proto",
@@ -3918,9 +3913,11 @@ test("base_unittests") {
     }
 
     libs = [
+      "esent.lib",
       "ntdll.lib",
       "onecore.lib",
     ]
+    configs += [ ":delayload_esent_dll" ]
   }
 
   if (is_linux || is_chromeos) {
@@ -4320,6 +4317,33 @@ test("base_unittests") {
   # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
   # enable the diagnostic by removing this line.
   configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+}
+
+source_set("hardening_tests") {
+  testonly = true
+
+  sources = [ "protobuf_hardening_test.cc" ]
+
+  if (use_safe_libcxx || use_safe_libstdcxx) {
+    sources += [ "libcpp_hardening_test.cc" ]
+  }
+
+  if (is_clang) {
+    sources += [ "compiler_hardening_test.cc" ]
+  }
+
+  deps = [
+    ":base",
+    ":protobuf_hardening_test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}
+
+proto_library("protobuf_hardening_test_support") {
+  testonly = true
+  sources = [ "protobuf_hardening_test_support.proto" ]
+  generate_python = false
 }
 
 # Test that CFG is enabled in Rust code.

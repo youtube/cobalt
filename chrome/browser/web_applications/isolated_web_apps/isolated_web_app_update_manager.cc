@@ -91,7 +91,7 @@ IsolatedWebAppUpdateOptions::~IsolatedWebAppUpdateOptions() = default;
 class IsolatedWebAppUpdateManager::LocalDevModeUpdateDiscoverer {
  public:
   using Callback =
-      base::OnceCallback<void(base::expected<base::Version, std::string>)>;
+      base::OnceCallback<void(base::expected<IwaVersion, std::string>)>;
 
   LocalDevModeUpdateDiscoverer(Profile& profile, WebAppProvider& provider)
       : profile_(profile), provider_(provider) {}
@@ -168,18 +168,12 @@ IwaBundleIdToUpdateOptionsMap GetForceInstalledPolicyIsolatedWebApps(
 
   for (const auto& install_options :
        IsolatedWebAppPolicyManager::GetIwaInstallForceList(*profile)) {
-    // TODO(crbug.com/437038363): Adjust to IwaVersion.
-    std::optional<IwaVersion> pinned_version;
-    if (install_options.pinned_version().has_value()) {
-      pinned_version = base::OptionalFromExpected(
-          IwaVersion::Create(install_options.pinned_version()->components()));
-    }
-
-    result.emplace(install_options.web_bundle_id(),
-                   IsolatedWebAppUpdateOptions(
-                       install_options.update_manifest_url(),
-                       install_options.update_channel(),
-                       install_options.allow_downgrades(), pinned_version));
+    result.emplace(
+        install_options.web_bundle_id(),
+        IsolatedWebAppUpdateOptions(install_options.update_manifest_url(),
+                                    install_options.update_channel(),
+                                    install_options.allow_downgrades(),
+                                    install_options.pinned_version()));
   }
 
   return result;
@@ -191,19 +185,12 @@ IwaBundleIdToUpdateOptionsMap GetKioskPolicyIsolatedWebApps() {
   std::optional<ash::KioskIwaUpdateData> kiosk_iwa_policy_data =
       ash::GetCurrentKioskIwaUpdateData();
   if (kiosk_iwa_policy_data) {
-    // TODO(crbug.com/437038363): Adjust to IwaVersion.
-    std::optional<IwaVersion> pinned_version;
-    if (kiosk_iwa_policy_data->pinned_version.has_value()) {
-      pinned_version = base::OptionalFromExpected(IwaVersion::Create(
-          kiosk_iwa_policy_data->pinned_version->components()));
-    }
-
     result.emplace(
         kiosk_iwa_policy_data->web_bundle_id,
         IsolatedWebAppUpdateOptions(kiosk_iwa_policy_data->update_manifest_url,
                                     kiosk_iwa_policy_data->update_channel,
                                     kiosk_iwa_policy_data->allow_downgrades,
-                                    pinned_version));
+                                    kiosk_iwa_policy_data->pinned_version));
   }
   return result;
 }
@@ -222,7 +209,7 @@ IwaBundleIdToUpdateOptionsMap GetBundleIdToIsolatedWebAppsUpdateOptionsMap(
 }
 
 bool ShouldProceedWithVersionChange(
-    const base::Version& pinned_version,
+    const IwaVersion& pinned_version,
     bool allow_downgrades,
     const web_package::SignedWebBundleId& web_bundle_id,
     const IsolationData& isolation_data) {
@@ -510,7 +497,7 @@ size_t IsolatedWebAppUpdateManager::DiscoverUpdatesNow() {
 void IsolatedWebAppUpdateManager::DiscoverApplyAndPrioritizeLocalDevModeUpdate(
     const IwaSourceDevModeWithFileOp& location,
     const IsolatedWebAppUrlInfo& url_info,
-    base::OnceCallback<void(base::expected<base::Version, std::string>)>
+    base::OnceCallback<void(base::expected<IwaVersion, std::string>)>
         callback) {
   local_dev_mode_update_discoverer_->DiscoverLocalUpdate(
       location, url_info,
@@ -626,11 +613,10 @@ bool IsolatedWebAppUpdateManager::MaybeQueueUpdateDiscoveryTask(
     return false;
   }
 
-  if (update_options->pinned_version &&
+  if (update_options->pinned_version.has_value() &&
       !ShouldProceedWithVersionChange(
-          update_options->pinned_version.value().version(),
-          update_options->allow_downgrades, url_info.web_bundle_id(),
-          isolation_data.value())) {
+          *update_options->pinned_version, update_options->allow_downgrades,
+          url_info.web_bundle_id(), isolation_data.value())) {
     // By default, pinning an app to a lower version than the current one is
     // impossible.
     // The same version updates can only be performed when allowed by key
@@ -781,9 +767,8 @@ void IsolatedWebAppUpdateManager::RemoveObserver(Observer* observer) {
 
 void IsolatedWebAppUpdateManager::OnLocalUpdateDiscovered(
     IsolatedWebAppUrlInfo url_info,
-    base::OnceCallback<void(base::expected<base::Version, std::string>)>
-        callback,
-    base::expected<base::Version, std::string> update_discovery_result) {
+    base::OnceCallback<void(base::expected<IwaVersion, std::string>)> callback,
+    base::expected<IwaVersion, std::string> update_discovery_result) {
   ASSIGN_OR_RETURN(auto update_version, update_discovery_result,
                    [&](const auto& error) {
                      std::move(callback).Run(base::unexpected(error));
@@ -799,17 +784,13 @@ void IsolatedWebAppUpdateManager::OnLocalUpdateDiscovered(
 
 void IsolatedWebAppUpdateManager::OnLocalUpdateApplyTaskCreated(
     IsolatedWebAppUrlInfo url_info,
-    base::Version update_version,
-    base::OnceCallback<void(base::expected<base::Version, std::string>)>
+    IwaVersion update_version,
+    base::OnceCallback<void(base::expected<IwaVersion, std::string>)>
         callback) {
   auto transform_status =
-      [](base::Version update_version,
+      [](IwaVersion update_version,
          IsolatedWebAppUpdateApplyTask::CompletionStatus status) {
-        return status
-            .transform(
-                [&](const IsolatedWebAppApplyUpdateCommandSuccess& success) {
-                  return update_version;
-                })
+        return status.transform([&]() { return update_version; })
             .transform_error(
                 [](const IsolatedWebAppApplyUpdateCommandError& error) {
                   return error.message;

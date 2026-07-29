@@ -440,6 +440,7 @@ class COMPONENT_EXPORT(NATIVE_THEME) NativeTheme {
   enum class SystemThemeColor {
     kNotSupported,
     kButtonFace,
+    kButtonHighlight,
     kButtonText,
     kGrayText,
     kHighlight,
@@ -626,6 +627,14 @@ class COMPONENT_EXPORT(NATIVE_THEME) NativeTheme {
       bool should_only_use_dark_colors,
       ui::SystemTheme system_theme = ui::SystemTheme::kDefault);
   virtual ~NativeTheme();
+
+  // Common implementation used by several subclasses.
+  virtual void PaintMenuItemBackground(
+      cc::PaintCanvas* canvas,
+      const ColorProvider* color_provider,
+      State state,
+      const gfx::Rect& rect,
+      const MenuItemExtraParams& extra_params) const;
 
   // Calculates and returns the current user preferred contrast.
   virtual PreferredContrast CalculatePreferredContrast() const;

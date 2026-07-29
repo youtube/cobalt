@@ -208,6 +208,7 @@
   /* Multi contents view colors. */ \
   E_CPONLY(kColorMulitContentsViewActiveContentOutline) \
   E_CPONLY(kColorMulitContentsViewInactiveContentOutline) \
+  E_CPONLY(kColorMulitContentsViewHighlightContentOutline) \
   E_CPONLY(kColorMulitContentsViewMiniToolbarForeground) \
   /* New tab button colors. */ \
   E_CPONLY(kColorNewTabButtonForegroundFrameActive) \
@@ -294,6 +295,15 @@
   E_CPONLY(kColorNewTabPageModuleItemBackgroundHovered) \
   E_CPONLY(kColorNewTabPageModuleScrollButtonBackground) \
   E_CPONLY(kColorNewTabPageModuleScrollButtonBackgroundHovered) \
+  E_CPONLY(kColorNewTabPageModuleTabGroupsGrey) \
+  E_CPONLY(kColorNewTabPageModuleTabGroupsBlue) \
+  E_CPONLY(kColorNewTabPageModuleTabGroupsRed) \
+  E_CPONLY(kColorNewTabPageModuleTabGroupsYellow) \
+  E_CPONLY(kColorNewTabPageModuleTabGroupsGreen) \
+  E_CPONLY(kColorNewTabPageModuleTabGroupsPink) \
+  E_CPONLY(kColorNewTabPageModuleTabGroupsPurple) \
+  E_CPONLY(kColorNewTabPageModuleTabGroupsCyan) \
+  E_CPONLY(kColorNewTabPageModuleTabGroupsOrange) \
   E_CPONLY(kColorNewTabPageMostVisitedForeground) \
   E_CPONLY(kColorNewTabPageMostVisitedTileBackground) \
   E_CPONLY(kColorNewTabPageMostVisitedTileBackgroundThemed) \

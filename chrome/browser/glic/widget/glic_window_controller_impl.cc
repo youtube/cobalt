@@ -38,6 +38,8 @@
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_list.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/tabs/public/tab_dialog_manager.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
@@ -107,7 +109,7 @@ mojom::PanelState CreatePanelState(bool widget_visible,
   return panel_state;
 }
 
-GlicButton* GetGlicButton(Browser& browser) {
+GlicButton* GetGlicButton(BrowserWindowInterface& browser) {
   return BrowserElementsViews::From(&browser)->GetViewAs<glic::GlicButton>(
       kGlicButtonElementId);
 }
@@ -123,13 +125,13 @@ display::Display GetDisplayForOpeningDetached() {
       return *widget_display;
     }
   }
-  return display::Screen::GetScreen()->GetPrimaryDisplay();
+  return display::Screen::Get()->GetPrimaryDisplay();
 }
 
 // True if |bounds| is an allowed position the Widget can be shown in.
 bool IsWidgetLocationAllowed(const gfx::Rect& bounds) {
   const std::vector<display::Display>& displays =
-      display::Screen::GetScreen()->GetAllDisplays();
+      display::Screen::Get()->GetAllDisplays();
 
   // Calculate inset corners to allow part of the widget to be off screen.
   std::array<gfx::Point, 4> inset_points = {
@@ -296,6 +298,7 @@ GlicWindowControllerImpl::GlicWindowControllerImpl(
     GlicKeyedService* glic_service,
     GlicEnabling* enabling)
     : profile_(profile),
+      host_manager_(std::make_unique<HostManager>(profile)),
       window_finder_(std::make_unique<WindowFinder>()),
       glic_service_(glic_service),
       enabling_(enabling) {
@@ -305,7 +308,8 @@ GlicWindowControllerImpl::GlicWindowControllerImpl(
     previous_position_ = GetPreviousPositionFromPrefs(profile_->GetPrefs());
   }
   application_hotkey_manager_ = MakeApplicationHotkeyManager(GetWeakPtr());
-  host_observation_.Observe(&glic_service_->host());
+  host_manager_->Initialize(this);
+  host_observation_.Observe(&host());
 }
 
 GlicWindowControllerImpl::~GlicWindowControllerImpl() = default;
@@ -577,9 +581,9 @@ void GlicWindowControllerImpl::ToggleWhenNotAlwaysDetached(
         // active, new_attached_browser must not have been null.
         maybe_close();
       } else {
-        // Hotkey when neither attached browser nor glic are active: open
-        // detached.
-        CloseAndReopenDetached(source);
+        // Hotkey when neither attached browser nor glic are active: detach
+        // current side panel.
+        Detach();
       }
       return;
     }
@@ -602,12 +606,8 @@ void GlicWindowControllerImpl::FocusIfOpen() {
 
   if (IsDetached()) {
     GetGlicWidget()->Activate();
-    GetGlicView()->GetWebContents()->Focus();
-    return;
   }
-
-  // TODO(crbug.com/439745838): Implement for side panel
-  NOTIMPLEMENTED();
+  GetGlicView()->GetWebContents()->Focus();
   return;
 }
 
@@ -622,7 +622,11 @@ void GlicWindowControllerImpl::SetPreviousPositionForTesting(
 }
 
 Host& GlicWindowControllerImpl::host() const {
-  return glic_service_->host();
+  return host_manager_->primary_host();
+}
+
+HostManager& GlicWindowControllerImpl::host_manager() {
+  return *host_manager_;
 }
 
 void GlicWindowControllerImpl::Show(Browser* browser,
@@ -907,7 +911,7 @@ GlicView* GlicWindowControllerImpl::GetGlicView() const {
     return glic_view_;
   }
   if (IsDetached()) {
-    return static_cast<GlicView*>(GetGlicWidget()->GetContentsView());
+    return GetGlicWidget()->GetGlicView();
   }
   return nullptr;
 }
@@ -942,29 +946,26 @@ void GlicWindowControllerImpl::Attach() {
     return;
   }
 
-  Browser* browser = glic::FindBrowserForAttachment(profile_);
+  BrowserWindowInterface* browser = glic::FindBrowserForAttachment(profile_);
   if (!browser) {
     return;
   }
   if (AlwaysDetached()) {
     return;
   }
-  AttachToBrowser(*browser, AttachChangeReason::kMenu);
+  AttachToBrowser(*browser->GetBrowserForMigrationOnly(),
+                  AttachChangeReason::kMenu);
 }
 
 void GlicWindowControllerImpl::Detach() {
   if (state_ != State::kOpen || !attached_browser_ || AlwaysDetached()) {
     return;
   }
+  SetWindowState(State::kDetaching);
 
   // Close the existing side panel.
-  SetWindowState(State::kDetaching);
-  attached_browser_->GetFeatures().side_panel_coordinator()->Close();
   auto current_browser = attached_browser_;
-  attached_browser_ = nullptr;
-  glic_view_ = nullptr;
-  browser_close_subscription_.reset();
-  window_event_observer_.reset();
+  ResetAndHidePanel();
 
   // Open the panel detached.
   SetupAndShowGlicWidget(current_browser);
@@ -976,35 +977,19 @@ void GlicWindowControllerImpl::Detach() {
 void GlicWindowControllerImpl::AttachToBrowser(Browser& browser,
                                                AttachChangeReason reason) {
   CHECK(!AlwaysDetached());
-
   glic_service_->metrics()->OnAttachedToBrowser(reason);
 
-  browser_close_subscription_ = browser.RegisterBrowserDidClose(
+  ResetAndHidePanel();
+
+  attached_browser_ = &browser;
+  user_resizing_ = true;
+  browser_close_subscription_ = attached_browser_->RegisterBrowserDidClose(
       base::BindRepeating(&GlicWindowControllerImpl::AttachedBrowserDidClose,
                           base::Unretained(this)));
 
-  if (attached_browser_) {
-    attached_browser_->GetFeatures().side_panel_coordinator()->Close();
-  } else if (IsDetached()) {
-    modal_dialog_host_observers_.Notify(
-        &web_modal::ModalDialogHostObserver::OnHostDestroying);
-    web_modal::WebContentsModalDialogManager::FromWebContents(
-        host().webui_contents())
-        ->SetDelegate(nullptr);
-  }
-
-  // Ensure an open widget is closed.
-  SaveWidgetPosition(/*user_modified=*/false);
-  draggable_area_ = std::nullopt;
-  window_event_observer_.reset();
-  glic_widget_observation_.Reset();
-  glic_widget_.reset();
-  user_resizing_ = true;
-
-  attached_browser_ = &browser;
-
   auto* side_panel_coordinator = browser.GetFeatures().side_panel_coordinator();
   side_panel_coordinator->Show(SidePanelEntry::Id::kGlic);
+
   SetWindowState(State::kOpen);
   NotifyIfPanelStateChanged();
 
@@ -1119,19 +1104,9 @@ void GlicWindowControllerImpl::SetMinimumWidgetSize(const gfx::Size& size) {
   GetGlicWidget()->SetMinimumSize(size);
 }
 
-void GlicWindowControllerImpl::CloseAndReopenDetached(
-    mojom::InvocationSource source) {
-  if (!IsAttached()) {
-    return;
-  }
-
-  SetWindowState(State::kClosingToReopenDetached);
-  CloseInternal(source);
-}
-
 void GlicWindowControllerImpl::CloseWithReason(
     views::Widget::ClosedReason reason) {
-  CloseInternal(std::nullopt);
+  Close();
 }
 
 bool GlicWindowControllerImpl::ActivateBrowser() {
@@ -1149,56 +1124,25 @@ bool GlicWindowControllerImpl::ActivateBrowser() {
 }
 
 void GlicWindowControllerImpl::Close() {
-  CloseInternal(std::nullopt);
-}
-
-void GlicWindowControllerImpl::CloseInternal(
-    std::optional<mojom::InvocationSource> reopen_detached_source) {
   if (state_ == State::kClosed) {
     return;
   }
-  const bool should_reopen_detached = state_ == State::kClosingToReopenDetached;
-  // If we should close and repopen detached then there should be a reopen
-  // detached source.
-  CHECK(!should_reopen_detached || reopen_detached_source.has_value());
-
   window_config_.SetLastCloseTime();
-  glic_window_animator_.reset();
 
   if (IsDetached()) {
-    // Save the widge position on close so we can restore in the same position.
-    SaveWidgetPosition(/*user_modified=*/false);
-
     std::optional<display::Display> display =
         GetGlicWidget()->GetNearestDisplay();
     glic_service_->metrics()->OnGlicWindowClose(
         BrowserList::GetInstance()->GetLastActive(), display,
         GetGlicWidget()->GetWindowBoundsInScreen());
   }
-
   base::UmaHistogramEnumeration("Glic.PanelWebUiState.FinishState2",
                                 host().GetPrimaryWebUiState());
 
-  if (IsAttached()) {
-    attached_browser_->GetFeatures().side_panel_coordinator()->Close();
-  } else if (IsDetached()) {
-    modal_dialog_host_observers_.Notify(
-        &web_modal::ModalDialogHostObserver::OnHostDestroying);
-    web_modal::WebContentsModalDialogManager::FromWebContents(
-        host().webui_contents())
-        ->SetDelegate(nullptr);
-  }
+  ResetAndHidePanel();
 
   SetWindowState(State::kClosed);
-  attached_browser_ = nullptr;
-  draggable_area_ = std::nullopt;
-  window_event_observer_.reset();
-  browser_close_subscription_.reset();
   glic_panel_hotkey_manager_.reset();
-  glic_widget_observation_.Reset();
-  glic_widget_.reset();
-  glic_view_ = nullptr;
-  scoped_glic_button_indicator_.reset();
   user_resizing_ = false;
   window_activation_callback_list_.Notify(false);
   NotifyIfPanelStateChanged();
@@ -1207,6 +1151,43 @@ void GlicWindowControllerImpl::CloseInternal(
   if (base::FeatureList::IsEnabled(features::kGlicUnloadOnClose)) {
     host().Shutdown();
   }
+}
+
+void GlicWindowControllerImpl::ResetAndHidePanel() {
+  if (IsDetached()) {
+    SaveWidgetPosition(/*user_modified=*/false);
+
+    modal_dialog_host_observers_.Notify(
+        &web_modal::ModalDialogHostObserver::OnHostDestroying);
+    web_modal::WebContentsModalDialogManager::FromWebContents(
+        host().webui_contents())
+        ->SetDelegate(nullptr);
+  } else if (IsAttached()) {
+    // Closing the side panel destroys its WebView which hides its webcontents.
+    // This creates a race where the webcontents might be hidden when showing
+    // again after the side panel closes. Prevent this by unsetting the
+    // webcontents first.
+    if (glic_view_) {
+      glic_view_->SetWebContents(nullptr);
+    }
+    attached_browser_->GetFeatures().side_panel_coordinator()->Close();
+  }
+
+  // The following state is always safe to reset regardless of if the panel is
+  // detached, attached or currently closed.
+
+  // Floating Panel State
+  draggable_area_ = std::nullopt;
+  window_event_observer_.reset();
+  glic_window_animator_.reset();
+  glic_widget_observation_.Reset();
+  glic_widget_.reset();
+  scoped_glic_button_indicator_.reset();
+
+  // Attached Side Panel State.
+  attached_browser_ = nullptr;
+  glic_view_ = nullptr;
+  browser_close_subscription_.reset();
 }
 
 void GlicWindowControllerImpl::SaveWidgetPosition(bool user_modified) {
@@ -1314,17 +1295,18 @@ void GlicWindowControllerImpl::AdjustPositionIfNeeded() {
 }
 
 void GlicWindowControllerImpl::OnDragComplete() {
-  Browser* browser = FindBrowserForAttachment();
+  BrowserWindowInterface* browser = FindBrowserForAttachment();
   // No browser within attachment range.
   if (!browser) {
     return;
   }
   // Attach to the found browser.
-  AttachToBrowser(*browser, AttachChangeReason::kDrag);
+  AttachToBrowser(*browser->GetBrowserForMigrationOnly(),
+                  AttachChangeReason::kDrag);
 }
 
 void GlicWindowControllerImpl::HandleGlicButtonIndicator() {
-  Browser* browser = FindBrowserForAttachment();
+  BrowserWindowInterface* browser = FindBrowserForAttachment();
   // No browser within attachment range so reset indicators
   if (!browser) {
     scoped_glic_button_indicator_.reset();
@@ -1335,13 +1317,16 @@ void GlicWindowControllerImpl::HandleGlicButtonIndicator() {
   if (!scoped_glic_button_indicator_ ||
       scoped_glic_button_indicator_->GetGlicButton() != glic_button) {
     // Bring the browser to the front.
-    browser->GetBrowserView().GetWidget()->Activate();
+    browser->GetBrowserForMigrationOnly()
+        ->GetBrowserView()
+        .GetWidget()
+        ->Activate();
     scoped_glic_button_indicator_ =
         std::make_unique<ScopedGlicButtonIndicator>(glic_button);
   }
 }
 
-Browser* GlicWindowControllerImpl::FindBrowserForAttachment() {
+BrowserWindowInterface* GlicWindowControllerImpl::FindBrowserForAttachment() {
   // The profile must have started off as Glic enabled since a Glic widget is
   // open but it may have been disabled at runtime by policy. In this edge-case,
   // prevent reattaching back to a window (as it no longer has a GlicButton).
@@ -1356,44 +1341,52 @@ Browser* GlicWindowControllerImpl::FindBrowserForAttachment() {
       GetGlicWidget()->GetWindowBoundsInScreen().top_right();
   // Loops through all browsers in activation order with the latest accessed
   // browser first.
-  for (Browser* browser : BrowserList::GetInstance()->OrderedByActivation()) {
-    if (!IsBrowserGlicAttachable(profile_, browser)) {
-      continue;
-    }
+  BrowserWindowInterface* browser_for_attachment = nullptr;
+  ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
+      [&](BrowserWindowInterface* browser) {
+        if (!IsBrowserGlicAttachable(profile_, browser)) {
+          return true;  // continue iterating
+        }
 
-    auto* tab_strip_view = browser->GetBrowserView().tab_strip_view();
-    CHECK(tab_strip_view);
+        auto* tab_strip_view = browser->GetBrowserForMigrationOnly()
+                                   ->GetBrowserView()
+                                   .tab_strip_view();
+        CHECK(tab_strip_view);
 
-    // If the profile is enabled, the Glic button must be available.
-    glic::GlicButton* glic_button =
-        BrowserElementsViews::From(browser)->GetViewAs<glic::GlicButton>(
-            kGlicButtonElementId);
-    CHECK(glic_button);
+        // If the profile is enabled, the Glic button must be available.
+        glic::GlicButton* glic_button =
+            BrowserElementsViews::From(browser)->GetViewAs<glic::GlicButton>(
+                kGlicButtonElementId);
+        CHECK(glic_button);
 
-    // Define attachment zone as the right of the tab strip. It either is the
-    // width of the widget or 1/3 of the tab strip, whichever is smaller.
-    gfx::Rect attachment_zone = tab_strip_view->GetBoundsInScreen();
-    int width = std::min(attachment_zone.width() / 3,
-                         GlicWidget::GetInitialSize().width());
-    attachment_zone.SetByBounds(attachment_zone.right() - width,
-                                attachment_zone.y() - kAttachmentBuffer,
-                                attachment_zone.right() + kAttachmentBuffer,
-                                attachment_zone.bottom());
+        // Define attachment zone as the right of the tab strip. It either is
+        // the width of the widget or 1/3 of the tab strip, whichever is
+        // smaller.
+        gfx::Rect attachment_zone = tab_strip_view->GetBoundsInScreen();
+        int width = std::min(attachment_zone.width() / 3,
+                             GlicWidget::GetInitialSize().width());
+        attachment_zone.SetByBounds(attachment_zone.right() - width,
+                                    attachment_zone.y() - kAttachmentBuffer,
+                                    attachment_zone.right() + kAttachmentBuffer,
+                                    attachment_zone.bottom());
 
-    // If both the left center of the attachment zone and glic button right
-    // center are occluded, don't consider for attachment.
-    if (IsBrowserOccludedAtPoint(browser, attachment_zone.left_center()) &&
-        IsBrowserOccludedAtPoint(
-            browser, glic_button->GetBoundsInScreen().right_center())) {
-      continue;
-    }
+        // If both the left center of the attachment zone and glic button right
+        // center are occluded, don't consider for attachment.
+        if (IsBrowserOccludedAtPoint(browser, attachment_zone.left_center()) &&
+            IsBrowserOccludedAtPoint(
+                browser, glic_button->GetBoundsInScreen().right_center())) {
+          return true;  // continue iterating
+        }
 
-    if (attachment_zone.Contains(glic_top_right)) {
-      return browser;
-    }
-  }
-  // No browser found near glic.
-  return nullptr;
+        if (attachment_zone.Contains(glic_top_right)) {
+          browser_for_attachment = browser;
+          return false;  // stop iterating
+        }
+
+        return true;  // continue iterating
+      });
+
+  return browser_for_attachment;
 }
 
 void GlicWindowControllerImpl::AddStateObserver(StateObserver* observer) {
@@ -1422,9 +1415,10 @@ mojom::PanelState GlicWindowControllerImpl::ComputePanelState() const {
 
 bool GlicWindowControllerImpl::IsActive() {
   if (IsAttached()) {
-    // TODO(crbug.com/439745838): Get Sidepanel active status
-    NOTIMPLEMENTED();
-    return true;
+    auto* browser_view =
+        BrowserView::GetBrowserViewForBrowser(attached_browser_);
+    DCHECK(browser_view->unified_side_panel());
+    return browser_view->unified_side_panel()->HasFocus();
   }
   return IsDetached() && GetGlicWidget()->IsActive();
 }
@@ -1475,13 +1469,17 @@ void GlicWindowControllerImpl::Shutdown() {
   window_activation_callback_list_.Notify(false);
 }
 
-bool GlicWindowControllerImpl::IsBrowserOccludedAtPoint(Browser* browser,
-                                                        gfx::Point point) {
+bool GlicWindowControllerImpl::IsBrowserOccludedAtPoint(
+    BrowserWindowInterface* browser,
+    gfx::Point point) {
   std::set<gfx::NativeWindow> exclude = {
       GetGlicView()->GetWidget()->GetNativeWindow()};
   gfx::NativeWindow window =
       window_finder_->GetLocalProcessWindowAtPoint(point, exclude);
-  if (browser->GetBrowserView().GetWidget()->GetNativeWindow() != window) {
+  if (browser->GetBrowserForMigrationOnly()
+          ->GetBrowserView()
+          .GetWidget()
+          ->GetNativeWindow() != window) {
     return true;
   }
   return false;
@@ -1556,10 +1554,6 @@ GlicWindowController::State GlicWindowControllerImpl::state() const {
   return state_;
 }
 
-bool GlicWindowControllerImpl::IsDragging() {
-  return in_move_loop_;
-}
-
 Profile* GlicWindowControllerImpl::profile() {
   return profile_;
 }
@@ -1574,7 +1568,8 @@ Browser* GlicWindowControllerImpl::attached_browser() {
 }
 
 web_modal::WebContentsModalDialogHost*
-GlicWindowControllerImpl::GetWebContentsModalDialogHost() {
+GlicWindowControllerImpl::GetWebContentsModalDialogHost(
+    content::WebContents* web_contents) {
   return this;
 }
 

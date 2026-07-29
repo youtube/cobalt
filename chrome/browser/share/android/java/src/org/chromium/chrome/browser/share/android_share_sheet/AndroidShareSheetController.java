@@ -19,7 +19,6 @@ import androidx.annotation.VisibleForTesting;
 import org.chromium.base.Callback;
 import org.chromium.base.Log;
 import org.chromium.base.metrics.RecordHistogram;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
@@ -44,6 +43,7 @@ import org.chromium.components.browser_ui.share.ShareParams;
 import org.chromium.url.GURL;
 
 import java.util.Set;
+import java.util.function.Supplier;
 
 /** Share sheet controller used to display Android share sheet. */
 @NullMarked
@@ -151,9 +151,8 @@ public class AndroidShareSheetController implements ChromeOptionShareCallback {
     private void showShareSheetWithCustomAction(
             ShareParams params, ChromeShareExtras chromeShareExtras, boolean showCustomActions) {
         Profile profile = mProfileSupplier.get();
-        boolean isIncognito =
-                mTabModelSelectorSupplier.hasValue()
-                        && mTabModelSelectorSupplier.get().isIncognitoSelected();
+        TabModelSelector tabModelSelector = mTabModelSelectorSupplier.get();
+        boolean isIncognito = tabModelSelector != null && tabModelSelector.isIncognitoSelected();
         Activity activity = assumeNonNull(params.getWindow().getActivity().get());
         ChromeCustomShareAction.Provider provider = null;
 

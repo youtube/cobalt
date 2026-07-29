@@ -156,7 +156,7 @@ public class WindowAndroid
         // The color of the hairline.
         public int hairlineColor;
 
-        public static interface Provider {
+        public interface Provider {
             ProgressBarConfig getProgressBarConfig();
         }
     }
@@ -802,10 +802,11 @@ public class WindowAndroid
     public interface IntentCallback {
         /**
          * Handles the data returned by the requested intent.
+         *
          * @param resultCode Result code of the requested intent.
          * @param data The data returned by the intent.
          */
-        void onIntentCompleted(int resultCode, Intent data);
+        void onIntentCompleted(int resultCode, @Nullable Intent data);
     }
 
     /**

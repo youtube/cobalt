@@ -547,6 +547,18 @@ const MLOpSupportLimits* MLContext::opSupportLimits(ScriptState* script_state) {
   logical_not->setOutput(
       SupportedDataTypesToDataTypeLimits(data_type_limits.logical_output));
   op_support_limits->setLogicalNot(logical_not);
+  MLLogicalNotSupportLimits* is_nan = MLLogicalNotSupportLimits::Create();
+  is_nan->setA(
+      SupportedTensorLimitsToTensorLimits(data_type_limits.is_nan_input));
+  is_nan->setOutput(
+      SupportedDataTypesToDataTypeLimits(data_type_limits.logical_output));
+  op_support_limits->setIsNaN(is_nan);
+  MLLogicalNotSupportLimits* is_infinite = MLLogicalNotSupportLimits::Create();
+  is_infinite->setA(
+      SupportedTensorLimitsToTensorLimits(data_type_limits.is_infinite_input));
+  is_infinite->setOutput(
+      SupportedDataTypesToDataTypeLimits(data_type_limits.logical_output));
+  op_support_limits->setIsInfinite(is_infinite);
 
   // Element-wise unary ops.
   MLSingleInputSupportLimits* abs = MLSingleInputSupportLimits::Create();
@@ -609,6 +621,12 @@ const MLOpSupportLimits* MLContext::opSupportLimits(ScriptState* script_state) {
   reciprocal->setOutput(SupportedDataTypesToDataTypeLimits(
       data_type_limits.reciprocal_input.data_types));
   op_support_limits->setReciprocal(reciprocal);
+  MLSingleInputSupportLimits* round_even = MLSingleInputSupportLimits::Create();
+  round_even->setInput(
+      SupportedTensorLimitsToTensorLimits(data_type_limits.round_even_input));
+  round_even->setOutput(SupportedDataTypesToDataTypeLimits(
+      data_type_limits.round_even_input.data_types));
+  op_support_limits->setRoundEven(round_even);
   MLSingleInputSupportLimits* sign = MLSingleInputSupportLimits::Create();
   sign->setInput(
       SupportedTensorLimitsToTensorLimits(data_type_limits.sign_input));

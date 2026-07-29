@@ -48,6 +48,7 @@
 #include "third_party/blink/renderer/core/view_transition/view_transition.h"
 #include "third_party/blink/renderer/core/view_transition/view_transition_utils.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/clear_collection_scope.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 
 namespace blink {
 
@@ -386,10 +387,22 @@ const Element* GetPositionAnchorElement(
     return nullptr;
   }
   if (const ScopedCSSName* specifier = style.PositionAnchor()) {
+    const LayoutBox& anchored_box = *node.GetLayoutBox();
+
+    // OOFs in fragmentation do not follow the actual containing block structure
+    // (instead they become direct children of a fragmentainer). We need to pass
+    // the actual (CSS) containing block in such cases, in order to determine
+    // which anchors in the list are acceptable.
+    const LayoutObject* actual_containing_block = nullptr;
+    if (anchored_box.MightBeInsideFragmentationContext() &&
+        RuntimeEnabledFeatures::CSSAnchorSimplifiedFragmentationEnabled()) {
+      actual_containing_block = anchored_box.Container();
+    }
+
     if (const PhysicalAnchorReference* reference =
             anchor_query->AnchorReference(
-                *node.GetLayoutBox(),
-                ToAnchorScopedName(*specifier, *node.GetLayoutBox()))) {
+                anchored_box, actual_containing_block,
+                ToAnchorScopedName(*specifier, anchored_box))) {
       DCHECK(!reference->element || reference->GetLayoutObject());
       return reference->element;
     }
@@ -479,6 +492,44 @@ void UpdatePositionVisibilityAfterLayout(
   }
 }
 
+LogicalRect CalculateScrollRect(const BlockNode& node,
+                                const LogicalRect& container_rect,
+                                const BoxStrut& padding,
+                                const LogicalRect& inflow_bounds) {
+  // The `inflow_bounds` is roughly the size of the content-rect within a
+  // scrollable container. We want to *expand* the default rectange - so take
+  // the direction of the scrollable area, and try and expand it in that
+  // direction if possible.
+  const bool has_top_overflow = node.HasTopOverflow();
+  const bool has_left_overflow = node.HasLeftOverflow();
+  PhysicalToLogical<bool> overflow(node.Style().GetWritingDirection(),
+                                   has_top_overflow, !has_left_overflow,
+                                   !has_top_overflow, has_left_overflow);
+  LogicalRect rect = container_rect;
+
+  if (overflow.InlineStart()) {
+    const LayoutUnit offset =
+        inflow_bounds.InlineStartOffset() - padding.inline_start;
+    rect.ShiftInlineStartEdgeTo(std::min(offset, rect.InlineStartOffset()));
+  } else {
+    const LayoutUnit offset =
+        inflow_bounds.InlineEndOffset() + padding.inline_end;
+    rect.ShiftInlineEndEdgeTo(std::max(offset, rect.InlineEndOffset()));
+  }
+
+  if (overflow.BlockStart()) {
+    const LayoutUnit offset =
+        inflow_bounds.BlockStartOffset() - padding.block_start;
+    rect.ShiftBlockStartEdgeTo(std::min(offset, rect.BlockStartOffset()));
+  } else {
+    const LayoutUnit offset =
+        inflow_bounds.BlockEndOffset() + padding.block_end;
+    rect.ShiftBlockEndEdgeTo(std::max(offset, rect.BlockEndOffset()));
+  }
+
+  return rect;
+}
+
 }  // namespace
 
 // static
@@ -510,37 +561,52 @@ OutOfFlowLayoutPart::OutOfFlowLayoutPart(BoxFragmentBuilder* container_builder)
     return;
   }
 
+  const BlockNode& node = container_builder->Node();
   const ConstraintSpace& space = GetConstraintSpace();
   const WritingDirectionMode writing_direction = space.GetWritingDirection();
-  const bool is_scroll_container =
-      container_builder->Node().IsScrollContainer();
+  const bool is_scroll_container = node.IsScrollContainer();
   const bool is_hidden_for_paint = space.IsHiddenForPaint();
 
   const BoxStrut border_scrollbar =
       container_builder->Borders() + container_builder->Scrollbar();
-  const LogicalOffset container_offset = border_scrollbar.StartOffset();
+  const BoxStrut& padding = container_builder->Padding();
 
-  LogicalSize absolute_size;
-  LogicalSize fixed_size;
-  if (container_builder_->HasBlockSize()) {
-    absolute_size =
-        ShrinkLogicalSize(container_builder_->Size(), border_scrollbar);
-    fixed_size = ShrinkLogicalSize(
-        InitialContainingBlockFixedSize(container_builder->Node())
-            .value_or(container_builder_->Size()),
-        border_scrollbar);
+  const bool has_block_size = container_builder_->HasBlockSize();
+  const LogicalSize container_size =
+      has_block_size
+          ? ShrinkLogicalSize(container_builder_->Size(), border_scrollbar)
+          : LogicalSize();
+  const LogicalRect container_rect(border_scrollbar.StartOffset(),
+                                   container_size);
+
+  // Compute the scrollable containing-block. See:
+  // https://drafts.csswg.org/css-position-4/#scrollable-containing-block
+  std::optional<LogicalRect> scroll_rect;
+  const std::optional<LogicalRect>& inflow_bounds =
+      container_builder->InflowBounds();
+  if (RuntimeEnabledFeatures::CSSAnchorUpdateEnabled() && is_scroll_container &&
+      has_block_size && inflow_bounds) {
+    scroll_rect =
+        CalculateScrollRect(node, container_rect, padding, *inflow_bounds);
   }
 
-  default_containing_block_info_for_absolute_ = {
-      .writing_direction = writing_direction,
-      .is_scroll_container = is_scroll_container,
-      .is_hidden_for_paint = is_hidden_for_paint,
-      .rect = {container_offset, absolute_size}};
-  default_containing_block_info_for_fixed_ = {
-      .writing_direction = writing_direction,
-      .is_scroll_container = is_scroll_container,
-      .is_hidden_for_paint = is_hidden_for_paint,
-      .rect = {container_offset, fixed_size}};
+  default_containing_block_ = {.writing_direction = writing_direction,
+                               .is_scroll_container = is_scroll_container,
+                               .is_hidden_for_paint = is_hidden_for_paint,
+                               .rect = container_rect,
+                               .scroll_rect = scroll_rect};
+
+  if (std::optional<LogicalSize> viewport_size =
+          InitialContainingBlockFixedSize(node)) {
+    // "position: fixed" at the viewport doesn't ever use the `scroll_rect`.
+    viewport_containing_block_ = {
+        .writing_direction = writing_direction,
+        .is_scroll_container = is_scroll_container,
+        .is_hidden_for_paint = is_hidden_for_paint,
+        .rect = {container_rect.offset,
+                 ShrinkLogicalSize(*viewport_size, border_scrollbar)},
+        .scroll_rect = std::nullopt};
+  }
 }
 
 void OutOfFlowLayoutPart::Run() {
@@ -699,10 +765,11 @@ void OutOfFlowLayoutPart::HandleFragmentation() {
 }
 
 LogicalRect OutOfFlowLayoutPart::ApplyPositionAreaOffsets(
+    const LogicalRect& base_rect,
     const PositionAreaOffsets& offsets,
     PhysicalOffset default_anchor_scroll_shift,
     const OutOfFlowLayoutPart::ContainingBlockInfo& container_info) const {
-  LogicalRect rect = container_info.rect;
+  LogicalRect rect = base_rect;
 
   // Reduce the container size and adjust the offset based on the position-area.
   const BoxStrut insets =
@@ -875,6 +942,7 @@ OutOfFlowLayoutPart::GetContainingBlockInfo(
           containing_block_fragment->IsScrollContainer(),
           containing_block_fragment->IsHiddenForPaint(),
           LogicalRect(container_offset, content_size),
+          std::nullopt,
           fragmentainer_descendant.containing_block.RelativeOffset(),
           fragmentainer_descendant.containing_block.Offset()};
 
@@ -892,9 +960,12 @@ OutOfFlowLayoutPart::GetContainingBlockInfo(
          container_builder_->FragmentBlockSize()});
   }
 
-  return node_style.GetPosition() == EPosition::kAbsolute
-             ? default_containing_block_info_for_absolute_
-             : default_containing_block_info_for_fixed_;
+  if (node_style.GetPosition() == EPosition::kFixed &&
+      viewport_containing_block_) {
+    return *viewport_containing_block_;
+  }
+
+  return default_containing_block_;
 }
 
 void OutOfFlowLayoutPart::ComputeInlineContainingBlocks(
@@ -920,10 +991,9 @@ void OutOfFlowLayoutPart::ComputeInlineContainingBlocks(
   LogicalSize container_builder_size = container_builder_->Size();
   PhysicalSize container_builder_physical_size = ToPhysicalSize(
       container_builder_size, GetConstraintSpace().GetWritingMode());
-  AddInlineContainingBlockInfo(
-      inline_container_fragments,
-      default_containing_block_info_for_absolute_.writing_direction,
-      container_builder_physical_size);
+  AddInlineContainingBlockInfo(inline_container_fragments,
+                               default_containing_block_.writing_direction,
+                               container_builder_physical_size);
 }
 
 void OutOfFlowLayoutPart::ComputeInlineContainingBlocksForFragmentainer(
@@ -1156,7 +1226,7 @@ void OutOfFlowLayoutPart::AddInlineContainingBlockInfo(
             inline_writing_direction,
             /* is_scroll_container */ false,
             block_info.value->is_hidden_for_paint,
-            LogicalRect(container_offset, inline_cb_size),
+            LogicalRect(container_offset, inline_cb_size), std::nullopt,
             total_relative_offset,
             containing_block_offset - block_info.value->relative_offset});
   }
@@ -1190,7 +1260,10 @@ void OutOfFlowLayoutPart::LayoutCandidates(
         }
 
         NodeInfo node_info = SetupNodeInfo(candidate);
-        NodeToLayout node_to_layout = {node_info, CalculateOffset(node_info)};
+        NodeToLayout node_to_layout = {
+            node_info,
+            CalculateOffset(node_info,
+                            /*is_inside_fragmentation_context=*/false)};
         const LayoutResult* result = LayoutOOFNode(node_to_layout);
         PhysicalBoxStrut physical_margins =
             node_to_layout.offset_info.node_dimensions.margins
@@ -1404,8 +1477,12 @@ void OutOfFlowLayoutPart::LayoutOOFsInMulticol(
 
   // Layout the OOF positioned elements inside the inner multicol.
   OutOfFlowLayoutPart inner_part(&limited_multicol_container_builder);
-  inner_part.outer_oof_layout_part_ =
-      outer_oof_layout_part_ ? outer_oof_layout_part_ : this;
+  if (!RuntimeEnabledFeatures::CSSAnchorSimplifiedFragmentationEnabled()) {
+    // TODO(crbug.com/436305267): Remove `outer_oof_layout_part_` when the
+    // runtime flag is removed.
+    inner_part.outer_oof_layout_part_ =
+        outer_oof_layout_part_ ? outer_oof_layout_part_ : this;
+  }
   inner_part.LayoutFragmentainerDescendants(
       &oof_nodes_to_layout, fragmentainer_progression,
       multicol_info->fixedpos_containing_block.Fragment(), &multicol_children);
@@ -1494,27 +1571,31 @@ void OutOfFlowLayoutPart::LayoutFragmentainerDescendants(
   DCHECK(multicol_children_ || !outer_context_has_fixedpos_container_);
 
   OutOfFlowLayoutPart* layout_part_for_anchor_query = this;
-  if (outer_oof_layout_part_) {
-    // If this is an inner layout of the nested block fragmentation, and if this
-    // block fragmentation context is block fragmented, |multicol_children|
-    // doesn't have correct block offsets of fragmentainers anchor query needs.
-    // Calculate the anchor query from the outer block fragmentation context
-    // instead in order to get the correct offsets.
-    for (const MulticolChildInfo& multicol_child : *multicol_children) {
-      if (multicol_child.parent_break_token) {
-        layout_part_for_anchor_query = outer_oof_layout_part_;
-        break;
+  std::optional<StitchedAnchorQueries> stitched_anchor_queries;
+  if (!RuntimeEnabledFeatures::CSSAnchorSimplifiedFragmentationEnabled()) {
+    if (outer_oof_layout_part_) {
+      // If this is an inner layout of the nested block fragmentation, and if
+      // this block fragmentation context is block fragmented,
+      // |multicol_children| doesn't have correct block offsets of
+      // fragmentainers anchor query needs.  Calculate the anchor query from the
+      // outer block fragmentation context instead in order to get the correct
+      // offsets.
+      for (const MulticolChildInfo& multicol_child : *multicol_children) {
+        if (multicol_child.parent_break_token) {
+          layout_part_for_anchor_query = outer_oof_layout_part_;
+          break;
+        }
       }
     }
-  }
 
-  BoxFragmentBuilder* builder_for_anchor_query =
-      layout_part_for_anchor_query->container_builder_;
-  StitchedAnchorQueries stitched_anchor_queries(
-      *builder_for_anchor_query->Node().GetLayoutBox(),
-      builder_for_anchor_query->SizeForAnchorQueries(),
-      layout_part_for_anchor_query->FragmentationContextChildren(),
-      builder_for_anchor_query->GetWritingDirection());
+    BoxFragmentBuilder* builder_for_anchor_query =
+        layout_part_for_anchor_query->container_builder_;
+    stitched_anchor_queries.emplace(
+        *builder_for_anchor_query->Node().GetLayoutBox(),
+        builder_for_anchor_query->SizeForAnchorQueries(),
+        layout_part_for_anchor_query->FragmentationContextChildren(),
+        builder_for_anchor_query->GetWritingDirection());
+  }
 
   const bool may_have_anchors_on_oof =
       std::any_of(descendants->begin(), descendants->end(),
@@ -1543,22 +1624,23 @@ void OutOfFlowLayoutPart::LayoutFragmentainerDescendants(
   while (!descendants->empty()) {
     ComputeInlineContainingBlocksForFragmentainer(*descendants);
 
-    // When there are anchor queries, each containing block should be laid out
-    // separately. This loop chunks |descendants| by their containing blocks, if
-    // they have anchor queries.
+    // If there are anchors, the objects containing them need to be laid out
+    // before proceeding to successors (since they may have references to such
+    // anchors). This loop chunks `descendants` if there are OOFs containing
+    // anchors. Each time we encounter an OOF that is an anchor and/or has
+    // anchors inside, we need to lay out all the OOFs we have gathered so far,
+    // before resuming with any remaining OOFs following it.
     base::span<LogicalOofNodeForFragmentation> descendants_span =
         base::span(*descendants);
     for (;;) {
       bool has_new_descendants_span = false;
-      // The CSS containing block of the last descendant, to group |descendants|
-      // by the CSS containing block.
-      const LayoutObject* last_css_containing_block = nullptr;
 
       // Sort the descendants by fragmentainer index in |descendants_to_layout|.
       // This will ensure that the descendants are laid out in the correct
       // order.
       DCHECK(!descendants_span.empty());
-      for (size_t i = 0; i < descendants_span.size(); ++i) {
+      for (size_t i = 0;
+           i < descendants_span.size() && !has_new_descendants_span; ++i) {
         auto& descendant = descendants_span[i];
         if (GetFragmentainerType() == kFragmentColumn) {
           auto* containing_block = To<LayoutBox>(
@@ -1575,43 +1657,26 @@ void OutOfFlowLayoutPart::LayoutFragmentainerDescendants(
           }
         }
 
-        // Ensure each containing block is laid out before laying out other
-        // containing blocks. The CSS Anchor Positioning may evaluate
-        // differently when the containing block is different, and may refer to
-        // other containing blocks that were already laid out.
+        // An OOF that is or contains anchors needs to be laid out right away,
+        // so that these anchors are visible to successors.
         //
-        // Do this only when needed, because doing so may rebuild fragmentainers
-        // multiple times, which can hit the performance when there are many
-        // containing blocks in the block formatting context.
-        //
-        // Use |LayoutObject::Container|, not |LayoutObject::ContainingBlock|.
-        // The latter is not the CSS containing block for inline boxes. See the
-        // comment of |LayoutObject::ContainingBlock|.
-        //
-        // Note |descendant.containing_block.fragment| is |ContainingBlock|, not
-        // the CSS containing block.
-        if (!stitched_anchor_queries.IsEmpty() || may_have_anchors_on_oof) {
-          const LayoutObject* css_containing_block =
-              descendant.box->Container();
-          DCHECK(css_containing_block);
-          if (css_containing_block != last_css_containing_block) {
-            // Chunking the layout of OOFs by the containing blocks is done only
-            // if it has anchor query, for the performance reasons to minimize
-            // the number of rebuilding fragmentainer fragments.
-            if (last_css_containing_block &&
-                (last_css_containing_block->MayHaveAnchorQuery() ||
-                 may_have_anchors_on_oof)) {
-              has_new_descendants_span = true;
-              descendants_span = descendants_span.subspan(i);
-              break;
-            }
-            last_css_containing_block = css_containing_block;
-          }
+        // Do this only when needed, to avoid rebuilding fragmentainers more
+        // times than necessary.
+        if (descendant.box->MayHaveAnchorQuery()) {
+          // This OOF is an achor and/or has anchors inside. Lay out the OOFs
+          // that we've collected so far, then resume collecting OOFs
+          // afterwards, if there are any left.
+          descendants_span = descendants_span.subspan(i + 1);
+          has_new_descendants_span = !descendants_span.empty();
         }
 
         NodeInfo node_info = SetupNodeInfo(descendant);
         NodeToLayout node_to_layout = {
-            node_info, CalculateOffset(node_info, &stitched_anchor_queries)};
+            node_info, CalculateOffset(node_info,
+                                       /*is_inside_fragmentation_context=*/true,
+                                       stitched_anchor_queries
+                                           ? &stitched_anchor_queries.value()
+                                           : nullptr)};
         node_to_layout.containing_block_fragment =
             descendant.containing_block.Fragment();
         node_to_layout.offset_info.original_offset =
@@ -1735,8 +1800,8 @@ void OutOfFlowLayoutPart::LayoutFragmentainerDescendants(
       // If laying out by containing blocks and there are more containing blocks
       // to be laid out, move on to the next containing block. Before laying
       // them out, if OOFs have anchors, update the anchor queries.
-      if (may_have_anchors_on_oof) {
-        stitched_anchor_queries.SetChildren(
+      if (stitched_anchor_queries && may_have_anchors_on_oof) {
+        stitched_anchor_queries->SetChildren(
             layout_part_for_anchor_query->FragmentationContextChildren());
       }
     }
@@ -1769,6 +1834,7 @@ void OutOfFlowLayoutPart::LayoutFragmentainerDescendants(
 AnchorEvaluatorImpl OutOfFlowLayoutPart::CreateAnchorEvaluator(
     const ContainingBlockInfo& container_info,
     const BlockNode& candidate,
+    bool is_inside_fragmentation_context,
     const StitchedAnchorQueries* anchor_queries) const {
   const LayoutObject* implicit_anchor = nullptr;
   const LayoutBox& candidate_layout_box = *candidate.GetLayoutBox();
@@ -1783,10 +1849,16 @@ AnchorEvaluatorImpl OutOfFlowLayoutPart::CreateAnchorEvaluator(
   const WritingModeConverter container_converter(
       container_info.writing_direction,
       container_builder_->SizeForAnchorQueries());
-  const PhysicalRect container_rect =
+  PhysicalRect container_rect =
       container_converter.ToPhysical(container_info.rect);
+  std::optional<PhysicalRect> scroll_rect =
+      container_info.scroll_rect
+          ? std::make_optional(
+                container_converter.ToPhysical(*container_info.scroll_rect))
+          : std::nullopt;
 
   if (anchor_queries) {
+    DCHECK(!RuntimeEnabledFeatures::CSSAnchorSimplifiedFragmentationEnabled());
     // When the containing block is block-fragmented, the |container_builder_|
     // is the fragmentainer, not the containing block, and the coordinate system
     // is stitched. Use the given |anchor_query|.
@@ -1794,15 +1866,87 @@ AnchorEvaluatorImpl OutOfFlowLayoutPart::CreateAnchorEvaluator(
     CHECK(css_containing_block);
     return AnchorEvaluatorImpl(candidate_layout_box, *anchor_queries,
                                implicit_anchor, *css_containing_block,
-                               container_info.writing_direction,
-                               container_rect);
+                               container_info.writing_direction, container_rect,
+                               scroll_rect);
   }
-  if (const PhysicalAnchorQuery* anchor_query =
-          container_builder_->AnchorQuery()) {
-    // Otherwise the |container_builder_| is the containing block.
-    return AnchorEvaluatorImpl(
-        candidate_layout_box, *anchor_query, implicit_anchor,
-        container_info.writing_direction, container_rect);
+
+  const PhysicalAnchorQuery* anchor_query = nullptr;
+  const LayoutObject* actual_containing_block = nullptr;
+  if (is_inside_fragmentation_context &&
+      RuntimeEnabledFeatures::CSSAnchorSimplifiedFragmentationEnabled()) {
+    // The containing block of the OOF is part of the fragmentation context
+    // established by this container. Imagine that fragmentainers are stitched
+    // together, for the purpose of calculating the bounding box of anchors.
+    // This is similar to how OOF insets are treated, and this is why we have to
+    // do the same here, in order to resolve `anchor()` correctly.
+    DCHECK(container_builder_->IsBlockFragmentationContextRoot());
+    wtf_size_t child_count = ChildCount();
+
+    // First calculate the size of all the fragmentainers stitched together.
+    // This is needed in order to convert between physical and logical values.
+    // Note that we only need the block-size. Let's not calculate a bogus
+    // inline-size (the inline-size may not be uniform across all
+    // fragmentainers).
+    LogicalSize stitched_container_size;
+    for (wtf_size_t idx = 0; idx < child_count; idx++) {
+      const PhysicalBoxFragment& fragment = GetChildFragment(idx);
+      if (!fragment.IsFragmentainerBox()) {
+        continue;
+      }
+      LogicalFragment logical_fragment(container_info.writing_direction,
+                                       fragment);
+      stitched_container_size.block_size += logical_fragment.BlockSize();
+    }
+
+    // Reconvert `container_rect`, this time based on the correct block-size.
+    const WritingModeConverter modified_container_converter(
+        container_info.writing_direction, stitched_container_size);
+    container_rect =
+        modified_container_converter.ToPhysical(container_info.rect);
+
+    // Scrollable containers are monolithic, so don't have a `scroll_rect`.
+    scroll_rect = std::nullopt;
+
+    // Then propagate all descendant anchors to a temporary PhysicalAnchorQuery,
+    // that will be used in place of the PhysicalAnchorQuery of the builder
+    // (which is in the visual coordinate space, which would be wrong here,
+    // since this OOF is containined within the fragmentation context).
+    PhysicalAnchorQuery* stitched_anchor_query = nullptr;
+    LogicalOffset stitched_offset;
+    for (wtf_size_t idx = 0; idx < child_count; idx++) {
+      const PhysicalBoxFragment& fragment = GetChildFragment(idx);
+      if (!fragment.IsFragmentainerBox()) {
+        // Non-fragmentainers, such as column spanners, are not part of the
+        // fragmentation context, and must therefore be ignored here.
+        continue;
+      }
+
+      PhysicalAnchorQuery::SetOptions options =
+          container_builder_->AnchorQuerySetOptionsForChild(fragment);
+
+      const LayoutObject* container_object =
+          container_builder_->GetLayoutObject();
+      CHECK(container_object);
+
+      FragmentBuilder::PropagateChildAnchors(
+          fragment, stitched_offset, *container_object, stitched_container_size,
+          options, &stitched_anchor_query);
+      if (const auto* break_token =
+              To<BlockBreakToken>(fragment.GetBreakToken())) {
+        stitched_offset.block_offset = break_token->ConsumedBlockSize();
+      }
+    }
+    anchor_query = stitched_anchor_query;
+    actual_containing_block = candidate_layout_box.Container();
+  } else {
+    anchor_query = container_builder_->AnchorQuery();
+  }
+
+  if (anchor_query) {
+    return AnchorEvaluatorImpl(candidate_layout_box, *anchor_query,
+                               implicit_anchor, actual_containing_block,
+                               container_info.writing_direction, container_rect,
+                               scroll_rect);
   }
   return AnchorEvaluatorImpl();
 }
@@ -1936,7 +2080,9 @@ const LayoutResult* OutOfFlowLayoutPart::LayoutOOFNode(
         // token, causing major confusion everywhere.
         //
         // [1] https://drafts.csswg.org/css-break/#varying-size-boxes
-        offset_info = CalculateOffset(node_info);
+        offset_info = CalculateOffset(
+            node_info,
+            /*is_inside_fragmentation_context=*/fragmentainer_constraint_space);
       }
 
       layout_result = Layout(oof_node_to_layout, fragmentainer_constraint_space,
@@ -2055,14 +2201,16 @@ void SortNonOverflowingCandidates(
 
 OutOfFlowLayoutPart::OffsetInfo OutOfFlowLayoutPart::CalculateOffset(
     const NodeInfo& node_info,
+    bool is_inside_fragmentation_context,
     const StitchedAnchorQueries* anchor_queries) {
   // See non_overflowing_scroll_range.h for documentation.
   HeapVector<NonOverflowingScrollRange> non_overflowing_scroll_ranges;
 
   // Note: This assumes @position-try rounds can't affect
   // writing-mode/position-anchor.
-  AnchorEvaluatorImpl anchor_evaluator = CreateAnchorEvaluator(
-      node_info.base_container_info, node_info.node, anchor_queries);
+  AnchorEvaluatorImpl anchor_evaluator =
+      CreateAnchorEvaluator(node_info.base_container_info, node_info.node,
+                            is_inside_fragmentation_context, anchor_queries);
 
   OOFCandidateStyleIterator iter(
       *node_info.node.GetLayoutBox(), anchor_evaluator,
@@ -2277,8 +2425,17 @@ OutOfFlowLayoutPart::TryCalculateOffset(
   DCHECK(base::ValuesEquivalent(node_info.node.Style().PositionAnchor(),
                                 candidate_style.PositionAnchor()));
 
+  // If we have a valid default anchor, we use the scrollable containing-block:
+  // https://drafts.csswg.org/css-position-4/#scrollable-containing-block
+  const bool has_default_anchor =
+      anchor_evaluator.DefaultAnchor(candidate_style.PositionAnchor());
+
   const ContainingBlockInfo& container_info = node_info.base_container_info;
-  LogicalRect container_rect = container_info.rect;
+  const LogicalRect base_rect = has_default_anchor && container_info.scroll_rect
+                                    ? *container_info.scroll_rect
+                                    : container_info.rect;
+
+  LogicalRect container_rect = base_rect;
   if (const std::optional<PositionAreaOffsets> offsets =
           candidate_style.PositionAreaOffsets()) {
     Element* elm = To<Element>(node_info.node.GetDOMNode());
@@ -2293,7 +2450,7 @@ OutOfFlowLayoutPart::TryCalculateOffset(
       style_engine.MarkForDefaultAnchorScrollShift(*elm);
     }
     container_rect = ApplyPositionAreaOffsets(
-        *offsets, default_anchor_scroll_shift, container_info);
+        base_rect, *offsets, default_anchor_scroll_shift, container_info);
   }
 
   const WritingDirectionMode candidate_writing_direction =
@@ -2308,7 +2465,6 @@ OutOfFlowLayoutPart::TryCalculateOffset(
   // may be clamped to produce non-negative space. Instead take the difference
   // between the base, and adjusted container-info.
   const BoxStrut container_insets = ([&]() -> BoxStrut {
-    const LogicalRect& base_rect = node_info.base_container_info.rect;
     const BoxStrut insets(
         container_rect.offset.inline_offset - base_rect.offset.inline_offset,
         base_rect.InlineEndOffset() - container_rect.InlineEndOffset(),

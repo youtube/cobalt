@@ -46,6 +46,7 @@ static_library("cloud_upload") {
     "//chrome/browser/ash/file_manager",
     "//chrome/browser/ash/file_system_provider",
     "//chrome/browser/ash/hats",
+    "//chrome/browser/notifications",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/ui/webui/ash/system_web_dialog",
     "//chrome/browser/web_applications",
@@ -197,9 +198,12 @@ source_set("unit_tests") {
     "//chromeos/ash/components/network:test_support",
     "//components/services/app_service/public/cpp:instance_update",
     "//components/session_manager/core",
+    "//components/session_manager/core:test_support",
     "//content/test:test_support",
     "//testing/gtest",
     "//ui/base",
     "//ui/chromeos/strings",
+    "//ui/message_center",
+    "//ui/message_center:test_support",
   ]
 }

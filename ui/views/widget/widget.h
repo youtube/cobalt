@@ -34,7 +34,7 @@
 #include "ui/display/types/display_constants.h"
 #include "ui/events/event_source.h"
 #include "ui/gfx/geometry/rounded_corners_f.h"
-#include "ui/gfx/native_widget_types.h"
+#include "ui/gfx/native_window_types.h"
 #include "ui/native_theme/native_theme.h"
 #include "ui/native_theme/native_theme_observer.h"
 #include "ui/views/focus/focus_manager.h"
@@ -920,10 +920,13 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
   // MakeCloseSynchronous() for more details.
   void SetBlockCloseForTesting(bool block_close) { block_close_ = block_close; }
 
-  // TODO(beng): Move off public API.
   // Closes the widget immediately. Compare to |Close|. This will destroy the
   // window handle associated with this Widget, so should not be called from
   // any code that expects it to be valid beyond this call.
+  // This should generally be avoided for Widgets (typically top-level) that
+  // want to animate when closed, or fullscreen Widgets where the platform may
+  // want to manipulate the NativeWidget's layer post-close (see
+  // crbug.com/40619853).
   void CloseNow();
 
   // Whether the widget has been asked to close itself. In particular this is
@@ -1471,6 +1474,11 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
 
   WidgetAXManager* ax_manager() { return ax_manager_.get(); }
 
+  // Invokes SaveWindowPlacement() if the native widget has been initialized.
+  // This is called at times when the native widget may not have been
+  // initialized.
+  void SaveWindowPlacementIfNeeded();
+
  protected:
   // Creates the RootView to be used within this Widget. Subclasses may override
   // to create custom RootViews that do specialized event processing.
@@ -1490,11 +1498,6 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
 
   // Set the native theme from which this widget gets color from.
   void SetNativeTheme(ui::NativeTheme* native_theme);
-
-  // Invokes SaveWindowPlacement() if the native widget has been initialized.
-  // This is called at times when the native widget may not have been
-  // initialized.
-  void SaveWindowPlacementIfNeeded();
 
   // The following methods are used by the property access system described in
   // the comments on views::View. They follow the required naming convention in

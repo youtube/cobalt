@@ -32,14 +32,15 @@ class ExecutionEngine;
 namespace ui {
 class UiEventDispatcher;
 }
+struct ActionResultWithLatencyInfo;
 
 // Represents a task that Chrome is executing on behalf of the user.
 class ActorTask {
  public:
-  using ActCallback = base::OnceCallback<void(
-      mojom::ActionResultPtr,
-      std::optional<size_t>,
-      std::vector<optimization_guide::proto::ScriptToolResult>)>;
+  using ActCallback =
+      base::OnceCallback<void(mojom::ActionResultPtr,
+                              std::optional<size_t>,
+                              std::vector<ActionResultWithLatencyInfo>)>;
 
   ActorTask() = delete;
   ActorTask(Profile* profile,
@@ -117,6 +118,9 @@ class ActorTask {
   // The set of tabs that were acted on by the last call to Act.
   absl::flat_hash_set<tabs::TabHandle> GetLastActedTabs() const;
 
+  // The single tab that was acted on by the last call to Act.
+  tabs::TabHandle GetLastActedTab();
+
  private:
   struct ActingTabState {
     ActingTabState();
@@ -134,8 +138,7 @@ class ActorTask {
   void OnFinishedAct(ActCallback callback,
                      mojom::ActionResultPtr result,
                      std::optional<size_t> index_of_failed_action,
-                     std::vector<optimization_guide::proto::ScriptToolResult>
-                         script_tool_results);
+                     std::vector<ActionResultWithLatencyInfo> action_results);
   void OnTabWillDetach(tabs::TabInterface* tab,
                        tabs::TabInterface::DetachReason reason);
 
@@ -161,6 +164,12 @@ class ActorTask {
   // A map from a tab's handle to state associated with that tab. The presence
   // of a tab in this map signifies that it is part of the task.
   absl::flat_hash_map<tabs::TabHandle, ActingTabState> acting_tabs_;
+
+  // Running number of steps this task has taken.
+  size_t number_of_steps_ = 0;
+
+  // The last tab that was acutated on.
+  tabs::TabHandle last_actuated_tab_handle_;
 
   base::WeakPtrFactory<ui::UiEventDispatcher> ui_weak_ptr_factory_;
   base::WeakPtrFactory<ActorTask> weak_ptr_factory_{this};

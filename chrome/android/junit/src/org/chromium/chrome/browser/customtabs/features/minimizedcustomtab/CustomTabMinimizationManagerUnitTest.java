@@ -44,7 +44,6 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 
-import org.chromium.base.supplier.Supplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Features.EnableFeatures;
@@ -66,6 +65,7 @@ import org.chromium.url.GURL;
 import org.chromium.url.JUnitTestGURLs;
 
 import java.lang.ref.WeakReference;
+import java.util.function.Supplier;
 
 /** Unit tests for {@link CustomTabMinimizationManager}. */
 @RunWith(BaseRobolectricTestRunner.class)
@@ -112,7 +112,6 @@ public class CustomTabMinimizationManagerUnitTest {
         when(mTab.getWebContents()).thenReturn(mWebContents);
         when(mTab.getUrl()).thenReturn(JUnitTestGURLs.SEARCH_URL);
         when(mTab.getTitle()).thenReturn(TITLE);
-        when(mTabProvider.hasValue()).thenReturn(true);
         when(mTabProvider.get()).thenReturn(mTab);
         when(mActivity.enterPictureInPictureMode(any(PictureInPictureParams.class)))
                 .thenReturn(true);
@@ -306,7 +305,6 @@ public class CustomTabMinimizationManagerUnitTest {
         bundle.putString(MinimizedCardProperties.TITLE.toString(), TITLE);
         bundle.putString(MinimizedCardProperties.URL.toString(), HOST);
 
-        when(mSavedInstanceStateSupplier.hasValue()).thenReturn(true);
         when(mSavedInstanceStateSupplier.get()).thenReturn(bundle);
         var manager =
                 new CustomTabMinimizationManager(

@@ -100,6 +100,24 @@ void PrefetchURLLoaderInterceptor::MaybeCreateLoader(
     return;
   }
 
+  // SW-controlled prefetches shouldn't serve navigation with
+  // `skip_service_worker` == `true`.
+  // TODO(https://crbug.com/438478667): The current serving-time
+  // `skip_service_worker` check here assumes prefetching-time
+  // `skip_service_worker` is always false (see the
+  // `CHECK(!skip_service_worker)` in
+  // `PrefetchContainer::MakeResourceRequest()`). We should revisit the check
+  // when we support prefetch-time `skip_service_worker`. Probably a prefetch
+  // whose request's `skip_service_worker` == `true` shouldn't serve navigation
+  // whose request's `skip_service_worker` == `false`.
+  if (tentative_resource_request.skip_service_worker &&
+      expected_service_worker_state_ ==
+          PrefetchServiceWorkerState::kControlled) {
+    redirect_serving_handle_ = PrefetchServingHandle();
+    std::move(loader_callback_).Run(std::nullopt);
+    return;
+  }
+
   if (redirect_serving_handle_ &&
       redirect_serving_handle_.DoesCurrentURLToServeMatch(
           tentative_resource_request.url)) {
@@ -176,20 +194,10 @@ void PrefetchURLLoaderInterceptor::GetPrefetch(
                                  std::move(get_prefetch_callback));
   auto key =
       PrefetchKey(initiator_document_token_, tentative_resource_request_url);
-
-  const bool is_nav_prerender = [&]() -> bool {
-    auto* frame_tree_node =
-        FrameTreeNode::GloballyFindByID(frame_tree_node_id_);
-    if (!frame_tree_node) {
-      return false;
-    }
-
-    return frame_tree_node->frame_tree().is_prerendering();
-  }();
-
   PrefetchMatchResolver::FindPrefetch(
-      std::move(key), expected_service_worker_state_, is_nav_prerender,
-      *prefetch_service, serving_page_metrics_container_, std::move(callback));
+      frame_tree_node_id_, *prefetch_service, std::move(key),
+      expected_service_worker_state_, serving_page_metrics_container_,
+      std::move(callback));
 }
 
 void PrefetchURLLoaderInterceptor::OnGetPrefetchComplete(

@@ -6,12 +6,13 @@ package org.chromium.chrome.browser.ui.activity_recreation;
 
 import android.os.Bundle;
 import android.os.Handler;
-
-import androidx.annotation.NonNull;
+import android.view.View;
 
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.base.supplier.OneshotSupplierImpl;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ActivityTabProvider;
 import org.chromium.chrome.browser.layouts.LayoutManager;
 import org.chromium.chrome.browser.layouts.LayoutStateProvider.LayoutStateObserver;
@@ -24,6 +25,7 @@ import org.chromium.ui.KeyboardVisibilityDelegate;
  * A utility class to handle saving and restoring the UI state across fold transitions, density
  * change or UI mode type change.
  */
+@NullMarked
 public class ActivityRecreationController {
     static final String ACTIVITY_RECREATION_UI_STATE = "activity_recreation_ui_state";
 
@@ -31,7 +33,7 @@ public class ActivityRecreationController {
     private final ObservableSupplier<LayoutManager> mLayoutManagerSupplier;
     private final ActivityTabProvider mActivityTabProvider;
     private final Handler mLayoutStateHandler;
-    private ActivityRecreationUiState mRetainedUiState;
+    private @Nullable ActivityRecreationUiState mRetainedUiState;
 
     /**
      * Construct a {@link ActivityRecreationController} instance.
@@ -42,9 +44,9 @@ public class ActivityRecreationController {
      * @param layoutStateHandler The {@link Handler} to post UI state restoration.
      */
     public ActivityRecreationController(
-            @NonNull OneshotSupplierImpl<ToolbarManager> toolbarManagerSupplier,
-            @NonNull ObservableSupplier<LayoutManager> layoutManagerSupplier,
-            @NonNull ActivityTabProvider activityTabProvider,
+            OneshotSupplierImpl<ToolbarManager> toolbarManagerSupplier,
+            ObservableSupplier<LayoutManager> layoutManagerSupplier,
+            ActivityTabProvider activityTabProvider,
             Handler layoutStateHandler) {
         mToolbarManagerSupplier = toolbarManagerSupplier;
         mLayoutManagerSupplier = layoutManagerSupplier;
@@ -60,18 +62,19 @@ public class ActivityRecreationController {
      */
     public void prepareUiState() {
         mRetainedUiState = new ActivityRecreationUiState();
-        if (mToolbarManagerSupplier.hasValue() && mToolbarManagerSupplier.get().isUrlBarFocused()) {
+        var toolbarManager = mToolbarManagerSupplier.get();
+        if (toolbarManager != null && toolbarManager.isUrlBarFocused()) {
             mRetainedUiState.mIsUrlBarFocused = true;
-            mRetainedUiState.mUrlBarEditText =
-                    mToolbarManagerSupplier.get().getUrlBarTextWithoutAutocomplete();
+            mRetainedUiState.mUrlBarEditText = toolbarManager.getUrlBarTextWithoutAutocomplete();
         }
 
         if (getKeyboardVisibilityState()) {
             mRetainedUiState.mIsKeyboardShown = true;
         }
 
-        if (mLayoutManagerSupplier.hasValue()) {
-            if (mLayoutManagerSupplier.get().isLayoutVisible(LayoutType.TAB_SWITCHER)) {
+        var layoutManager = mLayoutManagerSupplier.get();
+        if (layoutManager != null) {
+            if (layoutManager.isLayoutVisible(LayoutType.TAB_SWITCHER)) {
                 mRetainedUiState.mIsTabSwitcherShown = true;
             }
         }
@@ -98,7 +101,8 @@ public class ActivityRecreationController {
      * @param savedInstanceState The {@link Bundle} that is used to restore the UI state.
      */
     public void restoreUiState(Bundle savedInstanceState) {
-        if (savedInstanceState == null || !mLayoutManagerSupplier.hasValue()) {
+        LayoutManager layoutManager = mLayoutManagerSupplier.get();
+        if (savedInstanceState == null || layoutManager == null) {
             return;
         }
 
@@ -108,13 +112,9 @@ public class ActivityRecreationController {
             return;
         }
         restoreOmniboxState(
-                uiState,
-                mToolbarManagerSupplier.get(),
-                mLayoutManagerSupplier.get(),
-                mLayoutStateHandler);
-        restoreKeyboardState(
-                uiState, mActivityTabProvider, mLayoutManagerSupplier.get(), mLayoutStateHandler);
-        restoreTabSwitcherState(uiState, mLayoutManagerSupplier.get());
+                uiState, mToolbarManagerSupplier.get(), layoutManager, mLayoutStateHandler);
+        restoreKeyboardState(uiState, mActivityTabProvider, layoutManager, mLayoutStateHandler);
+        restoreTabSwitcherState(uiState, layoutManager);
     }
 
     private boolean getKeyboardVisibilityState() {
@@ -147,21 +147,24 @@ public class ActivityRecreationController {
      * @param activityTabProvider The current activity tab provider.
      * @return {@code true} if the keyboard is visible, {@code false} otherwise.
      */
-    private static boolean isKeyboardVisible(@NonNull ActivityTabProvider activityTabProvider) {
+    private static boolean isKeyboardVisible(ActivityTabProvider activityTabProvider) {
         if (activityTabProvider.get() == null
                 || activityTabProvider.get().getWebContents() == null
                 || activityTabProvider.get().getWebContents().getViewAndroidDelegate() == null) {
             return false;
         }
 
-        return KeyboardVisibilityDelegate.getInstance()
-                .isKeyboardShowing(
-                        activityTabProvider.get().getContext(),
-                        activityTabProvider
-                                .get()
-                                .getWebContents()
-                                .getViewAndroidDelegate()
-                                .getContainerView());
+        View containerView =
+                activityTabProvider
+                        .get()
+                        .getWebContents()
+                        .getViewAndroidDelegate()
+                        .getContainerView();
+        if (containerView == null) {
+            return false;
+        }
+
+        return KeyboardVisibilityDelegate.getInstance().isKeyboardShowing(containerView);
     }
 
     private static void restoreUiStateOnLayoutDoneShowing(
@@ -198,9 +201,9 @@ public class ActivityRecreationController {
     }
 
     private static void restoreOmniboxState(
-            @NonNull ActivityRecreationUiState uiState,
+            ActivityRecreationUiState uiState,
             ToolbarManager toolbarManager,
-            @NonNull LayoutManager layoutManager,
+            LayoutManager layoutManager,
             Handler layoutStateHandler) {
         if (toolbarManager == null || !uiState.mIsUrlBarFocused) {
             return;
@@ -213,9 +216,9 @@ public class ActivityRecreationController {
     }
 
     private static void restoreKeyboardState(
-            @NonNull ActivityRecreationUiState uiState,
-            @NonNull ActivityTabProvider activityTabProvider,
-            @NonNull LayoutManager layoutManager,
+            ActivityRecreationUiState uiState,
+            ActivityTabProvider activityTabProvider,
+            LayoutManager layoutManager,
             Handler layoutStateHandler) {
         // Restore the keyboard only if the omnibox focus was not restored, because omnibox code
         // is assumed to restore the keyboard on omnibox focus restoration.
@@ -227,19 +230,20 @@ public class ActivityRecreationController {
     }
 
     private static void restoreTabSwitcherState(
-            @NonNull ActivityRecreationUiState uiState, @NonNull LayoutManager layoutManager) {
+            ActivityRecreationUiState uiState, LayoutManager layoutManager) {
         if (!uiState.mIsTabSwitcherShown) {
             return;
         }
         layoutManager.showLayout(LayoutType.TAB_SWITCHER, false);
     }
 
-    private static void setUrlBarFocusAndText(ToolbarManager toolbarManager, String urlBarText) {
+    private static void setUrlBarFocusAndText(
+            ToolbarManager toolbarManager, @Nullable String urlBarText) {
         toolbarManager.setUrlBarFocusAndText(
                 true, OmniboxFocusReason.ACTIVITY_RECREATION_RESTORATION, urlBarText);
     }
 
-    private static void showSoftInput(@NonNull ActivityTabProvider activityTabProvider) {
+    private static void showSoftInput(ActivityTabProvider activityTabProvider) {
         var tab = activityTabProvider.get();
         if (tab == null) {
             return;
@@ -251,6 +255,8 @@ public class ActivityRecreationController {
 
         var containerView = webContents.getViewAndroidDelegate().getContainerView();
         webContents.scrollFocusedEditableNodeIntoView();
-        KeyboardVisibilityDelegate.getInstance().showKeyboard(containerView);
+        if (containerView != null) {
+            KeyboardVisibilityDelegate.getInstance().showKeyboard(containerView);
+        }
     }
 }

@@ -8,11 +8,10 @@ import android.content.Intent;
 import android.text.TextUtils;
 import android.view.View;
 
-import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.supplier.ObservableSupplier;
-import org.chromium.base.supplier.Supplier;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.IntentHandler;
 import org.chromium.chrome.browser.homepage.HomepageManager;
 import org.chromium.chrome.browser.incognito.IncognitoTabLauncher;
@@ -28,12 +27,15 @@ import org.chromium.chrome.browser.tabmodel.TabPersistentStore;
 import org.chromium.chrome.browser.tabmodel.TabPersistentStore.ActiveTabState;
 import org.chromium.components.embedder_support.util.UrlUtilities;
 
+import java.util.function.Supplier;
+
 /**
  * Helper class for blocking {@link ChromeTabbedActivity} content view draw on launch until the
  * initial tab is available and recording related metrics. It will start blocking the view in
  * #onPostInflationStartup. Once the tab is available, #onActiveTabAvailable should be called stop
  * blocking.
  */
+@NullMarked
 public class AppLaunchDrawBlocker {
     private final ActivityLifecycleDispatcher mActivityLifecycleDispatcher;
     private final InflationObserver mInflationObserver;
@@ -72,15 +74,14 @@ public class AppLaunchDrawBlocker {
      *     IncognitoRestoreAppLaunchDrawBlocker}.
      */
     public AppLaunchDrawBlocker(
-            @NonNull ActivityLifecycleDispatcher activityLifecycleDispatcher,
-            @NonNull Supplier<View> viewSupplier,
-            @NonNull Supplier<Intent> intentSupplier,
-            @NonNull Supplier<Boolean> shouldIgnoreIntentSupplier,
-            @NonNull Supplier<Boolean> isTabletSupplier,
-            @NonNull ObservableSupplier<Profile> profileSupplier,
-            @NonNull
-                    IncognitoRestoreAppLaunchDrawBlockerFactory
-                            incognitoRestoreAppLaunchDrawBlockerFactory) {
+            ActivityLifecycleDispatcher activityLifecycleDispatcher,
+            Supplier<View> viewSupplier,
+            Supplier<Intent> intentSupplier,
+            Supplier<Boolean> shouldIgnoreIntentSupplier,
+            Supplier<Boolean> isTabletSupplier,
+            ObservableSupplier<Profile> profileSupplier,
+            IncognitoRestoreAppLaunchDrawBlockerFactory
+                    incognitoRestoreAppLaunchDrawBlockerFactory) {
         mActivityLifecycleDispatcher = activityLifecycleDispatcher;
         mViewSupplier = viewSupplier;
         mInflationObserver =

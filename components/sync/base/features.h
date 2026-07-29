@@ -24,6 +24,9 @@ inline constexpr base::FeatureParam<int>
 // Enables syncing of Loyalty Cards coming from Google Wallet.
 BASE_DECLARE_FEATURE(kSyncAutofillLoyaltyCard);
 
+// Enables storing valuables in the profile db instead of the account db.
+BASE_DECLARE_FEATURE(kSyncMoveValuablesToProfileDb);
+
 // Enables syncing account-local metadata for shared tab groups.
 BASE_DECLARE_FEATURE(kSyncSharedTabGroupAccountData);
 
@@ -170,9 +173,10 @@ BASE_DECLARE_FEATURE(kSyncTrustedVaultInfobarMessageImprovements);
 #endif  // BUILDFLAG(IS_IOS)
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
-// Enables syncing of Vehicle Registrations and Flight reservations coming from
-// Google Wallet.
-BASE_DECLARE_FEATURE(kSyncWalletPublicPasses);
+// Enables syncing of flight reservations coming from Google Wallet.
+BASE_DECLARE_FEATURE(kSyncWalletFlightReservations);
+// Enables syncing of vehicle registrations coming from Google Wallet.
+BASE_DECLARE_FEATURE(kSyncWalletVehicleRegistrations);
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
 BASE_DECLARE_FEATURE(kSyncDetermineAccountManagedStatus);

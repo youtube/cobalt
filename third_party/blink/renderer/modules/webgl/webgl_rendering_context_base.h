@@ -428,6 +428,14 @@ class MODULES_EXPORT WebGLRenderingContextBase
                     Element* element,
                     ExceptionState& exception_state);
 
+  void texHTMLElement2D(GLenum target,
+                        GLint level,
+                        GLint internalformat,
+                        GLenum format,
+                        GLenum type,
+                        Element* element,
+                        ExceptionState& exception_state);
+
   void setHitTestRegions(VectorOf<CanvasElementHitTestRegion> hit_test_regions,
                          ExceptionState& exception_state);
 
@@ -1972,6 +1980,10 @@ class MODULES_EXPORT WebGLRenderingContextBase
 
   CanvasResourceProvider* GetOrCreateCanvasResourceProvider(
       bool use_bitmap_provider);
+
+  // Attempts to paint the most recent rendering results into a
+  // CanvasResourceProvider. Returns the CanvasResourceProvider if the paint
+  // succeeded; otherwise returns nullptr.
   CanvasResourceProvider* PaintRenderingResultsToResourceProvider(
       SourceDrawingBuffer source_buffer,
       bool use_bitmap_provider,

@@ -11,6 +11,7 @@
 #include "chrome/browser/glic/fre/glic_fre_controller.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
+#include "chrome/browser/glic/widget/glic_window_controller.h"
 #include "chrome/browser/global_features.h"
 #include "chrome/browser/lifetime/termination_notification.h"
 #include "chrome/browser/profiles/nuke_profile_directory_utils.h"
@@ -85,11 +86,18 @@ Profile* GlicProfileManager::GetProfileForLaunch() const {
   }
 
   // Look for a profile to based on most recently used browser windows
-  for (BrowserWindowInterface* browser :
-       GetBrowserWindowInterfacesOrderedByActivation()) {
-    if (GlicEnabling::IsEnabledAndConsentForProfile(browser->GetProfile())) {
-      return browser->GetProfile();
-    }
+  Profile* profile_from_browser_window = nullptr;
+  ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
+      [&](BrowserWindowInterface* browser) {
+        if (GlicEnabling::IsEnabledAndConsentForProfile(
+                browser->GetProfile())) {
+          profile_from_browser_window = browser->GetProfile();
+          return false;  // stop iterating
+        }
+        return true;  // continue iterating
+      });
+  if (profile_from_browser_window != nullptr) {
+    return profile_from_browser_window;
   }
 
   // TODO(https://crbug.com/379166075) Remove loaded profile look up once the

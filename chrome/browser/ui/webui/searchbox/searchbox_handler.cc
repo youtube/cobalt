@@ -476,8 +476,37 @@ void SearchboxHandler::SetupWebUIDataSource(content::WebUIDataSource* source,
       {"searchboxThumbnailLabel",
        IDS_GOOGLE_SEARCH_BOX_MULTIMODAL_IMAGE_THUMBNAIL},
       {"voiceSearchButtonLabel", IDS_TOOLTIP_MIC_SEARCH},
+
+      // Composebox.
+      {"addContext", IDS_NTP_COMPOSE_ADD_CONTEXT},
+      {"addContextTitle", IDS_NTP_COMPOSE_ADD_CONTEXT_TITLE},
       {"searchboxComposeButtonText", IDS_NTP_COMPOSE_ENTRYPOINT},
-      {"searchboxComposeButtonTitle", IDS_NTP_COMPOSE_ENTRYPOINT_A11Y_LABEL}};
+      {"searchboxComposeButtonTitle", IDS_NTP_COMPOSE_ENTRYPOINT_A11Y_LABEL},
+      {"composeboxCancelButtonTitle", IDS_NTP_COMPOSE_CANCEL_BUTTON_A11Y_LABEL},
+      {"composeboxCancelButtonTitleInput",
+       IDS_NTP_COMPOSE_CANCEL_BUTTON_A11Y_LABEL_INPUT},
+      {"composeboxImageUploadButtonTitle",
+       IDS_NTP_COMPOSE_IMAGE_UPLOAD_BUTTON_A11Y_LABEL},
+      {"composeboxPdfUploadButtonTitle",
+       IDS_NTP_COMPOSE_PDF_UPLOAD_BUTTON_A11Y_LABEL},
+      {"composeboxPlaceholderText", IDS_NTP_COMPOSE_PLACEHOLDER_TEXT},
+      {"composeboxSubmitButtonTitle", IDS_NTP_COMPOSE_SUBMIT_BUTTON_A11Y_LABEL},
+      {"composeboxDeleteFileTitle", IDS_NTP_COMPOSE_DELETE_FILE_A11Y_LABEL},
+      {"composeboxFileUploadStartedText",
+       IDS_NTP_COMPOSE_FILE_UPLOAD_STARTED_A11Y_TEXT},
+      {"composeboxFileUploadCompleteText",
+       IDS_NTP_COMPOSE_FILE_UPLOAD_COMPLETE_A11Y_TEXT},
+      {"composeboxFileUploadInvalidEmptySize",
+       IDS_NTP_COMPOSE_FILE_UPLOAD_INVALID_EMPTY_SIZE},
+      {"composeboxFileUploadInvalidTooLarge",
+       IDS_NTP_COMPOSE_FILE_UPLOAD_INVALID_TOO_LARGE},
+      {"composeboxFileUploadImageProcessingError",
+       IDS_NTP_COMPOSE_FILE_UPLOAD_IMAGE_PROCESSING_ERROR},
+      {"composeboxFileUploadValidationFailed",
+       IDS_NTP_COMPOSE_FILE_UPLOAD_VALIDATION_FAILED},
+      {"composeboxFileUploadFailed", IDS_NTP_COMPOSE_FILE_UPLOAD_FAILED},
+      {"composeboxFileUploadExpired", IDS_NTP_COMPOSE_FILE_UPLOAD_EXPIRED},
+  };
   source->AddLocalizedStrings(kStrings);
   source->AddString("searchboxComposePlaceholder",
                     ntp_composebox::FeatureConfig::Get()
@@ -695,12 +724,16 @@ SearchboxHandler::SearchboxHandler(
     mojo::PendingReceiver<searchbox::mojom::PageHandler> pending_page_handler,
     Profile* profile,
     content::WebContents* web_contents,
-    MetricsReporter* metrics_reporter)
+    MetricsReporter* metrics_reporter,
+    std::unique_ptr<OmniboxController> controller)
     : profile_(profile),
       web_contents_(web_contents),
       metrics_reporter_(metrics_reporter),
+      owned_controller_(std::move(controller)),
       page_set_(false),
-      page_handler_(this, std::move(pending_page_handler)) {}
+      page_handler_(this, std::move(pending_page_handler)) {
+  controller_ = owned_controller_.get();
+}
 
 SearchboxHandler::~SearchboxHandler() {
   // Avoids dangling pointer warning when `controller_` is not owned.

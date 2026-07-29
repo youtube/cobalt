@@ -43,7 +43,6 @@ import org.chromium.base.UserDataHost;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.ObservableSupplier;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.base.version_info.VersionInfo;
 import org.chromium.build.annotations.EnsuresNonNullIf;
 import org.chromium.build.annotations.Initializer;
@@ -107,6 +106,7 @@ import org.chromium.ui.base.ImmutableWeakReference;
 import org.chromium.ui.base.PageTransition;
 import org.chromium.ui.base.ViewAndroidDelegate;
 import org.chromium.ui.base.WindowAndroid;
+import org.chromium.ui.display.DisplayUtil;
 import org.chromium.url.GURL;
 
 import java.lang.annotation.Retention;
@@ -114,6 +114,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.ref.WeakReference;
 import java.nio.ByteBuffer;
 import java.util.Objects;
+import java.util.function.Supplier;
 
 /**
  * Implementation of the interface {@link Tab}. Contains and manages a {@link ContentView}. This
@@ -2558,7 +2559,6 @@ class TabImpl implements Tab {
     private @UserAgentOverrideOption int calculateUserAgentOverrideOption(@Nullable GURL url) {
         WebContents webContents = getWebContents();
         boolean currentRequestDesktopSite = TabUtils.isUsingDesktopUserAgent(webContents);
-        @TabUserAgent int tabUserAgent = TabUtils.getTabUserAgent(this);
         // INHERIT means use the same UA that was used last time.
         @UserAgentOverrideOption int userAgentOverrideOption = UserAgentOverrideOption.INHERIT;
 
@@ -2566,24 +2566,20 @@ class TabImpl implements Tab {
             url = webContents.getVisibleUrl();
         }
 
-        // Do not override UA if there is a tab level setting.
-        if (tabUserAgent != TabUserAgent.DEFAULT) {
-            recordHistogramUseDesktopUserAgent(currentRequestDesktopSite);
-            RequestDesktopUtils.maybeUpgradeTabLevelDesktopSiteSetting(
-                    this, mProfile, tabUserAgent, url);
-            return userAgentOverrideOption;
-        }
-
         CommandLine commandLine = CommandLine.getInstance();
         // For --request-desktop-sites, always override the user agent.
         boolean alwaysRequestDesktopSite =
                 commandLine.hasSwitch(ChromeSwitches.REQUEST_DESKTOP_SITES);
 
+        boolean shouldRespectContentSetting =
+                TabUtils.readRequestDesktopSiteContentSettings(mProfile, url)
+                        && !RequestDesktopUtils.shouldApplyWindowSetting(
+                                mProfile, url, getContext());
+        boolean isOnExternalDisplay =
+                ChromeFeatureList.sDesktopUAOnConnectedDisplay.isEnabled()
+                        && !DisplayUtil.isContextInDefaultDisplay(getContext());
         boolean shouldRequestDesktopSite =
-                alwaysRequestDesktopSite
-                        || (TabUtils.readRequestDesktopSiteContentSettings(mProfile, url)
-                                && !RequestDesktopUtils.shouldApplyWindowSetting(
-                                        mProfile, url, getContext()));
+                alwaysRequestDesktopSite || isOnExternalDisplay || shouldRespectContentSetting;
 
         if (shouldRequestDesktopSite != currentRequestDesktopSite) {
             // The user is not forcing any mode and we determined that we need to

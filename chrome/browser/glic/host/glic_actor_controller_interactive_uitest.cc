@@ -8,6 +8,7 @@
 
 #include "base/base64.h"
 #include "base/functional/callback.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/strings/to_string.h"
 #include "base/test/bind.h"
 #include "base/test/protobuf_matchers.h"
@@ -23,7 +24,6 @@
 #include "chrome/browser/devtools/devtools_window_testing.h"
 #include "chrome/browser/glic/host/context/glic_page_context_fetcher.h"
 #include "chrome/browser/glic/host/glic.mojom-shared.h"
-#include "chrome/browser/glic/host/glic_actor_controller.h"
 #include "chrome/browser/glic/test_support/interactive_glic_test.h"
 #include "chrome/browser/glic/test_support/interactive_test_util.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
@@ -251,6 +251,22 @@ class GlicActorControllerUiTest : public test::InteractiveGlicTest {
                          std::move(expected_result));
   }
 
+  auto GetClientRect(ui::ElementIdentifier tab_id,
+                     std::string_view element_id,
+                     gfx::Rect& out_rect) {
+    return Steps(InAnyContext(WithElement(tab_id, [element_id, &out_rect](
+                                                      ui::TrackedElement* el) {
+      const base::Value result =
+          AsInstrumentedWebContents(el)->Evaluate(content::JsReplace(
+              "() => document.getElementById($1).getBoundingClientRect().toJSON()",
+              element_id));
+      out_rect.SetRect(base::ClampRound(*result.GetDict().FindDouble("x")),
+                       base::ClampRound(*result.GetDict().FindDouble("y")),
+                       base::ClampRound(*result.GetDict().FindDouble("width")),
+                       base::ClampRound(*result.GetDict().FindDouble("height")));
+    })));
+  }
+
   auto ClickAction(std::string_view label,
                    actor::TaskId& task_id,
                    TabHandle& tab_handle,
@@ -412,11 +428,12 @@ class GlicActorControllerUiTest : public test::InteractiveGlicTest {
   auto StopActorTask() {
     return Steps(InAnyContext(WithElement(
                      kGlicContentsElementId,
-                     [](ui::TrackedElement* el) {
+                     [&task_id = task_id_](ui::TrackedElement* el) {
                        content::WebContents* glic_contents =
                            AsInstrumentedWebContents(el)->web_contents();
-                       constexpr std::string_view script =
-                           "client.browser.stopActorTask(0);";
+                       std::string script = content::JsReplace(
+                           "client.browser.stopActorTask($1);",
+                           task_id.value());
                        ASSERT_TRUE(content::ExecJs(glic_contents, script));
                      })),
                  RoundTrip());
@@ -426,11 +443,12 @@ class GlicActorControllerUiTest : public test::InteractiveGlicTest {
   auto PauseActorTask() {
     return Steps(InAnyContext(WithElement(
                      kGlicContentsElementId,
-                     [](ui::TrackedElement* el) {
+                     [&task_id = task_id_](ui::TrackedElement* el) {
                        content::WebContents* glic_contents =
                            AsInstrumentedWebContents(el)->web_contents();
-                       constexpr std::string_view script =
-                           "client.browser.pauseActorTask(0);";
+                       std::string script = content::JsReplace(
+                           "client.browser.pauseActorTask($1);",
+                           task_id.value());
                        ASSERT_TRUE(content::ExecJs(glic_contents, script));
                      })),
                  RoundTrip());
@@ -440,22 +458,22 @@ class GlicActorControllerUiTest : public test::InteractiveGlicTest {
   auto ResumeActorTask(base::Value::Dict context_options, bool expected) {
     return InAnyContext(CheckElement(
         kGlicContentsElementId,
-        [context_options =
-             std::move(context_options)](ui::TrackedElement* el) mutable {
+        [&task_id = task_id_, context_options = std::move(context_options)](
+            ui::TrackedElement* el) mutable {
           content::WebContents* glic_contents =
               AsInstrumentedWebContents(el)->web_contents();
           std::string script = content::JsReplace(
               R"js(
                               (async () => {
                                 try {
-                                  await client.browser.resumeActorTask(0, $1);
+                                  await client.browser.resumeActorTask($1, $2);
                                   return true;
                                 } catch (err) {
                                   return false;
                                 }
                               })();
                             )js",
-              std::move(context_options));
+              task_id.value(), std::move(context_options));
           return content::EvalJs(glic_contents, script).ExtractBool();
         },
         expected));
@@ -1282,6 +1300,38 @@ IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest,
         EXPECT_TRUE(tab.has_screenshot_mime_type());
         EXPECT_EQ(tab.screenshot_mime_type(), actor::kMimeTypeJpeg);
       })
+  );
+  // clang-format on
+}
+
+// Ensure the time-of-use check can succeed when clicking on a text node rather
+// than an element.
+IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest, TimeOfUseCheckOnTextNode) {
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kNewActorTabId);
+
+  const GURL task_url =
+      embedded_test_server()->GetURL("/actor/page_with_clickable_element.html");
+
+  gfx::Rect checkbox_label_bounds;
+  auto click_provider =
+      base::BindLambdaForTesting([this, &checkbox_label_bounds]() {
+        Actions action =
+            actor::MakeClick(tab_handle_, checkbox_label_bounds.CenterPoint());
+        action.set_task_id(task_id_.value());
+        return EncodeActionProto(action);
+      });
+  RunTestSequence(
+      // clang-format off
+      InitializeWithOpenGlicWindow(),
+      StartActorTaskInNewTab(task_url, kNewActorTabId),
+      SetOnIncompatibleAction(OnIncompatibleAction::kSkipTest,
+                              kActivateSurfaceIncompatibilityNotice),
+
+      GetPageContextFromFocusedTab(),
+      GetClientRect(kNewActorTabId, "checkbox-label", checkbox_label_bounds),
+      ExecuteAction(std::move(click_provider)),
+
+      WaitForJsResult(kNewActorTabId, "() => document.getElementById('checkbox').checked")
   );
   // clang-format on
 }

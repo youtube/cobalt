@@ -16,8 +16,7 @@ constexpr auto kOrganicRepeatableQueriesDefaultValue =
 // Specifies the scaling behavior, i.e. whether the relevance scales of the
 // top sites and repeatable queries should be first aligned.
 // The default behavior is to mix the two lists as is.
-constexpr bool kScaleRepeatableQueriesScoresDefaultValue =
-    BUILDFLAG(IS_ANDROID) ? true : false;
+constexpr bool kScaleRepeatableQueriesScoresDefaultValue = is_android;
 
 // Defines the maximum number of repeatable queries that can be shown.
 // The default behavior is having no limit, i.e., the number of the tiles.
@@ -93,7 +92,7 @@ BASE_FEATURE(kMostVisitedTilesNewScoring,
 // If enabled, heuristically remove possible visual duplicates from top sites.
 BASE_FEATURE(kMostVisitedTilesVisualDeduplication,
              "MostVisitedTilesVisualDeduplication",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 constexpr char kMvtScoringParamRecencyFactor_Classic[] = "default";
 constexpr char kMvtScoringParamRecencyFactor_Decay[] = "decay";

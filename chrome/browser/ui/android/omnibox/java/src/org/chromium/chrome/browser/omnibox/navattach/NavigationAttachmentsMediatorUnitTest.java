@@ -9,26 +9,35 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-import android.content.Intent;
-import android.provider.MediaStore;
+import android.content.Context;
 import android.view.ViewGroup;
 
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
+import org.robolectric.RuntimeEnvironment;
 
+import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.chrome.browser.omnibox.navattach.AttachmentDetailsFetcher.AttachmentDetails;
+import org.chromium.chrome.browser.omnibox.navattach.NavigationAttachmentsRecyclerViewAdapter.NavigationAttachmentItemType;
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.ui.base.WindowAndroid;
+import org.chromium.ui.modelutil.MVCListAdapter;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
 import org.chromium.ui.modelutil.PropertyModel;
+
+import java.nio.ByteBuffer;
 
 /** Unit tests for {@link NavigationAttachmentsMediator}. */
 @RunWith(BaseRobolectricTestRunner.class)
@@ -38,17 +47,30 @@ public class NavigationAttachmentsMediatorUnitTest {
     private @Mock NavigationAttachmentsViewHolder mViewHolder;
     private @Mock NavigationAttachmentsPopup mPopup;
     private @Mock WindowAndroid mWindowAndroid;
+    private @Mock Profile mProfile;
+    private @Mock ComposeBoxQueryControllerBridge.Natives mNativeMock;
 
+    private Context mContext;
     private PropertyModel mModel;
     private NavigationAttachmentsMediator mMediator;
+    private ObservableSupplierImpl<Profile> mProfileSupplier;
 
     @Before
     public void setUp() {
+        mProfileSupplier = new ObservableSupplierImpl<>(mProfile);
+        mContext = RuntimeEnvironment.application;
         mModel = new PropertyModel(NavigationAttachmentsProperties.ALL_KEYS);
         mViewHolder = new NavigationAttachmentsViewHolder(mViewGroup, mPopup);
         mMediator =
-                new NavigationAttachmentsMediator(
-                        mWindowAndroid, mModel, mViewHolder, new ModelList());
+                Mockito.spy(
+                        new NavigationAttachmentsMediator(
+                                mContext,
+                                mWindowAndroid,
+                                mModel,
+                                mViewHolder,
+                                new ModelList(),
+                                mProfileSupplier));
+        ComposeBoxQueryControllerBridgeJni.setInstanceForTesting(mNativeMock);
     }
 
     @Test
@@ -90,53 +112,58 @@ public class NavigationAttachmentsMediatorUnitTest {
     }
 
     @Test
-    public void onCameraButtonClicked_launchesCamera() {
-        Runnable runnable = mModel.get(NavigationAttachmentsProperties.POPUP_CAMERA_CLICKED);
-        assertNotNull(runnable);
+    public void onCameraClicked_permissionGranted_launchesCamera() {
+        doReturn(true).when(mWindowAndroid).hasPermission(any());
+        doNothing().when(mMediator).launchCamera();
 
-        runnable.run();
+        mMediator.onCameraClicked();
 
-        verify(mPopup).dismiss();
-        ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
-        verify(mWindowAndroid).showCancelableIntent(intentCaptor.capture(), any(), any());
-
-        Intent intent = intentCaptor.getValue();
-        assertEquals(MediaStore.ACTION_IMAGE_CAPTURE, intent.getAction());
+        verify(mMediator).launchCamera();
+        verify(mWindowAndroid, never()).requestPermissions(any(), any());
     }
 
     @Test
-    public void onGalleryButtonClicked_launchesImagePicker() {
-        Runnable runnable = mModel.get(NavigationAttachmentsProperties.POPUP_GALLERY_CLICKED);
-        assertNotNull(runnable);
+    public void onCameraClicked_permissionDenied_requestsPermission() {
+        doReturn(false).when(mWindowAndroid).hasPermission(any());
+        doNothing().when(mMediator).launchCamera();
 
-        runnable.run();
+        mMediator.onCameraClicked();
 
-        verify(mPopup).dismiss();
-        ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
-        verify(mWindowAndroid).showCancelableIntent(intentCaptor.capture(), any(), any());
-
-        Intent intent = intentCaptor.getValue();
-        assertEquals(Intent.ACTION_GET_CONTENT, intent.getAction());
-        assertTrue(intent.hasCategory(Intent.CATEGORY_OPENABLE));
-        assertEquals("image/*", intent.getType());
-        assertTrue(intent.getBooleanExtra(Intent.EXTRA_ALLOW_MULTIPLE, false));
+        verify(mMediator, never()).launchCamera();
+        verify(mWindowAndroid).requestPermissions(any(), any());
     }
 
     @Test
-    public void onFileButtonClicked_launchesFilePicker() {
-        Runnable runnable = mModel.get(NavigationAttachmentsProperties.POPUP_FILE_CLICKED);
-        assertNotNull(runnable);
+    public void addAttachment_addAttachment() {
+        doReturn(123L).when(mNativeMock).init(mProfile);
+        mMediator.initializeBridge(mProfile);
+        byte[] byteArray = new byte[] {1, 2, 3};
+        AttachmentDetails attachmentDetails =
+                new AttachmentDetails(
+                        NavigationAttachmentItemType.ATTACHMENT_ITEM,
+                        null,
+                        "title",
+                        "image",
+                        byteArray);
+        mMediator.addAttachment(attachmentDetails);
+        assertTrue(mModel.get(NavigationAttachmentsProperties.ATTACHMENTS_VISIBLE));
+        ByteBuffer byteBuffer = ByteBuffer.allocateDirect(byteArray.length);
+        byteBuffer.put(byteArray);
+        verify(mNativeMock).addFile(123L, "title", "image", byteBuffer);
+    }
 
-        runnable.run();
+    @Test
+    public void onUseAiModeChanged_off_clearsAttachments() {
+        ModelList modelList = new ModelList();
+        mMediator =
+                new NavigationAttachmentsMediator(
+                        mContext, mWindowAndroid, mModel, mViewHolder, modelList, mProfileSupplier);
+        modelList.add(new MVCListAdapter.ListItem(0, new PropertyModel()));
+        assertEquals(1, modelList.size());
 
-        verify(mPopup).dismiss();
-        ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
-        verify(mWindowAndroid).showCancelableIntent(intentCaptor.capture(), any(), any());
-
-        Intent intent = intentCaptor.getValue();
-        assertEquals(Intent.ACTION_OPEN_DOCUMENT, intent.getAction());
-        assertTrue(intent.hasCategory(Intent.CATEGORY_OPENABLE));
-        assertEquals("*/*", intent.getType());
-        assertTrue(intent.getBooleanExtra(Intent.EXTRA_ALLOW_MULTIPLE, false));
+        mModel.set(NavigationAttachmentsProperties.ATTACHMENTS_VISIBLE, true);
+        mMediator.onUseAiModeChanged(false);
+        assertFalse(mModel.get(NavigationAttachmentsProperties.ATTACHMENTS_VISIBLE));
+        assertEquals(0, modelList.size());
     }
 }

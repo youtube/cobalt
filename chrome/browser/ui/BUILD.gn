@@ -338,8 +338,6 @@ static_library("ui") {
     "//chrome/browser/ui/blocked_content:impl",
     "//chrome/browser/ui/bluetooth",
     "//chrome/browser/ui/bluetooth:impl",
-    "//chrome/browser/ui/browser_window",
-    "//chrome/browser/ui/cookie_controls",
     "//chrome/browser/ui/digital_credentials",
     "//chrome/browser/ui/extensions",
     "//chrome/browser/ui/extensions:impl",
@@ -640,6 +638,7 @@ static_library("ui") {
     "//ui/base/accelerators/global_accelerator_listener",
     "//ui/base/clipboard",
     "//ui/base/ime",
+    "//ui/base/interaction",
     "//ui/base/unowned_user_data",
     "//ui/compositor",
     "//ui/content_accelerators",
@@ -651,7 +650,6 @@ static_library("ui") {
     "//ui/message_center",
     "//ui/message_center/public/cpp",
     "//ui/native_theme",
-    "//ui/native_theme:native_theme_browser",
     "//ui/native_window_tracker",
     "//ui/resources",
     "//ui/shell_dialogs",
@@ -790,8 +788,6 @@ static_library("ui") {
       "android/autofill/autofill_fallback_surface_launcher.h",
       "android/autofill/autofill_keyboard_accessory_view_impl.cc",
       "android/autofill/autofill_keyboard_accessory_view_impl.h",
-      "android/autofill/autofill_payments_window_bridge.cc",
-      "android/autofill/autofill_payments_window_bridge.h",
       "android/autofill/autofill_progress_dialog_view_android.cc",
       "android/autofill/autofill_progress_dialog_view_android.h",
       "android/autofill/autofill_save_card_bottom_sheet_bridge.cc",
@@ -816,6 +812,9 @@ static_library("ui") {
       "android/autofill/manual_filling_view_android.h",
       "android/autofill/otp_verification_dialog_view_android.cc",
       "android/autofill/otp_verification_dialog_view_android.h",
+      "android/autofill/payments/autofill_payments_window_bridge.cc",
+      "android/autofill/payments/autofill_payments_window_bridge.h",
+      "android/autofill/payments/autofill_payments_window_delegate.h",
       "android/autofill/save_update_address_profile_flow_manager.cc",
       "android/autofill/save_update_address_profile_flow_manager.h",
       "android/autofill/save_update_address_profile_prompt_view_android.cc",
@@ -837,6 +836,8 @@ static_library("ui") {
       "android/device_dialog/serial_chooser_dialog_android.h",
       "android/device_dialog/usb_chooser_dialog_android.cc",
       "android/device_dialog/usb_chooser_dialog_android.h",
+      "android/exclusive_access/exclusive_access_bubble_android.cc",
+      "android/exclusive_access/exclusive_access_bubble_android.h",
       "android/exclusive_access/exclusive_access_context_android.cc",
       "android/exclusive_access/exclusive_access_context_android.h",
       "android/exclusive_access/exclusive_access_manager_android.cc",
@@ -915,6 +916,8 @@ static_library("ui") {
       "//chrome/browser/ui/fast_checkout:impl",
       "//chrome/browser/ui/plus_addresses",
       "//chrome/browser/ui/plus_addresses:impl",
+      "//chrome/browser/ui/webui/notifications_internals",
+      "//chrome/browser/ui/webui/notifications_internals:impl",
       "//components/android_autofill/browser:android",
       "//components/autofill/android:payments_autofill_cc",
       "//components/autofill/android:payments_jni_headers",
@@ -929,6 +932,7 @@ static_library("ui") {
       "//components/feed/core/shared_prefs:feed_shared_prefs",
       "//components/feed/core/v2:feed_core_v2",
       "//components/feed/core/v2/public:common",
+      "//components/fullscreen_control",
       "//components/infobars/android",
       "//components/infobars/content",
       "//components/javascript_dialogs/android:jni_headers",
@@ -1361,6 +1365,7 @@ static_library("ui") {
       "//chrome/browser/actor",
       "//chrome/browser/actor:impl",
       "//chrome/browser/actor/ui",
+      "//chrome/browser/app_mode",
       "//chrome/browser/apps/app_service",
       "//chrome/browser/apps/app_service/app_icon",
       "//chrome/browser/apps/app_service/app_icon:util",
@@ -1374,6 +1379,7 @@ static_library("ui") {
       "//chrome/browser/privacy_sandbox:countries",
       "//chrome/browser/privacy_sandbox/notice:desktop_entrypoint_handlers_helper",
       "//chrome/browser/privacy_sandbox/notice:notice_mojom",
+      "//chrome/browser/send_tab_to_self",
       "//chrome/browser/ui/interaction",
       "//chrome/browser/ui/location_bar",
       "//chrome/browser/ui/passwords/bubble_controllers",
@@ -1664,7 +1670,6 @@ static_library("ui") {
       "//chrome/browser/ui/webui/customize_buttons:impl",
       "//chrome/browser/ui/views/toolbar",
       "//chrome/browser/ui/views/toolbar:impl",
-      "//chrome/browser/ui/views/page_action",
       "//chrome/browser/ui/views/new_tab_footer",
       "//chrome/browser/ui/webui/searchbox",
       "//chrome/browser/ui/webui/top_chrome:impl",
@@ -2976,7 +2981,7 @@ static_library("ui") {
     }
   }
 
-  if (is_win || is_mac || is_linux || is_chromeos) {
+  if (is_win || is_mac || is_linux || is_chromeos || is_android) {
     deps += [
       "//chrome/browser/enterprise/connectors/device_trust:features",
       "//chrome/browser/enterprise/connectors/device_trust/attestation/common:types",
@@ -3758,6 +3763,8 @@ static_library("ui") {
       "views/frame/contents_border_controller.h",
       "views/frame/contents_capture_border_view.cc",
       "views/frame/contents_capture_border_view.h",
+      "views/frame/contents_container_outline.cc",
+      "views/frame/contents_container_outline.h",
       "views/frame/contents_container_view.cc",
       "views/frame/contents_container_view.h",
       "views/frame/contents_layout_manager.cc",
@@ -3789,10 +3796,14 @@ static_library("ui") {
       "views/frame/picture_in_picture_browser_frame_view.h",
       "views/frame/scrim_view.cc",
       "views/frame/scrim_view.h",
+      "views/frame/scrim_view_controller.cc",
+      "views/frame/scrim_view_controller.h",
       "views/frame/system_menu_model_builder.cc",
       "views/frame/system_menu_model_builder.h",
       "views/frame/system_menu_model_delegate.cc",
       "views/frame/system_menu_model_delegate.h",
+      "views/frame/tab_modal_dialog_host.cc",
+      "views/frame/tab_modal_dialog_host.h",
       "views/frame/tab_strip_region_view.cc",
       "views/frame/tab_strip_region_view.h",
       "views/frame/top_container_background.cc",
@@ -3850,28 +3861,6 @@ static_library("ui") {
       "views/intent_picker_bubble_view.h",
       "views/javascript_tab_modal_dialog_view_views.cc",
       "views/javascript_tab_modal_dialog_view_views.h",
-      "views/location_bar/ai_mode_page_action_icon_view.cc",
-      "views/location_bar/ai_mode_page_action_icon_view.h",
-      "views/location_bar/content_setting_image_view.cc",
-      "views/location_bar/content_setting_image_view.h",
-      "views/location_bar/custom_tab_bar_view.cc",
-      "views/location_bar/custom_tab_bar_view.h",
-      "views/location_bar/find_bar_icon.cc",
-      "views/location_bar/find_bar_icon.h",
-      "views/location_bar/intent_chip_button.cc",
-      "views/location_bar/intent_chip_button.h",
-      "views/location_bar/intent_picker_view.cc",
-      "views/location_bar/intent_picker_view.h",
-      "views/location_bar/lens_overlay_homework_page_action_icon_view.cc",
-      "views/location_bar/lens_overlay_homework_page_action_icon_view.h",
-      "views/location_bar/lens_overlay_page_action_icon_view.cc",
-      "views/location_bar/lens_overlay_page_action_icon_view.h",
-      "views/location_bar/location_bar_view.cc",
-      "views/location_bar/location_bar_view.h",
-      "views/location_bar/selected_keyword_view.cc",
-      "views/location_bar/selected_keyword_view.h",
-      "views/location_bar/star_view.cc",
-      "views/location_bar/star_view.h",
       "views/login_handler_views.cc",
       "views/login_view.cc",
       "views/login_view.h",
@@ -3926,6 +3915,8 @@ static_library("ui") {
       "views/omnibox/omnibox_popup_view_webui.h",
       "views/omnibox/omnibox_result_view.cc",
       "views/omnibox/omnibox_result_view.h",
+      "views/omnibox/omnibox_row_grouped_view.cc",
+      "views/omnibox/omnibox_row_grouped_view.h",
       "views/omnibox/omnibox_row_view.cc",
       "views/omnibox/omnibox_row_view.h",
       "views/omnibox/omnibox_suggestion_button_row_view.cc",
@@ -3973,14 +3964,6 @@ static_library("ui") {
       "views/overlay/toggle_microphone_button.h",
       "views/overlay/video_overlay_window_views.cc",
       "views/overlay/video_overlay_window_views.h",
-      "views/page_action/collaboration_messaging_page_action_icon_view.cc",
-      "views/page_action/collaboration_messaging_page_action_icon_view.h",
-      "views/page_action/page_action_icon_controller.cc",
-      "views/page_action/page_action_icon_controller.h",
-      "views/page_action/pwa_install_view.cc",
-      "views/page_action/pwa_install_view.h",
-      "views/page_action/zoom_view.cc",
-      "views/page_action/zoom_view.h",
       "views/page_info/about_this_site_side_panel_coordinator.cc",
       "views/page_info/about_this_site_side_panel_coordinator.h",
       "views/page_info/chosen_object_view.cc",
@@ -4207,6 +4190,8 @@ static_library("ui") {
       "views/safe_browsing/tailored_security_desktop_dialog_manager.h",
       "views/safe_browsing/tailored_security_unconsented_modal.cc",
       "views/safe_browsing/tailored_security_unconsented_modal.h",
+      "views/screen_sharing_util.cc",
+      "views/screen_sharing_util.h",
       "views/select_audio_output/select_audio_output_dialog.cc",
       "views/select_audio_output/select_audio_output_dialog.h",
       "views/select_audio_output/select_audio_output_views.cc",
@@ -4242,8 +4227,6 @@ static_library("ui") {
       "views/sharing_hub/sharing_hub_bubble_action_button.h",
       "views/sharing_hub/sharing_hub_bubble_util.cc",
       "views/sharing_hub/sharing_hub_bubble_util.h",
-      "views/sharing_hub/sharing_hub_icon_view.cc",
-      "views/sharing_hub/sharing_hub_icon_view.h",
       "views/site_data/page_specific_site_data_dialog.cc",
       "views/site_data/page_specific_site_data_dialog.h",
       "views/site_data/page_specific_site_data_dialog_controller.cc",
@@ -4274,8 +4257,6 @@ static_library("ui") {
       "views/tab_sharing/tab_capture_contents_border_helper.h",
       "views/tab_sharing/tab_sharing_infobar.cc",
       "views/tab_sharing/tab_sharing_infobar.h",
-      "views/tab_sharing/tab_sharing_infobar_utils.cc",
-      "views/tab_sharing/tab_sharing_infobar_utils.h",
       "views/tab_sharing/tab_sharing_status_message_view.cc",
       "views/tab_sharing/tab_sharing_status_message_view.h",
       "views/tab_sharing/tab_sharing_ui_views.cc",
@@ -4640,6 +4621,7 @@ static_library("ui") {
       "//chrome/browser/ui/views/location_bar/cookie_controls",
       "//chrome/browser/ui/views/location_bar/cookie_controls:impl",
       "//chrome/browser/ui/views/page_action",
+      "//chrome/browser/ui/views/page_action:impl",
       "//chrome/browser/ui/views/page_info",
       "//chrome/browser/ui/views/page_info:impl",
       "//chrome/browser/ui/views/permissions",
@@ -4739,11 +4721,17 @@ static_library("ui") {
 
       # TODO(crbug.com/434882143): Remove this circular dependency when the following
       # headers get componentized:
+      # c/b/ui/browser.h
+      # c/b/ui/views/web_apps/frame_toolbar/web_app_menu_button.h
+      # c/b/ui/views/permissions/chip/permission_dashboard_controller.h
+      "//chrome/browser/ui/views/location_bar",
+
+      # TODO(crbug.com/434882143): Remove this circular dependency when the following
+      # headers get componentized:
       # c/b/ui/browser.h, browser_dialogs.h, browser_finder.h, browser_tabstrip.h, view_ids.h, browser_window.h.
       # c/b/ui/views/chrome_layout_provider.h
       # c/b/ui/views/frame/browser_view.h
       # c/b/ui/views/page_info/page_info_bubble_specification.h
-      # c/b/ui/views/page_action/zoom_view.h
       "//chrome/browser/ui/views/location_bar:impl",
 
       # TODO(crbug.com/413572035): Remove circular dependency once/if
@@ -4754,6 +4742,15 @@ static_library("ui") {
       # headers get componentized:
       # c/b/ui/browser.h, browser_finder.h, browser_window.h.
       "//chrome/browser/ui/webauthn:impl",
+
+      # TODO(crbug.com/434882143): Remove this circular dependency when the following
+      # headers get componentized:
+      # c/b/ui/views/frame/browser_view.h
+      # c/b/ui/views/omnibox/omnibox_view_views.h
+      # c/b/ui/webui/new_tab_page/new_tab_page_ui.h
+      # c/b/ui/webui/new_tab_page_third_party/new_tab_page_third_party_ui.h
+      # c/b/ui/webui/ntp/new_tab_ui.h
+      "//chrome/browser/ui/views/page_action:impl",
     ]
 
     if (is_linux) {
@@ -5042,8 +5039,6 @@ static_library("ui") {
       "views/chrome_javascript_app_modal_view_factory_views.cc",
       "views/extensions/browser_action_drag_data.cc",
       "views/extensions/browser_action_drag_data.h",
-      "views/extensions/dialogs/settings_overridden_dialog.cc",
-      "views/extensions/dialogs/settings_overridden_dialog.h",
       "views/extensions/extension_action_platform_delegate_views.cc",
       "views/extensions/extension_action_platform_delegate_views.h",
       "views/extensions/extension_popup.cc",
@@ -5094,22 +5089,12 @@ static_library("ui") {
       # - c/b/ui/side_panel/read_anything/read_anything_untrusted_page_handler.cc
       "//pdf:features",
     ]
-  }
 
-  if (enable_pdf_save_to_drive) {
-    sources += [
-      "views/save_to_drive/account_chooser_radio_group_view.cc",
-      "views/save_to_drive/account_chooser_radio_group_view.h",
-      "views/save_to_drive/account_chooser_util.cc",
-      "views/save_to_drive/account_chooser_util.h",
-      "views/save_to_drive/account_chooser_view.cc",
-      "views/save_to_drive/account_chooser_view.h",
-    ]
-    deps += [
-      "//chrome/browser/ui/save_to_drive",
-      "//chrome/browser/ui/save_to_drive:get_account",
-      "//chrome/browser/ui/views/save_to_drive:get_account_impl",
-    ]
+    if (enable_pdf_save_to_drive) {
+      deps += [ "//chrome/browser/ui/views/save_to_drive" ]
+      allow_circular_includes_from +=
+          [ "//chrome/browser/ui/views/save_to_drive:save_to_drive" ]
+    }
   }
 
   if (enable_printing) {
@@ -5642,6 +5627,7 @@ static_library("browser_element_identifiers") {
     "browser_element_identifiers.h",
   ]
   deps = [ "//ui/base" ]
+  public_deps = [ "//ui/base/interaction" ]
 }
 
 if (is_android) {

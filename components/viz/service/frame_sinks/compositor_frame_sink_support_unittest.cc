@@ -52,7 +52,6 @@
 using testing::_;
 using testing::Contains;
 using testing::Eq;
-using testing::Invoke;
 using testing::IsEmpty;
 using testing::Key;
 using testing::Ne;
@@ -154,7 +153,7 @@ class CompositorFrameSinkSupportTestBase : public testing::Test {
   }
 
   void TearDown() override {
-    manager_->InvalidateFrameSinkId(kArbitraryFrameSinkId);
+    manager_->InvalidateFrameSinkId(kArbitraryFrameSinkId, {});
   }
 
   void AddResourcesToFrame(CompositorFrame* frame,
@@ -726,7 +725,7 @@ TEST_P(AckOnSurfaceActivationWhenInteractiveTest, AddDuringEviction) {
       .WillRepeatedly(testing::Return());
   support->EvictSurface(local_surface_id);
   ExpireAllTemporaryReferences();
-  manager_->InvalidateFrameSinkId(kAnotherArbitraryFrameSinkId);
+  manager_->InvalidateFrameSinkId(kAnotherArbitraryFrameSinkId, {});
   EXPECT_EQ(1, num_pending_frames(support.get()));
 }
 
@@ -781,7 +780,7 @@ TEST_P(CompositorFrameSinkSupportTest, MonotonicallyIncreasingLocalSurfaceIds) {
       0);
   EXPECT_EQ(SubmitResult::ACCEPTED, result);
 
-  manager_->InvalidateFrameSinkId(kAnotherArbitraryFrameSinkId);
+  manager_->InvalidateFrameSinkId(kAnotherArbitraryFrameSinkId, {});
 }
 
 // Verifies that CopyOutputRequests submitted by unprivileged clients are
@@ -822,7 +821,7 @@ TEST_P(AckOnSurfaceActivationWhenInteractiveTest,
   // All the resources in the rejected frame should have been returned.
   CheckReturnedResourcesMatchExpected(frame_resource_ids);
 
-  manager_->InvalidateFrameSinkId(kAnotherArbitraryFrameSinkId);
+  manager_->InvalidateFrameSinkId(kAnotherArbitraryFrameSinkId, {});
 }
 
 // Tests doing an EvictLastActivatedSurface before shutting down the factory.
@@ -862,7 +861,7 @@ TEST_P(AckOnSurfaceActivationWhenInteractiveTest, EvictLastActivatedSurface) {
   ExpireAllTemporaryReferences();
   manager_->surface_manager()->GarbageCollectSurfaces();
   EXPECT_FALSE(GetSurfaceForId(id));
-  manager_->InvalidateFrameSinkId(kAnotherArbitraryFrameSinkId);
+  manager_->InvalidateFrameSinkId(kAnotherArbitraryFrameSinkId, {});
 }
 
 // This test checks the case where a client submits a CompositorFrame for a
@@ -1300,7 +1299,7 @@ TEST_P(CompositorFrameSinkSupportTest, FrameIndexCarriedOverToNewSurface) {
   support_->SubmitCompositorFrame(local_surface_id1,
                                   MakeDefaultInteractiveCompositorFrame());
   Surface* surface1 = GetSurfaceForId(id1);
-  uint64_t frame_index = surface1->GetActiveFrameIndex();
+  uint32_t frame_index = surface1->GetActiveFrameIndex();
 
   // Submit a frame to |id2| and verify that the new frame index is one more
   // than what we had before.

@@ -21,6 +21,7 @@
 <translation id="1072476005125066234">切合你興趣的評論</translation>
 <translation id="1074827084851510304">你將會刪除 {password_count} 個密碼，以及你選擇一律不儲存登入資料的網站和應用程式清單。系統不會刪除任何你為網站和應用程式建立的帳戶。</translation>
 <translation id="1076421457278169141">已掃描編碼</translation>
+<translation id="1081114897601629648">以下密碼不符合要求，因此並未匯入到「Google 密碼管理工具」。</translation>
 <translation id="1081932398873105675">{count,plural, =1{{count} 個分頁}other{{count} 個分頁}}</translation>
 <translation id="1082554859195167538">為你推薦的產品評論</translation>
 <translation id="1084365883616172403">已在 Facebook 上發佈。</translation>
@@ -121,7 +122,6 @@
 <translation id="1469381646033328562">你的帳戶由家長管理。
 <ph name="BEGIN_LINK" />瞭解詳情<ph name="END_LINK" /></translation>
 <translation id="147982357559798527">已變更</translation>
-<translation id="1485907716209290998">包裹追蹤</translation>
 <translation id="1486096554574027028">搜尋密碼</translation>
 <translation id="1491277525950327607">連扲兩下可以切換設定</translation>
 <translation id="1491965206608166851">使用任何應用程式已儲存的密碼和密鑰登入</translation>
@@ -241,6 +241,7 @@
 <translation id="1902277226107477495">已關閉地址偵測，你可前往「設定」重啟此功能。</translation>
 <translation id="1904580727789512086">系統會將您瀏覽的網址儲存至 Google 帳戶</translation>
 <translation id="1911619930368729126">上載至「Google 雲端硬碟」</translation>
+<translation id="1925706052394657380">在 iOS 中開啟「預設應用程式」設定<ph name="BEGIN_BOLD" /><ph name="END_BOLD" /></translation>
 <translation id="1941314575388338491">輕按兩下即可複製。</translation>
 <translation id="1943478190258551035">「選單」→「設定」</translation>
 <translation id="1952728750904661634">登入受管理的帳戶</translation>
@@ -250,6 +251,7 @@
 <translation id="1962348300797608157"><ph name="BEGIN_BOLD" /><ph name="FULL_NAME" /><ph name="END_BOLD" />已與你分享 <ph name="WEBSITE" /> 的密碼</translation>
 <translation id="1962969542251276847">上鎖畫面</translation>
 <translation id="1963976881984600709">標準保護功能</translation>
+<translation id="1964507856799750384">輕按 [瀏覽器應用程式]<ph name="BEGIN_BOLD" /><ph name="END_BOLD" /></translation>
 <translation id="1966313166384086081">網站資料</translation>
 <translation id="1967461193809857427">{count,plural, =1{要繼續使用先前在 Android 上開啟的分頁嗎？}other{要繼續使用先前在 Android 上開啟的分頁嗎？}}</translation>
 <translation id="1972325230031091483">系統會根據您目前瀏覽的網頁主動載入內容，助您加快瀏覽速度</translation>
@@ -599,7 +601,6 @@
 <translation id="333229797575847124">如何啟用此功能</translation>
 <translation id="3344485292736684439">{count,plural, =1{書籤已儲存至您帳戶 ({email}) 中的「{title}」}other{書籤已儲存至您帳戶 ({email}) 中的「{title}」}}</translation>
 <translation id="334690320928261823">最近開啟的分頁</translation>
-<translation id="3348387552617855658">你可透過此資訊卡追蹤包裹及查看重要的送貨通知。</translation>
 <translation id="3349031117032695619">封鎖彈出式視窗</translation>
 <translation id="3349676726073650389">你追蹤的網站和搜尋內容會儲存在 Google 帳戶中。隨時可前往設定管理追蹤項目。</translation>
 <translation id="3353037916374303415"><ph name="EMAIL" />。這是受管帳戶。</translation>
@@ -1398,7 +1399,6 @@
 <translation id="6406506848690869874">同步處理</translation>
 <translation id="6410390304316730527">「安全瀏覽」能保護您免受攻擊，攻擊者可能會誘使您採取一些危險的行動，例如安裝惡意軟件或洩漏您的個人資料 (包括密碼、電話號碼或信用卡資料)。如關閉「安全瀏覽」，請在瀏覽不熟悉或信譽不佳的網站時提高警覺。</translation>
 <translation id="6410883413783534063">開啟分頁即可同時瀏覽不同網頁</translation>
-<translation id="6416807286621280684">你追蹤的包裹和最新運送情況。</translation>
 <translation id="6418346271604475326">正在準備 PDF</translation>
 <translation id="6421038304268477484">譯文</translation>
 <translation id="6429213933892582367">開啟 [密碼選項]</translation>

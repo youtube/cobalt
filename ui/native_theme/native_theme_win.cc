@@ -16,8 +16,10 @@
 #include <vsstyle.h>
 #include <vssym32.h>
 
+#include <array>
 #include <optional>
 #include <tuple>
+#include <utility>
 #include <variant>
 
 #include "base/check.h"
@@ -49,6 +51,7 @@
 #include "ui/base/ui_base_features.h"
 #include "ui/base/ui_base_switches.h"
 #include "ui/color/color_provider.h"
+#include "ui/color/win/native_color_mixers_win.h"
 #include "ui/display/win/screen_win.h"
 #include "ui/gfx/color_palette.h"
 #include "ui/gfx/color_utils.h"
@@ -56,27 +59,20 @@
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 #include "ui/gfx/geometry/skia_conversions.h"
-#include "ui/native_theme/common_theme.h"
 #include "ui/native_theme/native_theme.h"
 
-// This was removed from Winvers.h but is still used.
-#if !defined(COLOR_MENUHIGHLIGHT)
-#define COLOR_MENUHIGHLIGHT 29
-#endif
+namespace ui {
 
 namespace {
 
-// Windows system color IDs cached and updated by the native theme.
-const int kSysColors[] = {
-    COLOR_BTNFACE,       COLOR_BTNTEXT,    COLOR_GRAYTEXT,      COLOR_HIGHLIGHT,
-    COLOR_HIGHLIGHTTEXT, COLOR_HOTLIGHT,   COLOR_MENUHIGHLIGHT, COLOR_SCROLLBAR,
-    COLOR_WINDOW,        COLOR_WINDOWTEXT,
-};
-
 void SetCheckerboardShader(SkPaint* paint, const RECT& align_rect) {
   // Create a 2x2 checkerboard pattern using the 3D face and highlight colors.
-  const SkColor face = color_utils::GetSysSkColor(COLOR_3DFACE);
-  const SkColor highlight = color_utils::GetSysSkColor(COLOR_3DHILIGHT);
+  const auto* const native_theme = NativeTheme::GetInstanceForNativeUi();
+  using enum NativeTheme::SystemThemeColor;
+  const SkColor face = native_theme->GetSystemThemeColor(kButtonFace)
+                           .value_or(SkColorSetRGB(0xC0, 0xC0, 0xC0));
+  const SkColor highlight = native_theme->GetSystemThemeColor(kButtonHighlight)
+                                .value_or(SK_ColorWHITE);
   SkColor buffer[] = {face, highlight, highlight, face};
   // Confusing bit: we first create a temporary bitmap with our desired pattern,
   // then copy it to another bitmap.  The temporary bitmap doesn't take
@@ -177,35 +173,6 @@ base::win::RegKey OpenColorFilteringRegKey(REGSAM access) {
 
 }  // namespace
 
-namespace ui {
-
-NativeTheme::SystemThemeColor SysColorToSystemThemeColor(int system_color) {
-  switch (system_color) {
-    case COLOR_BTNFACE:
-      return NativeTheme::SystemThemeColor::kButtonFace;
-    case COLOR_BTNTEXT:
-      return NativeTheme::SystemThemeColor::kButtonText;
-    case COLOR_GRAYTEXT:
-      return NativeTheme::SystemThemeColor::kGrayText;
-    case COLOR_HIGHLIGHT:
-      return NativeTheme::SystemThemeColor::kHighlight;
-    case COLOR_HIGHLIGHTTEXT:
-      return NativeTheme::SystemThemeColor::kHighlightText;
-    case COLOR_HOTLIGHT:
-      return NativeTheme::SystemThemeColor::kHotlight;
-    case COLOR_MENUHIGHLIGHT:
-      return NativeTheme::SystemThemeColor::kMenuHighlight;
-    case COLOR_SCROLLBAR:
-      return NativeTheme::SystemThemeColor::kScrollbar;
-    case COLOR_WINDOW:
-      return NativeTheme::SystemThemeColor::kWindow;
-    case COLOR_WINDOWTEXT:
-      return NativeTheme::SystemThemeColor::kWindowText;
-    default:
-      return NativeTheme::SystemThemeColor::kNotSupported;
-  }
-}
-
 NativeTheme* NativeTheme::GetInstanceForNativeUi() {
   static base::NoDestructor<NativeThemeWin> s_native_theme(true, false);
   return s_native_theme.get();
@@ -292,9 +259,8 @@ void NativeThemeWin::Paint(cc::PaintCanvas* canvas,
       PaintMenuBackground(canvas, color_provider, rect);
       return;
     case kMenuItemBackground:
-      CommonThemePaintMenuItemBackground(this, color_provider, canvas, state,
-                                         rect,
-                                         std::get<MenuItemExtraParams>(extra));
+      PaintMenuItemBackground(canvas, color_provider, state, rect,
+                              std::get<MenuItemExtraParams>(extra));
       return;
     default:
       PaintIndirect(canvas, part, state, rect, extra);
@@ -305,8 +271,7 @@ void NativeThemeWin::Paint(cc::PaintCanvas* canvas,
 NativeThemeWin::NativeThemeWin(bool configure_web_instance,
                                bool should_only_use_dark_colors)
     : NativeTheme(should_only_use_dark_colors),
-      supports_windows_dark_mode_(base::win::IsDarkModeAvailable()),
-      color_change_listener_(this) {
+      supports_windows_dark_mode_(base::win::IsDarkModeAvailable()) {
   // By default UI should not use the system accent color.
   set_should_use_system_accent_color(false);
 
@@ -411,7 +376,15 @@ void NativeThemeWin::CloseHandlesInternal() {
   }
 }
 
-void NativeThemeWin::OnSysColorChange() {
+void NativeThemeWin::OnWndProc(HWND hwnd,
+                               UINT message,
+                               WPARAM wparam,
+                               LPARAM lparam) {
+  if (message != WM_SYSCOLORCHANGE &&
+      (message != WM_SETTINGCHANGE || wparam != SPI_SETHIGHCONTRAST)) {
+    return;
+  }
+
   UpdateSystemColors();
   if (!IsForcedHighContrast()) {
     set_forced_colors(IsUsingHighContrastThemeInternal());
@@ -422,9 +395,22 @@ void NativeThemeWin::OnSysColorChange() {
 }
 
 void NativeThemeWin::UpdateSystemColors() {
-  for (int sys_color : kSysColors) {
-    system_colors_[SysColorToSystemThemeColor(sys_color)] =
-        color_utils::GetSysSkColor(sys_color);
+  static constexpr auto kColors =
+      std::to_array<std::pair<SystemThemeColor, ui::ColorId>>(
+          {{SystemThemeColor::kButtonFace, kColorNativeBtnFace},
+           {SystemThemeColor::kButtonHighlight, kColorNativeBtnHighlight},
+           {SystemThemeColor::kButtonText, kColorNativeBtnText},
+           {SystemThemeColor::kGrayText, kColorNativeGrayText},
+           {SystemThemeColor::kHighlight, kColorNativeHighlight},
+           {SystemThemeColor::kHighlightText, kColorNativeHighlightText},
+           {SystemThemeColor::kHotlight, kColorNativeHotlight},
+           {SystemThemeColor::kMenuHighlight, kColorNativeMenuHilight},
+           {SystemThemeColor::kScrollbar, kColorNativeScrollbar},
+           {SystemThemeColor::kWindow, kColorNativeWindow},
+           {SystemThemeColor::kWindowText, kColorNativeWindowText}});
+  const auto sys_colors = GetCurrentSysColors();
+  for (const auto& entry : kColors) {
+    system_colors_[entry.first] = sys_colors.at(entry.second);
   }
 }
 

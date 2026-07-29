@@ -15,6 +15,7 @@
 #include "base/test/simple_test_tick_clock.h"
 #include "base/test/task_environment.h"
 #include "base/test/trace_event_analyzer.h"
+#include "base/test/trace_test_utils.h"
 #include "base/types/optional_ref.h"
 #include "build/build_config.h"
 #include "cc/base/features.h"
@@ -601,14 +602,48 @@ TEST_P(InputHandlerProxyTest, MouseWheelEventMayBeginPhaseNoListener) {
       .WillRepeatedly(testing::Return(false));
   EXPECT_CALL(mock_input_handler_,
               GetEventListenerProperties(cc::EventListenerClass::kMouseWheel))
-      .Times(0);
-  expected_disposition_ = InputHandlerProxy::DID_NOT_HANDLE;
-  WebMouseWheelEvent wheel(WebInputEvent::Type::kMouseWheel,
-                           WebInputEvent::kControlKey,
-                           WebInputEvent::GetStaticTimeStampForTests());
-  wheel.phase = WebMouseWheelEvent::kPhaseMayBegin;
-  EXPECT_EQ(expected_disposition_,
-            HandleInputEventWithLatencyInfo(input_handler_.get(), wheel));
+      .WillRepeatedly(testing::Return(cc::EventListenerProperties::kNone));
+
+  {
+    WebMouseWheelEvent wheel(WebInputEvent::Type::kMouseWheel,
+                             WebInputEvent::kControlKey,
+                             WebInputEvent::GetStaticTimeStampForTests());
+    wheel.phase = WebMouseWheelEvent::kPhaseMayBegin;
+    wheel.dispatch_type = WebInputEvent::DispatchType::kBlocking;
+    EXPECT_EQ(InputHandlerProxy::DID_NOT_HANDLE,
+              HandleInputEventWithLatencyInfo(input_handler_.get(), wheel));
+  }
+
+  {
+    WebMouseWheelEvent wheel(WebInputEvent::Type::kMouseWheel,
+                             WebInputEvent::kControlKey,
+                             WebInputEvent::GetStaticTimeStampForTests());
+    wheel.phase = WebMouseWheelEvent::kPhaseBegan;
+    wheel.dispatch_type = WebInputEvent::DispatchType::kBlocking;
+    EXPECT_EQ(InputHandlerProxy::DROP_EVENT,
+              HandleInputEventWithLatencyInfo(input_handler_.get(), wheel));
+  }
+
+  {
+    WebMouseWheelEvent wheel(WebInputEvent::Type::kMouseWheel,
+                             WebInputEvent::kControlKey,
+                             WebInputEvent::GetStaticTimeStampForTests());
+    wheel.phase = WebMouseWheelEvent::kPhaseEnded;
+    wheel.dispatch_type = WebInputEvent::DispatchType::kEventNonBlocking;
+    EXPECT_EQ(InputHandlerProxy::DROP_EVENT,
+              HandleInputEventWithLatencyInfo(input_handler_.get(), wheel));
+  }
+
+  {
+    WebMouseWheelEvent wheel(WebInputEvent::Type::kMouseWheel,
+                             WebInputEvent::kControlKey,
+                             WebInputEvent::GetStaticTimeStampForTests());
+    wheel.phase = WebMouseWheelEvent::kPhaseMayBegin;
+    wheel.dispatch_type = WebInputEvent::DispatchType::kEventNonBlocking;
+    EXPECT_EQ(InputHandlerProxy::DID_NOT_HANDLE,
+              HandleInputEventWithLatencyInfo(input_handler_.get(), wheel));
+  }
+
   VERIFY_AND_RESET_MOCKS();
 }
 
@@ -2526,6 +2561,7 @@ TEST_F(InputHandlerProxyEventQueueTest, VSyncAlignedCoalesceTouchpadPinch) {
 }
 
 TEST_F(InputHandlerProxyEventQueueTest, OriginalEventsTracing) {
+  base::test::TracingEnvironment tracing_environment;
   // Handle scroll on compositor.
   cc::InputHandlerScrollResult scroll_result_did_scroll_;
   scroll_result_did_scroll_.did_scroll = true;

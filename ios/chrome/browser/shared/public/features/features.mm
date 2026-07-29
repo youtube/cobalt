@@ -13,16 +13,12 @@
 #import "components/segmentation_platform/public/features.h"
 #import "components/sync/base/features.h"
 #import "components/version_info/channel.h"
+#import "crypto/features.h"
 #import "ios/chrome/app/background_mode_buildflags.h"
 #import "ios/chrome/browser/ntp/shared/metrics/feed_metrics_constants.h"
 #import "ios/chrome/browser/safety_check_notifications/utils/constants.h"
 #import "ios/chrome/common/channel_info.h"
 #import "ui/base/device_form_factor.h"
-
-BASE_FEATURE(DefaultBrowserMagicStack, base::FEATURE_DISABLED_BY_DEFAULT);
-
-const char kDefaultBrowserMagicStackVariation[] =
-    "DefaultBrowserMagicStackVariation";
 
 BASE_FEATURE(IOSKeyboardAccessoryUpgradeForIPad,
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -199,6 +195,8 @@ BASE_FEATURE(kLensOverlayForceShowOnboardingScreen,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(LensOverlayNavigationHistory, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(LensSearchHeadersCheckEnabled, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Variations of MIA NTP entrypoint.
 const char kNTPMIAEntrypointParam[] = "kNTPMIAEntrypointParam";
@@ -752,12 +750,18 @@ BASE_FEATURE(EnableAppBackgroundRefresh, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsAppBackgroundRefreshEnabled() {
   version_info::Channel channel = ::GetChannel();
+  // Always off in beta/stable.
   if (channel == version_info::Channel::BETA ||
       channel == version_info::Channel::STABLE) {
     return false;
   }
 
-  return base::FeatureList::IsEnabled(kEnableAppBackgroundRefresh);
+  // To test background refresh in conjuntion with the keychain access
+  // migration, enable app background refresh if *either* its flag or
+  // the keychain access flag is enabled.
+  return base::FeatureList::IsEnabled(kEnableAppBackgroundRefresh) ||
+         base::FeatureList::IsEnabled(
+             crypto::features::kMigrateIOSKeychainAccessibility);
 }
 
 BASE_FEATURE(HomeMemoryImprovements, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1139,14 +1143,21 @@ BASE_FEATURE(IOSUseDefaultAppsDestinationForPromos,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsDefaultAppsDestinationAvailable() {
-#if defined(__IPHONE_18_3) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_18_3
   if (@available(iOS 18.3, *)) {
     return true;
   }
-#endif
   return false;
 }
 
 bool IsUseDefaultAppsDestinationForPromosEnabled() {
   return base::FeatureList::IsEnabled(kIOSUseDefaultAppsDestinationForPromos);
+}
+
+BASE_FEATURE(SynchronousEditMenuItems, base::FEATURE_ENABLED_BY_DEFAULT);
+
+bool ShouldShowEditMenuItemsSynchronously() {
+  if (@available(iOS 26, *)) {
+    return base::FeatureList::IsEnabled(kSynchronousEditMenuItems);
+  }
+  return false;
 }

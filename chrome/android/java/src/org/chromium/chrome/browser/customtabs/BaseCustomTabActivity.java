@@ -25,6 +25,7 @@ import android.widget.LinearLayout.LayoutParams;
 
 import androidx.annotation.AnimRes;
 import androidx.annotation.ChecksSdkIntAtLeast;
+import androidx.annotation.IntDef;
 import androidx.annotation.Nullable;
 import androidx.browser.customtabs.CustomTabsIntent;
 import androidx.browser.customtabs.TrustedWebUtils;
@@ -34,7 +35,6 @@ import org.chromium.base.ResettersForTesting;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.OneshotSupplier;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
 import org.chromium.chrome.R;
@@ -131,6 +131,10 @@ import org.chromium.components.browser_ui.util.motion.MotionEventInfo;
 import org.chromium.components.browser_ui.widget.gesture.BackPressHandler;
 import org.chromium.components.embedder_support.delegate.WebContentsDelegateAndroid;
 
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.util.function.Supplier;
+
 /**
  * Contains functionality which is shared between {@link WebappActivity} and {@link
  * CustomTabActivity}. Purpose of the class is to simplify merging {@link WebappActivity} and {@link
@@ -183,6 +187,8 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
 
     private ActivityLifecycleDispatcher mLifecycleDispatcherForTesting;
 
+    @IntDef({PictureInPictureMode.NONE, PictureInPictureMode.MINIMIZED_CUSTOM_TAB})
+    @Retention(RetentionPolicy.SOURCE)
     protected @interface PictureInPictureMode {
         int NONE = 0;
         int MINIMIZED_CUSTOM_TAB = 1;

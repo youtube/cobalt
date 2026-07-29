@@ -25,7 +25,6 @@ import org.chromium.base.ObserverList;
 import org.chromium.base.SysUtils;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.blink_public.input.SelectionGranularity;
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
@@ -83,10 +82,12 @@ import org.chromium.ui.base.LocalizationUtils;
 import org.chromium.ui.base.PageTransition;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.touch_selection.SelectionEventType;
+import org.chromium.ui.util.AccessibilityUtil;
 import org.chromium.url.GURL;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 
 /**
  * Manages the Contextual Search feature. This class keeps track of the status of Contextual Search
@@ -109,7 +110,7 @@ public class ContextualSearchManager
         implements ContextualSearchManagementDelegate,
                 ContextualSearchNetworkCommunicator,
                 ContextualSearchSelectionHandler,
-                ChromeAccessibilityUtil.Observer {
+                AccessibilityUtil.Observer {
     // TODO(donnd): provide an inner class that implements some of these interfaces rather than
     // having the manager itself implement the interface because that exposes all the public methods
     // of that interface at the manager level.

@@ -4,10 +4,12 @@
 #include "components/autofill/core/browser/payments/save_and_fill_manager_impl.h"
 
 #include "base/check_deref.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
 #include "components/autofill/core/browser/data_manager/personal_data_manager.h"
+#include "components/autofill/core/browser/form_import/form_data_importer.h"
 #include "components/autofill/core/browser/metrics/payments/credit_card_save_metrics.h"
 #include "components/autofill/core/browser/metrics/payments/save_and_fill_metrics.h"
 #include "components/autofill/core/browser/payments/client_behavior_constants.h"
@@ -39,6 +41,11 @@ void SaveAndFillManagerImpl::OnDidAcceptCreditCardSaveAndFillSuggestion(
     FillCardCallback fill_card_callback) {
   save_and_fill_suggestion_selected_ = true;
   fill_card_callback_ = std::move(fill_card_callback);
+
+  auto* form_data_importer = autofill_client_->GetFormDataImporter();
+  CHECK(form_data_importer);
+  form_data_importer->fetched_payments_data_context()
+      .card_submitted_through_save_and_fill = true;
 
   if (IsCreditCardUploadEnabled()) {
     payments_autofill_client()->ShowCreditCardSaveAndFillPendingDialog();
@@ -235,13 +242,15 @@ void SaveAndFillManagerImpl::PopulateInitialUploadDetails() {
     upload_details_.client_behavior_signals.emplace_back(
         ClientBehaviorConstants::kOfferingToSaveCvc);
   }
-  // TODO(crbug.com/432100446): Add kShowAccountEmailInLegalMessage to
-  // `client_behavior_signals` when feature launched to mobile.
 
   upload_details_.upload_card_source = UploadCardSource::kUpstreamSaveAndFill;
   upload_details_.billing_customer_number = payments::GetBillingCustomerId(
       payments_autofill_client()->GetPaymentsDataManager());
   upload_details_.app_locale = autofill_client_->GetAppLocale();
+  // For Save and Fill dialog, the account email should always be shown in the
+  // legal message.
+  upload_details_.client_behavior_signals.push_back(
+      ClientBehaviorConstants::kShowAccountEmailInLegalMessage);
 
   // Calculate the unique address from the most recently used
   // addresses. Can be empty if there is none.
@@ -345,8 +354,17 @@ void SaveAndFillManagerImpl::OnDidCreateCard(
         /*new_local_card_added=*/payments_autofill_client()
             ->GetPaymentsDataManager()
             .SaveCardLocallyIfNew(upload_details_.card));
+  } else {
+    int64_t parsed_instrument_id;
+    if (payments_autofill_client()
+            ->GetPaymentsDataManager()
+            .IsPaymentCvcStorageEnabled() &&
+        !upload_details_.card.cvc().empty() &&
+        base::StringToInt64(instrument_id, &parsed_instrument_id)) {
+      payments_autofill_client()->GetPaymentsDataManager().AddServerCvc(
+          parsed_instrument_id, upload_details_.card.cvc());
+    }
   }
-
   payments_autofill_client()->HideCreditCardSaveAndFillDialog();
   // Invoke feedback bubble. No callback needed (virtual card enrollment is not
   // eligible for card saved via the Save and Fill flow).

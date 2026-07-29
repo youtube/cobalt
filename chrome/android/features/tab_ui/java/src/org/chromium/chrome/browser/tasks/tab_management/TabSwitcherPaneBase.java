@@ -36,7 +36,6 @@ import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.base.supplier.SyncOneshotSupplier;
 import org.chromium.base.supplier.SyncOneshotSupplierImpl;
 import org.chromium.base.supplier.TransitiveObservableSupplier;
@@ -75,6 +74,7 @@ import org.chromium.ui.base.DeviceFormFactor;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.DoubleConsumer;
+import java.util.function.Supplier;
 
 /**
  * An abstract {@link Pane} representing a tab switcher for shared logic between the normal and
@@ -260,7 +260,8 @@ public abstract class TabSwitcherPaneBase implements Pane, TabSwitcher, TabSwitc
         }
 
         if (loadHint == LoadHint.WARM) {
-            if (mTabSwitcherPaneCoordinatorSupplier.hasValue()) {
+            TabSwitcherPaneCoordinator coordinator = mTabSwitcherPaneCoordinatorSupplier.get();
+            if (coordinator != null) {
                 mHandler.postDelayed(mSoftCleanupRunnable, SOFT_CLEANUP_DELAY_MS);
             } else if (shouldEagerlyCreateCoordinator()) {
                 createTabSwitcherPaneCoordinator();
@@ -268,7 +269,8 @@ public abstract class TabSwitcherPaneBase implements Pane, TabSwitcher, TabSwitc
         }
 
         if (loadHint == LoadHint.COLD) {
-            if (mTabSwitcherPaneCoordinatorSupplier.hasValue()) {
+            TabSwitcherPaneCoordinator coordinator = mTabSwitcherPaneCoordinatorSupplier.get();
+            if (coordinator != null) {
                 mHandler.postDelayed(mSoftCleanupRunnable, SOFT_CLEANUP_DELAY_MS);
                 mHandler.postDelayed(mHardCleanupRunnable, HARD_CLEANUP_DELAY_MS);
                 mHandler.postDelayed(mDestroyCoordinatorRunnable, DESTROY_COORDINATOR_DELAY_MS);
@@ -643,9 +645,10 @@ public abstract class TabSwitcherPaneBase implements Pane, TabSwitcher, TabSwitc
     /** Creates a {@link TabSwitcherCoordinator}. */
     @VisibleForTesting(otherwise = VisibleForTesting.PROTECTED)
     void createTabSwitcherPaneCoordinator() {
-        if (mTabSwitcherPaneCoordinatorSupplier.hasValue()) return;
+        TabSwitcherPaneCoordinator coordinator = mTabSwitcherPaneCoordinatorSupplier.get();
+        if (coordinator != null) return;
 
-        TabSwitcherPaneCoordinator coordinator =
+        coordinator =
                 mFactory.create(
                         mRootView,
                         /* resetHandler= */ this,
@@ -671,9 +674,8 @@ public abstract class TabSwitcherPaneBase implements Pane, TabSwitcher, TabSwitc
      */
     @VisibleForTesting(otherwise = VisibleForTesting.PROTECTED)
     void destroyTabSwitcherPaneCoordinator() {
-        if (!mTabSwitcherPaneCoordinatorSupplier.hasValue()) return;
-
         TabSwitcherPaneCoordinator coordinator = mTabSwitcherPaneCoordinatorSupplier.get();
+        if (coordinator == null) return;
         assumeNonNull(coordinator);
         mTabSwitcherPaneCoordinatorSupplier.set(null);
         mRootView.removeAllViews();

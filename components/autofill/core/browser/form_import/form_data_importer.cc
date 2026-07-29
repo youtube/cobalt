@@ -310,6 +310,18 @@ void FormDataImporter::ImportAndProcessFormData(
         AutofillMetrics::AutofillPromptStatus::kCreditCardShown);
   }
 
+  // TODO(crbug.com/356845298) Clean up when launched.
+  if (base::FeatureList::IsEnabled(
+          features::kAutofillEnableSupportForNameAndEmail)) {
+    base::flat_set<std::string> unedited_autofilled_profile_guids =
+        ExtractGUIDsOfProfilesWithoutManualEdits(submitted_form);
+
+    for (auto& candidate : extracted_data.extracted_address_profiles) {
+      candidate.import_metadata.unedited_autofilled_profile_guids =
+          unedited_autofilled_profile_guids;
+    }
+  }
+
   ProcessExtractedAddressProfiles(
       extracted_data.extracted_address_profiles,
       // If a payments prompt is potentially shown, do not allow for a second
@@ -904,6 +916,13 @@ std::optional<CreditCard> FormDataImporter::ExtractCreditCard(
     return std::nullopt;
   }
 
+  // If Save and Fill suggestion was clicked (regardless of whether the card was
+  // saved or not eventually) before the form extraction, don't offer other
+  // payments post-checkout flows.
+  if (fetched_payments_data_context_.card_submitted_through_save_and_fill) {
+    return std::nullopt;
+  }
+
   // If the extracted card is a known virtual card, return the extracted card.
   if (fetched_virtual_cards_.contains(candidate.LastFourDigits())) {
     credit_card_import_type_ = CreditCardImportType::kVirtualCard;
@@ -1151,6 +1170,22 @@ Iban FormDataImporter::ExtractIbanFromForm(const FormStructure& form) {
     }
   }
   return candidate_iban;
+}
+
+base::flat_set<std::string>
+FormDataImporter::ExtractGUIDsOfProfilesWithoutManualEdits(
+    const FormStructure& submitted_form) const {
+  base::flat_set<std::string> unedited_source_profile_guids;
+  for (const std::unique_ptr<AutofillField>& field : submitted_form) {
+    if (field->is_user_edited()) {
+      return {};
+    }
+    if (const std::optional<std::string>& guid =
+            field->autofill_source_profile_guid()) {
+      unedited_source_profile_guids.insert(guid.value());
+    }
+  }
+  return unedited_source_profile_guids;
 }
 
 void FormDataImporter::OnAddressDataChanged() {

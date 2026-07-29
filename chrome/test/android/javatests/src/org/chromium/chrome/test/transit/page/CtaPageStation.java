@@ -13,7 +13,6 @@ import android.os.SystemClock;
 import android.view.View;
 import android.widget.ImageButton;
 
-import org.chromium.base.supplier.Supplier;
 import org.chromium.base.test.transit.TripBuilder;
 import org.chromium.base.test.transit.ViewElement;
 import org.chromium.base.test.transit.ViewSpec;
@@ -35,6 +34,8 @@ import org.chromium.chrome.test.transit.layouts.LayoutTypeVisibleCondition;
 import org.chromium.chrome.test.transit.ntp.IncognitoNewTabPageStation;
 import org.chromium.chrome.test.transit.ntp.RegularNewTabPageStation;
 import org.chromium.content_public.browser.test.util.TouchCommon;
+
+import java.util.function.Supplier;
 
 /**
  * The screen that shows a web or native page with the toolbar within a tab.
@@ -187,19 +188,17 @@ public class CtaPageStation extends BasePageStation<ChromeTabbedActivity> {
     }
 
     /** Move to next tab by swiping the toolbar left. */
-    public <T extends CtaPageStation> T swipeToolbarToNextTab(
-            CtaPageStation.Builder<T> destinationBuilder) {
+    public <T extends CtaPageStation> T swipeToolbarToNextTab(Builder<T> destinationBuilder) {
         return swipeToolbar(destinationBuilder, /* directionRight= */ false);
     }
 
     /** Move to previous tab by swiping the toolbar right. */
-    public <T extends CtaPageStation> T swipeToolbarToPreviousTab(
-            CtaPageStation.Builder<T> destinationBuilder) {
+    public <T extends CtaPageStation> T swipeToolbarToPreviousTab(Builder<T> destinationBuilder) {
         return swipeToolbar(destinationBuilder, /* directionRight= */ true);
     }
 
     public <T extends CtaPageStation> T swipeToolbar(
-            CtaPageStation.Builder<T> destinationBuilder, boolean directionRight) {
+            Builder<T> destinationBuilder, boolean directionRight) {
         ToolbarSwipeCoordinates coords =
                 new ToolbarSwipeCoordinates(toolbarElement.value(), directionRight);
 

@@ -37,11 +37,13 @@
 #include "third_party/blink/public/web/modules/mediastream/web_media_stream_device_observer.h"
 #include "third_party/blink/public/web/web_local_frame.h"
 #include "third_party/blink/public/web/web_local_frame_client.h"
+#include "third_party/blink/renderer/core/frame/dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/modules/mediastream/local_media_stream_audio_source.h"
 #include "third_party/blink/renderer/modules/mediastream/local_video_capturer_source.h"
 #include "third_party/blink/renderer/modules/mediastream/media_constraints.h"
+#include "third_party/blink/renderer/modules/mediastream/media_devices.h"
 #include "third_party/blink/renderer/modules/mediastream/media_stream_audio_processing_layout.h"
 #include "third_party/blink/renderer/modules/mediastream/media_stream_audio_processor.h"
 #include "third_party/blink/renderer/modules/mediastream/media_stream_constraints_util.h"
@@ -77,6 +79,11 @@ namespace {
 void LogCameraCaptureCapability(CameraCaptureCapability capability) {
   base::UmaHistogramEnumeration(
       "Media.MediaDevices.GetUserMedia.CameraCaptureCapability", capability);
+}
+
+void LogEchoCancellationMode(EchoCancellationMode mode) {
+  base::UmaHistogramEnumeration(
+      "Media.MediaDevices.GetUserMedia.EchoCancellationMode", mode);
 }
 
 const char* MediaStreamRequestResultToString(MediaStreamRequestResult value) {
@@ -250,7 +257,7 @@ void SurfaceAudioProcessingSettings(MediaStreamSource* source) {
 }
 
 // TODO(crbug.com/704136): Check all places where this helper is used.
-// Change their types from using std::vector to WTF::Vector, so this
+// Change their types from using std::vector to Vector, so this
 // extra conversion round is not needed.
 template <typename T>
 std::vector<T> ToStdVector(const Vector<T>& format_vector) {
@@ -364,6 +371,15 @@ bool ShouldDeferDeviceSettingsSelection(
   return false;
 }
 #endif
+
+bool IsDeviceAudioCapture(const MediaStreamComponent* audio_component) {
+  if (!audio_component || !audio_component->Source() ||
+      !audio_component->Source()->GetPlatformSource()) {
+    return false;
+  }
+  return audio_component->Source()->GetPlatformSource()->device().type ==
+         MediaStreamType::DEVICE_AUDIO_CAPTURE;
+}
 
 }  // namespace
 
@@ -551,7 +567,7 @@ class UserMediaProcessor::RequestInfo final
   Vector<VideoCaptureSettings> eligible_video_capture_settings_;
 };
 
-// TODO(guidou): Initialize request_result_name_ as a null WTF::String.
+// TODO(guidou): Initialize request_result_name_ as a null String.
 // https://crbug.com/764293
 UserMediaProcessor::RequestInfo::RequestInfo(UserMediaRequest* request)
     : request_(request), request_result_name_("") {}
@@ -602,8 +618,8 @@ MediaStreamComponent* UserMediaProcessor::RequestInfo::CreateAndStartVideoTrack(
           ? &*video_capture_settings_.image_capture_device_settings()
           : nullptr,
       pan_tilt_zoom_allowed(),
-      WTF::BindOnce(&UserMediaProcessor::RequestInfo::OnTrackStarted,
-                    WrapWeakPersistent(this)),
+      BindOnce(&UserMediaProcessor::RequestInfo::OnTrackStarted,
+               WrapWeakPersistent(this)),
       true);
 }
 
@@ -757,8 +773,8 @@ void UserMediaProcessor::SetupAudioInput() {
                            current_request_info_->request_id()));
     current_request_info_->StartTrace("GetAudioInputCapabilities");
     GetMediaDevicesDispatcher()->GetAudioInputCapabilities(
-        WTF::BindOnce(&UserMediaProcessor::SelectAudioDeviceSettings,
-                      WrapWeakPersistent(this), WrapPersistent(request)));
+        BindOnce(&UserMediaProcessor::SelectAudioDeviceSettings,
+                 WrapWeakPersistent(this), WrapPersistent(request)));
   } else {
     if (!blink::IsAudioInputMediaType(audio_controls.stream_type)) {
       String failed_constraint_name = String(
@@ -927,12 +943,12 @@ UserMediaProcessor::DetermineExistingAudioSessionId(
   return std::nullopt;
 }
 
-WTF::HashMap<String, base::UnguessableToken>
+HashMap<String, base::UnguessableToken>
 UserMediaProcessor::DetermineExistingAudioSessionIds() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(current_request_info_->request()->Audio());
 
-  WTF::HashMap<String, base::UnguessableToken> session_id_map;
+  HashMap<String, base::UnguessableToken> session_id_map;
 
   for (const auto& settings :
        current_request_info_->eligible_audio_settings()) {
@@ -988,8 +1004,8 @@ void UserMediaProcessor::SetupVideoInput() {
   if (blink::IsDeviceMediaType(video_controls.stream_type)) {
     current_request_info_->StartTrace("GetVideoInputCapabilities");
     GetMediaDevicesDispatcher()->GetVideoInputCapabilities(
-        WTF::BindOnce(&UserMediaProcessor::SelectVideoDeviceSettings,
-                      WrapWeakPersistent(this), WrapPersistent(request)));
+        BindOnce(&UserMediaProcessor::SelectVideoDeviceSettings,
+                 WrapWeakPersistent(this), WrapPersistent(request)));
   } else {
     if (!blink::IsVideoInputMediaType(video_controls.stream_type)) {
       String failed_constraint_name = String(
@@ -1172,7 +1188,7 @@ void UserMediaProcessor::SelectVideoContentSettings() {
 }
 
 void UserMediaProcessor::GenerateStreamForCurrentRequestInfo(
-    WTF::HashMap<String, base::UnguessableToken>
+    HashMap<String, base::UnguessableToken>
         requested_audio_capture_session_ids) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(current_request_info_);
@@ -1212,9 +1228,9 @@ void UserMediaProcessor::GenerateStreamForCurrentRequestInfo(
         mojom::blink::StreamSelectionInfo::NewSearchBySessionId(
             mojom::blink::SearchBySessionId::New(
                 requested_audio_capture_session_ids)),
-        WTF::BindOnce(&UserMediaProcessor::OnStreamsGenerated,
-                      WrapWeakPersistent(this),
-                      current_request_info_->request_id()));
+        BindOnce(&UserMediaProcessor::OnStreamsGenerated,
+                 WrapWeakPersistent(this),
+                 current_request_info_->request_id()));
   }
 }
 
@@ -1409,10 +1425,10 @@ void UserMediaProcessor::OnStreamsGenerated(
       current_request_info_->StartTrace("GetAllVideoInputDeviceFormats");
       GetMediaDevicesDispatcher()->GetAllVideoInputDeviceFormats(
           video_device_id,
-          WTF::BindOnce(&UserMediaProcessor::GotAllVideoInputFormatsForDevice,
-                        WrapWeakPersistent(this),
-                        WrapPersistent(current_request_info_->request()), label,
-                        video_device_ids));
+          BindOnce(&UserMediaProcessor::GotAllVideoInputFormatsForDevice,
+                   WrapWeakPersistent(this),
+                   WrapPersistent(current_request_info_->request()), label,
+                   video_device_ids));
     }
   }
 }
@@ -1718,9 +1734,9 @@ MediaStreamSource* UserMediaProcessor::InitializeVideoSourceObject(
 
   current_request_info_->StartTrace("CreateVideoSource");
   auto video_source = CreateVideoSource(
-      device, WTF::BindOnce(&UserMediaProcessor::OnLocalSourceStopped,
-                            WrapWeakPersistent(this)));
-  video_source->SetStartCallback(WTF::BindOnce(
+      device, BindOnce(&UserMediaProcessor::OnLocalSourceStopped,
+                       WrapWeakPersistent(this)));
+  video_source->SetStartCallback(BindOnce(
       &UserMediaProcessor::OnVideoSourceStarted, WrapWeakPersistent(this)));
 
   MediaStreamSource* source =
@@ -1729,7 +1745,7 @@ MediaStreamSource* UserMediaProcessor::InitializeVideoSourceObject(
   String device_id(device.id.data());
   source->SetCapabilities(ComputeCapabilitiesForVideoSource(
       // TODO(crbug.com/704136): Change ComputeCapabilitiesForVideoSource to
-      // operate over WTF::Vector.
+      // operate over Vector.
       String::FromUTF8(device.id),
       ToStdVector(*current_request_info_->GetNativeVideoFormats(device_id)),
       static_cast<mojom::blink::FacingMode>(device.video_facing),
@@ -1782,7 +1798,7 @@ MediaStreamSource* UserMediaProcessor::InitializeAudioSourceObject(
 
   std::unique_ptr<blink::MediaStreamAudioSource> audio_source =
       CreateAudioSource(device, std::move(source_ready));
-  audio_source->SetStopCallback(WTF::BindOnce(
+  audio_source->SetStopCallback(BindOnce(
       &UserMediaProcessor::OnLocalSourceStopped, WrapWeakPersistent(this)));
 
 #if DCHECK_IS_ON()
@@ -1935,9 +1951,10 @@ UserMediaProcessor::CreateVideoSource(
       frame_->GetTaskRunner(TaskType::kInternalMediaRealTime), frame_,
       std::move(stop_callback), device,
       current_request_info_->video_capture_settings().capture_params(),
-      WTF::BindRepeating(&blink::LocalVideoCapturerSource::Create,
-                         frame_->GetTaskRunner(blink::TaskType::kInternalMedia),
-                         WrapWeakPersistent(frame_.Get())));
+      blink::BindRepeating(
+          &blink::LocalVideoCapturerSource::Create,
+          frame_->GetTaskRunner(blink::TaskType::kInternalMedia),
+          WrapWeakPersistent(frame_.Get())));
 }
 
 void UserMediaProcessor::StartTracks(const String& label) {
@@ -1955,21 +1972,21 @@ void UserMediaProcessor::StartTracks(const String& label) {
     // separate callbacks.
     media_stream_device_observer->AddStreams(
         WebString(label), current_request_info_->devices_set(),
-        {.on_device_stopped_cb = WTF::BindRepeating(
+        {.on_device_stopped_cb = BindRepeating(
              &UserMediaProcessor::OnDeviceStopped, WrapWeakPersistent(this)),
-         .on_device_changed_cb = WTF::BindRepeating(
+         .on_device_changed_cb = BindRepeating(
              &UserMediaProcessor::OnDeviceChanged, WrapWeakPersistent(this)),
          .on_device_request_state_change_cb =
-             WTF::BindRepeating(&UserMediaProcessor::OnDeviceRequestStateChange,
-                                WrapWeakPersistent(this)),
-         .on_device_capture_configuration_change_cb = WTF::BindRepeating(
+             BindRepeating(&UserMediaProcessor::OnDeviceRequestStateChange,
+                           WrapWeakPersistent(this)),
+         .on_device_capture_configuration_change_cb = BindRepeating(
              &UserMediaProcessor::OnDeviceCaptureConfigurationChange,
              WrapWeakPersistent(this)),
-         .on_device_capture_handle_change_cb = WTF::BindRepeating(
-             &UserMediaProcessor::OnDeviceCaptureHandleChange,
-             WrapWeakPersistent(this)),
+         .on_device_capture_handle_change_cb =
+             BindRepeating(&UserMediaProcessor::OnDeviceCaptureHandleChange,
+                           WrapWeakPersistent(this)),
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
-         .on_zoom_level_change_cb = WTF::BindRepeating(
+         .on_zoom_level_change_cb = BindRepeating(
              &UserMediaProcessor::OnZoomLevelChange, WrapWeakPersistent(this))
 #endif
         });
@@ -1987,8 +2004,8 @@ void UserMediaProcessor::StartTracks(const String& label) {
   current_request_info_->InitializeWebStreams(blink_id, stream_components_set);
   // Wait for the tracks to be started successfully or to fail.
   current_request_info_->CallbackOnTracksStarted(
-      WTF::BindOnce(&UserMediaProcessor::OnCreateNativeTracksCompleted,
-                    WrapWeakPersistent(this), label));
+      BindOnce(&UserMediaProcessor::OnCreateNativeTracksCompleted,
+               WrapWeakPersistent(this), label));
 }
 
 MediaStreamComponent* UserMediaProcessor::CreateVideoTrack(
@@ -2066,6 +2083,27 @@ void UserMediaProcessor::OnCreateNativeTracksCompleted(
   if (result == MediaStreamRequestResult::OK) {
     GetUserMediaRequestSucceeded(request_info->descriptors(),
                                  request_info->request());
+
+    for (const MediaStreamDescriptor* descriptor :
+         *request_info->descriptors()) {
+      for (auto audio_component : descriptor->AudioComponents()) {
+        // Only log and add UMA for microphone inputs (<=> getUserMedia).
+        if (!IsDeviceAudioCapture(audio_component)) {
+          continue;
+        }
+        MediaStreamTrackPlatform::Settings settings;
+        audio_component->GetSettings(settings);
+        if (settings.echo_cancellation.has_value()) {
+          EchoCancellationMode ec_mode = *settings.echo_cancellation;
+          LogEchoCancellationMode(ec_mode);
+          SendLogMessage(base::StringPrintf(
+              "OnCreateNativeTracksCompleted({request_id=%d}, {label=%s}) => "
+              "(SUCCESS: echoCancellationMode=[%s])",
+              request_info->request_id(), label.Utf8().c_str(),
+              EchoCancellationModeToString(ec_mode)));
+        }
+      }
+    }
   } else {
     GetUserMediaRequestFailed(result, constraint_name);
 
@@ -2107,10 +2145,10 @@ void UserMediaProcessor::GetUserMediaRequestSucceeded(
   // Therefore, post a task to complete the request with a clean stack.
   task_runner_->PostTask(
       FROM_HERE,
-      WTF::BindOnce(
-          &UserMediaProcessor::DelayedGetUserMediaRequestSucceeded,
-          WrapWeakPersistent(this), current_request_info_->request_id(),
-          WrapPersistent(descriptors), WrapPersistent(user_media_request)));
+      BindOnce(&UserMediaProcessor::DelayedGetUserMediaRequestSucceeded,
+               WrapWeakPersistent(this), current_request_info_->request_id(),
+               WrapPersistent(descriptors),
+               WrapPersistent(user_media_request)));
 }
 
 void UserMediaProcessor::DelayedGetUserMediaRequestSucceeded(
@@ -2129,6 +2167,10 @@ void UserMediaProcessor::DelayedGetUserMediaRequestSucceeded(
     // FinalizeTransferredTrackInitialization.
     user_media_request->Succeed(*components);
   }
+
+  if (MediaDevices* media_devices = GetMediaDevices()) {
+    media_devices->ReportSuccessfulGetUserMedia();
+  }
 }
 
 void UserMediaProcessor::GetUserMediaRequestFailed(
@@ -2146,11 +2188,10 @@ void UserMediaProcessor::GetUserMediaRequestFailed(
   // Therefore, post a task to complete the request with a clean stack.
   task_runner_->PostTask(
       FROM_HERE,
-      WTF::BindOnce(&UserMediaProcessor::DelayedGetUserMediaRequestFailed,
-                    WrapWeakPersistent(this),
-                    current_request_info_->request_id(),
-                    WrapPersistent(current_request_info_->request()), result,
-                    constraint_name));
+      BindOnce(&UserMediaProcessor::DelayedGetUserMediaRequestFailed,
+               WrapWeakPersistent(this), current_request_info_->request_id(),
+               WrapPersistent(current_request_info_->request()), result,
+               constraint_name));
 }
 
 void UserMediaProcessor::DelayedGetUserMediaRequestFailed(
@@ -2240,7 +2281,7 @@ bool UserMediaProcessor::RemoveLocalSource(MediaStreamSource* source) {
     switch (error.value_or(AudioSourceErrorCode::kUnknown)) {
       case AudioSourceErrorCode::kSystemPermissions:
         result = MediaStreamRequestResult::PERMISSION_DENIED_BY_SYSTEM;
-        message = "System Permssions prevented access to audio capture device";
+        message = "System Permissions prevented access to audio capture device";
         break;
       case AudioSourceErrorCode::kDeviceInUse:
         result = MediaStreamRequestResult::DEVICE_IN_USE;
@@ -2428,6 +2469,18 @@ void UserMediaProcessor::KeepDeviceAliveForTransfer(
     KeepDeviceAliveForTransferCallback keep_alive_cb) {
   GetMediaStreamDispatcherHost()->KeepDeviceAliveForTransfer(
       session_id, transfer_id, std::move(keep_alive_cb));
+}
+
+MediaDevices* UserMediaProcessor::GetMediaDevices() const {
+  if (!frame_) {
+    return nullptr;
+  }
+  if (LocalDOMWindow* window = frame_->DomWindow()) {
+    if (Navigator* navigator = window->navigator()) {
+      return MediaDevices::mediaDevices(*navigator);
+    }
+  }
+  return nullptr;
 }
 
 }  // namespace blink

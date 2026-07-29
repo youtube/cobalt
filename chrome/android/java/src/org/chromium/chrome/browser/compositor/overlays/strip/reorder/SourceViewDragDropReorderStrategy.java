@@ -12,7 +12,6 @@ import androidx.annotation.Nullable;
 
 import org.chromium.base.Token;
 import org.chromium.base.supplier.ObservableSupplierImpl;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.chrome.browser.compositor.overlays.strip.AnimationHost;
 import org.chromium.chrome.browser.compositor.overlays.strip.ScrollDelegate;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutGroupTitle;
@@ -28,12 +27,15 @@ import org.chromium.chrome.browser.tab_group_sync.TabGroupSyncServiceFactory;
 import org.chromium.chrome.browser.tab_ui.ActionConfirmationManager;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
 import org.chromium.chrome.browser.tabmodel.TabModel;
+import org.chromium.chrome.browser.tabmodel.TabModelUtils;
 import org.chromium.chrome.browser.tasks.tab_management.TabShareUtils;
 import org.chromium.components.tab_group_sync.TabGroupSyncService;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.function.Supplier;
 
 /**
  * Drag and drop reorder - start dragging strip view. Subsequently drag out of, within and back onto
@@ -197,6 +199,9 @@ class SourceViewDragDropReorderStrategy extends ReorderStrategyBase {
     }
 
     private boolean shouldShowUserPrompt(StripLayoutTab draggedTab) {
+        if (mTabGroupModelFilter.getTabModel().isIncognitoBranded()) {
+            return false;
+        }
         int tabId = draggedTab.getTabId();
         boolean draggingLastTabInGroup =
                 StripLayoutUtils.isLastTabInGroup(mTabGroupModelFilter, tabId);
@@ -204,7 +209,6 @@ class SourceViewDragDropReorderStrategy extends ReorderStrategyBase {
                 mActionConfirmationManager.willSkipUngroupTabAttempt()
                         && !isTabInCollaboration(tabId);
         return draggingLastTabInGroup
-                && !mTabGroupModelFilter.getTabModel().isIncognitoBranded()
                 && !willSkipDialog;
     }
 
@@ -456,16 +460,43 @@ class SourceViewDragDropReorderStrategy extends ReorderStrategyBase {
             // Populate the list of views being dragged.
             mViewsBeingDragged.clear();
             List<Tab> selectedTabs = new ArrayList<>();
+            HashSet<Integer> tabIdsToUnselect = new HashSet();
+
+            StripLayoutTab primaryStripTab = (StripLayoutTab) mViewBeingDragged;
             for (StripLayoutTab stripTab : stripTabs) {
                 if (stripTab != null && mModel.isTabMultiSelected(stripTab.getTabId())) {
-                    mViewsBeingDragged.add(stripTab);
-                    selectedTabs.add(mModel.getTabById(stripTab.getTabId()));
+                    // TODO(crbug.com/441978834):  This is a temporary workaround: if the selection
+                    // mixes pinned and unpinned tabs, only keep the tabs have the same pin state
+                    // as the primary tab. To match desktop behavior for mixed pinned/unpinned
+                    // tabs, when "ungather" them on drop we should:
+                    // 1. When drop in pinned range: place pinned tabs at the drop point; snap
+                    // unpinned
+                    // tabs to the nearest valid indices.
+                    // 2. Drop in unpinned range: place unpinned tabs at the drop point; move pinned
+                    // tabs to the end of the pinned range.
+                    if (stripTab.getIsPinned() == primaryStripTab.getIsPinned()) {
+                        mViewsBeingDragged.add(stripTab);
+                        selectedTabs.add(mModel.getTabById(stripTab.getTabId()));
+                    } else {
+                        tabIdsToUnselect.add(stripTab.getTabId());
+                    }
                 }
             }
+
+            // Deselect the ones that don't move due to a different pin state. If this includes the
+            // current tab, switch to the primary tab.
+            if (tabIdsToUnselect.contains(TabModelUtils.getCurrentTabId(mModel))) {
+                TabModelUtils.setIndex(
+                        mModel, TabModelUtils.getTabIndexById(mModel, primaryStripTab.getTabId()));
+            }
+            if (!tabIdsToUnselect.isEmpty()) {
+                mModel.setTabsMultiSelected(tabIdsToUnselect, /* isSelected= */ false);
+            }
+
             if (mViewsBeingDragged.isEmpty()) return false;
 
             // The primary tab is the one being interacted with.
-            Tab primaryTab = mModel.getTabById(((StripLayoutTab) mViewBeingDragged).getTabId());
+            Tab primaryTab = mModel.getTabById(primaryStripTab.getTabId());
             assert primaryTab != null : "No matching Tab found.";
 
             return mTabStripDragHandler.startMultiTabDragAction(

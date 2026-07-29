@@ -21,7 +21,6 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
-#include "base/system/sys_info.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/common/task_annotator.h"
 #include "base/threading/thread_checker.h"
@@ -131,6 +130,11 @@
 
 #if BUILDFLAG(SKIA_USE_DAWN) && (BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID))
 #include "components/viz/service/display_embedder/skia_output_device_dawn.h"
+#endif
+
+#if BUILDFLAG(SKIA_USE_DAWN)
+#include "gpu/command_buffer/service/dawn_context_provider.h"
+#include "gpu/command_buffer/service/dawn_platform.h"
 #endif
 
 #if BUILDFLAG(IS_FUCHSIA)
@@ -1447,10 +1451,9 @@ void SkiaOutputSurfaceImplOnGpu::CopyOutputNV12(
   // We should clear destination if BlitRequest asked to letterbox everything
   // outside of intended destination region:
   const bool clear_destination =
-      request->has_blit_request()
-          ? request->blit_request().letterboxing_behavior() ==
-                LetterboxingBehavior::kLetterbox
-          : false;
+      request->has_blit_request() &&
+      request->blit_request().letterboxing_behavior() ==
+          LetterboxingBehavior::kLetterbox;
 
   SkYUVAInfo yuva_info(
       gfx::SizeToSkISize(mailbox_access_data.representation->size()),
@@ -1741,16 +1744,14 @@ void SkiaOutputSurfaceImplOnGpu::CopyOutput(
   // scaled up from the source pixel space. When scaling |result_selection| back
   // down it might not be pixel aligned.
   gfx::Rect source_selection = geometry.sampling_bounds;
-  if (request->has_result_selection()) {
-    gfx::Rect sampling_selection = request->result_selection();
-    if (request->is_scaled()) {
-      // Invert the scaling.
-      sampling_selection = copy_output::ComputeResultRect(
-          sampling_selection, request->scale_to(), request->scale_from());
-    }
-    sampling_selection.Offset(source_selection.OffsetFromOrigin());
-    source_selection.Intersect(sampling_selection);
+  gfx::Rect sampling_selection = geometry.result_selection;
+  if (request->is_scaled()) {
+    // Invert the scaling.
+    sampling_selection = copy_output::ComputeResultRect(
+        sampling_selection, request->scale_to(), request->scale_from());
   }
+  sampling_selection.Offset(source_selection.OffsetFromOrigin());
+  source_selection.Intersect(sampling_selection);
 
   const SkIRect src_rect =
       SkIRect::MakeXYWH(source_selection.x(), source_selection.y(),
@@ -1981,7 +1982,7 @@ bool SkiaOutputSurfaceImplOnGpu::InitializeForGL() {
     if (!presenter_) {
       gl::GLSurfaceFormat format;
 #if BUILDFLAG(IS_ANDROID)
-      if (base::SysInfo::IsLowEndDevice() &&
+      if (features::PreferRGB565ResourcesForDisplay() &&
           !renderer_settings_.requires_alpha_channel) {
         format.SetRGB565();
       }
@@ -2448,6 +2449,12 @@ bool SkiaOutputSurfaceImplOnGpu::PresentFrame(OutputSurfaceFrame frame) {
   DCHECK(!frame.sub_buffer_rect || capabilities().supports_post_sub_buffer);
   output_device_->Present(frame.sub_buffer_rect, buffer_presented_callback_,
                           std::move(frame));
+
+#if BUILDFLAG(SKIA_USE_DAWN)
+  if (auto* dawn_context_provider = context_state_->dawn_context_provider()) {
+    dawn_context_provider->GetDawnPlatform()->OnFramePresented();
+  }
+#endif
 
   return true;
 }

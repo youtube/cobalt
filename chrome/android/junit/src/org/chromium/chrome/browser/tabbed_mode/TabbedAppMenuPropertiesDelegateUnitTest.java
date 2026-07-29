@@ -122,7 +122,7 @@ import org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridgeJ
 import org.chromium.components.commerce.core.CommerceFeatureUtils;
 import org.chromium.components.commerce.core.CommerceFeatureUtilsJni;
 import org.chromium.components.commerce.core.ShoppingService;
-import org.chromium.components.content_settings.ContentSettingValues;
+import org.chromium.components.content_settings.ContentSetting;
 import org.chromium.components.dom_distiller.core.DomDistillerFeatures;
 import org.chromium.components.dom_distiller.core.DomDistillerUrlUtilsJni;
 import org.chromium.components.embedder_support.util.UrlConstants;
@@ -959,6 +959,93 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
             R.id.close_all_tabs_menu_id,
             R.id.menu_select_tabs,
             R.id.quick_delete_menu_id,
+            R.id.preferences_id
+        };
+        assertMenuItemsAreEqual(modelList, expectedItems);
+    }
+
+    @Test
+    @Config(qualifiers = "sw600dp")
+    @DisableFeatures({ChromeFeatureList.TAB_GROUP_ENTRY_POINTS_ANDROID})
+    @EnableFeatures({ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW})
+    public void testOverviewMenuItems_Tablet_SelectTabs_incognitoWindowEnabled() {
+        when(mTabModel.getCount()).thenReturn(1);
+        when(mTabModelSelector.getCurrentModel()).thenReturn(mTabModel);
+        when(mLayoutStateProvider.isLayoutVisible(LayoutType.TAB_SWITCHER)).thenReturn(true);
+        when(mTabModelSelector.getTotalTabCount()).thenReturn(1);
+        setUpIncognitoMocks();
+        when(mMultiWindowModeStateDispatcher.canEnterMultiWindowMode()).thenReturn(true);
+        when(mMultiWindowModeStateDispatcher.isMultiInstanceRunning()).thenReturn(false);
+
+        Assert.assertFalse(mTabbedAppMenuPropertiesDelegate.shouldShowPageMenu());
+        assertEquals(MenuGroup.OVERVIEW_MODE_MENU, mTabbedAppMenuPropertiesDelegate.getMenuGroup());
+
+        MVCListAdapter.ModelList modelList = mTabbedAppMenuPropertiesDelegate.getMenuItems();
+
+        Integer[] expectedItems = {
+            R.id.new_tab_menu_id,
+            R.id.new_incognito_window_menu_id,
+            R.id.close_all_tabs_menu_id,
+            R.id.menu_select_tabs,
+            R.id.quick_delete_menu_id,
+            R.id.preferences_id
+        };
+        assertMenuItemsAreEqual(modelList, expectedItems);
+    }
+
+    @Test
+    @Config(qualifiers = "sw320dp")
+    @DisableFeatures({
+        ChromeFeatureList.TAB_GROUP_ENTRY_POINTS_ANDROID,
+        ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW
+    })
+    public void testOverviewMenuItems_Phone_IncognitoWindow() {
+        when(mIncognitoTabModel.getCount()).thenReturn(1);
+        when(mTabModelSelector.getCurrentModel()).thenReturn(mIncognitoTabModel);
+        when(mIncognitoTabModel.isIncognito()).thenReturn(true);
+        when(mLayoutStateProvider.isLayoutVisible(LayoutType.TAB_SWITCHER)).thenReturn(true);
+        when(mTabModelSelector.getTotalTabCount()).thenReturn(1);
+        setUpIncognitoMocks();
+
+        Assert.assertFalse(mTabbedAppMenuPropertiesDelegate.shouldShowPageMenu());
+        assertEquals(MenuGroup.OVERVIEW_MODE_MENU, mTabbedAppMenuPropertiesDelegate.getMenuGroup());
+
+        MVCListAdapter.ModelList modelList = mTabbedAppMenuPropertiesDelegate.getMenuItems();
+
+        Integer[] expectedItems = {
+            R.id.new_tab_menu_id,
+            R.id.new_incognito_tab_menu_id,
+            R.id.close_all_incognito_tabs_menu_id,
+            R.id.menu_select_tabs,
+            R.id.preferences_id
+        };
+        assertMenuItemsAreEqual(modelList, expectedItems);
+    }
+
+    @Test
+    @Config(qualifiers = "sw600dp")
+    @DisableFeatures({ChromeFeatureList.TAB_GROUP_ENTRY_POINTS_ANDROID})
+    @EnableFeatures({ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW})
+    public void testOverviewMenuItems_Tablet_IncognitoWindow_incognitoWindowEnabled() {
+        when(mIncognitoTabModel.getCount()).thenReturn(1);
+        when(mTabModelSelector.getCurrentModel()).thenReturn(mIncognitoTabModel);
+        when(mIncognitoTabModel.isIncognito()).thenReturn(true);
+        when(mLayoutStateProvider.isLayoutVisible(LayoutType.TAB_SWITCHER)).thenReturn(true);
+        when(mTabModelSelector.getTotalTabCount()).thenReturn(1);
+        setUpIncognitoMocks();
+        when(mMultiWindowModeStateDispatcher.canEnterMultiWindowMode()).thenReturn(true);
+        when(mMultiWindowModeStateDispatcher.isMultiInstanceRunning()).thenReturn(false);
+
+        Assert.assertFalse(mTabbedAppMenuPropertiesDelegate.shouldShowPageMenu());
+        assertEquals(MenuGroup.OVERVIEW_MODE_MENU, mTabbedAppMenuPropertiesDelegate.getMenuGroup());
+
+        MVCListAdapter.ModelList modelList = mTabbedAppMenuPropertiesDelegate.getMenuItems();
+
+        Integer[] expectedItems = {
+            R.id.new_incognito_tab_menu_id,
+            R.id.new_window_menu_id,
+            R.id.close_all_incognito_tabs_menu_id,
+            R.id.menu_select_tabs,
             R.id.preferences_id
         };
         assertMenuItemsAreEqual(modelList, expectedItems);
@@ -2631,7 +2718,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         when(mWebsitePreferenceBridgeJniMock.getContentSetting(any(), anyInt(), any(), any()))
                 .thenReturn(
                         options.isAutoDarkEnabled()
-                                ? ContentSettingValues.DEFAULT
-                                : ContentSettingValues.BLOCK);
+                                ? ContentSetting.DEFAULT
+                                : ContentSetting.BLOCK);
     }
 }

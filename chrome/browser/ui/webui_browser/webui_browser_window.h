@@ -10,6 +10,7 @@
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_context.h"
+#include "chrome/browser/ui/views/side_panel/side_panel_entry_key.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/color/color_provider_key.h"
@@ -23,6 +24,7 @@ class Widget;
 }  // namespace views
 
 class Browser;
+class WebUIBrowserSidePanelUI;
 class WebUIBrowserUI;
 class WebUIBrowserWebContentsDelegate;
 class WebUILocationBar;
@@ -42,6 +44,13 @@ class WebUIBrowserWindow : public BrowserWindow,
   // WebShell.
   static WebUIBrowserWindow* FromWebShellWebContents(
       content::WebContents* web_contents);
+
+  // Returns the WebUIBrowserWindow for a Browser. If browser does not use
+  // WebUIBrowserWindow, returns nullptr.
+  static WebUIBrowserWindow* FromBrowser(Browser* browser);
+
+  // Returns the WebUIBrowserWindow for the given `window`.
+  static WebUIBrowserWindow* FromNativeWindow(gfx::NativeWindow window);
 
   // BrowserWindow:
   gfx::NativeWindow GetNativeWindow() const override;
@@ -87,8 +96,6 @@ class WebUIBrowserWindow : public BrowserWindow,
   void UpdateToolbar(content::WebContents* contents) override;
   bool UpdateToolbarSecurityState() override;
   void UpdateCustomTabBarVisibility(bool visible, bool animate) override;
-  void SetContentScrimVisibility(content::WebContents* contents,
-                                 bool visible) override;
   void SetDevToolsScrimVisibility(bool visible) override;
   void ResetToolbarTabState(content::WebContents* contents) override;
   void FocusToolbar() override;
@@ -132,7 +139,6 @@ class WebUIBrowserWindow : public BrowserWindow,
       content::WebContents* contents,
       bool show_signin_button) override;
 #if BUILDFLAG(IS_CHROMEOS)
-  views::Button* GetSharingHubIconButton() override;
   void ToggleMultitaskMenu() const override;
 #else
   sharing_hub::SharingHubBubbleView* ShowSharingHubBubble(
@@ -160,7 +166,6 @@ class WebUIBrowserWindow : public BrowserWindow,
       base::OnceCallback<void(bool)> callback) override;
   void UserChangedTheme(BrowserThemeChangeType theme_change_type) override;
   void ShowAppMenu() override;
-  bool PreHandleMouseEvent(const blink::WebMouseEvent& event) override;
   void PreHandleDragUpdate(const content::DropData& drop_data,
                            const gfx::PointF& point) override;
   void PreHandleDragExit() override;
@@ -171,6 +176,8 @@ class WebUIBrowserWindow : public BrowserWindow,
   std::unique_ptr<FindBar> CreateFindBar() override;
   web_modal::WebContentsModalDialogHost* GetWebContentsModalDialogHost()
       override;
+  web_modal::WebContentsModalDialogHost* GetWebContentsModalDialogHostFor(
+      content::WebContents* web_contents) override;
   void ShowAvatarBubbleFromAvatarButton(bool is_source_accelerator) override;
   void MaybeShowProfileSwitchIPH() override;
   void MaybeShowSupervisedUserProfileSignInIPH() override;
@@ -238,7 +245,7 @@ class WebUIBrowserWindow : public BrowserWindow,
   Profile* GetProfile() override;
   void EnterFullscreen(const url::Origin& origin,
                        ExclusiveAccessBubbleType bubble_type,
-                       const int64_t display_id) override;
+                       FullscreenTabParams fullscreen_tab_params) override;
   void ExitFullscreen() override;
   void UpdateExclusiveAccessBubble(
       const ExclusiveAccessBubbleParams& params,
@@ -252,6 +259,10 @@ class WebUIBrowserWindow : public BrowserWindow,
   // ui::AcceleratorProvider:
   bool GetAcceleratorForCommandId(int command_id,
                                   ui::Accelerator* accelerator) const override;
+
+  void ShowSidePanel(SidePanelEntryKey side_panel_entry_key);
+
+  WebUIBrowserSidePanelUI* GetWebUIBrowserSidePanelUI();
 
   Browser* browser() { return browser_.get(); }
   views::Widget* widget() { return widget_.get(); }

@@ -11,6 +11,7 @@
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/single_thread_task_runner.h"
@@ -165,7 +166,10 @@ HttpServerProperties::HttpServerProperties(
       canonical_suffixes_({".ggpht.com", ".c.youtube.com", ".googlevideo.com",
                            ".googleusercontent.com", ".gvt1.com"}),
       quic_server_info_map_(kDefaultMaxQuicServerEntries),
-      max_server_configs_stored_in_properties_(kDefaultMaxQuicServerEntries) {}
+      max_server_configs_stored_in_properties_(kDefaultMaxQuicServerEntries) {
+  // Identify known QUIC alternative services, if any.
+  MaybeProcessQuicHints();
+}
 
 HttpServerProperties::~HttpServerProperties() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
@@ -343,6 +347,119 @@ void HttpServerProperties::SetAlternativeServices(
   SetAlternativeServicesInternal(NormalizeSchemeHostPort(origin),
                                  network_anonymization_key,
                                  alternative_service_info_vector);
+}
+
+void HttpServerProperties::MaybeProcessQuicHints() {
+  if (!base::FeatureList::IsEnabled(features::kConfigureQuicHints)) {
+    return;
+  }
+
+  // QUIC hints are in the format: host,port,alternate_port
+  const std::string comma_separated = features::kQuicHintHostPortPairs.Get();
+  auto split = base::SplitStringPiece(
+      comma_separated, ",", base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL);
+
+  // Only process QUIC hints if they are present and well-formed
+  // i.e. every 3-tuple entry is complete
+  if (!split.empty() && split.size() % 3 == 0) {
+    for (size_t i = 0; i + 2 < split.size(); i += 3) {
+      ValidateAndMaybeAddQuicHint(split[i], split[i + 1], split[i + 2]);
+    }
+  }
+
+  // Wildcard QUIC hints are in the format: .wildcard_suffix,port,alternate_port
+  // Note that a '*' is not included before the wildcard suffix to avoid
+  // needlessly removing it from the parameter.
+  const std::string comma_separated_wildcards =
+      features::kWildcardQuicHintHostPortPairs.Get();
+  auto wildcards_split =
+      base::SplitStringPiece(comma_separated_wildcards, ",",
+                             base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL);
+  if (!wildcards_split.empty() && wildcards_split.size() % 3 == 0) {
+    for (size_t i = 0; i + 2 < wildcards_split.size(); i += 3) {
+      ValidateAndMaybeAddQuicHint(wildcards_split[i], wildcards_split[i + 1],
+                                  wildcards_split[i + 2], /*is_suffix=*/true);
+    }
+  }
+}
+
+void HttpServerProperties::ValidateAndMaybeAddQuicHint(
+    std::string_view host,
+    std::string_view port_string,
+    std::string_view alternate_port_string,
+    bool is_suffix) {
+  url::CanonHostInfo host_info;
+  std::string canon_host(net::CanonicalizeHost(host, &host_info));
+  if (is_suffix) {
+    // Suffixes are required to start with "." to prevent unintentional matching
+    // i.e. "evil-example.com" with "example.com"
+    if (!base::StartsWith(canon_host, ".")) {
+      DLOG(ERROR) << "Invalid QUIC hint suffix: " << host;
+      return;
+    }
+  } else {
+    // IP addresses (e.g. DoH destinations) or well-formed hosts are valid
+    // QUIC hints
+    if (!host_info.IsIPAddress() &&
+        !net::IsCanonicalizedHostCompliant(canon_host)) {
+      DLOG(ERROR) << "Invalid QUIC hint host: " << host;
+      return;
+    }
+  }
+
+  int port = 0;
+  if (!base::StringToInt(port_string, &port)) {
+    DLOG(WARNING) << "Could not parse port number: " << port_string;
+    return;
+  }
+  if (port <= std::numeric_limits<uint16_t>::min() ||
+      port > std::numeric_limits<uint16_t>::max()) {
+    DLOG(ERROR) << "Invalid QUIC hint port: " << port;
+    return;
+  }
+
+  int alternate_port = 0;
+  if (!base::StringToInt(alternate_port_string, &alternate_port)) {
+    DLOG(WARNING) << "Could not parse alternate port number: "
+                  << alternate_port_string;
+    return;
+  }
+  if (alternate_port <= std::numeric_limits<uint16_t>::min() ||
+      alternate_port > std::numeric_limits<uint16_t>::max()) {
+    DLOG(ERROR) << "Invalid QUIC hint alternate port: " << alternate_port;
+    return;
+  }
+
+  SetKnownQuicAlternativeService(canon_host, port, alternate_port, is_suffix);
+}
+
+void HttpServerProperties::SetKnownQuicAlternativeService(
+    std::string_view canon_host,
+    int port,
+    int alternate_port,
+    bool is_suffix) {
+  if (!is_suffix) {
+    url::SchemeHostPort quic_server(url::kHttpsScheme, canon_host, port);
+    AlternativeService alternative_service(
+        net::NextProto::kProtoQUIC, canon_host,
+        static_cast<uint16_t>(alternate_port));
+    known_alternative_service_map_[quic_server] =
+        std::move(alternative_service);
+    return;
+  }
+
+  // Wildcard suffixes are reversed and added to
+  // `reversed_known_alternative_service_suffixes_set_` to allow matching
+  // hostnames to use the corresponding known alternative service.
+  std::string reversed_host(canon_host);
+  std::ranges::reverse(reversed_host);
+  url::SchemeHostPort quic_server(url::kHttpsScheme, reversed_host, port);
+  AlternativeService alternative_service(net::NextProto::kProtoQUIC,
+                                         reversed_host,
+                                         static_cast<uint16_t>(alternate_port));
+  wildcard_known_alternative_service_map_[quic_server] =
+      std::move(alternative_service);
+  reversed_known_alternative_service_suffixes_set_.insert(reversed_host);
 }
 
 void HttpServerProperties::MarkAlternativeServiceBroken(
@@ -587,8 +704,9 @@ void HttpServerProperties::SetMaxServerConfigsStoredInProperties(
   max_server_configs_stored_in_properties_ =
       max_server_configs_stored_in_properties;
 
-  // LRUCache doesn't allow the capacity of the cache to be changed. Thus create
-  // a new map with the new size and add current elements and swap the new map.
+  // LRUCache doesn't allow the capacity of the cache to be changed. Thus
+  // create a new map with the new size and add current elements and swap the
+  // new map.
   quic_server_info_map_.ShrinkToSize(max_server_configs_stored_in_properties_);
   QuicServerInfoMap temp_map(max_server_configs_stored_in_properties_);
   // Update the |canonical_server_info_map_| as well, so it stays in sync with
@@ -735,8 +853,8 @@ HttpServerProperties::GetAlternativeServiceInfosInternal(
       if (alternative_service.host.empty()) {
         alternative_service.host = origin.host();
       }
-      // If the alternative service is equivalent to the origin (same host, same
-      // port, and both TCP), skip it.
+      // If the alternative service is equivalent to the origin (same host,
+      // same port, and both TCP), skip it.
       if (host_port_pair == alternative_service.GetHostPortPair() &&
           alternative_service.protocol == NextProto::kProtoHTTP2) {
         ++it;
@@ -759,6 +877,25 @@ HttpServerProperties::GetAlternativeServiceInfosInternal(
       server_info_map_.EraseIfEmpty(map_it);
     }
     return valid_alternative_service_infos;
+  }
+
+  // If a more specific alternative service has not been found, look for
+  // preconfigured known alternative services.
+  std::optional<AlternativeService> known_alternative_service =
+      GetKnownAltSvcHost(origin);
+  if (known_alternative_service) {
+    // Update the host to use the full hostname instead of a possible wildcard
+    // suffix.
+    known_alternative_service->host = origin.host();
+    if (known_alternative_service->protocol == NextProto::kProtoQUIC &&
+        !IsAlternativeServiceBroken(*known_alternative_service,
+                                    network_anonymization_key)) {
+      valid_alternative_service_infos.push_back(
+          AlternativeServiceInfo::CreateQuicAlternativeServiceInfo(
+              *known_alternative_service, base::Time::Max(),
+              DefaultSupportedQuicVersions()));
+      return valid_alternative_service_infos;
+    }
   }
 
   auto canonical = GetCanonicalAltSvcHost(origin, network_anonymization_key);
@@ -845,8 +982,8 @@ void HttpServerProperties::SetAlternativeServicesInternal(
       need_update_pref = false;
       auto new_it = alternative_service_info_vector.begin();
       for (const auto& old : *it->second.alternative_services) {
-        // Persist to disk immediately if new entry has different scheme, host,
-        // or port.
+        // Persist to disk immediately if new entry has different scheme,
+        // host, or port.
         if (old.alternative_service() != new_it->alternative_service()) {
           need_update_pref = true;
           break;
@@ -860,8 +997,8 @@ void HttpServerProperties::SetAlternativeServicesInternal(
           need_update_pref = true;
           break;
         }
-        // Also persist to disk if new entry has a different list of advertised
-        // versions.
+        // Also persist to disk if new entry has a different list of
+        // advertised versions.
         if (old.advertised_versions() != new_it->advertised_versions()) {
           need_update_pref = true;
           break;
@@ -1012,6 +1149,46 @@ HttpServerProperties::GetIteratorWithAlternativeServiceInfo(
   return server_info_map_.end();
 }
 
+std::optional<AlternativeService> HttpServerProperties::GetKnownAltSvcHost(
+    const url::SchemeHostPort& server) const {
+  const char* kKnownAltSvcScheme = url::kHttpsScheme;
+  if (server.scheme() != kKnownAltSvcScheme) {
+    return std::nullopt;
+  }
+
+  auto it = known_alternative_service_map_.find(server);
+  if (it != known_alternative_service_map_.end()) {
+    return it->second;
+  }
+  std::string reversed_host = server.host();
+  std::ranges::reverse(reversed_host);
+  const auto lower_bound_it =
+      reversed_known_alternative_service_suffixes_set_.lower_bound(
+          reversed_host);
+  // Exact matches cannot happen because wildcard suffixes are required to start
+  // with "."
+  if (lower_bound_it ==
+      reversed_known_alternative_service_suffixes_set_.begin()) {
+    return std::nullopt;
+  }
+  // lower_bound_it points to the first element greater or equal to
+  // `reversed_host`. The last element that is less than
+  // `reversed_host` contains the most likely wildcard suffix match.
+  const auto possible_prefix_it = std::prev(lower_bound_it);
+  if (!reversed_host.starts_with(*possible_prefix_it)) {
+    return std::nullopt;
+  }
+
+  url::SchemeHostPort suffix_server(kKnownAltSvcScheme, *possible_prefix_it,
+                                    server.port());
+  auto suffix_it = wildcard_known_alternative_service_map_.find(suffix_server);
+  if (suffix_it != wildcard_known_alternative_service_map_.end()) {
+    return suffix_it->second;
+  }
+
+  return std::nullopt;
+}
+
 HttpServerProperties::CanonicalMap::const_iterator
 HttpServerProperties::GetCanonicalAltSvcHost(
     const url::SchemeHostPort& server,
@@ -1091,8 +1268,8 @@ void HttpServerProperties::OnPrefsLoaded(
 
   DCHECK(!is_initialized_);
 
-  // Either all of these are nullptr, or none of them are (except the broken alt
-  // service fields).
+  // Either all of these are nullptr, or none of them are (except the broken
+  // alt service fields).
   if (server_info_map) {
     OnServerInfoLoaded(std::move(server_info_map));
     OnLastLocalAddressWhenQuicWorkedLoaded(last_local_address_when_quic_worked);
@@ -1108,8 +1285,8 @@ void HttpServerProperties::OnPrefsLoaded(
   is_initialized_ = true;
 
   if (queue_write_on_load_) {
-    // Leaving this as true doesn't actually have any effect, but seems best to
-    // be safe.
+    // Leaving this as true doesn't actually have any effect, but seems best
+    // to be safe.
     queue_write_on_load_ = false;
     MaybeQueueWriteProperties();
   }

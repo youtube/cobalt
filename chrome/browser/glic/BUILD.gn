@@ -16,6 +16,7 @@ assert(enable_glic)
 # the "impl" target.
 source_set("glic") {
   sources = [
+    "browser_ui/glic_animated_effect_view.h",
     "browser_ui/glic_border_view.h",
     "browser_ui/glic_button_controller.h",
     "browser_ui/glic_button_controller_delegate.h",
@@ -37,9 +38,9 @@ source_set("glic") {
     "glic_zero_state_suggestions_manager.h",
     "host/auth_controller.h",
     "host/context/glic_focused_tab_manager.h",
+    "host/context/glic_focused_tab_manager_interface.h",
     "host/context/glic_page_context_fetcher.h",
     "host/context/glic_tab_data.h",
-    "host/glic_actor_controller.h",
     "host/glic_annotation_manager.h",
     "host/glic_cookie_synchronizer.h",
     "host/glic_page_handler.h",
@@ -88,6 +89,7 @@ source_set("glic") {
     "//chrome/browser/actor:types",
     "//chrome/common",
     "//components/user_education/common",
+    "//ui/base/interaction",
   ]
 }
 
@@ -128,14 +130,16 @@ source_set("impl") {
     "host/context/glic_sharing_manager_impl.h",
     "host/context/glic_sharing_utils.cc",
     "host/context/glic_sharing_utils.h",
+    "host/context/glic_single_browser_focused_tab_manager.cc",
+    "host/context/glic_single_browser_focused_tab_manager.h",
     "host/context/glic_tab_data.cc",
-    "host/glic_actor_controller.cc",
     "host/glic_annotation_manager.cc",
     "host/glic_cookie_synchronizer.cc",
     "host/glic_page_handler.cc",
     "host/glic_synthetic_trial_manager.cc",
     "host/glic_synthetic_trial_manager.h",
     "host/glic_ui.cc",
+    "host/glic_ui_embedder.h",
     "host/guest_util.cc",
     "host/host.cc",
     "host/page_metadata_manager.cc",
@@ -145,15 +149,22 @@ source_set("impl") {
     "public/glic_enabling.cc",
     "public/glic_keyed_service.cc",
     "public/glic_keyed_service_factory.cc",
+    "service/glic_instance.cc",
+    "service/glic_instance.h",
+    "service/glic_instance_coordinator_impl.cc",
+    "service/glic_instance_coordinator_impl.h",
+    "service/panel_delegate.h",
     "widget/application_hotkey_delegate.cc",
     "widget/application_hotkey_delegate.h",
     "widget/browser_conditions.cc",
     "widget/browser_conditions.h",
-    "widget/glic_panel_coordinator_impl.cc",
-    "widget/glic_panel_coordinator_impl.h",
+    "widget/glic_floating_ui.cc",
+    "widget/glic_floating_ui.h",
     "widget/glic_panel_hotkey_delegate.cc",
     "widget/glic_panel_hotkey_delegate.h",
     "widget/glic_side_panel_coordinator.cc",
+    "widget/glic_side_panel_ui.cc",
+    "widget/glic_side_panel_ui.h",
     "widget/glic_view.cc",
     "widget/glic_widget.cc",
     "widget/glic_widget.h",
@@ -212,12 +223,14 @@ source_set("impl") {
     "//components/language/core/common",
     "//components/metrics",
     "//components/metrics_services_manager",
+    "//components/password_manager/core/browser/actor_login:common",
     "//components/pref_registry",
     "//components/prefs",
     "//components/sessions",
     "//components/variations/service",
     "//extensions/browser",
     "//third_party/metrics_proto",
+    "//ui/base/interaction",
     "//ui/webui",
     "//url",
   ]
@@ -237,6 +250,8 @@ source_set("impl") {
 }
 
 mojom("mojo_bindings") {
+  disable_variants = true
+
   sources = [
     "host/glic.mojom",
     "host/glic_features.mojom",
@@ -245,6 +260,7 @@ mojom("mojo_bindings") {
 
   public_deps = [
     "//chrome/browser/glic/fre:mojo_bindings",
+    "//chrome/common:actor_webui_mojom",
     "//components/content_settings/core/common:content_settings_types",
     "//components/optimization_guide/content/mojom:mojo_interfaces",
     "//mojo/public/mojom/base",

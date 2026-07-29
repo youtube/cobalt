@@ -412,10 +412,14 @@ public class TabModelImpl extends TabModelJniBridge {
         Tab tab = getTabById(tabId);
         if (tab == null) return;
 
-        moveTab(tab.getId(), availableIndex);
-
+        // Call #notifyWillChangePinState before #moveTab. The notify step triggers
+        // TabGroupModelFilterImpl#willChangePinState to ungroup the tab prior to pinning.
+        // #moveTab typically kicks off StripLayoutHelper#rebuildStripView. If rebuild runs
+        // before the tab is removed from its group, the strip can treat the group as split,
+        // miscount groups, and hit an out-of-bounds.
         notifyWillChangeInPinState(tab);
         tab.setIsPinned(true);
+        moveTab(tab.getId(), availableIndex);
         notifyDidChangeInPinState(tab);
     }
 
@@ -720,6 +724,7 @@ public class TabModelImpl extends TabModelJniBridge {
                         tabClosureParams.allowUndo,
                         tabClosureParams.tabClosingSource,
                         tabClosureParams.undoRunnable);
+                mTabCountSupplier.set(mTabs.size());
                 return true;
             default:
                 assert false : "Not reached.";
@@ -738,17 +743,6 @@ public class TabModelImpl extends TabModelJniBridge {
     @Override
     public Iterator<Tab> iterator() {
         return ReadOnlyIterator.maybeCreate(mTabs.iterator());
-    }
-
-    // TODO(aurimas): Move this method to TabModelSelector when notifications move there.
-    private int getLastId(@TabSelectionType int type) {
-        if (type == TabSelectionType.FROM_CLOSE || type == TabSelectionType.FROM_EXIT) {
-            return Tab.INVALID_TAB_ID;
-        }
-
-        // Get the current tab in the current tab model.
-        Tab currentTab = TabModelUtils.getCurrentTab(mModelDelegate.getCurrentModel());
-        return currentTab != null ? currentTab.getId() : Tab.INVALID_TAB_ID;
     }
 
     private boolean hasValidTab() {
@@ -774,7 +768,10 @@ public class TabModelImpl extends TabModelJniBridge {
         if (mIsArchivedTabModel) return;
         try {
             TraceEvent.begin("TabModelImpl.setIndex");
-            int lastId = getLastId(type);
+            int lastId =
+                    mCurrentTabSupplier.get() != null
+                            ? mCurrentTabSupplier.get().getId()
+                            : Tab.INVALID_TAB_ID;
 
             // This can cause recursive entries into setIndex, which causes duplicate notifications
             // and UMA records.
@@ -896,7 +893,10 @@ public class TabModelImpl extends TabModelJniBridge {
         mTabs.remove(tab);
         tab.onRemovedFromTabModel(mCurrentTabSupplier);
         mTabIdToTabs.remove(tab.getId());
-        mTabCountSupplier.set(mTabs.size());
+        // Close all tabs should update the mTabCountSupplier after all tabs are closed.
+        if (tabCloseType != TabCloseType.ALL) {
+            mTabCountSupplier.set(mTabs.size());
+        }
 
         boolean nextIsIncognito = nextTab == null ? false : nextTab.isIncognito();
         int nextTabId = nextTab == null ? Tab.INVALID_TAB_ID : nextTab.getId();

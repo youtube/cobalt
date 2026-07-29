@@ -13,8 +13,19 @@
 namespace blink {
 
 class LineInfo;
+class PhysicalFragment;
 
 bool ShouldApplyFitText(const InlineNode node);
+
+// This function calculates and returns the overall scale factor for an IFC
+// based on the given `node` and its PhysicalFragment.
+//
+// For each line within the IFC, it calculates a scale factor that would make
+// the line fit exactly within the `available_width` and returns the minimum
+// of these scale factors.
+float MeasurePerBlockScale(const InlineNode node,
+                           const PhysicalFragment& fragment,
+                           LayoutUnit available_width);
 
 // LineFitter class is responsible for computing a line scaling factor,
 // and scaling a line.
@@ -26,9 +37,19 @@ class LineFitter {
 
   // Updates text scaling factor of InlineItemResults in `line_info`.
   // Returns true if LogicalLineBuilder needs to scale line-height.
-  bool FitLine();
+  //
+  // For the `consistent` target and the `font-size` method, we need to
+  // specify `adjusting_scale` too.  It's a paint-time scaling factor after
+  // the `font-size` scaling.
+  bool FitLine(float scale_factor, std::optional<float> adjusting_scale);
+
+  // Measures the scaling factor for the current line, and applies it.
+  bool MeasureAndFitLine();
 
  private:
+  // Measures the scaling factor for the current line.
+  float MeasureScale();
+
   const InlineNode node_;
   LineInfo& line_info_;
   const InlineItemsData& items_data_;

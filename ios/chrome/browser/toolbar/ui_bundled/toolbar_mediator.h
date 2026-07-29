@@ -31,6 +31,9 @@ class WebStateList;
 /// `toolbarType`. The steady state omnibox is when the omnibox is not focused.
 - (void)transitionSteadyStateOmniboxToToolbarType:(ToolbarType)toolbarType;
 
+/// The height of the bottom omnibox when it is keyboard attached.
+- (CGFloat)keyboardAttachedBottomOmniboxHeight;
+
 @end
 
 @interface ToolbarMediator : NSObject
@@ -68,6 +71,9 @@ class WebStateList;
 
 /// Sets the omnibox initial position to the correct toolbar.
 - (void)setInitialOmniboxPosition;
+
+/// Sets the bottom offset required by the omnibox.
+- (void)setBottomOmniboxOffsetForPopup:(CGFloat)bottomOffset;
 
 @end
 

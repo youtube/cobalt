@@ -2518,21 +2518,21 @@ static void AssertNodeClean(const Node& node) {
 }
 
 static void AssertLayoutTreeUpdatedForPseudoElements(const Element& element) {
-  WTF::Vector<PseudoId> pseudo_ids = {kPseudoIdFirstLetter,
-                                      kPseudoIdCheckMark,
-                                      kPseudoIdBefore,
-                                      kPseudoIdAfter,
-                                      kPseudoIdPickerIcon,
-                                      kPseudoIdInterestHint,
-                                      kPseudoIdMarker,
-                                      kPseudoIdBackdrop,
-                                      kPseudoIdScrollMarkerGroupBefore,
-                                      kPseudoIdScrollMarkerGroupAfter,
-                                      kPseudoIdScrollButtonBlockStart,
-                                      kPseudoIdScrollButtonInlineStart,
-                                      kPseudoIdScrollButtonInlineEnd,
-                                      kPseudoIdScrollButtonBlockEnd,
-                                      kPseudoIdScrollMarker};
+  Vector<PseudoId> pseudo_ids = {kPseudoIdFirstLetter,
+                                 kPseudoIdCheckMark,
+                                 kPseudoIdBefore,
+                                 kPseudoIdAfter,
+                                 kPseudoIdPickerIcon,
+                                 kPseudoIdInterestHint,
+                                 kPseudoIdMarker,
+                                 kPseudoIdBackdrop,
+                                 kPseudoIdScrollMarkerGroupBefore,
+                                 kPseudoIdScrollMarkerGroupAfter,
+                                 kPseudoIdScrollButtonBlockStart,
+                                 kPseudoIdScrollButtonInlineStart,
+                                 kPseudoIdScrollButtonInlineEnd,
+                                 kPseudoIdScrollButtonBlockEnd,
+                                 kPseudoIdScrollMarker};
   for (auto pseudo_id : pseudo_ids) {
     if (const PseudoElement* pseudo_element =
             element.GetPseudoElement(pseudo_id)) {
@@ -4394,7 +4394,7 @@ bool Document::CheckCompletedInternal() {
   DCHECK(fetcher_);
 
   fetcher_->ScheduleWarnUnusedPreloads(
-      WTF::BindOnce(&Document::OnWarnUnusedPreloads, WrapWeakPersistent(this)));
+      BindOnce(&Document::OnWarnUnusedPreloads, WrapWeakPersistent(this)));
 
   // The readystatechanged or load event may have disconnected this frame.
   if (!GetFrame() || !GetFrame()->IsAttached())
@@ -5195,10 +5195,10 @@ void Document::NotifyParserResumeByUserTiming() {
 void Document::DidLoadAllScriptBlockingResources() {
   // Use wrapWeakPersistent because the task should not keep this Document alive
   // just for executing scripts.
-  execute_scripts_waiting_for_resources_task_handle_ = PostCancellableTask(
-      *GetTaskRunner(TaskType::kNetworking), FROM_HERE,
-      WTF::BindOnce(&Document::ExecuteScriptsWaitingForResources,
-                    WrapWeakPersistent(this)));
+  execute_scripts_waiting_for_resources_task_handle_ =
+      PostCancellableTask(*GetTaskRunner(TaskType::kNetworking), FROM_HERE,
+                          BindOnce(&Document::ExecuteScriptsWaitingForResources,
+                                   WrapWeakPersistent(this)));
 
   if (IsA<HTMLDocument>(this) && body()) {
     // For HTML if we have no more stylesheets to load and we're past the body
@@ -5215,6 +5215,22 @@ void Document::ExecuteScriptsWaitingForResources() {
     return;
   if (ScriptableDocumentParser* parser = GetScriptableDocumentParser())
     parser->ExecuteScriptsWaitingForResources();
+}
+
+void Document::UnblockScriptExecutionForPrerenderActivation() {
+  if (!RuntimeEnabledFeatures::PrerenderUntilScriptEnabled()) {
+    return;
+  }
+  CHECK(!IsScriptBlockedUntilPrerenderActivation());
+  if (ScriptableDocumentParser* parser = GetScriptableDocumentParser()) {
+    parser->ExecuteScriptsWaitingForPrerenderActivation();
+  }
+
+  // TODO(https://crbug.com/42850021): Consider deactivating it later, because
+  // async scripts may not be critical for LCP.
+  if (prerender_script_runner_delayer_) {
+    prerender_script_runner_delayer_->Deactivate();
+  }
 }
 
 CSSStyleSheet& Document::ElementSheet() {
@@ -7011,7 +7027,7 @@ mojom::blink::PermissionService* Document::GetPermissionService(
     execution_context->GetBrowserInterfaceBroker().GetInterface(
         data_->permission_service_.BindNewPipeAndPassReceiver(
             execution_context->GetTaskRunner(TaskType::kPermission)));
-    data_->permission_service_.set_disconnect_handler(WTF::BindOnce(
+    data_->permission_service_.set_disconnect_handler(BindOnce(
         &Document::PermissionServiceConnectionError, WrapWeakPersistent(this)));
   }
   return data_->permission_service_.get();
@@ -7066,8 +7082,8 @@ ScriptPromise<IDLBoolean> Document::hasPrivateToken(
         data_->trust_token_query_answerer_.BindNewPipeAndPassReceiver(
             GetExecutionContext()->GetTaskRunner(TaskType::kInternalDefault)));
     data_->trust_token_query_answerer_.set_disconnect_handler(
-        WTF::BindOnce(&Document::TrustTokenQueryAnswererConnectionError,
-                      WrapWeakPersistent(this)));
+        BindOnce(&Document::TrustTokenQueryAnswererConnectionError,
+                 WrapWeakPersistent(this)));
   }
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLBoolean>>(
       script_state, exception_state.GetContext());
@@ -7075,7 +7091,7 @@ ScriptPromise<IDLBoolean> Document::hasPrivateToken(
 
   data_->trust_token_query_answerer_->HasTrustTokens(
       issuer_origin,
-      WTF::BindOnce(
+      BindOnce(
           [](WeakPersistent<ScriptPromiseResolver<IDLBoolean>> resolver,
              WeakPersistent<Document> document,
              network::mojom::blink::HasTrustTokensResultPtr result) {
@@ -7178,15 +7194,15 @@ ScriptPromise<IDLBoolean> Document::hasRedemptionRecord(
         data_->trust_token_query_answerer_.BindNewPipeAndPassReceiver(
             GetExecutionContext()->GetTaskRunner(TaskType::kInternalDefault)));
     data_->trust_token_query_answerer_.set_disconnect_handler(
-        WTF::BindOnce(&Document::TrustTokenQueryAnswererConnectionError,
-                      WrapWeakPersistent(this)));
+        BindOnce(&Document::TrustTokenQueryAnswererConnectionError,
+                 WrapWeakPersistent(this)));
   }
 
   data_->pending_trust_token_query_resolvers_.insert(resolver);
 
   data_->trust_token_query_answerer_->HasRedemptionRecord(
       issuer_origin,
-      WTF::BindOnce(
+      BindOnce(
           [](WeakPersistent<ScriptPromiseResolver<IDLBoolean>> resolver,
              WeakPersistent<Document> document,
              network::mojom::blink::HasRedemptionRecordResultPtr result) {
@@ -9520,10 +9536,9 @@ void Document::ProcessJavaScriptUrl(const KURL& url,
   pending_javascript_urls_.push_back(
       MakeGarbageCollected<PendingJavascriptUrl>(url, world));
   if (!javascript_url_task_handle_.IsActive()) {
-    javascript_url_task_handle_ =
-        PostCancellableTask(*GetTaskRunner(TaskType::kNetworking), FROM_HERE,
-                            WTF::BindOnce(&Document::ExecuteJavaScriptUrls,
-                                          WrapWeakPersistent(this)));
+    javascript_url_task_handle_ = PostCancellableTask(
+        *GetTaskRunner(TaskType::kNetworking), FROM_HERE,
+        BindOnce(&Document::ExecuteJavaScriptUrls, WrapWeakPersistent(this)));
   }
 }
 
@@ -9568,6 +9583,11 @@ void Document::SetShowBeforeUnloadDialog(bool show_dialog) {
   }
   mime_handler_view_before_unload_event_listener_->SetShowBeforeUnloadDialog(
       show_dialog);
+}
+
+bool Document::IsScriptBlockedUntilPrerenderActivation() const {
+  return is_prerendering_ &&
+         GetPage()->ShouldPauseJavaScriptExecutionOnPrerender();
 }
 
 mojom::blink::PreferredColorScheme Document::GetPreferredColorScheme() const {
@@ -9720,18 +9740,13 @@ void Document::ActivateForPrerendering(
   TRACE_EVENT_WITH_FLOW0("navigation", "Document::ActivateForPrerendering",
                          TRACE_ID_LOCAL(this),
                          TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
-
   DCHECK(is_prerendering_);
   is_prerendering_ = false;
 
   if (DocumentLoader* loader = Loader()) {
     loader->NotifyPrerenderingDocumentActivated(params);
   }
-  // TODO(https://crbug.com/42850021): Consider deactivating it later, because
-  // async scripts may not be critical for LCP.
-  if (prerender_script_runner_delayer_) {
-    prerender_script_runner_delayer_->Deactivate();
-  }
+  UnblockScriptExecutionForPrerenderActivation();
   Vector<base::OnceClosure> callbacks;
   callbacks.swap(will_dispatch_prerenderingchange_callbacks_);
   for (auto& callback : callbacks) {

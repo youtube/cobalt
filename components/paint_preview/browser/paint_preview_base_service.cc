@@ -74,6 +74,7 @@ void PaintPreviewBaseService::CapturePaintPreview(CaptureParams capture_params,
       capture_params.max_decoded_image_size_bytes;
   params.inner.skip_accelerated_content =
       capture_params.skip_accelerated_content;
+  params.inner.redaction_params = std::move(capture_params.redaction_params);
 
   // TODO(crbug.com/40123632): Consider moving to client so that this always
   // happens. Although, it is harder to get this right in the client due to its
@@ -84,7 +85,7 @@ void PaintPreviewBaseService::CapturePaintPreview(CaptureParams capture_params,
 
   auto start_time = base::TimeTicks::Now();
   client->CapturePaintPreview(
-      params, render_frame_host,
+      std::move(params), render_frame_host,
       base::BindOnce(&PaintPreviewBaseService::OnCaptured,
                      weak_ptr_factory_.GetWeakPtr(), std::move(capture_handle),
                      start_time, std::move(callback)));
@@ -110,6 +111,19 @@ void PaintPreviewBaseService::OnCaptured(
   base::UmaHistogramTimes("Browser.PaintPreview.Capture.TotalCaptureDuration",
                           base::TimeTicks::Now() - start_time);
   std::move(callback).Run(CaptureStatus::kOk, std::move(result));
+}
+
+std::string ToString(PaintPreviewBaseService::CaptureStatus status) {
+  switch (status) {
+    case PaintPreviewBaseService::CaptureStatus::kOk:
+      return "CaptureStatus::kOk";
+    case PaintPreviewBaseService::CaptureStatus::kContentUnsupported:
+      return "CaptureStatus::kContentUnsupported";
+    case PaintPreviewBaseService::CaptureStatus::kClientCreationFailed:
+      return "CaptureStatus::kClientCreationFailed";
+    case PaintPreviewBaseService::CaptureStatus::kCaptureFailed:
+      return "CaptureStatus::kCaptureFailed";
+  }
 }
 
 }  // namespace paint_preview

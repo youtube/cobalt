@@ -37,15 +37,6 @@ BASE_DECLARE_FEATURE(kLensOverlayImageContextMenuActions);
 COMPONENT_EXPORT(LENS_FEATURES)
 BASE_DECLARE_FEATURE(kLensOverlayContextualSearchbox);
 
-// Enables the Lens overlay searchbox for omnibox suggestions. This does the
-// same thing as kLensOverlayContextualSearchbox, but is used to enable the
-// feature from the omnibox contextual suggestions experiment. This relies on
-// the same params as kLensOverlayContextualSearchbox. This flag turns the meta
-// feature on to remove the dependency between the CSB experiment and omnibox
-// experiment.
-COMPONENT_EXPORT(LENS_FEATURES)
-BASE_DECLARE_FEATURE(kLensOverlayContextualSearchboxForOmniboxSuggestions);
-
 // Enables the migration for Lens overlay suggestions URL params, independent
 // of the CSB feature.
 COMPONENT_EXPORT(LENS_FEATURES)
@@ -74,15 +65,6 @@ BASE_DECLARE_FEATURE(kLensOverlaySimplifiedSelection);
 // Enables the Lens overlay visual selection updates.
 COMPONENT_EXPORT(LENS_FEATURES)
 BASE_DECLARE_FEATURE(kLensOverlayVisualSelectionUpdates);
-
-// Enables the Lens overlay visual selection updates for omnibox suggestions.
-// This does the same thing as kLensOverlayVisualSelectionUpdates, but is used
-// to enable the feature from the omnibox contextual suggestions experiment.
-// This relies on the same params as kLensOverlayVisualSelectionUpdates. This
-// flag turns the meta feature on to remove the dependency between the visual
-// selection ramp up and omnibox experiment.
-COMPONENT_EXPORT(LENS_FEATURES)
-BASE_DECLARE_FEATURE(kLensOverlayVisualSelectionUpdatesForOmniboxSuggestions);
 
 // Enables the Lens overlay updated client context.
 COMPONENT_EXPORT(LENS_FEATURES)
@@ -159,6 +141,10 @@ BASE_DECLARE_FEATURE(kLensOverlayTextSelectionContextMenuEntrypoint);
 // debugging only.
 COMPONENT_EXPORT(LENS_FEATURES)
 BASE_DECLARE_FEATURE(kLensOverlayForceEmptyCsbQuery);
+
+// Enables using a webview for the results frame instead of an iframe.
+COMPONENT_EXPORT(LENS_FEATURES)
+BASE_DECLARE_FEATURE(kLensSidePanelEnableWebviewResults);
 
 // The base URL for Lens.
 COMPONENT_EXPORT(LENS_FEATURES)
@@ -908,13 +894,13 @@ uint32_t GetLensOverlayChunkSizeBytes();
 COMPONENT_EXPORT(LENS_FEATURES)
 extern std::string GetLensOverlayUploadChunkEndpointURL();
 
-// Whether to enable debug options for upload chunking.
-COMPONENT_EXPORT(LENS_FEATURES)
-bool IsLensOverlayUploadChunkingUseDebugOptionsEnabled();
-
 // The timeout set for upload chunk requests in milliseconds.
 COMPONENT_EXPORT(LENS_FEATURES)
 extern int GetLensOverlayUploadChunkRequestTimeoutMs();
+
+// The retry limit after a missing chunk error occurs.
+COMPONENT_EXPORT(LENS_FEATURES)
+extern int GetLensOverlayUploadChunkRetries();
 
 // Whether to the new feedback entry point in the side panel.
 COMPONENT_EXPORT(LENS_FEATURES)
@@ -1015,6 +1001,10 @@ extern bool IsLensOverlayTextSelectionContextMenuEntrypointContextualized();
 // internal debugging only.
 COMPONENT_EXPORT(LENS_FEATURES)
 extern bool IsLensOverlayForceEmptyCsbQueryEnabled();
+
+// Whether to use a webview for the results frame instead of an iframe.
+COMPONENT_EXPORT(LENS_FEATURES)
+extern bool IsLensSidePanelWebviewResultsEnabled();
 
 }  // namespace lens::features
 #endif  // COMPONENTS_LENS_LENS_FEATURES_H_

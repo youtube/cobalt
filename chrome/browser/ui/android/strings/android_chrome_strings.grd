@@ -4727,9 +4727,6 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_ACCESSIBILITY_NEW_INCOGNITO_TAB_PAGE" desc="Accessibility text to read aloud when the user focuses the new Incognito tab view.">
         New Incognito tab
       </message>
-      <message name="IDS_ACCESSIBILITY_INCOGNITO_3PC_SETTINGS" desc="Content description of the cookie controls icon displayed on the new incognito tab which navigates to the third-party cookies settings.">
-        Third-party cookies settings
-      </message>
       <message name="IDS_ACCESSIBILITY_TOOLBAR_BTN_NEW_TAB" desc="Content description for the new tab button.">
         New tab
       </message>
@@ -5568,6 +5565,9 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
       <message name="IDS_INSTANCE_SWITCHER_ITEM_CLOSE_CONTENT_DESCRIPTION" desc="Accessibility label of the close icon on the instance list item.">
         Close <ph name="INSTANCE_TITLE">%1$s<ex>Window</ex></ph>
+      </message>
+      <message name="IDS_INSTANCE_SWITCHER_ITEM_MORE_MENU_CONTENT_DESCRIPTION" desc="Accessibility label of the 'more' menu button on the instance list item.">
+        More options for <ph name="INSTANCE_TITLE">%1$s<ex>Window</ex></ph>
       </message>
 
       <!-- Multi-instance message strings -->

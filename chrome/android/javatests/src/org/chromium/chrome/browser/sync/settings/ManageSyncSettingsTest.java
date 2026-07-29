@@ -68,6 +68,7 @@ import org.chromium.base.test.util.DoNotBatch;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
+import org.chromium.base.test.util.Restriction;
 import org.chromium.chrome.browser.device_reauth.BiometricStatus;
 import org.chromium.chrome.browser.device_reauth.ReauthenticatorBridge;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
@@ -107,12 +108,14 @@ import org.chromium.components.sync.DataType;
 import org.chromium.components.sync.LocalDataDescription;
 import org.chromium.components.sync.SyncService;
 import org.chromium.components.sync.TransportState;
+import org.chromium.components.sync.UserActionableError;
 import org.chromium.components.sync.UserSelectableType;
 import org.chromium.components.sync.internal.SyncPrefNames;
 import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.google_apis.gaia.GoogleServiceAuthError;
 import org.chromium.google_apis.gaia.GoogleServiceAuthErrorState;
 import org.chromium.ui.modaldialog.ModalDialogManagerHolder;
+import org.chromium.ui.test.util.GmsCoreVersionRestriction;
 import org.chromium.ui.test.util.ViewUtils;
 
 import java.io.IOException;
@@ -128,6 +131,9 @@ import java.util.Set;
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 @DoNotBatch(reason = "TODO(crbug.com/40743432): SyncTestRule doesn't support batching.")
+// Avoids UserActionableError.NEEDS_UPM_BACKEND_UPGRADE for most tests. Specific tests can still
+// trigger the error by overriding getUserActionableError()
+@Restriction(GmsCoreVersionRestriction.RESTRICTION_TYPE_VERSION_GE_24W15)
 public class ManageSyncSettingsTest {
     private static final int RENDER_TEST_REVISION = 7;
 
@@ -1339,7 +1345,9 @@ public class ManageSyncSettingsTest {
     @Feature({"Sync"})
     @DisabledTest(message = "crbug.com/386744084")
     public void testSyncErrorCardForUpmBackendOutdatedUpdatedDynamically() {
-        when(mPasswordManagerUtilBridgeJniMock.isGmsCoreUpdateRequired()).thenReturn(true);
+        setupMockSyncService();
+        when(mSyncService.getUserActionableError())
+                .thenReturn(UserActionableError.NEEDS_UPM_BACKEND_UPGRADE);
 
         mSyncTestRule.setUpAccountAndSignInForTesting();
 
@@ -1354,8 +1362,8 @@ public class ManageSyncSettingsTest {
 
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    when(mPasswordManagerUtilBridgeJniMock.isGmsCoreUpdateRequired())
-                            .thenReturn(false);
+                    when(mSyncService.getUserActionableError())
+                            .thenReturn(UserActionableError.NONE);
                     // TODO(crbug.com/327623232): Observe such changes instead.
                     preference.syncStateChanged();
                 });

@@ -85,7 +85,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PaymentRequest.IsCanMakePaymentAllowedByPref.PaymentRequestConstruction.Once"
-    enum="Boolean" expires_after="2025-10-06">
+    enum="Boolean" expires_after="2026-04-06">
   <owner>smcgruer@chromium.org</owner>
   <owner>chrome-payments-team@google.com</owner>
   <summary>
@@ -161,23 +161,6 @@ chromium-metrics-reviews@google.com.
   <summary>
     The number of payment methods that an installed Android payment app declares
     to support. Recorded when a website creates a new PaymentRequest JS object.
-  </summary>
-</histogram>
-
-<histogram name="PaymentRequest.PaymentDetailsUpdateService.Bind"
-    enum="Boolean" expires_after="2025-09-03">
-  <owner>rouslan@chromium.org</owner>
-  <owner>chrome-payments-eng@google.com</owner>
-  <summary>
-    Recorded when an Android app binds to Chrome's service for updating payment
-    details, e.g., when an Android payment app supports the feature of dynamic
-    price updates based different shipping addresses.
-
-    All service connections are recorded, even if there are no ongoing payment
-    flows.
-
-    Warning: this histogram was expired from 2025-03-03 to ~2025-04-11; data may
-    be missing.
   </summary>
 </histogram>
 

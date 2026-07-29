@@ -241,10 +241,27 @@ bool ClientSideDetectionIntelligentScanDelegateAndroid::ResetOnDeviceSession() {
 
 bool ClientSideDetectionIntelligentScanDelegateAndroid::ShouldShowScamWarning(
     std::optional<IntelligentScanVerdict> verdict) {
-  return false;
+  if (!verdict.has_value() ||
+      *verdict ==
+          IntelligentScanVerdict::INTELLIGENT_SCAN_VERDICT_UNSPECIFIED ||
+      *verdict == IntelligentScanVerdict::INTELLIGENT_SCAN_VERDICT_SAFE) {
+    return false;
+  }
+
+  if (!base::FeatureList::IsEnabled(
+          kClientSideDetectionShowScamVerdictWarningAndroid)) {
+    return false;
+  }
+
+  return *verdict == IntelligentScanVerdict::SCAM_EXPERIMENT_VERDICT_1 ||
+         *verdict == IntelligentScanVerdict::SCAM_EXPERIMENT_VERDICT_2 ||
+         *verdict ==
+             IntelligentScanVerdict::SCAM_EXPERIMENT_CATCH_ALL_ENFORCEMENT;
 }
 
 void ClientSideDetectionIntelligentScanDelegateAndroid::Shutdown() {
+  client_side_detection::LogOnDeviceModelSessionAliveOnDelegateShutdown(
+      !!current_inquiry_);
   ResetOnDeviceSession();
   model_broker_client_.reset();
   pref_change_registrar_.RemoveAll();

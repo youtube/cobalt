@@ -28,6 +28,7 @@ struct PrepopulatedEngine;
 
 namespace regional_capabilities {
 
+enum class ActiveRegionalProgram;
 class CountryIdHolder;
 enum class Program;
 
@@ -116,6 +117,9 @@ class RegionalCapabilitiesService : public KeyedService {
   // require a search engine choice screen.
   std::optional<ChoiceScreenDesign> GetChoiceScreenDesign();
 
+  const std::optional<ChoiceScreenEligibilityConfig>&
+  GetChoiceScreenEligibilityConfig();
+
   // -- Internal utils & deprecated getters -----------------------------------
 
   // Returns whether the profile country is a EEA member.
@@ -136,7 +140,14 @@ class RegionalCapabilitiesService : public KeyedService {
   // in tests.
   void ClearCacheForTesting();
 
-  Program GetActiveProgramForTesting();
+  // Returns the metrics enum for the active regional program. This is used for
+  // logging only.
+  ActiveRegionalProgram GetActiveProgramForMetrics();
+
+  // Returns an opaque `int` value representing the program.
+  int GetSerializedActiveProgram();
+
+  const ProgramSettings& GetActiveProgramSettingsForTesting();
 
 #if BUILDFLAG(IS_ANDROID)
   // -- JNI Interface ---------------------------------------------------------

@@ -55,12 +55,21 @@ void ReaderModeScrollAnchorJavaScriptFeature::ScriptMessageReceived(
   }
   std::optional<double> hash = dict->FindDouble("hash");
   std::optional<double> char_count = dict->FindDouble("charCount");
-  std::optional<double> offset = dict->FindDouble("offset");
-  if (hash.has_value() && char_count.has_value() && offset.has_value()) {
+  std::optional<double> progress = dict->FindDouble("progress");
+  std::optional<bool> is_scrolled_at_top = dict->FindBool("isScrolledAtTop");
+
+  if (is_scrolled_at_top.has_value() && is_scrolled_at_top.value()) {
+    // If the original page is scrolled at the top, disable automatic scrolling
+    // script when entering Reader mode.
+    tab_helper->SetScrollAnchorScript(std::string());
+    return;
+  }
+
+  if (hash.has_value() && char_count.has_value() && progress.has_value()) {
     std::string script = "scrollToParagraphByHash(" +
                          base::NumberToString(hash.value()) + ", " +
                          base::NumberToString(char_count.value()) + ", " +
-                         base::NumberToString(offset.value()) + ");";
+                         base::NumberToString(progress.value()) + ");";
     tab_helper->SetScrollAnchorScript(std::move(script));
   }
 }

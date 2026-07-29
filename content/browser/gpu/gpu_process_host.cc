@@ -30,6 +30,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/threading/thread.h"
+#include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "components/discardable_memory/service/discardable_shared_memory_manager.h"
@@ -93,7 +94,6 @@
 #include "ui/gfx/switches.h"
 #include "ui/gl/gl_features.h"
 #include "ui/gl/gl_switches.h"
-#include "ui/latency/janky_duration_tracker.h"
 #include "ui/latency/latency_info.h"
 
 #if BUILDFLAG(IS_ANDROID)
@@ -284,11 +284,9 @@ static const char* const kSwitchNames[] = {
     switches::kSkiaGraphiteBackend,
     switches::kSkiaResourceCacheLimitMb,
     switches::kTestGLLib,
-    switches::kTraceToConsole,
     switches::kUseAdapterLuid,
     switches::kUseFakeMjpegDecodeAccelerator,
     switches::kUseGpuInTests,
-    switches::kWatchDirForScrollJankReport,
     switches::kWebViewDrawFunctorUsesVulkan,
     switches::kSuppressPerformanceLogs,
 #if BUILDFLAG(IS_MAC)
@@ -715,8 +713,9 @@ GpuProcessHost::GpuProcessHost(int host_id, GpuProcessKind kind)
 #if !BUILDFLAG(IS_ANDROID)
   if (!in_process_ && kind != GPU_PROCESS_KIND_INFO_COLLECTION) {
     memory_pressure_listener_ = std::make_unique<base::MemoryPressureListener>(
-        FROM_HERE, base::BindRepeating(&GpuProcessHost::OnMemoryPressure,
-                                       base::Unretained(this)));
+        FROM_HERE, base::MemoryPressureListenerTag::kGpuProcessHost,
+        base::BindRepeating(&GpuProcessHost::OnMemoryPressure,
+                            base::Unretained(this)));
   }
 #endif
 
@@ -734,6 +733,21 @@ GpuProcessHost::~GpuProcessHost() {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   if (in_process_gpu_thread_)
     DCHECK(process_);
+
+  if (!process_start_time_.is_null()) {
+    base::TimeDelta process_lifetime =
+        base::TimeTicks::Now() - process_start_time_;
+
+    // Use 2 weeks as the max bucket for GPU process lifetime since Chrome is
+    // updated roughly once a week and it's unlikely to run for more than 2
+    // weeks without restart. This histogram isn't using
+    // UmaHistogramCustomTimes() because that records in milliseconds which are
+    // too small when max is in weeks.
+    constexpr int kLifetimeMax = 60 * 60 * 24 * 14;
+    base::UmaHistogramCustomCounts("GPU.ProcessLifetime",
+                                   process_lifetime.InSeconds(), 1,
+                                   kLifetimeMax, 50);
+  }
 
   SendOutstandingReplies();
 
@@ -924,8 +938,9 @@ bool GpuProcessHost::Init() {
 }
 
 void GpuProcessHost::OnProcessLaunched() {
+  process_start_time_ = base::TimeTicks::Now();
   UMA_HISTOGRAM_TIMES("GPU.GPUProcessLaunchTime",
-                      base::TimeTicks::Now() - init_start_time_);
+                      process_start_time_ - init_start_time_);
   DCHECK(gpu_host_);
   if (in_process_) {
     // Don't set |process_id_| as it is publicly available through process_id().

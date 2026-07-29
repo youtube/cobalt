@@ -123,7 +123,6 @@ source_set("sync_integration_tests_impl") {
       "single_client_password_sharing_policy_test.cc",
       "single_client_passwords_sync_test.cc",
       "single_client_polling_sync_test.cc",
-      "single_client_product_specifications_sync_test.cc",
       "single_client_saved_tab_groups_sync_test.cc",
       "single_client_search_engines_sync_test.cc",
       "single_client_secondary_account_sync_test.cc",
@@ -215,6 +214,7 @@ source_set("sync_integration_tests_impl") {
       "//chrome/browser/browsing_data:constants",
       "//chrome/browser/metrics/desktop_session_duration",
       "//chrome/browser/search_engines",
+      "//chrome/browser/send_tab_to_self",
       "//chrome/browser/themes",
       "//chrome/browser/ui:ui_features",
       "//chrome/browser/ui/tabs/saved_tab_groups",
@@ -333,10 +333,6 @@ source_set("sync_integration_tests_impl") {
       "//third_party/pywebsocket3/src/mod_pywebsocket/",
     ]
   }
-
-  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
-  # enable the diagnostic by removing this line.
-  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 if (is_android) {

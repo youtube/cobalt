@@ -11,6 +11,7 @@
 
 #include <stdint.h>
 
+#include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
@@ -2918,28 +2919,6 @@ TEST_F(RTCVideoEncoderEncodeTest, EncodeH265WithBitstreamFix) {
   RunUntilIdle();
 }
 #endif
-
-TEST_F(RTCVideoEncoderFrameSizeChangeTest,
-       FrameSizeChangeSupportedReCreateEncoder) {
-  webrtc::VideoCodec codec = GetDefaultCodec(webrtc::kVideoCodecVP9);
-  CreateEncoder(codec.codecType);
-  EXPECT_CALL(*mock_encoder_metrics_provider_factory_,
-              CreateVideoEncoderMetricsProvider())
-      .WillOnce(Return(::testing::ByMove(
-          std::make_unique<media::MockVideoEncoderMetricsProvider>())));
-  SetUpEncodingWithFrameSizeChangeSupport(codec);
-  EXPECT_EQ(WEBRTC_VIDEO_CODEC_OK, rtc_encoder_->Release());
-
-  // Change codec type.
-  codec.codecType = webrtc::kVideoCodecH264;
-  EXPECT_CALL(*mock_encoder_metrics_provider_factory_,
-              CreateVideoEncoderMetricsProvider())
-      .WillOnce(Return(::testing::ByMove(
-          std::make_unique<media::MockVideoEncoderMetricsProvider>())));
-  ExpectCreateInitAndDestroyVEA();
-  EXPECT_EQ(WEBRTC_VIDEO_CODEC_OK,
-            rtc_encoder_->InitEncode(&codec, kVideoEncoderSettings));
-}
 
 TEST_F(RTCVideoEncoderFrameSizeChangeTest, FrameSizeChangeSupportedVP9) {
   webrtc::VideoCodec codec = GetDefaultCodec(webrtc::kVideoCodecVP9);

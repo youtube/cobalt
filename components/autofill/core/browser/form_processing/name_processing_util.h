@@ -5,11 +5,18 @@
 #ifndef COMPONENTS_AUTOFILL_CORE_BROWSER_FORM_PROCESSING_NAME_PROCESSING_UTIL_H_
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_FORM_PROCESSING_NAME_PROCESSING_UTIL_H_
 
+#include <memory>
+#include <string>
 #include <string_view>
 
+#include "base/containers/flat_map.h"
 #include "base/containers/span.h"
+#include "base/memory/raw_ptr.h"
+#include "components/autofill/core/common/unique_ids.h"
 
 namespace autofill {
+
+class FormFieldData;
 
 // Returns the length of the longest common affix of the `strings`. If `prefix`
 // is true, the prefixes are considered, otherwise the suffixes.
@@ -24,6 +31,9 @@ size_t FindLongestCommonAffixLength(base::span<std::u16string_view> strings,
 // is then referred to as the "parseable name" of the field. Hence the
 // terminology here.
 void ComputeParseableNames(base::span<std::u16string_view> field_names);
+
+base::flat_map<FieldGlobalId, std::u16string> GetParseableNames(
+    base::span<const raw_ptr<const FormFieldData>> fields);
 
 }  // namespace autofill
 

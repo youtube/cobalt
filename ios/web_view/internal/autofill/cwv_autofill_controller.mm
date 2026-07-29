@@ -144,18 +144,10 @@ using UserDecision = autofill::AutofillClient::AddressPromptUserDecision;
     _formActivityObserverBridge =
         std::make_unique<autofill::FormActivityObserverBridge>(webState, self);
 
-    auto from_web_state_impl =
-        [](web::WebState* web_state) -> autofill::AutofillClientIOS* {
-      if (CWVWebView* web_view = [CWVWebView webViewForWebState:web_state]) {
-        CWVAutofillController* controller = web_view.autofillController;
-        return [controller autofillClient];
-      }
-      return nullptr;
-    };
-    _autofillClient = autofillClientForTest
-                          ? std::move(autofillClientForTest)
-                          : autofill::WebViewAutofillClientIOS::Create(
-                                from_web_state_impl, _webState, self);
+    _autofillClient =
+        autofillClientForTest
+            ? std::move(autofillClientForTest)
+            : autofill::WebViewAutofillClientIOS::Create(_webState, self);
 
     _passwordManagerClient = std::move(passwordManagerClient);
     _passwordManagerClient->set_bridge(self);
@@ -638,14 +630,17 @@ using UserDecision = autofill::AutofillClient::AddressPromptUserDecision;
 - (void)webState:(web::WebState*)webState
     didSubmitDocumentWithFormData:(const autofill::FormData&)formData
                    hasUserGesture:(BOOL)userInitiated
-                          inFrame:(web::WebFrame*)frame {
-  if ([_delegate respondsToSelector:@selector
-                 (autofillController:
-                     didSubmitFormWithName:frameID:userInitiated:)]) {
+                          inFrame:(web::WebFrame*)frame
+                   perfectFilling:(BOOL)perfectFilling {
+  if ([_delegate
+          respondsToSelector:@selector
+          (autofillController:
+              didSubmitFormWithName:frameID:userInitiated:perfectFilling:)]) {
     [_delegate autofillController:self
             didSubmitFormWithName:base::SysUTF16ToNSString(formData.name())
                           frameID:base::SysUTF8ToNSString(frame->GetFrameId())
-                    userInitiated:userInitiated];
+                    userInitiated:userInitiated
+                   perfectFilling:perfectFilling];
   }
 }
 

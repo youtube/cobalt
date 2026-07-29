@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <utility>
+
 #include "build/build_config.h"
 #include "ui/base/pointer/pointer_device.h"
 
@@ -11,12 +13,8 @@
 
 namespace ui {
 
-int GetAvailablePointerTypes() {
-  return POINTER_TYPE_COARSE;
-}
-
-int GetAvailableHoverTypes() {
-  return HOVER_TYPE_NONE;
+std::pair<int, int> GetAvailablePointerAndHoverTypesImpl() {
+  return {POINTER_TYPE_COARSE, HOVER_TYPE_NONE};
 }
 
 TouchScreensAvailability GetTouchScreensAvailability() {
@@ -25,22 +23,6 @@ TouchScreensAvailability GetTouchScreensAvailability() {
 
 int MaxTouchPoints() {
   return 2;
-}
-
-PointerType GetPrimaryPointerType(int available_pointer_types) {
-  return POINTER_TYPE_COARSE;
-}
-
-HoverType GetPrimaryHoverType(int available_hover_types) {
-  return HOVER_TYPE_NONE;
-}
-
-std::optional<PointerDevice> GetPointerDevice(PointerDevice::Key key) {
-  return std::nullopt;
-}
-
-std::vector<PointerDevice> GetPointerDevices() {
-  return {};
 }
 
 }  // namespace ui

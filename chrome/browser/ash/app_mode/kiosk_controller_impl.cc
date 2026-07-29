@@ -53,6 +53,7 @@
 #include "components/prefs/pref_service.h"
 #include "components/user_manager/user.h"
 #include "components/user_manager/user_manager.h"
+#include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "ui/ozone/public/input_controller.h"
 #include "ui/ozone/public/ozone_platform.h"
 #include "ui/wm/core/wm_core_switches.h"
@@ -126,10 +127,18 @@ KioskApp EmptyKioskApp(const KioskAppId& app_id) {
 
 KioskControllerImpl::KioskControllerImpl(
     PrefService& local_state,
+    scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory,
     user_manager::UserManager* user_manager)
     : local_state_(local_state),
-      iwa_manager_(local_state),
-      arcvm_app_manager_(&local_state) {
+      cryptohome_remover_(&local_state),
+      iwa_manager_(local_state, &cryptohome_remover_),
+      web_app_manager_(&local_state,
+                       shared_url_loader_factory,
+                       &cryptohome_remover_),
+      chrome_app_manager_(&local_state,
+                          shared_url_loader_factory,
+                          &cryptohome_remover_),
+      arcvm_app_manager_(&local_state, &cryptohome_remover_) {
   user_manager_observation_.Observe(user_manager);
 }
 
@@ -312,6 +321,10 @@ KioskSystemSession* KioskControllerImpl::GetKioskSystemSession() {
     return nullptr;
   }
   return &system_session_.value();
+}
+
+void KioskControllerImpl::RemoveObsoleteCryptohomes() {
+  cryptohome_remover_.RemoveObsoleteCryptohomes();
 }
 
 void KioskControllerImpl::OnUserLoggedIn(const user_manager::User& user) {

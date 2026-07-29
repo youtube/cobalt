@@ -27,6 +27,7 @@
 #include "chrome/updater/updater_version.h"
 #include "chrome/updater/util/util.h"
 #include "components/update_client/crx_cache.h"
+#include "components/update_client/utils.h"
 
 #if BUILDFLAG(IS_WIN)
 #include "chrome/updater/util/win_util.h"
@@ -69,11 +70,24 @@ void CleanupOldUpdaterVersions(UpdaterScope scope) {
                 scope, item.Append(GetExecutableRelativePath())),
             {});
         if (process.IsValid()) {
-          process.WaitForExitWithTimeout(base::Minutes(5), nullptr);
+          int exit_code = 0;
+          process.WaitForExitWithTimeout(base::Minutes(5), &exit_code);
+          VLOG_IF(1, exit_code != 0) << "Failed to uninstall " << item
+                                     << " with exit code " << exit_code;
+        } else {
+          VLOG(1) << "Failed to launch uninstall process for " << item;
         }
 
-        // Recursively delete the directory in case uninstall fails.
-        base::DeletePathRecursively(item);
+        // Give time for any child processes to finish.
+        base::PlatformThread::Sleep(base::Seconds(3));
+
+        // Recursively delete the directory in case uninstall fails with
+        // retries, in cases where a file cannot be deleted because it is
+        // locked by another process.
+        const bool success = update_client::RetryDeletePathRecursivelyCustom(
+            item, /*tries=*/5,
+            /*time_between_tries=*/base::Seconds(30));
+        VLOG_IF(1, !success) << "Failed to delete " << item;
       });
 }
 

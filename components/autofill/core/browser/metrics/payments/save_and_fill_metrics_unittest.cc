@@ -154,4 +154,55 @@ TEST_F(SaveAndFillMetricsTest, LogStrikeDbMetrics_NumOfStrikesPresent) {
       /*sample=*/5, 1);
 }
 
+TEST_F(SaveAndFillMetricsTest, LogDialogResult_AcceptedWithCvc) {
+  base::HistogramTester histogram_tester;
+
+  LogSaveAndFillDialogResult(SaveAndFillDialogResult::kAcceptedWithCvc);
+
+  histogram_tester.ExpectUniqueSample("Autofill.SaveAndFill.DialogResult",
+                                      SaveAndFillDialogResult::kAcceptedWithCvc,
+                                      /*expected_bucket_count=*/1);
+}
+
+TEST_F(SaveAndFillMetricsTest, LogDialogResult_AcceptedWithoutCvc) {
+  base::HistogramTester histogram_tester;
+
+  LogSaveAndFillDialogResult(SaveAndFillDialogResult::kAcceptedWithoutCvc);
+
+  histogram_tester.ExpectUniqueSample(
+      "Autofill.SaveAndFill.DialogResult",
+      SaveAndFillDialogResult::kAcceptedWithoutCvc,
+      /*expected_bucket_count=*/1);
+}
+
+TEST_F(SaveAndFillMetricsTest, LogDialogResult_Canceled) {
+  base::HistogramTester histogram_tester;
+
+  LogSaveAndFillDialogResult(SaveAndFillDialogResult::kCanceled);
+
+  histogram_tester.ExpectUniqueSample("Autofill.SaveAndFill.DialogResult",
+                                      SaveAndFillDialogResult::kCanceled,
+                                      /*expected_bucket_count=*/1);
+}
+
+TEST_F(SaveAndFillMetricsTest, LogDialogShown_Upload) {
+  base::HistogramTester histogram_tester;
+
+  LogSaveAndFillDialogShown(/*is_upload=*/true);
+
+  histogram_tester.ExpectUniqueSample("Autofill.SaveAndFill.DialogShown.Upload",
+                                      /*sample=*/true,
+                                      /*expected_bucket_count=*/1);
+}
+
+TEST_F(SaveAndFillMetricsTest, LogDialogShown_Local) {
+  base::HistogramTester histogram_tester;
+
+  LogSaveAndFillDialogShown(/*is_upload=*/false);
+
+  histogram_tester.ExpectUniqueSample("Autofill.SaveAndFill.DialogShown.Local",
+                                      /*sample=*/true,
+                                      /*expected_bucket_count=*/1);
+}
+
 }  // namespace autofill::autofill_metrics

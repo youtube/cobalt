@@ -10,7 +10,7 @@
 #include "components/omnibox/browser/omnibox_controller.h"
 #include "components/omnibox/browser/test_omnibox_client.h"
 #include "components/omnibox/browser/test_omnibox_edit_model.h"
-#include "ui/gfx/native_widget_types.h"
+#include "ui/gfx/native_window_types.h"
 
 // static
 OmniboxView::State TestOmniboxView::CreateState(std::string text,
@@ -51,6 +51,10 @@ void TestOmniboxView::SelectAll(bool reversed) {
     selection_ = gfx::Range(text_.size(), 0);
   else
     selection_ = gfx::Range(0, text_.size());
+}
+
+bool TestOmniboxView::AimButtonVisible() const {
+  return false;
 }
 
 void TestOmniboxView::OnTemporaryTextMaybeChanged(

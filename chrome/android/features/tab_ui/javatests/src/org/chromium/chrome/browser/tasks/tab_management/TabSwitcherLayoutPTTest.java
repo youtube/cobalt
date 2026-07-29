@@ -30,7 +30,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.DisableIf;
@@ -66,6 +65,7 @@ import org.chromium.chrome.test.transit.hub.UndoSnackbarFacility;
 import org.chromium.chrome.test.transit.ntp.IncognitoNewTabPageStation;
 import org.chromium.chrome.test.transit.ntp.RegularNewTabPageAppMenuFacility;
 import org.chromium.chrome.test.transit.ntp.RegularNewTabPageStation;
+import org.chromium.chrome.test.transit.page.BasePageStation;
 import org.chromium.chrome.test.transit.page.CtaPageStation;
 import org.chromium.chrome.test.transit.page.WebPageStation;
 import org.chromium.chrome.test.transit.tabmodel.TabThumbnailsCapturedCarryOn;
@@ -81,6 +81,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Supplier;
 
 /** Tests for the {@link TabSwitcherLayout}. */
 @SuppressWarnings("ConstantConditions")
@@ -693,7 +694,7 @@ public class TabSwitcherLayoutPTTest {
 
     private <T extends CtaPageStation> T roundtripToHTSWithThumbnailChecks(
             T page,
-            Supplier<CtaPageStation.Builder<T>> destinationBuiderFactory,
+            Supplier<BasePageStation.Builder<T>> destinationBuiderFactory,
             Runnable resetHTSStateOnUiThread,
             boolean canGarbageCollectBitmaps) {
         RegularTabSwitcherStation tabSwitcher = enterRegularHtsWithThumbnailChecking(page);

@@ -18,7 +18,6 @@ import android.widget.ScrollView;
 import org.chromium.base.Callback;
 import org.chromium.base.DiscardableReferencePool;
 import org.chromium.base.Log;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.download.dialogs.DownloadWarningBypassDialog;
@@ -43,11 +42,9 @@ import org.chromium.components.offline_items_collection.OfflineItem;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 
 import java.util.List;
+import java.util.function.Supplier;
 
-/**
- * The top level coordinator for the download home UI.  This is currently an in progress class and
- * is not fully fleshed out yet.
- */
+/** The top level coordinator for the download home UI. */
 @NullMarked
 public class DateOrderedListCoordinator implements ToolbarCoordinator.ToolbarListActionDelegate {
     /**
@@ -301,6 +298,7 @@ public class DateOrderedListCoordinator implements ToolbarCoordinator.ToolbarLis
         mFilterCoordinator.destroy();
         mMediator.destroy();
         mRenameDialogManager.destroy();
+        mListView.destroy();
     }
 
     /** @return The {@link View} representing downloads home. */
@@ -365,5 +363,10 @@ public class DateOrderedListCoordinator implements ToolbarCoordinator.ToolbarLis
     private void startShowWarningBypassDialog(String fileName, Callback<Boolean> callback) {
         new DownloadWarningBypassDialog()
                 .show(mContext, mModalDialogManager, mHelpPageLauncher, fileName, callback);
+    }
+
+    /** Returns the {@link DateOrderedListView}. */
+    public ViewGroup getListViewForTesting() {
+        return (ViewGroup) mListView.getView();
     }
 }

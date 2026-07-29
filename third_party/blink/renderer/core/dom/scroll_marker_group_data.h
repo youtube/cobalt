@@ -101,7 +101,7 @@ class ScrollMarkerGroupData : public GarbageCollected<ScrollMarkerGroupData>,
                                                  bool apply_snap_alignment);
   // Returns the currently selected scroll marker (selected_marker_).
   // Might be replaced by pending_selected_marker_ at the next snapshot.
-  Element* Selected() const;
+  CORE_EXPORT Element* Selected() const;
   void UpdateSelectedScrollMarker();
 
   Element* FindNextScrollMarker(const Element* current);
@@ -145,7 +145,9 @@ class ScrollMarkerGroupData : public GarbageCollected<ScrollMarkerGroupData>,
                         const HeapVector<Member<Element>>& candidates);
   Element* ChooseMarkerRecursively();
 
-  // TODO(332396355): Add spec link, once it's created.
+  // https://drafts.csswg.org/css-overflow-5/#scroll-marker-grouping
+  // Vector of scroll markers, which are either ::scroll-marker pseudo-elements
+  // or HTML anchor elements.
   HeapVector<Member<Element>> focus_group_;
 
   // True, if some <a> scroll markers have been added or removed. It signals

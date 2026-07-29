@@ -319,7 +319,7 @@ std::unique_ptr<FormFieldParser> AddressFieldParserNG::Parse(
   address_field->initial_field_ = scanner->Cursor();
 
   DVLOG(1) << "Parse recursively starting at " << saved_cursor << " "
-           << scanner->Cursor()->parseable_label();
+           << scanner->Cursor()->label();
 
   address_field->ParseRecursively();
 
@@ -474,8 +474,8 @@ std::optional<double> AddressFieldParserNG::FindScoreOfBestMatchingRule(
       // An address line 3 can only directly follow an address line 2.
       if (partial_classification_.contained_types.contains_all(
               {ADDRESS_HOME_LINE1, ADDRESS_HOME_LINE2}) &&
-          partial_classification_.assignments[ADDRESS_HOME_LINE2]->rank() ==
-              scanner_->Cursor()->rank() - 1) {
+          partial_classification_.assignments[ADDRESS_HOME_LINE2] ==
+              scanner_->Predecessor()) {
         if (auto r = Match("ADDRESS_LINE_2", 1.0)) {
           return r;
         }

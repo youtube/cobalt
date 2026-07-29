@@ -21,6 +21,7 @@
 <translation id="1072476005125066234">Bài đánh giá dựa trên mối quan tâm của bạn</translation>
 <translation id="1074827084851510304">Bạn sắp xoá {password_count} mật khẩu cũng như danh sách trang web và ứng dụng mà bạn chọn không bao giờ lưu thông tin đăng nhập. Mọi tài khoản bạn tạo cho các trang web và ứng dụng sẽ không bị xoá.</translation>
 <translation id="1076421457278169141">Đã quét mã</translation>
+<translation id="1081114897601629648">Những mật khẩu sau đây không được nhập vào Trình quản lý mật khẩu của Google vì không đáp ứng được các yêu cầu.</translation>
 <translation id="1081932398873105675">{count,plural, =1{{count} thẻ}other{{count} thẻ}}</translation>
 <translation id="1082554859195167538">Bài đánh giá sản phẩm dành cho bạn</translation>
 <translation id="1084365883616172403">Đã đăng lên Facebook.</translation>
@@ -121,7 +122,6 @@
 <translation id="1469381646033328562">Tài khoản của bạn do cha mẹ bạn quản lý.
 <ph name="BEGIN_LINK" />Tìm hiểu thêm<ph name="END_LINK" /></translation>
 <translation id="147982357559798527">Đã thay đổi</translation>
-<translation id="1485907716209290998">Theo dõi gói hàng</translation>
 <translation id="1486096554574027028">Tìm mật khẩu</translation>
 <translation id="1491277525950327607">Nhấn đúp để chuyển đổi cài đặt</translation>
 <translation id="1491965206608166851">Đăng nhập bằng mật khẩu và khoá truy cập đã lưu từ ứng dụng bất kỳ</translation>
@@ -241,6 +241,7 @@
 <translation id="1902277226107477495">Tính năng phát hiện địa chỉ đang tắt. Để bật lại, hãy vào phần Cài đặt.</translation>
 <translation id="1904580727789512086">Các URL bạn truy cập sẽ được lưu vào Tài khoản Google của bạn</translation>
 <translation id="1911619930368729126">Tải lên Google Drive</translation>
+<translation id="1925706052394657380">Mở phần cài đặt <ph name="BEGIN_BOLD" />Ứng dụng mặc định<ph name="END_BOLD" /> trong iOS</translation>
 <translation id="1941314575388338491">Nhấn đúp để sao chép.</translation>
 <translation id="1943478190258551035">Trình đơn → Cài đặt</translation>
 <translation id="1952728750904661634">Đăng nhập bằng tài khoản được quản lý</translation>
@@ -250,6 +251,7 @@
 <translation id="1962348300797608157"><ph name="BEGIN_BOLD" /><ph name="FULL_NAME" /><ph name="END_BOLD" /> đã chia sẻ với bạn một mật khẩu cho <ph name="WEBSITE" /></translation>
 <translation id="1962969542251276847">Màn hình khoá</translation>
 <translation id="1963976881984600709">Bảo vệ tiêu chuẩn</translation>
+<translation id="1964507856799750384">Nhấn vào <ph name="BEGIN_BOLD" />Ứng dụng trình duyệt<ph name="END_BOLD" />.</translation>
 <translation id="1966313166384086081">dữ liệu trang web</translation>
 <translation id="1967461193809857427">{count,plural, =1{Xem tiếp thẻ bạn đang xem dở trên Android?}other{Xem tiếp các thẻ bạn đang xem dở trên Android?}}</translation>
 <translation id="1972325230031091483">Bạn sẽ duyệt web nhanh hơn vì nội dung được tải chủ động dựa trên trang web bạn đang truy cập</translation>
@@ -599,7 +601,6 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="333229797575847124">Cách bật tính năng này</translation>
 <translation id="3344485292736684439">{count,plural, =1{Đã lưu dấu trang vào "{title}" trong tài khoản {email} của bạn}other{Đã lưu dấu trang vào "{title}" trong tài khoản {email} của bạn}}</translation>
 <translation id="334690320928261823">Các thẻ gần đây</translation>
-<translation id="3348387552617855658">Thẻ này giúp bạn theo dõi các gói hàng của mình và cung cấp thông tin cập nhật quan trọng về việc giao hàng.</translation>
 <translation id="3349031117032695619">Chặn cửa sổ bật lên</translation>
 <translation id="3349676726073650389">Các trang web và nội dung tìm kiếm mà bạn theo dõi sẽ được lưu trong Tài khoản Google của bạn. Bạn có thể quản lý các trang web/nội dung mà mình theo dõi trong phần cài đặt bất cứ lúc nào.</translation>
 <translation id="3353037916374303415"><ph name="EMAIL" />. Đây là tài khoản được quản lý.</translation>
@@ -1398,7 +1399,6 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="6406506848690869874">Đồng bộ hóa</translation>
 <translation id="6410390304316730527">Tính năng Duyệt web an toàn bảo vệ bạn trước những kẻ tấn công có thể đánh lừa bạn làm một việc gì đó nguy hiểm như cài đặt phần mềm độc hại hoặc tiết lộ thông tin cá nhân như mật khẩu, số điện thoại hoặc thẻ tín dụng. Nếu bạn tắt tính năng này, hãy cẩn thận khi duyệt các trang web lạ hoặc không có uy tín.</translation>
 <translation id="6410883413783534063">Mở các thẻ để truy cập vào nhiều trang cùng một lúc</translation>
-<translation id="6416807286621280684">Thông tin cập nhật về gói hàng mà bạn theo dõi và việc giao hàng.</translation>
 <translation id="6418346271604475326">Đang chuẩn bị PDF</translation>
 <translation id="6421038304268477484">Bản dịch</translation>
 <translation id="6429213933892582367">Mở Tuỳ chọn mật khẩu</translation>

@@ -82,6 +82,10 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "url/origin.h"
 
+#if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/actor/actor_util.h"
+#endif
+
 #if BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/android/resource_mapper.h"
 #include "chrome/browser/android/search_permissions/search_permissions_service.h"
@@ -174,7 +178,7 @@ bool IsPermissionSetByAdministator(
 }
 
 #if !BUILDFLAG(IS_ANDROID)
-// TODO(crbug.com/412616723): Support Android
+// Infobar exists only on Desktop platforms.
 bool ShouldShowInfobarOnPromptResolved(
     content::WebContents* web_contents,
     const PermissionRequest* request,
@@ -524,11 +528,14 @@ void ChromePermissionsClient::OnPromptResolved(
   }
 
 #if !BUILDFLAG(IS_ANDROID)
-  // TODO(crbug.com/412616723): Support Android
+  // Infobar exists only on Desktop platforms.
   if (base::FeatureList::IsEnabled(
           permissions::features::kPermissionPromiseLifetimeModulation)) {
-    if (ShouldShowInfobarOnPromptResolved(web_contents, request,
-                                          quiet_ui_reason, action)) {
+    bool should_show_infobar = ShouldShowInfobarOnPromptResolved(
+        web_contents, request, quiet_ui_reason, action);
+    permissions::PermissionUmaUtil::RecordPageReloadInfoBarShown(
+        should_show_infobar);
+    if (should_show_infobar) {
       ShowInfobar(web_contents);
     }
   }
@@ -833,4 +840,14 @@ bool ChromePermissionsClient::IsSystemDenied(ContentSettingsType type) const {
 bool ChromePermissionsClient::CanPromptSystemPermission(
     ContentSettingsType type) const {
   return system_permission_settings::CanPrompt(type);
+}
+
+bool ChromePermissionsClient::IsActorOperatingOnWebContents(
+    content::WebContents* web_contents) const {
+#if !BUILDFLAG(IS_ANDROID)
+  return actor::IsActorOperatingOnWebContents(web_contents->GetBrowserContext(),
+                                              web_contents);
+#else
+  return false;
+#endif
 }

@@ -272,7 +272,7 @@ TEST_F(IsolatedWebAppPolicyManagerTest, AppInstalledAtPinnedVersion) {
   const WebApp* web_app =
       provider().registrar_unsafe().GetAppById(url_info.app_id());
   ASSERT_THAT(web_app, NotNull());
-  ASSERT_EQ(web_app->isolation_data()->version(), pinned_version.version());
+  ASSERT_EQ(web_app->isolation_data()->version(), pinned_version);
   EXPECT_THAT(web_app->GetSources(),
               Eq(WebAppManagementTypes({WebAppManagement::Type::kIwaPolicy})));
 }
@@ -534,7 +534,7 @@ class TestWebAppCommandScheduler : public WebAppCommandScheduler {
   void InstallIsolatedWebApp(
       const IsolatedWebAppUrlInfo& url_info,
       const IsolatedWebAppInstallSource& install_source,
-      const std::optional<base::Version>& expected_version,
+      const std::optional<IwaVersion>& expected_version,
       std::unique_ptr<ScopedKeepAlive> keep_alive,
       std::unique_ptr<ScopedProfileKeepAlive> profile_keep_alive,
       InstallIsolatedWebAppCallback callback,

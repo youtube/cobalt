@@ -30,6 +30,7 @@
 #include "content/public/browser/navigation_details.h"
 #include "content/public/browser/navigation_discard_reason.h"
 #include "content/public/browser/navigation_handle.h"
+#include "content/public/browser/page.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
@@ -1174,10 +1175,10 @@ void PageLoadTracker::OnMainFrameViewportRectChanged(
   }
 }
 
-void PageLoadTracker::OnMainFrameImageAdRectsChanged(
-    const base::flat_map<int, gfx::Rect>& main_frame_image_ad_rects) {
+void PageLoadTracker::OnMainFrameAdRectsChanged(
+    const base::flat_map<int, gfx::Rect>& main_frame_ad_rects) {
   for (const auto& observer : observers_) {
-    observer->OnMainFrameImageAdRectsChanged(main_frame_image_ad_rects);
+    observer->OnMainFrameAdRectsChanged(main_frame_ad_rects);
   }
 }
 

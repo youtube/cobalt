@@ -4,14 +4,17 @@
 
 package org.chromium.chrome.browser.sync.settings;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.os.Bundle;
 
-import androidx.annotation.Nullable;
 import androidx.preference.Preference;
 
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.settings.ChromeBaseSettingsFragment;
 import org.chromium.chrome.browser.settings.SettingsNavigationFactory;
@@ -26,6 +29,7 @@ import org.chromium.components.sync.SyncService;
 /*
  * Settings fragment containing links to Google Account settings related to Chrome.
  */
+@NullMarked
 public class PersonalizeGoogleServicesSettings extends ChromeBaseSettingsFragment
         implements SyncService.SyncStateChangedListener {
     private static final String PREF_WEB_AND_APP_ACTIVITY = "web_and_app_activity";
@@ -42,7 +46,7 @@ public class PersonalizeGoogleServicesSettings extends ChromeBaseSettingsFragmen
         SettingsUtils.addPreferencesFromResource(
                 this, R.xml.personalize_google_services_preferences);
 
-        mSyncService = SyncServiceFactory.getForProfile(getProfile());
+        mSyncService = assumeNonNull(SyncServiceFactory.getForProfile(getProfile()));
         mWebAndAppActivity = findPreference(PREF_WEB_AND_APP_ACTIVITY);
         mLinkedGoogleServices = findPreference(PREF_LINKED_GOOGLE_SERVICES);
     }
@@ -73,8 +77,9 @@ public class PersonalizeGoogleServicesSettings extends ChromeBaseSettingsFragmen
     private void updatePreferences() {
         String signedInAccountName =
                 CoreAccountInfo.getEmailFrom(
-                        IdentityServicesProvider.get()
-                                .getIdentityManager(getProfile())
+                        assumeNonNull(
+                                        IdentityServicesProvider.get()
+                                                .getIdentityManager(getProfile()))
                                 .getPrimaryAccountInfo(ConsentLevel.SIGNIN));
         // May happen if account is removed from the device while this screen is shown.
         if (signedInAccountName == null) {

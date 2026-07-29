@@ -18,10 +18,12 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/find_bar/find_bar.h"
 #include "chrome/browser/ui/find_bar/find_bar_controller.h"
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/tabs/features.h"
+#include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/bookmarks/bookmark_bar_view.h"
 #include "chrome/browser/ui/views/exclusive_access_bubble_views.h"
@@ -95,12 +97,11 @@ struct BrowserViewLayout::ContentsContainerLayoutResult {
   gfx::Rect separator_bounds;
 };
 
-class BrowserViewLayout::WebContentsModalDialogHostViews
+class BrowserViewLayout::BrowserModalDialogHostViews
     : public WebContentsModalDialogHost,
       public views::WidgetObserver {
  public:
-  explicit WebContentsModalDialogHostViews(
-      BrowserViewLayout* browser_view_layout)
+  explicit BrowserModalDialogHostViews(BrowserViewLayout* browser_view_layout)
       : browser_view_layout_(browser_view_layout) {
     // browser_view might be nullptr in unit tests.
     if (browser_view_layout->browser_view_) {
@@ -109,12 +110,11 @@ class BrowserViewLayout::WebContentsModalDialogHostViews
     }
   }
 
-  WebContentsModalDialogHostViews(const WebContentsModalDialogHostViews&) =
+  BrowserModalDialogHostViews(const BrowserModalDialogHostViews&) = delete;
+  BrowserModalDialogHostViews& operator=(const BrowserModalDialogHostViews&) =
       delete;
-  WebContentsModalDialogHostViews& operator=(
-      const WebContentsModalDialogHostViews&) = delete;
 
-  ~WebContentsModalDialogHostViews() override {
+  ~BrowserModalDialogHostViews() override {
     observer_list_.Notify(&ModalDialogHostObserver::OnHostDestroying);
   }
 
@@ -236,7 +236,6 @@ BrowserViewLayout::BrowserViewLayout(
     WebAppFrameToolbarView* web_app_frame_toolbar,
     views::Label* web_app_window_title,
     TabStripRegionView* tab_strip_region_view,
-    TabStrip* tab_strip,
     views::View* vertical_tab_strip_container,
     views::View* toolbar,
     InfoBarContainerView* infobar_container,
@@ -264,8 +263,8 @@ BrowserViewLayout::BrowserViewLayout(
       right_aligned_side_panel_separator_(right_aligned_side_panel_separator),
       side_panel_rounded_corner_(side_panel_rounded_corner),
       contents_separator_(contents_separator),
-      tab_strip_(tab_strip),
-      dialog_host_(std::make_unique<WebContentsModalDialogHostViews>(this)) {}
+      tab_strip_(tab_strip_region_view_->tab_strip()),
+      dialog_host_(std::make_unique<BrowserModalDialogHostViews>(this)) {}
 
 BrowserViewLayout::~BrowserViewLayout() = default;
 
@@ -349,7 +348,7 @@ void BrowserViewLayout::Layout(views::View* browser_view) {
     window_scrim_->SetBoundsRect(available_bounds);
   }
 
-  if (tabs::AreVerticalTabsEnabled()) {
+  if (tabs::AreVerticalTabsEnabled() && IsVerticalTabsEnabled()) {
     LayoutVerticalTabStrip(available_bounds);
   }
 
@@ -538,7 +537,7 @@ void BrowserViewLayout::LayoutTabStripRegion(gfx::Rect& available_bounds) {
         0, 0, 0, web_app_frame_toolbar_->GetPreferredSize().width()));
   }
 
-  if (tabs::AreVerticalTabsEnabled()) {
+  if (tabs::AreVerticalTabsEnabled() && IsVerticalTabsEnabled()) {
     SetViewVisibility(tab_strip_region_view_, false);
   } else {
     SetViewVisibility(tab_strip_region_view_, true);
@@ -568,7 +567,7 @@ void BrowserViewLayout::LayoutToolbar(gfx::Rect& available_bounds) {
   bool toolbar_visible = delegate_->IsToolbarVisible();
   SetViewVisibility(toolbar_, toolbar_visible);
 
-  if (tabs::AreVerticalTabsEnabled()) {
+  if (tabs::AreVerticalTabsEnabled() && IsVerticalTabsEnabled()) {
     // When vertical tabs is enabled, the top element becomes the toolbar.
     // Because of this, it must now be aware of the location of the caption
     // buttons. We can reuse the calculation use by the TabStripRegionView to
@@ -698,7 +697,7 @@ BrowserViewLayout::CalculateContentsContainerLayout(
   contents_container_bounds.set_height(available_bounds.height() -
                                        available_bounds.y());
   int vertical_tab_offset = 0;
-  if (tabs::AreVerticalTabsEnabled()) {
+  if (tabs::AreVerticalTabsEnabled() && IsVerticalTabsEnabled()) {
     vertical_tab_offset = BrowserView::kVerticalTabStripWidth;
     contents_container_bounds.set_width(available_bounds.width() -
                                         vertical_tab_offset);
@@ -956,4 +955,11 @@ void BrowserViewLayout::UpdateSplitViewInsets() {
       .set_top(!is_in_full_screen && !has_infobar
                    ? 0
                    : MultiContentsView::kSplitViewContentInset);
+}
+
+bool BrowserViewLayout::IsVerticalTabsEnabled() const {
+  return browser_view_->browser()
+      ->browser_window_features()
+      ->vertical_tab_strip_state_controller()
+      ->IsVerticalTabsEnabled();
 }

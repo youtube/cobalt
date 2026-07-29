@@ -12,6 +12,7 @@
 #include "base/values.h"
 #include "build/build_config.h"
 #include "chrome/updater/external_constants.h"
+#include "chrome/updater/registration_data.h"
 #include "chrome/updater/test/integration_tests_impl.h"
 #include "chrome/updater/test/test_scope.h"
 #include "chrome/updater/update_service.h"
@@ -22,10 +23,6 @@ namespace base {
 class FilePath;
 class Version;
 }  // namespace base
-
-namespace updater {
-struct RegistrationRequest;
-}  // namespace updater
 
 namespace updater::test {
 
@@ -147,6 +144,8 @@ class IntegrationTestCommands
   virtual void RunWakeActive(int exit_code) const = 0;
   virtual void RunCrashMe() const = 0;
   virtual void RunServer(int exit_code, bool internal) const = 0;
+  virtual void RunUpdateApps(int exit_code,
+                             const base::Version& version) const = 0;
 
   virtual void RegisterApp(const RegistrationRequest& registration) const = 0;
   virtual void CheckForUpdate(const std::string& app_id) const = 0;

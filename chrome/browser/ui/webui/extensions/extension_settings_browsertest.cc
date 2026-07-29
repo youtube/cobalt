@@ -31,7 +31,7 @@
 #include "extensions/browser/extension_prefs.h"
 #include "extensions/test/extension_test_message_listener.h"
 
-// TODO(crbug.com/392777363): Enable on desktop android.
+// TODO(crbug.com/439448148): Enable on desktop android.
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/safety_hub/menu_notification_service_factory.h"  // nogncheck
@@ -48,7 +48,7 @@
 #endif  // BUILDFLAG(ENABLE_GUEST_VIEW)
 
 class ExtensionSettingsUIBrowserTest : public ExtensionSettingsTestBase {
-// TODO(crbug.com/392777363): Enable on desktop android.
+// TODO(crbug.com/439448148): Enable on desktop android.
 #if BUILDFLAG(ENABLE_EXTENSIONS)
  public:
   guest_view::TestGuestViewManager* GetGuestViewManager() {
@@ -62,7 +62,7 @@ class ExtensionSettingsUIBrowserTest : public ExtensionSettingsTestBase {
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 };
 
-// TODO(crbug.com/392777363): Enable on desktop android.
+// TODO(crbug.com/439448148): Enable on desktop android.
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 // Tests that viewing a source of the options page works fine.
 // This is a regression test for https://crbug.com/796080.
@@ -119,12 +119,13 @@ IN_PROC_BROWSER_TEST_F(ExtensionSettingsUIBrowserTest, ViewSource) {
       base::RemoveChars(expected_source_text, "\n", &expected_source_text));
   EXPECT_EQ(expected_source_text, actual_source_text);
 }
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 // Verify that listeners for the developer private API are only registered
 // when there is a chrome://extensions page open. This is important, since some
 // of the event construction can be expensive.
 IN_PROC_BROWSER_TEST_F(ExtensionSettingsUIBrowserTest, ListenerRegistration) {
-  Profile* profile = browser()->profile();
+  Profile* profile = GetProfile();
   extensions::EventRouter* event_router = extensions::EventRouter::Get(profile);
   extensions::DeveloperPrivateAPI* dev_private_api =
       extensions::DeveloperPrivateAPI::Get(profile);
@@ -143,28 +144,24 @@ IN_PROC_BROWSER_TEST_F(ExtensionSettingsUIBrowserTest, ListenerRegistration) {
     expect_has_listeners(false);
   }
 
-  ui_test_utils::NavigateToURLWithDisposition(
-      browser(), GURL("chrome://extensions"),
-      WindowOpenDisposition::NEW_FOREGROUND_TAB,
-      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
+  auto* tab = chrome_test_utils::GetActiveTab(this);
+  ASSERT_TRUE(tab);
+
+  ASSERT_TRUE(chrome_test_utils::NavigateToURL(tab->GetContents(),
+                                               GURL("chrome://extensions")));
 
   {
     SCOPED_TRACE("With page loaded");
     expect_has_listeners(true);
   }
 
-  TabStripModel* tab_strip = browser()->tab_strip_model();
-  tab_strip->CloseWebContentsAt(tab_strip->active_index(),
-                                TabCloseTypes::CLOSE_NONE);
-  base::RunLoop().RunUntilIdle();
-  content::RunAllTasksUntilIdle();
+  tab->Close();
 
   {
     SCOPED_TRACE("After page unload");
     expect_has_listeners(false);
   }
 }
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 IN_PROC_BROWSER_TEST_F(ExtensionSettingsUIBrowserTest,
                        ActivityLogInactiveWithoutSwitch) {
@@ -192,7 +189,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionSettingsUIBrowserTest,
   ASSERT_FALSE(activity_log->is_active());
 }
 
-// TODO(crbug.com/392777363): Enable on desktop android.
+// TODO(crbug.com/439448148): Enable on desktop android.
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 class ExtensionsActivityLogTest : public ExtensionSettingsUIBrowserTest {
  protected:

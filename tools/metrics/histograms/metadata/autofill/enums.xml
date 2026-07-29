@@ -2673,6 +2673,20 @@ Called by update_autofill_enums.py.-->
   <int value="3" label="Unexpected errors"/>
 </enum>
 
+<enum name="AutofillSaveCardPromptResultDesktopEnum">
+  <int value="0" label="Accepted"/>
+  <int value="1" label="Cancelled"/>
+  <int value="2" label="Closed"/>
+  <int value="3" label="Not interacted"/>
+  <int value="4" label="Lost focus"/>
+  <int value="5" label="Unknown"/>
+</enum>
+
+<enum name="AutofillSaveCardPromptResultEnum">
+  <int value="0" label="Accepted"/>
+  <int value="1" label="Closed"/>
+</enum>
+
 <enum name="AutofillSaveCardRequestExpirationDateReason">
   <int value="0" label="Has empty month only"/>
   <int value="1" label="Has empty year only"/>
@@ -2686,6 +2700,8 @@ Called by update_autofill_enums.py.-->
   <int value="2" label="Not shown, required delay has not passed"/>
   <int value="3" label="Not shown, CVC missing for possible card update"/>
 </enum>
+
+<!-- TODO(crbug.com/430588721): Clean up use of AutofillSavePaymentMethodPromptResultEnum once refactored save card metrics have rolled out. -->
 
 <enum name="AutofillSavePaymentMethodPromptResultEnum">
   <int value="0" label="Accepted"/>
@@ -4124,11 +4140,21 @@ Called by update_autofill_enums.py.-->
   <int value="4" label="User-edited select field"/>
 </enum>
 
+<!-- LINT.IfChange(SaveAndFillDialogResult) -->
+
+<enum name="SaveAndFillDialogResult">
+  <int value="0" label="User accepted the dialog and provided a CVC"/>
+  <int value="1" label="User accepted the dialog but did not provide a CVC"/>
+  <int value="2" label="User canceled the dialog"/>
+</enum>
+
+<!-- LINT.ThenChange(/components/autofill/core/browser/metrics/payments/save_and_fill_metrics.h:SaveAndFillDialogResult) -->
+
 <!-- LINT.IfChange(SaveAndFillFormEvent) -->
 
 <enum name="SaveAndFillFormEvent">
-  <int value="0" label="The Save and Fill suggestion was shown."/>
-  <int value="1" label="The Save and Fill suggestion was accepted."/>
+  <int value="0" label="The Save and Fill suggestion was shown"/>
+  <int value="1" label="The Save and Fill suggestion was accepted"/>
 </enum>
 
 <!-- LINT.ThenChange(/components/autofill/core/browser/metrics/payments/save_and_fill_metrics.h:SaveAndFillFormEvent) -->
@@ -4137,10 +4163,10 @@ Called by update_autofill_enums.py.-->
 
 <enum name="SaveAndFillSuggestionNotShownReason">
   <int value="0"
-      label="The user has at least one credit card saved in their profile."/>
-  <int value="1" label="The user has reached the maximum number of strikes."/>
-  <int value="2" label="The user is in incognito mode."/>
-  <int value="3" label="The credit card form is not complete."/>
+      label="The user has at least one credit card saved in their profile"/>
+  <int value="1" label="The user has reached the maximum number of strikes"/>
+  <int value="2" label="The user is in incognito mode"/>
+  <int value="3" label="The credit card form is not complete"/>
 </enum>
 
 <!-- LINT.ThenChange(/components/autofill/core/browser/metrics/payments/save_and_fill_metrics.h:SaveAndFillSuggestionNotShownReason) -->
@@ -4159,6 +4185,16 @@ Called by update_autofill_enums.py.-->
 </enum>
 
 <!-- LINT.ThenChange(/components/autofill/ios/browser/credit_card_save_metrics_ios.h:SaveCreditCardPromptResultIOS) -->
+
+<!-- LINT.IfChange(SaveCvcPromptResultIOS) -->
+
+<enum name="SaveCvcPromptResultIOS">
+  <int value="0" label="Accepted"/>
+  <int value="1" label="Swiped"/>
+  <int value="2" label="TimedOut"/>
+</enum>
+
+<!-- LINT.ThenChange(/components/autofill/ios/browser/credit_card_save_metrics_ios.h:SaveCvcPromptResultIOS) -->
 
 <!-- LINT.IfChange(SelectBnplIssuerDialogResult) -->
 

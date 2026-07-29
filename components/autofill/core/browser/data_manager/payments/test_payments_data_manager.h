@@ -16,8 +16,10 @@
 #include "components/autofill/core/browser/data_model/payments/autofill_wallet_usage_data.h"
 #include "components/autofill/core/browser/data_model/payments/credit_card.h"
 #include "components/autofill/core/browser/data_model/payments/iban.h"
+#include "components/autofill/core/browser/integrators/optimization_guide/mock_autofill_optimization_guide_decider.h"
 #include "components/autofill/core/browser/payments/payments_customer_data.h"
 #include "components/autofill/core/browser/ui/test_autofill_image_fetcher.h"
+#include "testing/gmock/include/gmock/gmock.h"
 
 namespace autofill {
 
@@ -60,7 +62,7 @@ class TestPaymentsDataManager : public PaymentsDataManager {
   void SetPaymentMethodsMandatoryReauthEnabled(bool enabled) override;
   std::string SaveImportedCreditCard(
       const CreditCard& imported_credit_card) override;
-  bool IsPaymentCvcStorageEnabled() override;
+  bool IsPaymentCvcStorageEnabled() const override;
   bool IsSyncFeatureEnabledForPaymentsServerMetrics() const override;
   bool IsAutofillBnplPrefEnabled() const override;
   CoreAccountInfo GetAccountInfoForPaymentsServer() const override;
@@ -149,6 +151,8 @@ class TestPaymentsDataManager : public PaymentsDataManager {
   std::optional<bool> payment_methods_mandatory_reauth_enabled_;
   std::optional<bool> payments_cvc_storage_enabled_;
   std::optional<bool> autofill_bnpl_enabled_;
+  std::unique_ptr<::testing::NiceMock<MockAutofillOptimizationGuideDecider>>
+      autofill_optimization_guide_decider_;
   CoreAccountInfo account_info_;
   std::unique_ptr<TestAutofillImageFetcher> owned_image_fetcher_;
 };

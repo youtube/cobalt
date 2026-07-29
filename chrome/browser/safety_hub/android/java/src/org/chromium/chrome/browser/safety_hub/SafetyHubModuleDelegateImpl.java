@@ -8,7 +8,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 
-import org.chromium.base.supplier.Supplier;
 import org.chromium.build.BuildConfig;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -30,12 +29,14 @@ import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.content_public.common.ContentUrlConstants;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 
+import java.util.function.Supplier;
+
 /** An implementation of {@link SafetyHubModuleDelegate} */
 @NullMarked
 public class SafetyHubModuleDelegateImpl implements SafetyHubModuleDelegate {
     private static final int INVALID_PASSWORD_COUNT = -1;
     private final Profile mProfile;
-    private final Supplier<ModalDialogManager> mModalDialogManagerSupplier;
+    private final Supplier<@Nullable ModalDialogManager> mModalDialogManagerSupplier;
     private final SigninAndHistorySyncActivityLauncher mSigninLauncher;
     private final SettingsCustomTabLauncher mSettingsCustomTabLauncher;
 
@@ -48,7 +49,7 @@ public class SafetyHubModuleDelegateImpl implements SafetyHubModuleDelegate {
      */
     public SafetyHubModuleDelegateImpl(
             Profile profile,
-            Supplier<ModalDialogManager> modalDialogManagerSupplier,
+            Supplier<@Nullable ModalDialogManager> modalDialogManagerSupplier,
             SigninAndHistorySyncActivityLauncher signinLauncher,
             SettingsCustomTabLauncher settingsCustomTabLauncher) {
         mProfile = profile;

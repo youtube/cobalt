@@ -29,7 +29,6 @@ import org.chromium.base.Log;
 import org.chromium.base.MathUtils;
 import org.chromium.base.TraceEvent;
 import org.chromium.base.supplier.ObservableSupplier;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -75,6 +74,8 @@ import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.text.EmptyTextWatcher;
 import org.chromium.ui.util.ColorUtils;
 import org.chromium.url.GURL;
+
+import java.util.function.Supplier;
 
 /**
  * Layout for the new tab page. This positions the page elements in the correct vertical positions.
@@ -464,15 +465,11 @@ public class NewTabPageLayout extends LinearLayout
 
         mComposeplateButtonClickListener =
                 view -> {
-                    if (mComposeplateUrlSupplier == null
-                            || !mComposeplateUrlSupplier.hasValue()
-                            || mComposeplateUrlSupplier.get() == null) {
-                        return;
-                    }
+                    if (mComposeplateUrlSupplier == null) return;
+                    GURL composeplateUrl = mComposeplateUrlSupplier.get();
+                    if (composeplateUrl == null) return;
                     mManager.getNativePageHost()
-                            .loadUrl(
-                                    new LoadUrlParams(mComposeplateUrlSupplier.get()),
-                                    /* incognito= */ false);
+                            .loadUrl(new LoadUrlParams(composeplateUrl), /* incognito= */ false);
                     ComposeplateMetricsUtils.recordFakeSearchBoxComposeplateButtonClick();
                 };
         mSearchBoxCoordinator.setComposeplateButtonClickListener(mComposeplateButtonClickListener);

@@ -518,6 +518,7 @@ source_set("extensions") {
     "//chrome/app/theme:chrome_unscaled_resources",
     "//chrome/browser:browser_process",
     "//chrome/browser:shell_integration",
+    "//chrome/browser/app_mode",
     "//chrome/browser/apps:user_type_filter",
     "//chrome/browser/bitmap_fetcher",
     "//chrome/browser/content_settings:content_settings_factory",
@@ -781,10 +782,6 @@ source_set("extensions") {
       "api/system_private/system_private_api.h",
       "api/tab_capture/tab_capture_registry.cc",
       "api/tab_capture/tab_capture_registry.h",
-      "api/tabs/app_base_window.cc",
-      "api/tabs/app_base_window.h",
-      "api/tabs/app_window_controller.cc",
-      "api/tabs/app_window_controller.h",
       "api/tabs/tabs_event_router.cc",
       "api/tabs/tabs_event_router.h",
       "app_tab_helper.cc",
@@ -1568,6 +1565,10 @@ source_set("extensions") {
 
   if (enable_platform_apps) {
     sources += [
+      "api/tabs/app_base_window.cc",
+      "api/tabs/app_base_window.h",
+      "api/tabs/app_window_controller.cc",
+      "api/tabs/app_window_controller.h",
       "api/tabs/app_window_helper.cc",
       "api/tabs/app_window_helper.h",
     ]
@@ -1708,6 +1709,7 @@ source_set("chrome_extensions_browser_client") {
   ]
 
   deps = [
+    "//chrome/browser/app_mode",
     "//chrome/browser/content_settings:content_settings_factory",
     "//chrome/browser/extensions",
     "//chrome/browser/media/webrtc",

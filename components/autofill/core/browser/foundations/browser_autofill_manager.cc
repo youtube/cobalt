@@ -95,7 +95,7 @@
 #include "components/autofill/core/browser/foundations/autofill_client.h"
 #include "components/autofill/core/browser/geo/phone_number_i18n.h"
 #include "components/autofill/core/browser/integrators/compose/autofill_compose_delegate.h"
-#include "components/autofill/core/browser/integrators/optimization_guide/autofill_optimization_guide.h"
+#include "components/autofill/core/browser/integrators/optimization_guide/autofill_optimization_guide_decider.h"
 #include "components/autofill/core/browser/integrators/password_manager/otp_delegate.h"
 #include "components/autofill/core/browser/integrators/password_manager/password_manager_delegate.h"
 #include "components/autofill/core/browser/logging/log_manager.h"
@@ -131,6 +131,7 @@
 #include "components/autofill/core/browser/suggestions/autofill_ai/autofill_ai_suggestion_generator.h"
 #include "components/autofill/core/browser/suggestions/compose_suggestion_generator.h"
 #include "components/autofill/core/browser/suggestions/one_time_passwords/otp_suggestion_generator.h"
+#include "components/autofill/core/browser/suggestions/passkeys/passkey_autofill_suggestion_generator.h"
 #include "components/autofill/core/browser/suggestions/payments/iban_suggestion_generator.h"
 #include "components/autofill/core/browser/suggestions/payments/merchant_promo_code_suggestion_generator.h"
 #include "components/autofill/core/browser/suggestions/payments/payments_suggestion_generator.h"
@@ -271,6 +272,7 @@ bool IsSingleFieldFillerFillingProduct(FillingProduct filling_product) {
     case FillingProduct::kPlusAddresses:
     case FillingProduct::kAutofillAi:
     case FillingProduct::kCompose:
+    case FillingProduct::kPasskey:
     case FillingProduct::kPassword:
     case FillingProduct::kCreditCard:
     case FillingProduct::kAddress:
@@ -1272,6 +1274,12 @@ void BrowserAutofillManager::OnAskForValuesToFillImpl(
             delegate->GetIdentityCredentialSuggestionGenerator()) {
       suggestion_generators_.push_back(std::move(suggestion_generator));
     }
+  }
+  if (PasswordManagerDelegate* password_delegate =
+          client().GetPasswordManagerDelegate(field.global_id())) {
+    suggestion_generators_.push_back(
+        std::make_unique<PasskeyAutofillSuggestionGenerator>(
+            *password_delegate));
   }
 
   SuggestionsContext context = BuildSuggestionsContext(
@@ -2571,7 +2579,10 @@ void BrowserAutofillManager::HandleLoadedServerPredictionsForAutofillAi(
           }
           AddCachedAutofillAiPredictions(*model_cache, *form);
           auto* self_as_bam = static_cast<BrowserAutofillManager*>(self.get());
-          form->RationalizeAndAssignSections(self_as_bam->log_manager());
+          form->RationalizeAndAssignSections(
+              self->client().GetVariationConfigCountryCode(),
+              self_as_bam->GetCurrentPageLanguage(),
+              self_as_bam->log_manager());
           self_as_bam->LogCurrentFieldTypes(*form);
           self->NotifyObservers(&Observer::OnFieldTypesDetermined,
                                 form->global_id(),
@@ -3153,13 +3164,14 @@ void BrowserAutofillManager::OnFormProcessed(
   OnDidIdentifyFormForMetrics(
       form_structure, autofill_metrics::FormEventLoggerBase::
                           FormIdentificationTime::kAfterLocalHeuristics);
-  // `autofill_optimization_guide_` is not present on unsupported platforms.
-  if (auto* autofill_optimization_guide =
-          client().GetAutofillOptimizationGuide()) {
+  // `autofill_optimization_guide_decider` is not present on unsupported
+  // platforms.
+  if (auto* autofill_optimization_guide_decider =
+          client().GetAutofillOptimizationGuideDecider()) {
     // Initiate necessary pre-processing based on the forms and fields that are
     // parsed, as well as the information that the user has saved in the web
     // database.
-    autofill_optimization_guide->OnDidParseForm(
+    autofill_optimization_guide_decider->OnDidParseForm(
         form_structure,
         client().GetPersonalDataManager().payments_data_manager());
   }
@@ -3230,7 +3242,7 @@ bool BrowserAutofillManager::EvaluateAblationStudy(
   // in the following.
   AblationGroup ablation_group = client().GetAblationStudy().GetAblationGroup(
       client().GetLastCommittedPrimaryMainFrameURL(), form_type,
-      client().GetAutofillOptimizationGuide());
+      client().GetAutofillOptimizationGuideDecider());
 
   // The conditional_ablation_group indicates whether the form filling is
   // under ablation, under the condition that the user has data to fill on

@@ -57,6 +57,10 @@ constexpr char kActorTaskDurationCompletedHistogram[] =
     "Actor.Task.Duration.Completed";
 constexpr char kActorTaskDurationCancelledHistogram[] =
     "Actor.Task.Duration.Cancelled";
+constexpr char kActorTaskCountCancelledHistogram[] =
+    "Actor.Task.Count.Cancelled";
+constexpr char kActorTaskCountCompletedHistogram[] =
+    "Actor.Task.Count.Completed";
 
 class FakeChromeRenderFrame : public chrome::mojom::ChromeRenderFrame {
  public:
@@ -370,14 +374,17 @@ TEST_F(ExecutionEngineTest, CompletedHistogram) {
   content::NavigationSimulator::NavigateAndCommitFromBrowser(
       web_contents(), GURL("http://localhost/"));
 
-  ActResultFuture result;
-
   FakeChromeRenderFrame fake_chrome_render_frame;
   fake_chrome_render_frame.OverrideBinder(main_rfh());
 
-  std::unique_ptr<ToolRequest> action =
-      MakeClickCallback(kFakeContentNodeId).Run();
-  task_->Act(ToRequestList(action), result.GetCallback());
+  for (size_t i = 0; i < 2; ++i) {
+    ActResultFuture result;
+    std::unique_ptr<ToolRequest> action =
+        MakeClickCallback(kFakeContentNodeId).Run();
+    std::unique_ptr<ToolRequest> action2 =
+        MakeClickCallback(kFakeContentNodeId).Run();
+    task_->Act(ToRequestList(action, action2), result.GetCallback());
+  }
 
   // Simulate time passing before the task stops
   const base::TimeDelta task_duration = base::Milliseconds(123);
@@ -386,6 +393,7 @@ TEST_F(ExecutionEngineTest, CompletedHistogram) {
   task_->Stop(/*success=*/true);
   histograms_.ExpectTimeBucketCount(kActorTaskDurationCompletedHistogram,
                                     task_duration, 1);
+  histograms_.ExpectBucketCount(kActorTaskCountCompletedHistogram, 4, 1);
 }
 
 TEST_F(ExecutionEngineTest, CompletedWithPauseHistogram) {
@@ -419,9 +427,34 @@ TEST_F(ExecutionEngineTest, CompletedWithPauseHistogram) {
   task_->Stop(/*success=*/true);
   histograms_.ExpectTimeBucketCount(kActorTaskDurationCompletedHistogram,
                                     active_duration1 + active_duration2, 1);
+  histograms_.ExpectBucketCount(kActorTaskCountCompletedHistogram, 1, 1);
 }
 
 TEST_F(ExecutionEngineTest, CancelledHistogram) {
+  content::NavigationSimulator::NavigateAndCommitFromBrowser(
+      web_contents(), GURL("http://localhost/"));
+
+  FakeChromeRenderFrame fake_chrome_render_frame;
+  fake_chrome_render_frame.OverrideBinder(main_rfh());
+
+  for (size_t i = 0; i < 2; ++i) {
+    ActResultFuture result;
+    std::unique_ptr<ToolRequest> action =
+        MakeClickCallback(kFakeContentNodeId).Run();
+    task_->Act(ToRequestList(action), result.GetCallback());
+  }
+
+  // Simulate time passing before the task is cancelled
+  const base::TimeDelta task_duration = base::Milliseconds(456);
+  task_environment()->FastForwardBy(task_duration);
+
+  task_->Stop(/*success=*/false);
+  histograms_.ExpectTimeBucketCount(kActorTaskDurationCancelledHistogram,
+                                    task_duration, 1);
+  histograms_.ExpectBucketCount(kActorTaskCountCancelledHistogram, 2, 1);
+}
+
+TEST_F(ExecutionEngineTest, LatencyInfo) {
   content::NavigationSimulator::NavigateAndCommitFromBrowser(
       web_contents(), GURL("http://localhost/"));
 
@@ -434,13 +467,10 @@ TEST_F(ExecutionEngineTest, CancelledHistogram) {
       MakeClickCallback(kFakeContentNodeId).Run();
   task_->Act(ToRequestList(action), result.GetCallback());
 
-  // Simulate time passing before the task is cancelled
-  const base::TimeDelta task_duration = base::Milliseconds(456);
-  task_environment()->FastForwardBy(task_duration);
-
-  task_->Stop(/*success=*/false);
-  histograms_.ExpectTimeBucketCount(kActorTaskDurationCancelledHistogram,
-                                    task_duration, 1);
+  auto& actions_result = result.Get<2>();
+  EXPECT_EQ(actions_result.size(), 1u);
+  EXPECT_NE(actions_result[0].start_time, base::TimeTicks());
+  EXPECT_NE(actions_result[0].end_time, base::TimeTicks());
 }
 
 class ExecutionEngineOriginGatingTest : public ExecutionEngineTest {

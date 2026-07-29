@@ -680,8 +680,7 @@ export declare interface GlicBrowserHost {
    *
    * When the tab is destroyed, the observable will complete.
    */
-  getPageMetadata?
-      (tabId: string, names: string[]): ObservableValue<PageMetadata>|undefined;
+  getPageMetadata?(tabId: string, names: string[]): ObservableValue<PageMetadata>;
 
   /**
    * Returns an observable that emits when the browser wants the web client to
@@ -786,6 +785,12 @@ export declare interface GlicBrowserHostMetrics {
    * Called when a turn has been completed.
    */
   onTurnCompleted?(model: WebClientModel, duration: number): void;
+
+  /**
+   * Called when the model is changed. Metrics may be recorded with a separate
+   * scope.
+   */
+  onModelChanged?(model: WebClientModel): void;
 }
 
 /** Web client's operation modes */

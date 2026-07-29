@@ -24,7 +24,6 @@ import android.view.View.OnClickListener;
 import android.view.View.OnLayoutChangeListener;
 import android.view.View.OnLongClickListener;
 import android.view.ViewGroup;
-import android.view.ViewGroup.LayoutParams;
 import android.view.ViewStub;
 
 import androidx.activity.BackEventCompat;
@@ -47,7 +46,6 @@ import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.base.supplier.OneshotSupplierImpl;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.cc.input.BrowserControlsState;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ActivityTabProvider;
@@ -219,6 +217,7 @@ import org.chromium.ui.widget.ViewRectProvider;
 import org.chromium.url.GURL;
 
 import java.util.List;
+import java.util.function.Supplier;
 
 /**
  * Contains logic for managing the toolbar visual component. This class manages the interactions
@@ -963,6 +962,7 @@ public class ToolbarManager
 
         mMenuButtonCoordinator =
                 new MenuButtonCoordinator(
+                        mActivity,
                         appMenuCoordinatorSupplier,
                         mControlsVisibilityDelegate,
                         mWindowAndroid,
@@ -971,6 +971,7 @@ public class ToolbarManager
                         canShowUpdateBadge,
                         isInOverviewModeSupplier,
                         menuButtonThemeColorProvider,
+                        mIncognitoStateProvider,
                         menuButtonStateSupplier,
                         onMenuButtonClicked,
                         R.id.menu_button_wrapper,
@@ -981,6 +982,7 @@ public class ToolbarManager
         // mOverviewModeMenuButtonCoordinator with mMenuButtonCoordinator when Hub is enabled.
         mOverviewModeMenuButtonCoordinator =
                 new MenuButtonCoordinator(
+                        mActivity,
                         appMenuCoordinatorSupplier,
                         mControlsVisibilityDelegate,
                         mWindowAndroid,
@@ -989,6 +991,7 @@ public class ToolbarManager
                         canShowUpdateBadge,
                         isInOverviewModeSupplier,
                         overviewModeThemeColorProvider,
+                        mIncognitoStateProvider,
                         menuButtonStateSupplier,
                         onMenuButtonClicked,
                         R.id.none,
@@ -1164,10 +1167,12 @@ public class ToolbarManager
                             : null;
 
             Supplier<Integer> bottomWindowPaddingSupplier =
-                    () ->
-                            mEdgeToEdgeControllerSupplier.get() != null
-                                    ? mEdgeToEdgeControllerSupplier.get().getBottomInsetPx()
-                                    : 0;
+                    () -> {
+                        var edgeToEdgeController = mEdgeToEdgeControllerSupplier.get();
+                        return edgeToEdgeController != null
+                                ? edgeToEdgeController.getBottomInsetPx()
+                                : 0;
+                    };
 
             LocationBarCoordinator locationBarCoordinator =
                     new LocationBarCoordinator(
@@ -1189,9 +1194,10 @@ public class ToolbarManager
                             IntentHandler::bringTabGroupToFront,
                             NewTabPageUma::recordOmniboxNavigation,
                             TabWindowManagerSingleton::getInstance,
-                            (url) ->
-                                    mBookmarkModelSupplier.hasValue()
-                                            && mBookmarkModelSupplier.get().isBookmarked(url),
+                            (url) -> {
+                                BookmarkModel bridge = mBookmarkModelSupplier.get();
+                                return bridge != null && bridge.isBookmarked(url);
+                            },
                             () ->
                                     mToolbar.getCurrentOptionalButtonVariant()
                                             == AdaptiveToolbarButtonVariant.VOICE,
@@ -1781,7 +1787,10 @@ public class ToolbarManager
         ObservableSupplierImpl<Integer> controlContainerTranslationSupplier =
                 new ObservableSupplierImpl<>(0);
         ObservableSupplierImpl<Integer> controlContainerHeightSupplier =
-                new ObservableSupplierImpl<>(LayoutParams.WRAP_CONTENT);
+                new ObservableSupplierImpl<>(mControlContainer.getToolbarHeight());
+
+        mControlContainer.setOnHeightChangedListener(controlContainerHeightSupplier);
+
         mToolbarPositionController =
                 new ToolbarPositionController(
                         mBrowserControlsSizer,
@@ -1816,7 +1825,6 @@ public class ToolbarManager
                             mBrowserControlsSizer,
                             mWindowAndroid.getInsetObserver(),
                             controlContainerTranslationSupplier,
-                            controlContainerHeightSupplier,
                             keyboardAccessoryStateSupplier.getIsSheetShowingSupplier(),
                             this::isUrlBarFocused);
         }
@@ -2356,8 +2364,10 @@ public class ToolbarManager
         mIncognitoStateProvider.setTabModelSelector(mTabModelSelector);
         mAppThemeColorProvider.setIncognitoStateProvider(mIncognitoStateProvider);
 
-        if (mBottomControlsCoordinatorSupplier.get() != null) {
-            mBottomControlsCoordinatorSupplier.get().initializeWithNative();
+        BottomControlsCoordinator bottomControlsCoordinator =
+                mBottomControlsCoordinatorSupplier.get();
+        if (bottomControlsCoordinator != null) {
+            bottomControlsCoordinator.initializeWithNative();
         }
 
         if (mOnInitializedRunnable != null) {
@@ -2486,8 +2496,10 @@ public class ToolbarManager
 
         HomepageManager.getInstance().removeListener(mHomepageStateListener);
 
-        if (mBottomControlsCoordinatorSupplier.get() != null) {
-            mBottomControlsCoordinatorSupplier.get().destroy();
+        BottomControlsCoordinator bottomControlsCoordinator =
+                mBottomControlsCoordinatorSupplier.get();
+        if (bottomControlsCoordinator != null) {
+            bottomControlsCoordinator.destroy();
             mBottomControlsCoordinatorSupplier = null;
         }
 
@@ -2898,7 +2910,7 @@ public class ToolbarManager
      * @param text The URL bar text. {@code null} if no text is to be set.
      */
     public void setUrlBarFocusAndText(
-            boolean focused, @OmniboxFocusReason int reason, String text) {
+            boolean focused, @OmniboxFocusReason int reason, @Nullable String text) {
         if (!mInitializedWithNative) return;
         if (mLocationBar.getOmniboxStub() == null) return;
         boolean wasFocused = mLocationBar.getOmniboxStub().isUrlBarFocused();
@@ -3123,8 +3135,10 @@ public class ToolbarManager
         }
 
         mAppThemeColorProvider.setLayoutStateProvider(mLayoutStateProvider);
-        if (mBottomControlsCoordinatorSupplier.get() != null) {
-            mBottomControlsCoordinatorSupplier.get().setLayoutStateProvider(mLayoutStateProvider);
+        BottomControlsCoordinator bottomControlsCoordinator =
+                mBottomControlsCoordinatorSupplier.get();
+        if (bottomControlsCoordinator != null) {
+            bottomControlsCoordinator.setLayoutStateProvider(mLayoutStateProvider);
         }
     }
 

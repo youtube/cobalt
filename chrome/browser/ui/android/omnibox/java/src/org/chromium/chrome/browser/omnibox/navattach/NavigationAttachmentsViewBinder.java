@@ -20,9 +20,21 @@ class NavigationAttachmentsViewBinder {
             PropertyModel model, NavigationAttachmentsViewHolder view, PropertyKey propertyKey) {
         if (propertyKey == NavigationAttachmentsProperties.ADAPTER) {
             view.attachmentsView.setAdapter(model.get(NavigationAttachmentsProperties.ADAPTER));
+        } else if (propertyKey == NavigationAttachmentsProperties.ATTACHMENTS_VISIBLE) {
+            boolean visible = model.get(NavigationAttachmentsProperties.ATTACHMENTS_VISIBLE);
+            view.attachmentsView.setVisibility(visible ? View.VISIBLE : View.GONE);
+            if (visible) {
+                view.navigationType.setChecked(true);
+            }
         } else if (propertyKey == NavigationAttachmentsProperties.BUTTON_ADD_CLICKED) {
             view.addButton.setOnClickListener(
                     v -> model.get(NavigationAttachmentsProperties.BUTTON_ADD_CLICKED).run());
+        } else if (propertyKey == NavigationAttachmentsProperties.ON_USE_AI_MODE_CHANGED) {
+            view.navigationType.setOnCheckedChangeListener(
+                    (buttonView, isChecked) -> {
+                        model.get(NavigationAttachmentsProperties.ON_USE_AI_MODE_CHANGED)
+                                .onResult(isChecked);
+                    });
         } else if (propertyKey == NavigationAttachmentsProperties.POPUP_CAMERA_CLICKED) {
             view.popup.mCameraButton.setOnClickListener(
                     v -> model.get(NavigationAttachmentsProperties.POPUP_CAMERA_CLICKED).run());

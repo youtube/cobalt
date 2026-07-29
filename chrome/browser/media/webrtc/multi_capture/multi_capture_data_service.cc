@@ -64,6 +64,21 @@ gfx::ImageSkia MultiCaptureDataService::GetAppIcon(
   return gfx::ImageSkia();
 }
 
+bool MultiCaptureDataService::IsMultiCaptureAllowed(const GURL& url) const {
+  return std::ranges::any_of(
+      multi_screen_capture_allowlist_on_login_,
+      [url](const base::Value& value) {
+        ContentSettingsPattern pattern =
+            ContentSettingsPattern::FromString(value.GetString());
+        // Despite |url| being a GURL, the path is ignored when matching.
+        return pattern.IsValid() && pattern.Matches(url);
+      });
+}
+
+bool MultiCaptureDataService::IsMultiCaptureAllowedForAnyApp() const {
+  return multi_screen_capture_allowlist_on_login_.size();
+}
+
 void MultiCaptureDataService::AddObserver(Observer* observer) {
   observers_.AddObserver(observer);
 

@@ -31,6 +31,7 @@
 #import "ios/chrome/browser/shared/model/url/url_util.h"
 #import "ios/chrome/browser/shared/public/commands/reader_mode_commands.h"
 #import "ios/chrome/browser/shared/public/commands/snackbar_commands.h"
+#import "ios/chrome/browser/snapshots/model/snapshot_source_tab_helper.h"
 #import "ios/chrome/browser/snapshots/model/snapshot_tab_helper.h"
 #import "ios/chrome/browser/translate/model/chrome_ios_translate_client.h"
 #import "ios/chrome/browser/web/model/web_view_proxy/web_view_proxy_tab_helper.h"
@@ -72,6 +73,12 @@ ReaderModeHeuristicResult GetReaderModeHeuristicResult(
                      kReaderModeNotEligibleContentAndLength;
   }
   return ReaderModeHeuristicResult::kMalformedResponse;
+}
+
+bool IsTranslateEnabled(ChromeIOSTranslateClient* translate_client) {
+  return translate_client && translate_client->GetTranslateManager()
+                                 ->GetLanguageState()
+                                 ->IsPageTranslated();
 }
 
 }  // namespace
@@ -303,6 +310,9 @@ void ReaderModeTabHelper::ReaderModeContentDidLoadData(
         reader_mode_web_state_->GetWebViewProxy());
   }
   metrics_helper_.RecordReaderShown();
+
+  SnapshotSourceTabHelper::FromWebState(web_state_)
+      ->SetOverridingSourceWebState(reader_mode_web_state_.get());
   // Generic snapshot image generation on side-swipe has a long tail latency.
   // Force update the snapshot storage to ensure that the latest snapshot is
   // presented before a transition.
@@ -523,6 +533,24 @@ void ReaderModeTabHelper::DestroyReaderModeContent(
 
   // Cancel any ongoing distillation task.
   distiller_viewer_.reset();
+
+  // Display translation badge if a translation was applied before or during
+  // Reading Mode activation.
+  if (base::FeatureList::IsEnabled(kEnableReaderModeTranslation)) {
+    ChromeIOSTranslateClient* translate_client =
+        ChromeIOSTranslateClient::FromWebState(web_state_.get());
+    ChromeIOSTranslateClient* content_translate_client =
+        ChromeIOSTranslateClient::FromWebState(reader_mode_web_state_.get());
+    if (IsTranslateEnabled(translate_client) ||
+        IsTranslateEnabled(content_translate_client)) {
+      translate_client->GetTranslateManager()->ShowTranslateUI(
+          /*auto_translate=*/true,
+          /*triggered_from_menu=*/true);
+    }
+  }
+
+  SnapshotSourceTabHelper::FromWebState(web_state_)
+      ->SetOverridingSourceWebState(nullptr);
   // Update the snapshot with the original web page.
   SnapshotTabHelper* snapshot_tab_helper =
       SnapshotTabHelper::FromWebState(web_state_);

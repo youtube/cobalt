@@ -3216,7 +3216,7 @@ enum WebFeature {
   kSameSiteNoneIncludedBySamePartyAncestors = 3955,
   kSameSiteNoneIncludedBySameSiteLax = 3956,
   kSameSiteNoneIncludedBySameSiteStrict = 3957,
-  kPrivateNetworkAccessNonSecureContextsAllowedDeprecationTrial = 3958,
+  kOBSOLETE_PrivateNetworkAccessNonSecureContextsAllowedDeprecationTrial = 3958,
   kV8URLPattern_Constructor = 3959,
   kV8URLPattern_Test_Method = 3960,
   kV8URLPattern_Exec_Method = 3961,
@@ -3580,7 +3580,7 @@ enum WebFeature {
   kSendBeaconWithURLSearchParams = 4309,
   kSendBeaconWithUSVString = 4310,
   kReplacedElementPaintedWithOverflow = 4311,
-  kImageAd = 4312,
+  kOBSOLETE_kImageAd = 4312,
   kLinkRelPrefetchAsDocumentSameOrigin = 4313,
   kLinkRelPrefetchAsDocumentCrossOrigin = 4314,
   kPersistentQuotaType = 4315,
@@ -3623,7 +3623,7 @@ enum WebFeature {
   kAudioContextSetSinkId = 4350,
   kViewportDependentLazyLoadedImageWithSizesAttribute = 4351,
   kXRWebGLBindingGetCameraImage = 4352,
-  kSelectiveInOrderScript = 4353,
+  kOBSOLETE_SelectiveInOrderScript = 4353,
   kV8AsyncStackTaggingCreateTaskCall = 4354,
   kWebkitBoxWithoutWebkitLineClamp = 4355,
   kDataUrlInSvgUse = 4356,
@@ -4960,6 +4960,8 @@ enum WebFeature {
   kComputedOutlineWidthWithNoneOrHiddenStyle = 5649,
   kNavigationNavigateJavaScriptURL = 5650,
   kV8WasmCustomDescriptors = 5651,
+  kSRIIntegrityAttributeOnInlineScript = 5652,
+  kCredentialsGetImmediateMediationWithPasswordsOnly = 5653,
 
   // Add new features immediately above this line. Don't change assigned
   // numbers of any item, and don't reuse removed slots. Also don't add extra

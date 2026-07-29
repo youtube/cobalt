@@ -1591,10 +1591,6 @@ void RenderWidgetHostImpl::ForwardMouseEventWithLatencyInfo(
   CHECK_GE(mouse_event.GetType(), WebInputEvent::Type::kMouseTypeFirst);
   CHECK_LE(mouse_event.GetType(), WebInputEvent::Type::kMouseTypeLast);
 
-  if (delegate_ && delegate_->PreHandleMouseEvent(mouse_event)) {
-    return;
-  }
-
   for (auto& mouse_event_callback : mouse_event_callbacks_) {
     if (mouse_event_callback.Run(mouse_event)) {
       return;
@@ -2729,6 +2725,13 @@ void RenderWidgetHostImpl::OnInputEventPreDispatch(
 void RenderWidgetHostImpl::OnInvalidInputEventSource() {
   bad_message::ReceivedBadMessage(
       GetProcess(), bad_message::INPUT_ROUTER_INVALID_EVENT_SOURCE);
+}
+
+std::string RenderWidgetHostImpl::GetMainFrameLastCommittedURLSpec() {
+  if (!frame_tree() || !frame_tree()->GetMainFrame()) {
+    return std::string();
+  }
+  return frame_tree()->GetMainFrame()->GetLastCommittedURL().spec();
 }
 
 void RenderWidgetHostImpl::ShowPopup(const gfx::Rect& initial_screen_rect,

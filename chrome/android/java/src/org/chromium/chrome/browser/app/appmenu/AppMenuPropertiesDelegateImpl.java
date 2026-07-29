@@ -35,7 +35,6 @@ import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.OneshotSupplier;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
@@ -75,6 +74,7 @@ import org.chromium.components.commerce.core.ShoppingService;
 import org.chromium.components.commerce.core.SubscriptionType;
 import org.chromium.components.dom_distiller.core.DomDistillerUrlUtils;
 import org.chromium.components.embedder_support.util.UrlUtilities;
+import org.chromium.components.sync.UserActionableError;
 import org.chromium.components.webapk.lib.client.WebApkValidator;
 import org.chromium.components.webapps.AppBannerManager;
 import org.chromium.components.webapps.WebappsUtils;
@@ -89,6 +89,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.Iterator;
 import java.util.List;
+import java.util.function.Supplier;
 
 /**
  * Base implementation of {@link AppMenuPropertiesDelegate} that handles hiding and showing menu
@@ -121,6 +122,7 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
         MenuGroup.OVERVIEW_MODE_MENU,
         MenuGroup.TABLET_EMPTY_MODE_MENU
     })
+    @Retention(RetentionPolicy.SOURCE)
     public @interface MenuGroup {
         int INVALID = -1;
         int PAGE_MENU = 0;
@@ -207,10 +209,9 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
             mCallbackController.destroy();
             mCallbackController = null;
         }
-        if (mReadAloudControllerSupplier.get() != null) {
-            mReadAloudControllerSupplier
-                    .get()
-                    .removeReadabilityUpdateListener(mReadAloudAppMenuResetter);
+        ReadAloudController readAloudController = mReadAloudControllerSupplier.get();
+        if (readAloudController != null) {
+            readAloudController.removeReadabilityUpdateListener(mReadAloudAppMenuResetter);
         }
     }
 
@@ -517,8 +518,9 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
     public boolean shouldCheckBookmarkStar(Tab currentTab) {
         if (sItemBookmarkedForTesting != null) return sItemBookmarkedForTesting;
 
-        if (!mBookmarkModelSupplier.hasValue()) return false;
-        return mBookmarkModelSupplier.get().hasBookmarkIdForTab(currentTab);
+        var bookmarkModel = mBookmarkModelSupplier.get();
+        if (bookmarkModel == null) return false;
+        return bookmarkModel.hasBookmarkIdForTab(currentTab);
     }
 
     @VisibleForTesting
@@ -865,7 +867,7 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
                 return false;
             }
             // Return true if there is any error.
-            return SyncSettingsUtils.getSyncError(profile) != SyncSettingsUtils.SyncError.NO_ERROR;
+            return SyncSettingsUtils.getSyncError(profile) != UserActionableError.NONE;
         }
         return false;
     }
@@ -881,7 +883,7 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
             if (profile == null) {
                 return null;
             }
-            if (SyncSettingsUtils.getSyncError(profile) != SyncSettingsUtils.SyncError.NO_ERROR) {
+            if (SyncSettingsUtils.getSyncError(profile) != UserActionableError.NONE) {
                 return mContext.getString(R.string.menu_settings_account_error);
             }
         }
@@ -969,14 +971,14 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
      */
     protected void updateBookmarkMenuItemShortcut(
             PropertyModel bookmarkMenuModel, @Nullable Tab currentTab) {
-        if (!mBookmarkModelSupplier.hasValue() || currentTab == null) {
+        var bookmarkModel = mBookmarkModelSupplier.get();
+        if (bookmarkModel == null || currentTab == null) {
             // If the BookmarkModel still isn't available, assume the bookmark menu item is not
             // editable.
             bookmarkMenuModel.set(AppMenuItemProperties.ENABLED, false);
         } else {
             bookmarkMenuModel.set(
-                    AppMenuItemProperties.ENABLED,
-                    mBookmarkModelSupplier.get().isEditBookmarksEnabled());
+                    AppMenuItemProperties.ENABLED, bookmarkModel.isEditBookmarksEnabled());
         }
 
         if (currentTab != null && shouldCheckBookmarkStar(currentTab)) {
@@ -1048,7 +1050,7 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
         // If price tracking isn't enabled or the page isn't eligible, then hide both items.
         if (!CommerceFeatureUtils.isShoppingListEligible(service)
                 || !PowerBookmarkUtils.isPriceTrackingEligible(currentTab)
-                || !mBookmarkModelSupplier.hasValue()) {
+                || mBookmarkModelSupplier.get() == null) {
             return null;
         }
 

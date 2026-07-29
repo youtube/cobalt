@@ -46,7 +46,7 @@ interface FullscreenToast {
     boolean isVisible();
 
     // Android widget-based fullscreen toast.
-    static class AndroidToast implements FullscreenToast {
+    class AndroidToast implements FullscreenToast {
         private final Activity mActivity;
         private final BooleanSupplier mIsPersistentFullscreenMode;
 
@@ -118,6 +118,31 @@ interface FullscreenToast {
                 mNotificationToast.cancel();
                 mNotificationToast = null;
             }
+        }
+    }
+
+    // Used when Exclusive Access Manager is used for the Toast control.
+    class NoEffectToastStub implements FullscreenToast {
+        NoEffectToastStub() {}
+
+        @Override
+        public void onExitPersistentFullscreen() {}
+
+        @Override
+        public void onEnterFullscreen() {}
+
+        @Override
+        public void onFullscreenLayout() {}
+
+        @Override
+        public void onExitFullscreen() {}
+
+        @Override
+        public void onWindowFocusChanged(boolean hasWindowFocus) {}
+
+        @Override
+        public boolean isVisible() {
+            return false;
         }
     }
 }

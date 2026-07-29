@@ -108,6 +108,7 @@
 #include "services/network/cookie_manager.h"
 #include "services/network/data_remover_util.h"
 #include "services/network/device_bound_session_manager.h"
+#include "services/network/devtools_durable_msg_collector.h"
 #include "services/network/disk_cache/mojo_backend_file_operations_factory.h"
 #include "services/network/host_resolver.h"
 #include "services/network/http_auth_cache_copier.h"
@@ -792,9 +793,6 @@ NetworkContext::NetworkContext(
   }
 
   InitializeCorsParams();
-
-  SetSplitAuthCacheByNetworkAnonymizationKey(
-      params_->split_auth_cache_by_network_anonymization_key);
 
 #if BUILDFLAG(IS_CT_SUPPORTED)
   if (params_->ct_policy) {
@@ -1755,6 +1753,28 @@ void NetworkContext::SetNetworkConditions(
                                       std::move(network_conditions));
 }
 
+void NetworkContext::OnDevToolsDurableMessageClientsDisconnected(
+    const base::UnguessableToken& throttling_profile_id) {
+  devtools_profile_to_durable_message_collectors_.erase(throttling_profile_id);
+}
+
+void NetworkContext::EnableDurableMessageCollector(
+    const base::UnguessableToken& throttling_profile_id,
+    mojo::PendingReceiver<network::mojom::DurableMessageCollector> receiver) {
+  auto [it, inserted] =
+      devtools_profile_to_durable_message_collectors_.try_emplace(
+          throttling_profile_id);
+  if (inserted) {
+    auto disconnect_callback = base::BindOnce(
+        &NetworkContext::OnDevToolsDurableMessageClientsDisconnected,
+        base::Unretained(this), throttling_profile_id);
+    it->second = std::make_unique<DevtoolsDurableMessageCollector>(
+        std::move(disconnect_callback));
+  }
+
+  it->second->AddReceiver(std::move(receiver));
+}
+
 void NetworkContext::SetAcceptLanguage(const std::string& new_accept_language) {
   // This may only be called on NetworkContexts created with the constructor
   // that calls MakeURLRequestContext().
@@ -2497,24 +2517,6 @@ void NetworkContext::SetCorsNonWildcardRequestHeadersSupport(bool value) {
       cors::NonWildcardRequestHeadersSupport(value);
 }
 
-void NetworkContext::LookupServerBasicAuthCredentials(
-    const GURL& url,
-    const net::NetworkAnonymizationKey& network_anonymization_key,
-    LookupServerBasicAuthCredentialsCallback callback) {
-  net::HttpAuthCache* http_auth_cache =
-      url_request_context_->http_transaction_factory()
-          ->GetSession()
-          ->http_auth_cache();
-  net::HttpAuthCache::Entry* entry = http_auth_cache->LookupByPath(
-      url::SchemeHostPort(url), net::HttpAuth::AUTH_SERVER,
-      network_anonymization_key, url.path());
-  if (entry && entry->scheme() == net::HttpAuth::AUTH_SCHEME_BASIC) {
-    std::move(callback).Run(entry->credentials());
-  } else {
-    std::move(callback).Run(std::nullopt);
-  }
-}
-
 #if BUILDFLAG(IS_CHROMEOS)
 void NetworkContext::LookupProxyAuthCredentials(
     const net::ProxyServer& proxy_server,
@@ -2965,14 +2967,8 @@ URLRequestContextOwner NetworkContext::MakeURLRequestContext(
   session_params.disable_idle_sockets_close_on_memory_pressure =
       params_->disable_idle_sockets_close_on_memory_pressure;
 
-  if (network_service_) {
-    session_params.key_auth_cache_server_entries_by_network_anonymization_key =
-        network_service_->split_auth_cache_by_network_isolation_key();
-  }
-
   session_params.key_auth_cache_server_entries_by_network_anonymization_key =
-      base::FeatureList::IsEnabled(
-          features::kSplitAuthCacheByNetworkIsolationKey);
+      params_->split_auth_cache_by_network_anonymization_key;
 
   builder.set_http_network_session_params(session_params);
   builder.set_quic_context(std::move(quic_context));
@@ -3580,6 +3576,23 @@ void NetworkContext::InitializePrefetchURLLoaderFactory() {
       prefetch_url_loader_factory_remote_.BindNewPipeAndPassReceiver();
   CreateURLLoaderFactory(std::move(pending_receiver),
                          CreateURLLoaderFactoryParamsForPrefetch());
+}
+
+base::WeakPtr<DevtoolsDurableMessage> NetworkContext::MaybeCreateDurableMessage(
+    const std::optional<base::UnguessableToken>& throttling_profile_id,
+    const std::optional<std::string>& devtools_request_id) {
+  if (!throttling_profile_id.has_value() || !devtools_request_id.has_value()) {
+    return nullptr;
+  }
+
+  auto collector_it = devtools_profile_to_durable_message_collectors_.find(
+      throttling_profile_id.value());
+  if (collector_it == devtools_profile_to_durable_message_collectors_.end()) {
+    return nullptr;
+  }
+
+  return collector_it->second->CreateDurableMessage(
+      devtools_request_id.value());
 }
 
 }  // namespace network

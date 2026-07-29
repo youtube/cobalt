@@ -43,7 +43,6 @@ import org.chromium.base.TimeUtils;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.shared_preferences.SharedPreferencesManager;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
@@ -81,6 +80,7 @@ import java.lang.ref.WeakReference;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.function.Supplier;
 
 /**
  * Utilities for detecting multi-window/multi-instance support.
@@ -99,6 +99,7 @@ public class MultiWindowUtils implements ActivityStateListener {
     static final String HISTOGRAM_DESKTOP_WINDOW_COUNT_NEW_INSTANCE_SUFFIX = ".NewInstance";
     static final String HISTOGRAM_DESKTOP_WINDOW_COUNT_EXISTING_INSTANCE_SUFFIX =
             ".ExistingInstance";
+    static final String OPEN_ADJACENTLY_PARAM = "open_adjacently";
 
     private static MultiWindowUtils sInstance = new MultiWindowUtils();
     protected static @Nullable Supplier<Activity> sActivitySupplierForTesting;
@@ -109,7 +110,6 @@ public class MultiWindowUtils implements ActivityStateListener {
     private final boolean mMultiInstanceApi31Enabled;
     private static @Nullable Boolean sIsMultiInstanceApi31Enabled;
 
-    private static final String OPEN_ADJACENTLY_PARAM = "open_adjacently";
 
     // Used to keep track of whether ChromeTabbedActivity2 is running. A tri-state Boolean is
     // used in case both activities die in the background and MultiWindowUtils is recreated.
@@ -959,7 +959,9 @@ public class MultiWindowUtils implements ActivityStateListener {
      */
     public static boolean shouldOpenInAdjacentWindow() {
         return ChromeFeatureList.getFieldTrialParamByFeatureAsBoolean(
-                ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT, OPEN_ADJACENTLY_PARAM, true);
+                ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT_EXPERIMENTAL,
+                OPEN_ADJACENTLY_PARAM,
+                true);
     }
 
     /**

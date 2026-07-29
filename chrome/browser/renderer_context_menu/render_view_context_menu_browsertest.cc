@@ -35,6 +35,7 @@
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/apps/app_service/app_launch_params.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/lens/region_search/lens_region_search_controller.h"
 #include "chrome/browser/pdf/pdf_extension_test_base.h"
 #include "chrome/browser/pdf/pdf_extension_test_util.h"
 #include "chrome/browser/pdf/test_pdf_viewer_stream_manager.h"
@@ -2471,9 +2472,10 @@ class LensBrowserBaseTest : public InProcessBrowserTest {
   void SimulateDragAndVerifyOverlayUI(RenderViewContextMenu* menu) {
     // Verify Lens Region Search Controller was created after using the menu
     // item.
-    lens::LensRegionSearchController* controller =
-        menu->GetLensRegionSearchControllerForTesting();
+    lens::LensRegionSearchController* const controller =
+        browser()->GetFeatures().lens_region_search_controller();
     ASSERT_NE(controller, nullptr);
+    ASSERT_TRUE(menu->lens_region_search_controller_started_for_testing());
     ASSERT_TRUE(controller->IsOverlayUIVisibleForTesting());
     SimulateDrag();
     // The UI should be closed after the drag.
@@ -2484,9 +2486,10 @@ class LensBrowserBaseTest : public InProcessBrowserTest {
   void AssertOverlayUIHidden(RenderViewContextMenu* menu) {
     // Verify Lens Region Search Controller was created after using the menu
     // item.
-    lens::LensRegionSearchController* controller =
-        menu->GetLensRegionSearchControllerForTesting();
+    lens::LensRegionSearchController* const controller =
+        browser()->GetFeatures().lens_region_search_controller();
     ASSERT_NE(controller, nullptr);
+    ASSERT_TRUE(menu->lens_region_search_controller_started_for_testing());
     ASSERT_FALSE(controller->IsOverlayUIVisibleForTesting());
   }
 
@@ -2757,9 +2760,7 @@ IN_PROC_BROWSER_TEST_F(LensOverlayBrowserTest,
       // Callback that will be called after the context menu item is clicked.
       base::BindLambdaForTesting([&](RenderViewContextMenu* menu) {
         // Verify the normal region search flow does not activate
-        lens::LensRegionSearchController* controller =
-            menu->GetLensRegionSearchControllerForTesting();
-        ASSERT_EQ(controller, nullptr);
+        ASSERT_FALSE(menu->lens_region_search_controller_started_for_testing());
         run = true;
       }));
 
@@ -2776,9 +2777,7 @@ IN_PROC_BROWSER_TEST_F(LensOverlayBrowserTest,
       // Callback that will be called after the context menu item is clicked.
       base::BindLambdaForTesting([&](RenderViewContextMenu* menu) {
         // Verify the normal region search flow activates.
-        lens::LensRegionSearchController* controller =
-            menu->GetLensRegionSearchControllerForTesting();
-        ASSERT_NE(controller, nullptr);
+        ASSERT_TRUE(menu->lens_region_search_controller_started_for_testing());
         run = true;
       }));
 
@@ -2795,9 +2794,7 @@ IN_PROC_BROWSER_TEST_F(LensOverlayBrowserTest,
       // Callback that will be called after the context menu item is clicked.
       base::BindLambdaForTesting([&](RenderViewContextMenu* menu) {
         // Verify the normal image search flow does not activate.
-        lens::LensRegionSearchController* controller =
-            menu->GetLensRegionSearchControllerForTesting();
-        ASSERT_EQ(controller, nullptr);
+        ASSERT_FALSE(menu->lens_region_search_controller_started_for_testing());
         run = true;
       }));
 
@@ -3559,6 +3556,18 @@ IN_PROC_BROWSER_TEST_P(SubframeContextMenuBrowserTest,
                       split_tabs::SplitTabCreatedSource::kLinkContextMenu);
   browser()->tab_strip_model()->ActivateTabAt(0);
   RunSubframeInitiatorTestForCommand(IDC_CONTENT_CONTEXT_OPENLINKSPLITVIEW);
+}
+
+IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest, OpenNonStandardLink) {
+  std::unique_ptr<TestRenderViewContextMenu> menu1 =
+      CreateContextMenuMediaTypeNone(
+          /*unfiltered_url=*/GURL("mailto:me@google.com"),
+          /*url=*/GURL("mailto:me@google.com"));
+
+  EXPECT_TRUE(menu1->IsItemEnabled(IDC_CONTENT_CONTEXT_OPENLINKNEWTAB));
+  EXPECT_TRUE(menu1->IsItemEnabled(IDC_CONTENT_CONTEXT_OPENLINKNEWWINDOW));
+  ASSERT_FALSE(menu1->IsItemEnabled(IDC_CONTENT_CONTEXT_OPENLINKSPLITVIEW));
+  EXPECT_TRUE(menu1->IsItemEnabled(IDC_CONTENT_CONTEXT_OPENLINKOFFTHERECORD));
 }
 
 IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest,
