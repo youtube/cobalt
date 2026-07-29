@@ -316,27 +316,15 @@ bool GetHandlerTrampoline(std::string* handler_trampoline,
   // line until Q.
   if (base::android::BuildInfo::GetInstance()->sdk_int() <
       base::android::SDK_VERSION_Q) {
-#if BUILDFLAG(IS_COBALT)
-    LOG(INFO) << "SDK version below Q: No linker support.";
-#endif
     return false;
   }
 
   Dl_info info;
-#if BUILDFLAG(IS_COBALT)
-  // Cobalt on Android TV uses a standalone ELF executable instead of a
-  // library-based trampoline. We only need dladdr to succeed so we can
-  // identify the APK mount point from info.dli_fname.
-  if (dladdr(reinterpret_cast<void*>(&GetHandlerTrampoline), &info) == 0) {
-    return false;
-  }
-#else
   if (dladdr(reinterpret_cast<void*>(&GetHandlerTrampoline), &info) == 0 ||
       dlsym(dlopen(info.dli_fname, RTLD_NOLOAD | RTLD_LAZY),
             "CrashpadHandlerMain") == nullptr) {
     return false;
   }
-#endif
 
   std::string local_handler_library(info.dli_fname);
 
@@ -347,21 +335,7 @@ bool GetHandlerTrampoline(std::string* handler_trampoline,
 
   std::string local_handler_trampoline(local_handler_library, 0,
                                        libdir_end + 1);
-
-#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROIDTV)
-  // Cobalt on Android TV uses a standalone executable that is launched
-  // directly by the linker from within the APK.
-  // TODO: b/494661759 - Cobalt: Refactor to address 'trampoline' naming
-  // misnomer for standalone executables and facilitate upstreaming.
-  local_handler_trampoline += "libchrome_crashpad_handler.so";
-  local_handler_library = "";
-#else
   local_handler_trampoline += "libcrashpad_handler_trampoline.so";
-#endif
-
-#if BUILDFLAG(IS_COBALT)
-  LOG(INFO) << "trampoline = " << local_handler_trampoline;
-#endif
 
   handler_trampoline->swap(local_handler_trampoline);
   handler_library->swap(local_handler_library);
@@ -451,7 +425,6 @@ bool BuildEnvironmentWithApk(bool use_64_bit,
 
 const char kCrashpadJavaMain[] =
     "org.chromium.components.crash.browser.CrashpadMain";
-const char kCrashReportUrl[] = "https://clients2.google.com/cr/report";
 
 void BuildHandlerArgs(CrashReporterClient* crash_reporter_client,
                       base::FilePath* database_path,
@@ -462,10 +435,8 @@ void BuildHandlerArgs(CrashReporterClient* crash_reporter_client,
   crash_reporter_client->GetCrashDumpLocation(database_path);
   crash_reporter_client->GetCrashMetricsLocation(metrics_path);
 
-  *url = crash_reporter_client->GetUploadUrl();
-  if (url->empty()) {
-    *url = kCrashReportUrl;
-  }
+  // TODO(jperaza): Set URL for Android when Crashpad takes over report upload.
+  *url = std::string();
 
   ProductInfo product_info;
   crash_reporter_client->GetProductInfo(&product_info);
@@ -506,9 +477,6 @@ bool GetHandlerPath(base::FilePath* exe_dir, base::FilePath* handler_path) {
     return false;
   }
   *handler_path = exe_dir->Append("libchrome_crashpad_handler.so");
-#if BUILDFLAG(IS_COBALT)
-  LOG(INFO) << "GetHandlerPath: " << *handler_path;
-#endif
   return true;
 }
 
@@ -567,13 +535,6 @@ class HandlerStarter {
       return database_path;
     }
 
-#if BUILDFLAG(IS_COBALT)
-    // Disable periodic tasks. In the Android "at-crash" execution model, this
-    // flag prevents an unnecessary file system scan for pending reports, reducing
-    // thread contention during the critical crash dumping window.
-    // TODO: Implement actual database pruning for Android TV.
-    arguments.push_back("--no-periodic-tasks");
-#endif
     if (crashpad::SetSanitizationInfo(GetCrashReporterClient(),
                                       &browser_sanitization_info_)) {
       arguments.push_back(base::StringPrintf("--sanitization-information=%p",
@@ -588,17 +549,7 @@ class HandlerStarter {
     // Don't handle SIGQUIT in the browser process on Android; the system masks
     // this and uses it for generating ART stack traces, and if it gets unmasked
     // (e.g. by a WebView app) we don't want to treat this as a crash.
-    
-
-    #if BUILDFLAG(IS_COBALT)
-    // Prevent Crashpad from handling standard crash signals. Only hangs are handled.
-    GetCrashpadClient().SetUnhandledSignals({
-        SIGABRT, SIGBUS, SIGFPE, SIGILL, SIGQUIT, SIGSEGV, SIGSYS, SIGTRAP,
-    });
-    #else
     GetCrashpadClient().SetUnhandledSignals({SIGQUIT});
-    #endif
-
 
     if (!base::PathExists(handler_path)) {
       use_java_handler_ =
@@ -612,14 +563,6 @@ class HandlerStarter {
     }
 
     if (use_java_handler_ || !handler_trampoline_.empty()) {
-#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROIDTV)
-      // Cobalt on Android TV skips the Java fallback handler for API 24-28.
-      // Reporting is not supported on these versions due to engineering cost
-      // and low traffic.
-      if (use_java_handler_) {
-        return database_path;
-      }
-#endif
       std::vector<std::string> env;
       if (!BuildEnvironmentWithApk(kUse64Bit, &env)) {
         return database_path;
@@ -672,25 +615,11 @@ class HandlerStarter {
     }
 
     if (use_java_handler_ || !handler_trampoline_.empty()) {
-#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROIDTV)
-      // Cobalt on Android TV skips the Java fallback handler for API 24-28.
-      // Reporting is not supported on these versions due to engineering cost
-      // and low traffic.
-      if (use_java_handler_) {
-        LOG(INFO) << "Skipping Java handler for client on Cobalt ATV.";
-        return false;
-      }
-#endif
       std::vector<std::string> env;
       if (!BuildEnvironmentWithApk(kUse64Bit, &env)) {
         return false;
       }
 
-#if BUILDFLAG(IS_COBALT)
-      LOG(INFO) << "Launching handler "
-                << (use_java_handler_ ? "with Java" : "with Linker")
-                << " for client.";
-#endif
       bool result =
           use_java_handler_
               ? GetCrashpadClient().StartJavaHandlerForClient(
@@ -707,9 +636,6 @@ class HandlerStarter {
       return false;
     }
 
-#if BUILDFLAG(IS_COBALT)
-    LOG(INFO) << "Launching standard handler for client.";
-#endif
     return GetCrashpadClient().StartHandlerForClient(
         handler_path, database_path, metrics_path, url, process_annotations,
         arguments, fd);

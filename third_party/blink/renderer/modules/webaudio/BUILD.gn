@@ -204,11 +204,4 @@ blink_modules_sources("webaudio") {
     "//third_party/blink/renderer/modules/webrtc",
     "//third_party/fdlibm",
   ]
-
-  if (!use_webrtc_peer_connection) {
-    deps -= [
-      "//third_party/blink/renderer/modules/peerconnection",
-      "//third_party/blink/renderer/modules/webrtc",
-    ]
-  }
 }

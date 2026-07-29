@@ -601,19 +601,17 @@ void TestRenderFrameHost::SimulateCommitProcessed(
       same_document);
 }
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
+#if !BUILDFLAG(IS_ANDROID)
 void TestRenderFrameHost::CreateHidServiceForTesting(
     mojo::PendingReceiver<blink::mojom::HidService> receiver) {
   RenderFrameHostImpl::GetHidService(std::move(receiver));
 }
-#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
+#endif  // !BUILDFLAG(IS_ANDROID)
 
-#if !BUILDFLAG(IS_COBALT)
 void TestRenderFrameHost::CreateWebUsbServiceForTesting(
     mojo::PendingReceiver<blink::mojom::WebUsbService> receiver) {
   RenderFrameHostImpl::CreateWebUsbService(std::move(receiver));
 }
-#endif
 
 void TestRenderFrameHost::ResetLocalFrame() {
   local_frame_.reset();
