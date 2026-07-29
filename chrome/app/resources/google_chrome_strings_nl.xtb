@@ -172,6 +172,7 @@ Sommige functies zijn wellicht niet beschikbaar en wijzigingen in voorkeuren wor
 <translation id="3003694935412297923">Alle taken</translation>
 <translation id="3018957014024118866">Ook gegevens verwijderen uit Chrome (<ph name="URL" />)</translation>
 <translation id="3019382870990049182">Herstarten om &amp;Chrome OS Flex te updaten</translation>
+<translation id="3037517125981011456">Toont prompts om in te loggen bij Chrome</translation>
 <translation id="3037838751736561277">Google Chrome bevindt zich in de achtergrondmodus.</translation>
 <translation id="3038232873781883849">Wachten op installatie...</translation>
 <translation id="3045032126857188731">Vertaalde taal: <ph name="LANGUAGE" /></translation>
@@ -314,6 +315,7 @@ Sommige functies zijn wellicht niet beschikbaar en wijzigingen in voorkeuren wor
 <translation id="4747730611090640388">Chrome kan een schatting van je interesses maken.  Later kan een site die je bezoekt Chrome vragen om je interesses te bekijken zodat de advertenties die je ziet kunnen worden gepersonaliseerd.</translation>
 <translation id="475321580758063259">Update Chrome om de Chrome-gegevens in je Google-account <ph name="ACCOUNT_EMAIL" /> te blijven gebruiken</translation>
 <translation id="4754614261631455953">Google Chrome Canary (mDNS-In)</translation>
+<translation id="4756182432527369254">Versnelt sites met de V8-engine van Chrome, maar maakt Chrome iets minder goed bestand tegen aanvallen</translation>
 <translation id="479167709087336770">Hiervoor wordt dezelfde spellingcontrole gebruikt als voor Google Zoeken. Tekst die je in de browser typt, wordt naar Google gestuurd. Je kunt dit altijd wijzigen in de instellingen.</translation>
 <translation id="4793679854893018356">Meer informatie over hoe Chrome je beschermt</translation>
 <translation id="4828579605166583682">Google Chrome probeert bestaande wachtwoorden te vervangen. Typ je Windows-wachtwoord om dit toe te staan.</translation>
@@ -404,6 +406,7 @@ Sommige functies zijn wellicht niet beschikbaar. Geef een andere profieldirector
 <translation id="5980111191913430208">Extensies, apps en thema's van onbekende bronnen kunnen schadelijk zijn voor je apparaat. Chrome raadt je aan ze alleen te installeren vanuit de <ph name="IDS_EXTENSION_WEB_STORE_TITLE" />.</translation>
 <translation id="6003112304606738118">Downloaden... Nog <ph name="HOURS" /> uur</translation>
 <translation id="6008161919456049856">De wachtwoorden, betaalmethoden en adressen die je hebt opgeslagen in je Google-account, worden verwijderd van dit apparaat. Log opnieuw in om ze weer te gebruiken in Chrome.</translation>
+<translation id="6009821354356307391">Stel een follow-upvraag</translation>
 <translation id="6014316319780893079">Met <ph name="BEGIN_LINK" />tools van Chrome<ph name="END_LINK" /> kun je beveiligd browsen en de controle behouden</translation>
 <translation id="6022659036123304283">Personaliseer Chrome voor jou</translation>
 <translation id="6025087594896450715">Google Chrome wordt over <ph name="REMAINING_TIME" /> opnieuw opgestart</translation>
@@ -598,6 +601,7 @@ Sommige functies zijn wellicht niet beschikbaar. Geef een andere profieldirector
 <translation id="8342675569599923794">Dit bestand is gevaarlijk en is daarom door Chrome geblokkeerd.</translation>
 <translation id="8349094670477064572">Je kunt onder andere wachtwoorden in je Google-account opslaan en gebruiken als je bent ingelogd bij Chrome. <ph name="LEARN_MORE" /></translation>
 <translation id="8362914115861174987">Vertalen naar het</translation>
+<translation id="8366770919198174997">Vermindert de prestaties maar maakt Chrome beter bestand tegen aanvallen</translation>
 <translation id="8370517070665726704">Copyright <ph name="YEAR" /> Google LLC. Alle rechten voorbehouden.</translation>
 <translation id="8387459386171870978">Chrome blijven gebruiken</translation>
 <translation id="8394720698884623075">Checkt URL's aan de hand van een lijst met onveilige sites die is opgeslagen in Chrome</translation>
@@ -642,6 +646,7 @@ Sommige functies zijn wellicht niet beschikbaar. Geef een andere profieldirector
 <translation id="8843516219908676469">Chrome begrijpt formulieren beter en kan ze sneller automatisch voor je invullen</translation>
 <translation id="8851180723659088381">{NUM_EXTENSIONS,plural, =1{Chrome raadt je aan deze te verwijderen.}other{Chrome raadt je aan deze te verwijderen.}}</translation>
 <translation id="8862326446509486874">Je hebt geen rechten om op systeemniveau te installeren. Meld je aan als beheerder en voer het installatieprogramma opnieuw uit.</translation>
+<translation id="8865415417596392024">Chrome-gegevens in je account</translation>
 <translation id="8883862939660515976">Google Lens vragen over deze afbeelding</translation>
 <translation id="8914504000324227558">Chrome opnieuw starten</translation>
 <translation id="8922193594870374009">Als je een nummer vanaf <ph name="ORIGIN" /> naar je Android-telefoon wilt sturen, log je in bij Chrome op beide apparaten.</translation>

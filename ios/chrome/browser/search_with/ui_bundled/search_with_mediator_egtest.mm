@@ -179,16 +179,16 @@ std::unique_ptr<net::test_server::HttpResponse> StandardResponse(
 
 - (void)testSearchWithReaderMode {
   [self loadPage];
+
   // Open Reader Mode UI.
-  [ChromeEarlGreyUI openToolsMenu];
-  [ChromeEarlGreyUI
-      tapToolsMenuAction:grey_accessibilityID(kToolsMenuReaderMode)];
+  [ChromeEarlGrey showReaderMode];
+  GREYAssertTrue([ChromeEarlGrey waitUntilReaderModeWebStateIsReady],
+                 @"Reader mode content could not be loaded");
+
+  // Wait for Reader Mode UI to appear on-screen.
   [ChromeEarlGrey
       waitForSufficientlyVisibleElementWithMatcher:
           grey_accessibilityID(kReaderModeViewAccessibilityIdentifier)];
-  [ChromeEarlGrey
-      waitForSufficientlyVisibleElementWithMatcher:
-          grey_accessibilityID(kReaderModeChipViewAccessibilityIdentifier)];
 
   [ChromeEarlGreyUI triggerEditMenu:ElementToLongPressSelector()];
   id<GREYMatcher> matcher =

@@ -1507,6 +1507,7 @@ test("content_browsertests") {
     "../browser/file_system/file_system_url_loader_factory_browsertest.cc",
     "../browser/file_system/fileapi_browsertest.cc",
     "../browser/file_system_access/file_system_access_clipboard_browsertest.cc",
+    "../browser/file_system_access/file_system_access_directory_handle_impl_browsertest.cc",
     "../browser/file_system_access/file_system_access_drag_drop_browsertest.cc",
     "../browser/file_system_access/file_system_access_file_handle_impl_browsertest.cc",
     "../browser/file_system_access/file_system_access_file_modification_host_impl_browsertest.cc",
@@ -2708,7 +2709,7 @@ test("content_unittests") {
     "../browser/permissions/permission_util_unittest.cc",
     "../browser/picture_in_picture/picture_in_picture_service_impl_unittest.cc",
     "../browser/preloading/anchor_element_interaction_host_impl_unittest.cc",
-    "../browser/preloading/preconnect_manager_impl_unittest.cc",
+    "../browser/preloading/preconnect/preconnect_manager_impl_unittest.cc",
     "../browser/preloading/preconnector_unittest.cc",
     "../browser/preloading/prefetch/contamination_delay_navigation_throttle_unittest.cc",
     "../browser/preloading/prefetch/no_vary_search_helper_unittest.cc",
@@ -2725,7 +2726,6 @@ test("content_unittests") {
     "../browser/preloading/prefetch/prefetch_streaming_url_loader_unittest.cc",
     "../browser/preloading/prefetch/prefetch_type_unittest.cc",
     "../browser/preloading/prefetch/prefetch_url_loader_interceptor_unittest.cc",
-    "../browser/preloading/prefetch/proxy_lookup_client_impl_unittest.cc",
     "../browser/preloading/prefetcher_unittest.cc",
     "../browser/preloading/preloading_attempt_impl_unittest.cc",
     "../browser/preloading/preloading_config_unittest.cc",
@@ -2735,6 +2735,7 @@ test("content_unittests") {
     "../browser/preloading/prerender/prerender_host_unittest.cc",
     "../browser/preloading/prerender/prerender_metrics_unittest.cc",
     "../browser/preloading/prerenderer_impl_unittest.cc",
+    "../browser/preloading/proxy_lookup_client_impl_unittest.cc",
     "../browser/preloading/speculation_rules/speculation_host_impl_unittest.cc",
     "../browser/preloading/speculation_rules/speculation_rules_tags_unittest.cc",
     "../browser/presentation/presentation_service_impl_unittest.cc",
@@ -3380,6 +3381,7 @@ test("content_unittests") {
       "../browser/media/capture/frame_sink_video_capture_device_unittest.cc",
       "../browser/media/capture/web_contents_auto_scaler_unittest.cc",
       "../browser/media/capture/web_contents_frame_tracker_unittest.cc",
+      "../browser/renderer_host/media/sub_capture_target_id_web_contents_helper_unittest.cc",
     ]
 
     if (!is_android && !is_ios) {
@@ -3393,7 +3395,6 @@ test("content_unittests") {
         "../browser/media/capture/desktop_capture_device_unittest.cc",
         "../browser/media/captured_surface_controller_permission_manager_unittest.cc",
         "../browser/media/captured_surface_controller_unittest.cc",
-        "../browser/renderer_host/media/sub_capture_target_id_web_contents_helper_unittest.cc",
       ]
     }
   }

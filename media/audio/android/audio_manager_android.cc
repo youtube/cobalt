@@ -20,6 +20,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/to_string.h"
+#include "base/system/system_monitor.h"
 #include "media/audio/android/aaudio_bluetooth_output.h"
 #include "media/audio/android/aaudio_input.h"
 #include "media/audio/android/aaudio_output.h"
@@ -61,10 +62,14 @@ namespace media {
 namespace {
 
 // Maximum number of output streams that can be open simultaneously.
-const int kMaxOutputStreams = 10;
+constexpr int kMaxOutputStreams = 10;
 
-const int kDefaultInputBufferSize = 1024;
-const int kDefaultOutputBufferSize = 2048;
+constexpr int kDefaultInputBufferSize = 1024;
+constexpr int kDefaultOutputBufferSize = 2048;
+// Randomly picked up frame size which is close to return value on N4.
+// Return this value when getProperty(PROPERTY_OUTPUT_FRAMES_PER_BUFFER)
+// fails.
+constexpr int kDefaultLowLatencyOutputBufferSize = 256;
 
 class JniDelegateImpl : public AudioManagerAndroid::JniDelegate {
  public:
@@ -80,6 +85,11 @@ class JniDelegateImpl : public AudioManagerAndroid::JniDelegate {
     j_audio_manager_.Reset();
   }
 
+  void InitDeviceListener() override {
+    Java_AudioManagerAndroid_initDeviceListener(AttachCurrentThread(),
+                                                j_audio_manager_);
+  }
+
   std::vector<JniAudioDevice> GetDevices(bool inputs) override {
     ScopedJavaLocalRef<jobjectArray> j_devices =
         Java_AudioManagerAndroid_getDevices(AttachCurrentThread(),
@@ -90,7 +100,8 @@ class JniDelegateImpl : public AudioManagerAndroid::JniDelegate {
       devices.emplace_back(
           Java_AudioDevice_id(AttachCurrentThread(), j_device),
           Java_AudioDevice_name(AttachCurrentThread(), j_device),
-          Java_AudioDevice_type(AttachCurrentThread(), j_device));
+          Java_AudioDevice_type(AttachCurrentThread(), j_device),
+          Java_AudioDevice_sampleRates(AttachCurrentThread(), j_device));
     }
     return devices;
   }
@@ -110,7 +121,8 @@ class JniDelegateImpl : public AudioManagerAndroid::JniDelegate {
       devices.emplace_back(
           Java_AudioDevice_id(AttachCurrentThread(), j_device),
           Java_AudioDevice_name(AttachCurrentThread(), j_device),
-          Java_AudioDevice_type(AttachCurrentThread(), j_device));
+          Java_AudioDevice_type(AttachCurrentThread(), j_device),
+          Java_AudioDevice_sampleRates(AttachCurrentThread(), j_device));
     }
     return devices;
   }
@@ -273,26 +285,19 @@ void CombineBluetoothClassicDevices(
     return;
   }
 
-  a2dp_device->second.SetAssociatedScoDeviceId(sco_device->second.GetId());
   device_names->remove_if([sco_device](AudioDeviceName& name) {
     return AudioDeviceId::Parse(name.unique_id) == sco_device->second.GetId();
   });
+  a2dp_device->second.SetAssociatedScoDevice(
+      std::make_unique<AudioDevice>(std::move(sco_device->second)));
   devices.erase(sco_device);
 }
 
 bool UseAAudioOutput() {
-  if (!__builtin_available(android AAUDIO_MIN_API, *)) {
-    return false;
-  }
-
   return base::FeatureList::IsEnabled(features::kUseAAudioDriver);
 }
 
 bool UseAAudioInput() {
-  if (!__builtin_available(android AAUDIO_MIN_API, *)) {
-    return false;
-  }
-
   if (!base::FeatureList::IsEnabled(features::kUseAAudioInput)) {
     return false;
   }
@@ -318,6 +323,16 @@ bool UseAAudioPerStreamDeviceSelection() {
 
 }  // namespace
 
+// Called by the Java AudioManagerAndroid on the main thread when the system
+// reports a change to the list of available audio devices.
+void JNI_AudioManagerAndroid_OnDevicesChanged(JNIEnv* env) {
+  auto* system_monitor = base::SystemMonitor::Get();
+  if (system_monitor) {
+    // Asynchronous call
+    system_monitor->ProcessDevicesChanged(base::SystemMonitor::DEVTYPE_AUDIO);
+  }
+}
+
 std::unique_ptr<AudioManager> CreateAudioManager(
     std::unique_ptr<AudioThread> audio_thread,
     AudioLogFactory* audio_log_factory) {
@@ -327,10 +342,12 @@ std::unique_ptr<AudioManager> CreateAudioManager(
 
 JniAudioDevice::JniAudioDevice(int id,
                                std::optional<std::string> name,
-                               int type) {
+                               int type,
+                               std::vector<int> sample_rates) {
   this->id = id;
   this->name = std::move(name);
   this->type = type;
+  this->sample_rates = sample_rates;
 }
 
 JniAudioDevice::JniAudioDevice(const JniAudioDevice&) = default;
@@ -471,6 +488,10 @@ void AudioManagerAndroid::GetDeviceNames(AudioDeviceNames* device_names,
       device_type = AudioDeviceType::kUnknown;
     }
 
+    // For both `JniAudioDevice`s and non-default `AudioDevice`s, an empty
+    // vector of sample rates means arbitrary sample rates are supported.
+    std::vector<int> sample_rates = std::move(j_device.sample_rates);
+
     std::string device_name = j_device.name.value_or(
         GetFallbackDeviceNameForType(device_type.value()));
     std::string device_id_string =
@@ -478,7 +499,8 @@ void AudioManagerAndroid::GetDeviceNames(AudioDeviceNames* device_names,
     device_names->emplace_back(std::move(device_name),
                                std::move(device_id_string));
 
-    AudioDevice device(device_id.value(), device_type.value());
+    AudioDevice device(device_id.value(), device_type.value(),
+                       std::move(sample_rates));
     devices.emplace_back(std::move(device_id).value(), std::move(device));
   }
 
@@ -529,6 +551,8 @@ void AudioManagerAndroid::GetCommunicationDeviceNames(
 
 const AudioManagerAndroid::DeviceCache& AudioManagerAndroid::GetDeviceCache(
     AudioDeviceDirection direction) const {
+  DCHECK(GetTaskRunner()->BelongsToCurrentThread());
+
   switch (direction) {
     case AudioDeviceDirection::kInput:
       return input_device_cache_;
@@ -567,7 +591,16 @@ AudioParameters AudioManagerAndroid::GetInputStreamParameters(
   // Galaxy S3 and S4 devices. See http://crbug.com/256851 for details.
   const ChannelLayoutConfig channel_layout_config = ChannelLayoutConfig::Mono();
 
-  const int sample_rate = GetJniDelegate().GetNativeOutputSampleRate();
+  int sample_rate;
+  if (UseAAudioPerStreamDeviceSelection()) {
+    AudioDevice device =
+        GetDeviceForAAudioStream(device_id, AudioDeviceDirection::kInput)
+            .value_or(AudioDevice::Default());
+    sample_rate =
+        SelectSampleRate(device, /*preferred_sample_rate=*/std::nullopt);
+  } else {
+    sample_rate = GetJniDelegate().GetNativeOutputSampleRate();
+  }
 
   int buffer_size = GetJniDelegate().GetMinInputFrameSize(
       sample_rate, channel_layout_config.channels());
@@ -636,9 +669,7 @@ void AudioManagerAndroid::ReleaseOutputStream(AudioOutputStream* stream) {
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
 
   output_streams_.erase(static_cast<MuteableAudioOutputStream*>(stream));
-  if (__builtin_available(android AAUDIO_MIN_API, *)) {
-    bluetooth_output_streams_.erase(stream);
-  }
+  bluetooth_output_streams_.erase(stream);
 
   AudioManagerBase::ReleaseOutputStream(stream);
 }
@@ -661,15 +692,14 @@ AudioOutputStream* AudioManagerAndroid::MakeLinearOutputStream(
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LINEAR, params.format());
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
 
-  if (__builtin_available(android AAUDIO_MIN_API, *)) {
-    if (UseAAudioOutput()) {
-      return new AAudioOutputStream(
-          this, params, AudioDevice::Default(), AAUDIO_USAGE_MEDIA,
-          base::BindRepeating(&AudioManager::TraceAmplitudePeak,
-                              base::Unretained(this),
-                              /*trace_start=*/false));
-    }
+  if (UseAAudioOutput()) {
+    return new AAudioOutputStream(
+        this, params, AudioDevice::Default(), AAUDIO_USAGE_MEDIA,
+        base::BindRepeating(&AudioManager::TraceAmplitudePeak,
+                            base::Unretained(this),
+                            /*trace_start=*/false));
   }
+
 #if BUILDFLAG(USE_OPENSLES)
   return new OpenSLESOutputStream(this, params, SL_ANDROID_STREAM_MEDIA);
 #else
@@ -683,44 +713,42 @@ AudioOutputStream* AudioManagerAndroid::MakeLowLatencyOutputStream(
     const LogCallback& log_callback) {
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format());
 
-  if (__builtin_available(android AAUDIO_MIN_API, *)) {
-    if (UseAAudioOutput()) {
-      DLOG_IF(WARNING, !UseAAudioPerStreamDeviceSelection() &&
-                           !AudioDeviceDescription::IsDefaultDevice(device_id))
-          << "Non-default output device requested for output communication "
-             "stream.";
+  if (UseAAudioOutput()) {
+    DLOG_IF(WARNING, !UseAAudioPerStreamDeviceSelection() &&
+                         !AudioDeviceDescription::IsDefaultDevice(device_id))
+        << "Non-default output device requested for output communication "
+           "stream.";
 
-      std::optional<AudioDevice> device =
-          GetDeviceForAAudioStream(device_id, AudioDeviceDirection::kOutput);
-      if (!device.has_value()) {
-        return nullptr;
-      }
-
-      const aaudio_usage_t usage = communication_mode_is_on_
-                                       ? AAUDIO_USAGE_VOICE_COMMUNICATION
-                                       : AAUDIO_USAGE_MEDIA;
-
-      auto peak_detected_cb = base::BindRepeating(
-          &AudioManager::TraceAmplitudePeak, base::Unretained(this),
-          /*trace_start=*/false);
-      if (device->GetAssociatedScoDevice().has_value()) {
-        // Use a specialized stream implementation to handle "combined" A2DP/SCO
-        // devices.
-
-        // TODO(crbug.com/405955144): Set `use_sco_device` based on the SCO
-        // state as reported by the system in order to handle SCO management by
-        // other apps.
-        auto* stream = new AAudioBluetoothOutputStream(
-            *this, params, std::move(device).value(),
-            /*use_sco_device=*/!input_streams_requiring_sco_.empty(), usage,
-            peak_detected_cb);
-        bluetooth_output_streams_.insert(stream);
-        return stream;
-      }
-
-      return new AAudioOutputStream(this, params, std::move(device).value(),
-                                    usage, peak_detected_cb);
+    std::optional<AudioDevice> device =
+        GetDeviceForAAudioStream(device_id, AudioDeviceDirection::kOutput);
+    if (!device.has_value()) {
+      return nullptr;
     }
+
+    const aaudio_usage_t usage = communication_mode_is_on_
+                                     ? AAUDIO_USAGE_VOICE_COMMUNICATION
+                                     : AAUDIO_USAGE_MEDIA;
+
+    auto peak_detected_cb = base::BindRepeating(
+        &AudioManager::TraceAmplitudePeak, base::Unretained(this),
+        /*trace_start=*/false);
+    if (device->GetAssociatedScoDevice().has_value()) {
+      // Use a specialized stream implementation to handle "combined" A2DP/SCO
+      // devices.
+
+      // TODO(crbug.com/405955144): Set `use_sco_device` based on the SCO state
+      // as reported by the system in order to handle SCO management by other
+      // apps.
+      auto* stream = new AAudioBluetoothOutputStream(
+          *this, params, std::move(device).value(),
+          /*use_sco_device=*/!input_streams_requiring_sco_.empty(), usage,
+          peak_detected_cb);
+      bluetooth_output_streams_.insert(stream);
+      return stream;
+    }
+
+    return new AAudioOutputStream(this, params, std::move(device).value(),
+                                  usage, peak_detected_cb);
   }
 
   // Set stream type which matches the current system-wide audio mode used by
@@ -750,15 +778,13 @@ AudioInputStream* AudioManagerAndroid::MakeLinearInputStream(
     const LogCallback& log_callback) {
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LINEAR, params.format());
 
-  if (__builtin_available(android AAUDIO_MIN_API, *)) {
-    if (UseAAudioInput()) {
-      std::optional<AudioDevice> device =
-          GetDeviceForAAudioStream(device_id, AudioDeviceDirection::kInput);
-      if (!device.has_value()) {
-        return nullptr;
-      }
-      return new AAudioInputStream(this, params, std::move(device).value());
+  if (UseAAudioInput()) {
+    std::optional<AudioDevice> device =
+        GetDeviceForAAudioStream(device_id, AudioDeviceDirection::kInput);
+    if (!device.has_value()) {
+      return nullptr;
     }
+    return new AAudioInputStream(this, params, std::move(device).value());
   }
 
 #if BUILDFLAG(USE_OPENSLES)
@@ -790,15 +816,13 @@ AudioInputStream* AudioManagerAndroid::MakeLowLatencyInputStream(
     }
   }
 
-  if (__builtin_available(android AAUDIO_MIN_API, *)) {
-    if (UseAAudioInput()) {
-      std::optional<AudioDevice> device =
-          GetDeviceForAAudioStream(device_id, AudioDeviceDirection::kInput);
-      if (!device.has_value()) {
-        return nullptr;
-      }
-      return new AAudioInputStream(this, params, std::move(device).value());
+  if (UseAAudioInput()) {
+    std::optional<AudioDevice> device =
+        GetDeviceForAAudioStream(device_id, AudioDeviceDirection::kInput);
+    if (!device.has_value()) {
+      return nullptr;
     }
+    return new AAudioInputStream(this, params, std::move(device).value());
   }
 
   // Create a new audio input stream and enable or disable all audio effects
@@ -863,8 +887,7 @@ void AudioManagerAndroid::OnStopAAudioInputStream(AAudioInputStream* stream) {
   }
 }
 
-void AudioManagerAndroid::SetMute(JNIEnv* env,
-                                  jboolean muted) {
+void AudioManagerAndroid::SetMute(JNIEnv* env, jboolean muted) {
   GetTaskRunner()->PostTask(
       FROM_HERE, base::BindOnce(&AudioManagerAndroid::DoSetMuteOnAudioThread,
                                 base::Unretained(this), muted));
@@ -893,17 +916,40 @@ AudioParameters AudioManagerAndroid::GetPreferredOutputStreamParameters(
     const AudioParameters& input_params) {
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
 
-  // TODO(crbug.com/417397476): Support non-default devices.
-  DLOG_IF(ERROR, !output_device_id.empty()) << "Not implemented!";
+  bool input_params_are_valid = input_params.IsValid();
+  std::optional<int> input_sample_rate =
+      input_params_are_valid ? std::optional<int>(input_params.sample_rate())
+                             : std::nullopt;
 
   ChannelLayoutConfig channel_layout_config = ChannelLayoutConfig::Stereo();
-  int sample_rate = GetJniDelegate().GetNativeOutputSampleRate();
+
+  int sample_rate;
+  if (UseAAudioPerStreamDeviceSelection()) {
+    AudioDevice device = GetDeviceForAAudioStream(output_device_id,
+                                                  AudioDeviceDirection::kOutput)
+                             .value_or(AudioDevice::Default());
+
+    // Use the device's associated SCO device when applicable
+    bool sco_enabled = !input_streams_requiring_sco_.empty();
+    if (sco_enabled) {
+      std::optional<AudioDevice> associated_sco_device =
+          device.GetAssociatedScoDevice();
+      if (associated_sco_device.has_value()) {
+        device = associated_sco_device.value();
+      }
+    }
+
+    sample_rate =
+        SelectSampleRate(device, /*preferred_sample_rate=*/input_sample_rate);
+  } else {
+    sample_rate = input_sample_rate.value_or(
+        GetJniDelegate().GetNativeOutputSampleRate());
+  }
+
   int buffer_size = GetOptimalOutputFrameSize(sample_rate, 2);
 
   // Use the client's input parameters if they are valid.
-  if (input_params.IsValid()) {
-    sample_rate = input_params.sample_rate();
-
+  if (input_params_are_valid) {
     // AudioManager APIs for GetOptimalOutputFrameSize() don't support channel
     // layouts greater than stereo unless low latency audio is supported.
     if (input_params.channels() <= 2 ||
@@ -959,16 +1005,74 @@ AudioManagerAndroid::JniDelegate& AudioManagerAndroid::GetJniDelegate() {
     // Create the JNI delegate on the audio thread; prepare the list of audio
     // devices and register receivers for device notifications.
     jni_delegate_ = std::make_unique<JniDelegateImpl>(this);
+
+    // This feature is checked for on the native side in order to avoid build
+    // dependency conflicts when using the Java ChromeFeatureList.
+    if (base::FeatureList::IsEnabled(features::kAndroidAudioDeviceListener)) {
+      jni_delegate_->InitDeviceListener();
+    }
   }
   return *jni_delegate_;
 }
 
-int AudioManagerAndroid::GetOptimalOutputFrameSize(int sample_rate,
-                                                   int channels) {
-  if (GetJniDelegate().IsAudioLowLatencySupported()) {
-    return GetJniDelegate().GetAudioLowLatencyOutputFrameSize();
+int AudioManagerAndroid::SelectSampleRate(
+    const AudioDevice& device,
+    std::optional<int> preferred_sample_rate) {
+  const std::optional<std::vector<int>>& supported_sample_rates =
+      device.GetSampleRates();
+
+  if (!supported_sample_rates.has_value()) {
+    // The set of supported sample rates is unknown.
+    //
+    // For the specific case where supported sample rates are unknown and there
+    // is no preferred sample rate, the OS provides a system-wide "native"
+    // sample rate which can be used as a default.
+    return preferred_sample_rate.value_or(
+        GetJniDelegate().GetNativeOutputSampleRate());
   }
 
+  constexpr int kDefaultTargetSampleRate = 48000;
+  int target_sample_rate =
+      preferred_sample_rate.value_or(kDefaultTargetSampleRate);
+
+  if (supported_sample_rates->empty()) {
+    // Arbitrary sample rates are supported, including the target sample rate.
+    return target_sample_rate;
+  }
+
+  // Select one of the supported sample rates using absolute difference from the
+  // target sample rate as a rough heuristic.
+  return std::ranges::min(supported_sample_rates.value(),
+                          /*comp=*/{},
+                          /*proj=*/[target_sample_rate](int sample_rate) {
+                            return abs(sample_rate - target_sample_rate);
+                          });
+}
+
+int AudioManagerAndroid::GetOptimalOutputFrameSize(int sample_rate,
+                                                   int channels) {
+  if (base::FeatureList::IsEnabled(
+          features::kAlwaysUseAudioManagerOutputFramesPerBuffer)) {
+    int buffer_size = GetJniDelegate().GetAudioLowLatencyOutputFrameSize();
+    // Use AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER value if Android
+    // supports it.
+    if (buffer_size) {
+      return buffer_size;
+    }
+    // Use small buffer size for low latency audio devices as a fallback.
+    if (GetJniDelegate().IsAudioLowLatencySupported()) {
+      return kDefaultLowLatencyOutputBufferSize;
+    }
+  } else if (GetJniDelegate().IsAudioLowLatencySupported()) {
+    int buffer_size = GetJniDelegate().GetAudioLowLatencyOutputFrameSize();
+    if (buffer_size == 0) {
+      buffer_size = kDefaultLowLatencyOutputBufferSize;
+    }
+    return buffer_size;
+  }
+
+  // Use 2048 frames or bigger buffer size for non-low latency audio devices to
+  // be conservative.
   return std::max(
       kDefaultOutputBufferSize,
       GetJniDelegate().GetMinOutputFrameSize(sample_rate, channels));

@@ -401,6 +401,9 @@
            =1 {{count} option for address available above your keyboard.}
            other {{count} options for address available above your keyboard.}}
       </message>
+      <message name="IDS_IOS_AUTOFILL_ADD_CREDIT_CARD_OPEN_CAMERA_BUTTON_LABEL" desc="The text shown on a button to open the camera scanner to scan a credit card and extract the card number and expiry date, when adding a new credit card to Chrome Autofill [iOS only]">
+        Use Camera
+      </message>
       <message name="IDS_IOS_AUTOFILL_ADMIN_LEVEL2" desc="Title of the field of a profile address representing the administrative area level 2. A sub-division of a state, e.g. a Municipio in Brazil or Mexico. [Length: 15em] [iOS only]">
         Municipality
       </message>
@@ -433,6 +436,9 @@
       <message name="IDS_IOS_AUTOFILL_CREDIT_CARD_AUTOFILL_DATA" desc="The accessible name for the button in the keyboard accessory shown when filling out forms used to open the expanded view to see credit card autofill data. This is spoken by VoiceOver. [Length: unlimited] [iOS only]">
         Payment methods
       </message>
+      <message name="IDS_IOS_AUTOFILL_CVC" desc="The placeholder text for credit card security code in the payments card unmask dialog. [iOS only]">
+        Security code
+      </message>
       <message name="IDS_IOS_AUTOFILL_DEPENDENT_LOCALITY" desc="Title of the field of a profile address representing the neighborhood. A dependent locality is a subunit of a locality, where a 'locality' is roughly equivalent to a city. Examples of dependent localities include inner-city districts and suburbs. Only used in certain countries, like Brazil and Mexico, for example. [Length: 15em] [iOS only]">
         Neighborhood
       </message>
@@ -441,6 +447,9 @@
       </message>
       <message name="IDS_IOS_AUTOFILL_DIALOG_PLACEHOLDER_CARD_NUMBER" desc="The placeholder text for credit card number in the payments card unmask dialog. [iOS only]">
           Number
+      </message>
+      <message name="IDS_IOS_AUTOFILL_DIALOG_PLACEHOLDER_CVC_OPTIONAL" desc="The placeholder text for credit card CVC in the payment settings page. [iOS only]">
+        Optional
       </message>
       <message name="IDS_IOS_AUTOFILL_DIALOG_PLACEHOLDER_EXPIRATION_YEAR" desc="The placeholder text for credit card expiration year in the payments card unmask dialog. [iOS only]">
           YYYY
@@ -517,6 +526,9 @@
       </message>
       <message name="IDS_IOS_AUTOFILL_SAVE_ELLIPSIS" desc="Title for the button that presents the View for Saving a credit card. The ellipsis indicate that a following action (the presentation) will take place. [Length: 10em] [iOS only]">
         Save…
+      </message>
+      <message name="IDS_IOS_AUTOFILL_SECURITY_CODE" desc="Title of the field representing the CVC of a credit card. [Length: 4em] [iOS only]">
+        Security code
       </message>
       <message name="IDS_IOS_AUTOFILL_SELECT_COUNTRY" desc="Title for the edit view of country selection when saving a new address profile. [Length: 20em] [iOS only]">
         Country
@@ -4245,6 +4257,9 @@ While in Incognito, sites can't use cookies to see your browsing activity across
       <message name="IDS_IOS_OVERSCROLL_RELOAD_LABEL" desc="The text to use for the tooltip for the overscroll reload action. [Length: 20em] [iOS only]">
         Reload
       </message>
+      <message name="IDS_IOS_PAGE_ACTION_MENU_TITLE" desc="The title of the page action menu.">
+        Page tools
+      </message>
       <message name="IDS_IOS_PAGE_INFO_ABOUT_THIS_PAGE" desc="Title of the button opening the About This Page (in page info)">
         About this page
       </message>
@@ -5413,25 +5428,25 @@ While in Incognito, sites can't use cookies to see your browsing activity across
       <message name="IDS_IOS_SAFARI_IMPORT_ENTRY_POINT_TITLE" desc="Safari import entry point screen - Title.">
         Bring your data from Safari
       </message>
-      <message name="IDS_IOS_SAFARI_IMPORT_EXPORT_ANIMATED_INSTRUCTION_PAGE_1_TITLE" desc="Title of the 1st screen displayed by the Lottie animation educating user on the Safari data export process. [iOS only]" meaning="Needs to exactly match the title displayed when the user goes to '(iOS) Settings -> Apps'">
+      <message name="IDS_IOS_SAFARI_IMPORT_EXPORT_ANIMATED_INSTRUCTION_PAGE_1_TITLE" desc="Title of the 1st screen displayed by the Lottie animation educating user on the Safari data export process. [iOS only]" meaning="Needs to exactly match the title displayed when the user goes to '(iOS) Settings -&gt; Apps'">
         Apps
       </message>
-      <message name="IDS_IOS_SAFARI_IMPORT_EXPORT_ANIMATED_INSTRUCTION_PAGE_2_ITEM_CLEAR_DATA" desc="An option in the 2nd screen displayed by the Lottie animation educating user Safari data export process. [iOS only]" meaning="Needs to exactly match the respective item displayed when the user goes to '(iOS) Settings -> Apps -> Safari' and scrolls down to 'History and Website Data'">
+      <message name="IDS_IOS_SAFARI_IMPORT_EXPORT_ANIMATED_INSTRUCTION_PAGE_2_ITEM_CLEAR_DATA" desc="An option in the 2nd screen displayed by the Lottie animation educating user Safari data export process. [iOS only]" meaning="Needs to exactly match the respective item displayed when the user goes to '(iOS) Settings -&gt; Apps -&gt; Safari' and scrolls down to 'History and Website Data'">
         Clear History and Website Data
       </message>
-      <message name="IDS_IOS_SAFARI_IMPORT_EXPORT_ANIMATED_INSTRUCTION_PAGE_2_ITEM_EXPORT" desc="An option in the 2nd screen displayed by the Lottie animation educating user Safari data export process. [iOS only]" meaning="Needs to exactly match the respective item displayed when the user goes to '(iOS) Settings -> Apps -> Safari' and scrolls down to 'History and Website Data'">
+      <message name="IDS_IOS_SAFARI_IMPORT_EXPORT_ANIMATED_INSTRUCTION_PAGE_2_ITEM_EXPORT" desc="An option in the 2nd screen displayed by the Lottie animation educating user Safari data export process. [iOS only]" meaning="Needs to exactly match the respective item displayed when the user goes to '(iOS) Settings -&gt; Apps -&gt; Safari' and scrolls down to 'History and Website Data'">
         Export
       </message>
-      <message name="IDS_IOS_SAFARI_IMPORT_EXPORT_ANIMATED_INSTRUCTION_PAGE_2_ITEM_IMPORT" desc="An option in the 2nd screen displayed by the Lottie animation educating user Safari data export process. [iOS only]" meaning="Needs to exactly match the respective item displayed when the user goes to '(iOS) Settings -> Apps -> Safari' and scrolls down to 'History and Website Data'">
+      <message name="IDS_IOS_SAFARI_IMPORT_EXPORT_ANIMATED_INSTRUCTION_PAGE_2_ITEM_IMPORT" desc="An option in the 2nd screen displayed by the Lottie animation educating user Safari data export process. [iOS only]" meaning="Needs to exactly match the respective item displayed when the user goes to '(iOS) Settings -&gt; Apps -&gt; Safari' and scrolls down to 'History and Website Data'">
         Import
       </message>
-      <message name="IDS_IOS_SAFARI_IMPORT_EXPORT_ANIMATED_INSTRUCTION_PAGE_3_BUTTON" desc="An option in the 3rd screen displayed by the Lottie animation educating user Safari data export process. [iOS only]" meaning="Needs to exactly match the bottom button displayed when the user goes to '(iOS) Settings -> Apps -> Safari -> Export'">
+      <message name="IDS_IOS_SAFARI_IMPORT_EXPORT_ANIMATED_INSTRUCTION_PAGE_3_BUTTON" desc="An option in the 3rd screen displayed by the Lottie animation educating user Safari data export process. [iOS only]" meaning="Needs to exactly match the bottom button displayed when the user goes to '(iOS) Settings -&gt; Apps -&gt; Safari -&gt; Export'">
         Save to Downloads
       </message>
-      <message name="IDS_IOS_SAFARI_IMPORT_EXPORT_ANIMATED_INSTRUCTION_PAGE_3_TITLE" desc="An option in the 3rd screen displayed by the Lottie animation educating user Safari data export process. [iOS only]" meaning="Needs to exactly match the title displayed when the user goes to '(iOS) Settings -> Apps -> Safari -> Export'">
+      <message name="IDS_IOS_SAFARI_IMPORT_EXPORT_ANIMATED_INSTRUCTION_PAGE_3_TITLE" desc="An option in the 3rd screen displayed by the Lottie animation educating user Safari data export process. [iOS only]" meaning="Needs to exactly match the title displayed when the user goes to '(iOS) Settings -&gt; Apps -&gt; Safari -&gt; Export'">
         Export Browsing Data
       </message>
-      <message name="IDS_IOS_SAFARI_IMPORT_EXPORT_ANIMATED_INSTRUCTION_PAGE_4_TITLE" desc="An option in the 3rd screen displayed by the Lottie animation educating user Safari data export process. [iOS only]" meaning="Needs to exactly match the title displayed when the user goes to '(iOS) Settings -> Apps -> Safari -> Export -> Save to Downloads'">
+      <message name="IDS_IOS_SAFARI_IMPORT_EXPORT_ANIMATED_INSTRUCTION_PAGE_4_TITLE" desc="An option in the 3rd screen displayed by the Lottie animation educating user Safari data export process. [iOS only]" meaning="Needs to exactly match the title displayed when the user goes to '(iOS) Settings -&gt; Apps -&gt; Safari -&gt; Export -&gt; Save to Downloads'">
         Export Successful
       </message>
       <message name="IDS_IOS_SAFARI_IMPORT_EXPORT_BUTTON_CONTINUE" desc="Safari import export education screen - Button text to let the user indicate that Safari data has been exported, and can continue the import process. [iOS only]">
@@ -5464,11 +5479,17 @@ While in Incognito, sites can't use cookies to see your browsing activity across
       <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_FAILURE_MESSAGE_DESCRIPTION" desc="Description in the alert message informing the user that the currently selected file could not be imported to Chrome. [iOS only]">
         This file can't be imported
       </message>
-      <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_FAILURE_MESSAGE_OK_BUTTON" desc="Button at the bottom of the alert message to dismiss it. The alert informs the user that the currently selected file could not be imported to Chrome. [iOS only]">
-        OK
-      </message>
       <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_FAILURE_MESSAGE_TITLE" desc="Title of the alert message informing the user that the currently selected file could not be imported to Chrome. [iOS only]">
         Something went wrong
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_FILE_DELETION_ALERT_ACTION_DELETE" desc="Button in the alert message that deletes the imported ZIP file for the user. [iOS only]">
+        Yes, delete
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_FILE_DELETION_ALERT_DESCRIPTION" desc="Description in the alert message offering to delete the imported ZIP file for the user. [iOS only]">
+        This action can't be undone
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_FILE_DELETION_ALERT_TITLE" desc="Title of the alert message offering to delete the imported ZIP file for the user. [iOS only]">
+        Delete "<ph name="FILENAME">$1<ex>Safari Export 1970-01-01.zip</ex></ph>"?
       </message>
       <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_INSTRUCTIONS_ONE" desc="Instructions view to teach users how to import data from Safari - step 1. [iOS only]">
         Tap <ph name="BEGIN_BOLD">BEGIN_BOLD</ph>Select your file<ph name="END_BOLD">END_BOLD</ph>
@@ -5514,8 +5535,8 @@ While in Incognito, sites can't use cookies to see your browsing activity across
       </message>
       <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_ITEM_TYPE_PENDING_DETAILED_TEXT_HISTORY" desc="The detailed text of the 'History' row displayed on Safari import screen displaying the number of history items that will be imported. [iOS only]">
         {count, plural,
-          =1 {{count} history item from Safari private and work profiles}
-          other {{count} history items from Safari private and work profiles}}
+          =1 {{count} history item}
+          other {{count} history items}}
       </message>
       <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_ITEM_TYPE_PENDING_DETAILED_TEXT_NO_DATA" desc="The detailed text of each row displayed on Safari import screen when there is no item of the type to be imported. [iOS only]">
         Nothing to import
@@ -5575,9 +5596,6 @@ While in Incognito, sites can't use cookies to see your browsing activity across
       </message>
       <message name="IDS_IOS_SAFARI_IMPORT_INVALID_PASSWORD_REASON_UNKNOWN" desc="Message is shown on the dialog for importing passwords if no passwords were imported and we don't know the cause of error. Probably error in the backend or in our systems.">
         Your password wasn't imported
-      </message>
-      <message name="IDS_IOS_SAFARI_IMPORT_PASSWORD_CONFLICT_RESOLUTION_BUTTON_CONTINUE" desc="Bar button to import selected passwords from Safari to override those on Google Password Manager. It shows up on the top-right (or top-left in RTL) of the modal that enables user to resolve conflict between existing Passwords in Google Password Manager and those imported from Safari. [iOS only]">
-        Continue
       </message>
       <message name="IDS_IOS_SAFARI_IMPORT_PASSWORD_CONFLICT_RESOLUTION_BUTTON_DESELECT_ALL" desc="Bar button to automatically deselect all passwords displayed on the screen . It shows up at the bottom of the modal that enables user to resolve conflict between existing Passwords in Google Password Manager and those imported from Safari. [iOS only]">
         Deselect all
@@ -5777,7 +5795,8 @@ While in Incognito, sites can't use cookies to see your browsing activity across
         Turn off
       </message>
       <message name="IDS_IOS_SAFE_BROWSING_NO_PROTECTION_CONFIRMATION_DIALOG_MESSAGE" desc="Message for Safe Browsing no protection confirmation dialog.">
-        Safe Browsing protects you against attackers who may trick you into doing something dangerous like installing malicious software or revealing personal information like passwords, phone numbers, or credit cards. If you turn it off, be careful when browsing unfamiliar or unreputable sites.        </message>
+        Safe Browsing protects you against attackers who may trick you into doing something dangerous like installing malicious software or revealing personal information like passwords, phone numbers, or credit cards. If you turn it off, be careful when browsing unfamiliar or unreputable sites.
+      </message>
       <message name="IDS_IOS_SAFE_BROWSING_NO_PROTECTION_CONFIRMATION_DIALOG_TITLE" desc="Title for Safe Browsing no protection confirmation dialog.">
         Turn off Safe Browsing?
       </message>

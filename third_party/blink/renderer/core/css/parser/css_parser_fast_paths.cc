@@ -1234,7 +1234,7 @@ bool CSSParserFastPaths::IsValidKeywordPropertyAndValue(
     case CSSPropertyID::kForcedColorAdjust:
       return value_id == CSSValueID::kNone || value_id == CSSValueID::kAuto ||
              value_id == CSSValueID::kPreserveParentColor;
-    case CSSPropertyID::kGapRulePaintOrder:
+    case CSSPropertyID::kGapRuleOverlap:
       return value_id == CSSValueID::kRowOverColumn ||
              value_id == CSSValueID::kColumnOverRow;
     case CSSPropertyID::kImageRendering:
@@ -1368,10 +1368,22 @@ bool CSSParserFastPaths::IsValidKeywordPropertyAndValue(
     case CSSPropertyID::kTableLayout:
       return value_id == CSSValueID::kAuto || value_id == CSSValueID::kFixed;
     case CSSPropertyID::kTextAlign:
+      if (RuntimeEnabledFeatures::CSSTextAlignMatchParentEnabled()) {
+        return (value_id >= CSSValueID::kWebkitAuto &&
+                value_id <= CSSValueID::kInternalCenter) ||
+               value_id == CSSValueID::kStart || value_id == CSSValueID::kEnd;
+      }
       return (value_id >= CSSValueID::kWebkitAuto &&
-              value_id <= CSSValueID::kInternalCenter) ||
+              value_id <= CSSValueID::kInternalCenter &&
+              value_id != CSSValueID::kMatchParent) ||
              value_id == CSSValueID::kStart || value_id == CSSValueID::kEnd;
     case CSSPropertyID::kTextAlignLast:
+      if (RuntimeEnabledFeatures::CSSTextAlignMatchParentEnabled()) {
+        return (value_id >= CSSValueID::kLeft &&
+                value_id <= CSSValueID::kMatchParent) ||
+               value_id == CSSValueID::kStart || value_id == CSSValueID::kEnd ||
+               value_id == CSSValueID::kAuto;
+      }
       return (value_id >= CSSValueID::kLeft &&
               value_id <= CSSValueID::kJustify) ||
              value_id == CSSValueID::kStart || value_id == CSSValueID::kEnd ||
@@ -1725,7 +1737,7 @@ CSSBitset CSSParserFastPaths::handled_by_keyword_fast_paths_properties_{{
     CSSPropertyID::kFloat,
     CSSPropertyID::kFieldSizing,
     CSSPropertyID::kForcedColorAdjust,
-    CSSPropertyID::kGapRulePaintOrder,
+    CSSPropertyID::kGapRuleOverlap,
     CSSPropertyID::kHyphens,
     CSSPropertyID::kImageRendering,
     CSSPropertyID::kInterpolateSize,

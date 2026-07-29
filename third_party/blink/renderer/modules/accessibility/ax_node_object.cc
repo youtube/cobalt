@@ -154,6 +154,7 @@
 #include "third_party/blink/renderer/core/navigation_api/navigation_api.h"
 #include "third_party/blink/renderer/core/page/focus_controller.h"
 #include "third_party/blink/renderer/core/page/page.h"
+#include "third_party/blink/renderer/core/style/computed_style_base_constants.h"
 #include "third_party/blink/renderer/core/style/computed_style_constants.h"
 #include "third_party/blink/renderer/core/svg/svg_a_element.h"
 #include "third_party/blink/renderer/core/svg/svg_desc_element.h"
@@ -3298,7 +3299,9 @@ AccessibilityExpanded AXNodeObject::IsExpanded() const {
       const AtomicString& action =
           button->FastGetAttribute(html_names::kCommandAttr);
       bool is_valid_popover_command = command_for->IsValidBuiltinPopoverCommand(
-          *button, HTMLButtonElement::GetCommandEventType(action));
+          *button,
+          HTMLButtonElement::GetCommandEventType(
+              action, command_for->GetDocument().GetExecutionContext()));
       bool is_child = button->IsDescendantOrShadowDescendantOf(command_for);
       // Buttons for popovers should indicate the expanded/collapsed state.
       if (is_valid_popover_command && !is_child) {
@@ -3988,6 +3991,10 @@ ax::mojom::blink::TextAlign AXNodeObject::GetTextAlign() const {
       return ax::mojom::blink::TextAlign::kCenter;
     case ETextAlign::kJustify:
       return ax::mojom::blink::TextAlign::kJustify;
+    case ETextAlign::kMatchParent:
+      return style->IsLeftToRightDirection()
+                 ? ax::mojom::blink::TextAlign::kLeft
+                 : ax::mojom::blink::TextAlign::kRight;
   }
 }
 
@@ -4934,7 +4941,14 @@ String AXNodeObject::GetName(ax::mojom::blink::NameFrom& name_from,
     // Prioritize alt text if available.
     std::optional<String> alt_text = GetCSSAltText(element);
     if (alt_text && !alt_text->empty()) {
+      name_from = ax::mojom::blink::NameFrom::kCssAltText;
       return *alt_text;
+    }
+
+    if (!name.empty()) {
+      // Scroll button has a non-empty name, so there is no need to use a
+      // fallback.
+      return name;
     }
 
     // If the alt text is not available, return a "Scroll [direction]" name,
@@ -4954,6 +4968,8 @@ String AXNodeObject::GetName(ax::mojom::blink::NameFrom& name_from,
         NOTREACHED()
             << "ScrollButtonPseudoElement must be one of known directions";
       }
+
+      name_from = ax::mojom::blink::NameFrom::kCssAltText;
 
       switch (physical) {
         case PhysicalDirection::kRight:
@@ -4976,11 +4992,13 @@ String AXNodeObject::GetName(ax::mojom::blink::NameFrom& name_from,
   if (element && element->IsScrollMarkerPseudoElement()) {
     std::optional<String> alt_text = GetCSSAltText(element);
     if (alt_text && !alt_text->empty()) {
+      name_from = ax::mojom::blink::NameFrom::kCssAltText;
       return *alt_text;
     }
 
     std::optional<String> content = GetCSSContentText(element);
     if (content && !content->empty()) {
+      name_from = ax::mojom::blink::NameFrom::kContents;
       return *content;
     }
 
@@ -5750,7 +5768,7 @@ void AXNodeObject::LoadInlineTextBoxes() {
       continue;
     }
 
-    if (CanHaveInlineTextBoxChildren(work_obj)) {
+    if (CanHaveInlineTextBoxChildren(work_obj) && HasLayoutText(work_obj)) {
       if (work_obj->CachedChildrenIncludingIgnored().empty()) {
         // We only need to add inline textbox children if they aren't present.
         // Although some platforms (e.g. Android), load inline text boxes

@@ -1849,7 +1849,7 @@ even if they fit the naming pattern. -->
 </histogram>
 
 <histogram name="Accessibility.ImageLabels.{Result}By{Dimension}"
-    units="pixels" expires_after="2025-11-30">
+    units="pixels" expires_after="2026-02-01">
   <owner>dtseng@chromium.org</owner>
   <owner>mschillaci@google.com</owner>
   <owner>chrome-a11y-core@google.com</owner>
@@ -2272,7 +2272,7 @@ even if they fit the naming pattern. -->
 </histogram>
 
 <histogram name="Accessibility.LiveTranslate.TranslationDispatcher.LoadResult"
-    enum="TranslationDispatcherLoadResult" expires_after="2025-10-11">
+    enum="TranslationDispatcherLoadResult" expires_after="2026-02-01">
   <owner>evanliu@google.com</owner>
   <owner>chrome-accessibility-eng@google.com</owner>
   <summary>
@@ -2282,7 +2282,7 @@ even if they fit the naming pattern. -->
 </histogram>
 
 <histogram name="Accessibility.LiveTranslate.TranslationDispatcher.ParseResult"
-    enum="TranslationDispatcherParseResult" expires_after="2025-10-11">
+    enum="TranslationDispatcherParseResult" expires_after="2026-02-01">
   <owner>evanliu@google.com</owner>
   <owner>chrome-accessibility-eng@google.com</owner>
   <summary>
@@ -3244,6 +3244,18 @@ even if they fit the naming pattern. -->
     <variant name="ConnectedCallback" summary="Deprecated 2025-03-19"/>
     <variant name="Constructor"/>
   </token>
+</histogram>
+
+<histogram name="Accessibility.ReadAnything.WordsSeen" units="count"
+    expires_after="2026-08-01">
+  <owner>ammedina@google.com</owner>
+  <owner>kristislee@google.com</owner>
+  <owner>komo-eng@google.com</owner>
+  <summary>
+    Records an estimate of how many words were seen in the Reading mode panel
+    before switching pages or closing Reading mode. Currently works only for
+    languages that separate words with whitespace.
+  </summary>
 </histogram>
 
 <histogram name="Accessibility.Reliability.Tree.UnserializeError"

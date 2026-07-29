@@ -172,6 +172,7 @@
 <translation id="3003694935412297923">ሁሉም ተግባሮች</translation>
 <translation id="3018957014024118866">እንዲሁም ከChrome (<ph name="URL" />) ውሂብ ይሰርዙ</translation>
 <translation id="3019382870990049182">&amp;ChromeOS Flexን ለማዘመን እንደገና ያስጀምሩ</translation>
+<translation id="3037517125981011456">ወደ Chrome ለመግባት ጥያቄዎችን ያሳያል</translation>
 <translation id="3037838751736561277">Google Chrome በጀርባ ሁኔታ ላይ ነው።</translation>
 <translation id="3038232873781883849">ለመጫን በመጠበቅ ላይ...</translation>
 <translation id="3045032126857188731">የተተረጎመው ቋንቋ፦ <ph name="LANGUAGE" /></translation>
@@ -315,6 +316,7 @@
 <translation id="4747730611090640388">Chrome የእርስዎን ዝንባሌዎች ሊገምት ይችላል።  በኋላ ላይ እርስዎ የሚጎበኙት ጣቢያ እርስዎ የሚያዩዋቸውን ማስታወቂያዎች ግላዊነት ለማላበስ Chrome ዝንባሌዎችዎን እንዲያይ ሊጠይቅ ይችላል።</translation>
 <translation id="475321580758063259">በእርስዎ Google መለያ <ph name="ACCOUNT_EMAIL" /> ውስጥ Chrome ውሂብን መጠቀም ለመቀጠል Chromeን ያዘምኑ</translation>
 <translation id="4754614261631455953">Google Chrome Canary (mDNS-In)</translation>
+<translation id="4756182432527369254">በChrome V8 ሞተር ጣቢያዎችን ያፋጥናል ነገር ግን የChromeን ጥቃቶችን የመቋቋም አቅም በመጠኑ ያነሰ ያደርገዋል</translation>
 <translation id="479167709087336770">ይህ በ Google ፍለጋ ውስጥ ጥቅም ላይ ጋር ተመሳሳይ የፊደል አራሚ ይጠቀማል። በአሳሽ ውስጥ የሚተይቡት ጽሁፍ ወደ Google ይላካል። ይህን ባህሪ ሁልጊዜ በቅንብሮች ውስጥ መለወጥ ይችላሉ።</translation>
 <translation id="4793679854893018356">Chrome እንዴት ደህንነትዎን እንደሚጠብቅ ይወቁ</translation>
 <translation id="4828579605166583682">Google Chrome ነባር ይለፍ ቃሎችን ለመተካት እየሞከረ ነው። ይህን ለመፍቀድ የWindows የይለፍ ቃልዎን ይተይቡ።</translation>
@@ -407,6 +409,7 @@ Google Chrome ቅንጅቶችዎን ማስመለስ አልቻለም።</translat
 <translation id="5980111191913430208">ካልታወቁ ምንጮች የመጡ ቅጥያዎች፣ መተግበሪያዎች እና ገጽታዎች መሣሪያዎን ሊጎዱ ይችላሉ። Chrome እነሱን ከ<ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> ብቻ መጫንን ይመክራል</translation>
 <translation id="6003112304606738118">በማውረድ ላይ... <ph name="HOURS" /> ሰዓት(ታት) ይቀራል(ሉ)</translation>
 <translation id="6008161919456049856">የእርስዎ የይለፍ ቃላቶች፣ የመክፈያ ዘዴዎች እና በGoogle መለያዎ ውስጥ ያስቀመጧቸው አድራሻዎች ከዚህ መሣሪያ ይወገዳሉ። እንደገና Chrome ውስጥ እነሱን ለመጠቀም መልሰው በመለያ ይግቡ።</translation>
+<translation id="6009821354356307391">ክትትል ይጠይቁ</translation>
 <translation id="6014316319780893079"><ph name="BEGIN_LINK" />ከChrome በመጡ መሣሪያዎች <ph name="END_LINK" /> ደህንነቱ በተጠበቀ መንገድ ማሰስ እና በቁጥጥር ውስጥ ሆነው መቆየት ይችላሉ</translation>
 <translation id="6022659036123304283">Chromeን የራስዎ ያድርጉት</translation>
 <translation id="6025087594896450715">Google Chrome በ<ph name="REMAINING_TIME" /> ውስጥ እንደገና ይጀምራል</translation>
@@ -601,6 +604,7 @@ Google Chrome ቅንጅቶችዎን ማስመለስ አልቻለም።</translat
 <translation id="8342675569599923794">ይህ ፋይል አደገኛ ስለሆነ Chrome አግዶታል።</translation>
 <translation id="8349094670477064572">ወደ Chrome በመለያ በሚገቡበት በማንኛውም ጊዜ በእርስዎ Google መለያ ውስጥ የይለፍ ቃላት እና ሌሎችንም እናስቀምጣለን እና እንጠቀማለን። <ph name="LEARN_MORE" /></translation>
 <translation id="8362914115861174987">ወደዚህ መተርጎም</translation>
+<translation id="8366770919198174997">አፈጻጸሙን ይቀንሳል ነገር ግን Chrome ጥቃቶችን ይበልጥ እንዲቋቋም ያደርገዋል</translation>
 <translation id="8370517070665726704">የቅጂ መብት <ph name="YEAR" /> Google LLC. ሁሉም መብቶች በህግ የተጠበቁ ናቸው።</translation>
 <translation id="8387459386171870978">Chromeን መጠቀምዎን ይቀጥሉ</translation>
 <translation id="8394720698884623075">በChrome ላይ የተከማቹ ድህንነታቸው ያልተጠበቁ ጣቢያዎች ዝርዝር ጋር ዩአርኤሎችን ይፈትሻል</translation>
@@ -645,6 +649,7 @@ Google Chrome ቅንጅቶችዎን ማስመለስ አልቻለም።</translat
 <translation id="8843516219908676469">Chrome ቅጾችን በተሻለ መልኩ ይረዳል እና እነሱን ይበልጥ በፍጥነት ራስ-ሙላ ሊያደርግልዎት ይችላል</translation>
 <translation id="8851180723659088381">{NUM_EXTENSIONS,plural, =1{Chrome እንዲያስወግዱት ይመክራል}one{Chrome እንዲያስወግዱት ይመክራል}other{Chrome እንዲያስወግዷቸው ያመክራል}}</translation>
 <translation id="8862326446509486874">ለስርዓተ-ደረጃ ጭነት ተገቢ መብቶች የሉዎትም። ጫኚውን እንደ አስተዳዳሪ በማሄድ እንደገና ይሞክሩ።</translation>
+<translation id="8865415417596392024">በመለያዎ ውስጥ የChrome ውሂብ</translation>
 <translation id="8883862939660515976">ስለዚህ ምስል Google ሌንስን ይጠይቁ</translation>
 <translation id="8914504000324227558">Chromeን ዳግም አስጀምር</translation>
 <translation id="8922193594870374009">አንድ ቁጥር ከ<ph name="ORIGIN" /> ወደ የእርስዎ Android ስልክ ለመላክ በሁለቱም መሣሪያዎች ላይ በመለያ ወደ Chrome ይግቡ።</translation>

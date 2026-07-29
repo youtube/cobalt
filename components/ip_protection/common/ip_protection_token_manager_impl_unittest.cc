@@ -25,7 +25,9 @@
 #include "components/ip_protection/common/ip_protection_token_fetcher.h"
 #include "components/ip_protection/common/ip_protection_token_manager.h"
 #include "net/base/features.h"
+#include "net/base/schemeful_site.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "url/gurl.h"
 
 namespace ip_protection {
 
@@ -59,6 +61,8 @@ constexpr char kProxyBTokenCountSpentHistogram[] =
     "NetworkService.IpProtection.ProxyB.TokenCount.Spent";
 constexpr char kProxyBTokenCountExpiredHistogram[] =
     "NetworkService.IpProtection.ProxyB.TokenCount.Expired";
+constexpr char kProxyATokenCountOrphanedHistogram[] =
+    "NetworkService.IpProtection.ProxyA.TokenCount.Orphaned";
 
 constexpr base::TimeDelta kTokenLimitExceededDelay = base::Minutes(10);
 constexpr base::TimeDelta kTokenRateMeasurementInterval = base::Minutes(5);
@@ -146,15 +150,14 @@ class MockIpProtectionCore : public IpProtectionCore {
   }
   bool IsIpProtectionEnabled() override { return true; }
   bool AreAuthTokensAvailable() override { return false; }
-  bool IsProbabilisticRevealTokenAvailable() override { NOTREACHED(); }
   bool WereTokenCachesEverFilled() override { return false; }
   std::optional<BlindSignedAuthToken> GetAuthToken(
       size_t chain_index) override {
     return std::nullopt;
   }
   std::optional<std::string> GetProbabilisticRevealToken(
-      const std::string& top_level,
-      const std::string& third_party) override {
+      const GURL& url,
+      const net::SchemefulSite& top_frame_site) override {
     NOTREACHED();
   }
   bool IsProxyListAvailable() override { return false; }
@@ -288,6 +291,38 @@ class IpProtectionTokenManagerImplTest : public testing::Test {
 
   base::HistogramTester histogram_tester_;
 };
+
+TEST_F(IpProtectionTokenManagerImplTest, DtorWithNoTokens) {
+  // No orphaned tokens should be logged if the cache is empty.
+  ipp_proxy_a_token_fetcher_ = nullptr;
+  ipp_proxy_a_token_manager_.reset();
+  histogram_tester_.ExpectTotalCount(kProxyATokenCountOrphanedHistogram, 0);
+}
+
+TEST_F(IpProtectionTokenManagerImplTest, DtorWithOrphanedTokens) {
+  // Add a token to the cache.
+  ipp_proxy_a_token_fetcher_->ExpectTryGetAuthTokensCall(
+      expected_batch_size_, TokenBatch(1, kFutureExpiration, kMountainViewGeo));
+  CallTryGetAuthTokensAndWait(ProxyLayer::kProxyA);
+
+  // Destroy the token manager and verify that the orphaned token is logged.
+  ipp_proxy_a_token_fetcher_ = nullptr;
+  ipp_proxy_a_token_manager_.reset();
+  histogram_tester_.ExpectUniqueSample(kProxyATokenCountOrphanedHistogram, 1,
+                                       1);
+}
+
+TEST_F(IpProtectionTokenManagerImplTest, DtorWithExpiredTokens) {
+  // Add an expired token to the cache.
+  ipp_proxy_a_token_fetcher_->ExpectTryGetAuthTokensCall(
+      expected_batch_size_, TokenBatch(1, kPastExpiration, kMountainViewGeo));
+  CallTryGetAuthTokensAndWait(ProxyLayer::kProxyA);
+
+  // Destroy the token manager and verify that no orphaned tokens are logged.
+  ipp_proxy_a_token_fetcher_ = nullptr;
+  ipp_proxy_a_token_manager_.reset();
+  histogram_tester_.ExpectTotalCount(kProxyATokenCountOrphanedHistogram, 0);
+}
 
 // `IsAuthTokenAvailable()` returns false on an empty cache.
 TEST_F(IpProtectionTokenManagerImplTest, IsAuthTokenAvailableFalseEmpty) {

@@ -13,6 +13,8 @@ source_set("privacy_sandbox") {
     "//base",
     "//components/content_settings/core/common",
     "//components/keyed_service/core",
+    "//components/pref_registry",
+    "//components/privacy_sandbox:tracking_protection_prefs",
     "//components/privacy_sandbox:tracking_protection_settings",
     "//ios/chrome/browser/content_settings/model",
     "//ios/chrome/browser/policy/model",

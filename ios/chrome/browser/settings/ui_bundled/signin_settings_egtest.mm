@@ -65,6 +65,9 @@ using chrome_test_util::SettingsSignInRowMatcher;
                                 kWebSigninPrimaryButtonAccessibilityIdentifier),
                             grey_sufficientlyVisible(), nil)]
       performAction:grey_tap()];
+  //  Dismiss signin in confirmation snackbar.
+  [SigninEarlGreyUI
+      maybeDismissIdentityConfirmationSnackbarOnSignin:fakeIdentity];
   // Verify that the History Sync Opt-In screen is shown.
   [[EarlGrey
       selectElementWithMatcher:chrome_test_util::HistoryOptInPromoMatcher()]
@@ -79,16 +82,13 @@ using chrome_test_util::SettingsSignInRowMatcher;
       onElementWithMatcher:chrome_test_util::HistoryOptInPromoMatcher()]
       assertWithMatcher:grey_notNil()];
   // Verify that buttons of the History Sync screen have the expected colors.
+  [[EarlGrey selectElementWithMatcher:
+                 grey_allOf(chrome_test_util::ButtonWithPrimaryColor(),
+                            chrome_test_util::PromoScreenPrimaryButtonMatcher(),
+                            nil)] assertWithMatcher:grey_sufficientlyVisible()];
   [[EarlGrey
       selectElementWithMatcher:
-          grey_allOf(chrome_test_util::ButtonWithForegroundColor(
-                         kSolidButtonTextColor),
-                     chrome_test_util::ButtonWithBackgroundColor(kBlueColor),
-                     chrome_test_util::PromoScreenPrimaryButtonMatcher(), nil)]
-      assertWithMatcher:grey_sufficientlyVisible()];
-  [[EarlGrey
-      selectElementWithMatcher:
-          grey_allOf(chrome_test_util::ButtonWithForegroundColor(kBlueColor),
+          grey_allOf(chrome_test_util::ButtonWithSecondaryColor(),
                      chrome_test_util::PromoScreenSecondaryButtonMatcher(),
                      nil)] assertWithMatcher:grey_sufficientlyVisible()];
   // Accept History Sync.
@@ -126,28 +126,28 @@ using chrome_test_util::SettingsSignInRowMatcher;
                                 kWebSigninPrimaryButtonAccessibilityIdentifier),
                             grey_sufficientlyVisible(), nil)]
       performAction:grey_tap()];
+
   // Wait for the History Sync Opt-In screen.
   [ChromeEarlGrey
       waitForSufficientlyVisibleElementWithMatcher:
           grey_accessibilityID(kHistorySyncViewAccessibilityIdentifier)];
+
+  //  Dismiss signin confirmation snackbar if it covers the History Sync
+  //  Opt-In screen.
+  [SigninEarlGreyUI
+      maybeDismissIdentityConfirmationSnackbarOnSignin:fakeIdentity];
+
   // Verify that the buttons of the History Sync screen have the same foreground
   // and background colors.
-  NSString* foregroundColorName = kBlueColor;
-  NSString* backgroundColorName = kBlueHaloColor;
+  [[EarlGrey selectElementWithMatcher:
+                 grey_allOf(chrome_test_util::ButtonWithEqualWeightColor(),
+                            chrome_test_util::PromoScreenPrimaryButtonMatcher(),
+                            nil)] assertWithMatcher:grey_sufficientlyVisible()];
   [[EarlGrey
       selectElementWithMatcher:
-          grey_allOf(
-              chrome_test_util::ButtonWithForegroundColor(foregroundColorName),
-              chrome_test_util::ButtonWithBackgroundColor(backgroundColorName),
-              chrome_test_util::PromoScreenPrimaryButtonMatcher(), nil)]
-      assertWithMatcher:grey_sufficientlyVisible()];
-  [[EarlGrey
-      selectElementWithMatcher:
-          grey_allOf(
-              chrome_test_util::ButtonWithForegroundColor(foregroundColorName),
-              chrome_test_util::ButtonWithBackgroundColor(backgroundColorName),
-              chrome_test_util::PromoScreenSecondaryButtonMatcher(), nil)]
-      assertWithMatcher:grey_sufficientlyVisible()];
+          grey_allOf(chrome_test_util::ButtonWithEqualWeightColor(),
+                     chrome_test_util::PromoScreenSecondaryButtonMatcher(),
+                     nil)] assertWithMatcher:grey_sufficientlyVisible()];
   // Accept History Sync.
   [[[EarlGrey selectElementWithMatcher:chrome_test_util::
                                            PromoScreenPrimaryButtonMatcher()]
@@ -182,6 +182,9 @@ using chrome_test_util::SettingsSignInRowMatcher;
                                 kWebSigninPrimaryButtonAccessibilityIdentifier),
                             grey_sufficientlyVisible(), nil)]
       performAction:grey_tap()];
+  //  Dismiss signin in confirmation snackbar.
+  [SigninEarlGreyUI
+      maybeDismissIdentityConfirmationSnackbarOnSignin:fakeIdentity];
   // Accept History Sync.
   [[[EarlGrey selectElementWithMatcher:chrome_test_util::
                                            PromoScreenPrimaryButtonMatcher()]
@@ -203,7 +206,9 @@ using chrome_test_util::SettingsSignInRowMatcher;
                                 kWebSigninPrimaryButtonAccessibilityIdentifier),
                             grey_sufficientlyVisible(), nil)]
       performAction:grey_tap()];
-  [ChromeEarlGreyUI waitForAppToIdle];
+  //  Dismiss signin in confirmation snackbar.
+  [SigninEarlGreyUI
+      maybeDismissIdentityConfirmationSnackbarOnSignin:fakeIdentity];
   // History sync opt-in not visibled.
   [[EarlGrey
       selectElementWithMatcher:chrome_test_util::HistoryOptInPromoMatcher()]
@@ -242,6 +247,9 @@ using chrome_test_util::SettingsSignInRowMatcher;
                                 kWebSigninPrimaryButtonAccessibilityIdentifier),
                             grey_sufficientlyVisible(), nil)]
       performAction:grey_tap()];
+  //  Dismiss signin in confirmation snackbar.
+  [SigninEarlGreyUI
+      maybeDismissIdentityConfirmationSnackbarOnSignin:fakeIdentity];
   // Accept History Sync.
   [[[EarlGrey selectElementWithMatcher:chrome_test_util::
                                            PromoScreenPrimaryButtonMatcher()]
@@ -263,6 +271,9 @@ using chrome_test_util::SettingsSignInRowMatcher;
                                 kWebSigninPrimaryButtonAccessibilityIdentifier),
                             grey_sufficientlyVisible(), nil)]
       performAction:grey_tap()];
+  //  Dismiss signin in confirmation snackbar.
+  [SigninEarlGreyUI
+      maybeDismissIdentityConfirmationSnackbarOnSignin:fakeIdentity];
   [ChromeEarlGreyUI waitForAppToIdle];
   // History sync opt-in not visibled.
   [[EarlGrey
@@ -296,16 +307,13 @@ using chrome_test_util::SettingsSignInRowMatcher;
   // Make sure the fake SSO view controller is fully removed.
   [ChromeEarlGreyUI waitForAppToIdle];
   // Verify that buttons of the History Sync screen have the expected colors.
+  [[EarlGrey selectElementWithMatcher:
+                 grey_allOf(chrome_test_util::ButtonWithPrimaryColor(),
+                            chrome_test_util::PromoScreenPrimaryButtonMatcher(),
+                            nil)] assertWithMatcher:grey_sufficientlyVisible()];
   [[EarlGrey
       selectElementWithMatcher:
-          grey_allOf(chrome_test_util::ButtonWithForegroundColor(
-                         kSolidButtonTextColor),
-                     chrome_test_util::ButtonWithBackgroundColor(kBlueColor),
-                     chrome_test_util::PromoScreenPrimaryButtonMatcher(), nil)]
-      assertWithMatcher:grey_sufficientlyVisible()];
-  [[EarlGrey
-      selectElementWithMatcher:
-          grey_allOf(chrome_test_util::ButtonWithForegroundColor(kBlueColor),
+          grey_allOf(chrome_test_util::ButtonWithSecondaryColor(),
                      chrome_test_util::PromoScreenSecondaryButtonMatcher(),
                      nil)] assertWithMatcher:grey_sufficientlyVisible()];
   // Accept History Sync.
@@ -358,22 +366,15 @@ using chrome_test_util::SettingsSignInRowMatcher;
           grey_accessibilityID(kHistorySyncViewAccessibilityIdentifier)];
   // Verify that the buttons of the History Sync screen have the same foreground
   // and background colors.
-  NSString* foregroundColorName = kBlueColor;
-  NSString* backgroundColorName = kBlueHaloColor;
+  [[EarlGrey selectElementWithMatcher:
+                 grey_allOf(chrome_test_util::ButtonWithEqualWeightColor(),
+                            chrome_test_util::PromoScreenPrimaryButtonMatcher(),
+                            nil)] assertWithMatcher:grey_sufficientlyVisible()];
   [[EarlGrey
       selectElementWithMatcher:
-          grey_allOf(
-              chrome_test_util::ButtonWithForegroundColor(foregroundColorName),
-              chrome_test_util::ButtonWithBackgroundColor(backgroundColorName),
-              chrome_test_util::PromoScreenPrimaryButtonMatcher(), nil)]
-      assertWithMatcher:grey_sufficientlyVisible()];
-  [[EarlGrey
-      selectElementWithMatcher:
-          grey_allOf(
-              chrome_test_util::ButtonWithForegroundColor(foregroundColorName),
-              chrome_test_util::ButtonWithBackgroundColor(backgroundColorName),
-              chrome_test_util::PromoScreenSecondaryButtonMatcher(), nil)]
-      assertWithMatcher:grey_sufficientlyVisible()];
+          grey_allOf(chrome_test_util::ButtonWithEqualWeightColor(),
+                     chrome_test_util::PromoScreenSecondaryButtonMatcher(),
+                     nil)] assertWithMatcher:grey_sufficientlyVisible()];
   // Accept History Sync.
   [[[EarlGrey selectElementWithMatcher:chrome_test_util::
                                            PromoScreenPrimaryButtonMatcher()]
@@ -517,6 +518,11 @@ using chrome_test_util::SettingsSignInRowMatcher;
                                 kWebSigninPrimaryButtonAccessibilityIdentifier),
                             grey_sufficientlyVisible(), nil)]
       performAction:grey_tap()];
+
+  //  Dismiss signin in confirmation snackbar.
+  [SigninEarlGreyUI
+      maybeDismissIdentityConfirmationSnackbarOnSignin:fakeIdentity];
+
   // Verify that the History Sync Opt-In screen is shown.
   [[EarlGrey
       selectElementWithMatcher:chrome_test_util::HistoryOptInPromoMatcher()]

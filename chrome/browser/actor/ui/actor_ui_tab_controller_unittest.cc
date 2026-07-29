@@ -6,13 +6,15 @@
 
 #include "base/functional/callback_helpers.h"
 #include "base/test/bind.h"
+#include "base/test/test_future.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/actor_keyed_service_factory.h"
 #include "chrome/browser/actor/actor_keyed_service_fake.h"
+#include "chrome/browser/actor/ui/actor_border_view_controller.h"
 #include "chrome/browser/actor/ui/actor_ui_tab_controller_interface.h"
-#include "chrome/browser/actor/ui/mock_actor_overlay_view_controller.h"
-#include "chrome/browser/actor/ui/mock_actor_ui_state_manager.h"
-#include "chrome/browser/actor/ui/mock_handoff_button_controller.h"
+#include "chrome/browser/actor/ui/mocks/mock_actor_overlay_view_controller.h"
+#include "chrome/browser/actor/ui/mocks/mock_actor_ui_state_manager.h"
+#include "chrome/browser/actor/ui/mocks/mock_handoff_button_controller.h"
 #include "chrome/browser/actor/ui/states/actor_overlay_state.h"
 #include "chrome/browser/actor/ui/states/handoff_button_state.h"
 #include "chrome/browser/ui/browser_window/test/mock_browser_window_interface.h"
@@ -23,13 +25,17 @@
 #include "chrome/test/base/testing_profile.h"
 #include "components/tabs/public/mock_tab_interface.h"
 #include "content/public/test/browser_task_environment.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 
 namespace actor::ui {
 namespace {
 using ::tabs::MockTabInterface;
 using ::testing::_;
+using ::testing::MockFunction;
 using ::testing::Return;
+using ::testing::ReturnRef;
 
 class MockActorUiTabControllerFactory
     : public ActorUiTabControllerFactoryInterface {
@@ -90,8 +96,12 @@ class ActorUiTabControllerTest : public testing::Test {
         .WillByDefault(Return(&mock_browser_window_interface_));
     ON_CALL(mock_browser_window_interface_, GetProfile)
         .WillByDefault(Return(profile()));
-    ON_CALL(mock_browser_window_interface_, GetTabStripModel)
+    ON_CALL(mock_browser_window_interface_, GetTabStripModel())
         .WillByDefault(Return(&tab_strip_model_));
+    ON_CALL(mock_browser_window_interface_, GetUnownedUserDataHost)
+        .WillByDefault(ReturnRef(user_data_host_));
+    border_view_controller_ = std::make_unique<ActorBorderViewController>(
+        &mock_browser_window_interface_);
 
     actor_ui_tab_controller_ = std::make_unique<ActorUiTabController>(
         mock_tab_, actor_keyed_service(), std::move(controller_factory));
@@ -121,6 +131,10 @@ class ActorUiTabControllerTest : public testing::Test {
     return actor_ui_tab_controller_factory_;
   }
 
+  ActorBorderViewController* actor_border_view_controller() {
+    return border_view_controller_.get();
+  }
+
   TaskId task_id() { return task_id_; }
 
   TestingProfile* profile() { return profile_.get(); }
@@ -139,6 +153,7 @@ class ActorUiTabControllerTest : public testing::Test {
  private:
   std::unique_ptr<TestingProfile> profile_;
   std::unique_ptr<ActorKeyedServiceFake> actor_keyed_service_;
+  ::ui::UnownedUserDataHost user_data_host_;
   MockTabInterface mock_tab_;
   MockBrowserWindowInterface mock_browser_window_interface_;
   TestTabStripModelDelegate delegate_;
@@ -148,12 +163,13 @@ class ActorUiTabControllerTest : public testing::Test {
   std::unique_ptr<ActorUiTabController> actor_ui_tab_controller_;
   raw_ptr<MockActorUiTabControllerFactory> actor_ui_tab_controller_factory_ =
       nullptr;
+  std::unique_ptr<ActorBorderViewController> border_view_controller_;
 };
 
 TEST_F(ActorUiTabControllerTest, SetActorTaskStatePaused_SetsStateCorrectly) {
   tab_controller()->SetActorTaskPaused();
   EXPECT_EQ(actor_keyed_service()->GetTask(task_id())->GetState(),
-            ActorTask::State::kPausedByClient);
+            ActorTask::State::kPausedByUser);
 }
 
 TEST_F(ActorUiTabControllerTest, SetActorTaskStateResume_SetsStateCorrectly) {
@@ -263,6 +279,46 @@ TEST_F(
       tab_controller_factory()->handoff_button_controller());
 }
 
+TEST_F(ActorUiTabControllerTest, BorderGlowChangesOnUiTabStateChange) {
+  MockFunction<void(tabs::TabInterface*, bool)> callback;
+  auto subscription =
+      actor_border_view_controller()->AddOnActorBorderGlowUpdatedCallback(
+          base::BindRepeating(
+              &testing::MockFunction<void(tabs::TabInterface*, bool)>::Call,
+              base::Unretained(&callback)));
+
+  tab_controller()->OnTabActiveStatusChanged(true, &mock_tab());
+
+  HandoffButtonState handoff_button_state(
+      true, HandoffButtonState::ControlOwnership::kActor);
+  ActorOverlayState actor_overlay_state(true, false, std::nullopt);
+  UiTabState ui_tab_state_glow_on(actor_overlay_state, handoff_button_state,
+                                  /*tab_indicator_visible=*/false,
+                                  /*border_glow_visible=*/true);
+
+  EXPECT_CALL(callback, Call(&mock_tab(), true));
+  tab_controller()->OnUiTabStateChange(ui_tab_state_glow_on, base::DoNothing());
+  Debounce();
+
+  testing::Mock::VerifyAndClearExpectations(&callback);
+
+  UiTabState ui_tab_state_glow_off(actor_overlay_state, handoff_button_state,
+                                   /*tab_indicator_visible=*/false,
+                                   /*border_glow_visible=*/false);
+  EXPECT_CALL(callback, Call(&mock_tab(), false));
+  tab_controller()->OnUiTabStateChange(ui_tab_state_glow_off,
+                                       base::DoNothing());
+  Debounce();
+
+  testing::Mock::VerifyAndClearExpectations(&callback);
+
+  // Test that the glow is not shown when the tab is not active.
+  tab_controller()->OnTabActiveStatusChanged(false, &mock_tab());
+  EXPECT_CALL(callback, Call(&mock_tab(), false));
+  tab_controller()->OnUiTabStateChange(ui_tab_state_glow_on, base::DoNothing());
+  Debounce();
+}
+
 TEST_F(ActorUiTabControllerTest,
        SetHandoffButtonHoverStatus_HoverOnButtonMakesButtonVisible) {
   HandoffButtonState handoff_button_state(
@@ -277,6 +333,43 @@ TEST_F(ActorUiTabControllerTest,
 
   tab_controller()->SetHandoffButtonHoverStatus(true);
   Debounce();
+}
+
+TEST_F(ActorUiTabControllerTest,
+       OnUiTabStateChange_SameStateRunsCallbackOnceAndDoesNotUpdateState) {
+  ActorOverlayState actor_overlay_state(
+      /*is_active=*/true, /*mouse_down=*/false, /*mouse_target=*/std::nullopt);
+  HandoffButtonState handoff_button_state(
+      /*is_active=*/true,
+      /*control_ownership=*/HandoffButtonState::ControlOwnership::kActor);
+  UiTabState ui_tab_state(actor_overlay_state, handoff_button_state);
+
+  // Set the tab's activation status
+  tab_controller()->OnTabActiveStatusChanged(true, &mock_tab());
+  Debounce();
+
+  // On first call, the callback should be run and the state should be updated.
+  EXPECT_CALL(*tab_controller_factory()->overlay_controller(),
+              UpdateState(actor_overlay_state, /*is_visible=*/true));
+  EXPECT_CALL(*tab_controller_factory()->handoff_button_controller(),
+              UpdateState(handoff_button_state, /*is_visible=*/false));
+
+  base::test::TestFuture<bool> future1;
+  tab_controller()->OnUiTabStateChange(ui_tab_state, future1.GetCallback());
+  EXPECT_TRUE(future1.Get());
+
+  // On second call, the callback should be run and the state shouldn't be
+  // updated.
+  EXPECT_CALL(*tab_controller_factory()->overlay_controller(),
+              UpdateState(actor_overlay_state, /*is_visible=*/true))
+      .Times(0);
+  EXPECT_CALL(*tab_controller_factory()->handoff_button_controller(),
+              UpdateState(handoff_button_state, /*is_visible=*/false))
+      .Times(0);
+
+  base::test::TestFuture<bool> future2;
+  tab_controller()->OnUiTabStateChange(ui_tab_state, future2.GetCallback());
+  EXPECT_TRUE(future2.Get());
 }
 
 using UiTabStateActivationParams =

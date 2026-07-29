@@ -15,6 +15,7 @@
 #include "chrome/browser/actor/aggregated_journal.h"
 #include "chrome/browser/actor/execution_engine.h"
 #include "chrome/browser/glic/host/context/glic_page_context_fetcher.h"
+#include "chrome/browser/glic/host/context/glic_sharing_manager_impl.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/common/actor.mojom.h"
 #include "components/tabs/public/tab_interface.h"
@@ -44,28 +45,49 @@ GlicActorController::~GlicActorController() = default;
 
 // TODO(mcnee): Determine if we need additional mechanisms, within the browser,
 // to stop a task.
-void GlicActorController::StopTask(actor::TaskId task_id) {
+void GlicActorController::StopTask(actor::TaskId task_id,
+                                   mojom::ActorTaskStopReason stop_reason) {
   actor::ActorTask* task = GetCurrentTask();
   if (!task) {
     return;
   }
-  actor::ActorKeyedService::Get(profile_.get())->StopTask(task->id());
+  if (auto* actor_keyed_service =
+          actor::ActorKeyedService::Get(profile_.get())) {
+    switch (stop_reason) {
+      case mojom::ActorTaskStopReason::kTaskComplete:
+        actor_keyed_service->StopTask(task->id(), /*success=*/true);
+        break;
+      case mojom::ActorTaskStopReason::kStoppedByUser:
+        actor_keyed_service->StopTask(task->id(), /*success=*/false);
+        break;
+    }
+  }
 }
 
-void GlicActorController::PauseTask(actor::TaskId task_id) {
+void GlicActorController::PauseTask(actor::TaskId task_id,
+                                    mojom::ActorTaskPauseReason pause_reason) {
   actor::ActorTask* task = GetCurrentTask();
   if (!task) {
     return;
   }
-  task->Pause();
+  switch (pause_reason) {
+    case mojom::ActorTaskPauseReason::kPausedByModel:
+      task->Pause(/*from_actor=*/true);
+      break;
+    case mojom::ActorTaskPauseReason::kPausedByUser:
+      task->Pause(/*from_actor=*/false);
+      break;
+  }
 }
 
 void GlicActorController::ResumeTask(
     actor::TaskId task_id,
     const mojom::GetTabContextOptions& context_options,
     glic::mojom::WebClientHandler::ResumeActorTaskCallback callback) {
+  // TODO(https://crbug.com/433328453): Add stability metrics specific to actor
+  // tasks.
   actor::ActorTask* task = GetCurrentTask();
-  if (!task || task->GetState() != actor::ActorTask::State::kPausedByClient) {
+  if (!task || !task->IsPaused()) {
     std::move(callback).Run(mojom::GetContextResult::NewErrorReason(
         std::string("task does not exist or was not paused")));
     return;
@@ -78,9 +100,24 @@ void GlicActorController::ResumeTask(
     return;
   }
 
+  auto fetcher_callback = base::BindOnce(
+      [](glic::mojom::WebClientHandler::ResumeActorTaskCallback final_callback,
+         base::expected<glic::mojom::GetContextResultPtr,
+                        page_content_annotations::FetchPageContextErrorDetails>
+             result) {
+        if (!result.has_value()) {
+          std::move(final_callback)
+              .Run(glic::mojom::GetContextResult::NewErrorReason(
+                  result.error().message));
+        } else {
+          std::move(final_callback).Run(std::move(result.value()));
+        }
+      },
+      std::move(callback));
+
   glic::FetchPageContext(tab_of_resumed_task,
                          *ActionableOptions(context_options),
-                         std::move(callback));
+                         std::move(fetcher_callback));
 }
 
 actor::ActorTask* GlicActorController::GetCurrentTask() const {

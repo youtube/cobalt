@@ -5815,6 +5815,7 @@ TEST_P(LayerTreeHostImplTestMultiScrollable,
   settings.scrollbar_fade_duration = base::Milliseconds(300);
   settings.scrollbar_animator = LayerTreeSettings::AURA_OVERLAY;
   settings.scrollbar_flash_after_any_scroll_update = true;
+  settings.scrollbar_flash_once_after_scroll_update = false;
 
   SetUpLayers(settings);
 
@@ -5851,6 +5852,229 @@ TEST_P(LayerTreeHostImplTestMultiScrollable,
   EXPECT_TRUE(scrollbar_2_->Opacity());
 
   EXPECT_FALSE(animation_task_.is_null());
+}
+
+TEST_P(LayerTreeHostImplTestMultiScrollable,
+       ScrollbarFlashOnceAfterAnyScrollUpdate) {
+  LayerTreeSettings settings = DefaultSettings();
+  settings.scrollbar_fade_delay = base::Milliseconds(500);
+  settings.scrollbar_fade_duration = base::Milliseconds(300);
+  settings.scrollbar_animator = LayerTreeSettings::AURA_OVERLAY;
+  settings.scrollbar_flash_after_any_scroll_update = false;
+  settings.scrollbar_flash_once_after_scroll_update = true;
+
+  SetUpLayers(settings);
+
+  EXPECT_EQ(scrollbar_1_->Opacity(), 0);
+  EXPECT_EQ(scrollbar_2_->Opacity(), 0);
+
+  // Beginning of scroll on root should flash all scrollbars.
+  GetInputHandler().RootScrollBegin(
+      BeginState(gfx::Point(20, 20), gfx::Vector2dF(0, 10),
+                 ui::ScrollInputType::kWheel)
+          .get(),
+      ui::ScrollInputType::kWheel);
+  GetInputHandler().ScrollUpdate(UpdateState(
+      gfx::Point(20, 20), gfx::Vector2d(0, 10), ui::ScrollInputType::kWheel));
+  GetInputHandler().ScrollEnd();
+
+  EXPECT_TRUE(scrollbar_1_->Opacity());
+  EXPECT_TRUE(scrollbar_2_->Opacity());
+
+  EXPECT_FALSE(animation_task_.is_null());
+  ResetScrollbars();
+
+  // Scrolling on root again mustn't flash other than the root scrollbar.
+  GetInputHandler().RootScrollBegin(
+      BeginState(gfx::Point(70, 70), gfx::Vector2dF(0, 100),
+                 ui::ScrollInputType::kWheel)
+          .get(),
+      ui::ScrollInputType::kWheel);
+  GetInputHandler().ScrollUpdate(UpdateState(
+      gfx::Point(70, 70), gfx::Vector2d(0, 100), ui::ScrollInputType::kWheel));
+  GetInputHandler().ScrollEnd();
+
+  EXPECT_TRUE(scrollbar_1_->Opacity());
+  EXPECT_FALSE(scrollbar_2_->Opacity());
+
+  EXPECT_FALSE(animation_task_.is_null());
+  ResetScrollbars();
+
+  // Yet another scroll on child should flash only the child scrollbar.
+  GetInputHandler().ScrollBegin(
+      BeginState(gfx::Point(70, 70), gfx::Vector2dF(0, 100),
+                 ui::ScrollInputType::kWheel)
+          .get(),
+      ui::ScrollInputType::kWheel);
+  GetInputHandler().ScrollUpdate(
+      AnimatedUpdateState(gfx::Point(70, 70), gfx::Vector2d(0, 100)));
+  GetInputHandler().ScrollEnd();
+
+  EXPECT_FALSE(scrollbar_1_->Opacity());
+  EXPECT_TRUE(scrollbar_2_->Opacity());
+
+  EXPECT_FALSE(animation_task_.is_null());
+}
+
+TEST_P(LayerTreeHostImplTestMultiScrollable,
+       ScrollbarFlashOnceEnteredViewport) {
+  LayerTreeSettings settings = DefaultSettings();
+  settings.scrollbar_fade_delay = base::Milliseconds(500);
+  settings.scrollbar_fade_duration = base::Milliseconds(300);
+  settings.scrollbar_animator = LayerTreeSettings::AURA_OVERLAY;
+  settings.scrollbar_flash_after_any_scroll_update = false;
+  settings.scrollbar_flash_once_after_scroll_update = false;
+  settings.scrollbar_flash_once_visible_on_viewport = true;
+
+  SetUpLayers(settings);
+
+  raw_ptr<SolidColorScrollbarLayerImpl> scrollbar3 = nullptr;
+
+  {
+    // Create another child scroll element at (10, 210) with size 50x150
+    LayerImpl* root_scroll = OuterViewportScrollLayer();
+
+    auto* child = AddScrollableLayer(root_scroll, gfx::Size(100, 100),
+                                     gfx::Size(250, 150));
+    GetTransformNode(child)->post_translation = gfx::Vector2dF(50, 50);
+
+    scrollbar3 = AddLayer<SolidColorScrollbarLayerImpl>(
+        host_impl_->active_tree(), ScrollbarOrientation::kVertical, 15, 0,
+        true);
+    SetupScrollbarLayer(child, scrollbar3);
+    scrollbar3->SetBounds(gfx::Size(50, 150));
+    scrollbar3->SetOffsetToTransformParent(gfx::Vector2dF(10, 210));
+    host_impl_->active_tree()->UpdateAllScrollbarGeometriesForTesting();
+    UpdateDrawProperties(host_impl_->active_tree());
+    host_impl_->active_tree()->DidBecomeActive();
+  }
+
+  EXPECT_EQ(scrollbar_1_->Opacity(), 0);
+  EXPECT_EQ(scrollbar_2_->Opacity(), 0);
+  EXPECT_EQ(scrollbar3->Opacity(), 0);
+
+  // First scroll: root down by 10, visible scrollbars flash.
+  GetInputHandler().RootScrollBegin(
+      BeginState(gfx::Point(20, 20), gfx::Vector2dF(0, 10),
+                 ui::ScrollInputType::kWheel)
+          .get(),
+      ui::ScrollInputType::kWheel);
+  GetInputHandler().ScrollUpdate(UpdateState(
+      gfx::Point(20, 20), gfx::Vector2d(0, 10), ui::ScrollInputType::kWheel));
+  GetInputHandler().ScrollEnd();
+
+  // Scroll is less than threshold, so no flash.
+  EXPECT_TRUE(scrollbar_1_->Opacity());
+  EXPECT_FALSE(scrollbar_2_->Opacity());
+  EXPECT_FALSE(scrollbar3->Opacity());
+  EXPECT_FALSE(animation_task_.is_null());
+
+  // Reset scrollbars
+  GetEffectNode(scrollbar3.get())->opacity = 0;
+  ResetScrollbars();
+
+  // Second scroll: root down by another 200 right till where the third child
+  // is. Both the root and the scrollbar2 should flash as the scrollbar2 is
+  // one the viewport now.
+  GetInputHandler().RootScrollBegin(
+      BeginState(gfx::Point(150, 100), gfx::Vector2dF(0, 200),
+                 ui::ScrollInputType::kWheel)
+          .get(),
+      ui::ScrollInputType::kWheel);
+  GetInputHandler().ScrollUpdate(UpdateState(gfx::Point(150, 100),
+                                             gfx::Vector2d(0, 200),
+                                             ui::ScrollInputType::kWheel));
+  GetInputHandler().ScrollEnd();
+
+  EXPECT_TRUE(scrollbar_1_->Opacity());
+  EXPECT_TRUE(scrollbar_2_->Opacity());
+  EXPECT_FALSE(scrollbar3->Opacity());
+  EXPECT_FALSE(animation_task_.is_null());
+
+  // Reset scrollbars
+  GetEffectNode(scrollbar3.get())->opacity = 0;
+  ResetScrollbars();
+
+  // Scroll down a bit more. Now, the scrollbar3 should flash as it is visible
+  // now.
+  GetInputHandler().RootScrollBegin(
+      BeginState(gfx::Point(150, 100), gfx::Vector2dF(0, 30),
+                 ui::ScrollInputType::kWheel)
+          .get(),
+      ui::ScrollInputType::kWheel);
+  GetInputHandler().ScrollUpdate(UpdateState(
+      gfx::Point(150, 100), gfx::Vector2d(0, 30), ui::ScrollInputType::kWheel));
+  GetInputHandler().ScrollEnd();
+
+  EXPECT_TRUE(scrollbar_1_->Opacity());
+  EXPECT_FALSE(scrollbar_2_->Opacity());
+  EXPECT_TRUE(scrollbar3->Opacity());
+  EXPECT_FALSE(animation_task_.is_null());
+
+  // Reset scrollbars
+  GetEffectNode(scrollbar3.get())->opacity = 0;
+  ResetScrollbars();
+
+  // Scroll down more so that that last scrollbar is not visible anymore.
+  GetInputHandler().RootScrollBegin(
+      BeginState(gfx::Point(150, 100), gfx::Vector2dF(0, 300),
+                 ui::ScrollInputType::kWheel)
+          .get(),
+      ui::ScrollInputType::kWheel);
+  GetInputHandler().ScrollUpdate(UpdateState(gfx::Point(150, 100),
+                                             gfx::Vector2d(0, 300),
+                                             ui::ScrollInputType::kWheel));
+  GetInputHandler().ScrollEnd();
+
+  EXPECT_TRUE(scrollbar_1_->Opacity());
+  EXPECT_FALSE(scrollbar_2_->Opacity());
+  EXPECT_FALSE(scrollbar3->Opacity());
+  EXPECT_FALSE(animation_task_.is_null());
+
+  // Reset scrollbars
+  GetEffectNode(scrollbar3.get())->opacity = 0;
+  ResetScrollbars();
+
+  // Scroll back so that scrollbar3 is visible again.
+  // Scroll down more so that that last scrollbar is not visible anymore.
+  GetInputHandler().RootScrollBegin(
+      BeginState(gfx::Point(150, 100), gfx::Vector2dF(0, -310),
+                 ui::ScrollInputType::kWheel)
+          .get(),
+      ui::ScrollInputType::kWheel);
+  GetInputHandler().ScrollUpdate(UpdateState(gfx::Point(150, 100),
+                                             gfx::Vector2d(0, -310),
+                                             ui::ScrollInputType::kWheel));
+  GetInputHandler().ScrollEnd();
+
+  EXPECT_TRUE(scrollbar_1_->Opacity());
+  EXPECT_FALSE(scrollbar_2_->Opacity());
+  EXPECT_FALSE(scrollbar3->Opacity());
+  EXPECT_FALSE(animation_task_.is_null());
+
+  // Reset scrollbars
+  GetEffectNode(scrollbar3.get())->opacity = 0;
+  ResetScrollbars();
+
+  // Scroll up a bit more. Now, the scrollbar3 should flash as it is visible
+  // now and the threshold is passed.
+  GetInputHandler().RootScrollBegin(
+      BeginState(gfx::Point(150, 100), gfx::Vector2dF(0, 25),
+                 ui::ScrollInputType::kWheel)
+          .get(),
+      ui::ScrollInputType::kWheel);
+  GetInputHandler().ScrollUpdate(UpdateState(
+      gfx::Point(150, 100), gfx::Vector2d(0, 25), ui::ScrollInputType::kWheel));
+  GetInputHandler().ScrollEnd();
+
+  EXPECT_TRUE(scrollbar_1_->Opacity());
+  EXPECT_FALSE(scrollbar_2_->Opacity());
+  EXPECT_TRUE(scrollbar3->Opacity());
+  EXPECT_FALSE(animation_task_.is_null());
+
+  // Reset scrollbars
+  GetEffectNode(scrollbar3.get())->opacity = 0;
+  ResetScrollbars();
 }
 
 TEST_P(LayerTreeHostImplTest, ScrollHitTestOnScrollbar) {
@@ -16635,25 +16859,6 @@ TEST_P(LayerTreeHostImplTest, RasterColorSpaceSoftware) {
   EXPECT_EQ(wcg_params.color_space, gfx::ColorSpace::CreateSRGB());
 }
 
-TEST_P(LayerTreeHostImplTest, RasterColorPrefersSRGB) {
-  auto p3 = gfx::ColorSpace::CreateDisplayP3D65();
-
-  LayerTreeSettings settings = DefaultSettings();
-  settings.prefer_raster_in_srgb = true;
-  CreateHostImpl(settings, CreateLayerTreeFrameSink());
-  host_impl_->active_tree()->SetDisplayColorSpaces(gfx::DisplayColorSpaces(p3));
-
-  auto srgb_params =
-      host_impl_->GetTargetColorParams(gfx::ContentColorUsage::kSRGB);
-  EXPECT_EQ(srgb_params.color_space, gfx::ColorSpace::CreateSRGB());
-
-  settings.prefer_raster_in_srgb = false;
-  CreateHostImpl(settings, CreateLayerTreeFrameSink());
-  host_impl_->active_tree()->SetDisplayColorSpaces(gfx::DisplayColorSpaces(p3));
-  srgb_params = host_impl_->GetTargetColorParams(gfx::ContentColorUsage::kSRGB);
-  EXPECT_EQ(srgb_params.color_space, p3);
-}
-
 TEST_P(LayerTreeHostImplTest, RasterColorSpaceHDR) {
   constexpr float kCustomWhiteLevel = 200.f;
   constexpr float kHDRMaxLuminanceRelative = 2.f;
@@ -17152,6 +17357,62 @@ TEST_P(LayerTreeHostImplTest,
     if (!test_leg.scroll_delta.IsZero())
       GetInputHandler().ScrollEnd();
   }
+}
+
+class TreesInVizServerLayerTreeHostImplTest : public LayerTreeHostImplTest {
+ public:
+  LayerTreeSettings DefaultSettings() override {
+    LayerTreeSettings settings = LayerTreeHostImplTest::DefaultSettings();
+    settings.trees_in_viz_in_viz_process = true;
+    return settings;
+  }
+};
+
+INSTANTIATE_COMMIT_TO_TREE_TEST_P(TreesInVizServerLayerTreeHostImplTest);
+
+// [TreesInViz] Tests that frame data timestamps get to CompositorFrameMetadata,
+// this behaviour is only valid when layer tree steps occur in Viz.
+TEST_P(TreesInVizServerLayerTreeHostImplTest,
+       FrameDataTimestampsGetSetInCFMetadata) {
+  auto* root = SetupRootLayer<DidDrawCheckLayer>(host_impl_->active_tree(),
+                                                 gfx::Size(10, 10));
+
+  // Make a child layer that draws.
+  auto* layer = AddLayer<SolidColorLayerImpl>(host_impl_->active_tree());
+  layer->SetBounds(gfx::Size(10, 10));
+  layer->SetDrawsContent(true);
+  layer->SetBackgroundColor(SkColors::kRed);
+  CopyProperties(root, layer);
+
+  UpdateDrawProperties(host_impl_->active_tree());
+  TestFrameData frame;
+  frame.set_trees_in_viz_timestamps(
+      {base::TimeTicks::Now(), base::TimeTicks::Now() + base::Milliseconds(1),
+       base::TimeTicks::Now() + base::Milliseconds(2)});
+  auto args = viz::CreateBeginFrameArgsForTesting(
+      BEGINFRAME_FROM_HERE, viz::BeginFrameArgs::kManualSourceId, 1,
+      base::TimeTicks() + base::Milliseconds(1));
+  host_impl_->WillBeginImplFrame(args);
+  // This would be set by LayerContextImpl as part of UpdateDisplayTree, set
+  // manually to avoid DCHECK failure.
+  host_impl_->set_next_frame_token_from_client(frame.frame_token + 1);
+  EXPECT_EQ(DrawResult::kSuccess, host_impl_->PrepareToDraw(&frame));
+
+  // This function sets the metadata timestamps from FrameData.
+  host_impl_->DrawLayers(&frame);
+
+  auto* fake_layer_tree_frame_sink =
+      static_cast<FakeLayerTreeFrameSink*>(host_impl_->layer_tree_frame_sink());
+  const viz::CompositorFrameMetadata& metadata =
+      fake_layer_tree_frame_sink->last_sent_frame()->metadata;
+
+  // Asset that the timestamps are assigned as expected.
+  EXPECT_EQ(frame.trees_in_viz_timing_details->start_update_display_tree,
+            metadata.trees_in_viz_timing_details.start_update_display_tree);
+  EXPECT_EQ(frame.trees_in_viz_timing_details->start_prepare_to_draw,
+            metadata.trees_in_viz_timing_details.start_prepare_to_draw);
+  EXPECT_EQ(frame.trees_in_viz_timing_details->start_draw_layers,
+            metadata.trees_in_viz_timing_details.start_draw_layers);
 }
 
 // Tests ScrollUpdate() to see if the method sets the scroll tree's currently

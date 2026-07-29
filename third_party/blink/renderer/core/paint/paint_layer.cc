@@ -66,14 +66,12 @@
 #include "third_party/blink/renderer/core/html/html_element.h"
 #include "third_party/blink/renderer/core/html_names.h"
 #include "third_party/blink/renderer/core/layout/anchor_position_scroll_data.h"
-#include "third_party/blink/renderer/core/layout/fragmentainer_iterator.h"
 #include "third_party/blink/renderer/core/layout/fragmentation_utils.h"
 #include "third_party/blink/renderer/core/layout/geometry/transform_state.h"
 #include "third_party/blink/renderer/core/layout/hit_test_location.h"
 #include "third_party/blink/renderer/core/layout/hit_test_request.h"
 #include "third_party/blink/renderer/core/layout/hit_test_result.h"
 #include "third_party/blink/renderer/core/layout/layout_embedded_content.h"
-#include "third_party/blink/renderer/core/layout/layout_flow_thread.h"
 #include "third_party/blink/renderer/core/layout/layout_html_canvas.h"
 #include "third_party/blink/renderer/core/layout/layout_inline.h"
 #include "third_party/blink/renderer/core/layout/layout_object.h"
@@ -1717,15 +1715,6 @@ bool PaintLayer::HitTestFragmentWithPhase(
   if (!result.InnerNode()) {
     // We hit something anonymous, and we didn't find a DOM node ancestor in
     // this layer.
-
-    if (GetLayoutObject().IsLayoutFlowThread()) {
-      // For a flow thread it's safe to just say that we didn't hit anything.
-      // That means that we'll continue as normally, and eventually hit a column
-      // set sibling instead. Column sets are also anonymous, but, unlike flow
-      // threads, they don't establish layers, so we'll fall back and hit the
-      // multicol container parent (which should have a DOM node).
-      return false;
-    }
 
     Node* e = EnclosingNode();
     // FIXME: should be a call to result.setNodeAndPosition. What we would

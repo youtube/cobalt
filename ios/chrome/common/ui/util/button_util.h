@@ -7,19 +7,43 @@
 
 #import <UIKit/UIKit.h>
 
+// This import is against the style guide, but it is here to facilitate the use
+// of the util as it is necessary each time the util is used.
+#import "ios/chrome/common/ui/util/chrome_button.h"
+
+extern const UIControlState UIControlStateTunedDown;
+
 extern const CGFloat kButtonVerticalInsets;
 extern const CGFloat kPrimaryButtonCornerRadius;
 
-// Returns primary action button with rounded corners.
-UIButton* PrimaryActionButton(BOOL pointer_interaction_enabled);
+// Updates `button` to match a primary action style.
+void UpdateButtonToMatchPrimaryAction(ChromeButton* button);
+
+// Updates `button` to match a primary destruction action style.
+void UpdateButtonToMatchPrimaryDestructiveAction(ChromeButton* button);
+
+// Updates `button` to match a secondary action style.
+void UpdateButtonToMatchSecondaryAction(ChromeButton* button);
+
+// Updates `button` to match a equal weight style.
+void UpdateButtonToMatchEqualWeightAction(ChromeButton* button);
+
+// Returns primary action button.
+ChromeButton* PrimaryActionButton();
+
+// Returns primary destructive action button.
+ChromeButton* PrimaryDestructiveActionButton();
+
+// Returns secondary action button.
+ChromeButton* SecondaryActionButton();
+
+// Returns equal weight button.
+ChromeButton* EqualWeightButton();
 
 // Sets the title of `button` through `button.configuration`.
 void SetConfigurationTitle(UIButton* button, NSString* newString);
 
 // Sets the font of `button` through `button.configuration`.
 void SetConfigurationFont(UIButton* button, UIFont* font);
-
-// Updates the button configuration if the button is enabled or disabled.
-void UpdateButtonColorOnEnableDisable(UIButton* button);
 
 #endif  // IOS_CHROME_COMMON_UI_UTIL_BUTTON_UTIL_H_

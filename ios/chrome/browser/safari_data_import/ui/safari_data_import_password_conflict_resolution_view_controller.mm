@@ -5,7 +5,10 @@
 #import "ios/chrome/browser/safari_data_import/ui/safari_data_import_password_conflict_resolution_view_controller.h"
 
 #import "base/check_op.h"
+#import "components/strings/grit/components_strings.h"
+#import "ios/chrome/browser/safari_data_import/public/metrics.h"
 #import "ios/chrome/browser/safari_data_import/public/password_import_item.h"
+#import "ios/chrome/browser/safari_data_import/public/ui_utils.h"
 #import "ios/chrome/browser/safari_data_import/public/utils.h"
 #import "ios/chrome/browser/safari_data_import/ui/safari_data_import_import_stage_transition_handler.h"
 #import "ios/chrome/browser/safari_data_import/ui/safari_data_import_password_conflict_mutator.h"
@@ -24,6 +27,8 @@ namespace {
 /// The identifier for the only section in the table.
 NSString* const kSafariDataImportPasswordConflictResolutionSection =
     @"SafariDataImportPasswordConflictResolutionSection";
+/// Spacing between cell labels.
+const CGFloat kLabelSpacing = 4;
 }  // namespace
 
 @interface SafariDataImportPasswordConflictResolutionViewController () <
@@ -68,6 +73,8 @@ NSString* const kSafariDataImportPasswordConflictResolutionSection =
       IDS_IOS_SAFARI_IMPORT_PASSWORD_CONFLICT_RESOLUTION_TITLE);
   [self setupBarButtons];
   /// Sets up table view properties.
+  self.tableView.separatorInset =
+      GetSafariDataImportSeparatorInset(/*multiSelectionMode=*/YES);
   self.tableView.accessibilityIdentifier =
       GetPasswordConflictResolutionTableViewAccessibilityIdentifier();
   self.tableView.delegate = self;
@@ -119,11 +126,15 @@ NSString* const kSafariDataImportPasswordConflictResolutionSection =
 #pragma mark - Button selectors
 
 - (void)didTapCancelButton {
+  RecordSafariDataImportDismissPasswordConflictScreen(
+      SafariDataImportPasswordConflictScreenAction::kCancel);
   [self.presentingViewController dismissViewControllerAnimated:YES
                                                     completion:nil];
 }
 
 - (void)didTapContinueButton {
+  RecordSafariDataImportDismissPasswordConflictScreen(
+      SafariDataImportPasswordConflictScreenAction::kContinue);
   NSMutableArray<NSNumber*>* passwordIdentifiers = [NSMutableArray array];
   for (NSIndexPath* indexPath in [self.tableView indexPathsForSelectedRows]) {
     [passwordIdentifiers
@@ -147,6 +158,9 @@ NSString* const kSafariDataImportPasswordConflictResolutionSection =
                             scrollPosition:UITableViewScrollPositionNone];
     }
   }
+  RecordSafariDataImportDismissPasswordConflictScreen(
+      deselect ? SafariDataImportPasswordConflictScreenAction::kDeselectAll
+               : SafariDataImportPasswordConflictScreenAction::kSelectAll);
   [self updateSelectionButton];
 }
 
@@ -179,6 +193,7 @@ NSString* const kSafariDataImportPasswordConflictResolutionSection =
   PasswordImportItem* item = _passwordConflicts[identifier.intValue];
   cell.titleLabel.text = item.url;
   cell.URLLabel.text = item.username;
+  cell.URLLabel.numberOfLines = 2;
   if (item.faviconAttributes) {
     [cell.faviconView configureWithAttributes:item.faviconAttributes];
   } else {
@@ -195,6 +210,7 @@ NSString* const kSafariDataImportPasswordConflictResolutionSection =
   cell.thirdRowLabel.lineBreakMode = shouldUnmaskPassword
                                          ? NSLineBreakByClipping
                                          : NSLineBreakByTruncatingTail;
+  cell.labelSpacing = kLabelSpacing;
   cell.editingAccessoryView = [self accessoryViewForItemIdentifier:identifier];
   [cell configureUILayout];
   UIView* selectedBackgroundView = [[UIView alloc] init];
@@ -228,8 +244,7 @@ NSString* const kSafariDataImportPasswordConflictResolutionSection =
                            target:self
                            action:@selector(didTapCancelButton)];
   /// Navigation bar: continue button.
-  NSString* continueButtonTitle = l10n_util::GetNSString(
-      IDS_IOS_SAFARI_IMPORT_PASSWORD_CONFLICT_RESOLUTION_BUTTON_CONTINUE);
+  NSString* continueButtonTitle = l10n_util::GetNSString(IDS_CONTINUE);
   UIBarButtonItem* continueButton =
       [self newButtonWithTitle:continueButtonTitle
                         action:@selector(didTapContinueButton)];

@@ -5,7 +5,9 @@
 #include "base/memory/memory_pressure_listener.h"
 
 #include "base/functional/bind.h"
+#include "base/memory/memory_pressure_listener_registry.h"
 #include "base/run_loop.h"
+#include "base/test/bind.h"
 #include "base/test/task_environment.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -51,26 +53,47 @@ class MemoryPressureListenerTest : public testing::Test {
 
 TEST_F(MemoryPressureListenerTest, NotifyMemoryPressure) {
   // Memory pressure notifications are not suppressed by default.
-  EXPECT_FALSE(MemoryPressureListener::AreNotificationsSuppressed());
-  ExpectNotification(&MemoryPressureListener::NotifyMemoryPressure,
+  EXPECT_FALSE(MemoryPressureListenerRegistry::AreNotificationsSuppressed());
+  ExpectNotification(&MemoryPressureListenerRegistry::NotifyMemoryPressure,
                      MemoryPressureLevel::MEMORY_PRESSURE_LEVEL_MODERATE);
-  ExpectNotification(&MemoryPressureListener::SimulatePressureNotification,
-                     MemoryPressureLevel::MEMORY_PRESSURE_LEVEL_MODERATE);
+  ExpectNotification(
+      &MemoryPressureListenerRegistry::SimulatePressureNotification,
+      MemoryPressureLevel::MEMORY_PRESSURE_LEVEL_MODERATE);
 
   // Enable suppressing memory pressure notifications.
-  MemoryPressureListener::SetNotificationsSuppressed(true);
-  EXPECT_TRUE(MemoryPressureListener::AreNotificationsSuppressed());
-  ExpectNoNotification(&MemoryPressureListener::NotifyMemoryPressure,
+  MemoryPressureListenerRegistry::SetNotificationsSuppressed(true);
+  EXPECT_TRUE(MemoryPressureListenerRegistry::AreNotificationsSuppressed());
+  ExpectNoNotification(&MemoryPressureListenerRegistry::NotifyMemoryPressure,
                        MemoryPressureLevel::MEMORY_PRESSURE_LEVEL_MODERATE);
-  ExpectNotification(&MemoryPressureListener::SimulatePressureNotification,
-                     MemoryPressureLevel::MEMORY_PRESSURE_LEVEL_MODERATE);
+  ExpectNotification(
+      &MemoryPressureListenerRegistry::SimulatePressureNotification,
+      MemoryPressureLevel::MEMORY_PRESSURE_LEVEL_MODERATE);
 
   // Disable suppressing memory pressure notifications.
-  MemoryPressureListener::SetNotificationsSuppressed(false);
-  EXPECT_FALSE(MemoryPressureListener::AreNotificationsSuppressed());
-  ExpectNotification(&MemoryPressureListener::NotifyMemoryPressure,
+  MemoryPressureListenerRegistry::SetNotificationsSuppressed(false);
+  EXPECT_FALSE(MemoryPressureListenerRegistry::AreNotificationsSuppressed());
+  ExpectNotification(&MemoryPressureListenerRegistry::NotifyMemoryPressure,
                      MemoryPressureLevel::MEMORY_PRESSURE_LEVEL_CRITICAL);
-  ExpectNotification(&MemoryPressureListener::SimulatePressureNotification,
+  ExpectNotification(
+      &MemoryPressureListenerRegistry::SimulatePressureNotification,
+      MemoryPressureLevel::MEMORY_PRESSURE_LEVEL_CRITICAL);
+}
+
+TEST_F(MemoryPressureListenerTest, SyncCallbackDeletesListener) {
+  auto listener_to_be_deleted = std::make_unique<MemoryPressureListener>(
+      FROM_HERE, BindRepeating([](MemoryPressureListener::MemoryPressureLevel) {
+        FAIL() << "Async callback should not be called.";
+      }));
+
+  auto deleter_listener = std::make_unique<SyncMemoryPressureListener>(
+      BindLambdaForTesting([&](MemoryPressureLevel) {
+        // This should not deadlock.
+        listener_to_be_deleted.reset();
+      }));
+
+  // This should trigger the sync callback in |deleter_listener|, which will
+  // delete |listener_to_be_deleted|.
+  ExpectNotification(&MemoryPressureListener::NotifyMemoryPressure,
                      MemoryPressureLevel::MEMORY_PRESSURE_LEVEL_CRITICAL);
 }
 

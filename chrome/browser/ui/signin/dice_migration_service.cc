@@ -149,38 +149,6 @@ bool MaybeMigrateUser(Profile* profile) {
   return true;
 }
 
-void RestoreImplicitlySignedInStateFromBackupIfExists(PrefService* prefs) {
-  CHECK(prefs);
-
-  if (!prefs->GetBoolean(kDiceMigrationMigrated)) {
-    return;
-  }
-
-  const bool restored_from_backup = [prefs]() -> bool {
-    const base::Value* backup = prefs->GetUserPrefValue(kDiceMigrationBackup);
-    if (!backup || !backup->is_dict()) {
-      return false;
-    }
-    const std::optional<bool> prefs_account_storage_enabled =
-        backup->GetDict().FindBoolByDottedPath(
-            prefs::kPrefsThemesSearchEnginesAccountStorageEnabled);
-    const std::optional<bool> explicit_browser_signin =
-        backup->GetDict().FindBoolByDottedPath(prefs::kExplicitBrowserSignin);
-    if (!explicit_browser_signin.has_value() ||
-        !prefs_account_storage_enabled.has_value()) {
-      return false;
-    }
-    prefs->SetBoolean(prefs::kPrefsThemesSearchEnginesAccountStorageEnabled,
-                      *prefs_account_storage_enabled);
-    prefs->SetBoolean(prefs::kExplicitBrowserSignin, *explicit_browser_signin);
-    return true;
-  }();
-
-  prefs->SetBoolean(kDiceMigrationRestoredFromBackup, restored_from_backup);
-  prefs->SetBoolean(kDiceMigrationMigrated, !restored_from_backup);
-  base::UmaHistogramBoolean(kRestoredFromBackupHistogram, restored_from_backup);
-}
-
 bool MaybeShowToast(Browser* browser) {
   ToastController* const toast_controller =
       browser->browser_window_features()->toast_controller();
@@ -244,12 +212,8 @@ DiceMigrationService::DiceMigrationService(
     Profile* profile,
     scoped_refptr<base::SingleThreadTaskRunner> task_runner_for_testing)
     : profile_(profile) {
+  CHECK(base::FeatureList::IsEnabled(switches::kOfferMigrationToDiceUsers));
   CHECK(profile_);
-  if (!base::FeatureList::IsEnabled(switches::kOfferMigrationToDiceUsers)) {
-    RestoreImplicitlySignedInStateFromBackupIfExists(profile_->GetPrefs());
-    return;
-  }
-
   const std::optional<DialogNotShownReason> not_shown_reason =
       ShouldStartDialogTriggerTimer();
   base::UmaHistogramBoolean(kDialogTimerStartedHistogram,
@@ -300,6 +264,45 @@ void DiceMigrationService::RegisterProfilePrefs(
   registry->RegisterBooleanPref(kDiceMigrationMigrated, false);
   registry->RegisterDictionaryPref(kDiceMigrationBackup);
   registry->RegisterBooleanPref(kDiceMigrationRestoredFromBackup, false);
+}
+
+// static
+void DiceMigrationService::RevertDiceMigration(PrefService* prefs) {
+  CHECK(prefs);
+
+  if (!prefs->GetBoolean(kDiceMigrationMigrated)) {
+    return;
+  }
+
+  const bool restored_from_backup = [prefs]() -> bool {
+    const base::Value* backup = prefs->GetUserPrefValue(kDiceMigrationBackup);
+    if (!backup || !backup->is_dict()) {
+      return false;
+    }
+    const std::optional<bool> prefs_account_storage_enabled =
+        backup->GetDict().FindBoolByDottedPath(
+            prefs::kPrefsThemesSearchEnginesAccountStorageEnabled);
+    const std::optional<bool> explicit_browser_signin =
+        backup->GetDict().FindBoolByDottedPath(prefs::kExplicitBrowserSignin);
+    if (!explicit_browser_signin.has_value() ||
+        !prefs_account_storage_enabled.has_value()) {
+      return false;
+    }
+    prefs->SetBoolean(prefs::kPrefsThemesSearchEnginesAccountStorageEnabled,
+                      *prefs_account_storage_enabled);
+    prefs->SetBoolean(prefs::kExplicitBrowserSignin, *explicit_browser_signin);
+    return true;
+  }();
+
+  prefs->SetBoolean(kDiceMigrationRestoredFromBackup, restored_from_backup);
+  prefs->SetBoolean(kDiceMigrationMigrated, !restored_from_backup);
+  base::UmaHistogramBoolean(kRestoredFromBackupHistogram, restored_from_backup);
+  // Clear the backup. Also clear the dialog shown count/time to ensure the
+  // dialog can be shown again once the flag is enabled again.
+  if (restored_from_backup) {
+    prefs->ClearPref(kDiceMigrationBackup);
+    prefs->ClearPref(kDiceMigrationDialogShownCount);
+  }
 }
 
 std::optional<DiceMigrationService::DialogNotShownReason>
@@ -401,6 +404,15 @@ DiceMigrationService::ShowDiceMigrationOfferDialogIfUserEligible() {
   browser_ = browser->AsWeakPtr();
   dialog_widget_->Show();
 
+  // Update the dialog shown count and time. Note that the user may not interact
+  // with the dialog at all, for example, if they close the browser. Or, the
+  // dialog may be shown on a browser that is minimized. These cases still count
+  // as showing the dialog. This is better than the alternate of updating the
+  // shown count and time only when the user interacts with the dialog, which
+  // might cause the dialog to be show on every browser startup if the user
+  // never interacts with it.
+  UpdateDialogShownCountAndTime();
+
   // Close the dialog when the avatar pill is clicked.
   avatar_button_observer_ =
       std::make_unique<AvatarButtonObserver>(avatar_button, this);
@@ -421,8 +433,6 @@ void DiceMigrationService::OnWidgetDestroying(views::Widget* widget) {
   avatar_button_observer_.reset();
   dialog_widget_observation_.Reset();
   dialog_widget_ = nullptr;
-  Browser* browser = browser_.get();
-  browser_.reset();
   switch (widget->closed_reason()) {
     // Losing focus should not close the dialog.
     case views::Widget::ClosedReason::kLostFocus:
@@ -430,35 +440,31 @@ void DiceMigrationService::OnWidgetDestroying(views::Widget* widget) {
     case views::Widget::ClosedReason::kUnspecified:
       LogDialogCloseReason(
           dialog_close_reason_.value_or(DialogCloseReason::kUnspecified));
-      return;
+      break;
     case views::Widget::ClosedReason::kAcceptButtonClicked: {
       LogDialogCloseReason(DialogCloseReason::kAccepted);
       const bool migrated = MaybeMigrateUser(profile_);
       base::UmaHistogramBoolean(kUserMigratedHistogram, migrated);
       if (migrated) {
-        const bool toast_triggered = browser && MaybeShowToast(browser);
+        const bool toast_triggered = browser_ && MaybeShowToast(browser_.get());
         base::UmaHistogramBoolean(kToastTriggeredHistogram, toast_triggered);
       }
     } break;
     case views::Widget::ClosedReason::kCancelButtonClicked:
       // Cancel button is only available in the non-"final" variant.
-      CHECK_LT(GetDialogShownCount(), kMaxDialogShownCount - 1);
+      CHECK_LT(GetDialogShownCount(), kMaxDialogShownCount);
       LogDialogCloseReason(DialogCloseReason::kCancelled);
       break;
     case views::Widget::ClosedReason::kCloseButtonClicked:
       // Close button is only available in the "final" variant.
-      CHECK_EQ(GetDialogShownCount(), kMaxDialogShownCount - 1);
+      CHECK_EQ(GetDialogShownCount(), kMaxDialogShownCount);
       LogDialogCloseReason(DialogCloseReason::kClosed);
       break;
     case views::Widget::ClosedReason::kEscKeyPressed:
       LogDialogCloseReason(DialogCloseReason::kEscKeyPressed);
       break;
   }
-  // The dialog is considered shown if the user interacts with it, i.e. the user
-  // accepts or dismisses the dialog. This is better than just tracking when the
-  // dialog was actually shown, since the user might have dismissed the dialog
-  // unknowingly, for example, by closing the browser.
-  UpdateDialogShownCountAndTime();
+  browser_.reset();
 }
 
 void DiceMigrationService::OnPrimaryAccountChanged(

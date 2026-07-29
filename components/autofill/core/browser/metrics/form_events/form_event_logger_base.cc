@@ -244,13 +244,6 @@ void FormEventLoggerBase::OnDestroyed() {
   RecordAblationMetrics();
 }
 
-void FormEventLoggerBase::OnFilledByFieldByFieldFilling(SuggestionType type) {
-  CHECK(type == SuggestionType::kAddressFieldByFieldFilling)
-      << base::to_underlying(type);
-  field_by_field_filled_form_types_.insert(
-      FormTypeNameForLogging::kAddressForm);
-}
-
 void FormEventLoggerBase::
     OnAutofilledFieldWasClearedByJavaScriptShortlyAfterFill(
         const FormStructure& form) {
@@ -263,11 +256,7 @@ void FormEventLoggerBase::
 void FormEventLoggerBase::Log(FormEvent event, const FormStructure& form) {
   DCHECK_LT(event, NUM_FORM_EVENTS);
   form_events_set_[form.global_id()].insert(event);
-  for (FormTypeNameForLogging form_type :
-       base::FeatureList::IsEnabled(
-           features::kAutofillEnableLogFormEventsToAllParsedFormTypes)
-           ? identified_form_types_
-           : GetFormTypesForLogging(form)) {
+  for (FormTypeNameForLogging form_type : GetFormTypesForLogging(form)) {
     std::string name(
         base::StrCat({"Autofill.FormEvents.",
                       FormTypeNameForLoggingToStringView(form_type)}));
@@ -582,13 +571,6 @@ FormEventLoggerBase::GetParsedFormTypesAsStringViews() const {
     result.push_back(FormTypeNameForLoggingToStringView(form_type));
   }
   return result;
-}
-
-DenseSet<FormTypeNameForLogging>
-FormEventLoggerBase::GetParsedAndFieldByFieldFormTypes() const {
-  DenseSet<FormTypeNameForLogging> all_form_types = identified_form_types_;
-  all_form_types.insert_all(field_by_field_filled_form_types_);
-  return all_form_types;
 }
 
 }  // namespace autofill::autofill_metrics

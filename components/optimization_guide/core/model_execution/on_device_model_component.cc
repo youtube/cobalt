@@ -24,6 +24,7 @@
 #include "components/optimization_guide/core/model_execution/model_execution_prefs.h"
 #include "components/optimization_guide/core/model_execution/model_execution_util.h"
 #include "components/optimization_guide/core/model_execution/performance_class.h"
+#include "components/optimization_guide/core/model_execution/usage_tracker.h"
 #include "components/optimization_guide/core/optimization_guide_constants.h"
 #include "components/optimization_guide/core/optimization_guide_enums.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
@@ -31,22 +32,11 @@
 #include "components/prefs/pref_service.h"
 #include "components/version_info/version_info.h"
 #include "services/on_device_model/public/cpp/cpu.h"
+#include "services/on_device_model/public/cpp/features.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 
 namespace optimization_guide {
 namespace {
-
-bool WasAnyOnDeviceEligibleFeatureRecentlyUsed(const PrefService& local_state) {
-  for (const ModelBasedCapabilityKey key : kAllModelBasedCapabilityKeys) {
-    if (!features::internal::GetOptimizationTargetForCapability(key)) {
-      continue;
-    }
-    if (WasOnDeviceEligibleFeatureRecentlyUsed(key, local_state)) {
-      return true;
-    }
-  }
-  return false;
-}
 
 void LogInstallCriteria(std::string_view event_name,
                         std::string_view criteria_name,
@@ -80,6 +70,10 @@ std::optional<proto::OnDeviceModelPerformanceHint>
 GetBestPerformanceHintForDevice(
     const base::Value::List* manifest_performance_hints,
     const std::vector<proto::OnDeviceModelPerformanceHint>& prioritized_hints) {
+  if (base::FeatureList::IsEnabled(
+          on_device_model::features::kOnDeviceModelForceCpuBackend)) {
+    return proto::ON_DEVICE_MODEL_PERFORMANCE_HINT_CPU;
+  }
   if (!manifest_performance_hints) {
     return std::nullopt;
   }
@@ -119,15 +113,27 @@ std::optional<OnDeviceBaseModelSpec> GetOnDeviceBaseModelSpecFromManifest(
   }
   auto* supported_performance_hints =
       model_spec->FindList("supported_performance_hints");
-  std::optional<proto::OnDeviceModelPerformanceHint>
-      supported_performance_hint_enum = GetBestPerformanceHintForDevice(
-          supported_performance_hints, prioritized_hints);
-  return OnDeviceBaseModelSpec(
-      *name, *version,
-      supported_performance_hint_enum
-          ? OnDeviceBaseModelSpec::PerformanceHints(
-                {*supported_performance_hint_enum})
-          : OnDeviceBaseModelSpec::PerformanceHints({}));
+  std::optional<proto::OnDeviceModelPerformanceHint> selected_performance_hint =
+      GetBestPerformanceHintForDevice(supported_performance_hints,
+                                      prioritized_hints);
+  if (!selected_performance_hint) {
+    return std::nullopt;
+  }
+  return OnDeviceBaseModelSpec(*name, *version, *selected_performance_hint);
+}
+
+base::Value::Dict MakeOverrideManifest() {
+  auto hints =
+      base::Value::List()
+          .Append(proto::ON_DEVICE_MODEL_PERFORMANCE_HINT_HIGHEST_QUALITY)
+          .Append(proto::ON_DEVICE_MODEL_PERFORMANCE_HINT_FASTEST_INFERENCE)
+          .Append(proto::ON_DEVICE_MODEL_PERFORMANCE_HINT_CPU);
+  return base::Value::Dict().Set(
+      "BaseModelSpec",
+      base::Value::Dict()
+          .Set("name", "override")
+          .Set("version", "override")
+          .Set("supported_performance_hints", std::move(hints)));
 }
 
 }  // namespace
@@ -153,14 +159,13 @@ std::ostream& operator<<(std::ostream& out, OnDeviceModelStatus status) {
   }
 }
 
-OnDeviceBaseModelSpec::OnDeviceBaseModelSpec() = default;
 OnDeviceBaseModelSpec::OnDeviceBaseModelSpec(
     const std::string& model_name,
     const std::string& model_version,
-    PerformanceHints supported_performance_hints)
+    proto::OnDeviceModelPerformanceHint selected_performance_hint)
     : model_name(model_name),
       model_version(model_version),
-      supported_performance_hints(supported_performance_hints) {}
+      selected_performance_hint(selected_performance_hint) {}
 OnDeviceBaseModelSpec::~OnDeviceBaseModelSpec() = default;
 OnDeviceBaseModelSpec::OnDeviceBaseModelSpec(const OnDeviceBaseModelSpec&) =
     default;
@@ -169,7 +174,7 @@ bool OnDeviceBaseModelSpec::operator==(
     const OnDeviceBaseModelSpec& other) const {
   return model_name == other.model_name &&
          model_version == other.model_version &&
-         supported_performance_hints == other.supported_performance_hints;
+         selected_performance_hint == other.selected_performance_hint;
 }
 
 void OnDeviceModelComponentStateManager::UninstallComplete() {
@@ -216,31 +221,6 @@ OnDeviceModelComponentStateManager::GetDebugState() {
   return debug;
 }
 
-void OnDeviceModelComponentStateManager::OnDeviceEligibleFeatureUsed(
-    ModelBasedCapabilityKey feature) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-  if (!WasOnDeviceEligibleFeatureRecentlyUsed(feature, *local_state_)) {
-    // This is the first time usage of the feature.
-    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(&OnDeviceModelComponentStateManager::
-                                      NotifyOnDeviceEligibleFeatureFirstUsed,
-                                  GetWeakPtr(), feature));
-  }
-
-  model_execution::prefs::RecordFeatureUsage(local_state_, feature);
-
-  base::UmaHistogramEnumeration(
-      "OptimizationGuide.ModelExecution.OnDeviceModelStatusAtUseTime",
-      GetOnDeviceModelStatus());
-
-  if (registration_criteria_) {
-    LogInstallCriteria(*registration_criteria_, "AtAttemptedUse");
-  }
-
-  BeginUpdateRegistration();
-}
-
 void OnDeviceModelComponentStateManager::OnPerformanceClassAvailable() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   BeginUpdateRegistration();
@@ -284,10 +264,7 @@ void OnDeviceModelComponentStateManager::BeginUpdateRegistration() {
     if (!state_) {
       is_model_allowed_ = true;
       SetReady(base::Version("override"), *model_path_override_switch,
-               base::Value::Dict().Set("BaseModelSpec",
-                                       base::Value::Dict()
-                                           .Set("version", "override")
-                                           .Set("name", "override")));
+               MakeOverrideManifest());
     }
     return;
   }
@@ -343,6 +320,21 @@ void OnDeviceModelComponentStateManager::CompleteUpdateRegistration(
   }
 }
 
+void OnDeviceModelComponentStateManager::OnDeviceEligibleFeatureUsed(
+    ModelBasedCapabilityKey feature) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  base::UmaHistogramEnumeration(
+      "OptimizationGuide.ModelExecution.OnDeviceModelStatusAtUseTime",
+      GetOnDeviceModelStatus());
+
+  if (registration_criteria_) {
+    LogInstallCriteria(*registration_criteria_, "AtAttemptedUse");
+  }
+
+  BeginUpdateRegistration();
+}
+
 OnDeviceModelComponentStateManager::RegistrationCriteria
 OnDeviceModelComponentStateManager::ComputeRegistrationCriteria(
     int64_t disk_space_free_bytes) {
@@ -354,7 +346,7 @@ OnDeviceModelComponentStateManager::ComputeRegistrationCriteria(
       IsFreeDiskSpaceSufficientForOnDeviceModelInstall(disk_space_free_bytes);
   result.device_capable = performance_classifier_->IsDeviceCapable();
   result.on_device_feature_recently_used =
-      WasAnyOnDeviceEligibleFeatureRecentlyUsed(*local_state_);
+      usage_tracker_->WasAnyOnDeviceEligibleFeatureRecentlyUsed();
   result.enabled_by_feature = features::IsOnDeviceExecutionEnabled();
   result.enabled_by_enterprise_policy =
       GetGenAILocalFoundationalModelEnterprisePolicySettings(local_state_) ==
@@ -379,11 +371,14 @@ OnDeviceModelComponentStateManager::ComputeRegistrationCriteria(
 OnDeviceModelComponentStateManager::OnDeviceModelComponentStateManager(
     PrefService* local_state,
     base::SafeRef<PerformanceClassifier> performance_classifier,
+    UsageTracker& usage_tracker,
     std::unique_ptr<Delegate> delegate)
     : local_state_(local_state),
       performance_classifier_(std::move(performance_classifier)),
-      delegate_(std::move(delegate)) {
+      delegate_(std::move(delegate)),
+      usage_tracker_(usage_tracker) {
   CHECK(local_state);  // Useful to catch poor test setup.
+  usage_tracker_observation_.Observe(&usage_tracker);
   pref_change_registrar_.Init(local_state);
   pref_change_registrar_.Add(
       model_execution::prefs::localstate::
@@ -437,12 +432,8 @@ void OnDeviceModelComponentStateManager::SetReady(
 
   if (auto model_spec = GetOnDeviceBaseModelSpecFromManifest(
           manifest, performance_classifier_->GetPossibleHints())) {
-    state_ = base::WrapUnique(new OnDeviceModelComponentState);
-    state_->install_dir_ = install_dir;
-    // This version refers to the component version specifically, not the model
-    // version.
-    state_->component_version_ = version;
-    state_->model_spec_ = *model_spec;
+    state_ = std::make_unique<OnDeviceModelComponentState>(install_dir, version,
+                                                           *model_spec);
   }
   if (is_model_allowed_) {
     NotifyStateChanged();
@@ -456,15 +447,13 @@ void OnDeviceModelComponentStateManager::NotifyStateChanged() {
   }
 }
 
-void OnDeviceModelComponentStateManager::NotifyOnDeviceEligibleFeatureFirstUsed(
-    ModelBasedCapabilityKey feature) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  for (auto& o : observers_) {
-    o.OnDeviceEligibleFeatureFirstUsed(feature);
-  }
-}
-
-OnDeviceModelComponentState::OnDeviceModelComponentState() = default;
+OnDeviceModelComponentState::OnDeviceModelComponentState(
+    base::FilePath install_dir,
+    base::Version component_version,
+    OnDeviceBaseModelSpec model_spec)
+    : install_dir_(install_dir),
+      component_version_(component_version),
+      model_spec_(model_spec) {}
 OnDeviceModelComponentState::~OnDeviceModelComponentState() = default;
 
 }  // namespace optimization_guide

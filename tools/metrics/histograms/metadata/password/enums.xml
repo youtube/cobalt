@@ -182,6 +182,9 @@ chromium-metrics-reviews@google.com.
   <int value="15" label="Compose dialog lost focus"/>
   <int value="16" label="Compose delayed proactive nudge"/>
   <int value="17" label="Password manager processed focused field"/>
+  <int value="18" label="Autofill AI"/>
+  <int value="19" label="Plus address update in browser process"/>
+  <int value="20" label="Proactive password recovery"/>
 </enum>
 
 <enum name="AutoSigninFirstRun">
@@ -266,6 +269,19 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="All characters belonging to the class are removed"/>
   <int value="3" label="Set of character class members changed"/>
 </enum>
+
+<!-- LINT.IfChange(CoarseFinalPasswordChangeState) -->
+
+<enum name="CoarseFinalPasswordChangeState">
+  <int value="0" label="Offered password change"/>
+  <int value="1" label="Canceled by the user"/>
+  <int value="2" label="Password successfully changed"/>
+  <int value="3" label="Password change failed"/>
+  <int value="4" label="No change password form found"/>
+  <int value="5" label="OTP detected"/>
+</enum>
+
+<!-- LINT.ThenChange(/chrome/browser/password_manager/password_change_delegate.h) -->
 
 <enum name="CredentialEntryAction">
   <int value="0" label="Deleted"/>
@@ -598,6 +614,8 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="PrimaryPasswordSucceeded"/>
   <int value="2" label="BackupPasswordFailed"/>
   <int value="3" label="BackupPasswordSucceeded"/>
+  <int value="4" label="UnknownPasswordFailed"/>
+  <int value="5" label="UnknownPasswordSucceeded"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/password_manager/core/browser/password_manager.h:LogInWithChangedPasswordOutcome) -->
@@ -790,7 +808,7 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="PrimaryPasswordUpdated"/>
 </enum>
 
-<!-- LINT.ThenChange(//components/password_manager/core/browser/undo_password_change_controller.h:PasswordChangeRecoveryFlowState) -->
+<!-- LINT.ThenChange(//components/password_manager/core/browser/password_manager_metrics_util.h:PasswordChangeRecoveryFlowState) -->
 
 <!-- LINT.IfChange(PasswordChangeToastEvent) -->
 
@@ -1043,12 +1061,12 @@ chromium-metrics-reviews@google.com.
     The user explicitly asked to move multiple passwords at once in Settings.
     Recorded only on Win/Mac/Linux.
   </int>
-  <int value="3" label="kUserOptedInAfterSavingLocally">
+  <int value="3" label="(obsolete) kUserOptedInAfterSavingLocally">
     After saving a password locally, the user opted in to saving this and future
     passwords in the account. Recorded only on Win/Mac/Linux.
   </int>
   <int value="4"
-      label="kExplicitlyTriggeredForSinglePasswordInDetailsInSettings">
+      label="(obsolete)ExplicitlyTriggeredForSinglePasswordInDetailsInSettings">
     The user explicitly asked to move a password to account store from password
     details page.
   </int>

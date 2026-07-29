@@ -10,7 +10,6 @@
 #include <memory>
 #include <vector>
 
-#include "base/atomicops.h"
 #include "base/compiler_specific.h"
 #include "base/component_export.h"
 #include "base/memory/raw_ptr.h"
@@ -105,7 +104,6 @@ class COMPONENT_EXPORT(IPC) MessagePipeReader : public mojom::Channel {
  private:
   // mojom::Channel:
   void SetPeerPid(int32_t peer_pid) override;
-  void Receive(MessageView message_view) override;
   void GetAssociatedInterface(
       mojo::GenericPendingAssociatedReceiver receiver) override;
 

@@ -52,6 +52,17 @@ class Host;
 
 enum class GlicPrewarmingChecksResult;
 
+// LINT.IfChange(GlicPrewarmingFreSource)
+enum class GlicPrewarmingFreSource {
+  kWhatsNew = 0,
+  kNudge = 1,
+  kIph = 2,
+  kTest = 3,
+  kBrowserCommand = 4,
+  kMaxValue = kBrowserCommand,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicPrewarmingFreSource)
+
 // The GlicKeyedService is created for each eligible (i.e. non-incognito,
 // non-system, etc.) browser profile if Glic flags are enabled, regardless
 // of whether the profile is enabled or disabled at runtime (currently
@@ -160,9 +171,10 @@ class GlicKeyedService : public KeyedService {
   void CreateTask(mojom::WebClientHandler::CreateTaskCallback callback);
   void PerformActions(const std::vector<uint8_t>& actions_proto,
                       mojom::WebClientHandler::PerformActionsCallback callback);
-
-  void StopActorTask(actor::TaskId task_id);
-  void PauseActorTask(actor::TaskId task_id);
+  void StopActorTask(actor::TaskId task_id,
+                     mojom::ActorTaskStopReason stop_reason);
+  void PauseActorTask(actor::TaskId task_id,
+                      mojom::ActorTaskPauseReason pause_reason);
   void ResumeActorTask(
       actor::TaskId task_id,
       const mojom::GetTabContextOptions& context_options,
@@ -187,7 +199,7 @@ class GlicKeyedService : public KeyedService {
 
   virtual void TryPreload();
   void TryPreloadAfterDelay();
-  virtual void TryPreloadFre();
+  virtual void TryPreloadFre(GlicPrewarmingFreSource source);
   void Reload();
 
   Profile* profile() const { return profile_; }
@@ -221,7 +233,7 @@ class GlicKeyedService : public KeyedService {
       std::vector<std::string> returned_suggestions);
 
   void FinishPreload(GlicPrewarmingChecksResult reason);
-  void FinishPreloadFre(bool should_preload);
+  void FinishPreloadFre(GlicPrewarmingFreSource source, bool should_preload);
 
   void PerformActionsFinished(
       mojom::WebClientHandler::PerformActionsCallback callback,

@@ -150,7 +150,11 @@ BackgroundTabLoadingPolicy::BackgroundTabLoadingPolicy(
     base::RepeatingClosure all_restored_tabs_loaded_callback)
     : all_restored_tabs_loaded_callback_(
           std::move(all_restored_tabs_loaded_callback)),
-      page_loader_(std::make_unique<mechanism::PageLoader>()) {
+      page_loader_(std::make_unique<mechanism::PageLoader>()),
+      memory_pressure_listener_(
+          FROM_HERE,
+          base::BindRepeating(&BackgroundTabLoadingPolicy::OnMemoryPressure,
+                              base::Unretained(this))) {
   DCHECK(!g_background_tab_loading_policy);
   g_background_tab_loading_policy = this;
   max_simultaneous_tab_loads_ = CalculateMaxSimultaneousTabLoads(
@@ -165,14 +169,12 @@ BackgroundTabLoadingPolicy::~BackgroundTabLoadingPolicy() {
 
 void BackgroundTabLoadingPolicy::OnPassedToGraph(Graph* graph) {
   graph->AddPageNodeObserver(this);
-  graph->AddSystemNodeObserver(this);
   graph->GetNodeDataDescriberRegistry()->RegisterDescriber(this,
                                                            kDescriberName);
 }
 
 void BackgroundTabLoadingPolicy::OnTakenFromGraph(Graph* graph) {
   graph->GetNodeDataDescriberRegistry()->UnregisterDescriber(this);
-  graph->RemoveSystemNodeObserver(this);
   graph->RemovePageNodeObserver(this);
 }
 
@@ -536,6 +538,13 @@ void BackgroundTabLoadingPolicy::NotifyAllTabsScored() {
 
 void BackgroundTabLoadingPolicy::InitiateLoad(const PageNode* page_node) {
   TRACE_EVENT("browser", "BackgroundTabLoadingPolicy::InitiateLoad");
+  for (const PageNode* to_load : page_loader_->GetPageNodesToLoad(page_node)) {
+    InitiateSinglePageLoad(to_load);
+  }
+}
+
+void BackgroundTabLoadingPolicy::InitiateSinglePageLoad(
+    const PageNode* page_node) {
   // The page shouldn't already be loading.
   DCHECK(!base::Contains(page_nodes_load_initiated_, page_node));
   DCHECK(!base::Contains(page_nodes_loading_, page_node));
@@ -565,8 +574,9 @@ void BackgroundTabLoadingPolicy::MaybeLoadSomeTabs() {
   // Continue to load tabs while possible. This is in a loop with a
   // recalculation of GetMaxNewTabLoads() as reentrancy can cause conditions
   // to change as each tab load is initiated.
-  while (GetMaxNewTabLoads() > 0)
+  while (GetMaxNewTabLoads() > 0) {
     LoadNextTab();
+  }
 
   // All restored tabs may be loaded.
   UpdateHasRestoredTabsToLoad();

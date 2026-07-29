@@ -172,6 +172,7 @@
 <translation id="3003694935412297923">Барлық тапсырма</translation>
 <translation id="3018957014024118866">Деректерді Chrome-нан (<ph name="URL" />) да жою</translation>
 <translation id="3019382870990049182">&amp;ChromeOS Flex жүйесін жаңарту үшін оны қайта іске қосу</translation>
+<translation id="3037517125981011456">Chrome-ға кіру нұсқауларын көрсетеді.</translation>
 <translation id="3037838751736561277">Google Chrome фондық режимде.</translation>
 <translation id="3038232873781883849">Сәлден соң орнатыла бастайды…</translation>
 <translation id="3045032126857188731">Аударма тілі: <ph name="LANGUAGE" /></translation>
@@ -407,6 +408,7 @@ Google Chrome параметрлеріңізді қалпына келтіре �
 <translation id="5980111191913430208">Белгісіз дереккөздерден алынған кеңейтімдер, қолданбалар мен тақырыптар құрылғыңызға зиянын тигізуі мүмкін. Chrome оларды тек <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> дүкенінен орнатуға кеңес береді.</translation>
 <translation id="6003112304606738118">Жүктеп алынып жатыр… <ph name="HOURS" /> сағат қалды.</translation>
 <translation id="6008161919456049856">Google аккаунтыңызға сақтаған құпия сөздер, төлеу әдістері және мекенжайлар осы құрылғыдан өшіріледі. Оларды Chrome-да қайта пайдалану үшін аккаунтқа қайтадан кіріңіз.</translation>
+<translation id="6009821354356307391">Қосымша сұрақ қойыңыз</translation>
 <translation id="6014316319780893079"><ph name="BEGIN_LINK" />Chrome-дағы құралдар<ph name="END_LINK" /> көмегімен браузерді қауіпсіз қолданып, барлығын басқаруға болады.</translation>
 <translation id="6022659036123304283">Chrome браузерін өз талғамыңызға сай реттеңіз</translation>
 <translation id="6025087594896450715">Google Chrome <ph name="REMAINING_TIME" /> кейін қайта қосылады.</translation>
@@ -646,6 +648,7 @@ Google Chrome параметрлеріңізді қалпына келтіре �
 <translation id="8843516219908676469">Chrome үлгілерді жақсы түсінеді және сізден де жылдам толтыра алады.</translation>
 <translation id="8851180723659088381">{NUM_EXTENSIONS,plural, =1{Chrome мұны өшіруге кеңес береді.}other{Chrome бұларды өшіруге кеңес береді.}}</translation>
 <translation id="8862326446509486874">Жүйе деңгейінде орнату үшін тиісті құқықтарыңыз жоқ. Әкімші ретінде орнату құралын қайта іске қосып көріңіз.</translation>
+<translation id="8865415417596392024">Аккаунтыңыздағы Chrome деректері</translation>
 <translation id="8883862939660515976">Google Lens-ден осы сурет жайында сұрау</translation>
 <translation id="8914504000324227558">Chrome қолданбасын қайта іске қосу</translation>
 <translation id="8922193594870374009">Нөмірді <ph name="ORIGIN" /> құрылғысынан Android телефонына жіберу үшін екі құрылғыда да Chrome браузеріне кіріңіз.</translation>

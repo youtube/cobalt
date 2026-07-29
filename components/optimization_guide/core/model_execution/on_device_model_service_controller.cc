@@ -147,11 +147,13 @@ OnDeviceModelServiceController::OnDeviceModelServiceController(
     base::SafeRef<PerformanceClassifier> performance_classifier,
     base::WeakPtr<OnDeviceModelComponentStateManager>
         on_device_component_state_manager,
+    UsageTracker& usage_tracker,
     base::SafeRef<on_device_model::ServiceClient> service_client)
     : access_controller_(std::move(access_controller)),
       performance_classifier_(std::move(performance_classifier)),
       on_device_component_state_manager_(
           std::move(on_device_component_state_manager)),
+      usage_tracker_(usage_tracker),
       service_client_(std::move(service_client)),
       safety_client_(service_client_->GetWeakPtr()) {
   base_model_controller_.emplace(weak_ptr_factory_.GetSafeRef(), nullptr);
@@ -185,9 +187,7 @@ OnDeviceModelServiceController::CreateSession(
   auto reason = solution.error_or(OnDeviceModelEligibilityReason::kSuccess);
   LogEligibilityReason(feature, reason);
 
-  if (on_device_component_state_manager_) {
-    on_device_component_state_manager_->OnDeviceEligibleFeatureUsed(feature);
-  }
+  usage_tracker_->OnDeviceEligibleFeatureUsed(feature);
 
   // Return if we cannot do anything more for right now.
   if (reason != OnDeviceModelEligibilityReason::kSuccess) {
@@ -434,7 +434,7 @@ void OnDeviceModelServiceController::SubscribeInternal(
     mojo::PendingRemote<mojom::ModelSubscriber> subscriber) {
   auto feature = ToModelBasedCapabilityKey(opts->id);
   if (opts->mark_used && on_device_component_state_manager_) {
-    on_device_component_state_manager_->OnDeviceEligibleFeatureUsed(feature);
+    usage_tracker_->OnDeviceEligibleFeatureUsed(feature);
   }
   GetSolutionProvider(feature).AddSubscriber(std::move(subscriber));
 }
@@ -563,10 +563,8 @@ OnDeviceModelServiceController::BaseModelController::PopulateModelPaths() {
   model_paths.weights = model_metadata_->model_path().Append(kWeightsFile);
 
   // TODO(crbug.com/400998489): Cache files are experimental for now.
-  if (base::FeatureList::IsEnabled(
-          on_device_model::features::kOnDeviceModelForceCpuBackend) ||
-      base::FeatureList::IsEnabled(
-          on_device_model::features::kOnDeviceModelCpuBackend)) {
+  if (model_metadata_->performance_hint() ==
+      proto::ON_DEVICE_MODEL_PERFORMANCE_HINT_CPU) {
     model_paths.cache =
         model_metadata_->model_path().Append(kExperimentalCacheFile);
   }
@@ -589,23 +587,7 @@ void OnDeviceModelServiceController::BaseModelController::OnModelAssetsLoaded(
   params->adaptation_ranks = supported_adaptation_ranks_;
 
   proto::OnDeviceModelPerformanceHint hint =
-      proto::ON_DEVICE_MODEL_PERFORMANCE_HINT_HIGHEST_QUALITY;
-  auto state_manager = controller_->on_device_component_state_manager_;
-  if (base::FeatureList::IsEnabled(
-          on_device_model::features::kOnDeviceModelForceCpuBackend)) {
-    hint = proto::ON_DEVICE_MODEL_PERFORMANCE_HINT_CPU;
-  } else if (state_manager && state_manager->GetState() &&
-             !state_manager->GetState()
-                  ->GetBaseModelSpec()
-                  .supported_performance_hints.empty()) {
-    DCHECK_EQ(state_manager->GetState()
-                  ->GetBaseModelSpec()
-                  .supported_performance_hints.size(),
-              1u);
-    hint = *state_manager->GetState()
-                ->GetBaseModelSpec()
-                .supported_performance_hints.begin();
-  }
+      model_metadata_->performance_hint();
   if (hint == proto::ON_DEVICE_MODEL_PERFORMANCE_HINT_CPU) {
     params->backend_type = ml::ModelBackendType::kCpuBackend;
   } else if (hint ==

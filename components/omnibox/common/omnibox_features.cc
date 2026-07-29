@@ -265,7 +265,7 @@ BASE_FEATURE(kUrlScoringModel, "UrlScoringModel", enable_if(!IS_ANDROID));
 
 BASE_FEATURE(kAnimateSuggestionsListAppearance,
              "AnimateSuggestionsListAppearance",
-             DISABLED);
+             ENABLED);
 
 BASE_FEATURE(kOmniboxAnswerActions, "OmniboxAnswerActions", DISABLED);
 
@@ -314,8 +314,8 @@ BASE_FEATURE(kUseFusedLocationProvider, "UseFusedLocationProvider", ENABLED);
 BASE_FEATURE(kOmniboxShortcutsAndroid, "OmniboxShortcutsAndroid", ENABLED);
 
 // Updates various NTP/Omnibox assets and descriptions for visual alignment on
-// Android and iOS.
-BASE_FEATURE(kOmniboxMobileParityUpdate, "OmniboxMobileParityUpdate", DISABLED);
+// iOS.
+BASE_FEATURE(kOmniboxMobileParityUpdate, "OmniboxMobileParityUpdate", ENABLED);
 
 // Updates various NTP/Omnibox assets and descriptions for visual alignment on
 // Android and iOS, V2.
@@ -392,19 +392,6 @@ BASE_FEATURE(kOmniboxAimShortcutTypedState,
 BASE_FEATURE(kMultilineEditField, "OmniboxMultilineEditField", DISABLED);
 
 #if BUILDFLAG(IS_ANDROID)
-// Enable the Elegant Text Height attribute on the UrlBar.
-// This attribute increases line height by up to 60% to accommodate certain
-// scripts (e.g. Burmese).
-BASE_FEATURE(kOmniboxElegantTextHeight, "OmniboxElegantTextHeight", ENABLED);
-
-// Whether the contents of the omnibox should be retained on focus as opposed to
-// being cleared. When this feature flag is enabled and the omnibox contents are
-// retained, focus events will also result in the omnibox contents being fully
-// selected so as to allow for easy replacement by the user. Note that even with
-// this feature flag enabled, only large screen devices with an attached
-// keyboard and precision pointer will exhibit a change in behavior.
-BASE_FEATURE(kRetainOmniboxOnFocus, "RetainOmniboxOnFocus", ENABLED);
-
 // Accelerates time from cold start to focused Omnibox on low-end devices,
 // prioritizing Omnibox focus and background initialization.
 BASE_FEATURE(kJumpStartOmnibox, "JumpStartOmnibox", DISABLED);
@@ -437,12 +424,9 @@ static jlong JNI_OmniboxFeatureMap_GetNativeMap(JNIEnv* env) {
       &kOmniboxAsyncViewInflation,
       &kRichAutocompletion,
       &kUseFusedLocationProvider,
-      &kOmniboxElegantTextHeight,
-      &kRetainOmniboxOnFocus,
       &kJumpStartOmnibox,
       &kAndroidHubSearchTabGroups,
       &kPostDelayedTaskFocusTab,
-      &kOmniboxMobileParityUpdate,
       &kOmniboxMobileParityUpdateV2,
       &kOmniboxSiteSearch,
       &kOmniboxAimShortcutTypedState,

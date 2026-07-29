@@ -569,7 +569,7 @@
     "includes": [4580],
   },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/privacy_sandbox/internals/resources.grd": {
-   "META": {"sizes": {"includes": [80],}},
+   "META": {"sizes": {"includes": [100],}},
     "includes": [4600],
   },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/privacy_sandbox/resources.grd": {
@@ -748,7 +748,7 @@
     "includes": [5240],
   },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/webui_browser/resources.grd": {
-    "META": {"sizes": {"includes": [5]}},
+    "META": {"sizes": {"includes": [10]}},
     "includes": [5250],
   },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/webui_browser/internal/resources.grd": {
@@ -803,6 +803,10 @@
   },
   "chromeos/ash/resources/internal/ash_internal_strings.grd": {
     "messages": [5820],
+  },
+  "<(SHARED_INTERMEDIATE_DIR)/ash/webui/boca_receiver_app_ui/resources/untrusted/resources.grd": {
+    "META": {"sizes": {"includes": [120],}},
+    "includes": [5830],
   },
   # Both boca_app_bundle_resources.grd and boca_app_bundle_mock_resources.grd
   # start with the same id because only one of them is built depending on if
@@ -1525,9 +1529,6 @@
   "<(SHARED_INTERMEDIATE_DIR)/ui/webui/resources/webui_resources.grd": {
     "META": {"sizes": {"includes": [1100]}},
     "includes": [10000],
-  },
-  "weblayer/weblayer_resources.grd": {
-    "includes": [10020],
   },
 
   # This file is generated during the build.

@@ -34,6 +34,7 @@
 <translation id="1982637982196732906">Naar gedeelte Inactief verplaatsen</translation>
 <translation id="2050597508048557928">{TABS_COUNT,plural, =1{<ph name="TABS_COUNT_ONE" /> geselecteerd tabblad bookmarken}other{<ph name="TABS_COUNT_MANY" /> geselecteerde tabbladen bookmarken}}</translation>
 <translation id="2055057176188061528">Selecteer een tabbladgroep of maak een nieuwe tabbladgroep</translation>
+<translation id="2074527029802029717">Tabblad losmaken</translation>
 <translation id="2118649612461486615">Winkelinformatie</translation>
 <translation id="2123073051266141035">{INCOGNITO_TABS_COUNT,plural, =1{Je kunt je gesloten tabbladen en groepen opnieuw openen via het gedeelte Recente tabbladen en het gedeelte Tabbladgroepen. Je incognitotabblad is niet beschikbaar.}other{Je kunt je gesloten tabbladen en groepen opnieuw openen via het gedeelte Recente tabbladen en het gedeelte Tabbladgroepen. Je # incognitotabbladen zijn niet beschikbaar.}}</translation>
 <translation id="2162620598375156287">Nu <ph name="CURRENT_PRICE" /> op <ph name="SOURCE_WEBSITE" /></translation>
@@ -62,6 +63,7 @@
 <translation id="2894757982205307093">Nieuw tabblad in groep</translation>
 <translation id="2918484639460781603">Ga naar instellingen</translation>
 <translation id="2928243913527329289">Google | Over deze winkel</translation>
+<translation id="2978860912612699943">{ITEMS_COUNT,plural, =1{<ph name="ITEMS_COUNT_ONE" /> geselecteerd}other{<ph name="ITEMS_COUNT_MANY" /> geselecteerd}}</translation>
 <translation id="3008554597174452548">Product niet meer volgen</translation>
 <translation id="3026391124054406831">Maak groepen om je tabbladen te ordenen.</translation>
 <translation id="3051031624272448591">Je kunt ze altijd terugkrijgen via de geschiedenis</translation>

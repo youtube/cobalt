@@ -8,7 +8,6 @@
 #include "chrome/browser/extensions/extension_apitest.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/test/base/ui_test_utils.h"
 #include "content/public/test/browser_test.h"
 #include "extensions/browser/extension_dialog_auto_confirm.h"
 #include "extensions/browser/extension_registry.h"
@@ -65,7 +64,7 @@ IN_PROC_BROWSER_TEST_P(ManagementApiNonPersistentApiTest, UninstallSelf) {
   // Construct this before loading the extension, since the extension will
   // immediately uninstall itself when it loads.
   extensions::TestExtensionRegistryObserver observer(
-      extensions::ExtensionRegistry::Get(browser()->profile()));
+      extensions::ExtensionRegistry::Get(profile()));
 
   base::FilePath path = test_dir.Pack();
   // Note: We set LoadOptions::wait_for_renderers to false because the extension
@@ -115,8 +114,7 @@ IN_PROC_BROWSER_TEST_P(ManagementApiNonPersistentApiTest,
     content::WebContents* web_contents =
         browsertest_util::AddTab(browser(), GURL("about:blank"));
     ASSERT_TRUE(web_contents);
-    ExtensionActionRunner::GetForWebContents(
-        browser()->tab_strip_model()->GetActiveWebContents())
+    ExtensionActionRunner::GetForWebContents(GetActiveWebContents())
         ->RunAction(extension_a, true);
   }
   EXPECT_TRUE(catcher.GetNextResult()) << message_;

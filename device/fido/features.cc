@@ -48,15 +48,6 @@ BASE_FEATURE(kWebAuthCableExtensionAnywhere,
              "WebAuthenticationCableExtensionAnywhere",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-#if BUILDFLAG(IS_ANDROID)
-
-// Not yet enabled by default.
-BASE_FEATURE(kWebAuthnAndroidPasskeyCacheMigration,
-             "WebAuthenticationAndroidPasskeyCacheMigration",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-#endif  // BUILDFLAG(IS_ANDROID)
-
 // Enabled in M118. Remove in or after M121.
 BASE_FEATURE(kWebAuthnICloudKeychainForGoogle,
              "WebAuthenticationICloudKeychainForGoogle",
@@ -142,11 +133,6 @@ BASE_FEATURE(kWebAuthnPasskeyUpgrade,
 BASE_FEATURE(kWebAuthnEnclaveAttestation,
              "WebAuthenticationEnclaveAttestation",
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Default enabled in M134. Remove in or after M137.
-BASE_FEATURE(kWebAuthnNewBfCacheHandling,
-             "WebAuthenticationNewBfCacheHandling",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Default enabled in M135. Remove in or after M138.
 BASE_FEATURE(kWebAuthnMicrosoftSoftwareUnexportableKeyProvider,

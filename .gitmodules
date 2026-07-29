@@ -222,6 +222,9 @@
 [submodule "third_party/fast_float/src"]
 	path = third_party/fast_float/src
 	url = https://chromium.googlesource.com/external/github.com/fastfloat/fast_float
+[submodule "third_party/federated_compute/src"]
+	path = third_party/federated_compute/src
+	url = https://chromium.googlesource.com/external/github.com/google-parfait/federated-compute
 [submodule "third_party/ffmpeg"]
 	path = third_party/ffmpeg
 	url = https://chromium.googlesource.com/chromium/third_party/ffmpeg
@@ -806,6 +809,10 @@
 [submodule "components/resources/default_300_percent/google_chrome"]
 	path = components/resources/default_300_percent/google_chrome
 	url = https://chrome-internal.googlesource.com/chrome/components/default_300_percent/google_chrome
+	gclient-condition = checkout_src_internal
+[submodule "components/safe_browsing/internal"]
+	path = components/safe_browsing/internal
+	url = https://chrome-internal.googlesource.com/chrome/components/safe_browsing/internal
 	gclient-condition = checkout_src_internal
 [submodule "components/site_isolation/internal"]
 	path = components/site_isolation/internal

@@ -172,6 +172,7 @@ Es posible que algunas funciones no estén disponibles y que no se guarden los c
 <translation id="3003694935412297923">Todas las tareas</translation>
 <translation id="3018957014024118866">Eliminar también los datos de Chrome (<ph name="URL" />)</translation>
 <translation id="3019382870990049182">Reiniciar para actualizar &amp;ChromeOS Flex</translation>
+<translation id="3037517125981011456">Muestra solicitudes para iniciar sesión en Chrome</translation>
 <translation id="3037838751736561277">Google Chrome está en modo de segundo plano.</translation>
 <translation id="3038232873781883849">Esperando para instalar...</translation>
 <translation id="3045032126857188731">Idioma traducido: <ph name="LANGUAGE" /></translation>
@@ -315,6 +316,7 @@ Es posible que algunas funciones no estén disponibles y que no se guarden los c
 <translation id="4747730611090640388">Chrome puede estimar tus intereses.  Después, un sitio que visites puede pedirle a Chrome consultar tus intereses para personalizar los anuncios que veas.</translation>
 <translation id="475321580758063259">Actualiza Chrome para seguir usando los datos de Chrome en tu cuenta de Google (<ph name="ACCOUNT_EMAIL" />)</translation>
 <translation id="4754614261631455953">Google Chrome Canary (tráfico mDNS entrante)</translation>
+<translation id="4756182432527369254">Acelera los sitios con el motor V8 de Chrome, pero hace que Chrome sea un poco menos resistente a los ataques</translation>
 <translation id="479167709087336770">Utiliza el mismo corrector ortográfico que se usa en la Búsqueda de Google. El texto que escribas en el navegador se enviará a Google. Puedes cambiar esta opción en cualquier momento desde los ajustes.</translation>
 <translation id="4793679854893018356">Descubre cómo te protege Chrome</translation>
 <translation id="4828579605166583682">Google Chrome está intentando reemplazar las contraseñas. Introduce tu contraseña de Windows para permitirlo.</translation>
@@ -407,6 +409,7 @@ Google Chrome no puede recuperar tu configuración.</translation>
 <translation id="5980111191913430208">Las extensiones, las aplicaciones y los temas de fuentes desconocidas pueden dañar tu dispositivo. Chrome recomienda instalarlos únicamente desde <ph name="IDS_EXTENSION_WEB_STORE_TITLE" />.</translation>
 <translation id="6003112304606738118">Descargando... Horas restantes: <ph name="HOURS" />.</translation>
 <translation id="6008161919456049856">Las contraseñas, los métodos de pago y las direcciones que hayas guardado en tu cuenta de Google se eliminarán de este dispositivo. Para usarlos de nuevo en Chromium, vuelve a iniciar sesión.</translation>
+<translation id="6009821354356307391">Hacer otra pregunta</translation>
 <translation id="6014316319780893079">Las <ph name="BEGIN_LINK" />herramientas de Chrome<ph name="END_LINK" /> te permiten navegar de forma segura y mantener el control</translation>
 <translation id="6022659036123304283">Personaliza Chrome</translation>
 <translation id="6025087594896450715">Google Chrome se reiniciará dentro de <ph name="REMAINING_TIME" /></translation>
@@ -601,6 +604,7 @@ Google Chrome no puede recuperar tu configuración.</translation>
 <translation id="8342675569599923794">Este archivo es peligroso, por lo que Chrome lo ha bloqueado.</translation>
 <translation id="8349094670477064572">Guardarás y usarás contraseñas y otros datos en tu cuenta de Google siempre que hayas iniciado sesión en Chrome. <ph name="LEARN_MORE" /></translation>
 <translation id="8362914115861174987">Traducir al</translation>
+<translation id="8366770919198174997">Reduce el rendimiento, pero hace que Chrome sea más resistente a los ataques</translation>
 <translation id="8370517070665726704">Copyright <ph name="YEAR" /> Google LLC. Todos los derechos reservados.</translation>
 <translation id="8387459386171870978">Seguir usando Chrome</translation>
 <translation id="8394720698884623075">Comprueba URLs con una lista de sitios no seguros guardada en Chrome.</translation>
@@ -645,6 +649,7 @@ Google Chrome no puede recuperar tu configuración.</translation>
 <translation id="8843516219908676469">Chrome entiende mejor los formularios y puede autocompletarlos más rápido</translation>
 <translation id="8851180723659088381">{NUM_EXTENSIONS,plural, =1{Chrome te recomienda que la elimines}other{Chrome te recomienda que las elimines}}</translation>
 <translation id="8862326446509486874">No dispones de los derechos necesarios para la instalación en el sistema. Intenta ejecutar de nuevo el programa de instalación como administrador.</translation>
+<translation id="8865415417596392024">Datos de Chrome en tu cuenta</translation>
 <translation id="8883862939660515976">Pregunta a Google Lens sobre esta imagen</translation>
 <translation id="8914504000324227558">Volver a iniciar Chrome</translation>
 <translation id="8922193594870374009">Para enviar un número desde <ph name="ORIGIN" /> a tu teléfono Android, inicia sesión en Chrome con ambos dispositivos.</translation>

@@ -25,7 +25,6 @@
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "chrome/browser/ui/tabs/tab_utils.h"
 #include "chrome/common/chrome_switches.h"
-#include "chrome/test/base/ui_test_utils.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/common/content_features.h"
@@ -131,7 +130,7 @@ IN_PROC_BROWSER_TEST_F(TabCaptureApiTest, GetUserMediaTest) {
                                     main_frame->GetRoutingID()));
 
   ResultCatcher catcher;
-  catcher.RestrictToBrowserContext(browser()->profile());
+  catcher.RestrictToBrowserContext(profile());
   EXPECT_TRUE(catcher.GetNextResult()) << catcher.message();
 }
 
@@ -182,7 +181,7 @@ IN_PROC_BROWSER_TEST_F(TabCaptureApiTest, ActiveTabPermission) {
   before_allowlist_extension.Reply("");
 
   ResultCatcher catcher;
-  catcher.RestrictToBrowserContext(browser()->profile());
+  catcher.RestrictToBrowserContext(profile());
   EXPECT_TRUE(catcher.GetNextResult()) << catcher.message();
 }
 
@@ -211,7 +210,7 @@ IN_PROC_BROWSER_TEST_F(TabCaptureApiTest, FullscreenEvents) {
 
   // Wait until the page examines its results and calls chrome.test.succeed().
   ResultCatcher catcher;
-  catcher.RestrictToBrowserContext(browser()->profile());
+  catcher.RestrictToBrowserContext(profile());
   EXPECT_TRUE(catcher.GetNextResult()) << catcher.message();
 }
 
@@ -225,12 +224,8 @@ IN_PROC_BROWSER_TEST_F(TabCaptureApiTest, GrantForChromePages) {
   EXPECT_TRUE(before_open_tab.WaitUntilSatisfied());
 
   // Open a tab on a chrome:// page and make sure we can capture.
-  ui_test_utils::NavigateToURLWithDisposition(
-      browser(), GURL(kValidChromeURL),
-      WindowOpenDisposition::NEW_FOREGROUND_TAB,
-      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
-  content::WebContents* web_contents =
-      browser()->tab_strip_model()->GetActiveWebContents();
+  NavigateToURLInNewTab(GURL(kValidChromeURL));
+  content::WebContents* web_contents = GetActiveWebContents();
   const Extension* extension = ExtensionRegistry::Get(
       web_contents->GetBrowserContext())->enabled_extensions().GetByID(
           kExtensionId);
@@ -239,7 +234,7 @@ IN_PROC_BROWSER_TEST_F(TabCaptureApiTest, GrantForChromePages) {
   before_open_tab.Reply("");
 
   ResultCatcher catcher;
-  catcher.RestrictToBrowserContext(browser()->profile());
+  catcher.RestrictToBrowserContext(profile());
   EXPECT_TRUE(catcher.GetNextResult()) << catcher.message();
 }
 

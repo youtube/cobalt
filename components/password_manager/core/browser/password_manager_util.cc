@@ -268,6 +268,17 @@ const password_manager::PasswordForm* FindLoginWithChangedPassword(
              : nullptr;
 }
 
+const password_manager::PasswordForm* FindChangedPasswordLoginWithBackup(
+    const password_manager::PasswordFormManagerForUI& submitted_manager) {
+  const password_manager::PasswordForm* changed_password_form =
+      FindLoginWithChangedPassword(submitted_manager);
+  if (changed_password_form &&
+      changed_password_form->GetPasswordBackup().has_value()) {
+    return changed_password_form;
+  }
+  return nullptr;
+}
+
 const PasswordForm* GetMatchForUpdating(
     const PasswordForm& submitted_form,
     const std::vector<raw_ptr<const PasswordForm, VectorExperimental>>&
@@ -284,10 +295,14 @@ const PasswordForm* GetMatchForUpdating(
   const PasswordForm* username_match =
       FindFormByUsername(credentials, submitted_form.username_value);
   if (username_match) {
-    if (!IsCredentialWeakMatch(*username_match)) {
+    const bool password_change_should_update_match =
+        submitted_form.type == PasswordForm::Type::kChangeSubmission &&
+        // Password change should update all matches that are PSL or stronger.
+        username_match->match_type < PasswordForm::MatchType::kGrouped;
+    if (!IsCredentialWeakMatch(*username_match) ||
+        password_change_should_update_match) {
       return username_match;
     }
-
     const auto& password_to_save = submitted_form.new_password_value.empty()
                                        ? submitted_form.password_value
                                        : submitted_form.new_password_value;

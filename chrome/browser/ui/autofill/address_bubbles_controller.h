@@ -68,6 +68,10 @@ class AddressBubblesController
   std::u16string GetPageActionIconTootip() const override;
   AutofillBubbleBase* GetBubbleView() const override;
 
+  // BubbleControllerBase:
+  BubbleType GetBubbleType() const override;
+  base::WeakPtr<BubbleControllerBase> GetBubbleControllerBaseWeakPtr() override;
+
   base::WeakPtr<AddressBubbleControllerDelegate> GetWeakPtr();
 
  protected:

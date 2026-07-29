@@ -8,8 +8,10 @@ import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.notNull;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -63,6 +65,7 @@ import org.chromium.content_public.browser.RenderFrameHost;
 import org.chromium.content_public.browser.RenderFrameHost.WebAuthSecurityChecksResults;
 import org.chromium.net.GURLUtils;
 import org.chromium.net.GURLUtilsJni;
+import org.chromium.ui.util.RunnableTimer;
 import org.chromium.url.GURL;
 import org.chromium.url.Origin;
 
@@ -574,11 +577,11 @@ public class Fido2CredentialRequestRobolectricTest {
 
         handleGetCredentialRequest();
 
-        mRequest.cancelConditionalGetAssertion();
+        mRequest.cancelGetAssertion();
 
         // CredManHelper class is responsible to return the status.
         assertThat(mCallback.getStatus()).isEqualTo(null);
-        verify(mCredManHelperMock).cancelConditionalGetAssertion();
+        verify(mCredManHelperMock).cancelGetAssertion();
         verify(mBrowserBridgeMock, never()).cleanupRequest(any());
         verify(mBrowserBridgeMock, never()).onCredManUiClosed(any(), anyBoolean());
     }
@@ -600,10 +603,10 @@ public class Fido2CredentialRequestRobolectricTest {
 
         runFido2ApiSuccessfulCallback();
 
-        mRequest.cancelConditionalGetAssertion();
+        mRequest.cancelGetAssertion();
 
         verify(mBarrierMock).onFido2ApiCancelled();
-        verify(mCredManHelperMock).cancelConditionalGetAssertion();
+        verify(mCredManHelperMock).cancelGetAssertion();
         verify(mBrowserBridgeMock).cleanupRequest(any());
         verify(mBrowserBridgeMock, never()).onCredManUiClosed(any(), anyBoolean());
     }
@@ -634,7 +637,7 @@ public class Fido2CredentialRequestRobolectricTest {
         assertThat(rpIdValidationCallback[0]).isNotNull();
         // Aborting the request shouldn't do anything yet because it's waiting
         // for RP ID validation.
-        mRequest.cancelConditionalGetAssertion();
+        mRequest.cancelGetAssertion();
         assertThat(mCallback.getStatus()).isEqualTo(null);
         // When the RP ID validation completes, the overall request should then
         // be canceled. Any RP ID validation error should be ignored in favour
@@ -711,6 +714,31 @@ public class Fido2CredentialRequestRobolectricTest {
                 .startGetRequest(any(), any(), any(), any(), any(), any(), anyBoolean());
         assertThat(mCallback.getStatus())
                 .isEqualTo(Integer.valueOf(AuthenticatorStatus.NOT_ALLOWED_ERROR));
+    }
+
+    @Test
+    @SmallTest
+    public void testImmediateGetCredential_timeout_notAllowed() {
+        CredManSupportProvider.setupForTesting(
+                /* overrideAndroidVersion= */ Build.VERSION_CODES.UPSIDE_DOWN_CAKE,
+                /* overrideForcesGpm= */ false);
+        setGetCredentialRequestOptions(/* hasAllowList= */ false);
+        mRequestOptions.mediation = Mediation.IMMEDIATE;
+        RunnableTimer timer = Mockito.mock(RunnableTimer.class);
+        mRequest.setImmediateTimerForTesting(timer);
+
+        doAnswer(
+                        answer -> {
+                            Runnable runnable = answer.getArgument(1);
+                            runnable.run();
+                            return null;
+                        })
+                .when(timer)
+                .startTimer(anyLong(), any(Runnable.class));
+
+        handleGetCredentialRequest();
+
+        verify(mBarrierMock).onFido2ApiCancelled(eq(AuthenticatorStatus.NOT_ALLOWED_ERROR));
     }
 
     private void handleMakeCredentialRequest(Bundle browserOptions) {

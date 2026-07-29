@@ -16,9 +16,11 @@
 #include "base/bits.h"
 #include "base/check_op.h"
 #include "base/compiler_specific.h"
+#include "base/containers/adapters.h"
 #include "base/containers/span.h"
 #include "base/notreached.h"
 #include "base/numerics/byte_conversions.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_view_util.h"
 #include "base/strings/utf_string_conversions.h"
@@ -494,47 +496,59 @@ bool MaybeEncodeIDBKey(const IndexedDBKey& value, std::string* into) {
   return EncodeIDBKeyRecursively(value, into, 0);
 }
 
-void EncodeSortableIDBKeyRecursively(const IndexedDBKey& value,
-                                     std::string* into) {
-  size_t previous_size = into->size();
-  switch (value.type()) {
-    case blink::mojom::IDBKeyType::Array: {
-      EncodeByte(kOrderedArrayTypeByte, into);
-      for (const IndexedDBKey& key : value.array()) {
-        EncodeSortableIDBKeyRecursively(key, into);
-      }
-      EncodeByte(kSentinel, into);
-      DCHECK_GT(into->size(), previous_size);
-      return;
-    }
-    case blink::mojom::IDBKeyType::Binary:
-      EncodeByte(kOrderedBinaryTypeByte, into);
-      EncodeBinaryWithSentinel(value.binary(), into);
-      return;
-    case blink::mojom::IDBKeyType::String:
-      EncodeByte(kOrderedStringTypeByte, into);
-      EncodeStringWithSentinel(value.string(), into);
-      return;
-    case blink::mojom::IDBKeyType::Date:
-      EncodeByte(kOrderedDateTypeByte, into);
-      EncodeSortableDouble(value.date(), into);
-      return;
-    case blink::mojom::IDBKeyType::Number:
-      EncodeByte(kOrderedNumberTypeByte, into);
-      EncodeSortableDouble(value.number(), into);
-      return;
-    case blink::mojom::IDBKeyType::None:
-    case blink::mojom::IDBKeyType::Invalid:
-    case blink::mojom::IDBKeyType::Min:
-    default:
-      NOTREACHED();
-  }
-}
-
 std::string EncodeSortableIDBKey(const IndexedDBKey& value) {
-  std::string encoded;
-  EncodeSortableIDBKeyRecursively(value, &encoded);
-  return encoded;
+  CHECK(value.IsValid());
+  std::string into;
+
+  std::list<const IndexedDBKey*> keys;
+  keys.push_back(&value);
+
+  while (!keys.empty()) {
+    const IndexedDBKey* key = keys.back();
+    keys.pop_back();
+
+    if (!key) {
+      // This value pushed by an Array case (see below).
+      EncodeByte(kSentinel, &into);
+      continue;
+    }
+
+    switch (key->type()) {
+      case blink::mojom::IDBKeyType::Array: {
+        EncodeByte(kOrderedArrayTypeByte, &into);
+
+        // Used to indicate that a sentinel should be inserted later.
+        keys.push_back(nullptr);
+        for (const IndexedDBKey& subkey : base::Reversed(key->array())) {
+          keys.push_back(&subkey);
+        }
+
+        continue;
+      }
+      case blink::mojom::IDBKeyType::Binary:
+        EncodeByte(kOrderedBinaryTypeByte, &into);
+        EncodeBinaryWithSentinel(key->binary(), &into);
+        continue;
+      case blink::mojom::IDBKeyType::String:
+        EncodeByte(kOrderedStringTypeByte, &into);
+        EncodeStringWithSentinel(key->string(), &into);
+        continue;
+      case blink::mojom::IDBKeyType::Date:
+        EncodeByte(kOrderedDateTypeByte, &into);
+        EncodeSortableDouble(key->date(), &into);
+        continue;
+      case blink::mojom::IDBKeyType::Number:
+        EncodeByte(kOrderedNumberTypeByte, &into);
+        EncodeSortableDouble(key->number(), &into);
+        continue;
+      case blink::mojom::IDBKeyType::None:
+      case blink::mojom::IDBKeyType::Invalid:
+      case blink::mojom::IDBKeyType::Min:
+        NOTREACHED();
+    }
+  }
+
+  return into;
 }
 
 #define COMPILE_ASSERT_MATCHING_VALUES(a, b)                          \
@@ -645,9 +659,11 @@ bool DecodeStringWithLength(std::string_view* slice, std::u16string* value) {
     return false;
 
   int64_t length = 0;
-  if (!DecodeVarInt(slice, &length) || length < 0)
+  size_t bytes;
+  if (!DecodeVarInt(slice, &length) ||
+      !base::CheckMul(length, sizeof(char16_t)).AssignIfValid(&bytes)) {
     return false;
-  size_t bytes = length * sizeof(char16_t);
+  }
   if (slice->size() < bytes)
     return false;
 
@@ -664,11 +680,15 @@ bool DecodeBinary(std::string_view* slice, std::string* value) {
     return false;
 
   int64_t length = 0;
-  if (!DecodeVarInt(slice, &length) || length < 0)
+  size_t size;
+  if (!DecodeVarInt(slice, &length) ||
+      !base::MakeCheckedNum(length).AssignIfValid(&size)) {
     return false;
-  size_t size = length;
-  if (slice->size() < size)
+  }
+
+  if (slice->size() < size) {
     return false;
+  }
 
   value->assign(slice->data(), size);
   slice->remove_prefix(size);
@@ -680,9 +700,12 @@ bool DecodeBinary(std::string_view* slice, base::span<const uint8_t>* value) {
     return false;
 
   int64_t length = 0;
-  if (!DecodeVarInt(slice, &length) || length < 0)
+  size_t size;
+  if (!DecodeVarInt(slice, &length) ||
+      !base::MakeCheckedNum(length).AssignIfValid(&size)) {
     return false;
-  size_t size = length;
+  }
+
   if (slice->size() < size)
     return false;
 
@@ -993,21 +1016,24 @@ int CompareEncodedStringsWithLength(std::string_view* slice1,
     *ok = false;
     return 0;
   }
-  if (len1 < 0 || len2 < 0) {
+
+  size_t size1, size2;
+  if (!base::CheckMul(len1, sizeof(char16_t)).AssignIfValid(&size1) ||
+      !base::CheckMul(len2, sizeof(char16_t)).AssignIfValid(&size2)) {
     *ok = false;
     return 0;
   }
-  if (slice1->size() < len1 * sizeof(char16_t) ||
-      slice2->size() < len2 * sizeof(char16_t)) {
+
+  if (slice1->size() < size1 || slice2->size() < size2) {
     *ok = false;
     return 0;
   }
 
   // Extract the string data, and advance the passed slices.
-  std::string_view string1(slice1->data(), len1 * sizeof(char16_t));
-  std::string_view string2(slice2->data(), len2 * sizeof(char16_t));
-  slice1->remove_prefix(len1 * sizeof(char16_t));
-  slice2->remove_prefix(len2 * sizeof(char16_t));
+  std::string_view string1(slice1->data(), size1);
+  std::string_view string2(slice2->data(), size2);
+  slice1->remove_prefix(size1);
+  slice2->remove_prefix(size2);
 
   *ok = true;
   // Strings are UTF-16BE encoded, so a simple memcmp is sufficient.
@@ -1022,12 +1048,13 @@ int CompareEncodedBinary(std::string_view* slice1,
     *ok = false;
     return 0;
   }
-  if (len1 < 0 || len2 < 0) {
+
+  size_t size1, size2;
+  if (!base::MakeCheckedNum(len1).AssignIfValid(&size1) ||
+      !base::MakeCheckedNum(len2).AssignIfValid(&size2)) {
     *ok = false;
     return 0;
   }
-  size_t size1 = len1;
-  size_t size2 = len2;
 
   if (slice1->size() < size1 || slice2->size() < size2) {
     *ok = false;

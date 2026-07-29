@@ -275,7 +275,7 @@ StyleEngine::StyleEngine(Document& document)
 
 StyleEngine::~StyleEngine() = default;
 
-TreeScopeStyleSheetCollection& StyleEngine::EnsureStyleSheetCollectionFor(
+StyleSheetCollection& StyleEngine::EnsureStyleSheetCollectionFor(
     TreeScope& tree_scope) {
   if (tree_scope == document_) {
     return GetDocumentStyleSheetCollection();
@@ -291,7 +291,7 @@ TreeScopeStyleSheetCollection& StyleEngine::EnsureStyleSheetCollectionFor(
   return *result.stored_value->value.Get();
 }
 
-TreeScopeStyleSheetCollection* StyleEngine::StyleSheetCollectionFor(
+StyleSheetCollection* StyleEngine::StyleSheetCollectionFor(
     TreeScope& tree_scope) {
   if (tree_scope == document_) {
     return &GetDocumentStyleSheetCollection();
@@ -308,8 +308,7 @@ TreeScopeStyleSheetCollection* StyleEngine::StyleSheetCollectionFor(
 const HeapVector<Member<StyleSheet>>& StyleEngine::StyleSheetsForStyleSheetList(
     TreeScope& tree_scope) {
   DCHECK(document_);
-  TreeScopeStyleSheetCollection& collection =
-      EnsureStyleSheetCollectionFor(tree_scope);
+  StyleSheetCollection& collection = EnsureStyleSheetCollectionFor(tree_scope);
   if (document_->IsActive()) {
     collection.UpdateStyleSheetList();
   }
@@ -466,8 +465,7 @@ void StyleEngine::RemoveStyleSheetCandidateNode(
                 "The ShadowRoot must be subclass of TreeScope.");
   TreeScope& tree_scope =
       shadow_root ? static_cast<TreeScope&>(*shadow_root) : GetDocument();
-  TreeScopeStyleSheetCollection* collection =
-      StyleSheetCollectionFor(tree_scope);
+  StyleSheetCollection* collection = StyleSheetCollectionFor(tree_scope);
   // After detaching document, collection could be null. In the case,
   // we should not update anything. Instead, just return.
   if (!collection) {
@@ -645,7 +643,7 @@ void StyleEngine::UpdateActiveStyleSheetsInShadow(
   auto* collection =
       To<ShadowTreeStyleSheetCollection>(StyleSheetCollectionFor(*tree_scope));
   DCHECK(collection);
-  collection->UpdateActiveStyleSheets(*this);
+  collection->UpdateActiveStyleSheets(*this, EnsureMediaQueryEvaluator());
   if (!collection->HasStyleSheetCandidateNodes() &&
       !tree_scope->HasAdoptedStyleSheets()) {
     tree_scopes_removed.insert(tree_scope);
@@ -660,7 +658,8 @@ void StyleEngine::UpdateActiveUserStyleSheets() {
 
   ActiveStyleSheetVector new_active_sheets;
   for (auto& sheet : injected_user_style_sheets_) {
-    if (RuleSet* rule_set = RuleSetForSheet(*sheet.second)) {
+    // TODO: Support mixins in user stylesheets.
+    if (RuleSet* rule_set = RuleSetForSheet(*sheet.second, /*mixins=*/{})) {
       new_active_sheets.push_back(std::make_pair(sheet.second, rule_set));
     }
   }
@@ -684,7 +683,8 @@ void StyleEngine::UpdateActiveStyleSheets() {
   }
 
   if (ShouldUpdateDocumentStyleSheetCollection()) {
-    GetDocumentStyleSheetCollection().UpdateActiveStyleSheets(*this);
+    GetDocumentStyleSheetCollection().UpdateActiveStyleSheets(
+        *this, EnsureMediaQueryEvaluator());
   }
 
   if (ShouldUpdateShadowTreeStyleSheetCollection()) {
@@ -783,7 +783,7 @@ const ActiveStyleSheetVector StyleEngine::ActiveStyleSheetsForInspector() {
   active_style_sheets.AppendVector(
       GetDocumentStyleSheetCollection().ActiveStyleSheets());
   for (TreeScope* tree_scope : active_tree_scopes_) {
-    if (TreeScopeStyleSheetCollection* collection =
+    if (StyleSheetCollection* collection =
             style_sheet_collection_map_.at(tree_scope)) {
       active_style_sheets.AppendVector(collection->ActiveStyleSheets());
     }
@@ -938,35 +938,21 @@ const Font* StyleEngine::ComputeFont(
   return GetStyleResolver().ComputeFont(element, font_style, font_properties);
 }
 
-RuleSet* StyleEngine::RuleSetForSheet(CSSStyleSheet& sheet) {
+RuleSet* StyleEngine::RuleSetForSheet(CSSStyleSheet& sheet,
+                                      const MixinMap& mixins) const {
   if (!sheet.MatchesMediaQueries(EnsureMediaQueryEvaluator())) {
     return nullptr;
   }
-  return &sheet.Contents()->EnsureRuleSet(*media_query_evaluator_);
+  return &sheet.Contents()->EnsureRuleSet(*media_query_evaluator_, mixins);
 }
 
-RuleSet* StyleEngine::CreateUnconnectedRuleSet(CSSStyleSheet& sheet) {
+RuleSet* StyleEngine::CreateUnconnectedRuleSet(CSSStyleSheet& sheet,
+                                               const MixinMap& mixins) {
   if (!sheet.MatchesMediaQueries(EnsureMediaQueryEvaluator())) {
     return nullptr;
   }
-  return sheet.Contents()->CreateUnconnectedRuleSet(*media_query_evaluator_);
-}
-
-RuleSet* StyleEngine::RuleSetScope::RuleSetForSheet(StyleEngine& engine,
-                                                    CSSStyleSheet* css_sheet) {
-  RuleSet* rule_set = engine.RuleSetForSheet(*css_sheet);
-  if (rule_set && rule_set->HasCascadeLayers() &&
-      !css_sheet->Contents()->HasSingleOwnerNode() &&
-      !layer_rule_sets_.insert(rule_set).is_new_entry) {
-    // The condition above is met for a stylesheet with cascade layers which
-    // shares StyleSheetContents with another stylesheet in this TreeScope.
-    // WillMutateRules() creates a unique StyleSheetContents for this sheet to
-    // avoid incorrectly identifying two separate anonymous layers as the same
-    // layer.
-    css_sheet->WillMutateRules();
-    rule_set = engine.RuleSetForSheet(*css_sheet);
-  }
-  return rule_set;
+  return sheet.Contents()->CreateUnconnectedRuleSet(*media_query_evaluator_,
+                                                    mixins);
 }
 
 void StyleEngine::ClearResolvers() {
@@ -1070,7 +1056,7 @@ void StyleEngine::MarkTreeScopeDirty(TreeScope& scope) {
     return;
   }
 
-  TreeScopeStyleSheetCollection* collection = StyleSheetCollectionFor(scope);
+  StyleSheetCollection* collection = StyleSheetCollectionFor(scope);
   DCHECK(collection);
   collection->MarkSheetListDirty();
   dirty_tree_scopes_.insert(&scope);
@@ -1809,6 +1795,7 @@ bool HasAttributeDependentGeneratedContent(const Element& element) {
          HasAttrFunc(element.GetPseudoElement(kPseudoIdBefore)) ||
          HasAttrFunc(element.GetPseudoElement(kPseudoIdAfter)) ||
          HasAttrFunc(element.GetPseudoElement(kPseudoIdPickerIcon)) ||
+         HasAttrFunc(element.GetPseudoElement(kPseudoIdInterestHint)) ||
          HasAttrFunc(element.GetPseudoElement(kPseudoIdScrollMarker));
 }
 
@@ -2666,7 +2653,7 @@ RuleSet* StyleEngine::DefaultViewTransitionStyle(const Element& element) const {
 
   auto* css_style_sheet = transition->UAStyleSheet();
   return &css_style_sheet->Contents()->EnsureRuleSet(
-      CSSDefaultStyleSheets::ScreenEval());
+      CSSDefaultStyleSheets::ScreenEval(), /*mixins=*/{});
 }
 
 void StyleEngine::UpdateViewTransitionOptIn() {
@@ -3191,7 +3178,7 @@ void StyleEngine::InvalidateFunctionalMediaDependentStylesIfNeeded() {
   });
 }
 
-const MediaQueryEvaluator& StyleEngine::EnsureMediaQueryEvaluator() {
+const MediaQueryEvaluator& StyleEngine::EnsureMediaQueryEvaluator() const {
   if (!media_query_evaluator_) {
     if (GetDocument().GetFrame()) {
       media_query_evaluator_ =

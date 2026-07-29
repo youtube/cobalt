@@ -23,15 +23,10 @@
 #include "chrome/browser/actor/tools/tool_delegate.h"
 #include "chrome/browser/password_manager/actor_login/actor_login_service.h"
 #include "chrome/common/actor.mojom-forward.h"
-#include "components/optimization_guide/proto/features/actions_data.pb.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents_observer.h"
 
 class Profile;
-
-namespace mojo_base {
-class ProtoWrapper;
-}
 
 namespace tabs {
 class TabInterface;
@@ -104,23 +99,15 @@ class ExecutionEngine : public ToolDelegate {
   void Act(std::vector<std::unique_ptr<ToolRequest>>&& actions,
            ActorTask::ActCallback callback);
 
-  // Gets called when a new observation is made for the actor task.
-  void DidObserveContext(const mojo_base::ProtoWrapper&);
-
-  // Returns last observed page content, nullptr if no observation has been
-  // made.
-  const optimization_guide::proto::AnnotatedPageContent*
-  GetLastObservedPageContent();
-
   // Invalidated anytime `action_sequence_` is reset.
   base::WeakPtr<ExecutionEngine> GetWeakPtr();
 
   // ToolDelegate:
   AggregatedJournal& GetJournal() override;
   actor_login::ActorLoginService& GetActorLoginService() override;
-
-  void SetActorLoginServiceForTesting(
-      std::unique_ptr<actor_login::ActorLoginService> test_service);
+  void PromptToSelectCredential(
+      const std::vector<actor_login::Credential>& credentials,
+      ToolDelegate::CredentialSelectedCallback callback) override;
 
   static std::string StateToString(State state);
 
@@ -172,10 +159,6 @@ class ExecutionEngine : public ToolDelegate {
 
   raw_ptr<Profile> profile_;
   base::SafeRef<AggregatedJournal> journal_;
-
-  // Stores the last observed page content for TOCTOU check.
-  std::unique_ptr<optimization_guide::proto::AnnotatedPageContent>
-      last_observed_page_content_;
 
   // Owns `this`.
   raw_ptr<ActorTask> task_;

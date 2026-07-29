@@ -33,7 +33,7 @@ BASE_DECLARE_FEATURE(kAllowUnmutedAutoplayForTWA);
 #endif  // BUILDFLAG(IS_ANDROID)
 BASE_DECLARE_FEATURE(kAutocompleteActionPredictorConfidenceCutoff);
 BASE_DECLARE_FEATURE(kBookmarksTreeView);
-BASE_DECLARE_FEATURE(kBookmarkTriggerForPrerender2);
+BASE_DECLARE_FEATURE(kBookmarkTriggerForPrerender2KillSwitch);
 BASE_DECLARE_FEATURE(kBookmarkTriggerForPreconnect);
 BASE_DECLARE_FEATURE(kCertificateTransparencyAskBeforeEnabling);
 BASE_DECLARE_FEATURE(kCertVerificationNetworkTime);
@@ -73,10 +73,6 @@ extern base::FeatureParam<bool>
 
 BASE_DECLARE_FEATURE(kPromoBrowserCommands);
 extern const char kBrowserCommandIdParam[];
-
-#if !BUILDFLAG(IS_ANDROID)
-BASE_DECLARE_FEATURE(kReadAnythingPermanentAccessibility);
-#endif
 
 #if BUILDFLAG(IS_WIN) && BUILDFLAG(GOOGLE_CHROME_BRANDING)
 BASE_DECLARE_FEATURE(kRegisterOsUpdateHandlerWin);

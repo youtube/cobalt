@@ -9,6 +9,7 @@ import "components/content_settings/core/common/content_settings_types.mojom";
 import "mojo/public/mojom/base/proto_wrapper.mojom";
 import "mojo/public/mojom/base/string16.mojom";
 import "mojo/public/mojom/base/time.mojom";
+import "mojo/public/mojom/base/unguessable_token.mojom";
 import "mojo/public/mojom/base/version.mojom";
 import "skia/public/mojom/bitmap.mojom";
 import "ui/gfx/geometry/mojom/geometry.mojom";
@@ -168,6 +169,22 @@ enum ActorTaskState {
   kStopped = 4,
 };
 
+// The reason/source of why an actor task was paused.
+// This MUST be kept in sync with the glic_api.ts enum.
+[Stable, Extensible]
+enum ActorTaskPauseReason {
+  [Default] kPausedByModel = 0,
+  kPausedByUser = 1,
+};
+
+// The reason/source of why an actor task was stopped.
+// This MUST be kept in sync with the glic_api.ts enum.
+[Stable, Extensible]
+enum ActorTaskStopReason {
+  [Default] kTaskComplete = 0,
+  kStoppedByUser = 1,
+};
+
 // Reason why capturing desktop screenshot failed. This MUST be kept in sync
 // with the glic_api.ts enum.
 [Stable, Extensible]
@@ -291,7 +308,7 @@ struct ScrollToParams {
   // that the document in the primary main frame of the currently focused tab
   // matches the ID (and fails the operation if it doesn't). The verification
   // does not happen for PDFs.
-  string? document_id;
+  mojo_base.mojom.UnguessableToken? document_id;
 
   // The URL of the document targeted by this operation. If the currently
   // focused tab has a PDF loaded, this url is matched and verified against the
@@ -538,18 +555,20 @@ interface WebClientHandler {
       result<mojo_base.mojom.ProtoWrapper, PerformActionsErrorReason>;
 
   // Immediately stops the actor from taking any further actions associated with
-  // the given id and exits acting mode. Any in flight actions are canceled and
+  // the given id and exits acting mode. The stop_reason indicates the reason
+  // for why the stop was initiated. Any in flight actions are canceled and
   // their callbacks will be (asynchronously) invoked. No-op if a task with the
   // given id does not exist. An id of 0 refers to the most recent task.
-  StopActorTask(int32 task_id);
+  StopActorTask(int32 task_id, ActorTaskStopReason stop_reason);
 
   // Pauses the task associated with the given id. Any restrictions on the tab
-  // which would prevent user interaction with it are lifted. ResumeActorTask
+  // which would prevent user interaction with it are lifted. The pause_reason
+  // indicates the reason for why the pause was initiated. ResumeActorTask
   // restores these restrictions, and allows for further actions. Any in flight
   // actions are canceled and their callbacks will be (asynchronously) invoked.
   // No-op if a task with the given id does not exist. An id of 0 refers to the
   // most recent task.
-  PauseActorTask(int32 task_id);
+  PauseActorTask(int32 task_id, ActorTaskPauseReason pause_reason);
 
   // Resumes a paused task associated with the given id, allowing for further
   // actions. Any restrictions on the tab lifted by PauseActorTask are
@@ -668,7 +687,7 @@ interface WebClientHandler {
   OnResponseStarted();
 
   // Called when the web client stops responding.
-  OnResponseStopped();
+  OnResponseStopped(OnResponseStoppedDetails details);
 
   // Called when the session is terminated.
   OnSessionTerminated();
@@ -790,6 +809,8 @@ enum InvocationSource {
   [MinVersion=2] kAfterSignIn = 10,
   // User shared a tab (e.g. via its context menu).
   [MinVersion=3] kSharedTab = 11,
+  // From the actor task icon.
+  [MinVersion=4] kActorTaskIcon = 12,
 };
 
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicInvocationSource, //chrome/browser/glic/glic_metrics.h:ResponseSegmentation)
@@ -820,6 +841,18 @@ enum WebClientModel {
   [Default] kDefault = 0,
   // Actor operation mode.
   kActor = 1,
+};
+
+[Stable, Extensible]
+enum ResponseStopCause {
+  [Default] kUnknown = 0,
+  kUser = 1,
+  kOther = 2
+};
+
+// Details of response stop event.
+struct OnResponseStoppedDetails {
+  ResponseStopCause cause;
 };
 
 // Carries back to the browser information on how to configure the panel being

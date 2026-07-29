@@ -172,6 +172,7 @@ Nekatere funkcije morda niso na voljo in spremembe nastavitev ne bodo shranjene.
 <translation id="3003694935412297923">Vsa opravila</translation>
 <translation id="3018957014024118866">Izbriši tudi podatke iz Chroma (<ph name="URL" />)</translation>
 <translation id="3019382870990049182">Znova zaženi za posodobitev sistema &amp;ChromeOS Flex</translation>
+<translation id="3037517125981011456">Pokaže pozive za prijavo v Chrome.</translation>
 <translation id="3037838751736561277">Google Chrome se izvaja v ozadju.</translation>
 <translation id="3038232873781883849">Čakanje na namestitev …</translation>
 <translation id="3045032126857188731">Jezik prevoda: <ph name="LANGUAGE" /></translation>
@@ -315,6 +316,7 @@ Nekatere funkcije morda niso na voljo in spremembe nastavitev ne bodo shranjene.
 <translation id="4747730611090640388">Chrome lahko oceni vaša zanimanja.  Pozneje lahko stran, ki jo obiščete, od Chroma zahteva ogled vaših zanimanj zaradi osebnega prilagajanja oglasov, ki so vam prikazani.</translation>
 <translation id="475321580758063259">Posodobite Chrome, če želite podatke v Chromu še naprej uporabljati v računu Google, <ph name="ACCOUNT_EMAIL" /></translation>
 <translation id="4754614261631455953">Google Chrome Canary (mDNS-In)</translation>
+<translation id="4756182432527369254">S Chromovim mehanizmom V8 pospešite delovanje spletnih mest, vendar je Chrome zato nekoliko manj odporen proti napadom</translation>
 <translation id="479167709087336770">Uporabljeno je isto preverjanje črkovanja kot v Iskanju Google. Besedilo, ki ga vnesete v brskalniku, je poslano Googlu. To lahko kadar koli spremenite v nastavitvah.</translation>
 <translation id="4793679854893018356">Preberite, kako vas Chrome varuje</translation>
 <translation id="4828579605166583682">Google Chrome poskuša zamenjati obstoječa gesla. Če želite to omogočiti, vnesite geslo za Windows.</translation>
@@ -407,6 +409,7 @@ Google Chrome ne more obnoviti vaših nastavitev.</translation>
 <translation id="5980111191913430208">Razširitve, aplikacije in teme iz neznanih virov lahko škodijo napravi. Chrome priporoča, da jih namestite samo tukaj: <ph name="IDS_EXTENSION_WEB_STORE_TITLE" />.</translation>
 <translation id="6003112304606738118">Prenašanje … Še <ph name="HOURS" /> h.</translation>
 <translation id="6008161919456049856">Gesla, plačilna sredstva in naslovi, ki ste jih shranili v računu Google, bodo odstranjeni iz te naprave. Če jih želite znova uporabljati v Chromu, se vnovič prijavite.</translation>
+<translation id="6009821354356307391">Zastavite podvprašanje</translation>
 <translation id="6014316319780893079">S <ph name="BEGIN_LINK" />Chromovimi orodji<ph name="END_LINK" /> lahko varno brskate in imate nadzor</translation>
 <translation id="6022659036123304283">Prilagodite si Chrome</translation>
 <translation id="6025087594896450715">Google Chrome se bo znova zagnal čez toliko časa: <ph name="REMAINING_TIME" /></translation>
@@ -601,6 +604,7 @@ Google Chrome ne more obnoviti vaših nastavitev.</translation>
 <translation id="8342675569599923794">Ta datoteka je nevarna, zato jo je Chrome blokiral.</translation>
 <translation id="8349094670477064572">Gesla in drugo boste shranjevali in uporabljali v računu Google, ko boste prijavljeni v Chrome. <ph name="LEARN_MORE" /></translation>
 <translation id="8362914115861174987">Prevedi v jezik</translation>
+<translation id="8366770919198174997">Zmanjša učinkovitost delovanja, vendar je Chrome odpornejši proti napadom</translation>
 <translation id="8370517070665726704">Copyright <ph name="YEAR" /> Google LLC. Vse pravice pridržane.</translation>
 <translation id="8387459386171870978">Še naprej uporabljaj Chrome</translation>
 <translation id="8394720698884623075">Preveri URL-je, tako da jih primerja s seznamom spletnih mest, ki niso varna, shranjenim v Chromu.</translation>
@@ -645,6 +649,7 @@ Google Chrome ne more obnoviti vaših nastavitev.</translation>
 <translation id="8843516219908676469">Chrome bolje razume obrazce in jih lahko hitreje samodejno izpolni</translation>
 <translation id="8851180723659088381">{NUM_EXTENSIONS,plural, =1{Chrome priporoča, da jo odstranite}one{Chrome priporoča, da jih odstranite}two{Chrome priporoča, da jih odstranite}few{Chrome priporoča, da jih odstranite}other{Chrome priporoča, da jih odstranite}}</translation>
 <translation id="8862326446509486874">Nimate ustreznih pravic za namestitev na ravni sistema. Poskusite znova zagnati namestitveni program kot skrbnik.</translation>
+<translation id="8865415417596392024">Podatki v Chromu v računu</translation>
 <translation id="8883862939660515976">Vprašajte Google Lens o tej sliki</translation>
 <translation id="8914504000324227558">Znova zaženi Chrome</translation>
 <translation id="8922193594870374009">Če želite telefonsko številko iz <ph name="ORIGIN" /> poslati v telefon Android, se prijavite v Chrome v obeh napravah.</translation>

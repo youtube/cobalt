@@ -303,7 +303,7 @@ BASE_FEATURE(kNtpOneGoogleBarAsyncBarParts,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // If enabled, a footer will show on the NTP.
-BASE_FEATURE(kNtpFooter, "NtpFooter", base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kNtpFooter, "NtpFooter", base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, tab groups module will be shown.
 BASE_FEATURE(kNtpTabGroupsModule,
@@ -461,6 +461,12 @@ const base::FeatureParam<int>
         &ntp_features::kNtpSharepointModule,
         "NtpMicrosoftFilesModuleMaxNonInsightsFilesForCombinedParam",
         4);
+
+const base::FeatureParam<base::TimeDelta>
+    kNtpTabGroupsModuleWindowEndDeltaParam(
+        &ntp_features::kNtpTabGroupsModule,
+        "NtpTabGroupsModuleWindowEndDeltaParam",
+        base::Hours(12));
 
 base::TimeDelta GetModulesLoadTimeout() {
   std::string param_value = base::GetFieldTrialParamValueByFeature(

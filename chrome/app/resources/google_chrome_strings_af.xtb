@@ -172,6 +172,7 @@ Sommige kenmerke kan dalk nie beskikbaar wees nie en veranderings aan voorkeure 
 <translation id="3003694935412297923">Alle take</translation>
 <translation id="3018957014024118866">Vee ook data uit Chrome uit (<ph name="URL" />)</translation>
 <translation id="3019382870990049182">Herbegin om Chrome OS Flex op te dateer</translation>
+<translation id="3037517125981011456">Wys porboodskappe om by Chrome aan te meld.</translation>
 <translation id="3037838751736561277">Google Chrome is in agtergrondmodus.</translation>
 <translation id="3038232873781883849">Wag tans om te installeer...</translation>
 <translation id="3045032126857188731">Vertaalde taal: <ph name="LANGUAGE" /></translation>
@@ -315,6 +316,7 @@ Sommige kenmerke kan dalk nie beskikbaar wees nie en veranderings aan voorkeure 
 <translation id="4747730611090640388">Chrome kan jou belangstellings skat.  ’n Werf wat jy besoek kan Chrome later vra om jou belangstellings te sien om die advertensies wat jy sien, te personaliseer.</translation>
 <translation id="475321580758063259">Dateer Chrome op om aan te hou om die Chrome-data in jou Google-rekening, <ph name="ACCOUNT_EMAIL" />, te gebruik</translation>
 <translation id="4754614261631455953">Google Chrome Kanarie (mDNS-In)</translation>
+<translation id="4756182432527369254">Maak werwe met Chrome se V8-enjin vinniger, maar maak Chrome effens minder bestand teen aanvalle</translation>
 <translation id="479167709087336770">Dit gebruik dieselfde speltoetser wat in Google-soektog gebruik word. Teks wat jy in die blaaier tik, word na Google toe gestuur. Jy kan altyd hierdie gedrag in instellings verander.</translation>
 <translation id="4793679854893018356">Vinnd uit hoe Chrome jou veilig hou</translation>
 <translation id="4828579605166583682">Google Chrome probeer tans bestaande wagwoorde vervang. Tik jou Windows-wagwoord in om dit toe te laat.</translation>
@@ -407,6 +409,7 @@ Google Chrome kan nie jou instellings terugstel nie.</translation>
 <translation id="5980111191913430208">Uitbreidings, apps en temas van onbekende bronne af kan jou toestel beskadig. Chrome beveel aan dat hulle net uit die <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> geïnstalleer word</translation>
 <translation id="6003112304606738118">Laai tans af … <ph name="HOURS" /> uur oor</translation>
 <translation id="6008161919456049856">Jou wagwoorde, betaalmetodes en adresse wat jy in jou Google-rekening gestoor het, sal van hierdie toestel verwyder word. Meld weer aan as jy hulle weer in Chrome wil gebruik.</translation>
+<translation id="6009821354356307391">Vra vir ’n opvolg</translation>
 <translation id="6014316319780893079">Met <ph name="BEGIN_LINK" />nutsgoed van Chrome<ph name="END_LINK" /> kan jy veilig blaai en in beheer bly</translation>
 <translation id="6022659036123304283">Maak Chrome jou eie</translation>
 <translation id="6025087594896450715">Google Chrome sal oor <ph name="REMAINING_TIME" /> herbegin</translation>
@@ -601,6 +604,7 @@ Google Chrome kan nie jou instellings terugstel nie.</translation>
 <translation id="8342675569599923794">Hierdie lêer is gevaarlik en daarom het Chrome dit geblokkeer.</translation>
 <translation id="8349094670477064572">Wanneer jy by Chromium aangemeld is sal jy wagwoorde stoor, gebruik en meer in jou Google-rekening. <ph name="LEARN_MORE" /></translation>
 <translation id="8362914115861174987">Vertaal in</translation>
+<translation id="8366770919198174997">Verminder werkverrigting, maar maak Chrome meer bestand teen aanvalle</translation>
 <translation id="8370517070665726704">Kopiereg <ph name="YEAR" /> Google LLC. Alle regte voorbehou.</translation>
 <translation id="8387459386171870978">Hou aan om Chrome te gebruik</translation>
 <translation id="8394720698884623075">Vergelyk URL'e met 'n lys onveilige werwe wat in Chrome geberg is</translation>
@@ -645,6 +649,7 @@ Google Chrome kan nie jou instellings terugstel nie.</translation>
 <translation id="8843516219908676469">Chrome verstaan vorms beter en kan hulle vir jou vinniger outovul</translation>
 <translation id="8851180723659088381">{NUM_EXTENSIONS,plural, =1{Chrome beveel aan dat jy dit verwyder}other{Chrome beveel aan dat jy hulle verwyder.}}</translation>
 <translation id="8862326446509486874">Jy het nie die gepaste regte vir stelselvlak-installering nie. Probeer om die installeerder weer te laat loop as Administrateur.</translation>
+<translation id="8865415417596392024">Chrome-data in jou rekening</translation>
 <translation id="8883862939660515976">Vra Google Lens oor hierdie prent</translation>
 <translation id="8914504000324227558">Herbegin Chrome</translation>
 <translation id="8922193594870374009">Meld op albei toestelle by Chrome aan om 'n nommer van <ph name="ORIGIN" /> af na jou Android-foon te stuur.</translation>

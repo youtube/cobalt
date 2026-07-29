@@ -374,6 +374,15 @@ void VirtualCardEnrollBubbleControllerImpl::DoShowBubble() {
   }
 }
 
+BubbleType VirtualCardEnrollBubbleControllerImpl::GetBubbleType() const {
+  return BubbleType::kVirtualCardEnrollConfirmation;
+}
+
+base::WeakPtr<BubbleControllerBase>
+VirtualCardEnrollBubbleControllerImpl::GetBubbleControllerBaseWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
+}
+
 #if !BUILDFLAG(IS_ANDROID)
 bool VirtualCardEnrollBubbleControllerImpl::IsWebContentsActive() {
   Browser* active_browser = chrome::FindBrowserWithActiveWindow();

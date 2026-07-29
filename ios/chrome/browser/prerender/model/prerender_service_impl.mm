@@ -7,6 +7,7 @@
 #import "base/metrics/histogram_macros.h"
 #import "ios/chrome/browser/ntp/model/new_tab_page_util.h"
 #import "ios/chrome/browser/prerender/model/preload_controller.h"
+#import "ios/chrome/browser/prerender/model/prerender_tab_helper.h"
 #import "ios/chrome/browser/sessions/model/session_restoration_service.h"
 #import "ios/chrome/browser/sessions/model/session_restoration_service_factory.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
@@ -48,14 +49,14 @@ bool PrerenderServiceImpl::MaybeLoadPrerenderedURL(
     ui::PageTransition transition,
     Browser* browser) {
   if (!HasPrerenderForUrl(url)) {
-    CancelPrerender();
+    CancelAllPrerenders();
     return false;
   }
 
   std::unique_ptr<web::WebState> new_web_state =
       [controller_ releasePrerenderContents];
   if (!new_web_state) {
-    CancelPrerender();
+    CancelAllPrerenders();
     return false;
   }
 
@@ -70,7 +71,7 @@ bool PrerenderServiceImpl::MaybeLoadPrerenderedURL(
   // crbug.com/1010765 for the triggering security fixes.
   if (web_state_list->GetActiveWebState()->GetVisibleURL() ==
       new_web_state->GetVisibleURL()) {
-    CancelPrerender();
+    CancelAllPrerenders();
     return false;
   }
 
@@ -101,14 +102,10 @@ bool PrerenderServiceImpl::IsLoadingPrerender() {
   return loading_prerender_;
 }
 
-void PrerenderServiceImpl::CancelPrerender() {
+void PrerenderServiceImpl::CancelAllPrerenders() {
   [controller_ cancelPrerender];
 }
 
 bool PrerenderServiceImpl::HasPrerenderForUrl(const GURL& url) {
   return url == controller_.prerenderedURL;
-}
-
-bool PrerenderServiceImpl::IsWebStatePrerendered(web::WebState* web_state) {
-  return [controller_ isWebStatePrerendered:web_state];
 }

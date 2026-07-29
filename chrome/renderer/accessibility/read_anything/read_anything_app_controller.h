@@ -81,6 +81,9 @@ class ReadAnythingAppController
  public:
   static gin::WrapperInfo kWrapperInfo;
 
+  static constexpr char kWordsSeenHistogramName[] =
+      "Accessibility.ReadAnything.WordsSeen";
+
   ReadAnythingAppController(const ReadAnythingAppController&) = delete;
   ReadAnythingAppController& operator=(const ReadAnythingAppController&) =
       delete;
@@ -255,8 +258,7 @@ class ReadAnythingAppController
   double GetLineSpacingValue(int line_spacing) const;
   double GetLetterSpacingValue(int letter_spacing) const;
   std::vector<std::string> GetSupportedFonts();
-  void RequestImageDataUrl(ui::AXNodeID node_id) const;
-  std::string GetImageDataUrl(ui::AXNodeID node_id) const;
+  void RequestImageData(ui::AXNodeID node_id) const;
   v8::Local<v8::Value> GetImageBitmap(ui::AXNodeID node_id);
   void OnIsSpeechActiveChanged(bool is_speech_active);
   void OnIsAudioCurrentlyPlayingChanged(bool is_audio_currently_playing);
@@ -265,6 +267,7 @@ class ReadAnythingAppController
   void OnScrolledToBottom();
   bool IsDocsLoadMoreButtonVisible() const;
   void OnNoTextContent(bool previouslyHadContent);
+  void UpdateWordsSeen(int words_seen);
 
   // The language code that should be used to determine which voices are
   // supported for speech.
@@ -379,6 +382,11 @@ class ReadAnythingAppController
   // Records the number of selections that occurred for the active page. Called
   // when the active tree changes.
   void RecordNumSelections();
+
+  // Records the number of words consumed on the active page via reading mode.
+  // This number is an estimate based on scrolling position and does not work
+  // for languages that don't use whitespace to separate words.
+  void RecordEstimatedWordsSeen();
 
   void RecordDistillationSuccess();
 

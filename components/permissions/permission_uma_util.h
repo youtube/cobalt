@@ -16,6 +16,7 @@
 #include "base/version.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/content_settings/core/common/content_settings_types.h"
+#include "components/passage_embeddings/passage_embeddings_types.h"
 #include "components/permissions/permission_request_enums.h"
 #include "components/permissions/prediction_service/permission_ui_selector.h"
 #include "components/permissions/request_type.h"
@@ -46,19 +47,6 @@ enum class ActivityIndicatorState {
   // Always keep at the end.
   kMaxValue = kBlockedOnSystemLevel,
 };
-
-// Used for UMA histograms to record model execution stats for the different
-// models we use for a permission prediction.
-// LINT.IfChange(PredictionModelType)
-enum class PredictionModelType {
-  kUnknown = 0,
-  kServerSideCpssV3Model = 1,
-  kOnDeviceCpssV1Model = 2,
-  kOnDeviceAiV1Model = 3,
-  kOnDeviceAiV3Model = 4,
-  kOnDeviceAiV4Model = 5,
-};
-// LINT.ThenChange(//tools/metrics/histograms/metadata/permissions/histograms.xml:PredictionModels)
 
 // Used for UMA to record the types of permission prompts shown.
 // When updating, you also need to update:
@@ -758,6 +746,9 @@ class PermissionUmaUtil {
   static void RecordDSEEffectiveSetting(ContentSettingsType permission_type,
                                         ContentSetting setting);
 
+  static void RecordPermissionPredictionConcurrentRequests(
+      RequestType request_type);
+
   static void RecordPermissionPredictionSource(
       PermissionPredictionSource prediction_source,
       RequestType request_type);
@@ -875,14 +866,45 @@ class PermissionUmaUtil {
 
   // Records the execution time of prediction model inquiries.
   static void RecordPredictionModelInquireTime(
-      base::TimeTicks model_inquire_start_time,
-      PredictionModelType model_type);
+      PredictionModelType model_type,
+      base::TimeTicks model_inquire_start_time);
 
   // Records the success and duration of taking a screenshot for AIvX models.
   static void RecordSnapshotTakenTimeAndSuccessForAivX(
-      bool success,
+      PredictionModelType model_type,
       base::TimeTicks snapshot_inquire_start_time,
-      PredictionModelType model_type);
+      bool success);
+
+  // Records whether we could fetch the rendered text successfully and it was
+  // useful for prediction (i.e. longer than 10 characters).
+  static void RecordRenderedTextAcquireSuccessForAivX(
+      PredictionModelType model_type,
+      bool success);
+
+  // Records whether we needed to cancel the previous passage embeddings model
+  // call before starting a new one.
+  static void RecordTryCancelPreviousEmbeddingsModelExecution(
+      PredictionModelType model_type,
+      bool cancel_previous_task);
+
+  // Records whether the returning passage embedder task is outdated (a new
+  // passage embedder task has started).
+  static void RecordFinishedPassageEmbeddingsTaskOutdated(
+      PredictionModelType model_type,
+      bool outdated);
+
+  // Records the success and duration of taking a screenshot for AIvX models.
+  static void RecordPassageEmbeddingModelExecutionTimeAndStatus(
+      PredictionModelType model_type,
+      base::TimeTicks snapshot_inquire_start_time,
+      passage_embeddings::ComputeEmbeddingsStatus status);
+
+  // Records the status of language detection during the Aiv4 workflow.
+  static void RecordLanguageDetectionStatus(LanguageDetectionStatus status);
+
+  // Records whether the passage embeddings calculation ran into a timeout
+  // during the Aiv4 workflow.
+  static void RecordPassageEmbeddingsCalculationTimeout(bool timeout);
 
   // Records if the browser was active at the time the prompt started displaying
   static void RecordPromptShownInActiveBrowser(

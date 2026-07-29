@@ -219,6 +219,12 @@ void SavedTabGroupModel::MakeTabGroupSharedForTesting(
   group->SetCollaborationId(std::move(collaboration_id));
 }
 
+void SavedTabGroupModel::MakeTabGroupUnsharedForTesting(
+    const LocalTabGroupID& local_group_id) {
+  SavedTabGroup* const group = GetMutableGroup(local_group_id);
+  group->SetCollaborationId(std::nullopt);
+}
+
 void SavedTabGroupModel::SetIsTransitioningToSaved(
     const LocalTabGroupID& local_group_id,
     bool is_transitioning_to_saved) {
@@ -1060,6 +1066,18 @@ void SavedTabGroupModel::UpdateArchivalStatus(const base::Uuid& id,
     archival_time = base::Time::Now();
   }
   group->SetArchivalTime(archival_time);
+
+  for (auto& observer : observers_) {
+    observer.SavedTabGroupUpdatedLocally(id, /*tab_guid=*/std::nullopt);
+  }
+}
+
+void SavedTabGroupModel::UpdateBookmarkNodeId(
+    const base::Uuid& id,
+    const std::optional<base::Uuid>& bookmark_node_id) {
+  SavedTabGroup* const group = GetMutableGroup(id);
+  CHECK(group);
+  group->SetBookmarkNodeId(bookmark_node_id);
 
   for (auto& observer : observers_) {
     observer.SavedTabGroupUpdatedLocally(id, /*tab_guid=*/std::nullopt);

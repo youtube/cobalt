@@ -345,7 +345,7 @@ class StyleCascadeTest : public PageTestBase {
         CSSStyleSheet::Create(GetDocument(), init, exception_state);
     sheet->replaceSync(css_text, exception_state);
     sheet->Contents()->EnsureRuleSet(
-        MediaQueryEvaluator(GetDocument().GetFrame()));
+        MediaQueryEvaluator(GetDocument().GetFrame()), /*mixins=*/{});
     return sheet;
   }
 
@@ -358,14 +358,13 @@ class StyleCascadeTest : public PageTestBase {
     TreeScope& tree_scope = body->GetTreeScope();
     ScopedStyleResolver& scoped_resolver =
         tree_scope.EnsureScopedStyleResolver();
-    ActiveStyleSheetVector active_sheets;
-    active_sheets.push_back(
-        std::make_pair(sheet, &sheet->Contents()->GetRuleSet()));
+    ActiveStyleSheetVector active_sheets{std::make_pair(sheet, nullptr)};
     scoped_resolver.AppendActiveStyleSheets(0, active_sheets);
     GetDocument()
         .GetStyleEngine()
         .GetDocumentStyleSheetCollection()
-        .AppendActiveStyleSheet(active_sheets[0]);
+        .ReplaceActiveStyleSheets(MediaQueryEvaluator(GetDocument().GetFrame()),
+                                  active_sheets);
   }
 
   Element* DocumentElement() const { return GetDocument().documentElement(); }

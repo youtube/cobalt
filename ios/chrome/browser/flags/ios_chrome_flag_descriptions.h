@@ -23,6 +23,9 @@ namespace flag_descriptions {
 extern const char kAddAddressManuallyName[];
 extern const char kAddAddressManuallyDescription[];
 
+extern const char kAIMPrototypeDevToolsName[];
+extern const char kAIMPrototypeDevToolsDescription[];
+
 extern const char kAIMPrototypeName[];
 extern const char kAIMPrototypeDescription[];
 
@@ -40,6 +43,9 @@ extern const char kApplyClientsideModelPredictionsForOtpsDescription[];
 
 extern const char kAutofillAcrossIframesName[];
 extern const char kAutofillAcrossIframesDescription[];
+
+extern const char kAutofillCreditCardScannerIosName[];
+extern const char kAutofillCreditCardScannerIosDescription[];
 
 extern const char kAutofillCreditCardUploadName[];
 extern const char kAutofillCreditCardUploadDescription[];
@@ -94,9 +100,6 @@ extern const char kAutofillEnableFlatRateCardBenefitsFromCurinosDescription[];
 
 extern const char kAutofillEnableFpanRiskBasedAuthenticationName[];
 extern const char kAutofillEnableFpanRiskBasedAuthenticationDescription[];
-
-extern const char kAutofillEnableLogFormEventsToAllParsedFormTypesName[];
-extern const char kAutofillEnableLogFormEventsToAllParsedFormTypesDescription[];
 
 extern const char
     kAutofillEnableMultipleRequestInVirtualCardDownstreamEnrollmentName[];
@@ -179,9 +182,6 @@ extern const char kBreakpadNoDelayInitialUploadDescription[];
 extern const char kCollaborationMessagingName[];
 extern const char kCollaborationMessagingDescription[];
 
-extern const char kColorfulTabGroupName[];
-extern const char kColorfulTabGroupDescription[];
-
 extern const char kContainedTabGroupName[];
 extern const char kContainedTabGroupDescription[];
 
@@ -199,6 +199,9 @@ extern const char kContextualPanelDescription[];
 
 extern const char kCredentialProviderAutomaticPasskeyUpgradeName[];
 extern const char kCredentialProviderAutomaticPasskeyUpgradeDescription[];
+
+extern const char kCredentialProviderPasskeyLargeBlobName[];
+extern const char kCredentialProviderPasskeyLargeBlobDescription[];
 
 extern const char kCredentialProviderPasskeyPRFName[];
 extern const char kCredentialProviderPasskeyPRFDescription[];
@@ -281,11 +284,11 @@ extern const char kDownloadAutoDeletionClearFilesOnEveryStartupDescription[];
 extern const char kDownloadAutoDeletionName[];
 extern const char kDownloadAutoDeletionDescription[];
 
-extern const char kDownloadedPDFOpeningName[];
-extern const char kDownloadedPDFOpeningDescription[];
-
 extern const char kDownloadListName[];
 extern const char kDownloadListDescription[];
+
+extern const char kEnableClipboardDataControlsIOSName[];
+extern const char kEnableClipboardDataControlsIOSDescription[];
 
 extern const char kEnableCompromisedPasswordsMutingName[];
 extern const char kEnableCompromisedPasswordsMutingDescription[];
@@ -465,12 +468,6 @@ extern const char kIOSChooseFromDriveSimulatedClickDescription[];
 
 extern const char kIOSManageAccountStorageName[];
 extern const char kIOSManageAccountStorageDescription[];
-
-extern const char kIOSSaveToPhotosImprovementsName[];
-extern const char kIOSSaveToPhotosImprovementsDescription[];
-
-extern const char kIOSEnterpriseRealtimeUrlFilteringName[];
-extern const char kIOSEnterpriseRealtimeUrlFilteringDescription[];
 
 extern const char kNewShareExtensionName[];
 extern const char kNewShareExtensionDescription[];
@@ -902,6 +899,9 @@ extern const char kSignInButtonNoAvatarDescription[];
 extern const char kSkipDefaultBrowserPromoInFirstRunName[];
 extern const char kSkipDefaultBrowserPromoInFirstRunDescription[];
 
+extern const char kStrokesAPIEnabledName[];
+extern const char kStrokesAPIEnabledDescription[];
+
 extern const char kNTPBackgroundCustomizationName[];
 extern const char kNTPBackgroundCustomizationDescription[];
 
@@ -928,9 +928,6 @@ extern const char kSyncAutofillWalletCredentialDataDescription[];
 
 extern const char kSyncSandboxName[];
 extern const char kSyncSandboxDescription[];
-
-extern const char kSyncTrustedVaultInfobarImprovementsName[];
-extern const char kSyncTrustedVaultInfobarImprovementsDescription[];
 
 extern const char kSyncTrustedVaultInfobarMessageImprovementsName[];
 extern const char kSyncTrustedVaultInfobarMessageImprovementsDescription[];

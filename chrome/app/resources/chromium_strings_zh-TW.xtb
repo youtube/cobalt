@@ -187,6 +187,7 @@
 <translation id="3313189106987092621">在使用不安全的連線載入任何網站前，Chromium 會發出警告</translation>
 <translation id="3316771292331273802">關閉所有 Chromium 視窗後，系統會將你登出大部分網站，但如果你已登入 Chromium，Google 帳戶就會維持登入狀態。如要允許網站記住你的資訊，請<ph name="SETTINGS_LINK" />。</translation>
 <translation id="3352986031709923790">搜尋區域的右上角：右側 <ph name="RIGHT" />%，頂端 <ph name="TOP" />%</translation>
+<translation id="3366305173356742781">帳戶中的 Chromium 資料</translation>
 <translation id="3369405342922656244">使用「圖片搜尋」搜尋這個頁面</translation>
 <translation id="3387527074123400161">Chromium OS</translation>
 <translation id="3406848076815591792">要切換至現有的 Chromium 設定檔嗎？</translation>
@@ -282,6 +283,7 @@
 <translation id="4598116752460667024">搜尋清單中的任何程序。</translation>
 <translation id="4613863813562375431">Chromium OS 版本</translation>
 <translation id="4621240073146040695">即將更新為最新版本！重新啟動 Chromium 即可完成更新程序。</translation>
+<translation id="4625064703209785397">使用 Chromium 的 V8 引擎加快網站速度，但 Chromium 防範攻擊的能力會稍微降低</translation>
 <translation id="4654936675281451226">Chromium 可以更準確地辨識表單，更快自動填入相關資訊。這項設定已開啟。</translation>
 <translation id="4665829708273112819">警告：Chromium 無法禁止擴充功能記錄你的瀏覽記錄。如要在無痕模式中停用這個擴充功能，請取消選取這個選項。</translation>
 <translation id="4673151026126227699">如果一併提供 Chromium 使用報告，這些報告中會包含你造訪的網址</translation>
@@ -327,6 +329,7 @@
 <translation id="5386450000063123300">正在更新 Chromium (<ph name="PROGRESS_PERCENT" />)</translation>
 <translation id="538767207339317086">允許登入 Chromium</translation>
 <translation id="5405650547142096840">從 Chromium 中移除</translation>
+<translation id="5424544524441439284">降低效能但提高 Chromium 防範攻擊的能力</translation>
 <translation id="5427571867875391349">將 Chromium 設為預設瀏覽器</translation>
 <translation id="5438241569118040789"><ph name="PAGE_TITLE" /> - Chromium Beta 版</translation>
 <translation id="5460618461609401056">{NUM_TABS,plural, =1{Chromium 建議暫停導致瀏覽器運作緩慢的分頁}other{Chromium 建議暫停導致瀏覽器運作緩慢的分頁}}</translation>
@@ -371,6 +374,7 @@
 <translation id="5987687638152509985">如要開始同步處理，請更新 Chromium</translation>
 <translation id="5988505247484123880">你造訪的網站通常都會記住你感興趣的項目，目的是打造個人化體驗。此外，網站也可以將你的興趣喜好相關資訊儲存在 Chromium 中。</translation>
 <translation id="6003112304606738118">下載中… 還剩 <ph name="HOURS" /> 小時</translation>
+<translation id="6009821354356307391">繼續提問</translation>
 <translation id="6040143037577758943">關閉</translation>
 <translation id="6058380562449900225">為保護你的資料，請允許 Chromium 從你近期未造訪的網站移除權限。這不會停止通知。</translation>
 <translation id="6063093106622310249">在 Chromium 中開啟(&amp;O)</translation>

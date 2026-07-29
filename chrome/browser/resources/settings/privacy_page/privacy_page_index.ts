@@ -13,9 +13,11 @@ import './privacy_page.js';
 
 import {PrefsMixin} from '/shared/settings/prefs/prefs_mixin.js';
 import type {CrViewManagerElement} from 'chrome://resources/cr_elements/cr_view_manager/cr_view_manager.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {PromiseResolver} from 'chrome://resources/js/promise_resolver.js';
 import {beforeNextRender, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
+import {loadTimeData} from '../i18n_setup.js';
 import {pageVisibility} from '../page_visibility.js';
 import type {PageVisibility} from '../page_visibility.js';
 import {routes} from '../route.js';
@@ -28,6 +30,12 @@ import {PrivacyGuideAvailabilityMixin} from './privacy_guide/privacy_guide_avail
 import type {PrivacyGuideBrowserProxy} from './privacy_guide/privacy_guide_browser_proxy.js';
 import {MAX_PRIVACY_GUIDE_PROMO_IMPRESSION, PrivacyGuideBrowserProxyImpl} from './privacy_guide/privacy_guide_browser_proxy.js';
 import {getTemplate} from './privacy_page_index.html.js';
+
+// clang-format off
+// <if expr="is_chromeos">
+import {getTopLevelRoute} from '../route.js';
+// </if>
+// clang-format on
 
 
 export interface SettingsPrivacyPageIndexElement {
@@ -56,7 +64,7 @@ export class SettingsPrivacyPageIndexElement extends
 
       pageVisibility_: {
         type: Object,
-        value() {
+        value: () => {
           return pageVisibility || {};
         },
       },
@@ -69,6 +77,30 @@ export class SettingsPrivacyPageIndexElement extends
       showPrivacyGuidePromo_: {
         type: Boolean,
         value: false,
+      },
+
+      enableSecurityKeysSubpage_: {
+        type: Boolean,
+        readOnly: true,
+        value: () => {
+          return loadTimeData.getBoolean('enableSecurityKeysSubpage');
+        },
+      },
+
+      isAdPrivacyAvailable_: {
+        type: Boolean,
+        readOnly: true,
+        value: () => {
+          return !loadTimeData.getBoolean('isPrivacySandboxRestricted') ||
+              loadTimeData.getBoolean(
+                  'isPrivacySandboxRestrictedNoticeEnabled');
+        },
+      },
+
+      isPrivacySandboxRestricted_: {
+        type: Boolean,
+        readOnly: true,
+        value: () => loadTimeData.getBoolean('isPrivacySandboxRestricted'),
       },
     };
   }
@@ -83,6 +115,9 @@ export class SettingsPrivacyPageIndexElement extends
   declare private pageVisibility_: PageVisibility;
   declare private routes_: SettingsRoutes;
   declare private showPrivacyGuidePromo_: boolean;
+  declare private enableSecurityKeysSubpage_: boolean;
+  declare private isAdPrivacyAvailable_: boolean;
+  declare private isPrivacySandboxRestricted_: boolean;
 
   private pendingViewSwitching_: PromiseResolver<void> = new PromiseResolver();
   private privacyGuidePromoWasShown_: boolean;
@@ -118,9 +153,39 @@ export class SettingsPrivacyPageIndexElement extends
       case routes.PRIVACY:
         return this.getDefaultViews_();
       case routes.BASIC:
+        // <if expr="is_chromeos">
+        if (getTopLevelRoute() === routes.PRIVACY) {
+          // On CrOS guest mode the "Privacy" section should be displayed when
+          // on chrome://settings/.
+          return this.getDefaultViews_();
+        }
+        // </if>
+
         // Display the default views if in search mode, since they could be part
         // of search results.
         return this.inSearchMode ? this.getDefaultViews_() : [];
+      case routes.COOKIES:
+        return ['cookies'];
+      case routes.SECURITY_KEYS:
+        assert(this.enableSecurityKeysSubpage_);
+        return ['securityKeys'];
+      case routes.SAFETY_HUB:
+        return ['safetyHub'];
+      case routes.PRIVACY_SANDBOX:
+        assert(this.isAdPrivacyAvailable_);
+        return ['privacySandbox'];
+      case routes.PRIVACY_SANDBOX_TOPICS:
+        assert(!this.isPrivacySandboxRestricted_);
+        return ['privacySandboxTopics'];
+      case routes.PRIVACY_SANDBOX_MANAGE_TOPICS:
+        assert(!this.isPrivacySandboxRestricted_);
+        return ['privacySandboxManageTopics'];
+      case routes.PRIVACY_SANDBOX_FLEDGE:
+        assert(!this.isPrivacySandboxRestricted_);
+        return ['privacySandboxFledge'];
+      case routes.PRIVACY_SANDBOX_AD_MEASUREMENT:
+        assert(this.isAdPrivacyAvailable_);
+        return ['privacySandboxAdMeasurement'];
       default: {
         if (this.isNonMigratedPrivacyRoute_(route)) {
           // Handle case where Privacy child route has not migrated to the new
@@ -194,6 +259,15 @@ export class SettingsPrivacyPageIndexElement extends
   }
 
   private renderOldView_(): boolean {
+    // <if expr="is_chromeos">
+    if (getTopLevelRoute() === routes.PRIVACY &&
+        this.currentRoute === routes.BASIC) {
+      // On CrOS guest mode the "Privacy" section should be displayed when
+      // on chrome://settings/.
+      return true;
+    }
+    // </if>
+
     return this.inSearchMode ||
         (!!this.currentRoute &&
          this.isNonMigratedPrivacyRoute_(this.currentRoute));

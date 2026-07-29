@@ -90,8 +90,7 @@ class ShadowController::Impl :
   void OnWindowInitialized(aura::Window* window) override;
 
   // aura::WindowObserver overrides:
-  void OnWindowParentChanged(aura::Window* window,
-                             aura::Window* parent) override;
+  void OnWindowHierarchyChanged(const HierarchyChangeParams& params) override;
   void OnWindowPropertyChanged(aura::Window* window,
                                const void* key,
                                intptr_t old) override;
@@ -101,6 +100,7 @@ class ShadowController::Impl :
                              const gfx::Rect& new_bounds,
                              ui::PropertyChangeReason reason) override;
   void OnWindowDestroyed(aura::Window* window) override;
+  void OnWindowOcclusionChanged(aura::Window* window) override;
 
  private:
   friend class base::RefCounted<Impl>;
@@ -165,17 +165,25 @@ void ShadowController::Impl::UpdateShadowForWindow(aura::Window* window) {
 }
 
 void ShadowController::Impl::OnWindowInitialized(aura::Window* window) {
-  // During initialization, the window can't reliably tell whether it will be a
-  // root window. That must be checked in the first visibility change
   DCHECK(!window->parent());
   DCHECK(!window->TargetVisibility());
   observation_manager_.AddObservation(window);
 }
 
-void ShadowController::Impl::OnWindowParentChanged(aura::Window* window,
-                                                   aura::Window* parent) {
-  if (parent && window->IsVisible())
-    HandlePossibleShadowVisibilityChange(window);
+void ShadowController::Impl::OnWindowHierarchyChanged(
+    const HierarchyChangeParams& params) {
+  // Skip if the parent is null there is no need to update it during
+  // destruction.
+  if (!params.new_parent) {
+    return;
+  }
+  // Update the shadow if the observing window is visible and its parent has
+  // changed.
+  const bool parent_changed = params.target == params.receiver &&
+                              params.new_parent != params.old_parent;
+  if (parent_changed && params.target->IsVisible()) {
+    HandlePossibleShadowVisibilityChange(params.target);
+  }
 }
 
 void ShadowController::Impl::OnWindowPropertyChanged(aura::Window* window,
@@ -258,6 +266,10 @@ void ShadowController::Impl::OnWindowActivated(ActivationReason reason,
 
 bool ShadowController::Impl::ShouldShowShadowForWindow(
     aura::Window* window) const {
+  if (window->GetOcclusionState() == aura::Window::OcclusionState::OCCLUDED) {
+    return false;
+  }
+
   if (delegate_) {
     const bool should_show = delegate_->ShouldShowShadowForWindow(window);
     if (should_show)
@@ -273,6 +285,14 @@ bool ShadowController::Impl::ShouldShowShadowForWindow(
   }
 
   return GetShadowElevationConvertDefault(window) > 0;
+}
+
+void ShadowController::Impl::OnWindowOcclusionChanged(aura::Window* window) {
+  ui::Shadow* shadow = GetShadowForWindow(window);
+  if (!shadow) {
+    return;
+  }
+  HandlePossibleShadowVisibilityChange(window);
 }
 
 void ShadowController::Impl::MaybeSetShadowRadiusForWindow(
@@ -323,6 +343,8 @@ void ShadowController::Impl::CreateShadowForWindow(aura::Window* window) {
   shadow->layer()->SetVisible(ShouldShowShadowForWindow(window));
   window->layer()->Add(shadow->layer());
   window->layer()->StackAtBottom(shadow->layer());
+
+  window->TrackOcclusionState();
 
   if (delegate_) {
     delegate_->ApplyColorThemeToWindowShadow(window);

@@ -91,11 +91,9 @@
 #include "third_party/blink/renderer/core/layout/layout_counter.h"
 #include "third_party/blink/renderer/core/layout/layout_custom_scrollbar_part.h"
 #include "third_party/blink/renderer/core/layout/layout_embedded_content.h"
-#include "third_party/blink/renderer/core/layout/layout_flow_thread.h"
 #include "third_party/blink/renderer/core/layout/layout_image.h"
 #include "third_party/blink/renderer/core/layout/layout_image_resource_style_image.h"
 #include "third_party/blink/renderer/core/layout/layout_inline.h"
-#include "third_party/blink/renderer/core/layout/layout_multi_column_spanner_placeholder.h"
 #include "third_party/blink/renderer/core/layout/layout_object_inl.h"
 #include "third_party/blink/renderer/core/layout/layout_object_inlines.h"
 #include "third_party/blink/renderer/core/layout/layout_result.h"
@@ -156,7 +154,6 @@ namespace {
 LayoutObject* FindColumnSpannerContainer(
     const LayoutObject* spanner,
     LayoutObject::AncestorSkipInfo* skip_info) {
-  DCHECK(RuntimeEnabledFeatures::FlowThreadLessEnabled());
   DCHECK(spanner->IsColumnSpanAll());
   for (LayoutObject* walker = spanner->Parent(); walker;
        walker = walker->ContainingBlock(skip_info)) {
@@ -183,39 +180,15 @@ LayoutObject* FindAncestorByPredicate(const LayoutObject* descendant,
       skip_info->Update(*object);
 
     if (object->IsColumnSpanAll()) [[unlikely]] {
-      if (RuntimeEnabledFeatures::FlowThreadLessEnabled()) {
-        object = FindColumnSpannerContainer(object, skip_info);
-        continue;
-      }
-      // The containing block chain goes directly from the column spanner to the
-      // multi-column container.
-      const auto* multicol_container =
-          object->SpannerPlaceholder()->MultiColumnBlockFlow();
-      if (multicol_container->IsLayoutNGObject()) {
-        while (object->Parent() != multicol_container) {
-          object = object->Parent();
-          if (skip_info)
-            skip_info->Update(*object);
-        }
-      }
+      object = FindColumnSpannerContainer(object, skip_info);
+      continue;
     }
     object = object->Parent();
   }
   return nullptr;
 }
 
-inline bool MightTraversePhysicalFragments(const LayoutObject& obj) {
-  if (!obj.IsLayoutNGObject()) {
-    // Non-NG objects should be painted, hit-tested, etc. by legacy.
-    if (obj.IsBox())
-      return false;
-    // Non-LayoutBox objects (such as LayoutInline) don't necessarily create NG
-    // LayoutObjects. If they are laid out by an NG container, though, we may be
-    // allowed to traverse their fragments. We can't check that at this point
-    // (potentially before initial layout), though. Unless there are other
-    // reasons that prevent us from allowing fragment traversal, we'll
-    // optimistically return true now, and check later.
-  }
+inline bool CalculateCanTraversePhysicalFragments(const LayoutObject& obj) {
   // The NG paint system currently doesn't support replaced content.
   if (obj.IsLayoutReplaced())
     return false;
@@ -224,6 +197,17 @@ inline bool MightTraversePhysicalFragments(const LayoutObject& obj) {
   if (obj.IsTextControl()) {
     return false;
   }
+  // Table columns don't generate fragments.
+  if (obj.IsLayoutTableCol()) {
+    return false;
+  }
+  // SVG objects do their own things. The exception here is SVG block containers
+  // (such as foreignObject or text), which are fully handled by the regular
+  // layout engine.
+  if (obj.IsSVG() && !obj.IsLayoutBlock()) {
+    return false;
+  }
+
   return true;
 }
 
@@ -1206,9 +1190,6 @@ PaintLayer* LayoutObject::PaintingLayer(int max_depth) const {
   auto FindContainer = [](const LayoutObject& object) -> const LayoutObject* {
     if (object.IsColumnSpanAll()) {
       // Column spanners paint through their multicolumn containers.
-      if (!RuntimeEnabledFeatures::FlowThreadLessEnabled()) {
-        return object.SpannerPlaceholder();
-      }
       return object.ContainerForColumnSpanner();
     }
     // Physical fragments and fragment items for ruby-text boxes are not
@@ -1268,8 +1249,9 @@ LayoutBlockFlow* LayoutObject::FragmentItemsContainer() const {
   NOT_DESTROYED();
   DCHECK(!IsOutOfFlowPositioned());
   auto* block_flow = DynamicTo<LayoutBlockFlow>(ContainingNGBox());
-  if (!block_flow || !block_flow->IsLayoutNGObject())
+  if (!block_flow) {
     return nullptr;
+  }
 #if EXPENSIVE_DCHECKS_ARE_ON()
   // Make sure that we don't skip blocks in the ancestry chain (which might
   // happen if there are out-of-flow positioned objects, for instance). In this
@@ -1294,17 +1276,7 @@ LayoutBox* LayoutObject::ContainingNGBox() const {
       return To<LayoutBox>(parent);
     }
   }
-  LayoutBlock* containing_block = ContainingBlock();
-  if (!containing_block)
-    return nullptr;
-  // Flow threads should be invisible to LayoutNG, so skip to the multicol
-  // container.
-  if (containing_block->IsLayoutFlowThread()) [[unlikely]] {
-    containing_block = To<LayoutBlockFlow>(containing_block->Parent());
-  }
-  if (!containing_block->IsLayoutNGObject())
-    return nullptr;
-  return containing_block;
+  return ContainingBlock();
 }
 
 LayoutBlock* LayoutObject::ContainingFragmentationContextRoot() const {
@@ -1333,14 +1305,6 @@ bool LayoutObject::IsFirstInlineFragmentSafe() const {
   DCHECK(IsInline());
   LayoutBlockFlow* block_flow = FragmentItemsContainer();
   return block_flow && !block_flow->NeedsLayout();
-}
-
-LayoutFlowThread* LayoutObject::LocateFlowThreadContainingBlock() const {
-  NOT_DESTROYED();
-  DCHECK(!RuntimeEnabledFeatures::FlowThreadLessEnabled());
-  DCHECK(IsInsideMulticol());
-  return LayoutFlowThread::LocateFlowThreadContainingBlockOf(
-      *this, LayoutFlowThread::kAnyAncestor);
 }
 
 static inline bool ObjectIsRelayoutBoundary(const LayoutObject* object) {
@@ -1506,9 +1470,7 @@ void LayoutObject::SetNeedsCollectInlines() {
     return;
   }
 
-  // Don't mark |LayoutFlowThread| because |CollectInlines()| skips them.
-  if (!IsLayoutFlowThread())
-    SetNeedsCollectInlines(true);
+  SetNeedsCollectInlines(true);
 
   if (LayoutObject* parent = Parent())
     parent->SetChildNeedsCollectInlines();
@@ -1518,11 +1480,6 @@ void LayoutObject::SetChildNeedsCollectInlines() {
   NOT_DESTROYED();
   LayoutObject* object = this;
   do {
-    // Should not stop at |LayoutFlowThread| as |CollectInlines()| skips them.
-    if (object->IsLayoutFlowThread()) [[unlikely]] {
-      object = object->Parent();
-      continue;
-    }
     if (object->NeedsCollectInlines())
       break;
     object->SetNeedsCollectInlines(true);
@@ -1727,11 +1684,6 @@ static inline bool ShouldInvalidateBeyond(LayoutObject* o) {
     return true;
   }
 
-  // Flow threads also don't have min/max sizes computed.
-  if (o->IsLayoutFlowThread()) {
-    return true;
-  }
-
   // Invalidate past any subgrids. NOTE: we do this in both axes as we don't
   // know what writing-mode the root grid is in.
   if (o->IsLayoutGrid()) {
@@ -1787,7 +1739,6 @@ LayoutObject* LayoutObject::ContainerForFixedPosition(
 LayoutObject* LayoutObject::ContainerForColumnSpanner(
     AncestorSkipInfo* skip_info) const {
   NOT_DESTROYED();
-  DCHECK(RuntimeEnabledFeatures::FlowThreadLessEnabled());
   return FindColumnSpannerContainer(this, skip_info);
 }
 
@@ -2079,26 +2030,15 @@ void LayoutObject::RecalcNormalFlowChildVisualOverflowIfNeeded() {
 
 void LayoutObject::InvalidateVisualOverflow() {
   NOT_DESTROYED();
-  if (!IsInLayoutNGInlineFormattingContext() && !IsLayoutNGObject() &&
-      !IsLayoutBlock() && !NeedsLayout()) {
-    // TODO(crbug.com/1128199): This is still needed because
-    // RecalcVisualOverflow() does not actually compute the visual overflow
-    // for inline elements (legacy layout). However in LayoutNG
-    // RecalcInlineChildrenInkOverflow() is called and visual overflow is
-    // recomputed properly so we don't need this (see crbug.com/1043927).
-    SetNeedsLayoutAndIntrinsicWidthsRecalc(
-        layout_invalidation_reason::kStyleChange);
-  } else {
-    if (IsInLayoutNGInlineFormattingContext() && !NeedsLayout()) {
-      if (auto* text = DynamicTo<LayoutText>(this)) {
-        text->InvalidateVisualOverflow();
-      }
+  if (IsInLayoutNGInlineFormattingContext() && !NeedsLayout()) {
+    if (auto* text = DynamicTo<LayoutText>(this)) {
+      text->InvalidateVisualOverflow();
     }
-    PaintingLayer()->SetNeedsVisualOverflowRecalc();
-    // TODO(crbug.com/1385848): This looks like an over-invalidation.
-    // visual overflow change should not require checking for layout change.
-    SetShouldCheckForPaintInvalidation();
   }
+  PaintingLayer()->SetNeedsVisualOverflowRecalc();
+  // TODO(crbug.com/40246969): This looks like an over-invalidation.
+  // visual overflow change should not require checking for layout change.
+  SetShouldCheckForPaintInvalidation();
 }
 
 #if DCHECK_IS_ON()
@@ -2703,6 +2643,7 @@ void LayoutObject::SetPseudoElementStyle(const LayoutObject& owner,
          pseudo_style->StyleType() == kPseudoIdBefore ||
          pseudo_style->StyleType() == kPseudoIdAfter ||
          pseudo_style->StyleType() == kPseudoIdPickerIcon ||
+         pseudo_style->StyleType() == kPseudoIdInterestHint ||
          pseudo_style->StyleType() == kPseudoIdMarker ||
          pseudo_style->StyleType() == kPseudoIdFirstLetter ||
          pseudo_style->StyleType() == kPseudoIdScrollMarkerGroup ||
@@ -2940,11 +2881,6 @@ void LayoutObject::SetStyle(const ComputedStyle* style,
       diff.ClipPathChanged()) {
     SetNeedsPaintPropertyUpdate();
     PaintingLayer()->SetNeedsCompositingInputsUpdate();
-  }
-
-  if (!IsLayoutNGObject() && old_style &&
-      old_style->Visibility() != style_->Visibility()) {
-    SetShouldDoFullPaintInvalidation();
   }
 
   // Text nodes share style with their parents but the paint properties don't
@@ -3282,10 +3218,8 @@ void LayoutObject::StyleDidChange(StyleDifference diff,
         }
       }
     } else if (IsBox() &&
-               ((!RuntimeEnabledFeatures::FlowThreadLessEnabled() &&
-                 old_style->GetColumnSpan() != style_->GetColumnSpan()) ||
-                To<LayoutBox>(this)->IsValidColumnSpanner(*old_style) !=
-                    To<LayoutBox>(this)->IsValidColumnSpanner(*style_))) {
+               To<LayoutBox>(this)->IsValidColumnSpanner(*old_style) !=
+                   To<LayoutBox>(this)->IsValidColumnSpanner(*style_)) {
       MarkParentForSpannerOrOutOfFlowPositionedChange();
     }
 
@@ -3533,14 +3467,6 @@ void LayoutObject::MapLocalToAncestor(const LayoutBoxModelObject* ancestor,
     return;
 
   PhysicalOffset container_offset = OffsetFromContainer(container, mode);
-  if (!RuntimeEnabledFeatures::LayoutBoxVisualLocationEnabled() &&
-      IsLayoutFlowThread()) {
-    // So far the point has been in flow thread coordinates (i.e. as if
-    // everything in the fragmentation context lived in one tall single column).
-    // Convert it to a visual point now, since we're about to escape the flow
-    // thread.
-    container_offset += ColumnOffset(transform_state.MappedPoint());
-  }
 
   // Text objects just copy their parent's computed style, so we need to ignore
   // them.
@@ -3615,16 +3541,6 @@ void LayoutObject::MapAncestorToLocal(const LayoutBoxModelObject* ancestor,
     transform_state.Move(container_offset,
                          preserve3d ? TransformState::kAccumulateTransform
                                     : TransformState::kFlattenTransform);
-  }
-
-  if (!RuntimeEnabledFeatures::LayoutBoxVisualLocationEnabled() &&
-      IsLayoutFlowThread()) {
-    // Descending into a flow thread. Convert to the local coordinate space,
-    // i.e. flow thread coordinates.
-    PhysicalOffset visual_point = transform_state.MappedPoint();
-    transform_state.Move(
-        visual_point -
-        To<LayoutFlowThread>(this)->VisualPointToFlowThreadPoint(visual_point));
   }
 
   if (skip_info.AncestorSkipped()) {
@@ -3740,15 +3656,6 @@ gfx::Transform LayoutObject::LocalToAncestorTransform(
   TransformState transform_state(TransformState::kApplyTransformDirection);
   MapLocalToAncestor(ancestor, transform_state, mode);
   return transform_state.AccumulatedTransform();
-}
-
-bool LayoutObject::OffsetForContainerDependsOnPoint(
-    const LayoutObject* container) const {
-  NOT_DESTROYED();
-  DCHECK(!RuntimeEnabledFeatures::LayoutBoxVisualLocationEnabled());
-  return IsLayoutFlowThread() ||
-         (container->StyleRef().IsFlippedBlocksWritingMode() &&
-          container->IsBox());
 }
 
 PhysicalOffset LayoutObject::OffsetFromContainerInternal(
@@ -3905,8 +3812,8 @@ void LayoutObject::InsertedIntoTree() {
   // FIXME: We should DCHECK(isRooted()) here but generated content makes some
   // out-of-order insertion.
 
-  bitfields_.SetMightTraversePhysicalFragments(
-      MightTraversePhysicalFragments(*this));
+  bitfields_.SetCanTraversePhysicalFragments(
+      CalculateCanTraversePhysicalFragments(*this));
 
   // Keep our layer hierarchy updated. Optimize for the common case where we
   // don't have any children and don't have a layer attached to ourselves.
@@ -3933,12 +3840,6 @@ void LayoutObject::InsertedIntoTree() {
 
   if (Parent()->ChildrenInline())
     Parent()->DirtyLinesFromChangedChild(this);
-
-  if (!RuntimeEnabledFeatures::FlowThreadLessEnabled()) {
-    if (LayoutFlowThread* flow_thread = FlowThreadContainingBlock()) {
-      flow_thread->FlowThreadDescendantWasInserted(this);
-    }
-  }
 
   if (const Element* element = DynamicTo<Element>(GetNode());
       element && element->HasImplicitlyAnchoredElement()) {
@@ -4002,10 +3903,6 @@ void LayoutObject::WillBeRemovedFromTree() {
   if (IsOutOfFlowPositioned() && Parent()->ChildrenInline())
     Parent()->DirtyLinesFromChangedChild(this);
 
-  if (!RuntimeEnabledFeatures::FlowThreadLessEnabled()) {
-    RemoveFromLayoutFlowThread();
-  }
-
   if (bitfields_.IsScrollAnchorObject()) {
     // Clear the bit first so that anchor.clear() doesn't recurse into
     // findReferencingScrollAnchors.
@@ -4047,52 +3944,6 @@ void LayoutObject::MaybeClearIsScrollAnchorObject() {
       FindReferencingScrollAnchors(this, kDontClear));
 }
 
-void LayoutObject::RemoveFromLayoutFlowThread() {
-  NOT_DESTROYED();
-  DCHECK(!RuntimeEnabledFeatures::FlowThreadLessEnabled());
-  if (!IsInsideMulticol()) {
-    return;
-  }
-
-  // Sometimes we remove the element from the flow, but it's not destroyed at
-  // that time.
-  // It's only until later when we actually destroy it and remove all the
-  // children from it.
-  // Currently, that happens for firstLetter elements and list markers.
-  // Pass in the flow thread so that we don't have to look it up for all the
-  // children.
-  // If we're a column spanner, we need to use our parent to find the flow
-  // thread, since a spanner doesn't have the flow thread in its containing
-  // block chain. We still need to notify the flow thread when the layoutObject
-  // removed happens to be a spanner, so that we get rid of the spanner
-  // placeholder, and column sets around the placeholder get merged.
-  LayoutFlowThread* flow_thread = IsColumnSpanAll()
-                                      ? Parent()->FlowThreadContainingBlock()
-                                      : FlowThreadContainingBlock();
-  RemoveFromLayoutFlowThreadRecursive(flow_thread);
-}
-
-void LayoutObject::RemoveFromLayoutFlowThreadRecursive(
-    LayoutFlowThread* layout_flow_thread) {
-  NOT_DESTROYED();
-  DCHECK(!RuntimeEnabledFeatures::FlowThreadLessEnabled());
-  if (const LayoutObjectChildList* children = VirtualChildren()) {
-    for (LayoutObject* child = children->FirstChild(); child;
-         child = child->NextSibling()) {
-      if (child->IsLayoutFlowThread())
-        continue;  // Don't descend into inner fragmentation contexts.
-      child->RemoveFromLayoutFlowThreadRecursive(
-          child->IsLayoutFlowThread() ? To<LayoutFlowThread>(child)
-                                      : layout_flow_thread);
-    }
-  }
-
-  if (layout_flow_thread && layout_flow_thread != this)
-    layout_flow_thread->FlowThreadDescendantWillBeRemoved(this);
-  SetIsInsideMulticol(false);
-  CHECK(!SpannerPlaceholder());
-}
-
 void LayoutObject::DestroyAndCleanupAnonymousWrappers(
     bool performing_reattach) {
   NOT_DESTROYED();
@@ -4107,10 +3958,6 @@ void LayoutObject::DestroyAndCleanupAnonymousWrappers(
   for (; destroy_root_parent && destroy_root_parent->IsAnonymous();
        destroy_root = destroy_root_parent,
        destroy_root_parent = destroy_root_parent->Parent()) {
-    // A flow thread is tracked by its containing block. Whether its children
-    // are removed or not is irrelevant.
-    if (destroy_root_parent->IsLayoutFlowThread())
-      break;
     // The anonymous fieldset contents wrapper should be kept.
     if (destroy_root_parent->Parent() &&
         destroy_root_parent->Parent()->IsFieldset()) {
@@ -4170,8 +4017,8 @@ PositionWithAffinity LayoutObject::PositionForPoint(
   NOT_DESTROYED();
   // NG codepath requires |kPrePaintClean|.
   // |SelectionModifier| calls this only in legacy codepath.
-  DCHECK(!IsLayoutNGObject() || GetDocument().Lifecycle().GetState() >=
-                                    DocumentLifecycle::kPrePaintClean);
+  DCHECK(GetDocument().Lifecycle().GetState() >=
+         DocumentLifecycle::kPrePaintClean);
   return CreatePositionWithAffinity(0);
 }
 
@@ -4218,6 +4065,7 @@ Node* LayoutObject::NodeForHitTest() const {
   if (const LayoutObject* parent = Parent()) {
     if (parent->IsBeforeOrAfterContent() || parent->IsMarkerContent() ||
         parent->IsScrollButtonOrMarkerContent() ||
+        parent->IsInterestHintContent() ||
         parent->StyleRef().StyleType() == kPseudoIdFirstLetter) {
       for (; parent; parent = parent->Parent()) {
         if (Node* node = parent->GetNode())
@@ -4362,6 +4210,7 @@ const ComputedStyle* LayoutObject::GetCachedPseudoElementStyle(
   DCHECK_NE(pseudo, kPseudoIdCheckMark);
   DCHECK_NE(pseudo, kPseudoIdAfter);
   DCHECK_NE(pseudo, kPseudoIdPickerIcon);
+  DCHECK_NE(pseudo, kPseudoIdInterestHint);
   if (!GetNode())
     return nullptr;
 
@@ -4379,6 +4228,7 @@ const ComputedStyle* LayoutObject::GetUncachedPseudoElementStyle(
   DCHECK_NE(request.pseudo_id, kPseudoIdCheckMark);
   DCHECK_NE(request.pseudo_id, kPseudoIdAfter);
   DCHECK_NE(request.pseudo_id, kPseudoIdPickerIcon);
+  DCHECK_NE(request.pseudo_id, kPseudoIdInterestHint);
   if (!GetNode())
     return nullptr;
 

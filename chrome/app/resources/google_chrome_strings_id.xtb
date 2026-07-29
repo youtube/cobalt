@@ -168,6 +168,7 @@
 <translation id="3003694935412297923">Semua tugas</translation>
 <translation id="3018957014024118866">Hapus juga data dari Chrome (<ph name="URL" />)</translation>
 <translation id="3019382870990049182">Luncurkan kembali untuk mengupdate &amp;ChromeOS Flex</translation>
+<translation id="3037517125981011456">Menampilkan perintah untuk login ke Chrome</translation>
 <translation id="3037838751736561277">Google Chrome berjalan di mode latar belakang.</translation>
 <translation id="3038232873781883849">Menunggu untuk menginstal...</translation>
 <translation id="3045032126857188731">Bahasa terjemahan: <ph name="LANGUAGE" /></translation>
@@ -311,6 +312,7 @@
 <translation id="4747730611090640388">Chrome dapat memperkirakan minat Anda.  Kemudian, situs yang Anda buka dapat meminta Chrome untuk melihat minat Anda agar dapat mempersonalisasi iklan yang Anda lihat.</translation>
 <translation id="475321580758063259">Update Chrome untuk terus menggunakan data Chrome di Akun Google Anda, <ph name="ACCOUNT_EMAIL" /></translation>
 <translation id="4754614261631455953">Google Chrome Canary (mDNS-In)</translation>
+<translation id="4756182432527369254">Mempercepat situs dengan mesin V8 Chrome, tetapi membuat Chrome sedikit lebih rentan terhadap serangan</translation>
 <translation id="479167709087336770">Tindakan ini akan menggunakan pemeriksa ejaan yang sama dengan yang digunakan di penelusuran Google. Teks yang Anda ketikkan di browser dikirim ke Google. Anda dapat mengubah perilaku ini di setelan.</translation>
 <translation id="4793679854893018356">Pelajari cara Chrome menjaga keamanan Anda</translation>
 <translation id="4828579605166583682">Google Chrome mencoba mengganti sandi yang ada. Ketik sandi Windows Anda untuk mengizinkannya.</translation>
@@ -399,6 +401,7 @@
 <translation id="5980111191913430208">Ekstensi, aplikasi, dan tema dari sumber tidak dikenal dapat membahayakan perangkat Anda. Chrome merekomendasikan hanya menginstal ekstensi, aplikasi, dan tema dari <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /></translation>
 <translation id="6003112304606738118">Mendownload... <ph name="HOURS" /> jam lagi</translation>
 <translation id="6008161919456049856">Sandi, metode pembayaran, dan alamat Anda yang disimpan di Akun Google Anda akan dihapus dari perangkat ini. Untuk menggunakannya lagi di Chrome, login kembali.</translation>
+<translation id="6009821354356307391">Ajukan pertanyaan lanjutan</translation>
 <translation id="6014316319780893079">Dengan <ph name="BEGIN_LINK" />alat dari Chrome<ph name="END_LINK" />, Anda dapat menjelajah dengan aman dan tetap memegang kendali</translation>
 <translation id="6022659036123304283">Sesuaikan Chrome dengan selera Anda</translation>
 <translation id="6025087594896450715">Google Chrome akan dimulai ulang dalam <ph name="REMAINING_TIME" /></translation>
@@ -593,6 +596,7 @@
 <translation id="8342675569599923794">File ini berbahaya, jadi Chrome telah memblokirnya.</translation>
 <translation id="8349094670477064572">Anda akan menyimpan dan menggunakan sandi serta data lainnya di Akun Google Anda setiap kali Anda login ke Chrome. <ph name="LEARN_MORE" /></translation>
 <translation id="8362914115861174987">Terjemahkan ke</translation>
+<translation id="8366770919198174997">Menurunkan performa tetapi membuat Chrome lebih tahan terhadap serangan</translation>
 <translation id="8370517070665726704">Hak cipta <ph name="YEAR" /> Google LLC. Semua hak dilindungi undang-undang.</translation>
 <translation id="8387459386171870978">Terus gunakan Chrome</translation>
 <translation id="8394720698884623075">Memeriksa kesesuaian URL dengan daftar situs tidak aman yang disimpan di Chrome</translation>
@@ -637,6 +641,7 @@
 <translation id="8843516219908676469">Chrome memahami formulir lebih baik dan dapat melakukan pengisian otomatis lebih cepat untuk Anda</translation>
 <translation id="8851180723659088381">{NUM_EXTENSIONS,plural, =1{Chrome merekomendasikan agar Anda menghapusnya}other{Chrome merekomendasikan agar Anda menghapusnya}}</translation>
 <translation id="8862326446509486874">Anda tidak memiliki hak yang diperlukan untuk penginstalan tingkat sistem. Coba jalankan lagi penginstal dengan login sebagai Administrator.</translation>
+<translation id="8865415417596392024">Data Chrome di akun Anda</translation>
 <translation id="8883862939660515976">Tanya Google Lens info tentang gambar ini</translation>
 <translation id="8914504000324227558">Luncurkan Ulang Chrome</translation>
 <translation id="8922193594870374009">Untuk mengirimkan nomor dari <ph name="ORIGIN" /> ke ponsel Android Anda, login ke Chrome di kedua perangkat.</translation>

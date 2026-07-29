@@ -68,6 +68,8 @@ component("variations") {
     "seed_reader_writer.h",
     "seed_response.cc",
     "seed_response.h",
+    "sticky_activation_manager.cc",
+    "sticky_activation_manager.h",
     "study_filtering.cc",
     "study_filtering.h",
     "synthetic_trial_registry.cc",
@@ -124,6 +126,7 @@ component("variations") {
   public_deps = [
     ":variations_features",
     "proto",
+    "proto:client_variations_proto",
     "//base",
   ]
 
@@ -208,6 +211,7 @@ static_library("test_support") {
   deps = [
     "field_trial_config",
     "proto",
+    "proto:client_variations_proto",
     "//base/test:test_support",
     "//components/metrics",
     "//components/prefs",
@@ -239,6 +243,7 @@ source_set("unit_tests") {
     "processed_study_unittest.cc",
     "seed_reader_writer_unittest.cc",
     "simulate_for_crosstalk_unittest.cc",
+    "sticky_activation_manager_unittest.cc",
     "study_filtering_unittest.cc",
     "synthetic_trial_registry_unittest.cc",
     "uniformity_unittest.cc",

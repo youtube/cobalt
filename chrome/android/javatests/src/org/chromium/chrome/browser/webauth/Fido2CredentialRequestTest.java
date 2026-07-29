@@ -7,8 +7,11 @@ package org.chromium.chrome.browser.webauth;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
 import android.app.Activity;
@@ -54,7 +57,6 @@ import org.chromium.base.test.params.ParameterSet;
 import org.chromium.base.test.params.ParameterizedRunner;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
-import org.chromium.base.test.util.DisableIf;
 import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
@@ -117,6 +119,7 @@ import org.chromium.content_public.common.ContentSwitches;
 import org.chromium.mojo_base.mojom.String16;
 import org.chromium.net.test.EmbeddedTestServer;
 import org.chromium.ui.test.util.GmsCoreVersionRestriction;
+import org.chromium.ui.util.RunnableTimer;
 import org.chromium.url.GURL;
 import org.chromium.url.Origin;
 
@@ -1714,9 +1717,6 @@ public class Fido2CredentialRequestTest {
 
     @Test
     @SmallTest
-    @DisableIf.Build(
-            sdk_is_greater_than = Build.VERSION_CODES.TIRAMISU,
-            message = "crbug.com/347310677")
     public void testGetCredential_emptyAllowCredentials1() {
         // Passes conversion and gets rejected by GmsCore
         PublicKeyCredentialRequestOptions customOptions = mRequestOptions;
@@ -1750,9 +1750,6 @@ public class Fido2CredentialRequestTest {
 
     @Test
     @SmallTest
-    @DisableIf.Build(
-            sdk_is_greater_than = Build.VERSION_CODES.TIRAMISU,
-            message = "crbug.com/347310677")
     public void testGetCredential_emptyAllowCredentials2() {
         // Passes conversion and gets rejected by GmsCore
         PublicKeyCredentialRequestOptions customOptions = mRequestOptions;
@@ -2016,7 +2013,6 @@ public class Fido2CredentialRequestTest {
 
     @Test
     @SmallTest
-    @DisabledTest(message = "crbug.com/347310677")
     public void testGetAssertion_emptyAllowCredentials_success() {
         mIntentSender.setNextResultIntent(Fido2ApiTestHelper.createSuccessfulGetAssertionIntent());
         mMockBrowserBridge.setExpectedCredentialDetailsList(
@@ -2024,6 +2020,7 @@ public class Fido2CredentialRequestTest {
                         new WebauthnCredentialDetails[] {
                             Fido2ApiTestHelper.getCredentialDetails()
                         }));
+        Fido2ApiTestHelper.mockClientDataJson();
 
         mRequestOptions.allowCredentials = new PublicKeyCredentialDescriptor[0];
 
@@ -2043,9 +2040,6 @@ public class Fido2CredentialRequestTest {
 
     @Test
     @SmallTest
-    @DisableIf.Build(
-            sdk_is_greater_than = Build.VERSION_CODES.TIRAMISU,
-            message = "crbug.com/347310677")
     public void testGetAssertion_emptyAllowCredentialsUserCancels_notAllowedError() {
         mMockBrowserBridge.setSelectedCredentialId(new byte[0]);
         mMockBrowserBridge.setExpectedCredentialDetailsList(
@@ -2073,7 +2067,6 @@ public class Fido2CredentialRequestTest {
 
     @Test
     @SmallTest
-    @DisabledTest(message = "crbug.com/347310677")
     public void testGetAssertion_conditionalUi_success() {
         mIntentSender.setNextResultIntent(Fido2ApiTestHelper.createSuccessfulGetAssertionIntent());
         mMockBrowserBridge.setExpectedCredentialDetailsList(
@@ -2081,6 +2074,7 @@ public class Fido2CredentialRequestTest {
                         new WebauthnCredentialDetails[] {
                             Fido2ApiTestHelper.getCredentialDetails()
                         }));
+        Fido2ApiTestHelper.mockClientDataJson();
 
         mRequestOptions.allowCredentials = new PublicKeyCredentialDescriptor[0];
         mRequestOptions.mediation = Mediation.CONDITIONAL;
@@ -2103,9 +2097,6 @@ public class Fido2CredentialRequestTest {
 
     @Test
     @SmallTest
-    @DisableIf.Build(
-            sdk_is_greater_than = Build.VERSION_CODES.TIRAMISU,
-            message = "crbug.com/347310677")
     public void testGetAssertion_conditionalUi_failureEmptyCredential() {
         mMockBrowserBridge.setSelectedCredentialId(new byte[0]);
         mMockBrowserBridge.setExpectedCredentialDetailsList(
@@ -2133,9 +2124,6 @@ public class Fido2CredentialRequestTest {
 
     @Test
     @SmallTest
-    @DisableIf.Build(
-            sdk_is_greater_than = Build.VERSION_CODES.TIRAMISU,
-            message = "crbug.com/347310677")
     public void testGetAssertion_conditionalUiNondiscoverableCredential_failure() {
         mIntentSender.setNextResultIntent(Fido2ApiTestHelper.createSuccessfulGetAssertionIntent());
         WebauthnCredentialDetails nonDiscoverableCredDetails =
@@ -2178,7 +2166,7 @@ public class Fido2CredentialRequestTest {
                 mCallback::onSignResponse,
                 mCallback::onError,
                 mCallback::onRequestOutcome);
-        mRequest.cancelConditionalGetAssertion();
+        mRequest.cancelGetAssertion();
         Assert.assertEquals(
                 Integer.valueOf(AuthenticatorStatus.ABORT_ERROR), mCallback.getStatus());
 
@@ -2191,9 +2179,6 @@ public class Fido2CredentialRequestTest {
 
     @Test
     @SmallTest
-    @DisableIf.Build(
-            sdk_is_greater_than = Build.VERSION_CODES.TIRAMISU,
-            message = "crbug.com/347310677")
     public void testGetAssertion_conditionalUi_cancelWhileWaitingForSelection() {
         mMockBrowserBridge.setExpectedCredentialDetailsList(
                 Arrays.asList(
@@ -2213,7 +2198,7 @@ public class Fido2CredentialRequestTest {
                 mCallback::onSignResponse,
                 mCallback::onError,
                 mCallback::onRequestOutcome);
-        mRequest.cancelConditionalGetAssertion();
+        mRequest.cancelGetAssertion();
 
         Assert.assertEquals(
                 Integer.valueOf(AuthenticatorStatus.ABORT_ERROR), mCallback.getStatus());
@@ -2222,7 +2207,6 @@ public class Fido2CredentialRequestTest {
 
     @Test
     @SmallTest
-    @DisabledTest(message = "crbug.com/347310677")
     public void testGetAssertion_conditionalUiCancelWhileRequestSentToPlatform_ignored() {
         mIntentSender.setNextResultIntent(Fido2ApiTestHelper.createSuccessfulGetAssertionIntent());
         mMockBrowserBridge.setExpectedCredentialDetailsList(
@@ -2230,6 +2214,7 @@ public class Fido2CredentialRequestTest {
                         new WebauthnCredentialDetails[] {
                             Fido2ApiTestHelper.getCredentialDetails()
                         }));
+        Fido2ApiTestHelper.mockClientDataJson();
 
         mRequestOptions.allowCredentials = new PublicKeyCredentialDescriptor[0];
         mRequestOptions.mediation = Mediation.CONDITIONAL;
@@ -2245,7 +2230,7 @@ public class Fido2CredentialRequestTest {
                 mCallback::onError,
                 mCallback::onRequestOutcome);
         mIntentSender.blockUntilShowIntentCalled();
-        mRequest.cancelConditionalGetAssertion();
+        mRequest.cancelGetAssertion();
         mIntentSender.invokeCallback();
         Assert.assertEquals(Integer.valueOf(AuthenticatorStatus.SUCCESS), mCallback.getStatus());
         Fido2ApiTestHelper.validateGetAssertionResponse(mCallback.getGetAssertionResponse());
@@ -2254,9 +2239,6 @@ public class Fido2CredentialRequestTest {
 
     @Test
     @SmallTest
-    @DisableIf.Build(
-            sdk_is_greater_than = Build.VERSION_CODES.TIRAMISU,
-            message = "crbug.com/347310677")
     public void testGetAssertion_conditionalUiCancelWhileRequestSentToPlatformUserDeny_cancelled() {
         mIntentSender.setNextResultIntent(
                 Fido2ApiTestHelper.createErrorIntent(Fido2Api.NOT_ALLOWED_ERR, ""));
@@ -2280,7 +2262,7 @@ public class Fido2CredentialRequestTest {
                 mCallback::onError,
                 mCallback::onRequestOutcome);
         mIntentSender.blockUntilShowIntentCalled();
-        mRequest.cancelConditionalGetAssertion();
+        mRequest.cancelGetAssertion();
         mIntentSender.invokeCallback();
         Assert.assertEquals(
                 Integer.valueOf(AuthenticatorStatus.ABORT_ERROR), mCallback.getStatus());
@@ -2289,9 +2271,6 @@ public class Fido2CredentialRequestTest {
 
     @Test
     @SmallTest
-    @DisableIf.Build(
-            sdk_is_greater_than = Build.VERSION_CODES.TIRAMISU,
-            message = "crbug.com/347310677")
     public void testGetAssertion_conditionalUiRequestSentToPlatformUserDeny_doesNotComplete() {
         mIntentSender.setNextResultIntent(
                 Fido2ApiTestHelper.createErrorIntent(Fido2Api.NOT_ALLOWED_ERR, ""));
@@ -2320,7 +2299,6 @@ public class Fido2CredentialRequestTest {
 
     @Test
     @SmallTest
-    @DisabledTest(message = "crbug.com/347310677")
     public void testGetAssertion_conditionalUiRetryAfterUserDeny_success() {
         mIntentSender.setNextResultIntent(
                 Fido2ApiTestHelper.createErrorIntent(Fido2Api.NOT_ALLOWED_ERR, ""));
@@ -2329,6 +2307,7 @@ public class Fido2CredentialRequestTest {
                         new WebauthnCredentialDetails[] {
                             Fido2ApiTestHelper.getCredentialDetails()
                         }));
+        Fido2ApiTestHelper.mockClientDataJson();
 
         mRequestOptions.allowCredentials = new PublicKeyCredentialDescriptor[0];
         mRequestOptions.mediation = Mediation.CONDITIONAL;
@@ -2357,7 +2336,6 @@ public class Fido2CredentialRequestTest {
 
     @Test
     @SmallTest
-    @DisabledTest(message = "crbug.com/347310677")
     public void testGetAssertion_conditionalUiWithAllowCredentialMatch_success() {
         mIntentSender.setNextResultIntent(Fido2ApiTestHelper.createSuccessfulGetAssertionIntent());
         mMockBrowserBridge.setExpectedCredentialDetailsList(
@@ -2365,6 +2343,7 @@ public class Fido2CredentialRequestTest {
                         new WebauthnCredentialDetails[] {
                             Fido2ApiTestHelper.getCredentialDetails()
                         }));
+        Fido2ApiTestHelper.mockClientDataJson();
 
         mRequestOptions.mediation = Mediation.CONDITIONAL;
 
@@ -2385,9 +2364,6 @@ public class Fido2CredentialRequestTest {
 
     @Test
     @SmallTest
-    @DisableIf.Build(
-            sdk_is_greater_than = Build.VERSION_CODES.TIRAMISU,
-            message = "crbug.com/347310677")
     public void testGetAssertion_conditionalUiWithAllowCredentialMismatch_failure() {
         mIntentSender.setNextResultIntent(Fido2ApiTestHelper.createSuccessfulGetAssertionIntent());
         mMockBrowserBridge.setExpectedCredentialDetailsList(new ArrayList<>());
@@ -2416,7 +2392,7 @@ public class Fido2CredentialRequestTest {
 
     @Test
     @SmallTest
-    public void testGetAssertion_ImmediateWithPasskeysOnly_success() {
+    public void testGetAssertion_immediateWithPasskeysOnly_success() {
         Fido2ApiTestHelper.mockClientDataJson();
         mIntentSender.setNextResultIntent(Fido2ApiTestHelper.createSuccessfulGetAssertionIntent());
         mMockBrowserBridge.setExpectedCredentialDetailsList(
@@ -2445,7 +2421,9 @@ public class Fido2CredentialRequestTest {
 
     @Test
     @SmallTest
-    public void testGetAssertion_ImmediateWithNonEmptyAllowList_notAllowedError() {
+    public void testGetAssertion_immediateWithNonEmptyAllowList_notAllowedError() {
+        WebauthnBrowserBridge mockedBrowserBridge = Mockito.mock(WebauthnBrowserBridge.class);
+        mRequest.overrideBrowserBridgeForTesting(mockedBrowserBridge);
         mRequestOptions.mediation = Mediation.IMMEDIATE;
         mRequestOptions.requestedCredentialTypeFlags |= CredentialTypeFlags.PASSWORD;
 
@@ -2461,11 +2439,16 @@ public class Fido2CredentialRequestTest {
         Assert.assertEquals(
                 Integer.valueOf(AuthenticatorStatus.NOT_ALLOWED_ERROR), mCallback.getStatus());
         Fido2ApiTestHelper.verifyRespondedBeforeTimeout(mStartTimeMs);
+        Mockito.verify(mockedBrowserBridge, never())
+                .onCredentialsDetailsListReceived(
+                        any(), any(), anyInt(), any(), any(), any(), any());
     }
 
     @Test
     @SmallTest
-    public void testGetAssertion_ImmediateWithNoPasskeysFound_notAllowedError() {
+    public void testGetAssertion_immediateWithNoPasskeysFound_notAllowedError() {
+        WebauthnBrowserBridge mockedBrowserBridge = Mockito.mock(WebauthnBrowserBridge.class);
+        mRequest.overrideBrowserBridgeForTesting(mockedBrowserBridge);
         mFido2ApiCallHelper.setReturnedCredentialDetails(new ArrayList<>());
         mMockBrowserBridge.setExpectedCredentialDetailsList(new ArrayList<>());
 
@@ -2484,11 +2467,14 @@ public class Fido2CredentialRequestTest {
         Assert.assertEquals(
                 Integer.valueOf(AuthenticatorStatus.NOT_ALLOWED_ERROR), mCallback.getStatus());
         Fido2ApiTestHelper.verifyRespondedBeforeTimeout(mStartTimeMs);
+        Mockito.verify(mockedBrowserBridge, never())
+                .onCredentialsDetailsListReceived(
+                        any(), any(), anyInt(), any(), any(), any(), any());
     }
 
     @Test
     @SmallTest
-    public void testGetAssertion_ImmediateWithNoPasskeysButPasswordReturned_success() {
+    public void testGetAssertion_immediateWithNoPasskeysButPasswordReturned_success() {
         mMockBrowserBridge.setInvokeCallbackImmediately(
                 MockBrowserBridge.CallbackInvocationType.IMMEDIATE_PASSWORD);
         mMockBrowserBridge.setExpectedCredentialDetailsList(new ArrayList<>());
@@ -2518,8 +2504,9 @@ public class Fido2CredentialRequestTest {
 
     @Test
     @SmallTest
-    public void testGetAssertion_ImmediateInIncognito_notAllowedError() {
+    public void testGetAssertion_immediateInIncognito_notAllowedError() {
         mWebContents = new MockIncognitoWebContents();
+        WebauthnBrowserBridge mockedBrowserBridge = Mockito.mock(WebauthnBrowserBridge.class);
         mAuthenticationContextProvider =
                 new AuthenticationContextProvider() {
                     @Override
@@ -2544,6 +2531,7 @@ public class Fido2CredentialRequestTest {
                 };
         mRequest = new Fido2CredentialRequest(mAuthenticationContextProvider);
         AuthenticatorImpl.overrideFido2CredentialRequestForTesting(mRequest);
+        mRequest.overrideBrowserBridgeForTesting(mockedBrowserBridge);
 
         mRequestOptions.mediation = Mediation.IMMEDIATE;
         mRequestOptions.requestedCredentialTypeFlags |= CredentialTypeFlags.PASSWORD;
@@ -2561,6 +2549,48 @@ public class Fido2CredentialRequestTest {
         Assert.assertEquals(
                 Integer.valueOf(AuthenticatorStatus.NOT_ALLOWED_ERROR), mCallback.getStatus());
         Fido2ApiTestHelper.verifyRespondedBeforeTimeout(mStartTimeMs);
+        Mockito.verify(mockedBrowserBridge, never())
+                .onCredentialsDetailsListReceived(
+                        any(), any(), anyInt(), any(), any(), any(), any());
+    }
+
+    @Test
+    @SmallTest
+    public void testGetAssertion_immediateTimesOut_notAllowedError() {
+        WebauthnBrowserBridge mockedBrowserBridge = Mockito.mock(WebauthnBrowserBridge.class);
+        RunnableTimer timer = Mockito.mock(RunnableTimer.class);
+        mRequest.setImmediateTimerForTesting(timer);
+
+        doAnswer(
+                        answer -> {
+                            Runnable runnable = answer.getArgument(1);
+                            runnable.run();
+                            return null;
+                        })
+                .when(timer)
+                .startTimer(anyLong(), any(Runnable.class));
+
+        // Prevent credentials from being returned.
+        mFido2ApiCallHelper.setInvokeCallbackImmediately(false);
+
+        mRequestOptions.allowCredentials = new PublicKeyCredentialDescriptor[0];
+        mRequestOptions.mediation = Mediation.IMMEDIATE;
+        mRequestOptions.requestedCredentialTypeFlags |= CredentialTypeFlags.PASSWORD;
+
+        mRequest.handleGetCredentialRequest(
+                mRequestOptions,
+                mOrigin,
+                mOrigin,
+                /* payment= */ null,
+                mCallback::onSignResponse,
+                mCallback::onError,
+                mCallback::onRequestOutcome);
+        mCallback.blockUntilCalled();
+        Assert.assertEquals(
+                Integer.valueOf(AuthenticatorStatus.NOT_ALLOWED_ERROR), mCallback.getStatus());
+        Mockito.verify(mockedBrowserBridge, never())
+                .onCredentialsDetailsListReceived(
+                        any(), any(), anyInt(), any(), any(), any(), any());
     }
 
     @Test
@@ -2658,6 +2688,7 @@ public class Fido2CredentialRequestTest {
                 Arrays.asList(Fido2ApiTestHelper.getCredentialDetails()));
         mMockBrowserBridge.setInvokeCallbackImmediately(
                 MockBrowserBridge.CallbackInvocationType.IMMEDIATE_HYBRID);
+        Fido2ApiTestHelper.mockClientDataJson();
 
         mRequestOptions.allowCredentials = new PublicKeyCredentialDescriptor[0];
         mRequestOptions.mediation = Mediation.CONDITIONAL;

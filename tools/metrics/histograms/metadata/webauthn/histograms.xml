@@ -82,7 +82,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebAuthentication.Android.GmsCoreGetCredentialsResult"
-    enum="GmsCoreGetCredentialsResult" expires_after="2025-11-30">
+    enum="GmsCoreGetCredentialsResult" expires_after="2026-02-01">
   <owner>derinel@google.com</owner>
   <owner>chrome-webauthn@google.com</owner>
   <summary>
@@ -99,6 +99,16 @@ chromium-metrics-reviews@google.com.
     Records whether non-discoverable credentials are found before dispatching
     the request to Android Credential Manager APIs. Recorded only on Android 14
     and above.
+  </summary>
+</histogram>
+
+<histogram name="WebAuthentication.AutomaticPasskeyUpgrade.Result"
+    enum="PasskeyUpgradeResult" expires_after="2026-08-01">
+  <owner>martinkr@google.com</owner>
+  <owner>chrome-webauthn@google.com</owner>
+  <summary>
+    Records the outcome of a WebAuthn conditional create (aka automatic passkey
+    upgrade) request on Desktop, including a breakdown of failure conditions.
   </summary>
 </histogram>
 
@@ -161,7 +171,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebAuthentication.CredentialFetchDuration.GmsCore.{Source}"
-    units="ms" expires_after="2025-11-09">
+    units="ms" expires_after="2026-02-01">
   <owner>derinel@google.com</owner>
   <owner>chrome-webauthn@google.com</owner>
   <summary>
@@ -494,7 +504,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebAuthentication.PinRenewalFailureCause"
-    enum="WebAuthenticationPinRenewalFailureCause" expires_after="2025-11-30">
+    enum="WebAuthenticationPinRenewalFailureCause" expires_after="2026-02-01">
   <owner>agl@google.com</owner>
   <owner>kenrb@chromium.org</owner>
   <summary>
@@ -539,7 +549,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebAuthentication.U2fSignOperation"
-    enum="U2fSignOperationResult" expires_after="2025-11-30">
+    enum="U2fSignOperationResult" expires_after="2026-02-01">
   <owner>nsatragno@chromium.org</owner>
   <owner>chrome-webauthn@google.com</owner>
   <summary>

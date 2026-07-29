@@ -190,6 +190,12 @@ BASE_FEATURE_PARAM(std::string,
                    "QuicConnectionOptions",
                    "");
 
+BASE_FEATURE_PARAM(bool,
+                   kFallbackInLowPowerMode,
+                   &kSearchEnginePreconnect2,
+                   "FallbackInLowPowerMode",
+                   false);
+
 BASE_FEATURE(kShortLaxAllowUnsafeThreshold,
              "ShortLaxAllowUnsafeThreshold",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -252,7 +258,7 @@ BASE_FEATURE(kRequestStorageAccessNoCorsRequired,
 
 BASE_FEATURE(kStorageAccessApiFollowsSameOriginPolicy,
              "StorageAccessApiFollowsSameOriginPolicy",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kStaticKeyPinningEnforcement,
              "StaticKeyPinningEnforcement",
@@ -862,6 +868,11 @@ BASE_FEATURE_PARAM(bool,
                    kNetTaskSchedulerHttpProxyConnectJob,
                    &kNetTaskScheduler,
                    "http_proxy_connect_job",
+                   false);
+BASE_FEATURE_PARAM(bool,
+                   kNetTaskSchedulerHttpCache,
+                   &kNetTaskScheduler,
+                   "http_cache",
                    false);
 BASE_FEATURE_PARAM(bool,
                    kNetTaskSchedulerHttpCacheTransaction,

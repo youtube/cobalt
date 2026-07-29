@@ -13,7 +13,6 @@ testonly = true
 # Contain all source code that is used by tests in a different package.
 android_library("chrome_test_java_helper") {
   sources = [
-    "//chrome/android/features/tab_ui/javatests/src/org/chromium/chrome/browser/tasks/tab_management/TabSwitcherSearchTestUtils.java",
     "//chrome/android/feed/core/javatests/src/org/chromium/chrome/browser/feed/v2/FeedV2TestHelper.java",
     "//chrome/android/feed/core/javatests/src/org/chromium/chrome/browser/feed/v2/TestFeedServer.java",
     "src/org/chromium/chrome/browser/MockSafeBrowsingApiHandler.java",
@@ -144,7 +143,6 @@ android_library("chrome_test_java_helper") {
     "//chrome/browser/password_manager/android:settings_interface_java",
     "//chrome/browser/password_manager/android:test_support_java",
     "//chrome/browser/password_manager/android:utils_java",
-    "//chrome/browser/password_manager/android/account_storage_toggle:java",
     "//chrome/browser/password_manager/android/pwd_check_wrapper:test_support_java",
     "//chrome/browser/policy/android:java",
     "//chrome/browser/preferences:java",

@@ -185,6 +185,7 @@
 <translation id="3313189106987092621">Xavfsiz ulanishli har qanday saytga kirganingizda Chromium sizni ogohlantiradi</translation>
 <translation id="3316771292331273802">Barcha Chromium oynalari yopilganda aksariyat saytlardan chiqib ketasiz, ammo Chromium hisobingizga kirganingizda Google hisobingizdan chiqmaysiz. Saytlarga sizni eslab qolishga ruxsat berish uchun <ph name="SETTINGS_LINK" />.</translation>
 <translation id="3352986031709923790">qidiruv hududining yuqori oʻng burchagi: oʻng <ph name="RIGHT" />%, yuqori <ph name="TOP" />%</translation>
+<translation id="3366305173356742781">Hisobingizdagi Chromium maʼlumotlari</translation>
 <translation id="3369405342922656244">Rasmli qidiruv orqali bu sahifani topish</translation>
 <translation id="3387527074123400161">ChromiumOS</translation>
 <translation id="3406848076815591792">Mavjud Chromium profiliga almashilsinmi?</translation>
@@ -371,6 +372,7 @@
 <translation id="5987687638152509985">Sinxronizatsiyani boshlash uchun Chromium brauzerini yangilang</translation>
 <translation id="5988505247484123880">Odatda siz kiradigan saytlar oʻz xizmatlarini sizga moslashtirish uchun sizga qiziq narsalarni eslab qoladi. Chromium orqali saytlar ham qiziqishlaringiz haqidagi maʼlumotlarni saqlashi mumkin.</translation>
 <translation id="6003112304606738118">Yuklab olinmoqda... <ph name="HOURS" /> soat qoldi</translation>
+<translation id="6009821354356307391">Qoʻshimcha soʻrov yuborish</translation>
 <translation id="6040143037577758943">Yopish</translation>
 <translation id="6058380562449900225">Maʼlumotlaringizni himoyalash maqsadida Chromium brauzeriga uzoq vaqt kirmagan saytlardan ruxsatlarni olib tashlashi uchun ruxsat bering. Bildirishnomalar kelishi davom etadi.</translation>
 <translation id="6063093106622310249">&amp;Chromiumda ochish</translation>

@@ -239,6 +239,8 @@ void SetRuntimeFeaturesFromChromiumFeatures() {
 #if BUILDFLAG(IS_ANDROID)
           {wf::EnableGetDisplayMedia,
            raw_ref(features::kUserMediaScreenCapturing)},
+          {wf::EnableRegionCapture,
+           raw_ref(features::kUserMediaScreenCapturing)},
 #endif
           {wf::EnableInstalledApp, raw_ref(features::kInstalledApp)},
           {wf::EnableIntegrityPolicyScript,
@@ -408,8 +410,6 @@ void SetRuntimeFeaturesFromChromiumFeatures() {
 #if BUILDFLAG(IS_ANDROID)
           {"WebAppLaunchQueue", raw_ref(features::kAndroidWebAppLaunchHandler)},
 #endif
-          {"WebAuthenticationNewBfCacheHandlingBlink",
-           raw_ref(device::kWebAuthnNewBfCacheHandling)},
           {"LocalNetworkAccessPermissionPolicy",
            raw_ref(network::features::kLocalNetworkAccessChecks)}};
   for (const auto& mapping : runtimeFeatureNameToChromiumFeatureMapping) {

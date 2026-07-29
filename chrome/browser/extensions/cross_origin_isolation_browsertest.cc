@@ -27,7 +27,6 @@
 
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/ui_test_utils.h"
 #endif
 
@@ -495,8 +494,7 @@ IN_PROC_BROWSER_TEST_F(CrossOriginIsolationTest,
   GURL extension_test_url = coi_extension->GetResourceURL("test.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), embedded_test_server()->GetURL("/iframe_blank.html")));
-  content::WebContents* web_contents =
-      browser()->tab_strip_model()->GetActiveWebContents();
+  content::WebContents* web_contents = GetActiveWebContents();
   ASSERT_TRUE(
       content::NavigateIframeToURL(web_contents, "test", extension_test_url));
   content::RenderFrameHost* extension_iframe =
@@ -504,10 +502,7 @@ IN_PROC_BROWSER_TEST_F(CrossOriginIsolationTest,
   ASSERT_TRUE(extension_iframe);
 
   content::RenderFrameHost* extension_tab =
-      ui_test_utils::NavigateToURLWithDisposition(
-          browser(), extension_test_url,
-          WindowOpenDisposition::NEW_FOREGROUND_TAB,
-          ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
+      NavigateToURLInNewTab(extension_test_url);
   ASSERT_TRUE(extension_tab);
 
   // getBackgroundPage API.
@@ -598,8 +593,7 @@ IN_PROC_BROWSER_TEST_F(CrossOriginIsolationTest, ExtensionMessaging_Frames) {
 
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), embedded_test_server()->GetURL("/iframe_blank.html")));
-  content::WebContents* web_contents =
-      browser()->tab_strip_model()->GetActiveWebContents();
+  content::WebContents* web_contents = GetActiveWebContents();
 
   GURL extension_test_url = coi_extension->GetResourceURL("test.html");
   ASSERT_TRUE(
@@ -609,10 +603,7 @@ IN_PROC_BROWSER_TEST_F(CrossOriginIsolationTest, ExtensionMessaging_Frames) {
   ASSERT_TRUE(extension_iframe);
 
   content::RenderFrameHost* extension_tab =
-      ui_test_utils::NavigateToURLWithDisposition(
-          browser(), extension_test_url,
-          WindowOpenDisposition::NEW_FOREGROUND_TAB,
-          ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
+      NavigateToURLInNewTab(extension_test_url);
   ASSERT_TRUE(extension_tab);
 
   // `extension_iframe` and `extension_tab` should not share a process as they

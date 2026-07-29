@@ -53,10 +53,7 @@ source_set("unit_tests") {
 
 # Constants only target without dependencies to allow embedders to only include relevant code.
 android_library("constants_java") {
-  sources = [
-    "java/src/org/chromium/components/browser_ui/site_settings/SingleCategorySettingsConstants.java",
-    "java/src/org/chromium/components/browser_ui/site_settings/WebsiteSettingsConstants.java",
-  ]
+  sources = [ "java/src/org/chromium/components/browser_ui/site_settings/SingleCategorySettingsConstants.java" ]
 }
 
 android_library("java") {
@@ -251,6 +248,7 @@ android_resources("java_resources") {
     "java/res/drawable/settings_v8.xml",
     "java/res/drawable/web_24.xml",
     "java/res/layout/add_site_dialog.xml",
+    "java/res/layout/approximate_geolocation_permission_dialog.xml",
     "java/res/layout/binary_state_permission_preference.xml",
     "java/res/layout/clear_data_dialog.xml",
     "java/res/layout/clear_reset_dialog.xml",

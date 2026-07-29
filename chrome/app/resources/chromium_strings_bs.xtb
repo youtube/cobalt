@@ -190,6 +190,7 @@ Neke funkcije možda neće biti dostupne i promjene postavki se neće sačuvati.
 <translation id="3313189106987092621">Chromium će vas upozoriti prije učitavanja bilo koje web lokacije putem nesigurne veze</translation>
 <translation id="3316771292331273802">Kada zatvorite sve prozore Chromiuma, odjavit ćete se s većine web lokacija, osim s Google računa ako ste prijavljeni u Chromium. Da omogućite da vas web lokacije zapamte, <ph name="SETTINGS_LINK" />.</translation>
 <translation id="3352986031709923790">gornji desni ugao područja za pretraživanje: desno <ph name="RIGHT" />%, gore <ph name="TOP" />%</translation>
+<translation id="3366305173356742781">Podaci Chromiuma na vašem računu</translation>
 <translation id="3369405342922656244">Pretražite ovu stranicu uz pretraživanje pomoću slika</translation>
 <translation id="3387527074123400161">ChromiumOS</translation>
 <translation id="3406848076815591792">Želite li se prebaciti na Chromium profil?</translation>
@@ -285,6 +286,7 @@ Neke funkcije možda neće biti dostupne i promjene postavki se neće sačuvati.
 <translation id="4598116752460667024">Pretraživanje bilo kojeg postupka s liste.</translation>
 <translation id="4613863813562375431">Verzija ChromiumOS-a</translation>
 <translation id="4621240073146040695">Još malo pa je ažurirano! Ponovo pokrenite Chromium da završite ažuriranje.</translation>
+<translation id="4625064703209785397">Ubrzava web lokacije putem Chromiumovog pretraživača V8, ali čini da Chromium bude manje otporan na napade</translation>
 <translation id="4654936675281451226">Chromium bolje razumije obrasce i može ih brže automatski popuniti za vas. Ova postavka je uključena.</translation>
 <translation id="4665829708273112819">Upozorenje: Chromium ne može spriječiti da ekstenzije snimaju vašu historiju pregledanja. Da onemogućite ovu ekstenziju u anonimnom načinu rada, poništite odabir ove opcije.</translation>
 <translation id="4673151026126227699">Ako dijelite i izvještaje o korištenju Chromiuma, ti izvještaji uključuju URL-ove koje posjećujete</translation>
@@ -330,6 +332,7 @@ Neke funkcije možda neće biti dostupne i promjene postavki se neće sačuvati.
 <translation id="5386450000063123300">Ažuriranje Chromiuma (<ph name="PROGRESS_PERCENT" />)</translation>
 <translation id="538767207339317086">Dozvoli prijavljivanje u Chromium</translation>
 <translation id="5405650547142096840">Ukloni iz Chromiuma</translation>
+<translation id="5424544524441439284">Smanjuje performanse, ali postiže da Chromium bude otporniji na napade</translation>
 <translation id="5427571867875391349">Postavite Chromium kao zadani preglednik</translation>
 <translation id="5438241569118040789"><ph name="PAGE_TITLE" /> – Chromium Beta</translation>
 <translation id="5460618461609401056">{NUM_TABS,plural, =1{Chromium preporučuje da pauzirate karticu koja usporava preglednik}one{Chromium preporučuje da pauzirate kartice koje usporavaju preglednik}few{Chromium preporučuje da pauzirate kartice koje usporavaju preglednik}other{Chromium preporučuje da pauzirate kartice koje usporavaju preglednik}}</translation>
@@ -374,6 +377,7 @@ Neke funkcije možda neće biti dostupne i promjene postavki se neće sačuvati.
 <translation id="5987687638152509985">Ažurirajte Chromium da započnete sinhronizaciju</translation>
 <translation id="5988505247484123880">Uobičajeno je da web lokacije koje posjetite pamte stvari koje vas interesiraju radi personalizacije vašeg iskustva. Web lokacije mogu pohranjivati informacije o vašim interesovanjima i u Chromiumu.</translation>
 <translation id="6003112304606738118">Preuzimanje… Preostalo je <ph name="HOURS" /> h</translation>
+<translation id="6009821354356307391">Postavite dodatni upit</translation>
 <translation id="6040143037577758943">Zatvori</translation>
 <translation id="6058380562449900225">Da zaštitite podatke, omogućite Chromiumu da ukloni odobrenja s web lokacija koje u posljednje vrijeme niste posjetili. Ovo ne zaustavlja slanje obavještenja.</translation>
 <translation id="6063093106622310249">&amp;Otvori u Chromiumu</translation>

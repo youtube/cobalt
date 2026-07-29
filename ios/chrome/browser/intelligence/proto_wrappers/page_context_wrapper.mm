@@ -19,6 +19,8 @@
 #import "base/strings/string_util.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/strings/utf_string_conversions.h"
+#import "base/time/time.h"
+#import "base/timer/timer.h"
 #import "base/token.h"
 #import "components/optimization_guide/core/page_content_proto_serializer.h"
 #import "components/optimization_guide/proto/features/common_quality_data.pb.h"
@@ -34,7 +36,11 @@
 
 namespace {
 
-// The key for whether the PageContext should be detached. The value is a bool.
+// The default Page Context execution timeout.
+base::TimeDelta kDefaultPageContextTimeout = base::Seconds(1);
+
+// The key for whether the PageContext should be detached. The value is a
+// bool.
 constexpr const char kShouldDetachPageContext[] = "shouldDetachPageContext";
 
 // The key for the current node's innerText in the JavaScript object. The value
@@ -145,16 +151,17 @@ constexpr const char16_t* kInnerTextTreeJavaScript = uR"DELIM(
 
 // The JavaScript to be executed in each WebFrame which gets all of a frame's
 // anchor tags and adds them to an array with their corresponding URL and
-// innerText. Injected into the main script.
+// textContent (which includes all text, including text that is not visually
+// rendered). Injected into the main script.
 constexpr const char16_t* kAnchorTagsJavaScript = uR"DELIM(
 // Add all the frame's anchor tags to a links array with their HREF/URL and
-// innerText.
+// textContent.
 const linksArray = [];
 const anchorElements = node.querySelectorAll('a[href]');
 anchorElements.forEach((anchor) => {
     linksArray.push({
         href: anchor.href,
-        linkText: anchor.innerText
+        linkText: anchor.textContent
     });
 });
 
@@ -171,6 +178,9 @@ result.links = linksArray;
   // The amount of async tasks this specific instance of the PageContext wrapper
   // needs to complete before executing the `completionCallback`.
   NSInteger _asyncTasksToComplete;
+
+  // The timer which keeps track of the overall execution timeout.
+  base::OneShotTimer _timeoutTimer;
 
   // The root node of the PageContext's AnnotatedPageContent (APC) tree. This
   // tree is constructed on the fly as values are returned from JavaScript.
@@ -211,12 +221,23 @@ result.links = linksArray;
 }
 
 - (void)dealloc {
+  _timeoutTimer.Stop();
   [self stopTextHighlighting];
 }
 
 - (void)populatePageContextFieldsAsync {
+  [self populatePageContextFieldsAsyncWithTimeout:kDefaultPageContextTimeout];
+}
+
+- (void)populatePageContextFieldsAsyncWithTimeout:(base::TimeDelta)timeout {
   CHECK_GE(_asyncTasksToComplete, 0);
   _pageContextMetrics = [[PageContextWrapperMetrics alloc] init];
+  __weak PageContextWrapper* weakSelf = self;
+
+  // Start the timer.
+  _timeoutTimer.Start(FROM_HERE, timeout, base::BindOnce(^{
+                        [weakSelf onTimeout];
+                      }));
 
   if (_asyncTasksToComplete == 0) {
     [self asyncWorkCompletedForPageContext];
@@ -227,7 +248,6 @@ result.links = linksArray;
   // executing the overall completion callback. The BarrierClosure will wait
   // until the `pageContextBarrier` callback is itself run
   // `_asyncTasksToComplete` times.
-  __weak PageContextWrapper* weakSelf = self;
   base::RepeatingClosure pageContextBarrier =
       base::BarrierClosure(_asyncTasksToComplete, base::BindOnce(^{
                              [weakSelf asyncWorkCompletedForPageContext];
@@ -415,18 +435,28 @@ result.links = linksArray;
            maybeAnchorTagsJavaScript, nonceString}),
       nullptr);
 
-  // Execute the JavaScript on the main WebFrame first and pass in the callback
-  // (which executes the barrier when run)
-  mainFrame->ExecuteJavaScript(
-      script,
-      base::BindOnce(callback, weakSelf, annotatedPageContentBarrier,
-                     /*isMainFrame=*/YES, mainFrame->GetSecurityOrigin()));
+  // If the page is not protected, execute the JavaScript on the main WebFrame
+  // first and pass in the callback (which executes the barrier when run).
+  if (ios::provider::IsProtectedUrl(mainFrame->GetUrl().spec())) {
+    _forceDetachPageContext = YES;
+    annotatedPageContentBarrier.Run();
+  } else {
+    mainFrame->ExecuteJavaScript(
+        script,
+        base::BindOnce(callback, weakSelf, annotatedPageContentBarrier,
+                       /*isMainFrame=*/YES, mainFrame->GetSecurityOrigin()));
+  }
 
   // Execute the JavaScript on each other WebFrame and pass in the callback
   // (which executes the barrier when run).
   for (web::WebFrame* webFrame : webFrames) {
-    // Skip the main frame since it was already processed above.
-    if (!webFrame || webFrame->IsMainFrame()) {
+    if (ios::provider::IsProtectedUrl(webFrame->GetUrl().spec())) {
+      _forceDetachPageContext = YES;
+    }
+
+    // Skip if it's the main frame since it was already processed above, or if
+    // Page Context should already be force detached.
+    if (!webFrame || webFrame->IsMainFrame() || _forceDetachPageContext) {
       annotatedPageContentBarrier.Run();
       continue;
     }
@@ -441,6 +471,12 @@ result.links = linksArray;
 // All async tasks are complete, execute the overall completion callback.
 // Relinquish ownership to the callback handler.
 - (void)asyncWorkCompletedForPageContext {
+  _timeoutTimer.Stop();
+
+  if (!_completionCallback) {
+    return;
+  }
+
   [self stopTextHighlighting];
 
   PageContextWrapperCallbackResponse response;
@@ -827,6 +863,25 @@ result.links = linksArray;
       web::FindInPageJavaScriptFeature::GetInstance();
 
   find_in_page_feature->Stop(mainFrame);
+}
+
+// Called when the overall execution times out. Cancels the timer and executes
+// the completion callback with `kTimeout`.
+- (void)onTimeout {
+  if (!_completionCallback) {
+    return;
+  }
+
+  [self stopTextHighlighting];
+
+  DLOG(WARNING) << "PageContextWrapper execution timed out.";
+
+  [_pageContextMetrics
+      executionFinishedForTask:PageContextTask::kOverall
+          withCompletionStatus:PageContextCompletionStatus::kTimeout];
+
+  std::move(_completionCallback)
+      .Run(base::unexpected(PageContextWrapperError::kTimeout));
 }
 
 @end

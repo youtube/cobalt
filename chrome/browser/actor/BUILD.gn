@@ -16,6 +16,7 @@ source_set("actor") {
     "actor_keyed_service_factory.h",
     "actor_navigation_throttle.h",
     "actor_switches.h",
+    "actor_tab_data.h",
     "actor_task.h",
     "aggregated_journal.h",
     "aggregated_journal_file_serializer.h",
@@ -53,6 +54,7 @@ source_set("actor") {
     "//components/optimization_guide/proto:optimization_guide_proto",
     "//components/tabs:public",
     "//content/public/browser",
+    "//ui/base/unowned_user_data",
   ]
   if (enable_glic) {
     public_deps += [ "//chrome/browser/glic" ]
@@ -67,6 +69,7 @@ source_set("impl") {
     "actor_keyed_service_factory.cc",
     "actor_navigation_throttle.cc",
     "actor_switches.cc",
+    "actor_tab_data.cc",
     "actor_task.cc",
     "aggregated_journal.cc",
     "aggregated_journal_file_serializer.cc",
@@ -212,6 +215,29 @@ source_set("unit_tests") {
   }
 }
 
+source_set("tools_test_support") {
+  testonly = true
+  public_deps = [ "//base/test:test_support" ]
+  deps = [
+    ":actor",
+    ":impl",
+    ":test_support",
+    "//chrome/browser/optimization_guide:test_support",
+    "//chrome/browser/ui:ui_features",
+    "//chrome/browser/ui/zoom",
+    "//chrome/test:test_support",
+    "//chrome/test:test_support_ui",
+    "//testing/gtest",
+  ]
+  if (enable_glic) {
+    sources = [
+      "tools/tools_test_util.cc",
+      "tools/tools_test_util.h",
+    ]
+    deps += [ "//chrome/browser/glic" ]
+  }
+}
+
 source_set("browser_tests") {
   testonly = true
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
@@ -220,8 +246,8 @@ source_set("browser_tests") {
     ":actor",
     ":impl",
     ":test_support",
+    ":tools_test_support",
     "ui:event_dispatcher",
-    "//base/test:test_support",
     "//chrome/browser/optimization_guide:test_support",
     "//chrome/browser/safe_browsing",
     "//chrome/browser/ui",
@@ -251,11 +277,25 @@ source_set("browser_tests") {
       "tools/select_tool_browsertest.cc",
       "tools/tab_management_tool_browsertest.cc",
       "tools/tool_agnostic_browsertest.cc",
-      "tools/tools_test_util.cc",
-      "tools/tools_test_util.h",
       "tools/type_tool_browsertest.cc",
       "tools/wait_tool_browsertest.cc",
     ]
+    deps += [ "//chrome/browser/glic" ]
+  }
+}
+
+source_set("interactive_ui_tests") {
+  testonly = true
+  defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+  deps = [
+    ":actor",
+    ":impl",
+    ":test_support",
+    ":tools_test_support",
+    "//testing/gtest",
+  ]
+  if (enable_glic) {
+    sources = [ "tools/select_tool_interactive_ui_test.cc" ]
     deps += [ "//chrome/browser/glic" ]
   }
 }

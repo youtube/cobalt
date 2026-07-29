@@ -18,6 +18,7 @@
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/space_split_string.h"
 #include "third_party/blink/renderer/core/execution_context/security_context.h"
+#include "third_party/blink/renderer/core/frame/csp/content_security_policy.h"
 #include "third_party/blink/renderer/core/frame/csp/content_security_policy_violation_type.h"
 #include "third_party/blink/renderer/core/frame/csp/source_list_directive.h"
 #include "third_party/blink/renderer/core/frame/csp/trusted_types_directive.h"
@@ -392,11 +393,25 @@ bool CheckEvalAndReportViolation(
   } else {
     hash = std::nullopt;
   }
+  // The console message will only be printed inside ReportEvalViolation if the
+  // directive is report only (because the main part of the message is redundant
+  // with the text included in the exception thrown otherwise).
+  // Print the suffix here if that's not the case.
+  if (!suffix.empty() && !CSPDirectiveListIsReportOnly(csp)) {
+    auto* suffix_console_message = MakeGarbageCollected<ConsoleMessage>(
+        mojom::blink::ConsoleMessageSource::kSecurity,
+        mojom::blink::ConsoleMessageLevel::kError, suffix);
+    policy->LogToConsole(suffix_console_message);
+  }
+  String content_for_sample =
+      content.Substring(0, ContentSecurityPolicy::kMaxSampleLength);
   ReportEvalViolation(
       csp, policy, raw_directive, CSPDirectiveName::ScriptSrc,
       StrCat({console_message, "\"", raw_directive, "\".", suffix, "\n"}),
       KURL(), exception_status,
-      directive.source_list->report_sample ? content : g_empty_string, hash);
+      directive.source_list->report_sample ? content_for_sample
+                                           : g_empty_string,
+      hash);
   if (!CSPDirectiveListIsReportOnly(csp)) {
     policy->ReportBlockedScriptExecutionToInspector(raw_directive);
     return false;
@@ -819,7 +834,8 @@ bool CSPDirectiveListAllowEval(
   }
   if (!CheckAllowEval(directive.source_list)) {
     if (base::FeatureList::IsEnabled(
-            network::features::kCSPScriptSrcHashesInV1)) {
+            network::features::kCSPScriptSrcHashesInV1) &&
+        !content.empty()) {
       policy->LogToConsole(MakeGarbageCollected<ConsoleMessage>(
           mojom::blink::ConsoleMessageSource::kSecurity,
           mojom::blink::ConsoleMessageLevel::kError,

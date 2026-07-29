@@ -342,7 +342,7 @@ IN_PROC_BROWSER_TEST_F(DeveloperPrivateApiTest,
   // Now open up an incognito browser window page and check the inspectable
   // views again. Waiting for the result catcher will wait for the incognito
   // service worker to have become active.
-  Browser* incognito_browser = CreateIncognitoBrowser(browser()->profile());
+  Browser* incognito_browser = CreateIncognitoBrowser(profile());
   ASSERT_TRUE(incognito_browser);
   ASSERT_TRUE(result_catcher.GetNextResult());
   info = GetExtensionInfo(*extension);
@@ -548,11 +548,7 @@ class DeveloperPrivateApiWithMV2DeprecationApiTest
     std::vector<base::test::FeatureRef> enabled_features;
     std::vector<base::test::FeatureRef> disabled_features;
     switch (experiment_stage_) {
-      case MV2ExperimentStage::kNone:
-        NOTREACHED();
       case MV2ExperimentStage::kWarning:
-        enabled_features.push_back(
-            extensions_features::kExtensionManifestV2DeprecationWarning);
         disabled_features.push_back(
             extensions_features::kExtensionManifestV2Disabled);
         disabled_features.push_back(
@@ -562,8 +558,6 @@ class DeveloperPrivateApiWithMV2DeprecationApiTest
         enabled_features.push_back(
             extensions_features::kExtensionManifestV2Disabled);
         disabled_features.push_back(
-            extensions_features::kExtensionManifestV2DeprecationWarning);
-        disabled_features.push_back(
             extensions_features::kExtensionManifestV2Unsupported);
         break;
       case MV2ExperimentStage::kUnsupported:
@@ -571,8 +565,6 @@ class DeveloperPrivateApiWithMV2DeprecationApiTest
             extensions_features::kExtensionManifestV2Unsupported);
         disabled_features.push_back(
             extensions_features::kExtensionManifestV2Disabled);
-        disabled_features.push_back(
-            extensions_features::kExtensionManifestV2DeprecationWarning);
     }
 
     feature_list_.InitWithFeatures(enabled_features, disabled_features);
@@ -595,8 +587,6 @@ INSTANTIATE_TEST_SUITE_P(
                     MV2ExperimentStage::kUnsupported),
     [](const testing::TestParamInfo<MV2ExperimentStage>& info) {
       switch (info.param) {
-        case MV2ExperimentStage::kNone:
-          NOTREACHED();
         case MV2ExperimentStage::kWarning:
           return "WarningExperiment";
         case MV2ExperimentStage::kDisableWithReEnable:
@@ -637,8 +627,6 @@ IN_PROC_BROWSER_TEST_P(DeveloperPrivateApiWithMV2DeprecationApiTest,
   std::string args = base::StringPrintf(R"(["%s"])", extension->id().c_str());
 
   switch (experiment_stage()) {
-    case MV2ExperimentStage::kNone:
-      NOTREACHED();
     case MV2ExperimentStage::kWarning:
       api_test_utils::RunFunction(dismiss_notice_function.get(), args,
                                   profile());

@@ -1188,6 +1188,7 @@ class COMPONENT_EXPORT(AX_PLATFORM)
   // Firing a UIA event can cause UIA to call back into our APIs, don't
   // consider this to be usage.
   static void PauseAXModeChanges(bool pause) { pause_ax_mode_changes_ = pause; }
+  static bool AreAXModeChangesPaused() { return pause_ax_mode_changes_; }
 
   // Convert a mojo event to an MSAA event. Exposed for testing.
   static std::optional<DWORD> MojoEventToMSAAEvent(ax::mojom::Event event);
@@ -1199,18 +1200,33 @@ class COMPONENT_EXPORT(AX_PLATFORM)
   static std::optional<PROPERTYID> MojoEventToUIAProperty(
       ax::mojom::Event event);
 
-  // Returns
-  // 1. The AXPlatformNodeBase instance count (expected to equal the dormant +
-  //    live counts).
-  // 2. The number of dormant platform nodes.
-  // 3. The number of live platform nodes.
-  // 4. The number of ghost platform nodes.
-  // See the comments in ax_platform_node_win.cc for descriptions of 2-4.
-  static std::tuple<size_t, size_t, size_t, size_t> GetCounts();
+  // Counts of AXPlatformNodeWin instances in various states.
+  struct Counts {
+    // The number of AXPlatformNodeBase instances (expected to equal the
+    // dormant + live counts).
+    size_t base_nodes;
+
+    // The number of dormant AXPlatformNodeWin instances; i.e., those that have
+    // been created by their delegate but are not actively referenced.
+    size_t dormant_nodes;
+
+    // The number of live AXPlatformNodeWin instances; i.e., those that are
+    // actively referenced and have not yet been destroyed by their owner.
+    size_t live_nodes;
+
+    // The number of ghost AXPlatformNodeWin instances; i.e., those that have
+    // been destroyed by their owner but are still actively referenced.
+    size_t ghost_nodes;
+
+    friend bool operator==(const Counts& lhs, const Counts& rhs) = default;
+  };
+
+  // Returns a snapshot of the current node counts.
+  static Counts GetCounts();
 
   // Resets the global instance counts to zero and returns the previous counts;
   // see above.
-  static std::tuple<size_t, size_t, size_t, size_t> ResetCountsForTesting();
+  static Counts ResetCountsForTesting();
 
   bool IsUIAControl() const;
 

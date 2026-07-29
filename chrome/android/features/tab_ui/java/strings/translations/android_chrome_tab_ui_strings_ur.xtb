@@ -34,6 +34,7 @@
 <translation id="1982637982196732906">غیر فعال سیکشن میں جائیں</translation>
 <translation id="2050597508048557928">{TABS_COUNT,plural, =1{<ph name="TABS_COUNT_ONE" /> منتخب کردہ ٹیب کو بُک مارک کریں}other{<ph name="TABS_COUNT_MANY" /> منتخب کردہ ٹیبز کو بُک مارک کریں}}</translation>
 <translation id="2055057176188061528">ٹیب گروپ منتخب کریں یا نیا ٹیب گروپ تخلیق کریں</translation>
+<translation id="2074527029802029717">ٹیب کو ان پن کریں</translation>
 <translation id="2118649612461486615">اسٹور کی معلومات</translation>
 <translation id="2123073051266141035">{INCOGNITO_TABS_COUNT,plural, =1{آپ کے بند ٹیبز اور گروپس کو حالیہ ٹیبز سیکشن اور ٹیب گروپس سیکشن سے دوبارہ کھولا جا سکتا ہے۔ آپ کا پوشیدگی ٹیب دستیاب نہیں ہوگا۔}other{آپ کے بند ٹیبز اور گروپس کو حالیہ ٹیبز سیکشن اور ٹیب گروپس سیکشن سے دوبارہ کھولا جا سکتا ہے۔ آپ کے # پوشیدگی ٹیبز دستیاب نہیں ہوں گے۔}}</translation>
 <translation id="2162620598375156287">اب <ph name="CURRENT_PRICE" /><ph name="SOURCE_WEBSITE" /> پر</translation>
@@ -62,6 +63,7 @@
 <translation id="2894757982205307093">گروپ میں نیا ٹیب</translation>
 <translation id="2918484639460781603">ترتیبات پر جائیں</translation>
 <translation id="2928243913527329289">‏Google | اس اسٹور کے بارے میں</translation>
+<translation id="2978860912612699943">{ITEMS_COUNT,plural, =1{‫<ph name="ITEMS_COUNT_ONE" /> منتخب کیا گیا}other{‫<ph name="ITEMS_COUNT_MANY" /> منتخب کیے گئے}}</translation>
 <translation id="3008554597174452548">پروڈکٹ کو ٹریک کرنا بند کریں</translation>
 <translation id="3026391124054406831">اپنے ٹیبز کو منظم کرنے کیلئے گروپس تخلیق کریں۔</translation>
 <translation id="3051031624272448591">یہ آپ کو سرگزشت میں ہمیشہ واپس مل سکتے ہیں</translation>

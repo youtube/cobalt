@@ -34,6 +34,7 @@
 <translation id="1982637982196732906">Siirrä ei-aktiivisten osioon</translation>
 <translation id="2050597508048557928">{TABS_COUNT,plural, =1{Aseta <ph name="TABS_COUNT_ONE" /> valittu välilehti kirjanmerkiksi}other{Aseta <ph name="TABS_COUNT_MANY" /> valittua välilehteä kirjanmerkeiksi}}</translation>
 <translation id="2055057176188061528">Valitse välilehtiryhmä tai luo uusi</translation>
+<translation id="2074527029802029717">Irrota välilehti</translation>
 <translation id="2118649612461486615">Kaupan tiedot</translation>
 <translation id="2123073051266141035">{INCOGNITO_TABS_COUNT,plural, =1{Suljetut välilehdet ja ryhmät voi avata uudelleen Viimeaikaiset välilehdet‑ ja Välilehtiryhmät-osioista. Incognito-välilehti ei ole käytettävissä.}other{Suljetut välilehdet ja ryhmät voi avata uudelleen Viimeaikaiset välilehdet‑ ja Välilehtiryhmät-osioista. # incognito-välilehteä ei ole käytettävissä.}}</translation>
 <translation id="2162620598375156287">Nyt <ph name="CURRENT_PRICE" /> osoitteessa <ph name="SOURCE_WEBSITE" /></translation>
@@ -62,6 +63,7 @@
 <translation id="2894757982205307093">Uusi välilehti ryhmässä</translation>
 <translation id="2918484639460781603">Avaa asetukset</translation>
 <translation id="2928243913527329289">Google | Tietoja tästä kaupasta</translation>
+<translation id="2978860912612699943">{ITEMS_COUNT,plural, =1{<ph name="ITEMS_COUNT_ONE" /> valittu}other{<ph name="ITEMS_COUNT_MANY" /> valittu}}</translation>
 <translation id="3008554597174452548">Lopeta tuotteen seuraaminen</translation>
 <translation id="3026391124054406831">Luo ryhmiä, niin voit järjestellä välilehtiä.</translation>
 <translation id="3051031624272448591">Voit milloin tahansa palauttaa ne historiasta</translation>

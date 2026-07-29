@@ -125,26 +125,11 @@ BASE_FEATURE(kWaylandTextInputV3,
              "WaylandTextInputV3",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Controls whether support for "Large Text" accessibility setting via UI
-// scaling is enabled.
-BASE_FEATURE(kWaylandUiScale,
-             "WaylandUiScale",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Controls whether Wayland session management protocol is enabled.
 BASE_FEATURE(kWaylandSessionManagement,
              "WaylandSessionManagement",
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_OZONE)
-
-#if BUILDFLAG(IS_LINUX)
-// If this feature is enabled, users not specify --ozone-platform-hint switch
-// will get --ozone-platform-hint=auto treatment. https://crbug.com/40250220.
-COMPONENT_EXPORT(UI_BASE_FEATURES)
-BASE_FEATURE(kOverrideDefaultOzonePlatformHintToAuto,
-             "OverrideDefaultOzonePlatformHintToAuto",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(IS_LINUX)
 
 // When enabled, the feature will query the OS for a default cursor size,
 // to be used in determining the concrete object size of a custom cursor in

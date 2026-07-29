@@ -198,6 +198,7 @@ ipcz_source_set("util") {
     "util/stack_trace.h",
     "util/strong_alias.h",
     "util/unique_ptr_comparator.h",
+    "util/unsafe_buffers.h",
   ]
 
   sources = [ "util/ref_counted.cc" ]
@@ -354,6 +355,10 @@ ipcz_source_set("ipcz_test_support") {
     ":reference_drivers",
     ":util",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs = [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 ipcz_source_set("ipcz_tests_sources") {

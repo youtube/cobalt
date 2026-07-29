@@ -27,28 +27,39 @@ import org.robolectric.shadows.ShadowLog;
 
 import org.chromium.base.Callback;
 import org.chromium.base.ContextUtils;
+import org.chromium.base.supplier.Supplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.base.test.util.UserActionTester;
+import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider.ControlsPosition;
 import org.chromium.chrome.browser.omnibox.OmniboxMetrics;
 import org.chromium.chrome.browser.omnibox.R;
+import org.chromium.chrome.browser.omnibox.UrlBarEditingTextStateProvider;
 import org.chromium.chrome.browser.omnibox.styles.OmniboxDrawableState;
 import org.chromium.chrome.browser.omnibox.styles.OmniboxImageSupplier;
 import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
+import org.chromium.chrome.browser.omnibox.suggestions.AutocompleteUIContext;
 import org.chromium.chrome.browser.omnibox.suggestions.SuggestionHost;
+import org.chromium.chrome.browser.omnibox.suggestions.action.OmniboxActionInSuggest;
+import org.chromium.chrome.browser.omnibox.suggestions.basic.BasicSuggestionProcessor.BookmarkState;
+import org.chromium.chrome.browser.share.ShareDelegate;
+import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.components.metrics.OmniboxEventProtos.OmniboxEventProto.PageClassification;
 import org.chromium.components.omnibox.AutocompleteInput;
 import org.chromium.components.omnibox.AutocompleteMatch;
 import org.chromium.components.omnibox.AutocompleteMatchBuilder;
 import org.chromium.components.omnibox.OmniboxFeatureList;
 import org.chromium.components.omnibox.OmniboxSuggestionType;
+import org.chromium.components.omnibox.SuggestTemplateInfoProto.SuggestTemplateInfo;
+import org.chromium.components.omnibox.action.OmniboxAction;
 import org.chromium.components.omnibox.suggestions.OmniboxSuggestionUiType;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.url.GURL;
 import org.chromium.url.JUnitTestGURLs;
 
+import java.util.List;
 import java.util.Optional;
 
 /** Tests for {@link BaseSuggestionViewProcessor}. */
@@ -58,14 +69,12 @@ import java.util.Optional;
         shadows = {ShadowLog.class})
 public class BaseSuggestionProcessorUnitTest {
     private static class TestBaseSuggestionProcessor extends BaseSuggestionViewProcessor {
+        @SuppressWarnings("HidingField")
         private final Context mContext;
 
-        public TestBaseSuggestionProcessor(
-                Context context,
-                SuggestionHost suggestionHost,
-                Optional<OmniboxImageSupplier> imageSupplier) {
-            super(context, suggestionHost, imageSupplier);
-            mContext = context;
+        public TestBaseSuggestionProcessor(AutocompleteUIContext uiContext) {
+            super(uiContext);
+            mContext = uiContext.context;
         }
 
         @Override
@@ -100,6 +109,10 @@ public class BaseSuggestionProcessorUnitTest {
 
     private @Mock SuggestionHost mSuggestionHost;
     private @Mock OmniboxImageSupplier mImageSupplier;
+    private @Mock UrlBarEditingTextStateProvider mTextProvider;
+    private @Mock Supplier<Tab> mTabSupplier;
+    private @Mock Supplier<ShareDelegate> mShareDelegateSupplier;
+    private @Mock BookmarkState mBookmarkState;
     private @Mock Bitmap mBitmap;
 
     private Context mContext;
@@ -111,9 +124,17 @@ public class BaseSuggestionProcessorUnitTest {
     @Before
     public void setUp() {
         mContext = ContextUtils.getApplicationContext();
-        mProcessor =
-                new TestBaseSuggestionProcessor(
-                        mContext, mSuggestionHost, Optional.of(mImageSupplier));
+        AutocompleteUIContext uiContext =
+                new AutocompleteUIContext(
+                        mContext,
+                        mSuggestionHost,
+                        mTextProvider,
+                        Optional.of(mImageSupplier),
+                        mBookmarkState,
+                        mTabSupplier,
+                        mShareDelegateSupplier,
+                        () -> ControlsPosition.TOP);
+        mProcessor = new TestBaseSuggestionProcessor(uiContext);
         mInput = new AutocompleteInput();
         mInput.setPageClassification(
                 PageClassification.INSTANT_NTP_WITH_OMNIBOX_AS_STARTING_FOCUS_VALUE);
@@ -126,6 +147,18 @@ public class BaseSuggestionProcessorUnitTest {
                         .setIsSearch(isSearch)
                         .setUrl(url)
                         .setHasTabMatch(hasTabMatch)
+                        .build();
+        mModel = mProcessor.createModel();
+        mProcessor.populateModel(mInput, mSuggestion, mModel, 0);
+    }
+
+    private void createSuggestionWithActions(
+            int type, boolean isSearch, GURL url, List<OmniboxAction> actions) {
+        mSuggestion =
+                new AutocompleteMatchBuilder(type)
+                        .setIsSearch(isSearch)
+                        .setUrl(url)
+                        .setActions(actions)
                         .build();
         mModel = mProcessor.createModel();
         mProcessor.populateModel(mInput, mSuggestion, mModel, 0);
@@ -240,7 +273,7 @@ public class BaseSuggestionProcessorUnitTest {
                         R.string.accessibility_omnibox_btn_refine, mSuggestion.getFillIntoEdit());
         Assert.assertEquals(expectedDescription, action.accessibilityDescription);
         Assert.assertEquals(
-                R.drawable.btn_suggestion_refine,
+                R.drawable.btn_suggestion_refine_up,
                 shadowOf(action.icon.drawable).getCreatedFromResId());
 
         var monitor = new UserActionTester();
@@ -268,9 +301,7 @@ public class BaseSuggestionProcessorUnitTest {
                 mContext.getString(
                         R.string.accessibility_omnibox_btn_refine, mSuggestion.getFillIntoEdit());
         Assert.assertEquals(expectedDescription, action.accessibilityDescription);
-        Assert.assertEquals(
-                R.drawable.btn_suggestion_refine,
-                shadowOf(action.icon.drawable).getCreatedFromResId());
+        // Note: shadows don't work with vector drawables.
 
         var monitor = new UserActionTester();
         action.callback.run();
@@ -354,6 +385,79 @@ public class BaseSuggestionProcessorUnitTest {
 
             var actions = mModel.get(BaseSuggestionViewProperties.ACTION_BUTTONS);
             Assert.assertEquals(null, actions);
+        }
+    }
+
+    @Test
+    public void addActionButtonIfAvailable() {
+        // No action button.
+        {
+            createSuggestion(
+                    OmniboxSuggestionType.OPEN_TAB,
+                    /* isSearch= */ false,
+                    /* hasTabMatch= */ false,
+                    TEST_URL);
+            var actions = mModel.get(BaseSuggestionViewProperties.ACTION_BUTTONS);
+            Assert.assertEquals(null, actions);
+        }
+
+        // No action button.
+        {
+            createSuggestionWithActions(
+                    OmniboxSuggestionType.SEARCH_WHAT_YOU_TYPED,
+                    /* isSearch= */ true,
+                    TEST_URL,
+                    List.of(
+                            new OmniboxActionInSuggest(
+                                    0,
+                                    "hint",
+                                    "accessibility",
+                                    SuggestTemplateInfo.TemplateAction.ActionType.REVIEWS_VALUE,
+                                    "https://google.com",
+                                    /* showAsActionButton= */ false)));
+
+            var actions = mModel.get(BaseSuggestionViewProperties.ACTION_BUTTONS);
+            Assert.assertEquals(null, actions);
+        }
+
+        // One action button is added.
+        {
+            createSuggestionWithActions(
+                    OmniboxSuggestionType.SEARCH_WHAT_YOU_TYPED,
+                    /* isSearch= */ true,
+                    TEST_URL,
+                    List.of(
+                            new OmniboxActionInSuggest(
+                                    0,
+                                    "hint",
+                                    "accessibility",
+                                    SuggestTemplateInfo.TemplateAction.ActionType.REVIEWS_VALUE,
+                                    "https://google.com",
+                                    /* showAsActionButton= */ false),
+                            new OmniboxActionInSuggest(
+                                    0,
+                                    "hint2",
+                                    "accessibility2",
+                                    SuggestTemplateInfo.TemplateAction.ActionType.CHROME_AIM_VALUE,
+                                    "https://google.com",
+                                    /* showAsActionButton= */ true),
+                            new OmniboxActionInSuggest(
+                                    0,
+                                    "hint3",
+                                    "accessibility3",
+                                    SuggestTemplateInfo.TemplateAction.ActionType.CHROME_AIM_VALUE,
+                                    "https://google.com",
+                                    /* showAsActionButton= */ true)));
+
+            var actions = mModel.get(BaseSuggestionViewProperties.ACTION_BUTTONS);
+            Assert.assertEquals(1, actions.size());
+
+            var action = actions.get(0);
+
+            Assert.assertEquals("accessibility2", action.accessibilityDescription);
+            Assert.assertEquals(
+                    R.drawable.search_spark_black_24dp,
+                    shadowOf(action.icon.drawable).getCreatedFromResId());
         }
     }
 }

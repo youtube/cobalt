@@ -168,6 +168,7 @@
 <translation id="3003694935412297923">所有任务</translation>
 <translation id="3018957014024118866">同时删除 Chrome 中的数据 (<ph name="URL" />)</translation>
 <translation id="3019382870990049182">重新启动以更新 &amp;ChromeOS Flex</translation>
+<translation id="3037517125981011456">显示让用户登录 Chrome 的提示</translation>
 <translation id="3037838751736561277">Google Chrome处于后台运行模式。</translation>
 <translation id="3038232873781883849">正在等待安装…</translation>
 <translation id="3045032126857188731">译文语言：<ph name="LANGUAGE" /></translation>
@@ -310,6 +311,7 @@
 <translation id="4747730611090640388">Chrome 可以推测出您的兴趣。之后，您访问的网站可向 Chrome 请求查看您的兴趣，以便向您展示个性化广告。</translation>
 <translation id="475321580758063259">请更新 Chrome，以便继续使用 Google 账号 <ph name="ACCOUNT_EMAIL" /> 中的 Chrome 数据</translation>
 <translation id="4754614261631455953">Google Chrome Canary (mDNS-In)</translation>
+<translation id="4756182432527369254">使用 Chrome 的 V8 引擎加快网站速度，但 Chrome 的防范攻击能力会略微降低</translation>
 <translation id="479167709087336770">这项服务会使用 Google 搜索所用的拼写检查工具。您在浏览器中输入的文字会被发送给 Google。您随时可在“设置”中更改此行为。</translation>
 <translation id="4793679854893018356">了解 Chrome 如何保障您的安全</translation>
 <translation id="4828579605166583682">Google Chrome 正在尝试替换现有密码。请输入您的 Windows 密码以允许此操作。</translation>
@@ -398,6 +400,7 @@
 <translation id="5980111191913430208">来源不明的扩展程序、应用和主题可能会危害您的设备。Chrome 建议只从 <ph name="IDS_EXTENSION_WEB_STORE_TITLE" />安装这些内容</translation>
 <translation id="6003112304606738118">正在下载…还需 <ph name="HOURS" /> 小时</translation>
 <translation id="6008161919456049856">您在 Google 账号中保存的密码、支付方式和地址将从此设备中移除。如需在 Chrome 中重新使用这些数据，请重新登录。</translation>
+<translation id="6009821354356307391">继续提问</translation>
 <translation id="6014316319780893079">借助 <ph name="BEGIN_LINK" />Chrome 中的工具<ph name="END_LINK" />，您可以安全地浏览并掌控个人数据的安全</translation>
 <translation id="6022659036123304283">定制您的专属 Chrome</translation>
 <translation id="6025087594896450715">Google Chrome 将在 <ph name="REMAINING_TIME" />后重启</translation>
@@ -592,6 +595,7 @@
 <translation id="8342675569599923794">此文件存在危险，因此 Chrome 已将其拦截。</translation>
 <translation id="8349094670477064572">只要您登录 Chrome，就可以随时在 Google 账号中保存密码等信息以及使用其中的密码等信息。<ph name="LEARN_MORE" /></translation>
 <translation id="8362914115861174987">目标语言</translation>
+<translation id="8366770919198174997">降低性能，但提高 Chrome 防范攻击的能力</translation>
 <translation id="8370517070665726704">版权所有 <ph name="YEAR" /> Google LLC. 保留所有权利。</translation>
 <translation id="8387459386171870978">继续使用 Chrome</translation>
 <translation id="8394720698884623075">将网址与存储在 Chrome 中的不安全网站列表进行比对</translation>
@@ -636,6 +640,7 @@
 <translation id="8843516219908676469">Chrome 可以更好地理解表单，并更快地为您自动填充表单</translation>
 <translation id="8851180723659088381">{NUM_EXTENSIONS,plural, =1{Chrome 建议您移除它}other{Chrome 建议您移除它们}}</translation>
 <translation id="8862326446509486874">您的权限不足，无法进行系统级安装。请尝试以管理员身份再次运行安装程序。</translation>
+<translation id="8865415417596392024">您账号中的 Chrome 数据</translation>
 <translation id="8883862939660515976">向 Google 智能镜头询问此图片</translation>
 <translation id="8914504000324227558">重启 Chrome</translation>
 <translation id="8922193594870374009">若要从 <ph name="ORIGIN" /> 向您的 Android 手机发送电话号码，请在这两部设备上分别登录 Chrome。</translation>

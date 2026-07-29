@@ -28,7 +28,10 @@ class MEDIA_EXPORT AudioManagerAndroid : public AudioManagerBase {
  public:
   struct JniAudioDevice {
    public:
-    JniAudioDevice(int id, std::optional<std::string> name, int type);
+    JniAudioDevice(int id,
+                   std::optional<std::string> name,
+                   int type,
+                   std::vector<int> sample_rates);
 
     JniAudioDevice(const JniAudioDevice&);
     JniAudioDevice& operator=(const JniAudioDevice&);
@@ -40,11 +43,18 @@ class MEDIA_EXPORT AudioManagerAndroid : public AudioManagerBase {
     int id;
     std::optional<std::string> name;
     int type;
+
+    // Empty if arbitrary sample rates are supported.
+    std::vector<int> sample_rates;
   };
 
   class JniDelegate {
    public:
     virtual ~JniDelegate() = default;
+
+    // Initializes the device listener, which listens for changes to the list of
+    // audio devices exposed by the OS.
+    virtual void InitDeviceListener() = 0;
 
     // Returns metadata about the available audio devices as reported by the
     // Android framework, filtered to input devices if `inputs` is true, and to
@@ -138,8 +148,7 @@ class MEDIA_EXPORT AudioManagerAndroid : public AudioManagerBase {
       const std::string& device_id,
       const LogCallback& log_callback) override;
 
-  void SetMute(JNIEnv* env,
-               jboolean muted);
+  void SetMute(JNIEnv* env, jboolean muted);
 
   // Sets a volume that applies to all this manager's output audio streams.
   // This overrides other SetVolume calls (e.g. through AudioHostMsg_SetVolume).
@@ -160,13 +169,11 @@ class MEDIA_EXPORT AudioManagerAndroid : public AudioManagerBase {
 
   // Called by an `AAudioInputStream` when it is started, i.e. it begins
   // providing audio data.
-  void REQUIRES_ANDROID_API(AAUDIO_MIN_API)
-      OnStartAAudioInputStream(AAudioInputStream* stream);
+  void OnStartAAudioInputStream(AAudioInputStream* stream);
 
   // Called by an `AAudioInputStream` when it is stopped, i.e. it stops
   // providing audio data.
-  void REQUIRES_ANDROID_API(AAUDIO_MIN_API)
-      OnStopAAudioInputStream(AAudioInputStream* stream);
+  void OnStopAAudioInputStream(AAudioInputStream* stream);
 
   void SetJniDelegateForTesting(std::unique_ptr<JniDelegate> jni_delegate);
 
@@ -181,10 +188,8 @@ class MEDIA_EXPORT AudioManagerAndroid : public AudioManagerBase {
       base::flat_map<android::AudioDeviceId, android::AudioDevice>;
   using OutputStreams =
       base::flat_set<raw_ptr<MuteableAudioOutputStream, CtnExperimental>>;
-  REQUIRES_ANDROID_API(AAUDIO_MIN_API)
-  typedef base::flat_set<raw_ptr<AAudioBluetoothOutputStream, CtnExperimental>>
-      BluetoothOutputStreams;  // `REQUIRES_ANDROID_API` appears to be
-                               // incompatible with using-declarations.
+  using BluetoothOutputStreams =
+      base::flat_set<raw_ptr<AAudioBluetoothOutputStream, CtnExperimental>>;
   using InputStreams =
       base::flat_set<raw_ptr<AudioInputStream, CtnExperimental>>;
 
@@ -205,13 +210,20 @@ class MEDIA_EXPORT AudioManagerAndroid : public AudioManagerBase {
   // most recent call to `GetDeviceNames()` for the respective direction.
   const DeviceCache& GetDeviceCache(AudioDeviceDirection direction) const;
 
-  // Utility for `Make(...)Stream` methods which retrieves an appropriate
-  // `android::AudioDevice` based on the provided device ID string. Returns
-  // `std::nullopt` if the device ID is valid but its corresponding device is
-  // not available, which usually indicates that the device was disconnected.
+  // Retrieves an appropriate `android::AudioDevice` based on the provided
+  // device ID string. Returns `std::nullopt` if the device ID is valid but its
+  // corresponding device is not available, which usually indicates that the
+  // device was disconnected.
   std::optional<android::AudioDevice> GetDeviceForAAudioStream(
       std::string_view id_string,
       AudioDeviceDirection direction);
+
+  // Selects a sample rate to be used by audio streams which use the given
+  // `device`. The optional `preferred_sample_rate` parameter can be provided to
+  // specify a preferred value, which may be taken into account when determining
+  // the result.
+  int SelectSampleRate(const android::AudioDevice& device,
+                       std::optional<int> preferred_sample_rate);
 
   int GetOptimalOutputFrameSize(int sample_rate, int channels);
   ChannelLayoutConfig GetLayoutWithMaxChannels();
@@ -226,7 +238,6 @@ class MEDIA_EXPORT AudioManagerAndroid : public AudioManagerBase {
   DeviceCache output_device_cache_;
 
   OutputStreams output_streams_;
-  REQUIRES_ANDROID_API(AAUDIO_MIN_API)
   BluetoothOutputStreams bluetooth_output_streams_;
 
   InputStreams input_streams_requiring_sco_;

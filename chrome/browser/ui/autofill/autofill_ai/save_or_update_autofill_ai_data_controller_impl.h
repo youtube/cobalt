@@ -55,6 +55,10 @@ class SaveOrUpdateAutofillAiDataControllerImpl
   bool IsSavePrompt() const override;
   int GetTitleImagesResourceId() const override;
 
+  // BubbleControllerBase:
+  BubbleType GetBubbleType() const override;
+  base::WeakPtr<BubbleControllerBase> GetBubbleControllerBaseWeakPtr() override;
+
  protected:
   explicit SaveOrUpdateAutofillAiDataControllerImpl(
       content::WebContents* web_contents,

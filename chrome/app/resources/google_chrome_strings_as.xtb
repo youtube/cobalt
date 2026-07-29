@@ -172,6 +172,7 @@
 <translation id="3003694935412297923">আটাইবোৰ কাৰ্য</translation>
 <translation id="3018957014024118866">লগতে Chrome (<ph name="URL" />)ৰ পৰা ডেটা মচক</translation>
 <translation id="3019382870990049182">&amp;ChromeOS Flex আপডে’ট কৰিবলৈ পুনৰ লঞ্চ কৰক</translation>
+<translation id="3037517125981011456">Chromeত ছাইন ইন কৰিবলৈ প্ৰম্প্‌ট প্ৰদৰ্শন কৰে</translation>
 <translation id="3037838751736561277">Google Chrome নেপথ্যৰ ম’ডত আছে।</translation>
 <translation id="3038232873781883849">ইনষ্টল কৰাৰ বাবে অপেক্ষা কৰি থকা হৈছে...</translation>
 <translation id="3045032126857188731">অনুবাদ কৰা ভাষা: <ph name="LANGUAGE" /></translation>
@@ -315,6 +316,7 @@
 <translation id="4747730611090640388">Chromeএ আপোনাৰ আগ্ৰহসমূহ অনুমান কৰিব পাৰে।  পাছত, আপুনি চোৱা কোনো ছাইটে আপুনি দেখা বিজ্ঞাপনসমূহ ব্যক্তিগতকৃত কৰিবলৈ Chromeক আপোনাৰ আগ্ৰহসমূহৰ বিষয়ে সুধিব পাৰে।</translation>
 <translation id="475321580758063259">আপোনাৰ Google একাউণ্টত Chromeৰ ডেটা ব্যৱহাৰ কৰি থাকিবলৈ Chrome আপডে'ট কৰক, <ph name="ACCOUNT_EMAIL" /></translation>
 <translation id="4754614261631455953">Google Chrome Canary (mDNS-In)</translation>
+<translation id="4756182432527369254">Chromeৰ V8 ইঞ্জিনৰ সৈতে ছাইটবোৰ খৰতকীয়া কৰি তোলে কিন্তু Chromeক আক্ৰমণৰ পৰা সামান্য কম প্ৰতিৰোধী কৰে</translation>
 <translation id="479167709087336770">এইটোৱে Google Searchত ব্যৱহৃত একেটা বানান পৰীক্ষকেই ব্যৱহাৰ কৰে। আপুনি ব্ৰাউজাৰত টাইপ কৰা পাঠ Googleলৈ পঠিওৱা হয়। আপুনি ছেটিংসমূহ-ত যিকোনো সময়তে এই আচৰণটো সলনি কৰিব পাৰে।</translation>
 <translation id="4793679854893018356">Chromeএ আপোনাক কিদৰে সুৰক্ষিত কৰি ৰাখে জানক</translation>
 <translation id="4828579605166583682">Google Chromeএ আগৰে পৰা থকা পাছৱৰ্ডসমূহ সলনি কৰিবলৈ চেষ্টা কৰি আছে। এই কাৰ্যৰ বাবে অনুমতি দিবলৈ আপোনাৰ Windowsৰ পাছৱৰ্ডটো টাইপ কৰক।</translation>
@@ -407,6 +409,7 @@ Google Chromeএ আপোনাৰ ছেটিংসমূহ পুনৰু�
 <translation id="5980111191913430208">অজ্ঞাত উৎসৰ এক্সটেনশ্বন, এপ্‌ আৰু থীমে আপোনাৰ ডিভাইচৰ ক্ষতি কৰিব পাৰে। Chromeএ সেয়া কেৱল <ph name="IDS_EXTENSION_WEB_STORE_TITLE" />ৰ পৰাহে ইনষ্টল কৰিবলৈ চুপাৰিছ কৰে</translation>
 <translation id="6003112304606738118">ডাউনল’ড হৈ আছে... <ph name="HOURS" /> ঘণ্টা বাকী আছে</translation>
 <translation id="6008161919456049856">আপুনি নিজৰ Google একাউণ্টত ছেভ কৰি থোৱা আপোনাৰ পাছৱৰ্ড, পৰিশোধ পদ্ধতি আৰু ঠিকনাসমূহ এই ডিভাইচটোৰ পৰা আঁতৰোৱা হ’ব। সেইসমূহ পুনৰ Chromeত ব্যৱহাৰ কৰিবলৈ, পুনৰ ছাইন ইন কৰক।</translation>
+<translation id="6009821354356307391">এটা ফ’ল’ আপ বিচাৰক</translation>
 <translation id="6014316319780893079"><ph name="BEGIN_LINK" />Chromeৰ সঁজুলি<ph name="END_LINK" />ৰ জৰিয়তে, আপুনি সুৰক্ষিতভাৱে ব্ৰাউজ কৰি নিয়ন্ত্ৰণত থাকিব পাৰে</translation>
 <translation id="6022659036123304283">আপোনাৰ ডিভাইচত Chromeৰ ছেট আপ কৰক</translation>
 <translation id="6025087594896450715">Google Chrome <ph name="REMAINING_TIME" />ত ৰিষ্টাৰ্ট হ’ব</translation>
@@ -601,6 +604,7 @@ Google Chromeএ আপোনাৰ ছেটিংসমূহ পুনৰু�
 <translation id="8342675569599923794">এই ফাইলটো বিপজ্জনক, সেয়েহে Chromeএ সেইটো অৱৰোধ কৰিছে।</translation>
 <translation id="8349094670477064572">আপুনি যেতিয়াই Chromeত ছাইন ইন কৰিব তেতিয়াই আপোনাৰ Google একাউণ্টত পাছৱৰ্ড আৰু আন বহুতো ছেভ আৰু ব্যৱহাৰ কৰিব। <ph name="LEARN_MORE" /></translation>
 <translation id="8362914115861174987">এই ভাষাটোলৈ অনুবাদ কৰক</translation>
+<translation id="8366770919198174997">কাৰ্যদক্ষতা কম কৰে কিন্তু Chromeক আক্ৰমণৰ বাবে অধিক প্ৰতিৰোধী কৰে</translation>
 <translation id="8370517070665726704">স্বত্বাধিকাৰ <ph name="YEAR" /> Google LLC। সর্বস্বত্ব সংৰক্ষিত।</translation>
 <translation id="8387459386171870978">Chrome ব্যৱহাৰ কৰাটো অব্যাহত ৰাখক</translation>
 <translation id="8394720698884623075">Chromeত ষ্ট’ৰ কৰি ৰখা অসুৰক্ষিত ছাইটসমূহৰ এখন সূচীৰ সৈতে URLসমূহ পৰীক্ষা কৰে</translation>
@@ -645,6 +649,7 @@ Google Chromeএ আপোনাৰ ছেটিংসমূহ পুনৰু�
 <translation id="8843516219908676469">Chromeএ ফৰ্মসমূহ ভালদৰে বুজি পায় আৰু আপোনাৰ বাবে সেয়া দ্ৰুততাৰে স্বয়ংক্ৰিয়ভাৱে পূৰ কৰিব পাৰে</translation>
 <translation id="8851180723659088381">{NUM_EXTENSIONS,plural, =1{Chromeএ আপোনাক এইটো আঁতৰাবলৈ চুপাৰিছ কৰে}one{Chromeএ আপোনাক এইসমূহ আঁতৰাবলৈ চুপাৰিছ কৰে}other{Chromeএ আপোনাক এইসমূহ আঁতৰাবলৈ চুপাৰিছ কৰে}}</translation>
 <translation id="8862326446509486874">ছিষ্টেম-পৰ্যায়ৰ ইনষ্টলৰ বাবে আপোনাৰ সঠিক অধিকাৰ নাই। প্রশাসক হিচাপে ইনষ্টলাৰটো পুনৰ চলাই চাওক।</translation>
+<translation id="8865415417596392024">আপোনাৰ একাউণ্টত থকা Chromeৰ ডেটা</translation>
 <translation id="8883862939660515976">Google Lensক এই প্ৰতিচ্ছবিৰ বিষয়ে সোধক</translation>
 <translation id="8914504000324227558">Chrome পুনৰ লঞ্চ কৰক</translation>
 <translation id="8922193594870374009"><ph name="ORIGIN" />ৰ পৰা এটা নম্বৰ আপোনাৰ Android ফ’নলৈ পঠিয়াবলৈ দুয়োটা ডিভাইচত Chromeত ছাইন ইন কৰক।</translation>

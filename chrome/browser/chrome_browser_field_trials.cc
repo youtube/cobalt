@@ -37,7 +37,9 @@
 #include "chrome/browser/flags/android/chrome_feature_list.h"
 #include "chrome/browser/media/webrtc/desktop_media_picker.h"
 #include "chrome/common/chrome_features.h"
+#include "components/autofill/core/common/autofill_features.h"
 #include "content/public/common/content_features.h"
+#include "media/audio/audio_features.h"
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -108,8 +110,7 @@ void ChromeBrowserFieldTrials::RegisterFeatureOverrides(
   // processing, namely 'ozone-platform-hint', so do it here.
   //
   // TODO(nickdiego): Move it back to
-  // ChromeMainDelegate::PostEarlyInitialization once ozone-platform-hint flag
-  // is dropped.
+  // ChromeMainDelegate::PostEarlyInitialization.
 
   std::unique_ptr<base::Environment> env = base::Environment::Create();
   std::string xdg_session_type =
@@ -129,6 +130,11 @@ void ChromeBrowserFieldTrials::RegisterFeatureOverrides(
   // should be the exception, and not the norm. Instead, you should place the
   // override in the generic IS_ANDROID block below, guarded by an appropriate
   // runtime check.
+
+  // Enables the Bookmark Bar and related toggle in settings.
+  // TODO(crbug.com/411262183): Remove after Bookmarks Bar rollout is complete.
+  feature_overrides.EnableFeature(chrome::android::kAndroidAppearanceSettings);
+  feature_overrides.EnableFeature(chrome::android::kAndroidBookmarkBar);
 
   // If enabled, then use desktop page webprefs for Android devices that have
   // large displays, specifically tablets and desktops.
@@ -167,6 +173,22 @@ void ChromeBrowserFieldTrials::RegisterFeatureOverrides(
   // TODO(b/432367402): Use a new Android API to replace this hack with a proper
   // solution.
   feature_overrides.EnableFeature(features::kAndroidCaptureKeyEvents);
+  // TODO(crbug.com/430304112): Remove when rollout is complete to all form
+  // factors.
+  feature_overrides.EnableFeature(
+      autofill::features::kAutofillAndroidDesktopSuppressAccessoryOnEmpty);
+  // TODO(crbug.com/436900619): Remove when the long term solution is
+  // implemented.
+  feature_overrides.EnableFeature(
+      chrome::android::kLockTopControlsOnLargeTablets);
+  // Bypass the WebAudio output buffer, to reduce audio latency.
+  // TODO(crbug.com/436988695): Remove when the long term solution is
+  // implemented.
+  feature_overrides.EnableFeature(
+      blink::features::kWebAudioBypassOutputBuffering);
+  // TODO(crbug.com/437004266): Remove when the feature is stable.
+  feature_overrides.EnableFeature(
+      features::kAlwaysUseAudioManagerOutputFramesPerBuffer);
 #endif  // BUILDFLAG(IS_DESKTOP_ANDROID)
   // Desktop-first features which are past incubation should either end up here,
   // or to a finch trial that enables it for all form factors.

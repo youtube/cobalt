@@ -17,6 +17,7 @@
 #include "base/containers/span.h"
 #include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
+#include "base/time/time.h"
 #include "cc/animation/animation.h"
 #include "cc/animation/animation_host.h"
 #include "cc/animation/animation_timeline.h"
@@ -593,8 +594,10 @@ void SerializePictureLayerTileUpdates(
     PictureLayerImpl& layer,
     viz::ClientResourceProvider& resource_provider,
     viz::RasterContextProvider& context_provider,
-    std::vector<viz::mojom::TilingPtr>& tilings) {
-  auto updates = layer.TakeUpdatedTiles();
+    std::vector<viz::mojom::TilingPtr>& tilings,
+    bool needs_full_sync) {
+  auto updates =
+      needs_full_sync ? layer.TakeAllTiles() : layer.TakeUpdatedTiles();
 
   for (const auto& [scale_key, tile_indices] : updates) {
     const auto* tiling =
@@ -797,7 +800,8 @@ void SerializeSurfaceLayerExtra(SurfaceLayerImpl& layer,
 void SerializeLayer(LayerImpl& layer,
                     viz::ClientResourceProvider& resource_provider,
                     viz::RasterContextProvider& context_provider,
-                    viz::mojom::LayerTreeUpdate& update) {
+                    viz::mojom::LayerTreeUpdate& update,
+                    bool needs_full_sync) {
   auto& wire = *update.layers.emplace_back(viz::mojom::Layer::New());
   wire.id = layer.id();
   wire.element_id = layer.element_id();
@@ -921,7 +925,8 @@ void SerializeLayer(LayerImpl& layer,
       wire.layer_extra = viz::mojom::LayerExtra::NewTileDisplayLayerExtra(
           std::move(tile_display_extra));
       SerializePictureLayerTileUpdates(picture_layer, resource_provider,
-                                       context_provider, update.tilings);
+                                       context_provider, update.tilings,
+                                       needs_full_sync);
       break;
     }
     case mojom::LayerType::kTexture: {
@@ -1242,7 +1247,7 @@ void VizLayerContext::SetVisible(bool visible) {
   service_->SetVisible(visible);
 }
 
-void VizLayerContext::UpdateDisplayTreeFrom(
+base::TimeTicks VizLayerContext::UpdateDisplayTreeFrom(
     LayerTreeImpl& tree,
     viz::ClientResourceProvider& resource_provider,
     viz::RasterContextProvider& context_provider,
@@ -1324,17 +1329,22 @@ void VizLayerContext::UpdateDisplayTreeFrom(
 
   if (needs_full_sync_) {
     for (LayerImpl* layer : tree) {
-      SerializeLayer(*layer, resource_provider, context_provider, *update);
+      SerializeLayer(*layer, resource_provider, context_provider, *update,
+                     /*needs_full_sync=*/true);
     }
   } else {
     for (LayerImpl* layer : tree.LayersThatShouldPushProperties()) {
-      SerializeLayer(*layer, resource_provider, context_provider, *update);
+      SerializeLayer(*layer, resource_provider, context_provider, *update,
+                     /*needs_full_sync=*/false);
     }
   }
   tree.ClearLayersThatShouldPushProperties();
 
   // TODO(rockot): Granular change tracking for property trees, so we aren't
   // diffing every time.
+  if (needs_full_sync_) {
+    last_committed_property_trees_.clear();
+  }
   PropertyTrees& old_trees = last_committed_property_trees_;
   ComputePropertyTreeUpdate(
       old_trees.transform_tree(), property_trees.transform_tree(),
@@ -1377,9 +1387,12 @@ void VizLayerContext::UpdateDisplayTreeFrom(
   if (base::FeatureList::IsEnabled(features::kTreeAnimationsInViz)) {
     SerializeAnimationUpdates(tree, *update);
   }
+
+  base::TimeTicks time_sent_to_service = base::TimeTicks::Now();
   service_->UpdateDisplayTree(std::move(update));
 
   needs_full_sync_ = false;
+  return time_sent_to_service;
 }
 
 // Sends a single-tile update to the Viz service by serializing it as a tiling.
@@ -1389,6 +1402,13 @@ void VizLayerContext::UpdateDisplayTile(
     viz::ClientResourceProvider& resource_provider,
     viz::RasterContextProvider& context_provider,
     bool update_damage) {
+  if (needs_full_sync_) {
+    // If |needs_full_sync_| is set due to context lost, we will need to sync
+    // the entire tree and all tiles from PictureLayers through
+    // UpdateDisplayTreeFrom(). Incremental tiles updates is paused until
+    // UpdateDisplayTreeFrom() clears the |needs_full_sync_|.
+    return;
+  }
   // Create a one-element update list for the given tile.
   TileIndex index(tile.tiling_i_index(), tile.tiling_j_index());
   const Tile* tile_ptr = &tile;

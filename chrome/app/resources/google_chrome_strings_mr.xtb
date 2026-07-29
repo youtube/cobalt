@@ -171,6 +171,7 @@
 <translation id="3003694935412297923">सर्व टास्क</translation>
 <translation id="3018957014024118866">तसेच Chrome मधून डेटा हटवा (<ph name="URL" />)</translation>
 <translation id="3019382870990049182">ChromeOS Flex अपडेट करण्यासाठी पुन्हा लाँच करा</translation>
+<translation id="3037517125981011456">Chrome मध्ये साइन इन करण्यासाठी सूचना दाखवते</translation>
 <translation id="3037838751736561277">Google Chrome पार्श्वभूमी मोड मध्ये आहे.</translation>
 <translation id="3038232873781883849">इंस्टॉल करण्यासाठी प्रतीक्षा करत आहे...</translation>
 <translation id="3045032126857188731">भाषांतराची भाषा: <ph name="LANGUAGE" /></translation>
@@ -314,6 +315,7 @@
 <translation id="4747730611090640388">Chrome तुमच्या स्वारस्यांबाबतचे अंदाज लावू शकते.  त्यानंतर, तुम्ही पाहता त्या जाहिराती पर्सनलाइझ करण्यासाठी तुम्ही भेट देता ती साइट Chrome कडे तुमची स्वारस्ये पाहण्याची अनुमती मागू शकते.</translation>
 <translation id="475321580758063259">तुमच्या <ph name="ACCOUNT_EMAIL" /> Google खाते मध्ये Chrome डेटा वापरणे कायम ठेवण्यासाठी Chrome अपडेट करा</translation>
 <translation id="4754614261631455953">Google Chrome कॅनरी (mDNS-मध्ये)</translation>
+<translation id="4756182432527369254">Chrome चे V8 इंजीन साइटचा वेग वाढवते, पण त्यामुळे Chrome ची हल्ले रोखण्याची क्षमता किंचित कमी होते</translation>
 <translation id="479167709087336770">Google Search मध्ये वापरत असेलेले समान स्पेल चेकर हे वापरते. तुम्ही ब्राउझरमध्ये टाइप करत असलेला मजकूर Google कडे पाठवला जातो. तुम्ही हे वर्तन कधीही सेटिंग्ज मध्ये बदलू शकता.</translation>
 <translation id="4793679854893018356">Chrome तुम्हाला सुरक्षित कसे ठेवते याबद्दल जाणून घ्या</translation>
 <translation id="4828579605166583682">Google Chrome सध्याचे पासवर्ड बदलण्याचा प्रयत्न करत आहे. यासाठी अनुमती देण्यासाठी तुमचा Windows पासवर्ड टाइप करा.</translation>
@@ -405,6 +407,7 @@ Google Chrome तुमची सेटिंग्ज पुन्हा मि
 <translation id="5980111191913430208">अज्ञात स्रोतांकडील एक्स्टेंशन, अ‍ॅप्स आणि थीम तुमच्या डिव्हाइसला हानी पोहोचवू शकतात. Chrome फक्त <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> मधून ते इंस्टॉल करण्याची शिफारस करते</translation>
 <translation id="6003112304606738118">डाउनलोड करत आहे... <ph name="HOURS" /> तास शिल्लक आहे(आहेत)</translation>
 <translation id="6008161919456049856">तुम्ही तुमच्या Google खाते मध्ये सेव्ह केलेले तुमचे पासवर्ड, पेमेंट पद्धती आणि ॲड्रेस हे या डिव्हाइसवरून काढून टाकले जातील. ते Chrome मध्ये पुन्हा वापरण्यासाठी, पुन्हा साइन इन करा.</translation>
+<translation id="6009821354356307391">फॉलो अपची विनंती करा</translation>
 <translation id="6014316319780893079">तुम्ही <ph name="BEGIN_LINK" />Chrome ची टूल<ph name="END_LINK" /> वापरून सुरक्षितरीत्या ब्राउझ करू शकता आणि तुमचा डेटा नियंत्रित करू शकता</translation>
 <translation id="6022659036123304283">Chrome ला तुमच्या आवडीनुसार बनवा</translation>
 <translation id="6025087594896450715"><ph name="REMAINING_TIME" /> मध्ये Google Chrome रीस्टार्ट होईल</translation>
@@ -599,6 +602,7 @@ Google Chrome तुमची सेटिंग्ज पुन्हा मि
 <translation id="8342675569599923794">ही फाइल धोकादायक आहे, त्यामुळे Chrome ने ती ब्लॉक केली आहे.</translation>
 <translation id="8349094670477064572">तुम्ही Chrome मध्ये साइन इन केलेले असताना, तुमचे Google खाते यामध्ये तुमचे पासवर्ड सेव्ह करू व वापरू शकता आणि आणखी बरेच काही करू शकता. <ph name="LEARN_MORE" /></translation>
 <translation id="8362914115861174987">यामध्ये भाषांतर करा</translation>
+<translation id="8366770919198174997">परफॉर्मन्स कमी करते, पण त्यामुळे Chrome ची हल्ले रोखण्याची क्षमता वाढते</translation>
 <translation id="8370517070665726704">कॉपीराइट <ph name="YEAR" /> Google LLC. सर्व हक्क राखीव.</translation>
 <translation id="8387459386171870978">Chrome वापरणे पुढे सुरू ठेवा</translation>
 <translation id="8394720698884623075">Chrome मध्ये स्टोअर केलेल्या असुरक्षित साइटच्या सूचीसह URLs तपासते</translation>
@@ -643,6 +647,7 @@ Google Chrome तुमची सेटिंग्ज पुन्हा मि
 <translation id="8843516219908676469">Chrome हे फॉर्म आणखी चांगल्या पद्धतीने समजू शकते आणि ते तुमच्यासाठी अधिक जलद ऑटोफिल करू शकते</translation>
 <translation id="8851180723659088381">{NUM_EXTENSIONS,plural, =1{तुम्ही ते काढून टाकावे अशी Chrome शिफारस करते}other{तुम्ही ती काढून टाकावीत अशी Chrome शिफारस करते}}</translation>
 <translation id="8862326446509486874">तुमच्याकडे सिस्टीम स्तरावरील इंस्टॉलसाठी योग्य अधिकार नाहीत. अ‍ॅडमिनिस्ट्रेटर म्हणून पुन्हा इंस्टॉलर चालविण्याचा प्रयत्न करा.</translation>
+<translation id="8865415417596392024">तुमच्या खात्यामधील Chrome डेटा</translation>
 <translation id="8883862939660515976">Google Lens ला इमेजविषयी माहिती विचारा</translation>
 <translation id="8914504000324227558">Chrome रीलाँच करा</translation>
 <translation id="8922193594870374009"><ph name="ORIGIN" /> वरून तुमच्या Android फोनवर नंबर पाठवण्यासाठी, दोन्ही डिव्हाइसवर Chrome मध्ये साइन इन करा.</translation>

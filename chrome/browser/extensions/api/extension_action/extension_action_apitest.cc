@@ -58,7 +58,6 @@
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/extensions/extension_action_test_helper.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
-#include "chrome/test/base/ui_test_utils.h"
 #endif
 
 static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
@@ -267,7 +266,7 @@ class MultiActionAPITest
     // observers are notified.
     ExtensionActionDispatcher* dispatcher =
         ExtensionActionDispatcher::Get(profile());
-    dispatcher->NotifyChange(action, GetActiveTab(), profile());
+    dispatcher->NotifyChange(action, GetActiveWebContents(), profile());
   }
 
   // Ensures the |action| is enabled on the currently-active tab.
@@ -277,11 +276,9 @@ class MultiActionAPITest
 
   // Returns the id of the currently-active tab.
   int GetActiveTabId() const {
-    content::WebContents* web_contents = GetActiveTab();
+    content::WebContents* web_contents = GetActiveWebContents();
     return sessions::SessionTabHelper::IdForTab(web_contents).id();
   }
-
-  content::WebContents* GetActiveTab() const { return GetActiveWebContents(); }
 
   // Returns the action associated with |extension|.
   ExtensionAction* GetExtensionAction(const Extension& extension) {
@@ -319,8 +316,7 @@ IN_PROC_BROWSER_TEST_F(BrowserActionAPITest, TestNoUnnecessaryIO) {
   static constexpr char kUpdate[] =
       R"(chrome.browserAction.setBadgeText(%s);
          chrome.test.sendScriptResult('pass');)";
-  content::WebContents* web_contents =
-      browser()->tab_strip_model()->GetActiveWebContents();
+  content::WebContents* web_contents = GetActiveWebContents();
   SessionID tab_id = sessions::SessionTabHelper::IdForTab(web_contents);
   static constexpr char kBrowserActionKey[] = "browser_action";
   TestStateStoreObserver test_state_store_observer(profile(), extension->id());
@@ -402,7 +398,7 @@ IN_PROC_BROWSER_TEST_P(MultiActionAPITest,
 
   // Navigating should clear the title.
   GURL second_url = embedded_test_server()->GetURL("/title2.html");
-  ASSERT_TRUE(NavigateToURL(second_url));
+  ASSERT_TRUE(NavigateToURL(web_contents, second_url));
 
   EXPECT_EQ(second_url, web_contents->GetLastCommittedURL());
   EXPECT_FALSE(action->HasTitle(tab_id));
@@ -837,18 +833,11 @@ IN_PROC_BROWSER_TEST_P(MultiActionAPICanvasTest, DISABLED_DynamicSetIcon) {
   EXPECT_EQ(SK_ColorRED, default_icon.AsBitmap().getColor(mid_x, mid_y));
 
   // Open a tab to run the extension commands in.
-  ui_test_utils::NavigateToURLWithDisposition(
-      browser(), extension->GetResourceURL("page.html"),
-      WindowOpenDisposition::NEW_FOREGROUND_TAB,
-      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
-  content::WebContents* web_contents =
-      browser()->tab_strip_model()->GetActiveWebContents();
+  NavigateToURLInNewTab(extension->GetResourceURL("page.html"));
+  content::WebContents* web_contents = GetActiveWebContents();
 
   // Create a new tab.
-  ui_test_utils::NavigateToURLWithDisposition(
-      browser(), GURL("chrome://newtab"),
-      WindowOpenDisposition::NEW_FOREGROUND_TAB,
-      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
+  NavigateToURLInNewTab(GURL("chrome://newtab"));
 
   const int new_tab_id = GetActiveTabId();
   EXPECT_NE(new_tab_id, tab_id);
@@ -1070,9 +1059,9 @@ IN_PROC_BROWSER_TEST_P(MultiActionAPITest, SetIconInTabWithInvalidPath) {
   ExtensionAction* action = GetExtensionAction(*extension);
   ASSERT_TRUE(action);
 
-  ASSERT_TRUE(NavigateToURL(extension->GetResourceURL("page.html")));
   content::WebContents* web_contents = GetActiveWebContents();
-  ASSERT_TRUE(content::WaitForLoadStop(web_contents));
+  ASSERT_TRUE(
+      NavigateToURL(web_contents, extension->GetResourceURL("page.html")));
 
   int tab_id = GetActiveTabId();
   EXPECT_TRUE(ActionHasDefaultState(*action, tab_id));
@@ -1213,8 +1202,9 @@ IN_PROC_BROWSER_TEST_P(MultiActionAPITest, SetPopupWithInvalidPath) {
                               manifest_errors::kInvalidExtensionPopupPath);
   };
 
-  ASSERT_TRUE(NavigateToURL(extension->GetResourceURL("page.html")));
-  content::WebContents* web_contents = GetActiveTab();
+  content::WebContents* web_contents = GetActiveWebContents();
+  ASSERT_TRUE(
+      NavigateToURL(web_contents, extension->GetResourceURL("page.html")));
   int tab_id = GetActiveTabId();
 
   // Set the popup to an invalid nonexistent extension URL and expect an error.
@@ -1652,8 +1642,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionActionAPITest, IsEnabledIgnoreDeclarative) {
   ExtensionAction* action = action_manager->GetExtensionAction(*extension);
   ASSERT_TRUE(action);
 
-  content::WebContents* web_contents =
-      browser()->tab_strip_model()->GetActiveWebContents();
+  content::WebContents* web_contents = GetActiveWebContents();
   GURL url(embedded_test_server()->GetURL("google.com", "/title1.html"));
 
   EXPECT_TRUE(content::NavigateToURL(web_contents, url));

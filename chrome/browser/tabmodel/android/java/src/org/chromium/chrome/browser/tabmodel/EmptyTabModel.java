@@ -60,6 +60,9 @@ public class EmptyTabModel implements IncognitoTabModelInternal {
     }
 
     @Override
+    public void associateWithBrowserWindow(long nativeAndroidBrowserWindow) {}
+
+    @Override
     public boolean isIncognito() {
         return mIsIncognito;
     }
@@ -244,6 +247,11 @@ public class EmptyTabModel implements IncognitoTabModelInternal {
 
     @Override
     public int getMultiSelectedTabsCount() {
+        return 0;
+    }
+
+    @Override
+    public int findFirstNonPinnedTabIndex() {
         return 0;
     }
 }

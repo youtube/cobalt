@@ -2464,6 +2464,9 @@ Called by update_autofill_enums.py.-->
   <int value="1" label="User entered the autofill options via deep link."/>
   <int value="2"
       label="User entered the autofill options via payment methods."/>
+  <int value="3"
+      label="User entered the autofill options via autofill profiles
+             fragment."/>
 </enum>
 
 <enum name="AutofillOtpAuthEvent">
@@ -3221,6 +3224,7 @@ Called by update_autofill_enums.py.-->
 <enum name="BnplSuggestionNotShownReason">
   <int value="0" label="Amount extraction failure"/>
   <int value="1" label="Checkout amount not supported"/>
+  <int value="2" label="Amount extraction timeout"/>
 </enum>
 
 <!-- LINT.IfChange(BnplTosDialogResult) -->

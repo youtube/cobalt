@@ -447,6 +447,7 @@ interface Blob
     getter size
     getter type
     method arrayBuffer
+    method bytes
     method constructor
     method slice
     method stream
@@ -510,6 +511,7 @@ interface BroadcastChannel : EventTarget
 interface BrowserCaptureMediaStreamTrack : MediaStreamTrack
     attribute @@toStringTag
     method constructor
+    method cropTo
 interface ByteLengthQueuingStrategy
     attribute @@toStringTag
     getter highWaterMark
@@ -1460,6 +1462,7 @@ interface CountQueuingStrategy
 interface CrashReportStorage
     attribute @@toStringTag
     method constructor
+    method initialize
     method remove
     method set
 interface CreateMonitor : EventTarget
@@ -1479,6 +1482,10 @@ interface CredentialsContainer
     method get
     method preventSilentAccess
     method store
+interface CropTarget
+    static method fromElement
+    attribute @@toStringTag
+    method constructor
 interface Crypto
     attribute @@toStringTag
     getter subtle
@@ -6908,14 +6915,14 @@ interface PasswordCredential : Credential
     getter name
     getter password
     method constructor
-interface PatchEvent : Event
-    attribute @@toStringTag
-    getter patch
-    method constructor
-interface PatchStatus
+interface Patch
     attribute @@toStringTag
     getter finished
     getter source
+    method constructor
+interface PatchEvent : Event
+    attribute @@toStringTag
+    getter patch
     method constructor
 interface Path2D
     attribute @@toStringTag

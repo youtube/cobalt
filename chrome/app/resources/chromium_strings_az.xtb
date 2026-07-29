@@ -188,6 +188,7 @@ Bəzi funksiyalar əlçatmaz ola bilər ki, nəticədə tərcihlərə edilən d�
 <translation id="3313189106987092621">Chromium təhlükəli bağlantı ilə sayt yükləməzdən əvvəl xəbərdarlıq edəcək</translation>
 <translation id="3316771292331273802">Chromium-a daxil olsanız, Google Hesabı istisna olmaqla bütün Chromium pəncərələrini bağladıqda əksər saytlardan çıxacaqsınız. Saytların sizi xatırlaması üçün <ph name="SETTINGS_LINK" />.</translation>
 <translation id="3352986031709923790">axtarış sahəsinin yuxarı sağ küncü: <ph name="RIGHT" />% sağ, <ph name="TOP" />% yuxarı</translation>
+<translation id="3366305173356742781">Hesabdakı Chromium datası</translation>
 <translation id="3369405342922656244">Bu səhifəni Şəkil Axtarışı ilə axtarın</translation>
 <translation id="3387527074123400161">ChromiumOS</translation>
 <translation id="3406848076815591792">Mövcud Chromium profilinə keçirilsin?</translation>
@@ -283,6 +284,7 @@ Bəzi funksiyalar əlçatmaz ola bilər ki, nəticədə tərcihlərə edilən d�
 <translation id="4598116752460667024">Siyahıdan istənilən prosesi axtarın.</translation>
 <translation id="4613863813562375431">ChromiumOS versiyası</translation>
 <translation id="4621240073146040695">Güncəllənmək üzrədir. Güncəlləşməni tamamlamaq üçün Chromium'u yenidən işə salın.</translation>
+<translation id="4625064703209785397">Chromium-un V8 mühərriki ilə saytları sürətləndirir, lakin Chromium-un hücumlara qarşı müqavimətini bir qədər azaldır</translation>
 <translation id="4654936675281451226">Chromium formaları daha yaxşı başa düşür və onları sizin üçün daha tez avtomatik doldura bilər. Bu ayar aktivdir.</translation>
 <translation id="4665829708273112819">Xəbərdarlıq: Chromium artırmaların brauzer tarixçənizi yazmasının qarşısını ala bilməz. Bu artırmanı Anonim rejimdə deaktiv etmək üçün bu seçimi ləğv edin.</translation>
 <translation id="4673151026126227699">Chromium istifadə hesabatlarını da paylaşırsınızsa, bu hesabatlara ziyarət etdiyiniz keçidlər daxil olacaq</translation>
@@ -328,6 +330,7 @@ Bəzi funksiyalar əlçatmaz ola bilər ki, nəticədə tərcihlərə edilən d�
 <translation id="5386450000063123300">Chromium güncəllənir (<ph name="PROGRESS_PERCENT" />)</translation>
 <translation id="538767207339317086">Chromium girişinə icazə verin</translation>
 <translation id="5405650547142096840">Chromium'dan silin</translation>
+<translation id="5424544524441439284">Performansı azaldır, lakin Chromium-u hücumlara qarşı davamlı edir</translation>
 <translation id="5427571867875391349">Chromium'u defolt brauzer təyin edin</translation>
 <translation id="5438241569118040789"><ph name="PAGE_TITLE" /> - Chromium Beta</translation>
 <translation id="5460618461609401056">{NUM_TABS,plural, =1{Chromium brauzeri yavaşladan tabı durdurmağı tövsiyə edir}other{Chromium brauzeri yavaşladan tabları durdurmağı tövsiyə edir}}</translation>
@@ -372,6 +375,7 @@ Bəzi funksiyalar əlçatmaz ola bilər ki, nəticədə tərcihlərə edilən d�
 <translation id="5987687638152509985">Sinxronizasiyanı başlatmaq üçün Chromium'u güncəlləyin</translation>
 <translation id="5988505247484123880">Ziyarət etdiyiniz saytların təcrübənizi fərdiləşdirmək üçün maraqlarınızı xatırlaması normaldır. Saytlar həmçinin maraqlarınız haqqında Chromium ilə məlumat saxlaya bilər.</translation>
 <translation id="6003112304606738118">Endirilir... <ph name="HOURS" /> saat qalıb</translation>
+<translation id="6009821354356307391">Əlavə sual soruşun</translation>
 <translation id="6040143037577758943">Qapat</translation>
 <translation id="6058380562449900225">Datanı qorumaq üçün Chromium-un son vaxtlar daxil olmadığınız saytlardan icazələri silməsinə icazə verin. Bildirişlər dayanmır.</translation>
 <translation id="6063093106622310249">Chromium'də açın</translation>

@@ -33,6 +33,13 @@ An Android developer would use:
 @agents/prompts/templates/android.md
 ```
 
+An iOS developer would use:
+
+```src/GEMINI.md
+@agents/prompts/common.md
+@agents/prompts/templates/ios.md
+```
+
 You can confirm that prompts were successfully imported by running the `/memory
 show` command in gemini-cli.
 
@@ -49,3 +56,9 @@ the format of the existing examples.
 
 Changes to `common.minimal.md` should be done carefully as it's meant to be used
 broadly.
+
+### Custom Commands
+
+Add these to [`//.gemini/commands`].
+
+[`//.gemini/commands`]: /.gemini/commands/README.md

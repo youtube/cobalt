@@ -7,18 +7,24 @@
 
 #import <UIKit/UIKit.h>
 
+#import "ios/chrome/browser/aim/prototype/ui/aim_prototype_consumer.h"
+#import "ios/chrome/browser/aim/prototype/ui/aim_prototype_mutator.h"
+
 @class AIMPrototypeViewController;
 
 // Delegate for the AIM prototype view controller.
 @protocol AIMPrototypeViewControllerDelegate
 - (void)aimPrototypeViewControllerDidTapCloseButton:
     (AIMPrototypeViewController*)viewController;
+- (void)aimPrototypeViewControllerDidTapGalleryButton:
+    (AIMPrototypeViewController*)viewController;
 @end
 
 // View controller for the AIM prototype.
-@interface AIMPrototypeViewController : UIViewController
+@interface AIMPrototypeViewController : UIViewController <AIMPrototypeConsumer>
 
 @property(nonatomic, weak) id<AIMPrototypeViewControllerDelegate> delegate;
+@property(nonatomic, weak) id<AIMPrototypeMutator> mutator;
 
 @end
 

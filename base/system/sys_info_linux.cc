@@ -15,10 +15,11 @@
 #include <algorithm>
 #include <limits>
 #include <sstream>
+#include <type_traits>
 
+#include "base/byte_count.h"
 #include "base/check.h"
 #include "base/files/file_util.h"
-#include "base/lazy_instance.h"
 #include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/process/process_metrics.h"
@@ -42,10 +43,8 @@ uint64_t AmountOfMemory(int pages_name) {
 uint64_t AmountOfPhysicalMemory() {
   return AmountOfMemory(_SC_PHYS_PAGES);
 }
-
-base::LazyInstance<
-    base::internal::LazySysInfoValue<uint64_t, AmountOfPhysicalMemory>>::Leaky
-    g_lazy_physical_memory = LAZY_INSTANCE_INITIALIZER;
+using LazyPhysicalMemory =
+    base::internal::LazySysInfoValue<uint64_t, AmountOfPhysicalMemory>;
 
 }  // namespace
 
@@ -53,12 +52,14 @@ namespace base {
 
 // static
 uint64_t SysInfo::AmountOfPhysicalMemoryImpl() {
-  return g_lazy_physical_memory.Get().value();
+  static_assert(std::is_trivially_destructible<LazyPhysicalMemory>::value);
+  static LazyPhysicalMemory physical_memory;
+  return physical_memory.value();
 }
 
 // static
 uint64_t SysInfo::AmountOfAvailablePhysicalMemoryImpl() {
-  SystemMemoryInfoKB info;
+  SystemMemoryInfo info;
   if (!GetSystemMemoryInfo(&info)) {
     return 0;
   }
@@ -67,15 +68,16 @@ uint64_t SysInfo::AmountOfAvailablePhysicalMemoryImpl() {
 
 // static
 uint64_t SysInfo::AmountOfAvailablePhysicalMemory(
-    const SystemMemoryInfoKB& info) {
+    const SystemMemoryInfo& info) {
   // See details here:
   // https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=34e431b0ae398fc54ea69ff85ec700722c9da773
   // The fallback logic (when there is no MemAvailable) would be more precise
   // if we had info about zones watermarks (/proc/zoneinfo).
-  int res_kb = info.available != 0
-                   ? std::max(info.available - info.active_file, 0)
-                   : info.free + info.reclaimable + info.inactive_file;
-  return checked_cast<uint64_t>(res_kb) * 1024;
+  ByteCount res =
+      !info.available.is_zero()
+          ? std::max(info.available - info.active_file, ByteCount(0))
+          : info.free + info.reclaimable + info.inactive_file;
+  return res.InBytesUnsigned();
 }
 
 // static

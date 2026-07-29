@@ -189,6 +189,7 @@ Sommige functies zijn wellicht niet beschikbaar en wijzigingen in voorkeuren wor
 <translation id="3313189106987092621">Chromium waarschuwt je voordat een site wordt geladen via een niet-beveiligde verbinding</translation>
 <translation id="3316771292331273802">Je wordt uitgelogd van de meeste sites als je alle Chromium-vensters sluit, behalve van je Google-account als je bent ingelogd bij Chromium. Als je wilt dat sites je onthouden, <ph name="SETTINGS_LINK" />.</translation>
 <translation id="3352986031709923790">rechterbovenhoek van zoekgebied: rechts <ph name="RIGHT" />%, boven <ph name="TOP" />%</translation>
+<translation id="3366305173356742781">Chromium-gegevens in je account</translation>
 <translation id="3369405342922656244">Deze pagina doorzoeken met Zoeken met afbeelding</translation>
 <translation id="3387527074123400161">Chromium OS</translation>
 <translation id="3406848076815591792">Overschakelen naar bestaand Chromium-profiel?</translation>
@@ -284,6 +285,7 @@ Sommige functies zijn wellicht niet beschikbaar en wijzigingen in voorkeuren wor
 <translation id="4598116752460667024">Zoek naar een proces in de lijst.</translation>
 <translation id="4613863813562375431">Chromium OS-versie</translation>
 <translation id="4621240073146040695">Updaten bijna voltooid. Start Chromium opnieuw op om de update te voltooien.</translation>
+<translation id="4625064703209785397">Versnelt sites met de V8-engine van Chromium, maar maakt Chromium iets minder goed bestand tegen aanvallen</translation>
 <translation id="4654936675281451226">Chromium begrijpt formulieren beter en kan ze sneller automatisch voor je invullen. Deze instelling staat aan.</translation>
 <translation id="4665829708273112819">Waarschuwing: Chromium kan niet voorkomen dat extensies je browsegeschiedenis registreren. Als je deze extensie in de incognitomodus wilt uitzetten, vink je deze optie uit.</translation>
 <translation id="4673151026126227699">Als je ook Chromium-gebruiksrapporten deelt, bevatten die rapporten de URL's die je bezoekt</translation>
@@ -329,6 +331,7 @@ Sommige functies zijn wellicht niet beschikbaar en wijzigingen in voorkeuren wor
 <translation id="5386450000063123300">Chromium updaten (<ph name="PROGRESS_PERCENT" />)</translation>
 <translation id="538767207339317086">Inloggen bij Chromium toestaan</translation>
 <translation id="5405650547142096840">Verwijderen uit Chromium</translation>
+<translation id="5424544524441439284">Vermindert de prestaties maar maakt Chromium beter bestand tegen aanvallen</translation>
 <translation id="5427571867875391349">Chromium instellen als je standaardbrowser</translation>
 <translation id="5438241569118040789"><ph name="PAGE_TITLE" /> - Chromium bèta</translation>
 <translation id="5460618461609401056">{NUM_TABS,plural, =1{Chromium raadt aan het tabblad dat je browser vertraagt te onderbreken}other{Chromium raadt aan de tabbladen die je browser vertragen te onderbreken}}</translation>
@@ -373,6 +376,7 @@ Sommige functies zijn wellicht niet beschikbaar en wijzigingen in voorkeuren wor
 <translation id="5987687638152509985">Chromium updaten om de synchronisatie te starten</translation>
 <translation id="5988505247484123880">Door jou bezochte sites onthouden over het algemeen informatie over je interesses om zo de functionaliteit te personaliseren. Sites kunnen ook informatie over je interesses in Chromium opslaan.</translation>
 <translation id="6003112304606738118">Downloaden... Nog <ph name="HOURS" /> uur</translation>
+<translation id="6009821354356307391">Stel een follow-upvraag</translation>
 <translation id="6040143037577758943">Sluiten</translation>
 <translation id="6058380562449900225">Ter bescherming van je gegevens kun je Chromium de rechten laten verwijderen voor sites die je niet recent hebt bezocht. Hiermee worden meldingen niet gestopt.</translation>
 <translation id="6063093106622310249">&amp;Openen in Chromium</translation>

@@ -34,6 +34,14 @@
 namespace features {
 
 #if BUILDFLAG(IS_ANDROID)
+// If this flag is enabled, only the composited progress bar will be visible,
+// and load progress updates will be animated instead of directly snapping to
+// the new position. The animation is done in the same manner as BCIV, where
+// OffsetTags and OffstTagValues will enable viz to move the progress bar.
+BASE_FEATURE(kAndroidAnimatedCompositedProgressBar,
+             "AndroidAnimatedCompositedProgressBar",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // During a scroll, enable viz to move browser controls according to the
 // offsets provided by the embedded renderer, circumventing browser main
 // involvement. For now, this applies only to top controls.
@@ -150,14 +158,6 @@ BASE_FEATURE(kDCompSurfacesForDelegatedInk,
 BASE_FEATURE(kRemoveRedirectionBitmap,
              "RemoveRedirectionBitmap",
              base::FEATURE_ENABLED_BY_DEFAULT);
-#endif
-
-#if BUILDFLAG(IS_ANDROID)
-// When wide color gamut content from the web is encountered, promote our
-// display to wide color gamut if supported.
-BASE_FEATURE(kDynamicColorGamut,
-             "DynamicColorGamut",
-             base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
 // Submit CompositorFrame from SynchronousLayerTreeFrameSink directly to viz in
@@ -315,13 +315,6 @@ BASE_FEATURE(kEnableInteractiveOnlyADPFRenderer,
              "EnableInteractiveOnlyADPFRenderer",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// If enabled, Chrome includes the Compositor GPU Thread into the
-// ADPF(Android Dynamic Performance Framework) hint session, instead
-// of the GPU Main Thread.
-BASE_FEATURE(kEnableADPFGpuCompositorThread,
-             "EnableADPFGpuCompositorThread",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // If enabled, Chrome puts Renderer Main threads into a separate
 // ADPF(Android Dynamic Performance Framework) hint session, and does not
 // report any timing hints from this session.
@@ -334,11 +327,6 @@ BASE_FEATURE(kEnableADPFSeparateRendererMainSession,
 // threads in the session changes.
 BASE_FEATURE(kEnableADPFSetThreads,
              "EnableADPFSetThreads",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// If enabled, surface activation and draw do not block on dependencies.
-BASE_FEATURE(kDrawImmediatelyWhenInteractive,
-             "DrawImmediatelyWhenInteractive",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, we immediately send acks to clients when a viz surface
@@ -450,6 +438,12 @@ BASE_FEATURE(kCrosContentAdjustedRefreshRate,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
+BASE_FEATURE(kNoCompositorFrameAcks,
+             "NoCompositorFrameAcks",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+const base::FeatureParam<int> kNumberPendingFramesUntilThrottle{
+    &kNoCompositorFrameAcks, "pending_frames", 1};
+
 int DrawQuadSplitLimit() {
   constexpr int kDefaultDrawQuadSplitLimit = 5;
   constexpr int kMinDrawQuadSplitLimit = 1;
@@ -474,17 +468,6 @@ bool IsDelegatedCompositingEnabled() {
 bool IsVizDirectCompositorThreadIpcNonRootEnabled() {
   return base::FeatureList::IsEnabled(kVizDirectCompositorThreadIpcNonRoot);
 }
-
-#if BUILDFLAG(IS_ANDROID)
-bool IsDynamicColorGamutEnabled() {
-  if (viz::AlwaysUseWideColorGamut())
-    return false;
-  auto* build_info = base::android::BuildInfo::GetInstance();
-  if (build_info->sdk_int() < base::android::SDK_VERSION_Q)
-    return false;
-  return base::FeatureList::IsEnabled(kDynamicColorGamut);
-}
-#endif
 
 bool IsUsingVizFrameSubmissionForWebView() {
   return base::FeatureList::IsEnabled(kVizFrameSubmissionForWebView);
@@ -535,10 +518,6 @@ bool ShouldOnBeginFrameThrottleVideo() {
   return base::FeatureList::IsEnabled(features::kOnBeginFrameThrottleVideo);
 }
 
-bool ShouldDrawImmediatelyWhenInteractive() {
-  return base::FeatureList::IsEnabled(
-      features::kDrawImmediatelyWhenInteractive);
-}
 bool ShouldAckOnSurfaceActivationWhenInteractive() {
   return base::FeatureList::IsEnabled(
       features::kAckOnSurfaceActivationWhenInteractive);

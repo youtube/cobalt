@@ -519,7 +519,7 @@
 #include "base/debug/leak_annotations.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_scoped_file_access_delegate.h"
 #include "chrome/browser/chromeos/tablet_mode/chrome_content_browser_client_tablet_mode_part.h"
-#include "chrome/browser/file_system_access/cloud_identifier/cloud_identifier_util_cros.h"
+#include "chrome/browser/file_system_access/cloud_identifier/cloud_identifier_util_ash.h"
 #include "chrome/browser/media/webrtc/multi_capture/multi_capture_usage_indicator_service.h"
 #include "chrome/browser/media/webrtc/multi_capture/multi_capture_usage_indicator_service_factory.h"
 #include "chrome/browser/policy/system_features_disable_list_policy_handler.h"
@@ -1410,6 +1410,9 @@ void ChromeContentBrowserClient::RegisterLocalStatePrefs(
   registry->RegisterBooleanPref(prefs::kOutOfProcessSystemDnsResolutionEnabled,
                                 true);
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID)
+  registry->RegisterBooleanPref(prefs::kOriginKeyedProcessesEnabled, false);
+#endif  // !BUILDFLAG(IS_ANDROID)
 }
 
 // static
@@ -2527,6 +2530,32 @@ bool ChromeContentBrowserClient::ShouldEnableStrictSiteIsolation() {
 #else
   return false;
 #endif
+}
+
+std::optional<bool>
+ChromeContentBrowserClient::GetOverrideValueForOriginKeyedProcesses() {
+  // Users can override the enterprise policy.
+  // Note: This function and
+  // SiteIsolationPolicy::AreOriginKeyedProcessesEnabledByDefault() are expected
+  // to be the only places features::kOriginKeyedProcessesByDefault is checked
+  // outside of tests.
+  if (base::FeatureList::GetInstance()->IsFeatureOverriddenFromCommandLine(
+          features::kOriginKeyedProcessesByDefault.name)) {
+    return base::FeatureList::IsEnabled(
+        features::kOriginKeyedProcessesByDefault);
+  }
+
+#if !BUILDFLAG(IS_ANDROID)
+  // Enterprise overrides take next priority.
+  PrefService* local_state = g_browser_process->local_state();
+  const PrefService::Preference* pref =
+      local_state->FindPreference(prefs::kOriginKeyedProcessesEnabled);
+  if (pref && (pref->IsManaged() || pref->IsRecommended())) {
+    return pref->GetValue()->GetBool();
+  }
+#endif  // !BUILDFLAG(IS_ANDROID)
+
+  return std::nullopt;
 }
 
 bool ChromeContentBrowserClient::ShouldDisableSiteIsolation(
@@ -7252,8 +7281,7 @@ bool ChromeContentBrowserClient::ShouldBlockRendererDebugURL(
 #if BUILDFLAG(IS_ANDROID)
 content::ContentBrowserClient::WideColorGamutHeuristic
 ChromeContentBrowserClient::GetWideColorGamutHeuristic() {
-  if (viz::AlwaysUseWideColorGamut() ||
-      features::IsDynamicColorGamutEnabled()) {
+  if (viz::AlwaysUseWideColorGamut()) {
     return WideColorGamutHeuristic::kUseDisplay;
   }
 
@@ -8192,8 +8220,7 @@ void ChromeContentBrowserClient::GetCloudIdentifiers(
     content::FileSystemAccessPermissionContext::HandleType handle_type,
     GetCloudIdentifiersCallback callback) {
 #if BUILDFLAG(IS_CHROMEOS)
-  cloud_identifier::GetCloudIdentifierFromAsh(url, handle_type,
-                                              std::move(callback));
+  cloud_identifier::GetCloudIdentifier(url, handle_type, std::move(callback));
 #else   // BUILDFLAG(IS_CHROMEOS)
   return ContentBrowserClient::GetCloudIdentifiers(url, handle_type,
                                                    std::move(callback));

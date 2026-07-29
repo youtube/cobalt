@@ -265,9 +265,6 @@ class Browser : public TabStripModelObserver,
     // platform supports it.
     bool initial_visible_on_all_workspaces_state = false;
 
-    // Whether to enable the tab group feature in the tab strip.
-    bool are_tab_groups_enabled = true;
-
     ui::mojom::WindowShowState initial_show_state =
         ui::mojom::WindowShowState::kDefault;
 
@@ -801,6 +798,7 @@ class Browser : public TabStripModelObserver,
           navigation_handle_callback) override;
   const SessionID& GetSessionID() const override;
   TabStripModel* GetTabStripModel() override;
+  const TabStripModel* GetTabStripModel() const override;
   bool IsTabStripVisible() override;
   bool ShouldHideUIForFullscreen() const override;
   base::CallbackListSubscription RegisterBrowserDidClose(
@@ -933,6 +931,11 @@ class Browser : public TabStripModelObserver,
                           const ui::Event& event) override;
   void ContentsZoomChange(bool zoom_in) override;
   bool TakeFocus(content::WebContents* source, bool reverse) override;
+  bool DidAddMessageToConsole(content::WebContents* source,
+                              blink::mojom::ConsoleMessageLevel log_level,
+                              const std::u16string& message,
+                              int32_t line_no,
+                              const std::u16string& source_id) override;
   void BeforeUnloadFired(content::WebContents* source,
                          bool proceed,
                          bool* proceed_to_fire_unload) override;

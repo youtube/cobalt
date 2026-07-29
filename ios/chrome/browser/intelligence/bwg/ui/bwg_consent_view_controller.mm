@@ -409,6 +409,7 @@ NSString* const kSecondBoxLink2ActionNonManagedAccount =
   titleLabel.text = titleText;
   titleLabel.font =
       PreferredFontForTextStyle(UIFontTextStyleHeadline, UIFontWeightSemibold);
+  titleLabel.accessibilityTraits |= UIAccessibilityTraitHeader;
 
   titleLabel.numberOfLines = 0;
   [innerStackView addArrangedSubview:titleLabel];
@@ -447,6 +448,7 @@ NSString* const kSecondBoxLink2ActionNonManagedAccount =
   titleLabel.text = titleText;
   titleLabel.font =
       PreferredFontForTextStyle(UIFontTextStyleHeadline, UIFontWeightSemibold);
+  titleLabel.accessibilityTraits |= UIAccessibilityTraitHeader;
 
   titleLabel.numberOfLines = 0;
   [innerStackView addArrangedSubview:titleLabel];
@@ -530,6 +532,8 @@ NSString* const kSecondBoxLink2ActionNonManagedAccount =
   if (!textItem.link) {
     return nil;
   }
+
+  RecordFREConsentAction(IOSGeminiFREAction::kLinkClick);
   if ([textItem.link.absoluteString isEqualToString:kFirstFootnoteLinkAction]) {
     __weak __typeof(self) weakSelf = self;
     return [UIAction actionWithHandler:^(UIAction* action) {

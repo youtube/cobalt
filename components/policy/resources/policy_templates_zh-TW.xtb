@@ -3144,6 +3144,11 @@ Microsoft Outlook 資訊卡需要額外的管理員設定。想進一步瞭解�
           如要進一步瞭解有效的網址模式，請前往 https://cloud.google.com/docs/chrome-enterprise/policies/url-patterns。系統允許使用萬用字元 (<ph name="WILDCARD_VALUE" />)。</translation>
 <translation id="3273221114520206906">預設 JavaScript 設定</translation>
 <translation id="3278042410658310805">在登入畫面上停用互動朗讀功能，並允許使用者暫時啟用</translation>
+<translation id="3279532732818711062">如果設定這項政策，清單上的來源就能使用 Device Attributes API 取得裝置屬性，例如序號和主機名稱。
+
+來源必須是使用 <ph name="ISOLATED_WEB_APP_INSTALL_FORCE_LIST_POLICY_NAME" /> 政策強制安裝的隔離網頁應用程式 (自 125 版起)、設為資訊站應用程式的網頁應用程式，或是使用 <ph name="WEB_APP_INSTALL_FORCE_LIST_POLICY_NAME" /> 強制安裝的網頁應用程式 (140 版之前)。如需 Device Attributes API 規格，請參閱 https://wicg.github.io/WebApiDevice/device_attributes。
+
+如要進一步瞭解有效的<ph name="URL_LABEL" />模式 (自 127 版起)，請參閱 https://cloud.google.com/docs/chrome-enterprise/policies/url-patterns。<ph name="WILDCARD_VALUE" /> 不是這項政策許可的值。</translation>
 <translation id="328347261792478720">在預設狀態下，瀏覽器會根據使用者顯示個人化的媒體推薦內容。如果將這項政策設為停用，瀏覽器會向使用者隱藏這類推薦內容。如果將這項政策設為啟用或不設定，瀏覽器會向使用者顯示媒體推薦內容。</translation>
 <translation id="3284094172359247914">控制 WebUSB API 使用權限</translation>
 <translation id="3285231260918855067">浮水印文字的外框不透明度，範圍從 0 (透明) 到 100 (不透明)。</translation>
@@ -4173,6 +4178,7 @@ ServiceWorkerAutoPreload 功能會在開始執行 ServiceWorker 啟動程序時�
 <translation id="4051723201852944592">啟用視窗遮蔽功能</translation>
 <translation id="4052529125939620019">啟動時載入 CryptoToken 元件擴充功能</translation>
 <translation id="4053157306171963473">停用裝置活動時間回報功能</translation>
+<translation id="4053168888967633418">裝置屬性設定</translation>
 <translation id="4056842786707010434">選擇是否允許清除頂層跨網站瀏覽的 window.name，以便建立新的瀏覽內容群組。</translation>
 <translation id="4056910949759281379">停用 SPDY 通訊協定</translation>
 <translation id="4057442294431066708">這項政策會控制重新對應按鍵子頁面中將事件重新對應到 F11/F12 的指定快速鍵選項。這些設定僅適用於 ChromeOS 鍵盤，如果不設定這項政策，系統預設會停用這些設定。</translation>
@@ -11147,13 +11153,6 @@ https://developers.google.com/privacy-sandbox/cookies/storage-partitioning。</t
 
       如果將這項政策設為停用，已註冊的裝置不會回報版本資訊。</translation>
 <translation id="8934296213794658971">Gemini 整合設定</translation>
-<translation id="8934485887744460569">設定 <ph name="PRODUCT_NAME" /> 如何下載基礎生成式 AI 模型，運用於在本機進行推論。
-
-如果將這項政策設為「允許 (0)」或不設定，系統會自動下載模型並用於推論。
-
-如果將這項政策設為「停用 (1)」，系統就不會下載模型。
-
-可以使用 <ph name="COMPONENT_UPDATES_ENABLED_POLICY_NAME" /> 停用模型下載功能。</translation>
 <translation id="8937282917198525844"> 自 M81 版起，我們為標準表單控制項元素 (例如 &lt;select&gt;、&lt;button&gt; 和 &lt;input type=date&gt;) 提供煥然一新的外觀和風格，不但強化了無障礙使用設計，在各種作業系統平台操作時，效果也能更一致。這項政策恢復納入了「舊版」表單控制項元素做為使用選項，並且一路提供到 M84 版。
 
       如果將這項政策設為 True，系統會針對所有網站使用「舊版」表單控制項元素。

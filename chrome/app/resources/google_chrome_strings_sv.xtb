@@ -172,6 +172,7 @@ Vissa funktioner kanske inte är tillgängliga och ändringar i inställningarna
 <translation id="3003694935412297923">Alla uppgifter</translation>
 <translation id="3018957014024118866">Radera även data från Chrome (<ph name="URL" />)</translation>
 <translation id="3019382870990049182">Starta om för att uppdatera &amp;ChromeOS Flex</translation>
+<translation id="3037517125981011456">Visar meddelanden om att logga in i Chrome</translation>
 <translation id="3037838751736561277">Google Chrome körs i bakgrundsläge.</translation>
 <translation id="3038232873781883849">Väntar på installation …</translation>
 <translation id="3045032126857188731">Översatt språk: <ph name="LANGUAGE" /></translation>
@@ -315,6 +316,7 @@ Vissa funktioner kanske inte är tillgängliga och ändringar i inställningarna
 <translation id="4747730611090640388">Chrome kan göra en uppskattning av dina intressen.  Sedan kan en webbplats fråga efter dina intressen i Chrome för att anpassa vilka annonser som visas.</translation>
 <translation id="475321580758063259">Uppdatera Chrome för att fortsätta använda Chrome-data i Google-kontot, <ph name="ACCOUNT_EMAIL" /></translation>
 <translation id="4754614261631455953">Google Chrome Canary (mDNS-In)</translation>
+<translation id="4756182432527369254">Detta gör webbplatser snabbare med Chromes V8-motor men Chrome blir något mindre motståndskraftigt mot attacker</translation>
 <translation id="479167709087336770">Detta använder samma stavningskontroll som Google Sök. Text som du skriver i webbläsaren skickas till Google. Du kan när som helst ändra detta i inställningarna.</translation>
 <translation id="4793679854893018356">Läs mer om hur du skyddas i Chrome</translation>
 <translation id="4828579605166583682">Google Chrome försöker ersätta befintliga lösenord. Skriv ditt Windows-lösenord om du vill tillåta detta.</translation>
@@ -407,6 +409,7 @@ Google Chrome kan inte återställa dina inställningar.</translation>
 <translation id="5980111191913430208">Tillägg, appar och teman från okända källor kan skada enheten. Vi rekommenderar att du bara installerar dem från <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /></translation>
 <translation id="6003112304606738118">Laddar ned … <ph name="HOURS" /> timme/timmar kvar</translation>
 <translation id="6008161919456049856">Dina sparade lösenord, betalningsmetoder och adresser i Google-kontot tas bort från den här enheten. Logga in på nytt om du vill använda dem igen i Chrome.</translation>
+<translation id="6009821354356307391">Ställ en följdfråga</translation>
 <translation id="6014316319780893079">Med <ph name="BEGIN_LINK" />verktyg från Chrome<ph name="END_LINK" /> kan du surfa säkert och behålla kontrollen</translation>
 <translation id="6022659036123304283">Anpassa Chrome</translation>
 <translation id="6025087594896450715">Google Chrome startas om om <ph name="REMAINING_TIME" /></translation>
@@ -601,6 +604,7 @@ Google Chrome kan inte återställa dina inställningar.</translation>
 <translation id="8342675569599923794">Filen är farlig och har blockerats av Chrome.</translation>
 <translation id="8349094670477064572">Du sparar och använder lösenord med mera i Google-kontot när du är inloggad i Chrome. <ph name="LEARN_MORE" /></translation>
 <translation id="8362914115861174987">Översätt till</translation>
+<translation id="8366770919198174997">Minskar prestandan men gör Chrome mer motståndskraftig mot attacker</translation>
 <translation id="8370517070665726704">Copyright <ph name="YEAR" /> Google LLC. Med ensamrätt.</translation>
 <translation id="8387459386171870978">Fortsätt att använda Chrome</translation>
 <translation id="8394720698884623075">Kontrollera webbadresser mot en lista över osäkra webbplatser i Chrome</translation>
@@ -645,6 +649,7 @@ Google Chrome kan inte återställa dina inställningar.</translation>
 <translation id="8843516219908676469">Chrome förstår formulär bättre och kan autofylla dem snabbare</translation>
 <translation id="8851180723659088381">{NUM_EXTENSIONS,plural, =1{Chrome rekommenderar att du tar bort detta}other{Chrome rekommenderar att du tar bort dessa}}</translation>
 <translation id="8862326446509486874">Du har inte behörighet att göra en installation på systemnivå. Försök köra installationsprogrammet igen som administratör.</translation>
+<translation id="8865415417596392024">Chrome-data i ditt konto</translation>
 <translation id="8883862939660515976">Fråga Google Lens om den här bilden</translation>
 <translation id="8914504000324227558">Starta om Chrome</translation>
 <translation id="8922193594870374009">Logga in på Chrome på båda enheterna om du vill skicka ett nummer från <ph name="ORIGIN" /> till Android-telefonen.</translation>

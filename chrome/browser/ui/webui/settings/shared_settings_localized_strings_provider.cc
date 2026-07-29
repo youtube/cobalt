@@ -191,8 +191,6 @@ void AddSharedSyncPageStrings(content::WebUIDataSource* html_source) {
       {"passphrasePlaceholder", IDS_SETTINGS_PASSPHRASE_PLACEHOLDER},
       {"existingPassphraseTitle", IDS_SETTINGS_EXISTING_PASSPHRASE_TITLE},
       {"submitPassphraseButton", IDS_SETTINGS_SUBMIT_PASSPHRASE},
-      {"encryptWithGoogleCredentialsLabel",
-       IDS_SETTINGS_ENCRYPT_WITH_GOOGLE_CREDENTIALS_LABEL},
       {"encryptionOptionsTitle", IDS_SETTINGS_ENCRYPTION_OPTIONS},
       {"mismatchedPassphraseError", IDS_SETTINGS_MISMATCHED_PASSPHRASE_ERROR},
       {"emptyPassphraseError", IDS_SETTINGS_EMPTY_PASSPHRASE_ERROR},
@@ -203,16 +201,11 @@ void AddSharedSyncPageStrings(content::WebUIDataSource* html_source) {
       {"syncLoading", IDS_SETTINGS_SYNC_LOADING},
       {"syncDataEncryptedText", IDS_SETTINGS_SYNC_DATA_ENCRYPTED_TEXT},
       {"sync", IDS_SETTINGS_SYNC},
-      {"manageSyncedDataTitle",
-       IDS_SETTINGS_NEW_MANAGE_SYNCED_DATA_TITLE_UNIFIED_CONSENT},
       {"syncAdvancedBrowserPageTitle",
        IDS_SETTINGS_NEW_SYNC_ADVANCED_BROWSER_PAGE_TITLE},
       {"enterPassphraseLabel", IDS_SYNC_ENTER_PASSPHRASE_BODY},
       {"enterPassphraseLabelWithDate",
        IDS_SYNC_ENTER_PASSPHRASE_BODY_WITH_DATE},
-      {"existingPassphraseLabelWithDate",
-       IDS_SYNC_FULL_ENCRYPTION_BODY_CUSTOM_WITH_DATE},
-      {"existingPassphraseLabel", IDS_SYNC_FULL_ENCRYPTION_BODY_CUSTOM},
   };
   html_source->AddLocalizedStrings(kLocalizedStrings);
 
@@ -223,23 +216,61 @@ void AddSharedSyncPageStrings(content::WebUIDataSource* html_source) {
           .spec();
 
   html_source->AddString(
-      "passphraseResetHintEncryption",
-      l10n_util::GetStringFUTF8(IDS_SETTINGS_PASSPHRASE_RESET_HINT_ENCRYPTION,
-                                base::ASCIIToUTF16(sync_dashboard_url)));
-  html_source->AddString(
       "passphraseRecover",
       l10n_util::GetStringFUTF8(IDS_SETTINGS_PASSPHRASE_RECOVER,
                                 base::ASCIIToUTF16(sync_dashboard_url)));
   html_source->AddString("syncDashboardUrl", sync_dashboard_url);
+  html_source->AddString("syncErrorsHelpUrl", chrome::kSyncErrorsHelpURL);
+
+  const bool updateAccountSettingsStrings =
+#if BUILDFLAG(IS_CHROMEOS)
+      false;
+#else
+      base::FeatureList::IsEnabled(syncer::kReplaceSyncPromosWithSignInPromos);
+#endif
+
+  html_source->AddLocalizedString(
+      "encryptWithGoogleCredentialsLabel",
+      updateAccountSettingsStrings
+          ? IDS_SETTINGS_ENCRYPT_ACCOUNT_DATA_WITH_GOOGLE_CREDENTIALS_LABEL
+          : IDS_SETTINGS_ENCRYPT_WITH_GOOGLE_CREDENTIALS_LABEL);
+  html_source->AddLocalizedString(
+      "existingPassphraseLabelWithDate",
+      updateAccountSettingsStrings
+          ? IDS_SYNC_FULL_ACCOUNT_DATA_ENCRYPTION_BODY_CUSTOM_WITH_DATE
+          : IDS_SYNC_FULL_ENCRYPTION_BODY_CUSTOM_WITH_DATE);
+  html_source->AddLocalizedString(
+      "existingPassphraseLabel",
+      updateAccountSettingsStrings
+          ? IDS_SYNC_FULL_ACCOUNT_DATA_ENCRYPTION_BODY_CUSTOM
+          : IDS_SYNC_FULL_ENCRYPTION_BODY_CUSTOM);
+  html_source->AddLocalizedString(
+      "manageSyncedDataTitle",
+      updateAccountSettingsStrings
+          ? IDS_SETTINGS_ACCOUNT_DATA_DASHBOARD
+          : IDS_SETTINGS_NEW_MANAGE_SYNCED_DATA_TITLE_UNIFIED_CONSENT);
+
+  html_source->AddString(
+      "passphraseResetHintEncryption",
+      l10n_util::GetStringFUTF8(
+          updateAccountSettingsStrings
+              ? IDS_SETTINGS_PASSPHRASE_RESET_HINT_ACCOUNT_DATA_ENCRYPTION
+              : IDS_SETTINGS_PASSPHRASE_RESET_HINT_ENCRYPTION,
+          base::ASCIIToUTF16(sync_dashboard_url)));
   html_source->AddString(
       "passphraseExplanationText",
-      l10n_util::GetStringFUTF8(IDS_SETTINGS_PASSPHRASE_EXPLANATION_TEXT,
-                                base::ASCIIToUTF16(sync_dashboard_url)));
+      l10n_util::GetStringFUTF8(
+          updateAccountSettingsStrings
+              ? IDS_SETTINGS_ENCRYPT_ACCOUNT_DATA_WITH_PASSPHRASE_EXPLANATION_TEXT
+              : IDS_SETTINGS_PASSPHRASE_EXPLANATION_TEXT,
+          base::ASCIIToUTF16(sync_dashboard_url)));
   html_source->AddString(
       "encryptWithSyncPassphraseLabel",
       l10n_util::GetStringFUTF8(
-          base::FeatureList::IsEnabled(
-              plus_addresses::features::kPlusAddressesEnabled)
+          updateAccountSettingsStrings
+              ? IDS_SETTINGS_ENCRYPT_ACCOUNT_DATA_WITH_PASSPHRASE_LABEL
+          : base::FeatureList::IsEnabled(
+                plus_addresses::features::kPlusAddressesEnabled)
               ? IDS_SETTINGS_ENCRYPT_WITH_SYNC_PASSPHRASE_INCLUDING_PLUS_ADDRESS_LABEL
               : IDS_SETTINGS_ENCRYPT_WITH_SYNC_PASSPHRASE_LABEL,
 #if BUILDFLAG(IS_CHROMEOS)
@@ -247,8 +278,6 @@ void AddSharedSyncPageStrings(content::WebUIDataSource* html_source) {
 #else
           chrome::kSyncEncryptionHelpURL));
 #endif
-
-  html_source->AddString("syncErrorsHelpUrl", chrome::kSyncErrorsHelpURL);
 }
 
 void AddSecureDnsStrings(content::WebUIDataSource* html_source) {

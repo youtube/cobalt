@@ -190,6 +190,7 @@
 <translation id="3313189106987092621">Chromium mostrarache unha advertencia antes de cargar un sitio cunha conexión pouco segura</translation>
 <translation id="3316771292331273802">Pecharase a túa sesión na maioría dos sitios cando peches todas as ventás de Chromium, excepto a túa Conta de Google se tes a sesión iniciada en Chromium. Permitir que os sitios te lembren, <ph name="SETTINGS_LINK" />.</translation>
 <translation id="3352986031709923790">esquina superior dereita da área de busca: <ph name="RIGHT" /> % á dereita, <ph name="TOP" /> % arriba</translation>
+<translation id="3366305173356742781">Datos de Chromium na túa conta</translation>
 <translation id="3369405342922656244">Procurar contido nesta páxina coa busca de imaxes</translation>
 <translation id="3387527074123400161">Chromium OS</translation>
 <translation id="3406848076815591792">Queres cambiar ao perfil existente de Chromium?</translation>
@@ -285,6 +286,7 @@
 <translation id="4598116752460667024">Busca calquera proceso da lista.</translation>
 <translation id="4613863813562375431">Versión de Chromium OS</translation>
 <translation id="4621240073146040695">A actualización case rematou. Volve iniciar Chromium para finalizala.</translation>
+<translation id="4625064703209785397">Acelera os sitios co motor V8 de Chromium, pero fai que Chromium sexa un pouco menos resistente aos ataques</translation>
 <translation id="4654936675281451226">Chromium entenderá mellor o contido dos formularios e poderá completalos automaticamente máis rápido. Esta opción de configuración está activada.</translation>
 <translation id="4665829708273112819">Advertencia: Chromium non pode evitar que as extensións rexistren o teu historial de navegación. Para desactivar esta extensión no modo de incógnito, anula a selección desta opción.</translation>
 <translation id="4673151026126227699">Se, ademais, compartes os informes de uso de Chromium, neles inclúense os URL que visites</translation>
@@ -330,6 +332,7 @@
 <translation id="5386450000063123300">Actualizando Chromium (<ph name="PROGRESS_PERCENT" />)</translation>
 <translation id="538767207339317086">Permitir inicio de sesión en Chromium</translation>
 <translation id="5405650547142096840">Eliminar de Chromium</translation>
+<translation id="5424544524441439284">Reduce o rendemento, pero fai que Chromium sexa máis resistente aos ataques</translation>
 <translation id="5427571867875391349">Establecer Chromium como o teu navegador predeterminado</translation>
 <translation id="5438241569118040789"><ph name="PAGE_TITLE" /> (versión beta de Chromium)</translation>
 <translation id="5460618461609401056">{NUM_TABS,plural, =1{Chromium recomenda pór en pausa a pestana que fai que o navegador vaia máis lento}other{Chromium recomenda pór en pausa as pestanas que fan que o navegador vaia máis lento}}</translation>
@@ -374,6 +377,7 @@
 <translation id="5987687638152509985">Actualiza Chromium para iniciar a sincronización</translation>
 <translation id="5988505247484123880">É habitual que os sitios que visitas lembren o que che interesa para personalizar a experiencia que se che ofrece neles. Os sitios tamén poden almacenar con Chromium información sobre os teus intereses.</translation>
 <translation id="6003112304606738118">Descargando… Tempo restante: <ph name="HOURS" /> h</translation>
+<translation id="6009821354356307391">Facer outra consulta</translation>
 <translation id="6040143037577758943">Pechar</translation>
 <translation id="6058380562449900225">Para protexer os teus datos, Chromium quita permisos dos sitios que non visitaches recentemente. Aínda así, non deixarás de recibir as notificacións.</translation>
 <translation id="6063093106622310249">&amp;Abrir en Chromium</translation>

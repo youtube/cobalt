@@ -173,10 +173,12 @@ AutofillSaveCardUiInfo AutofillSaveCardUiInfo::CreateForLocalSave(
   }
 #elif BUILDFLAG(IS_IOS)
   // On iOS, the UI (infobar vs. bottom sheet) and title are determined by
-  // whether the feature is enabled and the card's strike count. This logic
-  // mirrors the check in `ShouldShowSaveCardBottomSheetForLocalSave`.
+  // whether the feature is enabled and the card's strike count.
   is_for_bottom_sheet =
-      options.num_strikes.has_value() && options.num_strikes.value() == 0 &&
+      ShouldShowSaveCardBottomSheet(
+          options.num_strikes.value_or(0),
+          /*should_request_name_from_user=*/false,
+          /*should_request_expiration_date_from_user=*/false) &&
       base::FeatureList::IsEnabled(
           autofill::features::kAutofillLocalSaveCardBottomSheet);
 
@@ -213,7 +215,7 @@ AutofillSaveCardUiInfo AutofillSaveCardUiInfo::CreateForLocalSave(
       save_card_icon_id = IDR_AUTOFILL_CC_GENERIC_PRIMARY_OLD;
       save_card_prompt_title_id = IDS_AUTOFILL_SAVE_CVC_PROMPT_TITLE_LOCAL;
       description_text = l10n_util::GetStringUTF16(
-          IDS_AUTOFILL_SAVE_CVC_PROMPT_EXPLANATION_LOCAL);
+          IDS_AUTOFILL_SAVE_CVC_PROMPT_EXPLANATION_LOCAL_SAVE_IOS);
       break;
     }
   }
@@ -297,9 +299,10 @@ AutofillSaveCardUiInfo AutofillSaveCardUiInfo::CreateForUploadSave(
   }
 #elif BUILDFLAG(IS_IOS)
   is_for_bottom_sheet =
-      options.num_strikes.has_value() && options.num_strikes.value() == 0 &&
-      !options.should_request_name_from_user &&
-      !options.should_request_expiration_date_from_user &&
+      ShouldShowSaveCardBottomSheet(
+          options.num_strikes.value_or(0),
+          options.should_request_name_from_user,
+          options.should_request_expiration_date_from_user) &&
       base::FeatureList::IsEnabled(features::kAutofillSaveCardBottomSheet);
 
   switch (options.card_save_type) {
@@ -335,8 +338,9 @@ AutofillSaveCardUiInfo AutofillSaveCardUiInfo::CreateForUploadSave(
           features::kAutofillEnableCvcStorageAndFilling));
       save_card_icon_id = IDR_AUTOFILL_CC_GENERIC_PRIMARY_OLD;
       save_card_prompt_title_id = IDS_AUTOFILL_SAVE_CVC_PROMPT_TITLE_TO_CLOUD;
-      description_text = l10n_util::GetStringUTF16(
-          IDS_AUTOFILL_SAVE_CVC_PROMPT_EXPLANATION_UPLOAD);
+      description_text = l10n_util::GetStringFUTF16(
+          IDS_AUTOFILL_SAVE_CVC_PROMPT_EXPLANATION_UPLOAD_IOS,
+          base::UTF8ToUTF16(displayed_target_account.email));
       break;
     }
   }
@@ -355,5 +359,15 @@ AutofillSaveCardUiInfo AutofillSaveCardUiInfo::CreateForUploadSave(
           IDS_AUTOFILL_SAVE_CARD_PROMPT_LOADING_THROBBER_ACCESSIBLE_NAME),
       is_google_pay_branding_enabled, is_for_bottom_sheet);
 }
+
+#if BUILDFLAG(IS_IOS)
+bool ShouldShowSaveCardBottomSheet(
+    int num_strikes,
+    bool should_request_name_from_user,
+    bool should_request_expiration_date_from_user) {
+  return num_strikes == 0 && !should_request_name_from_user &&
+         !should_request_expiration_date_from_user;
+}
+#endif  // BUILDFLAG(IS_IOS)
 
 }  // namespace autofill

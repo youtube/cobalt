@@ -89,3 +89,7 @@ assertNever<CheckEnumCompatibility<
     typeof mojom.HostCapability, typeof api.HostCapability>>();
 assertNever<CheckEnumCompatibility<
     typeof mojom.ActorTaskState, typeof api.ActorTaskState>>();
+assertNever<CheckEnumCompatibility<
+    typeof mojom.ActorTaskPauseReason, typeof api.ActorTaskPauseReason>>();
+assertNever<CheckEnumCompatibility<
+    typeof mojom.ActorTaskStopReason, typeof api.ActorTaskStopReason>>();

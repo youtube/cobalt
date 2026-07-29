@@ -165,9 +165,14 @@ class GlicAnnotationManagerUiTest : public InteractiveGlicTest {
       if (data.focus()) {
         FetchPageContext(
             data.focus(), *options,
-            base::BindLambdaForTesting([&](mojom::GetContextResultPtr result) {
+            base::BindLambdaForTesting([&](base::expected<
+                                           glic::mojom::GetContextResultPtr,
+                                           page_content_annotations::
+                                               FetchPageContextErrorDetails>
+                                               result) {
               mojo_base::ProtoWrapper& serialized_apc =
-                  *result->get_tab_context()
+                  *result.value()
+                       ->get_tab_context()
                        ->annotated_page_data->annotated_page_content;
               annotated_page_content_ = std::make_unique<
                   optimization_guide::proto::AnnotatedPageContent>(
@@ -1236,7 +1241,7 @@ IN_PROC_BROWSER_TEST_F(GlicAnnotationManagerUiTest,
       ScrollToAsyncWithDocumentId(ExactTextSelector("does not matter")),
       WaitForEvent(kBrowserViewElementId, kScrollToRequestReceived), Do([&]() {
         glic_metrics->OnResponseStarted();
-        glic_metrics->OnResponseStopped();
+        glic_metrics->OnResponseStopped(mojom::ResponseStopCause::kUnknown);
       }),
       Do([&]() {
         fake_service()->NotifyAttachment(
@@ -1255,7 +1260,7 @@ IN_PROC_BROWSER_TEST_F(GlicAnnotationManagerUiTest,
       ScrollToAsyncWithDocumentId(ExactTextSelector("does not matter")),
       WaitForEvent(kBrowserViewElementId, kScrollToRequestReceived), Do([&]() {
         glic_metrics->OnResponseStarted();
-        glic_metrics->OnResponseStopped();
+        glic_metrics->OnResponseStopped(mojom::ResponseStopCause::kUnknown);
       }),
       Do([&]() {
         fake_service()->NotifyAttachment(

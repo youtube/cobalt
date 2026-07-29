@@ -34,6 +34,7 @@
 <translation id="1982637982196732906">ផ្លាស់ទី​ទៅកាន់​ផ្នែក​អសកម្ម</translation>
 <translation id="2050597508048557928">{TABS_COUNT,plural, =1{ចំណាំ​ផ្ទាំង​ដែល​បាន​ជ្រើសរើស <ph name="TABS_COUNT_ONE" />}other{ចំណាំ​ផ្ទាំង​ដែល​បាន​ជ្រើសរើស <ph name="TABS_COUNT_MANY" />}}</translation>
 <translation id="2055057176188061528">ជ្រើសរើស​ក្រុមផ្ទាំង ឬ​បង្កើត​ក្រុមផ្ទាំង​ថ្មី</translation>
+<translation id="2074527029802029717">ដកការដៅផ្ទាំង</translation>
 <translation id="2118649612461486615">ព័ត៌មានអំពីហាង</translation>
 <translation id="2123073051266141035">{INCOGNITO_TABS_COUNT,plural, =1{ផ្ទាំង និងក្រុមដែលអ្នកបានបិទអាចត្រូវបានបើកឡើងវិញពីផ្នែកផ្ទាំងថ្មីៗ និងផ្នែកក្រុមផ្ទាំង។ នឹងមិនមានផ្ទាំងឯកជន​របស់អ្នកទេ។}other{ផ្ទាំង និងក្រុមដែលអ្នកបានបិទអាចត្រូវបានបើកឡើងវិញពីផ្នែកផ្ទាំងថ្មីៗ និងផ្នែកក្រុមផ្ទាំង។ នឹងមិនមានផ្ទាំង​ឯកជន​ចំនួន # របស់អ្នក​ទេ។}}</translation>
 <translation id="2162620598375156287">ឥឡូវនេះ <ph name="CURRENT_PRICE" /> នៅលើ <ph name="SOURCE_WEBSITE" /></translation>
@@ -62,6 +63,7 @@
 <translation id="2894757982205307093">ផ្ទាំងថ្មី​នៅក្នុងក្រុម</translation>
 <translation id="2918484639460781603">ចូលទៅកាន់​ការកំណត់</translation>
 <translation id="2928243913527329289">Google | អំពី​ហាងនេះ</translation>
+<translation id="2978860912612699943">{ITEMS_COUNT,plural, =1{បានជ្រើសរើស <ph name="ITEMS_COUNT_ONE" />}other{បានជ្រើសរើស <ph name="ITEMS_COUNT_MANY" />}}</translation>
 <translation id="3008554597174452548">បញ្ឈប់ការតាមដានផលិតផល</translation>
 <translation id="3026391124054406831">បង្កើត​ក្រុម ដើម្បី​រៀបចំ​ផ្ទាំង​របស់អ្នក។</translation>
 <translation id="3051031624272448591">អ្នក​តែងតែអាច​យក​ផ្ទាំង​ទាំង​នោះ​មកវិញ​នៅ​ក្នុង​ប្រវត្តិ</translation>

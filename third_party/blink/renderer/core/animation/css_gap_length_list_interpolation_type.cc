@@ -46,25 +46,25 @@ InterpolationValue GetInterpolationValueFromGapData(
       /*interpolate_size=*/std::nullopt));
 }
 
-bool IsCompatible(const InterpolableValue& a, const InterpolableValue& b) {
-  if (a.IsGapLengthRepeater() != b.IsGapLengthRepeater()) {
+bool IsCompatible(const InterpolableValue* a, const InterpolableValue* b) {
+  if (a->IsGapLengthRepeater() != b->IsGapLengthRepeater()) {
     return false;
   }
-  if (!a.IsGapLengthRepeater()) {
+  if (!a->IsGapLengthRepeater()) {
     return true;  // lengths are compatible.
   }
-  return To<InterpolableGapLengthRepeater>(a).IsCompatibleWith(
-      To<InterpolableGapLengthRepeater>(b));
+  return To<InterpolableGapLengthRepeater>(*a).IsCompatibleWith(
+      To<InterpolableGapLengthRepeater>(*b));
 }
 
 }  // namespace
 
-class UnderlyingGapDataListChecker final
+class UnderlyingGapLengthListChecker final
     : public CSSInterpolationType::CSSConversionChecker {
  public:
-  explicit UnderlyingGapDataListChecker(const InterpolationValue& underlying)
+  explicit UnderlyingGapLengthListChecker(const InterpolationValue& underlying)
       : underlying_(MakeGarbageCollected<InterpolationValueGCed>(underlying)) {}
-  ~UnderlyingGapDataListChecker() final = default;
+  ~UnderlyingGapLengthListChecker() final = default;
 
   void Trace(Visitor* visitor) const final {
     InterpolationType::ConversionChecker::Trace(visitor);
@@ -74,8 +74,13 @@ class UnderlyingGapDataListChecker final
  private:
   bool IsValid(const StyleResolverState&,
                const InterpolationValue& underlying) const final {
-    return To<InterpolableList>(*underlying_->underlying().interpolable_value)
-        .Equals(To<InterpolableList>(*underlying.interpolable_value));
+    auto& underlying_list =
+        To<InterpolableList>(*underlying_->underlying().interpolable_value);
+    auto& other_list = To<InterpolableList>(*underlying.interpolable_value);
+    return ListInterpolationFunctions::InterpolableListsAreCompatible(
+        underlying_list, other_list, underlying_list.length(),
+        ListInterpolationFunctions::LengthMatchingStrategy::kEqual,
+        &IsCompatible);
   }
 
   const Member<const InterpolationValueGCed> underlying_;
@@ -107,8 +112,8 @@ void CSSGapLengthListInterpolationType::Composite(
       [this, &owner, &value](UnderlyingValue& underlying_value, double fraction,
                              const InterpolableValue& interpolable_value,
                              const NonInterpolableValue*) {
-        if (!IsCompatible(underlying_value.MutableInterpolableValue(),
-                          interpolable_value)) {
+        if (!IsCompatible(&underlying_value.MutableInterpolableValue(),
+                          &interpolable_value)) {
           owner.Set(this, value);
           return;
         }
@@ -130,19 +135,18 @@ void CSSGapLengthListInterpolationType::ApplyStandardPropertyValue(
   DCHECK_EQ(non_interpolable_list.length(), length);
   GapDataList<int> result(length);
   for (wtf_size_t i = 0; i < length; i++) {
+    Length::ValueRange value_range =
+        LengthListPropertyFunctions::GetValueRange(CssProperty());
     if (auto* repeater = DynamicTo<InterpolableGapLengthRepeater>(
             interpolable_list.Get(i))) {
       result.AddGapData(repeater->CreateGapData(
-          state.CssToLengthConversionData(),
-          LengthListPropertyFunctions::GetValueRange(CssProperty())));
+          state.CssToLengthConversionData(), value_range));
       continue;
     }
 
     result.AddGapData(
         To<InterpolableLength>(*interpolable_list.Get(i))
-            .CreateLength(
-                state.CssToLengthConversionData(),
-                LengthListPropertyFunctions::GetValueRange(CssProperty())));
+            .CreateLength(state.CssToLengthConversionData(), value_range));
   }
 
   if (CssProperty().PropertyID() == CSSPropertyID::kColumnRuleWidth) {
@@ -167,7 +171,7 @@ InterpolationValue CSSGapLengthListInterpolationType::MaybeConvertNeutral(
     const InterpolationValue& underlying,
     ConversionCheckers& conversion_checkers) const {
   conversion_checkers.push_back(
-      MakeGarbageCollected<UnderlyingGapDataListChecker>(underlying));
+      MakeGarbageCollected<UnderlyingGapLengthListChecker>(underlying));
   return InterpolationValue(underlying.interpolable_value->CloneAndZero(),
                             underlying.non_interpolable_value);
 }
@@ -248,8 +252,7 @@ InterpolationValue CSSGapLengthListInterpolationType::MaybeConvertValue(
   const auto& list = To<CSSValueList>(value);
 
   GapDataList<int> gap_data_list =
-      StyleBuilderConverter::ConvertGapDecorationWidthDataList(
-          const_cast<StyleResolverState&>(state), value);
+      StyleBuilderConverter::ConvertGapDecorationWidthDataList(state, value);
   const GapDataList<int>::GapDataVector& gap_data_vector =
       gap_data_list.GetGapDataList();
   return ListInterpolationFunctions::CreateList(
@@ -268,8 +271,8 @@ PairwiseInterpolationValue CSSGapLengthListInterpolationType::MaybeMergeSingles(
       std::move(start), std::move(end),
       ListInterpolationFunctions::LengthMatchingStrategy::kEqual,
       [](InterpolationValue&& start_item, InterpolationValue&& end_item) {
-        if (!IsCompatible(*start_item.interpolable_value,
-                          *end_item.interpolable_value)) {
+        if (!IsCompatible(start_item.interpolable_value,
+                          end_item.interpolable_value)) {
           return PairwiseInterpolationValue(nullptr);
         }
 

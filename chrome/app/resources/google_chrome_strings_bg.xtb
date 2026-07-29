@@ -170,6 +170,7 @@
 <translation id="3003694935412297923">Всички задачи</translation>
 <translation id="3018957014024118866">Изтриване на данните и от Chrome (<ph name="URL" />)</translation>
 <translation id="3019382870990049182">Повторно стартиране за актуализиране на &amp;ChromeOS Flex</translation>
+<translation id="3037517125981011456">Показва подкани за влизане в Chrome</translation>
 <translation id="3037838751736561277">Google Chrome работи на заден план.</translation>
 <translation id="3038232873781883849">Изчаква се инсталирането да започне...</translation>
 <translation id="3045032126857188731">Език на превода: <ph name="LANGUAGE" /></translation>
@@ -313,6 +314,7 @@
 <translation id="4747730611090640388">Chrome може да прогнозира интересите ви.  По-късно посетен от вас сайт може да поиска от браузъра информация за тях с цел да персонализира показваните ви реклами.</translation>
 <translation id="475321580758063259">Актуализирайте Chrome, за да продължите да използвате данните от браузъра в профила си в Google (<ph name="ACCOUNT_EMAIL" />)</translation>
 <translation id="4754614261631455953">Google Chrome Canary (входящ трафик за mDNS)</translation>
+<translation id="4756182432527369254">Ускорява сайтовете с машината V8 на Chrome, но същевременно устойчивостта на браузъра срещу атаки леко намалява</translation>
 <translation id="479167709087336770">Използва се същата услуга за проверка на правописа като в Google Търсене. Текстът, който въвеждате в браузъра, се изпраща до Google. Винаги можете да промените това поведение от настройките.</translation>
 <translation id="4793679854893018356">Научете как Chrome се грижи за безопасността ви</translation>
 <translation id="4828579605166583682">Google Chrome опитва да замени съществуващите пароли. За да разрешите това, въведете паролата си за Windows.</translation>
@@ -401,6 +403,7 @@
 <translation id="5980111191913430208">Разширения, приложения и теми от неизвестни източници могат да навредят на устройството ви. Chrome препоръчва да инсталирате такива само от <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /></translation>
 <translation id="6003112304606738118">Изтегля се... Оставащо време: <ph name="HOURS" /> ч</translation>
 <translation id="6008161919456049856">Паролите, начините на плащане и адресите, които сте запазили в профила си в Google, ще бъдат премахнати от това устройство. За да ги използвате отново в Chrome, влезте пак в профила си.</translation>
+<translation id="6009821354356307391">Задайте последващ въпрос</translation>
 <translation id="6014316319780893079">С помощта на <ph name="BEGIN_LINK" />инструментите от Chrome<ph name="END_LINK" /> можете да сърфирате безопасно и да запазите контрол</translation>
 <translation id="6022659036123304283">Персонализирайте Chrome според вкуса си</translation>
 <translation id="6025087594896450715">Google Chrome ще се рестартира след <ph name="REMAINING_TIME" /></translation>
@@ -595,6 +598,7 @@
 <translation id="8342675569599923794">Chrome блокира този файл, тъй като е опасен.</translation>
 <translation id="8349094670477064572">Ще запазвате и използвате пароли и др. в профила си в Google, когато сте влезли в Chrome. <ph name="LEARN_MORE" /></translation>
 <translation id="8362914115861174987">Превод на</translation>
+<translation id="8366770919198174997">Намалява ефективността, но прави Chrome по-устойчив на атаки</translation>
 <translation id="8370517070665726704">Авторски права <ph name="YEAR" /> г. Google LLC. Всички права запазени.</translation>
 <translation id="8387459386171870978">Продължаване на използването на Chrome</translation>
 <translation id="8394720698884623075">URL адресите се проверяват в съхраняван в Chrome списък с опасни сайтове</translation>
@@ -639,6 +643,7 @@
 <translation id="8843516219908676469">Chrome разпознава формулярите по-добре и може да ги попълва по-бързо вместо вас</translation>
 <translation id="8851180723659088381">{NUM_EXTENSIONS,plural, =1{Chrome препоръчва да го премахнете}other{Chrome препоръчва да ги премахнете}}</translation>
 <translation id="8862326446509486874">Нямате подходящи права за инсталация на ниво система. Опитайте да стартирате отново инсталационната програма като администратор.</translation>
+<translation id="8865415417596392024">Данни в Chrome в профила ви</translation>
 <translation id="8883862939660515976">Попитайте Google Обектив за това изображение</translation>
 <translation id="8914504000324227558">Повторно стартиране на Chrome</translation>
 <translation id="8922193594870374009">За да изпратите номер от <ph name="ORIGIN" /> до телефона си с Android, влезте в Chrome и на двете устройства.</translation>

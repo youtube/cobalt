@@ -19,7 +19,6 @@
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/extensions/extensions_container.h"
-#include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/toolbar/toolbar_action_view_controller.h"
 #include "chrome/browser/ui/toolbar/toolbar_actions_model.h"
 #include "chrome/browser/ui/views/extensions/extensions_toolbar_container.h"
@@ -273,8 +272,7 @@ class CommandsApiTest : public ExtensionApiTest {
                               ActionInfo::Type action_type) {
     bool active = false;
     Command command;
-    CommandService* const command_service =
-        CommandService::Get(browser()->profile());
+    CommandService* const command_service = CommandService::Get(profile());
     bool found_command = command_service->GetExtensionActionCommand(
         extension_id, action_type, CommandService::ALL, &command, &active);
     return found_command && active;
@@ -285,8 +283,7 @@ class CommandsApiTest : public ExtensionApiTest {
     EXPECT_TRUE(ui_test_utils::NavigateToURL(
         browser(),
         embedded_test_server()->GetURL("/extensions/test_file.txt")));
-    return sessions::SessionTabHelper::FromWebContents(
-               browser()->tab_strip_model()->GetActiveWebContents())
+    return sessions::SessionTabHelper::FromWebContents(GetActiveWebContents())
         ->session_id()
         .id();
   }
@@ -327,7 +324,7 @@ IN_PROC_BROWSER_TEST_F(CommandsApiTest, Basic) {
       browser(), embedded_test_server()->GetURL("/extensions/test_file.txt")));
 
   // activeTab shouldn't have been granted yet.
-  WebContents* tab = browser()->tab_strip_model()->GetActiveWebContents();
+  WebContents* tab = GetActiveWebContents();
   ASSERT_TRUE(tab);
 
   EXPECT_FALSE(IsGrantedForTab(extension, tab));
@@ -400,7 +397,7 @@ IN_PROC_BROWSER_TEST_F(CommandsApiTest, PageActionKeyUpdated) {
   const Extension* extension = GetSingleLoadedExtension();
   ASSERT_TRUE(extension) << message_;
 
-  CommandService* command_service = CommandService::Get(browser()->profile());
+  CommandService* command_service = CommandService::Get(profile());
   // Simulate the user setting the keybinding to Alt+Shift+G.
   command_service->UpdateKeybindingPrefs(
       extension->id(), manifest_values::kPageActionCommandEvent, kAltShiftG);
@@ -424,7 +421,7 @@ IN_PROC_BROWSER_TEST_F(CommandsApiTest, ActionKeyUpdated) {
   ASSERT_TRUE(extension) << message_;
 
   // Simulate the user changing the keybinding.
-  CommandService* command_service = CommandService::Get(browser()->profile());
+  CommandService* command_service = CommandService::Get(profile());
   command_service->UpdateKeybindingPrefs(
       extension->id(), manifest_values::kActionCommandEvent, "Ctrl+Shift+Y");
 
@@ -441,7 +438,7 @@ IN_PROC_BROWSER_TEST_F(CommandsApiTest, PageActionOverrideChromeShortcut) {
   const Extension* extension = GetSingleLoadedExtension();
   ASSERT_TRUE(extension) << message_;
 
-  CommandService* command_service = CommandService::Get(browser()->profile());
+  CommandService* command_service = CommandService::Get(profile());
 // Simulate the user setting the keybinding to override the print shortcut.
 #if BUILDFLAG(IS_MAC)
   std::string print_shortcut = "Command+P";
@@ -540,7 +537,7 @@ IN_PROC_BROWSER_TEST_F(CommandsApiTest,
 
   ASSERT_TRUE(RunExtensionTest("keybinding/basics")) << message_;
 
-  CommandService* command_service = CommandService::Get(browser()->profile());
+  CommandService* command_service = CommandService::Get(profile());
 
   const Extension* extension = GetSingleLoadedExtension();
   // Simulate the user setting the keybinding to Ctrl+D.
@@ -604,8 +601,8 @@ IN_PROC_BROWSER_TEST_F(CommandsApiTest, ShortcutAddedOnUpdate) {
                                scoped_temp_dir.GetPath().AppendASCII("v2.crx"),
                                pem_path, base::FilePath());
 
-  ExtensionRegistry* registry = ExtensionRegistry::Get(browser()->profile());
-  CommandService* command_service = CommandService::Get(browser()->profile());
+  ExtensionRegistry* registry = ExtensionRegistry::Get(profile());
+  CommandService* command_service = CommandService::Get(profile());
 
   // Install v1 of the extension without keybinding assigned.
   ASSERT_TRUE(InstallExtension(path_v1_unassigned, 1));
@@ -648,8 +645,8 @@ IN_PROC_BROWSER_TEST_F(CommandsApiTest, ShortcutChangedOnUpdate) {
       scoped_temp_dir.GetPath().AppendASCII("v2_reassigned.crx"), pem_path,
       base::FilePath());
 
-  ExtensionRegistry* registry = ExtensionRegistry::Get(browser()->profile());
-  CommandService* command_service = CommandService::Get(browser()->profile());
+  ExtensionRegistry* registry = ExtensionRegistry::Get(profile());
+  CommandService* command_service = CommandService::Get(profile());
 
   // Install v1 of the extension.
   ASSERT_TRUE(InstallExtension(path_v1, 1));
@@ -695,8 +692,8 @@ IN_PROC_BROWSER_TEST_F(CommandsApiTest, ShortcutRemovedOnUpdate) {
       scoped_temp_dir.GetPath().AppendASCII("v2_unassigned.crx"), pem_path,
       base::FilePath());
 
-  ExtensionRegistry* registry = ExtensionRegistry::Get(browser()->profile());
-  CommandService* command_service = CommandService::Get(browser()->profile());
+  ExtensionRegistry* registry = ExtensionRegistry::Get(profile());
+  CommandService* command_service = CommandService::Get(profile());
 
   // Install v1 of the extension.
   ASSERT_TRUE(InstallExtension(path_v1, 1));
@@ -740,8 +737,8 @@ IN_PROC_BROWSER_TEST_F(CommandsApiTest,
                                scoped_temp_dir.GetPath().AppendASCII("v2.crx"),
                                pem_path, base::FilePath());
 
-  ExtensionRegistry* registry = ExtensionRegistry::Get(browser()->profile());
-  CommandService* command_service = CommandService::Get(browser()->profile());
+  ExtensionRegistry* registry = ExtensionRegistry::Get(profile());
+  CommandService* command_service = CommandService::Get(profile());
 
   // Install v1 of the extension without keybinding assigned.
   ASSERT_TRUE(InstallExtension(path_v1_unassigned, 1));
@@ -789,8 +786,8 @@ IN_PROC_BROWSER_TEST_F(CommandsApiTest,
       scoped_temp_dir.GetPath().AppendASCII("v2_reassigned.crx"), pem_path,
       base::FilePath());
 
-  ExtensionRegistry* registry = ExtensionRegistry::Get(browser()->profile());
-  CommandService* command_service = CommandService::Get(browser()->profile());
+  ExtensionRegistry* registry = ExtensionRegistry::Get(profile());
+  CommandService* command_service = CommandService::Get(profile());
 
   // Install v1 of the extension.
   ASSERT_TRUE(InstallExtension(path_v1, 1));
@@ -842,8 +839,8 @@ IN_PROC_BROWSER_TEST_F(CommandsApiTest,
       scoped_temp_dir.GetPath().AppendASCII("mk_v2.crx"), pem_path,
       base::FilePath());
 
-  ExtensionRegistry* registry = ExtensionRegistry::Get(browser()->profile());
-  CommandService* command_service = CommandService::Get(browser()->profile());
+  ExtensionRegistry* registry = ExtensionRegistry::Get(profile());
+  CommandService* command_service = CommandService::Get(profile());
 
   // Install v1 of the extension.
   ASSERT_TRUE(InstallExtension(path_v1, 1));
@@ -894,8 +891,8 @@ IN_PROC_BROWSER_TEST_F(CommandsApiTest,
       scoped_temp_dir.GetPath().AppendASCII("v2_unassigned.crx"), pem_path,
       base::FilePath());
 
-  ExtensionRegistry* registry = ExtensionRegistry::Get(browser()->profile());
-  CommandService* command_service = CommandService::Get(browser()->profile());
+  ExtensionRegistry* registry = ExtensionRegistry::Get(profile());
+  CommandService* command_service = CommandService::Get(profile());
 
   // Install v1 of the extension.
   ASSERT_TRUE(InstallExtension(path_v1, 1));
@@ -997,8 +994,8 @@ IN_PROC_BROWSER_TEST_F(CommandsApiTest, AddRemoveAddComponentExtension) {
       RunExtensionTest("keybinding/component", {}, {.load_as_component = true}))
       << message_;
 
-  extensions::ComponentLoader::Get(browser()->profile())
-      ->Remove("pkplfbidichfdicaijlchgnapepdginl");
+  extensions::ComponentLoader::Get(profile())->Remove(
+      "pkplfbidichfdicaijlchgnapepdginl");
 
   ASSERT_TRUE(
       RunExtensionTest("keybinding/component", {}, {.load_as_component = true}))
@@ -1015,8 +1012,7 @@ IN_PROC_BROWSER_TEST_F(CommandsApiTest, TabParameter) {
   const Extension* extension = GetSingleLoadedExtension();
   ASSERT_TRUE(extension) << message_;
   ResultCatcher catcher;
-  EXPECT_TRUE(content::WaitForLoadStop(
-      browser()->tab_strip_model()->GetActiveWebContents()));
+  EXPECT_TRUE(content::WaitForLoadStop(GetActiveWebContents()));
   ASSERT_TRUE(ui_test_utils::SendKeyPressSync(browser(), ui::VKEY_Y, true, true,
                                               false, false));  // Ctrl+Shift+Y
   EXPECT_TRUE(catcher.GetNextResult()) << catcher.message();
@@ -1034,8 +1030,7 @@ IN_PROC_BROWSER_TEST_P(IncognitoCommandsApiTest, IncognitoMode) {
 
   // Open incognito window and navigate to test page.
   Browser* incognito_browser = OpenURLOffTheRecord(
-      browser()->profile(),
-      embedded_test_server()->GetURL("/extensions/test_file.html"));
+      profile(), embedded_test_server()->GetURL("/extensions/test_file.html"));
 
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       incognito_browser,

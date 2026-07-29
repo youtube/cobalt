@@ -188,6 +188,7 @@
 <translation id="3313189106987092621">Chromium varoittaa sinua ennen kuin lataat sivustoja suojaamattomalla yhteydellä</translation>
 <translation id="3316771292331273802">Sinut kirjataan ulos useimmilta sivustoilta, kun suljet kaikki Chromium-ikkunat. Tämä ei kuitenkaan koske Google-tiliäsi, jos olet kirjautuneena Chromiumiin. <ph name="SETTINGS_LINK" />, jotta sivustot muistavat sinut.</translation>
 <translation id="3352986031709923790">hakualueen oikea yläkulma: oikea <ph name="RIGHT" /> %, ylä <ph name="TOP" /> %</translation>
+<translation id="3366305173356742781">Tilisi Chromium-data</translation>
 <translation id="3369405342922656244">Hae tältä sivulta kuvahaulla</translation>
 <translation id="3387527074123400161">Chromium-käyttöjärjestelmä</translation>
 <translation id="3406848076815591792">Vaihdetaanko nykyiseen Chromium-profiiliin?</translation>
@@ -283,6 +284,7 @@
 <translation id="4598116752460667024">Hae mitä tahansa prosessia listalta.</translation>
 <translation id="4613863813562375431">Chromium-käyttöjärjestelmän versio</translation>
 <translation id="4621240073146040695">Melkein valmista. Viimeistele päivitys käynnistämällä Chromium uudelleen.</translation>
+<translation id="4625064703209785397">Nopeuttaa sivustoja Chromiumin V8-moottorilla, mutta heikentää Chromiumin suojaa hyökkäyksiä vastaan</translation>
 <translation id="4654936675281451226">Chromium tulkitsee lomakkeita paremmin ja voi täyttää ne automaattisesti nopeammin. Tämä asetus on päällä.</translation>
 <translation id="4665829708273112819">Varoitus: Chromium ei voi estää laajennuksia tallentamasta selaushistoriaasi. Voit estää tämän laajennuksen käytön incognito-tilassa poistamalla tämän valinnan.</translation>
 <translation id="4673151026126227699">Jos jaat myös Chromiumin käyttöraportteja, avaamasi URL-osoitteet näkyvät niissä</translation>
@@ -328,6 +330,7 @@
 <translation id="5386450000063123300">Päivitetään Chromiumia (<ph name="PROGRESS_PERCENT" />)</translation>
 <translation id="538767207339317086">Salli Chromium-kirjautuminen</translation>
 <translation id="5405650547142096840">Poista Chromiumista</translation>
+<translation id="5424544524441439284">Rajoittaa suorituskykyä, mutta tekee Chromiumista suojatumman hyökkäyksiä vastaan</translation>
 <translation id="5427571867875391349">Aseta Chromium oletusselaimeksi</translation>
 <translation id="5438241569118040789"><ph name="PAGE_TITLE" /> – Chromium Beta</translation>
 <translation id="5460618461609401056">{NUM_TABS,plural, =1{Chromium suosittelee selainta hidastavan välilehden keskeyttämistä}other{Chromium suosittelee selainta hidastavien välilehtien keskeyttämistä}}</translation>
@@ -372,6 +375,7 @@
 <translation id="5987687638152509985">Aloita synkronointi päivittämällä Chromium.</translation>
 <translation id="5988505247484123880">On tavallista, että avaamasi sivustot muistavat sinua kiinnostavat asiat personoidakseen käyttökokemustasi. Sivustot voivat myös tallentaa Chromiumiin tietoja kiinnostuksen kohteistasi.</translation>
 <translation id="6003112304606738118">Ladataan… <ph name="HOURS" /> tuntia jäljellä</translation>
+<translation id="6009821354356307391">Esitä lisäkysymys</translation>
 <translation id="6040143037577758943">Sulje</translation>
 <translation id="6058380562449900225">Datasi suojaamiseksi salli Chromiumin poistaa luvat sivustoilta, joilla et ole käynyt viime aikoina. Tämä ei estä ilmoituksia.</translation>
 <translation id="6063093106622310249">&amp;Avaa Chromiumissa</translation>
@@ -580,6 +584,7 @@ Chromium ei voi palauttaa asetuksiasi.</translation>
 <translation id="8458614432758743027">Chromium edellyttää Windows 10:tä tai uudempaa versiota.</translation>
 <translation id="8463672209299734063">Valinnainen: Auta parantamaan Chromium-käyttöjärjestelmän ominaisuuksia ja suorituskykyä lähettämällä diagnostiikka- ja käyttödataa Googlelle automaattisesti.</translation>
 <translation id="8471947159125090285">Chromium-datan käyttö ja tallennus Google-tilillä edellyttää, että vahvistat henkilöllisyytesi</translation>
+<translation id="8482493977473846331">Näytä kehotteet kirjautua Chromiumiin</translation>
 <translation id="8493179195440786826">Chromium on vanhentunut</translation>
 <translation id="8522801943730206384">Chromium voi tarkistaa salasanasi, kun tallennat niitä</translation>
 <translation id="8555465886620020932">Palveluvirhe: <ph name="SERVICE_ERROR" />.</translation>

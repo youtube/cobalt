@@ -306,6 +306,9 @@ void PageHandler::OnReceivedPerformanceInfoForPageData(
   if (debug_state.state_) {
     auto info = mojom::BaseModelInfo::New();
     info->file_path = debug_state.state_->GetInstallDirectory().AsUTF8Unsafe();
+    std::optional<int64_t> file_size =
+        base::GetFileSize(debug_state.state_->GetInstallDirectory());
+    info->file_size = file_size ? static_cast<uint64_t>(*file_size) : 0u;
     info->component_version =
         debug_state.state_->GetComponentVersion().GetString();
     info->version = debug_state.state_->GetBaseModelSpec().model_version;
@@ -327,8 +330,8 @@ void PageHandler::OnReceivedPerformanceInfoForPageData(
   }
 
   // Get crash counts
-  PrefService* prefs = g_browser_process->local_state();
-  data->model_crash_count = prefs->GetInteger(kOnDeviceModelCrashCount);
+  const PrefService* local_state = g_browser_process->local_state();
+  data->model_crash_count = local_state->GetInteger(kOnDeviceModelCrashCount);
   data->max_model_crash_count =
       optimization_guide::features::GetOnDeviceModelCrashCountBeforeDisable();
 
@@ -336,7 +339,8 @@ void PageHandler::OnReceivedPerformanceInfoForPageData(
   optimization_guide::OnDeviceModelServiceController& controller =
       *optimization_guide_keyed_service_->GetModelExecutionManager()
            ->GetOnDeviceModelServiceController();
-  const PrefService* local_state = g_browser_process->local_state();
+  optimization_guide::UsageTracker& usage_tracker =
+      optimization_guide_keyed_service_->GetGlobalState().usage_tracker();
   for (const auto feature : optimization_guide::kAllModelBasedCapabilityKeys) {
     if (!optimization_guide::features::internal::
             GetOptimizationTargetForCapability(feature)) {
@@ -346,7 +350,7 @@ void PageHandler::OnReceivedPerformanceInfoForPageData(
     feature_adaptation_info->feature_name = base::ToString(feature);
     feature_adaptation_info->feature_key = static_cast<int32_t>(feature);
     feature_adaptation_info->is_recently_used =
-        WasOnDeviceEligibleFeatureRecentlyUsed(feature, *local_state);
+        usage_tracker.WasOnDeviceEligibleFeatureRecentlyUsed(feature);
     feature_adaptation_info->version =
         controller.GetFeatureMetadata(feature)
             .transform(

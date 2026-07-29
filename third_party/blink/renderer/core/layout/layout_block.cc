@@ -55,7 +55,6 @@
 #include "third_party/blink/renderer/core/layout/layout_object_inlines.h"
 #include "third_party/blink/renderer/core/layout/layout_theme.h"
 #include "third_party/blink/renderer/core/layout/layout_view.h"
-#include "third_party/blink/renderer/core/layout/legacy_layout_tree_walking.h"
 #include "third_party/blink/renderer/core/layout/length_utils.h"
 #include "third_party/blink/renderer/core/layout/masonry/layout_masonry.h"
 #include "third_party/blink/renderer/core/layout/mathml/layout_mathml_block.h"
@@ -89,11 +88,6 @@ LayoutBlock::LayoutBlock(ContainerNode* node) : LayoutBox(node) {
 void LayoutBlock::Trace(Visitor* visitor) const {
   visitor->Trace(children_);
   LayoutBox::Trace(visitor);
-}
-
-bool LayoutBlock::IsLayoutNGObject() const {
-  NOT_DESTROYED();
-  return true;
 }
 
 void LayoutBlock::RemoveFromGlobalMaps() {
@@ -339,15 +333,8 @@ void LayoutBlock::RemoveLeftoverAnonymousBlock(LayoutBlock* child) {
 
   // Promote all the leftover anonymous block's children (to become children of
   // this block instead). We still want to keep the leftover block in the tree
-  // for a moment, for notification purposes done further below (flow threads
-  // and grids).
+  // for a moment, for notification purposes done further below (grids).
   child->MoveAllChildrenTo(this, child->NextSibling());
-
-  if (!RuntimeEnabledFeatures::FlowThreadLessEnabled()) {
-    // Remove all the information in the flow thread associated with the
-    // leftover anonymous block.
-    child->RemoveFromLayoutFlowThread();
-  }
 
   // Now remove the leftover anonymous block from the tree, and destroy it.
   // We'll rip it out manually from the tree before destroying it, because we
@@ -554,11 +541,12 @@ bool LayoutBlock::HitTestChildren(HitTestResult& result,
       continue;
 
     PhysicalOffset child_accumulated_offset =
-        scrolled_offset + child->PhysicalLocation(this);
+        scrolled_offset + child->PhysicalLocation();
     bool did_hit;
     if (child->IsFloating()) {
-      if (phase != HitTestPhase::kFloat || !IsLayoutNGObject())
+      if (phase != HitTestPhase::kFloat) {
         continue;
+      }
       // Hit-test the floats in regular tree order if this is LayoutNG. Only
       // legacy layout uses the FloatingObjects list.
       did_hit = child->HitTestAllPhases(result, hit_test_location,
@@ -601,8 +589,8 @@ PositionWithAffinity LayoutBlock::PositionForPoint(
   NOT_DESTROYED();
   // NG codepath requires |kPrePaintClean|.
   // |SelectionModifier| calls this only in legacy codepath.
-  DCHECK(!IsLayoutNGObject() || GetDocument().Lifecycle().GetState() >=
-                                    DocumentLifecycle::kPrePaintClean);
+  DCHECK(GetDocument().Lifecycle().GetState() >=
+         DocumentLifecycle::kPrePaintClean);
 
   if (IsAtomicInlineLevel()) {
     PositionWithAffinity position =

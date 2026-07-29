@@ -412,7 +412,7 @@ targets.bundle(
 # Android desktop FYI tests that run on AVDs or devices. Specific emulator or
 # device mixins should be added where this is used.
 targets.bundle(
-    name = "android_desktop_fyi_tests",
+    name = "android_desktop_fyi_gtests",
     targets = [
         "android_browsertests",
         "android_smoke_tests",
@@ -438,24 +438,10 @@ targets.bundle(
     },
 )
 
-# Android desktop tests that run on a Linux host.
-targets.bundle(
-    name = "android_desktop_junit_tests",
-    targets = [
-        "chrome_junit_tests",
-    ],
-    mixins = [
-        "has_native_resultdb_integration",
-        "junit-swarming-emulator",
-        "linux-jammy",
-        "x86-64",
-    ],
-)
-
 # Android desktop tests that run on AVDs or devices. Specific emulator or
 # device mixins should be added where this is used.
 targets.bundle(
-    name = "android_desktop_tests",
+    name = "android_desktop_gtests",
     targets = [
         "android_browsertests",
         "chrome_public_unit_test_apk",
@@ -464,6 +450,7 @@ targets.bundle(
         "video_encode_accelerator_tests",
     ],
     mixins = [
+        "force-android-desktop",
         "has_native_resultdb_integration",
         "linux-jammy",
         "x86-64",
@@ -485,6 +472,40 @@ targets.bundle(
             ),
         ),
     },
+)
+
+targets.bundle(
+    name = "android_desktop_isolated_script_tests",
+    targets = [
+        "android_chrome_wpt_tests",
+    ],
+    mixins = [
+        "android_desktop_wpt_args",
+        "has_native_resultdb_integration",
+        "linux-jammy",
+        "x86-64",
+    ],
+    per_test_modifications = {
+        "android_chrome_wpt_tests": targets.mixin(
+            swarming = targets.swarming(
+                shards = 4,
+            ),
+        ),
+    },
+)
+
+# Android desktop tests that run on a Linux host.
+targets.bundle(
+    name = "android_desktop_junit_tests",
+    targets = [
+        "chrome_junit_tests",
+    ],
+    mixins = [
+        "has_native_resultdb_integration",
+        "junit-swarming-emulator",
+        "linux-jammy",
+        "x86-64",
+    ],
 )
 
 targets.bundle(
@@ -2526,45 +2547,6 @@ targets.bundle(
 )
 
 targets.bundle(
-    name = "dawn_chromeos_release_telemetry_tests_volteer_skylab",
-    targets = [
-        # TODO(crbug.com/340815322): Add gpu_dawn_webgpu_compat_cts once
-        # compat works properly on ChromeOS.
-        targets.bundle(
-            targets = "gpu_dawn_webgpu_cts",
-            variants = [
-                "CROS_VOLTEER_PUBLIC_RELEASE_ASH_LKGM",
-            ],
-        ),
-    ],
-)
-
-targets.bundle(
-    name = "dawn_chromeos_release_tests_volteer_skylab",
-    targets = [
-        # gtests
-        targets.bundle(
-            targets = "gpu_common_gtests_passthrough",
-            variants = [
-                "CROS_VOLTEER_PUBLIC_RELEASE_ASH_LKGM",
-            ],
-        ),
-        targets.bundle(
-            targets = "gpu_dawn_gtests",
-            variants = [
-                "CROS_VOLTEER_PUBLIC_RELEASE_ASH_LKGM",
-            ],
-        ),
-        targets.bundle(
-            targets = "gpu_dawn_gtests_with_validation",
-            variants = [
-                "CROS_VOLTEER_PUBLIC_RELEASE_ASH_LKGM",
-            ],
-        ),
-    ],
-)
-
-targets.bundle(
     name = "desktop_chromium_isolated_scripts",
     targets = [
         "blink_python_tests",
@@ -4174,21 +4156,6 @@ targets.bundle(
 )
 
 targets.bundle(
-    name = "gpu_fyi_chromeos_release_gtests_volteer_skylab",
-    targets = [
-        # gpu_angle_unit_gtests and gpu_desktop_specific_gtests should also be
-        # enabled here, but are removed for various reasons. See the definition
-        # for gpu_fyi_chromeos_release_gtests for more information.
-        targets.bundle(
-            targets = "gpu_common_gtests_passthrough",
-            variants = [
-                "CROS_VOLTEER_PUBLIC_RELEASE_ASH_LKGM",
-            ],
-        ),
-    ],
-)
-
-targets.bundle(
     name = "gpu_fyi_chromeos_release_telemetry_tests",
     targets = [
         "gpu_common_and_optional_telemetry_tests",
@@ -4197,48 +4164,6 @@ targets.bundle(
         "gpu_webcodecs_telemetry_test",
         "gpu_webgl2_conformance_gles_passthrough_telemetry_tests",
         "gpu_webgl_conformance_gles_passthrough_telemetry_tests",
-    ],
-)
-
-targets.bundle(
-    name = "gpu_fyi_chromeos_release_telemetry_tests_volteer_skylab",
-    targets = [
-        targets.bundle(
-            targets = "gpu_common_and_optional_telemetry_tests",
-            variants = [
-                "CROS_VOLTEER_PUBLIC_RELEASE_ASH_LKGM",
-            ],
-        ),
-        targets.bundle(
-            targets = "gpu_passthrough_telemetry_tests",
-            variants = [
-                "CROS_VOLTEER_PUBLIC_RELEASE_ASH_LKGM",
-            ],
-        ),
-        targets.bundle(
-            targets = "gpu_webcodecs_telemetry_test",
-            variants = [
-                "CROS_VOLTEER_PUBLIC_RELEASE_ASH_LKGM",
-            ],
-        ),
-        targets.bundle(
-            targets = "gpu_webrtc_telemetry_test",
-            variants = [
-                "CROS_VOLTEER_PUBLIC_RELEASE_ASH_LKGM",
-            ],
-        ),
-        targets.bundle(
-            targets = "gpu_webgl2_conformance_gles_passthrough_telemetry_tests",
-            variants = [
-                "CROS_VOLTEER_PUBLIC_RELEASE_ASH_LKGM",
-            ],
-        ),
-        targets.bundle(
-            targets = "gpu_webgl_conformance_gles_passthrough_telemetry_tests",
-            variants = [
-                "CROS_VOLTEER_PUBLIC_RELEASE_ASH_LKGM",
-            ],
-        ),
     ],
 )
 
@@ -6196,7 +6121,7 @@ targets.bundle(
     per_test_modifications = {
         "interactive_ui_tests": targets.mixin(
             swarming = targets.swarming(
-                shards = 6,
+                shards = 7,
             ),
         ),
     },

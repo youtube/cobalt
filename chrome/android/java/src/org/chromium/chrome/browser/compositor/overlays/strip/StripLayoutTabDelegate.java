@@ -43,7 +43,8 @@ public class StripLayoutTabDelegate {
         VisualState.MULTISELECT,
         VisualState.MULTISELECT_HOVERED,
         VisualState.SELECTED,
-        VisualState.SELECTED_HOVERED
+        VisualState.SELECTED_HOVERED,
+        VisualState.NON_DRAG_REORDERING
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface VisualState {
@@ -69,6 +70,9 @@ public class StripLayoutTabDelegate {
 
         /** The state when a pointer is hovering over the currently active tab. */
         int SELECTED_HOVERED = 6;
+
+        /** The state when the tab is reordering for a non-drag operation. */
+        int NON_DRAG_REORDERING = 7;
     }
 
     /**
@@ -91,8 +95,9 @@ public class StripLayoutTabDelegate {
      * @param visibleRightBound The strip's visible right bound, in dps.
      * @param newTabButton The New Tab Button, used for positioning calculations.
      * @param isFirstLayoutPass Whether this is the first layout pass, used to suppress animations.
+     * @return Whether the close button changed visibility.
      */
-    public void updateTabCloseButtonVisibility(
+    public boolean updateTabCloseButtonVisibility(
             StripLayoutTab tab,
             boolean isLastTab,
             float stripLeftFadeWidth,
@@ -113,6 +118,7 @@ public class StripLayoutTabDelegate {
                         visibleRightBound,
                         newTabButton);
 
+        boolean currentCanShow = tab.canShowCloseButton();
         boolean canShow =
                 (tab.getWidth() >= TAB_WIDTH_MEDIUM || (tab.getIsSelected() && isFullyVisible));
 
@@ -121,10 +127,12 @@ public class StripLayoutTabDelegate {
         if (ChromeFeatureList.sTabletTabStripAnimation.isEnabled()
                 && tab.isDying()
                 && !tab.getIsSelected()) {
-            tab.setCanShowCloseButton(false, false);
+            canShow = false;
+            tab.setCanShowCloseButton(canShow, false);
         } else {
             tab.setCanShowCloseButton(canShow, !isFirstLayoutPass);
         }
+        return currentCanShow != canShow;
     }
 
     /**
@@ -185,6 +193,17 @@ public class StripLayoutTabDelegate {
     }
 
     /**
+     * Sets the non-drag reordering state for a given tab.
+     *
+     * @param tab The {@link StripLayoutTab} to modify.
+     * @param isNonDragReordering Whether the tab is reordering for a non-drag operation.
+     */
+    public void setIsTabNonDragReordering(StripLayoutTab tab, boolean isNonDragReordering) {
+        tab.setIsNonDragReordering(isNonDragReordering);
+        updateTabVisualState(tab, /* animate= */ false);
+    }
+
+    /**
      * Checks if the tab's background container is fully transparent.
      *
      * @param tab The {@link StripLayoutTab} to check.
@@ -204,6 +223,13 @@ public class StripLayoutTabDelegate {
         return tab.getContainerOpacity() == TAB_OPACITY_VISIBLE;
     }
 
+    /** Updates a tab's visibility based on its internal state. */
+    public static void updateTabVisibility(StripLayoutTab tab) {
+        // TODO(crbug.com/436663313): Stop exposing this method, and handle solely in
+        //  #updateTabVisualState.
+        setTabVisibility(tab, tab.shouldBeVisible());
+    }
+
     /**
      * Sets the visibility of the tab's background container directly.
      *
@@ -211,6 +237,8 @@ public class StripLayoutTabDelegate {
      * @param isVisible Whether the container should be visible.
      */
     public static void setTabVisibility(StripLayoutTab tab, boolean isVisible) {
+        // TODO(crbug.com/436663313): Stop exposing this method, and handle solely in
+        //  #updateTabVisualState.
         float containerOpacity = isVisible ? TAB_OPACITY_VISIBLE : TAB_OPACITY_HIDDEN;
         tab.setContainerOpacity(containerOpacity);
     }
@@ -255,15 +283,11 @@ public class StripLayoutTabDelegate {
         // 2. Update the "folio" lifted effect.
         // It should only apply to non-selected tabs.
         if (!tab.getIsSelected()) {
-            boolean shouldBeDetached = tab.getIsHovered() || tab.getIsMultiSelected();
-            tab.setFolioAttached(!shouldBeDetached);
-            tab.setBottomMargin(
-                    shouldBeDetached
-                            ? FOLIO_DETACHED_BOTTOM_MARGIN_DP
-                            : FOLIO_ATTACHED_BOTTOM_MARGIN_DP);
+            tab.setFolioAttached(/* folioAttached= */ false);
+            tab.setBottomMargin(FOLIO_DETACHED_BOTTOM_MARGIN_DP);
         } else {
             // Ensure selected tabs are "attached".
-            tab.setFolioAttached(true);
+            tab.setFolioAttached(/* folioAttached= */ true);
             tab.setBottomMargin(FOLIO_ATTACHED_BOTTOM_MARGIN_DP);
         }
     }
@@ -315,12 +339,17 @@ public class StripLayoutTabDelegate {
         return !tabStartHidden && !tabEndHidden;
     }
 
-    /** Determines the visual state of a tab based on its selected and hovered properties. */
+    /**
+     * Determines the visual state of a tab based on several properties (e.g. selected, hovered,
+     * multi-selected, placeholder, non-drag-reordering, etc.).
+     */
     private static @VisualState int calculateVisualState(StripLayoutTab tab) {
         if (tab.getIsSelected() && tab.getIsHovered()) {
             return VisualState.SELECTED_HOVERED;
         } else if (tab.getIsSelected()) {
             return VisualState.SELECTED;
+        } else if (tab.getIsNonDragReordering()) {
+            return VisualState.NON_DRAG_REORDERING;
         } else if (tab.getIsMultiSelected() && tab.getIsHovered()) {
             return VisualState.MULTISELECT_HOVERED;
         } else if (tab.getIsMultiSelected()) {

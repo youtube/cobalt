@@ -282,8 +282,10 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
 
     private final long mActivityId;
 
+    @SuppressWarnings("HidingField")
     protected final ObservableSupplierImpl<EdgeToEdgeController> mEdgeToEdgeControllerSupplier =
             new ObservableSupplierImpl<>();
+
     protected final ManualFillingComponentSupplier mManualFillingComponentSupplier =
             new ManualFillingComponentSupplier();
 
@@ -1876,6 +1878,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
                         (ChromeKeyboardVisibilityDelegate) getWindowAndroid().getKeyboardDelegate(),
                         mBackPressManager,
                         mEdgeToEdgeControllerSupplier,
+                        getInsetObserver(),
                         findViewById(R.id.keyboard_accessory_sheet_stub),
                         findViewById(R.id.keyboard_accessory_stub));
     }

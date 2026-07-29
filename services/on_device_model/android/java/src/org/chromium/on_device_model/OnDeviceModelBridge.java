@@ -14,9 +14,8 @@ import org.chromium.on_device_model.mojom.SessionParams;
 
 /**
  * A central bridge to connect between the native and java code for on-device model. Responsible
- * for: 1) creating and managing the AiCoreSession on java side. 2) forwarding the request from the
- * native side to the AiCoreSession. 3) forwarding the response from the AiCoreSession to the native
- * side.
+ * for: 1) creating AiCoreSession for inference. 2) creating AiCoreModelDownloader for model
+ * download.
  */
 @JNINamespace("on_device_model")
 @NullMarked
@@ -24,21 +23,45 @@ class OnDeviceModelBridge {
     /**
      * Creates a new AiCoreSession.
      *
-     * @param feature The feature id requested this session.
+     * @param feature The feature id requested this session. This is a proto enum
+     *     ModelExecutionFeature.
      * @param topK The top K value for sampling.
      * @param temperature The temperature value for sampling.
-     * @return The AiCoreSession instance.
+     * @return The AiCoreSessionWrapper instance.
      */
     @CalledByNative
-    private static AiCoreSession createSession(int feature, int topK, float temperature) {
+    private static AiCoreSessionWrapper createSession(int feature, int topK, float temperature) {
         ModelExecutionFeature modelExecutionFeatureId = ModelExecutionFeature.forNumber(feature);
         SessionParams params = new SessionParams();
         params.topK = topK;
         params.temperature = temperature;
-        AiCoreSessionFactory factory = ServiceLoaderUtil.maybeCreate(AiCoreSessionFactory.class);
+        AiCoreFactory factory = ServiceLoaderUtil.maybeCreate(AiCoreFactory.class);
+        AiCoreSessionBackend backend;
         if (factory == null) {
-            return new AiCoreSessionUpstreamImpl();
+            backend = new AiCoreSessionBackendUpstreamImpl();
+        } else {
+            backend = factory.createSessionBackend(modelExecutionFeatureId, params);
         }
-        return factory.createSession(modelExecutionFeatureId, params);
+        return new AiCoreSessionWrapper(backend);
+    }
+
+    /**
+     * Creates a new AiCoreModelDownloader.
+     *
+     * @param feature The feature id requested this downloader. This is a proto enum
+     *     ModelExecutionFeature.
+     * @return The AiCoreModelDownloaderWrapper instance.
+     */
+    @CalledByNative
+    private static AiCoreModelDownloaderWrapper createModelDownloader(int feature) {
+        ModelExecutionFeature modelExecutionFeatureId = ModelExecutionFeature.forNumber(feature);
+        AiCoreFactory factory = ServiceLoaderUtil.maybeCreate(AiCoreFactory.class);
+        AiCoreModelDownloaderBackend backend;
+        if (factory == null) {
+            backend = new AiCoreModelDownloaderBackendUpstreamImpl();
+        } else {
+            backend = factory.createModelDownloader(modelExecutionFeatureId);
+        }
+        return new AiCoreModelDownloaderWrapper(backend);
     }
 }

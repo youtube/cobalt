@@ -172,6 +172,7 @@
 <translation id="3003694935412297923">ໜ້າວຽກທັງໝົດ</translation>
 <translation id="3018957014024118866">ລຶບຂໍ້ມູນອອກຈາກ Chrome (<ph name="URL" />) ນຳ</translation>
 <translation id="3019382870990049182">ເລີ່ມເປີດໃຊ້ໃໝ່ເພື່ອອັບເດດ &amp;ChromeOS Flex</translation>
+<translation id="3037517125981011456">ສະແດງຂໍ້ຄວາມເພື່ອເຂົ້າສູ່ລະບົບຫາ Chrome</translation>
 <translation id="3037838751736561277">Google Chrome ຢູ່ໃນໂໝດພື້ນຫຼັງ.</translation>
 <translation id="3038232873781883849">ກຳ​ລັງ​ລໍ​ຖ້າ​ຕິດ​ຕັ້ງ...</translation>
 <translation id="3045032126857188731">ພາສາທີ່ແປ: <ph name="LANGUAGE" /></translation>
@@ -408,6 +409,7 @@ Google Chrome ບໍ່ສາມາດກູ້ຄືນການຕັ້ງຄ
 <translation id="5980111191913430208">ສ່ວນຂະຫຍາຍ, ແອັບ ແລະ ຮູບແບບສີສັນຈາກແຫຼ່ງຂໍ້ມູນທີ່ບໍ່ຮູ້ຈັກອາດເປັນອັນຕະລາຍກັບອຸປະກອນຂອງທ່ານໄດ້. Chrome ແນະນຳໃຫ້ຕິດຕັ້ງພວກມັນຈາກ <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> ເທົ່ານັ້ນ</translation>
 <translation id="6003112304606738118">ກຳລັງດາວໂຫຼດ... ຍັງເຫຼືອ <ph name="HOURS" /> ຊົ່ວໂມງ</translation>
 <translation id="6008161919456049856">ລະບົບຈະລຶບລະຫັດຜ່ານ, ວິທີການຈ່າຍເງິນ ແລະ ທີ່ຢູ່ທີ່ທ່ານບັນທຶກໄວ້ໃນບັນຊີ Google ຂອງທ່ານອອກຈາກອຸປະກອນນີ້. ເພື່ອໃຊ້ຂໍ້ມູນເຫຼົ່ານີ້ໃນ Chrome, ໃຫ້ເຂົ້າສູ່ລະບົບອີກຄັ້ງ.</translation>
+<translation id="6009821354356307391">ຂໍການຕິດຕາມຜົນ</translation>
 <translation id="6014316319780893079">ດ້ວຍ <ph name="BEGIN_LINK" />ເຄື່ອງມືຈາກ Chrome<ph name="END_LINK" />, ທ່ານຈະສາມາດທ່ອງເວັບໄດ້ຢ່າງປອດໄພ ແລະ ຄວບຄຸມສິ່ງຕ່າງໆໄດ້</translation>
 <translation id="6022659036123304283">ເຮັດໃຫ້ Chrome ເປັນຂອງທ່ານ</translation>
 <translation id="6025087594896450715">Google Chrome ຈະຣີສະຕາດໃນ <ph name="REMAINING_TIME" /></translation>
@@ -647,6 +649,7 @@ Google Chrome ບໍ່ສາມາດກູ້ຄືນການຕັ້ງຄ
 <translation id="8843516219908676469">Chrome ເຂົ້າໃຈແບບຟອມດີຂຶ້ນ ແລະ ສາມາດຕື່ມຂໍ້ມູນໃສ່ແບບຟອມໂດຍອັດຕະໂນມັດໃຫ້ທ່ານໄດ້</translation>
 <translation id="8851180723659088381">{NUM_EXTENSIONS,plural, =1{Chrome ແນະນຳໃຫ້ທ່ານລຶບອອກ}other{Chrome ແນະນຳໃຫ້ທ່ານລຶບອອກ}}</translation>
 <translation id="8862326446509486874">ທ່ານບໍ່ມີສິດທິທີ່ເໝາະສົມສໍາລັບຕິດຕັ້ງ​ໃນລະດັບລະບົບ. ລອງແລ່ນຕົວຕິດຕັ້ງນີ້ອີກ​ໃນ​ຖານະ​ເປັນ​ຜູ້ຄວບຄຸມ.</translation>
+<translation id="8865415417596392024">ຂໍ້ມູນ Chrome ໃນບັນຊີຂອງທ່ານ</translation>
 <translation id="8883862939660515976">ຖາມ Google Lens ກ່ຽວກັບຮູບນີ້</translation>
 <translation id="8914504000324227558">ເປີດໃຊ້ Chrome ຄືນໃໝ່</translation>
 <translation id="8922193594870374009">ເພື່ອສົ່ງເບີຈາກ <ph name="ORIGIN" /> ໃຫ້ໂທລະສັບ Android ຂອງທ່ານ, ກະລຸນາເຂົ້າສູ່ລະບົບ Chrome ຢູ່ໃນທັງສອງອຸປະກອນ.</translation>

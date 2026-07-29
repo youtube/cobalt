@@ -22,6 +22,7 @@ function addPrivacyChildRoutes(r: Partial<SettingsRoutes>) {
 
   if (visibility.safetyHub !== false) {
     r.SAFETY_HUB = r.PRIVACY.createChild('/safetyCheck');
+    r.SAFETY_HUB.hasMigratedToPlugin = true;
   }
 
   if (loadTimeData.getBoolean('showPrivacyGuide')) {
@@ -31,31 +32,40 @@ function addPrivacyChildRoutes(r: Partial<SettingsRoutes>) {
   r.SECURITY = r.PRIVACY.createChild('/security');
 
   r.COOKIES = r.PRIVACY.createChild('/cookies');
+  r.COOKIES.hasMigratedToPlugin = true;
   if (loadTimeData.getBoolean('enableIncognitoTrackingProtections') ) {
     r.INCOGNITO_TRACKING_PROTECTIONS = r.PRIVACY.createChild('/incognito');
   }
 
   if (!loadTimeData.getBoolean('isPrivacySandboxRestricted')) {
     r.PRIVACY_SANDBOX = r.PRIVACY.createChild('/adPrivacy');
+    r.PRIVACY_SANDBOX.hasMigratedToPlugin = true;
     r.PRIVACY_SANDBOX_TOPICS =
         r.PRIVACY_SANDBOX.createChild('/adPrivacy/interests');
+    r.PRIVACY_SANDBOX_TOPICS.hasMigratedToPlugin = true;
     r.PRIVACY_SANDBOX_MANAGE_TOPICS =
         r.PRIVACY_SANDBOX_TOPICS.createChild('/adPrivacy/interests/manage');
+    r.PRIVACY_SANDBOX_MANAGE_TOPICS.hasMigratedToPlugin = true;
     r.PRIVACY_SANDBOX_FLEDGE =
         r.PRIVACY_SANDBOX.createChild('/adPrivacy/sites');
+    r.PRIVACY_SANDBOX_FLEDGE.hasMigratedToPlugin = true;
     r.PRIVACY_SANDBOX_AD_MEASUREMENT =
         r.PRIVACY_SANDBOX.createChild('/adPrivacy/measurement');
+    r.PRIVACY_SANDBOX_AD_MEASUREMENT.hasMigratedToPlugin = true;
   } else if (loadTimeData.getBoolean(
                  'isPrivacySandboxRestrictedNoticeEnabled')) {
     r.PRIVACY_SANDBOX = r.PRIVACY.createChild('/adPrivacy');
+    r.PRIVACY_SANDBOX.hasMigratedToPlugin = true;
     // When the view is restricted, but the notice is configured to show, allow
     // measurement settings only.
     r.PRIVACY_SANDBOX_AD_MEASUREMENT =
         r.PRIVACY_SANDBOX.createChild('/adPrivacy/measurement');
+    r.PRIVACY_SANDBOX_AD_MEASUREMENT.hasMigratedToPlugin = true;
   }
 
   if (loadTimeData.getBoolean('enableSecurityKeysSubpage')) {
     r.SECURITY_KEYS = r.SECURITY.createChild('/securityKeys');
+    r.SECURITY_KEYS.hasMigratedToPlugin = true;
   }
 
   r.SITE_SETTINGS_ALL = r.SITE_SETTINGS.createChild('all');
@@ -377,3 +387,17 @@ window.addEventListener('popstate', function() {
 });
 
 export let routes: SettingsRoutes = Router.getInstance().getRoutes();
+
+// Returns the "effective" route when at chrome://settings/.
+export function getTopLevelRoute(): Route {
+  if (!loadTimeData.getBoolean('isGuest')) {
+    return routes.PEOPLE;
+  }
+
+  let guestTopLevelRoute = routes.SEARCH;
+  // <if expr="is_chromeos">
+  guestTopLevelRoute = routes.PRIVACY;
+  // </if>
+
+  return guestTopLevelRoute;
+}

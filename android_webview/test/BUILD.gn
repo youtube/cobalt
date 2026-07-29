@@ -456,6 +456,7 @@ base_webview_instrumentation_test_apk("webview_instrumentation_test_apk") {
     "../javatests/src/org/chromium/android_webview/test/AwPermissionManagerTest.java",
     "../javatests/src/org/chromium/android_webview/test/AwPermissionQueryApiTest.java",
     "../javatests/src/org/chromium/android_webview/test/AwPersistentOriginTrialTest.java",
+    "../javatests/src/org/chromium/android_webview/test/AwPreconnectorTest.java",
     "../javatests/src/org/chromium/android_webview/test/AwPrefetchInterceptionTest.java",
     "../javatests/src/org/chromium/android_webview/test/AwPrefetchTest.java",
     "../javatests/src/org/chromium/android_webview/test/AwPrerenderTest.java",
@@ -620,6 +621,7 @@ android_library("base_webview_instrumentation_test_java") {
 
   deps = [
     "//android_webview:browser_java",
+    "//android_webview:common_java",
     "//android_webview/test:base_webview_instrumentation_java",
     "//base:base_java",
     "//base:base_java_test_support",

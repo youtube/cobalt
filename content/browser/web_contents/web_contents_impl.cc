@@ -6785,21 +6785,6 @@ void WebContentsImpl::GenerateMHTML(
     const MHTMLGenerationParams& params,
     base::OnceCallback<void(int64_t)> callback) {
   OPTIONAL_TRACE_EVENT0("content", "WebContentsImpl::GenerateMHTML");
-  base::OnceCallback<void(const MHTMLGenerationResult&)> wrapper_callback =
-      base::BindOnce(
-          [](base::OnceCallback<void(int64_t)> size_callback,
-             const MHTMLGenerationResult& result) {
-            std::move(size_callback).Run(result.file_size);
-          },
-          std::move(callback));
-  MHTMLGenerationManager::GetInstance()->SaveMHTML(this, params,
-                                                   std::move(wrapper_callback));
-}
-
-void WebContentsImpl::GenerateMHTMLWithResult(
-    const MHTMLGenerationParams& params,
-    MHTMLGenerationResult::GenerateMHTMLCallback callback) {
-  OPTIONAL_TRACE_EVENT0("content", "WebContentsImpl::GenerateMHTMLWithResult");
   MHTMLGenerationManager::GetInstance()->SaveMHTML(this, params,
                                                    std::move(callback));
 }
@@ -9427,10 +9412,10 @@ void WebContentsImpl::DidStartLoading(FrameTreeNode* frame_tree_node) {
   OPTIONAL_TRACE_EVENT1("content", "WebContentsImpl::DidStartLoading",
                         "frame_tree_node", frame_tree_node);
 
-  TRACE_EVENT_NESTABLE_ASYNC_BEGIN2(
-      "browser,navigation", "WebContentsImpl Loading", this, "URL", "NULL",
-      "Primary Main FrameTreeNode id",
-      GetPrimaryFrameTree().root()->frame_tree_node_id());
+  TRACE_EVENT_BEGIN("browser,navigation", "WebContentsImpl Loading",
+                    perfetto::Track::FromPointer(this), "URL", "NULL",
+                    "Primary Main FrameTreeNode id",
+                    GetPrimaryFrameTree().root()->frame_tree_node_id());
   SCOPED_UMA_HISTOGRAM_TIMER("WebContentsObserver.DidStartLoading");
   observers_.NotifyObservers(&WebContentsObserver::DidStartLoading);
 
@@ -9463,8 +9448,9 @@ void WebContentsImpl::DidStopLoading() {
   std::string url =
       (entry ? entry->GetVirtualURL().possibly_invalid_spec() : "NULL");
 
-  TRACE_EVENT_NESTABLE_ASYNC_END1("browser,navigation",
-                                  "WebContentsImpl Loading", this, "URL", url);
+  // WebContentsImpl Loading
+  TRACE_EVENT_END("browser,navigation", perfetto::Track::FromPointer(this),
+                  "URL", url);
   SCOPED_UMA_HISTOGRAM_TIMER("WebContentsObserver.DidStopLoading");
   observers_.NotifyObservers(&WebContentsObserver::DidStopLoading);
 
@@ -12242,6 +12228,19 @@ void WebContentsImpl::SetLongPressLinkSelectText(bool enabled) {
   long_press_link_select_text_ = enabled;
   NotifyPreferencesChanged();
 }
+
+void WebContentsImpl::SetCanAcceptLoadDrops(bool enabled) {
+  if (renderer_preferences_.can_accept_load_drops == enabled) {
+    return;
+  }
+  renderer_preferences_.can_accept_load_drops = enabled;
+  SyncRendererPrefs();
+}
+
+bool WebContentsImpl::GetCanAcceptLoadDropsForTesting() {
+  return renderer_preferences_.can_accept_load_drops;
+}
+
 #endif
 
 net::handles::NetworkHandle WebContentsImpl::GetTargetNetwork() {

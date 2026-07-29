@@ -146,7 +146,6 @@ class MockImmersiveModeController : public ImmersiveModeController {
   void OnFindBarVisibleBoundsChanged(
       const gfx::Rect& new_visible_bounds) override {}
   bool ShouldStayImmersiveAfterExitingFullscreen() override { return true; }
-  void OnWidgetActivationChanged(views::Widget* widget, bool active) override {}
   int GetMinimumContentOffset() const override { return 0; }
   int GetExtraInfobarOffset() const override { return 0; }
   void OnContentFullscreenChanged(bool is_content_fullscreen) override {}
@@ -228,9 +227,9 @@ class BrowserViewLayoutTest : public ChromeViewsTestBase {
     lens_overlay_view_ = contents_container_->AddChildView(
         CreateFixedSizeView(gfx::Size(kBaseWidth, 600)));
     contents_container_->SetLayoutManager(
-        std::make_unique<ContentsLayoutManager>(
-            devtools_web_view_, devtools_scrim_view_, contents_web_view_,
-            lens_overlay_view_, /*watermark_view=*/nullptr));
+        std::make_unique<ContentsLayoutManager>(contents_web_view_,
+                                                lens_overlay_view_,
+                                                /*watermark_view=*/nullptr));
 
     auto delegate = std::make_unique<MockBrowserViewLayoutDelegate>(
         immersive_mode_controller_.get());

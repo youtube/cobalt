@@ -34,6 +34,7 @@
 <translation id="1982637982196732906">Flyt til inaktiv sektion</translation>
 <translation id="2050597508048557928">{TABS_COUNT,plural, =1{Gem <ph name="TABS_COUNT_ONE" /> valgt fane som bogmærke}one{Gem <ph name="TABS_COUNT_MANY" /> valgt faner som bogmærke}other{Gem <ph name="TABS_COUNT_MANY" /> valgte faner som bogmærker}}</translation>
 <translation id="2055057176188061528">Vælg fanegruppe, eller opret en ny fanegruppe</translation>
+<translation id="2074527029802029717">Frigør fane</translation>
 <translation id="2118649612461486615">Butiksinfo</translation>
 <translation id="2123073051266141035">{INCOGNITO_TABS_COUNT,plural, =1{Dine lukkede faner og grupper kan åbnes igen via sektionerne Seneste faner og Fanegrupper. Din inkognitofane er ikke tilgængelig.}one{Dine lukkede faner og grupper kan åbnes igen via sektionerne Seneste faner og Fanegrupper. # inkognitofane er ikke tilgængelig.}other{Dine lukkede faner og grupper kan åbnes igen via sektionerne Seneste faner og Fanegrupper. # inkognitofaner er ikke tilgængelige.}}</translation>
 <translation id="2162620598375156287">Fås nu til <ph name="CURRENT_PRICE" /> på <ph name="SOURCE_WEBSITE" /></translation>
@@ -62,6 +63,7 @@
 <translation id="2894757982205307093">Ny fane i gruppe</translation>
 <translation id="2918484639460781603">Gå til indstillinger</translation>
 <translation id="2928243913527329289">Google | Om denne butik</translation>
+<translation id="2978860912612699943">{ITEMS_COUNT,plural, =1{<ph name="ITEMS_COUNT_ONE" /> er valgt}one{<ph name="ITEMS_COUNT_MANY" /> er valgt}other{<ph name="ITEMS_COUNT_MANY" /> er valgt}}</translation>
 <translation id="3008554597174452548">Stop med at holde øje med produktet</translation>
 <translation id="3026391124054406831">Opret grupper for at organisere dine faner.</translation>
 <translation id="3051031624272448591">Du kan altid finde dem i historikken igen</translation>

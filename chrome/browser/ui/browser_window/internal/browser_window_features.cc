@@ -10,10 +10,12 @@
 #include "base/feature_list.h"
 #include "base/memory/ptr_util.h"
 #include "base/no_destructor.h"
+#include "chrome/browser/actor/ui/actor_border_view_controller.h"
 #include "chrome/browser/actor/ui/actor_overlay_window_controller.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/collaboration/collaboration_service_factory.h"
 #include "chrome/browser/commerce/shopping_service_factory.h"
+#include "chrome/browser/devtools/devtools_ui_controller.h"
 #include "chrome/browser/extensions/browser_extension_window_controller.h"
 #include "chrome/browser/extensions/manifest_v2_experiment_manager.h"
 #include "chrome/browser/extensions/mv2_experiment_stage.h"
@@ -65,6 +67,7 @@
 #include "chrome/browser/ui/views/color_provider_browser_helper.h"
 #include "chrome/browser/ui/views/data_sharing/data_sharing_bubble_controller.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/frame/contents_border_controller.h"
 #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
 #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
 #include "chrome/browser/ui/views/incognito_clear_browsing_data_dialog_coordinator.h"
@@ -81,6 +84,7 @@
 #include "chrome/browser/ui/views/side_panel/history_clusters/history_clusters_side_panel_coordinator.h"
 #include "chrome/browser/ui/views/side_panel/reading_list/reading_list_side_panel_coordinator.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_coordinator.h"
+#include "chrome/browser/ui/views/tabs/recent_activity_bubble_dialog_view.h"
 #include "chrome/browser/ui/views/tabs/tab_strip_action_container.h"
 #include "chrome/browser/ui/views/toolbar/chrome_labs/chrome_labs_coordinator.h"
 #include "chrome/browser/ui/views/toolbar/pinned_toolbar_actions_controller.h"
@@ -110,10 +114,10 @@
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 #include "chrome/browser/ui/pdf/infobar/pdf_infobar_controller.h"
+#include "chrome/browser/ui/startup/default_browser_prompt/pin_infobar/pin_infobar_controller.h"
 #endif
 
 #if BUILDFLAG(IS_WIN)
-#include "chrome/browser/ui/startup/default_browser_prompt/pin_infobar/pin_infobar_controller.h"
 #include "chrome/browser/ui/views/frame/windows_taskbar_icon_updater.h"
 #endif
 
@@ -236,7 +240,7 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
       std::make_unique<memory_saver::MemorySaverBubbleController>(browser);
 
   translate_bubble_controller_ = std::make_unique<TranslateBubbleController>(
-      browser->GetActions()->root_action_item());
+      browser_actions_->root_action_item());
 
   cookie_controls_bubble_coordinator_ =
       std::make_unique<CookieControlsBubbleCoordinator>();
@@ -271,9 +275,6 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
     pdf_infobar_controller_ =
         std::make_unique<pdf::infobar::PdfInfoBarController>(browser);
   }
-#endif
-
-#if BUILDFLAG(IS_WIN)
   if (base::FeatureList::IsEnabled(features::kOfferPinToTaskbarInfoBar)) {
     pin_infobar_controller_ =
         std::make_unique<default_browser::PinInfoBarController>(browser);
@@ -308,6 +309,11 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
       tab_strip_model_,
       browser->GetType() == BrowserWindowInterface::Type::TYPE_DEVTOOLS);
 #endif  // defined(USE_AURA)
+
+  if (features::kGlicActorUiBorderGlow.Get()) {
+    actor_border_view_controller_ =
+        std::make_unique<ActorBorderViewController>(browser);
+  }
 }
 
 void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
@@ -407,6 +413,9 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
                 browser_view->browser());
         shared_tab_group_feedback_controller_->Init();
       }
+      recent_activity_bubble_coordinator_ =
+          GetUserDataFactory().CreateInstance<RecentActivityBubbleCoordinator>(
+              *browser, browser);
     }
 
     if (base::FeatureList::IsEnabled(features::kSideBySide)) {
@@ -447,6 +456,12 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
 
   if (browser->is_type_normal() || browser->is_type_app()) {
     toast_service_ = std::make_unique<ToastService>(browser);
+  }
+
+  if (BrowserView* browser_view =
+          BrowserView::GetBrowserViewForBrowser(browser)) {
+    contents_border_controller_ =
+        std::make_unique<ContentsBorderController>(browser_view);
   }
 }
 
@@ -544,6 +559,9 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
             browser_view->GetContentsContainerViews());
   }
 
+  devtools_ui_controller_ = std::make_unique<DevtoolsUIController>(
+      browser_view->GetContentsContainerViews());
+
 #if BUILDFLAG(IS_WIN)
   windows_taskbar_icon_updater_ =
       std::make_unique<WindowsTaskbarIconUpdater>(*browser_view);
@@ -553,6 +571,7 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
 }
 
 void BrowserWindowFeatures::TearDownPreBrowserWindowDestruction() {
+  contents_border_controller_.reset();
   live_tab_context_.reset();
   upgrade_notification_controller_.reset();
   memory_saver_opt_in_iph_controller_.reset();
@@ -561,6 +580,7 @@ void BrowserWindowFeatures::TearDownPreBrowserWindowDestruction() {
   profile_menu_coordinator_.reset();
   toast_service_.reset();
   extension_window_controller_.reset();
+  actor_border_view_controller_.reset();
   actor_overlay_window_controller_.reset();
   glic_actor_task_icon_controller_.reset();
 
@@ -600,6 +620,10 @@ void BrowserWindowFeatures::TearDownPreBrowserWindowDestruction() {
 
   if (new_tab_footer_controller_) {
     new_tab_footer_controller_->TearDown();
+  }
+
+  if (devtools_ui_controller_) {
+    devtools_ui_controller_->TearDown();
   }
 
   desktop_browser_window_capabilities_.reset();

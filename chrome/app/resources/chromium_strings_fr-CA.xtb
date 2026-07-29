@@ -189,6 +189,7 @@ Certaines fonctionnalités ne seront peut-être pas disponibles et les modificat
 <translation id="3313189106987092621">Chromium vous avertira avant de charger un site en utilisant une connexion non sécurisée</translation>
 <translation id="3316771292331273802">Vous serez déconnecté de la plupart des sites lorsque vous fermerez toutes les fenêtres Chromium, à l'exception de votre compte Google si vous êtes connecté à Chromium. Pour permettre aux sites de se souvenir de vous, <ph name="SETTINGS_LINK" />.</translation>
 <translation id="3352986031709923790">Coin supérieur droit de la zone de recherche : droite <ph name="RIGHT" /> %, haut <ph name="TOP" /> %</translation>
+<translation id="3366305173356742781">Données Chromium dans votre compte</translation>
 <translation id="3369405342922656244">Rechercher cette page avec la recherche d'images</translation>
 <translation id="3387527074123400161">Chromium OS</translation>
 <translation id="3406848076815591792">Passer au profil Chromium existant?</translation>
@@ -284,6 +285,7 @@ Certaines fonctionnalités ne seront peut-être pas disponibles et les modificat
 <translation id="4598116752460667024">Chercher n'importe quel processus dans la liste.</translation>
 <translation id="4613863813562375431">Version de Chromium OS</translation>
 <translation id="4621240073146040695">La mise à jour est presque terminée! Il ne reste plus qu'à relancer Chromium.</translation>
+<translation id="4625064703209785397">Accélère les sites avec le moteur V8 de Chromium, mais rend Chromium légèrement moins résistant aux attaques</translation>
 <translation id="4654936675281451226">Chromium comprend mieux les formulaires et peut les remplir automatiquement plus rapidement pour vous. Ce paramètre est activé.</translation>
 <translation id="4665829708273112819">Avertissement : Chromium ne peut pas empêcher les extensions d'enregistrer votre historique de navigation. Pour désactiver cette extension en mode de navigation privée, désélectionnez cette option.</translation>
 <translation id="4673151026126227699">Si vous partagez aussi les rapports d'utilisation de Chromium, ceux-ci incluent les URL des pages que vous visitez</translation>
@@ -329,6 +331,7 @@ Certaines fonctionnalités ne seront peut-être pas disponibles et les modificat
 <translation id="5386450000063123300">Mise à jour de Chromium en cours (<ph name="PROGRESS_PERCENT" />)…</translation>
 <translation id="538767207339317086">Autoriser la connexion à Chromium</translation>
 <translation id="5405650547142096840">Supprimer de Chromium</translation>
+<translation id="5424544524441439284">Réduit les performances, mais rend Chromium plus résistant aux attaques</translation>
 <translation id="5427571867875391349">Faire de Chromium le navigateur par défaut</translation>
 <translation id="5438241569118040789"><ph name="PAGE_TITLE" /> - Chromium bêta</translation>
 <translation id="5460618461609401056">{NUM_TABS,plural, =1{Chromium recommande de suspendre l'onglet qui ralentit votre navigateur}one{Chromium recommande de suspendre l'onglet qui ralentit votre navigateur}other{Chromium recommande de suspendre les onglets qui ralentissent votre navigateur}}</translation>
@@ -373,6 +376,7 @@ Certaines fonctionnalités ne seront peut-être pas disponibles et les modificat
 <translation id="5987687638152509985">Mettez Chromium à jour pour commencer la synchronisation</translation>
 <translation id="5988505247484123880">Les sites que vous visitez mémorisent couramment les sujets qui vous intéressent afin de personnaliser votre expérience. Les sites peuvent également stocker des renseignements sur vos centres d'intérêt dans Chromium.</translation>
 <translation id="6003112304606738118">Téléchargement en cours… <ph name="HOURS" /> heure(s) restante(s)</translation>
+<translation id="6009821354356307391">Posez une question complémentaire</translation>
 <translation id="6040143037577758943">Fermer</translation>
 <translation id="6058380562449900225">Pour protéger vos données, laissez Chromium retirer les autorisations des sites que vous n'avez pas visités récemment. Cela n'arrêtera pas les notifications.</translation>
 <translation id="6063093106622310249">&amp;Ouvrir dans Chromium</translation>

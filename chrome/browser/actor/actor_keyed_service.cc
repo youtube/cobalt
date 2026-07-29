@@ -10,6 +10,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/types/pass_key.h"
 #include "chrome/browser/actor/actor_keyed_service_factory.h"
+#include "chrome/browser/actor/actor_tab_data.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/aggregated_journal.h"
 #include "chrome/browser/actor/browser_action_util.h"
@@ -84,7 +85,7 @@ const std::map<TaskId, const ActorTask*> ActorKeyedService::GetActiveTasks()
     const {
   std::map<TaskId, const ActorTask*> active_tasks;
   for (const auto& [id, task] : active_tasks_) {
-    CHECK_NE(task->GetState(), actor::ActorTask::State::kFinished);
+    CHECK_NE(task->IsStopped(), true);
     active_tasks[id] = task.get();
   }
   return active_tasks;
@@ -101,7 +102,7 @@ const std::map<TaskId, const ActorTask*> ActorKeyedService::GetInactiveTasks()
 
 void ActorKeyedService::ResetForTesting() {
   for (auto it = active_tasks_.begin(); it != active_tasks_.end();) {
-    StopTask((it++)->first);
+    StopTask((it++)->first, /*success=*/true);
   }
   active_tasks_.clear();
   inactive_tasks_.clear();
@@ -144,8 +145,13 @@ void ActorKeyedService::NotifyTaskStateChanged(const ActorTask& task) {
 }
 
 void ActorKeyedService::RequestTabObservation(
-    const tabs::TabInterface& tab,
+    tabs::TabInterface& tab,
+    TaskId task_id,
     base::OnceCallback<void(TabObservationResult)> callback) {
+  const GURL& last_committed_url = tab.GetContents()->GetLastCommittedURL();
+  auto journal_entry = journal_.CreatePendingAsyncEntry(
+      last_committed_url, task_id, mojom::JournalTrack::kActor,
+      "RequestTabOservation", "");
   page_content_annotations::FetchPageContextOptions options;
   options.include_viewport_screenshot = true;
   options.annotated_page_content_options =
@@ -153,8 +159,13 @@ void ActorKeyedService::RequestTabObservation(
   page_content_annotations::FetchPageContext(
       *tab.GetContents(), options,
       base::BindOnce(
-          [](base::OnceCallback<void(TabObservationResult)> callback,
-             TabObservationResult result) {
+          [](base::WeakPtr<tabs::TabInterface> tab,
+             base::OnceCallback<void(TabObservationResult)> callback,
+             std::unique_ptr<AggregatedJournal::PendingAsyncEntry>
+                 pending_journal_entry,
+             const GURL& last_committed_url,
+             page_content_annotations::FetchPageContextResultCallbackArg
+                 result) {
             if (result.has_value()) {
               // Context for actor observations should always have an APC and a
               // screenshot, return failure if either is missing.
@@ -169,10 +180,29 @@ void ActorKeyedService::RequestTabObservation(
                 return;
               }
 
-              std::move(callback).Run(std::move(result));
+              size_t size = fetch_result.annotated_page_content_result->proto
+                                .ByteSizeLong();
+              std::vector<uint8_t> buffer(size);
+              fetch_result.annotated_page_content_result->proto
+                  .SerializeToArray(buffer.data(), size);
+              pending_journal_entry->GetJournal().LogAnnotatedPageContent(
+                  last_committed_url, pending_journal_entry->GetTaskId(),
+                  buffer);
+
+              auto& data = fetch_result.screenshot_result->jpeg_data;
+              pending_journal_entry->GetJournal().LogScreenshot(
+                  last_committed_url, pending_journal_entry->GetTaskId(),
+                  kMimeTypeJpeg, base::as_byte_span(data));
+              if (tab) {
+                actor::ActorTabData::From(tab.get())->DidObserveContent(
+                    fetch_result.annotated_page_content_result->proto);
+              }
+
+              std::move(callback).Run(std::move(result).value());
             }
           },
-          std::move(callback)));
+          tab.GetWeakPtr(), std::move(callback), std::move(journal_entry),
+          last_committed_url));
 }
 
 void ActorKeyedService::ConvertToBrowserActionResult(
@@ -198,19 +228,11 @@ void ActorKeyedService::ConvertToBrowserActionResult(
   CHECK(fetch_result.annotated_page_content_result.has_value());
   CHECK(fetch_result.screenshot_result.has_value());
 
-  size_t size =
-      fetch_result.annotated_page_content_result->proto.ByteSizeLong();
-  std::vector<uint8_t> buffer(size);
-  fetch_result.annotated_page_content_result->proto.SerializeToArray(
-      buffer.data(), size);
-  journal_.LogAnnotatedPageContent(url, task_id, buffer);
-
   browser_action_result.mutable_annotated_page_content()->Swap(
       &fetch_result.annotated_page_content_result->proto);
-  auto& data = fetch_result.screenshot_result->jpeg_data;
-  journal_.LogScreenshot(url, task_id, kMimeTypeJpeg, base::as_byte_span(data));
 
   // TODO(bokan): Can we avoid a copy here?
+  auto& data = fetch_result.screenshot_result->jpeg_data;
   browser_action_result.set_screenshot(data.data(), data.size());
   browser_action_result.set_screenshot_mime_type(kMimeTypeJpeg);
 
@@ -239,7 +261,7 @@ void ActorKeyedService::OnActionFinished(
   }
   int32_t tab_id = tab->GetHandle().raw_value();
   RequestTabObservation(
-      *tab,
+      *tab, task_id,
       base::BindOnce(&ActorKeyedService::ConvertToBrowserActionResult,
                      weak_ptr_factory_.GetWeakPtr(), std::move(callback),
                      task_id, tab_id, tab->GetContents()->GetLastCommittedURL(),
@@ -283,7 +305,7 @@ void ActorKeyedService::OnActionsFinished(
                           index_of_failed_action));
 }
 
-void ActorKeyedService::StopTask(TaskId task_id) {
+void ActorKeyedService::StopTask(TaskId task_id, bool success) {
   if (task_id == last_created_task_id_) {
     last_created_task_id_ = TaskId();
   }
@@ -291,7 +313,7 @@ void ActorKeyedService::StopTask(TaskId task_id) {
   auto task = active_tasks_.extract(task_id);
   if (!task.empty()) {
     auto ret = inactive_tasks_.insert(std::move(task));
-    ret.position->second->Stop();
+    ret.position->second->Stop(success);
   }
 }
 

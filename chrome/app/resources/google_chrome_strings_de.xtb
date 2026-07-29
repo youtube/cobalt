@@ -168,6 +168,7 @@
 <translation id="3003694935412297923">Alle Tasks</translation>
 <translation id="3018957014024118866">Auch Daten aus Chrome löschen (<ph name="URL" />)</translation>
 <translation id="3019382870990049182">Neu starten, um &amp;Chrome OS Flex zu aktualisieren</translation>
+<translation id="3037517125981011456">Aufforderungen für die Anmeldung in Chrome werden angezeigt</translation>
 <translation id="3037838751736561277">Google Chrome wird im Hintergrundmodus ausgeführt.</translation>
 <translation id="3038232873781883849">Warten auf Installation…</translation>
 <translation id="3045032126857188731">Übersetzte Sprache: <ph name="LANGUAGE" /></translation>
@@ -310,6 +311,7 @@
 <translation id="4747730611090640388">Chrome kann deine Interessen schätzen.  Wenn du eine Website besuchst, kann diese von Chrome dann deine Interessen anfordern, um die dir gezeigte Werbung zu personalisieren.</translation>
 <translation id="475321580758063259">Aktualisiere Chrome, um weiterhin Chrome-Daten in deinem Google-Konto <ph name="ACCOUNT_EMAIL" /> zu verwenden</translation>
 <translation id="4754614261631455953">Google Chrome Canary (mDNS-In)</translation>
+<translation id="4756182432527369254">Websites werden mit der V8-Engine von Chrome beschleunigt, Chrome wird dadurch aber etwas anfälliger für Angriffe</translation>
 <translation id="479167709087336770">Es wird dieselbe Rechtschreibprüfung wie in der Google Suche verwendet. Der in den Browser eingegebene Text wird an Google gesendet. Du kannst dies jederzeit in den Einstellungen ändern.</translation>
 <translation id="4793679854893018356">So trägt Chrome zu deinem Schutz bei</translation>
 <translation id="4828579605166583682">Google Chrome versucht, vorhandene Passwörter zu ersetzen. Gib dein Windows-Passwort ein, um dies zuzulassen.</translation>
@@ -398,6 +400,7 @@
 <translation id="5980111191913430208">Erweiterungen, Apps und Designs aus unbekannten Quellen können Schäden auf deinem Gerät verursachen. Chrome empfiehlt, sie nur über den <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> zu installieren.</translation>
 <translation id="6003112304606738118">Wird heruntergeladen… Noch <ph name="HOURS" /> Stunde(n)</translation>
 <translation id="6008161919456049856">Deine Passwörter, Zahlungsmethoden und Adressen, die du in deinem Google-Konto gespeichert hast, werden von diesem Gerät entfernt. Wenn du sie in Zukunft in Chrome verwenden möchtest, melde dich einfach wieder an.</translation>
+<translation id="6009821354356307391">Stell eine weiterführende Frage</translation>
 <translation id="6014316319780893079">Die <ph name="BEGIN_LINK" />Tools von Chrome<ph name="END_LINK" /> helfen dir, sicher zu surfen und deine Daten zu schützen</translation>
 <translation id="6022659036123304283">Chrome personalisieren</translation>
 <translation id="6025087594896450715">Google Chrome wird in <ph name="REMAINING_TIME" /> neu gestartet</translation>
@@ -592,6 +595,7 @@
 <translation id="8342675569599923794">Diese Datei ist schädlich und wurde von Chrome blockiert.</translation>
 <translation id="8349094670477064572">Deine Passwörter und andere Daten werden in deinem Google-Konto gespeichert und verwendet, wenn du in Chrome angemeldet bist.<ph name="LEARN_MORE" /></translation>
 <translation id="8362914115861174987">Zielsprache</translation>
+<translation id="8366770919198174997">Reduziert die Leistung, macht Chrome aber widerstandsfähiger gegen Angriffe</translation>
 <translation id="8370517070665726704">Copyright <ph name="YEAR" /> Google LLC. Alle Rechte vorbehalten.</translation>
 <translation id="8387459386171870978">Chrome weiterhin verwenden</translation>
 <translation id="8394720698884623075">Prüft URLs anhand einer Liste unsicherer Websites, die in Chrome gespeichert ist</translation>
@@ -636,6 +640,7 @@
 <translation id="8843516219908676469">Chrome erkennt den Inhalt von Formularen besser und kann sie schneller automatisch ausfüllen</translation>
 <translation id="8851180723659088381">{NUM_EXTENSIONS,plural, =1{Chrome empfiehlt, sie zu entfernen}other{Chrome empfiehlt, sie zu entfernen}}</translation>
 <translation id="8862326446509486874">Du verfügst nicht über die erforderlichen Rechte für eine systemweite Installation. Starte das Installationsprogramm als Administrator.</translation>
+<translation id="8865415417596392024">Chrome-Daten in meinem Konto</translation>
 <translation id="8883862939660515976">Google Lens nach Infos zu diesem Bild fragen</translation>
 <translation id="8914504000324227558">Chrome neu starten</translation>
 <translation id="8922193594870374009">Wenn du eine Nummer von <ph name="ORIGIN" /> an dein Android-Smartphone senden möchtest, musst du dich auf beiden Geräten in Chrome anmelden.</translation>

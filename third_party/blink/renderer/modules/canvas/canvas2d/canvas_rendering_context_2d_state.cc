@@ -42,6 +42,7 @@
 #include "third_party/blink/renderer/platform/fonts/font_selection_types.h"
 #include "third_party/blink/renderer/platform/fonts/font_selector.h"
 #include "third_party/blink/renderer/platform/fonts/text_rendering_mode.h"
+#include "third_party/blink/renderer/platform/graphics/canvas_high_entropy_op_type.h"
 #include "third_party/blink/renderer/platform/graphics/draw_looper_builder.h"
 #include "third_party/blink/renderer/platform/graphics/filters/filter_effect.h"
 #include "third_party/blink/renderer/platform/graphics/filters/paint_filter_builder.h"
@@ -178,14 +179,17 @@ CanvasRenderingContext2DState::CanvasRenderingContext2DState()
       image_smoothing_quality_(cc::PaintFlags::FilterQuality::kLow) {
   fill_flags_.setStyle(cc::PaintFlags::kFill_Style);
   fill_flags_.setAntiAlias(true);
+  fill_flags_.setTargetedHdrHeadroom(global_hdr_headroom_);
   image_flags_.setStyle(cc::PaintFlags::kFill_Style);
   image_flags_.setAntiAlias(true);
+  image_flags_.setTargetedHdrHeadroom(global_hdr_headroom_);
   stroke_flags_.setStyle(cc::PaintFlags::kStroke_Style);
   stroke_flags_.setStrokeWidth(1);
   stroke_flags_.setStrokeCap(cc::PaintFlags::kButt_Cap);
   stroke_flags_.setStrokeMiter(10);
   stroke_flags_.setStrokeJoin(cc::PaintFlags::kMiter_Join);
   stroke_flags_.setAntiAlias(true);
+  stroke_flags_.setTargetedHdrHeadroom(global_hdr_headroom_);
   SetImageSmoothingEnabled(true);
 }
 
@@ -344,8 +348,15 @@ void CanvasRenderingContext2DState::SetGlobalAlpha(double alpha) {
 }
 
 void CanvasRenderingContext2DState::SetGlobalHDRHeadroom(double h) {
-  CHECK_GE(h, 0.f);
+  // Invalid values (negatives and NaNs) are expected to be avoided by the
+  // caller.
   global_hdr_headroom_ = h;
+
+  // This will cast `global_hdr_headroom_` from a double to a float. This will
+  // not remove any needed precision, and rounding up to infinity is acceptable.
+  stroke_flags_.setTargetedHdrHeadroom(global_hdr_headroom_);
+  fill_flags_.setTargetedHdrHeadroom(global_hdr_headroom_);
+  image_flags_.setTargetedHdrHeadroom(global_hdr_headroom_);
 }
 
 void CanvasRenderingContext2DState::ClipPath(
@@ -720,11 +731,15 @@ void CanvasRenderingContext2DState::SetShadowOffsetY(double y) {
 void CanvasRenderingContext2DState::SetShadowBlur(double shadow_blur) {
   shadow_blur_ = ClampTo<float>(shadow_blur);
   ShadowParameterChanged();
+  if (shadow_blur_ > 0) {
+    AddHighEntropyCanvasOpTypes(HighEntropyCanvasOpType::kSetShadowBlur);
+  }
 }
 
 void CanvasRenderingContext2DState::SetShadowColor(Color shadow_color) {
   shadow_color_ = shadow_color;
   ShadowParameterChanged();
+  AddHighEntropyCanvasOpTypes(HighEntropyCanvasOpType::kSetShadowColor);
 }
 
 void CanvasRenderingContext2DState::SetCSSFilter(const CSSValue* filter_value) {
@@ -744,6 +759,10 @@ void CanvasRenderingContext2DState::SetGlobalComposite(SkBlendMode mode) {
   stroke_flags_.setBlendMode(mode);
   fill_flags_.setBlendMode(mode);
   image_flags_.setBlendMode(mode);
+  if (mode != SkBlendMode::kSrcOver) {
+    AddHighEntropyCanvasOpTypes(
+        HighEntropyCanvasOpType::kGlobalCompositionOperation);
+  }
 }
 
 SkBlendMode CanvasRenderingContext2DState::GlobalComposite() const {

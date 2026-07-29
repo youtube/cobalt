@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 import {type WebClientInitialState} from '../glic.mojom-webui.js';
-import type {ActorTaskState, AnnotatedPageData, ChromeVersion, DraggableArea, ErrorReasonTypes, ErrorWithReason, FocusedTabDataHasFocus, FocusedTabDataHasNoFocus, GetPinCandidatesOptions, HostCapability, Journal, OpenPanelInfo, OpenSettingsOptions, PageMetadata, PanelOpeningData, PanelState, PdfDocumentData, PinCandidate, Screenshot, ScrollToParams, TabContextOptions, TabContextResult, TabData, UserProfileInfo, ViewChangedNotification, ViewChangeRequest, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../glic_api/glic_api.js';
+import type {ActorTaskPauseReason, ActorTaskState, ActorTaskStopReason, AnnotatedPageData, ChromeVersion, DraggableArea, ErrorReasonTypes, ErrorWithReason, FocusedTabDataHasFocus, FocusedTabDataHasNoFocus, GetPinCandidatesOptions, HostCapability, Journal, OnResponseStoppedDetails, OpenPanelInfo, OpenSettingsOptions, PageMetadata, PanelOpeningData, PanelState, PdfDocumentData, PinCandidate, Screenshot, ScrollToParams, TabContextOptions, TabContextResult, TabData, UserProfileInfo, ViewChangedNotification, ViewChangeRequest, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../glic_api/glic_api.js';
 
 /*
 This file defines messages sent over postMessage in-between the Glic WebUI
@@ -118,11 +118,13 @@ export declare interface HostRequestTypes {
   glicBrowserStopActorTask: {
     request: {
       taskId: number,
+      stopReason: ActorTaskStopReason,
     },
   };
   glicBrowserPauseActorTask: {
     request: {
       taskId: number,
+      pauseReason: ActorTaskPauseReason,
     },
   };
   glicBrowserResumeActorTask: {
@@ -259,7 +261,7 @@ export declare interface HostRequestTypes {
     },
   };
   glicBrowserOnResponseStarted: {};
-  glicBrowserOnResponseStopped: {};
+  glicBrowserOnResponseStopped: {request: {details?: OnResponseStoppedDetails}};
   glicBrowserOnSessionTerminated: {};
   glicBrowserOnTurnCompleted: {
     request: {

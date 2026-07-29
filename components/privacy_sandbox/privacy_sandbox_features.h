@@ -169,9 +169,9 @@ BASE_DECLARE_FEATURE(kTrackingProtectionContentSettingIn3pcUx);
 COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
 BASE_DECLARE_FEATURE(kTrackingProtectionContentSettingFor3pcb);
 
-// Enables showing new RWS UI.
+// Enables showing RWS UI.
 COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
-BASE_DECLARE_FEATURE(kPrivacySandboxRelatedWebsiteSetsUi);
+BASE_DECLARE_FEATURE(kRelatedWebsiteSetsUi);
 
 // Privacy UX features end
 

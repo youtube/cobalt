@@ -77,10 +77,14 @@ class AudioManagerAndroid {
         private final @Nullable String mName;
         private final int mType;
 
-        public AudioDevice(int id, @Nullable String name, int type) {
+        // Empty if arbitrary sample rates are supported.
+        private final int[] mSampleRates;
+
+        public AudioDevice(int id, @Nullable String name, int type, int[] sampleRates) {
             mId = id;
             mName = name;
             mType = type;
+            mSampleRates = sampleRates;
         }
 
         @CalledByNative("AudioDevice")
@@ -97,14 +101,15 @@ class AudioManagerAndroid {
         private int type() {
             return mType;
         }
+
+        @CalledByNative("AudioDevice")
+        private @JniType("std::vector<int>") int[] sampleRates() {
+            return mSampleRates;
+        }
     }
 
     // Use 44.1kHz as the default sampling rate.
     private static final int DEFAULT_SAMPLING_RATE = 44100;
-    // Randomly picked up frame size which is close to return value on N4.
-    // Return this value when getProperty(PROPERTY_OUTPUT_FRAMES_PER_BUFFER)
-    // fails.
-    private static final int DEFAULT_FRAME_PER_BUFFER = 256;
 
     private final AudioManager mAudioManager;
     private final long mNativeAudioManagerAndroid;
@@ -125,6 +130,8 @@ class AudioManagerAndroid {
     private final ContentResolver mContentResolver;
     private @Nullable ContentObserver mSettingsObserver;
     private @Nullable HandlerThread mSettingsObserverThread;
+
+    private @Nullable AudioDeviceListener mDeviceListener;
 
     private final CommunicationDeviceSelector mCommunicationDeviceSelector;
 
@@ -177,6 +184,16 @@ class AudioManagerAndroid {
     }
 
     /**
+     * Initializes the device listener, which listens for changes to the list of audio devices
+     * exposed by the OS.
+     */
+    @CalledByNative
+    private void initDeviceListener() {
+        mDeviceListener =
+                new AudioDeviceListener(() -> AudioManagerAndroidJni.get().onDevicesChanged());
+    }
+
+    /**
      * Unregister all previously registered intent receivers and restore the stored state (stored in
      * {@link #init()}).
      */
@@ -187,6 +204,10 @@ class AudioManagerAndroid {
         if (!mIsInitialized) return;
 
         stopObservingVolumeChanges();
+
+        if (mDeviceListener != null) {
+            mDeviceListener.destroy();
+        }
 
         mCommunicationDeviceSelector.close();
 
@@ -332,7 +353,8 @@ class AudioManagerAndroid {
                 // `android.os.Build.MODEL` to facilitate providing a custom fallback name instead.
                 name = null;
             }
-            devices.add(new AudioDevice(id, name, type));
+            int[] sampleRates = deviceInfo.getSampleRates();
+            devices.add(new AudioDevice(id, name, type, sampleRates));
         }
         return devices.toArray(new AudioDevice[0]);
     }
@@ -432,9 +454,7 @@ class AudioManagerAndroid {
     private int getAudioLowLatencyOutputFrameSize() {
         String framesPerBuffer =
                 mAudioManager.getProperty(AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER);
-        return framesPerBuffer == null
-                ? DEFAULT_FRAME_PER_BUFFER
-                : Integer.parseInt(framesPerBuffer);
+        return framesPerBuffer == null ? 0 : Integer.parseInt(framesPerBuffer);
     }
 
     @CalledByNative
@@ -736,6 +756,8 @@ class AudioManagerAndroid {
 
     @NativeMethods
     interface Natives {
+        void onDevicesChanged();
+
         void setMute(long nativeAudioManagerAndroid, boolean muted);
     }
 }

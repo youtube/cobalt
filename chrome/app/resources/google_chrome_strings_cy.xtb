@@ -172,6 +172,7 @@ Mae'n bosib na fydd rhai nodweddion ar gael ac ni fydd newidiadau o ran dewisiad
 <translation id="3003694935412297923">Pob tasg</translation>
 <translation id="3018957014024118866">Dileu data o Chrome hefyd (<ph name="URL" />)</translation>
 <translation id="3019382870990049182">Ail-lansiwch i ddiweddaru &amp;ChromeOS Flex</translation>
+<translation id="3037517125981011456">Dangos anogwyr i fewngofnodi i Chrome</translation>
 <translation id="3037838751736561277">Mae Google Chrome yn y modd cefndir.</translation>
 <translation id="3038232873781883849">Wrthi'n aros i osod...</translation>
 <translation id="3045032126857188731">Iaith a gyfieithwyd: <ph name="LANGUAGE" /></translation>
@@ -315,6 +316,7 @@ Mae'n bosib na fydd rhai nodweddion ar gael ac ni fydd newidiadau o ran dewisiad
 <translation id="4747730611090640388">Gall Chrome amcangyfrif eich diddordebau.  Yn nes ymlaen, gall gwefan rydych yn ymweld â hi ofyn i Chrome weld eich diddordebau er mwyn personoleiddio'r hysbysebion rydych yn eu gweld.</translation>
 <translation id="475321580758063259">Diweddarwch Chrome i barhau i ddefnyddio'r data Chrome yn eich Cyfrif Google, <ph name="ACCOUNT_EMAIL" /></translation>
 <translation id="4754614261631455953">Google Chrome Canary (mDNS-In)</translation>
+<translation id="4756182432527369254">Yn cyflymu gwefannau gydag injan V8 Chrome ond yn lleihau gallu Chrome i wrthsefyll ymosodiadau ychydig</translation>
 <translation id="479167709087336770">Mae hwn yn defnyddio'r un gwiriwr sillafu â'r un sy'n cael ei ddefnyddio yn Google Search. Anfonir testun rydych yn ei deipio yn y porwr at Google. Gallwch newid yr ymddygiad hwn yn y gosodiadau ar unrhyw adeg.</translation>
 <translation id="4793679854893018356">Dysgu sut mae Chrome yn eich cadw'n ddiogel</translation>
 <translation id="4828579605166583682">Mae Google Chrome yn ceisio disodli cyfrineiriau presennol. Teipiwch eich cyfrinair Windows i ganiatáu hyn.</translation>
@@ -407,6 +409,7 @@ Nid yw Google Chrome yn gallu adfer eich gosodiadau.</translation>
 <translation id="5980111191913430208">Gall estyniadau, apiau a themâu o ffynonellau anhysbys niweidio'ch dyfais. Mae Chrome yn argymell eu gosod o'r <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> yn unig</translation>
 <translation id="6003112304606738118">Wrthi'n lawrlwytho... Mae <ph name="HOURS" /> awr ar ôl</translation>
 <translation id="6008161919456049856">Bydd eich cyfrineiriau, eich dulliau talu a'ch cyfeiriadau a gadwyd gennych yn eich Cyfrif Google yn cael eu tynnu o'r ddyfais hon. I'w defnyddio eto yn Chrome, mewngofnodwch eto.</translation>
+<translation id="6009821354356307391">Gofyn cwestiwn dilyn i fyny</translation>
 <translation id="6014316319780893079">Gydag <ph name="BEGIN_LINK" />offer gan Chrome<ph name="END_LINK" />, gallwch bori'n ddiogel ac aros mewn rheolaeth</translation>
 <translation id="6022659036123304283">Personoleiddio Chrome</translation>
 <translation id="6025087594896450715">Bydd Google Chrome yn ailddechrau mewn <ph name="REMAINING_TIME" /></translation>
@@ -601,6 +604,7 @@ Nid yw Google Chrome yn gallu adfer eich gosodiadau.</translation>
 <translation id="8342675569599923794">Mae'r ffeil hon yn beryglus, felly mae Chrome wedi ei rhwystro.</translation>
 <translation id="8349094670477064572">Byddwch yn cadw ac yn defnyddio cyfrineiriau a rhagor yn eich Cyfrif Google pryd bynnag y byddwch wedi mewngofnodi i Chrome. <ph name="LEARN_MORE" /></translation>
 <translation id="8362914115861174987">Cyfieithu i</translation>
+<translation id="8366770919198174997">Yn lleihau perfformiad ond yn gwneud Chrome yn fwy ymwrthol i ymosodiadau</translation>
 <translation id="8370517070665726704">Hawlfraint <ph name="YEAR" /> Google LLC. Cedwir pob hawl.</translation>
 <translation id="8387459386171870978">Parhau i ddefnyddio Chrome</translation>
 <translation id="8394720698884623075">Yn gwirio cyfeiriadau URL gyda rhestr o wefannau anniogel sydd wedi'u storio yn Chrome</translation>
@@ -645,6 +649,7 @@ Nid yw Google Chrome yn gallu adfer eich gosodiadau.</translation>
 <translation id="8843516219908676469">Mae Chrome yn deall ffurflenni'n well a gall eu llenwi'n awtomatig yn gyflymach i chi</translation>
 <translation id="8851180723659088381">{NUM_EXTENSIONS,plural, =1{Mae Chrome yn argymell eich bod yn ei dynnu}zero{Mae Chrome yn argymell eich bod yn eu tynnu}two{Mae Chrome yn argymell eich bod yn eu tynnu}few{Mae Chrome yn argymell eich bod yn eu tynnu}many{Mae Chrome yn argymell eich bod yn eu tynnu}other{Mae Chrome yn argymell eich bod yn eu tynnu}}</translation>
 <translation id="8862326446509486874">Nid oes gennych yr hawliau priodol ar gyfer gosod ar lefel system. Rhowch gynnig arall ar redeg y gosodwr fel Gweinyddwr.</translation>
+<translation id="8865415417596392024">Data Chrome yn eich cyfrif</translation>
 <translation id="8883862939660515976">Gofyn i Google Lens am y llun hwn</translation>
 <translation id="8914504000324227558">Ail-lansio Chrome</translation>
 <translation id="8922193594870374009">I anfon rhif o <ph name="ORIGIN" /> i'ch ffôn Android, mewngofnodwch i Chrome ar y ddwy ddyfais.</translation>

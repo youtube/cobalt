@@ -189,6 +189,7 @@
 <translation id="3313189106987092621">Chromium에서 안전하지 않은 연결을 사용해 사이트를 로드하기 전에 경고를 표시합니다.</translation>
 <translation id="3316771292331273802">Chromium에 로그인한 경우 Google 계정을 제외한 모든 Chromium 창을 닫으면 대부분의 사이트에서 로그아웃됩니다. 사이트에서 나를 기억하도록 하려면 <ph name="SETTINGS_LINK" />하세요.</translation>
 <translation id="3352986031709923790">검색 영역의 오른쪽 상단: 오른쪽 <ph name="RIGHT" />%, 상단 <ph name="TOP" />%</translation>
+<translation id="3366305173356742781">사용자 계정의 Chromium 데이터</translation>
 <translation id="3369405342922656244">이미지 검색으로 이 페이지 검색하기</translation>
 <translation id="3387527074123400161">ChromiumOS</translation>
 <translation id="3406848076815591792">기존 Chromium 프로필로 전환하시겠습니까?</translation>
@@ -284,6 +285,7 @@
 <translation id="4598116752460667024">목록에서 프로세스를 검색합니다.</translation>
 <translation id="4613863813562375431">ChromiumOS 버전</translation>
 <translation id="4621240073146040695">업데이트가 거의 완료되었습니다. 업데이트를 완료하려면 Chromium을 다시 시작하세요.</translation>
+<translation id="4625064703209785397">Chromium의 V8 엔진으로 사이트 속도를 높이지만 Chromium이 공격에 약간 더 취약해집니다.</translation>
 <translation id="4654936675281451226">Chromium이 양식을 더 잘 이해하고 더 빠르게 자동 완성할 수 있습니다. 설정이 사용 설정되어 있습니다</translation>
 <translation id="4665829708273112819">경고: Chromium에서는 확장 프로그램에 인터넷 사용 기록이 저장될 수 있습니다. 시크릿 모드에서 이 확장 프로그램을 사용 중지하려면 옵션을 선택 해제하세요.</translation>
 <translation id="4673151026126227699">Chromium 사용 보고서도 공유하면 내가 방문한 URL이 해당 보고서에 포함됩니다.</translation>
@@ -329,6 +331,7 @@
 <translation id="5386450000063123300">Chromium 업데이트 중(<ph name="PROGRESS_PERCENT" />)</translation>
 <translation id="538767207339317086">Chromium 로그인 허용</translation>
 <translation id="5405650547142096840">Chromium에서 제거</translation>
+<translation id="5424544524441439284">성능은 감소하지만 Chromium의 공격에 대한 저항력이 강화됨</translation>
 <translation id="5427571867875391349">Chromium을 기본 브라우저로 설정</translation>
 <translation id="5438241569118040789"><ph name="PAGE_TITLE" /> - Chromium 베타</translation>
 <translation id="5460618461609401056">{NUM_TABS,plural, =1{브라우저 속도를 저하시키는 탭을 일시중지하는 것이 좋습니다}other{브라우저 속도를 저하시키는 탭을 일시중지하는 것이 좋습니다}}</translation>
@@ -373,6 +376,7 @@
 <translation id="5987687638152509985">동기화를 시작하려면 Chromium을 업데이트하세요.</translation>
 <translation id="5988505247484123880">방문하는 사이트에서는 일반적으로 사용 경험을 개인화하기 위해 내가 관심을 보인 항목을 기억합니다. 또한 사이트에서는 내 관심분야에 관한 정보를 Chromium에 저장할 수 있습니다.</translation>
 <translation id="6003112304606738118">다운로드 중... <ph name="HOURS" />시간 남음</translation>
+<translation id="6009821354356307391">이어서 질문하세요.</translation>
 <translation id="6040143037577758943">닫기</translation>
 <translation id="6058380562449900225">데이터를 보호하려면 최근에 방문하지 않은 사이트의 권한을 Chromium에서 삭제하도록 허용하세요. 알림은 중지되지 않습니다.</translation>
 <translation id="6063093106622310249">&amp;Chromium에서 열기</translation>

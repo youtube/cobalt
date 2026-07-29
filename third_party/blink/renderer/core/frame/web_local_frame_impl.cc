@@ -1395,6 +1395,10 @@ void WebLocalFrameImpl::SetTextDirectionForTesting(
   frame_->SetTextDirection(direction);
 }
 
+void WebLocalFrameImpl::SetIsCaretBrowsingOverridden(bool overridden) {
+  GetFrame()->SetIsCaretBrowsingOverridden(overridden);
+}
+
 void WebLocalFrameImpl::ReplaceMisspelledRange(const WebString& text) {
   // If this caret selection has two or more markers, this function replace the
   // range covered by the first marker with the specified word as Microsoft Word
@@ -3172,8 +3176,8 @@ void WebLocalFrameImpl::AddUserReidentificationIssueImpl(
     std::optional<std::string> devtools_request_id,
     const WebURL& affected_request_url) {
   DCHECK(GetFrame());
-  AuditsIssue::ReportUserReidentificationIssue(GetFrame(), devtools_request_id,
-                                               affected_request_url);
+  AuditsIssue::ReportUserReidentificationResourceBlockedIssue(
+      GetFrame(), devtools_request_id, affected_request_url);
 }
 
 void WebLocalFrameImpl::AddGenericIssueImpl(

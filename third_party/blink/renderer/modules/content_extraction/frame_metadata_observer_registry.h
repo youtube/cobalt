@@ -56,6 +56,7 @@ class MODULES_EXPORT FrameMetadataObserverRegistry final
 
  private:
   class DomContentLoadedListener;
+  class MetaTagsMutationObserver;
   friend class DomContentLoadedListener;
 
   void Bind(mojo::PendingReceiver<mojom::blink::FrameMetadataObserverRegistry>
@@ -78,9 +79,17 @@ class MODULES_EXPORT FrameMetadataObserverRegistry final
 
   HeapMojoRemoteSet<mojom::blink::MetaTagsObserver> metatags_observers_;
 
+  // The names of the metatags to observe for each observer. The key is the
+  // RemoteSetElementId of the observer.
   HeapHashMap<uint32_t, HeapVector<String>> metatags_observer_names_;
 
+  // Whether the observer with the given RemoteSetElementId has sent metatags
+  // before. The key is the RemoteSetElementId of the observer.
+  HashMap<uint32_t, bool> has_sent_metatags_;
+
   Member<DomContentLoadedListener> dom_content_loaded_observer_;
+
+  Member<MetaTagsMutationObserver> meta_tags_mutation_observer_;
 };
 
 }  // namespace blink

@@ -6,6 +6,7 @@ import 'chrome://resources/cr_elements/cr_auto_img/cr_auto_img.js';
 import 'chrome://resources/cr_elements/cr_button/cr_button.js';
 import 'chrome://resources/cr_elements/cr_icon/cr_icon.js';
 import '/strings.m.js';
+import '../../info_dialog.js';
 import '../module_header.js';
 import './icons.html.js';
 import './icon_container.js';
@@ -13,7 +14,7 @@ import './icon_container.js';
 import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 
 import {I18nMixinLit} from '../../../i18n_setup.js';
-import type {TabGroup} from '../../../tab_groups.mojom-webui.js';
+import type {PageHandlerRemote, TabGroup} from '../../../tab_groups.mojom-webui.js';
 import {ModuleDescriptor} from '../../module_descriptor.js';
 import type {MenuItem} from '../module_header.js';
 
@@ -45,19 +46,29 @@ export class ModuleElement extends ModuleElementBase {
   static override get properties() {
     return {
       tabGroups: {type: Object},
+      showInfoDialog: {type: Boolean},
     };
   }
 
   accessor tabGroups: TabGroup[] = [];
+  accessor showInfoDialog: boolean = false;
+
+  private handler_: PageHandlerRemote;
+
+  constructor() {
+    super();
+    this.handler_ = TabGroupsProxyImpl.getInstance().handler;
+  }
 
   protected getMenuItemGroups_(): MenuItem[][] {
     return [
       [
         {
           action: 'dismiss',
-          icon: 'modules:thumb_down',
+          icon: 'modules:visibility_off',
           text: this.i18nRecursive(
-              '', 'modulesDismissButtonText', 'modulesTabGroupsTitle'),
+              '', 'modulesDismissForHoursButtonText',
+              'tabGroupsModuleDismissHours'),
         },
         {
           action: 'disable',
@@ -92,6 +103,28 @@ export class ModuleElement extends ModuleElementBase {
   protected getFaviconUrls_(objects: Array<{url: string}>): string[] {
     return objects.map(obj => obj.url);
   }
+
+  protected onDisableButtonClick_() {
+    this.fire('disable-module', {
+      message: this.i18n('modulesTabGroupsDisableToastMessage'),
+    });
+  }
+
+  protected onDismissButtonClick_() {
+    this.handler_.dismissModule();
+    this.fire('dismiss-module-instance', {
+      message: this.i18n('modulesTabGroupsDismissToastMessage'),
+      restoreCallback: () => this.handler_.restoreModule(),
+    });
+  }
+
+  protected onInfoButtonClick_() {
+    this.showInfoDialog = true;
+  }
+
+  protected onInfoDialogClose_() {
+    this.showInfoDialog = false;
+  }
 }
 
 customElements.define(ModuleElement.is, ModuleElement);
@@ -102,10 +135,13 @@ async function createElement(): Promise<ModuleElement|null> {
 
   const element = new ModuleElement();
 
-  if (tabGroups && tabGroups.length > 0) {
-    element.tabGroups = tabGroups;
+  if (!tabGroups) {
+    // Still within the dismissal time window--skip showing either tab groups or
+    // zero-state cards.
+    return null;
   }
 
+  element.tabGroups = tabGroups;
   return element;
 }
 

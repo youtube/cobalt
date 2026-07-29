@@ -545,7 +545,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.IncognitoCCTCallerIsTrusted" enum="Boolean"
-    expires_after="2025-11-30">
+    expires_after="2026-02-01">
   <owner>dullweber@google.com</owner>
   <owner>chrome-incognito@google.com</owner>
   <owner>cct-team@google.com</owner>
@@ -579,28 +579,6 @@ chromium-metrics-reviews@google.com.
     Emitted when the the user clicks the minimize button and we request to be
     put in picture-in-picture from the framework. Records true if it was
     successful; false if there was an exception thrown. Android only.
-  </summary>
-</histogram>
-
-<histogram name="CustomTabs.Minimized.ReceivedIntentReusingSession"
-    enum="Boolean" expires_after="2025-06-22">
-  <owner>sinansahin@google.com</owner>
-  <owner>chrome-connective-tissue@google.com</owner>
-  <summary>
-    Emitted when the Custom Tab receives an intent that reuses a session id
-    while the Custom Tab is minimized. Always emits true. Android only.
-  </summary>
-</histogram>
-
-<histogram name="CustomTabs.MinimizedEvents" enum="CustomTabsMinimizedEvents"
-    expires_after="2025-04-20">
-  <owner>katzz@google.com</owner>
-  <owner>chrome-connective-tissue@google.com</owner>
-  <summary>
-    Android only. Enum histogram to track the different events related to
-    Minimized Custom Tabs. This includes: minimizing(enter PiP), maximizing
-    (restore from PiP), destroy (PiP closed + CT session ends). Emitted on each
-    event.
   </summary>
 </histogram>
 
@@ -705,7 +683,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.PartialCustomTabType"
-    enum="CustomTabsPartialCustomTabType" expires_after="2025-11-30">
+    enum="CustomTabsPartialCustomTabType" expires_after="2026-02-01">
   <owner>kgrosu@google.com</owner>
   <owner>chrome-connective-tissue@google.com</owner>
   <summary>
@@ -837,7 +815,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.Startup.EarlyNavFailureReason"
-    enum="EarlyNavFailureReason" expires_after="2025-11-30">
+    enum="EarlyNavFailureReason" expires_after="2026-02-01">
   <owner>mthiesse@chromium.org</owner>
   <owner>yfriedman@chromium.org</owner>
   <summary>
@@ -921,31 +899,8 @@ chromium-metrics-reviews@google.com.
   <token key="suffix" variants="StartupSuffix"/>
 </histogram>
 
-<histogram name="CustomTabs.TimeElapsedSinceMinimized.Destroyed" units="s"
-    expires_after="2025-12-28">
-  <owner>katzz@google.com</owner>
-  <owner>chrome-connective-tissue@google.com</owner>
-  <summary>
-    Android only. Starts tracking system time when minimization begins and
-    records the difference if the PiP window is removed through any event EXCEPT
-    maximizing (un-PiP). This means the Custom Tab activity would also be
-    destroyed. Emitted when CCT PiP windows are destroyed.
-  </summary>
-</histogram>
-
-<histogram name="CustomTabs.TimeElapsedSinceMinimized.Maximized" units="s"
-    expires_after="2025-06-22">
-  <owner>katzz@google.com</owner>
-  <owner>chrome-connective-tissue@google.com</owner>
-  <summary>
-    Android only. Starts tracking system time when minimization begins and
-    records the difference if the PiP window is maximized (the tab goes back to
-    its original state). Emitted when tab is maximized.
-  </summary>
-</histogram>
-
 <histogram name="CustomTabs.TimeSpentInEngagementEventIpc" units="ms"
-    expires_after="2025-11-29">
+    expires_after="2026-02-01">
   <owner>nafisabedin@google.com</owner>
   <summary>
     The time spent in milliseconds processing IPCs on the UI thread related to
@@ -1105,7 +1060,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="TrustedWebActivity.Notification.PermissionRequestResult"
-    enum="ContentSetting" expires_after="2025-11-30">
+    enum="ContentSetting" expires_after="2026-02-01">
   <owner>peconn@chromium.org</owner>
   <owner>
     src/chrome/android/java/src/org/chromium/chrome/browser/browserservices/OWNERS

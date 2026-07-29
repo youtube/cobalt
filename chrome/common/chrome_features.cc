@@ -362,6 +362,9 @@ const char kGlicActorUiOverlayMagicCursorName[] =
 const char kGlicActorUiToastName[] = "glic-actor-ui-toast";
 const char kGlicActorUiHandoffButtonName[] = "glic-actor-ui-handoff-button";
 const char kGlicActorUiTabIndicatorName[] = "glic-actor-ui-tab-indicator";
+const char kGlicActorUiBorderGlowName[] = "glic-actor-ui-border-glow";
+const char kGlicActorUiCompletedTaskExpiryDelaySecondsName[] =
+    "glic-actor-completed-task-expiry-delay-seconds";
 
 // Controls whether the task icon in the actor ui is enabled.
 const base::FeatureParam<bool> kGlicActorUiTaskIcon{
@@ -381,6 +384,12 @@ const base::FeatureParam<bool> kGlicActorUiHandoffButton{
 // Controls whether the tab indicator in the actor ui is enabled.
 const base::FeatureParam<bool> kGlicActorUiTabIndicator{
     &kGlicActorUi, kGlicActorUiTabIndicatorName, true};
+// Controls whether the actor border glow in the actor ui is enabled.
+const base::FeatureParam<bool> kGlicActorUiBorderGlow{
+    &kGlicActorUi, kGlicActorUiBorderGlowName, true};
+// Controls the expiry delay for completed tasks in the actor ui.
+const base::FeatureParam<int> kGlicActorUiCompletedTaskExpiryDelaySeconds{
+    &kGlicActorUi, kGlicActorUiCompletedTaskExpiryDelaySecondsName, 10};
 
 // Controls renderer tool observation timeout when waiting on local
 // (non-network) work.
@@ -410,6 +419,9 @@ const base::FeatureParam<base::TimeDelta> kGlicActorKeyDownDuration{
 const base::FeatureParam<base::TimeDelta> kGlicActorKeyUpDuration{
     &kGlicActorIncrementalTyping,
     "glic-actor-incremental-typing-key-up-duration", base::Milliseconds(5)};
+
+const base::FeatureParam<bool> kGlicActorScrollTargetIntoView{
+    &kGlicActor, "scroll-target-into-view", true};
 
 #if BUILDFLAG(ENABLE_GLIC)
 // Controls whether the Glic feature is enabled.
@@ -728,6 +740,14 @@ BASE_FEATURE(kGlicPanelResetSizeAndLocationOnOpen,
 BASE_FEATURE(kGlicRecordActorJournal,
              "GlicRecordActorJournal",
              base::FEATURE_ENABLED_BY_DEFAULT);
+extern const base::FeatureParam<int> kGlicRecordActorJournalFeedbackProductId{
+    &kGlicRecordActorJournal, "glic-record-actor-journal-feedback-product-id",
+    5320395};
+extern const base::FeatureParam<std::string>
+    kGlicRecordActorJournalFeedbackCategoryTag{
+        &kGlicRecordActorJournal,
+        "glic-record-actor-journal-feedback-category-tag",
+        "gemini_in_chrome_actor_tt_df"};
 
 BASE_FEATURE(kGlicWebClientUnresponsiveMetrics,
              "GlicWebClientUnresponsiveMetrics",
@@ -1938,6 +1958,12 @@ BASE_FEATURE(kUmaStorageDimensions,
 #endif
 
 #if BUILDFLAG(IS_WIN)
+// Kill switch for pinning PWA Shortcut to the Windows taskbar with the Taskbar
+// pinning Limited Access Feature.
+BASE_FEATURE(kWinPinPWAShortcutWithLAF,
+             "WinPinPWAShortcutWithLAF",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 // Enables the accelerated default browser flow for Windows 10.
 BASE_FEATURE(kWin10AcceleratedDefaultBrowserFlow,
              "Win10AcceleratedDefaultBrowserFlow",
@@ -1968,7 +1994,7 @@ BASE_FEATURE(kPeriodicLogUploadMigration,
 // A feature to enable periodic log class management enabled policy.
 BASE_FEATURE(kClassManagementEnabledMetricsProvider,
              "ClassManagementEnabledMetricsProvider",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 // A feature to disable shortcut creation from the Chrome UI, and instead use

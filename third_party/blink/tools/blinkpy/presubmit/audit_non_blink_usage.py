@@ -23,7 +23,7 @@ import sys
 _DISALLOW_NON_BLINK_MOJOM = (
     # network::mojom::Foo is allowed to use as non-blink mojom type.
     # mojom::RendererContentSettingsPtr is allowed.
-    '(?!network::)(\w+::)?mojom::(?!RendererContentSettingsPtr)(?!blink).+',
+    r'(?!network::)(\w+::)?mojom::(?!RendererContentSettingsPtr)(?!blink).+',
     'Consider using "ns::mojom::blink::Foo" instead of "[[::]ns::]mojom::Foo" '
     'for non-blink mojom types, or "mojom::blink::Foo" instead of '
     '"[[::]blink::]mojom::Foo" for blink mojom types, unless you have clear '
@@ -144,7 +144,7 @@ _CONFIG = [
             'base::StringPiece',
             'base::SubstringSetMatcher',
             'base::SysInfo',
-            'base::SystemMemoryInfoKB',
+            'base::SystemMemoryInfo',
             'base::ThreadChecker',
             'base::ThreadTicks',
             'base::ThreadType',
@@ -1668,8 +1668,7 @@ _CONFIG = [
         'allowed': [
             'gfx::BufferFormat',
             'gpu::ENABLE_WEBGL_TIMER_QUERY_EXTENSIONS',
-            'gpu::IsImageFromGpuMemoryBufferFormatSupported',
-            'gpu::IsImageSizeValidForGpuMemoryBufferFormat',
+            'gpu::IsFormatSupportedForSIWithNativeBuffer',
             'viz::SinglePlaneSharedImageFormatToBufferFormat',
         ],
     },

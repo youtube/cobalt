@@ -11,6 +11,7 @@
 #import "ios/chrome/common/ui/elements/gradient_view.h"
 #import "ios/chrome/common/ui/promo_style/utils.h"
 #import "ios/chrome/common/ui/util/button_util.h"
+#import "ios/chrome/common/ui/util/chrome_button.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 #import "ios/chrome/common/ui/util/dynamic_type_util.h"
 #import "ios/chrome/common/ui/util/pointer_interaction_util.h"
@@ -20,6 +21,9 @@ namespace {
 
 const CGFloat kDefaultActionsBottomMargin = 10;
 const CGFloat kActionButtonImageInsets = 10;
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
+const CGFloat kButtonStackViewSpacing = 12;
+#endif
 // Gradient height.
 const CGFloat kGradientHeight = 40.;
 const CGFloat kScrollViewBottomInsets = 20;
@@ -80,14 +84,6 @@ void SetConfigurationImage(UIButton* button,
   button.imageView.accessibilityIdentifier = image.accessibilityIdentifier;
 }
 
-// Sets the color of the button's background in the button configuration's
-// background configuration.
-void SetButtonColor(UIButton* button, UIColor* color) {
-  UIButtonConfiguration* configuration = button.configuration;
-  configuration.background.backgroundColor = color;
-  button.configuration = configuration;
-}
-
 // Gets the default checkmark circle fill symbol with default configuration of
 // the given point size.
 //
@@ -119,13 +115,14 @@ UIImage* DefaultCheckmarkCircleFillSymbol(CGFloat point_size) {
 @property(nonatomic, strong) UIView* imageContainerView;
 @property(nonatomic, strong) NSLayoutConstraint* imageViewAspectRatioConstraint;
 @property(nonatomic, strong) UIScrollView* scrollView;
-@property(nonatomic, strong) GradientView* gradientView;
-@property(nonatomic, strong) NSLayoutConstraint* gradientViewHeightConstraint;
+@property(nonatomic, strong) CAGradientLayer* gradientMask;
 @property(nonatomic, strong)
     NSLayoutConstraint* scrollViewBottomAnchorConstraint;
 @end
 
-@implementation ConfirmationAlertViewController
+@implementation ConfirmationAlertViewController {
+  ChromeButton* _primaryButton;
+}
 
 #pragma mark - Public
 
@@ -142,9 +139,6 @@ UIImage* DefaultCheckmarkCircleFillSymbol(CGFloat point_size) {
     _dismissBarButtonSystemItem = UIBarButtonSystemItemDone;
     _shouldFillInformationStack = NO;
     _actionStackBottomMargin = kDefaultActionsBottomMargin;
-    _activityIndicatorColor = [UIColor colorNamed:kSolidWhiteColor];
-    _confirmationButtonColor = [UIColor colorNamed:kBlue100Color];
-    _confirmationCheckmarkColor = [UIColor colorNamed:kBlue700Color];
     _imageBackgroundColor = [UIColor colorNamed:kBackgroundColor];
     _mainBackgroundColor = [UIColor colorNamed:kPrimaryBackgroundColor];
   }
@@ -276,20 +270,16 @@ UIImage* DefaultCheckmarkCircleFillSymbol(CGFloat point_size) {
     scrollViewBottomAnchor = actionStackView.topAnchor;
     self.actionStackView = actionStackView;
 
-    self.gradientView = [self createGradientView];
-    [self.view addSubview:self.gradientView];
-
-    [NSLayoutConstraint activateConstraints:@[
-      [self.gradientView.bottomAnchor
-          constraintEqualToAnchor:actionStackView.topAnchor],
-      [self.gradientView.leadingAnchor
-          constraintEqualToAnchor:self.scrollView.leadingAnchor],
-      [self.gradientView.trailingAnchor
-          constraintEqualToAnchor:self.scrollView.trailingAnchor],
-    ]];
-    self.gradientViewHeightConstraint = [self.gradientView.heightAnchor
-        constraintEqualToConstant:self.customGradientViewHeight];
-    self.gradientViewHeightConstraint.active = YES;
+    if (self.customGradientViewHeight > 0) {
+      self.gradientMask = [CAGradientLayer layer];
+      self.gradientMask.endPoint = CGPointMake(0.0, 1.0);
+      UIColor* bottomColor =
+          BlendColors([UIColor clearColor], [UIColor whiteColor],
+                      kScrollViewBottomInsets / self.customGradientViewHeight);
+      self.gradientMask.colors =
+          @[ (id)[UIColor whiteColor].CGColor, (id)bottomColor.CGColor ];
+      self.scrollView.layer.mask = self.gradientMask;
+    }
   }
 
   self.scrollViewBottomAnchorConstraint = [self.scrollView.bottomAnchor
@@ -387,6 +377,29 @@ UIImage* DefaultCheckmarkCircleFillSymbol(CGFloat point_size) {
   [self.scrollView flashScrollIndicators];
 }
 
+- (void)viewDidLayoutSubviews {
+  [super viewDidLayoutSubviews];
+
+  // The portion of the gradient view actually covering the scroll view.
+  CGFloat effectiveGradientHeight =
+      self.customGradientViewHeight - kScrollViewBottomInsets;
+  if (effectiveGradientHeight <= 0) {
+    return;
+  }
+
+  // Match the mask's size to the scroll view's size.
+  self.gradientMask.frame = self.scrollView.bounds;
+
+  // Determine the starting point of the gradient so that it has the desired
+  // number of pixels of height at the bottom of the scroll view.
+  CGFloat startY =
+      (effectiveGradientHeight >= self.gradientMask.frame.size.height)
+          ? 0.0
+          : 1.0 -
+                (effectiveGradientHeight / self.gradientMask.frame.size.height);
+  self.gradientMask.startPoint = CGPointMake(0.0, startY);
+}
+
 - (void)viewSafeAreaInsetsDidChange {
   [super viewSafeAreaInsetsDidChange];
   [self.view setNeedsUpdateConstraints];
@@ -425,7 +438,11 @@ UIImage* DefaultCheckmarkCircleFillSymbol(CGFloat point_size) {
 }
 
 - (void)displayGradientView:(BOOL)shouldShow {
-  self.gradientView.hidden = !shouldShow;
+  self.scrollView.layer.mask = shouldShow ? self.gradientMask : nil;
+}
+
+- (UIButton*)primaryActionButton {
+  return _primaryButton;
 }
 
 - (BOOL)isScrolledToBottom {
@@ -551,7 +568,8 @@ UIImage* DefaultCheckmarkCircleFillSymbol(CGFloat point_size) {
 // Helper to create the navigation bar.
 - (UINavigationBar*)createNavigationBar {
   UINavigationBar* navigationBar = [[UINavigationBar alloc] init];
-  navigationBar.translucent = NO;
+  navigationBar.translucent =
+      CGColorGetAlpha(self.mainBackgroundColor.CGColor) < 1.0;
   [navigationBar setShadowImage:[[UIImage alloc] init]];
   [navigationBar setBarTintColor:self.mainBackgroundColor];
 
@@ -708,7 +726,7 @@ UIImage* DefaultCheckmarkCircleFillSymbol(CGFloat point_size) {
   view.editable = NO;
   view.selectable = NO;
   view.scrollEnabled = NO;
-  view.backgroundColor = [UIColor colorNamed:kPrimaryBackgroundColor];
+  view.backgroundColor = self.mainBackgroundColor;
   return view;
 }
 
@@ -784,16 +802,6 @@ UIImage* DefaultCheckmarkCircleFillSymbol(CGFloat point_size) {
   return scrollView;
 }
 
-// Helper to create the gradient view.
-- (GradientView*)createGradientView {
-  GradientView* gradientView = [[GradientView alloc]
-      initWithTopColor:[[UIColor colorNamed:kPrimaryBackgroundColor]
-                           colorWithAlphaComponent:0]
-           bottomColor:[UIColor colorNamed:kPrimaryBackgroundColor]];
-  gradientView.translatesAutoresizingMaskIntoConstraints = NO;
-  return gradientView;
-}
-
 // Helper to create the stack view.
 - (UIStackView*)createStackViewWithArrangedSubviews:
     (NSArray<UIView*>*)subviews {
@@ -820,9 +828,15 @@ UIImage* DefaultCheckmarkCircleFillSymbol(CGFloat point_size) {
   actionStackView.axis = UILayoutConstraintAxisVertical;
   actionStackView.translatesAutoresizingMaskIntoConstraints = NO;
 
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
+  if (@available(iOS 26, *)) {
+    actionStackView.spacing = kButtonStackViewSpacing;
+  }
+#endif
+
   if (self.primaryActionString) {
-    _primaryActionButton = [self createPrimaryActionButton];
-    [actionStackView addArrangedSubview:self.primaryActionButton];
+    _primaryButton = [self createPrimaryActionButton];
+    [actionStackView addArrangedSubview:_primaryButton];
   }
 
   if (self.secondaryActionString) {
@@ -838,8 +852,10 @@ UIImage* DefaultCheckmarkCircleFillSymbol(CGFloat point_size) {
 }
 
 // Helper to create the primary action button.
-- (UIButton*)createPrimaryActionButton {
-  UIButton* primaryActionButton = PrimaryActionButton(YES);
+- (ChromeButton*)createPrimaryActionButton {
+  ChromeButton* primaryActionButton = self.destructiveAction
+                                          ? PrimaryDestructiveActionButton()
+                                          : PrimaryActionButton();
   [primaryActionButton addTarget:self
                           action:@selector(didTapPrimaryActionButton)
                 forControlEvents:UIControlEventTouchUpInside];
@@ -853,77 +869,39 @@ UIImage* DefaultCheckmarkCircleFillSymbol(CGFloat point_size) {
 // Helper to create the primary action button.
 - (UIButton*)createSecondaryActionButton {
   DCHECK(self.secondaryActionString);
-  UIButton* secondaryActionButton =
-      [UIButton buttonWithType:UIButtonTypeSystem];
+  UIButton* secondaryActionButton = SecondaryActionButton();
   [secondaryActionButton addTarget:self
                             action:@selector(didTapSecondaryActionButton)
                   forControlEvents:UIControlEventTouchUpInside];
 
   UIButtonConfiguration* buttonConfiguration =
-      secondaryActionButton.configuration
-          ? secondaryActionButton.configuration
-          : [UIButtonConfiguration plainButtonConfiguration];
-  buttonConfiguration.contentInsets = NSDirectionalEdgeInsetsMake(
-      kButtonVerticalInsets, 0, kButtonVerticalInsets, 0);
+      secondaryActionButton.configuration;
+  buttonConfiguration.title = self.secondaryActionString;
 
   if (self.secondaryActionImage) {
     buttonConfiguration.image = self.secondaryActionImage;
     buttonConfiguration.imagePadding = kActionButtonImageInsets;
   }
 
-  UIFont* font = [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
-  NSDictionary* attributes = @{NSFontAttributeName : font};
-  NSMutableAttributedString* string = [[NSMutableAttributedString alloc]
-      initWithString:self.secondaryActionString];
-  [string addAttributes:attributes range:NSMakeRange(0, string.length)];
-  buttonConfiguration.attributedTitle = string;
-
-  UIColor* titleColor = [UIColor colorNamed:self.secondaryActionTextColor
-                                                ? self.secondaryActionTextColor
-                                                : kBlueColor];
-  buttonConfiguration.baseForegroundColor = titleColor;
   buttonConfiguration.background.backgroundColor = [UIColor clearColor];
   secondaryActionButton.configuration = buttonConfiguration;
 
-  secondaryActionButton.translatesAutoresizingMaskIntoConstraints = NO;
   secondaryActionButton.accessibilityIdentifier =
       kConfirmationAlertSecondaryActionAccessibilityIdentifier;
-  secondaryActionButton.pointerInteractionEnabled = YES;
-  secondaryActionButton.pointerStyleProvider =
-      CreateOpaqueButtonPointerStyleProvider();
 
   return secondaryActionButton;
 }
 
 - (UIButton*)createTertiaryButton {
   DCHECK(self.tertiaryActionString);
-  UIButton* tertiaryActionButton = [UIButton buttonWithType:UIButtonTypeSystem];
+  UIButton* tertiaryActionButton = SecondaryActionButton();
   [tertiaryActionButton addTarget:self
                            action:@selector(didTapTertiaryActionButton)
                  forControlEvents:UIControlEventTouchUpInside];
 
-  UIButtonConfiguration* buttonConfiguration =
-      [UIButtonConfiguration plainButtonConfiguration];
-  buttonConfiguration.contentInsets = NSDirectionalEdgeInsetsMake(
-      kButtonVerticalInsets, 0, kButtonVerticalInsets, 0);
-  buttonConfiguration.background.backgroundColor = [UIColor clearColor];
-  buttonConfiguration.baseForegroundColor = [UIColor colorNamed:kBlueColor];
-
-  // Customize title string.
-  UIFont* font = [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
-  NSDictionary* attributes = @{NSFontAttributeName : font};
-  NSMutableAttributedString* string = [[NSMutableAttributedString alloc]
-      initWithString:self.tertiaryActionString];
-  [string addAttributes:attributes range:NSMakeRange(0, string.length)];
-  buttonConfiguration.attributedTitle = string;
-  tertiaryActionButton.configuration = buttonConfiguration;
-
-  tertiaryActionButton.translatesAutoresizingMaskIntoConstraints = NO;
+  SetConfigurationTitle(tertiaryActionButton, self.tertiaryActionString);
   tertiaryActionButton.accessibilityIdentifier =
       kConfirmationAlertTertiaryActionAccessibilityIdentifier;
-  tertiaryActionButton.pointerInteractionEnabled = YES;
-  tertiaryActionButton.pointerStyleProvider =
-      CreateOpaqueButtonPointerStyleProvider();
 
   return tertiaryActionButton;
 }
@@ -932,20 +910,20 @@ UIImage* DefaultCheckmarkCircleFillSymbol(CGFloat point_size) {
 // loading is true; otherwise, applies button labels and enables buttons.
 - (void)updateButtonState {
   const BOOL showingProgressState = _isLoading || _isConfirmed;
-  _primaryActionButton.enabled = !showingProgressState;
+  _primaryButton.enabled = !showingProgressState;
   if (_isConfirmed) {
-    SetButtonColor(_primaryActionButton, _confirmationButtonColor);
+    _primaryButton.tunedDownStyle = YES;
     SetConfigurationImage(
-        _primaryActionButton,
+        _primaryButton,
         DefaultCheckmarkCircleFillSymbol(kSymbolConfirmationCheckmarkPointSize),
-        _confirmationCheckmarkColor);
+        self.destructiveAction ? [UIColor colorNamed:kRed600Color]
+                               : [UIColor colorNamed:kBlue700Color]);
   } else {
-    UpdateButtonColorOnEnableDisable(_primaryActionButton);
-    SetConfigurationImage(_primaryActionButton, /*image=*/nil, /*color=*/nil);
+    SetConfigurationImage(_primaryButton, /*image=*/nil, /*color=*/nil);
   }
-  SetConfigurationActivityIndicator(_primaryActionButton, _isLoading,
-                                    _activityIndicatorColor);
-  SetConfigurationTitle(_primaryActionButton,
+  SetConfigurationActivityIndicator(_primaryButton, _isLoading,
+                                    UIColor.whiteColor);
+  SetConfigurationTitle(_primaryButton,
                         showingProgressState ? @"" : _primaryActionString);
 
   _secondaryActionButton.enabled = !showingProgressState;
@@ -984,13 +962,22 @@ UIImage* DefaultCheckmarkCircleFillSymbol(CGFloat point_size) {
   // Update fonts for specific content sizes.
   if (previousTraitCollection.preferredContentSizeCategory !=
       self.traitCollection.preferredContentSizeCategory) {
-    SetConfigurationFont(self.primaryActionButton,
+    SetConfigurationFont(_primaryButton,
                          PreferredFontForTextStyleWithMaxCategory(
                              UIFontTextStyleHeadline,
                              self.traitCollection.preferredContentSizeCategory,
                              UIContentSizeCategoryExtraExtraExtraLarge));
 
-    UIFont* newFont = [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
+    UIFont* newFont;
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
+    if (@available(iOS 26, *)) {
+      newFont = [UIFont preferredFontForTextStyle:UIFontTextStyleHeadline];
+    } else {
+#endif
+      newFont = [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
+    }
+#endif
     if (self.secondaryActionString) {
       SetConfigurationFont(self.secondaryActionButton, newFont);
     }

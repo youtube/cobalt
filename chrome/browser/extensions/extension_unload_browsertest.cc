@@ -90,10 +90,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionUnloadBrowserTest, TestUnload) {
   ASSERT_EQ(1, browser()->tab_strip_model()->count());
   GURL initial_tab_url =
       browser()->tab_strip_model()->GetWebContentsAt(0)->GetLastCommittedURL();
-  ui_test_utils::NavigateToURLWithDisposition(
-      browser(), extension->GetResourceURL("page.html"),
-      WindowOpenDisposition::NEW_FOREGROUND_TAB,
-      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
+  NavigateToURLInNewTab(extension->GetResourceURL("page.html"));
   EXPECT_EQ(2, browser()->tab_strip_model()->count());
   DisableExtension(id);
   // There should only be one remaining web contents - the initial one.
@@ -210,9 +207,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionUnloadBrowserTest, CrashedTabs) {
       LoadExtension(test_dir.UnpackedPath()));
   ASSERT_TRUE(extension);
   const GURL page_url = extension->GetResourceURL("page.html");
-  ui_test_utils::NavigateToURLWithDisposition(
-      browser(), page_url, WindowOpenDisposition::NEW_FOREGROUND_TAB,
-      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
+  NavigateToURLInNewTab(page_url);
 
   EXPECT_EQ(2, browser()->tab_strip_model()->count());
 

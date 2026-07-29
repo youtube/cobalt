@@ -103,10 +103,19 @@ constexpr char kLogInWithPasswordChangeSubmissionHistogram[] =
 bool DidLoginWithPrimaryChangedPassword(
     const PasswordFormManager& submitted_manager,
     const PasswordForm& change_password_login) {
-  CHECK(change_password_login.type == PasswordForm::Type::kChangeSubmission);
+  CHECK_EQ(change_password_login.type, PasswordForm::Type::kChangeSubmission);
 
   return submitted_manager.GetPendingCredentials().password_value ==
          change_password_login.password_value;
+}
+
+bool DidLoginWithBackupChangedPassword(
+    const PasswordFormManager& submitted_manager,
+    const PasswordForm& change_password_login) {
+  CHECK_EQ(change_password_login.type, PasswordForm::Type::kChangeSubmission);
+
+  return submitted_manager.GetPendingCredentials().password_value ==
+         change_password_login.GetPasswordBackup();
 }
 
 void RecordMetricsForLoginWithChangedPassword(
@@ -125,10 +134,15 @@ void RecordMetricsForLoginWithChangedPassword(
     outcome = login_successful
                   ? LogInWithChangedPasswordOutcome::kPrimaryPasswordSucceeded
                   : LogInWithChangedPasswordOutcome::kPrimaryPasswordFailed;
-  } else {
+  } else if (DidLoginWithBackupChangedPassword(submitted_manager,
+                                               *change_password_login)) {
     outcome = login_successful
                   ? LogInWithChangedPasswordOutcome::kBackupPasswordSucceeded
                   : LogInWithChangedPasswordOutcome::kBackupPasswordFailed;
+  } else {
+    outcome = login_successful
+                  ? LogInWithChangedPasswordOutcome::kUnknownPasswordSucceeded
+                  : LogInWithChangedPasswordOutcome::kUnknownPasswordFailed;
   }
 
   if (auto* password_change_service = client->GetPasswordChangeService()) {
@@ -148,16 +162,13 @@ bool AreChangePasswordFieldsEmpty(const FormData& form_data,
   const std::u16string& new_password = parsed_form.new_password_element;
   const std::u16string& confirmation_password =
       parsed_form.confirmation_password_element;
-  for (const auto& field : form_data.fields()) {
-    if (!field.value().empty() &&
-        (field.name() == new_password ||
-         (!old_password.empty() && field.name() == old_password) ||
-         (!confirmation_password.empty() &&
-          field.name() == confirmation_password))) {
-      return false;
-    }
-  }
-  return true;
+  return std::ranges::none_of(form_data.fields(), [&](const auto& field) {
+    return !field.value().empty() &&
+           (field.name() == new_password ||
+            (!old_password.empty() && field.name() == old_password) ||
+            (!confirmation_password.empty() &&
+             field.name() == confirmation_password));
+  });
 }
 
 bool AreLoginFieldsIdentical(const PasswordForm& form,
@@ -536,7 +547,6 @@ void PasswordManager::RegisterProfilePrefs(
   registry->RegisterBooleanPref(prefs::kPasswordsPrefWithNewLabelUsed, false);
 #if BUILDFLAG(IS_ANDROID)
   registry->RegisterBooleanPref(prefs::kOfferToSavePasswordsEnabledGMS, true);
-  registry->RegisterBooleanPref(prefs::kAccountStorageNoticeShown, false);
   registry->RegisterBooleanPref(prefs::kAutoSignInEnabledGMS, true);
   RegisterLegacySplitStoresPref(registry);
   registry->RegisterStringPref(prefs::kUPMErrorUIShownTimestamp, "0");

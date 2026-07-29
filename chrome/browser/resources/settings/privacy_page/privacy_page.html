@@ -137,15 +137,6 @@
         </settings-subpage>
       </template>
 
-      <template is="dom-if" if="[[enableSecurityKeysSubpage_]]">
-        <template is="dom-if" route-path="/securityKeys">
-          <settings-subpage associated-control="[[$$('#securityLinkRow')]]"
-              page-title="$i18n{securityKeysTitle}">
-            <security-keys-subpage></security-keys-subpage>
-          </settings-subpage>
-        </template>
-      </template>
-
       <template is="dom-if" route-path="/content">
         <settings-subpage
             associated-control="[[$$('#permissionsLinkRow')]]"
@@ -156,18 +147,6 @@
               prefs="{{prefs}}">
           </settings-site-settings-page>
         </settings-subpage>
-      </template>
-
-      <template is="dom-if" if="[[shouldShowSafetyHub_]]">
-        <template is="dom-if" route-path="/safetyCheck">
-          <!-- TODO(crbug.com/40267370): Make the page searchable.-->
-          <settings-subpage id="safetyHub" page-title="$i18n{safetyHub}"
-              class="multi-card" no-search
-              learn-more-url="$i18n{safetyHubHelpCenterURL}">
-            <settings-safety-hub-page prefs="{{prefs}}">
-            </settings-safety-hub-page>
-          </settings-subpage>
-        </template>
       </template>
 
       <template is="dom-if" route-path="/security">
@@ -186,68 +165,8 @@
         </settings-subpage>
       </template>
 
-      <template is="dom-if" route-path="/adPrivacy"
-          no-search="[[!shouldShowAdPrivacy_(isPrivacySandboxRestricted_,
-                isPrivacySandboxRestrictedNoticeEnabled_)]]">
-        <settings-subpage id="privacy-sandbox"
-            page-title="$i18n{adPrivacyPageTitle}"
-            associated-control="[[$$('#privacySandboxLinkRow')]]"
-            learn-more-url="$i18n{adPrivacyLearnMoreURL}">
-          <settings-privacy-sandbox-page prefs="{{prefs}}"
-              focus-config="[[focusConfig_]]">
-          </settings-privacy-sandbox-page>
-        </settings-subpage>
-      </template>
-
-      <template is="dom-if" route-path="/adPrivacy/interests"
-          no-search="[[isPrivacySandboxRestricted_]]">
-        <settings-subpage id="privacy-sandbox-topics"
-            page-title="$i18n{topicsPageTitle}"
-            associated-control="[[$$('#privacySandboxLinkRow')]]"
-            learn-more-url="$i18n{adPrivacyLearnMoreURL}">
-          <settings-privacy-sandbox-topics-subpage prefs="{{prefs}}"
-            focus-config="[[focusConfig_]]">
-          </settings-privacy-sandbox-topics-subpage>
-        </settings-subpage>
-      </template>
-      <template is="dom-if" route-path="/adPrivacy/interests/manage"
-          no-search="[[isPrivacySandboxRestricted_]]">
-        <settings-subpage id="privacy-sandbox-manage-topics"
-            page-title="$i18n{manageTopicsHeading}"
-            associated-control="[[$$('#privacySandboxLinkRow')]]"
-            learn-more-url="$i18n{adPrivacyLearnMoreURL}">
-          <settings-privacy-sandbox-manage-topics-subpage
-            focus-config="[[focusConfig_]]" prefs="{{prefs}}">
-          </settings-privacy-sandbox-manage-topics-subpage>
-        </settings-subpage>
-      </template>
-
-      <template is="dom-if" route-path="/adPrivacy/sites"
-          no-search="[[isPrivacySandboxRestricted_]]">
-        <settings-subpage id="privacy-sandbox-fledge"
-            page-title="$i18n{fledgePageTitle}"
-            associated-control="[[$$('#privacySandboxLinkRow')]]"
-            learn-more-url="$i18n{adPrivacyLearnMoreURL}">
-          <settings-privacy-sandbox-fledge-subpage prefs="{{prefs}}">
-          </settings-privacy-sandbox-fledge-subpage>
-        </settings-subpage>
-      </template>
-
-      <template is="dom-if" route-path="/adPrivacy/measurement"
-          no-search="[[!shouldShowAdPrivacy_(isPrivacySandboxRestricted_,
-              isPrivacySandboxRestrictedNoticeEnabled_)]]">
-        <settings-subpage id="privacy-sandbox-ad-measurement"
-            page-title="$i18n{adMeasurementPageTitle}"
-            associated-control="[[$$('#privacySandboxLinkRow')]]"
-            learn-more-url="$i18n{adPrivacyLearnMoreURL}">
-          <settings-privacy-sandbox-ad-measurement-subpage prefs="{{prefs}}">
-          </settings-privacy-sandbox-ad-measurement-subpage>
-        </settings-subpage>
-      </template>
-
       <template is="dom-if" route-path="/content/all" no-search>
-        <settings-subpage id="allSites"
-            page-title$="[[allSitesPageTitle_]]"
+        <settings-subpage page-title="$i18n{siteSettingsAllSites}"
             search-label="$i18n{siteSettingsAllSitesSearch}"
             search-term="{{searchFilter_}}"
             preserve-search-term>
@@ -360,19 +279,6 @@
               block-header="$i18n{siteSettingsCameraBlockedExceptions}"
               search-filter="[[searchFilter_]]">
           </category-setting-exceptions>
-        </settings-subpage>
-      </template>
-      <template is="dom-if" route-path="/cookies">
-        <settings-subpage id="cookies"
-            page-title="$i18n{thirdPartyCookiesPageTitle}"
-            learn-more-url="$i18n{cookiesSettingsHelpCenterURL}"
-            search-label="$i18n{siteSettingsAllSitesSearch}"
-            search-term="{{searchFilter_}}"
-            associated-control="[[$$('#thirdPartyCookiesLinkRow')]]">
-          <settings-cookies-page prefs="{{prefs}}"
-              focus-config="[[focusConfig_]]"
-              search-term="[[searchFilter_]]">
-          </settings-cookies-page>
         </settings-subpage>
       </template>
       <template is="dom-if" if="[[enableIncognitoTrackingProtections_]]">
@@ -849,66 +755,9 @@
             search-label="$i18n{siteSettingsAllSitesSearch}"
             search-term="{{searchFilter_}}">
 </if>
-          <div class="radio-group">
-            <div class="secondary">
-              $i18n{siteSettingsProtectedContentDescription}
-            </div>
-            <h2>$i18n{siteSettingsDefaultBehavior}</h2>
-            <div class="secondary radio-sub-heading">
-              $i18n{siteSettingsDefaultBehaviorDescription}
-            </div>
-            <settings-radio-group
-              pref="{{prefs.webkit.webprefs.encrypted_media_enabled}}"
-              selectable-elements="settings-collapse-radio-button">
-              <settings-collapse-radio-button no-collapse
-                  pref="[[prefs.webkit.webprefs.encrypted_media_enabled]]"
-                  label="$i18n{siteSettingsProtectedContentAllowed}"
-                  name="true"
-                  disabled$="[[isGuest_]]"
-                  icon="privacy:sync-saved-locally">
-              </settings-collapse-radio-button>
-              <settings-collapse-radio-button no-collapse
-                  pref="[[prefs.webkit.webprefs.encrypted_media_enabled]]"
-                  label="$i18n{siteSettingsProtectedContentBlocked}"
-                  sub-label=
-                      "$i18n{siteSettingsProtectedContentBlockedSubLabel}"
-                  name="false"
-                  disabled$="[[isGuest_]]"
-                  icon="privacy:web-asset-off">
-              </settings-collapse-radio-button>
-            </settings-radio-group>
-          </div>
-<if expr="is_chromeos or is_win">
-          <settings-category-default-radio-group
-            header="$i18n{siteSettingsProtectedContentIdentifiers}"
-            description=
-                "$i18n{siteSettingsProtectedContentIdentifiersExplanation}"
-            category="[[contentSettingsTypesEnum_.PROTECTED_CONTENT]]"
-            block-option-label=
-                "$i18n{siteSettingsProtectedContentIdentifiersBlocked}"
-            block-option-sub-label=
-                "$i18n{siteSettingsProtectedContentIdentifiersBlockedSubLabel}"
-            block-option-icon="privacy:web-asset-off"
-            allow-option-label=
-                "$i18n{siteSettingsProtectedContentIdentifiersAllowed}"
-<if expr="is_win and _google_chrome">
-            allow-option-sub-label=
-                "$i18n{siteSettingsProtectedContentIdentifiersAllowedSubLabel}"
-</if>
-            allow-option-icon="privacy:sync-saved-locally"
-            disabled$="[[isGuest_]]">
-          </settings-category-default-radio-group>
-          <category-setting-exceptions
-              description=
-                  "$i18n{siteSettingsCustomizedBehaviorsDescriptionShort}"
-              category="[[contentSettingsTypesEnum_.PROTECTED_CONTENT]]"
-              allow-header=
-                  "$i18n{siteSettingsProtectedContentIdentifiersAllowedExceptions}"
-              block-header=
-                  "$i18n{siteSettingsProtectedContentIdentifiersBlockedExceptions}"
-              search-filter="[[searchFilter_]]">
-          </category-setting-exceptions>
-</if>
+          <settings-protected-content-page prefs="{{prefs}}"
+              search-term="[[searchFilter_]]">
+          </settings-protected-content-page>
         </settings-subpage>
       </template>
       <template is="dom-if" route-path="/content/clipboard" no-search>

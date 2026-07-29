@@ -6,6 +6,7 @@
 
 #import "base/apple/foundation_util.h"
 #import "base/functional/bind.h"
+#import "base/ios/ios_util.h"
 #import "base/location.h"
 #import "base/strings/string_number_conversions.h"
 #import "base/strings/sys_string_conversions.h"
@@ -21,6 +22,7 @@
 #import "components/keyed_service/core/service_access_type.h"
 #import "components/password_manager/core/browser/leak_detection/mock_bulk_leak_check_service.h"
 #import "components/password_manager/core/browser/password_form.h"
+#import "components/password_manager/core/browser/password_manager_constants.h"
 #import "components/password_manager/core/browser/password_manager_test_utils.h"
 #import "components/password_manager/core/browser/password_store/test_password_store.h"
 #import "ios/chrome/browser/affiliations/model/ios_chrome_affiliation_service_factory.h"
@@ -636,6 +638,10 @@ TEST_F(PasswordManagerViewControllerTest,
 // Tests that opening the PasswordManagerViewController in search mode shows the
 // expected content.
 TEST_F(PasswordManagerViewControllerTest, TestOpenInSearchMode) {
+  // TODO(crbug.com/437314312): Re-enable the test on iOS26.
+  if (base::ios::IsRunningOnIOS26OrLater()) {
+    return;
+  }
   // Call `settingsWillBeDismissed` on the initial view controller so that its
   // observers are reset.
   [GetPasswordManagerViewController() settingsWillBeDismissed];

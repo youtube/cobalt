@@ -128,6 +128,7 @@
 #include "components/autofill/core/browser/studies/autofill_experiments.h"
 #include "components/autofill/core/browser/suggestions/addresses/address_suggestion_generator.h"
 #include "components/autofill/core/browser/suggestions/autofill_ai/autofill_ai_suggestion_generator.h"
+#include "components/autofill/core/browser/suggestions/compose_suggestion_generator.h"
 #include "components/autofill/core/browser/suggestions/one_time_passwords/otp_suggestion_generator.h"
 #include "components/autofill/core/browser/suggestions/payments/iban_suggestion_generator.h"
 #include "components/autofill/core/browser/suggestions/payments/merchant_promo_code_suggestion_generator.h"
@@ -716,6 +717,43 @@ void AddCachedAutofillAiPredictions(const AutofillAiModelCache& cache,
     }
   }
 }
+// Generates a compose suggestion for the given `form` and `field` if conditions
+// are met, returns `std::nullopt` otherwise.
+// TODO(crbug.com/409962888): Remove once new suggestion generator architecture
+// is launched.
+std::optional<Suggestion> GenerateComposeSuggestion(
+    const FormData& form,
+    const FormFieldData& field,
+    AutofillSuggestionTriggerSource trigger_source,
+    AutofillClient& client,
+    AutofillComposeDelegate* compose_delegate) {
+  ComposeSuggestionGenerator suggestion_generator(compose_delegate,
+                                                  trigger_source);
+  std::vector<Suggestion> suggestions;
+
+  auto on_suggestion_data_returned =
+      [&form, &field, &suggestions, &suggestion_generator](
+          std::pair<autofill::FillingProduct,
+                    std::vector<autofill::SuggestionGenerator::SuggestionData>>
+              suggestion_data) {
+        suggestion_generator.GenerateSuggestions(
+            form, field, nullptr, nullptr, {std::move(suggestion_data)},
+            [&suggestions](autofill::SuggestionGenerator::ReturnedSuggestions
+                               returned_suggestions) {
+              suggestions = std::move(returned_suggestions.second);
+            });
+      };
+
+  // Since the `on_suggestion_data_returned` callback is called synchronously,
+  // we can assume that `suggestions` will hold correct value.
+  suggestion_generator.FetchSuggestionData(form, field, nullptr, nullptr,
+                                           client, on_suggestion_data_returned);
+  if (suggestions.empty()) {
+    return std::nullopt;
+  }
+  CHECK_EQ(suggestions.size(), 1u);
+  return suggestions[0];
+}
 
 }  // namespace
 
@@ -1189,13 +1227,25 @@ void BrowserAutofillManager::OnAskForValuesToFillImpl(
   // TODO(crbug.com/409962888): Populate `suggestion_generators_` here.
   suggestion_generators_.push_back(
       std::make_unique<AutofillAiSuggestionGenerator>());
-  suggestion_generators_.push_back(
-      std::make_unique<IbanSuggestionGenerator>());
+  suggestion_generators_.push_back(std::make_unique<IbanSuggestionGenerator>());
   suggestion_generators_.push_back(
       std::make_unique<MerchantPromoCodeSuggestionGenerator>());
+  if (client().GetAutocompleteHistoryManager()) {
+    suggestion_generators_.push_back(
+        std::make_unique<AutocompleteSuggestionGenerator>(
+            client().GetAutocompleteHistoryManager()->GetProfileDatabase()));
+  }
+  if (client().GetValuablesDataManager()) {
   suggestion_generators_.push_back(
-      std::make_unique<AutocompleteSuggestionGenerator>(
-          client().GetAutocompleteHistoryManager()->GetProfileDatabase()));
+      std::make_unique<LoyaltyCardSuggestionGenerator>(
+          client().GetValuablesDataManager()->GetWeakPtr(),
+          client().GetLastCommittedPrimaryMainFrameURL()));
+  }
+  if (client().GetComposeDelegate()) {
+    suggestion_generators_.push_back(
+        std::make_unique<ComposeSuggestionGenerator>(
+            client().GetComposeDelegate(), trigger_source));
+  }
 
   SuggestionsContext context = BuildSuggestionsContext(
       form, form_structure, field, autofill_field, trigger_source);
@@ -1494,7 +1544,8 @@ void BrowserAutofillManager::GenerateSuggestionsAndMaybeShowUIPhase3(
     AutofillComposeDelegate* compose_delegate = client().GetComposeDelegate();
     std::optional<Suggestion> maybe_compose_suggestion =
         compose_delegate
-            ? compose_delegate->GetSuggestion(form, field, trigger_source)
+            ? GenerateComposeSuggestion(form, field, trigger_source, client(),
+                                        compose_delegate)
             : std::nullopt;
     if (maybe_compose_suggestion) {
       std::move(callback).Run(/*show_suggestions=*/true,
@@ -1819,9 +1870,6 @@ void BrowserAutofillManager::FillOrPreviewField(
                                    field_type_used);
   if (action_persistence != mojom::ActionPersistence::kFill) {
     return;
-  }
-  if (type == SuggestionType::kAddressFieldByFieldFilling) {
-    metrics_->address_form_event_logger.OnFilledByFieldByFieldFilling(type);
   }
   if (autofill_field && autofill_field->Type().GetLoyaltyCardType() ==
                             EMAIL_OR_LOYALTY_MEMBERSHIP_ID) {
@@ -2412,11 +2460,9 @@ void BrowserAutofillManager::OnJavaScriptChangedAutofilledValueImpl(
 void BrowserAutofillManager::OnLoadedServerPredictionsImpl(
     base::span<const raw_ptr<FormStructure, VectorExperimental>> forms) {
   for (raw_ptr<FormStructure, VectorExperimental> form : forms) {
-    if (form) {
-      OnDidIdentifyFormForMetrics(
-          *form, autofill_metrics::FormEventLoggerBase::FormIdentificationTime::
-                     kAfterServerPredictions);
-    }
+    OnDidIdentifyFormForMetrics(
+        *form, autofill_metrics::FormEventLoggerBase::FormIdentificationTime::
+                   kAfterServerPredictions);
   }
   HandleLoadedServerPredictionsForAutofillAi(forms);
 }
@@ -2431,10 +2477,6 @@ void BrowserAutofillManager::HandleLoadedServerPredictionsForAutofillAi(
   }
 
   for (raw_ptr<FormStructure, VectorExperimental> form : forms) {
-    if (!form) {
-      continue;
-    }
-
     if (model_cache->Contains(form->form_signature())) {
       if (MayPerformAutofillAiAction(
               client(),
@@ -3009,16 +3051,18 @@ std::vector<Suggestion> BrowserAutofillManager::GetCreditCardSuggestions(
 }
 
 std::vector<Suggestion> BrowserAutofillManager::GetLoyaltyCardSuggestions(
-    const GURL& url,
-    const FormFieldData& trigger_field) {
+    const FormData& form,
+    const FormStructure* form_structure,
+    const FormFieldData& field,
+    const AutofillField* autofill_field) {
   ValuablesDataManager* valuables_manager = client().GetValuablesDataManager();
   if (!valuables_manager) {
     return {};
   }
   metrics_->loyalty_card_form_event_logger.OnDidPollSuggestions(
-      trigger_field.global_id());
-  return GetSuggestionsForLoyaltyCards(*valuables_manager, url,
-                                       trigger_field.is_autofilled());
+      field.global_id());
+  return GetSuggestionsForLoyaltyCards(form, form_structure, field,
+                                       autofill_field, client());
 }
 
 // TODO(crbug.com/40219607) Eliminate and replace with a listener?
@@ -3242,8 +3286,8 @@ std::vector<Suggestion> BrowserAutofillManager::GetAvailableSuggestions(
         if (ValuablesDataManager* valuables_manager =
                 client().GetValuablesDataManager()) {
           if (suggestions.empty()) {
-            suggestions = GetLoyaltyCardSuggestions(
-                client().GetLastCommittedPrimaryMainFrameURL(), field);
+            suggestions = GetLoyaltyCardSuggestions(form, form_structure, field,
+                                                    autofill_field);
           } else {
             ExtendEmailSuggestionsWithLoyaltyCardSuggestions(
                 *valuables_manager,
@@ -3263,8 +3307,8 @@ std::vector<Suggestion> BrowserAutofillManager::GetAvailableSuggestions(
         // Only loyalty card numbers filling is supported.
         if (autofill_field->Type().GetLoyaltyCardType() ==
             LOYALTY_MEMBERSHIP_ID) {
-          suggestions = GetLoyaltyCardSuggestions(
-              client().GetLastCommittedPrimaryMainFrameURL(), field);
+          suggestions = GetLoyaltyCardSuggestions(form, form_structure, field,
+                                                  autofill_field);
         }
       }
       break;
@@ -3290,7 +3334,7 @@ std::vector<Suggestion> BrowserAutofillManager::GetAvailableSuggestions(
         autocomplete && autocomplete->webidentity) {
       std::vector<Suggestion> verified_suggestions =
           identity_credential_delegate->GetVerifiedAutofillSuggestions(
-              autofill_field->Type().GetIdentityCredentialType());
+              form, form_structure, field, autofill_field, client());
       // Insert verified suggestions above unverified ones.
       // TODO(crbug.com/380367784): figure out what to do when both verified
       // and unverified suggestions point to the same email address.

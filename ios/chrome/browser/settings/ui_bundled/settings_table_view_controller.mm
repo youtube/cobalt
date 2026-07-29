@@ -67,6 +67,7 @@
 #import "ios/chrome/browser/photos/model/photos_service_factory.h"
 #import "ios/chrome/browser/push_notification/model/push_notification_client_id.h"
 #import "ios/chrome/browser/push_notification/model/push_notification_settings_util.h"
+#import "ios/chrome/browser/safari_data_import/public/safari_data_import_entry_point.h"
 #import "ios/chrome/browser/search_engines/model/search_engine_observer_bridge.h"
 #import "ios/chrome/browser/search_engines/model/template_url_service_factory.h"
 #import "ios/chrome/browser/settings/model/sync/utils/identity_error_util.h"
@@ -1382,7 +1383,9 @@ struct EnhancedSafeBrowsingActivePromoData
       base::RecordAction(base::UserMetricsAction("Settings.SafariImport"));
       id<ApplicationCommands> handler = HandlerForProtocol(
           _browser->GetCommandDispatcher(), ApplicationCommands);
-      [handler displaySafariDataImportEntryPointWithUIHandler:nil];
+      [handler displaySafariDataImportFromEntryPoint:
+                   SafariDataImportEntryPoint::kSetting
+                                       withUIHandler:nil];
       break;
     }
     case SettingsItemTypeBandwidth:
@@ -2123,8 +2126,13 @@ struct EnhancedSafeBrowsingActivePromoData
 
 // Creates a gradient gemini logo.
 - (UIImage*)createGeminiLogo {
+  UITraitCollection* lightTraitCollection = [UITraitCollection
+      traitCollectionWithUserInterfaceStyle:UIUserInterfaceStyleLight];
   NSArray<UIColor*>* colors = @[
-    [UIColor colorNamed:kBlue700Color], [UIColor colorNamed:kBlue300Color]
+    [[UIColor colorNamed:kBlue700Color]
+        resolvedColorWithTraitCollection:lightTraitCollection],
+    [[UIColor colorNamed:kBlue300Color]
+        resolvedColorWithTraitCollection:lightTraitCollection]
   ];
 
   NSMutableArray<id>* gradientColorArray = [[NSMutableArray alloc] init];

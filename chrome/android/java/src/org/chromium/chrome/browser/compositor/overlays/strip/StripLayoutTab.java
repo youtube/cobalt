@@ -466,6 +466,8 @@ public class StripLayoutTab extends StripLayoutView {
                 return TabUiThemeUtil.getTabStripSelectedTabColor(mContext, isIncognito());
             case VisualState.SELECTED:
                 return TabUiThemeUtil.getTabStripSelectedTabColor(mContext, isIncognito());
+            case VisualState.NON_DRAG_REORDERING:
+                return TabUiThemeUtil.getTabStripBackgroundColor(mContext, isIncognito());
             case VisualState.MULTISELECT_HOVERED:
                 return TabUiThemeUtil.getTabStripMultiSelectedHoveredTabColor(
                         mContext, isIncognito());
@@ -616,6 +618,11 @@ public class StripLayoutTab extends StripLayoutView {
         mLoadTracker.loadingFinished();
     }
 
+    /** Returns {@code true} if the tab should be visible. */
+    public boolean shouldBeVisible() {
+        return mIsSelected || mIsPlaceholder || mIsMultiSelected || getIsNonDragReordering();
+    }
+
     /**
      * @param opacity The fraction (from 0.f to 1.f) of how opaque the tab container should be.
      */
@@ -686,6 +693,11 @@ public class StripLayoutTab extends StripLayoutView {
     public void setCanShowCloseButton(boolean show, boolean animate) {
         mCanShowCloseButton = show;
         checkCloseButtonVisibility(animate);
+    }
+
+    /** Returns whether the close button is allowed to be shown. */
+    public boolean canShowCloseButton() {
+        return mCanShowCloseButton;
     }
 
     /** {@link StripLayoutView} Implementation */

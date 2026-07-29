@@ -88,7 +88,7 @@ class IbanBubbleControllerImpl
   void OnLegalMessageLinkClicked(const GURL& url) override;
   void OnManageSavedIbanExtraButtonClicked() override;
   void OnBubbleClosed(PaymentsUiClosedReason closed_reason) override;
-  IbanBubbleType GetBubbleType() const override;
+  IbanBubbleType GetIbanBubbleType() const override;
 
   // SavePaymentIconController:
   std::u16string GetSavePaymentIconTooltipText() const override;
@@ -100,6 +100,10 @@ class IbanBubbleControllerImpl
   int GetSaveSuccessAnimationStringId() const override;
   const SavePaymentMethodAndVirtualCardEnrollConfirmationUiParams&
   GetConfirmationUiParams() const override;
+
+  // BubbleControllerBase:
+  BubbleType GetBubbleType() const override;
+  base::WeakPtr<BubbleControllerBase> GetBubbleControllerBaseWeakPtr() override;
 
   // For testing.
   void SetEventObserverForTesting(ObserverForTest* observer) {

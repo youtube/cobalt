@@ -252,6 +252,8 @@ BASE_FEATURE(kWebViewUseRenderingHeuristic,
 // background thread. Otherwise runs startup synchronously.
 // Also caches any chromium startup exception and rethrows it if startup is
 // retried without a restart.
+// Note: WebViewUseStartupTasksLogicP2 and kWebViewStartupTasksYieldToNative
+// also enable the same behaviour as this flag.
 BASE_FEATURE(kWebViewUseStartupTasksLogic,
              "WebViewUseStartupTasksLogic",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -306,14 +308,18 @@ BASE_FEATURE(kWebViewConnectToComponentProviderInBackground,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables phase 2 of using startup tasks logic for webview chromium
-// initialization which starts browser processes asynchronously, when starting
+// initialization which starts browser process asynchronously, when starting
 // webview asynchronously.
+// Note: This also enables the same behaviour as WebViewUseStartupTasksLogic and
+// WebViewStartupTasksYieldToNative with minor differences.
 BASE_FEATURE(kWebViewUseStartupTasksLogicP2,
              "WebViewUseStartupTasksLogicP2",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables running native startup tasks asynchronously if WebView startup is
 // asynchronous.
+// Note:This also enables the same behaviour as WebViewUseStartupTasksLogic and
+// WebViewUseStartupTasksLogicP2, with minor additions.
 BASE_FEATURE(kWebViewStartupTasksYieldToNative,
              "WebViewStartupTasksYieldToNative",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -324,6 +330,12 @@ BASE_FEATURE(kWebViewStartupTasksYieldToNative,
 // status is reported to the chromium metrics service immediately.
 BASE_FEATURE(kAndroidMetricsAsyncMetricLogging,
              "AndroidMetricsAsyncMetricLogging",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Tells the Google Service, GMS, to use a background thread for its
+// Service bind and connection calls.
+BASE_FEATURE(kWebViewUseBackgroundThreadForGms,
+             "WebViewUseBackgroundThreadForGms",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace android_webview::features

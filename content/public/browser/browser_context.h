@@ -261,12 +261,15 @@ class CONTENT_EXPORT BrowserContext : public base::SupportsUserData {
       const std::string& uuid);
 
   // Delivers a push message with |data| to the Service Worker identified by
-  // |origin| and |service_worker_registration_id|.
+  // |origin| and |service_worker_registration_id|. |record_network_requests|
+  // indicates whether network request urls should be recorded during the push
+  // event.
   void DeliverPushMessage(
       const GURL& origin,
       int64_t service_worker_registration_id,
       const std::string& message_id,
       std::optional<std::string> payload,
+      bool record_network_requests,
       base::OnceCallback<void(blink::mojom::PushEventStatus)> callback);
 
   // Fires a push subscription change event to the Service Worker identified by
@@ -494,7 +497,7 @@ class CONTENT_EXPORT BrowserContext : public base::SupportsUserData {
 #if BUILDFLAG(IS_ANDROID)
   // Returns extra request headers to be set when navigation happens for `url`.
   // This function is designed for the headers provided by WebView.loadUrl().
-  virtual std::string GetExtraHeadersForUrl(const GURL& url);
+  virtual net::HttpRequestHeaders GetExtraHeadersForUrl(const GURL& url);
 #endif  // BUILDFLAG(IS_ANDROID)
 
  private:

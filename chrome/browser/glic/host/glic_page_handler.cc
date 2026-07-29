@@ -62,7 +62,6 @@
 #include "chrome/common/chrome_features.h"
 #include "components/content_settings/core/common/content_settings_types.h"
 #include "components/feedback/content/content_tracing_manager.h"
-#include "components/feedback/feedback_constants.h"
 #include "components/feedback/feedback_data.h"
 #include "components/feedback/feedback_uploader.h"
 #include "components/metrics/metrics_service.h"
@@ -101,6 +100,16 @@ struct EqualsTraits<::SkBitmap> {
 namespace glic {
 
 namespace {
+
+mojom::GetContextResultPtr LogErrorAndUnwrapResult(
+    base::OnceCallback<void(GlicGetContextFromFocusedTabError)> error_logger,
+    GlicGetContextResult result) {
+  if (!result.has_value()) {
+    std::move(error_logger).Run(result.error().error_code);
+    return mojom::GetContextResult::NewErrorReason(result.error().message);
+  }
+  return std::move(result.value());
+}
 
 // Monitors the panel state and the browser widget state. Emits an event any
 // time the active state changes.
@@ -407,9 +416,10 @@ class JournalHandler {
     // TODO(b/430054430): Fetch and include system data to the feedback.
     feedback_data->set_description(
         reason + " - " + base::Uuid::GenerateRandomV4().AsLowercaseString());
-    feedback_data->set_product_id(feedback::kGeminiWebProductId);
+    feedback_data->set_product_id(
+        features::kGlicRecordActorJournalFeedbackProductId.Get());
     feedback_data->set_category_tag(
-        std::string(feedback::kGeminiWebJournalCategoryTag));
+        features::kGlicRecordActorJournalFeedbackCategoryTag.Get());
     feedback_data->set_is_offensive_or_unsafe(false);
     feedback_data->AddFile("actor-journal", journal);
 
@@ -753,8 +763,8 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
   void GetModelQualityClientId(
       GetModelQualityClientIdCallback callback) override {
     auto* local_state = g_browser_process->local_state();
-    std::string client_id = optimization_guide::
-        GetOrCreateGlicModelQualityClientId(local_state);
+    std::string client_id =
+        optimization_guide::GetOrCreateGlicModelQualityClientId(local_state);
     std::move(callback).Run(std::move(client_id));
   }
 
@@ -762,35 +772,50 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
       glic::mojom::GetTabContextOptionsPtr options,
       GetContextFromFocusedTabCallback callback) override {
     if (ShouldDoApiActivationGating()) {
+      glic_service_->metrics()->LogGetContextFromFocusedTabError(
+          GlicGetContextFromFocusedTabError::kPermissionDeniedWindowNotShowing);
       std::move(callback).Run(mojom::GetContextResult::NewErrorReason(
           "permission denied: window not showing"));
       return;
     }
     auto* tab = glic_sharing_manager_->GetFocusedTabData().focus();
     auto tab_handle = tab ? tab->GetHandle() : tabs::TabHandle::Null();
-    glic_sharing_manager_->GetContextFromTab(tab_handle, *options,
-                                             std::move(callback));
+
+    glic_sharing_manager_->GetContextFromTab(
+        tab_handle, *options,
+        base::BindOnce(
+            &LogErrorAndUnwrapResult,
+            base::BindOnce(&GlicMetrics::LogGetContextFromFocusedTabError,
+                           base::Unretained(glic_service_->metrics())))
+            .Then(std::move(callback)));
   }
 
   void GetContextFromTab(int32_t tab_id,
                          glic::mojom::GetTabContextOptionsPtr options,
                          GetContextFromTabCallback callback) override {
+    // TODO(b/433328453): add GetContextFromTab error histogram.
     if (ShouldDoApiActivationGating()) {
       std::move(callback).Run(mojom::GetContextResult::NewErrorReason(
           "permission denied: window not showing"));
       return;
     }
     // Extra activation gating is done in this function.
-    glic_sharing_manager_->GetContextFromTab(tabs::TabHandle(tab_id), *options,
-                                             std::move(callback));
+    glic_sharing_manager_->GetContextFromTab(
+        tabs::TabHandle(tab_id), *options,
+        base::BindOnce(&LogErrorAndUnwrapResult, base::DoNothing())
+            .Then(std::move(callback)));
   }
 
   void GetContextForActorFromTab(
       int32_t tab_id,
       glic::mojom::GetTabContextOptionsPtr options,
       GetContextForActorFromTabCallback callback) override {
+    // TODO(b/433328453): add GetContextForActorFromTab Error
+    // histogram.
     glic_sharing_manager_->GetContextForActorFromTab(
-        tabs::TabHandle(tab_id), *options, std::move(callback));
+        tabs::TabHandle(tab_id), *options,
+        base::BindOnce(&LogErrorAndUnwrapResult, base::DoNothing())
+            .Then(std::move(callback)));
   }
 
   void SetMaximumNumberOfPinnedTabs(
@@ -838,22 +863,24 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
     glic_service_->PerformActions(actions_proto, std::move(callback));
   }
 
-  void StopActorTask(int32_t task_id) override {
+  void StopActorTask(int32_t task_id,
+                     mojom::ActorTaskStopReason stop_reason) override {
     if (!base::FeatureList::IsEnabled(features::kGlicActor)) {
       receiver_.ReportBadMessage(
           "StopActorTask cannot be called without GlicActor enabled.");
       return;
     }
-    glic_service_->StopActorTask(actor::TaskId(task_id));
+    glic_service_->StopActorTask(actor::TaskId(task_id), stop_reason);
   }
 
-  void PauseActorTask(int32_t task_id) override {
+  void PauseActorTask(int32_t task_id,
+                      mojom::ActorTaskPauseReason pause_reason) override {
     if (!base::FeatureList::IsEnabled(features::kGlicActor)) {
       receiver_.ReportBadMessage(
           "PauseActorTask cannot be called without GlicActor enabled.");
       return;
     }
-    glic_service_->PauseActorTask(actor::TaskId(task_id));
+    glic_service_->PauseActorTask(actor::TaskId(task_id), pause_reason);
   }
 
   void ResumeActorTask(int32_t task_id,
@@ -1065,8 +1092,12 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
     glic_service_->metrics()->OnResponseStarted();
   }
 
-  void OnResponseStopped() override {
-    glic_service_->metrics()->OnResponseStopped();
+  void OnResponseStopped(mojom::OnResponseStoppedDetailsPtr details) override {
+    mojom::ResponseStopCause cause = mojom::ResponseStopCause::kUnknown;
+    if (details) {
+      cause = details->cause;
+    }
+    glic_service_->metrics()->OnResponseStopped(cause);
   }
 
   void OnSessionTerminated() override {
@@ -1156,7 +1187,7 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
   }
 
   void OnViewChanged(mojom::ViewChangedNotificationPtr notification) override {
-    NOTIMPLEMENTED() << " current view: " << notification->current_view;
+    glic_service_->host().OnViewChanged(this, notification->current_view);
   }
 
   // GlicWindowController::StateObserver implementation.
@@ -1427,8 +1458,10 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
           return mojom::ActorTaskState::kIdle;
         case actor::ActorTask::State::kActing:
           return mojom::ActorTaskState::kActing;
-        case actor::ActorTask::State::kPausedByClient:
+        case actor::ActorTask::State::kPausedByActor:
+        case actor::ActorTask::State::kPausedByUser:
           return mojom::ActorTaskState::kPaused;
+        case actor::ActorTask::State::kCancelled:
         case actor::ActorTask::State::kFinished:
           return mojom::ActorTaskState::kStopped;
       }

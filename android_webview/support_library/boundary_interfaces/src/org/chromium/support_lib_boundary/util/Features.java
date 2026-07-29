@@ -373,4 +373,10 @@ public class Features {
     // WebSettingsCompat.setBackForwardCacheSettings
     // WebSettingsCompat.getBackForwardCacheSettings
     public static final String BACK_FORWARD_CACHE_SETTINGS = "BACK_FORWARD_CACHE_SETTINGS";
+
+    // Profile.preconnect
+    public static final String PRECONNECT = "PRECONNECT";
+
+    // WebSettingsCompat#setHyperlinkContextMenuItems
+    public static final String HYPERLINK_CONTEXT_MENU_ITEMS = "HYPERLINK_CONTEXT_MENU_ITEMS";
 }

@@ -6,20 +6,19 @@ package org.chromium.chrome.browser.omnibox.suggestions.tabgroup;
 
 import static org.chromium.build.NullUtil.assumeNonNull;
 
-import android.content.Context;
 import android.graphics.drawable.ShapeDrawable;
 import android.graphics.drawable.shapes.OvalShape;
 import android.text.Spannable;
 import android.text.style.ImageSpan;
 
 import androidx.annotation.ColorInt;
+import androidx.annotation.StringRes;
 import androidx.core.content.ContextCompat;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.omnibox.styles.OmniboxDrawableState;
-import org.chromium.chrome.browser.omnibox.styles.OmniboxImageSupplier;
 import org.chromium.chrome.browser.omnibox.styles.SuggestionSpannable;
-import org.chromium.chrome.browser.omnibox.suggestions.SuggestionHost;
+import org.chromium.chrome.browser.omnibox.suggestions.AutocompleteUIContext;
 import org.chromium.chrome.browser.omnibox.suggestions.base.BaseSuggestionViewProcessor;
 import org.chromium.chrome.browser.omnibox.suggestions.base.BaseSuggestionViewProperties;
 import org.chromium.chrome.browser.omnibox.suggestions.basic.SuggestionViewProperties;
@@ -33,8 +32,6 @@ import org.chromium.components.tab_groups.TabGroupColorId;
 import org.chromium.components.tab_groups.TabGroupColorPickerUtils;
 import org.chromium.ui.modelutil.PropertyModel;
 
-import java.util.Optional;
-
 /**
  * A class that handles model and view creation for the tab group omnibox suggestion backed by a
  * {@link SavedTabGroup} object.
@@ -42,15 +39,10 @@ import java.util.Optional;
 @NullMarked
 public class TabGroupSuggestionProcessor extends BaseSuggestionViewProcessor {
     /**
-     * @param context An Android context.
-     * @param suggestionHost A handle to the object using the suggestions.
-     * @param imageSupplier Supplier of suggestion images.
+     * @param uiContext Context object containing common UI dependencies.
      */
-    public TabGroupSuggestionProcessor(
-            Context context,
-            SuggestionHost suggestionHost,
-            Optional<OmniboxImageSupplier> imageSupplier) {
-        super(context, suggestionHost, imageSupplier);
+    public TabGroupSuggestionProcessor(AutocompleteUIContext uiContext) {
+        super(uiContext);
     }
 
     @Override
@@ -84,9 +76,10 @@ public class TabGroupSuggestionProcessor extends BaseSuggestionViewProcessor {
                         /* allowTint= */ true);
         model.set(BaseSuggestionViewProperties.ICON, state);
         model.set(SuggestionViewProperties.TEXT_LINE_1_TEXT, getTitleSpannable(suggestion));
-        model.set(
-                SuggestionViewProperties.TEXT_LINE_2_TEXT,
-                new SuggestionSpannable(suggestion.getDescription()));
+        SuggestionSpannable descriptionText = new SuggestionSpannable(suggestion.getDescription());
+        applyHighlightToMatchRegions(descriptionText, suggestion.getDescriptionClassifications());
+        model.set(SuggestionViewProperties.TEXT_LINE_2_TEXT, descriptionText);
+        model.set(SuggestionViewProperties.CONTENT_DESCRIPTION, getContentDescription(suggestion));
     }
 
     private SuggestionSpannable getTitleSpannable(AutocompleteMatch suggestion) {
@@ -117,5 +110,21 @@ public class TabGroupSuggestionProcessor extends BaseSuggestionViewProcessor {
                 /* end= */ 1,
                 /* flags= */ Spannable.SPAN_INCLUSIVE_EXCLUSIVE);
         return titleSpannable;
+    }
+
+    private String getContentDescription(AutocompleteMatch suggestion) {
+        int plainColorId = Integer.parseInt(assumeNonNull(suggestion.getImageDominantColor()));
+        @TabGroupColorId
+        int colorId = TabGroupColorPickerUtils.getTabGroupCardColorId(plainColorId);
+        @StringRes
+        int colorDescRes =
+                TabGroupColorPickerUtils.getTabGroupColorPickerItemColorAccessibilityString(
+                        colorId);
+        String colorDesc = mContext.getString(colorDescRes);
+        return mContext.getString(
+                R.string.accessibility_tab_group_suggestion_description,
+                suggestion.getDisplayText(),
+                colorDesc,
+                suggestion.getDescription());
     }
 }

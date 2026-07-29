@@ -34,6 +34,7 @@
 <translation id="1982637982196732906">ย้ายไปยังส่วนที่ไม่ได้ใช้งาน</translation>
 <translation id="2050597508048557928">{TABS_COUNT,plural, =1{บุ๊กมาร์กแท็บที่เลือก <ph name="TABS_COUNT_ONE" /> แท็บ}other{บุ๊กมาร์กแท็บที่เลือก <ph name="TABS_COUNT_MANY" /> แท็บ}}</translation>
 <translation id="2055057176188061528">เลือกกลุ่มแท็บหรือสร้างกลุ่มแท็บใหม่</translation>
+<translation id="2074527029802029717">ยกเลิกการปักหมุดแท็บ</translation>
 <translation id="2118649612461486615">ข้อมูลร้านค้า</translation>
 <translation id="2123073051266141035">{INCOGNITO_TABS_COUNT,plural, =1{แท็บและกลุ่มที่ปิดไว้สามารถเปิดอีกครั้งได้ในส่วน "แท็บล่าสุด" และส่วน "กลุ่มแท็บ" แท็บที่ไม่ระบุตัวตนจะไม่พร้อมใช้งาน}other{แท็บและกลุ่มที่ปิดไว้สามารถเปิดอีกครั้งได้ในส่วน "แท็บล่าสุด" และส่วน "กลุ่มแท็บ" แท็บที่ไม่ระบุตัวตน # แท็บจะไม่พร้อมใช้งาน}}</translation>
 <translation id="2162620598375156287">ตอนนี้ราคา <ph name="CURRENT_PRICE" /> ใน <ph name="SOURCE_WEBSITE" /></translation>
@@ -62,6 +63,7 @@
 <translation id="2894757982205307093">แท็บใหม่ในกลุ่ม</translation>
 <translation id="2918484639460781603">ไปที่การตั้งค่า</translation>
 <translation id="2928243913527329289">Google | เกี่ยวกับร้านนี้</translation>
+<translation id="2978860912612699943">{ITEMS_COUNT,plural, =1{เลือกไว้ <ph name="ITEMS_COUNT_ONE" /> รายการ}other{เลือกไว้ <ph name="ITEMS_COUNT_MANY" /> รายการ}}</translation>
 <translation id="3008554597174452548">หยุดติดตามผลิตภัณฑ์</translation>
 <translation id="3026391124054406831">สร้างกลุ่มเพื่อจัดระเบียบแท็บ</translation>
 <translation id="3051031624272448591">คุณกู้คืนแท็บเหล่านี้ได้เสมอในประวัติการเข้าชม</translation>

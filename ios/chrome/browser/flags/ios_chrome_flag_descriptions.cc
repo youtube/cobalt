@@ -16,6 +16,11 @@ const char kAddAddressManuallyName[] =
 const char kAddAddressManuallyDescription[] =
     "When enabled, allows users to manually enter and save an address.";
 
+const char kAIMPrototypeDevToolsName[] = "Enable AIM Prototype Dev Tools";
+const char kAIMPrototypeDevToolsDescription[] =
+    "Enables development tools for the AIM prototype, allowing simulation of "
+    "delays and failures.";
+
 const char kAIMPrototypeName[] = "Enable the AIM prototype";
 const char kAIMPrototypeDescription[] =
     "When enabled the AIM ZPS entrypoint will open the AIM prototype which "
@@ -42,6 +47,12 @@ extern const char kAutofillAcrossIframesName[] =
 extern const char kAutofillAcrossIframesDescription[] =
     "When enabled, Autofill will fill and save information on forms that "
     "spread across multiple iframes.";
+
+const char kAutofillCreditCardScannerIosName[] =
+    "Enable the credit card scanner for Autofill";
+const char kAutofillCreditCardScannerIosDescription[] =
+    "When enabled, users are offered the ability to use their phone camera to "
+    "scan their credit card when adding it to Chrome Autofill";
 
 const char kAutofillCreditCardUploadName[] =
     "Offers uploading Autofilled credit cards";
@@ -135,14 +146,6 @@ const char kAutofillEnableFlatRateCardBenefitsFromCurinosName[] =
 const char kAutofillEnableFlatRateCardBenefitsFromCurinosDescription[] =
     "When enabled, flat rate card benefits sourced from Curinos will be shown "
     "in Autofill suggestions.";
-
-const char kAutofillEnableLogFormEventsToAllParsedFormTypesName[] =
-    "Enable logging form events to all parsed form on a web page.";
-const char kAutofillEnableLogFormEventsToAllParsedFormTypesDescription[] =
-    "When enabled, a form event will log to all of the parsed forms of the "
-    "same type on a webpage. This means credit card form events will log to "
-    "all credit card form types and address form events will log to all "
-    "address form types.";
 
 const char
     kAutofillEnableMultipleRequestInVirtualCardDownstreamEnrollmentName[] =
@@ -318,10 +321,6 @@ const char kCollaborationMessagingDescription[] =
     "including features such as recent activity, dirty dots, and description "
     "action chips.";
 
-const char kColorfulTabGroupName[] = "Colorful tab groups";
-const char kColorfulTabGroupDescription[] =
-    "Display the tab group colors in additional surfaces.";
-
 const char kContainedTabGroupName[] = "Contained tab group";
 const char kContainedTabGroupDescription[] =
     "When enabled the tab group in the tab grid is not presented fullscreen.";
@@ -348,6 +347,12 @@ const char kCredentialProviderAutomaticPasskeyUpgradeName[] =
     "Credential Provider Automatic Passkey Upgrade";
 const char kCredentialProviderAutomaticPasskeyUpgradeDescription[] =
     "Enables automatic passkey upgrade in the Credential Provider Extension.";
+
+const char kCredentialProviderPasskeyLargeBlobName[] =
+    "Credential Provider Large Blob support";
+const char kCredentialProviderPasskeyLargeBlobDescription[] =
+    "Enables support for the Large Blob extension for Passkeys in the "
+    "Credential Provider Extension.";
 
 const char kCredentialProviderPasskeyPRFName[] =
     "Credential Provider PRF support";
@@ -498,10 +503,6 @@ extern const char kDownloadAutoDeletionDescription[] =
     "When enabled, files downloaded on the device can be scheduled to be "
     "deleted automatically after 30 days.";
 
-const char kDownloadedPDFOpeningName[] = "Enables downloaded PDF opening";
-const char kDownloadedPDFOpeningDescription[] =
-    "Enables the direct opening of downloaded PDF files in Chrome";
-
 const char kDownloadListName[] = "Enable Download List";
 const char kDownloadListDescription[] =
     "Controls the UI type for the download list. When enabled, allows "
@@ -540,6 +541,13 @@ const char kEnableASWebAuthenticationSessionName[] =
     "Enable ASWebAuthenticationSession";
 const char kEnableASWebAuthenticationSessionDescription[] =
     "Enables using ASWebAuthenticationSession to add Google accounts to device";
+
+const char kEnableClipboardDataControlsIOSName[] =
+    "Enable Clipboard Data Controls";
+const char kEnableClipboardDataControlsIOSDescription[] =
+    "When this flag is enabled and the DataControlsRules Enterprise policy is "
+    "enabled, Enterprise admins can apply clipboard restrictions to Chrome "
+    "users on iOS.";
 
 const char kEnableCompromisedPasswordsMutingName[] =
     "Enable the muting of compromised passwords in the Password Manager";
@@ -783,11 +791,6 @@ const char kIOSManageAccountStorageName[] = "Allow managing Account storage.";
 const char kIOSManageAccountStorageDescription[] =
     "Add entry points to manage Google One account storage.";
 
-const char kIOSSaveToPhotosImprovementsName[] =
-    "IOS Save to Photos Improvements";
-const char kIOSSaveToPhotosImprovementsDescription[] =
-    "Enables the Save to Photos Improvements on iOS.";
-
 const char kIOSPasswordBottomSheetAutofocusName[] =
     "IOS Password Manager Bottom Sheet Autofocus";
 const char kIOSPasswordBottomSheetAutofocusDescription[] =
@@ -810,12 +813,6 @@ const char kIOSQuickDeleteName[] = "Quick Delete for iOS";
 const char kIOSQuickDeleteDescription[] =
     "Enables a new way for users to more easily delete their browsing data in "
     "iOS.";
-
-const char kIOSEnterpriseRealtimeUrlFilteringName[] =
-    "Enable Enterprise Url Filtering for iOS";
-const char kIOSEnterpriseRealtimeUrlFilteringDescription[] =
-    "When enabled, Enterprise admins can block navigations to urls matching "
-    "rules defined by their organization.";
 
 const char kNewShareExtensionName[] = "New Share Extension for iOS";
 const char kNewShareExtensionDescription[] =
@@ -1541,6 +1538,10 @@ const char kSkipDefaultBrowserPromoInFirstRunDescription[] =
     "When enabled, users in the EEA will not see a Default Browser Promo in "
     "the FRE.";
 
+const char kStrokesAPIEnabledName[] = "Enable Strokes API for Lens";
+const char kStrokesAPIEnabledDescription[] =
+    "When enabled, Lens will use the Strokes API.";
+
 const char kNTPBackgroundCustomizationName[] =
     "Enable background customization menu on the NTP";
 const char kNTPBackgroundCustomizationDescription[] =
@@ -1580,12 +1581,6 @@ const char kSyncAutofillWalletCredentialDataDescription[] =
 const char kSyncSandboxName[] = "Use Chrome Sync sandbox";
 const char kSyncSandboxDescription[] =
     "Connects to the testing server for Chrome Sync.";
-
-const char kSyncTrustedVaultInfobarImprovementsName[] =
-    "Trusted vault infobar UI improvements";
-const char kSyncTrustedVaultInfobarImprovementsDescription[] =
-    "Enabled improvements to the UI of the trusted vault error infobar (e.g. "
-    "displaying it on pages with password forms).";
 
 const char kSyncTrustedVaultInfobarMessageImprovementsName[] =
     "Trusted vault infobar message improvements";

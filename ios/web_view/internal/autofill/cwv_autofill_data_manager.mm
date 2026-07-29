@@ -21,6 +21,7 @@
 #import "components/password_manager/core/browser/password_store/password_store_change.h"
 #import "components/password_manager/core/browser/password_store/password_store_consumer.h"
 #import "components/password_manager/core/browser/password_store/password_store_interface.h"
+#import "components/password_manager/core/browser/password_store/password_store_util.h"
 #import "components/password_manager/core/browser/ui/passwords_grouper.h"
 #import "ios/web/public/thread/web_task_traits.h"
 #import "ios/web/public/thread/web_thread.h"
@@ -123,12 +124,12 @@ class WebViewPasswordStoreConsumer
     }
 
     if (isAffiliationsEnabled) {
-      auto block = base::BindOnce(
+      auto callback = base::BindOnce(
           &WebViewPasswordStoreConsumer::OnAffiliatedPasswordsUpdated,
           weak_ptr_factory_.GetWeakPtr());
       [data_manager_
           matchAffiliationsAndUpdatePasswordsWithForms:forms
-                                        resultCallback:std::move(block)];
+                                        resultCallback:std::move(callback)];
     } else {
       NSMutableArray<CWVPassword*>* passwords = [NSMutableArray array];
       for (auto& form : results) {
@@ -181,17 +182,17 @@ class WebViewPasswordStoreObserver
           continue;
         }
 
-        const password_manager::PasswordForm form = change.form();
-        unaffiliated_forms.push_back(form);
+        password_manager::PasswordForm form = change.form();
         change_map[form.keychain_identifier] = change.type();
+        unaffiliated_forms.push_back(std::move(form));
       }
 
-      auto completion = base::BindOnce(
+      auto callback = base::BindOnce(
           &WebViewPasswordStoreObserver::OnAffiliatedPasswordsUpdated,
           weak_ptr_factory_.GetWeakPtr(), std::move(change_map));
       [data_manager_
           matchAffiliationsAndUpdatePasswordsWithForms:unaffiliated_forms
-                                        resultCallback:std::move(completion)];
+                                        resultCallback:std::move(callback)];
     } else {
       NSMutableArray* added = [NSMutableArray array];
       NSMutableArray* updated = [NSMutableArray array];

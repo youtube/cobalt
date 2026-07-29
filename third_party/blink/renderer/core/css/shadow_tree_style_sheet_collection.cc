@@ -34,6 +34,7 @@
 #include "third_party/blink/renderer/core/css/style_change_reason.h"
 #include "third_party/blink/renderer/core/css/style_engine.h"
 #include "third_party/blink/renderer/core/css/style_sheet_candidate.h"
+#include "third_party/blink/renderer/core/css/style_sheet_contents.h"
 #include "third_party/blink/renderer/core/dom/element.h"
 #include "third_party/blink/renderer/core/dom/shadow_root.h"
 #include "third_party/blink/renderer/core/html/html_style_element.h"
@@ -43,12 +44,12 @@ namespace blink {
 
 ShadowTreeStyleSheetCollection::ShadowTreeStyleSheetCollection(
     ShadowRoot& shadow_root)
-    : TreeScopeStyleSheetCollection(shadow_root) {}
+    : StyleSheetCollection(shadow_root) {}
 
-void ShadowTreeStyleSheetCollection::CollectStyleSheets(
-    StyleEngine& engine,
-    StyleSheetCollection& collection) {
-  StyleEngine::RuleSetScope rule_set_scope;
+void ShadowTreeStyleSheetCollection::UpdateActiveStyleSheets(
+    const StyleEngine& engine,
+    const MediaQueryEvaluator& medium) {
+  ActiveStyleSheetVector new_active_style_sheets;
 
   for (Node* n : style_sheet_candidate_nodes_) {
     StyleSheetCandidate candidate(*n);
@@ -59,35 +60,24 @@ void ShadowTreeStyleSheetCollection::CollectStyleSheets(
       continue;
     }
 
-    collection.AppendSheetForList(sheet);
     if (candidate.CanBeActivated(g_null_atom)) {
       CSSStyleSheet* css_sheet = To<CSSStyleSheet>(sheet);
-      collection.AppendActiveStyleSheet(std::make_pair(
-          css_sheet, rule_set_scope.RuleSetForSheet(engine, css_sheet)));
+      new_active_style_sheets.push_back(std::pair(css_sheet, nullptr));
     }
   }
 
   const TreeScope& tree_scope = GetTreeScope();
-  if (!tree_scope.HasAdoptedStyleSheets()) {
-    return;
-  }
-
-  for (CSSStyleSheet* sheet : *tree_scope.AdoptedStyleSheets()) {
-    if (!sheet || !sheet->CanBeActivated(g_null_atom)) {
-      continue;
+  if (tree_scope.HasAdoptedStyleSheets()) {
+    for (CSSStyleSheet* sheet : *tree_scope.AdoptedStyleSheets()) {
+      if (!sheet || !sheet->CanBeActivated(g_null_atom)) {
+        continue;
+      }
+      DCHECK_EQ(GetTreeScope().GetDocument(), sheet->ConstructorDocument());
+      new_active_style_sheets.push_back(std::pair(sheet, nullptr));
     }
-    DCHECK_EQ(GetTreeScope().GetDocument(), sheet->ConstructorDocument());
-    collection.AppendActiveStyleSheet(
-        std::make_pair(sheet, engine.RuleSetForSheet(*sheet)));
   }
-}
 
-void ShadowTreeStyleSheetCollection::UpdateActiveStyleSheets(
-    StyleEngine& engine) {
-  // StyleSheetCollection is GarbageCollected<>, allocate it on the heap.
-  auto* collection = MakeGarbageCollected<StyleSheetCollection>();
-  CollectStyleSheets(engine, *collection);
-  ApplyActiveStyleSheetChanges(*collection);
+  ReplaceActiveStyleSheets(medium, std::move(new_active_style_sheets));
 }
 
 }  // namespace blink

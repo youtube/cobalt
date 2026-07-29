@@ -9,13 +9,12 @@ assert(enterprise_data_controls)
 
 source_set("browser") {
   sources = [
+    "data_controls_dialog_factory.cc",
+    "data_controls_dialog_factory.h",
     "last_replaced_clipboard_data.cc",
     "last_replaced_clipboard_data.h",
     "reporting_service_base.h",
     "reporting_service_base_factory.h",
-    "rules_service.cc",
-    "rules_service.h",
-    "rules_service_factory.h",
   ]
   deps = [
     "//components/enterprise/data_controls/core/browser",

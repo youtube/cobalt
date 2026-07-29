@@ -172,6 +172,7 @@
 <translation id="3003694935412297923">سبھی ٹاسکس</translation>
 <translation id="3018957014024118866">‏Chrome (<ph name="URL" />) سے ڈیٹا بھی حذف کریں</translation>
 <translation id="3019382870990049182">‏ChromeOS Flex&amp; کو اپ ڈیٹ کرنے کیلئے بند کر کے دوبارہ چلائیں</translation>
+<translation id="3037517125981011456">‏Chrome میں سائن ان کرنے کے لیے پرامپٹس دکھاتا ہے</translation>
 <translation id="3037838751736561277">‏Google Chrome پس منظر وضع میں ہے۔</translation>
 <translation id="3038232873781883849">انسٹال ہونے کا انتظار ہے...</translation>
 <translation id="3045032126857188731">ترجمہ کردہ زبان: <ph name="LANGUAGE" /></translation>
@@ -314,6 +315,7 @@
 <translation id="4747730611090640388">‏Chrome آپ کی دلچسپیوں کا اندازہ لگا سکتا ہے۔  بعد میں، آپ کی ملاحظہ کی جانے والی سائٹ آپ کو دکھائی دینے والے اشتہارات کو ذاتی نوعیت کا بنانے کے لیے Chrome سے آپ کی دلچسپیوں کو دیکھنے کا مطالبہ کر سکتی ہے۔</translation>
 <translation id="475321580758063259">‏اپنے Google اکاؤنٹ، <ph name="ACCOUNT_EMAIL" /> میں Chrome ڈیٹا کا استعمال جاری رکھنے کے لیے Chrome کو اپ ڈیٹ کریں</translation>
 <translation id="4754614261631455953">‎Google Chrome (mDNS-In)‎</translation>
+<translation id="4756182432527369254">‏‫Chrome کے V8 انجن کے ساتھ سائٹس کو تیز رفتار بناتا ہے لیکن Chrome کو حملوں کے خلاف قدرے کم مزاحم بناتا ہے</translation>
 <translation id="479167709087336770">‏یہ وہی املا جانچ کنندہ استعمال کرتا ہے جسے Google تلاش میں استعمال کیا جاتا ہے۔ آپ براؤزر میں جو متن ٹائپ کرتے ہیں، اسے Google کو بھیجا جاتا ہے۔ آپ اس برتاؤ کو کسی بھی وقت ترتیبات میں تبدیل کر سکتے ہیں۔</translation>
 <translation id="4793679854893018356">‏جانیں کہ Chrome آپ کو کیسے محفوظ رکھتا ہے</translation>
 <translation id="4828579605166583682">‏Google Chrome موجودہ پاس ورڈز کو تبدیل کرنے کی کوشش کر رہا ہے۔ اس کی اجازت دینے کے لیے اپنا Windows پاس ورڈ ٹائپ کریں۔</translation>
@@ -406,6 +408,7 @@ Google Chrome آپ کی ترتیبات کو بازیافت کرنے سے قاص�
 <translation id="5980111191913430208">‏نامعلوم ذرائع کی ایکسٹینشنز، ایپس اور تھیمز آپ کے آلے کو نقصان پہنچا سکتی ہیں۔ ‫Chrome انہیں صرف <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> سے انسٹال کرنے کا مشورہ دیتا ہے</translation>
 <translation id="6003112304606738118">ڈاؤن لوڈ ہو رہی ہے… <ph name="HOURS" /> گھنٹہ(گھنٹے) باقی ہے</translation>
 <translation id="6008161919456049856">‏آپ کے پاس ورڈز، ادائیگی کے طریقے اور پتے جو آپ نے اپنے Google اکاؤنٹ میں محفوظ کیے ہیں اس آلہ سے ہٹا دیے جائیں گے۔ انہیں Chrome میں دوبارہ استعمال کرنے کے لیے، دوبارہ سائن ان کریں۔</translation>
+<translation id="6009821354356307391">فالو اپ کرنے کو کہیں</translation>
 <translation id="6014316319780893079">‏<ph name="BEGIN_LINK" />Chrome کے ٹولز<ph name="END_LINK" /> کے ذریعے آپ محفوظ طریقے سے براؤز کر سکتے ہیں اور چیزوں پر کنٹرول رکھ سکتے ہیں</translation>
 <translation id="6022659036123304283">‏Chrome کو اپنا ڈیفالٹ براؤزر بنائيں</translation>
 <translation id="6025087594896450715">‏<ph name="REMAINING_TIME" /> میں Google Chrome ری سٹارٹ ہو جائے گا</translation>
@@ -600,6 +603,7 @@ Google Chrome آپ کی ترتیبات کو بازیافت کرنے سے قاص�
 <translation id="8342675569599923794">‏یہ فائل خطرناک ہے، اس لیے Chrome نے اسے مسدود کر دیا ہے۔</translation>
 <translation id="8349094670477064572">‏آپ کے Chrome میں کبھی بھی سائن ان ہونے پر آپ اپنے Google اکاؤنٹ میں پاس ورڈز اور مزید کو محفوظ اور استعمال کریں گے۔ <ph name="LEARN_MORE" /></translation>
 <translation id="8362914115861174987">اس میں ترجمہ کریں</translation>
+<translation id="8366770919198174997">‏اس سے کارکردگی کم ہو جاتی ہے لیکن Chrome حملوں کا مزید مزاحم ہو جاتا ہے</translation>
 <translation id="8370517070665726704">‏کاپی رائٹ<ph name="YEAR" /> Google LLC۔ جملہ حقوق محفوظ ہیں۔</translation>
 <translation id="8387459386171870978">‏Chrome کا استعمال جاری رکھیں</translation>
 <translation id="8394720698884623075">‏Chrome میں اسٹور کردہ غیر محفوظ سائٹس کی فہرست کے URLs چیک کرتا ہے</translation>
@@ -644,6 +648,7 @@ Google Chrome آپ کی ترتیبات کو بازیافت کرنے سے قاص�
 <translation id="8843516219908676469">‏‫Chrome فارمز کو بہتر طور پر سمجھتا ہے اور آپ کے لیے انہیں تیزی سے آٹو فل کر سکتا ہے</translation>
 <translation id="8851180723659088381">{NUM_EXTENSIONS,plural, =1{‏Chrome تجویز کرتا ہے کہ آپ اسے ہٹا دیں}other{‏Chrome تجویز کرتا ہے کہ آپ انہیں ہٹا دیں}}</translation>
 <translation id="8862326446509486874">سسٹم کی سطح پر انسٹال کرنے کیلئے آپ کے پاس مناسب حقوق نہیں ہیں۔ انسٹالر کو دوبارہ منتظم کے بطور چلانے کی کوشش کریں۔</translation>
+<translation id="8865415417596392024">‏آپ کے اکاؤنٹ میں Chrome کا ڈیٹا</translation>
 <translation id="8883862939660515976">‏‫Google لینز سے اس تصویر کے بارے میں پوچھیں</translation>
 <translation id="8914504000324227558">‏Chrome کو دوبارہ شروع کریں</translation>
 <translation id="8922193594870374009">‏<ph name="ORIGIN" /> سے اپنے Android فون پر نمبر بھیجنے کے لئے دونوں آلات پر Chrome میں سائن ان کریں۔</translation>

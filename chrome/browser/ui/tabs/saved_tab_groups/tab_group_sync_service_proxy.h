@@ -49,6 +49,9 @@ class TabGroupSyncServiceProxy : public TabGroupSyncService,
   void UpdateGroupPosition(const base::Uuid& sync_id,
                            std::optional<bool> is_pinned,
                            std::optional<int> new_index) override;
+  void UpdateBookmarkNodeId(
+      const base::Uuid& sync_id,
+      std::optional<base::Uuid> bookmark_node_id) override;
 
   void AddTab(const LocalTabGroupID& group_id,
               const LocalTabID& tab_id,
@@ -79,6 +82,8 @@ class TabGroupSyncServiceProxy : public TabGroupSyncService,
   void MakeTabGroupSharedForTesting(
       const LocalTabGroupID& local_group_id,
       const syncer::CollaborationId& collaboration_id) override;
+  void MakeTabGroupUnsharedForTesting(
+      const LocalTabGroupID& local_group_id) override;
 
   void AboutToUnShareTabGroup(const LocalTabGroupID& local_group_id,
                               base::OnceClosure on_complete_cb) override;

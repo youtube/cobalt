@@ -309,6 +309,23 @@ enum class IsSyncPasswordHashSaved {
 
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
+//
+// Enum used to log metrics related to the password change recovery flow.
+//
+// LINT.IfChange(PasswordChangeRecoveryFlowState)
+enum class PasswordChangeRecoveryFlowState {
+  // User clicked the "Trouble signing in" suggestion and entered the flow.
+  kTroubleSigningInClicked = 0,
+  // We detected a failed login and opened a proactive popup.
+  kProactiveRecoveryPopupShown = 1,
+  // User finished the flow and promoted the backup password to primary.
+  kPrimaryPasswordUpdated = 2,
+  kMaxValue = kPrimaryPasswordUpdated
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/password/enums.xml:PasswordChangeRecoveryFlowState)
+
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
 // Metric: "PasswordManager.ReusedPasswordType".
 enum class PasswordType {
   // Passwords saved by password manager.
@@ -429,12 +446,8 @@ enum class MoveToAccountStoreTrigger {
   kExplicitlyTriggeredInSettings = 1,
   // The user explicitly asked to move multiple passwords at once in Settings.
   kExplicitlyTriggeredForMultiplePasswordsInSettings = 2,
-  // After saving a password locally, the user opted in to saving this and
-  // future passwords in the account.
-  kUserOptedInAfterSavingLocally = 3,
-  // The user explicitly asked to move a password to account store from password
-  // details page.
-  kExplicitlyTriggeredForSinglePasswordInDetailsInSettings = 4,
+  // Deprecated: kUserOptedInAfterSavingLocally = 3,
+  // Deprecated: kExplicitlyTriggeredForSinglePasswordInDetailsInSettings = 4,
   // The user clicked a link in a footer of the manage passwords bubble.
   kExplicitlyTriggeredInPasswordsManagementBubble = 5,
   kMaxValue = kExplicitlyTriggeredInPasswordsManagementBubble,
@@ -879,6 +892,9 @@ void LogCumulativeGetCredentialsMetrics(
 // Logs the failure to capture annotated page content during a specific
 // step of the password change flow.
 void LogPageContentCaptureFailure(PasswordChangeFlowStep step);
+
+// Logs the metrics for when a backup password is being promoted to primary.
+void LogPrimaryPasswordUpdatedWithBackup(ukm::SourceId ukm_source_id);
 
 }  // namespace password_manager::metrics_util
 

@@ -75,7 +75,6 @@ void HomeBackgroundCustomizationService::SetCurrentBackground(
 
   pref_service_->ClearPref(prefs::kIosUserUploadedBackground);
 
-  StoreCurrentTheme();
   NotifyObserversOfBackgroundChange();
 }
 
@@ -91,7 +90,14 @@ void HomeBackgroundCustomizationService::SetBackgroundColor(
 
   pref_service_->ClearPref(prefs::kIosUserUploadedBackground);
 
-  StoreCurrentTheme();
+  NotifyObserversOfBackgroundChange();
+}
+
+void HomeBackgroundCustomizationService::ClearCurrentBackground() {
+  current_theme_.Clear();
+
+  pref_service_->ClearPref(prefs::kIosUserUploadedBackground);
+
   NotifyObserversOfBackgroundChange();
 }
 
@@ -100,6 +106,30 @@ void HomeBackgroundCustomizationService::StoreCurrentTheme() {
   // Encode bytestring so it can be stored in a pref.
   std::string encoded = base::Base64Encode(serialized);
   pref_service_->SetString(prefs::kIosSavedThemeSpecificsIos, encoded);
+}
+
+void HomeBackgroundCustomizationService::RestoreCurrentTheme() {
+  LoadCurrentTheme();
+
+  std::optional<sync_pb::UserColorTheme> colorTheme = GetCurrentColorTheme();
+  std::optional<sync_pb::NtpCustomBackground> presetImage =
+      GetCurrentCustomBackground();
+  std::optional<std::pair<std::string, FramingCoordinates>> uploadedImage =
+      GetCurrentUserUploadedBackground();
+
+  if (colorTheme) {
+    SetBackgroundColor(colorTheme->color(),
+                       colorTheme->browser_color_variant());
+  } else if (presetImage) {
+    SetCurrentBackground(GURL(presetImage->url()), GURL(presetImage->url()),
+                         presetImage->attribution_line_1(),
+                         presetImage->attribution_line_2(),
+                         GURL(presetImage->attribution_action_url()),
+                         presetImage->collection_id());
+  } else if (uploadedImage) {
+    SetCurrentUserUploadedBackground(uploadedImage->first,
+                                     uploadedImage->second);
+  }
 }
 
 void HomeBackgroundCustomizationService::LoadCurrentTheme() {
@@ -127,7 +157,7 @@ void HomeBackgroundCustomizationService::NotifyObserversOfBackgroundChange() {
   }
 }
 
-std::optional<std::pair<std::string, FramingCoordinates>>
+std::optional<UserUploadedBackground>
 HomeBackgroundCustomizationService::GetCurrentUserUploadedBackground() {
   const base::Value::Dict& background_data =
       pref_service_->GetDict(prefs::kIosUserUploadedBackground);
@@ -169,7 +199,10 @@ void HomeBackgroundCustomizationService::SetCurrentUserUploadedBackground(
 
   current_theme_.clear_ntp_background();
   current_theme_.clear_user_color_theme();
-  StoreCurrentTheme();
 
   NotifyObserversOfBackgroundChange();
+}
+
+void HomeBackgroundCustomizationService::ClearCurrentUserUploadedBackground() {
+  pref_service_->ClearPref(prefs::kIosUserUploadedBackground);
 }

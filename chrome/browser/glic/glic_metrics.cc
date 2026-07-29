@@ -268,6 +268,7 @@ void GlicMetrics::OnUserInputSubmitted(mojom::WebClientMode mode) {
   input_submitted_time_ = base::TimeTicks::Now();
   input_mode_ = mode;
   inputs_modes_used_.insert(mode);
+  last_input_mode_ = mode;
 }
 
 void GlicMetrics::OnResponseStarted() {
@@ -337,7 +338,7 @@ void GlicMetrics::OnResponseStarted() {
       .Record(ukm::UkmRecorder::Get());
 }
 
-void GlicMetrics::OnResponseStopped() {
+void GlicMetrics::OnResponseStopped(mojom::ResponseStopCause cause) {
   // The client may call "stopped" without "started" for very short responses.
   // We synthetically call it ourselves in this case.
   if (!input_submitted_time_.is_null() && !response_started_) {
@@ -345,14 +346,36 @@ void GlicMetrics::OnResponseStopped() {
   }
 
   base::RecordAction(base::UserMetricsAction("GlicResponseStop"));
+  std::string_view cause_suffix;
+  switch (cause) {
+    case mojom::ResponseStopCause::kUser:
+      cause_suffix = ".ByUser";
+      base::RecordAction(base::UserMetricsAction("GlicResponseStopByUser"));
+      break;
+    case mojom::ResponseStopCause::kOther:
+      cause_suffix = ".Other";
+      base::RecordAction(base::UserMetricsAction("GlicResponseStopOther"));
+      break;
+    case mojom::ResponseStopCause::kUnknown:
+      cause_suffix = ".UnknownCause";
+      base::RecordAction(
+          base::UserMetricsAction("GlicResponseStopUnknownCause"));
+      break;
+  }
 
   if (input_submitted_time_.is_null()) {
     base::UmaHistogramEnumeration("Glic.Metrics.Error",
                                   Error::kResponseStopWithoutInput);
+    base::UmaHistogramEnumeration(
+        base::StrCat({"Glic.Metrics.Error", cause_suffix}),
+        Error::kResponseStopWithoutInput);
   } else {
     base::TimeTicks now = base::TimeTicks::Now();
     base::UmaHistogramMediumTimes("Glic.Response.StopTime",
                                   now - input_submitted_time_);
+    base::UmaHistogramMediumTimes(
+        base::StrCat({"Glic.Response.StopTime", cause_suffix}),
+        now - input_submitted_time_);
   }
 
   // Reset all times.
@@ -444,7 +467,7 @@ void GlicMetrics::OnGlicWindowOpenAndReady() {
 void GlicMetrics::OnGlicWindowShown(
     Browser* browser,
     std::optional<display::Display> glic_display,
-    const gfx::Point& glic_center_point) {
+    const gfx::Rect& glic_bounds) {
   GlicMetrics::OnGlicWindowSizeTimerFired();
   glic_window_size_timer_.Start(
       FROM_HERE, kLogSizeMetricsDelay,
@@ -452,10 +475,13 @@ void GlicMetrics::OnGlicWindowShown(
                           base::Unretained(this)));
   base::UmaHistogramEnumeration(
       "Glic.PositionOnDisplay.OnOpen",
-      GetDisplayPositionOfPoint(glic_display, glic_center_point));
+      GetDisplayPositionOfPoint(glic_display, glic_bounds.CenterPoint()));
   base::UmaHistogramEnumeration(
       "Glic.PositionOnChrome.OnOpen",
-      GetChromeRelativePositionOfPoint(browser, glic_center_point));
+      GetChromeRelativePositionOfPoint(browser, glic_bounds.CenterPoint()));
+  base::UmaHistogramEnumeration(
+      "Glic.PercentOverlapWithBrowser.OnOpen",
+      GetPercentOverlapWithBrowser(browser, glic_bounds));
 }
 
 void GlicMetrics::OnGlicWindowResize() {
@@ -482,16 +508,20 @@ void GlicMetrics::OnWidgetUserResizeEnded() {
                                 size_on_user_resize_ended.height());
 }
 
-void GlicMetrics::OnGlicWindowClose(Browser* browser,
+void GlicMetrics::OnGlicWindowClose(Browser* last_active_browser,
                                     std::optional<display::Display> display,
-                                    const gfx::Point& glic_center_point) {
+                                    const gfx::Rect& glic_bounds) {
   base::RecordAction(base::UserMetricsAction("GlicSessionEnd"));
   base::UmaHistogramEnumeration(
       "Glic.PositionOnDisplay.OnClose",
-      GetDisplayPositionOfPoint(display, glic_center_point));
+      GetDisplayPositionOfPoint(display, glic_bounds.CenterPoint()));
   base::UmaHistogramEnumeration(
       "Glic.PositionOnChrome.OnClose",
-      GetChromeRelativePositionOfPoint(browser, glic_center_point));
+      GetChromeRelativePositionOfPoint(last_active_browser,
+                                       glic_bounds.CenterPoint()));
+  base::UmaHistogramEnumeration(
+      "Glic.PercentOverlapWithBrowser.OnClose",
+      GetPercentOverlapWithBrowser(last_active_browser, glic_bounds));
   base::UmaHistogramCounts1000("Glic.Session.ResponseCount",
                                session_responses_);
   if (session_start_time_.is_null()) {
@@ -570,6 +600,25 @@ void GlicMetrics::LogClosedCaptionsShown() {
   bool pref_enabled =
       profile_->GetPrefs()->GetBoolean(prefs::kGlicClosedCaptioningEnabled);
   base::UmaHistogramBoolean("Glic.Response.ClosedCaptionsShown", pref_enabled);
+}
+
+void GlicMetrics::LogGetContextFromFocusedTabError(
+    GlicGetContextFromFocusedTabError error) {
+  std::string mode_string;
+  switch (last_input_mode_) {
+    case mojom::WebClientMode::kText:
+      mode_string = "Text";
+      break;
+    case mojom::WebClientMode::kAudio:
+      mode_string = "Audio";
+      break;
+    case mojom::WebClientMode::kUnknown:
+      mode_string = "Unknown";
+      break;
+  }
+  base::UmaHistogramEnumeration(
+      base::StrCat({"Glic.Api.GetContextFromFocusedTab.Error.", mode_string}),
+      error);
 }
 
 void GlicMetrics::SetControllers(GlicWindowController* window_controller,
@@ -742,9 +791,7 @@ DisplayPosition GlicMetrics::GetDisplayPositionOfPoint(
 ChromeRelativePosition GlicMetrics::GetChromeRelativePositionOfPoint(
     Browser* browser,
     const gfx::Point& glic_center_point) {
-  if (!browser || !browser->window()->IsVisible() ||
-      browser->window()->IsMinimized() ||
-      !browser->capabilities()->IsVisibleOnScreen()) {
+  if (!IsBrowserVisible(browser)) {
     return ChromeRelativePosition::kNoVisibleChromeBrowser;
   }
 
@@ -785,6 +832,50 @@ ChromeRelativePosition GlicMetrics::GetChromeRelativePositionOfPoint(
        ChromeRelativePosition::kBelowRight},
   }};
   return position_map[x_index][y_index];
+}
+
+PercentOverlap GlicMetrics::GetPercentOverlapWithBrowser(
+    Browser* browser,
+    const gfx::Rect& glic_bounds) {
+  if (!IsBrowserVisible(browser)) {
+    return PercentOverlap::kNoVisibleChromeBrowser;
+  }
+  int glic_area = glic_bounds.width() * glic_bounds.height();
+  if (glic_area == 0) {
+    return PercentOverlap::k0;
+  }
+  gfx::Rect browser_glic_intersect_bounds =
+      browser->GetBrowserView().GetWidget()->GetWindowBoundsInScreen();
+  browser_glic_intersect_bounds.Intersect(glic_bounds);
+  int browser_glic_intersect_area = browser_glic_intersect_bounds.width() *
+                                    browser_glic_intersect_bounds.height();
+  // Calculate overlap percentage and round to the nearest 10.
+  int percentOverlap = round(10 * browser_glic_intersect_area / glic_area) * 10;
+  switch (percentOverlap) {
+    case 100:
+      return PercentOverlap::k100;
+    case 90:
+      return PercentOverlap::k90;
+    case 80:
+      return PercentOverlap::k80;
+    case 70:
+      return PercentOverlap::k70;
+    case 60:
+      return PercentOverlap::k60;
+    case 50:
+      return PercentOverlap::k50;
+    case 40:
+      return PercentOverlap::k40;
+    case 30:
+      return PercentOverlap::k30;
+    case 20:
+      return PercentOverlap::k20;
+    case 10:
+      return PercentOverlap::k10;
+    case 0:
+    default:
+      return PercentOverlap::k0;
+  }
 }
 
 void GlicMetrics::OnAttachedToBrowser(AttachChangeReason reason) {

@@ -18,14 +18,10 @@ enum class SearchEngineLogoState;
 - (void)setSearchEngineLogoState:(SearchEngineLogoState)logoState;
 
 // Exposes view and methods to drive the doodle.
-// TODO(crbug.com/423883582): The mediator should not be passed to the
+// TODO(crbug.com/436228514): The mediator should not be passed to the
 // consumer.
 - (void)setSearchEngineLogoMediator:
     (SearchEngineLogoMediator*)searchEngineLogoMediator;
-
-// Sets the color for the monochrome logo. Pass `nil` to display the color
-// version.
-- (void)updateLogoColor:(UIColor*)logoTintColor;
 
 // Sets whether voice search is currently enabled.
 - (void)setVoiceSearchIsEnabled:(BOOL)voiceSearchIsEnabled;

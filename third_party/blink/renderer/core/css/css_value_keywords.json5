@@ -485,6 +485,7 @@
     "right",
     "center",
     "justify",
+    "match-parent",
     "-webkit-left",
     "-webkit-right",
     "-webkit-center",
@@ -1291,7 +1292,7 @@
     "hanging",
     "mathematical",
 
-    // gap-rule-paint-order
+    // gap-rule-overlap
     "row-over-column",
     "column-over-row",
 

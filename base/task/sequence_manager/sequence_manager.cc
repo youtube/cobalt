@@ -139,6 +139,18 @@ SequenceManager::Settings::Builder::SetPrioritySettings(
   return *this;
 }
 
+SequenceManager::Settings::Builder&
+SequenceManager::Settings::Builder::SetIsMainThread(bool is_main_thread_val) {
+  settings_.is_main_thread = is_main_thread_val;
+  return *this;
+}
+
+SequenceManager::Settings::Builder&
+SequenceManager::Settings::Builder::SetShouldReportLockMetrics(bool enable) {
+  settings_.should_report_lock_metrics = enable;
+  return *this;
+}
+
 #if DCHECK_IS_ON()
 
 SequenceManager::Settings::Builder&

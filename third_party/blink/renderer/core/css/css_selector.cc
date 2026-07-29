@@ -339,6 +339,8 @@ PseudoId CSSSelector::GetPseudoId(PseudoType type) {
       return kPseudoIdAfter;
     case kPseudoPickerIcon:
       return kPseudoIdPickerIcon;
+    case kPseudoInterestHint:
+      return kPseudoIdInterestHint;
     case kPseudoMarker:
       return kPseudoIdMarker;
     case kPseudoBackdrop:
@@ -630,6 +632,7 @@ constexpr static NameToPseudoStruct kPseudoTypeWithoutArgumentsMap[] = {
     {"in-range", CSSSelector::kPseudoInRange},
     {"increment", CSSSelector::kPseudoIncrement},
     {"indeterminate", CSSSelector::kPseudoIndeterminate},
+    {"interest-hint", CSSSelector::kPseudoInterestHint},
     {"invalid", CSSSelector::kPseudoInvalid},
     {"invalid-style", CSSSelector::kPseudoPermissionElementInvalidStyle},
     {"last-child", CSSSelector::kPseudoLastChild},
@@ -895,6 +898,7 @@ void CSSSelector::UpdatePseudoType(const AtomicString& value,
       [[fallthrough]];
     // For pseudo-elements
     case kPseudoPickerIcon:
+    case kPseudoInterestHint:
     case kPseudoCheckMark:
     case kPseudoBackdrop:
     case kPseudoCue:
@@ -1116,6 +1120,19 @@ static void SerializeNamespacePrefixIfNeeded(const AtomicString& prefix,
   builder.Append('|');
 }
 
+template <typename ListType>
+static void SerializeIdentifierList(StringBuilder& builder,
+                                    const ListType& list) {
+  bool is_first = true;
+  for (const AtomicString& item : list) {
+    if (!is_first) {
+      builder.Append(", ");
+    }
+    SerializeIdentifier(item, builder);
+    is_first = false;
+  }
+}
+
 // static
 template <bool expand_pseudo_references>
 void CSSSelector::SerializeSelectorList(const CSSSelectorList* selector_list,
@@ -1202,12 +1219,17 @@ bool CSSSelector::SerializeSimpleSelector(StringBuilder& builder,
         break;
       }
       case kPseudoDir:
-      case kPseudoLang:
       case kPseudoState:
         builder.Append('(');
         SerializeIdentifier(Argument(), builder);
         builder.Append(')');
         break;
+      case kPseudoLang: {
+        builder.Append('(');
+        SerializeIdentifierList(builder, *ArgumentList());
+        builder.Append(')');
+        break;
+      }
       case kPseudoHas:
       case kPseudoNot:
         DCHECK(SelectorList());
@@ -1245,14 +1267,8 @@ bool CSSSelector::SerializeSimpleSelector(StringBuilder& builder,
         NOTREACHED();
       case kPseudoActiveViewTransitionType: {
         CHECK(!IdentList().empty());
-        String separator = "(";
-        for (AtomicString type : IdentList()) {
-          builder.Append(separator);
-          if (separator == "(") {
-            separator = ", ";
-          }
-          SerializeIdentifier(type, builder);
-        }
+        builder.Append('(');
+        SerializeIdentifierList(builder, IdentList());
         builder.Append(')');
         break;
       }
@@ -1467,6 +1483,12 @@ void CSSSelector::SetArgument(const AtomicString& value) {
   data_.rare_data_->argument_ = value;
 }
 
+void CSSSelector::SetArgumentList(
+    std::unique_ptr<Vector<AtomicString>> arguments) {
+  CreateRareData();
+  data_.rare_data_->argument_list_ = std::move(arguments);
+}
+
 void CSSSelector::SetSelectorList(CSSSelectorList* selector_list) {
   CreateRareData();
   data_.rare_data_->selector_list_ = selector_list;
@@ -1649,6 +1671,7 @@ bool CSSSelector::IsTreeAbidingPseudoElement() const {
          (GetPseudoType() == kPseudoCheckMark ||
           GetPseudoType() == kPseudoBefore || GetPseudoType() == kPseudoAfter ||
           GetPseudoType() == kPseudoPickerIcon ||
+          GetPseudoType() == kPseudoInterestHint ||
           GetPseudoType() == kPseudoMarker ||
           GetPseudoType() == kPseudoPlaceholder ||
           GetPseudoType() == kPseudoFileSelectorButton ||
@@ -1687,6 +1710,7 @@ bool CSSSelector::IsAllowedAfterPart() const {
     case kPseudoBefore:
     case kPseudoAfter:
     case kPseudoPickerIcon:
+    case kPseudoInterestHint:
     case kPseudoPlaceholder:
     case kPseudoFileSelectorButton:
     case kPseudoFirstLine:

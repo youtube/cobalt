@@ -6,6 +6,8 @@
 
 #import "base/no_destructor.h"
 #import "components/keyed_service/core/keyed_service.h"
+#import "components/pref_registry/pref_registry_syncable.h"
+#import "components/privacy_sandbox/tracking_protection_prefs.h"
 #import "components/privacy_sandbox/tracking_protection_settings.h"
 #import "ios/chrome/browser/content_settings/model/host_content_settings_map_factory.h"
 #import "ios/chrome/browser/policy/model/management_service_ios.h"
@@ -26,9 +28,16 @@ TrackingProtectionSettingsFactory::GetForProfile(ProfileIOS* profile) {
       GetInstance()->GetServiceForBrowserState(profile, true));
 }
 
+void TrackingProtectionSettingsFactory::RegisterBrowserStatePrefs(
+    user_prefs::PrefRegistrySyncable* registry) {
+  registry->RegisterBooleanPref(
+      prefs::kFingerprintingProtectionEnabled, true,
+      user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
+}
+
 TrackingProtectionSettingsFactory::TrackingProtectionSettingsFactory()
     : ProfileKeyedServiceFactoryIOS("TrackingProtectionSettings",
-                                    ProfileSelection::kRedirectedInIncognito) {
+                                    ProfileSelection::kOwnInstanceInIncognito) {
   DependsOn(ios::HostContentSettingsMapFactory::GetInstance());
   DependsOn(policy::ManagementServiceIOSFactory::GetInstance());
 }

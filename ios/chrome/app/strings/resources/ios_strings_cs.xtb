@@ -208,6 +208,7 @@
 <translation id="17906873777101817">Nabízet uložení hesel a přístupových klíčů</translation>
 <translation id="1794893174442046596">Skupina karet</translation>
 <translation id="1807893857950749072">Povolit oznámení o sledování cen…</translation>
+<translation id="1809929083618343438">Vybrané informace se odstraní z Chromu, ale z vašeho účtu Google se nesmažou.</translation>
 <translation id="1810976980198522421">Zrušit</translation>
 <translation id="1812514023095547458">Výběr barvy</translation>
 <translation id="1815941218935345331">Heslo</translation>
@@ -301,6 +302,7 @@
 <translation id="2120553909046681540">Vaše organizace anonymní prohlížení vypnula.</translation>
 <translation id="2122754583996902531">Váš prohlížeč je spravován. <ph name="BEGIN_LINK" />Další informace<ph name="END_LINK" /></translation>
 <translation id="21243612977487926">Chaty vaší organizace se nepoužívají k vylepšování našich modelů. Gemini může uvádět nepřesné informace, včetně informací o lidech, proto si odpovědi ověřujte. <ph name="YOUR_PRIVACY_GEMINI" /></translation>
+<translation id="2126034128616392756">Následující hesla se do Správce hesel Google neimportovala, protože neodpovídají požadavkům.</translation>
 <translation id="2139867232736819575">Vyhledat zkopírovaný text</translation>
 <translation id="2147127444698817042">K dispozici pouze na iPhonu</translation>
 <translation id="2148799636999124959">Rychle se přihlašujte na weby a do aplikací pomocí uložených hesel.</translation>
@@ -310,6 +312,7 @@
 <translation id="2161446265348023004">Přepnout na otevřené okno</translation>
 <translation id="2164946989711475905">Přihlásit se…</translation>
 <translation id="2175927920773552910">QR kód</translation>
+<translation id="2180338296831857171">Smazat adresy</translation>
 <translation id="218350106843433823">Automatické vyplňování hesel a přístupových klíčů</translation>
 <translation id="2184272387334793084">Přihlaste se a používejte svá hesla a další obsah na všech svých zařízeních</translation>
 <translation id="2186206192313702726">Google Lens</translation>
@@ -356,6 +359,7 @@
 <translation id="2326302612031521902">Výběr jednotek</translation>
 <translation id="2330607597130465898">Bez ochrany</translation>
 <translation id="233375395665273385">Vymazat a odhlásit se</translation>
+<translation id="2350463587705616331">Sépiová barva pozadí</translation>
 <translation id="2351097562818989364">Nastavení překladů bylo resetováno.</translation>
 <translation id="2353784052777482798">{COUNT,plural, =1{Heslo pro web {DOMAIN_ONE} si můžete uložit do svého účtu Google ({EMAIL}).}=2{Hesla pro weby {DOMAIN_ONE} a {DOMAIN_TWO} si můžete uložit do svého účtu Google ({EMAIL}).}=3{Hesla pro weby {DOMAIN_ONE}, {DOMAIN_TWO} a {OTHER_DOMAINS_COUNT} další si můžete uložit do svého účtu Google ({EMAIL}).}few{Hesla pro weby {DOMAIN_ONE}, {DOMAIN_TWO} a {OTHER_DOMAINS_COUNT} další si můžete uložit do svého účtu Google ({EMAIL}).}many{Hesla pro weby {DOMAIN_ONE}, {DOMAIN_TWO} a {OTHER_DOMAINS_COUNT} dalšího si můžete uložit do svého účtu Google ({EMAIL}).}other{Hesla pro weby {DOMAIN_ONE}, {DOMAIN_TWO} a {OTHER_DOMAINS_COUNT} dalších si můžete uložit do svého účtu Google ({EMAIL}).}}</translation>
 <translation id="2353953000228441783">Výchozí zobrazení webu</translation>
@@ -384,6 +388,7 @@ Weby pomocí souborů cookie nemohou sledovat vaši aktivitu prohlížení mezi 
 <translation id="2434405374328098816">Heslo pro uživatelské jméno „<ph name="USERNAME" />“ už jste na webu <ph name="WEBSITE" /> uložili</translation>
 <translation id="2434918313224755415">Posunutím doleva si web můžete prohlížet v anonymním režimu.</translation>
 <translation id="2435457462613246316">Zobrazit heslo</translation>
+<translation id="2458827363789845126">{count,plural, =1{{count} položka historie}few{{count} položky historie}many{{count} položky historie}other{{count} položek historie}}</translation>
 <translation id="2461070143328828326">Nastavení hesla</translation>
 <translation id="2462736546165239215">Zde najdete veškerou svou historii prohlížení.</translation>
 <translation id="2466518891828668184">Ukládejte si hesla, abyste se mohli snadno přihlašovat na weby a do aplikací.</translation>
@@ -542,6 +547,7 @@ Prostudujte si pokyny vyhledávače pro smazání historie vyhledávání (pokud
 <translation id="3081338492074632642">Zkontrolujte, zda se ukládané heslo shoduje s heslem pro web <ph name="WEBSITE" />.</translation>
 <translation id="3087734570205094154">Až dolů</translation>
 <translation id="309710370695886264">Máte jedno opakovaně použité heslo. Pokud chcete být v bezpečí, ihned to vyřešte.</translation>
+<translation id="3099402981545350675">Tímto smažete adresy uložené na tomto zařízení. Vybrané informace se také odstraní z Chromu, ale z vašeho účtu Google se nesmažou.</translation>
 <translation id="3106258548858559536">Vypnout režim čtení</translation>
 <translation id="3106690631878101882">Skrýt možnost Přeložit</translation>
 <translation id="310900540163454140">Smazat heslo pro web <ph name="WEBSITE" />?</translation>
@@ -740,6 +746,7 @@ Prostudujte si pokyny vyhledávače pro smazání historie vyhledávání (pokud
 <translation id="3962326069546168954">Uložit</translation>
 <translation id="3967327056943561740">Záložky</translation>
 <translation id="3967822245660637423">Stahování bylo dokončeno</translation>
+<translation id="3973560090698854095">Tímto smažete adresy uložené ve vašem účtu Google <ph name="USER_EMAIL" />.</translation>
 <translation id="3982893814825393515">Nahlásit problém…</translation>
 <translation id="398604237578616937">Jste přihlášeni jako <ph name="USER_EMAIL" />. Otevřít nabídku účtů.</translation>
 <translation id="3986739045730058129">Přejít na kartu</translation>
@@ -899,6 +906,7 @@ Prostudujte si pokyny vyhledávače pro smazání historie vyhledávání (pokud
 <translation id="4621768135601674446">Otevřít možnosti Režimu čtení</translation>
 <translation id="4624080227980645783">Nové anonymní okno</translation>
 <translation id="4627107755957573804">Povolit webům a aplikacím upgradovat stávající účty, aby mohly používat přístupové klíče</translation>
+<translation id="4629065796475200039">Heslo se neimportovalo</translation>
 <translation id="4630212057753624203">Ukázková bublina</translation>
 <translation id="4631335160486397366">Opakovaně použitá hesla: <ph name="COUNT" /></translation>
 <translation id="4631890462758052414">Nová anonymní karta</translation>
@@ -1002,7 +1010,6 @@ Prostudujte si pokyny vyhledávače pro smazání historie vyhledávání (pokud
 <translation id="496392417432935267">Otevřeno jinde</translation>
 <translation id="4970724460420203313">Pokud Chrome budete používat pomocí spravovaného účtu, pomůže vám to oddělit prohlížení obsahu souvisejícího s vaší organizací (včetně karet, historie a hesel) od ostatního prohlížení</translation>
 <translation id="4971735654804503942">Rychlejší, proaktivní ochrana před nebezpečnými weby, soubory ke stažení a rozšířeními. Upozorňuje vás na úniky hesel. Vyžaduje odesílání údajů o prohlížení do Googlu.</translation>
-<translation id="4975364841282576329">{count,plural, =1{{count} položka historie ze soukromých a pracovních profilů v Safari}few{{count} položky historie ze soukromých a pracovních profilů v Safari}many{{count} položky historie ze soukromých a pracovních profilů v Safari}other{{count} položek historie ze soukromých a pracovních profilů v Safari}}</translation>
 <translation id="4979397965658815378">Přihlaste se pomocí účtu Google a získejte záložky, hesla, historii a další nastavení do všech svých zařízení.</translation>
 <translation id="4985921635659180565">Naplánované smazání souboru nelze později zrušit.</translation>
 <translation id="498624032394115435">Kdokoli s odkazem může upravovat všechny karty.</translation>
@@ -1020,6 +1027,7 @@ Prostudujte si pokyny vyhledávače pro smazání historie vyhledávání (pokud
 <translation id="5039804452771397117">Povolit</translation>
 <translation id="5050810143224996149">Sdílet heslo</translation>
 <translation id="5055015094595227120">Přesná poloha</translation>
+<translation id="5055551113846164633">Tímto smažete adresy uložené na tomto zařízení. Smažou se i adresy uložené ve vašem účtu Google <ph name="USER_EMAIL" />.</translation>
 <translation id="5056446788882570708">Byly zjištěny problémy (<ph name="TIME" />).</translation>
 <translation id="5059136629401106827">OK</translation>
 <translation id="5062321486222145940">Instalace Disku Google</translation>
@@ -1152,7 +1160,7 @@ Funkce Handoff musí být povolena také v Nastavení v sekci Obecné a zaříze
 <translation id="5576885723883013398">Nové okno</translation>
 <translation id="5578795271662203820">Hledat obrázek pomocí <ph name="SEARCH_ENGINE" /></translation>
 <translation id="5579012242779565775">Skrýt možnost Seznam četby</translation>
-<translation id="5581786858144165447">Zeptat se režimu AI</translation>
+<translation id="5581786858144165447">Zeptat se v režimu AI</translation>
 <translation id="5585019845078534178">Karty</translation>
 <translation id="5595485650161345191">Upravit adresu</translation>
 <translation id="559567008082979829">Nastaví automatické mazání stažených souborů po jednom měsíci.</translation>
@@ -1231,6 +1239,7 @@ Funkce Handoff musí být povolena také v Nastavení v sekci Obecné a zaříze
 <translation id="5827266244928330802">Safari</translation>
 <translation id="5829649908290113115">Probíhá synchronizace…</translation>
 <translation id="583923961930319521">Používejte hesla na všech svých zařízeních</translation>
+<translation id="5843013299019689749">Černá barva pozadí</translation>
 <translation id="5844284118433003733">Když jste přihlášeni, jsou tato data propojena s vaším účtem Google, aby vás ve službách Google bylo možné lépe chránit, například zvýšit ochranu v Gmailu po bezpečnostním incidentu.</translation>
 <translation id="5854790677617711513">Starší než 30 dnů</translation>
 <translation id="5857770089550859117">K zahájení synchronizace je potřeba heslová fráze.</translation>
@@ -1483,6 +1492,7 @@ V anonymním režimu weby nemohou používat soubory cookie ke sledování vaš
 <translation id="6682680306647339111">Bylo odstraněno připomenutí</translation>
 <translation id="6684262542644248484">Přihlaste se na web</translation>
 <translation id="6685259053455152195">Zkratky k rychlé úpravě nastavení a používání funkcí z adresního řádku.</translation>
+<translation id="6689342293888598653">Bílá barva pozadí</translation>
 <translation id="6689685206615181381">Je k dispozici pouze anonymní režim</translation>
 <translation id="6708501134077648845">Možnosti hesel</translation>
 <translation id="6709964700841491574">Režim blokování</translation>
@@ -1505,6 +1515,8 @@ V anonymním režimu weby nemohou používat soubory cookie ke sledování vaš
 <translation id="6790502149545262384">Brzy se vám po otevření nové karty začnou zobrazovat články z webu <ph name="CHANNEL_NAME" />.</translation>
 <translation id="6791425686608802741">Klepněte na Přidat kartu do nové skupiny</translation>
 <translation id="6794476726485507147">Vyberte datum a čas, kdy chcete dostat připomenutí, že tuto stránku máte znovu navštívit</translation>
+<translation id="6795481620482106033">Neplatná data</translation>
+<translation id="6797543908718012274">Zapnout režim čtení</translation>
 <translation id="6807287147325542056">Hesla v jiných aplikacích</translation>
 <translation id="681368974849482173">Položka byla vytvořena</translation>
 <translation id="6825078212112407882">{count,plural, =1{Záložka byla uložena do vašeho účtu Google {email}}few{Do vašeho účtu Google {email} byly uloženy {count} záložky}many{Do vašeho účtu Google {email} bylo uloženo {count} záložky}other{Do vašeho účtu Google {email} bylo uloženo {count} záložek}}</translation>
@@ -1565,6 +1577,7 @@ V anonymním režimu weby nemohou používat soubory cookie ke sledování vaš
 <translation id="7029809446516969842">Hesla</translation>
 <translation id="7035825883570480307">Zapnout oznámení?</translation>
 <translation id="7039345315346323556">Nedávné</translation>
+<translation id="704692552158601232">Výchozí prohlížeč</translation>
 <translation id="7055240621761583113">Automaticky vyplnit heslo</translation>
 <translation id="7058455400288852416">Přejít na přepínač karet</translation>
 <translation id="7063811929043357292">Tvůj účet spravuje rodič.
@@ -1588,6 +1601,7 @@ V anonymním režimu weby nemohou používat soubory cookie ke sledování vaš
 <translation id="714291438898585119">S hvězdičkou</translation>
 <translation id="7146301801400584641">Je k dispozici soubor kalendáře</translation>
 <translation id="7149893636342594995">Posledních 24 hodin</translation>
+<translation id="7154417656353909837">Odstranit adresy</translation>
 <translation id="7161230316646448869">Vaše hesla, historie a další údaje na všech zařízeních</translation>
 <translation id="7173114856073700355">Otevřít nastavení</translation>
 <translation id="7173721738069475737">{count,plural, =1{Záložka byla uložena}few{Byly uloženy {count} záložky}many{Bylo uloženo {count} záložky}other{Bylo uloženo {count} záložek}}</translation>
@@ -1612,6 +1626,7 @@ V anonymním režimu weby nemohou používat soubory cookie ke sledování vaš
 <translation id="7266578100016339897">Tahle funkce vám pomůže mít v kartách pořádek. V nastavení můžete toto chování kdykoli změnit.</translation>
 <translation id="7272437679830969316">Vaši totožnost nelze ověřit. Heslo nebylo zkopírováno.</translation>
 <translation id="728025568708172005">Proveďte mě</translation>
+<translation id="7280980607183752256">Tento soubor nelze importovat</translation>
 <translation id="7281202269687163394">Vaše soukromí a Gemini.</translation>
 <translation id="7293429513719260019">Zvolte jazyk</translation>
 <translation id="7300448350764260141">Využijte další vrstvu ochrany proti online hrozbám.</translation>
@@ -1656,6 +1671,7 @@ V anonymním režimu weby nemohou používat soubory cookie ke sledování vaš
 <translation id="7458706065921255639">Personalizace a propojení</translation>
 <translation id="745899714366929493">Celý den</translation>
 <translation id="7460698861522306757">Požádat o web pro mobily</translation>
+<translation id="7464143666517313304">Tímto smažete adresy uložené na tomto zařízení.</translation>
 <translation id="7468373585447318060">Mějte přehled o poklesech ceny u všech produktů, které sledujete.</translation>
 <translation id="746872191028309255">Pomocí fotoaparátu nebo fotogalerie si kupte, co vidíte.</translation>
 <translation id="7471557245617580330">Vytvořit novou kartu</translation>
@@ -1707,6 +1723,7 @@ V anonymním režimu weby nemohou používat soubory cookie ke sledování vaš
 <translation id="7646772052135772216">Synchronizace hesel nefunguje</translation>
 <translation id="764827086632467055">Klepněte na Výchozí prohlížeč.</translation>
 <translation id="7649070708921625228">Nápověda</translation>
+<translation id="765555660695722850">Tímto smažete adresy uložené na tomto zařízení. Smažou se i některé informace z vašeho účtu Google, ale nikoli základní informace, jako je vaše jméno nebo adresa bydliště.</translation>
 <translation id="765631330137769217">Když kliknete na Uložit, budete mít heslo při příštím přihlášení snadno k dispozici</translation>
 <translation id="7658239707568436148">Zrušit</translation>
 <translation id="7662316065255305764">Informace o webu</translation>
@@ -1732,6 +1749,7 @@ V anonymním režimu weby nemohou používat soubory cookie ke sledování vaš
 <translation id="7749790401023484470">Nevybrali jste žádný text.</translation>
 <translation id="7757015014239760147">Bez uživatelského jména ••••••</translation>
 <translation id="775755486779745798">Automaticky vyplnit měsíc vypršení platnosti <ph name="MONTH" /></translation>
+<translation id="7759809451544302770">Volitelné</translation>
 <translation id="7765158879357617694">Přesunout</translation>
 <translation id="7772032839648071052">Potvrďte heslovou frázi</translation>
 <translation id="7772948288262733182">Vítejte zpět</translation>
@@ -2008,6 +2026,7 @@ Weby pomocí souborů cookie mohou sledovat vaši aktivitu prohlížení na růz
 <translation id="8726523474917941818">Připomenout</translation>
 <translation id="8728922029615312208">Zavřít vše</translation>
 <translation id="8730621377337864115">Hotovo</translation>
+<translation id="8731268612289859741">Bezpečnostní kód</translation>
 <translation id="87371078663613140">Prozkoumejte možnosti na liště s nabídkou.</translation>
 <translation id="8741627442233023406">{count,plural, =1{Zkontrolovat kartu…}few{Zkontrolovat všechny karty…}many{Zkontrolovat všechny karty…}other{Zkontrolovat všechny karty…}}</translation>
 <translation id="8741995161408053644">Na stránce <ph name="BEGIN_LINK" />history.google.com<ph name="END_LINK" /> mohou být k dispozici další formy historie prohlížení zaznamenané ve vašem účtu Google.</translation>
@@ -2052,6 +2071,7 @@ Weby pomocí souborů cookie mohou sledovat vaši aktivitu prohlížení na růz
 <translation id="8891031436559779793">Pokud cena na některém webu klesne, obdržíte oznámení.</translation>
 <translation id="8893208530912252670">Videa</translation>
 <translation id="8898822736010347272">Odesílá adresy URL některých navštívených stránek, omezené informace o systému a část obsahu stránek do Googlu a pomáhá tak objevovat nové hrozby a chránit všechny uživatele internetu.</translation>
+<translation id="8900845556227858314">Prohlížeč</translation>
 <translation id="890565330728586731">Zpět</translation>
 <translation id="8907722425137681851">Najít na stránce…</translation>
 <translation id="8909135823018751308">Sdílet…</translation>

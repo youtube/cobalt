@@ -26,6 +26,7 @@ import org.chromium.chrome.R;
 import org.chromium.chrome.browser.app.tabwindow.TabWindowManagerSingleton;
 import org.chromium.chrome.browser.dragdrop.ChromeDragDropUtils;
 import org.chromium.chrome.browser.dragdrop.ChromeDropDataAndroid;
+import org.chromium.chrome.browser.dragdrop.ChromeMultiTabDropDataAndroid;
 import org.chromium.chrome.browser.dragdrop.ChromeTabDropDataAndroid;
 import org.chromium.chrome.browser.dragdrop.ChromeTabGroupDropDataAndroid;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
@@ -43,6 +44,7 @@ import org.chromium.ui.dragdrop.DragDropMetricUtils;
 import org.chromium.ui.dragdrop.DragDropMetricUtils.DragDropResult;
 import org.chromium.ui.widget.Toast;
 
+import java.util.Collections;
 import java.util.List;
 
 /** A helper class that provides access to common logic involved in tab dragging. */
@@ -143,6 +145,27 @@ public abstract class TabDragHandlerBase implements View.OnDragListener, Destroy
         }
 
         return true;
+
+    }
+
+    protected boolean canStartMultiTabDrag() {
+        if (isDragAlreadyInProgress()) {
+            return false;
+        }
+
+        // Block drag for last tab in single-window mode if feature is not supported.
+        if (!MultiWindowUtils.getInstance().isInMultiWindowMode(getActivity())
+                && !shouldAllowMultiTabDragToCreateInstance()) {
+            return false;
+        }
+
+        // Block drag for last tab when homepage enabled and is set to a custom url.
+        if (MultiWindowUtils.getInstance()
+                .hasAllTabsSelectedWithHomepageEnabled(getTabModelSelector())) {
+            return false;
+        }
+
+        return true;
     }
 
     protected boolean canStartGroupDrag(Token tabGroupId) {
@@ -170,6 +193,11 @@ public abstract class TabDragHandlerBase implements View.OnDragListener, Destroy
     private boolean shouldAllowGroupDragToCreateInstance(Token groupId) {
         int groupSize = getCurrentTabGroupModelFilter().getTabCountForGroup(groupId);
         return getTabModelSelector().getTotalTabCount() > groupSize;
+    }
+
+    private boolean shouldAllowMultiTabDragToCreateInstance() {
+        return getTabModelSelector().getTotalTabCount()
+                > getTabModelSelector().getCurrentModel().getMultiSelectedTabsCount();
     }
 
     private boolean shouldAllowTabDragToCreateInstance() {
@@ -232,6 +260,23 @@ public abstract class TabDragHandlerBase implements View.OnDragListener, Destroy
                 .withAllowDragToCreateInstance(allowDragToCreateInstance)
                 .withWindowId(windowId)
                 .build();
+    }
+
+    protected ChromeDropDataAndroid prepareMultiTabDropData(List<Tab> tabs) {
+        int windowId = TabWindowManagerSingleton.getInstance().getIdForWindow(getActivity());
+        boolean allowDragToCreateInstance =
+                shouldAllowMultiTabDragToCreateInstance()
+                        && (TabUiFeatureUtilities.doesOemSupportDragToCreateInstance()
+                                || MultiWindowUtils.getInstanceCount()
+                                        < MultiWindowUtils.getMaxInstances());
+
+        ChromeMultiTabDropDataAndroid.Builder builder = new ChromeMultiTabDropDataAndroid.Builder();
+        builder.withAllowDragToCreateInstance(allowDragToCreateInstance);
+        builder.withWindowId(windowId);
+        // Reverse the order to preserve the order in the destination strip.
+        Collections.reverse(tabs);
+        builder.withTabs(tabs);
+        return builder.build();
     }
 
     protected ChromeDropDataAndroid prepareGroupDropData(Token tabGroupId, boolean isGroupShared) {

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#import "base/ios/ios_util.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/test/ios/wait_util.h"
 #import "components/data_sharing/public/features.h"
@@ -86,11 +87,9 @@ NSString* const kGroup2Name = @"2group";
 void DisplayContextMenuForTabCellAtIndex(int tab_cell_index) {
   // It happens that on certain bots, the grey_longPress action doesn't return
   // an error for EarlGrey, but the context menu doesn't open accordingly.
-  // Waiting has been seen as fixing this.
-  base::PlatformThread::Sleep(base::Seconds(1));
-
+  // Long press for a pre-determined duration to force the context menu to open.
   [[EarlGrey selectElementWithMatcher:TabGridCellAtIndex(tab_cell_index)]
-      performAction:grey_longPress()];
+      performAction:grey_longPressWithDuration(base::Seconds(1))];
 }
 
 // Displays the group cell context menu by long pressing at the group cell at
@@ -891,19 +890,21 @@ void TapTabGridEditButton() {
   [[EarlGrey selectElementWithMatcher:DeleteGroupButton()]
       performAction:grey_tap()];
 
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
+  if (iOS26_OR_ABOVE()) {
+    [[EarlGrey
+        selectElementWithMatcher:GREYAccessibilityID(@"PopoverDismissRegion")]
+        performAction:grey_tap()];
+  } else {
+    [[EarlGrey selectElementWithMatcher:CloseTabGroupButton()]
+        performAction:grey_tap()];
+  }
+#else
   // Cancel the action by tapping the close button (= outside the delete
   // button). We have a cancel button only on iPhones with iOS versions smaller
   // than iOS26.
   [[EarlGrey selectElementWithMatcher:CloseTabGroupButton()]
       performAction:grey_tap()];
-
-#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
-  if (iOS26_OR_ABOVE()) {
-    // On iOS26 cancelling the action by tapping outside the popover is also
-    // clicking the button, for this reason, it is necessary to open again the
-    // tab group.
-    OpenTabGroupAtIndex(0);
-  }
 #endif
 
   // Check that `Tab 1` tab cell still exists in the group.

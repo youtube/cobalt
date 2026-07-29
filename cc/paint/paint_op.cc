@@ -1273,8 +1273,13 @@ static float ComputeEffectiveHdrHeadroom(const PaintFlags* flags,
   if (!flags) {
     return params.destination_hdr_headroom;
   }
+  const float targeted_hdr_headroom =
+      flags->getTargetedHdrHeadroom() ==
+              PaintFlags::kTargetedHdrHeadroomFromPlaybackParams
+          ? params.destination_hdr_headroom
+          : flags->getTargetedHdrHeadroom();
   return flags->getDynamicRangeLimit().ComputeEffectiveHdrHeadroom(
-      params.destination_hdr_headroom);
+      targeted_hdr_headroom);
 }
 
 void DrawImageOp::RasterWithFlags(const DrawImageOp* op,
@@ -1361,7 +1366,7 @@ void DrawImageOp::RasterWithFlags(const DrawImageOp* op,
   }
 
   // If this uses a gainmap shader, then replace DrawImage with a shader.
-  if (ToneMapUtil::UseGainmapShader(op->image) && gainmap_sk_image) {
+  if (op->image.HasGainmapInfo() && gainmap_sk_image) {
     skia::DrawGainmapImage(
         canvas, sk_image, gainmap_sk_image, op->image.gainmap_info_.value(),
         std::exp2(ComputeEffectiveHdrHeadroom(flags, params)), op->left,
@@ -1483,7 +1488,7 @@ void DrawImageRectOp::RasterWithFlags(const DrawImageRectOp* op,
                     flags, params](SkCanvas* c, const SkPaint& p) {
     // If the PaintImage uses a gainmap shader, then replace DrawImage with
     // a shader.
-    if (ToneMapUtil::UseGainmapShader(op->image) && gainmap_sk_image) {
+    if (op->image.HasGainmapInfo() && gainmap_sk_image) {
       skia::DrawGainmapImageRect(
           c, sk_image, gainmap_sk_image, op->image.gainmap_info_.value(),
           std::exp2(ComputeEffectiveHdrHeadroom(flags, params)), adjusted_src,

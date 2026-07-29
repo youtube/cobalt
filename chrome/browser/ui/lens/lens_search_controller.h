@@ -29,6 +29,7 @@ class LensOverlayEventHandler;
 class LensOverlayGen204Controller;
 class LensOverlaySidePanelCoordinator;
 class LensPermissionBubbleController;
+class LensComposeboxController;
 class LensSearchboxController;
 class LensSearchContextualizationController;
 }  // namespace lens
@@ -191,6 +192,9 @@ class LensSearchController {
   // Returns the LensSearchboxController.
   lens::LensSearchboxController* lens_searchbox_controller();
 
+  // Returns the LensComposeboxController.
+  lens::LensComposeboxController* lens_composebox_controller();
+
   // Returns the event handler for this instance of the Lens Overlay.
   lens::LensOverlayEventHandler* lens_overlay_event_handler();
 
@@ -246,6 +250,11 @@ class LensSearchController {
   // controller.
   virtual std::unique_ptr<lens::LensSearchboxController>
   CreateLensSearchboxController();
+
+  // Override these methods to be able to track calls made to the composebox
+  // controller.
+  virtual std::unique_ptr<lens::LensComposeboxController>
+  CreateLensComposeboxController();
 
   // Override these methods to be able to track calls made to the
   // contextualization controller.
@@ -377,6 +386,11 @@ class LensSearchController {
   // Tracks the internal state machine.
   State state_ = State::kOff;
 
+  // Tracks the state of the Lens Search feature when the tab is backgrounded.
+  // This state is used to restore the Lens Search feature to the same state
+  // when the tab is foregrounded.
+  State backgrounded_state_ = State::kOff;
+
   // Indicates whether a trigger for the HaTS survey has occurred in the current
   // session. Note that a trigger does not mean the survey will actually be
   // shown.
@@ -411,6 +425,9 @@ class LensSearchController {
   // TODO(crbug.com/413138792): Hook up this controller to handle searchbox
   // interactions, without a dependency on the overlay controller.
   std::unique_ptr<lens::LensSearchboxController> lens_searchbox_controller_;
+
+  // The composebox controller for the Lens Search feature on this tab.
+  std::unique_ptr<lens::LensComposeboxController> lens_composebox_controller_;
 
   // The contextualization controller for the Lens Search feature on this tab.
   std::unique_ptr<lens::LensSearchContextualizationController>
