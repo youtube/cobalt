@@ -4353,7 +4353,10 @@ void WebContentsImpl::RemoveObserver(WebContentsObserver* observer) {
 std::set<RenderWidgetHostViewBase*>
 WebContentsImpl::GetRenderWidgetHostViewsInWebContentsTree() {
   std::set<RenderWidgetHostViewBase*> result;
-  GetPrimaryMainFrame()->ForEachRenderFrameHostImpl(
+  // Views for speculative render frame host could also be frame sink id owner
+  // and should move frame sink id registration from inner WebContents to outer
+  // WebContents when WebContents is attached/detached.
+  GetPrimaryMainFrame()->ForEachRenderFrameHostImplIncludingSpeculative(
       [&result](RenderFrameHostImpl* rfh) {
         if (auto* view =
                 static_cast<RenderWidgetHostViewBase*>(rfh->GetView())) {
@@ -10109,7 +10112,8 @@ void WebContentsImpl::OnFocusedElementChangedInFrame(
                                 bounds_in_screen);
 
   FocusedNodeDetails details = {frame->has_focused_editable_element(),
-                                bounds_in_screen, focus_type};
+                                bounds_in_screen, bounds_in_root_view,
+                                focus_type};
   BrowserAccessibilityStateImpl::GetInstance()->OnFocusChangedInPage(details);
   observers_.NotifyObservers(&WebContentsObserver::OnFocusChangedInPage,
                              &details);

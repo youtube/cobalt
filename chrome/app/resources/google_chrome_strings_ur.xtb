@@ -449,6 +449,9 @@ Google Chrome آپ کی ترتیبات کو بازیافت کرنے سے قاص�
 <translation id="6180522807229584611">‏یہ ٹیب اضافی وسائل کا استعمال کر رہا ہے۔ اپنی کارکردگی کو بہتر بنانے کیلئے، Chrome کو اسے غیر فعال کرنے کی اجازت دیں۔</translation>
 <translation id="6182736845697986886">اپ ڈیٹ سرور کی اندرونی خرابی کی وجہ سے انسٹالیشن ناکام ہو گئی۔</translation>
 <translation id="6192058120268468905">‏‫Chrome میں آپ کا اکاؤنٹ</translation>
+<translation id="6220551899604141979">‏‫<ph name="PARTNER_NAME" /> نے ایک ایکسٹینشن شامل کی ہے جو Chrome کے کام کرنے کے طریقے کو تبدیل کر سکتی ہے۔
+
+<ph name="EXTENSION_NAME" /></translation>
 <translation id="6235018212288296708">‏mDNS ٹریفک کی اجازت دینے کیلئے Google Chrome کیلئے ان باؤنڈ اصول۔</translation>
 <translation id="624230925347970731">کروم جلد ہی بند ہو جائے گا</translation>
 <translation id="6247557882553405851">‏Google پاس ورڈ مینیجر</translation>
@@ -477,6 +480,7 @@ Google Chrome آپ کی ترتیبات کو بازیافت کرنے سے قاص�
 <translation id="6506909944137591434">‏Chrome کو آپ کے اطراف کا 3D نقشہ تخلیق کرنے کے لیے کیمرے کی اجازت درکار ہے</translation>
 <translation id="6515495397637126556"><ph name="PAGE_TITLE" /> - Google Chrome Dev</translation>
 <translation id="6520670145826811516">‏اپنے مقام کا استعمال کرنے کے لیے، <ph name="BEGIN_LINK" />سسٹم کی ترتیبات<ph name="END_LINK" /> میں Chrome کو رسائی فراہم کریں</translation>
+<translation id="652948702951888897">‏Chrome کی سرگزشت</translation>
 <translation id="6532945796722480006">‏‫Chrome Canary میں Gemini کھولیں</translation>
 <translation id="6585124893636629274">‏‫Chrome میں Gemini کو بند کریں</translation>
 <translation id="659498884637196217">‏اس آلے پر Google پاس ورڈ مینیجر میں</translation>

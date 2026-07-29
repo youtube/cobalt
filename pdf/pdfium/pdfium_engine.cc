@@ -24,6 +24,7 @@
 #include "base/dcheck_is_on.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
+#include "base/i18n/rtl.h"
 #include "base/location.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/notimplemented.h"
@@ -353,16 +354,6 @@ bool IsLinkArea(PDFiumPage::Area area) {
 
 bool IsSelectableArea(PDFiumPage::Area area) {
   return area == PDFiumPage::TEXT_AREA || IsLinkArea(area);
-}
-
-int GetCharIndexBasedOnCharBounds(int char_index,
-                                  const gfx::PointF& point,
-                                  const PdfRect& bounds) {
-  // TODO(crbug.com/443275584): Handle vertical text.
-  if (point.x() < bounds.AsGfxRectF().CenterPoint().x()) {
-    return char_index;
-  }
-  return char_index + 1;
 }
 
 // These values are intended for the JS to handle, and it doesn't have access
@@ -758,7 +749,7 @@ void PDFiumEngine::Paint(const gfx::Rect& rect,
   }
 
   for (size_t i = 0; i < visible_pages_.size(); ++i) {
-    int index = visible_pages_[i];
+    uint32_t index = visible_pages_[i];
     // Convert the current page's rectangle to screen rectangle.  We do this
     // instead of the reverse (converting the dirty rectangle from screen to
     // PDF coordinates) because then we'd have to convert back to screen
@@ -931,8 +922,8 @@ void PDFiumEngine::OnPendingRequestComplete() {
   // LoadDocument() will result in `pending_pages_` being reset so there's no
   // need to run the code below in that case.
   bool update_pages = false;
-  std::vector<int> still_pending;
-  for (int pending_page : pending_pages_) {
+  std::vector<uint32_t> still_pending;
+  for (uint32_t pending_page : pending_pages_) {
     if (CheckPageAvailable(pending_page, &still_pending)) {
       update_pages = true;
       if (IsPageVisible(pending_page)) {
@@ -973,6 +964,20 @@ void PDFiumEngine::OnDocumentCanceled() {
   }
 }
 
+void PDFiumEngine::ClearTextSelection() {
+  SelectionChangeInvalidator selection_invalidator(this);
+  selection_.clear();
+}
+
+void PDFiumEngine::ExtendAndInvalidateSelectionByChar(
+    const PageCharacterIndex& index) {
+  CHECK(PageIndexInBounds(index.page_index));
+  CHECK_GT(GetCharCount(index.page_index), 0u);
+
+  SelectionChangeInvalidator selection_invalidator(this);
+  ExtendSelectionByChar(index);
+}
+
 uint32_t PDFiumEngine::GetCharCount(uint32_t page_index) const {
   CHECK(PageIndexInBounds(page_index));
   return base::checked_cast<uint32_t>(pages_[page_index]->GetCharCount());
@@ -998,6 +1003,14 @@ void PDFiumEngine::InvalidateRect(const gfx::Rect& rect) {
   client_->Invalidate(rect);
 }
 
+bool PDFiumEngine::IsSelecting() const {
+  // `selection_` can have multiple entries with all char counts set to 0, but
+  // `GetSelectedText()` inserts a newline between pages. In this case, return
+  // true.
+  return !selection_.empty() &&
+         (selection_.size() > 1 || !selection_[0].GetText().empty());
+}
+
 bool PDFiumEngine::IsSynthesizedNewline(const PageCharacterIndex& index) const {
   CHECK(PageIndexInBounds(index.page_index));
   PDFiumPage* page = pages_[index.page_index].get();
@@ -1013,6 +1026,18 @@ bool PDFiumEngine::IsSynthesizedNewline(const PageCharacterIndex& index) const {
 
 bool PDFiumEngine::PageIndexInBounds(int index) const {
   return index >= 0 && index < static_cast<int>(pages_.size());
+}
+
+void PDFiumEngine::StartSelection(const PageCharacterIndex& index) {
+  CHECK(PageIndexInBounds(index.page_index));
+  CHECK_GT(GetCharCount(index.page_index), 0u);
+
+  if (!selection_.empty()) {
+    return;
+  }
+
+  selection_.push_back(
+      PDFiumRange(pages_[index.page_index].get(), index.char_index, 0));
 }
 
 void PDFiumEngine::FinishLoadingDocument() {
@@ -1169,11 +1194,6 @@ void PDFiumEngine::SetCaretBrowsingEnabled(bool enabled) {
 
   // TODO(crbug.com/427778119): Set caret blink interval.
   caret_->SetVisibility(enabled);
-}
-
-void PDFiumEngine::ClearTextSelection() {
-  SelectionChangeInvalidator selection_invalidator(this);
-  selection_.clear();
 }
 
 void PDFiumEngine::ContinueFind(bool case_sensitive) {
@@ -1417,29 +1437,29 @@ void PDFiumEngine::PrintEnd() {
 
 PDFiumEngine::PointData PDFiumEngine::GetPointData(const gfx::PointF& point) {
   PointData point_data;
-  int page = -1;
+  std::optional<uint32_t> page;
   const gfx::Point screen_point = DeviceToScreen(point);
-  for (int visible_page : visible_pages_) {
+  for (uint32_t visible_page : visible_pages_) {
     if (pages_[visible_page]->rect().Contains(screen_point)) {
       page = visible_page;
       break;
     }
   }
-  if (page == -1) {
+  if (!page.has_value()) {
     return point_data;
   }
 
   // If the page hasn't finished rendering, calling into the page sometimes
   // leads to hangs.
   for (const auto& paint : progressive_paints_) {
-    if (paint.page_index() == page) {
+    if (paint.page_index() == page.value()) {
       return point_data;
     }
   }
 
-  point_data.page_index = page;
-  point_data.pdf_point = DeviceToPdf(page, point);
-  PDFiumPage::Area result = pages_[page]->GetCharInfo(
+  point_data.page_index = page.value();
+  point_data.pdf_point = DeviceToPdf(page.value(), point);
+  PDFiumPage::Area result = pages_[page.value()]->GetCharInfo(
       point_data.pdf_point, &point_data.char_index, &point_data.char_bounds,
       &point_data.form_type, &point_data.target);
   point_data.area =
@@ -1447,6 +1467,28 @@ PDFiumEngine::PointData PDFiumEngine::GetPointData(const gfx::PointF& point) {
           ? PDFiumPage::NONSELECTABLE_AREA
           : result;
   return point_data;
+}
+
+// TODO(crbug.com/443275584): Handle vertical text.
+int PDFiumEngine::GetCharIndexBasedOnPointData(const PointData& point_data) {
+  CHECK(PageIndexInBounds(point_data.page_index));
+
+  bool point_is_left_of_char =
+      point_data.pdf_point.x() <
+      point_data.char_bounds.AsGfxRectF().CenterPoint().x();
+  PDFiumRange current_char(pages_[point_data.page_index].get(),
+                           point_data.char_index,
+                           /*char_count=*/1);
+  // Treat unknown direction as LTR.
+  if (base::i18n::GetStringDirection(current_char.GetText()) ==
+      base::i18n::RIGHT_TO_LEFT) {
+    point_is_left_of_char = !point_is_left_of_char;
+  }
+
+  if (point_is_left_of_char) {
+    return point_data.char_index;
+  }
+  return point_data.char_index + 1;
 }
 
 bool PDFiumEngine::OnMouseDown(const blink::WebMouseEvent& event) {
@@ -1508,13 +1550,12 @@ void PDFiumEngine::OnMultipleClick(int click_count,
 void PDFiumEngine::OnTextOrLinkAreaClickInternal(const PointData& point_data,
                                                  int click_count) {
   CHECK(IsSelectableArea(point_data.area));
-  if (point_data.page_index < 0 || point_data.char_index < 0) {
+  if (!PageIndexInBounds(point_data.page_index) || point_data.char_index < 0) {
     return;
   }
 
   if (click_count == 1) {
-    int char_index = GetCharIndexBasedOnCharBounds(
-        point_data.char_index, point_data.pdf_point, point_data.char_bounds);
+    int char_index = GetCharIndexBasedOnPointData(point_data);
     OnSingleClick(point_data.page_index, char_index);
 
     if (caret_) {
@@ -1824,7 +1865,7 @@ bool PDFiumEngine::OnMouseMove(const blink::WebMouseEvent& event) {
 
   // We're selecting but right now we're not over text, so don't change the
   // current selection.
-  if (point_data.page_index < 0 || point_data.char_index < 0) {
+  if (!PageIndexInBounds(point_data.page_index) || point_data.char_index < 0) {
     return false;
   }
 
@@ -1892,17 +1933,19 @@ void PDFiumEngine::OnMouseEnter(const blink::WebMouseEvent& event) {
 }
 
 bool PDFiumEngine::ExtendSelection(const PointData& point_data) {
-  DCHECK_GE(point_data.page_index, 0);
-  DCHECK_GE(point_data.char_index, 0);
+  CHECK(PageIndexInBounds(point_data.page_index));
+  CHECK_GE(point_data.char_index, 0);
 
-  const int page_index = point_data.page_index;
-  const int char_index = GetCharIndexBasedOnCharBounds(
-      point_data.char_index, point_data.pdf_point, point_data.char_bounds);
+  const uint32_t char_index = GetCharIndexBasedOnPointData(point_data);
+  return ExtendSelectionByChar(
+      {static_cast<uint32_t>(point_data.page_index), char_index});
+}
 
+bool PDFiumEngine::ExtendSelectionByChar(const PageCharacterIndex& index) {
   // Check if the user has decreased their selection area and we need to remove
   // pages from `selection_`.
   for (size_t i = 0; i < selection_.size(); ++i) {
-    if (selection_[i].page_index() == page_index) {
+    if (selection_[i].page_index() == index.page_index) {
       // There should be no other pages after this.
       selection_.erase(selection_.begin() + i + 1, selection_.end());
       break;
@@ -1912,21 +1955,21 @@ bool PDFiumEngine::ExtendSelection(const PointData& point_data) {
     return false;
   }
 
-  const int last_page_index = selection_.back().page_index();
+  const uint32_t last_page_index = selection_.back().page_index();
   const int last_char_index = selection_.back().char_index();
-  if (last_page_index == page_index) {
+  if (last_page_index == index.page_index) {
     // Selecting within a page.
-    int count = char_index - last_char_index;
+    int count = index.char_index - last_char_index;
     if (count >= 0) {
       // Selecting forward.
       selection_.back().SetCharCount(count);
     } else {
       // CreateBackwards() expects a positive count, so flip the negative value.
       count = -count;
-      selection_.back() = PDFiumRange::CreateBackwards(pages_[page_index].get(),
-                                                       char_index, count);
+      selection_.back() = PDFiumRange::CreateBackwards(
+          pages_[index.page_index].get(), index.char_index, count);
     }
-  } else if (last_page_index < page_index) {
+  } else if (last_page_index < index.page_index) {
     // Selecting into the next page.
 
     // Save the current last selection for use below.
@@ -1936,7 +1979,7 @@ bool PDFiumEngine::ExtendSelection(const PointData& point_data) {
 
     // First make sure that there are no gaps in selection, i.e. if mousedown on
     // page one but we only get mousemove over page three, we want page two.
-    for (int i = last_page_index + 1; i < page_index; ++i) {
+    for (uint32_t i = last_page_index + 1; i < index.page_index; ++i) {
       if (pages_[i]->GetCharCount()) {
         selection_.push_back(PDFiumRange::AllTextOnPage(pages_[i].get()));
       }
@@ -1944,8 +1987,9 @@ bool PDFiumEngine::ExtendSelection(const PointData& point_data) {
 
     int count = pages_[last_page_index]->GetCharCount();
     selection_[last_selection_index].SetCharCount(count - last_char_index);
-    selection_.push_back(PDFiumRange(pages_[page_index].get(), /*char_index=*/0,
-                                     /*char_count=*/char_index));
+    selection_.push_back(PDFiumRange(pages_[index.page_index].get(),
+                                     /*char_index=*/0,
+                                     /*char_count=*/index.char_index));
   } else {
     // Selecting into the previous page.
     // `last_page_index` has already been adjusted previously to either include
@@ -1957,15 +2001,16 @@ bool PDFiumEngine::ExtendSelection(const PointData& point_data) {
 
     // First make sure that there are no gaps in selection, i.e. if mousedown on
     // page three but we only get mousemove over page one, we want page two.
-    for (int i = last_page_index - 1; i > page_index; --i) {
+    for (uint32_t i = last_page_index - 1; i > index.page_index; --i) {
       if (pages_[i]->GetCharCount()) {
         selection_.push_back(PDFiumRange::AllTextOnPage(pages_[i].get()));
       }
     }
 
-    int char_count = pages_[page_index]->GetCharCount() - char_index;
-    selection_.push_back(PDFiumRange::CreateBackwards(pages_[page_index].get(),
-                                                      char_index, char_count));
+    int char_count =
+        pages_[index.page_index]->GetCharCount() - index.char_index;
+    selection_.push_back(PDFiumRange::CreateBackwards(
+        pages_[index.page_index].get(), index.char_index, char_count));
   }
 
   return true;
@@ -2289,7 +2334,7 @@ void PDFiumEngine::AddFindResult(PDFiumRange result) {
   // Figure out where to insert the new location, since we could have
   // started searching midway and now we wrapped.
   size_t result_index;
-  int page_index = result.page_index();
+  uint32_t page_index = result.page_index();
   int char_index = result.char_index();
   for (result_index = 0; result_index < find_results_.size(); ++result_index) {
     if (find_results_[result_index].page_index() > page_index ||
@@ -3241,7 +3286,7 @@ void PDFiumEngine::CalculateVisiblePages() {
 
   visible_pages_.clear();
   gfx::Rect visible_rect(plugin_size());
-  for (int i = 0; i < static_cast<int>(pages_.size()); ++i) {
+  for (size_t i = 0; i < pages_.size(); ++i) {
     // Check an entire PageScreenRect, since we might need to repaint side
     // borders and shadows even if the page itself is not visible.
     // For example, when user use pdf with different page sizes and zoomed in
@@ -3266,7 +3311,7 @@ void PDFiumEngine::CalculateVisiblePages() {
 
   std::vector<draw_utils::IndexedPage> visible_pages_rects;
   visible_pages_rects.reserve(visible_pages_.size());
-  for (int visible_page_index : visible_pages_) {
+  for (uint32_t visible_page_index : visible_pages_) {
     visible_pages_rects.emplace_back(visible_page_index,
                                      pages_[visible_page_index]->rect());
   }
@@ -3295,12 +3340,13 @@ void PDFiumEngine::ScrollToPage(int page) {
   client_->ScrollToPage(page);
 }
 
-bool PDFiumEngine::CheckPageAvailable(int index, std::vector<int>* pending) {
+bool PDFiumEngine::CheckPageAvailable(uint32_t index,
+                                      std::vector<uint32_t>* pending) {
   if (!doc()) {
     return false;
   }
 
-  const int num_pages = static_cast<int>(pages_.size());
+  const size_t num_pages = pages_.size();
   if (index < num_pages && pages_[index]->available()) {
     return true;
   }
@@ -3380,7 +3426,7 @@ std::optional<size_t> PDFiumEngine::GetAdjacentPageIndexForTwoUpView(
   return adjacent_page_index;
 }
 
-size_t PDFiumEngine::StartPaint(int page_index, const gfx::Rect& dirty) {
+size_t PDFiumEngine::StartPaint(uint32_t page_index, const gfx::Rect& dirty) {
   // For the first time we hit paint, do nothing and just record the paint for
   // the next callback.  This keeps the UI responsive in case the user is doing
   // a lot of scrolling.
@@ -3575,7 +3621,7 @@ void PDFiumEngine::DrawSelections(size_t progressive_index,
 
   CHECK_LT(progressive_index, progressive_paints_.size());
 
-  int page_index = progressive_paints_[progressive_index].page_index();
+  uint32_t page_index = progressive_paints_[progressive_index].page_index();
   gfx::Rect dirty_in_screen = progressive_paints_[progressive_index].rect();
 
   const std::optional<RegionData> region =
@@ -3636,7 +3682,8 @@ void PDFiumEngine::PaintUnavailablePage(int page_index,
   loading_text_in_screen = GetScreenRect(loading_text_in_screen);
 }
 
-std::optional<size_t> PDFiumEngine::GetProgressiveIndex(int page_index) const {
+std::optional<size_t> PDFiumEngine::GetProgressiveIndex(
+    uint32_t page_index) const {
   for (size_t i = 0; i < progressive_paints_.size(); ++i) {
     if (progressive_paints_[i].page_index() == page_index) {
       return i;
@@ -3924,7 +3971,7 @@ bool PDFiumEngine::MouseDownState::Matches(
   return true;
 }
 
-gfx::PointF PDFiumEngine::DeviceToPdf(int page_index,
+gfx::PointF PDFiumEngine::DeviceToPdf(uint32_t page_index,
                                       const gfx::PointF& device_point) {
   gfx::Point screen_point = DeviceToScreen(device_point);
 
@@ -3950,8 +3997,8 @@ gfx::Point PDFiumEngine::DeviceToScreen(const gfx::PointF& device_point) const {
 int PDFiumEngine::GetVisiblePageIndex(FPDF_PAGE page) {
   // Copy `visible_pages_` since it can change as a result of loading the page
   // in GetPage(). See https://crbug.com/822091.
-  std::vector<int> visible_pages_copy(visible_pages_);
-  for (int page_index : visible_pages_copy) {
+  std::vector<uint32_t> visible_pages_copy(visible_pages_);
+  for (uint32_t page_index : visible_pages_copy) {
     if (pages_[page_index]->GetPage() == page) {
       return page_index;
     }
@@ -4385,7 +4432,7 @@ void PDFiumEngine::SetCaretPosition(const gfx::Point& position) {
 
 void PDFiumEngine::MoveRangeSelectionExtent(const gfx::Point& extent) {
   auto point_data = GetPointData(gfx::PointF(extent));
-  if (point_data.page_index < 0 || point_data.char_index < 0) {
+  if (!PageIndexInBounds(point_data.page_index) || point_data.char_index < 0) {
     return;
   }
 
@@ -4402,7 +4449,7 @@ void PDFiumEngine::MoveRangeSelectionExtent(const gfx::Point& extent) {
   selection_.push_back(PDFiumRange(pages_[point_data.page_index].get(),
                                    point_data.char_index, 0));
 
-  // This should always succeeed because the range selection base should have
+  // This should always succeed because the range selection base should have
   // already been selected.
   ExtendSelection(GetPointData(gfx::PointF(range_selection_base_)));
 }
@@ -4694,7 +4741,7 @@ void PDFiumEngine::OnHasSearchifyText() {
   }
 }
 
-bool PDFiumEngine::IsPageScheduledForPaint(int page_index) const {
+bool PDFiumEngine::IsPageScheduledForPaint(uint32_t page_index) const {
   for (const auto& progressive_paint : progressive_paints_) {
     if (progressive_paint.page_index() == page_index) {
       return true;
@@ -4922,7 +4969,7 @@ void PDFiumEngine::RegenerateContents() {
 
 bool PDFiumEngine::ExtendSelectionByPoint(const gfx::PointF& point) {
   auto point_data = GetPointData(point);
-  if (point_data.page_index < 0 || point_data.char_index < 0) {
+  if (!PageIndexInBounds(point_data.page_index) || point_data.char_index < 0) {
     return false;
   }
 
@@ -4941,9 +4988,9 @@ std::map<int, std::vector<PdfRect>> PDFiumEngine::GetSelectionRectMap() {
   std::map<int, std::vector<PdfRect>> results;
   for (auto& selection : selection_) {
     auto& page_results = results[selection.page_index()];
-    std::vector<PdfRect> screen_rects = selection.GetRects();
-    page_results.insert(page_results.end(), screen_rects.begin(),
-                        screen_rects.end());
+    std::vector<PdfRect> pdf_rects = selection.GetRectsWithTightness(
+        PDFiumRange::PdfBoundsTightness::kTightVertical);
+    page_results.insert(page_results.end(), pdf_rects.begin(), pdf_rects.end());
   }
   return results;
 }
@@ -4998,7 +5045,7 @@ PDFiumEngine::InkStrokeData& PDFiumEngine::InkStrokeData::operator=(
 PDFiumEngine::InkStrokeData::~InkStrokeData() = default;
 #endif  // BUILDFLAG(ENABLE_PDF_INK2)
 
-PDFiumEngine::ProgressivePaint::ProgressivePaint(int index,
+PDFiumEngine::ProgressivePaint::ProgressivePaint(uint32_t index,
                                                  const gfx::Rect& rect)
     : page_index_(index), rect_(rect) {}
 

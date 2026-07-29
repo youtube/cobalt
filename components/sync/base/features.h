@@ -21,11 +21,11 @@ inline constexpr base::FeatureParam<int>
         &kDeferredSyncStartupCustomDelay,
         "DeferredSyncStartupCustomDelayInSeconds", 1};
 
+// Enables syncing of settings from the user's account.
+BASE_DECLARE_FEATURE(kSyncAccountSettings);
+
 // Enables syncing of Loyalty Cards coming from Google Wallet.
 BASE_DECLARE_FEATURE(kSyncAutofillLoyaltyCard);
-
-// Enables syncing of Autofill Valuable settings from the user's account.
-BASE_DECLARE_FEATURE(kSyncAutofillValuableSettings);
 
 // Enables storing valuables in the profile db instead of the account db.
 BASE_DECLARE_FEATURE(kSyncMoveValuablesToProfileDb);
@@ -179,6 +179,10 @@ inline constexpr base::FeatureParam<int>
 // passwords).
 BASE_DECLARE_FEATURE(kSyncTrustedVaultInfobarMessageImprovements);
 #endif  // BUILDFLAG(IS_IOS)
+
+// When enabled, Sync will use OSCryptAsync for encrypting Nigori storage on
+// disk.
+BASE_DECLARE_FEATURE(kSyncUseOsCryptAsync);
 
 BASE_DECLARE_FEATURE(kSyncDetermineAccountManagedStatus);
 BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,

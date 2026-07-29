@@ -11,7 +11,10 @@
 #include "base/containers/flat_map.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "chrome/browser/glic/host/context/glic_sharing_manager_impl.h"
 #include "chrome/browser/glic/host/context/glic_sharing_manager_provider.h"
+#include "chrome/browser/glic/host/glic.mojom.h"
+#include "chrome/browser/glic/host/glic_ui_embedder.h"
 #include "chrome/browser/glic/host/host.h"
 #include "chrome/browser/glic/public/glic_instance.h"
 #include "chrome/browser/glic/service/glic_instance_helper.h"
@@ -37,8 +40,10 @@ class GlicUiEmbedder;
 // even if it has no GlicUiEmbedder showing the UI. A host could have many
 // different GlicUiEmbedders during its lifetime.
 class GlicInstanceImpl : public GlicInstance,
+
                          public Host::InstanceDelegate,
-                         public GlicSharingManagerProvider {
+                         public GlicSharingManagerProvider,
+                         public GlicUiEmbedder::Delegate {
  public:
   enum class EmbedderType {
     kSidePanel,
@@ -51,11 +56,16 @@ class GlicInstanceImpl : public GlicInstance,
     virtual void AttachInstance(GlicInstance* instance) = 0;
     virtual void DetachInstance(GlicInstance* instance) = 0;
     virtual void OnInstanceOrphaned(GlicInstance* instance) = 0;
+    virtual void SwitchConversation(
+        tabs::TabInterface* tab,
+        const std::string& conversation_id,
+        mojom::WebClientHandler::SwitchConversationCallback callback) = 0;
   };
 
   GlicInstanceImpl(Profile* profile,
                    InstanceId instance_id,
-                   base::WeakPtr<AttachmentDelegate> attachment_delegate);
+                   base::WeakPtr<AttachmentDelegate> attachment_delegate,
+                   GlicMetrics* metrics);
   ~GlicInstanceImpl() override;
 
   GlicInstanceImpl(const GlicInstanceImpl&) = delete;
@@ -71,7 +81,7 @@ class GlicInstanceImpl : public GlicInstance,
   void AttachInstance();
   void DetachInstance();
   void CloseInstanceAndShutdown();
-  bool IsShowing() const;
+  bool IsShowing() const override;
   BrowserWindowInterface* associated_bwi() const { return associated_bwi_; }
 
   // These methods should only be called by the GlicInstanceCoordinator.
@@ -87,8 +97,10 @@ class GlicInstanceImpl : public GlicInstance,
   // GlicInstance:
   Host& host() override;
   const InstanceId& id() const override;
+  const std::optional<std::string>& conversation_id() const;
+  void set_conversation_id(const std::string& conversation_id);
 
-  // GlicInstance::Delegate:
+  // Host::InstanceDelegate:
   void CreateTab() override;
   void CreateTask() override;
   void PerformActions() override;
@@ -97,6 +109,17 @@ class GlicInstanceImpl : public GlicInstance,
   void ResumeActorTask() override;
   void GetZeroStateSuggestionsAndSubscribe() override;
   void GetZeroStateSuggestionsForFocusedTab() override;
+  void FetchZeroStateSuggestions(
+      bool is_first_run,
+      std::optional<std::vector<std::string>> supported_tools,
+      glic::mojom::WebClientHandler::
+          GetZeroStateSuggestionsForFocusedTabCallback callback) override;
+
+  // GlicUiEmbedder::Delegate:
+  void SwitchConversation(
+      tabs::TabInterface* tab,
+      const std::string& conversation_id,
+      mojom::WebClientHandler::SwitchConversationCallback callback) override;
 
  private:
   // A tag type to represent the floating embedder key.
@@ -125,6 +148,11 @@ class GlicInstanceImpl : public GlicInstance,
   void MaybeShowHostUi(GlicUiEmbedder* embedder);
   void OnAssociatedTabDestroyed(tabs::TabInterface* tab,
                                 const InstanceId& instance_id);
+  void OnZeroStateSuggestionsFetched(
+      mojom::ZeroStateSuggestionsPtr suggestions,
+      mojom::WebClientHandler::GetZeroStateSuggestionsForFocusedTabCallback
+          callback,
+      std::vector<std::string> returned_suggestions);
 
   raw_ptr<Profile> profile_;
 
@@ -142,7 +170,9 @@ class GlicInstanceImpl : public GlicInstance,
   // The single, unambiguous source of truth for the active UI.
   std::optional<EmbedderKey> active_embedder_key_;
 
-  std::unique_ptr<Host> host_;
+  Host host_;
+  std::optional<std::string> conversation_id_;
+  GlicSharingManagerImpl sharing_manager_;
   base::WeakPtrFactory<GlicInstanceImpl> weak_ptr_factory_{this};
 };
 

@@ -498,8 +498,9 @@ void ContentAutofillDriver::ExtractForm(FormGlobalId form_id,
       form_id, WithNewVersion(std::move(final_handler)));
 }
 
-void ContentAutofillDriver::ExposeDomNodeIDs() {
-  GetAutofillAgent()->ExposeDomNodeIDs();
+void ContentAutofillDriver::ExposeDomNodeIdsInAllFrames() {
+  RouteToAgent(router(), &AutofillDriverRouter::ExposeDomNodeIdsInAllFrames,
+               &mojom::AutofillAgent::ExposeDomNodeIds);
 }
 
 void ContentAutofillDriver::SendTypePredictionsToRenderer(
@@ -540,6 +541,14 @@ void ContentAutofillDriver::RendererShouldSetSuggestionAvailability(
                &AutofillDriverRouter::RendererShouldSetSuggestionAvailability,
                &mojom::AutofillAgent::SetSuggestionAvailability, field_id,
                suggestion_availability);
+}
+
+void ContentAutofillDriver::DispatchEmailVerifiedEvent(
+    FieldGlobalId field_id,
+    const std::string& presentation_token) {
+  RouteToAgent(router(), &AutofillDriverRouter::DispatchEmailVerifiedEvent,
+               &mojom::AutofillAgent::DispatchEmailVerifiedEvent, field_id,
+               presentation_token);
 }
 
 void ContentAutofillDriver::FormsSeen(

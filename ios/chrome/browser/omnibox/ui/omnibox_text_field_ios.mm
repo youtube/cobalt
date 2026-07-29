@@ -1113,6 +1113,10 @@ NSString* const kOmniboxFadeAnimationKey = @"OmniboxFadeAnimation";
   return self;
 }
 
+- (UIView*)viewForVerticalAlignment {
+  return self;
+}
+
 - (UIResponder<UITextInput>*)scribbleInput {
   return self;
 }

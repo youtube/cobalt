@@ -53,6 +53,8 @@ static_library("ui") {
     "browser_dialogs.cc",
     "browser_dialogs.h",
     "browser_navigator_params.cc",
+    "browser_navigator_params_utils.cc",
+    "browser_navigator_params_utils.h",
     "browser_ui_prefs.cc",
     "browser_ui_prefs.h",
     "chrome_select_file_policy.cc",
@@ -277,6 +279,7 @@ static_library("ui") {
     "//chrome/browser/autocomplete",
     "//chrome/browser/autocomplete:aim_eligibility_service",
     "//chrome/browser/autofill",
+    "//chrome/browser/banners",
     "//chrome/browser/bitmap_fetcher",
     "//chrome/browser/breadcrumbs",
     "//chrome/browser/commerce",
@@ -1001,6 +1004,7 @@ static_library("ui") {
       ]
 
       deps += [
+        "//chrome/browser/extensions/api/web_navigation",
         "//chrome/browser/ui/android/extensions:jni_headers",
         "//extensions/browser:extension_action_enums",
       ]
@@ -1191,6 +1195,8 @@ static_library("ui") {
       "webui/ntp_microsoft_auth/ntp_microsoft_auth_untrusted_ui.h",
       "webui/omnibox_popup/omnibox_popup_ui.cc",
       "webui/omnibox_popup/omnibox_popup_ui.h",
+      "webui/omnibox_popup/omnibox_popup_web_contents_helper.cc",
+      "webui/omnibox_popup/omnibox_popup_web_contents_helper.h",
       "webui/password_manager/password_manager_ui.cc",
       "webui/password_manager/password_manager_ui.h",
       "webui/password_manager/promo_card.cc",
@@ -1310,6 +1316,8 @@ static_library("ui") {
       "webui/side_panel/history/history_side_panel_ui.h",
       "webui/side_panel/history_clusters/history_clusters_side_panel_ui.cc",
       "webui/side_panel/history_clusters/history_clusters_side_panel_ui.h",
+      "webui/side_panel/read_anything/chrome_os_extension_wrapper.cc",
+      "webui/side_panel/read_anything/chrome_os_extension_wrapper.h",
       "webui/side_panel/read_anything/read_anything_prefs.cc",
       "webui/side_panel/read_anything/read_anything_prefs.h",
       "webui/side_panel/read_anything/read_anything_screenshotter.cc",
@@ -1395,6 +1403,7 @@ static_library("ui") {
       "//chrome/browser/apps/app_service/app_icon:util",
       "//chrome/browser/apps/link_capturing",
       "//chrome/browser/background",
+      "//chrome/browser/bluetooth",
       "//chrome/browser/browsing_data:constants",
       "//chrome/browser/contextual_cueing",
       "//chrome/browser/first_party_sets",
@@ -2198,7 +2207,6 @@ static_library("ui") {
       "//chrome/browser/chromeos/reporting",
       "//chrome/browser/chromeos/tablet_mode",
       "//chrome/browser/chromeos/upload_office_to_cloud",
-      "//chrome/browser/chromeos/video_conference",
       "//chrome/browser/enterprise/connectors/device_trust/attestation/ash",
       "//chrome/browser/media/router/discovery/access_code:access_code_cast_feature",
       "//chrome/browser/nearby_sharing:share_target",
@@ -2680,7 +2688,6 @@ static_library("ui") {
       "//chrome/browser/chromeos/platform_keys",
       "//chrome/browser/chromeos/policy/dlp",
       "//chrome/browser/chromeos/tablet_mode",
-      "//chrome/browser/chromeos/video_conference",
       "//chrome/browser/ui/ash/accessibility",
       "//chrome/browser/ui/ash/app_access",
       "//chrome/browser/ui/ash/arc",
@@ -2817,6 +2824,7 @@ static_library("ui") {
       "//chrome/browser/ui/lens",
       "//chrome/browser/ui/lens:impl",
       "//chrome/browser/ui/views/privacy_sandbox",
+      "//chrome/browser/ui/wallet",
       "//components/lens/proto/server:proto",
       "//third_party/lens_server_proto:lens_overlay_proto",
       "//third_party/omnibox_proto",
@@ -2935,6 +2943,7 @@ static_library("ui") {
 
     deps += [
       "//chrome/app:generated_resources",
+      "//chrome/browser/browser_switcher",
       "//chrome/browser/on_device_translation",
       "//chrome/browser/profiles",
       "//chrome/browser/shortcuts",
@@ -3081,6 +3090,8 @@ static_library("ui") {
       "cocoa/fullscreen/fullscreen_toolbar_controller.mm",
       "cocoa/fullscreen/fullscreen_toolbar_mouse_tracker.h",
       "cocoa/fullscreen/fullscreen_toolbar_mouse_tracker.mm",
+      "cocoa/group_menu_util.h",
+      "cocoa/group_menu_util.mm",
       "cocoa/handoff_observer.h",
       "cocoa/handoff_observer.mm",
       "cocoa/history_menu_bridge.h",
@@ -3779,6 +3790,8 @@ static_library("ui") {
       "views/frame/browser_view_layout.cc",
       "views/frame/browser_view_layout.h",
       "views/frame/browser_view_layout_delegate.h",
+      "views/frame/browser_view_layout_delegate_impl.cc",
+      "views/frame/browser_view_layout_delegate_impl.h",
       "views/frame/browser_widget.cc",
       "views/frame/browser_widget.h",
       "views/frame/browser_window_factory.cc",
@@ -4318,6 +4331,8 @@ static_library("ui") {
       "views/tabs/groups/avatar_container_view.h",
       "views/tabs/groups/manage_sharing_row.cc",
       "views/tabs/groups/manage_sharing_row.h",
+      "views/tabs/hover_card_anchor_view_delegate.cc",
+      "views/tabs/hover_card_anchor_view_delegate.h",
       "views/tabs/new_tab_button.cc",
       "views/tabs/new_tab_button.h",
       "views/tabs/overflow_view.cc",
@@ -5441,6 +5456,9 @@ source_set("url_identity") {
     "//extensions/buildflags",
     "//url",
   ]
+  if (is_mac || is_win || is_linux || is_chromeos) {
+    deps += [ "//components/webapps/isolated_web_apps:scheme" ]
+  }
   if (enable_extensions) {
     deps += [
       "//chrome/browser/web_applications",

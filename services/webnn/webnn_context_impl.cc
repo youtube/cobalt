@@ -28,6 +28,11 @@
 #include "services/webnn/webnn_graph_builder_impl.h"
 #include "services/webnn/webnn_graph_impl.h"
 #include "services/webnn/webnn_tensor_impl.h"
+#include "third_party/tflite/buildflags.h"
+
+#if BUILDFLAG(BUILD_TFLITE_WITH_XNNPACK)
+#include "third_party/xnnpack/src/include/xnnpack.h"  // nogncheck
+#endif  // BUILD_TFLITE_WITH_XNNPACK
 
 namespace webnn {
 
@@ -37,6 +42,7 @@ WebNNContextImpl::WebNNContextImpl(
     ContextProperties properties,
     mojom::CreateContextOptionsPtr options,
     mojo::ScopedDataPipeConsumerHandle write_tensor_consumer,
+    mojo::ScopedDataPipeProducerHandle read_tensor_producer,
     gpu::CommandBufferId command_buffer_id,
     std::unique_ptr<ScopedSequence> sequence,
     scoped_refptr<gpu::SchedulerTaskRunner> task_runner)
@@ -49,8 +55,15 @@ WebNNContextImpl::WebNNContextImpl(
       command_buffer_id_(command_buffer_id),
       sequence_(std::move(sequence)),
       scheduler_task_runner_(std::move(task_runner)),
-      write_tensor_consumer_(std::move(write_tensor_consumer)) {
+      write_tensor_consumer_(std::move(write_tensor_consumer)),
+      read_tensor_producer_(std::move(read_tensor_producer)) {
   CHECK(context_provider_);
+
+#if BUILDFLAG(BUILD_TFLITE_WITH_XNNPACK)
+  // Initialize XNNPACK
+  const xnn_status status = xnn_initialize(/*allocator=*/nullptr);
+  CHECK_EQ(status, xnn_status_success);
+#endif  // BUILDFLAG(BUILD_TFLITE_WITH_XNNPACK)
 }
 
 WebNNContextImpl::~WebNNContextImpl() {
@@ -63,6 +76,12 @@ WebNNContextImpl::~WebNNContextImpl() {
   // Note: ShutDown() prevents new tasks from being scheduled and drops existing
   // ones from executing.
   scheduler_task_runner_->ShutDown();
+
+#if BUILDFLAG(BUILD_TFLITE_WITH_XNNPACK)
+  // Deinitialize XNNPACK
+  const xnn_status status = xnn_deinitialize();
+  CHECK_EQ(status, xnn_status_success);
+#endif  // BUILDFLAG(BUILD_TFLITE_WITH_XNNPACK)
 }
 
 void WebNNContextImpl::OnDisconnect() {
@@ -118,8 +137,8 @@ void WebNNContextImpl::CreateTensor(
       return;
     }
 
-    if (!properties_.data_type_limits.constant.Has(
-            validated_descriptor->data_type())) {
+    if (!properties_.data_type_limits.constant.Supports(
+            validated_descriptor.value())) {
       GetMojoReceiver().ReportBadMessage(kBadMessageInvalidTensor);
       return;
     }
@@ -188,6 +207,10 @@ bool WebNNContextImpl::HasValidWriteTensorConsumer() const {
   return write_tensor_consumer_.is_valid();
 }
 
+bool WebNNContextImpl::HasValidReadTensorProducer() const {
+  return read_tensor_producer_.is_valid();
+}
+
 void WebNNContextImpl::ReadDataFromBigBufferOrDataPipe(
     mojo_base::BigBuffer src_buffer,
     base::span<uint8_t> dst_span) {
@@ -202,6 +225,16 @@ void WebNNContextImpl::ReadDataFromBigBufferOrDataPipe(
   } else {
     dst_span.copy_from(src_buffer);
   }
+}
+
+mojo_base::BigBuffer WebNNContextImpl::WriteDataToDataPipeOrBigBuffer(
+    base::span<const uint8_t> src_span) {
+  if (read_tensor_producer_ &&
+      src_span.size() > mojo_base::BigBuffer::kMaxInlineBytes &&
+      read_tensor_producer_->WriteAllData(src_span) == MOJO_RESULT_OK) {
+    return mojo_base::BigBuffer();
+  }
+  return mojo_base::BigBuffer(src_span);
 }
 
 void WebNNContextImpl::CreateTensorFromMailbox(mojom::TensorInfoPtr tensor_info,
@@ -401,6 +434,8 @@ ContextProperties WebNNContextImpl::IntersectWithBaseProperties(
       {DataTypeConstraint::kFloat16To32, SupportedRanks::Exactly(3)});
   backend_context_properties.data_type_limits.gru_bias.IntersectWith(
       {DataTypeConstraint::kFloat16To32, SupportedRanks::Exactly(2)});
+  backend_context_properties.data_type_limits.gru_output_sequence.IntersectWith(
+      {DataTypeConstraint::kFloat16To32, SupportedRanks::Exactly(4)});
   backend_context_properties.data_type_limits.gru_cell_input.IntersectWith(
       {DataTypeConstraint::kFloat16To32, SupportedRanks::Exactly(2)});
   backend_context_properties.data_type_limits.gru_cell_bias.IntersectWith(
@@ -425,6 +460,9 @@ ContextProperties WebNNContextImpl::IntersectWithBaseProperties(
       {DataTypeConstraint::kFloat16To32, SupportedRanks::Exactly(3)});
   backend_context_properties.data_type_limits.lstm_bias.IntersectWith(
       {DataTypeConstraint::kFloat16To32, SupportedRanks::Exactly(2)});
+  backend_context_properties.data_type_limits.lstm_output_sequence
+      .IntersectWith(
+          {DataTypeConstraint::kFloat16To32, SupportedRanks::Exactly(4)});
   backend_context_properties.data_type_limits.lstm_cell_input.IntersectWith(
       {DataTypeConstraint::kFloat16To32, SupportedRanks::Exactly(2)});
   backend_context_properties.data_type_limits.lstm_cell_bias.IntersectWith(

@@ -211,6 +211,7 @@ fontDisplay
 fontFamily
 fontFeatureSettings
 fontKerning
+fontLanguageOverride
 fontOpticalSizing
 fontPalette
 fontSize
@@ -273,8 +274,8 @@ insetInlineEnd
 insetInlineStart
 interactivity
 interestDelay
-interestHideDelay
-interestShowDelay
+interestDelayEnd
+interestDelayStart
 interpolateSize
 isolation
 item
@@ -424,6 +425,7 @@ rowRuleOutset
 rowRuleStyle
 rowRuleWidth
 rubyAlign
+rubyOverhang
 rubyPosition
 rule
 ruleColor
@@ -540,7 +542,7 @@ timelineTriggerExitRangeStart
 timelineTriggerName
 timelineTriggerRangeEnd
 timelineTriggerRangeStart
-timelineTriggerTimeline
+timelineTriggerSource
 top
 touchAction
 transform

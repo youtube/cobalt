@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <optional>
+#include <variant>
 
 #include "base/time/time.h"
 #include "chrome/browser/ui/hats/hats_service.h"
@@ -13,6 +14,7 @@
 #include "components/permissions/permission_hats_trigger_helper.h"
 #include "components/permissions/permission_request_enums.h"
 #include "components/permissions/permission_uma_util.h"
+#include "components/permissions/resolvers/permission_prompt_options.h"
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/test_renderer_host.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -105,7 +107,8 @@ TEST_F(PermissionHatsTriggerUnitTest, SingleValuedFiltersTriggerCorrectly) {
                   permissions::kOnPromptResolved, base::Minutes(1),
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_0_1,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 
   // // Wrong action, should not trigger
   EXPECT_FALSE(
@@ -121,7 +124,8 @@ TEST_F(PermissionHatsTriggerUnitTest, SingleValuedFiltersTriggerCorrectly) {
                   permissions::kOnPromptResolved, base::Minutes(1),
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_0_1,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 
   // // Wrong request type, should not trigger
   EXPECT_FALSE(
@@ -137,7 +141,8 @@ TEST_F(PermissionHatsTriggerUnitTest, SingleValuedFiltersTriggerCorrectly) {
                   permissions::kOnPromptResolved, base::Minutes(1),
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_0_1,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 
   // Wrong prompt disposition, should not trigger
   EXPECT_FALSE(
@@ -153,7 +158,8 @@ TEST_F(PermissionHatsTriggerUnitTest, SingleValuedFiltersTriggerCorrectly) {
                   permissions::kOnPromptResolved, base::Minutes(1),
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_0_1,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 
   // Wrong prompt disposition reason, should not trigger
   EXPECT_FALSE(
@@ -169,7 +175,8 @@ TEST_F(PermissionHatsTriggerUnitTest, SingleValuedFiltersTriggerCorrectly) {
                   permissions::kOnPromptResolved, base::Minutes(1),
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_0_1,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 
   // No gesture, should not trigger
   EXPECT_FALSE(
@@ -185,7 +192,8 @@ TEST_F(PermissionHatsTriggerUnitTest, SingleValuedFiltersTriggerCorrectly) {
                   permissions::kOnPromptResolved, base::Minutes(1),
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_0_1,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 
   // Wrong channel, should not trigger
   EXPECT_FALSE(
@@ -201,7 +209,8 @@ TEST_F(PermissionHatsTriggerUnitTest, SingleValuedFiltersTriggerCorrectly) {
                   "stable", permissions::kOnPromptResolved, base::Minutes(1),
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_0_1,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 }
 
 TEST_F(PermissionHatsTriggerUnitTest, EmptyFiltersShouldAlwaysTrigger) {
@@ -233,7 +242,8 @@ TEST_F(PermissionHatsTriggerUnitTest, EmptyFiltersShouldAlwaysTrigger) {
                   permissions::kOnPromptResolved, base::Minutes(1),
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_0_1,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 
   // Matching call, should trigger
   EXPECT_TRUE(
@@ -249,7 +259,8 @@ TEST_F(PermissionHatsTriggerUnitTest, EmptyFiltersShouldAlwaysTrigger) {
                   permissions::kOnPromptResolved, base::Minutes(1),
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_0_1,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 
   // Matching call, should trigger
   EXPECT_TRUE(
@@ -265,7 +276,8 @@ TEST_F(PermissionHatsTriggerUnitTest, EmptyFiltersShouldAlwaysTrigger) {
                   permissions::kOnPromptResolved, base::Minutes(1),
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_0_1,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 
   // Matching call, should trigger
   EXPECT_TRUE(
@@ -281,7 +293,8 @@ TEST_F(PermissionHatsTriggerUnitTest, EmptyFiltersShouldAlwaysTrigger) {
                   permissions::kOnPromptResolved, base::Minutes(1),
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_0_1,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 
   // Matching call, should trigger
   EXPECT_TRUE(
@@ -297,7 +310,8 @@ TEST_F(PermissionHatsTriggerUnitTest, EmptyFiltersShouldAlwaysTrigger) {
                   permissions::kOnPromptResolved, base::Minutes(1),
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_0_1,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 }
 
 TEST_F(PermissionHatsTriggerUnitTest, CSVFiltersTriggerForAllConfiguredValues) {
@@ -327,7 +341,8 @@ TEST_F(PermissionHatsTriggerUnitTest, CSVFiltersTriggerForAllConfiguredValues) {
                   permissions::kOnPromptResolved, base::Minutes(1),
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_4_5,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 
   // Matching call, should trigger
   EXPECT_TRUE(
@@ -343,7 +358,8 @@ TEST_F(PermissionHatsTriggerUnitTest, CSVFiltersTriggerForAllConfiguredValues) {
                   permissions::kOnPromptResolved, base::Minutes(1),
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_0_1,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 
   // Wrong action, should not trigger
   EXPECT_FALSE(
@@ -359,7 +375,8 @@ TEST_F(PermissionHatsTriggerUnitTest, CSVFiltersTriggerForAllConfiguredValues) {
                   permissions::kOnPromptResolved, base::Minutes(1),
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_0_1,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 
   // Wrong action, should not trigger
   EXPECT_FALSE(
@@ -375,7 +392,8 @@ TEST_F(PermissionHatsTriggerUnitTest, CSVFiltersTriggerForAllConfiguredValues) {
                   permissions::kOnPromptResolved, base::Minutes(1),
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_0_1,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 
   // Wrong action, should not trigger
   EXPECT_FALSE(
@@ -391,7 +409,8 @@ TEST_F(PermissionHatsTriggerUnitTest, CSVFiltersTriggerForAllConfiguredValues) {
                   permissions::kOnPromptResolved, base::Minutes(1),
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_0_1,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 
   // Wrong one time prompt count bucket, should not trigger
   EXPECT_FALSE(
@@ -407,7 +426,8 @@ TEST_F(PermissionHatsTriggerUnitTest, CSVFiltersTriggerForAllConfiguredValues) {
                   permissions::kOnPromptResolved, base::Minutes(1),
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_6_10,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 }
 
 TEST_F(PermissionHatsTriggerUnitTest, FilterConfigurationHandlesEdgeCases) {
@@ -437,7 +457,8 @@ TEST_F(PermissionHatsTriggerUnitTest, FilterConfigurationHandlesEdgeCases) {
                   permissions::kOnPromptResolved, base::Minutes(1),
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_0_1,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 
   // Matching call, should trigger
   EXPECT_TRUE(
@@ -453,149 +474,106 @@ TEST_F(PermissionHatsTriggerUnitTest, FilterConfigurationHandlesEdgeCases) {
                   permissions::kOnPromptResolved, base::Minutes(1),
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_0_1,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 }
 
 TEST_F(PermissionHatsTriggerUnitTest, ProductSpecificFieldsAreReported) {
   FeatureParams params;
   params.action_filter = "Accepted";
-  params.request_type_filter = "Notifications";
+  params.request_type_filter = "Geolocation";
   params.prompt_disposition_filter = "AnchoredBubble";
   params.prompt_disposition_reason_filter = "DefaultFallback";
   params.had_gesture_filter = "true";
   params.release_channel_filter = "beta";
   SetupFeatureParams(params);
 
-  auto survey_data = permissions::PermissionHatsTriggerHelper::
-      SurveyProductSpecificData::PopulateFrom(
-          permissions::PermissionHatsTriggerHelper::PromptParametersForHats(
-              permissions::RequestType::kNotifications,
-              permissions::PermissionAction::GRANTED,
-              permissions::PermissionPromptDisposition::ANCHORED_BUBBLE,
-              permissions::PermissionPromptDispositionReason::DEFAULT_FALLBACK,
-              permissions::PermissionRequestGestureType::GESTURE, "beta",
-              permissions::kOnPromptResolved, base::Minutes(1),
-              permissions::PermissionHatsTriggerHelper::
-                  OneTimePermissionPromptsDecidedBucket::BUCKET_6_10,
-              trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT));
+  {
+    // Test generic PSD reporting
+    auto survey_data = permissions::PermissionHatsTriggerHelper::
+        SurveyProductSpecificData::PopulateFrom(
+            permissions::PermissionHatsTriggerHelper::PromptParametersForHats(
+                permissions::RequestType::kGeolocation,
+                permissions::PermissionAction::GRANTED,
+                permissions::PermissionPromptDisposition::ANCHORED_BUBBLE,
+                permissions::PermissionPromptDispositionReason::
+                    DEFAULT_FALLBACK,
+                permissions::PermissionRequestGestureType::GESTURE, "beta",
+                permissions::kOnPromptResolved, base::Minutes(1),
+                permissions::PermissionHatsTriggerHelper::
+                    OneTimePermissionPromptsDecidedBucket::BUCKET_6_10,
+                trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                std::monostate()));
 
-  EXPECT_EQ(survey_data.survey_bits_data.at(
-                permissions::kPermissionsPromptSurveyHadGestureKey),
-            true);
-  EXPECT_EQ(survey_data.survey_bits_data.at(
-                permissions::kPermissionPromptSurveyPreviewVisibleKey),
-            false);
-  EXPECT_EQ(
-      survey_data.survey_bits_data.at(
-          permissions::kPermissionPromptSurveyPreviewDropdownInteractedKey),
-      false);
-  EXPECT_EQ(survey_data.survey_bits_data.at(
-                permissions::kPermissionPromptSurveyPreviewWasCombinedKey),
-            false);
-  EXPECT_EQ(survey_data.survey_string_data.at(
-                permissions::kPermissionsPromptSurveyPromptDispositionKey),
-            "AnchoredBubble");
-  EXPECT_EQ(
-      survey_data.survey_string_data.at(
-          permissions::kPermissionsPromptSurveyPromptDispositionReasonKey),
-      "DefaultFallback");
-  EXPECT_EQ(survey_data.survey_string_data.at(
-                permissions::kPermissionsPromptSurveyActionKey),
-            "Accepted");
-  EXPECT_EQ(survey_data.survey_string_data.at(
-                permissions::kPermissionsPromptSurveyRequestTypeKey),
-            "Notifications");
-  EXPECT_EQ(survey_data.survey_string_data.at(
-                permissions::kPermissionsPromptSurveyReleaseChannelKey),
-            "beta");
-  EXPECT_EQ(
-      survey_data.survey_string_data.at(
-          permissions::kPermissionPromptSurveyOneTimePromptsDecidedBucketKey),
-      "6_10");
-  EXPECT_EQ(survey_data.survey_string_data.at(
-                permissions::kPermissionPromptSurveyUrlKey),
-            trigger_gurl);
-  EXPECT_EQ(survey_data.survey_string_data.at(
-                permissions::kPermissionPromptSurveyPreviewTimeToDecisionKey),
-            "");
-  EXPECT_EQ(survey_data.survey_string_data.at(
-                permissions::kPermissionPromptSurveyPreviewTimeToVisibleKey),
-            "");
-}
+    EXPECT_EQ(survey_data.survey_bits_data.at(
+                  permissions::kPermissionsPromptSurveyHadGestureKey),
+              true);
+    EXPECT_EQ(survey_data.survey_string_data.at(
+                  permissions::kPermissionsPromptSurveyPromptDispositionKey),
+              "AnchoredBubble");
+    EXPECT_EQ(
+        survey_data.survey_string_data.at(
+            permissions::kPermissionsPromptSurveyPromptDispositionReasonKey),
+        "DefaultFallback");
+    EXPECT_EQ(survey_data.survey_string_data.at(
+                  permissions::kPermissionsPromptSurveyActionKey),
+              "Accepted");
+    EXPECT_EQ(survey_data.survey_string_data.at(
+                  permissions::kPermissionsPromptSurveyRequestTypeKey),
+              "Geolocation");
+    EXPECT_EQ(survey_data.survey_string_data.at(
+                  permissions::kPermissionsPromptSurveyReleaseChannelKey),
+              "beta");
+    EXPECT_EQ(
+        survey_data.survey_string_data.at(
+            permissions::kPermissionPromptSurveyOneTimePromptsDecidedBucketKey),
+        "6_10");
+    EXPECT_EQ(survey_data.survey_string_data.at(
+                  permissions::kPermissionPromptSurveyUrlKey),
+              trigger_gurl);
+  }
 
-TEST_F(PermissionHatsTriggerUnitTest, ExtraProductSpecificFieldsAreReported) {
-  FeatureParams params;
-  params.action_filter = "Accepted";
-  params.request_type_filter = "VideoCapture";
-  params.prompt_disposition_filter = "AnchoredBubble";
-  params.prompt_disposition_reason_filter = "DefaultFallback";
-  params.had_gesture_filter = "true";
-  params.release_channel_filter = "beta";
-  SetupFeatureParams(params);
+  {
+    // Test geolocation prompt options reporting for precise
+    auto survey_data = permissions::PermissionHatsTriggerHelper::
+        SurveyProductSpecificData::PopulateFrom(
+            permissions::PermissionHatsTriggerHelper::PromptParametersForHats(
+                permissions::RequestType::kGeolocation,
+                permissions::PermissionAction::GRANTED,
+                permissions::PermissionPromptDisposition::ANCHORED_BUBBLE,
+                permissions::PermissionPromptDispositionReason::
+                    DEFAULT_FALLBACK,
+                permissions::PermissionRequestGestureType::GESTURE, "beta",
+                permissions::kOnPromptResolved, base::Minutes(1),
+                permissions::PermissionHatsTriggerHelper::
+                    OneTimePermissionPromptsDecidedBucket::BUCKET_6_10,
+                trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                GeolocationPromptOptions{/*selected_precise=*/true}));
+    EXPECT_EQ(survey_data.survey_string_data.at(
+                  permissions::kPermissionPromptSurveyPromptOptionsKey),
+              "precise");
+  }
 
-  auto survey_data = permissions::PermissionHatsTriggerHelper::
-      SurveyProductSpecificData::PopulateFrom(
-          permissions::PermissionHatsTriggerHelper::PromptParametersForHats(
-              permissions::RequestType::kCameraStream,
-              permissions::PermissionAction::GRANTED,
-              permissions::PermissionPromptDisposition::ANCHORED_BUBBLE,
-              permissions::PermissionPromptDispositionReason::DEFAULT_FALLBACK,
-              permissions::PermissionRequestGestureType::GESTURE, "beta",
-              permissions::kOnPromptResolved, base::Minutes(1),
-              permissions::PermissionHatsTriggerHelper::
-                  OneTimePermissionPromptsDecidedBucket::BUCKET_6_10,
-              trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
-              std::make_optional<permissions::PermissionHatsTriggerHelper::
-                                     PreviewParametersForHats>(
-                  /*was_visible=*/true, /*dropdown_was_interacted=*/false,
-                  /*was_prompt_combined=*/true,
-                  /*time_to_decision=*/base::Milliseconds(12345),
-                  /*time_to_visible=*/base::Milliseconds(98765))));
-
-  EXPECT_EQ(survey_data.survey_bits_data.at(
-                permissions::kPermissionsPromptSurveyHadGestureKey),
-            true);
-  EXPECT_EQ(survey_data.survey_bits_data.at(
-                permissions::kPermissionPromptSurveyPreviewVisibleKey),
-            true);
-  EXPECT_EQ(
-      survey_data.survey_bits_data.at(
-          permissions::kPermissionPromptSurveyPreviewDropdownInteractedKey),
-      false);
-  EXPECT_EQ(survey_data.survey_bits_data.at(
-                permissions::kPermissionPromptSurveyPreviewWasCombinedKey),
-            true);
-  EXPECT_EQ(survey_data.survey_string_data.at(
-                permissions::kPermissionsPromptSurveyPromptDispositionKey),
-            "AnchoredBubble");
-  EXPECT_EQ(
-      survey_data.survey_string_data.at(
-          permissions::kPermissionsPromptSurveyPromptDispositionReasonKey),
-      "DefaultFallback");
-  EXPECT_EQ(survey_data.survey_string_data.at(
-                permissions::kPermissionsPromptSurveyActionKey),
-            "Accepted");
-  EXPECT_EQ(survey_data.survey_string_data.at(
-                permissions::kPermissionsPromptSurveyRequestTypeKey),
-            "VideoCapture");
-  EXPECT_EQ(survey_data.survey_string_data.at(
-                permissions::kPermissionsPromptSurveyReleaseChannelKey),
-            "beta");
-  EXPECT_EQ(
-      survey_data.survey_string_data.at(
-          permissions::kPermissionPromptSurveyOneTimePromptsDecidedBucketKey),
-      "6_10");
-  EXPECT_EQ(survey_data.survey_string_data.at(
-                permissions::kPermissionPromptSurveyUrlKey),
-            trigger_gurl);
-  // Time deltas should be stringified and rounded to the nearest
-  // 100-millisecond interval:
-  EXPECT_EQ(survey_data.survey_string_data.at(
-                permissions::kPermissionPromptSurveyPreviewTimeToDecisionKey),
-            "12300");  // N.B.: rounded down
-  EXPECT_EQ(survey_data.survey_string_data.at(
-                permissions::kPermissionPromptSurveyPreviewTimeToVisibleKey),
-            "98800");  // N.B.: rounded up
+  {
+    // Test geolocation prompt options reporting for approximate
+    auto survey_data = permissions::PermissionHatsTriggerHelper::
+        SurveyProductSpecificData::PopulateFrom(
+            permissions::PermissionHatsTriggerHelper::PromptParametersForHats(
+                permissions::RequestType::kGeolocation,
+                permissions::PermissionAction::GRANTED,
+                permissions::PermissionPromptDisposition::ANCHORED_BUBBLE,
+                permissions::PermissionPromptDispositionReason::
+                    DEFAULT_FALLBACK,
+                permissions::PermissionRequestGestureType::GESTURE, "beta",
+                permissions::kOnPromptResolved, base::Minutes(1),
+                permissions::PermissionHatsTriggerHelper::
+                    OneTimePermissionPromptsDecidedBucket::BUCKET_6_10,
+                trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                GeolocationPromptOptions{/*selected_precise=*/false}));
+    EXPECT_EQ(survey_data.survey_string_data.at(
+                  permissions::kPermissionPromptSurveyPromptOptionsKey),
+              "approximate");
+  }
 }
 
 TEST_F(PermissionHatsTriggerUnitTest, VerifyIgnoreSafeguardFunctionality) {
@@ -624,7 +602,8 @@ TEST_F(PermissionHatsTriggerUnitTest, VerifyIgnoreSafeguardFunctionality) {
                   permissions::kOnPromptResolved, base::Minutes(5),
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_0_1,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 
   // The safeguard is active, and the display time is higher than the configured
   // value. Thus, this should not trigger.
@@ -641,7 +620,8 @@ TEST_F(PermissionHatsTriggerUnitTest, VerifyIgnoreSafeguardFunctionality) {
                   permissions::kOnPromptResolved, base::Minutes(15),
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_0_1,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 }
 
 TEST_F(PermissionHatsTriggerUnitTest, VerifyUnconfiguredFiltersSafeguard) {
@@ -670,7 +650,8 @@ TEST_F(PermissionHatsTriggerUnitTest, VerifyUnconfiguredFiltersSafeguard) {
                   permissions::kOnPromptResolved, base::Minutes(1),
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_0_1,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 }
 
 TEST_F(PermissionHatsTriggerUnitTest, VerifyMisconfiguredFiltersSafeguard) {
@@ -697,7 +678,8 @@ TEST_F(PermissionHatsTriggerUnitTest, VerifyMisconfiguredFiltersSafeguard) {
                   permissions::kOnPromptResolved, base::Minutes(1),
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_0_1,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 }
 
 TEST_F(PermissionHatsTriggerUnitTest, MultipleTriggersShouldWorkCorrectly) {
@@ -722,7 +704,8 @@ TEST_F(PermissionHatsTriggerUnitTest, MultipleTriggersShouldWorkCorrectly) {
                   permissions::kOnPromptResolved, base::Minutes(1),
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_4_5,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 
   // Matching call, should trigger
   EXPECT_TRUE(
@@ -738,7 +721,8 @@ TEST_F(PermissionHatsTriggerUnitTest, MultipleTriggersShouldWorkCorrectly) {
                   permissions::kOnPromptResolved, base::Minutes(1),
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_4_5,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 
   // Matching call, but 0.0 probability configured for camera, should not
   // trigger
@@ -755,7 +739,8 @@ TEST_F(PermissionHatsTriggerUnitTest, MultipleTriggersShouldWorkCorrectly) {
                   permissions::kOnPromptResolved, base::Minutes(1),
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_0_1,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 
   // Request type doesn't match, should not trigger
   EXPECT_FALSE(
@@ -771,7 +756,8 @@ TEST_F(PermissionHatsTriggerUnitTest, MultipleTriggersShouldWorkCorrectly) {
                   permissions::kOnPromptResolved, base::Minutes(1),
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_0_1,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 }
 
 TEST_F(PermissionHatsTriggerUnitTest,
@@ -802,7 +788,8 @@ TEST_F(PermissionHatsTriggerUnitTest,
                   permissions::kOnPromptResolved, base::Minutes(1),
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_4_5,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 
   EXPECT_FALSE(
       permissions::PermissionHatsTriggerHelper::
@@ -817,7 +804,8 @@ TEST_F(PermissionHatsTriggerUnitTest,
                   permissions::kOnPromptResolved, base::Minutes(1),
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_4_5,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 
   EXPECT_FALSE(
       permissions::PermissionHatsTriggerHelper::
@@ -832,7 +820,8 @@ TEST_F(PermissionHatsTriggerUnitTest,
                   permissions::kOnPromptResolved, base::Minutes(1),
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_0_1,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 }
 
 TEST_F(PermissionHatsTriggerUnitTest,
@@ -858,7 +847,8 @@ TEST_F(PermissionHatsTriggerUnitTest,
                   permissions::kOnPromptResolved, base::Minutes(1),
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_4_5,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 
   EXPECT_FALSE(
       permissions::PermissionHatsTriggerHelper::
@@ -873,7 +863,8 @@ TEST_F(PermissionHatsTriggerUnitTest,
                   permissions::kOnPromptResolved, base::Minutes(1),
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_4_5,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 
   EXPECT_FALSE(
       permissions::PermissionHatsTriggerHelper::
@@ -888,7 +879,8 @@ TEST_F(PermissionHatsTriggerUnitTest,
                   permissions::kOnPromptResolved, base::Minutes(1),
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_0_1,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 }
 
 TEST_F(PermissionHatsTriggerUnitTest,
@@ -913,7 +905,8 @@ TEST_F(PermissionHatsTriggerUnitTest,
                   permissions::kOnPromptResolved, base::Minutes(1),
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_4_5,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 
   EXPECT_FALSE(
       permissions::PermissionHatsTriggerHelper::
@@ -928,7 +921,8 @@ TEST_F(PermissionHatsTriggerUnitTest,
                   permissions::kOnPromptResolved, base::Minutes(1),
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_4_5,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 
   EXPECT_FALSE(
       permissions::PermissionHatsTriggerHelper::
@@ -943,7 +937,8 @@ TEST_F(PermissionHatsTriggerUnitTest,
                   permissions::kOnPromptResolved, base::Minutes(1),
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_0_1,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 }
 
 TEST_F(PermissionHatsTriggerUnitTest,
@@ -969,7 +964,8 @@ TEST_F(PermissionHatsTriggerUnitTest,
                   permissions::kOnPromptResolved, base::Minutes(1),
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_4_5,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 }
 
 TEST_F(PermissionHatsTriggerUnitTest,
@@ -995,7 +991,8 @@ TEST_F(PermissionHatsTriggerUnitTest,
                   permissions::kOnPromptResolved, base::Minutes(1),
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_4_5,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 }
 
 TEST_F(PermissionHatsTriggerUnitTest, PepcPromptDispositionRequestTypeFilter) {
@@ -1024,7 +1021,8 @@ TEST_F(PermissionHatsTriggerUnitTest, PepcPromptDispositionRequestTypeFilter) {
                   permissions::kOnPromptResolved, std::nullopt,
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_0_1,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 
   // Wrong request type.
   EXPECT_FALSE(
@@ -1041,7 +1039,8 @@ TEST_F(PermissionHatsTriggerUnitTest, PepcPromptDispositionRequestTypeFilter) {
                   permissions::kOnPromptResolved, std::nullopt,
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_0_1,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 }
 
 TEST_F(PermissionHatsTriggerUnitTest, PepcPromptDispositionMultipleRequests) {
@@ -1072,7 +1071,8 @@ TEST_F(PermissionHatsTriggerUnitTest, PepcPromptDispositionMultipleRequests) {
                   permissions::kOnPromptResolved, std::nullopt,
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_0_1,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 
   EXPECT_TRUE(
       permissions::PermissionHatsTriggerHelper::
@@ -1088,7 +1088,8 @@ TEST_F(PermissionHatsTriggerUnitTest, PepcPromptDispositionMultipleRequests) {
                   permissions::kOnPromptResolved, std::nullopt,
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_0_1,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 
   EXPECT_FALSE(
       permissions::PermissionHatsTriggerHelper::
@@ -1104,7 +1105,8 @@ TEST_F(PermissionHatsTriggerUnitTest, PepcPromptDispositionMultipleRequests) {
                   permissions::kOnPromptResolved, std::nullopt,
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_0_1,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 
   EXPECT_FALSE(
       permissions::PermissionHatsTriggerHelper::
@@ -1120,7 +1122,8 @@ TEST_F(PermissionHatsTriggerUnitTest, PepcPromptDispositionMultipleRequests) {
                   permissions::kOnPromptResolved, std::nullopt,
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_0_1,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 
   EXPECT_FALSE(
       permissions::PermissionHatsTriggerHelper::
@@ -1136,7 +1139,8 @@ TEST_F(PermissionHatsTriggerUnitTest, PepcPromptDispositionMultipleRequests) {
                   permissions::kOnPromptResolved, std::nullopt,
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_0_1,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 
   EXPECT_FALSE(
       permissions::PermissionHatsTriggerHelper::
@@ -1153,7 +1157,8 @@ TEST_F(PermissionHatsTriggerUnitTest, PepcPromptDispositionMultipleRequests) {
                   permissions::kOnPromptResolved, std::nullopt,
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_0_1,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 
   EXPECT_FALSE(
       permissions::PermissionHatsTriggerHelper::
@@ -1170,7 +1175,8 @@ TEST_F(PermissionHatsTriggerUnitTest, PepcPromptDispositionMultipleRequests) {
                   std::nullopt,
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_0_1,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 
   EXPECT_FALSE(
       permissions::PermissionHatsTriggerHelper::
@@ -1187,7 +1193,8 @@ TEST_F(PermissionHatsTriggerUnitTest, PepcPromptDispositionMultipleRequests) {
                   permissions::kOnPromptAppearing, std::nullopt,
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_0_1,
-                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT)));
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));
 }
 
 TEST_F(PermissionHatsTriggerUnitTest, PepcPromptPositionFilter) {
@@ -1215,7 +1222,7 @@ TEST_F(PermissionHatsTriggerUnitTest, PepcPromptPositionFilter) {
                   trigger_gurl,
                   permissions::feature_params::PermissionElementPromptPosition::
                       kNearElement,
-                  CONTENT_SETTING_DEFAULT)));
+                  CONTENT_SETTING_DEFAULT, std::monostate())));
 
   EXPECT_FALSE(
       permissions::PermissionHatsTriggerHelper::
@@ -1234,7 +1241,7 @@ TEST_F(PermissionHatsTriggerUnitTest, PepcPromptPositionFilter) {
                   trigger_gurl,
                   permissions::feature_params::PermissionElementPromptPosition::
                       kLegacyPrompt,  // Wrong position
-                  CONTENT_SETTING_DEFAULT)));
+                  CONTENT_SETTING_DEFAULT, std::monostate())));
 
   EXPECT_FALSE(
       permissions::PermissionHatsTriggerHelper::
@@ -1253,7 +1260,7 @@ TEST_F(PermissionHatsTriggerUnitTest, PepcPromptPositionFilter) {
                   trigger_gurl,
                   permissions::feature_params::PermissionElementPromptPosition::
                       kWindowMiddle,  // Wrong position
-                  CONTENT_SETTING_DEFAULT)));
+                  CONTENT_SETTING_DEFAULT, std::monostate())));
 
   EXPECT_FALSE(
       permissions::PermissionHatsTriggerHelper::
@@ -1271,7 +1278,7 @@ TEST_F(PermissionHatsTriggerUnitTest, PepcPromptPositionFilter) {
                       OneTimePermissionPromptsDecidedBucket::BUCKET_0_1,
                   trigger_gurl,
                   std::nullopt,  // Wrong position (no position)
-                  CONTENT_SETTING_DEFAULT)));
+                  CONTENT_SETTING_DEFAULT, std::monostate())));
 }
 
 TEST_F(PermissionHatsTriggerUnitTest, PepcPromptInitialStatusFilter) {
@@ -1299,7 +1306,7 @@ TEST_F(PermissionHatsTriggerUnitTest, PepcPromptInitialStatusFilter) {
                   trigger_gurl,
                   permissions::feature_params::PermissionElementPromptPosition::
                       kNearElement,
-                  CONTENT_SETTING_ALLOW)));
+                  CONTENT_SETTING_ALLOW, std::monostate())));
 
   EXPECT_FALSE(
       permissions::PermissionHatsTriggerHelper::
@@ -1318,7 +1325,8 @@ TEST_F(PermissionHatsTriggerUnitTest, PepcPromptInitialStatusFilter) {
                   trigger_gurl,
                   permissions::feature_params::PermissionElementPromptPosition::
                       kLegacyPrompt,
-                  CONTENT_SETTING_ASK)));  // Wrong initial status
+                  CONTENT_SETTING_ASK,
+                  std::monostate())));  // Wrong initial status
 
   EXPECT_FALSE(
       permissions::PermissionHatsTriggerHelper::
@@ -1337,7 +1345,8 @@ TEST_F(PermissionHatsTriggerUnitTest, PepcPromptInitialStatusFilter) {
                   trigger_gurl,
                   permissions::feature_params::PermissionElementPromptPosition::
                       kWindowMiddle,
-                  CONTENT_SETTING_BLOCK)));  // Wrong initial status
+                  CONTENT_SETTING_BLOCK,
+                  std::monostate())));  // Wrong initial status
 
   EXPECT_FALSE(
       permissions::PermissionHatsTriggerHelper::
@@ -1353,8 +1362,8 @@ TEST_F(PermissionHatsTriggerUnitTest, PepcPromptInitialStatusFilter) {
                   permissions::kOnPromptAppearing, std::nullopt,
                   permissions::PermissionHatsTriggerHelper::
                       OneTimePermissionPromptsDecidedBucket::BUCKET_0_1,
-                  trigger_gurl, std::nullopt,
-                  CONTENT_SETTING_DEFAULT)));  // Wrong initial status
+                  trigger_gurl, std::nullopt, CONTENT_SETTING_DEFAULT,
+                  std::monostate())));  // Wrong initial status
 }
 
 TEST_F(PermissionHatsTriggerUnitTest,
@@ -1412,6 +1421,7 @@ TEST_F(PermissionHatsTriggerUnitTest,
                         "stable", permissions::kOnPromptResolved, std::nullopt,
                         permissions::PermissionHatsTriggerHelper::
                             OneTimePermissionPromptsDecidedBucket::BUCKET_0_1,
-                        trigger_gurl, test.position, test.initial_status)));
+                        trigger_gurl, test.position, test.initial_status,
+                        std::monostate())));
   }
 }

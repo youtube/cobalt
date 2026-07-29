@@ -268,7 +268,8 @@ void InternalsUIHandler::CheckAutofillAiPermissions(
   const bool may_opt_in = autofill::MayPerformAutofillAiAction(
       CHECK_DEREF(autofill::ContentAutofillClient::FromWebContents(
           web_ui()->GetWebContents())),
-      autofill::AutofillAiAction::kOptIn, &debug_message);
+      autofill::AutofillAiAction::kOptIn, /*entity_type=*/std::nullopt,
+      &debug_message);
   FireWebUIListener(
       "on-autofill-ai-permission-check-done",
       base::Value(
@@ -289,7 +290,7 @@ void InternalsUIHandler::SetDomNodeId(const base::Value::List& args) {
           ContentAutofillDriver::GetForRenderFrameHost(
               web_contents->GetPrimaryMainFrame());
       if (driver) {
-        driver->ExposeDomNodeIDs();
+        driver->ExposeDomNodeIdsInAllFrames();
       }
     }
   }

@@ -91,7 +91,7 @@ DiceTabHelper::GetHistorySyncOptinCallbackForBrowser() {
 
     Browser* browser = web_contents ? chrome::FindBrowserWithTab(web_contents)
                                     : chrome::FindBrowserWithProfile(profile);
-    if (!browser || !signin_util::ShouldShowHistorySyncOptinScreen(*profile)) {
+    if (!browser) {
       return;
     }
 
@@ -232,6 +232,11 @@ void DiceTabHelper::OnTokenExchangeSuccess(
 void DiceTabHelper::UpdateSyncCallback(
     EnableSyncCallback enable_sync_callback) {
   state_->enable_sync_callback = std::move(enable_sync_callback);
+}
+
+void DiceTabHelper::UpdateHistorySyncOptinCallback(
+    EnableHistorySyncOptinCallback history_sync_optin_callback) {
+  state_->history_sync_optin_callback = std::move(history_sync_optin_callback);
 }
 
 void DiceTabHelper::UpdateSigninErrorCallback(

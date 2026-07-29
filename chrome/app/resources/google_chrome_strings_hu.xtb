@@ -442,6 +442,9 @@
 <translation id="6180522807229584611">Ez a lap plusz erőforrásokat használ. A teljesítmény javítása érdekében engedélyezze, hogy a Chrome inaktiválhassa.</translation>
 <translation id="6182736845697986886">A telepítés a frissítési szerver belső hibája miatt nem sikerült.</translation>
 <translation id="6192058120268468905">Az Ön fiókja a Chrome-ban</translation>
+<translation id="6220551899604141979">A(z) <ph name="PARTNER_NAME" /> olyan bővítményt adott hozzá, amely módosíthatja a Chrome működését.
+
+<ph name="EXTENSION_NAME" />.</translation>
 <translation id="6235018212288296708">Bejövő szabály a Google Chrome-hoz az mDNS forgalom engedélyezése céljából.</translation>
 <translation id="624230925347970731">A Chrome hamarosan bezáródik</translation>
 <translation id="6247557882553405851">Google Jelszókezelő</translation>
@@ -470,6 +473,7 @@
 <translation id="6506909944137591434">A Chrome-nak kamerahasználati engedélyre van szüksége, hogy 3D-s térképet készíthessen az Ön környezetéről</translation>
 <translation id="6515495397637126556"><ph name="PAGE_TITLE" /> – Google Chrome Dev</translation>
 <translation id="6520670145826811516">A helyadatok használatához adjon hozzáférést a Chrome-nak a <ph name="BEGIN_LINK" />rendszerbeállításokban<ph name="END_LINK" /></translation>
+<translation id="652948702951888897">Chrome-előzmények</translation>
 <translation id="6532945796722480006">A Gemini megnyitása a Chrome Canaryban</translation>
 <translation id="6585124893636629274">A Gemini a Chrome-ban bezárása</translation>
 <translation id="659498884637196217">A Google Jelszókezelőben ezen az eszközön</translation>

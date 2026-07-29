@@ -709,18 +709,19 @@ BASE_FEATURE(kRestrictAbusePortsOnLocalhost, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kTLSTrustAnchorIDs, base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kTcpConnectionPoolSizeTrial, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kSocketPoolSizePerTopLevelSiteTrial,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE_PARAM(int,
-                   kTcpConnectionPoolSizeTrialNormal,
-                   &kTcpConnectionPoolSizeTrial,
-                   "TcpConnectionPoolSizeTrialNormal",
+                   kSocketPoolSizePerTopLevelSiteTrialNormalProfileLimit,
+                   &kSocketPoolSizePerTopLevelSiteTrial,
+                   "SocketPoolSizePerTopLevelSiteTrialNormalProfileLimit",
                    256);
 
 BASE_FEATURE_PARAM(int,
-                   kTcpConnectionPoolSizeTrialWebSocket,
-                   &kTcpConnectionPoolSizeTrial,
-                   "TcpConnectionPoolSizeTrialWebSocket",
+                   kSocketPoolSizePerTopLevelSiteTrialWebSocketProfileLimit,
+                   &kSocketPoolSizePerTopLevelSiteTrial,
+                   "SocketPoolSizePerTopLevelSiteTrialWebSocketProfileLimit",
                    256);
 
 BASE_FEATURE(kNetTaskScheduler, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -809,5 +810,14 @@ BASE_FEATURE_PARAM(std::string,
                    /*default_value=*/"");
 
 BASE_FEATURE(kDnsFilteringDetails, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kUpdateIsMainFrameOriginRecentlyAccessed,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(size_t,
+                   kRecentlyAccessedOriginCacheSize,
+                   &kUpdateIsMainFrameOriginRecentlyAccessed,
+                   "cache_size",
+                   64);
 
 }  // namespace net::features

@@ -736,7 +736,6 @@
 <translation id="1500297251995790841">Непознат уређај [<ph name="VENDOR_ID" />:<ph name="PRODUCT_ID" />]</translation>
 <translation id="1500801317528437432">Сазнајте више о неподржаним Chrome апликацијама</translation>
 <translation id="1501480321619201731">Избриши групу</translation>
-<translation id="1503392482221435031">Аутоматски шаље статистику коришћења Google-у. Можете да укључите или искључите извештаје о отказивању у подешавањима уређаја.</translation>
 <translation id="1503556098270577657">Пријавили сте се на <ph name="USER_EMAIL" /> помоћу Android телефона</translation>
 <translation id="150411034776756821">Уклони <ph name="SITE" /></translation>
 <translation id="1504253885059472207">Закачи подељени приказ</translation>
@@ -2175,6 +2174,7 @@
 <translation id="2471469610750100598">Црна (подразумевано)</translation>
 <translation id="2471506181342525583">Дозвољен је приступ локацији</translation>
 <translation id="2471632709106952369">Табеле за поређење</translation>
+<translation id="2472855537207709205">Групиши све негруписане картице</translation>
 <translation id="2473195200299095979">Преведите ову страницу</translation>
 <translation id="2475982808118771221">Дошло је до грешке</translation>
 <translation id="2476435723907345463">Уклоњен је приступ приступним кључевима</translation>
@@ -2790,6 +2790,7 @@
 <translation id="2900247416110050639">Google документи, табеле и презентације захтевају да се фајлови чувају на Google диску. Локални фајлови ће се преместити, а фајлови са других локација ће се копирати. Фајлове можете да пронађете у фолдеру Google диска у апликацији Фајлови.</translation>
 <translation id="290105521672621980">Датотека користи функције које нису подржане</translation>
 <translation id="2901348420151309559">Недавне слике и апликације</translation>
+<translation id="2901431118738474110">Овај приступни кључ више не ради. Избрисан је са <ph name="RPID" /> и ускоро ће бити избрисан и овде. &lt;a href='https://support.google.com/chrome/?p=passkeys'&gt;О приступним кључевима&lt;/a&gt;</translation>
 <translation id="2902127500170292085">Комуникација додатка <ph name="EXTENSION_NAME" /> са овим штампачем није успела. Проверите да ли је штампач прикључен и покушајте поново.</translation>
 <translation id="2902265136119311513">Прегледајте као гост</translation>
 <translation id="2902312830803030883">Још радњи</translation>
@@ -3020,7 +3021,6 @@
 <translation id="3048589239114571785">Пусти (k)</translation>
 <translation id="3048742847101793553">Организација је блокирала овај фајл јер скенирање није успело.</translation>
 <translation id="3048917188684939573">Евиденције пребацивања и уређаја</translation>
-<translation id="3049525403650329038">Делите садржај странице са Gemini-јем да бисте добијали релевантније одговоре. Подаци се не користе за побољшавање модела генеративне вештачке интелигенције.</translation>
 <translation id="3051250416341590778">Величина приказа</translation>
 <translation id="3053013834507634016">Употреба кључа сертификата</translation>
 <translation id="3053273573829329829">Омогући PIN корисника</translation>
@@ -4592,6 +4592,7 @@
 <translation id="4132364317545104286">Преименујте eSIM профил</translation>
 <translation id="4132969033912447558">Наставите преузимање фајла <ph name="FILE_NAME" /></translation>
 <translation id="4133076602192971179">Отворите апликацију да бисте променили лозинку</translation>
+<translation id="4133265950310064865">Напредна заштита</translation>
 <translation id="4134838386867070505">1. корак од 4: Опишите проблем</translation>
 <translation id="413534985210133938">Фолдер <ph name="LOCAL_FOLDER" /> је сачуван само на овом уређају. Ако преместите овај обележивач у фолдер <ph name="LOCAL_FOLDER" />, више га нећете добијати на другим уређајима.</translation>
 <translation id="4135746311382563554">Додатни услови коришћења услуге за Google Chrome и Chrome ОС</translation>
@@ -5210,6 +5211,7 @@
 <translation id="4581774856936278355">Грешка при враћању Linux-а</translation>
 <translation id="4582297591746054421">Сајтови обично читају привремену меморију за потребе функција попут задржавања форматирања текста који сте копирали</translation>
 <translation id="4582563038311694664">Ресетуј сва подешавања</translation>
+<translation id="4584094413232466841">Желите да уклоните ове информације из Chrome аутоматског попуњавања?</translation>
 <translation id="4584770411839426377">Прозор</translation>
 <translation id="4584836561445313300">Организација ће моћи да види постојеће податке прегледања, попут лозинки и другог садржаја, и да управља њима</translation>
 <translation id="4585793705637313973">Измени страницу</translation>
@@ -7912,7 +7914,6 @@
 <translation id="6525767484449074555">Кликните на Инсталирај</translation>
 <translation id="6527303717912515753">Дели</translation>
 <translation id="6527574156657772563">Нема доступних уређаја. Додајте Google налог на телефон да бисте га повезали са овим уређајем <ph name="DEVICE_TYPE" />. <ph name="LINK_BEGIN" />Сазнајте више<ph name="LINK_END" /></translation>
-<translation id="652948702951888897">Историја Chrome-а</translation>
 <translation id="6530030995840538405">Генерисана је <ph name="INDEX" />. слика од <ph name="SUBJECT" /></translation>
 <translation id="6530186581263215931">Администратор примењује ова подешавања</translation>
 <translation id="6530267432324197764">Профилом управља <ph name="MANAGER" /></translation>
@@ -11523,10 +11524,12 @@
 <translation id="8993945059918628059">Додирните прстом сензор за отисак прста. Подаци о отиску прста се безбедно чувају на <ph name="DEVICE_TYPE" /> уређају и увек остају на њему.</translation>
 <translation id="899403249577094719">Основна URL адреса за Netscape сертификат</translation>
 <translation id="8996978916555523196">{ACCOUNT_EXTENSIONS_COUNT,plural, =1{Овај додатак је сачуван на Google налогу, али сви подаци које је сачувао само на овом уређају могу да се избришу}one{Ови додаци су сачувани на Google налогу, али сви подаци које су сачували само на овом уређају могу да се избришу}few{Ови додаци су сачувани на Google налогу, али сви подаци које су сачували само на овом уређају могу да се избришу}other{Ови додаци су сачувани на Google налогу, али сви подаци које су сачували само на овом уређају могу да се избришу}}</translation>
+<translation id="8997659961727384862">Групиши све негруписане картице</translation>
 <translation id="8999027165951679951">Неактивна картица: ослобођено је <ph name="MEMORY_SAVINGS" /></translation>
 <translation id="8999560016882908256">Синтаксичка грешка са одељком: <ph name="ERROR_LINE" /></translation>
 <translation id="8999651235576960439">Умањено кретање на екрану</translation>
 <translation id="9000185763019430629">Додирните сензор за отисак прста на десној страни <ph name="DEVICE_TYPE" /> уређаја. Подаци о отиску прста се безбедно чувају на <ph name="DEVICE_TYPE" /> уређају и увек остају на њему.</translation>
+<translation id="900267527532832868">Овај приступни кључ више не ради. Ускоро ће бити избрисан из услуге <ph name="GOOGLE_PASSWORD_MANAGER" />.</translation>
 <translation id="9003031149571024583">Унесите <ph name="NUM_DIGIT" />. цифру PIN-а од укупно 6. Користите тастер Backspace или Delete да бисте уклонили последњу цифру.</translation>
 <translation id="9003185744423389627">Веза са сервером за управљање уређајима није успела уз статус <ph name="STATUS_TEXT" /> у <ph name="FAILURE_TIME" /></translation>
 <translation id="90033698482696970">Желите ли аутоматски да скенирате доступне eSIM профиле?</translation>

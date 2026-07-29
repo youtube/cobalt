@@ -52,7 +52,6 @@
 #include "chrome/browser/web_applications/web_app_proto_utils.h"
 #include "chrome/browser/web_applications/web_app_scope.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
-#include "chrome/common/url_constants.h"
 #include "components/services/app_service/public/cpp/file_handler.h"
 #include "components/services/app_service/public/cpp/protocol_handler_info.h"
 #include "components/services/app_service/public/cpp/share_target.h"
@@ -69,13 +68,18 @@
 #include "third_party/blink/public/common/manifest/manifest_util.h"
 #include "third_party/blink/public/common/permissions_policy/policy_helper_public.h"
 #include "third_party/blink/public/common/safe_url_pattern.h"
-#include "third_party/blink/public/mojom/manifest/capture_links.mojom-data-view.h"
 #include "third_party/liburlpattern/options.h"
 #include "third_party/liburlpattern/pattern.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/gfx/color_utils.h"
 #include "ui/gfx/geometry/size.h"
 #include "url/origin.h"
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+    BUILDFLAG(IS_CHROMEOS)
+#include "components/webapps/isolated_web_apps/scheme.h"
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
+        // BUILDFLAG(IS_CHROMEOS)
 
 namespace web_app {
 
@@ -659,10 +663,6 @@ void WebApp::SetSyncProto(sync_pb::WebAppSpecifics sync_proto) {
   sync_proto_ = std::move(sync_proto);
 }
 
-void WebApp::SetCaptureLinks(blink::mojom::CaptureLinks capture_links) {
-  capture_links_ = capture_links;
-}
-
 void WebApp::SetLaunchQueryParams(
     std::optional<std::string> launch_query_params) {
   launch_query_params_ = std::move(launch_query_params);
@@ -735,8 +735,13 @@ void WebApp::SetCurrentOsIntegrationStates(
 }
 
 void WebApp::SetIsolationData(IsolationData isolation_data) {
-  CHECK(manifest_id_.is_valid() &&
-        manifest_id_.SchemeIs(chrome::kIsolatedAppScheme));
+  CHECK(manifest_id_.is_valid()
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+    BUILDFLAG(IS_CHROMEOS)
+        && manifest_id_.SchemeIs(webapps::kIsolatedAppScheme))
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
+        // BUILDFLAG(IS_CHROMEOS)
+      ;
   if (isolation_data.pending_update_info().has_value()) {
     DCHECK_EQ(isolation_data.location().dev_mode(),
               isolation_data.pending_update_info()->location.dev_mode())
@@ -984,7 +989,6 @@ bool WebApp::operator==(const WebApp& other) const {
         app.manifest_update_time_,
         app.run_on_os_login_mode_,
         app.sync_proto_,
-        app.capture_links_,
         app.manifest_url_,
         app.manifest_id_,
 #if BUILDFLAG(IS_CHROMEOS)
@@ -1060,8 +1064,6 @@ base::Value WebApp::AsDebugValueWithOnlyPlatformAgnosticFields() const {
   root.Set("allowed_launch_protocols", ConvertList(allowed_launch_protocols_));
 
   root.Set("background_color", ColorToString(background_color_));
-
-  root.Set("capture_links", base::ToString(capture_links_));
 
   root.Set("data_size_in_bytes", OptionalToStringValue(data_size_in_bytes_));
 

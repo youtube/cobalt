@@ -8,10 +8,15 @@
 
 #import "base/files/file_path.h"
 #import "base/functional/bind.h"
+#import "base/i18n/message_formatter.h"
 #import "base/memory/raw_ptr.h"
+#import "base/metrics/histogram_functions.h"
+#import "base/strings/string_util.h"
 #import "base/strings/sys_string_conversions.h"
+#import "base/strings/utf_string_conversions.h"
 #import "components/image_fetcher/core/image_fetcher.h"
 #import "components/image_fetcher/core/image_fetcher_service.h"
+#import "components/image_fetcher/core/request_metadata.h"
 #import "components/sync/protocol/theme_types.pb.h"
 #import "ios/chrome/browser/home_customization/coordinator/background_customization_configuration_item.h"
 #import "ios/chrome/browser/home_customization/coordinator/home_customization_data_conversion.h"
@@ -19,6 +24,7 @@
 #import "ios/chrome/browser/home_customization/model/home_background_customization_service_observer_bridge.h"
 #import "ios/chrome/browser/home_customization/model/home_background_data.h"
 #import "ios/chrome/browser/home_customization/model/home_background_image_service.h"
+#import "ios/chrome/browser/home_customization/model/home_customization_seed_colors.h"
 #import "ios/chrome/browser/home_customization/model/user_uploaded_image_manager.h"
 #import "ios/chrome/browser/home_customization/ui/background_collection_configuration.h"
 #import "ios/chrome/browser/home_customization/ui/background_customization_configuration.h"
@@ -26,9 +32,15 @@
 #import "ios/chrome/browser/home_customization/ui/home_customization_background_picker_action_sheet_consumer.h"
 #import "ios/chrome/browser/home_customization/ui/home_customization_background_picker_presentation_delegate.h"
 #import "ios/chrome/browser/home_customization/ui/home_customization_framing_coordinates.h"
+#import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_color_palette.h"
+#import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_color_palette_util.h"
 #import "ios/chrome/browser/ntp/ui_bundled/theme_utils.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
+#import "ios/chrome/common/ui/colors/semantic_color_names.h"
+#import "ios/chrome/grit/ios_strings.h"
 #import "skia/ext/skia_utils_ios.h"
+#import "ui/base/l10n/l10n_util.h"
+#import "ui/base/l10n/l10n_util_mac.h"
 #import "ui/gfx/image/image.h"
 #import "url/gurl.h"
 
@@ -134,6 +146,8 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
   // Create and add a background configuration with no background applied.
   BackgroundCustomizationConfigurationItem* defaultConfig =
       [[BackgroundCustomizationConfigurationItem alloc] initWithNoBackground];
+  defaultConfig.accessibilityName = l10n_util::GetNSString(
+      IDS_IOS_HOME_CUSTOMIZATION_BACKGROUND_COLOR_DEFAULT_ACCESSIBILITY_LABEL);
   collectionConfiguration.configurations[defaultConfig.configurationID] =
       defaultConfig;
   [collectionConfiguration.configurationOrder
@@ -180,18 +194,72 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
                        selectedBackgroundId:selectedBackgroundID];
 }
 
-- (void)saveCurrentTheme {
-  if (self.themeHasChanged) {
-    _backgroundCustomizationService->StoreCurrentTheme();
-    self.themeHasChanged = NO;
+- (void)loadColorBackgroundConfigurations {
+  BackgroundCollectionConfiguration* collectionConfiguration =
+      [[BackgroundCollectionConfiguration alloc] init];
+  std::optional<sync_pb::UserColorTheme> colorTheme =
+      _backgroundCustomizationService->GetCurrentColorTheme();
+  NSString* selectedColorID = nil;
+
+  BackgroundCustomizationConfigurationItem* noBackgroundConfiguration =
+      [[BackgroundCustomizationConfigurationItem alloc] initWithNoBackground];
+  collectionConfiguration
+      .configurations[noBackgroundConfiguration.configurationID] =
+      noBackgroundConfiguration;
+  [collectionConfiguration.configurationOrder
+      addObject:noBackgroundConfiguration.configurationID];
+
+  for (SeedColor seedColor : kSeedColors) {
+    BackgroundCustomizationConfigurationItem* item =
+        [[BackgroundCustomizationConfigurationItem alloc]
+            initWithBackgroundColor:UIColorFromRGB(seedColor.color)
+                       colorVariant:seedColor.variant
+                  accessibilityName:l10n_util::GetNSString(
+                                        seedColor.accessibilityNameId)];
+    collectionConfiguration.configurations[item.configurationID] = item;
+    [collectionConfiguration.configurationOrder addObject:item.configurationID];
+
+    if (colorTheme && colorTheme->color() &&
+        seedColor.color == colorTheme->color()) {
+      selectedColorID = item.configurationID;
+    }
   }
+
+  // If no color is currently selected, set selectedColorIndex to nil
+  // when a background image is active, or to the no background configuration's
+  // ID when there is no background.
+  if (!selectedColorID) {
+    selectedColorID =
+        _backgroundCustomizationService->GetCurrentCustomBackground()
+            ? nil
+            : noBackgroundConfiguration.configurationID;
+  }
+
+  [self.configurationConsumer
+      setBackgroundCollectionConfigurations:@[ collectionConfiguration ]
+                       selectedBackgroundId:selectedColorID];
+}
+
+- (void)saveCurrentTheme {
+  if (!self.themeHasChanged) {
+    return;
+  }
+
+  _backgroundCustomizationService->StoreCurrentTheme();
+  self.themeHasChanged = NO;
+  self.backgroundSelectionOutcome = BackgroundSelectionOutcome::kApplied;
 }
 
 - (void)cancelThemeSelection {
-  if (self.themeHasChanged) {
-    _backgroundCustomizationService->RestoreCurrentTheme();
-    self.themeHasChanged = NO;
+  if (!self.themeHasChanged) {
+    self.backgroundSelectionOutcome = BackgroundSelectionOutcome::kCanceled;
+    return;
   }
+
+  _backgroundCustomizationService->RestoreCurrentTheme();
+  self.themeHasChanged = NO;
+  self.backgroundSelectionOutcome =
+      BackgroundSelectionOutcome::kCanceledAfterSelection;
 }
 
 #pragma mark - HomeCustomizationBackgroundConfigurationMutator
@@ -216,10 +284,19 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
           NSError* fetchError = [NSError errorWithDomain:NSURLErrorDomain
                                                     code:NSURLErrorUnknown
                                                 userInfo:userInfo];
+          base::UmaHistogramBoolean("IOS.HomeCustomization.Background.Gallery."
+                                    "ImageDownloadSuccessful",
+                                    false);
+          base::UmaHistogramSparse(
+              "IOS.HomeCustomization.Background.Gallery.ImageDownloadErrorCode",
+              metadata.http_response_code);
           completion(nil, fetchError);
           return;
         }
         UIImage* uiImage = image.ToUIImage();
+        base::UmaHistogramBoolean(
+            "IOS.HomeCustomization.Background.Gallery.ImageDownloadSuccessful",
+            true);
         if (completion) {
           completion(uiImage, nil);
         }
@@ -347,10 +424,24 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
     BackgroundCollectionConfiguration* section =
         [[BackgroundCollectionConfiguration alloc] init];
     section.collectionName = base::SysUTF8ToNSString(collectionName);
-    for (const auto& image : collectionImages) {
+    for (size_t i = 0; i < collectionImages.size(); i++) {
+      const auto& image = collectionImages[i];
+
+      NSString* accessibilityName =
+          base::SysUTF8ToNSString(base::JoinString(image.attribution, " "));
+      NSString* accessibilityValue = base::SysUTF16ToNSString(
+          base::i18n::MessageFormatter::FormatWithNamedArgs(
+              l10n_util::GetStringUTF16(
+                  IDS_IOS_HOME_CUSTOMIZATION_BACKGROUND_ACCESSIBILITY_VALUE),
+              "position", static_cast<int>(i) + 1, "total",
+              static_cast<int>(collectionImages.size())));
+
       BackgroundCustomizationConfigurationItem* config =
           [[BackgroundCustomizationConfigurationItem alloc]
-              initWithCollectionImage:image];
+              initWithCollectionImage:image
+                    accessibilityName:accessibilityName
+                   accessibilityValue:accessibilityValue];
+
       [section.configurations setObject:config forKey:config.configurationID];
       [section.configurationOrder addObject:config.configurationID];
 
@@ -450,8 +541,23 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
             customBackground)) {
       sync_pb::NtpCustomBackground ntpCustomBackground =
           std::get<sync_pb::NtpCustomBackground>(customBackground);
+      std::vector<std::string> attributions;
+
+      if (ntpCustomBackground.has_attribution_line_1() &&
+          !ntpCustomBackground.attribution_line_1().empty()) {
+        attributions.push_back(ntpCustomBackground.attribution_line_1());
+      }
+      if (ntpCustomBackground.has_attribution_line_2() &&
+          !ntpCustomBackground.attribution_line_2().empty()) {
+        attributions.push_back(ntpCustomBackground.attribution_line_2());
+      }
+
+      NSString* accessibilityName =
+          base::SysUTF8ToNSString(base::JoinString(attributions, " "));
+
       return [[BackgroundCustomizationConfigurationItem alloc]
-          initWithNtpCustomBackground:ntpCustomBackground];
+          initWithNtpCustomBackground:ntpCustomBackground
+                    accessibilityName:accessibilityName];
     } else {
       HomeUserUploadedBackground currentUserUploadedBackground =
           std::get<HomeUserUploadedBackground>(customBackground);
@@ -467,12 +573,23 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
     sync_pb::UserColorTheme colorTheme =
         std::get<sync_pb::UserColorTheme>(recentBackground);
 
+    auto it = std::find_if(kSeedColors.begin(), kSeedColors.end(),
+                           [&colorTheme](const SeedColor& seedColor) {
+                             return seedColor.color == colorTheme.color();
+                           });
+
+    NSString* accessibilityName =
+        it == kSeedColors.end()
+            ? nil
+            : l10n_util::GetNSString(it->accessibilityNameId);
+
     UIColor* backgroundColor = UIColorFromRGB(colorTheme.color());
     ui::ColorProviderKey::SchemeVariant colorVariant =
         ProtoEnumToSchemeVariant(colorTheme.browser_color_variant());
     return [[BackgroundCustomizationConfigurationItem alloc]
         initWithBackgroundColor:backgroundColor
-                   colorVariant:colorVariant];
+                   colorVariant:colorVariant
+              accessibilityName:accessibilityName];
   }
 }
 

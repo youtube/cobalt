@@ -8,9 +8,9 @@
 #include "base/callback_list.h"
 #include "base/memory/raw_ref.h"
 #include "chrome/browser/actor/ui/actor_overlay.mojom.h"
-#include "chrome/browser/actor/ui/actor_overlay_view_controller.h"
 #include "chrome/browser/actor/ui/actor_ui_tab_controller_interface.h"
 #include "chrome/browser/actor/ui/handoff_button_controller.h"
+#include "chrome/browser/ui/omnibox/omnibox_tab_helper.h"
 #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
 #include "components/tabs/public/tab_interface.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -26,12 +26,11 @@ class ActorUiTabControllerFactory
  public:
   std::unique_ptr<HandoffButtonController> CreateHandoffButtonController(
       tabs::TabInterface& tab) override;
-  std::unique_ptr<ActorOverlayViewController> CreateActorOverlayViewController(
-      tabs::TabInterface& tab) override;
 };
 
 class ActorUiTabController : public ActorUiTabControllerInterface,
-                             public ImmersiveModeController::Observer {
+                             public ImmersiveModeController::Observer,
+                             public OmniboxTabHelper::Observer {
  public:
   ActorUiTabController(
       tabs::TabInterface& tab,
@@ -43,31 +42,34 @@ class ActorUiTabController : public ActorUiTabControllerInterface,
   // ActorUiTabControllerInterface:
   void OnUiTabStateChange(const UiTabState& ui_tab_state,
                           UiResultCallback callback) override;
-  void OnTabActiveStatusChanged(bool tab_active_status,
-                                tabs::TabInterface* tab) override;
+  void OnWebContentsAttached() override;
   void SetActorTaskPaused() override;
   void SetActorTaskResume() override;
-  void OnOverlayHoverStatusChanged() override;
+  void OnOverlayHoverStatusChanged(bool is_hovering) override;
   void OnHandoffButtonHoverStatusChanged() override;
   UiTabState GetCurrentUiTabState() const override;
   bool ShouldShowActorTabIndicator() override;
-  ActorOverlayViewController* GetActorOverlayViewController() override;
 
   // ImmersiveModeController::Observer
   void OnImmersiveFullscreenEntered() override;
   void OnImmersiveFullscreenExited() override;
   void OnImmersiveModeControllerDestroyed() override;
 
-  base::WeakPtr<ActorUiTabControllerInterface> GetWeakPtr() override;
+  // OmniboxTabHelper::Observer:
+  void OnOmniboxInputStateChanged() override {}
+  void OnOmniboxInputInProgress(bool in_progress) override {}
+  void OnOmniboxFocusChanged(OmniboxFocusState state,
+                             OmniboxFocusChangeReason reason) override;
+  void OnOmniboxPopupVisibilityChanged(bool popup_is_open) override {}
 
-  // Binds the Mojo receiver to the tab's ActorOverlayViewController.
-  // Called by ActorOverlayUI when the chrome://actor-overlay page loads.
-  void BindActorOverlay(
-      mojo::PendingRemote<mojom::ActorOverlayPage> page,
-      mojo::PendingReceiver<mojom::ActorOverlayPageHandler> receiver) override;
+  base::WeakPtr<ActorUiTabControllerInterface> GetWeakPtr() override;
 
   base::CallbackListSubscription RegisterActorTabIndicatorStateChangedCallback(
       ActorTabIndicatorStateChangedCallback callback) override;
+  base::CallbackListSubscription RegisterActorOverlayStateChange(
+      ActorOverlayStateChangeCallback callback) override;
+  base::CallbackListSubscription RegisterActorOverlayBackgroundChange(
+      ActorOverlayBackgroundChangeCallback callback) override;
 
  private:
   // Called only once on startup to initialize tab subscriptions.
@@ -102,6 +104,13 @@ class ActorUiTabController : public ActorUiTabControllerInterface,
   // determines if the scrim background should be visible if the mouse is
   // hovering over either the overlay or the handoff button.
   void UpdateScrimBackground();
+  void OnTabWillDetach(tabs::TabInterface* tab_interface,
+                       tabs::TabInterface::DetachReason reason);
+  void OnTabWillDiscard(tabs::TabInterface* tab_interface,
+                        content::WebContents* old_contents,
+                        content::WebContents* new_contents);
+
+  void UpdateOmniboxTabHelperObserver();
 
   // The current UiTabState.
   UiTabState current_ui_tab_state_ = {
@@ -109,12 +118,13 @@ class ActorUiTabController : public ActorUiTabControllerInterface,
       .handoff_button = HandoffButtonState(),
   };
 
-  // The current active status of the tab.
-  bool current_tab_active_status_ = false;
+  // Copy of the current tab's overlay hover status.
+  bool is_overlay_hovered_ = false;
 
   // Determines if the scrim background should be visible. This is set to true
   // if the mouse is hovering over either the overlay or the handoff button.
   bool should_show_scrim_background_ = false;
+  bool is_focusing_omnibox_ = false;
 
   // Owns this class via TabModel.
   const raw_ref<tabs::TabInterface> tab_;
@@ -125,13 +135,19 @@ class ActorUiTabController : public ActorUiTabControllerInterface,
       base::RepeatingCallbackList<void(bool)>;
   ActorTabIndicatorStateChangedCallbackList
       on_actor_tab_indicator_changed_callbacks_;
+  using ActorOverlayStateChangedCallbackList =
+      base::RepeatingCallbackList<void(bool, ActorOverlayState)>;
+  ActorOverlayStateChangedCallbackList
+      on_actor_overlay_state_changed_callbacks_;
+  using ActorOverlayBackgroundChangeCallbackList =
+      base::RepeatingCallbackList<void(bool)>;
+  ActorOverlayBackgroundChangeCallbackList
+      actor_overlay_background_changed_callbacks_;
 
   // The Actor Keyed Service for the associated profile.
   raw_ptr<ActorKeyedService> actor_keyed_service_ = nullptr;
 
   // Owned controllers:
-  // The Actor Overlay View controller for this tab.
-  std::unique_ptr<ActorOverlayViewController> actor_overlay_view_controller_;
   // The Handoff Button controller for this tab.
   std::unique_ptr<HandoffButtonController> handoff_button_controller_;
   std::unique_ptr<ActorUiTabControllerFactoryInterface> controller_factory_;
@@ -145,6 +161,10 @@ class ActorUiTabController : public ActorUiTabControllerInterface,
   base::ScopedObservation<ImmersiveModeController,
                           ImmersiveModeController::Observer>
       immersive_mode_observer_{this};
+
+  // Observer to get notifications when the omnibox is focused.
+  base::ScopedObservation<OmniboxTabHelper, OmniboxTabHelper::Observer>
+      omnibox_tab_helper_observer_{this};
 
   base::WeakPtrFactory<ActorUiTabController> weak_factory_{this};
 };

@@ -13,6 +13,8 @@
 #include "chrome/common/actor_webui.mojom.h"
 #include "url/gurl.h"
 
+class Profile;
+
 namespace actor_login {
 class ActorLoginService;
 struct Credential;
@@ -35,6 +37,9 @@ class ToolDelegate {
  public:
   virtual ~ToolDelegate() = default;
 
+  // Returns the profile in which the task is running.
+  virtual Profile& GetProfile() = 0;
+
   // Returns the journal so that tools may log information related to their
   // execution.
   virtual AggregatedJournal& GetJournal() = 0;
@@ -56,6 +61,14 @@ class ToolDelegate {
       const std::vector<actor_login::Credential>& credentials,
       const base::flat_map<std::string, gfx::Image>& icons,
       CredentialSelectedCallback callback) = 0;
+
+  // Sets / gets the credential that the user has chosen to allow the
+  // actor to use. The selected credential can be used for multi-step login
+  // within the same task.
+  virtual void SetUserSelectedCredential(
+      const actor_login::Credential& credential) = 0;
+  virtual const std::optional<actor_login::Credential>
+  GetUserSelectedCredential(const url::Origin& request_origin) const = 0;
 };
 
 }  // namespace actor

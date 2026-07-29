@@ -116,7 +116,6 @@
 #import "ios/chrome/browser/find_bar/ui_bundled/find_bar_coordinator.h"
 #import "ios/chrome/browser/find_in_page/model/find_tab_helper.h"
 #import "ios/chrome/browser/find_in_page/model/java_script_find_tab_helper.h"
-#import "ios/chrome/browser/find_in_page/model/util.h"
 #import "ios/chrome/browser/first_run/ui_bundled/omnibox_position/omnibox_position_choice_coordinator.h"
 #import "ios/chrome/browser/first_run/ui_bundled/welcome_back/coordinator/welcome_back_coordinator.h"
 #import "ios/chrome/browser/follow/model/follow_browser_agent.h"
@@ -232,6 +231,7 @@
 #import "ios/chrome/browser/shared/public/commands/contextual_panel_entrypoint_iph_commands.h"
 #import "ios/chrome/browser/shared/public/commands/contextual_sheet_commands.h"
 #import "ios/chrome/browser/shared/public/commands/country_code_picker_commands.h"
+#import "ios/chrome/browser/shared/public/commands/credential_exchange_commands.h"
 #import "ios/chrome/browser/shared/public/commands/download_list_commands.h"
 #import "ios/chrome/browser/shared/public/commands/drive_file_picker_commands.h"
 #import "ios/chrome/browser/shared/public/commands/enhanced_calendar_commands.h"
@@ -332,6 +332,7 @@
 #import "ios/chrome/browser/web/model/web_state_delegate_browser_agent.h"
 #import "ios/chrome/browser/web_state_list/model/web_usage_enabler/web_usage_enabler_browser_agent.h"
 #import "ios/chrome/browser/web_state_list/model/web_usage_enabler/web_usage_enabler_browser_agent_observer_bridge.h"
+#import "ios/chrome/browser/webauthn/coordinator/credential_import_coordinator.h"
 #import "ios/chrome/browser/webui/model/net_export_tab_helper_delegate.h"
 #import "ios/chrome/browser/webui/ui_bundled/net_export_coordinator.h"
 #import "ios/chrome/browser/whats_new/coordinator/whats_new_coordinator.h"
@@ -373,6 +374,7 @@ enum class ToolbarKind {
     ContextualPanelEntrypointIPHCommands,
     ContextualSheetCommands,
     CountryCodePickerCommands,
+    CredentialExchangeCommands,
     DefaultBrowserGenericPromoCommands,
     DefaultPromoNonModalPresentationDelegate,
     DownloadListCommands,
@@ -741,6 +743,9 @@ enum class ToolbarKind {
 
   // The coordinator for the Welcome Back promo.
   WelcomeBackCoordinator* _welcomeBackCoordinator;
+
+  // The coordinator for the Credential Exchange feature handling the import.
+  CredentialImportCoordinator* _credentialImportCoordinator;
 }
 
 #pragma mark - ReaderModeBrowserAgentDelegate
@@ -1212,7 +1217,8 @@ enum class ToolbarKind {
     @protocol(CountryCodePickerCommands),
     @protocol(WhatsNewCommands),
     @protocol(GoogleOneCommands),
-    @protocol(WelcomeBackPromoCommands)
+    @protocol(WelcomeBackPromoCommands),
+    @protocol(CredentialExchangeCommands),
   ];
 
   for (Protocol* protocol in protocols) {
@@ -1785,6 +1791,9 @@ enum class ToolbarKind {
 
   [_BWGCoordinator stop];
   _BWGCoordinator = nil;
+
+  [_credentialImportCoordinator stop];
+  _credentialImportCoordinator = nil;
 
   [self hideDriveFilePicker];
   [self hideContextualSheet];
@@ -2590,7 +2599,8 @@ enum class ToolbarKind {
   SigninContextStyle contextStyle = SigninContextStyle::kDefault;
   _signinCoordinator = [SigninCoordinator
       addAccountCoordinatorWithBaseViewController:self.viewController
-                                          browser:self.browser
+                                          browser:signin::GetRegularBrowser(
+                                                      self.browser)
                                      contextStyle:contextStyle
                                       accessPoint:accessPoint
                                    prefilledEmail:email
@@ -2905,11 +2915,7 @@ enum class ToolbarKind {
   __weak __typeof(self) weakSelf = self;
 
   auto startFindInPage = ^{
-    if (IsNativeFindInPageAvailable()) {
-      [weakSelf showSystemFindPanel];
-    } else {
-      [weakSelf showFindBar];
-    }
+    [weakSelf showSystemFindPanel];
   };
 
   BOOL lensOverlayAvailable = IsLensOverlayAvailable(self.profile->GetPrefs());
@@ -2958,13 +2964,7 @@ enum class ToolbarKind {
     return;
   }
 
-  if (IsNativeFindInPageAvailable()) {
-    [self showSystemFindPanel];
-  } else if (!_toolbarAccessoryPresenter.isPresenting) {
-    DCHECK(!self.findBarCoordinator);
-    self.findBarCoordinator = [self newFindBarCoordinator];
-    [self.findBarCoordinator start];
-  }
+  [self showSystemFindPanel];
 }
 
 - (void)hideFindUI {
@@ -2972,23 +2972,14 @@ enum class ToolbarKind {
   if (!activeWebState) {
     return;
   }
-  if (IsNativeFindInPageAvailable()) {
-    auto* helper = FindTabHelper::FromWebState(activeWebState);
-    helper->DismissFindNavigator();
-  } else {
-    [self.findBarCoordinator stop];
-    self.findBarCoordinator = nil;
-  }
+  auto* helper = FindTabHelper::FromWebState(activeWebState);
+  helper->DismissFindNavigator();
 }
 
 - (void)defocusFindInPage {
-  if (IsNativeFindInPageAvailable()) {
     // The System Find Panel UI cannot be "defocused" so closing Find in Page
     // altogether instead.
     [self closeFindInPage];
-  } else {
-    [self.findBarCoordinator defocusFindBar];
-  }
 }
 
 - (void)searchFindInPage {
@@ -3101,6 +3092,16 @@ enum class ToolbarKind {
 - (void)hideCountryCodePicker {
   [_countryCodePickerCoordinator stop];
   _countryCodePickerCoordinator = nil;
+}
+
+#pragma mark - CredentialExchangeCommands
+
+- (void)showCredentialExchangeImport:(NSUUID*)UUID {
+  _credentialImportCoordinator = [[CredentialImportCoordinator alloc]
+      initWithBaseViewController:self.viewController
+                         browser:self.browser
+                            UUID:UUID];
+  [_credentialImportCoordinator start];
 }
 
 #pragma mark - BWGCommands
@@ -3963,9 +3964,10 @@ enum class ToolbarKind {
   signin_metrics::AccessPoint accessPoint =
       signin_metrics::AccessPoint::kReauthInfoBar;
   SigninContextStyle style = SigninContextStyle::kDefault;
+  Browser* regularBrowser = signin::GetRegularBrowser(self.browser);
   _signinCoordinator = [SigninCoordinator
       primaryAccountReauthCoordinatorWithBaseViewController:self.viewController
-                                                    browser:self.browser
+                                                    browser:regularBrowser
                                                contextStyle:style
                                                 accessPoint:accessPoint
                                                 promoAction:promoAction
@@ -4045,9 +4047,10 @@ enum class ToolbarKind {
       signin_metrics::PromoAction::PROMO_ACTION_NO_SIGNIN_PROMO;
   SigninContextStyle contextStyle = SigninContextStyle::kDefault;
 
+  Browser* regularBrowser = signin::GetRegularBrowser(self.browser);
   _signinCoordinator = [SigninCoordinator
       signinAndSyncReauthCoordinatorWithBaseViewController:self.viewController
-                                                   browser:self.browser
+                                                   browser:regularBrowser
                                               contextStyle:contextStyle
                                                accessPoint:accessPoint
                                                promoAction:promoAction
@@ -4068,10 +4071,10 @@ enum class ToolbarKind {
     return;
   }
   [_signinCoordinator stop];
-  _signinCoordinator =
-      [SigninCoordinator signinCoordinatorWithCommand:command
-                                              browser:self.browser
-                                   baseViewController:self.viewController];
+  _signinCoordinator = [SigninCoordinator
+      signinCoordinatorWithCommand:command
+                           browser:signin::GetRegularBrowser(self.browser)
+                baseViewController:self.viewController];
   __weak __typeof(self) weakSelf = self;
   _signinCoordinator.signinCompletion =
       ^(SigninCoordinatorResult result, id<SystemIdentity> identity) {
@@ -4812,7 +4815,7 @@ enum class ToolbarKind {
     self.nonModalSignInPromoCoordinator =
         [[NonModalSignInPromoCoordinator alloc]
             initWithBaseViewController:self.viewController
-                               browser:self.browser
+                               browser:signin::GetRegularBrowser(self.browser)
                              promoType:promoType];
     [self.nonModalSignInPromoCoordinator start];
     self.nonModalSignInPromoCoordinator.delegate = self;

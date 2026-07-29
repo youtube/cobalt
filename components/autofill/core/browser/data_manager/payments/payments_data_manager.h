@@ -312,6 +312,11 @@ class PaymentsDataManager : public AutofillWebDataServiceObserverOnUISequence,
   // Method to clean up for crbug.com/411681430.
   virtual void CleanupForCrbug411681430();
 
+#if BUILDFLAG(IS_IOS)
+  // Method to clean up for crbug.com/445879524.
+  virtual void CleanupForCrbug445879524();
+#endif  // BUILDFLAG(IS_IOS)
+
   // Deletes all server cards (both masked and unmasked).
   void ClearAllServerDataForTesting();
 
@@ -532,6 +537,8 @@ class PaymentsDataManager : public AutofillWebDataServiceObserverOnUISequence,
   // Whether server cards or IBANs are enabled and should be suggested to the
   // user.
   virtual bool ShouldSuggestServerPaymentMethods() const;
+
+  base::WeakPtr<const PaymentsDataManager> GetWeakPtr() const;
 
  protected:
   friend class PaymentsDataManagerTestApi;

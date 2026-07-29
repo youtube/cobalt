@@ -120,8 +120,6 @@ void MediaStreamVideoCapturerSource::StartSourceImpl(
       std::move(media_stream_callbacks.capture_version_cb);
   video_capture_callbacks.frame_dropped_cb =
       std::move(media_stream_callbacks.frame_dropped_cb);
-  video_capture_callbacks.state_update_cb =
-      std::move(media_stream_callbacks.state_update_cb);
   source_->StartCapture(
       capture_params_, std::move(video_capture_callbacks),
       blink::BindRepeating(&MediaStreamVideoCapturerSource::OnRunStateChanged,
@@ -197,6 +195,7 @@ void MediaStreamVideoCapturerSource::ChangeSourceImpl(
   source_ = device_capturer_factory_callback_.Run(new_device.session_id());
 
   capture_params_.capture_version_source += 1;
+  sub_capture_version_ = 0;
 
   VideoCaptureCallbacks video_capture_callbacks;
   video_capture_callbacks.deliver_frame_cb = frame_callback_;
@@ -233,13 +232,14 @@ media::CaptureVersion MediaStreamVideoCapturerSource::GetCaptureVersion()
                                sub_capture_version_);
 }
 
-// TODO(crbug.com/394794490): Return the next CaptureVersion.
-std::optional<uint32_t>
-MediaStreamVideoCapturerSource::GetNextSubCaptureTargetVersion() {
+std::optional<media::CaptureVersion>
+MediaStreamVideoCapturerSource::GetNextCaptureVersion() {
   if (NumTracks() != 1) {
     return std::nullopt;
   }
-  return ++sub_capture_version_;
+
+  return media::CaptureVersion(capture_params_.capture_version_source,
+                               ++sub_capture_version_);
 }
 
 base::WeakPtr<MediaStreamVideoSource>

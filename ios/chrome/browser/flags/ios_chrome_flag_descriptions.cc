@@ -21,6 +21,9 @@ const char kAIMPrototypeDescription[] =
     "When enabled the AIM ZPS entrypoint will open the AIM prototype which "
     "contains temporary UI exploration for AIM.";
 
+const char kAskGeminiChipName[] = "Ask Gemini Chip";
+const char kAskGeminiChipDescription[] = "Enables the Ask Gemini Chip feature.";
+
 const char kAIHubNewBadgeName[] = "AI Hub New Badge";
 const char kAIHubNewBadgeDescription[] =
     "Enables showing a new badge on the AI Hub button in the toolbar.";
@@ -779,6 +782,11 @@ const char kIOSOmniboxAimServerEligibilityEnName[] =
 const char kIOSOmniboxAimServerEligibilityEnDescription[] =
     "Enable AIM server eligibility checks for EN locales.";
 
+const char kIOSOmniboxUseTextViewName[] = "AIM Omnibox use text view";
+const char kIOSOmniboxUseTextViewDescription[] =
+    "When enabled, the omnibox presented by AIM uses a multiline text view "
+    "instead of a text field.";
+
 const char kIOSOneTapMiniMapRemoveSectionBreaksName[] =
     "Remove section break for address detection.";
 const char kIOSOneTapMiniMapRemoveSectionBreaksDescription[] =
@@ -1114,6 +1122,11 @@ const char kOmniboxDRSPrototypeName[] = "Enable the Omnibox DRS prototype";
 const char kOmniboxDRSPrototypeDescription[] =
     "Enables the omnibox dynamic response system prototype";
 
+const char kOmniboxGeminiPrototypeProviderName[] =
+    "Omnibox Gemini Prototype Provider";
+const char kOmniboxGeminiPrototypeProviderDescription[] =
+    "Enables a prototype provider that suggests a query on omnibox focus.";
+
 const char kOmniboxGroupingFrameworkForZPSName[] =
     "Omnibox Grouping Framework for ZPS";
 const char kOmniboxGroupingFrameworkForZPSDescription[] =
@@ -1281,6 +1294,13 @@ const char kPageActionMenuDescription[] =
     "When enabled, the entry point for the Page Action Menu becomes available "
     "for actions relating to the web page.";
 
+const char kProactiveSuggestionsFrameworkName[] =
+    "Proactive Suggestions Framework";
+const char kProactiveSuggestionsFrameworkDescription[] =
+    "When enabled, consolidates omnibox proactive suggestions (Reader Mode, "
+    "Translate, Price History, etc.) into a unified badge system with "
+    "centralized settings access through the AI Hub Page Tools.";
+
 const char kGeminiCrossTabName[] = "Gemini Cross Tab";
 const char kGeminiCrossTabDescription[] =
     "When enabled, the Gemini floaty conversation persists across all tabs.";
@@ -1293,12 +1313,6 @@ const char kBWGPromoConsentDescription[] =
 const char kPageContentAnnotationsName[] = "Page content annotations";
 const char kPageContentAnnotationsDescription[] =
     "Enables page content to be annotated on-device.";
-
-const char kPageImageServiceSalientImageName[] =
-    "Page Image Service - Optimization Guide Salient Images";
-extern const char kPageImageServiceSalientImageDescription[] =
-    "Enables the PageImageService fetching images from the Optimization Guide "
-    "Salient Images source.";
 
 const char kPageInfoLastVisitedIOSName[] = "Last Visited in Page Info for iOS";
 const char kPageInfoLastVisitedIOSDescription[] =
@@ -1338,6 +1352,11 @@ const char kPasswordReuseDetectionDescription[] =
 const char kPasswordSharingName[] = "Enables password sharing";
 const char kPasswordSharingDescription[] =
     "Enables password sharing between members of the same family.";
+
+const char kPersistTabContextName[] = "Persist Tab APC and Inner Text";
+const char kPersistTabContextDescription[] =
+    "Enables persisting tab APC and inner text in storage for fast access to "
+    "multi-tab context.";
 
 const char kPriceTrackingPromoName[] =
     "Enables price tracking notification promo card";
@@ -1554,6 +1573,11 @@ const char kSkipDefaultBrowserPromoInFirstRunName[] =
 const char kSkipDefaultBrowserPromoInFirstRunDescription[] =
     "When enabled, users in the EEA will not see a Default Browser Promo in "
     "the FRE.";
+
+const char kSmartTabGroupingName[] = "Enable Smart Tab Grouping";
+const char kSmartTabGroupingDescription[] =
+    "When enabled, users will have access to use the smart tab grouping "
+    "feature in the tab grid.";
 
 const char kStrokesAPIEnabledName[] = "Enable Strokes API for Lens";
 const char kStrokesAPIEnabledDescription[] =

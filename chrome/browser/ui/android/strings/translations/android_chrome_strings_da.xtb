@@ -3,6 +3,7 @@
 <translationbundle lang="da">
 <translation id="1010283278930414892">Der er ingen gemte adgangskoder på denne enhed</translation>
 <translation id="1011749477052068769">Flyt hertil</translation>
+<translation id="1014083013111769343">Præferencer for læsetilstand er åbnet i fuld højde</translation>
 <translation id="1014147525163127655">Der er ingen adgangsnøgler til <ph name="ORIGIN" /> på denne enhed</translation>
 <translation id="1016498331642356377">Søg hurtigt med din stemme. Hold fingeren på genvejen for at redigere.</translation>
 <translation id="1028699632127661925">Sender til <ph name="DEVICE_NAME" />...</translation>
@@ -98,6 +99,7 @@ Du kan finde flere indstillinger, der bruger data til at forbedre din Chrome-opl
 <translation id="1407135791313364759">Åbn alle</translation>
 <translation id="1409879593029778104">Download af <ph name="FILE_NAME" /> blev forhindret, fordi filen allerede findes.</translation>
 <translation id="1413446866325418126">Gem data på din Google-konto</translation>
+<translation id="1414919006379339073">Luk det aktuelle vindue</translation>
 <translation id="1416550906796893042">Appversion</translation>
 <translation id="1419753403124156396">Vil du genstarte Chrome?</translation>
 <translation id="1428770807407000502">Vil du deaktivere synkronisering?</translation>
@@ -207,6 +209,7 @@ Kun personer med din adgangssætning kan læse dine krypterede data. Adgangssæt
 <translation id="197288927597451399">Behold</translation>
 <translation id="1973912524893600642">Behold data</translation>
 <translation id="1974060860693918893">Avanceret</translation>
+<translation id="1982274314082047220">Stryg opad i læsetilstand for at se præferencer</translation>
 <translation id="1984087999855033707">telefonnummer</translation>
 <translation id="1984417487208496350">Ingen beskyttelse (anbefales ikke)</translation>
 <translation id="1986685561493779662">Navnet findes allerede</translation>
@@ -428,6 +431,7 @@ Kun personer med din adgangssætning kan læse dine krypterede data. Adgangssæt
 <translation id="2992473221983447149">Billedbeskrivelser</translation>
 <translation id="2996291259634659425">Opret adgangssætning</translation>
 <translation id="2996809686854298943">En webadresse er påkrævet</translation>
+<translation id="3024215143424744261">Præferencer for læsetilstand er lukket</translation>
 <translation id="3026955690410463085">Medtag link</translation>
 <translation id="3027644380269727216">Baseret på din aktivitet på et website. Denne indstilling er aktiveret.</translation>
 <translation id="3027950907978057636">Fra <ph name="APP_LABEL" /></translation>
@@ -1311,6 +1315,7 @@ Nogle websites kan f.eks. reagere på denne anmodning ved at vise dig annoncer, 
 <translation id="696447261358045621">Forlad inkognitotilstand</translation>
 <translation id="6965382102122355670">OK</translation>
 <translation id="6968350777423863208">{NUMBER_OF_TABS,plural, =1{Se <ph name="TABS_COUNT_ONE" /> fane med ny aktivitet i delte fanegrupper}one{Se <ph name="TABS_COUNT_MANY" /> fane med ny aktivitet i delte fanegrupper}other{Se <ph name="TABS_COUNT_MANY" /> faner med ny aktivitet i delte fanegrupper}}</translation>
+<translation id="6971555615916967190">Indstillingerne for læsetilstand er åbnet i halv højde</translation>
 <translation id="6971862865055170158">Godkend ikke</translation>
 <translation id="6976223255612495095">Ny eller opdateret fane: <ph name="TAB_TITLE" /></translation>
 <translation id="6976811588313110624">Tilføj ny genvej.</translation>
@@ -1695,7 +1700,6 @@ Du kan ændre denne indstilling ved at <ph name="BEGIN_LINK" />slette Chrome-dat
 <translation id="8617240290563765734">Vil du åbne den foreslåede webadresse, som er angivet i det downloadede indhold?</translation>
 <translation id="8635399646025169806">Vil du beholde fanegruppen?</translation>
 <translation id="8636825310635137004">Aktivér synkronisering for at få adgang til dine faner på dine andre enheder.</translation>
-<translation id="864544049772947936">Administrer vinduer (<ph name="INSTANCE_COUNTS" />)</translation>
 <translation id="8662474268934425487">Log ind på <ph name="SITE_ETLD_PLUS_ONE" /></translation>
 <translation id="8664979001105139458">Filnavnet findes allerede</translation>
 <translation id="8676276370198826499">Tilmeld dig <ph name="SITE_ETLD_PLUS_ONE" /> med <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /></translation>

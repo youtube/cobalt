@@ -119,6 +119,7 @@ class FakeWebNNContextImpl final : public WebNNContextImpl {
                          GetContextPropertiesForTesting(),
                          mojom::CreateContextOptions::New(),
                          mojo::ScopedDataPipeConsumerHandle(),
+                         mojo::ScopedDataPipeProducerHandle(),
                          command_buffer_id,
                          std::move(sequence),
                          std::move(task_runner)) {}
@@ -185,7 +186,8 @@ class FakeWebNNBackend : public WebNNContextProviderImpl::BackendForTesting {
     // The receiver bound to FakeWebNNContext.
     auto success = mojom::CreateContextSuccess::New(
         std::move(remote), std::move(context_properties),
-        context_impl->handle(), mojo::ScopedDataPipeProducerHandle());
+        context_impl->handle(), mojo::ScopedDataPipeProducerHandle(),
+        mojo::ScopedDataPipeConsumerHandle());
     std::move(callback).Run(
         mojom::CreateContextResult::NewSuccess(std::move(success)));
     return context_impl;
@@ -2505,6 +2507,22 @@ TEST_F(WebNNGraphImplTest, ExpandTest) {
     OperandId input_operand_id =
         builder.BuildInput("input", {2}, OperandDataType::kFloat32);
     builder.BuildExpand(input_operand_id, input_operand_id);
+    EXPECT_FALSE(builder.IsValidGraphForTesting(context_properties));
+  }
+  {
+    // Test the invalid graph that output rank exceeds limits.
+    auto context_properties = GetContextPropertiesForTesting();
+    static constexpr SupportedRanks kRankLimit = SupportedRanks::UpTo(4);
+    context_properties.data_type_limits.expand_input.ranks.IntersectWith(
+        kRankLimit);
+    mojo::AssociatedRemote<mojom::WebNNGraphBuilder> remote =
+        BindNewGraphBuilderRemote();
+    GraphInfoBuilder builder(remote);
+    OperandId input_operand_id =
+        builder.BuildInput("input", {2}, OperandDataType::kFloat32);
+    OperandId output_operand_id = builder.BuildOutput(
+        "output", {1, 1, 1, 1, 2}, OperandDataType::kFloat32);
+    builder.BuildExpand(input_operand_id, output_operand_id);
     EXPECT_FALSE(builder.IsValidGraphForTesting(context_properties));
   }
 }
@@ -6042,6 +6060,22 @@ TEST_F(WebNNGraphImplTest, ReshapeTest) {
         .output = {.type = OperandDataType::kInt32, .dimensions = {2}},
         .expected = false}
         .Test(*this);
+  }
+  {
+    // Test the invalid graph that output rank exceeds limits.
+    auto context_properties = GetContextPropertiesForTesting();
+    static constexpr SupportedRanks kRankLimit = SupportedRanks::UpTo(4);
+    context_properties.data_type_limits.reshape_input.ranks.IntersectWith(
+        kRankLimit);
+    mojo::AssociatedRemote<mojom::WebNNGraphBuilder> remote =
+        BindNewGraphBuilderRemote();
+    GraphInfoBuilder builder(remote);
+    OperandId input_operand_id =
+        builder.BuildInput("input", {2}, OperandDataType::kFloat32);
+    OperandId output_operand_id = builder.BuildOutput(
+        "output", {2, 1, 1, 1, 1}, OperandDataType::kFloat32);
+    builder.BuildReshape(input_operand_id, output_operand_id);
+    EXPECT_FALSE(builder.IsValidGraphForTesting(context_properties));
   }
 }
 

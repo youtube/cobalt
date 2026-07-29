@@ -303,7 +303,8 @@ GlicWindowControllerImpl::GlicWindowControllerImpl(
       host_(profile),
       window_finder_(std::make_unique<WindowFinder>()),
       glic_service_(glic_service),
-      enabling_(enabling) {
+      enabling_(enabling),
+      id_(base::Uuid::GenerateRandomV4()) {
   host_manager_ = std::make_unique<HostManager>(profile, GetWeakPtr());
   if (window_config_.ShouldResetOnStart()) {
     previous_position_.reset();
@@ -630,16 +631,21 @@ Host& GlicWindowControllerImpl::host() {
   return host_;
 }
 
+const InstanceId& GlicWindowControllerImpl::id() const {
+  return id_;
+}
+
 HostManager& GlicWindowControllerImpl::host_manager() {
   return *host_manager_;
 }
 
-std::vector<Host*> GlicWindowControllerImpl::GetHosts() {
-  return {&host_};
+std::vector<GlicInstance*> GlicWindowControllerImpl::GetInstances() {
+  return {this};
 }
 
-Host* GlicWindowControllerImpl::GetHostForTab(tabs::TabInterface* tab) {
-  return &host_;
+GlicInstance* GlicWindowControllerImpl::GetInstanceForTab(
+    tabs::TabInterface* tab) {
+  return this;
 }
 
 bool GlicWindowControllerImpl::BeforeViewCreated(
@@ -683,7 +689,7 @@ void GlicWindowControllerImpl::AfterViewShown() {
   // `NotifyIfPanelStateChanged()` first, so that the host will receive the
   // correct panel state.
   NotifyIfPanelStateChanged();
-  host().PanelWillOpen(opening_source_.value());
+  host().PanelWillOpen(opening_source_.value(), {});
 
   if (login_page_committed_) {
     // This indicates that we've warmed the web client and it has hit a login
@@ -1483,6 +1489,12 @@ bool GlicWindowControllerImpl::IsShowing() const {
   return !(state_ == State::kClosed);
 }
 
+void GlicWindowControllerImpl::SwitchConversation(
+    const std::string& conversation_id,
+    mojom::WebClientHandler::SwitchConversationCallback callback) {
+  std::move(callback).Run(mojom::SwitchConversationErrorReason::kUnknown);
+}
+
 bool GlicWindowControllerImpl::IsAttached() const {
   return IsShowing() && attached_browser_;
 }
@@ -1665,7 +1677,7 @@ gfx::Point GlicWindowControllerImpl::GetDialogPosition(
   return gfx::Point();
 }
 
-bool GlicWindowControllerImpl::ShouldDialogBoundsConstrainedByHost() {
+bool GlicWindowControllerImpl::ShouldConstrainDialogBoundsByHost() {
   // Allows web modal dialogs to extend beyond the boundary of glic window.
   // These web modals are usually larger than the glic window.
   return false;

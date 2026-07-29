@@ -248,6 +248,45 @@ void GlicKeyedService::PrepareForOpen() {
   }
 }
 
+GlicWindowController& GlicKeyedService::window_controller() const {
+  CHECK(window_controller_);
+  return *window_controller_.get();
+}
+
+GlicFreController& GlicKeyedService::fre_controller() {
+  CHECK(fre_controller_);
+  return *fre_controller_.get();
+}
+
+GlicSharingManager& GlicKeyedService::sharing_manager() {
+  return *sharing_manager_.get();
+}
+
+void GlicKeyedService::CreateTab() {
+  NOTIMPLEMENTED();
+}
+void GlicKeyedService::CreateTask() {
+  NOTIMPLEMENTED();
+}
+void GlicKeyedService::PerformActions() {
+  NOTIMPLEMENTED();
+}
+void GlicKeyedService::StopActorTask() {
+  NOTIMPLEMENTED();
+}
+void GlicKeyedService::PauseActorTask() {
+  NOTIMPLEMENTED();
+}
+void GlicKeyedService::ResumeActorTask() {
+  NOTIMPLEMENTED();
+}
+void GlicKeyedService::GetZeroStateSuggestionsAndSubscribe() {
+  NOTIMPLEMENTED();
+}
+void GlicKeyedService::GetZeroStateSuggestionsForFocusedTab() {
+  NOTIMPLEMENTED();
+}
+
 void GlicKeyedService::OnZeroStateSuggestionsFetched(
     mojom::ZeroStateSuggestionsPtr suggestions,
     mojom::WebClientHandler::GetZeroStateSuggestionsForFocusedTabCallback
@@ -289,20 +328,6 @@ void GlicKeyedService::FetchZeroStateSuggestions(
   } else {
     std::move(callback).Run(nullptr);
   }
-}
-
-GlicWindowController& GlicKeyedService::window_controller() const {
-  CHECK(window_controller_);
-  return *window_controller_.get();
-}
-
-GlicFreController& GlicKeyedService::fre_controller() {
-  CHECK(fre_controller_);
-  return *fre_controller_.get();
-}
-
-GlicSharingManager& GlicKeyedService::sharing_manager() {
-  return *sharing_manager_.get();
 }
 
 void GlicKeyedService::GuestAdded(content::WebContents* guest_contents) {
@@ -374,13 +399,14 @@ void GlicKeyedService::SetContextAccessIndicator(bool show) {
 }
 
 void GlicKeyedService::CreateTask(
+    actor::webui::mojom::TaskOptionsPtr options,
     mojom::WebClientHandler::CreateTaskCallback callback) {
   if (!base::FeatureList::IsEnabled(features::kGlicActor)) {
     std::move(callback).Run(
         base::unexpected(mojom::CreateTaskErrorReason::kTaskSystemUnavailable));
     return;
   }
-  actor::TaskId task_id = actor_keyed_service_->CreateTask();
+  actor::TaskId task_id = actor_keyed_service_->CreateTask(std::move(options));
   std::move(callback).Run(task_id.value());
 }
 
@@ -465,7 +491,7 @@ void GlicKeyedService::PerformActions(
         "Act Failed",
         actor::JournalDetailsBuilder()
             .AddError("Failed to convert proto::Actions to ToolRequest")
-            .Add("error_code", requests.error())
+            .Add("failed_action_index", requests.error())
             .Build());
     optimization_guide::proto::ActionsResult response =
         actor::BuildErrorActionsResult(
@@ -556,7 +582,19 @@ void GlicKeyedService::ResumeActorTask(
   }
 
   task->Resume();
-  tabs::TabInterface* tab_of_resumed_task = task->GetTabForObservation();
+
+  // TODO(crbug.com/420669167): GetLastActedTabs should only ever have 1 tab in
+  // it for now but once we support multi-tab we'll need to grab observations
+  // for all relevant tabs.
+  DCHECK_GT(task->GetLastActedTabs().size(), 0ul);
+  DCHECK_LT(task->GetLastActedTabs().size(), 2ul);
+  tabs::TabInterface* tab_of_resumed_task = nullptr;
+  for (tabs::TabHandle tab_handle : task->GetLastActedTabs()) {
+    if (tabs::TabInterface* tab = tab_handle.Get()) {
+      tab_of_resumed_task = tab;
+      break;
+    }
+  }
   if (!tab_of_resumed_task) {
     std::string error_message = "No tab for observation";
     actor_keyed_service_->GetJournal().Log(GURL::EmptyGURL(), task_id,
@@ -770,23 +808,10 @@ HostManager& GlicKeyedService::host_manager() {
   return window_controller().host_manager();
 }
 
-std::vector<Host*> GlicKeyedService::GetAllHosts() {
-  return host_manager().GetAllHosts();
-}
-
-Host* GlicKeyedService::GetHostForActiveTab(BrowserWindowInterface* bwi) {
-  if (UseDefaultWindowController()) {
-    return &window_controller().host();
-  }
-
-  // TODO(refactor): Add a method for getting the floating instance.
-  CHECK(bwi);
-  tabs::TabInterface* tab = bwi->GetActiveTabInterface();
-  if (!tab) {
-    return nullptr;
-  }
-
-  return window_controller().GetHostForTab(tab);
+GlicInstance* GlicKeyedService::GetInstanceForActiveTab(
+    BrowserWindowInterface* bwi) {
+  return window_controller().GetInstanceForTab(
+      bwi ? bwi->GetActiveTabInterface() : nullptr);
 }
 
 }  // namespace glic

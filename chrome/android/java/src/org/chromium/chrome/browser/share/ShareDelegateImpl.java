@@ -18,6 +18,7 @@ import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.Callback;
 import org.chromium.base.DeviceInfo;
+import org.chromium.base.ResettersForTesting;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -71,11 +72,13 @@ public class ShareDelegateImpl implements ShareDelegate {
     private final ActivityLifecycleDispatcher mLifecycleDispatcher;
     private final Supplier<@Nullable Tab> mTabProvider;
     private final Supplier<TabModelSelector> mTabModelSelectorProvider;
-    private final Supplier<Profile> mProfileSupplier;
+    private final Supplier<@Nullable Profile> mProfileSupplier;
     private final ShareSheetDelegate mDelegate;
     private final boolean mIsCustomTab;
     private final @Nullable DataSharingTabManager mDataSharingTabManager;
     private long mShareStartTime;
+
+    private static @Nullable Callback<Boolean> sShowShareSheetHookForTesting;
 
     /**
      * Constructs a new {@link ShareDelegateImpl}.
@@ -98,7 +101,7 @@ public class ShareDelegateImpl implements ShareDelegate {
             ActivityLifecycleDispatcher lifecycleDispatcher,
             Supplier<@Nullable Tab> tabProvider,
             Supplier<TabModelSelector> tabModelSelectorProvider,
-            Supplier<Profile> profileSupplier,
+            Supplier<@Nullable Profile> profileSupplier,
             ShareSheetDelegate delegate,
             boolean isCustomTab,
             @Nullable DataSharingTabManager dataSharingTabManager) {
@@ -133,7 +136,7 @@ public class ShareDelegateImpl implements ShareDelegate {
                             mLifecycleDispatcher,
                             mTabProvider,
                             mTabModelSelectorProvider,
-                            mProfileSupplier,
+                            assertNonNull(mProfileSupplier.get()),
                             this::printTab,
                             new TabGroupSharingControllerImpl(mDataSharingTabManager),
                             shareOrigin,
@@ -180,22 +183,23 @@ public class ShareDelegateImpl implements ShareDelegate {
 
     // ShareDelegate implementation.
     @Override
-    public void share(Tab currentTab, boolean shareDirectly, @ShareOrigin int shareOrigin) {
+    public void share(
+            @Nullable Tab currentTab, boolean shareDirectly, @ShareOrigin int shareOrigin) {
         mShareStartTime = System.currentTimeMillis();
         onShareSelected(currentTab, shareOrigin, shareDirectly);
     }
 
     /**
-     * Triggered when the share menu item is selected.
-     * This creates and shows a share intent picker dialog or starts a share intent directly.
+     * Triggered when the share menu item is selected. This creates and shows a share intent picker
+     * dialog or starts a share intent directly.
      *
      * @param currentTab The current tab.
      * @param shareOrigin Where the share originated.
      * @param shareDirectly Whether it should share directly with the activity that was most
-     * recently used to share.
+     *     recently used to share.
      */
     private void onShareSelected(
-            Tab currentTab, @ShareOrigin int shareOrigin, boolean shareDirectly) {
+            @Nullable Tab currentTab, @ShareOrigin int shareOrigin, boolean shareDirectly) {
         if (currentTab == null) return;
 
         triggerShare(currentTab, shareOrigin, shareDirectly);
@@ -391,6 +395,11 @@ public class ShareDelegateImpl implements ShareDelegate {
         return !(mIsCustomTab || Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE);
     }
 
+    public static void setShowShareSheetHookForTesting(Callback<Boolean> hook) {
+        sShowShareSheetHookForTesting = hook;
+        ResettersForTesting.register(() -> sShowShareSheetHookForTesting = null);
+    }
+
     /** Delegate for share handling. */
     public static class ShareSheetDelegate {
         /** Trigger the share action for the specified params. */
@@ -401,67 +410,69 @@ public class ShareDelegateImpl implements ShareDelegate {
                 ActivityLifecycleDispatcher lifecycleDispatcher,
                 Supplier<@Nullable Tab> tabProvider,
                 Supplier<TabModelSelector> tabModelSelectorSupplier,
-                Supplier<Profile> profileSupplier,
+                Profile profile,
                 Callback<Tab> printCallback,
                 TabGroupSharingController tabGroupSharingController,
                 @ShareOrigin int shareOrigin,
                 long shareStartTime,
                 boolean sharingHubEnabled) {
-            Profile profile = profileSupplier.get();
-            if (profile == null) {
-                assert false : "Unexpected null profile";
-                return;
-            }
-
             if (chromeShareExtras.shareDirectly()) {
                 ShareHelper.shareWithLastUsedComponent(params);
-            } else if (sharingHubEnabled) {
+                return;
+            }
+            String histogramName =
+                    sharingHubEnabled
+                            ? "Sharing.SharingHubAndroid.Opened"
+                            : "Sharing.DefaultSharesheetAndroid.Opened";
+            RecordHistogram.recordEnumeratedHistogram(
+                    histogramName, shareOrigin, ShareOrigin.COUNT);
+            if (sharingHubEnabled) {
                 // TODO(crbug.com/40132040): Sharing hub is suppressed for tab group sharing.
                 // Re-enable it when tab group sharing is supported by sharing hub.
-                RecordHistogram.recordEnumeratedHistogram(
-                        "Sharing.SharingHubAndroid.Opened", shareOrigin, ShareOrigin.COUNT);
                 ShareHelper.recordShareSource(ShareHelper.ShareSourceAndroid.CHROME_SHARE_SHEET);
-                boolean isIncognito =
-                        tabModelSelectorSupplier.get() != null
-                                && tabModelSelectorSupplier.get().isIncognitoSelected();
-                ShareSheetCoordinator coordinator =
-                        new ShareSheetCoordinator(
-                                controller,
-                                lifecycleDispatcher,
-                                tabProvider,
-                                printCallback,
-                                new LargeIconBridge(profile),
-                                isIncognito,
-                                TrackerFactory.getTrackerForProfile(profile),
-                                profile,
-                                DeviceLockActivityLauncherImpl.get());
-                coordinator.showInitialShareSheet(params, chromeShareExtras, shareStartTime);
-                RecordHistogram.recordEnumeratedHistogram(
-                        "Sharing.SharingHubAndroid.ShareContentType",
-                        getShareContentType(params, chromeShareExtras),
-                        ShareContentType.COUNT);
+                if (sShowShareSheetHookForTesting != null) {
+                    sShowShareSheetHookForTesting.onResult(true);
+                } else {
+                    boolean isIncognito =
+                            tabModelSelectorSupplier.get() != null
+                                    && tabModelSelectorSupplier.get().isIncognitoSelected();
+                    ShareSheetCoordinator coordinator =
+                            new ShareSheetCoordinator(
+                                    controller,
+                                    lifecycleDispatcher,
+                                    tabProvider,
+                                    printCallback,
+                                    new LargeIconBridge(profile),
+                                    isIncognito,
+                                    TrackerFactory.getTrackerForProfile(profile),
+                                    profile,
+                                    DeviceLockActivityLauncherImpl.get());
+                    coordinator.showInitialShareSheet(params, chromeShareExtras, shareStartTime);
+                }
             } else {
-                RecordHistogram.recordEnumeratedHistogram(
-                        "Sharing.DefaultSharesheetAndroid.Opened", shareOrigin, ShareOrigin.COUNT);
                 RecordHistogram.recordEnumeratedHistogram(
                         "Sharing.DefaultSharesheetAndroid.ShareContentType",
                         getShareContentType(params, chromeShareExtras),
                         ShareContentType.COUNT);
-                AndroidShareSheetController.showShareSheet(
-                        params,
-                        chromeShareExtras,
-                        controller,
-                        tabProvider,
-                        tabModelSelectorSupplier,
-                        profileSupplier,
-                        printCallback,
-                        tabGroupSharingController,
-                        DeviceLockActivityLauncherImpl.get());
-                RecordHistogram.recordEnumeratedHistogram(
-                        "Sharing.SharingHubAndroid.ShareContentType",
-                        getShareContentType(params, chromeShareExtras),
-                        ShareContentType.COUNT);
+                if (sShowShareSheetHookForTesting != null) {
+                    sShowShareSheetHookForTesting.onResult(false);
+                } else {
+                    AndroidShareSheetController.showShareSheet(
+                            params,
+                            chromeShareExtras,
+                            controller,
+                            tabProvider,
+                            tabModelSelectorSupplier,
+                            profile,
+                            printCallback,
+                            tabGroupSharingController,
+                            DeviceLockActivityLauncherImpl.get());
+                }
             }
+            RecordHistogram.recordEnumeratedHistogram(
+                    "Sharing.SharingHubAndroid.ShareContentType",
+                    getShareContentType(params, chromeShareExtras),
+                    ShareContentType.COUNT);
         }
     }
 

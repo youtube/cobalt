@@ -53,6 +53,10 @@ using ScrollThread = cc::InputHandler::ScrollThread;
 
 namespace blink {
 namespace {
+// TODO(crbug.com/355578906): Assume 20px buffer for now. The main thread
+// counterpart is AdjustPointerEvent (see kStylusWritableAdjustmentSizeDip). The
+// buffer math on the main and cc thread(s) need to match.
+constexpr unsigned int kStylusWritingHitTestRadius = 20;
 
 using ::perfetto::protos::pbzero::ChromeLatencyInfo2;
 using ::perfetto::protos::pbzero::TrackEvent;
@@ -237,7 +241,9 @@ bool ShouldNotDispatchLateInputEvent(
   // There is just potentially increased latency for the remainder of the
   // scroll.
   if (mode != cc::InputHandlerClient::ScrollEventDispatchMode::
-                  kDispatchScrollEventsUntilDeadline) {
+                  kDispatchScrollEventsUntilDeadline &&
+      mode != cc::InputHandlerClient::ScrollEventDispatchMode::
+                  kUseScrollPredictorForDeadline) {
     return false;
   }
   auto frame_time_delta = tick_clock->NowTicks() - args.frame_time;
@@ -654,7 +660,7 @@ void InputHandlerProxy::GenerateAndDispatchSytheticScrollPrediction(
   // so far apart that we cannot reliably create predictions. When that occurs
   // we do not create any synthetic events.
   if (!currently_active_gesture_device_.has_value() || !scroll_predictor_ ||
-      !scroll_predictor_->HasPrediction() ||
+      !scroll_predictor_->HasPrediction(args.frame_time) ||
       scroll_begin_main_thread_hit_test_reasons_) {
     return;
   }
@@ -1310,6 +1316,16 @@ InputHandlerProxy::EventDisposition InputHandlerProxy::HitTestTouchEvent(
                static_cast<bool>(allowed_touch_action));
   *is_touching_scrolling_layer = false;
   EventDisposition result = DROP_EVENT;
+
+  // Note that the radius is mostly relevant in stylus handwriting scenarios.
+  // For actions like swipe, we use the center point of the touch and ignore
+  // nearby scrollers.
+  const unsigned int hit_test_radius =
+      (touch_event.touches_length == 1 &&
+       (touch_event.touches[0].pointer_type ==
+        WebPointerProperties::PointerType::kPen))
+          ? kStylusWritingHitTestRadius
+          : 0;
   for (size_t i = 0; i < touch_event.touches_length; ++i) {
     if (touch_event.touch_start_or_first_touch_move)
       DCHECK(allowed_touch_action);
@@ -1322,11 +1338,18 @@ InputHandlerProxy::EventDisposition InputHandlerProxy::HitTestTouchEvent(
     }
 
     cc::TouchAction touch_action = cc::TouchAction::kAuto;
+    const gfx::Point point(touch_event.touches[i].PositionInWidget().x(),
+                           touch_event.touches[i].PositionInWidget().y());
+    // TODO(crbug.com/355578906): This is just some rough math for now. The main
+    // thread counterpart is AdjustPointerEvent. The buffer math on the main and
+    // cc thread(s) need to match.
+    const gfx::Rect viewport_touch_rect(
+        point.x() - hit_test_radius, point.y() - hit_test_radius,
+        std::max(unsigned(1), hit_test_radius * 2),
+        std::max(unsigned(1), hit_test_radius * 2));
     cc::InputHandler::TouchStartOrMoveEventListenerType event_listener_type =
         input_handler_->EventListenerTypeForTouchStartOrMoveAt(
-            gfx::Point(touch_event.touches[i].PositionInWidget().x(),
-                       touch_event.touches[i].PositionInWidget().y()),
-            &touch_action);
+            viewport_touch_rect, &touch_action);
     if (allowed_touch_action && touch_action != cc::TouchAction::kAuto) {
       TRACE_EVENT_INSTANT1("input", "Adding TouchAction",
                            TRACE_EVENT_SCOPE_THREAD, "TouchAction",
@@ -1596,12 +1619,28 @@ void InputHandlerProxy::UpdateRootLayerStateForSynchronousInputHandler(
 
 void InputHandlerProxy::DeliverInputForBeginFrame(
     const viz::BeginFrameArgs& args) {
+  if (scroll_event_dispatch_mode_ ==
+      cc::InputHandlerClient::ScrollEventDispatchMode::
+          kUseScrollPredictorForDeadline) {
+    deadline_timer_.Stop();
+
+    // Assume that the scheduler might delay the task execution by ~25%.
+    const float slack_coefficient = 0.25;
+    auto deadline = args.frame_time + args.interval * scroll_deadline_ratio_ *
+                                          (1 - slack_coefficient);
+
+    deadline_timer_.Start(
+        FROM_HERE, deadline,
+        base::BindOnce(&InputHandlerProxy::DeliverInputForDeadline,
+                       base::Unretained(this)),
+        base::subtle::DelayPolicy::kPrecise);
+  }
   current_begin_frame_args_ = args;
   enqueue_scroll_events_ = !compositor_event_queue_->empty();
   // TODO(jonross): This occurs for more than just `BeginFrameArgs::MISSED`.
   // We likely need to cap the number of consecutive times duing which this
-  // occurs. As we could have a slow device that just consistently starts frame
-  // production after the deadline.
+  // occurs. As we could have a slow device that just consistently starts
+  // frame production after the deadline.
   if (enqueue_scroll_events_ &&
       args.type == viz::BeginFrameArgs::BeginFrameArgsType::MISSED &&
       ShouldNotDispatchLateInputEvent(scroll_event_dispatch_mode_,
@@ -1623,8 +1662,9 @@ void InputHandlerProxy::DeliverInputForBeginFrame(
     enqueue_scroll_events_ = true;
   }
 
-  if (!scroll_predictor_)
+  if (!scroll_predictor_) {
     DispatchQueuedInputEvents(true /* frame_aligned */);
+  }
 
   // Resampling GSUs and dispatch queued input events.
   while (HasQueuedEventsReadyForDispatch(true /* frame_aligned */)) {
@@ -1647,7 +1687,15 @@ void InputHandlerProxy::DeliverInputForHighLatencyMode() {
 }
 
 void InputHandlerProxy::DeliverInputForDeadline() {
-  if (scroll_event_dispatch_mode_ !=
+  if (last_deadline_call_for_frame_id_ == current_begin_frame_args_.frame_id) {
+    return;
+  }
+  last_deadline_call_for_frame_id_ = current_begin_frame_args_.frame_id;
+
+  if (ShouldNotDispatchLateInputEvent(scroll_event_dispatch_mode_,
+                                      scroll_deadline_ratio_,
+                                      current_begin_frame_args_, tick_clock_) ||
+      scroll_event_dispatch_mode_ !=
           cc::InputHandlerClient::ScrollEventDispatchMode::
               kUseScrollPredictorForDeadline ||
       enqueue_scroll_events_) {

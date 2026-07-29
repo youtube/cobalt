@@ -27,6 +27,7 @@
 #include "components/language_detection/core/browser/language_detection_model_provider.h"
 #include "content/browser/ai/echo_ai_manager_impl.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
+#include "content/browser/webauth/default_authenticator_request_client_delegate.h"
 #include "content/public/browser/anchor_element_preconnect_delegate.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_main_parts.h"
@@ -259,13 +260,6 @@ void ContentBrowserClient::OverrideURLLoaderFactoryParams(
     bool is_for_isolated_world,
     bool is_for_service_worker,
     network::mojom::URLLoaderFactoryParams* factory_params) {}
-
-// Returns true if the given URL is in any of the NavigationEntries for the
-// given |browser_context|. This is used to determine if a URL is already
-// in the navigation history of any of the tabs in a given browser context.
-bool ContentBrowserClient::IsURLAccessibleByHistoryNavigation(const GURL& url) {
-  return false;
-}
 
 void ContentBrowserClient::GetAdditionalViewSourceSchemes(
     std::vector<std::string>* additional_schemes) {
@@ -1063,10 +1057,6 @@ std::wstring ContentBrowserClient::GetLPACCapabilityNameForNetworkService() {
   return std::wstring(L"lpacContentNetworkService");
 }
 
-bool ContentBrowserClient::IsRendererCodeIntegrityEnabled() {
-  return false;
-}
-
 bool ContentBrowserClient::ShouldEnableAudioProcessHighPriority() {
   // TODO(crbug.com/40242320): Delete this method when the
   // kAudioProcessHighPriorityEnabled enterprise policy is deprecated.
@@ -1324,7 +1314,7 @@ ContentBrowserClient::GetWebAuthenticationDelegate() {
 std::unique_ptr<AuthenticatorRequestClientDelegate>
 ContentBrowserClient::GetWebAuthenticationRequestDelegate(
     RenderFrameHost* render_frame_host) {
-  return std::make_unique<AuthenticatorRequestClientDelegate>();
+  return std::make_unique<DefaultAuthenticatorRequestClientDelegate>();
 }
 #endif
 

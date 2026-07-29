@@ -903,7 +903,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Session.TotalDurationMax1Day.{HistorySyncState}" units="ms"
-    expires_after="2026-01-11">
+    expires_after="2026-03-15">
   <owner>mastiz@chromium.org</owner>
   <owner>msarda@chromium.org</owner>
   <owner>treib@chromium.org</owner>
@@ -947,7 +947,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Session.TotalDurationMax1Day.{MsbbState}" units="ms"
-    expires_after="2026-01-11">
+    expires_after="2026-03-15">
   <owner>mastiz@chromium.org</owner>
   <owner>msarda@chromium.org</owner>
   <owner>treib@chromium.org</owner>
@@ -1072,7 +1072,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Session.WebStates.SavingTimeOnMainThread" units="ms"
-    expires_after="2026-01-11">
+    expires_after="2026-03-15">
   <owner>fedegermi@google.com</owner>
   <owner>sdefresne@chromium.org</owner>
   <summary>
@@ -1193,6 +1193,37 @@ chromium-metrics-reviews@google.com.
     <variant name=".16to31Tabs" summary="16 to 31 tabs present"/>
     <variant name=".32PlusTabs" summary="32 or more tabs present"/>
   </token>
+</histogram>
+
+<histogram name="SessionRestore.InfoBar.TurnOffFromRestart"
+    enum="SessionRestoreInfoBarAction" expires_after="2026-09-01">
+  <owner>musalmaan@chromium.org</owner>
+  <owner>koretadaniel@chromium.org</owner>
+  <summary>
+    Records user interaction with the session restore infobar when it is shown
+    to inform the user about turning off session restore from browser restart.
+  </summary>
+</histogram>
+
+<histogram name="SessionRestore.InfoBar.TurnOffFromSession"
+    enum="SessionRestoreInfoBarAction" expires_after="2026-09-01">
+  <owner>musalmaan@chromium.org</owner>
+  <owner>koretadaniel@chromium.org</owner>
+  <summary>
+    Records user interaction with the session restore infobar when it is shown
+    to inform the user about turning off session restore from a restored
+    session.
+  </summary>
+</histogram>
+
+<histogram name="SessionRestore.InfoBar.TurnOnSessionRestore"
+    enum="SessionRestoreInfoBarAction" expires_after="2026-09-01">
+  <owner>musalmaan@chromium.org</owner>
+  <owner>koretadaniel@chromium.org</owner>
+  <summary>
+    Records user interaction with the session restore infobar when it is shown
+    to inform the user about turning on session restore.
+  </summary>
 </histogram>
 
 <histogram name="SessionRestore.PageStateOldVersions" units="version"

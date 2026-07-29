@@ -450,6 +450,9 @@ Google Chromeএ আপোনাৰ ছেটিংসমূহ পুনৰু�
 <translation id="6180522807229584611">এই টেবটোৱে অতিৰিক্ত সম্পদ ব্যৱহাৰ কৰি আছে। আপোনাৰ কাৰ্যদক্ষতা উন্নত কৰিবলৈ Chromeক এইটো নিষ্ক্ৰিয় কৰিবলৈ দিয়ক।</translation>
 <translation id="6182736845697986886">আপডে’ট ছাৰ্ভাৰৰ অভ্যন্তৰীণ আসোঁৱাহৰ বাবে ইনষ্টলেশ্বন কৰিব পৰা নগ’ল।</translation>
 <translation id="6192058120268468905">Chromeত আপোনাৰ একাউণ্ট</translation>
+<translation id="6220551899604141979"><ph name="PARTNER_NAME" />এ এটা এক্সটেনশ্বন যোগ দিছে, যিটোৱে Chromeৰ কাৰ্যপ্ৰণালী সলনি কৰিব পাৰে।
+
+<ph name="EXTENSION_NAME" /></translation>
 <translation id="6235018212288296708">mDNS ট্ৰেফিকক অনুমতি দিবলৈ Google Chromeৰ অন্তৰ্গামী নিয়ম</translation>
 <translation id="624230925347970731">Chrome শীঘ্ৰেই বন্ধ হ’ব</translation>
 <translation id="6247557882553405851">Google পাছৱৰ্ড পৰিচালক</translation>
@@ -478,6 +481,7 @@ Google Chromeএ আপোনাৰ ছেটিংসমূহ পুনৰু�
 <translation id="6506909944137591434">আপোনাৰ ওচৰ-পাজৰৰ ঠাইসমূহৰ এখন 3D মেপ সৃষ্টি কৰিবলৈ Chromeক কেমেৰাৰ অনুমতিৰ আৱশ্যক</translation>
 <translation id="6515495397637126556"><ph name="PAGE_TITLE" /> - Google Chrome Dev</translation>
 <translation id="6520670145826811516">আপোনাৰ অৱস্থান ব্যৱহাৰ কৰিবলৈ, <ph name="BEGIN_LINK" />ছিষ্টেমৰ ছেটিঙ<ph name="END_LINK" />ত Chromeক এক্সেছ দিয়ক</translation>
+<translation id="652948702951888897">Chromeৰ ইতিহাস</translation>
 <translation id="6532945796722480006">Chrome কেনেৰীত Gemini খোলক</translation>
 <translation id="6585124893636629274">Chromeত Gemini বন্ধ কৰক</translation>
 <translation id="659498884637196217">এই ডিভাইচটোত Google পাছৱৰ্ড পৰিচালকত</translation>
@@ -563,7 +567,7 @@ Google Chromeএ আপোনাৰ ছেটিংসমূহ পুনৰু�
 <translation id="7572537927358445944">অফ আছে • এই এক্সটেনশ্বনটো ক’ৰ পৰা আহিছে সেয়া Chromeএ সত্যাপন কৰিব নোৱাৰে</translation>
 <translation id="7583399374488819119"><ph name="COMPANY_NAME" /> ইনষ্টলাৰ</translation>
 <translation id="7602868996817972616">Googleক এই পৃষ্ঠাখনৰ বিষয়ে সোধক</translation>
-<translation id="760353356052806707">আপোনাৰ কম্পিউটাৰৰ অন্য কোনো প্ৰ’গ্ৰেমে এটা এপ্‌ যোগ কৰিছে যিয়ে Chromeৰ কাৰ্যপ্ৰণালী সলনি কৰিব পাৰে।
+<translation id="760353356052806707">আপোনাৰ কম্পিউটাৰৰ অন্য কোনো প্ৰ’গ্ৰামে এটা এপ্‌ যোগ কৰিছে যিয়ে Chromeৰ কাৰ্যপ্ৰণালী সলনি কৰিব পাৰে।
 
 <ph name="EXTENSION_NAME" /></translation>
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>

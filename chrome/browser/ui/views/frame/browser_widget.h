@@ -40,7 +40,6 @@ class MenuModel;
 namespace views {
 class Label;
 class MenuRunner;
-class NonClientFrameView;
 class View;
 }  // namespace views
 
@@ -80,16 +79,6 @@ class BrowserWidget : public views::Widget,
   // left edge of the window. Used in our Non-Client View's Layout.
   int GetMinimizeButtonOffset() const;
 
-  // Retrieves the bounds in non-client view coordinates for the
-  // TabStripRegionView that contains the TabStrip view.
-  gfx::Rect GetBoundsForTabStripRegion(
-      const gfx::Size& tabstrip_minimum_size) const;
-
-  // Retrieves the maximum bounds in non-client view coordinates for the
-  // WebAppFrameToolbarView that contains Web App controls.
-  gfx::Rect GetBoundsForWebAppFrameToolbar(
-      const gfx::Size& toolbar_preferred_size) const;
-
   // Lays out the window title for a web app within the given available space.
   // Unlike the above GetBounds methods this is not just a method to return the
   // bounds the title should occupy, since different implementations might also
@@ -106,7 +95,7 @@ class BrowserWidget : public views::Widget,
   // Tells the frame to update the throbber.
   void UpdateThrobber(bool running);
 
-  // Returns the NonClientFrameView of this frame.
+  // Returns the FrameView of this frame.
   BrowserFrameView* GetFrameView() const;
 
   // Returns |true| if we should use the custom frame.
@@ -140,8 +129,7 @@ class BrowserWidget : public views::Widget,
 
   // views::Widget:
   views::internal::RootView* CreateRootView() override;
-  std::unique_ptr<views::NonClientFrameView> CreateNonClientFrameView()
-      override;
+  std::unique_ptr<views::FrameView> CreateFrameView() override;
   bool GetAccelerator(int command_id,
                       ui::Accelerator* accelerator) const override;
   const ui::ThemeProvider* GetThemeProvider() const override;
@@ -201,7 +189,7 @@ class BrowserWidget : public views::Widget,
   // functions that only exist on BrowserRootView (versus RootView).
   raw_ptr<BrowserRootView> root_view_;
 
-  // A pointer to our NonClientFrameView as a BrowserFrameView.
+  // A pointer to our FrameView as a BrowserFrameView.
   raw_ptr<BrowserFrameView> browser_frame_view_;
 
   // The BrowserView is our ClientView. This is a pointer to it.

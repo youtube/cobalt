@@ -332,27 +332,7 @@ GpuServiceImpl::~GpuServiceImpl() {
   compositor_gpu_thread_.reset();
   media_gpu_channel_manager_.reset();
   gpu_channel_manager_.reset();
-
-  // Destroy |gpu_memory_buffer_factory_| on the IO thread since its weakptrs
-  // are checked there.
-  {
-    base::WaitableEvent wait;
-    auto destroy_gmb_factory = base::BindOnce(
-        [](std::unique_ptr<gpu::GpuMemoryBufferFactory> gmb_factory,
-           base::WaitableEvent* wait) {
-          gmb_factory.reset();
-          wait->Signal();
-        },
-        std::move(gpu_memory_buffer_factory_), base::Unretained(&wait));
-
-    if (io_runner_ &&
-        io_runner_->PostTask(FROM_HERE, std::move(destroy_gmb_factory))) {
-      // |gpu_memory_buffer_factory_| holds a raw pointer to
-      // |vulkan_context_provider_|. Waiting here enforces the correct order
-      // of destruction.
-      wait.Wait();
-    }
-  }
+  gpu_memory_buffer_factory_.reset();
 
   // WebNN must be destroyed before the scheduler is destroyed.
   webnn_context_provider_.reset();
@@ -519,8 +499,7 @@ void GpuServiceImpl::InitializeWithHostInternal(
   // initialization has succeeded.
   gpu_channel_manager_ = std::make_unique<gpu::GpuChannelManager>(
       gpu_preferences_, this, watchdog_thread_.get(), main_runner_, io_runner_,
-      scheduler_, sync_point_manager, shared_image_manager,
-      gpu_memory_buffer_factory_.get(), gpu_feature_info_,
+      scheduler_, sync_point_manager, shared_image_manager, gpu_feature_info_,
       &use_shader_cache_shm_count_, std::move(default_offscreen_surface),
       image_decode_accelerator_worker_.get(), vulkan_context_provider(),
       metal_context_provider(), dawn_context_provider(),
@@ -921,8 +900,8 @@ void GpuServiceImpl::EstablishGpuChannel(int32_t client_id,
 
   auto channel_token = base::UnguessableToken::Create();
   gpu::GpuChannel* gpu_channel = gpu_channel_manager_->EstablishChannel(
-      channel_token, client_id, client_tracing_id, is_gpu_host, gpu_extra_info_,
-      gpu_memory_buffer_factory_.get());
+      channel_token, client_id, client_tracing_id, is_gpu_host,
+      gpu_extra_info_);
 
   if (!gpu_channel) {
     // This returns a null handle, which is treated by the client as a failure
@@ -1343,7 +1322,7 @@ gpu::SharedImageManager* GpuServiceImpl::CreateSharedImageManager(
   bool thread_safe_manager = true;
   owned_shared_image_manager_ = std::make_unique<gpu::SharedImageManager>(
       thread_safe_manager, display_context_on_another_thread,
-      gpu_memory_buffer_factory());
+      gpu_memory_buffer_factory_.get());
 #if BUILDFLAG(IS_OZONE)
   owned_shared_image_manager_->SetSupportsOverlays(supports_overlays);
 #endif

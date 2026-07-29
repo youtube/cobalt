@@ -373,6 +373,11 @@ void BubbleFrameView::UpdateWindowIcon() {
 void BubbleFrameView::UpdateWindowTitle() {
   if (default_title_) {
     const WidgetDelegate* delegate = GetWidget()->widget_delegate();
+    // TODO(crbug.com/445859201): investigate which widget's delegate is null.
+    // This seems to happen on ChromeOS on a scheduled change of color mode.
+    if (!delegate) {
+      return;
+    }
     default_title_->SetVisible(delegate->ShouldShowWindowTitle() &&
                                !delegate->GetWindowTitle().empty());
     default_title_->SetText(delegate->GetWindowTitle());
@@ -667,11 +672,11 @@ void BubbleFrameView::Layout(PassKey) {
   }
 
   // Lay out the client view.
-  LayoutSuperclass<NonClientFrameView>(this);
+  LayoutSuperclass<FrameView>(this);
 }
 
 void BubbleFrameView::OnThemeChanged() {
-  NonClientFrameView::OnThemeChanged();
+  FrameView::OnThemeChanged();
   UpdateWindowTitle();
   UpdateSubtitle();
   ResetWindowControls();
@@ -706,7 +711,7 @@ void BubbleFrameView::ViewHierarchyChanged(
 }
 
 void BubbleFrameView::VisibilityChanged(View* starting_from, bool is_visible) {
-  NonClientFrameView::VisibilityChanged(starting_from, is_visible);
+  FrameView::VisibilityChanged(starting_from, is_visible);
   input_protector_.VisibilityChanged(is_visible);
 }
 
@@ -716,7 +721,7 @@ void BubbleFrameView::OnPaint(gfx::Canvas* canvas) {
 }
 
 void BubbleFrameView::PaintChildren(const PaintInfo& paint_info) {
-  NonClientFrameView::PaintChildren(paint_info);
+  FrameView::PaintChildren(paint_info);
 
   ui::PaintCache paint_cache;
   ui::PaintRecorder recorder(

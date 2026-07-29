@@ -160,6 +160,12 @@ AX_BASE_EXPORT BASE_DECLARE_FEATURE(kAccessibilityOnScreenMode);
 AX_BASE_EXPORT bool IsAccessibilityOnScreenAXModeEnabled();
 
 #if BUILDFLAG(IS_WIN)
+// This is a killswitch. Controls whether
+// HWNDMessageHandler::GetParentOfAXFragmentRoot returns nullptr (legacy) or
+// delegates to GetParentNativeViewAccessible().
+AX_BASE_EXPORT BASE_DECLARE_FEATURE(kAccessibilityWinAXFragmentRootParent);
+AX_BASE_EXPORT bool IsAccessibilityWinAXFragmentRootParentEnabled();
+
 // When enabled, modify the exposed UIA accessibility tree to match Narrator's
 // expectations. This fixes a bug keeping Narrator's cursor contained within
 // the web content.
@@ -280,6 +286,12 @@ AX_BASE_EXPORT bool IsAccessibilityManifestV3EnabledForSwitchAccess();
 AX_BASE_EXPORT BASE_DECLARE_FEATURE(kAccessibilityInlineLineSeparators);
 AX_BASE_EXPORT bool IsAccessibilityInlineLineSeparatorsEnabled();
 
+// Propagate bounding rectangles of input events to the Android platform to
+// allow Magnification to follow them
+AX_BASE_EXPORT BASE_DECLARE_FEATURE(
+    kAccessibilityMagnificationFollowsInputFocus);
+AX_BASE_EXPORT bool IsAccessibilityMagnificationFollowsInputFocusEnabled();
+
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -387,6 +399,11 @@ AX_BASE_EXPORT bool IsWasmTtsComponentUpdaterV3Enabled();
 AX_BASE_EXPORT BASE_DECLARE_FEATURE(kWasmTtsEngineAutoInstallDisabled);
 AX_BASE_EXPORT bool IsWasmTtsEngineAutoInstallDisabled();
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+
+// Killswitch: use per-child copy of point during Views hit testing (prevents
+// coordinate corruption). Enabled by default.
+AX_BASE_EXPORT BASE_DECLARE_FEATURE(kAccessibilityHitTestPointCopy);
+AX_BASE_EXPORT bool IsAccessibilityHitTestPointCopyEnabled();
 
 }  // namespace features
 

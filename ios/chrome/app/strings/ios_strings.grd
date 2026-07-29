@@ -2880,6 +2880,39 @@ See your search engine’s instructions for deleting your search history, if app
       <message name="IDS_IOS_HOME_CUSTOMIZATION_ACCESSIBILITY_LABEL" desc="Accessibility label for the Home Customization menu in the new tab page.">
         Customize your home screen
       </message>
+      <message name="IDS_IOS_HOME_CUSTOMIZATION_BACKGROUND_ACCESSIBILITY_VALUE" desc="Accessibility value read by Voice-over, indicating the background position.">
+        background {position} of {total}
+      </message>
+      <message name="IDS_IOS_HOME_CUSTOMIZATION_BACKGROUND_COLOR_AQUA_ACCESSIBILITY_LABEL" desc="Accessibility label for the 'Aqua' color theme.">
+        Aqua theme
+      </message>
+      <message name="IDS_IOS_HOME_CUSTOMIZATION_BACKGROUND_COLOR_BLUE_ACCESSIBILITY_LABEL" desc="Accessibility label for the 'Blue' color theme.">
+        Blue theme
+      </message>
+      <message name="IDS_IOS_HOME_CUSTOMIZATION_BACKGROUND_COLOR_CITRON_ACCESSIBILITY_LABEL" desc="Accessibility label for the 'Citron' color theme.">
+        Citron theme
+      </message>
+      <message name="IDS_IOS_HOME_CUSTOMIZATION_BACKGROUND_COLOR_DEFAULT_ACCESSIBILITY_LABEL" desc="Accessibility label for the 'Default' color theme.">
+        Default theme
+      </message>
+       <message name="IDS_IOS_HOME_CUSTOMIZATION_BACKGROUND_COLOR_FUCHSIA_ACCESSIBILITY_LABEL" desc="Accessibility label for the 'Fuchsia' color theme.">
+        Fuchsia theme
+      </message>
+      <message name="IDS_IOS_HOME_CUSTOMIZATION_BACKGROUND_COLOR_GREEN_ACCESSIBILITY_LABEL" desc="Accessibility label for the 'Green' color theme.">
+        Green theme
+      </message>
+      <message name="IDS_IOS_HOME_CUSTOMIZATION_BACKGROUND_COLOR_ORANGE_ACCESSIBILITY_LABEL" desc="Accessibility label for the 'Orange' color theme.">
+        Orange theme
+      </message>
+      <message name="IDS_IOS_HOME_CUSTOMIZATION_BACKGROUND_COLOR_ROSE_ACCESSIBILITY_LABEL" desc="Accessibility label for the 'Rose' color theme.">
+        Rose theme
+      </message>
+      <message name="IDS_IOS_HOME_CUSTOMIZATION_BACKGROUND_COLOR_VIOLET_ACCESSIBILITY_LABEL" desc="Accessibility label for the 'Violet' color theme.">
+        Violet theme
+      </message>
+      <message name="IDS_IOS_HOME_CUSTOMIZATION_BACKGROUND_COLOR_VIRIDIAN_ACCESSIBILITY_LABEL" desc="Accessibility label for the 'Viridian' color theme.">
+        Viridian theme
+      </message>
       <message name="IDS_IOS_HOME_CUSTOMIZATION_BACKGROUND_FRAMING_VIEW_CANCEL_BUTTON_LABEL" desc="Label for the cancel button to exit the background customization framing view.">
         Cancel
       </message>
@@ -2889,14 +2922,17 @@ See your search engine’s instructions for deleting your search history, if app
       <message name="IDS_IOS_HOME_CUSTOMIZATION_BACKGROUND_FRAMING_VIEW_SAVE_BUTTON_LABEL" desc="Label for the save button in the framing view that saves the selected framing configuration for the image.">
         Save
       </message>
+      <message name="IDS_IOS_HOME_CUSTOMIZATION_BACKGROUND_PICKER_ACCESSIBILITY_LABEL" desc="Accessibility label for the background picker.">
+        Action button
+      </message>
       <message name="IDS_IOS_HOME_CUSTOMIZATION_BACKGROUND_PICKER_COLOR_TITLE" desc="Title of an option in the background customization action sheet that allows the user to pick a solid background color.">
-        Select Color
+        Colors
       </message>
       <message name="IDS_IOS_HOME_CUSTOMIZATION_BACKGROUND_PICKER_PHOTO_LIBRARY_TITLE" desc="Title of an option in the background customization action sheet that allows the user to pick an image from their camera roll.">
         Camera Roll
       </message>
       <message name="IDS_IOS_HOME_CUSTOMIZATION_BACKGROUND_PICKER_PRESET_GALLERY_TITLE" desc="Title of an option in the background customization action sheet that opens a preset background gallery.">
-        Browse Gallery
+        Themes
       </message>
       <message name="IDS_IOS_HOME_CUSTOMIZATION_CONTEXT_MENU_DELETE_RECENT_BACKGROUND_TITLE" desc="Title of the context menu option to delete a background from the recently used list in background customization.">
         Delete Background

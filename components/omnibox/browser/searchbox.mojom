@@ -81,6 +81,18 @@ struct AutocompleteMatch {
   mojo_base.mojom.String16? tail_suggest_common_prefix;
 };
 
+// Information about a suggested tab in the WebUI.
+struct TabInfo {
+  // The unique identifier of the tab.
+  int32 tab_id;
+  // The title of the tab.
+  string title;
+  // The URL of the tab.
+  url.mojom.Url url;
+  // The time the tab was last active.
+  mojo_base.mojom.TimeTicks last_active;
+};
+
 // Indicates whether a suggestion group is in the primary or the secondary
 // column of suggestions. See //third_party/omnibox_proto/groups.proto.
 enum SideType {
@@ -122,6 +134,14 @@ struct OmniboxPopupSelection {
   uint8 line;
   SelectionLineState state;
   uint8 action_index;
+};
+
+// Configuration for the cycling placeholder texts that appear on the searchbox
+// UI.
+struct PlaceholderConfig {
+  array<mojo_base.mojom.String16> texts;
+  mojo_base.mojom.TimeDelta change_text_animation_interval;
+  mojo_base.mojom.TimeDelta fade_text_animation_duration;
 };
 
 // Browser-side handler for requests from WebUI page. The web pages that embed
@@ -186,6 +206,13 @@ interface PageHandler {
 
   // Notifies browser that thumbnail has been removed.
   OnThumbnailRemoved();
+
+  // Returns configuration data leveraged when displaying cycling placeholder
+  // texts on the searchbox UI.
+  GetPlaceholderConfig() => (PlaceholderConfig config);
+
+  // Returns information about recent tabs.
+  GetRecentTabs() => (array<TabInfo> tabs);
 };
 
 // WebUI-side handler for requests from the browser.

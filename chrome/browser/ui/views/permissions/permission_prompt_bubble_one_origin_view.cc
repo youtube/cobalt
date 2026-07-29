@@ -7,7 +7,6 @@
 #include <memory>
 
 #include "base/containers/contains.h"
-#include "base/feature_list.h"
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/string_number_conversions.h"
@@ -274,10 +273,6 @@ void PermissionPromptBubbleOneOriginView::MaybeAddMediaPreview(
     return;
   }
 
-  if (!base::FeatureList::IsEnabled(blink::features::kCameraMicPreview)) {
-    return;
-  }
-
   auto* cached_device_info = media_effects::MediaDeviceInfo::GetInstance();
   devices_observer_.Observe(cached_device_info);
   if (camera_permission_label_ || ptz_camera_permission_label_) {
@@ -291,7 +286,7 @@ void PermissionPromptBubbleOneOriginView::MaybeAddMediaPreview(
 
   media_previews_.emplace(browser(), this, index,
                           requested_audio_capture_device_ids,
-                          requested_video_capture_device_ids, delegate());
+                          requested_video_capture_device_ids);
 #endif
 }
 

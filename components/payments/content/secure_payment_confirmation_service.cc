@@ -44,10 +44,13 @@ SecurePaymentConfirmationService::SecurePaymentConfirmationService(
     content::RenderFrameHost& render_frame_host,
     mojo::PendingReceiver<mojom::SecurePaymentConfirmationService> receiver,
     scoped_refptr<WebPaymentsWebDataService> web_data_service,
-    std::unique_ptr<webauthn::InternalAuthenticator> authenticator)
+    std::unique_ptr<webauthn::InternalAuthenticator> authenticator,
+    std::string browser_bound_key_store_keychain_access_group)
     : DocumentService(render_frame_host, std::move(receiver)),
       web_data_service_(web_data_service),
-      authenticator_(std::move(authenticator)) {}
+      authenticator_(std::move(authenticator)),
+      browser_bound_key_store_keychain_access_group_(
+          std::move(browser_bound_key_store_keychain_access_group)) {}
 
 SecurePaymentConfirmationService::~SecurePaymentConfirmationService() {
   Reset();
@@ -132,7 +135,9 @@ void SecurePaymentConfirmationService::StorePaymentCredential(
       web_data_service_->AddSecurePaymentConfirmationCredential(
           std::make_unique<SecurePaymentConfirmationCredential>(credential_id,
                                                                 rp_id, user_id),
-          /*consumer=*/this);
+          base::BindOnce(
+              &SecurePaymentConfirmationService::OnStorePaymentCredential,
+              weak_ptr_factory_.GetWeakPtr()));
 }
 
 void SecurePaymentConfirmationService::MakePaymentCredential(
@@ -147,7 +152,12 @@ void SecurePaymentConfirmationService::MakePaymentCredential(
     relying_party_id = options->relying_party.id;
     if (!passkey_browser_binder_) {
       if (scoped_refptr<BrowserBoundKeyStore> key_store =
-              GetBrowserBoundKeyStoreInstance()) {
+              GetBrowserBoundKeyStoreInstance(BrowserBoundKeyStore::Config {
+#if BUILDFLAG(IS_MAC)
+                .keychain_access_group =
+                    browser_bound_key_store_keychain_access_group_;
+#endif  // BUILDFLAG(IS_MAC)
+              })) {
         passkey_browser_binder_ = std::make_unique<PasskeyBrowserBinder>(
             key_store, web_data_service_);
       }
@@ -188,7 +198,7 @@ void SecurePaymentConfirmationService::SetPasskeyBrowserBinderForTesting(
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
-void SecurePaymentConfirmationService::OnWebDataServiceRequestDone(
+void SecurePaymentConfirmationService::OnStorePaymentCredential(
     WebDataServiceBase::Handle h,
     std::unique_ptr<WDTypedResult> result) {
   if (state_ != State::kStoringCredential || !IsCurrentStateValid() ||

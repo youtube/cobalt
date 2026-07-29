@@ -361,6 +361,11 @@ BASE_FEATURE(kEarlyEstablishGpuChannel, base::FEATURE_DISABLED_BY_DEFAULT);
 // Enables canvas 2d methods BeginLayer and EndLayer.
 BASE_FEATURE(kEnableCanvas2DLayers, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Enables javaless renderers.
+BASE_FEATURE(kEnableJavalessRenderers,
+             "JavalessRenderers",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables service workers on chrome-untrusted:// urls.
 BASE_FEATURE(kEnableServiceWorkersForChromeUntrusted,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -423,6 +428,8 @@ BASE_FEATURE(kFencedFramesEnforceFocus, base::FEATURE_DISABLED_BY_DEFAULT);
 // however this might not be true on WebView, see crbug.com/378779896 for more
 // details.
 #if BUILDFLAG(IS_ANDROID)
+// Enable AL device fluid resize.
+BASE_FEATURE(kFluidResize, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kFocusRenderWidgetHostViewAndroidOnActionDown,
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
@@ -758,7 +765,7 @@ BASE_FEATURE(kReduceSubresourceResponseStartedIPC,
 // - If `kRegionCaptureOfOtherTabs` is enabled, the Web application  can crop
 // video-captures of any tab (so long as that other tab collaborates by sending
 // a CropTarget).
-BASE_FEATURE(kRegionCaptureOfOtherTabs, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kRegionCaptureOfOtherTabs, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 
 // RenderDocument:
@@ -907,7 +914,7 @@ BASE_FEATURE(kServiceWorkerPaymentApps, base::FEATURE_ENABLED_BY_DEFAULT);
 // from the thread pool without waiting for running the receiving task. Please
 // see crbug.com/421530699 for more details.
 BASE_FEATURE(kServiceWorkerBackgroundUpdateForRegisteredStorageKeys,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // http://tc39.github.io/ecmascript_sharedmem/shmem.html
 // This feature is also enabled independently of this flag for cross-origin
@@ -1315,13 +1322,10 @@ BASE_FEATURE(kKeyboardLockApiOnAndroid, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
 
 // Sets IO threads to kInteractive all the time.
-BASE_FEATURE(kIOThreadInteractiveThreadType,
-             "IOThreadInteractiveThreadType",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kIOThreadInteractiveThreadType, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Boosts IO threads and Browser main to kInteractive during input scenarios.
 BASE_FEATURE(kBoostThreadsPriorityDuringInputScenario,
-             "BoostThreadsPriorityDuringInputScenario",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Default amount of days after which the global navigation capturing IPH

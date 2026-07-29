@@ -381,6 +381,18 @@ chromium_strings.grd. -->
       <message name="IDS_SESSION_CRASHED_VIEW_UMA_OPTIN" desc="Text besides the checkbox to let users optin to UMA in the restore from previous crash bubble.">
         Help make Google Chrome better by sending crash reports and <ph name="UMA_LINK">$1<ex>usage statistics</ex></ph> to Google
       </message>
+      <!-- Reset Profile Settings strings -->
+      <message name="IDS_RESET_PROFILE_SETTINGS_EXPLANATION_IN_BULLET_POINTS" desc="A label formatted with bullet points describing the consequences of the 'reset profile settings' feature">
+        This action will:
+        <ph name="LINE_BREAKS">&lt;br&gt;&lt;br&gt;</ph>
+          • Reset some Chrome settings and Chrome shortcuts
+          <ph name="LINE_BREAK">&lt;br&gt;</ph>
+          • Disable extensions
+          <ph name="LINE_BREAK">&lt;br&gt;</ph>
+          • Delete cookies and other temporary site data
+          <ph name="LINE_BREAKS">&lt;br&gt;&lt;br&gt;</ph>
+          Bookmarks, history, and saved passwords won't be affected.
+      </message>
       <if expr="not is_chromeos">
         <!-- Browser Window Title Format -->
         <message name="IDS_BROWSER_WINDOW_TITLE_FORMAT" desc="The format for titles displayed in tabs and popup windows">
@@ -661,6 +673,14 @@ Google Chrome is unable to recover your settings.
         <message name="IDS_TRACING_SERVICE_DESCRIPTION"
                  desc="The description of the Windows system tracing service. Displayed in the Windows Services management console.">
           Provides system tracing services for <ph name="BROWSER_NAME">$1<ex>Google Chrome</ex></ph>. If this service is disabled, performance traces created by the browser will not include system-wide events such as context switch and ready thread events.
+        </message>
+      </if>
+      <if expr="not is_android">
+        <message name="IDS_PASSWORD_MANAGER_IMPORT_DIALOG_TITLE" desc="The title of the file selection dialog for importing passwords">
+          Import Passwords To Chrome
+        </message>
+        <message name="IDS_PASSWORD_MANAGER_EXPORT_DIALOG_TITLE" desc="The title of the file selection dialog for exporting passwords">
+          Export Passwords From Chrome
         </message>
       </if>
       <!-- Options Dialog -->
@@ -971,6 +991,22 @@ Google Chrome is unable to recover your settings.
         </message>
       </if>
 
+      <!-- Page menu. Android has separate strings for its menu -->
+      <if expr="not is_android">
+        <if expr="use_titlecase">
+          <then>
+            <message name="IDS_CUSTOMIZE_CHROME" desc="In Title Case: The text label of the Customize Chrome menu item">
+              C&amp;ustomize Your Chrome
+            </message>
+          </then>
+          <else>
+            <message name="IDS_CUSTOMIZE_CHROME" desc="The text label of the Customize Chrome menu item">
+              C&amp;ustomize your Chrome
+            </message>
+          </else>
+        </if>
+      </if>
+
       <message name="IDS_VIEW_PASSWORDS" desc="Item in the app menu which shows Password Manager page">
         Google P&amp;assword Manager
       </message>
@@ -1017,7 +1053,7 @@ Google Chrome is unable to recover your settings.
         Continue where you left off: Chrome can restore your tabs every time you restart. To turn this on, go to
       </message>
       <message name="IDS_SESSION_RESTORE_LINK" desc="Text for the link in the session restore infobar to open the Settings page.">
-        Settings.
+         Settings.
       </message>
 
       <!-- Enterprise sign-in dialog -->
@@ -1091,6 +1127,9 @@ Google Chrome is unable to recover your settings.
       <!-- NTP strings -->
       <message name="IDS_NTP_CUSTOMIZE_BUTTON_LABEL" desc="Label for button on the New Tab Page that opens dialog to customize Chrome browser.">
         Customize Chrome
+      </message>
+      <message name="IDS_NTP_MODULES_SETUP_LIST_TITLE" desc="Title shown at the top of the Setup List card.">
+        Make Chrome Yours
       </message>
 
       <!-- Signin Email Confirmation tab modal dialog -->

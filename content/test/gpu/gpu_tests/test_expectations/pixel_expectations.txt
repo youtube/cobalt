@@ -28,7 +28,8 @@
 #         web-engine-shell
 #         cros-chrome ]
 # GPU
-# tags: [ amd amd-0x6613 amd-0x679e amd-0x67ef amd-0x6821 amd-0x7340 amd-0x7480
+# tags: [ amd amd-0x150e amd-0x1900 amd-0x6613 amd-0x679e amd-0x67ef amd-0x6821
+#             amd-0x7340 amd-0x7480
 #         apple apple-apple-m1 apple-apple-m2 apple-apple-m3
 #             apple-angle-metal-renderer:-apple-m1
 #             apple-angle-metal-renderer:-apple-m2
@@ -62,6 +63,7 @@
 # tags: [ mesa_lt_19.1
 #         mesa_ge_21.0
 #         mesa_ge_23.2
+#         mesa_ge_24.2
 #         nvidia_ge_31.0.15.4601 nvidia_lt_31.0.15.4601
 #         nvidia_ge_535.183.01 nvidia_lt_535.183.01 ]
 # ASan
@@ -365,7 +367,7 @@ crbug.com/415830130 [ android android-webview-instrumentation ] Pixel_RenderPass
 [ win11 qualcomm-0x41333430 ] Pixel_Video_Context_Loss_MP4 [ Slow ]
 
 # Long-running test, can flakily time out on old/slow hardware.
-[ mac amd-0x679e ] Pixel_ReflectedDiv [ Slow ]
+[ mac arch-x86_64 amd-0x679e ] Pixel_ReflectedDiv [ Slow ]
 
 # Hitting timeout with graphite
 crbug.com/381211724 [ mac amd-0x679e release no-asan graphite-enabled ] Pixel_SVGHuge [ Slow ]
@@ -460,6 +462,10 @@ crbug.com/402171652 [ win11 amd-0x7480 ] Pixel_DirectComposition_Video_VP9_YUY2 
 crbug.com/402171652 [ win11 amd-0x7480 ] Pixel_DirectComposition_Video_VP9_BGRA [ Failure ]
 crbug.com/402429382 [ win11 amd-0x7480 ] Pixel_ReflectedDiv [ Failure ]
 
+# Win/AMD 890M failures
+crbug.com/402171652 [ win11 amd-0x150e ] Pixel_DirectComposition_Video_VP9_YUY2 [ Failure ]
+crbug.com/402171652 [ win11 amd-0x150e ] Pixel_DirectComposition_Video_VP9_BGRA [ Failure ]
+
 # Failures on all Mac and Windows bots running these tests
 crbug.com/370694819 [ mac ] Pixel_WebGPUDestroyed_TransferToOffscreenCanvas* [ Failure ]
 crbug.com/370694819 [ win ] Pixel_WebGPUDestroyed_TransferToOffscreenCanvas* [ Failure ]
@@ -476,8 +482,10 @@ crbug.com/419469465 [ win intel-0x9bc5 ] Pixel_MeetEffects* [ RetryOnFailure ]
 # Failure on Win10 Nvidia bot
 crbug.com/420902568 [ win10 nvidia-0x2184 target-cpu-32 ] Pixel_MeetEffectsTruckerHat [ Failure ]
 
-# Flakily causes android pixel 6 genesh to crash.
+# Video tests flakily cause Android Pixel 6 Ganesh to crash.
+crbug.com/421412516 [ android android-chromium graphite-disabled passthrough angle-vulkan android-pixel-6 ] Pixel_Video_Context_Loss_VP9 [ RetryOnFailure ]
 crbug.com/421412516 [ android android-chromium graphite-disabled passthrough angle-vulkan android-pixel-6 ] Pixel_Video_MP4_Rounded_Corner [ RetryOnFailure ]
+crbug.com/421412516 [ android android-chromium graphite-disabled passthrough angle-vulkan android-pixel-6 ] Pixel_Video_MP4_FourColors_Rot_90 [ RetryOnFailure ]
 crbug.com/421871867 [ android-chromium android-pixel-6 android-t angle-vulkan graphite-disabled passthrough ] Pixel_Video_MP4_FourColors_Rot_270 [ RetryOnFailure ]
 
 
@@ -490,13 +498,12 @@ crbug.com/417899571 [ angle-metal intel-0x3e9b no-asan no-clang-coverage release
 crbug.com/425671158 [ angle-metal graphite-enabled intel-0x3e9b no-asan no-clang-coverage release sequoia ] Pixel_WebGPUCopyExternalImageImageBitmap [ Failure ]
 crbug.com/425671158 [ angle-metal graphite-disabled intel-0x3e9b no-asan no-clang-coverage release sequoia ] Pixel_WebGPUCopyExternalImageWebGPUCanvas [ Failure ]
 
-# Flaky Timeout on Mac m3
-crbug.com/425739516 [ mac apple-angle-metal-renderer:-apple-m3 	angle-metal graphite-enabled ] Pixel_ReflectedDiv [ Slow ]
+# Flaky Timeout on Mac ARM
+crbug.com/425739516 [ mac arch-arm64 angle-metal graphite-enabled ] Pixel_ReflectedDiv [ Slow ]
 
 # Tests either fail consistently or flakily on Android in TreesInViz mode.
 crbug.com/415830130 [ android android-chromium ] Pixel_Video_MP4_TreesInViz [ Failure ]
 crbug.com/415830130 [ fuchsia ] Pixel_Video_MP4_TreesInViz [ Failure ]
-crbug.com/415830130 [ android android-chromium ] Pixel_Canvas2DRedBox_TreesInViz [ RetryOnFailure ]
 crbug.com/415830130 [ android android-chromium ] Pixel_ViewTransitionsCapture_TreesInViz [ RetryOnFailure ]
 crbug.com/415830130 [ android android-chromium ] Pixel_WebGLGreenTriangle_AA_Alpha_TreesInViz [ RetryOnFailure ]
 crbug.com/415830130 [ android android-chromium ] Pixel_SolidColorBackground_TreesInViz [ Failure ]
@@ -521,6 +528,12 @@ crbug.com/437973213 [ android android-brya ] Pixel_Video_MP4_Rounded_Corner [ Fa
 
 # Win11/RTX 4070 Super failures after upgrading to driver 580.88
 crbug.com/438515327 [ win11 nvidia-0x2783 ] Pixel_Canvas2DRedBoxScrgbLinear [ RetryOnFailure ]
+
+# Linux/AMD 780M failures
+crbug.com/445727123 [ linux amd-0x1900 ] Pixel_Video_MP4_FourColors_Aspect_4x3 [ Failure ]
+
+# Win11 Canvas Timeout
+crbug.com/446719056 [ win11 angle-d3d11 qualcomm-0x41333430 graphite-disabled ] Pixel_OffscreenCanvas2DResizeOnWorker [ Failure ]
 
 #######################################################################
 # Automated Entries After This Point - Do Not Manually Add Below Here #

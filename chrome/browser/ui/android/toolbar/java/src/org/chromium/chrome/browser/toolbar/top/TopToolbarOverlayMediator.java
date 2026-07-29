@@ -282,7 +282,7 @@ public class TopToolbarOverlayMediator {
                     }
 
                     @Override
-                    public void onControlsConstraintsChanged(
+                    public void onOffsetTagsInfoChanged(
                             BrowserControlsOffsetTagsInfo oldOffsetTagsInfo,
                             BrowserControlsOffsetTagsInfo offsetTagsInfo,
                             @BrowserControlsState int constraints,
@@ -312,6 +312,11 @@ public class TopToolbarOverlayMediator {
         mBrowserControlsStateProvider.addObserver(mBrowserControlsObserver);
         mIsBrowserControlsAndroidViewVisible =
                 mBrowserControlsStateProvider.getAndroidControlsVisibility() == View.VISIBLE;
+    }
+
+    private boolean isBookmarkBarVisible() {
+        int offset = mBookmarkBarHeightSupplier != null ? mBookmarkBarHeightSupplier.get() : 0;
+        return offset != 0;
     }
 
     private int getBookmarkBarAdjustedContentOffset() {
@@ -356,6 +361,8 @@ public class TopToolbarOverlayMediator {
                 drawControlsAsTexture
                         || !mIsToolbarAndroidViewVisible
                         || mIsVisibilityManuallyControlled;
+        // We hide the shadow no matter what when the bookmark bar is visible.
+        showShadow = showShadow && !isBookmarkBarVisible();
 
         mModel.set(TopToolbarOverlayProperties.SHOW_SHADOW, showShadow);
     }

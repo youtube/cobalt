@@ -154,8 +154,10 @@ if (is_android) {
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/ChromeAndroidTaskImpl.java",
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/ChromeAndroidTaskTrackerFactory.java",
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/ChromeAndroidTaskTrackerImpl.java",
+      "android/java/src/org/chromium/chrome/browser/ui/browser_window/IdSequencer.java",
     ]
     deps = [
+      "//base:base_java",
       "//base:log_java",
       "//base:tasks_java",
       "//base:time_utils_java",
@@ -193,8 +195,10 @@ if (is_android) {
     ]
     deps = [
       ":java",
+      "//base:activity_state_java",
       "//base:base_java_test_support_uncommon",
       "//base:base_junit_test_support",
+      "//base:tasks_java",
       "//base:time_utils_java",
       "//build/android:build_java",
       "//chrome/browser/android/lifecycle:java",
@@ -203,6 +207,8 @@ if (is_android) {
       "//chrome/browser/tabmodel:java",
       "//chrome/browser/ui/browser_window/public/android:java",
       "//chrome/browser/ui/browser_window/test:junit_test_support",
+      "//third_party/androidx:androidx_core_core_java",
+      "//third_party/androidx:androidx_test_core_java",
       "//third_party/junit",
       "//third_party/mockito:mockito_java",
       "//ui/android:ui_no_recycler_view_java",

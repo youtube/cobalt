@@ -6,17 +6,12 @@
 
 #include "base/containers/fixed_flat_map.h"
 #include "base/types/cxx23_to_underlying.h"
-#include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/pref_names.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
+#include "ui/color/color_provider_key.h"
 #include "ui/native_theme/native_theme.h"
-
-#if BUILDFLAG(IS_LINUX)
-#include "ui/linux/linux_ui.h"
-#include "ui/linux/linux_ui_factory.h"
-#endif
 
 namespace {
 
@@ -24,23 +19,11 @@ static constexpr char kPageColors[] = "settings.a11y.page_colors";
 static constexpr char kIsDefaultPageColorsOnHighContrast[] =
     "settings.a11y.is_default_page_colors_on_high_contrast";
 
-ui::NativeTheme* GetNativeTheme() {
-#if BUILDFLAG(IS_LINUX)
-  // Allow the Linux native theme to update its state for page colors.
-  if (auto* linux_ui_theme = ui::GetDefaultLinuxUiTheme()) {
-    if (auto* linux_native_theme = linux_ui_theme->GetNativeTheme()) {
-      return linux_native_theme;
-    }
-  }
-#endif
-  return ui::NativeTheme::GetInstanceForNativeUi();
-}
-
 }  // namespace
 
 PageColorsController::PageColorsController(PrefService* profile_prefs)
     : profile_prefs_(profile_prefs) {
-  theme_observation_.Observe(GetNativeTheme());
+  theme_observation_.Observe(ui::NativeTheme::GetInstanceForNativeUi());
 
   pref_change_registrar_.Init(profile_prefs_);
   pref_change_registrar_.Add(
@@ -97,7 +80,7 @@ void PageColorsController::MigrateObsoleteProfilePrefs(
   profile_prefs->ClearPref(kIsDefaultPageColorsOnHighContrast);
 }
 
-void PageColorsController::OnPreferredContrastChanged(
+void PageColorsController::OnNativeThemeUpdated(
     ui::NativeTheme* observed_theme) {
   RecomputePageColors();
 }
@@ -109,23 +92,16 @@ void PageColorsController::SetRequestedPageColors(PageColors page_colors) {
 }
 
 void PageColorsController::RecomputePageColors() {
-  auto* native_theme = GetNativeTheme();
+  // Get the current color/contrast values from the native UI theme.
+  const auto* const native_theme = ui::NativeTheme::GetInstanceForNativeUi();
+  ui::ColorProviderKey::ForcedColors forced_colors =
+      native_theme->forced_colors();
+  ui::NativeTheme::PreferredColorScheme preferred_color_scheme =
+      native_theme->preferred_color_scheme();
+  ui::NativeTheme::PreferredContrast preferred_contrast =
+      native_theme->preferred_contrast();
 
-  ui::NativeTheme::PageColors previous_page_colors =
-      native_theme->page_colors();
-  ui::NativeTheme::PageColors current_page_colors =
-      CalculatePageColors(*native_theme);
-
-  if (previous_page_colors == current_page_colors) {
-    return;
-  }
-
-  native_theme->set_page_colors(current_page_colors);
-  native_theme->NotifyOnNativeThemeUpdated();
-}
-
-ui::NativeTheme::PageColors PageColorsController::CalculatePageColors(
-    const ui::NativeTheme& native_theme) {
+  // Get the requested page colors.
   const int pref_value =
       profile_prefs_->GetInteger(prefs::kRequestedPageColors);
   PageColors page_colors =
@@ -133,32 +109,58 @@ ui::NativeTheme::PageColors PageColorsController::CalculatePageColors(
        pref_value > base::to_underlying(PageColors::kMaxValue))
           ? PageColors::kNoPreference
           : static_cast<PageColors>(pref_value);
-
-  bool only_on_increased_contrast = profile_prefs_->GetBoolean(
-      prefs::kApplyPageColorsOnlyOnIncreasedContrast);
-
-  // The used value of Page Colors should be `kNoPreference` if
-  // kApplyPageColorsOnlyOnIncreasedContrast is true and the OS is not in an
-  // increased contrast mode.
-  if (only_on_increased_contrast &&
-      native_theme.preferred_contrast() !=
-          ui::NativeTheme::PreferredContrast::kMore) {
+  if (preferred_contrast != ui::NativeTheme::PreferredContrast::kMore &&
+      profile_prefs_->GetBoolean(
+          prefs::kApplyPageColorsOnlyOnIncreasedContrast)) {
     page_colors = PageColors::kNoPreference;
   }
 
-  auto used_page_colors = ui::NativeTheme::PageColors::kOff;
+  // If there are explicit page colors, change the desired color/contrast values
+  // accordingly.
   if (page_colors != PageColors::kNoPreference) {
     static constexpr auto kColorMap =
-        base::MakeFixedFlatMap<PageColors, ui::NativeTheme::PageColors>(
-            {{PageColors::kOff, ui::NativeTheme::PageColors::kOff},
-             {PageColors::kDusk, ui::NativeTheme::PageColors::kDusk},
-             {PageColors::kDesert, ui::NativeTheme::PageColors::kDesert},
-             {PageColors::kNightSky, ui::NativeTheme::PageColors::kNightSky},
-             {PageColors::kAquatic, ui::NativeTheme::PageColors::kAquatic},
-             {PageColors::kWhite, ui::NativeTheme::PageColors::kWhite}});
-    used_page_colors = kColorMap.at(page_colors);
-  } else if (native_theme.forced_colors()) {
-    used_page_colors = ui::NativeTheme::PageColors::kHighContrast;
+        base::MakeFixedFlatMap<PageColors, ui::ColorProviderKey::ForcedColors>(
+            {{PageColors::kOff, ui::ColorProviderKey::ForcedColors::kNone},
+             {PageColors::kDusk, ui::ColorProviderKey::ForcedColors::kDusk},
+             {PageColors::kDesert, ui::ColorProviderKey::ForcedColors::kDesert},
+             {PageColors::kNightSky,
+              ui::ColorProviderKey::ForcedColors::kNightSky},
+             {PageColors::kAquatic,
+              ui::ColorProviderKey::ForcedColors::kAquatic},
+             {PageColors::kWhite, ui::ColorProviderKey::ForcedColors::kWhite}});
+    forced_colors = kColorMap.at(page_colors);
+    if (page_colors == PageColors::kOff) {
+      preferred_contrast = ui::NativeTheme::PreferredContrast::kNoPreference;
+    } else {
+      const bool is_dark_theme = page_colors == PageColors::kDusk ||
+                                 page_colors == PageColors::kNightSky ||
+                                 page_colors == PageColors::kAquatic;
+      preferred_color_scheme =
+          is_dark_theme ? ui::NativeTheme::PreferredColorScheme::kDark
+                        : ui::NativeTheme::PreferredColorScheme::kLight;
+      preferred_contrast = ui::NativeTheme::PreferredContrast::kMore;
+    }
   }
-  return used_page_colors;
+
+  // Update the web theme with the newly-calculated values and see if anything
+  // changed.
+  auto* const web_theme = ui::NativeTheme::GetInstanceForWeb();
+  bool updated = false;
+  if (web_theme->forced_colors() != forced_colors) {
+    web_theme->set_forced_colors(forced_colors);
+    updated = true;
+  }
+  if (web_theme->preferred_color_scheme() != preferred_color_scheme) {
+    web_theme->set_preferred_color_scheme(preferred_color_scheme);
+    updated = true;
+  }
+  if (web_theme->preferred_contrast() != preferred_contrast) {
+    web_theme->set_preferred_contrast(preferred_contrast);
+    updated = true;
+  }
+
+  // If something changed, notify web theme observers.
+  if (updated) {
+    web_theme->NotifyOnNativeThemeUpdated();
+  }
 }

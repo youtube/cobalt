@@ -210,6 +210,16 @@ IpProtectionCoreImpl::GetIpProtectionProxyConfigManagerForTesting() {
   return ipp_proxy_config_manager_.get();
 }
 
+std::optional<BlindSignedAuthToken>
+IpProtectionCoreImpl::GetAuthTokenForTesting(ProxyLayer proxy_layer,
+                                             const std::string& geo_id) {
+  auto it = ipp_token_managers_.find(proxy_layer);
+  if (it == ipp_token_managers_.end()) {
+    return std::nullopt;
+  }
+  return it->second->GetAuthToken(geo_id);
+}
+
 bool IpProtectionCoreImpl::IsProxyListAvailable() {
   return ipp_proxy_config_manager_ &&
          ipp_proxy_config_manager_->IsProxyListAvailable();
@@ -359,6 +369,14 @@ void IpProtectionCoreImpl::SetBypassProxy(bool bypass_proxy) {
   // kIpPrivacyEnableIppPanelInDevTools flag is enabled
   if (net::features::kIpPrivacyEnableIppPanelInDevTools.Get()) {
     bypassed_by_devtools_ = bypass_proxy;
+  }
+}
+
+void IpProtectionCoreImpl::RecordTokenDemand(size_t chain_index) {
+  auto it = ipp_token_managers_.find(chain_index == 0 ? ProxyLayer::kProxyA
+                                                      : ProxyLayer::kProxyB);
+  if (it != ipp_token_managers_.end()) {
+    it->second->RecordTokenDemand();
   }
 }
 

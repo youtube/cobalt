@@ -7,7 +7,7 @@ import {AnnotationMode} from '../constants.js';
 <div id="toolbar">
   <div id="start">
     <cr-icon-button id="sidenavToggle" iron-icon="pdf:menu"
-        title="$i18n{menu}" aria-label="$i18n{menu}"
+        title="$i18n{sidebarLabel}" aria-label="$i18n{sidebarLabel}"
         aria-expanded="${this.getAriaExpanded_()}"
         @click="${this.onSidenavToggleClick_}">
     </cr-icon-button>
@@ -54,19 +54,21 @@ import {AnnotationMode} from '../constants.js';
       <span id="annotate-controls">
         <span class="vertical-separator"></span>
         ${this.pdfTextAnnotationsEnabled_ ? html`
-          <!-- TODO(crbug.com/402547554): Add aria-label and i18n string -->
           <cr-icon-button id="text-annotate" iron-icon="pdf-ink:text-annotate"
               class="annotate-button ${this.getActive_(AnnotationMode.TEXT)}"
               @click="${this.onTextAnnotationClick_}"
               ?disabled="${!this.annotationAvailable}"
-              title="Text annotation">
+              aria-pressed="${this.getAriaPressed_(AnnotationMode.TEXT)}"
+              aria-label="$i18n{ink2TextAnnotation}"
+              title="$i18n{ink2TextAnnotation}">
           </cr-icon-button>
         ` : ''}
         <cr-icon-button id="annotate" iron-icon="pdf-ink:annotate"
             class="annotate-button ${this.getActive_(AnnotationMode.DRAW)}"
             @click="${this.onAnnotationClick_}"
-            aria-label="$i18n{ink2Draw}"
             ?disabled="${!this.annotationAvailable}"
+            aria-pressed="${this.getAriaPressed_(AnnotationMode.DRAW)}"
+            aria-label="$i18n{ink2Draw}"
             title="$i18n{ink2Draw}"></cr-icon-button>
         <span class="vertical-separator"></span>
         <cr-icon-button id="undo" ?disabled="${!this.computeEnableUndo_()}"

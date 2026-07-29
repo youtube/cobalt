@@ -130,12 +130,12 @@ void ActorKeyedService::ResetForTesting() {
   inactive_tasks_.clear();
 }
 
-TaskId ActorKeyedService::CreateTask() {
+TaskId ActorKeyedService::CreateTask(webui::mojom::TaskOptionsPtr options) {
   TRACE_EVENT0("actor", "ActorKeyedService::CreateTask");
   auto execution_engine = std::make_unique<ExecutionEngine>(profile_.get());
   auto actor_task = std::make_unique<ActorTask>(
       profile_.get(), std::move(execution_engine),
-      ui::NewUiEventDispatcher(GetActorUiStateManager()));
+      ui::NewUiEventDispatcher(GetActorUiStateManager()), std::move(options));
   return AddActiveTask(std::move(actor_task));
 }
 
@@ -186,6 +186,33 @@ void ActorKeyedService::OnCredentialSelected(
   }
   if (auto* task = GetTask(request_task_id)) {
     task->GetExecutionEngine()->OnCredentialSelected(std::move(response));
+  } else {
+    VLOG(1) << "Task not found for task id: " << request_task_id;
+  }
+}
+
+base::CallbackListSubscription
+ActorKeyedService::AddRequestToShowUserConfirmationDialogSubscriberCallback(
+    RequestToShowUserConfirmationDialogSubscriberCallback callback) {
+  return request_to_show_user_confirmation_dialog_callback_list_.Add(
+      std::move(callback));
+}
+
+void ActorKeyedService::NotifyRequestToShowUserConfirmationDialog(
+    TaskId task_id,
+    const std::optional<url::Origin>& navigation_origin,
+    const std::optional<int32_t> download_id) {
+  request_to_show_user_confirmation_dialog_callback_list_.Notify(
+      navigation_origin, download_id,
+      base::BindRepeating(&ActorKeyedService::OnUserConfirmationDialogDecision,
+                          weak_ptr_factory_.GetWeakPtr(), task_id));
+}
+
+void ActorKeyedService::OnUserConfirmationDialogDecision(
+    TaskId request_task_id,
+    webui::mojom::UserConfirmationDialogResponsePtr response) {
+  if (auto* task = GetTask(request_task_id)) {
+    task->GetExecutionEngine()->OnUserConfirmation(std::move(response));
   } else {
     VLOG(1) << "Task not found for task id: " << request_task_id;
   }

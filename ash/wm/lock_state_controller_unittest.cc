@@ -11,8 +11,8 @@
 #include "ash/app_list/app_list_controller_impl.h"
 #include "ash/constants/ash_pref_names.h"
 #include "ash/constants/ash_switches.h"
+#include "ash/multi_user/multi_user_window_manager.h"
 #include "ash/public/cpp/ash_prefs.h"
-#include "ash/public/cpp/multi_user_window_manager.h"
 #include "ash/public/cpp/shutdown_controller.h"
 #include "ash/root_window_controller.h"
 #include "ash/session/session_controller_impl.h"
@@ -1287,7 +1287,8 @@ TEST_F(LockStateControllerInformedRestoreTest, ShutdownWithAlwaysOnTopWindow) {
   aura::Window* top_container = Shell::GetContainer(
       Shell::GetPrimaryRootWindow(), kShellWindowId_AlwaysOnTopContainer);
   std::unique_ptr<aura::Window> window_always_on_top =
-      aura::test::CreateTestWindow({.parent = top_container, .window_id = 1});
+      aura::test::CreateTestWindow(
+          {.parent = top_container, .bounds = {100, 100}, .window_id = 1});
 
   RequestShutdownWithoutFailTimer();
   EXPECT_THAT(histogram_tester.GetAllSamples(kScreenshotOnShutdownStatus),

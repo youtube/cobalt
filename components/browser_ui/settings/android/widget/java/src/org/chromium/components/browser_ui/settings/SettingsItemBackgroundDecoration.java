@@ -6,8 +6,6 @@ package org.chromium.components.browser_ui.settings;
 
 import android.graphics.Canvas;
 import android.graphics.Rect;
-import android.graphics.drawable.Drawable;
-import android.graphics.drawable.GradientDrawable;
 import android.view.View;
 
 import androidx.annotation.NonNull;
@@ -24,7 +22,8 @@ import java.util.ArrayList;
  */
 @NullMarked
 public class SettingsItemBackgroundDecoration extends RecyclerView.ItemDecoration {
-    private @Nullable ArrayList<PreferenceStyle> mPreferenceStyles;
+    private final SettingsStylingController mStylingController;
+    private @Nullable ArrayList<SettingsContainerStyle> mPreferenceStyles;
 
     /**
      * A flag to ensure that the background update logic in {@link #onDraw(Canvas, RecyclerView,
@@ -33,8 +32,13 @@ public class SettingsItemBackgroundDecoration extends RecyclerView.ItemDecoratio
      */
     private boolean mUpdateBackgrounds;
 
-    /** Constructor for the item decoration. */
-    public SettingsItemBackgroundDecoration() {
+    /**
+     * Constructor for the item decoration.
+     *
+     * @param stylingController The {@link SettingsStylingController} for styling the child views.
+     */
+    public SettingsItemBackgroundDecoration(SettingsStylingController stylingController) {
+        mStylingController = stylingController;
         mUpdateBackgrounds = true;
     }
 
@@ -43,7 +47,7 @@ public class SettingsItemBackgroundDecoration extends RecyclerView.ItemDecoratio
      *
      * @param preferenceStyles The new list of preference styles.
      */
-    public void updatePreferenceStyles(ArrayList<PreferenceStyle> preferenceStyles) {
+    public void updatePreferenceStyles(ArrayList<SettingsContainerStyle> preferenceStyles) {
         mPreferenceStyles = preferenceStyles;
         mUpdateBackgrounds = true;
     }
@@ -64,11 +68,7 @@ public class SettingsItemBackgroundDecoration extends RecyclerView.ItemDecoratio
             return;
         }
 
-        PreferenceStyle style = mPreferenceStyles.get(position);
-        outRect.top = style.getTopMargin();
-        outRect.bottom = style.getBottomMargin();
-        outRect.left = style.getHorizontalMargin();
-        outRect.right = style.getHorizontalMargin();
+        SettingsViewStyler.applyMargins(view, mPreferenceStyles.get(position));
     }
 
     @Override
@@ -82,47 +82,10 @@ public class SettingsItemBackgroundDecoration extends RecyclerView.ItemDecoratio
             if (position == RecyclerView.NO_POSITION || position >= mPreferenceStyles.size()) {
                 continue;
             }
-            applyBackgroundStyle(childView, mPreferenceStyles.get(position));
+            SettingsViewStyler.applyBackgroundStyle(childView, mPreferenceStyles.get(position));
+            SettingsViewStyler.styleChildViews(childView, mStylingController);
         }
         mUpdateBackgrounds = false;
         super.onDraw(c, parent, state);
-    }
-
-    /**
-     * Applies the specified background style to the given view.
-     *
-     * @param view The view to apply the background to.
-     * @param style The {@link PreferenceStyle} to apply.
-     */
-    private void applyBackgroundStyle(View view, @NonNull PreferenceStyle style) {
-        if (style == PreferenceStyle.EMPTY) {
-            view.setBackground(null);
-            return;
-        }
-        view.setBackground(
-                createRoundedDrawable(
-                        style.getTopRadius(), style.getBottomRadius(), style.getBackgroundColor()));
-    }
-
-    /**
-     * Creates a rounded drawable with the specified top and bottom radii.
-     *
-     * @param topRadius The radius for the top corners.
-     * @param bottomRadius The radius for the bottom corners.
-     * @param color The background color of the drawable.
-     * @return A new {@link Drawable} with the specified properties.
-     */
-    private static Drawable createRoundedDrawable(float topRadius, float bottomRadius, int color) {
-        GradientDrawable drawable = new GradientDrawable();
-        drawable.setShape(GradientDrawable.RECTANGLE);
-        drawable.setColor(color);
-        drawable.setCornerRadii(
-                new float[] {
-                    topRadius, topRadius,
-                    topRadius, topRadius,
-                    bottomRadius, bottomRadius,
-                    bottomRadius, bottomRadius
-                });
-        return drawable;
     }
 }

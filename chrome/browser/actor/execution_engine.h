@@ -69,6 +69,12 @@ class ExecutionEngine : public ToolDelegate {
     kComplete,
   };
 
+  class StateObserver : public base::CheckedObserver {
+   public:
+    ~StateObserver() override = default;
+    virtual void OnStateChanged(State old_state, State new_state) = 0;
+  };
+
   explicit ExecutionEngine(Profile* profile);
 
   // Old instances of ExecutionEngine assume that all actions are scoped to a
@@ -102,6 +108,7 @@ class ExecutionEngine : public ToolDelegate {
   base::WeakPtr<ExecutionEngine> GetWeakPtr();
 
   // ToolDelegate:
+  Profile& GetProfile() override;
   AggregatedJournal& GetJournal() override;
   favicon::FaviconService* GetFaviconService() override;
   actor_login::ActorLoginService& GetActorLoginService() override;
@@ -109,15 +116,36 @@ class ExecutionEngine : public ToolDelegate {
       const std::vector<actor_login::Credential>& credentials,
       const base::flat_map<std::string, gfx::Image>& icons,
       ToolDelegate::CredentialSelectedCallback callback) override;
+  void SetUserSelectedCredential(
+      const actor_login::Credential& credential) override;
+  const std::optional<actor_login::Credential> GetUserSelectedCredential(
+      const url::Origin& request_origin) const override;
 
   // Callback for when a credential is selected, in response to
   // `ToolDelegate::PromptToSelectCredential()`.
   void OnCredentialSelected(
       webui::mojom::SelectCredentialDialogResponsePtr response);
 
+  using UserConfirmationDialogCallback = base::OnceCallback<void(
+      webui::mojom::UserConfirmationDialogResponsePtr response)>;
+
+  void PromptToConfirmCrossOriginNavigation(
+      const url::Origin& navigation_origin,
+      UserConfirmationDialogCallback callback);
+  void PromptToConfirmDownload(int32_t download_id,
+                               UserConfirmationDialogCallback callback);
+
+  // Callback for when the user responds to a confirmation dialog.
+  void OnUserConfirmation(
+      webui::mojom::UserConfirmationDialogResponsePtr response);
+
   static std::string StateToString(State state);
 
   bool ShouldGateNavigation(content::NavigationHandle& navigation_handle);
+
+  void AddObserver(StateObserver* observer);
+
+  void RemoveObserver(StateObserver* observer);
 
  private:
   class NewTabWebContentsObserver;
@@ -156,6 +184,11 @@ class ExecutionEngine : public ToolDelegate {
 
   void CompleteActions(mojom::ActionResultPtr result,
                        std::optional<size_t> action_index);
+
+  void PromptUserForConfirmationInternal(
+      const std::optional<url::Origin>& navigation_origin,
+      const std::optional<int32_t> download_url,
+      UserConfirmationDialogCallback callback);
 
   // Returns the next action that will be started when ExecuteNextAction is
   // reached.
@@ -203,6 +236,16 @@ class ExecutionEngine : public ToolDelegate {
   std::set<url::Origin> allowed_navigation_origins_;
 
   ToolDelegate::CredentialSelectedCallback credential_selected_callback_;
+
+  UserConfirmationDialogCallback user_confirmation_callback_;
+
+  // For multi-step login, this is the credential that the user has chosen to
+  // allow the actor to use. The key is the
+  // `Credential::request_origin`.
+  base::flat_map<url::Origin, actor_login::Credential>
+      user_selected_credentials_;
+
+  base::ObserverList<StateObserver> observers_;
 
   SEQUENCE_CHECKER(sequence_checker_);
 
