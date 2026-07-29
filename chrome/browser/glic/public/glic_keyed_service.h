@@ -14,6 +14,7 @@
 #include "base/containers/flat_set.h"
 #include "base/memory/memory_pressure_listener.h"
 #include "base/memory/raw_ptr.h"
+#include "chrome/browser/glic/glic_metrics.h"
 #include "chrome/browser/glic/glic_zero_state_suggestions_manager.h"
 #include "chrome/browser/glic/host/context/glic_sharing_manager_provider.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
@@ -81,7 +82,8 @@ enum class GlicPrewarmingFreSource {
 // preference for changes and cause the UI to respond to it.
 class GlicKeyedService : public KeyedService,
                          public GlicSharingManagerProvider,
-                         public Host::InstanceDelegate {
+                         public Host::InstanceDelegate,
+                         public base::MemoryPressureListener {
  public:
   explicit GlicKeyedService(
       Profile* profile,
@@ -127,6 +129,7 @@ class GlicKeyedService : public KeyedService,
   GlicMetrics* metrics() { return metrics_.get(); }
   GlicFreController& fre_controller();
   GlicWindowController& window_controller() const;
+  GlicWindowControllerInterface& GetSingleInstanceWindowController() const;
   GlicSharingManager& sharing_manager() override;
 
   // Called when a webview guest is created within a chrome://glic WebUI.
@@ -184,7 +187,8 @@ class GlicKeyedService : public KeyedService,
   void StopActorTask(actor::TaskId task_id,
                      mojom::ActorTaskStopReason stop_reason) override;
   void PauseActorTask(actor::TaskId task_id,
-                      mojom::ActorTaskPauseReason pause_reason) override;
+                      mojom::ActorTaskPauseReason pause_reason,
+                      tabs::TabInterface::Handle tab_handle) override;
   // TODO(crbug.com/446696379) - The ResumeActorTask Glic API should, like the
   // rest of actor observations, operate in terms of TabObservation rather than
   // TabContext.
@@ -238,7 +242,7 @@ class GlicKeyedService : public KeyedService,
   virtual void TryPreload();
   void TryPreloadAfterDelay();
   virtual void TryPreloadFre(GlicPrewarmingFreSource source);
-  void Reload();
+  void Reload(content::RenderFrameHost* render_frame_host);
 
   Profile* profile() const { return profile_; }
 
@@ -247,13 +251,15 @@ class GlicKeyedService : public KeyedService,
 
   base::WeakPtr<GlicKeyedService> GetWeakPtr();
 
-  void OnMemoryPressure(
-      base::MemoryPressureListener::MemoryPressureLevel level);
+  void OnMemoryPressure(base::MemoryPressureLevel level) override;
 
   HostManager& host_manager();
-  GlicZeroStateSuggestionsManager& zero_state_suggestions_manager() {
-    return *zero_state_suggestions_manager_;
+
+  // Null in multi-instance mode.
+  GlicZeroStateSuggestionsManager* zero_state_suggestions_manager() {
+    return zero_state_suggestions_manager_.get();
   }
+
   // Returns whether this process host is either the Glic FRE WebUI or the Glic
   // main WebUI.
   bool IsProcessHostForGlic(content::RenderProcessHost* process_host);
@@ -291,6 +297,7 @@ class GlicKeyedService : public KeyedService,
       mojom::WebClientHandler::PerformActionsCallback callback,
       actor::TaskId task_id,
       base::TimeTicks start_time,
+      bool skip_async_observation_information,
       actor::mojom::ActionResultCode result_code,
       std::optional<size_t> index_of_failed_action,
       std::vector<actor::ActionResultWithLatencyInfo> action_results);
@@ -316,7 +323,8 @@ class GlicKeyedService : public KeyedService,
   std::unique_ptr<GlicShareImageHandler> share_image_handler_;
   std::unique_ptr<GlicScreenshotCapturer> screenshot_capturer_;
   std::unique_ptr<AuthController> auth_controller_;
-  std::unique_ptr<base::MemoryPressureListener> memory_pressure_listener_;
+  std::unique_ptr<base::MemoryPressureListenerRegistration>
+      memory_pressure_listener_registration_;
   std::unique_ptr<GlicOcclusionNotifier> occlusion_notifier_;
   std::unique_ptr<GlicZeroStateSuggestionsManager>
       zero_state_suggestions_manager_;

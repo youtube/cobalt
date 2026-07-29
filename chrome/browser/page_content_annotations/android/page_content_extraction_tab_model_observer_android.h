@@ -5,6 +5,7 @@
 #ifndef CHROME_BROWSER_PAGE_CONTENT_ANNOTATIONS_ANDROID_PAGE_CONTENT_EXTRACTION_TAB_MODEL_OBSERVER_ANDROID_H_
 #define CHROME_BROWSER_PAGE_CONTENT_ANNOTATIONS_ANDROID_PAGE_CONTENT_EXTRACTION_TAB_MODEL_OBSERVER_ANDROID_H_
 
+#include "base/memory/raw_ptr.h"
 #include "base/scoped_multi_source_observation.h"
 #include "base/scoped_observation.h"
 #include "base/supports_user_data.h"
@@ -47,11 +48,16 @@ class PageContentExtractionTabModelObserverAndroid
                              TabModel::TabClosingSource source) override;
 
  private:
-  raw_ptr<Profile> profile_;
+  void RunStartupMetricsComputation();
+
+  const raw_ptr<Profile> profile_;
   const raw_ptr<PageContentExtractionService> service_;
 
   base::ScopedMultiSourceObservation<TabModel, TabModelObserver>
       tab_model_observations_{this};
+
+  base::WeakPtrFactory<PageContentExtractionTabModelObserverAndroid>
+      weak_ptr_factory_{this};
 };
 
 }  // namespace page_content_annotations

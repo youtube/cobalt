@@ -9,6 +9,7 @@
 
 #include "chrome/browser/glic/host/glic.mojom-forward.h"
 #include "chrome/browser/glic/host/host.h"
+#include "chrome/browser/glic/service/glic_ui_types.h"
 #include "ui/views/view.h"
 
 namespace tabs {
@@ -23,13 +24,15 @@ class GlicUiEmbedder {
    public:
     virtual ~Delegate() = default;
     virtual void SwitchConversation(
-        tabs::TabInterface* tab,
+        const ShowOptions& options,
         glic::mojom::ConversationInfoPtr info,
         mojom::WebClientHandler::SwitchConversationCallback callback) = 0;
-    virtual void WillCloseFor(tabs::TabInterface* tab) = 0;
+    virtual void WillCloseFor(EmbedderKey key) = 0;
     virtual Host& host() = 0;
-    virtual void Attach(tabs::TabInterface* tab) = 0;
-    virtual void Detach() = 0;
+    virtual void Show(const ShowOptions& options) = 0;
+    virtual void Detach(tabs::TabInterface* tab) = 0;
+    // Called after the value of GetPanelState() changes.
+    virtual void NotifyPanelStateChanged() = 0;
   };
 
   virtual ~GlicUiEmbedder() = default;
@@ -46,10 +49,20 @@ class GlicUiEmbedder {
   // Close the glic UI (keeps webclient alive for now)
   virtual void Close() = 0;
 
-  virtual views::View* GetViewForTesting() = 0;
+  // Focus embedder's webcontents.
+  virtual void Focus() = 0;
+
+  // Returns the view, if there is one.
+  virtual views::View* GetView() = 0;
 
   // Creates the inactive version of this embedder.
   virtual std::unique_ptr<GlicUiEmbedder> CreateInactiveEmbedder() const = 0;
+
+  // Returns the current panel state.
+  virtual mojom::PanelState GetPanelState() const = 0;
+
+  // Returns the size of the panel.
+  virtual gfx::Size GetPanelSize() = 0;
 };
 
 }  // namespace glic

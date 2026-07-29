@@ -18,7 +18,8 @@
 
 namespace persistent_cache {
 class PersistentCache;
-}
+class Entry;
+}  // namespace persistent_cache
 
 namespace gpu {
 
@@ -44,11 +45,16 @@ class GPU_GLES2_EXPORT GpuPersistentCache
                  const void* value,
                  size_t value_size) override;
 
+  std::unique_ptr<persistent_cache::Entry> LoadEntry(std::string_view key);
+
  private:
   std::string GetHistogramName(std::string_view metric) const;
 
   // Prefix to prepend to UMA histogram's name. e.g GraphiteDawn, WebGPU
   const std::string cache_prefix_;
+
+  size_t load_count_ = 0;
+  size_t store_count_ = 0;
 
   base::Lock lock_;
   std::unique_ptr<persistent_cache::PersistentCache> persistent_cache_

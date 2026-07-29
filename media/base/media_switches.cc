@@ -190,6 +190,7 @@ const char kDisableRTCSmoothnessAlgorithm[] =
     "disable-rtc-smoothness-algorithm";
 
 // Force media player using SurfaceView instead of SurfaceTexture on Android.
+// Note: This is used by the Cast playback pipeline and must be kept.
 const char kForceVideoOverlays[] = "force-video-overlays";
 
 // Allows explicitly specifying MSE audio/video buffer sizes as megabytes.
@@ -929,6 +930,13 @@ BASE_FEATURE(kHardwareMediaKeyHandling,
 #endif
 );
 
+// Enables a platform-specific resolution cutoff for prioritizing platform
+// decoders over software decoders or vice-versa.
+//
+// Note: This feature is used by ChromeOS tests and shouldn't be removed even
+// though it has long been enabled by default.
+BASE_FEATURE(kResolutionBasedDecoderPriority, base::FEATURE_ENABLED_BY_DEFAULT);
+
 // Allows the AutoPictureInPictureTabHelper to automatically enter
 // picture-in-picture for websites with video playback (instead of only websites
 // using camera or microphone).
@@ -1144,44 +1152,12 @@ BASE_FEATURE(kMediaFoundationD3D11VideoCaptureZeroCopy,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables the use of MediaFoundationRenderer for clear content on supported
-// systems.
+// systems. This is for testing purposes, and is not intended to be enabled
+// more broadly.
 BASE_FEATURE(kMediaFoundationClearPlayback, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enable VP9 kSVC decoding with HW decoder for webrtc use case on Windows.
 BASE_FEATURE(kD3D11Vp9kSVCHWDecoding, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// The Media Foundation Rendering Strategy determines which presentation mode
-// Media Foundation Renderer should use for presenting clear content. This
-// strategy has no impact for protected content, which must always use Direct
-// Composition.
-//
-// The strategy may be one of the following options:
-// 1.) Direct Composition: Media Foundation Renderer will use a Windowsless
-//     Swapchain to present directly to a Direct Composition surface.
-// 2.) Frame Server: Media Foundation Renderer will produce Video Frames that
-//     may be passed through the Chromium video frame rendering pipeline.
-// 3.) Dynamic: Media Foundation Renderer may freely switch between Direct
-//     Composition & Frame Server mode based on the current operating
-//     conditions.
-//
-// Command line invocation:
-// --enable-features=MediaFoundationClearRendering:strategy/direct-composition
-// --enable-features=MediaFoundationClearRendering:strategy/frame-server
-// --enable-features=MediaFoundationClearRendering:strategy/dynamic
-BASE_FEATURE(kMediaFoundationClearRendering, base::FEATURE_ENABLED_BY_DEFAULT);
-
-constexpr base::FeatureParam<MediaFoundationClearRenderingStrategy>::Option
-    kMediaFoundationClearRenderingStrategyOptions[] = {
-        {MediaFoundationClearRenderingStrategy::kDirectComposition,
-         "direct-composition"},
-        {MediaFoundationClearRenderingStrategy::kFrameServer, "frame-server"},
-        {MediaFoundationClearRenderingStrategy::kDynamic, "dynamic"}};
-
-const base::FeatureParam<MediaFoundationClearRenderingStrategy>
-    kMediaFoundationClearRenderingStrategyParam{
-        &kMediaFoundationClearRendering, "strategy",
-        MediaFoundationClearRenderingStrategy::kDynamic,
-        &kMediaFoundationClearRenderingStrategyOptions};
 
 BASE_FEATURE(kMediaFoundationBatchRead, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -1229,6 +1205,9 @@ BASE_FEATURE(kUseOutOfProcessVideoDecoding,
              base::FEATURE_DISABLED_BY_DEFAULT
 #endif
 );
+
+// Use shared image interface to transport video frame resources.
+BASE_FEATURE(kUseSharedImageInOOPVDProcess, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(ALLOW_OOP_VIDEO_DECODER)
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
@@ -1433,10 +1412,6 @@ BASE_FEATURE(kCastStreamingWinHardwareH264, base::FEATURE_DISABLED_BY_DEFAULT);
 // Enables use of Fuchsia's Mediacodec service for encoding.
 BASE_FEATURE(kFuchsiaMediacodecVideoEncoder, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_FUCHSIA)
-
-// Controls whether to pre-dispatch more decode tasks when pending decodes is
-// smaller than maximum supported decodes as advertiszed by decoder.
-BASE_FEATURE(kVideoDecodeBatching, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Safety switch to allow us to revert to the previous behavior of using the
 // cached bounds when the permission prompt is visible. If this feature is

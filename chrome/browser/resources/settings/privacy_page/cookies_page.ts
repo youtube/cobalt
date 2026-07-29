@@ -12,15 +12,15 @@ import '/shared/settings/prefs/prefs.js';
 import 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
 import 'chrome://resources/cr_elements/cr_link_row/cr_link_row.js';
 import 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
+import '../controls/collapse_radio_button.js';
+import '../controls/settings_radio_group.js';
 import '../controls/settings_toggle_button.js';
 import '../icons.html.js';
 import '../privacy_icons.html.js';
 import '../settings_page/settings_subpage.js';
 import '../settings_shared.css.js';
 import '../site_settings/site_list.js';
-import './collapse_radio_button.js';
 import './do_not_track_toggle.js';
-import '../controls/settings_radio_group.js';
 
 import {PrefsMixin} from '/shared/settings/prefs/prefs_mixin.js';
 import type {CrToastElement} from 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
@@ -39,7 +39,7 @@ import type {Route} from '../router.js';
 import {RouteObserverMixin, Router} from '../router.js';
 import {SettingsViewMixin} from '../settings_page/settings_view_mixin.js';
 import {ContentSetting, ContentSettingsTypes, CookieControlsMode} from '../site_settings/constants.js';
-import {ThirdPartyCookieBlockingSetting} from '../site_settings/site_settings_prefs_browser_proxy.js';
+import {ThirdPartyCookieBlockingSetting} from '../site_settings/site_settings_browser_proxy.js';
 
 import {getTemplate} from './cookies_page.html.js';
 
@@ -239,7 +239,7 @@ export class SettingsCookiesPageElement extends SettingsCookiesPageElementBase {
     return new Map([
       [
         `${routes.SITE_SETTINGS_ALL.path}_${routes.COOKIES.path}`,
-        '#site-data-trigger',
+        '#siteDataTrigger',
       ],
     ]);
   }

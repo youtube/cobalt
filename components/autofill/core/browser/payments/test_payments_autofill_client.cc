@@ -296,6 +296,10 @@ bool TestPaymentsAutofillClient::IsRiskBasedAuthEffectivelyAvailable() const {
   return true;
 }
 
+bool TestPaymentsAutofillClient::IsMandatoryReauthEnabled() {
+  return GetPaymentsDataManager().IsPaymentMethodsMandatoryReauthEnabled();
+}
+
 void TestPaymentsAutofillClient::ShowMandatoryReauthOptInPrompt(
     base::OnceClosure accept_mandatory_reauth_callback,
     base::OnceClosure cancel_mandatory_reauth_callback,
@@ -367,13 +371,13 @@ bool TestPaymentsAutofillClient::UpdateTouchToFillBnplPaymentMethod(
 }
 
 bool TestPaymentsAutofillClient::ShowTouchToFillProgress(
-    base::WeakPtr<TouchToFillDelegate> delegate) {
+    base::OnceClosure cancel_callback) {
   return false;
 }
 
 bool TestPaymentsAutofillClient::ShowTouchToFillBnplIssuers(
     base::WeakPtr<TouchToFillDelegate> delegate,
-    base::span<const BnplIssuer> bnpl_issuers_to_suggest) {
+    base::span<const BnplIssuerContext> bnpl_issuer_contexts) {
   return false;
 }
 

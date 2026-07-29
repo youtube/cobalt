@@ -7,12 +7,18 @@
 
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
+#include "ui/gfx/animation/animation_delegate.h"
 #include "ui/gfx/image/image_skia.h"
 #include "ui/views/view.h"
 #include "ui/views/view_observer.h"
+#include "ui/views/view_tracker.h"
 
 namespace content {
 class WebContents;
+}
+
+namespace gfx {
+class SlideAnimation;
 }
 
 namespace views {
@@ -22,7 +28,8 @@ class ImageView;
 // Manages a view that displays a blurred and dynamically resized screenshot.
 // This class encapsulates the creation of the view hierarchy and the logic for
 // updating the blurred image when the view's bounds change.
-class InactiveViewController : public views::ViewObserver {
+class InactiveViewController : public views::ViewObserver,
+                               public gfx::AnimationDelegate {
  public:
   InactiveViewController();
   ~InactiveViewController() override;
@@ -45,15 +52,32 @@ class InactiveViewController : public views::ViewObserver {
   // views::ViewObserver:
   void OnViewBoundsChanged(views::View* observed_view) override;
   void OnViewIsDeleting(views::View* observed_view) override;
+  void OnViewThemeChanged(views::View* observed_view) override;
+
+  // gfx::AnimationDelegate:
+  void AnimationProgressed(const gfx::Animation* animation) override;
 
  private:
   // Updates the displayed image by resizing and re-blurring the screenshot.
   void UpdateImageView();
 
+  // Updates the scrim color based on the current theme.
+  void UpdateScrimColor();
+
+  // Updates the scrim opacity based on the animation value.
+  void UpdateScrimOpacity(double animation_value);
+
+  // Checks if the aspect ratio difference requires blurring the image.
+  void CheckForImageDistortion();
+
   base::ScopedObservation<views::View, views::ViewObserver>
       image_view_observation_{this};
   raw_ptr<views::ImageView> image_view_ = nullptr;
+  views::ViewTracker scrim_view_tracker_;
   gfx::ImageSkia screenshot_;
+  bool is_image_distorted_ = false;
+
+  std::unique_ptr<gfx::SlideAnimation> animation_;
 
   base::WeakPtrFactory<InactiveViewController> weak_ptr_factory_{this};
 };

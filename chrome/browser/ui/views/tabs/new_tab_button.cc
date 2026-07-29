@@ -13,17 +13,22 @@
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
+#include "chrome/browser/ui/tabs/split_tab_metrics.h"
+#include "chrome/browser/ui/tabs/tab_group_model.h"
+#include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
 #include "chrome/grit/generated_resources.h"
+#include "components/tabs/public/tab_group.h"
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/views/view_class_properties.h"
 
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(NewTabButtonMenuModel, kNewTab);
-DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(NewTabButtonMenuModel, kNewWindow);
+DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(NewTabButtonMenuModel, kNewTabInGroup);
+DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(NewTabButtonMenuModel, kNewSplitView);
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(NewTabButtonMenuModel,
-                                      kNewIncognitoWindow);
+                                      kCreateNewTabGroup);
 
 NewTabButton::NewTabButton(TabStripController* tab_strip,
                            PressedCallback callback,
@@ -64,25 +69,38 @@ void NewTabButton::ShowContextMenuForViewImpl(
 
 NewTabButtonMenuModel::NewTabButtonMenuModel(BrowserWindowInterface* browser)
     : ui::SimpleMenuModel(this), browser_(browser) {
+  CHECK(browser_);
+
   // Build the menu.
   AddItemWithStringId(IDC_NEW_TAB, IDS_NEW_TAB);
   SetElementIdentifierAt(GetIndexOfCommandId(IDC_NEW_TAB).value(), kNewTab);
+  AddNewTabInGroupItem();
 
-  // TODO(crbug.com/433807114): Add the new menu item 'New tab in group' here.
+  AddSeparator(ui::NORMAL_SEPARATOR);
 
-  AddItemWithStringId(IDC_NEW_WINDOW, IDS_NEW_WINDOW);
-  SetElementIdentifierAt(GetIndexOfCommandId(IDC_NEW_WINDOW).value(),
-                         kNewWindow);
+  AddItemWithStringId(IDC_CREATE_NEW_TAB_GROUP, IDS_NEW_TAB_GROUP);
+  SetElementIdentifierAt(GetIndexOfCommandId(IDC_CREATE_NEW_TAB_GROUP).value(),
+                         kCreateNewTabGroup);
 
-  AddItemWithStringId(IDC_NEW_INCOGNITO_WINDOW, IDS_NEW_INCOGNITO_WINDOW);
-  SetElementIdentifierAt(GetIndexOfCommandId(IDC_NEW_INCOGNITO_WINDOW).value(),
-                         kNewIncognitoWindow);
+  if (base::FeatureList::IsEnabled(features::kSideBySide)) {
+    AddSeparator(ui::NORMAL_SEPARATOR);
+    AddNewSplitTabItem();
+  }
 }
 
 NewTabButtonMenuModel::~NewTabButtonMenuModel() = default;
 
 void NewTabButtonMenuModel::ExecuteCommand(int command_id, int event_flags) {
   CHECK(browser_);
+
+  if (command_id == IDC_NEW_SPLIT_TAB) {
+    // Handle this command directly because we want to specify the source
+    // as the new tab button.
+    chrome::NewSplitTab(browser_,
+                        split_tabs::SplitTabCreatedSource::kNewTabButton);
+    return;
+  }
+
   chrome::ExecuteCommand(browser_, command_id);
 }
 
@@ -98,4 +116,57 @@ bool NewTabButtonMenuModel::GetAcceleratorForCommandId(
   return browser_->GetFeatures()
       .accelerator_provider()
       ->GetAcceleratorForCommandId(command_id, accelerator);
+}
+
+void NewTabButtonMenuModel::AddNewTabInGroupItem() {
+  TabStripModel* tab_strip_model = browser_->GetTabStripModel();
+  CHECK(tab_strip_model);
+
+  TabGroupModel* tab_group_model = tab_strip_model->group_model();
+  CHECK(tab_group_model);
+
+  std::optional<tab_groups::TabGroupId> group_id =
+      tab_group_model->GetMostRecentTabGroupId();
+
+  if (!group_id) {
+    // There is no most recent group. So we don't enable this option.
+    AddItem(IDC_ADD_NEW_TAB_RECENT_GROUP,
+            l10n_util::GetStringUTF16(IDS_NEW_TAB_IN_GROUP_NO_GROUPS));
+    SetEnabledAt(GetIndexOfCommandId(IDC_ADD_NEW_TAB_RECENT_GROUP).value(),
+                 false);
+  } else {
+    // The most recent tab group exists.
+    std::u16string group_name =
+        tab_group_model->GetTabGroup(*group_id)->visual_data()->title();
+
+    std::u16string menu_item_label;
+
+    if (group_name.empty()) {
+      // "New tab in 2 tabs
+      int num_tabs = tab_group_model->GetTabGroup(*group_id)->tab_count();
+      menu_item_label = l10n_util::GetPluralStringFUTF16(
+          IDS_NEW_TAB_IN_GROUP_NO_NAME, num_tabs);
+    } else {
+      // "New tab in |group_name|".
+      menu_item_label =
+          l10n_util::GetStringFUTF16(IDS_NEW_TAB_IN_GROUP, group_name);
+    }
+    AddItem(IDC_ADD_NEW_TAB_RECENT_GROUP, menu_item_label);
+  }
+
+  SetElementIdentifierAt(
+      GetIndexOfCommandId(IDC_ADD_NEW_TAB_RECENT_GROUP).value(),
+      kNewTabInGroup);
+}
+
+void NewTabButtonMenuModel ::AddNewSplitTabItem() {
+  AddItemWithStringId(IDC_NEW_SPLIT_TAB, IDS_TAB_CXMENU_NEW_SPLIT_WITH_CURRENT);
+  SetElementIdentifierAt(GetIndexOfCommandId(IDC_NEW_SPLIT_TAB).value(),
+                         kNewSplitView);
+
+  TabStripModel* tab_strip_model = browser_->GetTabStripModel();
+  CHECK(tab_strip_model);
+
+  SetEnabledAt(GetIndexOfCommandId(IDC_NEW_SPLIT_TAB).value(),
+               !tab_strip_model->IsActiveTabSplit());
 }

@@ -4,6 +4,7 @@
 
 #import "ios/chrome/browser/intelligence/page_action_menu/coordinator/page_action_menu_coordinator.h"
 
+#import "ios/chrome/browser/content_settings/model/host_content_settings_map_factory.h"
 #import "ios/chrome/browser/dom_distiller/model/distiller_service_factory.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_service_factory.h"
 #import "ios/chrome/browser/intelligence/page_action_menu/coordinator/page_action_menu_mediator.h"
@@ -22,6 +23,7 @@
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
+#import "ios/chrome/browser/shared/public/commands/contextual_sheet_commands.h"
 #import "ios/chrome/browser/shared/public/commands/lens_overlay_commands.h"
 #import "ios/chrome/browser/shared/public/commands/page_action_menu_commands.h"
 #import "ios/chrome/browser/shared/public/commands/reader_mode_commands.h"
@@ -52,18 +54,24 @@
 
   ReaderModeTabHelper* readerModeTabHelper =
       ReaderModeTabHelper::FromWebState(activeWebState);
+
+  HostContentSettingsMap* hostContentSettingsMap =
+      ios::HostContentSettingsMapFactory::GetForProfile(self.profile);
   _mediator = [[PageActionMenuMediator alloc]
-         initWithWebState:activeWebState
-       profilePrefService:self.profile->GetPrefs()
-       templateURLService:ios::TemplateURLServiceFactory::GetForProfile(
-                              self.profile)
-               BWGService:BwgServiceFactory::GetForProfile(self.profile)
-      readerModeTabHelper:readerModeTabHelper];
+            initWithWebState:activeWebState
+          profilePrefService:self.profile->GetPrefs()
+          templateURLService:ios::TemplateURLServiceFactory::GetForProfile(
+                                 self.profile)
+                  BWGService:BwgServiceFactory::GetForProfile(self.profile)
+         readerModeTabHelper:readerModeTabHelper
+      hostContentSettingsMap:hostContentSettingsMap];
 
   id<PageActionMenuCommands> pageActionMenuHandler = HandlerForProtocol(
       self.browser->GetCommandDispatcher(), PageActionMenuCommands);
   _mediator.pageActionMenuHandler = pageActionMenuHandler;
   _mediator.consumer = _viewController;
+  _mediator.contextualSheetHandler = HandlerForProtocol(
+      self.browser->GetCommandDispatcher(), ContextualSheetCommands);
 
   if (readerModeTabHelper) {
     DistillerService* distillerService =

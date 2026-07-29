@@ -39,7 +39,6 @@
 #include "gpu/config/gpu_preferences.h"
 #include "ui/base/ozone_buildflags.h"
 #include "ui/base/ui_base_features.h"
-#include "ui/gfx/buffer_format_util.h"
 #include "ui/gfx/gpu_memory_buffer_handle.h"
 #include "ui/gl/gl_display.h"
 #include "ui/gl/gl_implementation.h"
@@ -78,7 +77,6 @@
 #include "gpu/command_buffer/service/dxgi_shared_handle_manager.h"
 #include "gpu/command_buffer/service/shared_image/d3d_image_backing_factory.h"
 #include "gpu/command_buffer/service/shared_image/dcomp_image_backing_factory.h"
-#include "gpu/command_buffer/service/shared_image/gpu_memory_buffer_factory_dxgi.h"
 #include "ui/gl/direct_composition_support.h"
 #include "ui/gl/gl_angle_util_win.h"
 #endif  // BUILDFLAG(IS_WIN)
@@ -642,13 +640,6 @@ bool SharedImageFactory::IsD3DSharedImageSupported() const {
       context_state_->GetD3D11Device().Get(), gpu_preferences_);
 }
 
-GpuMemoryBufferFactoryDXGI*
-SharedImageFactory::GetGpuMemoryBufferFactoryDXGI() {
-  static auto* factory =
-      new GpuMemoryBufferFactoryDXGI(shared_image_manager_->io_runner());
-  return factory;
-}
-
 bool SharedImageFactory::CreateSwapChain(const Mailbox& front_buffer_mailbox,
                                          const Mailbox& back_buffer_mailbox,
                                          viz::SharedImageFormat format,
@@ -725,8 +716,8 @@ SharedImageFactory::CreateNativeGpuMemoryBufferHandle(
   return OzoneImageBackingFactory::CreateGpuMemoryBufferHandle(
       shared_image_manager_->vulkan_context_provider(), size, format, usage);
 #else
-  return GetGpuMemoryBufferFactoryDXGI()->CreateNativeGmbHandle(size, format,
-                                                                usage);
+  return D3DImageBackingFactory::CreateGpuMemoryBufferHandle(
+      shared_image_manager_->io_runner(), size, format, usage);
 #endif
 }
 #endif
@@ -735,9 +726,8 @@ bool SharedImageFactory::CopyNativeBufferToSharedMemoryAsync(
     gfx::GpuMemoryBufferHandle buffer_handle,
     base::UnsafeSharedMemoryRegion shared_memory) {
 #if BUILDFLAG(IS_WIN)
-  return GetGpuMemoryBufferFactoryDXGI()
-      ->FillSharedMemoryRegionWithBufferContents(std::move(buffer_handle),
-                                                 std::move(shared_memory));
+  return D3DImageBackingFactory::CopyNativeBufferToSharedMemoryAsync(
+      std::move(buffer_handle), std::move(shared_memory));
 #else
   return false;
 #endif
@@ -995,7 +985,6 @@ bool SharedImageFactory::RegisterBacking(
     return false;
   }
 
-  shared_image->RegisterImageFactory(this);
   if (pool_id) {
     shared_image->SetSharedImagePoolId(pool_id.value());
   }

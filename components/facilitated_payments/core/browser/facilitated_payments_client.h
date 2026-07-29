@@ -41,7 +41,6 @@ namespace payments::facilitated {
 
 class PixAccountLinkingManager;
 class FacilitatedPaymentsNetworkInterface;
-class MultipleRequestFacilitatedPaymentsNetworkInterface;
 
 // A cross-platform client interface for showing UI for non-form based FOPs.
 class FacilitatedPaymentsClient : public autofill::RiskDataLoader {
@@ -58,23 +57,10 @@ class FacilitatedPaymentsClient : public autofill::RiskDataLoader {
 
   // Gets the `FacilitatedPaymentsNetworkInterface` instance owned by the client
   // used for making payment requests. It can be null if the browser context
-  // associated with the WebContents is null. See comment for below function
-  // too.
+  // associated with the WebContents is null. Support multiple active
+  // requests at a time.
   virtual FacilitatedPaymentsNetworkInterface*
   GetFacilitatedPaymentsNetworkInterface() = 0;
-
-  // Same as above. However this network interface can support multiple active
-  // requests at a time. Sending a request will not affect other ongoing
-  // requests. This is a complete upgrade of the
-  // `FacilitatedPaymentsNetworkInterface` so all new flows should use this
-  // function. All existing flows should be migrated to this. Note that since
-  // each flow should migrate in its own effort, we would need to keep these
-  // functions separate, instead of updating the logic inside
-  // GetFacilitatedPaymentsNetworkInterface. When all migrations are finished,
-  // above function and the FacilitatedPaymentsNetworkInterface class should be
-  // cleaned up.
-  virtual MultipleRequestFacilitatedPaymentsNetworkInterface*
-  GetMultipleRequestFacilitatedPaymentsNetworkInterface() = 0;
 
   // Provides access to the core information of the user's primary account.
   virtual std::optional<CoreAccountInfo> GetCoreAccountInfo() = 0;

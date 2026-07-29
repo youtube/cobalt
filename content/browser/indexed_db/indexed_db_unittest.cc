@@ -37,8 +37,8 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/gmock_callback_support.h"
 #include "base/test/mock_callback.h"
-#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
+#include "base/test/test_file_util.h"
 #include "base/test/test_future.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
@@ -61,6 +61,7 @@
 #include "content/browser/indexed_db/instance/bucket_context_handle.h"
 #include "content/browser/indexed_db/instance/connection.h"
 #include "content/browser/indexed_db/instance/leveldb/backing_store.h"
+#include "content/browser/indexed_db/instance/mock_blob_storage_context.h"
 #include "content/browser/indexed_db/mock_mojo_indexed_db_database_callbacks.h"
 #include "content/browser/indexed_db/mock_mojo_indexed_db_factory_client.h"
 #include "content/browser/indexed_db/status.h"
@@ -218,12 +219,8 @@ class TestIndexedDBObserver : public storage::mojom::IndexedDBObserver {
 
 }  // namespace
 
-class IndexedDBTest
-    : public testing::Test,
-      // The first boolean toggles the Storage Partitioning feature. The second
-      // boolean controls the type of StorageKey to run the test on (first or
-      // third party).
-      public testing::WithParamInterface<std::tuple<bool, bool>> {
+class IndexedDBTest : public testing::Test,
+                      public testing::WithParamInterface<bool> {
  public:
   blink::StorageKey kNormalFirstPartyStorageKey;
   BucketLocator kNormalFirstPartyBucketLocator;
@@ -245,7 +242,9 @@ class IndexedDBTest
   BucketLocator kInvertedSessionOnlySubdomainThirdPartyBucketLocator;
 
   IndexedDBTest()
-      : special_storage_policy_(
+      : sqlite_override_(BucketContext::OverrideShouldUseSqliteForTesting(
+            IsSqliteBackingStoreEnabled())),
+        special_storage_policy_(
             base::MakeRefCounted<storage::MockSpecialStoragePolicy>()),
         quota_manager_(base::MakeRefCounted<storage::MockQuotaManager>(
             /*is_incognito=*/false,
@@ -255,16 +254,19 @@ class IndexedDBTest
         quota_manager_proxy_(
             base::MakeRefCounted<storage::MockQuotaManagerProxy>(
                 quota_manager_.get(),
-                base::SequencedTaskRunner::GetCurrentDefault())),
-        context_(std::make_unique<IndexedDBContextImpl>(
-            temp_dir_.GetPath(),
-            quota_manager_proxy_.get(),
-            /*blob_storage_context=*/mojo::NullRemote(),
-            /*file_system_access_context=*/mojo::NullRemote(),
-            base::SequencedTaskRunner::GetCurrentDefault())) {
-    scoped_feature_list_.InitWithFeatureStates(
-        {{net::features::kThirdPartyStoragePartitioning,
-          IsThirdPartyStoragePartitioningEnabled()}});
+                base::SequencedTaskRunner::GetCurrentDefault())) {
+    mojo::PendingRemote<storage::mojom::BlobStorageContext>
+        pending_blob_storage_context;
+    blob_storage_context_.Clone(
+        pending_blob_storage_context.InitWithNewPipeAndPassReceiver());
+    context_ = std::make_unique<IndexedDBContextImpl>(
+        temp_dir_.GetPath(), quota_manager_proxy_.get(),
+        std::move(pending_blob_storage_context),
+        /*file_system_access_context=*/mojo::NullRemote(),
+        base::SequencedTaskRunner::GetCurrentDefault());
+    // Let the mojo pipes be bound before proceeding. See
+    // IndexedDBContextImpl::BindPipesOnIDBSequence().
+    RunPostedTasks();
 
     kNormalFirstPartyStorageKey =
         blink::StorageKey::CreateFromStringForTesting("http://normal.com/");
@@ -341,6 +343,8 @@ class IndexedDBTest
 
   ~IndexedDBTest() override = default;
 
+  bool IsSqliteBackingStoreEnabled() { return GetParam(); }
+
   storage::BucketInfo InitBucket(const blink::StorageKey& storage_key) {
     storage::BucketInfo bucket;
     quota_manager_->UpdateOrCreateBucket(
@@ -355,11 +359,18 @@ class IndexedDBTest
   }
 
   void SetUpInMemoryContext() {
+    mojo::PendingRemote<storage::mojom::BlobStorageContext>
+        pending_blob_storage_context;
+    blob_storage_context_.Clone(
+        pending_blob_storage_context.InitWithNewPipeAndPassReceiver());
     context_ = std::make_unique<IndexedDBContextImpl>(
         base::FilePath(), quota_manager_proxy_.get(),
-        /*blob_storage_context=*/mojo::NullRemote(),
+        std::move(pending_blob_storage_context),
         /*file_system_access_context=*/mojo::NullRemote(),
         base::SequencedTaskRunner::GetCurrentDefault());
+    // The mojo pipes are bound asynchronously, and must be bound before
+    // proceeding with testing.
+    RunPostedTasks();
   }
 
   void RunPostedTasks() {
@@ -390,13 +401,15 @@ class IndexedDBTest
   }
 
   base::FilePath GetFilePathForTesting(const BucketLocator& bucket_locator) {
-    base::test::TestFuture<const base::FilePath&> path_future;
-    context()->GetFilePathForTesting(bucket_locator, path_future.GetCallback());
-    return path_future.Take();
+    return context()->GetFilePathForTesting(bucket_locator,
+                                            IsSqliteBackingStoreEnabled());
   }
 
   bool IsThirdPartyStoragePartitioningEnabled() {
-    return std::get<0>(GetParam());
+    // Enabled by default since 2023 for most platforms, but still off by
+    // default for Android WebView.
+    return base::FeatureList::IsEnabled(
+        net::features::kThirdPartyStoragePartitioning);
   }
 
   bool DeleteBucket(const storage::BucketInfo* bucket_info) {
@@ -417,13 +430,7 @@ class IndexedDBTest
   }
 
   blink::StorageKey GetTestStorageKey() {
-    const bool first_party = std::get<1>(GetParam());
-    return first_party
-               ? blink::StorageKey::CreateFromStringForTesting("http://test/")
-               : blink::StorageKey::Create(
-                     url::Origin::Create(GURL("http://test/")),
-                     net::SchemefulSite(GURL("http://rando/")),
-                     blink::mojom::AncestorChainBit::kCrossSite);
+    return blink::StorageKey::CreateFromStringForTesting("http://test/");
   }
 
   // Opens a database connection, runs `action`, and verifies that the
@@ -541,7 +548,7 @@ class IndexedDBTest
 
  protected:
   IndexedDBContextImpl* context() const { return context_.get(); }
-  base::test::ScopedFeatureList scoped_feature_list_;
+  base::AutoReset<std::optional<bool>> sqlite_override_;
 
   base::test::TaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
@@ -549,6 +556,7 @@ class IndexedDBTest
   scoped_refptr<storage::MockSpecialStoragePolicy> special_storage_policy_;
   scoped_refptr<storage::MockQuotaManager> quota_manager_;
   scoped_refptr<storage::MockQuotaManagerProxy> quota_manager_proxy_;
+  MockBlobStorageContext blob_storage_context_;
   std::unique_ptr<IndexedDBContextImpl> context_;
   mojo::Remote<blink::mojom::IDBFactory> factory_remote_;
 };
@@ -556,13 +564,9 @@ class IndexedDBTest
 INSTANTIATE_TEST_SUITE_P(
     /* no prefix */,
     IndexedDBTest,
-    testing::Combine(
-        /*enable third party storage partitioning*/ testing::Bool(),
-        testing::Values(true)),
+    /*use SQLite backing store*/ testing::Bool(),
     [](const testing::TestParamInfo<IndexedDBTest::ParamType>& info) {
-      std::string name = std::get<0>(info.param) ? "WithStoragePartitioning_"
-                                                 : "NoStoragePartitioning_";
-      return name;
+      return info.param ? "SQLite" : "LevelDB";
     });
 
 TEST_P(IndexedDBTest, CloseConnectionBeforeUpgrade) {
@@ -1489,20 +1493,9 @@ TEST_P(IndexedDBTest, SetForceKeepSessionState) {
   EXPECT_TRUE(base::DirectoryExists(session_only_path_third_party));
 }
 
-// Tests that parameterize whether they act on first or third party storage key
-// buckets.
-using IndexedDBTestFirstOrThirdParty = IndexedDBTest;
-
-INSTANTIATE_TEST_SUITE_P(
-    /* no prefix */,
-    IndexedDBTestFirstOrThirdParty,
-    testing::Combine(
-        /*enable third party storage partitioning*/ testing::Bool(),
-        /*test with third party storage key*/ testing::Bool()));
-
 // Verifies that the IDB connection is force closed and the directory is deleted
 // when the bucket is deleted.
-TEST_P(IndexedDBTestFirstOrThirdParty, ForceCloseOpenDatabasesOnDelete) {
+TEST_P(IndexedDBTest, ForceCloseOpenDatabasesOnDelete) {
   storage::BucketInfo bucket_info;
   VerifyForcedClosedCalled(
       base::BindOnce(base::IgnoreResult(&IndexedDBTest::DeleteBucket),
@@ -1516,27 +1509,27 @@ TEST_P(IndexedDBTestFirstOrThirdParty, ForceCloseOpenDatabasesOnDelete) {
 
 // Verifies that the IDB connection is force closed when the backing store has
 // an error.
-TEST_P(IndexedDBTestFirstOrThirdParty, ForceCloseOpenDatabasesOnCommitFailure) {
+TEST_P(IndexedDBTest, ForceCloseOpenDatabasesOnDatabaseError) {
   storage::BucketInfo bucket_info;
   VerifyForcedClosedCalled(
       base::BindOnce(
-          [](IndexedDBContextImpl* context, storage::BucketInfo* bucket_info) {
-            context->GetBucketContextForTesting(bucket_info->id)
-                ->AsyncCall(&BucketContext::OnDatabaseError)
-                .WithArgs(
-                    // SQLite will need the correct pointer passed here.
-                    /*database=*/nullptr,
-                    Status::InvalidArgument("operation not supported"),
-                    std::string());
+          [](IndexedDBTest* test, storage::BucketInfo* bucket_info) {
+            BucketContext* bucket = test->GetBucketContext(bucket_info->id);
+            const auto& dbs = bucket->GetDatabasesForTesting();
+            ASSERT_EQ(1U, dbs.size());
+            for (auto& [name, db] : dbs) {
+              bucket->OnDatabaseError(
+                  db.get(), Status::InvalidArgument("operation not supported"),
+                  std::string());
+            }
           },
-          context(), &bucket_info),
+          this, &bucket_info),
       &bucket_info);
 }
 
 // Verifies that the IDB connection is force closed when the database is deleted
 // via the mojo API.
-TEST_P(IndexedDBTestFirstOrThirdParty,
-       ForceCloseOpenDatabasesOnDeleteDatabase) {
+TEST_P(IndexedDBTest, ForceCloseOpenDatabasesOnDeleteDatabase) {
   storage::BucketInfo bucket_info;
   VerifyForcedClosedCalled(
       base::BindOnce(
@@ -1783,6 +1776,12 @@ TEST_P(IndexedDBTest, CloseWithReceiversInactive) {
 }
 
 TEST_P(IndexedDBTest, PreCloseTasksStart) {
+  if (IsSqliteBackingStoreEnabled()) {
+    // SQLite doesn't have any pre-close tasks, although it may in the future,
+    // such as vacuuming. For now this test is not relevant.
+    GTEST_SKIP();
+  }
+
   {
     // Open a connection & immediately release it to cause the closing sequence
     // to start.
@@ -2205,19 +2204,28 @@ TEST_P(IndexedDBTest, UpdatePriorityAfterForceClose) {
   // Not crashing indicates success.
 }
 
-TEST_P(IndexedDBTest, QuotaErrorOnDiskFull) {
-  leveldb_env::SetDBFactoryForTesting(base::BindRepeating(
-      [](const leveldb_env::Options& options, const std::string& name,
-         std::unique_ptr<leveldb::DB>* dbptr) {
-        return leveldb_env::MakeIOError("foobar", "disk full",
-                                        leveldb_env::MethodID::kCreateDir,
-                                        base::File::FILE_ERROR_NO_SPACE);
-      }));
+TEST_P(IndexedDBTest, QuotaErrorOnDbOpenError) {
+  if (IsSqliteBackingStoreEnabled()) {
+    // The mechanism used to induce errors (`MakeFileUnwritable`) doesn't work
+    // on Fuchsia.
+#if BUILDFLAG(IS_FUCHSIA)
+    GTEST_SKIP();
+#endif  // BUILDFLAG(IS_FUCHSIA)
+  } else {
+    leveldb_env::SetDBFactoryForTesting(base::BindRepeating(
+        [](const leveldb_env::Options& options, const std::string& name,
+           std::unique_ptr<leveldb::DB>* dbptr) {
+          return leveldb_env::MakeIOError("foobar", "disk full",
+                                          leveldb_env::MethodID::kCreateDir,
+                                          base::File::FILE_ERROR_NO_SPACE);
+        }));
+  }
 
   // Bind the IDBFactory.
   const blink::StorageKey storage_key =
       blink::StorageKey::CreateFromStringForTesting("http://localhost:81");
   BucketLocator bucket_locator = BucketLocator();
+  bucket_locator.is_default = true;
   bucket_locator.storage_key = storage_key;
   mojo::Remote<blink::mojom::IDBFactory> factory_remote;
   mojo::PendingRemote<storage::mojom::IndexedDBClientStateChecker>
@@ -2225,6 +2233,30 @@ TEST_P(IndexedDBTest, QuotaErrorOnDiskFull) {
   BindFactory(std::move(checker_remote),
               factory_remote.BindNewPipeAndPassReceiver(),
               ToBucketInfo(bucket_locator));
+
+  std::optional<base::FilePermissionRestorer> permission_restorer;
+  if (IsSqliteBackingStoreEnabled()) {
+    // First create a database successfully so that the directory exists, then
+    // make the directory unwritable. This will make future attempts to open the
+    // file fail.
+    MockMojoFactoryClient client;
+    MockMojoDatabaseCallbacks database_callbacks;
+    base::RunLoop run_loop;
+    EXPECT_CALL(client, MockedOpenSuccess)
+        .WillOnce(::base::test::RunClosure(run_loop.QuitClosure()));
+    mojo::AssociatedRemote<blink::mojom::IDBTransaction> transaction_remote;
+    factory_remote->Open(client.CreateInterfacePtrAndBind(),
+                         database_callbacks.CreateInterfacePtrAndBind(), u"db2",
+                         /*version=*/0,
+                         transaction_remote.BindNewEndpointAndPassReceiver(),
+                         /*transaction_id=*/1, /*priority=*/0);
+    run_loop.Run();
+
+    base::FilePath data_path = GetFilePathForTesting(bucket_locator);
+    permission_restorer.emplace(data_path);
+    ASSERT_TRUE(base::MakeFileUnwritable(data_path))
+        << base::File::GetLastFileError();
+  }
 
   // Expect an error when opening.
   MockMojoFactoryClient client;
@@ -2237,10 +2269,10 @@ TEST_P(IndexedDBTest, QuotaErrorOnDiskFull) {
                        database_callbacks.CreateInterfacePtrAndBind(), u"db",
                        /*version=*/1,
                        transaction_remote.BindNewEndpointAndPassReceiver(),
-                       /*transaction_id=*/1, /*priority=*/0);
+                       /*transaction_id=*/2, /*priority=*/0);
   run_loop.Run();
 
-  // A disk full error results in an error reported to the quota system.
+  // An error on open results in a write error reported to the quota system.
   ASSERT_EQ(1U, quota_manager_->write_error_tracker().size());
   EXPECT_EQ(storage_key, quota_manager_->write_error_tracker().begin()->first);
   EXPECT_EQ(1, quota_manager_->write_error_tracker().begin()->second);
@@ -2304,6 +2336,11 @@ TEST_P(IndexedDBTest, DatabaseFailedOpen) {
 
 // Test for `IndexedDBDataFormatVersion`.
 TEST_P(IndexedDBTest, DataLoss) {
+  if (IsSqliteBackingStoreEnabled()) {
+    // TODO(crbug.com/450044205): update test for SQLite.
+    GTEST_SKIP();
+  }
+
   const blink::StorageKey storage_key =
       blink::StorageKey::CreateFromStringForTesting("http://localhost:81");
   BucketLocator bucket_locator = BucketLocator();

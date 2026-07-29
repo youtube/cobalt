@@ -47,7 +47,11 @@ class BubbleControllerBase {
   virtual void ShowBubble() = 0;
 
   // Instructs the controller to hide the bubble view.
-  virtual void HideBubble() = 0;
+  virtual void HideBubble(bool initiated_by_bubble_manager) = 0;
+
+  // Instructs the controller that its pending request to show has been
+  // discarded and will not be shown. This can happen on timeout or teardown.
+  virtual void OnBubbleDiscarded() = 0;
 
   // Returns the corresponding `BubbleType` for the controller.
   virtual BubbleType GetBubbleType() const = 0;
@@ -57,6 +61,11 @@ class BubbleControllerBase {
 
   // Returns true if the mouse is currently inside the bubble view.
   virtual bool IsMouseHovered() const = 0;
+
+  // Returns false if the bubble should not be queued and shown again later
+  // (e.g. after being preempted). This is the case for bubbles that are
+  // time-sensitive or whose state is cleared upon closing.
+  virtual bool CanBeReshown() const = 0;
 
   // Subclasses need to implement this method so that the resulting weak
   // pointers are invalidated as soon as the derived class is destroyed.

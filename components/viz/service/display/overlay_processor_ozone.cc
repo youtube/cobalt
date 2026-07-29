@@ -17,13 +17,11 @@
 #include "build/chromecast_buildflags.h"
 #include "components/viz/common/buildflags.h"
 #include "components/viz/common/features.h"
-#include "components/viz/common/resources/shared_image_format_utils.h"
 #include "components/viz/service/display/overlay_strategy_fullscreen.h"
 #include "components/viz/service/display/overlay_strategy_single_on_top.h"
 #include "components/viz/service/display/overlay_strategy_underlay.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_format_service_utils.h"
 #include "ui/base/ui_base_features.h"
-#include "ui/gfx/buffer_format_util.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 #include "ui/gfx/geometry/size_conversions.h"
 
@@ -491,6 +489,15 @@ void OverlayProcessorOzone::OnSwapBuffersComplete(gfx::SwapResult swap_result) {
   }
 }
 
+void OverlayProcessorOzone::InsertPrimaryPlane(
+    OverlayCandidate primary_plane,
+    OverlayCandidateList& candidates) {
+  // Ozone DRM needs the primary plane as the first overlay when overlay
+  // testing.
+  const auto insert_positon = candidates.begin();
+  candidates.insert(insert_positon, std::move(primary_plane));
+}
+
 bool OverlayProcessorOzone::SetNativePixmapForCandidate(
     ui::OverlaySurfaceCandidate* candidate,
     const gpu::Mailbox& mailbox,
@@ -511,8 +518,7 @@ bool OverlayProcessorOzone::SetNativePixmapForCandidate(
 
   if (is_primary &&
       (candidate->buffer_size != native_pixmap->GetBufferSize() ||
-       candidate->format !=
-           GetSharedImageFormat(native_pixmap->GetBufferFormat()))) {
+       candidate->format != native_pixmap->GetSharedImageFormat())) {
     // If |mailbox| corresponds to the last submitted primary plane, its
     // parameters may not match those of the current candidate due to a
     // reshape. If the size and format don't match, skip this candidate for

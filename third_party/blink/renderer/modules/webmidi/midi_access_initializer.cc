@@ -50,7 +50,7 @@ ScriptPromise<MIDIAccess> MIDIAccessInitializer::Start(LocalDOMWindow* window) {
               ? true
               : options_->hasSysex() && options_->sysex()),
       LocalFrame::HasTransientUserActivation(window->GetFrame()),
-      BindOnce(&MIDIAccessInitializer::OnPermissionsUpdated,
+      BindOnce(&MIDIAccessInitializer::OnPermissionRequestResult,
                WrapPersistent(this)));
 
   return resolver_->Promise();
@@ -91,9 +91,10 @@ void MIDIAccessInitializer::DidSetOutputPortState(unsigned port_index,
 }
 
 void MIDIAccessInitializer::DidStartSession(Result result) {
+  self_keep_alive_.Clear();
   DCHECK(dispatcher_);
   // We would also have AbortError and SecurityError according to the spec.
-  // SecurityError is handled in onPermission(s)Updated().
+  // SecurityError is handled in OnPermissionRequestResult().
   switch (result) {
     case Result::NOT_INITIALIZED:
       NOTREACHED();
@@ -115,6 +116,12 @@ void MIDIAccessInitializer::DidStartSession(Result result) {
   }
 }
 
+void MIDIAccessInitializer::OnSessionStartFailed() {
+  resolver_->RejectWithDOMException(DOMExceptionCode::kAbortError,
+                                    "The MIDI system failed to start.");
+  self_keep_alive_.Clear();
+}
+
 void MIDIAccessInitializer::Trace(Visitor* visitor) const {
   visitor->Trace(resolver_);
   visitor->Trace(dispatcher_);
@@ -130,22 +137,14 @@ void MIDIAccessInitializer::StartSession() {
   dispatcher_->SetClient(this);
 }
 
-void MIDIAccessInitializer::OnPermissionsUpdated(
+void MIDIAccessInitializer::OnPermissionRequestResult(
     mojom::blink::PermissionStatus status) {
   permission_service_.reset();
   if (status == mojom::blink::PermissionStatus::GRANTED) {
-    StartSession();
-  } else {
-    resolver_->RejectWithDOMException(
-        DOMExceptionCode::kNotAllowedError,
-        "Permission to use Web MIDI API was not granted.");
-  }
-}
-
-void MIDIAccessInitializer::OnPermissionUpdated(
-    mojom::blink::PermissionStatus status) {
-  permission_service_.reset();
-  if (status == mojom::blink::PermissionStatus::GRANTED) {
+    // After `OnPermissionRequestResult` returns there is nothing retaining the
+    // object.  Use `self_keep_alive_` to prevent it from being garbage
+    // collected before the promise is resolved.  See crbug.com/447189642
+    self_keep_alive_ = this;
     StartSession();
   } else {
     resolver_->RejectWithDOMException(

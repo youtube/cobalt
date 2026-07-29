@@ -403,20 +403,4 @@ void ImplementationBase::RunIfContextNotLost(base::OnceClosure callback) {
   }
 }
 
-void ImplementationBase::SetGrContext(GrDirectContext* gr) {}
-
-bool ImplementationBase::HasGrContextSupport() const {
-  return false;
-}
-
-void ImplementationBase::WillCallGLFromSkia() {
-  // Should only be called on subclasses that have GrContextSupport
-  NOTREACHED();
-}
-
-void ImplementationBase::DidCallGLFromSkia() {
-  // Should only be called on subclasses that have GrContextSupport
-  NOTREACHED();
-}
-
 }  // namespace gpu

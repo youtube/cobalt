@@ -71,7 +71,6 @@ De reținut:
 <translation id="2576431527583832481">Chrome a devenit și mai bun! Este disponibilă o nouă versiune.</translation>
 <translation id="257708665678654955">Dorești ca data viitoare Google Chrome să propună traducerea paginilor în limba <ph name="LANGUAGE_NAME" /> de pe acest site?</translation>
 <translation id="2668242166988961773">Folosește Căutarea vocală în Chrome.</translation>
-<translation id="2689064829982324496">Pentru a te deconecta de la Contul Google pe toate site-urile, <ph name="BEGIN_LINK" />deconectează-te de la Chrome<ph name="END_LINK" />.</translation>
 <translation id="2695886661449553974">Chrome nu a putut căuta actualizări. Încearcă din nou mai târziu.</translation>
 <translation id="2703746758996815929">Pentru a primi sfaturi utile privind Chrome, activează notificările din setările iOS.</translation>
 <translation id="2728851697704606655">Tradu cu Google Lens</translation>
@@ -87,6 +86,9 @@ Așteaptă câteva minute înainte să te deconectezi. Dacă te deconectezi acum
 <translation id="2940565985148833945">Sfat pentru Chrome: caută cu Lens</translation>
 <translation id="2957447865124070833">Selectează <ph name="BEGIN_BOLD" />Chrome<ph name="END_BOLD" /></translation>
 <translation id="2986402782150919988">Adaugă marcaje în Chrome</translation>
+<translation id="3027236223714901838">Pentru a păstra cheile de acces în siguranță, mai întâi trebuie să creezi un PIN de recuperare.
+
+        Cheile de acces sunt salvate în Managerul de parole Google, astfel că poți să le folosești în Chrome pe orice dispozitiv.</translation>
 <translation id="3030414234702425231">Deoarece te deconectezi de la un cont gestionat de <ph name="SIGNOUT_MANAGED_DOMAIN" />, datele tale Chrome de pe acest dispozitiv vor fi șterse. Datele tale vor rămâne în Contul Google.</translation>
 <translation id="3042447686908081308">Importă în Chrome</translation>
 <translation id="3051521853355903257">Gestionează parolele în Chrome</translation>
@@ -309,7 +311,6 @@ Numai un utilizator care deține expresia ta de acces îți poate citi datele cr
 <translation id="8413500425974960807">Sfat pentru Chrome: mută Chrome în bara de andocare</translation>
 <translation id="8413795581997394485">Protejează împotriva site-urilor, descărcărilor și extensiilor despre care se știe că sunt periculoase. Când accesezi un site, Chrome trimite la Google o parte obscurizată a adresei URL printr-un server pentru confidențialitate care îți ascunde adresa IP. Dacă un site are un comportament suspect, sunt trimise și adresele URL complete și fragmente din conținutul paginilor.</translation>
 <translation id="84594714173170813">Folosește în continuare datele Chrome din Contul Google</translation>
-<translation id="8459495907675268833">Datele selectate au fost eliminate din Chrome și de pe dispozitivele sincronizate. Contul Google poate să ofere alte forme ale istoricului de navigare, cum ar fi căutările și activitatea din alte servicii Google, la history.google.com.</translation>
 <translation id="8491300088149538575">Te-ai conectat ca <ph name="EMAIL" />.
 
 Datele au fost criptate cu expresia de acces pentru <ph name="TIME" />. Introdu-o pentru a folosi și a salva datele Chrome în Contul Google.</translation>

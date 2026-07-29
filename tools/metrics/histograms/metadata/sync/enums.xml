@@ -372,6 +372,10 @@ chromium-metrics-reviews@google.com.
   <int value="98" label="AutofillWasNameAndEmailProfileUsed"/>
   <int value="99" label="CrossDeviceCrossPlatformPromosIOS16thActiveDay"/>
   <int value="100" label="CrossDeviceSafetyCheckHomeModuleEnabled"/>
+  <int value="101" label="AutofillAiIdentityEntitiesEnabled"/>
+  <int value="102" label="AutofillAiTravelEntitiesEnabled"/>
+  <int value="103" label="CrossDeviceTabResumptionHomeModuleEnabled"/>
+  <int value="104" label="AutofillAmountExtractionAiTermsSeen"/>
 <!-- LINT.ThenChange(/components/sync_preferences/common_syncable_prefs_database.cc:CommonSyncablePref)-->
 
 <!-- LINT.IfChange(ChromeSyncablePref) -->
@@ -810,8 +814,8 @@ chromium-metrics-reviews@google.com.
   <int value="0" label="Changes match"/>
   <int value="1" label="Use local"/>
   <int value="2" label="Use remote"/>
-  <int value="3" label="Ignore local encryption"/>
-  <int value="4" label="Ignore remote encryption"/>
+  <int value="3" label="Ignore local no-op change"/>
+  <int value="4" label="Ignore remote no-op change"/>
 </enum>
 
 <!-- LINT.ThenChange(/components/sync/model/conflict_resolution.h:SyncConflictResolution) -->
@@ -848,6 +852,9 @@ chromium-metrics-reviews@google.com.
   <int value="4"
       label="Error triggered by update not matching
              SupportsIncrementalUpdates()"/>
+  <int value="5"
+      label="Error returned when applying incremental updates containing a
+             clear all directive"/>
 </enum>
 
 <!-- LINT.ThenChange(/components/sync/model/client_tag_based_data_type_processor.h:SyncDataTypeErrorSite) -->

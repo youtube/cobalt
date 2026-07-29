@@ -25,6 +25,7 @@ std::string TabStoragePackage::SerializePayload() const {
   const std::unique_ptr<AndroidTabPackage>& android_package =
       android_tab_package_;
   if (android_package) {
+    tab_state.set_tab_id(android_package->id_);
     tab_state.set_parent_id(android_package->parent_id_);
     tab_state.set_timestamp_millis(android_package->timestamp_millis_);
     if (android_package->web_contents_state_bytes_) {
@@ -51,6 +52,10 @@ std::string TabStoragePackage::SerializePayload() const {
   std::string payload;
   tab_state.SerializeToString(&payload);
   return payload;
+}
+
+std::string TabStoragePackage::SerializeChildren() const {
+  return "";
 }
 
 }  // namespace tabs

@@ -18,8 +18,8 @@ union ToolTarget {
 
   // An x,y pair representing a location relative to the origin at the top-left
   // corner of the local root frame (i.e. the blink::WebWidget/RenderWidget). In
-  // physical pixels.
-  gfx.mojom.Point coordinate;
+  // DIP.
+  gfx.mojom.Point coordinate_dip;
 };
 
 // Attributes of the Node target returned from hit test on last observed APC.
@@ -329,6 +329,9 @@ enum ActionResultCode {
   // The key down event for one of the chars was suppressed by Blink.
   kTypeKeyDownSuppressed = 704,
 
+  // The text to type is not valid UTF-8 string.
+  kTypeInvalidTextEncoding = 705,
+
   // Please see the comment above about adding new values.
 
   ///////////////////////////////////////////////////////////////////////
@@ -352,6 +355,10 @@ enum ActionResultCode {
 
   // History navigation committed to an error page.
   kHistoryErrorPage = 805,
+
+  // The navigation entry at the current offset changed between validation and
+  // time of use.
+  kHistoryNavigationEntryChanged = 806,
 
   // Please see the comment above about adding new values.
 

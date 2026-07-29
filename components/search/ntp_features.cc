@@ -82,6 +82,11 @@ BASE_FEATURE(kNtpCalendarModule, base::FEATURE_ENABLED_BY_DEFAULT);
 // If enabled, chrome cart module will be shown.
 BASE_FEATURE(kNtpChromeCartModule, base::FEATURE_ENABLED_BY_DEFAULT);
 
+// If enabled, customization of Chrome will be promoted on the NTP.
+BASE_FEATURE(kNtpCustomizeChromePromo,
+             "NtpCustomizeChromePromo",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 #if !defined(OFFICIAL_BUILD)
 // If enabled, dummy modules will be shown.
 // This is a development switch. Keep indefinitely.
@@ -230,6 +235,9 @@ BASE_FEATURE(kNtpMobilePromo, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kNtpMicrosoftAuthenticationModule,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// If enabled, the features of NTP Next (AI action chips etc.) will be shown.
+BASE_FEATURE(kNtpNextFeatures, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // If enabled, the OGB loader will request for the async bar parts payload type.
 BASE_FEATURE(kNtpOneGoogleBarAsyncBarParts, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -312,6 +320,15 @@ const char kNtpWallpaperSearchButtonAnimationShownThresholdParam[] =
     "NtpWallpaperSearchButtonAnimationShownThresholdParam";
 const char kWallpaperSearchHatsDelayParam[] = "WallpaperSearchHatsDelayParam";
 const char kNtpMobilePromoTargetUrlParam[] = "NtpMobilePromoTargetUrlParam";
+
+const base::FeatureParam<int> kNtpCustomizeChromePromoIPHMaxCount(
+    &ntp_features::kNtpCustomizeChromePromo,
+    "max_iph_count",
+    3);
+const base::FeatureParam<int> kNtpCustomizeChromePromoShownMaxCount(
+    &ntp_features::kNtpCustomizeChromePromo,
+    "max_customize_chrome_shown_count",
+    5);
 
 const base::FeatureParam<std::string> kNtpCalendarModuleExperimentParam(
     &ntp_features::kNtpCalendarModule,

@@ -281,7 +281,7 @@ class GlicBorderView::BorderViewUpdater : public views::ViewObserver {
   }
 
   bool IsGlicWindowShowing() const {
-    return border_view_->GetGlicService()->window_controller().IsShowing();
+    return border_view_->GetGlicService()->IsWindowShowing();
   }
 
   bool IsTabInCurrentView(const content::WebContents* tab) const {
@@ -289,10 +289,21 @@ class GlicBorderView::BorderViewUpdater : public views::ViewObserver {
   }
 
   bool ShouldShowBorderAnimation() {
-    if (!context_access_indicator_enabled_ ||
-        !glic_focused_contents_in_current_view_) {
+    if (!glic_focused_contents_in_current_view_) {
       return false;
     }
+
+    // For multi-instance we rely on the sharing manager signal for everything
+    // else.
+    if (base::FeatureList::IsEnabled(features::kGlicMultiInstance)) {
+      return true;
+    }
+
+    // Remaining single instance checks.
+    if (!context_access_indicator_enabled_) {
+      return false;
+    }
+
     return IsGlicWindowShowing();
   }
 

@@ -128,6 +128,12 @@ void LensSessionMetricsLogger::OnAimComposeboxFocused() {
 void LensSessionMetricsLogger::OnAimQueryIssued() {
   aim_session_end_metrics_.query_issued_ = true;
   lens::RecordAimComposeboxUserAction(
+      lens::LensComposeboxUserAction::kQueryIssued);
+}
+
+void LensSessionMetricsLogger::OnAimQuerySubmitted() {
+  aim_session_end_metrics_.query_submitted_ = true;
+  lens::RecordAimComposeboxUserAction(
       lens::LensComposeboxUserAction::kQuerySubmitted);
 }
 
@@ -207,6 +213,11 @@ void LensSessionMetricsLogger::
   lens::RecordContextualSearchboxTimeToInteractionAfterNavigation(
       time_to_interaction, current_page_content_type_);
   last_navigation_time_.reset();
+}
+
+lens::LensOverlayInvocationSource
+LensSessionMetricsLogger::GetInvocationSource() {
+  return invocation_source_;
 }
 
 }  // namespace lens

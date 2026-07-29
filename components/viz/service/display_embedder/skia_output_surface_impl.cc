@@ -104,8 +104,8 @@ namespace {
 
 // Records memory dumps and responds to memory pressure signals for Graphite Viz
 // via a global object.
-class GraphiteVizMemoryAssistant
-    : public base::trace_event::MemoryDumpProvider {
+class GraphiteVizMemoryAssistant : public base::trace_event::MemoryDumpProvider,
+                                   public base::MemoryPressureListener {
  public:
   static GraphiteVizMemoryAssistant& GetInstance() {
     static base::NoDestructor<GraphiteVizMemoryAssistant> instance;
@@ -123,10 +123,9 @@ class GraphiteVizMemoryAssistant
       base::trace_event::MemoryDumpManager::GetInstance()->RegisterDumpProvider(
           this, "GraphiteVizMemoryAssistant", std::move(task_runner));
 
-      memory_pressure_listener_.emplace(
+      memory_pressure_listener_registration_.emplace(
           FROM_HERE, base::MemoryPressureListenerTag::kSkiaOutputSurfaceImpl,
-          base::BindRepeating(&GraphiteVizMemoryAssistant::HandleMemoryPressure,
-                              base::Unretained(this)));
+          this);
     }
     num_clients_++;
   }
@@ -134,7 +133,7 @@ class GraphiteVizMemoryAssistant
   void RemoveClient() {
     num_clients_--;
     if (num_clients_ == 0) {
-      memory_pressure_listener_.reset();
+      memory_pressure_listener_registration_.reset();
       recorder_ = nullptr;
       cache_controller_ = nullptr;
       base::trace_event::MemoryDumpManager::GetInstance()
@@ -191,16 +190,16 @@ class GraphiteVizMemoryAssistant
     return true;
   }
 
-  void HandleMemoryPressure(
-      base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level) {
+  void OnMemoryPressure(
+      base::MemoryPressureLevel memory_pressure_level) override {
     switch (memory_pressure_level) {
-      case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE:
+      case base::MEMORY_PRESSURE_LEVEL_NONE:
         return;
-      case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE:
+      case base::MEMORY_PRESSURE_LEVEL_MODERATE:
         // With moderate pressure, clear any unlocked resources.
         cache_controller_->CleanUpScratchResources();
         break;
-      case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL:
+      case base::MEMORY_PRESSURE_LEVEL_CRITICAL:
         cache_controller_->CleanUpAllResources();
         break;
     }
@@ -208,7 +207,8 @@ class GraphiteVizMemoryAssistant
 
   // NOTE: The implementation guarantees that the callback will always be called
   // on the thread that created the listener.
-  std::optional<base::AsyncMemoryPressureListener> memory_pressure_listener_;
+  std::optional<base::AsyncMemoryPressureListenerRegistration>
+      memory_pressure_listener_registration_;
 
   raw_ptr<skgpu::graphite::Recorder> recorder_ = nullptr;
   raw_ptr<gpu::raster::GraphiteCacheController> cache_controller_ = nullptr;

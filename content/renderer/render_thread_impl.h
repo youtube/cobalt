@@ -121,7 +121,8 @@ class CONTENT_EXPORT RenderThreadImpl
       public ChildThreadImpl,
       public mojom::Renderer,
       public viz::mojom::CompositingModeWatcher,
-      public base::trace_event::TraceLog::AsyncEnabledStateObserver {
+      public base::trace_event::TraceLog::AsyncEnabledStateObserver,
+      public base::MemoryPressureListener {
  public:
   static RenderThreadImpl* current();
 
@@ -372,7 +373,7 @@ class CONTENT_EXPORT RenderThreadImpl
 #if BUILDFLAG(IS_ANDROID)
   // ChildThreadImpl
   void OnMemoryPressureFromBrowserReceived(
-      base::MemoryPressureListener::MemoryPressureLevel level) override;
+      base::MemoryPressureLevel level) override;
 #endif
   void SetBatterySaverMode(bool battery_saver_mode_enabled) override;
 
@@ -424,7 +425,7 @@ class CONTENT_EXPORT RenderThreadImpl
   void SetWebUIResourceUrlToCodeCacheMap(
       const base::flat_map<GURL, int>& resource_map) override;
   void OnMemoryPressure(
-      base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level);
+      base::MemoryPressureLevel memory_pressure_level) override;
 
   bool RendererIsHidden() const;
   void OnRendererHidden();
@@ -433,9 +434,6 @@ class CONTENT_EXPORT RenderThreadImpl
   bool RendererIsBackgrounded() const;
   void OnRendererBackgrounded();
   void OnRendererForegrounded();
-
-  void OnSyncMemoryPressure(
-      base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level);
 
   void OnRendererInterfaceReceiver(
       mojo::PendingAssociatedReceiver<mojom::Renderer> receiver);
@@ -528,9 +526,8 @@ class CONTENT_EXPORT RenderThreadImpl
 
   HistogramCustomizer histogram_customizer_;
 
-  std::unique_ptr<base::AsyncMemoryPressureListener> memory_pressure_listener_;
-  std::unique_ptr<base::SyncMemoryPressureListener>
-      sync_memory_pressure_listener_;
+  std::unique_ptr<base::SyncMemoryPressureListenerRegistration>
+      memory_pressure_listener_registration_;
 
   std::unique_ptr<viz::Gpu> gpu_;
 

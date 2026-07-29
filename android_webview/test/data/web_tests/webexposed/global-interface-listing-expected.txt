@@ -539,9 +539,6 @@ interface CSSColorValue
     static method parse
     attribute @@toStringTag
     method constructor
-    method toHSL
-    method toHWB
-    method toRGB
 interface CSSConditionRule : CSSGroupingRule
     attribute @@toStringTag
     getter conditionText
@@ -954,7 +951,7 @@ interface CSSPropertyRule : CSSRule
     getter name
     getter syntax
     method constructor
-interface CSSPseudoElement : EventTarget
+interface CSSPseudoElement
     attribute @@toStringTag
     getter element
     getter parent
@@ -2752,6 +2749,7 @@ interface Event
     getter currentTarget
     getter defaultPrevented
     getter eventPhase
+    getter pseudoTarget
     getter returnValue
     getter srcElement
     getter target
@@ -6497,6 +6495,7 @@ interface Navigator
     getter connection
     getter contacts
     getter cookieEnabled
+    getter cpuPerformance
     getter credentials
     getter deviceMemory
     getter doNotTrack
@@ -6865,6 +6864,7 @@ interface OrientationSensor : Sensor
     method constructor
     method populateMatrix
 interface Origin
+    static method from
     static method fromURL
     static method parse
     attribute @@toStringTag
@@ -7085,6 +7085,7 @@ interface PerformanceEventTiming : PerformanceEntry
     getter processingEnd
     getter processingStart
     getter target
+    getter targetIdentifier
     method constructor
     method toJSON
 interface PerformanceLongAnimationFrameTiming : PerformanceEntry
@@ -7779,6 +7780,7 @@ interface Request
     method clone
     method constructor
     method formData
+    method getRetryOptions
     method json
     method text
 interface ResizeObserver
@@ -7840,14 +7842,33 @@ interface RouteMap
 interface RtcReceivedPacket
     attribute @@toStringTag
     getter data
+    getter receiveTime
     method constructor
 interface RtcTransport
     attribute @@toStringTag
+    getter fingerprint
+    getter fingerprintDigestAlgorithm
     getter onicecandidate
+    method addRemoteCandidate
     method constructor
     method getReceivedPackets
     method sendPackets
+    method setRemoteDtlsParameters
+    method writable
     setter onicecandidate
+interface RtcTransportIceCandidate
+    attribute @@toStringTag
+    getter address
+    getter password
+    getter port
+    getter type
+    getter usernameFragment
+    method constructor
+    method toJSON
+interface RtcTransportIceEvent : Event
+    attribute @@toStringTag
+    getter candidate
+    method constructor
 interface SVGAElement : SVGGraphicsElement
     attribute @@toStringTag
     getter download

@@ -10,6 +10,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/to_string.h"
 #include "base/types/expected.h"
+#include "chrome/common/actor.mojom-forward.h"
 #include "chrome/common/actor/action_result.h"
 #include "chrome/common/actor/journal_details_builder.h"
 #include "chrome/common/chrome_features.h"
@@ -74,21 +75,19 @@ ToolBase::ToolBase(content::RenderFrame& frame,
 
 ToolBase::~ToolBase() = default;
 
-base::expected<ToolBase::ResolvedTarget, mojom::ActionResultPtr>
-ToolBase::ValidateAndResolveTarget() const {
-  if (!target_) {
-    return base::unexpected(MakeResult(mojom::ActionResultCode::kOk));
-  }
-
+ToolBase::ResolveResult ToolBase::ResolveTarget(
+    const mojom::ToolTarget& target) const {
   ResolvedTarget resolved_target;
-
-  if (target_->is_coordinate()) {
-    const gfx::PointF coordinate_point(target_->get_coordinate());
+  if (target.is_coordinate_dip()) {
+    gfx::PointF coordinate_point =
+        frame_->GetWebFrame()->FrameWidget()->DIPsToBlinkSpace(
+            gfx::PointF(target.get_coordinate_dip()));
     if (!IsPointWithinViewport(coordinate_point, frame_.get())) {
-      return base::unexpected(MakeResult(
-          mojom::ActionResultCode::kCoordinatesOutOfBounds,
-          /*requires_page_stabilization=*/false,
-          absl::StrFormat("Point [%s]", coordinate_point.ToString())));
+      return base::unexpected(
+          MakeResult(mojom::ActionResultCode::kCoordinatesOutOfBounds,
+                     /*requires_page_stabilization=*/false,
+                     absl::StrFormat("Point (physical) [%s]",
+                                     coordinate_point.ToString())));
     }
     resolved_target.point = coordinate_point;
 
@@ -97,8 +96,8 @@ ToolBase::ValidateAndResolveTarget() const {
         frame_->GetWebFrame()->FrameWidget()->HitTestResultAt(
             resolved_target.point);
     resolved_target.node = hit_test_result.GetNode();
-  } else if (target_->is_dom_node_id()) {
-    int32_t dom_node_id = target_->get_dom_node_id();
+  } else if (target.is_dom_node_id()) {
+    int32_t dom_node_id = target.get_dom_node_id();
     resolved_target.node = GetNodeFromId(frame_.get(), dom_node_id);
     if (resolved_target.node.IsNull()) {
       return base::unexpected(
@@ -115,9 +114,31 @@ ToolBase::ValidateAndResolveTarget() const {
                                      base::ToString(resolved_target.node))));
     }
     resolved_target.point = *node_interaction_point;
+  } else {
+    NOTREACHED();
   }
 
-  return ValidateTimeOfUse(resolved_target);
+  return resolved_target;
+}
+
+ToolBase::ResolveResult ToolBase::ValidateAndResolveTarget() const {
+  if (!target_) {
+    // TODO(b/450027252): This should return a non-OK error code.
+    return base::unexpected(MakeResult(mojom::ActionResultCode::kOk));
+  }
+
+  ResolveResult resolved_target = ResolveTarget(*target_);
+  if (!resolved_target.has_value()) {
+    return base::unexpected(std::move(resolved_target.error()));
+  }
+
+  mojom::ActionResultPtr validation =
+      ValidateTimeOfUse(resolved_target.value());
+  if (!IsOk(*validation)) {
+    return base::unexpected(std::move(validation));
+  }
+
+  return resolved_target.value();
 }
 
 void ToolBase::EnsureTargetInView() {
@@ -128,7 +149,7 @@ void ToolBase::EnsureTargetInView() {
   // Scrolling a target into view is only supported for node_id targets since
   // TOCTOU checks cannot be applied to the APC captured at the old scroll
   // offset.
-  if (target_->is_coordinate()) {
+  if (target_->is_coordinate_dip()) {
     return;
   }
 
@@ -140,13 +161,13 @@ void ToolBase::EnsureTargetInView() {
   }
 }
 
-base::expected<ToolBase::ResolvedTarget, mojom::ActionResultPtr>
-ToolBase::ValidateTimeOfUse(const ResolvedTarget& resolved_target) const {
+mojom::ActionResultPtr ToolBase::ValidateTimeOfUse(
+    const ResolvedTarget& resolved_target) const {
   const blink::WebNode& target_node = resolved_target.node;
 
   // For coordinate target, check the observed node matches the live DOM hit
   // test target.
-  if (target_->is_coordinate()) {
+  if (target_->is_coordinate_dip()) {
     if (!observed_target_ || !observed_target_->node_attribute->dom_node_id) {
       journal_->Log(
           task_id_, "TimeOfUseValidation",
@@ -154,7 +175,7 @@ ToolBase::ValidateTimeOfUse(const ResolvedTarget& resolved_target) const {
       UmaHistogramEnumeration(kTimeOfUseValidationHistogram,
                               TimeOfUseResult::kNoValidApcNode);
       // TODO(crbug.com/445210509): return error for no apc found.
-      return resolved_target;
+      return MakeOkResult();
     }
 
     const blink::WebNode& observed_target_node =
@@ -164,7 +185,8 @@ ToolBase::ValidateTimeOfUse(const ResolvedTarget& resolved_target) const {
       journal_->Log(
           task_id_, "TimeOfUseValidation",
           JournalDetailsBuilder()
-              .Add("coordinate", base::ToString(target_->get_coordinate()))
+              .Add("coordinate_dip",
+                   base::ToString(target_->get_coordinate_dip()))
               .Add("target_id", target_node.GetDomNodeId())
               .Add("observed_target_id",
                    *observed_target_->node_attribute->dom_node_id)
@@ -173,20 +195,21 @@ ToolBase::ValidateTimeOfUse(const ResolvedTarget& resolved_target) const {
                   "Observed target at coordinate is not present in live DOM")
               .Build());
       if (base::FeatureList::IsEnabled(features::kGlicActorToctouValidation)) {
-        return base::unexpected(MakeResult(
+        return MakeResult(
             mojom::ActionResultCode::kObservedTargetElementDestroyed,
             /*requires_page_stabilization=*/false,
-            "The observed element at the target location is destroyed"));
+            "The observed element at the target location is destroyed");
       }
     }
 
     // Target node for coordinate target is obtained through blink hit test
     // which includes shadow host elements.
-    if (!observed_target_node.ContainsIncludingHostElements(&target_node)) {
+    if (!observed_target_node.ContainsViaFlatTree(&target_node)) {
       journal_->Log(
           task_id_, "TimeOfUseValidation",
           JournalDetailsBuilder()
-              .Add("coordinate", base::ToString(target_->get_coordinate()))
+              .Add("coordinate_dip",
+                   base::ToString(target_->get_coordinate_dip()))
               .Add("target_id", target_node.GetDomNodeId())
               .Add("observed_target_id", observed_target_node.GetDomNodeId())
               .Add("target", NodeToDebugSring(target_node))
@@ -196,13 +219,13 @@ ToolBase::ValidateTimeOfUse(const ResolvedTarget& resolved_target) const {
       UmaHistogramEnumeration(kTimeOfUseValidationHistogram,
                               TimeOfUseResult::kWrongNodeAtCoordinate);
       if (base::FeatureList::IsEnabled(features::kGlicActorToctouValidation)) {
-        return base::unexpected(
-            MakeResult(mojom::ActionResultCode::kObservedTargetElementChanged,
-                       /*requires_page_stabilization=*/false,
-                       "The element at the target location is not the same as "
-                       "the one observed."));
+        return MakeResult(
+            mojom::ActionResultCode::kObservedTargetElementChanged,
+            /*requires_page_stabilization=*/false,
+            "The element at the target location is not the same as "
+            "the one observed.");
       } else {
-        return resolved_target;
+        return MakeOkResult();
       }
     }
   } else {
@@ -214,8 +237,9 @@ ToolBase::ValidateTimeOfUse(const ResolvedTarget& resolved_target) const {
             resolved_target.point);
     const blink::WebElement hit_element = hit_test_result.GetElement();
     // The action target from APC is not as granular as the live DOM hit test.
-    // Include shadow host element as the hit test would land on those.
-    if (!target_node.ContainsIncludingHostElements(&hit_element)) {
+    // Include shadow host element as the hit test would land on those. Also
+    // check if the hit element was pulled in via a Web Components slot.
+    if (!target_node.ContainsViaFlatTree(&hit_element)) {
       journal_->Log(task_id_, "TimeOfUseValidation",
                     JournalDetailsBuilder()
                         .Add("target_id", target_node.GetDomNodeId())
@@ -227,10 +251,10 @@ ToolBase::ValidateTimeOfUse(const ResolvedTarget& resolved_target) const {
       UmaHistogramEnumeration(
           kTimeOfUseValidationHistogram,
           TimeOfUseResult::kTargetNodeInteractionPointObscured);
-      return base::unexpected(MakeResult(
+      return MakeResult(
           mojom::ActionResultCode::kTargetNodeInteractionPointObscured,
           /*requires_page_stabilization=*/false,
-          "The element's interaction point is obscured by other elements."));
+          "The element's interaction point is obscured by other elements.");
     }
 
     if (!observed_target_ || !observed_target_->node_attribute->dom_node_id) {
@@ -240,7 +264,7 @@ ToolBase::ValidateTimeOfUse(const ResolvedTarget& resolved_target) const {
       UmaHistogramEnumeration(kTimeOfUseValidationHistogram,
                               TimeOfUseResult::kNoValidApcNode);
       // TODO(crbug.com/445210509): return error for no apc found.
-      return resolved_target;
+      return MakeOkResult();
     }
 
     if (!observed_target_->node_attribute->geometry) {
@@ -256,7 +280,7 @@ ToolBase::ValidateTimeOfUse(const ResolvedTarget& resolved_target) const {
       // is landed.
       UmaHistogramEnumeration(kTimeOfUseValidationHistogram,
                               TimeOfUseResult::kTargetNodeMissingGeometry);
-      return resolved_target;
+      return MakeOkResult();
     }
 
     // Check that the interaction point is inside the observed target bounding
@@ -275,13 +299,13 @@ ToolBase::ValidateTimeOfUse(const ResolvedTarget& resolved_target) const {
       // is landed.
       UmaHistogramEnumeration(kTimeOfUseValidationHistogram,
                               TimeOfUseResult::kTargetPointOutsideBoundingBox);
-      return resolved_target;
+      return MakeOkResult();
     }
   }
 
   UmaHistogramEnumeration(kTimeOfUseValidationHistogram,
                           TimeOfUseResult::kValid);
-  return resolved_target;
+  return MakeOkResult();
 }
 
 }  // namespace actor

@@ -33,13 +33,15 @@ export function getHtml(this: ContextMenuEntrypointElement) {
         <div class="suggestion-container">
           <button class="dropdown-item"
               title="${tab.title}" data-index="${index}"
+              ?disabled="${this.inCreateImageMode ||
+                           this.disabledTabIds.has(tab.tabId)}"
               @pointerenter="${this.onTabPointerenter_}"
-              @click="${this.addTabContext}">
+              @click="${this.addTabContext_}">
             <composebox-tab-favicon .url="${tab.url.url}">
             </composebox-tab-favicon>
             <span class="tab-title">${tab.title}</span>
           </button>
-          ${this.shouldShowTabPreview() ? html`
+          ${this.shouldShowTabPreview_() ? html`
             <img class="tab-preview" .src="${this.tabPreviewUrl_}">
           ` : ''}
         </div>
@@ -47,12 +49,12 @@ export function getHtml(this: ContextMenuEntrypointElement) {
       <hr/>
     `: ''}
     <button id="imageUpload" class="dropdown-item"
-        @click="${this.openImageUpload}">
+        @click="${this.openImageUpload_}">
       <cr-icon icon="composebox:imageUpload"></cr-icon>
       ${this.i18n('addImage')}
     </button>
     <button id="fileUpload" class="dropdown-item"
-        @click="${this.openFileUpload}"
+        @click="${this.openFileUpload_}"
         ?disabled="${this.inCreateImageMode}">
       <cr-icon icon="composebox:fileUpload"></cr-icon>
       ${this.i18n('uploadFile')}

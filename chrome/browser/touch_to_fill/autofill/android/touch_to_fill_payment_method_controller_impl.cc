@@ -9,6 +9,8 @@
 
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
+#include "base/functional/callback.h"
+#include "base/strings/strcat.h"
 #include "chrome/browser/android/resource_mapper.h"
 #include "chrome/browser/touch_to_fill/autofill/android/touch_to_fill_delegate_android_impl.h"
 #include "chrome/browser/touch_to_fill/autofill/android/touch_to_fill_payment_method_view.h"
@@ -20,6 +22,7 @@
 #include "components/autofill/core/browser/foundations/autofill_manager.h"
 #include "components/autofill/core/browser/foundations/browser_autofill_manager.h"
 #include "components/autofill/core/browser/integrators/touch_to_fill/touch_to_fill_delegate.h"
+#include "components/autofill/core/browser/payments/bnpl_util.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
 #include "content/public/browser/navigation_handle.h"
 #include "ui/android/window_android.h"
@@ -150,7 +153,7 @@ bool TouchToFillPaymentMethodControllerImpl::UpdateBnplPaymentMethod(
 
 bool TouchToFillPaymentMethodControllerImpl::ShowProgressScreen(
     std::unique_ptr<TouchToFillPaymentMethodView> view,
-    base::WeakPtr<TouchToFillDelegate> delegate) {
+    base::OnceClosure cancel_callback) {
   if (view) {
     // If there is a view already being shown, reset it and use the new provided
     // view.
@@ -165,14 +168,17 @@ bool TouchToFillPaymentMethodControllerImpl::ShowProgressScreen(
     return false;
   }
 
-  delegate_ = delegate;
+  if (delegate_) {
+    delegate_->SetCancelCallback(std::move(cancel_callback));
+  }
+
   return true;
 }
 
 bool TouchToFillPaymentMethodControllerImpl::ShowBnplIssuers(
     base::WeakPtr<TouchToFillDelegate> delegate,
-    base::span<const BnplIssuer> bnpl_issuers_to_suggest) {
-  if (!view_ || !view_->ShowBnplIssuers(bnpl_issuers_to_suggest)) {
+    base::span<const payments::BnplIssuerContext> bnpl_issuer_contexts) {
+  if (!view_ || !view_->ShowBnplIssuers(bnpl_issuer_contexts)) {
     ResetJavaObject();
     return false;
   }
@@ -201,6 +207,16 @@ bool TouchToFillPaymentMethodControllerImpl::ShowErrorScreen(
   }
 
   delegate_ = delegate;
+  return true;
+}
+
+bool TouchToFillPaymentMethodControllerImpl::ShowBnplIssuerTos(
+    const payments::BnplIssuerTosDetail& bnpl_issuer_tos_detail) {
+  if (!view_ || !view_->ShowBnplIssuerTos(bnpl_issuer_tos_detail)) {
+    ResetJavaObject();
+    return false;
+  }
+
   return true;
 }
 

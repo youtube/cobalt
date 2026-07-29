@@ -29,10 +29,6 @@ const char kDeprecateFeedHeaderParameterHeaderBottomPadding[] =
 
 #pragma mark - Feature declarations
 
-BASE_FEATURE(kEnableDiscoverFeedDiscoFeedEndpoint,
-             "EnableDiscoFeedEndpoint",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kEnableNTPViewHierarchyRepair,
              "NTPViewHierarchyRepair",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -95,13 +91,6 @@ bool IsWebFeedFeedbackRerouteEnabled() {
 
 bool IsiPadFeedGhostCardsEnabled() {
   return base::FeatureList::IsEnabled(kEnableiPadFeedGhostCards);
-}
-
-bool ShouldRemoveDiscoverLabel(bool is_google_default_search_engine) {
-  return is_google_default_search_engine && ShouldDeprecateFeedHeader() &&
-         base::GetFieldTrialParamByFeatureAsBool(
-             kDeprecateFeedHeader, kDeprecateFeedHeaderParameterRemoveLabel,
-             false);
 }
 
 bool ShouldEnlargeLogoAndFakebox() {

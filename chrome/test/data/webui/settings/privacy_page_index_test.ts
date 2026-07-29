@@ -5,13 +5,13 @@
 import 'chrome://settings/settings.js';
 import 'chrome://settings/lazy_load.js';
 
-import {SiteSettingsPrefsBrowserProxyImpl} from 'chrome://settings/lazy_load.js';
+import {SiteSettingsBrowserProxyImpl} from 'chrome://settings/lazy_load.js';
 import type {Route, SettingsPrivacyPageIndexElement} from 'chrome://settings/settings.js';
 import {CrSettingsPrefs, loadTimeData, resetPageVisibilityForTesting, resetRouterForTesting, Router, routes} from 'chrome://settings/settings.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {flushTasks, waitBeforeNextRender} from 'chrome://webui-test/polymer_test_util.js';
 
-import {TestSiteSettingsPrefsBrowserProxy} from './test_site_settings_prefs_browser_proxy.js';
+import {TestSiteSettingsBrowserProxy} from './test_site_settings_browser_proxy.js';
 
 interface RouteInfo {
   route: Route;
@@ -27,9 +27,9 @@ suite('PrivacyPageIndex', function() {
 
     loadTimeData.overrideValues(Object.assign(
         {
-          autoPictureInPictureEnabled: false,
-          capturedSurfaceControlEnabled: false,
+          enableAutoPictureInPicture: false,
           enableBundledSecuritySettings: false,
+          enableCapturedSurfaceControl: false,
           enableExperimentalWebPlatformFeatures: false,
           enableFederatedIdentityApiContentSetting: false,
           enableHandTrackingContentSetting: false,
@@ -37,6 +37,7 @@ suite('PrivacyPageIndex', function() {
           enableKeyboardLockPrompt: false,
           enableLocalNetworkAccessSetting: false,
           enablePaymentHandlerContentSetting: false,
+          enablePersistentPermissions: false,
           enableSafeBrowsingSubresourceFilter: false,
           enableSecurityKeysSubpage: false,
           // <if expr="is_chromeos">
@@ -57,8 +58,8 @@ suite('PrivacyPageIndex', function() {
     document.body.appendChild(settingsPrefs);
     await CrSettingsPrefs.initialized;
 
-    SiteSettingsPrefsBrowserProxyImpl.setInstance(
-        new TestSiteSettingsPrefsBrowserProxy());
+    SiteSettingsBrowserProxyImpl.setInstance(
+        new TestSiteSettingsBrowserProxy());
 
     index = document.createElement('settings-privacy-page-index');
     index.prefs = settingsPrefs.prefs!;
@@ -418,6 +419,11 @@ suite('PrivacyPageIndex', function() {
           parentViewId: 'privacy',
         },
         {
+          route: routes.SITE_SETTINGS_SITE_DETAILS,
+          viewId: 'siteSettingsSiteDetails',
+          parentViewId: 'privacy',
+        },
+        {
           route: routes.SITE_SETTINGS_SOUND,
           viewId: 'siteSettingsSound',
           parentViewId: 'privacy',
@@ -465,9 +471,8 @@ suite('PrivacyPageIndex', function() {
     });
 
     test('RoutingAutoPictureInPicture', async function() {
-      assertFalse(loadTimeData.getBoolean('autoPictureInPictureEnabled'));
-      await createPrivacyPageIndex({autoPictureInPictureEnabled: true});
-
+      assertFalse(loadTimeData.getBoolean('enableAutoPictureInPicture'));
+      await createPrivacyPageIndex({enableAutoPictureInPicture: true});
       return testViewsForRoute(
           routes.SITE_SETTINGS_AUTO_PICTURE_IN_PICTURE,
           ['siteSettingsAutoPictureInPicture'], 'privacy');
@@ -496,9 +501,8 @@ suite('PrivacyPageIndex', function() {
     });
 
     test('RoutingCapturedSurfaceControl', async function() {
-      assertFalse(loadTimeData.getBoolean('capturedSurfaceControlEnabled'));
-      await createPrivacyPageIndex({capturedSurfaceControlEnabled: true});
-
+      assertFalse(loadTimeData.getBoolean('enableCapturedSurfaceControl'));
+      await createPrivacyPageIndex({enableCapturedSurfaceControl: true});
       return testViewsForRoute(
           routes.SITE_SETTINGS_CAPTURED_SURFACE_CONTROL,
           ['siteSettingsCapturedSurfaceControl'], 'privacy');
@@ -513,6 +517,15 @@ suite('PrivacyPageIndex', function() {
       return testViewsForRoute(
           routes.SITE_SETTINGS_FEDERATED_IDENTITY_API,
           ['siteSettingsFederatedIdentityApi'], 'privacy');
+    });
+
+    test('RoutingFileSystemWriteDetails', async function() {
+      assertFalse(loadTimeData.getBoolean('enablePersistentPermissions'));
+      await createPrivacyPageIndex({enablePersistentPermissions: true});
+
+      return testViewsForRoute(
+          routes.SITE_SETTINGS_FILE_SYSTEM_WRITE_DETAILS,
+          ['siteSettingsFilesystemWriteDetails'], 'privacy');
     });
 
     test('RoutingHandTracking', async function() {

@@ -109,8 +109,9 @@ BASE_FEATURE(kLensSearchZeroStateCsb, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kLensVideoCitations, base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kLensUpdatedFeedbackEntrypoint,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kLensUpdatedFeedbackEntrypoint, base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kLensOverlayOptimizationFilter, base::FEATURE_DISABLED_BY_DEFAULT);
 
 constexpr base::FeatureParam<int> kLensUpdatedFeedbackToastTimeoutMs{
     &kLensUpdatedFeedbackEntrypoint, "feedback-toast-timeout-ms", 3000};
@@ -1214,6 +1215,10 @@ int GetLensUpdatedFeedbackToastTimeoutMs() {
   }
 
   return kLensUpdatedFeedbackToastTimeoutMs.Get();
+}
+
+bool IsLensOverlayOptimizationFilterEnabled() {
+  return base::FeatureList::IsEnabled(kLensOverlayOptimizationFilter);
 }
 
 }  // namespace lens::features

@@ -357,11 +357,10 @@ GpuChannelManager::GpuChannelManager(
       gpu_feature_info_(gpu_feature_info),
       image_decode_accelerator_worker_(image_decode_accelerator_worker),
       use_shader_cache_shm_count_(use_shader_cache_shm_count),
-      memory_pressure_listener_(
+      memory_pressure_listener_registration_(
           FROM_HERE,
           base::MemoryPressureListenerTag::kGpuChannelManager,
-          base::BindRepeating(&GpuChannelManager::HandleMemoryPressure,
-                              base::Unretained(this))),
+          this),
       dawn_caching_interface_factory_(dawn_caching_interface_factory),
       vulkan_context_provider_(vulkan_context_provider),
       metal_context_provider_(metal_context_provider),
@@ -477,6 +476,7 @@ GpuChannel* GpuChannelManager::EstablishChannel(
     int client_id,
     uint64_t client_tracing_id,
     bool is_gpu_host,
+    bool enable_extra_handles_validation,
     const gfx::GpuExtraInfo& gpu_extra_info) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
@@ -495,7 +495,8 @@ GpuChannel* GpuChannelManager::EstablishChannel(
   std::unique_ptr<GpuChannel> gpu_channel = GpuChannel::Create(
       this, channel_token, scheduler_, sync_point_manager_, share_group_,
       task_runner_, io_task_runner_, client_id, client_tracing_id, is_gpu_host,
-      image_decode_accelerator_worker_, gpu_extra_info);
+      enable_extra_handles_validation, image_decode_accelerator_worker_,
+      gpu_extra_info);
 
   if (!gpu_channel)
     return nullptr;
@@ -775,9 +776,7 @@ void GpuChannelManager::OnApplicationBackgrounded() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   if (shared_context_state_) {
-    shared_context_state_->PurgeMemory(
-        base::MemoryPressureListener::MemoryPressureLevel::
-            MEMORY_PRESSURE_LEVEL_CRITICAL);
+    shared_context_state_->PurgeMemory(base::MEMORY_PRESSURE_LEVEL_CRITICAL);
   }
 
   // Release all skia caching when the application is backgrounded.
@@ -820,8 +819,8 @@ void GpuChannelManager::PerformImmediateCleanup() {
 #endif
 }
 
-void GpuChannelManager::HandleMemoryPressure(
-    base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level) {
+void GpuChannelManager::OnMemoryPressure(
+    base::MemoryPressureLevel memory_pressure_level) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   if (program_cache_)

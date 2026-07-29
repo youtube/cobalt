@@ -44,11 +44,17 @@ class COMPOSITOR_EXPORT CompositorObserver {
   virtual void OnCompositingStarted(Compositor* compositor,
                                     base::TimeTicks start_time) {}
 
-#if BUILDFLAG(IS_CHROMEOS)
+  // This is an inaccurate signal that has been used to represent that content
+  // was displayed. This actually maps to the removal of backpressure by the
+  // GPU. This can be signalled when the GPU attempts to Draw; when a submitted
+  // frame, that has not drawn, is being replaced by a newer one; or merged with
+  // future OnBeginFrames.
+  //
+  // To determine when presentation occurred see `OnDidPresentCompositorFrame`.
+  virtual void OnCompositingAckDeprecated(Compositor* compositor) {}
+
   // Called when a child of the compositor is resizing.
-  virtual void OnCompositingChildResizing() {}
-  virtual void OnChildResizeActivated() {}
-#endif  // BUILDFLAG(IS_CHROMEOS)
+  virtual void OnCompositingChildResizing(Compositor* compositor) {}
 
 #if BUILDFLAG(IS_LINUX) && BUILDFLAG(IS_OZONE_X11)
   // Called when a swap with new size is completed.

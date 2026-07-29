@@ -130,7 +130,13 @@ BubbleManagerImpl::BubbleManagerImpl(tabs::TabInterface* tab)
       &BubbleManagerImpl::TabDidEnterForeground, base::Unretained(this))));
 }
 
-BubbleManagerImpl::~BubbleManagerImpl() = default;
+BubbleManagerImpl::~BubbleManagerImpl() {
+  std::ranges::for_each(pending_bubbles_queue_, [](const auto& request) {
+    if (request.controller) {
+      request.controller->OnBubbleDiscarded();
+    }
+  });
+}
 
 void BubbleManagerImpl::RequestShowController(
     BubbleControllerBase& controller_to_show,
@@ -211,12 +217,19 @@ void BubbleManagerImpl::HideActiveBubbleForPreemption() {
   // call will be a no-op for starting the next bubble because we are inside a
   // show request (`handling_show_request_` is true).
   AddToPendingQueue(active_bubble_controller_);
-  active_bubble_controller_->HideBubble();
+  active_bubble_controller_->HideBubble(/*initiated_by_bubble_manager=*/true);
 }
 
 void BubbleManagerImpl::AddToPendingQueue(
     base::WeakPtr<BubbleControllerBase> controller) {
   CHECK(controller);
+  if (!controller->CanBeReshown()) {
+    // Bubbles that cannot be reshown should not be added to the queue. This is
+    // the case for bubbles that are time-bound or clear their state when
+    // closed, mostly the confirmation bubbles.
+    return;
+  }
+
   const BubbleType new_bubble_type = controller->GetBubbleType();
   const base::TimeTicks now = base::TimeTicks::Now();
   int priority = GetPriorityForBubbleType(new_bubble_type);
@@ -236,6 +249,7 @@ void BubbleManagerImpl::AddToPendingQueue(
     if (ShouldAlwaysPreemptSameType(new_bubble_type) || bubble_has_timed_out) {
       if (bubble_has_timed_out) {
         if (it->controller) {
+          it->controller->OnBubbleDiscarded();
           base::UmaHistogramEnumeration("Autofill.Bubble.Queue.TimedOut",
                                         it->controller->GetBubbleType());
         }
@@ -269,6 +283,7 @@ void BubbleManagerImpl::ProcessPendingBubbles() {
   std::ranges::for_each(pending_bubbles_queue_, [&now](const auto& request) {
     if (request.controller &&
         (now - request.time_added) > kPendingRequestTimeout) {
+      request.controller->OnBubbleDiscarded();
       // Log timed-out bubbles.
       base::UmaHistogramEnumeration("Autofill.Bubble.Queue.TimedOut",
                                     request.controller->GetBubbleType());
@@ -301,13 +316,16 @@ void BubbleManagerImpl::ProcessPendingBubbles() {
 }
 
 void BubbleManagerImpl::OnBubbleHiddenByController(
-    BubbleControllerBase& controller_to_hide) {
+    BubbleControllerBase& controller_to_hide,
+    bool show_next_bubble) {
   base::WeakPtr<BubbleControllerBase> controller_weak_ptr =
       controller_to_hide.GetBubbleControllerBaseWeakPtr();
 
   if (active_bubble_controller_.get() == controller_weak_ptr.get()) {
     active_bubble_controller_ = nullptr;
-    ProcessPendingBubbles();
+    if (show_next_bubble) {
+      ProcessPendingBubbles();
+    }
   } else {
     // The hidden bubble was not the active one, so remove it from the queue.
     for (auto it = pending_bubbles_queue_.begin();
@@ -367,7 +385,7 @@ void BubbleManagerImpl::TabWillEnterBackground(
     base::UmaHistogramEnumeration("Autofill.Bubble.HideDueToTabHide",
                                   active_bubble_controller_->GetBubbleType());
     AddToPendingQueue(active_bubble_controller_);
-    active_bubble_controller_->HideBubble();
+    active_bubble_controller_->HideBubble(/*initiated_by_bubble_manager=*/true);
     active_bubble_controller_ = nullptr;
   }
 }

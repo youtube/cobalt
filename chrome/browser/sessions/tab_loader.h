@@ -57,7 +57,8 @@ class TabLoaderTester;
 // out of the outermost function.
 class TabLoader : public base::RefCounted<TabLoader>,
                   public TabLoaderCallback,
-                  public resource_coordinator::TabLoadTracker::Observer {
+                  public resource_coordinator::TabLoadTracker::Observer,
+                  public base::MemoryPressureListener {
  public:
   // Helper class used for tracking reentrancy and performing lifetime
   // management. See implementation for full details.
@@ -120,7 +121,7 @@ class TabLoader : public base::RefCounted<TabLoader>,
 
   // React to memory pressure by stopping to load any more tabs.
   void OnMemoryPressure(
-      base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level);
+      base::MemoryPressureLevel memory_pressure_level) override;
 
   // Determines whether or not tab loading should stop early due to external
   // factors.
@@ -234,7 +235,8 @@ class TabLoader : public base::RefCounted<TabLoader>,
 
   // Listens for system under memory pressure notifications and stops loading
   // of tabs when we start running out of memory.
-  base::MemoryPressureListener memory_pressure_listener_;
+  base::MemoryPressureListenerRegistration
+      memory_pressure_listener_registration_;
 
   // Used for selecting which timeout to use, and to prevent additional
   // non-active tabs from being scheduled to load initially.

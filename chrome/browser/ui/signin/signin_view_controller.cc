@@ -249,11 +249,7 @@ GURL GetSigninUrlForDiceSigninTab(
         {.email = email_hint, .continue_url = continue_url});
   }
 
-  bool use_chrome_sync_url =
-      base::FeatureList::IsEnabled(
-          switches::kBrowserSigninInSyncHeaderOnGaiaIntegration) ||
-      access_point == signin_metrics::AccessPoint::kExtensions;
-
+  bool use_chrome_sync_url = true;
   // A reauth is requested, or the account is already signed in (which is
   // effectively a reauth).
   if (signin_reason == signin_metrics::Reason::kReauthentication ||
@@ -479,15 +475,14 @@ void SigninViewController::ShowModalSyncConfirmationDialog(
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 void SigninViewController::ShowModalHistorySyncOptInDialog(
-    base::OnceClosure history_optin_completed_closure) {
-    CHECK(
+    HistorySyncOptinHelper::FlowCompletedCallback callback) {
+  CHECK(
       base::FeatureList::IsEnabled(syncer::kReplaceSyncPromosWithSignInPromos));
   CloseModalSignin();
   dialog_ = std::make_unique<SigninModalDialogImpl>(
       SigninViewControllerDelegate::CreateSyncHistoryOptInDelegate(
           browser_->GetBrowserForMigrationOnly(),
-          HistorySyncOptinLaunchContext::kModal,
-          std::move(history_optin_completed_closure)),
+          HistorySyncOptinLaunchContext::kModal, std::move(callback)),
       GetOnModalDialogClosedCallback());
 }
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)

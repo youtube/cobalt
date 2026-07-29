@@ -15,6 +15,7 @@
 #include "base/timer/timer.h"
 #include "chrome/browser/glic/host/context/glic_tab_data.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
+#include "chrome/browser/glic/public/glic_instance.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
 #include "ui/display/display.h"
@@ -212,10 +213,13 @@ enum class GlicRequestEvent {
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicRequestEvent)
 
-// LINT.IfChange(GlicGetContextFromFocusedTabError)
-enum class GlicGetContextFromFocusedTabError {
+// Error types for when attempting to extract context from a tab.
+// LINT.IfChange(GlicGetContextFromTabError)
+enum class GlicGetContextFromTabError {
   kUnknown = 0,
-  kPermissionDeniedWindowNotShowing = 1,
+  // Tab context requests when the panel is hidden are now reported as both as
+  // "hidden" and "error" in Glic.Api.* histograms.
+  kPermissionDeniedWindowNotShowing_DEPRECATED = 1,
   kTabNotFound = 2,
   kPermissionDeniedContextPermissionNotEnabled = 3,
   kPermissionDenied = 4,
@@ -223,7 +227,7 @@ enum class GlicGetContextFromFocusedTabError {
   kPageContextNotEligible = 6,
   kMaxValue = kPageContextNotEligible,
 };
-// LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicGetContextFromFocusedTabError)
+// LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicGetContextFromTabError)
 
 // LINT.IfChange(GlicTabPinnedForSharingResult)
 enum class GlicTabPinnedForSharingResult {
@@ -247,7 +251,7 @@ enum class ActiveTabSharingState {
 
 class GlicEnabling;
 class GlicSharingManager;
-class GlicWindowController;
+class GlicWindowControllerInterface;
 
 namespace internal {
 class BrowserActivityObserver;
@@ -339,13 +343,24 @@ class GlicMetrics {
 
   // Logs an error that occurred while trying to get context from the focused
   // tab.
-  void LogGetContextFromFocusedTabError(
-      GlicGetContextFromFocusedTabError error);
+  void LogGetContextFromFocusedTabError(GlicGetContextFromTabError error);
 
-  // Must be called immediately after constructor before any calls from
-  // glic.mojom.
-  void SetControllers(GlicWindowController* window_controller,
+  // Logs an error that occurred while trying to get context from an arbitrary
+  // tab.
+  void LogGetContextFromTabError(GlicGetContextFromTabError error);
+
+  // Logs an error that occurred while an actor tried to get context from an
+  // arbitrary tab.
+  void LogGetContextForActorFromTabError(GlicGetContextFromTabError error);
+
+  // One of these three must be called immediately after constructor before any
+  // calls from glic.mojom.
+  void SetControllers(GlicWindowControllerInterface* window_controller,
                       GlicSharingManager* sharing_manager);
+  void SetControllersWithInstance(GlicInstance* glic_instance,
+                                  GlicSharingManager* sharing_manager);
+  void ClearControllers();
+
   void SetDelegateForTesting(std::unique_ptr<Delegate> delegate);
 
   // Must be called when context is requested.

@@ -1339,7 +1339,6 @@ class TestMailboxBacking : public TextureBacking {
 
   const SkImageInfo& GetSkImageInfo() override { return info_; }
   gpu::Mailbox GetMailbox() const override { return mailbox_; }
-  sk_sp<SkImage> GetAcceleratedSkImage() override { return nullptr; }
   sk_sp<SkImage> GetSkImageViaReadback() override { return nullptr; }
   bool readPixels(const SkImageInfo& dstInfo,
                   void* dstPixels,
@@ -1348,7 +1347,6 @@ class TestMailboxBacking : public TextureBacking {
                   int srcY) override {
     return false;
   }
-  void FlushPendingSkiaOps() override {}
 
  private:
   gpu::Mailbox mailbox_;

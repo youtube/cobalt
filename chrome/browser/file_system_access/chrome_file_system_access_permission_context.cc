@@ -252,12 +252,35 @@ bool MaybeIsLocalUNCPath(const base::FilePath& path) {
     return true;
   }
 
-  // In case we missed the server name check above, we also check for shares
-  // ending with '$' as they represent pre-defined shares, including the local
-  // drives.
+  // Check *admin* shares only (drive admin like "C$" and named admin).
+  // Note: the share component is typically components[2], but we scan all
+  // components defensively in case the structure changes.
   for (size_t i = 2; i < components.size(); ++i) {
-    if (components[i].back() == L'$') {
-      return true;
+    const auto& component = components[i];
+
+    // component ends with "$"
+    if (!component.empty() && component.back() == L'$') {
+
+      // Drive admin share: "C$".."Z$" (case-insensitive on the letter).
+      if (component.size() == 2 &&
+          ((component[0] >= L'A' && component[0] <= L'Z') ||
+           (component[0] >= L'a' && component[0] <= L'z'))) {
+        return true;
+      }
+
+      // Named admin shares: "ADMIN$", "IPC$", "PRINT$", and "FAX$"
+      if (base::FilePath::CompareEqualIgnoreCase(
+              component, FILE_PATH_LITERAL("ADMIN$")) ||
+          base::FilePath::CompareEqualIgnoreCase(
+              component, FILE_PATH_LITERAL("IPC$")) ||
+          base::FilePath::CompareEqualIgnoreCase(
+              component, FILE_PATH_LITERAL("PRINT$")) ||
+          base::FilePath::CompareEqualIgnoreCase(
+              component, FILE_PATH_LITERAL("FAX$"))) {
+        return true;
+      }
+
+      // Otherwise, it is just a hidden share (e.g. "Share$")—do not block.
     }
   }
 
@@ -869,6 +892,24 @@ class ChromeFileSystemAccessPermissionContext::PermissionGrantImpl
     auto* request_manager =
         FileSystemAccessPermissionRequestManager::FromWebContents(web_contents);
     if (!request_manager) {
+      // Extension contexts (popup, side panel) may not have a permission
+      // request manager attached. Since the user already explicitly selected a
+      // file/folder via the file picker dialog (which is a strong user
+      // gesture), we can auto-grant the permission for extensions without
+      // showing an additional prompt.
+      bool is_extension =
+          rfh->GetLastCommittedOrigin().scheme() == "chrome-extension";
+      if (is_extension) {
+        PermissionRequestOutcome outcome =
+            PermissionRequestOutcome::kUserGranted;
+        RecordPermissionRequestOutcome(outcome);
+        // May destroy `this`.
+        SetStatus(PermissionStatus::GRANTED,
+                  PersistedPermissionOptions::kUpdatePersistedPermission);
+        std::move(callback).Run(outcome);
+        return;
+      }
+
       RunCallbackAndRecordPermissionRequestOutcome(
           std::move(callback), PermissionRequestOutcome::kRequestAborted);
       return;

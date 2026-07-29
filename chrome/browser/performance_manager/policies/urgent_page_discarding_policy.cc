@@ -38,11 +38,10 @@ std::optional<memory_pressure::ReclaimTarget> GetReclaimTarget() {
 }  // namespace
 
 UrgentPageDiscardingPolicy::UrgentPageDiscardingPolicy()
-    : memory_pressure_listener_(
+    : memory_pressure_listener_registration_(
           FROM_HERE,
           base::MemoryPressureListenerTag::kUrgentPageDiscardingPolicy,
-          base::BindRepeating(&UrgentPageDiscardingPolicy::OnMemoryPressure,
-                              base::Unretained(this))) {}
+          this) {}
 UrgentPageDiscardingPolicy::~UrgentPageDiscardingPolicy() = default;
 
 void UrgentPageDiscardingPolicy::OnPassedToGraph(Graph* graph) {
@@ -93,7 +92,7 @@ void UrgentPageDiscardingPolicy::DisableForTesting() {
 }
 
 void UrgentPageDiscardingPolicy::OnMemoryPressure(
-    base::MemoryPressureListener::MemoryPressureLevel new_level) {
+    base::MemoryPressureLevel new_level) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   if (g_disabled_for_testing) {
@@ -104,8 +103,7 @@ void UrgentPageDiscardingPolicy::OnMemoryPressure(
   // |handling_memory_pressure_notification_| prevents this class from trying to
   // reply to multiple notifications at the same time.
   if (handling_memory_pressure_notification_ ||
-      new_level != base::MemoryPressureListener::MemoryPressureLevel::
-                       MEMORY_PRESSURE_LEVEL_CRITICAL) {
+      new_level != base::MEMORY_PRESSURE_LEVEL_CRITICAL) {
     return;
   }
 

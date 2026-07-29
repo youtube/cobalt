@@ -141,7 +141,8 @@ class RasterDarkModeFilter;
 // image happens after the decode completes.
 class CC_EXPORT GpuImageDecodeCache
     : public ImageDecodeCache,
-      public base::trace_event::MemoryDumpProvider {
+      public base::trace_event::MemoryDumpProvider,
+      public base::MemoryPressureListener {
  public:
   explicit GpuImageDecodeCache(viz::RasterContextProvider* context,
                                SkColorType color_type,
@@ -183,8 +184,7 @@ class CC_EXPORT GpuImageDecodeCache
 
   // TODO(gyuyoung): OnMemoryPressure is deprecated. So this should be removed
   // when the memory coordinator is enabled by default.
-  void OnMemoryPressure(
-      base::MemoryPressureListener::MemoryPressureLevel level);
+  void OnMemoryPressure(base::MemoryPressureLevel level) override;
 
   // Called by Decode / Upload tasks.
   void DecodeImageInTask(const DrawImage& image, TaskType task_type);
@@ -785,7 +785,8 @@ class CC_EXPORT GpuImageDecodeCache
   std::vector<uint32_t> ids_pending_unlock_;
   std::vector<uint32_t> ids_pending_deletion_;
 
-  std::unique_ptr<base::AsyncMemoryPressureListener> memory_pressure_listener_;
+  std::unique_ptr<base::AsyncMemoryPressureListenerRegistration>
+      memory_pressure_listener_registration_;
   base::WeakPtrFactory<GpuImageDecodeCache> weak_ptr_factory_{this};
 };
 

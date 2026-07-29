@@ -25,18 +25,28 @@ function $(id) {
   return document.getElementById(id);
 }
 
+/**
+ * A helper function that calls the post-processing functions on a given
+ * element.
+ * @param {HTMLElement} element The container element of the article.
+ */
+function postProcessElement(element) {
+  // Readability will leave iframes around, but they need the proper structure
+  // and classes to be styled correctly.
+  addClassesToYoutubeIFrames(element);
+  // DomDistiller will leave placeholders, which need to be replaced with
+  // actual iframes.
+  fillYouTubePlaceholders(element);
+  sanitizeLinks(element);
+  identifyEmptySVGs(element);
+  ImageClassifier.processImagesIn(element);
+}
+
 function addToPage(html) {
   const div = document.createElement('div');
   div.innerHTML = html;
   $('content').appendChild(div);
-  // Readability will leave iframes around, but they need the proper structure
-  // and classes to be styled correctly.
-  addClassesToYoutubeIFrames(div);
-  // DomDistiller will leave placeholders, which need to be replaced with
-  // actual iframes.
-  fillYouTubePlaceholders(div);
-  sanitizeLinks(div);
-  ImageClassifier.processImagesIn(div);
+  postProcessElement(div);
 }
 
 /**
@@ -136,8 +146,12 @@ class ImageClassifier {
     if (container) {
       for (const child of container.childNodes) {
         // Skip insignificant nodes.
-        if (child === img) continue;
-        if (child.tagName === 'BR') continue;
+        if (child === img) {
+          continue;
+        }
+        if (child.tagName === 'BR') {
+          continue;
+        }
         if (child.nodeType === Node.TEXT_NODE &&
             child.textContent.trim() === '') {
           continue;
@@ -267,6 +281,30 @@ function sanitizeLinks(element) {
     }
     // With href, an anchor can be a placeholder. Leave these alone.
   });
+}
+
+/**
+ * Finds SVGs that use a local resource pointer (e.g. <use xlink:href="#...")
+ * and adds a class to them for styling. This is necessary because CSS
+ * selectors for namespaced attributes like `xlink:href` are not reliably
+ * supported across all renderers.
+ * @param {HTMLElement} element The element to search for SVGs in.
+ */
+function identifyEmptySVGs(element) {
+  const svgs = element.getElementsByTagName('svg');
+  for (const svg of svgs) {
+    const useElement = svg.querySelector('use');
+    if (!useElement) {
+      continue;
+    }
+
+    const href = useElement.getAttribute('href');
+    const xlinkHref = useElement.getAttribute('xlink:href');
+
+    if (href?.startsWith('#') || xlinkHref?.startsWith('#')) {
+      svg.classList.add('distilled-svg-with-local-ref');
+    }
+  }
 }
 
 /**

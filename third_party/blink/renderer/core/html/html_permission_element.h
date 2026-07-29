@@ -115,7 +115,11 @@ class CORE_EXPORT HTMLPermissionElement
   void setType(const AtomicString& type);
   uint16_t GetTranslatedMessageID(uint16_t message_id,
                                   const AtomicString& language_string);
-  virtual void UpdateText();
+  virtual void UpdateAppearance();
+
+  void UpdateIcon(mojom::blink::PermissionName permission,
+                  HTMLPermissionIconElement::VisualState state =
+                      HTMLPermissionIconElement::VisualState::kIdle);
 
   // Update permission statuses and appearance based on the current statuses.
   virtual void UpdatePermissionStatusAndAppearance();
@@ -134,6 +138,8 @@ class CORE_EXPORT HTMLPermissionElement
 
   bool is_precise_location() const { return is_precise_location_; }
 
+  scoped_refptr<base::SingleThreadTaskRunner> GetTaskRunner();
+
  private:
   // TODO(crbug.com/1315595): remove this friend class once migration
   // to blink_unittests_v2 completes.
@@ -143,6 +149,8 @@ class CORE_EXPORT HTMLPermissionElement
   friend class HTMLPermissionElementLayoutChangeTest;
 
   FRIEND_TEST_ALL_PREFIXES(HTMLGeolocationElementTestBase, GetTypeAttribute);
+  FRIEND_TEST_ALL_PREFIXES(HTMLGeolocationElementTest,
+                           GeolocationUsingLocationAppearance);
   FRIEND_TEST_ALL_PREFIXES(HTMLGeolocationElementTest,
                            GeolocationTranslateInnerText);
   FRIEND_TEST_ALL_PREFIXES(HTMLGeolocationElementTest,
@@ -416,8 +424,6 @@ class CORE_EXPORT HTMLPermissionElement
   bool is_registered_in_browser_process() const {
     return is_registered_in_browser_process_;
   }
-
-  scoped_refptr<base::SingleThreadTaskRunner> GetTaskRunner();
 
   // Checks whether clicking is enabled at the moment. Clicking is disabled if
   // either:

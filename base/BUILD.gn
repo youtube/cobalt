@@ -55,6 +55,10 @@ if (is_win) {
   import("//build/config/win/control_flow_guard.gni")
 }
 
+if (is_android) {
+  import("//build/config/android/config.gni")
+}
+
 declare_args() {
   # Unsafe developer build. Has developer-friendly features that may weaken or
   # disable security measures like sandboxing or ASLR.
@@ -1219,6 +1223,7 @@ component("base") {
       "android/shared_preferences/shared_preferences_manager.h",
       "android/statistics_recorder_android.cc",
       "android/sys_utils.cc",
+      "android/sys_utils.h",
       "android/task_scheduler/post_task_android.cc",
       "android/task_scheduler/post_task_android.h",
       "android/task_scheduler/task_runner_android.cc",
@@ -3431,7 +3436,6 @@ test("base_unittests") {
     "i18n/time_formatting_unittest.cc",
     "i18n/timezone_unittest.cc",
     "i18n/transliterator_unittest.cc",
-    "immediate_crash_unittest.cc",
     "json/json_reader_unittest.cc",
     "json/json_value_converter_unittest.cc",
     "json/json_value_serializer_unittest.cc",
@@ -3731,6 +3735,13 @@ test("base_unittests") {
     # Cronet buildbot do not run base_unittests, so exclusing this test
     # instead of adding a nogncheck is preferred (crbug.com/1400235).
     sources += [ "location_unittest.cc" ]
+  }
+
+  if (!(current_cpu == "riscv64" || current_cpu == "loong64" ||
+        current_cpu == "ppc64")) {
+    # On unofficial CPU architectures, there are no defined TRAP_SEQUENCE to test
+    # and building immediate_crash_unittest would fail.
+    sources += [ "immediate_crash_unittest.cc" ]
   }
 
   sources += [
@@ -4394,7 +4405,6 @@ if (enable_nocompile_tests) {
       "allocator/partition_allocator/src/partition_alloc/pointers/raw_ref_nocompile.nc",
       "callback_list_nocompile.nc",
       "check_nocompile.nc",
-      "containers/adapters_nocompile.nc",
       "containers/buffer_iterator_nocompile.nc",
       "containers/checked_iterators_nocompile.nc",
       "containers/contains_nocompile.nc",
@@ -4439,6 +4449,11 @@ if (enable_nocompile_tests) {
       "unsafe_buffers_nocompile.nc",
       "values_nocompile.nc",
     ]
+    if (use_cxx23) {
+      sources += [ "containers/adapters_nocompile_cpp23.nc" ]
+    } else {
+      sources += [ "containers/adapters_nocompile.nc" ]
+    }
     deps = [ ":base" ]
   }
 }
@@ -4558,6 +4573,7 @@ if (is_android) {
     sources = [ "android/java/src/org/chromium/base/PathUtils.java" ]
     deps = [
       ":log_java",
+      ":resetters_java",
       ":tasks_java",
       "//third_party/androidx:androidx_annotation_annotation_java",
       "//third_party/jni_zero:jni_zero_java",
@@ -5055,6 +5071,7 @@ if (is_android) {
       "android/java/src/org/chromium/base/task/BackgroundOnlyAsyncTask.java",
       "android/java/src/org/chromium/base/task/ChainedTasks.java",
       "android/java/src/org/chromium/base/task/ChromeThreadPoolExecutor.java",
+      "android/java/src/org/chromium/base/task/Location.java",
       "android/java/src/org/chromium/base/task/PostTask.java",
       "android/java/src/org/chromium/base/task/SequencedTaskRunner.java",
       "android/java/src/org/chromium/base/task/SequencedTaskRunnerImpl.java",
@@ -5215,6 +5232,7 @@ if (is_android) {
       ":base_switches_java",
       ":command_line_java",
       ":log_java",
+      ":resetters_java",
       ":tasks_java",
       "//third_party/androidx:androidx_annotation_annotation_java",
       "//third_party/jni_zero:jni_zero_java",
@@ -5721,6 +5739,7 @@ if (is_android) {
       ":base_java_test_support_uncommon",
       ":base_junit_test_support",
       ":base_shared_preferences_java",
+      ":location_junit_tests",
       ":task_executor_java",
       "//base/test:public_transit_robolectric_tests_java",
       "//base/test:test_support_java",
@@ -5731,6 +5750,20 @@ if (is_android) {
       "//third_party/androidx:androidx_test_runner_java",
       "//third_party/hamcrest:hamcrest_java",
       "//third_party/jni_zero:jni_zero_java",
+    ]
+  }
+
+  # LocationTest.java needs to always be processed by the Java location rewriter
+  # so separate it out to its own robolectric library
+  robolectric_library("location_junit_tests") {
+    force_java_location_rewrite = true
+    sources = [ "android/junit/src/org/chromium/base/task/LocationTest.java" ]
+    deps = [
+      ":base_java",
+      ":base_java_test_support",
+      ":base_junit_test_support",
+      "//third_party/androidx:androidx_annotation_annotation_java",
+      "//third_party/junit",
     ]
   }
 

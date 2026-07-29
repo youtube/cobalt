@@ -70,7 +70,9 @@ struct PrerenderAttributes;
 //   activation start by ReserveHostToActivate(), activate it by
 //   ActivateReservedHost(), and notify the registry of completion of the
 //   activation by OnActivationFinished().
-class CONTENT_EXPORT PrerenderHostRegistry : public WebContentsObserver {
+class CONTENT_EXPORT PrerenderHostRegistry
+    : public WebContentsObserver,
+      public base::MemoryPressureListener {
  public:
   // The time to allow prerendering kept alive in the background. All the hosts
   // that this PrerenderHostRegistry holds will be terminated when the timer
@@ -357,7 +359,7 @@ class CONTENT_EXPORT PrerenderHostRegistry : public WebContentsObserver {
       scoped_refptr<net::HttpResponseHeaders> headers);
 
   void OnMemoryPressure(
-      base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level);
+      base::MemoryPressureLevel memory_pressure_level) override;
 
   void RecordPotentialPrerenderProcessReuse(bool has_machable_hosts,
                                             const GURL& naivgation_url);
@@ -433,7 +435,8 @@ class CONTENT_EXPORT PrerenderHostRegistry : public WebContentsObserver {
   // entry for it in the HTTP cache.
   std::unique_ptr<network::SimpleURLLoader> http_cache_query_loader_;
 
-  base::MemoryPressureListener memory_pressure_listener_;
+  base::MemoryPressureListenerRegistration
+      memory_pressure_listener_registration_;
 
   base::ObserverList<Observer> observers_;
 

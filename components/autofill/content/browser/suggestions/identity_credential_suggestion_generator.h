@@ -37,8 +37,7 @@ class IdentityCredentialSuggestionGenerator : public SuggestionGenerator {
       const FormFieldData& trigger_field,
       const FormStructure* form_structure,
       const AutofillField* trigger_autofill_field,
-      const std::vector<
-          std::pair<SuggestionDataSource, std::vector<SuggestionData>>>&
+      const base::flat_map<SuggestionDataSource, std::vector<SuggestionData>>&
           all_suggestion_data,
       base::OnceCallback<void(ReturnedSuggestions)> callback) override;
 
@@ -62,8 +61,7 @@ class IdentityCredentialSuggestionGenerator : public SuggestionGenerator {
       const FormFieldData& trigger_field,
       const FormStructure* form_structure,
       const AutofillField* trigger_autofill_field,
-      const std::vector<
-          std::pair<SuggestionDataSource, std::vector<SuggestionData>>>&
+      const base::flat_map<SuggestionDataSource, std::vector<SuggestionData>>&
           all_suggestion_data,
       base::FunctionRef<void(ReturnedSuggestions)> callback);
 
@@ -71,6 +69,14 @@ class IdentityCredentialSuggestionGenerator : public SuggestionGenerator {
   // Provides a `AutofillSource`. Derived from `WebContents` in
   // practice and mocked in tests.
   base::RepeatingCallback<content::webid::AutofillSource*()> source_;
+
+  // The field type of `trigger_autofill_field` in `FetchSuggestionData()`.
+  // Since suggestion generation can be asynchronous, we want to preserve the
+  // same field type between Fetch and Generation phase. This should most of the
+  // time be the same as the type found by looking at
+  // `trigger_autofill_field.Type().GetIdentityCredentialType()` in
+  // GenerateSuggestions().
+  FieldType trigger_field_type_;
 };
 
 }  // namespace autofill

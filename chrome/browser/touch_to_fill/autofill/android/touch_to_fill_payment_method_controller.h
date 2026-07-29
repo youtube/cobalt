@@ -9,12 +9,17 @@
 #include <string>
 
 #include "base/containers/span.h"
+#include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/touch_to_fill/autofill/android/touch_to_fill_payment_method_view_controller.h"
 
 namespace autofill {
 
-class BnplIssuer;
+namespace payments {
+struct BnplIssuerContext;
+struct BnplIssuerTosDetail;
+}  // namespace payments
+
 class ContentAutofillClient;
 class Iban;
 class LoyaltyCard;
@@ -73,20 +78,22 @@ class TouchToFillPaymentMethodController
   // Shows the Touch To Fill progress screen. If the TTF surface is already
   // being shown when this is called, `view` is optional and will override the
   // existing view when present. Otherwise, if the TTF surface is not already
-  // being shown, `view` is required. If provided, `delegate` will be notified
-  // of the user's actions. Returns whether the surface was successfully shown.
+  // being shown, `view` is required. `cancel_callback` will be run if the
+  // screen is dismissed by the user. Returns whether the surface was
+  // successfully shown.
   virtual bool ShowProgressScreen(
       std::unique_ptr<TouchToFillPaymentMethodView> view,
-      base::WeakPtr<TouchToFillDelegate> delegate) = 0;
+      base::OnceClosure cancel_callback) = 0;
 
-  // Shows the Touch To Fill BNPL issuer selection screen. `delegate` will
-  // provide the BNPL issuers and be notified of the user's decision. Returns
+  // Shows the Touch To Fill BNPL issuer selection screen. `delegate` will be
+  // notified of the user's decision. `bnpl_issuer_contexts` provides the BNPL
+  // issuers to suggest and the context needed to render them in the UI. Returns
   // whether the surface was successfully shown.
   // TODO(crbug.com/430575808): Pass in an `on_bnpl_flow_dismissed_by_user_`
   // callback to be called whenever the BNPL UI is dismissed.
   virtual bool ShowBnplIssuers(
       base::WeakPtr<TouchToFillDelegate> delegate,
-      base::span<const BnplIssuer> bnpl_issuers_to_suggest) = 0;
+      base::span<const payments::BnplIssuerContext> bnpl_issuer_contexts) = 0;
 
   // Shows the Touch To Fill error screen. If the TTF surface is already being
   // shown when this is called, `view` is optional and will override the
@@ -99,6 +106,11 @@ class TouchToFillPaymentMethodController
       base::WeakPtr<TouchToFillDelegate> delegate,
       const std::u16string& title,
       const std::u16string& description) = 0;
+
+  // Shows the Touch To Fill BNPL issuer Terms of Service screen. Returns
+  // whether the surface was successfully shown.
+  virtual bool ShowBnplIssuerTos(
+      const payments::BnplIssuerTosDetail& bnpl_issuer_tos_detail) = 0;
 
   // Hides the surface if it is currently shown.
   virtual void Hide() = 0;

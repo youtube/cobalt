@@ -19,6 +19,7 @@
 #include "base/compiler_specific.h"
 #include "base/containers/span.h"
 #include "base/feature_list.h"
+#include "base/functional/callback.h"
 #include "base/hash/hash.h"
 #include "base/memory/ref_counted.h"
 #include "base/metrics/field_trial.h"
@@ -886,6 +887,10 @@ class MockTouchToFillDelegate : public TouchToFillDelegate {
   MOCK_METHOD(void,
               LogMetricsAfterSubmission,
               (const FormStructure&),
+              (override));
+  MOCK_METHOD(void,
+              SetCancelCallback,
+              (base::OnceClosure cancel_callback),
               (override));
 };
 
@@ -7584,12 +7589,6 @@ TEST_F(BrowserAutofillManagerTest, ComposeSuggestionsAreQueriedForTextareas) {
 class BrowserAutofillManagerTest_AutofillAi
     : public BrowserAutofillManagerTest {
  public:
-  BrowserAutofillManagerTest_AutofillAi() {
-    feature_list_.InitWithFeatures({features::kAutofillAiWithDataSchema,
-                                    features::kAutofillUnionTypesForAutofillAi},
-                                   {});
-  }
-
   void SetUp() override {
     BrowserAutofillManagerTest::SetUp();
     autofill_client().set_entity_data_manager(
@@ -7682,7 +7681,8 @@ class BrowserAutofillManagerTest_AutofillAi
   }
 
  private:
-  base::test::ScopedFeatureList feature_list_;
+  base::test::ScopedFeatureList feature_list_{
+      features::kAutofillAiWithDataSchema};
   AutofillWebDataServiceTestHelper webdata_helper_{
       std::make_unique<EntityTable>()};
   FormData passport_form_;
@@ -9238,11 +9238,8 @@ TEST_F(BrowserAutofillManagerPlusAddressTest, ManualFallbackPlusAddress) {
   using enum PasswordFormClassification::Type;
   EXPECT_CALL(plus_address_delegate(), GetAffiliatedPlusAddresses)
       .WillOnce(RunOnceCallback<1>(std::vector<std::string>{}));
-  EXPECT_CALL(
-      plus_address_delegate(),
-      GetSuggestionsFromPlusAddresses(
-          _, _, _, _, _, _, _,
-          AutofillSuggestionTriggerSource::kManualFallbackPlusAddresses))
+  EXPECT_CALL(plus_address_delegate(),
+              GetSuggestionsFromPlusAddresses(_, _, _, _, _, _, _, true))
       .WillOnce(Return(std::vector<Suggestion>{
           Suggestion(SuggestionType::kCreateNewPlusAddress)}));
   EXPECT_CALL(plus_address_delegate(),

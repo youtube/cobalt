@@ -22,8 +22,6 @@ component("ipc") {
     "param_traits_macros.h",
     "param_traits_read_macros.h",
     "param_traits_write_macros.h",
-    "tracing_helpers.h",
-    "tracing_helpers_internal.h",
   ]
 
   if (use_blink) {
@@ -42,16 +40,11 @@ component("ipc") {
       "ipc_message_macros.h",
       "ipc_message_pipe_reader.cc",
       "ipc_message_pipe_reader.h",
-      "ipc_message_start.h",
-      "ipc_message_templates.h",
-      "ipc_message_templates_impl.h",
       "ipc_mojo_bootstrap.cc",
       "ipc_mojo_bootstrap.h",
       "ipc_sender.h",
       "ipc_sync_channel.cc",
       "ipc_sync_channel.h",
-      "trace_ipc_message.cc",
-      "trace_ipc_message.h",
       "urgent_message_observer.h",
     ]
   }
@@ -92,8 +85,6 @@ component("message_support") {
     "ipc_mojo_message_helper.h",
     "ipc_platform_file.cc",
     "ipc_platform_file.h",
-    "ipc_sync_message.cc",
-    "ipc_sync_message.h",
   ]
 
   if (is_win) {
@@ -229,9 +220,6 @@ if (use_blink) {
       "ipc_message_utils_unittest.cc",
       "ipc_mojo_bootstrap_unittest.cc",
       "ipc_sync_channel_unittest.cc",
-      "ipc_sync_message_unittest.cc",
-      "ipc_sync_message_unittest.h",
-      "tracing_helpers_unittest.cc",
     ]
 
     if (is_posix || is_fuchsia) {

@@ -93,6 +93,27 @@ TEST_F(StyleRuleTest, StyleRulePropertyCopy) {
   EXPECT_EQ(rule->GetInitialValue(), copy->GetInitialValue());
 }
 
+TEST_F(StyleRuleTest, StyleRuleMarginCopy) {
+  auto* page_rule = css_test_helpers::ParseRule(GetDocument(), R"CSS(
+    @page {
+      @bottom-right {
+        content: "Page " counter(pageNumber);
+      }
+    }
+    )CSS");
+
+  auto base_rule = DynamicTo<StyleRulePage>(page_rule)->ChildRules()[0];
+
+  ASSERT_TRUE(base_rule);
+  auto* rule = DynamicTo<StyleRulePageMargin>(&*base_rule);
+  ASSERT_TRUE(rule);
+
+  auto* base_copy = base_rule->Clone(nullptr, nullptr);
+  EXPECT_NE(base_rule, base_copy);
+  auto* copy = DynamicTo<StyleRulePageMargin>(base_copy);
+  EXPECT_EQ(rule->ID(), copy->ID());
+}
+
 TEST_F(StyleRuleTest, StyleRuleFunctionCopy) {
   auto* base_rule = css_test_helpers::ParseRule(GetDocument(), R"CSS(
       @function --f(--p1, --p2) returns <length> {
@@ -156,32 +177,22 @@ TEST_F(StyleRuleTest, SetPreludeTextReparentsStyleRules) {
 
   const StyleScope& scope_before =
       scope_rule->GetStyleRuleScope().GetStyleScope();
-  StyleRule* rule_before = scope_before.RuleForNesting();
-  ASSERT_TRUE(rule_before);
-  EXPECT_EQ(".a", rule_before->SelectorsText());
 
-  EXPECT_EQ(rule_before, FindParentSelector(scope_before.To())->ParentRule());
-  EXPECT_EQ(
-      rule_before,
+  EXPECT_FALSE(FindParentSelector(scope_before.To())->ParentRule());
+  EXPECT_FALSE(
       FindParentSelector(child_rule_before.FirstSelector())->ParentRule());
 
   scope_rule->SetPreludeText(GetDocument().GetExecutionContext(),
                              "(.x) to (.b &)");
-
-  DLOG(INFO) << "A";
   const StyleScope& scope_after =
       scope_rule->GetStyleRuleScope().GetStyleScope();
-  StyleRule* rule_after = scope_after.RuleForNesting();
-  ASSERT_TRUE(rule_after);
-  EXPECT_EQ(".x", rule_after->SelectorsText());
   StyleRule& child_rule_afer =
       To<StyleRule>(*scope_rule->GetStyleRuleScope().ChildRules()[0]);
 
-  // Verify that '&' (in '.b &') now points to `rule_after`.
-  EXPECT_EQ(rule_after, FindParentSelector(scope_after.To())->ParentRule());
-  // Verify that '&' (in '.c &') now points to `rule_after`.
-  EXPECT_EQ(rule_after,
-            FindParentSelector(child_rule_afer.FirstSelector())->ParentRule());
+  // Any parent selectors ('&') should still point to nullptr.
+  EXPECT_FALSE(FindParentSelector(scope_after.To())->ParentRule());
+  EXPECT_FALSE(
+      FindParentSelector(child_rule_afer.FirstSelector())->ParentRule());
 }
 
 TEST_F(StyleRuleTest, SetPreludeTextWithEscape) {
@@ -258,7 +269,6 @@ TEST_F(StyleRuleTest, SetPreludeTextPreservesNestingContext) {
     const auto& [nesting_type_before, parent_rule_before] = FindNestingContext(
         inner_scope_rule->GetStyleRuleScope().GetStyleScope().From());
     EXPECT_EQ(CSSNestingType::kScope, nesting_type_before);
-    EXPECT_TRUE(parent_rule_before);
     inner_scope_rule->SetPreludeText(GetDocument().GetExecutionContext(),
                                      "(:is(.x, &, !:scope))");
     const auto& [nesting_type_after, parent_rule_after] = FindNestingContext(

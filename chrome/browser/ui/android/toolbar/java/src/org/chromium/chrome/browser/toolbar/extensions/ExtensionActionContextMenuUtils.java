@@ -18,7 +18,6 @@ import org.chromium.ui.listmenu.BasicListMenu;
 import org.chromium.ui.listmenu.ListMenu;
 import org.chromium.ui.listmenu.ListMenuButton;
 import org.chromium.ui.listmenu.ListMenuDelegate;
-import org.chromium.ui.listmenu.ListMenuFlyoutController;
 import org.chromium.ui.listmenu.ListMenuHost;
 import org.chromium.ui.listmenu.ListMenuUtils;
 import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
@@ -53,11 +52,11 @@ public final class ExtensionActionContextMenuUtils {
         ListMenu.Delegate buttonDelegate =
                 new ListMenu.Delegate() {
                     @Override
-                    public void onItemSelected(PropertyModel model) {
+                    public void onItemSelected(PropertyModel model, View view) {
                         View.OnClickListener listener = model.get(CLICK_LISTENER);
 
                         if (listener != null) {
-                            listener.onClick(null);
+                            listener.onClick(view);
                         }
                     }
                 };
@@ -86,7 +85,7 @@ public final class ExtensionActionContextMenuUtils {
                     buttonView.dismiss();
                 },
                 /* drillDownOverrideValue= */ null,
-                new ListMenuFlyoutController(buttonView.getHost()));
+                buttonView.getHost());
 
         ListMenuDelegate listDelegate =
                 new ListMenuDelegate() {

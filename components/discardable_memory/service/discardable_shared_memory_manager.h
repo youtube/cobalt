@@ -49,7 +49,8 @@ class TestDiscardableSharedMemoryManager;
 class DISCARDABLE_MEMORY_EXPORT DiscardableSharedMemoryManager
     : public base::DiscardableMemoryAllocator,
       public base::trace_event::MemoryDumpProvider,
-      public base::CurrentThread::DestructionObserver {
+      public base::CurrentThread::DestructionObserver,
+      public base::MemoryPressureListener {
  public:
   DiscardableSharedMemoryManager();
 
@@ -158,12 +159,11 @@ class DISCARDABLE_MEMORY_EXPORT DiscardableSharedMemoryManager
   // Invalidate weak pointers for the mojo thread.
   void InvalidateMojoThreadWeakPtrs(base::WaitableEvent* event);
 
-  // Virtual for tests.
-  virtual void OnMemoryPressure(
-      base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level);
+  void OnMemoryPressure(
+      base::MemoryPressureLevel memory_pressure_level) override;
 
   void HandleMemoryPressureOnSequence(
-      base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level);
+      base::MemoryPressureLevel memory_pressure_level);
 
   int32_t next_client_id_;
 
@@ -193,7 +193,8 @@ class DISCARDABLE_MEMORY_EXPORT DiscardableSharedMemoryManager
   base::CurrentThread mojo_thread_message_loop_;
   scoped_refptr<base::SingleThreadTaskRunner> mojo_thread_task_runner_;
 
-  base::MemoryPressureListener memory_pressure_listener_;
+  base::MemoryPressureListenerRegistration
+      memory_pressure_listener_registration_;
 
   // A task runner to create `memory_pressure_listener_` on worker threads so
   // that `OnMemoryPressure` notification happens on the worker thread too.

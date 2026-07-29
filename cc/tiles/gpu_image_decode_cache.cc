@@ -1072,11 +1072,10 @@ GpuImageDecodeCache::GpuImageDecodeCache(
         this, "cc::GpuImageDecodeCache",
         base::SingleThreadTaskRunner::GetCurrentDefault());
   }
-  memory_pressure_listener_ =
-      std::make_unique<base::AsyncMemoryPressureListener>(
+  memory_pressure_listener_registration_ =
+      std::make_unique<base::AsyncMemoryPressureListenerRegistration>(
           FROM_HERE, base::MemoryPressureListenerTag::kGpuImageDecodeCache,
-          base::BindRepeating(&GpuImageDecodeCache::OnMemoryPressure,
-                              base::Unretained(this)));
+          this);
 
   TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("cc.debug"),
                "GpuImageDecodeCache::DarkModeFilter", "dark_mode_filter",
@@ -2855,8 +2854,7 @@ void GpuImageDecodeCache::TouchCacheEntryForTesting(
   image_data->last_use = base::TimeTicks::Now();
 }
 
-void GpuImageDecodeCache::OnMemoryPressure(
-    base::MemoryPressureListener::MemoryPressureLevel level) {
+void GpuImageDecodeCache::OnMemoryPressure(base::MemoryPressureLevel level) {
   if (!ImageDecodeCacheUtils::ShouldEvictCaches(level))
     return;
 

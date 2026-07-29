@@ -69,7 +69,9 @@ class NET_EXPORT_PRIVATE SqlPersistentStore {
     kBodyEndMismatch = 15,
     kFailedForTesting = 16,
     kAborted = 17,
-    kMaxValue = kAborted
+    kNotInitialized = 18,
+    kCheckSumError = 19,
+    kMaxValue = kCheckSumError
   };
   // LINT.ThenChange(//tools/metrics/histograms/metadata/net/enums.xml:SqlDiskCacheStoreError)
 
@@ -176,13 +178,6 @@ class NET_EXPORT_PRIVATE SqlPersistentStore {
                                  ResId res_id,
                                  ErrorCallback callback) = 0;
 
-  // Physically deletes all entries that have been marked as doomed, except for
-  // those whose IDs are in `excluded_res_ids`. This is typically used for
-  // background cleanup of doomed entries that are no longer in use. `callback`
-  // is invoked upon completion.
-  virtual void DeleteDoomedEntries(base::flat_set<ResId> excluded_res_ids,
-                                   ErrorCallback callback) = 0;
-
   // Deletes a "live" entry, i.e., an entry whose `doomed` flag is not set.
   // This is for use for entries which are not open; open entries should have
   // `DoomEntry()` called, and then `DeleteDoomedEntry()` once they're no longer
@@ -195,12 +190,11 @@ class NET_EXPORT_PRIVATE SqlPersistentStore {
 
   // Deletes all "live" (not doomed) entries whose `last_used` time falls
   // within the range [`initial_time`, `end_time`), excluding any entries whose
-  // keys are present in `excluded_keys`. `callback` is invoked on completion.
-  virtual void DeleteLiveEntriesBetween(
-      base::Time initial_time,
-      base::Time end_time,
-      base::flat_set<CacheEntryKey> excluded_keys,
-      ErrorCallback callback) = 0;
+  // IDs are present in `excluded_res_ids`. `callback` is invoked on completion.
+  virtual void DeleteLiveEntriesBetween(base::Time initial_time,
+                                        base::Time end_time,
+                                        base::flat_set<ResId> excluded_res_ids,
+                                        ErrorCallback callback) = 0;
 
   // Updates the `last_used` timestamp for the entry with the specified `key`.
   // `callback` is invoked with `kOk` on success, or `kNotFound` if the entry
@@ -262,7 +256,8 @@ class NET_EXPORT_PRIVATE SqlPersistentStore {
   // stored data. If false, gaps will be filled with zeros.
   // `callback` is invoked with the number of bytes read on success, or an error
   // code on failure.
-  virtual void ReadEntryData(ResId res_id,
+  virtual void ReadEntryData(const CacheEntryKey& key,
+                             ResId res_id,
                              int64_t offset,
                              scoped_refptr<net::IOBuffer> buffer,
                              int buf_len,
@@ -308,9 +303,9 @@ class NET_EXPORT_PRIVATE SqlPersistentStore {
 
   // Starts the eviction process to reduce the cache size. This method removes
   // the least recently used entries until the total cache size is below the
-  // low watermark. Entries with keys in `excluded_keys` (typically active
+  // low watermark. Entries with ResId in `excluded_res_ids` (typically active
   // entries) will not be evicted. `callback` is invoked upon completion.
-  virtual void StartEviction(base::flat_set<CacheEntryKey> excluded_keys,
+  virtual void StartEviction(base::flat_set<ResId> excluded_res_ids,
                              ErrorCallback callback) = 0;
 
   // The maximum size of an individual cache entry's data stream.
@@ -324,6 +319,17 @@ class NET_EXPORT_PRIVATE SqlPersistentStore {
 
   // Asynchronously retrieves the total size of all entries.
   virtual void GetSizeOfAllEntries(Int64Callback callback) const = 0;
+
+  // Loads the in-memory index. This is a no-op if the index has already been
+  // loaded or if a load is already in progress. Returns true if a load was
+  // initiated.
+  virtual bool MaybeLoadInMemoryIndex(ErrorCallback callback) = 0;
+
+  // If there are entries that were doomed in a previous session, this method
+  // triggers a task to delete them from the database. The cleanup is performed
+  // in the background. Returns true if a cleanup task was scheduled, and false
+  // otherwise. `callback` is invoked upon completion of the cleanup task.
+  virtual bool MaybeRunCleanupDoomedEntries(ErrorCallback callback) = 0;
 
   // If the browser is idle and the number of pages recorded in the WAL exceeds
   // kSqlDiskCacheIdleCheckpointThreshold, a checkpoint is executed.

@@ -96,6 +96,7 @@
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/theme_resources.h"
 #include "components/bookmarks/common/bookmark_pref_names.h"
+#include "components/contextual_tasks/public/features.h"
 #include "components/dom_distiller/content/browser/distillable_page_utils.h"
 #include "components/dom_distiller/content/browser/uma_helper.h"
 #include "components/dom_distiller/core/dom_distiller_features.h"
@@ -116,6 +117,7 @@
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/sync/base/features.h"
+#include "components/sync/service/sync_service.h"
 #include "components/user_education/common/feature_promo/feature_promo_controller.h"
 #include "components/vector_icons/vector_icons.h"
 #include "components/webapps/browser/banners/app_banner_manager.h"
@@ -621,28 +623,33 @@ bool ProfileSubMenuModel::BuildSyncSection() {
 
   // First, check for sync errors. They may exist even if sync-the-feature is
   // disabled and only sync-the-transport is running.
-  const std::optional<AvatarSyncErrorType> error =
-      GetAvatarSyncErrorType(profile_);
-  if (error.has_value()) {
-    if (error == AvatarSyncErrorType::kSyncPaused) {
-      if (identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSync)) {
-        // If sync is paused the menu item will be specific to the paused error.
-        AddItemWithStringIdAndVectorIcon(
-            this, IDC_SHOW_SIGNIN_WHEN_PAUSED, IDS_PROFILE_ROW_SIGN_IN_AGAIN,
-            vector_icons::kSyncOffChromeRefreshIcon);
+  syncer::SyncService* service = SyncServiceFactory::GetForProfile(profile_);
+  if (service) {
+    const syncer::SyncService::UserActionableError error =
+        service->GetUserActionableError();
+    if (error != syncer::SyncService::UserActionableError::kNone) {
+      if (error ==
+          syncer::SyncService::UserActionableError::kSignInNeedsUpdate) {
+        if (identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSync)) {
+          // If sync is paused the menu item will be specific to the paused
+          // error.
+          AddItemWithStringIdAndVectorIcon(
+              this, IDC_SHOW_SIGNIN_WHEN_PAUSED, IDS_PROFILE_ROW_SIGN_IN_AGAIN,
+              vector_icons::kSyncOffChromeRefreshIcon);
+        } else {
+          AddItemWithStringIdAndVectorIcon(
+              this, IDC_SHOW_SIGNIN_WHEN_PAUSED,
+              IDS_PROFILES_VERIFY_ACCOUNT_BUTTON,
+              vector_icons::kAccountCircleOffChromeRefreshIcon);
+        }
       } else {
+        // All remaining errors will have the same menu item.
         AddItemWithStringIdAndVectorIcon(
-            this, IDC_SHOW_SIGNIN_WHEN_PAUSED,
-            IDS_PROFILES_VERIFY_ACCOUNT_BUTTON,
-            vector_icons::kAccountCircleOffChromeRefreshIcon);
+            this, IDC_SHOW_SYNC_SETTINGS, IDS_PROFILE_ROW_SYNC_ERROR_MESSAGE,
+            vector_icons::kSyncProblemChromeRefreshIcon);
       }
-    } else {
-      // All remaining errors will have the same menu item.
-      AddItemWithStringIdAndVectorIcon(
-          this, IDC_SHOW_SYNC_SETTINGS, IDS_PROFILE_ROW_SYNC_ERROR_MESSAGE,
-          vector_icons::kSyncProblemChromeRefreshIcon);
+      return true;
     }
-    return true;
   }
 
   if (identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSync)) {
@@ -950,6 +957,12 @@ void ToolsMenuModel::Build(Browser* browser) {
     AddItemWithStringIdAndVectorIcon(this, IDC_SHOW_CUSTOMIZE_CHROME_SIDE_PANEL,
                                      IDS_SHOW_CUSTOMIZE_CHROME_SIDE_PANEL,
                                      kEditChromeRefreshIcon);
+  }
+
+  if (base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks)) {
+    AddItemWithStringIdAndVectorIcon(
+        this, IDC_SHOW_CONTEXTUAL_TASKS_SIDE_PANEL,
+        IDS_CONTEXTUAL_TASKS_CONTEXTUAL_TASKS_TITLE, vector_icons::kChatIcon);
   }
 
   AddSeparator(ui::NORMAL_SEPARATOR);
@@ -1853,8 +1866,7 @@ void AppMenuModel::Build() {
   if (base::FeatureList::IsEnabled(
           features::kCreateNewTabGroupAppMenuTopLevel)) {
     AddItemWithStringIdAndVectorIcon(this, IDC_CREATE_NEW_TAB_GROUP_TOP_LEVEL,
-                                     IDS_CREATE_NEW_TAB_GROUP,
-                                     kCreateNewTabGroupIcon);
+                                     IDS_NEW_TAB_GROUP, kCreateNewTabGroupIcon);
     SetElementIdentifierAt(
         GetIndexOfCommandId(IDC_CREATE_NEW_TAB_GROUP_TOP_LEVEL).value(),
         kCreateNewTabGroupTopLevel);
@@ -2135,10 +2147,7 @@ bool AppMenuModel::AddDefaultBrowserMenuItems() {
     return false;
   }
 
-  if ((app_menu_icon_controller_ &&
-       app_menu_icon_controller_->GetTypeAndSeverity().type ==
-           AppMenuIconController::IconType::DEFAULT_BROWSER_PROMPT) ||
-      (DefaultBrowserPromptManager::GetInstance()->show_app_menu_item())) {
+  if (DefaultBrowserPromptManager::GetInstance()->show_app_menu_item()) {
     AddItemWithIcon(
         IDC_SET_BROWSER_AS_DEFAULT,
         l10n_util::GetStringUTF16(IDS_SET_BROWSER_AS_DEFAULT_MENU_ITEM),
@@ -2159,7 +2168,6 @@ bool AppMenuModel::AddSafetyHubMenuItem() {
   if (!safety_hub_menu_notification_service) {
     return false;
   }
-  safety_hub_menu_notification_service->MaybeTriggerControlSurvey();
 
   std::optional<MenuNotificationEntry> notification =
       safety_hub_menu_notification_service->GetNotificationToShow();

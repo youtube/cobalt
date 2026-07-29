@@ -701,9 +701,8 @@ class IpProtectionCoreHostUserSettingBrowserTest
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-// FLAKY <https://crbug.com/445760641>
 IN_PROC_BROWSER_TEST_F(IpProtectionCoreHostUserSettingBrowserTest,
-                       DISABLED_OnIpProtectionEnabledChanged) {
+                       OnIpProtectionEnabledChanged) {
   IpProtectionCoreHost* provider =
       IpProtectionCoreHostFactory::GetForProfile(GetProfile());
   ASSERT_TRUE(provider);
@@ -713,8 +712,8 @@ IN_PROC_BROWSER_TEST_F(IpProtectionCoreHostUserSettingBrowserTest,
   // Simulate the user disabling the IP Protection setting.
   GetProfile()->GetPrefs()->SetBoolean(prefs::kIpProtectionEnabled, false);
   provider->OnIpProtectionEnabledChanged();
-  main_profile_ipp_control_test_.FlushForTesting();
-  incognito_profile_ipp_control_test_.FlushForTesting();
+
+  provider->remotes_.FlushForTesting();
 
   // Check that network contexts got notified that IP Protection should be
   // disabled.
@@ -755,6 +754,8 @@ IN_PROC_BROWSER_TEST_F(IpProtectionCoreHostUserSettingBrowserTest,
   // accordingly.
   GetProfile()->GetPrefs()->SetBoolean(prefs::kIpProtectionEnabled, true);
   provider->OnIpProtectionEnabledChanged();
+
+  provider->remotes_.FlushForTesting();
 
   main_profile_is_enabled_future.Clear();
   incognito_profile_is_enabled_future.Clear();
@@ -806,25 +807,10 @@ IN_PROC_BROWSER_TEST_F(IpProtectionCoreHostUserSettingBrowserTest,
   DestroyIncognitoNetworkContextAndInterceptors();
 }
 
-// TODO(crbug.com/445983566): Re-enable once PRE_ tests are fixed on Android
-// (crbug.com/40200835).
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_PRE_TrackingProtectionExceptionRemainsAfterRestart \
-  DISABLED_PRE_TrackingProtectionExceptionRemainsAfterRestart
-#define MAYBE_TrackingProtectionExceptionRemainsAfterRestart \
-  DISABLED_TrackingProtectionExceptionRemainsAfterRestart
-#else
-#define MAYBE_PRE_TrackingProtectionExceptionRemainsAfterRestart \
-  PRE_TrackingProtectionExceptionRemainsAfterRestart
-#define MAYBE_TrackingProtectionExceptionRemainsAfterRestart \
-  TrackingProtectionExceptionRemainsAfterRestart
-#endif
-
 // Verify that Tracking Protection exceptions persist across network service
 // restarts and crashes.
-IN_PROC_BROWSER_TEST_F(
-    IpProtectionCoreHostUserSettingBrowserTest,
-    MAYBE_PRE_TrackingProtectionExceptionRemainsAfterRestart) {
+IN_PROC_BROWSER_TEST_F(IpProtectionCoreHostUserSettingBrowserTest,
+                       PRE_TrackingProtectionExceptionRemainsAfterRestart) {
   // Ensure that the tracking protection exception is not set yet.
   base::test::TestFuture<bool> has_exception_future;
 
@@ -862,7 +848,7 @@ IN_PROC_BROWSER_TEST_F(
 }
 
 IN_PROC_BROWSER_TEST_F(IpProtectionCoreHostUserSettingBrowserTest,
-                       MAYBE_TrackingProtectionExceptionRemainsAfterRestart) {
+                       TrackingProtectionExceptionRemainsAfterRestart) {
   // Check that the settings are still propagated to IP Protection Core after
   // restart.
   ip_protection::mojom::CoreControl* ipp_control =

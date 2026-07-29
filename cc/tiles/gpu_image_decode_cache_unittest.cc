@@ -39,6 +39,7 @@
 #include "gpu/command_buffer/common/command_buffer_id.h"
 #include "gpu/command_buffer/common/constants.h"
 #include "gpu/config/gpu_finch_features.h"
+#include "gpu/skia_bindings/gl_bindings_skia_cmd_buffer.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/skia/include/core/SkBitmap.h"
@@ -57,6 +58,8 @@
 #include "third_party/skia/include/gpu/ganesh/GrBackendSurface.h"
 #include "third_party/skia/include/gpu/ganesh/GrDirectContext.h"
 #include "third_party/skia/include/gpu/ganesh/SkImageGanesh.h"
+#include "third_party/skia/include/gpu/ganesh/gl/GrGLDirectContext.h"
+#include "third_party/skia/include/gpu/ganesh/gl/GrGLInterface.h"
 
 using testing::_;
 using testing::StrictMock;
@@ -320,10 +323,16 @@ class GpuImageDecodeCacheTest
     context_provider_ = GPUImageDecodeTestMockContextProvider::Create(
         &transfer_cache_helper_, advertise_accelerated_decoding_);
     context_provider_->BindToCurrentSequence();
+    sk_sp<const GrGLInterface> gr_interface =
+        skia_bindings::CreateGLES2InterfaceBindings(
+            context_provider_->UnboundTestContextGL(),
+            context_provider_->ContextSupport());
+    gr_context_ = GrDirectContexts::MakeGL(std::move(gr_interface));
+    ASSERT_TRUE(!!gr_context_);
     {
       viz::RasterContextProvider::ScopedRasterContextLock context_lock(
           context_provider_.get());
-      transfer_cache_helper_.SetGrContext(context_provider_->GrContext());
+      transfer_cache_helper_.SetGrContext(gr_context_.get());
       max_texture_size_ =
           context_provider_->ContextCapabilities().max_texture_size;
     }
@@ -566,16 +575,12 @@ class GpuImageDecodeCacheTest
           transfer_cache_helper_.GetEntryAs<ServiceImageTransferCacheEntry>(id);
       original_uploaded_plane = image_entry->GetPlaneImage(i);
       ASSERT_TRUE(original_uploaded_plane);
-      auto plane_with_mips = SkImages::TextureFromImage(
-          context_provider()->GrContext(), original_uploaded_plane,
-          skgpu::Mipmapped::kYes);
       // In test frameworks, Skia is unable to generate mipmaps for A16 formats.
       if (original_uploaded_plane->colorType() == kA16_unorm_SkColorType ||
           original_uploaded_plane->colorType() == kA16_float_SkColorType) {
         break;
       }
-      ASSERT_TRUE(plane_with_mips);
-      EXPECT_EQ(should_have_mips, original_uploaded_plane == plane_with_mips);
+      EXPECT_EQ(original_uploaded_plane->hasMipmaps(), should_have_mips);
     }
   }
 
@@ -613,6 +618,7 @@ class GpuImageDecodeCacheTest
   // on |transfer_cache_helper_|.
   TransferCacheTestHelper transfer_cache_helper_;
   scoped_refptr<GPUImageDecodeTestMockContextProvider> context_provider_;
+  sk_sp<GrDirectContext> gr_context_;
 
   // Only used when |do_yuv_decode_| is true.
   SkYUVAPixmapInfo::DataType yuv_data_type_ =
@@ -3162,8 +3168,7 @@ TEST_P(GpuImageDecodeCacheTest, KeepOnlyLast2ContentIds) {
 
   // We have a single tracked entry, that gets cleared once we purge the cache.
   EXPECT_EQ(cache->paint_image_entries_count_for_testing(), 1u);
-  cache->OnMemoryPressure(
-      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
+  cache->OnMemoryPressure(base::MEMORY_PRESSURE_LEVEL_CRITICAL);
   EXPECT_EQ(cache->paint_image_entries_count_for_testing(), 0u);
 }
 
@@ -3296,11 +3301,7 @@ TEST_P(GpuImageDecodeCacheTest, BasicMips) {
       CompareAllPlanesToMippedVersions(
           cache.get(), draw_image, transfer_cache_entry_id, should_have_mips);
     } else {
-      sk_sp<SkImage> image_with_mips = SkImages::TextureFromImage(
-          context_provider()->GrContext(), decoded_draw_image.image(),
-          skgpu::Mipmapped::kYes);
-      EXPECT_EQ(should_have_mips,
-                image_with_mips == decoded_draw_image.image());
+      EXPECT_EQ(decoded_draw_image.image()->hasMipmaps(), should_have_mips);
     }
     cache->DrawWithImageFinished(draw_image, decoded_draw_image);
     cache->UnrefImage(draw_image);
@@ -3368,11 +3369,7 @@ TEST_P(GpuImageDecodeCacheTest, MipsAddedSubsequentDraw) {
                                        transfer_cache_entry_id,
                                        false /* should_have_mips */);
     } else {
-      sk_sp<SkImage> image_with_mips = SkImages::TextureFromImage(
-          context_provider()->GrContext(), decoded_draw_image.image(),
-          skgpu::Mipmapped::kYes);
-      ASSERT_TRUE(image_with_mips);
-      EXPECT_NE(image_with_mips, decoded_draw_image.image());
+      EXPECT_FALSE(decoded_draw_image.image()->hasMipmaps());
     }
     cache->DrawWithImageFinished(draw_image, decoded_draw_image);
     cache->UnrefImage(draw_image);
@@ -3417,10 +3414,7 @@ TEST_P(GpuImageDecodeCacheTest, MipsAddedSubsequentDraw) {
                                        transfer_cache_entry_id,
                                        true /* should_have_mips */);
     } else {
-      sk_sp<SkImage> image_with_mips = SkImages::TextureFromImage(
-          context_provider()->GrContext(), decoded_draw_image.image(),
-          skgpu::Mipmapped::kYes);
-      EXPECT_EQ(image_with_mips, decoded_draw_image.image());
+      EXPECT_TRUE(decoded_draw_image.image()->hasMipmaps());
     }
     cache->DrawWithImageFinished(draw_image, decoded_draw_image);
     cache->UnrefImage(draw_image);
@@ -3473,10 +3467,7 @@ TEST_P(GpuImageDecodeCacheTest, MipsAddedWhileOriginalInUse) {
                                        transfer_cache_entry_id,
                                        false /* should_have_mips */);
     } else {
-      sk_sp<SkImage> image_with_mips = SkImages::TextureFromImage(
-          context_provider()->GrContext(), decoded_draw_image.image(),
-          skgpu::Mipmapped::kYes);
-      EXPECT_NE(image_with_mips, decoded_draw_image.image());
+      EXPECT_FALSE(decoded_draw_image.image()->hasMipmaps());
     }
     images_to_unlock.push_back({draw_image, decoded_draw_image});
   }
@@ -3515,10 +3506,7 @@ TEST_P(GpuImageDecodeCacheTest, MipsAddedWhileOriginalInUse) {
                                        transfer_cache_entry_id,
                                        true /* should_have_mips */);
     } else {
-      sk_sp<SkImage> image_with_mips = SkImages::TextureFromImage(
-          context_provider()->GrContext(), decoded_draw_image.image(),
-          skgpu::Mipmapped::kYes);
-      EXPECT_EQ(image_with_mips, decoded_draw_image.image());
+      EXPECT_TRUE(decoded_draw_image.image()->hasMipmaps());
     }
     images_to_unlock.push_back({draw_image, decoded_draw_image});
   }

@@ -114,12 +114,13 @@ std::unique_ptr<GlicSharingManager> CreateSharingManager(
     GlicWindowController* window_controller,
     GlicMetrics* metrics) {
   if (UseDefaultWindowController()) {
-    return std::make_unique<GlicSharingManagerImpl>(profile, window_controller,
-                                                    metrics);
+    return std::make_unique<GlicSharingManagerImpl>(
+        profile, static_cast<GlicWindowControllerImpl*>(window_controller),
+        metrics);
   }
 
-  return std::make_unique<GlicActiveBrowserSharingManager>(profile,
-                                                           window_controller);
+  return std::make_unique<GlicActiveBrowserSharingManager>(
+      profile, static_cast<GlicInstanceCoordinatorImpl*>(window_controller));
 }
 
 }  // namespace
@@ -150,21 +151,31 @@ GlicKeyedService::GlicKeyedService(
                                                         /*use_for_fre=*/false)),
       occlusion_notifier_(
           std::make_unique<GlicOcclusionNotifier>(window_controller())),
-      zero_state_suggestions_manager_(
-          std::make_unique<GlicZeroStateSuggestionsManager>(
-              sharing_manager_.get(),
-              &window_controller(),
-              contextual_cueing_service)),
       contextual_cueing_service_(contextual_cueing_service),
       actor_keyed_service_(actor_keyed_service) {
   CHECK(GlicEnabling::IsProfileEligible(Profile::FromBrowserContext(profile)));
   CHECK(actor_keyed_service_);
-  metrics_->SetControllers(&window_controller(), sharing_manager_.get());
 
-  memory_pressure_listener_ = std::make_unique<base::MemoryPressureListener>(
-      FROM_HERE, base::MemoryPressureListenerTag::kGlicKeyedService,
-      base::BindRepeating(&GlicKeyedService::OnMemoryPressure,
-                          weak_ptr_factory_.GetWeakPtr()));
+  if (UseDefaultWindowController()) {
+    // TODO: Create the zero state suggestions manager on each instance.
+    zero_state_suggestions_manager_ =
+        std::make_unique<GlicZeroStateSuggestionsManager>(
+            sharing_manager_.get(), &GetSingleInstanceWindowController(),
+            contextual_cueing_service);
+  }
+
+  if (UseDefaultWindowController()) {
+    metrics_->SetControllers(&GetSingleInstanceWindowController(),
+                             sharing_manager_.get());
+  } else {
+    // TODO(crbug.com/450026474): Consider not constructing this metrics
+    // instance.
+    metrics_->ClearControllers();
+  }
+
+  memory_pressure_listener_registration_ =
+      std::make_unique<base::MemoryPressureListenerRegistration>(
+          FROM_HERE, base::MemoryPressureListenerTag::kGlicKeyedService, this);
   if (base::FeatureList::IsEnabled(features::kGlicShareImage)) {
     share_image_handler_ = std::make_unique<GlicShareImageHandler>(*this);
   }
@@ -286,6 +297,12 @@ GlicWindowController& GlicKeyedService::window_controller() const {
   return *window_controller_.get();
 }
 
+GlicWindowControllerInterface&
+GlicKeyedService::GetSingleInstanceWindowController() const {
+  CHECK(UseDefaultWindowController());
+  return static_cast<GlicWindowControllerInterface&>(window_controller());
+}
+
 GlicFreController& GlicKeyedService::fre_controller() {
   CHECK(fre_controller_);
   return *fre_controller_.get();
@@ -350,7 +367,13 @@ void GlicKeyedService::GetZeroStateSuggestionsAndSubscribe(
     const mojom::ZeroStateSuggestionsOptions& options,
     mojom::WebClientHandler::GetZeroStateSuggestionsAndSubscribeCallback
         callback) {
-  zero_state_suggestions_manager().ObserveZeroStateSuggestions(
+  if (!zero_state_suggestions_manager()) {
+    NOTIMPLEMENTED()
+        << "Zero state suggestions not implemented for multi-instance.";
+    std::move(callback).Run(nullptr);
+    return;
+  }
+  zero_state_suggestions_manager()->ObserveZeroStateSuggestions(
       has_active_subscription, options.is_first_run, options.supported_tools,
       std::move(callback));
 }
@@ -360,7 +383,12 @@ void GlicKeyedService::GuestAdded(content::WebContents* guest_contents) {
 }
 
 bool GlicKeyedService::IsWindowShowing() const {
-  return window_controller().IsShowing();
+  if (UseDefaultWindowController()) {
+    return GetSingleInstanceWindowController().IsShowing();
+  }
+  // TODO: Investigate if this is needed for multi-instance.
+  NOTIMPLEMENTED() << "IsWindowShowing not implemented for multi-instance.";
+  return false;
 }
 
 bool GlicKeyedService::IsWindowDetached() const {
@@ -368,7 +396,7 @@ bool GlicKeyedService::IsWindowDetached() const {
 }
 
 bool GlicKeyedService::IsWindowOrFreShowing() const {
-  return window_controller().IsShowing() || fre_controller_->IsShowingDialog();
+  return IsWindowShowing() || fre_controller_->IsShowingDialog();
 }
 
 base::CallbackListSubscription
@@ -432,7 +460,8 @@ void GlicKeyedService::CreateTask(
         base::unexpected(mojom::CreateTaskErrorReason::kTaskSystemUnavailable));
     return;
   }
-  actor::TaskId task_id = actor_keyed_service_->CreateTask(std::move(options));
+  actor::TaskId task_id =
+      actor_keyed_service_->CreateTaskWithOptions(std::move(options));
   std::move(callback).Run(task_id.value());
 }
 
@@ -440,6 +469,7 @@ void GlicKeyedService::PerformActionsFinished(
     mojom::WebClientHandler::PerformActionsCallback callback,
     actor::TaskId task_id,
     base::TimeTicks start_time,
+    bool skip_async_observation_information,
     actor::mojom::ActionResultCode result_code,
     std::optional<size_t> index_of_failed_action,
     std::vector<actor::ActionResultWithLatencyInfo> action_results) {
@@ -464,7 +494,8 @@ void GlicKeyedService::PerformActionsFinished(
 
   actor::BuildActionsResultWithObservations(
       *profile_, start_time, result_code, index_of_failed_action,
-      std::move(action_results), *task, std::move(result_callback));
+      std::move(action_results), *task, skip_async_observation_information,
+      std::move(result_callback));
 }
 
 void GlicKeyedService::PerformActions(
@@ -526,11 +557,14 @@ void GlicKeyedService::PerformActions(
     std::move(callback).Run(mojo_base::ProtoWrapper(response));
     return;
   }
-
+  bool skip_async_observation_information =
+      actions.has_skip_async_observation_collection() &&
+      actions.skip_async_observation_collection();
   actor_keyed_service_->PerformActions(
       task_id, std::move(requests.value()),
       base::BindOnce(&GlicKeyedService::PerformActionsFinished, GetWeakPtr(),
-                     std::move(callback), task_id, start_time));
+                     std::move(callback), task_id, start_time,
+                     skip_async_observation_information));
 }
 
 void GlicKeyedService::StopActorTask(actor::TaskId task_id,
@@ -560,9 +594,9 @@ void GlicKeyedService::StopActorTask(actor::TaskId task_id,
   actor_keyed_service_->StopTask(task->id(), success);
 }
 
-void GlicKeyedService::PauseActorTask(
-    actor::TaskId task_id,
-    mojom::ActorTaskPauseReason pause_reason) {
+void GlicKeyedService::PauseActorTask(actor::TaskId task_id,
+                                      mojom::ActorTaskPauseReason pause_reason,
+                                      tabs::TabInterface::Handle tab_handle) {
   actor::ActorTask* task = actor_keyed_service_->GetTask(task_id);
   if (!task || task->IsStopped() || task->IsPaused()) {
     actor_keyed_service_->GetJournal().Log(
@@ -573,6 +607,11 @@ void GlicKeyedService::PauseActorTask(
             .Add("id", task_id.value())
             .Build());
     return;
+  }
+
+  if (tab_handle != tabs::TabHandle::Null()) {
+    // Pausing the task on a tab means we're actuating on it.
+    task->AddTab(tab_handle, base::DoNothing());
   }
 
   bool from_actor = false;
@@ -768,21 +807,22 @@ void GlicKeyedService::TryPreloadFre(GlicPrewarmingFreSource source) {
                                GetWeakPtr(), source));
 }
 
-void GlicKeyedService::Reload() {
+void GlicKeyedService::Reload(content::RenderFrameHost* render_frame_host) {
   if (fre_controller_->IsShowingDialog()) {
     if (auto* fre_contents = fre_controller_->GetWebContents()) {
-      fre_contents->GetController().Reload(content::ReloadType::BYPASSING_CACHE,
-                                           /*check_for_repost=*/false);
+      if (fre_contents ==
+          content::WebContents::FromRenderFrameHost(render_frame_host)) {
+        fre_contents->GetController().Reload(
+            content::ReloadType::BYPASSING_CACHE,
+            /*check_for_repost=*/false);
+      }
     }
-  } else {
-    window_controller().Reload();
   }
+  window_controller().Reload(render_frame_host);
 }
 
-void GlicKeyedService::OnMemoryPressure(
-    base::MemoryPressureListener::MemoryPressureLevel level) {
-  if (level == base::MemoryPressureListener::MemoryPressureLevel::
-                   MEMORY_PRESSURE_LEVEL_NONE ||
+void GlicKeyedService::OnMemoryPressure(base::MemoryPressureLevel level) {
+  if (level == base::MEMORY_PRESSURE_LEVEL_NONE ||
       (this == GlicProfileManager::GetInstance()->GetLastActiveGlic())) {
     return;
   }

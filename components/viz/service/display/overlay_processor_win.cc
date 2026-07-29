@@ -182,14 +182,6 @@ gfx::Rect OverlayProcessorWin::GetAndResetOverlayDamage() {
   return std::exchange(overlay_damage_rect_, gfx::Rect());
 }
 
-void OverlayProcessorWin::AdjustOutputSurfaceOverlay(
-    std::optional<OverlayCandidate>& output_surface_plane) {
-  if (pending_remove_primary_plane_) {
-    output_surface_plane.reset();
-    pending_remove_primary_plane_ = false;
-  }
-}
-
 void OverlayProcessorWin::ProcessForOverlays(
     DisplayResourceProvider* resource_provider,
     AggregatedRenderPassList* render_passes,
@@ -222,6 +214,8 @@ void OverlayProcessorWin::ProcessForOverlays(
     CHECK(primary_plane);
     primary_plane->is_opaque =
         !render_passes->back()->has_transparent_background;
+    primary_plane->layer_id = gfx::OverlayLayerId::MakeVizInternalRenderPass(
+        render_passes->back()->id);
   }
 
   if (is_page_fullscreen_mode_ &&
@@ -229,6 +223,15 @@ void OverlayProcessorWin::ProcessForOverlays(
           features::kEarlyFullScreenVideoOptimization)) {
     TryPromoteFullScreenVideo(*render_passes->back(), *candidates,
                               *root_damage_rect);
+  }
+
+  if (pending_remove_primary_plane_) {
+    primary_plane.reset();
+    pending_remove_primary_plane_ = false;
+  }
+  if (primary_plane) {
+    candidates->push_back(std::move(primary_plane).value());
+    primary_plane.reset();
   }
 
   DebugLogAfterDelegation(status, *candidates, *root_damage_rect);
