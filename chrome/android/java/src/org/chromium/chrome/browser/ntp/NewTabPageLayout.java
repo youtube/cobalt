@@ -350,7 +350,8 @@ public class NewTabPageLayout extends LinearLayout
     private void initializeSearchBoxTextView() {
         TraceEvent.begin(TAG + ".initializeSearchBoxTextView()");
 
-        mSearchBoxCoordinator.setSearchBoxClickListener(v -> mManager.focusSearchBox(false, null));
+        mSearchBoxCoordinator.setSearchBoxClickListener(
+                v -> mManager.focusSearchBox(false, AutocompleteRequestType.SEARCH, null));
 
         // @TODO(crbug.com/41492572): Add test case for search box OnDragListener.
         mSearchBoxCoordinator.setSearchBoxDragListener(
@@ -378,7 +379,8 @@ public class NewTabPageLayout extends LinearLayout
                     @Override
                     public void afterTextChanged(Editable s) {
                         if (s.length() == 0) return;
-                        mManager.focusSearchBox(false, s.toString());
+                        mManager.focusSearchBox(
+                                false, AutocompleteRequestType.SEARCH, s.toString());
                         mSearchBoxCoordinator.setSearchText("");
                     }
                 });
@@ -397,6 +399,7 @@ public class NewTabPageLayout extends LinearLayout
                                                 R.dimen.omnibox_search_engine_logo_composed_size)
                                 / 2));
         mDseIconView.setClipToOutline(true);
+        mSearchEngineUtils.addIconObserver(this);
         ImageViewCompat.setImageTintList(mDseIconView, null);
         setDseIconViewVisibility(shouldShowDesIconView);
     }
@@ -459,7 +462,8 @@ public class NewTabPageLayout extends LinearLayout
 
     private void initializeVoiceSearchButton() {
         TraceEvent.begin(TAG + ".initializeVoiceSearchButton()");
-        mVoiceSearchButtonClickListener = v -> mManager.focusSearchBox(true, null);
+        mVoiceSearchButtonClickListener =
+                v -> mManager.focusSearchBox(true, AutocompleteRequestType.SEARCH, null);
         mSearchBoxCoordinator.addVoiceSearchButtonClickListener(mVoiceSearchButtonClickListener);
         TraceEvent.end(TAG + ".initializeVoiceSearchButton()");
     }
@@ -531,6 +535,11 @@ public class NewTabPageLayout extends LinearLayout
     }
 
     private void onComposeplateButtonClicked(View view) {
+        if (OmniboxFeatures.sOmniboxMultimodalInput.isEnabled()) {
+            mManager.focusSearchBox(false, AutocompleteRequestType.AI_MODE, null);
+            return;
+        }
+
         if (mComposeplateUrlSupplier == null) return;
 
         GURL composeplateUrl = mComposeplateUrlSupplier.get();
@@ -1132,10 +1141,9 @@ public class NewTabPageLayout extends LinearLayout
                     isLensButtonVisible || isComposeplateButtonVisible);
         }
 
-        ComposeplateMetricsUtils.recordFakeSearchBoxImpression();
-        if (isComposeplateButtonVisible) {
-            ComposeplateMetricsUtils.recordFakeSearchBoxComposeplateButtonImpression();
-        }
+        ComposeplateMetricsUtils.recordFakeSearchBoxImpression2();
+        ComposeplateMetricsUtils.recordFakeSearchBoxComposeplateButtonImpression2(
+                isComposeplateButtonVisible);
 
         mPreviousVoiceSearchButtonVisible = isVoiceSearchButtonVisible;
         mPreviousLensButtonVisible = isLensButtonVisible;
@@ -1236,9 +1244,14 @@ public class NewTabPageLayout extends LinearLayout
     private void unifyElementWidths() {
         View searchBoxView = getSearchBoxView();
         final int width = getMeasuredWidth();
-        measureExactly(
-                searchBoxView, width - mSearchBoxTwoSideMargin, searchBoxView.getMeasuredHeight());
+        int searchBoxWidth = width - mSearchBoxTwoSideMargin;
+        measureExactly(searchBoxView, searchBoxWidth, searchBoxView.getMeasuredHeight());
+
         if (mLogoCoordinator != null) mLogoCoordinator.measureExactlyLogoView(width);
+
+        if (mComposeplateCoordinator != null) {
+            mComposeplateCoordinator.measureExactlyComposeplateView(searchBoxWidth);
+        }
     }
 
     /**

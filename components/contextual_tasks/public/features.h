@@ -5,6 +5,9 @@
 #ifndef COMPONENTS_CONTEXTUAL_TASKS_PUBLIC_FEATURES_H_
 #define COMPONENTS_CONTEXTUAL_TASKS_PUBLIC_FEATURES_H_
 
+#include <string>
+#include <vector>
+
 #include "base/feature_list.h"
 #include "base/metrics/field_trial_params.h"
 
@@ -17,6 +20,15 @@ BASE_DECLARE_FEATURE(kContextualTasksContext);
 extern const base::FeatureParam<double> kMinEmbeddingSimilarityScore;
 // Whether to only consider titles for similarity.
 extern const base::FeatureParam<bool> kOnlyUseTitlesForSimilarity;
+
+// Minimum score, computed using multiple signals, to consider a tab relevant.
+extern const base::FeatureParam<double> kMinMultiSignalScore;
+
+// Returns the base URL for the AI page.
+extern std::string GetContextualTasksAiPageUrl();
+
+// Returns the domains for the sign in page.
+extern std::vector<std::string> GetContextualTasksSignInDomains();
 
 namespace flag_descriptions {
 

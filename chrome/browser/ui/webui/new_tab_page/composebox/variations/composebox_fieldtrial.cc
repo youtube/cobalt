@@ -48,8 +48,8 @@ omnibox::NTPComposeboxConfig GetNTPComposeboxConfig() {
   default_config.mutable_entry_point()->set_num_page_load_animations(3);
 
   auto* composebox = default_config.mutable_composebox();
-  composebox->set_close_by_escape(true);
-  composebox->set_close_by_click_outside(true);
+  composebox->set_close_by_escape(kCloseComposeboxByEscape.Get());
+  composebox->set_close_by_click_outside(kCloseComposeboxByClickOutside.Get());
 
   auto* image_upload = composebox->mutable_image_upload();
   image_upload->set_enable_webp_encoding(false);
@@ -180,10 +180,11 @@ bool IsCreateImagesEnabled(Profile* profile) {
          aim_eligibility_service->IsCreateImagesEligible();
 }
 
-std::unique_ptr<ComposeboxQueryController::QueryControllerConfigParams>
+std::unique_ptr<
+    contextual_search::ContextualSearchContextController::ConfigParams>
 CreateQueryControllerConfigParams() {
   auto config_params = std::make_unique<
-      ComposeboxQueryController::QueryControllerConfigParams>();
+      contextual_search::ContextualSearchContextController::ConfigParams>();
   config_params->send_lns_surface = kSendLnsSurfaceParam.Get();
   config_params->suppress_lns_surface_param_if_no_image =
       kSuppressLnsSurfaceParamIfNoImage.Get();
@@ -191,7 +192,6 @@ CreateQueryControllerConfigParams() {
   config_params->enable_viewport_images = kEnableViewportImages.Get();
   config_params->use_separate_request_ids_for_multi_context_viewport_images =
       kUseSeparateRequestIdsForMultiContextViewportImages.Get();
-  config_params->clear_previous_state_on_session_start = true;
   return config_params;
 }
 
@@ -214,7 +214,7 @@ const base::FeatureParam<bool>
     kUseSeparateRequestIdsForMultiContextViewportImages(
         &kNtpComposebox,
         "UseSeparateRequestIdsForMultiContextViewportImages",
-        true);
+        false);
 
 const base::FeatureParam<bool> kShowComposeboxZps(&kNtpComposebox,
                                                   "ShowComposeboxZps",
@@ -259,6 +259,19 @@ const base::FeatureParam<bool> kShowCreateImageTool(&kNtpComposebox,
 
 const base::FeatureParam<bool> kShowSubmit(&kNtpComposebox, "ShowSubmit", true);
 
+const base::FeatureParam<bool> kShowVoiceSearchInSteadyComposebox(&kNtpComposebox,
+                                                "ShowVoiceSearchInSteadyComposebox",
+                                                false);
+
+const base::FeatureParam<bool> kShowVoiceSearchInExpandedComposebox(
+                                                &kNtpComposebox,
+                                                "ShowVoiceSearchInExpandedComposebox",
+                                                false);
+
+const base::FeatureParam<bool> kShowSmartCompose(&kNtpComposebox,
+                                                 "ShowSmartCompose",
+                                                 true);
+
 const base::FeatureParam<bool> kForceToolsAndModels(&kNtpComposebox,
                                                     "ForceToolsAndModels",
                                                     false);
@@ -269,6 +282,19 @@ const base::FeatureParam<int> kContextMenuMaxTabSuggestions(
     5);
 
 const base::FeatureParam<int> kMaxNumFiles(&kNtpComposebox, "MaxNumFiles", 1);
+
+const base::FeatureParam<bool> kEnableDragAndDrop(&kNtpComposebox,
+                                                  "EnableDragAndDrop",
+                                                  true);
+
+const base::FeatureParam<bool> kCloseComposeboxByEscape(&kNtpComposebox,
+                                                    "CloseComposeboxByEscape",
+                                                    true);
+
+const base::FeatureParam<bool> kCloseComposeboxByClickOutside(
+                                                    &kNtpComposebox,
+                                                    "CloseComposeboxByClickOutside",
+                                                    true);
 
 FeatureConfig::FeatureConfig() : config(GetNTPComposeboxConfig()) {}
 
@@ -309,6 +335,11 @@ BASE_FEATURE(kNtpRealboxNext, base::FEATURE_DISABLED_BY_DEFAULT);
 const base::FeatureParam<bool> kCyclingPlaceholders(&kNtpRealboxNext,
                                                     "CyclingPlaceholders",
                                                     false);
+
+const base::FeatureParam<bool> kShowVoiceSearchInExpandedRealbox(
+    &kNtpRealboxNext,
+    "ShowVoiceSearchInExpandedRealbox",
+    false);
 
 const base::FeatureParam<RealboxLayoutMode>::Option
     kRealboxLayoutModeOptions[] = {

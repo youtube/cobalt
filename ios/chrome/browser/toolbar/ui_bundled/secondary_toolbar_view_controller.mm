@@ -305,21 +305,19 @@
 #pragma mark - ToolbarAnimatee
 
 - (void)expandLocationBar {
-  self.view.expanded = YES;
-  [self.view layoutIfNeeded];
+  // NO-OP
 }
 
 - (void)contractLocationBar {
-  self.view.expanded = NO;
-  [self.view layoutIfNeeded];
+  // NO-OP
 }
 
 - (void)showCancelButton {
-  self.view.cancelButton.hidden = NO;
+  // NO-OP
 }
 
 - (void)hideCancelButton {
-  self.view.cancelButton.hidden = YES;
+  // NO-OP
 }
 
 - (void)showControlButtons {
@@ -337,7 +335,13 @@
 }
 
 - (void)setLocationBarHeightExpanded {
-  // NO-OP
+  // With multine omnibox the location bar edit state height is managed by the
+  // toolbar coordinator. This will only update the expanded corner radius.
+  if (IsMultilineBrowserOmniboxEnabled()) {
+    self.view.locationBarContainer.layer.cornerRadius =
+        LocationBarHeight(self.traitCollection.preferredContentSizeCategory) /
+        2;
+  }
 }
 
 // Changes related to the toolbar itself.

@@ -798,14 +798,12 @@ bool CanonicalizeFileSystemUrl(std::u16string_view spec,
 // Use for path URLs such as javascript. This does not modify the path in any
 // way, for example, by escaping it.
 COMPONENT_EXPORT(URL)
-bool CanonicalizePathURL(const char* spec,
-                         int spec_len,
+bool CanonicalizePathUrl(std::string_view spec,
                          const Parsed& parsed,
                          CanonOutput* output,
                          Parsed* new_parsed);
 COMPONENT_EXPORT(URL)
-bool CanonicalizePathURL(const char16_t* spec,
-                         int spec_len,
+bool CanonicalizePathUrl(std::u16string_view spec,
                          const Parsed& parsed,
                          CanonOutput* output,
                          Parsed* new_parsed);
@@ -813,11 +811,11 @@ bool CanonicalizePathURL(const char16_t* spec,
 // Use to canonicalize just the path component of a "path" URL; e.g. the
 // path of a javascript URL.
 COMPONENT_EXPORT(URL)
-void CanonicalizePathURLPath(std::optional<std::string_view> source,
+void CanonicalizePathUrlPath(std::optional<std::string_view> source,
                              CanonOutput* output,
                              Component* new_component);
 COMPONENT_EXPORT(URL)
-void CanonicalizePathURLPath(std::optional<std::u16string_view> source,
+void CanonicalizePathUrlPath(std::optional<std::u16string_view> source,
                              CanonOutput* output,
                              Component* new_component);
 
@@ -827,14 +825,12 @@ void CanonicalizePathURLPath(std::optional<std::u16string_view> source,
 // really intended for an external mail program, and the encoding of a page,
 // etc. which would influence a query encoding normally are irrelevant.
 COMPONENT_EXPORT(URL)
-bool CanonicalizeMailtoURL(const char* spec,
-                           int spec_len,
+bool CanonicalizeMailtoUrl(std::string_view spec,
                            const Parsed& parsed,
                            CanonOutput* output,
                            Parsed* new_parsed);
 COMPONENT_EXPORT(URL)
-bool CanonicalizeMailtoURL(const char16_t* spec,
-                           int spec_len,
+bool CanonicalizeMailtoUrl(std::u16string_view spec,
                            const Parsed& parsed,
                            CanonOutput* output,
                            Parsed* new_parsed);
@@ -1092,13 +1088,13 @@ bool ReplaceFileUrl(std::string_view base,
 // Path URLs can only have the scheme and path replaced. All other components
 // will be ignored.
 COMPONENT_EXPORT(URL)
-bool ReplacePathURL(const char* base,
+bool ReplacePathUrl(std::string_view base,
                     const Parsed& base_parsed,
                     const Replacements<char>& replacements,
                     CanonOutput* output,
                     Parsed* new_parsed);
 COMPONENT_EXPORT(URL)
-bool ReplacePathURL(const char* base,
+bool ReplacePathUrl(std::string_view base,
                     const Parsed& base_parsed,
                     const Replacements<char16_t>& replacements,
                     CanonOutput* output,
@@ -1107,13 +1103,13 @@ bool ReplacePathURL(const char* base,
 // Mailto URLs can only have the scheme, path, and query replaced.
 // All other components will be ignored.
 COMPONENT_EXPORT(URL)
-bool ReplaceMailtoURL(const char* base,
+bool ReplaceMailtoUrl(std::string_view base,
                       const Parsed& base_parsed,
                       const Replacements<char>& replacements,
                       CanonOutput* output,
                       Parsed* new_parsed);
 COMPONENT_EXPORT(URL)
-bool ReplaceMailtoURL(const char* base,
+bool ReplaceMailtoUrl(std::string_view base,
                       const Parsed& base_parsed,
                       const Replacements<char16_t>& replacements,
                       CanonOutput* output,

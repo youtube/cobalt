@@ -3315,6 +3315,7 @@ data/accessibility/html/aside-inside-section-role-generic-expected-uia-win.txt
 data/accessibility/html/aside-inside-section-role-generic-expected-win.txt
 data/accessibility/html/aside-inside-section-role-generic.html
 data/accessibility/html/aside.html
+data/accessibility/html/audio-expected-android-external.txt
 data/accessibility/html/audio-expected-android.txt
 data/accessibility/html/audio-expected-auralinux.txt
 data/accessibility/html/audio-expected-mac.txt
@@ -8432,7 +8433,6 @@ data/service_worker/add_save_data_to_title.js
 data/service_worker/add_save_data_to_title.js.mock-http-headers
 data/service_worker/auto_preload.js
 data/service_worker/cached_fetch_event.js
-data/service_worker/canvas_noise_worker.js
 data/service_worker/client_api_worker.js
 data/service_worker/clients_claim_worker.js
 data/service_worker/create_service_worker.html

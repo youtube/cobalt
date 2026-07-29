@@ -75,6 +75,7 @@ source_set("impl") {
     "//chrome/browser/profiles:profile",
     "//chrome/browser/profiles:profile_util",
     "//chrome/browser/search",
+    "//chrome/browser/search/background",
     "//chrome/browser/serial",
     "//chrome/browser/signin:signin_promo",
     "//chrome/browser/subscription_eligibility",
@@ -304,9 +305,9 @@ source_set("impl") {
     deps += [
       "//chrome/browser/actor/ui",
       "//chrome/browser/contextual_cueing",
+      "//chrome/browser/device_identity",
       "//chrome/browser/promos:utils",
       "//chrome/browser/screen_ai:prefs",
-      "//chrome/browser/search/background",
       "//chrome/browser/search_engine_choice",
       "//chrome/browser/search_engines",
       "//chrome/browser/sharing_hub",

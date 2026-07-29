@@ -64,17 +64,17 @@ template <typename CharT>
 void DoParseUNC(std::basic_string_view<CharT> url,
                 size_t after_slashes,
                 Parsed* parsed) {
-  int url_len = base::checked_cast<int>(url.size());
+  size_t url_len = url.size();
   // The cast is safe because `FindNextSlash` will never return anything longer
   // than `url_len`.
-  int next_slash = static_cast<int>(FindNextSlash(url, after_slashes));
+  size_t next_slash = FindNextSlash(url, after_slashes);
 
   // Everything up until that first slash we found (or end of string) is the
   // host name, which will end up being the UNC host. For example,
   // "file://foo/bar.txt" will get a server name of "foo" and a path of "/bar".
   // Later, on Windows, this should be treated as the filename "\\foo\bar.txt"
   // in proper UNC notation.
-  if (after_slashes < static_cast<size_t>(next_slash)) {
+  if (after_slashes < next_slash) {
     parsed->host = MakeRange(after_slashes, next_slash);
   } else {
     parsed->host.reset();
@@ -106,7 +106,7 @@ void DoParseLocalFile(std::basic_string_view<CharT> url,
 // character following the "file:" at the beginning of the spec. If so,
 // this is usually a slash, but needn't be; we allow paths like "file:c:\foo".
 template <typename CharT>
-Parsed DoParseFileURL(std::basic_string_view<CharT> url) {
+Parsed DoParseFileUrl(std::basic_string_view<CharT> url) {
   // Strip leading & trailing spaces and control characters.
   int begin = 0;
   int url_len = base::checked_cast<int>(url.size());
@@ -138,7 +138,7 @@ Parsed DoParseFileURL(std::basic_string_view<CharT> url) {
     // colon as the scheme. So handle /foo.c:5 as a file but foo.c:5 as
     // the foo.c: scheme.
     if (!num_slashes &&
-        ExtractScheme(&url[begin], url_len - begin, &parsed.scheme)) {
+        ExtractScheme(url.substr(begin, url_len - begin), &parsed.scheme)) {
       // Offset the results since we gave ExtractScheme a substring.
       parsed.scheme.begin += begin;
       after_scheme = parsed.scheme.end() + 1;
@@ -190,12 +190,12 @@ Parsed DoParseFileURL(std::basic_string_view<CharT> url) {
 
 }  // namespace
 
-Parsed ParseFileURL(std::string_view url) {
-  return DoParseFileURL(url);
+Parsed ParseFileUrl(std::string_view url) {
+  return DoParseFileUrl(url);
 }
 
-Parsed ParseFileURL(std::u16string_view url) {
-  return DoParseFileURL(url);
+Parsed ParseFileUrl(std::u16string_view url) {
+  return DoParseFileUrl(url);
 }
 
 }  // namespace url

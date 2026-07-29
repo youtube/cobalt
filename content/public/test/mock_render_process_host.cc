@@ -193,6 +193,12 @@ bool MockRenderProcessHost::GetIntersectsViewport() {
   return true;
 }
 
+#if !BUILDFLAG(IS_ANDROID)
+bool MockRenderProcessHost::IsForInitialWebUI() const {
+  return false;
+}
+#endif  // !BUILDFLAG(IS_ANDROID)
+
 bool MockRenderProcessHost::IsForGuestsOnly() {
   return is_for_guests_only_;
 }
@@ -266,8 +272,6 @@ bool MockRenderProcessHost::FastShutdownStarted() {
 }
 
 const base::Process& MockRenderProcessHost::GetProcess() {
-  // Return the current-process handle for the IPC::GetPlatformFileForTransit
-  // function.
   if (process.IsValid())
     return process;
 
@@ -374,9 +378,14 @@ bool MockRenderProcessHost::HasPriorityOverride() {
 void MockRenderProcessHost::ClearPriorityOverride() {}
 #endif  // !BUILDFLAG(IS_ANDROID)
 
+#if BUILDFLAG(IS_ANDROID)
 void MockRenderProcessHost::GraduateSpareToNormalRendererPriority() {}
 
-#if BUILDFLAG(IS_ANDROID)
+bool MockRenderProcessHost::
+    ShouldThrottleNavigationForSpareRendererGraduation() {
+  return false;
+}
+
 ChildProcessImportance MockRenderProcessHost::GetEffectiveImportance() {
   NOTIMPLEMENTED();
   return ChildProcessImportance::NORMAL;

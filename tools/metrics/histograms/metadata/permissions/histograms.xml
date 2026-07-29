@@ -291,7 +291,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.Action.WithDisposition.{DispositionType}"
-    enum="PermissionAction" expires_after="2026-02-22">
+    enum="PermissionAction" expires_after="2026-04-26">
   <owner>andypaicu@chromium.org</owner>
   <owner>engedy@chromium.org</owner>
   <owner>hkamila@chromium.org</owner>
@@ -336,7 +336,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.Action.{PermissionType}.CrossOriginFrame"
-    enum="PermissionAction" expires_after="2026-02-22">
+    enum="PermissionAction" expires_after="2026-04-26">
   <owner>tungnh@chromium.org</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
   <summary>
@@ -349,7 +349,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Permissions.Action.{PermissionType}.CrossOriginFrame.TopLevelHeaderPolicy"
-    enum="PermissionsPolicyConfiguration" expires_after="2026-01-15">
+    enum="PermissionsPolicyConfiguration" expires_after="2026-04-26">
   <owner>tungnh@chromium.org</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
   <summary>
@@ -410,87 +410,6 @@ chromium-metrics-reviews@google.com.
     <variant name="Click"/>
     <variant name="Show"/>
   </token>
-</histogram>
-
-<histogram name="Permissions.AIv1.AvailableAtInquiryTime" enum="BooleanSuccess"
-    expires_after="2026-01-13">
-  <owner>elklm@chromium.org</owner>
-  <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
-  <summary>
-    Records whether the on-device AIv1 model is available when needed for
-    permission request evaluation. Logged every time
-    PermissionsAiHandler::InquireAiOnDeviceModel is called.
-  </summary>
-</histogram>
-
-<histogram name="Permissions.AIv1.ExecutionDuration" units="ms"
-    expires_after="2026-01-13">
-  <owner>elklm@chromium.org</owner>
-  <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
-  <improvement direction="LOWER_IS_BETTER"/>
-  <summary>
-    Records the duration it took to execute the on-device model. Logged only if
-    the on-device AIv1 model was inquired successfully without getting
-    cancelled.
-  </summary>
-</histogram>
-
-<histogram name="Permissions.AIv1.ExecutionSuccess" enum="BooleanSuccess"
-    expires_after="2026-01-13">
-  <owner>elklm@chromium.org</owner>
-  <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
-  <summary>
-    Records whether the on-device AIv1 model execution was successful or not.
-    This required the model to be available and unbusy at inquiry time. This
-    will not get logged when the session was canceled because it took too long;
-    these failures are logged by the ExecutionTimeOut histogram instead.
-  </summary>
-</histogram>
-
-<histogram name="Permissions.AIv1.ExecutionTimedOut" enum="BooleanTimedOut"
-    expires_after="2026-03-13">
-  <owner>elklm@chromium.org</owner>
-  <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
-  <summary>
-    Records whether the on-device AIv1 model ran into a timeout during
-    execution. We do not want to block permission request evaluations too long
-    because of lengthy on-device model executions, so we cancel them if they
-    take more than 5 seconds.
-  </summary>
-</histogram>
-
-<histogram name="Permissions.AIv1.PreviousSessionFinishedInTime"
-    enum="BooleanSuccess" expires_after="2026-01-11">
-  <owner>elklm@chromium.org</owner>
-  <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
-  <summary>
-    Records whether an inquiry to the on-device AIv1 model finishes in time to
-    not hinder the next inquiries execution. Will get logged when an inquiry is
-    requested with the model being available. It evaluates to false if the
-    previous session is still running.
-  </summary>
-</histogram>
-
-<histogram name="Permissions.AIv1.ResponseParseSuccess" enum="BooleanSuccess"
-    expires_after="2026-01-13">
-  <owner>elklm@chromium.org</owner>
-  <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
-  <summary>
-    Records whether the on-device AIv1 model execution result's response parsing
-    is successful or not. This is only logged when the model execution is
-    successful.
-  </summary>
-</histogram>
-
-<histogram name="Permissions.AIv1.SessionCreationSuccess" enum="BooleanSuccess"
-    expires_after="2026-04-05">
-  <owner>elklm@chromium.org</owner>
-  <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
-  <summary>
-    Records whether a session was created successfully for the on-device AIv1
-    model each time we inquire the model. We also log failures when the model is
-    not available.
-  </summary>
 </histogram>
 
 <histogram name="Permissions.AIv4.ComputeEmbeddingsDuration" units="ms"
@@ -672,7 +591,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.CrowdDeny.DidHoldbackQuietUi" enum="Boolean"
-    expires_after="2026-03-01">
+    expires_after="2026-05-03">
   <owner>andypaicu@chromium.org</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
   <summary>
@@ -713,7 +632,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.CrowdDeny.PreloadData.VersionAtAbuseCheckTime"
-    units="date" expires_after="2026-03-01">
+    units="date" expires_after="2026-05-03">
   <owner>elklm@chromium.org</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
   <summary>
@@ -850,7 +769,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Permissions.Experimental.PrimaryMainNavigationFinished.{PermissionType}.TopLevelHeaderPolicy"
-    enum="PermissionsPolicyConfiguration" expires_after="2026-01-20">
+    enum="PermissionsPolicyConfiguration" expires_after="2026-04-26">
   <owner>tungnh@chromium.org</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
   <summary>
@@ -867,7 +786,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Permissions.Experimental.Usage.{PermissionType}.CrossOriginFrame.TopLevelHeaderPolicy"
-    enum="PermissionsPolicyConfiguration" expires_after="2026-01-15">
+    enum="PermissionsPolicyConfiguration" expires_after="2026-04-26">
   <owner>tungnh@chromium.org</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
   <summary>
@@ -899,7 +818,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Permissions.Experimental.Usage.{PermissionType}.IsCrossOriginFrame"
-    enum="Boolean" expires_after="2026-01-13">
+    enum="Boolean" expires_after="2026-04-26">
   <owner>tungnh@chromium.org</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
   <summary>
@@ -924,7 +843,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.MissingOSLevelPermission.Action{PermissionTypes}"
-    enum="PermissionAction" expires_after="2026-03-01">
+    enum="PermissionAction" expires_after="2026-05-03">
   <owner>andypaicu@chromium.org</owner>
   <owner>engedy@chromium.org</owner>
   <owner>hkamila@chromium.org</owner>
@@ -987,6 +906,37 @@ chromium-metrics-reviews@google.com.
     Warning: &quot;Revoked one time grant manually&quot; is only recorded
     correctly for clients &gt;= M116 (and should be ignored for previous major
     versions)
+  </summary>
+  <token key="PermissionType">
+    <variant name="AudioCapture"/>
+    <variant name="Geolocation"/>
+    <variant name="VideoCapture"/>
+  </token>
+</histogram>
+
+<histogram name="Permissions.OneTimePermission.{PermissionType}.GrantOTPCount"
+    units="count" expires_after="2026-01-15">
+  <owner>elklm@chromium.org</owner>
+  <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
+  <summary>
+    Records the number of times a one-time permission was granted for a site
+    before a permanent grant was issued.
+  </summary>
+  <token key="PermissionType">
+    <variant name="AudioCapture"/>
+    <variant name="Geolocation"/>
+    <variant name="VideoCapture"/>
+  </token>
+</histogram>
+
+<histogram name="Permissions.OneTimePermission.{PermissionType}.OneTimeGrant"
+    units="count" expires_after="2026-01-15">
+  <owner>elklm@chromium.org</owner>
+  <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
+  <summary>
+    Records the number of times a one-time Geolocation permission has been
+    granted for a site. Each count represents an additional one-time grant for
+    the same site.
   </summary>
   <token key="PermissionType">
     <variant name="AudioCapture"/>
@@ -1062,6 +1012,23 @@ chromium-metrics-reviews@google.com.
   <token key="PermissionType" variants="CpssSupportedTypes"/>
 </histogram>
 
+<histogram
+    name="Permissions.PredictionService.Action.{PermissionType}{Gesture}.{Prominence}"
+    enum="PermissionAction" expires_after="2026-09-30">
+  <owner>elklm@chromium.org</owner>
+  <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
+  <summary>
+    Records the user action on a permission prompt based on user gesture and
+    prominence.
+  </summary>
+  <token key="Prominence">
+    <variant name="Loud"/>
+    <variant name="Quiet"/>
+  </token>
+  <token key="PermissionType" variants="CpssSupportedTypes"/>
+  <token key="Gesture" variants="PermissionRequestGesture"/>
+</histogram>
+
 <histogram name="Permissions.PredictionService.ConcurrentRequests"
     enum="PermissionPredictionSupportedType" expires_after="2026-01-13">
   <owner>elklm@chromium.org</owner>
@@ -1083,6 +1050,20 @@ chromium-metrics-reviews@google.com.
     prediction service. Records whether the user has Make Searches and Browsing
     Better enabled.
   </summary>
+</histogram>
+
+<histogram
+    name="Permissions.PredictionService.NoMSBB.{PermissionType}{Gesture}"
+    enum="PermissionRequestLikelihood" expires_after="2026-09-30">
+  <owner>elklm@chromium.org</owner>
+  <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
+  <summary>
+    Records the prediction service's likelihood prediction for a permission
+    prompt, for users with disabled MSBB. This is recorded when a permission
+    prompt is resolved.
+  </summary>
+  <token key="PermissionType" variants="CpssSupportedTypes"/>
+  <token key="Gesture" variants="PermissionRequestGesture"/>
 </histogram>
 
 <histogram name="Permissions.PredictionService.SignatureModel.Mismatch"
@@ -1122,14 +1103,135 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram
+    name="Permissions.PredictionService.{PermissionType}.PostPromptSessionDuration"
+    units="ms" expires_after="2026-10-27">
+  <owner>elklm@chromium.org</owner>
+  <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
+  <summary>
+    Records the duration of the browsing session up to 1 hour on a given origin
+    after a Notifications or Geolocation permission prompt has been displayed
+    and until the tab is closed or a cross-origin navigation occurs.
+  </summary>
+  <token key="PermissionType" variants="CpssSupportedTypes"/>
+</histogram>
+
+<histogram
+    name="Permissions.PredictionService.{PermissionType}.PostPromptSessionDuration10m"
+    units="ms" expires_after="2026-10-27">
+  <owner>elklm@chromium.org</owner>
+  <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
+  <summary>
+    Records the duration of the browsing session between 5 minutes and 10
+    minutes on a given origin after a Notifications or Geolocation permission
+    prompt has been displayed and until the tab is closed or a cross-origin
+    navigation occurs.
+  </summary>
+  <token key="PermissionType" variants="CpssSupportedTypes"/>
+</histogram>
+
+<histogram
+    name="Permissions.PredictionService.{PermissionType}.PostPromptSessionDuration10s"
+    units="ms" expires_after="2026-10-27">
+  <owner>elklm@chromium.org</owner>
+  <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
+  <summary>
+    Records the duration of the browsing session up to 10 seconds on a given
+    origin after a Notifications or Geolocation permission prompt has been
+    displayed and until the tab is closed or a cross-origin navigation occurs.
+  </summary>
+  <token key="PermissionType" variants="CpssSupportedTypes"/>
+</histogram>
+
+<histogram
+    name="Permissions.PredictionService.{PermissionType}.PostPromptSessionDuration1m"
+    units="ms" expires_after="2026-10-27">
+  <owner>elklm@chromium.org</owner>
+  <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
+  <summary>
+    Records the duration of the browsing session between 11 seconds and 1 minute
+    on a given origin after a Notifications or Geolocation permission prompt has
+    been displayed and until the tab is closed or a cross-origin navigation
+    occurs.
+  </summary>
+  <token key="PermissionType" variants="CpssSupportedTypes"/>
+</histogram>
+
+<histogram
+    name="Permissions.PredictionService.{PermissionType}.PostPromptSessionDuration30m"
+    units="ms" expires_after="2026-10-27">
+  <owner>elklm@chromium.org</owner>
+  <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
+  <summary>
+    Records the duration of the browsing session between 10 minutes and 30
+    minutes on a given origin after a Notifications or Geolocation permission
+    prompt has been displayed and until the tab is closed or a cross-origin
+    navigation occurs.
+  </summary>
+  <token key="PermissionType" variants="CpssSupportedTypes"/>
+</histogram>
+
+<histogram
+    name="Permissions.PredictionService.{PermissionType}.PostPromptSessionDuration5m"
+    units="ms" expires_after="2026-10-27">
+  <owner>elklm@chromium.org</owner>
+  <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
+  <summary>
+    Records the duration of the browsing session between 1 minute and 5 minutes
+    on a given origin after a Notifications or Geolocation permission prompt has
+    been displayed and until the tab is closed or a cross-origin navigation
+    occurs.
+  </summary>
+  <token key="PermissionType" variants="CpssSupportedTypes"/>
+</histogram>
+
+<histogram
+    name="Permissions.PredictionService.{PermissionType}.PrePromptSessionDuration1h"
+    units="ms" expires_after="2026-10-27">
+  <owner>elklm@chromium.org</owner>
+  <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
+  <summary>
+    Records the duration of the browsing session between 5 minutes and up to 1
+    hour on a given origin before a Notifications or Geolocation permission
+    prompt has been displayed.
+  </summary>
+  <token key="PermissionType" variants="CpssSupportedTypes"/>
+</histogram>
+
+<histogram
+    name="Permissions.PredictionService.{PermissionType}.PrePromptSessionDuration1m"
+    units="ms" expires_after="2026-10-27">
+  <owner>elklm@chromium.org</owner>
+  <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
+  <summary>
+    Records the duration of the browsing session up to 1 minute on a given
+    origin before a Notifications or Geolocation permission prompt has been
+    displayed.
+  </summary>
+  <token key="PermissionType" variants="CpssSupportedTypes"/>
+</histogram>
+
+<histogram
+    name="Permissions.PredictionService.{PermissionType}.PrePromptSessionDuration5m"
+    units="ms" expires_after="2026-10-27">
+  <owner>elklm@chromium.org</owner>
+  <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
+  <summary>
+    Records the duration of the browsing session between 1 minute and up to 5
+    minutes on a given origin before a Notifications or Geolocation permission
+    prompt has been displayed.
+  </summary>
+  <token key="PermissionType" variants="CpssSupportedTypes"/>
+</histogram>
+
 <histogram name="Permissions.PredictionService.{PermissionType}{Gesture}"
     enum="PermissionRequestLikelihood" expires_after="2026-09-30">
   <owner>elklm@chromium.org</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
   <summary>
     Records the grant likelihood of a permission request based on whether a
-    gesture was associated with it. This is recorded by the prediction service
-    for Notifications and Geolocation permissions.
+    gesture was associated with it,for users with enabled MSBB. This is recorded
+    by the prediction service for Notifications and Geolocation permissions.
   </summary>
   <token key="PermissionType" variants="CpssSupportedTypes"/>
   <token key="Gesture" variants="PermissionRequestGesture"/>
@@ -1169,7 +1271,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Permissions.Prompt.Accepted.PriorIgnoreCount2{PermissionTypes}"
-    units="units" expires_after="2026-03-01">
+    units="units" expires_after="2026-05-03">
   <owner>engedy@chromium.org</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
   <summary>
@@ -1246,7 +1348,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.Prompt.Accepted{PermissionRequestGesture}"
-    enum="PermissionRequestType" expires_after="2026-03-01">
+    enum="PermissionRequestType" expires_after="2026-05-03">
   <owner>engedy@chromium.org</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
   <summary>
@@ -1434,7 +1536,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.Prompt.Shown{PermissionRequestGesture}"
-    enum="PermissionRequestType" expires_after="2026-02-22">
+    enum="PermissionRequestType" expires_after="2026-04-26">
   <owner>engedy@chromium.org</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
   <summary>
@@ -1474,7 +1576,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Permissions.Prompt.{PermissionType}.ElementAnchoredBubble.DismissedReason"
-    enum="DismissedReason" expires_after="2026-03-01">
+    enum="DismissedReason" expires_after="2026-05-03">
   <owner>hkamila@chromium.org</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
   <summary>
@@ -1516,7 +1618,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Permissions.Prompt.{PermissionType}.ElementAnchoredBubble.{OsScreen}.OsScreenAction"
-    enum="OsScreenAction" expires_after="2026-03-01">
+    enum="OsScreenAction" expires_after="2026-05-03">
   <owner>hkamila@chromium.org</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
   <summary>
@@ -1974,7 +2076,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.Usage.ElapsedTimeSinceGrant{PermissionTypes}"
-    units="seconds" expires_after="2026-03-01">
+    units="seconds" expires_after="2026-05-03">
   <owner>engedy@chromium.org</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
   <summary>
@@ -1985,7 +2087,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.Usage.ElapsedTimeSinceLastUsage.{PermissionType}"
-    units="ms" expires_after="2026-02-22">
+    units="ms" expires_after="2026-04-26">
   <owner>lyf@chromium.org</owner>
   <owner>elklm@chromium.org</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
@@ -2048,7 +2150,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.{PredictionModel}.ModelExecutionAlreadyInProgress"
-    enum="BooleanSuccess" expires_after="2026-02-22">
+    enum="BooleanSuccess" expires_after="2026-04-26">
   <owner>elklm@chromium.org</owner>
   <owner>hempjudith@google.com</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>

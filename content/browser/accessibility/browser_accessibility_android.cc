@@ -491,9 +491,8 @@ bool BrowserAccessibilityAndroid::IsVisibleToUser() const {
 }
 
 bool BrowserAccessibilityAndroid::ShouldUsePaneTitle() const {
-  // Dialogs should use paneTitles, as well as comboboxes but only when the
-  // combobox is expanded.
-  return ui::IsDialog(GetRole()) || (ui::IsComboBox(GetRole()) && IsExpanded());
+  // Comboboxes should use paneTitles only when the combobox is expanded.
+  return ui::IsComboBox(GetRole()) && IsExpanded();
 }
 
 bool BrowserAccessibilityAndroid::IsInterestingOnAndroid() const {
@@ -715,7 +714,7 @@ const char* BrowserAccessibilityAndroid::GetClassName() const {
   // TODO(crbug.com/447360631): Once auditing role conversions is completed,
   // consider refactoring this function and `AXRoleToAndroidClassName` for
   // better readability of type conversions.
-  if (role == ax::mojom::Role::kImage && IsClickable()) {
+  if (ui::IsImage(role) && IsClickable()) {
     return ui::kAXImageButtonClassname;
   }
 
@@ -953,26 +952,6 @@ void BrowserAccessibilityAndroid::AccumulateSubstringTextContentUTF16(
       !is_non_atomic_text_field) {
     text = GetNameAsString16();
   }
-  if (ui::IsRangeValueSupported(GetRole())) {
-    // For controls that support range values such as sliders, when a non-empty
-    // name is present (e.g. a label), append this to the value so both the
-    // valuetext and label are included, rather than replacing the value.
-    // If the value itself is empty on a progress indicator, then this would
-    // suggest it is indeterminate, so add that keyword.
-    if (value.empty() && GetRole() == ax::mojom::Role::kProgressIndicator) {
-      value = GetLocalizedString(IDS_AX_INDETERMINATE_VALUE);
-    }
-
-    // To prevent extra commas, only add if the text is non-empty
-    if (!text.empty() && !value.empty()) {
-      text = base::JoinString({std::move(value), std::move(text)}, u", ");
-    } else if (!value.empty()) {
-      text = std::move(value);
-    }
-  } else if (text.empty() && !is_non_atomic_text_field) {
-    // When a node does not have a name (e.g. a label), use its value instead.
-    text = std::move(value);
-  }
 
   // For almost all focusable nodes we try to get text from contents, but for
   // the root node that's redundant and often way too verbose.
@@ -1116,27 +1095,11 @@ std::u16string BrowserAccessibilityAndroid::GetTooltipText() const {
 }
 
 std::u16string BrowserAccessibilityAndroid::GetPaneTitle() const {
-  if (ui::IsDialog(GetRole())) {
-    return GetDialogModalMessageText();
-  } else if (ui::IsComboBox(GetRole()) && IsExpanded()) {
+  if (ui::IsComboBox(GetRole()) && IsExpanded()) {
     return GetComboboxExpandedText();
   } else {
     NOTREACHED();
   }
-}
-
-std::u16string BrowserAccessibilityAndroid::GetDialogModalMessageText() const {
-  // For a dialog/modal, first check for a name, and then a description. If
-  // both are empty, fallback to a default "dialog opened." text.
-  if (HasStringAttribute(ax::mojom::StringAttribute::kName)) {
-    return GetString16Attribute(ax::mojom::StringAttribute::kName);
-  }
-
-  if (HasStringAttribute(ax::mojom::StringAttribute::kDescription)) {
-    return GetString16Attribute(ax::mojom::StringAttribute::kDescription);
-  }
-
-  return GetLocalizedString(IDS_AX_DIALOG_MODAL_OPENED);
 }
 
 std::u16string BrowserAccessibilityAndroid::GetStateDescription() const {
@@ -1160,6 +1123,15 @@ std::u16string BrowserAccessibilityAndroid::GetStateDescription() const {
   // For nodes with non-trivial aria-current values, communicate state.
   if (HasAriaCurrent()) {
     state_descs.push_back(GetAriaCurrentStateDescription());
+  }
+
+  // For range controls, communicate the string value from aria-valuetext.
+  if (GetData().IsRangeValueSupported()) {
+    std::u16string value =
+        GetString16Attribute(ax::mojom::StringAttribute::kValue);
+    if (!value.empty()) {
+      state_descs.push_back(value);
+    }
   }
 
   // Concatenate all state descriptions and return.
@@ -1524,11 +1496,14 @@ std::u16string BrowserAccessibilityAndroid::GetRoleDescription() const {
   }
 
   switch (GetRole()) {
+    case ax::mojom::Role::kAlertDialog:
     case ax::mojom::Role::kAudio:
     case ax::mojom::Role::kButton:
     case ax::mojom::Role::kCheckBox:
     case ax::mojom::Role::kCode:
+    case ax::mojom::Role::kColumnHeader:
     case ax::mojom::Role::kDescriptionList:
+    case ax::mojom::Role::kDialog:
     case ax::mojom::Role::kDetails:
     case ax::mojom::Role::kEmphasis:
     case ax::mojom::Role::kForm:
@@ -1537,7 +1512,7 @@ std::u16string BrowserAccessibilityAndroid::GetRoleDescription() const {
     case ax::mojom::Role::kListBox:
     case ax::mojom::Role::kProgressIndicator:
     case ax::mojom::Role::kRadioButton:
-    case ax::mojom::Role::kRowGroup:
+    case ax::mojom::Role::kRowHeader:
     case ax::mojom::Role::kSectionFooter:
     case ax::mojom::Role::kSectionHeader:
     case ax::mojom::Role::kSectionWithoutName:
@@ -1545,6 +1520,7 @@ std::u16string BrowserAccessibilityAndroid::GetRoleDescription() const {
     case ax::mojom::Role::kStrong:
     case ax::mojom::Role::kSubscript:
     case ax::mojom::Role::kSuperscript:
+    case ax::mojom::Role::kSvgRoot:
     case ax::mojom::Role::kSwitch:
     case ax::mojom::Role::kTable:
     case ax::mojom::Role::kTextField:
@@ -1555,10 +1531,14 @@ std::u16string BrowserAccessibilityAndroid::GetRoleDescription() const {
       break;
 
     // Roles not used on Android.
+    case ax::mojom::Role::kColumn:
     case ax::mojom::Role::kListGrid:
     case ax::mojom::Role::kMenuItemSeparator:
     case ax::mojom::Role::kPdfActionableHighlight:
     case ax::mojom::Role::kPdfRoot:
+    case ax::mojom::Role::kRowGroup:
+    case ax::mojom::Role::kTableHeaderContainer:
+    case ax::mojom::Role::kWebView:
       NOTREACHED();
 
     case ax::mojom::Role::kFigure:

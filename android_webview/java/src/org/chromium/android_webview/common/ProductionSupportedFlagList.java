@@ -233,8 +233,14 @@ public final class ProductionSupportedFlagList {
                 "Enables retrieval of the emoji font through GMS Core "
                         + "improving emoji glyph coverage."),
         Flag.baseFeature(
+                BlinkFeatures.HIT_TEST_BORDER_RADIUS_FOR_STACKING_CONTEXT,
+                "Hit testing should respect border-radius clips when creating a stacking context."),
+        Flag.baseFeature(
                 BlinkFeatures.WIDTH_AND_HEIGHT_AS_PRESENTATION_ATTRIBUTES_ON_NESTED_SVG,
                 "Enables width and height as presentation attributes on nested svg."),
+        Flag.baseFeature(
+                BlinkFeatures.PAINT_OFFSET_TRANSLATION_FOR_COMPOSITED,
+                "Creates a paint offset translation for composited objects."),
         Flag.baseFeature(
                 AndroidAutofillFeatures.ANDROID_AUTOFILL_LAZY_FRAMEWORK_WRAPPER_NAME,
                 "Enable lazily initializing framework Autofill wrapper."),
@@ -301,9 +307,8 @@ public final class ProductionSupportedFlagList {
                 "When enabled, two-part zip codes are splitted into two fields while filling and"
                         + " imported from two adjacent fields."),
         Flag.baseFeature(
-                AutofillFeatures.AUTOFILL_ZIP_CODE_VALIDATION_AND_MERGING,
-                "When enabled, zip code validation is extended to support more countries and new"
-                        + " zip code merging logic applied."),
+                AutofillFeatures.AUTOFILL_EXTEND_ZIP_CODE_VALIDATION,
+                "When enabled, zip code validation is extended to support more countries."),
         Flag.baseFeature(
                 AutofillFeatures.AUTOFILL_USE_NEGATIVE_PATTERN_FOR_ALL_ATTRIBUTES,
                 "When enabled, parser won't try to match other attributes if any of the negative"
@@ -360,10 +365,7 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(
                 CcFeatures.DEFER_IMPL_INVALIDATION,
                 "Allow main thread additional time to respond before creating a pending tree"),
-        Flag.baseFeature(
-                AwFeatures.WEBVIEW_USE_METRICS_UPLOAD_SERVICE,
-                "Upload UMA metrics logs through MetricsUploadService not via GMS-core"
-                        + " directly."),
+
         Flag.baseFeature(
                 AwFeatures.WEBVIEW_USE_METRICS_UPLOAD_SERVICE_ONLY_SDK_RUNTIME,
                 "Upload UMA metrics logs through MetricsUploadService not via GMS-core"
@@ -477,10 +479,6 @@ public final class ProductionSupportedFlagList {
                         + " subresource notifications only if the user has allowed"
                         + " HTTPS-related exceptions."),
         Flag.baseFeature("CanvasColorCache"),
-        Flag.baseFeature(
-                ContentFeatures.PRIVACY_SANDBOX_ADS_AP_IS_OVERRIDE,
-                "When enabled, the following ads APIs will be available: Attribution Reporting,"
-                        + "FLEDGE, Topics."),
         Flag.baseFeature(
                 BlinkFeatures.RENDER_BLOCKING_FONTS,
                 "When enabled, blocks rendering on font preloads to reduce CLS. "
@@ -629,6 +627,7 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature("V8Flag_large_page_pool"),
         Flag.baseFeature("V8Flag_late_heap_limit_check"),
         Flag.baseFeature("V8Flag_minor_gc_task_with_lower_priority"),
+        Flag.baseFeature("V8Flag_scavenger_updates_allocation_limit"),
         Flag.baseFeature("V8FlushBaselineCode"),
         Flag.baseFeature("V8FlushCodeBasedOnTabVisibility"),
         Flag.baseFeature("V8FlushCodeBasedOnTime"),
@@ -669,9 +668,6 @@ public final class ProductionSupportedFlagList {
                 "BatteryStatusManagerBroadcastReceiverInBackground",
                 "Register, unregister Battery Status Manager broadcast receiver on a background"
                         + " thread."),
-        Flag.baseFeature(
-                BaseFeatures.BACKGROUND_NOT_PERCEPTIBLE_BINDING,
-                "If enabled, not perceptible binding put processes to the background cpu cgroup"),
         Flag.baseFeature(
                 BaseFeatures.PARTITION_ALLOC_WITH_ADVANCED_CHECKS,
                 "Enables PartitionAlloc with advanced safety checks"),
@@ -795,11 +791,6 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(NetFeatures.NET_TASK_SCHEDULER),
         Flag.baseFeature(NetFeatures.NET_TASK_SCHEDULER2),
         Flag.baseFeature("BrowserThreadPoolAdjustment"),
-        Flag.baseFeature(
-                AwFeatures.WEBVIEW_DISABLE_CHIPS,
-                "Disables partitioned cookies in WebView by default. Will require an additional"
-                        + " restart of WebView to take effect."),
-        Flag.baseFeature(ContentFeatures.BTM, "Enables the Bounce Tracking Mitigations feature."),
         Flag.baseFeature(
                 "LevelDBProtoAsyncWrite",
                 "Makes writes to leveldb_proto databases asynchronous. This should reduce disk"
@@ -1055,9 +1046,6 @@ public final class ProductionSupportedFlagList {
                 VizFeatures.NO_LATE_BEGIN_FRAMES,
                 "Enables not sending BeginFrameArgs late when a client begins observing them."),
         Flag.baseFeature(
-                BaseFeatures.BACKGROUND_NOT_PERCEPTIBLE_BINDING,
-                "Enable boosting the importance of renderers without boosting their CPU priority."),
-        Flag.baseFeature(
                 "KeepChildProcessAfterIPCReset",
                 "When enabled, child process will not terminate itself when IPC is reset."),
         Flag.baseFeature(
@@ -1140,6 +1128,9 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(
                 "WebViewFetchOriginTrialsComponent",
                 "Enable fetching the Origin Trials configuration update component."),
+        Flag.baseFeature(
+                "WebViewPersistentMetricsInNoBackupDir",
+                "Migrate the persistent metrics file to the nobackupfiles directory."),
         // Add new commandline switches and features above. The final entry should have a
         // trailing comma for cleaner diffs.
     };

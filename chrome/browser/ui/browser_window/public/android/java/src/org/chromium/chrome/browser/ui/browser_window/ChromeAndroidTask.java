@@ -4,8 +4,10 @@
 
 package org.chromium.chrome.browser.ui.browser_window;
 
+import android.content.Intent;
 import android.graphics.Rect;
 
+import org.chromium.base.JniOnceCallback;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
@@ -49,20 +51,93 @@ import java.util.List;
 @NullMarked
 public interface ChromeAndroidTask {
 
+    /** Contains objects whose lifecycle is in sync with an {@code Activity}. */
+    final class ActivityScopedObjects {
+        final ActivityWindowAndroid mActivityWindowAndroid;
+        final TabModel mTabModel;
+        final @Nullable MultiInstanceManager mMultiInstanceManager;
+
+        public ActivityScopedObjects(
+                ActivityWindowAndroid activityWindowAndroid, TabModel tabModel) {
+            this(activityWindowAndroid, tabModel, /* multiInstanceManager= */ null);
+        }
+
+        public ActivityScopedObjects(
+                ActivityWindowAndroid activityWindowAndroid,
+                TabModel tabModel,
+                @Nullable MultiInstanceManager multiInstanceManager) {
+            mActivityWindowAndroid = activityWindowAndroid;
+            mTabModel = tabModel;
+            mMultiInstanceManager = multiInstanceManager;
+        }
+    }
+
+    /**
+     * Information used to create a pending {@link ChromeAndroidTask}.
+     *
+     * @see ChromeAndroidTaskTracker#createPendingTask
+     */
+    final class PendingTaskInfo {
+        /**
+         * Unique ID of the pending {@link ChromeAndroidTask}.
+         *
+         * <p>Note that this is not the same as {@link ChromeAndroidTask#getId()}. A pending ID is
+         * only for when {@link ChromeAndroidTask} isn't associated with an {@code Activity}. {@link
+         * ChromeAndroidTaskTracker} uses pending IDs to track pending Tasks, and the {@code
+         * Activity} will be launched with the pending ID in its {@link Intent} Extra. This allows
+         * {@link ChromeAndroidTaskTracker} to pair a pending Task and a live {@code Activity} and
+         * turn the pending Task into a fully initialized Task.
+         */
+        final int mPendingTaskId;
+
+        /** Parameters used to create the pending {@link ChromeAndroidTask}. */
+        final AndroidBrowserWindowCreateParams mCreateParams;
+
+        /**
+         * Intent used to launch the root {@code Activity} for the pending {@link
+         * ChromeAndroidTask}.
+         */
+        final Intent mIntent;
+
+        /**
+         * Callback to notify native callers when a native {@code AndroidBrowserWindow} is created
+         * and fully initialized.
+         *
+         * <p>The type of the callback is the address of the native {@code AndroidBrowserWindow}.
+         */
+        final @Nullable JniOnceCallback<Long> mTaskCreationCallbackForNative;
+
+        PendingTaskInfo(
+                int pendingTaskId,
+                AndroidBrowserWindowCreateParams createParams,
+                Intent intent,
+                @Nullable JniOnceCallback<Long> callback) {
+            mPendingTaskId = pendingTaskId;
+            mCreateParams = createParams;
+            mIntent = intent;
+            mTaskCreationCallbackForNative = callback;
+        }
+
+        void destroy() {
+            if (mTaskCreationCallbackForNative != null) {
+                mTaskCreationCallbackForNative.destroy();
+            }
+        }
+    }
+
     /**
      * Returns an {@link Integer} holding the the ID of this {@link ChromeAndroidTask}, which is the
      * same as defined by {@link android.app.TaskInfo#taskId}, if the {@link Integer} is non-null.
-     * The {@link Integer} will be null for a {@code State.PENDING} {@link ChromeAndroidTask} that
-     * is not yet associated with a live {@code ChromeActivity}.
+     * The {@link Integer} will be null for a {@code State.PENDING_CREATE} {@link ChromeAndroidTask}
+     * that is not yet associated with a live {@code ChromeActivity}.
      */
     @Nullable Integer getId();
 
     /**
-     * Returns an {@link Integer} holding the the pending task ID of this {@link ChromeAndroidTask}.
-     * The {@link Integer} will be null for a {@link ChromeAndroidTask} that is not in a {@code
-     * State.PENDING} state.
+     * Returns {@link PendingTaskInfo} if {@link ChromeAndroidTask} is in the {@code PENDING_CREATE}
+     * state, otherwise {@code null}.
      */
-    @Nullable Integer getPendingId();
+    @Nullable PendingTaskInfo getPendingTaskInfo();
 
     /**
      * Returns the browser window type of this {@link ChromeAndroidTask}.
@@ -73,45 +148,37 @@ public interface ChromeAndroidTask {
     int getBrowserWindowType();
 
     /**
-     * Sets the current {@link ActivityWindowAndroid} and other objects associated with {@link
-     * ActivityWindowAndroid}'s {@code Activity}.
+     * Sets the current {@link ActivityScopedObjects}.
      *
-     * <p>As a {@link ChromeAndroidTask} is meant to track an Android Task, but an {@link
-     * ActivityWindowAndroid} is associated with a {@code ChromeActivity}, this method is needed to
+     * <p>As a {@link ChromeAndroidTask} is meant to track an Android Task, but {@link
+     * ActivityScopedObjects} is associated with a {@code ChromeActivity}, this method is needed to
      * support the difference in their lifecycles.
      *
-     * <p>We assume there is at most one {@link ActivityWindowAndroid} associated with a {@link
+     * <p>We assume there is at most one {@link ActivityScopedObjects} associated with a {@link
      * ChromeAndroidTask} at any time. If this method is called when this {@link ChromeAndroidTask}
-     * already has an {@link ActivityWindowAndroid}, an {@link AssertionError} will occur.
+     * already has an {@link ActivityScopedObjects}, an {@link AssertionError} will occur.
      *
-     * @param activityWindowAndroid The {@link ActivityWindowAndroid} to be associated with this
+     * @param activityScopedObjects The {@link ActivityScopedObjects} to be associated with this
      *     {@link ChromeAndroidTask}.
-     * @param tabModel The {@link TabModel} associated with {@link ActivityWindowAndroid}'s {@code
-     *     Activity}.
-     * @param multiInstanceManager The {@link MultiInstanceManager} associated with {@link
-     *     ActivityWindowAndroid}'s {@code Activity}.
-     * @see #clearActivityWindowAndroid()
+     * @see #clearActivityScopedObjects()
      */
-    void setActivityWindowAndroid(
-            ActivityWindowAndroid activityWindowAndroid,
-            TabModel tabModel,
-            @Nullable MultiInstanceManager multiInstanceManager);
+    void setActivityScopedObjects(ActivityScopedObjects activityScopedObjects);
 
     /**
-     * Returns the current {@link ActivityWindowAndroid} in this Task, or {@code null} if there is
-     * none.
+     * Convenience API to return the {@link ActivityWindowAndroid} in {@link ActivityScopedObjects},
+     * or {@code null} if there is none.
      */
     @Nullable ActivityWindowAndroid getActivityWindowAndroid();
 
     /**
-     * Clears the current {@link ActivityWindowAndroid} and all other objects associated with it..
+     * Clears the current {@link ActivityScopedObjects}.
      *
-     * <p>This method should be called when the current {@link ActivityWindowAndroid} is about to be
-     * destroyed.
+     * <p>This method should be called when the {@code Activity} for the current {@link
+     * ActivityScopedObjects} is about to be destroyed.
      *
-     * @see #setActivityWindowAndroid
+     * @see #setActivityScopedObjects
      */
-    void clearActivityWindowAndroid();
+    void clearActivityScopedObjects();
 
     /**
      * Adds a {@link ChromeAndroidTaskFeature} to this {@link ChromeAndroidTask}.
@@ -120,6 +187,15 @@ public interface ChromeAndroidTask {
      * ChromeAndroidTaskFeature#onAddedToTask} will be invoked.
      */
     void addFeature(ChromeAndroidTaskFeature feature);
+
+    /**
+     * Creates the {@link Intent} to open a new window of type {@link BrowserWindowType#NORMAL}.
+     *
+     * @param isIncognito Whether the new window should be in incognito mode.
+     * @return The {@link Intent} as described above, or {@code null} if a new window can't be
+     *     created.
+     */
+    @Nullable Intent createIntentForNormalBrowserWindow(boolean isIncognito);
 
     /**
      * Returns the address of the native {@code BrowserWindowInterface}.

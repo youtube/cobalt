@@ -78,8 +78,8 @@ class TabStripActionContainerBrowserTest : public InProcessBrowserTest {
             {features::kGlicFreWarming, {}},
             {features::kGlicActor, {}},
             {features::kGlicActorUi,
-             { {features::kGlicActorUiTaskIconName, "true"},
-               {features::kGlicActorUiNudgeRedesignName, "true"} }},
+             { {features::kGlicActorUiTaskIconName, "true"} }},
+            {features::kGlicActorUiNudgeRedesign, {}},
 #endif  // BUILDFLAG(ENABLE_GLIC)
             {features::kTabstripComboButton, {}},
             {features::kTabstripDeclutter, {}},
@@ -743,8 +743,8 @@ IN_PROC_BROWSER_TEST_F(TabStripActionContainerBrowserTest,
   EXPECT_TRUE(tab_two->IsActivated());
 
   actor_service->GetActorUiStateManager()->OnUiEvent(
-      actor::ui::TaskStateChanged(task_id,
-                                  actor::ActorTask::State::kPausedByActor));
+      actor::ui::TaskStateChanged(
+          task_id, actor::ActorTask::State::kPausedByActor, /*title=*/""));
   // Need to wait for the AUSM to notify the GlicActorTaskIconManager.
   base::PlatformThread::Sleep(actor::ui::kProfileScopedUiUpdateDebounceDelay);
 
@@ -781,6 +781,7 @@ class TabStripActionContainerPreRedesignBrowserTest
  public:
   TabStripActionContainerPreRedesignBrowserTest() {
     feature_list_.InitWithFeaturesAndParameters(
+        /*enabled_features=*/
         {
             {features::kTabOrganization, {}},
 #if BUILDFLAG(ENABLE_GLIC)
@@ -788,14 +789,19 @@ class TabStripActionContainerPreRedesignBrowserTest
             {features::kGlicFreWarming, {}},
             {features::kGlicActor, {}},
             {features::kGlicActorUi,
-             { {features::kGlicActorUiTaskIconName, "true"},
-               {features::kGlicActorUiNudgeRedesignName, "false"} }},
+             { {features::kGlicActorUiTaskIconName, "true"} }},
+            {features::kGlicActorUiNudgeRedesign, {}},
 #endif  // BUILDFLAG(ENABLE_GLIC)
             {features::kTabstripComboButton, {}},
             {features::kTabstripDeclutter, {}},
             {contextual_cueing::kContextualCueing, {}},
         },
-        {});
+#if BUILDFLAG(ENABLE_GLIC)
+        /*disabled_features=*/{ features::kGlicActorUiNudgeRedesign }
+#else
+        /*disabled_features=*/{}
+#endif  // BUILDFLAG(ENABLE_GLIC)
+    );
     TabOrganizationUtils::GetInstance()->SetIgnoreOptGuideForTesting(true);
   }
 
@@ -952,8 +958,8 @@ IN_PROC_BROWSER_TEST_F(TabStripActionContainerPreRedesignBrowserTest,
   EXPECT_TRUE(tab_two->IsActivated());
 
   actor_service->GetActorUiStateManager()->OnUiEvent(
-      actor::ui::TaskStateChanged(task_id,
-                                  actor::ActorTask::State::kPausedByActor));
+      actor::ui::TaskStateChanged(
+          task_id, actor::ActorTask::State::kPausedByActor, /*title=*/""));
   // Need to wait for the AUSM to notify the GlicActorTaskIconManager.
   base::PlatformThread::Sleep(actor::ui::kProfileScopedUiUpdateDebounceDelay);
 

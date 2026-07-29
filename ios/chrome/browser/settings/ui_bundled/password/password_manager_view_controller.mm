@@ -60,7 +60,6 @@
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_detail_icon_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_detail_text_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_image_item.h"
-#import "ios/chrome/browser/shared/ui/table_view/cells/table_view_info_button_cell.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_info_button_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_link_header_footer_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_switch_item.h"
@@ -307,6 +306,9 @@ bool AreIssuesEqual(const std::vector<password_manager::AffiliatedGroup>& lhs,
   std::optional<password_manager::CredentialUIEntry> _mostRecentlyUpdatedCred;
   // Stores an email address of a user.
   std::u16string _userEmail;
+  // Whether the VC is currently reloading data. Used to avoid modifying the
+  // content while it is reloading.
+  BOOL _isReloadingData;
 }
 
 @synthesize manageAccountLinkItem = _manageAccountLinkItem;
@@ -522,9 +524,7 @@ bool AreIssuesEqual(const std::vector<password_manager::AffiliatedGroup>& lhs,
         forSectionWithIdentifier:SectionIdentifierManageAccountHeader];
 
     // Trusted Vault widget promo.
-    if (password_manager::features::
-            IsPasswordManagerTrustedVaultWidgetEnabled() &&
-        _shouldShowTrustedVaultWidgetPromo) {
+    if (_shouldShowTrustedVaultWidgetPromo) {
       [model addSectionWithIdentifier:SectionIdentifierTrustedVaultWidgetPromo];
       [model addItem:self.trustedVaultWidgetPromoItem
           toSectionWithIdentifier:SectionIdentifierTrustedVaultWidgetPromo];
@@ -585,6 +585,12 @@ bool AreIssuesEqual(const std::vector<password_manager::AffiliatedGroup>& lhs,
   }
 
   [self filterItems:self.searchTerm];
+}
+
+- (void)reloadData {
+  _isReloadingData = YES;
+  [super reloadData];
+  _isReloadingData = NO;
 }
 
 // Returns YES if the array of index path contains a saved password. This is to
@@ -1122,9 +1128,7 @@ bool AreIssuesEqual(const std::vector<password_manager::AffiliatedGroup>& lhs,
 
         sectionIndex++;
         // Add the trusted vault promo section.
-        if (password_manager::features::
-                IsPasswordManagerTrustedVaultWidgetEnabled() &&
-            _shouldShowTrustedVaultWidgetPromo) {
+        if (_shouldShowTrustedVaultWidgetPromo) {
           [model insertSectionWithIdentifier:
                      SectionIdentifierTrustedVaultWidgetPromo
                                      atIndex:sectionIndex];
@@ -1556,7 +1560,9 @@ bool AreIssuesEqual(const std::vector<password_manager::AffiliatedGroup>& lhs,
   self.widgetPromoItem.promoImage =
       [UIImage imageNamed:enabled ? WidgetPromoImageName()
                                   : WidgetPromoDisabledImageName()];
-  [self reconfigureCellsForItems:@[ self.widgetPromoItem ]];
+  if (!_isReloadingData) {
+    [self reconfigureCellsForItems:@[ self.widgetPromoItem ]];
+  }
 }
 
 // Enables or disables the `trustedVaultWidgetPromoItem`.
@@ -1570,7 +1576,9 @@ bool AreIssuesEqual(const std::vector<password_manager::AffiliatedGroup>& lhs,
       imageNamed:enabled
                      ? kPasswordManagerTrustedVaultWidgetPromoImage
                      : kPasswordManagerTrustedVaultWidgetPromoDisabledImage];
-  [self reconfigureCellsForItems:@[ self.trustedVaultWidgetPromoItem ]];
+  if (!_isReloadingData) {
+    [self reconfigureCellsForItems:@[ self.trustedVaultWidgetPromoItem ]];
+  }
 }
 
 // Enables or disables the `checkForProblemsItem` and sets it up accordingly.
@@ -1596,7 +1604,9 @@ bool AreIssuesEqual(const std::vector<password_manager::AffiliatedGroup>& lhs,
     self.addPasswordItem.textColor = [UIColor colorNamed:kTextSecondaryColor];
     self.addPasswordItem.accessibilityTraits |= UIAccessibilityTraitNotEnabled;
   }
-  [self reconfigureCellsForItems:@[ self.addPasswordItem ]];
+  if (!_isReloadingData) {
+    [self reconfigureCellsForItems:@[ self.addPasswordItem ]];
+  }
 }
 
 // Removes the given section if it exists.
@@ -1891,9 +1901,7 @@ bool AreIssuesEqual(const std::vector<password_manager::AffiliatedGroup>& lhs,
 // tableView, otherwise hides the empty state view if one is being displayed.
 - (void)showOrHideEmptyView {
   if ([self shouldShowEmptyStateView]) {
-    if (password_manager::features::
-            IsPasswordManagerTrustedVaultWidgetEnabled() &&
-        _shouldShowTrustedVaultWidgetPromo) {
+    if (_shouldShowTrustedVaultWidgetPromo) {
       // Instead of displaying empty state with image we are currently
       // displaying the Trusted Vault promo widget.
       // TODO(crbug.com/407605858): Discuss with UX the UI behvior in case of

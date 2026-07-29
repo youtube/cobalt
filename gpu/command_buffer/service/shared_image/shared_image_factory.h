@@ -22,7 +22,6 @@
 #include "gpu/config/gpu_driver_bug_workarounds.h"
 #include "gpu/config/gpu_preferences.h"
 #include "gpu/gpu_gles2_export.h"
-#include "gpu/ipc/common/gpu_memory_buffer_support.h"
 #include "gpu/ipc/common/shared_image_pool_client_interface.mojom.h"
 #include "gpu/ipc/common/surface_handle.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
@@ -104,18 +103,6 @@ class GPU_GLES2_EXPORT SharedImageFactory {
   bool SetSharedImagePurgeable(const Mailbox& mailbox, bool purgeable);
   bool HasImages() const { return !shared_images_.empty(); }
   void DestroyAllSharedImages(bool have_context);
-
-#if BUILDFLAG(IS_WIN)
-  bool CreateSwapChain(const Mailbox& front_buffer_mailbox,
-                       const Mailbox& back_buffer_mailbox,
-                       viz::SharedImageFormat format,
-                       const gfx::Size& size,
-                       const gfx::ColorSpace& color_space,
-                       GrSurfaceOrigin surface_origin,
-                       SkAlphaType alpha_type,
-                       gpu::SharedImageUsageSet usage);
-  bool PresentSwapChain(const Mailbox& mailbox);
-#endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(IS_FUCHSIA)
   void RegisterSysmemBufferCollection(zx::eventpair service_handle,

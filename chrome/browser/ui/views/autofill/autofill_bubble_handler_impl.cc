@@ -226,10 +226,8 @@ AutofillBubbleBase* AutofillBubbleHandlerImpl::ShowFilledCardInformationBubble(
     content::WebContents* web_contents,
     FilledCardInformationBubbleController* controller,
     bool is_user_gesture) {
-  // TODO(crbug.com/376284059): An action ID should be created and used here
-  // when this page action is migrated to the new page actions framework.
   return ShowBubble<FilledCardInformationBubbleViews>(
-      toolbar_button_provider_, std::nullopt,
+      toolbar_button_provider_, kActionFilledCardInformation,
       PageActionIconType::kFilledCardInformation, is_user_gesture, web_contents,
       controller);
 }
@@ -238,10 +236,8 @@ AutofillBubbleBase* AutofillBubbleHandlerImpl::ShowVirtualCardEnrollBubble(
     content::WebContents* web_contents,
     VirtualCardEnrollBubbleController* controller,
     bool is_user_gesture) {
-  // TODO(crbug.com/376283926): An action ID should be created and used here
-  // when Virtual Card Enroll is migrated to the new page actions framework.
   views::View* anchor_view =
-      toolbar_button_provider_->GetAnchorView(std::nullopt);
+      toolbar_button_provider_->GetAnchorView(kActionVirtualCardEnroll);
   VirtualCardEnrollBubbleViews* bubble =
       new VirtualCardEnrollBubbleViews(anchor_view, web_contents, controller);
 
@@ -258,9 +254,8 @@ AutofillBubbleBase* AutofillBubbleHandlerImpl::ShowVirtualCardEnrollBubble(
                             ? VirtualCardEnrollBubbleViews::USER_GESTURE
                             : VirtualCardEnrollBubbleViews::AUTOMATIC);
   if (!views::Button::AsButton(anchor_view)) {
-    PageActionIconView* icon_view =
-        toolbar_button_provider_->GetPageActionIconView(
-            PageActionIconType::kVirtualCardEnroll);
+    IconLabelBubbleView* icon_view =
+        toolbar_button_provider_->GetPageActionView(kActionVirtualCardEnroll);
     if (icon_view) {
       bubble->SetHighlightedButton(icon_view);
     }
@@ -273,15 +268,12 @@ AutofillBubbleBase*
 AutofillBubbleHandlerImpl::ShowVirtualCardEnrollConfirmationBubble(
     content::WebContents* web_contents,
     VirtualCardEnrollBubbleController* controller) {
-  // TODO(crbug.com/376283926): An action ID should be created and used here
-  // when Virtual Card Enroll is migrated to the new page actions framework.
   views::View* anchor_view =
-      toolbar_button_provider_->GetAnchorView(std::nullopt);
+      toolbar_button_provider_->GetAnchorView(kActionVirtualCardEnroll);
   base::OnceCallback<void(PaymentsUiClosedReason)> callback =
       controller->GetOnBubbleClosedCallback();
-  PageActionIconView* icon_view =
-      toolbar_button_provider_->GetPageActionIconView(
-          PageActionIconType::kVirtualCardEnroll);
+  IconLabelBubbleView* icon_view =
+      toolbar_button_provider_->GetPageActionView(kActionVirtualCardEnroll);
   const SavePaymentMethodAndVirtualCardEnrollConfirmationUiParams& ui_params =
       controller->GetConfirmationUiParams();
 
@@ -333,9 +325,16 @@ AutofillBubbleBase* AutofillBubbleHandlerImpl::ShowSaveCardConfirmationBubble(
       toolbar_button_provider_->GetAnchorView(kActionShowPaymentsBubbleOrPage);
   base::OnceCallback<void(PaymentsUiClosedReason)> callback =
       controller->GetOnBubbleClosedCallback();
-  PageActionIconView* icon_view =
-      toolbar_button_provider_->GetPageActionIconView(
-          PageActionIconType::kSaveCard);
+
+  IconLabelBubbleView* icon_view;
+  if (IsPageActionMigrated(PageActionIconType::kSaveCard)) {
+    icon_view = toolbar_button_provider_->GetPageActionView(
+        kActionShowPaymentsBubbleOrPage);
+  } else {
+    icon_view = toolbar_button_provider_->GetPageActionIconView(
+        PageActionIconType::kSaveCard);
+  }
+
   const SavePaymentMethodAndVirtualCardEnrollConfirmationUiParams& ui_params =
       controller->GetConfirmationUiParams();
 
@@ -350,9 +349,15 @@ AutofillBubbleBase* AutofillBubbleHandlerImpl::ShowSaveIbanConfirmationBubble(
       toolbar_button_provider_->GetAnchorView(kActionShowPaymentsBubbleOrPage);
   base::OnceCallback<void(PaymentsUiClosedReason)> callback =
       controller->GetOnBubbleClosedCallback();
-  PageActionIconView* icon_view =
-      toolbar_button_provider_->GetPageActionIconView(
-          PageActionIconType::kSaveIban);
+
+  IconLabelBubbleView* icon_view;
+  if (IsPageActionMigrated(PageActionIconType::kSaveIban)) {
+    icon_view = toolbar_button_provider_->GetPageActionView(
+        kActionShowPaymentsBubbleOrPage);
+  } else {
+    icon_view = toolbar_button_provider_->GetPageActionIconView(
+        PageActionIconType::kSaveIban);
+  }
 
   return ShowSaveCardAndVirtualCardEnrollConfirmationBubble(
       anchor_view, web_contents, std::move(callback), icon_view,

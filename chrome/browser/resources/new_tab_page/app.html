@@ -51,10 +51,9 @@ import {nothing} from '//resources/lit/v3_0/lit.rollup.js';
         ?can-show-secondary-side="${this.realboxCanShowSecondarySide}"
         ?compose-button-enabled="${this.composeButtonEnabled}"
         ?composebox-enabled="${this.composeboxEnabled}"
-        realbox-layout-mode="${this.realboxLayoutMode_}"
+        searchbox-layout-mode="${this.realboxLayoutMode_}"
         ?ntp-realbox-next-enabled="${this.ntpRealboxNextEnabled_}"
         ?cycling-placeholders="${this.searchboxCyclingPlaceholders_}"
-        @dropdown-visible-changed="${this.onDropdownVisibleChanged_}"
         @searchbox-input-focus-changed="${this.onInputFocusChanged_}">
     </cr-searchbox>
     ${this.showComposebox_ ? html`
@@ -62,10 +61,10 @@ import {nothing} from '//resources/lit/v3_0/lit.rollup.js';
           ?ntp-realbox-next-enabled="${this.ntpRealboxNextEnabled_}"
           @composebox-initialized="${this.onComposeboxInitialized_}"
           @close-composebox="${this.closeComposebox_}"
-          @composebox-dropdown-visible-changed="${this.onDropdownVisibleChanged_}"
           @composebox-input-focus-changed="${this.onInputFocusChanged_}"
           @open-voice-search="${this.onOpenVoiceSearch_}"
-          realbox-layout-mode="${this.realboxLayoutMode_}">
+          searchbox-layout-mode="${this.realboxLayoutMode_}"
+          .delayTabUpload="${this.delayTabUpload}">
       </cr-composebox>
     ` : ''}
     ${this.showLensUploadDialog_ ? html`
@@ -74,8 +73,11 @@ import {nothing} from '//resources/lit/v3_0/lit.rollup.js';
       </ntp-lens-upload-dialog>
     ` : ''}
   </div>
-  ${this.lazyRender_ && this.ntpNextFeaturesEnabled_ ? html`
-    <ntp-action-chips></ntp-action-chips>
+  ${this.lazyRender_
+    && this.ntpNextFeaturesEnabled_ && this.isActionChipsVisible_ ? html`
+    <ntp-action-chips
+        @action-chip-click="${this.onActionChipClick_}">
+    </ntp-action-chips>
   ` : ''}
   ${this.lazyRender_ ? html`
     <cr-toast id="webstoreToast" duration="10000" hidden>
@@ -89,7 +91,7 @@ import {nothing} from '//resources/lit/v3_0/lit.rollup.js';
     ${this.shortcutsEnabled_ ? html`
       <cr-most-visited id="mostVisited" .theme="${this.theme_?.mostVisited || null}"
           single-row reflow-on-overflow
-          ?enable-show-more-button="${this.ntpNextFeaturesEnabled_}">
+          ?expandable-tiles-enabled="${this.ntpNextFeaturesEnabled_}">
       </cr-most-visited>
     ` : ''}
     ${this.middleSlotPromoEnabled_ ? html`

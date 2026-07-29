@@ -10,7 +10,9 @@
 
 #include "base/check_op.h"
 #include "base/command_line.h"
+#include "base/containers/fixed_flat_set.h"
 #include "base/containers/span.h"
+#include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
@@ -18,6 +20,8 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/rand_util.h"
+#include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
 #include "base/task/sequenced_task_runner_helpers.h"
 #include "base/task/thread_pool.h"
 #include "base/time/default_tick_clock.h"
@@ -26,6 +30,8 @@
 #include "base/trace_event/trace_event.h"
 #include "base/uuid.h"
 #include "components/autofill/content/browser/content_autofill_client.h"
+#include "components/autofill/core/browser/autofill_server_prediction.h"
+#include "components/autofill/core/browser/foundations/autofill_client.h"
 #include "components/autofill/core/browser/foundations/scoped_autofill_managers_observation.h"
 #include "components/history/core/browser/history_service.h"
 #include "components/history/core/browser/history_types.h"
@@ -93,6 +99,44 @@ const float kProbabilityForSendingSampleRequest = 0.000001;
 const float kProbabilityForAcceptingHCAllowlistTrigger = 0.9999;
 // Threshold value used to skip the on-device model inquiry.
 const int kInnerTextMinThresholdBytes = 5;
+
+// Set of suspicious tokens that could be used to construct a malicious command.
+// The explanation and rationale behind this list can be found internally at
+// go/sus-commands.
+constexpr auto kSusCommands = base::MakeFixedFlatSet<std::string_view>({
+    // go/keep-sorted start
+    "bash",
+    "bitsadmin",
+    "certutil",
+    "cmd",
+    "conhost",
+    "curl",
+    "iex",
+    "invoke-expression",
+    "invoke-restmethod",
+    "invoke-webrequest",
+    "irm",
+    "iwr",
+    "mshta",
+    "perl",
+    "php",
+    "powershell",
+    "python",
+    "python3",
+    "sftp",
+    "ssh",
+    "wget",
+    "wt",
+    // go/keep-sorted end
+});
+
+// Normalizes a potential command to account for capitalization, pathing, and
+// file extensions.
+std::string NormalizeToken(std::u16string_view token) {
+  base::FilePath path(base::FilePath::FromUTF16Unsafe(token));
+  std::string filename = path.BaseName().RemoveExtension().AsUTF8Unsafe();
+  return base::ToLowerASCII(filename);
+}
 
 void WriteFeaturesToDisk(const ClientPhishingRequest& features,
                          const base::FilePath& base_path) {
@@ -598,6 +642,9 @@ class ClientSideDetectionHost::ShouldClassifyUrlRequest {
     // for debugging, allow us to exceed the report limit.
     if (!HasDebugFeatureDirectory() && csd_service_ &&
         csd_service_->AtPhishingReportLimit()) {
+      base::UmaHistogramExactLinear("SBClientPhishing.RequestTypeAtReportLimit",
+                                    phishing_detection_request_type_,
+                                    ClientSideDetectionType_MAX + 1);
       DontClassifyForPhishing(
           PreClassificationCheckResult::NO_CLASSIFY_TOO_MANY_REPORTS);
     }
@@ -919,17 +966,66 @@ void ClientSideDetectionHost::OnFieldTypesDetermined(
     autofill::AutofillManager& manager,
     autofill::FormGlobalId form_id,
     autofill::AutofillManager::Observer::FieldTypeSource source) {
-  // Early exit if ESB is not enabled.
-  if (!IsEnhancedProtectionEnabled(*delegate_->GetPrefs())) {
-    return;
-  }
-
-  // If the form is not a credit card form, then do not trigger
-  // pre-classification.
+  // Do nothing if the form is not a credit card form.
   if (auto it = manager.form_structures().find(form_id);
       it != manager.form_structures().end() &&
       !it->second.get()->GetFormTypes().contains(
           autofill::FormType::kCreditCardForm)) {
+    return;
+  }
+
+  const credit_card_form::FieldDetectionHeuristic field_heuristic = [&]() {
+    using enum autofill::AutofillManager::Observer::FieldTypeSource;
+    switch (source) {
+      case kAutofillAiModel:
+      case kAutofillServer:
+        return credit_card_form::FieldDetectionHeuristic::kAutofillServer;
+      case kHeuristicsOrAutocomplete:
+        return credit_card_form::FieldDetectionHeuristic::kAutofillLocal;
+    }
+    NOTREACHED();
+  }();
+
+  OnCreditCardFormEvent("OnFieldTypesDetermined", field_heuristic);
+}
+
+// OnBeforeFocusOnFormField is an Autofill observer callback that triggers a CSD
+// ping when the user interacts with a credit card form field.
+void ClientSideDetectionHost::OnBeforeFocusOnFormField(
+    autofill::AutofillManager& manager,
+    autofill::FormGlobalId form_id,
+    autofill::FieldGlobalId field_id) {
+  // Do nothing if the form is not a credit card form.
+  if (auto it = manager.form_structures().find(form_id);
+      it != manager.form_structures().end() &&
+      !it->second.get()->GetFormTypes().contains(
+          autofill::FormType::kCreditCardForm)) {
+    return;
+  }
+
+  credit_card_form::FieldDetectionHeuristic field_heuristic =
+      credit_card_form::kNoDetectionHeuristic;
+  bool has_local_heuristic =
+      !manager
+           .GetHeuristicPredictionForForm(autofill::GetActiveHeuristicSource(),
+                                          form_id, {field_id})
+           .empty();
+  bool has_server_heuristic =
+      !manager.GetServerPredictionsForForm(form_id, {field_id}).empty();
+  if (has_server_heuristic) {
+    field_heuristic = credit_card_form::kAutofillServer;
+  } else if (has_local_heuristic) {
+    field_heuristic = credit_card_form::kAutofillLocal;
+  }
+
+  OnCreditCardFormEvent("OnBeforeFocusOnFormField", field_heuristic);
+}
+
+void ClientSideDetectionHost::OnCreditCardFormEvent(
+    std::string event_name,
+    credit_card_form::FieldDetectionHeuristic field_heuristic) {
+  // Early exit if ESB is not enabled.
+  if (!IsEnhancedProtectionEnabled(*delegate_->GetPrefs())) {
     return;
   }
 
@@ -945,26 +1041,27 @@ void ClientSideDetectionHost::OnFieldTypesDetermined(
     last_history_url_ = url;
     history_service_->GetVisibleVisitCountToHost(
         url,
-        base::BindOnce(&ClientSideDetectionHost::OnCreditCardFormEvent,
-                       weak_factory_.GetWeakPtr(), "OnFieldTypesDetermined",
-                       base::TimeTicks::Now()),
+        base::BindOnce(&ClientSideDetectionHost::OnCreditCardFormVisitCount,
+                       weak_factory_.GetWeakPtr(), event_name,
+                       base::TimeTicks::Now(), field_heuristic),
         &task_tracker_);
   } else {
     history::VisibleVisitCountToHostResult history_result =
         cached_history_result.value_or(
             history::VisibleVisitCountToHostResult{/*success=*/false});
-    OnCreditCardFormEvent("OnFieldTypesDetermined", std::nullopt,
-                          history_result);
+    OnCreditCardFormVisitCount(event_name, std::nullopt, field_heuristic,
+                               history_result);
   }
 }
 
-void ClientSideDetectionHost::OnCreditCardFormEvent(
+void ClientSideDetectionHost::OnCreditCardFormVisitCount(
     std::string event_name,
     std::optional<base::TimeTicks> start_time,
+    credit_card_form::FieldDetectionHeuristic field_heuristic,
     history::VisibleVisitCountToHostResult history_result) {
   last_history_result_ = history_result;
   if (start_time.has_value()) {
-    UmaHistogramMediumTimes(
+    UmaHistogramTimes(
         "SBClientPhishing.HistoryServiceDuration.GetVisibleVisitCountToHost",
         base::TimeTicks::Now() - start_time.value());
   }
@@ -976,7 +1073,7 @@ void ClientSideDetectionHost::OnCreditCardFormEvent(
                      ? credit_card_form::kRepeatSiteVisit
                      : credit_card_form::kNewSiteVisit;
   }
-  credit_card_form::LogEvent(event_name, site_visit);
+  credit_card_form::LogEvent(event_name, site_visit, field_heuristic);
 
   // Early exit if preclassification has already been done for
   // CREDIT_CARD_FORM and this URL.
@@ -1063,6 +1160,7 @@ void ClientSideDetectionHost::OnTextCopiedToClipboard(
     return;
   }
 
+  last_copied_text_ = copied_text;
   MaybeStartPreClassification(ClientSideDetectionType::CLIPBOARD_COPY_API);
 }
 
@@ -1269,6 +1367,15 @@ void ClientSideDetectionHost::MaybeSendClientPhishingRequest(
     base::UmaHistogramBoolean("SBClientPhishing.HasVisualFeaturesImage",
                               verdict->has_visual_features() &&
                                   verdict->visual_features().has_image());
+  }
+
+  if (verdict->client_side_detection_type() ==
+      ClientSideDetectionType::CLIPBOARD_COPY_API) {
+    if (base::FeatureList::IsEnabled(kClientSideDetectionClipboardCopyApi) &&
+        kCSDClipboardCopyApiProcessPayload.Get()) {
+      *verdict->mutable_clipboard_extracted_data() =
+          ExtractClipboardData(last_copied_text_);
+    }
   }
 
   if (IsEnhancedProtectionEnabled(*delegate_->GetPrefs())) {
@@ -1759,6 +1866,52 @@ void ClientSideDetectionHost::set_ui_manager(BaseUIManager* ui_manager) {
 void ClientSideDetectionHost::set_database_manager(
     SafeBrowsingDatabaseManager* database_manager) {
   database_manager_ = database_manager;
+}
+
+ClipboardExtractedData ClientSideDetectionHost::ExtractClipboardData(
+    const std::u16string& payload) {
+  ClipboardExtractedData clipboard_data;
+  base::TimeTicks start_time = base::TimeTicks::Now();
+  std::vector<std::u16string> tokens =
+      base::SplitString(payload, u" \t\n\r;",
+                        base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+
+  base::UmaHistogramMediumTimes(
+      "SBClientPhishing.ClipboardCopyApi.PayloadExtraction.SplitStringDuration",
+      base::TimeTicks::Now() - start_time);
+  base::UmaHistogramCounts100(
+      "SBClientPhishing.ClipboardCopyApi.PayloadExtraction.TokenCount",
+      tokens.size());
+
+  if (tokens.empty()) {
+    return clipboard_data;
+  }
+
+  for (size_t i = 0; i < tokens.size(); ++i) {
+    const std::string& normalized_token = NormalizeToken(tokens[i]);
+    if (kSusCommands.contains(normalized_token)) {
+      clipboard_data.add_suspicious_tokens(normalized_token);
+      if (i == 0) {
+        clipboard_data.set_is_first_token_suspicious(true);
+      }
+      if (i == tokens.size() - 1) {
+        clipboard_data.set_is_last_token_suspicious(true);
+      }
+    }
+  }
+
+  base::UmaHistogramCounts100(
+      "SBClientPhishing.ClipboardCopyApi.PayloadExtraction."
+      "SuspiciousTokenCount",
+      clipboard_data.suspicious_tokens_size());
+
+  return clipboard_data;
+}
+
+std::vector<std::string_view>
+ClientSideDetectionHost::GetSuspiciousTokensListForTesting() {
+  return std::vector<std::string_view>(kSusCommands.begin(),
+                                       kSusCommands.end());
 }
 
 void ClientSideDetectionHost::OnGotAccessToken(

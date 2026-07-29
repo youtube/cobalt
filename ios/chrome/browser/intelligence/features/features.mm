@@ -38,8 +38,15 @@ BASE_FEATURE(kAskGeminiChip, base::FEATURE_DISABLED_BY_DEFAULT);
 
 const char kAskGeminiChipUseSnackbar[] = "AskGeminiChipUseSnackbar";
 
+const char kAskGeminiChipIgnoreCriteria[] = "AskGeminiChipIgnoreCriteria";
+
 bool IsAskGeminiChipEnabled() {
   return base::FeatureList::IsEnabled(kAskGeminiChip);
+}
+
+bool IsAskGeminiChipIgnoreCriteria() {
+  return base::GetFieldTrialParamByFeatureAsBool(
+      kAskGeminiChip, kAskGeminiChipIgnoreCriteria, false);
 }
 
 bool IsAskGeminiSnackbarEnabled() {
@@ -236,6 +243,12 @@ bool IsGeminiLatencyImprovementEnabled() {
   return base::FeatureList::IsEnabled(kGeminiLatencyImprovement);
 }
 
+BASE_FEATURE(kGeminiImmediateOverlay, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsGeminiImmediateOverlayEnabled() {
+  return base::FeatureList::IsEnabled(kGeminiImmediateOverlay);
+}
+
 BASE_FEATURE(kGeminiOnboardingCards, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsGeminiOnboardingCardsEnabled() {
@@ -243,3 +256,16 @@ bool IsGeminiOnboardingCardsEnabled() {
 }
 
 BASE_FEATURE(kPageContextExtractorRefactored, base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kWebPageReportedImagesSheet, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsWebPageReportedImagesSheetEnabled() {
+  return base::FeatureList::IsEnabled(kWebPageReportedImagesSheet);
+}
+
+BASE_FEATURE(kImageContextMenuGeminiEntryPoint,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsImageContextMenuGeminiEntryPointEnabled() {
+  return base::FeatureList::IsEnabled(kImageContextMenuGeminiEntryPoint);
+}

@@ -209,8 +209,11 @@ class TestFactory : public GlicBorderView::Factory {
 class GlicBorderViewUiTest : public test::InteractiveGlicTest {
  public:
   GlicBorderViewUiTest() {
-    // Toggling this feature is only possible via command line.
-    features_.InitFromCommandLine("UiGpuRasterization", "");
+    // Toggling UiGpuRasterization is only possible via command line.
+    features_.InitFromCommandLine(
+        "UiGpuRasterization",
+        // These features disable animation, so disable them here.
+        "GlicForceSimplifiedBorder,GlicForceNonSkSLBorder");
   }
   ~GlicBorderViewUiTest() override = default;
 
@@ -251,9 +254,7 @@ class GlicBorderViewUiTest : public test::InteractiveGlicTest {
 
   void ClickGlicButtonInBrowser(Browser* browser) {
     RunTestSequenceInContext(BrowserElements::From(browser)->GetContext(),
-                             PressButton(kGlicButtonElementId)),
-        CheckControllerHasWidget(true),
-        CheckControllerWidgetMode(GlicWindowMode::kAttached);
+                             PressButton(kGlicButtonElementId));
   }
 
   void AppendTabAndNavigate(Browser* browser, const GURL& url) {
@@ -971,7 +972,8 @@ IN_PROC_BROWSER_TEST_F(GlicBorderViewWithActorGlowUiTest,
   EXPECT_TRUE(border->GetVisible());
 
   // Stop the task.
-  actor_keyed_service->StopTask(task_id, /*success*/ true);
+  actor_keyed_service->StopTask(task_id,
+                                actor::ActorTask::StoppedReason::kTaskComplete);
 
   // Poll until the border is no longer showing.
   ASSERT_TRUE(base::test::RunUntil([&]() { return !border->IsShowing(); }));

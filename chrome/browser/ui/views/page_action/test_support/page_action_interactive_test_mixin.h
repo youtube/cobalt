@@ -43,6 +43,18 @@ class PageActionInteractiveTestMixin : public T {
                     T::WaitForShow(kPageActionId));
   }
 
+  // Utility to invoke the page action.
+  auto InvokePageAction(actions::ActionId action_id) {
+    IconLabelBubbleView* page_action =
+        BrowserView::GetBrowserViewForBrowser(T::browser())
+            ->toolbar_button_provider()
+            ->GetPageActionView(action_id);
+
+    constexpr char kPageActionId[] = "page action view";
+    return T::Steps(T::NameView(kPageActionId, page_action),
+                    T::PressButton(kPageActionId));
+  }
+
   // Utility to reliably wait for the page action view to be visible in chip
   // state.
   auto WaitForPageActionChipVisible(actions::ActionId action_id) {
@@ -58,6 +70,24 @@ class PageActionInteractiveTestMixin : public T {
         T::WaitForState(kPageActionButtonVisible, true),
         T::StopObservingState(kPageActionButtonVisible));
     T::AddDescriptionPrefix(steps, "WaitForPageActionChipVisible()");
+    return steps;
+  }
+
+  // Utility to reliably wait for the page action view to not be visible in chip
+  // state.
+  auto WaitForPageActionChipNotVisible(actions::ActionId action_id) {
+    auto steps = T::Steps(
+        T::PollState(kPageActionButtonVisible,
+                     [this, action_id]() {
+                       auto* view =
+                           BrowserView::GetBrowserViewForBrowser(T::browser())
+                               ->toolbar_button_provider()
+                               ->GetPageActionView(action_id);
+                       return view->GetVisible() && !view->is_animating_label();
+                     }),
+        T::WaitForState(kPageActionButtonVisible, false),
+        T::StopObservingState(kPageActionButtonVisible));
+    T::AddDescriptionPrefix(steps, "WaitForPageActionChipNotVisible()");
     return steps;
   }
 };

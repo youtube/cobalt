@@ -17,24 +17,21 @@
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/public/platform/web_drag_data.h"
-#include "third_party/blink/public/platform/web_string.h"
-#include "third_party/blink/public/web/web_local_frame.h"
-#include "third_party/blink/public/web/web_local_frame_client.h"
 #include "third_party/blink/renderer/core/clipboard/clipboard_utilities.h"
 #include "third_party/blink/renderer/core/clipboard/data_object.h"
-#include "third_party/blink/renderer/core/dom/document_fragment.h"
-#include "third_party/blink/renderer/core/dom/element_traversal.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
-#include "third_party/blink/renderer/core/frame/local_frame_client.h"
 #include "third_party/blink/renderer/core/frame/settings.h"
-#include "third_party/blink/renderer/core/html/html_image_element.h"
 #include "third_party/blink/renderer/platform/graphics/image.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/wtf/std_lib_extras.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/base/clipboard/clipboard_constants.h"
 #include "ui/base/ui_base_features.h"
+
+#if BUILDFLAG(IS_WIN)
+#include "third_party/blink/renderer/platform/wtf/text/line_ending.h"
+#endif
 
 namespace blink {
 
@@ -149,7 +146,7 @@ void SystemClipboard::WritePlainText(const String& plain_text,
   // currently under-specified.
   String text = plain_text;
 #if BUILDFLAG(IS_WIN)
-  ReplaceNewlinesWithWindowsStyleNewlines(text);
+  text = NormalizeLineEndingsToCRLF(text);
 #endif
   clipboard_->WriteText(NonNullString(text));
 }
@@ -638,12 +635,19 @@ void SystemClipboard::Snapshot::SetCustomData(
   custom_data_.Set(type, data);
 }
 
-void SystemClipboard::OnClipboardDataChanged() {
-  // If we're not listening (receiver not bound), don't notify controllers
-  if (!clipboard_listener_receiver_.is_bound()) {
-    return;
-  }
+void SystemClipboard::OnClipboardDataChanged(const Vector<String>& types,
+                                             const absl::uint128& change_id) {
+  clipboard_change_data_.emplace(types, BigInt(change_id));
+
+  // TODO(crbug.com/457463706): Reevaluate whether this is the right
+  // abstraction, possibly use a clipboard-specific interface here.
   NotifyControllers();
+}
+
+const SystemClipboard::ClipboardChangeData&
+SystemClipboard::GetClipboardChangeEventData() {
+  CHECK(!!clipboard_change_data_);
+  return clipboard_change_data_.value();
 }
 
 void SystemClipboard::StartListening(LocalDOMWindow* window) {

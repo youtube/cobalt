@@ -113,6 +113,7 @@ using base::UserMetricsAction;
                                                  iconTint:iconTintColor
                                       presentationContext:_presentationContext];
   self.view.layoutGuideCenter = self.layoutGuideCenter;
+  self.view.metricsRecorder = self.metricsRecorder;
   _clearButton = self.view.clearButton;
 
   self.view.shouldGroupAccessibilityChildren = YES;
@@ -187,7 +188,7 @@ using base::UserMetricsAction;
 
 - (void)viewDidAppear:(BOOL)animated {
   [super viewDidAppear:animated];
-  if (_presentationContext == OmniboxPresentationContext::kAIMPrototype) {
+  if (_presentationContext == OmniboxPresentationContext::kComposebox) {
     [self.view updateTextViewHeight];
   }
 }
@@ -216,6 +217,11 @@ using base::UserMetricsAction;
 
 - (UIView<TextFieldViewContaining>*)viewContainingTextField {
   return self.view;
+}
+
+- (void)setMetricsRecorder:(OmniboxMetricsRecorder*)metricsRecorder {
+  _metricsRecorder = metricsRecorder;
+  self.view.metricsRecorder = metricsRecorder;
 }
 
 #pragma mark - public methods

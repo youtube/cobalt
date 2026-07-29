@@ -10,10 +10,8 @@
 #include <string>
 
 #include "base/memory/raw_ptr.h"
-#include "chrome/browser/ui/webui/new_tab_page/composebox/base_composebox_handler.h"
 #include "chrome/browser/ui/webui/searchbox/contextual_searchbox_handler.h"
 #include "components/omnibox/browser/searchbox.mojom.h"
-#include "components/omnibox/composebox/composebox_query_controller.h"
 #include "content/public/browser/web_contents.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -31,10 +29,8 @@ enum class AimToolState {
   kMaxValue = kEnabled,
 };
 
-class ComposeboxHandler
-    : public composebox::mojom::PageHandler,
-      public ContextualSearchboxHandler,
-      public composebox::BaseComposeboxHandler {
+class ComposeboxHandler : public composebox::mojom::PageHandler,
+                          public ContextualSearchboxHandler {
  public:
   explicit ComposeboxHandler(
       mojo::PendingReceiver<composebox::mojom::PageHandler> pending_handler,
@@ -77,10 +73,9 @@ class ComposeboxHandler
   // only a file and no input.
   // If there is a match present in navigation, `additional_params` from the
   // match's `detination_url` will be appended during url creation.
-  void SubmitQuery(
-      const std::string& query_text,
-      WindowOpenDisposition disposition,
-      std::map<std::string, std::string> additional_params) override;
+  void SubmitQuery(const std::string& query_text,
+                   WindowOpenDisposition disposition,
+                   std::map<std::string, std::string> additional_params);
 
   omnibox::ChromeAimToolsAndModels GetAimToolMode() override;
 

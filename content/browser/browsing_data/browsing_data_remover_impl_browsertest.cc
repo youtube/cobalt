@@ -14,11 +14,9 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
-#include "components/fingerprinting_protection_filter/interventions/common/interventions_features.h"
 #include "components/ukm/test_ukm_recorder.h"
 #include "content/browser/back_forward_cache_test_util.h"
 #include "content/browser/browsing_data/shared_storage_clear_site_data_tester.h"
-#include "content/browser/fingerprinting_protection/canvas_noise_token_data.h"
 #include "content/browser/preloading/prefetch/prefetch_document_manager.h"
 #include "content/browser/preloading/prefetch/prefetch_features.h"
 #include "content/browser/preloading/prefetch/prefetch_status.h"
@@ -167,7 +165,7 @@ class BrowsingDataRemoverImplBrowserTest
         network::SimpleURLLoader::Create(std::move(request),
                                          TRAFFIC_ANNOTATION_FOR_TESTS);
     loader->DownloadToStringOfUnboundedSizeUntilCrashAndDie(
-        url_loader_factory(), loader_helper.GetCallbackDeprecated());
+        url_loader_factory(), loader_helper.GetCallback());
     loader_helper.WaitForCallback();
     ASSERT_TRUE(loader_helper.response_body());
     EXPECT_EQ(kHstsResponseBody, *loader_helper.response_body());
@@ -204,7 +202,7 @@ class BrowsingDataRemoverImplBrowserTest
                                          TRAFFIC_ANNOTATION_FOR_TESTS);
     SimpleURLLoaderTestHelper loader_helper;
     loader->DownloadToStringOfUnboundedSizeUntilCrashAndDie(
-        url_loader_factory(), loader_helper.GetCallbackDeprecated());
+        url_loader_factory(), loader_helper.GetCallback());
     loader_helper.WaitForCallback();
 
     // On success, HSTS was enabled for the domain.
@@ -1204,46 +1202,4 @@ IN_PROC_BROWSER_TEST_F(BrowsingDataRemoverImplPrefetchHoldbackBrowserTest,
       "Preloading.Prefetch.PrefetchStatus",
       PrefetchStatus::kPrefetchEvictedAfterBrowsingDataRemoved, 1);
 }
-
-class BrowsingDataRemoverCanvasNoiseTokenBrowserTest
-    : public CookiesBrowsingDataRemoverImplBrowserTest {
-  base::test::ScopedFeatureList features_{
-      fingerprinting_protection_interventions::features::kCanvasNoise};
-};
-
-IN_PROC_BROWSER_TEST_F(BrowsingDataRemoverCanvasNoiseTokenBrowserTest,
-                       CanvasNoiseTokenRegeneratesOnCookieRemoval) {
-  // Set a cookie.
-  GURL url = ssl_server().GetURL("/browsing_data/site_data.html");
-
-  content::BrowserContext* browser_context =
-      shell()->web_contents()->GetBrowserContext();
-
-  ASSERT_TRUE(NavigateToURL(shell(), url));
-
-  url::Origin origin = url::Origin::Create(url);
-
-  blink::NoiseToken original_token =
-      content::CanvasNoiseTokenData::GetToken(browser_context, origin);
-
-  constexpr uint64_t kRemoveMask =
-      content::BrowsingDataRemover::DATA_TYPE_COOKIES;
-  content::BrowsingDataRemover* remover =
-      browser_context->GetBrowsingDataRemover();
-  content::BrowsingDataRemoverCompletionObserver completion_observer(remover);
-  remover->RemoveAndReply(
-      base::Time(),       // delete_begin
-      base::Time::Max(),  // delete_end
-      kRemoveMask, content::BrowsingDataRemover::ORIGIN_TYPE_UNPROTECTED_WEB,
-      &completion_observer);
-
-  completion_observer.BlockUntilCompletion();
-
-  // Next navigation should update the token.
-  ASSERT_TRUE(NavigateToURL(shell(), url));
-
-  EXPECT_NE(content::CanvasNoiseTokenData::GetToken(browser_context, origin),
-            original_token);
-}
-
 }  // namespace content

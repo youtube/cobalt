@@ -27,6 +27,7 @@
 #include "chrome/common/actor.mojom-forward.h"
 #include "chrome/common/actor/task_id.h"
 #include "chrome/common/actor_webui.mojom-forward.h"
+#include "components/autofill/core/browser/integrators/glic/actor_form_filling_types.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
@@ -224,6 +225,8 @@ class GlicKeyedService : public KeyedService,
   void OnWebClientCleared() override;
   void PrepareForOpen() override;
   void OnInteractionModeChange(mojom::WebClientMode new_mode) override;
+  glic::GlicInstanceMetrics* instance_metrics() override;
+  bool IsActive() override;
 
   void OnUserInputSubmitted(glic::mojom::WebClientMode mode);
 
@@ -307,6 +310,27 @@ class GlicKeyedService : public KeyedService,
       base::RepeatingCallback<void(const TabDataChange&)>;
   base::CallbackListSubscription AddTabDataChangedCallback(
       TabDataChangedCallback callback);
+
+  // ActorTaskDelegate:
+  void RequestToShowCredentialSelectionDialog(
+      actor::TaskId task_id,
+      const base::flat_map<std::string, gfx::Image>& icons,
+      const std::vector<actor_login::Credential>& credentials,
+      actor::ActorTaskDelegate::CredentialSelectedCallback callback) override;
+  void RequestToShowUserConfirmationDialog(
+      actor::TaskId task_id,
+      const url::Origin& navigation_origin,
+      actor::ActorTaskDelegate::UserConfirmationDialogCallback callback)
+      override;
+  void RequestToConfirmNavigation(
+      actor::TaskId task_id,
+      const url::Origin& navigation_origin,
+      actor::ActorTaskDelegate::NavigationConfirmationCallback callback)
+      override;
+  void RequestToShowAutofillSuggestionsDialog(
+      actor::TaskId task_id,
+      std::vector<autofill::ActorFormFillingRequest> requests,
+      AutofillSuggestionSelectedCallback callback) override;
 
  private:
   // A helper function to route GetZeroStateSuggestionsForFocusedTabCallback

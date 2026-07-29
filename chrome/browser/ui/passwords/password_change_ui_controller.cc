@@ -99,9 +99,14 @@ void LogToastEvent(PasswordChangeDelegate::State state,
           "PasswordManager.PasswordChange.ChangingPasswordToast", event);
       return;
     case PasswordChangeDelegate::State::kLoginFormDetected:
-    case PasswordChangeDelegate::State::kLoginFormDetectedUserCanContinue:
       base::UmaHistogramEnumeration(
           "PasswordManager.PasswordChange.WaitingForUserSignInToast", event);
+      return;
+    case PasswordChangeDelegate::State::kLoginFormDetectedUserCanContinue:
+      base::UmaHistogramEnumeration(
+          "PasswordManager.PasswordChange."
+          "WaitingForUserSignInToastWithContinue",
+          event);
       return;
     case PasswordChangeDelegate::State::kCanceled:
       base::UmaHistogramEnumeration(
@@ -347,7 +352,7 @@ PasswordChangeUIController::GetDialogOrToastConfiguration(
       return ToastOptions(
           l10n_util::GetStringUTF16(
               IDS_PASSWORD_MANAGER_UI_PASSWORD_CHANGED_TITLE),
-          views::kPasswordChangeIcon, std::move(cancel_toast_callback),
+          views::kMenuCheckIcon, std::move(cancel_toast_callback),
           l10n_util::GetStringUTF16(
               IDS_PASSWORD_MANAGER_UI_VIEW_DETAILS_BUTTON),
           base::BindOnce(&PasswordChangeUIController::ShowPasswordDetails,

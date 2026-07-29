@@ -40,12 +40,15 @@
 #include "base/synchronization/lock.h"
 #include "third_party/abseil-cpp/absl/strings/ascii.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
+#include "third_party/blink/renderer/platform/text/character_break_iterator.h"
 #include "third_party/blink/renderer/platform/text/character_property_data.h"
 #include "third_party/blink/renderer/platform/text/icu_error.h"
+#include "third_party/blink/renderer/platform/text/justification_opportunity.h"
 #include "third_party/blink/renderer/platform/wtf/std_lib_extras.h"
 #include "third_party/blink/renderer/platform/wtf/text/ascii_ctype.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 #include "third_party/blink/renderer/platform/wtf/text/unicode.h"
+#include "third_party/blink/renderer/platform/wtf/text/utf16.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_uchar.h"
 
 namespace blink {
@@ -136,27 +139,20 @@ bool Character::MaybeHanKerningCloseSlow(UChar32 ch) {
 }
 
 unsigned Character::ExpansionOpportunityCount(
+    TextJustify method,
     base::span<const LChar> characters,
     TextDirection direction,
     bool& is_after_expansion) {
   unsigned count = 0;
   if (direction == TextDirection::kLtr) {
     for (size_t i = 0; i < characters.size(); ++i) {
-      if (TreatAsSpace(characters[i])) {
-        count++;
-        is_after_expansion = true;
-      } else {
-        is_after_expansion = false;
-      }
+      count += CountJustificationOpportunity8(method, characters[i],
+                                              is_after_expansion);
     }
   } else {
     for (size_t i = characters.size(); i > 0; --i) {
-      if (TreatAsSpace(characters[i - 1])) {
-        count++;
-        is_after_expansion = true;
-      } else {
-        is_after_expansion = false;
-      }
+      count += CountJustificationOpportunity8(method, characters[i - 1],
+                                              is_after_expansion);
     }
   }
 
@@ -164,54 +160,50 @@ unsigned Character::ExpansionOpportunityCount(
 }
 
 unsigned Character::ExpansionOpportunityCount(
+    TextJustify method,
     base::span<const UChar> characters,
     TextDirection direction,
     bool& is_after_expansion) {
+  if (characters.size() == 0) {
+    return 0;
+  }
   unsigned count = 0;
-  if (direction == TextDirection::kLtr) {
-    for (size_t i = 0; i < characters.size(); ++i) {
-      UChar32 character = characters[i];
-      if (TreatAsSpace(character)) {
-        count++;
-        is_after_expansion = true;
-        continue;
+
+  if (!RuntimeEnabledFeatures::EmojiJustificationEnabled()) {
+    if (direction == TextDirection::kLtr) {
+      for (size_t i = 0; i < characters.size();) {
+        UChar32 character = CodePointAtAndNext(characters, i);
+        count += CountJustificationOpportunity16(method, character,
+                                                 is_after_expansion);
       }
-      if (U16_IS_LEAD(character) && i + 1 < characters.size() &&
-          U16_IS_TRAIL(characters[i + 1])) {
-        character = U16_GET_SUPPLEMENTARY(character, characters[i + 1]);
-        i++;
-      }
-      if (IsCJKIdeographOrSymbol(character)) {
-        if (!is_after_expansion)
-          count++;
-        count++;
-        is_after_expansion = true;
-        continue;
-      } else if (!IsDefaultIgnorable(character)) {
-        is_after_expansion = false;
+    } else {
+      for (size_t i = characters.size(); i > 0; --i) {
+        UChar32 character = characters[i - 1];
+        if (U16_IS_TRAIL(character) && i > 1 &&
+            U16_IS_LEAD(characters[i - 2])) {
+          character = U16_GET_SUPPLEMENTARY(characters[i - 2], character);
+          i--;
+        }
+        count += CountJustificationOpportunity16(method, character,
+                                                 is_after_expansion);
       }
     }
+    return count;
+  }
+  CharacterBreakIterator iter(characters);
+  if (direction == TextDirection::kLtr) {
+    for (int i = 0; static_cast<size_t>(i) < characters.size();
+         i = iter.Next()) {
+      UChar32 character = CodePointAt(characters, i);
+      count += CountJustificationOpportunity16(method, character,
+                                               is_after_expansion);
+    }
   } else {
-    for (size_t i = characters.size(); i > 0; --i) {
-      UChar32 character = characters[i - 1];
-      if (TreatAsSpace(character)) {
-        count++;
-        is_after_expansion = true;
-        continue;
-      }
-      if (U16_IS_TRAIL(character) && i > 1 && U16_IS_LEAD(characters[i - 2])) {
-        character = U16_GET_SUPPLEMENTARY(characters[i - 2], character);
-        i--;
-      }
-      if (IsCJKIdeographOrSymbol(character)) {
-        if (!is_after_expansion)
-          count++;
-        count++;
-        is_after_expansion = true;
-        continue;
-      } else if (!IsDefaultIgnorable(character)) {
-        is_after_expansion = false;
-      }
+    for (int i = iter.Preceding(characters.size()); i != kTextBreakDone;
+         i = iter.Preceding(i)) {
+      UChar32 character = CodePointAt(characters, i);
+      count += CountJustificationOpportunity16(method, character,
+                                               is_after_expansion);
     }
   }
   return count;

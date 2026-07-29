@@ -59,6 +59,7 @@
 #include "components/autofill/core/browser/suggestions/suggestion.h"
 #include "components/autofill/core/browser/ui/payments/autofill_error_dialog_controller_impl.h"
 #include "components/autofill/core/browser/ui/payments/autofill_progress_dialog_controller_impl.h"
+#include "components/autofill/core/browser/ui/payments/bnpl_tos_controller.h"
 #include "components/autofill/core/browser/ui/payments/bubble_show_options.h"
 #include "components/autofill/core/browser/ui/payments/card_unmask_authentication_selection_dialog_controller_impl.h"
 #include "components/autofill/core/browser/ui/payments/card_unmask_otp_input_dialog_controller_impl.h"
@@ -468,11 +469,20 @@ void ChromePaymentsAutofillClient::OnCardDataAvailable(
     const FilledCardInformationBubbleOptions& options) {
 #if BUILDFLAG(IS_ANDROID)
   // Note that currently the snackbar is displayed only for virtual cards or
-  // cards enrolled in card info retrieval.
-  client_->GetAutofillSnackbarController()->Show(
-      options.filled_card.record_type() == CreditCard::RecordType::kVirtualCard
-          ? AutofillSnackbarType::kVirtualCard
-          : AutofillSnackbarType::kCardInfoRetrieval,
+  // cards enrolled in card info retrieval. In the case for BNPL, it is a
+  // one-time use virtual card.
+  AutofillSnackbarType type;
+  if (options.filled_card.is_bnpl_card()) {
+    type = AutofillSnackbarType::kBnpl;
+  } else {
+    type = options.filled_card.record_type() ==
+                   CreditCard::RecordType::kVirtualCard
+               ? AutofillSnackbarType::kVirtualCard
+               : AutofillSnackbarType::kCardInfoRetrieval;
+  }
+
+  client_->GetAutofillSnackbarController()->ShowPaymentsSnackbar(
+      type, options.filled_card,
       base::BindOnce(
           [](base::WeakPtr<content::WebContents> contents) {
             if (!contents) {
@@ -967,7 +977,7 @@ bool ChromePaymentsAutofillClient::ShowTouchToFillLoyaltyCard(
 }
 
 bool ChromePaymentsAutofillClient::UpdateTouchToFillBnplPaymentMethod(
-    std::optional<uint64_t> extracted_amount,
+    std::optional<int64_t> extracted_amount,
     bool is_amount_supported_by_any_issuer) {
 #if BUILDFLAG(IS_ANDROID)
   return GetTouchToFillPaymentMethodController()->UpdateBnplPaymentMethod(
@@ -998,6 +1008,20 @@ bool ChromePaymentsAutofillClient::ShowTouchToFillBnplIssuers(
 #if BUILDFLAG(IS_ANDROID)
   return GetTouchToFillPaymentMethodController()->ShowBnplIssuers(
       bnpl_issuer_contexts, app_locale, std::move(selected_issuer_callback),
+      std::move(cancel_callback));
+#else
+  // Touch To Fill is not supported on Desktop.
+  NOTREACHED();
+#endif
+}
+
+bool ChromePaymentsAutofillClient::ShowTouchToFillBnplTos(
+    BnplTosModel bnpl_tos_model,
+    base::OnceClosure accept_callback,
+    base::OnceClosure cancel_callback) {
+#if BUILDFLAG(IS_ANDROID)
+  return GetTouchToFillPaymentMethodController()->ShowBnplIssuerTos(
+      std::move(bnpl_tos_model), std::move(accept_callback),
       std::move(cancel_callback));
 #else
   // Touch To Fill is not supported on Desktop.

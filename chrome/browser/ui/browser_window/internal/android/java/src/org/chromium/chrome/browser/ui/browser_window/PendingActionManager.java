@@ -11,6 +11,7 @@ import androidx.annotation.VisibleForTesting;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTaskImpl.State;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -104,10 +105,24 @@ final class PendingActionManager {
 
     /**
      * Tracking the future visible state of the window. Null if there is no in-progress action which
-     * can affect the isVisible.
+     * can affect the isVisible value.
      */
     @GuardedBy("mPendingActionsLock")
     private @Nullable Boolean mIsVisibleFuture;
+
+    /**
+     * Tracking the future maximize state of the window. Null if there is no in-progress action
+     * which can affect the isMaximized value.
+     */
+    @GuardedBy("mPendingActionsLock")
+    private @Nullable Boolean mIsMaximizedFuture;
+
+    /**
+     * Tracks the size a window should have when SET_BOUNDS is done. Null if there is no in-progress
+     * action which can affect the getBounds value.
+     */
+    @GuardedBy("mPendingActionsLock")
+    private @Nullable Rect mFutureBoundsInDp;
 
     /**
      * Requests an action to be performed on the pending task. Use this for actions that do not
@@ -156,6 +171,13 @@ final class PendingActionManager {
             // Cache last requested bounds for potential subsequent restoration. Pending restored
             // bounds will be cleared after all pending actions are dispatched.
             mPendingRestoredBoundsInDp = mPendingBoundsInDp;
+            mFutureBoundsInDp = boundsInDp;
+        }
+    }
+
+    @Nullable Rect getFutureBoundsInDp() {
+        synchronized (mPendingActionsLock) {
+            return mFutureBoundsInDp;
         }
     }
 
@@ -186,9 +208,20 @@ final class PendingActionManager {
         }
     }
 
-    @Nullable Boolean isActiveFuture() {
+    @Nullable Boolean isActiveFuture(@Nullable State state) {
         synchronized (mPendingActionsLock) {
-            return mIsActiveFuture;
+            if (state == State.PENDING_CREATE) {
+                return Boolean.TRUE.equals(mIsActiveFuture);
+            } else if (state == State.PENDING_UPDATE) {
+                return mIsActiveFuture;
+            }
+            return null;
+        }
+    }
+
+    @Nullable Boolean isMaximizedFuture() {
+        synchronized (mPendingActionsLock) {
+            return mIsMaximizedFuture;
         }
     }
 
@@ -331,6 +364,8 @@ final class PendingActionManager {
     private void updateFutureStatesLocked() {
         mIsActiveFuture = null;
         mIsVisibleFuture = null;
+        mIsMaximizedFuture = null;
+        mFutureBoundsInDp = null;
         for (int action : mPendingActions) {
             switch (action) {
                 case PendingAction.SHOW:
@@ -364,6 +399,24 @@ final class PendingActionManager {
                     break;
                 default:
                     break;
+            }
+
+            switch (action) {
+                case PendingAction.MAXIMIZE:
+                    mIsMaximizedFuture = true;
+                    break;
+                case PendingAction.MINIMIZE:
+                case PendingAction.CLOSE:
+                case PendingAction.HIDE:
+                case PendingAction.RESTORE:
+                    mIsMaximizedFuture = false;
+                    break;
+                default:
+                    break;
+            }
+
+            if (action == PendingAction.SET_BOUNDS) {
+                mFutureBoundsInDp = mPendingBoundsInDp;
             }
         }
     }

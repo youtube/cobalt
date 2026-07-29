@@ -61,7 +61,12 @@ enum IPHExtensionsZeroStatePromoVariant {
   kCustomActionIph,
   // A custom UI IPH, presenting the user with different collections of
   // extension collections in cr-chip buttons.
-  kCustomUiChipIph,
+  kCustomUiChipIphV1,
+  // Same as above, but with a slightly different color scheme to highlight
+  // the chips button, and a different selection of links.
+  kCustomUiChipIphV2,
+  // Same as V2, but with a slightly different selection of links and orders.
+  kCustomUiChipIphV3,
   // A custom UI IPH, presenting the user with different collections of
   // extension collections in plain text links.
   kCustomUIPlainLinkIph,
@@ -72,6 +77,7 @@ BASE_DECLARE_FEATURE_PARAM(IPHExtensionsZeroStatePromoVariant,
 #endif
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHFocusHelpBubbleScreenReaderPromoFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHGlicPromoFeature);
+FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHGlicTryItFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHGMCCastStartStopFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHGMCLocalMediaCastingFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHMemorySaverModeFeature);
@@ -104,6 +110,7 @@ FEATURE_CONSTANTS_DECLARE_FEATURE(
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHPasswordsWebAppProfileSwitchFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHPasswordManagerShortcutFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHPasswordSharingFeature);
+FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHPdfInkSignaturesFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHPdfSearchifyFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHPerformanceInterventionDialogFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHPlusAddressFirstSaveFeature);
@@ -376,6 +383,9 @@ FEATURE_CONSTANTS_DECLARE_FEATURE(kDefaultBrowserTriggerCriteriaExperiment);
 
 // FET feature flag that enables AI Hub "New" badge.
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHiOSAIHubNewBadge);
+
+// FET feature flag that enables omnibox Gemini contextual cue chip.
+FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHiOSGeminiContextualCueChip);
 
 #endif  // BUILDFLAG(IS_IOS)
 

@@ -98,13 +98,18 @@ class AppInfoDialogViewsTest : public BrowserWithTestWindowTest,
 
   // Overridden from testing::Test:
   void SetUp() override {
-    BrowserWithTestWindowTest::SetUp();
 #if BUILDFLAG(IS_CHROMEOS)
     // Sets up a fake user manager over |BrowserWithTestWindowTest| user
     // manager.
-    arc_test_ =
+    arc_app_test_ =
         std::make_unique<ArcAppTest>(ArcAppTest::UserManagerMode::kDoNothing);
-    arc_test_->SetUp(extension_environment_.profile());
+    arc_app_test_->PreProfileSetUp();
+#endif
+
+    BrowserWithTestWindowTest::SetUp();
+
+#if BUILDFLAG(IS_CHROMEOS)
+    arc_app_test_->SetUp(extension_environment_.profile());
 
     shelf_model_ = std::make_unique<ash::ShelfModel>();
     browser_controller_.emplace();
@@ -130,9 +135,9 @@ class AppInfoDialogViewsTest : public BrowserWithTestWindowTest,
     chrome_shelf_controller_.reset();
     browser_controller_.reset();
     shelf_model_.reset();
-    if (arc_test_) {
-      arc_test_->TearDown();
-      arc_test_.reset();
+    if (arc_app_test_) {
+      arc_app_test_->TearDown();
+      arc_app_test_.reset();
     }
 #endif
 
@@ -216,7 +221,7 @@ class AppInfoDialogViewsTest : public BrowserWithTestWindowTest,
   std::unique_ptr<ash::ShelfModel> shelf_model_;
   std::optional<ash::BrowserControllerImpl> browser_controller_;
   std::unique_ptr<ChromeShelfController> chrome_shelf_controller_;
-  std::unique_ptr<ArcAppTest> arc_test_;
+  std::unique_ptr<ArcAppTest> arc_app_test_;
 #endif
 };
 

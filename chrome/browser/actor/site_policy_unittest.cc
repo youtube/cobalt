@@ -87,7 +87,10 @@ class ActorSitePolicyTest : public ChromeRenderViewHostTestHarness {
             result, optimization_guide::OptimizationMetadata{}));
   }
 
-  void CheckUrl(const GURL& url, bool expected_allowed) {
+  void CheckUrl(const GURL& url,
+                bool expected_allowed,
+                absl::flat_hash_set<url::Origin> allowed_origins =
+                    absl::flat_hash_set<url::Origin>()) {
     content::NavigationSimulator::NavigateAndCommitFromBrowser(web_contents(),
                                                                url);
 
@@ -95,22 +98,23 @@ class ActorSitePolicyTest : public ChromeRenderViewHostTestHarness {
     ON_CALL(tab, GetContents).WillByDefault(::testing::Return(web_contents()));
 
     auto* actor_service = ActorKeyedService::Get(profile());
-    base::test::TestFuture<bool> allowed;
+    base::test::TestFuture<MayActOnUrlBlockReason> allowed;
     MayActOnTab(tab, actor_service->GetJournal(), TaskId(),
-                allowed.GetCallback());
+                absl::flat_hash_set<url::Origin>(), allowed.GetCallback());
     // The result should not be provided synchronously.
     EXPECT_FALSE(allowed.IsReady());
-    EXPECT_EQ(expected_allowed, allowed.Get());
+    EXPECT_EQ(expected_allowed,
+              allowed.Get() == MayActOnUrlBlockReason::kAllowed);
   }
+
+  raw_ptr<MockOptimizationGuideKeyedService>
+      mock_optimization_guide_keyed_service_;
 
  private:
   static std::unique_ptr<KeyedService> CreateOptimizationService(
       content::BrowserContext* context) {
     return std::make_unique<MockOptimizationGuideKeyedService>();
   }
-
-  raw_ptr<MockOptimizationGuideKeyedService>
-      mock_optimization_guide_keyed_service_;
 
   base::test::ScopedFeatureList scoped_feature_list_;
   base::ScopedTempDir temp_dir_;
@@ -196,6 +200,42 @@ TEST_F(ActorSitePolicyTest, BlockIfInBlocklistForOriginGating) {
   EXPECT_TRUE(ShouldBlockNavigationUrlForOriginGating(
       url, profile(), got_may_act.GetCallback()));
   EXPECT_FALSE(got_may_act.Get());
+}
+
+TEST_F(ActorSitePolicyTest, AllowedOriginsFromNavigationGating) {
+  const GURL url("https://c.test/");
+  const absl::flat_hash_set<url::Origin> allowed_origins = {
+      url::Origin::Create(GURL("https://c.test/"))};
+
+  EXPECT_CALL(
+      *mock_optimization_guide_keyed_service_,
+      CanApplyOptimization(
+          url, optimization_guide::proto::GLIC_ACTION_PAGE_BLOCK,
+          testing::An<optimization_guide::OptimizationGuideDecisionCallback>()))
+      .Times(2)
+      .WillOnce(base::test::RunOnceCallback<2>(
+          optimization_guide::OptimizationGuideDecision::kFalse,
+          optimization_guide::OptimizationMetadata{}));
+
+  {
+    CheckUrl(url, false, allowed_origins);
+  }
+
+  {
+    base::test::ScopedFeatureList scoped_feature_list;
+    scoped_feature_list.InitWithFeaturesAndParameters(
+        {{kGlicActionAllowlist, CreateFieldTrialParams()},
+         {kGlicCrossOriginNavigationGating, base::FieldTrialParams()}},
+        {});
+    CheckUrl(url, true, allowed_origins);
+  }
+}
+
+TEST_F(ActorSitePolicyTest, AllowIfDecisionUnknown) {
+  const GURL url("https://c.test/");
+  SetExpectedOptimizationGuideCall(
+      url, optimization_guide::OptimizationGuideDecision::kUnknown);
+  CheckUrl(url, true);
 }
 
 TEST_F(ActorSitePolicyAllowlistOnlyTest, BlockIfNotInAllowlist) {

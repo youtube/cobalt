@@ -18,7 +18,7 @@
 #include "chrome/browser/new_tab_page/new_tab_page_util.h"
 #include "chrome/browser/ui/lens/lens_overlay_untrusted_ui.h"
 #include "chrome/browser/ui/lens/lens_side_panel_untrusted_ui.h"
-#include "chrome/browser/ui/omnibox/features.h"
+#include "chrome/browser/ui/omnibox/omnibox_next_features.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/side_panel/history/history_side_panel_coordinator.h"
 #include "chrome/browser/ui/webui/access_code_cast/access_code_cast.mojom.h"
@@ -42,6 +42,7 @@
 #include "chrome/browser/ui/webui/metrics_reporter/metrics_reporter_service.h"
 #include "chrome/browser/ui/webui/new_tab_footer/new_tab_footer.mojom.h"
 #include "chrome/browser/ui/webui/new_tab_footer/new_tab_footer_ui.h"
+#include "chrome/browser/ui/webui/new_tab_page/action_chips/action_chips.mojom.h"
 #include "chrome/browser/ui/webui/new_tab_page/composebox/variations/composebox_fieldtrial.h"
 #include "chrome/browser/ui/webui/new_tab_page/new_tab_page.mojom.h"
 #include "chrome/browser/ui/webui/new_tab_page/new_tab_page_ui.h"
@@ -249,9 +250,8 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
 #endif
       NewTabPageUI, OmniboxPopupUI, BookmarksSidePanelUI, CustomizeChromeUI,
       ColorPipelineInternalsUI, UserEducationInternalsUI, ReadingListUI,
-      TabSearchUI, WebuiGalleryUI, HistoryClustersSidePanelUI,
-      ShoppingInsightsSidePanelUI, media_router::AccessCodeCastUI,
-      commerce::ProductSpecificationsUI>(map);
+      WebuiGalleryUI, HistoryClustersSidePanelUI, ShoppingInsightsSidePanelUI,
+      media_router::AccessCodeCastUI, commerce::ProductSpecificationsUI>(map);
 
   RegisterWebUIControllerInterfaceBinder<
       customize_buttons::mojom::CustomizeButtonsHandlerFactory, NewTabPageUI>(
@@ -264,6 +264,11 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
       user_education::features::NtpBrowserPromoType::kNone) {
     RegisterWebUIControllerInterfaceBinder<
         ntp_promo::mojom::NtpPromoHandlerFactory, NewTabPageUI>(map);
+  }
+
+  if (base::FeatureList::IsEnabled(ntp_features::kNtpNextFeatures)) {
+    RegisterWebUIControllerInterfaceBinder<
+        action_chips::mojom::ActionChipsHandlerFactory, NewTabPageUI>(map);
   }
 
   RegisterWebUIControllerInterfaceBinder<
@@ -467,9 +472,6 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
       read_anything::mojom::UntrustedPageHandlerFactory,
       ReadAnythingUntrustedUI>(map);
 
-  RegisterWebUIControllerInterfaceBinder<tab_search::mojom::PageHandlerFactory,
-                                         TabSearchUI>(map);
-
   RegisterWebUIControllerInterfaceBinder<
       ::mojom::user_education_internals::UserEducationInternalsPageHandler,
       UserEducationInternalsUI>(map);
@@ -563,6 +565,14 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
 
 void PopulateChromeWebUIFrameInterfaceBrokersTrustedPartsDesktop(
     content::WebUIBrowserInterfaceBrokerRegistry& registry) {
+  // Note: The MetricsReporterService is available to all WebUIs in the registry
+  registry.AddGlobal<metrics_reporter::mojom::PageMetricsHost>(
+      base::BindRepeating(&BindMetricsReporterService));
+
+  registry.ForWebUI<TabSearchUI>()
+      .Add<color_change_listener::mojom::PageHandler>()
+      .Add<tab_search::mojom::PageHandlerFactory>();
+
   if (base::FeatureList::IsEnabled(ntp_features::kNtpFooter)) {
     registry.ForWebUI<NewTabFooterUI>()
         .Add<color_change_listener::mojom::PageHandler>()
@@ -628,7 +638,6 @@ void PopulateChromeWebUIFrameInterfaceBrokersUntrustedPartsDesktop(
         .Add<bookmark_bar::mojom::PageHandlerFactory>()
         .Add<extensions_bar::mojom::PageHandlerFactory>()
         .Add<searchbox::mojom::PageHandler>()
-        .Add<metrics_reporter::mojom::PageMetricsHost>()
         .Add<tabs_api::mojom::TabStripService>()
         .Add<tracked_element::mojom::TrackedElementHandler>();
   }
@@ -636,8 +645,7 @@ void PopulateChromeWebUIFrameInterfaceBrokersUntrustedPartsDesktop(
   if (features::IsWebUIReloadButtonEnabled()) {
     registry.ForWebUI<ReloadButtonUI>()
         .Add<color_change_listener::mojom::PageHandler>()
-        .Add<reload_button::mojom::PageHandlerFactory>()
-        .Add<metrics_reporter::mojom::PageMetricsHost>();
+        .Add<reload_button::mojom::PageHandlerFactory>();
   }
 }
 

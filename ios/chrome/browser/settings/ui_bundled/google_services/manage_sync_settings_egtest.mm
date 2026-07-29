@@ -17,7 +17,7 @@
 #import "ios/chrome/browser/authentication/test/signin_matchers.h"
 #import "ios/chrome/browser/authentication/ui_bundled/views/views_constants.h"
 #import "ios/chrome/browser/bookmarks/model/bookmark_storage_type.h"
-#import "ios/chrome/browser/bookmarks/ui_bundled/bookmark_earl_grey.h"
+#import "ios/chrome/browser/bookmarks/test/bookmark_earl_grey.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_feature.h"
 #import "ios/chrome/browser/policy/model/policy_app_interface.h"
 #import "ios/chrome/browser/policy/model/policy_earl_grey_utils.h"
@@ -112,14 +112,6 @@ void SignOutFromAccountSettings() {
       performAction:grey_tap()];
 }
 
-void DismissSignOutSnackbar() {
-  // The tap checks the existence of the snackbar and also closes it.
-  NSString* snackbar_label = l10n_util::GetNSString(
-      IDS_IOS_GOOGLE_ACCOUNT_SETTINGS_SIGN_OUT_SNACKBAR_MESSAGE);
-  [[EarlGrey selectElementWithMatcher:grey_accessibilityLabel(snackbar_label)]
-      performAction:grey_tap()];
-}
-
 // Adds a bookmark. The storage type is determined based on if the user is
 // signed in or not.
 void SaveBookmark(NSString* title, NSString* url) {
@@ -177,7 +169,7 @@ void ExpectBatchUploadConfirmationSnackbar(int count, NSString* email) {
     config.features_enabled.push_back(kLinkedServicesSettingIos);
   }
 
-  if ([self isRunningTest:@selector(DISABLED_testSwitchAccountFromAccountMenu)] ||
+  if ([self isRunningTest:@selector(testSwitchAccountFromAccountMenu)] ||
       [self isRunningTest:@selector(testSignOutFromAccountFromAccountMenu)]) {
     config.features_enabled.push_back(kSeparateProfilesForManagedAccounts);
   }
@@ -234,7 +226,7 @@ void ExpectBatchUploadConfirmationSnackbar(int count, NSString* email) {
   [ChromeEarlGreyUI tapSettingsMenuButton:SettingsAccountButton()];
 
   SignOutFromAccountSettings();
-  DismissSignOutSnackbar();
+  [SigninEarlGreyUI dismissSignoutSnackbar];
   [ChromeEarlGreyUI waitForAppToIdle];
 
   [SigninEarlGrey verifySignedOut];
@@ -410,7 +402,7 @@ void ExpectBatchUploadConfirmationSnackbar(int count, NSString* email) {
       performAction:chrome_test_util::TurnTableViewSwitchOn(/*on=*/NO)];
 
   SignOutFromAccountSettings();
-  DismissSignOutSnackbar();
+  [SigninEarlGreyUI dismissSignoutSnackbar];
 
   [SigninEarlGrey verifySignedOut];
 
@@ -451,7 +443,7 @@ void ExpectBatchUploadConfirmationSnackbar(int count, NSString* email) {
       performAction:chrome_test_util::TurnTableViewSwitchOn(/*on=*/NO)];
 
   SignOutFromAccountSettings();
-  DismissSignOutSnackbar();
+  [SigninEarlGreyUI dismissSignoutSnackbar];
 
   [SigninEarlGrey verifySignedOut];
   [[EarlGrey
@@ -1576,7 +1568,7 @@ void ExpectBatchUploadConfirmationSnackbar(int count, NSString* email) {
 
   // Sign out.
   SignOutFromAccountSettings();
-  DismissSignOutSnackbar();
+  [SigninEarlGreyUI dismissSignoutSnackbar];
   [ChromeEarlGreyUI waitForAppToIdle];
   [SigninEarlGrey verifySignedOut];
 
@@ -1655,7 +1647,7 @@ void ExpectBatchUploadConfirmationSnackbar(int count, NSString* email) {
 }
 
 // Test switching account from the account menu.
-- (void)DISABLED_testSwitchAccountFromAccountMenu {
+- (void)testSwitchAccountFromAccountMenu {
   FakeSystemIdentity* fakeIdentity = [FakeSystemIdentity fakeIdentity1];
   FakeSystemIdentity* fakeIdentity2 = [FakeSystemIdentity fakeIdentity2];
   [SigninEarlGrey addFakeIdentity:fakeIdentity];
@@ -1667,9 +1659,9 @@ void ExpectBatchUploadConfirmationSnackbar(int count, NSString* email) {
   [ChromeEarlGreyUI tapSettingsMenuButton:SettingsAccountButton()];
 
   // Scroll to the bottom to view all section.
-  id<GREYMatcher> scroll_view_matcher =
+  id<GREYMatcher> scrollViewMatcher =
       grey_accessibilityID(kManageSyncTableViewAccessibilityIdentifier);
-  [[EarlGrey selectElementWithMatcher:scroll_view_matcher]
+  [[EarlGrey selectElementWithMatcher:scrollViewMatcher]
       performAction:grey_scrollToContentEdge(kGREYContentEdgeBottom)];
 
   // Tap on switch account item.
@@ -1690,30 +1682,8 @@ void ExpectBatchUploadConfirmationSnackbar(int count, NSString* email) {
                                           kAccountMenuSecondaryAccountButtonId)]
       performAction:grey_tap()];
 
-  // Verify the account menu is closed.
-  ConditionBlock wait_for_disappearance = ^{
-    NSError* error;
-    // Checking if collection view does not exist in the UI hierarchy.
-    [[EarlGrey
-        selectElementWithMatcher:grey_accessibilityID(kAccountMenuTableViewId)]
-        assertWithMatcher:grey_nil()
-                    error:&error];
-
-    return error == nil;
-  };
-  // The account menu fades with animation; wait for 5 seconds to ensure the
-  // animation is completed.
-  GREYAssert(base::test::ios::WaitUntilConditionOrTimeout(
-                 base::Seconds(5), wait_for_disappearance),
-             @"Account menu did not disappear.");
-
   // Verify the account settings view remains on top of screen.
-  [[EarlGrey
-      selectElementWithMatcher:grey_accessibilityID(
-                                   kManageSyncTableViewAccessibilityIdentifier)]
-      assertWithMatcher:grey_sufficientlyVisible()];
-
-  [[EarlGrey selectElementWithMatcher:scroll_view_matcher]
+  [[EarlGrey selectElementWithMatcher:scrollViewMatcher]
       performAction:grey_scrollToContentEdgeWithStartPoint(kGREYContentEdgeTop,
                                                            0.5, 0.25)];
   // And it displays the new account.

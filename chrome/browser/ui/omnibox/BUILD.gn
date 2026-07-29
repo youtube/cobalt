@@ -22,10 +22,10 @@ source_set("omnibox") {
       "chrome_omnibox_client.h",
       "chrome_omnibox_navigation_observer.h",
       "clipboard_utils.h",
-      "features.h",
       "omnibox_context_menu_controller.h",
       "omnibox_controller.h",
       "omnibox_edit_model.h",
+      "omnibox_next_features.h",
       "omnibox_popup_view.h",
       "omnibox_tab_helper.h",
       "omnibox_theme.h",
@@ -50,6 +50,7 @@ source_set("omnibox") {
       "//ui/base/unowned_user_data",
       "//ui/gfx",
       "//ui/gfx/geometry",
+      "//ui/menus",
     ]
   }
 }
@@ -88,16 +89,17 @@ source_set("impl") {
       "chrome_omnibox_client.cc",
       "chrome_omnibox_navigation_observer.cc",
       "clipboard_utils.cc",
-      "features.cc",
       "omnibox_context_menu_controller.cc",
       "omnibox_controller.cc",
       "omnibox_edit_model.cc",
+      "omnibox_next_features.cc",
       "omnibox_popup_view.cc",
       "omnibox_tab_helper.cc",
       "omnibox_view.cc",
     ]
     deps += [
       "//chrome/app:command_ids",
+      "//chrome/app/vector_icons",
       "//chrome/browser:browser_process",
       "//chrome/browser:primitives",
       "//chrome/browser/autocomplete",
@@ -109,6 +111,7 @@ source_set("impl") {
       "//chrome/browser/omnibox",
       "//chrome/browser/preloading/search_preload",
       "//chrome/browser/profiles:profile",
+      "//chrome/browser/resources/omnibox_popup:resources_grit",
       "//chrome/browser/safe_browsing",
       "//chrome/browser/search_engines",
       "//chrome/browser/ui:browser_list",
@@ -120,7 +123,9 @@ source_set("impl") {
       "//chrome/browser/ui/location_bar",
       "//chrome/browser/ui/omnibox",
       "//chrome/browser/ui/search",
+      "//chrome/browser/ui/tabs:tab_strip",
       "//chrome/browser/ui/views/location_bar",
+      "//chrome/browser/ui/webui:webui_util",
       "//chrome/common",
       "//components/bookmarks/browser",
       "//components/dom_distiller/core",
@@ -149,6 +154,7 @@ source_set("impl") {
       "//ui/base/clipboard",
       "//ui/base/data_transfer_policy",
       "//ui/gfx",
+      "//ui/menus",
       "//url",
     ]
   }
@@ -235,6 +241,7 @@ if (!is_android) {
     defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
     sources = [
       "alternate_nav_infobar_delegate_browsertest.cc",
+      "omnibox_context_menu_controller_browsertest.cc",
       "omnibox_search_aggregator_browsertest.cc",
     ]
     deps = [

@@ -52,6 +52,24 @@ struct DeferredURLRequest {
 
 class NET_EXPORT SessionServiceImpl : public SessionService {
  public:
+  // Result of attempting to start a proactive refresh. This enum only
+  // covers reasons we don't start the refresh despite a cookie expiring
+  // soon.
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
+  // LINT.IfChange(ProactiveRefreshAttempt)
+  enum class ProactiveRefreshAttempt {
+    kExistingDeferringRefresh = 0,
+    kExistingProactiveRefresh = 1,
+    kMissingKey = 2,
+    kAttempted = 3,
+    kPreviousFailedProactiveRefresh = 4,
+    kSigningQuota = 5,
+    kBackoff = 6,
+    kMaxValue = kBackoff,
+  };
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/net/enums.xml:DeviceBoundSessionProactiveRefreshAttempt)
+
   SessionServiceImpl(unexportable_keys::UnexportableKeyService& key_service,
                      const URLRequestContext* request_context,
                      SessionStore* store);
@@ -106,6 +124,13 @@ class NET_EXPORT SessionServiceImpl : public SessionService {
                   SessionParams params,
                   base::span<const uint8_t> wrapped_key,
                   base::OnceCallback<void(bool)> callback) override;
+  const SignedRefreshChallenge* GetLatestSignedRefreshChallenge(
+      const SessionKey& session_key) override;
+  void SetLatestSignedRefreshChallenge(
+      SessionKey session_key,
+      SignedRefreshChallenge signed_refresh_challenge) override;
+  bool SigningQuotaExceeded(const SchemefulSite& site) override;
+  void AddSigningOccurrence(const SchemefulSite& site) override;
 
   // The `SessionService` implementation has a const-qualified accessor
   // for sessions. This overload allows for non-const access as well.
@@ -118,8 +143,10 @@ class NET_EXPORT SessionServiceImpl : public SessionService {
   // session id.
   using SessionsMap = std::map<SessionKey, std::unique_ptr<Session>>;
   using DeferredRequestsMap =
-      std::unordered_map<Session::Id,
-                         absl::InlinedVector<DeferredURLRequest, 1>>;
+      std::map<SessionKey, absl::InlinedVector<DeferredURLRequest, 1>>;
+  using ProactiveRefreshMap = std::map<SessionKey, base::ElapsedTimer>;
+  using LatestSignedRefreshChallengesMap =
+      std::map<SessionKey, SignedRefreshChallenge>;
 
   struct Observer {
     Observer(const GURL& url,
@@ -137,13 +164,21 @@ class NET_EXPORT SessionServiceImpl : public SessionService {
   using ObserverSet =
       std::set<std::unique_ptr<Observer>, base::UniquePtrComparator>;
 
+  enum class RefreshTrigger {
+    // Refresh due to a request missing a bound cookie.
+    kMissingCookie,
+    // Proactive refresh due to a soon-to-expire bound cookie.
+    kProactive,
+  };
+
   void OnLoadSessionsComplete(SessionsMap sessions);
 
   void OnRegistrationComplete(OnAccessCallback on_access_callback,
                               bool is_google_subdomain_for_histograms,
                               RegistrationFetcher* fetcher,
                               RegistrationResult result);
-  void OnRefreshRequestCompletion(OnAccessCallback on_access_callback,
+  void OnRefreshRequestCompletion(RefreshTrigger trigger,
+                                  OnAccessCallback on_access_callback,
                                   SessionKey session_key,
                                   RegistrationFetcher* fetcher,
                                   RegistrationResult result);
@@ -203,7 +238,8 @@ class NET_EXPORT SessionServiceImpl : public SessionService {
                             Session::KeyIdOrError key_id_or_error);
 
   // Helper function for starting a refresh
-  void RefreshSessionInternal(URLRequest* request,
+  void RefreshSessionInternal(RefreshTrigger trigger,
+                              URLRequest* request,
                               const SessionKey& session_key,
                               Session* session,
                               unexportable_keys::UnexportableKeyId key_id);
@@ -231,6 +267,14 @@ class NET_EXPORT SessionServiceImpl : public SessionService {
       unexportable_keys::ServiceErrorOr<unexportable_keys::UnexportableKeyId>
           key_or_error);
 
+  // If `minimum_cookie_lifetime` is small enough and there are no
+  // pending refreshes for `session_key`, start a proactive refresh.
+  void MaybeStartProactiveRefresh(
+      SessionService::OnAccessCallback per_request_callback,
+      URLRequest* request,
+      const SessionKey& session_key,
+      base::TimeDelta minimum_cookie_lifetime);
+
   // Whether we are waiting on the initial load of saved sessions to complete.
   bool pending_initialization_ = false;
   // Functions to call once initialization completes.
@@ -246,8 +290,11 @@ class NET_EXPORT SessionServiceImpl : public SessionService {
   // true for testing purposes.
   bool ignore_refresh_quota_ = false;
 
-  // Deferred requests are stored by session ID.
+  // Deferred requests are stored by session key.
   DeferredRequestsMap deferred_requests_;
+
+  // Proactive refresh requests, stored by session key.
+  ProactiveRefreshMap proactive_requests_;
 
   // Storage is similar to how CookieMonster stores its cookies.
   SessionsMap unpartitioned_sessions_;
@@ -257,7 +304,20 @@ class NET_EXPORT SessionServiceImpl : public SessionService {
 
   // Per-site session refresh quota. In order to be robust across
   // session parameter changes, we enforce refresh quota for a site.
+  // This functionality is being replaced with `signing_times_`.
   std::map<net::SchemefulSite, std::vector<base::TimeTicks>> refresh_times_;
+
+  // Per-site record of the most recent refresh result. This is used
+  // for histograms.
+  std::map<net::SchemefulSite, SessionError> refresh_last_result_;
+
+  // Per-site session signing quota. In order to be robust across
+  // session parameter changes, we enforce signing quota for a site.
+  // This is updated whenever a site triggers signing.
+  std::map<net::SchemefulSite, std::vector<base::TimeTicks>> signing_times_;
+
+  // The latest signed challenges per session.
+  LatestSignedRefreshChallengesMap latest_signed_refresh_challenges_;
 
   // Holds all currently live registration fetchers.
   std::set<std::unique_ptr<RegistrationFetcher>, base::UniquePtrComparator>

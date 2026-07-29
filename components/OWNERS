@@ -1,11 +1,16 @@
+# This OWNERS list is a last resort. Please prefer to use more specific OWNERS
+# where possible. Examples of valid cases include the creation of new components
+# or large mechanical changes touching many components.
+
 set noparent
-blundell@chromium.org
-caitkp@google.com
-sdefresne@chromium.org
-tedchoc@chromium.org
+
+blundell@chromium.org  #{LAST_RESORT_SUGGESTION}
+caitkp@google.com  #{LAST_RESORT_SUGGESTION}
+sdefresne@chromium.org  #{LAST_RESORT_SUGGESTION}
+tedchoc@chromium.org  #{LAST_RESORT_SUGGESTION}
 
 # For build configuration things and simple changes.
-thakis@chromium.org
+thakis@chromium.org  #{LAST_RESORT_SUGGESTION}
 
 per-file arc_strings.grdp=file://chromeos/ash/experiences/arc/OWNERS
 per-file android_system_error_page_strings.grdp=file://components/android_system_error_page/OWNERS
@@ -85,6 +90,7 @@ per-file error_page_strings.grdp=edwardjung@chromium.org
 
 # Autorollers & git submodules
 per-file autofill/core/browser/form_parsing/internal_resources=*
+per-file autofill/core/browser/geo/chrome_alternative_state_name_maps=*
 per-file crash/core/app/internal=*
 per-file metrics/internal=*
 per-file ntp_tiles/resources/internal=*

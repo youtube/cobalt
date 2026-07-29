@@ -64,6 +64,8 @@
 #include "chrome/browser/ui/views/interaction/browser_elements_views.h"
 #include "chrome/browser/ui/views/side_panel/side_panel.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_coordinator.h"
+#include "chrome/browser/ui/views/side_panel/side_panel_entry.h"
+#include "chrome/browser/ui/views/side_panel/side_panel_entry_key.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_enums.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_util.h"
@@ -198,6 +200,14 @@ LensOverlayController* GetLensOverlayControllerFromTabInterface(
   return tab_interface
              ? tab_interface->GetTabFeatures()->lens_overlay_controller()
              : nullptr;
+}
+
+bool IsVisualSelectionType(lens::LensOverlaySelectionType selection_type) {
+  return selection_type == lens::REGION_SEARCH ||
+         selection_type == lens::TAP_ON_EMPTY ||
+         selection_type == lens::TAP_ON_REGION_GLEAM ||
+         selection_type == lens::TAP_ON_OBJECT ||
+         selection_type == lens::INJECTED_IMAGE;
 }
 
 }  // namespace
@@ -415,6 +425,7 @@ void LensOverlayController::CloseUI(
   immersive_mode_observer_.Reset();
   lens_overlay_blur_layer_delegate_.reset();
   pref_change_registrar_.Reset();
+  use_aim_for_visual_search_ = false;
 
   // Notify the searchbox controller to reset its handlers before the overlay
   // is cleaned up. This is needed to prevent a dangling ptr.
@@ -814,11 +825,15 @@ void LensOverlayController::FetchSupportedLanguages(
 }
 
 void LensOverlayController::FinishReshowOverlay() {
-  content::RenderWidgetHost* live_page_widget_host = tab_->GetContents()
-                                                         ->GetPrimaryMainFrame()
-                                                         ->GetRenderViewHost()
-                                                         ->GetWidget();
-  lens_overlay_blur_layer_delegate_->Show(live_page_widget_host);
+  if (lens_overlay_blur_layer_delegate_) {
+    content::RenderWidgetHost* live_page_widget_host =
+        tab_->GetContents()
+            ->GetPrimaryMainFrame()
+            ->GetRenderViewHost()
+            ->GetWidget();
+    lens_overlay_blur_layer_delegate_->Show(live_page_widget_host);
+  }
+  SetOverlayWebViewOpacity(1.0f);
 }
 
 void LensOverlayController::TryShowTranslateFeaturePromo(
@@ -917,6 +932,11 @@ void LensOverlayController::ShowUI(
     return;
   }
 
+  // If the side panel is already showing, then visual selections
+  // are considered follow ups that should be fulfilled by AIM.
+  use_aim_for_visual_search_ =
+      GetLensOverlaySidePanelCoordinator()->IsEntryShowing();
+
   // Increment the counter for the number of times the Lens Overlay has been
   // started.
   int lens_overlay_start_count =
@@ -945,9 +965,11 @@ void LensOverlayController::ShowUI(
       std::make_unique<lens::LensOverlayLanguagesController>(profile);
 
   // Setup observer to be notified of side panel opens and closes.
+  SidePanelEntry::PanelType panel_type =
+      GetLensOverlaySidePanelCoordinator()->GetPanelType();
   side_panel_shown_subscription_ =
       side_panel_coordinator_->RegisterSidePanelShown(
-          GetLensOverlaySidePanelCoordinator()->GetPanelType(),
+          panel_type,
           base::BindRepeating(&LensOverlayController::OnSidePanelDidOpen,
                               weak_factory_.GetWeakPtr()));
 
@@ -997,13 +1019,12 @@ void LensOverlayController::ShowUI(
 
   // This should be the last thing called in ShowUI, so if something goes wrong
   // in capturing the screenshot, the state gets cleaned up correctly.
-  if (side_panel_coordinator_->IsSidePanelShowing(
-          GetLensOverlaySidePanelCoordinator()->GetPanelType()) &&
+  if (side_panel_coordinator_->IsSidePanelShowing(panel_type) &&
       !results_side_panel_coordinator_->IsEntryShowing()) {
     // Close the currently opened side panel synchronously if it's not the Lens
     // panel. Postpone the screenshot for a fixed time to allow reflow.
     state_ = State::kClosingOpenedSidePanel;
-    side_panel_coordinator_->Close(/*suppress_animations=*/true);
+    side_panel_coordinator_->Close(/*suppress_animations=*/true, panel_type);
     base::SingleThreadTaskRunner::GetCurrentDefault()
         ->PostNonNestableDelayedTask(
             FROM_HERE,
@@ -1994,8 +2015,8 @@ float LensOverlayController::GetUiScaleFactor() {
 }
 
 void LensOverlayController::OnSidePanelDidOpen() {
-  if (side_panel_coordinator_->GetCurrentEntryId() ==
-      SidePanelEntry::Id::kLensOverlayResults) {
+  if (side_panel_coordinator_->IsSidePanelEntryShowing(
+          SidePanelEntryKey(SidePanelEntry::Id::kLensOverlayResults))) {
     SetOverlayRoundedCorner();
   } else {
     // If a side panel opens that is not ours, we must close the overlay.
@@ -2529,8 +2550,20 @@ void LensOverlayController::HandleStartQueryResponse(
 void LensOverlayController::HandleInteractionURLResponse(
     lens::proto::LensOverlayUrlResponse response) {
   MaybeOpenSidePanel();
-  auto* results_side_panel_coordinator =
-      GetLensOverlaySidePanelCoordinator();
+  auto* results_side_panel_coordinator = GetLensOverlaySidePanelCoordinator();
+
+  if (use_aim_for_visual_search_ &&
+      IsVisualSelectionType(lens_selection_type_) &&
+      lens::features::GetEnableLensButtonInSearchbox()) {
+    // Focus the side panel contents so the composebox can be properly focused.
+    results_side_panel_coordinator->FocusSearchbox();
+
+    // The latest vsint is stored in the query controller. By returning here,
+    // the URL will not be loaded into the side panel. Instead, when the user
+    // makes a query in the composebox, the vsint will be sent to the results.
+    return;
+  }
+
   results_side_panel_coordinator->SetLatestPageUrlWithResponse(
       GURL(response.page_url()));
   results_side_panel_coordinator->LoadURLInResultsFrame(GURL(response.url()));
@@ -2618,6 +2651,7 @@ void LensOverlayController::HideOverlayAndMaybeSetHiddenState() {
 void LensOverlayController::ReshowOverlay() {
   // The overlay must be in the kHidden state to be restored properly.
   CHECK(state_ == State::kHidden);
+  use_aim_for_visual_search_ = true;
 
   // Clear any previous selections to ensure a clean state.
   ClearAllSelections();
@@ -2950,7 +2984,31 @@ void LensOverlayController::ReshowOverlayPart3(const SkBitmap& rgb_screenshot) {
                GetLensOverlaySidePanelCoordinator()->GetPanelType())
                ? State::kOverlayAndResults
                : State::kOverlay;
+
+  // Set the overlay web view opacity to near-zero instead of using
+  // `SetVisible(false)`. Setting visibility to false prevents animation frames
+  // in the WebUI, which causes ghosting of the old screenshot when the view is
+  // reshown. Setting opacity instead allows for animation frames in the WebUI
+  // to properly hide the background image canvas until the new screenshot can
+  // be rendered. The web view opacity is set to 1.0f in
+  // `FinishReshowOverlay()`. Note that opacity is set just above `0.f` to pass
+  // a DCHECK that exists in `aura::Window` that might otherwise be tripped when
+  // setting opacity to 0.f.
+  SetOverlayWebViewOpacity(std::nextafter(0.f, 1.f));
   ShowOverlay();
+  base::UmaHistogramBoolean("Lens.Overlay.Shown", true);
+}
+
+void LensOverlayController::SetOverlayWebViewOpacity(float opacity) {
+  if (!overlay_web_view_) {
+    return;
+  }
+
+  // The web views' holder layer is needed to hide the actual web contents.
+  ui::Layer* layer = overlay_web_view_->holder()->GetUILayer();
+  if (layer) {
+    layer->SetOpacity(opacity);
+  }
 }
 
 lens::LensSearchboxController*

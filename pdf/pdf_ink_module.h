@@ -150,19 +150,19 @@ class PdfInkModule {
   // Like DocumentStrokesMap, but for PageV2InkPathShapes.
   using DocumentV2InkPathShapesMap = std::map<int, PageV2InkPathShapes>;
 
+  struct EventDetails {
+    // The event position.  Coordinates match the screen-based position that
+    // are provided during stroking from `blink::WebMouseEvent` positions.
+    gfx::PointF position;
+
+    // The event time.
+    base::TimeTicks timestamp;
+
+    // The type of tool used to generate the input.
+    ink::StrokeInput::ToolType tool_type;
+  };
+
   struct DrawingStrokeState {
-    struct EventDetails {
-      // The event position.  Coordinates match the screen-based position that
-      // are provided during stroking from `blink::WebMouseEvent` positions.
-      gfx::PointF position;
-
-      // The event time.
-      base::TimeTicks timestamp;
-
-      // The type of tool used to generate the input.
-      ink::StrokeInput::ToolType tool_type;
-    };
-
     DrawingStrokeState();
     DrawingStrokeState(const DrawingStrokeState&) = delete;
     DrawingStrokeState& operator=(const DrawingStrokeState&) = delete;
@@ -245,6 +245,14 @@ class PdfInkModule {
     // select text from page A to page B. Strokes will be drawn to cover any
     // selected text and stored in the page index of the page they are on.
     std::map<int, std::vector<ink::Stroke>> highlight_strokes;
+
+    // Details from the last input. Used to compensate for missed events, such
+    // as a missed move event, or an end event that was consumed by a different
+    // view and detected afterwards when PdfInkModule finally sees input events
+    // again. Not wrapped in an `std::optional` because this state is only
+    // active when the user is actively selecting text. The event time is
+    // unused.
+    EventDetails input_last_event;
   };
 
   // Drawing brush state changes that are pending the completion of an
@@ -309,7 +317,6 @@ class PdfInkModule {
   // Return values have the same semantics as On{Mouse,Touch}*() above.
   bool StartTextHighlight(const gfx::PointF& position,
                           int click_count,
-                          base::TimeTicks timestamp,
                           ink::StrokeInput::ToolType tool_type);
   bool ContinueTextHighlight(const gfx::PointF& position);
   bool FinishTextHighlight(const gfx::PointF& position,

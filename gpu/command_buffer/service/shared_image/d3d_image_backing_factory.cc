@@ -601,42 +601,6 @@ bool D3DImageBackingFactory::CreateSwapChainInternal(
   return true;
 }
 
-D3DImageBackingFactory::SwapChainBackings
-D3DImageBackingFactory::CreateSwapChain(const Mailbox& front_buffer_mailbox,
-                                        const Mailbox& back_buffer_mailbox,
-                                        viz::SharedImageFormat format,
-                                        const gfx::Size& size,
-                                        const gfx::ColorSpace& color_space,
-                                        GrSurfaceOrigin surface_origin,
-                                        SkAlphaType alpha_type,
-                                        gpu::SharedImageUsageSet usage) {
-  Microsoft::WRL::ComPtr<IDXGISwapChain1> swap_chain;
-  Microsoft::WRL::ComPtr<ID3D11Texture2D> back_buffer_texture;
-  Microsoft::WRL::ComPtr<ID3D11Texture2D> front_buffer_texture;
-  if (!CreateSwapChainInternal(swap_chain, back_buffer_texture,
-                               front_buffer_texture, format, size)) {
-    return {nullptr, nullptr};
-  }
-
-  auto back_buffer_backing = D3DImageBacking::CreateFromSwapChainBuffer(
-      back_buffer_mailbox, format, size, color_space, surface_origin,
-      alpha_type, usage, std::move(back_buffer_texture), swap_chain,
-      gl_format_caps_, /*is_back_buffer=*/true);
-  if (!back_buffer_backing)
-    return {nullptr, nullptr};
-  back_buffer_backing->SetCleared();
-
-  auto front_buffer_backing = D3DImageBacking::CreateFromSwapChainBuffer(
-      front_buffer_mailbox, format, size, color_space, surface_origin,
-      alpha_type, usage, std::move(front_buffer_texture), swap_chain,
-      gl_format_caps_, /*is_back_buffer=*/false);
-  if (!front_buffer_backing)
-    return {nullptr, nullptr};
-  front_buffer_backing->SetCleared();
-
-  return {std::move(front_buffer_backing), std::move(back_buffer_backing)};
-}
-
 std::unique_ptr<SharedImageBacking> D3DImageBackingFactory::CreateSharedImage(
     const Mailbox& mailbox,
     viz::SharedImageFormat format,
@@ -698,14 +662,8 @@ std::unique_ptr<SharedImageBacking> D3DImageBackingFactory::CreateSharedImage(
         return nullptr;
       }
 
-      int bits_per_element = format.BitsPerPixel();
-      if (bits_per_element % 8 != 0) {
-        LOG(ERROR) << "Shared image format for tensor is invalid.";
-        return nullptr;
-      }
-
       int element_count = size.width() * size.height();
-      int bytes_per_element = bits_per_element / 8;
+      int bytes_per_element = format.BytesPerPixel();
       if (element_count > std::numeric_limits<int>::max() / bytes_per_element) {
         LOG(ERROR) << "Shared image size for tensor is invalid.";
         return nullptr;
@@ -803,7 +761,7 @@ std::unique_ptr<SharedImageBacking> D3DImageBackingFactory::CreateSharedImage(
     }
 
     initial_data.pSysMem = pixel_data.data();
-    initial_data.SysMemPitch = format.BitsPerPixel() * size.width() / 8;
+    initial_data.SysMemPitch = format.BytesPerPixel() * size.width();
     initial_data.SysMemSlicePitch = 0;
   }
 
@@ -1006,9 +964,10 @@ D3DImageBackingFactory::CreateSharedBufferD3D12(
   // The passed usages AND-ed with the compliment of the OR-d valid usages
   // should be zero.
   // TODO(crbug.com/345352987): replace with IsSupported().
-  if (usage &
-      ~(SHARED_IMAGE_USAGE_WEBGPU_READ | SHARED_IMAGE_USAGE_WEBGPU_WRITE |
-        SHARED_IMAGE_USAGE_WEBGPU_SHARED_BUFFER)) {
+  constexpr auto kValidWebNNUsage = SHARED_IMAGE_USAGE_WEBGPU_READ |
+                                    SHARED_IMAGE_USAGE_WEBGPU_WRITE |
+                                    SHARED_IMAGE_USAGE_WEBGPU_SHARED_BUFFER;
+  if (!kValidWebNNUsage.HasAll(usage)) {
     LOG(ERROR) << "Only shared image usages SHARED_IMAGE_USAGE_WEBGPU_READ, "
                   "SHARED_IMAGE_USAGE_WEBGPU_WRITE, and "
                   "SHARED_IMAGE_USAGE_WEBGPU_SHARED_BUFFER are allowed when "
@@ -1125,12 +1084,12 @@ bool D3DImageBackingFactory::IsSupported(SharedImageUsageSet usage,
                                          base::span<const uint8_t> pixel_data) {
   // Only usages for WebNN is allowed if D3D shared images are disabled.
   if (enable_webnn_only_d3d_factory_) {
-    constexpr uint32_t kAllowedUsages =
+    constexpr auto kAllowedUsages =
         gpu::SHARED_IMAGE_USAGE_WEBNN_SHARED_TENSOR |
         gpu::SHARED_IMAGE_USAGE_WEBGPU_SHARED_BUFFER |
         gpu::SHARED_IMAGE_USAGE_WEBNN_SHARED_TENSOR_READ |
         gpu::SHARED_IMAGE_USAGE_WEBNN_SHARED_TENSOR_WRITE;
-    return (usage & ~kAllowedUsages) == 0;
+    return kAllowedUsages.HasAll(usage);
   }
 
   if (!pixel_data.empty() && !IsFormatSupportedForInitialData(format)) {

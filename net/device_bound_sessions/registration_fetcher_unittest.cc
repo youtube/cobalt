@@ -151,7 +151,6 @@ class RegistrationTestBase : public TestWithTaskEnvironment {
  protected:
   RegistrationTestBase()
       : server_(test_server::EmbeddedTestServer::TYPE_HTTPS),
-        unexportable_key_service_(task_manager_),
         host_resolver_(
             base::MakeRefCounted<net::RuleBasedHostResolverProc>(nullptr)) {
     host_resolver_->AddRule("*", "127.0.0.1");
@@ -203,7 +202,7 @@ class RegistrationTestBase : public TestWithTaskEnvironment {
 
   RegistrationResult FetchWithFederatedKey(
       RegistrationRequestParam param,
-      const unexportable_keys::UnexportableKeyId& key,
+      unexportable_keys::UnexportableKeyId key,
       const GURL& provider_url) {
     base::test::TestFuture<RegistrationFetcher*, RegistrationResult> future;
     std::unique_ptr<RegistrationFetcher> fetcher =
@@ -234,9 +233,9 @@ class RegistrationTestBase : public TestWithTaskEnvironment {
   std::unique_ptr<URLRequestContext> context_;
 
   const url::Origin kOrigin = url::Origin::Create(GURL("https://origin/"));
-  unexportable_keys::UnexportableKeyTaskManager task_manager_{
-      crypto::UnexportableKeyProvider::Config()};
-  unexportable_keys::UnexportableKeyServiceImpl unexportable_key_service_;
+  unexportable_keys::UnexportableKeyTaskManager task_manager_;
+  unexportable_keys::UnexportableKeyServiceImpl unexportable_key_service_{
+      task_manager_, crypto::UnexportableKeyProvider::Config()};
   SessionServiceMock session_service_;
   scoped_refptr<net::RuleBasedHostResolverProc> host_resolver_;
 };
@@ -2055,6 +2054,294 @@ TEST_F(RegistrationTestWithOriginTrialFeedback,
   EXPECT_EQ(session_error.type, SessionError::kTooManyChallenges);
 }
 
+TEST_F(RegistrationTestWithOriginTrialFeedback, RefreshCachesSignedChallenge) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      features::kDeviceBoundSessionSigningQuotaAndCaching);
+
+  server_.RegisterRequestHandler(
+      base::BindRepeating(&ReturnResponse, HTTP_OK, kBasicValidJson));
+  ASSERT_TRUE(server_.Start());
+
+  unexportable_keys::MockUnexportableKeyService mock_key_service;
+  auto [spki, jwk] = GetRS256SpkiAndJwkForTesting();
+  std::vector<unsigned char> spki_vector(spki.begin(), spki.end());
+  EXPECT_CALL(mock_key_service, GetAlgorithm(_))
+      .WillOnce(Return(crypto::SignatureVerifier::RSA_PKCS1_SHA256));
+  EXPECT_CALL(mock_key_service, GetSubjectPublicKeyInfo(_))
+      .WillOnce(Return(spki_vector));
+  EXPECT_CALL(mock_key_service, SignSlowlyAsync(_, _, _, _))
+      .WillOnce(WithArg<3>([](auto callback) {
+        std::move(callback).Run(std::vector<uint8_t>{'s', 'i', 'g'});
+      }));
+
+  // No cached challenge initially.
+  EXPECT_CALL(session_service(), GetLatestSignedRefreshChallenge(_))
+      .WillOnce(Return(nullptr));
+  // Expect a signing occurrence and the new signed challenge to be cached.
+  EXPECT_CALL(session_service(), AddSigningOccurrence(_)).Times(1);
+  EXPECT_CALL(session_service(), SetLatestSignedRefreshChallenge(_, _))
+      .Times(1);
+  // Quota check should return false to allow signing.
+  EXPECT_CALL(session_service(), SigningQuotaExceeded(_))
+      .WillOnce(Return(false));
+
+  TestRegistrationCallback callback;
+  auto isolation_info = IsolationInfo::CreateTransient(/*nonce=*/std::nullopt);
+  auto request_param = RegistrationRequestParam::CreateForTesting(
+      GetBaseURL(), kSessionIdentifier, kChallenge);
+  unexportable_keys::UnexportableKeyId key =
+      unexportable_keys::UnexportableKeyId();
+  std::unique_ptr<RegistrationFetcher> fetcher =
+      RegistrationFetcher::CreateFetcher(
+          request_param, session_service(), std::ref(mock_key_service),
+          context_.get(), std::ref(isolation_info),
+          /*net_log_source=*/std::nullopt,
+          /*original_request_initiator=*/std::nullopt);
+  fetcher->StartFetchWithExistingKey(request_param, std::move(key),
+                                     callback.callback());
+  callback.WaitForCall();
+
+  ASSERT_TRUE(callback.outcome().is_session());
+}
+
+TEST_F(RegistrationTestWithoutOriginTrialFeedback,
+       RefreshDoesNotCacheSignedChallenge) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(
+      features::kDeviceBoundSessionSigningQuotaAndCaching);
+
+  server_.RegisterRequestHandler(
+      base::BindRepeating(&ReturnResponse, HTTP_OK, kBasicValidJson));
+  ASSERT_TRUE(server_.Start());
+
+  unexportable_keys::MockUnexportableKeyService mock_key_service;
+  auto [spki, jwk] = GetRS256SpkiAndJwkForTesting();
+  std::vector<unsigned char> spki_vector(spki.begin(), spki.end());
+  EXPECT_CALL(mock_key_service, GetAlgorithm(_))
+      .WillOnce(Return(crypto::SignatureVerifier::RSA_PKCS1_SHA256));
+  EXPECT_CALL(mock_key_service, GetSubjectPublicKeyInfo(_))
+      .WillOnce(Return(spki_vector));
+  EXPECT_CALL(mock_key_service, SignSlowlyAsync(_, _, _, _))
+      .WillOnce(WithArg<3>([](auto callback) {
+        std::move(callback).Run(std::vector<uint8_t>{'s', 'i', 'g'});
+      }));
+
+  // No calls to caching or quota methods when features are off.
+  EXPECT_CALL(session_service(), GetLatestSignedRefreshChallenge(_)).Times(0);
+  EXPECT_CALL(session_service(), AddSigningOccurrence(_)).Times(0);
+  EXPECT_CALL(session_service(), SetLatestSignedRefreshChallenge(_, _))
+      .Times(0);
+  EXPECT_CALL(session_service(), SigningQuotaExceeded(_)).Times(0);
+
+  TestRegistrationCallback callback;
+  auto isolation_info = IsolationInfo::CreateTransient(/*nonce=*/std::nullopt);
+  auto request_param = RegistrationRequestParam::CreateForTesting(
+      GetBaseURL(), kSessionIdentifier, kChallenge);
+  unexportable_keys::UnexportableKeyId key =
+      unexportable_keys::UnexportableKeyId();
+  std::unique_ptr<RegistrationFetcher> fetcher =
+      RegistrationFetcher::CreateFetcher(
+          request_param, session_service(), std::ref(mock_key_service),
+          context_.get(), std::ref(isolation_info),
+          /*net_log_source=*/std::nullopt,
+          /*original_request_initiator=*/std::nullopt);
+  fetcher->StartFetchWithExistingKey(request_param, std::move(key),
+                                     callback.callback());
+  callback.WaitForCall();
+
+  ASSERT_TRUE(callback.outcome().is_session());
+}
+
+TEST_F(RegistrationTestWithOriginTrialFeedback,
+       RefreshCachedSignedChallengeUsed) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      features::kDeviceBoundSessionSigningQuotaAndCaching);
+
+  server_.RegisterRequestHandler(
+      base::BindRepeating(&ReturnResponse, HTTP_OK, kBasicValidJson));
+  ASSERT_TRUE(server_.Start());
+
+  // No calls to actual signing.
+  unexportable_keys::MockUnexportableKeyService mock_key_service;
+  EXPECT_CALL(mock_key_service, GetAlgorithm(_)).Times(0);
+  EXPECT_CALL(mock_key_service, GetSubjectPublicKeyInfo(_)).Times(0);
+  EXPECT_CALL(mock_key_service, SignSlowlyAsync(_, _, _, _)).Times(0);
+
+  // Create a matching cached challenge.
+  SessionService::SignedRefreshChallenge cached_challenge;
+  cached_challenge.challenge = kChallenge;
+  cached_challenge.key_id = unexportable_keys::UnexportableKeyId();
+  cached_challenge.signed_challenge = "mock_signed_challenge";
+
+  EXPECT_CALL(session_service(), GetLatestSignedRefreshChallenge(_))
+      .WillOnce(Return(&cached_challenge));
+  // There should be no signing or quota checking since that's skipped.
+  EXPECT_CALL(session_service(), AddSigningOccurrence(_)).Times(0);
+  EXPECT_CALL(session_service(), SigningQuotaExceeded(_)).Times(0);
+
+  TestRegistrationCallback callback;
+  auto isolation_info = IsolationInfo::CreateTransient(/*nonce=*/std::nullopt);
+  auto request_param = RegistrationRequestParam::CreateForTesting(
+      GetBaseURL(), kSessionIdentifier, kChallenge);
+  unexportable_keys::UnexportableKeyId key = cached_challenge.key_id;
+  std::unique_ptr<RegistrationFetcher> fetcher =
+      RegistrationFetcher::CreateFetcher(
+          request_param, session_service(), std::ref(mock_key_service),
+          context_.get(), std::ref(isolation_info),
+          /*net_log_source=*/std::nullopt,
+          /*original_request_initiator=*/std::nullopt);
+  fetcher->StartFetchWithExistingKey(request_param, std::move(key),
+                                     callback.callback());
+  callback.WaitForCall();
+
+  ASSERT_TRUE(callback.outcome().is_session());
+}
+
+TEST_F(RegistrationTestWithoutOriginTrialFeedback,
+       RefreshCachedSignedChallengeNotUsed) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(
+      features::kDeviceBoundSessionSigningQuotaAndCaching);
+
+  server_.RegisterRequestHandler(
+      base::BindRepeating(&ReturnResponse, HTTP_OK, kBasicValidJson));
+  ASSERT_TRUE(server_.Start());
+
+  // Calls to signing.
+  unexportable_keys::MockUnexportableKeyService mock_key_service;
+  auto [spki, jwk] = GetRS256SpkiAndJwkForTesting();
+  std::vector<unsigned char> spki_vector(spki.begin(), spki.end());
+  EXPECT_CALL(mock_key_service, GetAlgorithm(_))
+      .WillOnce(Return(crypto::SignatureVerifier::RSA_PKCS1_SHA256));
+  EXPECT_CALL(mock_key_service, GetSubjectPublicKeyInfo(_))
+      .WillOnce(Return(spki_vector));
+  EXPECT_CALL(mock_key_service, SignSlowlyAsync(_, _, _, _))
+      .WillOnce(WithArg<3>([](auto callback) {
+        std::move(callback).Run(std::vector<uint8_t>{'s', 'i', 'g'});
+      }));
+
+  // None of the caching / quota methods should be used.
+  EXPECT_CALL(session_service(), GetLatestSignedRefreshChallenge(_)).Times(0);
+  EXPECT_CALL(session_service(), AddSigningOccurrence(_)).Times(0);
+  EXPECT_CALL(session_service(), SetLatestSignedRefreshChallenge(_, _))
+      .Times(0);
+  EXPECT_CALL(session_service(), SigningQuotaExceeded(_)).Times(0);
+
+  TestRegistrationCallback callback;
+  auto isolation_info = IsolationInfo::CreateTransient(/*nonce=*/std::nullopt);
+  auto request_param = RegistrationRequestParam::CreateForTesting(
+      GetBaseURL(), kSessionIdentifier, kChallenge);
+  unexportable_keys::UnexportableKeyId key =
+      unexportable_keys::UnexportableKeyId();
+  std::unique_ptr<RegistrationFetcher> fetcher =
+      RegistrationFetcher::CreateFetcher(
+          request_param, session_service(), std::ref(mock_key_service),
+          context_.get(), std::ref(isolation_info),
+          /*net_log_source=*/std::nullopt,
+          /*original_request_initiator=*/std::nullopt);
+  fetcher->StartFetchWithExistingKey(request_param, std::move(key),
+                                     callback.callback());
+  callback.WaitForCall();
+
+  ASSERT_TRUE(callback.outcome().is_session());
+}
+
+TEST_F(RegistrationTestWithOriginTrialFeedback,
+       RefreshCachedSignedChallengeDoesNotMatch) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      features::kDeviceBoundSessionSigningQuotaAndCaching);
+
+  server_.RegisterRequestHandler(
+      base::BindRepeating(&ReturnResponse, HTTP_OK, kBasicValidJson));
+  ASSERT_TRUE(server_.Start());
+
+  unexportable_keys::MockUnexportableKeyService mock_key_service;
+  auto [spki, jwk] = GetRS256SpkiAndJwkForTesting();
+  std::vector<unsigned char> spki_vector(spki.begin(), spki.end());
+  EXPECT_CALL(mock_key_service, GetAlgorithm(_))
+      .WillOnce(Return(crypto::SignatureVerifier::RSA_PKCS1_SHA256));
+  EXPECT_CALL(mock_key_service, GetSubjectPublicKeyInfo(_))
+      .WillOnce(Return(spki_vector));
+  EXPECT_CALL(mock_key_service, SignSlowlyAsync(_, _, _, _))
+      .WillOnce(WithArg<3>([](auto callback) {
+        std::move(callback).Run(std::vector<uint8_t>{'s', 'i', 'g'});
+      }));
+
+  // Add cached signed challenge that doesn't match (the challenge used is
+  // different).
+  SessionService::SignedRefreshChallenge cached_challenge;
+  cached_challenge.challenge = "different_challenge";
+  cached_challenge.key_id = unexportable_keys::UnexportableKeyId();
+  cached_challenge.signed_challenge = "mock_signed_challenge";
+  EXPECT_CALL(session_service(), GetLatestSignedRefreshChallenge(_))
+      .WillOnce(Return(&cached_challenge));
+  EXPECT_CALL(session_service(), AddSigningOccurrence(_)).Times(1);
+  EXPECT_CALL(session_service(), SetLatestSignedRefreshChallenge(_, _))
+      .Times(1);
+  EXPECT_CALL(session_service(), SigningQuotaExceeded(_))
+      .WillOnce(Return(false));
+
+  TestRegistrationCallback callback;
+  auto isolation_info = IsolationInfo::CreateTransient(/*nonce=*/std::nullopt);
+  auto request_param = RegistrationRequestParam::CreateForTesting(
+      GetBaseURL(), kSessionIdentifier, kChallenge);
+  unexportable_keys::UnexportableKeyId key =
+      unexportable_keys::UnexportableKeyId();
+  std::unique_ptr<RegistrationFetcher> fetcher =
+      RegistrationFetcher::CreateFetcher(
+          request_param, session_service(), std::ref(mock_key_service),
+          context_.get(), std::ref(isolation_info),
+          /*net_log_source=*/std::nullopt,
+          /*original_request_initiator=*/std::nullopt);
+  fetcher->StartFetchWithExistingKey(request_param, std::move(key),
+                                     callback.callback());
+  callback.WaitForCall();
+
+  ASSERT_TRUE(callback.outcome().is_session());
+}
+
+TEST_P(RegistrationTest, RegistrationTriggersSigningOccurrence) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      features::kDeviceBoundSessionSigningQuotaAndCaching);
+
+  // Expect the signing checks are done only when the feature is enabled.
+  if (GetParam()) {
+    EXPECT_CALL(session_service(), AddSigningOccurrence(_)).Times(1);
+    EXPECT_CALL(session_service(), SigningQuotaExceeded(_))
+        .WillOnce(Return(false));
+  } else {
+    EXPECT_CALL(session_service(), AddSigningOccurrence(_)).Times(0);
+    EXPECT_CALL(session_service(), SigningQuotaExceeded(_)).Times(0);
+  }
+
+  crypto::ScopedFakeUnexportableKeyProvider scoped_fake_key_provider;
+  server_.RegisterRequestHandler(
+      base::BindRepeating([](const test_server::HttpRequest& request) {
+        auto resp_iter = request.headers.find(GetSessionResponseHeaderName());
+        EXPECT_TRUE(resp_iter != request.headers.end());
+        if (resp_iter != request.headers.end()) {
+          EXPECT_TRUE(VerifyEs256Jwt(resp_iter->second));
+        }
+        return ReturnResponse(HTTP_OK, kBasicValidJson, request);
+      }));
+  ASSERT_TRUE(server_.Start());
+  TestRegistrationCallback callback;
+  auto param = GetBasicParam();
+  std::unique_ptr<RegistrationFetcher> fetcher =
+      RegistrationFetcher::CreateFetcher(
+          param, session_service(), unexportable_key_service(), context_.get(),
+          IsolationInfo::CreateTransient(/*nonce=*/std::nullopt),
+          /*net_log_source=*/std::nullopt,
+          /*original_request_initiator=*/std::nullopt);
+  fetcher->StartCreateTokenAndFetch(param, CreateAlgArray(),
+                                    callback.callback());
+  callback.WaitForCall();
+}
+
 TEST_P(RegistrationTest, RefreshWithNewSessionIdFails) {
   crypto::ScopedFakeUnexportableKeyProvider scoped_fake_key_provider;
 
@@ -2926,8 +3213,6 @@ TEST_F(RegistrationTestWithOriginTrialFeedback,
 
 class RegistrationTokenHelperTest : public testing::Test {
  public:
-  RegistrationTokenHelperTest() : unexportable_key_service_(task_manager_) {}
-
   unexportable_keys::UnexportableKeyService& unexportable_key_service() {
     return unexportable_key_service_;
   }
@@ -2936,12 +3221,11 @@ class RegistrationTokenHelperTest : public testing::Test {
 
  private:
   base::test::TaskEnvironment task_environment_{
-      base::test::TaskEnvironment::ThreadPoolExecutionMode::
-          QUEUED};  // QUEUED - tasks don't run until `RunUntilIdle()` is
-                    // called.
-  unexportable_keys::UnexportableKeyTaskManager task_manager_{
-      crypto::UnexportableKeyProvider::Config()};
-  unexportable_keys::UnexportableKeyServiceImpl unexportable_key_service_;
+      // QUEUED - tasks don't run until `RunUntilIdle()` is called.
+      base::test::TaskEnvironment::ThreadPoolExecutionMode::QUEUED};
+  unexportable_keys::UnexportableKeyTaskManager task_manager_;
+  unexportable_keys::UnexportableKeyServiceImpl unexportable_key_service_{
+      task_manager_, crypto::UnexportableKeyProvider::Config()};
 };
 
 TEST_F(RegistrationTokenHelperTest, CreateSuccess) {

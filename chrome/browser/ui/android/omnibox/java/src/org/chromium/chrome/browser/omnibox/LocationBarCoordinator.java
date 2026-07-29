@@ -23,6 +23,7 @@ import org.chromium.base.Callback;
 import org.chromium.base.CallbackController;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.ObservableSupplier;
+import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.OneshotSupplierImpl;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -38,8 +39,8 @@ import org.chromium.chrome.browser.lifecycle.NativeInitObserver;
 import org.chromium.chrome.browser.locale.LocaleManager;
 import org.chromium.chrome.browser.merchant_viewer.MerchantTrustSignalsCoordinator;
 import org.chromium.chrome.browser.omnibox.LocationBarMediator.OmniboxUma;
+import org.chromium.chrome.browser.omnibox.fusebox.NavigationAttachmentsCoordinator;
 import org.chromium.chrome.browser.omnibox.geo.GeolocationHeader;
-import org.chromium.chrome.browser.omnibox.navattach.NavigationAttachmentsCoordinator;
 import org.chromium.chrome.browser.omnibox.status.StatusCoordinator;
 import org.chromium.chrome.browser.omnibox.status.StatusCoordinator.PageInfoAction;
 import org.chromium.chrome.browser.omnibox.status.StatusView;
@@ -116,6 +117,7 @@ public class LocationBarCoordinator
     private View mUrlBar;
     private View mZoomButton;
     private @Nullable View mDeleteButton;
+    private @Nullable View mNavigateButton;
     private @Nullable View mMicButton;
     private @Nullable View mLensButton;
     private @Nullable View mComposeplateButton;
@@ -241,6 +243,8 @@ public class LocationBarCoordinator
         final boolean isIncognito =
                 incognitoStateProvider != null && incognitoStateProvider.isIncognitoSelected();
         OmniboxResourceProvider.setTabFaviconFactory(tabFaviconFunction);
+        ObservableSupplierImpl<@AutocompleteRequestType Integer> autocompleteRequestTypeSupplier =
+                new ObservableSupplierImpl<>(AutocompleteRequestType.SEARCH);
         mNavigationAttachmentsCoordinator =
                 new NavigationAttachmentsCoordinator(
                         context,
@@ -249,7 +253,8 @@ public class LocationBarCoordinator
                         profileObservableSupplier,
                         locationBarDataProvider,
                         tabModelSelectorSupplier,
-                        templateUrlServiceSupplier);
+                        templateUrlServiceSupplier,
+                        autocompleteRequestTypeSupplier);
 
         mPageZoomIndicatorCoordinator =
                 pageZoomManager != null
@@ -281,7 +286,7 @@ public class LocationBarCoordinator
                         tabModelSelectorSupplier,
                         browserControlsStateProvider,
                         modalDialogManagerSupplier,
-                        mNavigationAttachmentsCoordinator.getAutocompleteRequestTypeSupplier(),
+                        autocompleteRequestTypeSupplier,
                         mPageZoomIndicatorCoordinator);
         if (backPressManager != null) {
             backPressManager.addHandler(mLocationBarMediator, BackPressHandler.Type.LOCATION_BAR);
@@ -339,6 +344,11 @@ public class LocationBarCoordinator
 
         mDeleteButton = mLocationBarLayout.findViewById(R.id.delete_button);
         mDeleteButton.setOnClickListener(mLocationBarMediator::deleteButtonClicked);
+
+        mNavigateButton = mLocationBarLayout.findViewById(R.id.navigate_button);
+        if (mNavigateButton != null) {
+            mNavigateButton.setOnClickListener(mLocationBarMediator::navigateButtonClicked);
+        }
 
         mMicButton = mLocationBarLayout.findViewById(R.id.mic_button);
         mMicButton.setOnClickListener(mLocationBarMediator::micButtonClicked);
@@ -432,7 +442,13 @@ public class LocationBarCoordinator
             mComposeplateButton = null;
         }
 
+        if (mNavigateButton != null) {
+            mNavigateButton.setOnClickListener(null);
+            mNavigateButton = null;
+        }
+
         mZoomButton.setOnClickListener(null);
+        mZoomButton = null;
 
         mInstallButton.setOnClickListener(null);
         mInstallButton = null;
@@ -1010,5 +1026,34 @@ public class LocationBarCoordinator
      */
     public ToolbarWidthConsumer getLensButtonToolbarWidthConsumer() {
         return mLocationBarMediator.getLensButtonToolbarWidthConsumer();
+    }
+
+    /**
+     * Returns a {@link ToolbarWidthConsumer} that handles width on the toolbar allocated to showing
+     * the zoom button on the omnibox.
+     */
+    public ToolbarWidthConsumer getZoomButtonToolbarWidthConsumer() {
+        return mLocationBarMediator.getZoomButtonToolbarWidthConsumer();
+    }
+
+    /**
+     * Apply the X translation to the LocationBar buttons to match the NTP fakebox -> omnibox
+     * transition.
+     *
+     * @param translationX the desired translation to be applied to appropriate LocationBar buttons.
+     */
+    public void setLocationBarButtonTranslationForNtpAnimation(float translationX) {
+        mLocationBarMediator.setLocationBarButtonTranslationForNtpAnimation(translationX);
+    }
+
+    /**
+     * Set the visibility of the URL action buttons as a whole.
+     *
+     * <p>Visibility of each button is guarded by two states: visibility of a specific button and
+     * visibility of the entire group, ensuring that only requested buttons are shown/hidden when
+     * the value passed to this method is toggled.
+     */
+    public void setUrlActionContainerVisibility(boolean shouldShow) {
+        mLocationBarMediator.setUrlActionContainerVisibility(shouldShow);
     }
 }

@@ -20,6 +20,12 @@
 #include "ui/android/resources/resource_manager.h"
 #include "ui/gfx/geometry/rounded_corners_f.h"
 
+namespace {
+// LINT.IfChange(InvalidContentOffset)
+const float kInvalidContentOffset = -10001.f;
+// LINT.ThenChange(//chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/TopToolbarOverlayMediator.java:InvalidContentOffset)
+}  // namespace
+
 namespace android {
 
 // static
@@ -38,7 +44,8 @@ void ToolbarLayer::PushResource(int toolbar_resource_id,
                                 int toolbar_textbox_background_color,
                                 int url_bar_background_resource_id,
                                 float x_offset,
-                                float content_offset,
+                                float y_offset,
+                                float legacy_content_offset,
                                 bool show_debug,
                                 bool clip_shadow,
                                 const viz::OffsetTag& offset_tag) {
@@ -117,9 +124,17 @@ void ToolbarLayer::PushResource(int toolbar_resource_id,
   else if (!show_debug && debug_layer_->parent())
     debug_layer_->RemoveFromParent();
 
-  // Position the toolbar at the bottom of the space available for top controls.
-  layer_->SetPosition(
-      gfx::PointF(x_offset, content_offset - layer_->bounds().height()));
+  // |legacy_content_offset| represents the bottom of the toolbar, assuming it's
+  // always at the bottom of the browser controls. This is no longer the case
+  // as for 2025.
+  // TODO(https://crbug.com/454338286): Rename / remove in favor of y_Offset.
+  if (!base::FeatureList::IsEnabled(chrome::android::kTopControlsRefactor) ||
+      !base::FeatureList::IsEnabled(chrome::android::kTopControlsRefactorV2) ||
+      kInvalidContentOffset != legacy_content_offset) {
+    y_offset = legacy_content_offset - layer_->bounds().height();
+  }
+
+  layer_->SetPosition(gfx::PointF(x_offset, y_offset));
 
   if (features::IsAndroidAnimatedProgressBarInVizEnabled()) {
     toolbar_layers_->SetOffsetTag(offset_tag);

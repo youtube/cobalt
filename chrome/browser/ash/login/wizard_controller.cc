@@ -241,7 +241,7 @@
 #include "chromeos/ash/components/audio/cras_audio_handler.h"
 #include "chromeos/ash/components/dbus/session_manager/session_manager_client.h"
 #include "chromeos/ash/components/dbus/update_engine/update_engine_client.h"
-#include "chromeos/ash/components/geolocation/simple_geolocation_provider.h"
+#include "chromeos/ash/components/geolocation/system_location_provider.h"
 #include "chromeos/ash/components/install_attributes/install_attributes.h"
 #include "chromeos/ash/components/language_packs/language_pack_manager.h"
 #include "chromeos/ash/components/network/network_state.h"
@@ -1261,6 +1261,13 @@ void WizardController::ShowWrongHWIDScreen() {
 }
 
 void WizardController::ShowAutoEnrollmentCheckScreen() {
+  if (features::IsOobeAutoEnrollmentCheckForcedEnabled() &&
+      wizard_context_->skip_auto_enrollment_check_for_tests) {
+    OnAutoEnrollmentCheckScreenExit(
+        AutoEnrollmentCheckScreen::Result::NOT_APPLICABLE);
+    return;
+  }
+
   AutoEnrollmentCheckScreen* screen = GetScreen<AutoEnrollmentCheckScreen>();
   screen->set_auto_enrollment_controller(GetAutoEnrollmentController());
   SetCurrentScreen(screen);
@@ -1545,6 +1552,15 @@ void WizardController::OnGaiaScreenExit(GaiaScreen::Result result) {
       [[fallthrough]];
     case GaiaScreen::Result::QUICK_START_ONGOING:
       ShowQuickStartScreen();
+      break;
+    case GaiaScreen::Result::ERROR_OOBE_NOT_COMPLETED:
+      GetLoginDisplayHost()
+          ->GetOobeMetricsHelper()
+          ->RecordOobeNotCompletedErrorTrigger(
+              OobeMetricsHelper::OobeNotCompletedTrigger::kGaiaScreen);
+      ShowSignInFatalErrorScreen(
+          SignInFatalErrorScreen::Error::kOobeCompletionSkipped,
+          base::Value::Dict());
       break;
   }
 }
@@ -2022,6 +2038,9 @@ void WizardController::SkipToLoginForTesting() {
   StartNetworkTimezoneResolve();
   DelayNetworkCall(ServicesCustomizationDocument::GetInstance()
                        ->EnsureCustomizationAppliedClosure());
+  if (features::IsOobeAutoEnrollmentCheckForcedEnabled()) {
+    StartupUtils::MarkOobeCompleted();
+  }
   OnDeviceDisabledChecked(/*device_disabled=*/false);
 }
 
@@ -2207,11 +2226,9 @@ void WizardController::OnUpdateScreenExit(UpdateScreen::Result result) {
 
 void WizardController::OnUpdateCompleted() {
   // Install language packs based on the user selected language.
-  if (ash::features::IsLanguagePacksInOobeEnabled()) {
-    const std::string locale = GetApplicationLocale();
-    language_packs::LanguagePackManager::UpdatePacksForOobe(locale,
-                                                            base::DoNothing());
-  }
+  const std::string locale = GetApplicationLocale();
+  language_packs::LanguagePackManager::UpdatePacksForOobe(locale,
+                                                          base::DoNothing());
 
   if (demo_setup_controller_) {
     ShowConsolidatedConsentScreen();
@@ -2904,6 +2921,12 @@ bool WizardController::ExitFjordTouchControllerScreen() {
     ShowFjordStationSetupScreen();
     return true;
   }
+  // Return true if Station setup screen is showing because this means the TC
+  // setup screen was shown before this. This ensures that if the TC goes
+  // offline and online again, it can know if the TC setup screen was exited.
+  if (current_screen()->screen_id() == FjordStationSetupScreenView::kScreenId) {
+    return true;
+  }
 
   LOG(ERROR) << "Can't exit: Fjord touch controller screen is not showing.";
   return false;
@@ -2977,7 +3000,14 @@ void WizardController::OnDeviceDisabledChecked(bool device_disabled) {
   } else {
     PerformOOBECompletedActions(
         OobeMetricsHelper::CompletedPreLoginOobeFlowType::kRegular);
-    ShowPackagedLicenseScreen();
+
+    // Show the `PackagedLicenseScreen` if Auto-Enrollment check isn't forced
+    // or if OOBE is already completed. Otherwise, `SignInFatalErrorScreen` is
+    // expected to be shown if the forced check hasn't led to OOBE completion.
+    if (!features::IsOobeAutoEnrollmentCheckForcedEnabled() ||
+        StartupUtils::IsOobeCompleted()) {
+      ShowPackagedLicenseScreen();
+    }
   }
 }
 
@@ -3025,13 +3055,13 @@ void WizardController::StartTimezoneResolve() {
     return;
   }
 
-  SimpleGeolocationProvider::GetInstance()->RequestGeolocation(
+  SystemLocationProvider::GetInstance()->RequestGeolocation(
       base::Seconds(kResolveTimeZoneTimeoutSeconds),
       false /* send_wifi_geolocation_data */,
       false /* send_cellular_geolocation_data */,
       base::BindOnce(&WizardController::OnLocationResolved,
                      weak_factory_.GetWeakPtr()),
-      SimpleGeolocationProvider::ClientId::kWizardController);
+      SystemLocationProvider::ClientId::kWizardController);
 }
 
 void WizardController::PerformPostNetworkScreenActions() {
@@ -3047,6 +3077,25 @@ void WizardController::PerformOOBECompletedActions(
   // to enrollment screen (and back).
   if (StartupUtils::IsOobeCompleted()) {
     return;
+  }
+
+  if (features::IsOobeAutoEnrollmentCheckForcedEnabled()) {
+    // To prevent auto-enrollment bypass, check if `kAutoEnrollmentCheckExited`
+    // has been set. If it's false, the auto-enrollment check was not properly
+    // completed.
+    if (!GetLocalState()->GetBoolean(prefs::kAutoEnrollmentCheckExited)) {
+      GetLoginDisplayHost()
+          ->GetOobeMetricsHelper()
+          ->RecordOobeNotCompletedErrorTrigger(
+              OobeMetricsHelper::OobeNotCompletedTrigger::
+                  kPerformOobeCompletedAction);
+
+      // Show a fatal error and do not mark OOBE as completed.
+      ShowSignInFatalErrorScreen(
+          SignInFatalErrorScreen::Error::kOobeCompletionSkipped,
+          base::Value::Dict());
+      return;
+    }
   }
 
   StartupUtils::MarkOobeCompleted();

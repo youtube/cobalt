@@ -134,7 +134,7 @@ std::vector<CreditCard> GetTouchToFillCardsToSuggest(
 BnplSuggestionUpdateResult MaybeUpdateDesktopSuggestionsWithBnpl(
     const base::span<const Suggestion>& current_suggestions,
     std::vector<BnplIssuer> bnpl_issuers,
-    uint64_t extracted_amount_in_micros);
+    int64_t extracted_amount_in_micros);
 
 // Creates a suggestion for the BNPL issuer selection. `bnpl_issuers` is used to
 // set various properties of the suggestion including but not limited to the
@@ -143,7 +143,7 @@ BnplSuggestionUpdateResult MaybeUpdateDesktopSuggestionsWithBnpl(
 // suggestion to be used where necessary for the BNPL flow.
 Suggestion CreateBnplSuggestion(
     std::vector<BnplIssuer> bnpl_issuers,
-    std::optional<uint64_t> extracted_amount_in_micros);
+    std::optional<int64_t> extracted_amount_in_micros);
 
 // Generates touch-to-fill suggestions for all available credit cards to be
 // used in the bottom sheet. Benefits information, containing instrument IDs and
@@ -185,10 +185,6 @@ std::vector<Suggestion> GetSuggestionsForIbans(const std::vector<Iban>& ibans);
 // suggestions that can be displayed to the user for a promo code field.
 std::vector<Suggestion> GetPromoCodeSuggestionsFromPromoCodeOffers(
     const std::vector<const AutofillOfferData*>& promo_code_offers);
-
-//  Returns true if all the conditions for enabling the upload of credit card
-//  are satisfied.
-bool IsCreditCardUploadEnabled(const AutofillClient& client);
 
 // Returns true if the suggestion created from the card can be accepted by the
 // user. Returns false when merchant does not accept the given card for example
@@ -265,6 +261,25 @@ std::vector<CreditCard> GetOrderedCardsToSuggest(
     bool require_non_empty_value_on_trigger_field,
     bool include_virtual_cards);
 
+// Set the URL for the card art image to be shown in the `suggestion`.
+void SetCardArtURL(Suggestion& suggestion,
+                   const CreditCard& credit_card,
+                   const PaymentsDataManager& payments_data,
+                   bool virtual_card_option);
+
+// Return a nickname for the |card| to display. This is generally the nickname
+// stored in |card|, unless |card| exists as a local and a server copy. In
+// this case, we prefer the nickname of the local if it is defined. If only
+// one copy has a nickname, take that.
+std::u16string GetDisplayNicknameForCreditCard(
+    const CreditCard& card,
+    const PaymentsDataManager& payments_data);
+
+// Returns the benefit text to display in credit card suggestions if it is
+// available.
+std::optional<Suggestion::Text> GetCreditCardBenefitSuggestionLabel(
+    const CreditCard& credit_card,
+    const AutofillClient& client);
 }  // namespace autofill
 
 #endif  // COMPONENTS_AUTOFILL_CORE_BROWSER_SUGGESTIONS_PAYMENTS_PAYMENTS_SUGGESTION_GENERATOR_H_

@@ -378,13 +378,19 @@ void TouchToFillDelegateAndroidImpl::BnplSuggestionSelected(
     std::optional<int64_t> extracted_amount) {
   payments::BnplManager* bnpl_manager = manager_->GetPaymentsBnplManager();
   CHECK(bnpl_manager);
-  std::optional<uint64_t> final_extracted_amount;
-  if (extracted_amount.has_value()) {
-    final_extracted_amount = static_cast<uint64_t>(extracted_amount.value());
-  }
-  // TODO(crbug.com/430575808): Add callback when VCN fetching flow is ready.
-  bnpl_manager->OnDidAcceptBnplSuggestion(final_extracted_amount,
-                                          /*on_bnpl_vcn_fetched_callback=*/{});
+  bnpl_manager->OnDidAcceptBnplSuggestion(
+      extracted_amount,
+      /*on_bnpl_vcn_fetched_callback=*/base::BindOnce(
+          [](base::WeakPtr<TouchToFillDelegateAndroidImpl> delegate,
+             const CreditCard& card) {
+            if (delegate) {
+              delegate->manager_->FillOrPreviewForm(
+                  mojom::ActionPersistence::kFill, delegate->query_form_,
+                  delegate->query_field_.global_id(), &card,
+                  AutofillTriggerSource::kTouchToFillCreditCard);
+            }
+          },
+          GetWeakPtr()));
 }
 
 void TouchToFillDelegateAndroidImpl::IbanSuggestionSelected(
@@ -468,6 +474,11 @@ void TouchToFillDelegateAndroidImpl::OnBnplIssuerSuggestionSelected(
   }
 }
 
+void TouchToFillDelegateAndroidImpl::OnBnplTosAccepted() {
+  CHECK(bnpl_callbacks_.accept_tos_callback);
+  std::move(bnpl_callbacks_.accept_tos_callback).Run();
+}
+
 void TouchToFillDelegateAndroidImpl::LogTriggerOutcomeMetrics(
     const FormGlobalId& form_id,
     const FieldGlobalId& field_id,
@@ -520,6 +531,11 @@ void TouchToFillDelegateAndroidImpl::SetSelectedIssuerCallback(
     base::OnceCallback<void(BnplIssuer)> selected_issuer_callback) {
   bnpl_callbacks_.selected_issuer_callback =
       std::move(selected_issuer_callback);
+}
+
+void TouchToFillDelegateAndroidImpl::SetBnplTosAcceptCallback(
+    base::OnceClosure accept_tos_callback) {
+  bnpl_callbacks_.accept_tos_callback = std::move(accept_tos_callback);
 }
 
 base::WeakPtr<TouchToFillDelegateAndroidImpl>

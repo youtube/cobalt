@@ -744,9 +744,9 @@ void SessionStorageImpl::InitiateConnection(bool in_memory_only) {
     }
 
     in_memory_ = false;
-    database_ = AsyncDomStorageDatabase::OpenDirectory(
-        partition_directory_, database_name_, memory_dump_id_,
-        database_task_runner_,
+    database_ = AsyncDomStorageDatabase::Open(
+        StorageType::kSessionStorage, partition_directory_, database_name_,
+        memory_dump_id_, database_task_runner_,
         base::BindOnce(&SessionStorageImpl::OnDatabaseOpened,
                        weak_ptr_factory_.GetWeakPtr()));
     return;
@@ -754,8 +754,10 @@ void SessionStorageImpl::InitiateConnection(bool in_memory_only) {
 
   // We were not given a subdirectory. Use a memory backed database.
   in_memory_ = true;
-  database_ = AsyncDomStorageDatabase::OpenInMemory(
-      memory_dump_id_, "SessionStorageDatabase", database_task_runner_,
+  database_ = AsyncDomStorageDatabase::Open(
+      StorageType::kSessionStorage,
+      /*directory=*/base::FilePath(), "SessionStorageDatabase", memory_dump_id_,
+      database_task_runner_,
       base::BindOnce(&SessionStorageImpl::OnDatabaseOpened,
                      weak_ptr_factory_.GetWeakPtr()));
 }
@@ -791,7 +793,7 @@ void SessionStorageImpl::OnDatabaseOpened(DbStatus status) {
   }
 
   database_->RunDatabaseTask(
-      base::BindOnce([](DomStorageDatabase& db) {
+      base::BindOnce([](DomStorageDatabaseLevelDB& db) {
         ValueAndStatus version;
         version.status = db.Get(
             base::span(SessionStorageMetadata::kLevelDbSchemaVersionKeyBytes),
@@ -847,7 +849,7 @@ void SessionStorageImpl::OnGotDatabaseMetadata(
   // Write the version number for brand new empty databases.
   if (!version_parse.database_version) {
     database_->RunDatabaseTask(
-        base::BindOnce([](DomStorageDatabase& db) {
+        base::BindOnce([](DomStorageDatabaseLevelDB& db) {
           return db.Put(
               base::span(SessionStorageMetadata::kLevelDbSchemaVersionKeyBytes),
               SessionStorageMetadata::LatestDatabaseVersionAsVector());

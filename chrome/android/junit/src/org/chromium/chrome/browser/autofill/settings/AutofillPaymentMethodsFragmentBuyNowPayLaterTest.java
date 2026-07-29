@@ -41,6 +41,7 @@ import org.chromium.chrome.browser.device_reauth.ReauthenticatorBridge;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileManager;
+import org.chromium.components.autofill.payments.BankAccount;
 import org.chromium.components.payments.AndroidPaymentAppFactory;
 import org.chromium.components.payments.PackageManagerDelegate;
 import org.chromium.components.prefs.PrefService;
@@ -53,7 +54,7 @@ import java.util.List;
 /** JUnit tests of the class {@link AutofillPaymentMethodsFragment: Buy Now Pay Later} */
 @RunWith(BaseRobolectricTestRunner.class)
 @DisableFeatures({
-    ChromeFeatureList.AUTOFILL_ENABLE_SYNCING_OF_PIX_BANK_ACCOUNTS,
+    ChromeFeatureList.AUTOFILL_ENABLE_SEPARATE_PIX_PREFERENCE_ITEM,
     ChromeFeatureList.AUTOFILL_SYNC_EWALLET_ACCOUNTS,
     ChromeFeatureList.AUTOFILL_ENABLE_CVC_STORAGE,
     ChromeFeatureList.AUTOFILL_ENABLE_CARD_BENEFITS_FOR_AMERICAN_EXPRESS,
@@ -90,6 +91,7 @@ public class AutofillPaymentMethodsFragmentBuyNowPayLaterTest {
         when(mPersonalDataManager.getIbansForSettings()).thenReturn(new Iban[0]);
         when(mPersonalDataManager.shouldShowAddIbanButtonOnSettingsPage()).thenReturn(false);
         when(mPersonalDataManager.getCreditCardsForSettings()).thenReturn(Collections.emptyList());
+        when(mPersonalDataManager.getMaskedBankAccounts()).thenReturn(new BankAccount[0]);
         ResolveInfo alicePay = new ResolveInfo();
         alicePay.activityInfo = new ActivityInfo();
         alicePay.activityInfo.packageName = ALICEPAY_ACTIVITY_PACKAGE_NAME;

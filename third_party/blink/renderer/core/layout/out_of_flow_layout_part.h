@@ -24,6 +24,7 @@
 
 namespace blink {
 
+class AnchorEvaluatorImpl;
 class BlockBreakToken;
 class LayoutBox;
 class LayoutObject;
@@ -241,7 +242,7 @@ class CORE_EXPORT OutOfFlowLayoutPart {
     // position-try-fallbacks. We have to retain the IMCB to implement
     // position-try-order, which decides which of the various candidates styles
     // we should select based on the biggest IMCB size (in some axis).
-    std::optional<InsetModifiedContainingBlock> imcb_for_position_order;
+    std::optional<PhysicalSize> imcb_size_for_try_order;
 
     bool inline_size_depends_on_min_max_sizes = false;
 
@@ -328,8 +329,7 @@ class CORE_EXPORT OutOfFlowLayoutPart {
   AnchorEvaluatorImpl CreateAnchorEvaluator(
       const ContainingBlockInfo& container_info,
       const BlockNode& candidate,
-      bool is_inside_fragmentation_context,
-      const StitchedAnchorQueries* anchor_queries) const;
+      bool is_inside_fragmentation_context) const;
 
   LogicalRect ApplyPositionAreaOffsets(
       const LogicalRect& base_rect,
@@ -346,10 +346,8 @@ class CORE_EXPORT OutOfFlowLayoutPart {
 
   // TODO(almaher): We are calculating more than just the offset. Consider
   // changing this to a more accurate name.
-  OffsetInfo CalculateOffset(
-      const NodeInfo& node_info,
-      bool is_inside_fragmentation_context,
-      const StitchedAnchorQueries* anchor_queries = nullptr);
+  OffsetInfo CalculateOffset(const NodeInfo& node_info,
+                             bool is_inside_fragmentation_context);
   // Calculates offsets with the given ComputedStyle. Returns nullopt if
   // |try_fit_available_space| is true and the layout result does not fit the
   // available space.
@@ -447,9 +445,6 @@ class CORE_EXPORT OutOfFlowLayoutPart {
   const BlockBreakToken* PreviousFragmentainerBreakToken(wtf_size_t) const;
 
   BoxFragmentBuilder* container_builder_;
-  // The OutOfFlowLayoutPart for the outer block fragmentation context when this
-  // is an inner layout of nested block fragmentation.
-  OutOfFlowLayoutPart* outer_oof_layout_part_ = nullptr;
   ContainingBlockInfo default_containing_block_;
   std::optional<ContainingBlockInfo> viewport_containing_block_;
   HeapHashMap<Member<const LayoutObject>, ContainingBlockInfo>

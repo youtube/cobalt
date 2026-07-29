@@ -15,7 +15,6 @@
 #include "chrome/browser/ui/toolbar/toolbar_action_view_delegate.h"
 #include "chrome/browser/ui/toolbar/toolbar_actions_model.h"
 #include "chrome/browser/ui/views/extensions/extension_action_platform_delegate_views.h"
-#include "chrome/browser/ui/views/toolbar/toolbar_action_view_delegate_views.h"
 #include "chrome/browser/ui/webui/util/image_util.h"
 #include "chrome/browser/ui/webui_browser/webui_browser_ui.h"
 #include "chrome/browser/ui/webui_browser/webui_browser_window.h"
@@ -37,7 +36,7 @@ GURL GetDataUrlForImageModel(ui::ImageModel icon_model,
 }  // namespace
 
 class WebUIBrowserExtensionsContainer::ActionInfo
-    : public ToolbarActionViewDelegateViews {
+    : public ToolbarActionViewDelegate {
  public:
   ActionInfo(WebUIBrowserExtensionsContainer& extensions_container,
              Browser& browser,
@@ -111,7 +110,8 @@ class WebUIBrowserExtensionsContainer::ContextMenu {
       return nullptr;
     }
 
-    return base::WrapUnique(new ContextMenu(action_id, *it->second, model));
+    return base::WrapUnique(
+        new ContextMenu(action_id, *it->second, model, extensions_container));
   }
 
   // This is in two steps so that `context_menu_` in the container gets
@@ -124,9 +124,7 @@ class WebUIBrowserExtensionsContainer::ContextMenu {
     menu_runner_ =
         std::make_unique<views::MenuRunner>(std::move(menu), run_types);
 
-    action_info_->controller()->OnContextMenuShown(
-        extensions::ExtensionContextMenuModel::ContextMenuSource::
-            kToolbarAction);
+    extensions_container_->OnContextMenuShownFromToolbar(action_id_);
 
     menu_runner_->RunMenuAt(main_widget, nullptr,
                             action_info_->GetAnchor()->GetScreenBounds(),
@@ -138,8 +136,11 @@ class WebUIBrowserExtensionsContainer::ContextMenu {
  private:
   ContextMenu(const std::string& action_id,
               ActionInfo& action_info,
-              ui::MenuModel* model)
-      : action_id_(action_id), action_info_(action_info) {
+              ui::MenuModel* model,
+              WebUIBrowserExtensionsContainer& extensions_container)
+      : action_id_(action_id),
+        action_info_(action_info),
+        extensions_container_(extensions_container) {
     menu_adapter_ = std::make_unique<views::MenuModelAdapter>(
         model, base::BindRepeating(&ContextMenu::OnMenuClosed,
                                    weak_ptr_factory_.GetWeakPtr()));
@@ -150,13 +151,12 @@ class WebUIBrowserExtensionsContainer::ContextMenu {
     menu_adapter_.reset();
 
     // This will delete us.
-    action_info_->controller()->OnContextMenuClosed(
-        extensions::ExtensionContextMenuModel::ContextMenuSource::
-            kToolbarAction);
+    extensions_container_->OnContextMenuClosedFromToolbar();
   }
 
   std::string action_id_;
   const raw_ref<ActionInfo> action_info_;
+  const raw_ref<WebUIBrowserExtensionsContainer> extensions_container_;
   std::unique_ptr<views::MenuModelAdapter> menu_adapter_;
   std::unique_ptr<views::MenuRunner> menu_runner_;
 
@@ -266,12 +266,6 @@ void WebUIBrowserExtensionsContainer::ToggleExtensionsMenu() {
 
 bool WebUIBrowserExtensionsContainer::HasAnyExtensions() const {
   return !actions_.empty();
-}
-
-void WebUIBrowserExtensionsContainer::UpdateToolbarActionHoverCard(
-    ToolbarActionView* action_view,
-    ToolbarActionHoverCardUpdateType update_type) {
-  NOTIMPLEMENTED();
 }
 
 void WebUIBrowserExtensionsContainer::ShowContextMenuAsFallback(
@@ -426,7 +420,7 @@ void WebUIBrowserExtensionsContainer::CreateActionForId(
   auto action_info = std::make_unique<ActionInfo>(
       *this, browser_.get(),
       ExtensionActionViewController::Create(
-          action_id, &browser_.get(), this,
+          action_id, &browser_.get(),
           std::make_unique<ExtensionActionPlatformDelegateViews>(
               &browser_.get(), this)));
   action_info->controller()->RegisterCommand();

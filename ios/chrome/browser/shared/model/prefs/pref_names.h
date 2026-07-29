@@ -307,15 +307,15 @@ inline constexpr char
 inline constexpr char kIosMiniMapShowNativeMap[] =
     "ios.mini_map.show_native_map";
 
-// The number of consecutive times the user dismissed the password bottom sheet.
-// This gets reset to 0 whenever the user selects a password from the bottom
-// sheet or from the keyboard accessory.
+// The number of consecutive times the user dismissed the credential bottom
+// sheet. This gets reset to 0 whenever the user selects a password from the
+// bottom sheet or from the keyboard accessory.
 inline constexpr char kIosPasswordBottomSheetDismissCount[] =
     "ios.password_bottom_sheet_dismiss_count";
 
-// The number of consecutive times the user dismissed the password bottom sheet.
-// This gets reset to 0 whenever the user selects the generated password from
-// the bottom sheet or from the keyboard accessory.
+// The number of consecutive times the user dismissed the password generation
+// bottom sheet. This gets reset to 0 whenever the user selects the generated
+// password from the bottom sheet or from the keyboard accessory.
 inline constexpr char kIosPasswordGenerationBottomSheetDismissCount[] =
     "ios.password_generation_bottom_sheet_dismiss_count";
 
@@ -797,6 +797,10 @@ inline constexpr char kLastGeminiInteractionTimestamp[] =
 // The URL where the user last had a Gemini interaction.
 inline constexpr char kLastGeminiInteractionURL[] =
     "ios.gemini.last_interaction_url";
+
+// Timestamp tracking the last time the Gemini contextual chip was displayed.
+inline constexpr char kLastGeminiContextualChipDisplayedTimestamp[] =
+    "ios.gemini.last_contextual_chip_displayed";
 
 // A string specifying the active conversation ID.
 inline constexpr char kGeminiConversationId[] = "ios.gemini.conversation_id";

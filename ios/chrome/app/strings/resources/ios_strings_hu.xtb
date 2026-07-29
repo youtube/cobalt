@@ -133,6 +133,7 @@
 <translation id="1492417797159476138">Már elmentette ezt a felhasználónevet ehhez a webhelyhez</translation>
 <translation id="1497590942294823549">Menü → Jelszókezelő</translation>
 <translation id="1498283581832036924"><ph name="WEBSITE" />-fiókja nem törlődik.</translation>
+<translation id="1503814213414825943">Válassza ki azokat a fiókokat, amelyeket egy másik alkalmazásba szeretne exportálni.</translation>
 <translation id="1506061864768559482">Keresőmotor</translation>
 <translation id="1506063256525392513">Lehetővé teszi fotók készítését és feltöltését, valamint QR-kódok beolvasását</translation>
 <translation id="1508263560970797965">Folytatás inkognitó módban</translation>
@@ -238,7 +239,6 @@
 <translation id="188237709236611317">Menüsor intelligens rendezése</translation>
 <translation id="1883255238294161206">Lista bezárása</translation>
 <translation id="1888854257756214946">Jelszó kiválasztása…</translation>
-<translation id="1889872080060107187">Bejelentkezik ide: <ph name="URL" /></translation>
 <translation id="1890237935065108104">Ez a beállítás nem áll rendelkezésre.</translation>
 <translation id="1894023287452300670">Itt követheti nyomon az árat</translation>
 <translation id="189531189292803889">Nemrégiben helyreállították iPad eszközét, ami megváltoztathatta az alapértelmezett böngészőt.</translation>
@@ -277,6 +277,7 @@
 <translation id="199425419756152024">Jelszó mutatása</translation>
 <translation id="1996318269856535896">Továbbra is használhatja az ezen az eszközön meglévő böngészési adatait. A használatukhoz jelentkezzen ki a felügyelt fiókból.</translation>
 <translation id="2010008505735295285">Újratöltés</translation>
+<translation id="2012723204723845092">Üdvözöljük ismét!</translation>
 <translation id="2015722694326466240">A jelszavak megtekintéséhez előbb be kell állítania az eszközön a biztonsági kódot.</translation>
 <translation id="201759455285471444">Lapcsoport kibontása.</translation>
 <translation id="202070562065520783">Magyarázd ezt el nekem</translation>
@@ -647,6 +648,7 @@
 <translation id="3530024057633834563">Nincsenek mentett jelszavai vagy azonosítókulcsai, de törölheti azon webhelyek és alkalmazások listáját, amelyeknél úgy döntött, hogy soha nem menti a bejelentkezési adatokat. A webhelyekhez és alkalmazásokhoz létrehozott fiókok nem törlődnek.</translation>
 <translation id="3530206579861815432">Gyorsan megtalálhatja a megnyitott és a nemrégiben bezárt lapokat a szinkronizált eszközökön.</translation>
 <translation id="3530767473765895035">Fiókok kezelése ezen az eszközön…</translation>
+<translation id="353340646084395154">Az Új lap oldal beállításai eltávolítva</translation>
 <translation id="3533436815740441613">Új lap</translation>
 <translation id="3540141921715814660">Hozzáadás a könyvjelzőkhöz</translation>
 <translation id="3546122170015471515">Térkép-előzetesek a Google.com-on</translation>
@@ -675,6 +677,7 @@
 <translation id="3642060527569456384">A rendszer automatikusan menti a lapcsoportokat, és frissíti őket az Ön összes eszközén.</translation>
 <translation id="3643338347976071250">{count,plural, =1{{count} jelszót csak erre az eszközre ment a rendszer. Ha a többi eszközén is használni szeretné, mentse Google-fiókjába ({email}).}other{{count} jelszót csak erre az eszközre ment a rendszer. Ha a többi eszközén is használni szeretné őket, mentse őket Google-fiókjába ({email}).}}</translation>
 <translation id="3659297405161482746">Nem találhatók fizetési módok</translation>
+<translation id="3662966164093827811">{count,plural, =1{1 kiválasztva}other{# kiválasztva}}</translation>
 <translation id="3668816008081204991">Az Olvasólista el van rejtve</translation>
 <translation id="3670030362669914947">Szám</translation>
 <translation id="3679163990085797665">Olvasottak törlése</translation>
@@ -739,6 +742,7 @@
 <translation id="3926703470020109118">Letöltés megszakítva</translation>
 <translation id="3929457972718048006">Címek</translation>
 <translation id="3931215329146376310">{count,plural, =1{Új jelszó ehhez a webhelyhez}other{Új jelszavak ehhez a webhelyhez}}</translation>
+<translation id="3933372629914873850">Bejelentkezik ide: <ph name="URL" /></translation>
 <translation id="3934905113567851655">Húzza össze ujjait az átméretezéshez</translation>
 <translation id="3940195383040445971">Árkövetés a megnyitott lapokon</translation>
 <translation id="3941941395924123592">{COUNT,plural, =1{{COUNT} lap bezárása}other{{COUNT} lap bezárása}}</translation>
@@ -1000,6 +1004,7 @@
 <translation id="4894963374040315706">Lehetővé teszi a hangalapú keresés használatát</translation>
 <translation id="4895540042460820904">Utoljára megnyitva</translation>
 <translation id="4896467949657706481">A lapok bezáródtak, a rendszer pedig kijelentkeztette Önt</translation>
+<translation id="4911042367886397055">Üdvözöljük ismét, <ph name="USER_NAME" />!</translation>
 <translation id="4913626501929406101">Biztonságosan megoszthatja jelszavának másolatát a családi csoportja tagjaival. <ph name="BEGIN_LINK" />További információ<ph name="END_LINK" />.</translation>
 <translation id="4917025507570489430">A meglévő böngészési adatokat akkor használhatja, ha a(z) <ph name="USER_EMAIL" /> címmel van bejelentkezve. A szervezete láthatja ezeket az adatokat.</translation>
 <translation id="4918086044614829423">Elfogadás</translation>
@@ -1051,6 +1056,7 @@
 <translation id="508645147179720015">A megjegyzés több mint 1000 karakterből áll</translation>
 <translation id="5087098519049306025">Árfigyelés</translation>
 <translation id="5090832849094901128">A jelszó eltávolításával nem törli fiókját a következő domainről: <ph name="WEBSITE" />.</translation>
+<translation id="5113960131843706315">Adatainak betöltése folyamatban van…</translation>
 <translation id="5118462200606189584">Fiók hozzáadása…</translation>
 <translation id="5118764316110575523">Ki</translation>
 <translation id="5119329531859909472">A termék nyomon követéséhez koppintson a Nyomon követés elemre</translation>
@@ -1096,6 +1102,7 @@
 <translation id="5242899254250321823">Jelszómódosítás a webhelyen</translation>
 <translation id="5248640482715684545">Ez a webhely egy másik alkalmazást próbál megnyitni.</translation>
 <translation id="5250371859659394278">Ismeretlen forrásból</translation>
+<translation id="5269913829202614649">Kezdőlap személyre szabása</translation>
 <translation id="5271265092610673171">{count,plural, =1{Egy kötelező mező üres. A mentés előtt töltse ki.}other{Néhány kötelező mező üres. A mentés előtt töltse ki őket.}}</translation>
 <translation id="5271549068863921519">Jelszó mentése</translation>
 <translation id="5275912569557792098"><ph name="USER_NAME" /> (<ph name="USER_EMAIL" />) arra kéri, hogy csatlakozzon egy lapcsoporthoz. A link birtokában bárki szerkesztheti az összes lapot, ezért legyen körültekintő a csatlakozáskor. A link 48 óra múlva lejár.</translation>
@@ -1120,6 +1127,7 @@
 <translation id="537853552771686272">Az Önt érdeklő témák és webhelyek kezelése</translation>
 <translation id="5390458669633674385">{count,plural, =1{{count} bezárva}other{{count} bezárva}}</translation>
 <translation id="5394975111793637642">A „Termékvélemények Önnek” kártya elrejtése</translation>
+<translation id="5407806496954700135">Szeretné alkalmazni az Új lap oldal saját testreszabásait egy másik eszközről?</translation>
 <translation id="5414763847370083940">Ha bármelyik webhelyen csökken az ár, Ön értesítést kap róla.</translation>
 <translation id="5415289094036440596">Az azonosítókulcsok nem oszthatók meg</translation>
 <translation id="5416455648658732408">Áthelyezés lapcsoportba</translation>
@@ -1324,6 +1332,7 @@ Az Átadást engedélyezni kell a Beállítások általános részében is, és 
 <translation id="6103540626693881831">Eszközalapú titkosítás</translation>
 <translation id="611361228753138223">Az ezen az eszközön nemrégiben felkeresett webhelyek</translation>
 <translation id="611705554202268369">Lapcsoporthoz való hozzáadáshoz nyomja meg hosszan</translation>
+<translation id="6117260878488959646">Hiba történt. Próbálja újra később.</translation>
 <translation id="6122191549521593678">Online</translation>
 <translation id="6122831415929794347">Kikapcsolja a Biztonságos Böngészést?</translation>
 <translation id="6123514585040403489">A rendszer bezárja a lapokat</translation>
@@ -1346,6 +1355,7 @@ Az Átadást engedélyezni kell a Beállítások általános részében is, és 
 <translation id="6172428250974276014">Igen, legyenek elkülönítve az adatok (ajánlott)</translation>
 <translation id="6173499589275053515">Jelszó mentve a Google-fiókjába (<ph name="EMAIL" />)</translation>
 <translation id="6181969657494915430">Keresés a képernyőn</translation>
+<translation id="6182851675249594487">Egyéni színösszeállítás</translation>
 <translation id="6187302354554850004">Utolsó szinkron.: <ph name="LAST_USED_TIME" /></translation>
 <translation id="6188737759358894319">Létrehozás dátuma: <ph name="DATE" /></translation>
 <translation id="6189413832092199491">Olvasatlan</translation>
@@ -1420,7 +1430,6 @@ Az Átadást engedélyezni kell a Beállítások általános részében is, és 
 <translation id="6418346271604475326">PDF előkészítése</translation>
 <translation id="6421038304268477484">Lefordított szöveg</translation>
 <translation id="6429213933892582367">A Jelszóbeállítások megnyitása</translation>
-<translation id="6434591244308415567">Hiba történt, próbálja újra később.</translation>
 <translation id="6435236283694032571">Hozzáadás az Olvasólistához</translation>
 <translation id="6435307030888827407">Kijelentkezve maradok</translation>
 <translation id="6436318499800111867">Velem megosztva: <ph name="SHARED_WITH_ME_DATE" /></translation>
@@ -1755,6 +1764,7 @@ Az Átadást engedélyezni kell a Beállítások általános részében is, és 
 <translation id="7696316012653762532">Az oldal lefordításával kapcsolatos beállítások</translation>
 <translation id="7700527812567437847">Keresés a képernyőn a Google Lens segítségével</translation>
 <translation id="7701040980221191251">Nincs</translation>
+<translation id="7708668404222666001">Az új lap oldal beállításai alkalmazva</translation>
 <translation id="7708994397325774423">Az összes jelszó lekérése</translation>
 <translation id="7711440461521638739">Ön egyetlen jelszót sem használ fel újra</translation>
 <translation id="7712361583414030698">Offline verzió megjelenítve</translation>

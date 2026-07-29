@@ -61,7 +61,14 @@ class NET_EXPORT Session {
 
   const KeyIdOrError& unexportable_key_id() const { return key_id_or_error_; }
 
-  bool ShouldDeferRequest(
+  // Return whether `request` is in-scope for this session.
+  bool IsInScope(URLRequest* request);
+
+  // Returns the minimum remaining lifetime over all the bound cookies
+  // on `request`. If any cookie is missing, the lifetime will be
+  // zero. If no cookies would be included on the request, the lifetime
+  // will be `base::TimeDelta::Max()`
+  base::TimeDelta MinimumBoundCookieLifetime(
       URLRequest* request,
       const FirstPartySetMetadata& first_party_set_metadata);
 
@@ -80,6 +87,10 @@ class NET_EXPORT Session {
   bool should_defer_when_expired() const { return should_defer_when_expired_; }
 
   const std::vector<CookieCraving>& cookies() const { return cookie_cravings_; }
+
+  bool attempted_proactive_refresh_since_last_success() const {
+    return attempted_proactive_refresh_since_last_success_;
+  }
 
   bool IsEqualForTesting(const Session& other) const;
 
@@ -107,8 +118,9 @@ class NET_EXPORT Session {
   bool ShouldBackoff() const;
 
   // Inform the session about a refresh so it can decide whether to
-  // enter backoff mode.
-  void InformOfRefreshResult(SessionError::ErrorType error_type);
+  // ignore future opportunities to refresh.
+  void InformOfRefreshResult(bool was_proactive,
+                             SessionError::ErrorType error_type);
 
   // Returns whether `request` would be allowed to set any bound
   // cookies. This is a prerequisite for certain kinds of changes to
@@ -191,6 +203,8 @@ class NET_EXPORT Session {
   std::optional<base::Time> last_proactive_refresh_opportunity_;
   std::optional<base::TimeDelta>
       last_proactive_refresh_opportunity_minimum_cookie_lifetime_;
+
+  bool attempted_proactive_refresh_since_last_success_ = false;
 };
 
 }  // namespace net::device_bound_sessions

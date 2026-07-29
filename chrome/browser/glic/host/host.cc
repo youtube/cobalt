@@ -21,6 +21,7 @@
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/widget/glic_window_controller.h"
 #include "chrome/common/chrome_features.h"
+#include "components/autofill/core/browser/integrators/glic/actor_form_filling_types.h"
 #include "components/guest_view/browser/guest_view_base.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
@@ -144,7 +145,8 @@ void Host::PanelWillOpen(mojom::InvocationSource invocation_source,
             ? mojom::PanelOpeningData::New(
                   glic_instance_->GetPanelState().Clone(), invocation_source,
                   std::move(options.conversation_id),
-                  std::move(options.prompt_suggestion))
+                  std::move(options.prompt_suggestion),
+                  std::move(options.recently_active_conversations))
             : mojom::PanelOpeningData::New(),
         base::BindOnce(
             &Host::PanelWillOpenComplete,
@@ -306,10 +308,14 @@ void Host::SetWebClient(GlicWebClientAccess* web_client) {
   handler_info_->web_client = web_client;
   if (invocation_source_ && web_client) {
     std::optional<std::string> conversation_id, prompt_suggestion;
+    std::optional<std::vector<mojom::ConversationInfoPtr>>
+        recently_active_conversations;
     if (pending_panel_open_options_) {
       conversation_id = std::move(pending_panel_open_options_->conversation_id);
       prompt_suggestion =
           std::move(pending_panel_open_options_->prompt_suggestion);
+      recently_active_conversations =
+          std::move(pending_panel_open_options_->recently_active_conversations);
       pending_panel_open_options_.reset();
     }
     web_client->PanelWillOpen(
@@ -317,7 +323,8 @@ void Host::SetWebClient(GlicWebClientAccess* web_client) {
             glic_instance_ ? glic_instance_->GetPanelState().Clone()
                            : mojom::PanelState::New(),
             *invocation_source_, std::move(conversation_id),
-            std::move(prompt_suggestion)),
+            std::move(prompt_suggestion),
+            std::move(recently_active_conversations)),
         base::BindOnce(
             &Host::PanelWillOpenComplete,
             // Unretained is safe because web client is owned by `contents_`.
@@ -435,6 +442,12 @@ void Host::SendViewChangeRequest(mojom::ViewChangeRequestPtr change_request) {
   }
 }
 
+void Host::NotifyInstanceActivationChanged(bool is_active) {
+  if (handler_info_ && handler_info_->web_client) {
+    handler_info_->web_client->NotifyInstanceActivationChanged(is_active);
+  }
+}
+
 void Host::NotifyAdditionalContext(mojom::AdditionalContextPtr context) {
   if (auto* client = GetPrimaryWebClient()) {
     client->NotifyAdditionalContext(std::move(context));
@@ -518,6 +531,75 @@ mojom::PanelState Host::GetPanelState(GlicWebClientAccess* client) const {
   return glic_instance_ ? glic_instance_->GetPanelState() : mojom::PanelState();
 }
 
+void Host::RequestToShowCredentialSelectionDialog(
+    actor::TaskId task_id,
+    const base::flat_map<std::string, gfx::Image>& icons,
+    const std::vector<actor_login::Credential>& credentials,
+    actor::ActorTaskDelegate::CredentialSelectedCallback callback) {
+  if (!IsReady()) {
+    std::move(callback).Run(
+        actor::webui::mojom::SelectCredentialDialogResponse::New());
+    return;
+  }
+  handler_info_->web_client->RequestToShowCredentialSelectionDialog(
+      task_id, icons, credentials, std::move(callback));
+}
+
+void Host::RequestToShowUserConfirmationDialog(
+    actor::TaskId task_id,
+    const url::Origin& navigation_origin,
+    actor::ActorTaskDelegate::UserConfirmationDialogCallback callback) {
+  if (!IsReady()) {
+    std::move(callback).Run(
+        actor::webui::mojom::UserConfirmationDialogResponse::New(
+            actor::webui::mojom::ConfirmationRequestResult::
+                NewPermissionGranted(/*value=*/false)));
+    return;
+  }
+  handler_info_->web_client->RequestToShowUserConfirmationDialog(
+      task_id, navigation_origin, std::move(callback));
+}
+
+void Host::RequestToConfirmNavigation(
+    actor::TaskId task_id,
+    const url::Origin& navigation_origin,
+    actor::ActorTaskDelegate::NavigationConfirmationCallback callback) {
+  if (!IsReady()) {
+    std::move(callback).Run(
+        actor::webui::mojom::NavigationConfirmationResponse::New(
+            actor::webui::mojom::ConfirmationRequestResult::
+                NewPermissionGranted(/*value=*/false)));
+    return;
+  }
+  handler_info_->web_client->RequestToConfirmNavigation(
+      task_id, navigation_origin, std::move(callback));
+}
+
+void Host::RequestToShowAutofillSuggestionsDialog(
+    actor::TaskId task_id,
+    std::vector<autofill::ActorFormFillingRequest> requests,
+    actor::ActorTaskDelegate::AutofillSuggestionSelectedCallback callback) {
+  if (!IsReady()) {
+    std::move(callback).Run(
+        actor::webui::mojom::SelectAutofillSuggestionsDialogResponse::New(
+            task_id.value(),
+            actor::webui::mojom::SelectAutofillSuggestionsDialogResult::
+                NewErrorReason(actor::webui::mojom::
+                                   SelectAutofillSuggestionsDialogErrorReason::
+                                       kDialogPromiseNoSubscriber)));
+    return;
+  }
+  handler_info_->web_client->RequestToShowAutofillSuggestionsDialog(
+      task_id, std::move(requests), std::move(callback));
+}
+
+void Host::FloatingPanelCanAttachChanged(bool can_attach) {
+  if (!IsReady()) {
+    return;
+  }
+  handler_info_->web_client->FloatingPanelCanAttachChanged(can_attach);
+}
+
 HostManager::HostManager(Profile* profile,
                          base::WeakPtr<GlicWindowController> window_controller)
     : profile_(profile),
@@ -592,7 +674,7 @@ Host* HostManager::WebUIPageHandlerAdded(GlicPageHandler* page_handler) {
   // In multi-instance mode, no instance is used for now. We should consider
   // just creating new instances for these hosts.
   GlicInstance* glic_instance = nullptr;
-  if (!base::FeatureList::IsEnabled(features::kGlicMultiInstance)) {
+  if (!GlicEnabling::IsMultiInstanceEnabledByFlags()) {
     glic_instance =
         static_cast<GlicWindowControllerInterface*>(window_controller_.get());
   }

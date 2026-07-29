@@ -197,10 +197,6 @@ class CORE_EXPORT InputType : public GarbageCollected<InputType> {
                                 ExceptionState&) const;
   virtual void SetValueAsDecimal(const Decimal&, TextFieldEventBehavior) const;
 
-  // Function that converts sanitized UI string value to its internal
-  // representation for use in the input's state.
-  virtual String ConvertFromVisibleValue(const String&) const;
-
   // Functions related to 'checked'
 
   virtual void ReadingChecked() const;
@@ -304,6 +300,7 @@ class CORE_EXPORT InputType : public GarbageCollected<InputType> {
   virtual bool HasLegalLinkAttribute(const QualifiedName&) const;
   virtual void CopyNonAttributeProperties(const HTMLInputElement&);
   virtual void OnAttachWithLayoutObject();
+  virtual bool SupportsBaseAppearance(Element::BaseAppearanceValue value) const;
 
   // Parses the specified string for the type, and return
   // the Decimal value for the parsing result if the parsing

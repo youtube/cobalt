@@ -33,34 +33,46 @@ class ExtensionsMenuViewPlatformDelegate {
 
   // Notifies the delegate that the host access request for
   // `extension_id` was removed.
-  // TODO(crbug.com/449814184): Rename to `OnHostAccessRequestAdded` after we
-  // finish migrating all PermissionsManager::Observer method from the platform
-  // delegate to the model, since same name causes parameter type mismatch.
-  virtual void OnAccessRequestRemoved(
+  virtual void OnHostAccessRequestRemoved(
       const extensions::ExtensionId& extension_id) = 0;
 
   // Notifies the delegate that host access requests on the current site were
   // cleared.
-  // TODO(crbug.com/449814184): Rename to `OnHostAccessRequestCleared` after we
-  // finish migrating all PermissionsManager::Observer method from the platform
-  // delegate to the model, since same name causes parameter type mismatch.
-  virtual void OnAccessRequestsCleared() = 0;
+  virtual void OnHostAccessRequestsCleared() = 0;
 
   // Notifies the delegate that the host access requests for `extension_id` on
   // the current site was dismissed.
-  // TODO(crbug.com/449814184): Rename to `OnHostAccessRequestDismissedByUser`
+  virtual void OnHostAccessRequestDismissedByUser(
+      const extensions::ExtensionId& extension_id) = 0;
+
+  virtual void OnShowHostAccessRequestsInToolbarChanged(
+      const extensions::ExtensionId& extension_id,
+      bool can_show_requests) = 0;
+
+  // Notifies the delegate that a new toolbar action was added.
+  virtual void OnToolbarActionAdded(
+      const ToolbarActionsModel::ActionId& action_id) = 0;
+
+  // Notifies the delegate that toolbar action with `action_id` was removed.
+  virtual void OnToolbarActionRemoved(
+      const ToolbarActionsModel::ActionId& action_id) = 0;
+
+  // Notifies the delegate that a toolbar action was updated.
+  virtual void OnToolbarActionUpdated() = 0;
+
+  // Notifies the delegate that the toolbar actions model was initialized
+  virtual void OnToolbarModelInitialized() = 0;
+
+  // Notifies the delegate that the pinned toolbar actions have changed
+  virtual void OnToolbarPinnedActionsChanged() = 0;
+
+  // Notifies the delegate that the user permissions settings changed on the
+  // current site.
+  // TODO(crbug.com/449814184): Rename to `OnUserPermissionsSettingsChanged`
   // after we finish migrating all PermissionsManager::Observer method from the
   // platform delegate to the model, since same name causes parameter type
   // mismatch.
-  virtual void OnAccessRequestDismissedByUser(
-      const extensions::ExtensionId& extension_id) = 0;
-
-  // Notifies the delegate that a new toolbar action was added.
-  // TODO(crbug.com/449814184): Rename to `OnToolbarActionAdded` after we
-  // finish migrating all ToolbarActionsModel::Observer method from the platform
-  // delegate to the model, since same name causes parameter type mismatch.
-  virtual void OnActionAdded(
-      const ToolbarActionsModel::ActionId& action_id) = 0;
+  virtual void OnPermissionsSettingsChanged() = 0;
 };
 
 #endif  // CHROME_BROWSER_UI_EXTENSIONS_EXTENSIONS_MENU_VIEW_PLATFORM_DELEGATE_H_

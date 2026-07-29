@@ -21,6 +21,8 @@
 #import "ios/chrome/browser/affiliations/model/ios_chrome_affiliation_service_factory.h"
 #import "ios/chrome/browser/autofill/model/personal_data_manager_factory.h"
 #import "ios/chrome/browser/bookmarks/model/bookmark_model_factory.h"
+#import "ios/chrome/browser/data_import/ui/data_import_import_stage_transition_handler.h"
+#import "ios/chrome/browser/data_import/ui/import_data_item_table_view.h"
 #import "ios/chrome/browser/favicon/model/ios_chrome_favicon_loader_factory.h"
 #import "ios/chrome/browser/history/model/history_service_factory.h"
 #import "ios/chrome/browser/passwords/model/ios_chrome_account_password_store_factory.h"
@@ -31,11 +33,9 @@
 #import "ios/chrome/browser/safari_data_import/public/metrics.h"
 #import "ios/chrome/browser/safari_data_import/public/password_import_item.h"
 #import "ios/chrome/browser/safari_data_import/public/safari_data_import_stage.h"
-#import "ios/chrome/browser/safari_data_import/ui/safari_data_import_import_stage_transition_handler.h"
 #import "ios/chrome/browser/safari_data_import/ui/safari_data_import_import_view_controller.h"
 #import "ios/chrome/browser/safari_data_import/ui/safari_data_import_password_conflict_resolution_view_controller.h"
 #import "ios/chrome/browser/safari_data_import/ui/safari_data_invalid_passwords_view_controller.h"
-#import "ios/chrome/browser/safari_data_import/ui/safari_data_item_table_view.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/sync/model/sync_service_factory.h"
@@ -53,7 +53,7 @@ constexpr NSInteger kExpectedItemsCount = 4;
 
 @interface SafariDataImportImportCoordinator () <
     PromoStyleViewControllerDelegate,
-    SafariDataImportImportStageTransitionHandler,
+    DataImportImportStageTransitionHandler,
     UITableViewDelegate>
 
 /// The mediator handling the interaction with the model. Lazily loaded with
@@ -77,7 +77,7 @@ constexpr NSInteger kExpectedItemsCount = 4;
   /// File picker for the user to select Safari data.
   UIDocumentPickerViewController* _documentProvider;
   /// Table view  that displays the import status of Safari data.
-  SafariDataItemTableView* _tableView;
+  ImportDataItemTableView* _tableView;
 }
 
 @synthesize mediator = _mediator;
@@ -101,7 +101,7 @@ constexpr NSInteger kExpectedItemsCount = 4;
       [[SafariDataImportImportViewController alloc] init];
   _containerViewController.delegate = self;
   _tableView =
-      [[SafariDataItemTableView alloc] initWithItemCount:kExpectedItemsCount];
+      [[ImportDataItemTableView alloc] initWithItemCount:kExpectedItemsCount];
   _tableView.delegate = self;
   _tableView.importStageTransitionHandler = self;
   _containerViewController.itemTableView = _tableView;
@@ -249,7 +249,7 @@ constexpr NSInteger kExpectedItemsCount = 4;
   [self dismissWorkflow];
 }
 
-#pragma mark - SafariDataImportImportStageTransitionHandler
+#pragma mark - DataImportImportStageTransitionHandler
 
 - (void)transitionToNextImportStage {
   CHECK_NE(self.importStage, SafariDataImportStage::kImported)

@@ -1087,6 +1087,10 @@ const char* FromDawnEnum(wgpu::WGSLLanguageFeatureName dawn_enum) {
       return "unrestricted_pointer_parameters";
     case wgpu::WGSLLanguageFeatureName::PointerCompositeAccess:
       return "pointer_composite_access";
+    case wgpu::WGSLLanguageFeatureName::UniformBufferStandardLayout:
+      return "uniform_buffer_standard_layout";
+    case wgpu::WGSLLanguageFeatureName::SubgroupId:
+      return "subgroup_id";
 
     // Non-standard.
     case wgpu::WGSLLanguageFeatureName::ChromiumTestingUnimplemented:

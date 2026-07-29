@@ -421,22 +421,22 @@ class WebContentsObserverProxy extends WebContentsObserver {
 
     @Override
     @CalledByNative
-    public void mediaStartedPlaying() {
+    public void mediaStartedPlaying(int id, boolean hasAudio, boolean hasVideo) {
         handleObserverCall();
         Iterator<WebContentsObserver> observersIterator = mObservers.iterator();
         for (; observersIterator.hasNext(); ) {
-            observersIterator.next().mediaStartedPlaying();
+            observersIterator.next().mediaStartedPlaying(id, hasAudio, hasVideo);
         }
         finishObserverCall();
     }
 
     @Override
     @CalledByNative
-    public void mediaStoppedPlaying() {
+    public void mediaStoppedPlaying(int id) {
         handleObserverCall();
         Iterator<WebContentsObserver> observersIterator = mObservers.iterator();
         for (; observersIterator.hasNext(); ) {
-            observersIterator.next().mediaStoppedPlaying();
+            observersIterator.next().mediaStoppedPlaying(id);
         }
         finishObserverCall();
     }
@@ -480,8 +480,8 @@ class WebContentsObserverProxy extends WebContentsObserver {
     @CalledByNative
     public void safeAreaConstraintChanged(boolean hasConstraint) {
         handleObserverCall();
-        for (WebContentsObserver mObserver : mObservers) {
-            mObserver.safeAreaConstraintChanged(hasConstraint);
+        for (WebContentsObserver observer : mObservers) {
+            observer.safeAreaConstraintChanged(hasConstraint);
         }
         finishObserverCall();
     }
@@ -553,17 +553,6 @@ class WebContentsObserverProxy extends WebContentsObserver {
         Iterator<WebContentsObserver> observersIterator = mObservers.iterator();
         for (; observersIterator.hasNext(); ) {
             observersIterator.next().mediaSessionCreated(mediaSession);
-        }
-        finishObserverCall();
-    }
-
-    @Override
-    @CalledByNative
-    public void didUpdateAudioMutingState(boolean muted) {
-        handleObserverCall();
-        Iterator<WebContentsObserver> observersIterator = mObservers.iterator();
-        for (; observersIterator.hasNext(); ) {
-            observersIterator.next().didUpdateAudioMutingState(muted);
         }
         finishObserverCall();
     }

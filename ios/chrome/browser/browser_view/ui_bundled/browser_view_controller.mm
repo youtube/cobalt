@@ -947,6 +947,14 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
     [weakSelf updateUIOnTraitChange:previousCollection];
   };
   [self registerForTraitChanges:traits withHandler:handler];
+
+  if (IsMultilineBrowserOmniboxEnabled()) {
+    [[NSNotificationCenter defaultCenter]
+        addObserver:self
+           selector:@selector(keyboardDidHide:)
+               name:UIKeyboardDidHideNotification
+             object:nil];
+  }
 }
 
 - (void)viewSafeAreaInsetsDidChange {
@@ -1224,6 +1232,13 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
                          : UIStatusBarStyleDefault;
 }
 
+- (void)keyboardDidHide:(NSNotification*)notification {
+  if (!IsMultilineBrowserOmniboxEnabled()) {
+    return;
+  }
+  self.secondaryToolbarKeyboardHeight = 0;
+}
+
 #pragma mark - ** Private BVC Methods **
 
 // Whether the browser view has appeared.
@@ -1324,6 +1339,12 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
       omnibox::ShouldFocusedOmniboxFollowSteadyStatePosition()) {
     if ([self.toolbarCoordinator inEditState]) {
       CGFloat safeAreaBottom = self.view.safeAreaInsets.bottom;
+      if (IsMultilineBrowserOmniboxEnabled() &&
+          [self.toolbarCoordinator omniboxPosition] ==
+              ToolbarType::kSecondary) {
+        return MAX(safeAreaBottom, self.secondaryToolbarKeyboardHeight) +
+               self.toolbarCoordinator.keyboardAttachedBottomOmniboxHeight;
+      }
       CGFloat locationBarDisplayHeight =
           self.toolbarCoordinator.locationBarCompactDisplayHeight;
       return safeAreaBottom + locationBarDisplayHeight;
@@ -1337,11 +1358,7 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
   if (IsDiamondPrototypeEnabled()) {
     return kDiamondToolbarHeight;
   }
-  if (IsMultilineBrowserOmniboxEnabled() &&
-      self.secondaryToolbarKeyboardHeight) {
-    return self.secondaryToolbarKeyboardHeight +
-           self.toolbarCoordinator.keyboardAttachedBottomOmniboxHeight;
-  }
+
   // Add the safe area inset to the toolbar height.
   CGFloat unsafeHeight = self.rootSafeAreaInsets.bottom;
   return height + unsafeHeight;
@@ -2821,7 +2838,12 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
   self.secondaryToolbarHeightConstraint.constant =
       [self secondaryToolbarHeightWithInset];
 
-  if (IsMultilineBrowserOmniboxEnabled()) {
+  const BOOL isBottomOmniboxInEditState =
+      (omnibox::ForceBottomOmniboxInEditState() ||
+       (omnibox::ShouldFocusedOmniboxFollowSteadyStatePosition() &&
+        [self.toolbarCoordinator omniboxPosition] == ToolbarType::kSecondary));
+
+  if (IsMultilineBrowserOmniboxEnabled() && isBottomOmniboxInEditState) {
     [self.toolbarCoordinator
         setBottomOmniboxOffsetForPopup:self.secondaryToolbarHeightConstraint
                                            .constant];

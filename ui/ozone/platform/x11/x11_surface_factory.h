@@ -41,7 +41,7 @@ class X11SurfaceFactory : public SurfaceFactoryOzone {
       gfx::AcceleratedWidget widget,
       gpu::VulkanDeviceQueue* device_queue,
       gfx::Size size,
-      gfx::BufferFormat format,
+      viz::SharedImageFormat format,
       gfx::BufferUsage usage,
       std::optional<gfx::Size> framebuffer_size = std::nullopt) override;
   bool CanCreateNativePixmapForFormat(viz::SharedImageFormat format) override;

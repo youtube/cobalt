@@ -478,6 +478,7 @@ chromium-metrics-reviews@google.com.
   <int value="-988053194" label="/lockScreen"/>
   <int value="-972517930" label="/googleAssistant"/>
   <int value="-940942794" label="/content/pdfDocuments"/>
+  <int value="-922372967" label="/travel"/>
   <int value="-916174295" label="/internet"/>
   <int value="-907780721" label="/certificates"/>
   <int value="-898481268" label="/multidevice/features"/>
@@ -490,6 +491,7 @@ chromium-metrics-reviews@google.com.
   <int value="-686834549" label="/downloads"/>
   <int value="-655433489" label="/payments"/>
   <int value="-590688273" label="/content/sensors"/>
+  <int value="-587521019" label="/identityDocs"/>
   <int value="-570956986" label="/personalization"/>
   <int value="-565073397" label="/performance"/>
   <int value="-512116630" label="/search"/>
@@ -809,6 +811,7 @@ chromium-metrics-reviews@google.com.
   <int value="48333657" label="chrome://about/"/>
   <int value="57900378" label="chrome://conch/"/>
   <int value="58807865" label="chrome://local-state/"/>
+  <int value="67875391" label="chrome://legion-internals/"/>
   <int value="71502624" label="chrome://history-sync-optin/"/>
   <int value="84832110" label="chrome://fileicon/"/>
   <int value="104579118" label="chrome://boca-app/"/>

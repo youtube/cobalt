@@ -26,6 +26,7 @@
 #import "ios/chrome/app/spotlight/actions_spotlight_manager.h"
 #import "ios/chrome/app/spotlight/spotlight_util.h"
 #import "ios/chrome/app/startup/app_launch_metrics.h"
+#import "ios/chrome/browser/credential_exchange/model/credential_import_manager_swift.h"
 #import "ios/chrome/browser/credential_provider/model/features.h"
 #import "ios/chrome/browser/intents/model/intent_type.h"
 #import "ios/chrome/browser/intents/model/intents_constants.h"
@@ -48,7 +49,6 @@
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/url_loading/model/image_search_param_generator.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_params.h"
-#import "ios/chrome/browser/webauthn/model/credential_import_manager_swift.h"
 #import "ios/chrome/common/intents/AddBookmarkToChromeIntent.h"
 #import "ios/chrome/common/intents/AddReadingListItemToChromeIntent.h"
 #import "ios/chrome/common/intents/OpenInChromeIncognitoIntent.h"
@@ -825,6 +825,14 @@ void UserActivityBrowserAgent::OverloadContinueUserActivityURL(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   BOOL is_active = [[UIApplication sharedApplication] applicationState] ==
                    UIApplicationStateActive;
+  if (!connection_information_.startupParameters) {
+    AppStartupParameters* startup_params = [[AppStartupParameters alloc]
+         initWithExternalURL:net::GURLWithNSURL(webpage_url)
+                 completeURL:net::GURLWithNSURL(webpage_url)
+             applicationMode:ApplicationModeForTabOpening::UNDETERMINED
+        forceApplicationMode:NO];
+    connection_information_.startupParameters = startup_params;
+  }
   ContinueUserActivityURL(webpage_url, is_active, open_existing_tab);
 }
 

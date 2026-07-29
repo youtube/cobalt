@@ -33,6 +33,7 @@
 #include "base/time/default_tick_clock.h"
 #include "base/trace_event/trace_event.h"
 #include "base/uuid.h"
+#include "components/services/storage/public/mojom/cache_storage_control.mojom.h"
 #include "components/services/storage/public/mojom/service_worker_database.mojom-forward.h"
 #include "content/browser/bad_message.h"
 #include "content/browser/child_process_security_policy_impl.h"
@@ -1111,15 +1112,9 @@ void ServiceWorkerVersion::EvictBackForwardCachedControllee(
     BackForwardCacheMetrics::NotRestoredReason reason) {
   controllee->EvictFromBackForwardCache(reason);
   controllees_to_be_evicted_[controllee->client_uuid()] = reason;
-  // TODO(crbug.com/341322515): remove this if expression with
-  // CHECK in RemoveControlleeFromBackForwardCacheMap().
-  // As I assumed in #comment21 of the crbug, this behavior can be expected
-  // for a dedicated worker.
-  if (!BFCacheContainsControllee(controllee->client_uuid()) &&
-      controllee->IsContainerForWorkerClient()) {
-    return;
+  if (controllee->was_controlled_when_entered_back_forward_cache()) {
+    RemoveControlleeFromBackForwardCacheMap(controllee->client_uuid());
   }
-  RemoveControlleeFromBackForwardCacheMap(controllee->client_uuid());
 }
 
 void ServiceWorkerVersion::AddObserver(Observer* observer) {
@@ -2183,17 +2178,22 @@ ServiceWorkerVersion::BuildClientSecurityState() const {
   // Check for policy overrides on LNA. For service workers, we apply
   // policy overrides based on the storage key's origin (which should be the
   // same as the scope's origin).
-  BrowserContext* browser_context = context_->wrapper()->browser_context();
-  // Check that the browser context is not nullptr.  It becomes nullptr
-  // when the service worker process manager is being shutdown.
-  if (browser_context) {
-    ContentBrowserClient* client = GetContentClient()->browser();
-    url::Origin origin = key_.origin();
-    ContentBrowserClient::PrivateNetworkRequestPolicyOverride policy_override =
-        client->ShouldOverridePrivateNetworkRequestPolicy(browser_context,
-                                                          origin);
-    private_network_request_policy = OverrideLocalNetworkAccessPolicy(
-        private_network_request_policy, policy_override);
+  //
+  // A worker that is shutting down may not get the overrides, but the worker is
+  // shutting down so that shouldn't matter too much.
+  if (context_) {
+    BrowserContext* browser_context = context_->wrapper()->browser_context();
+    // Check that the browser context is not nullptr.  It becomes nullptr
+    // when the service worker process manager is being shutdown.
+    if (browser_context) {
+      ContentBrowserClient* client = GetContentClient()->browser();
+      url::Origin origin = key_.origin();
+      ContentBrowserClient::PrivateNetworkRequestPolicyOverride
+          policy_override = client->ShouldOverridePrivateNetworkRequestPolicy(
+              browser_context, origin);
+      private_network_request_policy = OverrideLocalNetworkAccessPolicy(
+          private_network_request_policy, policy_override);
+    }
   }
 
   // TODO(crbug.com/395895368): try replacing the below with

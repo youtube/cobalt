@@ -97,23 +97,13 @@ NotifyObserversCallback(Functor&& functor, Args&&... args) {
 
 // Returns true if `live_form` has changed compared to `cached_form` in aspects
 // that may affect type predictions.
-// TODO(crbug.com/40183094): This should be some form of FormData::DeepEqual().
 bool NeedsReparse(const FormData& live_form, const FormStructure& cached_form) {
-  if (cached_form.version() > live_form.version()) {
-    return false;
-  }
-
-  if (live_form.fields().size() != cached_form.field_count()) {
-    return true;
-  }
-
-  for (auto [cached_field, live_field] :
-       base::zip(cached_form.fields(), live_form.fields())) {
-    if (!FormFieldData::DeepEqual(*cached_field, live_field)) {
-      return true;
-    }
-  }
-  return false;
+  return live_form.version() >= cached_form.version() &&
+         !std::ranges::equal(live_form.fields(), cached_form.fields(),
+                             [](const FormFieldData& f,
+                                const std::unique_ptr<AutofillField>& g) {
+                               return FormFieldData::DeepEqual(f, *g);
+                             });
 }
 
 bool IsCreditCardFormForSignaturePurposes(const FormStructure& form_structure) {
@@ -218,14 +208,13 @@ LanguageCode AutofillManager::GetCurrentPageLanguage() {
   return LanguageCode(language_state->current_language());
 }
 
-void AutofillManager::OnDidAutofillForm(const FormData& form,
-                                        const base::TimeTicks timestamp) {
+void AutofillManager::OnDidAutofillForm(const FormData& form) {
   if (!IsValidFormData(form)) {
     return;
   }
   NotifyObservers(&Observer::OnBeforeDidAutofillForm, form.global_id());
   ParseFormAsync(
-      form, ParsingCallback(&AutofillManager::OnDidAutofillFormImpl, timestamp)
+      form, ParsingCallback(&AutofillManager::OnDidAutofillFormImpl)
                 .Then(NotifyObserversCallback(&Observer::OnAfterDidAutofillForm,
                                               form.global_id())));
 }

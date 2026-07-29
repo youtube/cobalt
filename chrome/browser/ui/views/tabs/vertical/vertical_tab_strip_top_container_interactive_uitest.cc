@@ -55,54 +55,98 @@ class VerticalTabStripTopContainerInteractiveUiTest
 // vertical tab strip and then switching to the horizontal layout.
 IN_PROC_BROWSER_TEST_F(VerticalTabStripTopContainerInteractiveUiTest,
                        VerifyTabSearchVerticalToHorizontal) {
-  browser()
-      ->browser_window_features()
-      ->vertical_tab_strip_state_controller()
-      ->SetVerticalTabsEnabled(true);
-  RunScheduledLayouts();
-
-  RunTestSequence(WaitForShow(kVerticalTabStripTopContainerElementId),
-                  EnsurePresent(kTabSearchButtonElementId),
-                  SendTabSearchKeyPress(kTabSearchButtonElementId),
-                  WaitForShow(kTabSearchBubbleElementId),
-                  SendKeyPress(kTabSearchBubbleElementId, ui::VKEY_ESCAPE),
-                  WaitForHide(kTabSearchBubbleElementId));
-
-  browser()
-      ->browser_window_features()
-      ->vertical_tab_strip_state_controller()
-      ->SetVerticalTabsEnabled(false);
-  RunScheduledLayouts();
-
-  RunTestSequence(WaitForShow(kTabStripFrameGrabHandleElementId),
-                  EnsurePresent(kTabStripFrameGrabHandleElementId),
-                  SendTabSearchKeyPress(kTabStripFrameGrabHandleElementId),
-                  WaitForShow(kTabSearchBubbleElementId));
+  RunTestSequence(
+      // Display Vertical Tabs
+      Do([this]() {
+        browser()
+            ->browser_window_features()
+            ->vertical_tab_strip_state_controller()
+            ->SetVerticalTabsEnabled(true);
+        RunScheduledLayouts();
+      }),
+      WaitForShow(kVerticalTabStripTopContainerElementId),
+      EnsurePresent(kTabSearchButtonElementId),
+      // Send Press to Vertical Tabs Tab Search Button
+      SendTabSearchKeyPress(kTabSearchButtonElementId),
+      // Display Horizontal Tabs
+      WaitForShow(kTabSearchBubbleElementId), Do([this]() {
+        browser()
+            ->browser_window_features()
+            ->vertical_tab_strip_state_controller()
+            ->SetVerticalTabsEnabled(false);
+        RunScheduledLayouts();
+      }),
+      WaitForShow(kTabStripFrameGrabHandleElementId),
+      EnsurePresent(kTabStripFrameGrabHandleElementId),
+      // Send Press to Horizontal Tabs Tab Search Button
+      SendTabSearchKeyPress(kTabStripFrameGrabHandleElementId),
+      WaitForShow(kTabSearchBubbleElementId));
 }
 
 // This test checks that we can click the tab search button starting from the
 // horizontal tab strip and then switching to the vertical layout.
 IN_PROC_BROWSER_TEST_F(VerticalTabStripTopContainerInteractiveUiTest,
                        VerifyTabSearchHorizontalToVertical) {
-  RunScheduledLayouts();
+  RunTestSequence(
+      // Start with Horizontal Tabs Displayed
+      Do([this]() { RunScheduledLayouts(); }),
+      WaitForShow(kTabStripFrameGrabHandleElementId),
+      EnsurePresent(kTabStripFrameGrabHandleElementId),
+      // Send Press to Horizontal Tabs Tab Search Button
+      SendTabSearchKeyPress(kTabStripFrameGrabHandleElementId),
+      WaitForShow(kTabSearchBubbleElementId),
+      SendKeyPress(kTabSearchBubbleElementId, ui::VKEY_ESCAPE),
+      WaitForHide(kTabSearchBubbleElementId),
+      // Display Vertical Tabs
+      Do([this]() {
+        browser()
+            ->browser_window_features()
+            ->vertical_tab_strip_state_controller()
+            ->SetVerticalTabsEnabled(true);
+        RunScheduledLayouts();
+      }),
+      WaitForShow(kVerticalTabStripTopContainerElementId),
+      EnsurePresent(kTabSearchButtonElementId),
+      // Send Press to Vertical Tabs Tab Search Button
+      SendTabSearchKeyPress(kTabSearchButtonElementId),
+      WaitForShow(kTabSearchBubbleElementId));
+}
 
-  RunTestSequence(WaitForShow(kTabStripFrameGrabHandleElementId),
-                  EnsurePresent(kTabStripFrameGrabHandleElementId),
-                  SendTabSearchKeyPress(kTabStripFrameGrabHandleElementId),
-                  WaitForShow(kTabSearchBubbleElementId),
-                  SendKeyPress(kTabSearchBubbleElementId, ui::VKEY_ESCAPE),
-                  WaitForHide(kTabSearchBubbleElementId));
-
-  browser()
-      ->browser_window_features()
-      ->vertical_tab_strip_state_controller()
-      ->SetVerticalTabsEnabled(true);
-  RunScheduledLayouts();
-
-  RunTestSequence(WaitForShow(kVerticalTabStripTopContainerElementId),
-                  EnsurePresent(kTabSearchButtonElementId),
-                  SendTabSearchKeyPress(kTabSearchButtonElementId),
-                  WaitForShow(kTabSearchBubbleElementId));
+// This test checks that we can click the collapse button in the vertical tab
+// strip
+IN_PROC_BROWSER_TEST_F(VerticalTabStripTopContainerInteractiveUiTest,
+                       VerifyCollapseButton) {
+  RunTestSequence(
+      // Display Vertical Tabs
+      Do([this]() {
+        browser()
+            ->browser_window_features()
+            ->vertical_tab_strip_state_controller()
+            ->SetVerticalTabsEnabled(true);
+        RunScheduledLayouts();
+      }),
+      // Verify not collapsed
+      CheckResult(
+          [this]() {
+            return browser()
+                ->GetFeatures()
+                .vertical_tab_strip_state_controller()
+                ->IsCollapsed();
+          },
+          false),
+      WaitForShow(kVerticalTabStripTopContainerElementId),
+      EnsurePresent(kVerticalTabStripCollapseButtonElementId),
+      // Press Collapse Button
+      PressButton(kVerticalTabStripCollapseButtonElementId),
+      // Verify collapsed
+      CheckResult(
+          [this]() {
+            return browser()
+                ->GetFeatures()
+                .vertical_tab_strip_state_controller()
+                ->IsCollapsed();
+          },
+          true));
 }
 
 }  // namespace

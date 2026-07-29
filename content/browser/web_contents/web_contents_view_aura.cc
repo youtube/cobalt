@@ -52,6 +52,7 @@
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_contents_view_delegate.h"
 #include "content/public/browser/web_drag_dest_delegate.h"
+#include "content/public/common/buildflags.h"
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_features.h"
 #include "ipc/constants.mojom.h"
@@ -717,12 +718,8 @@ void WebContentsViewAura::PrepareDropData(
     drop_data->text = std::move(*string);
   }
 
-  if (std::optional<ui::OSExchangeData::UrlInfo> url = data.GetURLAndTitle(
-          ui::FilenameToURLPolicy::DO_NOT_CONVERT_FILENAMES);
-      url.has_value() && url->url.is_valid()) {
-    drop_data->url_infos.emplace_back(std::move(url->url),
-                                      std::move(url->title));
-  }
+  drop_data->url_infos =
+      data.GetURLsAndTitles(ui::FilenameToURLPolicy::DO_NOT_CONVERT_FILENAMES);
 
   if (std::optional<ui::OSExchangeData::HtmlInfo> html = data.GetHtml();
       html.has_value()) {
@@ -1166,8 +1163,14 @@ void WebContentsViewAura::StartDragging(
     gfx::NativeView content_native_view = GetContentNativeView();
     // Make sure event is within the web contents, and the web contents are
     // visible.
-    if (!content_native_view->GetBoundsInScreen().Contains(
+    if (
+#if !BUILDFLAG(IS_CHROMEOS)
+        // TODO(https://crbug.com/454552204): Remove #if when either ChromeOS
+        // fixes split screen mode web ui tab strip drag, or web ui tab strip is
+        // fully deprecated.
+        !content_native_view->GetBoundsInScreen().Contains(
             event_info.location) ||
+#endif  // !BUILDFLAG(IS_CHROMEOS)
         !content_native_view->IsVisible()) {
       web_contents_->SystemDragEnded(source_rwh);
       return;

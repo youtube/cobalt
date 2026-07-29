@@ -9,6 +9,7 @@
 #include <list>
 #include <memory>
 #include <optional>
+#include <set>
 #include <unordered_set>
 #include <variant>
 #include <vector>
@@ -127,9 +128,9 @@ class TabCollection : public SupportsHandles<TabCollectionHandleFactory> {
   TabCollection(const TabCollection&) = delete;
   TabCollection& operator=(const TabCollection&) = delete;
 
-  void AddObserver(TabCollectionObserver* observer);
+  void AddObserver(TabCollectionObserver* observer) const;
 
-  void RemoveObserver(TabCollectionObserver* observer);
+  void RemoveObserver(TabCollectionObserver* observer) const;
 
   bool HasObserver(TabCollectionObserver* observer) const;
 
@@ -240,25 +241,45 @@ class TabCollection : public SupportsHandles<TabCollectionHandleFactory> {
     size_t index;
   };
 
+  // Recursively searches the tab hierarchy to find the insertion position for
+  // the tabs and collections being moved. Note that this position is different
+  // from the position assuming the nodes are not present in the tab collection
+  // hierarchy.
+  std::optional<TabCollection::Position> FindMovePositionRecursive(
+      size_t destination_index,
+      TabCollection* dst_collection,
+      size_t& curr_insertion_index,
+      const std::set<tabs::TabInterface*>& tabs_moved,
+      const std::set<tabs::TabCollection*>& collections_moved);
+
+  // These methods recursively notifies observers that nodes were either
+  // added, removed or moved in the hierarchy. `stop_notification_root` is used
+  // to terminate recursion in the case of move operation. This is because add
+  // and remove notifications are only valid in the destination and source
+  // subtree. From the common ancestor onwards, move notifications should be
+  // sent.
   void NotifyOnChildrenAdded(base::PassKey<TabCollection> pass_key,
                              const NodeHandles& handles,
                              const Position& insertion_position,
-                             TabCollection* notification_root);
+                             TabCollection* stop_notification_root);
 
   void NotifyOnChildrenRemoved(base::PassKey<TabCollection> pass_key,
                                const NodeHandles& handles,
-                               TabCollection* notification_root);
+                               TabCollection* stop_notification_root);
 
   void NotifyOnChildMoved(base::PassKey<TabCollection> pass_key,
                           const NodeHandle& handle,
                           const Position& src_position,
                           const Position& dst_position,
-                          TabCollection* notification_root);
+                          TabCollection* stop_notification_root);
+
+  void DispatchPendingNotifications();
 
  protected:
   explicit TabCollection(Type type,
                          std::unordered_set<Type> supported_child_collections,
-                         bool supports_tabs);
+                         bool supports_tabs,
+                         bool send_notifications_immediately = true);
 
   // Returns the pass key to be used by derived classes as operations such as
   // setting the parent of a tab can only be performed by a `TabCollection`.
@@ -277,7 +298,14 @@ class TabCollection : public SupportsHandles<TabCollectionHandleFactory> {
   std::unordered_set<Type> supported_child_collections_;
   bool supports_tabs_;
 
-  base::ObserverList<TabCollectionObserver> observers_;
+  // Mutable to allow adding/removing `TabCollectionObserver`'s through a const
+  // TabCollection inorder to avoid updates to the collection.
+  mutable base::ObserverList<TabCollectionObserver> observers_;
+
+  // batched notifications to allow for delayed propagation.
+  std::vector<base::OnceClosure> pending_notifications_;
+
+  bool notify_immediately_ = true;
 
   // Underlying implementation for the storage of children.
   std::unique_ptr<TabCollectionStorage> impl_;

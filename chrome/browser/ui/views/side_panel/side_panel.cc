@@ -76,7 +76,7 @@ gfx::Insets GetBorderInsets() {
                            border_thickness, border_thickness);
 }
 
-constexpr int kAnimationDurationMs = 450;
+constexpr base::TimeDelta kAnimationDurationMs = base::Milliseconds(450);
 
 // This border paints the toolbar color around the side panel content and draws
 // a roundrect viewport around the side panel content. The border can have
@@ -196,9 +196,9 @@ class ContentParentView : public views::View {
   METADATA_HEADER(ContentParentView, views::View)
 
  public:
-  ContentParentView() {
+  explicit ContentParentView(bool should_round_corners)
+      : should_round_corners_(should_round_corners) {
     SetUseDefaultFillLayout(true);
-    SetBackground(views::CreateSolidBackground(kColorSidePanelBackground));
     SetProperty(
         views::kFlexBehaviorKey,
         views::FlexSpecification(views::MinimumFlexSizeRule::kScaleToZero,
@@ -206,6 +206,39 @@ class ContentParentView : public views::View {
   }
 
   ~ContentParentView() override = default;
+
+ private:
+  void AddedToWidget() override {
+    SetBackground(views::CreateRoundedRectBackground(kColorSidePanelBackground,
+                                                     GetRoundedCorners()));
+  }
+
+  void ViewHierarchyChanged(
+      const views::ViewHierarchyChangedDetails& details) override {
+    // If a child view is added and we should round corners.
+    if (should_round_corners_ && details.is_add && details.parent == this) {
+      views::View* child = details.child;
+      // If the child is a WebView or paints to a layer, round its corners.
+      if (views::IsViewClass<views::WebView>(child)) {
+        views::AsViewClass<views::WebView>(child)->holder()->SetCornerRadii(
+            GetRoundedCorners());
+      }
+      if (child->layer()) {
+        child->layer()->SetRoundedCornerRadius(GetRoundedCorners());
+        child->layer()->SetIsFastRoundedCorner(true);
+      }
+    }
+  }
+
+  gfx::RoundedCornersF GetRoundedCorners() {
+    return should_round_corners_ && GetLayoutProvider()
+               ? gfx::RoundedCornersF(
+                     GetLayoutProvider()->GetCornerRadiusMetric(
+                         views::ShapeContextTokens::kSidePanelContentRadius))
+               : gfx::RoundedCornersF();
+  }
+
+  bool should_round_corners_ = false;
 };
 
 BEGIN_METADATA(ContentParentView)
@@ -327,12 +360,12 @@ SidePanel::SidePanel(BrowserView* browser_view,
         std::make_unique<BorderView>(browser_view);
     border_view_ = border_view.get();
     AddChildView(std::move(border_view));
-
-    std::unique_ptr<views::SidePanelResizeArea> resize_area =
-        std::make_unique<views::SidePanelResizeArea>(this);
-    resize_area_ = resize_area.get();
-    AddChildView(std::move(resize_area));
   }
+
+  std::unique_ptr<views::SidePanelResizeArea> resize_area =
+      std::make_unique<views::SidePanelResizeArea>(this);
+  resize_area_ = resize_area.get();
+  AddChildView(std::move(resize_area));
 
   pref_change_registrar_.Init(browser_view->GetProfile()->GetPrefs());
 
@@ -344,8 +377,7 @@ SidePanel::SidePanel(BrowserView* browser_view,
                           base::Unretained(browser_view)));
 
   animation_.SetTweenType(gfx::Tween::Type::EASE_IN_OUT_EMPHASIZED);
-
-  animation_.SetSlideDuration(base::Milliseconds(kAnimationDurationMs));
+  animation_.SetSlideDuration(kAnimationDurationMs);
 
   SetVisible(false);
   SetLayoutManager(std::make_unique<views::FillLayout>());
@@ -360,7 +392,8 @@ SidePanel::SidePanel(BrowserView* browser_view,
 
   SetProperty(views::kElementIdentifierKey, kSidePanelElementId);
 
-  content_parent_view_ = AddChildView(std::make_unique<ContentParentView>());
+  content_parent_view_ = AddChildView(std::make_unique<ContentParentView>(
+      /*should_round_corners=*/!has_border));
   content_parent_view_->SetVisible(false);
 }
 
@@ -405,7 +438,7 @@ void SidePanel::UpdateWidthOnEntryChanged() {
   }
 
   std::optional<SidePanelEntry::Id> current_entry =
-      side_panel_ui->GetCurrentEntryId();
+      side_panel_ui->GetCurrentEntryId(type_);
   if (!current_entry) {
     return;
   }
@@ -580,7 +613,7 @@ void SidePanel::AnimationEnded(const gfx::Animation* animation) {
   }
   if (largest_animation_step_time_.has_value()) {
     SidePanelUtil::RecordSidePanelAnimationMetrics(
-        largest_animation_step_time_.value());
+        type_, largest_animation_step_time_.value());
   }
   InvalidateLayout();
 }
@@ -618,7 +651,7 @@ void SidePanel::OnResize(int resize_amount, bool done_resizing) {
     if (SidePanelUI* side_panel_ui =
             browser_view_->browser()->GetFeatures().side_panel_ui()) {
       if (std::optional<SidePanelEntry::Id> entry =
-              side_panel_ui->GetCurrentEntryId()) {
+              side_panel_ui->GetCurrentEntryId(type_)) {
         std::string current_panel_id = SidePanelEntryIdToString(entry.value());
         // Update the pref with the new width.
         UpdateSidePanelWidthPref(current_panel_id, proposed_width);
@@ -637,7 +670,8 @@ void SidePanel::RecordMetricsIfResized() {
     if (!side_panel_ui) {
       return;
     }
-    std::optional<SidePanelEntry::Id> id = side_panel_ui->GetCurrentEntryId();
+    std::optional<SidePanelEntry::Id> id =
+        side_panel_ui->GetCurrentEntryId(type_);
     if (!id.has_value()) {
       return;
     }
@@ -645,7 +679,7 @@ void SidePanel::RecordMetricsIfResized() {
     int side_panel_contents_width = width() - GetBorderInsets().width();
     int browser_window_width = browser_view_->width();
     SidePanelUtil::RecordSidePanelResizeMetrics(
-        id.value(), side_panel_contents_width, browser_window_width);
+        type_, id.value(), side_panel_contents_width, browser_window_width);
     did_resize_ = false;
   }
 }

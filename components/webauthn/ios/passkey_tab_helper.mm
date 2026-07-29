@@ -37,6 +37,20 @@ void LogEvent(WebAuthenticationIOSContentAreaEvent event) {
                                 event);
 }
 
+class [[maybe_unused, nodiscard]] ScopedAllowPasskeyCreationInfobar {
+ public:
+  ScopedAllowPasskeyCreationInfobar(IOSPasskeyClient* client)
+      : client_(client) {
+    client_->AllowPasskeyCreationInfobar(true);
+  }
+  ~ScopedAllowPasskeyCreationInfobar() {
+    client_->AllowPasskeyCreationInfobar(false);
+  }
+
+ private:
+  raw_ptr<IOSPasskeyClient> client_;
+};
+
 }  // namespace
 
 PasskeyTabHelper::~PasskeyTabHelper() = default;
@@ -75,13 +89,21 @@ void PasskeyTabHelper::HandleGetResolvedEvent(
 
 PasskeyTabHelper::PasskeyTabHelper(web::WebState* web_state,
                                    webauthn::PasskeyModel* passkey_model,
-                                   bool allow_modal_login)
-    : passkey_model_(CHECK_DEREF(passkey_model)),
-      web_state_(CHECK_DEREF(web_state)) {
+                                   std::unique_ptr<IOSPasskeyClient> client)
+    : passkey_model_(CHECK_DEREF(passkey_model)), client_(std::move(client)) {
+  CHECK(client_);
+  CHECK(web_state);
   web_state->AddObserver(this);
 
   PasskeyJavaScriptFeature::GetInstance()->SetAllowModalLogin(
-      allow_modal_login);
+      web_state, client_->IsModalLoginWithShimAllowed());
+}
+
+void PasskeyTabHelper::AddNewPasskey(
+    sync_pb::WebauthnCredentialSpecifics& passkey) {
+  ScopedAllowPasskeyCreationInfobar scopedAllowPasskeyCreationInfobar(
+      client_.get());
+  passkey_model_->CreatePasskey(passkey);
 }
 
 // WebStateObserver
@@ -89,7 +111,8 @@ PasskeyTabHelper::PasskeyTabHelper(web::WebState* web_state,
 void PasskeyTabHelper::DidFinishNavigation(
     web::WebState* web_state,
     web::NavigationContext* navigation_context) {
-  // TODO(crbug.com/385174410): Explicitly allow passkey requests.
+  PasskeyJavaScriptFeature::GetInstance()->SetAllowModalLogin(
+      web_state, client_->IsModalLoginWithShimAllowed());
 }
 
 void PasskeyTabHelper::WebStateDestroyed(web::WebState* web_state) {

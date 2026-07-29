@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base/time/time.h"
+#include "content/browser/preloading/prefetch/prefetch_servable_state.h"
 #include "content/browser/preloading/prefetch/prefetch_streaming_url_loader_common_types.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/preload_serving_metrics_capsule.h"
@@ -18,6 +19,8 @@ namespace content {
 
 enum class PrefetchPotentialCandidateServingResult;
 class NavigationHandle;
+class PrefetchContainer;
+enum class PrefetchStatus;
 
 // All the structs in this file are "Logs" as defined in
 // https://chromium.googlesource.com/chromium/src/+/main/content/browser/preloading/preload_serving_metrics.md#Logs
@@ -59,6 +62,60 @@ struct CONTENT_EXPORT PrefetchContainerMetrics final {
   std::optional<base::TimeTicks> time_prefetch_completed_successfully;
 };
 
+// Debug information of prefetch ahead of prerender at prefetch matching.
+//
+// `PrefetchMatchPrefetchAheadOfPrerenderDebugMetrics` is a "Log" object as
+// defined in
+// https://chromium.googlesource.com/chromium/src/+/main/content/browser/preloading/preload_serving_metrics.md#Logs
+//
+// The members are filled by `PrefetchMatchResolver`.
+struct CONTENT_EXPORT PrefetchMatchPrefetchAheadOfPrerenderDebugMetrics final {
+  PrefetchMatchPrefetchAheadOfPrerenderDebugMetrics();
+  ~PrefetchMatchPrefetchAheadOfPrerenderDebugMetrics();
+
+  // Not movable nor copyable.
+  PrefetchMatchPrefetchAheadOfPrerenderDebugMetrics(
+      PrefetchMatchPrefetchAheadOfPrerenderDebugMetrics&& other) = delete;
+  PrefetchMatchPrefetchAheadOfPrerenderDebugMetrics& operator=(
+      PrefetchMatchPrefetchAheadOfPrerenderDebugMetrics&& other) = delete;
+  PrefetchMatchPrefetchAheadOfPrerenderDebugMetrics(
+      const PrefetchMatchPrefetchAheadOfPrerenderDebugMetrics&) = delete;
+  PrefetchMatchPrefetchAheadOfPrerenderDebugMetrics& operator=(
+      const PrefetchMatchPrefetchAheadOfPrerenderDebugMetrics&) = delete;
+
+  PrefetchStatus prefetch_status;
+  PrefetchServableState servable_state;
+  PrefetchMatchResolverAction match_resolver_action;
+  int queue_size;
+  std::optional<int> queue_index;
+};
+
+// Debug information of prefetch ahead of prerender at prefetch matching.
+//
+// `PreloadMatchPrerenderDebugMetrics` is a "Log" object as defined in
+// https://chromium.googlesource.com/chromium/src/+/main/content/browser/preloading/preload_serving_metrics.md#Logs
+//
+// The members are filled by `PrefetchMatchResolver`.
+struct CONTENT_EXPORT PrefetchMatchPrerenderDebugMetrics final {
+  PrefetchMatchPrerenderDebugMetrics();
+  ~PrefetchMatchPrerenderDebugMetrics();
+
+  // Not movable nor copyable.
+  PrefetchMatchPrerenderDebugMetrics(
+      PrefetchMatchPrerenderDebugMetrics&& other) = delete;
+  PrefetchMatchPrerenderDebugMetrics& operator=(
+      PrefetchMatchPrerenderDebugMetrics&& other) = delete;
+  PrefetchMatchPrerenderDebugMetrics(
+      const PrefetchMatchPrerenderDebugMetrics&) = delete;
+  PrefetchMatchPrerenderDebugMetrics& operator=(
+      const PrefetchMatchPrerenderDebugMetrics&) = delete;
+
+  // Non null iff prefetch ahead of prerender exists at the timing of prefetch
+  // matching.
+  std::unique_ptr<PrefetchMatchPrefetchAheadOfPrerenderDebugMetrics>
+      prefetch_ahead_of_prerender_debug_metrics;
+};
+
 // Log of prefetch matching.
 //
 // `PreloadMatchMetrics` is a "Log" object as defined in
@@ -77,6 +134,8 @@ struct CONTENT_EXPORT PrefetchMatchMetrics final {
 
   bool IsPotentialMatch() const;
   bool IsActualMatch() const;
+  PrefetchPotentialCandidateServingResult
+  GetPrefetchPotentialCandidateServingResultLast() const;
 
   PrefetchServiceWorkerState expected_service_worker_state;
 
@@ -95,20 +154,34 @@ struct CONTENT_EXPORT PrefetchMatchMetrics final {
   // Otherwise null.
   std::unique_ptr<PrefetchContainerMetrics> prefetch_container_metrics =
       nullptr;
+  // The last serving result. Non null iff `n_initial_candidates > 0`.
+  //
+  // Note that `n_initial_candidates` is 0 or 1 in almost all cases. For more
+  // details, see
+  // https://docs.google.com/document/d/1ITMr_qyysUPIMZpLkmpQABwtVseMBduRqxHGZxIJ1R0/edit?resourcekey=0-ccZ-G6JV4WO-1bP4TiNvjQ&tab=t.x99jls7s2xug
+  std::optional<PrefetchPotentialCandidateServingResult>
+      prefetch_potential_candidate_serving_result_last = std::nullopt;
   // The information of the prefetch-ahead-prerender `PrefetchContainer`
   // candidate, if any. Otherwise null. More precisely, this is non-null iff:
   //
   // - `PrefetchMatchResolver::navigation_request_for_metrics_` is for a
   //   prerender initial navigation; and
   // - The `PrefetchContainer` of the prefetch-ahead-of-prerender of the
-  // prerendering
-  //   (if any) is potentially matching with the `PrefetchMatchResolver`.
+  //   prerendering (if any) is potentially matching with the
+  //   `PrefetchMatchResolver`.
   std::optional<PrefetchPotentialCandidateServingResult>
       prefetch_potential_candidate_serving_result_ahead_of_prerender =
           std::nullopt;
   // The condition is the same to the above.
   std::unique_ptr<PrefetchContainerMetrics>
       prefetch_container_metrics_ahead_of_prerender = nullptr;
+
+  // Null if `!UsePrefetchScheduler()`.
+  //
+  // TODO(crbug.com/406402069): Remove the above comment.
+  //
+  // Non null if the navigation is prerender initial navigation.
+  std::unique_ptr<PrefetchMatchPrerenderDebugMetrics> prerender_debug_metrics;
 };
 
 // Log of preloads related to a navigation
@@ -155,6 +228,7 @@ struct CONTENT_EXPORT PreloadServingMetrics final {
   // navigations are discarded.
   std::unique_ptr<PreloadServingMetrics>
       prerender_initial_preload_serving_metrics = nullptr;
+  bool is_prerender_aborted_by_prerender_url_loader_throttle = false;
 };
 
 // Allows `PageLoadMetricsObserver` to get/hold/record `PreloadServingMetrics`.

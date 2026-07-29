@@ -22,6 +22,7 @@ source_set("country_data") {
     "//third_party/icu",
   ]
 }
+
 if (is_android) {
   import("//build/config/android/rules.gni")
 }
@@ -33,6 +34,21 @@ grit("autofill_address_rewriter_resources") {
     "grit/autofill_address_rewriter_resources_map.cc",
     "grit/autofill_address_rewriter_resources_map.h",
     "autofill_address_rewriter_resources.pak",
+  ]
+  output_dir = "$root_gen_dir/components/autofill/core/browser/geo"
+}
+
+grit("autofill_alternative_state_name_map_resources") {
+  if (is_chrome_branded) {
+    source = "geo/chrome_alternative_state_name_maps/alternative_state_name_map_resources.grd"
+  } else {
+    source = "geo/autofill_alternative_state_name_map_resources.grd"
+  }
+  outputs = [
+    "grit/autofill_alternative_state_name_map_resources.h",
+    "grit/test_autofill_address_rewriter_resources_map.h",
+    "grit/test_autofill_address_rewriter_resources_map.cc",
+    "autofill_alternative_state_name_map_resources.pak",
   ]
   output_dir = "$root_gen_dir/components/autofill/core/browser/geo"
 }
@@ -369,6 +385,7 @@ static_library("browser") {
     "geo/address_rewriter.h",
     "geo/alternative_state_name_map.cc",
     "geo/alternative_state_name_map.h",
+    "geo/alternative_state_name_map_constants.h",
     "geo/alternative_state_name_map_updater.cc",
     "geo/alternative_state_name_map_updater.h",
     "geo/autofill_country.cc",
@@ -414,6 +431,7 @@ static_library("browser") {
     "integrators/one_time_tokens/otp_manager.h",
     "integrators/one_time_tokens/otp_manager_impl.cc",
     "integrators/one_time_tokens/otp_manager_impl.h",
+    "integrators/one_time_tokens/otp_phish_guard_delegate.h",
     "integrators/one_time_tokens/otp_suggestion.cc",
     "integrators/one_time_tokens/otp_suggestion.h",
     "integrators/optimization_guide/autofill_optimization_guide_decider.cc",
@@ -680,6 +698,7 @@ static_library("browser") {
     "studies/autofill_ablation_study.h",
     "studies/autofill_experiments.cc",
     "studies/autofill_experiments.h",
+    "suggestions/addresses/address_on_typing_suggestion_data.h",
     "suggestions/addresses/address_suggestion_generator.cc",
     "suggestions/addresses/address_suggestion_generator.h",
     "suggestions/autocomplete_suggestion_generator.cc",
@@ -705,7 +724,6 @@ static_library("browser") {
     "suggestions/payments/payments_suggestion_generator.cc",
     "suggestions/payments/payments_suggestion_generator.h",
     "suggestions/payments/save_and_fill_suggestion.h",
-    "suggestions/plus_addresses/create_plus_address_suggestion.h",
     "suggestions/plus_addresses/plus_address.h",
     "suggestions/plus_addresses/plus_address_for_address_suggestion.h",
     "suggestions/plus_addresses/plus_address_suggestion_generator.cc",
@@ -997,6 +1015,7 @@ static_library("browser") {
 
   deps = [
     ":autofill_address_rewriter_resources",
+    ":autofill_alternative_state_name_map_resources",
     ":buildflags",
     ":entity_schema_enums_and_functions",
     ":generate_country_native_names",
@@ -1122,6 +1141,7 @@ source_set("payments_sync_utils") {
 static_library("test_support") {
   testonly = true
   sources = [
+    "autofill_field_test_api.h",
     "crowdsourcing/autofill_crowdsourcing_manager_test_api.h",
     "crowdsourcing/mock_autofill_crowdsourcing_manager.cc",
     "crowdsourcing/mock_autofill_crowdsourcing_manager.h",
@@ -1203,6 +1223,7 @@ static_library("test_support") {
     "geo/mock_alternative_state_name_map_updater.h",
     "geo/test_region_data_loader.cc",
     "geo/test_region_data_loader.h",
+    "integrators/address_on_typing/address_on_typing_manager_test_api.h",
     "integrators/autofill_ai/autofill_ai_manager_test_api.h",
     "integrators/autofill_ai/mock_autofill_ai_manager.cc",
     "integrators/autofill_ai/mock_autofill_ai_manager.h",
@@ -1339,6 +1360,7 @@ static_library("test_support") {
 
   deps = [
     ":autofill_address_rewriter_resources",
+    ":autofill_alternative_state_name_map_resources",
     ":payments_sync_utils",
     "//base",
     "//base/test:test_support",
@@ -1555,6 +1577,7 @@ source_set("unit_tests") {
     "heuristic_source_unittest.cc",
     "integrators/address_on_typing/address_on_typing_manager_unittest.cc",
     "integrators/autofill_ai/autofill_ai_import_utils_unittest.cc",
+    "integrators/autofill_ai/autofill_ai_labels_unittest.cc",
     "integrators/autofill_ai/autofill_ai_manager_unittest.cc",
     "integrators/autofill_ai/metrics/autofill_ai_logger_unittest.cc",
     "integrators/one_time_tokens/metrics/otp_form_event_logger_unittest.cc",
@@ -1658,7 +1681,6 @@ source_set("unit_tests") {
     "ui/country_combobox_model_unittest.cc",
     "ui/payments/autofill_error_dialog_controller_impl_unittest.cc",
     "ui/payments/autofill_progress_dialog_controller_impl_unittest.cc",
-    "ui/payments/bnpl_tos_controller_impl_unittest.cc",
     "ui/payments/bubble_show_options_unittest.cc",
     "ui/payments/card_unmask_otp_input_dialog_controller_impl_unittest.cc",
     "ui/payments/card_unmask_prompt_controller_impl_unittest.cc",
@@ -1727,7 +1749,10 @@ source_set("unit_tests") {
   }
 
   if (!is_android) {
-    sources += [ "ui/autofill_image_fetcher_unittest.cc" ]
+    sources += [
+      "ui/autofill_image_fetcher_unittest.cc",
+      "ui/payments/bnpl_tos_controller_impl_unittest.cc",
+    ]
   }
 
   if (is_win || is_mac || is_android) {
@@ -1773,6 +1798,7 @@ source_set("unit_tests") {
 
   deps = [
     ":autofill_address_rewriter_resources",
+    ":autofill_alternative_state_name_map_resources",
     ":browser",
     ":buildflags",
     ":entity_schema_enums_and_functions",

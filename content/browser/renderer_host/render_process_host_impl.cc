@@ -1614,21 +1614,22 @@ RenderProcessHostImpl::RenderProcessHostImpl(
                 true /* boost_for_pending_views */,
                 false /*boost_for_loading*/,
                 false /* boost_for_discard */,
-                is_spare_renderer
 #if BUILDFLAG(IS_ANDROID)
-                ,
+                is_spare_renderer,
                 ChildProcessImportance::NORMAL
-#endif
-#if !BUILDFLAG(IS_ANDROID)
-                ,
+#else
                 std::nullopt
 #endif
                 ),
       id_(ChildProcessHostImpl::GenerateChildProcessUniqueId()),
       browser_context_(browser_context),
-      storage_partition_impl_(storage_partition_impl->GetWeakPtr()),
+      storage_partition_impl_(storage_partition_impl),
       flags_(flags),
-      has_spare_renderer_priority_(is_spare_renderer),
+#if BUILDFLAG(IS_ANDROID)
+      spare_renderer_priority_status_(
+          is_spare_renderer ? SpareRendererPriorityStatus::kSpare
+                            : SpareRendererPriorityStatus::kNormal),
+#endif
       tracing_track_(
           perfetto::NamedTrack::FromPointer("RenderProcessHostImpl",
                                             this,
@@ -1791,6 +1792,15 @@ bool RenderProcessHostImpl::Init() {
   renderer_prefix =
       browser_command_line.GetSwitchValueNative(switches::kRendererCmdPrefix);
 
+#if BUILDFLAG(IS_ANDROID)
+  // If the spare renderer gets killed when graduating the priority to normal,
+  // we will set the priority to normal during re-initialization.
+  if (spare_renderer_priority_status_ ==
+      SpareRendererPriorityStatus::kGraduating) {
+    spare_renderer_priority_status_ = SpareRendererPriorityStatus::kNormal;
+  }
+#endif
+
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   int flags = renderer_prefix.empty() ? ChildProcessHost::CHILD_ALLOW_SELF
                                       : ChildProcessHost::CHILD_NORMAL;
@@ -1871,7 +1881,8 @@ bool RenderProcessHostImpl::Init() {
           browser_context_),
       GetContentClient()->browser()->GetUserAgentMetadata(),
       storage_partition_impl_->cors_exempt_header_list(),
-      GetContentClient()->browser()->GetOriginTrialsSettings(), trace_id);
+      GetContentClient()->browser()->GetOriginTrialsSettings(),
+      GetContentClient()->browser()->GetCpuPerformanceTier(), trace_id);
 
   if (run_renderer_in_process()) {
     DCHECK(g_renderer_main_thread_factory);
@@ -3127,6 +3138,19 @@ bool RenderProcessHostImpl::GetIntersectsViewport() {
 }
 
 #if BUILDFLAG(IS_ANDROID)
+void RenderProcessHostImpl::GraduateSpareToNormalRendererPriority() {
+  if (spare_renderer_priority_status_ == SpareRendererPriorityStatus::kSpare) {
+    spare_renderer_priority_status_ = SpareRendererPriorityStatus::kGraduating;
+    UpdateProcessPriority();
+  }
+}
+
+bool RenderProcessHostImpl::
+    ShouldThrottleNavigationForSpareRendererGraduation() {
+  return !is_dead_ && spare_renderer_priority_status_ !=
+                          SpareRendererPriorityStatus::kNormal;
+}
+
 ChildProcessImportance RenderProcessHostImpl::GetEffectiveImportance() {
   return effective_importance_;
 }
@@ -3483,21 +3507,21 @@ bool RenderProcessHostImpl::ShouldPauseChannelUntilProcessLaunched() {
           features::kSkipIPCChannelPausingForNonGuests)) {
     if (features::skip_channel_pausing_for_internal_webui_only.Get()) {
 #if !BUILDFLAG(IS_ANDROID)
-      return IsForInitialWebUI();
+      // Skip pausing if we're on initial WebUI, so return false in that case.
+      return !IsForInitialWebUI();
 #else
-      return false;
+      // We're definitely not on initial WebUI, so return true to pause.
+      return true;
 #endif
     }
-    return true;
+    // Skip pausing in all cases.
+    return false;
   }
-  return false;
+  // Don't skip pausing.
+  return true;
 }
 
 StoragePartitionImpl* RenderProcessHostImpl::GetStoragePartition() {
-  // TODO(crbug.com/40061679): Remove the `CHECK` after the ad-hoc
-  // debugging is no longer needed to investigate the bug.
-  CHECK(!!storage_partition_impl_);
-
   return storage_partition_impl_.get();
 }
 
@@ -5647,13 +5671,11 @@ void RenderProcessHostImpl::UpdateProcessPriority() {
       media_stream_count_ > 0, has_immersive_xr_session_,
       foreground_service_worker_count_ > 0, frame_depth_, intersects_viewport_,
       pending_views_ > 0, /* boost_for_pending_views */
-      boost_for_loading_count_ > 0, is_discarding_, has_spare_renderer_priority_
+      boost_for_loading_count_ > 0, is_discarding_,
 #if BUILDFLAG(IS_ANDROID)
-      ,
+      spare_renderer_priority_status_ == SpareRendererPriorityStatus::kSpare,
       GetEffectiveImportance()
-#endif
-#if !BUILDFLAG(IS_ANDROID)
-          ,
+#else
       priority_override_
 #endif
   );
@@ -5899,11 +5921,19 @@ bool RenderProcessHostImpl::CanUseWarmUpConnection() {
   // warmed up connection is only created during the start up of the Chrome
   // application and will not be used by the spare renderer. The filter is
   // only added for test purposes.
-  return !has_spare_renderer_priority_;
+  return !HasSpareRendererPriority();
 }
 
 bool RenderProcessHostImpl::HasSpareRendererPriority() {
-  return has_spare_renderer_priority_;
+  return spare_renderer_priority_status_ !=
+         SpareRendererPriorityStatus::kNormal;
+}
+
+void RenderProcessHostImpl::OnSpareRendererPriorityGraduated(bool is_alive) {
+  spare_renderer_priority_status_ = SpareRendererPriorityStatus::kNormal;
+  for (auto& observer : observers_) {
+    observer.SpareRendererPriorityGraduated(this, is_alive);
+  }
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -6135,13 +6165,6 @@ void RenderProcessHostImpl::GetBoundInterfacesForTesting(
   io_thread_host_impl_->AsyncCall(&IOThreadHostImpl::GetInterfacesForTesting)
       .WithArgs(std::ref(out));
   io_thread_host_impl_->FlushPostedTasksForTesting();  // IN-TEST
-}
-
-void RenderProcessHostImpl::GraduateSpareToNormalRendererPriority() {
-  if (has_spare_renderer_priority_) {
-    has_spare_renderer_priority_ = false;
-    UpdateProcessPriority();
-  }
 }
 
 bool RenderProcessHostImpl::IsOnlyHostingPrerenderedFramesOrEmpty() {

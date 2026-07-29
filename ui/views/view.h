@@ -884,7 +884,13 @@ class VIEWS_EXPORT View : public ui::LayerDelegate,
   // Mark this view and all parents to require a relayout. This ensures the
   // next layout will propagate to this view, even if the bounds of parent views
   // do not change.
-  void InvalidateLayout();
+  //
+  // If `avoid_propagate_during_layout` is set, and the parent view is laying
+  // out, the current view will be marked as needing layout, but the ancestor
+  // chain will *not* be invalidated, preventing a double layout or layout loop.
+  // This can be used when a call during a Layout() method might invalidate a
+  // child view.
+  void InvalidateLayout(bool avoid_propagate_during_layout = false);
 
   // Sets whether or not the layout manager need to respect the available space.
   //
@@ -1041,9 +1047,9 @@ class VIEWS_EXPORT View : public ui::LayerDelegate,
   //
   // Returns the enclosed rect with default allowed conversion error
   // (0.00001f).
-  static gfx::Rect ConvertRectToTarget(const View* source,
-                                       const View* target,
-                                       const gfx::Rect& rect);
+  [[nodiscard]] static gfx::Rect ConvertRectToTarget(const View* source,
+                                                     const View* target,
+                                                     const gfx::Rect& rect);
 
   // Converts a point from a View's coordinate system to that of its Widget.
   static void ConvertPointToWidget(const View* src, gfx::Point* point);
@@ -1073,11 +1079,11 @@ class VIEWS_EXPORT View : public ui::LayerDelegate,
 
   // Applies transformation on the rectangle, which is in the view's coordinate
   // system, to convert it into the parent's coordinate system.
-  gfx::Rect ConvertRectToParent(const gfx::Rect& rect) const;
+  [[nodiscard]] gfx::Rect ConvertRectToParent(const gfx::Rect& rect) const;
 
   // Converts a rectangle from this views coordinate system to its widget
   // coordinate system.
-  gfx::Rect ConvertRectToWidget(const gfx::Rect& rect) const;
+  [[nodiscard]] gfx::Rect ConvertRectToWidget(const gfx::Rect& rect) const;
 
   // Painting ------------------------------------------------------------------
 
@@ -1989,7 +1995,7 @@ class VIEWS_EXPORT View : public ui::LayerDelegate,
     requires std::derived_from<Super, View> && std::derived_from<This, Super> &&
              (!std::same_as<Super, This>)
   void LayoutSuperclass(This* ptr) {
-    CHECK(layout_allowed_);
+    CHECK(performing_layout_);
     static_cast<Super*>(ptr)->Super::Layout(PassKey());
   }
 
@@ -2487,9 +2493,9 @@ class VIEWS_EXPORT View : public ui::LayerDelegate,
   // Whether the view needs to be laid out.
   bool needs_layout_ = true;
 
-  // Whether Layout() access is currently legal. This is used to prevent calls
-  // to LayoutSuperclass() outside the implementation of Layout().
-  bool layout_allowed_ = false;
+  // Whether Layout() is currently underway. This is used to prevent calls to
+  // LayoutSuperclass() outside the implementation of Layout().
+  bool performing_layout_ = false;
 
   // Whether this view is in the middle of InvalidateLayout().
   bool invalidating_ = false;

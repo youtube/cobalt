@@ -305,7 +305,10 @@ IN_PROC_BROWSER_TEST_P(GlicUiConnectedUiTest,
 
 IN_PROC_BROWSER_TEST_P(GlicUiConnectedUiTest, CanAttachWithBrowserWindow) {
   if (IsDetachedOnlyModeEnabled()) {
-    GTEST_SKIP();
+    GTEST_SKIP() << "Skipping for kGlicDetached only mode";
+  }
+  if (base::FeatureList::IsEnabled(features::kGlicMultiInstance)) {
+    GTEST_SKIP() << "Skipping for kGlicMultiInstance";
   }
   RunTestSequence(OpenGlicWindow(GlicWindowMode::kDetached,
                                  GlicInstrumentMode::kHostAndContents),
@@ -819,7 +822,8 @@ class GlicUiUnifiedFreIntegrationTest : public GlicUiInteractiveUiTestBase {
  public:
   GlicUiUnifiedFreIntegrationTest()
       : GlicUiInteractiveUiTestBase(TestParams(/*connected=*/true)) {
-    feature_list_.InitAndEnableFeature(features::kGlicUnifiedFreScreen);
+    feature_list_.InitWithFeatures(
+        {features::kGlicUnifiedFreScreen, features::kGlicMultiInstance}, {});
   }
   ~GlicUiUnifiedFreIntegrationTest() override = default;
 

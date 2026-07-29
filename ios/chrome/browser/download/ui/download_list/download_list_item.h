@@ -37,6 +37,9 @@ typedef NS_OPTIONS(NSUInteger, DownloadListItemAction) {
 /// Returns the absolute file path for this download item.
 @property(nonatomic, assign, readonly) base::FilePath filePath;
 
+/// Returns the MIME type for this download item.
+@property(nonatomic, copy, readonly) NSString* mimeType;
+
 /// Returns the icon for this download item.
 @property(nonatomic, strong, readonly) UIImage* fileTypeIcon;
 
@@ -45,6 +48,15 @@ typedef NS_OPTIONS(NSUInteger, DownloadListItemAction) {
 
 /// Whether this download item can be canceled.
 @property(nonatomic, assign, readonly) BOOL cancelable;
+
+/// Whether this download item should show progress view.
+@property(nonatomic, assign, readonly) BOOL shouldShowProgressView;
+
+/// Returns the download progress for this download item (0.0 to 1.0).
+@property(nonatomic, assign, readonly) CGFloat downloadProgress;
+
+/// Returns the download state for this download item.
+@property(nonatomic, assign, readonly) web::DownloadTask::State downloadState;
 
 /// Initializes a download list item with the given download record.
 - (instancetype)initWithDownloadRecord:(const DownloadRecord&)downloadRecord

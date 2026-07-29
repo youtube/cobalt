@@ -39,10 +39,6 @@ namespace tabs {
 class TabInterface;
 }  // namespace tabs
 
-namespace web_app {
-class AppBrowserController;
-}  // namespace web_app
-
 namespace web_modal {
 class WebContentsModalDialogHost;
 }  // namespace web_modal
@@ -289,8 +285,12 @@ class BrowserWindowInterface : public content::PageNavigator {
   // Whether the window is active.
   // The definition of "active" aligns with the window being painted as active
   // instead of the top level widget having focus.
-  // Note that this does not work correctly for mac PWA windows, as those are
-  // hosted in a separate application with a stub in the browser process.
+  // Note that on platforms other than Windows, this might not reflect the
+  // actual OS level window activation status, as Chrome internally marks any
+  // browser window as "active" as soon as it starts the (asynchronous) process
+  // to activate the window. However there is no guarantee that the window will
+  // actually be activated on the OS level, so this field can easily get out of
+  // sync with reality.
   virtual bool IsActive() const = 0;
 
   // Register for these two callbacks to detect changes to IsActive().
@@ -309,10 +309,6 @@ class BrowserWindowInterface : public content::PageNavigator {
   // This class manages actions that a user can take that are scoped to a
   // browser window (e.g. most of the 3-dot menu actions).
   virtual BrowserActions* GetActions() = 0;
-
-  virtual web_app::AppBrowserController* GetAppBrowserController() = 0;
-  virtual const web_app::AppBrowserController* GetAppBrowserController()
-      const = 0;
 
   // This is used by features that need to operate on most or all tabs in the
   // browser window. Do not use this method to find a specific tab.

@@ -389,6 +389,8 @@ NodeList* Node::childNodes() {
   return EnsureRareData().EnsureNodeLists().EnsureEmptyChildNodeList(*this);
 }
 
+// TODO(crbug.com/447642032): Implement previous / next sibling for overscroll
+// pseudo-elements.
 Node* Node::PseudoAwarePreviousSibling() const {
   Element* parent = parentElement();
   if (!parent || HasPreviousSibling()) {
@@ -2660,8 +2662,14 @@ String Node::ToString() const {
     DumpAttributeDesc(*this, html_names::kClassAttr, builder);
     DumpAttributeDesc(*this, html_names::kStyleAttr, builder);
   }
+#if DCHECK_IS_ON()
+  if (!GetDocument().IsSlotAssignmentRecalcForbidden() && IsEditable(*this)) {
+    builder.Append(" (editable)");
+  }
+#else
   if (IsEditable(*this))
     builder.Append(" (editable)");
+#endif
   if (GetDocument().FocusedElement() == this)
     builder.Append(" (focused)");
   return builder.ReleaseString();

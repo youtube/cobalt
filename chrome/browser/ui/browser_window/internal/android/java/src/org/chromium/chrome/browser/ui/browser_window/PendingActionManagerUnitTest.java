@@ -17,6 +17,7 @@ import org.junit.runner.RunWith;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTaskImpl.State;
 import org.chromium.chrome.browser.ui.browser_window.PendingActionManager.PendingAction;
 
 /** Unit tests for {@link PendingActionManager}. */
@@ -434,7 +435,10 @@ public class PendingActionManagerUnitTest {
         mManager.requestAction(PendingAction.ACTIVATE);
 
         // Assert.
-        Assert.assertTrue(mManager.isActiveFuture());
+        Assert.assertEquals(
+                "isActive should be true in the future when ACTIVATE is in progress",
+                true,
+                mManager.isActiveFuture(State.PENDING_CREATE));
     }
 
     @Test
@@ -443,18 +447,66 @@ public class PendingActionManagerUnitTest {
         mManager.requestAction(PendingAction.SHOW);
 
         // Assert.
-        Assert.assertTrue(mManager.isVisibleFuture());
+        Assert.assertTrue(
+                "isVisible should be true in the future when SHOW is in progress",
+                mManager.isVisibleFuture());
+    }
+
+    @Test
+    public void testIsMaximizedFuture_afterRequestMaximize_returnsTrue() {
+        // Arrange.
+        mManager.requestAction(PendingAction.MAXIMIZE);
+
+        // Assert.
+        Assert.assertTrue(
+                "isMaximized should be true in the future when MAXIMIZE is in progress",
+                mManager.isMaximizedFuture());
+    }
+
+    @Test
+    public void testIsActiveFuture_afterRequestMaximize_returnsTrue() {
+        // Arrange.
+        mManager.requestAction(PendingAction.MAXIMIZE);
+
+        // Assert.
+        Assert.assertEquals(
+                "isActive should be true in the future when MAXIMIZE is in progress",
+                true,
+                mManager.isActiveFuture(State.PENDING_UPDATE));
+    }
+
+    @Test
+    public void testSetBounds_afterSetBounds_returnsPendingBounds() {
+        // Arrange.
+        mManager.requestSetBounds(TEST_SET_BOUNDS_INPUT_1);
+
+        // Assert.
+        Assert.assertEquals(
+                "Should return pending bounds",
+                TEST_SET_BOUNDS_INPUT_1,
+                mManager.getPendingBoundsInDp());
+    }
+
+    @Test
+    public void testClearSetBounds_afterSetBounds_returnsNull() {
+        // Arrange.
+        mManager.requestSetBounds(TEST_SET_BOUNDS_INPUT_1);
+        mManager.getAndClearTargetPendingActions(PendingAction.SET_BOUNDS);
+
+        // Assert.
+        Assert.assertNull("Pending bounds should have been clear", mManager.getFutureBoundsInDp());
     }
 
     @Test
     public void testGetAndClearTargetPendingActions_afterClear_stateReturnsNull() {
         // Arrange.
         mManager.requestAction(PendingAction.ACTIVATE);
-        Assert.assertTrue(mManager.isActiveFuture());
+        assertEquals(true, mManager.isActiveFuture(State.PENDING_UPDATE));
 
         mManager.getAndClearTargetPendingActions(PendingAction.ACTIVATE);
         Assert.assertNull(
-                "No pending action affecting isActive's future state", mManager.isActiveFuture());
+                "No pending action affecting isActive's future state",
+                mManager.isActiveFuture(State.PENDING_UPDATE));
     }
 
     private void doTestActionOverridesLowerPrecedenceAction(

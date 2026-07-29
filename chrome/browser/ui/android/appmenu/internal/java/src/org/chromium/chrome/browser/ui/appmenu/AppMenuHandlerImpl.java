@@ -36,12 +36,16 @@ import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.lifecycle.ConfigurationChangedObserver;
 import org.chromium.chrome.browser.lifecycle.StartStopWithNativeObserver;
+import org.chromium.chrome.browser.ui.appmenu.AppMenu.AppMenuPopup;
 import org.chromium.chrome.browser.ui.appmenu.internal.R;
 import org.chromium.components.browser_ui.util.motion.MotionEventInfo;
 import org.chromium.components.browser_ui.widget.textbubble.TextBubble;
 import org.chromium.ui.KeyboardVisibilityDelegate;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.display.DisplayAndroidManager;
+import org.chromium.ui.hierarchicalmenu.FlyoutController.FlyoutHandler;
+import org.chromium.ui.hierarchicalmenu.HierarchicalMenuController;
+import org.chromium.ui.hierarchicalmenu.HierarchicalMenuController.SubmenuHeaderFactory;
 import org.chromium.ui.modelutil.LayoutViewBuilder;
 import org.chromium.ui.modelutil.ListObservable;
 import org.chromium.ui.modelutil.ListObservable.ListObserver;
@@ -66,7 +70,8 @@ class AppMenuHandlerImpl
                 AppMenuClickHandler,
                 AppMenu.AppMenuVisibilityDelegate,
                 StartStopWithNativeObserver,
-                ConfigurationChangedObserver {
+                ConfigurationChangedObserver,
+                FlyoutHandler<AppMenuPopup> {
 
     /** An {@link Adapter} for the list of items in the app menu. */
     private static final class AppMenuAdapter extends ModelListAdapter {
@@ -106,6 +111,8 @@ class AppMenuHandlerImpl
     private final WindowAndroid mWindowAndroid;
     private final BrowserControlsStateProvider mBrowserControlsStateProvider;
     private @Nullable ModelList mModelList;
+    private @Nullable HierarchicalMenuController mHierarchicalMenuController;
+    private final SubmenuHeaderFactory mSubmenuHeaderFactory;
     private final ListObserver<Void> mListObserver;
     private @Nullable Callback<Integer> mTestOptionsItemSelectedListener;
     private @MonotonicNonNull KeyboardVisibilityDelegate.KeyboardVisibilityListener
@@ -134,6 +141,8 @@ class AppMenuHandlerImpl
      * @param appRect Supplier of the app area in Window that the menu should fit in.
      * @param windowAndroid The window that will be used to fetch {@link KeyboardVisibilityDelegate}
      * @param browserControlsStateProvider a provider that can provide the state of the toolbar
+     * @param submenuHeaderFactory The {@link SubmenuHeaderFactory} to use for the {@link
+     *     HierarchicalMenuController}.
      */
     public AppMenuHandlerImpl(
             Context context,
@@ -144,7 +153,8 @@ class AppMenuHandlerImpl
             View hardwareButtonAnchorView,
             Supplier<Rect> appRect,
             WindowAndroid windowAndroid,
-            BrowserControlsStateProvider browserControlsStateProvider) {
+            BrowserControlsStateProvider browserControlsStateProvider,
+            SubmenuHeaderFactory submenuHeaderFactory) {
         mContext = context;
         mAppMenuDelegate = appMenuDelegate;
         mDelegate = delegate;
@@ -155,6 +165,7 @@ class AppMenuHandlerImpl
         mAppRect = appRect;
         mWindowAndroid = windowAndroid;
         mBrowserControlsStateProvider = browserControlsStateProvider;
+        mSubmenuHeaderFactory = submenuHeaderFactory;
 
         mActivityLifecycleDispatcher = activityLifecycleDispatcher;
         mActivityLifecycleDispatcher.register(this);
@@ -172,6 +183,7 @@ class AppMenuHandlerImpl
                                 AppMenuHandlerImpl.this,
                                 /* startIndex= */ index,
                                 /* withAssertions= */ false);
+                        mAppMenu.updateMenuHeight();
                     }
 
                     @Override
@@ -183,6 +195,7 @@ class AppMenuHandlerImpl
                                 AppMenuHandlerImpl.this,
                                 /* startIndex= */ index,
                                 /* withAssertions= */ false);
+                        mAppMenu.updateMenuHeight();
                     }
                 };
     }
@@ -282,10 +295,20 @@ class AppMenuHandlerImpl
         int itemRowHeight = a.getDimensionPixelSize(0, 0);
         a.recycle();
 
+        if (mHierarchicalMenuController == null) {
+            mHierarchicalMenuController =
+                    new HierarchicalMenuController(
+                            mContext, new AppMenuUtil.AppMenuKeyProvider(), mSubmenuHeaderFactory);
+        }
+
+        mHierarchicalMenuController.setupCallbacksRecursively(
+                /* headerModelList= */ null, mModelList, () -> {});
+
         if (mAppMenu == null) {
-            mAppMenu = new AppMenu(this, mContext.getResources());
+            mAppMenu = new AppMenu(this, mContext.getResources(), mHierarchicalMenuController);
             mAppMenuDragHelper = new AppMenuDragHelper(mContext, mAppMenu, itemRowHeight);
         }
+
         setupModelForHighlightAndClick(mModelList, mHighlightMenuId, this);
 
         AppMenuAdapter adapter = new AppMenuAdapter(mModelList);
@@ -366,6 +389,9 @@ class AppMenuHandlerImpl
         assumeNonNull(mAppMenuDragHelper);
         mAppMenuDragHelper.finishDragging();
         mDelegate.onMenuDismissed();
+        if (mModelList != null) {
+            mModelList.removeObserver(mListObserver);
+        }
     }
 
     @Override
@@ -388,9 +414,6 @@ class AppMenuHandlerImpl
     public void hideAppMenu() {
         if (mAppMenu != null && mAppMenu.isShowing()) {
             mAppMenu.dismiss();
-            if (mModelList != null) {
-                mModelList.removeObserver(mListObserver);
-            }
         }
     }
 
@@ -709,7 +732,8 @@ class AppMenuHandlerImpl
                 mHighlightMenuId,
                 mDelegate.isMenuIconAtStart(),
                 mBrowserControlsStateProvider.getControlsPosition(),
-                addTopPaddingBeforeFirstRow());
+                addTopPaddingBeforeFirstRow(),
+                this);
         assumeNonNull(mAppMenuDragHelper);
         mAppMenuDragHelper.onShow(startDragging);
         clearMenuHighlight();
@@ -720,5 +744,42 @@ class AppMenuHandlerImpl
     private boolean addTopPaddingBeforeFirstRow() {
         if (mModelList == null || mModelList.isEmpty()) return false;
         return mModelList.get(0).type != AppMenuItemType.BUTTON_ROW;
+    }
+
+    @Override
+    public Rect getPopupRect(AppMenuPopup popupWindow) {
+        return popupWindow.getPopupRect();
+    }
+
+    @Override
+    public void dismissPopup(AppMenuPopup popupWindow) {
+        popupWindow.dismiss();
+    }
+
+    @Override
+    public void setWindowFocus(AppMenuPopup popupWindow, boolean hasFocus) {
+        ViewGroup contentView = (ViewGroup) popupWindow.getContentView();
+        if (contentView == null) return;
+
+        HierarchicalMenuController.setWindowFocusForFlyoutMenus(contentView, hasFocus);
+    }
+
+    @Override
+    public AppMenuPopup createAndShowFlyoutPopup(
+            ListItem item, View view, Runnable dismissRunnable) {
+        AppMenuAdapter adapter = new AppMenuAdapter(getModelListSubtree(item));
+        SparseArray<Function<Context, Integer>> customSizingProviders = new SparseArray<>();
+        registerViewBinders(adapter, customSizingProviders, mDelegate.shouldShowIconBeforeItem());
+
+        assert mAppMenu != null;
+        return mAppMenu.createAndShowFlyoutPopup(adapter, view, item, dismissRunnable);
+    }
+
+    private static ModelList getModelListSubtree(ListItem item) {
+        ModelList modelList = new ModelList();
+        for (ListItem listItem : item.model.get(AppMenuItemWithSubmenuProperties.SUBMENU_ITEMS)) {
+            modelList.add(listItem);
+        }
+        return modelList;
     }
 }

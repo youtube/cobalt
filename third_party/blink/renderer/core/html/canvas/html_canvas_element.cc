@@ -62,7 +62,6 @@
 #include "third_party/blink/renderer/bindings/core/v8/script_controller.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_image_bitmap_options.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_image_encode_options.h"
-#include "third_party/blink/renderer/core/canvas_interventions/canvas_interventions_helper.h"
 #include "third_party/blink/renderer/core/css/css_font_selector.h"
 #include "third_party/blink/renderer/core/css/style_change_reason.h"
 #include "third_party/blink/renderer/core/css/style_engine.h"
@@ -1207,9 +1206,8 @@ UkmParameters HTMLCanvasElement::GetUkmParameters() {
 }
 
 const AtomicString HTMLCanvasElement::ImageSourceURL() const {
-  return AtomicString(
-      ToDataURLInternal(ImageEncoderUtils::kDefaultRequestedMimeType, 0,
-                        kFrontBuffer, ReadbackType::kNotWebExposed));
+  return AtomicString(ToDataURLInternal(
+      ImageEncoderUtils::kDefaultRequestedMimeType, 0, kFrontBuffer));
 }
 
 scoped_refptr<StaticBitmapImage> HTMLCanvasElement::Snapshot(
@@ -1244,10 +1242,10 @@ scoped_refptr<StaticBitmapImage> HTMLCanvasElement::Snapshot(
   return image_bitmap;
 }
 
-String HTMLCanvasElement::ToDataURLInternal(const String& mime_type,
-                                            const double& quality,
-                                            SourceDrawingBuffer source_buffer,
-                                            ReadbackType readback_type) const {
+String HTMLCanvasElement::ToDataURLInternal(
+    const String& mime_type,
+    const double& quality,
+    SourceDrawingBuffer source_buffer) const {
   base::TimeTicks start_time = base::TimeTicks::Now();
   if (!IsPaintable())
     return String("data:,");
@@ -1256,14 +1254,8 @@ String HTMLCanvasElement::ToDataURLInternal(const String& mime_type,
       ImageEncoderUtils::ToEncodingMimeType(
           mime_type, ImageEncoderUtils::kEncodeReasonToDataURL);
 
-  scoped_refptr<StaticBitmapImage> image_bitmap =
-      Snapshot(FlushReason::kToDataURL, source_buffer);
+  scoped_refptr<StaticBitmapImage> image_bitmap = Snapshot(source_buffer);
   if (image_bitmap) {
-    bool noised = false;
-    if (readback_type == ReadbackType::kWebExposed) {
-      noised = CanvasInterventionsHelper::MaybeNoiseSnapshot(
-          GetExecutionContext(), image_bitmap);
-    }
     std::unique_ptr<ImageDataBuffer> data_buffer =
         ImageDataBuffer::Create(image_bitmap);
     if (!data_buffer)
@@ -1302,11 +1294,9 @@ String HTMLCanvasElement::ToDataURLInternal(const String& mime_type,
       NOTREACHED();
     }
     IdentifiabilityReportWithDigest(IdentifiabilityBenignStringToken(data_url));
-    if (readback_type == ReadbackType::kWebExposed) {
-      TRACE_EVENT_INSTANT(
-          TRACE_DISABLED_BY_DEFAULT("identifiability.high_entropy_api"),
-          "CanvasReadback", "data_url", data_url.Utf8(), "noised", noised);
-    }
+    TRACE_EVENT_INSTANT(
+        TRACE_DISABLED_BY_DEFAULT("identifiability.high_entropy_api"),
+        "CanvasReadback", "data_url", data_url.Utf8());
     return data_url;
   }
 
@@ -1316,12 +1306,6 @@ String HTMLCanvasElement::ToDataURLInternal(const String& mime_type,
 String HTMLCanvasElement::toDataURL(const String& mime_type,
                                     const ScriptValue& quality_argument,
                                     ExceptionState& exception_state) const {
-  if (RuntimeEnabledFeatures::BlockCanvasReadbackEnabled(
-          GetExecutionContext())) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kNotAllowedError,
-                                      String(kBlockCanvasReadbackErrorMessage));
-    return String();
-  }
   if (ContextHasOpenLayers(context_)) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kInvalidStateError,
@@ -1340,20 +1324,13 @@ String HTMLCanvasElement::toDataURL(const String& mime_type,
     if (v8_value->IsNumber())
       quality = v8_value.As<v8::Number>()->Value();
   }
-  return ToDataURLInternal(mime_type, quality, kBackBuffer,
-                           ReadbackType::kWebExposed);
+  return ToDataURLInternal(mime_type, quality, kBackBuffer);
 }
 
 void HTMLCanvasElement::toBlob(V8BlobCallback* callback,
                                const String& mime_type,
                                const ScriptValue& quality_argument,
                                ExceptionState& exception_state) {
-  if (RuntimeEnabledFeatures::BlockCanvasReadbackEnabled(
-          GetExecutionContext())) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kNotAllowedError,
-                                      String(kBlockCanvasReadbackErrorMessage));
-    return;
-  }
   if (!OriginClean()) {
     exception_state.ThrowSecurityError("Tainted canvases may not be exported.");
     return;
@@ -1395,13 +1372,6 @@ void HTMLCanvasElement::toBlob(V8BlobCallback* callback,
   scoped_refptr<StaticBitmapImage> image_bitmap =
       Snapshot(FlushReason::kToBlob, kBackBuffer);
   if (image_bitmap) {
-    auto intervention_type =
-        CanvasInterventionsHelper::CanvasInterventionType::kNone;
-    if (CanvasInterventionsHelper::MaybeNoiseSnapshot(GetExecutionContext(),
-                                                      image_bitmap)) {
-      intervention_type =
-          CanvasInterventionsHelper::CanvasInterventionType::kNoise;
-    }
     auto* options = ImageEncodeOptions::Create();
     options->setType(ImageEncoderUtils::MimeTypeName(encoding_mime_type));
     async_creator = MakeGarbageCollected<CanvasAsyncBlobCreator>(
@@ -1411,8 +1381,7 @@ void HTMLCanvasElement::toBlob(V8BlobCallback* callback,
         IdentifiabilityStudySettings::Get()->ShouldSampleType(
             IdentifiableSurface::Type::kCanvasReadback)
             ? IdentifiabilityInputDigest(context_)
-            : 0,
-        intervention_type);
+            : 0);
   }
 
   if (async_creator) {

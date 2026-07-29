@@ -79,7 +79,16 @@ std::unique_ptr<views::View> GlicSidePanelUi::CreateView(Profile* profile) {
   return glic_view;
 }
 
-GlicSidePanelUi::~GlicSidePanelUi() = default;
+GlicSidePanelUi::~GlicSidePanelUi() {
+  if (glic_view_) {
+    glic_view_->SetWebContents(nullptr);
+  }
+}
+
+void GlicSidePanelUi::OnClientReady() {
+  instance_metrics_->OnClientReady(
+      GlicInstanceMetrics::EmbedderType::kSidePanel);
+}
 
 Host::EmbedderDelegate* GlicSidePanelUi::GetHostEmbedderDelegate() {
   return this;
@@ -121,7 +130,7 @@ void GlicSidePanelUi::Detach() {
     return;
   }
   // NOTE: `this` will be destroyed after this call.
-  delegate_->Detach(tab_.get());
+  delegate_->Detach(*tab_);
 }
 
 void GlicSidePanelUi::SetMinimumWidgetSize(const gfx::Size& size) {
@@ -185,7 +194,7 @@ void GlicSidePanelUi::CaptureScreenshot(
       browser_window->GetWindow()->GetNativeWindow(), std::move(callback));
 }
 
-void GlicSidePanelUi::Show() {
+void GlicSidePanelUi::Show(const ShowOptions& options) {
   instance_metrics_->OnShowInSidePanel(tab_.get());
   auto* glic_side_panel_coordinator = GetGlicSidePanelCoordinator();
   if (!glic_side_panel_coordinator) {
@@ -193,9 +202,16 @@ void GlicSidePanelUi::Show() {
   }
   panel_state_.kind = mojom::PanelStateKind::kAttached;
   delegate_->NotifyPanelStateChanged();
+  delegate_->host().FloatingPanelCanAttachChanged(false);
   application_hotkey_manager_->InitializeAccelerators();
   glic_panel_hotkey_manager_->InitializeAccelerators();
-  glic_side_panel_coordinator->Show();
+
+  bool suppress_animations = false;
+  if (const auto* side_panel_options =
+          std::get_if<SidePanelShowOptions>(&options.embedder_options)) {
+    suppress_animations = side_panel_options->suppress_opening_animation;
+  }
+  glic_side_panel_coordinator->Show(suppress_animations);
 }
 
 void GlicSidePanelUi::Close() {

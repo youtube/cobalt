@@ -52,6 +52,7 @@
 #include "pdf/loader/url_loader.h"
 #include "pdf/loader/url_loader_wrapper_impl.h"
 #include "pdf/page_character_index.h"
+#include "pdf/pdf_accessibility_constants.h"
 #include "pdf/pdf_caret.h"
 #include "pdf/pdf_features.h"
 #include "pdf/pdf_transform.h"
@@ -5099,10 +5100,13 @@ gfx::Transform PDFiumEngine::GetCanonicalToPdfTransform(int page_index) {
 std::map<int, std::vector<PdfRect>> PDFiumEngine::GetSelectionRectMap() {
   std::map<int, std::vector<PdfRect>> results;
   for (auto& selection : selection_) {
-    auto& page_results = results[selection.page_index()];
     std::vector<PdfRect> pdf_rects = selection.GetRectsWithTightness(
         PDFiumRange::PdfBoundsTightness::kTightVertical);
-    page_results.insert(page_results.end(), pdf_rects.begin(), pdf_rects.end());
+    if (!pdf_rects.empty()) {
+      auto& page_results = results[selection.page_index()];
+      page_results.insert(page_results.end(), pdf_rects.begin(),
+                          pdf_rects.end());
+    }
   }
   return results;
 }

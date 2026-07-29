@@ -9,6 +9,7 @@
 #include "base/compiler_specific.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/test/test_future.h"
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/file_system_access/file_system_access_features.h"
@@ -26,6 +27,7 @@
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/location_bar/location_bar.h"
+#include "chrome/browser/ui/omnibox/omnibox_controller.h"
 #include "chrome/browser/ui/omnibox/omnibox_edit_model.h"
 #include "chrome/browser/ui/omnibox/omnibox_view.h"
 #include "chrome/browser/ui/page_info/chrome_page_info_delegate.h"
@@ -155,7 +157,7 @@ NavigateParams BrowserNavigatorTest::MakeNavigateParams() const {
 NavigateParams BrowserNavigatorTest::MakeNavigateParams(
     BrowserWindowInterface* browser) const {
   NavigateParams params(browser, GetGoogleURL(), ui::PAGE_TRANSITION_LINK);
-  params.window_action = NavigateParams::SHOW_WINDOW;
+  params.window_action = NavigateParams::WindowAction::kShowWindow;
   return params;
 }
 
@@ -241,7 +243,7 @@ void BrowserNavigatorTest::RunUseNonIncognitoWindowTest(
   NavigateParams params(MakeNavigateParams(incognito_browser));
   params.disposition = WindowOpenDisposition::SINGLETON_TAB;
   params.url = url;
-  params.window_action = NavigateParams::SHOW_WINDOW;
+  params.window_action = NavigateParams::WindowAction::kShowWindow;
   params.transition = page_transition;
   Navigate(&params);
 
@@ -271,7 +273,7 @@ void BrowserNavigatorTest::RunDoNothingIfIncognitoIsForcedTest(
   NavigateParams params(MakeNavigateParams(browser));
   params.disposition = WindowOpenDisposition::OFF_THE_RECORD;
   params.url = url;
-  params.window_action = NavigateParams::SHOW_WINDOW;
+  params.window_action = NavigateParams::WindowAction::kShowWindow;
   Navigate(&params);
 
   // The page should not be opened.
@@ -331,7 +333,7 @@ Browser* BrowserNavigatorTest::NavigateHelper(const GURL& url,
   NavigateParams params(MakeNavigateParams(browser));
   params.disposition = disposition;
   params.url = url;
-  params.window_action = NavigateParams::SHOW_WINDOW;
+  params.window_action = NavigateParams::WindowAction::kShowWindow;
   Navigate(&params);
 
   if (load_stop_observer) {
@@ -680,7 +682,7 @@ IN_PROC_BROWSER_TEST_F(BrowserNavigatorTest, Disposition_NewPopupUnfocused) {
   NavigateParams params(MakeNavigateParams());
   params.disposition = WindowOpenDisposition::NEW_POPUP;
   params.window_features.bounds = gfx::Rect(0, 0, 200, 200);
-  params.window_action = NavigateParams::SHOW_WINDOW_INACTIVE;
+  params.window_action = NavigateParams::WindowAction::kShowWindowInactive;
   // Wait for new popup to load (and gain focus if the test fails).
   ui_test_utils::NavigateToURL(&params);
 
@@ -886,8 +888,7 @@ IN_PROC_BROWSER_TEST_F(BrowserNavigatorTest, SaveAfterFocusTabSwitchTest) {
       1, TabStripUserGestureDetails(
              TabStripUserGestureDetails::GestureType::kOther));
 
-  OmniboxView* omnibox_view = location_bar->GetOmniboxView();
-  EXPECT_EQ(omnibox_view->model()->focus_state(),
+  EXPECT_EQ(location_bar->GetOmniboxController()->edit_model()->focus_state(),
             OmniboxFocusState::OMNIBOX_FOCUS_NONE);
 }
 
@@ -1283,7 +1284,7 @@ IN_PROC_BROWSER_TEST_F(BrowserNavigatorTest,
   NavigateParams params(MakeNavigateParams());
   params.disposition = WindowOpenDisposition::SINGLETON_TAB;
   params.url = GetContentSettingsURL();
-  params.window_action = NavigateParams::SHOW_WINDOW;
+  params.window_action = NavigateParams::WindowAction::kShowWindow;
   params.path_behavior = NavigateParams::IGNORE_AND_NAVIGATE;
   Navigate(&params);
 
@@ -1316,7 +1317,7 @@ IN_PROC_BROWSER_TEST_F(BrowserNavigatorTest,
   NavigateParams params(MakeNavigateParams());
   params.disposition = WindowOpenDisposition::SINGLETON_TAB;
   params.url = GetContentSettingsURL();
-  params.window_action = NavigateParams::SHOW_WINDOW;
+  params.window_action = NavigateParams::WindowAction::kShowWindow;
   params.path_behavior = NavigateParams::IGNORE_AND_NAVIGATE;
   Navigate(&params);
 
@@ -1349,7 +1350,7 @@ IN_PROC_BROWSER_TEST_F(BrowserNavigatorTest,
   NavigateParams params(MakeNavigateParams());
   params.disposition = WindowOpenDisposition::SINGLETON_TAB;
   params.url = GetClearBrowsingDataURL();
-  params.window_action = NavigateParams::SHOW_WINDOW;
+  params.window_action = NavigateParams::WindowAction::kShowWindow;
   params.path_behavior = NavigateParams::IGNORE_AND_NAVIGATE;
   Navigate(&params);
 
@@ -1381,7 +1382,7 @@ IN_PROC_BROWSER_TEST_F(BrowserNavigatorTest,
   NavigateParams params(MakeNavigateParams());
   params.disposition = WindowOpenDisposition::SINGLETON_TAB;
   params.url = singleton_url_target;
-  params.window_action = NavigateParams::SHOW_WINDOW;
+  params.window_action = NavigateParams::WindowAction::kShowWindow;
   params.path_behavior = NavigateParams::IGNORE_AND_NAVIGATE;
   Navigate(&params);
 
@@ -1411,7 +1412,7 @@ IN_PROC_BROWSER_TEST_F(BrowserNavigatorTest,
   NavigateParams params(MakeNavigateParams());
   params.disposition = WindowOpenDisposition::SINGLETON_TAB;
   params.url = singleton_url_target;
-  params.window_action = NavigateParams::SHOW_WINDOW;
+  params.window_action = NavigateParams::WindowAction::kShowWindow;
   params.path_behavior = NavigateParams::IGNORE_AND_NAVIGATE;
   Navigate(&params);
 
@@ -1495,7 +1496,7 @@ IN_PROC_BROWSER_TEST_F(BrowserNavigatorTest,
   NavigateParams params(MakeNavigateParams(incognito_browser));
   params.disposition = WindowOpenDisposition::SINGLETON_TAB;
   params.url = bookmarks_page;
-  params.window_action = NavigateParams::SHOW_WINDOW;
+  params.window_action = NavigateParams::WindowAction::kShowWindow;
   params.transition = ui::PageTransition::PAGE_TRANSITION_AUTO_BOOKMARK;
   Navigate(&params);
 
@@ -1532,7 +1533,7 @@ IN_PROC_BROWSER_TEST_F(BrowserNavigatorTest, NavigateToCrashedSingletonTab) {
   NavigateParams params(MakeNavigateParams());
   params.disposition = WindowOpenDisposition::SINGLETON_TAB;
   params.url = singleton_url;
-  params.window_action = NavigateParams::SHOW_WINDOW;
+  params.window_action = NavigateParams::WindowAction::kShowWindow;
   params.path_behavior = NavigateParams::IGNORE_AND_NAVIGATE;
   ui_test_utils::NavigateToURL(&params);
 
@@ -1916,7 +1917,7 @@ IN_PROC_BROWSER_TEST_F(BrowserNavigatorTest, ViewSourceUrlMatching) {
   NavigateParams params(MakeNavigateParams(incognito_browser));
   params.disposition = WindowOpenDisposition::SINGLETON_TAB;
   params.url = GURL(viewsource_settings_url);
-  params.window_action = NavigateParams::SHOW_WINDOW;
+  params.window_action = NavigateParams::WindowAction::kShowWindow;
   params.transition = ui::PAGE_TRANSITION_AUTO_BOOKMARK;
   Navigate(&params);
 
@@ -2027,7 +2028,7 @@ IN_PROC_BROWSER_TEST_F(BrowserNavigatorTest,
   NavigateParams params(MakeNavigateParams());
   params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
   params.url = GURL(data_url);
-  params.window_action = NavigateParams::SHOW_WINDOW;
+  params.window_action = NavigateParams::WindowAction::kShowWindow;
   ui_test_utils::NavigateToURL(&params);
 
   std::u16string expected_title(base::UTF8ToUTF16(unescaped_title));
@@ -2851,6 +2852,35 @@ IN_PROC_BROWSER_TEST_F(MAYBE_BrowserNavigatorTestWithMockScreen,
     EXPECT_TRUE(display2.work_area().Contains(
         params.browser->GetWindow()->GetBounds()));
   }
+}
+
+IN_PROC_BROWSER_TEST_F(BrowserNavigatorTest, NavigateWithCallback) {
+  // Set up navigation parameters.
+  NavigateParams params = MakeNavigateParams();  // Uses GetGoogleURL()
+  params.disposition = WindowOpenDisposition::CURRENT_TAB;
+
+  // Set up an observer to wait for the navigation to complete.
+  content::TestNavigationObserver navigation_observer(
+      browser()->tab_strip_model()->GetActiveWebContents());
+
+  // Call the new Navigate function overload.
+  base::test::TestFuture<base::WeakPtr<content::NavigationHandle>> future;
+  Navigate(&params, future.GetCallback());
+
+  // Wait for the NavigationHandle
+  base::WeakPtr<content::NavigationHandle> navigation_handle = future.Get();
+
+  // Verify the handle from the callback matches the completed navigation.
+  ASSERT_TRUE(navigation_handle);
+  EXPECT_EQ(GetGoogleURL(), navigation_handle->GetURL());
+
+  // Wait for "async". Observer checks NavigationHandle properties.
+  navigation_observer.Wait();
+
+  // Verify the navigation completed successfully.
+  EXPECT_EQ(GetGoogleURL(),
+            browser()->tab_strip_model()->GetActiveWebContents()->GetURL());
+  EXPECT_EQ(1, browser()->tab_strip_model()->count());
 }
 
 }  // namespace

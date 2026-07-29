@@ -7,8 +7,11 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "chrome/browser/actor/site_policy.h"
 #include "chrome/common/actor/task_id.h"
 #include "components/prefs/pref_change_registrar.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
+#include "url/origin.h"
 
 class GURL;
 class Profile;
@@ -31,22 +34,26 @@ class ActorPolicyChecker {
   ActorPolicyChecker& operator=(const ActorPolicyChecker&) = delete;
   ~ActorPolicyChecker();
 
-  // TODO(crbug.com/448384918): The callback should return the explicit error
-  // code to distinguish between different blocked-by-policy reasons.
-  using DecisionCallback = base::OnceCallback<void(/*may_act=*/bool)>;
   // See site_policy.h.
   void MayActOnTab(const tabs::TabInterface& tab,
                    AggregatedJournal& journal,
                    TaskId task_id,
-                   DecisionCallback callback);
+                   const absl::flat_hash_set<url::Origin>& allowed_origins,
+                   DecisionCallbackWithReason callback);
   void MayActOnUrl(const GURL& url,
                    bool allow_insecure_http,
                    Profile* profile,
                    AggregatedJournal& journal,
                    TaskId task_id,
-                   DecisionCallback callback);
+                   DecisionCallbackWithReason callback);
 
-  bool can_act_on_web() const { return can_act_on_web_; }
+  void SetActOnWebForTesting(bool enabled) {
+    can_act_on_web_for_testing_ = enabled;
+  }
+
+  bool can_act_on_web() const {
+    return can_act_on_web_for_testing_ || can_act_on_web_;
+  }
 
  private:
   void OnPrefChanged();
@@ -57,6 +64,8 @@ class ActorPolicyChecker {
   PrefChangeRegistrar pref_change_registrar_;
 
   bool can_act_on_web_ = true;
+
+  bool can_act_on_web_for_testing_ = false;
 
   base::WeakPtrFactory<ActorPolicyChecker> weak_ptr_factory_{this};
 };

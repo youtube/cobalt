@@ -280,6 +280,7 @@ ci.thin_tester(
         ],
         mixins = [
             "isolate_profile_data",
+            "retry_only_failed_tests",
         ],
         per_test_modifications = {
             "android_browsertests": targets.mixin(
@@ -290,6 +291,12 @@ ci.thin_tester(
                 swarming = targets.swarming(
                     shards = 20,
                 ),
+            ),
+            "chrome_public_test_apk": targets.mixin(
+                args = [
+                    "--test-launcher-filter-file=../../testing/buildbot/filters/android.desktop.chrome_public_test_apk_desktop.filter",
+                    "--test-launcher-filter-file=../../testing/buildbot/filters/android.desktop.emulator_15.chrome_public_test_apk.filter",
+                ],
             ),
             "chrome_public_test_apk_desktop": targets.mixin(
                 args = [
@@ -313,6 +320,9 @@ ci.thin_tester(
                 args = [
                     "--test-launcher-filter-file=../../testing/buildbot/filters/android.desktop.emulator_15.unit_tests.filter",
                 ],
+            ),
+            "media_unittests": targets.mixin(
+                ci_only = True,
             ),
         },
     ),

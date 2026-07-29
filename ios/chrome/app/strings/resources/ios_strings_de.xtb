@@ -133,6 +133,7 @@
 <translation id="1492417797159476138">Du hast diesen Nutzernamen für diese Website bereits gespeichert</translation>
 <translation id="1497590942294823549">Menü → Passwortmanager</translation>
 <translation id="1498283581832036924">Dein <ph name="WEBSITE" />-Konto wird nicht gelöscht.</translation>
+<translation id="1503814213414825943">Wähle die Konten aus, die du in eine andere App exportieren möchtest.</translation>
 <translation id="1506061864768559482">Suchmaschine</translation>
 <translation id="1506063256525392513">Dadurch kannst du Fotos aufnehmen und hochladen und QR-Codes scannen</translation>
 <translation id="1508263560970797965">Im Inkognitomodus fortfahren</translation>
@@ -238,7 +239,6 @@
 <translation id="188237709236611317">Menüleiste mit intelligenter Sortierung</translation>
 <translation id="1883255238294161206">Liste ausblenden</translation>
 <translation id="1888854257756214946">Passwort auswählen…</translation>
-<translation id="1889872080060107187">Du meldest dich in <ph name="URL" /> an</translation>
 <translation id="1890237935065108104">Diese Einstellung ist nicht verfügbar.</translation>
 <translation id="1894023287452300670">Hier den Preis beobachten</translation>
 <translation id="189531189292803889">Dein iPad wurde vor Kurzem wiederhergestellt. Möglicherweise hat sich dadurch dein Standardbrowser geändert.</translation>
@@ -277,6 +277,7 @@
 <translation id="199425419756152024">Passwort anzeigen</translation>
 <translation id="1996318269856535896">Du kannst vorhandene Browserdaten auf diesem Gerät weiterhin verwenden. Dazu musst du dich von deinem verwalteten Konto abmelden.</translation>
 <translation id="2010008505735295285">Aktualisieren</translation>
+<translation id="2012723204723845092">Willkommen zurück!</translation>
 <translation id="2015722694326466240">Um die Passwörter zu sehen, musst du zuerst einen Sicherheitscode auf deinem Gerät einrichten.</translation>
 <translation id="201759455285471444">Tabgruppe maximieren.</translation>
 <translation id="202070562065520783">Erkläre mir das</translation>
@@ -647,6 +648,7 @@
 <translation id="3530024057633834563">Du hast keine Passwörter oder Passkeys gespeichert, aber du kannst die Liste der Websites und Apps löschen, für die du festgelegt hast, dass Anmeldedaten nie gespeichert werden sollen. Konten, die du für Websites und Apps erstellt hast, werden nicht gelöscht.</translation>
 <translation id="3530206579861815432">Auf deinen synchronisierten Geräten siehst du schnell deine geöffneten und kürzlich geschlossenen Tabs.</translation>
 <translation id="3530767473765895035">Konten auf diesem Gerät verwalten…</translation>
+<translation id="353340646084395154">Einstellungen für die „Neuer Tab“-Seite entfernt</translation>
 <translation id="3533436815740441613">Neuer Tab</translation>
 <translation id="3540141921715814660">Zu Lesezeichen hinzufügen</translation>
 <translation id="3546122170015471515">Maps-Vorabversion auf Google.com</translation>
@@ -675,6 +677,7 @@
 <translation id="3642060527569456384">Tabgruppen werden automatisch auf allen deinen Geräten gespeichert und aktualisiert.</translation>
 <translation id="3643338347976071250">{count,plural, =1{{count} Passwort ist nur auf diesem Gerät gespeichert. Wenn du es auf deinen anderen Geräten verwenden möchtest, speichere es in deinem Google-Konto {email}.}other{{count} Passwörter sind nur auf diesem Gerät gespeichert. Wenn du sie auf deinen anderen Geräten verwenden möchtest, speichere sie in deinem Google-Konto {email}.}}</translation>
 <translation id="3659297405161482746">Keine Zahlungsmethoden gefunden</translation>
+<translation id="3662966164093827811">{count,plural, =1{1 ausgewählt}other{# ausgewählt}}</translation>
 <translation id="3668816008081204991">Leseliste ist ausgeblendet</translation>
 <translation id="3670030362669914947">Nummer</translation>
 <translation id="3679163990085797665">Gelesene löschen</translation>
@@ -739,6 +742,7 @@
 <translation id="3926703470020109118">Download abgebrochen</translation>
 <translation id="3929457972718048006">Adressen</translation>
 <translation id="3931215329146376310">{count,plural, =1{Neues Passwort für diese Website}other{Neue Passwörter für diese Website}}</translation>
+<translation id="3933372629914873850">Du meldest dich bei <ph name="URL" /> an</translation>
 <translation id="3934905113567851655">Auseinander- und zusammenziehen, um die Größe anzupassen</translation>
 <translation id="3940195383040445971">Preise auf Tabs beobachten</translation>
 <translation id="3941941395924123592">{COUNT,plural, =1{{COUNT} Tab schließen}other{{COUNT} Tabs schließen}}</translation>
@@ -1000,6 +1004,7 @@
 <translation id="4894963374040315706">Dadurch kannst du per Spracheingabe suchen</translation>
 <translation id="4895540042460820904">Zuletzt geöffnet</translation>
 <translation id="4896467949657706481">Tabs wurden geschlossen und du wurdest abgemeldet</translation>
+<translation id="4911042367886397055">Willkommen zurück, <ph name="USER_NAME" />!</translation>
 <translation id="4913626501929406101">Du kannst eine Kopie deines Passworts geschützt mit Personen in deiner Familiengruppe teilen. <ph name="BEGIN_LINK" />Weitere Informationen<ph name="END_LINK" /></translation>
 <translation id="4917025507570489430">Du kannst vorhandene Browserdaten verwenden, wenn du als <ph name="USER_EMAIL" /> angemeldet bist. Deine Organisation kann diese Daten möglicherweise ansehen.</translation>
 <translation id="4918086044614829423">Annehmen</translation>
@@ -1051,6 +1056,7 @@
 <translation id="508645147179720015">Hinweis enthält mehr als 1.000 Zeichen</translation>
 <translation id="5087098519049306025">Preis-Tracking</translation>
 <translation id="5090832849094901128">Durch das Entfernen dieses Passworts wird dein <ph name="WEBSITE" />-Konto nicht gelöscht.</translation>
+<translation id="5113960131843706315">Deine Inhalte werden aufgerufen…</translation>
 <translation id="5118462200606189584">Konto hinzufügen…</translation>
 <translation id="5118764316110575523">Aus</translation>
 <translation id="5119329531859909472">Tippe auf „Verfolgen“, um das Produkt zu beobachten</translation>
@@ -1096,6 +1102,7 @@
 <translation id="5242899254250321823">Passwort auf der Website ändern</translation>
 <translation id="5248640482715684545">Diese Website versucht, eine andere App zu öffnen.</translation>
 <translation id="5250371859659394278">Von einer unbekannten Quelle</translation>
+<translation id="5269913829202614649">Startseite anpassen</translation>
 <translation id="5271265092610673171">{count,plural, =1{Ein Pflichtfeld ist leer. Bitte fülle es vor dem Speichern aus.}other{Einige Pflichtfelder sind leer. Bitte fülle sie vor dem Speichern aus.}}</translation>
 <translation id="5271549068863921519">Passwort speichern</translation>
 <translation id="5275912569557792098"><ph name="USER_NAME" /> (<ph name="USER_EMAIL" />) möchte, dass du einer Tabgruppe beitrittst. Alle Nutzer mit dem Link können alle Tabs bearbeiten. Überlege dir also gut, ob du beitrittst. Der Link läuft in 48 Stunden ab.</translation>
@@ -1120,6 +1127,7 @@
 <translation id="537853552771686272">Hier kannst du Themen und Websites verwalten, die dich interessieren</translation>
 <translation id="5390458669633674385">{count,plural, =1{{count} geschlossen}other{{count} geschlossen}}</translation>
 <translation id="5394975111793637642">Karte „Rezensionen für dich“ ausblenden</translation>
+<translation id="5407806496954700135">Möchtest du die Anpassungen für die Seite „Neuer Tab“ von einem anderen Gerät übernehmen?</translation>
 <translation id="5414763847370083940">Du wirst benachrichtigt, wenn der Preis auf einer Website sinkt.</translation>
 <translation id="5415289094036440596">Passkeys können nicht geteilt werden</translation>
 <translation id="5416455648658732408">In Tabgruppe verschieben</translation>
@@ -1153,7 +1161,7 @@
 <translation id="5511959326926949696">Optionaler Extremschutz für deinen Browser. Diese Funktion sollte nur verwendet werden, wenn du glaubst, dass du von einem ausgeklügelten Cyberangriff betroffen sein könntest.</translation>
 <translation id="5513681519188741830">Vor <ph name="TIME" /> h</translation>
 <translation id="5520668942302483373">Gruppe verlassen</translation>
-<translation id="5524590039848017563">Schaltfläche für die minimierte Toolbar in der primären Toolbar</translation>
+<translation id="5524590039848017563">Button für die minimierte Toolbar in der primären Toolbar</translation>
 <translation id="553151287733286479">{COUNT,plural, =1{{COUNT} schwaches Passwort}other{{COUNT} schwache Passwörter}}</translation>
 <translation id="5532545557415295622">Dialogfeld für Zeitüberschreitung bei Inaktivität</translation>
 <translation id="5547868626772433490">Gemini fragen</translation>
@@ -1324,6 +1332,7 @@ Handoff muss auch im Abschnitt „Allgemein“ deiner Einstellungen aktiviert se
 <translation id="6103540626693881831">Verschlüsselung auf dem Gerät</translation>
 <translation id="611361228753138223">Websites, die du auf diesem Gerät zuletzt besucht hast</translation>
 <translation id="611705554202268369">Lange drücken, um einer Tabgruppe Tabs hinzuzufügen</translation>
+<translation id="6117260878488959646">Ein Fehler ist aufgetreten. Versuche es später noch einmal.</translation>
 <translation id="6122191549521593678">Online</translation>
 <translation id="6122831415929794347">Safe Browsing deaktivieren?</translation>
 <translation id="6123514585040403489">Deine Tabs werden geschlossen</translation>
@@ -1346,6 +1355,7 @@ Handoff muss auch im Abschnitt „Allgemein“ deiner Einstellungen aktiviert se
 <translation id="6172428250974276014">Ja, Daten getrennt halten (empfohlen)</translation>
 <translation id="6173499589275053515">Passwort in deinem Google-Konto <ph name="EMAIL" /> gespeichert</translation>
 <translation id="6181969657494915430">Bildschirmsuche</translation>
+<translation id="6182851675249594487">Benutzerdefiniertes Farbschema</translation>
 <translation id="6187302354554850004">Letzte Synchr.: <ph name="LAST_USED_TIME" /></translation>
 <translation id="6188737759358894319">Erstellt am <ph name="DATE" /></translation>
 <translation id="6189413832092199491">Ungelesen</translation>
@@ -1420,7 +1430,6 @@ Handoff muss auch im Abschnitt „Allgemein“ deiner Einstellungen aktiviert se
 <translation id="6418346271604475326">PDF wird vorbereitet</translation>
 <translation id="6421038304268477484">Übersetzter Text</translation>
 <translation id="6429213933892582367">Öffne „Passwortoptionen“</translation>
-<translation id="6434591244308415567">Ein Fehler ist aufgetreten. Bitte versuche es später noch einmal.</translation>
 <translation id="6435236283694032571">Zur Leseliste hinzufügen</translation>
 <translation id="6435307030888827407">Abgemeldet bleiben</translation>
 <translation id="6436318499800111867">Für mich freigegeben: <ph name="SHARED_WITH_ME_DATE" /></translation>
@@ -1755,6 +1764,7 @@ Handoff muss auch im Abschnitt „Allgemein“ deiner Einstellungen aktiviert se
 <translation id="7696316012653762532">Optionen zum Übersetzen der Seite</translation>
 <translation id="7700527812567437847">Bildschirminhalt mit Google Lens durchsuchen</translation>
 <translation id="7701040980221191251">Keine</translation>
+<translation id="7708668404222666001">Einstellungen für die Seite „Neuer Tab“ wurden übernommen</translation>
 <translation id="7708994397325774423">Auf alle deine Passwörter zugreifen</translation>
 <translation id="7711440461521638739">Du verwendest keine Passwörter mehrfach</translation>
 <translation id="7712361583414030698">Offlineversion wird angezeigt</translation>
@@ -1964,7 +1974,7 @@ Handoff muss auch im Abschnitt „Allgemein“ deiner Einstellungen aktiviert se
 <translation id="8474378002946546633">Benachrichtigungen zulassen</translation>
 <translation id="8477178913400731244">Daten löschen</translation>
 <translation id="847939250509903814">Fotogalerie</translation>
-<translation id="8481184073299279701">Tippe auf die Schaltfläche „Protokollierung starten“, um künftig Protokolle und Fehler von allen Tabs der JavaScript-Konsole zu erheben. Protokolle werden erfasst und ausschließlich im Speicher aufbewahrt, bis die Seite geschlossen oder auf „Protokoll anhalten“ getippt wird.</translation>
+<translation id="8481184073299279701">Tippe auf den Button „Protokollierung starten“, um künftig Protokolle und Fehler von allen Tabs der JavaScript-Konsole zu erheben. Protokolle werden erfasst und ausschließlich im Speicher aufbewahrt, bis die Seite geschlossen oder auf „Protokoll anhalten“ getippt wird.</translation>
 <translation id="8487667956631253959">An</translation>
 <translation id="8487700953926739672">Offline verfügbar</translation>
 <translation id="8488923644885757471">Neues Fenster</translation>

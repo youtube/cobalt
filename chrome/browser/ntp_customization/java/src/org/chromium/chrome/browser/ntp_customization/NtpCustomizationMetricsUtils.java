@@ -9,6 +9,7 @@ import androidx.annotation.VisibleForTesting;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.magic_stack.ModuleDelegate;
+import org.chromium.chrome.browser.ntp_customization.theme.UploadImagePreviewCoordinator;
 
 /** The utility class for logging the NTP customization bottom sheet's metrics. */
 @NullMarked
@@ -32,6 +33,18 @@ public class NtpCustomizationMetricsUtils {
 
     @VisibleForTesting
     static final String HISTOGRAM_CUSTOMIZATION_TURN_OFF_MODULE = ".TurnOffModule";
+
+    @VisibleForTesting
+    static final String HISTOGRAM_THEME_UPLOAD_IMAGE_PREFIX =
+            "NewTabPage.Customization.Theme.UploadImage";
+
+    @VisibleForTesting
+    static final String HISTOGRAM_THEME_UPLOAD_IMAGE_PREVIEW_SHOW =
+            HISTOGRAM_THEME_UPLOAD_IMAGE_PREFIX + ".PreviewShow";
+
+    @VisibleForTesting
+    static final String HISTOGRAM_THEME_UPLOAD_IMAGE_PREVIEW_INTERACTIONS =
+            HISTOGRAM_THEME_UPLOAD_IMAGE_PREFIX + ".PreviewInteractions";
 
     /**
      * Records the total number of times each NTP customization bottom sheet is shown. Each opening
@@ -89,5 +102,23 @@ public class NtpCustomizationMetricsUtils {
      */
     public static void recordMvtToggledInBottomSheet(boolean isEnabled) {
         RecordHistogram.recordBooleanHistogram(HISTOGRAM_NTP_CUSTOMIZATION_MVT_ENABLED, isEnabled);
+    }
+
+    /** Records the total number of times the Upload Image Preview is shown. */
+    public static void recordThemeUploadImagePreviewShow() {
+        RecordHistogram.recordBooleanHistogram(HISTOGRAM_THEME_UPLOAD_IMAGE_PREVIEW_SHOW, true);
+    }
+
+    /**
+     * Records the user interactions with the Upload Image Preview dialog.
+     *
+     * @param interactionType The type of user interaction.
+     */
+    public static void recordThemeUploadImagePreviewInteractions(
+            @UploadImagePreviewCoordinator.PreviewInteractionType int interactionType) {
+        RecordHistogram.recordEnumeratedHistogram(
+                HISTOGRAM_THEME_UPLOAD_IMAGE_PREVIEW_INTERACTIONS,
+                interactionType,
+                UploadImagePreviewCoordinator.PreviewInteractionType.NUM_ENTRIES);
     }
 }

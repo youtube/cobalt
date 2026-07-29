@@ -34,13 +34,17 @@
 #include "chrome/browser/devtools/process_sharing_infobar_delegate.h"
 #include "chrome/browser/file_select_helper.h"
 #include "chrome/browser/infobars/confirm_infobar_creator.h"
+#include "chrome/browser/policy/developer_tools_policy_checker.h"
+#include "chrome/browser/policy/developer_tools_policy_checker_factory.h"
 #include "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h"
 #include "chrome/browser/profiles/keep_alive/scoped_profile_keep_alive.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/task_manager/web_contents_tags.h"
+#include "chrome/browser/ui/browser_dialogs.h"
 #include "chrome/browser/ui/prefs/prefs_tab_helper.h"
 #include "chrome/browser/ui/scoped_tabbed_browser_displayer.h"
+#include "chrome/browser/ui/tabs/tab_group_deletion_dialog_controller.h"
 #include "chrome/browser/ui/tabs/tab_strip_user_gesture_details.h"
 #include "chrome/browser/ui/webui/devtools/devtools_ui.h"
 #include "chrome/common/chrome_switches.h"
@@ -55,7 +59,9 @@
 #include "components/prefs/scoped_user_pref_update.h"
 #include "components/search_engines/util.h"
 #include "components/sessions/content/session_tab_helper.h"
+#include "components/strings/grit/components_strings.h"
 #include "components/sync_preferences/pref_service_syncable.h"
+#include "components/vector_icons/vector_icons.h"
 #include "components/web_modal/web_contents_modal_dialog_manager.h"
 #include "components/zoom/page_zoom.h"
 #include "components/zoom/zoom_controller.h"
@@ -63,6 +69,7 @@
 #include "content/public/browser/child_process_security_policy.h"
 #include "content/public/browser/color_chooser.h"
 #include "content/public/browser/devtools_agent_host.h"
+#include "content/public/browser/devtools_manager_delegate.h"
 #include "content/public/browser/file_select_listener.h"
 #include "content/public/browser/keyboard_event_processing_result.h"
 #include "content/public/browser/navigation_controller.h"
@@ -86,6 +93,8 @@
 #include "third_party/blink/public/common/input/web_input_event.h"
 #include "third_party/blink/public/common/renderer_preferences/renderer_preferences.h"
 #include "third_party/blink/public/public_buildflags.h"
+#include "ui/base/l10n/l10n_util.h"
+#include "ui/base/models/dialog_model.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/events/keycodes/dom/keycode_converter.h"
 #include "ui/events/keycodes/keyboard_code_conversion.h"
@@ -657,18 +666,21 @@ void DevToolsWindow::OpenDevToolsWindow(
 void DevToolsWindow::OpenDevToolsWindow(
     content::WebContents* inspected_web_contents,
     Profile* profile,
-    DevToolsOpenedByAction opened_by) {
+    DevToolsOpenedByAction opened_by,
+    const content::DevToolsManagerDelegate::DevToolsOptions& devtools_options) {
   ToggleDevToolsWindow(inspected_web_contents, profile, true,
-                       DevToolsToggleAction::Show(), "");
+                       DevToolsToggleAction::Show(), "", opened_by,
+                       devtools_options);
 }
 
 // static
 void DevToolsWindow::OpenDevToolsWindow(
     scoped_refptr<content::DevToolsAgentHost> agent_host,
     Profile* profile,
-    DevToolsOpenedByAction opened_by) {
+    DevToolsOpenedByAction opened_by,
+    const content::DevToolsManagerDelegate::DevToolsOptions& devtools_options) {
   OpenDevToolsWindow(agent_host, profile, false /* use_bundled_frontend */,
-                     opened_by);
+                     opened_by, devtools_options);
 }
 
 // static
@@ -685,7 +697,8 @@ void DevToolsWindow::OpenDevToolsWindow(
     scoped_refptr<content::DevToolsAgentHost> agent_host,
     Profile* profile,
     bool use_bundled_frontend,
-    DevToolsOpenedByAction opened_by) {
+    DevToolsOpenedByAction opened_by,
+    const content::DevToolsManagerDelegate::DevToolsOptions& devtools_options) {
   if (!profile) {
     profile = Profile::FromBrowserContext(agent_host->GetBrowserContext());
   }
@@ -719,7 +732,8 @@ void DevToolsWindow::OpenDevToolsWindow(
 
   content::WebContents* web_contents = agent_host->GetWebContents();
   if (web_contents) {
-    DevToolsWindow::OpenDevToolsWindow(web_contents, profile, opened_by);
+    DevToolsWindow::OpenDevToolsWindow(web_contents, profile, opened_by,
+                                       devtools_options);
   }
 }
 
@@ -833,7 +847,8 @@ void DevToolsWindow::ToggleDevToolsWindow(
     bool force_open,
     const DevToolsToggleAction& action,
     const std::string& settings,
-    DevToolsOpenedByAction toggled_by) {
+    DevToolsOpenedByAction toggled_by,
+    const content::DevToolsManagerDelegate::DevToolsOptions& devtools_options) {
   scoped_refptr<DevToolsAgentHost> agent(
       DevToolsAgentHost::GetOrCreateForTab(inspected_web_contents));
   DevToolsWindow* window = FindDevToolsWindow(agent.get());
@@ -856,6 +871,10 @@ void DevToolsWindow::ToggleDevToolsWindow(
         panel = "sources";
         break;
       case DevToolsToggleAction::kShow:
+        if (devtools_options.panel_id.has_value()) {
+          panel = devtools_options.panel_id.value();
+        }
+        break;
       case DevToolsToggleAction::kToggle:
       case DevToolsToggleAction::kReveal:
       case DevToolsToggleAction::kNoOp:
@@ -865,6 +884,25 @@ void DevToolsWindow::ToggleDevToolsWindow(
                     std::string(), true, settings, panel, agent->IsAttached(),
                     /* browser_connection */ false, toggled_by);
     if (!window) {
+      if (base::FeatureList::IsEnabled(features::kDevToolsShowPolicyDialog)) {
+#if !BUILDFLAG(IS_ANDROID)
+
+        auto dialog_model =
+            ui::DialogModel::Builder(
+                std::make_unique<ui::DialogModelDelegate>())
+                .SetTitle(l10n_util::GetStringUTF16(IDS_DEVTOOLS_NOT_ALLOWED))
+                .AddParagraph(ui::DialogModelLabel(
+                    l10n_util::GetStringUTF16(IDS_DEVTOOLS_BLOCKED_BY_POLICY)))
+                .SetIcon(ui::ImageModel::FromVectorIcon(
+                    vector_icons::kBusinessIcon, ui::kColorIcon,
+                    extension_misc::EXTENSION_ICON_SMALL))
+                .AddOkButton(base::DoNothing(),
+                             ui::DialogModel::Button::Params().SetLabel(
+                                 l10n_util::GetStringUTF16(IDS_OK)))
+                .Build();
+        chrome::ShowTabModal(std::move(dialog_model), inspected_web_contents);
+#endif
+      }
       return;
     }
     window->bindings_->AttachTo(agent.get());
@@ -1028,14 +1066,12 @@ void DevToolsWindow::Show(const DevToolsToggleAction& action) {
     BrowserWindow* inspected_window = inspected_browser->window();
     main_web_contents_->SetDelegate(this);
 
-    TabStripModel* tab_strip_model = inspected_browser->tab_strip_model();
-    int inspected_tab_index =
-        tab_strip_model->GetIndexOfWebContents(inspected_web_contents);
-    DCHECK_NE(TabStripModel::kNoTab, inspected_tab_index);
-    tab_strip_model->ActivateTabAt(
-        inspected_tab_index,
-        TabStripUserGestureDetails(
-            TabStripUserGestureDetails::GestureType::kOther));
+    // Inspected tab needs to be activated, however, this cannot be done from
+    // here because TabStripModel does not allow reentrancy for its public
+    // methods, see http://crbug.com/452538043.
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(&DevToolsWindow::ActivateInspectedTab,
+                                  weak_factory_.GetWeakPtr()));
 
     inspected_window->UpdateDevTools(inspected_web_contents);
     main_web_contents_->SetInitialFocus();
@@ -1081,6 +1117,33 @@ void DevToolsWindow::Show(const DevToolsToggleAction& action) {
 #endif
   DoAction(action);
 }
+
+#if !BUILDFLAG(IS_ANDROID)
+void DevToolsWindow::ActivateInspectedTab() {
+  content::WebContents* inspected_web_contents = GetInspectedWebContents();
+  if (!inspected_web_contents) {
+    return;
+  }
+
+  Browser* inspected_browser =
+      chrome::FindBrowserWithTab(inspected_web_contents);
+  if (!inspected_browser) {
+    return;
+  }
+
+  TabStripModel* tab_strip_model = inspected_browser->tab_strip_model();
+  if (tab_strip_model->GetActiveWebContents() != inspected_web_contents) {
+    int inspected_tab_index =
+        tab_strip_model->GetIndexOfWebContents(inspected_web_contents);
+    CHECK_NE(TabStripModel::kNoTab, inspected_tab_index);
+
+    tab_strip_model->ActivateTabAt(
+        inspected_tab_index,
+        TabStripUserGestureDetails(
+            TabStripUserGestureDetails::GestureType::kOther));
+  }
+}
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 // static
 bool DevToolsWindow::HandleBeforeUnload(WebContents* frontend_contents,
@@ -1219,11 +1282,40 @@ DevToolsWindow::DevToolsWindow(FrontendType frontend_type,
       language::prefs::kAcceptLanguages,
       base::BindRepeating(&DevToolsWindow::OnLocaleChanged,
                           base::Unretained(this)));
+  pref_change_registrar_.Add(
+      prefs::kDeveloperToolsAvailabilityAllowlist,
+      base::BindRepeating(&DevToolsWindow::OnDevToolsPolicyChanged,
+                          base::Unretained(this)));
+  pref_change_registrar_.Add(
+      prefs::kDeveloperToolsAvailabilityBlocklist,
+      base::BindRepeating(&DevToolsWindow::OnDevToolsPolicyChanged,
+                          base::Unretained(this)));
 
   int64_t now_timestamp =
       base::Time::Now().ToDeltaSinceWindowsEpoch().InMilliseconds();
   profile_->GetPrefs()->SetInt64(prefs::kDevToolsLastOpenTimestamp,
                                  now_timestamp);
+
+  policy::DeveloperToolsPolicyChecker* checker =
+      policy::DeveloperToolsPolicyCheckerFactory::GetForBrowserContext(
+          profile_);
+  if (checker) {
+    policy_checker_callback_subscription_ =
+        checker->AddObserver(base::BindRepeating(
+            &DevToolsWindow::OnDevToolsPolicyChanged, base::Unretained(this)));
+  }
+}
+
+void DevToolsWindow::OnDevToolsPolicyChanged() {
+  if (!AllowDevToolsFor(profile_, GetInspectedWebContents())) {
+    CloseWindow();
+  }
+}
+
+void DevToolsWindow::OnPolicyUpdated(const policy::PolicyNamespace& ns,
+                                     const policy::PolicyMap& previous,
+                                     const policy::PolicyMap& current) {
+  OnDevToolsPolicyChanged();
 }
 
 // static
@@ -2094,6 +2186,19 @@ void DevToolsWindow::OnInfoBarRemoved(infobars::InfoBar* infobar,
   if (sharing_infobar_ == infobar) {
     infobar->owner()->RemoveObserver(this);
     sharing_infobar_ = nullptr;
+  }
+}
+
+void DevToolsWindow::DidFinishNavigation(
+    content::NavigationHandle* navigation_handle) {
+  if (!navigation_handle->HasCommitted() ||
+      navigation_handle->IsSameDocument() ||
+      !navigation_handle->IsInPrimaryMainFrame()) {
+    return;
+  }
+
+  if (!AllowDevToolsFor(profile_, web_contents())) {
+    main_web_contents_->ClosePage();
   }
 }
 

@@ -31,6 +31,11 @@ namespace blink::features {
 // `RuntimeEnabledFeatures)`, they should still be ordered in this section based
 // on the identifier name of the generated feature.
 
+// Controls whether to include information about the page's open popup in
+// AIPageContent.
+BASE_FEATURE(kAIPageContentIncludePopupWindows,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 // Controls the capturing of the Ad-Auction-Signals header, and the maximum
 // allowed Ad-Auction-Signals header value.
 BASE_FEATURE(kAdAuctionSignals, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -583,7 +588,8 @@ BASE_FEATURE_PARAM(base::TimeDelta,
 BASE_FEATURE(kDevToolsImprovedNetworkError, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kDirectCompositorThreadIpc,
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || \
+    BUILDFLAG(IS_WIN)
              base::FEATURE_ENABLED_BY_DEFAULT
 #else
              base::FEATURE_DISABLED_BY_DEFAULT
@@ -904,8 +910,7 @@ const base::FeatureParam<ForceDarkInversionMethod>::Option
         {ForceDarkInversionMethod::kUseBlinkSettings,
          "use_blink_settings_for_method"},
         {ForceDarkInversionMethod::kHslBased, "hsl_based"},
-        {ForceDarkInversionMethod::kCielabBased, "cielab_based"},
-        {ForceDarkInversionMethod::kRgbBased, "rgb_based"}};
+        {ForceDarkInversionMethod::kCielabBased, "cielab_based"}};
 
 BASE_FEATURE_ENUM_PARAM(ForceDarkInversionMethod,
                         kForceDarkInversionMethodParam,
@@ -913,26 +918,6 @@ BASE_FEATURE_ENUM_PARAM(ForceDarkInversionMethod,
                         "inversion_method",
                         ForceDarkInversionMethod::kUseBlinkSettings,
                         &forcedark_inversion_method_options);
-
-// Should images be inverted?
-const base::FeatureParam<ForceDarkImageBehavior>::Option
-    forcedark_image_behavior_options[] = {
-        {ForceDarkImageBehavior::kUseBlinkSettings,
-         "use_blink_settings_for_images"},
-        // 'none' is no longer supported, but is still being passed via
-        // command line by some early-adopters of the overall feature. To
-        // avoid this being detected as invalid (resulting in a DwC, some
-        // telemetry, and falling back to the default value), we map it to the
-        // default value (from below).
-        {ForceDarkImageBehavior::kUseBlinkSettings, "none"},
-        {ForceDarkImageBehavior::kInvertSelectively, "selective"}};
-
-BASE_FEATURE_ENUM_PARAM(ForceDarkImageBehavior,
-                        kForceDarkImageBehaviorParam,
-                        &kForceWebContentsDarkMode,
-                        "image_behavior",
-                        ForceDarkImageBehavior::kUseBlinkSettings,
-                        &forcedark_image_behavior_options);
 
 // Do not invert text lighter than this.
 // Range: 0 (do not invert any text) to 255 (invert all text)
@@ -951,23 +936,6 @@ BASE_FEATURE_PARAM(int,
                    &kForceWebContentsDarkMode,
                    "background_lightness_threshold",
                    -1);
-
-const base::FeatureParam<ForceDarkImageClassifier>::Option
-    forcedark_image_classifier_policy_options[] = {
-        {ForceDarkImageClassifier::kUseBlinkSettings,
-         "use_blink_settings_for_image_policy"},
-        {ForceDarkImageClassifier::kNumColorsWithMlFallback,
-         "num_colors_with_ml_fallback"},
-        {ForceDarkImageClassifier::kTransparencyAndNumColors,
-         "transparency_and_num_colors"},
-};
-
-BASE_FEATURE_ENUM_PARAM(ForceDarkImageClassifier,
-                        kForceDarkImageClassifierParam,
-                        &kForceWebContentsDarkMode,
-                        "classifier_policy",
-                        ForceDarkImageClassifier::kUseBlinkSettings,
-                        &forcedark_image_classifier_policy_options);
 
 BASE_FEATURE(kFrameMetadataObserver, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -1014,6 +982,10 @@ BASE_FEATURE(kIgnoreInputWhileHidden,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kImageLoadingPrioritizationFix, base::FEATURE_DISABLED_BY_DEFAULT);
+
+#if !BUILDFLAG(IS_ANDROID)
+BASE_FEATURE(kInitialWebUIWithoutExtensions, base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 BASE_FEATURE(kIndexedDBCompressValuesWithSnappy,
              base::FEATURE_ENABLED_BY_DEFAULT);

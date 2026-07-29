@@ -43,6 +43,7 @@
 #include "build/build_config.h"
 #include "chrome/browser/defaults.h"
 #include "chrome/browser/themes/theme_properties.h"
+#include "chrome/browser/themes/theme_service.h"
 #include "chrome/browser/themes/theme_service_factory.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
@@ -305,9 +306,10 @@ class TabStrip::TabDragContextImpl : public TabDragContext,
         if (tab_strip_->IsTabSelected(other_tab)) {
           if (other_tab->group().has_value()) {
             const tab_groups::TabGroupId group = other_tab->group().value();
-            if (fully_selected_groups.contains(group)) {
-              dragging_views.push_back(fully_selected_groups[group]);
-              fully_selected_groups.erase(group);
+            if (auto it = fully_selected_groups.find(group);
+                it != fully_selected_groups.end()) {
+              dragging_views.push_back(it->second);
+              fully_selected_groups.erase(it);
             }
           }
 
@@ -348,7 +350,7 @@ class TabStrip::TabDragContextImpl : public TabDragContext,
     if (drag_controller_->Init(this, source, dragging_views, gfx::Point(x, y),
                                event.x(), std::move(selection_model),
                                EventSourceFromEvent(event)) ==
-        TabDragController::Liveness::DELETED) {
+        TabDragController::Liveness::kDeleted) {
       return;
     }
 
@@ -373,7 +375,7 @@ class TabStrip::TabDragContextImpl : public TabDragContext,
     const TabDragController::Liveness drag_controller_alive =
         drag_controller_->Drag(screen_location);
 
-    return drag_controller_alive == TabDragController::Liveness::ALIVE
+    return drag_controller_alive == TabDragController::Liveness::kAlive
                ? Liveness::kAlive
                : Liveness::kDeleted;
   }
@@ -1618,6 +1620,10 @@ void TabStrip::OnDropIndexUpdate(const std::optional<int> index,
   controller_->OnDropIndexUpdate(index, drop_before);
 }
 
+bool TabStrip::IsBrowserClosing() const {
+  return controller_->IsBrowserClosing();
+}
+
 std::optional<int> TabStrip::GetFirstTabInGroup(
     const tab_groups::TabGroupId& group) const {
   return controller_->GetFirstTabInGroup(group);
@@ -2256,7 +2262,7 @@ void TabStrip::NewTabButtonPressed(const ui::Event& event) {
       hover_card_controller_->PreventImmediateReshow();
     }
   }
-  controller_->CreateNewTab(NewTabTypes::NEW_TAB_BUTTON);
+  controller_->CreateNewTab(NewTabTypes::kNewTabButton);
 }
 
 bool TabStrip::ShouldHighlightCloseButtonAfterRemove() {
@@ -2309,7 +2315,7 @@ void TabStrip::CloseTabInternal(int model_index, CloseTabSource source) {
     if (controller_->GetCount() == 1) {
       // Prevent the browser from closing when the last grouped tab is closed
       // from the browser by adding a new tab.
-      controller_->CreateNewTab(NewTabTypes::NO_USER_ACTION);
+      controller_->CreateNewTab(NewTabTypes::kNoUserAction);
       // In some situations the new tab is assigned a group. So if it is in a
       // group, we remove it from the group so that after closing the tab at
       // `model_index`, the browser shows a tab without a group.

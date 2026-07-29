@@ -27,7 +27,6 @@
 #include "components/viz/common/resources/shared_image_format_utils.h"
 #include "components/viz/test/test_gpu_service_holder.h"
 #include "gpu/command_buffer/client/internal/mappable_buffer_shared_memory.h"
-#include "gpu/ipc/common/gpu_memory_buffer_support.h"
 #include "mojo/public/cpp/base/shared_memory_mojom_traits.h"
 #include "mojo/public/cpp/test_support/test_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -119,10 +118,6 @@ class MappableBufferTest : public testing::Test {
     }
   }
 
-  GpuMemoryBufferSupport* gpu_memory_buffer_support() {
-    return &gpu_memory_buffer_support_;
-  }
-
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_OZONE)
   // Overridden from testing::Test:
   void SetUp() override {
@@ -130,8 +125,8 @@ class MappableBufferTest : public testing::Test {
     // GmbImplTestNativePixmap is a no-op, we should run it on a gpu runner.
 #if BUILDFLAG(IS_OZONE)
     // TODO(329211602): Currently only wayland has a valid
-    // IsNativeGpuMemoryBufferConfigurationSupportedForTesting. We should
-    // implement that in X11 and other platforms either.
+    // IsNativePixmapConfigSupported(). We should implement that in X11 and
+    // other platforms.
     if (ui::OzonePlatform::GetPlatformNameForTest() == "wayland") {
       run_gpu_test_ = true;
     }
@@ -182,10 +177,78 @@ class MappableBufferTest : public testing::Test {
     return handle.type != gfx::EMPTY_BUFFER;
   }
 
+  base::span<gfx::BufferUsage> usages() { return usages_; }
+  base::span<const viz::SharedImageFormat> formats() {
+#if BUILDFLAG(IS_OZONE)
+    // Whether a given (usage, format) pair is valid on Ozone is determined
+    // dynamically via ui::OzonePlatform::IsNativePixmapConfigSupported(). Here
+    // we pass all possibly-valid formats.
+    return viz::GetMappableSharedImageFormatForTesting();
+#else
+    return formats_;
+#endif
+  }
+
  private:
   bool run_gpu_test_ = false;
-  GpuMemoryBufferSupport gpu_memory_buffer_support_;
   raw_ptr<gl::GLDisplay> display_ = nullptr;
+
+  // The BufferUsages and SharedImageFormats that are valid to pass when
+  // creating a MappableBuffer vary by platform.
+#if BUILDFLAG(IS_ANDROID)
+  std::array<gfx::BufferUsage, 2> usages_ = {
+      gfx::BufferUsage::GPU_READ,
+      gfx::BufferUsage::SCANOUT,
+  };
+  std::array<viz::SharedImageFormat, 1> formats_ = {
+      viz::MultiPlaneFormat::kNV12,
+  };
+#elif BUILDFLAG(IS_WIN)
+  std::array<gfx::BufferUsage, 2> usages_ = {
+      gfx::BufferUsage::GPU_READ,
+      gfx::BufferUsage::SCANOUT,
+  };
+  std::array<viz::SharedImageFormat, 4> formats_ = {
+      viz::SinglePlaneFormat::kRGBA_8888,
+      viz::SinglePlaneFormat::kRGBX_8888,
+      viz::SinglePlaneFormat::kBGRA_8888,
+      viz::SinglePlaneFormat::kBGRX_8888,
+  };
+#elif BUILDFLAG(IS_APPLE)
+  std::array<gfx::BufferUsage, 6> usages_ = {
+      gfx::BufferUsage::GPU_READ,
+      gfx::BufferUsage::SCANOUT,
+      gfx::BufferUsage::SCANOUT_CPU_READ_WRITE,
+      gfx::BufferUsage::GPU_READ_CPU_READ_WRITE,
+      gfx::BufferUsage::SCANOUT_FRONT_RENDERING,
+      gfx::BufferUsage::SCANOUT_VEA_CPU_READ,
+  };
+  std::array<viz::SharedImageFormat, 13> formats_ = {
+      viz::SinglePlaneFormat::kRGBA_8888, viz::SinglePlaneFormat::kRGBX_8888,
+      viz::SinglePlaneFormat::kBGRA_8888, viz::SinglePlaneFormat::kBGRX_8888,
+      viz::SinglePlaneFormat::kR_8,       viz::SinglePlaneFormat::kRG_88,
+      viz::SinglePlaneFormat::kR_16,      viz::SinglePlaneFormat::kRG_1616,
+      viz::SinglePlaneFormat::kRGBA_F16,  viz::SinglePlaneFormat::kBGRA_1010102,
+      viz::MultiPlaneFormat::kNV12,       viz::MultiPlaneFormat::kNV12A,
+      viz::MultiPlaneFormat::kP010,
+  };
+#elif BUILDFLAG(IS_OZONE)
+  // Whether a given (usage, format) pair is valid on Ozone is determined
+  // dynamically via ui::OzonePlatform::IsNativePixmapConfigSupported(). Here we
+  // specify the set of possibly-valid usages. We pass all possibly-valid
+  // formats in formats().
+  std::array<gfx::BufferUsage, 8> usages_ = {
+      gfx::BufferUsage::GPU_READ,
+      gfx::BufferUsage::SCANOUT,
+      gfx::BufferUsage::SCANOUT_CAMERA_READ_WRITE,
+      gfx::BufferUsage::CAMERA_AND_CPU_READ_WRITE,
+      gfx::BufferUsage::SCANOUT_CPU_READ_WRITE,
+      gfx::BufferUsage::GPU_READ_CPU_READ_WRITE,
+      gfx::BufferUsage::SCANOUT_VEA_CPU_READ,
+      gfx::BufferUsage::VEA_READ_CAMERA_AND_CPU_READ_WRITE,
+  };
+#endif
+
 #if BUILDFLAG(IS_OZONE)
   std::unique_ptr<gfx::ClientNativePixmapFactory> client_native_pixmap_factory_;
 #endif
@@ -196,31 +259,15 @@ TYPED_TEST_SUITE_P(MappableBufferTest);
 TYPED_TEST_P(MappableBufferTest, CreateFromHandle) {
   const gfx::Size kBufferSize(8, 8);
 
-  for (auto format : viz::GetMappableSharedImageFormatForTesting()) {
-    gfx::BufferUsage usages[] = {
-        gfx::BufferUsage::GPU_READ,
-        gfx::BufferUsage::SCANOUT,
-        gfx::BufferUsage::SCANOUT_CAMERA_READ_WRITE,
-        gfx::BufferUsage::CAMERA_AND_CPU_READ_WRITE,
-        gfx::BufferUsage::SCANOUT_CPU_READ_WRITE,
-        gfx::BufferUsage::SCANOUT_VDA_WRITE,
-        gfx::BufferUsage::PROTECTED_SCANOUT,
-        gfx::BufferUsage::PROTECTED_SCANOUT_VDA_WRITE,
-        gfx::BufferUsage::GPU_READ_CPU_READ_WRITE,
-        gfx::BufferUsage::SCANOUT_VEA_CPU_READ,
-        gfx::BufferUsage::VEA_READ_CAMERA_AND_CPU_READ_WRITE,
-    };
-    for (auto usage : usages) {
+  for (auto format : TestFixture::formats()) {
+    for (auto usage : TestFixture::usages()) {
+#if BUILDFLAG(IS_OZONE)
       if (TypeParam::kBufferType != gfx::SHARED_MEMORY_BUFFER &&
-#if BUILDFLAG(IS_ANDROID)
-          format != viz::MultiPlaneFormat::kNV12) {
-#else
-          !TestFixture::gpu_memory_buffer_support()
-               ->IsNativeGpuMemoryBufferConfigurationSupportedForTesting(
-                   format, usage)) {
-#endif
+          !ui::OzonePlatform::GetInstance()->IsNativePixmapConfigSupported(
+              viz::SharedImageFormatToBufferFormat(format), usage)) {
         continue;
       }
+#endif
 
       gfx::GpuMemoryBufferHandle handle;
       TestFixture::CreateGpuMemoryBuffer(kBufferSize, format, usage, &handle);
@@ -241,27 +288,15 @@ TYPED_TEST_P(MappableBufferTest, CreateFromHandle) {
 TYPED_TEST_P(MappableBufferTest, CreateFromHandleSmallBuffer) {
   const gfx::Size kBufferSize(8, 8);
 
-  for (auto format : viz::GetMappableSharedImageFormatForTesting()) {
-    gfx::BufferUsage usages[] = {
-        gfx::BufferUsage::GPU_READ,
-        gfx::BufferUsage::SCANOUT,
-        gfx::BufferUsage::SCANOUT_CAMERA_READ_WRITE,
-        gfx::BufferUsage::CAMERA_AND_CPU_READ_WRITE,
-        gfx::BufferUsage::SCANOUT_CPU_READ_WRITE,
-        gfx::BufferUsage::SCANOUT_VDA_WRITE,
-        gfx::BufferUsage::PROTECTED_SCANOUT,
-        gfx::BufferUsage::PROTECTED_SCANOUT_VDA_WRITE,
-        gfx::BufferUsage::GPU_READ_CPU_READ_WRITE,
-        gfx::BufferUsage::SCANOUT_VEA_CPU_READ,
-        gfx::BufferUsage::VEA_READ_CAMERA_AND_CPU_READ_WRITE,
-    };
-    for (auto usage : usages) {
+  for (auto format : TestFixture::formats()) {
+    for (auto usage : TestFixture::usages()) {
+#if BUILDFLAG(IS_OZONE)
       if (TypeParam::kBufferType != gfx::SHARED_MEMORY_BUFFER &&
-          !TestFixture::gpu_memory_buffer_support()
-               ->IsNativeGpuMemoryBufferConfigurationSupportedForTesting(
-                   format, usage)) {
+          !ui::OzonePlatform::GetInstance()->IsNativePixmapConfigSupported(
+              viz::SharedImageFormatToBufferFormat(format), usage)) {
         continue;
       }
+#endif
 
       gfx::GpuMemoryBufferHandle handle;
       TestFixture::CreateGpuMemoryBuffer(kBufferSize, format, usage, &handle);
@@ -291,13 +326,20 @@ TYPED_TEST_P(MappableBufferTest, Map) {
   // Use a multiple of 4 for both dimensions to support compressed formats.
   const gfx::Size kBufferSize(4, 4);
 
-  for (auto format : viz::GetMappableSharedImageFormatForTesting()) {
+  if (!base::Contains(TestFixture::usages(),
+                      gfx::BufferUsage::GPU_READ_CPU_READ_WRITE)) {
+    GTEST_SKIP();
+  }
+
+  for (auto format : TestFixture::formats()) {
+#if BUILDFLAG(IS_OZONE)
     if (TypeParam::kBufferType != gfx::SHARED_MEMORY_BUFFER &&
-        !TestFixture::gpu_memory_buffer_support()
-             ->IsNativeGpuMemoryBufferConfigurationSupportedForTesting(
-                 format, gfx::BufferUsage::GPU_READ_CPU_READ_WRITE)) {
+        !ui::OzonePlatform::GetInstance()->IsNativePixmapConfigSupported(
+            viz::SharedImageFormatToBufferFormat(format),
+            gfx::BufferUsage::GPU_READ_CPU_READ_WRITE)) {
       continue;
     }
+#endif
 
     gfx::GpuMemoryBufferHandle handle;
     TestFixture::CreateGpuMemoryBuffer(
@@ -352,13 +394,20 @@ TYPED_TEST_P(MappableBufferTest, PersistentMap) {
   // Use a multiple of 4 for both dimensions to support compressed formats.
   const gfx::Size kBufferSize(4, 4);
 
-  for (auto format : viz::GetMappableSharedImageFormatForTesting()) {
+  if (!base::Contains(TestFixture::usages(),
+                      gfx::BufferUsage::GPU_READ_CPU_READ_WRITE)) {
+    GTEST_SKIP();
+  }
+
+  for (auto format : TestFixture::formats()) {
+#if BUILDFLAG(IS_OZONE)
     if (TypeParam::kBufferType != gfx::SHARED_MEMORY_BUFFER &&
-        !TestFixture::gpu_memory_buffer_support()
-             ->IsNativeGpuMemoryBufferConfigurationSupportedForTesting(
-                 format, gfx::BufferUsage::GPU_READ_CPU_READ_WRITE)) {
+        !ui::OzonePlatform::GetInstance()->IsNativePixmapConfigSupported(
+            viz::SharedImageFormatToBufferFormat(format),
+            gfx::BufferUsage::GPU_READ_CPU_READ_WRITE)) {
       continue;
     }
+#endif
 
     gfx::GpuMemoryBufferHandle handle;
     TestFixture::CreateGpuMemoryBuffer(
@@ -432,31 +481,15 @@ TYPED_TEST_P(MappableBufferTest, SerializeAndDeserialize) {
   const gfx::Size kBufferSize(8, 8);
   const gfx::GpuMemoryBufferType kBufferType = TypeParam::kBufferType;
 
-  for (auto format : viz::GetMappableSharedImageFormatForTesting()) {
-    gfx::BufferUsage usages[] = {
-        gfx::BufferUsage::GPU_READ,
-        gfx::BufferUsage::SCANOUT,
-        gfx::BufferUsage::SCANOUT_CAMERA_READ_WRITE,
-        gfx::BufferUsage::CAMERA_AND_CPU_READ_WRITE,
-        gfx::BufferUsage::SCANOUT_CPU_READ_WRITE,
-        gfx::BufferUsage::SCANOUT_VDA_WRITE,
-        gfx::BufferUsage::PROTECTED_SCANOUT,
-        gfx::BufferUsage::PROTECTED_SCANOUT_VDA_WRITE,
-        gfx::BufferUsage::GPU_READ_CPU_READ_WRITE,
-        gfx::BufferUsage::SCANOUT_VEA_CPU_READ,
-        gfx::BufferUsage::VEA_READ_CAMERA_AND_CPU_READ_WRITE,
-    };
-    for (auto usage : usages) {
+  for (auto format : TestFixture::formats()) {
+    for (auto usage : TestFixture::usages()) {
+#if BUILDFLAG(IS_OZONE)
       if (TypeParam::kBufferType != gfx::SHARED_MEMORY_BUFFER &&
-#if BUILDFLAG(IS_ANDROID)
-          format != viz::MultiPlaneFormat::kNV12) {
-#else
-          !TestFixture::gpu_memory_buffer_support()
-               ->IsNativeGpuMemoryBufferConfigurationSupportedForTesting(
-                   format, usage)) {
-#endif
+          !ui::OzonePlatform::GetInstance()->IsNativePixmapConfigSupported(
+              viz::SharedImageFormatToBufferFormat(format), usage)) {
         continue;
       }
+#endif
 
       gfx::GpuMemoryBufferHandle handle;
       TestFixture::CreateGpuMemoryBuffer(kBufferSize, format, usage, &handle);

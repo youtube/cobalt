@@ -370,11 +370,7 @@ void ProfileMenuView::OnSyncErrorButtonClicked(
           syncer::TrustedVaultUserActionTriggerForUMA::kProfileMenu);
       break;
     case syncer::SyncService::UserActionableError::kNeedsPassphrase:
-      ShowSyncPassphraseDialog(
-          browser(),
-          base::BindRepeating(
-              &SyncPassphraseDialogDecryptData,
-              base::Unretained(SyncServiceFactory::GetForProfile(&profile()))));
+      ShowSyncPassphraseDialogAndDecryptData(browser());
       break;
     case syncer::SyncService::UserActionableError::kNeedsSettingsConfirmation:
       chrome::ShowSettingsSubPage(&browser(), chrome::kSyncSetupSubPage);
@@ -846,6 +842,8 @@ ProfileMenuView::GetIdentitySectionParams(const ProfileAttributesEntry& entry) {
           syncer::SyncService::UserActionableError::kSignInNeedsUpdate,
           /*support_title_case=*/true));
       params.has_dotted_ring = true;
+      signin_metrics::LogSigninPendingOffered(
+          explicit_signin_access_point_.value_or(access_point));
       break;
     case signin_util::SignedInState::kSyncPaused:
       // Sync paused is covered by the sync errors path.

@@ -14,6 +14,7 @@
 #import "ios/chrome/browser/badges/ui_bundled/badge_consumer.h"
 #import "ios/chrome/browser/badges/ui_bundled/badge_item.h"
 #import "ios/chrome/browser/badges/ui_bundled/badge_tappable_item.h"
+#import "ios/chrome/browser/badges/ui_bundled/badge_type.h"
 #import "ios/chrome/browser/badges/ui_bundled/badge_type_util.h"
 #import "ios/chrome/browser/infobars/model/badge_state.h"
 #import "ios/chrome/browser/infobars/model/infobar_badge_tab_helper.h"
@@ -25,6 +26,7 @@
 #import "ios/chrome/browser/infobars/model/overlays/default_infobar_overlay_request_factory.h"
 #import "ios/chrome/browser/infobars/model/overlays/infobar_overlay_request_inserter.h"
 #import "ios/chrome/browser/infobars/model/overlays/infobar_overlay_util.h"
+#import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/overlays/model/public/overlay_presenter.h"
 #import "ios/chrome/browser/overlays/model/public/overlay_presenter_observer_bridge.h"
 #import "ios/chrome/browser/overlays/model/public/overlay_request_queue.h"
@@ -154,11 +156,36 @@ const char kInfobarOverflowBadgeShownUserAction[] =
   for (auto& infobarTypeBadgeStatePair : badgeStatesForInfobarType) {
     BadgeType badgeType =
         BadgeTypeForInfobarType(infobarTypeBadgeStatePair.first);
+    // TODO(crbug.com/448422022): Remove this translate badge filtering logic
+    // when migrating to LocationBarBadgeViewController.
+    if (IsProactiveSuggestionsFrameworkEnabled()) {
+      BadgeState badgeState = infobarTypeBadgeStatePair.second;
+      if (badgeType == kBadgeTypeTranslate &&
+          !(badgeState & BadgeStateAccepted)) {
+        continue;
+      }
+    }
     // Update BadgeType for permissions to align with current permission states
     // of the web state.
     if (infobarTypeBadgeStatePair.first ==
         InfobarType::kInfobarTypePermissions) {
       badgeType = self.permissionsBadgeType;
+      // TODO(crbug.com/448422022): Remove this permission badge filtering logic
+      // when migrating to LocationBarBadgeViewController.
+      if (IsProactiveSuggestionsFrameworkEnabled()) {
+        if ((badgeType == kBadgeTypePermissionsCamera ||
+             badgeType == kBadgeTypePermissionsMicrophone) &&
+            self.webState) {
+          web::Permission permission =
+              (badgeType == kBadgeTypePermissionsCamera)
+                  ? web::PermissionCamera
+                  : web::PermissionMicrophone;
+          if (self.webState->GetStateForPermission(permission) !=
+              web::PermissionStateAllowed) {
+            continue;
+          }
+        }
+      }
     }
     BadgeTappableItem* item =
         [[BadgeTappableItem alloc] initWithBadgeType:badgeType];
@@ -377,8 +404,7 @@ const char kInfobarOverflowBadgeShownUserAction[] =
         infobarWithType:InfobarTypeForBadgeType(displayedBadge.badgeType)];
   }
 
-  [self.consumer updateDisplayedBadge:displayedBadge
-                              infoBar:infoBar];
+  [self.consumer updateDisplayedBadge:displayedBadge infoBar:infoBar];
   [self updateConsumerReadStatus];
 }
 

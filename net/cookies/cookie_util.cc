@@ -313,33 +313,6 @@ bool CookieWithAccessResultSorter(const CookieWithAccessResult& a,
   return CookieMonster::CookieSorter(&a.cookie, &b.cookie);
 }
 
-// These values are persisted to logs. Entries should not be renumbered and
-// numeric values should never be reused.
-enum class StorageAccessNetRequestKind {
-  // The request had the `kStorageAccessGrantEligible` override, and was
-  // same-origin.
-  kSameOrigin = 0,
-  // Deprecated: The request had the `kStorageAccessGrantEligible` override, and
-  // was
-  // cross-origin, same-site.
-  // kCrossOriginSameSite = 1,
-
-  // The request had the `kStorageAccessGrantEligible` override, and was
-  // cross-site.
-  kCrossSite = 2,
-  // The request had the `kStorageAccessGrantEligible` override, and was
-  // cross-origin, same-site, and included credentials.
-  kCrossOriginSameSiteCredentialsIncluded = 3,
-  // The request had the `kStorageAccessGrantEligible` override, and was
-  // cross-origin, same-site, but did not include credentials.
-  kCrossOriginSameSiteCredentialsNotIncluded = 4,
-  kMaxValue = kCrossOriginSameSiteCredentialsNotIncluded
-};
-
-void RecordStorageAccessNetRequestMetric(StorageAccessNetRequestKind kind) {
-  base::UmaHistogramEnumeration("Net.HttpJob.StorageAccessNetRequest2", kind);
-}
-
 }  // namespace
 
 void FireStorageAccessHistogram(StorageAccessResult result) {
@@ -899,7 +872,8 @@ CookieOptions::SameSiteCookieContext ComputeSameSiteContextForRequest(
     const SiteForCookies& site_for_cookies,
     const std::optional<url::Origin>& initiator,
     bool is_main_frame_navigation,
-    bool force_ignore_site_for_cookies) {
+    bool force_ignore_site_for_cookies,
+    bool ignore_unsafe_method_for_same_site_lax) {
   // Set SameSiteCookieContext according to the rules laid out in
   // https://tools.ietf.org/html/draft-ietf-httpbis-rfc6265bis:
   //
@@ -916,6 +890,10 @@ CookieOptions::SameSiteCookieContext ComputeSameSiteContextForRequest(
   //
   //   This case should occur only for cross-site requests which
   //   target a top-level browsing context, with a "safe" method.
+  //
+  //   We allow overriding this and send lax cookies even for unsafe
+  //   methods; this is for FedCM requests (spec TBD, see
+  //   https://github.com/w3c-fedid/FedCM/issues/587).
   //
   // * Include both "strict" and "lax" same-site cookies if the request is
   //   tagged with a flag allowing it.
@@ -936,13 +914,16 @@ CookieOptions::SameSiteCookieContext ComputeSameSiteContextForRequest(
       url_chain, site_for_cookies, initiator, true /* is_http */,
       is_main_frame_navigation, true /* compute_schemefully */);
 
-  // If the method is safe, the context is Lax. Otherwise, make a note that
-  // the method is unsafe.
-  if (!net::HttpUtil::IsMethodSafe(http_method)) {
-    if (result.context_type == ContextType::SAME_SITE_LAX)
+  // If the method is safe or ignored, the context is Lax. Otherwise, make a
+  // note that the method is unsafe.
+  if (!ignore_unsafe_method_for_same_site_lax &&
+      !net::HttpUtil::IsMethodSafe(http_method)) {
+    if (result.context_type == ContextType::SAME_SITE_LAX) {
       result.context_type = ContextType::SAME_SITE_LAX_METHOD_UNSAFE;
-    if (schemeful_result.context_type == ContextType::SAME_SITE_LAX)
+    }
+    if (schemeful_result.context_type == ContextType::SAME_SITE_LAX) {
       schemeful_result.context_type = ContextType::SAME_SITE_LAX_METHOD_UNSAFE;
+    }
   }
 
   return MakeSameSiteCookieContext(result, schemeful_result);
@@ -1185,34 +1166,9 @@ NET_EXPORT bool IsForceThirdPartyCookieBlockingEnabled() {
 bool ShouldAddInitialStorageAccessApiOverride(
     const GURL& url,
     StorageAccessApiStatus api_status,
-    base::optional_ref<const url::Origin> request_initiator,
-    bool emit_metrics,
-    bool credentials_mode_include) {
-  if (api_status != StorageAccessApiStatus::kAccessViaAPI ||
-      !request_initiator) {
-    return false;
-  }
-
-  const url::Origin origin = url::Origin::Create(url);
-
-  using enum StorageAccessNetRequestKind;
-  StorageAccessNetRequestKind kind = kCrossSite;
-  if (request_initiator->IsSameOriginWith(origin)) {
-    kind = kSameOrigin;
-  } else if (SchemefulSite::IsSameSite(request_initiator.value(), origin)) {
-    kind = credentials_mode_include
-               ? kCrossOriginSameSiteCredentialsIncluded
-               : kCrossOriginSameSiteCredentialsNotIncluded;
-  }
-  if (emit_metrics) {
-    RecordStorageAccessNetRequestMetric(kind);
-  }
-
-  if (base::FeatureList::IsEnabled(
-          features::kStorageAccessApiFollowsSameOriginPolicy)) {
-    return kind == kSameOrigin;
-  }
-  return kind != kCrossSite;
+    base::optional_ref<const url::Origin> request_initiator) {
+  return api_status == StorageAccessApiStatus::kAccessViaAPI &&
+         request_initiator && request_initiator->IsSameOriginWith(url);
 }
 
 }  // namespace net::cookie_util

@@ -11,7 +11,7 @@ export function getHtml(this: SearchboxElement) {
   return html`<!--_html_template_start_-->
 ${this.ntpRealboxNextEnabled ? html`
 <ntp-error-scrim id="errorScrim"
-    ?compact-mode="${this.realboxLayoutMode === 'Compact'}">
+    ?compact-mode="${this.searchboxLayoutMode === 'Compact'}">
 </ntp-error-scrim>` : nothing}
 <div id="inputWrapper" @focusout="${this.onInputWrapperFocusout_}"
     @keydown="${this.onInputWrapperKeydown_}">
@@ -43,7 +43,7 @@ ${this.ntpRealboxNextEnabled ? html`
     </div>
   ` : nothing}
 
-  ${this.realboxLayoutMode.startsWith('Tall') &&
+  ${this.searchboxLayoutMode.startsWith('Tall') &&
       this.composeButtonEnabled ? html`
     <cr-searchbox-compose-button id="composeButton"
         @compose-click="${this.onComposeButtonClick_}">
@@ -55,7 +55,7 @@ ${this.ntpRealboxNextEnabled ? html`
       <contextual-entrypoint-and-carousel id="context"
           part="contextual-entrypoint-and-carousel"
           exportparts="composebox-entrypoint, context-menu-entrypoint-icon, voice-icon"
-          .tabSuggestions=${this.tabSuggestions_}
+          .tabSuggestions="${this.tabSuggestions_}"
           entrypoint-name="Realbox"
           @add-tab-context="${this.addTabContext_}"
           @add-file-context="${this.addFileContext_}"
@@ -65,7 +65,8 @@ ${this.ntpRealboxNextEnabled ? html`
           @open-voice-search="${this.onVoiceSearchClick_}"
           @get-tab-preview="${this.getTabPreview_}"
           ?show-dropdown="${this.dropdownIsVisible}"
-          realbox-layout-mode="${this.realboxLayoutMode}"
+          ?show-voice-search="${this.shouldShowVoiceSearch_}"
+          searchbox-layout-mode="${this.searchboxLayoutMode}"
           .parentFocused="${this.inputFocused_}">
         <cr-searchbox-dropdown id="matches" part="searchbox-dropdown"
             exportparts="dropdown-content"
@@ -122,7 +123,7 @@ ${this.ntpRealboxNextEnabled ? html`
     </div>
   ` : nothing}
 
-  ${!this.realboxLayoutMode.startsWith('Tall') &&
+  ${!this.searchboxLayoutMode.startsWith('Tall') &&
       this.composeButtonEnabled ? html`
     <cr-searchbox-compose-button id="composeButton"
         @compose-click="${this.onComposeButtonClick_}">

@@ -13,7 +13,7 @@
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/location_bar/location_bar.h"
-#include "chrome/browser/ui/omnibox/features.h"
+#include "chrome/browser/ui/omnibox/omnibox_next_features.h"
 #include "chrome/browser/ui/omnibox/omnibox_view.h"
 #include "chrome/browser/ui/webui/favicon_source.h"
 #include "chrome/browser/ui/webui/metrics_reporter/metrics_reporter_service.h"
@@ -27,10 +27,31 @@
 #include "chrome/grit/omnibox_popup_resources_map.h"
 #include "components/favicon_base/favicon_url_parser.h"
 #include "components/omnibox/common/omnibox_features.h"
-#include "components/omnibox/composebox/composebox_metrics_recorder.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "ui/webui/color_change_listener/color_change_handler.h"
 #include "ui/webui/webui_util.h"
+
+namespace {
+
+using AddContextButtonVariant = omnibox::AddContextButtonVariant;
+
+std::string AddContextButtonVariantToSearchboxLayoutMode(
+    AddContextButtonVariant variant) {
+  switch (variant) {
+    case AddContextButtonVariant::kNone:
+      return "";
+    case AddContextButtonVariant::kBelowResults:
+      return "TallBottomContext";
+    case AddContextButtonVariant::kAboveResults:
+      return "TallTopContext";
+    case AddContextButtonVariant::kInline:
+      return "Compact";
+  }
+
+  return "";
+}
+
+}  // namespace
 
 bool OmniboxPopupUIConfig::IsWebUIEnabled(
     content::BrowserContext* browser_context) {
@@ -60,9 +81,17 @@ OmniboxPopupUI::OmniboxPopupUI(content::WebUI* web_ui)
       "resultChangedToPaintMetricName",
       "Omnibox.Popup.WebUI.ResultChangedToRepaintLatency.ToPaint");
 
+  source->AddBoolean(
+      "showContextEntrypoint",
+      base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxAimPopup));
+
   // Add composebox data.
+  const std::string searchbox_layout_mode =
+      AddContextButtonVariantToSearchboxLayoutMode(
+          omnibox::kWebUIOmniboxAimPopupAddContextButtonVariantParam.Get());
+  source->AddString("searchboxLayoutMode", searchbox_layout_mode);
   source->AddBoolean("composeboxShowContextMenu",
-                     ntp_composebox::kShowContextMenu.Get());
+                     !searchbox_layout_mode.empty());
   source->AddBoolean("composeboxShowContextMenuTabPreviews",
                      ntp_composebox::kShowContextMenuTabPreviews.Get());
   source->AddBoolean("composeboxShowZps",
@@ -72,7 +101,7 @@ OmniboxPopupUI::OmniboxPopupUI(content::WebUI* web_ui)
   source->AddBoolean("composeboxShowImageSuggest",
                      ntp_composebox::kShowComposeboxImageSuggestions.Get());
   source->AddBoolean("composeboxShowContextMenuDescription",
-                     ntp_composebox::kShowContextMenuDescription.Get());
+                     !searchbox_layout_mode.empty());
   source->AddBoolean("composeboxShowSubmit", ntp_composebox::kShowSubmit.Get());
   source->AddBoolean("composeboxShowCreateImageButton", false);
   source->AddBoolean("composeboxShowDeepSearchButton", false);
@@ -96,6 +125,10 @@ OmniboxPopupUI::OmniboxPopupUI(content::WebUI* web_ui)
                      composebox_config.close_by_escape());
   source->AddBoolean("composeboxCloseByClickOutside",
                      composebox_config.close_by_click_outside());
+  source->AddBoolean("dragAndDropEnabled", false);
+  source->AddBoolean("steadyComposeboxShowVoiceSearch", false);
+  source->AddBoolean("expandedComposeboxShowVoiceSearch", false);
+  source->AddBoolean("expandedSearchboxShowVoiceSearch", false);
 
   webui::SetupWebUIDataSource(
       source, kOmniboxPopupResources,

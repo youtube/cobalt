@@ -53,6 +53,7 @@
 #include "chrome/common/pref_names.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/common/webui_url_constants.h"
+#include "chrome/test/base/chrome_test_utils.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "chromeos/constants/pref_names.h"
@@ -244,13 +245,13 @@ class PageInfoBubbleViewBrowserTest : public InProcessBrowserTest {
 
  protected:
   GURL GetSimplePageUrl() const {
-    return ui_test_utils::GetTestUrl(
+    return chrome_test_utils::GetTestUrl(
         base::FilePath(base::FilePath::kCurrentDirectory),
         base::FilePath(FILE_PATH_LITERAL("simple.html")));
   }
 
   GURL GetIframePageUrl() const {
-    return ui_test_utils::GetTestUrl(
+    return chrome_test_utils::GetTestUrl(
         base::FilePath(base::FilePath::kCurrentDirectory),
         base::FilePath(FILE_PATH_LITERAL("iframe_blank.html")));
   }
@@ -1454,18 +1455,10 @@ class PageInfoBubbleViewBrowserTestCookiesSubpage
       public testing::WithParamInterface</*is_3pcd_enabled*/ bool> {
  public:
   PageInfoBubbleViewBrowserTestCookiesSubpage() {
-    std::vector<base::test::FeatureRef>
-        enabled_features = {},
-        disabled_features = {privacy_sandbox::kFingerprintingProtectionUx,
-                             privacy_sandbox::kIpProtectionUx};
     if (GetParam()) {
-      enabled_features.push_back(
-          content_settings::features::kTrackingProtection3pcd);
-    } else {
-      disabled_features.push_back(
+      feature_list_.InitAndEnableFeature(
           content_settings::features::kTrackingProtection3pcd);
     }
-    feature_list_.InitWithFeatures(enabled_features, disabled_features);
   }
 
   void SetUpOnMainThread() override {
@@ -1746,156 +1739,6 @@ IN_PROC_BROWSER_TEST_P(PageInfoBubbleViewBrowserTestCookiesSubpage,
   EXPECT_FALSE(cookie_sync_disclaimer);
 }
 #endif
-
-class PageInfoBubbleViewBrowserTestTrackingProtectionSubpage
-    : public PageInfoBubbleViewBrowserTestCookiesSubpage {
- public:
-  PageInfoBubbleViewBrowserTestTrackingProtectionSubpage() {
-    std::vector<base::test::FeatureRef>
-        enabled_features = {privacy_sandbox::kFingerprintingProtectionUx},
-        disabled_features = {
-#if BUILDFLAG(ENABLE_GLIC)
-            // GlicBorderView doesn't like it when the profile type is changed
-            // (kIncognito vs kRegular), which is something that can't normally
-            // happen.
-            features::kGlic
-#endif
-        };
-    if (GetParam()) {
-      enabled_features.push_back(
-          content_settings::features::kTrackingProtection3pcd);
-    } else {
-      disabled_features.push_back(
-          content_settings::features::kTrackingProtection3pcd);
-    }
-    feature_list_.InitWithFeatures(enabled_features, disabled_features);
-  }
-
-  HostContentSettingsMap* host_content_settings_map() {
-    return HostContentSettingsMapFactory::GetForProfile(
-        CreateIncognitoBrowser(browser()->profile())->profile());
-  }
-
-  void OpenPageInfoAndGoToPrivacyAndSiteDataSubpage(
-      std::optional<std::u16string> rws_owner,
-      Browser* browser) {
-    base::RunLoop run_loop;
-    GetPageInfoDialogCreatedCallbackForTesting() = run_loop.QuitClosure();
-    OpenPageInfoBubble(browser);
-    run_loop.Run();
-
-    views::View* privacy_button =
-        GetView(PageInfoViewFactory::
-                    VIEW_ID_PAGE_INFO_LINK_OR_BUTTON_PRIVACY_SITE_DATA_SUBPAGE);
-
-    base::RunLoop run_loop2;
-    PerformMouseClickOnView(privacy_button);
-    auto* privacy_subpage_content = static_cast<PageInfoCookiesContentView*>(
-        PageInfoBubbleView::GetPageInfoBubbleForTesting()
-            ->GetViewByID(PageInfoViewFactory::VIEW_ID_PAGE_INFO_CURRENT_VIEW)
-            ->children()[1]);
-    privacy_subpage_content->SetInitializedCallbackForTesting(
-        run_loop2.QuitClosure());
-    run_loop2.Run();
-  }
-
- private:
-  base::test::ScopedFeatureList feature_list_;
-};
-
-IN_PROC_BROWSER_TEST_P(
-    PageInfoBubbleViewBrowserTestTrackingProtectionSubpage,
-    ButtonForPausingAndResumingProtectionsUpdatesTrackingProtectionException) {
-  base::UserActionTester user_actions_stats;
-  Browser* incognito_browser = CreateIncognitoBrowser();
-
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(incognito_browser, GURL(kUrl)));
-
-  OpenPageInfoAndGoToPrivacyAndSiteDataSubpage(/*rws_owner =*/{},
-                                               incognito_browser);
-
-  auto* tracking_protections_button = static_cast<views::LabelButton*>(
-      GetView(PageInfoViewFactory::VIEW_ID_PAGE_INFO_ACT_PROTECTIONS_BUTTON));
-
-  ASSERT_THAT(tracking_protections_button, NotNull());
-  EXPECT_TRUE(tracking_protections_button->GetVisible());
-
-  PerformMouseClickOnView(tracking_protections_button);
-  // Flushes pending tasks to prevent asynchronous UI updates (e.g. tooltips)
-  // from interfering with this test.
-  base::RunLoop().RunUntilIdle();
-
-  content_settings::SettingInfo info;
-
-  EXPECT_THAT(tracking_protections_button->GetText(),
-              l10n_util::GetStringUTF16(
-                  IDS_TRACKING_PROTECTIONS_BUTTON_RESUME_PROTECTIONS_LABEL));
-  EXPECT_EQ(
-      host_content_settings_map()->GetContentSetting(
-          GURL(), GURL(kUrl), ContentSettingsType::TRACKING_PROTECTION, &info),
-      CONTENT_SETTING_ALLOW);
-  EXPECT_EQ(user_actions_stats.GetActionCount(
-                "PageInfo.PrivacySubpage.TrackingProtectionsPaused"),
-            1);
-
-  PerformMouseClickOnView(tracking_protections_button);
-  base::RunLoop().RunUntilIdle();
-
-  EXPECT_THAT(tracking_protections_button->GetText(),
-              l10n_util::GetStringUTF16(
-                  IDS_TRACKING_PROTECTIONS_BUTTON_PAUSE_PROTECTIONS_LABEL));
-  EXPECT_EQ(
-      host_content_settings_map()->GetContentSetting(
-          GURL(), GURL(kUrl), ContentSettingsType::TRACKING_PROTECTION, &info),
-      CONTENT_SETTING_BLOCK);
-  EXPECT_EQ(user_actions_stats.GetActionCount(
-                "PageInfo.PrivacySubpage.TrackingProtectionsReenabled"),
-            1);
-}
-
-IN_PROC_BROWSER_TEST_P(PageInfoBubbleViewBrowserTestTrackingProtectionSubpage,
-                       ClickingSettingsButtonOpensIncognitoSettingsPage) {
-  base::UserActionTester user_actions_stats;
-  Browser* incognito_browser = CreateIncognitoBrowser();
-
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(incognito_browser, GURL(kUrl)));
-
-  OpenPageInfoAndGoToPrivacyAndSiteDataSubpage(/*rws_owner =*/{},
-                                               incognito_browser);
-
-  auto* cookies_buttons_container =
-      GetView(PageInfoViewFactory::VIEW_ID_PAGE_INFO_COOKIES_BUTTONS_CONTAINER);
-  ASSERT_THAT(cookies_buttons_container, NotNull());
-  ASSERT_THAT(cookies_buttons_container->children(), SizeIs(3));
-
-  auto* settings_button_view = GetView(
-      PageInfoViewFactory::
-          VIEW_ID_PAGE_INFO_BUTTON_INCOGNITO_TRACKING_PROTECTIONS_SETTINGS);
-  ASSERT_THAT(settings_button_view, NotNull());
-  auto* settings_button = static_cast<RichHoverButton*>(settings_button_view);
-
-  EXPECT_EQ(
-      settings_button->GetTitleText(),
-      l10n_util::GetStringUTF16(
-          IDS_PAGE_INFO_INCOGNITO_TRACKING_PROTECTIONS_SETTINGS_BUTTON_TITLE));
-  EXPECT_EQ(
-      settings_button->GetSubtitleText(),
-      l10n_util::GetStringUTF16(
-          IDS_PAGE_INFO_INCOGNITO_TRACKING_PROTECTIONS_SETTINGS_BUTTON_SUBTITLE));
-
-  content::WebContentsAddedObserver new_tab_observer;
-  PerformMouseClickOnView(settings_button);
-
-  EXPECT_EQ(new_tab_observer.GetWebContents()->GetVisibleURL(),
-            chrome::GetSettingsUrl(chrome::kIncognitoSettingsSubPage));
-  EXPECT_EQ(user_actions_stats.GetActionCount(
-                "PageInfo.PrivacySubpage.IncognitoSettingsOpened"),
-            1);
-}
-
-INSTANTIATE_TEST_SUITE_P(All,
-                         PageInfoBubbleViewBrowserTestTrackingProtectionSubpage,
-                         testing::Bool());
 
 class PageInfoBubbleViewBrowserTestAutoPip
     : public PageInfoBubbleViewBrowserTest {

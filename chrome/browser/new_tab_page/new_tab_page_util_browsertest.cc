@@ -21,6 +21,7 @@
 #include "chrome/test/base/scoped_browser_locale.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/ntp_tiles/features.h"
+#include "components/ntp_tiles/pref_names.h"
 #include "components/ntp_tiles/tile_type.h"
 #include "components/optimization_guide/core/optimization_guide_logger.h"
 #include "components/optimization_guide/core/optimization_guide_switches.h"
@@ -44,6 +45,16 @@ std::unique_ptr<KeyedService> CreateTestSyncService(
 }
 
 const char kSampleUserEmail[] = "user@gmail.com";
+
+base::Value::List CreatePolicyList(const std::string& name,
+                                   const std::string& url) {
+  base::Value::Dict shortcut_item;
+  shortcut_item.Set("name", name);
+  shortcut_item.Set("url", url);
+  base::Value::List policy_list;
+  policy_list.Append(std::move(shortcut_item));
+  return policy_list;
+}
 
 }  // namespace
 
@@ -145,15 +156,6 @@ class NewTabPageUtilDisableFlagBrowserTest : public NewTabPageUtilBrowserTest {
   }
 };
 
-class NewTabPageUtilDriveHistorySyncBrowserTest
-    : public NewTabPageUtilBrowserTest {
- public:
-  NewTabPageUtilDriveHistorySyncBrowserTest() {
-    features().InitWithFeatures(
-        {ntp_features::kNtpDriveModuleHistorySyncRequirement}, {});
-  }
-};
-
 IN_PROC_BROWSER_TEST_P(NewTabPageUtilBrowserTest, EnableCartByToT) {
   auto locale = std::make_unique<ScopedBrowserLocale>("en-US");
   g_browser_process->variations_service()->OverrideStoredPermanentCountry("us");
@@ -182,24 +184,6 @@ IN_PROC_BROWSER_TEST_P(NewTabPageUtilDisableFlagBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_P(NewTabPageUtilBrowserTest, EnableDriveByToT) {
-  SetSync(true);
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-  EXPECT_EQ(
-      IsDriveModuleEnabledForProfile(/*is_managed_profile=*/true, GetProfile()),
-      GetParam());
-  CheckInternalsLog(std::string(ntp_features::kNtpDriveModule.name) +
-                    (GetParam() ? " enabled: default feature flag value"
-                                : " disabled: not signed in"));
-#else
-  EXPECT_FALSE(IsDriveModuleEnabledForProfile(/*is_managed_profile=*/true,
-                                              GetProfile()));
-  CheckInternalsLog(std::string(ntp_features::kNtpDriveModule.name) +
-                    " disabled: default feature flag value");
-#endif
-}
-
-IN_PROC_BROWSER_TEST_P(NewTabPageUtilDriveHistorySyncBrowserTest,
-                       DriveHistory_SyncEnabled) {
   SetHistorySync(true);
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
   EXPECT_EQ(
@@ -216,8 +200,7 @@ IN_PROC_BROWSER_TEST_P(NewTabPageUtilDriveHistorySyncBrowserTest,
 #endif
 }
 
-IN_PROC_BROWSER_TEST_P(NewTabPageUtilDriveHistorySyncBrowserTest,
-                       DriveHistory_SyncDisabled) {
+IN_PROC_BROWSER_TEST_P(NewTabPageUtilBrowserTest, Drive_HistorySyncDisabled) {
   SetHistorySync(false);
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
   EXPECT_FALSE(IsDriveModuleEnabledForProfile(/*is_managed_profile=*/true,
@@ -256,22 +239,6 @@ IN_PROC_BROWSER_TEST_P(NewTabPageUtilEnableFlagBrowserTest, DriveIsNotManaged) {
   CheckInternalsLog(std::string(ntp_features::kNtpDriveModule.name) +
                     (GetParam() ? " disabled: account not managed"
                                 : " disabled: not signed in"));
-}
-
-IN_PROC_BROWSER_TEST_P(NewTabPageUtilBrowserTest, SyncRequired) {
-  SetSync(false);
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-  EXPECT_FALSE(IsDriveModuleEnabledForProfile(/*is_managed_profile=*/true,
-                                              GetProfile()));
-  CheckInternalsLog(
-      std::string(ntp_features::kNtpDriveModule.name) +
-      (GetParam() ? " disabled: no sync" : " disabled: not signed in"));
-#else
-  EXPECT_FALSE(IsDriveModuleEnabledForProfile(/*is_managed_profile=*/true,
-                                              GetProfile()));
-  CheckInternalsLog(std::string(ntp_features::kNtpDriveModule.name) +
-                    " disabled: default feature flag value");
-#endif
 }
 
 IN_PROC_BROWSER_TEST_P(NewTabPageUtilEnableFlagBrowserTest,
@@ -379,6 +346,11 @@ IN_PROC_BROWSER_TEST_P(
   EXPECT_EQ(GetEnabledTileTypes(browser()->profile()),
             std::set<ntp_tiles::TileType>({ntp_tiles::TileType::kCustomLinks}));
 
+  // Set enterprise shortcuts policy.
+  browser()->profile()->GetPrefs()->SetList(
+      ntp_tiles::prefs::kEnterpriseShortcutsPolicyList,
+      CreatePolicyList("work name", "https://work.com/"));
+
   // If custom links are explicitly disabled, it falls back to Top Sites.
   browser()->profile()->GetPrefs()->SetBoolean(
       ntp_prefs::kNtpCustomLinksVisible, false);
@@ -412,6 +384,11 @@ IN_PROC_BROWSER_TEST_P(
   EXPECT_EQ(GetEnabledTileTypes(browser()->profile()),
             std::set<ntp_tiles::TileType>({ntp_tiles::TileType::kCustomLinks}));
 
+  // Set enterprise shortcuts policy.
+  browser()->profile()->GetPrefs()->SetList(
+      ntp_tiles::prefs::kEnterpriseShortcutsPolicyList,
+      CreatePolicyList("work name", "https://work.com/"));
+
   // If enterprise shortcuts are enabled and mixing is DISABLED,
   // personal shortcuts (Custom Links) should disappear.
   browser()->profile()->GetPrefs()->SetBoolean(
@@ -419,6 +396,12 @@ IN_PROC_BROWSER_TEST_P(
   EXPECT_EQ(GetEnabledTileTypes(browser()->profile()),
             std::set<ntp_tiles::TileType>(
                 {ntp_tiles::TileType::kEnterpriseShortcuts}));
+
+  // Remove enterprise shortcuts policy, personal shortcuts should be visible.
+  browser()->profile()->GetPrefs()->SetList(
+      ntp_tiles::prefs::kEnterpriseShortcutsPolicyList, base::Value::List());
+  EXPECT_EQ(GetEnabledTileTypes(browser()->profile()),
+            std::set<ntp_tiles::TileType>({ntp_tiles::TileType::kCustomLinks}));
 }
 
 class NewTabPageUtilTileTypesEnterpriseShortcutsEnabledAllowMixingBrowserTest
@@ -439,6 +422,11 @@ IN_PROC_BROWSER_TEST_P(
   EXPECT_EQ(GetEnabledTileTypes(browser()->profile()),
             std::set<ntp_tiles::TileType>({ntp_tiles::TileType::kCustomLinks}));
 
+  // Set enterprise shortcuts policy.
+  browser()->profile()->GetPrefs()->SetList(
+      ntp_tiles::prefs::kEnterpriseShortcutsPolicyList,
+      CreatePolicyList("work name", "https://work.com/"));
+
   // If enterprise shortcuts are also visible AND mixing is ALLOWED,
   // both should be enabled.
   browser()->profile()->GetPrefs()->SetBoolean(
@@ -455,6 +443,12 @@ IN_PROC_BROWSER_TEST_P(
   EXPECT_EQ(GetEnabledTileTypes(browser()->profile()),
             std::set<ntp_tiles::TileType>(
                 {ntp_tiles::TileType::kEnterpriseShortcuts}));
+
+  // Remove enterprise shortcuts policy, personal shortcuts should be visible.
+  browser()->profile()->GetPrefs()->SetList(
+      ntp_tiles::prefs::kEnterpriseShortcutsPolicyList, base::Value::List());
+  EXPECT_EQ(GetEnabledTileTypes(browser()->profile()),
+            std::set<ntp_tiles::TileType>({ntp_tiles::TileType::kCustomLinks}));
 }
 
 INSTANTIATE_TEST_SUITE_P(All, NewTabPageUtilBrowserTest, testing::Bool());
@@ -465,10 +459,6 @@ INSTANTIATE_TEST_SUITE_P(All,
 
 INSTANTIATE_TEST_SUITE_P(All,
                          NewTabPageUtilDisableFlagBrowserTest,
-                         testing::Bool());
-
-INSTANTIATE_TEST_SUITE_P(All,
-                         NewTabPageUtilDriveHistorySyncBrowserTest,
                          testing::Bool());
 
 INSTANTIATE_TEST_SUITE_P(

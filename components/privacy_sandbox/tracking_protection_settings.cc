@@ -14,6 +14,7 @@
 #include "components/content_settings/core/common/content_settings_types.h"
 #include "components/content_settings/core/common/features.h"
 #include "components/content_settings/core/common/pref_names.h"
+#include "components/policy/core/common/management/management_service.h"
 #include "components/policy/core/common/management/platform_management_service.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "components/prefs/pref_service.h"
@@ -40,23 +41,12 @@ TrackingProtectionSettings::TrackingProtectionSettings(
       is_incognito_(is_incognito) {
   CHECK(pref_service_);
   CHECK(host_content_settings_map_);
-  content_settings_observation_.Observe(host_content_settings_map_.get());
 
   pref_change_registrar_.Init(pref_service_);
-  pref_change_registrar_.Add(
-      prefs::kEnableDoNotTrack,
-      base::BindRepeating(
-          &TrackingProtectionSettings::OnDoNotTrackEnabledPrefChanged,
-          base::Unretained(this)));
   pref_change_registrar_.Add(
       prefs::kIpProtectionEnabled,
       base::BindRepeating(
           &TrackingProtectionSettings::OnIpProtectionPrefChanged,
-          base::Unretained(this)));
-  pref_change_registrar_.Add(
-      prefs::kFingerprintingProtectionEnabled,
-      base::BindRepeating(
-          &TrackingProtectionSettings::OnFpProtectionPrefChanged,
           base::Unretained(this)));
   pref_change_registrar_.Add(
       prefs::kBlockAll3pcToggleEnabled,
@@ -101,16 +91,6 @@ void TrackingProtectionSettings::Shutdown() {
   pref_service_ = nullptr;
 }
 
-void TrackingProtectionSettings::OnContentSettingChanged(
-    const ContentSettingsPattern& primary_pattern,
-    const ContentSettingsPattern& secondary_pattern,
-    ContentSettingsTypeSet content_type_set) {
-  if (content_type_set.Contains(ContentSettingsType::TRACKING_PROTECTION)) {
-    OnTrackingProtectionExceptionsChanged(
-        secondary_pattern.ToRepresentativeUrl());
-  }
-}
-
 bool TrackingProtectionSettings::IsTrackingProtection3pcdEnabled() const {
   // True if either debug flag or pref is enabled.
   return base::FeatureList::IsEnabled(
@@ -133,10 +113,6 @@ bool TrackingProtectionSettings::IsFpProtectionEnabled() const {
   return pref_service_->GetBoolean(prefs::kFingerprintingProtectionEnabled) &&
          is_incognito_ &&
          base::FeatureList::IsEnabled(kFingerprintingProtectionUx);
-}
-
-bool TrackingProtectionSettings::IsDoNotTrackEnabled() const {
-  return pref_service_->GetBoolean(prefs::kEnableDoNotTrack);
 }
 
 void TrackingProtectionSettings::AddTrackingProtectionException(
@@ -172,20 +148,6 @@ bool TrackingProtectionSettings::HasTrackingProtectionException(
              info) == CONTENT_SETTING_ALLOW;
 }
 
-ContentSettingsForOneType
-TrackingProtectionSettings::GetTrackingProtectionExceptions() const {
-  ContentSettingsForOneType all_settings =
-      host_content_settings_map_->GetSettingsForOneType(
-          ContentSettingsType::TRACKING_PROTECTION);
-  ContentSettingsForOneType exceptions;
-  for (const auto& setting : all_settings) {
-    if (setting.GetContentSetting() == CONTENT_SETTING_ALLOW) {
-      exceptions.push_back(setting);
-    }
-  }
-  return exceptions;
-}
-
 bool TrackingProtectionSettings::IsIpProtectionDisabledForEnterprise() {
   if (pref_service_->IsManagedPreference(prefs::kIpProtectionEnabled)) {
     return !pref_service_->GetBoolean(prefs::kIpProtectionEnabled);
@@ -212,21 +174,9 @@ void TrackingProtectionSettings::OnEnterpriseControlForPrefsChanged() {
   }
 }
 
-void TrackingProtectionSettings::OnDoNotTrackEnabledPrefChanged() {
-  for (auto& observer : observers_) {
-    observer.OnDoNotTrackEnabledChanged();
-  }
-}
-
 void TrackingProtectionSettings::OnIpProtectionPrefChanged() {
   for (auto& observer : observers_) {
     observer.OnIpProtectionEnabledChanged();
-  }
-}
-
-void TrackingProtectionSettings::OnFpProtectionPrefChanged() {
-  for (auto& observer : observers_) {
-    observer.OnFpProtectionEnabledChanged();
   }
 }
 
@@ -241,13 +191,6 @@ void TrackingProtectionSettings::OnTrackingProtection3pcdPrefChanged() {
     observer.OnTrackingProtection3pcdChanged();
     // 3PC blocking may change as a result of entering/leaving the experiment.
     observer.OnBlockAllThirdPartyCookiesChanged();
-  }
-}
-
-void TrackingProtectionSettings::OnTrackingProtectionExceptionsChanged(
-    const GURL& first_party_url) {
-  for (auto& observer : observers_) {
-    observer.OnTrackingProtectionExceptionsChanged(first_party_url);
   }
 }
 

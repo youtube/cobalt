@@ -19,6 +19,8 @@
 #include "base/gtest_prod_util.h"
 #include "base/sequence_checker.h"
 #include "base/thread_annotations.h"
+#include "base/types/expected.h"
+#include "components/persistent_cache/backend.h"
 #include "components/persistent_cache/backend_storage.h"
 #include "components/persistent_cache/entry_metadata.h"
 
@@ -38,14 +40,25 @@ class PersistentCache;
 //    PersistentCacheCollection collection(temp_dir.GetPath(), 4096);
 //    collection.Insert("first_cache_id", "key", value_span);
 //    collection.Insert("second_cache_id","key", value_span);
-//    auto entry = collection.Find("first_cache_id", "key");
+//    ASSIGN_OR_RETURN(auto entry, collection->Find("first_cache_id", "key"),
+//      [](persistent_cache::TransactionError error) {
+//        // Translate error to return type here.
+//      });
 //
 // Use PersistentCacheCollection to store and retrieve key-value pairs from
 // multiple `PersistentCache`s which are created just-in-time.
+//
+// PersistentCaches stored in the collection can be shared through exported
+// parameters but cannot keep being used after they are evicted from the
+// collection. PersistentCacheCollection ensures this doesn't happen by
+// automatically abandoning caches when evicted.
 class COMPONENT_EXPORT(PERSISTENT_CACHE) PersistentCacheCollection {
  public:
+  static constexpr size_t kDefaultLruCacheCapacity = 100;
+
   PersistentCacheCollection(base::FilePath top_directory,
-                            int64_t target_footprint);
+                            int64_t target_footprint,
+                            size_t lru_capacity = kDefaultLruCacheCapacity);
   PersistentCacheCollection(const PersistentCacheCollection&) = delete;
   PersistentCacheCollection& operator=(const PersistentCacheCollection&) =
       delete;
@@ -55,12 +68,15 @@ class COMPONENT_EXPORT(PERSISTENT_CACHE) PersistentCacheCollection {
   // cache. `cache_id` must be a US-ASCII string consisting more-or-less of
   // lower-case letters, numbers, and select punctuation; see
   // `BaseNameFromCacheId()` below for gory details.
-  std::unique_ptr<Entry> Find(const std::string& cache_id,
-                              std::string_view key);
-  void Insert(const std::string& cache_id,
-              std::string_view key,
-              base::span<const uint8_t> content,
-              EntryMetadata metadata = EntryMetadata{});
+  base::expected<std::unique_ptr<Entry>, TransactionError> Find(
+      const std::string& cache_id,
+      std::string_view key);
+
+  base::expected<void, TransactionError> Insert(
+      const std::string& cache_id,
+      std::string_view key,
+      base::span<const uint8_t> content,
+      EntryMetadata metadata = EntryMetadata{});
 
   // Deletes all files used by the collection, including any present on-disk
   // that are not actively in-use.
@@ -79,11 +95,18 @@ class COMPONENT_EXPORT(PERSISTENT_CACHE) PersistentCacheCollection {
       const std::string& cache_id);
 
  private:
+  struct AbandoningDeleter;
   friend class PersistentCacheCollectionTest;
   FRIEND_TEST_ALL_PREFIXES(PersistentCacheCollectionTest, BaseNameFromCacheId);
   FRIEND_TEST_ALL_PREFIXES(PersistentCacheCollectionTest,
                            FullAllowedCharacterSetHandled);
   FRIEND_TEST_ALL_PREFIXES(PersistentCacheCollectionTest, RetrievalAfterClear);
+  FRIEND_TEST_ALL_PREFIXES(PersistentCacheCollectionTest,
+                           InstancesAbandonnedOnClear);
+
+  // To be called on receiving a transaction error from the cache at `cache_id`.
+  TransactionError HandleTransactionError(const std::string& cache_id,
+                                          TransactionError error);
 
   // Deletes files in the instance's directory from oldest to newest until the
   // instance is using no more than 90% of its target footprint.
@@ -113,7 +136,8 @@ class COMPONENT_EXPORT(PERSISTENT_CACHE) PersistentCacheCollection {
   // Desired maximum disk footprint for the cache collection in bytes.
   const int64_t target_footprint_;
 
-  base::HashingLRUCache<std::string, std::unique_ptr<PersistentCache>>
+  base::HashingLRUCache<std::string,
+                        std::unique_ptr<PersistentCache, AbandoningDeleter>>
       persistent_caches_ GUARDED_BY_CONTEXT(sequence_checker_);
 
   // Running tally of how many bytes can be inserted before a footprint

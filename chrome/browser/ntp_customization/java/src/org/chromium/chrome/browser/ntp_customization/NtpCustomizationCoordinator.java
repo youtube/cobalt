@@ -74,7 +74,8 @@ public class NtpCustomizationCoordinator {
         BottomSheetType.MVT,
         BottomSheetType.CHROME_COLORS,
         BottomSheetType.THEME_COLLECTIONS,
-        BottomSheetType.SINGLE_THEME_COLLECTION
+        BottomSheetType.SINGLE_THEME_COLLECTION,
+        BottomSheetType.UPLOAD_IMAGE
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface BottomSheetType {
@@ -86,7 +87,8 @@ public class NtpCustomizationCoordinator {
         int THEME_COLLECTIONS = 5;
         int SINGLE_THEME_COLLECTION = 6;
         int CHROME_COLORS = 7;
-        int NUM_ENTRIES = 8;
+        int UPLOAD_IMAGE = 8; // No dedicated bottom sheet for upload image.
+        int NUM_ENTRIES = 9;
     }
 
     /**
@@ -114,7 +116,7 @@ public class NtpCustomizationCoordinator {
      *     main bottom sheet will be shown instead, enabling its full navigation flow, otherwise the
      *     bottom sheet of the bottomSheetType will show by itself.
      */
-    public NtpCustomizationCoordinator(
+    NtpCustomizationCoordinator(
             Context context,
             BottomSheetController bottomSheetController,
             Supplier<@Nullable Profile> profileSupplier,
@@ -248,6 +250,10 @@ public class NtpCustomizationCoordinator {
         mMediator.showBottomSheet(THEME);
     }
 
+    void dismissBottomSheet() {
+        mMediator.dismissBottomSheet(/* animate= */ true);
+    }
+
     /**
      * Returns a click listener to handle user clicks on the options in the NTP customization main
      * bottom sheet.
@@ -331,6 +337,9 @@ public class NtpCustomizationCoordinator {
     public void destroy() {
         mViewFlipperView.removeAllViews();
         mMediator.destroy();
+        NtpCustomizationCoordinatorFactory.getInstance()
+                .onNtpCustomizationCoordinatorDestroyed(this);
+
         if (mMvtSettingCoordinator != null) {
             mMvtSettingCoordinator.destroy();
         }

@@ -12,6 +12,7 @@ namespace {
 constexpr bool IS_AUTOFILL_AI_PLATFORM = BUILDFLAG(IS_CHROMEOS) ||
                                          BUILDFLAG(IS_LINUX) ||
                                          BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN);
+constexpr bool IS_WALLET_PASSES_SUPPORTED_PLATFORM = !BUILDFLAG(IS_IOS);
 }
 
 // LINT.IfChange(autofill_across_iframes_ios)
@@ -126,7 +127,7 @@ BASE_FEATURE(kAutofillAiIdentityAndTravelPrefs,
 // If enabled, no account-level capabilities are checked to determine whether
 // a user is eligible for AutofillAI.
 BASE_FEATURE(kAutofillAiIgnoreCapabilityCheck,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, a HaTS survey is shown after a walletable suggestion is
 // displayed and the form submitted. The survey does not require the suggestion
@@ -170,7 +171,7 @@ const base::FeatureParam<bool>
 // Both the allowlist and the blocklist are expected to consist of
 // comma-separated uppercase two-digit country codes (see documentation of
 // `GeoIpCountryCode`.)
-BASE_FEATURE(kAutofillAiIgnoreGeoIp, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kAutofillAiIgnoreGeoIp, base::FEATURE_ENABLED_BY_DEFAULT);
 
 const base::FeatureParam<std::string> kAutofillAiIgnoreGeoIpAllowlist{
     &kAutofillAiIgnoreGeoIp, "autofill_ai_geo_ip_allowlist", ""};
@@ -179,7 +180,7 @@ const base::FeatureParam<std::string> kAutofillAiIgnoreGeoIpBlocklist{
     &kAutofillAiIgnoreGeoIp, "autofill_ai_geo_ip_blocklist", ""};
 
 // If enabled, no locale requirements are imposed for AutofillAi.
-BASE_FEATURE(kAutofillAiIgnoreLocale, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kAutofillAiIgnoreLocale, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, no sign-in requirement is imposed for Autofill. Note that if this
 // feature is enabled, the value of `kAutofillAiIgnoreCapabilityCheck` is
@@ -189,16 +190,16 @@ BASE_FEATURE(kAutofillAiIgnoreSignInState, base::FEATURE_DISABLED_BY_DEFAULT);
 // If enabled, the existence of address or payments data is not required to show
 // the Iph bubble for AutofillAi.
 BASE_FEATURE(kAutofillAiIgnoreWhetherUserHasAddressOrPaymentsDataForIph,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, AutofillAi supports known traveler numbers.
-BASE_FEATURE(kAutofillAiKnownTravelerNumber, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kAutofillAiKnownTravelerNumber, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, AutofillAi supports national id cards.
-BASE_FEATURE(kAutofillAiNationalIdCard, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kAutofillAiNationalIdCard, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, AutofillAi supports redress number.
-BASE_FEATURE(kAutofillAiRedressNumber, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kAutofillAiRedressNumber, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, this makes the autofill classification logic prefer the
 // AutofillAi predictions sent via the server response over local heuristic
@@ -258,7 +259,7 @@ const base::FeatureParam<bool> kAutofillAiServerModelUseCacheResults{
 // on file, <input type=text value=CX12> uploads a format string "4".
 // TODO(crbug.com/429704303): Clean up when launched.
 BASE_FEATURE(kAutofillAiVoteForFormatStringsForAffixes,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, votes for the format of flight number fields are uploaded. For
 // example, if there is a flight number "LH89" on file, a submitted value of
@@ -303,7 +304,7 @@ BASE_FEATURE(kAutofillAddressUserDeclinedSuggestionSurvey,
 // GAS addresses will never be deleted as part of the deduplication flow.
 // TODO(crbug.com/357074792): Remove when launched.
 BASE_FEATURE(kAutofillDeduplicateAccountAddresses,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // LINT.IfChange(autofill_disallow_more_hyphen_like_labels)
 // When enabled, the list of characters a label cannot exclusively consist of
@@ -359,13 +360,17 @@ BASE_FEATURE(kAutofillEnableLabelPrecedenceForTurkishAddresses,
 // When enabled, Autofill will help users fill in loyalty card details.
 // TODO(crbug.com/395831853): Remove once launched.
 BASE_FEATURE(kAutofillEnableLoyaltyCardsFilling,
-             base::FEATURE_ENABLED_BY_DEFAULT);
+             IS_WALLET_PASSES_SUPPORTED_PLATFORM
+                 ? base::FEATURE_ENABLED_BY_DEFAULT
+                 : base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, Autofill will display joined email and loyalty card Autofill
 // suggestions.
 // TODO(crbug.com/416664590): Remove once launched.
 BASE_FEATURE(kAutofillEnableEmailOrLoyaltyCardsFilling,
-             base::FEATURE_ENABLED_BY_DEFAULT);
+             IS_WALLET_PASSES_SUPPORTED_PLATFORM
+                 ? base::FEATURE_ENABLED_BY_DEFAULT
+                 : base::FEATURE_DISABLED_BY_DEFAULT);
 
 // If enabled, only non-ad frames are extracted.
 // Otherwise, non-ad frames as well as *visible* ad frames are extracted.
@@ -490,7 +495,7 @@ BASE_FEATURE(kAutofillPreferSavedFormAsSubmittedForm,
 // Allows the import of an Autofill profile if duplicate fields were present
 // with identical field values.
 // TODO(crbug.com/395855125): Remove when launched.
-BASE_FEATURE(kAutofillRelaxAddressImport, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kAutofillRelaxAddressImport, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Replaces blink::WebFormElementObserver usage in FormTracker by updated logic
 // for tracking the disappearance of forms as well as other submission
@@ -539,10 +544,9 @@ BASE_FEATURE(kAutofillSupportPresentationRole,
 BASE_FEATURE(kAutofillSynchronousAfterParsing,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Enables extended zip code validation
-// and new zip code merging logic.
+// Enables extended zip code validation.
 // TODO(crbug.com/434140055): Clean up when launched.
-BASE_FEATURE(kAutofillZipCodeValidationAndMerging,
+BASE_FEATURE(kAutofillExtendZipCodeValidation,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, the form field parser won't try to match other attributes if

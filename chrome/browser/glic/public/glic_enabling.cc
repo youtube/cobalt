@@ -11,6 +11,7 @@
 #include "chrome/browser/glic/glic_user_status_code.h"
 #include "chrome/browser/glic/glic_user_status_fetcher.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
+#include "chrome/browser/glic/host/glic_features.mojom-features.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_attributes_storage.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
@@ -23,6 +24,13 @@
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/variations/service/variations_service.h"
+
+#if BUILDFLAG(IS_CHROMEOS)
+#include "chromeos/ash/components/browser_context_helper/browser_context_helper.h"  // nogncheck
+#include "chromeos/ash/components/browser_context_helper/browser_context_types.h"  // nogncheck
+#include "components/user_manager/user.h"       // nogncheck
+#include "components/user_manager/user_type.h"  // nogncheck
+#endif
 
 namespace glic {
 
@@ -111,6 +119,33 @@ bool GlicEnabling::IsEnabledByFlags() {
 }
 
 bool GlicEnabling::IsProfileEligible(const Profile* profile) {
+#if BUILDFLAG(IS_CHROMEOS)
+  // Due to the tight coupling of the browser Profile and OS users in ChromeOS,
+  // we check the user session type to align with other desktop browser
+  // behavior.
+  if (!ash::IsUserBrowserContext(profile)) {
+    // We only allow regular user session profiles.
+    // E.g. disallowed on login screen.
+    return false;
+  }
+  auto* user = ash::BrowserContextHelper::Get()->GetUserByBrowserContext(
+      const_cast<Profile*>(profile));
+  switch (user->GetType()) {
+    case user_manager::UserType::kRegular:
+    case user_manager::UserType::kChild:
+      // These are ok to use glic.
+      break;
+    case user_manager::UserType::kGuest:
+    case user_manager::UserType::kPublicAccount:
+    case user_manager::UserType::kKioskChromeApp:
+    case user_manager::UserType::kKioskWebApp:
+    case user_manager::UserType::kKioskIWA:
+    case user_manager::UserType::kKioskArcvmApp:
+      // Disallows guest session, and device local account sessions.
+      return false;
+  }
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
   // Glic is supported only in regular profiles, i.e. disable in incognito,
   // guest, system profile, etc.
   return IsEnabledByFlags() && profile && profile->IsRegularProfile();
@@ -183,7 +218,27 @@ void GlicEnabling::OnGlicSettingsPolicyChanged() {
 }
 
 bool GlicEnabling::IsUnifiedFreEnabled(Profile* profile) {
-  return base::FeatureList::IsEnabled(features::kGlicUnifiedFreScreen);
+  return base::FeatureList::IsEnabled(features::kGlicMultiInstance) &&
+         base::FeatureList::IsEnabled(features::kGlicUnifiedFreScreen);
+}
+
+bool GlicEnabling::IsMultiInstanceEnabledByFlags() {
+  const bool multi_instance_enabled =
+      base::FeatureList::IsEnabled(features::kGlicMultiInstance);
+  const bool multi_tab_enabled =
+      base::FeatureList::IsEnabled(mojom::features::kGlicMultiTab);
+  const bool tab_underlines_enabled =
+      base::FeatureList::IsEnabled(features::kGlicMultitabUnderlines);
+
+  if (multi_instance_enabled &&
+      !(multi_tab_enabled && tab_underlines_enabled)) {
+    LOG(ERROR)
+        << "GlicMultiInstance is enabled without kGlicMultiTab and/or "
+           "kGlicMultitabUnderlines. All of these features must be enabled to "
+           "ensure proper behavior.";
+  }
+
+  return multi_instance_enabled && multi_tab_enabled && tab_underlines_enabled;
 }
 
 GlicEnabling::GlicEnabling(Profile* profile,

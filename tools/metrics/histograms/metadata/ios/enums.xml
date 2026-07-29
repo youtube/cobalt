@@ -78,38 +78,6 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="Apple Calendar"/>
 </enum>
 
-<!-- LINT.IfChange(FingerprintingProtectionRuleListApplyTrigger) -->
-
-<enum name="FingerprintingProtectionRuleListApplyTrigger">
-  <int value="0" label="Rules were applied because the component was updated."/>
-  <int value="1"
-      label="Rules were applied because Fingerprinting Protection was
-             toggled."/>
-  <int value="2"
-      label="Rules were applied because a site exception was changed."/>
-</enum>
-
-<!-- LINT.ThenChange(//ios/chrome/browser/script_blocking/model/script_blocking_rule_applier_service.h:FingerprintingProtectionRuleListApplyTrigger) -->
-
-<!-- LINT.IfChange(FingerprintingProtectionRuleListBuildOutcome) -->
-
-<enum name="FingerprintingProtectionRuleListBuildOutcome">
-  <int value="0"
-      label="The rule list was updated and exceptions were applied."/>
-  <int value="1"
-      label="The rule list was updated and no exceptions were applied."/>
-  <int value="2"
-      label="The rule list was removed as Fingerprinting Protection was
-             disabled."/>
-  <int value="3"
-      label="The rule list was removed as no base rules were provided."/>
-  <int value="4"
-      label="The rule list was removed as the provided base rules were
-             invalid."/>
-</enum>
-
-<!-- LINT.ThenChange(//ios/chrome/browser/script_blocking/model/script_blocking_rule_applier_service.h:FingerprintingProtectionRuleListBuildOutcome) -->
-
 <!-- LINT.IfChange(FullscreenModeTransitionReason) -->
 
 <enum name="FullscreenModeTransitionReason">
@@ -642,6 +610,7 @@ chromium-metrics-reviews@google.com.
   <int value="6" label="Unknown"/>
   <int value="7" label="Zero State Suggestions"/>
   <int value="8" label="What Can Gemini Do"/>
+  <int value="9" label="Discovery Card"/>
 </enum>
 
 <!-- LINT.ThenChange(/ios/chrome/browser/intelligence/bwg/metrics/bwg_metrics.h:IOSGeminiFirstPromptSubmissionMethod) -->
@@ -1088,6 +1057,18 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="Dismiss"/>
 </enum>
 
+<!-- LINT.IfChange(IOSPromoRegistrationState) -->
+
+<enum name="IOSPromoRegistrationState">
+  <int value="0" label="kRegistration"/>
+  <int value="1" label="kDeregistrationBeforePromoDisplay"/>
+  <int value="2" label="kDeregistrationAfterPromoDisplay"/>
+</enum>
+
+<!-- LINT.ThenChange(/ios/chrome/browser/promos_manager/model/constants.h:PromoRegistrationState) -->
+
+<!-- LINT.IfChange(IOSPromosManagerPromo) -->
+
 <enum name="IOSPromosManagerPromo">
   <int value="0" label="Test Promo"/>
 <!--  Default Browser (Fullscreen) not in use, yet.-->
@@ -1109,11 +1090,15 @@ chromium-metrics-reviews@google.com.
   <int value="13" label="All Tabs default browser promo"/>
   <int value="14" label="Made for iOS default browser promo"/>
   <int value="15" label="Stay Safe default browser promo"/>
+  <int value="16" label="Post-default browser abandonment alert."/>
+  <int value="17" label="Fullscreen sign-in promo."/>
   <int value="18" label="Welcome Back promo"/>
   <int value="19" label="BWG promo"/>
   <int value="20" label="Safari Import (Remind Me Later)"/>
   <int value="21" label="Default Browser off cycle promo"/>
 </enum>
+
+<!-- LINT.ThenChange(/ios/chrome/browser/promos_manager/model/constants.h:Promo) -->
 
 <enum name="IOSPromosManagerPromoType">
   <int value="0" label="StandardPromoViewProvider"/>
@@ -1930,6 +1915,78 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(/ios/chrome/browser/safari_data_import/public/safari_data_import_stage.h:SafariDataImportStage) -->
+
+<!-- LINT.IfChange(SyncedSetUpRemotePrefDifference) -->
+
+<enum name="SyncedSetUpRemotePrefDifference">
+  <int value="0" label="NoDifference">
+    No differences were found between remote prefs and the local device.
+  </int>
+  <int value="1" label="ProfilePrefsDiffered">
+    Only remote profile prefs differed from the local device.
+  </int>
+  <int value="2" label="LocalStatePrefsDiffered">
+    Only remote local-state prefs differed from the local device.
+  </int>
+  <int value="3" label="BothPrefsDiffered">
+    Both remote profile and remote local-state prefs differed from the local
+    device.
+  </int>
+</enum>
+
+<!-- LINT.ThenChange(/ios/chrome/browser/synced_set_up/coordinator/synced_set_up_mediator.mm:SyncedSetUpRemotePrefDifference) -->
+
+<!-- LINT.IfChange(SyncedSetUpSnackbarInteraction) -->
+
+<enum name="SyncedSetUpSnackbarInteraction">
+  <int value="0" label="ShownSuggestion">
+    The initial suggestion snackbar (offering to apply changes) was shown.
+  </int>
+  <int value="1" label="ClickedApply">
+    User clicked &quot;Apply&quot; on the suggestion snackbar.
+  </int>
+  <int value="2" label="DismissedSuggestion">
+    The suggestion snackbar timed out (user ignored).
+  </int>
+  <int value="3" label="ShownAppliedConfirmation">
+    The &quot;Applied&quot; confirmation (with &quot;Undo&quot; button) was
+    shown.
+  </int>
+  <int value="4" label="ClickedUndo">
+    User clicked &quot;Undo&quot; on the applied confirmation.
+  </int>
+  <int value="5" label="DismissedAppliedConfirmation">
+    The &quot;Applied&quot; confirmation timed out (user accepted the change).
+  </int>
+  <int value="6" label="ShownUndoneConfirmation">
+    The &quot;Undone&quot; confirmation (with &quot;Redo&quot; button) was
+    shown.
+  </int>
+  <int value="7" label="ClickedRedo">
+    User clicked &quot;Redo&quot; on the undone confirmation.
+  </int>
+  <int value="8" label="DismissedUndoneConfirmation">
+    The &quot;Undone&quot; confirmation timed out (user accepted the reversion).
+  </int>
+</enum>
+
+<!-- LINT.ThenChange(//ios/chrome/browser/synced_set_up/public/synced_set_up_metrics.h:SyncedSetUpSnackbarInteraction) -->
+
+<!-- LINT.IfChange(SyncedSetUpTriggerSource) -->
+
+<enum name="SyncedSetUpTriggerSource">
+  <int value="0" label="PostFirstRun">
+    Triggered as part of the Post-First Run Experience.
+  </int>
+  <int value="1" label="RemotePrefChange">
+    Triggered by a remote pref change notification from Sync.
+  </int>
+  <int value="2" label="SceneActivation">
+    Triggered by a scene becoming foreground active.
+  </int>
+</enum>
+
+<!-- LINT.ThenChange(/ios/chrome/browser/synced_set_up/public/synced_set_up_metrics.h:SyncedSetUpTriggerSource) -->
 
 <enum name="TextSelectionDetectedEntityType">
   <int value="0" label="Unknown"/>

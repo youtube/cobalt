@@ -99,8 +99,15 @@
       ChromeAccountManagerServiceFactory::GetForProfile(self.profile);
 
   id<SystemIdentity> identity =
-      accountManagerService->GetIdentityOnDeviceWithGaiaID(GaiaId(gaiaID));
-  DCHECK(identity);
+      accountManagerService->GetIdentityOnDeviceWithGaiaID(gaiaID);
+  if (!identity) {
+    // Race condition where the identity was removed from the device but the
+    // view not yet updated.
+    // The mediator should have been informed through
+    // `onAccountsOnDeviceChanged`, and will update the UI asynchronously. In
+    // the meantime, do nothing.
+    return;
+  }
   self.mediator.selectedIdentity = identity;
   [self.delegate consistencyAccountChooserCoordinatorIdentitySelected:self];
 }

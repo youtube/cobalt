@@ -21,6 +21,7 @@
 #include "third_party/blink/renderer/core/dom/events/event.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/geometry/dom_rect.h"
+#include "third_party/blink/renderer/core/html/html_permission_element_test_helper.h"
 #include "third_party/blink/renderer/core/html/html_span_element.h"
 #include "third_party/blink/renderer/core/html_names.h"
 #include "third_party/blink/renderer/core/paint/paint_layer_scrollable_area.h"
@@ -44,6 +45,9 @@ using mojom::blink::PermissionService;
 using MojoPermissionStatus = mojom::blink::PermissionStatus;
 
 namespace {
+
+// Time to bypass the spinning time `kMinimumSpinningIconTime`
+constexpr base::TimeDelta kTimeToSimulateCallback = base::Seconds(2);
 
 constexpr char16_t kGeolocationStringPt[] = u"Usar localização";
 constexpr char16_t kGeolocationStringBr[] = u"Usar local";
@@ -74,117 +78,6 @@ class LocalePlatformSupport : public TestingPlatformSupport {
     }
     return TestingPlatformSupport::QueryLocalizedString(resource_id);
   }
-};
-
-// Helper class used to wait until receiving a permission status change event.
-class PermissionStatusChangeWaiter : public PermissionObserver {
- public:
-  explicit PermissionStatusChangeWaiter(
-      mojo::PendingReceiver<PermissionObserver> receiver,
-      base::OnceClosure callback)
-      : receiver_(this, std::move(receiver)), callback_(std::move(callback)) {}
-
-  // PermissionObserver override
-  void OnPermissionStatusChange(MojoPermissionStatus status) override {
-    if (callback_) {
-      std::move(callback_).Run();
-    }
-  }
-
- private:
-  mojo::Receiver<PermissionObserver> receiver_;
-  base::OnceClosure callback_;
-};
-
-class TestPermissionService : public PermissionService {
- public:
-  explicit TestPermissionService() = default;
-  ~TestPermissionService() override = default;
-
-  void BindHandle(mojo::ScopedMessagePipeHandle handle) {
-    receivers_.Add(this,
-                   mojo::PendingReceiver<PermissionService>(std::move(handle)));
-  }
-
-  // mojom::blink::PermissionService implementation
-  void HasPermission(PermissionDescriptorPtr permission,
-                     HasPermissionCallback) override {}
-  void RegisterPageEmbeddedPermissionControl(
-      Vector<PermissionDescriptorPtr> permissions,
-      mojom::blink::EmbeddedPermissionRequestDescriptorPtr descriptor,
-      mojo::PendingRemote<mojom::blink::EmbeddedPermissionControlClient>
-          pending_client) override {
-    Vector<MojoPermissionStatus> statuses =
-        initial_statuses_.empty()
-            ? Vector<MojoPermissionStatus>(permissions.size(),
-                                           MojoPermissionStatus::ASK)
-            : initial_statuses_;
-    client_ = mojo::Remote<mojom::blink::EmbeddedPermissionControlClient>(
-        std::move(pending_client));
-    client_->OnEmbeddedPermissionControlRegistered(/*allowed=*/true,
-                                                   std::move(statuses));
-  }
-
-  void RequestPageEmbeddedPermission(
-      Vector<PermissionDescriptorPtr> permissions,
-      mojom::blink::EmbeddedPermissionRequestDescriptorPtr descriptors,
-      RequestPageEmbeddedPermissionCallback callback) override {
-    std::move(callback).Run(
-        mojom::blink::EmbeddedPermissionControlResult::kGranted);
-  }
-  void RequestPermission(PermissionDescriptorPtr permission,
-                         bool user_gesture,
-                         RequestPermissionCallback) override {}
-  void RequestPermissions(Vector<PermissionDescriptorPtr> permissions,
-                          bool user_gesture,
-                          RequestPermissionsCallback) override {}
-  void RevokePermission(PermissionDescriptorPtr permission,
-                        RevokePermissionCallback) override {}
-  void AddPermissionObserver(
-      PermissionDescriptorPtr permission,
-      MojoPermissionStatus last_known_status,
-      mojo::PendingRemote<PermissionObserver> observer) override {}
-  void AddPageEmbeddedPermissionObserver(
-      PermissionDescriptorPtr permission,
-      MojoPermissionStatus last_known_status,
-      mojo::PendingRemote<PermissionObserver> observer) override {
-    observers_.emplace_back(permission->name, mojo::Remote<PermissionObserver>(
-                                                  std::move(observer)));
-  }
-
-  void NotifyEventListener(PermissionDescriptorPtr permission,
-                           const String& event_type,
-                           bool is_added) override {}
-
-  void NotifyPermissionStatusChange(PermissionName name,
-                                    MojoPermissionStatus status) {
-    for (const auto& observer : observers_) {
-      if (observer.first == name) {
-        observer.second->OnPermissionStatusChange(status);
-      }
-    }
-    WaitForPermissionStatusChange(status);
-  }
-
-  void WaitForPermissionStatusChange(MojoPermissionStatus status) {
-    mojo::Remote<PermissionObserver> observer;
-    base::RunLoop run_loop;
-    auto waiter = std::make_unique<PermissionStatusChangeWaiter>(
-        observer.BindNewPipeAndPassReceiver(), run_loop.QuitClosure());
-    observer->OnPermissionStatusChange(status);
-    run_loop.Run();
-  }
-
-  void set_initial_statuses(const Vector<MojoPermissionStatus>& statuses) {
-    initial_statuses_ = statuses;
-  }
-
- private:
-  mojo::ReceiverSet<PermissionService> receivers_;
-  Vector<std::pair<PermissionName, mojo::Remote<PermissionObserver>>>
-      observers_;
-  Vector<MojoPermissionStatus> initial_statuses_;
-  mojo::Remote<mojom::blink::EmbeddedPermissionControlClient> client_;
 };
 
 }  // namespace
@@ -226,8 +119,9 @@ class HTMLGeolocationElementTest : public HTMLGeolocationElementTestBase {
     HTMLGeolocationElementTestBase::SetUp();
     GetFrame().GetBrowserInterfaceBroker().SetBinderForTesting(
         PermissionService::Name_,
-        base::BindRepeating(&TestPermissionService::BindHandle,
-                            base::Unretained(&permission_service_)));
+        blink::BindRepeating(
+            &PermissionElementTestPermissionService::BindHandle,
+            base::Unretained(&permission_service_)));
   }
 
   void TearDown() override {
@@ -236,7 +130,9 @@ class HTMLGeolocationElementTest : public HTMLGeolocationElementTestBase {
     HTMLGeolocationElementTestBase::TearDown();
   }
 
-  TestPermissionService* permission_service() { return &permission_service_; }
+  PermissionElementTestPermissionService* permission_service() {
+    return &permission_service_;
+  }
 
   HTMLGeolocationElement* CreateGeolocationElement(
       bool precise_accuracy_mode = false) {
@@ -286,7 +182,7 @@ class HTMLGeolocationElementTest : public HTMLGeolocationElementTestBase {
  private:
   ScopedBypassPepcSecurityForTestingForTest bypass_pepc_security_for_testing_{
       /*enabled=*/true};
-  TestPermissionService permission_service_;
+  PermissionElementTestPermissionService permission_service_;
   ScopedTestingPlatformSupport<LocalePlatformSupport> support_;
 };
 
@@ -312,9 +208,7 @@ TEST_F(HTMLGeolocationElementTest, GeolocationTranslateInnerText) {
       {"ta", kGeolocationStringTa}};
 
   auto* geolocation_element = CreateGeolocationElement();
-  EXPECT_TRUE(base::test::RunUntil([&]() {
-    return geolocation_element->is_registered_in_browser_process();
-  }));
+  WaitForPermissionElementRegistration(geolocation_element);
   for (const auto& data : kTestData) {
     geolocation_element->setAttribute(html_names::kLangAttr,
                                       AtomicString(data.lang_attr_value));
@@ -326,7 +220,7 @@ TEST_F(HTMLGeolocationElementTest, GeolocationTranslateInnerText) {
     permission_service()->NotifyPermissionStatusChange(
         PermissionName::GEOLOCATION, MojoPermissionStatus::GRANTED);
     // Simulate success response
-    task_environment().FastForwardBy(base::Seconds(3));
+    task_environment().FastForwardBy(kTimeToSimulateCallback);
     geolocation_element->CurrentPositionCallback(base::ok(nullptr));
 
     // Text should NOT change to the "allowed" string.
@@ -352,9 +246,7 @@ TEST_F(HTMLGeolocationElementTest, GeolocationSetInnerTextAfterRegistration) {
     auto* geolocation_element =
         CreateGeolocationElement(data.precise_accuracy_mode);
     permission_service()->set_initial_statuses({data.status});
-    EXPECT_TRUE(base::test::RunUntil([&]() {
-      return geolocation_element->is_registered_in_browser_process();
-    }));
+    WaitForPermissionElementRegistration(geolocation_element);
     CheckInnerText(geolocation_element, data.expected_text);
   }
 }
@@ -362,9 +254,7 @@ TEST_F(HTMLGeolocationElementTest, GeolocationSetInnerTextAfterRegistration) {
 TEST_F(HTMLGeolocationElementTest,
        GeolocationPreciseLocationAttributeDoesNotChangeText) {
   auto* geolocation_element = CreateGeolocationElement();
-  EXPECT_TRUE(base::test::RunUntil([&]() {
-    return geolocation_element->is_registered_in_browser_process();
-  }));
+  WaitForPermissionElementRegistration(geolocation_element);
   String initial_text =
       geolocation_element->permission_text_span_for_testing()->innerText();
   CheckInnerText(geolocation_element, initial_text);
@@ -376,9 +266,7 @@ TEST_F(HTMLGeolocationElementTest,
 TEST_F(HTMLGeolocationElementTest,
        GeolocationPreciseLocationAttributeCamelCaseDoesNotChangeText) {
   auto* geolocation_element = CreateGeolocationElement();
-  EXPECT_TRUE(base::test::RunUntil([&]() {
-    return geolocation_element->is_registered_in_browser_process();
-  }));
+  WaitForPermissionElementRegistration(geolocation_element);
   String initial_text =
       geolocation_element->permission_text_span_for_testing()->innerText();
   CheckInnerText(geolocation_element, initial_text);
@@ -389,9 +277,7 @@ TEST_F(HTMLGeolocationElementTest,
 
 TEST_F(HTMLGeolocationElementTest, GeolocationAccuracyMode) {
   auto* geolocation_element = CreateGeolocationElement();
-  EXPECT_TRUE(base::test::RunUntil([&]() {
-    return geolocation_element->is_registered_in_browser_process();
-  }));
+  WaitForPermissionElementRegistration(geolocation_element);
   geolocation_element->setAttribute(html_names::kAccuracymodeAttr,
                                     AtomicString("precise"));
   CheckInnerText(geolocation_element, kPreciseGeolocationString);
@@ -399,9 +285,7 @@ TEST_F(HTMLGeolocationElementTest, GeolocationAccuracyMode) {
 
 TEST_F(HTMLGeolocationElementTest, GeolocationAccuracyModeCaseInsensitive) {
   auto* geolocation_element = CreateGeolocationElement();
-  EXPECT_TRUE(base::test::RunUntil([&]() {
-    return geolocation_element->is_registered_in_browser_process();
-  }));
+  WaitForPermissionElementRegistration(geolocation_element);
   geolocation_element->setAttribute(html_names::kAccuracymodeAttr,
                                     AtomicString("PrEcIsE"));
   CheckInnerText(geolocation_element, kPreciseGeolocationString);
@@ -422,9 +306,7 @@ TEST_F(HTMLGeolocationElementTest, GeolocationStatusChange) {
   for (const auto& data : kTestData) {
     auto* geolocation_element =
         CreateGeolocationElement(data.precise_accuracy_mode);
-    EXPECT_TRUE(base::test::RunUntil([&]() {
-      return geolocation_element->is_registered_in_browser_process();
-    }));
+    WaitForPermissionElementRegistration(geolocation_element);
     permission_service()->NotifyPermissionStatusChange(
         PermissionName::GEOLOCATION, data.status);
     CheckInnerText(geolocation_element, data.expected_text);
@@ -434,9 +316,7 @@ TEST_F(HTMLGeolocationElementTest, GeolocationStatusChange) {
 
 TEST_F(HTMLGeolocationElementTest, GeolocationUsingLocationAppearance) {
   auto* geolocation_element = CreateGeolocationElement();
-  EXPECT_TRUE(base::test::RunUntil([&]() {
-    return geolocation_element->is_registered_in_browser_process();
-  }));
+  WaitForPermissionElementRegistration(geolocation_element);
 
   // 1. Test GetCurrentPosition
   geolocation_element->GetCurrentPosition();
@@ -450,7 +330,7 @@ TEST_F(HTMLGeolocationElementTest, GeolocationUsingLocationAppearance) {
                   /*is_spinning*/ true);
 
   // Simulate success response
-  task_environment().FastForwardBy(base::Seconds(3));
+  task_environment().FastForwardBy(kTimeToSimulateCallback);
   geolocation_element->CurrentPositionCallback(base::ok(nullptr));
   CheckAppearance(geolocation_element, kGeolocationString,
                   /*is_spinning*/ false);
@@ -461,13 +341,13 @@ TEST_F(HTMLGeolocationElementTest, GeolocationUsingLocationAppearance) {
                   /*is_spinning*/ true);
 
   // Simulate error response
-  task_environment().FastForwardBy(base::Seconds(3));
+  task_environment().FastForwardBy(kTimeToSimulateCallback);
   geolocation_element->CurrentPositionCallback(base::unexpected(nullptr));
   CheckAppearance(geolocation_element, kGeolocationString,
                   /*is_spinning*/ false);
 
   // 3. Test that the spinning icon and "using" text are displayed for at
-  // least 2 seconds, even if the response is received earlier.
+  // least 1.5 seconds, even if the response is received earlier.
   geolocation_element->GetCurrentPosition();
   CheckAppearance(geolocation_element, kUsingLocationString,
                   /*is_spinning*/ true);
@@ -482,9 +362,9 @@ TEST_F(HTMLGeolocationElementTest, GeolocationUsingLocationAppearance) {
   CheckAppearance(geolocation_element, kUsingLocationString,
                   /*is_spinning*/ true);
 
-  // Fast forward time by another 1.1 seconds, making the total time > 2
-  // seconds.
-  task_environment().FastForwardBy(base::Seconds(1.1));
+  // Fast forward time by another 0.6 seconds, making the total time >
+  // kTestMinimumSpinningIconTime seconds.
+  task_environment().FastForwardBy(base::Seconds(0.6));
   CheckAppearance(geolocation_element, kGeolocationString,
                   /*is_spinning*/ false);
 
@@ -494,12 +374,12 @@ TEST_F(HTMLGeolocationElementTest, GeolocationUsingLocationAppearance) {
   CheckAppearance(geolocation_element, kUsingLocationString,
                   /*is_spinning*/ true);
 
-  // Fast forward time by 2.1 seconds.
-  task_environment().FastForwardBy(base::Seconds(2.1));
+  // Fast forward time by kTimeToSimulateCallback.
+  task_environment().FastForwardBy(kTimeToSimulateCallback);
   CheckAppearance(geolocation_element, kUsingLocationString,
                   /*is_spinning*/ false);
 
-  // Simulate receiving a response after 2.1 seconds.
+  // Simulate receiving a response.
   geolocation_element->CurrentPositionCallback(base::ok(nullptr));
   CheckAppearance(geolocation_element, kGeolocationString,
                   /*is_spinning*/ false);
@@ -510,7 +390,7 @@ TEST_F(HTMLGeolocationElementTest, GeolocationUsingLocationAppearance) {
   CheckAppearance(geolocation_element, kUsingLocationString,
                   /*is_spinning*/ true);
 
-  task_environment().FastForwardBy(base::Seconds(3));
+  task_environment().FastForwardBy(kTimeToSimulateCallback);
   geolocation_element->CurrentPositionCallback(base::ok(nullptr));
   CheckAppearance(geolocation_element, kGeolocationString,
                   /*is_spinning*/ false);
@@ -519,24 +399,22 @@ TEST_F(HTMLGeolocationElementTest, GeolocationUsingLocationAppearance) {
 TEST_F(HTMLGeolocationElementTest, GeolocationWatchPositionAppearance) {
   auto* geolocation_element = CreateGeolocationElement();
   geolocation_element->setAttribute(html_names::kWatchAttr, AtomicString(""));
-  EXPECT_TRUE(base::test::RunUntil([&]() {
-    return geolocation_element->is_registered_in_browser_process();
-  }));
+  WaitForPermissionElementRegistration(geolocation_element);
 
   // 1. Call WatchPosition and check initial spinning.
   geolocation_element->WatchPosition();
   CheckAppearance(geolocation_element, kUsingLocationString,
                   /*is_spinning*/ true);
 
-  // 2. After 1s, simulate a position update. Spinning should continue because
-  // it's re-triggered.
-  task_environment().FastForwardBy(base::Seconds(1));
+  // 2. After `kTimeToSimulateCallback`, simulate a position update. Spinning
+  // should continue because it's re-triggered.
+  task_environment().FastForwardBy(kTimeToSimulateCallback);
   geolocation_element->CurrentPositionCallback(base::ok(nullptr));
   CheckAppearance(geolocation_element, kUsingLocationString,
                   /*is_spinning*/ true);
 
-  // 3. After another 2.1s, spinning should stop.
-  task_environment().FastForwardBy(base::Seconds(2.1));
+  // 3. After another `kTimeToSimulateCallback`, spinning should stop.
+  task_environment().FastForwardBy(kTimeToSimulateCallback);
   CheckAppearance(geolocation_element, kGeolocationString,
                   /*is_spinning*/ false);
 
@@ -548,7 +426,7 @@ TEST_F(HTMLGeolocationElementTest, GeolocationWatchPositionAppearance) {
   // 5. Remove watch attribute.
   geolocation_element->removeAttribute(html_names::kWatchAttr);
   // Let the current spinning finish.
-  task_environment().FastForwardBy(base::Seconds(2.1));
+  task_environment().FastForwardBy(kTimeToSimulateCallback);
   CheckAppearance(geolocation_element, kGeolocationString,
                   /*is_spinning*/ false);
 
@@ -595,7 +473,7 @@ TEST_F(HTMLGeolocationElementTest, GeolocationAutolocate) {
                   /*is_spinning*/ true);
 
   // Fast forward time to let the spinning stop.
-  task_environment().FastForwardBy(base::Seconds(2.1));
+  task_environment().FastForwardBy(kTimeToSimulateCallback);
   geolocation_element->CurrentPositionCallback(base::ok(nullptr));
   CheckAppearance(geolocation_element, kGeolocationString,
                   /*is_spinning*/ false);
@@ -607,9 +485,9 @@ TEST_F(HTMLGeolocationElementTest, GeolocationAutolocateWatch) {
                                  MojoPermissionStatus::GRANTED}});
 
   auto* geolocation_element = CreateGeolocationElement();
+  geolocation_element->setAttribute(html_names::kWatchAttr, AtomicString(""));
   geolocation_element->setAttribute(html_names::kAutolocateAttr,
                                     AtomicString(""));
-  geolocation_element->setAttribute(html_names::kWatchAttr, AtomicString(""));
 
   // Should trigger WatchPosition automatically.
   CheckAppearance(geolocation_element, kUsingLocationString,
@@ -617,7 +495,7 @@ TEST_F(HTMLGeolocationElementTest, GeolocationAutolocateWatch) {
 
   // With watch, it should re-trigger spinning.
   // Let's simulate a position update.
-  task_environment().FastForwardBy(base::Seconds(1));
+  task_environment().FastForwardBy(kTimeToSimulateCallback);
   geolocation_element->CurrentPositionCallback(base::ok(nullptr));
   CheckAppearance(geolocation_element, kUsingLocationString,
                   /*is_spinning*/ true);
@@ -637,7 +515,7 @@ TEST_F(HTMLGeolocationElementTest, GeolocationAutolocateTriggersOnce) {
                   /*is_spinning*/ true);
 
   // Let it finish.
-  task_environment().FastForwardBy(base::Seconds(2.1));
+  task_environment().FastForwardBy(kTimeToSimulateCallback);
   geolocation_element->CurrentPositionCallback(base::ok(nullptr));
   CheckAppearance(geolocation_element, kGeolocationString,
                   /*is_spinning*/ false);
@@ -670,7 +548,7 @@ TEST_F(HTMLGeolocationElementTest,
                   /*is_spinning*/ true);
 
   // Let it finish.
-  task_environment().FastForwardBy(base::Seconds(2.1));
+  task_environment().FastForwardBy(kTimeToSimulateCallback);
   geolocation_element->CurrentPositionCallback(base::ok(nullptr));
   CheckAppearance(geolocation_element, kGeolocationString,
                   /*is_spinning*/ false);
@@ -696,6 +574,25 @@ TEST_F(HTMLGeolocationElementTest,
                   /*is_spinning*/ true);
 }
 
+TEST_F(HTMLGeolocationElementTest, PermissionStatusChangeAfterDecided) {
+  auto* geolocation_element = CreateGeolocationElement();
+  WaitForPermissionElementRegistration(geolocation_element);
+  geolocation_element->OnEmbeddedPermissionsDecided(
+      mojom::EmbeddedPermissionControlResult::kGranted);
+  CheckAppearance(geolocation_element, kGeolocationString,
+                  /*is_spinning*/ false);
+
+  // Simulate a system permission update.
+  permission_service()->NotifyPermissionStatusChange(
+      PermissionName::GEOLOCATION, MojoPermissionStatus::GRANTED);
+  GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
+  GetDocument().View()->UpdateAllLifecyclePhasesForTest();
+
+  // Request location should trigger.
+  CheckAppearance(geolocation_element, kUsingLocationString,
+                  /*is_spinning*/ true);
+}
+
 class HTMLGeolocationElementSimTest : public SimTest {
  public:
   HTMLGeolocationElementSimTest()
@@ -707,8 +604,9 @@ class HTMLGeolocationElementSimTest : public SimTest {
     feature_list_.InitAndEnableFeature(features::kGeolocationElement);
     MainFrame().GetFrame()->GetBrowserInterfaceBroker().SetBinderForTesting(
         PermissionService::Name_,
-        base::BindRepeating(&TestPermissionService::BindHandle,
-                            base::Unretained(&permission_service_)));
+        blink::BindRepeating(
+            &PermissionElementTestPermissionService::BindHandle,
+            base::Unretained(&permission_service_)));
   }
 
   void TearDown() override {
@@ -717,7 +615,9 @@ class HTMLGeolocationElementSimTest : public SimTest {
     SimTest::TearDown();
   }
 
-  TestPermissionService* permission_service() { return &permission_service_; }
+  PermissionElementTestPermissionService* permission_service() {
+    return &permission_service_;
+  }
 
   HTMLGeolocationElement* CreateGeolocationElement(Document& document) {
     HTMLGeolocationElement* geolocation_element =
@@ -729,7 +629,7 @@ class HTMLGeolocationElementSimTest : public SimTest {
   }
 
  private:
-  TestPermissionService permission_service_;
+  PermissionElementTestPermissionService permission_service_;
   ScopedTestingPlatformSupport<LocalePlatformSupport> support;
   base::test::ScopedFeatureList feature_list_;
   ScopedGeolocationElementForTest scoped_feature_{true};

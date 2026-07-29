@@ -131,15 +131,15 @@ void TypeText(NSString* nsText) {
 void WaitForBottomSheetAndOpenKeyboard(NSString* username) {
   id<GREYMatcher> buttonMatcher =
       chrome_test_util::ButtonWithAccessibilityLabelId(
-          IDS_IOS_PASSWORD_BOTTOM_SHEET_USE_KEYBOARD);
+          IDS_IOS_CREDENTIAL_BOTTOM_SHEET_USE_KEYBOARD);
   [ChromeEarlGrey
       waitForUIElementToAppearWithMatcher:grey_accessibilityID(username)];
   [[EarlGrey selectElementWithMatcher:buttonMatcher] performAction:grey_tap()];
   [ChromeEarlGrey waitForKeyboardToAppear];
 }
 
-// Types `text` on an input field with `fieldID`. Dismisses the password bottom
-// sheet if `dismissBottomSheet` is true.
+// Types `text` on an input field with `fieldID`. Dismisses the credential
+// bottom sheet if `dismissBottomSheet` is true.
 void TypeTextOnField(NSString* text,
                      const std::string& fieldID,
                      bool dismissBottomSheet = false) {
@@ -156,7 +156,7 @@ void TypeUsernameAndPasswordOnUFF(NSString* username,
                                   NSString* password,
                                   bool dismissBottomSheetOnUsername = false) {
   // Type username and dismiss the bottom sheet because it is the first login
-  // field to be focused on, which triggers the password bottom sheet. Once
+  // field to be focused on, which triggers the credential bottom sheet. Once
   // dismissed the bottom sheet isn't shown again when focusing on other login
   // fields, as long as the page isn't reloaded.
   TypeTextOnField(username, "single_un", dismissBottomSheetOnUsername);
@@ -256,18 +256,13 @@ void LoginOnUff() {
         password_manager::features::kMarkAllCredentialsAsLeaked);
   }
 
-  if ([self isRunningTest:@selector(FLAKY_testSaveWithoutBadges)] ||
-      [self isRunningTest:@selector(FLAKY_testUpdateWithoutBadges)]) {
-    config.features_enabled.push_back(kAutofillBadgeRemoval);
-  }
-
   if ([self isRunningTest:@selector(testSavePromptAppearsOnFormSubmission)] ||
       [self isRunningTest:@selector(testUpdatePromptAppearsOnFormSubmission)]) {
     // These tests need a badge.
     config.features_disabled.push_back(kAutofillBadgeRemoval);
   }
 
-  // The proactive password suggestion bottom sheet isn't tested here, it
+  // The proactive password generation bottom sheet isn't tested here, it
   // is tested in its own suite in password_suggestion_egtest.mm.
   config.features_disabled.push_back(
       password_manager::features::kIOSProactivePasswordGenerationBottomSheet);

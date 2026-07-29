@@ -17,7 +17,7 @@
 #include "third_party/blink/renderer/core/dom/element.h"
 #include "third_party/blink/renderer/core/dom/named_animation_trigger_map.h"
 #include "third_party/blink/renderer/core/editing/forward.h"
-#include "third_party/blink/renderer/core/layout/anchor_evaluator_impl.h"
+#include "third_party/blink/renderer/core/layout/anchor_map.h"
 #include "third_party/blink/renderer/core/layout/break_token.h"
 #include "third_party/blink/renderer/core/layout/geometry/physical_rect.h"
 #include "third_party/blink/renderer/core/layout/ink_overflow.h"
@@ -679,13 +679,13 @@ class CORE_EXPORT PhysicalFragment : public GarbageCollected<PhysicalFragment> {
     HeapVector<PhysicalOofPositionedNode>& OofPositionedDescendants() {
       return oof_positioned_descendants_;
     }
-    void SetAnchorQuery(PhysicalAnchorQuery* query) { anchor_query_ = query; }
-    const PhysicalAnchorQuery* AnchorQuery() const { return anchor_query_; }
-    PhysicalAnchorQuery& EnsureAnchorQuery();
+    void SetAnchorMap(AnchorMap* anchor_map) { anchor_map_ = anchor_map; }
+    const AnchorMap* GetAnchorMap() const { return anchor_map_; }
+    AnchorMap& EnsureAnchorMap();
 
    private:
     HeapVector<PhysicalOofPositionedNode> oof_positioned_descendants_;
-    Member<PhysicalAnchorQuery> anchor_query_;
+    Member<AnchorMap> anchor_map_;
   };
 
   // Returns true if some child is OOF in the fragment tree. This happens if
@@ -708,17 +708,16 @@ class CORE_EXPORT PhysicalFragment : public GarbageCollected<PhysicalFragment> {
 
   base::span<PhysicalOofPositionedNode> OutOfFlowPositionedDescendants() const;
 
-  bool HasAnchorQuery() const {
-    return oof_data_ && oof_data_->AnchorQuery() &&
-           !oof_data_->AnchorQuery()->IsEmpty();
+  bool HasChildAnchors() const {
+    return oof_data_ && oof_data_->GetAnchorMap() &&
+           !oof_data_->GetAnchorMap()->IsEmpty();
   }
-  bool HasAnchorQueryToPropagate() const {
-    return HasAnchorQuery() || IsAnchor();
-  }
-  const PhysicalAnchorQuery* AnchorQuery() const {
-    if (!HasAnchorQuery())
+  bool HasAnchorsToPropagate() const { return HasChildAnchors() || IsAnchor(); }
+  const AnchorMap* GetAnchorMap() const {
+    if (!HasChildAnchors()) {
       return nullptr;
-    return oof_data_->AnchorQuery();
+    }
+    return oof_data_->GetAnchorMap();
   }
 
   const GCedNamedAnimationTriggerMap* NamedTriggers() const {

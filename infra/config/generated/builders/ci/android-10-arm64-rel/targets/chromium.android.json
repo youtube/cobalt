@@ -14,6 +14,41 @@
             "--bucket",
             "chromium-result-details",
             "--test-name",
+            "chrome_public_test_ar_apk"
+          ],
+          "script": "//build/android/pylib/results/presentation/test_results_presentation.py"
+        },
+        "module_name": "//chrome/android:chrome_public_test_ar_apk",
+        "module_scheme": "junit",
+        "name": "chrome_public_test_ar_apk",
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "retry_only_failed_tests": true,
+        "swarming": {
+          "dimensions": {
+            "device_os": "QQ1A.191205.008",
+            "device_os_flavor": "google",
+            "device_os_type": "userdebug",
+            "device_type": "walleye",
+            "os": "Android"
+          },
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+        },
+        "test": "chrome_public_test_ar_apk",
+        "test_id_prefix": "ninja://chrome/android:chrome_public_test_ar_apk/"
+      },
+      {
+        "args": [
+          "--gs-results-bucket=chromium-result-details",
+          "--recover-devices"
+        ],
+        "merge": {
+          "args": [
+            "--bucket",
+            "chromium-result-details",
+            "--test-name",
             "chrome_public_test_vr_apk"
           ],
           "script": "//build/android/pylib/results/presentation/test_results_presentation.py"
@@ -25,6 +60,7 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
+        "retry_only_failed_tests": true,
         "swarming": {
           "dimensions": {
             "device_os": "QQ1A.191205.008",
@@ -60,6 +96,7 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
+        "retry_only_failed_tests": true,
         "swarming": {
           "dimensions": {
             "device_os": "QQ1A.191205.008",
@@ -94,6 +131,7 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
+        "retry_only_failed_tests": true,
         "swarming": {
           "dimensions": {
             "device_os": "QQ1A.191205.008",

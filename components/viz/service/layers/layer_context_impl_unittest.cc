@@ -1790,7 +1790,7 @@ TEST_F(LayerContextImplUpdateDisplayTreeTileDisplayLayerPropertiesTest,
   auto* tile_display_layer_impl =
       static_cast<cc::TileDisplayLayerImpl*>(layer_impl_base);
 
-  EXPECT_FALSE(tile_display_layer_impl->is_directly_composited_image());
+  EXPECT_FALSE(tile_display_layer_impl->IsDirectlyCompositedImage());
 
   // Second update: Set is_directly_composited_image to true.
   auto update2 = CreateDefaultUpdate();
@@ -1805,7 +1805,7 @@ TEST_F(LayerContextImplUpdateDisplayTreeTileDisplayLayerPropertiesTest,
   EXPECT_TRUE(
       layer_context_impl_->DoUpdateDisplayTree(std::move(update2)).has_value());
 
-  EXPECT_TRUE(tile_display_layer_impl->is_directly_composited_image());
+  EXPECT_TRUE(tile_display_layer_impl->IsDirectlyCompositedImage());
 
   // Third update: Set is_directly_composited_image to false.
   auto update3 = CreateDefaultUpdate();
@@ -1820,7 +1820,7 @@ TEST_F(LayerContextImplUpdateDisplayTreeTileDisplayLayerPropertiesTest,
   EXPECT_TRUE(
       layer_context_impl_->DoUpdateDisplayTree(std::move(update3)).has_value());
 
-  EXPECT_FALSE(tile_display_layer_impl->is_directly_composited_image());
+  EXPECT_FALSE(tile_display_layer_impl->IsDirectlyCompositedImage());
 }
 
 TEST_F(LayerContextImplUpdateDisplayTreeTileDisplayLayerPropertiesTest,
@@ -1948,7 +1948,6 @@ TEST_F(LayerContextImplUpdateDisplayTreeTilingTest, TilingAndTileLifecycle) {
   auto resource_contents = mojom::TileResource::New();
   resource_contents->resource = MakeFakeResource(kTileSize2);
   resource_contents->resource.id = kResourceId1;
-  resource_contents->is_checkered = false;
   tile2_resource->contents =
       mojom::TileContents::NewResource(std::move(resource_contents));
   tiling1_updated->tiles.push_back(std::move(tile2_resource));
@@ -2072,7 +2071,6 @@ TEST_F(LayerContextImplUpdateDisplayTreeTilingTest, TilingAndTileLifecycle) {
   auto resource_contents_updated = mojom::TileResource::New();
   resource_contents_updated->resource = MakeFakeResource(kTileSize1);
   resource_contents_updated->resource.id = kResourceId2;
-  resource_contents_updated->is_checkered = true;
   tile_updated_to_resource->contents =
       mojom::TileContents::NewResource(std::move(resource_contents_updated));
   tiling1_tile_update->tiles.push_back(std::move(tile_updated_to_resource));
@@ -2084,7 +2082,6 @@ TEST_F(LayerContextImplUpdateDisplayTreeTilingTest, TilingAndTileLifecycle) {
   ASSERT_NE(nullptr, tiling_impl1->TileAt(kTileIndex1));
   EXPECT_FALSE(tiling_impl1->TileAt(kTileIndex1)->solid_color().has_value());
   EXPECT_TRUE(tiling_impl1->TileAt(kTileIndex1)->resource().has_value());
-  EXPECT_TRUE(tiling_impl1->TileAt(kTileIndex1)->resource()->is_checkered);
 
   // Test Case 7: Attempt to add a tile with an invalid resource ID.
   auto update_invalid_resource_tile = CreateDefaultUpdate();
@@ -3942,6 +3939,40 @@ TEST_F(LayerContextImplTest, UpdateDisplayTreeWithTargetLocalSurfaceId) {
   EXPECT_TRUE(result.has_value());
   EXPECT_EQ(layer_context_impl_->host_impl()->target_local_surface_id(),
             target_local_surface_id);
+}
+
+TEST_F(LayerContextImplTest, UpdateDisplayTreeWithTargetSurfaceRanges) {
+  const SurfaceRange ranges[] = {
+      {SurfaceId(kDefaultFrameSinkId,
+                 {1, base::UnguessableToken::CreateForTesting(2, 3)}),
+       SurfaceId(kDefaultFrameSinkId,
+                 {10, base::UnguessableToken::CreateForTesting(11, 12)})},
+      {SurfaceId(kDefaultFrameSinkId,
+                 {4, base::UnguessableToken::CreateForTesting(5, 6)}),
+       SurfaceId(kDefaultFrameSinkId,
+                 {13, base::UnguessableToken::CreateForTesting(14, 15)})},
+      {SurfaceId(kDefaultFrameSinkId,
+                 {7, base::UnguessableToken::CreateForTesting(8, 9)}),
+       SurfaceId(kDefaultFrameSinkId,
+                 {16, base::UnguessableToken::CreateForTesting(17, 18)})}};
+
+  auto update = CreateDefaultUpdate();
+  update->surface_ranges.emplace({ranges[0], ranges[1]});
+
+  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
+  EXPECT_TRUE(result.has_value());
+  EXPECT_EQ(
+      layer_context_impl_->host_impl()->active_tree()->SurfaceRanges().size(),
+      2U);
+  EXPECT_TRUE(
+      layer_context_impl_->host_impl()->active_tree()->SurfaceRanges().contains(
+          ranges[0]));
+  EXPECT_TRUE(
+      layer_context_impl_->host_impl()->active_tree()->SurfaceRanges().contains(
+          ranges[1]));
+  EXPECT_FALSE(
+      layer_context_impl_->host_impl()->active_tree()->SurfaceRanges().contains(
+          ranges[2]));
 }
 
 }  // namespace

@@ -54,53 +54,8 @@ AutofillDriver* AutofillDriverRouter::DriverOfFrame(LocalFrameToken frame) {
 
 void AutofillDriverRouter::UnregisterDriver(AutofillDriver& driver,
                                             bool driver_is_dying) {
-  // TODO: crbug.com/365097975 - Remove the crash keys.
-  bool found_token = false;
-  bool found_token_has_driver = false;
-  bool found_token_has_right_driver = false;
-  bool found_driver = false;
-  bool found_driver_right_token = false;
-  bool found_driver_deleted = false;
-  if (auto it = form_forest_.frame_datas().find(driver.GetFrameToken());
-      it != form_forest_.frame_datas().end()) {
-    found_token = true;
-    found_token_has_driver = (*it)->driver != nullptr;
-    found_token_has_right_driver = (*it)->driver == &driver;
-  }
-  SCOPED_CRASH_KEY_NUMBER("Autofill", "num_frame_datas_before",
-                          form_forest_.frame_datas().size());
-  for (const std::unique_ptr<internal::FormForest::FrameData>& frame :
-       form_forest_.frame_datas()) {
-    if (frame->driver == &driver) {
-      found_driver = true;
-      found_driver_right_token = frame->frame_token == driver.GetFrameToken();
-      form_forest_.EraseFormsOfFrame(frame->frame_token,
-                                     /*keep_frame=*/!driver_is_dying);
-      found_driver_deleted =
-          !form_forest_.frame_datas().contains(driver.GetFrameToken());
-      break;
-    }
-  }
-  SCOPED_CRASH_KEY_NUMBER("Autofill", "num_frame_datas_after",
-                          form_forest_.frame_datas().size());
-  SCOPED_CRASH_KEY_BOOL("Autofill", "found_token", found_token);
-  SCOPED_CRASH_KEY_BOOL("Autofill", "found_token_has_driver",
-                        found_token_has_driver);
-  SCOPED_CRASH_KEY_BOOL("Autofill", "found_token_has_right_driver",
-                        found_token_has_right_driver);
-  SCOPED_CRASH_KEY_BOOL("Autofill", "found_driver", found_driver);
-  SCOPED_CRASH_KEY_BOOL("Autofill", "found_driver_right_token",
-                        found_driver_right_token);
-  SCOPED_CRASH_KEY_BOOL("Autofill", "found_driver_deleted",
-                        found_driver_deleted);
-  if (driver_is_dying) {
-    if (found_token_has_driver) {
-      CHECK(found_driver);
-      CHECK(found_driver_deleted);
-    } else {
-      CHECK(!found_driver);
-    }
-  }
+  form_forest_.EraseFormsOfFrame(driver.GetFrameToken(),
+                                 /*keep_frame=*/!driver_is_dying);
 }
 
 // Routing of events called by the renderer:
@@ -420,16 +375,15 @@ void AutofillDriverRouter::FocusOnFormField(
 }
 
 void AutofillDriverRouter::DidAutofillForm(
-    RoutedCallback<const FormData&, base::TimeTicks> callback,
+    RoutedCallback<const FormData&> callback,
     AutofillDriver& source,
-    FormData form,
-    base::TimeTicks timestamp) {
+    FormData form) {
   FormGlobalId form_id = form.global_id();
   form_forest_.UpdateTreeOfRendererForm(std::move(form), source);
 
   const FormData& browser_form = form_forest_.GetBrowserForm(form_id);
   auto* target = DriverOfFrame(browser_form.host_frame());
-  callback(CHECK_DEREF(target), browser_form, timestamp);
+  callback(CHECK_DEREF(target), browser_form);
 }
 
 void AutofillDriverRouter::DidEndTextFieldEditing(RoutedCallback<> callback,

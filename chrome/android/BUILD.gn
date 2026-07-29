@@ -383,7 +383,9 @@ if (_is_default_toolchain) {
       "//chrome/browser/creator/android:java",
       "//chrome/browser/data_sharing:factory_java",
       "//chrome/browser/data_sharing:instant_message_delegate_factory_java",
+      "//chrome/browser/page_content_annotations:factory_java",
       "//chrome/browser/prefs/android:java",
+      "//chrome/browser/settings:search_java",
       "//components/credential_management/android:java",
       "//components/enterprise/client_certificates/android:browser_binding_java",
       "//components/sync_preferences/cross_device_pref_tracker/android:java",
@@ -434,6 +436,7 @@ if (_is_default_toolchain) {
       "//chrome/browser/ntp_customization:java",
       "//chrome/browser/omaha/android:java",
       "//chrome/browser/optimization_guide/android:java",
+      "//chrome/browser/page_content_annotations:java",
       "//chrome/browser/page_image_service/android:java",
       "//chrome/browser/page_load_metrics:java",
       "//chrome/browser/paint_preview/android:java",
@@ -627,6 +630,7 @@ if (_is_default_toolchain) {
       "//components/embedder_support/android:util_java",
       "//components/embedder_support/android:virtual_structure_java",
       "//components/embedder_support/android:web_contents_delegate_java",
+      "//components/enterprise/browser/reporting/android:enterprise_reporting_java",
       "//components/enterprise/device_attestation/android:device_attestation_java",
       "//components/external_intents/android:java",
       "//components/externalauth/android:java",
@@ -764,6 +768,7 @@ if (_is_default_toolchain) {
       "//third_party/android_swipe_refresh:android_swipe_refresh_java",
       "//third_party/androidx:androidx_activity_activity_java",
       "//third_party/androidx:androidx_annotation_annotation_experimental_java",
+      "//third_party/androidx:androidx_annotation_annotation_java",
       "//third_party/androidx:androidx_asynclayoutinflater_asynclayoutinflater_appcompat_java",
       "//third_party/androidx:androidx_browser_browser_java",
       "//third_party/androidx:androidx_collection_collection_java",
@@ -1143,6 +1148,7 @@ if (_is_default_toolchain) {
       "//chrome/browser/search_engines/android:junit",
       "//chrome/browser/search_resumption:junit",
       "//chrome/browser/serial/android:junit",
+      "//chrome/browser/settings:junit_tests",
       "//chrome/browser/signin/services/android:junit",
       "//chrome/browser/single_tab/android:junit",
       "//chrome/browser/supervised_user:junit",
@@ -1200,6 +1206,7 @@ if (_is_default_toolchain) {
       "//components/browser_ui/modaldialog/android:junit",
       "//components/browser_ui/site_settings/android:junit",
       "//components/cached_flags:junit",
+      "//components/enterprise/browser/reporting/android:junit",
       "//components/enterprise/device_attestation/android:junit",
       "//components/externalauth/android:junit",
       "//components/minidump_uploader:minidump_uploader_javatests",
@@ -1523,6 +1530,7 @@ if (_is_default_toolchain) {
       "//chrome/android:chrome_java",
       "//chrome/android:delegate_public_impl_java",
       "//chrome/browser/flags:java",
+      "//chrome/browser/profiles/android:java",
       "//chrome/browser/tab:java",
       "//chrome/browser/tabmodel:java",
       "//chrome/browser/tabwindow:java",
@@ -2479,19 +2487,22 @@ if (_is_default_toolchain) {
     # In order to run this test, first run:
     #   DOWNLOAD_XR_TEST_APKS=1 third_party/arcore-android-sdk/test-apks/update.py
     # See also: //chrome/android/javatests/src/org/chromium/chrome/browser/vr/README.md
-    chrome_public_test_apk_tmpl("monochrome_public_test_ar_apk") {
-      apk_name = "MonochromePublicTestAr"
+    chrome_public_test_apk_tmpl("chrome_public_test_ar_apk") {
+      apk_name = "ChromePublicTestAr"
       deps = [ ":chrome_test_ar_java" ]
 
       if (target_cpu == "arm64") {
-        arcore_current_path = "//third_party/arcore-android-sdk/test-apks/arcore/arcore_current_arm64.apk"
+        _arcore_current_path = "//third_party/arcore-android-sdk/test-apks/arcore/arcore_current_arm64.apk"
       } else {
-        arcore_current_path = "//third_party/arcore-android-sdk/test-apks/arcore/arcore_current_arm32.apk"
+        _arcore_current_path = "//third_party/arcore-android-sdk/test-apks/arcore/arcore_current_arm32.apk"
       }
+
+      _rebased_arcore_current_path =
+          rebase_path(_arcore_current_path, root_build_dir)
 
       extra_args = [
         "--additional-apk",
-        rebase_path(arcore_current_path, root_build_dir),
+        "@WrappedPath($_rebased_arcore_current_path)",
         "--remove-system-package=com.google.ar.core",
       ]
     }

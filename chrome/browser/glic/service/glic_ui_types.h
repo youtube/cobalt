@@ -31,21 +31,26 @@ struct SidePanelShowOptions {
   explicit SidePanelShowOptions(tabs::TabInterface& bound_tab)
       : tab(bound_tab) {}
   base::raw_ref<tabs::TabInterface> tab;
+  bool suppress_opening_animation = false;
 };
 
 struct FloatingShowOptions {
   gfx::Rect initial_bounds;
+  tabs::TabInterface::Handle source_tab;
 };
 
 using EmbedderOptions = std::variant<SidePanelShowOptions, FloatingShowOptions>;
 struct ShowOptions {
   explicit ShowOptions(EmbedderOptions panel_options);
   explicit ShowOptions(EmbedderOptions panel_options, bool focus);
+  ShowOptions(const ShowOptions&);
+  ShowOptions(ShowOptions&&);
+  ShowOptions& operator=(const ShowOptions&);
   ~ShowOptions();
 
   // Uses `anchor_browser` to get initial location. If `anchor_browser` is
   // nullptr, it will use default location values.
-  static ShowOptions ForFloating(BrowserWindowInterface* anchor_browser);
+  static ShowOptions ForFloating(tabs::TabInterface::Handle source_tab);
   static ShowOptions ForFloating(gfx::Rect initial_bounds);
   static ShowOptions ForSidePanel(tabs::TabInterface& bound_tab);
 

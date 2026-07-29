@@ -1877,6 +1877,10 @@ targets.tests.gtest_test(
 )
 
 targets.tests.gtest_test(
+    name = "chrome_public_test_ar_apk",
+)
+
+targets.tests.gtest_test(
     name = "multiscreen_interactive_ui_tests",
     binary = "interactive_ui_tests",
 )

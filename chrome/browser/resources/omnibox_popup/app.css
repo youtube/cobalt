@@ -20,6 +20,12 @@
   --cr-searchbox-width: 100%;
   --cr-searchbox-match-font-weight: 700;
 
+  --text-input-inline-start-spacing: 16px;
+  --contextual-entrypoint-and-carousel-context-menu-container-padding-inline-start: 9px;
+  --contextual-entrypoint-and-carousel-carousel-divider-margin-top: 8px;
+  --contextual-entrypoint-and-carousel-carousel-divider-margin-bottom: 8px;
+  --contextual-entrypoint-and-carousel-context-menu-container-inline-start: 0px;
+
   /* Closely resembles the views Omnibox input font size.
   * TODO(crbug.com/450640041): Investigate webUI blink & views rendering difference */
   font-size: 14.3px;/* closely resembles the omnibox input font size. */
@@ -52,12 +58,26 @@
   --color-searchbox-search-icon-background: var(--color-omnibox-results-icon);
 }
 
+contextual-entrypoint-and-carousel[searchbox-layout-mode="TallBottomContext"] {
+  --contextual-entrypoint-and-carousel-context-menu-container-margin-bottom: 9px;
+}
+
 /**
  * Show the secondary side if it can be shown and is currently available to be
  * shown.
  */
 :host([can-show-secondary-side][has-secondary-side]) {
   --cr-searchbox-secondary-side-display: block;
+}
+
+#addContextButton {
+  --cr-button-text-color: var(--color-omnibox-context-entrypoint-text);
+  --cr-hover-background-color:
+      var(--color-omnibox-context-entrypoint-hover-background);
+  --cr-icon-button-fill-color: var(--cr-button-text-color);
+  margin-inline-start: 6px;
+  margin-bottom: 10px;
+  border: initial;
 }
 
 /**

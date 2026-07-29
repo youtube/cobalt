@@ -1181,7 +1181,7 @@ TEST_P(NoVarySearchCacheTest, ReplayInsertBadURLs) {
   });
   static constexpr std::string_view kRealURL = "https://example.example/test";
   const std::string partition_key = GenerateCachePartitionKey(kRealURL);
-  const auto nvs_data = HttpNoVarySearchData::CreateFromNoVaryParams({}, true);
+  const auto nvs_data = HttpNoVarySearchData::CreateFromNoVaryParams({}, false);
   const std::optional<std::string> query = "t=1";
   const base::Time update_time;
   for (const auto& [description, bad_url] : kBadURLs) {
@@ -1195,17 +1195,30 @@ TEST_P(NoVarySearchCacheTest, ReplayInsertBadURLs) {
 TEST_P(NoVarySearchCacheTest, ReplayInsertBadQuery) {
   static constexpr std::string_view kUrl = "https://example.example/";
   const std::string partition_key = GenerateCachePartitionKey(kUrl);
-  const auto nvs_data = HttpNoVarySearchData::CreateFromNoVaryParams({}, true);
+  const auto nvs_data = HttpNoVarySearchData::CreateFromNoVaryParams({}, false);
   const base::Time update_time;
   cache().ReplayInsert(partition_key, std::string(kUrl), nvs_data, "t=1#what",
                        update_time);
   EXPECT_EQ(cache().size(), 0u);
 }
 
+TEST_P(NoVarySearchCacheTest, ReplayEraseSuccess) {
+  static constexpr std::string_view kUrl = "https://example.example/";
+  const std::string partition_key = GenerateCachePartitionKey(kUrl);
+  const auto nvs_data = HttpNoVarySearchData::CreateFromNoVaryParams({}, false);
+  const std::optional<std::string> query = "t=1";
+  const base::Time update_time;
+  cache().ReplayInsert(partition_key, std::string(kUrl), nvs_data, query,
+                       update_time);
+
+  cache().ReplayErase(partition_key, std::string(kUrl), nvs_data, query);
+  EXPECT_EQ(cache().size(), 0u);
+}
+
 TEST_P(NoVarySearchCacheTest, ReplayEraseOnEmptyCache) {
   static constexpr std::string_view kUrl = "https://example.example/";
   const std::string partition_key = GenerateCachePartitionKey(kUrl);
-  const auto nvs_data = HttpNoVarySearchData::CreateFromNoVaryParams({}, true);
+  const auto nvs_data = HttpNoVarySearchData::CreateFromNoVaryParams({}, false);
   cache().ReplayErase(partition_key, std::string(kUrl), nvs_data, "t=1");
   EXPECT_EQ(cache().size(), 0u);
 }
@@ -1213,7 +1226,7 @@ TEST_P(NoVarySearchCacheTest, ReplayEraseOnEmptyCache) {
 TEST_P(NoVarySearchCacheTest, ReplayEraseMismatchedPartition) {
   static constexpr std::string_view kUrl = "https://example.example/";
   const std::string partition_key = GenerateCachePartitionKey(kUrl);
-  const auto nvs_data = HttpNoVarySearchData::CreateFromNoVaryParams({}, true);
+  const auto nvs_data = HttpNoVarySearchData::CreateFromNoVaryParams({}, false);
   const std::optional<std::string> query = "t=1";
   const base::Time update_time;
   cache().ReplayInsert(partition_key, std::string(kUrl), nvs_data, query,
@@ -1226,7 +1239,7 @@ TEST_P(NoVarySearchCacheTest, ReplayEraseMismatchedPartition) {
 TEST_P(NoVarySearchCacheTest, ReplayEraseMismatchedBaseUrl) {
   static constexpr std::string_view kUrl = "https://example.example/";
   const std::string partition_key = GenerateCachePartitionKey(kUrl);
-  const auto nvs_data = HttpNoVarySearchData::CreateFromNoVaryParams({}, true);
+  const auto nvs_data = HttpNoVarySearchData::CreateFromNoVaryParams({}, false);
   const std::optional<std::string> query = "t=1";
   const base::Time update_time;
   cache().ReplayInsert(partition_key, std::string(kUrl), nvs_data, query,
@@ -1239,7 +1252,7 @@ TEST_P(NoVarySearchCacheTest, ReplayEraseMismatchedBaseUrl) {
 TEST_P(NoVarySearchCacheTest, ReplayEraseMismatchedNVSData) {
   static constexpr std::string_view kUrl = "https://example.example/";
   const std::string partition_key = GenerateCachePartitionKey(kUrl);
-  const auto nvs_data = HttpNoVarySearchData::CreateFromNoVaryParams({}, true);
+  const auto nvs_data = HttpNoVarySearchData::CreateFromNoVaryParams({}, false);
   const std::optional<std::string> query = "t=1";
   const base::Time update_time;
   cache().ReplayInsert(partition_key, std::string(kUrl), nvs_data, query,
@@ -1255,7 +1268,7 @@ TEST_P(NoVarySearchCacheTest, ReplayEraseMismatchedNVSData) {
 TEST_P(NoVarySearchCacheTest, ReplayEraseMismatchedQuery) {
   static constexpr std::string_view kUrl = "https://example.example/";
   const std::string partition_key = GenerateCachePartitionKey(kUrl);
-  const auto nvs_data = HttpNoVarySearchData::CreateFromNoVaryParams({}, true);
+  const auto nvs_data = HttpNoVarySearchData::CreateFromNoVaryParams({}, false);
   const std::optional<std::string> query = "t=1";
   const base::Time update_time;
   cache().ReplayInsert(partition_key, std::string(kUrl), nvs_data, query,
@@ -1378,6 +1391,71 @@ TEST_P(NoVarySearchCacheReplayTest, LRUOrderPreserved) {
 
   // Evict i=1.
   expect_to_evict(1u);
+}
+
+TEST_P(NoVarySearchCacheTest, SetMaxSizeSame) {
+  Insert("a=1", "key-order");
+  Insert("a=2", "key-order");
+  ASSERT_EQ(cache().size(), 2u);
+  ASSERT_EQ(cache().max_size(), kMaxSize);
+
+  cache().SetMaxSize(kMaxSize);
+
+  EXPECT_EQ(cache().size(), 2u);
+  EXPECT_EQ(cache().max_size(), kMaxSize);
+  EXPECT_TRUE(Exists("a=1"));
+  EXPECT_TRUE(Exists("a=2"));
+}
+
+TEST_P(NoVarySearchCacheTest, SetMaxSizeSmaller) {
+  for (size_t i = 0; i < kMaxSize; ++i) {
+    Insert(QueryWithIParameter(i), "key-order");
+  }
+  ASSERT_EQ(cache().size(), kMaxSize);
+
+  cache().SetMaxSize(kMaxSize - 2);
+
+  EXPECT_EQ(cache().size(), kMaxSize - 2);
+  EXPECT_EQ(cache().max_size(), kMaxSize - 2);
+
+  // The two least recently used items should be evicted.
+  EXPECT_FALSE(Exists("i=0"));
+  EXPECT_FALSE(Exists("i=1"));
+  EXPECT_TRUE(Exists("i=2"));
+  EXPECT_TRUE(Exists("i=3"));
+  EXPECT_TRUE(Exists("i=4"));
+}
+
+TEST_P(NoVarySearchCacheTest, SetMaxSizeLarger) {
+  for (size_t i = 0; i < kMaxSize; ++i) {
+    Insert(QueryWithIParameter(i), "key-order");
+  }
+  ASSERT_EQ(cache().size(), kMaxSize);
+
+  cache().SetMaxSize(kMaxSize + 2);
+
+  EXPECT_EQ(cache().size(), kMaxSize);
+  EXPECT_EQ(cache().max_size(), kMaxSize + 2);
+
+  // All original items should still be there.
+  for (size_t i = 0; i < kMaxSize; ++i) {
+    EXPECT_TRUE(Exists(QueryWithIParameter(i)));
+  }
+
+  // Add two more items.
+  Insert(QueryWithIParameter(kMaxSize), "key-order");
+  Insert(QueryWithIParameter(kMaxSize + 1), "key-order");
+
+  EXPECT_EQ(cache().size(), kMaxSize + 2);
+  EXPECT_TRUE(Exists(QueryWithIParameter(kMaxSize)));
+  EXPECT_TRUE(Exists(QueryWithIParameter(kMaxSize + 1)));
+}
+
+TEST_P(NoVarySearchCacheTest, SetMaxSizeOnEmptyCache) {
+  ASSERT_EQ(cache().size(), 0u);
+  cache().SetMaxSize(kMaxSize + 5);
+  EXPECT_EQ(cache().size(), 0u);
+  EXPECT_EQ(cache().max_size(), kMaxSize + 5);
 }
 
 // TODO(https://crbug.com/390216627): Test the various experiments that affect

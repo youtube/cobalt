@@ -49,6 +49,8 @@
 #include "chrome/browser/ui/performance_controls/memory_saver_chip_controller.h"
 #include "chrome/browser/ui/performance_controls/memory_saver_chip_tab_helper.h"
 #include "chrome/browser/ui/performance_controls/tab_resource_usage_tab_helper.h"
+#include "chrome/browser/ui/read_anything/read_anything_controller.h"
+#include "chrome/browser/ui/read_anything/read_anything_side_panel_controller.h"
 #include "chrome/browser/ui/tab_ui_helper.h"
 #include "chrome/browser/ui/tabs/alert/tab_alert_controller.h"
 #include "chrome/browser/ui/tabs/inactive_window_mouse_event_controller.h"
@@ -61,7 +63,6 @@
 #include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_delegate.h"
-#include "chrome/browser/ui/thumbnails/thumbnail_tab_helper.h"
 #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model.h"
 #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_translate_action_listener.h"
 #include "chrome/browser/ui/ui_features.h"
@@ -76,7 +77,6 @@
 #include "chrome/browser/ui/views/passwords/manage_passwords_page_action_controller.h"
 #include "chrome/browser/ui/views/side_panel/customize_chrome/side_panel_controller_views.h"
 #include "chrome/browser/ui/views/side_panel/extensions/extension_side_panel_manager.h"
-#include "chrome/browser/ui/views/side_panel/read_anything/read_anything_side_panel_controller.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_registry.h"
 #include "chrome/browser/ui/views/translate/translate_page_action_controller.h"
 #include "chrome/browser/ui/views/zoom/zoom_view_controller.h"
@@ -93,8 +93,6 @@
 #include "components/browsing_topics/browsing_topics_service.h"
 #include "components/favicon/content/content_favicon_driver.h"
 #include "components/fingerprinting_protection_filter/common/fingerprinting_protection_filter_features.h"
-#include "components/fingerprinting_protection_filter/interventions/browser/canvas_interventions_web_contents_helper.h"
-#include "components/fingerprinting_protection_filter/interventions/common/interventions_features.h"
 #include "components/image_fetcher/core/image_fetcher_service.h"
 #include "components/ip_protection/common/ip_protection_status.h"
 #include "components/lens/tab_contextualization_controller.h"
@@ -105,6 +103,7 @@
 #include "components/tabs/public/tab_interface.h"
 #include "components/wallet/core/common/wallet_features.h"
 #include "net/base/features.h"
+#include "ui/accessibility/accessibility_features.h"
 #include "ui/base/unowned_user_data/user_data_factory.h"
 
 #if BUILDFLAG(ENABLE_GLIC)
@@ -310,7 +309,7 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
           GetUserDataFactory().CreateInstance<glic::GlicTabIndicatorHelper>(
               tab, &tab);
     }
-    if (base::FeatureList::IsEnabled(features::kGlicMultiInstance) &&
+    if (glic::GlicEnabling::IsMultiInstanceEnabledByFlags() &&
         glic::GlicKeyedService::Get(profile)) {
       glic_side_panel_coordinator_ =
           GetUserDataFactory().CreateInstance<glic::GlicSidePanelCoordinator>(
@@ -358,7 +357,15 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
   data_protection_tab_controller_ = std::make_unique<
       enterprise_data_protection::DataProtectionNavigationController>(&tab);
 
-  // TODO(https://crbug.com/355485153): Move this into the normal window block.
+  // Create the ReadAnythingController first to ensure it exists before
+  // any potential consumers, like the side panel controller.
+  if (features::IsImmersiveReadAnythingEnabled()) {
+    read_anything_controller_ =
+        GetUserDataFactory().CreateInstance<ReadAnythingController>(tab, &tab);
+  }
+
+  // TODO(crbug.com/447418049): This will be removed in the future when
+  // ownership of this controller is migrated to ReadAnythingController.
   read_anything_side_panel_controller_ =
       std::make_unique<ReadAnythingSidePanelController>(
           &tab, side_panel_registry_.get());
@@ -371,19 +378,6 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
         HostContentSettingsMapFactory::GetForProfile(profile),
         TrackingProtectionSettingsFactory::GetForProfile(profile),
         profile->IsIncognitoProfile());
-  }
-
-  if (fingerprinting_protection_interventions::features::
-          ShouldBlockCanvasReadbackForIncognitoState(
-              profile->IsIncognitoProfile()) ||
-      fingerprinting_protection_interventions::features::
-          IsCanvasInterventionsEnabledForIncognitoState(
-              profile->IsIncognitoProfile())) {
-    fingerprinting_protection_interventions::
-        CanvasInterventionsWebContentsHelper::CreateForWebContents(
-            tab.GetContents(),
-            TrackingProtectionSettingsFactory::GetForProfile(profile),
-            profile->IsIncognitoProfile());
   }
 
   // Only create the IpProtectionStatus if the User Bypass feature is enabled.
@@ -416,12 +410,6 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
       std::make_unique<TabCreationMetricsController>(&tab);
 
   tab_ui_helper_ = std::make_unique<TabUIHelper>(tab);
-
-  if (base::FeatureList::IsEnabled(features::kTabHoverCardImages) ||
-      base::FeatureList::IsEnabled(features::kWebUITabStrip)) {
-    thumbnail_tab_helper_ =
-        GetUserDataFactory().CreateInstance<ThumbnailTabHelper>(tab, tab);
-  }
 
   task_manager::WebContentsTags::CreateForTabContents(tab.GetContents());
 

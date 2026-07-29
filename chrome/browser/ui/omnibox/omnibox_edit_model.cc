@@ -27,7 +27,9 @@
 #include "base/trace_event/typed_macros.h"
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
+#include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
+#include "chrome/browser/ui/omnibox/omnibox_next_features.h"
 #include "chrome/browser/ui/omnibox/omnibox_popup_view.h"
 #include "chrome/browser/ui/omnibox/omnibox_view.h"
 #include "components/bookmarks/browser/bookmark_model.h"
@@ -218,9 +220,8 @@ OmniboxEditModel::State::~State() = default;
 
 // OmniboxEditModel -----------------------------------------------------------
 
-OmniboxEditModel::OmniboxEditModel(OmniboxController* controller,
-                                   OmniboxView* view)
-    : controller_(controller), view_(view) {}
+OmniboxEditModel::OmniboxEditModel(OmniboxController* controller)
+    : controller_(controller) {}
 
 OmniboxEditModel::~OmniboxEditModel() = default;
 
@@ -495,6 +496,18 @@ ui::ImageModel OmniboxEditModel::GetSuperGIcon(int image_size,
 #endif
 }
 
+bool OmniboxEditModel::ShouldShowAddContextButton() const {
+  return base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxAimPopup) &&
+         omnibox::kWebUIOmniboxAimPopupAddContextButtonVariantParam.Get() ==
+             omnibox::AddContextButtonVariant::kInline &&
+         PopupIsOpen();
+}
+
+ui::ImageModel OmniboxEditModel::GetAddContextIcon(int image_size) const {
+  return ui::ImageModel::FromVectorIcon(kAddChromeRefreshIcon,
+                                        ui::kColorSysPrimary, image_size);
+}
+
 gfx::Image OmniboxEditModel::GetAgentspaceIcon(bool dark_mode) const {
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
   if (dark_mode) {
@@ -738,16 +751,37 @@ void OmniboxEditModel::EnterKeywordModeForDefaultSearchProvider(
                    u"");
 }
 
+void OmniboxEditModel::SetInAiMode(bool ai_mode) {
+  if (in_ai_mode_ == ai_mode) {
+    return;
+  }
+  in_ai_mode_ = ai_mode;
+  observers_.Notify(&Observer::OnContentsChanged);
+  observers_.Notify(&Observer::OnAiModeChanged, in_ai_mode_);
+}
+
 void OmniboxEditModel::OpenAiMode(bool via_keyboard) {
   std::u16string query_text =
-      AutocompleteMatch::IsSearchType(current_match_.type) ?
-      current_match_.contents : u"";
+      AutocompleteMatch::IsSearchType(current_match_.type)
+          ? current_match_.contents
+          : u"";
   RecordAiModeMetrics(query_text, /*activated=*/true, via_keyboard);
+
+  if (query_text.empty() &&
+      base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxAimPopup)) {
+    SetInAiMode(true);
+    return;
+  }
+
   GURL ai_mode_url =
       GetUrlForAim(controller_->client()->GetTemplateURLService(),
                    omnibox::DESKTOP_CHROME_OMNIBOX_KEYWORD_ENTRY_POINT,
                    /*query_start_time=*/base::Time::Now(), query_text);
   controller_->client()->OpenUrl(ai_mode_url);
+}
+
+bool OmniboxEditModel::PopupInAiMode() const {
+  return in_ai_mode_;
 }
 
 void OmniboxEditModel::OpenSelection(OmniboxPopupSelection selection,
@@ -1792,8 +1826,10 @@ void OmniboxEditModel::SetPopupSelection(OmniboxPopupSelection new_selection,
           ? AutocompleteMatch()
           : autocomplete_controller()->result().match_at(popup_selection_.line);
 
+  // Can't select keyword chip if the match shouldn't show a keyword chip.
   DCHECK(popup_selection_.state != OmniboxPopupSelection::KEYWORD_MODE ||
          !match.associated_keyword.empty());
+
   if (popup_selection_.IsButtonFocused()) {
     old_focused_url_ = match.destination_url;
     SetAccessibilityLabel(match);
@@ -1813,14 +1849,14 @@ void OmniboxEditModel::SetPopupSelection(OmniboxPopupSelection new_selection,
                           controller_->client()->IsHistoryEmbeddingsEnabled(),
                           &keyword, &keyword_placeholder, &is_keyword_hint);
 
+  // Don't update the edit model if entering or leaving keyword mode; doing so
+  // breaks keyword mode. Updating when there is no line change is necessary
+  // because omnibox text changes when:
+  // a) Moving down from a header row.
+  // b) Focusing other states; e.g. the switch-to-tab chip.
   if (old_selection.line != popup_selection_.line ||
       (old_selection.state != OmniboxPopupSelection::KEYWORD_MODE &&
        new_selection.state != OmniboxPopupSelection::KEYWORD_MODE)) {
-    // Don't update the edit model if entering or leaving keyword mode; doing so
-    // breaks keyword mode. Updating when there is no line change is necessary
-    // because omnibox text changes when:
-    // a) Moving down from a header row.
-    // b) Focusing other states; e.g. the switch-to-tab chip.
     if (reset_to_default) {
       OnPopupDataChanged(
           std::u16string(),
@@ -1833,8 +1869,6 @@ void OmniboxEditModel::SetPopupSelection(OmniboxPopupSelection new_selection,
                          match);
     }
   }
-  // Without this, focus indicators may appear stale (see crbug.com/1369229).
-  popup_view_->UpdatePopupAppearance();
 }
 
 bool OmniboxEditModel::IsPopupSelectionOnInitialLine() const {
@@ -2093,35 +2127,20 @@ void OmniboxEditModel::OnPopupResultChanged() {
   }
   rich_suggestion_bitmaps_.clear();
   const AutocompleteResult& result = autocomplete_controller()->result();
-  size_t old_selected_line = GetPopupSelection().line;
 
-  OmniboxPopupSelection::LineState old_selected_state = popup_selection_.state;
-  if (result.default_match()) {
-    OmniboxPopupSelection selection = GetPopupSelection();
-    selection.line = 0;
+  // Reset selection.
+  const OmniboxPopupSelection old_selection = popup_selection_;
+  popup_selection_ = OmniboxPopupSelection(
+      result.default_match() ? 0 : OmniboxPopupSelection::kNoMatch,
+      OmniboxPopupSelection::NORMAL);
 
-    const bool has_focused_match =
-        selection.state == OmniboxPopupSelection::FOCUSED_BUTTON_ACTION &&
-        result.match_at(selection.line).has_tab_match.value_or(false);
-    const bool has_changed =
-        selection.line != old_selected_line ||
-        result.match_at(selection.line).destination_url != old_focused_url_;
-
-    if (!has_focused_match || has_changed) {
-      selection.state = OmniboxPopupSelection::NORMAL;
-    }
-    popup_selection_ = selection;
-  } else {
-    popup_selection_ = OmniboxPopupSelection(OmniboxPopupSelection::kNoMatch,
-                                             OmniboxPopupSelection::NORMAL);
-  }
   // If the AI button was previously focused and the selection state changed,
   // remove the focus ring from the AI mode button.
-  if (old_selected_state == OmniboxPopupSelection::FOCUSED_BUTTON_AIM &&
+  if (old_selection.state == OmniboxPopupSelection::FOCUSED_BUTTON_AIM &&
       popup_selection_.state != OmniboxPopupSelection::FOCUSED_BUTTON_AIM) {
     view_->ApplyFocusRingToAimButton(false);
   }
-  popup_view_->UpdatePopupAppearance();
+  observers_.Notify(&Observer::OnContentsChanged);
 }
 
 const SkBitmap* OmniboxEditModel::GetPopupRichSuggestionBitmap(
@@ -2163,14 +2182,14 @@ void OmniboxEditModel::SetPopupRichSuggestionBitmap(int result_index,
                                                     const SkBitmap& bitmap) {
   DCHECK(popup_view_);
   rich_suggestion_bitmaps_[result_index] = bitmap;
-  popup_view_->UpdatePopupAppearance();
+  observers_.Notify(&Observer::OnContentsChanged);
 }
 
 void OmniboxEditModel::SetIconBitmap(const GURL& icon_url,
                                      const SkBitmap& bitmap) {
   DCHECK(popup_view_ && !icon_url.is_empty());
   icon_bitmaps_[icon_url] = bitmap;
-  popup_view_->UpdatePopupAppearance();
+  observers_.Notify(&Observer::OnContentsChanged);
 }
 
 void OmniboxEditModel::SetAutocompleteInput(AutocompleteInput input) {
@@ -2691,7 +2710,7 @@ void OmniboxEditModel::UpdateFeedbackOnMatch(size_t match_index,
                             ? FeedbackType::kNone
                             : feedback_type;
   // Update the suggestion appearance.
-  popup_view_->UpdatePopupAppearance();
+  observers_.Notify(&Observer::OnContentsChanged);
   // Show the feedback form on negative feedback.
   if (match.feedback_type == FeedbackType::kThumbsDown) {
     controller_->client()->ShowFeedbackPage(

@@ -137,6 +137,7 @@ struct WebPreferences {
   bool shrinks_standalone_images_to_fit;
   bool text_areas_are_resizable;
   bool allow_scripts_to_close_windows;
+  bool allow_window_focus_without_user_gesture;
   bool remote_fonts_enabled;
   bool javascript_can_access_clipboard;
   // We don't use dns_prefetching_enabled to disable DNS prefetching.  Instead,
@@ -518,4 +519,13 @@ struct WebPreferences {
 
   [EnableIf=is_android]
   bool should_screenshot_on_mainframe_same_doc_navigation = true;
+
+  // On macOS, the popup UI for <select> elements is rendered with native
+  // (external) popup controls, but these are not visible to
+  // RenderWidgetHostView::CopyFromSurface().
+  //
+  // This property allows disabling the external popups to use the internal
+  // Chrome-rendered popups instead.
+  [EnableIf=is_mac]
+  bool should_disable_external_popups = false;
 };

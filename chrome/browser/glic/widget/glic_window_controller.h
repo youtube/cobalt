@@ -102,6 +102,10 @@ class GlicWindowController {
   virtual base::CallbackListSubscription AddWindowActivationChangedCallback(
       WindowActivationChangedCallback callback) = 0;
 
+  // Registers a callback to be run when any instance opens or closes.
+  virtual base::CallbackListSubscription AddGlobalShowHideCallback(
+      base::RepeatingClosure callback) = 0;
+
   // Warms the glic web contents.
   virtual void Preload() = 0;
 
@@ -146,11 +150,12 @@ class GlicWindowController {
   virtual base::CallbackListSubscription
   AddActiveInstanceChangedCallbackAndNotifyImmediately(
       ActiveInstanceChangedCallback callback) = 0;
+  virtual GlicInstance* GetActiveInstance() = 0;
 
   // Helper function to get the always detached flag.
   static bool AlwaysDetached() {
     return base::FeatureList::IsEnabled(features::kGlicDetached) &&
-           !base::FeatureList::IsEnabled(features::kGlicMultiInstance);
+           !GlicEnabling::IsMultiInstanceEnabledByFlags();
   }
 
   // Same as GlicInstance::AddStateObserver, but applies globally, provides
@@ -159,7 +164,6 @@ class GlicWindowController {
   // documentation.
   virtual void AddGlobalStateObserver(PanelStateObserver* observer) = 0;
   virtual void RemoveGlobalStateObserver(PanelStateObserver* observer) = 0;
-  virtual mojom::PanelState GetGlobalPanelState() = 0;
 };
 
 // This class owns and manages the glic window. This class has the same lifetime

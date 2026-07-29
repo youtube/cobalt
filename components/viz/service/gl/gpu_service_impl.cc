@@ -649,7 +649,7 @@ void GpuServiceImpl::BindWebNNContextProvider(
         std::move(shared_context_state), gpu_feature_info_, gpu_info_,
         shared_image_manager(),
         base::BindOnce(&GpuServiceImpl::LoseAllContexts, weak_ptr_),
-        main_runner(), GetGpuScheduler(), client_id);
+        main_runner(), GetGpuScheduler(), client_id, gpu_host_);
   }
 
   webnn_context_provider_->BindWebNNContextProvider(
@@ -1237,8 +1237,7 @@ bool GpuServiceImpl::IsGMBNV12Supported() {
                                vulkan_context_provider()
                                    ? vulkan_context_provider()->GetDeviceQueue()
                                    : nullptr,
-                               size, SharedImageFormatToBufferFormat(format),
-                               buffer_usage, size);
+                               size, format, buffer_usage, size);
   if (!pixmap.get() || pixmap->ExportHandle().planes.empty()) {
     return false;
   }

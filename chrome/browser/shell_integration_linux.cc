@@ -76,23 +76,26 @@ const char kXdgSettings[] = "xdg-settings";
 const char kXdgSettingsDefaultBrowser[] = "default-web-browser";
 const char kXdgSettingsDefaultSchemeHandler[] = "default-url-scheme-handler";
 
+struct GKeyFileDataDeleter {
+  void operator()(gchar* data) { g_free(data); }
+};
+
 // Returns the contents of `key_file`. Assumes `key_file` is non-null.
 std::string GetFileContents(GKeyFile* key_file) {
-  std::string contents;
   gsize length = 0;
-  gchar* data_dump = g_key_file_to_data(key_file, &length, nullptr);
-  if (data_dump) {
-    std::string_view data_view(data_dump, length);
-    if (data_view.starts_with('\n')) {
-      // Older versions of glib produce a leading newline. If this is the case,
-      // remove it to avoid double-newline after the shebang.
-      contents = data_view.substr(1);
-    } else {
-      contents = data_view;
-    }
-    g_free(data_dump);
+  std::unique_ptr<gchar, GKeyFileDataDeleter> data_dump(
+      g_key_file_to_data(key_file, &length, nullptr));
+  if (!data_dump) {
+    return "";
   }
-  return contents;
+
+  std::string_view data_view(data_dump.get(), length);
+  if (data_view.starts_with('\n')) {
+    // Older versions of glib produce a leading newline. If this is the case,
+    // remove it to avoid double-newline after the shebang.
+    data_view.remove_prefix(1);
+  }
+  return std::string(data_view);
 }
 
 // Utility function to get the path to the version of a script shipped with
@@ -881,6 +884,26 @@ bool IsFirefoxDefaultBrowser() {
 
 DefaultWebClientState IsDefaultClientForScheme(const std::string& scheme) {
   return shell_integration_linux::GetIsDefaultWebClient(scheme);
+}
+
+std::string GetDirectLaunchUrlScheme() {
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+  // On Linux, channel determination is static and tied to the installed
+  // package, unlike macOS and Windows which support "floating" channels.
+  switch (chrome::GetChannel()) {
+    case version_info::Channel::CANARY:
+      return "google-chrome-canary";
+    case version_info::Channel::DEV:
+      return "google-chrome-dev";
+    case version_info::Channel::BETA:
+      return "google-chrome-beta";
+    case version_info::Channel::STABLE:
+    case version_info::Channel::UNKNOWN:
+      return "google-chrome";
+  }
+#else
+  return "chromium";
+#endif
 }
 
 namespace internal {

@@ -23,6 +23,7 @@
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
+#include "components/sync/base/features.h"
 #include "components/sync/service/local_data_description.h"
 #include "content/public/test/browser_test.h"
 #include "extensions/common/extension.h"
@@ -34,7 +35,11 @@
 class ExtensionInstalledBubbleViewsSignInBrowserTest
     : public extensions::ExtensionBrowserTest {
  public:
-  ExtensionInstalledBubbleViewsSignInBrowserTest() = default;
+  ExtensionInstalledBubbleViewsSignInBrowserTest() {
+    feature_list_.InitWithFeatures(
+        /*enabled_features=*/{},
+        /*disabled_features=*/{syncer::kUnoPhase2FollowUp});
+  }
   ~ExtensionInstalledBubbleViewsSignInBrowserTest() override = default;
 
  protected:
@@ -83,10 +88,7 @@ class ExtensionInstalledBubbleViewsSignInBrowserTest
       const AccountInfo& account_info = AccountInfo()) {
     views::Widget* bubble_view_widget = ShowBubble(extension);
     ASSERT_TRUE(bubble_view_widget);
-
-    auto* view_delegate = static_cast<ExtensionInstalledBubbleView*>(
-        bubble_view_widget->widget_delegate());
-    ASSERT_TRUE(view_delegate);
+    ASSERT_TRUE(bubble_view_widget->widget_delegate());
 
     // The sign in promo should be shown for a syncable extension.
     EXPECT_TRUE(signin::ShouldShowExtensionSignInPromo(*browser()->profile(),
@@ -99,6 +101,9 @@ class ExtensionInstalledBubbleViewsSignInBrowserTest
         syncer::LocalDataItemModel::DataId(extension->id()));
     delegate.OnSignIn(account_info);
   }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
 };
 
 // Test that by default, signing in from the extension installed bubble will
@@ -118,10 +123,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionInstalledBubbleViewsSignInBrowserTest,
 
   views::Widget* bubble_view_widget = ShowBubble(extension);
   ASSERT_TRUE(bubble_view_widget);
-
-  auto* view_delegate = static_cast<ExtensionInstalledBubbleView*>(
-      bubble_view_widget->widget_delegate());
-  ASSERT_TRUE(view_delegate);
+  ASSERT_TRUE(bubble_view_widget->widget_delegate());
 
   // The sync promo should be shown for a syncable extension.
   EXPECT_TRUE(

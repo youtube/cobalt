@@ -8,10 +8,10 @@
 
 #import "base/check_op.h"
 #import "base/strings/sys_string_conversions.h"
+#import "ios/chrome/browser/data_import/ui/import_data_item_table_view.h"
 #import "ios/chrome/browser/first_run/ui_bundled/first_run_constants.h"
 #import "ios/chrome/browser/safari_data_import/public/safari_data_import_stage.h"
 #import "ios/chrome/browser/safari_data_import/public/ui_utils.h"
-#import "ios/chrome/browser/safari_data_import/ui/safari_data_item_table_view.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/common/string_util.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
@@ -138,7 +138,7 @@
   /// Removes the instruction view first.
   [self.specificContentView.subviews[0] removeFromSuperview];
   /// Displays the table view.
-  SafariDataItemTableView* tableView = self.itemTableView;
+  ImportDataItemTableView* tableView = self.itemTableView;
   [self.specificContentView addSubview:tableView];
   /// Top align the table view.
   [NSLayoutConstraint activateConstraints:@[

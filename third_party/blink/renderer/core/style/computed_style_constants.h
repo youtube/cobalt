@@ -116,6 +116,10 @@ enum PseudoId : uint8_t {
   kPseudoIdDetailsContent,
   kPseudoIdPickerSelect,
   kPseudoIdPermissionIcon,
+
+  kPseudoIdOverscrollAreaParent,
+  kPseudoIdOverscrollClientArea,
+
   // Special values follow:
   kAfterLastInternalPseudoId,
   kPseudoIdInvalid,
@@ -586,6 +590,8 @@ enum class TryTactic : uint8_t {
   kFlipBlock,
   kFlipInline,
   kFlipStart,
+  kFlipX,
+  kFlipY,
 };
 
 typedef V8AnimationTriggerBehavior::Enum EAnimationTriggerBehavior;

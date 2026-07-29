@@ -254,6 +254,8 @@ class ChildProcessLauncherHelper
 #if BUILDFLAG(IS_ANDROID)
   void OnChildProcessStarted(JNIEnv* env, jint handle);
 
+  void OnSpareRendererPriorityGraduatedOnClientThread(bool is_alive);
+
   base::android::ChildBindingState GetEffectiveChildBindingState();
 
   // Dumps the stack of the child process without crashing it.
@@ -261,7 +263,8 @@ class ChildProcessLauncherHelper
 
   void SetRenderProcessPriorityOnLauncherThread(
       base::Process process,
-      const RenderProcessPriority& priority);
+      const RenderProcessPriority& priority,
+      base::TimeTicks post_from_ui_thread_time);
 #else   // !BUILDFLAG(IS_ANDROID)
   void SetProcessPriorityOnLauncherThread(base::Process process,
                                           base::Process::Priority priority);

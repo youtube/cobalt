@@ -113,8 +113,7 @@ class BoundSessionCookieControllerImplTest
       public BoundSessionCookieController::Delegate {
  public:
   explicit BoundSessionCookieControllerImplTest(bool build_controller = true)
-      : unexportable_key_service_(unexportable_key_task_manager_),
-        key_id_(GenerateNewKey()) {
+      : key_id_(GenerateNewKey()) {
     storage_partition_.set_cookie_manager_for_browser_process(&cookie_manager_);
 
     SetUpNetworkConnection(true,
@@ -141,7 +140,7 @@ class BoundSessionCookieControllerImplTest
     return *key_id;
   }
 
-  std::vector<uint8_t> GetWrappedKey(const UnexportableKeyId& key_id) {
+  std::vector<uint8_t> GetWrappedKey(UnexportableKeyId key_id) {
     ServiceErrorOr<std::vector<uint8_t>> wrapped_key =
         unexportable_key_service_.GetWrappedKey(key_id);
     CHECK(wrapped_key.has_value());
@@ -313,7 +312,7 @@ class BoundSessionCookieControllerImplTest
         ->session_binding_helper_->key_loader_.get();
   }
 
-  const UnexportableKeyId& key_id() { return key_id_; }
+  UnexportableKeyId key_id() { return key_id_; }
 
   size_t on_bound_session_throttler_params_changed_call_count() {
     return on_bound_session_throttler_params_changed_call_count_;
@@ -406,9 +405,10 @@ class BoundSessionCookieControllerImplTest
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
   base::HistogramTester histogram_tester_;
   crypto::ScopedFakeUnexportableKeyProvider scoped_key_provider_;
-  unexportable_keys::UnexportableKeyTaskManager unexportable_key_task_manager_{
+  unexportable_keys::UnexportableKeyTaskManager unexportable_key_task_manager_;
+  unexportable_keys::UnexportableKeyServiceImpl unexportable_key_service_{
+      unexportable_key_task_manager_,
       crypto::UnexportableKeyProvider::Config()};
-  unexportable_keys::UnexportableKeyServiceImpl unexportable_key_service_;
   BoundSessionTestCookieManager cookie_manager_;
   content::TestStoragePartition storage_partition_;
   UnexportableKeyId key_id_;

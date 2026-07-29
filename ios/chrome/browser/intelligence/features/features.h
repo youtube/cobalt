@@ -38,6 +38,11 @@ BASE_DECLARE_FEATURE(kAskGeminiChip);
 // Returns true if the Ask Gemini chip is enabled.
 bool IsAskGeminiChipEnabled();
 
+// Returns true if the Ask Gemini chip should be shown without checking the FET
+// and time criteria.
+bool IsAskGeminiChipIgnoreCriteria();
+extern const char kAskGeminiChipIgnoreCriteria[];
+
 // Returns true if a snackbar should be shown when a site is eligible for Ask
 // Gemini.
 bool IsAskGeminiSnackbarEnabled();
@@ -185,6 +190,13 @@ bool IsGeminiLoadingStateRedesignEnabled();
 BASE_DECLARE_FEATURE(kGeminiLatencyImprovement);
 bool IsGeminiLatencyImprovementEnabled();
 
+// Feature flag for showing the Gemini floaty immediately.
+//
+// This feature exists so the overlay can open without having to wait for the
+// page to finish loading.
+BASE_DECLARE_FEATURE(kGeminiImmediateOverlay);
+bool IsGeminiImmediateOverlayEnabled();
+
 // Feature flag for the discovery onboarding cards.
 BASE_DECLARE_FEATURE(kGeminiOnboardingCards);
 bool IsGeminiOnboardingCardsEnabled();
@@ -192,5 +204,15 @@ bool IsGeminiOnboardingCardsEnabled();
 // Feature flag to use the new refactored version of the page context extractor.
 // Acts as a killswitch where the feature is enabled by default.
 BASE_DECLARE_FEATURE(kPageContextExtractorRefactored);
+
+// Feature flag for displaying a sheet which shows the web page's self-reported
+// important images. Experimental.
+BASE_DECLARE_FEATURE(kWebPageReportedImagesSheet);
+bool IsWebPageReportedImagesSheetEnabled();
+
+// Feature flag for enabling passing an image from the long-press context menu
+// to Gemini.
+BASE_DECLARE_FEATURE(kImageContextMenuGeminiEntryPoint);
+bool IsImageContextMenuGeminiEntryPointEnabled();
 
 #endif  // IOS_CHROME_BROWSER_INTELLIGENCE_FEATURES_FEATURES_H_

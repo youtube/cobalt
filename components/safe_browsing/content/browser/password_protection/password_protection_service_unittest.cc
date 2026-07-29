@@ -117,6 +117,12 @@ class MockSafeBrowsingDatabaseManager : public TestSafeBrowsingDatabaseManager {
   MOCK_METHOD2(CheckCsdAllowlistUrl,
                AsyncMatch(const GURL&, SafeBrowsingDatabaseManager::Client*));
 
+  MOCK_METHOD(bool, IsDatabaseReady, (), (const, override));
+  MOCK_METHOD(void,
+              CheckUrlForHighConfidenceAllowlist,
+              (const GURL&, CheckUrlForHighConfidenceAllowlistCallback),
+              (override));
+
   // Override to silence not implemented warnings.
   bool CanCheckUrl(const GURL& url) const override {
     return (url != GURL("about:blank"));
@@ -300,6 +306,18 @@ class PasswordProtectionServiceTest : public ::testing::Test {
         matching_reused_credentials = {};
     content::RenderFrameHost* rfh = web_contents_->GetPrimaryMainFrame();
     password_protection_service_->InitTestApi(rfh);
+    // Delegate MaybeStartOtpPhishingRequest calls to the real implementation in
+    // PasswordProtectionService to test the behavior.
+    ON_CALL(*password_protection_service_,
+            MaybeStartOtpPhishingRequest(_, _, _))
+        .WillByDefault(
+            [this](content::WebContents* web_contents, const GURL& url,
+                   PasswordProtectionService::OtpPhishingVerdictCallback
+                       callback) {
+              password_protection_service_
+                  ->PasswordProtectionService::MaybeStartOtpPhishingRequest(
+                      web_contents, url, std::move(callback));
+            });
     request_ =
         base::MakeRefCounted<safe_browsing::PasswordProtectionRequestContent>(
             web_contents_.get(), GURL(kTargetUrl),
@@ -355,6 +373,80 @@ TEST_F(PasswordProtectionServiceTest,
   EXPECT_EQ(1U, GetNumberOfDeferredNavigations());
   request_->Cancel(/*timed_out=*/false);
   EXPECT_EQ(0U, GetNumberOfDeferredNavigations());
+}
+
+TEST_F(PasswordProtectionServiceTest,
+       MaybeStartOtpPhishingRequest_DatabaseReady) {
+  EXPECT_CALL(*database_manager_, IsDatabaseReady())
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(*database_manager_, CheckUrlForHighConfidenceAllowlist(_, _))
+      .WillOnce(testing::WithArgs<1>(
+          [](SafeBrowsingDatabaseManager::
+                 CheckUrlForHighConfidenceAllowlistCallback callback) {
+            std::move(callback).Run(false, std::nullopt);
+          }));
+  base::RunLoop run_loop;
+  password_protection_service_->MaybeStartOtpPhishingRequest(
+      web_contents_.get(), GURL(kTargetUrl),
+      base::BindLambdaForTesting([&](bool verdict) { run_loop.Quit(); }));
+  run_loop.Run();
+}
+
+TEST_F(PasswordProtectionServiceTest,
+       MaybeStartOtpPhishingRequest_DatabaseNotReady) {
+  EXPECT_CALL(*database_manager_, IsDatabaseReady())
+      .WillRepeatedly(Return(false));
+  EXPECT_CALL(*database_manager_, CheckUrlForHighConfidenceAllowlist(_, _))
+      .Times(0);
+  base::RunLoop run_loop;
+  password_protection_service_->MaybeStartOtpPhishingRequest(
+      web_contents_.get(), GURL(kTargetUrl),
+      base::BindLambdaForTesting([&](bool verdict) { run_loop.Quit(); }));
+  run_loop.Run();
+}
+
+TEST_F(PasswordProtectionServiceTest,
+       MaybeStartOtpPhishingRequest_AllowlistMatch_NoRequest) {
+  EXPECT_CALL(*database_manager_, IsDatabaseReady())
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(*database_manager_, CheckUrlForHighConfidenceAllowlist(_, _))
+      .WillOnce(testing::WithArgs<1>(
+          [](SafeBrowsingDatabaseManager::
+                 CheckUrlForHighConfidenceAllowlistCallback callback) {
+            std::move(callback).Run(true, std::nullopt);
+          }));
+  EXPECT_CALL(*password_protection_service_, IsPingingEnabled(_, _)).Times(0);
+
+  base::RunLoop run_loop;
+  password_protection_service_->MaybeStartOtpPhishingRequest(
+      web_contents_.get(), GURL(kTargetUrl),
+      base::BindLambdaForTesting([&](bool verdict) {
+        EXPECT_FALSE(verdict);
+        run_loop.Quit();
+      }));
+  run_loop.Run();
+}
+
+TEST_F(PasswordProtectionServiceTest,
+       MaybeStartOtpPhishingRequest_NoAllowlistMatch_RequestMade) {
+  EXPECT_CALL(*database_manager_, IsDatabaseReady())
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(*database_manager_, CheckUrlForHighConfidenceAllowlist(_, _))
+      .WillOnce(testing::WithArgs<1>(
+          [](SafeBrowsingDatabaseManager::
+                 CheckUrlForHighConfidenceAllowlistCallback callback) {
+            std::move(callback).Run(false, std::nullopt);
+          }));
+  EXPECT_CALL(*password_protection_service_, IsPingingEnabled(_, _)).Times(1);
+
+  base::RunLoop run_loop;
+  password_protection_service_->MaybeStartOtpPhishingRequest(
+      web_contents_.get(), GURL(kTargetUrl),
+      base::BindLambdaForTesting([&](bool verdict) {
+        EXPECT_FALSE(verdict);
+        run_loop.Quit();
+      }));
+  run_loop.Run();
 }
 
 TEST_F(PasswordProtectionServiceTest, NoSendPingPrivateIpHostname) {
@@ -1213,6 +1305,10 @@ TEST_P(PasswordProtectionServiceBaseTest,
 }
 
 TEST_P(PasswordProtectionServiceBaseTest, TestOtpRequestAndResponseSuccessful) {
+  histograms_.ExpectTotalCount(
+      kOneTimePasswordFieldDetectedRequestOutcomeHistogram, 0);
+  histograms_.ExpectTotalCount(kOneTimePasswordFieldDetectedVerdictHistogram,
+                               0);
   // Set up valid response.
   LoginReputationClientResponse expected_response =
       CreateVerdictProto(LoginReputationClientResponse::PHISHING,
@@ -1225,6 +1321,12 @@ TEST_P(PasswordProtectionServiceBaseTest, TestOtpRequestAndResponseSuccessful) {
                                /*timeout_in_ms=*/10000, web_contents.get());
   password_protection_service_->WaitForResponse();
 
+  EXPECT_THAT(histograms_.GetAllSamples(
+                  kOneTimePasswordFieldDetectedRequestOutcomeHistogram),
+              ElementsAre(base::Bucket(1 /* SUCCEEDED */, 1)));
+  EXPECT_THAT(
+      histograms_.GetAllSamples(kOneTimePasswordFieldDetectedVerdictHistogram),
+      ElementsAre(base::Bucket(3 /* PHISHING */, 1)));
   LoginReputationClientResponse* actual_response =
       password_protection_service_->latest_response();
   EXPECT_EQ(expected_response.verdict_type(), actual_response->verdict_type());
@@ -1546,6 +1648,14 @@ TEST_P(PasswordProtectionServiceBaseTest,
   // Case 3: Trigger type is ONE_TIME_PASSWORD_FIELD_DETECTED but callback is
   // not set.
   password_protection_service_->otp_phishing_verdict_callback_.reset();
+  EXPECT_FALSE(
+      password_protection_service_->ShouldRunOtpPhishingVerdictCallback(
+          LoginReputationClientRequest::ONE_TIME_PASSWORD_FIELD_DETECTED));
+
+  // Case 4: Trigger type is ONE_TIME_PASSWORD_FIELD_DETECTED and callback is
+  // set, but the callback itself is null.
+  password_protection_service_->otp_phishing_verdict_callback_.emplace(
+      base::OnceCallback<void(bool)>());
   EXPECT_FALSE(
       password_protection_service_->ShouldRunOtpPhishingVerdictCallback(
           LoginReputationClientRequest::ONE_TIME_PASSWORD_FIELD_DETECTED));

@@ -63,6 +63,7 @@ component("webnn_service") {
     "//gpu/command_buffer/service:gles2",
     "//gpu/config",
     "//mojo/public/cpp/bindings",
+    "//services/viz/privileged/mojom/gl",
     "//services/webnn/public/mojom",
     "//third_party/tflite:buildflags",
   ]
@@ -209,7 +210,7 @@ component("webnn_service") {
     configs += [ "//build/config/compiler:no_exit_time_destructors" ]
   }
 
-  if (is_mac || webnn_use_tflite) {
+  if (is_apple || webnn_use_tflite) {
     sources += [
       "queueable_resource_state.h",
       "queueable_resource_state_base.cc",
@@ -233,6 +234,7 @@ source_set("webnn_test_support") {
     "//gpu/command_buffer/service",
     "//gpu/config",
     "//mojo/public/cpp/bindings",
+    "//services/viz/privileged/mojom/gl",
     "//services/webnn/public/mojom",
   ]
 }

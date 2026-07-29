@@ -194,25 +194,9 @@ IOSPromoConstants::IOSPromoTypeConfigs SetUpLensBubble(
   }
   return config;
 }
-
-// Returns the config for the given `promo_type` and `bubble_type`.
-IOSPromoConstants::IOSPromoTypeConfigs SetUpBubble(
-    IOSPromoType promo_type,
-    IOSPromoBubbleType bubble_type) {
-  switch (promo_type) {
-    case IOSPromoType::kPassword:
-      return SetUpPasswordBubble(bubble_type);
-    case IOSPromoType::kAddress:
-      return SetUpAddressBubble(bubble_type);
-    case IOSPromoType::kPayment:
-      return SetUpPaymentBubble(bubble_type);
-    case IOSPromoType::kEnhancedBrowsing:
-      return SetUpEnhancedBrowsingBubble(bubble_type);
-    case IOSPromoType::kLens:
-      return SetUpLensBubble(bubble_type);
-  }
-}
 }  // namespace
+
+DEFINE_ELEMENT_IDENTIFIER_VALUE(kIOSPromoBubbleElementId);
 
 // Pointer to BubbleDialogDelegate instance.
 views::BubbleDialogDelegate* IOSPromoBubble::ios_promo_delegate_ = nullptr;
@@ -283,6 +267,24 @@ class IOSPromoBubble::IOSPromoBubbleDelegate : public ui::DialogModelDelegate {
   // The structure that holds the configurations of the current promo type.
   const promos_utils::IOSPromoPrefsConfig ios_promo_prefs_config_;
 };
+
+// static
+IOSPromoConstants::IOSPromoTypeConfigs IOSPromoBubble::SetUpBubble(
+    IOSPromoType promo_type,
+    IOSPromoBubbleType bubble_type) {
+  switch (promo_type) {
+    case IOSPromoType::kPassword:
+      return SetUpPasswordBubble(bubble_type);
+    case IOSPromoType::kAddress:
+      return SetUpAddressBubble(bubble_type);
+    case IOSPromoType::kPayment:
+      return SetUpPaymentBubble(bubble_type);
+    case IOSPromoType::kEnhancedBrowsing:
+      return SetUpEnhancedBrowsingBubble(bubble_type);
+    case IOSPromoType::kLens:
+      return SetUpLensBubble(bubble_type);
+  }
+}
 
 // static
 std::unique_ptr<views::View> IOSPromoBubble::CreateContentView(
@@ -484,6 +486,8 @@ void IOSPromoBubble::ShowPromoBubble(Anchor anchor,
   views::Widget* const widget =
       views::BubbleDialogDelegate::CreateBubble(std::move(promo_bubble));
   widget->Show();
+  widget->GetContentsView()->SetProperty(views::kElementIdentifierKey,
+                                         kIOSPromoBubbleElementId);
 
   // `highlighted_button` can be null when the promo_bubble's page action is
   // anchored to the right hand side/RHS of the omnibox.

@@ -920,6 +920,13 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="Disallow"/>
 </enum>
 
+<enum name="CloseWindowAppSource">
+  <int value="0" label="Other"/>
+  <int value="1" label="Window manager"/>
+  <int value="2" label="Instance retention period expiration"/>
+  <int value="3" label="No tabs in window"/>
+</enum>
+
 <enum name="ContactsPickerDialogAction">
   <int value="0" label="Cancel"/>
   <int value="1" label="Contact(s) selected"/>
@@ -1004,9 +1011,6 @@ chromium-metrics-reviews@google.com.
   <int value="4" label="Caption bar customizable space unavailable."/>
   <int value="5" label="The app is open on an external display."/>
   <int value="6" label="Caption bar has a complex unoccluded region."/>
-  <int value="7"
-      label="Caption bar height is below min height threshold for
-             customization."/>
 </enum>
 
 <enum name="DesktopWindowModeState">
@@ -1084,6 +1088,16 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="LINK_TO_NEW_INSTANCE"/>
   <int value="4" label="UNKNOWN_TO_NEW_INSTANCE"/>
 </enum>
+
+<!-- LINT.IfChange(DroppedSequenceEventAndDownTimeDelta) -->
+
+<enum name="DroppedSequenceEventAndDownTimeDelta">
+  <int value="0" label="EventTimeLessThanDownTime"/>
+  <int value="1" label="EventTimeEqualsDownTime"/>
+  <int value="2" label="EventTimeGreaterThanDownTime"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/viz/service/input/android_state_transfer_handler.cc:DroppedSequenceEventAndDownTimeDelta) -->
 
 <enum name="EdgeToEdgeConfigurationSwitchOutcome">
   <summary>
@@ -1428,6 +1442,8 @@ chromium-metrics-reviews@google.com.
   <int value="15" label="Drag and drop on the omnibox."/>
   <int value="16" label="Tapped after default focus with hardware keyboard."/>
   <int value="17" label="Focus restored on activity recreation."/>
+  <int value="18" label="Location bar state restoration on tab change"/>
+  <int value="19" label="NTP AI Mode button."/>
 </enum>
 
 <!-- LINT.IfChange(OmniboxJumpStartState) -->

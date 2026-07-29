@@ -98,7 +98,7 @@
 #import "components/webui/flags/pref_service_flags_storage.h"
 #import "ios/chrome/app/spotlight/spotlight_util.h"
 #import "ios/chrome/app/variations_app_state_agent.h"
-#import "ios/chrome/browser/authentication/ui_bundled/history_sync/history_sync_utils.h"
+#import "ios/chrome/browser/authentication/history_sync/model/history_sync_utils.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_coordinator.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin_promo_view_mediator.h"
 #import "ios/chrome/browser/bookmarks/ui_bundled/bookmark_mediator.h"
@@ -145,10 +145,6 @@
 #endif  // !BUILDFLAG(IS_IOS_MACCATALYST)
 
 namespace {
-
-// Deprecated 12/2024.
-inline constexpr char kPageContentCollectionEnabled[] =
-    "page_content_collection.enabled";
 
 // Deprecated 02/2025.
 inline constexpr char kNumberOfProfiles[] = "profile.profiles_created";
@@ -219,6 +215,12 @@ constexpr char kGaiaCookieLastListAccountsData[] =
 inline constexpr char kFRESourceTrial[] = "FileMetricsProviderFRESourceTrial";
 
 // Deprecated 10/2025
+inline constexpr char kSessionStorageFormatPref[] =
+    "ios.session.storage.format";
+inline constexpr char kSessionStorageMigrationStatusPref[] =
+    "ios.session.storage.migration-status";
+inline constexpr char kSessionStorageMigrationStartedTimePref[] =
+    "ios.session.storage.migration-start-time";
 inline constexpr char kTipsInMagicStackDisabledPref[] =
     "tips_magic_stack.disabled";
 inline constexpr char kHomeCustomizationMagicStackSetUpListEnabled[] =
@@ -1056,6 +1058,8 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterIntegerPref(prefs::kIOSBWGPromoImpressionCount, 0);
   registry->RegisterTimePref(prefs::kLastGeminiInteractionTimestamp,
                              base::Time());
+  registry->RegisterTimePref(prefs::kLastGeminiContextualChipDisplayedTimestamp,
+                             base::Time());
   registry->RegisterStringPref(prefs::kLastGeminiInteractionURL, std::string());
   registry->RegisterStringPref(prefs::kGeminiConversationId, std::string());
 
@@ -1067,9 +1071,6 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
 
   registry->RegisterListPref(policy::policy_prefs::kIncognitoModeBlocklist);
   registry->RegisterListPref(policy::policy_prefs::kIncognitoModeAllowlist);
-
-  // Deprecated 12/2024.
-  registry->RegisterBooleanPref(kPageContentCollectionEnabled, false);
 
   // Deprecated 02/2025 (migrated to LocalState pref).
   registry->RegisterIntegerPref(prefs::kNTPLensEntryPointNewBadgeShownCount, 0);
@@ -1116,6 +1117,10 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterStringPref(kFRESourceTrial, std::string());
 
   // Deprecated 10/2025
+  registry->RegisterIntegerPref(kSessionStorageFormatPref, 0);
+  registry->RegisterIntegerPref(kSessionStorageMigrationStatusPref, 0);
+  registry->RegisterTimePref(kSessionStorageMigrationStartedTimePref,
+                             base::Time());
   registry->RegisterBooleanPref(kTipsInMagicStackDisabledPref, false);
   registry->RegisterBooleanPref(kHomeCustomizationMagicStackSetUpListEnabled,
                                 true);
@@ -1216,9 +1221,6 @@ void MigrateObsoleteProfilePrefs(PrefService* prefs) {
 
   // Added 09/2024.
   browsing_data::prefs::MaybeMigrateToQuickDeletePrefValues(prefs);
-
-  // Added 12/2024.
-  prefs->ClearPref(kPageContentCollectionEnabled);
 
   // Added 02/2025
   // TODO(crbug.com/395840121): Remove migration call below after successfully
@@ -1332,6 +1334,9 @@ void MigrateObsoleteProfilePrefs(PrefService* prefs) {
   prefs->ClearPref(kFRESourceTrial);
 
   // Added 10/2025.
+  prefs->ClearPref(kSessionStorageFormatPref);
+  prefs->ClearPref(kSessionStorageMigrationStatusPref);
+  prefs->ClearPref(kSessionStorageMigrationStartedTimePref);
   prefs->ClearPref(kTipsInMagicStackDisabledPref);
   prefs->ClearPref(kHomeCustomizationMagicStackSetUpListEnabled);
   prefs->ClearPref(kNTPFollowingFeedSortType);

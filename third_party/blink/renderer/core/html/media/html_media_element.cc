@@ -32,7 +32,6 @@
 #include <variant>
 
 #include "base/auto_reset.h"
-#include "base/debug/crash_logging.h"
 #include "base/feature_list.h"
 #include "base/memory/ptr_util.h"
 #include "base/metrics/histogram_functions.h"
@@ -274,11 +273,9 @@ class AudioSourceProviderClientLockScope {
 };
 
 bool CanLoadURL(const KURL& url, const String& content_type_str) {
-  DEFINE_STATIC_LOCAL(const String, codecs, ("codecs"));
-
   ContentType content_type(content_type_str);
   String content_mime_type = content_type.GetType().DeprecatedLower();
-  String content_type_codecs = content_type.Parameter(codecs);
+  String content_type_codecs = content_type.Parameter("codecs");
 
   // If the MIME type is missing or is not meaningful, try to figure it out from
   // the URL.
@@ -369,13 +366,6 @@ std::ostream& operator<<(std::ostream& stream,
 // static
 MIMETypeRegistry::SupportsType HTMLMediaElement::GetSupportsType(
     const ContentType& content_type) {
-  // TODO(https://crbug.com/809912): Finding source of mime parsing crash.
-  static base::debug::CrashKeyString* content_type_crash_key =
-      base::debug::AllocateCrashKeyString("media_content_type",
-                                          base::debug::CrashKeySize::Size256);
-  base::debug::ScopedCrashKeyString scoped_crash_key(
-      content_type_crash_key, content_type.Raw().Utf8().c_str());
-
   String type = content_type.GetType().DeprecatedLower();
   // The codecs string is not lower-cased because MP4 values are case sensitive
   // per http://tools.ietf.org/html/rfc4281#page-7.
@@ -1515,8 +1505,9 @@ bool HTMLMediaElement::IsValidBuiltinCommand(HTMLElement& invoker,
 
 bool HTMLMediaElement::HandleCommandInternal(HTMLElement& invoker,
                                              CommandEventType command) {
-  CHECK(IsValidBuiltinCommand(invoker, command));
-
+  if (!IsValidBuiltinCommand(invoker, command)) {
+    return false;
+  }
   if (HTMLElement::HandleCommandInternal(invoker, command)) {
     return true;
   }

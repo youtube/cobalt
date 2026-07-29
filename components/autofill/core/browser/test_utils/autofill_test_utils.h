@@ -12,7 +12,6 @@
 #include "base/memory/raw_ptr.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/time/time.h"
-#include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #include "components/autofill/core/browser/data_model/payments/autofill_offer_data.h"
@@ -483,6 +482,7 @@ struct FlightReservationOptionsT {
   const char16_t* departure_airport = u"MUC";
   const char16_t* arrival_airport = u"BEY";
   std::optional<base::Time> departure_time = std::nullopt;
+  base::TimeDelta departure_time_zone_offset = base::TimeDelta();
   std::string_view guid = "00000000-0000-4000-8000-500000000000";
   std::string_view nickname = "FlightReservation";
   std::string_view app_locale = "en-US";

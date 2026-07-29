@@ -136,6 +136,7 @@
 
       이 정책을 설정하지 않으면 기본 프로필 디렉터리를 사용합니다.</translation>
 <translation id="1053981429146436598">비공개 네트워크 요청 설정과 관련된 정책 그룹입니다.  https://wicg.github.io/private-network-access/를 참고하세요.</translation>
+<translation id="1055159224864957792">로컬 비밀번호</translation>
 <translation id="1059069692400941670">처음 실행 시 기본 검색엔진 가져오기 사용 중지</translation>
 <translation id="1060020040574767394">맞춤 워터마크 설정 구성</translation>
 <translation id="1062011392452772310">기기에 대한 원격 인증을 사용합니다.</translation>
@@ -1245,6 +1246,17 @@ Chrome 앱은 ID(예: <ph name="DEFAULT_HANDLERS_FOR_FILE_EXTENSIONS_POLICY_CHRO
 <translation id="1834796168555733063">비밀번호 관리자를 통한 패스키 저장 기능 사용 안함</translation>
 <translation id="1836380138559328229">기기 수준에서 활성 Wi-Fi 사용자 인증 정보 저장</translation>
 <translation id="1837165432382702436">페이지의 높이(마이크로미터)입니다.</translation>
+<translation id="1838075279369174832">정책을 설정하면 <ph name="PRODUCT_OS_NAME" />에서 로그인 및 재인증에 사용할 수 있는 로컬 인증 요소를 제어할 수 있습니다.
+
+      설정하는 방법은 다음과 같습니다.
+
+      * 모든 로컬 인증 요소: ["ALL"]을 사용합니다(앞으로 추가될 요소 포함).
+
+      * PIN만: ["PIN"]을 사용합니다.
+
+      * 로컬 비밀번호만: ["LOCAL_PASSWORD"]를 사용합니다.
+
+      정책을 설정하지 않거나 빈 목록으로 설정하면 관리 사용자가 로컬 인증 요소를 사용할 수 없습니다.</translation>
 <translation id="1838910874018595451">미리 입력된 Kerberos 티켓 구성</translation>
 <translation id="1839042185432919430">기기가 오프라인인 경우 키오스크 웹 앱에서 앱 실행 시 네트워크 메시지를 표시하도록 허용</translation>
 <translation id="1839711547980672664"><ph name="CHROME_DEVTOOLS_NAME" />을(를) 여는 것이 허용되는 URL 패턴 목록</translation>
@@ -1934,6 +1946,7 @@ Chrome 앱은 ID(예: pjkljhegncpnkpknbcohdijeoejaedia)로, Android 앱은 패�
 <translation id="2306505001667207184">자동 선택 정책과 일치하는 인증서가 여러 개 있을 때마다 사용자에게 클라이언트 인증서를 선택하라는 메시지 표시</translation>
 <translation id="230713790688681130">힌디어 인스크립트 레이아웃 사용 설정</translation>
 <translation id="2307496301287881990">디스플레이 및 그래픽 상태 보고</translation>
+<translation id="2308084581803907194">높은 복잡성</translation>
 <translation id="2308899582897965249">자동 인쇄 사용 중지</translation>
 <translation id="2309284543927494965">업데이트 차단</translation>
 <translation id="2309341709647905294">기기에 연결된 주변기기 관련 정보 보고 안함</translation>
@@ -2756,6 +2769,19 @@ False로 설정되면 관련 웹사이트 세트 기능이 사용 중지됩니�
       정책을 설정하지 않으면 관리 기기에서는 정책이 사용 안함으로 설정되고 일반 사용자 소유의 기기에서는 사용 설정됩니다.
       정책을 사용 안함으로 설정하더라도 시스템 전체의 흔적 수집만 사용 중지됩니다. 브라우저 흔적 수집은 이 정책의 영향을 받지 않습니다.</translation>
 <translation id="2922511125678964398">종속 포털 인증에서 프록시 설정을 무시하도록 허용</translation>
+<translation id="2923126158151236068">이 정책은 <ph name="PRODUCT_OS_NAME" />에서 사용자가 설정한 로컬 인증 수단(PIN, 로컬 비밀번호)의 최소 복잡성 요구사항을 구성합니다.
+
+이 정책을 설정하지 않으면 복잡성 수준이 '없음'으로 기본 설정됩니다.
+
+이 정책의 요구사항은 사용자가 새 로컬 PIN/비밀번호를 설정하거나 기존 PIN/비밀번호를 변경할 때 적용됩니다.
+
+복잡성 수준은 <ph name="PRODUCT_OS_NAME" />에 맞게 조정된 Android의 비밀번호 품질 측정항목(https://developers.google.com/android/management/reference/rest/v1/PasswordRequirements)을 기준으로 합니다.
+- 1 = 없음: PIN/비밀번호가 필요하지만 내용이나 길이에 제한이 없습니다.
+- 2 = 낮음: 기본 복잡성 요구사항입니다.
+- 3 = 중간: 더 엄격한 길이 및 문자 유형 요구사항입니다.
+- 4 = 높음: 가장 강력한 복잡성 요구사항으로, 여러 문자 유형이 필요합니다.
+
+각 수준에서 PIN 및 비밀번호에 어떤 내용이 포함되는지 자세히 알아보려면 고객센터 도움말을 참고하세요.</translation>
 <translation id="2926813071464307947">렌더러 앱 컨테이너 샌드박스 사용 안함</translation>
 <translation id="2931888116345994552">설정하지 않거나 사용 설정하면 <ph name="PRODUCT_NAME" />의 모든 구성요소에 구성요소 업데이트를 사용합니다.
 
@@ -3526,6 +3552,15 @@ false로 설정된 경우 기존 및 신규 Crostini 컨테이너에 대한 루�
 
       정책을 사용 중지하거나 설정하지 않으면 DTC가 사용 중지됩니다. 기기에서 텔레메트리 및 진단 데이터를 수집, 처리 또는 보고할 수 없습니다.</translation>
 <translation id="3442589735857147823">사용자가 Linux 앱을 지원하는 데 필요한 가상 머신을 사용하도록 허용</translation>
+<translation id="34476328503285475">정책을 설정하면 <ph name="PRODUCT_NAME" /> 새 탭 페이지에 최대 10개의 맞춤 바로가기가 미리 구성됩니다.
+
+설정하면 개인 바로가기 외에 기본적으로 이러한 바로가기가 사용자에게 표시됩니다. 사용자는 'Chrome 맞춤설정' 패널에서 조직의 바로가기 표시 여부를 제어할 수 있습니다.
+
+바로가기 URL은 고유해야 합니다.
+
+<ph name="NTP_SHORTCUTS_ALLOW_USER_EDIT_NAME" />이(가) true로 설정되면 사용자가 바로가기의 이름을 변경할 수 있습니다. false로 설정하거나 설정하지 않으면 사용자가 이름을 변경할 수 없습니다.
+
+<ph name="NTP_SHORTCUTS_ALLOW_USER_DELETE_NAME" />이(가) true로 설정되면 사용자가 바로가기를 삭제할 수 있습니다. false로 설정하거나 설정하지 않으면, 사용자가 바로가기를 삭제할 수 없습니다.</translation>
 <translation id="3450649825886735618">맞춤법 오류를 해결하는 데 도움이 되는 Google 웹 서비스 사용 안함</translation>
 <translation id="3451422488938880786"> 국제 키보드 단축키 재매핑 사용/사용 안함 허용</translation>
 <translation id="3451901387456196887">사용자에게 <ph name="PRODUCT_NAME" /> 메뉴에서 액세스 코드를 사용하거나 QR 코드를 스캔하여 Cast 기기를 선택하는 옵션 제공</translation>
@@ -4811,6 +4846,7 @@ Chrome Root Store를 공개 신뢰의 소스로 사용하는 내장된
 <translation id="4341199399451274159"><ph name="DEFAULT_SEARCH_PROVIDER_ENABLED_POLICY_NAME" />가 사용 설정되어 있으면 <ph name="DEFAULT_SEARCH_PROVIDER_ENCODINGS_POLICY_NAME" />을(를) 설정할 경우 검색 공급자에서 지원되는 문자 인코딩을 지정합니다. 인코딩은 UTF-8, GB2312 및 ISO-8859-1과 같은 코드 페이지 이름입니다. 인코딩은 제공된 순서대로 사용됩니다.
 
       <ph name="DEFAULT_SEARCH_PROVIDER_ENCODINGS_POLICY_NAME" />를 설정하지 않으면 UTF-8이 사용됩니다.</translation>
+<translation id="4346542905412554336">프록시 재정의 규칙</translation>
 <translation id="4347908978527632940">true로 설정되어 있고 사용자가 관리 대상 사용자인 경우 다른 Android 앱에서 콘텐츠 제공업체를 통해 사용자의 웹 제한사항을 검색할 수 있습니다.
 
           false로 설정되어 있거나 설정되어 있지 않은 경우 콘텐츠 제공업체에서 정보를 제공하지 않습니다.</translation>
@@ -6046,6 +6082,7 @@ false로 설정되면 기기 식별을 위해 사용할 수 있는 정보가 수
 <translation id="5163889437570441600"><ph name="PRODUCT_NAME" /> 사용을 통해 콘텐츠를 기기로 전송할 수 있도록 허용합니다.
 
           이 정책을 False로 설정하면 사용자가 콘텐츠를 기기로 전송할 수 없게 됩니다. 반면에 True로 설정하면 사용자가 콘텐츠를 전송할 수 있습니다. 이 정책을 설정하지 않으면 사용자가 콘텐츠를 등록된 ChromeOS 기기로 전송할 수 없지만, 등록되지 않은 기기로는 전송할 수 있습니다.</translation>
+<translation id="5166766992668636906">중간 복잡도</translation>
 <translation id="5168529971295111207">이 정책은 지원 중단되었으므로 대신 ProxyMode를 사용하세요.
 
           <ph name="PRODUCT_NAME" />에서 사용하는 프록시 서버를 지정할 수 있으며 사용자가 프록시 설정을 변경하지 못하게 합니다.
@@ -7652,6 +7689,7 @@ ArcEnabled 및 UnaffiliatedArcAllowed 정책에서 적용하는 제한사항과 
 <translation id="6144046700495610112">정책을 '사용'으로 설정하면 최초 실행 시 이전 기본 브라우저의 자동 완성 양식 데이터를 가져옵니다. 정책을 '사용 안함'으로 설정하거나 설정하지 않으면 최초 실행 시 자동 완성 양식 데이터를 가져오지 않습니다.
 
       사용자는 가져오기 대화상자를 트리거할 수 있으며 '자동 완성 양식 데이터' 체크박스가 이 정책의 값에 맞게 선택되거나 선택 해제됩니다.</translation>
+<translation id="6144246313478615705">로컬 PIN 및 비밀번호의 최소 복잡성 설정</translation>
 <translation id="614551633868957694">Chrome 앱 및 확장 프로그램</translation>
 <translation id="614616930188030377">이 목록의 패턴을 요청 URL의 보안 출처와 비교합니다.
       일치하는 항목이 확인되거나 chrome://flags/#enable-webrtc-hide-local-ips-with-mdns가 사용 중지되면 로컬 IP 주소가 WebRTC ICE 후보에 표시됩니다.
@@ -8316,6 +8354,13 @@ URL 패턴이 <ph name="SERIAL_ASK_FOR_URLS_POLICY_NAME" />와 충돌하는 경�
 <translation id="6520802717075138474">처음 실행 시 기본 브라우저에서 검색엔진 가져오기</translation>
 <translation id="6521971538031711337">관리 대상 사용자가 기기 호스트 이름을 구성하지 못하게 차단</translation>
 <translation id="6523079496775454310">관리되지 않는 기기의 관리 사용자에 대한 기기 신호 공유 동의를 사용 설정</translation>
+<translation id="6523608518493993483">관리자는 이 정책을 사용하여 디스크의 브라우저 HTTP 캐시를 암호화할 수 있습니다.
+
+이 정책을 사용 설정하면 브라우저 캐시가 암호화됩니다.
+
+정책을 사용 중지하거나 설정하지 않으면 브라우저 캐시가 암호화되지 않습니다.
+
+브라우저 캐시 암호화는 성능에 영향을 미칠 수 있습니다.</translation>
 <translation id="6527674993612811419">안전하지 않은 양식이 제출되면 경고를 표시하고 자동 완성을 사용 안함</translation>
 <translation id="6532769014584932288">wake lock 허용</translation>
 <translation id="6533881418188970751">다운로드하기 전에 파일의 저장 위치를 사용자에게 확인</translation>
@@ -8825,6 +8870,7 @@ false로 설정되면 Crostini 컨테이너로 포트 전달이 사용 중지됩
 정책을 사용 설정하면, 새 <ph name="PRODUCT_OS_NAME" /> 기기에 로그인하는 데 성공할 경우 이전 세션에서 사용자가 로그아웃됩니다.
 
 <ph name="FLOATING_SSO_ENABLED_POLICY_NAME" /> 또는 <ph name="FLOATING_WORKSPACE_V2_ENABLED_POLICY_NAME" /> 정책이 사용 설정된 경우에만 정책을 사용 중지하거나 설정하지 않으면 사용자가 이전 세션에서 로그아웃됩니다.</translation>
+<translation id="6854694645176150141">허용된 로컬 인증 요소 구성</translation>
 <translation id="6854767649023671426">정책을 '사용'으로 설정하거나 설정하지 않으면 VideoCaptureAllowedUrls 목록에 설정된 URL은 제외하고 사용자에게 동영상 캡처 액세스 권한에 대한 메시지가 표시됩니다.
 
       정책을 '사용 안함'으로 설정하면 메시지가 사용 중지되며, VideoCaptureAllowedUrls 목록에 설정된 URL에서만 동영상 캡처를 사용할 수 있습니다.
@@ -9127,6 +9173,26 @@ SkyVault 사용자에게만 적용됩니다. 즉, LocalUserFilesAllowed가 false
 잘못된 항목은 무시됩니다.</translation>
 <translation id="7044883996351280650">Android 백업 및 복원 서비스 제어</translation>
 <translation id="7045221780834308118">정책을 사용으로 설정하면 서드 파티 웹 애플리케이션에서 Desk API를 사용하여 <ph name="PRODUCT_OS_NAME" /> 데스크를 제어할 수 있습니다. 정책을 설정하지 않거나 사용 중지하면 <ph name="DESK_API_NAME" />를 사용할 수 없습니다. 이 정책은 등록된 기기에만 적용됩니다.</translation>
+<translation id="704591686761455167">이 정책은 가져오기 및 탐색 중에 Blob URL을 파티셔닝할지를 제어합니다.
+정책을 사용으로 설정하거나 설정하지 않으면 Blob URL이 파티셔닝됩니다.
+정책을 사용 중지로 설정하면 Blob URL이 파티셔닝되지 않습니다.
+
+<ph name="THIRD_PARTY_STORAGE_PARTITIONING_BLOCKED_FOR_ORIGINS_POLICY_NAME" /> 또는 <ph name="DEFAULT_THIRD_PARTY_STORAGE_PARTITIONING_SETTING_POLICY_NAME" />에 의해 특정 최상위 출처에 대한 저장용량 파티셔닝이
+사용 중지된
+경우
+Blob URL도 파티셔닝되지 않습니다.
+
+정책을 사용해야 하는 경우
+<ph name="BUG_URL" />에서
+사용 사례를 설명하는 버그를 제출하세요. 이 정책은 <ph name="PRODUCT_NAME" /> 버전 146까지
+제공될 예정이며 이후 버전에서는
+이전 구현이 삭제됩니다.
+
+참고: 새로 시작된 렌더기 프로세스만 브라우저가 실행되는 동안
+이 정책의 변경사항을 반영합니다.
+
+서드 파티 저장용량 파티셔닝에 관한 자세한 내용은
+https://developers.google.com/privacy-sandbox/cookies/storage-partitioning 페이지를 참고하세요.</translation>
 <translation id="7046113122884041950">Smart Lock 허용 안함</translation>
 <translation id="7046997898355294677">사용자가 닫을 때까지 개인 정보 보호 알림 표시</translation>
 <translation id="7047495632846973438">디스플레이 캡처 권한 정책을 확인할지 아니면 건너뛸지 결정합니다.</translation>
@@ -9745,12 +9811,24 @@ Kyber 제공 서비스는 이전 버전과 호환됩니다. 기존 TLS 서버 �
 <translation id="7491720878670299691">이벤트와 관련하여 네트워크 데이터가 수집 및 확인되는 속도입니다. 허용되는 최솟값은 1분입니다.
 
       정책을 설정하지 않으면 기본값 1분이 적용됩니다.</translation>
+<translation id="7496284563199466390">관리 사용자가 <ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" /> 정책을 설정할 수 있는지 제어합니다.</translation>
 <translation id="7498595166686106721">
       디스플레이 캡처 권한 정책은 다음에 따라 getDisplayMedia()에 대한 액세스를 제어합니다. https://www.w3.org/TR/screen-capture/#feature-policy-integration. 하지만 정책이 사용 중지된 경우 이 요구사항은 적용되지 않으며, 다른 상황에서는 금지되었을 컨텍스트에서도 getDisplayMedia()가 허용됩니다. 이 기업 정책은 일시적이며 <ph name="PRODUCT_NAME" /> 버전 100 이후 삭제됩니다. 애플리케이션이 사양을 따르지 않지만 수정하는 데 시간이 필요한 기업 사용자를 차단 해제하는 것이 목적입니다.
 
       사용 설정되거나 설정되지 않으면 사이트는 디스플레이 캡처 정책에서 허용 목록에 추가한 컨텍스트에서만 getDisplayMedia()를 호출할 수 있습니다.
 
       사용 중지된 경우 사이트는 디스플레이 캡처 정책에서 허용 목록에 추가하지 않은 컨텍스트에서도 getDisplayMedia()를 호출할 수 있습니다. 다른 제한사항이 적용될 수 있습니다.</translation>
+<translation id="750408442628578356">Gemini 앱이 사용자를 대신하여 웹페이지에서 작업을 실행하도록 허용할지 제어합니다.
+
+0/설정 안 함 = Gemini 앱이 웹페이지에서 작업을 실행하도록 허용합니다.
+
+1 = Gemini 앱이 웹페이지에서 작업을 실행하도록 허용하지 않습니다.
+
+Gemini 앱이 사용 중지되면 이 정책은 아무런 영향을 미치지 않습니다. 예를 들어 <ph name="GEMINI_SETTINGS_POLICY_NAME" /> 정책으로 Gemini 앱을 사용 중지할 수 있습니다.
+
+Chrome의 Gemini에 관한 자세한 내용은 https://support.google.com/chrome/a/answer/16291696 페이지를 참고하세요.
+
+일부 국가 또는 언어에서는 Gemini가 작동하지 않습니다. 이 정책을 설정해도 기능이 사용 설정된다는 보장은 없으며, 기능은 사용 가능 여부에 따라 달라집니다. 출시에 관한 자세한 내용은 Enterprise 출시 노트(https://support.google.com/chrome/a/answer/7679408?hl=ko)를 참고하세요.</translation>
 <translation id="7506745375479451616">이 정책은 <ph name="IE_PRODUCT_NAME" />에서 전환할 때 <ph name="PRODUCT_NAME" />에서 URL을 여는 데 사용할 명령을 제어합니다. 정책을 실행 파일 경로로 설정하거나 <ph name="PRODUCT_NAME_PLACEHOLDER" />으로 설정하여 <ph name="PRODUCT_NAME" />의 위치를 자동으로 감지할 수 있습니다.
 
       정책을 설정하지 않으면 Internet Explorer에서 <ph name="PRODUCT_NAME" />을 실행할 때 <ph name="IE_PRODUCT_NAME" />에서 <ph name="PRODUCT_NAME" />의 자체 실행 경로를 자동으로 감지합니다.
@@ -9834,6 +9912,7 @@ Kyber 제공 서비스는 이전 버전과 호환됩니다. 기존 TLS 서버 �
 
       사용자의 기기가 관리되지 않는다면 이 기능의 사용 가능 여부는 사용자가 기기 소유자인지에 따라 추가로 달라집니다.</translation>
 <translation id="7570291542739287032">클라우드 전용</translation>
+<translation id="7572641760104970905">복잡성 없음</translation>
 <translation id="757395965347379751">이 설정이 사용 설정되었다면 <ph name="PRODUCT_NAME" />은(는) 로컬에 설치된 CA 인증서를 성공적으로 확인하고 체인을 구축하는 한 SHA-1 서명 인증서를 허용합니다.
 
       이 정책은 SHA-1 서명을 허용하는 운영체제 인증서 확인 스택에 따라 다릅니다. OS 업데이트가 SHA-1 인증서의 OS 처리를 변경하는 경우 이 정책은 더 이상 유효하지 않을 수 있습니다. 또한 이 정책은 기업에게 SHA-1에서 전환할 시간을 부여하는 임시 해결 방법으로 활용됩니다. 이 정책은 2019년 1월 1일쯤 삭제될 예정입니다.
@@ -9932,6 +10011,7 @@ Kyber 제공 서비스는 이전 버전과 호환됩니다. 기존 TLS 서버 �
 <translation id="7648907905084499629">모든 사이트에서 쿠키에 <ph name="FEATURE_NAME_SAMESITE_BY_DEFAULT_COOKIES" /> 동작 사용</translation>
 <translation id="7657261947024629645">성능에 최적화합니다.</translation>
 <translation id="76580522298425324">이전 사용자 동작 없이 화면 캡처 허용</translation>
+<translation id="7661379728107156839">낮은 복잡성</translation>
 <translation id="7666228839913571182">타사 쿠키 허용</translation>
 <translation id="7666782560345386904">향상된 자동 완성 설정</translation>
 <translation id="7669630878711068277">정책을 사용 설정하거나 설정하지 않으면 사용자가 <ph name="PRODUCT_NAME" />에서 인쇄할 수 있으며, 이 설정을 변경할 수 없습니다.
@@ -10471,6 +10551,21 @@ Internet Explorer의 <ph name="IEEM_SITELIST_POLICY" /> 정책(https://docs.micr
 
       정책을 설정하면 사용자가 이러한 작동을 변경하거나 재정의할 수 없습니다.</translation>
 <translation id="8080200590486938727">플러그인 파인더 사용 안함</translation>
+<translation id="8082268442825947283">이 정책을 설정하면 대상 URL 및 기타 조건에 따라 브라우저에서 사용할 프록시를 선택하는 규칙이 구성됩니다. 이 정책은 <ph name="PROXY_SETTINGS_POLICY_NAME" /> 정책, <ph name="PROXY_SETTINGS_EXTENSION_API" /> 확장 프로그램 API 또는 수동 사용자 설정에서 설정된 프록시 설정보다 우선 적용됩니다.
+
+정책을 설정하지 않아도 다른 프록시 정책 또는 사용자 설정에 영향을 미치지 않습니다.
+
+브라우저에서 사용할 프록시를 결정해야 하는 경우 <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" />의 URL 호스트 중 하나 이상과 일치하는 항목이 있고 <ph name="PROXY_OVERRIDE_RULES_CONDITIONS" />의 모든 항목이 충족될 때까지 <ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" /> 정책의 항목이 순서대로 평가됩니다. <ph name="PROXY_OVERRIDE_RULES_PROXY_CHAIN" />의 값이 이러한 일치의 프록시로 사용됩니다. 일치하는 항목이 없으면 프록시 설정이 <ph name="PROXY_SETTINGS_POLICY_NAME" /> 정책에 설정된 항목으로 되돌아갑니다.
+
+<ph name="PROXY_OVERRIDE_RULES_PROXY_CHAIN" /> 필드 항목은 다음과 같은 PAC 파일의 문자열 값에 해당합니다.
+  * DIRECT
+  * PROXY host:port
+  * HTTPS host:port
+연결 가능한 첫 번째 항목이 프록시로 사용됩니다.
+
+<ph name="PROXY_OVERRIDE_RULES_CONDITIONS" /> 필드에는 사용할 프록시를 결정하기 위해 재정의 규칙을 사용하려면 모두 충족해야 하는 조건 목록이 포함됩니다. 설정하지 않으면 <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" />의 호스트 중 하나 이상이 일치하는 한 항목이 사용됩니다.
+
+<ph name="PROXY_OVERRIDE_RULES_DNS_PROBE" /> 조건은 제공된 DNS <ph name="PROXY_OVERRIDE_RULES_HOST" />가 IP 주소로 확인할 수 있는지 확인합니다. <ph name="PROXY_OVERRIDE_RULES_RESULT" />의 값이 "<ph name="PROXY_OVERRIDE_RULES_RESOLVES" />"인 경우 조건이 충족된 것으로 간주됩니다. 대신 값이 <ph name="PROXY_OVERRIDE_RULES_NOT_FOUND" />로 설정되면 해결이 실패한 경우 조건이 충족된 것으로 간주됩니다.</translation>
 <translation id="8086746212954621799">true로 설정되면 자동 업데이트가 사용 중지됩니다.
 
 설정이 구성되지 않거나 false로 설정되면 <ph name="PRODUCT_OS_NAME" /> 기기에서 자동으로 업데이트를 확인합니다.
@@ -10666,6 +10761,9 @@ False로 설정하면 로그인 화면이 표시될 때 개인 정보 보호 화
 <translation id="8225579382697740712">WebHID API 사용 제어</translation>
 <translation id="8229912067600517877">개발자 도구 사용</translation>
 <translation id="8238421250255592181">터치 키보드가 자동 완성을 지원할 수 있는지 나타내는 부울 플래그입니다.</translation>
+<translation id="8238558579601006178">정책을 0으로 설정하거나 설정하지 않은 상태로 두면 <ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" /> 정책이 연결된 사용자의 사용자 범위에만 적용됩니다.
+정책을 1로 설정하면 사용자가 연결되어 있지 않더라도 <ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" /> 정책이 사용자 범위에서 적용됩니다.
+정책을 2로 설정하면 소스가 사용자인 경우 <ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" /> 정책이 적용되지 않습니다.</translation>
 <translation id="8239109177194627162">신용카드 입력 시 자동 완성 사용 안함</translation>
 <translation id="8239143983379015783">영구 할당량을 강제 적용합니다.</translation>
 <translation id="8240976615241583524">이 정책은 사용 가능한 최상의 연결을 찾으려고 할 때 WebRTC가 사용하는 IP 주소 및 인터페이스를 제한할 수 있습니다.

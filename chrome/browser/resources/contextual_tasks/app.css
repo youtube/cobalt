@@ -13,11 +13,6 @@
   flex-direction: column;
 }
 
-#toolbar {
-  background-color: var(--cr-fallback-color-primary-container);
-  padding: 16px;
-}
-
 #threadFrame {
   border: none;
   flex-grow: 1;
@@ -25,6 +20,7 @@
 }
 
 #composeboxContainer {
+  background-color: var(--google-grey-50);
   height: 64px;
   inset-block-end: 0;
   min-height: var(--composebox-collapsed-height);

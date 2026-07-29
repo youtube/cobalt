@@ -227,8 +227,11 @@ export class SettingsAccountCardElement extends SettingsAccountCardElementBase {
     // Sign-in impressions should be recorded only if the sign-in promo is
     // shown. They should be recorder only once, the first time
     // |this.syncStatus| is set.
+    // With `ReplaceSyncPromosWithSignInPromos`, this is not a sign in promo, so
+    // we should not record.
     const shouldRecordSigninImpression = !this.syncStatus && syncStatus &&
-        this.signinAllowed_ && !this.isSyncing_();
+        this.signinAllowed_ && !this.isSyncing_() &&
+        !this.replaceSyncPromosWithSignInPromos_;
 
     this.syncStatus = syncStatus;
 
@@ -285,7 +288,10 @@ export class SettingsAccountCardElement extends SettingsAccountCardElementBase {
   /**
    * @return A CSS image-set for multiple scale factors.
    */
-  private getIconImageSet_(iconUrl: string): string {
+  private getIconImageSet_(iconUrl?: string): string {
+    if (!iconUrl) {
+      return '';
+    }
     return getImage(iconUrl);
   }
 

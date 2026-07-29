@@ -26,6 +26,15 @@ chromium-metrics-reviews@google.com.
 
 <enums>
 
+<!-- LINT.IfChange(ActionChipsType) -->
+
+<enum name="ActionChipsType">
+  <int value="0" label="Create Image Chip"/>
+  <int value="1" label="Deep Search Chip"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/resources/new_tab_page/action_chips/action_chips.ts:ActionChipsType) -->
+
 <enum name="AimToolState">
   <int value="0" label="AIM Tool Disabled"/>
   <int value="1" label="AIM Tool Enabled"/>
@@ -328,12 +337,6 @@ chromium-metrics-reviews@google.com.
   <int value="1967788069" label="solidcolors_for_NTP">Colors for NTP</int>
 </enum>
 
-<enum name="NtpComposeboxMultimodalState">
-  <int value="0" label="Text Only"/>
-  <int value="1" label="File Only"/>
-  <int value="2" label="Text and File"/>
-</enum>
-
 <enum name="NtpCustomizationBottomSheetType">
   <summary/>
   <int value="0" label="Main Bottom Sheet"/>
@@ -344,6 +347,7 @@ chromium-metrics-reviews@google.com.
   <int value="5" label="New Tab Page Theme Collections Bottom Sheet"/>
   <int value="6" label="New Tab Page Single Theme Collection Bottom Sheet"/>
   <int value="7" label="New Tab Page Chrome Colors Bottom Sheet"/>
+  <int value="8" label="New Tab Page Upload Image Photo Picker"/>
 </enum>
 
 <enum name="NtpCustomizationEntryPoint">
@@ -351,6 +355,12 @@ chromium-metrics-reviews@google.com.
   <int value="0" label="App Menu"/>
   <int value="1" label="Customization button in toolbar"/>
   <int value="2" label="Customization button on NTP for tablet"/>
+</enum>
+
+<enum name="NtpCustomizationThemeUploadImagePreviewInteractions">
+  <summary/>
+  <int value="0" label="Cancel"/>
+  <int value="1" label="Save"/>
 </enum>
 
 <enum name="NTPCustomizeChromeBackgroundAction">
@@ -379,9 +389,10 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="Chrome customized already."/>
   <int value="4" label="Customize Chrome closed explicitly by the user."/>
   <int value="5" label="Customize Chrome opened via button before."/>
+  <int value="6" label="Feature config mismatch."/>
 </enum>
 
-<!-- LINT.ThenChange(//chrome/browser/ui/webui/new_tab_page/new_tab_page_handler.h:NTPCustomizeChromePromoEligibility) -->
+<!-- LINT.ThenChange(//chrome/browser/new_tab_page/feature_promo_helper/new_tab_page_feature_promo_helper.h:NTPCustomizeChromePromoEligibility) -->
 
 <enum name="NTPCustomizeChromeSidePanelAction">
   <int value="0" label="Button to edit theme selected."/>
@@ -419,6 +430,9 @@ chromium-metrics-reviews@google.com.
   <int value="0" label="Most Visited is enabled"/>
   <int value="1" label="Custom links is enabled"/>
   <int value="2" label="Shortcuts are hidden"/>
+  <int value="3" label="Enterprise shortcuts are enabled"/>
+  <int value="4" label="Enterprise shortcuts and most visited are enabled"/>
+  <int value="5" label="Enterprise shortcuts and custom links are enabled"/>
 </enum>
 
 <enum name="NTPCustomizeLocalImageBackgroundAction">
@@ -437,6 +451,14 @@ chromium-metrics-reviews@google.com.
   <int value="6" label="A custom shortcut was updated."/>
   <int value="7" label="The type of shortcuts displayed was changed."/>
   <int value="8" label="The visibility of shortcuts was changed."/>
+  <int value="9" label="The visibility of personal shortcuts was changed."/>
+  <int value="10" label="The visibility of enterprise shortcuts was changed."/>
+  <int value="11" label="An enterprise shortcut was removed."/>
+  <int value="12" label="An enterprise shortcut action was undone."/>
+  <int value="13"
+      label="All enterprise shortcuts were restored (via menu or message
+             pop-up)."/>
+  <int value="14" label="An enterprise shortcut was updated."/>
 </enum>
 
 <enum name="NTPElement">
@@ -452,6 +474,7 @@ chromium-metrics-reviews@google.com.
   <int value="9" label="Customize Chrome Button"/>
   <int value="10" label="Customize Chrome Dialog"/>
   <int value="11" label="Wallpaper Search Button"/>
+  <int value="12" label="Action Chips"/>
 </enum>
 
 <enum name="NTPImageType">

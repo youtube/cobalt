@@ -66,13 +66,13 @@ article :is(ul, ol, figure) * {
 }
 
 /* Text rules. */
-
 html {
     font-size: 16px;
 }
 
 body {
-    line-height: 1.5rem; /* 18px */
+    font-weight: normal;
+    line-height: 1.5rem; /* 24px */
 }
 
 #title-holder, h1 {
@@ -81,10 +81,15 @@ body {
     font-weight: bold;
 }
 
-h2, h3, h4, h5, h6 {
-    font-size: 1.5rem; /* 24px */
-    line-height: 2.25rem; /* 36px */
-    font-weight: bold;
+h2[itemprop="description"], h3, h4, h5, h6 {
+    font-size: 1rem;
+    font-weight: normal;
+    line-height: 1.5rem; /* 24px */
+}
+
+h2 {
+  font-size: 1.25rem; /* 20px */
+  line-height: 1.75rem; /* 28px */
 }
 
 /* Styles for images and captions. */
@@ -142,6 +147,16 @@ ul, ol {
     padding-inline-end: 0;
     padding: 0;
     margin: 0;
+}
+
+ul.distilled-content-list {
+  list-style-type: disc;
+  padding-inline-start: 2.5em;
+}
+
+ol.distilled-content-list {
+  list-style-type: decimal;
+  padding-inline-start: 2.5em;
 }
 
 /* Table styling. */

@@ -147,7 +147,7 @@ class StartProcess(AbstractContextManager):
 
 def send_ssh_command(hostname, username, command, blocking=False):
     """
-    Sends a command to a remote host via SSH using a password.
+    Sends a command to a remote host via SSH.
 
     Args:
         hostname (str): The remote host to connect to.
@@ -452,7 +452,7 @@ def main():
     Returns:
         int: The exit code for the script, typically 0 for success.
     """
-    logging.basicConfig(level=logging.INFO)
+    logging.getLogger().setLevel(logging.INFO)
 
     if os.path.exists(RECORDINGS_DIR):
         shutil.rmtree(RECORDINGS_DIR)

@@ -79,6 +79,7 @@
 #include "remoting/protocol/display_size.h"
 #include "remoting/protocol/errors.h"
 #include "remoting/protocol/input_event_timestamps.h"
+#include "remoting/protocol/input_event_tracker.h"
 #include "remoting/protocol/keyboard_layout_stub.h"
 #include "remoting/protocol/message_pipe.h"
 #include "remoting/protocol/network_settings.h"
@@ -119,12 +120,18 @@ ClientSession::ClientSession(
     : event_handler_(event_handler),
       desktop_environment_factory_(desktop_environment_factory),
       desktop_environment_options_(desktop_environment_options),
-      remote_input_filter_(&input_tracker_),
+      cursor_visibility_notifier_(&input_tracker_, this),
+      remote_input_filter_(
+          &cursor_visibility_notifier_,
+          // Unretained() is safe because `remote_input_filter_` will be
+          // destroyed before `input_tracker_`, after which the callback will no
+          // longer be called.
+          base::BindRepeating(&protocol::InputEventTracker::ReleaseAll,
+                              base::Unretained(&input_tracker_))),
       fractional_input_filter_(&remote_input_filter_, &coordinate_converter_),
       mouse_clamping_filter_(&fractional_input_filter_),
       observing_input_filter_(&mouse_clamping_filter_),
-      desktop_and_cursor_composer_notifier_(&observing_input_filter_, this),
-      disable_input_filter_(&desktop_and_cursor_composer_notifier_),
+      disable_input_filter_(&observing_input_filter_),
       host_clipboard_filter_(clipboard_echo_filter_.host_filter()),
       client_clipboard_filter_(clipboard_echo_filter_.client_filter()),
       client_clipboard_factory_(&client_clipboard_filter_),
@@ -377,6 +384,21 @@ void ClientSession::SetCapabilities(
     if (desktop_display_info_.NumDisplays() != 0) {
       OnDesktopDisplayChanged(desktop_display_info_.GetVideoLayoutProto());
     }
+  }
+
+  host_cursor_rendered_by_client_ = HasCapability(
+      capabilities_, protocol::kClientRenderedHostCursorCapability);
+  if (host_cursor_rendered_by_client_ && cursor_visible_) {
+    // OnCursorVisibilityChanged(true) could have been called with
+    // `host_cursor_rendered_by_client_` being false, e.g., if the IT2ME
+    // helpee moves the cursor before the session is connected, so we call it
+    // again with the updated boolean, which updates MouseShapePump to send the
+    // cursor position to the client.
+    OnCursorVisibilityChanged(true);
+    // OnCursorVisibilityChanged(true) does not hide the host-rendered cursor if
+    // `host_cursor_rendered_by_client_` is true, so we need to call
+    // SetComposeEnabledOnVideoStreams(false) to explicitly hide it.
+    SetComposeEnabledOnVideoStreams(false);
   }
 
   data_channel_manager_.OnRegistrationComplete();
@@ -639,11 +661,19 @@ void ClientSession::CreateMediaStreams() {
 
   DCHECK(video_streams_.empty());
 
-  // Create an AudioStream to pump audio from the capturer to the client.
-  std::unique_ptr<protocol::AudioSource> audio_capturer =
-      desktop_environment_->CreateAudioCapturer();
-  if (audio_capturer) {
-    audio_stream_ = connection_->StartAudioStream(std::move(audio_capturer));
+  AudioPlaybackMode audio_playback_mode =
+      desktop_environment_options_.audio_playback_mode();
+  if (audio_playback_mode == AudioPlaybackMode::kRemoteAndLocal ||
+      audio_playback_mode == AudioPlaybackMode::kRemoteOnly) {
+    // Create an AudioStream to pump audio from the capturer to the client.
+    std::unique_ptr<AudioCapturer> audio_capturer =
+        desktop_environment_->CreateAudioCapturer();
+    if (audio_capturer) {
+#if BUILDFLAG(IS_CHROMEOS)
+      audio_capturer->SetAudioPlaybackMode(audio_playback_mode);
+#endif
+      audio_stream_ = connection_->StartAudioStream(std::move(audio_capturer));
+    }
   }
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -771,7 +801,7 @@ void ClientSession::OnConnectionChannelsConnected() {
   mouse_shape_pump_->SetMouseCursorMonitorCallback(this);
   mouse_shape_pump_->SetCursorCaptureInterval(base::Hertz(target_framerate_));
   mouse_shape_pump_->SetSendCursorPositionToClient(
-      send_cursor_position_to_client_);
+      host_cursor_rendered_by_client_ && cursor_visible_);
 
   // Create KeyboardLayoutMonitor to send keyboard layout.
   // Unretained is sound because callback will never be called after
@@ -898,7 +928,7 @@ void ClientSession::OnLocalPointerMoved(const webrtc::DesktopVector& position,
           "Disconnecting CRD session because local mouse input was detected.",
           FROM_HERE);
     } else {
-      desktop_and_cursor_composer_notifier_.OnLocalInput();
+      cursor_visibility_notifier_.OnLocalInput();
     }
   }
 }
@@ -925,32 +955,38 @@ ClientSessionControl* ClientSession::session_control() {
   return this;
 }
 
-void ClientSession::SetComposeEnabled(bool enabled) {
+void ClientSession::OnCursorVisibilityChanged(bool visible) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  for (const auto& [_, video_stream] : video_streams_) {
-    video_stream->SetComposeEnabled(enabled);
-  }
-  send_cursor_position_to_client_ = enabled;
-  if (mouse_shape_pump_) {
-    mouse_shape_pump_->SetSendCursorPositionToClient(
-        send_cursor_position_to_client_);
+  cursor_visible_ = visible;
+  if (host_cursor_rendered_by_client_) {
+    if (mouse_shape_pump_) {
+      mouse_shape_pump_->SetSendCursorPositionToClient(cursor_visible_);
+    }
+  } else {
+    SetComposeEnabledOnVideoStreams(visible);
   }
 }
 
-void ClientSession::OnMouseCursor(webrtc::MouseCursor* mouse_cursor) {
+void ClientSession::OnMouseCursor(
+    std::unique_ptr<webrtc::MouseCursor> mouse_cursor) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  // This method should take ownership of |mouse_cursor|.
-  std::unique_ptr<webrtc::MouseCursor> owned_cursor(mouse_cursor);
 
   for (const auto& [_, video_stream] : video_streams_) {
     video_stream->SetMouseCursor(
-        base::WrapUnique(webrtc::MouseCursor::CopyOf(*owned_cursor)));
+        base::WrapUnique(webrtc::MouseCursor::CopyOf(*mouse_cursor)));
   }
 }
 
 void ClientSession::OnMouseCursorPosition(
     const webrtc::DesktopVector& position) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (host_cursor_rendered_by_client_) {
+    // The following code is for updating the cursor position in
+    // DesktopAndCursorComposer. If the host cursor is rendered by the client,
+    // then we don't need to do that.
+    return;
+  }
+
   for (const auto& [_, video_stream] : video_streams_) {
     video_stream->SetMouseCursorPosition(position);
   }
@@ -1112,6 +1148,13 @@ void ClientSession::OnDesktopEnvironmentCreated(
     host_capabilities_.append(" ");
     host_capabilities_.append(protocol::kRemoteOpenUrlCapability);
   }
+
+#if !BUILDFLAG(IS_WIN)
+  // TODO: crbug.com/455622961 - Append capability for Windows once it is made
+  // to work.
+  host_capabilities_.append(" ");
+  host_capabilities_.append(protocol::kClientRenderedHostCursorCapability);
+#endif
 
   // Create the object that controls the screen resolution.
   screen_controls_ = desktop_environment_->CreateScreenControls();
@@ -1607,6 +1650,12 @@ void ClientSession::UpdateCoordinateConverterFallback() {
       desktop_display_info_.CalcDisplayOffset(selected_display_index_);
   coordinate_converter_.set_fallback_geometry(
       webrtc::DesktopRect::MakeOriginSize(offset, new_size));
+}
+
+void ClientSession::SetComposeEnabledOnVideoStreams(bool enabled) {
+  for (const auto& [_, video_stream] : video_streams_) {
+    video_stream->SetComposeEnabled(enabled);
+  }
 }
 
 }  // namespace remoting

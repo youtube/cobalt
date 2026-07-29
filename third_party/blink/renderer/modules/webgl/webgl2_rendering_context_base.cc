@@ -159,9 +159,9 @@ class PointableStringArray {
     DCHECK(strings.size() < std::numeric_limits<GLsizei>::max());
     for (wtf_size_t i = 0; i < strings.size(); ++i) {
       // Strings must never move once they are stored in data_...
-      data_[i] = strings[i].Ascii();
+      UNSAFE_TODO(data_[i]) = strings[i].Ascii();
       // ... so that the c_str() remains valid.
-      pointers_[i] = data_[i].c_str();
+      pointers_[i] = UNSAFE_TODO(data_[i]).c_str();
     }
   }
 
@@ -4802,14 +4802,15 @@ ScriptValue WebGL2RenderingContextBase::getParameter(ScriptState* script_state,
     case GL_SHADING_LANGUAGE_VERSION: {
       return WebGLAny(
           script_state,
-          "WebGL GLSL ES 3.00 (" +
-              String(ContextGL()->GetString(GL_SHADING_LANGUAGE_VERSION)) +
-              ")");
+          StrCat({"WebGL GLSL ES 3.00 (",
+                  String(ContextGL()->GetString(GL_SHADING_LANGUAGE_VERSION)),
+                  ")"}));
     }
     case GL_VERSION:
       return WebGLAny(
           script_state,
-          "WebGL 2.0 (" + String(ContextGL()->GetString(GL_VERSION)) + ")");
+          StrCat({"WebGL 2.0 (", String(ContextGL()->GetString(GL_VERSION)),
+                  ")"}));
 
     case GL_COPY_READ_BUFFER_BINDING:
       return WebGLAny(script_state, bound_copy_read_buffer_.Get());

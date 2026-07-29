@@ -99,13 +99,12 @@ class COMPONENT_EXPORT(OZONE_BASE) SurfaceFactoryOzone {
       bool use_swiftshader,
       bool allow_protected_memory);
 
-  // Creates a scanout NativePixmap that can be rendered using Vulkan.
+  // Creates a BGRA_8888 scanout NativePixmap that can be rendered using Vulkan.
   // TODO(spang): Remove this once VK_EXT_image_drm_format_modifier is
   // available.
   virtual scoped_refptr<gfx::NativePixmap> CreateNativePixmapForVulkan(
       gfx::AcceleratedWidget widget,
       gfx::Size size,
-      gfx::BufferFormat format,
       gfx::BufferUsage usage,
       VkDevice vk_device,
       VkDeviceMemory* vk_device_memory,
@@ -148,7 +147,7 @@ class COMPONENT_EXPORT(OZONE_BASE) SurfaceFactoryOzone {
       gfx::AcceleratedWidget widget,
       gpu::VulkanDeviceQueue* device_queue,
       gfx::Size size,
-      gfx::BufferFormat format,
+      viz::SharedImageFormat format,
       gfx::BufferUsage usage,
       std::optional<gfx::Size> framebuffer_size = std::nullopt);
 
@@ -171,7 +170,7 @@ class COMPONENT_EXPORT(OZONE_BASE) SurfaceFactoryOzone {
   virtual scoped_refptr<gfx::NativePixmap>
   CreateNativePixmapForProtectedBufferHandle(gfx::AcceleratedWidget widget,
                                              gfx::Size size,
-                                             gfx::BufferFormat format,
+                                             viz::SharedImageFormat format,
                                              gfx::NativePixmapHandle handle);
 
   // This callback can be used by implementations of this interface to query
@@ -216,8 +215,8 @@ class COMPONENT_EXPORT(OZONE_BASE) SurfaceFactoryOzone {
   GetSupportedFormatsForGLNativePixmapImport();
 
   // This returns a preferred format for solid color image on Wayland.
-  virtual std::optional<gfx::BufferFormat> GetPreferredFormatForSolidColor()
-      const;
+  virtual std::optional<viz::SharedImageFormat>
+  GetPreferredFormatForSolidColor() const;
 
  protected:
   SurfaceFactoryOzone();

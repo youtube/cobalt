@@ -21,10 +21,13 @@
 #include "components/exo/notification_surface.h"
 #include "components/exo/surface.h"
 #include "third_party/skia/include/core/SkColor.h"
+#include "third_party/skia/include/core/SkPath.h"
+#include "third_party/skia/include/core/SkRRect.h"
 #include "ui/accessibility/ax_enums.mojom.h"
 #include "ui/accessibility/ax_node_data.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/chromeos/styles/cros_tokens_color_mappings.h"
 #include "ui/color/color_id.h"
 #include "ui/color/color_provider.h"
 #include "ui/compositor/layer.h"
@@ -212,7 +215,8 @@ class ArcNotificationContentView::EventForwarder : public ui::EventHandler {
     // pass tab key event to focus manager of content view.
     // TODO(yawano): include elements inside Android notification in tab focus
     // traversal rather than skipping them.
-    if (owner_->surface_->GetAXTreeId() != ui::AXTreeIDUnknown() &&
+    if (owner_->surface_ &&
+        owner_->surface_->GetAXTreeId() != ui::AXTreeIDUnknown() &&
         event->IsKeyEvent()) {
       ui::KeyEvent* key_event = event->AsKeyEvent();
       if (key_event->key_code() == ui::VKEY_TAB &&
@@ -289,6 +293,8 @@ ArcNotificationContentView::ArcNotificationContentView(
       message_view_(message_view),
       control_buttons_view_(message_view) {
   DCHECK(message_view);
+
+  control_buttons_view_.SetButtonIconColors(cros_tokens::kIconColorPrimary);
   control_buttons_view_.SetNotificationControlButtonFactory(
       std::make_unique<AshNotificationControlButtonFactory>());
 
@@ -742,17 +748,18 @@ void ArcNotificationContentView::Layout(PassKey) {
 void ArcNotificationContentView::OnPaint(gfx::Canvas* canvas) {
   views::NativeViewHost::OnPaint(canvas);
 
-  SkScalar radii[8] = {contents_radii_.upper_left(),
-                       contents_radii_.upper_left(),  // top-left
-                       contents_radii_.upper_right(),
-                       contents_radii_.upper_right(),  // top-right
-                       contents_radii_.lower_right(),
-                       contents_radii_.lower_right(),  // bottom-right
-                       contents_radii_.lower_left(),
-                       contents_radii_.lower_left()};  // bottom-left
-  SkPath path;
-  path.addRoundRect(gfx::RectToSkRect(GetLocalBounds()), radii,
-                    SkPathDirection::kCCW);
+  const SkVector radii[4] = {
+      // top-left
+      {contents_radii_.upper_left(), contents_radii_.upper_left()},
+      // top-right
+      {contents_radii_.upper_right(), contents_radii_.upper_right()},
+      // bottom-right
+      {contents_radii_.lower_right(), contents_radii_.lower_right()},
+      // bottom-left
+      {contents_radii_.lower_left(), contents_radii_.lower_left()}};
+  const SkPath path = SkPath::RRect(
+      SkRRect::MakeRectRadii(gfx::RectToSkRect(GetLocalBounds()), radii),
+      SkPathDirection::kCCW);
   canvas->ClipPath(path, false);
 
   if (!surface_ && item_ && !item_->GetSnapshot().isNull()) {
@@ -803,15 +810,6 @@ void ArcNotificationContentView::OnBlur() {
 
   NativeViewHost::OnBlur();
   notification_view->OnContentBlurred();
-}
-
-void ArcNotificationContentView::OnThemeChanged() {
-  View::OnThemeChanged();
-
-  // Adjust control button color.
-  control_buttons_view_.SetButtonIconColors(
-      AshColorProvider::Get()->GetContentLayerColor(
-          AshColorProvider::ContentLayerType::kIconColorPrimary));
 }
 
 void ArcNotificationContentView::OnRemoteInputActivationChanged(

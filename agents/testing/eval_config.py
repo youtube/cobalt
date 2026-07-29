@@ -24,6 +24,7 @@ class TestConfig:
     runs_per_test: int = 1
     pass_k_threshold: int = 1
     precompile_targets: list = dataclasses.field(default_factory=list)
+    tags: list[str] = dataclasses.field(default_factory=list)
 
     def __lt__(self, other: 'TestConfig') -> bool:
         return self.test_file < other.test_file
@@ -41,6 +42,14 @@ class TestConfig:
         if self.runs_per_test < self.pass_k_threshold:
             raise ValueError(f'runs_per_test in {self.test_file} must be >= '
                              'pass_k_threshold.')
+        if not isinstance(self.tags, list) or not all(
+                isinstance(t, str) for t in self.tags):
+            raise ValueError(
+                f'tags in {self.test_file} must be a list of strings.')
+
+    @property
+    def src_relative_test_file(self) -> pathlib.Path:
+        return self.test_file.relative_to(constants.CHROMIUM_SRC)
 
     @classmethod
     def from_file(cls, test_file: pathlib.Path) -> Self:
@@ -67,6 +76,7 @@ class TestConfig:
         runs_per_test = 1
         pass_k_threshold = 1
         precompile_targets = []
+        tags = []
         if len(config['tests']) > 1:
             logging.warning(
                 'Test settings can only be specified on the first test in a '
@@ -78,15 +88,17 @@ class TestConfig:
             runs_per_test = metadata.get('runs_per_test', 1)
             pass_k_threshold = metadata.get('pass_k_threshold', runs_per_test)
             precompile_targets = metadata.get('precompile_targets', [])
+            tags = metadata.get('tags', [])
 
         instance = cls(test_file=test_file,
                        runs_per_test=runs_per_test,
                        pass_k_threshold=pass_k_threshold,
-                       precompile_targets=precompile_targets)
+                       precompile_targets=precompile_targets,
+                       tags=tags)
         instance.validate()
         return instance
 
     def matches_filter(self, filters: list[str]) -> bool:
         """Checks if the test file path matches any of the given filters."""
-        relative_path = self.test_file.relative_to(constants.CHROMIUM_SRC)
+        relative_path = self.src_relative_test_file
         return any(fnmatch.fnmatch(str(relative_path), f) for f in filters)

@@ -56,7 +56,15 @@ constexpr ui::ColorId kHighlightColorId = ui::kColorSysPrimary;
 constexpr ui::ColorId kTextOnHighlight = ui::kColorSysOnPrimary;
 constexpr ui::ColorId kTextDisabledOnHighlight = kTextOnHighlight;
 constexpr ui::ColorId kTextDisabled = ui::kColorLabelForegroundDisabled;
-constexpr ui::ColorId kDefaultTextColorV2 = ui::kColorSysOnSurface;
+
+constexpr ui::ColorId kForeground = kColorNewTabButtonForegroundFrameActive;
+constexpr ui::ColorId kForegroundOnAltBackground = ui::kColorSysOnSurface;
+
+// TODO(crbug.com/453739403): Update with final color IDs.
+constexpr ui::ColorId kBackgroundWhenGlicOpenActive =
+    ui::kColorSysStateHeaderHover;
+constexpr ui::ColorId kBackgroundWhenGlicOpenInactive =
+    ui::kColorSysStateDisabledContainer;
 
 constexpr int kIconSize = 16;
 
@@ -96,8 +104,9 @@ ui::ImageModel GetNormalIcon() {
         *ui::ResourceBundle::GetSharedInstance().GetImageSkiaNamed(
             IDR_GLIC_BUTTON_ALT_ICON));
   }
-  return ui::ImageModel::FromVectorIcon(GlicVectorIcon(),
-                                        ui::kColorSysOnSurface, kIconSize);
+  return ui::ImageModel::FromVectorIcon(
+      GlicVectorIcon(),
+      ShouldUseAltIcon() ? kForegroundOnAltBackground : kForeground, kIconSize);
 }
 
 ui::ImageModel GetIconForHighlight() {
@@ -234,6 +243,11 @@ void GlicButton::RestoreDefaultLabel() {
   // Store the new label text until the right moment in the animation to update
   // the view.
   pending_text_ = GetLabelText();
+}
+
+void GlicButton::SetGlicPanelIsOpen(bool open) {
+  glic_panel_is_open_ = open;
+  UpdateTextAndBackgroundColors();
 }
 
 void GlicButton::SetGlicDetached(bool detached) {
@@ -452,9 +466,7 @@ void GlicButton::AnnounceNudgeShown() {
 }
 
 void GlicButton::SetDefaultColors() {
-  SetForegroundFrameActiveColorId(
-      EntrypointVariationsEnabled() ? kDefaultTextColorV2
-                                    : kColorNewTabButtonForegroundFrameActive);
+  SetForegroundFrameActiveColorId(kColorNewTabButtonForegroundFrameActive);
   SetForegroundFrameInactiveColorId(kColorNewTabButtonForegroundFrameInactive);
   SetBackgroundFrameActiveColorId(kColorNewTabButtonCRBackgroundFrameActive);
   SetBackgroundFrameInactiveColorId(
@@ -476,13 +488,27 @@ void GlicButton::UpdateTextAndBackgroundColors() {
       SetForegroundFrameActiveColorId(kTextOnHighlight);
       SetTextColor(STATE_DISABLED, kTextDisabledOnHighlight);
     } else {
-      SetForegroundFrameActiveColorId(kDefaultTextColorV2);
+      SetForegroundFrameActiveColorId(kForegroundOnAltBackground);
       SetTextColor(STATE_DISABLED, kTextDisabled);
     }
   } else {
     SetBackgroundFrameActiveColorId(kColorNewTabButtonCRBackgroundFrameActive);
-    SetForegroundFrameActiveColorId(kDefaultTextColorV2);
+    SetForegroundFrameActiveColorId(kForeground);
     SetTextColor(STATE_DISABLED, kTextDisabled);
+  }
+
+  if (base::FeatureList::IsEnabled(features::kGlicButtonPressedState)) {
+    if (glic_panel_is_open_) {
+      SetBackgroundFrameActiveColorId(kBackgroundWhenGlicOpenActive);
+      SetBackgroundFrameInactiveColorId(kBackgroundWhenGlicOpenInactive);
+    } else {
+      // Active frame background color is set above depending on highlight and
+      // icon.
+      // TODO(crbug.com/453739403): When GlicButtonPressedState is cleaned up,
+      // consolidate the button background logic.
+      SetBackgroundFrameInactiveColorId(
+          kColorNewTabButtonCRBackgroundFrameInactive);
+    }
   }
 
   UpdateColors();

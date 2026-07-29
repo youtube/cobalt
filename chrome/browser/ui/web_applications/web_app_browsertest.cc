@@ -984,7 +984,7 @@ IN_PROC_BROWSER_TEST_F(WebAppBrowserTest, DesktopPWAsOpenLinksInNewTab) {
 
   NavigateParams param(app_browser, GURL("http://www.google.com/"),
                        ui::PAGE_TRANSITION_LINK);
-  param.window_action = NavigateParams::SHOW_WINDOW;
+  param.window_action = NavigateParams::WindowAction::kShowWindow;
   param.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
 
   ui_test_utils::NavigateToURL(&param);
@@ -1995,7 +1995,7 @@ IN_PROC_BROWSER_TEST_F(WebAppBrowserTest, ReparentLastBrowserTab) {
 
   BrowserWindowInterface* const app_browser =
       ReparentWebAppForActiveTab(browser());
-  ASSERT_EQ(app_browser->GetAppBrowserController()->app_id(), app_id);
+  ASSERT_EQ(AppBrowserController::From(app_browser)->app_id(), app_id);
 
   ASSERT_TRUE(IsBrowserOpen(browser()));
   EXPECT_EQ(browser()->tab_strip_model()->count(), 1);
@@ -2069,11 +2069,8 @@ IN_PROC_BROWSER_TEST_F(WebAppBrowserTest, ReparentDisplayBrowserApp) {
 
   BrowserWindowInterface* const app_browser =
       GetLastActiveBrowserWindowInterfaceWithAnyProfile();
-  ASSERT_EQ(app_browser->GetFeatures().app_browser_controller()->app_id(),
-            app_id);
-  EXPECT_TRUE(app_browser->GetFeatures()
-                  .app_browser_controller()
-                  ->HasMinimalUiButtons());
+  ASSERT_EQ(AppBrowserController::From(app_browser)->app_id(), app_id);
+  EXPECT_TRUE(AppBrowserController::From(app_browser)->HasMinimalUiButtons());
 
   auto* provider = WebAppProvider::GetForTest(profile());
   EXPECT_EQ(provider->registrar_unsafe().GetAppUserDisplayMode(app_id),
@@ -2322,15 +2319,15 @@ IN_PROC_BROWSER_TEST_F(WebAppBrowserTest, PopupLocationBar) {
   popup_browser->window()->Show();
   ui_test_utils::WaitUntilBrowserBecomeActive(popup_browser);
 
-  EXPECT_TRUE(
-      popup_browser->CanSupportWindowFeature(Browser::FEATURE_LOCATIONBAR));
-  EXPECT_TRUE(
-      popup_browser->SupportsWindowFeature(Browser::FEATURE_LOCATIONBAR));
+  EXPECT_TRUE(popup_browser->CanSupportWindowFeature(
+      Browser::WindowFeature::kFeatureLocationBar));
+  EXPECT_TRUE(popup_browser->SupportsWindowFeature(
+      Browser::WindowFeature::kFeatureLocationBar));
 
   ui_test_utils::ToggleFullscreenModeAndWait(popup_browser);
 
-  EXPECT_TRUE(
-      popup_browser->CanSupportWindowFeature(Browser::FEATURE_LOCATIONBAR));
+  EXPECT_TRUE(popup_browser->CanSupportWindowFeature(
+      Browser::WindowFeature::kFeatureLocationBar));
 }
 
 // Make sure chrome://web-app-internals page loads fine.

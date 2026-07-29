@@ -9,13 +9,18 @@
 #include <string_view>
 #include <utility>
 
+#include "base/feature_list.h"
+#include "base/features.h"
 #include "base/functional/bind.h"
 #include "base/i18n/rtl.h"
 #include "base/location.h"
 #include "base/memory/raw_ptr.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/task/bind_post_task.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/task/task_traits.h"
+#include "base/task/thread_pool.h"
 #include "base/timer/timer.h"
 #include "base/types/cxx23_to_underlying.h"
 #include "build/build_config.h"
@@ -205,6 +210,13 @@ class StatusBubbleViews::StatusView : public views::View {
   void StartHiding();
   void StartShowing();
 
+  // Manage the timer used to delay destruction of the popup widget. This is
+  // meant to balance the performance tradeoffs of rapid creation/destruction
+  // and the memory savings of closing the widget when it's hidden and unused.
+  void StartDestroyTimer();
+  void OnDestroyTimer();
+  void CancelDestroyTimer();
+
   // Set the text label's colors according to the theme.
   void SetTextLabelColors(views::Label* label);
 
@@ -222,14 +234,11 @@ class StatusBubbleViews::StatusView : public views::View {
   // The currently-displayed text.
   raw_ptr<views::Label> text_;
 
-  // A timer used to delay destruction of the popup widget. This is meant to
-  // balance the performance tradeoffs of rapid creation/destruction and the
-  // memory savings of closing the widget when it's hidden and unused.
-  base::OneShotTimer destroy_popup_timer_;
-
   base::CallbackListSubscription paint_as_active_subscription_;
 
   base::WeakPtrFactory<StatusBubbleViews::StatusView> timer_factory_{this};
+  base::WeakPtrFactory<StatusBubbleViews::StatusView> destroy_timer_factory_{
+      this};
 };
 using StatusView = StatusBubbleViews::StatusView;
 
@@ -300,7 +309,7 @@ void StatusView::ShowInstantly() {
   SetOpacity(1.0);
   state_ = BubbleState::kShown;
   GetWidget()->ShowInactive();
-  destroy_popup_timer_.Stop();
+  CancelDestroyTimer();
 }
 
 void StatusView::HideInstantly() {
@@ -313,13 +322,7 @@ void StatusView::HideInstantly() {
   // it to be detached/reattached, which may trigger a space switch. Instead,
   // just leave the window fully transparent and unclickable.
   GetWidget()->Hide();
-  destroy_popup_timer_.Stop();
-  // This isn't done in the constructor as tests may change the task runner
-  // after the fact.
-  destroy_popup_timer_.SetTaskRunner(status_bubble_->task_runner_.get());
-  destroy_popup_timer_.Start(FROM_HERE, kDestroyPopupDelay,
-                             status_bubble_.get(),
-                             &StatusBubbleViews::DestroyPopup);
+  StartDestroyTimer();
 }
 
 void StatusView::ResetTimer() {
@@ -343,7 +346,7 @@ void StatusView::OnAnimationEnded() {
 }
 
 bool StatusView::IsDestroyPopupTimerRunning() const {
-  return destroy_popup_timer_.IsRunning();
+  return destroy_timer_factory_.HasWeakPtrs();
 }
 
 void StatusView::OnThemeChanged() {
@@ -407,7 +410,7 @@ void StatusView::StartHiding() {
 }
 
 void StatusView::StartShowing() {
-  destroy_popup_timer_.Stop();
+  CancelDestroyTimer();
 
   if (state_ == BubbleState::kHidden) {
     GetWidget()->ShowInactive();
@@ -429,6 +432,39 @@ void StatusView::StartShowing() {
     // We hadn't yet begun showing anything when we received a new request
     // for something to show, so we start from scratch.
     ResetTimer();
+  }
+}
+
+void StatusView::StartDestroyTimer() {
+  CancelDestroyTimer();
+
+  if (base::FeatureList::IsEnabled(base::features::kReducePPMs)) {
+    // The widget resources can be destroyed on a best-effort basis, but must be
+    // sequenced with the UI code. So schedule the time of destruction with a
+    // best-effort task, and post an immediate task to the correct sequence at
+    // that time.
+    status_bubble_->best_effort_task_runner_->PostDelayedTask(
+        FROM_HERE,
+        base::BindPostTask(status_bubble_->task_runner_,
+                           base::BindOnce(&StatusView::OnDestroyTimer,
+                                          destroy_timer_factory_.GetWeakPtr())),
+        kDestroyPopupDelay);
+  } else {
+    status_bubble_->task_runner_->PostDelayedTask(
+        FROM_HERE,
+        base::BindOnce(&StatusView::OnDestroyTimer,
+                       destroy_timer_factory_.GetWeakPtr()),
+        kDestroyPopupDelay);
+  }
+}
+
+void StatusView::OnDestroyTimer() {
+  status_bubble_->DestroyPopup();
+}
+
+void StatusView::CancelDestroyTimer() {
+  if (destroy_timer_factory_.HasWeakPtrs()) {
+    destroy_timer_factory_.InvalidateWeakPtrs();
   }
 }
 
@@ -699,7 +735,9 @@ const int StatusBubbleViews::kShadowThickness = 1;
 
 StatusBubbleViews::StatusBubbleViews(views::View* base_view)
     : base_view_(base_view),
-      task_runner_(base::SingleThreadTaskRunner::GetCurrentDefault().get()) {}
+      task_runner_(base::SingleThreadTaskRunner::GetCurrentDefault()),
+      best_effort_task_runner_(base::ThreadPool::CreateSequencedTaskRunner(
+          {base::TaskPriority::BEST_EFFORT})) {}
 
 StatusBubbleViews::~StatusBubbleViews() {
   DestroyPopup();

@@ -4,15 +4,29 @@
 
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
 
+#include <memory>
+#include <optional>
+#include <string>
+#include <utility>
+
+#include "base/containers/flat_map.h"
+#include "base/functional/bind.h"
+#include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
+#include "base/test/test_timeouts.h"
+#include "base/time/time.h"
+#include "base/timer/elapsed_timer.h"
 #include "components/network_session_configurator/common/network_switches.h"
 #include "components/optimization_guide/content/browser/mock_media_transcript_provider.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "components/ukm/test_ukm_recorder.h"
 #include "content/public/browser/media_session.h"
+#include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/test/browser_test.h"
@@ -23,12 +37,21 @@
 #include "content/public/test/media_start_stop_observer.h"
 #include "content/shell/browser/shell.h"
 #include "content/shell/common/shell_switches.h"
+#include "mojo/public/cpp/bindings/callback_helpers.h"
+#include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/request_handler_util.h"
 #include "services/media_session/public/cpp/test/mock_media_session.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
+#include "services/service_manager/public/cpp/interface_provider.h"
+#include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/features_generated.h"
+#include "third_party/blink/public/mojom/content_extraction/ai_page_content.mojom-test-utils.h"
+#include "third_party/blink/public/mojom/content_extraction/ai_page_content.mojom.h"
 #include "ui/display/display_switches.h"
+#include "url/gurl.h"
+#include "url/origin.h"
 
 namespace optimization_guide {
 
@@ -119,6 +142,23 @@ ContentRootNodeForFrameActionableMode(
   return body;
 }
 
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_FUCHSIA)
+// Helper function to generate a click on the given RenderWidgetHost. The
+// mouse event is forwarded directly to the RenderWidgetHost without any
+// hit-testing.
+void SimulateMouseClickAt(content::RenderWidgetHost* rwh, gfx::PointF point) {
+  blink::WebMouseEvent mouse_event(
+      blink::WebInputEvent::Type::kMouseDown,
+      blink::WebInputEvent::kNoModifiers,
+      blink::WebInputEvent::GetStaticTimeStampForTests());
+  mouse_event.button = blink::WebPointerProperties::Button::kLeft;
+  mouse_event.SetPositionInWidget(point.x(), point.y());
+  rwh->ForwardMouseEvent(mouse_event);
+}
+
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_MAC) &&
+        // !BUILDFLAG(IS_FUCHSIA)
+
 class PageContentProtoProviderBrowserTest : public content::ContentBrowserTest {
  public:
   PageContentProtoProviderBrowserTest() = default;
@@ -171,15 +211,22 @@ class PageContentProtoProviderBrowserTest : public content::ContentBrowserTest {
     return document_identifiers_;
   }
 
-  void LoadData(blink::mojom::AIPageContentOptionsPtr request =
-                    GetAIPageContentOptions()) {
+  // If `quit_closure` is null, will block until the load is complete.
+  void LoadData(
+      blink::mojom::AIPageContentOptionsPtr request = GetAIPageContentOptions(),
+      base::OnceClosure quit_closure = base::OnceClosure()) {
+    bool should_wait_for_page_content = quit_closure.is_null();
     base::RunLoop run_loop;
     GetAIPageContent(
         web_contents(), std::move(request),
-        base::BindOnce(&PageContentProtoProviderBrowserTest::SetPageContent,
-                       base::Unretained(this), run_loop.QuitClosure()));
-    run_loop.Run();
-    CHECK(page_content_);
+        base::BindOnce(
+            &PageContentProtoProviderBrowserTest::SetPageContent,
+            base::Unretained(this),
+            quit_closure ? std::move(quit_closure) : run_loop.QuitClosure()));
+    if (should_wait_for_page_content) {
+      run_loop.Run();
+      CHECK(page_content_);
+    }
   }
 
   void LoadPage(GURL url,
@@ -211,6 +258,21 @@ class PageContentProtoProviderBrowserTest : public content::ContentBrowserTest {
 
   const optimization_guide::proto::ContentNode& ActionableContentRootNode() {
     return ContentRootNodeForFrameActionableMode(page_content().root_node());
+  }
+
+  // TODO: b/450618828 - Consider replacing this with an explicit hook to know
+  // when a popup is opened.
+  void WaitForPopup() {
+    while (true) {
+      LoadData();
+      if (page_content().has_popup_window()) {
+        break;
+      }
+      base::RunLoop run_loop;
+      base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
+          FROM_HERE, run_loop.QuitClosure(), TestTimeouts::tiny_timeout());
+      run_loop.Run();
+    }
   }
 
  private:
@@ -871,6 +933,12 @@ class PageContentProtoProviderBrowserTestMultiProcess
     : public PageContentProtoProviderBrowserTest,
       public ::testing::WithParamInterface<bool> {
  public:
+  PageContentProtoProviderBrowserTestMultiProcess() {
+    feature_list_.InitAndEnableFeature(
+        blink::features::kAIPageContentIncludePopupWindows);
+  }
+  ~PageContentProtoProviderBrowserTestMultiProcess() override = default;
+
   bool EnableProcessIsolation() const { return GetParam(); }
 
   void SetUpCommandLine(base::CommandLine* command_line) override {
@@ -889,6 +957,9 @@ class PageContentProtoProviderBrowserTestMultiProcess
 
  protected:
   content::test::FencedFrameTestHelper fenced_frame_helper_;
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
 };
 
 // TODO(crbug.com/438250758): Test is flaky.
@@ -1166,9 +1237,80 @@ IN_PROC_BROWSER_TEST_P(PageContentProtoProviderBrowserTestMultiProcess,
   EXPECT_EQ(0u, entries.size());
 }
 
+// Popups may be rendered as native OS-level widgets on Android and MacOS.
+//
+// TODO: b/450618828 - Enable on Fuchsia with proper geometry comparison.
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_FUCHSIA)
+IN_PROC_BROWSER_TEST_P(PageContentProtoProviderBrowserTestMultiProcess,
+                       SelectInCrossOriginIframe) {
+  LoadPage(https_server()->GetURL(
+      "a.com", "/open_popup_iframe.html?domain=/cross-site/b.com/"));
+
+  content::RenderFrameHost* iframe =
+      content::ChildFrameAt(web_contents()->GetPrimaryMainFrame(), 0);
+
+  // showPicker() is not allowed from cross-origin iframe for security reasons,
+  // therefore simulating a user click.
+  SimulateMouseClickAt(
+      iframe->GetRenderWidgetHost(),
+      GetCenterCoordinatesOfElementWithId(iframe, "select_input"));
+
+  WaitForPopup();
+
+  LoadData(GetActionableAIPageContentOptions());
+
+  const auto& popup_window = page_content().popup_window();
+
+  const auto& iframe_node = ActionableContentRootNode().children_nodes()[0];
+  EXPECT_EQ(popup_window.opener_document_id().serialized_token(),
+            iframe_node.content_attributes()
+                .iframe_data()
+                .frame_data()
+                .document_identifier()
+                .serialized_token());
+
+  EXPECT_EQ(iframe_node.children_nodes().size(), 1);
+  const auto& iframe_node_root =
+      ContentRootNodeForFrameActionableMode(iframe_node.children_nodes()[0]);
+  const auto& select_node = iframe_node_root.children_nodes()[0];
+  EXPECT_EQ(select_node.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_FORM_CONTROL);
+  EXPECT_EQ(popup_window.opener_common_ancestor_dom_node_id(),
+            select_node.content_attributes().common_ancestor_dom_node_id());
+
+  const auto& popup_root = ContentRootNodeForFrameActionableMode(
+      popup_window.root_node().children_nodes()[0]);
+  const auto& select_node_in_popup = popup_root.children_nodes()[0];
+  EXPECT_EQ(select_node_in_popup.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_FORM_CONTROL);
+
+  const auto& select_node_geometry =
+      select_node.content_attributes().geometry();
+  const auto& select_node_in_popup_geometry =
+      select_node_in_popup.content_attributes().geometry();
+  // The y value is the bottom edge of the form element. The height of the form
+  // element is 10px.
+  EXPECT_EQ(select_node_in_popup_geometry.outer_bounding_box().x(),
+            select_node_geometry.outer_bounding_box().x());
+  EXPECT_EQ(select_node_in_popup_geometry.outer_bounding_box().y(),
+            select_node_geometry.outer_bounding_box().y() + 10);
+  EXPECT_EQ(select_node_in_popup_geometry.visible_bounding_box().x(),
+            select_node_geometry.visible_bounding_box().x());
+  EXPECT_EQ(select_node_in_popup_geometry.visible_bounding_box().y(),
+            select_node_geometry.visible_bounding_box().y() + 10);
+}
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_MAC) &&
+        // !BUILDFLAG(IS_FUCHSIA)
+
 class ScaledPageContentProtoProviderBrowserTest
     : public PageContentProtoProviderBrowserTest {
  public:
+  ScaledPageContentProtoProviderBrowserTest() {
+    feature_list_.InitAndEnableFeature(
+        blink::features::kAIPageContentIncludePopupWindows);
+  }
+  ~ScaledPageContentProtoProviderBrowserTest() override = default;
+
   void SetUpCommandLine(base::CommandLine* command_line) override {
     content::ContentBrowserTest::SetUpCommandLine(command_line);
 
@@ -1178,6 +1320,9 @@ class ScaledPageContentProtoProviderBrowserTest
 
     command_line->AppendSwitchASCII(switches::kForceDeviceScaleFactor, "2.0");
   }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
 };
 
 IN_PROC_BROWSER_TEST_F(ScaledPageContentProtoProviderBrowserTest, ScaleSizes) {
@@ -1198,6 +1343,49 @@ IN_PROC_BROWSER_TEST_F(ScaledPageContentProtoProviderBrowserTest, ScaleSizes) {
   EXPECT_EQ(page_content().viewport_geometry().height(),
             window_bounds.height());
 }
+
+// Popups may be rendered as native OS-level widgets on Android and MacOS.
+//
+// TODO: b/450618828 - Enable on Fuchsia with proper geometry comparison.
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_FUCHSIA)
+IN_PROC_BROWSER_TEST_F(ScaledPageContentProtoProviderBrowserTest,
+                       SelectInMainFrame) {
+  LoadPage(https_server()->GetURL("/open_popup.html"));
+
+  ASSERT_TRUE(content::ExecJs(
+      web_contents(), "document.getElementById('select_input').showPicker();"));
+
+  WaitForPopup();
+
+  LoadData(GetActionableAIPageContentOptions());
+
+  const auto& select_node = ActionableContentRootNode().children_nodes()[0];
+  EXPECT_EQ(select_node.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_FORM_CONTROL);
+
+  const auto& popup_root = ContentRootNodeForFrameActionableMode(
+      page_content().popup_window().root_node().children_nodes()[0]);
+  const auto& select_node_in_popup = popup_root.children_nodes()[0];
+  EXPECT_EQ(select_node_in_popup.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_FORM_CONTROL);
+
+  const auto& select_node_geometry =
+      select_node.content_attributes().geometry();
+  const auto& select_node_in_popup_geometry =
+      select_node_in_popup.content_attributes().geometry();
+  // The y value is the bottom edge of the form element. The height of the form
+  // element is 10px.
+  EXPECT_EQ(select_node_in_popup_geometry.outer_bounding_box().x(),
+            select_node_geometry.outer_bounding_box().x());
+  EXPECT_EQ(select_node_in_popup_geometry.outer_bounding_box().y(),
+            select_node_geometry.outer_bounding_box().y() + 10 * 2);
+  EXPECT_EQ(select_node_in_popup_geometry.visible_bounding_box().x(),
+            select_node_geometry.visible_bounding_box().x());
+  EXPECT_EQ(select_node_in_popup_geometry.visible_bounding_box().y(),
+            select_node_geometry.visible_bounding_box().y() + 10 * 2);
+}
+#endif  //  !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_MAC) &&
+        //  !BUILDFLAG(IS_FUCHSIA)
 
 bool ContainsRole(const optimization_guide::proto::ContentNode& node,
                   optimization_guide::proto::AnnotatedRole role) {
@@ -1487,6 +1675,12 @@ IN_PROC_BROWSER_TEST_F(PageContentProtoProviderBrowserTest,
   EXPECT_EQ(form_node.content_attributes().attribute_type(),
             optimization_guide::proto::CONTENT_ATTRIBUTE_FORM);
 
+  ASSERT_TRUE(form_node.content_attributes().has_form_data());
+  const auto& form_data = form_node.content_attributes().form_data();
+  // The fixture sets the form action to an absolute-path relative URL, which
+  // should resolve against the document URL.
+  EXPECT_EQ(form_data.action_url(), https_server()->GetURL("/initial").spec());
+
   ASSERT_EQ(form_node.children_nodes().size(), 3);
 
   // Text input should have no redaction necessary
@@ -1524,12 +1718,17 @@ IN_PROC_BROWSER_TEST_F(PageContentProtoProviderBrowserTest,
   // redacted
   ASSERT_TRUE(content::ExecJs(
       web_contents(),
+      "const form = document.querySelector('form');"
+      "form.action = 'https://example.com/submit';"
       "document.getElementById('filled-password').type = 'text';"));
   LoadData();
 
-  // Re-examine the form after the type change
+  // Re-examine the form after updating both the action and field type.
   const auto& form_node_after = page_content().root_node().children_nodes()[0];
   ASSERT_EQ(form_node_after.children_nodes().size(), 3);
+  ASSERT_TRUE(form_node_after.content_attributes().has_form_data());
+  EXPECT_EQ(form_node_after.content_attributes().form_data().action_url(),
+            "https://example.com/submit");
   const auto& changed_field = form_node_after.children_nodes()[2];
   EXPECT_EQ(changed_field.content_attributes().attribute_type(),
             optimization_guide::proto::CONTENT_ATTRIBUTE_FORM_CONTROL);
@@ -1540,6 +1739,196 @@ IN_PROC_BROWSER_TEST_F(PageContentProtoProviderBrowserTest,
           .form_control_data()
           .redaction_decision(),
       optimization_guide::proto::REDACTION_DECISION_REDACTED_HAS_BEEN_PASSWORD);
+
+  // Finally, swap to a relative action path to confirm it resolves against the
+  // document URL rather than remaining relative.
+  ASSERT_TRUE(content::ExecJs(
+      web_contents(),
+      "document.querySelector('form').action = 'relative/next';"));
+  LoadData();
+
+  const auto& form_node_relative =
+      page_content().root_node().children_nodes()[0];
+  ASSERT_TRUE(form_node_relative.content_attributes().has_form_data());
+  EXPECT_EQ(form_node_relative.content_attributes().form_data().action_url(),
+            https_server()->GetURL("/relative/next").spec());
+}
+
+IN_PROC_BROWSER_TEST_F(PageContentProtoProviderBrowserTest,
+                       FragmentVisibleBoundingBoxes) {
+  LoadPage(https_server()->GetURL("/fragment_boxes.html"),
+           GetActionableAIPageContentOptions());
+
+  // Contents of fragment_boxes.html:
+  // <!DOCTYPE html>
+  // <body style = "font: 10px/10px monospace">
+  //   <!--
+  //   The really super [quick
+  //   brown fox] jumps over the
+  //   lazy dog.
+  //   -->
+  //.  <section style = "width: 25ch;">
+  //     The really super <a href = "#">quick brown fox</a>
+  //     jumps over the lazy dog.
+  //   </section>
+  // <body>
+
+  EXPECT_EQ(page_content().version(),
+            optimization_guide::proto::
+                ANNOTATED_PAGE_CONTENT_VERSION_ONLY_ACTIONABLE_ELEMENTS_1_0);
+
+  EXPECT_EQ(ActionableContentRootNode().children_nodes().size(), 1);
+  const auto& section = ActionableContentRootNode().children_nodes()[0];
+  EXPECT_EQ(section.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_CONTAINER);
+  EXPECT_EQ(section.children_nodes().size(), 3);
+
+  const auto& before_text = section.children_nodes()[0];
+  const auto& link = section.children_nodes()[1];
+  EXPECT_EQ(link.children_nodes().size(), 1);
+  const auto& link_text = link.children_nodes()[0];
+  const auto& after_text = section.children_nodes()[2];
+
+  EXPECT_EQ(before_text.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_TEXT);
+  EXPECT_EQ(link.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_ANCHOR);
+  EXPECT_EQ(after_text.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_TEXT);
+
+  // Nodes with 0 fragment_visible_bounding_boxes: before_text.
+  // Nodes with 2 fragment_visible_bounding_boxes: link, link_text and
+  // after_text.
+  // For the nodes that have them, the following is true:
+  // 1. The fragment boxes fit inside the visible_bounding_box
+  // 2. The second fragment box is below the first box.
+
+  ASSERT_EQ(before_text.content_attributes()
+                .geometry()
+                .fragment_visible_bounding_boxes()
+                .size(),
+            0);
+
+  ASSERT_EQ(link.content_attributes()
+                .geometry()
+                .fragment_visible_bounding_boxes()
+                .size(),
+            2);
+  // The top of the link's first fragment == top of its visible box.
+  ASSERT_EQ(link.content_attributes().geometry().visible_bounding_box().y(),
+            link.content_attributes()
+                .geometry()
+                .fragment_visible_bounding_boxes(0)
+                .y());
+  // The left of the link's first fragment > left of its visible box.
+  ASSERT_LT(link.content_attributes().geometry().visible_bounding_box().x(),
+            link.content_attributes()
+                .geometry()
+                .fragment_visible_bounding_boxes(0)
+                .x());
+  // The left of the second fragment == the the left of its visible box.
+  ASSERT_EQ(link.content_attributes().geometry().visible_bounding_box().x(),
+            link.content_attributes()
+                .geometry()
+                .fragment_visible_bounding_boxes(1)
+                .x());
+  // The second fragment box starts below the first.
+  ASSERT_LT(link.content_attributes()
+                .geometry()
+                .fragment_visible_bounding_boxes(0)
+                .y(),
+            link.content_attributes()
+                .geometry()
+                .fragment_visible_bounding_boxes(1)
+                .y());
+
+  ASSERT_EQ(link_text.content_attributes()
+                .geometry()
+                .fragment_visible_bounding_boxes()
+                .size(),
+            2);
+
+  // The link and link text have the same fragment bounding boxes.
+  ASSERT_EQ(link.content_attributes()
+                .geometry()
+                .fragment_visible_bounding_boxes(0)
+                .x(),
+            link_text.content_attributes()
+                .geometry()
+                .fragment_visible_bounding_boxes(0)
+                .x());
+  ASSERT_EQ(link.content_attributes()
+                .geometry()
+                .fragment_visible_bounding_boxes(0)
+                .y(),
+            link_text.content_attributes()
+                .geometry()
+                .fragment_visible_bounding_boxes(0)
+                .y());
+  ASSERT_EQ(link.content_attributes()
+                .geometry()
+                .fragment_visible_bounding_boxes(0)
+                .width(),
+            link_text.content_attributes()
+                .geometry()
+                .fragment_visible_bounding_boxes(0)
+                .width());
+  ASSERT_EQ(link.content_attributes()
+                .geometry()
+                .fragment_visible_bounding_boxes(0)
+                .height(),
+            link_text.content_attributes()
+                .geometry()
+                .fragment_visible_bounding_boxes(0)
+                .height());
+  ASSERT_EQ(link.content_attributes()
+                .geometry()
+                .fragment_visible_bounding_boxes(1)
+                .x(),
+            link_text.content_attributes()
+                .geometry()
+                .fragment_visible_bounding_boxes(1)
+                .x());
+  ASSERT_EQ(link.content_attributes()
+                .geometry()
+                .fragment_visible_bounding_boxes(1)
+                .y(),
+            link_text.content_attributes()
+                .geometry()
+                .fragment_visible_bounding_boxes(1)
+                .y());
+  ASSERT_EQ(link.content_attributes()
+                .geometry()
+                .fragment_visible_bounding_boxes(1)
+                .width(),
+            link_text.content_attributes()
+                .geometry()
+                .fragment_visible_bounding_boxes(1)
+                .width());
+  ASSERT_EQ(link.content_attributes()
+                .geometry()
+                .fragment_visible_bounding_boxes(1)
+                .height(),
+            link_text.content_attributes()
+                .geometry()
+                .fragment_visible_bounding_boxes(1)
+                .height());
+
+  ASSERT_EQ(after_text.content_attributes()
+                .geometry()
+                .fragment_visible_bounding_boxes()
+                .size(),
+            2);
+
+  // The second fragment bounding box starts below the first.
+  ASSERT_LT(after_text.content_attributes()
+                .geometry()
+                .fragment_visible_bounding_boxes(0)
+                .y(),
+            after_text.content_attributes()
+                .geometry()
+                .fragment_visible_bounding_boxes(1)
+                .y());
 }
 
 IN_PROC_BROWSER_TEST_F(PageContentProtoProviderBrowserTest, DisabledButton) {
@@ -1577,6 +1966,469 @@ IN_PROC_BROWSER_TEST_F(PageContentProtoProviderBrowserTest,
                   .empty());
   EXPECT_TRUE(button.content_attributes().interaction_info().is_disabled());
   EXPECT_FALSE(button.content_attributes().interaction_info().is_clickable());
+}
+
+// Popups may be rendered as native OS-level widgets on Android, MacOS, and iOS.
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_IOS)
+class PageContentProtoProviderPopupBrowserTest
+    : public PageContentProtoProviderBrowserTest {
+ public:
+  PageContentProtoProviderPopupBrowserTest() {
+    feature_list_.InitAndEnableFeature(
+        blink::features::kAIPageContentIncludePopupWindows);
+  }
+  ~PageContentProtoProviderPopupBrowserTest() override = default;
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+// TODO: b/450618828 - Enable on Fuchsia with proper geometry comparison.
+#if !BUILDFLAG(IS_FUCHSIA)
+IN_PROC_BROWSER_TEST_F(PageContentProtoProviderPopupBrowserTest,
+                       SelectInMainFrame) {
+  LoadPage(https_server()->GetURL("/open_popup.html"));
+
+  ASSERT_TRUE(content::ExecJs(
+      web_contents(), "document.getElementById('select_input').showPicker();"));
+
+  WaitForPopup();
+
+  LoadData(GetActionableAIPageContentOptions());
+
+  const auto& popup_window = page_content().popup_window();
+  EXPECT_EQ(popup_window.opener_document_id().serialized_token(),
+            page_content()
+                .main_frame_data()
+                .document_identifier()
+                .serialized_token());
+
+  const auto& select_node = ActionableContentRootNode().children_nodes()[0];
+  EXPECT_EQ(select_node.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_FORM_CONTROL);
+  EXPECT_EQ(popup_window.opener_common_ancestor_dom_node_id(),
+            select_node.content_attributes().common_ancestor_dom_node_id());
+
+  const auto& popup_root = ContentRootNodeForFrameActionableMode(
+      popup_window.root_node().children_nodes()[0]);
+
+  const auto& select_node_in_popup = popup_root.children_nodes()[0];
+  EXPECT_EQ(select_node_in_popup.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_FORM_CONTROL);
+  const auto& select_options_in_popup =
+      select_node_in_popup.content_attributes()
+          .form_control_data()
+          .select_options();
+  ASSERT_EQ(select_options_in_popup.size(), 2);
+  EXPECT_EQ(select_options_in_popup[0].text(), "Option 1");
+  EXPECT_EQ(select_options_in_popup[1].text(), "Option 2");
+  EXPECT_GT(select_node_in_popup.content_attributes()
+                .interaction_info()
+                .document_scoped_z_order(),
+            0);
+
+  const auto& select_node_geometry =
+      select_node.content_attributes().geometry();
+  const auto& select_node_in_popup_geometry =
+      select_node_in_popup.content_attributes().geometry();
+  // The y value is the bottom edge of the form element. The height of the form
+  // element is 10px.
+  EXPECT_EQ(select_node_in_popup_geometry.outer_bounding_box().x(),
+            select_node_geometry.outer_bounding_box().x());
+  EXPECT_EQ(select_node_in_popup_geometry.outer_bounding_box().y(),
+            select_node_geometry.outer_bounding_box().y() + 10);
+  EXPECT_EQ(select_node_in_popup_geometry.visible_bounding_box().x(),
+            select_node_geometry.visible_bounding_box().x());
+  EXPECT_EQ(select_node_in_popup_geometry.visible_bounding_box().y(),
+            select_node_geometry.visible_bounding_box().y() + 10);
+}
+
+IN_PROC_BROWSER_TEST_F(PageContentProtoProviderPopupBrowserTest,
+                       SelectInSameOriginIframe) {
+  LoadPage(https_server()->GetURL("a.com", "/open_popup_iframe.html"));
+
+  content::RenderFrameHost* iframe =
+      content::ChildFrameAt(web_contents()->GetPrimaryMainFrame(), 0);
+  ASSERT_TRUE(content::ExecJs(
+      iframe, "document.getElementById('select_input').showPicker();"));
+
+  WaitForPopup();
+
+  LoadData(GetActionableAIPageContentOptions());
+
+  const auto& popup_window = page_content().popup_window();
+
+  const auto& iframe_node = ActionableContentRootNode().children_nodes()[0];
+  EXPECT_EQ(popup_window.opener_document_id().serialized_token(),
+            iframe_node.content_attributes()
+                .iframe_data()
+                .frame_data()
+                .document_identifier()
+                .serialized_token());
+
+  EXPECT_EQ(iframe_node.children_nodes().size(), 1);
+  const auto& iframe_node_root =
+      ContentRootNodeForFrameActionableMode(iframe_node.children_nodes()[0]);
+  const auto& select_node = iframe_node_root.children_nodes()[0];
+  EXPECT_EQ(select_node.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_FORM_CONTROL);
+  EXPECT_EQ(popup_window.opener_common_ancestor_dom_node_id(),
+            select_node.content_attributes().common_ancestor_dom_node_id());
+
+  const auto& popup_root = ContentRootNodeForFrameActionableMode(
+      popup_window.root_node().children_nodes()[0]);
+  const auto& select_node_in_popup = popup_root.children_nodes()[0];
+  EXPECT_EQ(select_node_in_popup.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_FORM_CONTROL);
+  const auto& select_options_in_popup =
+      select_node_in_popup.content_attributes()
+          .form_control_data()
+          .select_options();
+  ASSERT_EQ(select_options_in_popup.size(), 2);
+  EXPECT_EQ(select_options_in_popup[0].text(), "Option 1");
+  EXPECT_EQ(select_options_in_popup[1].text(), "Option 2");
+  EXPECT_GT(select_node_in_popup.content_attributes()
+                .interaction_info()
+                .document_scoped_z_order(),
+            0);
+
+  const auto& select_node_geometry =
+      select_node.content_attributes().geometry();
+  const auto& select_node_in_popup_geometry =
+      select_node_in_popup.content_attributes().geometry();
+  // The y value is the bottom edge of the form element. The height of the form
+  // element is 10px.
+  EXPECT_EQ(select_node_in_popup_geometry.outer_bounding_box().x(),
+            select_node_geometry.outer_bounding_box().x());
+  EXPECT_EQ(select_node_in_popup_geometry.outer_bounding_box().y(),
+            select_node_geometry.outer_bounding_box().y() + 10);
+  EXPECT_EQ(select_node_in_popup_geometry.visible_bounding_box().x(),
+            select_node_geometry.visible_bounding_box().x());
+  EXPECT_EQ(select_node_in_popup_geometry.visible_bounding_box().y(),
+            select_node_geometry.visible_bounding_box().y() + 10);
+}
+
+IN_PROC_BROWSER_TEST_F(PageContentProtoProviderPopupBrowserTest,
+                       SelectInCrossOriginIframe) {
+  LoadPage(https_server()->GetURL(
+      "a.com", "/open_popup_iframe.html?domain=/cross-site/b.com/"));
+
+  content::RenderFrameHost* iframe =
+      content::ChildFrameAt(web_contents()->GetPrimaryMainFrame(), 0);
+
+  // showPicker() is not allowed from cross-origin iframe for security reasons,
+  // therefore simulating a user click.
+  SimulateMouseClickAt(
+      iframe->GetRenderWidgetHost(),
+      GetCenterCoordinatesOfElementWithId(iframe, "select_input"));
+
+  WaitForPopup();
+
+  LoadData(GetActionableAIPageContentOptions());
+
+  const auto& popup_window = page_content().popup_window();
+
+  const auto& iframe_node = ActionableContentRootNode().children_nodes()[0];
+  EXPECT_EQ(popup_window.opener_document_id().serialized_token(),
+            iframe_node.content_attributes()
+                .iframe_data()
+                .frame_data()
+                .document_identifier()
+                .serialized_token());
+
+  EXPECT_EQ(iframe_node.children_nodes().size(), 1);
+  const auto& iframe_node_root =
+      ContentRootNodeForFrameActionableMode(iframe_node.children_nodes()[0]);
+  const auto& select_node = iframe_node_root.children_nodes()[0];
+  EXPECT_EQ(select_node.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_FORM_CONTROL);
+  EXPECT_EQ(popup_window.opener_common_ancestor_dom_node_id(),
+            select_node.content_attributes().common_ancestor_dom_node_id());
+
+  const auto& popup_root = ContentRootNodeForFrameActionableMode(
+      popup_window.root_node().children_nodes()[0]);
+  const auto& select_node_in_popup = popup_root.children_nodes()[0];
+  EXPECT_EQ(select_node_in_popup.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_FORM_CONTROL);
+
+  const auto& select_node_geometry =
+      select_node.content_attributes().geometry();
+  const auto& select_node_in_popup_geometry =
+      select_node_in_popup.content_attributes().geometry();
+  // The y value is the bottom edge of the form element. The height of the form
+  // element is 10px.
+  EXPECT_EQ(select_node_in_popup_geometry.outer_bounding_box().x(),
+            select_node_geometry.outer_bounding_box().x());
+  EXPECT_EQ(select_node_in_popup_geometry.outer_bounding_box().y(),
+            select_node_geometry.outer_bounding_box().y() + 10);
+  EXPECT_EQ(select_node_in_popup_geometry.visible_bounding_box().x(),
+            select_node_geometry.visible_bounding_box().x());
+  EXPECT_EQ(select_node_in_popup_geometry.visible_bounding_box().y(),
+            select_node_geometry.visible_bounding_box().y() + 10);
+}
+#endif  // !BUILDFLAG(IS_FUCHSIA)
+
+IN_PROC_BROWSER_TEST_F(PageContentProtoProviderPopupBrowserTest, ColorPicker) {
+  LoadPage(https_server()->GetURL("/open_popup.html"), nullptr);
+
+  ASSERT_TRUE(content::ExecJs(
+      web_contents(), "document.getElementById('color_input').click();"));
+
+  WaitForPopup();
+
+  const auto& popup_window = page_content().popup_window();
+  EXPECT_EQ(popup_window.opener_document_id().serialized_token(),
+            page_content()
+                .main_frame_data()
+                .document_identifier()
+                .serialized_token());
+
+  const auto& color_node = page_content().root_node().children_nodes()[1];
+  EXPECT_EQ(popup_window.opener_common_ancestor_dom_node_id(),
+            color_node.content_attributes().common_ancestor_dom_node_id());
+}
+#endif
+
+// Overrides the AIPageContentAgent interface for the given frame to simulate a
+// non-responsive renderer. Saves the arguments to respond later.
+class NoResponseAIPageContentAgent
+    : public blink::mojom::AIPageContentAgentInterceptorForTesting {
+ public:
+  explicit NoResponseAIPageContentAgent(
+      content::RenderFrameHost* render_frame_host)
+      : render_frame_host_(render_frame_host) {
+    service_manager::InterfaceProvider::TestApi(
+        render_frame_host_->GetRemoteInterfaces())
+        .SetBinderForName(
+            blink::mojom::AIPageContentAgent::Name_,
+            base::BindRepeating(&NoResponseAIPageContentAgent::Bind,
+                                base::Unretained(this)));
+  }
+  ~NoResponseAIPageContentAgent() override = default;
+
+  void Bind(mojo::ScopedMessagePipeHandle handle) {
+    receiver_.Bind(mojo::PendingReceiver<blink::mojom::AIPageContentAgent>(
+        std::move(handle)));
+  }
+
+  void GetAIPageContent(blink::mojom::AIPageContentOptionsPtr options,
+                        GetAIPageContentCallback callback) override {
+    // Do nothing, simulating a non-responsive renderer, but save the arguments
+    // to allow later processing.
+    saved_options_ = std::move(options);
+    saved_callback_ = std::move(callback);
+  }
+
+  void Respond() {
+    service_manager::InterfaceProvider::TestApi test_api(
+        render_frame_host_->GetRemoteInterfaces());
+
+    CHECK(test_api.HasBinderForName(blink::mojom::AIPageContentAgent::Name_));
+    test_api.ClearBinderForName(blink::mojom::AIPageContentAgent::Name_);
+
+    render_frame_host_->GetRemoteInterfaces()->GetInterface(
+        agent_.BindNewPipeAndPassReceiver());
+    agent_->GetAIPageContent(std::move(saved_options_),
+                             std::move(saved_callback_));
+  }
+
+  blink::mojom::AIPageContentAgent* GetForwardingInterface() override {
+    NOTREACHED();
+  }
+
+ private:
+  blink::mojom::AIPageContentOptionsPtr saved_options_;
+  GetAIPageContentCallback saved_callback_;
+  raw_ptr<content::RenderFrameHost> render_frame_host_;
+  mojo::Receiver<blink::mojom::AIPageContentAgent> receiver_{this};
+  mojo::Remote<blink::mojom::AIPageContentAgent> agent_;
+};
+
+class PageContentProtoProviderSubframeTimeoutBrowserTest
+    : public PageContentProtoProviderBrowserTestMultiProcess {
+ public:
+  PageContentProtoProviderSubframeTimeoutBrowserTest() {
+    // Shorter timeout for quicker tests
+    scoped_feature_list_.InitAndEnableFeatureWithParameters(
+        features::kGetAIPageContentSubframeTimeoutEnabled,
+        {{"timeout", "100ms"}});
+  }
+
+  base::TimeDelta GetTimeout() { return base::Milliseconds(100); }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         PageContentProtoProviderSubframeTimeoutBrowserTest,
+                         testing::Bool());
+
+class PageContentProtoProviderSubframeTimeoutDisabledBrowserTest
+    : public PageContentProtoProviderBrowserTestMultiProcess {
+ public:
+  PageContentProtoProviderSubframeTimeoutDisabledBrowserTest() {
+    scoped_feature_list_.InitAndDisableFeature(
+        features::kGetAIPageContentSubframeTimeoutEnabled);
+  }
+
+  base::TimeDelta GetTimeout() { return base::Milliseconds(100); }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    PageContentProtoProviderSubframeTimeoutDisabledBrowserTest,
+    testing::Bool());
+
+IN_PROC_BROWSER_TEST_P(PageContentProtoProviderSubframeTimeoutBrowserTest,
+                       IFrameAIPageContentAgentRespondsSlowly) {
+  // Load the page, but don't load the APC yet.
+  LoadPage(https_server()->GetURL("a.com", "/iframe_cross_site.html"),
+           /*options=*/nullptr);
+
+  // Make the second child frame non-responsive.
+  content::RenderFrameHost* child_frame_2 =
+      ChildFrameAt(web_contents()->GetPrimaryMainFrame(), 1);
+  ASSERT_TRUE(child_frame_2);
+  NoResponseAIPageContentAgent no_response_agent(child_frame_2);
+
+  base::TimeTicks start = base::TimeTicks::Now();
+
+  // Request the APC for the main frame.
+  LoadData(GetActionableAIPageContentOptions());
+
+  base::TimeDelta elapsed_time = base::TimeTicks::Now() - start;
+
+  // The APC should have waited for the subframe to timeout.
+  EXPECT_GE(elapsed_time, GetTimeout());
+
+  const auto& root_node = ActionableContentRootNode();
+  EXPECT_EQ(root_node.children_nodes().size(), 2);
+
+  const auto& b_frame = root_node.children_nodes()[0];
+  EXPECT_EQ(b_frame.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_IFRAME);
+  const auto& b_frame_data = b_frame.content_attributes().iframe_data();
+  AssertValidOrigin(b_frame_data.frame_data().security_origin(),
+                    ChildFrameAt(web_contents()->GetPrimaryMainFrame(), 0)
+                        ->GetLastCommittedOrigin());
+  EXPECT_FALSE(b_frame.content_attributes().is_ad_related());
+
+  const auto& c_frame = root_node.children_nodes()[1];
+  EXPECT_EQ(c_frame.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_IFRAME);
+
+  // We didn't wait for the frame to respond, so the iframe data is defaulted.
+  const auto& c_frame_data = c_frame.content_attributes().iframe_data();
+  EXPECT_FALSE(c_frame_data.frame_data().has_security_origin());
+  EXPECT_EQ(c_frame.children_nodes_size(), 0);
+  EXPECT_FALSE(c_frame.content_attributes().is_ad_related());
+}
+
+IN_PROC_BROWSER_TEST_P(
+    PageContentProtoProviderSubframeTimeoutDisabledBrowserTest,
+    InFrameAIPageContentAgentRespondsSlowly) {
+  // Load the page, but don't load the APC yet.
+  LoadPage(https_server()->GetURL("a.com", "/iframe_cross_site.html"),
+           /*options=*/nullptr);
+
+  // Make the second child frame non-responsive.
+  content::RenderFrameHost* child_frame_2 =
+      ChildFrameAt(web_contents()->GetPrimaryMainFrame(), 1);
+  ASSERT_TRUE(child_frame_2);
+  NoResponseAIPageContentAgent no_response_agent(child_frame_2);
+
+  // Request the APC for the main frame, but don't wait for a response.
+  base::RunLoop loading_run_loop;
+  LoadData(GetActionableAIPageContentOptions(), loading_run_loop.QuitClosure());
+
+  // Wait for the default timeout to pass.
+  base::RunLoop timer_run_loop;
+  base::OneShotTimer timer;
+  base::TimeDelta default_timeout =
+      features::kGetAIPageContentSubframeTimeoutParam.default_value;
+  timer.Start(FROM_HERE, default_timeout, timer_run_loop.QuitClosure());
+  timer_run_loop.Run();
+
+  // The APC should still be pending as the timeout was disabled.
+  EXPECT_FALSE(loading_run_loop.AnyQuitCalled());
+
+  // Now, let the subframe respond.
+  no_response_agent.Respond();
+  loading_run_loop.Run();
+
+  const auto& root_node = ActionableContentRootNode();
+  EXPECT_EQ(root_node.children_nodes().size(), 2);
+
+  const auto& b_frame = root_node.children_nodes()[0];
+  EXPECT_EQ(b_frame.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_IFRAME);
+  const auto& b_frame_data = b_frame.content_attributes().iframe_data();
+  AssertValidOrigin(b_frame_data.frame_data().security_origin(),
+                    ChildFrameAt(web_contents()->GetPrimaryMainFrame(), 0)
+                        ->GetLastCommittedOrigin());
+  EXPECT_FALSE(b_frame.content_attributes().is_ad_related());
+
+  const auto& c_frame = root_node.children_nodes()[1];
+  EXPECT_EQ(c_frame.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_IFRAME);
+  const auto& c_frame_data = c_frame.content_attributes().iframe_data();
+  AssertValidOrigin(c_frame_data.frame_data().security_origin(),
+                    ChildFrameAt(web_contents()->GetPrimaryMainFrame(), 1)
+                        ->GetLastCommittedOrigin());
+  EXPECT_FALSE(c_frame.content_attributes().is_ad_related());
+}
+
+IN_PROC_BROWSER_TEST_P(PageContentProtoProviderSubframeTimeoutBrowserTest,
+                       MainFrameAIPageContentAgentRespondsSlowly) {
+  // Load the page, but don't load the APC yet.
+  LoadPage(https_server()->GetURL("a.com", "/iframe_cross_site.html"),
+           /*options=*/nullptr);
+
+  // Make the main frame non-responsive.
+  NoResponseAIPageContentAgent no_response_agent(
+      web_contents()->GetPrimaryMainFrame());
+
+  // Request the APC for the main frame, but don't wait for a response.
+  base::RunLoop loading_run_loop;
+  LoadData(GetActionableAIPageContentOptions(), loading_run_loop.QuitClosure());
+
+  // Wait for the timeout time to pass.
+  base::RunLoop timer_run_loop;
+  base::OneShotTimer timer;
+  timer.Start(FROM_HERE, GetTimeout(), timer_run_loop.QuitClosure());
+  timer_run_loop.Run();
+
+  // The APC should still be pending as the timeout only applies to subframes.
+  EXPECT_FALSE(loading_run_loop.AnyQuitCalled());
+
+  // Now, let the main frame respond.
+  no_response_agent.Respond();
+  loading_run_loop.Run();
+
+  const auto& root_node = ActionableContentRootNode();
+  EXPECT_EQ(root_node.children_nodes().size(), 2);
+
+  const auto& b_frame = root_node.children_nodes()[0];
+  EXPECT_EQ(b_frame.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_IFRAME);
+  const auto& b_frame_data = b_frame.content_attributes().iframe_data();
+  AssertValidOrigin(b_frame_data.frame_data().security_origin(),
+                    ChildFrameAt(web_contents()->GetPrimaryMainFrame(), 0)
+                        ->GetLastCommittedOrigin());
+  EXPECT_FALSE(b_frame.content_attributes().is_ad_related());
+
+  const auto& c_frame = root_node.children_nodes()[1];
+  EXPECT_EQ(c_frame.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_IFRAME);
+  const auto& c_frame_data = c_frame.content_attributes().iframe_data();
+  AssertValidOrigin(c_frame_data.frame_data().security_origin(),
+                    ChildFrameAt(web_contents()->GetPrimaryMainFrame(), 1)
+                        ->GetLastCommittedOrigin());
+  EXPECT_FALSE(c_frame.content_attributes().is_ad_related());
 }
 
 }  // namespace

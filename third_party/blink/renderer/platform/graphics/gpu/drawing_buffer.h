@@ -133,7 +133,6 @@ class PLATFORM_EXPORT DrawingBuffer : public cc::TextureLayerClient,
   static scoped_refptr<DrawingBuffer> Create(
       std::unique_ptr<WebGraphicsContext3DProvider>,
       const Platform::WebGLContextInfo&,
-      bool using_swap_chain,
       Client*,
       const gfx::Size&,
       bool premultiplied_alpha,
@@ -299,6 +298,7 @@ class PLATFORM_EXPORT DrawingBuffer : public cc::TextureLayerClient,
       const gfx::ColorSpace& dst_color_space,
       WebGraphicsContext3DVideoFramePool::FrameReadyCallback callback);
 
+  base::ByteCount EstimatedSizeInBytes() const;
   int SampleCount() const { return sample_count_; }
   bool ExplicitResolveOfMultisampleData() const {
     return anti_aliasing_mode_ == kAntialiasingModeMSAAExplicitResolve;
@@ -329,7 +329,6 @@ class PLATFORM_EXPORT DrawingBuffer : public cc::TextureLayerClient,
  protected:  // For unittests
   DrawingBuffer(std::unique_ptr<WebGraphicsContext3DProvider>,
                 const Platform::WebGLContextInfo&,
-                bool using_swap_chain,
                 bool desynchronized,
                 std::unique_ptr<Extensions3DUtil>,
                 Client*,
@@ -424,6 +423,7 @@ class PLATFORM_EXPORT DrawingBuffer : public cc::TextureLayerClient,
     void BeginAccess(const gpu::SyncToken& sync_token, bool readonly);
     gpu::SyncToken EndAccess();
     void ForceCleanUp();
+    base::ByteCount EstimatedSizeInBytes() const;
 
     // The thread on which the ColorBuffer is created and the DrawingBuffer is
     // bound to.

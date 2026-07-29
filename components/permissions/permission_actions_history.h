@@ -119,6 +119,18 @@ class PermissionActionsHistory : public KeyedService {
   int GetTemporaryGrantCountForTesting(const GURL& request_origin,
                                        ContentSettingsType permission);
 
+  // Records a one-time grant for the given origin and permission type.
+  void RecordOneTimeGrant(const GURL& origin,
+                          ContentSettingsType permission_type);
+
+  // Records the number of times a one-time permission was granted before a
+  // permanent grant.
+  void RecordOTPCountForGrant(ContentSettingsType permission, int count);
+
+  // Returns the number of times a one-time permission has been granted for the
+  // given origin and permission type.
+  int GetOneTimeGrantCount(const GURL& origin, ContentSettingsType permission);
+
  private:
   std::vector<Entry> GetHistoryInternal(const base::Time& begin,
                                         const std::string& key,

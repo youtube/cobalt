@@ -20,15 +20,13 @@ import org.chromium.base.ResettersForTesting;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.ui.R;
+import org.chromium.ui.hierarchicalmenu.FlyoutController;
 import org.chromium.ui.hierarchicalmenu.FlyoutController.FlyoutHandler;
-import org.chromium.ui.hierarchicalmenu.FlyoutController.FlyoutPopupEntry;
 import org.chromium.ui.hierarchicalmenu.HierarchicalMenuController;
 import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
 import org.chromium.ui.widget.AnchoredPopupWindow;
 import org.chromium.ui.widget.FlyoutPopupSpecCalculator;
 import org.chromium.ui.widget.RectProvider;
-
-import java.util.ArrayList;
 
 /**
  * The host class that makes a view capable of triggering list menu. The core logic is extracted
@@ -67,15 +65,13 @@ public class ListMenuHost
 
     private int mMenuMaxWidth;
 
-    // A list of the windows, paired with the parent `ListItem` if the window is a flyout.
-    private final ArrayList<FlyoutPopupEntry<AnchoredPopupWindow>> mPopupMenus;
+    private final HierarchicalMenuController mHierarchicalMenuController;
 
     private @Nullable ListMenuDelegate mDelegate;
     private final ObserverList<PopupMenuShownListener> mPopupListeners = new ObserverList<>();
     private boolean mTryToFitLargestItem;
     private final boolean mPositionedAtStart;
     private final boolean mPositionedAtEnd;
-    private boolean mRemovingPopups;
 
     /**
      * Creates a new {@link ListMenuHost}.
@@ -103,7 +99,8 @@ public class ListMenuHost
 
         a.recycle();
 
-        mPopupMenus = new ArrayList<>();
+        mHierarchicalMenuController =
+                ListMenuUtils.createHierarchicalMenuController(mView.getContext());
     }
 
     /**
@@ -124,18 +121,25 @@ public class ListMenuHost
 
     /** Called to dismiss any popup menu that might be showing for this button. */
     public void dismiss() {
-        if (mPopupMenus.size() != 0) {
-            removeFlyoutWindows(0);
+        if (mHierarchicalMenuController.getFlyoutController() == null) {
+            return;
+        }
+        mHierarchicalMenuController.destroyFlyoutController();
 
-            if (sPopupMenuHelperForTesting != null) {
-                sPopupMenuHelperForTesting.injectPopupMenu(null);
-            }
+        if (sPopupMenuHelperForTesting != null) {
+            sPopupMenuHelperForTesting.injectPopupMenu(null);
         }
     }
 
     /** Returns whether the popup menu is currently showing. */
     public boolean isMenuShowing() {
-        return mPopupMenus.size() > 0;
+        FlyoutController<AnchoredPopupWindow> controller =
+                mHierarchicalMenuController.getFlyoutController();
+        if (controller == null) {
+            return false;
+        }
+
+        return controller.getNumberOfPopups() > 0;
     }
 
     /** Shows a popupWindow built by ListMenuButton */
@@ -143,7 +147,12 @@ public class ListMenuHost
         if (!mView.isAttachedToWindow()) return;
         dismiss();
         initPopupWindow();
-        mPopupMenus.get(0).popupWindow.show();
+
+        FlyoutController<AnchoredPopupWindow> controller =
+                mHierarchicalMenuController.getFlyoutController();
+        assert controller != null;
+        controller.getMainPopup().show();
+
         notifyPopupListeners(true);
     }
 
@@ -214,18 +223,16 @@ public class ListMenuHost
         }
 
         AnchoredPopupWindow popupMenu = builder.build();
-        mPopupMenus.add(new FlyoutPopupEntry(null, popupMenu));
+        mHierarchicalMenuController.setupFlyoutController(
+                /* flyoutHandler= */ this, popupMenu, /* drillDownOverrideValue= */ null);
 
         if (sPopupMenuHelperForTesting != null) {
             AnchoredPopupWindow spiedPopupMenu =
                     sPopupMenuHelperForTesting.injectPopupMenu(popupMenu);
-            mPopupMenus.set(0, new FlyoutPopupEntry(null, spiedPopupMenu));
+            FlyoutController flyoutController = mHierarchicalMenuController.getFlyoutController();
+            assert flyoutController != null;
+            flyoutController.setMainPopupForTest(spiedPopupMenu);
         }
-    }
-
-    @Override
-    public ArrayList<FlyoutPopupEntry<AnchoredPopupWindow>> getFlyoutWindows() {
-        return mPopupMenus;
     }
 
     @Override
@@ -240,47 +247,31 @@ public class ListMenuHost
     }
 
     @Override
-    public void removeFlyoutWindows(int clearFromIndex) {
-        if (clearFromIndex >= mPopupMenus.size()) {
-            return;
-        }
-
-        // We want to avoid the dismiss listener calling this method when the dismissal
-        // originates from this method, to avoid loops.
-        mRemovingPopups = true;
-
-        for (int i = clearFromIndex; i < mPopupMenus.size(); i++) {
-            mPopupMenus.get(i).popupWindow.dismiss();
-        }
-
-        mRemovingPopups = false;
-
-        mPopupMenus.subList(clearFromIndex, mPopupMenus.size()).clear();
-
-        if (mPopupMenus.size() > 0) {
-            setWindowFocusForFlyoutMenus(mPopupMenus.get(mPopupMenus.size() - 1).popupWindow, true);
-        }
+    public void dismissPopup(AnchoredPopupWindow popupWindow) {
+        popupWindow.dismiss();
     }
 
     @Override
-    public void addFlyoutWindow(ListItem item, View view, int levelOfHoveredItem) {
+    public AnchoredPopupWindow createAndShowFlyoutPopup(
+            ListItem item, View view, Runnable dismissRunnable) {
         if (mDelegate == null) throw new IllegalStateException("Delegate was not set.");
         ListMenu menu = mDelegate.getListMenuFromParentListItem(item);
-        if (menu == null) {
-            return;
-        }
+        assert menu != null;
 
         final View contentView = menu.getContentView();
 
         final int lateralPadding = contentView.getPaddingLeft() + contentView.getPaddingRight();
 
+        View rootView = mRootView != null ? mRootView : mView.getRootView();
+
         AnchoredPopupWindow popupMenu =
                 new AnchoredPopupWindow.Builder(
                                 mView.getContext(),
-                                mRootView != null ? mRootView : mView,
+                                rootView,
                                 new ColorDrawable(Color.TRANSPARENT),
                                 () -> contentView,
-                                new RectProvider(calculateFlyoutAnchorRect(view)))
+                                new RectProvider(
+                                        FlyoutController.calculateFlyoutAnchorRect(view, rootView)))
                         .setVerticalOverlapAnchor(true)
                         .setHorizontalOverlapAnchor(false)
                         .setMaxWidth(mMenuMaxWidth)
@@ -292,46 +283,20 @@ public class ListMenuHost
                         .setDesiredContentWidth(menu.getMaxItemWidth() + lateralPadding)
                         .addOnDismissListener(
                                 () -> {
-                                    if (!mRemovingPopups) {
-                                        removeFlyoutWindows(levelOfHoveredItem + 1);
-                                    }
+                                    dismissRunnable.run();
                                 })
                         .build();
 
-        assert mPopupMenus.size() > 0;
-        setWindowFocusForFlyoutMenus(mPopupMenus.get(mPopupMenus.size() - 1).popupWindow, false);
-
-        setWindowFocusForFlyoutMenus(popupMenu, true);
         popupMenu.show();
-
-        mPopupMenus.add(new FlyoutPopupEntry(item, popupMenu));
+        return popupMenu;
     }
 
-    private void setWindowFocusForFlyoutMenus(AnchoredPopupWindow popupWindow, boolean hasFocus) {
+    @Override
+    public void setWindowFocus(AnchoredPopupWindow popupWindow, boolean hasFocus) {
         ViewGroup contentView = (ViewGroup) popupWindow.getContentView();
         if (contentView == null) return;
 
         HierarchicalMenuController.setWindowFocusForFlyoutMenus(contentView, hasFocus);
-    }
-
-    public Rect calculateFlyoutAnchorRect(View itemView) {
-        int[] result = new int[2];
-        itemView.getLocationOnScreen(result);
-
-        int[] rootCoordinates = new int[2];
-        View rootView = mRootView != null ? mRootView : mView;
-        rootView.getRootView().getLocationOnScreen(rootCoordinates);
-
-        int horizontalOverlap =
-                itemView.getContext()
-                        .getResources()
-                        .getDimensionPixelSize(R.dimen.list_menu_flyout_popup_horizontal_overlap);
-
-        return new Rect(
-                result[0] - rootCoordinates[0] + horizontalOverlap,
-                result[1] - rootCoordinates[1],
-                result[0] - rootCoordinates[0] + itemView.getWidth() - horizontalOverlap,
-                result[1] - rootCoordinates[1]);
     }
 
     /**
@@ -356,10 +321,12 @@ public class ListMenuHost
     @Override
     public void onPreLayoutChange(
             boolean positionBelow, int x, int y, int width, int height, Rect anchorRect) {
-        assert mPopupMenus.size() > 0;
+        FlyoutController<AnchoredPopupWindow> controller =
+                mHierarchicalMenuController.getFlyoutController();
+        assert controller != null;
 
         // This animation style is only for the main pane, not for flyout popups.
-        AnchoredPopupWindow popupMenu = mPopupMenus.get(0).popupWindow;
+        AnchoredPopupWindow popupMenu = controller.getMainPopup();
 
         if (mPositionedAtEnd) {
             popupMenu.setAnimationStyle(
@@ -397,6 +364,15 @@ public class ListMenuHost
                 l.onPopupMenuDismissed();
             }
         }
+    }
+
+    /**
+     * Gets the {@link HierarchicalMenuController}.
+     *
+     * @return The {@link HierarchicalMenuController} for this object.
+     */
+    public HierarchicalMenuController getHierarchicalMenuController() {
+        return mHierarchicalMenuController;
     }
 
     public static void setMenuChangedListenerForTesting(PopupMenuHelper listener) {

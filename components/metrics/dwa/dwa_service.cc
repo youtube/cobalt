@@ -151,6 +151,19 @@ void DwaService::Purge() {
   reporting_service_.unsent_log_store()->Purge();
 }
 
+void DwaService::AddObserver(Observer* observer) {
+  observers_.AddObserver(observer);
+  auto cwt = fcp::confidential_compute::OkpCwt::Decode(encryption_public_key_);
+  if (cwt.ok() && IsValidCwt(*cwt)) {
+    // Call the observer with the current public key if it is valid.
+    observer->OnEncryptionPublicKeyChanged(*cwt);
+  }
+}
+
+void DwaService::RemoveObserver(Observer* observer) {
+  observers_.RemoveObserver(observer);
+}
+
 void DwaService::RefreshEncryptionPublicKey() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
@@ -201,14 +214,20 @@ void DwaService::HandleEncryptionPublicKeyRefresh(
     // generally considered to be more efficient than the decoding of JSON Web
     // Token (JWT) decoding due to CBOR's binary nature.
     auto cwt = fcp::confidential_compute::OkpCwt::Decode(encryption_public_key);
-    if (!cwt.ok() || !cwt->algorithm.has_value() ||
-        !cwt->public_key.has_value() ||
-        !encryption_public_key_verifier_.Run(*cwt)) {
+    if (!cwt.ok() || !IsValidCwt(*cwt)) {
       return;
     }
 
     encryption_public_key_ = encryption_public_key;
+    for (Observer& observer : observers_) {
+      observer.OnEncryptionPublicKeyChanged(*cwt);
+    }
   }
+}
+
+bool DwaService::IsValidCwt(const fcp::confidential_compute::OkpCwt& cwt) {
+  return cwt.algorithm.has_value() && cwt.public_key.has_value() &&
+         encryption_public_key_verifier_.Run(cwt);
 }
 
 // static
@@ -288,6 +307,29 @@ void DwaService::RecordCoarseSystemInformation(
   coarse_system_info->set_milestone_prefix_trimmed(milestone % 16);
 
   coarse_system_info->set_is_ukm_enabled(client.IsUkmAllowedForAllProfiles());
+}
+
+// static
+std::optional<::private_metrics::PrivateMetricEndpointPayload>
+DwaService::BuildPrivateMetricEndpointPayloadFromEncryptedReport(
+    ::private_metrics::EncryptedPrivateMetricReport encrypted_report) {
+  ::private_metrics::PrivateMetricEndpointPayload::ReportType report_type;
+  switch (encrypted_report.report_type()) {
+    case ::private_metrics::EncryptedPrivateMetricReport::DWA:
+      report_type = ::private_metrics::PrivateMetricEndpointPayload::DWA;
+      break;
+    case ::private_metrics::EncryptedPrivateMetricReport::DKM:
+      report_type = ::private_metrics::PrivateMetricEndpointPayload::DKM;
+      break;
+    case ::private_metrics::EncryptedPrivateMetricReport::REPORT_TYPE_INVALID:
+      return std::nullopt;
+  }
+
+  ::private_metrics::PrivateMetricEndpointPayload payload;
+  payload.set_report_type(report_type);
+  payload.mutable_encrypted_private_metric_report()->Swap(
+      &encrypted_report);
+  return payload;
 }
 
 // static
@@ -484,13 +526,7 @@ void DwaService::BuildPrivateMetricReportAndStoreLog(
   }
 
   auto cwt = fcp::confidential_compute::OkpCwt::Decode(encryption_public_key_);
-  if (!cwt.ok() || !cwt->algorithm.has_value() ||
-      !cwt->public_key.has_value()) {
-    RefreshEncryptionPublicKey();
-    return;
-  }
-
-  if (!encryption_public_key_verifier_.Run(*cwt)) {
+  if (!cwt.ok() || !IsValidCwt(*cwt)) {
     RefreshEncryptionPublicKey();
     return;
   }
@@ -534,9 +570,19 @@ void DwaService::BuildPrivateMetricReportAndStoreLog(
     // metrics encryption fails.
     return;
   }
+  auto encrypted_report_payload =
+      BuildPrivateMetricEndpointPayloadFromEncryptedReport(
+          std::move(encrypted_report.value()));
+  if (!encrypted_report_payload.has_value()) {
+    // The encrypted report should be dropped in the unexpected event that
+    // the private metric endpoint payload could not be built.
+    // TODO(crbug.com/444681539): Add UMA histogram to check when private
+    // metrics endpoint payload build fails.
+    return;
+  }
 
   std::string serialized_log;
-  if (!encrypted_report.value().SerializeToString(&serialized_log)) {
+  if (!encrypted_report_payload.value().SerializeToString(&serialized_log)) {
     // The encrypted report should be dropped in the unexpected event that
     // private metrics report serialization fails.
     // TODO(crbug.com/444681539): Add UMA histogram to check when private

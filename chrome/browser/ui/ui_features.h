@@ -20,10 +20,6 @@ namespace features {
 // All features in alphabetical order. The features should be documented
 // alongside the definition of their values in the .cc file.
 
-// TODO(crbug.com/40598679): Remove this when the tab dragging
-// interactive_ui_tests pass on Wayland.
-BASE_DECLARE_FEATURE(kAllowWindowDragUsingSystemDragDrop);
-
 BASE_DECLARE_FEATURE(kAllowEyeDropperWGCScreenCapture);
 
 BASE_DECLARE_FEATURE(kCloseOmniboxPopupOnInactiveAreaClick);
@@ -224,6 +220,8 @@ BASE_DECLARE_FEATURE(kSideBySideKeyboardShortcut);
 
 bool IsSideBySideKeyboardShortcutEnabled();
 
+BASE_DECLARE_FEATURE(kTabbedBrowserUseNewLayout);
+
 BASE_DECLARE_FEATURE(kTabDuplicateMetrics);
 
 BASE_DECLARE_FEATURE(kTabScrollingButtonPosition);
@@ -346,8 +344,6 @@ BASE_DECLARE_FEATURE(kNTPFooterBadgingPolicies);
 BASE_DECLARE_FEATURE(kEnterpriseManagementDisclaimerUsesCustomLabel);
 BASE_DECLARE_FEATURE(kManagedProfileRequiredInterstitial);
 
-BASE_DECLARE_FEATURE(kUseNewTabbedBrowserLayout);
-
 BASE_DECLARE_FEATURE(kWebUITabStrip);
 
 // Controls whether the context menu is shown on a touch press or a touch
@@ -408,6 +404,10 @@ BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationAutofillMandatoryReauth);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationClickToCall);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationSharingHub);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationAiMode);
+BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationVirtualCard);
+BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationFilledCardInformation);
+BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationReadingMode);
+BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationSavePayments);
 
 // Determines whether the "save password" page action displays different UI if
 // the user has said to never save passwords for that site.

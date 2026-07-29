@@ -9,12 +9,16 @@
 #import "base/metrics/histogram_functions.h"
 #import "base/no_destructor.h"
 #import "base/strings/utf_string_conversions.h"
+#import "base/values.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/web/model/choose_file/choose_file_event.h"
 #import "ios/chrome/browser/web/model/choose_file/choose_file_event_holder.h"
 #import "ios/chrome/browser/web/model/choose_file/choose_file_tab_helper.h"
 #import "ios/chrome/browser/web/model/choose_file/choose_file_util.h"
 #import "ios/web/public/js_messaging/script_message.h"
+#import "ios/web/public/ui/crw_web_view_proxy.h"
+#import "ios/web/public/ui/crw_web_view_scroll_view_proxy.h"
+#import "ios/web/public/web_state.h"
 
 namespace {
 const char kChooseFileScript[] = "choose_file";
@@ -155,14 +159,21 @@ void ChooseFileJavaScriptFeature::ScriptMessageReceived(
   std::optional<bool> has_webkitdirectory =
       body_dict.FindBool("hasWebkitdirectory");
   std::optional<bool> has_selected_file = body_dict.FindBool("hasSelectedFile");
+  std::optional<double> capture = body_dict.FindDouble("capture");
   if (!accept_type || !has_multiple || !has_webkitdirectory ||
-      !has_selected_file) {
+      !has_selected_file || !capture) {
     return;
   }
   int accept_type_int = static_cast<int>(*accept_type);
   // See AcceptType enumeration in
   // ios/chrome/browser/web/model/choose_file/resources/choose_file.ts
   if (accept_type_int < 0 || accept_type_int > 9) {
+    return;
+  }
+  int capture_int = static_cast<int>(*capture);
+  // See CaptureType enumeration in
+  // ios/chrome/browser/web/model/choose_file/resources/choose_file_utils.ts
+  if (capture_int < 0 || capture_int > 2) {
     return;
   }
 
@@ -177,6 +188,31 @@ void ChooseFileJavaScriptFeature::ScriptMessageReceived(
     base::UmaHistogramBoolean(
         "IOS.Web.FileInput.EventDropped",
         ChooseFileEventHolder::GetInstance()->HasLastChooseFileEvent());
+    CGPoint screen_location = CGPointZero;
+    if (const base::Value::Dict* screen_location_dict =
+            body_dict.FindDict("screenLocation")) {
+      screen_location.x = screen_location_dict->FindDouble("x").value_or(0);
+      screen_location.y = screen_location_dict->FindDouble("y").value_or(0);
+    }
+    if (const std::string* attribute_value =
+            body_dict.FindString("pointerType")) {
+      if (*attribute_value == "mouse" &&
+          !CGPointEqualToPoint(screen_location, CGPointZero)) {
+        // If seems that if the pointer type associated with the event is
+        // "mouse" then screenX and screenY do not account for the zoom scale
+        // and content offset of the document. In this case these coordinates
+        // need to be converted to the browser's coordinate system.
+        const CGFloat zoom_scale =
+            web_state->GetWebViewProxy().scrollViewProxy.zoomScale;
+        const CGPoint content_offset =
+            web_state->GetWebViewProxy().scrollViewProxy.contentOffset;
+        screen_location.x *= zoom_scale;
+        screen_location.y *= zoom_scale;
+        screen_location.x -= content_offset.x;
+        screen_location.y -= content_offset.y;
+      }
+    }
+
     ChooseFileEvent event =
         ChooseFileEvent::Builder()
             .SetAllowMultipleFiles(*has_multiple)
@@ -185,6 +221,8 @@ void ChooseFileJavaScriptFeature::ScriptMessageReceived(
             .SetAcceptFileExtensions(std::move(accept_file_extensions))
             .SetAcceptMimeTypes(std::move(accept_mime_types))
             .SetWebState(web_state)
+            .SetScreenLocation(screen_location)
+            .SetCapture(static_cast<ChooseFileCaptureType>(capture_int))
             .Build();
     if (base::FeatureList::IsEnabled(kIOSCustomFileUploadMenu)) {
       ChooseFileTabHelper* tab_helper =

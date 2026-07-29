@@ -29,7 +29,12 @@ BASE_FEATURE_PARAM(bool,
                    "allowlist_only",
                    true);
 
+BASE_FEATURE(kActorDoNotStoreCompletedTasks, base::FEATURE_ENABLED_BY_DEFAULT);
+
 BASE_FEATURE(kGlicActionUseOptimizationGuide, base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kGlicExternalProtocolActionResultCode,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicBlockNavigationToDangerousContentTypes,
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -41,10 +46,31 @@ BASE_FEATURE(kGlicDeferDownloadFilePickerToUserTakeover,
 
 BASE_FEATURE(kGlicCrossOriginNavigationGating,
              base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(bool,
+                   kGlicPromptUserForSensitiveNavigations,
+                   &kGlicCrossOriginNavigationGating,
+                   "prompt_user_for_sensitive_navigations",
+                   true);
+BASE_FEATURE_PARAM(bool,
+                   kGlicConfirmNavigationToNewOrigins,
+                   &kGlicCrossOriginNavigationGating,
+                   "confirm_navigation_to_new_origins",
+                   true);
+BASE_FEATURE_PARAM(bool,
+                   kGlicPromptUserForNavigationToNewOrigins,
+                   &kGlicCrossOriginNavigationGating,
+                   "prompt_user_for_navigation_to_new_origins",
+                   false);
 
 BASE_FEATURE(kGlicEnableAutoLoginDialogs, base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kGlicEnableAutoLoginPersistedPermissions,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 BASE_FEATURE(kGlicTabScreenshotPaintPreviewBackend,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kGlicSkipBeforeUnloadDialogAndNavigate,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 const base::FeatureParam<bool> kFullPageScreenshot{

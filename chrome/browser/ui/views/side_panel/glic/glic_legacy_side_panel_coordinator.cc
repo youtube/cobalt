@@ -44,7 +44,7 @@ GlicLegacySidePanelCoordinator::GlicLegacySidePanelCoordinator(
       glic_action_(
           GetGlicActionItem(browser->GetActions()->root_action_item())),
       side_panel_coordinator_(side_panel_coordinator) {
-  DCHECK(!base::FeatureList::IsEnabled(features::kGlicMultiInstance));
+  DCHECK(!GlicEnabling::IsMultiInstanceEnabledByFlags());
 
   on_glic_enabled_changed_subscription_ =
       glic_service_->enabling().RegisterAllowedChanged(base::BindRepeating(
@@ -89,12 +89,13 @@ void GlicLegacySidePanelCoordinator::OnGlicEnabledChanged() {
   } else {
     SidePanelEntry::Key glic_key =
         SidePanelEntry::Key(SidePanelEntry::Id::kGlic);
-    if (side_panel_coordinator_->IsSidePanelEntryShowing(glic_key)) {
-      side_panel_coordinator_->Close();
-    }
-    SidePanelEntry* glic_entry = global_registry->GetEntryForKey(glic_key);
+    SidePanelEntry* const glic_entry =
+        global_registry->GetEntryForKey(glic_key);
     if (glic_entry) {
       glic_entry->RemoveObserver(this);
+      if (side_panel_coordinator_->IsSidePanelEntryShowing(glic_key)) {
+        side_panel_coordinator_->Close(glic_entry->type());
+      }
     }
     global_registry->Deregister(glic_key);
   }

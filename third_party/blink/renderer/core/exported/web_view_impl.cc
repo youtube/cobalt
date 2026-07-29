@@ -504,8 +504,7 @@ WebView* WebView::Create(
     const ColorProviderColorMaps* color_provider_colors,
     blink::mojom::PartitionedPopinParamsPtr partitioned_popin_params,
     int32_t history_index,
-    int32_t history_length,
-    const std::optional<NoiseToken>& canvas_noise_token) {
+    int32_t history_length) {
   return WebViewImpl::Create(
       client,
       is_hidden ? mojom::blink::PageVisibilityState::kHidden
@@ -515,7 +514,7 @@ WebView* WebView::Create(
       agent_group_scheduler, session_storage_namespace_id,
       std::move(page_base_background_color), browsing_context_group_token,
       color_provider_colors, std::move(partitioned_popin_params), history_index,
-      history_length, canvas_noise_token);
+      history_length);
 }
 
 WebViewImpl* WebViewImpl::Create(
@@ -535,16 +534,14 @@ WebViewImpl* WebViewImpl::Create(
     const ColorProviderColorMaps* color_provider_colors,
     blink::mojom::PartitionedPopinParamsPtr partitioned_popin_params,
     int32_t history_index,
-    int32_t history_length,
-    const std::optional<NoiseToken>& canvas_noise_token) {
+    int32_t history_length) {
   return new WebViewImpl(
       client, visibility, std::move(prerender_param), fenced_frame_mode,
       compositing_enabled, widgets_never_composited, opener,
       std::move(page_handle), agent_group_scheduler,
       session_storage_namespace_id, std::move(page_base_background_color),
       browsing_context_group_token, color_provider_colors,
-      std::move(partitioned_popin_params), history_index, history_length,
-      canvas_noise_token);
+      std::move(partitioned_popin_params), history_index, history_length);
 }
 
 size_t WebView::GetWebViewCount() {
@@ -611,8 +608,7 @@ WebViewImpl::WebViewImpl(
     const ColorProviderColorMaps* color_provider_colors,
     blink::mojom::PartitionedPopinParamsPtr partitioned_popin_params,
     int32_t history_index,
-    int32_t history_length,
-    const std::optional<NoiseToken>& canvas_noise_token)
+    int32_t history_length)
     : widgets_never_composited_(widgets_never_composited),
       web_view_client_(client),
       chrome_client_(MakeGarbageCollected<ChromeClientImpl>(this)),
@@ -646,7 +642,7 @@ WebViewImpl::WebViewImpl(
       *chrome_client_, opener ? opener->GetPage() : nullptr,
       agent_group_scheduler.GetAgentGroupScheduler(),
       browsing_context_group_token, color_provider_colors,
-      std::move(partitioned_popin_params), canvas_noise_token);
+      std::move(partitioned_popin_params));
   CoreInitializer::GetInstance().ProvideModulesToPage(
       *page_, session_storage_namespace_id_);
 
@@ -1627,6 +1623,8 @@ void WebView::ApplyWebPreferences(const web_pref::WebPreferences& prefs,
   settings->SetDOMPasteAllowed(prefs.dom_paste_enabled);
   settings->SetTextAreasAreResizable(prefs.text_areas_are_resizable);
   settings->SetAllowScriptsToCloseWindows(prefs.allow_scripts_to_close_windows);
+  settings->SetAllowWindowFocusWithoutUserGesture(
+      prefs.allow_window_focus_without_user_gesture);
   settings->SetDownloadableBinaryFontsEnabled(prefs.remote_fonts_enabled);
   settings->SetJavaScriptCanAccessClipboard(
       prefs.javascript_can_access_clipboard);
@@ -1935,6 +1933,18 @@ void WebView::ApplyWebPreferences(const web_pref::WebPreferences& prefs,
   if (prefs.ai_prompt_api_enabled) {
     RuntimeEnabledFeatures::SetAIPromptAPIEnabled(true);
   }
+
+#if BUILDFLAG(IS_MAC) && BUILDFLAG(USE_EXTERNAL_POPUP_MENU)
+  const bool use_external_popups = !prefs.should_disable_external_popups;
+  if (web_view_impl->GetChromeClient().UseExternalPopupMenus() !=
+      use_external_popups) {
+    // Switching between internal and external popups -- first, cancel any
+    // popups that are open.
+    web_view_impl->CancelPagePopup();
+  }
+  web_view_impl->GetChromeClient().SetUseExternalPopupMenus(
+      use_external_popups);
+#endif  // BUILDFLAG(IS_MAC) && BUILDFLAG(USE_EXTERNAL_POPUP_MENU)
 }
 
 void WebViewImpl::ThemeChanged() {
@@ -3152,6 +3162,7 @@ void WebViewImpl::DidAccessInitialMainDocument() {
   local_main_frame_host_remote_->DidAccessInitialMainDocument();
 }
 
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 void WebViewImpl::Minimize() {
   DCHECK(local_main_frame_host_remote_);
   local_main_frame_host_remote_->Minimize();
@@ -3171,6 +3182,7 @@ void WebViewImpl::SetResizable(bool resizable) {
   DCHECK(local_main_frame_host_remote_);
   local_main_frame_host_remote_->SetResizable(resizable);
 }
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
 void WebViewImpl::UpdateTargetURL(const WebURL& url,
                                   const WebURL& fallback_url) {
@@ -3485,15 +3497,6 @@ void WebViewImpl::UpdateUseOverlayScrollbar(bool use_overlay_scrollbar) {
   }
 }
 #endif
-
-void WebViewImpl::UpdateCanvasNoiseToken(
-    std::optional<NoiseToken> canvas_noise_token) {
-  GetPage()->SetCanvasNoiseToken(canvas_noise_token);
-}
-
-std::optional<NoiseToken> WebViewImpl::CanvasNoiseTokenForTesting() {
-  return GetPage()->CanvasNoiseToken();
-}
 
 void WebViewImpl::ActivatePrerenderedPage(
     mojom::blink::PrerenderPageActivationParamsPtr

@@ -13,6 +13,7 @@
 #include "base/containers/contains.h"
 #include "base/containers/enum_set.h"
 #include "base/debug/alias.h"
+#include "base/debug/crash_logging.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/functional/bind.h"
 #include "base/memory/weak_ptr.h"
@@ -737,7 +738,6 @@ void HttpStreamPool::AttemptManager::OnTcpBasedAttemptComplete(
   CHECK_NE(tcp_based_attempt_state_, TcpBasedAttemptState::kAllEndpointsFailed);
   if (tcp_based_attempt_state_ == TcpBasedAttemptState::kAttempting) {
     tcp_based_attempt_state_ = TcpBasedAttemptState::kSucceededAtLeastOnce;
-    MaybeMarkQuicBroken();
   }
 
   LoadTimingInfo::ConnectTiming connect_timing =
@@ -858,8 +858,6 @@ void HttpStreamPool::AttemptManager::OnQuicAttemptComplete(
         }
         return dict;
       });
-
-  MaybeMarkQuicBroken();
 
   if (is_shutting_down()) {
     MaybeCompleteLater();
@@ -1037,7 +1035,25 @@ void HttpStreamPool::AttemptManager::StartInternal(Job* job) {
   // a Job.
   // TODO(crbug.com/346835898): Change to DCHECK once we stabilize the
   // implementation.
-  CHECK(!CanUseExistingQuicSession());
+  // TODO(crbug.com/455891789): Replace this block with
+  // CHECK(CanUseExistingQuicSession()), once bug is fixed.
+  if (CanUseExistingQuicSession()) {
+    SCOPED_CRASH_KEY_BOOL("crbug-455891789", "CanUseQuic", CanUseQuic());
+    SCOPED_CRASH_KEY_BOOL("crbug-455891789", "IsQuicEnabled",
+                          http_network_session()->IsQuicEnabled());
+    SCOPED_CRASH_KEY_BOOL(
+        "crbug-455891789", "IsQuicBroken",
+        pool()->IsQuicBroken(quic_session_alias_key().destination(),
+                             quic_session_alias_key()
+                                 .session_key()
+                                 .network_anonymization_key()));
+    SCOPED_CRASH_KEY_BOOL("crbug-455891789", "is_using_tls", is_using_tls_);
+    SCOPED_CRASH_KEY_BOOL("crbug-455891789", "enable_alt_services",
+                          job->enable_alternative_services());
+    SCOPED_CRASH_KEY_BOOL("crbug-455891789", "force_quic",
+                          group_->force_quic());
+    NOTREACHED();
+  }
   CHECK(job->type() == JobType::kAltSvcQuicPreconnect ||
         !HasAvailableSpdySession());
 
@@ -1622,7 +1638,7 @@ void HttpStreamPool::AttemptManager::HandleFinalError(int error) {
   CancelTcpBasedAttempts(StreamSocketCloseReason::kAbort);
   CancelQuicAttempt(final_error_to_notify_jobs());
   NotifyPreconnectsComplete(final_error_to_notify_jobs());
-  NotifyJobOfFailure();
+  NotifyRequestJobsOfFailure();
 
   CHECK(tcp_based_attempt_slots_.empty());
   CHECK(request_jobs_.empty());
@@ -1633,59 +1649,37 @@ void HttpStreamPool::AttemptManager::HandleFinalError(int error) {
   // `this` may be deleted.
 }
 
-HttpStreamPool::AttemptManager::FailureKind
-HttpStreamPool::AttemptManager::DetermineFailureKind() {
-  if (IsCertificateError(final_error_to_notify_jobs())) {
-    return FailureKind::kCertifcateError;
-  }
-
-  if (final_error_to_notify_jobs() == ERR_SSL_CLIENT_AUTH_CERT_NEEDED) {
-    return FailureKind::kNeedsClientAuth;
-  }
-
-  return FailureKind::kStreamFailed;
-}
-
-void HttpStreamPool::AttemptManager::NotifyJobOfFailure() {
+void HttpStreamPool::AttemptManager::NotifyRequestJobsOfFailure() {
   CHECK_EQ(availability_state_, AvailabilityState::kFailing);
 
-  const FailureKind kind = DetermineFailureKind();
-  base::WeakPtr<AttemptManager> weak_this = weak_ptr_factory_.GetWeakPtr();
+  const int error = final_error_to_notify_jobs();
   while (Job* job = ExtractFirstJobToNotify()) {
-    // Ensure `this` isn't deleted while notifying the failure.
-    // TODO(crbug.com/414173943): Remove this check when we are certain that
-    // `this` won't be deleted.
-    CHECK(weak_this);
+    NotifySingleRequestJobOfFailure(*job, error, connection_attempts_);
+  }
+}
 
-    job->AddConnectionAttempts(connection_attempts_);
+void HttpStreamPool::AttemptManager::NotifySingleRequestJobOfFailure(
+    Job& job,
+    int error,
+    const ConnectionAttempts& connection_attempts) {
+  CHECK_EQ(availability_state_, AvailabilityState::kFailing);
 
-    switch (kind) {
-      case FailureKind::kStreamFailed: {
-        TRACE_EVENT_INSTANT("net.stream", "AttemptManager::StreamFailed",
-                            track_,
-                            NetLogWithSourceToFlow(job->request_net_log()));
-        job->OnStreamFailed(final_error_to_notify_jobs(), net_error_details_,
-                            resolve_error_info_);
-        break;
-      }
-      case FailureKind::kCertifcateError: {
-        CHECK(cert_error_ssl_info_.has_value());
-        TRACE_EVENT_INSTANT("net.stream", "AttemptManager::CertificateError",
-                            track_,
-                            NetLogWithSourceToFlow(job->request_net_log()));
-        job->OnCertificateError(final_error_to_notify_jobs(),
-                                *cert_error_ssl_info_);
-        break;
-      }
-      case FailureKind::kNeedsClientAuth: {
-        CHECK(client_auth_cert_info_.get());
-        TRACE_EVENT_INSTANT("net.stream", "AttemptManager::NeedsClientAuth",
-                            track_,
-                            NetLogWithSourceToFlow(job->request_net_log()));
-        job->OnNeedsClientAuth(client_auth_cert_info_.get());
-        break;
-      }
-    }
+  job.AddConnectionAttempts(connection_attempts);
+
+  if (IsCertificateError(error)) {
+    CHECK(cert_error_ssl_info_.has_value());
+    TRACE_EVENT_INSTANT("net.stream", "AttemptManager::CertificateError",
+                        track_, NetLogWithSourceToFlow(job.request_net_log()));
+    job.OnCertificateError(final_error_to_notify_jobs(), *cert_error_ssl_info_);
+  } else if (final_error_to_notify_jobs() == ERR_SSL_CLIENT_AUTH_CERT_NEEDED) {
+    TRACE_EVENT_INSTANT("net.stream", "AttemptManager::NeedsClientAuth", track_,
+                        NetLogWithSourceToFlow(job.request_net_log()));
+    job.OnNeedsClientAuth(client_auth_cert_info_.get());
+  } else {
+    TRACE_EVENT_INSTANT("net.stream", "AttemptManager::StreamFailed", track_,
+                        NetLogWithSourceToFlow(job.request_net_log()));
+    job.OnStreamFailed(final_error_to_notify_jobs(), net_error_details_,
+                       resolve_error_info_);
   }
 }
 
@@ -1753,21 +1747,12 @@ void HttpStreamPool::AttemptManager::CreateTextBasedStreamAndNotify(
 
   std::unique_ptr<HttpStream> http_stream = group_->CreateTextBasedStream(
       std::move(stream_socket), reuse_type, std::move(connect_timing));
-  // TODO(crbug.com/383606724): Change this `if` to CHECK() once we stabilize
-  // the implementation.
-  if (ShouldRespectLimits() && group_->ActiveStreamSocketCount() >
-                                   pool()->max_stream_sockets_per_group()) {
-    const size_t active_count = group_->ActiveStreamSocketCount();
-    const size_t handed_out_count = group_->HandedOutStreamSocketCount();
-    const size_t connecting_count = group_->ConnectingStreamSocketCount();
-    base::debug::Alias(&active_count);
-    base::debug::Alias(&handed_out_count);
-    base::debug::Alias(&connecting_count);
-    NOTREACHED() << "active=" << active_count
-                 << ", handed_out=" << handed_out_count
-                 << ", connecting=" << connecting_count
-                 << ", limit=" << pool()->max_stream_sockets_per_group();
-  }
+  CHECK(!ShouldRespectLimits() || group_->ActiveStreamSocketCount() <=
+                                      pool()->max_stream_sockets_per_group())
+      << "active=" << group_->ActiveStreamSocketCount()
+      << ", handed_out=" << group_->HandedOutStreamSocketCount()
+      << ", connecting=" << group_->ConnectingStreamSocketCount()
+      << ", limit=" << pool()->max_stream_sockets_per_group();
 
   NotifyStreamReady(std::move(http_stream), negotiated_protocol,
                     /*session_source=*/std::nullopt);
@@ -1796,21 +1781,6 @@ void HttpStreamPool::AttemptManager::OnJobDone(Job* job) {
 }
 
 bool HttpStreamPool::AttemptManager::HasAvailableSpdySession() const {
-  if (!is_using_tls_) {
-    return false;
-  }
-
-  // Check for an available session before checking if it can be used. It's
-  // rare for HTTP/1.1 to be required in general, and checking it is can be
-  // slow. Also, it's fairly rare for there to be a session available here
-  // (outside of the session aliasing case), since the Job already checked for
-  // one.
-  if (!spdy_session_pool()->HasAvailableSession(spdy_session_key(),
-                                                IsIpBasedPoolingEnabledForH2(),
-                                                /*is_websocket=*/false)) {
-    return false;
-  }
-
   // If the destination is marked as requiring HTTP/1.1, act as if there's no
   // available SPDY session. This matches the behavior of
   // HttpStreamPool::FindAvailableSpdySession().
@@ -1818,7 +1788,10 @@ bool HttpStreamPool::AttemptManager::HasAvailableSpdySession() const {
                              stream_key().network_anonymization_key())) {
     return false;
   }
-  return true;
+
+  return spdy_session_pool()->HasAvailableSession(
+      spdy_session_key(), IsIpBasedPoolingEnabledForH2(),
+      /*is_websocket=*/false);
 }
 
 void HttpStreamPool::AttemptManager::MaybeStartDraining() {
@@ -1867,15 +1840,11 @@ void HttpStreamPool::AttemptManager::MaybeCreateSpdyStreamAndNotify(
                                             dns_aliases);
   });
 
-  // This WeakPtr is to ensure `this` is not destroyed while notifying.
-  // TODO(crbug.com/417339803): Remove once we stabilize the implementation.
-  base::WeakPtr<AttemptManager> weak_this = weak_ptr_factory_.GetWeakPtr();
   while (!streams.empty()) {
     std::unique_ptr<SpdyHttpStream> stream = std::move(streams.back());
     streams.pop_back();
     NotifyStreamReady(std::move(stream), NextProto::kProtoHTTP2,
                       session_source);
-    CHECK(weak_this);
   }
   CHECK(request_jobs_.empty());
 }
@@ -1899,14 +1868,10 @@ void HttpStreamPool::AttemptManager::MaybeCreateQuicStreamAndNotify(
         quic_session->CreateHandle(stream_key().destination()), dns_aliases);
   });
 
-  // This WeakPtr is to ensure `this` is not destroyed while notifying.
-  // TODO(crbug.com/417339803): Remove once we stabilize the implementation.
-  base::WeakPtr<AttemptManager> weak_this = weak_ptr_factory_.GetWeakPtr();
   while (!streams.empty()) {
     std::unique_ptr<QuicHttpStream> stream = std::move(streams.back());
     streams.pop_back();
     NotifyStreamReady(std::move(stream), NextProto::kProtoQUIC, session_source);
-    CHECK(weak_this);
   }
   CHECK(request_jobs_.empty());
 }
@@ -2235,6 +2200,8 @@ void HttpStreamPool::AttemptManager::MaybeComplete() {
 
   CHECK(limit_ignoring_jobs_.empty());
   CHECK(ip_based_pooling_disabling_jobs_.empty());
+
+  MaybeMarkQuicBroken();
 
   if (on_complete_callback_for_testing_) {
     std::move(on_complete_callback_for_testing_).Run();

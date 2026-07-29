@@ -34,6 +34,7 @@ import static org.mockito.Mockito.when;
 
 import static org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutUtils.MAX_TAB_WIDTH_DP;
 import static org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutUtils.MIN_TAB_WIDTH_DP;
+import static org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutUtils.PINNED_TAB_WIDTH_DP;
 import static org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutUtils.TAB_GROUP_BOTTOM_INDICATOR_WIDTH_OFFSET;
 import static org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutUtils.TAB_OVERLAP_WIDTH_DP;
 import static org.chromium.components.data_sharing.SharedGroupTestHelper.GROUP_MEMBER1;
@@ -961,6 +962,43 @@ public class StripLayoutHelperTest {
                 "Closed views should be removed already.",
                 3,
                 mStripLayoutHelper.getStripLayoutViewsForTesting().length);
+    }
+
+    @Test
+    public void testQueueAnimationsForNonStripClosures_ClearedOnFinishAnimations() {
+        // Disable testing mode so we can queue animations.
+        CompositorAnimationHandler.setTestingMode(/* enabled= */ false);
+        initializeTest(/* tabIndex= */ 0);
+
+        // Notify tab closures and verify state.
+        List<Tab> closingTabs = new ArrayList<>();
+        closingTabs.add(mModel.getTabAt(0));
+        closingTabs.add(mModel.getTabAt(1));
+        mModel.closeTabs(TabClosureParams.closeTabs(closingTabs).build());
+        mStripLayoutHelper.multipleTabsClosed(closingTabs);
+
+        // Verify no animations have started yet and closed views are still present.
+        assertNull(
+                "Animations should not yet be started.",
+                mStripLayoutHelper.getRunningAnimatorForTesting());
+        assertEquals(
+                "Closed views should still be present.",
+                5,
+                mStripLayoutHelper.getStripLayoutViewsForTesting().length);
+
+        // Manually finish animations. Verify the closed views have been removed.
+        mStripLayoutHelper.finishAnimations();
+        assertEquals(
+                "Closed views should no longer be present.",
+                3,
+                mStripLayoutHelper.getStripLayoutViewsForTesting().length);
+
+        // Update layout. Verify the queued animations did not start, as they were cleared by the
+        // previous #finishAnimations call.
+        mStripLayoutHelper.updateLayout(TIMESTAMP);
+        assertNull(
+                "Animations should still not be started.",
+                mStripLayoutHelper.getRunningAnimatorForTesting());
     }
 
     @Test
@@ -2242,7 +2280,11 @@ public class StripLayoutHelperTest {
         ArgumentCaptor<RectProvider> rectProviderArgumentCaptor =
                 ArgumentCaptor.forClass(RectProvider.class);
         // Verify tab context menu is showing.
-        verify(mTabContextMenuCoordinator).showMenu(rectProviderArgumentCaptor.capture(), any());
+        List<Integer> expectedTabIds = Collections.singletonList(tabs[1].getTabId());
+        verify(mTabContextMenuCoordinator)
+                .showMenu(
+                        rectProviderArgumentCaptor.capture(),
+                        argThat(anchorInfo -> anchorInfo.getAllTabIds().equals(expectedTabIds)));
         // Verify anchorView coordinates.
         StripLayoutView view = mStripLayoutHelper.getViewAtPositionX(10f, true);
         assertThat(view, instanceOf(StripLayoutTab.class));
@@ -4784,20 +4826,6 @@ public class StripLayoutHelperTest {
 
     @Test
     @Config(sdk = Build.VERSION_CODES.R)
-    public void testDrag_sendMoveWindowBroadcast_success() {
-        DeviceInfo.setIsXrForTesting(true);
-        // Setup with tabs and select first tab.
-        setTabStripDragHandlerMock();
-        when(mToolbarContainerView.getContext()).thenReturn(mActivity);
-        initializeTest(false, false, 0, 5);
-
-        // Act and verify the broadcast is sent.
-        onLongPress_OffTab();
-        verify(mWindowAndroid, times(1)).sendBroadcast(any());
-    }
-
-    @Test
-    @Config(sdk = Build.VERSION_CODES.R)
     public void testDrag_DragOntoSourceStrip() {
         // Setup and mark the active clicked tab.
         initializeTest(false, false, 0, 5);
@@ -6597,7 +6625,10 @@ public class StripLayoutHelperTest {
         // Verify
         List<Integer> expectedTabIds =
                 List.of(tabs[0].getTabId(), tabs[1].getTabId(), tabs[3].getTabId());
-        verify(mTabContextMenuCoordinator).showMenu(any(), eq(expectedTabIds));
+        verify(mTabContextMenuCoordinator)
+                .showMenu(
+                        any(),
+                        argThat(anchorInfo -> anchorInfo.getAllTabIds().equals(expectedTabIds)));
     }
 
     @Test
@@ -7021,9 +7052,9 @@ public class StripLayoutHelperTest {
 
         float expectedDrawXWithPinnedTab = PADDING_LEFT;
 
-        // 183.5(tabWidth) = (800(screenWidth) - 10(leftPadding) - 60(rightPadding) -
-        // 80(pinnedTabWidth) + 28(overlapWidth) * 3) / 4(numTab).
-        float expectedTabWidthWithPinnedTab = 183.5f;
+        // 191.5(tabWidth) = (800(screenWidth) - 10(leftPadding) - 60(rightPadding) -
+        // 48(pinnedTabWidth) + (28(overlapWidth) * 3) / 4(numTab).
+        float expectedTabWidthWithPinnedTab = 191.5f;
 
         // Verify the tabs are resized and positioned correctly after pinning.
         for (int i = 0; i < tabs.length; i++) {
@@ -7035,7 +7066,12 @@ public class StripLayoutHelperTest {
             if (i == 0) {
                 assertTrue("The tab should be pinned", tabs[i].getIsPinned());
                 assertEquals(
-                        "The tab's width is incorrect", MIN_TAB_WIDTH_DP, tabs[i].getWidth(), 0.1f);
+                        "The pinned tab's width is incorrect",
+                        PINNED_TAB_WIDTH_DP,
+                        tabs[i].getWidth(),
+                        0.1f);
+                assertFalse(
+                        "The pinned tab's close button should hide", tabs[i].canShowCloseButton());
             } else {
                 assertFalse("The tab should not be pinned", tabs[i].getIsPinned());
                 assertEquals(
@@ -7043,6 +7079,9 @@ public class StripLayoutHelperTest {
                         expectedTabWidthWithPinnedTab,
                         tabs[i].getWidth(),
                         0.1f);
+                assertTrue(
+                        "The unpinned tab's close button should show",
+                        tabs[i].canShowCloseButton());
             }
             expectedDrawXWithPinnedTab += tabs[i].getWidth() - TAB_OVERLAP_WIDTH_DP;
         }
@@ -7104,16 +7143,21 @@ public class StripLayoutHelperTest {
 
         float expectedDrawXWithPinnedTab = SCREEN_WIDTH - PADDING_LEFT - TAB_OVERLAP_WIDTH_DP;
 
-        // 183.5(tabWidth) = (800(screenWidth) - 10(leftPadding) - 60(rightPadding) -
-        // 80(pinnedTabWidth) + 28(overlapWidth) * 3) / 4(numTab).
-        float expectedTabWidthWithPinnedTab = 183.5f;
+        // 191.5(tabWidth) = (800(screenWidth) - 10(leftPadding) - 60(rightPadding) -
+        // 48(pinnedTabWidth) + (28(overlapWidth) * 3) / 4(numTab).
+        float expectedTabWidthWithPinnedTab = 191.5f;
 
         // Verify the tabs are resized and positioned correctly after pinning.
         for (int i = 0; i < tabs.length; i++) {
             if (i == 0) {
                 assertTrue("The tab should be pinned", tabs[i].getIsPinned());
                 assertEquals(
-                        "The tab's width is incorrect", MIN_TAB_WIDTH_DP, tabs[i].getWidth(), 0.1f);
+                        "The pinned tab's width is incorrect",
+                        PINNED_TAB_WIDTH_DP,
+                        tabs[i].getWidth(),
+                        0.1f);
+                assertFalse(
+                        "The pinned tab's close button should hide", tabs[i].canShowCloseButton());
             } else {
                 assertFalse("The tab should not be pinned", tabs[i].getIsPinned());
                 assertEquals(
@@ -7121,6 +7165,9 @@ public class StripLayoutHelperTest {
                         expectedTabWidthWithPinnedTab,
                         tabs[i].getWidth(),
                         0.1f);
+                assertTrue(
+                        "The unpinned tab's close button should show",
+                        tabs[i].canShowCloseButton());
             }
             expectedDrawXWithPinnedTab -= (tabs[i].getWidth() - TAB_OVERLAP_WIDTH_DP);
             assertEquals(

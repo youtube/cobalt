@@ -17,6 +17,7 @@ import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.CriteriaHelper;
+import org.chromium.base.test.util.DisabledTest;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.fullscreen.FullscreenManagerTestUtils;
@@ -61,6 +62,7 @@ public class BrowserControlsPTTest {
 
     @Test
     @LargeTest
+    @DisabledTest(message = "Flaky, see crbug.com/455947814")
     public void topControlsScroll() {
         waitForControlsVisibility(true);
 
@@ -73,6 +75,7 @@ public class BrowserControlsPTTest {
 
     @Test
     @LargeTest
+    @DisabledTest(message = "Flaky, see crbug.com/455558607")
     public void topControlsScrollingDisabled() {
         // before test case - set scrolling disabled
         TopControlsStacker topControlsStacker =

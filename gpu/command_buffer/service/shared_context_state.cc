@@ -301,14 +301,21 @@ SharedContextState::SharedContextState(
       context_(context),
       real_context_(std::move(context)),
       sk_surface_cache_(MaxNumSkSurface()) {
-  if (gr_context_type_ == GrContextType::kVulkan) {
+  if (gr_context_type_ == GrContextType::kVulkan
+#if BUILDFLAG(USE_WEBGPU_ON_VULKAN_VIA_GL_INTEROP)
+      || gr_context_type_ == GrContextType::kGL
+#endif
+  ) {
     if (vk_context_provider_) {
 #if BUILDFLAG(ENABLE_VULKAN) && \
     (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_WIN))
       external_semaphore_pool_ = std::make_unique<ExternalSemaphorePool>(this);
 #endif
-      use_virtualized_gl_contexts_ = false;
     }
+  }
+
+  if (gr_context_type_ == GrContextType::kVulkan && vk_context_provider_) {
+    use_virtualized_gl_contexts_ = false;
   }
 
   DCHECK(context_ && surface && context_->default_surface());
@@ -1008,10 +1015,10 @@ void SharedContextState::MarkContextLost(error::ContextLostReason reason) {
     // the passed in GrContext will be reused.
     // TODO(crbug.com/40672147): always abandon GrContext to release all
     // resources when chrome goes into background with low end device.
+    gr_context_ = nullptr;
     if (owned_gr_context_) {
       owned_gr_context_->abandonContext();
       owned_gr_context_.reset();
-      gr_context_ = nullptr;
     }
     UpdateSkiaOwnedMemorySize();
   }

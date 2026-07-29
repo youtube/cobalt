@@ -28,6 +28,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import android.graphics.Paint;
+import android.graphics.Rect;
 import android.text.InputType;
 import android.text.Layout;
 import android.text.SpannableStringBuilder;
@@ -63,6 +64,7 @@ import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.omnibox.UrlBar.UrlBarDelegate;
 import org.chromium.chrome.browser.omnibox.test.R;
+import org.chromium.components.omnibox.OmniboxFeatureList;
 
 import java.util.Collections;
 import java.util.List;
@@ -628,7 +630,7 @@ public class UrlBarUnitTest {
         mUrlBar.setScrollState(UrlBar.ScrollType.SCROLL_TO_TLD, mShortDomain.length());
         verify(mUrlBar, times(1)).calculateVisibleHint();
         String visibleHint = mUrlBar.getVisibleTextPrefixHint().toString();
-        assertEquals(url2.substring(0, NUMBER_OF_VISIBLE_CHARACTERS + 2), visibleHint);
+        assertEquals(url2.substring(0, NUMBER_OF_VISIBLE_CHARACTERS + 1), visibleHint);
     }
 
     @Test
@@ -1002,17 +1004,21 @@ public class UrlBarUnitTest {
     }
 
     @Test
-    public void multiline() {
-        mUrlBar.requestFocus();
-        mUrlBar.setText(" ");
+    @EnableFeatures(OmniboxFeatureList.MULTILINE_EDIT_FIELD)
+    public void setInputIsMultilineEligible() {
+        mUrlBar.onFocusChanged(true, View.LAYOUT_DIRECTION_LTR, new Rect());
+        mUrlBar.setInputIsMultilineEligible(true);
         assertEquals(UrlBar.MULTILINE_EDIT_MAX_LINES, mUrlBar.getMaxLines());
         assertFalse(mUrlBar.isSingleLine());
 
-        mUrlBar.setText("");
+        mUrlBar.setInputIsMultilineEligible(false);
         assertEquals(1, mUrlBar.getMaxLines());
         assertTrue(mUrlBar.isSingleLine());
 
-        mUrlBar.setText(" ");
-        mUrlBar.clearFocus();
+        // Defocused omnibox - never multiline
+        mUrlBar.onFocusChanged(false, View.LAYOUT_DIRECTION_LTR, new Rect());
+        mUrlBar.setInputIsMultilineEligible(true);
+        assertEquals(1, mUrlBar.getMaxLines());
+        assertTrue(mUrlBar.isSingleLine());
     }
 }

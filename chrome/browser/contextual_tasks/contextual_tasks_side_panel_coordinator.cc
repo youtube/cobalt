@@ -4,6 +4,7 @@
 
 #include "chrome/browser/contextual_tasks/contextual_tasks_side_panel_coordinator.h"
 
+#include "base/functional/bind.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_context_controller.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_context_controller_factory.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui.h"
@@ -14,6 +15,7 @@
 #include "chrome/browser/ui/views/side_panel/side_panel_entry_scope.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_registry.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_web_ui_view.h"
+#include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "components/strings/grit/components_strings.h"
@@ -28,7 +30,7 @@ BEGIN_TEMPLATE_METADATA(SidePanelWebUIViewT_ContextualTasksUI,
 END_METADATA
 
 namespace {
-inline constexpr char kContextualTasksUrl[] = "chrome://contextual-tasks/";
+inline constexpr int kSidePanelPreferredDefaultWidth = 440;
 
 std::unique_ptr<content::WebContents> CreateWebContents(
     content::BrowserContext* context) {
@@ -36,7 +38,7 @@ std::unique_ptr<content::WebContents> CreateWebContents(
   std::unique_ptr<content::WebContents> web_contents =
       content::WebContents::Create(create_params);
   web_contents->GetController().LoadURL(
-      GURL(kContextualTasksUrl), content::Referrer(),
+      GURL(chrome::kChromeUIContextualTasksURL), content::Referrer(),
       ui::PAGE_TRANSITION_AUTO_TOPLEVEL, std::string());
   return web_contents;
 }
@@ -46,6 +48,23 @@ std::unique_ptr<content::WebContents> CreateWebContents(
 namespace contextual_tasks {
 
 DEFINE_USER_DATA(ContextualTasksSidePanelCoordinator);
+
+class ContextualTasksWebView : public views::WebView {
+ public:
+  explicit ContextualTasksWebView(content::BrowserContext* browser_context)
+      : views::WebView(browser_context) {
+    SetProperty(views::kElementIdentifierKey,
+                kContextualTasksSidePanelWebViewElementId);
+  }
+  ~ContextualTasksWebView() override = default;
+
+  base::WeakPtr<ContextualTasksWebView> GetWeakPtr() {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
+
+ private:
+  base::WeakPtrFactory<ContextualTasksWebView> weak_ptr_factory_{this};
+};
 
 ContextualTasksSidePanelCoordinator::ContextualTasksSidePanelCoordinator(
     BrowserWindowInterface* browser_window,
@@ -81,11 +100,15 @@ void ContextualTasksSidePanelCoordinator::CreateAndRegisterEntry(
   }
 
   auto entry = std::make_unique<SidePanelEntry>(
+      SidePanelEntry::PanelType::kToolbar,
       SidePanelEntry::Key(SidePanelEntry::Id::kContextualTasks),
       base::BindRepeating(
           &ContextualTasksSidePanelCoordinator::CreateSidePanelView,
           base::Unretained(this)),
-      /*default_content_width_callback=*/base::NullCallback());
+      base::BindRepeating(&ContextualTasksSidePanelCoordinator::
+                              GetPreferredDefaultSidePanelWidth,
+                          base::Unretained(this)));
+  entry->set_should_show_ephemerally_in_toolbar(false);
   entry->set_should_show_header(false);
   entry->set_should_show_outline(false);
   global_registry->Register(std::move(entry));
@@ -96,13 +119,37 @@ void ContextualTasksSidePanelCoordinator::Show() {
       SidePanelEntry::Key(SidePanelEntry::Id::kContextualTasks));
 }
 
+void ContextualTasksSidePanelCoordinator::Close() {
+  side_panel_coordinator_->Close(SidePanelEntry::PanelType::kToolbar);
+}
+
+bool ContextualTasksSidePanelCoordinator::IsSidePanelOpen() {
+  return side_panel_coordinator_->IsSidePanelShowing(
+      SidePanelEntry::PanelType::kToolbar);
+}
+
+bool ContextualTasksSidePanelCoordinator::IsSidePanelOpenForContextualTask() {
+  return side_panel_coordinator_->IsSidePanelEntryShowing(
+      SidePanelEntry::Key(SidePanelEntry::Id::kContextualTasks));
+}
+
+void ContextualTasksSidePanelCoordinator::TransferWebContentsFromTab(
+    const base::Uuid& task_id,
+    std::unique_ptr<content::WebContents> web_contents) {
+  task_id_to_web_contents_cache_.emplace(task_id, std::move(web_contents));
+  UpdateWebContentsForActiveTab();
+}
+
 content::WebContents*
 ContextualTasksSidePanelCoordinator::GetActiveWebContentsForTesting() {
   return web_view_ ? web_view_->web_contents() : nullptr;
 }
 
-void ContextualTasksSidePanelCoordinator::OnActiveTabChanged(
-    BrowserWindowInterface* browser_interface) {
+int ContextualTasksSidePanelCoordinator::GetPreferredDefaultSidePanelWidth() {
+  return kSidePanelPreferredDefaultWidth;
+}
+
+void ContextualTasksSidePanelCoordinator::UpdateWebContentsForActiveTab() {
   if (!web_view_) {
     return;
   }
@@ -114,21 +161,18 @@ void ContextualTasksSidePanelCoordinator::OnActiveTabChanged(
   }
 }
 
+void ContextualTasksSidePanelCoordinator::OnActiveTabChanged(
+    BrowserWindowInterface* browser_interface) {
+  UpdateWebContentsForActiveTab();
+}
+
 std::unique_ptr<views::View>
 ContextualTasksSidePanelCoordinator::CreateSidePanelView(
     SidePanelEntryScope& scope) {
-  std::unique_ptr<views::WebView> web_view =
-      std::make_unique<views::WebView>(browser_window_->GetProfile());
-
-  content::WebContents* web_contents =
-      MaybeGetOrCreateSidePanelWebContentsForActiveTab();
-  if (web_contents) {
-    web_view->SetWebContents(web_contents);
-  }
-
-  web_view_ = web_view.get();
-  web_view->SetProperty(views::kElementIdentifierKey,
-                        kContextualTasksSidePanelWebViewElementId);
+  std::unique_ptr<ContextualTasksWebView> web_view =
+      std::make_unique<ContextualTasksWebView>(browser_window_->GetProfile());
+  web_view_ = web_view->GetWeakPtr();
+  UpdateWebContentsForActiveTab();
   return web_view;
 }
 

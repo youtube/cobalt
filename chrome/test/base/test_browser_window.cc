@@ -48,6 +48,10 @@ OmniboxView* TestBrowserWindow::TestLocationBar::GetOmniboxView() {
   return nullptr;
 }
 
+OmniboxController* TestBrowserWindow::TestLocationBar::GetOmniboxController() {
+  return nullptr;
+}
+
 LocationBarTesting*
     TestBrowserWindow::TestLocationBar::GetLocationBarForTesting() {
   return nullptr;
@@ -276,7 +280,7 @@ ShowTranslateBubbleResult TestBrowserWindow::ShowTranslateBubble(
     const std::string& target_language,
     translate::TranslateErrors error_type,
     bool is_user_gesture) {
-  return ShowTranslateBubbleResult::SUCCESS;
+  return ShowTranslateBubbleResult::kSuccess;
 }
 
 void TestBrowserWindow::StartPartialTranslate(

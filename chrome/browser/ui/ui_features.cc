@@ -17,11 +17,6 @@
 
 namespace features {
 
-// Enables the tab dragging fallback when full window dragging is not supported
-// by the platform (e.g. Wayland). See https://crbug.com/896640
-BASE_FEATURE(kAllowWindowDragUsingSystemDragDrop,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Enables the use of WGC for the Eye Dropper screen capture.
 BASE_FEATURE(kAllowEyeDropperWGCScreenCapture,
 #if BUILDFLAG(IS_WIN)
@@ -280,6 +275,8 @@ bool IsSideBySideKeyboardShortcutEnabled() {
          base::FeatureList::IsEnabled(features::kSideBySideKeyboardShortcut);
 }
 
+BASE_FEATURE(kTabbedBrowserUseNewLayout, base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kTabDuplicateMetrics, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables buttons when scrolling the tabstrip https://crbug.com/951078
@@ -427,8 +424,6 @@ BASE_FEATURE(kEnterpriseManagementDisclaimerUsesCustomLabel,
 
 BASE_FEATURE(kManagedProfileRequiredInterstitial,
              base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kUseNewTabbedBrowserLayout, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables a web-based tab strip. See https://crbug.com/989131. Note this
 // feature only works when the ENABLE_WEBUI_TAB_STRIP buildflag is enabled.
@@ -601,6 +596,30 @@ BASE_FEATURE_PARAM(bool,
                    kPageActionsMigrationAiMode,
                    &kPageActionsMigration,
                    "ai_mode",
+                   false);
+
+BASE_FEATURE_PARAM(bool,
+                   kPageActionsMigrationVirtualCard,
+                   &kPageActionsMigration,
+                   "virtual_card",
+                   false);
+
+BASE_FEATURE_PARAM(bool,
+                   kPageActionsMigrationFilledCardInformation,
+                   &kPageActionsMigration,
+                   "filled_card_information",
+                   false);
+
+BASE_FEATURE_PARAM(bool,
+                   kPageActionsMigrationReadingMode,
+                   &kPageActionsMigration,
+                   "reading_mode",
+                   true);
+
+BASE_FEATURE_PARAM(bool,
+                   kPageActionsMigrationSavePayments,
+                   &kPageActionsMigration,
+                   "save_payments",
                    false);
 
 BASE_FEATURE(kSavePasswordsContextualUi, base::FEATURE_DISABLED_BY_DEFAULT);

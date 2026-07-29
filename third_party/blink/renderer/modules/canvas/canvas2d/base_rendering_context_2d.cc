@@ -40,7 +40,6 @@
 #include "third_party/blink/renderer/bindings/modules/v8/v8_canvas_font_variant_caps.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_canvas_text_rendering.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_gpu_texture_format.h"
-#include "third_party/blink/renderer/core/canvas_interventions/canvas_interventions_helper.h"
 #include "third_party/blink/renderer/core/css/properties/computed_style_utils.h"
 #include "third_party/blink/renderer/core/css/style_change_reason.h"
 #include "third_party/blink/renderer/core/dom/events/event.h"
@@ -393,10 +392,6 @@ ImageData* BaseRenderingContext2D::getImageDataInternal(
     exception_state.ThrowDOMException(
         DOMExceptionCode::kIndexSizeError,
         String::Format("The source %s is 0.", sw ? "height" : "width"));
-  } else if (RuntimeEnabledFeatures::BlockCanvasReadbackEnabled(
-                 GetTopExecutionContext())) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kNotAllowedError,
-                                      String(kBlockCanvasReadbackErrorMessage));
   }
 
   if (exception_state.HadException())
@@ -487,11 +482,6 @@ ImageData* BaseRenderingContext2D::getImageDataInternal(
   scoped_refptr<StaticBitmapImage> snapshot =
       GetImage(FlushReason::kGetImageData);
 
-  bool noised = false;
-  if (snapshot) {
-    noised = CanvasInterventionsHelper::MaybeNoiseSnapshot(
-        GetTopExecutionContext(), snapshot);
-  }
   TRACE_EVENT_INSTANT(
       TRACE_DISABLED_BY_DEFAULT("identifiability.high_entropy_api"),
       "CanvasReadback", perfetto::Flow::FromPointer(this),
@@ -506,7 +496,6 @@ ImageData* BaseRenderingContext2D::getImageDataInternal(
           }
         }
         ctx.AddDebugAnnotation("data_url", data.Utf8());
-        ctx.AddDebugAnnotation("noised", noised);
       });
 
   // Determine if the array should be zero initialized, or if it will be

@@ -60,6 +60,7 @@ extern const base::FeatureParam<double> kCsdClipboardCopyApiHCAcceptanceRate;
 extern const base::FeatureParam<int> kCsdClipboardCopyApiMaxLength;
 extern const base::FeatureParam<int> kCsdClipboardCopyApiMinLength;
 extern const base::FeatureParam<double> kCsdClipboardCopyApiSampleRate;
+extern const base::FeatureParam<bool> kCSDClipboardCopyApiProcessPayload;
 
 // Enables sending a CSD ping on the detection of a credit card form.
 BASE_DECLARE_FEATURE(kClientSideDetectionCreditCardForm);
@@ -253,11 +254,6 @@ BASE_DECLARE_FEATURE(kHashPrefixRealTimeLookupsSamplePing);
 // Determines the percentage of ESB lookups that we sample to send a background
 // HPRT lookup. The value should be between 0 and 100.
 extern const base::FeatureParam<int> kHashPrefixRealTimeLookupsSampleRate;
-
-// Adds local IP address field to security-sensitive events reported to
-// chrome://safe-browsing. These events are triggered when the reporting policy
-// is enabled for managed devices or profiles.
-BASE_DECLARE_FEATURE(kLocalIpAddressInEvents);
 
 // If enabled, fetching lists from Safe Browsing and performing checks on those
 // lists uses the v5 APIs instead of the v4 Update API. There is no change to

@@ -7,6 +7,7 @@
 #include "base/metrics/field_trial_params.h"
 #include "third_party/blink/public/mojom/frame/user_activation_notification_type.mojom-blink.h"
 #include "third_party/blink/public/mojom/input/input_handler.mojom-blink.h"
+#include "third_party/blink/renderer/core/dom/element.h"
 #include "third_party/blink/renderer/core/dom/events/event_path.h"
 #include "third_party/blink/renderer/core/event_type_names.h"
 #include "third_party/blink/renderer/core/events/mouse_event.h"
@@ -310,16 +311,27 @@ void PointerEventManager::SetElementUnderPointer(PointerEvent* pointer_event,
                      pointer_event);
 }
 
-void PointerEventManager::NodeWillBeRemoved(Node& node_to_be_removed) {
+void PointerEventManager::NodeChildrenWillBeRemoved(ContainerNode& container) {
+  HandleRemoveSubtree(container, /*include_root=*/false);
+}
+
+void PointerEventManager::NodeWillBeRemoved(Node& node) {
+  HandleRemoveSubtree(node, /*include_root=*/true);
+}
+
+void PointerEventManager::HandleRemoveSubtree(Node& node, bool include_root) {
   if (!RuntimeEnabledFeatures::
           BoundaryEventDispatchTracksNodeRemovalEnabled()) {
     return;
   }
+  Node* remaining_node = include_root ? node.parentNode() : &node;
+  Element* remaining_element =
+      remaining_node->IsElementNode()
+          ? To<Element>(remaining_node)
+          : remaining_node->ParentOrShadowHostElement();
   for (const auto& [pointer_id, element] : element_under_pointer_) {
-    if (element &&
-        node_to_be_removed.IsShadowIncludingInclusiveAncestorOf(*element)) {
-      element_under_pointer_.Set(
-          pointer_id, node_to_be_removed.ParentOrShadowHostElement());
+    if (element && node.IsShadowIncludingInclusiveAncestorOf(*element)) {
+      element_under_pointer_.Set(pointer_id, remaining_element);
       original_element_under_pointer_removed_.insert(pointer_id);
       // TODO(https://crbug.com/1496482): Do we need something similar to the
       // logic in EventPath::CalculatePath()?
@@ -406,6 +418,16 @@ bool PointerEventManager::ShouldAdjustStylusPointerEvent(
              WebPointerProperties::PointerType::kEraser;
 }
 
+void PointerEventManager::SetHandwritingRadius(int handwriting_radius) {
+  if ((handwriting_radius_.value_or(0) != handwriting_radius) &&
+      handwriting_radius > 0) {
+    // TODO(crbug.com/455656777): On the cc side, we calculate the TouchAction
+    // based on kStylusWritingHitTestRadius. It needs to use
+    // handwriting_radius_. This is currently WIP.
+    handwriting_radius_ = handwriting_radius;
+  }
+}
+
 void PointerEventManager::AdjustPointerEvent(WebPointerEvent& pointer_event) {
   DCHECK(
       pointer_event.pointer_type == WebPointerProperties::PointerType::kTouch ||
@@ -426,12 +448,17 @@ void PointerEventManager::AdjustPointerEvent(WebPointerEvent& pointer_event,
   } else {
     // Calculate adjustment size for stylus tool types.
     ChromeClient& chrome_client = frame_->GetChromeClient();
-    float device_scale_factor =
-        chrome_client.GetScreenInfo(*frame_).device_scale_factor;
+    auto& screen_info = chrome_client.GetScreenInfo(*frame_);
+    float device_scale_factor = screen_info.device_scale_factor;
+    SetHandwritingRadius(screen_info.handwriting_radius);
 
+    DCHECK(pointer_event.pointer_type ==
+               WebPointerProperties::PointerType::kPen ||
+           pointer_event.pointer_type ==
+               WebPointerProperties::PointerType::kEraser);
     float page_scale_factor = frame_->GetPage()->PageScaleFactor();
     adjustment_width = adjustment_height =
-        kStylusWritableAdjustmentSizeDip *
+        handwriting_radius_.value_or(kStylusWritableAdjustmentSizeDip) *
         (device_scale_factor / page_scale_factor);
   }
 
@@ -947,9 +974,10 @@ WebInputEventResult PointerEventManager::DirectDispatchMousePointerEvent(
         target, mouse_event_type, event, coalesced_events, predicted_events);
 
     result = event_handling_util::MergeEventResult(
-        result,
-        mouse_event_manager_->DispatchMouseEvent(
-            target, mouse_event_type, event, &last_mouse_position, nullptr));
+        result, mouse_event_manager_
+                    ->DispatchMouseEvent(target, mouse_event_type, event,
+                                         &last_mouse_position, nullptr)
+                    .second);
     return result;
   }
   pointer_event_factory_->SetLastPosition(
@@ -1006,14 +1034,26 @@ void PointerEventManager::SendEffectivePanActionAtPointer(
 
 namespace {
 
+// Caution: We should avoid using this method!  This is called from
+// `SendMousePointerEvents` for the events after a `pointerup` only as an ad-hoc
+// solution to finding a new target after an event target is deleted.  We can't
+// use the `*WillBeRemoved` methods in this case because the tracker pointer is
+// maintained locally in `SendMousePointerEvents`.  For possible fixes, see
+// https://crbug.com/448046115 .
 Element* NonDeletedElementTarget(Element* target,
-                                 PointerEvent* dispatched_pointer_event) {
-  // Event path could be null if the pointer event failed to get dispatched.
-  bool has_event_path = dispatched_pointer_event->HasEventPath();
+                                 PointerEvent* pointer_event,
+                                 MouseEvent* mouse_event) {
+  // Event path could be null if any of the events failed to get dispatched.
+  MouseEvent* dispatched_event = nullptr;
+  if (pointer_event->HasEventPath()) {
+    dispatched_event = pointer_event;
+  } else if (mouse_event && mouse_event->HasEventPath()) {
+    dispatched_event = mouse_event;
+  }
 
-  if (!event_handling_util::IsInDocument(target) && has_event_path) {
+  if (!event_handling_util::IsInDocument(target) && dispatched_event) {
     for (const auto& context :
-         dispatched_pointer_event->GetEventPath().NodeEventContexts()) {
+         dispatched_event->GetEventPath().NodeEventContexts()) {
       auto* element = DynamicTo<Element>(&context.GetNode());
       if (element && event_handling_util::IsInDocument(element)) {
         return element;
@@ -1137,16 +1177,18 @@ WebInputEventResult PointerEventManager::SendMousePointerEvent(
     mouse_target =
         RuntimeEnabledFeatures::BoundaryEventDispatchTracksNodeRemovalEnabled()
             ? mouse_event_manager_->GetElementUnderMouse()
-            : NonDeletedElementTarget(effective_target, pointer_event);
+            : NonDeletedElementTarget(effective_target, pointer_event, nullptr);
   }
 
   // Dispatch compat mouse events.
+  MouseEvent* dispatched_mouse_event = nullptr;
   if (send_compat_mouse) {
-    result = event_handling_util::MergeEventResult(
-        result,
-        mouse_event_manager_->DispatchMouseEvent(
-            mouse_target, MouseEventNameForPointerEventInputType(event_type),
-            mouse_event, &last_mouse_position, nullptr));
+    auto dispatch_result = mouse_event_manager_->DispatchMouseEvent(
+        mouse_target, MouseEventNameForPointerEventInputType(event_type),
+        mouse_event, &last_mouse_position, nullptr);
+    dispatched_mouse_event = dispatch_result.first;
+    result =
+        event_handling_util::MergeEventResult(result, dispatch_result.second);
   }
 
   if (!mouse_target) {
@@ -1187,7 +1229,8 @@ WebInputEventResult PointerEventManager::SendMousePointerEvent(
       target = mev.InnerElement();
     } else if (RuntimeEnabledFeatures::
                    BoundaryEventDispatchTracksNodeRemovalEnabled()) {
-      target = NonDeletedElementTarget(target, pointer_event);
+      target = NonDeletedElementTarget(target, pointer_event,
+                                       dispatched_mouse_event);
     }
   }
 
@@ -1209,11 +1252,16 @@ WebInputEventResult PointerEventManager::SendMousePointerEvent(
     if (consider_click_dispatch &&
         RuntimeEnabledFeatures::
             BoundaryEventDispatchTracksNodeRemovalEnabled()) {
-      target = NonDeletedElementTarget(target, pointer_event);
+      target = NonDeletedElementTarget(target, pointer_event,
+                                       dispatched_mouse_event);
     }
 
     // If a click was dispatched above, the following call only sets element
     // under pointer/mouse and skips sending got/lostpointercapture events.
+    //
+    // TODO(https://crbug.com/448046115): Here `target` will be a nullptr when
+    // neither `pointerup` nor `mouseup` are dispatched, effectively implying
+    // that the mouse pointer has gone off the page!
     ProcessCaptureAndPositionOfPointerEvent(pointer_event, target,
                                             &mouse_event);
   } else if (pointer_event->type() == event_type_names::kPointercancel) {

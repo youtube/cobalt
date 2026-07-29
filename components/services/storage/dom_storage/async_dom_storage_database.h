@@ -17,12 +17,13 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/threading/sequence_bound.h"
 #include "components/services/storage/dom_storage/dom_storage_database.h"
+#include "components/services/storage/dom_storage/leveldb/dom_storage_database_leveldb.h"
 #include "storage/common/database/db_status.h"
 
 namespace storage {
 
 namespace internal {
-template <typename ResultType>
+template <typename TDatabase, typename ResultType>
 struct DatabaseTaskTraits;
 }  // namespace internal
 
@@ -52,18 +53,19 @@ class AsyncDomStorageDatabase {
 
   ~AsyncDomStorageDatabase();
 
-  static std::unique_ptr<AsyncDomStorageDatabase> OpenDirectory(
+  // Creates an `AsyncDomStorageDatabase` then posts a task to open the database
+  // on `blocking_task_runner`. Callers may immediately start using the
+  // returned `AsyncDomStorageDatabase`. Runs `callback` with the open database
+  // result. After failing to open, `AsyncDomStorageDatabase` must be
+  // discarded because no database tasks will run.
+  //
+  // To create an in-memory database, provide an empty `directory`.
+  static std::unique_ptr<AsyncDomStorageDatabase> Open(
+      StorageType storage_type,
       const base::FilePath& directory,
       const std::string& dbname,
       const std::optional<base::trace_event::MemoryAllocatorDumpGuid>&
           memory_dump_id,
-      scoped_refptr<base::SequencedTaskRunner> blocking_task_runner,
-      StatusCallback callback);
-
-  static std::unique_ptr<AsyncDomStorageDatabase> OpenInMemory(
-      const std::optional<base::trace_event::MemoryAllocatorDumpGuid>&
-          memory_dump_id,
-      const std::string& tracking_name,
       scoped_refptr<base::SequencedTaskRunner> blocking_task_runner,
       StatusCallback callback);
 
@@ -94,29 +96,74 @@ class AsyncDomStorageDatabase {
   };
 
   base::SequenceBound<DomStorageDatabase>& database() { return database_; }
+
   const base::SequenceBound<DomStorageDatabase>& database() const {
     return database_;
   }
 
+  // The functions below use `RunDatabaseTask()` to read and write `database_`
+  // through the `DomStorageDatabase` interface. See function comments in
+  // `dom_storage_database.h` for more details.
+  using ReadAllMetadataCallback =
+      base::OnceCallback<void(StatusOr<DomStorageDatabase::Metadata>)>;
+  void ReadAllMetadata(ReadAllMetadataCallback callback);
   void RewriteDB(StatusCallback callback);
 
-  template <typename ResultType>
-  using DatabaseTask = base::OnceCallback<ResultType(DomStorageDatabase&)>;
+  // TODO(crbug.com/377242771): Temporarily overload `RunDatabaseTask()` to
+  // support both `DomStorageDatabase` and `DomStorageDatabaseLevelDB`. After
+  // fully migrating to `DomStorageDatabase`, the `DomStorageDatabaseLevelDB`
+  // overload can be removed.
+  template <typename TDatabase, typename ResultType>
+  using DatabaseTask = base::OnceCallback<ResultType(TDatabase&)>;
 
-  template <typename ResultType>
-  using TaskTraits = internal::DatabaseTaskTraits<ResultType>;
+  template <typename TDatabase, typename ResultType>
+  using TaskTraits = internal::DatabaseTaskTraits<TDatabase, ResultType>;
 
+  // Define for `DomStorageDatabase`.
   template <typename ResultType>
-  void RunDatabaseTask(DatabaseTask<ResultType> task,
-                       typename TaskTraits<ResultType>::CallbackType callback) {
+  void RunDatabaseTask(DatabaseTask<DomStorageDatabase, ResultType> task,
+                       typename TaskTraits<DomStorageDatabase,
+                                           ResultType>::CallbackType callback) {
     auto wrapped_task = base::BindOnce(
-        [](DatabaseTask<ResultType> task,
-           typename TaskTraits<ResultType>::CallbackType callback,
+        [](DatabaseTask<DomStorageDatabase, ResultType> task,
+           typename TaskTraits<DomStorageDatabase, ResultType>::CallbackType
+               callback,
            scoped_refptr<base::SequencedTaskRunner> callback_task_runner,
            DomStorageDatabase* db) {
           callback_task_runner->PostTask(
-              FROM_HERE, TaskTraits<ResultType>::RunTaskAndBindCallbackToResult(
-                             *db, std::move(task), std::move(callback)));
+              FROM_HERE, TaskTraits<DomStorageDatabase, ResultType>::
+                             RunTaskAndBindCallbackToResult(
+                                 *db, std::move(task), std::move(callback)));
+        },
+        std::move(task), std::move(callback),
+        base::SequencedTaskRunner::GetCurrentDefault());
+    if (database_) {
+      database_.PostTaskWithThisObject(std::move(wrapped_task));
+    } else {
+      tasks_to_run_on_open_.push_back(std::move(wrapped_task));
+    }
+  }
+
+  // TODO(crbug.com/377242771): Delete this function overload and the
+  // `TDatabase` template after fully migrating to `DomStorageDatabase`
+  // interface.
+  //
+  // Define for `DomStorageDatabaseLevelDB`.
+  template <typename ResultType>
+  void RunDatabaseTask(DatabaseTask<DomStorageDatabaseLevelDB, ResultType> task,
+                       typename TaskTraits<DomStorageDatabaseLevelDB,
+                                           ResultType>::CallbackType callback) {
+    auto wrapped_task = base::BindOnce(
+        [](DatabaseTask<DomStorageDatabaseLevelDB, ResultType> task,
+           typename TaskTraits<DomStorageDatabaseLevelDB,
+                               ResultType>::CallbackType callback,
+           scoped_refptr<base::SequencedTaskRunner> callback_task_runner,
+           DomStorageDatabase* db) {
+          callback_task_runner->PostTask(
+              FROM_HERE,
+              TaskTraits<DomStorageDatabaseLevelDB, ResultType>::
+                  RunTaskAndBindCallbackToResult(
+                      db->GetLevelDB(), std::move(task), std::move(callback)));
         },
         std::move(task), std::move(callback),
         base::SequencedTaskRunner::GetCurrentDefault());
@@ -129,7 +176,7 @@ class AsyncDomStorageDatabase {
 
   using BatchDatabaseTask =
       base::OnceCallback<void(DomStorageBatchOperationLevelDB&,
-                              const DomStorageDatabase&)>;
+                              const DomStorageDatabaseLevelDB&)>;
   void RunBatchDatabaseTasks(RunBatchTasksContext context,
                              std::vector<BatchDatabaseTask> tasks,
                              base::OnceCallback<void(DbStatus)> callback);
@@ -146,9 +193,9 @@ class AsyncDomStorageDatabase {
   void InitiateCommit();
 
  private:
-  void OnDatabaseOpened(StatusCallback callback,
-                        base::SequenceBound<DomStorageDatabase> database,
-                        DbStatus status);
+  void OnDatabaseOpened(
+      StatusCallback callback,
+      StatusOr<base::SequenceBound<DomStorageDatabase>> database);
 
   explicit AsyncDomStorageDatabase();
 
@@ -156,6 +203,7 @@ class AsyncDomStorageDatabase {
 
   using BoundDatabaseTask = base::OnceCallback<void(DomStorageDatabase*)>;
   std::vector<BoundDatabaseTask> tasks_to_run_on_open_;
+
   std::set<raw_ptr<Committer>> committers_;
 
   base::WeakPtrFactory<AsyncDomStorageDatabase> weak_ptr_factory_{this};
@@ -163,12 +211,12 @@ class AsyncDomStorageDatabase {
 
 namespace internal {
 
-template <typename ResultType>
+template <typename TDatabase, typename ResultType>
 struct DatabaseTaskTraits {
   using CallbackType = base::OnceCallback<void(ResultType)>;
   static base::OnceClosure RunTaskAndBindCallbackToResult(
-      DomStorageDatabase& db,
-      AsyncDomStorageDatabase::DatabaseTask<ResultType> task,
+      TDatabase& db,
+      AsyncDomStorageDatabase::DatabaseTask<TDatabase, ResultType> task,
       CallbackType callback) {
     return base::BindOnce(std::move(callback), std::move(task).Run(db));
   }
@@ -177,14 +225,14 @@ struct DatabaseTaskTraits {
 // This specialization allows database tasks to return tuples while their
 // corresponding callback accepts the unpacked values of the tuple as separate
 // arguments.
-template <typename... Args>
-struct DatabaseTaskTraits<std::tuple<Args...>> {
+template <typename TDatabase, typename... Args>
+struct DatabaseTaskTraits<TDatabase, std::tuple<Args...>> {
   using ResultType = std::tuple<Args...>;
   using CallbackType = base::OnceCallback<void(Args...)>;
 
   static base::OnceClosure RunTaskAndBindCallbackToResult(
-      DomStorageDatabase& db,
-      AsyncDomStorageDatabase::DatabaseTask<ResultType> task,
+      TDatabase& db,
+      AsyncDomStorageDatabase::DatabaseTask<TDatabase, ResultType> task,
       CallbackType callback) {
     return BindTupleAsArgs(
         std::move(callback), std::move(task).Run(db),

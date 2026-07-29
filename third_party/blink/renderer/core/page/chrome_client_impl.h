@@ -68,10 +68,12 @@ class CORE_EXPORT ChromeClientImpl final : public ChromeClient {
   WebViewImpl* GetWebView() const override;
   void ChromeDestroyed() override;
   void SetWindowRect(const gfx::Rect&, LocalFrame&) override;
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
   void Minimize(LocalFrame&) override;
   void Maximize(LocalFrame&) override;
   void Restore(LocalFrame&) override;
   void SetResizable(bool resizable, LocalFrame& frame) override;
+#endif
   gfx::Rect RootWindowRect(LocalFrame&) override;
   void DidAccessInitialMainDocument() override;
   void FocusPage() override;
@@ -252,7 +254,10 @@ class CORE_EXPORT ChromeClientImpl final : public ChromeClient {
   void ClosePagePopup(PagePopup*) override;
   DOMWindow* PagePopupWindowForTesting() const override;
 
-  void SetUseExternalPopupMenusForTesting(bool) override;
+  void SetUseExternalPopupMenus(bool) override;
+  bool UseExternalPopupMenus() const override {
+    return use_external_popup_menus_;
+  }
 
   void SetBrowserControlsState(float top_height,
                                float bottom_height,

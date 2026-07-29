@@ -163,17 +163,14 @@ XrResult OpenXrController::Initialize(
   XrActionSetCreateInfo action_set_create_info = {
       XR_TYPE_ACTION_SET_CREATE_INFO};
 
-  size_t dest_size = std::size(action_set_create_info.actionSetName);
-  size_t src_size =
-      UNSAFE_TODO(base::strlcpy(action_set_create_info.actionSetName,
-                                action_set_name.c_str(), dest_size));
-  DCHECK_LT(src_size, dest_size);
+  base::span<char> dest_action_set_name(action_set_create_info.actionSetName);
+  size_t copied_size = base::strlcpy(dest_action_set_name, action_set_name);
+  CHECK_LT(copied_size, dest_action_set_name.size());
 
-  dest_size = std::size(action_set_create_info.localizedActionSetName);
-  src_size =
-      UNSAFE_TODO(base::strlcpy(action_set_create_info.localizedActionSetName,
-                                action_set_name.c_str(), dest_size));
-  DCHECK_LT(src_size, dest_size);
+  base::span<char> dest_localized_action_set_name(
+      action_set_create_info.localizedActionSetName);
+  copied_size = base::strlcpy(dest_localized_action_set_name, action_set_name);
+  CHECK_LT(copied_size, dest_localized_action_set_name.size());
 
   RETURN_IF_XR_FAILED(
       xrCreateActionSet(instance_, &action_set_create_info, &action_set_));
@@ -311,6 +308,16 @@ device::mojom::XRHandedness OpenXrController::GetHandness() const {
       // controllers. In the future, other controllers such as sound (which
       // does not have a handedness) will be added here.
       NOTREACHED();
+  }
+}
+
+XrSpace OpenXrController::GetInputSpace(
+    mojom::XRInputSourceSpaceType space_type) const {
+  switch (space_type) {
+    case mojom::XRInputSourceSpaceType::kGrip:
+      return grip_pose_space_;
+    case mojom::XRInputSourceSpaceType::kTargetRay:
+      return pointer_pose_space_;
   }
 }
 
@@ -559,6 +566,14 @@ std::optional<gfx::Transform> OpenXrController::GetMojoFromGripTransform(
                              grip_pose_space_, emulated_position);
 }
 
+std::optional<gfx::Transform> OpenXrController::GetMojoFromJoint(
+    XrHandJointEXT joint) const {
+  if (!IsHandTrackingEnabled()) {
+    return std::nullopt;
+  }
+  return hand_tracker_->GetMojoFromJoint(joint);
+}
+
 std::optional<gfx::Transform> OpenXrController::GetGripFromPointerTransform(
     XrTime predicted_display_time) const {
   if (IsCurrentProfileFromHandTracker()) {
@@ -629,15 +644,14 @@ XrResult OpenXrController::CreateAction(XrActionType type,
   XrActionCreateInfo action_create_info = {XR_TYPE_ACTION_CREATE_INFO};
   action_create_info.actionType = type;
 
-  size_t dest_size = std::size(action_create_info.actionName);
-  size_t src_size = UNSAFE_TODO(base::strlcpy(action_create_info.actionName,
-                                              action_name.data(), dest_size));
-  DCHECK_LT(src_size, dest_size);
+  base::span<char> dest_action_name(action_create_info.actionName);
+  size_t copied_size = base::strlcpy(dest_action_name, action_name);
+  CHECK_LT(copied_size, dest_action_name.size());
 
-  dest_size = std::size(action_create_info.localizedActionName);
-  src_size = UNSAFE_TODO(base::strlcpy(action_create_info.localizedActionName,
-                                       action_name.data(), dest_size));
-  DCHECK_LT(src_size, dest_size);
+  base::span<char> dest_localized_action_name(
+      action_create_info.localizedActionName);
+  copied_size = base::strlcpy(dest_localized_action_name, action_name);
+  CHECK_LT(copied_size, dest_localized_action_name.size());
   return xrCreateAction(action_set_, &action_create_info, action);
 }
 

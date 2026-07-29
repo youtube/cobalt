@@ -519,12 +519,11 @@ TEST_F(PasswordFormFillingTest, NoFillOnPageloadForSingleUsernameForm) {
 }
 
 TEST_F(PasswordFormFillingTest, NoFillOnPageLoadWhileActorTaskIsActive) {
-  base::test::ScopedFeatureList feature_list(
-      password_manager::features::kActorLogin);
+  base::test::ScopedFeatureList feature_list{
+      features::kActorActiveDisablesFillingOnPageLoad};
   base::HistogramTester histogram_tester;
   std::vector<PasswordForm> best_matches = {saved_match_};
   const std::vector<PasswordForm> federated_matches = {};
-
   EXPECT_CALL(client_, IsActorTaskActive).WillOnce(Return(true));
   LikelyFormFilling likely_form_filling = SendFillInformationToRenderer(
       &client_, &driver_, observed_form_, best_matches, federated_matches,
@@ -557,6 +556,8 @@ TEST_F(PasswordFormFillingTest, NoFillOnPageLoadWhileChangingPassword) {
 }
 
 TEST_F(PasswordFormFillingTest, NoFillOnPageLoadForLeakedPassword) {
+  base::test::ScopedFeatureList scoped_feature_list{
+      features::kDisableFillingOnPageLoadForLeakedCredentials};
   base::HistogramTester histogram_tester;
   saved_match_.change_password_url =
       GURL("https://example.com/.well-known/change-password/");
@@ -567,6 +568,8 @@ TEST_F(PasswordFormFillingTest, NoFillOnPageLoadForLeakedPassword) {
   const std::vector<PasswordForm> federated_matches = {};
 
   EXPECT_CALL(client_, IsPasswordChangeOngoing).WillOnce(Return(false));
+  EXPECT_CALL(password_change_service_, IsPasswordChangeAvailable)
+      .WillRepeatedly(testing::Return(true));
   LikelyFormFilling likely_form_filling = SendFillInformationToRenderer(
       &client_, &driver_, observed_form_, best_matches, federated_matches,
       &saved_match_, metrics_recorder_.get(),

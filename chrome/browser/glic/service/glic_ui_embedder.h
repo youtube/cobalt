@@ -35,7 +35,12 @@ class GlicUiEmbedder {
     virtual void WillCloseFor(EmbedderKey key) = 0;
     virtual Host& host() = 0;
     virtual void Show(const ShowOptions& options) = 0;
-    virtual void Detach(tabs::TabInterface* tab) = 0;
+    // Closes the side panel UI and opens the floating UI for this instance.
+    virtual void Detach(tabs::TabInterface& tab) = 0;
+    // Closes the floating UI for this instance and opens the side panel UI
+    // in the tab that it was detached from. This should only be called from
+    // GlicFloatingUi.
+    virtual void Attach(tabs::TabInterface& tab) = 0;
     // Called after the value of GetPanelState() changes.
     virtual void NotifyPanelStateChanged() = 0;
   };
@@ -48,7 +53,7 @@ class GlicUiEmbedder {
   // Show the glic UI for this embedder. Do nothing if the embedder is
   // currently showing. Show will be called when switching from an inactive to
   // active embedder.
-  virtual void Show() = 0;
+  virtual void Show(const ShowOptions& options) = 0;
 
   // Returns true if the embedder is currently showing.
   virtual bool IsShowing() const = 0;
@@ -71,6 +76,9 @@ class GlicUiEmbedder {
 
   // Returns the size of the panel.
   virtual gfx::Size GetPanelSize() = 0;
+
+  // Called when the client is ready to show.
+  virtual void OnClientReady() {}
 };
 
 }  // namespace glic

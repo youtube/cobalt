@@ -12,9 +12,13 @@ import android.content.ServiceConnection;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.hardware.display.DisplayManager;
+import android.util.Pair;
 import android.util.SparseArray;
+import android.view.Display;
 import android.view.View;
+import android.view.ViewConfiguration;
 import android.view.Window;
+import android.webkit.WebViewDelegate;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -24,6 +28,12 @@ import java.util.concurrent.Executor;
 /** Interface to call unreleased Android APIs that are guarded by aconfig flags. */
 @NullMarked
 public interface AconfigFlaggedApiDelegate {
+    /**
+     * The default text cursor blink interval in milliseconds. This value is used as a fallback in
+     * public Chromium builds where the real implementation is not available.
+     */
+    int DEFAULT_TEXT_CURSOR_BLINK_INTERVAL_MS = 500;
+
     /**
      * Prefer to use this to get a instance instead of calling ServiceLoaderUtil. If possible, avoid
      * caching the return value in member or global variables as it allows more compile time
@@ -57,6 +67,22 @@ public interface AconfigFlaggedApiDelegate {
      *     display.
      */
     default void moveTaskTo(AppTask at, int displayId, Rect bounds) {}
+
+    /**
+     * Calls the {@link android.app.ActivityManager.AppTask#moveTaskTo} method if supported,
+     * otherwise no-op. Trigger callback when this succeeds or fails.
+     *
+     * @param at {@link android.app.ActivityManager.AppTask} on which the method should be called.
+     * @param displayId identifier of the target display.
+     * @param bounds pixel-based target coordinates relative to the top-left corner of the target
+     *     display.
+     * @return A promise fulfilled with a pair of the actual target display id and actual updated
+     *     bounds.
+     */
+    default Promise<Pair<Integer, Rect>> moveTaskToWithPromise(
+            AppTask at, int displayId, Rect bounds) {
+        return Promise.fulfilled(Pair.create(Display.INVALID_DISPLAY, new Rect()));
+    }
 
     // Helper interfaces and methods for calling the unreleased Display Topology Android API, used
     // within {@link ui.display.DisplayAndroidManager}.
@@ -142,6 +168,16 @@ public interface AconfigFlaggedApiDelegate {
     }
 
     /**
+     * Calls the {@link android.view.ViewConfiguration#getTextCursorBlinkIntervalMillis()} method if
+     * an implementation is available, otherwise returns a default value.
+     *
+     * @param viewConfiguration The {@link android.view.ViewConfiguration} instance to use.
+     */
+    default int getTextCursorBlinkInterval(ViewConfiguration viewConfiguration) {
+        return DEFAULT_TEXT_CURSOR_BLINK_INTERVAL_MS;
+    }
+
+    /**
      * Calls {@link android.view.View#requestRectangleOnScreen(Rect, boolean, int)} if supported,
      * with focus type of {@link android.view.View#RECTANGLE_ON_SCREEN_REQUEST_SOURCE_INPUT_FOCUS}.
      *
@@ -165,5 +201,19 @@ public interface AconfigFlaggedApiDelegate {
     default boolean requestTextCursorOnScreen(View view, Rect boundsInView) {
         // TODO(crbug.com/450540343) inline internal delegate into callsites when API 36.1 releases.
         return false;
+    }
+
+    /**
+     * Checks if the Selection Action Menu Client is available, based on the API level and Aconfig
+     * flags. If the client is available, this method returns it wrapped in a {@code
+     * SelectionActionMenuClientWrapper}. This does not check if the client has been overridden and
+     * calling this method may return the default client. If the client is unavailable, this method
+     * returns null.
+     *
+     * @param delegate the WebViewDelegate used to get the client object.
+     */
+    default @Nullable SelectionActionMenuClientWrapper getSelectionActionMenuClient(
+            WebViewDelegate delegate) {
+        return null;
     }
 }

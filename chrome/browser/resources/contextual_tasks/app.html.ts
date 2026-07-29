@@ -11,11 +11,8 @@ import type {ContextualTasksAppElement} from './app.js';
 // clang-format off
 export function getHtml(this: ContextualTasksAppElement) {
   return html`<!--_html_template_start_-->
-  <div id="toolbar">
-    Contextual Tasks UI
-  </div>
-  <!-- TODO(452978117): Switch back to webview tag once it is supported. -->
-  <iframe id="threadFrame" src="${this.threadUrl_}"></iframe>
+  <top-toolbar @signin-click="${this.removeGsc_}"></top-toolbar>
+  <webview id="threadFrame" src="${this.threadUrl_}"></webview>
   <div id="composeboxContainer">
     <cr-composebox id="composebox">
     </cr-composebox>

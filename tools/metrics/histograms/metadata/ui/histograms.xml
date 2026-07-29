@@ -77,6 +77,7 @@ chromium-metrics-reviews@google.com.
   <variant name=".PerformanceSidePanel"/>
   <variant name=".ReadAnythingUntrusted"/>
   <variant name=".ReadingList"/>
+  <variant name=".ReloadButtonUI"/>
   <variant name=".ShoppingInsightsSidePanel"/>
   <variant name=".TabSearch"/>
   <variant name=".UserEducation"/>
@@ -225,7 +226,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ContextMenu.Shown{Type}" enum="BooleanPresent"
-    expires_after="2026-03-01">
+    expires_after="2026-05-03">
   <owner>mpearson@chromium.org</owner>
   <owner>twellington@chromium.org</owner>
   <owner>clank-app-team@google.com</owner>
@@ -429,6 +430,26 @@ chromium-metrics-reviews@google.com.
     This is only recorded for desktop platforms when the InitialWebUIMetrics is
     enabled.
   </summary>
+</histogram>
+
+<histogram
+    name="InitialWebUI.Startup.BrowserWindow.FirstPaint{StartupTemperature}"
+    units="ms" expires_after="2026-04-30">
+  <owner>mych@chromium.org</owner>
+  <owner>chrome-waap-eng@google.com</owner>
+  <summary>
+    Records the time from browser application startup to the first presentation
+    of the browser window onto the screen{StartupTemperature}. This is only
+    recorded for desktop platforms when the InitialWebUIMetrics feature is
+    enabled.
+  </summary>
+  <token key="StartupTemperature">
+    <variant name="" summary=""/>
+    <variant name=".ColdStartup"
+        summary=", where startup was cold (mostly hard faults)"/>
+    <variant name=".WarmStartup"
+        summary=", where startup was warm (almost no hard faults)"/>
+  </token>
 </histogram>
 
 <histogram
@@ -753,7 +774,7 @@ features through Chrome Labs. -->
 </histogram>
 
 <histogram name="WebUI.Settings.PathVisited" enum="WebUISettingsPathHashes"
-    expires_after="2026-03-01">
+    expires_after="2026-05-03">
   <owner>dschuyler@chromium.org</owner>
   <owner>tbuckley@chromium.org</owner>
   <owner>bettes@chromium.org</owner>
@@ -956,14 +977,14 @@ features through Chrome Labs. -->
 </histogram>
 
 <histogram name="WrenchMenu.MenuAction" enum="WrenchMenuAction"
-    expires_after="2026-03-01">
+    expires_after="2026-05-03">
   <owner>ainslie@chromium.org</owner>
   <owner>edwardjung@chromium.org</owner>
   <summary>Number of times that each menu item is clicked.</summary>
 </histogram>
 
 <histogram name="WrenchMenu.TimeToAction.{Action}" units="ms"
-    expires_after="2026-03-01">
+    expires_after="2026-05-03">
   <owner>ainslie@chromium.org</owner>
   <owner>edwardjung@chromium.org</owner>
   <summary>

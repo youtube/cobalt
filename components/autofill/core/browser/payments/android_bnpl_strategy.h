@@ -24,6 +24,9 @@ class AndroidBnplStrategy : public BnplStrategy {
       override;
   BnplAmountExtractionReturnedNextAction
   GetNextActionOnAmountExtractionReturned() override;
+  BeforeSwitchingViewAction GetBeforeViewSwitchAction() override;
+  bool ShouldRemoveExistingUiOnServerReturn(
+      PaymentsAutofillClient::PaymentsRpcResult result) override;
 };
 
 }  // namespace autofill::payments

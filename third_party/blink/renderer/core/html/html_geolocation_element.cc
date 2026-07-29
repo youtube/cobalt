@@ -20,8 +20,20 @@ namespace blink {
 
 namespace {
 // The minimum time that the spinning icon should be displayed.
-constexpr base::TimeDelta kMinimumSpinningIconTime = base::Seconds(2);
+constexpr base::TimeDelta kMinimumSpinningIconTime = base::Seconds(1.5);
 const char kAccuracyModePrecise[] = "precise";
+
+// Timeout for querying location (in milliseconds).
+constexpr uint16_t kDefaultQueryLocationTimeoutMs = 10000;
+
+PositionOptions* CreateDefaultLocationOptions() {
+  PositionOptions* options = PositionOptions::Create();
+  options->setTimeout(kDefaultQueryLocationTimeoutMs);
+  options->setMaximumAge(0);
+  options->setEnableHighAccuracy(false);
+  return options;
+}
+
 }  // namespace
 
 HTMLGeolocationElement::HTMLGeolocationElement(Document& document)
@@ -124,6 +136,10 @@ void HTMLGeolocationElement::DefaultEventHandler(Event& event) {
 void HTMLGeolocationElement::OnPermissionStatusChange(
     mojom::blink::PermissionName permission_name,
     mojom::blink::PermissionStatus status) {
+  // This function may be triggered when there is a delayed system permission
+  // update. If this occurs, we will check whether the user has previously given
+  // permission to determine if a geolocation search should be initiated.
+  bool has_made_permission_decision_granted = PermissionsGranted();
   HTMLPermissionElement::OnPermissionStatusChange(permission_name, status);
   if (status != mojom::blink::PermissionStatus::GRANTED) {
     did_autolocate_trigger_request = false;
@@ -135,7 +151,8 @@ void HTMLGeolocationElement::OnPermissionStatusChange(
     MaybeTriggerAutolocate(HasPendingPermissionRequest()
                                ? ForceAutolocate::kYes
                                : ForceAutolocate::kNo);
-  } else if (HasPendingPermissionRequest()) {
+  } else if (HasPendingPermissionRequest() ||
+             has_made_permission_decision_granted) {
     RequestGeolocation();
   }
 }
@@ -171,7 +188,8 @@ void HTMLGeolocationElement::GetCurrentPosition() {
   if (!WebTestSupport::IsRunningWebTest()) {
     geolocation->GetCurrentPosition(
         blink::BindRepeating(&HTMLGeolocationElement::CurrentPositionCallback,
-                             WrapWeakPersistent(this)));
+                             WrapWeakPersistent(this)),
+        CreateDefaultLocationOptions());
   }
 }
 
@@ -189,7 +207,8 @@ void HTMLGeolocationElement::WatchPosition() {
     }
     watch_id_ = geolocation->WatchPosition(
         blink::BindRepeating(&HTMLGeolocationElement::CurrentPositionCallback,
-                             WrapWeakPersistent(this)));
+                             WrapWeakPersistent(this)),
+        CreateDefaultLocationOptions());
   } else {
     // In web tests, we don't have a real geolocation service.
     // Set a dummy watch_id to simulate success.

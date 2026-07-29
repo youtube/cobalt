@@ -13,6 +13,7 @@
 #include "base/timer/timer.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
 #include "chrome/browser/password_manager/password_change/button_click_helper.h"
+#include "chrome/common/chrome_render_frame.mojom.h"
 #include "components/autofill/core/common/form_data.h"
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
 #include "components/password_manager/core/browser/password_form.h"
@@ -87,6 +88,10 @@ class ChangePasswordFormFillingSubmissionHelper {
     return form_manager_.get();
   }
 #endif
+  // Whether helper has submitted change password form or not.
+  bool IsPasswordFormSubmitted() const {
+    return submission_verifier_ != nullptr;
+  }
 
  private:
   void TriggerFilling(
@@ -104,14 +109,13 @@ class ChangePasswordFormFillingSubmissionHelper {
   OptimizationGuideKeyedService* GetOptimizationService();
 
   void OnExecutionResponseCallback(
-      base::Time request_time,
       optimization_guide::OptimizationGuideModelExecutionResult
           execution_result,
       std::unique_ptr<
           optimization_guide::proto::PasswordChangeSubmissionLoggingData>
           logging_data);
 
-  void OnButtonClicked(bool result);
+  void OnButtonClicked(actor::mojom::ActionResultCode result);
 
   void OnSubmissionDetectedOrTimeout();
 
@@ -119,6 +123,8 @@ class ChangePasswordFormFillingSubmissionHelper {
 
   void OnChangePasswordFormFound(
       password_manager::PasswordFormManager* form_manager);
+
+  std::optional<base::Time> creation_time_;
 
   const raw_ptr<content::WebContents> web_contents_ = nullptr;
   const raw_ptr<password_manager::PasswordManagerClient> client_ = nullptr;

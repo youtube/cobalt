@@ -54,6 +54,7 @@
 #include "chrome/browser/ui/browser_dialogs.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "components/strings/grit/components_strings.h"
+#include "ui/base/interaction/element_identifier.h"
 #include "ui/base/models/dialog_model.h"
 #endif  // BUILDFLAG(IS_LINUX) ||  BUILDFLAG(IS_MAC) ||  BUILDFLAG(IS_WIN)
 
@@ -72,6 +73,9 @@ void SetForceSigninPolicy(bool enable) {
 }
 
 }  // namespace
+
+DEFINE_ELEMENT_IDENTIFIER_VALUE(kSigninErrorDialogId);
+DEFINE_ELEMENT_IDENTIFIER_VALUE(kSigninErrorDialogOkButtonId);
 
 ScopedForceSigninSetterForTesting::ScopedForceSigninSetterForTesting(
     bool enable) {
@@ -400,14 +404,14 @@ bool IsSyncingUserSelectableTypesAllowedByPolicy(
 }
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
-bool HasExplicitlyDisabledHistorySync(Profile& profile) {
+bool HasExplicitlyDisabledHistorySync(
+    const syncer::SyncService* sync_service,
+    const signin::IdentityManager* identity_manager) {
   // If the user is signed out, we cannot know if the toggles were interacted
   // with or not.
-  CHECK(GetSignedInState(IdentityManagerFactory::GetForProfile(&profile)) ==
+  CHECK(GetSignedInState(identity_manager) ==
         signin_util::SignedInState::kSignedIn);
 
-  syncer::SyncService* sync_service =
-      SyncServiceFactory::GetForProfile(&profile);
   if (!sync_service) {
     return false;
   }
@@ -464,6 +468,98 @@ void EnableHistorySync(syncer::SyncService* sync_service) {
       syncer::UserSelectableType::kTabs, /*is_type_on=*/true);
   sync_service->GetUserSettings()->SetSelectedType(
       syncer::UserSelectableType::kSavedTabGroups, /*is_type_on=*/true);
+}
+
+bool IsValidAccessPointForHistoryOptinScreen(
+    signin_metrics::AccessPoint access_point) {
+  switch (access_point) {
+    case (signin_metrics::AccessPoint::kExtensionInstallBubble):
+    case (signin_metrics::AccessPoint::kBookmarkBubble):
+    case (signin_metrics::AccessPoint::kRecentTabs):
+    case (signin_metrics::AccessPoint::kCollaborationJoinTabGroup):
+    case (signin_metrics::AccessPoint::kCollaborationShareTabGroup):
+    case (signin_metrics::AccessPoint::kPasswordBubble):
+    case (signin_metrics::AccessPoint::kAddressBubble):
+      return false;
+    case signin_metrics::AccessPoint::kStartPage:
+    case signin_metrics::AccessPoint::kNtpLink:
+    case signin_metrics::AccessPoint::kMenu:
+    case signin_metrics::AccessPoint::kSettings:
+    case signin_metrics::AccessPoint::kSupervisedUser:
+    case signin_metrics::AccessPoint::kExtensions:
+    case signin_metrics::AccessPoint::kBookmarkManager:
+    case signin_metrics::AccessPoint::kAvatarBubbleSignIn:
+    case signin_metrics::AccessPoint::kUserManager:
+    case signin_metrics::AccessPoint::kDevicesPage:
+    case signin_metrics::AccessPoint::kFullscreenSigninPromo:
+    case signin_metrics::AccessPoint::kUnknown:
+    case signin_metrics::AccessPoint::kAutofillDropdown:
+    case signin_metrics::AccessPoint::kResigninInfobar:
+    case signin_metrics::AccessPoint::kTabSwitcher:
+    case signin_metrics::AccessPoint::kMachineLogon:
+    case signin_metrics::AccessPoint::kGoogleServicesSettings:
+    case signin_metrics::AccessPoint::kSyncErrorCard:
+    case signin_metrics::AccessPoint::kForcedSignin:
+    case signin_metrics::AccessPoint::kAccountRenamed:
+    case signin_metrics::AccessPoint::kWebSignin:
+    case signin_metrics::AccessPoint::kSafetyCheck:
+    case signin_metrics::AccessPoint::kKaleidoscope:
+    case signin_metrics::AccessPoint::kEnterpriseSignoutCoordinator:
+    case signin_metrics::AccessPoint::kSigninInterceptFirstRunExperience:
+    case signin_metrics::AccessPoint::kSendTabToSelfPromo:
+    case signin_metrics::AccessPoint::kNtpFeedTopPromo:
+    case signin_metrics::AccessPoint::kSettingsSyncOffRow:
+    case signin_metrics::AccessPoint::kPostDeviceRestoreSigninPromo:
+    case signin_metrics::AccessPoint::kPostDeviceRestoreBackgroundSignin:
+    case signin_metrics::AccessPoint::kNtpSignedOutIcon:
+    case signin_metrics::AccessPoint::kNtpFeedCardMenuPromo:
+    case signin_metrics::AccessPoint::kNtpFeedBottomPromo:
+    case signin_metrics::AccessPoint::kDesktopSigninManager:
+    case signin_metrics::AccessPoint::kForYouFre:
+    case signin_metrics::AccessPoint::kCreatorFeedFollow:
+    case signin_metrics::AccessPoint::kReadingList:
+    case signin_metrics::AccessPoint::kReauthInfoBar:
+    case signin_metrics::AccessPoint::kAccountConsistencyService:
+    case signin_metrics::AccessPoint::kSearchCompanion:
+    case signin_metrics::AccessPoint::kSetUpList:
+    case signin_metrics::AccessPoint::kSaveToPhotosIos:
+    case signin_metrics::AccessPoint::kChromeSigninInterceptBubble:
+    case signin_metrics::AccessPoint::kRestorePrimaryAccountOnProfileLoad:
+    case signin_metrics::AccessPoint::kTabOrganization:
+    case signin_metrics::AccessPoint::kSaveToDriveIos:
+    case signin_metrics::AccessPoint::kTipsNotification:
+    case signin_metrics::AccessPoint::kNotificationsOptInScreenContentToggle:
+    case signin_metrics::AccessPoint::kSigninChoiceRemembered:
+    case signin_metrics::AccessPoint::kProfileMenuSignoutConfirmationPrompt:
+    case signin_metrics::AccessPoint::kSettingsSignoutConfirmationPrompt:
+    case signin_metrics::AccessPoint::kNtpIdentityDisc:
+    case signin_metrics::AccessPoint::kOidcRedirectionInterception:
+    case signin_metrics::AccessPoint::kWebauthnModalDialog:
+    case signin_metrics::AccessPoint::kAvatarBubbleSignInWithSyncPromo:
+    case signin_metrics::AccessPoint::kAccountMenu:
+    case signin_metrics::AccessPoint::kProductSpecifications:
+    case signin_metrics::AccessPoint::kAccountMenuFailedSwitch:
+    case signin_metrics::AccessPoint::kCctAccountMismatchNotification:
+    case signin_metrics::AccessPoint::kDriveFilePickerIos:
+    case signin_metrics::AccessPoint::kGlicLaunchButton:
+    case signin_metrics::AccessPoint::kHistoryPage:
+    case signin_metrics::AccessPoint::kHistorySyncOptinExpansionPillOnStartup:
+    case signin_metrics::AccessPoint::kWidget:
+    case signin_metrics::AccessPoint::kCollaborationLeaveOrDeleteTabGroup:
+    case signin_metrics::AccessPoint::kHistorySyncEducationalTip:
+    case signin_metrics::AccessPoint::kManagedProfileAutoSigninIos:
+    case signin_metrics::AccessPoint::kNonModalSigninPasswordPromo:
+    case signin_metrics::AccessPoint::kNonModalSigninBookmarkPromo:
+    case signin_metrics::AccessPoint::kUserManagerWithPrefilledEmail:
+    case signin_metrics::AccessPoint::kEnterpriseManagementDisclaimerAtStartup:
+    case signin_metrics::AccessPoint::
+        kEnterpriseManagementDisclaimerAfterBrowserFocus:
+    case signin_metrics::AccessPoint::
+        kEnterpriseManagementDisclaimerAfterSignin:
+    case signin_metrics::AccessPoint::kNtpFeaturePromo:
+    case signin_metrics::AccessPoint::kEnterpriseDialogAfterSigninInterception:
+      return true;
+  }
 }
 
 bool ShouldShowAvatarSyncPromo(Profile* profile) {
@@ -529,10 +625,12 @@ void ShowErrorDialogWithMessage(Browser* browser, int error_message_id) {
 
   auto dialog_model =
       ui::DialogModel::Builder()
-          .AddParagraph(ui::DialogModelLabel(error_message_id))
+          .AddParagraph(ui::DialogModelLabel(error_message_id),
+                        /*header=*/std::u16string(), kSigninErrorDialogId)
           .AddOkButton(base::DoNothing(),
-                       ui::DialogModel::Button::Params().SetLabel(
-                           l10n_util::GetStringUTF16(IDS_OK)))
+                       ui::DialogModel::Button::Params()
+                           .SetLabel(l10n_util::GetStringUTF16(IDS_OK))
+                           .SetId(kSigninErrorDialogOkButtonId))
           .Build();
 
   chrome::ShowBrowserModal(browser, std::move(dialog_model));

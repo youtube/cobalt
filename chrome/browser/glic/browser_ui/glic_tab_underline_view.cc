@@ -76,7 +76,7 @@ class GlicTabUnderlineView::UnderlineViewUpdater
     auto* glic_service = GetGlicKeyedService();
     GlicSharingManager& sharing_manager = glic_service->sharing_manager();
 
-    if (!base::FeatureList::IsEnabled(features::kGlicMultiInstance)) {
+    if (!GlicEnabling::IsMultiInstanceEnabledByFlags()) {
       // Subscribe to changes in the focused tab.
       focus_change_subscription_ =
           sharing_manager.AddFocusedTabChangedCallback(base::BindRepeating(
@@ -108,7 +108,7 @@ class GlicTabUnderlineView::UnderlineViewUpdater
   UnderlineViewUpdater(const UnderlineViewUpdater&) = delete;
   UnderlineViewUpdater& operator=(const UnderlineViewUpdater&) = delete;
   ~UnderlineViewUpdater() override {
-    if (!base::FeatureList::IsEnabled(features::kGlicMultiInstance)) {
+    if (!GlicEnabling::IsMultiInstanceEnabledByFlags()) {
       GetGlicKeyedService()
           ->GetSingleInstanceWindowController()
           .RemoveStateObserver(this);
@@ -311,7 +311,7 @@ class GlicTabUnderlineView::UnderlineViewUpdater
         // Underline should be hidden, with exception to pinned tabs while the
         // glic panel remains open.
         if (IsUnderlineTabPinned() &&
-            (base::FeatureList::IsEnabled(features::kGlicMultiInstance) ||
+            (GlicEnabling::IsMultiInstanceEnabledByFlags() ||
              IsGlicWindowShowing())) {
           break;
         }
@@ -361,7 +361,7 @@ class GlicTabUnderlineView::UnderlineViewUpdater
         }
         break;
       case UpdateUnderlineReason::kPinnedTabsChanged_TabInPinnedSet:
-        if (base::FeatureList::IsEnabled(features::kGlicMultiInstance)) {
+        if (GlicEnabling::IsMultiInstanceEnabledByFlags()) {
           ShowAndAnimateUnderline();
         } else {
           // If `underline_view_` is not visible, then this tab was just added
@@ -433,7 +433,7 @@ class GlicTabUnderlineView::UnderlineViewUpdater
     }
     // For multi-instance, we rely on the umbrella sharing manager behavior to
     // determine when to show or not show underlines via the pinned tabs api.
-    if (!base::FeatureList::IsEnabled(features::kGlicMultiInstance)) {
+    if (!GlicEnabling::IsMultiInstanceEnabledByFlags()) {
       // Pinned underlines should never be visible if the glic window is closed.
       if (!IsGlicWindowShowing()) {
         return;
@@ -615,8 +615,11 @@ void GlicTabUnderlineView::DrawEffect(gfx::Canvas* canvas,
   gfx::Rect effect_bounds(origin, size);
 
   cc::PaintFlags new_flags(flags);
+  const int kNumDefaultColors = 3;
   // At small sizes, paint the underline as a solid color instead of a gradient.
-  if (underline_width < gfx::kFaviconSize) {
+  // We also draw a solid color if we've got no shader and fewer than 3 colors.
+  if (underline_width < gfx::kFaviconSize * 2 ||
+      (!new_flags.getShader() && colors_.size() < kNumDefaultColors)) {
     new_flags.setShader(nullptr);
     // `colors_` is not populated if the kGlicParameterizedShader feature is not
     // enabled.
@@ -627,6 +630,8 @@ void GlicTabUnderlineView::DrawEffect(gfx::Canvas* canvas,
       const SkColor fallback_color = SkColorSetARGB(255, 49, 134, 255);
       new_flags.setColor(fallback_color);
     }
+  } else if (!new_flags.getShader()) {
+    SetDefaultColors(new_flags, gfx::RectF(effect_bounds));
   }
 
   canvas->DrawRoundRect(gfx::RectF(effect_bounds), kCornerRadius, new_flags);

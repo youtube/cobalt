@@ -12,7 +12,6 @@
 +org.chromium.chrome.browser.dragdrop.ChromeDragAndDropBrowserDelegate$ClipDataItemBuilder
 +org.chromium.chrome.browser.firstrun.FirstRunUtils
 +org.chromium.chrome.browser.init.ChromeBrowserInitializer
-+org.chromium.chrome.browser.lens.LensController
 +org.chromium.chrome.browser.multiwindow.MultiInstanceManagerApi31
 +org.chromium.chrome.browser.night_mode.WebContentsDarkModeController
 +org.chromium.chrome.browser.omnibox.UrlBarData
@@ -32,7 +31,6 @@
 +org.chromium.chrome.browser.tab.TabBrowserControlsOffsetHelper
 +org.chromium.chrome.browser.tab.TabBuilder
 +org.chromium.chrome.browser.tab.TabUtils
-+org.chromium.chrome.browser.tab.TrustedCdn
 +org.chromium.chrome.browser.toolbar.adaptive.OptionalNewTabButtonController$Delegate
 +org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeControllerFactory
 +org.chromium.chrome.browser.ui.hats.MessageSurveyUiDelegate

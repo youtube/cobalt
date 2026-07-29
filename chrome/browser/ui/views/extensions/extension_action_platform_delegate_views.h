@@ -14,7 +14,6 @@
 
 class BrowserWindowInterface;
 class ExtensionsContainerViews;
-class ToolbarActionViewDelegateViews;
 
 namespace extensions {
 class ExtensionViewHost;
@@ -81,6 +80,7 @@ class ExtensionActionPlatformDelegateViews
                     bool by_user,
                     ShowPopupCallback callback) override;
   void ShowContextMenuAsFallback() override;
+  bool CloseOverflowMenuIfOpen() override;
 
   // ui::AcceleratorTarget:
   bool AcceleratorPressed(const ui::Accelerator& accelerator) override;
@@ -88,8 +88,6 @@ class ExtensionActionPlatformDelegateViews
 
   // ExtensionHostObserver:
   void OnExtensionHostDestroyed(extensions::ExtensionHost* host) override;
-
-  ToolbarActionViewDelegateViews* GetDelegateViews() const;
 
   // The corresponding browser window.
   const raw_ptr<BrowserWindowInterface> browser_;

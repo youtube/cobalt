@@ -12,9 +12,9 @@
 #import "ios/chrome/browser/net/model/crurl.h"
 #import "ios/chrome/browser/shared/ui/bottom_sheet/table_view_bottom_sheet_view_controller+subclassing.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
-#import "ios/chrome/browser/shared/ui/table_view/cells/table_view_detail_icon_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/content_configuration/image_content_configuration.h"
 #import "ios/chrome/browser/shared/ui/table_view/content_configuration/table_view_cell_content_configuration.h"
+#import "ios/chrome/common/ui/button_stack/button_stack_configuration.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/confirmation_alert/confirmation_alert_action_handler.h"
 #import "ui/base/l10n/l10n_util.h"
@@ -101,11 +101,13 @@ CGFloat const kChromeLogoHeight = 22;
 }
 
 - (void)setAcceptActionText:(NSString*)acceptActionText {
-  self.primaryActionString = acceptActionText;
+  self.configuration.primaryActionString = acceptActionText;
+  [self reloadConfiguration];
 }
 
 - (void)setCancelActionText:(NSString*)cancelActionText {
-  self.secondaryActionString = cancelActionText;
+  self.configuration.secondaryActionString = cancelActionText;
+  [self reloadConfiguration];
 }
 
 - (void)setLegalMessages:(NSArray<SaveCardMessageWithLinks*>*)legalMessages {
@@ -125,14 +127,12 @@ CGFloat const kChromeLogoHeight = 22;
 
 - (void)showLoadingStateWithAccessibilityLabel:(NSString*)accessibilityLabel {
   self.primaryActionButton.accessibilityLabel = accessibilityLabel;
-  self.isLoading = YES;
-  self.isConfirmed = NO;
+  [self setLoading:YES];
 }
 
 - (void)showConfirmationState {
-  BOOL wasLoadingShown = self.isLoading;
-  self.isLoading = NO;
-  self.isConfirmed = YES;
+  BOOL wasLoadingShown = self.configuration.isLoading;
+  [self setConfirmed:YES];
   self.primaryActionButton.accessibilityLabel = l10n_util::GetNSString(
       IDS_AUTOFILL_SAVE_CARD_CONFIRMATION_SUCCESS_ACCESSIBLE_NAME);
 

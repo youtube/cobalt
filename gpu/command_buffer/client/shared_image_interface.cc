@@ -85,15 +85,6 @@ gpu::SharedImageUsageSet SharedImageInterface::GetCpuSIUsage(
   }
 }
 
-SharedImageInterface::SwapChainSharedImages::SwapChainSharedImages(
-    scoped_refptr<gpu::ClientSharedImage> front_buffer,
-    scoped_refptr<gpu::ClientSharedImage> back_buffer)
-    : front_buffer(std::move(front_buffer)),
-      back_buffer(std::move(back_buffer)) {}
-SharedImageInterface::SwapChainSharedImages::SwapChainSharedImages(
-    const SwapChainSharedImages& shared_images) = default;
-SharedImageInterface::SwapChainSharedImages::~SwapChainSharedImages() = default;
-
 SharedImageInterface::SharedImageInterface()
     : holder_(base::MakeRefCounted<SharedImageInterfaceHolder>(this)) {}
 SharedImageInterface::~SharedImageInterface() = default;
@@ -172,6 +163,20 @@ void SharedImageInterface::CreateSharedImagePool(
 
 void SharedImageInterface::DestroySharedImagePool(
     const SharedImagePoolId& pool_id) {
+  NOTREACHED();
+}
+
+bool SharedImageInterface::IsLost() const {
+  NOTREACHED();
+}
+
+bool SharedImageInterface::AddGpuChannelLostObserver(
+    GpuChannelLostObserver* observer) {
+  NOTREACHED();
+}
+
+void SharedImageInterface::RemoveGpuChannelLostObserver(
+    GpuChannelLostObserver* observer) {
   NOTREACHED();
 }
 

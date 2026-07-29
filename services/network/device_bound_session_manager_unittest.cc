@@ -84,7 +84,6 @@ class DeviceBoundSessionManagerTest : public ::testing::Test {
  public:
   DeviceBoundSessionManagerTest()
       : context_(net::CreateTestURLRequestContextBuilder()->Build()),
-        unexportable_key_service_(task_manager_),
         service_(std::make_unique<SessionServiceImpl>(unexportable_key_service_,
                                                       context_.get(),
                                                       /*store=*/nullptr)),
@@ -102,8 +101,7 @@ class DeviceBoundSessionManagerTest : public ::testing::Test {
             nullptr,
             nullptr)),
         manager_(DeviceBoundSessionManager::Create(service_.get(),
-                                                   cookie_manager_.get())) {
-  }
+                                                   cookie_manager_.get())) {}
 
   DeviceBoundSessionManager& manager() { return *manager_; }
   CookieManager& cookie_manager() { return *cookie_manager_; }
@@ -125,9 +123,9 @@ class DeviceBoundSessionManagerTest : public ::testing::Test {
   base::test::TaskEnvironment task_environment_;
   crypto::ScopedFakeUnexportableKeyProvider scoped_fake_key_provider_;
   std::unique_ptr<net::URLRequestContext> context_;
-  unexportable_keys::UnexportableKeyTaskManager task_manager_{
-      crypto::UnexportableKeyProvider::Config()};
-  unexportable_keys::UnexportableKeyServiceImpl unexportable_key_service_;
+  unexportable_keys::UnexportableKeyTaskManager task_manager_;
+  unexportable_keys::UnexportableKeyServiceImpl unexportable_key_service_{
+      task_manager_, crypto::UnexportableKeyProvider::Config()};
   std::unique_ptr<SessionServiceImpl> service_;
   std::unique_ptr<CookieManager> cookie_manager_;
   std::unique_ptr<DeviceBoundSessionManager> manager_;
@@ -261,6 +259,17 @@ TEST_F(DeviceBoundSessionManagerTest, CreateBoundSession_InvalidSessionParams) {
       std::move(params), /*wrapped_key=*/std::vector<uint8_t>{1, 2, 3, 4},
       cookies_to_set, cookie_options, create_future.GetCallback());
   EXPECT_FALSE(create_future.Get());
+
+  base::test::TestFuture<const net::CookieAccessResultList&,
+                         const net::CookieAccessResultList&>
+      cookies_future;
+  cookie_manager().GetCookieList(url, net::CookieOptions::MakeAllInclusive(),
+                                 net::CookiePartitionKeyCollection(),
+                                 cookies_future.GetCallback());
+  const auto& cookies = cookies_future.Get<0>();
+  ASSERT_EQ(cookies.size(), 1u);
+  EXPECT_EQ(cookies[0].cookie.Name(), "test_cookie");
+  EXPECT_EQ(cookies[0].cookie.Value(), "value");
 }
 
 TEST_F(DeviceBoundSessionManagerTest, CreateBoundSession_InvalidCookie) {

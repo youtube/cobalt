@@ -44,8 +44,9 @@ class GlicSidePanelUi : public GlicUiEmbedder,
   ~GlicSidePanelUi() override;
 
   // GlicUiEmbedder:
+  void OnClientReady() override;
   Host::EmbedderDelegate* GetHostEmbedderDelegate() override;
-  void Show() override;
+  void Show(const ShowOptions& options) override;
   void Close() override;
   std::unique_ptr<GlicUiEmbedder> CreateInactiveEmbedder() const override;
   void Focus() override;

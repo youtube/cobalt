@@ -37,12 +37,19 @@ BwgService::BwgService(ProfileIOS* profile,
   // with having the entrypoint maybe disappear at a later time (actual Gemini
   // requests to ineligible accounts will fail regardless).
   is_disabled_by_gemini_policy_ =
+      auth_service_ &&
       auth_service_->HasPrimaryIdentityManaged(signin::ConsentLevel::kSignin);
 
   if (IsAskGeminiChipEnabled()) {
     optimization_guide_ = optimization_guide;
     optimization_guide_->RegisterOptimizationTypes(
         {optimization_guide::proto::GLIC_CONTEXTUAL_CUEING});
+  }
+
+  if (IsZeroStateSuggestionsEnabled()) {
+    optimization_guide_ = optimization_guide;
+    optimization_guide_->RegisterOptimizationTypes(
+        {optimization_guide::proto::GLIC_ZERO_STATE_SUGGESTIONS});
   }
 
   CheckGeminiEnterpriseEligibility();
@@ -58,8 +65,8 @@ void BwgService::Shutdown() {
 
 bool BwgService::IsProfileEligibleForBwg() {
   if (!IsGeminiAvailableForManagedAccounts()) {
-    if (auth_service_->HasPrimaryIdentityManaged(
-            signin::ConsentLevel::kSignin)) {
+    if (auth_service_ && auth_service_->HasPrimaryIdentityManaged(
+                             signin::ConsentLevel::kSignin)) {
       return false;
     }
   }
@@ -133,6 +140,13 @@ void BwgService::OnRefreshTokenUpdatedForAccount(
 void BwgService::CheckGeminiEnterpriseEligibility() {
   if (tests_hook::DisableGeminiEligibilityCheck()) {
     is_disabled_by_gemini_policy_ = false;
+    return;
+  }
+
+  // No way to know if the user is blocked by Gemini Enterprise policy if the
+  // auth service is null.
+  if (!auth_service_) {
+    is_disabled_by_gemini_policy_ = true;
     return;
   }
 

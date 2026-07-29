@@ -38,7 +38,7 @@ void DesktopBnplUiDelegate::ShowSelectBnplIssuerUi(
       std::move(selected_issuer_callback), std::move(cancel_callback));
 }
 
-void DesktopBnplUiDelegate::DismissSelectBnplIssuerUi() {
+void DesktopBnplUiDelegate::RemoveSelectBnplIssuerOrProgressUi() {
   if (select_bnpl_issuer_dialog_controller_) {
     select_bnpl_issuer_dialog_controller_->Dismiss();
     select_bnpl_issuer_dialog_controller_.reset();
@@ -60,11 +60,13 @@ void DesktopBnplUiDelegate::ShowBnplTosUi(BnplTosModel bnpl_tos_model,
       std::move(cancel_callback));
 }
 
-void DesktopBnplUiDelegate::CloseBnplTosUi() {
+void DesktopBnplUiDelegate::RemoveBnplTosOrProgressUi() {
   if (!bnpl_tos_controller_) {
     return;
   }
 
+  // If the BNPL issuer selected is not linked, or is linked but requires ToS
+  // acceptance, then the ToS UI must be showing, so close it.
   bnpl_tos_controller_->Dismiss();
   bnpl_tos_controller_.reset();
 }
@@ -77,9 +79,9 @@ void DesktopBnplUiDelegate::ShowProgressUi(
 }
 
 void DesktopBnplUiDelegate::CloseProgressUi(
-    bool show_confirmation_before_closing) {
+    bool credit_card_fetched_successfully) {
   client_->GetPaymentsAutofillClient()->CloseAutofillProgressDialog(
-      show_confirmation_before_closing,
+      /*show_confirmation_before_closing=*/credit_card_fetched_successfully,
       /*no_interactive_authentication_callback=*/base::DoNothing());
 }
 

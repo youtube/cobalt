@@ -1491,17 +1491,6 @@ class CONTENT_EXPORT NavigationRequest
     return frame_entry_document_sequence_number_;
   }
 
-  // Returns the canvas noise token used for canvas noising on the renderer.
-  // Only one token should be generated per page and should use the main frame's
-  // origin to generate such. Main frames should use this accessor to populate
-  // the content::Page and subsequent blink::Pages. Subframes should not use
-  // this accessor, but instead should use `PageImpl::canvas_noise_token()` to
-  // get the canvas noise token.
-  std::optional<blink::NoiseToken> canvas_noise_token() {
-    CHECK(IsInMainFrame());
-    return canvas_noise_token_;
-  }
-
   bool is_ad_tagged() const { return is_ad_tagged_; }
 
   // Called when the browser process is about to process beforeunload handlers
@@ -1870,15 +1859,17 @@ class CONTENT_EXPORT NavigationRequest
   void OnWillCommitWithoutUrlLoaderChecksComplete(
       NavigationThrottle::ThrottleCheckResult result);
 
-  // Runs CommitDeferringConditions.
+  // Runs CommitDeferringConditions. Stores the provided callback in
+  // NavigationRequest and runs it after all the conditions finish running.
   //
   // For prerendered page activation, this is called at the beginning of the
   // navigation (i.e., in BeginNavigation()). This is because activating a
   // prerendered page must be an atomic, synchronous operation so there is no
   // chance for the prerender to be cancelled during the operation. The
-  // CommitDeferringConditions are asynchronous, so they run at the beginning
-  // of navigation. Once they finish, the atomic activation sequence runs.
-  void RunCommitDeferringConditions();
+  // CommitDeferringConditions are asynchronous, so they run at the beginning of
+  // navigation. Once they finish, the atomic activation sequence runs.
+  void RunCommitDeferringConditions(
+      base::OnceClosure on_commit_deferring_conditions_complete_callback);
 
   // Similar to the NavigationThrottle checks above but this is called from
   // CommitDeferringConditionRunner rather than NavigationThrottles and is
@@ -1889,9 +1880,17 @@ class CONTENT_EXPORT NavigationRequest
       std::optional<FrameTreeNodeId> candidate_prerender_frame_tree_node_id)
       override;
 
-  // Called either by OnFailureChecksComplete() or OnRequestFailed() directly.
-  // |error_page_content| contains the content of the error page (i.e. flattened
-  // HTML, JS, CSS).
+  // Internal helper to prepare to commit an error page, by running
+  // CommitDeferringConditions and then proceeding to `CommitErrorPage()`.
+  // Called either by `OnFailureChecksComplete()` or `OnRequestFailed()`
+  // directly. `error_page_content` contains the content of the error page (i.e.
+  // flattened HTML, JS, CSS).
+  void PrepareToCommitErrorPage(
+      const std::optional<std::string>& error_page_content);
+
+  // Actually commits an error page after CommitDeferringConditions finish
+  // running. `error_page_content` contains the content of the error page; this
+  // is handed off from `PrepareToCommitErrorPage()`.
   void CommitErrorPage(const std::optional<std::string>& error_page_content);
 
   // Have a RenderFrameHost commit the navigation. The NavigationRequest will
@@ -2017,6 +2016,8 @@ class CONTENT_EXPORT NavigationRequest
   // process crashes.
   void OnNavigationClientDisconnected(uint32_t reason,
                                       const std::string& description);
+
+  void ReuseRequestNavigationClientForCommitIfNeeded();
 
   // Binds the given error_handler to be called when an interface disconnection
   // happens on the renderer side.
@@ -3226,6 +3227,12 @@ class CONTENT_EXPORT NavigationRequest
   // time the closure runs.
   base::OnceClosure resume_commit_closure_;
 
+  // This closure is set just before CommitDeferringConditions start to run and
+  // is used to proceed with either a prerender activation, a normal navigation
+  // commit, or an error page commit once all CommitDeferringConditions finish
+  // running.
+  base::OnceClosure commit_deferring_conditions_complete_closure_;
+
   // Metrics for measuring the impact of navigation queueing. Note that while
   // `resume_commit_closure_` is set on the navigation that was *blocked*, these
   // metrics are set on the NavigationRequest that is *blocking*.
@@ -3381,10 +3388,6 @@ class CONTENT_EXPORT NavigationRequest
   // instantiated.
   blink::mojom::ConfidenceLevel confidence_level_ =
       blink::mojom::ConfidenceLevel::kHigh;
-
-  // The token value for canvas noising. This should only be set on main frame
-  // navigations that subsequently set the token value on the page.
-  std::optional<blink::NoiseToken> canvas_noise_token_ = std::nullopt;
 
   // A container for embedder-specific data that needs to be available during
   // the renderer process selection phase of a navigation.

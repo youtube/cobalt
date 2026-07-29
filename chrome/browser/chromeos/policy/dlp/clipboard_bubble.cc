@@ -84,9 +84,7 @@ class BubbleButton : public views::LabelButton {
     const gfx::FontList font_list = GetFontList();
     label()->SetFontList(font_list);
 
-    const SkColor text_color = ash::ColorProvider::Get()->GetContentLayerColor(
-        ash::ColorProvider::ContentLayerType::kButtonLabelColorBlue);
-    SetTextColor(ButtonState::STATE_NORMAL, text_color);
+    SetTextColor(ButtonState::STATE_NORMAL, cros_tokens::kTextColorProminent);
     SetHorizontalAlignment(gfx::HorizontalAlignment::ALIGN_CENTER);
     SetSize({gfx::GetStringWidth(button_label, font_list) + 2 * kButtonPadding,
              kButtonHeight});
@@ -132,17 +130,14 @@ ClipboardBubbleView::ClipboardBubbleView(const std::u16string& text) {
   }
 
   // Add the managed icon.
-  ash::ColorProvider* color_provider = ash::ColorProvider::Get();
-  const SkColor icon_color = color_provider->GetContentLayerColor(
-      ash::ColorProvider::ContentLayerType::kIconColorPrimary);
-
   managed_icon_ = AddChildView(std::make_unique<views::ImageView>());
   managed_icon_->SetPaintToLayer();
   managed_icon_->layer()->SetFillsBoundsOpaquely(false);
   managed_icon_->SetBounds(kBubblePadding, kBubblePadding, kManagedIconSize,
                            kManagedIconSize);
   managed_icon_->SetImage(ui::ImageModel::FromVectorIcon(
-      vector_icons::kBusinessIcon, icon_color, kManagedIconSize));
+      vector_icons::kBusinessIcon, cros_tokens::kIconColorPrimary,
+      kManagedIconSize));
 
   // Add the bubble text.
   label_ = AddChildView(std::make_unique<views::StyledLabel>());
@@ -162,8 +157,7 @@ ClipboardBubbleView::ClipboardBubbleView(const std::u16string& text) {
   // Set the styling of the main text.
   // TODO(crbug.com/1150741): Handle RTL.
   views::StyledLabel::RangeStyleInfo message_style;
-  message_style.override_color = color_provider->GetContentLayerColor(
-      ash::ColorProvider::ContentLayerType::kTextColorPrimary);
+  message_style.override_color_id = cros_tokens::kTextColorPrimary;
 
   label_->SetText(full_text);
   label_->AddStyleRange(gfx::Range(0, main_message_length), message_style);
@@ -172,8 +166,7 @@ ClipboardBubbleView::ClipboardBubbleView(const std::u16string& text) {
   views::StyledLabel::RangeStyleInfo link_style =
       views::StyledLabel::RangeStyleInfo::CreateForLink(
           base::BindRepeating(&OnLearnMoreLinkClicked));
-  link_style.override_color = color_provider->GetContentLayerColor(
-      ash::ColorProvider::ContentLayerType::kTextColorURL);
+  link_style.override_color_id = cros_tokens::kLinkColor;
 
   label_->AddStyleRange(gfx::Range(main_message_length, full_text.size()),
                         link_style);

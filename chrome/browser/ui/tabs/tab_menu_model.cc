@@ -37,6 +37,7 @@
 #include "components/commerce/core/commerce_constants.h"
 #include "components/commerce/core/commerce_feature_list.h"
 #include "components/feed/feed_feature_list.h"
+#include "content/public/browser/web_contents.h"
 #include "ui/base/l10n/l10n_util.h"
 
 #if BUILDFLAG(ENABLE_GLIC)
@@ -284,7 +285,7 @@ void TabMenuModel::Build(TabStripModel* tab_strip, int index) {
   const bool display_share_with_glic =
       base::FeatureList::IsEnabled(glic::mojom::features::kGlicMultiTab) &&
       glic::GlicEnabling::IsReadyForProfile(tab_strip->profile()) &&
-      !base::FeatureList::IsEnabled(features::kGlicMultiInstance);
+      !glic::GlicEnabling::IsMultiInstanceEnabledByFlags();
 #else
   const bool display_share_with_glic = false;
 #endif

@@ -379,15 +379,6 @@ void PermissionControllerImpl::NotifyChangedSubscriptions(
   }
 }
 
-void PermissionControllerImpl::GrantOverridesForDevTools(
-    base::optional_ref<const url::Origin> requesting_origin,
-    base::optional_ref<const url::Origin> embedding_origin,
-    const std::vector<PermissionType>& permissions,
-    base::OnceCallback<void(OverrideStatus)> callback) {
-  GrantPermissionOverrides(requesting_origin, embedding_origin, permissions,
-                           std::move(callback));
-}
-
 void PermissionControllerImpl::SetPermissionOverride(
     base::optional_ref<const url::Origin> requesting_origin,
     base::optional_ref<const url::Origin> embedding_origin,
@@ -792,7 +783,7 @@ PermissionControllerImpl::GetPermissionResultForEmbeddedRequester(
 PermissionStatus PermissionControllerImpl::GetCombinedPermissionAndDeviceStatus(
     const blink::mojom::PermissionDescriptorPtr& permission,
     RenderFrameHost* render_frame_host) {
-  CHECK(PermissionUtil::IsDevicePermission(permission));
+  CHECK(PermissionUtil::IsDevicePermission(permission)) << permission->name;
   return GetPermissionResultForCurrentDocumentInternal(
              permission, render_frame_host,
              /*should_include_device_status=*/true)

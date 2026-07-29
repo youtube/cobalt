@@ -370,7 +370,7 @@ bool TestPaymentsAutofillClient::ShowTouchToFillLoyaltyCard(
 }
 
 bool TestPaymentsAutofillClient::UpdateTouchToFillBnplPaymentMethod(
-    std::optional<uint64_t> extracted_amount,
+    std::optional<int64_t> extracted_amount,
     bool is_amount_supported_by_any_issuer) {
   return false;
 }
@@ -390,6 +390,13 @@ bool TestPaymentsAutofillClient::ShowTouchToFillBnplIssuers(
 
 bool TestPaymentsAutofillClient::ShowTouchToFillError(
     const AutofillErrorDialogContext& context) {
+  return false;
+}
+
+bool TestPaymentsAutofillClient::ShowTouchToFillBnplTos(
+    BnplTosModel bnpl_tos_model,
+    base::OnceClosure accept_callback,
+    base::OnceClosure cancel_callback) {
   return false;
 }
 

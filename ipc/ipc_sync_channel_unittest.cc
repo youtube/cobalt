@@ -116,7 +116,6 @@ class Worker : public Listener {
   }
   Channel::Mode mode() { return mode_; }
   WaitableEvent* done_event() { return done_.get(); }
-  WaitableEvent* shutdown_event() { return &shutdown_event_; }
   void ResetChannel() { channel_.reset(); }
   // Derived classes need to call this when they've completed their part of
   // the test.
@@ -129,9 +128,10 @@ class Worker : public Listener {
 
   virtual SyncChannel* CreateChannel() {
     std::unique_ptr<SyncChannel> channel = SyncChannel::Create(
-        TakeChannelHandle(), mode_, this, ipc_thread_->task_runner(),
-        base::SingleThreadTaskRunner::GetCurrentDefault(), true,
-        &shutdown_event_);
+        this, ipc_thread_->task_runner(),
+        base::SingleThreadTaskRunner::GetCurrentDefault(), &shutdown_event_);
+
+    channel->Init(TakeChannelHandle(), mode_, true);
     return channel.release();
   }
 

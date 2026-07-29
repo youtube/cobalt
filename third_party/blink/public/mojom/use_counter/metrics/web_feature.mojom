@@ -3807,9 +3807,9 @@ enum WebFeature {
   kOBSOLETE_AttributeValueContainsLtOrGt = 4527,
   kOBSOLETE_V8ImportAssertionDeprecatedSyntax = 4528,
   kImageCaptureBackgroundBlur = 4529,
-  kPrivateNetworkAccessPreflightError = 4530,
-  kPrivateNetworkAccessPreflightSuccess = 4531,
-  kPrivateNetworkAccessPreflightWarning = 4532,
+  kOBSOLETE_PrivateNetworkAccessPreflightError = 4530,
+  kOBSOLETE_PrivateNetworkAccessPreflightSuccess = 4531,
+  kOBSOLETE_PrivateNetworkAccessPreflightWarning = 4532,
   kCSSGetComputedAnimationDurationZero = 4533,
   kCSSGetComputedWebkitFontSmoothingAnimationDurationZero = 4534,
   kDocumentOpenAliasedOriginDocumentDomain = 4535,
@@ -4331,7 +4331,7 @@ enum WebFeature {
   kButtonTypeAttrEmptyString = 5033,
   kProtectedAudienceDirectFromSellerSignals = 5034,
   kOBSOLETE_WebGPUSubgroupsFeatures = 5035,
-  kAudioContextOnError = 5036,
+  kOBSOLETE_AudioContextOnError = 5036,
   kNoVarySearchPrerender = 5037,
   // The items above roughly this point are available in the M128 branch.
   kOBSOLETE_V8AITextSession_Clone_Method = 5038,
@@ -4766,7 +4766,7 @@ enum WebFeature {
   kSummarizer_OutputLanguage = 5456,
   kSummarizer_SharedContext = 5457,
   kSummarizer_Type = 5458,
-  kCrossOriginSameSiteCookieAccessViaStorageAccessAPI = 5459,
+  kOBSOLETE_CrossOriginSameSiteCookieAccessViaStorageAccessAPI = 5459,
   kOBSOLETE_V8GPUAdapter_IsFallbackAdapter_AttributeGetter = 5460,
   kLanguageDetector_ExpectedInputLanguages = 5461,
   kServiceWorkerPushEventListener = 5462,
@@ -5031,6 +5031,7 @@ enum WebFeature {
   kAnimationCompositedTypes = 5715,
   kAnimationSvgNonCompositedTypes = 5716,
   kAnimationSvgCompositedTypes = 5717,
+  kAttributionReportingXhr = 5718,
 
   // Add new features immediately above this line. Don't change assigned
   // numbers of any item, and don't reuse removed slots. Also don't add extra

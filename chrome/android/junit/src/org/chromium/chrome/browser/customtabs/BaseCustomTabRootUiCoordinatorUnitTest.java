@@ -39,6 +39,7 @@ import org.chromium.base.TimeUtils;
 import org.chromium.base.UnownedUserDataHost;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.Features.DisableFeatures;
@@ -74,6 +75,7 @@ import org.chromium.chrome.browser.tabmodel.TabCreatorManager;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuBlocker;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuDelegate;
+import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTask;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeController;
 import org.chromium.chrome.browser.ui.google_bottom_bar.GoogleBottomBarCoordinator;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
@@ -123,6 +125,7 @@ public final class BaseCustomTabRootUiCoordinatorUnitTest {
             mBrowserStateBrowserControlsVisibilityDelegate;
 
     @Mock private ActivityWindowAndroid mWindowAndroid;
+    @Mock private OneshotSupplier<ChromeAndroidTask> mChromeAndroidTask;
     @Mock private ActivityLifecycleDispatcher mActivityLifecycleDispatcher;
     @Mock private ObservableSupplier<LayoutManagerImpl> mLayoutManagerSupplier;
     @Mock private MenuOrKeyboardActionController mMenuOrKeyboardActionController;
@@ -181,6 +184,8 @@ public final class BaseCustomTabRootUiCoordinatorUnitTest {
         when(mProfile.getOriginalProfile()).thenReturn(mProfile);
         IdentityServicesProvider.setInstanceForTests(mIdentityServicesProvider);
         when(mIdentityServicesProvider.getIdentityManager(any())).thenReturn(mIdentityManager);
+        when(mFullscreenManager.getPersistentFullscreenModeSupplier())
+                .thenReturn(new ObservableSupplierImpl<Boolean>(false));
 
         mProfileSupplier = new ObservableSupplierImpl();
 
@@ -196,6 +201,7 @@ public final class BaseCustomTabRootUiCoordinatorUnitTest {
                         mTabModelSelectorSupplier,
                         mBrowserControlsManager,
                         mWindowAndroid,
+                        mChromeAndroidTask,
                         mActivityLifecycleDispatcher,
                         mLayoutManagerSupplier,
                         mMenuOrKeyboardActionController,
@@ -224,7 +230,8 @@ public final class BaseCustomTabRootUiCoordinatorUnitTest {
                         CallbackUtils.emptyRunnable(),
                         mEdgeToEdgeManager,
                         mDesktopWindowStateManager,
-                        mBrowserServicesColorProviderSupplier) {
+                        mBrowserServicesColorProviderSupplier,
+                        null) {
 
                     @Nullable
                     @Override

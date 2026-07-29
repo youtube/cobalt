@@ -47,7 +47,6 @@
 #include "gpu/command_buffer/client/gles2_interface.h"
 #include "gpu/command_buffer/client/shared_image_interface.h"
 #include "gpu/command_buffer/common/capabilities.h"
-#include "gpu/command_buffer/common/shared_image_capabilities.h"
 #include "gpu/config/gpu_driver_bug_workaround_type.h"
 #include "gpu/config/gpu_feature_info.h"
 #include "media/base/video_frame.h"
@@ -668,8 +667,8 @@ WebGLRenderingContextBase::CreateContextProviderInternal(
           context_type, context_info, url);
   if (context_provider && !context_provider->BindToCurrentSequence()) {
     context_provider = nullptr;
-    context_info->error_message = String("BindToCurrentSequence failed: " +
-                                          String(context_info->error_message));
+    context_info->error_message = StrCat({"BindToCurrentSequence failed: ",
+                                          String(context_info->error_message)});
   }
   if (!context_provider || g_should_fail_context_creation_for_testing) {
     g_should_fail_context_creation_for_testing = false;
@@ -1331,21 +1330,16 @@ scoped_refptr<DrawingBuffer> WebGLRenderingContextBase::CreateDrawingBuffer(
           ? DrawingBuffer::kAllowChromiumImage
           : DrawingBuffer::kDisallowChromiumImage;
 
-  bool using_swap_chain = context_provider->SharedImageInterface()
-                              ->GetCapabilities()
-                              .shared_image_swap_chain &&
-                          desynchronized;
-
   gl::GpuPreference gpu_preference =
       PowerPreferenceToGpuPreference(attrs.power_preference);
 
   ScopedPixelLocalStorageInterrupt scoped_pls_interrupt(this);
   return DrawingBuffer::Create(
-      std::move(context_provider), context_info, using_swap_chain, this,
-      ClampedCanvasSize(), premultiplied_alpha, want_alpha_channel,
-      want_depth_buffer, want_stencil_buffer, want_antialiasing, desynchronized,
-      preserve, context_type_, chromium_image_usage,
-      drawing_buffer_color_space_, gpu_preference);
+      std::move(context_provider), context_info, this, ClampedCanvasSize(),
+      premultiplied_alpha, want_alpha_channel, want_depth_buffer,
+      want_stencil_buffer, want_antialiasing, desynchronized, preserve,
+      context_type_, chromium_image_usage, drawing_buffer_color_space_,
+      gpu_preference);
 }
 
 void WebGLRenderingContextBase::InitializeNewContext() {
@@ -4018,9 +4012,9 @@ ScriptValue WebGLRenderingContextBase::getParameter(ScriptState* script_state,
       }
       return WebGLAny(
           script_state,
-          "WebGL GLSL ES 1.0 (" +
-              String(ContextGL()->GetString(GL_SHADING_LANGUAGE_VERSION)) +
-              ")");
+          StrCat({"WebGL GLSL ES 1.0 (",
+                  String(ContextGL()->GetString(GL_SHADING_LANGUAGE_VERSION)),
+                  ")"}));
     case GL_STENCIL_BACK_FAIL:
       return GetUnsignedIntParameter(script_state, pname);
     case GL_STENCIL_BACK_FUNC:
@@ -4086,7 +4080,8 @@ ScriptValue WebGLRenderingContextBase::getParameter(ScriptState* script_state,
       }
       return WebGLAny(
           script_state,
-          "WebGL 1.0 (" + String(ContextGL()->GetString(GL_VERSION)) + ")");
+          StrCat({"WebGL 1.0 (", String(ContextGL()->GetString(GL_VERSION)),
+                  ")"}));
     case GL_VIEWPORT:
       return GetWebGLIntArrayParameter(script_state, pname);
     case GL_FRAGMENT_SHADER_DERIVATIVE_HINT_OES:  // OES_standard_derivatives
@@ -5793,13 +5788,13 @@ bool WebGLRenderingContextBase::ValidateValueFitNonNegInt32(
     const char* param_name,
     int64_t value) {
   if (value < 0) {
-    String error_msg = String(param_name) + " < 0";
+    String error_msg = StrCat({param_name, " < 0"});
     SynthesizeGLError(GL_INVALID_VALUE, function_name,
                       error_msg.Ascii().c_str());
     return false;
   }
   if (value > static_cast<int64_t>(std::numeric_limits<int>::max())) {
-    String error_msg = String(param_name) + " more than 32-bit";
+    String error_msg = StrCat({param_name, " more than 32-bit"});
     SynthesizeGLError(GL_INVALID_OPERATION, function_name,
                       error_msg.Ascii().c_str());
     return false;
@@ -8972,11 +8967,9 @@ CanvasResourceProvider* WebGLRenderingContextBase::
     temp = CreateResourceProviderForVideoFrame(
         size, format, alpha_type, color_space, raster_context_provider);
   } else {
-    // TODO(fserb): why is this a BITMAP?
     temp = CanvasResourceProvider::CreateBitmapProvider(
         size, format, alpha_type, color_space,
-        CanvasResourceProvider::ShouldInitialize::kNo);  // TODO: should this
-                                                         // use the canvas's
+        CanvasResourceProvider::ShouldInitialize::kNo);
   }
 
   if (!temp)
@@ -9028,8 +9021,8 @@ void WebGLRenderingContextBase::SynthesizeGLError(
     ConsoleDisplayPreference display) {
   String error_type = GetErrorString(error);
   if (synthesized_errors_to_console_ && display == kDisplayInConsole) {
-    String message = String("WebGL: ") + error_type + ": " +
-                     String(function_name) + ": " + String(description);
+    String message =
+        StrCat({"WebGL: ", error_type, ": ", function_name, ": ", description});
     PrintGLErrorToConsole(message);
   }
   if (!isContextLost()) {
@@ -9045,8 +9038,7 @@ void WebGLRenderingContextBase::SynthesizeGLError(
 void WebGLRenderingContextBase::EmitGLWarning(const char* function_name,
                                               const char* description) {
   if (synthesized_errors_to_console_) {
-    String message =
-        String("WebGL: ") + String(function_name) + ": " + String(description);
+    String message = StrCat({"WebGL: ", function_name, ": ", description});
     PrintGLErrorToConsole(message);
   }
   NotifyWebGLWarning();
@@ -9198,38 +9190,23 @@ void WebGLRenderingContextBase::Trace(Visitor* visitor) const {
   CanvasRenderingContext::Trace(visitor);
 }
 
-int WebGLRenderingContextBase::AllocatedBufferCountPerPixel() const {
-  int buffer_count = 1;
-  buffer_count *= 2;  // WebGL's front and back color buffers.
-  int samples = GetDrawingBuffer() ? GetDrawingBuffer()->SampleCount() : 0;
-  WebGLContextAttributes* attribs = getContextAttributes();
-  if (attribs) {
-    // Handle memory from WebGL multisample and depth/stencil buffers.
-    // It is enabled only in case of explicit resolve assuming that there
-    // is no memory overhead for MSAA on tile-based GPU arch.
-    if (attribs->antialias() && samples > 0 &&
-        GetDrawingBuffer()->ExplicitResolveOfMultisampleData()) {
-      if (attribs->depth() || attribs->stencil())
-        buffer_count += samples;  // depth/stencil multisample buffer
-      buffer_count += samples;    // color multisample buffer
-    } else if (attribs->depth() || attribs->stencil()) {
-      buffer_count += 1;  // regular depth/stencil buffer
-    }
+base::ByteCount WebGLRenderingContextBase::AllocatedBufferSize() const {
+  if (!Host() || isContextLost()) {
+    return base::ByteCount();
   }
+  base::ByteCount result = GetDrawingBuffer()->EstimatedSizeInBytes();
 
   auto* provider = resource_provider_.get();
-  if (provider || cached_snapshot_) {
-    buffer_count++;
-    if (provider && provider->IsAccelerated()) {
-      // The number of internal GPU buffers vary between one (stable
-      // non-displayed state) and three (triple-buffered animations).
-      // Adding 2 is a pessimistic but relevant estimate.
-      // Note: These buffers might be allocated in GPU memory.
-      buffer_count += 2;
-    }
+  if (provider) {
+    result += provider->EstimatedSizeInBytes();
+  }
+  if (cached_snapshot_) {
+    result += base::ByteCount(
+        cached_snapshot_->GetSharedImageFormat().EstimatedSizeInBytes(
+            cached_snapshot_->GetSize()));
   }
 
-  return buffer_count;
+  return result;
 }
 
 DrawingBuffer* WebGLRenderingContextBase::GetDrawingBuffer() const {

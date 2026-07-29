@@ -5,22 +5,19 @@
 """Unittests for the results module."""
 
 import pathlib
-import sys
 import threading
 import time
 import unittest
-import unittest.mock
+from unittest import mock
 
 import eval_config
 import results
 
-CHROMIUM_SRC = pathlib.Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(CHROMIUM_SRC / 'build' / 'util'))
-from lib.results import result_sink
-from lib.results import result_types
-
 # Polling interval for threads in nanoseconds.
 _POLLING_INTERVAL = 100
+
+
+# pylint: disable=protected-access
 
 
 class TestResultTest(unittest.TestCase):
@@ -155,63 +152,7 @@ class TestResultTest(unittest.TestCase):
         self.assertEqual(result.successful_runs, 2)
 
 
-class ReportResultTest(unittest.TestCase):
 
-    def test_report_result(self):
-        mock_client = unittest.mock.Mock(spec=result_sink.ResultSinkClient)
-        config = eval_config.TestConfig(test_file=CHROMIUM_SRC /
-                                        'some_test.yaml')
-        test_result = results.TestResult(config=config,
-                                         success=True,
-                                         iteration_results=[
-                                             results.IterationResult(
-                                                 success=True,
-                                                 duration=1.23,
-                                                 test_log='log',
-                                                 metrics={},
-                                             )
-                                         ])
-        results.report_result(mock_client, test_result)
-        mock_client.Post.assert_called_once_with(
-            test_id='some_test.yaml',
-            status=result_types.PASS,
-            duration=1230,
-            test_log='log',
-            test_file='//some_test.yaml',
-            test_id_structured={
-                'coarseName': '',
-                'fineName': '',
-                'caseNameComponents': ['some_test.yaml']
-            },
-        )
-
-    def test_report_result_failure(self):
-        mock_client = unittest.mock.Mock(spec=result_sink.ResultSinkClient)
-        config = eval_config.TestConfig(test_file=CHROMIUM_SRC /
-                                        'some_test.yaml')
-        test_result = results.TestResult(config=config,
-                                         success=False,
-                                         iteration_results=[
-                                             results.IterationResult(
-                                                 success=False,
-                                                 duration=1.23,
-                                                 test_log='log',
-                                                 metrics={},
-                                             )
-                                         ])
-        results.report_result(mock_client, test_result)
-        mock_client.Post.assert_called_once_with(
-            test_id='some_test.yaml',
-            status=result_types.FAIL,
-            duration=1230,
-            test_log='log',
-            test_file='//some_test.yaml',
-            test_id_structured={
-                'coarseName': '',
-                'fineName': '',
-                'caseNameComponents': ['some_test.yaml']
-            },
-        )
 
 
 class AtomicCounterTest(unittest.TestCase):
@@ -255,29 +196,21 @@ class ResultThreadTest(unittest.TestCase):
 
         self.result_options = results.ResultOptions(
             print_output_on_success=False,
-            enable_perf_uploading=False,
-            git_revision=None,
+            result_handlers=[],
         )
 
     def _setUpPatches(self):
         """Set up patches for tests."""
-        self.polling_mock = unittest.mock.patch(
+        self.polling_mock = mock.patch(
             'results._RESULT_THREAD_POLLING_SLEEP_DURATION', 0.001)
         self.polling_mock.start()
         self.addCleanup(self.polling_mock.stop)
 
-        stdout_patcher = unittest.mock.patch('sys.stdout')
+        stdout_patcher = mock.patch('sys.stdout')
         self.mock_stdout = stdout_patcher.start()
         self.addCleanup(stdout_patcher.stop)
 
-        try_init_client_patcher = unittest.mock.patch(
-            'results.result_sink.TryInitClient')
-        self.mock_try_init_client = try_init_client_patcher.start()
-        self.addCleanup(try_init_client_patcher.stop)
 
-        report_result_patcher = unittest.mock.patch('results.report_result')
-        self.mock_report_result = report_result_patcher.start()
-        self.addCleanup(report_result_patcher.stop)
 
     def _create_result_thread(self):
         return results.ResultThread(result_options=self.result_options)
@@ -298,6 +231,24 @@ class ResultThreadTest(unittest.TestCase):
         thread.shutdown()
         thread.join(1)
         return thread
+
+    def test_result_handlers_called(self):
+        handler_mock = mock.Mock()
+        self.result_options.result_handlers = [handler_mock]
+
+        test_result = results.TestResult(
+            config=eval_config.TestConfig(test_file=pathlib.Path('test.yaml')),
+            success=True,
+            iteration_results=[
+                results.IterationResult(success=True,
+                                        duration=1.0,
+                                        test_log='log',
+                                        metrics={})
+            ])
+        _ = self._run_test_with_results([test_result])
+
+        handler_mock.assert_called_once_with(test_result)
+
 
     def test_passed_result(self):
         test_result = results.TestResult(
@@ -377,10 +328,9 @@ class ResultThreadTest(unittest.TestCase):
 
     def test_fatal_exception(self):
         thread = self._create_result_thread()
-        with unittest.mock.patch.object(
-                thread,
-                '_process_incoming_results_until_shutdown',
-                side_effect=ValueError('Test Error')):
+        with mock.patch.object(thread,
+                               '_process_incoming_results_until_shutdown',
+                               side_effect=ValueError('Test Error')):
             thread.start()
             thread.join(1)
 
@@ -440,37 +390,7 @@ class ResultThreadTest(unittest.TestCase):
 
         self.mock_stdout.write.assert_called_once_with('log')
 
-    def test_result_sink_client_none(self):
-        self.mock_try_init_client.return_value = None
-        test_result = results.TestResult(
-            config=eval_config.TestConfig(test_file=pathlib.Path('test.yaml')),
-            success=True,
-            iteration_results=[
-                results.IterationResult(success=True,
-                                        duration=1.0,
-                                        test_log='log',
-                                        metrics={})
-            ])
-        self._run_test_with_results([test_result])
 
-        self.mock_report_result.assert_not_called()
-
-    def test_result_sink_client_valid(self):
-        mock_client = unittest.mock.Mock()
-        self.mock_try_init_client.return_value = mock_client
-        test_result = results.TestResult(
-            config=eval_config.TestConfig(test_file=pathlib.Path('test.yaml')),
-            success=True,
-            iteration_results=[
-                results.IterationResult(success=True,
-                                        duration=1.0,
-                                        test_log='log',
-                                        metrics={})
-            ])
-        self._run_test_with_results([test_result])
-
-        self.mock_report_result.assert_called_once_with(
-            mock_client, test_result)
 
 
 if __name__ == '__main__':

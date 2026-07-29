@@ -37,6 +37,7 @@
 #import "components/autofill/core/browser/payments/virtual_card_enrollment_manager.h"
 #import "components/autofill/core/browser/ui/payments/autofill_progress_dialog_controller.h"
 #import "components/autofill/core/browser/ui/payments/autofill_progress_dialog_controller_impl.h"
+#import "components/autofill/core/browser/ui/payments/bnpl_tos_controller.h"
 #import "components/autofill/core/browser/ui/payments/card_unmask_authentication_selection_dialog_controller_impl.h"
 #import "components/autofill/core/browser/ui/payments/card_unmask_otp_input_dialog_controller.h"
 #import "components/autofill/core/browser/ui/payments/card_unmask_otp_input_dialog_controller_impl.h"
@@ -532,7 +533,7 @@ bool IOSChromePaymentsAutofillClient::ShowTouchToFillLoyaltyCard(
 }
 
 bool IOSChromePaymentsAutofillClient::UpdateTouchToFillBnplPaymentMethod(
-    std::optional<uint64_t> extracted_amount,
+    std::optional<int64_t> extracted_amount,
     bool is_amount_supported_by_any_issuer) {
   return false;
 }
@@ -546,6 +547,13 @@ bool IOSChromePaymentsAutofillClient::ShowTouchToFillBnplIssuers(
     base::span<const payments::BnplIssuerContext> bnpl_issuer_contexts,
     const std::string& app_locale,
     base::OnceCallback<void(BnplIssuer)> selected_issuer_callback,
+    base::OnceClosure cancel_callback) {
+  return false;
+}
+
+bool IOSChromePaymentsAutofillClient::ShowTouchToFillBnplTos(
+    BnplTosModel model,
+    base::OnceClosure accept_callback,
     base::OnceClosure cancel_callback) {
   return false;
 }

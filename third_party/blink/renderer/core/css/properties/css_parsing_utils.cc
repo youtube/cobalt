@@ -5477,12 +5477,16 @@ CSSValue* ConsumeGapDecorationPropertyValue(
     case CSSGapDecorationPropertyType::kWidth:
       return ConsumeLineWidth(stream, context,
                               css_parsing_utils::UnitlessQuirk::kForbid);
-    case CSSGapDecorationPropertyType::kStyle: {
+    case CSSGapDecorationPropertyType::kStyle:
       if (CSSParserFastPaths::IsBorderStyleValue(stream.Peek().Id())) {
         return ConsumeIdent(stream);
       }
       return nullptr;
-    }
+    case CSSGapDecorationPropertyType::kEdgeEndOutset:
+    case CSSGapDecorationPropertyType::kEdgeStartOutset:
+    case CSSGapDecorationPropertyType::kInteriorEndOutset:
+    case CSSGapDecorationPropertyType::kInteriorStartOutset:
+      return nullptr;
   }
 }
 
@@ -7336,6 +7340,96 @@ bool ConsumeGapDecorationsShorthandRepeatFunction(
   return true;
 }
 
+// Consuming the `rule-outset`, `column-rule-outset`, `row-rule-outset`
+// shorthands with syntax <length-percentage> <length-percentage>?
+// [ / <length-percentage> <length-percentage>?]?
+bool ConsumeGapDecorationsRuleOutsetShorthand(
+    bool important,
+    const CSSParserContext& context,
+    CSSParserTokenStream& stream,
+    CSSValue*& rule_edge_start_outset,
+    CSSValue*& rule_edge_end_outset,
+    CSSValue*& rule_interior_start_outset,
+    CSSValue*& rule_interior_end_outset) {
+  CHECK(RuntimeEnabledFeatures::CSSGapDecorationEnabled());
+
+  rule_edge_start_outset = nullptr;
+  rule_edge_end_outset = nullptr;
+  rule_interior_start_outset = nullptr;
+  rule_interior_end_outset = nullptr;
+
+  wtf_size_t edge_count = 0;
+  wtf_size_t interior_count = 0;
+  bool consumed_slash = false;
+
+  while (!stream.AtEnd() && !(stream.Peek().GetType() == kDelimiterToken &&
+                              stream.Peek().Delimiter() == '!')) {
+    if (ConsumeSlashIncludingWhitespace(stream)) {
+      // Slash rules: only one allowed; must follow at least one edge value.
+      if (consumed_slash || edge_count == 0) {
+        return false;
+      }
+      consumed_slash = true;
+      continue;
+    }
+
+    CSSValue* value = ConsumeLengthOrPercent(
+        stream, context, CSSPrimitiveValue::ValueRange::kAll);
+    if (!value) {
+      return false;
+    }
+
+    if (!consumed_slash) {
+      if (edge_count >= 2) {
+        return false;
+      }
+      if (edge_count == 0) {
+        rule_edge_start_outset = value;
+      } else {
+        rule_edge_end_outset = value;
+      }
+      ++edge_count;
+    } else {
+      if (interior_count >= 2) {
+        return false;
+      }
+      if (interior_count == 0) {
+        rule_interior_start_outset = value;
+      } else {
+        rule_interior_end_outset = value;
+      }
+      ++interior_count;
+    }
+  }
+
+  // At least one column/row rule edge value is needed.
+  if (edge_count == 0) {
+    return false;
+  }
+
+  // If slash present, there must be at least one interior value.
+  if (consumed_slash && interior_count == 0) {
+    return false;
+  }
+
+  // Expand shorthands per grammar:
+  // <len-perc> <len-perc>? [ / <len-perc> <len-perc>? ]?
+  if (!rule_edge_end_outset) {
+    rule_edge_end_outset = rule_edge_start_outset;
+  }
+
+  if (!consumed_slash) {
+    rule_interior_start_outset = rule_edge_start_outset;
+    rule_interior_end_outset = rule_edge_end_outset;
+  } else {
+    if (!rule_interior_end_outset) {
+      rule_interior_end_outset = rule_interior_start_outset;
+    }
+  }
+
+  return true;
+}
+
 // Top level parsing function for the gap-decorations shorthand, which handles
 // the parsing of simple <gap-rule> or repeat <gap-rule> values.
 bool ConsumeGapDecorationsRuleShorthand(bool important,
@@ -8898,22 +8992,24 @@ CSSValue* ConsumeFontSizeAdjust(CSSParserTokenStream& stream,
 
 namespace {
 
-// Consume 'flip-block || flip-inline || flip-start' into `flips`,
-// in the order that they appear.
+// Consume 'flip-block || flip-inline || flip-start || flip-x || flip-y'
+// into `flips`, in the order that they appear.
 //
 // Returns true if anything was set in `flip`.
 //
 // https://drafts.csswg.org/css-anchor-position-1/#typedef-position-try-fallbacks-try-tactic
 bool ConsumeFlipsInto(CSSParserTokenStream& stream,
-                      std::array<CSSValue*, 3>& flips) {
+                      std::array<CSSValue*, 5>& flips) {
   bool seen_flip_block = false;
   bool seen_flip_inline = false;
   bool seen_flip_start = false;
+  bool seen_flip_x = false;
+  bool seen_flip_y = false;
 
   wtf_size_t i = 0;
 
   while (!stream.AtEnd()) {
-    CHECK_LE(i, 3u);
+    CHECK_LE(i, 5u);
     if (!seen_flip_block &&
         (flips[i] = ConsumeIdent<CSSValueID::kFlipBlock>(stream))) {
       seen_flip_block = true;
@@ -8932,6 +9028,16 @@ bool ConsumeFlipsInto(CSSParserTokenStream& stream,
       ++i;
       continue;
     }
+    if (!seen_flip_x && (flips[i] = ConsumeIdent<CSSValueID::kFlipX>(stream))) {
+      seen_flip_x = true;
+      ++i;
+      continue;
+    }
+    if (!seen_flip_y && (flips[i] = ConsumeIdent<CSSValueID::kFlipY>(stream))) {
+      seen_flip_y = true;
+      ++i;
+      continue;
+    }
     break;
   }
   return i != 0;
@@ -8941,7 +9047,7 @@ bool ConsumeFlipsInto(CSSParserTokenStream& stream,
 CSSValue* ConsumeDashedIdentOrTactic(CSSParserTokenStream& stream,
                                      const CSSParserContext& context) {
   CSSValue* dashed_ident = nullptr;
-  std::array<CSSValue*, 3> flips = {nullptr};
+  std::array<CSSValue*, 5> flips = {nullptr};
   while (!stream.AtEnd()) {
     if (!dashed_ident && (dashed_ident = ConsumeDashedIdent(stream, context))) {
       continue;
@@ -8953,7 +9059,7 @@ CSSValue* ConsumeDashedIdentOrTactic(CSSParserTokenStream& stream,
         continue;
       }
     }
-    // flip-block || flip-inline || flip-start
+    // flip-block || flip-inline || flip-start || flip-x || flip-y
     if (!flips[0] && ConsumeFlipsInto(stream, flips)) {
       CHECK(flips[0]);
       continue;

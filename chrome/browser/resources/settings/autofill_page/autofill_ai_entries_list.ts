@@ -37,6 +37,7 @@ import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bu
 import type {DomRepeatEvent} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 import type {SyncStatus} from '/shared/settings/people_page/sync_browser_proxy.js';
 
+import type {EntityTypeName} from '../autofill_ai_enums.mojom-webui.js';
 import {loadTimeData} from '../i18n_setup.js';
 import {SettingsViewMixin} from '../settings_page/settings_view_mixin.js';
 import type {SettingsSimpleConfirmationDialogElement} from '../simple_confirmation_dialog.js';
@@ -62,7 +63,7 @@ const SettingsAutofillAiEntriesListElementBase = SettingsViewMixin(
 export class SettingsAutofillAiEntriesListElement extends
     SettingsAutofillAiEntriesListElementBase {
   static get is() {
-    return 'settings-autofill-ai-entries-list-element';
+    return 'settings-autofill-ai-entries-list';
   }
 
   static get template() {
@@ -84,6 +85,26 @@ export class SettingsAutofillAiEntriesListElement extends
         value() {
           return !loadTimeData.getBoolean('userEligibleForAutofillAi');
         },
+      },
+
+      allowedEntityTypes: {
+        type: Set,
+        value: null,
+      },
+
+      title: {
+        type: String,
+      },
+
+      /**
+         Optional boolean preference used to determine the list's editability.
+         If true - user will be able to add new entries to the list. Note that
+         even if preference is true allows the user may still be prevented from
+         adding entries due to other eligibility checks.
+      */
+      allowEditingPref: {
+        type: Object,
+        value: null,
       },
 
       allowEditing_: {
@@ -138,13 +159,16 @@ export class SettingsAutofillAiEntriesListElement extends
   static get observers() {
     return [
       'onAutofillAiPrefChanged_(' +
-          'prefs.autofill.profile_enabled.value)',
+          'prefs.autofill.profile_enabled.value, allowEditingPref.*)',
       'onOptInStatusChanged_(' +
-          'prefs.autofill.autofill_ai.opt_in_status.value)',
+          'prefs.autofill.autofill_ai.opt_in_status.value, allowEditingPref.*)',
     ];
   }
 
   declare ineligibleUser: boolean;
+  declare allowedEntityTypes: Set<EntityTypeName>|null;
+  declare title: string;
+  declare allowEditingPref: chrome.settingsPrivate.PrefObject<boolean>|null;
   declare private allowEditing_: boolean;
   declare private activeEntityInstance_: EntityInstance|null;
   declare private completeEntityTypesList_: EntityType[];
@@ -162,25 +186,38 @@ export class SettingsAutofillAiEntriesListElement extends
     super.connectedCallback();
 
     this.entityDataManager_.getOptInStatus().then(
-        optedIn => this.allowEditing_ = !this.ineligibleUser && optedIn);
+        optedInAtofillAi => this.allowEditing_ = !this.ineligibleUser &&
+            optedInAtofillAi && this.isEditingAllowedByPref_);
 
-    this.entityInstancesChangedListener_ = (entityInstances => {
-      this.entityInstances_ =
-          entityInstances.sort(this.entityInstancesWithLabelsComparator_);
-    });
+    this.entityInstancesChangedListener_ =
+        (entityInstances: EntityInstanceWithLabels[]) => {
+          // Filter only if the filter was set
+          const filteredEntityInstaces = this.allowedEntityTypes ?
+              entityInstances.filter(
+                  instance =>
+                      this.allowedEntityTypes!.has(instance.type.typeName)) :
+              entityInstances;
+
+          this.entityInstances_ = filteredEntityInstaces.sort(
+              this.entityInstancesWithLabelsComparator_);
+        };
+
+    this.entityDataManager_.loadEntityInstances().then(
+        this.entityInstancesChangedListener_);
+
     this.entityDataManager_.addEntityInstancesChangedListener(
         this.entityInstancesChangedListener_);
 
     this.entityDataManager_.getWritableEntityTypes().then(
         (entityTypes: EntityType[]) => {
-          this.completeEntityTypesList_ =
-              entityTypes.sort(this.entityTypesComparator_);
-        });
+          // Filter only if the filter was set
+          const filteredEntities = this.allowedEntityTypes ?
+              entityTypes.filter(
+                  instance => this.allowedEntityTypes!.has(instance.typeName)) :
+              entityTypes;
 
-    this.entityDataManager_.loadEntityInstances().then(
-        (entityInstances: EntityInstanceWithLabels[]) => {
-          this.entityInstances_ =
-              entityInstances.sort(this.entityInstancesWithLabelsComparator_);
+          this.completeEntityTypesList_ =
+              filteredEntities.sort(this.entityTypesComparator_);
         });
 
     this.addWebUiListener(
@@ -316,8 +353,10 @@ export class SettingsAutofillAiEntriesListElement extends
   // entry, but just set the opt-in to false. Note that other
   // preconditions (e.g., sync) are not covered.
   private async onAutofillAiPrefChanged_(prefValue: boolean) {
-    const optedIn = await this.entityDataManager_.getOptInStatus();
-    this.allowEditing_ = !this.ineligibleUser && optedIn && prefValue;
+    const autofillAiOptInStatus =
+        await this.entityDataManager_.getOptInStatus();
+    this.allowEditing_ = !this.ineligibleUser && autofillAiOptInStatus &&
+        prefValue && this.isEditingAllowedByPref_;
   }
 
   private onRemoteWalletPassesLinkClick_() {
@@ -327,7 +366,8 @@ export class SettingsAutofillAiEntriesListElement extends
 
   private async onOptInStatusChanged_(): Promise<void> {
     const optedIn = await this.entityDataManager_.getOptInStatus();
-    this.allowEditing_ = !this.ineligibleUser && optedIn;
+    this.allowEditing_ =
+        !this.ineligibleUser && optedIn && this.isEditingAllowedByPref_;
   }
 
   // Refreshes the entity types list when the sync status changes.
@@ -342,12 +382,17 @@ export class SettingsAutofillAiEntriesListElement extends
               entityTypes.sort(this.entityTypesComparator_);
         });
   }
+
+  private get isEditingAllowedByPref_(): boolean {
+    // Defaults to true if the pref is not provided, allowing addition of new
+    // entries.
+    return this.allowEditingPref?.value ?? true;
+  }
 }
 
 declare global {
   interface HTMLElementTagNameMap {
-    'settings-autofill-ai-entries-list-element':
-        SettingsAutofillAiEntriesListElement;
+    'settings-autofill-ai-entries-list': SettingsAutofillAiEntriesListElement;
   }
 }
 

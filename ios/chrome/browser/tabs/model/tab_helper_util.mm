@@ -107,6 +107,7 @@
 #import "ios/chrome/browser/web/model/annotations/annotations_tab_helper.h"
 #import "ios/chrome/browser/web/model/blocked_popup_tab_helper.h"
 #import "ios/chrome/browser/web/model/choose_file/choose_file_tab_helper.h"
+#import "ios/chrome/browser/web/model/choose_file/last_tap_location_tab_helper.h"
 #import "ios/chrome/browser/web/model/font_size/font_size_tab_helper.h"
 #import "ios/chrome/browser/web/model/image_fetch/image_fetch_tab_helper.h"
 #import "ios/chrome/browser/web/model/invalid_url_tab_helper.h"
@@ -118,6 +119,7 @@
 #import "ios/chrome/browser/web/model/web_performance_metrics/web_performance_metrics_tab_helper.h"
 #import "ios/chrome/browser/web/model/web_view_proxy/web_view_proxy_tab_helper.h"
 #import "ios/chrome/browser/web_selection/model/web_selection_tab_helper.h"
+#import "ios/chrome/browser/webauthn/model/ios_chrome_passkey_client.h"
 #import "ios/chrome/browser/webauthn/model/ios_passkey_model_factory.h"
 #import "ios/chrome/browser/webui/model/net_export_tab_helper.h"
 #import "ios/components/security_interstitials/https_only_mode/feature.h"
@@ -309,7 +311,7 @@ void AttachTabHelpers(web::WebState* web_state, TabHelperFilter filter_flags) {
     if (base::FeatureList::IsEnabled(kIOSPasskeyShim)) {
       PasskeyTabHelper::CreateForWebState(
           web_state, IOSPasskeyModelFactory::GetForProfile(profile),
-          base::FeatureList::IsEnabled(kIOSPasskeyModalLoginWithShim));
+          std::make_unique<IOSChromePasskeyClient>(web_state));
     }
   }
 
@@ -387,5 +389,9 @@ void AttachTabHelpers(web::WebState* web_state, TabHelperFilter filter_flags) {
       (base::FeatureList::IsEnabled(kIOSChooseFromDrive) ||
        base::FeatureList::IsEnabled(kIOSCustomFileUploadMenu))) {
     ChooseFileTabHelper::CreateForWebState(web_state);
+  }
+  if (!for_prerender && !for_reader_mode && !for_lens_overlay &&
+      base::FeatureList::IsEnabled(kIOSCustomFileUploadMenu)) {
+    LastTapLocationTabHelper::CreateForWebState(web_state);
   }
 }

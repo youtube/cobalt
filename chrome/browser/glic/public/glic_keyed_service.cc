@@ -97,7 +97,7 @@ base::TimeDelta GetWarmingDelay() {
 }
 
 bool UseDefaultWindowController() {
-  return !base::FeatureList::IsEnabled(features::kGlicMultiInstance);
+  return !GlicEnabling::IsMultiInstanceEnabledByFlags();
 }
 
 std::unique_ptr<GlicWindowController> CreateWindowController(
@@ -118,7 +118,8 @@ std::unique_ptr<GlicWindowController> CreateWindowController(
 std::unique_ptr<GlicSharingManager> CreateSharingManager(
     Profile* profile,
     GlicWindowController* window_controller,
-    GlicMetrics* metrics) {
+    GlicMetrics* metrics,
+    GlicEnabling* glic_enabling) {
   if (UseDefaultWindowController()) {
     return std::make_unique<GlicSharingManagerImpl>(
         profile, static_cast<GlicWindowControllerImpl*>(window_controller),
@@ -126,6 +127,7 @@ std::unique_ptr<GlicSharingManager> CreateSharingManager(
   }
 
   return std::make_unique<GlicActiveInstanceSharingManager>(
+      profile, glic_enabling,
       static_cast<GlicInstanceCoordinatorImpl*>(window_controller));
 }
 
@@ -150,8 +152,10 @@ GlicKeyedService::GlicKeyedService(
                                                 this,
                                                 enabling_.get(),
                                                 contextual_cueing_service)),
-      sharing_manager_(
-          CreateSharingManager(profile, &window_controller(), metrics_.get())),
+      sharing_manager_(CreateSharingManager(profile,
+                                            &window_controller(),
+                                            metrics_.get(),
+                                            enabling_.get())),
       region_capture_controller_(
           std::make_unique<GlicRegionCaptureController>()),
       auth_controller_(std::make_unique<AuthController>(profile,
@@ -224,7 +228,7 @@ GlicKeyedService* GlicKeyedService::Get(content::BrowserContext* context) {
 }
 
 void GlicKeyedService::Shutdown() {
-  if (base::FeatureList::IsEnabled(features::kGlicMultiInstance)) {
+  if (GlicEnabling::IsMultiInstanceEnabledByFlags()) {
     window_controller().Shutdown();
     fre_controller_->Shutdown();
   } else {
@@ -286,7 +290,7 @@ void GlicKeyedService::OpenFreDialogInNewTab(BrowserWindowInterface* bwi,
 }
 
 void GlicKeyedService::CloseAndShutdown() {
-  CHECK(!base::FeatureList::IsEnabled(features::kGlicMultiInstance));
+  CHECK(!GlicEnabling::IsMultiInstanceEnabledByFlags());
   window_controller().Shutdown();
   host_manager().Shutdown();
   fre_controller_->Shutdown();
@@ -307,6 +311,10 @@ void GlicKeyedService::PrepareForOpen() {
     contextual_cueing_service_
         ->PrepareToFetchContextualGlicZeroStateSuggestions(active_web_contents);
   }
+}
+
+glic::GlicInstanceMetrics* GlicKeyedService::instance_metrics() {
+  return nullptr;
 }
 
 GlicWindowController& GlicKeyedService::window_controller() const {
@@ -624,7 +632,7 @@ void GlicKeyedService::OnMemoryPressure(base::MemoryPressureLevel level) {
       (this == GlicProfileManager::GetInstance()->GetLastActiveGlic())) {
     return;
   }
-  if (!base::FeatureList::IsEnabled(features::kGlicMultiInstance)) {
+  if (!GlicEnabling::IsMultiInstanceEnabledByFlags()) {
     CloseAndShutdown();
   }
   // TODO(crbug.com/453747043): Handle Multi Instance.
@@ -722,6 +730,60 @@ void GlicKeyedService::OnWebClientCleared() {
 
 void GlicKeyedService::OnInteractionModeChange(mojom::WebClientMode new_mode) {
   // Unused in single instance mode.
+}
+
+bool GlicKeyedService::IsActive() {
+  // The `browser_is_active` signal was changed to `instance_is_active`. This
+  // the logic that originally backed `browser_is_active` for single-instance.
+  // This function will only be called from `GlicPageHandler` when in
+  // single-instance, and should be deleted when single-instance is deleted and
+  // GKS no longer implements `Host::InstanceDelegate`.
+  return sharing_manager().GetFocusedBrowser();
+}
+
+void GlicKeyedService::RequestToShowCredentialSelectionDialog(
+    actor::TaskId task_id,
+    const base::flat_map<std::string, gfx::Image>& icons,
+    const std::vector<actor_login::Credential>& credentials,
+    actor::ActorTaskDelegate::CredentialSelectedCallback callback) {
+  CHECK(UseDefaultWindowController());
+  auto* window_controller_impl =
+      static_cast<GlicWindowControllerImpl*>(window_controller_.get());
+  window_controller_impl->host().RequestToShowCredentialSelectionDialog(
+      task_id, icons, credentials, std::move(callback));
+}
+
+void GlicKeyedService::RequestToShowUserConfirmationDialog(
+    actor::TaskId task_id,
+    const url::Origin& navigation_origin,
+    actor::ActorTaskDelegate::UserConfirmationDialogCallback callback) {
+  CHECK(UseDefaultWindowController());
+  auto* window_controller_impl =
+      static_cast<GlicWindowControllerImpl*>(window_controller_.get());
+  window_controller_impl->host().RequestToShowUserConfirmationDialog(
+      task_id, navigation_origin, std::move(callback));
+}
+
+void GlicKeyedService::RequestToConfirmNavigation(
+    actor::TaskId task_id,
+    const url::Origin& navigation_origin,
+    actor::ActorTaskDelegate::NavigationConfirmationCallback callback) {
+  CHECK(UseDefaultWindowController());
+  auto* window_controller_impl =
+      static_cast<GlicWindowControllerImpl*>(window_controller_.get());
+  window_controller_impl->host().RequestToConfirmNavigation(
+      task_id, navigation_origin, std::move(callback));
+}
+
+void GlicKeyedService::RequestToShowAutofillSuggestionsDialog(
+    actor::TaskId task_id,
+    std::vector<autofill::ActorFormFillingRequest> requests,
+    AutofillSuggestionSelectedCallback callback) {
+  CHECK(UseDefaultWindowController());
+  auto* window_controller_impl =
+      static_cast<GlicWindowControllerImpl*>(window_controller_.get());
+  window_controller_impl->host().RequestToShowAutofillSuggestionsDialog(
+      task_id, std::move(requests), std::move(callback));
 }
 
 }  // namespace glic

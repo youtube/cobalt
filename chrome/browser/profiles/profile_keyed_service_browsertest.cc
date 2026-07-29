@@ -193,9 +193,7 @@ class ProfileKeyedServiceBrowserTest : public InProcessBrowserTest {
           switches::kEnableBoundSessionCredentials,
 #endif  // BUILDFLAG(IS_WIN)
           network::features::kBrowsingTopics,
-          blink::features::kBuiltInAIAPI,
           extensions_features::kForceWebRequestProxyForTest,
-          net::features::kTpcdTrialSettings,
           network::features::kReduceAcceptLanguage,
           features::kMainNodeAnnotations,
 #if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
@@ -236,18 +234,8 @@ IN_PROC_BROWSER_TEST_F(ProfileKeyedServiceBrowserTest,
       CreateProfileAndWaitForAllTasks(ProfileManager::GetSystemProfilePath());
   ASSERT_FALSE(system_profile->IsOffTheRecord());
   ASSERT_TRUE(system_profile->IsSystemProfile());
-  TestKeyedProfileServicesActives(
-      system_profile,
-      /*expected_active_services_names=*/{
-          // There is no control over the creation based on the Profile types in
-          // components/. These services are created for the System Profile by
-          // default because their `ServiceIsCreatedWithBrowserContext()`
-          // returns true.
-          "BrowserBoundKeyDeleter",
-          // `WebDataService` is required because `BrowserBoundKeyDeleter`
-          // depends on it.
-          "WebDataService",
-      });
+  TestKeyedProfileServicesActives(system_profile,
+                                  /*expected_active_services_names=*/{});
 }
 
 IN_PROC_BROWSER_TEST_F(ProfileKeyedServiceBrowserTest,
@@ -265,7 +253,6 @@ IN_PROC_BROWSER_TEST_F(ProfileKeyedServiceBrowserTest,
     // default, however their creation is still possible.
     "AutocompleteControllerEmitter",
     "AutofillInternalsService",
-    "BrowserBoundKeyDeleter",
     "DataControlsRulesService",
     "HasEnrolledInstrumentQuery",
     "LocalPresentationManager",
@@ -411,6 +398,7 @@ IN_PROC_BROWSER_TEST_F(ProfileKeyedServiceGuestBrowserTest,
 #if BUILDFLAG(IS_CHROMEOS)
     "ComponentExtensionContentSettingsAllowlist",
 #endif
+    "DeveloperToolsPolicyChecker",
     "EnterpriseReportingPrivateEventRouter",
     "ExtensionNavigationRegistry",
     "ExtensionSystem",
@@ -512,7 +500,6 @@ IN_PROC_BROWSER_TEST_F(ProfileKeyedServiceGuestBrowserTest,
     "StatefulSSLHostStateDelegate",
     "StorageAccessAPIService",
     "SubresourceFilterProfileContext",
-    "TpcdTrialService",
     "VerdictCacheManager",
     "WebRequestProxyingURLLoaderFactory",
     "captive_portal::CaptivePortalService",
@@ -621,7 +608,7 @@ IN_PROC_BROWSER_TEST_F(ProfileKeyedServiceGuestBrowserTest,
     "BookmarkUndoService",
     "BookmarksAPI",
     "BrailleDisplayPrivateAPI",
-    "BrowserBoundKeyDeleter",
+    "BrowserBoundKeyDeleterService",
     "BrowsingTopicsService",
     "ChildAccountService",
     "ChromeSigninClient",
@@ -845,7 +832,6 @@ IN_PROC_BROWSER_TEST_F(ProfileKeyedServiceGuestBrowserTest,
     "TemplateURLServiceFactory",
     "ThemeService",
     "ToolbarActionsModel",
-    "TpcdTrialService",
     "TrackingProtectionSettings",
     "TranslateRanker",
     "TriggeredProfileResetter",

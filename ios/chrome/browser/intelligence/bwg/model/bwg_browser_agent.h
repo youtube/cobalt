@@ -15,6 +15,11 @@ class Browser;
 
 enum class PageContextWrapperError;
 
+namespace ios::provider {
+enum class BWGPageContextComputationState;
+enum class BWGPageContextAttachmentState;
+}  // namespace ios::provider
+
 namespace optimization_guide::proto {
 class PageContext;
 }  // namespace optimization_guide::proto
@@ -22,6 +27,7 @@ class PageContext;
 @class BWGLinkOpeningHandler;
 @class BWGPageStateChangeHandler;
 @class BWGSessionHandler;
+@class GeminiPageContext;
 @class GeminiSuggestionHandler;
 
 @protocol BWGGatewayProtocol;
@@ -42,9 +48,35 @@ class BwgBrowserAgent : public BrowserUserData<BwgBrowserAgent> {
       base::expected<std::unique_ptr<optimization_guide::proto::PageContext>,
                      PageContextWrapperError> expected_page_context);
 
+  // Presents the BWG overlay on a given view controller in a pending state
+  // with a partial PageContext.
+  void PresentPendingBwgOverlay(
+      UIViewController* base_view_controller,
+      std::unique_ptr<optimization_guide::proto::PageContext> page_context);
+
+  // Updates the page context for the BWG overlay.
+  void UpdateBwgOverlayPageContext(
+      base::expected<std::unique_ptr<optimization_guide::proto::PageContext>,
+                     PageContextWrapperError> expected_page_context);
+
  private:
   explicit BwgBrowserAgent(Browser* browser);
   friend class BrowserUserData<BwgBrowserAgent>;
+
+  // Presents the BWG overlay on a given view controller with page context,
+  // given specific computation state.
+  void PresentBwgOverlayWithState(
+      UIViewController* base_view_controller,
+      std::unique_ptr<optimization_guide::proto::PageContext>
+          page_context_proto,
+      ios::provider::BWGPageContextComputationState computation_state);
+
+  // Fetches the favicon for the page or a default favicon if not available.
+  UIImage* FetchPageFavicon();
+
+  // Adjusts the configuration around the Gemini page context based on user
+  // prefs.
+  void ApplyUserPrefsToPageContext(GeminiPageContext* gemini_page_context);
 
   // Sets the UI command handlers on the session handler. This cannot be called
   // in the constructor because some objects fail the protocol conformance test

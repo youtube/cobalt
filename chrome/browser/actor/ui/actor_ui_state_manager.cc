@@ -49,7 +49,9 @@ const UiTabState& GetActorControlledUiTabState() {
 const UiTabState& GetPausedUiTabState() {
   static const UiTabState kPausedState = {
       .actor_overlay = {.is_active = false, .border_glow_visible = false},
-      .handoff_button = {.is_active = true, .controller = kClient},
+      .handoff_button = {.is_active = !base::FeatureList::IsEnabled(
+                             features::kGlicHandoffButtonHiddenClientControl),
+                         .controller = kClient},
       .tab_indicator_visible = false,
       .border_glow_visible = false,
   };
@@ -120,7 +122,8 @@ ActorUiStateManager::~ActorUiStateManager() = default;
 // accept a callback.
 void ActorUiStateManager::OnActorTaskStateChange(
     TaskId task_id,
-    ActorTask::State new_task_state) {
+    ActorTask::State new_task_state,
+    const std::string& title) {
   TRACE_EVENT("actor", "UiStateManager::OnActorTaskStateChange", "new_state",
               new_task_state);
   // TODO(crbug.com/424495020): Look into converting this switch into a
@@ -140,17 +143,11 @@ void ActorUiStateManager::OnActorTaskStateChange(
     case ActorTask::State::kPausedByActor:
       ui_tab_state = GetPausedUiTabState();
       break;
+    case ActorTask::State::kFailed:
     case ActorTask::State::kCancelled:
-      ui_tab_state = GetCompletedUiTabState();
-      break;
     case ActorTask::State::kFinished:
       ui_tab_state = GetCompletedUiTabState();
-      completed_tasks_expiry_timer_.Start(
-          FROM_HERE,
-          base::Seconds(
-              features::kGlicActorUiCompletedTaskExpiryDelaySeconds.Get()),
-          base::BindOnce(&ActorUiStateManager::NotifyActorTaskStateChange,
-                         weak_factory_.GetWeakPtr(), task_id));
+      NotifyActorTaskStopped(task_id, new_task_state, title);
       break;
   }
   for (const auto& tab : GetTabs(task_id)) {
@@ -223,7 +220,7 @@ void ActorUiStateManager::OnUiEvent(SyncUiEvent event) {
                                weak_factory_.GetWeakPtr(), e.task_id));
           },
           [this](const TaskStateChanged& e) {
-            this->OnActorTaskStateChange(e.task_id, e.state);
+            this->OnActorTaskStateChange(e.task_id, e.state, e.title);
           },
           [](const StoppedActingOnTab& e) {
             auto* tab = e.tab_handle.Get();
@@ -256,11 +253,10 @@ void ActorUiStateManager::MaybeShowToast(BrowserWindowInterface* bwi) {
     return;
   }
 
-  auto ids =
-      actor_service_->FindTaskIdsInActive([](const ActorTask& task) {
-        return task.GetState() == ActorTask::State::kActing ||
-               task.GetState() == ActorTask::State::kReflecting;
-      });
+  auto ids = actor_service_->FindTaskIdsInActive([](const ActorTask& task) {
+    return task.GetState() == ActorTask::State::kActing ||
+           task.GetState() == ActorTask::State::kReflecting;
+  });
 
   if (!ids.empty() && MaybeShowToastViaController(bwi)) {
     pref_service->SetInteger(kToastShown, toast_shown_count + 1);
@@ -271,10 +267,21 @@ void ActorUiStateManager::NotifyActorTaskStateChange(TaskId task_id) {
   actor_task_state_change_callback_list_.Notify(task_id);
 }
 
+void ActorUiStateManager::NotifyActorTaskStopped(TaskId task_id,
+                                                 ActorTask::State final_state,
+                                                 const std::string& title) {
+  actor_task_stopped_callback_list_.Notify(task_id, final_state, title);
+}
+
 base::CallbackListSubscription
 ActorUiStateManager::RegisterActorTaskStateChange(
     ActorTaskStateChangeCallback callback) {
   return actor_task_state_change_callback_list_.Add(std::move(callback));
+}
+
+base::CallbackListSubscription ActorUiStateManager::RegisterActorTaskStopped(
+    ActorTaskStoppedCallback callback) {
+  return actor_task_stopped_callback_list_.Add(std::move(callback));
 }
 
 }  // namespace actor::ui

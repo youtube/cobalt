@@ -23,10 +23,9 @@ extern const CGFloat kSeparatorWidthConstant;
 // Amount of time animating the badge into the location bar should take.
 extern const NSTimeInterval kBadgeDisplayingAnimationTime;
 
-// Amount of time animating the large badge (label)
-// appearance/disappearance.
-extern const NSTimeInterval kLargeBadgeAppearingAnimationTime;
-extern const NSTimeInterval kLargeBadgeDisappearingAnimationTime;
+// Amount of time animating the badge container (label) expanding/collapsing.
+extern const NSTimeInterval kBadgeContainerExpandAnimationTime;
+extern const NSTimeInterval kBadgeContainerCollapseAnimationTime;
 
 // Badge container shadow constants.
 extern const float kBadgeContainerShadowOpacity;
@@ -35,6 +34,9 @@ extern const CGSize kBadgeContainerShadowOffset;
 
 // The point size of the badge's symbol.
 extern const CGFloat kBadgeSymbolPointSize;
+
+// The point size of the unified badge symbol.
+extern const CGFloat kUnifiedBadgeSymbolPointSize;
 
 // Accessibility identifier for the badge's image view.
 extern NSString* const kLocationBarBadgeImageViewIdentifier;

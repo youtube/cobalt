@@ -6,6 +6,7 @@
 
 #include "chrome/browser/extensions/extension_action_runner.h"
 #include "chrome/browser/extensions/extension_browsertest.h"
+#include "chrome/browser/extensions/extension_tab_util.h"
 #include "chrome/browser/extensions/permissions/permissions_updater.h"
 #include "chrome/browser/extensions/permissions/scripting_permissions_modifier.h"
 #include "chrome/browser/extensions/permissions/site_permissions_helper.h"
@@ -17,6 +18,7 @@
 #include "extensions/browser/extension_registrar.h"
 #include "extensions/browser/permissions_manager.h"
 #include "extensions/common/extension_builder.h"
+#include "extensions/test/permissions_manager_waiter.h"
 #include "extensions/test/test_extension_dir.h"
 #include "net/dns/mock_host_resolver.h"
 
@@ -38,12 +40,22 @@ class TestPlatformDelegate : public ExtensionsMenuViewPlatformDelegate {
   void OnHostAccessRequestAddedOrUpdated(
       const extensions::ExtensionId& extension_id,
       content::WebContents* web_contents) override {}
-  void OnAccessRequestRemoved(
+  void OnHostAccessRequestRemoved(
       const extensions::ExtensionId& extension_id) override {}
-  void OnAccessRequestsCleared() override {}
-  void OnAccessRequestDismissedByUser(
+  void OnHostAccessRequestsCleared() override {}
+  void OnHostAccessRequestDismissedByUser(
       const extensions::ExtensionId& extension_id) override {}
-  void OnActionAdded(const ToolbarActionsModel::ActionId& action_id) override {}
+  void OnShowHostAccessRequestsInToolbarChanged(
+      const extensions::ExtensionId& extension_id,
+      bool can_show_requests) override {}
+  void OnPermissionsSettingsChanged() override {}
+  void OnToolbarActionAdded(
+      const ToolbarActionsModel::ActionId& action_id) override {}
+  void OnToolbarActionRemoved(
+      const ToolbarActionsModel::ActionId& action_id) override {}
+  void OnToolbarModelInitialized() override {}
+  void OnToolbarActionUpdated() override {}
+  void OnToolbarPinnedActionsChanged() override {}
 };
 
 }  // namespace
@@ -324,4 +336,97 @@ IN_PROC_BROWSER_TEST_F(ExtensionsMenuViewModelBrowserTest, UpdateSiteSetting) {
       PermissionsManager::UserSiteSetting::kBlockAllExtensions);
   EXPECT_EQ(permissions_manager()->GetUserSiteSetting(origin),
             PermissionsManager::UserSiteSetting::kBlockAllExtensions);
+}
+
+// Tests that the extensions menu view model correctly dismisses a host access
+// request for an extension.
+IN_PROC_BROWSER_TEST_F(ExtensionsMenuViewModelBrowserTest,
+                       DismissHostAccessRequest) {
+  // Add extension that requests host permissions, and withheld them.
+  scoped_refptr<const extensions::Extension> extension =
+      AddExtensionWithHostPermission("Extension", "*://example.com/*");
+  extensions::ScriptingPermissionsModifier modifier(profile(), extension);
+  modifier.SetWithholdHostPermissions(true);
+
+  // Navigate to a site.
+  const GURL url =
+      embedded_test_server()->GetURL("example.com", "/simple.html");
+  ASSERT_TRUE(NavigateToURL(GetActiveWebContents(), url));
+  content::WebContents* web_contents = GetActiveWebContents();
+  int tab_id = extensions::ExtensionTabUtil::GetTabId(web_contents);
+
+  // Add a host access request.
+  permissions_manager()->AddHostAccessRequest(web_contents, tab_id, *extension);
+  EXPECT_TRUE(permissions_manager()->HasActiveHostAccessRequest(
+      tab_id, extension->id()));
+
+  // Dismiss the host access request.
+  menu_model()->DismissHostAccessRequest(extension->id());
+
+  // Verify the host access request was dismissed.
+  EXPECT_FALSE(permissions_manager()->HasActiveHostAccessRequest(
+      tab_id, extension->id()));
+}
+
+// Tests that the extensions menu view model correctly allows a host access
+// request for an extension.
+IN_PROC_BROWSER_TEST_F(ExtensionsMenuViewModelBrowserTest,
+                       AllowHostAccessRequest) {
+  // Add extension that requests host permissions, and withheld them.
+  scoped_refptr<const extensions::Extension> extension =
+      AddExtensionWithHostPermission("Extension", "*://example.com/*");
+  extensions::ScriptingPermissionsModifier modifier(profile(), extension);
+  modifier.SetWithholdHostPermissions(true);
+
+  // Navigate to a site.
+  const GURL url =
+      embedded_test_server()->GetURL("example.com", "/simple.html");
+  ASSERT_TRUE(NavigateToURL(GetActiveWebContents(), url));
+  content::WebContents* web_contents = GetActiveWebContents();
+  int tab_id = extensions::ExtensionTabUtil::GetTabId(web_contents);
+
+  // Add a host access request.
+  permissions_manager()->AddHostAccessRequest(web_contents, tab_id, *extension);
+  EXPECT_TRUE(permissions_manager()->HasActiveHostAccessRequest(
+      tab_id, extension->id()));
+  EXPECT_EQ(permissions_manager()->GetUserSiteAccess(
+                *extension, web_contents->GetLastCommittedURL()),
+            PermissionsManager::UserSiteAccess::kOnClick);
+
+  // Allow the host access request.
+  extensions::PermissionsManagerWaiter waiter(
+      PermissionsManager::Get(profile()));
+  menu_model()->AllowHostAccessRequest(extension->id());
+  waiter.WaitForExtensionPermissionsUpdate();
+
+  // Verify the host access request was allowed and site access is now 'on
+  // site'.
+  EXPECT_FALSE(permissions_manager()->HasActiveHostAccessRequest(
+      tab_id, extension->id()));
+  EXPECT_EQ(permissions_manager()->GetUserSiteAccess(
+                *extension, web_contents->GetLastCommittedURL()),
+            PermissionsManager::UserSiteAccess::kOnSite);
+}
+
+// Tests that the extensions menu view model correctly updates whether to show
+// host access requests in the toolbar for an extension.
+IN_PROC_BROWSER_TEST_F(ExtensionsMenuViewModelBrowserTest,
+                       ShowHostAccessRequestsInToolbar) {
+  // Add extension that requests host permissions.
+  scoped_refptr<const extensions::Extension> extension =
+      AddExtensionWithHostPermission("Extension", "*://example.com/*");
+
+  // By default, extensions can show host access requests in the toolbar.
+  EXPECT_TRUE(
+      permissions_helper()->ShowAccessRequestsInToolbar(extension->id()));
+
+  // Set to not show host access requests in the toolbar.
+  menu_model()->ShowHostAccessRequestsInToolbar(extension->id(), false);
+  EXPECT_FALSE(
+      permissions_helper()->ShowAccessRequestsInToolbar(extension->id()));
+
+  // Set to show host access requests in the toolbar.
+  menu_model()->ShowHostAccessRequestsInToolbar(extension->id(), true);
+  EXPECT_TRUE(
+      permissions_helper()->ShowAccessRequestsInToolbar(extension->id()));
 }

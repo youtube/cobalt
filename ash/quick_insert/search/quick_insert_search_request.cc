@@ -121,7 +121,6 @@ std::vector<QuickInsertSearchResult> ConvertGifResponse(
     base::expected<tenor::mojom::PaginatedGifResponsesPtr,
                    GifTenorApiFetcher::Error> response) {
   if (!response.has_value()) {
-    // TODO: b/325368650 - Add better handling of errors.
     return {};
   }
 
@@ -175,8 +174,6 @@ QuickInsertSearchRequest::QuickInsertSearchRequest(
   }
 
   if (!cros_search_sources.empty()) {
-    // TODO: b/326166751 - Use `available_categories_` to decide what searches
-    // to do.
     for (QuickInsertSearchSource source : cros_search_sources) {
       MarkSearchStarted(source);
     }

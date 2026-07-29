@@ -18,11 +18,13 @@
 #include "base/types/id_type.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/aggregated_journal.h"
+#include "chrome/browser/actor/site_policy.h"
 #include "chrome/browser/actor/tools/tool_controller.h"
 #include "chrome/browser/actor/tools/tool_delegate.h"
 #include "chrome/browser/password_manager/actor_login/actor_login_service.h"
 #include "chrome/common/actor.mojom-forward.h"
 #include "chrome/common/actor/task_id.h"
+#include "components/autofill/core/browser/integrators/glic/actor_form_filling_types.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
@@ -107,6 +109,7 @@ class ExecutionEngine : public ToolDelegate {
   AggregatedJournal& GetJournal() override;
   favicon::FaviconService* GetFaviconService() override;
   actor_login::ActorLoginService& GetActorLoginService() override;
+  autofill::ActorFormFillingService& GetActorFormFillingService() override;
   void PromptToSelectCredential(
       const std::vector<actor_login::Credential>& credentials,
       const base::flat_map<std::string, gfx::Image>& icons,
@@ -115,12 +118,9 @@ class ExecutionEngine : public ToolDelegate {
       const CredentialWithPermission& credential) override;
   const std::optional<CredentialWithPermission> GetUserSelectedCredential(
       const url::Origin& request_origin) const override;
-
-  // Callback for when a credential is selected, in response to
-  // `ToolDelegate::PromptToSelectCredential()`.
-  void OnCredentialSelected(
-      webui::mojom::SelectCredentialDialogResponsePtr response);
-
+  void RequestToShowAutofillSuggestions(
+      std::vector<autofill::ActorFormFillingRequest> requests,
+      AutofillSuggestionSelectedCallback callback) override;
   void AddWritableMainframeOrigins(
       const absl::flat_hash_set<url::Origin>& added_writable_mainframe_origins);
 
@@ -135,15 +135,10 @@ class ExecutionEngine : public ToolDelegate {
   bool ShouldGateNavigation(content::NavigationHandle& navigation_handle,
                             NavigationDecisionCallback callback);
 
-  // Callback for when the user responds to a confirmation dialog.
-  void OnUserConfirmationDialogResponse(
-      webui::mojom::UserConfirmationDialogResponsePtr response);
-
-  // Callback when the server responds when asked to confirm navigation.
-  void OnNavigationConfirmationResponse(
-      webui::mojom::NavigationConfirmationResponsePtr response);
-
   static std::string StateToString(State state);
+
+  void OnMayActOnTabDecision(const url::Origin& evaluated_origin,
+                             MayActOnUrlBlockReason block_reason);
 
   void UserTakeover(mojom::ActionResultCode takeover_response_code,
                     base::OnceCallback<void(bool)> callback);
@@ -173,7 +168,7 @@ class ExecutionEngine : public ToolDelegate {
 
   // Starts the next action by calling SafetyChecksForNextAction(). Must only be
   // called if there is a next action.
-  void KickOffNextAction(mojom::ActionResultPtr init_hooks_result);
+  void KickOffNextAction();
 
   // Performs safety checks for next action. This is asynchronous.
   void SafetyChecksForNextAction();
@@ -210,22 +205,33 @@ class ExecutionEngine : public ToolDelegate {
   size_t InProgressActionIndex() const;
   const ToolRequest& GetInProgressAction() const;
 
-  bool ShouldGateNavigationInternal(
+  // `std::nullopt` is returned when the decision to gate the navigation is done
+  // async.
+  std::optional<bool> ShouldGateNavigationInternal(
       content::NavigationHandle& navigation_handle,
       NavigationDecisionCallback callback);
-  void LogNavigationGating(content::NavigationHandle& navigation_handle,
+  void LogNavigationGating(const std::optional<url::Origin>& initiator_origin,
+                           const GURL& navigation_url,
                            bool applied_gate);
 
-  void CheckNavigationBlocklist(const GURL& navigation_url,
-                                NavigationDecisionCallback callback);
-  void OnNavigationBlocklistDecision(url::Origin navigation_origin,
-                                     NavigationDecisionCallback callback,
-                                     bool may_continue);
+  void CheckNavigationBlocklist(
+      const std::optional<url::Origin>& initiator_origin,
+      const GURL& navigation_url,
+      bool skip_prompt,
+      NavigationDecisionCallback callback);
+  void OnNavigationBlocklistDecision(
+      const std::optional<url::Origin> initiator_origin,
+      const GURL navigation_url,
+      bool skip_prompt,
+      NavigationDecisionCallback callback,
+      bool not_on_blocklist);
 
   // Called when the browser detects the actor needs to confirm a
-  // client-side-initiated navigation to a novel origin. The web client should
-  // check that the origin is relevant for the task and respond with whether the
-  // actor is permitted to visit the page.
+  // client-side-initiated navigation to a novel origin.
+  void HandleNavigationToNewOrigin(
+      const url::Origin& navigation_origin,
+      ExecutionEngine::NavigationDecisionCallback callback);
+
   void SendNavigationConfirmationRequest(const url::Origin& navigation_origin,
                                          NavigationDecisionCallback callback);
   void OnNavigationConfirmationDecision(
@@ -236,6 +242,8 @@ class ExecutionEngine : public ToolDelegate {
   // Called when the browser detects the actor navigating to an origin in the
   // blocklist. The web client should confirm with the user that the actor is
   // allowed to navigate to this origin.
+  // This may also be called when the browser detects the actor navigating to
+  // a novel origin when `kGlicPromptUserForNavigationToNewOrigins` is enabled.
   void SendUserConfirmationDialogRequest(const url::Origin& navigation_origin,
                                          NavigationDecisionCallback callback);
   void OnPromptUserToConfirmNavigationDecision(
@@ -257,6 +265,8 @@ class ExecutionEngine : public ToolDelegate {
   // request.
   std::unique_ptr<ToolController> tool_controller_;
   std::unique_ptr<actor_login::ActorLoginService> actor_login_service_;
+  std::unique_ptr<autofill::ActorFormFillingService>
+      actor_form_filling_service_;
   std::unique_ptr<ui::UiEventDispatcher> ui_event_dispatcher_;
 
   std::vector<std::unique_ptr<ToolRequest>> action_sequence_;
@@ -278,13 +288,6 @@ class ExecutionEngine : public ToolDelegate {
   // without prompting the user. This is applied to all navigations, including
   // those initiated by the renderer with web content.
   absl::flat_hash_set<url::Origin> allowed_navigation_origins_;
-
-  ToolDelegate::CredentialSelectedCallback credential_selected_callback_;
-
-  base::OnceCallback<void(webui::mojom::UserConfirmationDialogResponsePtr)>
-      user_confirmation_callback_;
-  base::OnceCallback<void(webui::mojom::NavigationConfirmationResponsePtr)>
-      navigation_confirmation_callback_;
 
   // For multi-step login, this is the credential that the user has chosen to
   // allow the actor to use. The key is the

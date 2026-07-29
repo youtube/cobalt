@@ -119,20 +119,20 @@ bool ShouldShowQuietRequestAgainIfPreempted(
 }
 
 bool IsMediaRequest(RequestType type) {
-#if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
   if (type == RequestType::kCameraPanTiltZoom) {
     return true;
   }
-#endif
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
   return type == RequestType::kMicStream || type == RequestType::kCameraStream;
 }
 
-#if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 bool IsExclusiveAccessRequest(RequestType type) {
   return type == RequestType::kPointerLock ||
          type == RequestType::kKeyboardLock;
 }
-#endif
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
 bool ShouldGroupRequests(PermissionRequest* a, PermissionRequest* b) {
   if (a->requesting_origin() != b->requesting_origin()) {
@@ -142,12 +142,12 @@ bool ShouldGroupRequests(PermissionRequest* a, PermissionRequest* b) {
   if (IsMediaRequest(a->request_type()) && IsMediaRequest(b->request_type())) {
     return true;
   }
-#if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
   if (IsExclusiveAccessRequest(a->request_type()) &&
       IsExclusiveAccessRequest(b->request_type())) {
     return true;
   }
-#endif
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
   return false;
 }
 
@@ -187,6 +187,8 @@ PermissionRequestManager::~PermissionRequestManager() {
   DCHECK(!IsRequestInProgress());
   DCHECK(duplicate_requests_.empty());
   DCHECK(pending_permission_requests_.IsEmpty());
+
+  RecordPostPromptSessionDuration();
 
   for (Observer& observer : observer_list_) {
     observer.OnPermissionRequestManagerDestructed();
@@ -475,6 +477,8 @@ void PermissionRequestManager::DidStartNavigation(
     return;
   }
 
+  RecordPostPromptSessionDuration();
+
   // Cooldown lasts until the next user-initiated navigation, which is defined
   // as either a renderer-initiated navigation with a user gesture, or a
   // browser-initiated navigation.
@@ -532,6 +536,8 @@ void PermissionRequestManager::DidFinishNavigation(
 }
 
 void PermissionRequestManager::DocumentOnLoadCompletedInPrimaryMainFrame() {
+  on_page_loaded_time_ = base::TimeTicks::Now();
+
   // This is scheduled because while all calls to the browser have been
   // issued at DOMContentLoaded, they may be bouncing around in scheduled
   // callbacks finding the UI thread still. This makes sure we allow those
@@ -609,7 +615,7 @@ void PermissionRequestManager::Accept() {
     PermissionGrantedIncludingDuplicates(request.get(),
                                          /*is_one_time=*/false);
 
-#if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
     std::optional<ContentSettingsType> content_settings_type =
         RequestTypeToContentSettingsType(request->request_type());
     if (content_settings_type.has_value()) {
@@ -618,7 +624,7 @@ void PermissionRequestManager::Accept() {
           PermissionSourceUI::PROMPT, web_contents()->GetBrowserContext(),
           base::Time::Now());
     }
-#endif
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
   }
 
   NotifyRequestDecided(action);
@@ -1025,6 +1031,32 @@ void PermissionRequestManager::ShowPrompt() {
   if (!current_request_already_displayed_) {
     PermissionUmaUtil::PermissionPromptShown(requests_);
 
+    if (!requests_.empty()) {
+      // The session duration before a permission prompt is displayed is only
+      // recorded for geolocation and notifications requests because these two
+      // permission types are supported by the PermissionsAI and potentially can
+      // be impacted by prompt muting.
+      //
+      // `on_page_loaded_time_` is not reset because it is ok to record the
+      // session duration multiple times per permission type for the same page
+      // load.
+      if (requests_[0]->GetContentSettingsType() ==
+              ContentSettingsType::GEOLOCATION ||
+          requests_[0]->GetContentSettingsType() ==
+              ContentSettingsType::NOTIFICATIONS) {
+        PermissionUmaUtil::RecordPrePromptSessionDuration(
+            requests_[0]->GetContentSettingsType(), on_page_loaded_time_);
+      }
+
+      if (requests_[0]->GetContentSettingsType() ==
+          ContentSettingsType::NOTIFICATIONS) {
+        notification_request_first_display_time_ = base::TimeTicks::Now();
+      } else if (requests_[0]->GetContentSettingsType() ==
+                 ContentSettingsType::GEOLOCATION) {
+        geolocation_request_first_display_time_ = base::TimeTicks::Now();
+      }
+    }
+
     auto quiet_ui_reason = ReasonForUsingQuietUi();
     if (quiet_ui_reason) {
       switch (*quiet_ui_reason) {
@@ -1191,10 +1223,9 @@ void PermissionRequestManager::CurrentRequestsDecided(
 
     PermissionUmaUtil::RecordEmbargoStatus(RecordActionAndGetEmbargoStatus(
         browser_context, request.get(), permission_action));
+    PermissionActionsHistory* actions_history =
+        PermissionsClient::Get()->GetPermissionActionsHistory(browser_context);
     if (request->IsEligibleForHeuristicAutoGrant()) {
-      PermissionActionsHistory* actions_history =
-          PermissionsClient::Get()->GetPermissionActionsHistory(
-              browser_context);
       if (permission_action == PermissionAction::GRANTED_ONCE) {
         actions_history->RecordTemporaryGrant(
             request->requesting_origin(), request->GetContentSettingsType());
@@ -1204,6 +1235,30 @@ void PermissionRequestManager::CurrentRequestsDecided(
       }
       // TODO(crbug.com/446603274): Record metrics of geolocation PEPC
       // request.
+    }
+
+    if (permission_action == PermissionAction::GRANTED_ONCE) {
+      ContentSettingsType content_settings_type =
+          request->GetContentSettingsType();
+
+      if (content_settings_type == ContentSettingsType::GEOLOCATION ||
+          content_settings_type == ContentSettingsType::MEDIASTREAM_CAMERA ||
+          content_settings_type == ContentSettingsType::MEDIASTREAM_MIC) {
+        actions_history->RecordOneTimeGrant(request->requesting_origin(),
+                                            content_settings_type);
+      }
+    } else if (permission_action == PermissionAction::GRANTED) {
+      ContentSettingsType content_settings_type =
+          request->GetContentSettingsType();
+
+      if (content_settings_type == ContentSettingsType::GEOLOCATION ||
+          content_settings_type == ContentSettingsType::MEDIASTREAM_CAMERA ||
+          content_settings_type == ContentSettingsType::MEDIASTREAM_MIC) {
+        actions_history->RecordOTPCountForGrant(
+            content_settings_type,
+            actions_history->GetOneTimeGrantCount(request->requesting_origin(),
+                                                  content_settings_type));
+      }
     }
   }
 
@@ -1611,12 +1666,12 @@ void PermissionRequestManager::DoAutoResponseForTesting() {
 }
 
 bool PermissionRequestManager::IsCurrentRequestExclusiveAccess() const {
-#if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
   return IsRequestInProgress() &&
          IsExclusiveAccessRequest(requests_[0]->request_type());
 #else
   return false;
-#endif
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 }
 
 bool PermissionRequestManager::ShouldFinalizeRequestAfterDecided(
@@ -1792,6 +1847,19 @@ void PermissionRequestManager::OnTabActiveChanged() {
   } else if (current_request_ui_to_use_.has_value()) {
     ShowPrompt();
   }
+}
+
+void PermissionRequestManager::RecordPostPromptSessionDuration() {
+  PermissionUmaUtil::RecordPostPromptSessionDuration(
+      ContentSettingsType::NOTIFICATIONS,
+      notification_request_first_display_time_);
+
+  PermissionUmaUtil::RecordPostPromptSessionDuration(
+      ContentSettingsType::GEOLOCATION,
+      geolocation_request_first_display_time_);
+
+  notification_request_first_display_time_ = base::TimeTicks();
+  geolocation_request_first_display_time_ = base::TimeTicks();
 }
 
 WEB_CONTENTS_USER_DATA_KEY_IMPL(PermissionRequestManager);

@@ -15,6 +15,7 @@
   --text-input-top-spacing: 10px;
   --text-input-inline-end-spacing: 80px;
   --text-input-inline-start-spacing: 16px;
+  --text-input-max-height: 190px;
   --expanded-border-radius: 26px;
   --brand-gradient: conic-gradient(
     rgba(52, 168, 82, 0) 0deg,
@@ -118,7 +119,9 @@
 
 :host([ntp-realbox-next-enabled]) {
   --cr-composebox-font-size: 16px;
+  --contextual-entrypoint-and-carousel-context-menu-container-padding-inline-start: 0px;
   --input-bottom-spacing: 12px;
+  --text-input-inline-start-spacing: 18px;
 }
 
 :host([ntp-realbox-next-enabled]) #input::placeholder {
@@ -136,9 +139,46 @@
 
 #composebox {
   display: flex;
+  flex-direction: column;
   pointer-events: auto;
   position: relative;
   overflow: hidden;
+}
+
+:host([is-dragging-file_])::before {
+  /*  TODO(crbug.com/454730356): change color and add border */
+  background: linear-gradient(
+    90deg,
+    rgba(255, 240, 230, 0.8),
+    rgba(230, 240, 255, 0.8)
+  ), white;
+  border-radius: var(--expanded-border-radius);
+  content: '';
+  inset: 0;
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+}
+
+:host([is-dragging-file_]) #composebox * {
+  pointer-events: none;
+}
+
+#dragDropPlaceholder {
+  display: none;
+  position: absolute;
+  top: 21px;
+  left: 20px;
+  pointer-events: none;
+}
+
+:host([searchbox-layout-mode='Compact']) #dragDropPlaceholder {
+  top: 16px;
+}
+
+:host([is-dragging-file_]) #dragDropPlaceholder {
+  display: block;
+  z-index: 3;
 }
 
 :host([is-collapsible]) #composebox {
@@ -201,9 +241,9 @@
   -webkit-mask-position: center;
   -webkit-mask-repeat: no-repeat;
   -webkit-mask-size: cover;
-  background-color: var(--color-new-tab-page-composebox-input-icon);
-  height: 24px;
-  width: 24px;
+  background-color: var(--color-composebox-input-icon);
+  height: 20px;
+  width: 20px;
 }
 
 @media (forced-colors: active) {
@@ -225,11 +265,16 @@
   font-size: inherit;
   line-height: 24px;
   min-height: 48px;
-  max-height: 190px;
+  max-height: var(--text-input-max-height);
   padding-block: var(--text-input-top-spacing) 0;
   padding-inline: 12px var(--text-input-inline-end-spacing);
   scrollbar-width: none;
   width: 100%;
+}
+
+#composebox.is-dragging-file #input {
+  position: relative;
+  z-index: 3;
 }
 
 :host(:not[ntp-realbox-next-enabled]) #input {
@@ -241,17 +286,17 @@
   background-color: inherit;
   border: none;
   caret-color: var(--google-blue-500);
-  color: var(--color-new-tab-page-composebox-font-light);
+  color: var(--color-composebox-font-light);
   field-sizing: content;
   mask-image: linear-gradient(transparent 7px, black calc(var(--text-input-top-spacing) + 7px));
-  height: calc-size(fit-content, min(size + 4px, 190px));
+  height: calc-size(fit-content, min(size + 4px, var(--text-input-max-height)));
   outline: none;
   position: relative;
   resize: none;
 }
 
 #input::placeholder {
-  color: var(--color-new-tab-page-composebox-type-ahead);
+  color: var(--color-composebox-type-ahead);
 }
 
 #smartCompose {
@@ -272,16 +317,16 @@
 }
 
 #ghostText {
-  color: var(--color-new-tab-page-composebox-type-ahead);
+  color: var(--color-composebox-type-ahead);
   white-space: pre-wrap;
 }
 
 #tabChip {
   align-items: center;
-  border: 1px solid var(--color-new-tab-page-composebox-type-ahead-chip);
+  border: 1px solid var(--color-composebox-type-ahead-chip);
   border-radius: 8px;
   box-sizing: border-box;
-  color: var(--color-new-tab-page-composebox-type-ahead-chip);
+  color: var(--color-composebox-type-ahead-chip);
   font-size: 12px;
   font-weight: 700;
   line-height: 28px;
@@ -334,13 +379,18 @@
 
 #cancelIcon {
   --cr-icon-button-fill-color:
-      var(--color-new-tab-page-composebox-cancel-button-light);
+      var(--color-composebox-cancel-button-light);
   /* SVG is size 20 with 5px of padding so actual size is 10px */
   --cr-icon-button-icon-size: 20px;
   position: absolute;
-  top: 8px;
+  top: 12px;
+  inset-inline-end: 12px;
   /* Uses the same transitions as the submit button so they are in sync. */
   transition: var(--submit-enabled-transition);
+}
+
+:host([searchbox-layout-mode="Compact"]) #cancelIcon {
+  top: 10px;
 }
 
 :host([expanded_][is-collapsible]) #cancelIcon {
@@ -402,13 +452,8 @@
   height: var(--cr-icon-button-size);
   bottom: var(--input-bottom-spacing);
   position: absolute;
-  right: 16px;
+  inset-inline-end: 12px;
   width: var(--cr-icon-button-size);
-}
-
-:host-context([dir='rtl']) #submitContainer {
-  left: 16px;
-  right: unset;
 }
 
 :host([show-submit_][submit-enabled_]:not([ntp-realbox-next-enabled])) #submitContainer {
@@ -431,16 +476,11 @@
 #submitIcon {
   --cr-icon-button-fill-color: white;
   --cr-icon-button-icon-size: 16px;
-  background-color: var(--color-new-tab-page-composebox-submit-button);
+  background-color: var(--color-composebox-submit-button);
   bottom: 0;
   opacity: 30%; /* For Lens side panel. */
-  right: 0;
+  inset-inline-end: 0;
   transition: var(--submit-enabled-transition);
-}
-
-:host-context([dir='rtl']) #submitIcon {
-  left: 0;
-  right: unset;
 }
 
 #submitIcon:focus-visible:focus {
@@ -468,7 +508,7 @@
 @media (forced-colors: active) {
   :host,
   .action-icon {
-    border: solid var(--color-new-tab-page-composebox-outline-hcm);
+    border: solid var(--color-composebox-outline-hcm);
   }
 }
 
@@ -505,8 +545,8 @@
   top: 50%;
   translate: -50% -50%;
   opacity: 0;
-  /* The gradient is 120% wide to ensure it fills passed the entire container. */
-  width: 120%;
+  /* The gradient is 135% wide to ensure it fills passed the entire container. */
+  width: 135%;
 }
 
 :host([expanded_]) .gradient:before {
@@ -583,7 +623,7 @@
 }
 
 .background:before {
-  background: var(--ntp-composebox-background-color);
+  background: var(--cr-composebox-background-color);
   border-radius: inherit;
   content: '';
   contain: paint;
@@ -615,10 +655,10 @@
 
 @keyframes color-pulse-on-expand {
     40% {
-        background: var(--color-new-tab-page-composebox-scrim-background);
+        background: var(--color-composebox-scrim-background);
     }
     58% {
-        background: var(--color-new-tab-page-composebox-scrim-background);
+        background: var(--color-composebox-scrim-background);
     }
 }
 
@@ -641,7 +681,7 @@
 }
 
 #suggestionActivity {
-  color: var(--color-new-tab-page-composebox-suggestion-activity);
+  color: var(--color-composebox-suggestion-activity);
   font-size: 12px;
   font-weight: 400;
   left: 50%;
@@ -652,81 +692,101 @@
 }
 
 :host([expanded_][show-file-carousel_][carousel-on-top_]) #inputContainer {
-  padding-top: 52px;
+  padding-top: 60px;
+  --text-input-max-height: 130px;
 }
 
 .carousel-divider {
   border-radius: 100px;
   border-top: 1px solid
-    var(--color-new-tab-page-composebox-file-carousel-divider);
+    var(--color-composebox-file-carousel-divider);
   margin-inline-end: 16px;
   margin-inline-start: var(--text-input-inline-start-spacing);
   margin-top: 8px;
   margin-bottom: 10px;
 }
 
-:host([ntp-realbox-next-enabled][realbox-layout-mode^="Tall"][show-dropdown_]) {
+:host([ntp-realbox-next-enabled]) contextual-entrypoint-and-carousel::part(context-menu-entrypoint-icon) {
+  --cr-icon-button-icon-size: 24px;
+  --cr-icon-button-size: 36px;
+}
+
+:host([ntp-realbox-next-enabled][searchbox-layout-mode^="Tall"][show-dropdown_]) {
   --expanded-border-radius: 24px;
 }
 
-:host([ntp-realbox-next-enabled][realbox-layout-mode="Compact"]) {
+:host([ntp-realbox-next-enabled][searchbox-layout-mode="Compact"]) {
   --expanded-border-radius: 30px;
+  --input-bottom-spacing: 10px;
 }
 
-:host([ntp-realbox-next-enabled][realbox-layout-mode="Compact"]) #iconContainer {
+:host([ntp-realbox-next-enabled][searchbox-layout-mode="Compact"]) #iconContainer {
   display: none;
 }
 
-:host([ntp-realbox-next-enabled][realbox-layout-mode="Compact"]) #textContainer {
+:host([ntp-realbox-next-enabled][searchbox-layout-mode="Compact"]) #textContainer {
   --text-input-inline-start-spacing: 40px;
+  padding-block: 6px 0;
 }
 
 :host([ntp-realbox-next-enabled]) #input,
 :host([ntp-realbox-next-enabled]) #smartCompose {
-  --text-input-top-spacing: 14px;
+  --text-input-top-spacing: 10px;
 }
 
-:host([ntp-realbox-next-enabled][realbox-layout-mode="Compact"]) #input,
-:host([ntp-realbox-next-enabled][realbox-layout-mode="Compact"]) #smartCompose {
-  --text-input-top-spacing: 8px;
+:host([ntp-realbox-next-enabled]) #iconContainer {
+  height: 44px;
 }
 
-:host([ntp-realbox-next-enabled][realbox-layout-mode="Compact"]) #context {
+:host([ntp-realbox-next-enabled][searchbox-layout-mode="Compact"]) #context {
   margin-top: -48px;
 }
 
-:host([expanded_][show-dropdown_][ntp-realbox-next-enabled][realbox-layout-mode="Compact"]) ntp-composebox-dropdown {
+:host([expanded_][show-dropdown_][ntp-realbox-next-enabled][searchbox-layout-mode="Compact"]) cr-composebox-dropdown {
   padding-bottom: 0;
   padding-top: 8px;
 }
 
-:host-context([realbox-layout-mode='TallTopContext']) contextual-entrypoint-and-carousel::part(carousel-divider) {
+:host-context([searchbox-layout-mode='TallTopContext']) contextual-entrypoint-and-carousel::part(carousel-divider) {
   margin-top: 10px;
 }
 
-:host([realbox-layout-mode^='Tall']) contextual-entrypoint-and-carousel::part(voice-icon) {
-  --cr-icon-button-fill-color: var(--color-new-tab-page-composebox-font-light);
-  --cr-icon-button-hover-background-color: var(--color-new-tab-page-composebox-context-entrypoint-hover-background);
+contextual-entrypoint-and-carousel::part(voice-icon) {
+  --cr-icon-button-fill-color: var(--color-composebox-font-light);
+  --cr-icon-button-hover-background-color: var(--color-composebox-context-entrypoint-hover-background);
   --cr-icon-button-margin-end: 0px;
   --cr-icon-button-margin-start: 0px;
   --cr-icon-button-size: 36px;
-  display: flex;
-  position: absolute;
-  inset-inline-end: 14px;
 }
 
+:host(:not([ntp-realbox-next-enabled])) contextual-entrypoint-and-carousel::part(voice-icon),
 :host([realbox-layout-mode='TallBottomContext']) contextual-entrypoint-and-carousel::part(voice-icon) {
   bottom: 10px;
+  inset-inline-end: 14px;
+  position: absolute;
+}
+
+:host([show-submit_][submit-enabled_]:not([ntp-realbox-next-enabled])) contextual-entrypoint-and-carousel::part(voice-icon) {
+  inset-inline-end: calc(var(--cr-icon-button-size) + 18px);
 }
 
 :host([realbox-layout-mode='TallTopContext']) contextual-entrypoint-and-carousel::part(voice-icon) {
-  top: 60px;
+  margin-inline-end: 14px;
+  margin-inline-start: auto;
+  position: static;
+}
+
+:host([searchbox-layout-mode='Compact']) contextual-entrypoint-and-carousel::part(voice-icon) {
+  margin-inline-end: calc(var(--cr-icon-button-size) + 12px);
+  margin-inline-start: auto;
+  z-index: 100;
 }
 
 :host([ntp-realbox-next-enabled]) contextual-entrypoint-and-carousel::part(context-menu-entrypoint-icon) {
   --cr-icon-button-icon-size: 24px;
+  --cr-icon-button-margin-start: 2px;
 }
 
-:host([realbox-layout-mode='Compact']) contextual-entrypoint-and-carousel::part(composebox-file-carousel) {
+:host([searchbox-layout-mode='Compact']) contextual-entrypoint-and-carousel::part(cr-composebox-file-carousel) {
   margin-top: 14px;
 }

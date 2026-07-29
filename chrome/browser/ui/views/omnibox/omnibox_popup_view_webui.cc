@@ -17,8 +17,11 @@
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
 #include "chrome/browser/ui/omnibox/omnibox_edit_model.h"
+#include "chrome/browser/ui/omnibox/omnibox_next_features.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_presenter.h"
+#include "chrome/browser/ui/views/omnibox/omnibox_popup_presenter_base.h"
+#include "chrome/browser/ui/views/omnibox/omnibox_popup_webui_content.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_result_view.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_row_view.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_view_views.h"
@@ -45,14 +48,15 @@ OmniboxPopupViewWebUI::OmniboxPopupViewWebUI(OmniboxViewViews* omnibox_view,
     : OmniboxPopupView(controller),
       construction_time_(base::TimeTicks::Now()),
       omnibox_view_(omnibox_view),
-      location_bar_view_(location_bar_view),
-      presenter_(std::make_unique<OmniboxPopupPresenter>(location_bar_view,
-                                                         controller)) {
-  model()->set_popup_view(this);
+      location_bar_view_(location_bar_view) {
+  presenter_ =
+      std::make_unique<OmniboxPopupPresenter>(location_bar_view, controller);
+  controller->edit_model()->set_popup_view(this);
+  edit_model_observation_.Observe(controller->edit_model());
 }
 
 OmniboxPopupViewWebUI::~OmniboxPopupViewWebUI() {
-  model()->set_popup_view(nullptr);
+  controller()->edit_model()->set_popup_view(nullptr);
 }
 
 bool OmniboxPopupViewWebUI::IsOpen() const {
@@ -62,7 +66,8 @@ bool OmniboxPopupViewWebUI::IsOpen() const {
 void OmniboxPopupViewWebUI::InvalidateLine(size_t line) {}
 
 void OmniboxPopupViewWebUI::UpdatePopupAppearance() {
-  if (controller()->autocomplete_controller()->result().empty() ||
+  if (controller()->edit_model()->PopupInAiMode() ||
+      controller()->autocomplete_controller()->result().empty() ||
       omnibox_view_->IsImeShowingPopup()) {
     presenter_->Hide();
   } else {
@@ -79,6 +84,10 @@ void OmniboxPopupViewWebUI::UpdatePopupAppearance() {
       }
     }
   }
+}
+
+void OmniboxPopupViewWebUI::OnContentsChanged() {
+  UpdatePopupAppearance();
 }
 
 void OmniboxPopupViewWebUI::ProvideButtonFocusHint(size_t line) {

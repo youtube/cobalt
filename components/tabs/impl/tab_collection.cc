@@ -4,6 +4,9 @@
 
 #include "components/tabs/public/tab_collection.h"
 
+#include <optional>
+#include <set>
+
 #include "base/check.h"
 #include "base/notreached.h"
 #include "components/tabs/public/supports_handles.h"
@@ -70,19 +73,23 @@ void TabCollection::TabIterator::Next() {
 TabCollection::TabCollection(
     Type type,
     std::unordered_set<Type> supported_child_collections,
-    bool supports_tabs)
+    bool supports_tabs,
+    bool send_notifications_immediately)
     : type_(type),
       supported_child_collections_(supported_child_collections),
       supports_tabs_{supports_tabs},
+      notify_immediately_{send_notifications_immediately},
       impl_(std::make_unique<TabCollectionStorage>(*this)) {}
 
-TabCollection::~TabCollection() = default;
+TabCollection::~TabCollection() {
+  DispatchPendingNotifications();
+}
 
-void TabCollection::AddObserver(TabCollectionObserver* observer) {
+void TabCollection::AddObserver(TabCollectionObserver* observer) const {
   observers_.AddObserver(observer);
 }
 
-void TabCollection::RemoveObserver(TabCollectionObserver* observer) {
+void TabCollection::RemoveObserver(TabCollectionObserver* observer) const {
   observers_.RemoveObserver(observer);
 }
 
@@ -217,6 +224,60 @@ size_t TabCollection::ToDirectIndex(size_t index) {
   return direct_child_index;
 }
 
+std::optional<TabCollection::Position> TabCollection::FindMovePositionRecursive(
+    size_t destination_index,
+    TabCollection* dst_collection,
+    size_t& curr_insertion_index,
+    const std::set<tabs::TabInterface*>& tabs_moved,
+    const std::set<tabs::TabCollection*>& collections_moved) {
+  size_t direct_child_index = 0;
+
+  // Recursively find which position should the first tab_or_collection that is
+  // being moved should go to. This increments `curr_index` only if the node is
+  // not part of the nodes being moved.
+  for (const auto& child : impl_->GetChildren()) {
+    // Should not reach this state as it means the move position for the
+    // operation does not exist.
+    CHECK(curr_insertion_index <= destination_index)
+        << " Could not find a move position "
+        << " Current index: " << curr_insertion_index
+        << " Destination to index: " << destination_index;
+    if (curr_insertion_index == destination_index && this == dst_collection) {
+      return TabCollection::Position(this->GetHandle(), direct_child_index);
+    }
+    if (std::holds_alternative<std::unique_ptr<tabs::TabInterface>>(child)) {
+      tabs::TabInterface* tab =
+          std::get<std::unique_ptr<tabs::TabInterface>>(child).get();
+      if (!tabs_moved.contains(tab)) {
+        curr_insertion_index++;
+      }
+    } else if (std::holds_alternative<std::unique_ptr<tabs::TabCollection>>(
+                   child)) {
+      tabs::TabCollection* collection =
+          std::get<std::unique_ptr<tabs::TabCollection>>(child).get();
+      if (!collections_moved.contains(collection)) {
+        // Recursively call into the collection.
+        std::optional<TabCollection::Position> move_position =
+            collection->FindMovePositionRecursive(
+                destination_index, dst_collection, curr_insertion_index,
+                tabs_moved, collections_moved);
+        if (move_position.has_value()) {
+          return move_position.value();
+        }
+      }
+    }
+    direct_child_index++;
+  }
+
+  // Case when we want to move to the end of this collection as a direct
+  // child. This could also be a valid position.
+  if (curr_insertion_index == destination_index && this == dst_collection) {
+    return TabCollection::Position(this->GetHandle(), direct_child_index);
+  }
+
+  return std::nullopt;
+}
+
 size_t TabCollection::ChildCount() const {
   return impl_->GetChildrenCount();
 }
@@ -253,27 +314,55 @@ void TabCollection::OnTabRemovedFromTree() {
   }
 }
 
-void TabCollection::NotifyOnChildrenAdded(base::PassKey<TabCollection> pass_key,
-                                          const TabCollectionNodes& handles,
-                                          const Position& insertion_position,
-                                          TabCollection* notification_root) {
-  observers_.Notify(&TabCollectionObserver::OnChildrenAdded, insertion_position,
-                    handles);
+void TabCollection::NotifyOnChildrenAdded(
+    base::PassKey<TabCollection> pass_key,
+    const TabCollectionNodes& handles,
+    const Position& insertion_position,
+    TabCollection* stop_notification_root) {
+  if (stop_notification_root != nullptr && stop_notification_root == this) {
+    return;
+  }
 
-  if (this != notification_root) {
+  if (notify_immediately_) {
+    observers_.Notify(&TabCollectionObserver::OnChildrenAdded,
+                      insertion_position, handles);
+  } else if (!observers_.empty()) {
+    pending_notifications_.push_back(base::BindOnce(
+        [](base::ObserverList<TabCollectionObserver>& observers,
+           const Position& position, const TabCollectionNodes& handles) {
+          observers.Notify(&TabCollectionObserver::OnChildrenAdded, position,
+                           handles);
+        },
+        std::ref(observers_), insertion_position, handles));
+  }
+
+  if (parent_) {
     parent_->NotifyOnChildrenAdded(pass_key, handles, insertion_position,
-                                   notification_root);
+                                   stop_notification_root);
   }
 }
 
 void TabCollection::NotifyOnChildrenRemoved(
     base::PassKey<TabCollection> pass_key,
     const TabCollectionNodes& handles,
-    TabCollection* notification_root) {
-  observers_.Notify(&TabCollectionObserver::OnChildrenRemoved, handles);
+    TabCollection* stop_notification_root) {
+  if (stop_notification_root != nullptr && stop_notification_root == this) {
+    return;
+  }
 
-  if (this != notification_root) {
-    parent_->NotifyOnChildrenRemoved(pass_key, handles, notification_root);
+  if (notify_immediately_) {
+    observers_.Notify(&TabCollectionObserver::OnChildrenRemoved, handles);
+  } else if (!observers_.empty()) {
+    pending_notifications_.push_back(base::BindOnce(
+        [](base::ObserverList<TabCollectionObserver>& observers,
+           const TabCollectionNodes& handles) {
+          observers.Notify(&TabCollectionObserver::OnChildrenRemoved, handles);
+        },
+        std::ref(observers_), handles));
+  }
+
+  if (parent_) {
+    parent_->NotifyOnChildrenRemoved(pass_key, handles, stop_notification_root);
   }
 }
 
@@ -281,17 +370,40 @@ void TabCollection::NotifyOnChildMoved(base::PassKey<TabCollection> pass_key,
                                        const TabCollectionNodeHandle& handle,
                                        const Position& src_position,
                                        const Position& dst_position,
-                                       TabCollection* notification_root) {
+                                       TabCollection* stop_notification_root) {
+  if (stop_notification_root != nullptr && stop_notification_root == this) {
+    return;
+  }
+
   TabCollectionObserver::NodeData src_data =
       TabCollectionObserver::NodeData(src_position, handle);
 
-  observers_.Notify(&TabCollectionObserver::OnChildMoved, dst_position,
-                    src_data);
-
-  if (this != notification_root) {
-    parent_->NotifyOnChildMoved(pass_key, handle, src_position, dst_position,
-                                notification_root);
+  if (notify_immediately_) {
+    observers_.Notify(&TabCollectionObserver::OnChildMoved, dst_position,
+                      src_data);
+  } else if (!observers_.empty()) {
+    pending_notifications_.push_back(base::BindOnce(
+        [](base::ObserverList<TabCollectionObserver>& observers,
+           const Position& dst_position,
+           const TabCollectionObserver::NodeData& src_data) {
+          observers.Notify(&TabCollectionObserver::OnChildMoved, dst_position,
+                           src_data);
+        },
+        std::ref(observers_), dst_position, src_data));
   }
+
+  if (parent_) {
+    parent_->NotifyOnChildMoved(pass_key, handle, src_position, dst_position,
+                                stop_notification_root);
+  }
+}
+
+void TabCollection::DispatchPendingNotifications() {
+  for (auto& notification : pending_notifications_) {
+    std::move(notification).Run();
+  }
+
+  pending_notifications_.clear();
 }
 
 TabInterface* TabCollection::AddTab(std::unique_ptr<TabInterface> tab,
@@ -340,5 +452,4 @@ const ChildrenVector& TabCollection::GetChildren(
     base::PassKey<DirectChildWalker> pass_key) const {
   return GetChildren();
 }
-
 }  // namespace tabs

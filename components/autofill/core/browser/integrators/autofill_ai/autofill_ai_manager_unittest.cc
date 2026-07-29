@@ -155,8 +155,6 @@ class AutofillAiManagerTest : public testing::Test {
         /*enabled_features=*/{features::kAutofillAiWithDataSchema,
                               features::kAutofillAiServerModel},
         /*disabled_features=*/{});
-    autofill_client().GetPersonalDataManager().SetPrefService(
-        autofill_client().GetPrefs());
     autofill_client().set_entity_data_manager(
         std::make_unique<EntityDataManager>(
             autofill_client().GetPrefs(),
@@ -282,6 +280,9 @@ TEST_F(AutofillAiManagerTest, ShouldDisplayIph) {
 // feature, but does not have address or payments data stored.
 TEST_F(AutofillAiManagerTest,
        ShouldNotDisplayIphWhenUserHasNoAddressOrPaymentsData) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(
+      features::kAutofillAiIgnoreWhetherUserHasAddressOrPaymentsDataForIph);
   test::FormDescription form_description = {.fields = {{}}};
   FormData form = test::GetFormData(form_description);
   FormStructure form_structure = FormStructure(form);

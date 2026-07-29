@@ -8,11 +8,8 @@ assert(!is_android)
 
 source_set("composebox") {
   sources = [
-    "base_composebox_handler.h",
     "composebox_handler.cc",
     "composebox_handler.h",
-    "composebox_omnibox_client.cc",
-    "composebox_omnibox_client.h",
   ]
   deps = [
     "//base",
@@ -23,9 +20,9 @@ source_set("composebox") {
     "//chrome/browser/ui/webui/new_tab_page/composebox/variations",
     "//chrome/browser/ui/webui/searchbox",
     "//components/application_locale_storage",
+    "//components/contextual_search:public",
     "//components/lens",
     "//components/omnibox/common",
-    "//components/omnibox/composebox",
     "//components/omnibox/composebox:mojo_bindings",
     "//components/search",
     "//components/variations/service",

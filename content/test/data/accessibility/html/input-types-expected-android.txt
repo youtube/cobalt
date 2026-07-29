@@ -47,7 +47,7 @@ android.webkit.WebView focusable focused
 ++++android.widget.RadioButton checkable clickable focusable interesting name='Radio:'
 ++++android.view.View
 ++++++android.widget.TextView interesting name='Range: '
-++++++android.widget.SeekBar clickable focusable range interesting name='50, Range:' item_index=50 item_count=100 range_max=100 range_current_value=50
+++++++android.widget.SeekBar clickable focusable range interesting name='Range:' item_index=50 item_count=100 range_max=100 range_current_value=50
 ++++android.view.View
 ++++++android.widget.TextView interesting name='Reset: '
 ++++++android.widget.Button clickable focusable interesting name='Reset:'
@@ -65,7 +65,7 @@ android.webkit.WebView focusable focused
 ++++++android.widget.EditText clickable editable_text focusable interesting hint='Text:' input_type=1
 ++++android.view.View
 ++++++android.widget.TextView interesting name='Time: '
-++++++android.widget.Spinner role_description='time picker' clickable focusable interesting hint='Time:' input_type=36
+++++++android.widget.TimePicker role_description='time picker' clickable focusable interesting hint='Time:' input_type=36
 ++++android.view.View
 ++++++android.widget.TextView interesting name='Url: '
 ++++++android.widget.EditText clickable editable_text focusable interesting hint='Url:' input_type=17

@@ -56,6 +56,7 @@
 #include "third_party/blink/renderer/platform/testing/unit_test_helpers.h"
 #include "third_party/blink/renderer/platform/testing/url_loader_mock_factory.h"
 #include "third_party/blink/renderer/platform/testing/url_test_helpers.h"
+#include "third_party/blink/renderer/platform/wtf/functional.h"
 
 namespace blink {
 namespace {
@@ -250,12 +251,11 @@ class MojoHandleWatcher {
       : handle_watcher_(FROM_HERE,
                         mojo::SimpleWatcher::ArmingPolicy::MANUAL,
                         base::SequencedTaskRunner::GetCurrentDefault()) {
-    handle_watcher_.Watch(handle,
-                          MOJO_HANDLE_SIGNAL_READABLE |
-                              MOJO_HANDLE_SIGNAL_WRITABLE |
-                              MOJO_HANDLE_SIGNAL_PEER_CLOSED,
-                          base::BindRepeating(&MojoHandleWatcher::OnReady,
-                                              base::Unretained(this)));
+    handle_watcher_.Watch(
+        handle,
+        MOJO_HANDLE_SIGNAL_READABLE | MOJO_HANDLE_SIGNAL_WRITABLE |
+            MOJO_HANDLE_SIGNAL_PEER_CLOSED,
+        blink::BindRepeating(&MojoHandleWatcher::OnReady, Unretained(this)));
   }
 
   void Wait() {
@@ -315,7 +315,7 @@ class TestDataUploader : public network::mojom::blink::ChunkedDataPipeGetter {
 
     handle_watcher_ = std::make_unique<MojoHandleWatcher>(producer_.get());
     handle_watcher_->WaitAsync(
-        base::BindOnce(&TestDataUploader::OnMojoReady, base::Unretained(this)));
+        blink::BindOnce(&TestDataUploader::OnMojoReady, Unretained(this)));
   }
 
   void OnMojoReady() {
@@ -641,8 +641,7 @@ TEST_F(WebEmbeddedWorkerImplTest, TerminateSoonAfterStart) {
       InterfaceRegistry::GetEmptyInterfaceRegistry(),
       scheduler::GetSingleThreadTaskRunnerForTesting(),
       /*coep_reporting_observer=*/mojo::NullReceiver(),
-      /*dip_reporting_observer=*/mojo::NullReceiver(),
-      /*canvas_noise_token_observer=*/mojo::NullReceiver());
+      /*dip_reporting_observer=*/mojo::NullReceiver());
   testing::Mock::VerifyAndClearExpectations(mock_client_.get());
 
   // Terminate the worker immediately after start.
@@ -664,8 +663,7 @@ TEST_F(WebEmbeddedWorkerImplTest, TerminateWhileWaitingForDebugger) {
       InterfaceRegistry::GetEmptyInterfaceRegistry(),
       scheduler::GetSingleThreadTaskRunnerForTesting(),
       /*coep_reporting_observer=*/mojo::NullReceiver(),
-      /*dip_reporting_observer=*/mojo::NullReceiver(),
-      /*canvas_noise_token_observer=*/mojo::NullReceiver());
+      /*dip_reporting_observer=*/mojo::NullReceiver());
   testing::Mock::VerifyAndClearExpectations(mock_client_.get());
 
   // Terminate the worker while waiting for the debugger.
@@ -690,8 +688,7 @@ TEST_F(WebEmbeddedWorkerImplTest, ScriptNotFound) {
       InterfaceRegistry::GetEmptyInterfaceRegistry(),
       scheduler::GetSingleThreadTaskRunnerForTesting(),
       /*coep_reporting_observer=*/mojo::NullReceiver(),
-      /*dip_reporting_observer=*/mojo::NullReceiver(),
-      /*canvas_noise_token_observer=*/mojo::NullReceiver());
+      /*dip_reporting_observer=*/mojo::NullReceiver());
   testing::Mock::VerifyAndClearExpectations(mock_client_.get());
 
   mock_client_->WaitUntilFailedToLoadClassicScript();
@@ -715,8 +712,7 @@ TEST_F(WebEmbeddedWorkerImplTest, GCOnWorkerThreadShouldNotCauseUploadFail) {
       InterfaceRegistry::GetEmptyInterfaceRegistry(),
       scheduler::GetSingleThreadTaskRunnerForTesting(),
       /*coep_reporting_observer=*/mojo::NullReceiver(),
-      /*dip_reporting_observer=*/mojo::NullReceiver(),
-      /*canvas_noise_token_observer=*/mojo::NullReceiver());
+      /*dip_reporting_observer=*/mojo::NullReceiver());
   mock_client_->WaitUntilScriptEvaluated();
 
   // We need to fulfill mojo pipe to let BytesUploader await it and

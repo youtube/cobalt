@@ -139,20 +139,6 @@ gfx::GpuMemoryBufferType GetNativeBufferType() {
 #endif
 }
 
-bool WillGetGmbConfigFromGpu() {
-#if BUILDFLAG(IS_OZONE)
-  // Ozone/X11 requires gpu initialization to be done before it can determine
-  // what formats gmb can use. This limitation comes from the requirement to
-  // have GLX bindings initialized. The buffer formats will be passed through
-  // gpu extra info.
-  return ui::OzonePlatform::GetInstance()
-      ->GetPlatformProperties()
-      .fetch_buffer_formats_for_gmb_on_gpu;
-#else
-  return false;
-#endif
-}
-
 }  // namespace
 
 SharedImageFactory::SharedImageFactory(
@@ -271,7 +257,9 @@ SharedImageFactory::SharedImageFactory(
 #if BUILDFLAG(IS_WIN)
   if (gr_context_type_ == GrContextType::kVulkan) {
     auto external_vk_image_factory =
-        std::make_unique<ExternalVkImageBackingFactory>(context_state_);
+        std::make_unique<ExternalVkImageBackingFactory>(
+            context_state_,
+            gpu_preferences_.enable_webgpu_on_vk_via_gl_interop);
     factories_.push_back(std::move(external_vk_image_factory));
   }
 #endif  // BUILDFLAG(IS_WIN)
@@ -316,10 +304,18 @@ SharedImageFactory::SharedImageFactory(
         context_state_, workarounds_);
     factories_.push_back(std::move(ozone_factory));
   }
+
 #if BUILDFLAG(ENABLE_VULKAN) && (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_FUCHSIA))
-  if (gr_context_type_ == GrContextType::kVulkan) {
+  if (gr_context_type_ == GrContextType::kVulkan
+#if BUILDFLAG(USE_WEBGPU_ON_VULKAN_VIA_GL_INTEROP)
+      /* We support GL context for WebGPU gl-vulkan interop (on linux).*/
+      || gpu_preferences_.enable_webgpu_on_vk_via_gl_interop
+#endif
+  ) {
     auto external_vk_image_factory =
-        std::make_unique<ExternalVkImageBackingFactory>(context_state_);
+        std::make_unique<ExternalVkImageBackingFactory>(
+            context_state_,
+            gpu_preferences_.enable_webgpu_on_vk_via_gl_interop);
     factories_.push_back(std::move(external_vk_image_factory));
   }
 #endif  // BUILDFLAG(ENABLE_VULKAN) && (BUILDFLAG(IS_LINUX) ||
@@ -394,19 +390,84 @@ bool SharedImageFactory::IsNativeBufferSupported(
     viz::SharedImageFormat format,
     gfx::BufferUsage usage,
     const gfx::GpuExtraInfo& gpu_extra_info) {
-  if (WillGetGmbConfigFromGpu()) {
-#if BUILDFLAG(IS_OZONE_X11)
-    return base::Contains(
-        gpu_extra_info.gpu_memory_buffer_support_x11,
-        gfx::BufferUsageAndFormat(
-            usage, viz::SharedImageFormatToBufferFormat(format)));
-#else
-    return false;
-#endif  // BUILDFLAG(IS_OZONE_X11)
-  } else {
-    return gpu::GpuMemoryBufferSupport::
-        IsNativeGpuMemoryBufferConfigurationSupported(format, usage);
+#if BUILDFLAG(IS_APPLE)
+  switch (usage) {
+    case gfx::BufferUsage::GPU_READ:
+    case gfx::BufferUsage::SCANOUT:
+    case gfx::BufferUsage::SCANOUT_CPU_READ_WRITE:
+    case gfx::BufferUsage::GPU_READ_CPU_READ_WRITE:
+    case gfx::BufferUsage::SCANOUT_FRONT_RENDERING:
+    case gfx::BufferUsage::SCANOUT_VEA_CPU_READ:
+      return format == viz::SinglePlaneFormat::kBGRA_8888 ||
+             format == viz::SinglePlaneFormat::kRGBA_8888 ||
+             format == viz::SinglePlaneFormat::kBGRX_8888 ||
+             format == viz::SinglePlaneFormat::kRGBX_8888 ||
+             format == viz::SinglePlaneFormat::kR_8 ||
+             format == viz::SinglePlaneFormat::kRG_88 ||
+             format == viz::SinglePlaneFormat::kR_16 ||
+             format == viz::SinglePlaneFormat::kRG_1616 ||
+             format == viz::SinglePlaneFormat::kRGBA_F16 ||
+             format == viz::SinglePlaneFormat::kBGRA_1010102 ||
+             format == viz::MultiPlaneFormat::kNV12 ||
+             format == viz::MultiPlaneFormat::kNV12A ||
+             format == viz::MultiPlaneFormat::kP010;
+    case gfx::BufferUsage::SCANOUT_VDA_WRITE:
+    case gfx::BufferUsage::PROTECTED_SCANOUT:
+    case gfx::BufferUsage::PROTECTED_SCANOUT_VDA_WRITE:
+    case gfx::BufferUsage::SCANOUT_CAMERA_READ_WRITE:
+    case gfx::BufferUsage::CAMERA_AND_CPU_READ_WRITE:
+    case gfx::BufferUsage::VEA_READ_CAMERA_AND_CPU_READ_WRITE:
+      return false;
   }
+  NOTREACHED();
+#elif BUILDFLAG(IS_ANDROID)
+  switch (usage) {
+    case gfx::BufferUsage::GPU_READ:
+    case gfx::BufferUsage::SCANOUT:
+      return format == viz::SinglePlaneFormat::kRGBA_8888 ||
+             format == viz::SinglePlaneFormat::kRGBX_8888 ||
+             format == viz::SinglePlaneFormat::kBGR_565;
+    case gfx::BufferUsage::SCANOUT_CPU_READ_WRITE:
+    case gfx::BufferUsage::GPU_READ_CPU_READ_WRITE:
+    case gfx::BufferUsage::SCANOUT_VDA_WRITE:
+    case gfx::BufferUsage::PROTECTED_SCANOUT:
+    case gfx::BufferUsage::PROTECTED_SCANOUT_VDA_WRITE:
+    case gfx::BufferUsage::SCANOUT_CAMERA_READ_WRITE:
+    case gfx::BufferUsage::CAMERA_AND_CPU_READ_WRITE:
+    case gfx::BufferUsage::SCANOUT_VEA_CPU_READ:
+    case gfx::BufferUsage::VEA_READ_CAMERA_AND_CPU_READ_WRITE:
+    case gfx::BufferUsage::SCANOUT_FRONT_RENDERING:
+      return false;
+  }
+  NOTREACHED();
+#elif BUILDFLAG(IS_OZONE)
+  auto buffer_format = viz::SharedImageFormatToBufferFormat(format);
+  return ui::OzonePlatform::GetInstance()->IsNativePixmapConfigSupported(
+      buffer_format, usage);
+#elif BUILDFLAG(IS_WIN)
+  switch (usage) {
+    case gfx::BufferUsage::GPU_READ:
+    case gfx::BufferUsage::SCANOUT:
+      return format == viz::SinglePlaneFormat::kRGBA_8888 ||
+             format == viz::SinglePlaneFormat::kRGBX_8888 ||
+             format == viz::SinglePlaneFormat::kBGRA_8888 ||
+             format == viz::SinglePlaneFormat::kBGRX_8888;
+    case gfx::BufferUsage::SCANOUT_CPU_READ_WRITE:
+    case gfx::BufferUsage::GPU_READ_CPU_READ_WRITE:
+    case gfx::BufferUsage::SCANOUT_VDA_WRITE:
+    case gfx::BufferUsage::PROTECTED_SCANOUT:
+    case gfx::BufferUsage::PROTECTED_SCANOUT_VDA_WRITE:
+    case gfx::BufferUsage::SCANOUT_CAMERA_READ_WRITE:
+    case gfx::BufferUsage::CAMERA_AND_CPU_READ_WRITE:
+    case gfx::BufferUsage::SCANOUT_VEA_CPU_READ:
+    case gfx::BufferUsage::VEA_READ_CAMERA_AND_CPU_READ_WRITE:
+    case gfx::BufferUsage::SCANOUT_FRONT_RENDERING:
+      return false;
+  }
+  NOTREACHED();
+#else
+  return false;
+#endif
 }
 
 bool SharedImageFactory::CreateSharedImage(const Mailbox& mailbox,
@@ -640,40 +701,6 @@ bool SharedImageFactory::IsD3DSharedImageSupported() const {
 
   return D3DImageBackingFactory::IsD3DSharedImageSupported(
       context_state_->GetD3D11Device().Get(), gpu_preferences_);
-}
-
-bool SharedImageFactory::CreateSwapChain(const Mailbox& front_buffer_mailbox,
-                                         const Mailbox& back_buffer_mailbox,
-                                         viz::SharedImageFormat format,
-                                         const gfx::Size& size,
-                                         const gfx::ColorSpace& color_space,
-                                         GrSurfaceOrigin surface_origin,
-                                         SkAlphaType alpha_type,
-                                         gpu::SharedImageUsageSet usage) {
-  if (!D3DImageBackingFactory::IsSwapChainSupported(
-          gpu_preferences_, context_state_->dawn_context_provider())) {
-    return false;
-  }
-
-  auto backings = d3d_backing_factory_->CreateSwapChain(
-      front_buffer_mailbox, back_buffer_mailbox, format, size, color_space,
-      surface_origin, alpha_type, usage);
-  return RegisterBacking(std::move(backings.front_buffer)) &&
-         RegisterBacking(std::move(backings.back_buffer));
-}
-
-bool SharedImageFactory::PresentSwapChain(const Mailbox& mailbox) {
-  if (!D3DImageBackingFactory::IsSwapChainSupported(
-          gpu_preferences_, context_state_->dawn_context_provider())) {
-    return false;
-  }
-  auto* shared_image = GetFactoryRef(mailbox);
-  if (!shared_image) {
-    DLOG(ERROR) << "PresentSwapChain: Could not find shared image mailbox";
-    return false;
-  }
-  shared_image->PresentSwapChain();
-  return true;
 }
 #endif  // BUILDFLAG(IS_WIN)
 
@@ -964,7 +991,7 @@ void SharedImageFactory::LogGetFactoryFailed(gpu::SharedImageUsageSet usage,
 #endif
   SCOPED_CRASH_KEY_STRING64("SIFactory", "DebugLabel", new_debug_label);
   SCOPED_CRASH_KEY_STRING64("SIFactory", "Format", format.ToString());
-  SCOPED_CRASH_KEY_NUMBER("SIFactory", "Usage", usage);
+  SCOPED_CRASH_KEY_NUMBER("SIFactory", "Usage", static_cast<uint32_t>(usage));
   SCOPED_CRASH_KEY_STRING64("SIFactory", "GMBType", GmbTypeToString(gmb_type));
   SCOPED_CRASH_KEY_STRING64("SIFactory", "Size", size.ToString());
   SCOPED_CRASH_KEY_BOOL("SIFactory", "SharedBwThreads",

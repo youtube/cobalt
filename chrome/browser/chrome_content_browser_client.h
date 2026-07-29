@@ -1070,6 +1070,8 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
 
   bool ShouldUseFirstPartyStorageKey(const url::Origin& origin) override;
 
+  bool ShouldSkipBeforeUnloadDialog(content::RenderFrameHost* rfh) override;
+
   std::unique_ptr<content::ResponsivenessCalculatorDelegate>
   CreateResponsivenessCalculatorDelegate() override;
 
@@ -1197,15 +1199,15 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
   std::optional<std::vector<std::u16string>> GetClipboardTypesIfPolicyApplied(
       const ui::ClipboardSequenceNumberToken& seqno) override;
 
-  bool ShouldEnableCanvasNoise(content::BrowserContext* browser_context,
-                               const GURL& origin) override;
-
   bool UsePrefetchPrerenderIntegration() override;
   bool UsePreloadServingMetrics() override;
 #if !BUILDFLAG(IS_ANDROID)
   bool ShouldDisallowCredentialRequest(
       content::WebContents* web_contents) override;
 #endif  //! BUILDFLAG(IS_ANDROID)
+
+  void RecordAssistedLogin(
+      content::ContentBrowserClient::AssistedLoginType login_type) override;
 
  protected:
   static bool HandleWebUI(GURL* url, content::BrowserContext* browser_context);

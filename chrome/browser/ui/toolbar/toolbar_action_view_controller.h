@@ -26,7 +26,6 @@ class MenuModel;
 }
 
 class ToolbarActionViewDelegate;
-class ToolbarActionView;
 
 // The basic controller class for an action that is shown on the toolbar -
 // an extension action (like browser actions) or a component action (like
@@ -146,16 +145,6 @@ class ToolbarActionViewController {
       extensions::ExtensionContextMenuModel::ContextMenuSource
           context_menu_source) = 0;
 
-  // Called when a context menu is shown from `source` so the controller can
-  // perform any necessary setup.
-  virtual void OnContextMenuShown(
-      extensions::ExtensionContextMenuModel::ContextMenuSource source) {}
-
-  // Called when a context menu has closed from `source` so the controller can
-  // perform any necessary cleanup.
-  virtual void OnContextMenuClosed(
-      extensions::ExtensionContextMenuModel::ContextMenuSource source) {}
-
   // Executes the default behavior associated with the action. This should only
   // be called as a result of a user action.
   virtual void ExecuteUserAction(InvocationSource source) = 0;
@@ -164,10 +153,6 @@ class ToolbarActionViewController {
   // caller's responsibility to guarantee it is valid to show a popup (i.e.,
   // the action is enabled, has a popup, etc).
   virtual void TriggerPopupForAPI(ShowPopupCallback callback) = 0;
-
-  // Updates the hover card for `action_view` based on `update_type`.
-  virtual void UpdateHoverCard(ToolbarActionView* action_view,
-                               ToolbarActionHoverCardUpdateType update_type) {}
 
   // Registers an accelerator. Called when the view is added to a widget.
   virtual void RegisterCommand() {}

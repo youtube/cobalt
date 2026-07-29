@@ -4,7 +4,13 @@
 
 #import "ios/chrome/app/profile/synced_set_up_profile_agent.h"
 
+#import <memory>
+
+#import "base/callback_list.h"
 #import "base/check.h"
+#import "base/functional/bind.h"
+#import "components/sync_device_info/device_info.h"
+#import "components/sync_preferences/cross_device_pref_tracker/timestamped_pref_value.h"
 #import "ios/chrome/app/application_delegate/app_state.h"
 #import "ios/chrome/app/application_delegate/startup_information.h"
 #import "ios/chrome/app/profile/profile_init_stage.h"
@@ -13,24 +19,32 @@
 #import "ios/chrome/browser/shared/coordinator/scene/scene_activation_level.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_controller.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
+#import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/browser/browser_provider.h"
 #import "ios/chrome/browser/shared/model/browser/browser_provider_interface.h"
+#import "ios/chrome/browser/shared/model/profile/profile_ios.h"
+#import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
+#import "ios/chrome/browser/shared/public/commands/synced_set_up_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
-#import "ios/chrome/browser/synced_set_up/coordinator/synced_set_up_coordinator.h"
-#import "ios/chrome/browser/synced_set_up/coordinator/synced_set_up_coordinator_delegate.h"
+#import "ios/chrome/browser/sync/model/prefs/cross_device_pref_tracker/cross_device_pref_tracker_factory.h"
+#import "ios/chrome/browser/sync/model/prefs/cross_device_pref_tracker/cross_device_pref_tracker_observer_bridge.h"
+#import "ios/chrome/browser/synced_set_up/public/synced_set_up_metrics.h"
 #import "ios/chrome/browser/synced_set_up/utils/utils.h"
 
-@interface SyncedSetUpProfileAgent () <SyncedSetUpCoordinatorDelegate>
+@interface SyncedSetUpProfileAgent () <CrossDevicePrefTrackerObserver>
 @end
 
 @implementation SyncedSetUpProfileAgent {
-  // Coordinator responsible for managing the Synced Set Up flow.
-  SyncedSetUpCoordinator* _coordinator;
-
   // Ensures the Synced Set Up confirmation is triggered only once per
   // foreground activation cycle. This prevents duplicate UIs in multi-window
   // scenarios (e.g., iPad split-screen).
   BOOL _activationAlreadyHandled;
+
+  // Bridge to observe `CrossDevicePrefTracker` events.
+  std::unique_ptr<CrossDevicePrefTrackerObserverBridge> _observer;
+
+  // Callback that's invoked when the Profile is destroyed.
+  base::CallbackListSubscription _subscription;
 }
 
 #pragma mark - SceneObservingProfileAgent
@@ -47,9 +61,12 @@
       _activationAlreadyHandled = NO;
       break;
     case SceneActivationLevelForegroundActive:
-      // Try triggering when a scene becomes active. Preconditions are checked
-      // in `-maybeTriggerSyncedSetUp`.
-      [self maybeTriggerSyncedSetUp];
+      // Try triggering when a scene becomes active, but only if it hasn't been
+      // handled in this activation cycle.
+      if (!_activationAlreadyHandled) {
+        [self maybeTriggerSyncedSetUpWithSource:SyncedSetUpTriggerSource::
+                                                    kSceneActivation];
+      }
       break;
   }
 }
@@ -60,33 +77,33 @@
     didTransitionToInitStage:(ProfileInitStage)nextInitStage
                fromInitStage:(ProfileInitStage)fromInitStage {
   if (nextInitStage == ProfileInitStage::kFinal) {
-    [self maybeTriggerSyncedSetUp];
+    [self setUpObserverBridge];
+
+    if (!_activationAlreadyHandled) {
+      [self maybeTriggerSyncedSetUpWithSource:SyncedSetUpTriggerSource::
+                                                  kSceneActivation];
+    }
   }
 }
 
-#pragma mark - SyncedSetUpCoordinatorDelegate
+#pragma mark - CrossDevicePrefTrackerObserver
 
-- (void)syncedSetUpCoordinatorWantsToBeDismissed:
-    (SyncedSetUpCoordinator*)coordinator {
-  CHECK_EQ(_coordinator, coordinator);
-
-  [_coordinator stop];
-  _coordinator.delegate = nil;
-  _coordinator = nil;
+- (void)onRemotePrefChanged:(std::string_view)prefName
+                  prefValue:
+                      (const sync_preferences::TimestampedPrefValue&)prefValue
+           remoteDeviceInfo:(const syncer::DeviceInfo&)remoteDeviceInfo {
+  // This trigger should happen independently of foreground activation cycles,
+  // so do not check `_activationAlreadyHandled` here.
+  [self maybeTriggerSyncedSetUpWithSource:SyncedSetUpTriggerSource::
+                                              kRemotePrefChange];
 }
 
 #pragma mark - Private
 
 // Evaluates all preconditions and triggers the Synced Set Up flow if
 // applicable.
-- (void)maybeTriggerSyncedSetUp {
-  if (_activationAlreadyHandled) {
-    return;
-  }
-
-  if (_coordinator) {
-    return;
-  }
+- (void)maybeTriggerSyncedSetUpWithSource:(SyncedSetUpTriggerSource)source {
+  CHECK(IsSyncedSetUpEnabled());
 
   // This agent must not initiate the Synced Set Up flow during First Run.
   if (self.profileState.appState.startupInformation.isFirstRun) {
@@ -99,38 +116,43 @@
     return;
   }
 
-  BOOL started = [self startSyncedSetUpCoordinatorForScene:activeScene];
+  CommandDispatcher* dispatcher =
+      activeScene.browserProviderInterface.mainBrowserProvider.browser
+          ->GetCommandDispatcher();
+  id<SyncedSetUpCommands> handler =
+      HandlerForProtocol(dispatcher, SyncedSetUpCommands);
 
-  if (started) {
-    // Mark as handled for this activation cycle only if successful.
+  if (handler) {
+    LogSyncedSetUpTriggerSource(source);
+    [handler showSyncedSetUpWithDismissalCompletion:nil];
     _activationAlreadyHandled = YES;
   }
 }
 
-// Starts the `SyncedSetUpCoordinator` for the given `sceneState`.
-- (BOOL)startSyncedSetUpCoordinatorForScene:(SceneState*)sceneState {
-  CHECK(IsSyncedSetUpEnabled());
+// Initializes the `CrossDevicePrefTracker` observer bridge.
+- (void)setUpObserverBridge {
+  _observer.reset();
 
-  id<BrowserProviderInterface> interface = sceneState.browserProviderInterface;
-  id<BrowserProvider> regularProvider = interface.mainBrowserProvider;
+  ProfileIOS* profile = self.profileState.profile;
+  CHECK(profile);
 
-  Browser* browser = regularProvider.browser;
-  UIViewController* viewController = regularProvider.viewController;
+  sync_preferences::CrossDevicePrefTracker* tracker =
+      CrossDevicePrefTrackerFactory::GetForProfile(profile);
 
-  if (!browser || !viewController) {
-    return NO;
+  if (tracker) {
+    _observer =
+        std::make_unique<CrossDevicePrefTrackerObserverBridge>(self, tracker);
+
+    __weak __typeof(self) weakSelf = self;
+    _subscription = profile->RegisterProfileDestroyedCallback(base::BindOnce(^{
+      [weakSelf profileDestroyed];
+    }));
   }
+}
 
-  AppStartupParameters* startupParams = sceneState.controller.startupParameters;
-
-  _coordinator =
-      [[SyncedSetUpCoordinator alloc] initWithBaseViewController:viewController
-                                                         browser:browser
-                                               startupParameters:startupParams];
-  _coordinator.delegate = self;
-  [_coordinator start];
-
-  return YES;
+// Resets the observer bridge when the Profile is destroyed.
+- (void)profileDestroyed {
+  _observer.reset();
 }
 
 @end

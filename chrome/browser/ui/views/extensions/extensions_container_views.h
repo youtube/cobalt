@@ -15,7 +15,6 @@
 #include "extensions/common/extension_id.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
 
-class ToolbarActionView;
 class ToolbarActionViewController;
 
 namespace views {
@@ -35,14 +34,6 @@ class ExtensionsContainerViews : public ExtensionsContainer {
   virtual std::optional<extensions::ExtensionId> GetPoppedOutActionId()
       const = 0;
 
-  // Called when the context menu of a toolbar action with `action_id` is
-  // opened, so the container can perform any necessary setup.
-  virtual void OnContextMenuShownFromToolbar(const std::string& action_id) {}
-
-  // Called when the context menu of a toolbar action is closed, so the
-  // container can perform any necessary cleanup.
-  virtual void OnContextMenuClosedFromToolbar() {}
-
   // Returns true if the action pointed by `action_id` is visible on the
   // toolbar.
   virtual bool IsActionVisibleOnToolbar(const std::string& action_id) const = 0;
@@ -58,11 +49,6 @@ class ExtensionsContainerViews : public ExtensionsContainer {
   // any animation is complete.
   virtual void PopOutAction(const extensions::ExtensionId& action_id,
                             base::OnceClosure closure) = 0;
-
-  // Updates the hover card for `action_view` based on `update_type`.
-  virtual void UpdateToolbarActionHoverCard(
-      ToolbarActionView* action_view,
-      ToolbarActionHoverCardUpdateType update_type) = 0;
 
   // Collapses the confirmation on the request access button, effectively
   // hiding the button. Does nothing if the confirmation is not showing

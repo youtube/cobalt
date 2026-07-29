@@ -162,9 +162,6 @@ std::vector<WebFeature> AllAddressSpaceFeatures() {
       WebFeature::kPrivateNetworkAccessFetchedSubFrame,
       WebFeature::kPrivateNetworkAccessFetchedTopFrame,
       WebFeature::kPrivateNetworkAccessWithinWorker,
-      WebFeature::kPrivateNetworkAccessPreflightError,
-      WebFeature::kPrivateNetworkAccessPreflightSuccess,
-      WebFeature::kPrivateNetworkAccessPreflightWarning,
   };
 }
 
@@ -808,7 +805,7 @@ IN_PROC_BROWSER_TEST_F(PrivateNetworkAccessWithFeatureDisabledBrowserTest,
 
 // This test verifies that a UseCounter is recorded when a document makes a
 // private network request to load a worker script from a secure context, does
-// not send preflights because the request is same-origin and the origin is
+// not trigger LNA because the request is same-origin and the origin is
 // potentially trustworthy, and loads the script anyway.
 IN_PROC_BROWSER_TEST_P(PrivateNetworkAccessWithFeatureEnabledWorkerBrowserTest,
                        RecordsFeatureForWorkerScriptFetchFromSecure) {
@@ -825,7 +822,6 @@ IN_PROC_BROWSER_TEST_P(PrivateNetworkAccessWithFeatureEnabledWorkerBrowserTest,
       AllZeroFeatureCounts(AllAddressSpaceFeatures()),
       {
           {WebFeature::kPrivateNetworkAccessFetchedWorkerScript, 1},
-          {WebFeature::kPrivateNetworkAccessPreflightWarning, 1},
       }));
 }
 
@@ -899,8 +895,8 @@ IN_PROC_BROWSER_TEST_F(PrivateNetworkAccessWithFeatureDisabledBrowserTest,
 
 // This test verifies that a UseCounter is recorded when a document makes a
 // private network request to load a shared worker script from a secure context,
-// does not send a preflight request because the request is same-origin and the
-// origin is potentially trustworthy, and loads the script anyway.
+// does not trigger LNA because the request is same-origin and the origin is
+// potentially trustworthy, and loads the script anyway.
 IN_PROC_BROWSER_TEST_P(PrivateNetworkAccessWithFeatureEnabledWorkerBrowserTest,
                        RecordsFeatureForSharedWorkerScriptFetchFromSecure) {
   std::unique_ptr<net::EmbeddedTestServer> server = NewServer();
@@ -917,7 +913,6 @@ IN_PROC_BROWSER_TEST_P(PrivateNetworkAccessWithFeatureEnabledWorkerBrowserTest,
       AllZeroFeatureCounts(AllAddressSpaceFeatures()),
       {
           {WebFeature::kPrivateNetworkAccessFetchedWorkerScript, 1},
-          {WebFeature::kPrivateNetworkAccessPreflightWarning, 1},
       }));
 }
 

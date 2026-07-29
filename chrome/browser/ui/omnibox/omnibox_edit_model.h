@@ -85,14 +85,21 @@ class OmniboxEditModel {
     // Invoked when the icon used for the given match has been updated.
     virtual void OnMatchIconUpdated(size_t index) = 0;
 
+    // Called when the results changed and the entire popup needs to be redrawn,
+    // opened, or closed.
+    virtual void OnContentsChanged() = 0;
+
+    virtual void OnAiModeChanged(bool ai_mode) = 0;
+
     ~Observer() override = default;
   };
 
-  OmniboxEditModel(OmniboxController* controller, OmniboxView* view);
+  explicit OmniboxEditModel(OmniboxController* controller);
   OmniboxEditModel(const OmniboxEditModel&) = delete;
   OmniboxEditModel& operator=(const OmniboxEditModel&) = delete;
   virtual ~OmniboxEditModel();
 
+  void set_view(OmniboxView* view) { view_ = view; }
   void set_popup_view(OmniboxPopupView* popup_view);
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);
@@ -170,6 +177,13 @@ class OmniboxEditModel {
   // icon.
   ui::ImageModel GetSuperGIcon(int image_size, bool dark_mode) const;
 
+  // Whether the "Add Context" button should be shown in place of the location
+  // bar page info icon button.
+  bool ShouldShowAddContextButton() const;
+
+  // Returns the "mega plus" icon associated with the "Add Context" button.
+  ui::ImageModel GetAddContextIcon(int image_size) const;
+
   // Returns the Agentspace icon for chrome builds. Otherwise return an empty
   // Image. If `dark_mode` is enabled, return the monochrome version of the
   // icon.
@@ -232,11 +246,17 @@ class OmniboxEditModel {
                       AutocompleteMatch* match,
                       GURL* alternate_nav_url) const;
 
+  // Updates in_ai_mode_ and notifies observers.
+  void SetInAiMode(bool ai_mode);
+
   // Navigates to AI Mode, with the contents of the currently selected match, if
   // any.
   // `via_keyboard` is set to `true` if AI Mode was invoked via keyboard event
   // and is set to `false` if AI Mode was invoked via mouse / gesture event.
   void OpenAiMode(bool via_keyboard);
+
+  // Returns true if the popup is open and is in in AI-Mode.
+  bool PopupInAiMode() const;
 
   // Opens given selection. Most kinds of selection invoke an action or
   // otherwise call `OpenMatch`, but some may `AcceptInput` which is not
@@ -692,8 +712,9 @@ class OmniboxEditModel {
   // Owns this.
   const raw_ptr<OmniboxController> controller_;
 
-  // Owns `OmniboxController` which owns this.
-  const raw_ptr<OmniboxView> view_;
+  // Owned by LocationBarView that owns the OmniboxController. It is cleared and
+  // destroyed before OmniboxController is.
+  raw_ptr<OmniboxView> view_;
 
   OmniboxFocusState focus_state_ = OMNIBOX_FOCUS_NONE;
 
@@ -817,6 +838,10 @@ class OmniboxEditModel {
   // allow this when CreatedKeywordSearchByInsertingSpaceInMiddle() is true.
   // This has no effect if we're already in keyword mode.
   bool allow_exact_keyword_match_ = false;
+
+  // Indicates that the UI is in AI-Mode. The omnibox popup completely covers
+  // the location bar and shows the AI compose plate in a WebUI.
+  bool in_ai_mode_ = false;
 
   // The input that was sent to the AutocompleteController. Since no
   // autocomplete query is started after a tab switch, it is possible for this

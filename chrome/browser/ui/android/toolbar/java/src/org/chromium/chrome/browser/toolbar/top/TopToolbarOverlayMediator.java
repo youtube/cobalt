@@ -43,6 +43,10 @@ import java.util.function.Supplier;
 /** The business logic for controlling the top toolbar's cc texture. */
 @NullMarked
 public class TopToolbarOverlayMediator {
+    // LINT.IfChange(InvalidContentOffset)
+    static final float INVALID_CONTENT_OFFSET = -10001.f;
+    // LINT.ThenChange(//chrome/browser/android/compositor/layer/toolbar_layer.cc:InvalidContentOffset)
+
     // Forced testing params.
     private static @Nullable Boolean sIsTabletForTesting;
     private static @Nullable Integer sToolbarBackgroundColorForTesting;
@@ -251,15 +255,14 @@ public class TopToolbarOverlayMediator {
                             // item of the top controls, so we need to subtract the height of the
                             // bookmark bar to shift the toolbar up.
                             // TODO(crbug.com/417238089): Get offset from TopControlsStacker.
-                            int height =
-                                    ChromeFeatureList.sAndroidBookmarkBar.isEnabled()
-                                            ? getBookmarkBarAdjustedContentOffset()
-                                            : mBrowserControlsStateProvider.getTopControlsHeight();
+                            int height = mBrowserControlsStateProvider.getTopControlsHeight();
+                            if (ChromeFeatureList.sAndroidBookmarkBar.isEnabled()) {
+                                height = getBookmarkBarAdjustedContentOffset(height);
+                            }
                             if (getControlsPosition() == ControlsPosition.TOP) {
-                                mModel.set(TopToolbarOverlayProperties.CONTENT_OFFSET, height);
+                                applyContentOffsetToModel(height);
                             } else if (getControlsPosition() == ControlsPosition.BOTTOM) {
-                                mModel.set(
-                                        TopToolbarOverlayProperties.CONTENT_OFFSET,
+                                applyContentOffsetToModel(
                                         mBottomToolbarControlsOffsetSupplier.get()
                                                 + mViewportHeight);
                             }
@@ -290,8 +293,7 @@ public class TopToolbarOverlayMediator {
                             mBottomControlsOffsetTag = offsetTagsInfo.getBottomControlsOffsetTag();
                             updateOffsetTag();
                             if (shouldUpdateOffsets) {
-                                mModel.set(
-                                        TopToolbarOverlayProperties.CONTENT_OFFSET,
+                                applyContentOffsetToModel(
                                         mBrowserControlsStateProvider.getContentOffset());
                             }
                         }
@@ -317,16 +319,32 @@ public class TopToolbarOverlayMediator {
         return offset != 0;
     }
 
-    private int getBookmarkBarAdjustedContentOffset() {
-        // To resolve conflict with LockTopControls features, when either is enabled, we do not
-        // adjust the offset by the bookmarks bar or the toolbar will appear over the tab strip.
-        if (BrowserControlsUtils.doSyncMinHeightWithTotalHeight(mContext)
-                || BrowserControlsUtils.doSyncMinHeightWithTotalHeightV2()) {
-            return mBrowserControlsStateProvider.getTopControlsHeight();
+    private int getBookmarkBarAdjustedContentOffset(int originalContentOffset) {
+        if (getControlsPosition() == ControlsPosition.BOTTOM) {
+            return originalContentOffset;
+        }
+        int offset = mBookmarkBarHeightSupplier != null ? mBookmarkBarHeightSupplier.get() : 0;
+        if (offset == 0) {
+            return originalContentOffset;
         }
 
-        int offset = mBookmarkBarHeightSupplier != null ? mBookmarkBarHeightSupplier.get() : 0;
-        return mBrowserControlsStateProvider.getTopControlsHeight() - offset;
+        // During startup, when bookmark bar is created and added to the stack, the render might not
+        // be able to respond to the new height yet, and browser controls state provider might be
+        // holding a "stale" contentOffset (that's equal to the browser controls height
+        // before bookmark bar). In such case, just reducing the originalContentOffset is wrong and
+        // it will push the toolbar overlay too high.
+        //
+        // As a workaround, we are checking the diff between content offset and top controls offset,
+        // then compare that with the current browser controls height to determine if we'll perform
+        // the adjustment. This is guaranteed to almost always work, because onControlsOffsetChanged
+        // will be called when render can respond to the new height.
+        int renderTopControlsHeight =
+                mBrowserControlsStateProvider.getContentOffset()
+                        - mBrowserControlsStateProvider.getTopControlOffset();
+        if (renderTopControlsHeight != mBrowserControlsStateProvider.getTopControlsHeight()) {
+            return originalContentOffset;
+        }
+        return originalContentOffset - offset;
     }
 
     private void updateOffsetTag() {
@@ -532,7 +550,17 @@ public class TopToolbarOverlayMediator {
         mModel.set(TopToolbarOverlayProperties.X_OFFSET, xOffset);
     }
 
-    /** @param anonymize Whether the URL should be hidden when the layer is rendered. */
+    /**
+     * @param yOffset The Y offset of the toolbar.
+     */
+    void setYOffset(float yOffset) {
+        assert BrowserControlsUtils.isTopControlsRefactorOffsetEnabled();
+        mModel.set(TopToolbarOverlayProperties.Y_OFFSET, yOffset);
+    }
+
+    /**
+     * @param anonymize Whether the URL should be hidden when the layer is rendered.
+     */
     void setAnonymize(boolean anonymize) {
         mModel.set(TopToolbarOverlayProperties.ANONYMIZE, anonymize);
     }
@@ -586,12 +614,12 @@ public class TopToolbarOverlayMediator {
 
         if (getControlsPosition() == ControlsPosition.BOTTOM) {
             contentOffset = (int) (mBottomToolbarControlsOffsetSupplier.get() + mViewportHeight);
-            mModel.set(TopToolbarOverlayProperties.CONTENT_OFFSET, contentOffset);
+            applyContentOffsetToModel(contentOffset);
             return;
         }
 
         if (!ChromeFeatureList.sBrowserControlsInViz.isEnabled()) {
-            mModel.set(TopToolbarOverlayProperties.CONTENT_OFFSET, contentOffset);
+            applyContentOffsetToModel(contentOffset);
             return;
         }
 
@@ -603,10 +631,18 @@ public class TopToolbarOverlayMediator {
         }
 
         if (ChromeFeatureList.sAndroidBookmarkBar.isEnabled()) {
-            contentOffset = Math.min(getBookmarkBarAdjustedContentOffset(), contentOffset);
+            contentOffset = getBookmarkBarAdjustedContentOffset(contentOffset);
         }
 
-        mModel.set(TopToolbarOverlayProperties.CONTENT_OFFSET, contentOffset);
+        applyContentOffsetToModel(contentOffset);
+    }
+
+    private void applyContentOffsetToModel(float contentOffset) {
+        if (BrowserControlsUtils.isTopControlsRefactorOffsetEnabled()
+                && getControlsPosition() == ControlsPosition.TOP) {
+            contentOffset = INVALID_CONTENT_OFFSET;
+        }
+        mModel.set(TopToolbarOverlayProperties.LEGACY_CONTENT_OFFSET, contentOffset);
     }
 
     private void onBottomToolbarControlsOffsetChanged(Integer ignored) {

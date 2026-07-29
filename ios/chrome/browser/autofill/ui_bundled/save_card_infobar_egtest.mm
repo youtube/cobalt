@@ -23,7 +23,7 @@
 #import "ios/chrome/browser/infobars/ui_bundled/banners/infobar_banner_constants.h"
 #import "ios/chrome/browser/infobars/ui_bundled/modals/infobar_save_card_modal_constants.h"
 #import "ios/chrome/browser/metrics/model/metrics_app_interface.h"
-#import "ios/chrome/common/ui/confirmation_alert/constants.h"
+#import "ios/chrome/common/ui/button_stack/button_stack_constants.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/chrome/test/earl_grey/chrome_earl_grey.h"
 #import "ios/chrome/test/earl_grey/chrome_matchers.h"
@@ -109,11 +109,10 @@ id<GREYMatcher> UploadBottomSheetCancelButtonMatcher() {
 
 // Matcher for the activity indicator.
 id<GREYMatcher> ActivityIndicatorMatcher() {
-  return grey_allOf(
-      grey_kindOfClassName(@"UIActivityIndicatorView"),
-      grey_ancestor(grey_accessibilityID(
-          kConfirmationAlertPrimaryActionAccessibilityIdentifier)),
-      nil);
+  return grey_allOf(grey_kindOfClassName(@"UIActivityIndicatorView"),
+                    grey_ancestor(grey_accessibilityID(
+                        kButtonStackPrimaryActionAccessibilityIdentifier)),
+                    nil);
 }
 
 id<GREYMatcher> LocalBannerLabelsMatcher() {
@@ -256,10 +255,6 @@ void FillAndSubmitXframeCreditCardForm() {
 // Some tests are not compatible with explicit save prompts for addresses.
 - (AppLaunchConfiguration)appConfigurationForTestCase {
   AppLaunchConfiguration config;
-
-  if ([self isRunningTest:@selector(FLAKY_testInfobarWithoutBadge)]) {
-    config.features_enabled.push_back(kAutofillBadgeRemoval);
-  }
 
   if ([self isRunningTest:@selector(testOfferLocalSave_WithInfobar)]) {
     // This test needs the badge.
@@ -913,7 +908,7 @@ void FillAndSubmitXframeCreditCardForm() {
   // loading state.
   [[EarlGrey selectElementWithMatcher:
                  grey_accessibilityID(
-                     kConfirmationAlertPrimaryActionAccessibilityIdentifier)]
+                     kButtonStackPrimaryActionAccessibilityIdentifier)]
       assertWithMatcher:
           grey_allOf(
               grey_not(grey_enabled()),
@@ -924,7 +919,7 @@ void FillAndSubmitXframeCreditCardForm() {
   // Assert the cancel button is disabled.
   [[EarlGrey selectElementWithMatcher:
                  grey_accessibilityID(
-                     kConfirmationAlertSecondaryActionAccessibilityIdentifier)]
+                     kButtonStackSecondaryActionAccessibilityIdentifier)]
       assertWithMatcher:grey_not(grey_enabled())];
 
   // Inject a response from the payments server when saving the card.
@@ -947,7 +942,7 @@ void FillAndSubmitXframeCreditCardForm() {
   // confirmation state.
   [[EarlGrey selectElementWithMatcher:
                  grey_accessibilityID(
-                     kConfirmationAlertPrimaryActionAccessibilityIdentifier)]
+                     kButtonStackPrimaryActionAccessibilityIdentifier)]
       assertWithMatcher:
           grey_allOf(
               grey_not(grey_enabled()),
@@ -956,17 +951,17 @@ void FillAndSubmitXframeCreditCardForm() {
               nil)];
 
   // Assert a checkmark symbol is being shown in the confirmation state.
-  [[[EarlGrey
-      selectElementWithMatcher:grey_accessibilityID(
-                                   kConfirmationAlertCheckmarkSymbolIdentifier)]
+  [[[EarlGrey selectElementWithMatcher:
+                  grey_accessibilityID(
+                      kButtonStackCheckmarkSymbolAccessibilityIdentifier)]
       inRoot:grey_accessibilityID(
-                 kConfirmationAlertPrimaryActionAccessibilityIdentifier)]
+                 kButtonStackPrimaryActionAccessibilityIdentifier)]
       assertWithMatcher:grey_sufficientlyVisible()];
 
   // Assert the cancel button is disabled.
   [[EarlGrey selectElementWithMatcher:
                  grey_accessibilityID(
-                     kConfirmationAlertSecondaryActionAccessibilityIdentifier)]
+                     kButtonStackSecondaryActionAccessibilityIdentifier)]
       assertWithMatcher:grey_not(grey_enabled())];
 
   // Wait for bottomsheet to auto-dismiss.
@@ -1000,7 +995,6 @@ void FillAndSubmitXframeCreditCardForm() {
 // Ensures that the bottomsheet goes away and the credit card is saved to Chrome
 // if the user accepts local save.
 - (void)testUserData_LocalSave_UserAccepts {
-
   // Ensure there are no saved credit cards.
   GREYAssertEqual(0U, [AutofillAppInterface localCreditCount],
                   @"There should be no saved credit card.");
@@ -1274,7 +1268,7 @@ void FillAndSubmitXframeCreditCardForm() {
     // confirmation state.
     [[EarlGrey selectElementWithMatcher:
                    grey_accessibilityID(
-                       kConfirmationAlertPrimaryActionAccessibilityIdentifier)]
+                       kButtonStackPrimaryActionAccessibilityIdentifier)]
         assertWithMatcher:
             grey_allOf(
                 grey_not(grey_enabled()),
@@ -1283,11 +1277,11 @@ void FillAndSubmitXframeCreditCardForm() {
                 nil)];
 
     // Assert a checkmark symbol is being shown in the confirmation state.
-    [[[EarlGrey
-        selectElementWithMatcher:
-            grey_accessibilityID(kConfirmationAlertCheckmarkSymbolIdentifier)]
+    [[[EarlGrey selectElementWithMatcher:
+                    grey_accessibilityID(
+                        kButtonStackCheckmarkSymbolAccessibilityIdentifier)]
         inRoot:grey_accessibilityID(
-                   kConfirmationAlertPrimaryActionAccessibilityIdentifier)]
+                   kButtonStackPrimaryActionAccessibilityIdentifier)]
         assertWithMatcher:grey_sufficientlyVisible()];
 
     // Assert the cancel button is disabled.

@@ -133,6 +133,7 @@
 <translation id="1492417797159476138">Ja has desat aquest nom d'usuari per a aquest lloc web</translation>
 <translation id="1497590942294823549">Menú → Gestor de contrasenyes</translation>
 <translation id="1498283581832036924">El teu compte de <ph name="WEBSITE" /> no se suprimirà.</translation>
+<translation id="1503814213414825943">Selecciona els comptes que vols exportar a una altra aplicació.</translation>
 <translation id="1506061864768559482">Motor de cerca</translation>
 <translation id="1506063256525392513">Això et permet fer i penjar fotos, així com escanejar codis QR</translation>
 <translation id="1508263560970797965">Continua en mode d'incògnit</translation>
@@ -238,7 +239,6 @@
 <translation id="188237709236611317">Barra de menú d'ordenació intel·ligent</translation>
 <translation id="1883255238294161206">Redueix la llista</translation>
 <translation id="1888854257756214946">Selecciona una contrasenya…</translation>
-<translation id="1889872080060107187">Iniciaràs la sessió a <ph name="URL" /></translation>
 <translation id="1890237935065108104">Aquesta opció de configuració no està disponible.</translation>
 <translation id="1894023287452300670">Fes un seguiment del preu aquí</translation>
 <translation id="189531189292803889">L'iPad s'ha restaurat recentment, i és possible que el navegador predeterminat hagi canviat</translation>
@@ -277,6 +277,7 @@
 <translation id="199425419756152024">Mostra la contrasenya</translation>
 <translation id="1996318269856535896">Pots continuar utilitzant les dades de navegació existents en aquest dispositiu. Per utilitzar-les, tanca la sessió del compte gestionat.</translation>
 <translation id="2010008505735295285">Torna a carregar</translation>
+<translation id="2012723204723845092">Et donem la benvinguda de nou!</translation>
 <translation id="2015722694326466240">Per veure les contrasenyes, primer has d'establir una contrasenya al dispositiu.</translation>
 <translation id="201759455285471444">Desplega el grup de pestanyes.</translation>
 <translation id="202070562065520783">Explica-m'ho</translation>
@@ -647,6 +648,7 @@
 <translation id="3530024057633834563">No tens cap contrasenya ni clau d'accés desada, però pots suprimir la llista de llocs web i aplicacions per als quals has triat no desar mai la informació d'inici de sessió. No se suprimiran els comptes que hagis creat per a llocs web i aplicacions.</translation>
 <translation id="3530206579861815432">Troba ràpidament les pestanyes obertes i les tancades recentment en tots els teus dispositius sincronitzats.</translation>
 <translation id="3530767473765895035">Gestiona els comptes en aquest dispositiu…</translation>
+<translation id="353340646084395154">S'han suprimit les preferències de la pàgina Pestanya nova</translation>
 <translation id="3533436815740441613">Pestanya nova</translation>
 <translation id="3540141921715814660">Afegeix a Adreces d'interès</translation>
 <translation id="3546122170015471515">Previsualització de Maps a Google.com</translation>
@@ -675,6 +677,7 @@
 <translation id="3642060527569456384">Els grups de pestanyes es desen i s'actualitzen automàticament en tots els teus dispositius.</translation>
 <translation id="3643338347976071250">{count,plural, =1{{count} contrasenya s'ha desat només en aquest dispositiu. Per utilitzar-la en altres dispositius, desa-la al teu Compte de Google {email}.}other{{count} contrasenyes s'han desat només en aquest dispositiu. Per utilitzar-les en altres dispositius, desa-les al teu Compte de Google {email}.}}</translation>
 <translation id="3659297405161482746">No s'ha trobat cap forma de pagament</translation>
+<translation id="3662966164093827811">{count,plural, =1{1 element seleccionat}other{# elements seleccionats}}</translation>
 <translation id="3668816008081204991">La llista de lectura està amagada</translation>
 <translation id="3670030362669914947">Número</translation>
 <translation id="3679163990085797665">Suprimeix els elements llegits</translation>
@@ -739,6 +742,7 @@
 <translation id="3926703470020109118">Baixada cancel·lada</translation>
 <translation id="3929457972718048006">Adreces</translation>
 <translation id="3931215329146376310">{count,plural, =1{Contrasenya nova per a aquest lloc web}other{Contrasenyes noves per a aquest lloc web}}</translation>
+<translation id="3933372629914873850">Iniciaràs la sessió a <ph name="URL" /></translation>
 <translation id="3934905113567851655">Pinça per canviar la mida</translation>
 <translation id="3940195383040445971">Seguiment dels preus a les pestanyes</translation>
 <translation id="3941941395924123592">{COUNT,plural, =1{Tanca {COUNT} pestanya}other{Tanca {COUNT} pestanyes}}</translation>
@@ -1000,6 +1004,7 @@
 <translation id="4894963374040315706">Això et permet fer cerques amb la veu</translation>
 <translation id="4895540042460820904">Darrera obertura</translation>
 <translation id="4896467949657706481">Les pestanyes s'han tancat; se t'ha tancat la sessió</translation>
+<translation id="4911042367886397055">Et donem la benvinguda de nou, <ph name="USER_NAME" />!</translation>
 <translation id="4913626501929406101">Pots compartir de manera segura una còpia de la teva contrasenya amb algú del teu grup familiar. <ph name="BEGIN_LINK" />Més informació<ph name="END_LINK" /></translation>
 <translation id="4917025507570489430">Podràs utilitzar les dades de navegació existents quan tinguis la sessió iniciada com a <ph name="USER_EMAIL" />. És possible que la teva organització pugui veure aquestes dades.</translation>
 <translation id="4918086044614829423">Accepta</translation>
@@ -1051,6 +1056,7 @@
 <translation id="508645147179720015">La nota té més de 1.000 caràcters</translation>
 <translation id="5087098519049306025">Seguiment de preus</translation>
 <translation id="5090832849094901128">Encara que suprimeixis aquesta contrasenya, no se suprimirà el teu compte a <ph name="WEBSITE" />.</translation>
+<translation id="5113960131843706315">S'estan obtenint les teves coses…</translation>
 <translation id="5118462200606189584">Afegeix un compte…</translation>
 <translation id="5118764316110575523">Desactivat</translation>
 <translation id="5119329531859909472">Per fer un seguiment del producte, toca Fes un seguiment</translation>
@@ -1096,6 +1102,7 @@
 <translation id="5242899254250321823">Canvia la contrasenya al lloc web</translation>
 <translation id="5248640482715684545">Aquest lloc web està provant d'obrir una altra aplicació.</translation>
 <translation id="5250371859659394278">Des d'una font desconeguda</translation>
+<translation id="5269913829202614649">Personalitza la pàgina d'inici</translation>
 <translation id="5271265092610673171">{count,plural, =1{Un camp obligatori és buit. Emplena'l abans de desar.}other{Alguns camps obligatoris són buits. Emplena'ls abans de desar.}}</translation>
 <translation id="5271549068863921519">Desa la contrasenya</translation>
 <translation id="5275912569557792098"><ph name="USER_NAME" /> (<ph name="USER_EMAIL" />) vol que t'uneixis a un grup de pestanyes. Tothom que tingui l'enllaç podrà editar totes les pestanyes, així que ves amb compte en unir-t'hi. L'enllaç caducarà d'aquí a 48 hores.</translation>
@@ -1120,6 +1127,7 @@
 <translation id="537853552771686272">Gestiona els temes i els llocs web que t'interessen</translation>
 <translation id="5390458669633674385">{count,plural, =1{{count} de tancada}other{{count} de tancades}}</translation>
 <translation id="5394975111793637642">Amaga la targeta de Ressenyes de productes per a tu</translation>
+<translation id="5407806496954700135">Vols aplicar les personalitzacions de la pàgina Pestanya nova d'un altre dispositiu?</translation>
 <translation id="5414763847370083940">Rebràs una alerta si el preu baixa en qualsevol lloc web.</translation>
 <translation id="5415289094036440596">Les claus d'accés no es poden compartir</translation>
 <translation id="5416455648658732408">Mou a un grup de pestanyes</translation>
@@ -1324,6 +1332,7 @@ Handoff també ha d'estar activat a la secció General de Configuració, i els v
 <translation id="6103540626693881831">Encriptació al dispositiu</translation>
 <translation id="611361228753138223">Llocs web que has visitat darrerament en aquest dispositiu</translation>
 <translation id="611705554202268369">Mantén-la premuda per afegir-la a un grup de pestanyes</translation>
+<translation id="6117260878488959646">Hi ha hagut un error. Torna-ho a provar més tard.</translation>
 <translation id="6122191549521593678">En línia</translation>
 <translation id="6122831415929794347">Vols desactivar Navegació segura?</translation>
 <translation id="6123514585040403489">Les pestanyes es tancaran</translation>
@@ -1346,6 +1355,7 @@ Handoff també ha d'estar activat a la secció General de Configuració, i els v
 <translation id="6172428250974276014">Sí, mantén les dades separades (opció recomanada)</translation>
 <translation id="6173499589275053515">S'ha desat la contrasenya al teu Compte de Google (<ph name="EMAIL" />)</translation>
 <translation id="6181969657494915430">Cerca a la pantalla</translation>
+<translation id="6182851675249594487">Tema de color personalitzat</translation>
 <translation id="6187302354554850004">Última sincronització: <ph name="LAST_USED_TIME" /></translation>
 <translation id="6188737759358894319">Creat el dia <ph name="DATE" /></translation>
 <translation id="6189413832092199491">No llegits</translation>
@@ -1420,7 +1430,6 @@ Handoff també ha d'estar activat a la secció General de Configuració, i els v
 <translation id="6418346271604475326">Preparant el PDF</translation>
 <translation id="6421038304268477484">Text traduït</translation>
 <translation id="6429213933892582367">Obre Opcions de contrasenya</translation>
-<translation id="6434591244308415567">S'ha produït un error. Torna-ho a provar més tard.</translation>
 <translation id="6435236283694032571">Afegeix a la llista de lectura</translation>
 <translation id="6435307030888827407">Continua sense iniciar la sessió</translation>
 <translation id="6436318499800111867">Compartit amb mi: <ph name="SHARED_WITH_ME_DATE" /></translation>
@@ -1755,6 +1764,7 @@ Handoff també ha d'estar activat a la secció General de Configuració, i els v
 <translation id="7696316012653762532">Opcions per traduir la pàgina</translation>
 <translation id="7700527812567437847">Cerca a la pantalla amb Google Lens</translation>
 <translation id="7701040980221191251">Cap</translation>
+<translation id="7708668404222666001">S'han aplicat les teves preferències de la pàgina Pestanya nova</translation>
 <translation id="7708994397325774423">Obtén totes les teves contrasenyes</translation>
 <translation id="7711440461521638739">No estàs reutilitzant cap contrasenya</translation>
 <translation id="7712361583414030698">S'està mostrant la versió sense connexió</translation>

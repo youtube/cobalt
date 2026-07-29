@@ -950,6 +950,10 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
   // created.
   void ReshowOverlayPart3(const SkBitmap& rgb_bitmap);
 
+  // Sets the opacity of the overlay web view. No-op if the web view does not
+  // exist.
+  void SetOverlayWebViewOpacity(float opacity);
+
   // Shorthand to grab the LensSearchboxController for this instance of Lens.
   lens::LensSearchboxController* GetLensSearchboxController();
 
@@ -1185,6 +1189,9 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
   // Used to observe the immersive mode pref on Mac, and the side panel
   // horizontal alignment pref.
   PrefChangeRegistrar pref_change_registrar_;
+
+  // Whether to use AIM for visual searches.
+  bool use_aim_for_visual_search_ = false;
 
   // --------------------Browser window scoped state: END---------------------
 

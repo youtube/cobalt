@@ -16,8 +16,8 @@
 #include "base/types/expected.h"
 #include "components/legion/attestation_handler.h"
 #include "components/legion/legion_common.h"
-#include "components/legion/oak_session.h"
 #include "components/legion/secure_channel.h"
+#include "components/legion/secure_session.h"
 #include "components/legion/transport.h"
 #include "third_party/oak/chromium/proto/session/session.pb.h"
 
@@ -25,10 +25,9 @@ namespace legion {
 
 class SecureChannelImpl : public SecureChannel {
  public:
-  SecureChannelImpl(
-      std::unique_ptr<Transport> transport,
-      std::unique_ptr<OakSession> oak_session,
-      std::unique_ptr<AttestationHandler> attestation_handler);
+  SecureChannelImpl(std::unique_ptr<Transport> transport,
+                    std::unique_ptr<SecureSession> secure_session,
+                    std::unique_ptr<AttestationHandler> attestation_handler);
   ~SecureChannelImpl() override;
 
   SecureChannelImpl(const SecureChannelImpl&) = delete;
@@ -38,7 +37,7 @@ class SecureChannelImpl : public SecureChannel {
   void Write(Request request, OnResponseReceivedCallback callback) override;
 
  private:
-  struct PendingRequest {
+ struct PendingRequest {
     PendingRequest(Request request, OnResponseReceivedCallback callback);
     ~PendingRequest();
 
@@ -49,7 +48,7 @@ class SecureChannelImpl : public SecureChannel {
     OnResponseReceivedCallback callback;
   };
 
-  // Stages of the secure channel establishment and write process.
+ // Stages of the secure channel establishment and write process.
   enum class State {
     kUninitialized,
     kPerformingAttestation,
@@ -59,7 +58,7 @@ class SecureChannelImpl : public SecureChannel {
   };
 
   // Helper function to handle state transitions and errors.
-  void FailAllPendingRequests(ResultCode result_code);
+  void FailAllPendingRequests(ErrorCode error_code);
   void ResetState();
   void StartSessionEstablishment();
   void ProcessNextRequest();
@@ -76,7 +75,7 @@ class SecureChannelImpl : public SecureChannel {
   void OnEncryptedResponse(const oak::session::v1::EncryptedMessage& response);
 
   std::unique_ptr<Transport> transport_;
-  std::unique_ptr<OakSession> oak_session_;
+  std::unique_ptr<SecureSession> secure_session_;
   std::unique_ptr<AttestationHandler> attestation_handler_;
 
   State state_ = State::kUninitialized;

@@ -22,6 +22,8 @@ source_set("model") {
     "account_profile_mapper.mm",
     "account_reconcilor_factory.cc",
     "account_reconcilor_factory.h",
+    "avatar_provider.h",
+    "avatar_provider.mm",
     "chrome_account_manager_service.h",
     "chrome_account_manager_service.mm",
     "chrome_account_manager_service_factory.h",
@@ -365,6 +367,7 @@ source_set("test_account_info") {
     "//base",
     "//components/signin/internal/identity_manager:capabilities",
     "//components/signin/public/identity_manager:tribool",
+    "//google_apis",
   ]
 }
 
@@ -378,6 +381,7 @@ source_set("trusted_vault") {
   deps = [
     "//base",
     "//components/trusted_vault",
+    "//google_apis",
     "//ios/public/provider/chrome/browser/signin:signin_sso_api",
   ]
   frameworks = [

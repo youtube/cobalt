@@ -45,6 +45,7 @@ class BrowserView;
 class BrowserWindowInterface;
 class ChromeLabsCoordinator;
 class ColorProviderBrowserHelper;
+class LocationBar;
 class CommentsSidePanelCoordinator;
 class ContentsBorderController;
 class CookieControlsBubbleCoordinator;
@@ -70,6 +71,7 @@ class ReadingListSidePanelCoordinator;
 class RecentActivityBubbleCoordinator;
 class BrowserSelectFileDialogController;
 class ScrimViewController;
+class SearchboxContextData;
 class SidePanelCoordinator;
 class SidePanelUI;
 class SigninViewController;
@@ -226,15 +228,6 @@ class BrowserWindowFeatures {
   // Called exactly once to tear down state that depends on the window object.
   void TearDownPreBrowserWindowDestruction();
 
-  // Public accessors for features:
-  web_app::AppBrowserController* app_browser_controller() {
-    return app_browser_controller_.get();
-  }
-
-  const web_app::AppBrowserController* app_browser_controller() const {
-    return app_browser_controller_.get();
-  }
-
   BrowserActions* browser_actions() { return browser_actions_.get(); }
 
   chrome::BrowserCommandController* browser_command_controller() {
@@ -269,6 +262,10 @@ class BrowserWindowFeatures {
 #if BUILDFLAG(ENABLE_GLIC)
   glic::GlicLegacySidePanelCoordinator* glic_side_panel_coordinator() {
     return glic_side_panel_coordinator_.get();
+  }
+
+  glic::GlicIphController* glic_iph_controller() {
+    return glic_iph_controller_.get();
   }
 #endif
 
@@ -398,6 +395,12 @@ class BrowserWindowFeatures {
   }
 #endif
 
+  // Returns the LocationBar for this browser window. Currently delegates to
+  // BrowserWindow::GetLocationBar() via downcast, but should eventually become
+  // an owned member of BrowserWindowFeatures.
+  LocationBar* location_bar();
+  const LocationBar* location_bar() const;
+
   ReadingListSidePanelCoordinator* reading_list_side_panel_coordinator() {
     return reading_list_side_panel_coordinator_.get();
   }
@@ -481,6 +484,10 @@ class BrowserWindowFeatures {
   }
 
   FindBarOwner* find_bar_owner() { return find_bar_owner_.get(); }
+
+  SearchboxContextData* searchbox_context_data() {
+    return searchbox_context_data_.get();
+  }
 
   static ui::UserDataFactoryWithOwner<BrowserWindowInterface>&
   GetUserDataFactoryForTesting();
@@ -747,6 +754,8 @@ class BrowserWindowFeatures {
 
   std::unique_ptr<omnibox::AiModePageActionController>
       ai_mode_page_action_controller_;
+
+  std::unique_ptr<SearchboxContextData> searchbox_context_data_;
 
   // Keep this member last to ensure embedder features are torn down first, in
   // reverse order of initialization.

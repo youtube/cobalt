@@ -5,18 +5,20 @@
 #ifndef CHROME_BROWSER_GLIC_SERVICE_GLIC_INSTANCE_METRICS_H_
 #define CHROME_BROWSER_GLIC_SERVICE_GLIC_INSTANCE_METRICS_H_
 
-#include <map>
-#include <optional>
-#include <string>
-
-#include "base/time/time.h"
+#include "base/containers/flat_map.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
+#include "chrome/browser/glic/service/glic_metrics_session_manager.h"
 #include "chrome/browser/glic/service/glic_ui_types.h"
-#include "components/sessions/core/session_id.h"
 
 namespace tabs {
 class TabInterface;
 }
+
+namespace base {
+class TimeTicks;
+class TimeDelta;
+}  // namespace base
+
 namespace glic {
 
 struct ShowOptions;
@@ -77,13 +79,24 @@ enum class GlicInstanceEvent {
   kWebUiStateGuestError = 38,
   kWebUiStateDisabledByAdmin = 39,
   kUnbindEmbedder = 40,
-  kMaxValue = kUnbindEmbedder,
+  kUserInputSubmitted = 41,
+  kContextRequested = 42,
+  kResponseStarted = 43,
+  kResponseStopped = 44,
+  kTurnCompleted = 45,
+  kReaction = 46,
+  kMaxValue = kReaction,
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicInstanceEvent)
 
 // Tracks and logs lifecycle events for a single GlicInstance.
 class GlicInstanceMetrics {
  public:
+  enum class EmbedderType {
+    kSidePanel,
+    kFloaty,
+  };
+
   GlicInstanceMetrics();
   ~GlicInstanceMetrics();
 
@@ -187,66 +200,77 @@ class GlicInstanceMetrics {
   // Called when GlicInstanceImpl::WebUiStateChanged is called.
   void OnWebUiStateChanged(mojom::WebUiState state);
 
- private:
-  // Stores counts for events to ensure they are only logged once per instance.
-  struct GlicInstanceEventCounts {
-    GlicInstanceEventCounts();
+  // Called when the client is ready to show.
+  void OnClientReady(EmbedderType type);
 
-    // go/keep-sorted start
-    int bound_tab_destroyed{};
-    int close{};
-    int conversation_switched_from_floaty{};
-    int conversation_switched_from_side_panel{};
-    int conversation_switched_to_floaty{};
-    int conversation_switched_to_side_panel{};
-    int create_tab{};
-    int create_task{};
-    int daisy_chain_failed{};
-    int detached_to_floaty{};
-    int floaty_shown{};
-    int instance_created_without_warming{};
-    int instance_created{};
-    int instance_destroyed{};
-    int instance_hidden{};
-    int instance_promoted{};
-    int interrupt_actor_task{};
-    int pause_actor_task{};
-    int perform_actions{};
-    int register_conversation{};
-    int resume_actor_task{};
-    int side_panel_shown{};
-    int stop_actor_task{};
-    int tab_bound_via_daisy_chain{};
-    int tab_bound{};
-    int toggle{};
-    int unbind_embedder{};
-    int uninterrupt_actor_task{};
-    int warmed_instance_created{};
-    int web_ui_state_begin_load{};
-    int web_ui_state_disabled_by_admin{};
-    int web_ui_state_error{};
-    int web_ui_state_finish_loading{};
-    int web_ui_state_guest_error{};
-    int web_ui_state_hold_loading{};
-    int web_ui_state_offline{};
-    int web_ui_state_ready{};
-    int web_ui_state_show_loading{};
-    int web_ui_state_sign_in{};
-    int web_ui_state_unavailable{};
-    int web_ui_state_uninitialized{};
-    int web_ui_state_unresponsive{};
-    // go/keep-sorted end
+  // Turn metrics.
+  void OnUserInputSubmitted(mojom::WebClientMode mode);
+  void DidRequestContextFromFocusedTab();
+  void OnResponseStarted();
+  void OnResponseStopped(mojom::ResponseStopCause cause);
+  void OnTurnCompleted(mojom::WebClientModel model, base::TimeDelta duration);
+  void OnReaction(mojom::MetricUserInputReactionType reaction_type);
+
+  // Records the number of tabs attached as context for a Glic response.
+  void RecordAttachedContextTabCount(int tab_count);
+
+  bool is_active() const { return is_active_; }
+
+ private:
+  friend class GlicMetricsSessionManager;
+
+  // Stores info scoped to the current turn. These members are cleared in
+  // OnResponseStopped.
+  struct TurnInfo {
+    base::TimeTicks input_submitted_time_;
+    // Set to true in OnResponseStarted() and set to false in
+    // OnResponseStopped(). This is a workaround copied from GlicMetrics and
+    // should be removed, see crbug.com/399151164.
+    bool response_started_ = false;
+    bool did_request_context_ = false;
+    bool reported_reaction_time_canned_ = false;
+    bool reported_reaction_time_modelled_ = false;
   };
 
   // Logs the given event to the EventTotals histogram, and if the count is 0,
   // also logs to the EventCounts histogram. Increments the counter.
-  void LogEvent(GlicInstanceEvent event, int& event_counter);
+  void LogEvent(GlicInstanceEvent event);
+  int GetEventCount(GlicInstanceEvent event);
 
-  GlicInstanceEventCounts event_counts_;
+  // Called by the session manager when it starts and ends.
+  void OnSessionStarted();
+  void OnSessionFinished();
+
+  base::flat_map<GlicInstanceEvent, int> event_counts_;
+  // An Instance is active when it is showing in an embedder of an active
+  // browser.
   bool is_active_ = false;
+  // An Instance is visible when it is showing in an embedder. The embedder may
+  // be occluded (if side panel) or inactive and still considered visible.
   bool is_visible_ = false;
+
+  // Keeps track of the current number of bound tabs to this instance.
+  // Incremented in OnBind and decremented in OnUnbindEmbedder.
   int bound_tab_count_ = 0;
+  // Stores the max bound_tab_count_ value during the instances lifetime.
   int max_concurrently_bound_tabs_ = 0;
+
+  TurnInfo turn_;
+  mojom::WebClientMode input_mode_ = mojom::WebClientMode::kUnknown;
+  base::EnumSet<mojom::WebClientMode,
+                mojom::WebClientMode::kMinValue,
+                mojom::WebClientMode::kMaxValue>
+      inputs_modes_used_;
+
+  // The last web ui state received.
+  mojom::WebUiState last_web_ui_state_ = mojom::WebUiState::kUninitialized;
+  // The last invocation source that was used to show the panel.
+  mojom::InvocationSource last_invocation_source_ =
+      mojom::InvocationSource::kUnsupported;
+  // Timestamp of last show start.
+  base::TimeTicks invocation_start_time_;
+  base::TimeTicks web_ui_load_start_time_;
+
   base::TimeTicks creation_time_;
   base::TimeTicks floaty_open_time_;
   std::map<int, base::TimeTicks> side_panel_open_times_;
@@ -254,6 +278,10 @@ class GlicInstanceMetrics {
   base::TimeTicks last_visibility_change_time_;
   base::TimeDelta total_active_time_;
   base::TimeDelta total_visible_time_;
+
+  GlicMetricsSessionManager session_manager_;
+  base::TimeTicks last_session_end_time_;
+  int session_count_ = 0;
 };
 
 }  // namespace glic

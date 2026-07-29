@@ -46,12 +46,14 @@
 #include "third_party/blink/public/mojom/frame/user_activation_notification_type.mojom-blink.h"
 #include "third_party/blink/public/strings/grit/blink_strings.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_image_bitmap_options.h"
+#include "third_party/blink/renderer/core/accessibility/ax_utilities_generated.h"
 #include "third_party/blink/renderer/core/css/counter_style_map.h"
 #include "third_party/blink/renderer/core/css/css_resolution_units.h"
 #include "third_party/blink/renderer/core/css/properties/longhands.h"
 #include "third_party/blink/renderer/core/display_lock/display_lock_utilities.h"
 #include "third_party/blink/renderer/core/dom/flat_tree_traversal.h"
 #include "third_party/blink/renderer/core/dom/focus_params.h"
+#include "third_party/blink/renderer/core/dom/focusgroup_flags.h"
 #include "third_party/blink/renderer/core/dom/layout_tree_builder_traversal.h"
 #include "third_party/blink/renderer/core/dom/node_traversal.h"
 #include "third_party/blink/renderer/core/dom/qualified_name.h"
@@ -185,6 +187,7 @@
 #include "third_party/blink/renderer/platform/text/platform_locale.h"
 #include "third_party/blink/renderer/platform/text/text_direction.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
+#include "third_party/blink/renderer/platform/wtf/casting.h"
 #include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 #include "third_party/skia/include/core/SkImage.h"
@@ -545,20 +548,25 @@ const LayoutObject* GetListMarker(const LayoutObject& layout_object,
 }
 
 bool ElementHasAnyAriaRelation(Element& element) {
-  return element.HasAnyExplicitlySetAttrAssociatedElements() ||
-         AXObject::HasAriaAttribute(element, html_names::kAriaActionsAttr) ||
-         AXObject::HasAriaAttribute(element,
-                                    html_names::kAriaActivedescendantAttr) ||
-         AXObject::HasAriaAttribute(element, html_names::kAriaControlsAttr) ||
-         AXObject::HasAriaAttribute(element,
-                                    html_names::kAriaDescribedbyAttr) ||
-         AXObject::HasAriaAttribute(element, html_names::kAriaDetailsAttr) ||
-         AXObject::HasAriaAttribute(element,
-                                    html_names::kAriaErrormessageAttr) ||
-         AXObject::HasAriaAttribute(element, html_names::kAriaFlowtoAttr) ||
-         AXObject::HasAriaAttribute(element, html_names::kAriaLabelledbyAttr) ||
-         AXObject::HasAriaAttribute(element, html_names::kAriaLabeledbyAttr) ||
-         AXObject::HasAriaAttribute(element, html_names::kAriaOwnsAttr);
+  if (element.HasAnyExplicitlySetAttrAssociatedElements()) {
+    return true;
+  }
+
+  const auto& idref_attrs = GetAriaIdrefAttributes();
+  for (const QualifiedName* attr : idref_attrs) {
+    if (AXObject::HasAriaAttribute(element, *attr)) {
+      return true;
+    }
+  }
+
+  const auto& idref_list_attrs = GetAriaIdrefListAttributes();
+  for (const QualifiedName* attr : idref_list_attrs) {
+    if (AXObject::HasAriaAttribute(element, *attr)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 bool IsAddedOnlyViaSpecialTraversal(const Node* node) {
@@ -628,9 +636,6 @@ using html_names::kTitleAttr;
 using html_names::kTypeAttr;
 using html_names::kValueAttr;
 using mojom::blink::FormControlType;
-
-// In ARIA 1.1, default value of aria-level was changed to 2.
-const int kDefaultHeadingLevel = 2;
 
 // When an AXNodeObject is created with a Node instead of a LayoutObject it
 // means that the LayoutObject is purposely being set to null, as it is not
@@ -1098,6 +1103,7 @@ AXObjectInclusion AXNodeObject::ShouldIncludeBasedOnSemantics(
           ax::mojom::blink::Role::kMathMLUnder,
           ax::mojom::blink::Role::kMathMLUnderOver,
           ax::mojom::blink::Role::kMeter,
+          ax::mojom::blink::Role::kMenuBar,
           ax::mojom::blink::Role::kMenuListOption,
           ax::mojom::blink::Role::kMenuListPopup,
           ax::mojom::blink::Role::kNavigation,
@@ -2743,6 +2749,26 @@ ax::mojom::blink::Role AXNodeObject::DetermineRoleValue() {
 
   aria_role_ = DetermineAriaRole();
 
+  // Focusgroup implied role inference:
+  // If there is no explicit ARIA role (aria_role_ is kUnknown) and the native
+  // role is a generic container (e.g. a <div> / <span> without richer native
+  // semantics), infer the minimum ARIA role from the element's focusgroup
+  // behavior. This only applies to actual focusgroup owners (excludes the
+  // empty sentinel and explicit opt-outs) and never overrides author supplied
+  // roles or native semantics richer than GenericContainer.
+
+  const Element* element = GetElement();
+  if (element &&
+      RuntimeEnabledFeatures::FocusgroupEnabled(
+          element->GetExecutionContext()) &&
+      aria_role_ == ax::mojom::blink::Role::kUnknown &&
+      native_role_ == ax::mojom::blink::Role::kGenericContainer && element) {
+    const FocusgroupData data = element->GetFocusgroupData();
+    if (focusgroup::IsActualFocusgroup(data)) {
+      aria_role_ = focusgroup::FocusgroupMinimumAriaRole(data);
+    }
+  }
+
   return aria_role_ == ax::mojom::blink::Role::kUnknown ? native_role_
                                                         : aria_role_;
 }
@@ -2939,20 +2965,13 @@ bool AXNodeObject::IsLoaded() const {
 }
 
 bool AXNodeObject::IsMultiSelectable() const {
-  switch (RoleValue()) {
-    case ax::mojom::blink::Role::kGrid:
-    case ax::mojom::blink::Role::kTreeGrid:
-    case ax::mojom::blink::Role::kTree:
-    case ax::mojom::blink::Role::kListBox:
-    case ax::mojom::blink::Role::kTabList:
-      bool multiselectable;
-      if (AriaBooleanAttribute(html_names::kAriaMultiselectableAttr,
-                               &multiselectable)) {
-        return multiselectable;
-      }
-      break;
-    default:
-      break;
+  if (RoleSupportsAriaAttribute(RoleValue(),
+                                html_names::kAriaMultiselectableAttr)) {
+    bool multiselectable;
+    if (AriaBooleanAttribute(html_names::kAriaMultiselectableAttr,
+                             &multiselectable)) {
+      return multiselectable;
+    }
   }
 
   auto* html_select_element = DynamicTo<HTMLSelectElement>(GetNode());
@@ -3322,34 +3341,22 @@ AccessibilityExpanded AXNodeObject::IsExpanded() const {
     return is_expanded ? kExpandedExpanded : kExpandedCollapsed;
   }
 
-  HTMLElement* command_for_element = nullptr;
-  if (auto* button = DynamicTo<HTMLButtonElement>(element)) {
-    command_for_element = DynamicTo<HTMLElement>(button->commandForElement());
-  } else if (auto* menuitem = DynamicTo<HTMLMenuItemElement>(element)) {
-    DCHECK(RuntimeEnabledFeatures::MenuElementsEnabled());
-    command_for_element = DynamicTo<HTMLElement>(menuitem->commandForElement());
-  }
-
-  // For menuitem and button elements that act as commandFor triggers,
-  // aria-expanded may be set depending on the command type. This results in the
-  // same mapping as popovertarget, but takes precedence in the case of
-  // conflicting markup as the HTML spec invokers commandfor functionality
-  // first, and only.
-  if (command_for_element) {
-    const AtomicString& action =
-        element->FastGetAttribute(html_names::kCommandAttr);
-    bool is_valid_popover_command =
-        command_for_element->IsValidBuiltinPopoverCommand(
-            *DynamicTo<HTMLElement>(element),
-            HTMLButtonElement::GetCommandEventType(
-                action,
-                command_for_element->GetDocument().GetExecutionContext()));
-    bool is_child =
-        element->IsDescendantOrShadowDescendantOf(command_for_element);
-    // Popover invokers should indicate the expanded/collapsed state.
-    if (is_valid_popover_command && !is_child) {
-      return command_for_element->popoverOpen() ? kExpandedExpanded
-                                                : kExpandedCollapsed;
+  // For commandFor triggers, aria-expanded may be set depending on the command
+  // type. This results in the same mapping as popovertarget, but takes
+  // precedence over popovertarget.
+  if (auto* html_element = DynamicTo<HTMLElement>(element)) {
+    if (HTMLElement* command_for_element =
+            DynamicTo<HTMLElement>(html_element->commandForElement())) {
+      CommandEventType command = command_for_element->GetCommandEventType(
+          html_element->command(), html_element->GetExecutionContext());
+      bool is_popover_command =
+          command_for_element->IsValidBuiltinPopoverCommand(*html_element,
+                                                            command);
+      if (command_for_element && is_popover_command &&
+          !element->IsDescendantOrShadowDescendantOf(command_for_element)) {
+        return command_for_element->popoverOpen() ? kExpandedExpanded
+                                                  : kExpandedCollapsed;
+      }
     }
   }
 
@@ -3389,8 +3396,21 @@ bool AXNodeObject::IsRequired() const {
   if (form_control && form_control->IsRequired())
     return true;
 
-  if (IsAriaAttributeTrue(html_names::kAriaRequiredAttr)) {
-    return true;
+  if (RoleSupportsAriaAttribute(RoleValue(), html_names::kAriaRequiredAttr)) {
+    if (IsAriaAttributeTrue(html_names::kAriaRequiredAttr)) {
+      return true;
+    }
+  }
+
+  // TODO(accessibility): The ARIA spec says aria-required is supported on
+  // radiogroup, not individual radio buttons. However, the
+  // `aria-required-changed.html` test uses aria-required directly on a radio
+  // button and expects it to be supported.
+  // See https://github.com/w3c/aria/issues/2669.
+  if (RoleValue() == ax::mojom::blink::Role::kRadioButton) {
+    if (IsAriaAttributeTrue(html_names::kAriaRequiredAttr)) {
+      return true;
+    }
   }
 
   return false;
@@ -3440,8 +3460,10 @@ int AXNodeObject::HeadingLevel() const {
   if (element->HasTagName(html_names::kH6Tag))
     return 6 + element->GetComputedHeadingOffset(/*max_offset=*/3);
 
-  if (RoleValue() == ax::mojom::blink::Role::kHeading)
-    return kDefaultHeadingLevel;
+  if (RoleValue() == ax::mojom::blink::Role::kHeading) {
+    const String& implicit_value = GetImplicitAriaLevel(RoleValue());
+    return implicit_value.empty() ? 0 : implicit_value.ToInt();
+  }
 
   // TODO(accessibility) For kDisclosureTriangle, kDisclosureTriangleGrouping,
   // if IsAccessibilityExposeSummaryAsHeadingEnabled(), we should expose
@@ -3771,40 +3793,47 @@ const AtomicString& AXNodeObject::EffectiveTarget() const {
 }
 
 AccessibilityOrientation AXNodeObject::Orientation() const {
+  // TODO(accessibility): aria-orientation stopped being supported on combobox
+  // in ARIA 1.2, but removing that exposure causes several tests to fail.
+  if (RoleValue() == ax::mojom::blink::Role::kComboBoxGrouping ||
+      RoleValue() == ax::mojom::blink::Role::kComboBoxMenuButton ||
+      RoleValue() == ax::mojom::blink::Role::kComboBoxSelect ||
+      RoleValue() == ax::mojom::blink::Role::kTextFieldWithComboBox) {
+    const AtomicString& aria_orientation =
+        AriaTokenAttribute(html_names::kAriaOrientationAttr);
+    if (EqualIgnoringASCIICase(aria_orientation, "horizontal")) {
+      return kAccessibilityOrientationHorizontal;
+    }
+    if (EqualIgnoringASCIICase(aria_orientation, "vertical")) {
+      return kAccessibilityOrientationVertical;
+    }
+  }
+
+  if (!RoleSupportsAriaAttribute(RoleValue(),
+                                 html_names::kAriaOrientationAttr)) {
+    return AXObject::Orientation();
+  }
+
+  // If there's a valid value, use it.
   const AtomicString& aria_orientation =
       AriaTokenAttribute(html_names::kAriaOrientationAttr);
-  AccessibilityOrientation orientation = kAccessibilityOrientationUndefined;
-  if (EqualIgnoringASCIICase(aria_orientation, "horizontal"))
-    orientation = kAccessibilityOrientationHorizontal;
-  else if (EqualIgnoringASCIICase(aria_orientation, "vertical"))
-    orientation = kAccessibilityOrientationVertical;
-
-  switch (RoleValue()) {
-    case ax::mojom::blink::Role::kListBox:
-    case ax::mojom::blink::Role::kMenu:
-    case ax::mojom::blink::Role::kScrollBar:
-    case ax::mojom::blink::Role::kTree:
-      if (orientation == kAccessibilityOrientationUndefined)
-        orientation = kAccessibilityOrientationVertical;
-
-      return orientation;
-    case ax::mojom::blink::Role::kMenuBar:
-    case ax::mojom::blink::Role::kSlider:
-    case ax::mojom::blink::Role::kSplitter:
-    case ax::mojom::blink::Role::kTabList:
-    case ax::mojom::blink::Role::kToolbar:
-      if (orientation == kAccessibilityOrientationUndefined)
-        orientation = kAccessibilityOrientationHorizontal;
-
-      return orientation;
-    case ax::mojom::blink::Role::kComboBoxGrouping:
-    case ax::mojom::blink::Role::kComboBoxMenuButton:
-    case ax::mojom::blink::Role::kRadioGroup:
-    case ax::mojom::blink::Role::kTreeGrid:
-      return orientation;
-    default:
-      return AXObject::Orientation();
+  if (EqualIgnoringASCIICase(aria_orientation, "horizontal")) {
+    return kAccessibilityOrientationHorizontal;
   }
+  if (EqualIgnoringASCIICase(aria_orientation, "vertical")) {
+    return kAccessibilityOrientationVertical;
+  }
+
+  // Fall back on the implicit value, should one exist.
+  const String& implicit_orientation = GetImplicitAriaOrientation(RoleValue());
+  if (EqualIgnoringASCIICase(implicit_orientation, "horizontal")) {
+    return kAccessibilityOrientationHorizontal;
+  }
+  if (EqualIgnoringASCIICase(implicit_orientation, "vertical")) {
+    return kAccessibilityOrientationVertical;
+  }
+
+  return AXObject::Orientation();
 }
 
 // According to the standard, the figcaption should only be the first or
@@ -4457,6 +4486,10 @@ bool AXNodeObject::ValueForRange(float* out_value) const {
 }
 
 bool AXNodeObject::MaxValueForRange(float* out_value) const {
+  if (!IsRangeValueSupported()) {
+    return false;
+  }
+
   if (AriaFloatAttribute(html_names::kAriaValuemaxAttr, out_value)) {
     return true;
   }
@@ -4471,26 +4504,21 @@ bool AXNodeObject::MaxValueForRange(float* out_value) const {
     return true;
   }
 
-  // In ARIA 1.1, default value of scrollbar, separator and slider
-  // for aria-valuemax were changed to 100. This change was made for
-  // progressbar in ARIA 1.2.
-  switch (RawAriaRole()) {
-    case ax::mojom::blink::Role::kMeter:
-    case ax::mojom::blink::Role::kProgressIndicator:
-    case ax::mojom::blink::Role::kScrollBar:
-    case ax::mojom::blink::Role::kSplitter:
-    case ax::mojom::blink::Role::kSlider: {
-      *out_value = 100.0f;
-      return true;
-    }
-    default:
-      break;
+  // Fall back to implicit value from ARIA spec.
+  const String& implicit_value = GetImplicitAriaValuemax(RoleValue());
+  if (!implicit_value.empty()) {
+    *out_value = implicit_value.ToFloat();
+    return true;
   }
 
   return false;
 }
 
 bool AXNodeObject::MinValueForRange(float* out_value) const {
+  if (!IsRangeValueSupported()) {
+    return false;
+  }
+
   if (AriaFloatAttribute(html_names::kAriaValueminAttr, out_value)) {
     return true;
   }
@@ -4505,20 +4533,11 @@ bool AXNodeObject::MinValueForRange(float* out_value) const {
     return true;
   }
 
-  // In ARIA 1.1, default value of scrollbar, separator and slider
-  // for aria-valuemin were changed to 0. This change was made for
-  // progressbar in ARIA 1.2.
-  switch (RawAriaRole()) {
-    case ax::mojom::blink::Role::kMeter:
-    case ax::mojom::blink::Role::kProgressIndicator:
-    case ax::mojom::blink::Role::kScrollBar:
-    case ax::mojom::blink::Role::kSplitter:
-    case ax::mojom::blink::Role::kSlider: {
-      *out_value = 0.0f;
-      return true;
-    }
-    default:
-      break;
+  // Fall back to implicit value from ARIA spec.
+  const String& implicit_value = GetImplicitAriaValuemin(RoleValue());
+  if (!implicit_value.empty()) {
+    *out_value = implicit_value.ToFloat();
+    return true;
   }
 
   return false;
@@ -4775,9 +4794,14 @@ ax::mojom::blink::HasPopup AXNodeObject::HasPopup() const {
     return *has_popup_from_attribute;
   }
 
-  // ARIA 1.1 default value of haspopup for combobox is "listbox".
-  if (RoleValue() == ax::mojom::blink::Role::kComboBoxMenuButton ||
-      RoleValue() == ax::mojom::blink::Role::kTextFieldWithComboBox) {
+  // Native HTML <select> elements use kMenu, not the ARIA combobox implicit
+  // value of kListbox.
+  if (RoleValue() == ax::mojom::blink::Role::kComboBoxSelect) {
+    return ax::mojom::blink::HasPopup::kMenu;
+  }
+
+  const String& implicit_value = GetImplicitAriaHaspopup(RoleValue());
+  if (implicit_value == "listbox") {
     return ax::mojom::blink::HasPopup::kListbox;
   }
 

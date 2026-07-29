@@ -5,12 +5,15 @@
 #include "chrome/browser/tab/tab_state_storage_service.h"
 
 #include <memory>
+#include <utility>
 
 #include "base/token.h"
 #include "chrome/browser/tab/protocol/tab_state.pb.h"
 #include "chrome/browser/tab/storage_package.h"
+#include "chrome/browser/tab/tab_group_collection_data.h"
 #include "chrome/browser/tab/tab_state_storage_updater_builder.h"
 #include "chrome/browser/tab/tab_storage_packager.h"
+#include "chrome/browser/tab/tab_storage_type.h"
 #include "chrome/browser/tab/tab_storage_util.h"
 #include "components/tabs/public/tab_collection.h"
 #include "components/tabs/public/tab_interface.h"
@@ -71,8 +74,11 @@ void MoveNodeSequence(const TabCollection* prev_parent,
 
 TabStateStorageService::TabStateStorageService(
     std::unique_ptr<TabStateStorageBackend> tab_backend,
-    std::unique_ptr<TabStoragePackager> packager)
-    : tab_backend_(std::move(tab_backend)), packager_(std::move(packager)) {
+    std::unique_ptr<TabStoragePackager> packager,
+    TabCanonicalizer tab_canonicalizer)
+    : tab_backend_(std::move(tab_backend)),
+      packager_(std::move(packager)),
+      tab_canonicalizer_(tab_canonicalizer) {
   tab_backend_->Initialize();
 }
 
@@ -137,9 +143,9 @@ void TabStateStorageService::Move(const TabCollection* collection,
                    packager_.get(), tab_backend_.get());
 }
 
-void TabStateStorageService::LoadAllTabs(LoadAllTabsCallback callback) {
+void TabStateStorageService::LoadAllNodes(LoadDataCallback callback) {
   tab_backend_->LoadAllNodes(
-      base::BindOnce(&TabStateStorageService::OnAllTabsLoaded,
+      base::BindOnce(&TabStateStorageService::OnAllNodesLoaded,
                      weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
 }
 
@@ -147,36 +153,44 @@ void TabStateStorageService::ClearState() {
   tab_backend_->ClearAllNodes();
 }
 
-void TabStateStorageService::OnAllTabsLoaded(LoadAllTabsCallback callback,
-                                             std::vector<NodeState> entries) {
-  std::vector<LoadedTabState> loaded_tabs;
+void TabStateStorageService::OnAllNodesLoaded(LoadDataCallback callback,
+                                              std::vector<NodeState> entries) {
+  auto loaded_data = std::make_unique<StorageLoadedData>();
   int max_storage_id = 0;
   for (auto& entry : entries) {
     max_storage_id = std::max(max_storage_id, entry.id);
     if (entry.type == TabStorageType::kTab) {
       tabs_pb::TabState tab_state;
       if (tab_state.ParseFromString(entry.payload)) {
-        loaded_tabs.emplace_back(
+        loaded_data->loaded_tabs.emplace_back(
             std::move(tab_state),
             base::BindOnce(&TabStateStorageService::OnTabCreated,
                            weak_ptr_factory_.GetWeakPtr(), entry.id));
       }
+    } else if (entry.type == TabStorageType::kGroup) {
+      tabs_pb::TabGroupCollectionState group_state;
+      if (group_state.ParseFromString(entry.payload)) {
+        loaded_data->loaded_groups.emplace_back(
+            std::make_unique<TabGroupCollectionData>(group_state));
+      }
     }
   }
   next_storage_id_ = max_storage_id + 1;
-  std::move(callback).Run(std::move(loaded_tabs));
+  std::move(callback).Run(std::move(loaded_data));
 }
 
 void TabStateStorageService::OnTabCreated(int storage_id,
                                           const TabInterface* tab) {
-  if (tab == nullptr) {
+  const TabInterface* canonicalized_tab = tab_canonicalizer_.Run(tab);
+  if (canonicalized_tab == nullptr) {
     // TODO(https://crbug.com/448151790): Consider removing from the database.
     // Though if a complete post-initialization raze is coming, maybe it
     // doesn't matter.
     return;
   }
 
-  tab_handle_to_storage_id_[tab->GetHandle().raw_value()] = storage_id;
+  tab_handle_to_storage_id_[canonicalized_tab->GetHandle().raw_value()] =
+      storage_id;
 }
 
 }  // namespace tabs

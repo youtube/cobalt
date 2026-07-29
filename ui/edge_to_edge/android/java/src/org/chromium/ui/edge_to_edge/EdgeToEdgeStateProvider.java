@@ -10,7 +10,6 @@ import android.view.Window;
 
 import androidx.core.view.WindowCompat;
 
-import org.chromium.base.UnownedUserData;
 import org.chromium.base.UnownedUserDataKey;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
@@ -25,10 +24,9 @@ import org.chromium.ui.util.TokenHolder;
  * <p>{@link #get()} never returns null for this class.
  */
 @NullMarked
-public class EdgeToEdgeStateProvider extends ObservableSupplierImpl<Boolean>
-        implements UnownedUserData {
+public class EdgeToEdgeStateProvider extends ObservableSupplierImpl<Boolean> {
     private static final UnownedUserDataKey<EdgeToEdgeStateProvider> KEY =
-            new UnownedUserDataKey<>(EdgeToEdgeStateProvider.class);
+            new UnownedUserDataKey<>();
     private final TokenHolder mTokenHolder = new TokenHolder(this::onTokenUpdate);
     private final Window mWindow;
 

@@ -11,6 +11,7 @@
 #import "build/branding_buildflags.h"
 #import "ios/chrome/common/app_group/app_group_constants.h"
 #import "ios/chrome/common/app_group/app_group_utils.h"
+#import "ios/chrome/common/ui/button_stack/button_stack_configuration.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/elements/branded_navigation_item_title_view.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
@@ -88,8 +89,8 @@ CGFloat const kUpdatedMainViewCornerRadius = 32.0;
 
 - (void)viewDidLoad {
   self.actionHandler = self;
-  self.primaryActionString = _primaryString;
-  self.secondaryActionString = _secondaryString;
+  self.configuration.primaryActionString = _primaryString;
+  self.configuration.secondaryActionString = _secondaryString;
 
   self.scrollEnabled = NO;
   self.showDismissBarButton = YES;
@@ -97,7 +98,7 @@ CGFloat const kUpdatedMainViewCornerRadius = 32.0;
   self.topAlignedLayout = YES;
   self.scrollEnabled = YES;
 
-  self.customScrollViewBottomInsets = 0;
+  self.customContentBottomInset = 0;
   self.customGradientViewHeight = 0;
 
   self.titleView = [self configureSheetTitleView];
@@ -255,7 +256,7 @@ CGFloat const kUpdatedMainViewCornerRadius = 32.0;
 }
 
 - (void)confirmationAlertPrimaryAction {
-  NSString* gaiaID = self.selectedAccountInfo.gaiaID;
+  NSString* gaiaID = self.selectedAccountInfo.gaiaIDString;
   switch (_sharedItemType) {
     case kURL:
       [self.delegate didTapOpenInChromeShareExtensionSheet:self gaiaID:gaiaID];
@@ -269,7 +270,7 @@ CGFloat const kUpdatedMainViewCornerRadius = 32.0;
 }
 
 - (void)confirmationAlertSecondaryAction {
-  NSString* gaiaID = self.selectedAccountInfo.gaiaID;
+  NSString* gaiaID = self.selectedAccountInfo.gaiaIDString;
   switch (_sharedItemType) {
     case kURL:
       [self.delegate didTapMoreOptionsShareExtensionSheet:self gaiaID:gaiaID];
@@ -290,7 +291,7 @@ CGFloat const kUpdatedMainViewCornerRadius = 32.0;
   CHECK(self.selectedAccountInfo);
 
   UIListContentConfiguration* content = cell.defaultContentConfiguration;
-  if ([self.selectedAccountInfo.gaiaID isEqual:app_group::kNoAccount]) {
+  if ([self.selectedAccountInfo.gaiaIDString isEqual:app_group::kNoAccount]) {
     content.text = NSLocalizedString(
         @"IDS_IOS_SIGNED_OUT_USER_TITLE_SHARE_EXTENSION",
         @"The title of the item representing a signed out user.");

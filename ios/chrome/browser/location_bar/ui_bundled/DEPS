@@ -1,6 +1,6 @@
 include_rules = [
   "+components/lens",
-  "+ios/chrome/browser/aim/prototype/coordinator",
+  "+ios/chrome/browser/composebox/coordinator",
   "+ios/chrome/browser/autocomplete/model/autocomplete_scheme_classifier_impl.h",
   "+ios/chrome/browser/badges/ui_bundled",
   "+ios/chrome/browser/contextual_panel/entrypoint/coordinator",
@@ -18,6 +18,7 @@ include_rules = [
   "+ios/chrome/browser/ntp/model",
   "+ios/chrome/browser/ntp/ui_bundled/new_tab_page_util.h",
   "+ios/chrome/browser/orchestrator/ui_bundled",
+  "+ios/chrome/browser/contextual_panel/model/contextual_panel_item_type.h",
   "+ios/chrome/browser/overlays/model/public",
   "+ios/chrome/browser/reader_mode/model/reader_mode_web_state_utils.h",
   "+ios/chrome/browser/reader_mode/ui/reader_mode_chip_visibility_delegate.h",

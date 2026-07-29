@@ -42,6 +42,7 @@
 #include "components/user_education/common/user_education_metadata.h"
 #include "components/user_education/common/user_education_storage_service.h"
 #include "content/public/test/browser_test.h"
+#include "extensions/common/extension_urls.h"
 #include "testing/gmock/include/gmock/gmock-matchers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/interaction/element_identifier.h"
@@ -135,16 +136,12 @@ class NtpPromoUiTest
     : public WebUiInteractiveTestMixin<InteractiveBrowserTest>,
       public testing::WithParamInterface<NtpPromoUiTestParams> {
  public:
-  NtpPromoUiTest() = default;
+  NtpPromoUiTest() {
+    feature_list_.InitWithFeaturesAndParameters(GetEnabledFeatures(), {});
+  }
   ~NtpPromoUiTest() override = default;
 
-  void SetUp() override {
-    feature_list_.InitWithFeaturesAndParameters(GetEnabledFeatures(),
-                                                GetDisabledFeatures());
-    InteractiveBrowserTest::SetUp();
-  }
-
-  virtual std::vector<base::test::FeatureRefAndParams> GetEnabledFeatures() {
+  std::vector<base::test::FeatureRefAndParams> GetEnabledFeatures() {
     base::FieldTrialParams params;
     params[user_education::features::kNtpBrowserPromoType.name] = [=]() {
       switch (GetParam().promo_type) {
@@ -164,10 +161,6 @@ class NtpPromoUiTest
           base::NumberToString(GetParam().individual_promos.value());
     }
     return {{user_education::features::kEnableNtpBrowserPromos, params}};
-  }
-
-  virtual std::vector<base::test::FeatureRef> GetDisabledFeatures() {
-    return {};
   }
 
   void SetUpOnMainThread() override {
@@ -347,6 +340,24 @@ class NtpPromoUiTest
     });
   }
 
+  // Returns the expected UTM extension that should be supplied with the web
+  // store URL when invoking the extensions promo.
+  std::string_view ExpectedExtensionUtmSource() {
+    switch (GetParam().promo_type) {
+      case user_education::features::NtpBrowserPromoType::kSimple:
+        if (user_education::features::GetNtpBrowserPromoIndividualPromoLimit() >
+            1) {
+          return extension_urls::kNtpPromo2pUtmSource;
+        } else {
+          return extension_urls::kNtpPromo1pUtmSource;
+        }
+      case user_education::features::NtpBrowserPromoType::kSetupList:
+        return extension_urls::kNtpPromoSlUtmSource;
+      default:
+        NOTREACHED();
+    }
+  }
+
  private:
   void OnTestPromoShown() {
     BrowserElements::From(browser())->NotifyEvent(kBrowserViewElementId,
@@ -422,14 +433,15 @@ const InteractiveBrowserTestApi::DeepQuery kPathToModules = {"ntp-app",
 }  // namespace
 
 class NtpPromoWithModuleUiTest : public NtpPromoUiTest {
- protected:
-  std::vector<base::test::FeatureRefAndParams> GetEnabledFeatures() override {
-    auto result = NtpPromoUiTest::GetEnabledFeatures();
-    result.push_back(
-        {ntp_features::kNtpTabGroupsModule,
-         {{ntp_features::kNtpTabGroupsModuleDataParam, "Fake Data"}}});
-    return result;
+ public:
+  NtpPromoWithModuleUiTest() {
+    feature_list_.InitAndEnableFeatureWithParameters(
+        ntp_features::kNtpTabGroupsModule,
+        {{ntp_features::kNtpTabGroupsModuleDataParam, "Fake Data"}});
   }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -512,7 +524,10 @@ IN_PROC_BROWSER_TEST_P(NtpPromoUiTest, ExtensionsPromoAppearsAndIsClickable) {
       // Click the promo button; this should navigate the current page.
       ClickPromo(),
       // Note that the URL here may not match what users see, due to redirects.
-      WaitForState(kLocationBarTextValue, OptionalStringContains(u"webstore")),
+      WaitForState(kLocationBarTextValue,
+                   ::testing::AllOf(OptionalStringContains(u"webstore"),
+                                    OptionalStringContains(base::UTF8ToUTF16(
+                                        ExpectedExtensionUtmSource())))),
       // The NTP tab should navigate, rather than opening a new tab.
       CheckOneTabOpen());
 
@@ -532,21 +547,20 @@ IN_PROC_BROWSER_TEST_P(NtpPromoUiTest,
 }
 
 class NtpPromoVisualUiTest : public NtpPromoUiTest {
+ public:
+  NtpPromoVisualUiTest() {
+    // TODO(crbug.com/453086432): Fix test to work with Compose enabled.
+    feature_list_.InitAndDisableFeature(ntp_composebox::kNtpComposebox);
+  }
+
  protected:
   ui::MockOsSettingsProvider& os_settings_provider() {
     return os_settings_provider_;
   }
 
-  // TODO(crbug.com/453086432): Remove this override and fix the test to work
-  // with Compose enabled.
-  std::vector<base::test::FeatureRef> GetDisabledFeatures() override {
-    auto result = NtpPromoUiTest::GetDisabledFeatures();
-    result.push_back(ntp_composebox::kNtpComposebox);
-    return result;
-  }
-
  private:
   ui::MockOsSettingsProvider os_settings_provider_;
+  base::test::ScopedFeatureList feature_list_;
 };
 
 // Screenshot the promo UI across the available presentation styles, along

@@ -23,10 +23,10 @@ namespace autofill {
 
 namespace payments {
 struct BnplIssuerContext;
-struct BnplIssuerTosDetail;
 }  // namespace payments
 
 class BnplIssuer;
+struct BnplTosModel;
 class ContentAutofillClient;
 class Iban;
 class LoyaltyCard;
@@ -62,7 +62,7 @@ class TouchToFillPaymentMethodControllerImpl
                         base::span<const LoyaltyCard> affiliated_loyalty_cards,
                         base::span<const LoyaltyCard> all_loyalty_cards,
                         bool first_time_usage) override;
-  bool UpdateBnplPaymentMethod(std::optional<uint64_t> extracted_amount,
+  bool UpdateBnplPaymentMethod(std::optional<int64_t> extracted_amount,
                                bool is_amount_supported_by_any_issuer) override;
   bool ShowProgressScreen(std::unique_ptr<TouchToFillPaymentMethodView> view,
                           base::OnceClosure cancel_callback) override;
@@ -74,8 +74,9 @@ class TouchToFillPaymentMethodControllerImpl
   bool ShowErrorScreen(std::unique_ptr<TouchToFillPaymentMethodView> view,
                        const std::u16string& title,
                        const std::u16string& description) override;
-  bool ShowBnplIssuerTos(
-      const payments::BnplIssuerTosDetail& bnpl_issuer_tos_detail) override;
+  bool ShowBnplIssuerTos(BnplTosModel bnpl_tos_model,
+                         base::OnceClosure accept_callback,
+                         base::OnceClosure cancel_callback) override;
   void Hide() override;
   void SetVisible(bool visible) override;
 
@@ -107,6 +108,7 @@ class TouchToFillPaymentMethodControllerImpl
   void OnErrorOkPressed(JNIEnv* env) override;
   void OnBnplIssuerSuggestionSelected(JNIEnv* env,
                                       const std::string& issuer_id) override;
+  void OnBnplTosAccepted(JNIEnv* env) override;
   int GetJavaResourceId(int native_resource_id) const override;
   base::android::ScopedJavaLocalRef<jobject> GetJavaObject() override;
   void ResetJavaObject();

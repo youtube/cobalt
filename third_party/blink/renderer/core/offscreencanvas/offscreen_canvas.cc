@@ -15,7 +15,6 @@
 #include "third_party/blink/public/common/privacy_budget/identifiability_study_settings.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/public/platform/scheduler/web_agent_group_scheduler.h"
-#include "third_party/blink/renderer/core/canvas_interventions/canvas_interventions_helper.h"
 #include "third_party/blink/renderer/core/css/css_font_selector.h"
 #include "third_party/blink/renderer/core/css/offscreen_font_selector.h"
 #include "third_party/blink/renderer/core/css/style_engine.h"
@@ -335,13 +334,6 @@ ScriptPromise<Blob> OffscreenCanvas::convertToBlob(
     return EmptyPromise();
   }
 
-  if (RuntimeEnabledFeatures::BlockCanvasReadbackEnabled(
-          GetExecutionContext())) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kNotAllowedError,
-                                      String(kBlockCanvasReadbackErrorMessage));
-    return EmptyPromise();
-  }
-
   // It's possible that there are recorded commands that have not been resolved
   // Finalize frame will be called in GetImage, but if there's no
   // resourceProvider yet then the IsPaintable check will fail
@@ -367,14 +359,6 @@ ScriptPromise<Blob> OffscreenCanvas::convertToBlob(
   scoped_refptr<StaticBitmapImage> image_bitmap =
       context_->GetImage(FlushReason::kToBlob);
   if (image_bitmap) {
-    auto intervention_type =
-        CanvasInterventionsHelper::CanvasInterventionType::kNone;
-    if (CanvasInterventionsHelper::MaybeNoiseSnapshot(GetExecutionContext(),
-                                                      image_bitmap)) {
-      intervention_type =
-          CanvasInterventionsHelper::CanvasInterventionType::kNoise;
-    };
-
     auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<Blob>>(
         script_state, exception_state.GetContext());
     CanvasAsyncBlobCreator::ToBlobFunctionType function_type =
@@ -386,7 +370,7 @@ ScriptPromise<Blob> OffscreenCanvas::convertToBlob(
             IdentifiableSurface::Type::kCanvasReadback)
             ? IdentifiabilityInputDigest(context_)
             : 0,
-        intervention_type, resolver);
+        resolver);
     async_creator->ScheduleAsyncBlobCreation(options->quality());
     return resolver->Promise();
   }
@@ -575,9 +559,8 @@ UkmParameters OffscreenCanvas::GetUkmParameters() {
 
 void OffscreenCanvas::NotifyGpuContextLost() {
   if (context_ && !context_->isContextLost()) {
-    // This code path is used only by 2D canvas, because NotifyGpuContextLost
-    // is called by Canvas2DLayerBridge and OffscreenCanvas itself, rather
-    // than the rendering context.
+    // This code path is used only by 2D canvas, where NotifyGpuContextLost is
+    // called by OffscreenCanvas itself rather than the rendering context.
     DCHECK(context_->IsRenderingContext2D());
     context_->LoseContext(CanvasRenderingContext::kRealLostContext);
   }

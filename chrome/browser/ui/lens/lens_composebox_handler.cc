@@ -16,6 +16,7 @@
 #include "chrome/browser/ui/lens/lens_composebox_controller.h"
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
 #include "chrome/browser/ui/webui/searchbox/contextual_searchbox_handler.h"
+#include "components/lens/lens_features.h"
 #include "components/lens/lens_url_utils.h"
 #include "components/lens/proto/server/lens_overlay_response.pb.h"
 #include "components/omnibox/browser/autocomplete_match.h"
@@ -79,6 +80,12 @@ LensComposeboxOmniboxClient::~LensComposeboxOmniboxClient() = default;
 
 metrics::OmniboxEventProto::PageClassification
 LensComposeboxOmniboxClient::GetPageClassification(bool is_prefetch) const {
+  // TODO(crbug.com/456528226): - multimodal suggestions are for teamfood only
+  // so the incorrect classification is fine for now.
+  if (lens::features::GetLensAimSuggestionsType() ==
+      lens::features::LensAimSuggestionsType::kMultimodal) {
+    return metrics::OmniboxEventProto::LENS_SIDE_PANEL_SEARCHBOX;
+  }
   return metrics::OmniboxEventProto::LENS_SIDE_PANEL_COMPOSEBOX;
 }
 
@@ -121,7 +128,6 @@ LensComposeboxHandler::LensComposeboxHandler(
           profile,
           web_contents,
           std::make_unique<OmniboxController>(
-              /*view=*/nullptr,
               std::make_unique<LensComposeboxOmniboxClient>(
                   profile,
                   web_contents,
@@ -134,24 +140,13 @@ LensComposeboxHandler::LensComposeboxHandler(
 
 LensComposeboxHandler::~LensComposeboxHandler() = default;
 
-void LensComposeboxHandler::SubmitQuery(
-    const std::string& query_text,
-    WindowOpenDisposition disposition,
-    std::map<std::string, std::string> additional_params) {
-  lens_composebox_controller_->IssueComposeboxQuery(query_text);
-}
-
 void LensComposeboxHandler::SubmitQuery(const std::string& query_text,
                                         uint8_t mouse_button,
                                         bool alt_key,
                                         bool ctrl_key,
                                         bool meta_key,
                                         bool shift_key) {
-  SubmitQuery(query_text,
-              ui::DispositionFromClick(
-                  /*middle_button=*/mouse_button == 1, alt_key, ctrl_key,
-                  meta_key, shift_key),
-              /*additional_params=*/{});
+  lens_composebox_controller_->IssueComposeboxQuery(query_text);
 }
 
 void LensComposeboxHandler::FocusChanged(bool focused) {
@@ -193,6 +188,15 @@ void LensComposeboxHandler::ExecuteAction(
 
 void LensComposeboxHandler::OnThumbnailRemoved() {
   NOTREACHED();
+}
+
+void LensComposeboxHandler::DeleteContext(
+    const base::UnguessableToken& file_token) {
+  lens_composebox_controller_->DeleteContext(file_token);
+}
+
+void LensComposeboxHandler::ClearFiles() {
+  lens_composebox_controller_->ClearFiles();
 }
 
 }  // namespace lens

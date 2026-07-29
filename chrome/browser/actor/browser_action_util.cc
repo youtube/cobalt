@@ -21,6 +21,7 @@
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/aggregated_journal.h"
 #include "chrome/browser/actor/shared_types.h"
+#include "chrome/browser/actor/tools/attempt_form_filling_tool_request.h"
 #include "chrome/browser/actor/tools/attempt_login_tool_request.h"
 #include "chrome/browser/actor/tools/click_tool_request.h"
 #include "chrome/browser/actor/tools/drag_and_release_tool_request.h"
@@ -61,6 +62,7 @@ using apc::Action;
 using apc::ActionTarget;
 using apc::ActivateTabAction;
 using apc::ActivateWindowAction;
+using apc::AttemptFormFillingAction;
 using apc::AttemptLoginAction;
 using apc::ClickAction;
 using apc::CloseTabAction;
@@ -451,6 +453,70 @@ std::unique_ptr<ToolRequest> CreateAttemptLoginRequest(
   return std::make_unique<AttemptLoginToolRequest>(tab_handle);
 }
 
+std::unique_ptr<ToolRequest> CreateAttemptFormFillingRequest(
+    const AttemptFormFillingAction& action) {
+  const tabs::TabHandle tab_handle = GetTabHandle(action);
+  if (tab_handle == TabHandle::Null()) {
+    return nullptr;
+  }
+
+  if (action.form_filling_requests_size() == 0) {
+    return nullptr;
+  }
+
+  auto requested_data_enum_converter = [](optimization_guide::proto::
+                                              FormFillingRequest_RequestedData
+                                                  proto_enum) {
+    switch (proto_enum) {
+      case optimization_guide::proto::FormFillingRequest_RequestedData_ADDRESS:
+        return AttemptFormFillingToolRequest::RequestedData::kAddress;
+      case optimization_guide::proto::
+          FormFillingRequest_RequestedData_BILLING_ADDRESS:
+        return AttemptFormFillingToolRequest::RequestedData::kBillingAddress;
+      case optimization_guide::proto::
+          FormFillingRequest_RequestedData_SHIPPING_ADDRESS:
+        return AttemptFormFillingToolRequest::RequestedData::kShippingAddress;
+      case optimization_guide::proto::
+          FormFillingRequest_RequestedData_WORK_ADDRESS:
+        return AttemptFormFillingToolRequest::RequestedData::kWorkAddress;
+      case optimization_guide::proto::
+          FormFillingRequest_RequestedData_HOME_ADDRESS:
+        return AttemptFormFillingToolRequest::RequestedData::kHomeAddress;
+      case optimization_guide::proto::
+          FormFillingRequest_RequestedData_CREDIT_CARD:
+        return AttemptFormFillingToolRequest::RequestedData::kCreditCard;
+      default:
+        // A default is needed:
+        // 1. To ease importing the actions_data.proto from an external
+        //    repository. Otherwise, the actions_data.proto import would be
+        //    blocked by the implementation here.
+        // 2. Since an old build may receive a yet unimported enum value in a
+        //    new proto message.
+        NOTIMPLEMENTED();
+        return AttemptFormFillingToolRequest::RequestedData::kUnknown;
+    }
+  };
+
+  std::vector<AttemptFormFillingToolRequest::FormFillingRequest> requests;
+  for (const auto& request_proto : action.form_filling_requests()) {
+    AttemptFormFillingToolRequest::FormFillingRequest request;
+    request.requested_data =
+        requested_data_enum_converter(request_proto.requested_data());
+    for (const auto& trigger_field : request_proto.trigger_fields()) {
+      std::optional<PageTarget> page_target = ToPageTarget(trigger_field);
+      if (!page_target) {
+        // One of the targets is invalid.
+        return nullptr;
+      }
+      request.trigger_fields.push_back(*page_target);
+    }
+    requests.push_back(request);
+  }
+
+  return std::make_unique<AttemptFormFillingToolRequest>(tab_handle,
+                                                         std::move(requests));
+}
+
 std::unique_ptr<ToolRequest> CreateScriptToolRequest(
     const ScriptToolAction& action) {
   const tabs::TabHandle tab_handle = GetTabHandle(action);
@@ -472,8 +538,8 @@ std::unique_ptr<ToolRequest> CreateScriptToolRequest(
 
   return std::make_unique<ScriptToolRequest>(
       tab_handle,
-      PageTarget(DomNode{.node_id = kRootElementDomNodeId,
-                         .document_identifier = document_identifier}),
+      DomNode{.node_id = kRootElementDomNodeId,
+              .document_identifier = document_identifier},
       action.tool_name(), action.input_arguments());
 }
 
@@ -610,6 +676,11 @@ std::unique_ptr<ToolRequest> CreateToolRequest(
     case optimization_guide::proto::Action::kAttemptLogin: {
       const AttemptLoginAction& attempt_login_action = action.attempt_login();
       return CreateAttemptLoginRequest(attempt_login_action);
+    }
+    case optimization_guide::proto::Action::kAttemptFormFilling: {
+      const AttemptFormFillingAction& attempt_form_fill_action =
+          action.attempt_form_filling();
+      return CreateAttemptFormFillingRequest(attempt_form_fill_action);
     }
     case optimization_guide::proto::Action::kScriptTool: {
       const ScriptToolAction& script_tool_action = action.script_tool();
@@ -804,7 +875,15 @@ void BuildActionsResultWithObservations(
   std::unique_ptr<actor::AggregatedJournal::PendingAsyncEntry> journal_entry =
       actor_service->GetJournal().CreatePendingAsyncEntry(
           GURL(), task.id(), MakeBrowserTrackUUID(task.id()),
-          "BuildActionsResultWithObservations", {});
+          "BuildActionsResultWithObservations",
+          JournalDetailsBuilder()
+              .Add("result_code", base::ToString(result_code))
+              .Add("index_of_failed_action",
+                   (index_of_failed_action.has_value() ? *index_of_failed_action : -1))
+              .Add("skip_async_observation_information",
+                   skip_async_observation_information)
+              .Add("action_results", action_results.size())
+              .Build());
 
   auto response = std::make_unique<apc::ActionsResult>();
 
@@ -862,7 +941,8 @@ void BuildActionsResultWithObservations(
 
   absl::flat_hash_map<tabs::TabInterface*, apc::TabObservation*> tabs_to_fetch;
 
-  for (const tabs::TabHandle& handle : task.GetLastActedTabs()) {
+  ActorTask::TabHandleSet last_acted_tabs = task.GetLastActedTabs();
+  for (const tabs::TabHandle& handle : last_acted_tabs) {
     // Include a TabObservation entry for acted on tabs. If the tab no longer
     // exists or the fetch context failed, the observation will be empty.
     // TODO(crbug.com/434263095): We should probably avoid capturing
@@ -904,6 +984,14 @@ void BuildActionsResultWithObservations(
       }
     }
   }
+
+  actor_service->GetJournal().Log(
+      GURL(), TaskId(), "Observing Tabs",
+      JournalDetailsBuilder()
+          .Add("tab_observations", last_acted_tabs.size())
+          .Add("tabs_to_fetch", tabs_to_fetch.size())
+          .Build());
+
   base::UmaHistogramCounts1000("Actor.PageContext.TabCount",
                                tabs_to_fetch.size());
 

@@ -172,6 +172,17 @@ mojom::XRHandTrackingDataPtr OpenXrHandTracker::GetHandTrackingData() const {
   return hand_tracking_data;
 }
 
+std::optional<gfx::Transform> OpenXrHandTracker::GetMojoFromJoint(
+    XrHandJointEXT joint) const {
+  if (!IsDataValid()) {
+    return std::nullopt;
+  }
+
+  CHECK(joint < XR_HAND_JOINT_COUNT_EXT);
+
+  return XrPoseToGfxTransform(joint_locations_buffer_[joint].pose);
+}
+
 const OpenXrHandController* OpenXrHandTracker::controller() const {
   return nullptr;
 }
@@ -234,8 +245,8 @@ void OpenXrHandTrackerFactory::CheckAndUpdateEnabledState(
       extension_enum->ExtensionSupported(XR_EXT_HAND_TRACKING_EXTENSION_NAME);
   bool targeting_extension_supported = std::ranges::any_of(
       GetRequestedExtensions(), [&extension_enum](std::string_view extension) {
-        return UNSAFE_TODO(strcmp(extension.data(),
-                                  XR_EXT_HAND_TRACKING_EXTENSION_NAME)) != 0 &&
+        return extension !=
+                   std::string_view(XR_EXT_HAND_TRACKING_EXTENSION_NAME) &&
                extension_enum->ExtensionSupported(extension.data());
       });
   SetEnabled(base_extension_supported && targeting_extension_supported);

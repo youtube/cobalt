@@ -57,6 +57,12 @@ const base::FeatureParam<std::string> kAndroidSpareRendererCreationTiming{
     &kAndroidWarmUpSpareRendererWithTimeout, "spare_renderer_creation_timing",
     kAndroidSpareRendererCreationAfterLoading};
 
+// Whether to add a navigation throttle on Android to wait for the
+// priority of the spare renderer to be graduated before starting
+// the network request.
+const base::FeatureParam<bool> kAndroidSpareRendererAddNavigationThrottle{
+    &kAndroidWarmUpSpareRendererWithTimeout, "add_navigation_throttle", false};
+
 // The delay for creating the Android spare renderer in
 // SpareRenderProcessHostManager::PrepareForFutureRequests.
 // The parameter will not be effective if
@@ -447,6 +453,9 @@ BASE_FEATURE(kFedCmWellKnownEndpointValidation,
 BASE_FEATURE(kFedCmWithoutWellKnownEnforcement,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Enables usage of the FedCM IdP-Initiation API.
+BASE_FEATURE(kFedCmNavigationInterception, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables browser-side focus verification when crossing fenced boundaries.
 BASE_FEATURE(kFencedFramesEnforceFocus, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -506,6 +515,13 @@ BASE_FEATURE_PARAM(bool,
                    &kIgnoreDuplicateNavs,
                    "skip_ignore_renderer_initiated_navs",
                    false);
+// Comma-separated list of origins for which we ignore duplicate navigations.
+// An empty list means all origins are affected.
+BASE_FEATURE_PARAM(std::string,
+                   kIgnoreDuplicateNavsOrigins,
+                   &kIgnoreDuplicateNavs,
+                   "ignore_duplicate_navs_origins",
+                   "");
 
 // Kill switch for the GetInstalledRelatedApps API.
 BASE_FEATURE(kInstalledApp, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -1248,11 +1264,6 @@ const base::FeatureParam<bool> kAccessibilityDeprecateJavaNodeCacheDisableCache{
 BASE_FEATURE(kAccessibilityDeprecateTypeAnnounce,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// When enabled, includes the ACTION_LONG_CLICK action to all relevant nodes in
-// the web contents accessibility tree.
-BASE_FEATURE(kAccessibilityIncludeLongClickAction,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Enables the second iteration of AccessibilityPageZoom, which continues
 // the work completed in the first experiment and the subsequent fast-follow.
 // This version of the experiment explores enabling OS-level adjustments.
@@ -1307,10 +1318,6 @@ BASE_FEATURE(kUserMediaScreenCapturing, base::FEATURE_DISABLED_BY_DEFAULT);
 // Enables backgrounding hidden renderers on Mac.
 BASE_FEATURE(kMacAllowBackgroundingRenderProcesses,
              base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Enables a fix for a macOS IME Live Conversion issue. crbug.com/40226470 and
-// crbug.com/40060200
-BASE_FEATURE(kMacImeLiveConversionFix, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Changes how Chrome responds to accessibility activation signals on macOS
 // Sonoma, to avoid unnecessary changes to the screen reader state.

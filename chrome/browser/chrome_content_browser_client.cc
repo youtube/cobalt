@@ -238,7 +238,6 @@
 #include "components/error_page/common/error_page_switches.h"
 #include "components/error_page/common/localized_error.h"
 #include "components/fingerprinting_protection_filter/common/fingerprinting_protection_filter_features.h"
-#include "components/fingerprinting_protection_filter/interventions/common/interventions_features.h"
 #include "components/google/core/common/google_switches.h"
 #include "components/heap_profiling/in_process/heap_profiler_controller.h"
 #include "components/keep_alive_registry/keep_alive_types.h"
@@ -261,13 +260,14 @@
 #include "components/no_state_prefetch/common/no_state_prefetch_url_loader_throttle.h"
 #include "components/page_load_metrics/browser/metrics_web_contents_observer.h"
 #include "components/password_manager/core/browser/features/password_features.h"
+#include "components/password_manager/core/browser/password_manager_metrics_util.h"
 #include "components/payments/content/payment_request_display_manager.h"
 #include "components/payments/content/secure_payment_confirmation_service_factory.h"
 #include "components/pdf/common/pdf_util.h"
 #include "components/performance_manager/public/graph/frame_node.h"
 #include "components/performance_manager/public/performance_manager.h"
 #include "components/permissions/content_setting_permission_context_base.h"
-#include "components/policy/content/policy_blocklist_service.h"
+#include "components/policy/core/browser/url_list/policy_blocklist_service.h"
 #include "components/policy/core/common/management/management_service.h"
 #include "components/policy/core/common/policy_pref_names.h"
 #include "components/pref_registry/pref_registry_syncable.h"
@@ -505,6 +505,7 @@
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/actor/actor_features.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
+#include "chrome/browser/actor/actor_keyed_service_factory.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service_factory.h"
 #include "chrome/browser/devtools/chrome_devtools_manager_delegate.h"
@@ -2568,7 +2569,7 @@ bool ChromeContentBrowserClient::ShouldUrlUseApplicationIsolationLevel(
 
 #if !BUILDFLAG(IS_ANDROID)
 bool ChromeContentBrowserClient::IsInitialWebUIScheme(const GURL& url) {
-  return IsForInitialWebUI(url);
+  return waap::IsForInitialWebUI(url);
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
 
@@ -2827,17 +2828,6 @@ void ChromeContentBrowserClient::AppendExtraCommandLineSwitches(
           !prefs->GetBoolean(prefs::kAllowDinosaurEasterEgg)) {
         command_line->AppendSwitch(
             error_page::switches::kDisableDinosaurEasterEgg);
-      }
-
-      auto* management_service_factory =
-          policy::ManagementServiceFactory::GetInstance();
-      auto* browser_managment_service =
-          management_service_factory->GetForProfile(profile);
-      if ((browser_managment_service &&
-           browser_managment_service->IsManaged()) ||
-          management_service_factory->GetForPlatform()->IsManaged()) {
-        command_line->AppendSwitch(
-            error_page::switches::kEnableDinosaurEasterEggAltGameImages);
       }
 
       MaybeAppendSecureOriginsAllowlistSwitch(command_line);
@@ -4339,7 +4329,7 @@ bool ChromeContentBrowserClient::CanCreateWindow(
   if (base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks) &&
       contextual_tasks_ui_service &&
       contextual_tasks_ui_service->HandleNavigation(
-          target_url, web_contents->GetLastCommittedURL(), web_contents,
+          target_url, /* initiated_in_page= */ true, web_contents,
           /*is_to_new_tab=*/true)) {
     return false;
   }
@@ -4553,6 +4543,8 @@ void ChromeContentBrowserClient::OverrideWebPreferences(
       prefs->GetBoolean(prefs::kAccessibilityForceEnableZoom);
   web_prefs->font_weight_adjustment =
       prefs->GetInteger(prefs::kAccessibilityFontWeightAdjustment);
+  web_prefs->enable_touchpad_overscroll_history_navigation = prefs->GetBoolean(
+      prefs::kAccessibilityTouchpadOverscrollHistoryNavigation);
 #endif
   web_prefs->force_dark_mode_enabled =
       prefs->GetBoolean(prefs::kWebKitForceDarkModeEnabled);
@@ -4659,7 +4651,8 @@ void ChromeContentBrowserClient::OverrideWebPreferences(
           web_prefs->web_app_scope = registrar.GetAppScope(app_id);
         }
 
-        // IWA can close windows with window management permission.
+        // IWA with window management permission can close windows and
+        // focus windows without user gesture.
         if (browser->app_controller()->IsIsolatedWebApp() &&
             profile->GetPermissionController()
                     ->GetPermissionStatusForCurrentDocument(
@@ -4669,6 +4662,7 @@ void ChromeContentBrowserClient::OverrideWebPreferences(
                         web_contents->GetPrimaryMainFrame()) ==
                 blink::mojom::PermissionStatus::GRANTED) {
           web_prefs->allow_scripts_to_close_windows = true;
+          web_prefs->allow_window_focus_without_user_gesture = true;
         }
 #if BUILDFLAG(IS_CHROMEOS)
         auto* system_app = browser->app_controller()->system_app();
@@ -6843,7 +6837,7 @@ bool ChromeContentBrowserClient::HandleExternalProtocol(
 
 #if !BUILDFLAG(IS_ANDROID)
   content::WebContents* web_contents = web_contents_getter.Run();
-  if (ShouldDisallowCredentialRequest(web_contents)) {
+  if (web_contents && IsActorActingOnWebContents(web_contents)) {
     // If actor is active, bail out early to prevent it from launching external
     // applications.
     return false;
@@ -8759,25 +8753,6 @@ ChromeContentBrowserClient::GetClipboardTypesIfPolicyApplied(
   return std::nullopt;
 }
 
-bool ChromeContentBrowserClient::ShouldEnableCanvasNoise(
-    content::BrowserContext* browser_context,
-    const GURL& url) {
-  Profile* profile = Profile::FromBrowserContext(browser_context);
-  bool feature_enable = fingerprinting_protection_interventions::features::
-      IsCanvasInterventionsEnabledForIncognitoState(
-          profile->IsIncognitoProfile());
-  // System profiles are considered incognito, but will not query from
-  // ProfileKeyedServices and will return nullptr. We should only check user
-  // bypass if the profile returns TrackingProtectionSettings.
-  privacy_sandbox::TrackingProtectionSettings* tracking_protections_settings =
-      TrackingProtectionSettingsFactory::GetForProfile(profile);
-  if (tracking_protections_settings) {
-    return feature_enable &&
-           !tracking_protections_settings->HasTrackingProtectionException(url);
-  }
-  return feature_enable;
-}
-
 bool ChromeContentBrowserClient::UsePrefetchPrerenderIntegration() {
   return base::FeatureList::IsEnabled(features::kBookmarkTriggerForPrefetch) ||
          base::FeatureList::IsEnabled(features::kNewTabPageTriggerForPrefetch);
@@ -8806,4 +8781,59 @@ bool ChromeContentBrowserClient::IsFileSystemAccessApiFilePickerAllowed(
   }
 #endif
   return true;
+}
+
+bool ChromeContentBrowserClient::ShouldSkipBeforeUnloadDialog(
+    content::RenderFrameHost* rfh) {
+#if !BUILDFLAG(IS_ANDROID)
+  if (!base::FeatureList::IsEnabled(
+          actor::kGlicSkipBeforeUnloadDialogAndNavigate)) {
+    return false;
+  }
+
+  auto* web_contents = content::WebContents::FromRenderFrameHost(rfh);
+  if (!web_contents) {
+    return false;
+  }
+
+  return IsActorActingOnWebContents(web_contents);
+
+#else
+  return false;
+#endif
+}
+
+void ChromeContentBrowserClient::RecordAssistedLogin(
+    content::ContentBrowserClient::AssistedLoginType login_type) {
+  using AssistedLoginType = content::ContentBrowserClient::AssistedLoginType;
+  using BrowserAssistedLoginType =
+      password_manager::metrics_util::BrowserAssistedLoginType;
+  BrowserAssistedLoginType pwm_login_type = BrowserAssistedLoginType::kUnknown;
+  switch (login_type) {
+    case AssistedLoginType::kFedCmPassive:
+      pwm_login_type = BrowserAssistedLoginType::kFedCmPassive;
+      break;
+    case AssistedLoginType::kFedCmActive:
+      pwm_login_type = BrowserAssistedLoginType::kFedCmActive;
+      break;
+    case AssistedLoginType::kPasskeyStoredInGPM:
+      pwm_login_type = BrowserAssistedLoginType::kPasskeyStoredInGPM;
+      break;
+    case AssistedLoginType::kPasskeyStoredInWindowsHello:
+      pwm_login_type = BrowserAssistedLoginType::kPasskeyStoredInWindowsHello;
+      break;
+    case AssistedLoginType::kPasskeyStoredInICloudKeychain:
+      pwm_login_type = BrowserAssistedLoginType::kPasskeyStoredInICloudKeychain;
+      break;
+    case AssistedLoginType::kPasskeyStoredInChromeProfile:
+      pwm_login_type = BrowserAssistedLoginType::kPasskeyStoredInChromeProfile;
+      break;
+    case AssistedLoginType::kPasskeyHybrid:
+      pwm_login_type = BrowserAssistedLoginType::kPasskeyHybrid;
+      break;
+    case AssistedLoginType::kPasskeySecurityKey:
+      pwm_login_type = BrowserAssistedLoginType::kPasskeySecurityKey;
+      break;
+  }
+  password_manager::metrics_util::RecordBrowserAssistedLogin(pwm_login_type);
 }

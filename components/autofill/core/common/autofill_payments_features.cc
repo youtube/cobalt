@@ -12,6 +12,11 @@ namespace autofill::features {
 BASE_FEATURE(kAutofillCreditCardScannerIos, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
+// Enables testing BNPL in countries where it would otherwise be disabled. This
+// is a testing flag that should never be enabled.
+BASE_FEATURE(kAutofillDisableBnplCountryCheckForTesting,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // When enabled, Chrome will extract the checkout amount from the checkout
 // page using server-side AI.
 BASE_FEATURE(kAutofillEnableAiBasedAmountExtraction,
@@ -91,12 +96,12 @@ BASE_FEATURE(kAutofillEnableCardBenefitsForAmericanExpress,
 // UI.
 BASE_FEATURE(kAutofillEnableCardBenefitsForBmo,
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
-    BUILDFLAG(IS_CHROMEOS)
+    BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
              base::FEATURE_ENABLED_BY_DEFAULT);
 #else
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
-        // BUILDFLAG(IS_CHROMEOS)
+        // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
 
 // When enabled, card benefits IPH will be shown in Payments Autofill UI.
 BASE_FEATURE(kAutofillEnableCardBenefitsIph, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -156,12 +161,12 @@ BASE_FEATURE(kAutofillEnableFlatRateCardBenefitsBlocklist,
 // Payments Autofill UI.
 BASE_FEATURE(kAutofillEnableFlatRateCardBenefitsFromCurinos,
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
-    BUILDFLAG(IS_CHROMEOS)
+    BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
              base::FEATURE_ENABLED_BY_DEFAULT);
 #else
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
-        // BUILDFLAG(IS_CHROMEOS)
+        // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
 
 // When enabled, server card retrieval will begin with a risk-based check
 // instead of jumping straight to CVC or biometric auth.
@@ -189,7 +194,7 @@ BASE_FEATURE(kAutofillEnableLoadBnplAllowlistAfterSyncing,
 // When enabled, virtual card downstream enrollment will support multiple
 // requests at a time.
 BASE_FEATURE(kAutofillEnableMultipleRequestInVirtualCardDownstreamEnrollment,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, the card benefits toggle in settings will show updated text.
 BASE_FEATURE(kAutofillEnableNewCardBenefitsToggleText,
@@ -218,11 +223,6 @@ BASE_FEATURE(kAutofillEnableSaveAndFill, base::FEATURE_DISABLED_BY_DEFAULT);
 // bundling them together with the non-card payment preference menu item.
 BASE_FEATURE(kAutofillEnableSeparatePixPreferenceItem,
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-// When enabled, Pix bank accounts are synced from Chrome Sync backend and
-// stored in the local db.
-BASE_FEATURE(kAutofillEnableSyncingOfPixBankAccounts,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
 
 // When enabled, Chrome will trigger 3DS authentication during a virtual card

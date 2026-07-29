@@ -73,6 +73,15 @@ std::string GetOriginTrialToken(const GURL& base_url) {
   return base::Base64Encode(token);
 }
 
+std::optional<std::string> GetQueryParameter(GURL url, const std::string& key) {
+  std::string result;
+  bool found = net::GetValueForKeyInQuery(url, key, &result);
+  if (!found) {
+    return std::nullopt;
+  }
+  return result;
+}
+
 std::unique_ptr<net::test_server::HttpResponse> RequestHandler(
     const GURL& base_url,
     const net::test_server::HttpRequest& request) {
@@ -127,7 +136,28 @@ std::unique_ptr<net::test_server::HttpResponse> RequestHandler(
         R"*(<html><body onload="fetch('%s')"></body></html>)*",
         base_url.Resolve("/dbsc_required").spec()));
     return response;
-  } else if (request.relative_url == "/ensure_authenticated") {
+  } else if (request.relative_url.starts_with("/set_early_challenge")) {
+    std::string challenge = request.GetURL().GetQuery();
+    CHECK(!challenge.empty());
+    response->AddCustomHeader(
+        net::features::kDeviceBoundSessionsOriginTrialFeedback.Get()
+            ? "Secure-Session-Challenge"
+            : "Sec-Session-Challenge",
+        "\"" + challenge + "\";id=\"session_id\"");
+    response->set_content_type("text/html");
+    return response;
+  } else if (request.relative_url.starts_with("/ensure_authenticated")) {
+    std::optional<std::string> expected_debug_header =
+        GetQueryParameter(request.GetURL(), "debug_header");
+    auto debug_header_it = request.headers.find("Secure-Session-Skipped");
+    std::string actual_debug_header = debug_header_it == request.headers.end()
+                                          ? std::string()
+                                          : debug_header_it->second;
+    if (expected_debug_header.has_value()) {
+      EXPECT_EQ(actual_debug_header, expected_debug_header);
+    } else {
+      EXPECT_EQ(actual_debug_header, "");
+    }
     // We do a very coarse-grained cookie check here rather than parsing
     // cookies.
     auto it = request.headers.find("Cookie");
@@ -345,18 +375,21 @@ ScopedTestRegistrationFetcher ScopedTestRegistrationFetcher::CreateWithSuccess(
     std::string_view origin_string) {
   return ScopedTestRegistrationFetcher(base::BindRepeating(
       [](const std::string& session_id, const std::string& refresh_url_string,
-         const std::string& origin_string) {
+         const std::string& origin_string,
+         RegistrationFetcher::RegistrationCompleteCallback callback) {
         std::vector<SessionParams::Credential> cookie_credentials;
         cookie_credentials.push_back(
             SessionParams::Credential{"test_cookie", "secure"});
         SessionParams::Scope scope;
         scope.include_site = true;
         scope.origin = origin_string;
-        return RegistrationResult(Session::CreateIfValid(SessionParams(
-            session_id, GURL(refresh_url_string), refresh_url_string,
-            std::move(scope), std::move(cookie_credentials),
-            unexportable_keys::UnexportableKeyId(),
-            /*allowed_refresh_initiators=*/{})));
+        std::move(callback).Run(
+            nullptr,
+            RegistrationResult(Session::CreateIfValid(SessionParams(
+                session_id, GURL(refresh_url_string), refresh_url_string,
+                std::move(scope), std::move(cookie_credentials),
+                unexportable_keys::UnexportableKeyId(),
+                /*allowed_refresh_initiators=*/{}))));
       },
       std::string(session_id), std::string(refresh_url_string),
       std::string(origin_string)));
@@ -367,8 +400,10 @@ ScopedTestRegistrationFetcher ScopedTestRegistrationFetcher::CreateWithFailure(
     SessionError::ErrorType error_type,
     std::string_view refresh_url_string) {
   return ScopedTestRegistrationFetcher(base::BindRepeating(
-      [](SessionError::ErrorType error_type, const GURL& refresh_url) {
-        return RegistrationResult(SessionError{error_type});
+      [](SessionError::ErrorType error_type, const GURL& refresh_url,
+         RegistrationFetcher::RegistrationCompleteCallback callback) {
+        return std::move(callback).Run(
+            nullptr, RegistrationResult(SessionError{error_type}));
       },
       error_type, GURL(refresh_url_string)));
 }
@@ -379,9 +414,11 @@ ScopedTestRegistrationFetcher::CreateWithTermination(
     std::string_view session_id,
     std::string_view refresh_url_string) {
   return ScopedTestRegistrationFetcher(base::BindRepeating(
-      [](const std::string& session_id, const std::string& refresh_url_string) {
-        return RegistrationResult(
-            SessionError{SessionError::kServerRequestedTermination});
+      [](const std::string& session_id, const std::string& refresh_url_string,
+         RegistrationFetcher::RegistrationCompleteCallback callback) {
+        return std::move(callback).Run(
+            nullptr, RegistrationResult(SessionError{
+                         SessionError::kServerRequestedTermination}));
       },
       std::string(session_id), std::string(refresh_url_string)));
 }

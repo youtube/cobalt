@@ -80,6 +80,10 @@ class GlicInstanceCoordinatorImpl
   // per profile.
   void OnWillCreateFloaty() override;
   void UnbindTabFromAnyInstance(tabs::TabInterface* tab) override;
+  std::vector<glic::mojom::ConversationInfoPtr> GetRecentlyActiveConversations()
+      override;
+  void ContextAccessIndicatorChanged(GlicInstanceImpl& instance,
+                                     bool enabled) override;
 
   // GlicWindowController implementation
   HostManager& host_manager() override;
@@ -102,13 +106,14 @@ class GlicInstanceCoordinatorImpl
 
   void AddGlobalStateObserver(StateObserver* observer) override;
   void RemoveGlobalStateObserver(StateObserver* observer) override;
-  mojom::PanelState GetGlobalPanelState() override;
 
   bool IsDetached() const override;
   bool IsPanelShowingForBrowser(
       const BrowserWindowInterface& bwi) const override;
   base::CallbackListSubscription AddWindowActivationChangedCallback(
       WindowActivationChangedCallback callback) override;
+  base::CallbackListSubscription AddGlobalShowHideCallback(
+      base::RepeatingClosure callback) override;
   void Preload() override;
   void Reload(content::RenderFrameHost* render_frame_host) override;
   base::WeakPtr<GlicInstanceCoordinatorImpl> GetWeakPtr();
@@ -125,6 +130,7 @@ class GlicInstanceCoordinatorImpl
   base::CallbackListSubscription
   AddActiveInstanceChangedCallbackAndNotifyImmediately(
       ActiveInstanceChangedCallback callback) override;
+  GlicInstance* GetActiveInstance() override;
 
   // Returns a pointer to an instance with a Floaty embedder or nullptr.
   GlicInstanceImpl* GetInstanceWithFloaty() const;
@@ -133,6 +139,9 @@ class GlicInstanceCoordinatorImpl
   void SetWarmingEnabledForTesting(bool warming_enabled);
   bool HasWarmedInstanceForTesting() const {
     return warmed_instance_ != nullptr;
+  }
+  GlicInstanceImpl* GetWarmedInstanceForTesting() {
+    return warmed_instance_.get();
   }
 
  private:
@@ -156,12 +165,13 @@ class GlicInstanceCoordinatorImpl
   void RemoveInstance(GlicInstanceImpl* instance) override;
 
   void NotifyActiveInstanceChanged();
+  void ComputeContentAccessIndicator();
 
   // List of callbacks to be notified when window activation has changed.
   base::RepeatingCallbackList<void(bool)> window_activation_callback_list_;
 
-  mojom::PanelState panel_state_;
   const raw_ptr<Profile> profile_;
+  raw_ptr<GlicKeyedService> service_;
   raw_ptr<contextual_cueing::ContextualCueingService>
       contextual_cueing_service_;
 
@@ -175,6 +185,7 @@ class GlicInstanceCoordinatorImpl
   raw_ptr<GlicInstanceImpl> last_active_instance_ = nullptr;
   base::RepeatingCallbackList<void(GlicInstance*)>
       active_instance_changed_callback_list_;
+  base::RepeatingClosureList global_show_hide_callback_list_;
 
   base::MemoryPressureListenerRegistration
       memory_pressure_listener_registration_;

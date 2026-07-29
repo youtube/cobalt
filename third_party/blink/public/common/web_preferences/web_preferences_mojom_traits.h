@@ -128,6 +128,11 @@ struct BLINK_COMMON_EXPORT StructTraits<blink::mojom::WebPreferencesDataView,
     return r.allow_scripts_to_close_windows;
   }
 
+  static bool allow_window_focus_without_user_gesture(
+      const blink::web_pref::WebPreferences& r) {
+    return r.allow_window_focus_without_user_gesture;
+  }
+
   static bool remote_fonts_enabled(const blink::web_pref::WebPreferences& r) {
     return r.remote_fonts_enabled;
   }
@@ -827,6 +832,13 @@ struct BLINK_COMMON_EXPORT StructTraits<blink::mojom::WebPreferencesDataView,
   static bool ai_prompt_api_enabled(const blink::web_pref::WebPreferences& r) {
     return r.ai_prompt_api_enabled;
   }
+
+#if BUILDFLAG(IS_MAC)
+  static bool should_disable_external_popups(
+      const blink::web_pref::WebPreferences& r) {
+    return r.should_disable_external_popups;
+  }
+#endif  // BUILDFLAG(IS_MAC)
 
   static bool Read(blink::mojom::WebPreferencesDataView r,
                    blink::web_pref::WebPreferences* out);

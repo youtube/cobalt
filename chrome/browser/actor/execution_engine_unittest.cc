@@ -8,12 +8,16 @@
 
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
+#include "base/test/gmock_callback_support.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/mock_callback.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
 #include "chrome/browser/actor/actor_features.h"
+#include "chrome/browser/actor/actor_keyed_service.h"
+#include "chrome/browser/actor/actor_keyed_service_factory.h"
 #include "chrome/browser/actor/actor_tab_data.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/actor_test_util.h"
@@ -28,16 +32,19 @@
 #include "chrome/browser/actor/ui/mocks/mock_event_dispatcher.h"
 #include "chrome/common/actor.mojom.h"
 #include "chrome/common/actor/action_result.h"
+#include "chrome/common/actor_webui.mojom.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_render_frame.mojom.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
+#include "components/autofill/core/browser/integrators/glic/actor_form_filling_types.h"
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
 #include "components/tabs/public/mock_tab_interface.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/test/mock_navigation_handle.h"
 #include "content/public/test/navigation_simulator.h"
 #include "mojo/public/cpp/bindings/associated_receiver_set.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
 #include "third_party/blink/public/mojom/window_features/window_features.mojom.h"
@@ -53,6 +60,7 @@ using testing::Property;
 using testing::VariantWith;
 using ChangeTaskState = ui::UiEventDispatcher::ChangeTaskState;
 using AddTab = ui::UiEventDispatcher::AddTab;
+using enum ActorTask::StoppedReason;
 
 namespace {
 constexpr int kFakeContentNodeId = 123;
@@ -60,10 +68,6 @@ constexpr char kActionResultHistogram[] =
     "Actor.ExecutionEngine.Action.ResultCode";
 constexpr char kActorTaskDurationCompletedHistogram[] =
     "Actor.Task.Duration.Completed";
-constexpr char kActorTaskDurationCancelledHistogram[] =
-    "Actor.Task.Duration.Cancelled";
-constexpr char kActorTaskCountCancelledHistogram[] =
-    "Actor.Task.Count.Cancelled";
 constexpr char kActorTaskCountCompletedHistogram[] =
     "Actor.Task.Count.Completed";
 constexpr char kActorClickToolDurationSuccessHistogram[] =
@@ -72,6 +76,12 @@ constexpr char kActorFakeToolDurationHistogram[] =
     "Actor.Tools.ExecutionDuration.FakeTool";
 constexpr char kActorTaskInterruptionCompletedHistogram[] =
     "Actor.Task.Interruptions.Completed";
+constexpr char kActorTaskDurationWallClockCompletedHistogram[] =
+    "Actor.Task.Duration.WallClock.Completed";
+constexpr char kActorTaskDurationVisibleCompletedHistogram[] =
+    "Actor.Task.Duration.Visible.Completed";
+constexpr char kActorTaskDurationNotVisibleCompletedHistogram[] =
+    "Actor.Task.Duration.NotVisible.Completed";
 
 class FakeChromeRenderFrame : public chrome::mojom::ChromeRenderFrame {
  public:
@@ -130,6 +140,53 @@ class FakeChromeRenderFrame : public chrome::mojom::ChromeRenderFrame {
   mojo::AssociatedReceiverSet<chrome::mojom::ChromeRenderFrame> receivers_;
 };
 
+class MockActorTaskDelegate : public ActorTaskDelegate {
+ public:
+  MockActorTaskDelegate() = default;
+  ~MockActorTaskDelegate() override = default;
+
+  MOCK_METHOD(void,
+              OnTabAddedToTask,
+              (TaskId task_id, const tabs::TabInterface::Handle& tab_handle),
+              (override));
+
+  MOCK_METHOD(void,
+              RequestToShowCredentialSelectionDialog,
+              (TaskId task_id,
+               (const base::flat_map<std::string, gfx::Image>&)icons,
+               const std::vector<actor_login::Credential>& credentials,
+               CredentialSelectedCallback callback),
+              (override));
+
+  MOCK_METHOD(void,
+              RequestToShowUserConfirmationDialog,
+              (TaskId task_id,
+               const url::Origin& navigation_origin,
+               UserConfirmationDialogCallback callback),
+              (override));
+
+  MOCK_METHOD(void,
+              RequestToConfirmNavigation,
+              (TaskId task_id,
+               const url::Origin& navigation_origin,
+               NavigationConfirmationCallback callback),
+              (override));
+
+  MOCK_METHOD(void,
+              RequestToShowAutofillSuggestionsDialog,
+              (actor::TaskId task_id,
+               std::vector<autofill::ActorFormFillingRequest> requests,
+               AutofillSuggestionSelectedCallback callback),
+              (override));
+
+  base::WeakPtr<MockActorTaskDelegate> GetWeakPtr() {
+    return weak_factory_.GetWeakPtr();
+  }
+
+ private:
+  base::WeakPtrFactory<MockActorTaskDelegate> weak_factory_{this};
+};
+
 class ExecutionEngineTest : public ChromeRenderViewHostTestHarness {
  public:
   ExecutionEngineTest()
@@ -159,7 +216,9 @@ class ExecutionEngineTest : public ChromeRenderViewHostTestHarness {
         profile(), std::move(ui_event_dispatcher));
     auto raw_execution_engine = execution_engine.get();
     task_ = std::make_unique<ActorTask>(profile(), std::move(execution_engine),
-                                        std::move(task_ui_event_dispatcher));
+                                        std::move(task_ui_event_dispatcher),
+                                        /*options=*/nullptr,
+                                        mock_actor_task_delegate_.GetWeakPtr());
     task_->SetIdForTesting(0);
     raw_execution_engine->SetOwner(task_.get());
 
@@ -232,6 +291,7 @@ class ExecutionEngineTest : public ChromeRenderViewHostTestHarness {
   std::unique_ptr<ActorTask> task_;
   raw_ptr<ui::MockUiEventDispatcher> mock_ui_event_dispatcher_;
   raw_ptr<ui::MockUiEventDispatcher> task_mock_ui_event_dispatcher_;
+  MockActorTaskDelegate mock_actor_task_delegate_;
 
  private:
   struct TabState {
@@ -429,10 +489,12 @@ TEST_F(ExecutionEngineTest, ActorTaskCompletedHistogram) {
   const base::TimeDelta task_duration = base::Milliseconds(123);
   task_environment()->FastForwardBy(task_duration);
 
-  task_->Stop(/*success=*/true);
+  task_->Stop(kTaskComplete);
   histograms_.ExpectTimeBucketCount(kActorTaskDurationCompletedHistogram,
                                     task_duration, 1);
   histograms_.ExpectBucketCount(kActorTaskCountCompletedHistogram, 4, 1);
+  histograms_.ExpectTimeBucketCount(
+      kActorTaskDurationWallClockCompletedHistogram, task_duration, 1);
 }
 
 TEST_F(ExecutionEngineTest, ActorTaskCompletedWithPauseHistogram) {
@@ -463,13 +525,24 @@ TEST_F(ExecutionEngineTest, ActorTaskCompletedWithPauseHistogram) {
   const base::TimeDelta active_duration2 = base::Milliseconds(50);
   task_environment()->FastForwardBy(active_duration2);
 
-  task_->Stop(/*success=*/true);
+  task_->Stop(kTaskComplete);
   histograms_.ExpectTimeBucketCount(kActorTaskDurationCompletedHistogram,
                                     active_duration1 + active_duration2, 1);
   histograms_.ExpectBucketCount(kActorTaskCountCompletedHistogram, 1, 1);
+  histograms_.ExpectTimeBucketCount(
+      kActorTaskDurationWallClockCompletedHistogram, base::Milliseconds(650),
+      1);
 }
 
-TEST_F(ExecutionEngineTest, ActorTaskCancelledHistogram) {
+class ExecutionEngineStopReasonParamTest
+    : public ExecutionEngineTest,
+      public testing::WithParamInterface<
+          std::tuple<ActorTask::StoppedReason, const char*>> {
+ public:
+  ExecutionEngineStopReasonParamTest() = default;
+};
+
+TEST_P(ExecutionEngineStopReasonParamTest, ActorTaskStoppedHistogram) {
   content::NavigationSimulator::NavigateAndCommitFromBrowser(
       web_contents(), GURL("http://localhost/"));
 
@@ -487,10 +560,17 @@ TEST_F(ExecutionEngineTest, ActorTaskCancelledHistogram) {
   const base::TimeDelta task_duration = base::Milliseconds(456);
   task_environment()->FastForwardBy(task_duration);
 
-  task_->Stop(/*success=*/false);
-  histograms_.ExpectTimeBucketCount(kActorTaskDurationCancelledHistogram,
-                                    task_duration, 1);
-  histograms_.ExpectBucketCount(kActorTaskCountCancelledHistogram, 2, 1);
+  auto [stopped_reason, histogram_suffix] = GetParam();
+  task_->Stop(stopped_reason);
+
+  histograms_.ExpectTimeBucketCount(
+      base::StrCat({"Actor.Task.Duration.", histogram_suffix}), task_duration,
+      1);
+  histograms_.ExpectBucketCount(
+      base::StrCat({"Actor.Task.Count.", histogram_suffix}), 2, 1);
+  histograms_.ExpectTimeBucketCount(
+      base::StrCat({"Actor.Task.Duration.WallClock.", histogram_suffix}),
+      task_duration, 1);
 }
 
 TEST_F(ExecutionEngineTest, ActorTaskCountAndDurationHistograms) {
@@ -548,7 +628,7 @@ TEST_F(ExecutionEngineTest, ActorTaskCountAndDurationHistograms) {
 
   // Task in Finished state.
   task_environment()->FastForwardBy(reflecting_duration);
-  task_->Stop(/*success=*/true);
+  task_->Stop(kTaskComplete);
   histograms_.ExpectTimeBucketCount(
       "Actor.Task.StateTransition.Duration.Reflecting", reflecting_duration, 2);
   histograms_.ExpectBucketCount(
@@ -625,12 +705,175 @@ TEST_F(ExecutionEngineTest, CompletedWithInterruptHistogram) {
   const base::TimeDelta active_duration2 = base::Milliseconds(50);
   task_environment()->FastForwardBy(active_duration2);
 
-  task_->Stop(/*success=*/true);
+  task_->Stop(kTaskComplete);
   histograms_.ExpectTimeBucketCount(kActorTaskDurationCompletedHistogram,
                                     active_duration1 + active_duration2, 1);
   histograms_.ExpectBucketCount(kActorTaskCountCompletedHistogram, 1, 1);
   histograms_.ExpectBucketCount(kActorTaskInterruptionCompletedHistogram, 1, 1);
+  histograms_.ExpectTimeBucketCount(
+      kActorTaskDurationWallClockCompletedHistogram, base::Milliseconds(650),
+      1);
 }
+
+TEST_F(ExecutionEngineTest, VisibleNotVisibleActuationCompletedHistogram) {
+  content::NavigationSimulator::NavigateAndCommitFromBrowser(
+      web_contents(), GURL("http://localhost/"));
+  task_->AddTab(GetTab()->GetHandle(), base::DoNothing());
+  web_contents()->WasShown();
+
+  // Simulate visible actuation.
+  const base::TimeDelta visible_duration = base::Milliseconds(100);
+  task_environment()->FastForwardBy(visible_duration);
+
+  // Deactivate the tab to simulate not-visible actuation.
+  web_contents()->WasHidden();
+
+  // Simulate not-visible actuation.
+  const base::TimeDelta not_visible_duration = base::Milliseconds(50);
+  task_environment()->FastForwardBy(not_visible_duration);
+
+  task_->Stop(kTaskComplete);
+
+  histograms_.ExpectTimeBucketCount(kActorTaskDurationVisibleCompletedHistogram,
+                                    visible_duration, 1);
+
+  histograms_.ExpectTimeBucketCount(
+      kActorTaskDurationNotVisibleCompletedHistogram, not_visible_duration, 1);
+}
+
+TEST_P(ExecutionEngineStopReasonParamTest,
+       VisibleNotVisibleActuationStoppedHistogram) {
+  content::NavigationSimulator::NavigateAndCommitFromBrowser(
+      web_contents(), GURL("http://localhost/"));
+  task_->AddTab(GetTab()->GetHandle(), base::DoNothing());
+  web_contents()->WasShown();
+
+  // Simulate visible actuation.
+  const base::TimeDelta visible_duration = base::Milliseconds(100);
+  task_environment()->FastForwardBy(visible_duration);
+
+  // Deactivate the tab to simulate not-visible actuation.
+  web_contents()->WasHidden();
+
+  // Simulate not-visible actuation.
+  const base::TimeDelta not_visible_duration = base::Milliseconds(50);
+  task_environment()->FastForwardBy(not_visible_duration);
+
+  auto [stopped_reason, histogram_suffix] = GetParam();
+  task_->Stop(stopped_reason);
+
+  histograms_.ExpectTimeBucketCount(
+      base::StrCat({"Actor.Task.Duration.Visible.", histogram_suffix}),
+      visible_duration, 1);
+  histograms_.ExpectTimeBucketCount(
+      base::StrCat({"Actor.Task.Duration.NotVisible.", histogram_suffix}),
+      not_visible_duration, 1);
+}
+
+TEST_F(ExecutionEngineTest, VisibleNotVisibleActuationWithPauseHistogram) {
+  content::NavigationSimulator::NavigateAndCommitFromBrowser(
+      web_contents(), GURL("http://localhost/"));
+  task_->AddTab(GetTab()->GetHandle(), base::DoNothing());
+  web_contents()->WasShown();
+
+  // Simulate visible actuation.
+  const base::TimeDelta visible_duration1 = base::Milliseconds(100);
+  task_environment()->FastForwardBy(visible_duration1);
+
+  // Pause the task.
+  task_->Pause(/*from_actor=*/true);
+
+  // This time should not be counted.
+  task_environment()->FastForwardBy(base::Milliseconds(500));
+
+  // Resume the task.
+  task_->Resume();
+
+  // Simulate more visible actuation.
+  const base::TimeDelta visible_duration2 = base::Milliseconds(50);
+  task_environment()->FastForwardBy(visible_duration2);
+
+  task_->Stop(kTaskComplete);
+
+  histograms_.ExpectTimeBucketCount(kActorTaskDurationVisibleCompletedHistogram,
+                                    visible_duration1 + visible_duration2, 1);
+  histograms_.ExpectTimeBucketCount(
+      kActorTaskDurationNotVisibleCompletedHistogram, base::Milliseconds(0), 1);
+}
+
+TEST_F(ExecutionEngineTest, VisibleNotVisibleActuationWithWaitingHistogram) {
+  content::NavigationSimulator::NavigateAndCommitFromBrowser(
+      web_contents(), GURL("http://localhost/"));
+  task_->AddTab(GetTab()->GetHandle(), base::DoNothing());
+  web_contents()->WasShown();
+  task_->SetState(ActorTask::State::kReflecting);
+
+  // Simulate visible actuation.
+  const base::TimeDelta visible_duration1 = base::Milliseconds(100);
+  task_environment()->FastForwardBy(visible_duration1);
+
+  // Interrupt the task.
+  task_->Interrupt();
+
+  // This time should be counted.
+  const base::TimeDelta waiting_duration = base::Milliseconds(500);
+  task_environment()->FastForwardBy(waiting_duration);
+
+  // Uninterrupt the task.
+  task_->Uninterrupt();
+
+  // Simulate more visible actuation.
+  const base::TimeDelta visible_duration2 = base::Milliseconds(50);
+  task_environment()->FastForwardBy(visible_duration2);
+
+  task_->Stop(kTaskComplete);
+
+  histograms_.ExpectTimeBucketCount(
+      kActorTaskDurationVisibleCompletedHistogram,
+      visible_duration1 + waiting_duration + visible_duration2, 1);
+  histograms_.ExpectTimeBucketCount(
+      kActorTaskDurationNotVisibleCompletedHistogram, base::Milliseconds(0), 1);
+}
+
+TEST_F(ExecutionEngineTest,
+       RequestToShowAutofillSuggestions_DelegatesToActorTaskDelegate) {
+  // Get the real ActorKeyedService.
+  auto* actor_service = ActorKeyedService::Get(profile());
+  ASSERT_TRUE(actor_service);
+
+  // Prepare the data to be sent.
+  ExecutionEngine* execution_engine = task_->GetExecutionEngine();
+  std::vector<autofill::ActorFormFillingRequest> test_requests;
+  test_requests.emplace_back().requested_data =
+      optimization_guide::proto::FormFillingRequest_RequestedData_ADDRESS;
+
+  // Hold the forwarded value in `received_requests`.
+  std::vector<autofill::ActorFormFillingRequest> received_requests;
+
+  // Expect the call to be forwarded to the task's ActorTaskDelegate.
+  EXPECT_CALL(mock_actor_task_delegate_,
+              RequestToShowAutofillSuggestionsDialog(task_->id(), _, _))
+      .WillOnce(testing::SaveArg<1>(&received_requests));
+
+  // Call the method under test on the ExecutionEngine.
+  execution_engine->RequestToShowAutofillSuggestions(test_requests,
+                                                     base::DoNothing());
+
+  // The vector of requests broadcast by the service should match what we sent.
+  ASSERT_EQ(received_requests.size(), 1u);
+  EXPECT_EQ(
+      received_requests[0].requested_data,
+      optimization_guide::proto::FormFillingRequest_RequestedData_ADDRESS);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    ExecutionEngineStopReasonParamTest,
+    testing::Values(std::make_tuple(kStoppedByUser, "Cancelled"),
+                    std::make_tuple(kTaskComplete, "Completed"),
+                    std::make_tuple(kModelError, "ModelError"),
+                    std::make_tuple(kChromeFailure, "ChromeFailure"),
+                    std::make_tuple(kTabDetached, "TabDetached")));
 
 }  // namespace
 

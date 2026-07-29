@@ -17,6 +17,8 @@ namespace password_manager::features {
 // alongside the definition of their values in the .cc file.
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+// Filling on pageload is disabled if an actor task is active on the tab.
+BASE_DECLARE_FEATURE(kActorActiveDisablesFillingOnPageLoad);
 BASE_DECLARE_FEATURE(kActorLogin);
 // Enables Actor Login form finding with async check
 BASE_DECLARE_FEATURE(kActorLoginFieldVisibilityCheck);
@@ -189,6 +191,13 @@ BASE_DECLARE_FEATURE(kShowTabWithPasswordChangeOnSuccess);
 // manager
 BASE_DECLARE_FEATURE(kSkipUndecryptablePasswords);
 
+// Immediately terminates password change whenever the model detects login
+// failed due to incorrect password.
+BASE_DECLARE_FEATURE(kStopLoginCheckOnFailedLogin);
+
+// Adds throttling logic to password change dialog.
+BASE_DECLARE_FEATURE(kThrottlePasswordChangeDialog);
+
 // Starts passwords resync after undecryptable passwords were removed. This flag
 // is enabled by default and should be treaded as a killswitch.
 BASE_DECLARE_FEATURE(kTriggerPasswordResyncAfterDeletingUndecryptablePasswords);
@@ -245,6 +254,10 @@ inline constexpr base::FeatureParam<std::string>
     kPasswordChangeDelayedSurveyTriggerId{
         &kImprovedPasswordChangeService, "PasswordChangeDelayedSurveyTriggerId",
         /*default_value=*/""};
+
+inline constexpr base::FeatureParam<base::TimeDelta>
+    kPasswordChangeThrottleTime{&kThrottlePasswordChangeDialog,
+                                "PasswordChangeThrottleTime", base::Days(14)};
 
 // All features parameters in alphabetical order.
 

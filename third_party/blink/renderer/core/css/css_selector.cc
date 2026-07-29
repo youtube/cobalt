@@ -38,6 +38,7 @@
 #include "third_party/blink/renderer/core/css/parser/css_parser_context.h"
 #include "third_party/blink/renderer/core/css/parser/css_selector_parser.h"
 #include "third_party/blink/renderer/core/css/parser/css_tokenizer.h"
+#include "third_party/blink/renderer/core/css/route_query.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/pseudo_element.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
@@ -402,6 +403,10 @@ PseudoId CSSSelector::GetPseudoId(PseudoType type) {
       return kPseudoIdViewTransitionOld;
     case kPseudoViewTransitionNew:
       return kPseudoIdViewTransitionNew;
+    case kPseudoOverscrollAreaParent:
+      return kPseudoIdOverscrollAreaParent;
+    case kPseudoOverscrollClientArea:
+      return kPseudoIdOverscrollClientArea;
     case kPseudoActive:
     case kPseudoActiveViewTransition:
     case kPseudoActiveViewTransitionType:
@@ -493,6 +498,7 @@ PseudoId CSSSelector::GetPseudoId(PseudoType type) {
     case kPseudoRequired:
     case kPseudoRightPage:
     case kPseudoRoot:
+    case kPseudoRouteMatch:
     case kPseudoScope:
     case kPseudoSelectorFragmentAnchor:
     case kPseudoSingleButton:
@@ -714,6 +720,7 @@ constexpr static NameToPseudoStruct kPseudoTypeWithArgumentsMap[] = {
     {"nth-of-type", CSSSelector::kPseudoNthOfType},
     {"part", CSSSelector::kPseudoPart},
     {"picker", CSSSelector::kPseudoPicker},
+    {"route-match", CSSSelector::kPseudoRouteMatch},
     {"scroll-button", CSSSelector::kPseudoScrollButton},
     {"slotted", CSSSelector::kPseudoSlotted},
     {"state", CSSSelector::kPseudoState},
@@ -952,6 +959,8 @@ void CSSSelector::UpdatePseudoType(const AtomicString& value,
         bits_.set<PseudoTypeField>(kPseudoUnknown);
       }
       break;
+    case kPseudoOverscrollAreaParent:
+    case kPseudoOverscrollClientArea:
     case kPseudoBlinkInternalElement:
       if (Match() != kPseudoElement || mode != kUASheetMode) {
         bits_.set<PseudoTypeField>(kPseudoUnknown);
@@ -1051,6 +1060,7 @@ void CSSSelector::UpdatePseudoType(const AtomicString& value,
     case kPseudoRelativeAnchor:
     case kPseudoRequired:
     case kPseudoRoot:
+    case kPseudoRouteMatch:
     case kPseudoScope:
     case kPseudoSelectorFragmentAnchor:
     case kPseudoSingleButton:
@@ -1279,6 +1289,13 @@ void CSSSelector::SerializeSimpleSelector(StringBuilder& builder,
         builder.Append(')');
         break;
       }
+      case kPseudoRouteMatch: {
+        DCHECK(GetRouteLocation());
+        builder.Append("(");
+        GetRouteLocation()->SerializeTo(builder);
+        builder.Append(")");
+        break;
+      }
       default:
         break;
     }
@@ -1332,6 +1349,11 @@ void CSSSelector::SerializeSimpleSelector(StringBuilder& builder,
         builder.Append(')');
         break;
       }
+      case kPseudoOverscrollAreaParent:
+        builder.Append('(');
+        builder.Append(Argument());
+        builder.Append(')');
+        break;
       default:
         break;
     }
@@ -1477,6 +1499,11 @@ void CSSSelector::SetArgument(const AtomicString& value) {
 void CSSSelector::SetSelectorList(CSSSelectorList* selector_list) {
   CreateRareData();
   data_.rare_data_->selector_list_ = selector_list;
+}
+
+void CSSSelector::SetRouteLocation(RouteLocation* location) {
+  CreateRareData();
+  data_.rare_data_->route_location_ = location;
 }
 
 void CSSSelector::SetContainsPseudoInsideHasPseudoClass() {
@@ -1667,6 +1694,8 @@ bool CSSSelector::IsTreeAbidingPseudoElement() const {
           GetPseudoType() == kPseudoViewTransitionImagePair ||
           GetPseudoType() == kPseudoViewTransitionOld ||
           GetPseudoType() == kPseudoViewTransitionNew ||
+          GetPseudoType() == kPseudoOverscrollAreaParent ||
+          GetPseudoType() == kPseudoOverscrollClientArea ||
           IsElementBackedPseudoElement(GetPseudoType()));
 }
 
@@ -1731,6 +1760,8 @@ bool CSSSelector::IsAllowedAfterPart() const {
     case kPseudoViewTransitionImagePair:
     case kPseudoViewTransitionNew:
     case kPseudoViewTransitionOld:
+    case kPseudoOverscrollAreaParent:
+    case kPseudoOverscrollClientArea:
       return true;
 
     // It's possible that we should support ::slotted() after ::part().
@@ -1784,6 +1815,7 @@ bool CSSSelector::IsAllowedAfterPart() const {
     case kPseudoReadOnly:
     case kPseudoReadWrite:
     case kPseudoRequired:
+    case kPseudoRouteMatch:
     case kPseudoSelectorFragmentAnchor:
     case kPseudoState:
     case kPseudoTarget:
@@ -2043,6 +2075,7 @@ void CSSSelector::Trace(Visitor* visitor) const {
 
 void CSSSelector::RareData::Trace(Visitor* visitor) const {
   visitor->Trace(selector_list_);
+  visitor->Trace(route_location_);
 }
 
 const CSSSelector* CSSSelector::SelectorListOrParent() const {

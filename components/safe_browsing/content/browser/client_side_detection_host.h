@@ -27,6 +27,7 @@
 #include "components/permissions/permission_request_manager.h"
 #include "components/safe_browsing/content/browser/async_check_tracker.h"
 #include "components/safe_browsing/content/browser/base_ui_manager.h"
+#include "components/safe_browsing/content/browser/credit_card_form_event.h"
 #include "components/safe_browsing/content/common/safe_browsing.mojom-shared.h"
 #include "components/safe_browsing/content/common/safe_browsing.mojom.h"
 #include "components/safe_browsing/core/browser/db/database_manager.h"
@@ -200,11 +201,14 @@ class ClientSideDetectionHost
 
   void RegisterAsyncCheckTracker();
 
-  // autofill::AutofillManager::Observer method:
+  // autofill::AutofillManager::Observer methods:
   void OnFieldTypesDetermined(
       autofill::AutofillManager& manager,
       autofill::FormGlobalId formId,
       autofill::AutofillManager::Observer::FieldTypeSource source) override;
+  void OnBeforeFocusOnFormField(autofill::AutofillManager& manager,
+                                autofill::FormGlobalId form_id,
+                                autofill::FieldGlobalId field_id) override;
 
   // history::HistoryServiceObserver method:
   void HistoryServiceBeingDeleted(
@@ -232,6 +236,7 @@ class ClientSideDetectionHost
   friend class ClientSideDetectionHostNotificationTest;
   friend class ClientSideDetectionHostScamDetectionTest;
   friend class ClientSideDetectionHostCreditCardFormTest;
+  friend class ClientSideDetectionHostClipboardDataTest;
   class ShouldClassifyUrlRequest;
   friend class ShouldClassifyUrlRequest;
   FRIEND_TEST_ALL_PREFIXES(ClientSideDetectionHostPrerenderBrowserTest,
@@ -289,24 +294,44 @@ class ClientSideDetectionHost
                            ClipboardApiClassificationTriggersCSPPPing);
   FRIEND_TEST_ALL_PREFIXES(
       ClientSideDetectionHostCreditCardFormTest,
-      NonCreditCardFormDoesNotTriggerPreclassificationChecks);
+      NonCreditCardFormDetectionDoesNotTriggerPreclassificationChecks);
+  FRIEND_TEST_ALL_PREFIXES(
+      ClientSideDetectionHostCreditCardFormTest,
+      NonCreditCardFormInteractionDoesNotTriggerPreclassificationChecks);
   FRIEND_TEST_ALL_PREFIXES(
       ClientSideDetectionHostCreditCardFormTest,
       FeatureDisabledDoesNotTriggerPreclassificationChecks);
-  FRIEND_TEST_ALL_PREFIXES(ClientSideDetectionHostCreditCardFormTest,
-                           ESBDisabledDoesNotTriggerPreclassificationChecks);
+  FRIEND_TEST_ALL_PREFIXES(
+      ClientSideDetectionHostCreditCardFormTest,
+      DetectionWhenESBDisabledDoesNotTriggerPreclassificationChecks);
+  FRIEND_TEST_ALL_PREFIXES(
+      ClientSideDetectionHostCreditCardFormTest,
+      InteractionWhenESBDisabledDoesNotTriggerPreclassificationChecks);
   FRIEND_TEST_ALL_PREFIXES(
       ClientSideDetectionHostCreditCardFormTest,
       EventDoesNotTriggerPreclassificationChecksWhenESBDisabled);
   FRIEND_TEST_ALL_PREFIXES(
       ClientSideDetectionHostCreditCardFormTest,
-      CreditCardFormDoesNotStartPreclassificationOnRepeatVisit);
+      DetectionDoesNotStartPreclassificationOnRepeatSiteVisit);
+  FRIEND_TEST_ALL_PREFIXES(
+      ClientSideDetectionHostCreditCardFormTest,
+      InteractionDoesNotStartPreclassificationOnRepeatSiteVisit);
   FRIEND_TEST_ALL_PREFIXES(ClientSideDetectionHostCreditCardFormTest,
                            CreditCardFormUsesCachedHistoryServiceResult);
   FRIEND_TEST_ALL_PREFIXES(ClientSideDetectionHostCreditCardFormTest,
                            CreditCardFormTriggersPreclassificationCheck);
   FRIEND_TEST_ALL_PREFIXES(ClientSideDetectionHostCreditCardFormTest,
                            CreditCardFormClassificationTriggersCSDPing);
+
+  // Extracts suspicious tokens from a copied clipboard payload into a
+  // structured object.
+  //
+  // See https://crbug.com/454952204 for the security review around clipboard
+  // data extraction. UTF16 to UTF8 conversion is already done in the renderer,
+  // and the payload parsing does not involve complex grammar.
+  ClipboardExtractedData ExtractClipboardData(const std::u16string& payload);
+
+  std::vector<std::string_view> GetSuspiciousTokensListForTesting();
 
   // Helper function to create preclassification check once requirements are
   // met.
@@ -482,11 +507,20 @@ class ClientSideDetectionHost
   bool HasDonePreclassificationCheckOnSameURL(
       ClientSideDetectionType client_side_detection_type);
 
-  // OnCreditCardFormEvent is a callback that is called to determine
-  // whether a credit card from event should trigger a CSD ping.
+  // OnCreditCardFormEvent is a common method called by Autofill credit card
+  // form events that may trigger a CSD ping.
   void OnCreditCardFormEvent(
       std::string event_name,
+      credit_card_form::FieldDetectionHeuristic field_heuristic);
+
+  // OnCreditCardFormVisitCount is a callback that is called when site
+  // visit count on a credit card form event is complete, at which point
+  // it determines whether a credit card from event should trigger a CSD
+  // ping.
+  void OnCreditCardFormVisitCount(
+      std::string event_name,
       std::optional<base::TimeTicks> start_time,
+      credit_card_form::FieldDetectionHeuristic field_heuristic,
       history::VisibleVisitCountToHostResult history_result);
 
   // This pointer may be nullptr if client-side phishing detection is
@@ -591,6 +625,9 @@ class ClientSideDetectionHost
 
   // The session ID for the current intelligent scan request.
   std::optional<base::UnguessableToken> intelligent_scan_session_id_;
+
+  // The last text that was copied to the clipboard.
+  std::u16string last_copied_text_;
 
   base::CancelableTaskTracker task_tracker_;
 

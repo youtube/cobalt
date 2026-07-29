@@ -380,7 +380,11 @@ class _BlinkPerfBenchmark(perf_benchmark.PerfBenchmark):
                                   extra_tags=self.TAGS)
 
 
-@benchmark.Info(emails=['aleventhal@chromium.org'],
+@benchmark.Info(emails=[
+                    'aleventhal@chromium.org',
+                    'gregoryd@google.com',
+                    'lucasradaelli@google.com'
+                ],
                 component='Blink>Accessibility',
                 documentation_url='https://bit.ly/blink-perf-benchmarks')
 class BlinkPerfAccessibility(_BlinkPerfBenchmark):
@@ -746,14 +750,31 @@ class BlinkPerfWebGL(_BlinkPerfBenchmark):
                 documentation_url='https://bit.ly/blink-perf-benchmarks')
 class BlinkPerfWebGPU(_BlinkPerfBenchmark):
   SUBDIR = 'webgpu'
-  SUPPORTED_PLATFORMS = [story.expectations.WIN_10, story.expectations.ALL_MAC]
+  SUPPORTED_PLATFORMS = [
+      story.expectations.WIN_10,
+      story.expectations.ALL_MAC,
+      story.expectations.ALL_ANDROID,
+  ]
 
   @classmethod
   def Name(cls):
     return 'blink_perf.webgpu'
 
-  def SetExtraBrowserOptions(self, options):
-    options.AppendExtraBrowserArgs(['--enable-unsafe-webgpu'])
+  def SetExtraBrowserOptionsWithBrowser(self, options, possible_browser):
+    if possible_browser.platform.GetOSName() == 'linux':
+      # On Linux, WebGPU is not yet enabled by default, and also needs some
+      # extra flags to make sure Chromium is in the correct mode to run WebGPU.
+      # TODO(442791440): TODO(40218893): Remove flags as they become unneeded.
+      #
+      # Note, we avoid --enable-unsafe-webgpu because we never want to run perf
+      # tests on the SwiftShader CPU-fallback backend (which is disabled without
+      # that flag). If this results in WebGPU being unavailable, these tests
+      # will skip themselves.
+      options.AppendExtraBrowserArgs([
+          '--enable-features=WebGPUService,Vulkan,VulkanFromANGLE',
+          '--use-angle=vulkan',
+          '--ozone-platform=x11',
+      ])
 
 
 @benchmark.Info(emails=[

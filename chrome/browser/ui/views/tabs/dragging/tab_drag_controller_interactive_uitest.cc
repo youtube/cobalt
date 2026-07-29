@@ -3233,7 +3233,7 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
 }
 
 // Based on DragAllToSeparateWindow, which is flaky.
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_MAC)
 #define MAYBE_DragAllToSeparateWindowThenDrop \
   DISABLED_DragAllToSeparateWindowThenDrop
 #else
@@ -3279,7 +3279,12 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
             ASSERT_TRUE(TabDragController::IsActive());
 
             // Release the mouse, stopping the drag session.
+#if BUILDFLAG(IS_WIN)
+            // Windows needs async release in order not to hang the test.
+            ASSERT_TRUE(ReleaseInput(0, /*async=*/true));
+#else
             ASSERT_TRUE(ReleaseInput());
+#endif  // BUILDFLAG(IS_WIN)
           }));
 
   ASSERT_FALSE(new_tab_strip->GetDragContext()->IsDragSessionActive());
@@ -3311,13 +3316,13 @@ void DoubleNestedRunLoopStep2(DetachToBrowserTabDragControllerTest* test,
   // the nested run loop. Normally, we'd return from here to allow the nested
   // loop to exit, but to reproduce the conditions for the crash, we won't.
   ASSERT_EQ(drag_controller->Drag(target_center),
-            TabDragController::Liveness::ALIVE);
+            TabDragController::Liveness::kAlive);
 
   // Call Drag directly - still on the nested run loop! - in a way that would
   // spawn a nested run loop if processed.
   ASSERT_EQ(drag_controller->Drag(
                 target_center + gfx::Vector2d(0, GetDetachY(target_tab_strip))),
-            TabDragController::Liveness::ALIVE);
+            TabDragController::Liveness::kAlive);
 
   // Release input to ensure the nested run loop does actually exit.
   EXPECT_TRUE(test->ReleaseInput(0, /*async=*/true));
@@ -4231,11 +4236,16 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
   EXPECT_FALSE(target_browser->window()->IsMaximized());
 }
 
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
+// Flaky on ChromeOS.
+#define MAYBE_DragDirectlyToSecondWindow DISABLED_DragDirectlyToSecondWindow
+#else
+#define MAYBE_DragDirectlyToSecondWindow DragDirectlyToSecondWindow
+#endif
 // Creates two browsers, drags from first into the second in such a way that
 // no detaching should happen.
-// TODO(crbug.com/41482323): Reenable flaky test.
 IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
-                       DISABLED_DragDirectlyToSecondWindow) {
+                       MAYBE_DragDirectlyToSecondWindow) {
   // TODO(pkasting): Crashes when detaching browser.  https://crbug.com/918733
   if (input_source() == InputSource::INPUT_SOURCE_TOUCH) {
     VLOG(1) << "Test is DISABLED for touch input.";
@@ -4388,9 +4398,7 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
   // Skip this test for fallback tab dragging, see the note in
   // TabDragController::TabWasAdded() for more context.
   views::Widget* widget = tab_strip->GetDragContext()->GetWidget();
-  if (base::FeatureList::IsEnabled(
-          features::kAllowWindowDragUsingSystemDragDrop) &&
-      !widget->IsMoveLoopSupported()) {
+  if (!widget->IsMoveLoopSupported()) {
     GTEST_SKIP() << "Not relevant for fallback tab dragging";
   }
 

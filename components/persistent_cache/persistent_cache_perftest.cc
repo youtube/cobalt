@@ -4,12 +4,13 @@
 
 #include "components/persistent_cache/persistent_cache.h"
 
+#include "base/test/gmock_expected_support.h"
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
 #include "build/buildflag.h"
 #include "components/persistent_cache/backend.h"
 #include "components/persistent_cache/entry.h"
-#include "components/persistent_cache/sqlite/test_utils.h"
+#include "components/persistent_cache/sqlite/test_helper.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/perf/perf_result_reporter.h"
 
@@ -20,7 +21,7 @@ using PersistentCachePerftest = testing::Test;
 #if !BUILDFLAG(IS_FUCHSIA)
 
 TEST_F(PersistentCachePerftest, OpenClose) {
-  test_utils::TestHelper provider;
+  test_support::TestHelper provider;
   std::unique_ptr<Backend> backend =
       provider.CreateBackendWithFiles(BackendType::kSqlite);
   ASSERT_TRUE(backend);
@@ -28,9 +29,10 @@ TEST_F(PersistentCachePerftest, OpenClose) {
 
   // Ensures there are entries in the cache.
   const char* kKey = "foo";
-  persistent_cache.Insert(kKey, base::byte_span_from_cstring("1"));
-  auto entry = persistent_cache.Find(kKey);
-  ASSERT_TRUE(entry);
+  ASSERT_THAT(persistent_cache.Insert(kKey, base::byte_span_from_cstring("1")),
+              base::test::HasValue());
+  ASSERT_THAT(persistent_cache.Find(kKey),
+              base::test::ValueIs(testing::NotNull()));
 
   base::ElapsedTimer timer;
   const int kAmountOfIteration = 16 * 1024;

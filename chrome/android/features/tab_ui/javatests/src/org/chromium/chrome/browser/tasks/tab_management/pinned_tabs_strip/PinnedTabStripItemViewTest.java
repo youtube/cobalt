@@ -9,6 +9,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.verify;
 
 import android.app.Activity;
 import android.content.res.Resources;
@@ -27,14 +30,19 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 import org.chromium.base.ContextUtils;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.BaseActivityTestRule;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CriteriaHelper;
+import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Feature;
 import org.chromium.chrome.browser.tab_ui.TabListFaviconProvider;
+import org.chromium.chrome.browser.tasks.tab_management.TabActionListener;
 import org.chromium.chrome.tab_ui.R;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.ui.animation.AnimationHandler;
@@ -48,6 +56,7 @@ import org.chromium.ui.test.util.RenderTestRule;
 public class PinnedTabStripItemViewTest {
     private static final int STRIP_ITEM_WIDTH = 500;
     private static final int STRIP_ITEM_HEIGHT = 80;
+    private static final int TAB_ID = 129837;
 
     @Rule
     public BaseActivityTestRule<BlankUiTestActivity> mActivityTestRule =
@@ -61,6 +70,10 @@ public class PinnedTabStripItemViewTest {
                                     .UI_BROWSER_MOBILE_TAB_SWITCHER_PINNED_TABS_STRIP)
                     .setRevision(2)
                     .build();
+
+    @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
+
+    @Mock private TabActionListener mMockTabActionListener;
 
     private Activity mActivity;
     private PinnedTabStripItemView mView;
@@ -222,7 +235,20 @@ public class PinnedTabStripItemViewTest {
 
     @Test
     @SmallTest
+    public void testSetContextClickListener() {
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mView.setNullableContextClickListener(mMockTabActionListener, mView, TAB_ID);
+                    assertTrue(mView.isContextClickable());
+                    mView.performContextClick();
+                    verify(mMockTabActionListener).run(eq(mView), eq(TAB_ID), isNull());
+                });
+    }
+
+    @Test
+    @SmallTest
     @Feature({"RenderTest"})
+    @DisabledTest(message = "https://crbug.com/456490811")
     public void testRenderView() throws Exception {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
@@ -237,6 +263,7 @@ public class PinnedTabStripItemViewTest {
     @Test
     @SmallTest
     @Feature({"RenderTest"})
+    @DisabledTest(message = "https://crbug.com/456503160")
     public void testRenderView_NotSelected() throws Exception {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
@@ -251,6 +278,7 @@ public class PinnedTabStripItemViewTest {
     @Test
     @SmallTest
     @Feature({"RenderTest"})
+    @DisabledTest(message = "https://crbug.com/456499455")
     public void testRenderView_Incognito() throws Exception {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {

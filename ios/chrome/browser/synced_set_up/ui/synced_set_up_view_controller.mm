@@ -4,10 +4,15 @@
 
 #import "ios/chrome/browser/synced_set_up/ui/synced_set_up_view_controller.h"
 
+#import "base/functional/bind.h"
+#import "base/task/sequenced_task_runner.h"
+#import "base/time/time.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 #import "ios/chrome/grit/ios_strings.h"
+#import "ios/public/provider/chrome/browser/lottie/lottie_animation_api.h"
+#import "ios/public/provider/chrome/browser/lottie/lottie_animation_configuration.h"
 #import "ui/base/l10n/l10n_util.h"
 
 namespace {
@@ -24,6 +29,18 @@ const CGFloat kSubtitleMinTopMargin = 10.0;
 const CGFloat kSubtitlePreferredTopMargin = 122.0;
 // Padding on the left and right sides of the main content view.
 const CGFloat kHorizontalPadding = 20.0;
+// The vertical translation offset for the entrance animations.
+const CGFloat kEntranceAnimationTranslateY = 10.0;
+// The duration of the entrance fade-in and slide animations.
+constexpr base::TimeDelta kEntranceAnimationDuration = base::Seconds(0.5);
+// The delay before the subtitle animation begins.
+constexpr base::TimeDelta kSubtitleAnimationDelay = base::Seconds(0.15);
+// The vertical translation offset for the exit animation.
+const CGFloat kFadeOutAnimationTranslateY = 10.0;
+// The delay before the fade-out animation begins.
+constexpr base::TimeDelta kFadeOutAnimationDelay = base::Seconds(3.25);
+// The duration of the fade-out animation.
+constexpr base::TimeDelta kFadeOutAnimationDuration = base::Seconds(0.25);
 // Accessibility identifier for the avatar image view.
 NSString* const kSyncedSetUpAvatarAccessibilityID =
     @"kSyncedSetUpAvatarAccessibilityID";
@@ -33,6 +50,8 @@ NSString* const kSyncedSetUpTitleAccessibilityID =
 // Accessibility identifier for the subtitle label.
 NSString* const kSyncedSetUpSubtitleAccessibilityID =
     @"kSyncedSetUpSubtitleAccessibilityID";
+// Lottie animation file name.
+NSString* const kSpinAnimationName = @"synced_set_up_spin";
 
 // Helper function to configure common label properties.
 static void ConfigureCommonLabelProperties(UILabel* label) {
@@ -64,6 +83,10 @@ static void ConfigureCommonLabelProperties(UILabel* label) {
   // The avatar image to display. Stored in case it is set before the view
   // loads.
   UIImage* _avatarImage;
+  // Tracks if the animations have been started.
+  BOOL _hasStartedAnimations;
+  // The Lottie animation that plays to reveal the avatar.
+  id<LottieAnimation> _spinAnimation;
 }
 
 #pragma mark - UIViewController
@@ -73,13 +96,41 @@ static void ConfigureCommonLabelProperties(UILabel* label) {
 
   self.view.backgroundColor = [UIColor colorNamed:kBackgroundColor];
 
+  _spinAnimation = [self createAnimation:kSpinAnimationName];
+
   [self setupViews];
   [self setupConstraints];
 
-  // Update the UI elements with the current state (which may have been set
+  // Sets the initial state for animations.
+  _titleLabel.alpha = 0.0;
+  _subtitleLabel.alpha = 0.0;
+  _hasStartedAnimations = NO;
+
+  // Updates the UI elements with the current state (which may have been set
   // before `-viewDidLoad`).
   [self updateTitleLabel];
   [self updateAvatarImageView];
+}
+
+- (void)viewDidAppear:(BOOL)animated {
+  [super viewDidAppear:animated];
+
+  if (!_hasStartedAnimations) {
+    __weak __typeof(self) weakSelf = self;
+    [self animateTitleIn];
+    base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+        FROM_HERE, base::BindOnce(^{
+          [weakSelf animateSubtitleIn];
+        }),
+        kSubtitleAnimationDelay);
+    base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+        FROM_HERE, base::BindOnce(^{
+          [weakSelf animateAllElementsOut];
+        }),
+        kFadeOutAnimationDelay);
+    [_spinAnimation play];
+    _hasStartedAnimations = YES;
+  }
 }
 
 #pragma mark - SyncedSetUpConsumer
@@ -109,6 +160,18 @@ static void ConfigureCommonLabelProperties(UILabel* label) {
 }
 
 #pragma mark - Private
+
+// Creates a Lottie animation view.
+- (id<LottieAnimation>)createAnimation:(NSString*)animationName {
+  LottieAnimationConfiguration* config =
+      [[LottieAnimationConfiguration alloc] init];
+  config.animationName = animationName;
+  config.shouldLoop = NO;
+  id<LottieAnimation> animation =
+      ios::provider::GenerateLottieAnimation(config);
+  animation.animationView.translatesAutoresizingMaskIntoConstraints = NO;
+  return animation;
+}
 
 // Updates the title label based on `_welcomeMessage`.
 - (void)updateTitleLabel {
@@ -211,6 +274,9 @@ static void ConfigureCommonLabelProperties(UILabel* label) {
   [_stackView setCustomSpacing:kTitleTopMargin afterView:_avatarImageView];
 
   [_contentView addSubview:_stackView];
+
+  // Add animation view on top of all other views.
+  [self.view addSubview:_spinAnimation.animationView];
 }
 
 // Configures constraints to support the scroll view structure.
@@ -232,6 +298,7 @@ static void ConfigureCommonLabelProperties(UILabel* label) {
   contentHeightConstraint.active = YES;
 
   AddSameCenterConstraints(_stackView, _contentView);
+  AddSameConstraints(_avatarImageView, _spinAnimation.animationView);
 
   [NSLayoutConstraint activateConstraints:@[
     [_stackView.topAnchor
@@ -245,6 +312,58 @@ static void ConfigureCommonLabelProperties(UILabel* label) {
         constraintLessThanOrEqualToAnchor:_contentView.trailingAnchor
                                  constant:-kHorizontalPadding],
   ]];
+}
+
+// Animates the title label with a fade-in and upward slide effect.
+- (void)animateTitleIn {
+  // A slight downward translation is applied to create the upward animation.
+  _titleLabel.transform =
+      CGAffineTransformMakeTranslation(0, kEntranceAnimationTranslateY);
+
+  __weak __typeof(_titleLabel) weakTitleLabel = _titleLabel;
+  [UIView animateWithDuration:kEntranceAnimationDuration.InSecondsF()
+                   animations:^{
+                     weakTitleLabel.alpha = 1.0;
+                     weakTitleLabel.transform = CGAffineTransformIdentity;
+                   }];
+}
+
+// Animates the subtitle label with a fade-in and upward slide effect.
+- (void)animateSubtitleIn {
+  // A slight downward translation is applied to create the upward animation.
+  _subtitleLabel.transform =
+      CGAffineTransformMakeTranslation(0, kEntranceAnimationTranslateY);
+
+  __weak __typeof(_subtitleLabel) weakSubtitleLabel = _subtitleLabel;
+  [UIView animateWithDuration:kEntranceAnimationDuration.InSecondsF()
+                   animations:^{
+                     weakSubtitleLabel.alpha = 1.0;
+                     weakSubtitleLabel.transform = CGAffineTransformIdentity;
+                   }];
+}
+
+// Animates the avatar, title, and subtitle out with a fade and downward slide.
+- (void)animateAllElementsOut {
+  __weak __typeof(_spinAnimation.animationView) weakAnimationView =
+      _spinAnimation.animationView;
+  __weak __typeof(_avatarImageView) weakAvatarImageView = _avatarImageView;
+  __weak __typeof(_titleLabel) weakTitleLabel = _titleLabel;
+  __weak __typeof(_subtitleLabel) weakSubtitleLabel = _subtitleLabel;
+
+  [UIView animateWithDuration:kFadeOutAnimationDuration.InSecondsF()
+                   animations:^{
+                     CGAffineTransform downwardTransform =
+                         CGAffineTransformMakeTranslation(
+                             0, kFadeOutAnimationTranslateY);
+                     weakAnimationView.alpha = 0.0;
+                     weakAnimationView.transform = downwardTransform;
+                     weakAvatarImageView.alpha = 0.0;
+                     weakAvatarImageView.transform = downwardTransform;
+                     weakTitleLabel.alpha = 0.0;
+                     weakTitleLabel.transform = downwardTransform;
+                     weakSubtitleLabel.alpha = 0.0;
+                     weakSubtitleLabel.transform = downwardTransform;
+                   }];
 }
 
 @end

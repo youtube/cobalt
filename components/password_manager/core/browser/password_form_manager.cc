@@ -1057,9 +1057,23 @@ bool PasswordFormManager::ProvisionallySave(
     is_saving_allowed_ = false;
   }
 
-  bool have_password_to_save =
+  // Check if the password field was autofilled with an OTP value.
+  const bool password_field_is_otp_field =
       form_parsing_result.password_form &&
-      form_parsing_result.password_form->HasNonEmptyPasswordValue();
+      std::ranges::any_of(
+          submitted_form.fields(), [&](const FormFieldData& submitted_field) {
+            return submitted_field.renderer_id() ==
+                       form_parsing_result.password_form
+                           ->password_element_renderer_id &&
+                   client_->IsFieldFilledWithOtp(submitted_form.global_id(),
+                                                 submitted_field.global_id());
+          });
+
+  const bool have_password_to_save =
+      form_parsing_result.password_form &&
+      form_parsing_result.password_form->HasNonEmptyPasswordValue() &&
+      !password_field_is_otp_field;
+
   if (!have_password_to_save) {
     // In case of error during parsing, reset the state.
     parsed_submitted_form_.reset();

@@ -263,9 +263,7 @@ proto::Session Session::ToProto() const {
   return session_proto;
 }
 
-bool Session::ShouldDeferRequest(
-    URLRequest* request,
-    const net::FirstPartySetMetadata& first_party_set_metadata) {
+bool Session::IsInScope(URLRequest* request) {
   if (!IncludesUrl(request->url())) {
     // Request is not in scope for this session.
     return false;
@@ -309,6 +307,12 @@ bool Session::ShouldDeferRequest(
     return false;
   }
 
+  return true;
+}
+
+base::TimeDelta Session::MinimumBoundCookieLifetime(
+    URLRequest* request,
+    const FirstPartySetMetadata& first_party_set_metadata) {
   // TODO(crbug.com/438783631): Refactor this.
   // The below is all copied from AddCookieHeaderAndStart. We should refactor
   // it.
@@ -328,7 +332,8 @@ bool Session::ShouldDeferRequest(
       net::cookie_util::ComputeSameSiteContextForRequest(
           request->method(), request->url_chain(), request->site_for_cookies(),
           request->initiator(), is_main_frame_navigation,
-          force_ignore_site_for_cookies);
+          force_ignore_site_for_cookies,
+          request->ignore_unsafe_method_for_same_site_lax());
 
   CookieOptions options;
   options.set_same_site_cookie_context(same_site_context);
@@ -368,9 +373,11 @@ bool Session::ShouldDeferRequest(
       // but there might be similar cases.
       if (cookie_craving.IsSatisfiedBy(request_cookie.cookie)) {
         satisfied = true;
-        minimum_remaining_lifetime =
-            std::min(minimum_remaining_lifetime,
-                     request_cookie.cookie.ExpiryDate() - current_timestamp);
+        if (!request_cookie.cookie.ExpiryDate().is_null()) {
+          minimum_remaining_lifetime =
+              std::min(minimum_remaining_lifetime,
+                       request_cookie.cookie.ExpiryDate() - current_timestamp);
+        }
         break;
       }
     }
@@ -391,7 +398,7 @@ bool Session::ShouldDeferRequest(
 
       // There's an unsatisfied craving. Defer the request.
       request->set_device_bound_session_usage(SessionUsage::kDeferred);
-      return true;
+      return base::TimeDelta();
     }
   }
 
@@ -408,7 +415,7 @@ bool Session::ShouldDeferRequest(
                               });
 
   // All cookiecravings satisfied.
-  return false;
+  return minimum_remaining_lifetime;
 }
 
 bool Session::IsEqualForTesting(const Session& other) const {
@@ -462,7 +469,8 @@ bool Session::ShouldBackoff() const {
   return backoff_.ShouldRejectRequest();
 }
 
-void Session::InformOfRefreshResult(SessionError::ErrorType error_type) {
+void Session::InformOfRefreshResult(bool was_proactive,
+                                    SessionError::ErrorType error_type) {
   using enum SessionError::ErrorType;
 
   switch (error_type) {
@@ -523,6 +531,10 @@ void Session::InformOfRefreshResult(SessionError::ErrorType error_type) {
     case kNetError:
     case kProxyError:
       break;
+    // There is no need to increment backoff because the signing quota
+    // prevents a network request.
+    case kSigningQuotaExceeded:
+      break;
     case kTransientHttpError:
     case kBoundCookieSetForbidden:
       backoff_.InformOfRequest(/*succeeded=*/false);
@@ -543,6 +555,14 @@ void Session::InformOfRefreshResult(SessionError::ErrorType error_type) {
     case kEmptySessionConfig:
     case kRegistrationAttemptedChallenge:
       NOTREACHED();
+  }
+
+  if (error_type == kSuccess) {
+    attempted_proactive_refresh_since_last_success_ = false;
+  }
+
+  if (was_proactive && error_type != kSuccess) {
+    attempted_proactive_refresh_since_last_success_ = true;
   }
 }
 

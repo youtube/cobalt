@@ -163,9 +163,7 @@ struct PasswordManagerActiveWidgetPromoData
 }
 
 - (void)askFETToShowPasswordManagerWidgetPromo {
-  if (password_manager::features::
-          IsPasswordManagerTrustedVaultWidgetEnabled() &&
-      [self shouldTrustedVaultPromoBeShown]) {
+  if ([self shouldTrustedVaultPromoBeShown]) {
     // We don't display the password manager widget promo because the trusted
     // vault promo should be shown.
     return;
@@ -426,11 +424,9 @@ struct PasswordManagerActiveWidgetPromoData
 // whether the error badge should be displayed for the GPM icon in the overflow
 // menu.
 - (void)displayOrHideTrustedVaultPasswordManagerWidgetPromo {
-  if (password_manager::features::
-          IsPasswordManagerTrustedVaultWidgetEnabled()) {
-    [self.consumer setShouldShowTrustedVaultWidgetPromo:
-                       [self shouldTrustedVaultPromoBeShown]];
-  };
+  [self.consumer
+      setShouldShowTrustedVaultWidgetPromo:[self
+                                               shouldTrustedVaultPromoBeShown]];
 }
 
 #pragma mark - SavedPasswordsPresenterObserver
@@ -452,7 +448,8 @@ struct PasswordManagerActiveWidgetPromoData
 #pragma mark - TableViewFaviconDataSource
 
 - (void)faviconForPageURL:(CrURL*)URL
-               completion:(void (^)(FaviconAttributes*))completion {
+               completion:(void (^)(FaviconAttributes* attributes,
+                                    bool cached))completion {
   BOOL fallbackToGoogleServer =
       password_manager_util::IsSavingPasswordsToAccountWithNormalEncryption(
           _syncService);

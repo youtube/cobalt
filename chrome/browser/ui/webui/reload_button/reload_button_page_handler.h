@@ -27,8 +27,7 @@ class ReloadButtonPageHandler : public reload_button::mojom::PageHandler {
       mojo::PendingReceiver<reload_button::mojom::PageHandler> receiver,
       mojo::PendingRemote<reload_button::mojom::Page> page,
       content::WebContents* web_contents,
-      CommandUpdater* command_updater,
-      MetricsReporter* metrics_reporter);
+      CommandUpdater* command_updater);
 
   ReloadButtonPageHandler(const ReloadButtonPageHandler&) = delete;
   ReloadButtonPageHandler& operator=(const ReloadButtonPageHandler&) = delete;
@@ -43,11 +42,19 @@ class ReloadButtonPageHandler : public reload_button::mojom::PageHandler {
   void ShowContextMenu(int32_t offset_x, int32_t offset_y) override;
 
  private:
+  // Returns the MetricsReporter associated with `web_contents_` or nullptr.
+  //
+  // This method fetches the reporter from the MetricsReporterService associated
+  // with `web_contents_` each time it is called. This is necessary because the
+  // MetricsReporterService lifetime is tied to `web_contents_`, which can be
+  // destroyed earlier than this ReloadButtonPageHandler.
+  MetricsReporter* GetMetricsReporter();
+
   // Checks for start marks and records InputToReload metrics.
-  void MaybeRecordInputToReloadMetric();
+  void MaybeRecordInputToReloadMetric(MetricsReporter* metrics_reporter);
 
   // Checks for start marks and records InputToStop metrics.
-  void MaybeRecordInputToStopMetric();
+  void MaybeRecordInputToStopMetric(MetricsReporter* metrics_reporter);
 
   // Callback for MetricsReporter::HasMark. If the start_mark exists, it
   // proceeds to measure the duration.
@@ -68,8 +75,6 @@ class ReloadButtonPageHandler : public reload_button::mojom::PageHandler {
   const raw_ptr<content::WebContents> web_contents_;
   // Not owned.
   const raw_ptr<CommandUpdater> command_updater_;
-  // Not owned.
-  const raw_ptr<MetricsReporter> metrics_reporter_;
 
   // Must be the last member.
   base::WeakPtrFactory<ReloadButtonPageHandler> weak_ptr_factory_{this};

@@ -52,6 +52,15 @@ const base::FeatureParam<bool>* GetPageActionsMigrationParam(
       return &features::kPageActionsMigrationSharingHub;
     case PageActionIconType::kAiMode:
       return &features::kPageActionsMigrationAiMode;
+    case PageActionIconType::kVirtualCardEnroll:
+      return &features::kPageActionsMigrationVirtualCard;
+    case PageActionIconType::kFilledCardInformation:
+      return &features::kPageActionsMigrationFilledCardInformation;
+    case PageActionIconType::kReadingMode:
+      return &features::kPageActionsMigrationReadingMode;
+    case PageActionIconType::kSaveIban:
+    case PageActionIconType::kSaveCard:
+      return &features::kPageActionsMigrationSavePayments;
     default:
       return nullptr;
   }

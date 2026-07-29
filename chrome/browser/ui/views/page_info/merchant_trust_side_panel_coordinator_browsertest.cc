@@ -100,10 +100,6 @@ class MerchantTrustSidePanelCoordinatorBrowserTest
     return browser()->tab_strip_model()->GetActiveWebContents();
   }
 
-  SidePanelCoordinator* side_panel_coordinator() {
-    return browser()->GetFeatures().side_panel_coordinator();
-  }
-
   SidePanelEntry* GetMerchantTrustEntryForActiveTab() {
     return browser()
         ->GetActiveTabInterface()
@@ -111,6 +107,11 @@ class MerchantTrustSidePanelCoordinatorBrowserTest
         ->side_panel_registry()
         ->GetEntryForKey(
             SidePanelEntry::Key(SidePanelEntry::Id::kMerchantTrust));
+  }
+
+  bool IsMerchantTrustSidePanelOpen() {
+    return browser()->GetFeatures().side_panel_ui()->IsSidePanelEntryShowing(
+        SidePanelEntryKey(SidePanelEntryId::kMerchantTrust));
   }
 
   base::test::ScopedFeatureList feature_list_;
@@ -131,12 +132,11 @@ IN_PROC_BROWSER_TEST_F(MerchantTrustSidePanelCoordinatorBrowserTest,
   GURL kGURLWithMerchantTrustData = CreateUrl(kUrlWithMerchantTrustData);
   ASSERT_TRUE(
       ui_test_utils::NavigateToURL(browser(), kGURLWithMerchantTrustData));
-  ASSERT_EQ(side_panel_coordinator()->GetCurrentEntryId(), std::nullopt);
+  ASSERT_FALSE(IsMerchantTrustSidePanelOpen());
 
   // Test showing a side panel.
   ShowMerchantTrustSidePanel(web_contents(), CreateUrl(kMerchantReviewsUrl));
-  EXPECT_TRUE(side_panel_coordinator()->IsSidePanelEntryShowing(
-      SidePanelEntryKey(SidePanelEntryId::kMerchantTrust)));
+  EXPECT_TRUE(IsMerchantTrustSidePanelOpen());
 
   // Refresh the page and check that the side panel is still open.
   EXPECT_CALL(*service(), GetMerchantTrustInfo(_, _))
@@ -153,10 +153,8 @@ IN_PROC_BROWSER_TEST_F(MerchantTrustSidePanelCoordinatorBrowserTest,
   ASSERT_TRUE(
       ui_test_utils::NavigateToURL(browser(), kGURLWithMerchantTrustData));
 
-  ASSERT_TRUE(base::test::RunUntil([&]() {
-    return side_panel_coordinator()->IsSidePanelEntryShowing(
-        SidePanelEntryKey(SidePanelEntryId::kMerchantTrust));
-  }));
+  ASSERT_TRUE(
+      base::test::RunUntil([&]() { return IsMerchantTrustSidePanelOpen(); }));
 }
 
 IN_PROC_BROWSER_TEST_F(MerchantTrustSidePanelCoordinatorBrowserTest,
@@ -164,12 +162,11 @@ IN_PROC_BROWSER_TEST_F(MerchantTrustSidePanelCoordinatorBrowserTest,
   GURL kGURLWithMerchantTrustData = CreateUrl(kUrlWithMerchantTrustData);
   ASSERT_TRUE(
       ui_test_utils::NavigateToURL(browser(), kGURLWithMerchantTrustData));
-  ASSERT_EQ(side_panel_coordinator()->GetCurrentEntryId(), std::nullopt);
+  ASSERT_FALSE(IsMerchantTrustSidePanelOpen());
 
   // Test showing a side panel.
   ShowMerchantTrustSidePanel(web_contents(), CreateUrl(kMerchantReviewsUrl));
-  EXPECT_TRUE(side_panel_coordinator()->IsSidePanelEntryShowing(
-      SidePanelEntryKey(SidePanelEntryId::kMerchantTrust)));
+  EXPECT_TRUE(IsMerchantTrustSidePanelOpen());
 
   // Navigate to a different URL with no merchant trust data.
   EXPECT_CALL(*service(), GetMerchantTrustInfo(_, _))
@@ -185,10 +182,8 @@ IN_PROC_BROWSER_TEST_F(MerchantTrustSidePanelCoordinatorBrowserTest,
   ASSERT_TRUE(
       ui_test_utils::NavigateToURL(browser(), kGURLWithoutMerchantTrustData));
   // Side panel should eventually close, after the animation.
-  ASSERT_TRUE(base::test::RunUntil([&]() {
-    return !side_panel_coordinator()->IsSidePanelEntryShowing(
-        SidePanelEntryKey(SidePanelEntryId::kMerchantTrust));
-  }));
+  ASSERT_TRUE(
+      base::test::RunUntil([&]() { return !IsMerchantTrustSidePanelOpen(); }));
 }
 
 IN_PROC_BROWSER_TEST_F(MerchantTrustSidePanelCoordinatorBrowserTest,
@@ -196,19 +191,17 @@ IN_PROC_BROWSER_TEST_F(MerchantTrustSidePanelCoordinatorBrowserTest,
   GURL kGURLWithMerchantTrustData = CreateUrl(kUrlWithMerchantTrustData);
   ASSERT_TRUE(
       ui_test_utils::NavigateToURL(browser(), kGURLWithMerchantTrustData));
-  ASSERT_EQ(side_panel_coordinator()->GetCurrentEntryId(), std::nullopt);
+  ASSERT_FALSE(IsMerchantTrustSidePanelOpen());
 
   // Test showing a side panel.
   GURL kMerchantReviewsGURL = CreateUrl(kMerchantReviewsUrl);
   ShowMerchantTrustSidePanel(web_contents(), kMerchantReviewsGURL);
-  EXPECT_TRUE(side_panel_coordinator()->IsSidePanelEntryShowing(
-      SidePanelEntryKey(SidePanelEntryId::kMerchantTrust)));
+  EXPECT_TRUE(IsMerchantTrustSidePanelOpen());
 
   // Check that side panel remains open on navigation with an anchor.
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), kGURLWithMerchantTrustData.Resolve("#ref")));
-  EXPECT_TRUE(side_panel_coordinator()->IsSidePanelEntryShowing(
-      SidePanelEntryKey(SidePanelEntryId::kMerchantTrust)));
+  EXPECT_TRUE(IsMerchantTrustSidePanelOpen());
 
   // Check that the MerchantTrust url remains the same.
   SidePanelEntry* current_entry = GetMerchantTrustEntryForActiveTab();
@@ -221,13 +214,12 @@ IN_PROC_BROWSER_TEST_F(MerchantTrustSidePanelCoordinatorBrowserTest,
   GURL kGURLWithMerchantTrustData = CreateUrl(kUrlWithMerchantTrustData);
   ASSERT_TRUE(
       ui_test_utils::NavigateToURL(browser(), kGURLWithMerchantTrustData));
-  ASSERT_EQ(side_panel_coordinator()->GetCurrentEntryId(), std::nullopt);
+  ASSERT_FALSE(IsMerchantTrustSidePanelOpen());
 
   // Test showing a side panel.
   GURL kMerchantReviewsGURL = CreateUrl(kMerchantReviewsUrl);
   ShowMerchantTrustSidePanel(web_contents(), kMerchantReviewsGURL);
-  EXPECT_TRUE(side_panel_coordinator()->IsSidePanelEntryShowing(
-      SidePanelEntryKey(SidePanelEntryId::kMerchantTrust)));
+  EXPECT_TRUE(IsMerchantTrustSidePanelOpen());
 
   // Replace state with new path.
   GURL kUrlMerchantTrustWithPath2 =
@@ -237,8 +229,7 @@ IN_PROC_BROWSER_TEST_F(MerchantTrustSidePanelCoordinatorBrowserTest,
   EXPECT_TRUE(content::WaitForLoadStop(web_contents()));
 
   // Check that side panel remains open on replace state.
-  EXPECT_TRUE(side_panel_coordinator()->IsSidePanelEntryShowing(
-      SidePanelEntryKey(SidePanelEntryId::kMerchantTrust)));
+  EXPECT_TRUE(IsMerchantTrustSidePanelOpen());
 
   // Check that the MerchantTrust url remains the same.
   SidePanelEntry* current_entry = GetMerchantTrustEntryForActiveTab();
@@ -250,13 +241,12 @@ IN_PROC_BROWSER_TEST_F(MerchantTrustSidePanelCoordinatorBrowserTest,
                        ShowSameTabNavSameDocumentReplaceStateRef) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), CreateUrl(kUrlWithMerchantTrustData)));
-  ASSERT_EQ(side_panel_coordinator()->GetCurrentEntryId(), std::nullopt);
+  ASSERT_FALSE(IsMerchantTrustSidePanelOpen());
 
   // Test showing a side panel.
   GURL kMerchantReviewsGURL = CreateUrl(kMerchantReviewsUrl);
   ShowMerchantTrustSidePanel(web_contents(), kMerchantReviewsGURL);
-  EXPECT_TRUE(side_panel_coordinator()->IsSidePanelEntryShowing(
-      SidePanelEntryKey(SidePanelEntryId::kMerchantTrust)));
+  EXPECT_TRUE(IsMerchantTrustSidePanelOpen());
 
   // Replace state with anchor.
   ASSERT_TRUE(
@@ -264,8 +254,7 @@ IN_PROC_BROWSER_TEST_F(MerchantTrustSidePanelCoordinatorBrowserTest,
   EXPECT_TRUE(content::WaitForLoadStop(web_contents()));
 
   // Check that side panel remains open on replace state.
-  EXPECT_TRUE(side_panel_coordinator()->IsSidePanelEntryShowing(
-      SidePanelEntryKey(SidePanelEntryId::kMerchantTrust)));
+  EXPECT_TRUE(IsMerchantTrustSidePanelOpen());
 
   // Check that the AboutThisSite url remains the same.
   SidePanelEntry* current_entry = GetMerchantTrustEntryForActiveTab();
@@ -278,12 +267,11 @@ IN_PROC_BROWSER_TEST_F(MerchantTrustSidePanelCoordinatorBrowserTest,
   GURL kGURLWithMerchantTrustData = CreateUrl(kUrlWithMerchantTrustData);
   ASSERT_TRUE(
       ui_test_utils::NavigateToURL(browser(), kGURLWithMerchantTrustData));
-  ASSERT_EQ(side_panel_coordinator()->GetCurrentEntryId(), std::nullopt);
+  ASSERT_FALSE(IsMerchantTrustSidePanelOpen());
 
   // Test showing a side panel.
   ShowMerchantTrustSidePanel(web_contents(), kGURLWithMerchantTrustData);
-  EXPECT_TRUE(side_panel_coordinator()->IsSidePanelEntryShowing(
-      SidePanelEntryKey(SidePanelEntryId::kMerchantTrust)));
+  EXPECT_TRUE(IsMerchantTrustSidePanelOpen());
 
   // Push state with new path.
   GURL kUrlMerchantTrustWithPath2 =
@@ -293,8 +281,7 @@ IN_PROC_BROWSER_TEST_F(MerchantTrustSidePanelCoordinatorBrowserTest,
   EXPECT_TRUE(content::WaitForLoadStop(web_contents()));
 
   // Check that side panel remains open on push state.
-  EXPECT_TRUE(side_panel_coordinator()->IsSidePanelEntryShowing(
-      SidePanelEntryKey(SidePanelEntryId::kMerchantTrust)));
+  EXPECT_TRUE(IsMerchantTrustSidePanelOpen());
 
   // Check that the MerchantTrust url isn't changed.
   SidePanelEntry* current_entry = GetMerchantTrustEntryForActiveTab();
@@ -306,36 +293,31 @@ IN_PROC_BROWSER_TEST_F(MerchantTrustSidePanelCoordinatorBrowserTest,
                        RemainsClosedOnNonMerchantSameTabNav) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), CreateUrl(kUrlWithoutMerchantTrustData)));
-  ASSERT_EQ(side_panel_coordinator()->GetCurrentEntryId(), std::nullopt);
+  ASSERT_FALSE(IsMerchantTrustSidePanelOpen());
 
   // Test showing a side panel.
   ShowMerchantTrustSidePanel(web_contents(), CreateUrl(kMerchantReviewsUrl));
-  EXPECT_TRUE(side_panel_coordinator()->IsSidePanelEntryShowing(
-      SidePanelEntryKey(SidePanelEntryId::kMerchantTrust)));
+  EXPECT_TRUE(IsMerchantTrustSidePanelOpen());
 
   // Close side panel.
-  side_panel_coordinator()->Close();
+  browser()->GetFeatures().side_panel_ui()->Close(
+      SidePanelEntry::PanelType::kContent);
   ASSERT_TRUE(base::test::RunUntil([&]() {
     return browser()->GetBrowserView().contents_height_side_panel()->state() ==
            SidePanel::State::kClosed;
   }));
-  EXPECT_FALSE(side_panel_coordinator()->IsSidePanelShowing(
-      SidePanelEntry::PanelType::kContent));
-  ASSERT_EQ(side_panel_coordinator()->GetCurrentEntryId(), std::nullopt);
+  EXPECT_FALSE(IsMerchantTrustSidePanelOpen());
 
   // Check that side panel remains closed on navigation.
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), CreateUrl(kUrlWithoutMerchantTrustData)));
-  EXPECT_FALSE(side_panel_coordinator()->IsSidePanelShowing(
-      SidePanelEntry::PanelType::kContent));
-  ASSERT_EQ(side_panel_coordinator()->GetCurrentEntryId(), std::nullopt);
+  EXPECT_FALSE(IsMerchantTrustSidePanelOpen());
 }
 
 IN_PROC_BROWSER_TEST_F(MerchantTrustSidePanelCoordinatorBrowserTest,
                        SidePanelEntryUrlHasQueryParams) {
   ShowMerchantTrustSidePanel(web_contents(), CreateUrl(kMerchantReviewsUrl));
-  EXPECT_TRUE(side_panel_coordinator()->IsSidePanelEntryShowing(
-      SidePanelEntryKey(SidePanelEntryId::kMerchantTrust)));
+  EXPECT_TRUE(IsMerchantTrustSidePanelOpen());
 
   auto view = GetMerchantTrustEntryForActiveTab()->GetContent();
   auto* side_panel_view = static_cast<WebViewSidePanelView*>(view.get());

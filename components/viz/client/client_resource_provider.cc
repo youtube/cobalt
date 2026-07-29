@@ -227,16 +227,6 @@ ClientResourceProvider::~ClientResourceProvider() {
   BatchResourceRelease();
 }
 
-gpu::SyncToken ClientResourceProvider::GenerateSyncTokenHelper(
-    gpu::raster::RasterInterface* ri) {
-  DCHECK(ri);
-  gpu::SyncToken sync_token;
-  ri->GenUnverifiedSyncTokenCHROMIUM(sync_token.GetData());
-  DCHECK(sync_token.HasData() ||
-         ri->GetGraphicsResetStatusKHR() != GL_NO_ERROR);
-  return sync_token;
-}
-
 void ClientResourceProvider::PrepareSendToParent(
     const std::vector<ResourceId>& export_ids,
     std::vector<TransferableResource>* list,
@@ -499,8 +489,8 @@ void ClientResourceProvider::HandleEviction() {
     if (!imported.marked_for_deletion) {
       ++locked;
       auto resource_source = imported.resource.resource_source;
-      size_t resource_mem =
-          imported.resource.format.EstimatedSizeInBytes(imported.resource.size);
+      size_t resource_mem = imported.resource.GetFormat().EstimatedSizeInBytes(
+          imported.resource.GetSize());
       total_mem += resource_mem;
       mem_per_source[resource_source] += resource_mem;
 

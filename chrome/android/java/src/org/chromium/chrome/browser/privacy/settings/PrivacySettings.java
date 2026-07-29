@@ -38,6 +38,7 @@ import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.prefetch.settings.PreloadPagesSettingsFragment;
 import org.chromium.chrome.browser.privacy.secure_dns.SecureDnsSettings;
+import org.chromium.chrome.browser.privacy_guide.PrivacyGuideFragment;
 import org.chromium.chrome.browser.privacy_guide.PrivacyGuideInteractions;
 import org.chromium.chrome.browser.privacy_sandbox.PrivacySandboxBridge;
 import org.chromium.chrome.browser.privacy_sandbox.PrivacySandboxReferrer;
@@ -95,16 +96,10 @@ public class PrivacySettings extends ChromeBaseSettingsFragment
     private static final String PREF_PRIVACY_GUIDE = "privacy_guide";
     private static final String PREF_INCOGNITO_LOCK = "incognito_lock";
     private static final String PREF_JAVASCRIPT_OPTIMIZER = "javascript_optimizer";
-    private static final String PREF_INCOGNITO_TRACKING_PROTECTIONS =
-            "incognito_tracking_protections";
     @VisibleForTesting static final String PREF_DO_NOT_TRACK = "do_not_track";
     @VisibleForTesting static final String PREF_THIRD_PARTY_COOKIES = "third_party_cookies";
     @VisibleForTesting static final String PREF_TRACKING_PROTECTION = "tracking_protection";
     private static final String PREF_ADVANCED_PROTECTION_INFO = "advanced_protection_info";
-
-    @VisibleForTesting
-    static final String TRACKING_PROTECTIONS_OPENED_USER_ACTION =
-            "Settings.TrackingProtections.OpenedFromPrivacyPage";
 
     private IncognitoLockSettings mIncognitoLockSettings;
     private final ObservableSupplierImpl<String> mPageTitle = new ObservableSupplierImpl<>();
@@ -136,16 +131,6 @@ public class PrivacySettings extends ChromeBaseSettingsFragment
         mPageTitle.set(getString(R.string.prefs_privacy_security));
 
         SettingsUtils.addPreferencesFromResource(this, R.xml.privacy_preferences);
-
-        Preference incognitoTrackingProtectionsPreference =
-                findPreference(PREF_INCOGNITO_TRACKING_PROTECTIONS);
-        incognitoTrackingProtectionsPreference.setVisible(
-                shouldShowIncognitoTrackingProtectionsUi());
-        incognitoTrackingProtectionsPreference.setOnPreferenceClickListener(
-                preference -> {
-                    RecordUserAction.record(TRACKING_PROTECTIONS_OPENED_USER_ACTION);
-                    return false;
-                });
 
         Preference sandboxPreference = findPreference(PREF_PRIVACY_SANDBOX);
         // Overwrite the click listener to pass a correct referrer to the fragment.
@@ -183,7 +168,14 @@ public class PrivacySettings extends ChromeBaseSettingsFragment
                             PrivacyGuideInteractions.SETTINGS_LINK_ROW_ENTRY,
                             PrivacyGuideInteractions.MAX_VALUE);
                     UserPrefs.get(getProfile()).setBoolean(Pref.PRIVACY_GUIDE_VIEWED, true);
-                    return false;
+
+                    // Explicitly launch PrivacyGuideFragment from here. Because the fragment
+                    // does not implement EmbeddableSettingsPage, it will work as standalone mode.
+                    // In details it is still a part of SettingsActivity, it will let user find
+                    // it is an independent flow.
+                    SettingsNavigationFactory.createSettingsNavigation()
+                            .startSettings(getActivity(), PrivacyGuideFragment.class);
+                    return true;
                 });
         if (getProfile().isChild()
                 || ManagedBrowserUtils.isBrowserManaged(getProfile())
@@ -477,11 +469,6 @@ public class PrivacySettings extends ChromeBaseSettingsFragment
     private boolean showTrackingProtectionUi() {
         return UserPrefs.get(getProfile()).getBoolean(Pref.TRACKING_PROTECTION3PCD_ENABLED)
                 || ChromeFeatureList.isEnabled(ChromeFeatureList.TRACKING_PROTECTION_3PCD);
-    }
-
-    private boolean shouldShowIncognitoTrackingProtectionsUi() {
-        return ChromeFeatureList.isEnabled(ChromeFeatureList.FINGERPRINTING_PROTECTION_UX)
-                || ChromeFeatureList.isEnabled(ChromeFeatureList.IP_PROTECTION_UX);
     }
 
     /** Shows the advanced-protection-section if needed. */

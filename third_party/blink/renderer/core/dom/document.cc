@@ -91,6 +91,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/v8_document_ready_state.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_element_creation_options.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_element_registration_options.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_focus_options.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_import_node_options.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_observable_array_css_style_sheet.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_throw_dom_exception.h"
@@ -355,6 +356,7 @@
 #include "third_party/blink/renderer/core/view_transition/view_transition_supplement.h"
 #include "third_party/blink/renderer/core/view_transition/view_transition_utils.h"
 #include "third_party/blink/renderer/core/xml/parser/xml_document_parser.h"
+#include "third_party/blink/renderer/core/xml/parser/xml_document_parser_rs.h"
 #include "third_party/blink/renderer/core/xml_names.h"
 #include "third_party/blink/renderer/core/xmlns_names.h"
 #include "third_party/blink/renderer/platform/bindings/dom_data_store.h"
@@ -1095,7 +1097,6 @@ Document::Document(const DocumentInit& initializer,
   }
   if (is_prerendering_ &&
       GetPage()->ShouldPauseJavaScriptExecutionOnPrerender()) {
-    DCHECK(RuntimeEnabledFeatures::PrerenderUntilScriptEnabled());
     prerender_script_runner_delayer_ =
         MakeGarbageCollected<ScriptRunnerDelayer>(
             script_runner_, ScriptRunner::DelayReason::kPausedForPrerender);
@@ -2554,7 +2555,8 @@ static void AssertLayoutTreeUpdatedForPseudoElements(const Element& element) {
                                  kPseudoIdScrollButtonInlineStart,
                                  kPseudoIdScrollButtonInlineEnd,
                                  kPseudoIdScrollButtonBlockEnd,
-                                 kPseudoIdScrollMarker};
+                                 kPseudoIdScrollMarker,
+                                 kPseudoIdOverscrollClientArea};
   for (auto pseudo_id : pseudo_ids) {
     if (const PseudoElement* pseudo_element =
             element.GetPseudoElement(pseudo_id)) {
@@ -3422,6 +3424,7 @@ void Document::Shutdown() {
   if (focused_element_.Get()) {
     Element* old_focused_element = focused_element_;
     focused_element_ = nullptr;
+    focus_options_ = nullptr;
     NotifyFocusedElementChanged(old_focused_element, nullptr,
                                 mojom::blink::FocusType::kNone);
   }
@@ -3655,7 +3658,11 @@ DocumentParser* Document::CreateParser() {
                                                     parser_sync_policy_);
   }
   // FIXME: this should probably pass the frame instead
-  return MakeGarbageCollected<XMLDocumentParser>(*this, View());
+  if (RuntimeEnabledFeatures::XMLParsingRustEnabled()) {
+    return MakeGarbageCollected<XMLDocumentParserRs>(*this, View());
+  } else {
+    return MakeGarbageCollected<XMLDocumentParser>(*this, View());
+  }
 }
 
 bool Document::IsFrameSet() const {
@@ -3941,6 +3948,29 @@ void Document::open() {
   // redundant attempt to cancel it.
   if (GetFrame())
     GetFrame()->CancelFormSubmission();
+
+  // The HTML spec for document.open()
+  // (https://html.spec.whatwg.org/#document-open-steps) specifies erasing all
+  // event listeners for descendant nodes, but doesn't explicitly address when
+  // child frame unload events should fire. We trigger child frame unload events
+  // first, following the same pattern used in LocalFrame::DetachImpl where
+  // child frames are unloaded before other cleanup. This ensures child frames
+  // properly unload and their handlers execute before removing the parent
+  // document's event listeners (crbug.com/40947017).
+  if (RuntimeEnabledFeatures::DocumentOpenIframeUnloadEventsEnabled() &&
+      GetFrame()) {
+    for (Frame* child = GetFrame()->Tree().FirstChild(); child;) {
+      Frame* next_child = child->Tree().NextSibling();
+      if (auto* local_child = DynamicTo<LocalFrame>(child)) {
+        // Note: Cross-origin frames are handled correctly as the loader
+        // mechanism already respects cross-origin boundaries and security
+        // policies when dispatching unload events.
+        local_child->Loader().DispatchUnloadEventAndFillOldDocumentInfoIfNeeded(
+            /*will_commit_new_document_in_this_frame=*/false);
+      }
+      child = next_child;
+    }
+  }
 
   // For each shadow-including inclusive descendant |node| of |document|, erase
   // all event listeners and handlers given |node|.
@@ -5243,9 +5273,6 @@ void Document::ExecuteScriptsWaitingForResources() {
 }
 
 void Document::UnblockScriptExecutionForPrerenderActivation() {
-  if (!RuntimeEnabledFeatures::PrerenderUntilScriptEnabled()) {
-    return;
-  }
   CHECK(!IsScriptBlockedUntilPrerenderActivation());
   if (ScriptableDocumentParser* parser = GetScriptableDocumentParser()) {
     parser->ExecuteScriptsWaitingForPrerenderActivation();
@@ -5843,12 +5870,17 @@ bool Document::SetFocusedElement(Element* new_focused_element,
       return true;
   }
 
-  if (focused_element_ == new_focused_element)
+  if (focused_element_ == new_focused_element) {
+    // Even though `focused_element_` hasn't changed, `focus_options_` may have,
+    // so update it.
+    focus_options_ = params.options;
     return true;
+  }
 
   bool focus_change_blocked = false;
   Element* old_focused_element = focused_element_;
   focused_element_ = nullptr;
+  focus_options_ = nullptr;
 
   Element* ancestor =
       (old_focused_element && old_focused_element->isConnected() &&
@@ -5925,6 +5957,7 @@ bool Document::SetFocusedElement(Element* new_focused_element,
     }
     // Set focus on the new node
     focused_element_ = new_focused_element;
+    focus_options_ = params.options;
     SetSequentialFocusNavigationStartingPoint(focused_element_.Get());
 
     // Keep track of last focus from user interaction, ignoring focus from code
@@ -8307,8 +8340,10 @@ void Document::RequestResizeResponsiveIframe(ExceptionState* exception_state) {
     return;
   }
   if (auto* owner = GetFrame()->Owner()) {
+    LocalFrameView* view = View();
+    LocalFrameView::NaturalSizeLayoutScope natural_size_scope(view);
     UpdateStyleAndLayout(DocumentUpdateReason::kUnknown);
-    if (View()->RecordNaturalDimensions()) {
+    if (view->RecordNaturalDimensions()) {
       owner->NaturalSizingInfoChanged();
     }
   } else if (exception_state) {
@@ -8727,9 +8762,9 @@ void Document::SetPopoverPointerdownTarget(const HTMLElement* popover) {
   popover_pointerdown_target_ = popover;
 }
 
-void Document::SetCustomizableSelectMousedownLocation(
+void Document::SetPopoverPickerMousedownLocation(
     std::optional<gfx::PointF> point) {
-  customizable_select_mousedown_location_ = point;
+  popover_picker_mousedown_location_ = point;
 }
 
 const HTMLDialogElement* Document::DialogPointerdownTarget() const {
@@ -9459,6 +9494,7 @@ void Document::Trace(Visitor* visitor) const {
   visitor->Trace(implementation_);
   visitor->Trace(autofocus_candidates_);
   visitor->Trace(focused_element_);
+  visitor->Trace(focus_options_);
   visitor->Trace(sequential_focus_navigation_starting_point_);
   visitor->Trace(hover_element_);
   visitor->Trace(active_element_);

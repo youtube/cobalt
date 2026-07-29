@@ -510,6 +510,10 @@ bool XMLDocumentParser::ParseDocumentFragment(
     Element* context_element,
     ParserContentPolicy parser_content_policy,
     ExceptionState& exception_state) {
+  // TODO(https://crbug.com/441911594): Add a
+  // CHECK(!RuntimeEnabledFeatures::XMLParsingRustEnabled()) here when there is
+  // a Rust implementation for this.
+
   if (!chunk.length())
     return true;
 
@@ -613,6 +617,10 @@ static bool IsLibxmlDefaultCatalogFile(const String& url_string) {
 }
 
 static bool ShouldAllowExternalLoad(const KURL& url) {
+  if (RuntimeEnabledFeatures::XMLNoExternalEntitiesEnabled()) {
+    return false;
+  }
+
   String url_string = url.GetString();
 
   // libxml should not be configured with catalogs enabled, so it
@@ -814,6 +822,7 @@ XMLDocumentParser::XMLDocumentParser(Document& document,
                                       // documents without frames.
       script_start_position_(TextPosition::BelowRangePosition()),
       parsing_fragment_(false) {
+  CHECK(!RuntimeEnabledFeatures::XMLParsingRustEnabled());
   // This is XML being used as a document resource.
   if (frame_view && IsA<XMLDocument>(document))
     UseCounter::Count(document, WebFeature::kXMLDocument);
@@ -839,6 +848,11 @@ XMLDocumentParser::XMLDocumentParser(DocumentFragment* fragment,
       script_runner_(nullptr),  // Don't execute scripts for document fragments.
       script_start_position_(TextPosition::BelowRangePosition()),
       parsing_fragment_(true) {
+  // TODO(https://crbug.com/441911594): Add a
+  // CHECK(!RuntimeEnabledFeatures::XMLParsingRustEnabled()) here when there is
+  // a Rust implementation for ParseDocumentFagment() and this is no longer
+  // reached.
+
   // Step 2 of
   // https://html.spec.whatwg.org/C/#xml-fragment-parsing-algorithm
   // The following code collects prefix-namespace mapping in scope on
@@ -1015,6 +1029,10 @@ void XMLDocumentParser::StartElementNs(
   if (!UpdateLeafTextNode())
     return;
 
+  // Needed for fragment parsing. If the parser library reports an empty NS url,
+  // resolve it against the initially preserved namespace hierarchy that is
+  // built when creating an XMLDocumentParser with the fragment-parsing
+  // constructor.
   AtomicString adjusted_uri = uri;
   if (parsing_fragment_ && adjusted_uri.IsNull()) {
     if (!prefix.IsNull()) {
@@ -1265,7 +1283,9 @@ void XMLDocumentParser::GetProcessingInstruction(const String& target,
   CheckIfBlockingStyleSheetAdded();
 
   saw_xsl_transform_ = !saw_first_element_ && pi->IsXSL();
-  CHECK(!saw_xsl_transform_ || RuntimeEnabledFeatures::XSLTEnabled());
+  CHECK(!saw_xsl_transform_ ||
+        (RuntimeEnabledFeatures::XSLTEnabled() &&
+         RuntimeEnabledFeatures::XSLTSpecialTrialEnabled()));
   if (saw_xsl_transform_ &&
       !DocumentXSLT::HasTransformSourceDocument(*GetDocument())) {
     // This behavior is very tricky. We call stopParsing() here because we
@@ -1827,6 +1847,7 @@ static void AttributesStartElementNsHandler(void* closure,
 }
 
 HashMap<String, String> ParseAttributes(const String& string, bool& attrs_ok) {
+  CHECK(!RuntimeEnabledFeatures::XMLParsingRustEnabled());
   AttributeParseState state;
   state.got_attributes = false;
 

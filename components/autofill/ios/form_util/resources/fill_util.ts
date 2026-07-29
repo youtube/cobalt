@@ -518,7 +518,7 @@ declare interface OptionFieldStrings {
  * @param field A field that will contain the extracted option
  *     information.
  */
-gCrWebLegacy.fill.getOptionStringsFromElement = function(
+export function getOptionStringsFromElement(
     selectElement: HTMLSelectElement, field: OptionFieldStrings): void {
   field.option_values = [];
   // Protect against custom implementation of Array.toJSON in host pages.
@@ -533,7 +533,7 @@ gCrWebLegacy.fill.getOptionStringsFromElement = function(
     field.option_texts.push(
         option.text.substring(0, fillConstants.MAX_STRING_LENGTH));
   }
-};
+}
 
 /**
  * Returns the value in a way similar to the C++ version of node.value,
@@ -663,42 +663,6 @@ export function isElementInsideFormOrFieldSet(
   }
   return false;
 }
-
-/**
- * @param element Form or form input element.
- * @return Unique stable ID converted to string..
- */
-gCrWebLegacy.fill.getUniqueID = function(element: any): string {
-  // `setUniqueIDIfNeeded` is only available in the isolated content world.
-  // Check before invoking it as this script is injected into the page content
-  // world as well.
-  if (gCrWebLegacy.fill.setUniqueIDIfNeeded) {
-    gCrWebLegacy.fill.setUniqueIDIfNeeded(element);
-  }
-
-  try {
-    const uniqueIDSymbol = gCrWebLegacy.fill.ID_SYMBOL;
-    if (typeof element[uniqueIDSymbol] !== 'undefined' &&
-        !isNaN(element[uniqueIDSymbol]!)) {
-      return element[uniqueIDSymbol].toString();
-    } else {
-      // Use the fallback value stored in the DOM. This will happen when the
-      // script is running in the page content world. JavaScript properties are
-      // not shared across content worlds. This means that `element[uniqueID]`
-      // will not have value in the page content world because it was set in the
-      // isolated content world.
-      const valueInDOM =
-          element.getAttribute(fillConstants.UNIQUE_ID_ATTRIBUTE);
-
-      // Check that there is a valid integer ID stored in the DOM. If not,
-      // return the fallback value.
-      return isNaN(parseInt(valueInDOM)) ? fillConstants.RENDERER_ID_NOT_SET :
-                                           valueInDOM;
-    }
-  } catch (e) {
-    return fillConstants.RENDERER_ID_NOT_SET;
-  }
-};
 
 /**
  * Check if the node is visible.

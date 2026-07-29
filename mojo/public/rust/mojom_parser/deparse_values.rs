@@ -20,9 +20,10 @@ fn get_field_at_ordinal(
     Ok(field_value)
 }
 
-// FOR_RELEASE: If we can figure out how to make it typecheck, it would be nicer to have a
-// single function/macro that validates the type and extracts the value at once. Currently we
-// have to match twice, since the rust type system forgets that we validated the type.
+// FOR_RELEASE: If we can figure out how to make it typecheck, it would be nicer
+// to have a single function/macro that validates the type and extracts the
+// value at once. Currently we have to match twice, since the rust type system
+// forgets that we validated the type.
 fn check_value_has_expected_type(value: &MojomValue, expected_type: &MojomWireType) -> Result<()> {
     let matches = match (expected_type, value) {
         (MojomWireType::Leaf { leaf_type, .. }, _) => match (leaf_type, value) {
@@ -178,12 +179,19 @@ pub fn deparse_struct(
 
     let bytes_written = data.len() - initial_bytes;
     // Write the length of the struct to the first 4 bytes of the header
-    write_to_slice(data, initial_bytes, 4, &usize::to_le_bytes(bytes_written));
+    // The usize->u32 cast should always work, because hopefully our message
+    // is less than 2^32 bytes long!
+    write_to_slice(data, initial_bytes, 4, &u32::to_le_bytes(bytes_written.try_into().unwrap()));
 
     for nested_data_info in nested_data_infos {
         // Write to this nested data's pointer.
         let bytes_from_ptr = data.len() - nested_data_info.ptr_loc;
-        write_to_slice(data, nested_data_info.ptr_loc, 8, &usize::to_le_bytes(bytes_from_ptr));
+        write_to_slice(
+            data,
+            nested_data_info.ptr_loc,
+            8,
+            &u64::to_le_bytes(bytes_from_ptr.try_into().unwrap()),
+        );
 
         match nested_data_info.nested_data {
             NestedData::Struct { field_values, packed_fields } => {
@@ -197,4 +205,33 @@ pub fn deparse_struct(
     }
 
     Ok(())
+}
+
+/// Serialize a single mojom value of the given type, outside the context of a
+/// struct. This function is only useful for unit testing, since all mojom
+/// values in practice are members of a struct. The function only works for
+/// some mojom types, since e.g. booleans can't be parsed individually.
+pub fn deparse_single_value_for_testing(
+    value: &MojomValue,
+    wire_type: &MojomWireType,
+) -> Result<Vec<u8>> {
+    check_value_has_expected_type(value, wire_type)?;
+
+    let mut data: Vec<u8> = vec![];
+    match wire_type {
+        MojomWireType::Leaf { .. } => deparse_leaf_value(&mut data, value)?,
+        MojomWireType::Bitfield { .. } => {
+            unimplemented!("Bitfields cannot be deparsed individually")
+        }
+        MojomWireType::Pointer { nested_data_type, .. } => match (value, nested_data_type) {
+            (MojomValue::Struct(fields), PackedStructuredType::Struct { packed_field_types }) => {
+                deparse_struct(&mut data, &fields, &packed_field_types)?
+            }
+            (MojomValue::Array(_), PackedStructuredType::Array { .. }) => {
+                panic!("Arrays are not yet implemented");
+            }
+            _ => unreachable!("We checked earlier that the value has the expected type"),
+        },
+    };
+    Ok(data)
 }

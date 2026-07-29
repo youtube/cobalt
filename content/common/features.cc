@@ -6,6 +6,7 @@
 
 #include "base/feature_list.h"
 #include "base/metrics/field_trial_params.h"
+#include "base/time/time.h"
 #include "third_party/blink/public/common/features.h"
 
 namespace features {
@@ -113,6 +114,11 @@ BASE_FEATURE(kHidePastePopupOnGSB, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kHoldbackDebugReasonStringRemoval,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+#if BUILDFLAG(IS_MAC)
+BASE_FEATURE(kCancelCompositionWhenWindowLosesFocus,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_MAC)
+
 // If Canvas2D Image Chromium is allowed, this feature controls whether it is
 // enabled.
 BASE_FEATURE(kCanvas2DImageChromium,
@@ -148,6 +154,11 @@ BASE_FEATURE(kCommittedOriginEnforcements, base::FEATURE_ENABLED_BY_DEFAULT);
 // enforcements, which is gated behind kCommittedOriginEnforcements.
 BASE_FEATURE(kCommittedOriginTracking, base::FEATURE_ENABLED_BY_DEFAULT);
 
+// Turn on a bug fix for crbug.com/456537756, ensuring that the callback passed
+// to RenderWidgetHostView::CopyFromSurface() is always called.
+BASE_FEATURE(kCopyFromSurfaceAlwaysCallCallback,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 // Enables support for the `Critical-CH` response header.
 // https://github.com/WICG/client-hints-infrastructure/blob/master/reliability.md#critical-ch
 BASE_FEATURE(kCriticalClientHint, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -157,6 +168,10 @@ BASE_FEATURE(kCriticalClientHint, base::FEATURE_ENABLED_BY_DEFAULT);
 // PendingDeletionCheckCompletedOnSubTree.
 BASE_FEATURE(kDelayRfhDestructionsOnUnloadAndDetach,
              base::FEATURE_DISABLED_BY_DEFAULT);
+const base::FeatureParam<base::TimeDelta>
+    kRfhDestructionsOnUnloadAndDetachTaskDelay{
+        &kDelayRfhDestructionsOnUnloadAndDetach, "task_delay",
+        base::TimeDelta()};
 
 // Enable document policy negotiation mechanism.
 BASE_FEATURE(kDocumentPolicyNegotiation, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -195,10 +210,6 @@ BASE_FEATURE(kExperimentalContentSecurityPolicyFeatures,
 // and account labels features.
 BASE_FEATURE(kFedCmUseOtherAccountAndLabelsNewSyntax,
              base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Enables sending SameSite=Lax cookies in credentialed FedCM requests
-// (accounts endpoint, ID assertion endpoint and disconnect endpoint).
-BASE_FEATURE(kFedCmSameSiteLax, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables NonString Tokens
 BASE_FEATURE(kFedCmNonStringToken, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -509,7 +520,7 @@ BASE_FEATURE(kProcessReuseOnPrerenderCOOPSwap,
 // Causes the browser to progressively enable accessibility for WebContents as
 // they are unhidden and, optionally, disable accessibility some time after they
 // become hidden.
-BASE_FEATURE(kProgressiveAccessibility, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kProgressiveAccessibility, base::FEATURE_ENABLED_BY_DEFAULT);
 
 namespace {
 
@@ -583,6 +594,14 @@ const base::FeatureParam<std::string>
 // same service worker that controls their parent.
 BASE_FEATURE(kServiceWorkerSrcdocSupport, base::FEATURE_ENABLED_BY_DEFAULT);
 
+// When this is enabled, it fixes the object lifetime issue when
+// `race-network-and-fetch-handler` is used, the object should be deleted after
+// the fetch event completion, regardless of the result of racing.
+//
+// crbug.com/340949948 for more details.
+BASE_FEATURE(kServiceWorkerStaticRouterRaceRequestFix2,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // (crbug.com/1371756): When enabled, the static routing API starts
 // ServiceWorker when the routing result of a main resource request was network
 // fallback.
@@ -606,6 +625,12 @@ BASE_FEATURE(kSkipEarlyCommitPendingForCrashedFrame,
 // RendererDidNavigate.
 BASE_FEATURE(kSkipRedundantNavigationStateNotification,
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+// When enabled, skips registration of RendererCancellationThrottle and instead
+// keeps navigation cancellation behavior by reusing the requester
+// NavigationClient.
+BASE_FEATURE(kSkipRendererCancellationThrottle,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
 // When enabled, ensure high-rank processes are on the LRU list while app is in

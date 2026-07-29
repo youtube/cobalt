@@ -15,13 +15,19 @@ export function getHtml(this: ComposeboxElement) {
   <div class="gradient"></div>
   <div class="background"></div>
   <ntp-error-scrim id="errorScrim"
-    ?compact-mode="${this.realboxLayoutMode === 'Compact' &&
+    ?compact-mode="${this.searchboxLayoutMode === 'Compact' &&
                      this.contextFilesSize_ === 0}"
     @error-scrim-visibility-changed="${this.onErrorScrimVisibilityChanged_}">
   </ntp-error-scrim>
+  <div id="dragDropPlaceholder"> Drop your file here </div>
   <div id="composebox" @keydown="${this.onKeydown_}"
-      @focusin=${this.handleComposeboxFocusIn_}
-      @focusout=${this.handleComposeboxFocusOut_}>
+      @focusin="${this.handleComposeboxFocusIn_}"
+      @focusout="${this.handleComposeboxFocusOut_}"
+      @dragenter="${this.handleDragEnter_}"
+      @dragover="${this.handleDragOver_}"
+      @drop="${this.handleDrop_}"
+      @dragleave="${this.handleDragLeave_}"
+      @paste="${this.onPaste_}">
     <div id="inputContainer" part="input-container">
       <div id="textContainer" part="text-container">
         <div id="iconContainer" part="icon-container">
@@ -35,7 +41,7 @@ export function getHtml(this: ComposeboxElement) {
             placeholder="${this.inputPlaceholder_}"
             part="input"
             .value="${this.input_}"
-            @input=${this.handleInput_}
+            @input="${this.handleInput_}"
             @scroll="${this.handleScroll_}"
             @focusin="${this.handleInputFocusIn_}"
             @focusout="${this.handleInputFocusOut_}"></textarea>
@@ -52,7 +58,7 @@ export function getHtml(this: ComposeboxElement) {
       </div>
       <contextual-entrypoint-and-carousel id="context" part="context-entrypoint"
           class="${this.carouselOnTop_ && this.isCollapsible ? 'icon-fade' : ''}"
-          exportparts="context-menu-entrypoint-icon, composebox-file-carousel, upload-container, voice-icon"
+          exportparts="context-menu-entrypoint-icon, cr-composebox-file-carousel, upload-container, voice-icon, carousel-divider"
           .tabSuggestions="${this.tabSuggestions_}"
           entrypoint-name="Composebox"
           @add-tab-context="${this.addTabContext_}"
@@ -64,8 +70,9 @@ export function getHtml(this: ComposeboxElement) {
           @get-tab-preview="${this.getTabPreview_}"
           ?show-dropdown="${this.showDropdown_}"
           ?show-context-menu-description="${this.showContextMenuDescription_}"
-          realbox-layout-mode="${this.realboxLayoutMode}"
+          searchbox-layout-mode="${this.searchboxLayoutMode}"
           ?carousel-on-top_="${this.carouselOnTop_}"
+          ?show-voice-search="${this.shouldShowVoiceSearch_()}"
           .parentFocused="${true}">
         <cr-composebox-dropdown
             id="matches"
@@ -77,7 +84,7 @@ export function getHtml(this: ComposeboxElement) {
             @match-focusin="${this.onMatchFocusin_}"
             @match-click="${this.onMatchClick_}"
             ?hidden="${!this.showDropdown_}"
-            .lastQueriedInput=${this.lastQueriedInput_}>
+            .lastQueriedInput="${this.lastQueriedInput_}">
         </cr-composebox-dropdown>
       </contextual-entrypoint-and-carousel>
     </div>
@@ -103,6 +110,9 @@ export function getHtml(this: ComposeboxElement) {
         ?disabled="${this.lensButtonDisabled_}"
         @mousedown="${this.onLensIconMouseDown_}">
     </cr-icon-button>
+    <!-- Elements rendered under the input container. -->
+    <!-- TODO: Move the submit button and Lens icon into this slot. -->
+    <slot name="footer"></slot>
     <!-- A seperate container is needed for the submit button so the
        expand/collapse animation can be applied without affecting the submit
        button enabled/disabled state. -->

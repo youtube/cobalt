@@ -401,6 +401,12 @@ bool IsDraggingTabs(const aura::Window* window) {
   return window->GetProperty(ash::kIsDraggingTabsKey);
 }
 
+const WindowState* GetTabDraggingSourceWindowState(
+    const aura::Window* drag_window) {
+  return WindowState::Get(
+      drag_window->GetProperty(ash::kTabDraggingSourceWindowKey));
+}
+
 bool ShouldExcludeForCycleList(const aura::Window* window) {
   // Exclude windows:
   // - non user positionable windows, such as extension popups.
@@ -845,7 +851,8 @@ void RegisterProfilePrefs(PrefRegistrySimple* registry) {
 bool IsInFasterSplitScreenSetupSession(const aura::Window* window) {
   SplitViewOverviewSession* split_view_overview_session =
       RootWindowController::ForWindow(window)->split_view_overview_session();
-  return !Shell::Get()->IsInTabletMode() && split_view_overview_session &&
+  return !display::Screen::Get()->InTabletMode() &&
+         split_view_overview_session &&
          split_view_overview_session->setup_type() ==
              SplitViewOverviewSetupType::kSnapThenAutomaticOverview;
 }

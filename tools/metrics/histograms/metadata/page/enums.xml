@@ -291,7 +291,7 @@ chromium-metrics-reviews@google.com.
   <int value="16" label="(Deprecated) Send Tab to Self"/>
   <int value="17" label="Sharing Hub"/>
   <int value="18" label="(Deprecated) Side Search"/>
-  <int value="19" label="SMS Remote Fetcher"/>
+  <int value="19" label="(Deprecated) SMS Remote Fetcher"/>
   <int value="20" label="Translate"/>
   <int value="21" label="Virtual Card Enroll"/>
   <int value="22" label="Filled card information"/>
@@ -308,6 +308,7 @@ chromium-metrics-reviews@google.com.
   <int value="33" label="(Deprecated) Change Password"/>
   <int value="34" label="Lens Overlay Homework"/>
   <int value="35" label="AI Mode"/>
+  <int value="36" label="Reading mode"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/ui/page_action/page_action_icon_type.h:PageActionIconType) -->
@@ -395,6 +396,16 @@ chromium-metrics-reviews@google.com.
       label="Origin UI Visit; the page is opened from UI, and followed by a
              link navigation."/>
 </enum>
+
+<!-- LINT.IfChange(PaidContentState) -->
+
+<enum name="PaidContentState">
+  <int value="0" label="Unknown"/>
+  <int value="1" label="Has paid content"/>
+  <int value="2" label="No paid content found"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/page_load_metrics/browser/observers/paid_content_page_load_metrics_observer.cc:PaidContentState) -->
 
 <!-- LINT.IfChange(PrerenderPrewarmNavigationStatus) -->
 

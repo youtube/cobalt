@@ -71,8 +71,14 @@ public class BottomOverscrollHandler {
      */
     public boolean start() {
         recordEdgeToEdgeOverscrollFromBottom(mBrowserControls);
+        mOverscrollStarted = canStartBottomOverscroll();
 
-        mOverscrollStarted = false;
+        RecordHistogram.recordBooleanHistogram(
+                "Android.OverscrollFromBottom.CanStart", mOverscrollStarted);
+        return mOverscrollStarted;
+    }
+
+    private boolean canStartBottomOverscroll() {
         if (mBrowserControls.isVisibilityForced()) {
             return false;
         }
@@ -81,13 +87,8 @@ public class BottomOverscrollHandler {
             return false;
         }
 
-        if (mBrowserControls.getTopControlOffset() == 0
-                && mBrowserControls.getBottomControlOffset() == 0) {
-            return false;
-        }
-
-        mOverscrollStarted = true;
-        return true;
+        return mBrowserControls.getTopControlOffset() != 0
+                || mBrowserControls.getBottomControlOffset() != 0;
     }
 
     /**
@@ -114,13 +115,16 @@ public class BottomOverscrollHandler {
 
     /** Resets a gesture as the result of the successful overscroll or cancellation. */
     public void reset() {
-        // TODO: Implement
+        if (mOverscrollStarted) {
+            recordDidTriggerOverscroll(false);
+        }
         mOverscrollStarted = false;
         mHandler.removeCallbacks(mShowControlsRunnable);
     }
 
     private void showControlsTransient() {
         mBrowserControls.getBrowserVisibilityDelegate().showControlsTransient();
+        recordDidTriggerOverscroll(true);
     }
 
     /**
@@ -145,5 +149,11 @@ public class BottomOverscrollHandler {
                 "Android.OverscrollFromBottom.BottomControlsStatus",
                 sample,
                 BottomControlsStatus.NUM_TOTAL);
+    }
+
+    /** Record whether the bottom overscroll is triggered, or canceled. */
+    static void recordDidTriggerOverscroll(boolean didTrigger) {
+        RecordHistogram.recordBooleanHistogram(
+                "Android.OverscrollFromBottom.DidTriggerOverscroll", didTrigger);
     }
 }

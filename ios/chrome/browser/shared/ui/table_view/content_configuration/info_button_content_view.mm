@@ -44,7 +44,7 @@ const CGFloat kInfoSymbolSize = 22;
                                             UILayoutConstraintAxisHorizontal];
     [self addSubview:_infoButton];
 
-    _configuration = configuration;
+    _configuration = [configuration copy];
     [self applyConfiguration];
 
     AddSameConstraints(_infoButton, self);
@@ -59,7 +59,7 @@ const CGFloat kInfoSymbolSize = 22;
 #pragma mark - ChromeContentView
 
 - (BOOL)hasCustomAccessibilityActivationPoint {
-  return YES;
+  return _configuration.selectedForVoiceOver;
 }
 
 #pragma mark - UIContentView

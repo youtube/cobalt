@@ -4,9 +4,11 @@
 
 package org.chromium.chrome.browser.ui.desktop_windowing;
 
+import static android.os.Build.VERSION.SDK_INT;
+
 import android.app.Activity;
 import android.os.Build;
-import android.text.TextUtils;
+import android.os.Build.VERSION_CODES;
 import android.text.format.DateUtils;
 
 import androidx.annotation.IntDef;
@@ -17,14 +19,12 @@ import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.shared_preferences.SharedPreferencesManager;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher.ActivityState;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager;
 
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
@@ -34,6 +34,19 @@ import java.util.Set;
 @NullMarked
 public class AppHeaderUtils {
     private static final long CYCLE_LENGTH_MS = DateUtils.DAY_IN_MILLIS;
+
+    // External OEMs for which app header customization will be disabled on external displays.
+    private static final Set<String> EXTERNAL_DISPLAY_OEM_DENYLIST = new HashSet<>();
+
+    static {
+        // Samsung added a bugfix in Android 16 that is required for Chrome app header customization
+        // to work correctly on external displays. Prior to this version, we disallow the feature
+        // for Chrome running on external displays connected to all Samsung devices. See
+        // crbug.com/455925279 for details.
+        if (SDK_INT < VERSION_CODES.BAKLAVA) {
+            EXTERNAL_DISPLAY_OEM_DENYLIST.add("samsung");
+        }
+    }
 
     // These values are persisted to logs. Entries should not be renumbered and
     // numeric values should never be reused.
@@ -45,7 +58,6 @@ public class AppHeaderUtils {
         DesktopWindowHeuristicResult.WIDEST_UNOCCLUDED_RECT_EMPTY,
         DesktopWindowHeuristicResult.DISALLOWED_ON_EXTERNAL_DISPLAY,
         DesktopWindowHeuristicResult.COMPLEX_UNOCCLUDED_REGION,
-        DesktopWindowHeuristicResult.BELOW_MIN_HEIGHT_THRESHOLD,
         DesktopWindowHeuristicResult.NUM_ENTRIES,
     })
     public @interface DesktopWindowHeuristicResult {
@@ -56,10 +68,9 @@ public class AppHeaderUtils {
         int WIDEST_UNOCCLUDED_RECT_EMPTY = 4;
         int DISALLOWED_ON_EXTERNAL_DISPLAY = 5;
         int COMPLEX_UNOCCLUDED_REGION = 6;
-        int BELOW_MIN_HEIGHT_THRESHOLD = 7;
 
         // Be sure to also update enums.xml when updating these values.
-        int NUM_ENTRIES = 8;
+        int NUM_ENTRIES = 7;
     }
 
     // These values are persisted to logs. Entries should not be renumbered and
@@ -141,7 +152,7 @@ public class AppHeaderUtils {
             @DesktopWindowHeuristicResult int result) {
         assert result != DesktopWindowHeuristicResult.UNKNOWN;
         RecordHistogram.recordEnumeratedHistogram(
-                "Android.DesktopWindowHeuristicResult5",
+                "Android.DesktopWindowHeuristicResult4",
                 result,
                 DesktopWindowHeuristicResult.NUM_ENTRIES);
     }
@@ -337,22 +348,12 @@ public class AppHeaderUtils {
         // Determine if app header customization will be ignored on the external display on specific
         // OEMs.
         if (sHeaderCustomizationDisallowedOnExternalDisplayForOem == null) {
-            Set<String> denylist = new HashSet<>();
-            String denylistStr =
-                    ChromeFeatureList.sTabStripLayoutOptimizationOnExternalDisplayOemDenylist
-                            .getValue();
-            if (!TextUtils.isEmpty(denylistStr)) {
-                Collections.addAll(denylist, denylistStr.split(","));
-            }
             sHeaderCustomizationDisallowedOnExternalDisplayForOem =
-                    !denylist.isEmpty()
-                            && denylist.contains(Build.MANUFACTURER.toLowerCase(Locale.US));
+                    !EXTERNAL_DISPLAY_OEM_DENYLIST.isEmpty()
+                            && EXTERNAL_DISPLAY_OEM_DENYLIST.contains(
+                                    Build.MANUFACTURER.toLowerCase(Locale.US));
         }
-        if (sHeaderCustomizationDisallowedOnExternalDisplayForOem) {
-            return false;
-        }
-
-        return ChromeFeatureList.sTabStripLayoutOptimizationOnExternalDisplay.getValue();
+        return !sHeaderCustomizationDisallowedOnExternalDisplayForOem;
     }
 
     /**

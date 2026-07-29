@@ -311,13 +311,12 @@ enum class PasskeyUserVerificationStatus {
     // dismissing the bootstrapping UI if it was presented. If it wasn't
     // presented, it means that the user was already bootstrapped. In this case,
     // `completion` will present the ConsentViewController.
-    [self
-        fetchSecurityDomainSecretForGaia:[self gaia]
-                              credential:nil
-                                 purpose:PasskeyKeychainProvider::
-                                             ReauthenticatePurpose::kUnspecified
-                userVerificationRequired:NO
-                              completion:completion];
+    [self fetchSecurityDomainSecretForGaia:[self gaia]
+                                credential:nil
+                                   purpose:webauthn::ReauthenticatePurpose::
+                                               kUnspecified
+                  userVerificationRequired:NO
+                                completion:completion];
   } else {
     [self presentConsentViewController];
   }
@@ -450,8 +449,9 @@ enum class PasskeyUserVerificationStatus {
   id<Credential> credential = credentials[credentialIndex];
 
   // Respect the user's choice and skip the update if the data was explicitly
-  // changed by the user previously.
-  if (credential.editedByUser) {
+  // changed by the user previously or if the username did not change.
+  if (credential.editedByUser ||
+      [credential.username isEqualToString:newName]) {
     return;
   }
 
@@ -609,13 +609,13 @@ enum class PasskeyUserVerificationStatus {
                        securityDomainSecrets:securityDomainSecrets];
   };
 
-  [self fetchSecurityDomainSecretForGaia:credential.gaia
-                              credential:credential
-                                 purpose:PasskeyKeychainProvider::
-                                             ReauthenticatePurpose::kDecrypt
-                userVerificationRequired:passkeyRequestDetails
-                                             .userVerificationRequired
-                              completion:completion];
+  [self
+      fetchSecurityDomainSecretForGaia:credential.gaia
+                            credential:credential
+                               purpose:webauthn::ReauthenticatePurpose::kDecrypt
+              userVerificationRequired:passkeyRequestDetails
+                                           .userVerificationRequired
+                            completion:completion];
 }
 
 - (void)userCancelledRequestWithErrorCode:(ASExtensionErrorCode)errorCode {
@@ -1195,13 +1195,13 @@ enum class PasskeyUserVerificationStatus {
                  securityDomainSecrets:securityDomainSecrets];
   };
 
-  [self fetchSecurityDomainSecretForGaia:gaia
-                              credential:nil
-                                 purpose:PasskeyKeychainProvider::
-                                             ReauthenticatePurpose::kEncrypt
-                userVerificationRequired:passkeyRequestDetails
-                                             .userVerificationRequired
-                              completion:completion];
+  [self
+      fetchSecurityDomainSecretForGaia:gaia
+                            credential:nil
+                               purpose:webauthn::ReauthenticatePurpose::kEncrypt
+              userVerificationRequired:passkeyRequestDetails
+                                           .userVerificationRequired
+                            completion:completion];
 }
 
 // Attempts to perform passkey assertion and retry on failure if allowed.
@@ -1231,14 +1231,13 @@ enum class PasskeyUserVerificationStatus {
 // Triggers the process to fetch the security domain secret and calls the
 // completion block with the security domain secret as input.
 // "credential" will be used to validate the security domain secret.
-- (void)fetchSecurityDomainSecretForGaia:(NSString*)gaia
-                              credential:(id<Credential>)credential
-                                 purpose:(PasskeyKeychainProvider::
-                                              ReauthenticatePurpose)purpose
-                userVerificationRequired:(BOOL)userVerificationRequired
-                              completion:
-                                  (FetchSecurityDomainSecretCompletionBlock)
-                                      completion {
+- (void)
+    fetchSecurityDomainSecretForGaia:(NSString*)gaia
+                          credential:(id<Credential>)credential
+                             purpose:(webauthn::ReauthenticatePurpose)purpose
+            userVerificationRequired:(BOOL)userVerificationRequired
+                          completion:(FetchSecurityDomainSecretCompletionBlock)
+                                         completion {
   // Store `userVerificationRequired` here as it will be needed at a later stage
   // in the process of fetching the security domain secret.
   if (userVerificationRequired) {

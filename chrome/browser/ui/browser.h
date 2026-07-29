@@ -129,16 +129,16 @@ class Browser : public TabStripModelObserver,
                 public DesktopBrowserWindowCapabilitiesDelegate {
  public:
   // Possible elements of the Browser window.
-  enum WindowFeature {
-    FEATURE_NONE = 0,
-    FEATURE_TITLEBAR = 1 << 0,
-    FEATURE_TABSTRIP = 1 << 1,
-    FEATURE_TOOLBAR = 1 << 2,
-    FEATURE_LOCATIONBAR = 1 << 3,
-    FEATURE_BOOKMARKBAR = 1 << 4,
-    // TODO(crbug.com/40639933): Add FEATURE_PAGECONTROLS to describe the
+  enum class WindowFeature {
+    kFeatureNone,
+    kFeatureTitleBar,
+    kFeatureTabStrip,
+    kFeatureToolbar,
+    kFeatureLocationBar,
+    kFeatureBookmarkBar,
+    // TODO(crbug.com/40639933): Add kFeaturePageControls to describe the
     // presence of per-page controls such as Content Settings Icons, which
-    // should be decoupled from FEATURE_LOCATIONBAR as they have independent
+    // should be decoupled from kFeatureLocationBar as they have independent
     // presence in Web App browsers.
   };
 
@@ -459,12 +459,11 @@ class Browser : public TabStripModelObserver,
   bool should_trigger_session_restore() const {
     return should_trigger_session_restore_;
   }
-  const web_app::AppBrowserController* app_controller() const {
-    return GetAppBrowserController();
-  }
-  web_app::AppBrowserController* app_controller() {
-    return GetAppBrowserController();
-  }
+
+  // Remove these functions and migrate to using
+  // AppBrowserController::IsWebApp()` and `AppBrowserController::From()`.
+  const web_app::AppBrowserController* app_controller() const;
+  web_app::AppBrowserController* app_controller();
   BrowserWindowFeatures* browser_window_features() const {
     return features_.get();
   }
@@ -577,15 +576,13 @@ class Browser : public TabStripModelObserver,
   // 2. The Browser window is hidden, and a task is posted that results in
   //    deleting the Browser (Views is responsible for posting the task). This
   //    phase can not be stopped. During this phase is_delete_scheduled()
-  //    returns true. IsBrowserClosing() is nearly identical to
-  //    is_delete_scheduled(), it's set just before removing the tabs.
+  //    returns true.
   //
   // Note that there are other cases that may delay closing, such as downloads,
   // but that is done before any of these steps.
-  // TODO(crbug.com/40064092): See about unifying IsBrowserClosing() and
-  // is_delete_scheduled().
+  // TODO(crbug.com/40064092): See about unifying IsAttemptingToCloseBrowser()
+  // and is_delete_scheduled().
   bool IsAttemptingToCloseBrowser() const override;
-  bool IsBrowserClosing() const;
   bool is_delete_scheduled() const { return is_delete_scheduled_; }
 
   // Invoked when the window containing us is closing. Performs the necessary
@@ -810,8 +807,6 @@ class Browser : public TabStripModelObserver,
   ExclusiveAccessManager* GetExclusiveAccessManager() override;
   BrowserActions* GetActions() override;
   Type GetType() const override;
-  web_app::AppBrowserController* GetAppBrowserController() override;
-  const web_app::AppBrowserController* GetAppBrowserController() const override;
   std::vector<tabs::TabInterface*> GetAllTabInterfaces() override;
   Browser* GetBrowserForMigrationOnly() override;
   const Browser* GetBrowserForMigrationOnly() const override;
@@ -968,13 +963,15 @@ class Browser : public TabStripModelObserver,
   void EnumerateDirectory(content::WebContents* web_contents,
                           scoped_refptr<content::FileSelectListener> listener,
                           const base::FilePath& path) override;
-  bool CanUseWindowingControls(
-      content::RenderFrameHost* requesting_frame) override;
   void OnWebApiWindowResizableChanged() override;
   bool GetCanResize() override;
+#if !BUILDFLAG(IS_ANDROID)
+  bool CanUseWindowingControls(
+      content::RenderFrameHost* requesting_frame) override;
   void MinimizeFromWebAPI() override;
   void MaximizeFromWebAPI() override;
   void RestoreFromWebAPI() override;
+#endif
   ui::mojom::WindowShowState GetWindowShowState() const override;
   bool CanEnterFullscreenModeForTab(
       content::RenderFrameHost* requesting_frame) override;

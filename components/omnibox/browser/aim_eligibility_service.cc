@@ -12,6 +12,7 @@
 #include "base/base64.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
+#include "base/logging.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/strcat.h"
@@ -53,6 +54,11 @@ static constexpr char kEligibilityResponseHistogramPrefix[] =
 // Histogram prefix for changes to the eligibility response.
 static constexpr char kEligibilityResponseChangeHistogramPrefix[] =
     "Omnibox.AimEligibility.EligibilityResponseChange";
+// Histograms for the number of retries for eligibility requests.
+static constexpr char kEligibilityRequestRetriesFailedHistogramName[] =
+    "Omnibox.AimEligibility.EligibilityRequestRetries.Failed";
+static constexpr char kEligibilityRequestRetriesSucceededHistogramName[] =
+    "Omnibox.AimEligibility.EligibilityRequestRetries.Succeeded";
 
 static constexpr char kRequestPath[] = "/async/folae";
 static constexpr char kRequestQuery[] = "async=_fmt:pb";
@@ -63,6 +69,9 @@ static constexpr char kRequestQuery[] = "async=_fmt:pb";
 // pref value (0) if neither policy is set. Do not change this value without
 // migrating the existing prefs and the policy's prefs mapping.
 constexpr int kAiModeAllowedDefault = 0;
+
+// The maximum number of retries for eligibility requests.
+constexpr int kMaxRetries = 3;
 
 // The pref name used for storing the eligibility response proto.
 constexpr char kResponsePrefName[] =
@@ -213,7 +222,12 @@ AimEligibilityService::AimEligibilityService(
   }
 }
 
-AimEligibilityService::~AimEligibilityService() = default;
+AimEligibilityService::~AimEligibilityService() {
+  if (base::FeatureList::IsEnabled(
+          omnibox::kAimStartupRequestDelayedUntilNetworkAvailableEnabled)) {
+    net::NetworkChangeNotifier::RemoveNetworkChangeObserver(this);
+  }
+}
 
 bool AimEligibilityService::IsCountry(const std::string& country) const {
   // Country codes are in lowercase ISO 3166-1 alpha-2 format; e.g., us, br, in.
@@ -333,8 +347,18 @@ void AimEligibilityService::Initialize() {
 
   LoadMostRecentResponse();
 
-  if (base::FeatureList::IsEnabled(
-          omnibox::kAimServerRequestOnStartupEnabled)) {
+  bool startup_request_enabled =
+      base::FeatureList::IsEnabled(omnibox::kAimServerRequestOnStartupEnabled);
+  bool startup_request_delayed_until_network_available_enabled =
+      base::FeatureList::IsEnabled(
+          omnibox::kAimStartupRequestDelayedUntilNetworkAvailableEnabled);
+  bool is_offline = net::NetworkChangeNotifier::IsOffline();
+
+  if (startup_request_enabled &&
+      startup_request_delayed_until_network_available_enabled && is_offline) {
+    net::NetworkChangeNotifier::AddNetworkChangeObserver(this);
+  } else if (startup_request_enabled) {
+    startup_request_sent_ = true;
     StartServerEligibilityRequest(RequestSource::kStartup);
   }
 
@@ -368,6 +392,22 @@ void AimEligibilityService::OnAccountsInCookieUpdated(
   StartServerEligibilityRequest(RequestSource::kCookieChange);
 }
 
+void AimEligibilityService::OnNetworkChanged(
+    net::NetworkChangeNotifier::ConnectionType type) {
+  bool startup_request_enabled =
+      base::FeatureList::IsEnabled(omnibox::kAimServerRequestOnStartupEnabled);
+  bool startup_request_delayed_until_network_available_enabled =
+      base::FeatureList::IsEnabled(
+          omnibox::kAimStartupRequestDelayedUntilNetworkAvailableEnabled);
+  CHECK(startup_request_enabled);
+  CHECK(startup_request_delayed_until_network_available_enabled);
+  bool is_online = !net::NetworkChangeNotifier::IsOffline();
+  if (is_online && !startup_request_sent_) {
+    startup_request_sent_ = true;
+    StartServerEligibilityRequest(RequestSource::kNetworkChange);
+  }
+}
+
 void AimEligibilityService::OnEligibilityResponseChanged() {
   CHECK(initialized_);
 
@@ -380,16 +420,18 @@ void AimEligibilityService::OnEligibilityResponseChanged() {
 }
 
 void AimEligibilityService::UpdateMostRecentResponse(
-    const omnibox::AimEligibilityResponse& response_proto) {
+    const omnibox::AimEligibilityResponse& response_proto,
+    bool was_fetched_via_cache) {
   CHECK(initialized_);
 
   std::string response_string;
   response_proto.SerializeToString(&response_string);
   std::string encoded_response = base::Base64Encode(response_string);
   pref_service_->SetString(kResponsePrefName, encoded_response);
-
   most_recent_response_ = response_proto;
-  most_recent_response_source_ = EligibilityResponseSource::kServer;
+  most_recent_response_source_ = was_fetched_via_cache
+                                     ? EligibilityResponseSource::kBrowserCache
+                                     : EligibilityResponseSource::kServer;
 }
 
 void AimEligibilityService::LoadMostRecentResponse() {
@@ -432,6 +474,15 @@ void AimEligibilityService::StartServerEligibilityRequest(
 
   LogEligibilityRequestStatus(EligibilityRequestStatus::kSent, request_source);
 
+  if (base::FeatureList::IsEnabled(
+          omnibox::kAimServerEligibilityCustomRetryPolicyEnabled)) {
+    // Other places in Chrome suggest that DNS and network change related
+    // failures are common on startup and use the retry policy below.
+    loader->SetRetryOptions(
+        kMaxRetries, network::SimpleURLLoader::RETRY_ON_NAME_NOT_RESOLVED |
+                         network::SimpleURLLoader::RETRY_ON_NETWORK_CHANGE);
+  }
+
   loader->DownloadToStringOfUnboundedSizeUntilCrashAndDie(
       url_loader_factory_.get(),
       base::BindOnce(&AimEligibilityService::OnServerEligibilityResponse,
@@ -449,24 +500,55 @@ void AimEligibilityService::OnServerEligibilityResponse(
       loader->ResponseInfo() && loader->ResponseInfo()->headers
           ? loader->ResponseInfo()->headers->response_code()
           : 0;
+  const bool was_fetched_via_cache =
+      loader->ResponseInfo() ? loader->ResponseInfo()->was_fetched_via_cache
+                             : false;
 
+  ProcessServerEligibilityResponse(
+      request_source, response_code, was_fetched_via_cache,
+      loader->GetNumRetries(), std::move(response_string));
+}
+
+void AimEligibilityService::ProcessServerEligibilityResponse(
+    RequestSource request_source,
+    int response_code,
+    bool was_fetched_via_cache,
+    int num_retries,
+    std::unique_ptr<std::string> response_string) {
   LogEligibilityRequestResponseCode(response_code, request_source);
+
+  const bool custom_retry_policy_enabled = base::FeatureList::IsEnabled(
+      omnibox::kAimServerEligibilityCustomRetryPolicyEnabled);
 
   if (response_code != 200 || !response_string) {
     LogEligibilityRequestStatus(EligibilityRequestStatus::kErrorResponse,
                                 request_source);
+    if (custom_retry_policy_enabled) {
+      base::UmaHistogramExactLinear(
+          kEligibilityRequestRetriesFailedHistogramName, num_retries,
+          kMaxRetries + 1);
+    }
     return;
   }
+
+  if (custom_retry_policy_enabled) {
+    base::UmaHistogramExactLinear(
+        kEligibilityRequestRetriesSucceededHistogramName, num_retries,
+        kMaxRetries + 1);
+  }
+
   omnibox::AimEligibilityResponse response_proto;
   if (!ParseResponseString(*response_string, &response_proto)) {
     LogEligibilityRequestStatus(EligibilityRequestStatus::kFailedToParse,
                                 request_source);
     return;
   }
-  LogEligibilityRequestStatus(EligibilityRequestStatus::kSuccess,
-                              request_source);
 
-  UpdateMostRecentResponse(response_proto);
+  LogEligibilityRequestStatus(
+      was_fetched_via_cache ? EligibilityRequestStatus::kSuccessBrowserCache
+                            : EligibilityRequestStatus::kSuccess,
+      request_source);
+  UpdateMostRecentResponse(response_proto, was_fetched_via_cache);
   LogEligibilityResponse(request_source);
 }
 
@@ -481,6 +563,8 @@ std::string AimEligibilityService::GetHistogramNameSlicedByRequestSource(
         return ".CookieChange";
       case RequestSource::kPrimaryAccountChange:
         return ".PrimaryAccountChange";
+      case RequestSource::kNetworkChange:
+        return ".NetworkChange";
     }
     return "";
   };

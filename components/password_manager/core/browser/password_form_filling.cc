@@ -140,8 +140,14 @@ bool IsSameOrigin(const Origin& frame_origin, const GURL& credential_url) {
 }
 
 #if !BUILDFLAG(IS_IOS) && !defined(ANDROID)
-bool IsEligibleForPasswordChange(const PasswordForm* preferred_match) {
+bool IsEligibleForPasswordChange(PasswordManagerClient* client,
+                                 const PasswordForm* preferred_match) {
   if (!preferred_match) {
+    return false;
+  }
+
+  if (!client->GetPasswordChangeService() ||
+      !client->GetPasswordChangeService()->IsPasswordChangeAvailable()) {
     return false;
   }
 
@@ -271,10 +277,11 @@ LikelyFormFilling SendFillInformationToRenderer(
   } else if (observed_form.IsSingleUsername()) {
     wait_for_username_reason = WaitForUsernameReason::kSingleUsernameForm;
   } else if (client->IsActorTaskActive() &&
-             base::FeatureList::IsEnabled(features::kActorLogin)) {
+             base::FeatureList::IsEnabled(
+                 features::kActorActiveDisablesFillingOnPageLoad)) {
     wait_for_username_reason = WaitForUsernameReason::kActorTaskOngoing;
   } else if (client->IsPasswordChangeOngoing() ||
-             IsEligibleForPasswordChange(preferred_match)) {
+             IsEligibleForPasswordChange(client, preferred_match)) {
     wait_for_username_reason = WaitForUsernameReason::kPasswordChangeOngoing;
   }
 

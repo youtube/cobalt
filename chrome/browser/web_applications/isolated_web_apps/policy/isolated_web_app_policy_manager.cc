@@ -20,7 +20,6 @@
 #include "base/containers/map_util.h"
 #include "base/containers/to_value_list.h"
 #include "base/feature_list.h"
-#include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_forward.h"
@@ -322,7 +321,7 @@ void IsolatedWebAppPolicyManager::CleanupAndProcessPolicyOnSessionStart() {
         FROM_HERE,
         base::BindOnce(&IsolatedWebAppPolicyManager::CleanupOrphanedBundles,
                        weak_ptr_factory_.GetWeakPtr()),
-        base::Minutes(1));
+        base::Minutes(10));
   }
 }
 
@@ -398,15 +397,21 @@ void IsolatedWebAppPolicyManager::DoProcessPolicy(
                         << " is not in the managed allowlist. ";
           continue;
         }
-        // Always fully uninstall user installed apps (dev mode and regular)
-        // if they're to be replaced by a policy installation.
-        app_actions.emplace(
-            install_options.web_bundle_id(),
-            AppActionRemoveInstallSource(WebAppManagement::kIwaUserInstalled));
 
-        // We need to reprocess the policy immediately after, so that the then
-        // uninstalled app is re-installed.
-        reprocess_policy_needed_ = true;
+        // Dev mode cannot co-exist with other install sources.
+        if (installed_app.isolation_data()->location().dev_mode()) {
+          app_actions.emplace(install_options.web_bundle_id(),
+                              AppActionRemoveInstallSource(
+                                  WebAppManagement::kIwaUserInstalled));
+
+          // We need to reprocess the policy immediately after, so that the then
+          // uninstalled app is re-installed.
+          reprocess_policy_needed_ = true;
+        } else {
+          app_actions.emplace(install_options.web_bundle_id(),
+                              AppActionInstall(install_options));
+          ++number_of_install_tasks;
+        }
         break;
     }
   }

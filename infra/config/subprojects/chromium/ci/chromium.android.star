@@ -789,6 +789,7 @@ ci.builder(
             "has_native_resultdb_integration",
             "walleye",
             "10_fleet",
+            "retry_only_failed_tests",
         ],
     ),
     console_view_entry = consoles.console_view_entry(
@@ -835,6 +836,7 @@ ci.builder(
             "has_native_resultdb_integration",
             "linux-jammy",
             "x86-64",
+            "retry_only_failed_tests",
         ],
         per_test_modifications = {
             "android_browsertests": targets.mixin(
@@ -1123,7 +1125,6 @@ ci.builder(
             "x86",
             "strip_debug_info",
             "android_fastbuild",
-            "webview_monochrome",
             "webview_shell",
         ],
     ),
@@ -2317,6 +2318,7 @@ ci.builder(
             "emulator-4-cores",
             "linux-jammy",
             "x86-64",
+            "retry_only_failed_tests",
         ],
         per_test_modifications = {
             # If you change this, make similar changes in android-x86-code-coverage
@@ -2336,16 +2338,12 @@ ci.builder(
                     shards = 2,
                 ),
             ),
-            # If you change this, make similar changes in android-x86-code-coverage
-            "chrome_junit_tests": targets.mixin(
-                retry_only_failed_tests = True,
-            ),
+
             # If you change this, make similar changes in android-x86-code-coverage
             "chrome_public_test_apk": targets.mixin(
                 args = [
                     "--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_10.chrome_public_test_apk.filter",
                 ],
-                retry_only_failed_tests = True,
                 swarming = targets.swarming(
                     dimensions = {
                         # use 8-core to shorten runtime
@@ -2365,7 +2363,6 @@ ci.builder(
                 args = [
                     "--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_10.content_browsertests.filter",
                 ],
-                retry_only_failed_tests = True,
                 swarming = targets.swarming(
                     dimensions = {
                         # use 8-core to shorten runtime
@@ -2445,7 +2442,6 @@ ci.builder(
                 args = [
                     "--use-persistent-shell",
                 ],
-                retry_only_failed_tests = True,
                 swarming = targets.swarming(
                     shards = 18,
                 ),
@@ -3195,6 +3191,7 @@ ci.builder(
             "has_native_resultdb_integration",
             "isolate_profile_data",
             "panther_on_14",
+            "retry_only_failed_tests",
         ],
         per_test_modifications = {
             "android_browsertests": targets.mixin(
@@ -3652,6 +3649,7 @@ ci.builder(
             "has_native_resultdb_integration",
             "linux-jammy",
             "x86-64",
+            "retry_only_failed_tests",
         ],
         per_test_modifications = {
             "android_browsertests": targets.mixin(
@@ -3809,6 +3807,11 @@ ci.builder(
             "chrome_public_test_apk": targets.mixin(
                 args = [
                     "--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_15_tablet_landscape.chrome_public_test_apk.filter",
+                    "--skia-gold-consider-unsupported",
+                ],
+            ),
+            "chrome_public_unit_test_apk": targets.mixin(
+                args = [
                     "--skia-gold-consider-unsupported",
                 ],
             ),
@@ -4276,6 +4279,7 @@ ci.builder(
             "has_native_resultdb_integration",
             "linux-jammy",
             "x86-64",
+            "retry_only_failed_tests",
         ],
         per_test_modifications = {
             "webview_trichrome_64_cts_hostside_tests full_mode": targets.mixin(

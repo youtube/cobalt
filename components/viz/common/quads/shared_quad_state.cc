@@ -83,9 +83,10 @@ void SharedQuadState::SetAll(const gfx::Transform& transform,
 }
 
 void SharedQuadState::AsValueInto(base::trace_event::TracedValue* value) const {
-  cc::MathUtil::AddToTracedValue("transform", quad_to_target_transform, value);
-  cc::MathUtil::AddToTracedValue("layer_content_rect", quad_layer_rect, value);
-  cc::MathUtil::AddToTracedValue("layer_visible_content_rect",
+  cc::MathUtil::AddToTracedValue("quad_to_target_transform",
+                                 quad_to_target_transform, value);
+  cc::MathUtil::AddToTracedValue("quad_layer_rect", quad_layer_rect, value);
+  cc::MathUtil::AddToTracedValue("visible_quad_layer_rect",
                                  visible_quad_layer_rect, value);
   value->SetString("mask_filter_info", mask_filter_info.ToString());
   if (clip_rect) {
@@ -96,16 +97,13 @@ void SharedQuadState::AsValueInto(base::trace_event::TracedValue* value) const {
   value->SetDouble("opacity", opacity);
   value->SetString("blend_mode", SkBlendMode_Name(blend_mode));
   value->SetInteger("sorting_context_id", sorting_context_id);
-  value->SetInteger("layer_id", layer_id);
-  value->SetInteger("layer_namespace_id", layer_id);
+  // Skip |layer_id| and |layer_namespace_id| because their values are
+  // different in renderer and viz under TreesInViz mode.
   value->SetBoolean("is_fast_rounded_corner", is_fast_rounded_corner);
+  // Skip overlay_damage_index because it's only used by viz.
   if (offset_tag) {
     value->SetString("offset_tag", offset_tag.ToString());
   }
-
-  TracedValue::MakeDictIntoImplicitSnapshotWithCategory(
-      TRACE_DISABLED_BY_DEFAULT("viz.quads"), value, "viz::SharedQuadState",
-      TracedValue::Id(this));
 }
 
 }  // namespace viz

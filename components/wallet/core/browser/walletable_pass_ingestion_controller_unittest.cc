@@ -22,11 +22,12 @@ using base::test::EqualsProto;
 using optimization_guide::ModelBasedCapabilityKey::kWalletablePassExtraction;
 using optimization_guide::OptimizationGuideDecision::kFalse;
 using optimization_guide::OptimizationGuideDecision::kTrue;
-using optimization_guide::proto::WALLETABLE_PASS_DETECTION_ALLOWLIST;
+using optimization_guide::proto::WALLETABLE_PASS_DETECTION_LOYALTY_ALLOWLIST;
 using optimization_guide::proto::WalletablePass;
 using testing::_;
 using testing::Return;
 using testing::WithArgs;
+using enum optimization_guide::proto::PassCategory;
 
 namespace wallet {
 namespace {
@@ -133,34 +134,40 @@ class WalletablePassIngestionControllerTest : public testing::Test {
 };
 
 TEST_F(WalletablePassIngestionControllerTest,
-       IsEligibleForExtraction_NonHttpUrl_NotEligible) {
+       GetPassCategoryForURL_NonHttpUrl_NotEligible) {
   GURL file_url("file:///test.html");
-  EXPECT_FALSE(test_api(controller()).IsEligibleForExtraction(file_url));
+  EXPECT_EQ(test_api(controller()).GetPassCategoryForURL(file_url),
+            std::nullopt);
 
   GURL ftp_url("ftp://example.com");
-  EXPECT_FALSE(test_api(controller()).IsEligibleForExtraction(ftp_url));
+  EXPECT_EQ(test_api(controller()).GetPassCategoryForURL(ftp_url),
+            std::nullopt);
 }
 
 TEST_F(WalletablePassIngestionControllerTest,
-       IsEligibleForExtraction_AllowlistedUrl) {
+       GetPassCategoryForURL_AllowlistedUrl) {
   GURL https_url("https://example.com");
-  EXPECT_CALL(mock_decider(),
-              CanApplyOptimization(
-                  https_url, WALLETABLE_PASS_DETECTION_ALLOWLIST, nullptr))
+  EXPECT_CALL(
+      mock_decider(),
+      CanApplyOptimization(
+          https_url, WALLETABLE_PASS_DETECTION_LOYALTY_ALLOWLIST, nullptr))
       .WillOnce(Return(kTrue));
 
-  EXPECT_TRUE(test_api(controller()).IsEligibleForExtraction(https_url));
+  EXPECT_EQ(test_api(controller()).GetPassCategoryForURL(https_url),
+            PASS_CATEGORY_LOYALTY_CARD);
 }
 
 TEST_F(WalletablePassIngestionControllerTest,
-       IsEligibleForExtraction_NotAllowlistedUrl) {
+       GetPassCategoryForURL_NotAllowlistedUrl) {
   GURL http_url("http://example.com");
-  EXPECT_CALL(mock_decider(),
-              CanApplyOptimization(
-                  http_url, WALLETABLE_PASS_DETECTION_ALLOWLIST, nullptr))
+  EXPECT_CALL(
+      mock_decider(),
+      CanApplyOptimization(
+          http_url, WALLETABLE_PASS_DETECTION_LOYALTY_ALLOWLIST, nullptr))
       .WillOnce(Return(kFalse));
 
-  EXPECT_FALSE(test_api(controller()).IsEligibleForExtraction(http_url));
+  EXPECT_EQ(test_api(controller()).GetPassCategoryForURL(http_url),
+            std::nullopt);
 }
 
 TEST_F(WalletablePassIngestionControllerTest,
@@ -169,19 +176,28 @@ TEST_F(WalletablePassIngestionControllerTest,
   optimization_guide::proto::AnnotatedPageContent content;
   content.set_tab_id(123);
 
+  optimization_guide::proto::WalletablePassExtractionRequest expected_request;
+  expected_request.set_pass_category(PASS_CATEGORY_LOYALTY_CARD);
+  expected_request.mutable_page_context()->set_url(url.spec());
+  expected_request.mutable_page_context()->set_title("title");
+  *expected_request.mutable_page_context()->mutable_annotated_page_content() =
+      content;
+
   EXPECT_CALL(*controller(), GetPageTitle()).WillOnce(Return("title"));
   EXPECT_CALL(mock_model_executor(),
-              ExecuteModel(kWalletablePassExtraction, _, _, _));
+              ExecuteModel(kWalletablePassExtraction,
+                           EqualsProto(expected_request), _, _));
 
-  test_api(controller()).ExtractWalletablePass(url, content);
+  test_api(controller())
+      .ExtractWalletablePass(url, PASS_CATEGORY_LOYALTY_CARD, content);
 }
 
 TEST_F(WalletablePassIngestionControllerTest,
        StartWalletablePassDetectionFlow_NotEligible) {
   GURL url("https://example.com");
-  EXPECT_CALL(
-      mock_decider(),
-      CanApplyOptimization(url, WALLETABLE_PASS_DETECTION_ALLOWLIST, nullptr))
+  EXPECT_CALL(mock_decider(),
+              CanApplyOptimization(
+                  url, WALLETABLE_PASS_DETECTION_LOYALTY_ALLOWLIST, nullptr))
       .WillOnce(Return(kFalse));
 
   EXPECT_CALL(*controller(), GetAnnotatedPageContent(_)).Times(0);
@@ -191,9 +207,9 @@ TEST_F(WalletablePassIngestionControllerTest,
 TEST_F(WalletablePassIngestionControllerTest,
        StartWalletablePassDetectionFlow_Eligible) {
   GURL url("https://example.com");
-  EXPECT_CALL(
-      mock_decider(),
-      CanApplyOptimization(url, WALLETABLE_PASS_DETECTION_ALLOWLIST, nullptr))
+  EXPECT_CALL(mock_decider(),
+              CanApplyOptimization(
+                  url, WALLETABLE_PASS_DETECTION_LOYALTY_ALLOWLIST, nullptr))
       .WillOnce(Return(kTrue));
 
   // Expect ShowWalletablePassConsentBubble to be called.
@@ -239,7 +255,7 @@ TEST_F(WalletablePassIngestionControllerTest,
               WalletablePassClient::WalletablePassBubbleResultCallback
                   callback) { consent_callback = std::move(callback); }));
 
-  test_api(controller()).ShowConsentBubble(url);
+  test_api(controller()).ShowConsentBubble(url, PASS_CATEGORY_LOYALTY_CARD);
   ASSERT_TRUE(consent_callback);
 
   // Expect GetAnnotatedPageContent to be called when consent is accepted.
@@ -262,7 +278,7 @@ TEST_F(WalletablePassIngestionControllerTest,
               WalletablePassClient::WalletablePassBubbleResultCallback
                   callback) { consent_callback = std::move(callback); }));
 
-  test_api(controller()).ShowConsentBubble(url);
+  test_api(controller()).ShowConsentBubble(url, PASS_CATEGORY_LOYALTY_CARD);
   ASSERT_TRUE(consent_callback);
 
   // Expect GetAnnotatedPageContent NOT to be called when consent is declined.
@@ -275,75 +291,86 @@ TEST_F(WalletablePassIngestionControllerTest,
 
 TEST_F(WalletablePassIngestionControllerTest,
        ShowSaveBubble_StrikesExceed_BubbleNotShown) {
+  GURL url("https://example.com");
   WalletablePass walletable_pass = CreateLoyaltyCard();
-  test_strike_database().SetStrikeData("WalletablePassSave__LoyaltyCard", 3);
+  test_strike_database().SetStrikeData(
+      "WalletablePassSaveByHost__LoyaltyCard;example.com", 3);
 
   EXPECT_CALL(mock_client(),
               ShowWalletablePassSaveBubble(EqualsProto(walletable_pass), _))
       .Times(0);
 
   test_api(controller())
-      .ShowSaveBubble(std::make_unique<WalletablePass>(walletable_pass));
+      .ShowSaveBubble(url, std::make_unique<WalletablePass>(walletable_pass));
 }
 
 TEST_F(WalletablePassIngestionControllerTest,
        ShowSaveBubble_Accept_ClearsStrikes) {
+  GURL url("https://example.com");
   WalletablePass walletable_pass = CreateLoyaltyCard();
-  test_strike_database().SetStrikeData("WalletablePassSave__LoyaltyCard", 2);
+  test_strike_database().SetStrikeData(
+      "WalletablePassSaveByHost__LoyaltyCard;example.com", 2);
 
   WalletablePassClient::WalletablePassBubbleResultCallback bubble_callback;
   ExpectSaveBubbleOnClient(walletable_pass, &bubble_callback);
 
   test_api(controller())
-      .ShowSaveBubble(std::make_unique<WalletablePass>(walletable_pass));
+      .ShowSaveBubble(url, std::make_unique<WalletablePass>(walletable_pass));
 
   // Simulate accepting the bubble.
   std::move(bubble_callback)
       .Run(WalletablePassClient::WalletablePassBubbleResult::kAccepted);
 
   // Verify strikes are cleared.
-  EXPECT_EQ(
-      test_strike_database().GetStrikes("WalletablePassSave__LoyaltyCard"), 0);
+  EXPECT_EQ(test_strike_database().GetStrikes(
+                "WalletablePassSaveByHost__LoyaltyCard;example.com"),
+            0);
 }
 
 TEST_F(WalletablePassIngestionControllerTest,
        ShowSaveBubble_Reject_AddsStrikes) {
+  GURL url("https://example.com");
   WalletablePass walletable_pass = CreateLoyaltyCard();
-  test_strike_database().SetStrikeData("WalletablePassSave__LoyaltyCard", 1);
+  test_strike_database().SetStrikeData(
+      "WalletablePassSaveByHost__LoyaltyCard;example.com", 1);
 
   WalletablePassClient::WalletablePassBubbleResultCallback bubble_callback;
   ExpectSaveBubbleOnClient(walletable_pass, &bubble_callback);
 
   test_api(controller())
-      .ShowSaveBubble(std::make_unique<WalletablePass>(walletable_pass));
+      .ShowSaveBubble(url, std::make_unique<WalletablePass>(walletable_pass));
 
   // Simulate declining the bubble.
   std::move(bubble_callback)
       .Run(WalletablePassClient::WalletablePassBubbleResult::kDeclined);
 
   // Verify strikes are added.
-  EXPECT_EQ(
-      test_strike_database().GetStrikes("WalletablePassSave__LoyaltyCard"), 2);
+  EXPECT_EQ(test_strike_database().GetStrikes(
+                "WalletablePassSaveByHost__LoyaltyCard;example.com"),
+            2);
 }
 
 TEST_F(WalletablePassIngestionControllerTest,
        ShowSaveBubble_UnintendedClose_StrikesUnchanged) {
+  GURL url("https://example.com");
   WalletablePass walletable_pass = CreateLoyaltyCard();
-  test_strike_database().SetStrikeData("WalletablePassSave__LoyaltyCard", 1);
+  test_strike_database().SetStrikeData(
+      "WalletablePassSaveByHost__LoyaltyCard;example.com", 1);
 
   WalletablePassClient::WalletablePassBubbleResultCallback bubble_callback;
   ExpectSaveBubbleOnClient(walletable_pass, &bubble_callback);
 
   test_api(controller())
-      .ShowSaveBubble(std::make_unique<WalletablePass>(walletable_pass));
+      .ShowSaveBubble(url, std::make_unique<WalletablePass>(walletable_pass));
 
   // Simulate lost focus.
   std::move(bubble_callback)
       .Run(WalletablePassClient::WalletablePassBubbleResult::kLostFocus);
 
   // Verify strikes are the same.
-  EXPECT_EQ(
-      test_strike_database().GetStrikes("WalletablePassSave__LoyaltyCard"), 1);
+  EXPECT_EQ(test_strike_database().GetStrikes(
+                "WalletablePassSaveByHost__LoyaltyCard;example.com"),
+            1);
 }
 
 }  // namespace

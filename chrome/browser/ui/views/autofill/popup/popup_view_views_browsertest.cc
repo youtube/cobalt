@@ -595,11 +595,8 @@ class PopupViewViewsPlusAddressSuggestionBrowsertest
         &setting_service(), &allocator(),
         url::Origin::Create(GURL("https://foo.bar")));
     FormData form = autofill::test::CreateTestSignupFormData();
-    return helper.GetSuggestions(
-        affiliated_plus_addresses,
-        /*is_creation_enabled=*/true, form, form.fields()[0],
-        /*form_field_type_groups=*/{}, PasswordFormClassification(),
-        /*is_plus_address_manually_triggered=*/false);
+    return helper.GetSuggestions(affiliated_plus_addresses, form.fields()[0],
+                                 /*is_plus_address_manually_triggered=*/false);
   }
 
  private:
@@ -608,23 +605,6 @@ class PopupViewViewsPlusAddressSuggestionBrowsertest
   plus_addresses::FakePlusAddressAllocator allocator_;
   plus_addresses::FakePlusAddressSettingService setting_service_;
 };
-
-IN_PROC_BROWSER_TEST_P(PopupViewViewsPlusAddressSuggestionBrowsertest,
-                       FirstTimeCreation) {
-  setting_service().set_has_accepted_notice(false);
-  PrepareSuggestions(
-      GetPlusAddressSuggestion(/*affiliated_plus_addresses=*/{}));
-  ShowAndVerifyUi();
-}
-
-IN_PROC_BROWSER_TEST_P(PopupViewViewsPlusAddressSuggestionBrowsertest,
-                       InlineGenerationWithPreallocatedAddresses) {
-  setting_service().set_has_accepted_notice(true);
-  allocator().set_is_next_allocation_synchronous(true);
-  PrepareSuggestions(
-      GetPlusAddressSuggestion(/*affiliated_plus_addresses=*/{}));
-  ShowAndVerifyUi();
-}
 
 IN_PROC_BROWSER_TEST_P(PopupViewViewsPlusAddressSuggestionBrowsertest,
                        Filling) {

@@ -5,6 +5,7 @@
 #include "chrome/browser/ui/views/toolbar/reload_button_web_view.h"
 
 #include "chrome/app/chrome_command_ids.h"
+#include "chrome/browser/page_load_metrics/page_load_metrics_initialize.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_command_controller.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
@@ -17,6 +18,7 @@
 #include "chrome/grit/generated_resources.h"
 #include "content/public/browser/context_menu_params.h"
 #include "content/public/browser/web_contents.h"
+#include "ui/accessibility/ax_enums.mojom-data-view.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/window_open_disposition_utils.h"
@@ -38,14 +40,18 @@ ReloadButtonWebView::ReloadButtonWebView(
   SetLayoutManager(std::make_unique<views::FillLayout>());
 
   auto web_view = std::make_unique<views::WebView>(browser->GetProfile());
-  web_view->LoadInitialURL(GURL(chrome::kChromeUIReloadButtonURL));
+  const GURL kUrl(chrome::kChromeUIReloadButtonURL);
+  auto* web_contents = web_view->GetWebContents(kUrl);
+  // PLM has to be initialized before loading the URL.
+  InitializePageLoadMetricsForWebContents(web_contents);
+  web_view->LoadInitialURL(kUrl);
   const int size = GetLayoutConstant(LayoutConstant::TOOLBAR_BUTTON_HEIGHT);
   web_view->SetPreferredSize(gfx::Size(size, size));
-  auto* web_contents = web_view->GetWebContents();
   webui::SetBrowserWindowInterface(web_contents, browser);
   web_contents->SetPageBaseBackgroundColor(SK_ColorTRANSPARENT);
   reload_button_ui_ =
       web_contents->GetWebUI()->GetController()->GetAs<ReloadButtonUI>();
+  web_view->SetID(VIEW_ID_RELOAD_BUTTON);
   AddChildView(std::move(web_view));
   web_contents->SetDelegate(this);
 
@@ -62,10 +68,14 @@ ReloadButtonWebView::ReloadButtonWebView(
 
   GetViewAccessibility().SetRole(ax::mojom::Role::kButton);
   GetViewAccessibility().SetName(l10n_util::GetStringUTF16(IDS_ACCNAME_RELOAD));
+  GetViewAccessibility().SetDefaultActionVerb(
+      ax::mojom::DefaultActionVerb::kPress);
+  GetViewAccessibility().AddAction(ax::mojom::Action::kShowContextMenu);
   UpdateAccessibleHasPopup();
+  UpdateTooltipText();
   SetProperty(views::kElementIdentifierKey, kReloadButtonElementId);
-  SetID(VIEW_ID_RELOAD_BUTTON);
   SetReloadButtonUIState();
+  SetFocusBehavior(FocusBehavior::ACCESSIBLE_ONLY);
 }
 
 ReloadButtonWebView::~ReloadButtonWebView() = default;
@@ -77,6 +87,7 @@ void ReloadButtonWebView::ChangeMode(ReloadControl::Mode mode, bool force) {
   // in the future.
   mode_ = mode;
   SetReloadButtonUIState();
+  UpdateTooltipText();
 }
 
 views::View* ReloadButtonWebView::GetAsViewClassForTesting() {
@@ -91,6 +102,7 @@ void ReloadButtonWebView::SetMenuEnabled(bool is_menu_enabled) {
   is_menu_enabled_ = is_menu_enabled;
   UpdateAccessibleHasPopup();
   SetReloadButtonUIState();
+  UpdateTooltipText();
 }
 
 bool ReloadButtonWebView::HandleContextMenu(
@@ -133,6 +145,14 @@ void ReloadButtonWebView::UpdateAccessibleHasPopup() {
   GetViewAccessibility().SetHasPopup((is_menu_enabled_ && menu_model_)
                                          ? ax::mojom::HasPopup::kMenu
                                          : ax::mojom::HasPopup::kNone);
+}
+
+void ReloadButtonWebView::UpdateTooltipText() {
+  SetTooltipText(l10n_util::GetStringUTF16(
+      mode_ == ReloadControl::Mode::kReload
+          ? (is_menu_enabled_ ? IDS_TOOLTIP_RELOAD_WITH_MENU
+                              : IDS_TOOLTIP_RELOAD)
+          : IDS_TOOLTIP_STOP));
 }
 
 void ReloadButtonWebView::SetReloadButtonUIState() {

@@ -16,7 +16,7 @@ import {assertDeepEquals, assertEquals, assertFalse, assertNotEquals, assertNull
 import {TestMock} from 'chrome://webui-test/test_mock.js';
 import {eventToPromise, isVisible, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
-import {assertStyle, createAutocompleteResult, waitForAttributeChange} from './searchbox_test_utils.js';
+import {assertStyle, createAutocompleteResult, createSearchMatch, waitForAttributeChange} from './searchbox_test_utils.js';
 import {TestSearchboxBrowserProxy} from './test_searchbox_browser_proxy.js';
 
 enum Attributes {
@@ -45,22 +45,6 @@ function createUrlMatch(modifiers: Partial<AutocompleteMatch> = {}):
         destinationUrl: {url: 'https://helloworld.com/'},
         fillIntoEdit: 'https://helloworld.com',
         type: 'url-what-you-typed',
-      },
-      modifiers);
-}
-
-function createSearchMatch(modifiers: Partial<AutocompleteMatch> = {}):
-    AutocompleteMatch {
-  return Object.assign(
-      createAutocompleteMatch(), {
-        isSearchType: true,
-        contents: 'hello world',
-        contentsClass: [{offset: 0, style: 0}],
-        description: 'Google search',
-        descriptionClass: [{offset: 0, style: 4}],
-        destinationUrl: {url: 'https://www.google.com/search?q=hello+world'},
-        fillIntoEdit: 'hello world',
-        type: 'search-what-you-typed',
       },
       modifiers);
 }
@@ -472,7 +456,7 @@ suite('NewTabPageRealboxTest', () => {
     realbox = await createAndAppendRealbox({
       composeButtonEnabled: true,
       composeboxEnabled: true,
-      realboxLayoutMode: 'TallBottomContext',
+      searchboxLayoutMode: 'TallBottomContext',
       ntpRealboxNextEnabled: true,
     });
     const contextElement =
@@ -498,7 +482,7 @@ suite('NewTabPageRealboxTest', () => {
       composeboxShowDeepSearchButton: true,
     });
     realbox = await createAndAppendRealbox(
-        {ntpRealboxNextEnabled: true, realboxLayoutMode: 'Compact'});
+        {ntpRealboxNextEnabled: true, searchboxLayoutMode: 'Compact'});
     const contextElement =
         realbox.shadowRoot.querySelector('contextual-entrypoint-and-carousel');
     assertTrue(!!contextElement);
@@ -536,7 +520,7 @@ suite('NewTabPageRealboxTest', () => {
       composeboxShowCreateImageButton: true,
     });
     realbox = await createAndAppendRealbox(
-        {ntpRealboxNextEnabled: true, realboxLayoutMode: 'Compact'});
+        {ntpRealboxNextEnabled: true, searchboxLayoutMode: 'Compact'});
     const contextElement =
         realbox.shadowRoot.querySelector('contextual-entrypoint-and-carousel');
     assertTrue(!!contextElement);
@@ -3129,41 +3113,6 @@ suite('NewTabPageRealboxTest', () => {
       await microtasksFinished();
     });
 
-    test(
-        'fires dropdown-visible-changed event when the feature is on',
-        async () => {
-          // Confirm false -> true causes an event.
-          let whenDropdownVisibleChanged =
-              eventToPromise('dropdown-visible-changed', realbox);
-          realbox.$.input.value = 'he';
-          realbox.$.input.dispatchEvent(new InputEvent('input'));
-
-          const matches = [createSearchMatch()];
-          testProxy.callbackRouterRemote.autocompleteResultChanged(
-              createAutocompleteResult({
-                input: realbox.$.input.value.trimStart(),
-                matches: matches,
-              }));
-          assertTrue(await areMatchesShowing());
-          const e1 = await whenDropdownVisibleChanged;
-          assertTrue(e1.detail.value);
-
-          // Confirm true -> false causes an event.
-          whenDropdownVisibleChanged =
-              eventToPromise('dropdown-visible-changed', realbox);
-          // Pressing 'Escape' when no matches are selected closes the dropdown.
-          const escapeEvent = new KeyboardEvent('keydown', {
-            bubbles: true,
-            cancelable: true,
-            composed: true,  // So it propagates across shadow DOM boundary.
-            key: 'Escape',
-          });
-          realbox.$.input.dispatchEvent(escapeEvent);
-          assertFalse(await areMatchesShowing());
-          const e2 = await whenDropdownVisibleChanged;
-          assertFalse(e2.detail.value);
-        });
-
     test('hides recent tab chip when searchbox is not focused', async () => {
       const tabInfo = {
         tabId: 1,
@@ -3204,6 +3153,124 @@ suite('NewTabPageRealboxTest', () => {
           realbox.$.context.parentFocused,
           'parentFocus should be true when input is focused after having been' +
               ' blurred.');
+    });
+
+    test('pasting files adds them to contextual entrypoint', async () => {
+      loadTimeData.overrideValues({composeboxFileMaxCount: 2});
+      realbox = await createAndAppendRealbox({ntpRealboxNextEnabled: true});
+      let passedFileList: FileList|null = null;
+      realbox.$.context.addFiles = (files: FileList|null) => {
+        passedFileList = files;
+      };
+
+      const pngFile = new File([''], 'pasted.png', {type: 'image/png'});
+      const pdfFile = new File([''], 'pasted.pdf', {type: 'application/pdf'});
+
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(pngFile);
+      dataTransfer.items.add(pdfFile);
+      const pasteEvent = new ClipboardEvent('paste', {
+        clipboardData: dataTransfer,
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+      });
+
+      realbox.$.input.dispatchEvent(pasteEvent);
+      await microtasksFinished();
+
+      assertNotEquals(null, passedFileList);
+      assertEquals(2, passedFileList!.length);
+      const file1 = passedFileList!.item(0);
+      assertNotEquals(null, file1);
+      assertEquals('pasted.png', file1!.name);
+      assertEquals('image/png', file1!.type);
+      const file2 = passedFileList!.item(1);
+      assertNotEquals(null, file2);
+      assertEquals('pasted.pdf', file2!.name);
+      assertEquals('application/pdf', file2!.type);
+      assertFalse((realbox as any).pastedInInput_);
+    });
+
+    test('pasting too many files does not add them', async () => {
+      loadTimeData.overrideValues({
+        composeboxFileMaxCount: 1,
+      });
+      // Re-create realbox to pick up new loadTimeData.
+      realbox = await createAndAppendRealbox({ntpRealboxNextEnabled: true});
+
+      let errorMessage: string|null = null;
+      realbox.$.errorScrim.setErrorMessage = (message: string) => {
+        errorMessage = message;
+      };
+
+      const pngFile1 = new File([''], 'pasted1.png', {type: 'image/png'});
+      const pngFile2 = new File([''], 'pasted2.png', {type: 'image/png'});
+
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(pngFile1);
+      dataTransfer.items.add(pngFile2);
+      const pasteEvent = new ClipboardEvent('paste', {
+        clipboardData: dataTransfer,
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+      });
+
+      realbox.$.input.dispatchEvent(pasteEvent);
+      await microtasksFinished();
+
+      assertTrue(pasteEvent.defaultPrevented);
+      assertNull(errorMessage);
+      assertFalse((realbox.$.context as any).showFileCarousel_);
+      assertFalse((realbox as any).pastedInInput_);
+    });
+
+    test('pasting unsupported files shows error', async () => {
+      let errorMessage: string|null = null;
+      realbox.$.errorScrim.setErrorMessage = (message: string) => {
+        errorMessage = message;
+      };
+
+      const txtFile = new File([''], 'pasted.txt', {type: 'text/plain'});
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(txtFile);
+      const pasteEvent = new ClipboardEvent('paste', {
+        clipboardData: dataTransfer,
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+      });
+
+      realbox.$.input.dispatchEvent(pasteEvent);
+      await microtasksFinished();
+
+      assertTrue(pasteEvent.defaultPrevented);
+      assertNotEquals(null, errorMessage);
+      assertFalse((realbox as any).pastedInInput_);
+    });
+
+    test('pasting text sets pastedInInput flag', async () => {
+      let addFilesCalled = false;
+      realbox.$.context.addFiles = (_files: FileList|null) => {
+        addFilesCalled = true;
+      };
+
+      const dataTransfer = new DataTransfer();
+      dataTransfer.setData('text/plain', 'hello');
+      const pasteEvent = new ClipboardEvent('paste', {
+        clipboardData: dataTransfer,
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+      });
+
+      realbox.$.input.dispatchEvent(pasteEvent);
+      await microtasksFinished();
+
+      assertFalse(pasteEvent.defaultPrevented);
+      assertFalse(addFilesCalled);
+      assertTrue((realbox as any).pastedInInput_);
     });
   });
 });

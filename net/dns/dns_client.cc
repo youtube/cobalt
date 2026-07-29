@@ -10,6 +10,7 @@
 #include <string>
 #include <utility>
 
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
@@ -17,12 +18,14 @@
 #include "base/notimplemented.h"
 #include "base/rand_util.h"
 #include "base/values.h"
+#include "net/base/features.h"
 #include "net/base/ip_address.h"
 #include "net/base/ip_endpoint.h"
 #include "net/dns/address_sorter.h"
 #include "net/dns/dns_session.h"
 #include "net/dns/dns_transaction.h"
 #include "net/dns/dns_util.h"
+#include "net/dns/opt_record_rdata.h"
 #include "net/dns/public/dns_over_https_config.h"
 #include "net/dns/public/secure_dns_mode.h"
 #include "net/dns/resolve_context.h"
@@ -36,6 +39,21 @@
 namespace net {
 
 namespace {
+
+DnsConfigLocalNameserverState GetDnsConfigLocalNameserverState(
+    bool has_loopback_nameserver,
+    bool has_local_non_loopback_nameserver) {
+  if (has_loopback_nameserver && has_local_non_loopback_nameserver) {
+    return DnsConfigLocalNameserverState::kLoopbackAndNonLoopback;
+  }
+  if (has_loopback_nameserver) {
+    return DnsConfigLocalNameserverState::kOnlyLoopback;
+  }
+  if (has_local_non_loopback_nameserver) {
+    return DnsConfigLocalNameserverState::kOnlyNonLoopbackLocal;
+  }
+  return DnsConfigLocalNameserverState::kNoLocal;
+}
 
 bool IsEqual(const std::optional<DnsConfig>& c1, const DnsConfig* c2) {
   if (!c1.has_value() && c2 == nullptr)
@@ -72,12 +90,30 @@ void UpdateConfigForDohUpgrade(DnsConfig* config) {
       }
       UMA_HISTOGRAM_BOOLEAN("Net.DNS.UpgradeConfig.HasPublicInsecureNameserver",
                             !all_local);
-
       config->doh_config = DnsOverHttpsConfig(
           GetDohUpgradeServersFromNameservers(config->nameservers));
       has_doh_servers = !config->doh_config.servers().empty();
       UMA_HISTOGRAM_BOOLEAN("Net.DNS.UpgradeConfig.InsecureUpgradeSucceeded",
                             has_doh_servers);
+
+      // We only emit these metrics if auto-upgrade fails.
+      // TODO: crbug.com/448683318 - add DoH fallback here.
+      if (!has_doh_servers) {
+        bool has_loopback_nameserver = false;
+        bool has_local_non_loopback_nameserver = false;
+        for (const auto& server : config->nameservers) {
+          if (server.address().IsLoopback()) {
+            has_loopback_nameserver = true;
+          } else if (!server.address().IsPubliclyRoutable()) {
+            has_local_non_loopback_nameserver = true;
+          }
+        }
+
+        UMA_HISTOGRAM_ENUMERATION(
+            "Net.DNS.UpgradeConfigFailed.LocalNameserverState",
+            GetDnsConfigLocalNameserverState(
+                has_loopback_nameserver, has_local_non_loopback_nameserver));
+      }
     }
   } else {
     UMA_HISTOGRAM_BOOLEAN("Net.DNS.UpgradeConfig.Ineligible.DohSpecified",
@@ -266,8 +302,9 @@ class DnsClientImpl : public DnsClient {
     // while still being able to fallback to system config for DoH.
     // For now, clear the nameservers for extra security if parts of the system
     // config are unhandled.
-    if (config.unhandled_options)
+    if (config.unhandled_options) {
       config.nameservers.clear();
+    }
 
     if (!config.IsValid())
       return std::nullopt;
@@ -303,7 +340,12 @@ class DnsClientImpl : public DnsClient {
       session_ = base::MakeRefCounted<DnsSession>(
           std::move(new_effective_config).value(), rand_int_callback_,
           net_log_);
+
       factory_ = DnsTransactionFactory::CreateFactory(session_.get());
+      if (base::FeatureList::IsEnabled(features::kUseStructuredDnsErrors)) {
+        factory_->AddEDNSOption(
+            OptRecordRdata::EdeOpt::CreateStructuredErrorsRequest());
+      }
     }
   }
 

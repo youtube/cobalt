@@ -329,7 +329,7 @@ const NSUInteger kSearchCharacterLimit = 1000;
                     task:(NSURLSessionTask*)task
     didCompleteWithError:(NSError*)error {
   if (error && error.code != NSURLErrorCancelled) {
-    // if an error has occured consider the task's URL to not be an image.
+    // if an error has occurred consider the task's URL to not be an image.
     dispatch_async(dispatch_get_main_queue(), ^{
       [self handleURL:task.originalRequest.URL forItem:nil];
     });
@@ -371,7 +371,7 @@ const NSUInteger kSearchCharacterLimit = 1000;
     UIImage* avatar = [UIImage imageWithContentsOfFile:[avatarDirectory path]];
 
     AccountInfo* account = [[AccountInfo alloc] init];
-    account.gaiaID = gaiaID;
+    account.gaiaIDString = gaiaID;
     account.avatar = avatar;
     account.fullName = accounts[gaiaID][app_group::kFullName];
     account.email = accounts[gaiaID][app_group::kEmail];
@@ -384,7 +384,7 @@ const NSUInteger kSearchCharacterLimit = 1000;
 
   if (!primaryAccount || ![primaryAccount length]) {
     AccountInfo* accountInfo = [[AccountInfo alloc] init];
-    accountInfo.gaiaID = app_group::kNoAccount;
+    accountInfo.gaiaIDString = app_group::kNoAccount;
     self.shareSheet.selectedAccountInfo = accountInfo;
     [loadedAccounts addObject:accountInfo];
   }

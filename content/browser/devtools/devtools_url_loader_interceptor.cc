@@ -1159,12 +1159,21 @@ void InterceptionJob::ApplyModificationsToRequest(
   if (modifications->modified_url.has_value()) {
     DCHECK_EQ(url_chain_.back(), request->url);
     const GURL new_url(modifications->modified_url.value());
-    const bool is_same_site =
-        net::SchemefulSite::IsSameSite(request->url, new_url);
+    const url::Origin original_origin = url::Origin::Create(request->url);
+    const url::Origin new_origin = url::Origin::Create(new_url);
     request->url = new_url;
     url_chain_.back() = new_url;
 
-    if (!is_same_site) {
+    // A direct origin comparison is used instead of
+    // `net::SchemefulSite::IsSameSite`. `IsSameSite` considers different ports
+    // on localhost as same-site, which conflicts with the stricter,
+    // origin-based Referrer-Policy check performed later in
+    // `URLRequest::StartJob`. This mismatch would cause the `NetworkDelegate`
+    // to block the request via
+    // `CancelURLRequestWithPolicyViolatingReferrerHeader`, leading to an
+    // `ERR_BLOCKED_BY_CLIENT` failure. Using an origin-based check here aligns
+    // the logic and prevents this error.
+    if (original_origin != new_origin) {
       GURL new_referrer = net::URLRequestJob::ComputeReferrerForPolicy(
           request->referrer_policy, request->referrer, new_url,
           /* same_origin_out_for_metrics*/ nullptr);
@@ -1492,7 +1501,9 @@ void InterceptionJob::FetchCookies(base::OnceClosure callback) {
       net::cookie_util::ComputeSameSiteContextForRequest(
           request.method, url_chain_, request.site_for_cookies,
           request.request_initiator, is_main_frame_navigation,
-          should_treat_as_first_party));
+          should_treat_as_first_party,
+          request.destination ==
+              network::mojom::RequestDestination::kWebIdentity));
 
   cookie_manager_->GetCookieList(
       request.url, options, net::CookiePartitionKeyCollection::Todo(),

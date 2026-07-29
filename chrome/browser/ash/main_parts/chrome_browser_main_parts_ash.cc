@@ -29,7 +29,6 @@
 #include "ash/wm/coral/coral_controller.h"
 #include "base/check_deref.h"
 #include "base/command_line.h"
-#include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
@@ -214,7 +213,7 @@
 #include "chromeos/ash/components/disks/disk_mount_manager.h"
 #include "chromeos/ash/components/drivefs/fake_drivefs_launcher_client.h"
 #include "chromeos/ash/components/fwupd/firmware_update_manager.h"
-#include "chromeos/ash/components/geolocation/simple_geolocation_provider.h"
+#include "chromeos/ash/components/geolocation/system_location_provider.h"
 #include "chromeos/ash/components/install_attributes/install_attributes.h"
 #include "chromeos/ash/components/language_preferences/language_preferences.h"
 #include "chromeos/ash/components/local_search_service/public/cpp/local_search_service_proxy_factory.h"
@@ -304,6 +303,10 @@
 
 #if BUILDFLAG(PLATFORM_CUTTLEFISH)
 #include "chrome/browser/ash/dbus/fjord_oobe_service_provider.h"
+#endif
+
+#if BUILDFLAG(USE_CUPS)
+#include "chrome/browser/ash/printing/local_printer_impl.h"
 #endif
 
 namespace ash {
@@ -1043,8 +1046,8 @@ void ChromeBrowserMainPartsAsh::PreProfileInit() {
     WizardController::SetZeroDelays();
   }
 
-  // Initialize `SimpleGeolocationProvider` for the system parts.
-  SimpleGeolocationProvider::Initialize(
+  // Initialize `SystemLocationProvider` for the system parts.
+  SystemLocationProvider::Initialize(
       g_browser_process->shared_url_loader_factory());
 
   // Instantiate TImeZoneResolverManager here, so it subscribes to
@@ -1158,6 +1161,10 @@ void ChromeBrowserMainPartsAsh::PreProfileInit() {
     VLOG(1) << "Relaunching browser for user: " << account_id.Serialize()
             << " with hash: " << username_hash;
   }
+
+#if BUILDFLAG(USE_CUPS)
+  local_printer_ = std::make_unique<LocalPrinterImpl>();
+#endif
 }
 
 class GuestLanguageSetCallbackData {

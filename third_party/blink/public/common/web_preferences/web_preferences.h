@@ -65,6 +65,7 @@ struct BLINK_COMMON_EXPORT WebPreferences {
   bool shrinks_standalone_images_to_fit = true;
   bool text_areas_are_resizable = true;
   bool allow_scripts_to_close_windows = false;
+  bool allow_window_focus_without_user_gesture = false;
   bool remote_fonts_enabled = true;
   bool javascript_can_access_clipboard = false;
   // We don't use dns_prefetching_enabled to disable DNS prefetching.  Instead,
@@ -251,6 +252,7 @@ struct BLINK_COMMON_EXPORT WebPreferences {
   int text_size_contrast_factor = 0;
   float device_scale_adjustment = 1.0f;
   bool force_enable_zoom = false;
+  bool enable_touchpad_overscroll_history_navigation = true;
   GURL default_video_poster_url;
   bool support_deprecated_target_density_dpi = false;
   bool wide_viewport_quirk = false;
@@ -452,6 +454,10 @@ struct BLINK_COMMON_EXPORT WebPreferences {
   bool content_based_fingerprinting_protection_enabled = false;
 
   bool ai_prompt_api_enabled = false;
+
+#if BUILDFLAG(IS_MAC)
+  bool should_disable_external_popups = false;
+#endif  // BUILDFLAG(IS_MAC)
 
 #if BUILDFLAG(IS_ANDROID)
   // Whether a screenshot will be take for every traversable mainframe same-doc

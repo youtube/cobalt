@@ -151,26 +151,20 @@ class MockSharedImageInterface : public gpu::SharedImageInterface {
   MOCK_METHOD1(ImportSharedImage,
                scoped_refptr<gpu::ClientSharedImage>(
                    gpu::ExportedSharedImage exported_shared_image));
-  MOCK_METHOD7(CreateSwapChain,
-               SwapChainSharedImages(viz::SharedImageFormat format,
-                                     const gfx::Size& size,
-                                     const gfx::ColorSpace& color_space,
-                                     GrSurfaceOrigin surface_origin,
-                                     SkAlphaType alpha_type,
-                                     gpu::SharedImageUsageSet usage,
-                                     std::string_view debug_label));
-  MOCK_METHOD2(PresentSwapChain,
-               void(const gpu::SyncToken& sync_token,
-                    const gpu::Mailbox& mailbox));
   MOCK_METHOD0(GenUnverifiedSyncToken, gpu::SyncToken());
   MOCK_METHOD0(GenVerifiedSyncToken, gpu::SyncToken());
   MOCK_METHOD1(VerifySyncToken, void(gpu::SyncToken& sync_token));
   MOCK_METHOD1(CanVerifySyncToken, bool(const gpu::SyncToken& sync_token));
   MOCK_METHOD0(VerifyFlush, void());
   MOCK_METHOD1(WaitSyncToken, void(const gpu::SyncToken& sync_token));
-  MOCK_METHOD1(GetNativePixmap,
-               scoped_refptr<gfx::NativePixmap>(const gpu::Mailbox& mailbox));
   MOCK_METHOD0(GetCapabilities, const gpu::SharedImageCapabilities&());
+
+  MOCK_CONST_METHOD0(IsLost, bool());
+  MOCK_METHOD1(AddGpuChannelLostObserver,
+               bool(gpu::GpuChannelLostObserver* observer));
+  MOCK_METHOD1(RemoveGpuChannelLostObserver,
+               void(gpu::GpuChannelLostObserver* observer));
+  MOCK_METHOD0(CrashGpuProcessForTesting, void());
 
   scoped_refptr<gpu::SharedImageInterfaceHolder> holder() const {
     return holder_;

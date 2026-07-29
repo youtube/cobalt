@@ -4,6 +4,8 @@
 
 #include "cc/layers/tile_based_layer_impl.h"
 
+#include "cc/base/math_util.h"
+#include "cc/layers/append_quads_context.h"
 #include "cc/layers/solid_color_layer_impl.h"
 #include "cc/trees/layer_tree_impl.h"
 
@@ -25,7 +27,82 @@ void TileBasedLayerImpl::AppendQuads(const AppendQuadsContext& context,
     return;
   }
 
-  AppendQuadsSpecialization(context, render_pass, append_quads_data);
+  if (solid_color()) {
+    AppendSolidQuad(render_pass, append_quads_data, *solid_color());
+    return;
+  }
+
+  viz::SharedQuadState* shared_quad_state =
+      render_pass->CreateAndAppendSharedQuadState();
+  PopulateScaledSharedQuadState(shared_quad_state,
+                                GetMaximumContentsScaleForUseInAppendQuads(),
+                                contents_opaque());
+
+  if (IsDirectlyCompositedImage()) {
+    // Directly composited images should be clipped to the layer's content rect.
+    // When a PictureLayerTiling is created for a directly composited image, the
+    // layer bounds are multiplied by the raster scale in order to compute the
+    // tile size. If the aspect ratio of the layer doesn't match that of the
+    // image, it's possible that one of the dimensions of the resulting size
+    // (layer bounds * raster scale) is a fractional number, as raster scale
+    // does not scale x and y independently.
+    // When this happens, the ToEnclosingRect() operation in
+    // |PictureLayerTiling::EnclosingContentsRectFromLayer()| will
+    // create a tiling that, when scaled by |max_contents_scale| above, is
+    // larger than the layer bounds by a fraction of a pixel.
+    gfx::Rect bounds_in_target_space = MathUtil::MapEnclosingClippedRect(
+        draw_properties().target_space_transform, gfx::Rect(bounds()));
+    if (is_clipped()) {
+      bounds_in_target_space.Intersect(draw_properties().clip_rect);
+    }
+
+    if (shared_quad_state->clip_rect) {
+      bounds_in_target_space.Intersect(*shared_quad_state->clip_rect);
+    }
+
+    shared_quad_state->clip_rect = bounds_in_target_space;
+  }
+
+  const Occlusion scaled_occlusion =
+      draw_properties()
+          .occlusion_in_content_space.GetOcclusionWithGivenDrawTransform(
+              shared_quad_state->quad_to_target_transform);
+
+  if (context.draw_mode == DRAW_MODE_RESOURCELESS_SOFTWARE) {
+    AppendQuadsForResourcelessSoftwareDraw(context, render_pass,
+                                           append_quads_data, shared_quad_state,
+                                           scaled_occlusion);
+    return;
+  }
+
+  // If the visible rect is scrolled far enough away, then we may run into a
+  // floating point precision in AA calculations in the renderer. See
+  // crbug.com/765297. In order to avoid this, we shift the quads up from where
+  // they logically reside and adjust the shared_quad_state's transform instead.
+  // We only do this in scale/translate matrices to ensure the math is correct.
+  // NOTE: Implementations of AppendQuadsSpecialization() need to use the
+  // original state in `shared_quad_state` to correctly locate the tiles to
+  // draw. For this reason, we delay adjusting `shared_quad_state` itself until
+  // the bottom of the method below.
+  gfx::Vector2d quad_offset;
+  if (shared_quad_state->quad_to_target_transform.IsScaleOrTranslation()) {
+    const auto& visible_rect = shared_quad_state->visible_quad_layer_rect;
+    quad_offset = gfx::Vector2d(-visible_rect.x(), -visible_rect.y());
+  }
+
+  gfx::Rect debug_border_rect(shared_quad_state->quad_layer_rect);
+  debug_border_rect.Offset(quad_offset);
+  AppendDebugBorderQuad(render_pass, debug_border_rect, shared_quad_state,
+                        append_quads_data);
+
+  AppendQuadsSpecialization(context, render_pass, append_quads_data,
+                            shared_quad_state, scaled_occlusion, quad_offset);
+
+  // Adjust shared_quad_state with the quad_offset, since by contract
+  // AppendQuadsSpecialization() has adjusted each quad appended by that offset.
+  shared_quad_state->quad_to_target_transform.Translate(-quad_offset);
+  shared_quad_state->quad_layer_rect.Offset(quad_offset);
+  shared_quad_state->visible_quad_layer_rect.Offset(quad_offset);
 }
 
 void TileBasedLayerImpl::AppendSolidQuad(viz::CompositorRenderPass* render_pass,
