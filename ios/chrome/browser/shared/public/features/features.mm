@@ -21,7 +21,7 @@
 
 BASE_FEATURE(kIOSKeyboardAccessoryUpgradeForIPad,
              "IOSKeyboardAccessoryUpgradeForIPad",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kTestFeature, "TestFeature", base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -347,6 +347,10 @@ const char kBottomOmniboxDefaultSettingParamSafariSwitcher[] =
     "BottomSafariSwitcher";
 BASE_FEATURE(kBottomOmniboxDefaultSetting,
              "BottomOmniboxDefaultSetting",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kBottomOmniboxEvolution,
+             "BottomOmniboxEvolution",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kOnlyAccessClipboardAsync,
@@ -814,7 +818,7 @@ bool IsPinnedTabsEnabled() {
 
 BASE_FEATURE(kSegmentationPlatformIosModuleRankerCaching,
              "SegmentationPlatformIosModuleRankerCaching",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsSegmentationTipsManagerEnabled() {
   return base::FeatureList::IsEnabled(
@@ -1200,14 +1204,6 @@ bool IsRunDefaultStatusCheckEnabled() {
   return base::FeatureList::IsEnabled(kRunDefaultStatusCheck);
 }
 
-BASE_FEATURE(kContainedTabGroup,
-             "ContainedTabGroup",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-bool IsContainedTabGroupEnabled() {
-  return base::FeatureList::IsEnabled(kContainedTabGroup);
-}
-
 BASE_FEATURE(kBestOfAppFRE, "BestOfAppFRE", base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsBestOfAppFREEnabled() {
@@ -1238,7 +1234,7 @@ bool IsBestOfAppLensAnimatedPromoEnabled() {
 
 BASE_FEATURE(kFeedbackIncludeGWSVariations,
              "FeedbackIncludeGWSVariations",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsFeedbackIncludeGWSVariationsEnabled() {
   return base::FeatureList::IsEnabled(kFeedbackIncludeGWSVariations);
@@ -1279,4 +1275,12 @@ bool IsDefaultBrowserOffCyclePromoEnabled() {
   }
 #endif
   return false;
+}
+
+BASE_FEATURE(kIOSLogInstallAttribution,
+             "IOSLogInstallAttribution",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsInstallAttributionLoggingEnabled() {
+  return base::FeatureList::IsEnabled(kIOSLogInstallAttribution);
 }

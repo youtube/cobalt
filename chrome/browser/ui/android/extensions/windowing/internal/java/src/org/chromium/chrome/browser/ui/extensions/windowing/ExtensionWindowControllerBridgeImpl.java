@@ -4,17 +4,26 @@
 
 package org.chromium.chrome.browser.ui.extensions.windowing;
 
+import android.graphics.Rect;
+
 import org.jni_zero.CalledByNative;
 import org.jni_zero.NativeMethods;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTask;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /** Implements {@link ExtensionWindowControllerBridge}. */
 @NullMarked
 final class ExtensionWindowControllerBridgeImpl implements ExtensionWindowControllerBridge {
 
     private final ChromeAndroidTask mChromeAndroidTask;
+
+    /** Events received by the native {@code WindowControllerListObserverForTesting}. */
+    private final List<@ExtensionInternalWindowEventForTesting Integer>
+            mExtensionInternalEventsForTesting = new ArrayList<>();
 
     private long mNativeExtensionWindowControllerBridge;
 
@@ -42,13 +51,52 @@ final class ExtensionWindowControllerBridgeImpl implements ExtensionWindowContro
         }
     }
 
+    @Override
+    public void onTaskBoundsChanged(Rect newBounds) {
+        if (mNativeExtensionWindowControllerBridge != 0) {
+            ExtensionWindowControllerBridgeImplJni.get()
+                    .onTaskBoundsChanged(mNativeExtensionWindowControllerBridge);
+        }
+    }
+
+    @Override
+    public void onTaskFocusChanged(boolean hasFocus) {
+        // TODO(crbug.com/424857039): relay the "focus changed" event to extension internals.
+    }
+
     long getNativePtrForTesting() {
         return mNativeExtensionWindowControllerBridge;
+    }
+
+    void addWindowControllerListObserverForTesting() {
+        if (mNativeExtensionWindowControllerBridge != 0) {
+            ExtensionWindowControllerBridgeImplJni.get()
+                    .addWindowControllerListObserverForTesting( // IN-TEST
+                            mNativeExtensionWindowControllerBridge);
+        }
+    }
+
+    void removeWindowControllerListObserverForTesting() {
+        if (mNativeExtensionWindowControllerBridge != 0) {
+            ExtensionWindowControllerBridgeImplJni.get()
+                    .removeWindowControllerListObserverForTesting( // IN-TEST
+                            mNativeExtensionWindowControllerBridge);
+        }
+    }
+
+    List<@ExtensionInternalWindowEventForTesting Integer> getExtensionInternalEventsForTesting() {
+        return mExtensionInternalEventsForTesting;
     }
 
     @CalledByNative
     private void clearNativePtr() {
         mNativeExtensionWindowControllerBridge = 0;
+    }
+
+    @CalledByNative
+    private void recordExtensionInternalEventForTesting(
+            @ExtensionInternalWindowEventForTesting int event) {
+        mExtensionInternalEventsForTesting.add(event);
     }
 
     @NativeMethods
@@ -64,5 +112,22 @@ final class ExtensionWindowControllerBridgeImpl implements ExtensionWindowContro
         long create(ExtensionWindowControllerBridgeImpl caller, long nativeBrowserWindowPtr);
 
         void destroy(long nativeExtensionWindowControllerBridge);
+
+        /** Called when the window (Task) bounds have changed. */
+        void onTaskBoundsChanged(long nativeExtensionWindowControllerBridge);
+
+        /**
+         * Add a native {@code WindowControllerListObserverForTesting} for tests to observe window
+         * events received by extension internals.
+         */
+        void addWindowControllerListObserverForTesting( // IN-TEST
+                long nativeExtensionWindowControllerBridge);
+
+        /**
+         * Removes the native {@code WindowControllerListObserverForTesting} added by {@link
+         * #addWindowControllerListObserverForTesting(long)}
+         */
+        void removeWindowControllerListObserverForTesting( // IN-TEST
+                long nativeExtensionWindowControllerBridge);
     }
 }

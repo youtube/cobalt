@@ -14,6 +14,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/values.h"
 #include "components/country_codes/country_codes.h"
@@ -21,6 +22,7 @@
 #include "components/regional_capabilities/regional_capabilities_country_id.h"
 #include "components/regional_capabilities/regional_capabilities_prefs.h"
 #include "components/regional_capabilities/regional_capabilities_service.h"
+#include "components/regional_capabilities/regional_capabilities_switches.h"
 #include "components/search_engines/keyword_web_data_service.h"
 #include "components/search_engines/search_engine_choice/search_engine_choice_service.h"
 #include "components/search_engines/search_engines_pref_names.h"
@@ -125,8 +127,6 @@ void CallGetSearchProvidersUsingLoadedEngines(
   keyword_web_data->ShutdownOnUISequence();
   profile_database->ShutdownDatabase();
 }
-
-}  // namespace
 
 TEST(TemplateURLServiceUtilTest, RemoveDuplicatePrepopulateIDs) {
   std::vector<std::unique_ptr<TemplateURLData>> prepopulated_turls;
@@ -266,7 +266,14 @@ class TemplateURLServiceUtilLoadTest : public testing::Test {
  public:
   TemplateURLServiceUtilLoadTest()
       : os_crypt_(os_crypt_async::GetTestOSCryptAsyncForTesting(
-            /*is_sync_for_unittests=*/true)) {}
+            /*is_sync_for_unittests=*/true)) {
+#if BUILDFLAG(IS_ANDROID)
+    // TODO(https://crbug.com/438133907): Reenable once supported by the test
+    // environment.
+    scoped_feature_list_.InitAndDisableFeature(
+        switches::kResolveRegionalCapabilitiesFromDevice);
+#endif  // BUILDFLAG(IS_ANDROID)
+  }
 
   // Type used both as input and output of test helpers, to represent the
   // state of the database from its metadata.
@@ -349,14 +356,20 @@ class TemplateURLServiceUtilLoadTest : public testing::Test {
     return search_engines_test_environment_.search_engine_choice_service();
   }
 
+  regional_capabilities::RegionalCapabilitiesService&
+  regional_capabilities_service() {
+    return search_engines_test_environment_.regional_capabilities_service();
+  }
+
  private:
   std::unique_ptr<os_crypt_async::OSCryptAsync> os_crypt_;
   search_engines::SearchEnginesTestEnvironment search_engines_test_environment_;
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 TEST_F(TemplateURLServiceUtilLoadTest,
        GetSearchProvidersUsingLoadedEngines_OutOfEea) {
-  search_engine_choice_service().ClearCountryIdCacheForTesting();
+  regional_capabilities_service().ClearCacheForTesting();
   prefs().SetInteger(regional_capabilities::prefs::kCountryIDAtInstall,
                      kNonEeaCountryId.GetForTesting().Serialize());
 
@@ -374,8 +387,8 @@ TEST_F(TemplateURLServiceUtilLoadTest,
 
   // When using the latest metadata from the binary, the function should not
   // update anything.
-  output = SimulateFromDatabaseState({.data_version = kCurrentDataVersion,
-                                      .country = kNonEeaCountryId});
+  output = SimulateFromDatabaseState(
+      {.data_version = kCurrentDataVersion, .country = kNonEeaCountryId});
   EXPECT_EQ(output, kNoUpdate);
 
   // Missing country ID triggers updates.
@@ -400,7 +413,7 @@ TEST_F(TemplateURLServiceUtilLoadTest,
 
 TEST_F(TemplateURLServiceUtilLoadTest,
        GetSearchProvidersUsingLoadedEngines_InEea) {
-  search_engine_choice_service().ClearCountryIdCacheForTesting();
+  regional_capabilities_service().ClearCacheForTesting();
   prefs().SetInteger(regional_capabilities::prefs::kCountryIDAtInstall,
                      kEeaCountryId.GetForTesting().Serialize());
   const size_t kEeaKeywordEnginesCount =
@@ -445,3 +458,5 @@ TEST_F(TemplateURLServiceUtilLoadTest,
       {.data_version = kCurrentDataVersion + 1, .country = kOtherEeaCountryId});
   EXPECT_EQ(output, kNoUpdate);
 }
+
+}  // namespace

@@ -8,13 +8,10 @@
 #include <memory>
 #include <utility>
 
-#include "base/check.h"
 #include "base/functional/bind.h"
-#include "base/location.h"
-#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/notreached.h"
-#include "base/task/sequenced_task_runner.h"
+#include "base/sequence_checker.h"
 #include "remoting/host/linux/pipewire_capture_stream.h"
 #include "third_party/webrtc/modules/desktop_capture/desktop_frame.h"
 
@@ -22,43 +19,38 @@ namespace remoting {
 
 PipewireDesktopCapturer::PipewireDesktopCapturer(
     base::WeakPtr<PipewireCaptureStream> stream)
-    : stream_(std::move(stream)) {}
+    : stream_(stream) {}
 
 PipewireDesktopCapturer::~PipewireDesktopCapturer() {
-  if (!creating_sequence_->RunsTasksInCurrentSequence()) {
-    creating_sequence_->PostTask(
-        FROM_HERE,
-        base::BindOnce(&PipewireCaptureStream::StopVideoCapture, stream_));
-  } else if (stream_) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (stream_) {
     stream_->StopVideoCapture();
   }
 }
 
 bool PipewireDesktopCapturer::SupportsFrameCallbacks() {
-  return true;
+  return kSupportsFrameCallbacks;
 }
 
 void PipewireDesktopCapturer::Start(Callback* callback) {
-  // The capturer is created by GnomeInteractionStrategy on its sequence, but
-  // is potentially passed to and owned by a different sequence, which will be
-  // the sequence that calls Start().
-  capture_sequence_ = base::SequencedTaskRunner::GetCurrentDefault();
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   callback_ = callback;
-  if (!creating_sequence_->RunsTasksInCurrentSequence()) {
-    // Unretained is safe because callback_proxy_ is always deleted on the
-    // creating sequence after StopVideoCapture is called.
-    creating_sequence_->PostTask(
-        FROM_HERE,
-        base::BindOnce(&PipewireCaptureStream::SetCallback, stream_,
-                       capture_sequence_, weak_ptr_factory_.GetWeakPtr()));
-  } else if (stream_) {
-    stream_->SetCallback(capture_sequence_, weak_ptr_factory_.GetWeakPtr());
+  if (stream_) {
+    stream_->SetCallback(base::SequencedTaskRunner::GetCurrentDefault(),
+                         weak_factory_.GetWeakPtr());
   }
 }
 
 void PipewireDesktopCapturer::CaptureFrame() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   // Capturer will push frames as they are ready.
-  DCHECK(capture_sequence_->RunsTasksInCurrentSequence());
+}
+
+void PipewireDesktopCapturer::SetMaxFrameRate(std::uint32_t max_frame_rate) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (stream_) {
+    stream_->SetMaxFrameRate(max_frame_rate);
+  }
 }
 
 bool PipewireDesktopCapturer::GetSourceList(SourceList* sources) {
@@ -69,25 +61,15 @@ bool PipewireDesktopCapturer::SelectSource(SourceId id) {
   NOTREACHED();
 }
 
-void PipewireDesktopCapturer::SetMaxFrameRate(std::uint32_t max_frame_rate) {
-  if (!creating_sequence_->RunsTasksInCurrentSequence()) {
-    creating_sequence_->PostTask(
-        FROM_HERE, base::BindOnce(&PipewireCaptureStream::SetMaxFrameRate,
-                                  stream_, max_frame_rate));
-  } else if (stream_) {
-    stream_->SetMaxFrameRate(max_frame_rate);
-  }
-}
-
 void PipewireDesktopCapturer::OnFrameCaptureStart() {
-  DCHECK(capture_sequence_->RunsTasksInCurrentSequence());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   callback_->OnFrameCaptureStart();
 }
 
 void PipewireDesktopCapturer::OnCaptureResult(
     Result result,
     std::unique_ptr<webrtc::DesktopFrame> frame) {
-  DCHECK(capture_sequence_->RunsTasksInCurrentSequence());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   callback_->OnCaptureResult(result, std::move(frame));
 }
 

@@ -2104,6 +2104,7 @@
 <translation id="2522304491589804974">設定擴充功能安裝許可清單</translation>
 <translation id="2523511232831599126">在登入畫面上啟用無障礙捷徑</translation>
 <translation id="252742292004421898">允許這些網站使用 Direct Sockets API</translation>
+<translation id="2528762900096510743">啟用自動登出服務</translation>
 <translation id="2529880111512635313">設定強制安裝的應用程式和擴充功能清單</translation>
 <translation id="253135976343875019">在 AC 供電環境下執行時的閒置警告延遲時間</translation>
 <translation id="2532480434098051405">允許使用內嵌圖片並協助改良 AI 模型。</translation>
@@ -2235,6 +2236,7 @@
       如果將這項政策設為「僅限使用者」(值為 1)，則使用者可以管理使用者憑證，但無法管理裝置通用的憑證。</translation>
 <translation id="2593762551209145088">一律不啟用安全瀏覽功能。</translation>
 <translation id="2594773358911436070">網頁即時通訊設定</translation>
+<translation id="2600005880585324062">由 <ph name="PRODUCT_NAME" /> 決定哪些來源要與同網站的其他來源隔離。</translation>
 <translation id="26023406105317310">設定 Kerberos 帳戶</translation>
 <translation id="2603237557651009842">禁止這些網站使用 WebPrinting API</translation>
 <translation id="2603382859270873566">支援 PPB_VideoDecoder(Dev) API。</translation>
@@ -2428,6 +2430,7 @@
 <translation id="2753637905605932878">限制 WebRTC 所使用的本機 UDP 連接埠範圍</translation>
 <translation id="2755847332939882873">允許收集整個系統的效能追蹤記錄</translation>
 <translation id="2757054304033424106">允許安裝的擴充功能/應用程式類型</translation>
+<translation id="275769337615229465">大多數來源都會與同一網站中的其他來源隔離。</translation>
 <translation id="2759224876420453487">控制使用者在多重設定檔工作階段中的行為</translation>
 <translation id="2760947619380644513">允許遠端存取使用者在本機用戶端瀏覽器中開啟主機端網址</translation>
 <translation id="2761483219396643566">在電池供電環境下執行時的閒置警告延遲時間</translation>
@@ -2631,6 +2634,19 @@
 
       這項政策需要額外設定才會生效，詳情請參閱 https://support.google.com/chrome/a?p=chrome_enterprise_connector_policies_setting。</translation>
 <translation id="2943242293289396843">舊版封裝應用程式</translation>
+<translation id="2946332292553068214">視主機板和重大安全漏洞修補程式而定，<ph name="PRODUCT_OS_NAME" /> 版本可能包含與先前版本不相容的核心金鑰增量。
+
+在消費者裝置上，只要安裝了包含這些增量的版本，系統就會立即套用。在已驗證模式下，這可防止系統還原至沒有增量的舊版本。
+
+在已註冊的裝置上，這項政策可控制何時套用增量：在穩定版發布第一個含增量的版本後，增量最多可延後 4 個版本 (約 4 個月) 再套用。企業可以延後這段時間的復原保護機制。
+
+已註冊裝置的預設值為 4。
+
+如果將這個值設為 0，系統就會強制執行與消費者裝置相同的行為。
+
+如果將這項政策設為較低的值，可能會產生永久影響：裝置套用增量後，就無法還原至核心金鑰版本較低的版本。
+
+之後即使將政策設為較大的值，也無法復原這項操作。</translation>
 <translation id="2947111924404450461">你可以透過這項政策設定企業印表機。其格式與 <ph name="NATIVE_PRINTERS_POLICY_NAME" /> 條目相符，且針對每台印表機另外設有 <ph name="ID_FIELD" /> 或 <ph name="GUID_FIELD" /> 必填欄位，用於指明要加入許可清單或拒絕清單。相關檔案大小不得超過 5 MB，且必須採用 JSON 格式。一個 5 MB 的編碼檔案可包含約 21,000 台印表機的資料。加密編譯雜湊的作用是驗證下載內容的完整性。系統會下載及快取這個檔案，而且只要網址或雜湊一有變動，就會重新下載檔案。<ph name="PRODUCT_OS_NAME" />會下載這個檔案來設定印表機，並依據 <ph name="BULK_PRINTERS_ACCESS_MODE_POLICY_NAME" />、<ph name="BULK_PRINTERS_WHITELIST" /> 和 <ph name="BULK_PRINTERS_BLACKLIST" /> 開放使用印表機。
 
       這項政策不在干預使用者是否能在個別裝置上設定印表機，而是讓個別使用者的印表機設定更為完善。
@@ -2763,7 +2779,6 @@
       請注意，在一般設定檔的使用環境下，系統一律允許執行背景驗證。
 
       在 <ph name="PRODUCT_NAME" /> 81 以上版本中，如果未設定這項政策，系統只會在一般工作階段中啟用背景驗證功能。</translation>
-<translation id="3021562480854470924">允許復原的重要事件數</translation>
 <translation id="3023572080620427845">XML 檔案的網址，其中包含要在替代瀏覽器中載入的網址。</translation>
 <translation id="302528139996622624">圖片設定</translation>
 <translation id="3026740867910702435">在登入畫面上啟用大型游標無障礙功能。
@@ -3136,6 +3151,7 @@ Microsoft Outlook 資訊卡需要額外的管理員設定。想進一步瞭解�
 <translation id="3263892501786842604">允許在「新分頁」頁面的搜尋框中顯示 <ph name="GOOGLE_LENS_PRODUCT_NAME" />按鈕 (如果支援)。</translation>
 <translation id="3264793472749429012">預設搜尋引擎編碼</translation>
 <translation id="3265952988644972779">停用產品內問卷調查</translation>
+<translation id="3268090369868832496">如果視窗或 Cookie 已同步，才在使用者登入新裝置時將其登出先前的工作階段</translation>
 <translation id="3269198556438453775">禁止企業管理員透過遠端支援連線方式連線到這部電腦</translation>
 <translation id="3271741247922321334">允許你設定網址模式清單，指定哪些網站不得顯示可封鎖的 (即主動) 複合型內容 (亦即 HTTPS 網站上的 HTTP 內容)，並讓哪些網站升級可選擇性封鎖的 (即被動) 複合型內容。
 
@@ -3508,15 +3524,6 @@ Microsoft Outlook 資訊卡需要額外的管理員設定。想進一步瞭解�
       如果將這項政策設為啟用或不設定，系統會使用內建 DNS 用戶端。
 
       如果將這項政策設為停用，只有在使用 DNS-over-HTTPS 時，系統才會使用內建 DNS 用戶端。</translation>
-<translation id="3558024517032824255">指定隨時可從穩定版復原的 <ph name="PRODUCT_OS_NAME" />最低重要事件數量。
-
-一般使用者裝置的預設值為 0，企業註冊裝置的預設值為 4 (約半年)。
-
-設定這項政策後，在發生至少指定數量的重要事件前，復原保護機制將不會生效。
-
-調降這項政策的值會造成永久的影響，即使之後再次調高設定值，裝置仍「可能」無法復原至較早的版本。
-
-實際上能否復原也可能會受到裝置型號和重大安全漏洞修補程式的影響。</translation>
 <translation id="3565284547329101236">在 Flex 上預先載入 <ph name="ARC_VM" /> 映像檔</translation>
 <translation id="35668690622495904">
           呼叫不會因為來源結構定義未列入許可清單而遭到拒絕 (但仍可能基於其他原因而遭拒絕)。</translation>
@@ -4355,6 +4362,13 @@ ServiceWorkerAutoPreload 功能會在開始執行 ServiceWorker 啟動程序時�
           設好這項政策後，使用者即無法變更或覆寫設定。
 
           如果不設定這項政策，系統會在初次顯示登入畫面時停用插入點醒目顯示，但使用者隨時可以啟用。</translation>
+<translation id="4182333458177354245">設定 <ph name="PRODUCT_NAME" /> 如何下載基礎生成式 AI 模型，並在本機進行推論。
+
+如果將這項政策設為允許 (0) 或不設定，系統會自動下載模型並用於推論。
+
+如果將這項政策設為停用 (1)，系統就不會下載模型。
+
+<ph name="COMPONENT_UPDATES_ENABLED_POLICY_NAME" /> 也可以停用模型下載功能。</translation>
 <translation id="4182348537826882258">如果設定 <ph name="URL_BLOCKLIST_POLICY_NAME" /> 政策，系統會禁止載入遭禁止網址的網頁。管理員可以指定要封鎖的網址模式清單。如果未設定，瀏覽器就不會封鎖任何網址。<ph name="URL_ALLOWLIST_POLICY_NAME" /> 中最多可定義 1000 個例外網址。瞭解如何格式化網址模式 (https://support.google.com/chrome/a?p=url_blocklist_filter_format)。
 
 注意：這項政策不會套用至含有動態載入資料的網頁內 JavaScript 網址。如果封鎖 example.com/abc，example.com 仍可使用 XMLHTTPRequest 載入內容。此外，這項政策也不會阻止網頁使用 JavaScript History API 將網址列顯示的網址更新為已封鎖的網址。
@@ -4864,6 +4878,7 @@ ServiceWorkerAutoPreload 功能會在開始執行 ServiceWorker 啟動程序時�
       如果不設定這項政策，使用者將可停用系統上安裝的任何外掛程式。</translation>
 <translation id="4549695018986780856">資訊清單 v2 已啟用</translation>
 <translation id="4549729301485728119">預設值取決於其他因素</translation>
+<translation id="4554429681167460828">除非來源明確要求隔離，否則同一網站中的來源不會與其他來源隔離。</translation>
 <translation id="4554651132977135445">使用者政策回送處理模式</translation>
 <translation id="4554991346503872538">一律不提供翻譯</translation>
 <translation id="4555850956567117258">為使用者啟用遠端認證機制</translation>
@@ -6695,6 +6710,15 @@ Microsoft SharePoint 和 OneDrive 資訊卡需要額外的管理員設定。想�
 <translation id="5728154254076636808">允許建立 <ph name="PRODUCT_NAME" /> 設定檔資料的漫遊複本</translation>
 <translation id="5729308727912841256">Kerberos 密碼。<ph name="PASSWORD_PLACEHOLDER" /> 預留位置會由登入密碼取代。</translation>
 <translation id="5730610899971390601">拒絕「Just Works」藍牙配對要求</translation>
+<translation id="5731898940174379509">如果設定這項政策，就能在 <ph name="PRODUCT_NAME" /> 新分頁預先設定多達 10 個自訂捷徑。
+
+設定之後，使用者預設會看到這些捷徑，並可在「自訂 Chrome」面板中切換「我的捷徑」、「最常造訪的網站」或「我的機構捷徑」。如為空白或未設定，使用者只能在「自訂 Chrome」面板中，切換「我的捷徑」或「最常造訪的網站」。
+
+捷徑網址不得重複。
+
+如果將「<ph name="NTP_SHORTCUTS_ALLOW_USER_EDIT_NAME" />」設為 True，使用者就能變更捷徑名稱。如果設為 False 或未設定，使用者就無法編輯名稱。
+
+如果將「<ph name="NTP_SHORTCUTS_ALLOW_USER_DELETE_NAME" />」設為 True，使用者就能移除捷徑；如果設為 False 或未設定，使用者就無法移除捷徑。</translation>
 <translation id="5732972008943405952">首次執行時從預設瀏覽器匯入自動填入表單資料</translation>
 <translation id="5733040281451845496">如果將這項政策設為啟用，系統會等到電源管理工作階段中出現第一項使用者活動後，才開始套用延遲時間和工作階段長度限制。
 
@@ -7313,17 +7337,6 @@ Microsoft SharePoint 和 OneDrive 資訊卡需要額外的管理員設定。想�
 <translation id="6203715554101884845">你可以透過這項政策設定網址清單，指定哪些網站會自動取得權限，能夠在登入畫面中存取具有指定廠商 ID 和產品 ID 的 HID 裝置。清單中的每個項目都必須包含「<ph name="DEVICES_FIELD_NAME" />」和「<ph name="URLS_FIELD_NAME" />」欄位，這個項目才會生效，否則將遭到忽略。「<ph name="DEVICES_FIELD_NAME" />」欄位中的每個項目都必須包含「<ph name="VENDOR_ID_FIELD_NAME" />」，且可能包含「<ph name="PRODUCT_ID_FIELD_NAME" />」欄位。如果省略「<ph name="PRODUCT_ID_FIELD_NAME" />」欄位，建立的政策將適用於具有指定廠商 ID 的任何裝置。假如項目包含「<ph name="PRODUCT_ID_FIELD_NAME" />」欄位，但缺少「<ph name="VENDOR_ID_FIELD_NAME" />」欄位，則無法生效且會遭到忽略。
 
 如果不設定這項政策，所有網站都將使用全域預設值 (不會自動取得存取權)。</translation>
-<translation id="6205472215607025971">分頁整理工具採用 AI 技術，可依據使用者開啟的分頁自動建立分頁群組。系統會根據開啟的分頁 (而非網頁內容) 提供建議。
-
-0 = 允許使用這項功能，並允許 Google 運用相關資料改善 AI 模型。相關資料可能包括提示詞、輸入內容、輸出內容、來源資料和文字意見回饋 (視功能而定)。這些資料也可能會送交專人審查，以改善 AI 模型。預設值為 0，但以下註明的情形除外。
-
-1 = 允許使用這項功能，但不允許 Google 運用使用者的內容 (包括提示詞、輸入內容、輸出內容、來源資料和文字意見回饋) 改善模型。如果是 <ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" />管理的企業版使用者，以及 <ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" /> 管理的教育版帳戶，預設值為 1。
-
-2 = 不允許使用這項功能。
-
-如果不設定這項政策，系統會根據 <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> 政策決定其行為。
-
-如要進一步瞭解生成式 AI 功能的資料處理方式，請前往 https://support.google.com/chrome/a?p=generative_ai_settings。</translation>
 <translation id="6207607210601267301">針對遠端存取主機停用無 PIN 碼驗證機制</translation>
 <translation id="6208896993204286313">回報 <ph name="PRODUCT_NAME" /> 政策資訊</translation>
 <translation id="6210259502936598222">回報作業系統和 <ph name="PRODUCT_NAME" /> 版本資訊</translation>
@@ -8031,7 +8044,9 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
 <translation id="66265932317331474">回報 CPU 資訊</translation>
 <translation id="6628120204569232711">回報儲存空間狀態</translation>
 <translation id="662991036483361836">禁止使用者啟用鄰近分享功能</translation>
+<translation id="6630693609822689611">預設啟用 origin-keyed 程序隔離功能。</translation>
 <translation id="663685822663765995">限制列印色彩模式</translation>
+<translation id="6639163415220949156">使用者登入新裝置時，將其從上一個工作階段登出</translation>
 <translation id="6640355849038068978">如果啟用這項設定，使用者將可以透過像是點選 Phone Hub 通知的方式，啟動 Eche 應用程式。
 
       如果停用這項設定，使用者就無法啟動 Eche 應用程式。
@@ -8126,6 +8141,7 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
       如果網站會限制要求中可包含的字元，更新的規格可能會導致某些網站無法正常運作。詳情請參閱規格說明：https://wicg.github.io/ua-client-hints/#grease
      之後的版本將移除這項政策。</translation>
 <translation id="6682305153467826752">啟用機器識別資訊報告功能</translation>
+<translation id="6684842561251679182">延後發布的版本核心金鑰增量數量</translation>
 <translation id="6685903773201985073">在訪客工作階段和一般工作階段中啟用背景驗證。</translation>
 <translation id="6687291630099400188">不要在登入畫面上顯示系統資訊</translation>
 <translation id="6689343802305995925">不執行任何動作。</translation>
@@ -8361,6 +8377,11 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
 <translation id="6850300477973481112">桌面連接器設定</translation>
 <translation id="6851199885688265233">啟用游標醒目顯示無障礙功能</translation>
 <translation id="6851315055469993882">啟用全域範圍的 HTTP 驗證快取</translation>
+<translation id="6851788229123189909">這項政策可控管使用者登入新的 <ph name="PRODUCT_OS_NAME" /> 裝置時，是否會自動登出先前的工作階段。
+
+如果將這項政策設為啟用，使用者成功登入新的 <ph name="PRODUCT_OS_NAME" /> 裝置後，系統就會將他們登出先前的裝置工作階段。
+
+如果將這項政策設為停用或未設定，只有在啟用 <ph name="FLOATING_SSO_ENABLED_POLICY_NAME" /> 或 <ph name="FLOATING_WORKSPACE_V2_ENABLED_POLICY_NAME" /> 政策時，系統才會將使用者登出先前的工作階段。</translation>
 <translation id="6854767649023671426">如果將這項政策設為啟用或不設定，系統會詢問使用者是否要存取影片擷取裝置 (如果網址已列在 VideoCaptureAllowedUrls 的許可清單內，系統不會提示使用者)。
 
       如果將這項政策設為停用，系統就不會顯示提示，而且只有列在 VideoCaptureAllowedUrls 清單內的網址才能存取影片擷取裝置。
@@ -8374,6 +8395,7 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
 如果設為 False 或未設定，就無法使用該鍵盤配置。裝置必須重新啟動，政策設定才會生效。</translation>
 <translation id="685769593149966548">強制執行 YouTube 高度嚴格篩選模式</translation>
 <translation id="686079137349561371">Microsoft Windows 7 以上版本</translation>
+<translation id="6863927303509860338">設定新分頁中的捷徑</translation>
 <translation id="6866755486434471318">允許 <ph name="PEPPER_NAME" /> 使用分享的圖片解碼影片。</translation>
 <translation id="6878757724611298427">允許使用者在無關聯的裝置上使用 Android 應用程式</translation>
 <translation id="6881397131210596522">如果將這項政策設為 2，系統會自動禁止網站使用 WebPrinting API。
@@ -8769,6 +8791,19 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
     如果設為 True，則會顯示人體存在感應器畫面。
     如果不設定這項政策，系統會將預設值 False 套用至受企業管理的使用者，將 True 套用至其他未受管理的使用者。</translation>
 <translation id="7127980134843952133">下載記錄</translation>
+<translation id="7128472920253801502">分頁整理工具是已停用的功能，因此這項政策已淘汰。
+
+分頁整理工具採用 AI 技術，可依據使用者開啟的分頁自動建立分頁群組。系統會根據開啟的分頁 (而非網頁內容) 提供建議。
+
+0 = 允許使用這項功能，並允許 Google 運用相關資料改善 AI 模型。相關資料可能包括提示、輸入內容、輸出內容、來源資料和文字意見回饋 (視功能而定)。這些資料也可能會送交專人審查，以提升 AI 模型。預設值為 0，但以下註明的情形除外。
+
+1 = 允許使用這項功能，但不允許 Google 運用使用者的內容 (包括提示、輸入內容、輸出內容、來源資料和文字意見回饋) 改良模型。如果是 <ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" />管理的企業版使用者，以及 <ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" /> 管理的教育版帳戶，預設值為 1。
+
+2 = 不允許使用這項功能。
+
+如果未設定這項政策，系統會根據 <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> 政策決定其行為。
+
+如要進一步瞭解生成式 AI 功能的資料處理方式，請前往 https://support.google.com/chrome/a?p=generative_ai_settings。</translation>
 <translation id="7128513247945602297">在 HTTPS 網站上啟用複合型內容自動升級</translation>
 <translation id="712963038874313213">提供應在預設 Crostini 容器中執行的 Ansible Playbook。
 
@@ -9010,6 +9045,15 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
 <translation id="7313672174502374994">桌布圖片的 SHA-256 雜湊值。</translation>
 <translation id="7317472245305274219">控制是否預設使用 iCloud 鑰匙圈建立密碼金鑰。</translation>
 <translation id="7318503436349210241">已啟用：CSS zoom 屬性會符合標準規格。</translation>
+<translation id="7321519702919205928">這項政策會為個別設定檔設定 HTTP 伺服器驗證憑證的單一全域快取。
+
+      如果停用或未設定這項政策，瀏覽器就會使用預設的跨網站驗證行為，依頂層網站限定 HTTP 伺服器驗證憑證適用範圍。如果有兩個網站使用來自相同驗證網域的資源，兩者都要在內容中提供憑證。系統將跨網站重複使用快取的 Proxy 憑證。
+
+      如果啟用這項政策，使用者在一個網站的內容中輸入 HTTP 驗證憑證後，將自動用於另一個網站的內容。
+
+      如果啟用這項政策，網站可能會容易遭受某些類型的跨網站攻擊。不肖人士只要透過網址中內嵌的憑證，就能在 HTTP 驗證快取中新增項目來追蹤使用者，而不必用到 Cookie。
+
+      這項政策旨在讓採用舊版行為的企業有機會更新登入程序，並將於日後移除。</translation>
 <translation id="7322825363493984512">用於向遠端網路 Proxy 驗證系統服務的密碼。</translation>
 <translation id="7323773727263636287">啟用色彩校正無障礙功能。
 
@@ -9525,6 +9569,13 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
 <translation id="775822241671489040">控管「使用啟動器/搜尋鍵變更功能鍵行為」的設定</translation>
 <translation id="7758378441185523981">為設定檔類型啟用背景驗證。</translation>
 <translation id="776110834126722255">已淘汰</translation>
+<translation id="7761702157788500857">為大多數網頁 (即預設指派給 origin-keyed 代理程式叢集的網頁) 啟用 origin-keyed 程序隔離功能。這樣做可以提高安全性，但也會增加建立的程序數量。使用者可透過指令列旗標或 chrome://flags 覆寫設定的政策值，兩處都能啟用或停用這項功能。
+
+如果將這項政策設為啟用，系統會隔離大部分來源，即使是同一網站中的其他來源也不例外。另請參閱 <ph name="ISOLATE_ORIGINS_POLICY_NAME" /> 和 <ph name="SITE_PER_PROCESS_POLICY_NAME" /> 政策。
+
+如果將這項政策設為停用，除非來源明確要求，否則來源不會與網站的其他部分隔離。
+
+如果未設定這項政策，瀏覽器會自行決定要隔離哪些來源，以及何時隔離。</translation>
 <translation id="7763614521440615342">在新分頁顯示內容建議</translation>
 <translation id="7763650553214838209">已停用為「插入」動作設定捷徑的功能。</translation>
 <translation id="7763655314629932385">指定所需的 IWA 版本。如果提供此資訊，系統就會嘗試安裝指定版本，後續不會再更新。如要取消固定應用程式版本並再次啟用更新，請移除這個欄位。**重要提示：**如果指定版本不存在，IWA 就會停留在目前安裝的版本，因為嘗試更新到固定版本 (以失敗為例) 後，版本固定功能會停用任何後續自動更新。</translation>
@@ -11623,14 +11674,5 @@ https://developers.google.com/privacy-sandbox/cookies/storage-partitioning。</t
 <translation id="989197274317162189">這項政策已淘汰，因此系統不再支援，請改用「<ph name="URL_BLOCKLIST_POLICY_NAME" />」政策。</translation>
 <translation id="990830704772547092">在 <ph name="PRODUCT_OS_NAME" /> 裝置上設定 Bruschetta VM 的安裝程式</translation>
 <translation id="991560005425213776">將使用者名稱和檔案名稱傳送到原生印表機</translation>
-<translation id="99232017131102456">這項政策會針對 HTTP 伺服器驗證憑證設定適用於個別設定檔的單一全域快取。
-
-      如果不設定這項政策或已停用它，瀏覽器就會使用預設的跨網站驗證行為；自第 80 版起，系統會依頂層網站限定 HTTP 伺服器驗證憑證適用範圍，也就是說，如果有兩個網站使用了來自相同驗證網域的資源，則兩個網站都需要在內容中提供憑證。系統將跨網站重複使用快取的 Proxy 憑證。
-
-      如果啟用這項政策，則使用者在一個網站的內容中所輸入的 HTTP 驗證憑證，將會自動用於另一個網站的內容。
-
-      啟用這項政策可能會讓網站遭受某些類型的跨網站攻擊；不肖人士只要透過網址的內嵌憑證，就能在 HTTP 驗證快取中新增項目來追蹤使用者，而不必透過 Cookie 進行追蹤。
-
-      這項政策旨在讓採用舊版行為的企業有機會更新登入程序；我們將於日後移除這項政策。</translation>
 <translation id="999340611001666174">停用色彩校正</translation>
 </translationbundle>

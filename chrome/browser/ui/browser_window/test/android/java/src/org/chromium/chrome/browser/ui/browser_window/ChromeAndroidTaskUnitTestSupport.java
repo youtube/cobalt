@@ -7,11 +7,15 @@ package org.chromium.chrome.browser.ui.browser_window;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 
 import android.app.Activity;
+import android.view.WindowManager;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
+import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcherProvider;
 import org.chromium.ui.base.ActivityWindowAndroid;
 
 import java.lang.ref.WeakReference;
@@ -28,7 +32,7 @@ public final class ChromeAndroidTaskUnitTestSupport {
      */
     public static final class ChromeAndroidTaskWithMockDeps {
         public final ChromeAndroidTask mChromeAndroidTask;
-        public final ActivityWindowAndroid mMockActivityWindowAndroid;
+        public final ActivityWindowAndroidMocks mActivityWindowAndroidMocks;
 
         /**
          * Mock {@link AndroidBrowserWindow.Natives}.
@@ -41,11 +45,32 @@ public final class ChromeAndroidTaskUnitTestSupport {
 
         ChromeAndroidTaskWithMockDeps(
                 ChromeAndroidTask chromeAndroidTask,
-                ActivityWindowAndroid mockActivityWindowAndroid,
+                ActivityWindowAndroidMocks activityWindowAndroidMocks,
                 AndroidBrowserWindow.@Nullable Natives mockAndroidBrowserWindowNatives) {
             mChromeAndroidTask = chromeAndroidTask;
-            mMockActivityWindowAndroid = mockActivityWindowAndroid;
+            mActivityWindowAndroidMocks = activityWindowAndroidMocks;
             mMockAndroidBrowserWindowNatives = mockAndroidBrowserWindowNatives;
+        }
+    }
+
+    /** Holds mocks relevant to {@link ActivityWindowAndroid}. */
+    public static final class ActivityWindowAndroidMocks {
+        public final ActivityWindowAndroid mMockActivityWindowAndroid;
+        public final Activity mMockActivity;
+        public final ActivityLifecycleDispatcher mMockActivityLifecycleDispatcher;
+
+        /** Mock {@link WindowManager} for {@link #mMockActivity}. */
+        public final WindowManager mMockWindowManager;
+
+        public ActivityWindowAndroidMocks(
+                ActivityWindowAndroid mockActivityWindowAndroid,
+                Activity mockActivity,
+                ActivityLifecycleDispatcher mockActivityLifecycleDispatcher,
+                WindowManager mockWindowManager) {
+            mMockActivityWindowAndroid = mockActivityWindowAndroid;
+            mMockActivity = mockActivity;
+            mMockActivityLifecycleDispatcher = mockActivityLifecycleDispatcher;
+            mMockWindowManager = mockWindowManager;
         }
     }
 
@@ -69,26 +94,46 @@ public final class ChromeAndroidTaskUnitTestSupport {
      */
     public static ChromeAndroidTaskWithMockDeps createChromeAndroidTaskWithMockDeps(
             int taskId, boolean mockNatives) {
-        var mockActivityWindowAndroid = createMockActivityWindowAndroid(taskId);
+        var activityWindowAndroidMocks = createActivityWindowAndroidMocks(taskId);
         var mockAndroidBrowserWindowNatives =
                 mockNatives ? createMockAndroidBrowserWindowNatives() : null;
-        var chromeAndroidTask = new ChromeAndroidTaskImpl(mockActivityWindowAndroid);
+        var chromeAndroidTask =
+                new ChromeAndroidTaskImpl(activityWindowAndroidMocks.mMockActivityWindowAndroid);
 
         return new ChromeAndroidTaskWithMockDeps(
-                chromeAndroidTask, mockActivityWindowAndroid, mockAndroidBrowserWindowNatives);
+                chromeAndroidTask, activityWindowAndroidMocks, mockAndroidBrowserWindowNatives);
+    }
+
+    /** See {@link #createActivityWindowAndroidMocks(int)}. */
+    static ActivityWindowAndroid createMockActivityWindowAndroid(int taskId) {
+        return createActivityWindowAndroidMocks(taskId).mMockActivityWindowAndroid;
     }
 
     /**
-     * Creates a mock {@link ActivityWindowAndroid}, which has a mock {@link Activity} with the
-     * given {@code taskId}.
+     * Creates an instance of {@link ActivityWindowAndroidMocks}.
+     *
+     * @param taskId Task ID for {@link ActivityWindowAndroidMocks#mMockActivity}.
      */
-    static ActivityWindowAndroid createMockActivityWindowAndroid(int taskId) {
+    static ActivityWindowAndroidMocks createActivityWindowAndroidMocks(int taskId) {
         var mockActivityWindowAndroid = mock(ActivityWindowAndroid.class);
-        var mockActivity = mock(Activity.class);
+        var mockActivity =
+                mock(
+                        Activity.class,
+                        withSettings().extraInterfaces(ActivityLifecycleDispatcherProvider.class));
+        var mockActivityLifecycleDispatcher = mock(ActivityLifecycleDispatcher.class);
+        var mockWindowManager = mock(WindowManager.class);
 
         when(mockActivity.getTaskId()).thenReturn(taskId);
+        when(mockActivity.getWindowManager()).thenReturn(mockWindowManager);
+        when(((ActivityLifecycleDispatcherProvider) mockActivity).getLifecycleDispatcher())
+                .thenReturn(mockActivityLifecycleDispatcher);
         when(mockActivityWindowAndroid.getActivity()).thenReturn(new WeakReference<>(mockActivity));
-        return mockActivityWindowAndroid;
+
+        return new ActivityWindowAndroidMocks(
+                mockActivityWindowAndroid,
+                mockActivity,
+                mockActivityLifecycleDispatcher,
+                mockWindowManager);
     }
 
     /**

@@ -61,6 +61,7 @@
 #include "base/uuid.h"
 #include "build/build_config.h"
 #include "components/download/public/common/download_url_parameters.h"
+#include "components/history/core/browser/features.h"
 #include "components/input/input_router.h"
 #include "components/input/timeout_monitor.h"
 #include "components/input/utils.h"
@@ -309,6 +310,7 @@
 #include "ui/accessibility/ax_tree_update.h"
 #include "ui/accessibility/ax_updates_and_events.h"
 #include "ui/accessibility/platform/browser_accessibility_manager.h"
+#include "ui/base/clipboard/clipboard_metadata.h"
 #include "ui/base/ime/text_input_client.h"
 #include "ui/display/screen.h"
 #include "ui/events/event_constants.h"
@@ -10976,14 +10978,14 @@ void RenderFrameHostImpl::InitializeCrashReportStorage(
   // backing memory is a `std::map`, but in the future when the backing memory
   // might be a shared memory buffer, this becomes more important. See
   // `CrashReportStorage::initialize()`.
-  if (crash_storage_requested_length_) {
+  if (document_associated_data_->crash_storage_requested_length()) {
     bad_message::ReceivedBadMessage(
         GetProcess(),
         bad_message::RFH_CRASH_REPORT_STORAGE_ALREADY_INITIALIZED);
     return;
   }
 
-  crash_storage_requested_length_ = length;
+  document_associated_data_->set_crash_storage_requested_length(length);
   std::move(callback).Run();
 }
 
@@ -10991,22 +10993,23 @@ void RenderFrameHostImpl::SetCrashReportStorageKey(
     const std::string& key,
     const std::string& value,
     SetCrashReportStorageKeyCallback callback) {
-  if (!crash_storage_requested_length_) {
+  if (!document_associated_data_->crash_storage_requested_length()) {
     mojo::ReportBadMessage("Must call InitializeCrashReportStorage() first");
   }
 
-  crash_storage_map_.insert(std::make_pair(key, value));
+  document_associated_data_->crash_storage_map().insert(
+      std::make_pair(key, value));
   std::move(callback).Run();
 }
 
 void RenderFrameHostImpl::RemoveCrashReportStorageKey(
     const std::string& key,
     RemoveCrashReportStorageKeyCallback callback) {
-  if (!crash_storage_requested_length_) {
+  if (!document_associated_data_->crash_storage_requested_length()) {
     mojo::ReportBadMessage("Must call InitializeCrashReportStorage() first");
   }
 
-  crash_storage_map_.erase(key);
+  document_associated_data_->crash_storage_map().erase(key);
   std::move(callback).Run();
 }
 
@@ -12285,6 +12288,22 @@ void RenderFrameHostImpl::CommitNavigation(
     }
   }
 
+  if (is_main_frame()) {
+    // Ensures the blink::Page is set with the correct canvas noise token for
+    // main frames by syncing the value with the frame's associated
+    // blink::WebView prior to commit. This must be done at CommitNavigation
+    // time as the origin will not be available when the blink::Page is created
+    // earlier.
+    std::optional<uint64_t> canvas_noise_token =
+        navigation_request->canvas_noise_token();
+    frame_tree()->root()->render_manager()->ExecutePageBroadcastMethod(
+        [canvas_noise_token](RenderViewHostImpl* rvh) {
+          if (auto& broadcast = rvh->GetAssociatedPageBroadcast()) {
+            broadcast->UpdateCanvasNoiseToken(canvas_noise_token);
+          }
+        });
+  }
+
   bool is_srcdoc = common_params->url.IsAboutSrcdoc();
   if (is_srcdoc) {
     // TODO(wjmaclean): initialize this in NavigationRequest's constructor
@@ -12677,8 +12696,6 @@ void RenderFrameHostImpl::CommitNavigation(
     //
     // Here we are recording the metrics for same-process navigations at the
     // point just before the navigation commits.
-    // TODO(altimin, crbug.com/933147): Remove this logic after we are done with
-    // implementing back-forward cache.
     if (!GetParent() && previous_rfh == this) {
       if (NavigationEntryImpl* last_committed_entry =
               NavigationEntryImpl::FromNavigationEntry(
@@ -15704,6 +15721,15 @@ bool RenderFrameHostImpl::DidCommitNavigationInternal(
     document_associated_data_->owned_page()->set_last_main_document_source_id(
         ukm::ConvertToSourceId(navigation_request->GetNavigationId(),
                                ukm::SourceIdType::NAVIGATION_ID));
+
+    // Set this on content::Page so that all subframes can inherit the same
+    // canvas noise token. Note that the content::Page may have been swapped
+    // above (earlier in DidCommitNavigationInternal()) in cases like
+    // prerendering.  At this point in the navigation, the content::Page should
+    // be set and can be inherited for subframe navigations.
+    // TODO(crbug.com/434006731): Assign this state earlier once RenderDocument
+    // ships and content::Page doesn't need to swap.
+    GetPage().set_canvas_noise_token(navigation_request->canvas_noise_token());
   }
 
   if (is_same_document_navigation) {
@@ -16126,7 +16152,7 @@ void RenderFrameHostImpl::MaybeGenerateCrashReport(
   }
 
   base::Value::Dict crash_report_api_body;
-  for (const auto& pair : crash_storage_map_) {
+  for (const auto& pair : document_associated_data_->crash_storage_map()) {
     crash_report_api_body.Set(pair.first, pair.second);
   }
   body.Set("crash_report_api", std::move(crash_report_api_body));
@@ -17350,8 +17376,7 @@ void RenderFrameHostImpl::
   // TODO(crbug.com/40161149): Reconsider how we calculate
   // should_update_history.
   bool does_status_code_qualify_for_history =
-      base::FeatureList::IsEnabled(
-          blink::features::kVisitedLinksOnErrorNavigation) ||
+      base::FeatureList::IsEnabled(history::kVisitedLinksOn404) ||
       browser_http_status_code != 404;
   const bool browser_should_update_history =
       !browser_url_is_unreachable && does_status_code_qualify_for_history;
@@ -18004,7 +18029,7 @@ void RenderFrameHostImpl::ReinitializeDocumentAssociatedDataForTesting() {
 void RenderFrameHostImpl::IsClipboardPasteAllowedByPolicy(
     const ClipboardEndpoint& source,
     const ClipboardEndpoint& destination,
-    const ClipboardMetadata& metadata,
+    const ui::ClipboardMetadata& metadata,
     ClipboardPasteData clipboard_paste_data,
     IsClipboardPasteAllowedCallback callback) {
   delegate_->IsClipboardPasteAllowedByPolicy(source, destination, metadata,

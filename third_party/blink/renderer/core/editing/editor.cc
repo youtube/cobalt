@@ -506,11 +506,11 @@ bool Editor::InsertText(const String& text, KeyboardEvent* triggering_event) {
                                                            triggering_event);
 }
 
-bool Editor::InsertTextWithoutSendingTextEvent(
-    const String& text,
-    bool select_inserted_text,
-    TextEvent* triggering_event,
-    InputEvent::InputType input_type) {
+bool Editor::InsertTextWithoutSendingTextEvent(const String& text,
+                                               bool select_inserted_text,
+                                               TextEvent* triggering_event,
+                                               InputEvent::InputType input_type,
+                                               DataTransfer* data_transfer) {
   const VisibleSelection& selection =
       CreateVisibleSelection(SelectionForCommand(triggering_event));
   if (!selection.IsContentEditable())
@@ -525,7 +525,7 @@ bool Editor::InsertTextWithoutSendingTextEvent(
       triggering_event && triggering_event->IsComposition()
           ? TypingCommand::kTextCompositionConfirm
           : TypingCommand::kTextCompositionNone,
-      false, input_type);
+      false, input_type, data_transfer);
   if (editing_state.IsAborted())
     return false;
 
@@ -955,6 +955,12 @@ void Editor::RespondToChangedSelection() {
 
 void Editor::SyncSelection(SyncCondition force_sync) {
   TRACE_EVENT0("blink", "Editor::SyncSelection");
+
+  // When EditContext is active, it takes care of selection synchronization.
+  if (frame_->GetInputMethodController().GetActiveEditContext()) {
+    return;
+  }
+
   frame_->Client()->DidChangeSelection(
       !GetFrameSelection().GetSelectionInDOMTree().IsRange(), force_sync);
 }

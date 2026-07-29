@@ -10,11 +10,11 @@
 #include "base/test/metrics/user_action_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/background/startup_launch_manager.h"
-#include "chrome/browser/glic/glic_enabling.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/host/context/glic_focused_tab_manager.h"
 #include "chrome/browser/glic/host/context/glic_tab_data.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
+#include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/test_support/glic_test_util.h"
 #include "chrome/browser/glic/widget/glic_window_controller.h"
@@ -36,6 +36,7 @@
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/test_renderer_host.h"
 #include "content/public/test/web_contents_tester.h"
+#include "glic_metrics.h"
 #include "services/metrics/public/cpp/ukm_recorder.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/accelerators/accelerator.h"
@@ -426,6 +427,34 @@ TEST_F(GlicMetricsTest, ClosedCaptionsResponse_PrefLogsTrue) {
 
   histogram_tester_.ExpectUniqueSample("Glic.Response.ClosedCaptionsShown",
                                        true, 1);
+}
+
+TEST_F(GlicMetricsTest, OnTabPinSharedSuccessful) {
+  metrics_->OnTabPinnedForSharing(
+      GlicTabPinnedForSharingResult::kPinTabForSharingSucceeded);
+
+  histogram_tester_.ExpectUniqueSample(
+      "Glic.Sharing.TabPinnedForSharing",
+      GlicTabPinnedForSharingResult::kPinTabForSharingSucceeded, 1);
+}
+
+TEST_F(GlicMetricsTest, OnTabPinSharedUnsuccessfulTooMany) {
+  metrics_->OnTabPinnedForSharing(
+      GlicTabPinnedForSharingResult::kPinTabForSharingFailedTooManyTabs);
+
+  histogram_tester_.ExpectUniqueSample(
+      "Glic.Sharing.TabPinnedForSharing",
+      GlicTabPinnedForSharingResult::kPinTabForSharingFailedTooManyTabs, 1);
+}
+
+TEST_F(GlicMetricsTest, OnTabPinSharedUnsuccessfulNotValid) {
+  metrics_->OnTabPinnedForSharing(
+      GlicTabPinnedForSharingResult::kPinTabForSharingFailedNotValidForSharing);
+
+  histogram_tester_.ExpectUniqueSample(
+      "Glic.Sharing.TabPinnedForSharing",
+      GlicTabPinnedForSharingResult::kPinTabForSharingFailedNotValidForSharing,
+      1);
 }
 
 TEST_F(GlicMetricsTest, ImpressionBeforeFreNotPermittedByPolicy) {

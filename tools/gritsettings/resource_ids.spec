@@ -232,10 +232,6 @@
     "META": {"sizes": {"includes": [5]}},
     "includes": [3000],
   },
-  "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/chromeos/assistant_optin/assistant_optin_resources.grd": {
-    "META": {"sizes": {"includes": [80]}},
-    "includes": [3040],
-  },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/chromeos/audio/resources.grd": {
     "META": {"sizes": {"includes": [30]}},
     "includes": [3060],
@@ -748,7 +744,7 @@
     "includes": [5240],
   },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/webui_browser/resources.grd": {
-    "META": {"sizes": {"includes": [10]}},
+    "META": {"sizes": {"includes": [32]}},
     "includes": [5250],
   },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/webui_browser/internal/resources.grd": {
@@ -804,8 +800,23 @@
   "chromeos/ash/resources/internal/ash_internal_strings.grd": {
     "messages": [5820],
   },
+  # Both boca_receiver_app_bundle_resources.grd and
+  # boca_receiver_app_bundle_mock_resources.grd start with the same id because
+  # only one of them is built depending on if actual app is available.
+  "ash/webui/boca_receiver_app_ui/resources/prod/boca_receiver_app_bundle_resources.grd": {
+    "META": {"sizes": {"includes": [100],}},
+    "includes": [5822],
+  },
+  "ash/webui/boca_receiver_app_ui/resources/mock/boca_receiver_app_bundle_mock_resources.grd": {
+    "META": {"sizes": {"includes": [100],}},
+    "includes": [5822],
+  },
+  "ash/webui/boca_receiver_app_ui/resources/trusted/boca_receiver_trusted_resources.grd": {
+    "META": {"sizes": {"includes": [10],}},
+    "includes": [5825],
+  },
   "<(SHARED_INTERMEDIATE_DIR)/ash/webui/boca_receiver_app_ui/resources/untrusted/resources.grd": {
-    "META": {"sizes": {"includes": [120],}},
+    "META": {"sizes": {"includes": [40],}},
     "includes": [5830],
   },
   # Both boca_app_bundle_resources.grd and boca_app_bundle_mock_resources.grd
@@ -1099,7 +1110,7 @@
     "includes": [7290],
   },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/autofill_ml_internals/resources.grd": {
-    "META": {"sizes": {"includes": [10]}},
+    "META": {"sizes": {"includes": [20]}},
     "includes": [7295],
   },
   "<(SHARED_INTERMEDIATE_DIR)/components/commerce/core/internals/resources/resources.grd": {

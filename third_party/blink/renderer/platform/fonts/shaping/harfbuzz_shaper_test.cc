@@ -33,7 +33,7 @@
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
 #if BUILDFLAG(IS_ANDROID)
-#include "base/android/build_info.h"
+#include "base/android/android_info.h"
 #endif
 
 #if BUILDFLAG(IS_MAC)
@@ -179,15 +179,6 @@ class HarfBuzzShaperTest : public FontTestBase {
     result->GetRunFontData(&run_font_data);
     EXPECT_EQ(run_font_data.size(), 1u);
     return run_font_data[0].font_data_->PlatformData().FontFamilyName();
-  }
-
-  StringView MaybeStripFontationsSuffix(const String& font_name) {
-    wtf_size_t found_index = font_name.ReverseFind(" (Fontations)");
-    if (found_index != kNotFound) {
-      return StringView(font_name, 0, found_index);
-    } else {
-      return font_name;
-    }
   }
 
   const ShapeResult* SplitRun(ShapeResult* shape_result, unsigned offset) {
@@ -822,18 +813,16 @@ TEST_F(HarfBuzzShaperTest, SystemEmojiVS15) {
       u"\u2614"
       u"\ufe0e");
   for (String text : {text_default, emoji_default}) {
-    EXPECT_EQ(MaybeStripFontationsSuffix(
-                  GetShapedFontFamilyNameForEmojiVS(*mono_font, text)),
-              StringView(kNotoEmojiFontName));
+    EXPECT_EQ(GetShapedFontFamilyNameForEmojiVS(*mono_font, text),
+              kNotoEmojiFontName);
     const char* system_mono_font_name = kSystemMonoEmojiFont;
 #if BUILDFLAG(IS_MAC)
     if (text == text_default) {
       system_mono_font_name = kSystemMonoTextDefaultEmojiFont;
     }
 #endif
-    EXPECT_EQ(MaybeStripFontationsSuffix(
-                  GetShapedFontFamilyNameForEmojiVS(*color_font, text)),
-              StringView(system_mono_font_name));
+    EXPECT_EQ(GetShapedFontFamilyNameForEmojiVS(*color_font, text),
+              system_mono_font_name);
   }
 }
 
@@ -851,12 +840,10 @@ TEST_F(HarfBuzzShaperTest, SystemEmojiVS16) {
       u"\u2614"
       u"\ufe0f");
   for (String text : {text_default, emoji_default}) {
-    EXPECT_EQ(MaybeStripFontationsSuffix(
-                  GetShapedFontFamilyNameForEmojiVS(*mono_font, text)),
-              StringView(kSystemColorEmojiFont));
-    EXPECT_EQ(MaybeStripFontationsSuffix(
-                  GetShapedFontFamilyNameForEmojiVS(*color_font, text)),
-              StringView(kNotoColorEmojiFontName));
+    EXPECT_EQ(GetShapedFontFamilyNameForEmojiVS(*mono_font, text),
+              kSystemColorEmojiFont);
+    EXPECT_EQ(GetShapedFontFamilyNameForEmojiVS(*color_font, text),
+              kNotoColorEmojiFontName);
   }
 }
 
@@ -902,12 +889,10 @@ TEST_P(FontVariantEmojiTest, FontVariantEmojiSystemFallback) {
     }
 #endif
 
-    EXPECT_EQ(MaybeStripFontationsSuffix(
-                  GetShapedFontFamilyNameForEmojiVS(*mono_font, text)),
-              StringView(expected_name_for_mono_requested_font));
-    EXPECT_EQ(MaybeStripFontationsSuffix(
-                  GetShapedFontFamilyNameForEmojiVS(*color_font, text)),
-              StringView(expected_name_for_color_requested_font));
+    EXPECT_EQ(GetShapedFontFamilyNameForEmojiVS(*mono_font, text),
+              expected_name_for_mono_requested_font);
+    EXPECT_EQ(GetShapedFontFamilyNameForEmojiVS(*color_font, text),
+              expected_name_for_color_requested_font);
   }
 }
 
@@ -925,15 +910,12 @@ TEST_F(HarfBuzzShaperTest, VSOverrideFontVariantEmoji) {
   const ShapeResult* result = shaper.Shape(font, TextDirection::kLtr);
   result->GetRunFontData(&run_font_data);
   EXPECT_EQ(run_font_data.size(), 3u);
-  EXPECT_EQ(MaybeStripFontationsSuffix(
-                run_font_data[0].font_data_->PlatformData().FontFamilyName()),
-            StringView(kSystemColorEmojiFont));
-  EXPECT_EQ(MaybeStripFontationsSuffix(
-                run_font_data[1].font_data_->PlatformData().FontFamilyName()),
-            StringView(kSystemMonoEmojiFont));
-  EXPECT_EQ(MaybeStripFontationsSuffix(
-                run_font_data[2].font_data_->PlatformData().FontFamilyName()),
-            StringView(kSystemColorEmojiFont));
+  EXPECT_EQ(run_font_data[0].font_data_->PlatformData().FontFamilyName(),
+            kSystemColorEmojiFont);
+  EXPECT_EQ(run_font_data[1].font_data_->PlatformData().FontFamilyName(),
+            kSystemMonoEmojiFont);
+  EXPECT_EQ(run_font_data[2].font_data_->PlatformData().FontFamilyName(),
+            kSystemColorEmojiFont);
 }
 
 TEST_F(HarfBuzzShaperTest, FontVariantEmojiTextSystemFallback) {
@@ -949,9 +931,8 @@ TEST_F(HarfBuzzShaperTest, FontVariantEmojiTextSystemFallback) {
 #endif
   String text(u"\u26CE");
   Font* color_font = CreateNotoColorEmoji(FontVariantEmoji::kTextVariantEmoji);
-  EXPECT_EQ(MaybeStripFontationsSuffix(
-                GetShapedFontFamilyNameForEmojiVS(*color_font, text)),
-            StringView(mono_font_name));
+  EXPECT_EQ(GetShapedFontFamilyNameForEmojiVS(*color_font, text),
+            mono_font_name);
 }
 
 #endif
@@ -2178,8 +2159,8 @@ TEST_F(HarfBuzzShaperTest, MAYBE_EmojiPercentage) {
 #if BUILDFLAG(IS_ANDROID)
   // On Android 11, SDK level 30, fallback occurs to an emoji
   // font that has coverage for the last segment. Adjust the expectation.
-  if (base::android::BuildInfo::GetInstance()->sdk_int() >=
-      base::android::SdkVersion::SDK_VERSION_R) {
+  if (base::android::android_info::sdk_int() >=
+      base::android::android_info::SDK_VERSION_R) {
     expectations[2].expected_broken_clusters = 0;
   }
 #endif

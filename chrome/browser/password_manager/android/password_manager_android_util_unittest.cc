@@ -7,7 +7,8 @@
 #include <limits>
 #include <memory>
 
-#include "base/android/build_info.h"
+#include "base/android/android_info.h"
+#include "base/android/device_info.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/strings/strcat.h"
@@ -31,7 +32,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-using password_manager::GetLocalUpmMinGmsVersion;
+using password_manager::GetSplitStoresUpmMinVersion;
 using password_manager::prefs::kUpmAutoExportCsvNeedsDeletion;
 using password_manager::prefs::kUpmUnmigratedPasswordsExported;
 using testing::Return;
@@ -70,8 +71,8 @@ class PasswordManagerAndroidUtilTest : public testing::Test {
                     "");
 
     // Most tests check the modern GmsCore case.
-    base::android::BuildInfo::GetInstance()->set_gms_version_code_for_test(
-        base::NumberToString(GetLocalUpmMinGmsVersion()));
+    base::android::device_info::set_gms_version_code_for_test(
+        base::NumberToString(GetSplitStoresUpmMinVersion()));
   }
 
   // MaybeDeleteLoginDatabases() reads whether password sync is enabled
@@ -124,8 +125,8 @@ class PasswordManagerAndroidUtilTest : public testing::Test {
 TEST_F(PasswordManagerAndroidUtilTest,
        PasswordManagerNotAvailableNoInternalBackend) {
   // Make sure all the other criteria are fulfilled.
-  base::android::BuildInfo::GetInstance()->set_gms_version_code_for_test(
-      base::NumberToString(GetLocalUpmMinGmsVersion()));
+  base::android::device_info::set_gms_version_code_for_test(
+      base::NumberToString(GetSplitStoresUpmMinVersion()));
   password_manager::SetLegacySplitStoresPrefForTest(pref_service(), true);
   pref_service()->SetBoolean(kUpmUnmigratedPasswordsExported, false);
 
@@ -147,8 +148,8 @@ TEST_F(PasswordManagerAndroidUtilTest,
   pref_service()->SetBoolean(kUpmUnmigratedPasswordsExported, false);
 
   // Set a GMS Core version that is lower than the min required version.
-  base::android::BuildInfo::GetInstance()->set_gms_version_code_for_test(
-      base::NumberToString(GetLocalUpmMinGmsVersion() - 1));
+  base::android::device_info::set_gms_version_code_for_test(
+      base::NumberToString(GetSplitStoresUpmMinVersion() - 1));
 
   EXPECT_FALSE(
       IsPasswordManagerAvailable(pref_service(), std::move(mock_util_bridge)));
@@ -161,8 +162,8 @@ TEST_F(PasswordManagerAndroidUtilTest,
   EXPECT_CALL(*mock_util_bridge, IsInternalBackendPresent)
       .WillOnce(Return(true));
 
-  base::android::BuildInfo::GetInstance()->set_gms_version_code_for_test(
-      base::NumberToString(GetLocalUpmMinGmsVersion()));
+  base::android::device_info::set_gms_version_code_for_test(
+      base::NumberToString(GetSplitStoresUpmMinVersion()));
 
   password_manager::SetLegacySplitStoresPrefForTest(pref_service(), false);
   pref_service()->SetBoolean(kUpmUnmigratedPasswordsExported, false);
@@ -177,8 +178,8 @@ TEST_F(PasswordManagerAndroidUtilTest, PasswordManagerAvailableNoUpmMigration) {
   EXPECT_CALL(*mock_util_bridge, IsInternalBackendPresent)
       .WillOnce(Return(true));
 
-  base::android::BuildInfo::GetInstance()->set_gms_version_code_for_test(
-      base::NumberToString(GetLocalUpmMinGmsVersion()));
+  base::android::device_info::set_gms_version_code_for_test(
+      base::NumberToString(GetSplitStoresUpmMinVersion()));
 
   password_manager::SetLegacySplitStoresPrefForTest(pref_service(), false);
   pref_service()->SetBoolean(kUpmUnmigratedPasswordsExported, true);
@@ -193,8 +194,8 @@ TEST_F(PasswordManagerAndroidUtilTest, PasswordManagerAvailableUpmMigration) {
   EXPECT_CALL(*mock_util_bridge, IsInternalBackendPresent)
       .WillOnce(Return(true));
 
-  base::android::BuildInfo::GetInstance()->set_gms_version_code_for_test(
-      base::NumberToString(GetLocalUpmMinGmsVersion()));
+  base::android::device_info::set_gms_version_code_for_test(
+      base::NumberToString(GetSplitStoresUpmMinVersion()));
 
   password_manager::SetLegacySplitStoresPrefForTest(pref_service(), true);
   pref_service()->SetBoolean(kUpmUnmigratedPasswordsExported, false);
@@ -204,8 +205,8 @@ TEST_F(PasswordManagerAndroidUtilTest, PasswordManagerAvailableUpmMigration) {
 }
 
 TEST_F(PasswordManagerAndroidUtilTest, TestRecordsUpmNotActiveWhenNoGms) {
-  base::android::BuildInfo::GetInstance()->set_gms_version_code_for_test(
-      base::NumberToString(GetLocalUpmMinGmsVersion() - 1));
+  base::android::device_info::set_gms_version_code_for_test(
+      base::NumberToString(GetSplitStoresUpmMinVersion() - 1));
 
   base::HistogramTester histogram_tester;
   std::unique_ptr<MockPasswordManagerUtilBridge> mock_bridge =
@@ -222,8 +223,8 @@ TEST_F(PasswordManagerAndroidUtilTest, TestRecordsUpmNotActiveWhenNoGms) {
 }
 
 TEST_F(PasswordManagerAndroidUtilTest, TestRecordsUpmNotActiveWhenGmsTooOld) {
-  base::android::BuildInfo::GetInstance()->set_gms_version_code_for_test(
-      base::NumberToString(GetLocalUpmMinGmsVersion() - 1));
+  base::android::device_info::set_gms_version_code_for_test(
+      base::NumberToString(GetSplitStoresUpmMinVersion() - 1));
 
   base::HistogramTester histogram_tester;
   std::unique_ptr<MockPasswordManagerUtilBridge> mock_bridge =
@@ -241,8 +242,8 @@ TEST_F(PasswordManagerAndroidUtilTest, TestRecordsUpmNotActiveWhenGmsTooOld) {
 
 TEST_F(PasswordManagerAndroidUtilTest,
        TestRecordsUpmNotActivateBeforeAutoExport) {
-  base::android::BuildInfo::GetInstance()->set_gms_version_code_for_test(
-      base::NumberToString(GetLocalUpmMinGmsVersion()));
+  base::android::device_info::set_gms_version_code_for_test(
+      base::NumberToString(GetSplitStoresUpmMinVersion()));
 
   password_manager::SetLegacySplitStoresPrefForTest(pref_service(), false);
   pref_service()->SetBoolean(
@@ -258,8 +259,8 @@ TEST_F(PasswordManagerAndroidUtilTest,
 }
 
 TEST_F(PasswordManagerAndroidUtilTest, TestRecordsUpmActiveIfExported) {
-  base::android::BuildInfo::GetInstance()->set_gms_version_code_for_test(
-      base::NumberToString(GetLocalUpmMinGmsVersion()));
+  base::android::device_info::set_gms_version_code_for_test(
+      base::NumberToString(GetSplitStoresUpmMinVersion()));
 
   password_manager::SetLegacySplitStoresPrefForTest(pref_service(), false);
   pref_service()->SetBoolean(
@@ -274,8 +275,8 @@ TEST_F(PasswordManagerAndroidUtilTest, TestRecordsUpmActiveIfExported) {
 }
 
 TEST_F(PasswordManagerAndroidUtilTest, TestRecordsUpmActiveIfAlreadyActive) {
-  base::android::BuildInfo::GetInstance()->set_gms_version_code_for_test(
-      base::NumberToString(GetLocalUpmMinGmsVersion()));
+  base::android::device_info::set_gms_version_code_for_test(
+      base::NumberToString(GetSplitStoresUpmMinVersion()));
 
   password_manager::SetLegacySplitStoresPrefForTest(pref_service(), true);
   pref_service()->SetBoolean(

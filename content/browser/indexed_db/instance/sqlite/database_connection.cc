@@ -671,13 +671,14 @@ StatusOr<std::unique_ptr<DatabaseConnection>> DatabaseConnection::Open(
     std::optional<std::u16string_view> name,
     base::FilePath path,
     BackingStoreImpl& backing_store) {
-  // TODO(crbug.com/40253999): Create new tag(s) for metrics.
-  constexpr sql::Database::Tag kSqlTag = "Test";
-  auto db = std::make_unique<sql::Database>(sql::DatabaseOptions()
-                                                .set_exclusive_locking(true)
-                                                .set_wal_mode(true)
-                                                .set_enable_triggers(true),
-                                            kSqlTag);
+  constexpr sql::Database::Tag kSqlTag = "IndexedDB";
+  constexpr sql::Database::Tag kSqlTagInMemory = "IndexedDBEphemeral";
+  auto db =
+      std::make_unique<sql::Database>(sql::DatabaseOptions()
+                                          .set_exclusive_locking(true)
+                                          .set_wal_mode(true)
+                                          .set_enable_triggers(true),
+                                      path.empty() ? kSqlTagInMemory : kSqlTag);
 
   if (path.empty()) {
     TRANSIENT_CHECK(db->OpenInMemory());
@@ -921,9 +922,11 @@ void DatabaseConnection::CancelBlobWriting() {
   blob_writers_weak_factory_.InvalidateWeakPtrs();
   blob_writers_.clear();
   outstanding_external_object_writes_ = 0;
-  std::move(blob_write_callback_)
-      .Run(BlobWriteResult::kRunPhaseTwoAsync,
-           storage::mojom::WriteBlobToFileResult::kError);
+  if (blob_write_callback_) {
+    std::move(blob_write_callback_)
+        .Run(BlobWriteResult::kRunPhaseTwoAsync,
+             storage::mojom::WriteBlobToFileResult::kError);
+  }
 }
 
 Status DatabaseConnection::CommitTransactionPhaseTwo(
@@ -953,8 +956,8 @@ void DatabaseConnection::RollBackTransaction(
 
   // Abort ongoing blob writes, if any.
   // TODO(crbug.com/419208485): Be sure to test this case.
-  blob_writers_.clear();
-  blob_write_callback_ = BlobWriteCallback();
+  blob_write_callback_.Reset();
+  CancelBlobWriting();
 
   active_rw_transaction_->Rollback();
 

@@ -11,10 +11,11 @@ import pathlib
 import shutil
 import sys
 import tempfile
+
 from config import fix_graph
+from graph import IncludeDir
 from graph import run_build
-from render import render_build_gn
-from render import render_modulemap
+import render
 from compiler import Compiler
 
 SOURCE_ROOT = pathlib.Path(__file__).parents[3].resolve()
@@ -33,31 +34,34 @@ def main(args):
   logging.info('Detected platform %s', platform)
 
   out_dir = SOURCE_ROOT / f'build/modules/{platform}'
+  out_build = out_dir / 'BUILD.gn'
   # Otherwise gn will error out because it tries to import a file that doesn't exist.
-  if not out_dir.is_dir():
-    shutil.copytree(out_dir.parent / 'linux-x64', out_dir)
+  if not out_build.is_file():
+    out_dir.mkdir(exist_ok=True)
+    shutil.copyfile(out_dir.parent / 'linux-x64/BUILD.gn', out_build)
 
   if args.compile:
-    with tempfile.TemporaryDirectory() as td:
-      ps, files = compiler.compile_one(args.compile, pathlib.Path(td, 'source'))
-      print('stderr:', ps.stderr.decode('utf-8'), file=sys.stderr)
-      print('Files used:')
-      print('\n'.join(sorted(map(str, files))))
-      print('Setting breakpoint to allow further debugging')
-      breakpoint()
-      return
+    ps, files = compiler.compile_one(args.compile)
+    print('stderr:', ps.stderr.decode('utf-8'), file=sys.stderr)
+    print('Files used:')
+    print('\n'.join(sorted(map(str, files))))
+    print('Setting breakpoint to allow further debugging')
+    breakpoint()
+    return
 
   graph = compiler.compile_all()
-  fix_graph(graph, compiler.os, compiler.cpu)
+  fix_graph(graph, compiler)
   targets = run_build(graph)
   out_dir.mkdir(exist_ok=True, parents=False)
-  # Since apple provides a modulemap, we only need to create a BUILD.gn file.
-  if compiler.os not in ['mac', 'ios']:
-    render_modulemap(out_dir=out_dir, sysroot=compiler.sysroot, targets=targets)
-  textual_headers = [hdr for hdr in graph.values() if hdr.textual]
-  render_build_gn(out_dir=out_dir,
-                  textual_headers=textual_headers,
-                  targets=targets)
+  if compiler.sysroot_dir == IncludeDir.Sysroot:
+    render.render_modulemap(out_dir=out_dir,
+                            sysroot=compiler.sysroot,
+                            targets=targets)
+  render.render_build_gn(
+      out_dir=out_dir,
+      targets=targets,
+      compiler=compiler,
+  )
 
 
 if __name__ == '__main__':
@@ -80,7 +84,8 @@ if __name__ == '__main__':
 
   parser.add_argument(
       '--compile',
-      help='Compile a single header file',
+      help=
+      'Compile a single header file (eg. --compile=sys/types.h) instead of the whole sysroot. Useful for debugging.',
   )
 
   parser.add_argument('--error-log',

@@ -28,6 +28,7 @@ import org.chromium.chrome.browser.IntentHandler;
 import org.chromium.chrome.browser.document.ChromeLauncherActivity;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tabmodel.MultiTabMetadata;
 import org.chromium.chrome.browser.tabmodel.TabGroupMetadata;
 import org.chromium.chrome.browser.tabwindow.TabWindowManager;
 import org.chromium.ui.dragdrop.DragDropMetricUtils;
@@ -35,7 +36,6 @@ import org.chromium.ui.dragdrop.DragDropMetricUtils.DragDropType;
 import org.chromium.ui.dragdrop.DragDropMetricUtils.UrlIntentSource;
 import org.chromium.ui.util.XrUtils;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /** A helper activity for routing Chrome tab, tab group and link drag & drop launcher intents. */
@@ -180,6 +180,7 @@ public class DragAndDropLauncherActivity extends Activity {
     static Intent getTabIntent(Intent intent, @Nullable Tab tab) {
         intent.putExtra(IntentHandler.EXTRA_URL_DRAG_SOURCE, UrlIntentSource.TAB_IN_STRIP);
         intent.putExtra(IntentHandler.EXTRA_DRAGGED_TAB_ID, assumeNonNull(tab).getId());
+        IntentHandler.setPinnedState(intent, tab.getIsPinned());
         intent.setData(Uri.parse(tab.getUrl().getSpec()));
         return intent;
     }
@@ -195,14 +196,7 @@ public class DragAndDropLauncherActivity extends Activity {
     @VisibleForTesting
     static Intent getMultiTabIntent(Intent intent, @Nullable List<Tab> tabs) {
         intent.putExtra(IntentHandler.EXTRA_URL_DRAG_SOURCE, UrlIntentSource.TAB_IN_STRIP);
-        ArrayList<Integer> tabIds = new ArrayList<>();
-        ArrayList<String> tabUrls = new ArrayList<>();
-        for (Tab tab : assumeNonNull(tabs)) {
-            tabIds.add(tab.getId());
-            tabUrls.add(tab.getUrl().getSpec());
-        }
-        intent.putIntegerArrayListExtra(IntentHandler.MULTI_TAB_KEY_TAB_IDS, tabIds);
-        intent.putStringArrayListExtra(IntentHandler.MULTI_TAB_KEY_TAB_URLS, tabUrls);
+        IntentHandler.setMultiTabMetadata(intent, MultiTabMetadata.create(tabs));
         return intent;
     }
 
@@ -278,6 +272,7 @@ public class DragAndDropLauncherActivity extends Activity {
         ResettersForTesting.register(() -> sDropTimeoutForTesting = null);
     }
 
+    // TODO(crbug.com/432760135): Add metrics for multi-tab drag/drop.
     private static void recordLaunchMetrics(Intent intent) {
         @UrlIntentSource
         int intentSource =

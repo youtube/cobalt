@@ -20,6 +20,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/types/expected.h"
 #include "components/ip_protection/common/ip_protection_core.h"
 #include "components/ip_protection/common/ip_protection_data_types.h"
 #include "components/ip_protection/common/ip_protection_proxy_config_manager_impl.h"
@@ -213,43 +214,45 @@ void IpProtectionProxyDelegate::OnFallback(const net::ProxyChain& bad_chain,
   }
 }
 
-net::Error IpProtectionProxyDelegate::OnBeforeTunnelRequest(
+base::expected<net::HttpRequestHeaders, net::Error>
+IpProtectionProxyDelegate::OnBeforeTunnelRequest(
     const net::ProxyChain& proxy_chain,
-    size_t chain_index,
-    net::HttpRequestHeaders* extra_headers) {
+    size_t proxy_index,
+    OnBeforeTunnelRequestCallback callback) {
   auto vlog = [](std::string message) {
     VLOG(2) << "NSPD::OnBeforeTunnelRequest() - " << message;
   };
+  net::HttpRequestHeaders extra_headers;
   if (proxy_chain.is_for_ip_protection()) {
     std::optional<BlindSignedAuthToken> token =
-        ip_protection_core_->GetAuthToken(chain_index);
+        ip_protection_core_->GetAuthToken(proxy_index);
     if (token) {
       vlog("adding auth token");
       // The token value we have here is the full Authorization header value,
       // so we can add it verbatim.
-      extra_headers->SetHeader(net::HttpRequestHeaders::kAuthorization,
-                               std::move(token->token));
+      extra_headers.SetHeader(net::HttpRequestHeaders::kAuthorization,
+                              std::move(token->token));
     } else {
       vlog("no token available");
       // This is an unexpected circumstance, but does happen in the wild.
       // Rather than send the request to the proxy, which will reply with an
       // error, mark the connection as failed immediately.
-      return net::ERR_TUNNEL_CONNECTION_FAILED;
+      return base::unexpected(net::ERR_TUNNEL_CONNECTION_FAILED);
+    }
+    int experiment_arm = net::features::kIpPrivacyDebugExperimentArm.Get();
+    if (experiment_arm != 0) {
+      extra_headers.SetHeader("Ip-Protection-Debug-Experiment-Arm",
+                              base::NumberToString(experiment_arm));
     }
   } else {
     vlog("not for IP protection");
   }
-  int experiment_arm = net::features::kIpPrivacyDebugExperimentArm.Get();
-  if (experiment_arm != 0) {
-    extra_headers->SetHeader("Ip-Protection-Debug-Experiment-Arm",
-                             base::NumberToString(experiment_arm));
-  }
-  return net::OK;
+  return extra_headers;
 }
 
 net::Error IpProtectionProxyDelegate::OnTunnelHeadersReceived(
     const net::ProxyChain& proxy_chain,
-    size_t chain_index,
+    size_t proxy_index,
     const net::HttpResponseHeaders& response_headers) {
   if (response_headers.response_code() == 200 ||
       !proxy_chain.is_for_ip_protection()) {

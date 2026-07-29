@@ -96,20 +96,15 @@ bool IsStaticRouterRaceRequestFixEnabled() {
       features::kServiceWorkerStaticRouterRaceRequestFix);
 }
 
+void MaybeSetHeaderReceivedTiming(net::LoadTimingInfo& timing) {
+  if (timing.receive_headers_start.is_null()) {
+    timing.receive_headers_start = base::TimeTicks::Now();
+    timing.receive_headers_end = timing.receive_headers_start;
+  }
+}
+
 constexpr char kHistogramSyntheticResponseEligibility[] =
     "ServiceWorker.SyntheticResponse.Eligibility";
-
-// These values are persisted to logs. Entries should not be renumbered and
-// numeric values should never be reused.
-//
-// LINT.IfChange(SyntheticResponseEligibility)
-enum class SyntheticResponseEligibility {
-  kEligible = 0,
-  kNotEligibleByReload = 1,
-  kNotEligibleByNoHeaderStored = 2,
-  kMaxValue = kNotEligibleByNoHeaderStored,
-};
-// LINT.ThenChange(//tools/metrics/histograms/metadata/service/enums.xml:SyntheticResponseEligibility)
 
 }  // namespace
 
@@ -1030,7 +1025,8 @@ bool ServiceWorkerMainResourceLoader::MaybeStartSyntheticNetworkRequest(
     // Synthetic response is not enabled in reloading the page.
     base::UmaHistogramEnumeration(
         kHistogramSyntheticResponseEligibility,
-        SyntheticResponseEligibility::kNotEligibleByReload);
+        ServiceWorkerMetrics::SyntheticResponseEligibility::
+            kNotEligibleByReload);
     return false;
   }
 
@@ -1073,7 +1069,8 @@ bool ServiceWorkerMainResourceLoader::MaybeStartSyntheticNetworkRequest(
       // network.
       base::UmaHistogramEnumeration(
           kHistogramSyntheticResponseEligibility,
-          SyntheticResponseEligibility::kNotEligibleByNoHeaderStored);
+          ServiceWorkerMetrics::SyntheticResponseEligibility::
+              kNotEligibleByNoHeaderStored);
       break;
     case SyntheticResponseStatus::kReady:
       // When it's ready, the header which the service worker locally storead is
@@ -1083,8 +1080,9 @@ bool ServiceWorkerMainResourceLoader::MaybeStartSyntheticNetworkRequest(
       synthetic_response_manager_->StartSyntheticResponse(base::BindOnce(
           &ServiceWorkerMainResourceLoader::DidDispatchFetchEvent,
           weak_factory_.GetWeakPtr()));
-      base::UmaHistogramEnumeration(kHistogramSyntheticResponseEligibility,
-                                    SyntheticResponseEligibility::kEligible);
+      base::UmaHistogramEnumeration(
+          kHistogramSyntheticResponseEligibility,
+          ServiceWorkerMetrics::SyntheticResponseEligibility::kEligible);
       break;
   }
 
@@ -1100,6 +1098,7 @@ void ServiceWorkerMainResourceLoader::
   // yet. Return the response from the network to the client here.
   CHECK_EQ(synthetic_response_manager_->Status(),
            SyntheticResponseStatus::kNotReady);
+  MaybeSetHeaderReceivedTiming(response_head->load_timing);
   SetCommitResponsibility(FetchResponseFrom::kWithoutServiceWorker);
   CHECK(url_loader_client_.is_bound());
   CommitResponseBody(response_head, std::move(body), std::nullopt);
@@ -1127,11 +1126,7 @@ void ServiceWorkerMainResourceLoader::StartResponse(
 
   response_head_->did_service_worker_navigation_preload =
       dispatched_preload_type() == DispatchedPreloadType::kNavigationPreload;
-  if (response_head_->load_timing.receive_headers_start.is_null()) {
-    response_head_->load_timing.receive_headers_start = base::TimeTicks::Now();
-    response_head_->load_timing.receive_headers_end =
-        response_head_->load_timing.receive_headers_start;
-  }
+  MaybeSetHeaderReceivedTiming(response_head_->load_timing);
   response_source_ = response->response_source;
   if (ShouldRecordServiceWorkerFetchStart()) {
     response_head_->load_timing.service_worker_fetch_start =

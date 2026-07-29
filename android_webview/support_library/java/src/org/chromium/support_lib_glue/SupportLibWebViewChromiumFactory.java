@@ -119,8 +119,9 @@ public class SupportLibWebViewChromiumFactory implements WebViewProviderFactoryB
                 Features.WARM_UP_RENDERER_PROCESS,
                 Features.EXTRA_HEADER_FOR_ORIGINS,
                 Features.BACK_FORWARD_CACHE_SETTINGS,
-                Features.PRECONNECT + Features.DEV_SUFFIX,
+                Features.PRECONNECT,
                 Features.HYPERLINK_CONTEXT_MENU_ITEMS + Features.DEV_SUFFIX,
+                Features.ASYNC_WEBVIEW_STARTUP_ASYNC_STARTUP_LOCATIONS + Features.DEV_SUFFIX,
                 // Add new features above. New features must include `+ Features.DEV_SUFFIX`
                 // when they're initially added (this can be removed in a future CL). The final
                 // feature should have a trailing comma for cleaner diffs.
@@ -753,6 +754,11 @@ public class SupportLibWebViewChromiumFactory implements WebViewProviderFactoryB
                         if (providerInitOnMainLooperLocation != null) {
                             supportLibResult.addBlockingStartUpLocation(
                                     providerInitOnMainLooperLocation);
+                        }
+                        Throwable asyncChromiumInitLocation =
+                                result.getAsynchronousChromiumInitLocationOrNull();
+                        if (asyncChromiumInitLocation != null) {
+                            supportLibResult.addAsyncStartUpLocation(asyncChromiumInitLocation);
                         }
                         webViewStartUpCallback.onSuccess(
                                 BoundaryInterfaceReflectionUtil.createInvocationHandlerFor(

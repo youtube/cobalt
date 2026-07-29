@@ -112,7 +112,7 @@ public class ReaderModeToolbarButtonController extends BaseButtonDataProvider {
                         /* supportsTinting= */ true,
                         /* iphCommandBuilder= */ null,
                         AdaptiveToolbarButtonVariant.READER_MODE,
-                        /* actionChipLabelResId= */ R.string.hide_reading_mode_text,
+                        /* actionChipLabelResId= */ Resources.ID_NULL,
                         /* tooltipTextResId= */ Resources.ID_NULL,
                         /* hasErrorBadge= */ false);
     }
@@ -128,6 +128,7 @@ public class ReaderModeToolbarButtonController extends BaseButtonDataProvider {
 
     @Override
     public void onClick(View view) {
+        ReaderModeActionRateLimiter.getInstance().onActionClicked();
         Tab currentTab = mActiveTabSupplier.get();
         if (currentTab == null) return;
 

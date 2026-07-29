@@ -137,9 +137,9 @@ class DummyFrameScheduler : public FrameScheduler {
       override {
     return weak_ptr_factory_.GetWeakPtr();
   }
-  WTF::HashSet<SchedulingPolicy::Feature>
+  HashSet<SchedulingPolicy::Feature>
   GetActiveFeaturesTrackedForBackForwardCacheMetrics() override {
-    return WTF::HashSet<SchedulingPolicy::Feature>();
+    return HashSet<SchedulingPolicy::Feature>();
   }
   base::WeakPtr<FrameScheduler> GetWeakPtr() override {
     return weak_ptr_factory_.GetWeakPtr();
@@ -343,9 +343,9 @@ class DummyWebMainThreadScheduler : public WebThreadScheduler,
   void StartIdlePeriodForTesting() override {}
 
   void ForEachMainThreadIsolate(
-      base::RepeatingCallback<void(v8::Isolate* isolate)> callback) override {
+      base::FunctionRef<void(v8::Isolate* isolate)> function) override {
     if (isolate_) {
-      callback.Run(isolate_.get());
+      function(isolate_);
     }
   }
 

@@ -68,17 +68,17 @@ class MEDIA_GPU_EXPORT D3D12VideoEncodeH265Delegate
   ~D3D12VideoEncodeH265Delegate() override;
 
   size_t GetMaxNumOfRefFrames() const override;
+  size_t GetMaxNumOfManualRefBuffers() const override;
   bool ReportsAverageQp() const override;
 
   bool UpdateRateControl(const Bitrate& bitrate, uint32_t framerate) override;
 
   bool SupportsRateControlReconfiguration() const override;
 
-  EncoderStatus::Or<BitstreamBufferMetadata> EncodeImpl(
-      ID3D12Resource* input_frame,
-      UINT input_frame_subresource,
-      const VideoEncoder::EncodeOptions& options,
-      const gfx::ColorSpace& input_color_space) override;
+  EncoderStatus EncodeImpl(ID3D12Resource* input_frame,
+                           UINT input_frame_subresource,
+                           const VideoEncoder::EncodeOptions& options,
+                           const gfx::ColorSpace& input_color_space) override;
 
  private:
   EncoderStatus InitializeVideoEncoder(
@@ -122,9 +122,6 @@ class MEDIA_GPU_EXPORT D3D12VideoEncodeH265Delegate
 
   H26xAnnexBBitstreamBuilder packed_header_{
       /*insert_emulation_prevention_bytes=*/true};
-
-  // The metadata of the bitstream buffer for the last encode request.
-  BitstreamBufferMetadata metadata_;
 };
 
 }  // namespace media

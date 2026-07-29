@@ -7,12 +7,14 @@
 #include <memory>
 #include <string>
 
+#include "base/byte_count.h"
 #include "chrome/browser/resource_coordinator/tab_lifecycle_unit_external.h"
 #include "chrome/browser/resource_coordinator/tab_lifecycle_unit_source.h"
 #include "chrome/browser/resource_coordinator/utils.h"
 #include "chrome/browser/ui/performance_controls/tab_resource_usage_tab_helper.h"
 #include "chrome/browser/ui/tab_ui_helper.h"
 #include "chrome/browser/ui/tabs/alert/tab_alert.h"
+#include "chrome/browser/ui/tabs/alert/tab_alert_controller.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/test_tab_strip_model_delegate.h"
@@ -75,8 +77,25 @@ class TabRendererDataTest : public testing::Test {
     TabInterface* const tab_interface = tab_strip_model_.GetTabAtIndex(index);
     tab_interface->GetTabFeatures()->SetTabUIHelperForTesting(
         std::make_unique<TabUIHelper>(*tab_interface));
+    std::unique_ptr<tabs::TabAlertController> tab_alert_controller =
+        tabs::TabFeatures::GetUserDataFactoryForTesting()
+            .CreateInstance<tabs::TabAlertController>(*tab_interface,
+                                                      *tab_interface);
+    tab_interface_to_alert_controller_.insert(
+        {tab_interface, std::move(tab_alert_controller)});
     return index;
   }
+
+  void CloseTab(int index) {
+    tab_interface_to_alert_controller_.erase(
+        tab_strip_model_.GetTabAtIndex(index));
+    tab_strip_model_.CloseWebContentsAt(index,
+                                        TabCloseTypes::CLOSE_USER_GESTURE);
+  }
+
+ private:
+  std::map<tabs::TabInterface*, std::unique_ptr<tabs::TabAlertController>>
+      tab_interface_to_alert_controller_;
 };
 
 TEST_F(TabRendererDataTest, FromTabInModel) {
@@ -137,8 +156,7 @@ TEST_F(TabRendererDataTest, TabInterfaceWeakPtr) {
     TabRendererData data2 =
         TabRendererData::FromTabInModel(&tab_strip_model_, index2);
     EXPECT_EQ(data2.tab_interface->GetContents(), wc2);
-    tab_strip_model_.CloseWebContentsAt(index2,
-                                        TabCloseTypes::CLOSE_USER_GESTURE);
+    CloseTab(index2);
     EXPECT_FALSE(data2.tab_interface);
     EXPECT_FALSE(data2.pinned);
   }
@@ -349,14 +367,15 @@ TEST_F(TabRendererDataTest, TabLifecycleManagement) {
       TabRendererData::FromTabInModel(&tab_strip_model_, index);
   EXPECT_FALSE(data_default.is_tab_discarded);
   EXPECT_FALSE(data_default.should_show_discard_status);
-  EXPECT_EQ(data_default.discarded_memory_savings_in_bytes, 0);
+  EXPECT_TRUE(data_default.discarded_memory_savings.is_zero());
   EXPECT_TRUE(data_default.tab_resource_usage);
 
-  usage_helper->SetMemoryUsageInBytes(1234);
+  usage_helper->SetMemoryUsage(base::ByteCount(1234));
   TabRendererData data_usage =
       TabRendererData::FromTabInModel(&tab_strip_model_, index);
   ASSERT_TRUE(data_usage.tab_resource_usage);
-  EXPECT_EQ(data_usage.tab_resource_usage->memory_usage_in_bytes(), 1234u);
+  EXPECT_EQ(data_usage.tab_resource_usage->memory_usage(),
+            base::ByteCount(1234));
 }
 
 // TODO: Add unit tests for TabRendererData::collaboration_messaging

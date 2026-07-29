@@ -8,16 +8,18 @@ source_set("coordinator") {
     "safari_data_import_entry_point_mediator.mm",
     "safari_data_import_main_coordinator.h",
     "safari_data_import_main_coordinator.mm",
-    "safari_data_import_ui_handler.h",
   ]
   public_deps = [ "//ios/chrome/browser/shared/coordinator/chrome_coordinator" ]
   deps = [
     ":coordinator_delegate",
     ":export_coordinator",
     "//base",
+    "//components/feature_engagement/public",
+    "//ios/chrome/browser/feature_engagement/model",
     "//ios/chrome/browser/passwords/model:features",
     "//ios/chrome/browser/promos_manager/model",
     "//ios/chrome/browser/promos_manager/model:factory",
+    "//ios/chrome/browser/safari_data_import/public",
     "//ios/chrome/browser/safari_data_import/public:metrics",
     "//ios/chrome/browser/safari_data_import/ui",
     "//ios/chrome/browser/scoped_ui_blocker/ui_bundled",
@@ -84,9 +86,11 @@ source_set("import_coordinator") {
     "//ios/chrome/browser/shared/model/application_context",
     "//ios/chrome/browser/shared/model/browser",
     "//ios/chrome/browser/shared/model/profile",
+    "//ios/chrome/browser/shared/ui/util:url_with_title",
     "//ios/chrome/browser/signin/model",
     "//ios/chrome/browser/sync/model",
     "//ios/chrome/browser/webauthn/model",
+    "//ios/chrome/common/ui/favicon",
     "//ios/chrome/common/ui/promo_style",
     "//ui/base",
   ]
@@ -103,7 +107,6 @@ source_set("promo") {
   ]
   public_deps = [ "//ios/chrome/browser/promos_manager/ui_bundled:promos" ]
   deps = [
-    ":coordinator",
     "//components/feature_engagement/public",
     "//ios/chrome/browser/promos_manager/model:types",
     "//ios/chrome/browser/safari_data_import/public",
@@ -116,10 +119,15 @@ source_set("unit_tests") {
   sources = [ "safari_data_import_entry_point_mediator_unittest.mm" ]
   deps = [
     ":coordinator",
+    "//base",
+    "//components/feature_engagement/public",
+    "//components/feature_engagement/test:test_support",
     "//ios/chrome/app/profile",
+    "//ios/chrome/browser/feature_engagement/model",
     "//ios/chrome/browser/promos_manager/model",
     "//ios/chrome/browser/promos_manager/model:test_support",
     "//ios/chrome/browser/shared/coordinator/scene:scene_state_header",
+    "//ios/web/public/test",
     "//testing/gtest",
     "//third_party/ocmock",
   ]

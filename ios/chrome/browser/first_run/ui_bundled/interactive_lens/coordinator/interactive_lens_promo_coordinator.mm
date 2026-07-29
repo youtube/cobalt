@@ -5,7 +5,9 @@
 #import "ios/chrome/browser/first_run/ui_bundled/interactive_lens/coordinator/interactive_lens_promo_coordinator.h"
 
 #import "base/check.h"
+#import "base/metrics/histogram_functions.h"
 #import "components/lens/lens_overlay_dismissal_source.h"
+#import "ios/chrome/browser/first_run/model/first_run_metrics.h"
 #import "ios/chrome/browser/first_run/ui_bundled/first_run_screen_delegate.h"
 #import "ios/chrome/browser/first_run/ui_bundled/interactive_lens/ui/interactive_lens_overlay_promo_view_controller.h"
 #import "ios/chrome/browser/first_run/ui_bundled/interactive_lens/ui/lens_interactive_promo_results_page_presenter.h"
@@ -54,12 +56,17 @@
   // Now that the view has been laid out, create the lens overlay.
   // TODO(crbug.com/416480202): Consider pre-warming the Lens Overlay for cases
   // where the it might take longer to start up.
+  __weak InteractiveLensOverlayPromoViewController* weakPromoViewController =
+      _promoViewController;
   LensResultsPresenterFactory factory =
       ^(LensOverlayContainerViewController* baseViewController,
         LensResultPageViewController* resultsViewController) {
-        return [[LensInteractivePromoResultsPagePresenter alloc]
-            initWithBaseViewController:baseViewController
-              resultPageViewController:resultsViewController];
+        LensInteractivePromoResultsPagePresenter* presenter =
+            [[LensInteractivePromoResultsPagePresenter alloc]
+                initWithBaseViewController:baseViewController
+                  resultPageViewController:resultsViewController];
+        presenter.interactivePromoDelegate = weakPromoViewController;
+        return presenter;
       };
 
   [_lensOverlayHandler
@@ -68,6 +75,9 @@
       initialPresentationBase:_promoViewController.lensContainerViewController
       resultsPresenterFactory:factory
                    completion:nil];
+
+  base::UmaHistogramEnumeration(first_run::kFirstRunStageHistogram,
+                                first_run::kInteractiveLensStart);
 
   BOOL animated = self.baseNavigationController.topViewController != nil;
   [self.baseNavigationController setViewControllers:@[ _promoViewController ]
@@ -85,9 +95,13 @@
 
 #pragma mark - InteractiveLensPromoDelegate
 
-- (void)didTapContinueButton {
+- (void)didTapContinueButtonWithInteraction:(BOOL)interaction {
   CHECK(self.firstRunDelegate);
   [self.firstRunDelegate screenWillFinishPresenting];
+  first_run::FirstRunStage stage =
+      interaction ? first_run::kInteractiveLensCompletionWithInteraction
+                  : first_run::kInteractiveLensCompletionWithoutInteraction;
+  base::UmaHistogramEnumeration(first_run::kFirstRunStageHistogram, stage);
 }
 
 @end

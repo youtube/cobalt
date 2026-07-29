@@ -36,6 +36,7 @@ class MockActorUiStateManager : public ActorUiStateManagerInterface {
               (tabs::TabInterface * tab),
               (override));
   MOCK_METHOD(void, MaybeShowToast, (BrowserWindowInterface * bwi), (override));
+  MOCK_METHOD(TaskIconUiState, GetTaskIconUiState, (), (const override));
 
 #if BUILDFLAG(ENABLE_GLIC)
   MOCK_METHOD(void,
@@ -44,8 +45,8 @@ class MockActorUiStateManager : public ActorUiStateManagerInterface {
                glic::mojom::CurrentView current_view),
               (override));
   MOCK_METHOD(base::CallbackListSubscription,
-              RegisterFloatyTaskStateChange,
-              (FloatyTaskStateChangeCallback callback),
+              RegisterTaskIconStateChange,
+              (TaskIconStateChangeCallback callback),
               (override));
 
 #endif

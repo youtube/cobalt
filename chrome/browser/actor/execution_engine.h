@@ -24,6 +24,7 @@
 #include "chrome/browser/password_manager/actor_login/actor_login_service.h"
 #include "chrome/common/actor.mojom-forward.h"
 #include "components/tabs/public/tab_interface.h"
+#include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/web_contents_observer.h"
 
 class Profile;
@@ -111,6 +112,8 @@ class ExecutionEngine : public ToolDelegate {
 
   static std::string StateToString(State state);
 
+  bool ShouldGateNavigation(content::NavigationHandle& navigation_handle);
+
  private:
   class NewTabWebContentsObserver;
   // Used by tests only.
@@ -179,6 +182,9 @@ class ExecutionEngine : public ToolDelegate {
   // If set, the currently executing tool should be considered failed once it
   // completes.
   std::optional<mojom::ActionResultCode> external_tool_failure_reason_;
+
+  // The results for script tool invocations so far.
+  std::vector<optimization_guide::proto::ScriptToolResult> script_tool_results_;
 
   SEQUENCE_CHECKER(sequence_checker_);
 

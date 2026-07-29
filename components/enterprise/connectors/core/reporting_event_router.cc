@@ -21,6 +21,7 @@
 #include "components/prefs/pref_service.h"
 #include "components/safe_browsing/core/common/features.h"
 #include "components/url_matcher/url_matcher.h"
+#include "ui/base/clipboard/clipboard_constants.h"
 
 namespace enterprise_connectors {
 
@@ -90,6 +91,42 @@ std::string DangerTypeToThreatType(download::DownloadDangerType danger_type) {
       return kUnknownDownloadThreatType;
   }
 }
+
+#if BUILDFLAG(ENTERPRISE_DATA_CONTROLS)
+// TODO(crbug.com/311679168): Move this to share logic with
+// ContentAnalysisDelegate.
+std::string GetMimeType(const ui::ClipboardFormatType& clipboard_format) {
+  if (clipboard_format == ui::ClipboardFormatType::PlainTextType()) {
+    return ui::kMimeTypePlainText;
+  } else if (clipboard_format == ui::ClipboardFormatType::HtmlType()) {
+    return ui::kMimeTypeHtml;
+  } else if (clipboard_format == ui::ClipboardFormatType::SvgType()) {
+    return ui::kMimeTypeSvg;
+  } else if (clipboard_format == ui::ClipboardFormatType::RtfType()) {
+    return ui::kMimeTypeRtf;
+  } else if (clipboard_format == ui::ClipboardFormatType::PngType()) {
+    return ui::kMimeTypePng;
+  } else if (clipboard_format == ui::ClipboardFormatType::FilenamesType()) {
+    return ui::kMimeTypeUriList;
+  }
+  return "";
+}
+
+enterprise_connectors::EventResult GetEventResult(
+    data_controls::Rule::Level level) {
+  switch (level) {
+    case data_controls::Rule::Level::kNotSet:
+    case data_controls::Rule::Level::kAllow:
+    case data_controls::Rule::Level::kReport:
+      return enterprise_connectors::EventResult::ALLOWED;
+    case data_controls::Rule::Level::kBlock:
+      return enterprise_connectors::EventResult::BLOCKED;
+    case data_controls::Rule::Level::kWarn:
+      return enterprise_connectors::EventResult::WARNED;
+  }
+}
+
+#endif  // BUILDFLAG(ENTERPRISE_DATA_CONTROLS)
 
 }  // namespace
 
@@ -490,6 +527,7 @@ void ReportingEventRouter::OnSensitiveDataEvent(
     const std::string& content_transfer_method,
     const std::string& source_email,
     const std::string& content_area_account_email,
+    std::optional<std::u16string> user_justification,
     const ContentAnalysisResponse::Result& result,
     const int64_t content_size,
     const ReferrerChain& referrer_chain,
@@ -512,8 +550,8 @@ void ReportingEventRouter::OnSensitiveDataEvent(
         download_digest_sha256, mime_type, trigger, scan_id,
         content_transfer_method, source_email, content_area_account_email,
         reporting_client_->GetProfileIdentifier(),
-        reporting_client_->GetProfileUserName(), content_size, result,
-        referrer_chain, event_result);
+        reporting_client_->GetProfileUserName(), user_justification,
+        content_size, result, referrer_chain, event_result);
     *event.mutable_time() = ToProtoTimestamp(base::Time::Now());
 
     reporting_client_->ReportEvent(std::move(event), settings.value());
@@ -551,6 +589,9 @@ void ReportingEventRouter::OnSensitiveDataEvent(
     }
     if (!source_email.empty()) {
       event.Set(kKeySourceWebAppSignedInAccount, source_email);
+    }
+    if (user_justification.has_value()) {
+      event.Set(kKeyUserJustification, user_justification.value());
     }
 
     AddAnalysisConnectorVerdictToEvent(result, event);
@@ -603,41 +644,57 @@ void ReportingEventRouter::OnDangerousDownloadEvent(
 
   std::optional<ReportingSettings> settings =
       reporting_client_->GetReportingSettings();
-  base::Value::Dict event;
-  event.Set(kKeyUrl, url.spec());
-  event.Set(kKeyTabUrl, tab_url.spec());
-  event.Set(kKeySource, source);
-  event.Set(kKeyDestination, destination);
-  event.Set(kKeyFileName,
-            GetFileName(file_name, reporting_client_->ShouldIncludeDeviceInfo(
-                                       settings->per_profile)));
-  event.Set(kKeyDownloadDigestSha256, download_digest_sha256);
-  event.Set(kKeyThreatType, threat_type);
-  event.Set(kKeyContentType, mime_type);
-  // |content_size| can be set to -1 to indicate an unknown size, in
-  // which case the field is not set.
-  if (content_size >= 0) {
-    event.Set(kKeyContentSize, base::Int64ToValue(content_size));
-  }
-  event.Set(kKeyTrigger, trigger);
-  if (base::FeatureList::IsEnabled(safe_browsing::kEnhancedFieldsForSecOps)) {
-    AddReferrerChainToEvent(referrer_chain, event);
-  }
-  event.Set(kKeyEventResult, EventResultToString(event_result));
-  event.Set(kKeyClickedThrough, event_result == EventResult::BYPASSED);
-  // The scan ID can be empty when the reported dangerous download is from a
-  // Safe Browsing verdict.
-  if (!scan_id.empty()) {
-    event.Set(kKeyScanId, scan_id);
-  }
-  if (!content_transfer_method.empty()) {
-    event.Set(kKeyContentTransferMethod, content_transfer_method);
-  }
+  std::string final_file_name = GetFileName(
+      file_name,
+      reporting_client_->ShouldIncludeDeviceInfo(settings->per_profile));
 
-  reporting_client_->ReportEventWithTimestampDeprecated(
-      kKeyDangerousDownloadEvent, std::move(settings.value()), std::move(event),
-      base::Time::Now(),
-      /*include_profile_user_name=*/true);
+  if (base::FeatureList::IsEnabled(
+          policy::kUploadRealtimeReportingEventsUsingProto)) {
+    chrome::cros::reporting::proto::Event event;
+    *event.mutable_dangerous_download_event() = GetDangerousDownloadEvent(
+        url, tab_url, source, destination, final_file_name,
+        download_digest_sha256, threat_type, mime_type, trigger, scan_id,
+        content_transfer_method, reporting_client_->GetProfileIdentifier(),
+        reporting_client_->GetProfileUserName(), content_size, referrer_chain,
+        event_result);
+    *event.mutable_time() = ToProtoTimestamp(base::Time::Now());
+
+    reporting_client_->ReportEvent(std::move(event), settings.value());
+  } else {
+    base::Value::Dict event;
+    event.Set(kKeyUrl, url.spec());
+    event.Set(kKeyTabUrl, tab_url.spec());
+    event.Set(kKeySource, source);
+    event.Set(kKeyDestination, destination);
+    event.Set(kKeyFileName, final_file_name);
+    event.Set(kKeyDownloadDigestSha256, download_digest_sha256);
+    event.Set(kKeyThreatType, threat_type);
+    event.Set(kKeyContentType, mime_type);
+    // |content_size| can be set to -1 to indicate an unknown size, in
+    // which case the field is not set.
+    if (content_size >= 0) {
+      event.Set(kKeyContentSize, base::Int64ToValue(content_size));
+    }
+    event.Set(kKeyTrigger, trigger);
+    if (base::FeatureList::IsEnabled(safe_browsing::kEnhancedFieldsForSecOps)) {
+      AddReferrerChainToEvent(referrer_chain, event);
+    }
+    event.Set(kKeyEventResult, EventResultToString(event_result));
+    event.Set(kKeyClickedThrough, event_result == EventResult::BYPASSED);
+    // The scan ID can be empty when the reported dangerous download is from a
+    // Safe Browsing verdict.
+    if (!scan_id.empty()) {
+      event.Set(kKeyScanId, scan_id);
+    }
+    if (!content_transfer_method.empty()) {
+      event.Set(kKeyContentTransferMethod, content_transfer_method);
+    }
+
+    reporting_client_->ReportEventWithTimestampDeprecated(
+        kKeyDangerousDownloadEvent, std::move(settings.value()),
+        std::move(event), base::Time::Now(),
+        /*include_profile_user_name=*/true);
+  }
 }
 
 void ReportingEventRouter::OnAnalysisConnectorResult(
@@ -665,15 +722,115 @@ void ReportingEventRouter::OnAnalysisConnectorResult(
         mime_type, trigger, scan_id, content_transfer_method, content_size,
         referrer_chain, event_result);
   } else if (result.tag() == "dlp") {
-    OnSensitiveDataEvent(url, tab_url, source, destination, file_name,
-                         download_digest_sha256, mime_type, trigger, scan_id,
-                         content_transfer_method, source_email,
-                         content_area_account_email, result, content_size,
-                         referrer_chain, event_result);
+    OnSensitiveDataEvent(
+        url, tab_url, source, destination, file_name, download_digest_sha256,
+        mime_type, trigger, scan_id, content_transfer_method, source_email,
+        content_area_account_email, /*user_justification=*/std::nullopt, result,
+        content_size, referrer_chain, event_result);
   }
 }
 
 #if BUILDFLAG(ENTERPRISE_DATA_CONTROLS)
+
+// static
+std::string ReportingEventRouter::GetClipboardSourceString(
+    const enterprise_connectors::ContentMetaData::CopiedTextSource& source) {
+  if (!source.url().empty()) {
+    return source.url();
+  }
+
+  switch (source.context()) {
+    case enterprise_connectors::ContentMetaData::CopiedTextSource::UNSPECIFIED:
+    case enterprise_connectors::ContentMetaData::CopiedTextSource::SAME_PROFILE:
+      return "";
+    case enterprise_connectors::ContentMetaData::CopiedTextSource::INCOGNITO:
+      return "INCOGNITO";
+    case enterprise_connectors::ContentMetaData::CopiedTextSource::CLIPBOARD:
+      return "CLIPBOARD";
+    case enterprise_connectors::ContentMetaData::CopiedTextSource::
+        OTHER_PROFILE:
+      return "OTHER_PROFILE";
+  }
+}
+
+void ReportingEventRouter::ReportCopy(
+    const data_controls::ClipboardContext& context,
+    const data_controls::Verdict& verdict) {
+  ReportCopyOrPaste(
+      context, verdict,
+      enterprise_connectors::kClipboardCopyDataTransferEventTrigger,
+      GetEventResult(verdict.level()));
+}
+
+void ReportingEventRouter::ReportCopyWarningBypassed(
+    const data_controls::ClipboardContext& context,
+    const data_controls::Verdict& verdict) {
+  ReportCopyOrPaste(
+      context, verdict,
+      enterprise_connectors::kClipboardCopyDataTransferEventTrigger,
+      enterprise_connectors::EventResult::BYPASSED);
+}
+
+void ReportingEventRouter::ReportPaste(
+    const data_controls::ClipboardContext& context,
+    const data_controls::Verdict& verdict) {
+  ReportCopyOrPaste(
+      context, verdict,
+      enterprise_connectors::kWebContentUploadDataTransferEventTrigger,
+      GetEventResult(verdict.level()));
+}
+
+void ReportingEventRouter::ReportPasteWarningBypassed(
+    const data_controls::ClipboardContext& context,
+    const data_controls::Verdict& verdict) {
+  ReportCopyOrPaste(
+      context, verdict,
+      enterprise_connectors::kWebContentUploadDataTransferEventTrigger,
+      enterprise_connectors::EventResult::BYPASSED);
+}
+
+void ReportingEventRouter::ReportCopyOrPaste(
+    const data_controls::ClipboardContext& context,
+    const data_controls::Verdict& verdict,
+    const std::string& trigger,
+    enterprise_connectors::EventResult result) {
+  if (verdict.triggered_rules().empty()) {
+    return;
+  }
+
+  GURL url;
+  std::string destination_string;
+  std::string source_string;
+  std::string content_area_account_email;
+  if (trigger ==
+      enterprise_connectors::kWebContentUploadDataTransferEventTrigger) {
+    url = context.destination_url();
+    destination_string = url.spec();
+    source_string =
+        GetClipboardSourceString(context.data_controls_copied_text_source());
+    content_area_account_email = context.destination_active_user();
+  } else {
+    DCHECK_EQ(trigger,
+              enterprise_connectors::kClipboardCopyDataTransferEventTrigger);
+    url = context.source_url();
+    source_string = context.source_url().spec();
+    content_area_account_email = context.source_active_user();
+  }
+
+  OnDataControlsSensitiveDataEvent(
+      /*url=*/url,
+      /*tab_url=*/url,
+      /*source=*/source_string,
+      /*destination=*/destination_string,
+      /*mime_type=*/GetMimeType(context.format_type()),
+      /*trigger=*/trigger,
+      /*source_active_user_email=*/context.source_active_user(),
+      /*content_area_account_email=*/content_area_account_email,
+      /*triggered_rules=*/verdict.triggered_rules(),
+      /*event_result=*/result,
+      /*content_size=*/context.size().value_or(-1));
+}
+
 void ReportingEventRouter::OnDataControlsSensitiveDataEvent(
     const GURL& url,
     const GURL& tab_url,

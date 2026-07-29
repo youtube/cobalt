@@ -12,6 +12,7 @@
 #include <string>
 #include <string_view>
 
+#include "base/byte_count.h"
 #include "base/containers/lru_cache.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/field_trial_params.h"
@@ -583,10 +584,9 @@ void TabHoverCardBubbleView::UpdateCardContent(const Tab* tab) {
   // tabs.
   const bool show_discard_status =
       !show_collaboration_messaging && tab_data.should_show_discard_status;
-  const int64_t tab_memory_usage_in_bytes =
-      tab_data.tab_resource_usage
-          ? tab_data.tab_resource_usage->memory_usage_in_bytes()
-          : 0;
+  const base::ByteCount tab_memory_usage =
+      tab_data.tab_resource_usage ? tab_data.tab_resource_usage->memory_usage()
+                                  : base::ByteCount(0);
   const bool is_high_memory_usage =
       tab_data.tab_resource_usage
           ? tab_data.tab_resource_usage->is_high_memory_usage()
@@ -597,16 +597,16 @@ void TabHoverCardBubbleView::UpdateCardContent(const Tab* tab) {
   // shared tabs.
   const bool show_memory_usage =
       !show_collaboration_messaging && !show_discard_status &&
-      ((bubble_params_.show_memory_usage && tab_memory_usage_in_bytes > 0) ||
+      ((bubble_params_.show_memory_usage && tab_memory_usage.is_positive()) ||
        is_high_memory_usage);
   const bool show_footer = alert_state_.has_value() || show_discard_status ||
                            show_memory_usage || show_collaboration_messaging;
 
-  footer_view_->SetAlertData({alert_state_, show_discard_status,
-                              tab_data.discarded_memory_savings_in_bytes});
+  footer_view_->SetAlertData(
+      {alert_state_, show_discard_status, tab_data.discarded_memory_savings});
 
   footer_view_->SetPerformanceData(
-      {show_memory_usage, is_high_memory_usage, tab_memory_usage_in_bytes});
+      {show_memory_usage, is_high_memory_usage, tab_memory_usage});
 
   footer_view_->SetCollaborationMessagingData(collaboration_messaging_data);
 
