@@ -274,7 +274,7 @@ def _filter_args_by_keys(base_args: List[str], override_args: List[str]) -> List
             if key in override_keys:
                 # Key is overridden by override_args. Skip this flag.
                 if "=" not in arg and " " not in arg and (i + 1 < len(base_args)) and not base_args[i + 1].startswith("--"):
-                    i += 1  # Skip space-separated value item
+                    i += 1  # Skip space-separated value item (e.g. '1' in '--foo 1' or '--foo', '1')
             else:
                 filtered_args.append(arg)
         else:
