@@ -84,9 +84,6 @@ PostTaskAndReplyRelay::~PostTaskAndReplyRelay() {
     reply_task_runner_raw->DeleteSoon(from_here_, std::move(relay_to_delete));
     return;
   }
-
-  // Case 1b and 3: Any remaining state will be destroyed synchronously at the
-  // end of this scope.
 }
 
 }  // namespace base::internal

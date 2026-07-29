@@ -12,7 +12,12 @@
 #include <vector>
 
 #include "base/base_export.h"
+<<<<<<< HEAD
 #include "base/byte_count.h"
+=======
+#include "build/buildflag.h"
+#include "build/build_config.h"
+>>>>>>> parent of affc325d4eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 namespace base::debug {
 
@@ -115,6 +120,12 @@ struct SmapsRollup {
 
 // Attempts to read /proc/self/smaps_rollup. Returns nullopt on error.
 BASE_EXPORT std::optional<SmapsRollup> ReadAndParseSmapsRollup();
+
+#if BUILDFLAG(IS_COBALT)
+// |smaps_rollup| should be the result of reading /proc/*/smaps_rollup.
+BASE_EXPORT std::optional<SmapsRollup> ParseSmapsRollup(
+    const std::string& smaps_rollup);
+#endif
 
 // |smaps_rollup| should be the result of reading /proc/*/smaps_rollup.
 BASE_EXPORT std::optional<SmapsRollup> ParseSmapsRollupForTesting(

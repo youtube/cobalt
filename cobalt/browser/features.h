@@ -1,0 +1,118 @@
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#ifndef COBALT_BROWSER_FEATURES_H_
+#define COBALT_BROWSER_FEATURES_H_
+
+#include <string>
+
+#include "base/feature_list.h"
+#include "base/metrics/field_trial_params.h"
+#include "base/time/time.h"
+
+namespace cobalt {
+namespace features {
+
+// Enables the variations config expiration check.
+extern const base::Feature kExperimentConfigExpiration;
+
+// Test finch feature for Finch end to end testing.
+extern const base::Feature kTestFinchFeature;
+
+// Test finch feature param for Finch end to end testing.
+extern const base::FeatureParam<std::string> kTestFinchFeatureParam;
+
+// Enables emitting the Finch token in the User-Agent string for experiment
+// verification.
+extern const base::Feature kEnableUserAgentFinchToken;
+
+// Token value to emit in the User-Agent string.
+extern const base::FeatureParam<std::string> kUserAgentFinchTokenParam;
+
+// Enables native hang reporting via Crashpad.
+extern const base::Feature kHangReporting;
+
+// Sets the timeout in seconds for hang watching.
+extern const base::FeatureParam<int> kHangWatchTimeSeconds;
+
+// Sets the monitoring period in seconds for hang watching.
+extern const base::FeatureParam<int> kHangWatchMonitoringPeriodSeconds;
+
+// Enables thread dump on hang for the main thread.
+extern const base::Feature kHangWatchMainThreadDump;
+
+// Enables thread dump on hang for the IO thread.
+extern const base::Feature kHangWatchIOThreadDump;
+
+// Enables thread dump on hang for the thread pool threads.
+extern const base::Feature kHangWatchThreadPoolDump;
+
+// Enables thread dump on hang for the renderer thread.
+extern const base::Feature kHangWatchRendererThreadDump;
+
+// Enables detecting severe hangs (long hangs) via UMA without terminating.
+extern const base::Feature kHangWatcherLongHangDetection;
+
+// Enables native abort (LOG(FATAL)) when a long hang is detected.
+extern const base::Feature kHangWatcherLongHangKill;
+
+// Sets the timeout in seconds for a hang to be considered a long hang.
+extern const base::FeatureParam<int> kLongHangTimeoutSeconds;
+
+// Enables overriding the default metrics collection interval with a fixed
+// value.
+extern const base::Feature kCobaltMetricsIntervalFeature;
+
+// Sets CPU metrics collection interval in seconds (default 5 min).
+extern const base::FeatureParam<int> kCpuMetricsIntervalParam;
+
+// Sets memory metrics collection interval in seconds (default 5 min).
+extern const base::FeatureParam<int> kMemoryMetricsIntervalParam;
+
+// Enables Cobalt Memory Attribution Manager.
+extern const base::Feature kCobaltMemoryAttributionManager;
+
+// Sets Cobalt Memory Attribution reporting interval in seconds (default 10
+// min).
+extern const base::FeatureParam<int>
+    kCobaltMemoryAttributionReportIntervalParam;
+
+// Enables custom memory buffer size for in-memory updates.
+extern const base::Feature kInMemoryUpdatesMemoryBuffer;
+
+// Sets the memory buffer size in bytes.
+extern const base::FeatureParam<int> kInMemoryUpdatesMemoryBufferParam;
+
+// Disables showing the splash screen.
+extern const base::Feature kDisableSplashScreen;
+
+// Forces the display of a video as the splash screen.
+extern const base::Feature kForceVideoSplashScreen;
+
+// Enables video Picture-in-Picture support.
+extern const base::Feature kEnablePictureInPicture;
+
+// Enables native memory ablation study to verify Finch and memory metrics.
+extern const base::Feature kCobaltNativeMemoryAblation;
+
+// Memory ablation size to allocate in Megabytes (default: 0).
+extern const base::FeatureParam<int> kMemoryAblationSizeMBParam;
+
+// Delay before performing memory ablation (default: 0s).
+extern const base::FeatureParam<base::TimeDelta> kMemoryAblationDelayParam;
+
+}  // namespace features
+}  // namespace cobalt
+
+#endif  // COBALT_BROWSER_FEATURES_H_
