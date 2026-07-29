@@ -17,6 +17,7 @@ import zip_helpers
 
 class FeatureParserDelegate(java_cpp_utils.CppConstantParser.Delegate):
   # Ex. 'BASE_FEATURE(kConstantName, "StringNameOfTheFeature", ...);'
+<<<<<<< HEAD
   # or 'BASE_FEATURE(ConstantName, ...)'
   # would parse as:
   #   ExtractConstantName() -> 'ConstantName'
@@ -26,6 +27,14 @@ class FeatureParserDelegate(java_cpp_utils.CppConstantParser.Delegate):
   # For 2-arg macro: BASE_FEATURE(MyFeature, ...)
   _FEATURE_RE_2_ARGS = re.compile(r'BASE_FEATURE\(([^,]+),')
   _VALUE_RE = re.compile(r'\s*("(?:\\"|[^"])*")\s*,')
+=======
+  # or 'STARBOARD_FEATURE(kConstantName, "StringNameOfTheFeature", ...);'
+  # would parse as:
+  #   ExtractConstantName() -> 'ConstantName'
+  #   ExtractValue() -> '"StringNameOfTheFeature"'
+  FEATURE_RE = re.compile(r'(?:BASE_FEATURE|STARBOARD_FEATURE)\(k([^,]+),')
+  VALUE_RE = re.compile(r'\s*("(?:\"|[^"])*")\s*,')
+>>>>>>> parent of 0df626ca1ce (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   def ExtractConstantName(self, line):
     match = self._FEATURE_RE_3_ARGS.match(line)

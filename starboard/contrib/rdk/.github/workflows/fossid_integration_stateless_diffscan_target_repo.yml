@@ -1,0 +1,19 @@
+name: Fossid Stateless Diff Scan
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  call-fossid-workflow:
+    if: ${{ ! github.event.pull_request.head.repo.fork }}
+    uses: rdkcentral/build_tools_workflows/.github/workflows/fossid_integration_stateless_diffscan.yml@1.0.0
+    secrets:
+        FOSSID_CONTAINER_USERNAME: ${{ secrets.FOSSID_CONTAINER_USERNAME }}
+        FOSSID_CONTAINER_PASSWORD: ${{ secrets.FOSSID_CONTAINER_PASSWORD }}
+        FOSSID_HOST_USERNAME: ${{ secrets.FOSSID_HOST_USERNAME }}
+        FOSSID_HOST_TOKEN: ${{ secrets.FOSSID_HOST_TOKEN }}
