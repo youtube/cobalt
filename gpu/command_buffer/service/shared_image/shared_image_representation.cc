@@ -171,6 +171,11 @@ gles2::Texture* GLTextureImageRepresentation::GetTexture() {
 
 void GLTextureImageRepresentation::UpdateClearedStateOnEndAccess() {
   auto* texture = GetTexture();
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  if (!texture) {
+    return;
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   // Operations on the gles2::Texture may have cleared or uncleared it. Make
   // sure this state is reflected back in the SharedImage.
   gfx::Rect cleared_rect = texture->GetLevelClearedRect(texture->target(), 0);
@@ -181,6 +186,11 @@ void GLTextureImageRepresentation::UpdateClearedStateOnEndAccess() {
 
 void GLTextureImageRepresentation::UpdateClearedStateOnBeginAccess() {
   auto* texture = GetTexture();
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  if (!texture) {
+    return;
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   // Operations outside of the gles2::Texture may have cleared or uncleared it.
   // Make sure this state is reflected back in gles2::Texture.
   gfx::Rect cleared_rect = ClearedRect();
@@ -846,11 +856,11 @@ void WebNNTensorRepresentation::ConsumeWebNNTensor(
 }
 #endif
 
-#if BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_APPLE)
 IOSurfaceRef WebNNTensorRepresentation::GetIOSurface() const {
   NOTREACHED();
 }
-#endif  // BUILDFLAG(IS_MAC)
+#endif  // BUILDFLAG(IS_APPLE)
 
 ///////////////////////////////////////////////////////////////////////////////
 // OverlayImageRepresentation

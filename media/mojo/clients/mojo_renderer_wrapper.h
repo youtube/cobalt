@@ -38,6 +38,11 @@ class MojoRendererWrapper : public Renderer {
   void SetVolume(float volume) override;
   base::TimeDelta GetMediaTime() override;
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+ protected:
+  MojoRenderer* mojo_renderer() { return mojo_renderer_.get(); }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
  private:
   std::unique_ptr<MojoRenderer> mojo_renderer_;
 };
