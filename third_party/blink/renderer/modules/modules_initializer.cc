@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 
 #include "third_party/blink/renderer/modules/modules_initializer.h"
+#include "build/buildflag.h"
+#include "third_party/blink/public/common/buildflags.h"
 
 #include <memory>
 
@@ -57,6 +59,9 @@
 #include "third_party/blink/renderer/modules/device_orientation/device_orientation_absolute_controller.h"
 #include "third_party/blink/renderer/modules/device_orientation/device_orientation_controller.h"
 #include "third_party/blink/renderer/modules/device_orientation/device_orientation_inspector_agent.h"
+#if BUILDFLAG(IS_COBALT)
+#include "third_party/blink/renderer/modules/cobalt/cobalt_lifecycle_controller.h"
+#endif
 #include "third_party/blink/renderer/modules/document_metadata/document_metadata_server.h"
 #include "third_party/blink/renderer/modules/document_picture_in_picture/picture_in_picture_controller_impl.h"
 #include "third_party/blink/renderer/modules/encryptedmedia/html_media_element_encrypted_media.h"
@@ -78,7 +83,9 @@
 #include "third_party/blink/renderer/modules/media_capabilities_names.h"
 #include "third_party/blink/renderer/modules/media_controls/media_controls_impl.h"
 #include "third_party/blink/renderer/modules/mediasource/media_source_registry_impl.h"
-#include "third_party/blink/renderer/modules/peerconnection/peer_connection_tracker.h"
+#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
+#include "third_party/blink/renderer/modules/peerconnection/peer_connection_tracker.h"  // nogncheck
+#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 #include "third_party/blink/renderer/modules/presentation/presentation.h"
 #include "third_party/blink/renderer/modules/push_messaging/push_messaging_client.h"
 #include "third_party/blink/renderer/modules/remoteplayback/html_media_element_remote_playback.h"
@@ -96,7 +103,9 @@
 #include "third_party/blink/renderer/modules/webaudio/inspector_web_audio_agent.h"
 #include "third_party/blink/renderer/modules/webgl/webgl_context_factory.h"
 #include "third_party/blink/renderer/modules/webgl/webgl_rendering_context.h"
-#include "third_party/blink/renderer/modules/webgpu/gpu_canvas_context.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "third_party/blink/renderer/modules/webgpu/gpu_canvas_context.h"  // nogncheck
+#endif  // !BUILDFLAG(IS_COBALT)
 #include "third_party/blink/renderer/modules/worklet/animation_and_paint_worklet_thread.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
@@ -212,8 +221,10 @@ void ModulesInitializer::Initialize() {
       WebGLContextFactory::MakeWebGL2());
   HTMLCanvasElement::RegisterRenderingContextFactory(
       std::make_unique<ImageBitmapRenderingContext::Factory>());
+#if !BUILDFLAG(IS_COBALT)
   HTMLCanvasElement::RegisterRenderingContextFactory(
       std::make_unique<GPUCanvasContext::Factory>());
+#endif  // !BUILDFLAG(IS_COBALT)
 
   // OffscreenCanvas context types must be registered with the OffscreenCanvas.
   OffscreenCanvas::RegisterRenderingContextFactory(
@@ -224,8 +235,10 @@ void ModulesInitializer::Initialize() {
       WebGLContextFactory::MakeWebGL2());
   OffscreenCanvas::RegisterRenderingContextFactory(
       std::make_unique<ImageBitmapRenderingContext::Factory>());
+#if !BUILDFLAG(IS_COBALT)
   OffscreenCanvas::RegisterRenderingContextFactory(
       std::make_unique<GPUCanvasContext::Factory>());
+#endif  // !BUILDFLAG(IS_COBALT)
 
   V8PerIsolateData::SetTaskAttributionTrackerFactory(
       &scheduler::TaskAttributionTrackerImpl::Create);
@@ -235,6 +248,10 @@ void ModulesInitializer::Initialize() {
 
 void ModulesInitializer::InitLocalFrame(LocalFrame& frame) const {
   if (frame.IsMainFrame()) {
+#if BUILDFLAG(IS_COBALT)
+    frame.GetInterfaceRegistry()->AddInterface(WTF::BindRepeating(
+        &CobaltLifecycleController::BindReceiver, WrapWeakPersistent(&frame)));
+#endif
     frame.GetInterfaceRegistry()->AddInterface(WTF::BindRepeating(
         &DocumentMetadataServer::BindReceiver, WrapWeakPersistent(&frame)));
   }
@@ -259,9 +276,11 @@ void ModulesInitializer::InitLocalFrame(LocalFrame& frame) const {
       &RemoteObjectGatewayFactoryImpl::Bind, WrapWeakPersistent(&frame)));
 #endif  // BUILDFLAG(IS_ANDROID)
 
+#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
   frame.GetInterfaceRegistry()->AddInterface(
       WTF::BindRepeating(&PeerConnectionTracker::BindToFrame,
                          WrapCrossThreadWeakPersistent(&frame)));
+#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 
   if (base::FeatureList::IsEnabled(kBlinkEnableInnerTextAgent)) {
     frame.GetInterfaceRegistry()->AddInterface(WTF::BindRepeating(

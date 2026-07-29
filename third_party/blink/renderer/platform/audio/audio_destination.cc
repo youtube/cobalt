@@ -55,6 +55,9 @@
 #include "third_party/blink/renderer/platform/wtf/cross_thread_copier_media.h"
 #include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
 
+// For BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "build/build_config.h"
+
 namespace blink {
 
 namespace {
