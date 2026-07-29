@@ -1273,6 +1273,7 @@ void RenderFrameHostManager::UnloadOldFrame(
         base::debug::DumpWithoutCrashing();
       }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
       // If the outermost main frame is about to enter bfcache, log UMA metrics
       // about how many same-site fenced frames are in the viewport.
       if (old_render_frame_host->IsOutermostMainFrame()) {
@@ -1283,6 +1284,7 @@ void RenderFrameHostManager::UnloadOldFrame(
           monitor->OnPrimaryPageEnteringBFCache();
         }
       }
+#endif
 
       auto stored_page = CollectPage(std::move(old_render_frame_host));
       auto entry =

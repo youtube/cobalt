@@ -4,6 +4,14 @@
 
 #include "third_party/blink/renderer/controller/memory_usage_monitor.h"
 
+#include "build/build_config.h"
+#include "build/buildflag.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include "base/feature_list.h"
+#include "third_party/blink/public/common/features.h"
+#endif
+
 #include "base/observer_list.h"
 #include "base/task/single_thread_task_runner.h"
 #include "third_party/blink/renderer/platform/heap/process_heap.h"
@@ -15,7 +23,17 @@
 namespace blink {
 
 namespace {
+#if BUILDFLAG(IS_COBALT)
+base::TimeDelta GetPingInterval() {
+  if (base::FeatureList::IsEnabled(features::kMemoryUsageMonitorConfigurable)) {
+    return base::Milliseconds(
+        features::kMemoryUsageMonitorPollingIntervalMs.Get());
+  }
+  return base::Seconds(1);
+}
+#else
 constexpr base::TimeDelta kPingInterval = base::Seconds(1);
+#endif
 }
 
 MemoryUsageMonitor::MemoryUsageMonitor() {
@@ -48,9 +66,15 @@ bool MemoryUsageMonitor::HasObserver(Observer* observer) {
 void MemoryUsageMonitor::StartMonitoringIfNeeded() {
   if (timer_.IsRunning())
     return;
+#if BUILDFLAG(IS_COBALT)
+  timer_.Start(FROM_HERE, GetPingInterval(),
+               WTF::BindRepeating(&MemoryUsageMonitor::TimerFired,
+                                  WTF::Unretained(this)));
+#else
   timer_.Start(FROM_HERE, kPingInterval,
                WTF::BindRepeating(&MemoryUsageMonitor::TimerFired,
                                   WTF::Unretained(this)));
+#endif
 }
 
 void MemoryUsageMonitor::StopMonitoring() {

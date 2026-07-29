@@ -397,7 +397,7 @@ class CONTENT_EXPORT MediaStreamManager
                           blink::mojom::MediaStreamType stream_type,
                           MediaRequestState new_state);
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS) && BUILDFLAG(ENABLE_SCREEN_CAPTURE)
   void SetConditionalFocusWindowForTesting(base::TimeDelta window);
 
   void SetCapturedSurfaceControllerFactoryForTesting(
@@ -601,6 +601,12 @@ class CONTENT_EXPORT MediaStreamManager
   // Prepare the request with label |label| by starting device enumeration if
   // needed.
   void SetUpRequest(const std::string& label);
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  void CompleteFastTrackSetUp(const std::string& label,
+                              base::WeakPtr<DeviceRequest> request,
+                              bool allowed);
+#endif
 
   // Prepare |request| of type MEDIA_DEVICE_AUDIO_CAPTURE and/or
   // MEDIA_DEVICE_VIDEO_CAPTURE for being posted to the UI by parsing

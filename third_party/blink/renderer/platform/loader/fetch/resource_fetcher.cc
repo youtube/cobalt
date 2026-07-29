@@ -762,6 +762,18 @@ ResourceFetcher::ResourceFetcher(const ResourceFetcherInit& init)
                           ? init.console_logger
                           : MakeGarbageCollected<DetachableConsoleLogger>()),
       loader_factory_(init.loader_factory),
+#if BUILDFLAG(IS_COBALT)
+      scheduler_(base::FeatureList::IsEnabled(
+                     features::kCobaltBypassResourceLoadScheduler)
+                     ? nullptr
+                     : MakeGarbageCollected<ResourceLoadScheduler>(
+                           init.initial_throttling_policy,
+                           init.throttle_option_override,
+                           *properties_,
+                           init.frame_or_worker_scheduler,
+                           *console_logger_,
+                           init.loading_behavior_observer)),
+#else
       scheduler_(MakeGarbageCollected<ResourceLoadScheduler>(
           init.initial_throttling_policy,
           init.throttle_option_override,
@@ -769,6 +781,7 @@ ResourceFetcher::ResourceFetcher(const ResourceFetcherInit& init)
           init.frame_or_worker_scheduler,
           *console_logger_,
           init.loading_behavior_observer)),
+#endif  // BUILDFLAG(IS_COBALT)
       back_forward_cache_loader_helper_(init.back_forward_cache_loader_helper),
       archive_(init.archive),
       resource_timing_report_timer_(
@@ -2196,7 +2209,13 @@ FetchContext& ResourceFetcher::Context() const {
 }
 
 void ResourceFetcher::ClearContext() {
+#if BUILDFLAG(IS_COBALT)
+  if (scheduler_) {
+    scheduler_->Shutdown();
+  }
+#else
   scheduler_->Shutdown();
+#endif  // BUILDFLAG(IS_COBALT)
   ClearPreloads(ResourceFetcher::kClearAllPreloads);
 
   {

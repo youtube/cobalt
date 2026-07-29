@@ -1,0 +1,3 @@
+use_clang_coverage = true
+is_component_build = false
+is_debug = false
