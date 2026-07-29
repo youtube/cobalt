@@ -84,6 +84,8 @@ class TestGitHubDiscover(unittest.TestCase):
 
   @mock.patch.object(github_download, 'run_gh_command')
   def test_discover_runs(self, mock_gh):
+    now = datetime.datetime.now(datetime.timezone.utc)
+    recent_date = (now - datetime.timedelta(hours=2)).isoformat().replace('+00:00', 'Z')
     workflows = [
         {
             'workflow': 'android.yaml',
@@ -102,7 +104,7 @@ class TestGitHubDiscover(unittest.TestCase):
         'conclusion': 'failure',
         'status': 'completed',
         'url': 'url1',
-        'createdAt': '2026-07-22T08:00:00Z'
+        'createdAt': recent_date
     }]
     jobs_android = {
         'jobs': [{
@@ -123,7 +125,7 @@ class TestGitHubDiscover(unittest.TestCase):
         'conclusion': 'success',
         'status': 'completed',
         'url': 'url2',
-        'createdAt': '2026-07-22T08:00:00Z'
+        'createdAt': recent_date
     }]
     jobs_linux = {
         'jobs': [{
