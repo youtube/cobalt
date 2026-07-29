@@ -84,8 +84,12 @@ class ProfileMenuViewBase : public content::WebContentsDelegate,
     kBatchUploadButton = 24,
     kAccountSettingsButton = 25,
     kGoogleServicesSettingsButton = 26,
+    kHistorySyncButton = 27,
+    kBatchUploadWithBookmarksAsPrimaryButton = 28,
+    kBatchUploadAsPrimaryButton = 29,
+    kBatchUploadWindows10DepreciationAsPrimaryButton = 30,
 
-    kMaxValue = kGoogleServicesSettingsButton,
+    kMaxValue = kBatchUploadWindows10DepreciationAsPrimaryButton,
   };
   // LINT.ThenChange(//tools/metrics/histograms/metadata/profile/enums.xml:ProfileMenuActionableItem)
 
@@ -159,13 +163,10 @@ class ProfileMenuViewBase : public content::WebContentsDelegate,
   // See `IdentitySectionParams` for documentation of the parameters.
   void SetProfileIdentityWithCallToAction(IdentitySectionParams params);
 
-  // If `index` is specified, it must be lower or equal to the current number of
-  // children.
   void AddFeatureButton(const std::u16string& text,
                         base::RepeatingClosure action,
                         const gfx::VectorIcon& icon,
-                        float icon_to_image_ratio = 1.0f,
-                        std::optional<size_t> index = std::nullopt);
+                        float icon_to_image_ratio = 1.0f);
   void SetProfileManagementHeading(const std::u16string& heading);
   void AddAvailableProfile(const ui::ImageModel& image_model,
                            const std::u16string& name,

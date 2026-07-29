@@ -228,6 +228,7 @@ BrowserWindowInterface* GlicFocusedBrowserManager::ComputeActiveBrowser() {
   // Ignore this check when testing because we can't guarantee that the
   // application is active.
   if (!g_testing_mode && !ui::IsActiveApplication()) {
+    VLOG(1) << "ActiveBrowserCalc: App not active";
     return nullptr;
   }
 #endif
@@ -235,11 +236,14 @@ BrowserWindowInterface* GlicFocusedBrowserManager::ComputeActiveBrowser() {
   BrowserWindowInterface* const bwi =
       GetLastActiveBrowserWindowInterfaceWithAnyProfile();
   if (!bwi) {
+    VLOG(1) << "ActiveBrowserCalc: No active browser";
     return nullptr;
   }
   if (!window_controller_->IsActive() && !bwi->IsActive()) {
+    VLOG(1) << "ActiveBrowserCalc: !IsActive()";
     return nullptr;
   }
+  VLOG(1) << "ActiveBrowserCalc: active browser";
   return bwi;
 }
 
@@ -247,7 +251,9 @@ bool GlicFocusedBrowserManager::IsBrowserStateValid(
     BrowserWindowInterface* browser_interface) {
   ui::BaseWindow* window = browser_interface->GetWindow();
   return !window->IsMinimized() && window->IsVisible() &&
-         browser_interface->capabilities()->IsVisibleOnScreen();
+         // Disable this check for some tests. See crbug.com/447705905.
+         (g_testing_mode ||
+          browser_interface->capabilities()->IsVisibleOnScreen());
 }
 
 GlicFocusedBrowserManager::FocusedBrowserState::FocusedBrowserState() = default;

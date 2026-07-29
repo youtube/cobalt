@@ -33,6 +33,7 @@ class TranslatePageActionController;
 class QwacWebContentsObserver;
 class ManagePasswordsPageActionController;
 class BookmarkBarPreloadPipelineManager;
+class NewTabPagePreloadPipelineManager;
 
 namespace autofill {
 class BubbleManager;
@@ -122,6 +123,12 @@ class TabContextualizationController;
 namespace wallet {
 class ChromeWalletablePassClient;
 }  // namespace wallet
+#endif
+
+#if BUILDFLAG(IS_CHROMEOS)
+namespace web_app {
+class ProtocolHandlerPickerCoordinator;
+}  // namespace web_app
 #endif
 
 namespace tabs {
@@ -291,6 +298,10 @@ class TabFeatures {
     return bookmarkbar_preload_pipeline_manager_.get();
   }
 
+  NewTabPagePreloadPipelineManager* new_tab_page_preload_pipeline_manager() {
+    return new_tab_page_preload_pipeline_manager_.get();
+  }
+
   // Called exactly once to initialize features.
   void Init(TabInterface& tab, Profile* profile);
 
@@ -450,9 +461,17 @@ class TabFeatures {
   std::unique_ptr<BookmarkBarPreloadPipelineManager>
       bookmarkbar_preload_pipeline_manager_;
 
+  std::unique_ptr<NewTabPagePreloadPipelineManager>
+      new_tab_page_preload_pipeline_manager_;
+
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
     BUILDFLAG(IS_CHROMEOS)
   std::unique_ptr<wallet::ChromeWalletablePassClient> walletable_pass_client_;
+#endif
+
+#if BUILDFLAG(IS_CHROMEOS)
+  std::unique_ptr<web_app::ProtocolHandlerPickerCoordinator>
+      protocol_handler_picker_coordinator_;
 #endif
   // Must be the last member.
   base::WeakPtrFactory<TabFeatures> weak_factory_{this};

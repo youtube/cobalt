@@ -125,7 +125,10 @@ BASE_FEATURE(kCodeCacheDeletionWithoutFilter, base::FEATURE_ENABLED_BY_DEFAULT);
 // and citadel check to collect data about possible mismatches. Requires
 // CommittedOriginTracking to also be turned on to take effect. See
 // https://crbug.com/40148776.
-BASE_FEATURE(kCommittedOriginEnforcements, base::FEATURE_DISABLED_BY_DEFAULT);
+//
+// TODO(alexmos): Remove this feature flag once committed origin enforcements
+// are fully launched. For now, the feature is kept as a kill switch.
+BASE_FEATURE(kCommittedOriginEnforcements, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Turn on the tracking of origins committed in each renderer process in
 // ChildProcessSecurityPolicy. This is required for committed origin
@@ -181,12 +184,6 @@ BASE_FEATURE(kFedCmSameSiteLax, base::FEATURE_DISABLED_BY_DEFAULT);
 // Enables NonString Tokens
 BASE_FEATURE(kFedCmNonStringToken, base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Controls whether FedCM requires explicit endpoint declaration in well-known
-// files when client_metadata is used. When enabled, accounts_endpoint and
-// login_url must be present in .well-known/web-identity for privacy validation.
-BASE_FEATURE(kFedCmWellKnownEndpointValidation,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Controls whether FedCM preserves ports in well-known URLs during testing.
 // When enabled, well-known URLs retain the original port from the provider URL
 // instead of stripping it via eTLD+1 extraction. This is primarily used in
@@ -195,10 +192,6 @@ BASE_FEATURE(kFedCmWellKnownEndpointValidation,
 // Production FedCM strips ports for security reasons to ensure well-known
 // files are served from the canonical domain.
 BASE_FEATURE(kFedCmPreservePortsForTesting, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enables the spec-compliant 'error' attribute in IdentityCredentialError while
-// deprecating the legacy 'code' attribute.
-BASE_FEATURE(kFedCmErrorAttribute, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables installed web app matching for getInstalledRelatedApps API.
 BASE_FEATURE(kFilterInstalledAppsWebAppMatching,
@@ -527,14 +520,6 @@ BASE_FEATURE(kReloadHiddenTabsWithCrashedSubframes,
              base::FEATURE_DISABLED_BY_DEFAULT
 #endif
 );
-
-// ReloadHiddenTabsWithCrashedSubframes feature reloads the WebContents
-// regardless of the crashed frame's state. This feature restricts the reload
-// to only happen for active subframes.
-// This is a bug fix but being launched as a feature to see the impact.
-// This will be removed once this is launched.
-BASE_FEATURE(kReloadHiddenTabsWithActiveCrashedSubframes,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, try to reuse any same-site process that is hosting
 // only prerendered frames for main-frame navigations.

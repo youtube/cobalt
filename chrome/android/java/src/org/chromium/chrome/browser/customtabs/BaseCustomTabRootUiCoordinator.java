@@ -96,6 +96,7 @@ import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarBehavior;
 import org.chromium.chrome.browser.toolbar.menu_button.MenuButtonCoordinator;
 import org.chromium.chrome.browser.ui.RootUiCoordinator;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuBlocker;
+import org.chromium.chrome.browser.ui.appmenu.AppMenuCoordinator;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuDelegate;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuHandler;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeController;
@@ -768,8 +769,12 @@ public class BaseCustomTabRootUiCoordinator extends RootUiCoordinator {
             final var desktopWindowStateManager = getDesktopWindowStateManager();
             assert desktopWindowStateManager != null;
 
+            OneshotSupplierImpl<AppMenuCoordinator> mAppMenuSupplier = new OneshotSupplierImpl<>();
+            mAppMenuSupplier.set(mAppMenuCoordinator);
+
             mWebAppHeaderLayoutCoordinator =
                     new WebAppHeaderLayoutCoordinator(
+                            mActivity,
                             mActivity.findViewById(
                                     org.chromium.chrome.browser.web_app_header.R.id
                                             .web_app_header_layout),
@@ -785,7 +790,12 @@ public class BaseCustomTabRootUiCoordinator extends RootUiCoordinator {
                                 IntentUtils.addTrustedIntentExtras(fullHistoryIntent);
                                 mActivity.startActivity(fullHistoryIntent);
                             },
-                            this::setHeaderAsOverlay);
+                            this::setHeaderAsOverlay,
+                            mBrowserControlsManager,
+                            mAppMenuSupplier,
+                            mBrowserControlsManager.getBrowserVisibilityDelegate(),
+                            mWindowAndroid,
+                            () -> mCompositorViewHolderSupplier.get().requestFocus());
             mBrowserControlsManager.addObserver(mWebAppHeaderLayoutCoordinator);
         }
     }

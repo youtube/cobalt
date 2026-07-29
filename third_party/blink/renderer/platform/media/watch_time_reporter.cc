@@ -114,6 +114,9 @@ WatchTimeReporter::WatchTimeReporter(
     if (properties_->has_video || properties_->has_audio) {
       display_type_component_ = CreateDisplayTypeComponent();
     }
+    if (properties_->has_video && properties_->has_audio && !is_muted_) {
+      hdr_component_ = CreateHdrComponent();
+    }
   }
 
   // If this is a sub-reporter we're done.
@@ -389,6 +392,15 @@ void WatchTimeReporter::OnDisplayTypeChanged(
   }
 }
 
+void WatchTimeReporter::OnHdrChanged(bool is_hdr) {
+  if (hdr_component_ &&
+      HandlePropertyChange<bool>(is_hdr, reporting_timer_.IsRunning(),
+                                 hdr_component_.get()) ==
+          PropertyAction::kFinalizeRequired) {
+    RestartTimerForHysteresis();
+  }
+}
+
 bool WatchTimeReporter::ShouldReportWatchTime() const {
   // Report listen time or watch time for videos of sufficient size.
   return properties_->has_video
@@ -441,6 +453,9 @@ void WatchTimeReporter::MaybeStartReportingTimer(
     controls_component_->OnReportingStarted(start_timestamp);
   if (display_type_component_)
     display_type_component_->OnReportingStarted(start_timestamp);
+  if (hdr_component_) {
+    hdr_component_->OnReportingStarted(start_timestamp);
+  }
 
   reporting_timer_.Start(FROM_HERE, reporting_interval_, this,
                          &WatchTimeReporter::UpdateWatchTime);
@@ -545,6 +560,9 @@ void WatchTimeReporter::RecordWatchTime() {
     display_type_component_->RecordWatchTime(current_timestamp);
   if (controls_component_)
     controls_component_->RecordWatchTime(current_timestamp);
+  if (hdr_component_) {
+    hdr_component_->RecordWatchTime(current_timestamp);
+  }
 }
 
 void WatchTimeReporter::UpdateWatchTime() {
@@ -560,6 +578,9 @@ void WatchTimeReporter::UpdateWatchTime() {
   }
   if (controls_component_ && controls_component_->NeedsFinalize())
     controls_component_->Finalize(&keys_to_finalize);
+  if (hdr_component_ && hdr_component_->NeedsFinalize()) {
+    hdr_component_->Finalize(&keys_to_finalize);
+  }
 
   // Then finalize the base component.
   if (!base_component_->NeedsFinalize()) {
@@ -649,13 +670,14 @@ WatchTimeReporter::CreatePowerComponent() {
 
   return std::make_unique<WatchTimeComponent<bool>>(
       IsOnBatteryPower(), std::move(keys_to_finalize),
-      base::BindRepeating(&WatchTimeReporter::GetPowerKey,
+      base::BindRepeating(&WatchTimeReporter::GetPowerKeys,
                           base::Unretained(this)),
       get_media_time_cb_, recorder_.get());
 }
 
-media::WatchTimeKey WatchTimeReporter::GetPowerKey(bool is_on_battery_power) {
-  return is_on_battery_power ? NORMAL_KEY(Battery) : NORMAL_KEY(Ac);
+Vector<media::WatchTimeKey> WatchTimeReporter::GetPowerKeys(
+    bool is_on_battery_power) {
+  return {is_on_battery_power ? NORMAL_KEY(Battery) : NORMAL_KEY(Ac)};
 }
 #undef NORMAL_KEY
 
@@ -675,15 +697,15 @@ WatchTimeReporter::CreateControlsComponent() {
 
   return std::make_unique<WatchTimeComponent<bool>>(
       false, std::move(keys_to_finalize),
-      base::BindRepeating(&WatchTimeReporter::GetControlsKey,
+      base::BindRepeating(&WatchTimeReporter::GetControlsKeys,
                           base::Unretained(this)),
       get_media_time_cb_, recorder_.get());
 }
 
-media::WatchTimeKey WatchTimeReporter::GetControlsKey(
+Vector<media::WatchTimeKey> WatchTimeReporter::GetControlsKeys(
     bool has_native_controls) {
-  return has_native_controls ? FOREGROUND_KEY(NativeControlsOn)
-                             : FOREGROUND_KEY(NativeControlsOff);
+  return {has_native_controls ? FOREGROUND_KEY(NativeControlsOn)
+                              : FOREGROUND_KEY(NativeControlsOff)};
 }
 
 #undef FOREGROUND_KEY
@@ -716,24 +738,55 @@ WatchTimeReporter::CreateDisplayTypeComponent() {
 
   return std::make_unique<WatchTimeComponent<WebMediaPlayer::DisplayType>>(
       WebMediaPlayer::DisplayType::kInline, std::move(keys_to_finalize),
-      base::BindRepeating(&WatchTimeReporter::GetDisplayTypeKey,
+      base::BindRepeating(&WatchTimeReporter::GetDisplayTypeKeys,
                           base::Unretained(this)),
       get_media_time_cb_, recorder_.get());
 }
 
-media::WatchTimeKey WatchTimeReporter::GetDisplayTypeKey(
+Vector<media::WatchTimeKey> WatchTimeReporter::GetDisplayTypeKeys(
     WebMediaPlayer::DisplayType display_type) {
   switch (display_type) {
     case WebMediaPlayer::DisplayType::kInline:
-      return DISPLAY_TYPE_KEY(DisplayInline);
+      return {DISPLAY_TYPE_KEY(DisplayInline)};
     case WebMediaPlayer::DisplayType::kFullscreen:
-      return DISPLAY_TYPE_KEY(DisplayFullscreen);
+      return {DISPLAY_TYPE_KEY(DisplayFullscreen)};
     case WebMediaPlayer::DisplayType::kVideoPictureInPicture:
     case WebMediaPlayer::DisplayType::kDocumentPictureInPicture:
-      return DISPLAY_TYPE_KEY(DisplayPictureInPicture);
+      return {DISPLAY_TYPE_KEY(DisplayPictureInPicture)};
   }
 }
 
 #undef DISPLAY_TYPE_KEY
+
+#define HDR_KEY(is_eme, is_hdr)                              \
+  is_hdr ? (is_eme ? media::WatchTimeKey::kAudioVideoHdrEme  \
+                   : media::WatchTimeKey::kAudioVideoHdrAll) \
+         : (is_eme ? media::WatchTimeKey::kAudioVideoSdrEme  \
+                   : media::WatchTimeKey::kAudioVideoSdrAll)
+
+std::unique_ptr<WatchTimeComponent<bool>>
+WatchTimeReporter::CreateHdrComponent() {
+  Vector<media::WatchTimeKey> keys_to_finalize{HDR_KEY(false, true),
+                                               HDR_KEY(false, false)};
+  if (properties_->is_eme) {
+    keys_to_finalize.emplace_back(HDR_KEY(true, true));
+    keys_to_finalize.emplace_back(HDR_KEY(true, false));
+  }
+
+  return std::make_unique<WatchTimeComponent<bool>>(
+      false, std::move(keys_to_finalize),
+      base::BindRepeating(&WatchTimeReporter::GetHdrKeys,
+                          base::Unretained(this)),
+      get_media_time_cb_, recorder_.get());
+}
+
+Vector<media::WatchTimeKey> WatchTimeReporter::GetHdrKeys(bool is_hdr) {
+  if (properties_->is_eme) {
+    return {HDR_KEY(false, is_hdr), HDR_KEY(true, is_hdr)};
+  }
+  return {HDR_KEY(false, is_hdr)};
+}
+
+#undef HDR_KEY
 
 }  // namespace blink

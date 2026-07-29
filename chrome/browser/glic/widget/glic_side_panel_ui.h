@@ -25,9 +25,7 @@ class TabInterface;
 namespace glic {
 
 // Implementation of GlicUiEmbedder for side panel UIs.
-class GlicSidePanelUi : public GlicUiEmbedder,
-                        public Host::EmbedderDelegate,
-                        public GlicSidePanelCoordinator::StateObserver {
+class GlicSidePanelUi : public GlicUiEmbedder, public Host::EmbedderDelegate {
  public:
   GlicSidePanelUi(Profile* profile,
                   base::WeakPtr<tabs::TabInterface> tab,
@@ -39,6 +37,7 @@ class GlicSidePanelUi : public GlicUiEmbedder,
   void Show() override;
   void Close() override;
   std::unique_ptr<GlicUiEmbedder> CreateInactiveEmbedder() const override;
+  views::View* GetViewForTesting() override;
 
   // Host::EmbedderDelegate:
   const mojom::PanelState& GetPanelState() const override;
@@ -55,23 +54,20 @@ class GlicSidePanelUi : public GlicUiEmbedder,
       glic::mojom::ConversationInfoPtr info,
       mojom::WebClientHandler::SwitchConversationCallback callback) override;
 
-  // GlicSidePanelCoordinator::StateObserver
-  void VisibilityChanged(bool visible) override;
-
   // GlicUiEmbedder and Host::Delegate:
   bool IsShowing() const override;
+  void ClosePanel() override;
 
-  void TakeScreenshot(ui::GrabSnapshotImageCallback callback) const;
+  void VisibilityChanged(bool visible);
 
  private:
-  base::ScopedObservation<GlicSidePanelCoordinator,
-                          GlicSidePanelCoordinator::StateObserver>
-      coordinator_observation_{this};
+  base::CallbackListSubscription panel_visibility_subscription_;
   std::unique_ptr<views::View> CreateView(Profile* profile);
   mojom::PanelState panel_state_;
   raw_ptr<Profile> profile_;
   base::WeakPtr<tabs::TabInterface> tab_;
   raw_ref<GlicUiEmbedder::Delegate> delegate_;
+  base::WeakPtrFactory<GlicSidePanelUi> weak_ptr_factory_{this};
 };
 
 }  // namespace glic

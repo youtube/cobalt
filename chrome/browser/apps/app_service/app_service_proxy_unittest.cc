@@ -42,6 +42,20 @@
 
 namespace apps {
 
+#if BUILDFLAG(IS_CHROMEOS)
+apps::IntentFilterPtr CreateIntentFilterForProtocolScheme(
+    const std::string& protocol_scheme) {
+  auto intent_filter = std::make_unique<apps::IntentFilter>();
+  intent_filter->AddSingleValueCondition(apps::ConditionType::kAction,
+                                         apps_util::kIntentActionView,
+                                         apps::PatternMatchType::kLiteral);
+  intent_filter->AddSingleValueCondition(apps::ConditionType::kScheme,
+                                         protocol_scheme,
+                                         apps::PatternMatchType::kLiteral);
+  return intent_filter;
+}
+#endif
+
 class FakePublisherForProxyTest : public AppPublisher {
  public:
   FakePublisherForProxyTest(AppServiceProxy* proxy,
@@ -554,6 +568,95 @@ TEST_F(AppServiceProxyPreferredAppsTest, SetPreferredApp) {
             proxy()->PreferredAppsList().FindPreferredAppForUrl(kTestUrl1));
 }
 
+#if BUILDFLAG(IS_CHROMEOS)
+TEST_F(AppServiceProxyPreferredAppsTest, SetProtocolLinkPreference) {
+  constexpr char kTestAppId1[] = "abc";
+  constexpr char kTestAppId2[] = "def";
+  const GURL kTestUrl1 = GURL("web+meow://something");
+
+  auto protocol_link_filter = CreateIntentFilterForProtocolScheme("web+meow");
+
+  std::vector<AppPtr> apps;
+  AppPtr app1 = std::make_unique<App>(AppType::kWeb, kTestAppId1);
+  app1->readiness = Readiness::kReady;
+  app1->intent_filters.push_back(protocol_link_filter->Clone());
+  apps.push_back(std::move(app1));
+
+  AppPtr app2 = std::make_unique<App>(AppType::kWeb, kTestAppId2);
+  app2->readiness = Readiness::kReady;
+  app2->intent_filters.push_back(protocol_link_filter->Clone());
+  apps.push_back(std::move(app2));
+
+  OnApps(std::move(apps), AppType::kWeb);
+
+  proxy()->SetProtocolLinkPreference(kTestAppId1, "web+meow");
+  ASSERT_EQ(kTestAppId1,
+            proxy()->PreferredAppsList().FindPreferredAppForUrl(kTestUrl1));
+
+  proxy()->SetProtocolLinkPreference(kTestAppId2, "web+meow");
+  ASSERT_EQ(kTestAppId2,
+            proxy()->PreferredAppsList().FindPreferredAppForUrl(kTestUrl1));
+}
+
+TEST_F(AppServiceProxyPreferredAppsTest, SetProtocolLinkPreferenceBeforeInit) {
+  base::RunLoop run_loop_read;
+  proxy()->ReinitializeForTesting(proxy()->profile(),
+                                  run_loop_read.QuitClosure());
+
+  constexpr char kTestAppId1[] = "abc";
+  const GURL kTestUrl1 = GURL("web+meow://something");
+
+  std::vector<AppPtr> apps;
+  AppPtr app1 = std::make_unique<App>(AppType::kWeb, kTestAppId1);
+  app1->readiness = Readiness::kReady;
+  app1->intent_filters.push_back(
+      CreateIntentFilterForProtocolScheme("web+meow"));
+  apps.push_back(std::move(app1));
+
+  OnApps(std::move(apps), AppType::kWeb);
+  proxy()->SetProtocolLinkPreference(kTestAppId1, "web+meow");
+
+  // Wait for the preferred apps list initialization to read from disk.
+  run_loop_read.Run();
+
+  ASSERT_EQ(kTestAppId1,
+            proxy()->PreferredAppsList().FindPreferredAppForUrl(kTestUrl1));
+}
+
+TEST_F(AppServiceProxyPreferredAppsTest, SetProtocolLinkPreferencePersistence) {
+  constexpr char kTestAppId1[] = "abc";
+  const GURL kTestUrl1 = GURL("web+meow://something");
+
+  {
+    base::RunLoop run_loop_read;
+    base::RunLoop run_loop_write;
+    proxy()->ReinitializeForTesting(proxy()->profile(),
+                                    run_loop_read.QuitClosure(),
+                                    run_loop_write.QuitClosure());
+    std::vector<AppPtr> apps;
+    AppPtr app1 = std::make_unique<App>(AppType::kWeb, kTestAppId1);
+    app1->readiness = Readiness::kReady;
+    app1->intent_filters.push_back(
+        CreateIntentFilterForProtocolScheme("web+meow"));
+    apps.push_back(std::move(app1));
+
+    OnApps(std::move(apps), AppType::kWeb);
+    proxy()->SetProtocolLinkPreference(kTestAppId1, "web+meow");
+    run_loop_write.Run();
+  }
+  // Create a new impl to initialize preferred apps from the disk.
+  {
+    base::RunLoop run_loop_read;
+    proxy()->ReinitializeForTesting(proxy()->profile(),
+                                    run_loop_read.QuitClosure());
+    run_loop_read.Run();
+    EXPECT_EQ(kTestAppId1,
+              GetPreferredAppsList().FindPreferredAppForUrl(kTestUrl1));
+  }
+}
+
+#endif
+
 // Tests that writing a preferred app value before the PreferredAppsList is
 // initialized queues the write for after initialization.
 TEST_F(AppServiceProxyPreferredAppsTest, PreferredAppsWriteBeforeInit) {
@@ -694,15 +797,17 @@ TEST_F(AppServiceProxyPreferredAppsTest, PreferredAppsOverlapSupportedLink) {
   GURL filter_url_3 = GURL("https://www.abc.com/abc");
 
   auto intent_filter_1 = apps_util::MakeIntentFilterForUrlScope(filter_url_1);
-  apps_util::AddConditionValue(ConditionType::kScheme, filter_url_2.scheme(),
+  apps_util::AddConditionValue(ConditionType::kScheme, filter_url_2.GetScheme(),
                                PatternMatchType::kLiteral, intent_filter_1);
-  apps_util::AddConditionValue(ConditionType::kAuthority, filter_url_2.host(),
+  apps_util::AddConditionValue(ConditionType::kAuthority,
+                               filter_url_2.GetHost(),
                                PatternMatchType::kLiteral, intent_filter_1);
 
   auto intent_filter_2 = apps_util::MakeIntentFilterForUrlScope(filter_url_3);
-  apps_util::AddConditionValue(ConditionType::kScheme, filter_url_2.scheme(),
+  apps_util::AddConditionValue(ConditionType::kScheme, filter_url_2.GetScheme(),
                                PatternMatchType::kLiteral, intent_filter_2);
-  apps_util::AddConditionValue(ConditionType::kAuthority, filter_url_2.host(),
+  apps_util::AddConditionValue(ConditionType::kAuthority,
+                               filter_url_2.GetHost(),
                                PatternMatchType::kLiteral, intent_filter_2);
 
   auto intent_filter_3 = apps_util::MakeIntentFilterForUrlScope(filter_url_1);
@@ -983,7 +1088,7 @@ TEST_F(AppServiceProxyTest, GetAppsForIntentBestHandler) {
   app->handles_intents = true;
   auto intent_filter = std::make_unique<apps::IntentFilter>();
   intent_filter->AddSingleValueCondition(apps::ConditionType::kScheme,
-                                         kTestUrl.scheme(),
+                                         kTestUrl.GetScheme(),
                                          apps::PatternMatchType::kLiteral);
   intent_filter->activity_name = "name 1";
   intent_filter->activity_label = "same label";

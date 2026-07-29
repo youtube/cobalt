@@ -154,25 +154,9 @@ void WebGPUImplementation::SetAggressivelyFreeResources(
     bool aggressively_free_resources) {
   NOTIMPLEMENTED();
 }
-uint64_t WebGPUImplementation::ShareGroupTracingGUID() const {
-  NOTIMPLEMENTED();
-  return 0;
-}
 void WebGPUImplementation::SetErrorMessageCallback(
     base::RepeatingCallback<void(const char*, int32_t)> callback) {
   NOTIMPLEMENTED();
-}
-bool WebGPUImplementation::ThreadSafeShallowLockDiscardableTexture(
-    uint32_t texture_id) {
-  NOTREACHED();
-}
-void WebGPUImplementation::CompleteLockDiscardableTexureOnContextThread(
-    uint32_t texture_id) {
-  NOTREACHED();
-}
-bool WebGPUImplementation::ThreadsafeDiscardableTextureIsDeletedForTracing(
-    uint32_t texture_id) {
-  NOTREACHED();
 }
 base::span<uint8_t> WebGPUImplementation::MapTransferCacheEntry(
     uint32_t serialized_size) {

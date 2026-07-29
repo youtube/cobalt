@@ -270,6 +270,39 @@ ProfileMenuViewBase::IdentitySectionParams::operator=(IdentitySectionParams&&) =
 
 // ProfileMenuViewBase ---------------------------------------------------------
 
+// Despite ProfileMenuViewBase being a dialog, we are enforcing it to behave
+// like a menu from the accessibility POV because it fits better with a menu UX.
+// The dialog exposes the kMenuBar role, and the top-level container is kMenu.
+// This class is responsible for emitting menu accessible events when the dialog
+// is activated or deactivated.
+class ProfileMenuViewBase::AXMenuWidgetObserver : public views::WidgetObserver {
+ public:
+  AXMenuWidgetObserver(ProfileMenuViewBase* owner, views::Widget* widget)
+      : owner_(owner) {
+    observation_.Observe(widget);
+  }
+  ~AXMenuWidgetObserver() override = default;
+
+  void OnWidgetActivationChanged(views::Widget* widget, bool active) override {
+    if (active) {
+      owner_->NotifyAccessibilityEventDeprecated(ax::mojom::Event::kMenuStart,
+                                                 true);
+      owner_->NotifyAccessibilityEventDeprecated(
+          ax::mojom::Event::kMenuPopupStart, true);
+    } else {
+      owner_->NotifyAccessibilityEventDeprecated(
+          ax::mojom::Event::kMenuPopupEnd, true);
+      owner_->NotifyAccessibilityEventDeprecated(ax::mojom::Event::kMenuEnd,
+                                                 true);
+    }
+  }
+
+ private:
+  raw_ptr<ProfileMenuViewBase> owner_;
+  base::ScopedObservation<views::Widget, views::WidgetObserver> observation_{
+      this};
+};
+
 ProfileMenuViewBase::ProfileMenuViewBase(ui::TrackedElement* anchor_element,
                                          Browser* browser)
     : BubbleDialogDelegateView(anchor_element, views::BubbleBorder::TOP_RIGHT),
@@ -469,23 +502,17 @@ void ProfileMenuViewBase::SetProfileIdentityWithCallToAction(
 void ProfileMenuViewBase::AddFeatureButton(const std::u16string& text,
                                            base::RepeatingClosure action,
                                            const gfx::VectorIcon& icon,
-                                           float icon_to_image_ratio,
-                                           std::optional<size_t> index) {
+                                           float icon_to_image_ratio) {
   // Initialize layout if this is the first time a button is added.
   if (!features_container_->GetLayoutManager()) {
     features_container_->SetLayoutManager(std::make_unique<views::BoxLayout>(
         views::BoxLayout::Orientation::kVertical));
   }
 
-  const size_t children_count = features_container_->children().size();
-  const size_t button_index = index.value_or(children_count);
-  CHECK_LE(button_index, children_count);
-  features_container_->AddChildViewAt(
-      CreateMenuRowButton(
-          std::move(action),
-          std::make_unique<FeatureButtonIconView>(icon, icon_to_image_ratio),
-          text),
-      button_index);
+  features_container_->AddChildView(CreateMenuRowButton(
+      std::move(action),
+      std::make_unique<FeatureButtonIconView>(icon, icon_to_image_ratio),
+      text));
 }
 
 void ProfileMenuViewBase::SetProfileManagementHeading(
@@ -723,39 +750,6 @@ std::unique_ptr<HoverButton> ProfileMenuViewBase::CreateMenuRowButton(
   button->SetIconHorizontalMargins(kMenuItemLeftInternalPadding, /*right=*/0);
   return button;
 }
-
-// Despite ProfileMenuViewBase being a dialog, we are enforcing it to behave
-// like a menu from the accessibility POV because it fits better with a menu UX.
-// The dialog exposes the kMenuBar role, and the top-level container is kMenu.
-// This class is responsible for emitting menu accessible events when the dialog
-// is activated or deactivated.
-class ProfileMenuViewBase::AXMenuWidgetObserver : public views::WidgetObserver {
- public:
-  AXMenuWidgetObserver(ProfileMenuViewBase* owner, views::Widget* widget)
-      : owner_(owner) {
-    observation_.Observe(widget);
-  }
-  ~AXMenuWidgetObserver() override = default;
-
-  void OnWidgetActivationChanged(views::Widget* widget, bool active) override {
-    if (active) {
-      owner_->NotifyAccessibilityEventDeprecated(ax::mojom::Event::kMenuStart,
-                                                 true);
-      owner_->NotifyAccessibilityEventDeprecated(
-          ax::mojom::Event::kMenuPopupStart, true);
-    } else {
-      owner_->NotifyAccessibilityEventDeprecated(
-          ax::mojom::Event::kMenuPopupEnd, true);
-      owner_->NotifyAccessibilityEventDeprecated(ax::mojom::Event::kMenuEnd,
-                                                 true);
-    }
-  }
-
- private:
-  raw_ptr<ProfileMenuViewBase> owner_;
-  base::ScopedObservation<views::Widget, views::WidgetObserver> observation_{
-      this};
-};
 
 BEGIN_METADATA(ProfileMenuViewBase)
 END_METADATA

@@ -59,11 +59,13 @@ import org.robolectric.shadows.ShadowToast;
 import org.robolectric.util.ReflectionHelpers;
 
 import org.chromium.base.ContextUtils;
+import org.chromium.base.DeviceInfo;
 import org.chromium.base.Token;
 import org.chromium.base.shared_preferences.SharedPreferencesManager;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.base.test.util.UserActionTester;
@@ -104,7 +106,6 @@ import org.chromium.ui.dragdrop.DragDropGlobalState;
 import org.chromium.ui.dragdrop.DragDropMetricUtils.DragDropResult;
 import org.chromium.ui.dragdrop.DragDropMetricUtils.DragDropType;
 import org.chromium.ui.dragdrop.DropDataAndroid;
-import org.chromium.ui.util.XrUtils;
 import org.chromium.ui.widget.ToastManager;
 import org.chromium.url.GURL;
 
@@ -292,7 +293,7 @@ public class TabStripDragHandlerTest {
 
     @Test
     public void test_startTabDragAction_withTabDragDropFF_returnsTrueForValidTab() {
-        XrUtils.setXrDeviceForTesting(true);
+        DeviceInfo.setIsXrForTesting(true);
         // Act and verify.
         boolean res =
                 mSourceInstance.startTabDragAction(
@@ -583,7 +584,7 @@ public class TabStripDragHandlerTest {
 
     @Test
     public void test_onProvideShadowMetrics_WithDesiredStartPosition_ReturnsSuccess() {
-        XrUtils.setXrDeviceForTesting(true);
+        DeviceInfo.setIsXrForTesting(true);
         // Prepare
         final float dragStartXPosition = 480f;
         final PointF dragStartPoint = new PointF(dragStartXPosition, 0f);
@@ -857,18 +858,21 @@ public class TabStripDragHandlerTest {
 
     /** Test for Tab Drag {@link #ONDRAG_TEST_CASES} - Scenario D.2 */
     @Test
+    @DisableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
     public void test_onDrag_dropInStrip_differentModel_destination() {
         doTestDropInDestinationDifferentModel(/* isGroupDrag= */ false);
     }
 
     /** Test for Tab Group Drag {@link #ONDRAG_TEST_CASES} - Scenario D.2 */
     @Test
+    @DisableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
     public void test_onDrag_dropInStrip_differentModel_destination_tabGroup() {
         doTestDropInDestinationDifferentModel(/* isGroupDrag= */ true);
     }
 
     /** Test for Multi-Tab Drag {@link #ONDRAG_TEST_CASES} - Scenario D.2 */
     @Test
+    @DisableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
     public void test_onDrag_dropInStrip_differentModel_destination_multiTab() {
         doTestDropInDestinationDifferentModel_multiTab();
     }
@@ -900,7 +904,7 @@ public class TabStripDragHandlerTest {
      */
     @Test
     public void test_onDrag_dropInStrip_withDragAsWindowFF_destination() {
-        XrUtils.setXrDeviceForTesting(true);
+        DeviceInfo.setIsXrForTesting(true);
         new DragEventInvoker(DragType.SINGLE_TAB, /* isGroupShared= */ false)
                 .dragExit(mSourceInstance)
                 .verifyShadowVisibility(true)

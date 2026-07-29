@@ -281,8 +281,11 @@ InputHandlerProxy::InputHandlerProxy(cc::InputHandler& input_handler,
       tick_clock_(base::DefaultTickClock::GetInstance()),
       snap_fling_controller_(std::make_unique<cc::SnapFlingController>(this)),
       cursor_control_handler_(std::make_unique<CursorControlHandler>()),
-      update_scroll_predictor_(base::FeatureList::IsEnabled(
-          input::features::kUpdateScrollPredictorInputMapping)) {
+      update_scroll_predictor_(
+          base::FeatureList::IsEnabled(
+              input::features::kUpdateScrollPredictorInputMapping) &&
+          base::FeatureList::IsEnabled(
+              features::kRefactorCompositorThreadEventQueue)) {
   DCHECK(client);
   input_handler_->BindToClient(this);
 
@@ -649,9 +652,12 @@ bool InputHandlerProxy::HasQueuedEventsReadyForDispatch(
     return false;
   }
 
-  // Don't dispatch events that are for a future frame.
-  if (compositor_event_queue_->PeekTimestamp() > sample_time) {
-    return false;
+  if (base::FeatureList::IsEnabled(
+          features::kRefactorCompositorThreadEventQueue)) {
+    // Don't dispatch events that are for a future frame.
+    if (compositor_event_queue_->PeekTimestamp() > sample_time) {
+      return false;
+    }
   }
 
   return true;
@@ -661,7 +667,10 @@ void InputHandlerProxy::DispatchQueuedInputEvents(bool frame_aligned) {
   //  Coalesce all events in the queue before dispatching.
   auto sample_time = base::TimeTicks::Max();
 
-  compositor_event_queue_->CoalesceEvents(sample_time);
+  if (base::FeatureList::IsEnabled(
+          features::kRefactorCompositorThreadEventQueue)) {
+    compositor_event_queue_->CoalesceEvents(sample_time);
+  }
   while (HasQueuedEventsReadyForDispatch(frame_aligned, sample_time)) {
     DispatchSingleInputEvent(compositor_event_queue_->Pop());
   }
@@ -1273,7 +1282,8 @@ InputHandlerProxy::HandleGestureScrollUpdate(
         scroll_data->set_unused_delta_y(scroll_result.unused_scroll_delta.y());
       });
 
-  HandleOverscroll(gesture_event.PositionInWidget(), scroll_result);
+  HandleOverscroll(gesture_event.PositionInWidget(), scroll_result,
+                   gesture_event.SourceDevice());
 
   if (elastic_overscroll_controller_)
     HandleScrollElasticityOverscroll(gesture_event, scroll_result);
@@ -1742,9 +1752,12 @@ void InputHandlerProxy::GenerateSyntheticScrollPredictionFromFutureEvent(
 void InputHandlerProxy::ProcessQueuedEventsUpToSampleTime(
     const viz::BeginFrameArgs& args,
     base::TimeTicks sample_time) {
-  // Coalesce scroll and pinch events in the |compositor_event_queue_| till
-  // sample_time.
-  compositor_event_queue_->CoalesceEvents(sample_time);
+  if (base::FeatureList::IsEnabled(
+          features::kRefactorCompositorThreadEventQueue)) {
+    // Coalesce scroll and pinch events in the |compositor_event_queue_| till
+    // sample_time.
+    compositor_event_queue_->CoalesceEvents(sample_time);
+  }
 
   while (HasQueuedEventsReadyForDispatch(true /*frame_aligned*/, sample_time)) {
     auto event_with_callback = compositor_event_queue_->Pop();
@@ -1795,7 +1808,8 @@ void InputHandlerProxy::DidFinishImplFrame() {
 }
 
 bool InputHandlerProxy::HasQueuedInput() const {
-  return HasQueuedEventsReadyForDispatch(/*frame_aligned=*/true);
+  return HasQueuedEventsReadyForDispatch(/*frame_aligned=*/true,
+                                         base::TimeTicks::Max());
 }
 
 void InputHandlerProxy::SetScrollEventDispatchMode(
@@ -1871,7 +1885,8 @@ void InputHandlerProxy::FlushQueuedEventsForTesting() {
 
 void InputHandlerProxy::HandleOverscroll(
     const gfx::PointF& causal_event_viewport_point,
-    const cc::InputHandlerScrollResult& scroll_result) {
+    const cc::InputHandlerScrollResult& scroll_result,
+    const blink::WebGestureDevice source_device) {
   DCHECK(client_);
   if (!scroll_result.did_overscroll_root)
     return;
@@ -1888,6 +1903,7 @@ void InputHandlerProxy::HandleOverscroll(
       causal_event_viewport_point;
   current_overscroll_params_->overscroll_behavior =
       scroll_result.overscroll_behavior;
+  current_overscroll_params_->source_device = source_device;
   return;
 }
 
@@ -2030,7 +2046,8 @@ void InputHandlerProxy::SetDeferBeginMainFrame(
 void InputHandlerProxy::RequestCallbackAfterEventQueueFlushed(
     base::OnceClosure callback) {
   CHECK(queue_flushed_callback_.is_null());
-  if (HasQueuedEventsReadyForDispatch(/*frame_aligned*/ true)) {
+  if (HasQueuedEventsReadyForDispatch(
+          /*frame_aligned*/ true, /* sample_time */ base::TimeTicks::Max())) {
     queue_flushed_callback_ = std::move(callback);
   } else {
     std::move(callback).Run();

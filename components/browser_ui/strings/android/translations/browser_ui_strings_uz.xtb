@@ -7,6 +7,7 @@
 <translation id="1073417869336441572">Tashqi cookie fayllarga nega ruxsat berganingiz sababini yozish orqali Chromeni yaxshilashimizga yordam bering. <ph name="BEGIN_LINK" />Fikr-mulohaza<ph name="END_LINK" /></translation>
 <translation id="1074758928858737435">Saytlarning kompyuter versiyasini ochishga ruxsat soʻrash mumkin</translation>
 <translation id="1085696779717592361">Chrome birlamchi boʻlsin</translation>
+<translation id="113098737392899175">Klaviatura ulanganda sahifalarni matn kursori bilan kezing</translation>
 <translation id="1178015372320901893">Mening yorliqlarim quyi ekrani</translation>
 <translation id="1178581264944972037">Pauza</translation>
 <translation id="1181037720776840403">Olib tashlash</translation>
@@ -147,6 +148,11 @@
 <translation id="2588271083332682494">Varaqlar guruhlari yordamida tartibga soling</translation>
 <translation id="2597457036804169544">Saytlar uchun tungi mavzu tatbiq etilmaydi</translation>
 <translation id="2606760465469169465">Avtomatik tekshiruv</translation>
+<translation id="2610903128639500624"><ph name="BEGIN_LINK1" />Android sozlamalari<ph name="END_LINK1" /> orqali boshqarish
+
+Quyidagi Chrome sozlamalari Kuchaytirilgan himoya boshqaruvida:
+• “Doim xavfsiz ulanish ishlatilsin” parametri yoniq.
+• “JavaScript optimizer“ parametri oʻchiq. <ph name="BEGIN_LINK2" />Istisno saytlarni boshqarish<ph name="END_LINK2" /></translation>
 <translation id="2621115761605608342">Ko‘rsatilgan saytga JavaScript ishga tushirishga ruxsat berish.</translation>
 <translation id="2626708220538466178">Birlamchi brauzer quyi ekrani yopildi</translation>
 <translation id="2653659639078652383">Yuborish</translation>
@@ -305,6 +311,7 @@
 <translation id="4336566011000459927">Chrome cookie fayllarni bugun yana cheklaydi</translation>
 <translation id="4338831206024587507">Barcha saytlar <ph name="DOMAIN" /> ostida</translation>
 <translation id="4340799661701629185">Saytlarga bildirishnoma yuborishni taqiqlash</translation>
+<translation id="4341577178275615435">Faol kursor rejimini yoqish yoki oʻchirish uchun F7 tugmasidan foydalaning</translation>
 <translation id="4402755511846832236">Bu qurilmadan foydalanish axborotlarini saytlar bilishini taqiqlash</translation>
 <translation id="4412683424767388419">Chrome ranglar quyi ekrani yarim hajmda ochildi</translation>
 <translation id="4412992751769744546">Tashqi saytlarga cookie fayllarni saqlashga ruxsat berish</translation>
@@ -339,6 +346,7 @@
 <translation id="4816495437032298535">Saytlar uchun saqlangan zum</translation>
 <translation id="4836046166855586901">Sayt bu qurilmadan faol foydalanishingiz haqidagi axborotni yuborishdan oldin sizdan ruxsat oladi</translation>
 <translation id="483914009762354899">Bu domen ichidagi barcha saytlar</translation>
+<translation id="4852997963351138624">Fon rangi (Hex)</translation>
 <translation id="4882919381756638075">Saytlar odatda video chat kabi aloqa xizmatlarida mikrofondan foydalanadi</translation>
 <translation id="4883854917563148705">Boshqariladigan sozlamalarni oʻzgartirish imkonsiz</translation>
 <translation id="4887024562049524730">Saytlar virtual reallik qurilmalari yoki maʼlumotlaridan foydalanishi oldidan ruxsat olsin (tavsiya etiladi)</translation>
@@ -502,6 +510,7 @@
 <translation id="6608650720463149374"><ph name="GIGABYTES" /> GB</translation>
 <translation id="6612358246767739896">Himoyalangan kontent</translation>
 <translation id="662080504995468778">Qolaman</translation>
+<translation id="6630443592285535486">Hex kodini kiriting</translation>
 <translation id="6635327442719709864">Yoqilsa, saytlar seriyali portlardan foydalanishni soʻrashi mumkin. Yoqilmasa, saytlar seriyali port ishlata olmaydi.</translation>
 <translation id="6678072580827808850">Xavfsizlik tekshiruvini tekshirish</translation>
 <translation id="6682057173375416470">Tavsiya etilgan maqolalarni Yangi varaq sahifasida oling</translation>
@@ -559,6 +568,7 @@
 <translation id="7399802613464275309">Xavfsizlik tekshiruvi</translation>
 <translation id="7406113532070524618">Bu sozlama ishlashida shaxsingiz aniqlanmaydi va brauzeringiz tarixi saytlarga koʻrinmaydi hamda saytlar tekshiruv jarayonida cheklangan axborotni ulashishi mumkin</translation>
 <translation id="7409735910987429903">Saytlar ochmoqchi boʻlgan yoki boʻlmagan saytlaringizga qalqib chiquvchi reklama chiqarishi yoki yoʻnaltirishi mumkin</translation>
+<translation id="7412160840120117304">Asosiy rang (Hex)</translation>
 <translation id="7423098979219808738">Avval so‘ralsin</translation>
 <translation id="7423538860840206698">Klipborddan o‘qish taqiqlangan</translation>
 <translation id="7425915948813553151">Saytlar uchun tungi mavzu</translation>
@@ -690,6 +700,7 @@
 <translation id="8803526663383843427">Qachon yoqilgan</translation>
 <translation id="8805385115381080995">Saytlar shaxsni tasdiqlashni kamroq soʻraydi va shu sababli brauzerdagi ishdan kamroq chalgʻiysiz</translation>
 <translation id="8816026460808729765">Saytlarga sensorlardan foydalanishni taqiqlash</translation>
+<translation id="884765916894384048">Fonda ijro qilish</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8874790741333031443">Tashqi cookie fayllarga vaqtincha ruxsat bering, bunda himoya pasayadi, lekin sayt funksiyalari kutilganidek ishlaydi.</translation>
 <translation id="8889294078294184559">Keyin ochiladigan boshqa saytlar brauzerdan bu axborotni soʻrashi mumkin.</translation>

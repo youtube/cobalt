@@ -562,10 +562,6 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
                      ntp_composebox::kShowComposeboxZps.Get());
   source->AddBoolean("composeboxShowTypedSuggest",
                      ntp_composebox::kShowComposeboxTypedSuggest.Get());
-  source->AddString(
-      "realboxLayoutMode",
-      ntp_composebox::RealboxLayoutModeToString(
-          ntp_composebox::kRealboxLayoutMode.Get()));
   source->AddBoolean("composeboxShowImageSuggest",
                      ntp_composebox::kShowComposeboxImageSuggestions.Get());
   source->AddBoolean("composeboxShowContextMenuDescription",
@@ -578,6 +574,9 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
   source->AddBoolean("composeboxSmartComposeEnabled", true);
   source->AddBoolean("composeboxShowDeepSearchButton",
                      ntp_composebox::kShowToolsAndModels.Get());
+  source->AddBoolean("composeboxShowCreateImageButton",
+                     ntp_composebox::kShowToolsAndModels.Get() &&
+                         ntp_composebox::kShowCreateImageTool.Get());
 
   const auto* aim_eligibility_service =
       AimEligibilityServiceFactory::GetForProfile(profile);
@@ -841,8 +840,7 @@ void NewTabPageUI::BindInterface(
   std::unique_ptr<ComposeboxMetricsRecorder> composebox_metrics_recorder;
   // Only create the composebox query controller and metrics recorder needed for
   // contextual search if realbox next is enabled.
-  if (ntp_composebox::kRealboxLayoutMode.Get() !=
-      ntp_composebox::RealboxLayoutMode::kDefault) {
+  if (ntp_realbox::IsNtpRealboxNextEnabled(profile_)) {
     query_controller = std::make_unique<ComposeboxQueryController>(
         IdentityManagerFactory::GetForProfile(profile_),
         g_browser_process->shared_url_loader_factory(), chrome::GetChannel(),
@@ -850,7 +848,8 @@ void NewTabPageUI::BindInterface(
         TemplateURLServiceFactory::GetForProfile(profile_),
         profile_->GetVariationsClient(),
         ntp_composebox::kSendLnsSurfaceParam.Get(),
-        ntp_composebox::kMaxNumFiles.Get() > 1);
+        ntp_composebox::kMaxNumFiles.Get() > 1,
+        ntp_composebox::kEnableViewportImages.Get());
     composebox_metrics_recorder = std::make_unique<ComposeboxMetricsRecorder>(
         kComposeboxMetricsReporterPrefName);
   }
@@ -1059,8 +1058,7 @@ void NewTabPageUI::CreatePageHandler(
   DCHECK(pending_page.is_valid());
   MetricsReporterService* service =
       MetricsReporterService::GetFromWebContents(web_ui()->GetWebContents());
-  bool enable_multi_context_input_flow =
-      ntp_composebox::kMaxNumFiles.Get() > 1;
+  bool enable_multi_context_input_flow = ntp_composebox::kMaxNumFiles.Get() > 1;
   composebox_handler_ = std::make_unique<ComposeboxHandler>(
       std::move(pending_page_handler), std::move(pending_page),
       std::move(pending_searchbox_handler),
@@ -1071,7 +1069,8 @@ void NewTabPageUI::CreatePageHandler(
           TemplateURLServiceFactory::GetForProfile(profile_),
           profile_->GetVariationsClient(),
           ntp_composebox::kSendLnsSurfaceParam.Get(),
-          enable_multi_context_input_flow),
+          enable_multi_context_input_flow,
+          ntp_composebox::kEnableViewportImages.Get()),
       std::make_unique<ComposeboxMetricsRecorder>(
           kComposeboxMetricsReporterPrefName),
       profile_, web_contents(), service->metrics_reporter());

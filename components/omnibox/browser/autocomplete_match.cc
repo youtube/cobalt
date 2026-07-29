@@ -83,7 +83,7 @@ bool WordMatchesURLContent(
     const std::vector<std::u16string>& terms_prefixed_by_http_or_https,
     const GURL& url) {
   size_t prefix_length =
-      url.scheme().length() + strlen(url::kStandardSchemeSeparator);
+      url.GetScheme().length() + strlen(url::kStandardSchemeSeparator);
   DCHECK_GE(url.spec().length(), prefix_length);
   const std::u16string& formatted_url = url_formatter::FormatUrl(
       url, url_formatter::kFormatUrlOmitNothing, base::UnescapeRule::NORMAL,
@@ -1014,7 +1014,7 @@ GURL AutocompleteMatch::GURLToStrippedGURL(
   // from history that differ only by some obscure query param from each other
   // or from the search/keyword provider matches.
   const TemplateURL* template_url = GetTemplateURLWithKeyword(
-      template_url_service, keyword, stripped_destination_url.host());
+      template_url_service, keyword, stripped_destination_url.GetHost());
   if (template_url && template_url->SupportsReplacement(
                           template_url_service->search_terms_data())) {
     using CacheKey = std::tuple<const TemplateURL*, GURL, bool>;
@@ -1043,7 +1043,7 @@ GURL AutocompleteMatch::GURLToStrippedGURL(
   // Remove the www. prefix from the host.
   static const char prefix[] = "www.";
   static const size_t prefix_len = std::size(prefix) - 1;
-  std::string host = stripped_destination_url.host();
+  std::string host = stripped_destination_url.GetHost();
   if (host.compare(0, prefix_len, prefix) == 0 && host.length() > prefix_len) {
     replacements.SetHostStr(std::string_view(host).substr(prefix_len));
     needs_replacement = true;
@@ -1086,12 +1086,11 @@ void AutocompleteMatch::GetMatchComponents(
 
   size_t host_pos = parsed.CountCharactersBefore(url::Parsed::HOST, false);
 
-  bool has_subdomain =
-      domain_length > 0 && domain_length < url.host_piece().length();
+  bool has_subdomain = domain_length > 0 && domain_length < url.host().length();
   // Subtract an extra character from the domain start to exclude the '.'
   // delimiter between subdomain and domain.
   size_t subdomain_end =
-      has_subdomain ? host_pos + url.host_piece().length() - domain_length - 1
+      has_subdomain ? host_pos + url.host().length() - domain_length - 1
                     : std::string::npos;
 
   for (auto& position : match_positions) {
@@ -1146,7 +1145,7 @@ void AutocompleteMatch::LogSearchEngineUsed(
   // no longer necessary to track these additional search engine types.
   if (search_engine_type == SEARCH_ENGINE_OTHER) {
     if (match.destination_url.is_valid() &&
-        url::DomainIs(match.destination_url.host_piece(), "siteadvisor.com")) {
+        url::DomainIs(match.destination_url.host(), "siteadvisor.com")) {
       search_engine_type = SEARCH_ENGINE_MCAFEE;
     }
   }
@@ -1261,11 +1260,11 @@ bool AutocompleteMatch::IsActionCompatible() const {
 }
 
 bool AutocompleteMatch::HasInstantKeyword(
-    TemplateURLService* template_url_service) const {
+    const TemplateURLService* template_url_service) const {
   if (associated_keyword.empty()) {
     return false;
   }
-  TemplateURL* turl =
+  const TemplateURL* turl =
       GetTemplateURLWithKeyword(template_url_service, associated_keyword, "");
   return turl && (turl->starter_pack_id() != 0 || turl->featured_by_policy());
 }
@@ -1792,7 +1791,7 @@ void AutocompleteMatch::FilterAndSortActionsInSuggest() {
     return ais != nullptr;
   });
 
-  for (auto pair : actions_in_suggest_to_reinsert) {
+  for (const auto& pair : actions_in_suggest_to_reinsert) {
     actions.emplace_back(std::move(pair.second));
   }
 }

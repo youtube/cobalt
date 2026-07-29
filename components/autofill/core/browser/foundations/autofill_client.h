@@ -19,6 +19,7 @@
 #include "build/build_config.h"
 #include "components/autofill/core/browser/country_type.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
+#include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
 #include "components/autofill/core/browser/ui/popup_open_enums.h"
 #include "components/autofill/core/common/aliases.h"
 #include "components/autofill/core/common/unique_ids.h"
@@ -588,6 +589,18 @@ class AutofillClient {
   // Triggers a survey to ask the user why they declined saving an address.
   virtual void TriggerDeclinedSaveAddressReasonSurvey();
 
+  // Triggers a survey after the user sees an Autofill AI suggestion and submits
+  // a form. The triggering happens only if the uses sees an Autofill AI
+  // suggestion, regardless of whether they accepted it or not.
+  // `suggestion_accepted` defines whether the suggestion seen by the user was
+  // accepted. `entity_type` defines the type of entity used to generate the
+  // suggestion.
+  virtual void TriggerAutofillAiFillingJourneySurvey(bool suggestion_accepted,
+                                                     EntityType entity_type);
+
+  // Triggers a survey after the user sees an Autofill AI save prompt.
+  virtual void TriggerAutofillAiSavePromptSurvey(bool prompt_accepted);
+
   // Returns true if either Profile or CreditCard Autofill is enabled.
   virtual bool IsAutofillEnabled() const = 0;
 
@@ -710,11 +723,18 @@ class AutofillClient {
       std::optional<EntityInstance> old_entity,
       EntitySaveOrUpdatePromptResultCallback save_prompt_acceptance_callback);
 
+  virtual void ShowEmailVerifiedToast();
+
   // May return null on platforms where OTPs are not supported.
   virtual OtpFieldDetector* GetOtpFieldDetector();
 
   // May return null on platforms where no SmsOtpBackend is supported.
   virtual one_time_tokens::SmsOtpBackend* GetSmsOtpBackend() const;
+
+  // Returns true if the primary main frame's document used the WebOTP API. This
+  // exists only for the main frame because only the main frame has the
+  // permission to call the WeOTP API.
+  virtual bool DocumentUsedWebOTP();
 };
 
 }  // namespace autofill

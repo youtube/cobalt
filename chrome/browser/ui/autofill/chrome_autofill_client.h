@@ -17,7 +17,6 @@
 #include "base/scoped_observation.h"
 #include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/autofill/autofill_field_promo_controller.h"
 #include "chrome/browser/ui/autofill/autofill_suggestion_controller.h"
 #include "chrome/browser/ui/autofill/payments/chrome_payments_autofill_client.h"
 #include "components/autofill/content/browser/autofill_log_router_factory.h"
@@ -27,6 +26,7 @@
 #include "components/autofill/core/browser/country_type.h"
 #include "components/autofill/core/browser/crowdsourcing/autofill_crowdsourcing_manager.h"
 #include "components/autofill/core/browser/crowdsourcing/votes_uploader.h"
+#include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
 #include "components/autofill/core/browser/filling/filling_product.h"
 #include "components/autofill/core/browser/integrators/autofill_ai/autofill_ai_manager.h"
 #include "components/autofill/core/browser/integrators/identity_credential/identity_credential_delegate.h"
@@ -37,7 +37,6 @@
 #include "components/autofill/core/browser/single_field_fillers/single_field_fill_router.h"
 #include "components/autofill/core/browser/studies/autofill_ablation_study.h"
 #include "components/autofill/core/browser/ui/payments/card_unmask_prompt_options.h"
-#include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "content/public/browser/visibility.h"
 #include "content/public/browser/web_contents_observer.h"
@@ -45,6 +44,8 @@
 #if BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/ui/autofill/autofill_snackbar_controller_impl.h"
 #include "components/autofill/core/browser/integrators/fast_checkout/fast_checkout_client.h"
+#else  // BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/ui/autofill/autofill_field_promo_controller.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
 namespace optimization_guide {
@@ -191,6 +192,9 @@ class ChromeAutofillClient : public ContentAutofillClient,
       FillingProduct filling_product,
       const std::map<std::string, std::string>& field_filling_stats_data) final;
   void TriggerDeclinedSaveAddressReasonSurvey() final;
+  void TriggerAutofillAiFillingJourneySurvey(bool suggestion_accepted,
+                                             EntityType entity_type) final;
+  void TriggerAutofillAiSavePromptSurvey(bool prompt_accepted) final;
   bool IsAutofillEnabled() const final;
   bool IsAutofillProfileEnabled() const final;
   bool IsAutofillPaymentMethodsEnabled() const final;
@@ -230,6 +234,7 @@ class ChromeAutofillClient : public ContentAutofillClient,
       std::optional<EntityInstance> old_entity,
       EntitySaveOrUpdatePromptResultCallback save_prompt_acceptance_callback)
       override;
+  void ShowEmailVerifiedToast() final;
 
   // TODO(crbug.com/407666146): Create a test API.
   base::WeakPtr<AutofillSuggestionController>
@@ -244,10 +249,12 @@ class ChromeAutofillClient : public ContentAutofillClient,
           keep_popup_open_for_testing);
     }
   }
+#if !BUILDFLAG(IS_ANDROID)
   void SetAutofillFieldPromoTesting(
       std::unique_ptr<AutofillFieldPromoController> test_controller) {
     autofill_field_promo_controller_ = std::move(test_controller);
   }
+#endif  // !BUILDFLAG(IS_ANDROID)
 #if BUILDFLAG(IS_ANDROID)
   void SetAutofillSnackbarControllerImplForTesting(
       std::unique_ptr<AutofillSnackbarControllerImpl>
@@ -319,9 +326,10 @@ class ChromeAutofillClient : public ContentAutofillClient,
   std::unique_ptr<FastCheckoutClient> fast_checkout_client_;
   std::unique_ptr<AutofillSnackbarControllerImpl>
       autofill_snackbar_controller_impl_;
-#endif
+#else   // BUILDFLAG(IS_ANDROID)
   std::unique_ptr<AutofillFieldPromoController>
       autofill_field_promo_controller_;
+#endif  // BUILDFLAG(IS_ANDROID)
   // Test addresses used to allow developers to test their forms.
   std::vector<AutofillProfile> test_addresses_;
   const AutofillAblationStudy ablation_study_;

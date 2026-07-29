@@ -12,6 +12,7 @@
 #include "base/functional/callback_forward.h"
 #include "base/location.h"
 #include "base/memory/weak_ptr.h"
+#include "base/types/pass_key.h"
 #include "chrome/browser/web_applications/commands/web_app_command.h"
 #include "chrome/browser/web_applications/jobs/manifest_to_web_app_install_info_job.h"
 #include "chrome/browser/web_applications/locks/noop_lock.h"
@@ -44,6 +45,7 @@ enum class ManifestSilentUpdateCommandStage {
   kComparingManifestData,
   kFinalizingSilentManifestChanges,
   kWritingPendingUpdateIconBitmapsToDisk,
+  kDeletingPendingUpdateIconsFromDisk
 };
 
 // This enum is recorded by UMA, the numeric values must not change.
@@ -110,17 +112,35 @@ class ManifestSilentUpdateCommand
   void StartWithLock(std::unique_ptr<NoopLock> lock) override;
 
  private:
+  enum class PendingInfoComparison {
+    kNotPending,
+    kHasPendingAndEquals,
+    kHasPendingAndNotEquals
+  };
+  friend std::ostream& operator<<(std::ostream& os, PendingInfoComparison);
+
   struct WebAppComparison {
     bool name_equality = false;
     bool primary_icons_equality = false;
     bool shortcut_menu_item_infos_equality = false;
     bool other_fields_equality = false;
 
-    bool HasNoChanges() const;
+    PendingInfoComparison pending_name_equality =
+        PendingInfoComparison::kNotPending;
+    PendingInfoComparison pending_primary_icons_equality =
+        PendingInfoComparison::kNotPending;
+
+    // Returns if the existing app configuration (not considering any pending
+    // update info) matches the `new_install_info`.
+    bool ExistingAppWithoutPendingEqualsNewUpdate() const;
+    // Return if the existing app configuration, with any pending update info
+    // applied, matches the `new_install_info`.
+    bool ExistingAppWithPendingEqualsNewUpdate() const;
     bool IsNameChangeOnly() const;
     bool IsSecuritySensitiveChangesOnly() const;
     base::Value::Dict ToDict() const;
   };
+
   static WebAppComparison CompareWebApps(
       const WebApp& existing_web_app,
       const WebAppInstallInfo& new_install_info);
@@ -141,12 +161,17 @@ class ManifestSilentUpdateCommand
 
   void FinalizeUpdateIfSilentChangesExist();
 
-  void UpdateFinalizedWritePendingInfoIfNeeded(
+  void UpdateFinalizedWritePendingInfo(
       std::optional<proto::PendingUpdateInfo> pending_update_info,
       const webapps::AppId& app_id,
       webapps::InstallResultCode code);
 
-  void WritePendingUpdateInfoThenComplete(proto::PendingUpdateInfo);
+  void WritePendingUpdateInfoThenComplete(
+      std::optional<proto::PendingUpdateInfo>,
+      ManifestSilentUpdateCheckResult result);
+
+  void WritePendingUpdateToWebApp(
+      std::optional<proto::PendingUpdateInfo> pending_update);
 
   void CompleteCommandAndSelfDestruct(
       base::Location location,
@@ -177,8 +202,6 @@ class ManifestSilentUpdateCommand
   std::unique_ptr<WebAppDataRetriever> data_retriever_;
   std::unique_ptr<AppLock> app_lock_;
 
-  base::WeakPtr<content::WebContents> web_contents_;
-  std::unique_ptr<ManifestToWebAppInstallInfoJob> manifest_to_install_info_job_;
 
   // Temporary variables stored here while the update check progresses
   // asynchronously.
@@ -191,7 +214,12 @@ class ManifestSilentUpdateCommand
   IconBitmaps pending_manifest_icon_bitmaps_;
   ShortcutsMenuIconBitmaps existing_shortcuts_menu_icon_bitmaps_;
   bool silent_update_required_ = false;
-  bool pending_updated_added_ = false;
+  bool pending_updated_changed_ = false;
+
+  base::WeakPtr<content::WebContents> web_contents_;
+  // Note: This must be destroyed before `new_install_info_` since it holds a
+  // raw_ptr to it.
+  std::unique_ptr<ManifestToWebAppInstallInfoJob> manifest_to_install_info_job_;
 
   // Debug info.
   ManifestSilentUpdateCommandStage stage_ =

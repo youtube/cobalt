@@ -60,6 +60,7 @@ class BrowserFrameViewChromeOS
       const gfx::Size& tabstrip_minimum_size) const override;
   gfx::Rect GetBoundsForWebAppFrameToolbar(
       const gfx::Size& toolbar_preferred_size) const override;
+  bool ShouldShowWebAppFrameToolbar() const override;
   int GetTopInset(bool restored) const override;
   void UpdateThrobber(bool running) override;
   bool CanUserExitFullscreen() const override;
@@ -134,10 +135,8 @@ class BrowserFrameViewChromeOS
     return caption_button_container_;
   }
 
-  // Returns whether the associated window is in TrustedPinned state.
-  // TODO(crbug.com/429215055): Rename `IsTrustedPinned` to
-  // `IsLockedFullscreen()` under /c/b/ui.
-  bool IsTrustedPinned() const;
+  // Returns whether the associated window is in a locked fullscreen state.
+  bool IsLockedFullscreen() const;
 
  protected:
   // BrowserFrameView:

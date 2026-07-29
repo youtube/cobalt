@@ -322,25 +322,6 @@ void CheckCanDownload(const content::WebContents::Getter& web_contents_getter,
 }
 
 #if BUILDFLAG(IS_ANDROID)
-// TODO(qinmin): reuse the similar function defined in
-// DownloadResourceThrottle.
-void OnDownloadAcquireFileAccessPermissionDone(
-    const content::WebContents::Getter& web_contents_getter,
-    const GURL& url,
-    const std::string& request_method,
-    std::optional<url::Origin> request_initiator,
-    CanDownloadCallback can_download_cb,
-    bool granted) {
-  if (granted) {
-    CheckCanDownload(web_contents_getter, url, request_method,
-                     std::move(request_initiator),
-                     false /* from_download_cross_origin_redirect */,
-                     std::move(can_download_cb));
-  } else {
-    std::move(can_download_cb).Run(false, false);
-  }
-}
-
 // Overlays download location dialog result to target determiner.
 void OnDownloadDialogClosed(
     DownloadTargetDeterminerDelegate::ConfirmationCallback callback,
@@ -560,14 +541,11 @@ void OnCheckDownloadAllowedFailed(
 
 ChromeDownloadManagerDelegate::ChromeDownloadManagerDelegate(Profile* profile)
     : profile_(profile),
-      next_download_id_(download::DownloadItem::kInvalidId),
-      next_id_retrieved_(false),
-      download_prefs_(new DownloadPrefs(profile)),
-      is_file_picker_showing_(false) {
 #if BUILDFLAG(IS_ANDROID)
-  download_dialog_bridge_ = std::make_unique<DownloadDialogBridge>();
-  download_message_bridge_ = std::make_unique<DownloadMessageBridge>();
+      download_dialog_bridge_(std::make_unique<DownloadDialogBridge>()),
+      download_message_bridge_(std::make_unique<DownloadMessageBridge>()),
 #endif
+      download_prefs_(std::make_unique<DownloadPrefs>(profile)) {
 }
 
 ChromeDownloadManagerDelegate::~ChromeDownloadManagerDelegate() {
@@ -1866,7 +1844,6 @@ void ChromeDownloadManagerDelegate::CheckSavePackageScanningDone(
       // These other results should never be returned.
       NOTREACHED();
   }
-
 }
 #endif  // SAFE_BROWSING_DOWNLOAD_PROTECTION
 
@@ -2130,16 +2107,12 @@ void ChromeDownloadManagerDelegate::CheckDownloadAllowed(
       weak_ptr_factory_.GetWeakPtr(), std::move(check_download_allowed_cb));
 
 #if BUILDFLAG(IS_ANDROID)
-  DownloadControllerBase::Get()->AcquireFileAccessPermission(
-      web_contents_getter,
-      base::BindOnce(&OnDownloadAcquireFileAccessPermissionDone,
-                     web_contents_getter, url, request_method,
-                     std::move(request_initiator), std::move(cb)));
-#else
+  from_download_cross_origin_redirect = false;
+#endif
+
   CheckCanDownload(web_contents_getter, url, request_method,
                    std::move(request_initiator),
                    from_download_cross_origin_redirect, std::move(cb));
-#endif
 }
 
 download::QuarantineConnectionCallback

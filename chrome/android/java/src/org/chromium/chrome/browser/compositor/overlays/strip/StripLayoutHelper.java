@@ -48,6 +48,7 @@ import androidx.appcompat.content.res.AppCompatResources;
 
 import org.chromium.base.ApplicationStatus;
 import org.chromium.base.Callback;
+import org.chromium.base.DeviceInfo;
 import org.chromium.base.MathUtils;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.base.Token;
@@ -136,7 +137,6 @@ import org.chromium.ui.base.LocalizationUtils;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.util.ColorUtils;
 import org.chromium.ui.util.MotionEventUtils;
-import org.chromium.ui.util.XrUtils;
 import org.chromium.ui.widget.RectProvider;
 
 import java.util.ArrayList;
@@ -1757,7 +1757,7 @@ public class StripLayoutHelper
         }
 
         // 5. Trigger IPH for tab tearing on XR if applicable.
-        if (XrUtils.isXrDevice()
+        if (DeviceInfo.isXr()
                 && mStripTabs.length > 1
                 && !onStartup
                 && !closureCancelled
@@ -3283,6 +3283,34 @@ public class StripLayoutHelper
                 mModel.setTabsMultiSelected(Collections.singleton(tabId), false);
                 break;
             }
+        }
+    }
+
+    /**
+     * Toggles multiselection on the keyboard focused tab.
+     *
+     * @return Whether the multiselect action was successfully performed.
+     */
+    public boolean multiselectKeyboardFocusedItem() {
+        @Nullable StripLayoutView focusedView = getKeyboardFocusedView();
+        if (focusedView instanceof StripLayoutTab) {
+            multiselectKeyboardFocusedItem((StripLayoutTab) focusedView);
+            return true;
+        }
+        return false;
+    }
+
+    private void multiselectKeyboardFocusedItem(StripLayoutTab tab) {
+        if (tab == null || tab.isDying() || mModel == null) return;
+        int tabId = tab.getTabId();
+        // If the tab is already multi-selected, unselect it.
+        if (mModel.isTabMultiSelected(tabId)) {
+            mModel.setTabsMultiSelected(Collections.singleton(tabId), false);
+        } else {
+            int activeTabId = getSelectedTabId();
+            // When toggling multiselect, we need to add the active tab to the multi-selection set.
+            // This is an additive operation, and does not reset the selection set.
+            mModel.setTabsMultiSelected(Set.of(tabId, activeTabId), true);
         }
     }
 
@@ -5280,7 +5308,10 @@ public class StripLayoutHelper
         @StringRes
         int resId =
                 getTabAccessibilityLabelRes(
-                        stripTab.getIsPinned(), stripTab.getNotificationBubbleShown(), isHidden);
+                        stripTab.getIsPinned(),
+                        stripTab.getNotificationBubbleShown(),
+                        isHidden,
+                        stripTab.getIsMultiSelected());
 
         if (!stripTab.needsAccessibilityDescriptionUpdate(title, resId)) {
             // The resulting accessibility description would be the same as the current description,
@@ -5298,9 +5329,13 @@ public class StripLayoutHelper
      * @param isPinned Whether the tab is pinned.
      * @param notificationShown Whether the tab has notification shown.
      * @param isHidden Current visibility state of the Tab.
+     * @param isMultiSelected Whether the tab is multi-selected.
      */
     private @StringRes int getTabAccessibilityLabelRes(
-            boolean isPinned, boolean notificationShown, boolean isHidden) {
+            boolean isPinned,
+            boolean notificationShown,
+            boolean isHidden,
+            boolean isMultiSelected) {
         if (notificationShown) {
             return R.string.accessibility_tabstrip_tab_notification;
         }
@@ -5326,9 +5361,41 @@ public class StripLayoutHelper
                         ? R.string.accessibility_tabstrip_tab_selected_incognito
                         : R.string.accessibility_tabstrip_tab_selected;
 
-        return isPinned
-                ? (isHidden ? pinnedUnselected : pinnedSelected)
-                : (isHidden ? unpinnedUnselected : unpinnedSelected);
+        @StringRes
+        int multiselected =
+                mIncognito
+                        ? R.string.accessibility_tabstrip_tab_multiselected_incognito
+                        : R.string.accessibility_tabstrip_tab_multiselected;
+
+        @StringRes
+        int multiselectedPinned =
+                mIncognito
+                        ? R.string.accessibility_tabstrip_tab_multiselected_pinned_incognito
+                        : R.string.accessibility_tabstrip_tab_multiselected_pinned;
+
+        // A selected tab is always considered part of multi-selection. and so does not need to have
+        // a separate string.
+        if (isHidden) {
+            if (isPinned) {
+                if (isMultiSelected) {
+                    return multiselectedPinned;
+                } else {
+                    return pinnedUnselected;
+                }
+            } else {
+                if (isMultiSelected) {
+                    return multiselected;
+                } else {
+                    return unpinnedUnselected;
+                }
+            }
+        } else {
+            if (isPinned) {
+                return pinnedSelected;
+            } else {
+                return unpinnedSelected;
+            }
+        }
     }
 
     // ============================================================================================
@@ -5487,7 +5554,7 @@ public class StripLayoutHelper
     }
 
     private void sendMoveWindowBroadcast(View view, float startXInView, float startYInView) {
-        if (!XrUtils.isXrDevice()) return;
+        if (!DeviceInfo.isXr()) return;
         if (mWindowAndroid.getActivity().get() == null) return;
 
         // The start position is in the view coordinate system and related to the top left position

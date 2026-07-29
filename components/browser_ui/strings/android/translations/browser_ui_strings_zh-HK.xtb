@@ -7,6 +7,7 @@
 <translation id="1073417869336441572">請說明你允許使用第三方 Cookie 的原因，協助我們改善 Chrome。<ph name="BEGIN_LINK" />傳送意見<ph name="END_LINK" /></translation>
 <translation id="1074758928858737435">你可要求查看桌面版網站</translation>
 <translation id="1085696779717592361">預設為使用 Chrome</translation>
+<translation id="113098737392899175">接駁鍵盤後，使用文字游標瀏覽頁面</translation>
 <translation id="1178015372320901893">我嘅捷徑頁底面板</translation>
 <translation id="1178581264944972037">暫停</translation>
 <translation id="1181037720776840403">移除</translation>
@@ -40,6 +41,7 @@
 <translation id="1500473259453106018">隱藏「在分頁上啟用減價通知」資訊卡</translation>
 <translation id="1508931164824684991">網站可使用 JavaScript</translation>
 <translation id="1510341833810331442">不允許網站在裝置上儲存資料</translation>
+<translation id="1532175480576580256">我嘅捷徑頁底面板宜家顯示喺成個畫面</translation>
 <translation id="1538031354170655462">網站通常透過近距離無線通訊 (NFC) 與附近的標籤或裝置互動，例如掃瞄標誌或進行感應式付款</translation>
 <translation id="1547123415014299762">已允許第三方 Cookie</translation>
 <translation id="1569054338208717605">使用 Chrome 的 V8 引擎加快網站速度，但 Chrome 防攻擊的能力會略為下降</translation>
@@ -115,6 +117,7 @@
 <translation id="228293613124499805">您瀏覽的大多數網站可能會在裝置上儲存資料，通常是透過儲存您的偏好設定或您與網站分享的資料，從而改善使用體驗。建議您將此設定保持開啟。</translation>
 <translation id="2289270750774289114">在網站要探索附近的藍牙裝置時詢問您 (建議)</translation>
 <translation id="2315043854645842844">作業系統不支援由客戶端選取憑證。</translation>
+<translation id="2347601491101454548">我嘅捷徑頁底面板宜家顯示喺畫面下半部</translation>
 <translation id="2359808026110333948">繼續</translation>
 <translation id="2379925928934107488">當 Chrome 採用深色主題背景時，盡可能對網站套用深色主題背景</translation>
 <translation id="2390272837142897736">放大</translation>
@@ -145,6 +148,11 @@
 <translation id="2588271083332682494">分頁群組助你保持條理</translation>
 <translation id="2597457036804169544">不要為網站套用深色主題背景</translation>
 <translation id="2606760465469169465">自動驗證</translation>
+<translation id="2610903128639500624">前往 <ph name="BEGIN_LINK1" />Android 設定<ph name="END_LINK1" />管理
+
+「進階保護功能」可控制以下 Chrome 設定：
+• 開啟「一律使用安全連線」。
+• 關閉「JavaScript 優化工具」。<ph name="BEGIN_LINK2" />管理網站例外情況<ph name="END_LINK2" /></translation>
 <translation id="2621115761605608342">允許特定網站執行 JavaScript。</translation>
 <translation id="2626708220538466178">預設瀏覽器頁底面板閂咗</translation>
 <translation id="2653659639078652383">提交</translation>
@@ -303,6 +311,7 @@
 <translation id="4336566011000459927">Chrome 將於今天再次限制 Cookie</translation>
 <translation id="4338831206024587507"><ph name="DOMAIN" /> 下的所有網站</translation>
 <translation id="4340799661701629185">不允許網站傳送通知</translation>
+<translation id="4341577178275615435">如要開啟或關閉「鍵盤瀏覽」功能，請使用快速鍵 F7</translation>
 <translation id="4402755511846832236">禁止網站取得此裝置的使用狀態</translation>
 <translation id="4412683424767388419">Chrome 顏色頁底面板宜家顯示喺畫面下半部</translation>
 <translation id="4412992751769744546">允許第三方 Cookie</translation>
@@ -337,6 +346,7 @@
 <translation id="4816495437032298535">已儲存的網站縮放等級</translation>
 <translation id="4836046166855586901">在網站要求知道您是否正在使用此裝置時詢問您</translation>
 <translation id="483914009762354899">包含此網域下的所有網站</translation>
+<translation id="4852997963351138624">背景顏色 (十六進制)</translation>
 <translation id="4882919381756638075">網站通常會使用麥克風來提供視像通訊等通訊功能</translation>
 <translation id="4883854917563148705">無法重設受管理的設定</translation>
 <translation id="4887024562049524730">在允許網站使用您的虛擬實境裝置和資料前先詢問您 (建議)</translation>
@@ -500,6 +510,7 @@
 <translation id="6608650720463149374"><ph name="GIGABYTES" /> GB</translation>
 <translation id="6612358246767739896">受保護內容</translation>
 <translation id="662080504995468778">不離開</translation>
+<translation id="6630443592285535486">在此輸入十六進制值</translation>
 <translation id="6635327442719709864">開咗之後，網站可以要求用序列連接埠。閂咗之後，網站就用唔到序列連接埠。</translation>
 <translation id="6678072580827808850">查看安全檢查結果</translation>
 <translation id="6682057173375416470">在「新分頁」查看建議文章</translation>
@@ -557,6 +568,7 @@
 <translation id="7399802613464275309">安全檢查</translation>
 <translation id="7406113532070524618">此設定運作時不需識別您的身份或允許網站查看您的瀏覽記錄，不過網站可在驗證過程中分享少量資料</translation>
 <translation id="7409735910987429903">網站可傳送彈出式視窗以顯示廣告，或將您重新導向至非預期的網站</translation>
+<translation id="7412160840120117304">主顏色 (十六進制)</translation>
 <translation id="7423098979219808738">事先詢問</translation>
 <translation id="7423538860840206698">禁止讀取剪貼簿</translation>
 <translation id="7425915948813553151">網站深色主題背景</translation>
@@ -688,6 +700,7 @@
 <translation id="8803526663383843427">開啟時</translation>
 <translation id="8805385115381080995">降低網站要求驗證您是真人的機率，讓瀏覽體驗更快速</translation>
 <translation id="8816026460808729765">禁止網站存取感應器</translation>
+<translation id="884765916894384048">轉為背景播放</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8874790741333031443">請嘗試暫時允許使用第三方 Cookie，這代表瀏覽保護程度較低，但網站功能較容易如期運作。</translation>
 <translation id="8889294078294184559">您隨後瀏覽的網站可從 Chrome 取得前一個網站提供的資料，確認您應該是真人</translation>

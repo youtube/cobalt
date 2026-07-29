@@ -9038,11 +9038,11 @@ double WebContentsImpl::GetPendingZoomLevel(RenderWidgetHostImpl* rwh) {
   }
 #if BUILDFLAG(IS_ANDROID)
   return HostZoomMapForRenderFrameHost(rfh)
-      ->GetZoomLevelForHostAndSchemeAndroid(url.scheme(),
+      ->GetZoomLevelForHostAndSchemeAndroid(url.GetScheme(),
                                             net::GetHostOrSpecFromURL(url));
 #else
   return HostZoomMapForRenderFrameHost(rfh)->GetZoomLevelForHostAndScheme(
-      url.scheme(), net::GetHostOrSpecFromURL(url));
+      url.GetScheme(), net::GetHostOrSpecFromURL(url));
 #endif
 }
 
@@ -12061,7 +12061,7 @@ std::unique_ptr<PrerenderHandle> WebContentsImpl::StartPrerendering(
       no_vary_search_hint,
       /*initiator_render_frame_host=*/nullptr, GetWeakPtr(), page_transition,
       should_warm_up_compositor, should_prepare_paint_tree,
-      /*should_pause_javascript_execution=*/false,
+      blink::mojom::SpeculationAction::kPrerender,
       std::move(url_match_predicate),
       std::move(prerender_navigation_handle_callback),
       base::WrapRefCounted(

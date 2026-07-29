@@ -5,6 +5,7 @@
 """A script to evaluate prompts using promptfoo."""
 
 import argparse
+import fnmatch
 import logging
 import os
 import pathlib
@@ -144,7 +145,8 @@ def _get_tests_to_run(
     Args:
         shard_index: The swarming shard index parsed from arguments.
         total_shards: The swarming shard total parsed from arguments.
-        test_filter: The test filter parsed from arguments.
+        test_filter: The test filter parsed from arguments. Should be a string
+            containing a ::-separated list of globs to use for filtering.
 
     Returns:
         A potentially empty list of paths, each path pointing to a valid test
@@ -153,9 +155,20 @@ def _get_tests_to_run(
     shard_index, total_shards = _determine_shard_values(
         shard_index, total_shards)
     configs_to_run = _discover_testcase_files()
-    configs_to_run.sort()
     if test_filter:
-        configs_to_run = [c for c in configs_to_run if test_filter in str(c)]
+        # Temporarily make the paths relative to the root so that filtering
+        # does not take into account any path components outside of the
+        # Chromium checkout.
+        all_string_configs = [
+            str(c.relative_to(constants.CHROMIUM_SRC)) for c in configs_to_run
+        ]
+        filtered_configs = set()
+        for f in test_filter.split('::'):
+            filtered_configs |= set(fnmatch.filter(all_string_configs, f))
+        configs_to_run = [
+            constants.CHROMIUM_SRC / pathlib.Path(c) for c in filtered_configs
+        ]
+    configs_to_run.sort()
     configs_to_run = configs_to_run[shard_index::total_shards]
     return configs_to_run
 
@@ -178,8 +191,11 @@ def _perform_chromium_setup(force: bool, build: bool) -> None:
         _build_chromium(src_path)
 
 
-def _fetch_sandbox_image() -> bool:
+def _fetch_sandbox_image(gemini_cli_bin: pathlib.Path | None = None) -> bool:
     """Pre-fetches the sandbox image.
+
+    Args:
+        gemini_cli_bin: An optional path to the gemini-cli binary to use.
 
     Returns:
         True on success, False on failure.
@@ -189,8 +205,9 @@ def _fetch_sandbox_image() -> bool:
     # sandbox image download.
     with tempfile.TemporaryDirectory() as tmpdir:
         try:
+            command = [gemini_cli_bin or 'gemini', '--sandbox', 'no-op']
             subprocess.run(
-                ['gemini', '--sandbox', 'no-op'],
+                command,
                 text=True,
                 check=True,
                 stdout=subprocess.PIPE,
@@ -220,24 +237,29 @@ def _run_prompt_eval_tests(args: argparse.Namespace) -> int:
     """
     configs_to_run = _get_tests_to_run(args.shard_index, args.total_shards,
                                        args.filter)
+    configs_to_run = configs_to_run * (args.isolated_script_test_repeat + 1)
     if len(configs_to_run) == 0:
         logging.info('No tests to run after filtering and sharding')
         return 1
 
     _perform_chromium_setup(force=args.force, build=not args.no_build)
 
-    promptfoo_dir = pathlib.Path(tempfile.gettempdir()) / 'promptfoo'
-    promptfoo = promptfoo_installation.setup_promptfoo(promptfoo_dir,
-                                                       args.promptfoo_revision,
-                                                       args.promptfoo_version)
+    if args.promptfoo_bin:
+        promptfoo = promptfoo_installation.PreinstalledPromptfooInstallation(
+            args.promptfoo_bin)
+    else:
+        promptfoo_dir = pathlib.Path(tempfile.gettempdir()) / 'promptfoo'
+        promptfoo = promptfoo_installation.setup_promptfoo(
+            promptfoo_dir, args.promptfoo_revision, args.promptfoo_version)
 
-    if args.sandbox and not _fetch_sandbox_image():
+    if args.sandbox and not _fetch_sandbox_image(args.gemini_cli_bin):
         return 1
 
     worker_options = workers.WorkerOptions(clean=not args.no_clean,
                                            verbose=args.verbose,
                                            force=args.force,
-                                           sandbox=args.sandbox)
+                                           sandbox=args.sandbox,
+                                           gemini_cli_bin=args.gemini_cli_bin)
 
     worker_pool = workers.WorkerPool(args.parallel_workers, promptfoo,
                                      worker_options,
@@ -276,6 +298,33 @@ def _run_prompt_eval_tests(args: argparse.Namespace) -> int:
     return returncode
 
 
+def _validate_args(args: argparse.Namespace,
+                   parser: argparse.ArgumentParser) -> None:
+    """Validates that all parsed args have valid values.
+
+    Args:
+        args: The parsed arguments.
+        parser: The parser that parsed |args|.
+    """
+    # Test Selection Arguments group.
+    if args.shard_index is not None and args.shard_index < 0:
+        parser.error('--shard-index must be non-negative')
+    if args.total_shards is not None and args.total_shards < 1:
+        parser.error('--total-shards must be positive')
+    if (args.shard_index is None) != (args.total_shards is None):
+        parser.error(
+            '--shard-index and --total-shards must be set together if set at '
+            'all')
+
+    # Test Runner Arguments group.
+    if args.parallel_workers < 1:
+        parser.error('--parallel-workers must be positive')
+    if args.retries < 0:
+        parser.error('--retries must be non-negative')
+    if args.isolated_script_test_repeat < 0:
+        parser.error('--isolated-script-test-repeat must be non-negative')
+
+
 def _parse_args() -> argparse.Namespace:
     """Parses command line args.
 
@@ -283,58 +332,62 @@ def _parse_args() -> argparse.Namespace:
         An argparse.Namespace containing all parsed known arguments.
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument('--no-clean',
-                        action='store_true',
-                        help='Do not clean up the workdir after evaluation.')
-    parser.add_argument(
-        '--sandbox',
-        default=False,
-        action=argparse.BooleanOptionalAction,
-        help='Use a sandbox for running gemini-cli. This should only be '
-        'disabled for local testing.',
-    )
-    parser.add_argument('--force',
-                        '-f',
-                        action='store_true',
-                        help='Force execution, deleting existing workdirs if '
-                        'they exist.')
-    parser.add_argument('--verbose',
-                        '-v',
-                        action='store_true',
-                        help='Print debug information.')
-    parser.add_argument(
+    group = parser.add_argument_group('Checkout Arguments')
+    group.add_argument('--no-clean',
+                       action='store_true',
+                       help='Do not clean up the workdir after evaluation.')
+    group.add_argument('--force',
+                       '-f',
+                       action='store_true',
+                       help='Force execution, deleting existing workdirs if '
+                       'they exist.')
+    group.add_argument('--no-build',
+                       action='store_true',
+                       help='Do not build out/Default.')
+
+    group = parser.add_argument_group('Output Arguments')
+    group.add_argument('--verbose',
+                       '-v',
+                       action='store_true',
+                       help='Print debug information.')
+    group.add_argument(
         '--print-output-on-success',
         action='store_true',
         help=('Print test output even when a test succeeds. By default, '
               'output is only surfaced when a test fails.'))
-    parser.add_argument('--filter',
-                        help='Only run configs that contain this substring.')
-    parser.add_argument(
-        '--parallel-workers',
-        type=int,
-        default=1,
-        help=('The number of parallel workers to run tests in. Changing this '
-              'is not recommended if the Chromium checkout being used is not '
-              'on btrfs.'))
-    parser.add_argument(
+    group.add_argument(
+        '--isolated-script-test-output',
+        help='Currently unused, parsed to handle all isolated script args.')
+    group.add_argument(
+        '--isolated-script-test-perf-output',
+        help='Currently unused, parsed to handle all isolated script args.')
+
+    group = parser.add_argument_group('Test Selection Arguments')
+    filter_group = group.add_mutually_exclusive_group()
+    filter_group.add_argument(
+        '--filter', help='A ::-separated list of globs of tests to run.')
+    filter_group.add_argument(
+        '--isolated-script-test-filter',
+        dest='filter',
+        help='Alias for --filter to conform to the isolated script standard.')
+    group.add_argument(
         '--shard-index',
         type=int,
         help=(f'The index of the current shard. If set, --total-shards must '
               f'also be set. Can also be set via {_SHARD_INDEX_ENV_VAR}.'))
-    parser.add_argument(
+    group.add_argument(
         '--total-shards',
         type=int,
         help=(f'The total number of shards used to run these tests. If set, '
               f'--shard-index must also be set. Can also be set via '
               f'{_TOTAL_SHARDS_ENV_VAR}.'))
-    parser.add_argument('--no-build',
-                        action='store_true',
-                        help='Do not build out/Default.')
-    parser.add_argument('--retries',
-                        type=int,
-                        default=0,
-                        help='Number of times to retry a failed test.')
-    promptfoo_install_group = parser.add_mutually_exclusive_group()
+
+    group = parser.add_argument_group('Promptfoo Arguments')
+    promptfoo_install_group = group.add_mutually_exclusive_group()
+    promptfoo_install_group.add_argument(
+        '--promptfoo-bin',
+        type=pathlib.Path,
+        help='Path to a custom promptfoo binary to use.')
     promptfoo_install_group.add_argument(
         '--install-promptfoo-from-npm',
         metavar='VERSION',
@@ -351,7 +404,39 @@ def _parse_args() -> argparse.Namespace:
         const='main',
         help=('Build promptfoo from the given source revision. If no revision '
               'is specified, ToT will be used.'))
-    return parser.parse_args()
+
+    group = parser.add_argument_group('gemini-cli Arguments')
+    group.add_argument(
+        '--sandbox',
+        default=False,
+        action=argparse.BooleanOptionalAction,
+        help='Use a sandbox for running gemini-cli. This should only be '
+        'disabled for local testing.',
+    )
+    group.add_argument('--gemini-cli-bin',
+                       type=pathlib.Path,
+                       help='Path to a custom gemini-cli binary to use.')
+
+    group = parser.add_argument_group('Test Runner Arguments')
+    group.add_argument(
+        '--parallel-workers',
+        type=int,
+        default=1,
+        help=('The number of parallel workers to run tests in. Changing this '
+              'is not recommended if the Chromium checkout being used is not '
+              'on btrfs.'))
+    group.add_argument('--retries',
+                       type=int,
+                       default=0,
+                       help='Number of times to retry a failed test.')
+    group.add_argument('--isolated-script-test-repeat',
+                       type=int,
+                       default=0,
+                       help='The number of times to repeat each test.')
+
+    args = parser.parse_args()
+    _validate_args(args, parser)
+    return args
 
 
 def main() -> int:

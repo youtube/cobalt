@@ -23,6 +23,10 @@
   border: initial;
 }
 
+#entrypoint:not([disabled]) {
+  --cr-icon-button-fill-color: var(--cr-button-text-color);
+}
+
 #description {
   display: block;
   font-size: 13px;
@@ -97,6 +101,15 @@
   background-color: var(--cr-hover-background-color);
 }
 
+.dropdown-item[disabled] {
+  color: var(--color-new-tab-page-composebox-context-entrypoint-text-disabled);
+  cursor: default;
+}
+
+.dropdown-item[disabled]:hover {
+  background-color: transparent;
+}
+
 #menu hr {
   background: var(--color-sys-divider);
   border: none;
@@ -109,4 +122,9 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+#createImage {
+  --iron-icon-height: 18px;
+  --iron-icon-width: 18px;
 }

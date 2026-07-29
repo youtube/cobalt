@@ -71,7 +71,7 @@ std::u16string UnescapeIdentityString(std::string_view escaped_text) {
 GURL AppendQueryParameter(const GURL& url,
                           std::string_view name,
                           std::string_view value) {
-  std::string query(url.query());
+  std::string query(url.GetQuery());
 
   if (!query.empty())
     query += "&";
@@ -94,7 +94,7 @@ GURL AppendOrReplaceQueryParameter(const GURL& url,
   if (should_keep_param)
     param_value = base::EscapeQueryParamValue(value.value(), true);
 
-  const std::string_view input = url.query_piece();
+  const std::string_view input = url.query();
   url::Component cursor(0, input.size());
   std::string output;
   url::Component key_range, value_range;
@@ -259,7 +259,7 @@ bool ParseHostAndPort(std::string_view input, std::string* host, int* port) {
 std::string GetHostAndPort(const GURL& url) {
   // For IPv6 literals, GURL::host() already includes the brackets so it is
   // safe to just append a colon.
-  return base::StringPrintf("%s:%d", url.host().c_str(),
+  return base::StringPrintf("%s:%d", url.GetHost().c_str(),
                             url.EffectiveIntPort());
 }
 
@@ -267,8 +267,9 @@ std::string GetHostAndOptionalPort(const GURL& url) {
   // For IPv6 literals, GURL::host() already includes the brackets
   // so it is safe to just append a colon.
   if (url.has_port())
-    return base::StringPrintf("%s:%s", url.host().c_str(), url.port().c_str());
-  return url.host();
+    return base::StringPrintf("%s:%s", url.GetHost().c_str(),
+                              url.GetPort().c_str());
+  return url.GetHost();
 }
 
 NET_EXPORT std::string GetHostAndOptionalPort(
@@ -291,7 +292,7 @@ std::string TrimEndingDot(std::string_view host) {
 }
 
 std::string GetHostOrSpecFromURL(const GURL& url) {
-  return url.has_host() ? TrimEndingDot(url.host_piece()) : url.spec();
+  return url.has_host() ? TrimEndingDot(url.host()) : url.spec();
 }
 
 std::string GetSuperdomain(std::string_view domain) {
@@ -541,12 +542,12 @@ OriginRelation GetOriginRelation(const GURL& target_url,
 void GetIdentityFromURL(const GURL& url,
                         std::u16string* username,
                         std::u16string* password) {
-  *username = UnescapeIdentityString(url.username());
-  *password = UnescapeIdentityString(url.password());
+  *username = UnescapeIdentityString(url.GetUsername());
+  *password = UnescapeIdentityString(url.GetPassword());
 }
 
 bool HasGoogleHost(const GURL& url) {
-  return IsGoogleHost(url.host_piece());
+  return IsGoogleHost(url.host());
 }
 
 bool IsGoogleHost(std::string_view host) {

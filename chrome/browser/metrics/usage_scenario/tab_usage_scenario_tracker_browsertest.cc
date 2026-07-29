@@ -658,8 +658,15 @@ IN_PROC_BROWSER_TEST_F(TabUsageScenarioTrackerBrowserTest, TabAudio) {
             interval_data.source_id_for_longest_visible_origin_duration);
 }
 
+// TODO(https://crbug.com/448444906): There's a race condition in this test
+// between the two calls to ResetIntervalData() that manifests on Mac.
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_FullScreenVideoClosed DISABLED_FullScreenVideoClosed
+#else
+#define MAYBE_FullScreenVideoClosed FullScreenVideoClosed
+#endif
 IN_PROC_BROWSER_TEST_F(TabUsageScenarioTrackerBrowserTest,
-                       FullScreenVideoClosed) {
+                       MAYBE_FullScreenVideoClosed) {
   // Play fullscreen video in a tab and close it while it's playing, ensure that
   // things are tracked properly.
   EXPECT_TRUE(
@@ -716,8 +723,13 @@ IN_PROC_BROWSER_TEST_F(TabUsageScenarioTrackerBrowserTest,
             interval_data.source_id_for_longest_visible_origin_duration);
 }
 
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_FullScreenVideoCrash DISABLED_FullScreenVideoCrash
+#else
+#define MAYBE_FullScreenVideoCrash FullScreenVideoCrash
+#endif
 IN_PROC_BROWSER_TEST_F(TabUsageScenarioTrackerBrowserTest,
-                       FullScreenVideoCrash) {
+                       MAYBE_FullScreenVideoCrash) {
   // Play fullscreen video in a tab and make the tab crash, ensure that things
   // are tracked properly.
   auto* contents = browser()->tab_strip_model()->GetWebContentsAt(0);

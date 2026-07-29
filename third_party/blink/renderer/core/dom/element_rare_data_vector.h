@@ -325,8 +325,10 @@ class CORE_EXPORT ElementRareDataVector final : public NodeRareData {
   AnchorElementObserver& EnsureAnchorElementObserver(Element*);
   AnchorElementObserver* GetAnchorElementObserver() const;
 
+  bool HasCustomElementRegistrySet() const;
   CustomElementRegistry* GetCustomElementRegistry() const;
   void SetCustomElementRegistry(CustomElementRegistry* registry);
+  void ClearCustomElementRegistry();
 
   ElementAnimationTriggerData* AnimationTriggerData();
   ElementAnimationTriggerData& EnsureAnimationTriggerData();
@@ -356,13 +358,15 @@ class CORE_EXPORT ElementRareDataVector final : public NodeRareData {
   bool MayBeImplicitAnchor() const { return fields_.may_be_implicit_anchor; }
   void SetMayBeImplicitAnchor() { fields_.may_be_implicit_anchor = true; }
 
-  FocusgroupFlags GetFocusgroupFlags() const {
-    return fields_.focusgroup_flags;
+  FocusgroupData GetFocusgroupData() const {
+    return {fields_.focusgroup_behavior, fields_.focusgroup_flags};
   }
-  void SetFocusgroupFlags(FocusgroupFlags flags) {
-    fields_.focusgroup_flags = flags;
+  void SetFocusgroupData(FocusgroupData data) {
+    fields_.focusgroup_behavior = data.behavior;
+    fields_.focusgroup_flags = data.flags;
   }
-  void ClearFocusgroupFlags() {
+  void ClearFocusgroupData() {
+    fields_.focusgroup_behavior = FocusgroupBehavior::kNoBehavior;
     fields_.focusgroup_flags = FocusgroupFlags::kNone;
   }
   void SetAffectedByStartingStyles() {
@@ -470,6 +474,7 @@ class CORE_EXPORT ElementRareDataVector final : public NodeRareData {
     unsigned has_been_explicitly_scrolled : 1 = false;
     unsigned may_be_implicit_anchor : 1 = false;
     HasInvalidationFlags has_invalidation_flags;
+    FocusgroupBehavior focusgroup_behavior = FocusgroupBehavior::kNoBehavior;
     FocusgroupFlags focusgroup_flags = FocusgroupFlags::kNone;
     unsigned affected_by_starting_styles : 1 = false;
   };

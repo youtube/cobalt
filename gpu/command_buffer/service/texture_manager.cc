@@ -37,7 +37,6 @@
 #include "gpu/command_buffer/service/feature_info.h"
 #include "gpu/command_buffer/service/framebuffer_manager.h"
 #include "gpu/command_buffer/service/memory_tracking.h"
-#include "gpu/command_buffer/service/service_discardable_manager.h"
 #include "ui/gl/gl_context.h"
 #include "ui/gl/gl_enums.h"
 #include "ui/gl/gl_implementation.h"
@@ -478,10 +477,6 @@ void TextureManager::MarkContextLost() {
 }
 
 void TextureManager::Destroy() {
-  // Retreive any outstanding unlocked textures from the discardable manager so
-  // we can clean them up here.
-  discardable_manager_->OnTextureManagerDestruction(this);
-
   while (!textures_.empty()) {
     textures_.erase(textures_.begin());
     if (progress_reporter_)
@@ -1883,8 +1878,7 @@ TextureManager::TextureManager(scoped_refptr<MemoryTracker> memory_tracker,
                                GLint max_3d_texture_size,
                                GLint max_array_texture_layers,
                                bool use_default_textures,
-                               gl::ProgressReporter* progress_reporter,
-                               ServiceDiscardableManager* discardable_manager)
+                               gl::ProgressReporter* progress_reporter)
     : memory_type_tracker_(new MemoryTypeTracker(std::move(memory_tracker))),
       feature_info_(feature_info),
       max_texture_size_(max_texture_size),
@@ -1910,8 +1904,7 @@ TextureManager::TextureManager(scoped_refptr<MemoryTracker> memory_tracker,
       texture_count_(0),
       have_context_(true),
       current_service_id_generation_(0),
-      progress_reporter_(progress_reporter),
-      discardable_manager_(discardable_manager) {
+      progress_reporter_(progress_reporter) {
   for (int ii = 0; ii < kNumDefaultTextures; ++ii) {
     black_texture_ids_[ii] = 0;
   }
@@ -2137,8 +2130,6 @@ void TextureManager::SetLevelInfo(TextureRef* ref,
   Texture* texture = ref->texture();
   texture->SetLevelInfo(target, level, internal_format, width, height, depth,
                         border, format, type, cleared_rect);
-  discardable_manager_->OnTextureSizeChanged(ref->client_id(), this,
-                                             texture->estimated_size());
 }
 
 TextureRef* TextureManager::Consume(
@@ -2284,7 +2275,6 @@ void TextureManager::ReturnTexture(scoped_refptr<TextureRef> texture_ref) {
 void TextureManager::RemoveTexture(GLuint client_id) {
   TextureMap::iterator it = textures_.find(client_id);
   if (it != textures_.end()) {
-    discardable_manager_->OnTextureDeleted(client_id, this);
     it->second->reset_client_id();
     textures_.erase(it);
   }
@@ -2315,9 +2305,6 @@ void TextureManager::StopTracking(TextureRef* ref) {
   }
   num_uncleared_mips_ -= texture->num_uncleared_mips();
   DCHECK_GE(num_uncleared_mips_, 0);
-
-  if (ref->client_id())
-    discardable_manager_->OnTextureDeleted(ref->client_id(), this);
 }
 
 MemoryTypeTracker* TextureManager::GetMemTracker() {

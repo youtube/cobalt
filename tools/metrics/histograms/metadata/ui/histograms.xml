@@ -633,7 +633,7 @@ features through Chrome Labs. -->
 </histogram>
 
 <histogram name="WebUI.TopChrome.Preload.Reason" enum="WebUIPreloadReason"
-    expires_after="2026-01-25">
+    expires_after="2026-03-29">
   <owner>kerenzhu@chromium.org</owner>
   <owner>tluk@chromium.org</owner>
   <owner>robliao@chromium.org</owner>
@@ -643,7 +643,7 @@ features through Chrome Labs. -->
 </histogram>
 
 <histogram name="WebUI.TopChrome.Preload.Result" enum="WebUIPreloadResult"
-    expires_after="2026-01-25">
+    expires_after="2026-03-29">
   <owner>kerenzhu@chromium.org</owner>
   <owner>dayeung@chromium.org</owner>
   <owner>elainechien@chromium.org</owner>
@@ -874,6 +874,7 @@ features through Chrome Labs. -->
     <variant name="SafetyHubNotificationOpenSafetyHub"/>
     <variant name="SafetyHubNotificationPasswordCheck"/>
     <variant name="SavePage"/>
+    <variant name="SeeDeviceTabs"/>
     <variant name="SendToDevices"/>
     <variant name="SetBrowserAsDefault"/>
     <variant name="Settings"/>

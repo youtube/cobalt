@@ -40,6 +40,7 @@
 <translation id="1500473259453106018">隱藏「分頁中的降價資訊」資訊卡</translation>
 <translation id="1508931164824684991">網站可以使用 JavaScript</translation>
 <translation id="1510341833810331442">禁止網站將資料儲存到裝置</translation>
+<translation id="1532175480576580256">「我的捷徑」底部功能表已開啟在整個畫面上</translation>
 <translation id="1538031354170655462">網站通常會使用近距離無線通訊 (NFC) 技術，與鄰近的追蹤器或裝置搭配運作，例如掃描徽章或感應支付</translation>
 <translation id="1547123415014299762">已允許第三方 Cookie</translation>
 <translation id="1569054338208717605">使用 Chrome 的 V8 引擎加快網站速度，但稍微降低 Chrome 防範攻擊的能力</translation>
@@ -115,6 +116,7 @@
 <translation id="228293613124499805">你造訪的大多數網站可能會在裝置上儲存資料 (偏好設定或你與網站分享的資訊)，通常是為了改善使用體驗。建議你將這項設定保持開啟。</translation>
 <translation id="2289270750774289114">當網站要搜尋附近的藍牙裝置時，必須先詢問你 (建議)</translation>
 <translation id="2315043854645842844">作業系統不允許您在用戶端選取憑證。</translation>
+<translation id="2347601491101454548">「我的捷徑」底部功能表已開啟在畫面下半部</translation>
 <translation id="2359808026110333948">繼續</translation>
 <translation id="2379925928934107488">當 Chrome 採用深色主題時，盡可能對網站套用深色主題</translation>
 <translation id="2390272837142897736">放大</translation>
@@ -145,6 +147,11 @@
 <translation id="2588271083332682494">使用分頁群組，分頁有條不紊</translation>
 <translation id="2597457036804169544">不要對網站套用深色主題</translation>
 <translation id="2606760465469169465">自動驗證</translation>
+<translation id="2610903128639500624">前往 <ph name="BEGIN_LINK1" />Android 設定<ph name="END_LINK1" />管理
+
+進階保護功能可控管以下 Chrome 設定：
+• 開啟「一律使用安全連線」。
+• 關閉「JavaScript 最佳化工具」。<ph name="BEGIN_LINK2" />管理網站例外狀況<ph name="END_LINK2" /></translation>
 <translation id="2621115761605608342">允許特定網站執行 JavaScript。</translation>
 <translation id="2626708220538466178">預設瀏覽器底部功能表已關閉</translation>
 <translation id="2653659639078652383">提交</translation>
@@ -303,6 +310,7 @@
 <translation id="4336566011000459927">Chrome 將於今天再次限制 Cookie</translation>
 <translation id="4338831206024587507"><ph name="DOMAIN" /> 底下的所有網站</translation>
 <translation id="4340799661701629185">禁止網站傳送通知</translation>
+<translation id="4341577178275615435">如要開啟或關閉鍵盤瀏覽功能，請使用快速鍵 F7</translation>
 <translation id="4402755511846832236">禁止網站取得這部裝置的使用狀態</translation>
 <translation id="4412683424767388419">Chrome 顏色底部功能表已開啟，並顯示在畫面下半部</translation>
 <translation id="4412992751769744546">允許第三方 Cookie</translation>
@@ -337,6 +345,7 @@
 <translation id="4816495437032298535">已儲存的網站縮放比例</translation>
 <translation id="4836046166855586901">允許網站詢問你使用這部裝置的時間</translation>
 <translation id="483914009762354899">包括這個網域中的所有網站</translation>
+<translation id="4852997963351138624">背景顏色 (十六進位)</translation>
 <translation id="4882919381756638075">網站通常會使用你的麥克風，以提供視訊通訊等通訊功能</translation>
 <translation id="4883854917563148705">無法重設受管理的設定</translation>
 <translation id="4887024562049524730">系統必須先詢問你，才能允許網站使用你的虛擬實境裝置和資料 (建議設定)</translation>
@@ -500,6 +509,7 @@
 <translation id="6608650720463149374"><ph name="GIGABYTES" /> GB</translation>
 <translation id="6612358246767739896">受保護內容</translation>
 <translation id="662080504995468778">不離開</translation>
+<translation id="6630443592285535486">在這裡輸入十六進位值</translation>
 <translation id="6635327442719709864">如果啟用，網站就可以要求使用序列埠。如果停用，網站將無法使用序列埠。</translation>
 <translation id="6678072580827808850">查看安全檢查</translation>
 <translation id="6682057173375416470">在新分頁顯示推薦文章</translation>
@@ -557,6 +567,7 @@
 <translation id="7399802613464275309">安全檢查</translation>
 <translation id="7406113532070524618">你不必提供身分識別資訊或授權讓網站查看瀏覽記錄，這項設定也能完成驗證。不過，網站在驗證時，可能會分享少量資訊</translation>
 <translation id="7409735910987429903">網站可能會傳送彈出式視窗以顯示廣告，或是透過重新導向將你帶往不想造訪的網站</translation>
+<translation id="7412160840120117304">主要顏色 (十六進位)</translation>
 <translation id="7423098979219808738">先詢問我</translation>
 <translation id="7423538860840206698">禁止讀取剪貼簿</translation>
 <translation id="7425915948813553151">網站的深色主題</translation>

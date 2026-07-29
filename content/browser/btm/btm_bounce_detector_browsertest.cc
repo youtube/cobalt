@@ -126,7 +126,7 @@ using blink::mojom::StorageTypeAccessed;
 // Returns a simplified URL representation for ease of comparison in tests.
 // Just host+path.
 std::string FormatURL(const GURL& url) {
-  return base::StrCat({url.host_piece(), url.path_piece()});
+  return base::StrCat({url.host(), url.path()});
 }
 
 void AppendRedirect(std::vector<std::string>* redirects,
@@ -293,7 +293,7 @@ void WCOCallbackLogger::OnCookiesAccessed(RenderFrameHost* render_frame_host,
                                           const CookieAccessDetails& details) {
   // Callbacks for favicons are ignored only in testing logs because their
   // ordering is variable and would cause flakiness
-  if (details.url.path() == "/favicon.ico") {
+  if (details.url.GetPath() == "/favicon.ico") {
     return;
   }
 

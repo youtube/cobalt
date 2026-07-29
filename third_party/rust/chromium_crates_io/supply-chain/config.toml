@@ -44,7 +44,7 @@ ub-risk-4 = "ub-risk-4"
 [policy."adler2:2.0.1"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
-[policy."anstyle:1.0.11"]
+[policy."anstyle:1.0.13"]
 criteria = ["crypto-safe", "safe-to-run"]
 
 [policy."anyhow:1.0.100"]
@@ -80,7 +80,7 @@ criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 [policy."calendrical_calculations:0.2.2"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
-[policy."cc:1.2.38"]
+[policy."cc:1.2.39"]
 criteria = []
 
 [policy."cfg-if:1.0.3"]
@@ -104,19 +104,19 @@ criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 [policy."crc32fast:1.5.0"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
-[policy."cxx-build:1.0.185"]
+[policy."cxx-build:1.0.186"]
 criteria = []
 
-[policy."cxx:1.0.185"]
+[policy."cxx:1.0.186"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
-[policy."cxxbridge-cmd:1.0.185"]
+[policy."cxxbridge-cmd:1.0.186"]
 criteria = ["crypto-safe", "safe-to-run"]
 
-[policy."cxxbridge-flags:1.0.185"]
+[policy."cxxbridge-flags:1.0.186"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
-[policy."cxxbridge-macro:1.0.185"]
+[policy."cxxbridge-macro:1.0.186"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
 [policy."derive_arbitrary:1.4.2"]
@@ -275,7 +275,7 @@ criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 [policy."log:0.4.28"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
-[policy."memchr:2.7.5"]
+[policy."memchr:2.7.6"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
 [policy."miniz_oxide:0.8.9"]
@@ -311,13 +311,13 @@ criteria = ["crypto-safe", "safe-to-run"]
 [policy."qr_code:2.0.0"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
-[policy."quote:1.0.40"]
+[policy."quote:1.0.41"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
 [policy."read-fonts:0.35.0"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
-[policy."regex-automata:0.4.10"]
+[policy."regex-automata:0.4.11"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
 [policy."regex-syntax:0.8.6"]
@@ -341,13 +341,13 @@ criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 [policy."scratch:1.0.9"]
 criteria = []
 
-[policy."serde:1.0.225"]
+[policy."serde:1.0.228"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
-[policy."serde_core:1.0.225"]
+[policy."serde_core:1.0.228"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
-[policy."serde_derive:1.0.225"]
+[policy."serde_derive:1.0.228"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
 [policy."serde_json:1.0.145"]

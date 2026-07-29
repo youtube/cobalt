@@ -9,6 +9,7 @@
 #include "base/strings/stringprintf.h"
 #include "chrome/browser/devtools/devtools_availability_checker.h"
 #include "chrome/browser/devtools/url_constants.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/webui/devtools/devtools_ui_data_source.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/url_constants.h"
@@ -23,17 +24,17 @@
 // static
 GURL DevToolsUI::GetProxyURL(const std::string& frontend_url) {
   GURL url(frontend_url);
-  if (url.scheme() == content::kChromeDevToolsScheme &&
-      url.host() == chrome::kChromeUIDevToolsHost) {
+  if (url.GetScheme() == content::kChromeDevToolsScheme &&
+      url.GetHost() == chrome::kChromeUIDevToolsHost) {
     return GURL();
   }
-  if (!url.is_valid() || url.host() != kRemoteFrontendDomain) {
+  if (!url.is_valid() || url.GetHost() != kRemoteFrontendDomain) {
     return GURL();
   }
   return GURL(base::StringPrintf(
       "%s://%s/%s/%s?%s", content::kChromeDevToolsScheme,
       chrome::kChromeUIDevToolsHost, chrome::kChromeUIDevToolsRemotePath,
-      url.path().substr(1).c_str(), url.query().c_str()));
+      url.GetPath().substr(1).c_str(), url.GetQuery().c_str()));
 }
 
 // static
@@ -45,7 +46,7 @@ GURL DevToolsUI::GetRemoteBaseURL() {
 
 // static
 bool DevToolsUI::IsFrontendResourceURL(const GURL& url) {
-  if (url.host_piece() == kRemoteFrontendDomain) {
+  if (url.host() == kRemoteFrontendDomain) {
     return true;
   }
 
@@ -54,10 +55,10 @@ bool DevToolsUI::IsFrontendResourceURL(const GURL& url) {
     GURL custom_frontend_url =
         GURL(cmd_line->GetSwitchValueASCII(switches::kCustomDevtoolsFrontend));
     if (custom_frontend_url.is_valid() &&
-        custom_frontend_url.scheme_piece() == url.scheme_piece() &&
-        custom_frontend_url.host_piece() == url.host_piece() &&
+        custom_frontend_url.scheme() == url.scheme() &&
+        custom_frontend_url.host() == url.host() &&
         custom_frontend_url.EffectiveIntPort() == url.EffectiveIntPort() &&
-        base::StartsWith(url.path_piece(), custom_frontend_url.path_piece(),
+        base::StartsWith(url.path(), custom_frontend_url.path(),
                          base::CompareCase::SENSITIVE)) {
       return true;
     }

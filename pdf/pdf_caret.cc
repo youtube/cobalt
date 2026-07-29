@@ -38,12 +38,21 @@ PdfCaret::PdfCaret(PdfCaretClient* client, const PageCharacterIndex& index)
 
 PdfCaret::~PdfCaret() = default;
 
-void PdfCaret::SetVisibility(bool is_visible) {
-  if (is_visible_ == is_visible) {
+void PdfCaret::SetEnabled(bool enabled) {
+  if (enabled_ == enabled) {
     return;
   }
 
-  is_visible_ = is_visible;
+  enabled_ = enabled;
+  RefreshDisplayState();
+}
+
+void PdfCaret::SetVisible(bool visible) {
+  if (is_visible_ == visible) {
+    return;
+  }
+
+  is_visible_ = visible;
   RefreshDisplayState();
 }
 
@@ -72,7 +81,7 @@ void PdfCaret::SetChar(const PageCharacterIndex& next_char) {
 
 void PdfCaret::SetCharAndDraw(const PageCharacterIndex& next_char) {
   SetChar(next_char);
-  if (is_visible_) {
+  if (ShouldDrawCaret()) {
     RefreshDisplayState();
   }
 }
@@ -80,10 +89,6 @@ void PdfCaret::SetCharAndDraw(const PageCharacterIndex& next_char) {
 bool PdfCaret::MaybeDrawCaret(const RegionData& region,
                               const gfx::Rect& dirty_in_screen) const {
   if (!is_blink_visible_) {
-    return false;
-  }
-
-  if (client_->IsSelecting()) {
     return false;
   }
 
@@ -99,7 +104,7 @@ bool PdfCaret::MaybeDrawCaret(const RegionData& region,
 }
 
 void PdfCaret::OnGeometryChanged() {
-  if (!is_visible_) {
+  if (!ShouldDrawCaret()) {
     return;
   }
 
@@ -130,20 +135,24 @@ bool PdfCaret::OnKeyDown(const blink::WebKeyboardEvent& event) {
   }
 }
 
+bool PdfCaret::ShouldDrawCaret() const {
+  return enabled_ && is_visible_;
+}
+
 void PdfCaret::RefreshDisplayState() {
   blink_timer_.Stop();
-  if (is_visible_ && blink_interval_.is_positive()) {
+  is_blink_visible_ = ShouldDrawCaret();
+  if (is_blink_visible_ && blink_interval_.is_positive()) {
     blink_timer_.Start(FROM_HERE, blink_interval_, this,
                        &PdfCaret::OnBlinkTimerFired);
   }
-  is_blink_visible_ = is_visible_;
   if (!caret_screen_rect_.IsEmpty()) {
     client_->InvalidateRect(caret_screen_rect_);
   }
 }
 
 void PdfCaret::OnBlinkTimerFired() {
-  CHECK(is_visible_);
+  CHECK(ShouldDrawCaret());
   CHECK(blink_interval_.is_positive());
   is_blink_visible_ = !is_blink_visible_;
   if (!caret_screen_rect_.IsEmpty()) {

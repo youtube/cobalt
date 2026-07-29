@@ -20,8 +20,6 @@ const char kFeedToggledAction[] = "IOS.HomeCustomization.MainPage.Feed.Toggled";
 
 // User action names for toggling cells from the Magic Stack page in the
 // customization menu.
-const char kSetUpListToggledAction[] =
-    "IOS.HomeCustomization.MagicStackPage.SetUpList.Toggled";
 const char kSafetyCheckToggledAction[] =
     "IOS.HomeCustomization.MagicStackPage.SafetyCheck.Toggled";
 const char kTabResumptionToggledAction[] =
@@ -30,8 +28,6 @@ const char kTipsToggledAction[] =
     "IOS.HomeCustomization.MagicStackPage.Tips.Toggled";
 const char kShopCardPriceTrackingAction[] =
     "IOS.HomeCustomization.MagicStackPage.ShopCardPriceTracking.Toggled";
-const char kShopCardReviewsAction[] =
-    "IOS.HomeCustomization.MagicStackPage.ShopCardReviews.Toggled";
 
 }  // namespace
 
@@ -51,9 +47,6 @@ const char kShopCardReviewsAction[] =
       return;
 
       // Magic Stack toggles.
-    case CustomizationToggleType::kSetUpList:
-      base::RecordAction(base::UserMetricsAction(kSetUpListToggledAction));
-      return;
     case CustomizationToggleType::kSafetyCheck:
       base::RecordAction(base::UserMetricsAction(kSafetyCheckToggledAction));
       return;
@@ -64,14 +57,7 @@ const char kShopCardReviewsAction[] =
       base::RecordAction(base::UserMetricsAction(kTipsToggledAction));
       return;
     case CustomizationToggleType::kShopCard:
-      if (base::Contains(commerce::kShopCardVariation.Get(),
-                         commerce::kShopCardArm1)) {
-        base::RecordAction(
-            base::UserMetricsAction(kShopCardPriceTrackingAction));
-      } else if (commerce::kShopCardVariation.Get() ==
-                 commerce::kShopCardArm2) {
-        base::RecordAction(base::UserMetricsAction(kShopCardReviewsAction));
-      }
+      base::RecordAction(base::UserMetricsAction(kShopCardPriceTrackingAction));
       return;
   }
 }

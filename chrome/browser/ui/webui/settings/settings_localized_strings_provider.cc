@@ -53,7 +53,6 @@
 #include "chrome/common/url_constants.h"
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
-#include "chrome/grit/locale_settings.h"
 #include "components/autofill/content/browser/content_autofill_client.h"
 #include "components/autofill/content/browser/content_autofill_driver.h"
 #include "components/autofill/content/browser/content_autofill_driver_factory.h"
@@ -674,12 +673,10 @@ void AddClearBrowsingDataStrings(content::WebUIDataSource* html_source,
       l10n_util::GetStringFUTF16(
           IDS_SETTINGS_CLEAR_GOOGLE_SEARCH_HISTORY_NON_GOOGLE_DSE,
           chrome::kMyActivityUrlInClearBrowsingData));
-  html_source->AddString(
-      "historyDeletionDialogBody",
-      l10n_util::GetStringFUTF16(
-          IDS_CLEAR_BROWSING_DATA_HISTORY_NOTICE,
-          l10n_util::GetStringUTF16(
-              IDS_SETTINGS_CLEAR_DATA_MYACTIVITY_URL_IN_DIALOG)));
+  html_source->AddString("historyDeletionDialogBody",
+                         l10n_util::GetStringFUTF16(
+                             IDS_CLEAR_BROWSING_DATA_HISTORY_NOTICE,
+                             chrome::kMyActivityUrlInClearBrowsingDataNotice));
   html_source->AddString(
       "passwordsDeletionDialogBody",
       l10n_util::GetStringFUTF16(
@@ -1212,14 +1209,19 @@ bool CheckDeviceAuthAvailability(content::WebContents* web_contents) {
       client->GetDeviceAuthenticator().get());
 }
 
-bool CheckCvcStorageAvailability() {
+bool IsCvcStorageAndFillingEnabled() {
   return base::FeatureList::IsEnabled(
       autofill::features::kAutofillEnableCvcStorageAndFilling);
 }
 
-bool EnableNewFopDisplayDesktop() {
+bool IsNewFopDisplayDesktopEnabled() {
   return base::FeatureList::IsEnabled(
       autofill::features::kAutofillEnableNewFopDisplayDesktop);
+}
+
+bool IsWalletServerStorageEnabled() {
+  return base::FeatureList::IsEnabled(syncer::kSyncWalletFlightReservations) ||
+         base::FeatureList::IsEnabled(syncer::kSyncWalletVehicleRegistrations);
 }
 
 void AddAutofillStrings(content::WebUIDataSource* html_source,
@@ -1228,6 +1230,10 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
   static constexpr webui::LocalizedString kLocalizedStrings[] = {
       {"autofillPageTitle", IDS_SETTINGS_AUTOFILL_AND_PASSWORDS},
       {"yourSavedInfoPageTitle", IDS_SETTINGS_YOUR_SAVED_INFO},
+      {"yourSavedInfoPageDescription",
+       IDS_SETTINGS_YOUR_SAVED_INFO_DESCRIPTION},
+      {"yourSavedInfoRelatedServicesTitle",
+       IDS_SETTINGS_RELATED_SERVICES_TITLE},
       {"passwordsDescription", IDS_SETTINGS_PASSWORD_MANAGER_DESCRIPTION},
       {"genericCreditCard", IDS_AUTOFILL_CC_GENERIC},
       {"creditCards", IDS_AUTOFILL_PAYMENT_METHODS},
@@ -1348,6 +1354,7 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
        IDS_SETTINGS_SECURITY_KEYS_CREDENTIAL_USERNAME_LABEL},
       {"benefitsTermsAriaLabel",
        IDS_AUTOFILL_SETTINGS_PAGE_BENEFITS_TERMS_ARIA_LABEL},
+      {"googleWalletTitle", IDS_AUTOFILL_GOOGLE_WALLET_TITLE},
 #if BUILDFLAG(IS_MAC)
       {"passkeyLengthError", IDS_SETTINGS_PASSKEYS_LENGTH_ERROR},
       {"editPasskeyDialogTitle", IDS_SETTINGS_PASSKEYS_DIALOG_TITLE},
@@ -1464,7 +1471,9 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
       {"removeAddressFromChrome",
        IDS_SETTINGS_HOME_AND_WORK_ADDRESS_REMOVE_CONFIRMATION_DIALOG_ACTION_OK},
       {"homeAndWorkAddressRemovedMessage",
-       IDS_SETTINGS_HOME_AND_WORK_ADDRESS_REMOVED_MESSAGE}};
+       IDS_SETTINGS_HOME_AND_WORK_ADDRESS_REMOVED_MESSAGE},
+      {"nameEmailAddressRemovedMessage",
+       IDS_SETTINGS_NAME_EMAIL_ADDRESS_REMOVED_MESSAGE}};
 
   html_source->AddString("manageAddressesUrl",
                          autofill::payments::GetManageAddressesUrl().spec());
@@ -1512,9 +1521,11 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
   html_source->AddBoolean("deviceAuthAvailable",
                           CheckDeviceAuthAvailability(web_contents));
 
-  html_source->AddBoolean("cvcStorageAvailable", CheckCvcStorageAvailability());
+  html_source->AddBoolean("cvcStorageAvailable",
+                          IsCvcStorageAndFillingEnabled());
 
-  html_source->AddBoolean("enableNewFopDisplay", EnableNewFopDisplayDesktop());
+  html_source->AddBoolean("enableNewFopDisplay",
+                          IsNewFopDisplayDesktopEnabled());
 
   html_source->AddBoolean("autofillCardBenefitsAvailable",
                           payments_data.IsCardBenefitsFeatureEnabled());
@@ -1568,6 +1579,8 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
       autofill_client &&
           autofill::MayPerformAutofillAiAction(
               *autofill_client, autofill::AutofillAiAction::kOptIn));
+  html_source->AddBoolean("isWalletServerStorageEnabled",
+                          IsWalletServerStorageEnabled());
 
   html_source->AddString(
       "autofillPayOverTimeSettingsSublabel",
@@ -1988,7 +2001,7 @@ void AddPrivacyStrings(content::WebUIDataSource* html_source,
        IDS_SETTINGS_ENABLE_DO_NOT_TRACK_DIALOG_LEARN_MORE_ACCESSIBILITY_LABEL},
       // TODO(crbug.com/40122957): This string is no longer used. Remove.
       {"permissionsPageTitle", IDS_SETTINGS_PERMISSIONS},
-      {"permissionsPageDescription", IDS_SETTINGS_PERMISSIONS_DESCRIPTION},
+      {"siteSettingsSublabel", IDS_SETTINGS_PERMISSIONS_DESCRIPTION},
       {"securityPageTitle", IDS_SETTINGS_SECURITY},
       {"securityPageDescription", IDS_SETTINGS_SECURITY_DESCRIPTION},
       {"advancedProtectionProgramTitle",
@@ -2610,6 +2623,7 @@ void AddSiteSettingsStrings(content::WebUIDataSource* html_source,
       {"addSitesTitle", IDS_SETTINGS_ADD_SITES_TITLE},
       {"embeddedOnHost", IDS_SETTINGS_EXCEPTIONS_EMBEDDED_ON_HOST},
       {"editSiteTitle", IDS_SETTINGS_EDIT_SITE_TITLE},
+      {"googleAccount", IDS_SETTINGS_GOOGLE_ACCOUNT},
       {"noBluetoothDevicesFound", IDS_SETTINGS_NO_BLUETOOTH_DEVICES_FOUND},
       {"noHidDevicesFound", IDS_SETTINGS_NO_HID_DEVICES_FOUND},
       {"noSerialPortsFound", IDS_SETTINGS_NO_SERIAL_PORTS_FOUND},
@@ -3206,6 +3220,9 @@ void AddSiteSettingsStrings(content::WebUIDataSource* html_source,
        IDS_SETTINGS_SITE_SETTINGS_JAVASCRIPT_OPTIMIZER_BLOCKED_UNFAMILIAR_SITES},
       {"siteSettingsJavascriptOptimizerBlockedUnfamiliarSitesSubLabel",
        IDS_SETTINGS_SITE_SETTINGS_JAVASCRIPT_OPTIMIZER_BLOCKED_UNFAMILIAR_SITES_SUB_LABEL},
+      {"siteSettingsJavascriptOptimizerBlockedUnfamiliarSitesSafeBrowsingOffSub"
+       "Label",
+       IDS_SETTINGS_SITE_SETTINGS_JAVASCRIPT_OPTIMIZER_BLOCKED_UNFAMILIAR_SITES_SAFE_BROWSING_OFF_SUB_LABEL},
       {"siteSettingsJavascriptOptimizerBlockedSubLabel",
        IDS_SETTINGS_SITE_SETTINGS_JAVASCRIPT_OPTIMIZER_BLOCKED_SUB_LABEL},
       {"siteSettingsJavascriptOptimizerAllowedExceptions",

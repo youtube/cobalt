@@ -355,8 +355,6 @@ GpuChannelManager::GpuChannelManager(
       shader_translator_cache_(gpu_preferences_),
       default_offscreen_surface_(std::move(default_offscreen_surface)),
       gpu_feature_info_(gpu_feature_info),
-      discardable_manager_(gpu_preferences_),
-      passthrough_discardable_manager_(gpu_preferences_),
       image_decode_accelerator_worker_(image_decode_accelerator_worker),
       use_shader_cache_shm_count_(use_shader_cache_shm_count),
       memory_pressure_listener_(
@@ -609,8 +607,6 @@ void GpuChannelManager::PopulateCache(const gpu::GpuDiskCacheHandle& handle,
 void GpuChannelManager::LoseAllContexts() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
-  discardable_manager_.OnContextLost();
-  passthrough_discardable_manager_.OnContextLost();
   share_group_ = base::MakeRefCounted<gl::GLShareGroup>();
   for (auto& kv : gpu_channels_) {
     kv.second->MarkAllContextsLost();
@@ -831,12 +827,9 @@ void GpuChannelManager::HandleMemoryPressure(
   if (program_cache_)
     program_cache_->HandleMemoryPressure(memory_pressure_level);
 
-  // These caches require a current context for cleanup.
+  // SharedContextState requires a current context for cleanup.
   if (shared_context_state_ &&
       shared_context_state_->MakeCurrent(nullptr, true /* needs_gl */)) {
-      discardable_manager_.HandleMemoryPressure(memory_pressure_level);
-      passthrough_discardable_manager_.HandleMemoryPressure(
-          memory_pressure_level);
     shared_context_state_->PurgeMemory(memory_pressure_level);
   }
 

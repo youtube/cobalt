@@ -29,6 +29,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_window.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/tabs/split_tab_metrics.h"
@@ -45,6 +46,7 @@
 #include "chrome/browser/ui/views/side_panel/side_panel_entry.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_entry_id.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_entry_observer.h"
+#include "chrome/browser/ui/views/side_panel/side_panel_header.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_registry.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_util.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
@@ -89,9 +91,7 @@ std::unique_ptr<SidePanelEntry> CreateEntry(const SidePanelEntry::Key& key) {
 
 class SidePanelCoordinatorTest : public InProcessBrowserTest {
  public:
-  SidePanelCoordinatorTest() {
-    scoped_feature_list_.InitWithFeatures({features::kSidePanelResizing}, {});
-  }
+  SidePanelCoordinatorTest() = default;
   virtual void Init() {
     AddTabToBrowser(GURL("http://foo1.com"));
     AddTabToBrowser(GURL("http://foo2.com"));
@@ -182,7 +182,10 @@ class SidePanelCoordinatorTest : public InProcessBrowserTest {
   }
 
   std::u16string_view GetTitleText() {
-    return coordinator()->panel_title_->GetText();
+    return coordinator()
+        ->GetSidePanelHeaderForTesting()
+        ->panel_title()
+        ->GetText();
   }
 
   void AddTabToBrowser(const GURL& tab_url) {
@@ -281,14 +284,12 @@ class SidePanelCoordinatorTest : public InProcessBrowserTest {
 
   std::vector<raw_ptr<SidePanelRegistry, DanglingUntriaged>>
       contextual_registries_;
-  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 class SidePanelCoordinatorWithSideBySideTest : public SidePanelCoordinatorTest {
  public:
   SidePanelCoordinatorWithSideBySideTest() {
-    scoped_feature_list_.InitWithFeatures(
-        {features::kSidePanelResizing, features::kSideBySide}, {});
+    scoped_feature_list_.InitWithFeatures({features::kSideBySide}, {});
   }
 
  private:
@@ -824,7 +825,9 @@ IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorTest,
 
   SidePanelEntry* entry = global_registry()->GetEntryForKey(
       SidePanelEntry::Key(SidePanelEntry::Id::kBookmarks));
-  actions::ActionItem* action_item = coordinator()->GetActionItem(entry->key());
+  actions::ActionItem* action_item = actions::ActionManager::Get().FindAction(
+      kActionSidePanelShowBookmarks,
+      browser()->GetActions()->root_action_item());
 
   // Update the action item text.
   const std::u16string new_title = u"New Bookmarks title";
@@ -2283,7 +2286,10 @@ IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorTest,
   coordinator()->SetNoDelaysForTesting(true);
   coordinator()->DisableAnimationsForTesting();
   coordinator()->Show(SidePanelEntry::Id::kBookmarks);
-  EXPECT_TRUE(coordinator()->GetHeaderPinButtonForTesting()->GetVisible());
+  EXPECT_TRUE(coordinator()
+                  ->GetSidePanelHeaderForTesting()
+                  ->header_pin_button()
+                  ->GetVisible());
 
   // Make a guest window. This process can be either synchronous or
   // asynchronous, so use RunUntil.
@@ -2300,12 +2306,14 @@ IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorTest,
   coordinator->SetNoDelaysForTesting(true);
   coordinator->DisableAnimationsForTesting();
   coordinator->Show(SidePanelEntry::Id::kBookmarks);
-  EXPECT_FALSE(coordinator->GetHeaderPinButtonForTesting()->GetVisible());
+  EXPECT_FALSE(coordinator->GetSidePanelHeaderForTesting()
+                   ->header_pin_button()
+                   ->GetVisible());
 }
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 
 // Verifies that clicking the pin button on an extensions side panel, pins the
-// extension in ToolbarActionModel.
+// extension in ToolbarActionsModel.
 IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorTest,
                        ExtensionSidePanelHasPinButton) {
   Init();
@@ -2320,7 +2328,7 @@ IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorTest,
       GetKeyForExtension(extension->id())));
 
   views::ToggleImageButton* pin_button =
-      coordinator()->GetHeaderPinButtonForTesting();
+      coordinator()->GetSidePanelHeaderForTesting()->header_pin_button();
   EXPECT_TRUE(pin_button->GetVisible());
   EXPECT_FALSE(pin_button->GetToggled());
 
@@ -2340,9 +2348,11 @@ class SidePanelCoordinatorLensOverlayTest : public SidePanelCoordinatorTest {
  public:
   SidePanelCoordinatorLensOverlayTest() {
     scoped_feature_list_.Reset();
-    scoped_feature_list_.InitWithFeatures(
-        {features::kSidePanelResizing, lens::features::kLensOverlay}, {});
+    scoped_feature_list_.InitWithFeatures({lens::features::kLensOverlay}, {});
   }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorLensOverlayTest,
@@ -2354,7 +2364,7 @@ IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorLensOverlayTest,
                                    SidePanelEntry::PanelType::kContent),
                                SidePanelEntry::Id::kLensOverlayResults);
   views::ImageButton* more_info_button =
-      coordinator()->GetHeaderMoreInfoButtonForTesting();
+      coordinator()->GetSidePanelHeaderForTesting()->header_more_info_button();
   EXPECT_TRUE(more_info_button->GetVisible());
 }
 
@@ -2367,7 +2377,7 @@ IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorLensOverlayTest,
                                    SidePanelEntry::PanelType::kContent),
                                SidePanelEntry::Id::kLens);
   views::ImageButton* more_info_button =
-      coordinator()->GetHeaderMoreInfoButtonForTesting();
+      coordinator()->GetSidePanelHeaderForTesting()->header_more_info_button();
   EXPECT_FALSE(more_info_button->GetVisible());
 }
 

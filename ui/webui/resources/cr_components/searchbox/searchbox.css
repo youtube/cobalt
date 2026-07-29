@@ -331,7 +331,7 @@ cr-searchbox-icon {
   z-index: 100;
 }
 
-cr-searchbox-dropdown {
+.dropdownContainer {
   left: 0;
   position: absolute;
   right: 0;
@@ -365,11 +365,40 @@ cr-searchbox-dropdown {
 :host([realbox-layout-mode='Tall']) {
   --cr-searchbox-border-radius: 26px;
   --cr-searchbox-compose-button-position-top: 12px;
-  --cr-searchbox-dropdown-padding-bottom: 48px;
-  --cr-searchbox-dropdown-padding-top: 56px;
-  --cr-searchbox-height: 114px;
+  --cr-searchbox-dropdown-padding-bottom: 12px;
+  --cr-searchbox-dropdown-padding-top: 62px;
+  --cr-searchbox-height: 112px;
   --cr-searchbox-icon-height: 40px;
   --cr-searchbox-input-padding-top_: 22px;
+  --text-input-inline-start-spacing: 16px;
+}
+
+:host([realbox-layout-mode='Tall']) cr-searchbox-dropdown::part(dropdown-content) {
+  background-color: unset;
+  border-radius: unset;
+  box-shadow: unset;
+  gap: unset;
+  margin-bottom: unset;
+  overflow: unset;
+  padding-bottom: unset;
+  padding-top: unset;
+}
+
+:host([realbox-layout-mode='Tall']) .dropdownContainer {
+  background-color: var(--color-searchbox-results-background);
+  border-radius: var(--cr-searchbox-border-radius);
+  box-shadow: var(--cr-searchbox-shadow);
+  gap: 16px;
+  margin-bottom: var(--cr-searchbox-results-margin-bottom, 8px);
+  overflow: hidden;
+  padding-bottom: var(--cr-searchbox-dropdown-padding-bottom);
+  padding-top: var(--cr-searchbox-dropdown-padding-top);
+}
+
+@media (forced-colors: active) {
+  :host([realbox-layout-mode='Tall']) .dropdownContainer {
+    border: 1px solid ActiveBorder;
+  }
 }
 
 :host([realbox-layout-mode='Tall']) #inputWrapper {
@@ -403,6 +432,11 @@ cr-searchbox-dropdown {
   padding: 8px 12px;
 }
 
+:host([realbox-layout-mode='Tall'][has-context-files_]) #voiceSearchButton,
+:host([realbox-layout-mode='Tall'][has-context-files_]) #lensSearchButton {
+  display: none;
+}
+
 :host([realbox-layout-mode='Tall'][dropdown-is-visible]) cr-searchbox-icon {
   height: 24px;
   inset-inline-start: 12px;
@@ -420,4 +454,8 @@ cr-searchbox-dropdown {
 
 :host-context([realbox-layout-mode='Tall']) #composeButton {
   --cr-button-height: 36px;
+}
+
+:host-context([realbox-layout-mode='Tall']) #errorScrim {
+  border-radius: inherit;
 }

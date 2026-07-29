@@ -52,7 +52,10 @@
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 #include "ui/gfx/geometry/rect_f.h"
+#include "ui/gfx/geometry/size.h"
 #include "ui/views/cocoa/native_widget_mac_ns_window_host.h"
+#include "ui/views/controls/label.h"
+#include "ui/views/layout/layout_types.h"
 #include "ui/views/widget/widget.h"
 
 namespace {
@@ -195,9 +198,6 @@ gfx::Rect BrowserFrameViewMac::GetBoundsForTabStripRegion(
 
 gfx::Rect BrowserFrameViewMac::GetBoundsForWebAppFrameToolbar(
     const gfx::Size& toolbar_preferred_size) const {
-  if (ShouldHideTopUIForFullscreen()) {
-    return gfx::Rect();
-  }
   gfx::Rect bounds(0, 0, width(),
                    toolbar_preferred_size.height() + kWebAppMenuMargin * 2);
 
@@ -207,6 +207,15 @@ gfx::Rect BrowserFrameViewMac::GetBoundsForWebAppFrameToolbar(
   }
 
   return bounds;
+}
+
+BrowserLayoutParams BrowserFrameViewMac::GetBrowserLayoutParams() const {
+  if (browser_view()->IsFullscreen()) {
+    // No insets for caption buttons in fullscreen, since caption buttons are on
+    // a separate pane that slides in.
+    return BrowserLayoutParams{.visual_client_area = GetBoundsForClientView()};
+  }
+  return BrowserFrameView::GetBrowserLayoutParams();
 }
 
 int BrowserFrameViewMac::GetTopInset(bool restored) const {
@@ -293,12 +302,9 @@ void BrowserFrameViewMac::OnAppRegistrarDestroyed() {
   always_show_toolbar_in_fullscreen_observation_.Reset();
 }
 
-bool BrowserFrameViewMac::ShouldHideTopUIForFullscreen() const {
-  if (browser_widget()->IsFullscreen()) {
-    return [fullscreen_toolbar_controller_ toolbarStyle] !=
-           FullscreenToolbarStyle::TOOLBAR_PRESENT;
-  }
-  return false;
+bool BrowserFrameViewMac::ShouldHideTopUIInFullscreen() const {
+  return [fullscreen_toolbar_controller_ toolbarStyle] !=
+         FullscreenToolbarStyle::TOOLBAR_PRESENT;
 }
 
 void BrowserFrameViewMac::UpdateThrobber(bool running) {}
@@ -312,6 +318,39 @@ void BrowserFrameViewMac::OnThemeChanged() {
   UpdateCaptionButtonPlaceholderContainerBackground();
   BrowserFrameView::OnThemeChanged();
 }
+
+void BrowserFrameViewMac::LayoutWebAppWindowTitle(
+    const gfx::Rect& available_space,
+    views::Label& window_title_label) const {
+  // LINT.IfChange(mac_title_padding_width_fraction)
+  static constexpr double kTitlePaddingWidthFraction = 0.1;
+  // LINT.ThenChange(//chrome/browser/ui/views/web_apps/frame_toolbar/web_app_frame_toolbar_browsertest.cc:mac_title_padding_width_fraction)
+
+  gfx::Rect toolbar_bounds(0, 0, width(), available_space.height());
+  gfx::Rect title_bounds = available_space;
+
+  const int title_padding =
+      base::ClampRound(width() * kTitlePaddingWidthFraction);
+  title_bounds.Inset(gfx::Insets::VH(0, title_padding));
+
+  // Center in the container and make it fit in the available space.
+  int preferred_title_width =
+      window_title_label
+          .GetPreferredSize(views::SizeBounds(window_title_label.width(), {}))
+          .width();
+  toolbar_bounds.ClampToCenteredSize(
+      gfx::Size(preferred_title_width, toolbar_bounds.height()));
+  toolbar_bounds.AdjustToFit(title_bounds);
+
+  window_title_label.SetBoundsRect(toolbar_bounds);
+
+  // The background of the title area is always opaquely drawn, but when in
+  // immersive fullscreen, it is drawn in a way that isn't detected by the
+  // DCHECK in Label. As such, disable the DCHECK.
+  window_title_label.SetSkipSubpixelRenderingOpacityCheck(
+      browser_view()->IsImmersiveModeEnabled());
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // BrowserFrameViewMac, views::FrameView implementation:
 

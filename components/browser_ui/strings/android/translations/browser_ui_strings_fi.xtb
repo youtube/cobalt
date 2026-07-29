@@ -40,6 +40,7 @@
 <translation id="1500473259453106018">Piilota "Hinnanalennukset avoimilla välilehdillä" ‑kortti</translation>
 <translation id="1508931164824684991">Sivustot voivat käyttää JavaScriptiä</translation>
 <translation id="1510341833810331442">Sivustot eivät saa tallentaa dataa laitteellesi</translation>
+<translation id="1532175480576580256">Omat pikakuvakkeet ‑alapaneeli avattu kokonaan</translation>
 <translation id="1538031354170655462">Sivustot käyttävät yleensä Near Field Communication (NFC) -teknologiaa toimiakseen lähellä olevien tagien tai laitteiden kanssa, esimerkiksi tunnusten skannaamiseen tai lähimaksamiseen</translation>
 <translation id="1547123415014299762">Kolmannen osapuolen evästeet on sallittu</translation>
 <translation id="1569054338208717605">Nopeuta sivustoja Chromen V8-moottorilla, mutta heikennä Chromen suojaa hyökkäyksiä vastaan</translation>
@@ -115,6 +116,7 @@
 <translation id="228293613124499805">Useimmat avaamasi sivustot tallentavat todennäköisesti dataa laitteellesi. Tarkoituksena on yleensä parantaa kokemustasi tallentamalla sivustolle jakamiasi asetuksia tai tietoja. Suosittelemme pitämään asetuksen päällä.</translation>
 <translation id="2289270750774289114">Kysy aina, kun sivusto pyytää lupaa löytää lähellä olevat Bluetooth-laitteet (suositus)</translation>
 <translation id="2315043854645842844">Käyttöjärjestelmä ei tue palvelimen varmennevalintaa.</translation>
+<translation id="2347601491101454548">Omat pikakuvakkeet ‑alapaneeli avattu puoliksi</translation>
 <translation id="2359808026110333948">Jatka</translation>
 <translation id="2379925928934107488">Jos mahdollista, käytä tummaa teemaa sivustoilla, kun se on Chromen käytössä</translation>
 <translation id="2390272837142897736">Lisää zoomausta</translation>
@@ -145,6 +147,11 @@
 <translation id="2588271083332682494">Laita asiat järjestykseen välilehtiryhmillä</translation>
 <translation id="2597457036804169544">Älä käytä tummaa teemaa sivustoilla</translation>
 <translation id="2606760465469169465">Vahvista automaattisesti</translation>
+<translation id="2610903128639500624">Muuta valintaa <ph name="BEGIN_LINK1" />Android-asetuksista<ph name="END_LINK1" />
+
+Lisäsuojaus ohjaa näitä Chromen asetuksia:
+• "Käytä aina suojattuja yhteyksiä" on päällä.
+• "JavaScript-optimoija" on pois päältä. <ph name="BEGIN_LINK2" />Muokkaa sivustoja koskevia poikkeuksia<ph name="END_LINK2" />.</translation>
 <translation id="2621115761605608342">Salli JavaScript tietyllä sivustolla.</translation>
 <translation id="2626708220538466178">Oletusselaimen alapaneeli suljettu</translation>
 <translation id="2653659639078652383">Lähetä</translation>
@@ -303,6 +310,7 @@
 <translation id="4336566011000459927">Chrome rajoittaa evästeet uudelleen tänään</translation>
 <translation id="4338831206024587507">Kaikki sivustot, jotka kuuluvat verkkotunnukseen <ph name="DOMAIN" /></translation>
 <translation id="4340799661701629185">Älä salli sivustojen lähettää ilmoituksia</translation>
+<translation id="4341577178275615435">Voit laittaa näppäimistöselaamisen päälle tai pois päältä pikanäppäimellä F7</translation>
 <translation id="4402755511846832236">Estä sivustoja tietämästä, kun käytät tätä laitetta aktiivisesti</translation>
 <translation id="4412683424767388419">Chromen värien alapaneeli avattu puoliksi</translation>
 <translation id="4412992751769744546">Salli kolmannen osapuolen evästeet</translation>
@@ -337,6 +345,7 @@
 <translation id="4816495437032298535">Tallennettu zoomaus sivustoille</translation>
 <translation id="4836046166855586901">Kysy aina, kun sivusto pyytää lupaa nähdä, käytätkö tätä laitetta aktiivisesti</translation>
 <translation id="483914009762354899">Lisää kaikki tämän verkkotunnuksen sivustot</translation>
+<translation id="4852997963351138624">Taustavärin heksadesimaali</translation>
 <translation id="4882919381756638075">Sivustot käyttävät mikrofonia yleensä kommunikaatio-ominaisuuksiin, kuten videopuheluihin</translation>
 <translation id="4883854917563148705">Ylläpidettyjä asetuksia ei voi nollata</translation>
 <translation id="4887024562049524730">Kysy, saavatko sivustot käyttää virtuaalitodellisuuslaitteitasi ja ‑dataasi (suositus)</translation>
@@ -500,6 +509,7 @@
 <translation id="6608650720463149374"><ph name="GIGABYTES" /> Gt</translation>
 <translation id="6612358246767739896">Suojattu sisältö</translation>
 <translation id="662080504995468778">Jää</translation>
+<translation id="6630443592285535486">Kirjoita heksadesimaali tähän</translation>
 <translation id="6635327442719709864">Kun tämä on päällä, sivustot voivat pyytää lupaa käyttää sarjaportteja. Kun tämä on pois päältä, sivustot eivät voi käyttää sarjaportteja.</translation>
 <translation id="6678072580827808850">Tarkista turvatarkistus</translation>
 <translation id="6682057173375416470">Saa ehdotettuja artikkeleita Uusi välilehti ‑sivulla</translation>
@@ -557,6 +567,7 @@
 <translation id="7399802613464275309">Turvatarkistus</translation>
 <translation id="7406113532070524618">Tämä asetus toimii niin, että sinua ei tunnisteta eivätkä sivustot näe selaushistoriaasi, mutta sivustot voivat jakaa pienen määrän tietoja osana todennusta</translation>
 <translation id="7409735910987429903">Sivustot voivat näyttää mainoksia ponnahdusikkunoissa tai ohjata sinut uudelleen sivustoille, joille et halunnut siirtyä</translation>
+<translation id="7412160840120117304">Ensisijaisen värin heksadesimaali</translation>
 <translation id="7423098979219808738">Kysy ensin</translation>
 <translation id="7423538860840206698">Leikepöydältä lukeminen estetty</translation>
 <translation id="7425915948813553151">Sivustojen tumma teema</translation>

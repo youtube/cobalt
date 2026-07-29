@@ -365,6 +365,19 @@ chromium-metrics-reviews@google.com.
 
 <!--  LINT.ThenChange(//android_webview/glue/java/src/com/android/webview/chromium/WebViewChromiumAwInit.java:WebViewChromiumStartupMode) -->
 
+<histogram name="Android.ActivityStop.NumberOfPinnedTabsUsed" units="count"
+    expires_after="2026-10-01">
+  <owner>madhavpruthi@google.com</owner>
+  <owner>ckitagawa@google.com</owner>
+  <owner>clank-tab-dev@google.com</owner>
+  <summary>
+    Captures the number of regular and incognito pinned tabs used. Pinned tabs
+    used are calculated by identifying the number of pinned tabs that were
+    selected between ChromeTabbedActivity onResumeWithNative() and
+    onStopWithNative(). This is recorded when onStopWithNative() is called.
+  </summary>
+</histogram>
+
 <histogram name="Android.ActivityStop.NumberOfTabsUsed" units="count"
     expires_after="2026-03-22">
   <owner>gauravjj@google.com</owner>
@@ -378,6 +391,22 @@ chromium-metrics-reviews@google.com.
     opening another activity like SettingsActivity. If multiple instances are
     running, each instance will only track and record usage of tabs that it
     contains.
+  </summary>
+</histogram>
+
+<histogram name="Android.ActivityStop.PercentageOfPinnedTabsUsed" units="%"
+    expires_after="2026-10-01">
+  <owner>madhavpruthi@google.com</owner>
+  <owner>ckitagawa@google.com</owner>
+  <owner>clank-tab-dev@google.com</owner>
+  <summary>
+    Captures the percentage of regular and incognito pinned tabs used. This is
+    calculated by finding the ratio of the number of pinned tabs used to the
+    total number of pinned tabs available between ChromeTabbedActivity
+    onResumedWithNative and onStopWithNative. Total number of pinned tabs
+    available is the sum of the pinned tab count when CTA is resumed and any new
+    tabs that are pinned before CTA is stopped. This is recorded when
+    ChromeTabbedActivity#onStopWithNative() is called.
   </summary>
 </histogram>
 
@@ -579,6 +608,20 @@ chromium-metrics-reviews@google.com.
 
     Only recorded when the &quot;PageContentProvider&quot; feature is enabled
     and assistant is invoked while viewing a web page.
+  </summary>
+</histogram>
+
+<histogram name="Android.AssistContent.WebPage" units="BooleanSuccess"
+    expires_after="2026-03-01">
+  <owner>salg@google.com</owner>
+  <owner>ssid@google.com</owner>
+  <summary>
+    Records whether a JSON string with ContentProvider URIs was attached to an
+    AssistContent object when assistant was invoked while ChromeActivity was in
+    the foreground.
+
+    Recorded when an assistant is invoked while viewing a non-incognito http/s
+    web page.
   </summary>
 </histogram>
 
@@ -1011,7 +1054,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.BackPress.MinimizeAppAndCloseTab"
-    enum="MinimizeAppAndCloseTabType" expires_after="2026-01-25">
+    enum="MinimizeAppAndCloseTabType" expires_after="2026-03-29">
   <owner>lazzzis@chromium.org</owner>
   <owner>src/chrome/browser/back_press/android/OWNERS</owner>
   <summary>
@@ -1021,7 +1064,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.BackPress.MinimizeAppAndCloseTab.CustomTab.{Task}"
-    enum="MinimizeAppAndCloseTabType" expires_after="2026-01-25">
+    enum="MinimizeAppAndCloseTabType" expires_after="2026-03-29">
   <owner>lazzzis@chromium.org</owner>
   <owner>src/chrome/browser/back_press/android/OWNERS</owner>
   <summary>
@@ -1096,7 +1139,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Android.BottomControlsStacker.PercentageOfWindowUsedByBottomControlsAtMaxHeight"
-    units="%" expires_after="2026-01-27">
+    units="%" expires_after="2026-03-29">
   <owner>pnoland@chromium.org</owner>
   <owner>wenyufu@chromium.org</owner>
   <summary>
@@ -1109,7 +1152,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Android.BottomControlsStacker.PercentageOfWindowUsedByBottomControlsAtMinHeight"
-    units="%" expires_after="2026-01-27">
+    units="%" expires_after="2026-03-29">
   <owner>pnoland@chromium.org</owner>
   <owner>wenyufu@chromium.org</owner>
   <summary>
@@ -1181,6 +1224,19 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Android.BrowserControls.RenderDrivenShowConstraint"
+    enum="Boolean" expires_after="2026-04-01">
+  <owner>wenyufu@chromium.org</owner>
+  <owner>clank-app-team@google.com</owner>
+  <summary>
+    Records when browser controls constraint is set to &quot;SHOWN&quot;,
+    whether the render is capable to drive the browser controls show animation.
+    The record is used for crbug.com/449011189. Recorded after native is fully
+    initialized and when feature BrowserControlsRenderDrivenShowConstraint is
+    enabled.
+  </summary>
+</histogram>
+
 <histogram name="Android.BrowsingDataModel.ModelDestructionTime" units="ms"
     expires_after="2025-12-14">
   <owner>alimariam@google.com</owner>
@@ -1248,7 +1304,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.ChildProcessConectionEventCounts"
-    enum="AndroidChildProcessConnectionEvents" expires_after="2026-01-25">
+    enum="AndroidChildProcessConnectionEvents" expires_after="2026-03-29">
   <owner>boliu@chromium.org</owner>
   <owner>yfriedman@chromium.org</owner>
   <summary>
@@ -1261,7 +1317,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.ChildProcessConnection.OnServiceConnectedCounts"
-    units="count" expires_after="2026-01-25">
+    units="count" expires_after="2026-03-29">
   <owner>boliu@chromium.org</owner>
   <owner>kawasin@chromium.org</owner>
   <owner>yfriedman@chromium.org</owner>
@@ -1276,7 +1332,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.ChildProcessRanking.{RankType}.Count" units="count"
-    expires_after="2026-01-25">
+    expires_after="2026-03-29">
   <owner>kawasin@google.com</owner>
   <owner>clank-performance-team@google.com</owner>
   <summary>
@@ -1603,6 +1659,19 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Android.Display.IsDisplayTopologyAvaialble" enum="Boolean"
+    expires_after="2025-12-31">
+  <owner>renkens@google.com</owner>
+  <owner>boliu@chromium.org</owner>
+  <summary>
+    Reports whether usage of the Display Topology Android API on this device is
+    allowed (when AndroidUseDisplayTopology feature flag is enabled and the
+    Android version provides the Display Topology API) or blocked. Recorded once
+    in DisplayAndroidManager.initialize() every time Chrome on Android or
+    Android WebView starts up.
+  </summary>
+</histogram>
+
 <histogram name="Android.Display.IsNullDisplayRemoved" enum="Boolean"
     expires_after="2025-12-01">
   <owner>renkens@google.com</owner>
@@ -1737,7 +1806,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.DragDrop.FromWebContent.DropInWebContent.Duration"
-    units="ms" expires_after="2026-01-25">
+    units="ms" expires_after="2026-03-29">
   <owner>wenyufu@chromium.org</owner>
   <owner>clank-large-form-factors@google.com</owner>
   <summary>
@@ -1999,7 +2068,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.EdgeToEdge.Debugging.ConfigurationSwitchOutcome"
-    enum="EdgeToEdgeConfigurationSwitchOutcome" expires_after="2026-01-25">
+    enum="EdgeToEdgeConfigurationSwitchOutcome" expires_after="2026-03-29">
   <owner>clhager@google.com</owner>
   <owner>wenyufu@chromium.org</owner>
   <owner>edge-to-edge@chromium.org</owner>
@@ -2025,7 +2094,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.EdgeToEdge.DrawToEdgeInUnsupportedConfiguration"
-    enum="Boolean" expires_after="2026-01-25">
+    enum="Boolean" expires_after="2026-03-29">
   <owner>clhager@google.com</owner>
   <owner>wenyufu@chromium.org</owner>
   <owner>edge-to-edge@chromium.org</owner>
@@ -2504,6 +2573,29 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.InputOnViz.Browser.SequenceDroppedReason"
+    enum="InputOnVizSequenceDroppedReason" expires_after="M142">
+  <owner>kartarsingh@google.com</owner>
+  <owner>woa-performance-team@google.com</owner>
+  <summary>
+    Obsolete metric, replaced by
+    Android.InputOnViz.Browser.SequenceDroppedReason2.
+
+    Records the reason a touch sequence was dropped on browser process while
+    InputOnViz was enabled. A dropped touch sequence would have not have any
+    affect on web contents, the input events never get transferred over to
+    Renderer for such a sequence.
+
+    The histogram is emitted every time a touch sequence is dropped on Browser
+    procoess due to various reasons, when InputOnViz feature is enabled.
+
+    `Android.InputOnViz.Browser.EventTypesInDroppedSequence` and
+    `Android.InputOnViz.Browser.NumEventsInDroppedSequence` could be used to
+    know what type of events exist in dropped sequences and the number of events
+    in these dropped sequences.
+  </summary>
+</histogram>
+
+<histogram name="Android.InputOnViz.Browser.SequenceDroppedReason2"
     enum="InputOnVizSequenceDroppedReason" expires_after="2026-02-22">
   <owner>kartarsingh@google.com</owner>
   <owner>woa-performance-team@google.com</owner>
@@ -2512,6 +2604,9 @@ chromium-metrics-reviews@google.com.
     InputOnViz was enabled. A dropped touch sequence would have not have any
     affect on web contents, the input events never get transferred over to
     Renderer for such a sequence.
+
+    The histogram is emitted every time a touch sequence is dropped on Browser
+    procoess due to various reasons, when InputOnViz feature is enabled.
 
     `Android.InputOnViz.Browser.EventTypesInDroppedSequence` and
     `Android.InputOnViz.Browser.NumEventsInDroppedSequence` could be used to
@@ -2573,7 +2668,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.InputOnViz.Viz.DroppedNonTouchActions"
-    enum="MotionEventAction" expires_after="2026-01-25">
+    enum="MotionEventAction" expires_after="2026-03-29">
   <owner>kartarsingh@google.com</owner>
   <owner>woa-performance-team@google.com</owner>
   <summary>
@@ -2584,7 +2679,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.InputOnViz.Viz.PendingStateTransfers.{CurrentState}"
-    units="counts" expires_after="2026-01-18">
+    units="counts" expires_after="2026-03-29">
   <owner>kartarsingh@google.com</owner>
   <owner>woa-performance-team@google.com</owner>
   <summary>
@@ -2601,7 +2696,19 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
-<histogram name="Android.InputOnViz.Viz.StateProcessingResult2"
+<histogram name="Android.InputOnViz.Viz.SequenceDroppedReason"
+    enum="VizSequenceDroppedReason" expires_after="2026-02-22">
+  <owner>kartarsingh@google.com</owner>
+  <owner>woa-performance-team@google.com</owner>
+  <summary>
+    Viz side variant of `Android.InputOnViz.Browser.SequenceDroppedReason2`
+    histogram.
+
+    The metric records whenever a touch sequence is dropped on Viz side.
+  </summary>
+</histogram>
+
+<histogram name="Android.InputOnViz.Viz.StateProcessingResult3"
     enum="InputOnVizStateProcessingResult" expires_after="2026-01-25">
   <owner>kartarsingh@google.com</owner>
   <owner>woa-performance-team@google.com</owner>
@@ -2609,6 +2716,11 @@ chromium-metrics-reviews@google.com.
     Records what happened to state received on Viz, upon successful transfer of
     a touch sequence the Browser process sends over touch transfer state for Viz
     to handle input sequence.
+
+    Compared to `Android.InputOnViz.Viz.StateProcessingResult2`, version 3 of
+    histogram further splits some of the `ProcessedSuccessfully` cases into
+    `TransferBackToBrowserSuccessfully` and `DroppedTransferBackToBrowserFailed`
+    buckets.
   </summary>
 </histogram>
 
@@ -2941,7 +3053,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.Messages.Enqueued.Hidden" enum="MessageIdentifier"
-    expires_after="2026-01-25">
+    expires_after="2026-03-29">
   <owner>lazzzis@chromium.org</owner>
   <owner>src/components/messages/OWNERS</owner>
   <summary>
@@ -3119,7 +3231,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.MultiInstance.MaxInstanceCount" units="instances"
-    expires_after="2026-01-25">
+    expires_after="2026-03-29">
   <owner>jinsukkim@chromium.org</owner>
   <owner>twellington@chromium.org</owner>
   <owner>clank-app-team@google.com</owner>
@@ -5768,7 +5880,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.ToolbarPosition.PositionAtStartup"
-    enum="ToolbarPosition" expires_after="2026-01-27">
+    enum="ToolbarPosition" expires_after="2026-03-29">
   <owner>pnoland@chromium.org</owner>
   <owner>gangwu@chromium.org</owner>
   <summary>
@@ -5784,7 +5896,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.ToolbarPosition.PositionPrefChanged"
-    enum="ToolbarPosition" expires_after="2026-01-27">
+    enum="ToolbarPosition" expires_after="2026-03-29">
   <owner>pnoland@chromium.org</owner>
   <owner>gangwu@chromium.org</owner>
   <summary>
@@ -8007,6 +8119,22 @@ chromium-metrics-reviews@google.com.
     is this metric is filtered to only be reported for sites where the app
     declared it has a relationship with the site. A site is considered related
     if the app references it in its manifest through web links or app links.
+  </summary>
+</histogram>
+
+<histogram name="Android.WebView.RendererLibraryPrefetchMode"
+    enum="RendererLibraryPrefetchMode" expires_after="2026-03-01">
+  <owner>ashleynewson@chromium.org</owner>
+  <owner>src/android_webview/OWNERS</owner>
+  <owner>woa-performance@google.com</owner>
+  <summary>
+    The app-controlled RendererLibraryPrefetchMode that is set when preparing to
+    launch a renderer process. If the application somehow sets an unrecognised
+    mode it is treated and logged as the Default case.
+
+    Emitted once per renderer startup by the browser when computing renderer
+    process command line args. Only emitted for Android WebView. Only emitted
+    when the WebViewConfigurableLibraryPrefetch feature is enabled.
   </summary>
 </histogram>
 

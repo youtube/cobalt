@@ -20,14 +20,21 @@ std::vector<std::string> OtpsToSuggestionStrings(
     const std::vector<one_time_tokens::OneTimeToken>& otp_values) {
   return base::ToVector(otp_values, &one_time_tokens::OneTimeToken::value);
 }
+
+// Filters out OTPs that are older than 5 minutes.
+void FilterExpiredOtps(std::vector<one_time_tokens::OneTimeToken>& otps) {
+  const base::Time five_minutes_ago = base::Time::Now() - base::Minutes(5);
+  std::erase_if(otps, [five_minutes_ago](const auto& otp) {
+    return otp.on_device_arrival_time() < five_minutes_ago;
+  });
+}
+
 }  // namespace
 
-OtpManagerImpl::OtpManagerImpl(BrowserAutofillManager* owner,
+OtpManagerImpl::OtpManagerImpl(BrowserAutofillManager& owner,
                                one_time_tokens::SmsOtpBackend* sms_otp_backend)
     : owner_(owner), sms_otp_backend_(sms_otp_backend) {
-  if (owner_) {
-    autofill_manager_observation_.Observe(owner);
-  }
+  autofill_manager_observation_.Observe(&owner);
 
   // TODO(crbug.com/415273270) This is just a hack to prepopulate the OTPs in
   // case no real backend is triggered. The feature definition should migrate to
@@ -47,10 +54,25 @@ OtpManagerImpl::~OtpManagerImpl() = default;
 
 void OtpManagerImpl::GetOtpSuggestions(
     OtpManagerImpl::GetOtpSuggestionsCallback callback) {
+  // If a website uses the WebOTP API, GMSCore or Chrome will show its own UI to
+  // fill the OTP. `wrapped_callback` prevents that an SMS OTP is delivered in
+  // case the WebOTP API was used.
+  GetOtpSuggestionsCallback wrapped_callback = base::BindOnce(
+      [](base::WeakPtr<OtpManagerImpl> self,
+         OtpManagerImpl::GetOtpSuggestionsCallback callback,
+         std::vector<std::string> suggestions) {
+        if (!self || self->IsOtpDeliveryBlocked()) {
+          suggestions.clear();
+        }
+        std::move(callback).Run(std::move(suggestions));
+      },
+      weak_ptr_factory_.GetWeakPtr(), std::move(callback));
+
   if (!sms_otp_retrieval_in_progress_) {
-    std::move(callback).Run(OtpsToSuggestionStrings(otp_suggestions_));
+    FilterExpiredOtps(otp_suggestions_);
+    std::move(wrapped_callback).Run(OtpsToSuggestionStrings(otp_suggestions_));
   } else {
-    last_pending_get_suggestions_callback_ = std::move(callback);
+    last_pending_get_suggestions_callback_ = std::move(wrapped_callback);
   }
 }
 
@@ -107,7 +129,7 @@ void OtpManagerImpl::OnOtpRetrievalComplete(
                   });
     otp_suggestions_.push_back(reply.otp_value.value());
 
-    if (owner_ && owner_->GetMetricState().has_value()) {
+    if (owner_->GetMetricState().has_value()) {
       owner_->GetMetricState()->otp_form_event_logger.OnOtpAvailable();
     }
   }
@@ -120,6 +142,10 @@ void OtpManagerImpl::OnOtpRetrievalComplete(
 
   // TODO(crbug.com/415272524): Record metrics on how often the retrieval
   // succeeds or fails, in combination with the OTP source.
+}
+
+bool OtpManagerImpl::IsOtpDeliveryBlocked() {
+  return owner_->client().DocumentUsedWebOTP();
 }
 
 }  // namespace autofill

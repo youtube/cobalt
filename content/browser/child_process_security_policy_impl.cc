@@ -241,7 +241,7 @@ bool AllowProcessLockMismatchForNTP(const ProcessLock& expected_lock,
   // for sites used to load most visited tiles.
   const auto& webui_schemes = URLDataManagerBackend::GetWebUISchemes();
   if (!base::Contains(webui_schemes,
-                      expected_lock.GetProcessLockURL().scheme())) {
+                      expected_lock.GetProcessLockURL().GetScheme())) {
     return false;
   }
   if (GetContentClient()->browser()->DoesWebUIUrlRequireProcessLock(
@@ -569,7 +569,7 @@ class ChildProcessSecurityPolicyImpl::SecurityState {
     DCHECK(!url.SchemeIsBlob() && !url.SchemeIsFileSystem())
         << "inner_url extraction should be done already.";
     // Having permission to a scheme implies permission to all of its URLs.
-    auto scheme_judgment = scheme_map_.find(url.scheme());
+    auto scheme_judgment = scheme_map_.find(url.GetScheme());
     if (scheme_judgment != scheme_map_.end() &&
         scheme_judgment->second == CommitRequestPolicy::kCommitAndRequest) {
       return true;
@@ -587,7 +587,7 @@ class ChildProcessSecurityPolicyImpl::SecurityState {
     DCHECK(!url.SchemeIsBlob() && !url.SchemeIsFileSystem())
         << "inner_url extraction should be done already.";
     // Having permission to a scheme implies permission to all of its URLs.
-    auto scheme_judgment = scheme_map_.find(url.scheme());
+    auto scheme_judgment = scheme_map_.find(url.GetScheme());
     if (scheme_judgment != scheme_map_.end()) {
       return true;
     }
@@ -1099,7 +1099,7 @@ void ChildProcessSecurityPolicyImpl::GrantCommitURL(int child_id,
   }
 
   // Can't grant the capability to commit pseudo schemes.
-  if (IsPseudoScheme(url.scheme())) {
+  if (IsPseudoScheme(url.GetScheme())) {
     return;
   }
 
@@ -1128,7 +1128,7 @@ void ChildProcessSecurityPolicyImpl::GrantCommitURL(int child_id,
 
   // The scheme has already been whitelisted for every child process, so no need
   // to do anything else.
-  if (IsWebSafeScheme(url.scheme())) {
+  if (IsWebSafeScheme(url.GetScheme())) {
     return;
   }
 
@@ -1143,11 +1143,11 @@ void ChildProcessSecurityPolicyImpl::GrantCommitURL(int child_id,
     // If it's impossible to grant commit rights to just the origin (among other
     // things, URLs with non-standard schemes will be treated as opaque
     // origins), then grant access to commit all URLs of that scheme.
-    state->second->GrantCommitScheme(url.scheme());
+    state->second->GrantCommitScheme(url.GetScheme());
   } else {
     // When the child process has been commanded to request this scheme, grant
     // it the capability to request all URLs of that scheme.
-    state->second->GrantRequestScheme(url.scheme());
+    state->second->GrantRequestScheme(url.GetScheme());
   }
 }
 
@@ -1398,7 +1398,7 @@ bool ChildProcessSecurityPolicyImpl::CanRequestURL(int child_id,
     return false;  // Can't request invalid URLs.
   }
 
-  const std::string& scheme = url.scheme();
+  const std::string& scheme = url.GetScheme();
 
   // Every child process can request <about:blank>, <about:blank?foo>,
   // <about:blank/#foo> and <about:srcdoc>.
@@ -1448,12 +1448,12 @@ bool ChildProcessSecurityPolicyImpl::CanRequestURL(int child_id,
   // scheme.
   const auto& webui_schemes = URLDataManagerBackend::GetWebUISchemes();
   if (!RenderProcessHost::run_renderer_in_process() &&
-      base::Contains(webui_schemes, url.scheme())) {
+      base::Contains(webui_schemes, url.GetScheme())) {
     bool should_be_locked =
         GetContentClient()->browser()->DoesWebUIUrlRequireProcessLock(url);
     if (should_be_locked) {
       const ProcessLock lock = GetProcessLock(child_id);
-      if (!lock.IsLockedToSite() || !lock.MatchesScheme(url.scheme())) {
+      if (!lock.IsLockedToSite() || !lock.MatchesScheme(url.GetScheme())) {
         return false;
       }
     }
@@ -1468,7 +1468,7 @@ bool ChildProcessSecurityPolicyImpl::CanRedirectToURL(const GURL& url) {
     return false;  // Can't redirect to invalid URLs.
   }
 
-  const std::string& scheme = url.scheme();
+  const std::string& scheme = url.GetScheme();
 
   // Can't redirect to error pages.
   if (scheme == kChromeErrorScheme) {
@@ -1500,7 +1500,7 @@ bool ChildProcessSecurityPolicyImpl::CanCommitURL(int child_id,
     return false;  // Can't commit invalid URLs.
   }
 
-  const std::string& scheme = url.scheme();
+  const std::string& scheme = url.GetScheme();
 
   // Of all the pseudo schemes, only about:blank and about:srcdoc are allowed to
   // commit.
@@ -2214,7 +2214,7 @@ bool ChildProcessSecurityPolicyImpl::PerformJailAndCitadelChecks(
         const GURL& lock_url = actual_process_lock.GetProcessLockURL();
         // SitePerProcessBrowserTest.TwoBlobURLsWithNullOriginDontShareProcess.
         if (lock_url.SchemeIsBlob() &&
-            base::StartsWith(lock_url.path_piece(), "null/")) {
+            base::StartsWith(lock_url.path(), "null/")) {
           return true;
         }
 
@@ -2906,9 +2906,9 @@ bool ChildProcessSecurityPolicyImpl::GetMatchingProcessIsolatedOrigin(
   // if "https://foo.com" is an isolated origin, "https://foo.com." should
   // match it.
   if (it == isolated_origins_.end() && site_url.has_host() &&
-      site_url.host_piece().back() == '.') {
+      site_url.host().back() == '.') {
     GURL::Replacements replacements;
-    std::string_view host(site_url.host_piece());
+    std::string_view host(site_url.host());
     host.remove_suffix(1);
     replacements.SetHostStr(host);
     it = isolated_origins_.find(site_url.ReplaceComponents(replacements));
@@ -3287,11 +3287,17 @@ void ChildProcessSecurityPolicyImpl::ClearIsolatedOriginsForTesting() {
   isolated_origins_.clear();
 }
 
-void ChildProcessSecurityPolicyImpl::AddV8OptimizationDisabledStateForOrigin(
-    const BrowsingInstanceId& browsing_instance_id,
-    const url::Origin& process_lock_origin,
-    bool are_v8_optimizations_disabled) {
+void ChildProcessSecurityPolicyImpl::
+    AddV8OptimizationDisabledStateForOriginIfNotCached(
+        const BrowsingInstanceId& browsing_instance_id,
+        const url::Origin& process_lock_origin,
+        bool are_v8_optimizations_disabled) {
   if (!IsolatedOriginUtil::IsValidIsolatedOrigin(process_lock_origin)) {
+    return;
+  }
+
+  if (LookupAreV8OptimizationsDisabled(browsing_instance_id,
+                                       process_lock_origin) != std::nullopt) {
     return;
   }
 

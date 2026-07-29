@@ -255,8 +255,7 @@ void TabCollection::OnTabRemovedFromTree() {
 
 void TabCollection::NotifyOnChildrenAdded(
     base::PassKey<TabCollection> pass_key,
-    const std::vector<std::variant<TabCollection::Handle, tabs::TabHandle>>&
-        handles,
+    const TabCollectionNodes& handles,
     const std::pair<tabs::TabCollection*, int>& insertion_details,
     TabCollection* notification_root) {
   auto [tab_collection_parent_ptr, insert_index] = insertion_details;
@@ -269,6 +268,17 @@ void TabCollection::NotifyOnChildrenAdded(
   if (this != notification_root) {
     parent_->NotifyOnChildrenAdded(pass_key, handles, insertion_details,
                                    notification_root);
+  }
+}
+
+void TabCollection::NotifyOnChildrenRemoved(
+    base::PassKey<TabCollection> pass_key,
+    const TabCollectionNodes& handles,
+    TabCollection* notification_root) {
+  observers_.Notify(&TabCollectionObserver::OnChildrenRemoved, handles);
+
+  if (this != notification_root) {
+    parent_->NotifyOnChildrenRemoved(pass_key, handles, notification_root);
   }
 }
 
@@ -312,6 +322,11 @@ void TabCollection::OnReparented(TabCollection* new_parent) {
   for (auto tab : GetTabsRecursive()) {
     tab->OnAncestorChanged(GetPassKey());
   }
+}
+
+const ChildrenVector& TabCollection::GetChildren(
+    base::PassKey<DirectChildWalker> pass_key) const {
+  return GetChildren();
 }
 
 }  // namespace tabs

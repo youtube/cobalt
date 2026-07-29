@@ -12,6 +12,7 @@ import pathlib
 import queue
 import shutil
 import subprocess
+import tempfile
 import threading
 import time
 
@@ -108,6 +109,8 @@ class WorkerOptions:
     force: bool
     # Whether to run tests in a sandbox.
     sandbox: bool
+    # An optional path to a gemini-cli binary to use.
+    gemini_cli_bin: pathlib.Path | None = None
 
 
 class WorkerPool:
@@ -250,13 +253,16 @@ class WorkerThread(threading.Thread):
         Args:
             test_path: The path to the Promptfoo test config file to run.
         """
-        with WorkDir(
-                f'workdir-{self._worker_index}',
-                checkout_helpers.get_gclient_root(),
-                self._worker_options.clean,
-                self._worker_options.verbose,
-                self._worker_options.force,
-        ) as workdir:
+        with (
+                WorkDir(
+                    f'workdir-{self._worker_index}',
+                    checkout_helpers.get_gclient_root(),
+                    self._worker_options.clean,
+                    self._worker_options.verbose,
+                    self._worker_options.force,
+                ) as workdir,
+                tempfile.TemporaryDirectory() as home_dir,
+        ):
             command = [
                 'eval',
                 '-j',
@@ -269,11 +275,18 @@ class WorkerThread(threading.Thread):
                 str(test_path),
                 '--var',
                 f'console_width={self._console_width}',
+                '--var',
+                f'home_dir={home_dir}',
             ]
             if self._worker_options.sandbox:
                 command.extend(['--var', 'sandbox=True'])
             if self._worker_options.verbose:
                 command.extend(['--var', 'verbose=True'])
+            if self._worker_options.gemini_cli_bin:
+                command.extend([
+                    '--var',
+                    f'gemini_cli_bin={self._worker_options.gemini_cli_bin}'
+                ])
 
             start_time = time.time()
             proc = self._promptfoo.run(command, cwd=workdir.path / 'src')

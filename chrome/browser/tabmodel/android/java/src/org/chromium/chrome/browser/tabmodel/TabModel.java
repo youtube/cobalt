@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.tabmodel;
 
+import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -13,9 +14,11 @@ import org.chromium.chrome.browser.tab.TabCreationState;
 import org.chromium.chrome.browser.tab.TabId;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab.TabSelectionType;
+import org.chromium.components.tabs.TabStripCollection;
 
+import java.util.HashMap;
 import java.util.List;
-import java.util.OptionalInt;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -24,6 +27,8 @@ import java.util.Set;
  */
 @NullMarked
 public interface TabModel extends SupportsTabModelObserver, TabList {
+    Map<Integer, Long> sTabPinTimestampMap = new HashMap<>();
+
     /** Returns the profile associated with the current model. */
     @Nullable Profile getProfile();
 
@@ -112,7 +117,7 @@ public interface TabModel extends SupportsTabModelObserver, TabList {
      * @param i The index of the tab to select.
      * @param type The type of selection.
      */
-    void setIndex(int i, final @TabSelectionType int type);
+    void setIndex(int i, @TabSelectionType int type);
 
     /**
      * @return Whether this tab model is currently selected in the correspond {@link
@@ -132,8 +137,26 @@ public interface TabModel extends SupportsTabModelObserver, TabList {
      * Pins a tab to the model.
      *
      * @param tabId The id of the tab to pin.
+     * @param showUngroupDialog Whether to possibly show a dialog to the user when pinning the last
+     *     tab in a group.
      */
-    void pinTab(int tabId);
+    default void pinTab(int tabId, boolean showUngroupDialog) {
+        pinTab(tabId, showUngroupDialog, /* tabModelActionListener= */ null);
+    }
+
+    /**
+     * Pins a tab to the model.
+     *
+     * @param tabId The id of the tab to pin.
+     * @param showUngroupDialog Whether to possibly show a dialog to the user when pinning the last
+     *     tab in a group.
+     * @param tabModelActionListener A listener that is notified in response to the user actions
+     *     taken in the ungroup dialog (if shown).
+     */
+    void pinTab(
+            int tabId,
+            boolean showUngroupDialog,
+            @Nullable TabModelActionListener tabModelActionListener);
 
     /**
      * Unpins a tab from the model.
@@ -212,7 +235,7 @@ public interface TabModel extends SupportsTabModelObserver, TabList {
     int getPinnedTabsCount();
 
     /** Returns the native {@code SessionID} as returned by {@code tab_model.h:GetSessionId()}. */
-    OptionalInt getNativeSessionIdForTesting();
+    @Nullable Integer getNativeSessionIdForTesting();
 
     /**
      * Sets the mute setting for the sites of the provided tabs.
@@ -229,4 +252,39 @@ public interface TabModel extends SupportsTabModelObserver, TabList {
      * @param tab The {@link Tab} to check.
      */
     boolean isMuted(Tab tab);
+
+    private static long getCurrentTimeMillis() {
+        return System.currentTimeMillis();
+    }
+
+    /**
+     * Records the timestamp when a tab is pinned.
+     *
+     * @param tab The tab that was pinned.
+     */
+    default void recordPinTimestamp(Tab tab) {
+        sTabPinTimestampMap.put(tab.getId(), getCurrentTimeMillis());
+    }
+
+    /**
+     * Records the duration for which a tab was pinned. This is called when a tab is unpinned. If a
+     * timestamp for the tab's pinning exists, it calculates the duration and records it to a
+     * histogram.
+     *
+     * @param tab The tab that was unpinned.
+     */
+    default void recordPinnedDuration(Tab tab) {
+        if (sTabPinTimestampMap.containsKey(tab.getId())) {
+            long pinTimestamp = sTabPinTimestampMap.get(tab.getId());
+            long duration = getCurrentTimeMillis() - pinTimestamp;
+            RecordHistogram.recordLongTimesHistogram100("Tab.PinnedDuration", duration);
+            sTabPinTimestampMap.remove(tab.getId());
+        }
+    }
+
+    /**
+     * Returns the {@link TabStripCollection} associated with this {@link TabModel} if tab
+     * collections are enabled. Otherwise, returns null.
+     */
+    @Nullable TabStripCollection getTabStripCollection();
 }

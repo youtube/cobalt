@@ -21,6 +21,7 @@
 #include "chrome/browser/glic/glic_metrics.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/glic_profile_manager.h"
+#include "chrome/browser/glic/host/context/glic_screenshot_capturer.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/host/host.h"
 #include "chrome/browser/glic/host/webui_contents_container.h"
@@ -326,7 +327,7 @@ void GlicWindowControllerImpl::WebClientInitializeFailed() {
     // now, show the UI anyway, which should be helpful in development.
     LOG(ERROR)
         << "Glic web client failed to initialize, it won't work properly.";
-    glic_service_->metrics()->set_show_start_time(base::TimeTicks());
+    glic_service_->metrics()->OnGlicWindowOpenInterrupted();
     GlicLoadedAndReadyToDisplay();
   }
 }
@@ -336,7 +337,7 @@ void GlicWindowControllerImpl::LoginPageCommitted() {
   if (state_ == State::kWaitingForGlicToLoad && !host().IsReady()) {
     // TODO(crbug.com/388328847): Temporarily allow showing the UI when a login
     // page is reached.
-    glic_service_->metrics()->set_show_start_time(base::TimeTicks());
+    glic_service_->metrics()->OnGlicWindowOpenInterrupted();
     GlicLoadedAndReadyToDisplay();
   }
 }
@@ -667,10 +668,9 @@ bool GlicWindowControllerImpl::BeforeViewCreated(
 
   SetWindowState(State::kWaitingForGlicToLoad);
 
-  glic_service_->metrics()->OnGlicWindowOpen(/*attached=*/browser, source);
+  glic_service_->metrics()->OnGlicWindowStartedOpening(/*attached=*/browser,
+                                                       source);
   glic_service_->GetAuthController().OnGlicWindowOpened();
-
-  glic_service_->metrics()->set_show_start_time(base::TimeTicks::Now());
 
   MaybeResetPanelPostionOnShow(source);
 
@@ -888,7 +888,7 @@ void GlicWindowControllerImpl::MaybeResetPanelPostionOnShow(
 void GlicWindowControllerImpl::ClientReadyToShow(
     const mojom::OpenPanelInfo& open_info) {
   DVLOG(1) << "Glic client ready to show " << open_info.web_client_mode;
-  glic_service_->metrics()->set_starting_mode(open_info.web_client_mode);
+  glic_service_->metrics()->SetStartingMode(open_info.web_client_mode);
   glic_service_->metrics()->OnGlicWindowOpenAndReady();
   if (open_info.panelSize.has_value()) {
     Resize(*open_info.panelSize, open_info.resizeDuration, base::DoNothing());
@@ -941,11 +941,9 @@ void GlicWindowControllerImpl::SetDraggingAreasAndWatchForMouseEvents() {
   window_event_observer_ =
       std::make_unique<WindowEventObserver>(this, GetGlicView());
 
-  if (!draggable_area_) {
-    // Set the draggable area to the top bar of the window.
-    GetGlicView()->SetDraggableAreas(
-        {{0, 0, GetGlicView()->width(), kDraggableAreaHeight}});
-  }
+  // Set the draggable area to the top bar of the window.
+  GetGlicView()->SetDraggableAreas(
+      {{0, 0, GetGlicView()->width(), kDraggableAreaHeight}});
 }
 
 GlicView* GlicWindowControllerImpl::GetGlicView() const {
@@ -1215,6 +1213,11 @@ void GlicWindowControllerImpl::Close() {
   }
 }
 
+void GlicWindowControllerImpl::ClosePanel() {
+  Close();
+  glic_service_->GetScreenshotCapturer().CloseScreenPicker();
+}
+
 void GlicWindowControllerImpl::ResetAndHidePanel() {
   if (IsDetached()) {
     SaveWidgetPosition(/*user_modified=*/false);
@@ -1239,7 +1242,6 @@ void GlicWindowControllerImpl::ResetAndHidePanel() {
   // detached, attached or currently closed.
 
   // Floating Panel State
-  draggable_area_ = std::nullopt;
   window_event_observer_.reset();
   glic_window_animator_.reset();
   glic_widget_observation_.Reset();
@@ -1517,10 +1519,7 @@ void GlicWindowControllerImpl::Preload() {
 }
 
 void GlicWindowControllerImpl::Reload() {
-  if (auto* webui_contents = host().webui_contents()) {
-    webui_contents->GetController().Reload(content::ReloadType::BYPASSING_CACHE,
-                                           /*check_for_repost=*/false);
-  }
+  host().Reload();
 }
 
 bool GlicWindowControllerImpl::IsWarmed() const {
@@ -1585,6 +1584,13 @@ void GlicWindowControllerImpl::MaybeAdjustSizeForDisplay(bool animate) {
 base::CallbackListSubscription GlicWindowControllerImpl::RegisterStateChange(
     StateChangeCallback callback) {
   return state_change_callback_list_.Add(std::move(callback));
+}
+
+base::CallbackListSubscription
+GlicWindowControllerImpl::RegisterLastActiveInstanceChangedCallback(
+    LastActiveInstanceChangedCallback callback) {
+  NOTIMPLEMENTED();
+  return base::CallbackListSubscription();
 }
 
 void GlicWindowControllerImpl::SetWindowState(State new_state) {

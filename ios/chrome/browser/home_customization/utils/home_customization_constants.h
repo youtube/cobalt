@@ -40,7 +40,6 @@ extern NSString* const kCustomizationToggleMagicStackIdentifier;
 extern NSString* const kCustomizationToggleDiscoverIdentifier;
 
 // The identifiers for the Magic Stack page toggle cells.
-extern NSString* const kCustomizationToggleSetUpListIdentifier;
 extern NSString* const kCustomizationToggleSafetyCheckIdentifier;
 extern NSString* const kCustomizationToggleTabResumptionIdentifier;
 extern NSString* const kCustomizationToggleShopCardPriceTrackingIdentifier;
@@ -101,7 +100,6 @@ enum class CustomizationToggleType : NSInteger {
 
   // Magic Stack page toggles.
   kTips,
-  kSetUpList,
   kSafetyCheck,
   kTapResumption,
   kShopCard,
@@ -173,8 +171,14 @@ enum class UserUploadedImageError : NSInteger {
   // Failed to convert the image to JPEG.
   kFailedToConvertToJPEG,
 
+  // Failed to read the image data from its file path.
+  kFailedToReadFile,
+
+  // Failed to create a UIImage from the loaded data.
+  kFailedToCreateImageFromData,
+
   // Must be last.
-  kMaxValue = kFailedToConvertToJPEG,
+  kMaxValue = kFailedToCreateImageFromData,
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml:IOSUserUploadedImageError)
 

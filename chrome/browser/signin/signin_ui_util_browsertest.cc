@@ -90,7 +90,9 @@ class MockSigninUiDelegate : public SigninUiDelegateImplDice {
               ());
   MOCK_METHOD(void,
               ShowHistorySyncOptinUI,
-              (Profile * profile, const CoreAccountId& account_id),
+              (Profile * profile,
+               const CoreAccountId& account_id,
+               signin_metrics::AccessPoint access_point),
               ());
 };
 
@@ -280,8 +282,9 @@ class SigninUiUtilTest_ReplaceSyncPromosWithSignInPromos
                                  promo_action, account_id, signin_aborted_mode,
                                  is_sync_promo, user_already_signed_in))
         .Times(IsReplaceSyncPromosWithSignInPromosEnabled() ? 0 : 1);
-    EXPECT_CALL(mock_delegate_,
-                ShowHistorySyncOptinUI(browser()->profile(), account_id))
+    EXPECT_CALL(
+        mock_delegate_,
+        ShowHistorySyncOptinUI(browser()->profile(), account_id, access_point))
         .Times(IsReplaceSyncPromosWithSignInPromosEnabled() ? 1 : 0);
   }
 
@@ -760,7 +763,8 @@ IN_PROC_BROWSER_TEST_P(SigninUiUtilTest_ReplaceSyncPromosWithSignInPromos,
   // explaining to the user that they are signing in to Chrome.
   EXPECT_TRUE(base::StartsWith(tab->GetVisibleURL().spec(), sync_url.spec(),
                                base::CompareCase::INSENSITIVE_ASCII));
-  EXPECT_NE(tab->GetVisibleURL().query().find("flow=promo"), std::string::npos);
+  EXPECT_NE(tab->GetVisibleURL().GetQuery().find("flow=promo"),
+            std::string::npos);
 }
 
 IN_PROC_BROWSER_TEST_P(SigninUiUtilTest,

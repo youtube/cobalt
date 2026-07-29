@@ -3,6 +3,7 @@
 <translationbundle lang="ms">
 <translation id="1076643793026027628">Chrome membuka pautan Inkognito YouTube secara automatik dalam Inkognito.</translation>
 <translation id="1086486568852410168">Cari dengan Google Lens</translation>
+<translation id="1088490543924960890">Mula menyimpan kunci laluan dengan Google Password Manager</translation>
 <translation id="1143896152279775643">Kata laluan anda akan disimpan pada Pengurus Kata Laluan Google untuk <ph name="EMAIL" />.</translation>
 <translation id="1146503048444965320">Buka tab baharu dalam Chrome</translation>
 <translation id="1158134713295836892">Gemini dalam Chrome</translation>
@@ -86,6 +87,9 @@ Tunggu beberapa minit sebelum log keluar. Jika anda log keluar sekarang, data in
 <translation id="2940565985148833945">Petua Chrome: Buat carian dengan Lens</translation>
 <translation id="2957447865124070833">Pilih <ph name="BEGIN_BOLD" />Chrome<ph name="END_BOLD" /></translation>
 <translation id="2986402782150919988">Tambahkan penanda halaman pada Chrome</translation>
+<translation id="3027236223714901838">Untuk memastikan kunci laluan anda selamat, anda perlu membuat PIN pemulihan dahulu.
+
+        Kunci laluan disimpan dalam Google Password Manager, yang membolehkan anda menggunakan kunci laluan tersebut dalam Chrome pada mana-mana peranti.</translation>
 <translation id="3030414234702425231">Oleh sebab anda log keluar daripada akaun yang diurus oleh <ph name="SIGNOUT_MANAGED_DOMAIN" />, data Chrome anda akan dipadamkan daripada peranti ini. Data anda akan kekal dalam Google Account anda.</translation>
 <translation id="3042447686908081308">Import kepada Chrome</translation>
 <translation id="3051521853355903257">Urus kata laluan dalam Chrome</translation>
@@ -256,6 +260,7 @@ Untuk mendapatkan lebih banyak tetapan yang menggunakan data untuk meningkatkan 
 <translation id="7371674917547846460">Ikuti petua Chrome yang berguna dan banyak lagi.</translation>
 <translation id="7394108421562933108">Maps pada Chrome</translation>
 <translation id="7400722733683201933">Mengenai Google Chrome</translation>
+<translation id="7444830584401232881">Kunci laluan ini akan disimpan pada Google Password Manager untuk <ph name="USER_EMAIL" /></translation>
 <translation id="7466693328838535498">Masukkan Chrome dalam kotak Widget Carian</translation>
 <translation id="7477056987201678345">Memadamkan data Chrome…</translation>
 <translation id="7492574581995589075">Organisasi anda mematikan keupayaan untuk menggunakan dan menyimpan data Chrome dalam Google Account anda. Penanda halaman, kata laluan baharu dan banyak lagi akan disimpan pada peranti ini sahaja.</translation>

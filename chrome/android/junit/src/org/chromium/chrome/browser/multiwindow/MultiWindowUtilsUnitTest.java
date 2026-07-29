@@ -20,6 +20,7 @@ import static org.chromium.chrome.browser.multiwindow.MultiWindowUtils.HISTOGRAM
 import static org.chromium.chrome.browser.multiwindow.MultiWindowUtils.HISTOGRAM_DESKTOP_WINDOW_COUNT_NEW_INSTANCE_SUFFIX;
 import static org.chromium.chrome.browser.multiwindow.MultiWindowUtils.HISTOGRAM_NUM_ACTIVITIES_DESKTOP_WINDOW;
 import static org.chromium.chrome.browser.multiwindow.MultiWindowUtils.HISTOGRAM_NUM_INSTANCES_DESKTOP_WINDOW;
+import static org.chromium.chrome.browser.multiwindow.MultiWindowUtils.INVALID_TASK_ID;
 
 import android.app.Activity;
 import android.content.Context;
@@ -44,6 +45,7 @@ import org.robolectric.annotation.Config;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 
+import org.chromium.base.DeviceInfo;
 import org.chromium.base.FeatureOverrides;
 import org.chromium.base.SysUtils;
 import org.chromium.base.supplier.ObservableSupplier;
@@ -75,7 +77,6 @@ import org.chromium.components.messages.MessageBannerProperties;
 import org.chromium.components.messages.MessageDispatcher;
 import org.chromium.components.messages.MessageIdentifier;
 import org.chromium.ui.modelutil.PropertyModel;
-import org.chromium.ui.util.XrUtils;
 import org.chromium.url.GURL;
 
 import java.util.Arrays;
@@ -851,6 +852,24 @@ public class MultiWindowUtilsUnitTest {
     }
 
     @Test
+    public void testGetLastAccessedWindowId() {
+        MultiWindowTestUtils.enableMultiInstance();
+
+        final int oldestId = 10;
+        final int midId = 20;
+        final int newestId = 30;
+
+        writeInstanceInfo(oldestId, URL_1, 3, 0, TASK_ID_5);
+        writeInstanceInfo(midId, URL_3, 1, 0, TASK_ID_6);
+        writeInstanceInfo(newestId, null, 0, 0, INVALID_TASK_ID);
+
+        Assert.assertEquals(
+                "The last accessed window ID should be returned.",
+                newestId,
+                MultiWindowUtils.getLastAccessedWindowId());
+    }
+
+    @Test
     public void testInstanceRestorationMessage() {
         MultiWindowUtils.setInstanceCountForTesting(5);
         MultiWindowUtils.setMaxInstancesForTesting(3);
@@ -1128,7 +1147,7 @@ public class MultiWindowUtilsUnitTest {
     @Test
     @EnableFeatures(ChromeFeatureList.DISABLE_INSTANCE_LIMIT)
     public void testMaxInstances_XrDevice() {
-        XrUtils.setXrDeviceForTesting(true);
+        DeviceInfo.setIsXrForTesting(true);
         MultiWindowUtils.setMultiInstanceApi31EnabledForTesting(true);
         assertEquals(
                 "Instance limit on XR device is incorrect.",

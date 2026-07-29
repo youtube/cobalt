@@ -25,6 +25,7 @@
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/preloading/bookmarkbar_preload/bookmarkbar_preload_pipeline_manager.h"
+#include "chrome/browser/preloading/new_tab_page_preload/new_tab_page_preload_pipeline_manager.h"
 #include "chrome/browser/privacy_sandbox/incognito/privacy_sandbox_incognito_tab_observer.h"
 #include "chrome/browser/privacy_sandbox/privacy_sandbox_tab_observer.h"
 #include "chrome/browser/privacy_sandbox/tracking_protection_settings_factory.h"
@@ -90,7 +91,7 @@
 #include "components/browsing_topics/browsing_topics_service.h"
 #include "components/favicon/content/content_favicon_driver.h"
 #include "components/fingerprinting_protection_filter/common/fingerprinting_protection_filter_features.h"
-#include "components/fingerprinting_protection_filter/interventions/browser/interventions_web_contents_helper.h"
+#include "components/fingerprinting_protection_filter/interventions/browser/canvas_interventions_web_contents_helper.h"
 #include "components/fingerprinting_protection_filter/interventions/common/interventions_features.h"
 #include "components/image_fetcher/core/image_fetcher_service.h"
 #include "components/ip_protection/common/ip_protection_status.h"
@@ -112,6 +113,12 @@
 #include "chrome/browser/ui/views/side_panel/glic/glic_side_panel_coordinator.h"
 
 #endif
+
+#if BUILDFLAG(IS_CHROMEOS)
+#include "chrome/browser/apps/app_service/app_service_proxy_factory.h"  // nogncheck
+#include "chrome/browser/ui/views/web_apps/protocol_handler_picker_coordinator.h"
+#endif
+
 namespace tabs {
 
 TabFeatures::TabFeatures() = default;
@@ -362,9 +369,15 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
 
   if (fingerprinting_protection_interventions::features::
           ShouldBlockCanvasReadbackForIncognitoState(
+              profile->IsIncognitoProfile()) ||
+      fingerprinting_protection_interventions::features::
+          IsCanvasInterventionsEnabledForIncognitoState(
               profile->IsIncognitoProfile())) {
-    fingerprinting_protection_interventions::InterventionsWebContentsHelper::
-        CreateForWebContents(tab.GetContents(), profile->IsIncognitoProfile());
+    fingerprinting_protection_interventions::
+        CanvasInterventionsWebContentsHelper::CreateForWebContents(
+            tab.GetContents(),
+            TrackingProtectionSettingsFactory::GetForProfile(profile),
+            profile->IsIncognitoProfile());
   }
 
   // Only create the IpProtectionStatus if the User Bypass feature is enabled.
@@ -425,12 +438,24 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
   bookmarkbar_preload_pipeline_manager_ =
       std::make_unique<BookmarkBarPreloadPipelineManager>(tab.GetContents());
 
+  new_tab_page_preload_pipeline_manager_ =
+      std::make_unique<NewTabPagePreloadPipelineManager>(tab.GetContents());
+
   tab_alert_controller_ =
       GetUserDataFactory().CreateInstance<TabAlertController>(tab, tab);
 
   tab_contextualization_controller_ =
       GetUserDataFactory().CreateInstance<lens::TabContextualizationController>(
           tab, &tab);
+
+#if BUILDFLAG(IS_CHROMEOS)
+  if (apps::AppServiceProxyFactory::IsAppServiceAvailableForProfile(profile)) {
+    protocol_handler_picker_coordinator_ =
+        GetUserDataFactory()
+            .CreateInstance<web_app::ProtocolHandlerPickerCoordinator>(
+                tab, tab, apps::AppServiceProxyFactory::GetForProfile(profile));
+  }
+#endif
 }
 
 TabUIHelper* TabFeatures::SetTabUIHelperForTesting(
@@ -512,6 +537,12 @@ void TabFeatures::WillDiscardContents(tabs::TabInterface* tab,
     bookmarkbar_preload_pipeline_manager_.reset();
     bookmarkbar_preload_pipeline_manager_ =
         std::make_unique<BookmarkBarPreloadPipelineManager>(new_contents);
+  }
+
+  if (new_tab_page_preload_pipeline_manager_) {
+    new_tab_page_preload_pipeline_manager_.reset();
+    new_tab_page_preload_pipeline_manager_ =
+        std::make_unique<NewTabPagePreloadPipelineManager>(new_contents);
   }
 }
 

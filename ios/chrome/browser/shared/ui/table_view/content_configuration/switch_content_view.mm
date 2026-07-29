@@ -23,6 +23,10 @@
     _switchView.translatesAutoresizingMaskIntoConstraints = NO;
     [_switchView setContentHuggingPriority:UILayoutPriorityRequired - 1
                                    forAxis:UILayoutConstraintAxisHorizontal];
+    [_switchView
+        setContentCompressionResistancePriority:UILayoutPriorityRequired
+                                        forAxis:
+                                            UILayoutConstraintAxisHorizontal];
     [self addSubview:_switchView];
 
     _configuration = configuration;
@@ -31,6 +35,16 @@
     AddSameConstraints(_switchView, self);
   }
   return self;
+}
+
+- (UISwitch*)switchForTesting {
+  return _switchView;
+}
+
+#pragma mark - ChromeContentView
+
+- (BOOL)hasCustomAccessibilityActivationPoint {
+  return YES;
 }
 
 #pragma mark - UIContentView
@@ -50,6 +64,16 @@
   return [configuration isMemberOfClass:SwitchContentConfiguration.class];
 }
 
+#pragma mark - UIAccessibility
+
+- (CGPoint)accessibilityActivationPoint {
+  CGRect frameInScreenCoordinates =
+      UIAccessibilityConvertFrameToScreenCoordinates(_switchView.bounds,
+                                                     _switchView);
+  return CGPointMake(CGRectGetMidX(frameInScreenCoordinates),
+                     CGRectGetMidY(frameInScreenCoordinates));
+}
+
 #pragma mark - Private
 
 // Updates the content view with the current configuration.
@@ -62,6 +86,7 @@
         forControlEvents:UIControlEventValueChanged];
   _switchView.tag = _configuration.tag;
   _switchView.on = _configuration.on;
+  _switchView.enabled = _configuration.enabled;
 }
 
 @end

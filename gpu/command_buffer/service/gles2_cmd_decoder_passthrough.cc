@@ -30,7 +30,6 @@
 #include "gpu/command_buffer/service/gpu_fence_manager.h"
 #include "gpu/command_buffer/service/gpu_tracer.h"
 #include "gpu/command_buffer/service/multi_draw_manager.h"
-#include "gpu/command_buffer/service/passthrough_discardable_manager.h"
 #include "gpu/command_buffer/service/passthrough_program_cache.h"
 #include "gpu/command_buffer/service/program_cache.h"
 #include "gpu/command_buffer/service/service_utils.h"
@@ -1328,8 +1327,6 @@ gpu::Capabilities GLES2DecoderPassthroughImpl::GetCapabilities() {
         std::min(caps.max_texture_size,
                  feature_info_->workarounds().webgl_or_caps_max_texture_size);
   }
-  caps.max_copy_texture_chromium_size =
-      feature_info_->workarounds().max_copy_texture_chromium_size;
   caps.render_buffer_format_bgra8888 =
       feature_info_->feature_flags().ext_render_buffer_format_bgra8888;
   caps.gpu_rasterization = false;
@@ -2577,13 +2574,6 @@ void GLES2DecoderPassthroughImpl::UpdateTextureSizeFromTexturePassthrough(
   }
 
   UpdateBoundTexturePassthroughSize(api(), texture);
-
-  // If a client ID is available, notify the discardable manager of the size
-  // change
-  if (client_id != 0) {
-    group_->passthrough_discardable_manager()->UpdateTextureSize(
-        client_id, group_.get(), texture->estimated_size());
-  }
 
   if (needs_rebind) {
     GLuint old_texture =

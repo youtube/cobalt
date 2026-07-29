@@ -1,7 +1,18 @@
 # Gerrit ReAuth
 
-*** promo
-Googlers: See [go/gerrit-reauth](http://go/gerrit-reauth) for more information.
+*** note
+**Googlers:**
+
+If you use your @google.com account, or a @chromium.org account linked to your
+@google.com account: You already ReAuth during your daily `gcert`, no further
+action is required. Feel free to stop reading now.
+
+Otherwise, follow this guide to ReAuth locally or remotely.
+
+If you aren't sure if your account is linked, follow
+[the steps here](http://go/chromium-account-support#how-can-i-check-if-my-gerrit-accounts-are-linked).
+
+For more information, see [go/gerrit-reauth](http://go/gerrit-reauth).
 ***
 
 [TOC]
@@ -25,7 +36,29 @@ against unauthorized access, significantly diminishing the risk of compromised
 accounts, supply chain attacks, and malicious activities stemming from stolen
 committer credentials.
 
-Please follow this guide to setup your machine, and to complete ReAuth.
+## Overview
+
+You are required to ReAuth when using git-cl to upload your change. You
+ReAuth to git-cl by running `git credential-luci reauth`.
+
+Gerrit Web UI may show [ReAuth popups](#reauth-in-gerrit-web-ui) when you
+perform actions like voting Code-Review or editing change descriptions.
+In this case, please follow the popup's instructions.
+
+*** promo
+ReAuth is valid for 20 hours, so we recommend ReAuth once when you start your
+day with `git credential-luci reauth`.
+***
+
+*** note
+If you work remotely over SSH or remote desktop, please follow steps in
+[ReAuth in git-cl remotely](#ReAuth-in-git_cl-remotely) to setup your
+environment.
+
+If you use Linux, you might need to
+[configure your system](#linux-security-keys-access) to make security keys
+usable.
+***
 
 ## Prerequisites
 
@@ -90,24 +123,10 @@ git cl creds-check --global
 
 Please follow the prompts from the tool and resolve any issues.
 
-## Performing ReAuth
+### Log into Gerrit
 
-You can ReAuth with a locally attached security key, or over an SSH or remote
-desktop session.
-
-You will be required to ReAuth every 20 hours or so, we recommend you ReAuth
-when you start your day.
-
-### Local ReAuth
-
-This is for completing ReAuth when you're using a machine with a locally
-attached security key.
-
-First, make sure you have the [latest depot_tools](#latest-depot_tools) and
-have [set up Git to access Gerrit](#git-config-for-gerrit).
-
-Then, check if you're already logged in (this is likely if you have already
-logged in with depot_tools):
+Check if you're already logged in (this is likely if you have already logged
+in with depot_tools):
 
 ```
 git credential-luci info
@@ -116,11 +135,46 @@ git credential-luci info
 This should print a line containing `email=<your email>`. If not, you'll need to
 login first:
 
-Inside your terminal, run:
-
 ```
 git credential-luci login
 ```
+
+### Linux: security keys access
+
+Check depot_tools can access your security keys by running:
+
+```
+luci-auth-fido2-plugin --list-devices
+```
+
+If the above command lists your security keys, you’re good to go.
+
+If not, you need to configure your Linux system to grant access to security
+keys.
+
+The configuration steps vary by Linux distributions. We recommend following
+[Yubico’s guide](https://support.yubico.com/hc/en-us/articles/360013708900-Troubleshooting-using-your-YubiKey-with-Linux)
+, which we confirmed to be working on Ubuntu 24.04 LTS Desktop.
+
+## ReAuth in Gerrit Web UI
+
+When performing actions such as voting Code-Review or editing commit
+descriptions on Gerrit Web UI, you may see popups like:
+
+![Gerrit UI prompt](./images/gerrit_reauth_ui_prompt.png)
+
+Click "Continue". You'll be asked to touch your security key to perform ReAuth,
+after which everything will proceed as normal.
+
+## ReAuth in git-cl locally
+
+This is for performing ReAuth locally, on a machine with your security key
+inserted.
+
+First, make sure you have the [latest depot_tools](#latest-depot_tools) and
+have [set up Git to access Gerrit](#git-config-for-gerrit), and is
+[logged into Gerrit](#log-into-gerrit). If you're using Linux, make sure
+[depot_tools can access your security keys](#linux_security-keys-access).
 
 To perform ReAuth, run the following command inside your terminal:
 
@@ -134,7 +188,7 @@ then it works\!
 If it doesn't work, please refer to [Troubleshooting](#troubleshooting) to turn
 on debug logs, then retry the command.
 
-### Remote ReAuth
+## ReAuth in git-cl remotely
 
 This is for completing ReAuth when:
 
@@ -145,58 +199,23 @@ This is for completing ReAuth when:
 First, make sure you have the [latest depot_tools](#latest-depot_tools)
 installed on **both local and remote** machines.
 
-Then, make sure you have
-[set up Git to access](#git-config-for-gerrit).
+If you're using a Linux local machine (i.e. the machine you inserts security
+keys into), make sure
+[depot_tools can access your security keys](#linux_security-keys-access).
 
-Then, ensure you're logged into Gerrit on the **remote machine**. You can check
-this by running:
+Then, on the remote machine, make sure you have
+[set up Git to access](#git-config-for-gerrit) and have
+[logged into Gerrit](#log-into-gerrit).
 
-```
-git credential-luci info
-```
+Then, refer to sections below for your SSH or remote desktop workflow.
 
-The above command should print your email. If not, run the following command to
-login:
+### I’m using a Linux / Mac client, I want to SSH into Linux
 
-```
-git credential-luci login
-```
+If you’re using a Linux client, please check and make sure
+[depot_tools can access your security keys](#linux_security-keys-access).
 
-Then, refer to the instructions for your SSH / remote desktop workflow below.
-
-#### Linux Client Prerequisites {#linux-client-prerequisites}
-
-You need to do some manual configuration to make your security keys available
-to depot_tools (or the remote desktop application of your choice).
-
-On most distributions, you need to set up udev rules and/or install some
-dependencies.
-
-- The exact instructions depend on your Linux distribution.
-- You can follow
-  [Yubico’s guide](https://support.yubico.com/hc/en-us/articles/360013708900-Troubleshooting-using-your-YubiKey-with-Linux)
-  here, which we confirmed to be working on Ubuntu 24 Desktop.
-
-After you finished the setup, you can check depot_tools can access your security
-keys by running:
-
-```
-luci-auth-fido2-plugin --list-devices
-```
-
-If the above command lists your security keys, you’re good to go.
-
-#### I’m using a Linux / Mac client, I want to SSH into Linux
-
-If you’re using a Linux client, ensure you’ve completed
-["Linux Client Prerequisites"](#linux-client-prerequisites) and made your
-security keys available to applications.
-
-Then, on the local machine, set the security key plugin with
-\`GOOGLE_AUTHN_WEBAUTHN_PLUGIN\` environment variable, then use
-\`luci-auth-ssh-helper\` to SSH into the remote machine.
-
-You can specify SSH options (such as port forwarding) after a double dash.
+Then, use `luci-auth-ssh-helper` to SSH into the remote machine. You can
+specify SSH options (such as port forwarding) after a double dash.
 
 ```
 luci-auth-ssh-helper [-- ssh_options...] [user@]host
@@ -214,7 +233,7 @@ then it works\!
 For the first security key touch, there might be a delay before your security
 key starts blinking. This is caused by `luci-auth-fido2-plugin` bootstrapping.
 
-#### I’m using a Linux / Mac client, I want to remote desktop into Windows
+### I’m using a Linux / Mac client, I want to remote desktop into Windows
 
 If you’re using a Linux client, ensure you’ve completed
 ["Linux Client Prerequisites"](#linux-client-prerequisites) and made your
@@ -263,7 +282,6 @@ First, start `luci-auth-ssh-helper` in daemon mode on a TCP port (we use 10899
 in the example). The helper will listen for incoming ReAuth challenges.
 
 ```
-set GOOGLE_AUTH_WEBAUTHN_PLUGIN=luci-auth-fido2-plugin
 luci-auth-ssh-helper -mode=daemon -port=10899
 ```
 
@@ -306,7 +324,7 @@ You need to make sure `luci-auth-ssh-helper` is running on your local machine
 when you want to perform ReAuth challenges over a SSH session. For convenience,
 you can register it to start as a service on login.
 
-#### I’m using a Windows client, I want to remote desktop into Windows
+### I’m using a Windows client, I want to remote desktop into Windows
 
 Use the built-in Windows Remote Desktop Connection application (also known as
 `mstsc`), make sure "WebAuthn (Windows Hello or security keys)" is enabled in
@@ -328,7 +346,7 @@ Windows will prompt you to touch the security key. Touch it to complete ReAuth.
 
 If you see "ReAuth succeed", then it works\!
 
-#### None of the above
+### None of the above
 
 SSH / remote desktop workflows not listed above aren’t tested. We’re working on
 adding instructions for more workflows.

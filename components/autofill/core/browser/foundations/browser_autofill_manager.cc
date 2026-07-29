@@ -100,6 +100,7 @@
 #include "components/autofill/core/browser/integrators/identity_credential/identity_credential_delegate.h"
 #include "components/autofill/core/browser/integrators/one_time_tokens/otp_manager_impl.h"
 #include "components/autofill/core/browser/integrators/optimization_guide/autofill_optimization_guide_decider.h"
+#include "components/autofill/core/browser/integrators/password_form_classification.h"
 #include "components/autofill/core/browser/integrators/password_manager/password_manager_delegate.h"
 #include "components/autofill/core/browser/logging/log_manager.h"
 #include "components/autofill/core/browser/metrics/autofill_in_devtools_metrics.h"
@@ -385,14 +386,12 @@ const char* SubmissionSourceToString(SubmissionSource source) {
 }
 
 // Returns true if autocomplete=unrecognized (address) fields should receive
-// suggestions. On desktop, suggestion can only be triggered for them through
-// manual fallbacks. On mobile, suggestions are always shown.
-bool ShouldShowSuggestionsForAutocompleteUnrecognizedFields(
-    AutofillSuggestionTriggerSource trigger_source) {
+// suggestions.
+bool ShouldShowSuggestionsForAutocompleteUnrecognizedFields() {
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
   return true;
 #else
-  return IsAutofillManuallyTriggered(trigger_source);
+  return false;
 #endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
 }
 
@@ -476,32 +475,6 @@ void LogSuggestionsCount(const SuggestionsContext& context,
   }
 }
 
-bool ShouldOfferSingleFieldFill(const AutofillField* autofill_field,
-                                AutofillSuggestionTriggerSource trigger_source,
-                                SuppressReason suppress_reason) {
-  if (trigger_source ==
-      AutofillSuggestionTriggerSource::kTextareaFocusedWithoutClick) {
-    return false;
-  }
-  // Do not offer single field form fill suggestions for credit card number,
-  // cvc, and expiration date related fields. Standalone cvc fields (used to
-  // re-authenticate the use of a credit card the website has on file) will be
-  // handled separately because those have the field type
-  // CREDIT_CARD_STANDALONE_VERIFICATION_CODE.
-  FieldType type = autofill_field ? autofill_field->Type().GetCreditCardType()
-                                  : UNKNOWN_TYPE;
-  if (data_util::IsCreditCardExpirationType(type) ||
-      type == CREDIT_CARD_VERIFICATION_CODE || type == CREDIT_CARD_NUMBER) {
-    return false;
-  }
-
-  // Do not offer single field form fill suggestions if popups are suppressed
-  // due to an unrecognized autocomplete attribute. Note that in the context
-  // of Autofill, the popup for credit card related fields is not getting
-  // suppressed due to an unrecognized autocomplete attribute.
-  return suppress_reason != SuppressReason::kAutocompleteUnrecognized;
-}
-
 // Returns whether suggestions should be suppressed for the given reason.
 bool ShouldSuppressSuggestions(SuppressReason suppress_reason,
                                LogManager* log_manager) {
@@ -569,7 +542,7 @@ SuggestionsContext BuildSuggestionsContext(
   context.filling_product =
       GetPreferredSuggestionFillingProduct(autofill_field->Type());
 
-  if (!ShouldShowSuggestionsForAutocompleteUnrecognizedFields(trigger_source) &&
+  if (!ShouldShowSuggestionsForAutocompleteUnrecognizedFields() &&
       autofill_field->ShouldSuppressSuggestionsAndFillingByDefault()) {
     // If non-Autocomplete suggestions may be shown on some other field of the
     // form, we want to suppress Autocomplete suggestions on this field.
@@ -810,7 +783,7 @@ BrowserAutofillManager::MetricsState::~MetricsState() {
 BrowserAutofillManager::BrowserAutofillManager(AutofillDriver* driver)
     : AutofillManager(driver),
       otp_manager_(
-          new OtpManagerImpl(this,
+          new OtpManagerImpl(*this,
                              driver->GetAutofillClient().GetSmsOtpBackend())),
       account_name_email_strike_manager_(
           std::make_unique<AccountNameEmailStrikeManager>(*this)) {}
@@ -1138,6 +1111,8 @@ void BrowserAutofillManager::OnAskForValuesToFillImpl(
 #endif  // !BUILDFLAG(IS_ANDROID)
       return;
     }
+  } else if (IsPasswordsAutofillManuallyTriggered(trigger_source)) {
+    return;
   }
 
   if (base::FeatureList::IsEnabled(features::kAutofillDisableFilling)) {
@@ -1507,15 +1482,16 @@ void BrowserAutofillManager::GenerateSuggestionsAndMaybeShowUIPhase3(
     return;
   }
 
-  // Check if other suggestion sources should be queried. Other suggestions may
-  // include Compose or single field form suggestions. Manual fallbacks can't
-  // trigger different suggestion types.
-  const bool should_offer_other_suggestions =
-      suggestions.empty() && !IsAutofillManuallyTriggered(trigger_source);
+  if (!suggestions.empty()) {
+    // Show the list of `suggestions` if not empty. These may include address or
+    // credit card suggestions. Additionally, warnings about mixed content might
+    // be present.
+    std::move(callback).Run(/*show_suggestions=*/true, std::move(suggestions));
+    return;
+  }
 
-  if (should_offer_other_suggestions &&
-      (field.form_control_type() == FormControlType::kTextArea ||
-       field.form_control_type() == FormControlType::kContentEditable)) {
+  if (field.form_control_type() == FormControlType::kTextArea ||
+      field.form_control_type() == FormControlType::kContentEditable) {
     AutofillComposeDelegate* compose_delegate = client().GetComposeDelegate();
     std::optional<Suggestion> maybe_compose_suggestion =
         compose_delegate
@@ -1527,34 +1503,17 @@ void BrowserAutofillManager::GenerateSuggestionsAndMaybeShowUIPhase3(
                               {*std::move(maybe_compose_suggestion)});
       return;
     }
-  }
-
-  if (!suggestions.empty()) {
-    // Show the list of `suggestions` if not empty. These may include address or
-    // credit card suggestions. Additionally, warnings about mixed content might
-    // be present.
-    std::move(callback).Run(/*show_suggestions=*/true, std::move(suggestions));
+  } else if (IsTriggerSourceOnlyRelevantForCompose(trigger_source)) {
+    std::move(callback).Run(/*show_suggestions=*/true,
+                            /*suggestions=*/{});
     return;
   }
 
-  // Whether or not to request single field form fill suggestions.
-  const bool should_offer_single_field_form_fill =
-      should_offer_other_suggestions &&
-      ShouldOfferSingleFieldFill(autofill_field, trigger_source,
-                                 context.suppress_reason);
-
-  // Whether or not to show plus address suggestions.
   const bool should_offer_plus_addresses =
       plus_addresses && autofill_field &&
       (autofill_field->Type().GetGroups().contains(FieldTypeGroup::kEmail) ||
        autofill_field->Type().GetTypes().contains(FieldType::USERNAME) ||
        autofill_field->Type().GetTypes().contains(FieldType::SINGLE_USERNAME));
-
-  // Early return to avoid running password form classifications.
-  if (!should_offer_plus_addresses && !should_offer_single_field_form_fill) {
-    std::move(callback).Run(/*show_suggestions=*/true, std::move(suggestions));
-    return;
-  }
 
   const PasswordFormClassification password_form_classification =
       client().ClassifyAsPasswordForm(*this, form.global_id(),
@@ -1576,48 +1535,41 @@ void BrowserAutofillManager::GenerateSuggestionsAndMaybeShowUIPhase3(
       weak_ptr_factory_.GetWeakPtr(),
       AutofillPlusAddressDelegate::SuggestionContext::kAutocomplete,
       password_form_classification.type, form.global_id(), field,
-      should_offer_single_field_form_fill, std::move(callback),
-      std::move(plus_address_suggestions));
+      std::move(callback), std::move(plus_address_suggestions));
 
-  if (should_offer_single_field_form_fill) {
-    // Generating single field suggestions.
-    auto on_suggestions_returned = base::BindOnce(
-        [](base::OnceCallback<void(std::vector<Suggestion>)> callback,
-           FieldGlobalId field_id, const std::vector<Suggestion>& suggestions) {
-          std::move(callback).Run(suggestions);
-        },
-        std::move(on_single_field_suggestions_callback));
-    if (form_structure && autofill_field &&
-        client().GetPaymentsAutofillClient()->GetMerchantPromoCodeManager() &&
-        client()
-            .GetPaymentsAutofillClient()
-            ->GetMerchantPromoCodeManager()
-            ->OnGetSingleFieldSuggestions(*form_structure, field,
-                                          *autofill_field, client(),
-                                          on_suggestions_returned)) {
-      return;
-    }
-    if (form_structure && autofill_field &&
-        client().GetPaymentsAutofillClient()->GetIbanManager() &&
-        client()
-            .GetPaymentsAutofillClient()
-            ->GetIbanManager()
-            ->OnGetSingleFieldSuggestions(*form_structure, field,
-                                          *autofill_field, client(),
-                                          on_suggestions_returned)) {
-      return;
-    }
-    // Autocomplete suggestions have to be generated last since they have to
-    // take the ownership of `on_suggestions_returned`.
-    // Even if no autocomplete suggestions are generated,
-    // `on_suggestions_returned` is still called with an empty list of
-    // suggestions.
-    client().GetAutocompleteHistoryManager()->OnGetSingleFieldSuggestions(
-            form, field, client(), std::move(on_suggestions_returned));
-  } else {
-    std::move(on_single_field_suggestions_callback)
-        .Run(/*single_field_suggestions=*/{});
+  // Generating single field suggestions.
+  auto on_suggestions_returned = base::BindOnce(
+      [](base::OnceCallback<void(std::vector<Suggestion>)> callback,
+         FieldGlobalId field_id, const std::vector<Suggestion>& suggestions) {
+        std::move(callback).Run(suggestions);
+      },
+      std::move(on_single_field_suggestions_callback));
+  if (form_structure && autofill_field &&
+      client().GetPaymentsAutofillClient()->GetMerchantPromoCodeManager() &&
+      client()
+          .GetPaymentsAutofillClient()
+          ->GetMerchantPromoCodeManager()
+          ->OnGetSingleFieldSuggestions(*form_structure, field, *autofill_field,
+                                        client(), on_suggestions_returned)) {
+    return;
   }
+  if (form_structure && autofill_field &&
+      client().GetPaymentsAutofillClient()->GetIbanManager() &&
+      client()
+          .GetPaymentsAutofillClient()
+          ->GetIbanManager()
+          ->OnGetSingleFieldSuggestions(*form_structure, field, *autofill_field,
+                                        client(), on_suggestions_returned)) {
+    return;
+  }
+  // Autocomplete suggestions have to be generated last since they have to
+  // take the ownership of `on_suggestions_returned`.
+  // Even if no autocomplete suggestions are generated,
+  // `on_suggestions_returned` is still called with an empty list of
+  // suggestions.
+  client().GetAutocompleteHistoryManager()->OnGetSingleFieldSuggestions(
+      form, form_structure, field, autofill_field, client(),
+      std::move(on_suggestions_returned));
 }
 
 void BrowserAutofillManager::
@@ -1626,7 +1578,6 @@ void BrowserAutofillManager::
         PasswordFormClassification::Type password_form_type,
         const FormGlobalId& form_id,
         const FormFieldData& field,
-        bool should_offer_single_field_form_fill,
         OnGenerateSuggestionsCallback callback,
         std::vector<Suggestion> plus_address_suggestions,
         std::vector<Suggestion> single_field_suggestions) {
@@ -1646,7 +1597,7 @@ void BrowserAutofillManager::
     // suggestions.
     // TODO(crbug.com/381994105): Consider adding
     // `should_offer_autofill_on_typing()` to `FormFieldData`.
-    if (should_offer_single_field_form_fill && field.should_autocomplete() &&
+    if (field.should_autocomplete() &&
         base::FeatureList::IsEnabled(
             features::kAutofillAddressSuggestionsOnTyping)) {
       // Try to build `Suggestion::kAddressEntryOnTyping` suggestions.
@@ -2651,7 +2602,7 @@ void BrowserAutofillManager::Reset() {
   credit_card_access_manager_.reset();
   // Forget cached OTPs after a navigation.
   otp_manager_ = std::make_unique<OtpManagerImpl>(
-      this, driver().GetAutofillClient().GetSmsOtpBackend());
+      *this, driver().GetAutofillClient().GetSmsOtpBackend());
   account_name_email_strike_manager_ =
       std::make_unique<AccountNameEmailStrikeManager>(*this);
   metrics_.reset();

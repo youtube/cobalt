@@ -35,6 +35,7 @@
 <translation id="1345251407431278948">પિન કરેલી છે! તમે ટૂલબાર પરના નવા બટનમાંથી 'છબી વડે શોધ' સુવિધાને ફરીથી ઍક્સેસ કરી શકો છો</translation>
 <translation id="1356661055722410047">નવું! તમે તમારી સ્ક્રીન પર ટેક્સ્ટ અને છબીઓનો અનુવાદ કરી શકો છો</translation>
 <translation id="1383876407941801731">શોધો</translation>
+<translation id="1397530502368084401">Chromium પ્રોફાઇલ મેનેજ કરો</translation>
 <translation id="1414495520565016063">તમે Chromium માં સાઇન ઇન કર્યું છે!</translation>
 <translation id="141901961143729572">તમારા વિચારો શેર કરો</translation>
 <translation id="1465192221147974788">તમારી વિન્ડો શેર કરવા માટે, સિસ્ટમના સેટિંગમાં Chromium માટે સ્ક્રીન રેકોર્ડિંગની મંજૂરી આપો.</translation>
@@ -74,7 +75,6 @@
 <translation id="1898804291554630487">આ પેજ વિશે પૂછો</translation>
 <translation id="1900969832270057921">Chromium અપડેટર સેવા</translation>
 <translation id="1911763535808217981">આને બંધ કરવાથી, તમે Chromiumમાં સાઇન ઇન કર્યા સિવાય Gmail જેવી Googleની સાઇટમાં સાઇન ઇન કરી શકશો</translation>
-<translation id="1916451563296275579">Chromiumમાંથી આ ઍપનો ડેટા કાઢી નાખો</translation>
 <translation id="1929939181775079593">Chromium પ્રતિસાદ આપતું નથી. હવે ફરીથી લોંચ કરીએ?</translation>
 <translation id="1933341829955786215">તમારી સંસ્થાના <ph name="MANAGER" /> માટે જરૂરી છે કે તમે Chromiumમાં સાઇન ઇન કરો</translation>
 <translation id="193439633299369377">અપડેટ લાગુ કરવા માટે ChromiumOSને ફરી શરૂ કરવાની જરૂર છે.</translation>
@@ -237,6 +237,9 @@
 <translation id="379589255253486813">જો કંઈપણ માટે તમારા રિવ્યૂની જરૂર હોય, તો Chromium તમને જણાવશે</translation>
 <translation id="3802055581630249637">તમે જે પેજની મુલાકાત લેવાની શક્યતા વધુ હોય, Chromium તેને પહેલેથી લોડ કરે છે, જેથી જ્યારે તમે તેમની મુલાકાત લો, ત્યારે તે વધુ ઝડપથી લોડ થઈ શકે</translation>
 <translation id="3810973564298564668">મેનેજ કરો</translation>
+<translation id="3846683726093018685">**સારાંશ આપો:** 30થી ઓછા શબ્દોવાળા એક વાક્યમાં, સ્ક્રીનશૉટમાં આપેલા કન્ટેન્ટના મુખ્ય વિષય અને તેના હેતુનું વર્ણન કરો.
+
+          **પ્રશ્નો સૂચવો:** સ્ક્રીનશૉટને બહેતર રીતે સમજવા માટે વપરાશકર્તા પૂછી શકે તેવા 3-5 વિચારપ્રેરક પ્રશ્નોની બુલેટવાળી સૂચિ જનરેટ કરો. આ પ્રશ્નોમાં ઓછામાં ઓછો એક પ્રશ્ન એવો હોવો જોઈએ કે જે ખાસ કરીને કોઈ વિઝ્યુઅલ ઑબ્જેક્ટ, તેની ડિઝાઇન કે તેના પ્લેસમેન્ટ વિશે હોય.</translation>
 <translation id="3848258323044014972"><ph name="PAGE_TITLE" /> - Chromium</translation>
 <translation id="3885770153807205175">ભાષા પિકર</translation>
 <translation id="388648406173476553">Chromiumને કસ્ટમાઇઝ અને તેનું નિયંત્રણ કરો. તમારે ક્યાંક ધ્યાન આપવાની જરૂર છે - વિગતો માટે ક્લિક કરો.</translation>
@@ -472,6 +475,7 @@
 <translation id="6669284030132180248">જો તમે બુકમાર્કને તમારા Google એકાઉન્ટમાં પણ સાચવશો, તો તમે પ્રોડક્ટની કિંમતો Chromiumમાં ટ્રૅક કરી શકશો તેમજ જ્યારે પણ કિંમતમાં ઘટાડો થાય ત્યારે નોટિફિકેશન મેળવશો</translation>
 <translation id="6676384891291319759">ઇંટરનેટ ઍક્સેસ કરો</translation>
 <translation id="668175097507315160">સાઇન ઇનમાં થયેલી ભૂલને કારણે ChromiumOS તમારા ડેટાને સિંક કરી શક્યું નથી.</translation>
+<translation id="6691132793308828750">Chromiumમાંથી આ ઍપનો ડેટા કાઢી નાખો</translation>
 <translation id="6692797197837897398">તમે જુઓ છો તે જાહેરાતો માટે Chromium તમને વધુ નિયંત્રણો આપે છે અને સાઇટ તમને મનગમતી બનાવેલી જાહેરાતો બતાવે ત્યારે તે તમારા વિશે શું જાણી શકે છે તેને મર્યાદિત કરે છે</translation>
 <translation id="6709350901466051922">આ સાઇટ માટે Chromiumને માઇક્રોફોનની પરવાનગીની જરૂર છે</translation>
 <translation id="6712881677154121168">ડાઉનલોડ કરવામાં ભૂલ: <ph name="DOWNLOAD_ERROR" />.</translation>
@@ -492,6 +496,7 @@
 <translation id="6877155553248388166">શોધ વિસ્તારના સૌથી નીચે જમણા ખૂણે: જમણી બાજુ <ph name="RIGHT" />%, સૌથી નીચે <ph name="BOTTOM" />%</translation>
 <translation id="6896758677409633944">કૉપિ કરો</translation>
 <translation id="6901631050894301805">Chromiumને તમારા ડિફૉલ્ટ બ્રાઉઝર તરીકે સેટ કરો અને તેને તમારા ટાસ્કબાર પર પિન કરો</translation>
+<translation id="6909503629704372277">Chromium પ્રોફાઇલ મેનેજ કરો</translation>
 <translation id="6934579572334859869">'છબી વડે શોધ' સુવિધા વડે આ છબી વિશે પૂછો</translation>
 <translation id="6964305034639999644">Chromium છુ&amp;પી વિંડોમાં લિંક ખોલો</translation>
 <translation id="6965382102122355670">બરાબર, સમજાઇ ગયું</translation>
@@ -503,6 +508,7 @@
 <translation id="7024536598735240744">અનપૅક કરવામાં ભૂલ: <ph name="UNPACK_ERROR" />.</translation>
 <translation id="7025789849649390912">ઇન્સ્ટૉલેશનની પ્રક્રિયા રોકી.</translation>
 <translation id="7045244423563602563">Chromium કસ્ટમાઇઝ કરો</translation>
+<translation id="7047386856539490735">શું આ પરિણામો ઉપયોગી છે?</translation>
 <translation id="705851970750939768">Chromium ને અપડેટ કરો</translation>
 <translation id="7067091210845072982">જો છબીમાં ઉપયોગી વર્ણન ન હોય, તો Chromium તમને વર્ણન પૂરું પાડવાનો પ્રયાસ કરશે. વર્ણન બનાવવા માટે, Googleને છબીઓ મોકલવામાં આવે છે.</translation>
 <translation id="7141270731789036260">Chrome for Testing કસ્ટમાઇઝ કરો</translation>
@@ -628,7 +634,6 @@ Chromium તમારા સેટિંગને રિકવર શકતુ�
 <translation id="8586442755830160949">કોપિરાઇટ <ph name="YEAR" /> The Chromium Authors. સર્વાધિકાર સુરક્ષિત.</translation>
 <translation id="8601359445272098721">નવું! "સ્ક્રીનનો અનુવાદ કરો" બટન પસંદ કરીને તમે તમારી સ્ક્રીન પર ટેક્સ્ટ અને છબીઓનો અનુવાદ કરી શકો છો</translation>
 <translation id="8619360774459241877">Chromium લૉન્ચ કરી રહ્યાં છીએ…</translation>
-<translation id="8621669128220841554">અનુલ્લેખિત ભૂલને કારણે ઇન્સ્ટોલેશન નિષ્ફળ રહ્યું. કૃપા કરીને Chromium ફરીથી ડાઉનલોડ કરો.</translation>
 <translation id="8648201657708811153">Chrome for Testingને તમારું ડિફૉલ્ટ બ્રાઉઝર બનાવી શકાતું નથી.</translation>
 <translation id="8697124171261953979">જ્યારે તમે Chromium શરૂ કરો અથવા ઑમ્નિબૉક્સ પરથી શોધ કરો ત્યારે કયું પેજ બતાવવામાં આવે તે તેનું પણ નિયંત્રણ કરે છે.</translation>
 <translation id="8704119203788522458">આ તમારું Chromium છે</translation>

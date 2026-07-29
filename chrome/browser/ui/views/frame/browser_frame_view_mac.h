@@ -47,12 +47,15 @@ class BrowserFrameViewMac : public BrowserFrameView,
       const gfx::Size& tabstrip_minimum_size) const override;
   gfx::Rect GetBoundsForWebAppFrameToolbar(
       const gfx::Size& toolbar_preferred_size) const override;
+  BrowserLayoutParams GetBrowserLayoutParams() const override;
   int GetTopInset(bool restored) const override;
   void UpdateFullscreenTopUI() override;
-  bool ShouldHideTopUIForFullscreen() const override;
+  bool ShouldHideTopUIInFullscreen() const override;
   void UpdateThrobber(bool running) override;
   void PaintAsActiveChanged() override;
   void OnThemeChanged() override;
+  void LayoutWebAppWindowTitle(const gfx::Rect& available_space,
+                               views::Label& window_title_label) const override;
 
   // views::FrameView:
   gfx::Rect GetBoundsForClientView() const override;

@@ -47,7 +47,8 @@ class ProfilePickerSignInProvider : public content::WebContentsDelegate,
   using SignedInCallback =
       base::OnceCallback<void(Profile*,
                               const CoreAccountInfo&,
-                              std::unique_ptr<content::WebContents>)>;
+                              std::unique_ptr<content::WebContents>,
+                              const SigninUIError&)>;
 
   // Creates a new provider that will render the Gaia sign-in flow in `host` for
   // a profile at `profile_path`.
@@ -124,7 +125,8 @@ class ProfilePickerSignInProvider : public content::WebContentsDelegate,
   void FinishFlowInPickerWithHistorySyncOptin(
       Profile* profile,
       content::WebContents* contents,
-      const CoreAccountInfo& account_info);
+      const CoreAccountInfo& account_info,
+      signin_metrics::AccessPoint access_point);
   void ShowSigninError(Profile* profile,
                        content::WebContents* contents,
                        const SigninUIError& error);

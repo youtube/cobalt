@@ -1235,8 +1235,9 @@ TEST_F(HistoryBackendTest, AddPage404) {
   URLRow url_row;
   ASSERT_TRUE(backend_->GetURL(url, &url_row));
   VisitVector visits;
-  ASSERT_TRUE(backend_->GetMostRecentVisitsForURL(
-      backend_->db()->GetRowForURL(url, nullptr), kMaxVisitsToQuery, &visits));
+  ASSERT_TRUE(backend_->db_->GetMostRecentVisitsForURL(
+      backend_->db()->GetRowForURL(url, nullptr), kMaxVisitsToQuery,
+      VisitQuery404sPolicy::kInclude404s, &visits));
   ASSERT_EQ(1u, visits.size());
 
   // ...but it should not be tracked by `VisitTracker`.
@@ -2514,7 +2515,8 @@ TEST_F(HistoryBackendTest, GetMostRecentVisits) {
   VisitVector visits;
   URLRow row;
   URLID id = backend_->db()->GetRowForURL(url1, &row);
-  ASSERT_TRUE(backend_->db()->GetMostRecentVisitsForURL(id, 1, &visits));
+  ASSERT_TRUE(backend_->db()->GetMostRecentVisitsForURL(
+      id, 1, VisitQuery404sPolicy::kInclude404s, &visits));
   ASSERT_EQ(1U, visits.size());
   EXPECT_EQ(visits1[2].first, visits[0].visit_time);
 }
@@ -3301,9 +3303,9 @@ TEST_F(HistoryBackendTest, ExpireHistoryForTimes) {
 
   // Visits to http://example.com are untouched.
   VisitVector visit_vector;
-  EXPECT_TRUE(backend_->GetMostRecentVisitsForURL(
+  EXPECT_TRUE(backend_->db_->GetMostRecentVisitsForURL(
       backend_->db_->GetRowForURL(GURL("http://example.com"), nullptr),
-      kMaxVisitsToQuery, &visit_vector));
+      kMaxVisitsToQuery, VisitQuery404sPolicy::kInclude404s, &visit_vector));
   ASSERT_EQ(5u, visit_vector.size());
   EXPECT_EQ(base::Time() + base::Microseconds(8), visit_vector[0].visit_time);
   EXPECT_EQ(base::Time() + base::Microseconds(6), visit_vector[1].visit_time);
@@ -3314,9 +3316,9 @@ TEST_F(HistoryBackendTest, ExpireHistoryForTimes) {
   // Visits to http://example.net between [2,8] are removed, including the 404
   // visit at index 5.
   visit_vector.clear();
-  EXPECT_TRUE(backend_->GetMostRecentVisitsForURL(
+  EXPECT_TRUE(backend_->db_->GetMostRecentVisitsForURL(
       backend_->db_->GetRowForURL(GURL("http://example.net"), nullptr),
-      kMaxVisitsToQuery, &visit_vector));
+      kMaxVisitsToQuery, VisitQuery404sPolicy::kInclude404s, &visit_vector));
   ASSERT_EQ(2u, visit_vector.size());
   EXPECT_EQ(base::Time() + base::Microseconds(9), visit_vector[0].visit_time);
   EXPECT_EQ(base::Time() + base::Microseconds(1), visit_vector[1].visit_time);
@@ -3654,13 +3656,19 @@ TEST_F(HistoryBackendTest, RedirectWithQualifiers) {
 
   // Grab the resulting visits.
   VisitVector visits1;
-  backend_->GetMostRecentVisitsForURL(url1.id(), kMaxVisitsToQuery, &visits1);
+  backend_->db_->GetMostRecentVisitsForURL(url1.id(), kMaxVisitsToQuery,
+                                           VisitQuery404sPolicy::kInclude404s,
+                                           &visits1);
   ASSERT_EQ(visits1.size(), 1u);
   VisitVector visits2;
-  backend_->GetMostRecentVisitsForURL(url2.id(), kMaxVisitsToQuery, &visits2);
+  backend_->db_->GetMostRecentVisitsForURL(url2.id(), kMaxVisitsToQuery,
+                                           VisitQuery404sPolicy::kInclude404s,
+                                           &visits2);
   ASSERT_EQ(visits2.size(), 1u);
   VisitVector visits3;
-  backend_->GetMostRecentVisitsForURL(url3.id(), kMaxVisitsToQuery, &visits3);
+  backend_->db_->GetMostRecentVisitsForURL(url3.id(), kMaxVisitsToQuery,
+                                           VisitQuery404sPolicy::kInclude404s,
+                                           &visits3);
   ASSERT_EQ(visits3.size(), 1u);
 
   // The page transition, including the qualifier, should have been preserved
@@ -4013,53 +4021,15 @@ TEST_F(HistoryBackendTest, QueryMostVisitedURLs_VisualDeduplicationLogic) {
     backend_->AddPage(args);
     backend_->SetPageTitle(data.url, data.title);
   }
-  // Test Case 1: Deduplication Enabled.
-  {
-    SCOPED_TRACE("Deduplication Enabled");
-    base::test::ScopedFeatureList feature_list;
-    feature_list.InitAndEnableFeature(
-        history::kMostVisitedTilesVisualDeduplication);
 
+  {
     MostVisitedURLList results =
-        backend_->QueryMostVisitedURLs(100, std::nullopt, std::nullopt, true);
+        backend_->QueryMostVisitedURLs(100, std::nullopt, std::nullopt);
 
     ASSERT_EQ(3u, results.size());
     EXPECT_THAT(results, ElementsAre(MvuMatches(site1.url, site1.title),
                                      MvuMatches(site3.url, site3.title),
                                      MvuMatches(site5.url, site5.title)));
-  }
-  // Helper lambda for asserting when all sites are expected (no deduplication).
-  auto expect_all_sites_ordered_by_score = [&](const MostVisitedURLList& res) {
-    ASSERT_EQ(5u, res.size());
-    EXPECT_THAT(res, testing::ElementsAre(MvuMatches(site1.url, site1.title),
-                                          MvuMatches(site3.url, site3.title),
-                                          MvuMatches(site2.url, site2.title),
-                                          MvuMatches(site5.url, site5.title),
-                                          MvuMatches(site4.url, site4.title)));
-  };
-
-  // Test Case 2: Deduplication Disabled (because feature flag is off).
-  {
-    SCOPED_TRACE("Deduplication Disabled by Feature Flag");
-    base::test::ScopedFeatureList feature_list;
-    feature_list.InitAndDisableFeature(
-        history::kMostVisitedTilesVisualDeduplication);
-
-    MostVisitedURLList results =
-        backend_->QueryMostVisitedURLs(100, std::nullopt, std::nullopt, true);
-    expect_all_sites_ordered_by_score(results);
-  }
-
-  // Test Case 3: Deduplication Disabled (because boolean parameter is false).
-  {
-    SCOPED_TRACE("Deduplication Disabled by Boolean Parameter");
-    base::test::ScopedFeatureList feature_list;
-    feature_list.InitAndEnableFeature(
-        history::kMostVisitedTilesVisualDeduplication);
-
-    MostVisitedURLList results =
-        backend_->QueryMostVisitedURLs(100, std::nullopt, std::nullopt, false);
-    expect_all_sites_ordered_by_score(results);
   }
 }
 
@@ -4199,8 +4169,9 @@ TEST_F(HistoryBackendTest, ExpireVisitDeletes) {
   ASSERT_TRUE(backend_->GetURL(url, &url_row));
 
   VisitVector visits;
-  ASSERT_TRUE(backend_->GetMostRecentVisitsForURL(
-      backend_->db_->GetRowForURL(url, nullptr), kMaxVisitsToQuery, &visits));
+  ASSERT_TRUE(backend_->db_->GetMostRecentVisitsForURL(
+      backend_->db_->GetRowForURL(url, nullptr), kMaxVisitsToQuery,
+      VisitQuery404sPolicy::kInclude404s, &visits));
   ASSERT_EQ(1u, visits.size());
 
   const VisitID visit_id = visits[0].visit_id;

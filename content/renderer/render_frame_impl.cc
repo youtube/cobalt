@@ -4099,8 +4099,8 @@ void RenderFrameImpl::DidReceiveTitle(const blink::WebString& title) {
   } else {
     // Set process title for sub-frames and title-less frames in traces.
     GURL loading_url = GetLoadingUrl();
-    if (!loading_url.host().empty() &&
-        loading_url.scheme() != url::kFileScheme) {
+    if (!loading_url.GetHost().empty() &&
+        loading_url.GetScheme() != url::kFileScheme) {
       std::string frame_title;
       if (frame_->Parent()) {
         frame_title += "Subframe: ";
@@ -4242,9 +4242,10 @@ void RenderFrameImpl::DidOpenDocumentInputStream(const blink::WebURL& url) {
   GetFrameHost()->DidOpenDocumentInputStream(filtered_url);
 }
 
-void RenderFrameImpl::DidSetPageLifecycleState(bool restoring_from_bfcache) {
+void RenderFrameImpl::DidSetPageLifecycleState(
+    blink::BFCacheStateChange bfcache_change) {
   for (auto& observer : observers_)
-    observer.DidSetPageLifecycleState(restoring_from_bfcache);
+    observer.DidSetPageLifecycleState(bfcache_change);
 }
 
 void RenderFrameImpl::NotifyCurrentHistoryItemChanged() {
@@ -4550,22 +4551,38 @@ void RenderFrameImpl::DidStartResponse(
     network::mojom::URLResponseHeadPtr response_head,
     network::mojom::RequestDestination request_destination,
     bool is_ad_resource) {
-  for (auto& observer : observers_) {
-    observer.DidStartResponse(final_response_url, request_id, *response_head,
-                              request_destination, is_ad_resource);
+  if (did_start_response_callback_) {
+    did_start_response_callback_.Run(final_response_url, request_id,
+                                     *response_head, request_destination,
+                                     is_ad_resource);
+  } else {
+    for (auto& observer : observers_) {
+      observer.DidStartResponse(final_response_url, request_id, *response_head,
+                                request_destination, is_ad_resource);
+    }
   }
 }
 
 void RenderFrameImpl::DidCompleteResponse(
     int request_id,
     const network::URLLoaderCompletionStatus& status) {
-  for (auto& observer : observers_)
-    observer.DidCompleteResponse(request_id, status);
+  if (did_complete_response_callback_) {
+    did_complete_response_callback_.Run(request_id, status);
+  } else {
+    for (auto& observer : observers_) {
+      observer.DidCompleteResponse(request_id, status);
+    }
+  }
 }
 
 void RenderFrameImpl::DidCancelResponse(int request_id) {
-  for (auto& observer : observers_)
-    observer.DidCancelResponse(request_id);
+  if (did_cancel_response_callback_) {
+    did_cancel_response_callback_.Run(request_id);
+  } else {
+    for (auto& observer : observers_) {
+      observer.DidCancelResponse(request_id);
+    }
+  }
 }
 
 void RenderFrameImpl::DidReceiveTransferSizeUpdate(int resource_id,
@@ -4636,6 +4653,21 @@ void RenderFrameImpl::SetSubresourceLoadCallback(
 void RenderFrameImpl::SetLoadFromMemoryCacheCallback(
     LoadFromMemoryCacheCallback callback) {
   load_from_memory_cache_callback_ = std::move(callback);
+}
+
+void RenderFrameImpl::SetDidStartResponseCallback(
+    DidStartResponseCallback callback) {
+  did_start_response_callback_ = std::move(callback);
+}
+
+void RenderFrameImpl::SetDidCompleteResponseCallback(
+    DidCompleteResponseCallback callback) {
+  did_complete_response_callback_ = std::move(callback);
+}
+
+void RenderFrameImpl::SetDidCancelResponseCallback(
+    DidCancelResponseCallback callback) {
+  did_cancel_response_callback_ = std::move(callback);
 }
 
 void RenderFrameImpl::DidObserveNewFeatureUsage(
@@ -4959,7 +4991,7 @@ RenderFrameImpl::MakeDidCommitProvisionalLoadParams(
                                   does_status_code_qualify_for_history;
 
   if (previous_page_state.has_value()) {
-    params->previous_page_state = previous_page_state;
+    params->previous_page_state = std::move(previous_page_state).value();
   }
 
   // Make navigation state a part of the DidCommitProvisionalLoad message so
@@ -5139,7 +5171,7 @@ void RenderFrameImpl::UpdateStateForCommit(
     RenderThreadImpl* render_thread_impl = RenderThreadImpl::current();
     if (render_thread_impl) {  // Can be NULL in tests.
       render_thread_impl->histogram_customizer()->RenderViewNavigatedToHost(
-          GetLoadingUrl().host(), blink::WebView::GetWebViewCount());
+          GetLoadingUrl().GetHost(), blink::WebView::GetWebViewCount());
     }
   }
 
@@ -5189,7 +5221,7 @@ void RenderFrameImpl::DidCommitNavigationInternal(
 
   auto params = MakeDidCommitProvisionalLoadParams(
       commit_type, transition, permissions_policy_header,
-      document_policy_header, embedding_token, previous_page_state);
+      document_policy_header, embedding_token, std::move(previous_page_state));
   NavigationState* navigation_state =
       DocumentState::FromDocumentLoader(frame_->GetDocumentLoader())
           ->navigation_state();

@@ -500,7 +500,7 @@ bool ServiceWorkerMainResourceLoader::MaybeStartAutoPreload(
           base::GetFieldTrialParamValueByFeature(
               features::kServiceWorkerAutoPreload, "blocked_hosts"),
           ",", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY));
-  if (blocked_hosts->contains(resource_request_.url.host())) {
+  if (blocked_hosts->contains(resource_request_.url.GetHost())) {
     return false;
   }
 
@@ -1505,6 +1505,15 @@ bool ServiceWorkerMainResourceLoader::IsEligibleForRecordingTimingMetrics() {
   // Don't record metrics when DevTools specify force_update_on_page_load to
   // reduce noise.
   if (find_registration_start_time_.is_null()) {
+    return false;
+  }
+
+  // When the synthetic response is used, do not record metrics since it neither
+  // starts a service worker nor dispatches a fetch event.
+  //
+  // TODO(crbug.com/448235805): Revisit this to ensure if all metrics are really
+  // not needed for the synthetic response.
+  if (is_synthetic_response_used_) {
     return false;
   }
 

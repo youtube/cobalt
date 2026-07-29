@@ -40,6 +40,7 @@
 <translation id="1500473259453106018">Versteek Prysdalings op oortjies-kaart</translation>
 <translation id="1508931164824684991">Werwe kan JavaScript gebruik</translation>
 <translation id="1510341833810331442">Werwe word nie toegelaat om data op jou toestel te stoor nie</translation>
+<translation id="1532175480576580256">My kortpaaie se onderste blad is teen volle hoogte oopgemaak</translation>
 <translation id="1538031354170655462">Werwe gebruik gewoonlik kortveldkommunikasie (NFC) om met nabye merkers of toestelle te werk, soos skandering van kentekens of kontaklose betaling</translation>
 <translation id="1547123415014299762">Derdepartywebkoekies word toegelaat</translation>
 <translation id="1569054338208717605">Maak werwe vinniger met Chrome se V8-enjin, maar maak Chrome effens minder bestand teen aanvalle</translation>
@@ -115,6 +116,7 @@
 <translation id="228293613124499805">Die meeste werwe wat jy besoek, stoor waarskynlik data op jou toestel – dikwels om jou ervaring te verbeter deur jou voorkeure of inligting wat jy met die werf deel, te stoor. Ons beveel aan dat hierdie instelling aan bly.</translation>
 <translation id="2289270750774289114">Vra wanneer 'n werf Bluetooth-toestelle in die omtrek wil ontdek (aanbeveel)</translation>
 <translation id="2315043854645842844">Bedryfstelsel steun nie die sertifikaat wat die kliënt gekies het nie.</translation>
+<translation id="2347601491101454548">My kortpaaie se onderste blad is teen halwe hoogte oopgemaak</translation>
 <translation id="2359808026110333948">Gaan voort</translation>
 <translation id="2379925928934107488">Pas donkertema op werwe toe wanneer Chrome donkertema gebruik, indien moontlik</translation>
 <translation id="2390272837142897736">Vergroot zoem</translation>
@@ -145,6 +147,11 @@
 <translation id="2588271083332682494">Hou alles georganiseerd met oortjiegroepe</translation>
 <translation id="2597457036804169544">Moenie donkertema op werwe toepas nie</translation>
 <translation id="2606760465469169465">Outoverifieer</translation>
+<translation id="2610903128639500624">Bestuur in <ph name="BEGIN_LINK1" />Android-instellings<ph name="END_LINK1" />
+
+Gevorderde Beskerming beheer hierdie Chrome-instellings:
+• “Gebruik altyd veilige verbindings” is aan.
+• “JavaScript-optimeerder” is af. <ph name="BEGIN_LINK2" />Bestuur werfuitsonderings<ph name="END_LINK2" /></translation>
 <translation id="2621115761605608342">Laat JavaScript vir 'n spesifieke werf toe.</translation>
 <translation id="2626708220538466178">Onderste blad van verstekblaaier is toegemaak</translation>
 <translation id="2653659639078652383">Dien in</translation>
@@ -303,6 +310,7 @@
 <translation id="4336566011000459927">Chrome sal vandag weer webkoekies beperk</translation>
 <translation id="4338831206024587507">Alle werwe onder <ph name="DOMAIN" /></translation>
 <translation id="4340799661701629185">Moenie werwe toelaat om kennisgewings te stuur nie</translation>
+<translation id="4341577178275615435">Gebruik die kortpad F7 om karetblaai aan of af te skakel</translation>
 <translation id="4402755511846832236">Keer dat werwe weet wanneer jy hierdie toestel aktief gebruik</translation>
 <translation id="4412683424767388419">Onderste blad van Chrome-kleure teen halwe hoogte oopgemaak</translation>
 <translation id="4412992751769744546">Laat derdeparty-webkoekies toe</translation>
@@ -337,6 +345,7 @@
 <translation id="4816495437032298535">Gestoorde zoem vir werwe</translation>
 <translation id="4836046166855586901">Vra as 'n werf wil weet wanneer jy hierdie toestel aktief gebruik</translation>
 <translation id="483914009762354899">Sluit alle werwe in hierdie domein in</translation>
+<translation id="4852997963351138624">Agtergrondkleur se hekskode</translation>
 <translation id="4882919381756638075">Werwe gebruik gewoonlik jou mikrofoon vir kommunikasiekenmerke soos videoklets</translation>
 <translation id="4883854917563148705">Bestuurde instellings kan nie teruggestel word nie</translation>
 <translation id="4887024562049524730">Vra voordat werwe toegelaat word om jou virtuelerealiteittoestel en -data te gebruik (aanbeveel)</translation>
@@ -500,6 +509,7 @@
 <translation id="6608650720463149374"><ph name="GIGABYTES" /> GB</translation>
 <translation id="6612358246767739896">Beskermde inhoud</translation>
 <translation id="662080504995468778">Bly</translation>
+<translation id="6630443592285535486">Tik hekskode hier</translation>
 <translation id="6635327442719709864">Wanneer dit aan is, kan werwe vra om reekspoorte te gebruik. Wanneer dit af is, kan werwe nie reekspoorte gebruik nie.</translation>
 <translation id="6678072580827808850">Gaan Veiligheidskontrole na</translation>
 <translation id="6682057173375416470">Kry voorgestelde artikels oor die Nuwe Oortjie-bladsy</translation>
@@ -557,6 +567,7 @@
 <translation id="7399802613464275309">Veiligheidskontrole</translation>
 <translation id="7406113532070524618">Hierdie instelling werk sonder om jou te identifiseer of werwe toe te laat om jou blaaigeskiedenis te sien, hoewel werwe ’n klein hoeveelheid inligting as deel van die verifikasie kan stoor</translation>
 <translation id="7409735910987429903">Werwe kan dalk opspringers stuur om advertensies te wys, of herleidings gebruik om jou te lei na webwerwe wat jy dalk nie wil besoek nie</translation>
+<translation id="7412160840120117304">Primêre kleur se hekskode</translation>
 <translation id="7423098979219808738">Vra eers</translation>
 <translation id="7423538860840206698">Geblokkeer om knipbord te lees</translation>
 <translation id="7425915948813553151">Donkertema vir werwe</translation>

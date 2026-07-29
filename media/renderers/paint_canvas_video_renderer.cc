@@ -19,7 +19,6 @@
 #include "base/compiler_specific.h"
 #include "base/containers/span_reader.h"
 #include "base/containers/span_writer.h"
-#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
@@ -688,14 +687,7 @@ bool ValidFormatForDirectUploading(GrGLenum format, unsigned int type) {
       return false;
   }
 }
-
-// Controls whether the one-copy path when copying a VideoFrame to a GL texture
-// is enabled or disabled. The one-copy path being enabled is the default
-// production state, with this Feature being used to be able to disable this
-// path for performance testing.
-BASE_FEATURE(kOneCopyUploadOfVideoFrameToGLTexture,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(IS_ANDROID)
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 std::tuple<SkYUVAInfo::PlaneConfig, SkYUVAInfo::Subsampling>
 VideoPixelFormatAsSkYUVAInfoValues(VideoPixelFormat format) {
@@ -740,16 +732,13 @@ bool SupportsOneCopyUploadToGLTexture(VideoPixelFormat video_frame_format,
   // accurate.
   bool is_premul = media::IsOpaque(video_frame_format) ||
                    dst_alpha_type == kPremul_SkAlphaType;
-  bool use_one_copy_upload =
-      base::FeatureList::IsEnabled(kOneCopyUploadOfVideoFrameToGLTexture);
   bool supports_one_copy_format = ValidFormatForDirectUploading(
       static_cast<GLenum>(dst_internal_format), dst_type);
   // dst texture mipLevel must be 0.
   // TODO(crbug.com/40141173): Support more texture target, e.g.
   // 2d array, 3d etc.
   return si_usable_by_gles2_interface && dst_level == 0 && is_premul &&
-         use_one_copy_upload && dst_target == GL_TEXTURE_2D &&
-         supports_one_copy_format;
+         dst_target == GL_TEXTURE_2D && supports_one_copy_format;
 #endif  // BUILDFLAG(IS_ANDROID)
 }
 
@@ -935,12 +924,11 @@ class VideoTextureBacking : public cc::TextureBacking {
     return raster_context_provider_;
   }
 
-  bool BeginAccess(gpu::raster::RasterInterface* ri) {
+  void BeginAccess(gpu::raster::RasterInterface* ri) {
     CHECK(!ri_access_);
     CHECK(raster_context_provider()->ContextCapabilities().gpu_rasterization);
     ri_access_ =
         shared_image_->BeginRasterAccess(ri, sync_token_, /*readonly=*/true);
-    return true;
   }
 
   void clear_access() {
@@ -1918,16 +1906,9 @@ bool PaintCanvasVideoRenderer::UpdateLastImage(
 
     cache_->coded_size = video_frame->coded_size();
 
-    // In OOPR mode, we can keep the entire TextureBacking. In non-OOPR,
-    // we can recycle the mailbox/texture, but have to replace the SkImage.
     paint_image_builder.set_texture_backing(cache_->texture_backing,
                                             cc::PaintImage::GetNextContentId());
-
-    bool success = cache_->texture_backing->BeginAccess(ri);
-    if (!success) {
-      cache_.reset();
-      return false;
-    }
+    cache_->texture_backing->BeginAccess(ri);
   } else {
     cache_.emplace(video_frame->unique_id());
     paint_image_builder.set_paint_image_generator(

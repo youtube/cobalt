@@ -371,7 +371,7 @@ const gfx::VectorIcon& GetMechanismIcon(
             // Always use the standard iCloud Keychain icon here.
             return kIcloudKeychainIcon;
           },
-          [](const Mechanism::AddPhone&) -> const gfx::VectorIcon& {
+          [](const Mechanism::Hybrid&) -> const gfx::VectorIcon& {
             return kQrcodeGeneratorIcon;
           },
           [](const Mechanism::Enclave&) -> const gfx::VectorIcon& {
@@ -392,7 +392,7 @@ bool MechanismMatchesHint(const Mechanism::Type& mech,
           [hint](const Mechanism::Transport& transport) {
             return transport.value() == hint;
           },
-          [hint](const Mechanism::AddPhone&) {
+          [hint](const Mechanism::Hybrid&) {
             return hint == AuthenticatorTransport::kHybrid;
           },
           [hint](const Mechanism::Enclave&) {
@@ -428,6 +428,23 @@ std::optional<int> FindIndexOfFirstMechanismOfType(
     }
   }
   return std::nullopt;
+}
+
+// Returns `true` if there are credentials in `mechanisms`, and they all
+// correspond to Windows Hello.
+bool AreAllCredentialsWindowsHello(const std::vector<Mechanism>& mechanisms) {
+  std::vector<const Mechanism::Credential*> credentials;
+  for (const auto& mech : mechanisms) {
+    if (std::holds_alternative<Mechanism::Credential>(mech.type)) {
+      credentials.push_back(&std::get<Mechanism::Credential>(mech.type));
+    }
+  }
+  if (credentials.empty()) {
+    return false;
+  }
+  return std::ranges::all_of(credentials, [](const auto* cred) {
+    return cred->value().source == AuthenticatorType::kWinNative;
+  });
 }
 
 }  // namespace
@@ -888,16 +905,10 @@ void AuthenticatorRequestDialogController::
         }
       }
     }
-    // If a request only includes mechanisms that can be serviced by the Windows
-    // API and local credentials, there is no point showing Chrome UI as an
-    // extra step. Jump to Windows instead.
+    // If a request includes credentials from Windows Hello only, jump directly
+    // to Windows. There is little point Chrome UI as an extra step.
     if (transport_availability_.has_win_native_api_authenticator &&
-        std::ranges::all_of(model_->mechanisms, [](const auto& mech) {
-          return std::holds_alternative<Mechanism::WindowsAPI>(mech.type) ||
-                 (std::holds_alternative<Mechanism::Credential>(mech.type) &&
-                  std::get<Mechanism::Credential>(mech.type).value().source ==
-                      AuthenticatorType::kWinNative);
-        })) {
+        AreAllCredentialsWindowsHello(model_->mechanisms)) {
       ephemeral_state_.did_invoke_platform_despite_no_priority_mechanism_ =
           true;
       StartWinNativeApi();
@@ -1165,7 +1176,7 @@ void AuthenticatorRequestDialogController::StartPlatformAuthenticatorFlow() {
       return;
     }
 
-    if (transport_availability_.is_off_the_record_context) {
+    if (model_->is_off_the_record) {
       // Step::kCreatePasskey incorporates an incognito warning if
       // applicable, so the OTR interstitial step only needs to show in the
       // "old" UI.
@@ -1314,7 +1325,7 @@ bool AuthenticatorRequestDialogController::OnWinUserCancelled() {
   bool phone_is_option =
       !WebAuthnApiSupportsHybrid() &&
       std::ranges::any_of(model_->mechanisms, [](const Mechanism& m) -> bool {
-        return std::holds_alternative<Mechanism::AddPhone>(m.type);
+        return std::holds_alternative<Mechanism::Hybrid>(m.type);
       });
   bool have_other_option = enclave_is_option || phone_is_option;
   bool windows_was_priority =
@@ -1803,7 +1814,7 @@ void AuthenticatorRequestDialogController::StartGuidedFlowForTransport(
   }
 }
 
-void AuthenticatorRequestDialogController::StartGuidedFlowForAddPhone() {
+void AuthenticatorRequestDialogController::StartHybridFlow() {
   EnsureBleAdapterIsPoweredAndContinue(
       base::BindOnce(&AuthenticatorRequestDialogController::SetCurrentStep,
                      weak_factory_.GetWeakPtr(), Step::kCableV2QRCode));
@@ -2159,12 +2170,12 @@ void AuthenticatorRequestDialogController::PopulateMechanisms() {
         !include_usb_option;
     std::u16string label = l10n_util::GetStringUTF16(
         GetHybridButtonLabel(model_->show_security_key_on_qr_sheet));
-    Mechanism::Type mechanism_type = Mechanism::AddPhone();
+    Mechanism::Type mechanism_type = Mechanism::Hybrid();
     model_->mechanisms.emplace_back(
         mechanism_type, label,
         GetMechanismIcon(mechanism_type, ui_presentation()),
         base::BindRepeating(
-            &AuthenticatorRequestDialogController::StartGuidedFlowForAddPhone,
+            &AuthenticatorRequestDialogController::StartHybridFlow,
             base::Unretained(this)));
   }
   if (include_usb_option) {
@@ -2268,6 +2279,13 @@ AuthenticatorRequestDialogController::IndexOfGetAssertionPriorityMechanism() {
     }
     // If one of the passkeys is a valid default, go to that.
     if (!has_password && !multiple_distinct_creds && best_cred.has_value() &&
+        // Do not set Windows Hello credentials as priority mechanisms. Doing so
+        // narrows the allow-list to that specific credential. But, since
+        // Windows also handles other mechanisms, it's better to avoid narrowing
+        // the allow list.
+        // `StartGuidedFlowForMostLikelyTransportOrShowMechanismSelection()`
+        // will jump to Windows if all the credentials are Windows Hello.
+        best_cred->second->source != AuthenticatorType::kWinNative &&
         (best_cred->second->source != AuthenticatorType::kEnclave ||
          CanDefaultToEnclave(Profile::FromBrowserContext(
                                  GetRenderFrameHost()->GetBrowserContext())
@@ -2395,7 +2413,7 @@ AuthenticatorRequestDialogController::IndexOfMakeCredentialPriorityMechanism() {
   const bool is_passkey_request = model_->resident_key_requirement !=
                                   device::ResidentKeyRequirement::kDiscouraged;
   if (is_passkey_request) {
-    priority_list.emplace_back(Mechanism::AddPhone());
+    priority_list.emplace_back(Mechanism::Hybrid());
   } else {
     priority_list.emplace_back(Mechanism::WindowsAPI());
   }
