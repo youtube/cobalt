@@ -31,7 +31,7 @@
 #endif  // BUILDFLAG(IS_ANDROID)
 #endif  // BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #include <linux/rtnetlink.h>
 #include "net/base/address_map_linux.h"
 #include "net/base/address_tracker_linux.h"
@@ -101,7 +101,7 @@ bool HaveOnlyLoopbackAddressesSlow() {
 #endif  // defined(various platforms)
 }
 
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 // This implementation can run on the main thread as it will not block.
 bool HaveOnlyLoopbackAddressesFast(AddressMapOwnerLinux* address_map_owner) {
   // The AddressMapOwnerLinux has already cached all the information necessary
@@ -129,13 +129,13 @@ bool HaveOnlyLoopbackAddressesFast(AddressMapOwnerLinux* address_map_owner) {
 
   return true;
 }
-#endif  // BUILDFLAG(IS_LINUX)
+#endif  // BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
 }  // namespace
 
 void RunHaveOnlyLoopbackAddressesJob(
     base::OnceCallback<void(bool)> finished_cb) {
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   // On Linux, this check can be fast if it accesses only network information
   // that's cached by NetworkChangeNotifier, so there's no need to post this
   // task to a thread pool. If HaveOnlyLoopbackAddressesFast() *is* posted to a
@@ -153,7 +153,7 @@ void RunHaveOnlyLoopbackAddressesJob(
                        HaveOnlyLoopbackAddressesFast(address_map_owner)));
     return;
   }
-#endif  // BUILDFLAG(IS_LINUX)
+#endif  // BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
   base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE,

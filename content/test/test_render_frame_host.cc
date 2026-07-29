@@ -333,6 +333,7 @@ void TestRenderFrameHost::SimulateManifestURLUpdate(const GURL& manifest_url) {
   GetPage().UpdateManifestUrl(manifest_url);
 }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 TestRenderFrameHost* TestRenderFrameHost::AppendFencedFrame() {
   fenced_frames_.push_back(std::make_unique<FencedFrame>(
       weak_ptr_factory_.GetSafeRef(), /* was_discarded= */ false));
@@ -351,6 +352,7 @@ TestRenderFrameHost* TestRenderFrameHost::AppendFencedFrame() {
       base::UnguessableToken::Create());
   return static_cast<TestRenderFrameHost*>(fenced_frame->GetInnerRoot());
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
 void TestRenderFrameHost::SendNavigate(int nav_entry_id,
                                        bool did_create_new_entry,
@@ -601,17 +603,19 @@ void TestRenderFrameHost::SimulateCommitProcessed(
       same_document);
 }
 
-#if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
 void TestRenderFrameHost::CreateHidServiceForTesting(
     mojo::PendingReceiver<blink::mojom::HidService> receiver) {
   RenderFrameHostImpl::GetHidService(std::move(receiver));
 }
-#endif  // !BUILDFLAG(IS_ANDROID)
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
 
+#if !BUILDFLAG(IS_COBALT)
 void TestRenderFrameHost::CreateWebUsbServiceForTesting(
     mojo::PendingReceiver<blink::mojom::WebUsbService> receiver) {
   RenderFrameHostImpl::CreateWebUsbService(std::move(receiver));
 }
+#endif
 
 void TestRenderFrameHost::ResetLocalFrame() {
   local_frame_.reset();

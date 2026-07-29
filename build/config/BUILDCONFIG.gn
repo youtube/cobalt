@@ -14,6 +14,8 @@
 # every other file in the build. So variables declared here (that don't start
 # with an underscore) will be implicitly global.
 
+import("//cobalt/build/configs/cobalt.gni")
+
 # =============================================================================
 # PLATFORM SELECTION
 # =============================================================================
@@ -170,6 +172,15 @@ declare_args() {
   is_debug = !is_official_build
 }
 
+if (is_cobalt) {
+  declare_args() {
+    # TODO: b/423038377 - Fully fix debug builds and remove this flag.
+    cobalt_debugging_enabled = false
+  }
+  assert(!(cobalt_debugging_enabled && is_debug),
+         "Fix b/423038377 instead of enabling is_debug with cobalt_debugging_enabled.")
+}
+
 declare_args() {
   # Component build. Setting to true compiles targets declared as "components"
   # as shared libraries loaded dynamically. This speeds up development time.
@@ -295,12 +306,26 @@ if (target_os == "android") {
   assert(false, "Unsupported target_os: $target_os")
 }
 
+# Create a separation between cobalt and host toolchain if needed.
+if (is_cobalt && _default_toolchain == host_toolchain) {
+  default_toolchain_path = string_split(_default_toolchain, "//")
+  _default_toolchain = "//cobalt/" + default_toolchain_path[1]
+}
+
 # If a custom toolchain has been set in the args, set it as default. Otherwise,
 # set the default toolchain for the platform (if any).
 if (custom_toolchain != "") {
   set_default_toolchain(custom_toolchain)
 } else if (_default_toolchain != "") {
   set_default_toolchain(_default_toolchain)
+}
+
+if (is_cobalt) {
+  if (custom_toolchain != "") {
+    cobalt_toolchain_default = custom_toolchain
+  } else if (_default_toolchain != "") {
+    cobalt_toolchain_default = _default_toolchain
+  }
 }
 
 # =============================================================================
@@ -352,6 +377,16 @@ is_posix = !is_win && !is_fuchsia
 # requirement and just need to add a config everywhere, reference it as a
 # sub-config of an existing one, most commonly the main "compiler" one.
 
+# This include has been deliberately added after setting the default toolchain
+# and is_* definitions above.
+import("//cobalt/build/configs/starboard.gni")
+
+# TODO: b/374301613 - Consolidate these imports and remove variables where possible.
+if (is_cobalt) {
+  import("//cobalt/build/configs/initialize_variables.gni")
+  import("//cobalt/build/configs/variables.gni")
+}
+
 # Holds all configs used for running the compiler.
 default_compiler_configs = [
   "//build/config:feature_flags",
@@ -381,6 +416,15 @@ default_compiler_configs = [
   "//build/config/coverage:default_coverage",
   "//build/config/sanitizers:default_sanitizer_flags",
 ]
+
+# Add global defines shared by Cobalt and Chromium/Blink builds (e.g. milestone
+# version and Privacy Sandbox flags). This is applied unconditionally so that
+# standard Chromium builds in the Cobalt repository also compile correctly.
+default_compiler_configs += [ "//cobalt/build/configs/shared:global_defines_shared" ]
+
+if (is_cobalt) {
+  default_compiler_configs += [ "//cobalt/build/configs:cobalt_config" ]
+}
 
 if (is_win) {
   default_compiler_configs += [

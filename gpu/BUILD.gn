@@ -12,6 +12,10 @@ import("//third_party/angle/gni/angle.gni")
 import("//third_party/protobuf/proto_library.gni")
 import("//ui/gl/features.gni")
 
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+}
+
 if (is_android) {
   # Pull in enable_chrome_android_internal.
   import("//build/config/android/config.gni")
@@ -280,6 +284,14 @@ test("gl_tests") {
     "ipc/client/gpu_in_process_context_tests.cc",
     "ipc/client/raster_in_process_context_tests.cc",
   ]
+  if (is_cobalt_hermetic_build) {
+    sources += [ "command_buffer/tests/starboard/gl_tests_main.cc" ]
+    sources -= [ "command_buffer/tests/gl_tests_main.cc" ]
+  }
+
+  if (is_cobalt && use_starboard_media) {
+    sources += [ "command_buffer/service/shared_image/starboard/starboard_gl_texture_image_backing_unittest.cc" ]
+  }
 
   if (is_android) {
     sources += [ "command_buffer/tests/gl_unittests_android.cc" ]
@@ -330,6 +342,10 @@ test("gl_tests") {
 
   deps += [ "//third_party/angle:translator" ]
 
+  if (is_cobalt && use_starboard_media) {
+    deps += [ "//starboard:starboard_headers_only" ]
+  }
+
   if (use_ozone) {
     deps += [ "//ui/ozone" ]
     sources += [ "command_buffer/service/shared_image/ozone_image_backing_factory_unittest.cc" ]
@@ -370,7 +386,7 @@ test("gl_tests") {
   }
 
   # Simply loading the Vulkan driver leaks crbug.com/1134681
-  if (is_linux && !is_lsan) {
+  if (is_linux && !is_lsan && enable_vulkan) {
     sources += [ "command_buffer/service/shared_image/angle_vulkan_image_backing_factory_unittest.cc" ]
   }
 
@@ -525,6 +541,12 @@ test("gpu_unittests") {
     "ipc/service/gpu_watchdog_thread_unittest.cc",
   ]
 
+
+  if (is_cobalt_hermetic_build) {
+    sources += [ "command_buffer/common/starboard/unittest_main.cc" ]
+    sources -= [ "command_buffer/common/unittest_main.cc" ]
+  }
+
   if (enable_validating_command_decoder) {
     sources += [
       "command_buffer/service/gles2_cmd_decoder_unittest.cc",
@@ -576,7 +598,7 @@ test("gpu_unittests") {
     ]
   }
 
-  if (is_linux || is_chromeos || is_android) {
+  if (is_linux && !is_starboard || is_chromeos || is_android) {
     sources += [ "command_buffer/service/gpu_fence_manager_unittest.cc" ]
   }
 
@@ -654,6 +676,10 @@ test("gpu_unittests") {
     "//url",
   ]
 
+  if (is_cobalt && use_starboard_media) {
+    deps += [ "//starboard:starboard_headers_only" ]
+  }
+
   deps += [ "//third_party/angle:translator" ]
 
   if (is_android) {
@@ -687,6 +713,11 @@ test("gpu_perftests") {
     "perftests/run_all_tests.cc",
     "perftests/texture_upload_perftest.cc",
   ]
+
+  if (is_cobalt_hermetic_build) {
+    sources -= [ "perftests/run_all_tests.cc" ]
+    sources += [ "perftests/starboard/run_all_tests.cc" ]
+  }
 
   deps = [
     "//base",
