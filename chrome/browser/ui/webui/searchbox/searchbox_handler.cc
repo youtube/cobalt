@@ -7,6 +7,7 @@
 #include "base/base64.h"
 #include "base/base64url.h"
 #include "base/containers/contains.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/branding_buildflags.h"
 #include "chrome/browser/autocomplete/chrome_autocomplete_scheme_classifier.h"
@@ -441,6 +442,9 @@ void SearchboxHandler::SetupWebUIDataSource(content::WebUIDataSource* source,
   // layout options.
   source->AddBoolean("isLensSearchbox", false);
   source->AddBoolean("queryAutocompleteOnEmptyInput", false);
+  source->AddBoolean("forceHideEllipsis", false);
+  source->AddBoolean("enableThumbnailSizingTweaks", false);
+  source->AddBoolean("enableCsbMotionTweaks", false);
 
   static constexpr webui::LocalizedString kStrings[] = {
       {"lensSearchButtonLabel", IDS_TOOLTIP_LENS_SEARCH},
@@ -476,6 +480,9 @@ void SearchboxHandler::SetupWebUIDataSource(content::WebUIDataSource* source,
       base::FeatureList::IsEnabled(ntp_features::kRealboxCr23Theming));
   source->AddBoolean("searchboxCr23SteadyStateShadow",
                      ntp_features::kNtpRealboxCr23SteadyStateShadow.Get());
+  source->AddBoolean("searchboxShowComposeButton",
+                     base::FeatureList::IsEnabled(
+                         ntp_features::kNtpSearchboxShowComposeButton));
 }
 
 // static

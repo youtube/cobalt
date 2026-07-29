@@ -22,6 +22,7 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/path_service.h"
 #include "base/rand_util.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
@@ -1110,8 +1111,6 @@ void ChromeDownloadManagerDelegate::ChooseSavePath(
     content::SavePackagePathPickedCallback callback) {
 #if BUILDFLAG(IS_ANDROID)
   if (!web_contents) {
-    std::move(callback).Run(content::SavePackagePathPickedParams(),
-                            base::DoNothing());
     return;
   }
 
@@ -2322,11 +2321,8 @@ void ChromeDownloadManagerDelegate::RequestIncognitoSavePackageConfirmationDone(
     content::SavePackagePathPickedCallback callback,
     bool accept) {
   if (!accept) {
-    std::move(callback).Run(content::SavePackagePathPickedParams(),
-                            base::DoNothing());
     return;
   }
-
   download::DetermineSavePackagePath(
       url, suggested_path,
       base::BindOnce(&OnDetermineSavePackagePathDone, std::move(callback)));

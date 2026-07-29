@@ -39,7 +39,6 @@ export class OverlayBorderGlowElement extends CrLitElement {
     return getCss();
   }
 
-
   protected getGradientColorStyles(): string {
     const styles: string[] = [
       `--gradient-blue: ${GLIF_HEX_COLORS.blue}`,
@@ -54,9 +53,11 @@ export class OverlayBorderGlowElement extends CrLitElement {
     this.isFadingOut = true;
   }
 
-  /* TODO(crbug.com/419035304): Trigger this when the CSB thumbnail is removed.
-   */
-  handleRemoveSearchboxThumbnail() {
+  handlePostSelectionUpdated() {
+    this.isFadingOut = true;
+  }
+
+  handleClearSelection() {
     this.isFadingOut = false;
     this.isFadingIn = true;
   }
@@ -73,3 +74,15 @@ declare global {
 }
 
 customElements.define(OverlayBorderGlowElement.is, OverlayBorderGlowElement);
+
+// Register the custom property for the gradient mask opacity middle value.
+// Custom properties are ignored by the browser in shadow DOMs, so need to
+// register them globally here. Additionally, the property can only by
+// registered once per document, so this must be done in the main window, rather
+// than in the class itself.
+window.CSS.registerProperty({
+  name: '--gradient-mask-opacity-middle-val',
+  syntax: '<number>',
+  inherits: false,
+  initialValue: '0',
+});

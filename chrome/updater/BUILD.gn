@@ -132,12 +132,8 @@ if (is_win || is_mac || is_linux) {
       "crash_reporter.cc",
       "crash_reporter.h",
       "crx_downloader_factory.h",
-      "device_management/dm_client.cc",
-      "device_management/dm_client.h",
-      "device_management/dm_message.cc",
-      "device_management/dm_message.h",
-      "device_management/dm_response_validator.cc",
-      "device_management/dm_response_validator.h",
+      "event_logger.cc",
+      "event_logger.h",
       "handle_inconsistent_apps_task.cc",
       "handle_inconsistent_apps_task.h",
       "installer.cc",
@@ -172,7 +168,6 @@ if (is_win || is_mac || is_linux) {
       "prefs_impl.h",
       "remove_uninstalled_apps_task.cc",
       "remove_uninstalled_apps_task.h",
-      "setup.cc",
       "setup.h",
       "update_block_check.cc",
       "update_block_check.h",
@@ -208,6 +203,8 @@ if (is_win || is_mac || is_linux) {
       "//chrome/enterprise_companion:installer_paths",
       "//chrome/enterprise_companion/device_management_storage",
       "//chrome/enterprise_companion/mojom",
+      "//chrome/enterprise_companion/telemetry_logger",
+      "//chrome/enterprise_companion/telemetry_logger/proto",
       "//chrome/updater/protos:omaha_proto",
       "//components/crash/core/common",
       "//components/crx_file",
@@ -808,7 +805,10 @@ if (is_win || is_mac || is_linux) {
           deps += [ ":enterprise_companion_test_crx_asan_dylib" ]
         }
       } else if (is_win) {
-        inputs = [ "$root_build_dir/enterprise_companion_test.exe" ]
+        inputs = [
+          "$root_build_dir/enterprise_companion_test.exe",
+          "$root_out_dir/icudtl.dat",
+        ]
         deps = [ "//chrome/enterprise_companion:enterprise_companion_test" ]
       }
       key = "//chrome/updater/test/data/selfupdate_test_key.der"
@@ -852,12 +852,8 @@ if (is_win || is_mac || is_linux) {
       "branded_constants_unittest.cc",
       "certificate_tag_unittest.cc",
       "cleanup_task_unittest.cc",
-      "device_management/dm_client_unittest.cc",
-      "device_management/dm_message_unittest.cc",
-      "device_management/dm_policy_builder_for_testing.cc",
-      "device_management/dm_policy_builder_for_testing.h",
-      "device_management/dm_response_validator_unittest.cc",
       "enum_traits_unittest.cc",
+      "event_logger_unittest.cc",
       "external_constants_builder.cc",
       "external_constants_builder.h",
       "external_constants_builder_unittest.cc",
@@ -872,6 +868,8 @@ if (is_win || is_mac || is_linux) {
       "policy/service_unittest.cc",
       "prefs_unittest.cc",
       "tag_unittest.cc",
+      "test/dm_policy_builder.cc",
+      "test/dm_policy_builder.h",
       "test/http_request.cc",
       "test/http_request.h",
       "test/integration_test_commands.h",

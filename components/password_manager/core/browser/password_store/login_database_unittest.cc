@@ -18,6 +18,7 @@
 #include "base/files/scoped_temp_dir.h"
 #include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
@@ -268,11 +269,11 @@ MATCHER(IsBasicAuthAccount, "") {
 
 os_crypt_async::Encryptor GetInstanceSync(
     os_crypt_async::OSCryptAsync* factory) {
-  base::test::TestFuture<os_crypt_async::Encryptor, bool> future;
+  base::test::TestFuture<os_crypt_async::Encryptor> future;
 
-  auto sub = factory->GetInstance(future.GetCallback(),
-                                  os_crypt_async::Encryptor::Option::kNone);
-  return std::move(std::get<0>(future.Take()));
+  factory->GetInstance(future.GetCallback(),
+                       os_crypt_async::Encryptor::Option::kNone);
+  return future.Take();
 }
 
 }  // namespace

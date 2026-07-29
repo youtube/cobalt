@@ -107,6 +107,7 @@ source_set("unit_tests") {
     "//chrome/browser/ui/tabs:tab_strip",
     "//chrome/browser/ui/tabs:test_support",
     "//chrome/test:test_support",
+    "//components/tabs:public",
     "//content/test:test_support",
     "//testing/gtest",
   ]
@@ -120,6 +121,7 @@ source_set("browser_tests") {
   deps = [
     ":impl",
     ":tab_strip_api",
+    "adapters/tree_builder:browser_tests",
     "//base",
     "//base/test:test_support",
     "//chrome/browser/ui:ui_features",

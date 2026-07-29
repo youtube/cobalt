@@ -19,10 +19,12 @@ class GlicIphController;
 
 class Browser;
 class BrowserInstantController;
+class BrowserSyncedWindowDelegate;
 class BrowserView;
 class BrowserWindowInterface;
 class ChromeLabsCoordinator;
 class CookieControlsBubbleCoordinator;
+class DesktopBrowserWindowCapabilities;
 class HistorySidePanelCoordinator;
 class BookmarksSidePanelCoordinator;
 class MemorySaverOptInIPHController;
@@ -38,10 +40,13 @@ class DownloadToolbarUIController;
 class TabStripServiceRegister;
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+namespace pdf::infobar {
 class PdfInfoBarController;
+}  // namespace pdf::infobar
 #endif
 
 namespace extensions {
+class BrowserExtensionWindowController;
 class ExtensionSidePanelManager;
 class Mv2DisabledDialogController;
 }  // namespace extensions
@@ -57,6 +62,10 @@ class ProductSpecificationsEntryPointController;
 namespace tabs {
 class GlicNudgeController;
 }
+
+namespace tab_groups {
+class DeletionDialogController;
+}  // namespace tab_groups
 
 namespace lens {
 class LensOverlayEntryPointController;
@@ -145,7 +154,7 @@ class BrowserWindowFeatures {
   }
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
-  PdfInfoBarController* pdf_infobar_controller() {
+  pdf::infobar::PdfInfoBarController* pdf_infobar_controller() {
     return pdf_infobar_controller_.get();
   }
 #endif
@@ -229,8 +238,20 @@ class BrowserWindowFeatures {
     return cookie_controls_bubble_coordinator_.get();
   }
 
+  BrowserSyncedWindowDelegate* synced_window_delegate() {
+    return synced_window_delegate_.get();
+  }
+
   TabMenuModelDelegate* tab_menu_model_delegate() {
     return tab_menu_model_delegate_.get();
+  }
+
+  tab_groups::DeletionDialogController* tab_group_deletion_dialog_controller() {
+    return tab_group_deletion_dialog_controller_.get();
+  }
+
+  extensions::BrowserExtensionWindowController* extension_window_controller() {
+    return extension_window_controller_.get();
   }
 
   // Only fetch the tab_strip_service to register a pending receiver.
@@ -250,6 +271,10 @@ class BrowserWindowFeatures {
   // virtual std::unique_ptr<FooFeature> CreateFooFeature();
 
  private:
+  // A collection of features specific to desktop versions of Chrome.
+  std::unique_ptr<DesktopBrowserWindowCapabilities>
+      desktop_browser_window_capabilities_;
+
   // Features that are per-browser window will each have a controller. e.g.
   // std::unique_ptr<FooFeature> foo_feature_;
 
@@ -283,7 +308,7 @@ class BrowserWindowFeatures {
       bookmarks_side_panel_coordinator_;
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
-  std::unique_ptr<PdfInfoBarController> pdf_infobar_controller_;
+  std::unique_ptr<pdf::infobar::PdfInfoBarController> pdf_infobar_controller_;
 #endif
 
   std::unique_ptr<SidePanelCoordinator> side_panel_coordinator_;
@@ -327,10 +352,18 @@ class BrowserWindowFeatures {
   std::unique_ptr<CookieControlsBubbleCoordinator>
       cookie_controls_bubble_coordinator_;
 
+  std::unique_ptr<BrowserSyncedWindowDelegate> synced_window_delegate_;
+
   std::unique_ptr<TabMenuModelDelegate> tab_menu_model_delegate_;
+
+  std::unique_ptr<tab_groups::DeletionDialogController>
+      tab_group_deletion_dialog_controller_;
 
   std::unique_ptr<new_tab_footer::NewTabFooterController>
       new_tab_footer_controller_;
+
+  std::unique_ptr<extensions::BrowserExtensionWindowController>
+      extension_window_controller_;
 
   // This is an experimental API that interacts with the TabStripModel.
   std::unique_ptr<TabStripServiceRegister> tab_strip_service_;

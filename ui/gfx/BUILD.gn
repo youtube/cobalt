@@ -125,6 +125,8 @@ component("gfx") {
     "image/image_util.h",
     "interpolated_transform.cc",
     "interpolated_transform.h",
+    "monogram_utils.cc",
+    "monogram_utils.h",
     "overlay_layer_id.cc",
     "overlay_layer_id.h",
     "overlay_plane_data.cc",
@@ -628,6 +630,8 @@ source_set("memory_buffer_sources") {
       "ca_layer_params.h",
       "gpu_memory_buffer.cc",
       "gpu_memory_buffer.h",
+      "gpu_memory_buffer_handle.cc",
+      "gpu_memory_buffer_handle.h",
     ]
   }
 

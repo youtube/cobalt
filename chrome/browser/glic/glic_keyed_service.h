@@ -126,7 +126,7 @@ class GlicKeyedService : public KeyedService {
 
   // Callback for all changes to focused tab.
   using FocusedTabChangedCallback =
-      base::RepeatingCallback<void(FocusedTabData)>;
+      base::RepeatingCallback<void(const FocusedTabData&)>;
   // Callback for changes to focused tab data.
   using FocusedTabDataChangedCallback =
       base::RepeatingCallback<void(const glic::mojom::TabData*)>;
@@ -135,7 +135,7 @@ class GlicKeyedService : public KeyedService {
       base::RepeatingCallback<void(content::WebContents*)>;
   // Callback for changes to the focused tab container or candidate instances.
   using FocusedTabOrCandidateInstanceChangedCallback =
-      base::RepeatingCallback<void(FocusedTabData)>;
+      base::RepeatingCallback<void(const FocusedTabData&)>;
   // Callback for changes to the context access indicator status.
   using ContextAccessIndicatorChangedCallback =
       base::RepeatingCallback<void(bool)>;
@@ -240,6 +240,14 @@ class GlicKeyedService : public KeyedService {
   // Returns whether this web contents contains the Chrome glic WebUI,
   // chrome://glic.
   bool IsGlicWebUi(content::WebContents* web_contents);
+
+  // Log a fake network request to NetLog with a Glic traffic annotation. This
+  // doesn't *send* a request, it just logs it for chrome://net-export.
+  //
+  // Unfortunately there's no way to pass `traffic_annotation` to
+  // LoadURLWithParams() or to tag the WebContents with an annotation, so we
+  // use this hacky workaround to capture the annotation at runtime.
+  void LogDummyNetworkRequestForTrafficAnnotation(const GURL& url);
 
  private:
   // A helper function to route GetZeroStateSuggestionsForFocusedTabCallback

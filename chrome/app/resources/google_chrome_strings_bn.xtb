@@ -242,6 +242,7 @@
 <translation id="4050175100176540509">গুরুত্বপূর্ণ নিরাপত্তা উন্নতি এবং নতুন বৈশিষ্ট্যগুলি সর্বশেষ ভার্সনে উপলভ্য।</translation>
 <translation id="4053720452172726777">Google Chrome কাস্টমাইজ ও নিয়ন্ত্রণ করুন</translation>
 <translation id="408393047846373801">নিজের সব ডিভাইসে পাসওয়ার্ড ও আরও অনেক কিছু পেতে, Chrome-এ সাইন-ইন করুন। সাইন-ইন করার পরে, আপনার Google অ্যাকাউন্টে এই পাসওয়ার্ড সেভ করা হবে।</translation>
+<translation id="409936259433005390">শীঘ্রই Windows 11-এ আপগ্রেড করতে চলেছেন? One Drive-এ Chrome ইনস্টলার ডাউনলোড করুন যাতে আপনি প্রথম দিন থেকেই তৈরি থাকতে পারেন।</translation>
 <translation id="4110895483821904099">আপনার নতুন Chrome প্রোফাইল সেট আপ করুন</translation>
 <translation id="4111566860456076004">এই এক্সটেনশন কোথা থেকে এসেছে তা Chrome যাচাই করতে পারে না এবং এটি নিরাপদ নাও হতে পারে। Chrome থেকে এটি সরান যাতে ব্যক্তিগত তথ্য সহ আপনার ভিজিট করা সাইটের ডেটা এটি আর দেখতে না পায় এবং তা পরিবর্তন করতে না পারে।</translation>
 <translation id="4128488089242627000">Chrome আরও দ্রুত কাজ করে এবং যেসব ফিচার জাভাস্ক্রিপ্ট ব্যবহার করে, সেগুলি ডিজাইন করা (সাজেস্ট করা হয়েছে) হিসেবে কাজ করতে হবে</translation>
@@ -315,6 +316,7 @@
 <translation id="4970880042055371251">ChromeOS ভার্সন</translation>
 <translation id="4990567037958725628">Google Chrome  ক্যানারি</translation>
 <translation id="5003967926796347400">“Google Password Manager”-এ ক্লিক করুন</translation>
+<translation id="504867494566807945">যেকোনও অ্যাপ থেকে Chrome-এ লিঙ্ক খুলুন। এর সাথে, সহজ অ্যাক্সেসের জন্য এটি আপনার টাস্কবারে পিন করা থাকে।</translation>
 <translation id="5114340746415930644">আপনার অ্যাকাউন্ট, <ph name="USER_EMAIL" />-এ Chrome ডেটা ব্যবহার এবং সেভ করার জন্য পাসফ্রেজ লিখুন</translation>
 <translation id="5120334927898581447">অন্যান্য Google পরিষেবায় সাইন-ইন করার সময় Chrome-এ সাইন-ইন করুন</translation>
 <translation id="5126049312684316860">আপনি ভিজিট করতে পারেন এমন আরও বেশি সংখ্যক পৃষ্ঠা Chrome প্রিলোড করে, যাতে সেই ভিজিট করার সময় সেই পৃষ্ঠাগুলি আরও দ্রুত লোড হয়</translation>
@@ -393,6 +395,7 @@
 <translation id="6075300983329039771">আপনার সংস্থা, <ph name="MANAGER" />-এর প্রয়োজন অনুযায়ী, আপনাকে Chrome-এ সাইন-ইন করতে হবে</translation>
 <translation id="6113794647360055231">Chrome আরও ভাল হয়ে উঠেছে</translation>
 <translation id="6116252277240876590">Chrome-এ মেনু, সেটিংস, অ্যালার্ট ও অন্যান্য টেক্সট দেখানোর জন্য এই ভাষা ব্যবহার করা হবে</translation>
+<translation id="6127237283587442951">ডিফল্ট হিসেবে Chrome ব্যবহার করুন এবং এটি পিন করুন</translation>
 <translation id="6134085236017727171">আপনার মাইক্রোফোন ব্যবহার করতে, Chrome-কে <ph name="BEGIN_LINK" />সিস্টেম সেটিংস<ph name="END_LINK" /> অ্যাক্সেস করতে দিন</translation>
 <translation id="6135456723633883042">এইসব ট্যাব অতিরিক্ত রিসোর্স ব্যবহার করছে। আপনার পারফর্ম্যান্স উন্নত করতে, Chrome-কে এগুলি বন্ধ করতে দিন।</translation>
 <translation id="6145313976051292476">Chrome-এ পিডিএফ ফাইল খুলুন</translation>
@@ -507,7 +510,6 @@
 <translation id="7572537927358445944">বন্ধ রয়েছে • Chrome এই এক্সটেনশনের সোর্স যাচাই করতে পারে না</translation>
 <translation id="7583399374488819119"><ph name="COMPANY_NAME" /> ইনস্টলার</translation>
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
-<translation id="7626032353295482388">Chrome এ স্বাগতম</translation>
 <translation id="7626072681686626474"><ph name="MANAGER" />-এ এই ডিভাইস ব্যবহার করার আগে আপনাকে নিম্নলিখিত পরিষেবার শর্তাবলী পড়ে নিতে হবে এবং তাতে সম্মতি দিতে হবে। এইসব শর্ত Google ChromeOS-এর শর্তাবলীকে সম্প্রসারণ, পরিবর্তন বা সীমাবদ্ধ করে না।</translation>
 <translation id="7629695634924605473">আপনার পাসওয়ার্ড কখনও চুরি হলে তা Chrome আপনাকে জানিয়ে দেবে</translation>
 <translation id="7641148173327520642"><ph name="TARGET_URL_HOSTNAME" /> অ্যাক্সেস করতে <ph name="ALTERNATIVE_BROWSER_NAME" /> ব্যবহার করার জন্য আপনার সিস্টেম অ্যাডমিনিস্ট্রেটর Google Chrome কনফিগার করেছে।</translation>
@@ -627,6 +629,7 @@
 <translation id="9090566250983691233">Chrome কিছু ফাইল কেন ব্লক করে সেই সম্পর্কে জানুন</translation>
 <translation id="9106236359747881194">সার্চ করার জন্য টেক্সট বেছে নিন</translation>
 <translation id="911206726377975832">আপনার ব্রাউজিং ডেটাও মুছে দেবেন?</translation>
+<translation id="9134482777260927479">হোমওয়ার্কে সহায়তা</translation>
 <translation id="9138603949443464873">আপনার পরিবর্তনগুলি প্রয়োগ করতে, Chrome রিলঞ্চ করুন</translation>
 <translation id="9148058034647219655">প্রস্থান করুন</translation>
 <translation id="9195993889682885387">Chrome গত কয়েক সপ্তাহের আপনার ব্রাউজিং ইতিহাসের উপর ভিত্তি করে আপনার আগ্রহ অনুমান করতে পারে। আপনার ডিভাইসে এই তথ্য থাকে।</translation>

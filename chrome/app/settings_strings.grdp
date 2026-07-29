@@ -826,6 +826,24 @@
   <message name="IDS_SETTINGS_CLEAR_PERIOD_15_MINUTES" desc="The option to delete browsing data from the last 15 minutes." translateable="false">
     Last 15 min
   </message>
+  <message name="IDS_SETTINGS_MANAGE_IN_GOOGLE_PASSWORD_MANAGER" desc="Description for the 'Passwords and Passkeys' option in 'Other Google Data' page." translateable="false">
+    Manage in Google Password Manager
+  </message>
+  <message name="IDS_SETTINGS_MANAGE_IN_YOUR_GOOGLE_ACCOUNT" desc="Description for a feature that can be managed in the user's Google account." translateable="false">
+    Manage in your Google Account
+  </message>
+   <message name="IDS_SETTINGS_PASSWORDS_AND_PASSKEYS" desc="Label for the 'Passwords and Passkeys' option in 'Other Google Data' page." translateable="false">
+    Passwords and passkeys
+  </message>
+  <message name="IDS_SETTINGS_SEARCH_HISTORY" desc="Label for the 'Search history' option in 'Other Google Data' page." translateable="false">
+    Search history
+  </message>
+    <message name="IDS_SETTINGS_OTHER_DATA_TITLE" desc="Title for the 'Other data' subpage that is linked from the clear Browse data dialog." translateable="false">
+    Other data
+  </message>
+  <message name="IDS_SETTINGS_MY_ACTIVITY" desc="Label for the 'My Activity' option in 'Other Google Data' page." translateable="false">
+    My Activity
+  </message>
 
   <!-- Downloads Page -->
   <message name="IDS_SETTINGS_DOWNLOADS" desc="Name of the settings page which displays download preferences.">
@@ -2073,6 +2091,9 @@
   <message name="IDS_SETTINGS_SEARCH_ENGINES_SEARCH" desc="Label for a text input placeholder allowing the user to search/filter the displayed search engines">
     Search
   </message>
+  <message name="IDS_SETTINGS_SEARCH_ENGINES_SUBTITLE_FOR_POLICY" desc="Subtitle for a dialog that allows editing/viewing an existing search engine that is created by policy.">
+    This setting is managed by your administrator
+  </message>
   <message name="IDS_SETTINGS_SEARCH_ENGINES_ADD_SITE_SEARCH" desc="Title for a dialog that allows adding a new site search engine.">
     Add site search
   </message>
@@ -2090,6 +2111,9 @@
   </message>
   <message name="IDS_SETTINGS_SEARCH_ENGINES_DELETE_CONFIRMATION_DESCRIPTION" desc="Description text for a dialog that confirms that a user wants to delete an existing search engine.">
     Are you sure you want to delete this search engine?
+  </message>
+  <message name="IDS_SETTINGS_SEARCH_ENGINES_DELETE_CONFIRMATION_DESCRIPTION_FOR_POLICY" desc="Description text for a dialog that confirms that a user wants to delete an existing search engine that is created by policy.">
+    This setting was set up by your organization. Are you sure you want to delete this search engine?
   </message>
   <message name="IDS_SETTINGS_SEARCH_ENGINES_SEARCH_ENGINES" desc="Label for 'Search Engines' section">
     Search engines

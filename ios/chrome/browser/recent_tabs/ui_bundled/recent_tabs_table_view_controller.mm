@@ -35,6 +35,7 @@
 #import "ios/chrome/browser/authentication/ui_bundled/enterprise/enterprise_utils.h"
 #import "ios/chrome/browser/authentication/ui_bundled/history_sync/history_sync_coordinator.h"
 #import "ios/chrome/browser/authentication/ui_bundled/history_sync/history_sync_utils.h"
+#import "ios/chrome/browser/authentication/ui_bundled/signin/signin_coordinator.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_utils.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin_presenter.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin_promo_view_mediator.h"
@@ -49,7 +50,6 @@
 #import "ios/chrome/browser/recent_tabs/ui_bundled/recent_tabs_constants.h"
 #import "ios/chrome/browser/recent_tabs/ui_bundled/recent_tabs_menu_provider.h"
 #import "ios/chrome/browser/recent_tabs/ui_bundled/recent_tabs_presentation_delegate.h"
-#import "ios/chrome/browser/recent_tabs/ui_bundled/recent_tabs_table_view_controller_delegate.h"
 #import "ios/chrome/browser/recent_tabs/ui_bundled/recent_tabs_table_view_controller_ui_delegate.h"
 #import "ios/chrome/browser/search_engines/model/template_url_service_factory.h"
 #import "ios/chrome/browser/sessions/model/live_tab_context_browser_agent.h"
@@ -197,7 +197,9 @@ typedef std::pair<SessionID, TableViewURLItem*> RecentlyClosedTableViewItemPair;
 @property(nonatomic, strong) TableViewURLDragDropHandler* dragDropHandler;
 @end
 
-@implementation RecentTabsTableViewController
+@implementation RecentTabsTableViewController {
+  SigninCoordinator* _signinCoordinator;
+}
 
 #pragma mark - Public Interface
 
@@ -1000,6 +1002,11 @@ typedef std::pair<SessionID, TableViewURLItem*> RecentlyClosedTableViewItemPair;
 
 #pragma mark - Private
 
+- (void)stopSigninCoordinator {
+  [_signinCoordinator stop];
+  _signinCoordinator = nil;
+}
+
 // Returns YES if `sectionIdentifier` is a Sessions sectionIdentifier.
 - (BOOL)isSessionSectionIdentifier:(NSInteger)sectionIdentifier {
   NSArray* sessionSectionIdentifiers = [self allSessionSectionIdentifiers];
@@ -1104,6 +1111,7 @@ typedef std::pair<SessionID, TableViewURLItem*> RecentlyClosedTableViewItemPair;
 
 - (void)dismissModals {
   [self disconnectMediator];
+  [self stopSigninCoordinator];
   [self.tableView.contextMenuInteraction dismissMenu];
   [self stopTrustedVaultReauthenticationCoordinator];
 }
@@ -1790,13 +1798,14 @@ typedef std::pair<SessionID, TableViewURLItem*> RecentlyClosedTableViewItemPair;
 #pragma mark - SyncPresenter
 
 - (void)showPrimaryAccountReauth {
-  auto provider =
-      base::BindRepeating(&CreateChangeProfileRecentTabsContinuation);
-  ShowSigninCommand* command = [[ShowSigninCommand
-      alloc] initWithOperation:AuthenticationOperation::kPrimaryAccountReauth
-                            accessPoint:signin_metrics::AccessPoint::kRecentTabs
-      changeProfileContinuationProvider:provider];
-  [self.applicationHandler showSignin:command baseViewController:self];
+  [self.presentationDelegate showPrimaryAccountReauth];
+//  auto provider =
+//      base::BindRepeating(&CreateChangeProfileRecentTabsContinuation);
+//  ShowSigninCommand* command = [[ShowSigninCommand
+//      alloc] initWithOperation:AuthenticationOperation::kPrimaryAccountReauth
+//                            accessPoint:signin_metrics::AccessPoint::kRecentTabs
+//      changeProfileContinuationProvider:provider];
+//  [self showSignin:command];
 }
 
 - (void)showSyncPassphraseSettings {
@@ -1849,7 +1858,14 @@ typedef std::pair<SessionID, TableViewURLItem*> RecentlyClosedTableViewItemPair;
 #pragma mark - SigninPresenter
 
 - (void)showSignin:(ShowSigninCommand*)command {
-  [self.applicationHandler showSignin:command baseViewController:self];
+  __weak __typeof(self) weakSelf = self;
+  [command addSigninCompletion:^(SigninCoordinatorResult, id<SystemIdentity>) {
+    [weakSelf stopSigninCoordinator];
+  }];
+  _signinCoordinator = [SigninCoordinator signinCoordinatorWithCommand:command
+                                                               browser:_browser
+                                                    baseViewController:self];
+  [_signinCoordinator start];
 }
 
 #pragma mark - UIAdaptivePresentationControllerDelegate
