@@ -7,6 +7,8 @@
 #include <memory>
 #include <optional>
 
+#include "ash/public/cpp/multi_user_window_manager.h"
+#include "ash/shell.h"
 #include "ash/wm/window_state.h"
 #include "ash/wm/window_util.h"
 #include "ash/wm/wm_highlight_border_overlay_delegate.h"
@@ -22,11 +24,12 @@
 #include "chrome/browser/profiles/profile_attributes_storage.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/themes/theme_properties.h"
-#include "chrome/browser/ui/ash/multi_user/multi_user_window_manager_helper.h"
 #include "chrome/browser/ui/ash/session/session_util.h"
 #include "chrome/browser/ui/ash/system_web_apps/system_web_app_ui_utils.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/browser/ui/exclusive_access/fullscreen_controller.h"
@@ -116,6 +119,13 @@ content::RenderWidgetHost* GetRenderWidgetHost(views::WebView* web_view) {
   return nullptr;
 }
 
+// Returns whether `browser` should draw its frame header.
+// The default is true.
+bool ShouldDrawFrameHeader(BrowserWindowInterface* browser) {
+  // Currently, frame headers are only disabled for custom tab browsers.
+  return browser->GetType() != BrowserWindowInterface::Type::TYPE_CUSTOM_TAB;
+}
+
 DEFINE_UI_CLASS_PROPERTY_KEY(BrowserNonClientFrameViewChromeOS*,
                              kBrowserNonClientFrameViewChromeOSKey,
                              nullptr)
@@ -129,6 +139,16 @@ bool UsePackagedAppHeaderStyle(const Browser* browser) {
   }
 
   return !browser->SupportsWindowFeature(Browser::FEATURE_TABSTRIP);
+}
+
+// Whether or not the window's title should show the avatar. Practically,
+// returns true when the owner of the window is different from the owner of
+// the desktop.
+bool ShouldShowAvatar(aura::Window* window) {
+  auto* multi_user_window_manager =
+      ash::Shell::Get()->multi_user_window_manager();
+  return !multi_user_window_manager->IsWindowOnDesktopOfUser(
+      window, multi_user_window_manager->GetWindowOwner(window));
 }
 
 }  // namespace
@@ -239,8 +259,7 @@ void BrowserNonClientFrameViewChromeOS::Init() {
   }
 
   display_observer_.emplace(this);
-
-  if (frame()->ShouldDrawFrameHeader()) {
+  if (ShouldDrawFrameHeader(browser)) {
     frame_header_ = CreateFrameHeader();
   }
 
@@ -249,6 +268,27 @@ void BrowserNonClientFrameViewChromeOS::Init() {
   }
 
   browser_view()->immersive_mode_controller()->AddObserver(this);
+}
+
+BrowserLayoutParams BrowserNonClientFrameViewChromeOS::GetBrowserLayoutParams()
+    const {
+  BrowserLayoutParams params;
+  const bool restored = !frame()->IsMaximized() && !frame()->IsFullscreen();
+  const auto top = GetTopInset(restored);
+  params.visual_client_area = gfx::Rect(0, top, width(), height() - top);
+  if (profile_indicator_icon_) {
+    params.leading_exclusion.content =
+        gfx::SizeF(profile_indicator_icon_->bounds().right(),
+                   profile_indicator_icon_->bounds().bottom());
+    params.leading_exclusion.horizontal_padding = kProfileIndicatorPadding;
+    params.leading_exclusion.vertical_padding =
+        profile_indicator_icon_->bounds().y();
+  }
+  if (GetShowCaptionButtonsWhenNotInOverview()) {
+    params.trailing_exclusion.content =
+        gfx::SizeF(caption_button_container_->GetPreferredSize());
+  }
+  return params;
 }
 
 gfx::Rect BrowserNonClientFrameViewChromeOS::GetBoundsForTabStripRegion(
@@ -275,7 +315,7 @@ gfx::Rect BrowserNonClientFrameViewChromeOS::GetBoundsForWebAppFrameToolbar(
   const int available_width = caption_button_container_->x() - x;
   int painted_height = GetTopInset(false);
   if (browser_view()->GetTabStripVisible()) {
-    painted_height += browser_view()->tabstrip()->GetPreferredSize().height();
+    painted_height += browser_view()->GetTabStripHeight();
   }
   return gfx::Rect(x, 0, std::max(0, available_width), painted_height);
 }
@@ -415,7 +455,11 @@ int BrowserNonClientFrameViewChromeOS::NonClientHitTest(
     // should reside in the TabStrip class.
     gfx::Point client_point(point);
     View::ConvertPointToTarget(this, frame()->client_view(), &client_point);
-    gfx::Rect tabstrip_shadow_bounds(browser_view()->tabstrip()->bounds());
+    gfx::Rect tabstrip_shadow_bounds(
+        browser_view()
+            ->tab_strip_view()
+            ->GetViewByElementId(kTabStripElementId)
+            ->bounds());
     constexpr int kTabShadowHeight = 4;
     tabstrip_shadow_bounds.set_height(kTabShadowHeight);
     if (tabstrip_shadow_bounds.Contains(client_point)) {
@@ -488,7 +532,7 @@ void BrowserNonClientFrameViewChromeOS::Layout(PassKey) {
 
   int painted_height = GetTopInset(false);
   if (browser_view()->GetTabStripVisible()) {
-    painted_height += browser_view()->tabstrip()->GetPreferredSize().height();
+    painted_height += browser_view()->GetTabStripHeight();
   }
 
   if (frame_header_) {
@@ -603,7 +647,7 @@ bool BrowserNonClientFrameViewChromeOS::DoesIntersectRect(
 }
 
 views::View::Views BrowserNonClientFrameViewChromeOS::GetChildrenInZOrder() {
-  if (frame()->ShouldDrawFrameHeader() && frame_header_) {
+  if (ShouldDrawFrameHeader(browser_view()->browser()) && frame_header_) {
     return frame_header_->GetAdjustedChildrenInZOrder(this);
   }
 
@@ -882,6 +926,12 @@ bool BrowserNonClientFrameViewChromeOS::ShouldEnableImmersiveModeController()
          fullscreen_controller->IsFullscreenForBrowser();
 }
 
+// static
+bool BrowserNonClientFrameViewChromeOS::ShouldShowAvatarForTesting(
+    aura::Window* window) {
+  return ShouldShowAvatar(window);
+}
+
 bool BrowserNonClientFrameViewChromeOS::IsTrustedPinned() const {
   return ash::WindowState::Get(frame()->GetNativeWindow())->IsTrustedPinned();
 }
@@ -905,6 +955,13 @@ void BrowserNonClientFrameViewChromeOS::AddedToWidget() {
 
   highlight_border_overlay_ = std::make_unique<HighlightBorderOverlay>(
       GetWidget(), std::make_unique<ash::WmHighlightBorderOverlayDelegate>());
+}
+
+BrowserNonClientFrameViewChromeOS::BoundsAndMargins
+BrowserNonClientFrameViewChromeOS::GetCaptionButtonBounds() const {
+  return BoundsAndMargins{GetShowCaptionButtonsWhenNotInOverview()
+                              ? gfx::RectF(caption_button_container_->bounds())
+                              : gfx::RectF()};
 }
 
 bool BrowserNonClientFrameViewChromeOS::GetShowCaptionButtons() const {
@@ -1053,8 +1110,7 @@ bool BrowserNonClientFrameViewChromeOS::GetShowProfileIndicatorIcon() const {
   }
 #endif  // BUILDFLAG(ENABLE_WEBUI_TAB_STRIP)
 
-  return MultiUserWindowManagerHelper::ShouldShowAvatar(
-      browser_view()->GetNativeWindow());
+  return ShouldShowAvatar(browser_view()->GetNativeWindow());
 }
 
 void BrowserNonClientFrameViewChromeOS::UpdateProfileIcons() {

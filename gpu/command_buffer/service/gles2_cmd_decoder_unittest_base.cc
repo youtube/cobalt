@@ -211,12 +211,11 @@ ContextResult GLES2DecoderTestBase::MaybeInitDecoderWithWorkarounds(
   scoped_refptr<FeatureInfo> feature_info =
       new FeatureInfo(workarounds, gpu_feature_info);
 
-  const bool bind_generates_resource = false;
-  group_ = scoped_refptr<ContextGroup>(new ContextGroup(
+  group_ = MakeRefCounted<ContextGroup>(
       gpu_preferences_, memory_tracker_, &shader_translator_cache_,
-      &framebuffer_completeness_cache_, feature_info, bind_generates_resource,
+      &framebuffer_completeness_cache_, feature_info,
       /*progress_reporter=*/nullptr, gpu_feature_info, &discardable_manager_,
-      nullptr, &shared_image_manager_));
+      nullptr, &shared_image_manager_);
 
   InSequence sequence;
 
@@ -234,8 +233,7 @@ ContextResult GLES2DecoderTestBase::MaybeInitDecoderWithWorkarounds(
 
   TestHelper::SetupContextGroupInitExpectations(
       gl_.get(), DisallowedFeatures(), normalized_init.extensions.c_str(),
-      normalized_init.gl_version.c_str(), init.context_type,
-      bind_generates_resource);
+      normalized_init.gl_version.c_str(), init.context_type);
 
   // We initialize the ContextGroup with a MockGLES2Decoder so that
   // we can use the ContextGroup to figure out how the real GLES2Decoder
@@ -448,13 +446,8 @@ ContextResult GLES2DecoderTestBase::MaybeInitDecoderWithWorkarounds(
   shared_memory_base_ = buffer->memory();
   ClearSharedMemory();
 
-  ContextCreationAttribs attribs;
-  attribs.lose_context_when_out_of_memory =
-      normalized_init.lose_context_when_out_of_memory;
-  attribs.context_type = init.context_type;
-
-  decoder_.reset(GLES2Decoder::Create(this, command_buffer_service_.get(),
-                                      &outputter_, group_.get()));
+  decoder_ = GLES2Decoder::Create(this, command_buffer_service_.get(),
+                                  &outputter_, group_.get());
   decoder_->SetIgnoreCachedStateForTest(ignore_cached_state_for_test_);
   decoder_->GetLogger()->set_log_synthesized_gl_errors(false);
 
@@ -466,7 +459,8 @@ ContextResult GLES2DecoderTestBase::MaybeInitDecoderWithWorkarounds(
     decoder_->SetCopyTexImageBlitterForTest(copy_tex_image_blitter_);
   }
   gpu::ContextResult result = decoder_->Initialize(
-      surface_, context_, false, DisallowedFeatures(), attribs);
+      surface_, context_, /*offscreen=*/false, init.context_type,
+      normalized_init.lose_context_when_out_of_memory);
   if (result != gpu::ContextResult::kSuccess) {
     // GLES2CmdDecoder::Destroy should be handled by Initialize in all failure
     // cases.
@@ -2311,12 +2305,11 @@ GpuPreferences GenerateGpuPreferencesForPassthroughTests() {
 
 GLES2DecoderPassthroughTestBase::GLES2DecoderPassthroughTestBase(
     ContextType context_type)
-    : gpu_preferences_(GenerateGpuPreferencesForPassthroughTests()),
+    : context_type_(context_type),
+      gpu_preferences_(GenerateGpuPreferencesForPassthroughTests()),
       shader_translator_cache_(gpu_preferences_),
       discardable_manager_(gpu_preferences_),
-      passthrough_discardable_manager_(gpu_preferences_) {
-  context_creation_attribs_.context_type = context_type;
-}
+      passthrough_discardable_manager_(gpu_preferences_) {}
 
 GLES2DecoderPassthroughTestBase::~GLES2DecoderPassthroughTestBase() = default;
 
@@ -2358,18 +2351,17 @@ void GLES2DecoderPassthroughTestBase::SetUp() {
   ASSERT_EQ(gl::GetANGLEImplementation(), gl::ANGLEImplementation::kNull);
 
   scoped_refptr<gles2::FeatureInfo> feature_info = new gles2::FeatureInfo();
-  group_ = new gles2::ContextGroup(
+  group_ = MakeRefCounted<gles2::ContextGroup>(
       gpu_preferences_, /*memory_tracker=*/nullptr, &shader_translator_cache_,
       &framebuffer_completeness_cache_, feature_info,
-      /*bind_generates_resource=*/false,
       /*progress_reporter=*/nullptr, GpuFeatureInfo(), &discardable_manager_,
       &passthrough_discardable_manager_, &shared_image_manager_);
 
   surface_ = gl::init::CreateOffscreenGLSurface(display_, gfx::Size(4, 4));
-  context_ =
-      gl::init::CreateGLContext(nullptr, surface_.get(),
-                                GenerateGLContextAttribsForDecoder(
-                                    context_creation_attribs_, group_.get()));
+  context_ = gl::init::CreateGLContext(
+      nullptr, surface_.get(),
+      GenerateGLContextAttribsForDecoder(
+          context_type_, gl::GpuPreference::kLowPower, group_.get()));
   context_->MakeCurrent(surface_.get());
 
   command_buffer_service_ = std::make_unique<FakeCommandBufferServiceBase>();
@@ -2382,17 +2374,15 @@ void GLES2DecoderPassthroughTestBase::SetUp() {
   decoder_->SetOptionalExtensionsRequestedForTesting(false);
 
   ASSERT_EQ(
-      group_->Initialize(decoder_.get(), context_creation_attribs_.context_type,
-                         DisallowedFeatures()),
+      group_->Initialize(decoder_.get(), context_type_, DisallowedFeatures()),
       gpu::ContextResult::kSuccess);
 
   // We need command buffer to emulate default framebuffer is the GLSurface is
   // surfaceless.
   const bool offscreen = surface_->IsSurfaceless();
-  ASSERT_EQ(
-      decoder_->Initialize(surface_, context_, offscreen, DisallowedFeatures(),
-                           context_creation_attribs_),
-      gpu::ContextResult::kSuccess);
+  ASSERT_EQ(decoder_->Initialize(surface_, context_, offscreen, context_type_,
+                                 /*lose_context_when_out_of_memory=*/false),
+            gpu::ContextResult::kSuccess);
 
   scoped_refptr<gpu::Buffer> buffer =
       command_buffer_service_->CreateTransferBufferHelper(kSharedBufferSize,

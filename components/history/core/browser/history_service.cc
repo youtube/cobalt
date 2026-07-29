@@ -325,21 +325,6 @@ base::CancelableTaskTracker::TaskId HistoryService::GetAnnotatedVisits(
       std::move(callback));
 }
 
-base::CancelableTaskTracker::TaskId HistoryService::ToAnnotatedVisits(
-    const VisitVector& visit_rows,
-    bool compute_redirect_chain_start_properties,
-    ToAnnotatedVisitsCallback callback,
-    base::CancelableTaskTracker* tracker) const {
-  DCHECK(backend_task_runner_) << "History service being called after cleanup";
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  return tracker->PostTaskAndReplyWithResult(
-      backend_task_runner_.get(), FROM_HERE,
-      base::BindOnce(&HistoryBackend::ToAnnotatedVisitsFromRows,
-                     history_backend_, visit_rows,
-                     compute_redirect_chain_start_properties),
-      std::move(callback));
-}
-
 base::CancelableTaskTracker::TaskId HistoryService::ReplaceClusters(
     const std::vector<int64_t>& ids_to_delete,
     const std::vector<Cluster>& clusters_to_add,
@@ -420,21 +405,6 @@ base::CancelableTaskTracker::TaskId HistoryService::UpdateClusterVisit(
       std::move(callback));
 }
 
-base::CancelableTaskTracker::TaskId
-HistoryService::UpdateVisitsInteractionState(
-    const std::vector<VisitID>& visit_ids,
-    const ClusterVisit::InteractionState interaction_state,
-    base::OnceClosure callback,
-    base::CancelableTaskTracker* tracker) {
-  DCHECK(backend_task_runner_) << "History service being called after cleanup";
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  return tracker->PostTaskAndReply(
-      backend_task_runner_.get(), FROM_HERE,
-      base::BindOnce(&HistoryBackend::UpdateVisitsInteractionState,
-                     history_backend_, visit_ids, interaction_state),
-      std::move(callback));
-}
-
 base::CancelableTaskTracker::TaskId HistoryService::GetMostRecentClusters(
     base::Time inclusive_min_time,
     base::Time exclusive_max_time,
@@ -511,18 +481,6 @@ void HistoryService::OnDeviceInfoChange() {
   backend_task_runner_->PostTask(
       FROM_HERE, base::BindOnce(&HistoryBackend::SetSyncDeviceInfo,
                                 history_backend_, std::move(sync_device_info)));
-}
-
-// TODO(crbug.com/40250371): `OnDeviceInfoShutdown()` was created as a
-// workaround because PrivacySandboxSettingsFactory incorrectly declares its
-// KeyedServices dependencies. Once this is fixed, `OnDeviceInfoShutdown()`
-// should be deprecated.
-void HistoryService::OnDeviceInfoShutdown() {
-  device_info_tracker_observation_.Reset();
-  device_info_tracker_ = nullptr;
-
-  local_device_info_available_subscription_ = {};
-  local_device_info_provider_ = nullptr;
 }
 
 void HistoryService::SendLocalDeviceOriginatorCacheGuidToBackend() {
@@ -1161,15 +1119,27 @@ void HistoryService::SetImportedFavicons(
 
 base::CancelableTaskTracker::TaskId HistoryService::QueryURL(
     const GURL& url,
-    bool want_visits,
     QueryURLCallback callback,
     base::CancelableTaskTracker* tracker) {
   DCHECK(backend_task_runner_) << "History service being called after cleanup";
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return tracker->PostTaskAndReplyWithResult(
       backend_task_runner_.get(), FROM_HERE,
-      base::BindOnce(&HistoryBackend::QueryURL, history_backend_, url,
-                     want_visits),
+      base::BindOnce(&HistoryBackend::QueryURL, history_backend_, url),
+      std::move(callback));
+}
+
+base::CancelableTaskTracker::TaskId HistoryService::QueryURLAndVisits(
+    const GURL& url,
+    const VisitQuery404sPolicy policy_for_404s,
+    QueryURLAndVisitsCallback callback,
+    base::CancelableTaskTracker* tracker) {
+  DCHECK(backend_task_runner_) << "History service being called after cleanup";
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return tracker->PostTaskAndReplyWithResult(
+      backend_task_runner_.get(), FROM_HERE,
+      base::BindOnce(&HistoryBackend::QueryURLAndVisits, history_backend_, url,
+                     policy_for_404s),
       std::move(callback));
 }
 
@@ -1187,19 +1157,6 @@ base::CancelableTaskTracker::TaskId HistoryService::GetHistoryCount(
       backend_task_runner_.get(), FROM_HERE,
       base::BindOnce(&HistoryBackend::GetHistoryCount, history_backend_,
                      begin_time, end_time),
-      std::move(callback));
-}
-
-void HistoryService::CountUniqueHostsVisitedLastMonth(
-    GetHistoryCountCallback callback,
-    base::CancelableTaskTracker* tracker) {
-  DCHECK(backend_task_runner_) << "History service being called after cleanup";
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-  tracker->PostTaskAndReplyWithResult(
-      backend_task_runner_.get(), FROM_HERE,
-      base::BindOnce(&HistoryBackend::CountUniqueHostsVisitedLastMonth,
-                     history_backend_),
       std::move(callback));
 }
 
@@ -1299,7 +1256,7 @@ base::CancelableTaskTracker::TaskId HistoryService::GetDailyVisitsToOrigin(
 base::CancelableTaskTracker::TaskId HistoryService::GetMostRecentVisitsForGurl(
     GURL url,
     int max_visits,
-    QueryURLCallback callback,
+    QueryURLAndVisitsCallback callback,
     base::CancelableTaskTracker* tracker) {
   DCHECK(backend_task_runner_) << "History service being called after cleanup";
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -1411,16 +1368,6 @@ base::CancelableTaskTracker::TaskId HistoryService::GetVisibleVisitCountToHost(
     base::CancelableTaskTracker* tracker) {
   DCHECK(backend_task_runner_) << "History service being called after cleanup";
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (origin_queried_closure_for_testing_) {
-    callback = base::BindOnce(
-        [](base::OnceClosure origin_queried_closure,
-           GetVisibleVisitCountToHostCallback wrapped_callback,
-           VisibleVisitCountToHostResult result) {
-          std::move(wrapped_callback).Run(std::move(result));
-          std::move(origin_queried_closure).Run();
-        },
-        std::move(origin_queried_closure_for_testing_), std::move(callback));
-  }
   return tracker->PostTaskAndReplyWithResult(
       backend_task_runner_.get(), FROM_HERE,
       base::BindOnce(&HistoryBackend::GetVisibleVisitCountToHost,
@@ -1662,19 +1609,6 @@ void HistoryService::ExpireHistory(
                             base::BindOnce(&HistoryBackend::ExpireHistory,
                                            history_backend_, expire_list),
                             std::move(callback));
-}
-
-void HistoryService::ExpireHistoryBeforeForTesting(
-    base::Time end_time,
-    base::OnceClosure callback,
-    base::CancelableTaskTracker* tracker) {
-  DCHECK(backend_task_runner_) << "History service being called after cleanup";
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  tracker->PostTaskAndReply(
-      backend_task_runner_.get(), FROM_HERE,
-      base::BindOnce(&HistoryBackend::ExpireHistoryBeforeForTesting,
-                     history_backend_, end_time),
-      std::move(callback));
 }
 
 void HistoryService::DeleteLocalAndRemoteHistoryBetween(

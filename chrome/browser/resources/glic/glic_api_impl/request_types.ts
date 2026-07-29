@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 import {type WebClientInitialState} from '../glic.mojom-webui.js';
-import type {ActiveBrowserInfo, ActorTaskPauseReason, ActorTaskState, ActorTaskStopReason, AnnotatedPageData, ChromeVersion, DraggableArea, ErrorReasonTypes, ErrorWithReason, FocusedTabDataHasFocus, FocusedTabDataHasNoFocus, GetPinCandidatesOptions, HostCapability, Journal, OnResponseStoppedDetails, OpenPanelInfo, OpenSettingsOptions, PageMetadata, PanelOpeningData, PanelState, PdfDocumentData, PinCandidate, Screenshot, ScrollToParams, SelectCredentialDialogRequest, SelectCredentialDialogResponse, TabContextOptions, TabContextResult, TabData, UserProfileInfo, ViewChangedNotification, ViewChangeRequest, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../glic_api/glic_api.js';
+import type {ActiveBrowserInfo, ActorTaskPauseReason, ActorTaskState, ActorTaskStopReason, AnnotatedPageData, ChromeVersion, Credential, DraggableArea, ErrorReasonTypes, ErrorWithReason, FocusedTabDataHasFocus, FocusedTabDataHasNoFocus, GetPinCandidatesOptions, HostCapability, Journal, OnResponseStoppedDetails, OpenPanelInfo, OpenSettingsOptions, PageMetadata, PanelOpeningData, PanelState, PdfDocumentData, PinCandidate, Screenshot, ScrollToParams, SelectCredentialDialogRequest, SelectCredentialDialogResponse, TabContextOptions, TabContextResult, TabData, UserProfileInfo, ViewChangedNotification, ViewChangeRequest, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../glic_api/glic_api.js';
 
 /*
 This file defines messages sent over postMessage in-between the Glic WebUI
@@ -118,6 +118,7 @@ export declare type HostRequestTypes = ValidateRequestMap<{
     response: {
       tabContextResult: TabContextResultPrivate,
     },
+    backgroundAllowed: true,
   },
   glicBrowserSetMaximumNumberOfPinnedTabs: {
     request: {
@@ -132,6 +133,7 @@ export declare type HostRequestTypes = ValidateRequestMap<{
     response: {
       taskId: number,
     },
+    backgroundAllowed: true,
   },
   glicBrowserPerformActions: {
     request: {
@@ -140,18 +142,21 @@ export declare type HostRequestTypes = ValidateRequestMap<{
     response: {
       actionsResult: ArrayBuffer,
     },
+    backgroundAllowed: true,
   },
   glicBrowserStopActorTask: {
     request: {
       taskId: number,
       stopReason: ActorTaskStopReason,
     },
+    backgroundAllowed: true,
   },
   glicBrowserPauseActorTask: {
     request: {
       taskId: number,
       pauseReason: ActorTaskPauseReason,
     },
+    backgroundAllowed: true,
   },
   glicBrowserResumeActorTask: {
     request: {
@@ -161,6 +166,7 @@ export declare type HostRequestTypes = ValidateRequestMap<{
     response: {
       tabContextResult: TabContextResultPrivate,
     },
+    backgroundAllowed: true,
   },
   glicBrowserCaptureScreenshot: {
     response: {
@@ -570,6 +576,7 @@ export declare type WebClientRequestTypes = ValidateRequestMap<{
       taskId: number,
       state: ActorTaskState,
     },
+    backgroundAllowed: true,
   },
   glicWebClientPageMetadataChanged: {
     request: {
@@ -714,6 +721,8 @@ type StructuredClonableBasicType = string|boolean|number|void|undefined|null;
 type CheckStructuredClonable<T> =
     T extends StructuredClonableBasicType ? never : T extends any[] ?
     CheckStructuredClonable<ArrayElement<T>>:
+    T extends Map<infer K, infer V>?
+    (CheckStructuredClonable<K>&CheckStructuredClonable<V>) :
     T extends Function ?
     ['Function not structured cloneable', T] :
     T extends Promise<any>? ['Promise not structured cloneable', T] :
@@ -819,8 +828,14 @@ export declare interface AnnotatedPageDataPrivate extends
   metadata?: PageMetadata;
 }
 
-export declare interface SelectCredentialDialogRequestPrivate extends
-    Omit<SelectCredentialDialogRequest, 'onDialogClosed'> {}
+export declare interface CredentialPrivate extends Omit<Credential, 'getIcon'> {
+}
+
+export declare interface SelectCredentialDialogRequestPrivate extends Omit<
+    SelectCredentialDialogRequest, 'onDialogClosed'|'icons'|'credentials'> {
+  icons: Map<string, RgbaImage>;
+  credentials: CredentialPrivate[];
+}
 
 /** Reasons why the credential selection dialog request failed. */
 export enum SelectCredentialDialogErrorReason {

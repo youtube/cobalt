@@ -10,12 +10,12 @@
 #include "base/files/scoped_temp_dir.h"
 #include "base/strings/to_string.h"
 #include "base/test/task_environment.h"
-#include "components/autofill/core/browser/proto/strike_data.pb.h"
 #include "components/leveldb_proto/public/proto_database_provider.h"
+#include "components/strike_database/strike_data.pb.h"
 #include "components/strike_database/strike_database_integrator_test_strike_database.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace autofill {
+namespace strike_database {
 
 namespace {
 
@@ -94,4 +94,4 @@ TEST_F(SimpleAutofillStrikeDatabaseTest, MaxEntries) {
 
 }  // namespace
 
-}  // namespace autofill
+}  // namespace strike_database

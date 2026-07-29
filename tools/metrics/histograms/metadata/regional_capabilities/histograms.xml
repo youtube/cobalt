@@ -22,7 +22,7 @@ chromium-metrics-reviews@google.com.
 
 <histograms>
 
-<histogram name="RegionalCapabilities.ActiveRegionalProgram"
+<histogram name="RegionalCapabilities.ActiveRegionalProgram2"
     enum="ActiveRegionalProgram" expires_after="2026-01-31">
   <owner>ljjlee@google.com</owner>
   <owner>chrome-regionalcapabilities@google.com</owner>
@@ -38,7 +38,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="RegionalCapabilities.FallbackCountryMatching"
-    enum="CountryMatchingStatus" expires_after="2025-12-28">
+    enum="CountryMatchingStatus" expires_after="2026-03-01">
   <owner>dgn@chromium.org</owner>
   <owner>chrome-regionalcapabilities@google.com</owner>
   <summary>
@@ -53,7 +53,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="RegionalCapabilities.FetchedCountryMatching"
-    enum="CountryMatchingStatus" expires_after="2025-12-28">
+    enum="CountryMatchingStatus" expires_after="2026-03-01">
   <owner>dgn@chromium.org</owner>
   <owner>chrome-regionalcapabilities@google.com</owner>
   <summary>
@@ -63,6 +63,17 @@ chromium-metrics-reviews@google.com.
     Recorded when the profile is loaded, when we succeeded fetching the country
     from the primary source (e.g. Finch or Play). Otherwise,
     RegionalCapabilities.FallbackCountryMatching is recorded.
+  </summary>
+</histogram>
+
+<histogram name="RegionalCapabilities.FunnelStage.Eligibility"
+    enum="SearchEngineChoiceScreenConditions" expires_after="2026-08-19">
+  <owner>dgn@chromium.org</owner>
+  <owner>ljjlee@chromium.org</owner>
+  <owner>chrome-regionalcapabilities@google.com</owner>
+  <summary>
+    Records the condition state on profile load for whether the profile is
+    possibly eligible for a search engine choice screen.
   </summary>
 </histogram>
 
@@ -94,8 +105,24 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="RegionalCapabilities.FunnelStage.Triggering"
+    enum="SearchEngineChoiceScreenConditions" expires_after="2026-08-19">
+  <owner>dgn@chromium.org</owner>
+  <owner>ljjlee@chromium.org</owner>
+  <owner>chrome-regionalcapabilities@google.com</owner>
+  <summary>
+    Records the condition state at choice screen triggering attempt, for whether
+    we are determining the profile to be eligible for a search engine choice
+    screen. This is recorded every time the dynamic eligibility state is being
+    checked, which might be as often as every page navigation on desktop, or app
+    warm open on iOS. If a profile was deemed ineligible a profile load time (as
+    recorded by the RegionalCapabilities.FunnelStage.Eligibility histogram),
+    this histogram will not be recorded.
+  </summary>
+</histogram>
+
 <histogram name="RegionalCapabilities.LoadedCountrySource"
-    enum="LoadedCapabilitiesCountrySource" expires_after="2025-12-28">
+    enum="LoadedCapabilitiesCountrySource" expires_after="2026-03-01">
   <owner>dgn@chromium.org</owner>
   <owner>chrome-regionalcapabilities@google.com</owner>
   <summary>
@@ -107,7 +134,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="RegionalCapabilities.PersistedCountryMatching"
-    enum="CountryMatchingStatus" expires_after="2025-12-28">
+    enum="CountryMatchingStatus" expires_after="2026-03-01">
   <owner>dgn@chromium.org</owner>
   <owner>chrome-regionalcapabilities@google.com</owner>
   <summary>

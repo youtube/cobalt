@@ -9,6 +9,8 @@
 #include <string>
 #include <string_view>
 
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "build/android_buildflags.h"
@@ -264,8 +266,6 @@
 #include "chrome/browser/media/android/cdm/media_drm_origin_id_manager.h"
 #include "chrome/browser/notifications/notification_channels_provider_android.h"
 #include "chrome/browser/partnerbookmarks/partner_bookmarks_shim.h"
-#include "chrome/browser/password_manager/android/password_manager_android_util.h"
-#include "chrome/browser/password_manager/android/password_manager_util_bridge.h"
 #include "chrome/browser/readaloud/android/prefs.h"
 #include "chrome/browser/ssl/known_interception_disclosure_infobar_delegate.h"
 #include "components/cdm/browser/media_drm_storage_impl.h"  // nogncheck crbug.com/1125897
@@ -365,7 +365,7 @@
 #include "chrome/browser/ash/child_accounts/time_limits/app_time_controller.h"
 #include "chrome/browser/ash/crostini/crostini_pref_names.h"
 #include "chrome/browser/ash/cryptauth/client_app_metadata_provider_service.h"
-#include "chrome/browser/ash/cryptauth/cryptauth_device_id_provider_impl.h"
+#include "chrome/browser/ash/cryptauth/cryptauth_device_id_provider.h"
 #include "chrome/browser/ash/customization/customization_document.h"
 #include "chrome/browser/ash/file_manager/file_manager_pref_names.h"
 #include "chrome/browser/ash/file_manager/file_tasks.h"
@@ -1143,6 +1143,18 @@ constexpr char kDesksLacrosProfileIdList[] =
     "ash.desks.desks_lacros_profile_id_list";
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
+#if BUILDFLAG(IS_ANDROID)
+// Deprecated 09/2025.
+constexpr char kObsoleteUpmUnmigratedPasswordsExported[] =
+    "profile.upm_unmigrated_passwords_exported";
+constexpr char kObsoletePasswordsUseUPMLocalAndSeparateStores[] =
+    "passwords_use_upm_local_and_separate_stores";
+constexpr char kObsoleteEmptyProfileStoreLoginDatabase[] =
+    "password_manager.empty_profile_store_login_database";
+constexpr char kObsoleteUpmAutoExportCsvNeedsDeletion[] =
+    "profile.upm_auto_export_csv_needs_deletion";
+#endif  // BUILDFLAG(IS_ANDROID)
+
 // Register local state used only for migration (clearing or moving to a new
 // key).
 void RegisterLocalStatePrefsForMigration(PrefRegistrySimple* registry) {
@@ -1648,6 +1660,15 @@ void RegisterProfilePrefsForMigration(
   // Deprecated 08/2025.
   registry->RegisterListPref(kDesksLacrosProfileIdList);
 #endif  // BUILDFLAG(IS_CHROMEOS)
+
+#if BUILDFLAG(IS_ANDROID)
+  // Deprecated 09/2025.
+  registry->RegisterBooleanPref(kObsoleteUpmUnmigratedPasswordsExported, false);
+  registry->RegisterIntegerPref(kObsoletePasswordsUseUPMLocalAndSeparateStores,
+                                0);
+  registry->RegisterBooleanPref(kObsoleteEmptyProfileStoreLoginDatabase, false);
+  registry->RegisterBooleanPref(kObsoleteUpmAutoExportCsvNeedsDeletion, false);
+#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 }  // namespace
@@ -1843,7 +1864,7 @@ void RegisterLocalState(PrefRegistrySimple* registry) {
   ash::UserImageManagerImpl::RegisterPrefs(registry);
   ash::UserSessionManager::RegisterPrefs(registry);
   component_updater::MetadataTable::RegisterPrefs(registry);
-  ash::CryptAuthDeviceIdProviderImpl::RegisterLocalPrefs(registry);
+  ash::cryptauth_device_id::RegisterLocalPrefs(registry);
   extensions::ExtensionAssetsManagerChromeOS::RegisterPrefs(registry);
   extensions::ExtensionsPermissionsTracker::RegisterLocalStatePrefs(registry);
   extensions::login_api::RegisterLocalStatePrefs(registry);
@@ -2038,7 +2059,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   ProfileImpl::RegisterProfilePrefs(registry);
   ProfileNetworkContextService::RegisterProfilePrefs(registry);
   custom_handlers::ProtocolHandlerRegistry::RegisterProfilePrefs(registry);
-  PushMessagingAppIdentifier::RegisterProfilePrefs(registry);
+  push_messaging::AppIdentifier::RegisterProfilePrefs(registry);
   PushMessagingUnsubscribedEntry::RegisterProfilePrefs(registry);
   QuietNotificationPermissionUiState::RegisterProfilePrefs(registry);
   regional_capabilities::prefs::RegisterProfilePrefs(registry);
@@ -2634,16 +2655,6 @@ void MigrateObsoleteProfilePrefs(PrefService* profile_prefs,
   MigrateDefaultBrowserLastDeclinedPref(profile_prefs);
 #endif
 
-#if BUILDFLAG(IS_ANDROID)
-  // Added 11/2023, but DO NOT REMOVE after the usual year!
-  // TODO(crbug.com/378653046): This call should be removed once enough time
-  // has passed.
-  password_manager_android_util::MaybeDeleteLoginDatabases(
-      profile_prefs, profile_path,
-      std::make_unique<
-          password_manager_android_util::PasswordManagerUtilBridge>());
-#endif
-
 #if !BUILDFLAG(IS_ANDROID)
   // Added 07/2024.
   profile_prefs->ClearPref(kNtpRecipesDismissedTasks);
@@ -2992,6 +3003,24 @@ void MigrateObsoleteProfilePrefs(PrefService* profile_prefs,
   // Added 08/2025.
   profile_prefs->ClearPref(kDesksLacrosProfileIdList);
 #endif  // BUILDFLAG(IS_CHROMEOS)
+
+#if BUILDFLAG(IS_ANDROID)
+  // Added 09/2025.
+  profile_prefs->ClearPref(kObsoleteUpmUnmigratedPasswordsExported);
+  profile_prefs->ClearPref(kObsoletePasswordsUseUPMLocalAndSeparateStores);
+  profile_prefs->ClearPref(kObsoleteEmptyProfileStoreLoginDatabase);
+  profile_prefs->ClearPref(kObsoleteUpmAutoExportCsvNeedsDeletion);
+  base::DeleteFile(profile_path.Append(FILE_PATH_LITERAL("Login Data")));
+  base::DeleteFile(
+      profile_path.Append(FILE_PATH_LITERAL("Login Data For Account")));
+  base::DeleteFile(
+      profile_path.Append(FILE_PATH_LITERAL("Login Data-journal")));
+  base::DeleteFile(
+      profile_path.Append(FILE_PATH_LITERAL("Login Data For Account-journal")));
+#endif  // BUILDFLAG(IS_ANDROID)
+
+  // Added 09/2025.
+  PageColorsController::MigrateObsoleteProfilePrefs(profile_prefs);
 
   // Please don't delete the following line. It is used by PRESUBMIT.py.
   // END_MIGRATE_OBSOLETE_PROFILE_PREFS

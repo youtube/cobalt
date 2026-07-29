@@ -703,17 +703,19 @@ LensOverlayQueryController::CreateEndpointFetcher(
       /*url_loader_factory=*/profile_
           ? profile_->GetURLLoaderFactory().get()
           : g_browser_process->shared_url_loader_factory(),
-      /*url=*/fetch_url,
-      /*content_type=*/kContentType,
-      /*timeout=*/timeout,
-      /*post_data=*/std::move(request_string),
-      /*headers=*/request_headers,
-      /*cors_exempt_headers=*/cors_exempt_headers, chrome::GetChannel(),
-      /*request_params=*/
+      /*identity_manager=*/nullptr,
       EndpointFetcher::RequestParams::Builder(http_method,
                                               kTrafficAnnotationTag)
+          .SetAuthType(endpoint_fetcher::CHROME_API_KEY)
+          .SetChannel(chrome::GetChannel())
+          .SetContentType(kContentType)
+          .SetCorsExemptHeaders(cors_exempt_headers)
           .SetCredentialsMode(CredentialsMode::kInclude)
+          .SetHeaders(request_headers)
+          .SetPostData(std::move(request_string))
           .SetSetSiteForCookies(true)
+          .SetTimeout(timeout)
+          .SetUrl(fetch_url)
           .SetUploadProgressCallback(std::move(upload_progress_callback))
           .Build());
 }
@@ -836,10 +838,7 @@ void LensOverlayQueryController::ClusterInfoFetchResponseHandler(
   }
 
   lens::LensOverlayServerClusterInfoResponse server_response;
-  const std::string response_string = response->response;
-  bool parse_successful = server_response.ParseFromArray(
-      response_string.data(), response_string.size());
-  if (!parse_successful) {
+  if (!server_response.ParseFromString(response->response)) {
     // If there was an error with the cluster info request, we should still try
     // and send the full image request as a fallback.
     PrepareAndFetchFullImageRequest();
@@ -1106,10 +1105,7 @@ void LensOverlayQueryController::FullImageFetchResponseHandler(
   }
 
   lens::LensOverlayServerResponse server_response;
-  const std::string response_string = response->response;
-  bool parse_successful = server_response.ParseFromArray(
-      response_string.data(), response_string.size());
-  if (!parse_successful) {
+  if (!server_response.ParseFromString(response->response)) {
     RunFullImageCallbackForError();
     return;
   }
@@ -1419,9 +1415,7 @@ bool LensOverlayQueryController::MaybeRetryPageContentUpload(
   if (remaining_chunk_retries > 0) {
     remaining_chunk_retries--;
     lens::LensOverlayServerResponse server_response;
-    const std::string response_string = response->response;
-    bool parse_successful = server_response.ParseFromArray(
-        response_string.data(), response_string.size());
+    bool parse_successful = server_response.ParseFromString(response->response);
     if (parse_successful &&
         server_response.error().error_type() ==
             LensOverlayServerError_ErrorType::
@@ -1901,10 +1895,7 @@ void LensOverlayQueryController::InteractionFetchResponseHandler(
   }
 
   lens::LensOverlayServerResponse server_response;
-  const std::string response_string = response->response;
-  bool parse_successful = server_response.ParseFromArray(
-      response_string.data(), response_string.size());
-  if (!parse_successful) {
+  if (!server_response.ParseFromString(response->response)) {
     RunInteractionCallbackForError();
     return;
   }

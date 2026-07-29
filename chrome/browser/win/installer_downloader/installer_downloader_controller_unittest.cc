@@ -35,7 +35,6 @@ using ::testing::_;
 using ::testing::AllOf;
 using ::testing::ContainsRegex;
 using ::testing::HasSubstr;
-using ::testing::Invoke;
 using ::testing::MatchesRegex;
 using ::testing::Not;
 using ::testing::Property;
@@ -417,6 +416,17 @@ TEST_F(InstallerDownloaderControllerTest,
 TEST_F(InstallerDownloaderControllerTest, NoInfobarOnGuestProfile) {
   EXPECT_CALL(*mock_model_, CanShowInfobar()).WillOnce(Return(true));
   // Since this is a guest profile, the eligibility check should not run.
+  EXPECT_CALL(should_show_infobar_for_profile_mock_callback_, Run())
+      .WillOnce(Return(false));
+  EXPECT_CALL(*mock_model_, CheckEligibility(_)).Times(0);
+  controller_->MaybeShowInfoBar();
+}
+
+TEST_F(InstallerDownloaderControllerTest, SkipsWhenActiveBrowserHasNoTabs) {
+  controller_->SetActiveWebContentsCallbackForTesting(
+      base::BindLambdaForTesting(
+          [&]() -> content::WebContents* { return nullptr; }));
+  EXPECT_CALL(*mock_model_, CanShowInfobar()).WillOnce(Return(true));
   EXPECT_CALL(should_show_infobar_for_profile_mock_callback_, Run())
       .WillOnce(Return(false));
   EXPECT_CALL(*mock_model_, CheckEligibility(_)).Times(0);

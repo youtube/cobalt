@@ -163,12 +163,11 @@ class GPU_GLES2_EXPORT GLES2DecoderPassthroughImpl
 
   base::WeakPtr<DecoderContext> AsWeakPtr() override;
 
-  gpu::ContextResult Initialize(
-      const scoped_refptr<gl::GLSurface>& surface,
-      const scoped_refptr<gl::GLContext>& context,
-      bool offscreen,
-      const DisallowedFeatures& disallowed_features,
-      const ContextCreationAttribs& attrib_helper) override;
+  gpu::ContextResult Initialize(const scoped_refptr<gl::GLSurface>& surface,
+                                const scoped_refptr<gl::GLContext>& context,
+                                bool offscreen,
+                                ContextType context_type,
+                                bool lose_context_when_out_of_memory) override;
 
   // Destroys the graphics context.
   void Destroy(bool have_context) override;
@@ -333,7 +332,7 @@ class GPU_GLES2_EXPORT GLES2DecoderPassthroughImpl
   bool CheckResetStatus() override;
 
   // Implement GpuSwitchingObserver.
-  void OnGpuSwitched(gl::GpuPreference active_gpu_heuristic) override;
+  void OnGpuSwitched() override;
 
   Logger* GetLogger() override;
 
@@ -517,11 +516,6 @@ class GPU_GLES2_EXPORT GLES2DecoderPassthroughImpl
   // By default, all requestable extensions should be loaded at initialization
   // time. Can be disabled for testing with only specific extensions enabled.
   bool request_optional_extensions_ = true;
-
-  // Some objects may generate resources when they are bound even if they were
-  // not generated yet: texture, buffer, renderbuffer, framebuffer, transform
-  // feedback, vertex array
-  bool bind_generates_resource_;
 
   // Mappings from client side IDs to service side IDs for shared objects
   raw_ptr<PassthroughResources> resources_ = nullptr;

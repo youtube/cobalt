@@ -93,7 +93,6 @@ using ::testing::Combine;
 using ::testing::Eq;
 using ::testing::ExplainMatchResult;
 using ::testing::Field;
-using ::testing::Invoke;
 using ::testing::Truly;
 using ::testing::ValuesIn;
 using ::testing::WithArg;
@@ -135,6 +134,8 @@ constexpr char kCpssV1InquiryDurationHistogram[] =
     "Permissions.OnDevicePredictionService.InquiryDuration";
 constexpr char kCpssV3InquiryDurationHistogram[] =
     "Permissions.PredictionService.InquiryDuration";
+constexpr char kPredictionServiceTimeoutHistogram[] =
+    "Permissions.PredictionService.Timeout";
 constexpr char kTFLiteLibAvailableHistogram[] =
     "Permissions.PredictionService.TFLiteLibAvailable";
 constexpr char kMSBBHistogram[] = "Permissions.PredictionService.MSBB";
@@ -597,16 +598,45 @@ IN_PROC_BROWSER_TEST_P(PredictionServiceHoldbackBrowserTest,
       PermissionRequestRelevance::kUnspecified);
   EXPECT_CALL(prediction_service(),
               StartLookup(PredictionRequestFeatureEq(expected_features), _, _))
-      .WillRepeatedly(WithArg<2>(Invoke(
+      .WillRepeatedly(WithArg<2>(
           [&](PredictionService::LookupResponseCallback response_callback) {
             std::move(response_callback)
                 .Run(/*lookup_successful=*/true,
                      /*response_from_cache=*/true, prediction_service_response);
-          })));
+          }));
+
   TriggerPromptAndVerifyUi(test_url, PermissionAction::DISMISSED,
                            GetParam().should_expect_quiet_ui,
                            /*expected_relevance=*/std::nullopt,
                            GetParam().prediction_service_likelihood);
+
+  histogram_tester().ExpectUniqueSample(kPredictionServiceTimeoutHistogram,
+                                        false, 1);
+}
+
+IN_PROC_BROWSER_TEST_P(PredictionServiceHoldbackBrowserTest,
+                       TestOverallTimeout) {
+  scoped_refptr<base::TestMockTimeTaskRunner> task_runner =
+      base::MakeRefCounted<base::TestMockTimeTaskRunner>();
+
+  EXPECT_CALL(prediction_service(), StartLookup(_, _, _))
+      .WillOnce(WithArg<2>(
+          [&](PredictionService::LookupResponseCallback response_callback) {
+            task_runner->FastForwardBy(
+                base::Seconds(PredictionBasedPermissionUiSelector::
+                                  kPermissionRequestUiDecisionTimeout));
+          }));
+
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  TriggerPromptAndVerifyUi(
+      /*test_url=*/"test.a", PermissionAction::DISMISSED,
+      /*should_expect_quiet_ui=*/false,
+      /*expected_relevance=*/std::nullopt,
+      /*expected_prediction_likelihood=*/std::nullopt);
+
+  histogram_tester().ExpectUniqueSample(kPredictionServiceTimeoutHistogram,
+                                        true, 1);
 }
 
 // -----------------------------------------------------------------------------
@@ -750,6 +780,10 @@ IN_PROC_BROWSER_TEST_P(SignatureModelPredictionServiceBrowserTest,
 
   histogram_tester().ExpectTotalCount(kCpssV1InquiryDurationHistogram,
                                       /*expected_count=*/1);
+  // Because of the action history we need to trigger the CPSSv1 model we expect
+  // 5 records here.
+  histogram_tester().ExpectUniqueSample(kPredictionServiceTimeoutHistogram,
+                                        false, 5);
 }
 
 // -----------------------------------------------------------------------------
@@ -993,12 +1027,12 @@ IN_PROC_BROWSER_TEST_P(Aiv3ModelPredictionServiceBrowserTest,
                            test_case.expected_relevance);
   EXPECT_CALL(prediction_service(),
               StartLookup(PredictionRequestFeatureEq(expected_features), _, _))
-      .WillRepeatedly(WithArg<2>(Invoke(
+      .WillRepeatedly(WithArg<2>(
           [&](PredictionService::LookupResponseCallback response_callback) {
             std::move(response_callback)
                 .Run(/*lookup_successful=*/true,
                      /*response_from_cache=*/true, prediction_service_response);
-          })));
+          }));
   TriggerPromptAndVerifyUi(
       /*test_url=*/"test.a", PermissionAction::DISMISSED,
       test_case.should_expect_quiet_ui, test_case.expected_relevance,
@@ -1034,6 +1068,9 @@ IN_PROC_BROWSER_TEST_P(Aiv3ModelPredictionServiceBrowserTest,
           ? kAIv3NotificationsHoldbackResponseHistogram
           : kAIv3GeolocationHoldbackResponseHistogram,
       /*sample=*/false, /*expected_count=*/1);
+
+  histogram_tester().ExpectUniqueSample(kPredictionServiceTimeoutHistogram,
+                                        false, 1);
 }
 
 // -----------------------------------------------------------------------------
@@ -1224,12 +1261,12 @@ IN_PROC_BROWSER_TEST_P(Aiv4ModelLanguageDetectionBrowserTest,
       BuildPredictionServiceResponse(kLikelihoodVeryUnlikely);
 
   EXPECT_CALL(prediction_service(), StartLookup(_, _, _))
-      .WillRepeatedly(WithArg<2>(Invoke(
+      .WillRepeatedly(WithArg<2>(
           [&](PredictionService::LookupResponseCallback response_callback) {
             std::move(response_callback)
                 .Run(/*lookup_successful=*/true,
                      /*response_from_cache=*/true, prediction_service_response);
-          })));
+          }));
 
   set_dummy_screenshot_for_testing();
   set_dummy_inner_text_for_testing();
@@ -1248,6 +1285,9 @@ IN_PROC_BROWSER_TEST_P(Aiv4ModelLanguageDetectionBrowserTest,
   histogram_tester().ExpectBucketCount(kAiv4LanguageDetectionStatusHistogram,
                                        /*sample=*/GetParam().expected_status,
                                        /*expected_count=*/1);
+
+  histogram_tester().ExpectUniqueSample(kPredictionServiceTimeoutHistogram,
+                                        false, 1);
 
   // Avoid dangling raw_ptr warning:
   model_handler_provider()->set_passage_embedder_for_testing(nullptr);
@@ -1386,12 +1426,12 @@ IN_PROC_BROWSER_TEST_P(Aiv4ModelFailureBrowserTest,
                            PermissionRequestRelevance::kUnspecified);
   EXPECT_CALL(prediction_service(),
               StartLookup(PredictionRequestFeatureEq(expected_features), _, _))
-      .WillRepeatedly(WithArg<2>(Invoke(
+      .WillRepeatedly(WithArg<2>(
           [&](PredictionService::LookupResponseCallback response_callback) {
             std::move(response_callback)
                 .Run(/*lookup_successful=*/true,
                      /*response_from_cache=*/true, prediction_service_response);
-          })));
+          }));
 
   TriggerPromptAndVerifyUi(
       /*test_url=*/"test.a", PermissionAction::DISMISSED,
@@ -1403,6 +1443,9 @@ IN_PROC_BROWSER_TEST_P(Aiv4ModelFailureBrowserTest,
   histogram_tester().ExpectTotalCount(
       kAiv4NotificationsPermissionRequestRelevanceHistogram,
       /*expected_count=*/0);
+
+  histogram_tester().ExpectUniqueSample(kPredictionServiceTimeoutHistogram,
+                                        false, 1);
 
   // Avoid dangling raw_ptr warning:
   model_handler_provider()->set_passage_embedder_for_testing(nullptr);
@@ -1443,12 +1486,12 @@ IN_PROC_BROWSER_TEST_F(Aiv4ModelTimeoutBrowserTest,
                            PermissionRequestRelevance::kUnspecified);
   EXPECT_CALL(prediction_service(),
               StartLookup(PredictionRequestFeatureEq(expected_features), _, _))
-      .WillRepeatedly(WithArg<2>(Invoke(
+      .WillRepeatedly(WithArg<2>(
           [&](PredictionService::LookupResponseCallback response_callback) {
             std::move(response_callback)
                 .Run(/*lookup_successful=*/true,
                      /*response_from_cache=*/true, prediction_service_response);
-          })));
+          }));
   TriggerPromptAndVerifyUi(
       /*test_url=*/"test.a", PermissionAction::DISMISSED,
       /*should_expect_quiet_ui=*/true,
@@ -1468,6 +1511,9 @@ IN_PROC_BROWSER_TEST_F(Aiv4ModelTimeoutBrowserTest,
       kAiv4FinishedPassageEmbeddingsTaskOutdatedHistogram,
       /*sample=*/1,
       /*expected_count=*/1);
+
+  histogram_tester().ExpectUniqueSample(kPredictionServiceTimeoutHistogram,
+                                        false, 1);
 
   // Avoid dangling raw_ptr warning:
   model_handler_provider()->set_passage_embedder_for_testing(nullptr);
@@ -1578,12 +1624,12 @@ IN_PROC_BROWSER_TEST_P(Aiv4ModelPredictionServiceBrowserTest,
                            test_case.expected_relevance);
   EXPECT_CALL(prediction_service(),
               StartLookup(PredictionRequestFeatureEq(expected_features), _, _))
-      .WillRepeatedly(WithArg<2>(Invoke(
+      .WillRepeatedly(WithArg<2>(
           [&](PredictionService::LookupResponseCallback response_callback) {
             std::move(response_callback)
                 .Run(/*lookup_successful=*/true,
                      /*response_from_cache=*/true, prediction_service_response);
-          })));
+          }));
   TriggerPromptAndVerifyUi(
       /*test_url=*/"test.a", PermissionAction::DISMISSED,
       test_case.should_expect_quiet_ui, test_case.expected_relevance,
@@ -1659,6 +1705,9 @@ IN_PROC_BROWSER_TEST_P(Aiv4ModelPredictionServiceBrowserTest,
           : kAiv4GeolocationRenderedTextSizeHistogram,
       /*sample=*/55,
       /*expected_bucket_count=*/1);
+
+  histogram_tester().ExpectUniqueSample(kPredictionServiceTimeoutHistogram,
+                                        false, 1);
 }
 
 }  // namespace permissions

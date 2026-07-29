@@ -93,7 +93,6 @@ typedef enum {
 
 static AshmemStatus s_ashmem_status = ASHMEM_STATUS_INIT;
 static dev_t s_ashmem_dev;
-static bool s_use_memfd;
 
 /* Return the dev_t of a given file path, or 0 if not available, */
 static dev_t ashmem_find_dev(const char* path) {
@@ -118,7 +117,7 @@ static AshmemStatus ashmem_get_status(void) {
 
 /* Returns true iff the ashmem device ioctl should be used for a given fd.
  * NOTE: Try not to use fstat() when possible to avoid performance issues. */
-static int ashmem_dev_fd_check(int fd) {
+static int is_ashmem_fd(int fd) {
   if (device_api_level() <= __ANDROID_API_O_MR1__)
     return 1;
   if (ashmem_get_status() == ASHMEM_STATUS_SUPPORTED) {
@@ -127,41 +126,6 @@ static int ashmem_dev_fd_check(int fd) {
             st.st_dev != 0 && st.st_dev == s_ashmem_dev);
   }
   return 0;
-}
-
-/*
- * ashmem_create_region - creates a new ashmem region and returns the file
- * descriptor, or <0 on error
- *
- * `name' is an optional label to give the region (visible in /proc/pid/maps)
- * `size' is the size of the region, in page-aligned bytes
- */
-static int ashmem_dev_create_region(const char *name, size_t size) {
-  int fd = open(ASHMEM_DEVICE, O_RDWR);
-  if (fd < 0)
-    return fd;
-
-  int ret;
-  if (name) {
-    char buf[ASHMEM_NAME_LEN];
-    strlcpy(buf, name, sizeof(buf));
-    ret = ioctl(fd, ASHMEM_SET_NAME, buf);
-    if (ret < 0)
-      goto error;
-  }
-  ret = ioctl(fd, ASHMEM_SET_SIZE, size);
-  if (ret < 0)
-    goto error;
-
-  return fd;
-
-error:
-  close(fd);
-  return ret;
-}
-
-static int ashmem_dev_set_prot_region(int fd, int prot) {
-  return ioctl(fd, ASHMEM_SET_PROT_MASK, prot);
 }
 
 static int ashmem_dev_get_prot_region(int fd) {
@@ -188,13 +152,13 @@ static size_t ashmem_dev_get_size_region(int fd) {
 // or newer, in which case, use memfd directly instead of
 // the ASharedMemory API.
 typedef int(*ASharedMemory_createFunc)(const char*, size_t);
-typedef size_t(*ASharedMemory_getSizeFunc)(int fd);
+// ASharedMemory_setProtFunc() is typically invoked in conjunction with ASharedMemory_createFunc(),
+// so it's okay for setProt to implicitly assume the type of fd it needs to work with.
 typedef int(*ASharedMemory_setProtFunc)(int fd, int prot);
 
 // Function pointers to shared memory functions.
 typedef struct {
   ASharedMemory_createFunc create;
-  ASharedMemory_getSizeFunc getSize;
   ASharedMemory_setProtFunc setProt;
 } ASharedMemoryFuncs;
 
@@ -225,16 +189,6 @@ static int memfd_create_region(const char *name, size_t size) {
 error:
   close(fd);
   return ret;
-}
-
-static int memfd_get_size_region(int fd) {
-  struct stat sb;
-  if (fstat(fd, &sb) == -1) {
-    LOG_E("memfd_get_size_region(%d): fstat failed: %m", fd);
-    return -1;
-  }
-
-  return sb.st_size;
 }
 
 static int memfd_set_prot_region(int fd, int prot) {
@@ -280,33 +234,26 @@ static int memfd_get_prot_region(int fd) {
 
 static void ashmem_init_funcs() {
   ASharedMemoryFuncs* funcs = &s_ashmem_funcs;
-  if (device_api_level() >= __ANDROID_API_O__) {
+  /*
+   * When a device conforms to the VSR for API level 202604 (Android 17),
+   * ASharedMemory will allocate memfds and attempt to relabel them by using
+   * fsetxattr() to workaround how SELinux handles memfds.
+   *
+   * fsetxattr() is not allowlisted in our seccomp filter, and allowlisting
+   * it may be unsafe. Since memfds from Chromium should be accessible with
+   * the existing sepolicy for appdomain_tmpfs files, just allocate memfds
+   * directly if the device conforms to the VSR for API level 202604.
+   */
+  if (vendor_api_level() >= 202604) {
+    funcs->create = &memfd_create_region;
+    funcs->setProt = &memfd_set_prot_region;
+  } else {
     /* Leaked intentionally! */
     void* lib = dlopen("libandroid.so", RTLD_NOW);
-    /*
-     * When a device conforms to the VSR for API level 202604 (Android 17),
-     * ASharedMemory will allocate memfds and attempt to relabel them by using
-     * fsetxattr() to workaround how SELinux handles memfds.
-     *
-     * fsetxattr() is not allowlisted in our seccomp filter, and allowlisting
-     * it may be unsafe. Since memfds from Chromium should be accessible with
-     * the existing sepolicy for appdomain_tmpfs files, just allocate memfds
-     * directly if the device conforms to the VSR for API level 202604.
-     */
-    if (vendor_api_level() >= 202604) {
-      s_use_memfd = true;
-      return;
-    }
     funcs->create =
         (ASharedMemory_createFunc)dlsym(lib, "ASharedMemory_create");
-    funcs->getSize =
-        (ASharedMemory_getSizeFunc)dlsym(lib, "ASharedMemory_getSize");
     funcs->setProt =
         (ASharedMemory_setProtFunc)dlsym(lib, "ASharedMemory_setProt");
-  } else {
-    funcs->create = &ashmem_dev_create_region;
-    funcs->getSize = &ashmem_dev_get_size_region;
-    funcs->setProt = &ashmem_dev_set_prot_region;
   }
 }
 
@@ -316,47 +263,37 @@ static const ASharedMemoryFuncs* ashmem_get_funcs() {
 }
 
 int ashmem_create_region(const char* name, size_t size) {
-  if (s_use_memfd)
-    return memfd_create_region(name, size);
-
   return ashmem_get_funcs()->create(name, size);
 }
 
 int ashmem_set_prot_region(int fd, int prot) {
-  if (s_use_memfd)
-    return memfd_set_prot_region(fd, prot);
-
   return ashmem_get_funcs()->setProt(fd, prot);
 }
 
+static bool is_memfd_fd(int fd) {
+  if (fcntl(fd, F_GET_SEALS, 0) == -1)
+    return false;
+  return true;
+}
+
 int ashmem_get_prot_region(int fd) {
-  if (s_use_memfd)
+  if (is_memfd_fd(fd))
     return memfd_get_prot_region(fd);
-  else if (ashmem_dev_fd_check(fd))
+
+  if (is_ashmem_fd(fd))
     return ashmem_dev_get_prot_region(fd);
-  /* There are only two practical values to return here: either
-   * PROT_READ|PROT_WRITE or just PROT_READ, so try to determine
-   * the flags by trying to mmap() the region read-write first.
-   */
-  int result = PROT_READ;
-  const size_t page_size = (size_t)sysconf(_SC_PAGESIZE);
-  void* m = mmap(NULL, page_size, PROT_READ|PROT_WRITE,
-                 MAP_SHARED, fd, 0);
-  if (m != MAP_FAILED) {
-    munmap(m, page_size);
-    result = PROT_READ|PROT_WRITE;
-  }
-  return result;
+
+  return -1;
 }
 
 int ashmem_pin_region(int fd, size_t offset, size_t len) {
- if (ashmem_dev_fd_check(fd))
+ if (is_ashmem_fd(fd))
    return ashmem_dev_pin_region(fd, offset, len);
   return ASHMEM_NOT_PURGED;
 }
 
 int ashmem_unpin_region(int fd, size_t offset, size_t len) {
-  if (ashmem_dev_fd_check(fd))
+  if (is_ashmem_fd(fd))
     return ashmem_dev_unpin_region(fd, offset, len);
   /* NOTE: It is not possible to use madvise() here because it requires a
    * memory address. This could be done in the caller though, instead of
@@ -365,11 +302,16 @@ int ashmem_unpin_region(int fd, size_t offset, size_t len) {
 }
 
 int ashmem_get_size_region(int fd) {
-  if (s_use_memfd)
-    return memfd_get_size_region(fd);
+  if (is_ashmem_fd(fd))
+    return ashmem_dev_get_size_region(fd);
 
-  /* NOTE: Original API returns an int. Avoid breaking it. */
-  return (int)ashmem_get_funcs()->getSize(fd);
+  struct stat sb;
+  if (fstat(fd, &sb) == -1) {
+    LOG_E("fstat(%d) failed: %m", fd);
+    return -1;
+  }
+
+  return sb.st_size;
 }
 
 int ashmem_device_is_supported(void) {

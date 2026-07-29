@@ -18,10 +18,6 @@ namespace ash {
 class MultiUserWindowManager;
 }
 
-namespace aura {
-class Window;
-}
-
 // MultiUserWindowManagerHelper is responsible for creating and owning the
 // right ash::MultiUserWindowManager implementation. If multi-profile is not
 // enabled it creates a stub implementation, otherwise MultiProfileSupport,
@@ -38,12 +34,10 @@ class MultiUserWindowManagerHelper {
   // Gets the instance of the object.
   static MultiUserWindowManagerHelper* GetInstance();
 
+  // DEPRECATED. TODO(crbug.com/425160398): Replace the callers by
+  // MultiUserWindowManagerImpl::Get() or
+  // ash::Shell::Get()->multi_user_window_manager().
   static ash::MultiUserWindowManager* GetWindowManager();
-
-  // Whether or not the window's title should show the avatar. On chromeos,
-  // this is true when the owner of the window is different from the owner of
-  // the desktop.
-  static bool ShouldShowAvatar(aura::Window* window);
 
   // Removes the instance.
   static void DeleteInstance();
@@ -68,25 +62,9 @@ class MultiUserWindowManagerHelper {
   // This must be called after User's profile gets ready.
   void AddUser(const AccountId& account_id);
 
-  // A query call for a given window to see if it is on the given user's
-  // desktop.
-  bool IsWindowOnDesktopOfUser(aura::Window* window,
-                               const AccountId& account_id) const;
-
  private:
-  explicit MultiUserWindowManagerHelper(
-      std::unique_ptr<ash::MultiUserWindowManager> window_manager);
+  MultiUserWindowManagerHelper();
   ~MultiUserWindowManagerHelper();
-
-  ash::MultiUserWindowManager* GetWindowManagerImpl() {
-    return const_cast<ash::MultiUserWindowManager*>(
-        const_cast<const MultiUserWindowManagerHelper*>(this)
-            ->GetWindowManagerImpl());
-  }
-  const ash::MultiUserWindowManager* GetWindowManagerImpl() const;
-
-  // The MultiUserWindowManager implementation to use.
-  std::unique_ptr<ash::MultiUserWindowManager> multi_user_window_manager_;
 
   // Used in multi-profile support.
   std::unique_ptr<MultiProfileSupport> multi_profile_support_;

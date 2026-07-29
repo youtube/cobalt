@@ -19,20 +19,58 @@ namespace blink {
 class CORE_EXPORT MainGap {
  public:
   MainGap() = default;
-  MainGap(LayoutUnit offset) : gap_start_offset_(offset) {}
+  MainGap(LayoutUnit offset) : gap_offset_(offset) {}
 
-  void SetGapStartOffset(LayoutUnit offset) { gap_start_offset_ = offset; }
-  LayoutUnit GetGapStartOffset() const { return gap_start_offset_; }
+  void SetGapOffset(LayoutUnit offset) { gap_offset_ = offset; }
+  LayoutUnit GetGapOffset() const { return gap_offset_; }
 
-  CrossGapRange& RangeOfCrossGapsBefore() {
-    return range_of_cross_gaps_before_;
+  bool HasCrossGapsBefore() const {
+    return range_of_cross_gaps_before_.IsValid();
   }
 
-  CrossGapRange& RangeOfCrossGapsAfter() { return range_of_cross_gaps_after_; }
+  bool HasCrossGapsAfter() const {
+    return range_of_cross_gaps_after_.IsValid();
+  }
+
+  wtf_size_t GetCrossGapBeforeStart() const {
+    CHECK(HasCrossGapsBefore());
+    return range_of_cross_gaps_before_.Start();
+  }
+
+  wtf_size_t GetCrossGapBeforeEnd() const {
+    CHECK(HasCrossGapsBefore());
+    return range_of_cross_gaps_before_.End();
+  }
+
+  wtf_size_t GetCrossGapAfterStart() const {
+    CHECK(HasCrossGapsAfter());
+    return range_of_cross_gaps_after_.Start();
+  }
+
+  wtf_size_t GetCrossGapAfterEnd() const {
+    CHECK(HasCrossGapsAfter());
+    return range_of_cross_gaps_after_.End();
+  }
+
+  void IncrementRangeOfCrossGapsBefore(wtf_size_t cross_gap_index) {
+    range_of_cross_gaps_before_.Increment(cross_gap_index);
+  }
+
+  void IncrementRangeOfCrossGapsAfter(wtf_size_t cross_gap_index) {
+    range_of_cross_gaps_after_.Increment(cross_gap_index);
+  }
+
+  void SetRangeOfCrossGapsBefore(const CrossGapRange& range) {
+    range_of_cross_gaps_before_ = range;
+  }
+
+  void SetRangeOfCrossGapsAfter(const CrossGapRange& range) {
+    range_of_cross_gaps_after_ = range;
+  }
 
   blink::String ToString(bool verbose = false) const {
     blink::String str =
-        blink::String("MainOffset(") + gap_start_offset_.ToString() + "); ";
+        blink::String("MainOffset(") + gap_offset_.ToString() + "); ";
 
     if (verbose) {
       str = str + "Before: " + range_of_cross_gaps_before_.ToString() + ";";
@@ -43,10 +81,9 @@ class CORE_EXPORT MainGap {
   }
 
  private:
-  // This represents the offset (block or inline) of the start point for the
-  // gap. If the main direction is row it'll be the block offset otherwise
-  // it'll be the inline.
-  LayoutUnit gap_start_offset_;
+  // This represents the midpoint offset (block or inline) of the gap. If the main
+  // direction is row it'll be the block offset otherwise it'll be the inline.
+  LayoutUnit gap_offset_;
 
   // In Grid, because rows and columns neatly align, we can avoid duplication by
   // storing cross gaps once and share them across all main gaps. As a result,

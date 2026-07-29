@@ -337,10 +337,10 @@ targets.legacy_matrix_compound_suite(
     # Tests scheduled via CTP for preuprev.
     name = "chromeos_ctp_preuprev_tests",
     basic_suites = {
-        "chromeos_chrome_all_tast_tests": targets.legacy_matrix_config(
+        "chromeos_chrome_all_tast_tests_tfc": targets.legacy_matrix_config(
             mixins = [
-                # Board with more capacity will run full tast test with many shards.
-                "skylab-shards-30",
+                # Most boards run 40 tests per shard to finish within 1h.
+                "skylab-40-tests-per-shard",
             ],
             variants = [
                 "CROS_RELEASE_LKGM",
@@ -362,16 +362,46 @@ targets.legacy_matrix_compound_suite(
 targets.legacy_matrix_compound_suite(
     name = "chromeos_ctp_preuprev_tests_slow_boards",
     basic_suites = {
-        "chromeos_chrome_all_tast_tests": targets.legacy_matrix_config(
+        "chromeos_chrome_all_tast_tests_tfc": targets.legacy_matrix_config(
             mixins = [
-                # jacuzzi is slow. So that we use more number of shards.
-                "skylab-shards-45",
+                # Slower boards runs fewer tests per shard.
+                "skylab-20-tests-per-shard",
             ],
             variants = [
                 "CROS_RELEASE_LKGM",
             ],
         ),
         "chromeos_integration_tests_suite": targets.legacy_matrix_config(
+            variants = [
+                "CROS_RELEASE_LKGM",
+            ],
+        ),
+        "chromeos_device_only_gtests": targets.legacy_matrix_config(
+            variants = [
+                "CROS_RELEASE_LKGM",
+            ],
+        ),
+    },
+)
+
+targets.legacy_matrix_compound_suite(
+    # Tests scheduled via CTP for preuprev on ARC-less boards.
+    name = "chromeos_ctp_preuprev_tests_no_arc",
+    basic_suites = {
+        "chromeos_chrome_all_tast_tests_tfc": targets.legacy_matrix_config(
+            mixins = [
+                # Most boards run 40 tests per shard to finish within 1h.
+                "skylab-40-tests-per-shard",
+            ],
+            variants = [
+                "CROS_RELEASE_LKGM",
+            ],
+        ),
+        "chromeos_integration_tests_suite": targets.legacy_matrix_config(
+            # TODO(b/353643755): Remove once ARC tests not compiled in.
+            mixins = [
+                "crosier-no-arc",
+            ],
             variants = [
                 "CROS_RELEASE_LKGM",
             ],

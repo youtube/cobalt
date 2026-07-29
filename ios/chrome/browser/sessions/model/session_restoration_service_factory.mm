@@ -253,7 +253,7 @@ void SessionRestorationServiceFactory::MigrateSessionStorageFormat(
     StorageFormat requested_format,
     base::OnceClosure closure) {
   DCHECK(!profile->IsOffTheRecord());
-  DCHECK(!GetServiceForBrowserState(profile, false));
+  DCHECK(!GetServiceForProfileAs<SessionRestorationService>(profile, false));
 
   PrefService* const prefs = profile->GetPrefs();
   const SessionStorageMigrationStatus status =
@@ -346,9 +346,7 @@ SessionRestorationServiceFactory::~SessionRestorationServiceFactory() = default;
 
 std::unique_ptr<KeyedService>
 SessionRestorationServiceFactory::BuildServiceInstanceFor(
-    web::BrowserState* context) const {
-  ProfileIOS* profile = ProfileIOS::FromBrowserState(context);
-
+    ProfileIOS* profile) const {
   scoped_refptr<base::SequencedTaskRunner> task_runner =
       base::ThreadPool::CreateSingleThreadTaskRunner(
           {base::MayBlock(), base::TaskPriority::USER_VISIBLE,
@@ -384,7 +382,7 @@ SessionRestorationServiceFactory::BuildServiceInstanceFor(
       kSaveDelay, IsPinnedTabsEnabled(), storage_path, task_runner);
 }
 
-void SessionRestorationServiceFactory::RegisterBrowserStatePrefs(
+void SessionRestorationServiceFactory::RegisterProfilePrefs(
     user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterIntegerPref(
       kSessionStorageFormatPref,

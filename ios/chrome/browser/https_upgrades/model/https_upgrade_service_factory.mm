@@ -29,8 +29,8 @@ HttpsUpgradeServiceFactory::HttpsUpgradeServiceFactory()
 HttpsUpgradeServiceFactory::~HttpsUpgradeServiceFactory() = default;
 
 std::unique_ptr<KeyedService>
-HttpsUpgradeServiceFactory::BuildServiceInstanceFor(
-    web::BrowserState* context) const {
+HttpsUpgradeServiceFactory::BuildServiceInstanceFor(ProfileIOS* profile) const {
   return std::make_unique<HttpsUpgradeServiceImpl>(
-      ProfileIOS::FromBrowserState(context));
+      profile->IsOffTheRecord(),
+      ios::HostContentSettingsMapFactory::GetForProfile(profile));
 }

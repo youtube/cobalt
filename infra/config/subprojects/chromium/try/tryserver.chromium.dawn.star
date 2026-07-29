@@ -18,6 +18,14 @@ try_.defaults.set(
     pool = try_constants.DEFAULT_POOL,
     builderless = False,
     os = os.LINUX_DEFAULT,
+    # These builders test GPU configurations. These configurations have very
+    # limited hardware, due to the hardware needing specific GPUs. The pool of
+    # machines to run builds for these builders is intentionally limited to
+    # avoid concurrent builds from oversubscribing the test capacity. As a
+    # consequence, pending times are expected for these builders. These builder
+    # haven't been long poles in the CQ, and developers haven't complained about
+    # them, so there's no need to page for them.
+    alerts_enabled = False,
     check_for_flakiness = False,
     check_for_flakiness_with_resultdb = False,
     contact_team_email = "chrome-gpu-infra@google.com",
@@ -412,6 +420,23 @@ try_.builder(
     mirrors = [
         "ci/Dawn Android arm64 Builder",
         "ci/Dawn Android arm64 Experimental Release (Pixel 6)",
+    ],
+    gn_args = "ci/Dawn Android arm64 Builder",
+    pool = "luci.chromium.gpu.try",
+    builderless = True,
+    os = os.LINUX_DEFAULT,
+    max_concurrent_builds = 1,
+    test_presentation = resultdb.test_presentation(
+        grouping_keys = ["status", "v.test_suite", "v.gpu"],
+    ),
+)
+
+try_.builder(
+    name = "android-dawn-arm64-p10-rel",
+    description_html = "Runs ToT Dawn tests on Pixel 10 devices",
+    mirrors = [
+        "ci/Dawn Android arm64 Builder",
+        "ci/Dawn Android arm64 Release (Pixel 10)",
     ],
     gn_args = "ci/Dawn Android arm64 Builder",
     pool = "luci.chromium.gpu.try",

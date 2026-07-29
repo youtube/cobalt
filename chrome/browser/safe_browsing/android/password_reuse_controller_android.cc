@@ -9,7 +9,6 @@
 
 #include "base/android/device_info.h"
 #include "base/functional/callback.h"
-#include "chrome/browser/password_manager/android/password_manager_android_util.h"
 #include "chrome/browser/ui/android/safe_browsing/password_reuse_dialog_view_android.h"
 #include "components/password_manager/core/browser/features/password_features.h"
 #include "components/prefs/pref_service.h"
@@ -87,16 +86,6 @@ std::u16string PasswordReuseControllerAndroid::GetPrimaryButtonText() const {
     return l10n_util::GetStringUTF16(IDS_CLOSE);
   }
 
-  // This is a rare corner-case. It can only occur for users with no GMS Core,
-  // outdated GMS Core, or users who have failed automatic password migration
-  // to GMS Core. In addition, for this case to occur the user has to have
-  // entered a password on a phishing website in the exact time interval in
-  // which Chrome was exporting passwods to an internally-stored CSV or
-  // in-between export tries if the first attempt failed.
-  if (!password_manager_android_util::LoginDbDeprecationReady(pref_service_)) {
-    return l10n_util::GetStringUTF16(IDS_CLOSE);
-  }
-
   if (password_type_.account_type() ==
       ReusedPasswordAccountType::SAVED_PASSWORD) {
     return l10n_util::GetStringUTF16(IDS_PAGE_INFO_CHECK_PASSWORDS_BUTTON);
@@ -114,10 +103,6 @@ std::u16string PasswordReuseControllerAndroid::GetSecondaryButtonText() const {
   // The modal can be shown on automotive, but without any call to action as
   // those are not optimized for automotive.
   if (base::android::device_info::is_automotive()) {
-    return std::u16string();
-  }
-
-  if (!password_manager_android_util::LoginDbDeprecationReady(pref_service_)) {
     return std::u16string();
   }
 

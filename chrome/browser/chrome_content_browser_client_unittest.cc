@@ -410,6 +410,11 @@ TEST_F(ChromeContentBrowserClientWindowTest, GetAutoPipInfo_AutoPipReason) {
       media::PictureInPictureEventsInfo::AutoPipReason::kMediaPlayback);
   EXPECT_EQ(media::PictureInPictureEventsInfo::AutoPipReason::kMediaPlayback,
             client.GetAutoPipInfo(*web_contents).auto_pip_reason);
+
+  tab_helper->set_auto_pip_trigger_reason_for_testing(
+      media::PictureInPictureEventsInfo::AutoPipReason::kBrowserInitiated);
+  EXPECT_EQ(media::PictureInPictureEventsInfo::AutoPipReason::kBrowserInitiated,
+            client.GetAutoPipInfo(*web_contents).auto_pip_reason);
 }
 
 #endif  // !BUILDFLAG(IS_ANDROID)
@@ -1260,7 +1265,7 @@ class CaptivePortalCheckNetworkContext final
 };
 
 class CaptivePortalCheckRenderProcessHostFactory
-    : public content::RenderProcessHostFactory {
+    : public content::MockRenderProcessHostFactory {
  public:
   CaptivePortalCheckRenderProcessHostFactory() = default;
 
@@ -1269,22 +1274,17 @@ class CaptivePortalCheckRenderProcessHostFactory
   CaptivePortalCheckRenderProcessHostFactory& operator=(
       const CaptivePortalCheckRenderProcessHostFactory&) = delete;
 
-  content::RenderProcessHost* CreateRenderProcessHost(
+  void ClearRenderProcessHosts() { processes_.clear(); }
+
+ protected:
+  std::unique_ptr<content::MockRenderProcessHost> BuildRenderProcessHost(
       content::BrowserContext* browser_context,
       content::SiteInstance* site_instance) override {
-    auto rph = std::make_unique<content::MockRenderProcessHost>(
+    return std::make_unique<content::MockRenderProcessHost>(
         browser_context,
         content::StoragePartitionConfig::CreateDefault(browser_context),
         false /* is_for_guests_only */);
-    content::RenderProcessHost* result = rph.get();
-    processes_.push_back(std::move(rph));
-    return result;
   }
-
-  void ClearRenderProcessHosts() { processes_.clear(); }
-
- private:
-  std::list<std::unique_ptr<content::MockRenderProcessHost>> processes_;
 };
 
 class ChromeContentBrowserClientCaptivePortalBrowserTest

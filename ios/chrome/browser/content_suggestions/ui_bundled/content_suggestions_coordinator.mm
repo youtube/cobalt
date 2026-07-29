@@ -41,6 +41,7 @@
 #import "ios/chrome/browser/bookmarks/model/bookmark_model_factory.h"
 #import "ios/chrome/browser/commerce/model/push_notification/push_notification_feature.h"
 #import "ios/chrome/browser/commerce/model/shopping_service_factory.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/app_bundle_promo/coordinator/app_bundle_promo_mediator.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/cells/content_suggestions_most_visited_item.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/cells/most_visited_tiles_mediator.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/cells/shortcuts_mediator.h"
@@ -53,6 +54,8 @@
 #import "ios/chrome/browser/content_suggestions/ui_bundled/content_suggestions_metrics_recorder.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/content_suggestions_view_controller.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/content_suggestions_view_controller_audience.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/default_browser/coordinator/default_browser_mediator.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/default_browser/public/features.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/impression_limits/impression_limit_service_factory.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/magic_stack/magic_stack_collection_view.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/magic_stack/magic_stack_collection_view_audience.h"
@@ -81,6 +84,7 @@
 #import "ios/chrome/browser/content_suggestions/ui_bundled/tips/tips_module_state.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/tips/tips_passwords_coordinator.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/tips/tips_prefs.h"
+#import "ios/chrome/browser/default_browser/model/promo_source.h"
 #import "ios/chrome/browser/discover_feed/model/discover_feed_service.h"
 #import "ios/chrome/browser/discover_feed/model/discover_feed_service_factory.h"
 #import "ios/chrome/browser/favicon/model/favicon_loader.h"
@@ -242,6 +246,7 @@ using segmentation_platform::TipIdentifier;
   ShortcutsMediator* _shortcutsMediator;
   SafetyCheckMagicStackMediator* _safetyCheckMediator;
   TipsMagicStackMediator* _tipsMediator;
+  AppBundlePromoMediator* _appBundlePromoMediator;
   MostVisitedTilesMediator* _mostVisitedTilesMediator;
   TabResumptionMediator* _tabResumptionMediator;
   PriceTrackingPromoMediator* _priceTrackingPromoMediator;
@@ -249,6 +254,7 @@ using segmentation_platform::TipIdentifier;
   SendTabPromoMediator* _sendTabPromoMediator;
   SigninCoordinator* _signinCoordinator;
   MagicStackCollectionViewController* _magicStackCollectionView;
+  DefaultBrowserMediator* _defaultBrowserMediator;
 
   raw_ptr<segmentation_platform::SegmentationPlatformService>
       _segmentationService;
@@ -464,6 +470,21 @@ using segmentation_platform::TipIdentifier;
     [moduleMediators addObject:_tipsMediator];
   }
 
+  if (base::FeatureList::IsEnabled(
+          segmentation_platform::features::kAppBundlePromoEphemeralCard)) {
+    _appBundlePromoMediator = [[AppBundlePromoMediator alloc]
+        initWithAppStoreBundleService:AppStoreBundleServiceFactory::
+                                          GetForProfile(self.profile)];
+    _appBundlePromoMediator.presentationAudience = self;
+    [moduleMediators addObject:_appBundlePromoMediator];
+  }
+  if (base::FeatureList::IsEnabled(
+          segmentation_platform::features::kDefaultBrowserMagicStackIos)) {
+    _defaultBrowserMediator = [[DefaultBrowserMediator alloc] init];
+    _defaultBrowserMediator.presentationAudience = self;
+    [moduleMediators addObject:_defaultBrowserMediator];
+  }
+
   ContentSuggestionsViewController* viewController =
       [[ContentSuggestionsViewController alloc] init];
   viewController.audience = self;
@@ -547,6 +568,8 @@ using segmentation_platform::TipIdentifier;
   _tabResumptionMediator = nil;
   [_magicStackRankingModel disconnect];
   _magicStackRankingModel = nil;
+  [_appBundlePromoMediator disconnect];
+  _appBundlePromoMediator = nil;
   [self.contentSuggestionsMediator disconnect];
   self.contentSuggestionsMediator = nil;
   [self.contentSuggestionsMetricsRecorder disconnect];
@@ -639,6 +662,68 @@ using segmentation_platform::TipIdentifier;
   };
 
   [_tipsMediator removeModuleWithCompletion:completion];
+}
+
+// Removes the App Bundle promo from the Magic Stack and opens the App Store
+// page to install the Best of Google bundle.
+- (void)didSelectAppBundlePromo {
+  // Note: The promo modal only works when the `kAppBundlePromoEphemeralCard`
+  // feature is enabled. If this card is forced in the
+  // #ios-segmentation-ephemeral-card-ranker, tapping the card does NOT do
+  // anything. This is because the creation of the AppStorePromoService is gated
+  // behind the feature flag.
+  CHECK(_appBundlePromoMediator);
+
+  __weak __typeof(self) weakSelf = self;
+
+  ProceduralBlock completion = ^{
+    [weakSelf presentAppStoreBundlePage];
+  };
+
+  [_appBundlePromoMediator removeModuleWithCompletion:completion];
+}
+
+// Presents the Best of Google bundle install page in the App Store.
+- (void)presentAppStoreBundlePage {
+  // TODO(crbug.com/442590744): Fix crash when passing `nil` completion. This
+  // method call is intentionally passed an empty completion block. Passing a
+  // `nil` completion results in a crash from the `AppStoreBundleService` API.
+  [_appBundlePromoMediator
+      presentAppStoreBundlePage:self.magicStackCollectionView
+                 withCompletion:^{
+                 }];
+}
+
+- (void)didTapDefaultBrowserPromo {
+  DefaultBrowserMagicStackIosVariationType variation =
+      GetDefaultBrowserMagicStackIosVariation();
+
+  if (variation ==
+      DefaultBrowserMagicStackIosVariationType::kTapToDeviceSettings) {
+    NSURL* url = [NSURL URLWithString:UIApplicationOpenSettingsURLString];
+#if defined(__IPHONE_18_3) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_18_3
+    if (@available(iOS 18.3, *)) {
+      if (IsDefaultAppsDestinationAvailable() &&
+          IsUseDefaultAppsDestinationForPromosEnabled()) {
+        url = [NSURL URLWithString:
+                         UIApplicationOpenDefaultApplicationsSettingsURLString];
+      }
+    }
+#endif
+    [[UIApplication sharedApplication] openURL:url
+                                       options:{}
+                             completionHandler:nil];
+
+  } else if (variation ==
+             DefaultBrowserMagicStackIosVariationType::kTapToAppSettings) {
+    id<SettingsCommands> settings_handler = HandlerForProtocol(
+        self.browser->GetCommandDispatcher(), SettingsCommands);
+    [settings_handler
+        showDefaultBrowserSettingsFromViewController:nil
+                                        sourceForUMA:
+                                            DefaultBrowserSettingsPageSource::
+                                                kMagicStackCard];
+  }
 }
 
 - (void)openTipDestination:(segmentation_platform::TipIdentifier)tip {
@@ -774,6 +859,11 @@ using segmentation_platform::TipIdentifier;
         break;
       }
       [[fallthrough]];
+    }
+    case ContentSuggestionsModuleType::kAppBundlePromo: {
+      registry->NotifyCardShown(
+          segmentation_platform::kAppBundlePromoEphemeralModule);
+      break;
     }
     default:
       NOTREACHED();

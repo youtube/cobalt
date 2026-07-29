@@ -19,6 +19,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/threading/thread_checker.h"
 #include "base/trace_event/memory_dump_provider.h"
+#include "base/types/pass_key.h"
 #include "components/viz/common/gpu/context_provider.h"
 #include "components/viz/common/gpu/raster_context_provider.h"
 #include "gpu/command_buffer/client/shared_memory_limits.h"
@@ -60,6 +61,8 @@ class GrContextForGLES2Interface;
 
 namespace viz {
 
+enum class WebGLContextType { kWebGL1, kWebGL2 };
+
 // Implementation of ContextProvider that provides a GL implementation
 // over command buffer to the GPU process.
 class ContextProviderCommandBuffer
@@ -70,7 +73,41 @@ class ContextProviderCommandBuffer
  public:
   REQUIRE_ADOPTION_FOR_REFCOUNTED_TYPE();
 
+  static scoped_refptr<ContextProviderCommandBuffer> CreateForGL(
+      scoped_refptr<gpu::GpuChannelHost> channel,
+      int32_t stream_id,
+      gpu::SchedulingPriority stream_priority,
+      const GURL& active_url,
+      command_buffer_metrics::ContextType type,
+      bool lose_context_when_out_of_memory = false);
+
+  static scoped_refptr<ContextProviderCommandBuffer> CreateForWebGL(
+      scoped_refptr<gpu::GpuChannelHost> channel,
+      const GURL& active_url,
+      WebGLContextType context_type,
+      bool prefer_low_power_gpu,
+      bool fail_if_major_performance_caveat);
+
+  static scoped_refptr<ContextProviderCommandBuffer> CreateForRaster(
+      scoped_refptr<gpu::GpuChannelHost> channel,
+      int32_t stream_id,
+      gpu::SchedulingPriority stream_priority,
+      const GURL& active_url,
+      bool automatic_flushes,
+      bool support_locking,
+      const gpu::SharedMemoryLimits& memory_limits,
+      command_buffer_metrics::ContextType type,
+      bool enable_gpu_rasterization,
+      bool lose_context_when_out_of_memory);
+
+  static scoped_refptr<ContextProviderCommandBuffer> CreateForWebGPU(
+      scoped_refptr<gpu::GpuChannelHost> channel,
+      const GURL& active_url,
+      command_buffer_metrics::ContextType type,
+      base::SharedMemoryMapper* buffer_mapper);
+
   ContextProviderCommandBuffer(
+      base::PassKey<ContextProviderCommandBuffer> pass_key,
       scoped_refptr<gpu::GpuChannelHost> channel,
       int32_t stream_id,
       gpu::SchedulingPriority stream_priority,
@@ -117,6 +154,11 @@ class ContextProviderCommandBuffer
  protected:
   friend class base::DeleteHelper<ContextProviderCommandBuffer>;
   ~ContextProviderCommandBuffer() override;
+
+  // Used by MockContextProviderCommandBuffer in
+  // media/mojo/clients/mojo_gpu_video_accelerator_factories_unittest.cc
+  explicit ContextProviderCommandBuffer(
+      scoped_refptr<gpu::GpuChannelHost> channel);
 
  private:
   void OnLostContext();

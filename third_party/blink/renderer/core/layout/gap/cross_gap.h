@@ -17,6 +17,15 @@ namespace blink {
 // `GapGeometry` where a given `CrossGap` is stored.
 class CrossGapRange {
  public:
+  CrossGapRange(wtf_size_t start, wtf_size_t end)
+      : start_index_(start), end_index_(end) {}
+
+  CrossGapRange() = default;
+
+  bool IsValid() const {
+    return start_index_.has_value() && end_index_.has_value();
+  }
+
   wtf_size_t Start() const {
     CHECK(start_index_.has_value());
     return *start_index_;
@@ -53,6 +62,10 @@ class CrossGapRange {
     return str;
   }
 
+  bool operator==(const CrossGapRange& other) const {
+    return start_index_ == other.start_index_ && end_index_ == other.end_index_;
+  }
+
  private:
   std::optional<wtf_size_t> start_index_;
   std::optional<wtf_size_t> end_index_;
@@ -78,31 +91,33 @@ class CORE_EXPORT CrossGap {
     kBoth = 3,
   };
 
-  CrossGap(LogicalOffset offset) : gap_logical_start_offset_(offset) {}
+  CrossGap(LogicalOffset offset) : gap_logical_offset_(offset) {}
   CrossGap(LogicalOffset offset, EdgeIntersectionState state)
-      : gap_logical_start_offset_(offset), edge_state_(state) {}
+      : gap_logical_offset_(offset), edge_state_(state) {}
 
-  LogicalOffset GetGapStartOffset() const { return gap_logical_start_offset_; }
+  LogicalOffset GetGapOffset() const { return gap_logical_offset_; }
 
   String ToString(bool verbose = false) const {
     if (verbose) {
       String edge_state;
-      if (StartsAtEdge()) {
+      if (edge_state_ == EdgeIntersectionState::kStart) {
         edge_state = "kStart";
-      } else if (EndsAtEdge()) {
+      } else if (edge_state_ == EdgeIntersectionState::kEnd) {
         edge_state = "kEnd";
+      } else if (edge_state_ == EdgeIntersectionState::kBoth) {
+        edge_state = "kBoth";
       } else {
         edge_state = "kNone";
       }
       return String("CrossStartOffset(") +
-             gap_logical_start_offset_.inline_offset.ToString() + ", " +
-             gap_logical_start_offset_.block_offset.ToString() + "); " +
+             gap_logical_offset_.inline_offset.ToString() + ", " +
+             gap_logical_offset_.block_offset.ToString() + "); " +
              "EdgeState: " + edge_state + ";";
     }
 
     return String("CrossStartOffset(") +
-           gap_logical_start_offset_.inline_offset.ToString() + ", " +
-           gap_logical_start_offset_.block_offset.ToString() + ")";
+           gap_logical_offset_.inline_offset.ToString() + ", " +
+           gap_logical_offset_.block_offset.ToString() + ")";
   }
 
   void SetEdgeIntersectionState(EdgeIntersectionState state) {
@@ -119,7 +134,7 @@ class CORE_EXPORT CrossGap {
   bool GapIntersectsContainerEdge() const { return edge_state_ != kNone; }
 
  private:
-  LogicalOffset gap_logical_start_offset_;
+  LogicalOffset gap_logical_offset_;
 
   EdgeIntersectionState edge_state_ = EdgeIntersectionState::kNone;
 };

@@ -16,13 +16,14 @@
 namespace autofill {
 
 SynchronousFormCache::SynchronousFormCache() = default;
-SynchronousFormCache::SynchronousFormCache(FormData& form) {
-  Insert(form.renderer_id(), form);
+SynchronousFormCache::SynchronousFormCache(
+    const FormData& form LIFETIME_BOUND) {
+  Insert(form.renderer_id(), &form);
 }
 SynchronousFormCache::SynchronousFormCache(
     FormRendererId form_id,
     base::optional_ref<const FormData> form) {
-  Insert(form_id, form);
+  Insert(form_id, form ? form.as_ptr() : nullptr);
 }
 SynchronousFormCache::SynchronousFormCache(
     const std::map<FormRendererId, std::unique_ptr<FormData>>& forms) {
@@ -38,11 +39,8 @@ std::optional<FormData> SynchronousFormCache::GetOrExtractForm(
     const blink::WebFormElement& form_element,
     const FieldDataManager& field_data_manager,
     const CallTimerState& timer_state,
-    form_util::ButtonTitlesCache* button_titles_cache,
-    DenseSet<form_util::ExtractOption> extract_options) const {
+    form_util::ButtonTitlesCache* button_titles_cache) const {
   if (!cache_.empty()) {
-    CHECK(base::FeatureList::IsEnabled(
-        features::kAutofillOptimizeFormExtraction));
     if (FormRendererId form_id = form_util::GetFormRendererId(form_element);
         cache_.contains(form_id)) {
       auto it = cache_.find(form_id);
@@ -63,15 +61,12 @@ std::optional<FormData> SynchronousFormCache::GetOrExtractForm(
 #endif  // !BUILDFLAG(IS_ANDROID)
   }
   return form_util::ExtractFormData(document, form_element, field_data_manager,
-                                    timer_state, button_titles_cache,
-                                    extract_options);
+                                    timer_state, button_titles_cache);
 }
 
 void SynchronousFormCache::Insert(FormRendererId form_id,
-                                  base::optional_ref<const FormData> form) {
-  if (base::FeatureList::IsEnabled(features::kAutofillOptimizeFormExtraction)) {
-    cache_.insert({form_id, form});
-  }
+                                  const FormData* form) {
+  cache_.emplace(form_id, form);
 }
 
 }  // namespace autofill

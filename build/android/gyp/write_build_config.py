@@ -230,13 +230,13 @@ class _TransitiveValuesBuilder:
 
     # Add the target's .jar (except for dist_jar, where it's the output .jar).
     if params.collects_processed_classpath():
-      if not params.is_dist_jar():
+      if not params.is_dist_xar():
         if path := params.get('processed_jar_path'):
           ret.all_processed_jars.add(path)
       ret.all_processed_jars.update(all_deps.collect('processed_jar_path'))
 
     if params.collects_dex_paths():
-      if not params.is_dist_jar():
+      if not params.is_dist_xar():
         if path := params.get('dex_path'):
           ret.all_dex_files.add(path)
       ret.all_dex_files.update(all_deps.collect('dex_path'))
@@ -532,7 +532,7 @@ def _ToTraceEventRewrittenPath(jar_dir, path):
   return os.path.join(jar_dir, path)
 
 
-def _WriteLintJson(params, lint_json, main_config):
+def _WriteLintJson(params, lint_json, javac_config, manifest_config):
   # Collect all sources and resources at the apk/bundle_module level.
   aars = set()
   srcjars = set()
@@ -567,15 +567,16 @@ def _WriteLintJson(params, lint_json, main_config):
     classpath = OrderedSet()
     manifests = OrderedSet(p['android_manifest'] for p in params.module_deps())
     for m in params.module_deps():
-      module_config = m.build_config_json()
-      classpath.update(module_config['javac_full_interface_classpath'])
-      manifests.update(module_config['extra_android_manifests'])
+      classpath.update(
+          m.javac_build_config_json()['javac_full_interface_classpath'])
+      manifests.update(
+          m.manifest_build_config_json()['extra_android_manifests'])
     classpath = list(classpath)
     manifests = list(manifests)
   else:
-    classpath = main_config['javac_full_interface_classpath']
+    classpath = javac_config['javac_full_interface_classpath']
     manifests = [params['android_manifest']]
-    manifests += main_config['extra_android_manifests']
+    manifests += manifest_config['extra_android_manifests']
 
   config = {}
   config['aars'] = sorted(aars)
@@ -651,8 +652,12 @@ def main():
       manifest.CheckInstrumentationElements(manifest.GetPackageName())
 
   main_config = {}
+  turbine_config = {}
+  manifest_config = {}
+  javac_config = {}
   res_config = {}
   rtxt_config = {}
+  targets_config = {}
 
   if is_apk:
     main_config['apk_path'] = params['apk_path']
@@ -667,23 +672,8 @@ def main():
   if has_classpath:
     tv = _TransitiveValuesBuilder(params).Build()
 
-    main_config['classpath'] = list(tv.direct_unprocessed_jars) + list(
-        tv.direct_input_jars_paths)
-    main_config['interface_classpath'] = list(tv.direct_interface_jars) + list(
-        tv.direct_input_jars_paths)
-    # processor_configs will be of type 'java_annotation_processor', and so not
-    # included in deps().recursive().of_type('java_library'). Annotation
-    # processors run as part of the build, so need processed_jar_path.
-    processor_deps = params.processor_deps()
-    main_config['processor_classpath'] = _SortClasspath(
-        processor_deps.recursive()).collect('processed_jar_path')
-    main_config['processor_classes'] = sorted(
-        processor_deps.collect('main_class'))
-
     main_config['javac_full_classpath'] = (list(tv.all_unprocessed_jars) +
                                            list(tv.all_input_jars_paths))
-    main_config['javac_full_interface_classpath'] = (
-        list(tv.all_interface_jars) + list(tv.all_input_jars_paths))
 
     if params.collects_processed_classpath():
       main_config['processed_classpath'] = list(tv.all_processed_jars)
@@ -696,13 +686,14 @@ def main():
     if params.collects_dex_paths():
       main_config['all_dex_files'] = list(tv.all_dex_files)
 
-    if target_type in ('dist_aar', 'java_library'):
+    if params.needs_transitive_rtxt():
       rtxt_config['dependency_rtxt_files'] = (
           params.resource_deps().collect('rtxt_path'))
 
     sdk_deps = params.deps().of_type('system_java_library')
     main_config['sdk_jars'] = sdk_deps.collect('unprocessed_jar_path')
-    main_config['sdk_interface_jars'] = sdk_deps.collect('interface_jar_path')
+    sdk_interface_jars = sdk_deps.collect('interface_jar_path')
+    main_config['sdk_interface_jars'] = sdk_interface_jars
 
     if proguard_enabled or target_type == 'dist_aar':
       main_config['proguard_all_configs'] = sorted(tv.proguard_configs)
@@ -713,7 +704,28 @@ def main():
     if is_apk_or_module:
       main_config['java_resources_jars'] = sorted(tv.java_resources_jars)
 
-  if params.is_dist_jar():
+  if params.is_compile_type():
+    # Needed by turbine.py and check_for_missing_direct_deps.py:
+    turbine_config['interface_classpath'] = list(
+        tv.direct_interface_jars) + list(tv.direct_input_jars_paths)
+    # processor_configs will be of type 'java_annotation_processor', and so not
+    # included in deps().recursive().of_type('java_library'). Annotation
+    # processors run as part of the build, so need processed_jar_path.
+    processor_deps = params.processor_deps()
+    turbine_config['processor_classpath'] = _SortClasspath(
+        processor_deps.recursive()).collect('processed_jar_path')
+    turbine_config['processor_classes'] = sorted(
+        processor_deps.collect('main_class'))
+
+    # Duplicate so that turbine.py does not need to read another .json.
+    turbine_config['sdk_interface_jars'] = sdk_interface_jars
+
+    javac_config['javac_full_interface_classpath'] = (
+        list(tv.all_interface_jars) + list(tv.all_input_jars_paths))
+    # Duplicate so that compile_java.py does not need to read another .json.
+    javac_config['sdk_interface_jars'] = sdk_interface_jars
+
+  if params.is_dist_xar():
     if params.get('direct_deps_only'):
       if params.get('use_interface_jars'):
         dist_jars = tv.direct_interface_jars
@@ -724,8 +736,7 @@ def main():
     else:
       dist_jars = tv.all_processed_jars
 
-    main_config['dist_jar'] = {}
-    main_config['dist_jar']['jars'] = list(dist_jars)
+    main_config['dist_classpath'] = list(dist_jars)
 
   if params.collects_resources():
     main_config['assets'] = sorted(tv.assets)
@@ -753,7 +764,7 @@ def main():
             apk_under_test_params.build_config_json()['package_name'])
 
   if params.merges_manifests():
-    main_config['extra_android_manifests'] = list(tv.android_manifests)
+    manifest_config['extra_android_manifests'] = list(tv.android_manifests)
 
   if is_bundle:
     module_deps = params.module_deps()
@@ -880,7 +891,7 @@ def main():
         target_config = params_json_util.get_build_config(path)
       _SuffixAssets(main_config, target_config)
 
-  if has_classpath:
+  if params.get('enable_bytecode_checks'):
     jar_to_target = {}
     all_params = params.deps() + [params]
     if apk_under_test_params:
@@ -892,22 +903,53 @@ def main():
     # when missing deps are found. Both javac_full_classpath_targets and
     # javac_full_classpath must be in identical orders, as they get passed as
     # separate arrays and then paired up based on index.
-    main_config['javac_full_classpath_targets'] = [
+    targets_config['javac_full_classpath_targets'] = [
         jar_to_target[x] for x in main_config['javac_full_classpath']
     ]
 
   if path := params.get('lint_json'):
-    _WriteLintJson(params, path, main_config)
+    _WriteLintJson(params, path, javac_config, manifest_config)
 
+  # Separate to prevent .java changes invalidating compile_resources.py, and
+  # new resource targets from invalidating java compiles.
   if res_config:
     path = build_config_path.replace('.build_config.json',
                                      '.res.build_config.json')
     build_utils.WriteJson(res_config, path, only_if_changed=True)
 
+  # Separate to prevent .java changes invalidating create_r_java.py, and new
+  # resource targets from invalidating java compiles.
   if rtxt_config:
     path = build_config_path.replace('.build_config.json',
                                      '.rtxt.build_config.json')
     build_utils.WriteJson(rtxt_config, path, only_if_changed=True)
+
+  # Separate to prevent transitive classpath changes invalidating turbine.py.
+  if turbine_config:
+    path = build_config_path.replace('.build_config.json',
+                                     '.turbine.build_config.json')
+    build_utils.WriteJson(turbine_config, path, only_if_changed=True)
+
+  # Separate to prevent APK / bundle-related values from invalidating
+  # compile_java.py, and to minimize the .json that compile_java.py needs to
+  # parse.
+  if javac_config:
+    path = build_config_path.replace('.build_config.json',
+                                     '.javac.build_config.json')
+    build_utils.WriteJson(javac_config, path, only_if_changed=True)
+
+  # Separate to prevent keys other than extra_android_manifests from
+  # invalidating merge_manifest.py.
+  if manifest_config:
+    path = build_config_path.replace('.build_config.json',
+                                     '.manifest.build_config.json')
+    build_utils.WriteJson(manifest_config, path, only_if_changed=True)
+
+  # Separate to save targets that don't need it from having to parse it.
+  if targets_config:
+    path = build_config_path.replace('.build_config.json',
+                                     '.targets.build_config.json')
+    build_utils.WriteJson(targets_config, path, only_if_changed=True)
 
   build_utils.WriteJson(main_config, build_config_path, only_if_changed=True)
 

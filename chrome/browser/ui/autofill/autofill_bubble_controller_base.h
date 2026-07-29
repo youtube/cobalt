@@ -47,13 +47,23 @@ class AutofillBubbleControllerBase : public BubbleControllerBase,
   void WebContentsDestroyed() override;
 
  protected:
-  virtual PageActionIconType GetPageActionIconType() = 0;
+  virtual std::optional<PageActionIconType> GetPageActionIconType() = 0;
 
   // Subclasses should implement this method to actually show the bubble and
   // potentially log metrics.
   virtual void DoShowBubble() = 0;
 
   virtual void UpdatePageActionIcon();
+
+  // If the BubbleManager feature is enabled, this returns `false` if a bubble
+  // is already queued to be shown.
+  [[nodiscard]] bool MaySetUpBubble();
+
+  // Calls the bubble manager to show the bubble if bubble manager is enabled.
+  // Otherwise just shows the bubble.
+  // `force_show` indicates to the bubble manager to show this bubble
+  // irrespective of its priority.
+  void QueueOrShowBubble(bool force_show = false);
 
   AutofillBubbleBase* bubble_view() const { return bubble_view_; }
   void set_bubble_view(AutofillBubbleBase* bubble_view) {

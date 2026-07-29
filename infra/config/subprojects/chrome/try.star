@@ -281,6 +281,22 @@ chrome_internal_verifier(
 )
 
 chrome_internal_verifier(
+    builder = "linux-bluebird-rel",
+    owner_whitelist = [
+        "google/glic-internal-cq@google.com",
+    ],
+    tryjob = try_.job(
+        location_filters = [
+            "chrome/browser/actor/.+",
+            "chrome/browser/glic/.+",
+            "chrome/common/actor/.+",
+            "chrome/renderer/actor/.+",
+            "chrome/test/data/actor/.+",
+        ],
+    ),
+)
+
+chrome_internal_verifier(
     branch_selector = branches.selector.LINUX_BRANCHES,
     builder = "linux-chrome",
 )
@@ -309,6 +325,10 @@ chrome_internal_verifier(
 chrome_internal_verifier(
     branch_selector = branches.selector.LINUX_BRANCHES,
     builder = "linux64-rel-ready",
+)
+
+chrome_internal_verifier(
+    builder = "mac-arm64-bluebird-rel",
 )
 
 chrome_internal_verifier(
@@ -403,6 +423,10 @@ chrome_internal_verifier(
 )
 
 chrome_internal_verifier(
+    builder = "win-arm64-bluebird-rel",
+)
+
+chrome_internal_verifier(
     branch_selector = branches.selector.WINDOWS_BRANCHES,
     builder = "win-arm64-pgo",
 )
@@ -410,6 +434,10 @@ chrome_internal_verifier(
 chrome_internal_verifier(
     branch_selector = branches.selector.WINDOWS_BRANCHES,
     builder = "win-arm64-rel-ready",
+)
+
+chrome_internal_verifier(
+    builder = "win-bluebird-rel",
 )
 
 chrome_internal_verifier(

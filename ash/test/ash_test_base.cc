@@ -70,7 +70,6 @@
 #include "ui/aura/window_delegate.h"
 #include "ui/aura/window_tree_host.h"
 #include "ui/base/ime/init/input_method_initializer.h"
-#include "ui/base/ui_base_switches.h"
 #include "ui/compositor/compositor_switches.h"
 #include "ui/display/display.h"
 #include "ui/display/screen.h"
@@ -81,6 +80,7 @@
 #include "ui/events/devices/touchscreen_device.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/geometry/rect.h"
+#include "ui/native_theme/native_theme.h"
 #include "ui/views/test/test_widget_builder.h"
 #include "ui/views/view.h"
 #include "ui/views/widget/widget.h"
@@ -181,8 +181,12 @@ void AshTestBase::SetUp() {
         std::move(*pixel_test_init_params));
   }
 
-  test_context_factories_ =
-      std::make_unique<ui::TestContextFactories>(/*enable_pixel_output=*/false);
+  const bool enable_pixel_output =
+      base::CommandLine::ForCurrentProcess()->HasSwitch(
+          ::switches::kEnablePixelOutputInTests);
+  test_context_factories_ = std::make_unique<ui::TestContextFactories>(
+      /*enable_pixel_output=*/enable_pixel_output,
+      /*output_to_window=*/enable_pixel_output);
   ash_test_helper_ = std::make_unique<AshTestHelper>(
       test_context_factories_->GetContextFactory());
   ash_test_helper_->SetUp(std::move(*init_params_));
@@ -221,7 +225,7 @@ void AshTestBase::TearDown() {
 
   // Must be deleted before ash_test_helper. AshPixelTestHelper manages a
   // ScopedFeatureList, and for the correct order of destruction of feature
-  // listss, AshPixelTestHelper needs to be deleted earlier.
+  // lists, AshPixelTestHelper needs to be deleted earlier.
   pixel_test_helper_.reset();
 
   ash_test_helper_->TearDown();
@@ -519,6 +523,7 @@ void AshTestBase::SetAccessibilityPanelHeight(int panel_height) {
 
 void AshTestBase::ClearLogin() {
   GetSessionControllerClient()->Reset();
+  Shell::Get()->RecreateMultiUserWindowManagerForTesting();
 }
 
 void AshTestBase::SetCanLockScreen(bool can_lock) {
@@ -723,9 +728,10 @@ void AshTestBase::PrepareForPixelDiffTest() {
   base::CommandLine::ForCurrentProcess()->AppendSwitch(
       switches::kStabilizeTimeDependentViewForTests);
 
-  // Enable the dark mode switch to maintain the dark mode before user login.
-  base::CommandLine::ForCurrentProcess()->AppendSwitch(
-      ::switches::kForceDarkMode);
+  // Use dark mode by default, which is what many gold images expect.
+  auto* const native_theme = ui::NativeTheme::GetInstanceForNativeUi();
+  native_theme->set_use_dark_colors(true);
+  native_theme->NotifyOnNativeThemeUpdated();
 
   DCHECK(!pixel_differ_);
   pixel_differ_ =

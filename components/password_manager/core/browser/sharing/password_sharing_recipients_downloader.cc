@@ -16,6 +16,7 @@
 #include "google_apis/credentials_mode.h"
 #include "google_apis/gaia/gaia_constants.h"
 #include "net/base/load_flags.h"
+#include "net/http/http_response_headers.h"
 #include "net/http/http_status_code.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "services/network/public/cpp/resource_request.h"
@@ -98,10 +99,6 @@ void PasswordSharingRecipientsDownloader::AccessTokenFetched(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DVLOG(1) << "Access token fetch complete, error state: "
            << static_cast<int>(error.state());
-
-  base::UmaHistogramEnumeration(
-      "PasswordManager.PasswordSharingRecipients.FetchAccessTokenResult",
-      error.state(), GoogleServiceAuthError::NUM_STATES);
 
   CHECK(ongoing_access_token_fetch_);
   ongoing_access_token_fetch_.reset();

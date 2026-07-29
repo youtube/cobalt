@@ -23,6 +23,8 @@
 #include "chrome/browser/extensions/extension_management.h"
 #include "chrome/browser/extensions/window_controller_list.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/browser_navigator.h"
+#include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/tabs/split_tab_metrics.h"
@@ -58,8 +60,6 @@
 #if BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/ui/android/tab_model/tab_model.h"
 #include "chrome/browser/ui/android/tab_model/tab_model_list.h"
-#include "chrome/browser/ui/browser_navigator.h"
-#include "chrome/browser/ui/browser_navigator_params.h"
 #else
 #include "base/no_destructor.h"
 #include "base/strings/string_number_conversions.h"
@@ -74,8 +74,6 @@
 #include "chrome/browser/tab_group_sync/tab_group_sync_service_factory.h"
 #include "chrome/browser/ui/browser.h"                   // nogncheck
 #include "chrome/browser/ui/browser_finder.h"            // nogncheck
-#include "chrome/browser/ui/browser_navigator.h"         // nogncheck
-#include "chrome/browser/ui/browser_navigator_params.h"  // nogncheck
 #include "chrome/browser/ui/browser_window.h"            // nogncheck
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"  // nogncheck
 #include "chrome/browser/ui/recently_audible_helper.h"             // nogncheck
@@ -927,51 +925,48 @@ bool ExtensionTabUtil::GetTabById(int tab_id,
   }
 #endif  // BUILDFLAG(IS_ANDROID)
 
-  if (base::FeatureList::IsEnabled(blink::features::kPrerender2InNewTab)) {
-    // Prerendering tab is not visible and it cannot be in `TabStripModel`, if
-    // the tab id exists as a prerendering tab, and the API will returns
-    // `api::tabs::TAB_INDEX_NONE` for `out_tab_index` and a valid
-    // `WebContents`.
-    for (auto rph_iterator = content::RenderProcessHost::AllHostsIterator();
-         !rph_iterator.IsAtEnd(); rph_iterator.Advance()) {
-      content::RenderProcessHost* rph = rph_iterator.GetCurrentValue();
+  // Prerendering tab is not visible and it cannot be in `TabStripModel`, if the
+  // tab id exists as a prerendering tab, and the API will returns
+  // `api::tabs::TAB_INDEX_NONE` for `out_tab_index` and a valid `WebContents`.
+  for (auto rph_iterator = content::RenderProcessHost::AllHostsIterator();
+       !rph_iterator.IsAtEnd(); rph_iterator.Advance()) {
+    content::RenderProcessHost* rph = rph_iterator.GetCurrentValue();
 
-      // Ignore renderers that aren't ready.
-      if (!rph->IsInitializedAndNotDead()) {
-        continue;
+    // Ignore renderers that aren't ready.
+    if (!rph->IsInitializedAndNotDead()) {
+      continue;
+    }
+    // Ignore renderers that aren't from a valid profile. This is either the
+    // same profile or the incognito profile if `include_incognito` is true.
+    Profile* process_profile =
+        Profile::FromBrowserContext(rph->GetBrowserContext());
+    if (process_profile != profile &&
+        !(include_incognito && profile->IsSameOrParent(process_profile))) {
+      continue;
+    }
+
+    content::WebContents* found_prerender_contents = nullptr;
+    rph->ForEachRenderFrameHost([&found_prerender_contents,
+                                 tab_id](content::RenderFrameHost* rfh) {
+      CHECK(rfh);
+      WebContents* web_contents = WebContents::FromRenderFrameHost(rfh);
+      CHECK(web_contents);
+      if (sessions::SessionTabHelper::IdForTab(web_contents).id() != tab_id) {
+        return;
       }
-      // Ignore renderers that aren't from a valid profile. This is either the
-      // same profile or the incognito profile if `include_incognito` is true.
-      Profile* process_profile =
-          Profile::FromBrowserContext(rph->GetBrowserContext());
-      if (process_profile != profile &&
-          !(include_incognito && profile->IsSameOrParent(process_profile))) {
-        continue;
+      // We only consider prerendered frames in this loop. Otherwise, we could
+      // end up returning a tab for a different web contents that shouldn't be
+      // exposed to extensions.
+      if (!web_contents->IsPrerenderedFrame(rfh->GetFrameTreeNodeId())) {
+        return;
       }
 
-      content::WebContents* found_prerender_contents = nullptr;
-      rph->ForEachRenderFrameHost([&found_prerender_contents,
-                                   tab_id](content::RenderFrameHost* rfh) {
-        CHECK(rfh);
-        WebContents* web_contents = WebContents::FromRenderFrameHost(rfh);
-        CHECK(web_contents);
-        if (sessions::SessionTabHelper::IdForTab(web_contents).id() != tab_id) {
-          return;
-        }
-        // We only consider prerendered frames in this loop. Otherwise, we could
-        // end up returning a tab for a different web contents that shouldn't be
-        // exposed to extensions.
-        if (!web_contents->IsPrerenderedFrame(rfh->GetFrameTreeNodeId())) {
-          return;
-        }
+      found_prerender_contents = web_contents;
+    });
 
-        found_prerender_contents = web_contents;
-      });
-
-      if (found_prerender_contents && out_contents) {
-        *out_contents = found_prerender_contents;
-        return true;
-      }
+    if (found_prerender_contents && out_contents) {
+      *out_contents = found_prerender_contents;
+      return true;
     }
   }
 
@@ -1256,19 +1251,23 @@ GURL ExtensionTabUtil::ResolvePossiblyRelativeURL(const std::string& url_string,
   return url;
 }
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
 void ExtensionTabUtil::NavigateToURL(WindowOpenDisposition disposition,
-                                     Browser* browser,
-                                     const GURL& url) {
-  NavigateParams navigate_params(browser, url, ui::PAGE_TRANSITION_FROM_API);
-  navigate_params.window_action = NavigateParams::SHOW_WINDOW;
-  navigate_params.disposition = disposition;
-  Navigate(&navigate_params);
-}
-#else
-void ExtensionTabUtil::NavigateToURL(content::WebContents* web_contents,
+                                     content::WebContents* web_contents,
                                      content::BrowserContext* browser_context,
                                      const GURL& url) {
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+  NavigateParams params(Profile::FromBrowserContext(browser_context), url,
+                        ui::PAGE_TRANSITION_FROM_API);
+  params.disposition = disposition;
+  params.window_action = NavigateParams::SHOW_WINDOW;
+  if (web_contents) {
+    params.source_contents = web_contents;
+  }
+  Navigate(&params);
+#else
+  // Fow now, only new foreground tab disposition is supported on Android.
+  // TODO(crbug.com//440173000): Support other window dispositions for Android.
+  CHECK_EQ(disposition, WindowOpenDisposition::NEW_FOREGROUND_TAB);
   TabModel* const tab_model =
       TabModelList::GetTabModelForWebContents(web_contents);
   std::unique_ptr<content::WebContents> new_contents =
@@ -1280,8 +1279,8 @@ void ExtensionTabUtil::NavigateToURL(content::WebContents* web_contents,
   content::NavigationController::LoadURLParams load_params(url);
   load_params.transition_type = ui::PAGE_TRANSITION_FROM_API;
   new_web_contents->GetController().LoadURLWithParams(load_params);
-}
 #endif
+}
 
 bool ExtensionTabUtil::IsKillURL(const GURL& url) {
 #if DCHECK_IS_ON()

@@ -324,6 +324,10 @@ void PredictionBasedPermissionUiSelector::SelectUiToUse(
   }
 
   callback_ = std::move(callback);
+  timeout_timer_.Start(
+      FROM_HERE, base::Seconds(kPermissionRequestUiDecisionTimeout),
+      base::BindOnce(&PredictionBasedPermissionUiSelector::OnTimeout,
+                     weak_ptr_factory_.GetWeakPtr()));
   last_permission_request_relevance_ = std::nullopt;
   last_request_grant_likelihood_ = std::nullopt;
   cpss_v1_model_holdback_probability_ = std::nullopt;
@@ -476,13 +480,24 @@ void PredictionBasedPermissionUiSelector::OnGetInnerTextForOnDeviceModel(
                      std::move(model_data.request_metadata));
 }
 
+void PredictionBasedPermissionUiSelector::OnTimeout() {
+  VLOG(1) << "[CPSS] Overall timeout for prediction reached.";
+  Cleanup();
+  FinishRequest(Decision::UseNormalUiAndShowNoWarning(), /*timeout=*/true);
+}
+
 void PredictionBasedPermissionUiSelector::Cancel() {
+  timeout_timer_.Stop();
   callback_.Reset();
   Cleanup();
 }
 
-void PredictionBasedPermissionUiSelector::FinishRequest(Decision decision) {
+void PredictionBasedPermissionUiSelector::FinishRequest(Decision decision,
+                                                        bool timeout) {
+  timeout_timer_.Stop();
+  PermissionUmaUtil::RecordPredictionServiceTimeout(timeout);
   if (!callback_) {
+    VLOG(1) << "[CPSS] FinishRequest called but callback is null";
     return;
   }
 

@@ -10,6 +10,7 @@
 
 #include "base/callback_list.h"
 #include "base/functional/callback_forward.h"
+#include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/contents_container_view.h"
@@ -32,7 +33,7 @@ class WebContents;
 }  // namespace content
 
 namespace gfx {
-class Canvas;
+class RoundedCornersF;
 }  // namespace gfx
 
 namespace views {
@@ -51,8 +52,6 @@ class MultiContentsView : public views::View,
     double start_width = 0;
     double resize_width = 0;
     double end_width = 0;
-
-    double drop_target_width = 0;
   };
 
   static constexpr int kSplitViewContentInset = 8;
@@ -73,6 +72,9 @@ class MultiContentsView : public views::View,
 
   // Returns the currently inactive ContentsWebView.
   ContentsWebView* GetInactiveContentsView() const;
+
+  const gfx::RoundedCornersF& background_radii() const;
+  void SetBackgroundRadii(const gfx::RoundedCornersF& radii);
 
   // Returns the size of the contents area. If in split view, this captures the
   // entire area starting from the origin of the first contents to the bottom
@@ -133,7 +135,6 @@ class MultiContentsView : public views::View,
   void OnResize(int resize_amount, bool done_resizing) override;
 
   // views::View:
-  void OnPaint(gfx::Canvas* canvas) override;
   void OnThemeChanged() override;
 
   std::vector<ContentsContainerView*> contents_container_views() const {
@@ -142,14 +143,12 @@ class MultiContentsView : public views::View,
 
   MultiContentsViewDropTargetController& drop_target_controller() const;
 
-  gfx::Insets& start_contents_view_inset() {
-    return start_contents_view_inset_;
-  }
-
-  gfx::Insets& end_contents_view_inset() { return end_contents_view_inset_; }
-
   bool IsDragAndDropEnabled() const;
   void OnDragAndDropPrefStateChange();
+
+  void SetShouldShowTopSeparator(bool should_show);
+  void SetShouldShowLeadingSeparator(bool should_show);
+  void SetShouldShowTrailingSeparator(bool should_show);
 
   void set_min_contents_width_for_testing(int width) {
     min_contents_width_for_testing_ = std::make_optional(width);
@@ -172,12 +171,44 @@ class MultiContentsView : public views::View,
   }
 
  private:
+  FRIEND_TEST_ALL_PREFIXES(MultiContentsViewBrowserTest, DropTargetLayout);
+  FRIEND_TEST_ALL_PREFIXES(MultiContentsViewBrowserTest, SeparatorLayout);
+
+  // Encapsulates the views required to draw a separator around contents.
+  struct ContentsSeparators {
+    void Reset();
+
+    raw_ptr<views::View> top_separator = nullptr;
+    raw_ptr<views::View> leading_separator = nullptr;
+    raw_ptr<views::View> trailing_separator = nullptr;
+    raw_ptr<views::View> top_leading_rounded_corner = nullptr;
+    raw_ptr<views::View> top_trailing_rounded_corner = nullptr;
+
+    bool should_show_top = false;
+    bool should_show_leading = false;
+    bool should_show_trailing = false;
+  };
+
   static constexpr int kMinWebContentsWidth = 200;
   static constexpr double kMinWebContentsWidthPercentage = 0.1;
+
+  class BackgroundView;
 
   // LayoutDelegate:
   views::ProposedLayout CalculateProposedLayout(
       const views::SizeBounds& size_bounds) const override;
+
+  // Adds the drop target layout to the given list and return the remaining
+  // available space after the layout.
+  gfx::Rect CalculateDropTargetLayout(
+      const gfx::Rect& available_space,
+      std::vector<views::ChildLayout>& child_layouts) const;
+
+  // Adds separator layouts to the given list and returns the remaining
+  // space after the layout.
+  gfx::Rect CalculateSeparatorLayouts(
+      const gfx::Rect& available_space,
+      std::vector<views::ChildLayout>& child_layouts) const;
 
   int GetInactiveIndex() const;
 
@@ -198,6 +229,9 @@ class MultiContentsView : public views::View,
 
   raw_ptr<BrowserView> browser_view_;
   std::unique_ptr<MultiContentsViewDelegate> delegate_;
+
+  raw_ptr<BackgroundView> background_view_;
+  ContentsSeparators contents_separators_;
 
   // Holds ContentsContainerViews, when not in a split view the second
   // ContentsContainerView is not visible.

@@ -6,6 +6,9 @@
 
 #include "gpu/command_buffer/service/shared_image/cpu_readback_upload_copy_strategy.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_test_base.h"
+#include "gpu/command_buffer/service/shared_image/shared_memory_copy_strategy.h"
+#include "gpu/command_buffer/service/shared_image/shared_memory_image_backing.h"
+#include "gpu/command_buffer/service/shared_image/shared_memory_image_backing_factory.h"
 #include "gpu/command_buffer/service/shared_image/test_image_backing.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gl/test/gl_surface_test_support.h"
@@ -16,12 +19,15 @@ class SharedImageCopyManagerTest : public SharedImageTestBase {
  public:
   void SetUp() override {
     ASSERT_NO_FATAL_FAILURE(InitializeContext(GrContextType::kGL));
+    copy_manager_ = base::MakeRefCounted<SharedImageCopyManager>();
   }
+
+ protected:
+  scoped_refptr<SharedImageCopyManager> copy_manager_;
 };
 
 TEST_F(SharedImageCopyManagerTest, CopyUsingCpuFallbackStrategy) {
-  SharedImageCopyManager copy_manager;
-  copy_manager.AddStrategy(std::make_unique<CPUReadbackUploadCopyStrategy>());
+  copy_manager_->AddStrategy(std::make_unique<CPUReadbackUploadCopyStrategy>());
 
   auto src_backing = std::make_unique<TestImageBacking>(
       Mailbox::Generate(), viz::SinglePlaneFormat::kRGBA_8888,
@@ -34,10 +40,42 @@ TEST_F(SharedImageCopyManagerTest, CopyUsingCpuFallbackStrategy) {
       kTopLeft_GrSurfaceOrigin, kPremul_SkAlphaType,
       SHARED_IMAGE_USAGE_CPU_READ | SHARED_IMAGE_USAGE_CPU_WRITE_ONLY, 1024);
 
-  EXPECT_TRUE(copy_manager.CopyImage(src_backing.get(), dst_backing.get()));
+  EXPECT_TRUE(copy_manager_->CopyImage(src_backing.get(), dst_backing.get()));
 
   EXPECT_TRUE(src_backing->GetReadbackToMemoryCalledAndReset());
   EXPECT_TRUE(dst_backing->GetUploadFromMemoryCalledAndReset());
+}
+
+TEST_F(SharedImageCopyManagerTest, CopyUsingSharedMemoryStrategy) {
+  copy_manager_->AddStrategy(std::make_unique<SharedMemoryCopyStrategy>());
+
+  constexpr viz::SharedImageFormat format = viz::SinglePlaneFormat::kRGBA_8888;
+  constexpr gfx::Size size(100, 100);
+  constexpr uint32_t usage =
+      SHARED_IMAGE_USAGE_CPU_READ | SHARED_IMAGE_USAGE_CPU_WRITE_ONLY;
+
+  // Create a shared memory backing.
+  auto shm_backing = SharedMemoryImageBackingFactory().CreateSharedImage(
+      Mailbox::Generate(), format, kNullSurfaceHandle, size,
+      gfx::ColorSpace::CreateSRGB(), kTopLeft_GrSurfaceOrigin,
+      kPremul_SkAlphaType, SharedImageUsageSet(usage), "TestLabel",
+      /*is_thread_safe=*/false, gfx::BufferUsage::GPU_READ_CPU_READ_WRITE);
+
+  // Create a generic test backing.
+  auto test_backing = std::make_unique<TestImageBacking>(
+      Mailbox::Generate(), format, size, gfx::ColorSpace::CreateSRGB(),
+      kTopLeft_GrSurfaceOrigin, kPremul_SkAlphaType, SharedImageUsageSet(usage),
+      1024);
+
+  // Test copy from Shared Memory to Test backing.
+  EXPECT_TRUE(copy_manager_->CopyImage(shm_backing.get(), test_backing.get()));
+  EXPECT_TRUE(test_backing->GetUploadFromMemoryCalledAndReset());
+  EXPECT_FALSE(test_backing->GetReadbackToMemoryCalledAndReset());
+
+  // Test copy from Test to Shared Memory backing.
+  EXPECT_TRUE(copy_manager_->CopyImage(test_backing.get(), shm_backing.get()));
+  EXPECT_TRUE(test_backing->GetReadbackToMemoryCalledAndReset());
+  EXPECT_FALSE(test_backing->GetUploadFromMemoryCalledAndReset());
 }
 
 }  // namespace gpu

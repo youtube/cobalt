@@ -9,6 +9,7 @@
 #include <array>
 #include <optional>
 
+#include "base/feature_list.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_functions.h"
@@ -24,7 +25,19 @@
 // AAudioStreamBuilder_setChannelMask was not introduced until API version 32.
 #define AAUDIO_CHANNEL_MASK_MIN_API 32
 
+BASE_FEATURE(kAAudioInputLowLatencyModeByDefault,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 namespace media {
+
+namespace {
+
+constexpr char kAAudioBufferSizeInFramesMetricsPrefix[] =
+    "Media.Audio.Android.AAudioBufferSizeInFrames.";
+constexpr char kAAudioFramesPerDataCallbackMetricsPrefix[] =
+    "Media.Audio.Android.AAudioFramesPerDataCallback.";
+
+}  // namespace
 
 // Used to circumvent issues where the AAudio thread callbacks continue
 // after AAudioStream_requestStop() completes. See crbug.com/1183255.
@@ -175,6 +188,14 @@ AAudioStreamWrapper::AAudioStreamWrapper(DataCallback* callback,
   CHECK(params.IsValid());
   CHECK(callback_);
 
+  if (stream_type_ == StreamType::kInput &&
+      base::FeatureList::IsEnabled(kAAudioInputLowLatencyModeByDefault)) {
+    // Default to low latency for input streams.
+    performance_mode_ = AAUDIO_PERFORMANCE_MODE_LOW_LATENCY;
+  } else {
+    performance_mode_ = AAUDIO_PERFORMANCE_MODE_NONE;
+  }
+
   switch (params.latency_tag()) {
     case AudioLatency::Type::kExactMS:
     case AudioLatency::Type::kInteractive:
@@ -185,7 +206,8 @@ AAudioStreamWrapper::AAudioStreamWrapper(DataCallback* callback,
       performance_mode_ = AAUDIO_PERFORMANCE_MODE_POWER_SAVING;
       break;
     case AudioLatency::Type::kUnknown:
-      performance_mode_ = AAUDIO_PERFORMANCE_MODE_NONE;
+      // The default value should be set above.
+      break;
   }
 
   TRACE_EVENT2("audio", "AAudioStreamWrapper::AAudioStreamWrapper",
@@ -309,6 +331,28 @@ bool AAudioStreamWrapper::Open() {
   TRACE_EVENT2("audio", "AAudioStreamWrapper::Open", "params",
                params_.AsHumanReadableString(), "requested buffer size",
                size_requested);
+
+  const int32_t buffer_size =
+      AAudioStream_getBufferSizeInFrames(aaudio_stream_);
+  const std::string audio_direction =
+      stream_type_ == StreamType::kInput ? "Input" : "Output";
+  base::UmaHistogramSparse(
+      base::StrCat({kAAudioBufferSizeInFramesMetricsPrefix, audio_direction}),
+      buffer_size);
+  base::UmaHistogramSparse(
+      base::StrCat({kAAudioBufferSizeInFramesMetricsPrefix, audio_direction,
+                    ".", media::AudioLatency::ToString(params_.latency_tag())}),
+      buffer_size);
+  const int32_t frames_per_data_callback =
+      AAudioStream_getFramesPerDataCallback(aaudio_stream_);
+  base::UmaHistogramSparse(
+      base::StrCat(
+          {kAAudioFramesPerDataCallbackMetricsPrefix, audio_direction}),
+      frames_per_data_callback);
+  base::UmaHistogramSparse(
+      base::StrCat({kAAudioFramesPerDataCallbackMetricsPrefix, audio_direction,
+                    ".", media::AudioLatency::ToString(params_.latency_tag())}),
+      frames_per_data_callback);
 
   return true;
 }

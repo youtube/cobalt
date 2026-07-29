@@ -69,11 +69,9 @@ void OnGetClientCapabilitiesComplete(
     results.emplace_back(std::move(capability->name), capability->supported);
   }
 
-  const bool report_enabled =
-      RuntimeEnabledFeatures::CredentialManagerReportEnabled();
-  results.emplace_back(kSignalAllAcceptedCredentials, report_enabled);
-  results.emplace_back(kSignalCurrentUserDetails, report_enabled);
-  results.emplace_back(kSignalUnknownCredential, report_enabled);
+  results.emplace_back(kSignalAllAcceptedCredentials, true);
+  results.emplace_back(kSignalCurrentUserDetails, true);
+  results.emplace_back(kSignalUnknownCredential, true);
 
   // Extensions are added from the AuthenticationExtensionsClientInputs
   // dictionary defined in authentication_extensions_client_inputs.idl.
@@ -96,8 +94,7 @@ void OnGetClientCapabilitiesComplete(
   results.emplace_back(
       "extension:payment",
       RuntimeEnabledFeatures::SecurePaymentConfirmationEnabled());
-  results.emplace_back("extension:prf",
-                       RuntimeEnabledFeatures::WebAuthenticationPRFEnabled());
+  results.emplace_back("extension:prf", true);
 
   // Results should be sorted lexicographically based on the keys.
   std::sort(

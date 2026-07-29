@@ -36,6 +36,7 @@ namespace autofill {
 
 class AutofillProfileComparator;
 class AutofillProfileTestApi;
+class LogBuffer;
 
 // A collection of FormGroups stored in a profile.  AutofillProfile also
 // implements the FormGroup interface so that owners of this object can request
@@ -154,16 +155,16 @@ class AutofillProfile : public FormGroup {
                          std::string_view app_locale) const override;
   std::u16string GetRawInfo(FieldType type) const override;
   void SetRawInfoWithVerificationStatus(FieldType type,
-                                        const std::u16string& value,
+                                        std::u16string_view value,
                                         VerificationStatus status) override;
   // TODO(crbug.com/40264633): Change `AutofillType` into `FieldType`.
   bool SetInfoWithVerificationStatus(const AutofillType& type,
-                                     const std::u16string& value,
-                                     const std::string& app_locale,
+                                     std::u16string_view value,
+                                     std::string_view app_locale,
                                      VerificationStatus status) override;
   bool SetInfoWithVerificationStatus(FieldType type,
-                                     const std::u16string& value,
-                                     const std::string& app_locale,
+                                     std::u16string_view value,
+                                     std::string_view app_locale,
                                      VerificationStatus status);
   VerificationStatus GetVerificationStatus(const FieldType type) const override;
   FieldTypeSet GetSupportedTypes() const override;
@@ -381,8 +382,17 @@ class AutofillProfile : public FormGroup {
   UsageHistoryInformation& usage_history();
   const UsageHistoryInformation& usage_history() const;
 
+  bool is_devtools_testing_profile() const {
+    return is_devtools_testing_profile_;
+  }
+  void set_is_devtools_testing_profile(bool is_devtools_testing_profile) {
+    is_devtools_testing_profile_ = is_devtools_testing_profile;
+  }
+
  private:
   friend class AutofillProfileTestApi;
+  friend LogBuffer& operator<<(LogBuffer& buffer,
+                               const AutofillProfile& profile);
 
   // Creates inferred labels for |profiles| at indices corresponding to
   // |indices|, and stores the results to the corresponding elements of
@@ -458,10 +468,14 @@ class AutofillProfile : public FormGroup {
   ProfileTokenQuality token_quality_;
 
   UsageHistoryInformation usage_history_information_;
+
+  bool is_devtools_testing_profile_ = false;
 };
 
 // So we can compare AutofillProfiles with EXPECT_EQ().
 std::ostream& operator<<(std::ostream& os, const AutofillProfile& profile);
+
+LogBuffer& operator<<(LogBuffer& buffer, const AutofillProfile& profile);
 
 }  // namespace autofill
 

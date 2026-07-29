@@ -1,0 +1,86 @@
+// Copyright 2025 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+import {html} from '//resources/lit/v3_0/lit.rollup.js';
+
+import type {HistorySyncedDeviceManagerElement} from './synced_device_manager.js';
+
+export function getHtml(this: HistorySyncedDeviceManagerElement) {
+  // clang-format off
+  return html`<!--_html_template_start_-->
+<div id="synced-device-list" class="history-cards"
+    ?hidden="${!this.syncedDevices_.length}">
+  ${this.syncedDevices_.map((syncedDevice, index) => html`
+    <history-synced-device-card
+        .device="${syncedDevice.device}"
+        .lastUpdateTime="${syncedDevice.lastUpdateTime}"
+        .tabs="${syncedDevice.tabs}"
+        .separatorIndexes="${syncedDevice.separatorIndexes}"
+        .searchTerm="${this.searchTerm}"
+        .sessionTag="${syncedDevice.tag}"
+        ?opened="${syncedDevice.opened}"
+        @opened-changed="${this.onCardOpenedChanged_}"
+        data-index="${index}">
+    </history-synced-device-card>
+  `)}
+</div>
+<div id="no-synced-tabs" class="centered-message"
+    ?hidden="${!this.showNoSyncedMessage_()}">
+  ${this.noSyncedTabsMessage_()}
+</div>
+<div id="sign-in-guide"
+    ?hidden="${!this.showSignInGuide_() || this.useHistorySyncOptinScreen_}">
+  <div id="sync-promo-illustration"></div>
+  <div id="turn-on-sync-promo">$i18n{turnOnSyncPromo}</div>
+  <div id="turn-on-sync-promo-desc">$i18n{turnOnSyncPromoDesc}</div>
+  <cr-button id="turn-on-sync-button" class="action-button"
+      @click="${this.onTurnOnSyncClick_}">
+    $i18n{turnOnSyncButton}
+  </cr-button>
+</div>
+
+${this.useHistorySyncOptinScreen_ ? html `
+  <div class="history-sync-optin">
+    ${this.isSignedOut_ ? html`
+      <!-- not signed in case -->
+      <div id="imageContainer">
+        <img class="sync-history-illustration" alt="" />
+      </div>
+      <div class="sync-history-promo">$i18n{turnOnSyncHistoryPromo}</div>
+      <div class="sync-history-promo-desc">
+        $i18n{turnOnSyncHistoryPromoDesc}
+      </div>
+      <!-- for "account aware" case here will be a div with the account info -->
+    ` : html`
+      <!-- signed in case -->
+      <div id="imageContainer">
+        <img class="sync-history-promo-avatar-illustration" alt="" />
+        <img id="avatar" alt="" src="${this.accountImageSrc_}" />
+      </div>
+      <div class="sync-history-promo">$i18n{turnOnSignedInSyncHistoryPromo}</div>
+      <div class="sync-history-promo-desc">
+        $i18n{turnOnSignedInSyncHistoryPromoDesc}
+      </div>
+    `}
+    <cr-button id="sync-history-button" class="action-button">
+      $i18n{turnOnSyncHistoryButton}
+    </cr-button>
+  </div>` : ''}
+
+<cr-lazy-render-lit id="menu" .template='${() => html`
+  <cr-action-menu role-description="$i18n{menu}">
+    <button id="menuOpenButton" class="dropdown-item"
+        @click="${this.onOpenAllClick_}">
+      $i18n{openAll}
+    </button>
+    <button id="menuDeleteButton" class="dropdown-item"
+        @click="${this.onDeleteSessionClick_}">
+      $i18n{deleteSession}
+    </button>
+  </cr-action-menu>
+`}'>
+</cr-lazy-render-lit>
+<!--_html_template_end_-->`;
+  // clang-format on
+}

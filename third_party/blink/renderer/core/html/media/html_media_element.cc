@@ -150,7 +150,7 @@ using DocumentElementSetMap =
 namespace {
 
 // When enabled, CSS media queries are supported in <source> elements.
-BASE_FEATURE(VideoSourceMediaQuerySupport, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kVideoSourceMediaQuerySupport, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // This enum is used to record histograms. Do not reorder.
 enum class MediaControlsShow {

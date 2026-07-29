@@ -22,8 +22,6 @@ source_set("autofill") {
     "autofill_suggestion_controller.h",
     "autofill_suggestion_controller_utils.h",
     "bubble_controller_base.h",
-    "bubble_manager.h",
-    "bubble_manager_impl.h",
     "chrome_autofill_client.h",
     "next_idle_barrier.h",
     "popup_controller_common.h",
@@ -84,6 +82,8 @@ source_set("autofill") {
       "autofill_field_promo_controller_impl.h",
       "autofill_field_promo_view.h",
       "autofill_popup_controller_impl.h",
+      "bubble_manager.h",
+      "bubble_manager_impl.h",
       "delete_address_profile_dialog_controller.h",
       "delete_address_profile_dialog_controller_impl.h",
       "delete_address_profile_dialog_view.h",
@@ -124,8 +124,6 @@ source_set("impl") {
     "autofill_popup_hide_helper.cc",
     "autofill_suggestion_controller.cc",
     "autofill_suggestion_controller_utils.cc",
-    "bubble_manager.cc",
-    "bubble_manager_impl.cc",
     "chrome_autofill_client.cc",
     "next_idle_barrier.cc",
     "popup_controller_common.cc",
@@ -138,6 +136,7 @@ source_set("impl") {
     ":autofill",
     "//chrome/browser:browser_process",
     "//chrome/browser/autofill",
+    "//chrome/browser/history",
     "//chrome/browser/optimization_guide",
     "//chrome/browser/password_manager/factories",
     "//chrome/browser/plus_addresses",
@@ -150,6 +149,7 @@ source_set("impl") {
     "//chrome/browser/ui/page_info",
     "//chrome/browser/ui/passwords",
     "//chrome/browser/ui/plus_addresses",
+    "//chrome/browser/webdata_services",
     "//components/autofill/content/browser",
     "//components/autofill/content/browser:risk_proto",
     "//components/compose/core/browser",
@@ -186,7 +186,7 @@ source_set("impl") {
       "//components/android_autofill/browser:android",
       "//components/messages/android:feature_flags",
       "//components/password_manager/core/browser/features:password_features",
-      "//components/plus_addresses/resources/strings",
+      "//components/plus_addresses/core/browser/resources/strings",
     ]
   } else {
     sources += [
@@ -197,6 +197,8 @@ source_set("impl") {
       "autofill_context_menu_manager.cc",
       "autofill_field_promo_controller_impl.cc",
       "autofill_popup_controller_impl.cc",
+      "bubble_manager.cc",
+      "bubble_manager_impl.cc",
       "delete_address_profile_dialog_controller_impl.cc",
       "edit_address_profile_dialog_controller_impl.cc",
       "save_address_bubble_controller.cc",
@@ -218,12 +220,13 @@ source_set("impl") {
       "//chrome/browser/ui/webui/signin:login",
       "//components/autofill/core/browser",
       "//components/password_manager/core/browser/features:password_features",
-      "//components/plus_addresses/resources/strings",
+      "//components/plus_addresses/core/browser/resources/strings",
       "//extensions/browser",
     ]
 
     if (is_chrome_branded) {
-      deps += [ "//components/plus_addresses/resources:vector_icons" ]
+      deps +=
+          [ "//components/plus_addresses/core/browser/resources:vector_icons" ]
     }
   }
 
@@ -237,7 +240,6 @@ source_set("unit_tests") {
   sources = [
     "autofill_client_provider_unittest.cc",
     "autofill_suggestion_controller_unittest.cc",
-    "bubble_manager_impl_unittest.cc",
     "chrome_autofill_client_unittest.cc",
   ]
 
@@ -311,6 +313,7 @@ source_set("unit_tests") {
       "address_editor_controller_unittest.cc",
       "autofill_field_promo_controller_impl_unittest.cc",
       "autofill_popup_controller_impl_unittest.cc",
+      "bubble_manager_impl_unittest.cc",
       "save_address_bubble_controller_unittest.cc",
       "update_address_bubble_controller_unittest.cc",
     ]
@@ -501,7 +504,7 @@ if (!is_android) {
       "//components/password_manager/core/common",
       "//components/plus_addresses:test_support",
       "//components/plus_addresses/core/browser:blocklist_data",
-      "//components/plus_addresses/resources/strings",
+      "//components/plus_addresses/core/browser/resources/strings",
       "//components/signin/public/base",
       "//components/signin/public/identity_manager:test_support",
       "//components/strings:components_strings",

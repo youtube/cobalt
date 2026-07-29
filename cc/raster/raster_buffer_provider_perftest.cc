@@ -114,10 +114,7 @@ class PerfContextProvider
   }
   gpu::ContextSupport* ContextSupport() override { return &support_; }
   class GrDirectContext* GrContext() override {
-    if (!test_context_provider_) {
-      test_context_provider_ = viz::TestContextProvider::CreateRaster();
-    }
-    return test_context_provider_->GrContext();
+    return nullptr;
   }
   gpu::SharedImageInterface* SharedImageInterface() override {
     if (!test_context_provider_) {

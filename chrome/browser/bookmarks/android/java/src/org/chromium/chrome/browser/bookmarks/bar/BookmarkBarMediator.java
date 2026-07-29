@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.bookmarks.bar;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
@@ -13,8 +14,10 @@ import android.util.DisplayMetrics;
 import android.util.Pair;
 import android.view.Gravity;
 import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewParent;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
@@ -45,6 +48,7 @@ import org.chromium.components.browser_ui.util.GlobalDiscardableReferencePool;
 import org.chromium.components.browser_ui.widget.BrowserUiListMenuUtils;
 import org.chromium.components.image_fetcher.ImageFetcherConfig;
 import org.chromium.components.image_fetcher.ImageFetcherFactory;
+import org.chromium.ui.base.KeyNavigationUtil;
 import org.chromium.ui.listmenu.BasicListMenu;
 import org.chromium.ui.listmenu.ListItemType;
 import org.chromium.ui.listmenu.ListMenuItemProperties;
@@ -423,7 +427,8 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
                     if (mAnchoredPopupWindow != null) {
                         mAnchoredPopupWindow.dismiss();
                     }
-                });
+                },
+                /* drillDownOverrideValue= */ true);
 
         View popupContentView = popupListMenu.getContentView();
         // This is needed because list_menu_layout.xml already sets a background, and we want to
@@ -673,7 +678,42 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
 
     // Bookmark leaves are web pages and not folders. They do not have any children (sub menu
     // items).
+    @SuppressLint("ClickableViewAccessibility")
     private ListItem createListItemForBookmarkLeaf(BookmarkItem bookmarkItem) {
+        // Handles all pointer-based input (mouse clicks, touch taps) to support both
+        // simple clicks and Ctrl+clicks in one place. Because this listener handles the
+        // action directly, a separate OnClickListener is not needed.
+        // We return true to consume the event, which prevents any other listeners from
+        // firing and allows us to suppress the "performClick" lint warning.
+        View.OnTouchListener touchListener =
+                (v, event) -> {
+                    // We only act when the user lifts their finger/mouse button.
+                    if (event.getAction() == MotionEvent.ACTION_UP) {
+                        boolean isCtrlPressed = (event.getMetaState() & KeyEvent.META_CTRL_ON) != 0;
+
+                        if (isCtrlPressed) {
+                            // Open in new tab.
+                            mBookmarkOpener.openBookmarksInNewTabs(
+                                    List.of(bookmarkItem.getId()),
+                                    mProfileSupplier.get().isOffTheRecord(),
+                                    Optional.of(TabLaunchType.FROM_BOOKMARK_BAR_BACKGROUND));
+                        } else {
+                            // Default behavior (open in current tab).
+                            mBookmarkOpener.openBookmarkInCurrentTab(
+                                    bookmarkItem.getId(), mProfileSupplier.get().isOffTheRecord());
+                        }
+
+                        // Dismiss the popup after any click.
+                        if (mAnchoredPopupWindow != null) mAnchoredPopupWindow.dismiss();
+                        // It is critical that this listener returns true to consume the event. This
+                        // prevents the BasicListMenu's generic click handler from firing, which
+                        // would cause a crash because this item's model no longer has a
+                        // CLICK_LISTENER.
+                        return true;
+                    }
+                    return false;
+                };
+
         PropertyModel model =
                 new PropertyModel.Builder(ListMenuItemProperties.ALL_KEYS)
                         .with(ListMenuItemProperties.TITLE, bookmarkItem.getTitle())
@@ -681,14 +721,7 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
                         .with(ListMenuItemProperties.IS_SUBTITLE_ELLIPSIZED_AT_END, true)
                         .with(ListMenuItemProperties.IS_TEXT_ELLIPSIZED_AT_END, true)
                         .with(ListMenuItemProperties.ENABLED, true)
-                        .with(
-                                ListMenuItemProperties.CLICK_LISTENER,
-                                (v) -> {
-                                    // Open url.
-                                    mBookmarkOpener.openBookmarkInCurrentTab(
-                                            bookmarkItem.getId(),
-                                            mProfileSupplier.get().isOffTheRecord());
-                                })
+                        .with(ListMenuItemProperties.TOUCH_LISTENER, touchListener)
                         .build();
         if (mImageFetcher != null) {
             mImageFetcher.fetchFaviconForBookmark(
@@ -759,37 +792,94 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
     // Builds and returns an OnKeyListener for every item in the popup menu.
     private View.OnKeyListener createPopupMenuItemKeyListener(
             PropertyModel model, BookmarkItem bookmarkItem) {
+        // view is the root View object inflated from list_menu_item.xml.
         return (view, keyCode, event) -> {
-            // Only proceed if the user has released the Enter key.
-            if (event.getAction() != KeyEvent.ACTION_UP || keyCode != KeyEvent.KEYCODE_ENTER) {
-                return false;
-            }
-
             if (bookmarkItem == null) return false;
-
-            // Specify isCtrlPressed because if it's just Enter we want to open in the current tab.
-            if (event.isCtrlPressed() && !bookmarkItem.isFolder()) {
-                // Open bookmark in new tab.
-                mBookmarkOpener.openBookmarksInNewTabs(
-                        List.of(bookmarkItem.getId()),
-                        mProfileSupplier.get().isOffTheRecord(),
-                        Optional.of(TabLaunchType.FROM_BOOKMARK_BAR_BACKGROUND));
-                if (mAnchoredPopupWindow != null) mAnchoredPopupWindow.dismiss();
-                return true;
-            } else if (bookmarkItem.isFolder()) {
-                // Get the pre-made "open submenu" click listener from the model.
-                View.OnClickListener clickListener =
-                        model.get(ListMenuItemProperties.CLICK_LISTENER);
-                if (clickListener != null) {
-                    // Calls ListMenuUtils#onItemWithSubmenuClicked.
-                    clickListener.onClick(view);
+            // ACTION_DOWN is used because KeyNavigationUtil#isGoBackward depends on isActionDown to
+            // be true.
+            if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                // Handle Left Arrow to go back to the parent menu.
+                if (KeyNavigationUtil.isGoBackward(event)) {
+                    // Directly find the submenu header, which the go back onClickListener is
+                    // attached to.
+                    View headerView = findMenuHeaderView(view);
+                    if (headerView != null) {
+                        // Calls headerBackClick.run() in ListMenuUtils.
+                        headerView.performClick();
+                        // We've handled the left arrow, so consume the event.
+                        return true;
+                    }
                 }
+
+                // Handle Right Arrow to drill-down only if the item is a folder.
+                if (KeyNavigationUtil.isGoForward(event) && bookmarkItem.isFolder()) {
+                    // Get the pre-made "open submenu" click listener from the model.
+                    View.OnClickListener clickListener =
+                            model.get(ListMenuItemProperties.CLICK_LISTENER);
+                    if (clickListener != null) {
+                        // Calls ListMenuUtils#onItemWithSubmenuClicked.
+                        clickListener.onClick(view);
+                    }
+                    // We've handled the right arrow, so consume the event.
+                    return true;
+                }
+            }
+
+            // Only proceed if the user has released the Enter key.
+            if (event.getAction() == KeyEvent.ACTION_UP && keyCode == KeyEvent.KEYCODE_ENTER) {
+                if (bookmarkItem.isFolder()) {
+                    // Get the pre-made "open submenu" click listener from the model.
+                    View.OnClickListener clickListener =
+                            model.get(ListMenuItemProperties.CLICK_LISTENER);
+                    if (clickListener != null) {
+                        // Calls ListMenuUtils#onItemWithSubmenuClicked.
+                        clickListener.onClick(view);
+                    }
+                } else if (event.isCtrlPressed()) {
+                    // Not a folder and ctrl pressed. Open bookmark in new tab.
+                    mBookmarkOpener.openBookmarksInNewTabs(
+                            List.of(bookmarkItem.getId()),
+                            mProfileSupplier.get().isOffTheRecord(),
+                            Optional.of(TabLaunchType.FROM_BOOKMARK_BAR_BACKGROUND));
+                    // Dismiss only when opening a bookmark (webpage) and not a folder.
+                    if (mAnchoredPopupWindow != null) mAnchoredPopupWindow.dismiss();
+                } else {
+                    // Not a folder and ctrl not pressed. This is a plain enter key press. Open
+                    // bookmark in current tab,
+                    mBookmarkOpener.openBookmarkInCurrentTab(
+                            bookmarkItem.getId(), mProfileSupplier.get().isOffTheRecord());
+                    // Dismiss only when opening a bookmark (webpage) and not a folder.
+                    if (mAnchoredPopupWindow != null) mAnchoredPopupWindow.dismiss();
+                }
+                // Always consume the event to prevent fallback.
                 return true;
             }
-            // Plain Enter key press when bookmarkItem is not a folder. Default behavior (open
-            // webpage in current tab) takes over.
             return false;
         };
+    }
+
+    /**
+     * Finds the header view within the current popup menu by traversing up from a given item
+     * (list_menu_item.xml). This method is used to trigger the back navigation for the left arrow
+     * key.
+     *
+     * @param currentItemView The view of a currently focused menu item.
+     * @return The menu header view if found, otherwise null.
+     */
+    private @Nullable View findMenuHeaderView(View currentItemView) {
+        ViewParent parent = currentItemView.getParent();
+        // Walk up the tree until we find a parent that contains R.id.menu_header.
+        while (parent instanceof View) {
+            View parentView = (View) parent;
+            ListView headerListView = parentView.findViewById(R.id.menu_header);
+            if (headerListView != null && headerListView.getChildCount() > 0) {
+                // If headerListView is not null, there will only be one item inside it,
+                // the headerView that acts as the back button.
+                return headerListView.getChildAt(0);
+            }
+            parent = parentView.getParent();
+        }
+        return null;
     }
 
     void setAnchoredPopupWindowForTesting(AnchoredPopupWindow anchoredPopupWindow) {

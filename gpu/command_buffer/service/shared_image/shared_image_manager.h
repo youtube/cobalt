@@ -98,7 +98,8 @@ class GPU_GLES2_EXPORT SharedImageManager
       const Mailbox& mailbox,
       MemoryTypeTracker* ref,
       const wgpu::Device& device,
-      wgpu::BackendType backend_type);
+      wgpu::BackendType backend_type,
+      scoped_refptr<SharedContextState> context_state);
   std::unique_ptr<WebNNTensorRepresentation> ProduceWebNNTensor(
       const Mailbox& mailbox,
       MemoryTypeTracker* ref);
@@ -166,12 +167,6 @@ class GPU_GLES2_EXPORT SharedImageManager
       const {
     return dxgi_shared_handle_manager_;
   }
-#endif
-
-#if BUILDFLAG(IS_LINUX)
-  bool CanCreateNativePixmap(gfx::BufferFormat buffer_format,
-                             gfx::BufferUsage buffer_usage,
-                             gpu::VulkanDeviceQueue* device_queue);
 #endif
 
  private:

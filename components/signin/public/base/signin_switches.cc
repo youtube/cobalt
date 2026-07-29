@@ -29,14 +29,14 @@ BASE_FEATURE(kForceHistoryOptInScreen,
 // Enables a history sync educational tip in the magic stack on NTP.
 BASE_FEATURE(kHistoryOptInEducationalTip,
              "HistoryOptInEducationalTip",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Determines which text should be shown on the history sync educational tip
 // button. No-op unless HistoryOptInEducationalTip is enabled.
 const base::FeatureParam<int> kHistoryOptInEducationalTipVariation(
     &kHistoryOptInEducationalTip,
     "history_opt_in_educational_tip_param",
-    0);
+    1);
 
 // When enabled a new library is used to fetch accounts via
 // AccountManagerAccountManagerDelegate
@@ -296,7 +296,7 @@ BASE_FEATURE(kSyncEnableBookmarksInTransportMode,
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 BASE_FEATURE(kSignInPromoMaterialNextUI,
              "SignInPromoMaterialNextUI",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kChromeIdentitySurveyAddressBubbleSignin,
              "ChromeIdentitySurveyAddressBubbleSignin",

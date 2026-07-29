@@ -1631,7 +1631,7 @@ void LensOverlayController::ShowOverlay() {
   // Sanity check that the overlay view is above the contents web view.
   auto* parent_view = overlay_view_->parent();
   views::View* child_contents_view = contents_web_view;
-  // TODO(crbug.com/406794005): Remove this block if overlay_view_ ends up
+  // TODO(crbug.com/443102583): Remove this block if overlay_view_ ends up
   // getting reparented such that it always shares a parent with
   // contents_web_view.
   if (base::FeatureList::IsEnabled(features::kSideBySide)) {
@@ -2074,9 +2074,12 @@ void LensOverlayController::OnSidePanelDidOpen() {
 
 void LensOverlayController::SetOverlayRoundedCorner() {
   CHECK(overlay_view_ && overlay_web_view_);
+  if (!base::FeatureList::IsEnabled(features::kSideBySide)) {
+    return;
+  }
 
   const bool should_round_corner =
-      results_side_panel_coordinator_->IsEntryShowing() && tab_->IsSplit();
+      results_side_panel_coordinator_->IsEntryShowing();
   const float radius =
       should_round_corner
           ? overlay_web_view_->GetLayoutProvider()->GetCornerRadiusMetric(
@@ -2667,7 +2670,10 @@ void LensOverlayController::HideOverlay() {
 }
 
 void LensOverlayController::HideOverlayAndMaybeSetLivePageState() {
-  HideOverlay();
+  // If the overlay is not showing, there is nothing to hide.
+  if (IsOverlayShowing()) {
+    HideOverlay();
+  }
 
   // If the side panel is open, set the overlay state to kLivePageAndResults.
   if (results_side_panel_coordinator_->IsSidePanelBound()) {

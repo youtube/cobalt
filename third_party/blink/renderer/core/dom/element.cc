@@ -1636,25 +1636,75 @@ HTMLElement* Element::GetOpenPopoverTarget() const {
   return popover;
 }
 
-bool Element::InterestGained(Element& target, InterestState new_state) {
+namespace {
+bool ShouldContinueWithInterest(Element& invoker,
+                                Element* target,
+                                Element::InterestState new_state) {
+  // Check pre-conditions. This function is called from posted tasks, so things
+  // may have changed since invoker and target were passed.
+  if (!target || !invoker.IsInTreeScope() ||
+      !invoker.GetDocument().IsActive() ||
+      invoker.InterestForElement() != target ||
+      (new_state == Element::InterestState::kNoInterest &&
+       target->SourceInterestInvoker() != invoker)) {
+    return false;
+  }
+  return true;
+}
+}  // namespace
+
+bool Element::InterestGained(Element* target) {
   CHECK(RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled(
       GetDocument().GetExecutionContext()));
-  CHECK(IsInTreeScope());
-  CHECK(GetDocument().IsActive());
-  CHECK_NE(new_state, InterestState::kNoInterest);
-  Event* interest_event =
-      InterestEvent::Create(event_type_names::kInterest, this);
-  target.DispatchEvent(*interest_event);
+
+  if (!ShouldContinueWithInterest(*this, target,
+                                  InterestState::kFullInterest)) {
+    return false;
+  }
+
+  if (Element* existing_invoker = target->SourceInterestInvoker()) {
+    // We're gaining interest, but the target already has an active interest
+    // invoker. There are two cases:
+    //  1. This is the same invoker. An example case is that the gain
+    //     interest delay is short, but the lose interest delay is long, and
+    //     we just de-hovered and then re-hovered the invoker. In this case,
+    //     we can just cancel any interest lost event and move on.
+    //  2. This is a different invoker. An example is that again, the lose
+    //     interest delay is long, and we've hovered a different invoker for
+    //     the same target. In this case, we need to immediately lose
+    //     interest from the old invoker before gaining it via the new one.
+    if (existing_invoker == this) {
+      // Case 1.
+      auto* invoker_data = GetInvokerData();
+      CHECK(!invoker_data->HasInterestGainedTask());
+      invoker_data->CancelInterestLostTask();
+      return false;
+    } else {
+      // Case 2.
+      if (!existing_invoker->InterestLost(target)) {
+        return false;
+      }
+      // Event handlers might have changed things around, so re-check.
+      if (!ShouldContinueWithInterest(*this, target,
+                                      InterestState::kFullInterest)) {
+        return false;
+      }
+    }
+  }
+
+  Event* interest_event = InterestEvent::Create(event_type_names::kInterest,
+                                                this, Event::Cancelable::kYes);
+  target->DispatchEvent(*interest_event);
   if (interest_event->defaultPrevented()) {
     return false;
   }
 
   // This is now the target's interest invoker
-  CHECK(!target.SourceInterestInvoker());
-  target.EnsureElementRareData()
+  CHECK(!target->SourceInterestInvoker());
+  target->EnsureElementRareData()
       .EnsureInterestInvokerTargetData()
       .setInterestInvoker(this);
-  ChangeInterestState(&target, new_state);
+  ChangeInterestState(target, InterestState::kFullInterest);
 
   // If the target is a popover, invoke it.
   if (auto* popover = DynamicTo<HTMLElement>(target);
@@ -1669,35 +1719,45 @@ bool Element::InterestGained(Element& target, InterestState new_state) {
   return true;
 }
 
-bool Element::InterestLost(Element& target) {
+bool Element::InterestLost(Element* target,
+                           InterestLostCancelable cancelable,
+                           InterestLostPopoverBehavior behavior) {
   CHECK(RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled(
       GetDocument().GetExecutionContext()));
-  CHECK(IsInTreeScope());
-  CHECK(GetDocument().IsActive());
+
+  if (!ShouldContinueWithInterest(*this, target, InterestState::kNoInterest)) {
+    return false;
+  }
+
   Event* lose_interest_event =
-      InterestEvent::Create(event_type_names::kLoseinterest, this);
-  target.DispatchEvent(*lose_interest_event);
+      InterestEvent::Create(event_type_names::kLoseinterest, this,
+                            cancelable == InterestLostCancelable::kCancelable
+                                ? Event::Cancelable::kYes
+                                : Event::Cancelable::kNo);
+  target->DispatchEvent(*lose_interest_event);
   if (lose_interest_event->defaultPrevented()) {
     return false;
   }
 
   // If the target still thinks this invoker is its invoker, remove it.
-  if (auto* targets_invoker = target.SourceInterestInvoker();
+  if (auto* targets_invoker = target->SourceInterestInvoker();
       targets_invoker && targets_invoker == this) {
-    ChangeInterestState(&target, InterestState::kNoInterest);
+    ChangeInterestState(target, InterestState::kNoInterest);
   }
 
   // If the target is a popover, hide it.
-  if (auto* popover = DynamicTo<HTMLElement>(target);
-      popover && popover->PopoverType() != PopoverValueType::kNone) {
-    if (popover->IsPopoverReady(PopoverTriggerAction::kHide,
-                                /*exception_state=*/nullptr,
-                                /*include_event_handler_text=*/true,
-                                &GetDocument())) {
-      popover->HidePopoverInternal(
-          /*invoker=*/this, HidePopoverFocusBehavior::kFocusPreviousElement,
-          HidePopoverTransitionBehavior::kFireEventsAndWaitForTransitions,
-          /*exception_state=*/nullptr);
+  if (behavior == InterestLostPopoverBehavior::kClosePopovers) {
+    if (auto* popover = DynamicTo<HTMLElement>(target);
+        popover && popover->PopoverType() != PopoverValueType::kNone) {
+      if (popover->IsPopoverReady(PopoverTriggerAction::kHide,
+                                  /*exception_state=*/nullptr,
+                                  /*include_event_handler_text=*/true,
+                                  &GetDocument())) {
+        popover->HidePopoverInternal(
+            /*invoker=*/this, HidePopoverFocusBehavior::kFocusPreviousElement,
+            HidePopoverTransitionBehavior::kFireEventsAndWaitForTransitions,
+            /*exception_state=*/nullptr);
+      }
     }
   }
   return true;
@@ -1756,23 +1816,6 @@ void Element::DefaultEventHandler(Event& event) {
       // TODO(crbug.com/364669918): Touchscreen / long-press still needs a
       // unit test.
       ShowInterestNow();
-    }
-
-    if (auto* keyboard_event = DynamicTo<KeyboardEvent>(event);
-        keyboard_event && event.type() == event_type_names::kKeydown &&
-        GetInterestState() != InterestState::kNoInterest) {
-      // Handle `interestfor` "activation" hotkey, and ESC key to lose
-      // interest.
-      const int modifiers =
-          keyboard_event->GetModifiers() & blink::WebInputEvent::kKeyModifiers;
-      auto* target = GetInvokerData()->ActiveInterestTarget();
-      DCHECK_EQ(InterestForElement(), target);
-      if (keyboard_event->key() == keywords::kEscape && !modifiers) {
-        if (GainOrLoseInterest(this, target, InterestState::kNoInterest)) {
-          event.SetDefaultHandled();
-          return;
-        }
-      }
     }
   }
   ContainerNode::DefaultEventHandler(event);
@@ -3915,6 +3958,14 @@ void Element::MovedFrom(ContainerNode& old_parent) {
   }
 }
 
+void Element::SetIsCanvasOrInCanvasSubtree(bool value) {
+  if (value == IsCanvasOrInCanvasSubtree()) {
+    return;
+  }
+  SetElementFlag(ElementFlags::kIsCanvasOrInCanvasSubtree, value);
+  DidChangeIsCanvasOrInCanvasSubtree();
+}
+
 void Element::RemovedFrom(ContainerNode& insertion_point) {
   bool was_in_document = insertion_point.isConnected();
 
@@ -4001,7 +4052,7 @@ void Element::RemovedFrom(ContainerNode& insertion_point) {
     document.RemoveFromTopLayerImmediately(this);
   }
 
-  ClearElementFlag(ElementFlags::kIsCanvasOrInCanvasSubtree);
+  SetIsCanvasOrInCanvasSubtree(false);
 
   if (ElementRareDataVector* data = GetElementRareData()) {
     data->ClearFocusgroupFlags();
@@ -4709,6 +4760,16 @@ void Element::RecalcStyle(const StyleRecalcChange change,
     }
   }
 
+  if (ViewTransition* view_transition =
+          ViewTransitionUtils::GetTransition(*this)) {
+    if (view_transition->Scope() == this) {
+      view_transition->RecalcTransitionPseudoTreeStyle();
+    } else if (child_change.TraversePseudoElements(*this) &&
+               IsTransitionPseudoElement(GetPseudoId())) {
+      UpdateTransitionPseudoElements(child_change, child_recalc_context);
+    }
+  }
+
   if (child_change.TraversePseudoElements(*this)) {
     UpdateBackdropPseudoElement(child_change, child_recalc_context);
     UpdatePseudoElement(kPseudoIdMarker, child_change, child_recalc_context);
@@ -5180,6 +5241,13 @@ StyleRecalcChange Element::RecalcOwnStyle(
         child_change = evaluator->ApplyScrollStateAndStyleChanges(
             child_change, *old_style, *new_style,
             diff != ComputedStyle::Difference::kEqual);
+      }
+    }
+    if (IsPseudoElement() && new_style->MayUseImplicitAnchor()) {
+      UseCounter::Count(GetDocument(),
+                        WebFeature::kCSSPseudoElementUsesImplicitAnchor);
+      if (RuntimeEnabledFeatures::OriginatingElementIsImplicitAnchorEnabled()) {
+        parentElement()->SetMayBeImplicitAnchor();
       }
     }
   }
@@ -6688,7 +6756,8 @@ ShadowRoot* Element::attachShadow(const ShadowRootInit* shadow_root_init_dict,
                               ? FocusDelegation::kDelegateFocus
                               : FocusDelegation::kNone;
   auto slot_assignment = (shadow_root_init_dict->hasSlotAssignment() &&
-                          shadow_root_init_dict->slotAssignment() == "manual")
+                          shadow_root_init_dict->slotAssignment() ==
+                              V8SlotAssignmentMode::Enum::kManual)
                              ? SlotAssignmentMode::kManual
                              : SlotAssignmentMode::kNamed;
   auto reference_target =
@@ -6697,7 +6766,8 @@ ShadowRoot* Element::attachShadow(const ShadowRootInit* shadow_root_init_dict,
           : g_null_atom;
 
   // 1. Let registry be this's custom element registry.
-  // 2. If init["customElementRegistry"] is not null, then set registry to it.
+  // 2. If init["customElementRegistry"] is not null
+  // 2-1. Set registry to init["customElementRegistry"].
   bool scoped_registry =
       RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled() &&
       shadow_root_init_dict->hasCustomElementRegistry() &&
@@ -6705,6 +6775,16 @@ ShadowRoot* Element::attachShadow(const ShadowRootInit* shadow_root_init_dict,
   auto* registry = scoped_registry
                        ? shadow_root_init_dict->customElementRegistry()
                        : customElementRegistry();
+  // 2-2. If registry's "is scoped" is false and registry is not this's node
+  // document's custom element registry, then throw a "NotSupportedError"
+  // DOMException.
+  if (registry && registry->IsGlobalRegistry() &&
+      registry != GetDocument().customElementRegistry()) {
+    exception_state.ThrowDOMException(
+        DOMExceptionCode::kNotSupportedError,
+        "The registry provided is a global registry from another document");
+    return nullptr;
+  }
 
   ShadowRootMode mode;
   if (const char* error_message = ErrorMessageForAttachShadow(
@@ -7783,20 +7863,35 @@ bool Element::IsKeyboardFocusableScroller(
 void Element::ShowInterestNow() {
   DCHECK(RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled(
       GetDocument().GetExecutionContext()));
-  Element* target = InterestForElement();
-  if (!target) {
-    return;
-  }
-  GainOrLoseInterest(this, target, InterestState::kFullInterest);
+  InterestGained(InterestForElement());
 }
 
-void Element::LoseInterestNow() {
+void Element::LoseInterestNow(InterestLostCancelable cancelable,
+                              InterestLostPopoverBehavior behavior) {
   DCHECK(RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled(
       GetDocument().GetExecutionContext()));
   Element* target = InterestForElement();
   DCHECK_EQ(GetInvokerData()->ActiveInterestTarget(), target);
   DCHECK_EQ(GetInterestState(), InterestState::kFullInterest);
-  GainOrLoseInterest(this, target, InterestState::kNoInterest);
+  InterestLost(target, cancelable, behavior);
+}
+
+// static
+void Element::LoseInterestInAllElements(Document& document) {
+  // Make a copy, in case events change the list.
+  HeapLinkedHashSet<Member<Element>> elements = document.ElementsWithInterest();
+  // For each element source in document's active interest sources set, in
+  // reverse order:
+  for (auto& element : base::Reversed(elements)) {
+    if (auto* target = element->InterestForElement()) {
+      // 1. Lose interest in source given source's active interest target.
+      element->InterestLost(target, InterestLostCancelable::kNotCancelable);
+      // 2. If document is not fully active, then return.
+      if (!document.IsActive()) {
+        return;
+      }
+    }
+  }
 }
 
 bool Element::IsKeyboardFocusableSlow(UpdateBehavior update_behavior) const {
@@ -9540,6 +9635,13 @@ PseudoElement* Element::CreatePseudoElementIfNeeded(
   }
 
   pseudo_element->SetComputedStyle(pseudo_style);
+  if (pseudo_style->MayUseImplicitAnchor()) {
+    UseCounter::Count(GetDocument(),
+                      WebFeature::kCSSPseudoElementUsesImplicitAnchor);
+    if (RuntimeEnabledFeatures::OriginatingElementIsImplicitAnchorEnabled()) {
+      SetMayBeImplicitAnchor();
+    }
+  }
 
   probe::PseudoElementCreated(pseudo_element);
 
@@ -11280,7 +11382,10 @@ void Element::ChangeInterestState(Element* target, InterestState new_state) {
     return;
   }
   InvokerData* invoker_data = &EnsureElementRareData().EnsureInvokerData();
+  auto& document = GetDocument();
   if (new_state == InterestState::kNoInterest) {
+    DCHECK(document.ElementsWithInterest().Contains(this));
+    document.ElementsWithInterest().erase(this);
     invoker_data->SetInterestState(InterestState::kNoInterest);
     invoker_data->SetActiveInterestTarget(nullptr);
     if (target) {
@@ -11290,6 +11395,8 @@ void Element::ChangeInterestState(Element* target, InterestState new_state) {
     invoker_data->CancelInterestLostTask();
     invoker_data->CancelInterestGainedTask();
   } else {
+    DCHECK(!document.ElementsWithInterest().Contains(this));
+    document.ElementsWithInterest().insert(this);
     invoker_data->SetInterestState(new_state);
     invoker_data->SetActiveInterestTarget(target);
   }
@@ -11299,64 +11406,7 @@ void Element::ChangeInterestState(Element* target, InterestState new_state) {
   }
 }
 
-// static
-bool Element::GainOrLoseInterest(Element* invoker,
-                                 Element* target,
-                                 InterestState new_state) {
-  // Check pre-conditions. This function is called from posted tasks, so things
-  // may have changed since invoker and target were passed.
-  if (!invoker || !target || !invoker->IsInTreeScope() ||
-      !invoker->GetDocument().IsActive() ||
-      invoker->InterestForElement() != target ||
-      (new_state == InterestState::kNoInterest &&
-       target->SourceInterestInvoker() != invoker)) {
-    return false;
-  }
-
-  // We've reached the point where interest has officially been
-  // gained or lost. Fire the event and run any default actions.
-  switch (new_state) {
-    case InterestState::kFullInterest:
-      if (Element* existing_invoker = target->SourceInterestInvoker()) {
-        // We're gaining interest, but the target already has an active interest
-        // invoker. There are two cases:
-        //  1. This is the same invoker. An example case is that the gain
-        //     interest delay is short, but the lose interest delay is long, and
-        //     we just de-hovered and then re-hovered the invoker. In this case,
-        //     we can just cancel any interest lost event and move on.
-        //  2. This is a different invoker. An example is that again, the lose
-        //     interest delay is long, and we've hovered a different invoker for
-        //     the same target. In this case, we need to immediately lose
-        //     interest from the old invoker before gaining it via the new one.
-        if (existing_invoker == invoker) {
-          // Case 1.
-          auto* invoker_data = invoker->GetInvokerData();
-          CHECK(!invoker_data->HasInterestGainedTask());
-          invoker_data->CancelInterestLostTask();
-          return false;
-        } else {
-          // Case 2.
-          if (!existing_invoker->GainOrLoseInterest(
-                  existing_invoker, target, InterestState::kNoInterest)) {
-            return false;
-          }
-          // Event handlers might have changed things around, so re-check.
-          if (!invoker || !target || !invoker->IsInTreeScope() ||
-              !invoker->GetDocument().IsActive() ||
-              invoker->InterestForElement() != target) {
-            return false;
-          }
-        }
-      }
-      return invoker->InterestGained(*target, new_state);
-
-    case InterestState::kNoInterest:
-      return invoker->InterestLost(*target);
-  }
-}
-
-void Element::ScheduleInterestGainedTask(InterestState new_state) {
-  CHECK_NE(new_state, InterestState::kNoInterest);
+void Element::ScheduleInterestGainedTask() {
   // This should be called on an interest invoker only.
   auto* target = InterestForElement();
   CHECK(target);
@@ -11379,10 +11429,12 @@ void Element::ScheduleInterestGainedTask(InterestState new_state) {
       *GetExecutionContext()->GetTaskRunner(TaskType::kMiscPlatformAPI),
       FROM_HERE,
       BindOnce(
-          [](Element* invoker, Element* target, InterestState new_state) {
-            GainOrLoseInterest(invoker, target, new_state);
+          [](Element* invoker, Element* target) {
+            if (invoker) {
+              invoker->InterestGained(target);
+            }
           },
-          WrapWeakPersistent(this), WrapWeakPersistent(target), new_state),
+          WrapWeakPersistent(this), WrapWeakPersistent(target)),
       base::Seconds(show_delay_seconds)));
 }
 
@@ -11407,7 +11459,9 @@ void Element::ScheduleInterestLostTask() {
       FROM_HERE,
       BindOnce(
           [](Element* invoker, Element* target) {
-            GainOrLoseInterest(invoker, target, InterestState::kNoInterest);
+            if (invoker) {
+              invoker->InterestLost(target);
+            }
           },
           WrapWeakPersistent(this),
           WrapWeakPersistent(invoker_data.ActiveInterestTarget())),
@@ -11504,7 +11558,7 @@ void Element::HandleInterestForHoverOrFocus(InterestSource source,
         [[unlikely]] {
       // This is an interest invoker that doesn't already have interest, and was
       // just hovered or focused. Schedule an InterestGained task.
-      ScheduleInterestGainedTask(InterestState::kFullInterest);
+      ScheduleInterestGainedTask();
     }
   } else {
     DCHECK(source == InterestSource::kDeHover ||
@@ -11732,6 +11786,60 @@ void Element::RecalcTransitionPseudoTreeStyle(
   // (typically) no children / dirty child style. However, here we do need to
   // clear the child dirty bit.
   transition_pseudo->ClearChildNeedsStyleRecalc();
+}
+
+void Element::UpdateTransitionPseudoElements(
+    const StyleRecalcChange style_recalc_change,
+    const StyleRecalcContext& style_recalc_context) {
+  // TODO(crbug.com/442622988): Ideally we handle the originating element here
+  // as well and deprecate RecalcTransitionPseudoTreeStyle. Presently,
+  // RecalcTransitionPseudoTreeStyle handles creation of the group hierarchy,
+  // and this method updates pseudo-elements -- treating the hierarchy as
+  // immutable. Note that the hierarchy is only allowed to change in a post-
+  // capture style update. The capture phases are run before and after the
+  // DOM callback in StartViewTransition.
+  DCHECK(IsTransitionPseudoElement(GetPseudoId()));
+  switch (GetPseudoId()) {
+    case kPseudoIdViewTransition:
+    case kPseudoIdViewTransitionGroupChildren: {
+      for (const AtomicString& name : To<ViewTransitionPseudoElementBase>(this)
+                                          ->GetViewTransitionNames()) {
+        if (GetPseudoElement(kPseudoIdViewTransitionGroup, name)) {
+          UpdatePseudoElement(kPseudoIdViewTransitionGroup, style_recalc_change,
+                              style_recalc_context, name);
+        }
+      }
+      break;
+    }
+
+    case kPseudoIdViewTransitionGroup:
+      UpdatePseudoElement(kPseudoIdViewTransitionImagePair, style_recalc_change,
+                          style_recalc_context,
+                          To<PseudoElement>(this)->view_transition_name());
+      if (GetPseudoElement(kPseudoIdViewTransitionGroupChildren,
+                           To<PseudoElement>(this)->view_transition_name())) {
+        UpdatePseudoElement(kPseudoIdViewTransitionGroupChildren,
+                            style_recalc_change, style_recalc_context,
+                            To<PseudoElement>(this)->view_transition_name());
+      }
+      break;
+
+    case kPseudoIdViewTransitionImagePair:
+      UpdatePseudoElement(kPseudoIdViewTransitionOld, style_recalc_change,
+                          style_recalc_context,
+                          To<PseudoElement>(this)->view_transition_name());
+      UpdatePseudoElement(kPseudoIdViewTransitionNew, style_recalc_change,
+                          style_recalc_context,
+                          To<PseudoElement>(this)->view_transition_name());
+      break;
+
+    case kPseudoIdViewTransitionOld:
+    case kPseudoIdViewTransitionNew:
+      break;
+
+    default:
+      NOTREACHED();
+  }
 }
 
 void Element::ClearTransitionPseudoTreeIfNeeded(
@@ -12328,10 +12436,10 @@ ScrollMarkerGroupData* Element::GetScrollTargetGroupContainerData() const {
   return nullptr;
 }
 
-void Element::IncrementImplicitlyAnchoredElementCount() {
-  bool had_implicitly_anchored_element = HasImplicitlyAnchoredElement();
-  EnsureElementRareData().IncrementImplicitlyAnchoredElementCount();
-  if (!had_implicitly_anchored_element && GetLayoutObject()) {
+void Element::SetMayBeImplicitAnchor() {
+  bool was_implicit_anchor = MayBeImplicitAnchor();
+  EnsureElementRareData().SetMayBeImplicitAnchor();
+  if (!was_implicit_anchor && GetLayoutObject()) {
     // Invalidate layout to populate itself into Physical/LogicalAnchorQuery.
     GetLayoutObject()->SetNeedsLayoutAndFullPaintInvalidation(
         layout_invalidation_reason::kAnchorPositioning);
@@ -12339,14 +12447,9 @@ void Element::IncrementImplicitlyAnchoredElementCount() {
   }
 }
 
-void Element::DecrementImplicitlyAnchoredElementCount() {
-  DCHECK(GetElementRareData());
-  GetElementRareData()->DecrementImplicitlyAnchoredElementCount();
-}
-
-bool Element::HasImplicitlyAnchoredElement() const {
+bool Element::MayBeImplicitAnchor() const {
   if (const ElementRareDataVector* data = GetElementRareData()) {
-    return data->HasImplicitlyAnchoredElement();
+    return data->MayBeImplicitAnchor();
   }
   return false;
 }
@@ -12388,6 +12491,10 @@ Element* Element::ImplicitAnchorElement() const {
       case kPseudoIdScrollButtonInlineStart:
       case kPseudoIdScrollButtonInlineEnd:
       case kPseudoIdScrollButtonBlockEnd:
+        if (RuntimeEnabledFeatures::
+                OriginatingElementIsImplicitAnchorEnabled()) {
+          return parentElement();
+        }
         return pseudo_element->UltimateOriginatingElement()
             .ImplicitAnchorElement();
       default:

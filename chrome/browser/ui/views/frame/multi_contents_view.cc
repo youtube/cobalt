@@ -8,13 +8,17 @@
 #include <cstdlib>
 
 #include "base/check_deref.h"
+#include "base/check_op.h"
 #include "base/feature_list.h"
+#include "base/i18n/rtl.h"
 #include "base/notreached.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/contents_container_view.h"
+#include "chrome/browser/ui/views/frame/contents_rounded_corner.h"
+#include "chrome/browser/ui/views/frame/contents_separator.h"
 #include "chrome/browser/ui/views/frame/contents_web_view.h"
 #include "chrome/browser/ui/views/frame/multi_contents_drop_target_view.h"
 #include "chrome/browser/ui/views/frame/multi_contents_resize_area.h"
@@ -24,15 +28,86 @@
 #include "chrome/browser/ui/views/frame/scrim_view.h"
 #include "chrome/browser/ui/views/frame/top_container_background.h"
 #include "chrome/browser/ui/views/new_tab_footer/footer_web_view.h"
+#include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/common/pref_names.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/ozone_buildflags.h"
+#include "ui/compositor/layer.h"
+#include "ui/compositor/layer_type.h"
 #include "ui/events/types/event_type.h"
+#include "ui/gfx/geometry/rounded_corners_f.h"
 #include "ui/gfx/scoped_canvas.h"
 #include "ui/ozone/public/ozone_platform.h"
 #include "ui/views/view_class_properties.h"
+
+// BackgroundView prioritizes using a `ui::LAYER_SOLID_COLOR` for background
+// painting whenever possible (or `ui::LAYER_TEXTURED`). This method is more
+// efficient than painting directly onto the widget's texture layer.
+class MultiContentsView::BackgroundView : public views::View {
+  METADATA_HEADER(BackgroundView, views::View)
+ public:
+  explicit BackgroundView(BrowserView* browser_view)
+      : browser_view_(browser_view) {
+    SetPaintToLayer(ui::LAYER_SOLID_COLOR);
+    layer()->SetName("MultiContentsView/background");
+    SetVisible(false);
+  }
+
+  BackgroundView(const BackgroundView&) = delete;
+  BackgroundView& operator=(const BackgroundView&) = delete;
+
+  ~BackgroundView() override = default;
+
+  // views::View:
+  void OnThemeChanged() override {
+    views::View::OnThemeChanged();
+    if (auto new_type = CalculateLayerType(); new_type != layer()->type()) {
+      SetPaintToLayer(new_type);
+    }
+
+    if (layer()->type() == ui::LAYER_SOLID_COLOR) {
+      UpdateSolidLayerColor();
+    } else {
+      SchedulePaint();
+    }
+  }
+
+  void OnPaint(gfx::Canvas* canvas) override {
+    CHECK_EQ(layer()->type(), ui::LAYER_TEXTURED);
+    TopContainerBackground::PaintBackground(canvas, this, browser_view_);
+  }
+
+ private:
+  ui::LayerType CalculateLayerType() const {
+    const bool has_custom_image =
+        !TopContainerBackground::GetBackgroundColor(this, browser_view_)
+             .has_value();
+    return has_custom_image ? ui::LAYER_TEXTURED : ui::LAYER_SOLID_COLOR;
+  }
+
+  void UpdateSolidLayerColor() {
+    CHECK_EQ(layer()->type(), ui::LAYER_SOLID_COLOR);
+    if (auto color =
+            TopContainerBackground::GetBackgroundColor(this, browser_view_)) {
+      layer()->SetColor(*color);
+    }
+  }
+
+  const raw_ptr<BrowserView> browser_view_;
+};
+
+BEGIN_METADATA(MultiContentsView, BackgroundView)
+END_METADATA
+
+void MultiContentsView::ContentsSeparators::Reset() {
+  top_separator = nullptr;
+  leading_separator = nullptr;
+  trailing_separator = nullptr;
+  top_leading_rounded_corner = nullptr;
+  top_trailing_rounded_corner = nullptr;
+}
 
 MultiContentsView::MultiContentsView(
     BrowserView* browser_view,
@@ -43,7 +118,12 @@ MultiContentsView::MultiContentsView(
           gfx::Insets(kSplitViewContentInset).set_top(0).set_right(0)),
       end_contents_view_inset_(
           gfx::Insets(kSplitViewContentInset).set_top(0).set_left(0)) {
+  background_view_ =
+      AddChildView(std::make_unique<BackgroundView>(browser_view));
+
   SetLayoutManager(std::make_unique<views::DelegatingLayoutManager>(this));
+  SetProperty(views::kElementIdentifierKey, kMultiContentsViewElementId);
+
   contents_container_views_.push_back(
       AddChildView(std::make_unique<ContentsContainerView>(browser_view_)));
   contents_container_views_[0]
@@ -56,6 +136,43 @@ MultiContentsView::MultiContentsView(
   contents_container_views_.push_back(
       AddChildView(std::make_unique<ContentsContainerView>(browser_view_)));
   contents_container_views_[1]->SetVisible(false);
+
+  drop_target_view_ =
+      AddChildView(std::make_unique<MultiContentsDropTargetView>());
+  drop_target_controller_ =
+      std::make_unique<MultiContentsViewDropTargetController>(
+          *drop_target_view_, *delegate_);
+
+  contents_separators_.top_separator =
+      AddChildView(std::make_unique<ContentsSeparator>());
+  contents_separators_.top_separator->SetProperty(
+      views::kElementIdentifierKey, kContentsSeparatorTopEdgeElementId);
+
+  contents_separators_.leading_separator =
+      AddChildView(std::make_unique<ContentsSeparator>());
+  contents_separators_.leading_separator->SetProperty(
+      views::kElementIdentifierKey, kContentsSeparatorLeadingEdgeElementId);
+
+  contents_separators_.trailing_separator =
+      AddChildView(std::make_unique<ContentsSeparator>());
+  contents_separators_.trailing_separator->SetProperty(
+      views::kElementIdentifierKey, kContentsSeparatorTrailingEdgeElementId);
+
+  contents_separators_.top_leading_rounded_corner =
+      AddChildView(std::make_unique<ContentsRoundedCorner>(
+          browser_view_, views::ShapeContextTokens::kContentSeparatorRadius,
+          base::BindRepeating([]() { return base::i18n::IsRTL(); })));
+  contents_separators_.top_leading_rounded_corner->SetProperty(
+      views::kElementIdentifierKey,
+      kContentsSeparatorLeadingTopCornerElementId);
+
+  contents_separators_.top_trailing_rounded_corner =
+      AddChildView(std::make_unique<ContentsRoundedCorner>(
+          browser_view_, views::ShapeContextTokens::kContentSeparatorRadius,
+          base::BindRepeating([]() { return !base::i18n::IsRTL(); })));
+  contents_separators_.top_trailing_rounded_corner->SetProperty(
+      views::kElementIdentifierKey,
+      kContentsSeparatorTrailingTopCornerElementId);
 
   for (auto* contents_container_view : contents_container_views_) {
     web_contents_focused_subscriptions_.push_back(
@@ -72,13 +189,6 @@ MultiContentsView::MultiContentsView(
     }
   }
 
-  SetProperty(views::kElementIdentifierKey, kMultiContentsViewElementId);
-
-  drop_target_view_ =
-      AddChildView(std::make_unique<MultiContentsDropTargetView>());
-  drop_target_controller_ =
-      std::make_unique<MultiContentsViewDropTargetController>(
-          *drop_target_view_, *delegate_);
   is_drag_drop_pref_enabled_ =
       browser_view_->GetProfile()->GetPrefs()->GetBoolean(
           prefs::kSplitViewDragAndDropEnabled);
@@ -96,6 +206,8 @@ MultiContentsView::~MultiContentsView() {
   }
   drop_target_view_ = nullptr;
   resize_area_ = nullptr;
+  contents_separators_.Reset();
+  background_view_ = nullptr;
   RemoveAllChildViews();
 }
 
@@ -117,6 +229,15 @@ ContentsContainerView* MultiContentsView::GetInactiveContentsContainerView()
   return contents_container_views_[GetInactiveIndex()];
 }
 
+const gfx::RoundedCornersF& MultiContentsView::background_radii() const {
+  return background_view_->layer()->rounded_corner_radii();
+}
+
+void MultiContentsView::SetBackgroundRadii(const gfx::RoundedCornersF& radii) {
+  background_view_->layer()->SetRoundedCornerRadius(radii);
+  background_view_->layer()->SetIsFastRoundedCorner(!radii.IsEmpty());
+}
+
 ContentsContainerView* MultiContentsView::GetContentsContainerViewFor(
     content::WebContents* web_contents) const {
   for (auto* container_view : contents_container_views_) {
@@ -131,7 +252,24 @@ gfx::Size MultiContentsView::GetContentsSize() const {
   const int drop_target_width =
       IsDragAndDropEnabled() ? drop_target_view_->GetPreferredWidth(width())
                              : 0;
-  return gfx::Size(width() - drop_target_width, height());
+  const int separator_height =
+      contents_separators_.should_show_top
+          ? contents_separators_.top_separator->GetPreferredSize().height()
+          : 0;
+
+  const int leading_separator_width =
+      contents_separators_.should_show_leading
+          ? contents_separators_.leading_separator->GetPreferredSize().height()
+          : 0;
+
+  const int trailing_separator_width =
+      contents_separators_.should_show_trailing
+          ? contents_separators_.trailing_separator->GetPreferredSize().height()
+          : 0;
+
+  return gfx::Size(width() - drop_target_width - leading_separator_width -
+                       trailing_separator_width,
+                   height() - separator_height);
 }
 
 bool MultiContentsView::IsInSplitView() const {
@@ -147,6 +285,7 @@ void MultiContentsView::SetWebContentsAtIndex(
 
   if (index == 1 && !contents_container_views_[1]->GetVisible()) {
     contents_container_views_[1]->SetVisible(true);
+    background_view_->SetVisible(true);
     resize_area_->SetVisible(true);
     UpdateContentsBorderAndOverlay();
   }
@@ -158,6 +297,7 @@ void MultiContentsView::ShowSplitView(double ratio) {
     // visibility.
     start_ratio_ = ratio;
     contents_container_views_[1]->SetVisible(true);
+    background_view_->SetVisible(true);
     resize_area_->SetVisible(true);
     UpdateContentsBorderAndOverlay();
   } else if (start_ratio_ != ratio) {
@@ -195,6 +335,7 @@ void MultiContentsView::CloseSplitView() {
   contents_container_views_[1]->contents_view()->SetWebContents(nullptr);
   contents_container_views_[1]->SetVisible(false);
   resize_area_->SetVisible(false);
+  background_view_->SetVisible(false);
   UpdateContentsBorderAndOverlay();
 }
 
@@ -300,11 +441,6 @@ double MultiContentsView::CalculateRatioWithSnapPoints(
   return end_width / total_width;
 }
 
-void MultiContentsView::OnPaint(gfx::Canvas* canvas) {
-  // Paint the multi contents area background to match the toolbar.
-  TopContainerBackground::PaintBackground(canvas, this, browser_view_);
-}
-
 void MultiContentsView::OnThemeChanged() {
   views::View::OnThemeChanged();
   UpdateContentsBorderAndOverlay();
@@ -347,45 +483,36 @@ views::ProposedLayout MultiContentsView::CalculateProposedLayout(
   if (!size_bounds.is_fully_bounded()) {
     return layouts;
   }
+  const int width = size_bounds.width().value();
+  const int height = size_bounds.height().value();
 
-  int height = size_bounds.height().value();
-  int width = size_bounds.width().value();
+  gfx::Rect available_space = gfx::Rect(width, height);
+  if (IsDragAndDropEnabled()) {
+    available_space =
+        CalculateDropTargetLayout(available_space, layouts.child_layouts);
+  }
 
-  const gfx::Rect available_space(width, height);
+  available_space =
+      CalculateSeparatorLayouts(available_space, layouts.child_layouts);
+
   ViewWidths widths = GetViewWidths(available_space);
 
-  gfx::Rect drop_target_rect(widths.drop_target_width,
-                             available_space.height());
   gfx::Rect start_rect(available_space.origin(),
                        gfx::Size(widths.start_width, available_space.height()));
+  gfx::Rect background_rect(available_space);
   gfx::Rect resize_rect(
       start_rect.top_right(),
       gfx::Size(widths.resize_width, available_space.height()));
   gfx::Rect end_rect(resize_rect.top_right(),
                      gfx::Size(widths.end_width, available_space.height()));
 
-  if (IsDragAndDropEnabled() && drop_target_view_->side().has_value()) {
-    switch (drop_target_view_->side().value()) {
-      case MultiContentsDropTargetView::DropSide::START:
-        // If the drop target view will show at the start, shift everything
-        // over.
-        start_rect.set_x(start_rect.x() + widths.drop_target_width);
-        resize_rect.set_x(resize_rect.x() + widths.drop_target_width);
-        end_rect.set_x(resize_rect.x() + widths.drop_target_width);
-        drop_target_rect.set_origin(available_space.origin());
-        break;
-      case MultiContentsDropTargetView::DropSide::END:
-        drop_target_rect.set_origin(end_rect.top_right());
-        break;
-      default:
-        NOTREACHED();
-    }
-  }
-
   if (IsInSplitView()) {
     start_rect.Inset(start_contents_view_inset_);
     end_rect.Inset(end_contents_view_inset_);
   }
+
+  layouts.child_layouts.emplace_back(
+      background_view_.get(), background_view_->GetVisible(), background_rect);
 
   layouts.child_layouts.emplace_back(contents_container_views_[0],
                                      contents_container_views_[0]->GetVisible(),
@@ -396,14 +523,120 @@ views::ProposedLayout MultiContentsView::CalculateProposedLayout(
                                      contents_container_views_[1]->GetVisible(),
                                      end_rect);
 
-  if (IsDragAndDropEnabled()) {
-    layouts.child_layouts.emplace_back(drop_target_view_.get(),
-                                       drop_target_view_->GetVisible(),
-                                       drop_target_rect);
-  }
-
   layouts.host_size = gfx::Size(width, height);
   return layouts;
+}
+
+gfx::Rect MultiContentsView::CalculateDropTargetLayout(
+    const gfx::Rect& available_space,
+    std::vector<views::ChildLayout>& child_layouts) const {
+  CHECK(IsDragAndDropEnabled());
+  if (!drop_target_view_->GetVisible()) {
+    child_layouts.emplace_back(drop_target_view_.get(), false, gfx::Rect());
+    return available_space;
+  }
+
+  const int drop_target_width =
+      drop_target_view_->GetPreferredWidth(available_space.width());
+
+  const int drop_target_x = (drop_target_view_->side() ==
+                             MultiContentsDropTargetView::DropSide::START)
+                                ? available_space.x()
+                                : available_space.right() - drop_target_width;
+  const int remaining_space_x =
+      available_space.x() + ((drop_target_view_->side() ==
+                              MultiContentsDropTargetView::DropSide::START)
+                                 ? drop_target_width
+                                 : 0);
+
+  child_layouts.emplace_back(
+      drop_target_view_.get(), true,
+      gfx::Rect(drop_target_x, available_space.y(), drop_target_width,
+                available_space.height()));
+
+  return gfx::Rect(remaining_space_x, available_space.y(),
+                   available_space.width() - drop_target_width,
+                   available_space.height());
+}
+
+gfx::Rect MultiContentsView::CalculateSeparatorLayouts(
+    const gfx::Rect& available_space,
+    std::vector<views::ChildLayout>& child_layouts) const {
+  if (IsInSplitView()) {
+    child_layouts.emplace_back(contents_separators_.top_separator.get(), false,
+                               gfx::Rect());
+    child_layouts.emplace_back(contents_separators_.leading_separator.get(),
+                               false, gfx::Rect());
+    child_layouts.emplace_back(contents_separators_.trailing_separator.get(),
+                               false, gfx::Rect());
+    child_layouts.emplace_back(
+        contents_separators_.top_leading_rounded_corner.get(), false,
+        gfx::Rect());
+    child_layouts.emplace_back(
+        contents_separators_.top_trailing_rounded_corner.get(), false,
+        gfx::Rect());
+    return available_space;
+  }
+
+  const int width = available_space.width();
+  const int height = available_space.height();
+
+  const int separator_height =
+      contents_separators_.should_show_top
+          ? contents_separators_.top_separator->GetPreferredSize().height()
+          : 0;
+  child_layouts.emplace_back(
+      contents_separators_.top_separator.get(),
+      contents_separators_.should_show_top,
+      gfx::Rect(available_space.origin(), {width, separator_height}));
+
+  const bool should_show_leading =
+      contents_separators_.should_show_leading ||
+      (drop_target_view_->side() ==
+       MultiContentsDropTargetView::DropSide::START);
+  const int leading_separator_width =
+      should_show_leading
+          ? contents_separators_.leading_separator->GetPreferredSize().width()
+          : 0;
+  child_layouts.emplace_back(
+      contents_separators_.leading_separator.get(), should_show_leading,
+      gfx::Rect(available_space.origin(), {leading_separator_width, height}));
+
+  const bool should_show_trailing =
+      contents_separators_.should_show_trailing ||
+      (drop_target_view_->side() == MultiContentsDropTargetView::DropSide::END);
+
+  const int trailing_separator_width =
+      should_show_trailing
+          ? contents_separators_.trailing_separator->GetPreferredSize().width()
+          : 0;
+  child_layouts.emplace_back(
+      contents_separators_.trailing_separator.get(), should_show_trailing,
+      gfx::Rect(available_space.right() - trailing_separator_width,
+                available_space.y(), trailing_separator_width, height));
+
+  child_layouts.emplace_back(
+      contents_separators_.top_leading_rounded_corner.get(),
+      should_show_leading && contents_separators_.should_show_top,
+      gfx::Rect(
+          available_space.origin(),
+          contents_separators_.top_leading_rounded_corner->GetPreferredSize()));
+
+  child_layouts.emplace_back(
+      contents_separators_.top_trailing_rounded_corner.get(),
+      should_show_trailing && contents_separators_.should_show_top,
+      gfx::Rect({available_space.right() -
+                     contents_separators_.top_trailing_rounded_corner
+                         ->GetPreferredSize()
+                         .width(),
+                 available_space.y()},
+                contents_separators_.top_trailing_rounded_corner
+                    ->GetPreferredSize()));
+
+  return gfx::Rect(available_space.x() + leading_separator_width,
+                   available_space.y() + separator_height,
+                   width - trailing_separator_width - leading_separator_width,
+                   height - separator_height);
 }
 
 MultiContentsView::ViewWidths MultiContentsView::GetViewWidths(
@@ -419,11 +652,7 @@ MultiContentsView::ViewWidths MultiContentsView::GetViewWidths(
         available_space.width() - widths.start_width - widths.resize_width;
   } else {
     CHECK(!contents_container_views_[1]->GetVisible());
-    widths.drop_target_width =
-        IsDragAndDropEnabled()
-            ? drop_target_view_->GetPreferredWidth(available_space.width())
-            : 0;
-    widths.start_width = available_space.width() - widths.drop_target_width;
+    widths.start_width = available_space.width();
   }
   return ClampToMinWidth(widths);
 }
@@ -485,6 +714,41 @@ void MultiContentsView::OnDragAndDropPrefStateChange() {
   is_drag_drop_pref_enabled_ =
       browser_view_->GetProfile()->GetPrefs()->GetBoolean(
           prefs::kSplitViewDragAndDropEnabled);
+  InvalidateLayout();
+}
+
+void MultiContentsView::SetShouldShowTopSeparator(bool should_show) {
+  if (contents_separators_.should_show_top == should_show) {
+    return;
+  }
+  contents_separators_.should_show_top = should_show;
+  start_contents_view_inset_.set_top(
+      should_show ? 0 : MultiContentsView::kSplitViewContentInset);
+  end_contents_view_inset_.set_top(
+      should_show ? 0 : MultiContentsView::kSplitViewContentInset);
+
+  InvalidateLayout();
+}
+
+void MultiContentsView::SetShouldShowLeadingSeparator(bool should_show) {
+  if (contents_separators_.should_show_leading == should_show) {
+    return;
+  }
+  contents_separators_.should_show_leading = should_show;
+  start_contents_view_inset_.set_left(
+      should_show ? 0 : MultiContentsView::kSplitViewContentInset);
+
+  InvalidateLayout();
+}
+
+void MultiContentsView::SetShouldShowTrailingSeparator(bool should_show) {
+  if (contents_separators_.should_show_trailing == should_show) {
+    return;
+  }
+  contents_separators_.should_show_trailing = should_show;
+  end_contents_view_inset_.set_right(
+      should_show ? 0 : MultiContentsView::kSplitViewContentInset);
+
   InvalidateLayout();
 }
 

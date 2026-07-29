@@ -79,18 +79,48 @@ export class SettingsPrivacyPageIndexElement extends
         value: false,
       },
 
+      autoPictureInPictureEnabled_: {
+        type: Boolean,
+        value: () => loadTimeData.getBoolean('autoPictureInPictureEnabled'),
+      },
+
+      capturedSurfaceControlEnabled_: {
+        type: Boolean,
+        value: () => loadTimeData.getBoolean('capturedSurfaceControlEnabled'),
+      },
+
+      enableExperimentalWebPlatformFeatures_: {
+        type: Boolean,
+        value: () => {
+          return loadTimeData.getBoolean(
+              'enableExperimentalWebPlatformFeatures');
+        },
+      },
+
+      enableHandTrackingContentSetting_: {
+        type: Boolean,
+        value: () => {
+          return loadTimeData.getBoolean('enableHandTrackingContentSetting');
+        },
+      },
+
       enableIncognitoTrackingProtections_: {
         type: Boolean,
         value: () =>
             loadTimeData.getBoolean('enableIncognitoTrackingProtections'),
       },
 
+      enablePaymentHandlerContentSetting_: {
+        type: Boolean,
+        value: () => {
+          return loadTimeData.getBoolean('enablePaymentHandlerContentSetting');
+        },
+      },
+
       enableSecurityKeysSubpage_: {
         type: Boolean,
         readOnly: true,
-        value: () => {
-          return loadTimeData.getBoolean('enableSecurityKeysSubpage');
-        },
+        value: () => loadTimeData.getBoolean('enableSecurityKeysSubpage'),
       },
 
       enableKeyboardLockPrompt_: {
@@ -98,14 +128,19 @@ export class SettingsPrivacyPageIndexElement extends
         value: () => loadTimeData.getBoolean('enableKeyboardLockPrompt'),
       },
 
+      enableLocalNetworkAccessSetting_: {
+        type: Boolean,
+        value: () => loadTimeData.getBoolean('enableLocalNetworkAccessSetting'),
+      },
+
       enableWebAppInstallation_: {
         type: Boolean,
         value: () => loadTimeData.getBoolean('enableWebAppInstallation'),
       },
 
-      enableLocalNetworkAccessSetting_: {
+      enableWebPrintingContentSetting_: {
         type: Boolean,
-        value: () => loadTimeData.getBoolean('enableLocalNetworkAccessSetting'),
+        value: () => loadTimeData.getBoolean('enableWebPrintingContentSetting'),
       },
 
       isAdPrivacyAvailable_: {
@@ -136,11 +171,17 @@ export class SettingsPrivacyPageIndexElement extends
   declare private pageVisibility_: PageVisibility;
   declare private routes_: SettingsRoutes;
   declare private showPrivacyGuidePromo_: boolean;
+  declare private autoPictureInPictureEnabled_: boolean;
+  declare private capturedSurfaceControlEnabled_: boolean;
+  declare private enableExperimentalWebPlatformFeatures_: boolean;
+  declare private enableHandTrackingContentSetting_: boolean;
   declare private enableIncognitoTrackingProtections_: boolean;
   declare private enableKeyboardLockPrompt_: boolean;
   declare private enableLocalNetworkAccessSetting_: boolean;
+  declare private enablePaymentHandlerContentSetting_: boolean;
   declare private enableSecurityKeysSubpage_: boolean;
   declare private enableWebAppInstallation_: boolean;
+  declare private enableWebPrintingContentSetting_: boolean;
   declare private isAdPrivacyAvailable_: boolean;
   declare private isPrivacySandboxRestricted_: boolean;
 
@@ -169,8 +210,9 @@ export class SettingsPrivacyPageIndexElement extends
     return defaultViews;
   }
 
-  private isNonMigratedPrivacyRoute_(route: Route): boolean {
-    return routes.PRIVACY.contains(route) && !route.hasMigratedToPlugin;
+  private isPrivacyRoute_(route: Route, hasMigratedToPlugin: boolean): boolean {
+    return routes.PRIVACY.contains(route) &&
+        (route.hasMigratedToPlugin === hasMigratedToPlugin);
   }
 
   private getViewIdsForRoute_(route: Route): string[] {
@@ -189,60 +231,19 @@ export class SettingsPrivacyPageIndexElement extends
         // Display the default views if in search mode, since they could be part
         // of search results.
         return this.inSearchMode ? this.getDefaultViews_() : [];
-      case routes.COOKIES:
-        return ['cookies'];
-      case routes.INCOGNITO_TRACKING_PROTECTIONS:
-        assert(this.enableIncognitoTrackingProtections_);
-        return ['incognitoTrackingProtections'];
-      case routes.SECURITY_KEYS:
-        assert(this.enableSecurityKeysSubpage_);
-        return ['securityKeys'];
-      case routes.SITE_SETTINGS:
-        return ['siteSettings'];
-      case routes.SITE_SETTINGS_AUTOMATIC_FULLSCREEN:
-        return ['siteSettingsAutomaticFullscreen'];
-      case routes.SITE_SETTINGS_HANDLERS:
-        return ['siteSettingsHandlers'];
-      case routes.SITE_SETTINGS_KEYBOARD_LOCK:
-        assert(this.enableKeyboardLockPrompt_);
-        return ['siteSettingsKeyboardLock'];
-      case routes.SITE_SETTINGS_LOCAL_NETWORK_ACCESS:
-        assert(this.enableLocalNetworkAccessSetting_);
-        return ['siteSettingsLocalNetworkAccess'];
-      case routes.SITE_SETTINGS_LOCATION:
-        return ['siteSettingsLocation'];
-      case routes.SITE_SETTINGS_NOTIFICATIONS:
-        return ['siteSettingsNotifications'];
-      case routes.SITE_SETTINGS_PDF_DOCUMENTS:
-        return ['siteSettingsPdfDocuments'];
-      case routes.SITE_SETTINGS_SITE_DATA:
-        return ['siteSettingsSiteData'];
-      case routes.SITE_SETTINGS_WEB_APP_INSTALLATION:
-        assert(this.enableWebAppInstallation_);
-        return ['siteSettingsWebAppInstallation'];
-      case routes.SITE_SETTINGS_ZOOM_LEVELS:
-        return ['siteSettingsZoomLevels'];
-      case routes.SAFETY_HUB:
-        return ['safetyHub'];
-      case routes.PRIVACY_SANDBOX:
-        assert(this.isAdPrivacyAvailable_);
-        return ['privacySandbox'];
-      case routes.PRIVACY_SANDBOX_TOPICS:
-        assert(!this.isPrivacySandboxRestricted_);
-        return ['privacySandboxTopics'];
-      case routes.PRIVACY_SANDBOX_MANAGE_TOPICS:
-        assert(!this.isPrivacySandboxRestricted_);
-        return ['privacySandboxManageTopics'];
-      case routes.PRIVACY_SANDBOX_FLEDGE:
-        assert(!this.isPrivacySandboxRestricted_);
-        return ['privacySandboxFledge'];
-      case routes.PRIVACY_SANDBOX_AD_MEASUREMENT:
-        assert(this.isAdPrivacyAvailable_);
-        return ['privacySandboxAdMeasurement'];
       default: {
-        if (this.isNonMigratedPrivacyRoute_(route)) {
-          // Handle case where Privacy child route has not migrated to the new
-          // architecture.
+        // Handle case where Privacy child route has migrated to the new
+        // architecture.
+        if (this.isPrivacyRoute_(route, /*hasMigratedToPlugin*/ true)) {
+          const view = this.$.viewManager.querySelector(
+              `[slot='view'][route-path='${route.path}']`);
+          assert(view);
+          return [view.id];
+        }
+
+        // Handle case where Privacy child route has not migrated to the new
+        // architecture.
+        if (this.isPrivacyRoute_(route, /*hasMigratedToPlugin*/ false)) {
           return ['old'];
         }
 
@@ -323,7 +324,8 @@ export class SettingsPrivacyPageIndexElement extends
 
     return this.inSearchMode ||
         (!!this.currentRoute &&
-         this.isNonMigratedPrivacyRoute_(this.currentRoute));
+         this.isPrivacyRoute_(
+             this.currentRoute, /*hasMigratedToPlugin*/ false));
   }
 
   private updatePrivacyGuidePromoVisibility_() {

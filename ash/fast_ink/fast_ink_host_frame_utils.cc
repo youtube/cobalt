@@ -40,11 +40,10 @@ std::unique_ptr<UiResource> AcquireUiResource(
     gpu::Mailbox mailbox,
     gpu::SyncToken sync_token) {
   CHECK(!mailbox.IsZero());
-  viz::ResourceId reusable_resource_id = resource_manager->FindResourceToReuse(
+  std::unique_ptr<UiResource> resource = resource_manager->GetResourceToReuse(
       size, kFastInkSharedImageFormat, kFastInkUiSourceId);
-  std::unique_ptr<UiResource> resource;
-  if (reusable_resource_id != viz::kInvalidResourceId) {
-    resource = resource_manager->ReleaseAvailableResource(reusable_resource_id);
+
+  if (resource) {
     CHECK(mailbox == resource->mailbox());
   } else {
     resource = CreateUiResource(size, kFastInkUiSourceId, is_overlay_candidate,
@@ -186,10 +185,8 @@ std::unique_ptr<viz::CompositorFrame> CreateCompositorFrame(
     resource->damaged = false;
   }
 
-  viz::ResourceId frame_resource_id =
-      resource_manager->OfferResource(std::move(resource));
   viz::TransferableResource transferable_resource =
-      resource_manager->PrepareResourceForExport(frame_resource_id);
+      resource_manager->OfferAndPrepareResourceForExport(std::move(resource));
 
   gfx::Transform target_to_buffer_transform(window_to_buffer_transform);
   target_to_buffer_transform.Scale(1.f / device_scale_factor,

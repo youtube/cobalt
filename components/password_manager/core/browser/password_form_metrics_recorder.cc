@@ -71,12 +71,6 @@ PasswordFormMetricsRecorder::BubbleDismissalReason GetBubbleDismissalReason(
       break;
 
     // These should not reach here:
-    case metrics_util::CLICKED_DONE_OBSOLETE:
-    case metrics_util::CLICKED_OK_OBSOLETE:
-    case metrics_util::CLICKED_UNBLOCKLIST_OBSOLETE:
-    case metrics_util::CLICKED_CREDENTIAL_OBSOLETE:
-    case metrics_util::AUTO_SIGNIN_TOAST_CLICKED_OBSOLETE:
-    case metrics_util::CLICKED_BRAND_NAME_OBSOLETE:
     case metrics_util::NUM_UI_RESPONSES:
     case metrics_util::CLICKED_ABOUT_PASSWORD_CHANGE:
       NOTREACHED();
@@ -379,8 +373,6 @@ PasswordFormMetricsRecorder::~PasswordFormMetricsRecorder() {
         ukm_entry_builder_.SetUser_Action_CorrectedUsernameInForm(
             action.second);
         break;
-      case DetailedUserAction::kObsoleteTriggeredManualFallbackForUpdating:
-        NOTREACHED();
     }
   }
 
@@ -572,11 +564,6 @@ void PasswordFormMetricsRecorder::MarkGenerationAvailable() {
 void PasswordFormMetricsRecorder::SetGeneratedPasswordStatus(
     GeneratedPasswordStatus status) {
   generated_password_status_ = status;
-}
-
-void PasswordFormMetricsRecorder::SetManagerAction(
-    ManagerAction manager_action) {
-  manager_action_ = manager_action;
 }
 
 void PasswordFormMetricsRecorder::LogSubmitPassed() {
@@ -1142,8 +1129,6 @@ void PasswordFormMetricsRecorder::RecordPasswordBubbleShown(
       break;
 
     // Other reasons to show a bubble:
-    // TODO(crbug.com/40123456): Decide how to collect metrics for this new UI.
-    case metrics_util::AUTOMATIC_SAVE_UNSYNCED_CREDENTIALS_LOCALLY:
     case metrics_util::MANUAL_MANAGE_PASSWORDS:
     case metrics_util::AUTOMATIC_GENERATED_PASSWORD_CONFIRMATION:
     case metrics_util::MANUAL_GENERATED_PASSWORD_CONFIRMATION:
@@ -1170,9 +1155,6 @@ void PasswordFormMetricsRecorder::RecordPasswordBubbleShown(
       // Do nothing.
       return;
 
-    // Obsolete display dispositions:
-    case metrics_util::MANUAL_BLOCKLISTED_OBSOLETE:
-    case metrics_util::AUTOMATIC_CREDENTIAL_REQUEST_OBSOLETE:
     case metrics_util::NUM_DISPLAY_DISPOSITIONS:
       NOTREACHED();
   }

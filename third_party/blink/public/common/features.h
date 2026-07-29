@@ -42,6 +42,12 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
 // Avoids copying ResourceRequest::TrustedParams when possible.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kAvoidTrustedParamsCopies);
 
+// Sends touch moves async once the scroll has already started. This means the
+// generation of GestureScrollUpdate is not blocked on touch moves being handled
+// by RendererMain.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
+    kAsyncTouchMovesImmediatelyAfterScroll);
+
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kLowerHighResolutionTimerThreshold);
 
 // Allows running DevTools main thread debugger even when a renderer process
@@ -737,12 +743,6 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
 // Design Doc: https://bit.ly/chromium-keepalive-migration
 // Tracker: https://crbug.com/1356128
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kKeepAliveInBrowserMigration);
-
-// Enables attribution reporting to be proxied via the browser process using the
-// same path as other fetch keepalive requests.
-// See https://crbug.com/1374121.
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
-    kAttributionReportingInBrowserMigration);
 
 // Enables changing the influence of acceleration based on change of direction.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kKalmanHeuristics);
@@ -1682,6 +1682,10 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
     bool,
     kServiceWorkerSyntheticResponseReportInconsistentHeader);
+
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    bool,
+    kServiceWorkerSyntheticResponseDryRun);
 
 // 'Mode' parameter for blink::features::kSoftNavigationHeuristics.
 enum class SoftNavigationHeuristicsMode : uint8_t {

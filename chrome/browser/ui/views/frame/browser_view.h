@@ -53,7 +53,7 @@
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/mojom/window_show_state.mojom-forward.h"
 #include "ui/base/pointer/touch_ui_controller.h"
-#include "ui/gfx/native_window_types.h"
+#include "ui/gfx/native_ui_types.h"
 #include "ui/views/controls/button/button.h"
 #include "ui/views/controls/webview/unhandled_keyboard_event_handler.h"
 #include "ui/views/widget/widget_delegate.h"
@@ -90,6 +90,7 @@ class TopContainerLoadingBar;
 class TopContainerView;
 class TopControlsSlideController;
 class TopControlsSlideControllerTest;
+class VerticalTabStripRegionView;
 class WebAppFrameToolbarView;
 class WebUITabStripContainerView;
 
@@ -140,18 +141,18 @@ class BrowserView : public BrowserWindow,
   // The width of the vertical tab strip.
   static constexpr int kVerticalTabStripWidth = 240;
 
-  explicit BrowserView(std::unique_ptr<Browser> browser);
+  explicit BrowserView(Browser* browser);
   BrowserView(const BrowserView&) = delete;
   BrowserView& operator=(const BrowserView&) = delete;
   ~BrowserView() override;
 
-  void set_frame(BrowserFrame* frame) {
-    frame_ = frame;
+  void set_frame(std::unique_ptr<BrowserFrame> frame) {
+    frame_ = std::move(frame);
     paint_as_active_subscription_ =
         frame_->RegisterPaintAsActiveChangedCallback(base::BindRepeating(
             &BrowserView::PaintAsActiveChanged, base::Unretained(this)));
   }
-  BrowserFrame* frame() const { return frame_; }
+  BrowserFrame* frame() const { return frame_.get(); }
 
   // Returns a pointer to the BrowserView* interface implementation (an
   // instance of this object, typically) for a given native window, or null if
@@ -162,7 +163,8 @@ class BrowserView : public BrowserWindow,
   static BrowserView* GetBrowserViewForNativeWindow(gfx::NativeWindow window);
 
   // Returns the BrowserView used for the specified Browser.
-  static BrowserView* GetBrowserViewForBrowser(const Browser* browser);
+  static BrowserView* GetBrowserViewForBrowser(
+      const BrowserWindowInterface* browser);
 
   // After calling RevealTabStripIfNeeded(), there is normally a delay before
   // the tabstrip is hidden. Tests can use this function to disable that delay
@@ -172,8 +174,8 @@ class BrowserView : public BrowserWindow,
   bool IsLoadingAnimationRunning() const;
 
   // Returns a Browser instance of this view.
-  Browser* browser() { return browser_.get(); }
-  const Browser* browser() const { return browser_.get(); }
+  Browser* browser() { return browser_; }
+  const Browser* browser() const { return browser_; }
 
   const TopControlsSlideController* top_controls_slide_controller() const {
     return top_controls_slide_controller_.get();
@@ -252,6 +254,10 @@ class BrowserView : public BrowserWindow,
 
   TabStripRegionView* tab_strip_region_view() const {
     return tab_strip_region_view_;
+  }
+
+  VerticalTabStripRegionView* vertical_tab_strip_region_view() const {
+    return vertical_tab_strip_container_;
   }
 
   // Accessor for the TabStrip.
@@ -489,6 +495,7 @@ class BrowserView : public BrowserWindow,
       BookmarkBar::AnimateChangeType change_type) override;
   void TemporarilyShowBookmarkBar(base::TimeDelta duration) override;
   void UpdateDevTools(content::WebContents* inspected_web_contents) override;
+  bool CanDockDevTools() const override;
   void UpdateLoadingAnimations(bool is_visible) override;
   void SetStarredState(bool is_starred) override;
   void OnActiveTabChanged(content::WebContents* old_contents,
@@ -545,7 +552,6 @@ class BrowserView : public BrowserWindow,
   void FocusInactivePopupForAccessibility() override;
   void RotatePaneFocus(bool forwards) override;
   void FocusWebContentsPane() override;
-  void DestroyBrowser() override;
   bool IsBookmarkBarVisible() const override;
   bool IsBookmarkBarAnimating() const override;
   bool IsTabStripEditable() const override;
@@ -746,6 +752,9 @@ class BrowserView : public BrowserWindow,
   bool AreDropTypesRequired() override;
   bool CanDrop(const ui::OSExchangeData& data) override;
   void OnDragEntered(const ui::DropTargetEvent& event) override;
+  View* GetViewByElementId(ui::ElementIdentifier element_id) override;
+  const View* GetViewByElementId(
+      ui::ElementIdentifier element_id) const override;
 
   // ui::AcceleratorTarget:
   bool AcceleratorPressed(const ui::Accelerator& accelerator) override;
@@ -868,6 +877,10 @@ class BrowserView : public BrowserWindow,
 
   bool IsTrustedPinned() const;
 #endif
+
+ protected:
+  // BrowserWindow:
+  void DeleteBrowserWindow() final;
 
  private:
   // Do not friend BrowserViewLayout. Use the BrowserViewLayoutDelegate
@@ -1097,11 +1110,11 @@ class BrowserView : public BrowserWindow,
   bool ShouldUseBrowserContentMinimumSize() const;
   bool IsBrowserAWebApp() const;
 
-  // The BrowserFrame that hosts this view.
-  raw_ptr<BrowserFrame> frame_ = nullptr;
+  // The BrowserFrame that owns this view.
+  std::unique_ptr<BrowserFrame> frame_;
 
-  // The Browser object we are associated with.
-  std::unique_ptr<Browser> browser_;
+  // The owning Browser object. `browser_` will outlive this.
+  const raw_ptr<Browser> browser_;
 
   base::CallbackListSubscription chip_visibility_subscription_;
 
@@ -1185,7 +1198,11 @@ class BrowserView : public BrowserWindow,
   std::unique_ptr<TabSearchBubbleHost> tab_search_bubble_host_;
 
   // Separator between top container and contents.
-  raw_ptr<views::View> contents_separator_ = nullptr;
+  // Note: when `SideBySide` feature is disabled, this separator is also
+  // used when not in `TopContainerOverlayView. Once the feature is fully
+  // rolled out, we can rely on `MultiContentsView` to manage the contents
+  // separator when not overlaid (i.e. no immersive fullscreen).
+  raw_ptr<views::View> top_container_separator_ = nullptr;
 
   // Loading bar (part of top container for / WebUI tab strip).
   raw_ptr<TopContainerLoadingBar> loading_bar_ = nullptr;
@@ -1217,13 +1234,16 @@ class BrowserView : public BrowserWindow,
   raw_ptr<ContentsContainerView> contents_container_view_ = nullptr;
 
   // The view responsible for housing the contents of the vertical tab strip.
-  raw_ptr<views::View> vertical_tab_strip_container_ = nullptr;
+  raw_ptr<VerticalTabStripRegionView> vertical_tab_strip_container_ = nullptr;
 
   // The side panel aligned to the left or the right side of the browser window
   // depending on the kSidePanelHorizontalAlignment pref's value.
   // Conceptually this member should exist if and only if the
   // side_panel_coordinator is created.
   raw_ptr<SidePanel> unified_side_panel_ = nullptr;
+
+  // These are only non-null when the `SideBySide` feature is disabled.
+  // Otherwise, `multi_contents_view_` will create its own separators.
   raw_ptr<views::View> right_aligned_side_panel_separator_ = nullptr;
   raw_ptr<views::View> left_aligned_side_panel_separator_ = nullptr;
   raw_ptr<views::View> side_panel_rounded_corner_ = nullptr;

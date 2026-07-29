@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#define TODO_BASE_FEATURE_MACROS_NEED_MIGRATION
+
 #import "ios/chrome/browser/shared/model/profile/features.h"
 
 #import "base/check_is_test.h"
@@ -47,16 +49,6 @@ bool DetermineHasMultipleProfiles() {
 }  // namespace
 
 bool AreSeparateProfilesForManagedAccountsEnabled() {
-  // The APIs to support multiple profiles are only available in iOS 17+, so
-  // consider this feature as disabled in earlier versions.
-  if (!@available(iOS 17, *)) {
-    return false;
-  }
-  // If the killswitch has been triggered, it's off.
-  if (base::FeatureList::IsEnabled(
-          kSeparateProfilesForManagedAccountsKillSwitch)) {
-    return false;
-  }
   // Standard case: Check the regular feature flag.
   if (base::FeatureList::IsEnabled(kSeparateProfilesForManagedAccounts)) {
     return true;
@@ -66,13 +58,6 @@ bool AreSeparateProfilesForManagedAccountsEnabled() {
   // profiles remain accessible.
   static const bool has_multiple_profiles = DetermineHasMultipleProfiles();
   return has_multiple_profiles;
-}
-
-bool IsIdentityDiscAccountMenuEnabled() {
-  if (AreSeparateProfilesForManagedAccountsEnabled()) {
-    return true;
-  }
-  return base::FeatureList::IsEnabled(kIdentityDiscAccountMenu);
 }
 
 bool IsMultiProfilePushNotificationHandlingEnabled() {

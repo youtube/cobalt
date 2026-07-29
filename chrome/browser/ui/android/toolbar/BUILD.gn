@@ -148,6 +148,7 @@ android_library("java") {
     "//base:service_loader_java",
     "//build/android:build_java",
     "//cc:cc_java",
+    "//chrome/android:chrome_app_java_resources",
     "//chrome/android/features/tab_ui/public:java",
     "//chrome/browser/android/lifecycle:java",
     "//chrome/browser/back_press/android:java",
@@ -244,6 +245,7 @@ android_library("java") {
     sources += [
       "java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionButtonProperties.java",
       "java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionButtonViewBinder.java",
+      "java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionIconUtil.java",
       "java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionListContainer.java",
       "java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionListCoordinator.java",
       "java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionListMediator.java",
@@ -442,6 +444,7 @@ robolectric_library("junit") {
     "//base:base_junit_test_support",
     "//cc:cc_java",
     "//chrome/android:chrome_app_java_resources",
+    "//chrome/android/features/tab_ui/public:java",
     "//chrome/browser/android/lifecycle:java",
     "//chrome/browser/browser_controls/android:java",
     "//chrome/browser/feature_engagement:java",

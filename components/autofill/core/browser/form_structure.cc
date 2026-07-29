@@ -80,6 +80,7 @@
 #include "components/autofill/core/common/unique_ids.h"
 #include "components/security_state/core/security_state.h"
 #include "components/version_info/version_info.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "url/origin.h"
 
 namespace autofill {
@@ -87,12 +88,6 @@ namespace autofill {
 using mojom::SubmissionIndicatorEvent;
 
 namespace {
-
-// Returns true if the scheme given by |url| is one for which autofill is
-// allowed to activate. By default this only returns true for HTTP and HTTPS.
-bool HasAllowedScheme(const GURL& url) {
-  return url.SchemeIsHTTPOrHTTPS();
-}
 
 raw_ptr<const FormFieldData> to_form_field_data(
     const std::unique_ptr<AutofillField>& field) {
@@ -126,36 +121,6 @@ std::string AttributeTypesToString(base::span<const AttributeType> types) {
 
 std::string_view ToYesOrNo(bool value) {
   return value ? "Yes" : "No";
-}
-
-bool has_autocomplete(const std::unique_ptr<AutofillField>& field) {
-  return field->parsed_autocomplete().has_value();
-}
-
-bool is_password_field(const std::unique_ptr<AutofillField>& field) {
-  return field->form_control_type() == FormControlType::kInputPassword;
-}
-
-// A field is active if it contributes to the form signature and it is are
-// included in queries to the Autofill server.
-bool is_active(const AutofillField& field) {
-  return !IsCheckable(field.check_status());
-}
-
-// Returns true if at least `num` fields satisfy `p`.
-// This is useful if `num` is significantly smaller than `fields.size()` because
-// it may avoid iterating over all of `fields`. It's equivalent to
-// `std::range::count_if(fields, [](auto& f) { p(*f); }) >= num`.
-template <typename Predicate>
-bool AtLeastNumSatisfy(base::span<const std::unique_ptr<AutofillField>> fields,
-                       size_t num,
-                       Predicate p) {
-  for (auto it = fields.begin(); it != fields.end() && num > 0; ++it) {
-    if (std::invoke(p, **it)) {
-      --num;
-    }
-  }
-  return num == 0;
 }
 
 }  // namespace
@@ -216,30 +181,6 @@ void FormStructure::DetermineFieldRanks() {
         rank_in_host_form_signature_group[std::make_pair(
             field->renderer_form_id(), field->GetFieldSignature())]++);
   }
-}
-
-void FormStructure::DetermineHeuristicTypes(
-    const GeoIpCountryCode& client_country,
-    const LanguageCode& current_page_language,
-    LogManager* log_manager) {
-  SCOPED_UMA_HISTOGRAM_TIMER("Autofill.Timing.DetermineHeuristicTypes");
-
-  const LanguageCode& page_language =
-      base::FeatureList::IsEnabled(features::kAutofillPageLanguageDetection)
-          ? current_page_language
-          : LanguageCode();
-  ParsingContext context(base::ToVector(fields_, &to_form_field_data),
-                         client_country, page_language,
-#if BUILDFLAG(USE_INTERNAL_AUTOFILL_PATTERNS)
-                         PatternFile::kDefault,
-#else
-                         PatternFile::kLegacy,
-#endif
-                         GetActiveRegexFeatures(), log_manager);
-  FieldCandidatesMap regex_predictions = ParseFieldTypesWithPatterns(context);
-  AssignBestFieldTypes(regex_predictions, HeuristicSource::kRegexes);
-  RationalizeAndAssignSections(client_country, current_page_language,
-                               log_manager);
 }
 
 void FormStructure::RationalizeAndAssignSections(
@@ -407,15 +348,6 @@ std::string FormStructure::FormSignatureAsStr() const {
   return base::NumberToString(form_signature().value());
 }
 
-bool FormStructure::IsAutofillable() const {
-  size_t min_required_fields =
-      std::min({kMinRequiredFieldsForHeuristics, kMinRequiredFieldsForQuery,
-                kMinRequiredFieldsForUpload});
-  return AtLeastNumSatisfy(fields_, min_required_fields,
-                           &AutofillField::IsFieldFillable) &&
-         ShouldBeParsed();
-}
-
 bool FormStructure::IsCompleteCreditCardForm(
     CreditCardFormCompleteness credit_card_form_completeness) const {
   FieldTypeSet all_cc_types = FieldTypeSet(fields_, [](const auto& field) {
@@ -441,121 +373,6 @@ bool FormStructure::IsCompleteCreditCardForm(
              found_cc_name;
     }
   }
-}
-
-bool FormStructure::ShouldBeParsed(ShouldBeParsedParams params,
-                                   LogManager* log_manager) const {
-  // Exclude URLs not on the web via HTTP(S).
-  if (!HasAllowedScheme(source_url_)) {
-    LOG_AF(log_manager) << LoggingScope::kAbortParsing
-                        << LogMessage::kAbortParsingNotAllowedScheme << *this;
-    return false;
-  }
-
-  if (!AtLeastNumSatisfy(fields(), params.min_required_fields, is_active) &&
-      (!AtLeastNumSatisfy(
-           fields(), params.required_fields_for_forms_with_only_password_fields,
-           is_active) ||
-       !std::ranges::all_of(fields_, is_password_field)) &&
-      std::ranges::none_of(fields_, has_autocomplete)) {
-    LOG_AF(log_manager) << LoggingScope::kAbortParsing
-                        << LogMessage::kAbortParsingNotEnoughFields
-                        << std::ranges::count_if(fields_,
-                                                 [](const auto& field) {
-                                                   return is_active(*field);
-                                                 })
-                        << *this;
-    return false;
-  }
-
-  // Rule out search forms.
-  if (MatchesRegex<kUrlSearchActionRe>(
-          base::UTF8ToUTF16(target_url_.path_piece()))) {
-    LOG_AF(log_manager) << LoggingScope::kAbortParsing
-                        << LogMessage::kAbortParsingUrlMatchesSearchRegex
-                        << *this;
-    return false;
-  }
-
-  bool has_text_field = std::ranges::any_of(
-      *this, [](const auto& field) { return !field->IsSelectElement(); });
-  if (!has_text_field) {
-    LOG_AF(log_manager) << LoggingScope::kAbortParsing
-                        << LogMessage::kAbortParsingFormHasNoTextfield << *this;
-  }
-  return has_text_field;
-}
-
-bool FormStructure::ShouldRunHeuristics() const {
-  return AtLeastNumSatisfy(fields(), kMinRequiredFieldsForHeuristics,
-                           is_active) &&
-         HasAllowedScheme(source_url_);
-}
-
-bool FormStructure::ShouldRunHeuristicsForSingleFields() const {
-  return AtLeastNumSatisfy(fields(), 1, is_active) &&
-         HasAllowedScheme(source_url_);
-}
-
-bool FormStructure::ShouldBeQueried() const {
-  return (AtLeastNumSatisfy(fields(), kMinRequiredFieldsForQuery, is_active) ||
-          std::ranges::any_of(fields_, is_password_field)) &&
-         ShouldBeParsed();
-}
-
-bool FormStructure::ShouldBeUploaded() const {
-  return AtLeastNumSatisfy(fields(), kMinRequiredFieldsForUpload, is_active) &&
-         ShouldBeParsed();
-}
-
-bool FormStructure::ShouldUploadUkm(bool require_classified_field) const {
-  if (!ShouldBeParsed()) {
-    return false;
-  }
-
-  auto is_focusable_text_field =
-      [](const std::unique_ptr<AutofillField>& field) {
-        return field->IsTextInputElement() && field->IsFocusable();
-      };
-
-  // Return true if the field is a visible text input field which has predicted
-  // types from heuristics or the server.
-  auto is_focusable_predicted_text_field =
-      [](const std::unique_ptr<AutofillField>& field) {
-        return field->IsTextInputElement() && field->IsFocusable() &&
-               ((field->server_type() != NO_SERVER_DATA &&
-                 field->server_type() != UNKNOWN_TYPE) ||
-                field->heuristic_type() != UNKNOWN_TYPE ||
-                field->html_type() != HtmlFieldType::kUnspecified);
-      };
-
-  size_t num_text_fields = std::ranges::count_if(
-      fields(), require_classified_field ? is_focusable_predicted_text_field
-                                         : is_focusable_text_field);
-  if (num_text_fields == 0) {
-    return false;
-  }
-
-  // If the form contains a single text field and this contains the string
-  // "search" in its name/id/placeholder, the function return false and the form
-  // is not recorded into UKM. The form is considered a search box.
-  if (num_text_fields == 1) {
-    auto it = std::ranges::find_if(
-        fields(), require_classified_field ? is_focusable_predicted_text_field
-                                           : is_focusable_text_field);
-    if (base::ToLowerASCII((*it)->placeholder()).find(u"search") !=
-            std::string::npos ||
-        base::ToLowerASCII((*it)->name()).find(u"search") !=
-            std::string::npos ||
-        base::ToLowerASCII((*it)->label()).find(u"search") !=
-            std::string::npos ||
-        base::ToLowerASCII((*it)->aria_label()).find(u"search") !=
-            std::string::npos) {
-      return false;
-    }
-  }
-
-  return true;
 }
 
 void FormStructure::RetrieveFromCache(const FormStructure& cached_form,
@@ -690,18 +507,6 @@ void FormStructure::RetrieveFromCache(const FormStructure& cached_form,
   may_run_autofill_ai_model_ = cached_form.may_run_autofill_ai_model_;
 }
 
-void FormStructure::LogDeveloperEngagementMetric() {
-  developer_engagement_metrics_ = 0;
-  if (IsAutofillable()) {
-    AutofillMetrics::DeveloperEngagementMetric metric =
-        std::ranges::any_of(fields_, has_autocomplete)
-            ? AutofillMetrics::FILLABLE_FORM_PARSED_WITH_TYPE_HINTS
-            : AutofillMetrics::FILLABLE_FORM_PARSED_WITHOUT_TYPE_HINTS;
-    developer_engagement_metrics_ |= 1 << metric;
-    AutofillMetrics::LogDeveloperEngagementMetric(metric);
-  }
-}
-
 void FormStructure::SetFieldTypesFromAutocompleteAttribute() {
   std::map<FieldSignature, size_t> field_rank_map;
   for (const std::unique_ptr<AutofillField>& field : fields_) {
@@ -728,76 +533,6 @@ void FormStructure::SetFieldTypesFromAutocompleteAttribute() {
         .html_mode = field->parsed_autocomplete()->mode,
         .rank_in_field_signature_group =
             field_rank_map[field->GetFieldSignature()],
-    });
-  }
-}
-
-// TODO(crbug.com/427787155): Move this function out of `FormStructure`.
-FieldCandidatesMap FormStructure::ParseFieldTypesWithPatterns(
-    ParsingContext& context) const {
-  FieldCandidatesMap field_type_map;
-
-  auto form_field_data_vector = base::ToVector(
-      fields_,
-      [](const auto& f) -> raw_ptr<const FormFieldData> { return f.get(); });
-  if (ShouldRunHeuristics()) {
-    FormFieldParser::ParseFormFields(context, form_field_data_vector,
-                                     field_type_map);
-  } else if (ShouldRunHeuristicsForSingleFields()) {
-    FormFieldParser::ParseSingleFields(context, form_field_data_vector,
-                                       field_type_map);
-    FormFieldParser::ParseStandaloneCVCFields(context, form_field_data_vector,
-                                              field_type_map);
-
-    // For standalone email fields, allow heuristics even when the minimum
-    // number of fields is not met. See similar comments in
-    // `FormFieldParser::ClearCandidatesIfHeuristicsDidNotFindEnoughFields`.
-    FormFieldParser::ParseStandaloneEmailFields(context, form_field_data_vector,
-                                                field_type_map);
-
-    // Try parsing standalone loyalty card fields after an attempt has been
-    // made to parse multi-purpose input fields e.g. email or loyalty number
-    // fields.
-    FormFieldParser::ParseStandaloneLoyaltyCardFields(
-        context, form_field_data_vector, field_type_map);
-  }
-  return field_type_map;
-}
-
-void FormStructure::AssignBestFieldTypes(
-    const FieldCandidatesMap& field_type_map,
-    HeuristicSource heuristic_source) {
-  if (field_type_map.empty()) {
-    return;
-  }
-
-  // Fields can share the same field signature. This map records for each
-  // signature how many fields with the same signature have been observed.
-  auto field_rank_map = base::MakeFlatMap<FieldSignature, size_t>(
-      fields_, std::less<>(), [](const std::unique_ptr<AutofillField>& field) {
-        return std::make_pair(field->GetFieldSignature(), 0);
-      });
-  for (const auto& field : fields_) {
-    auto iter = field_type_map.find(field->global_id());
-    if (iter == field_type_map.end()) {
-      continue;
-    }
-
-    const FieldCandidates& candidates = iter->second;
-    field->set_heuristic_type(heuristic_source, candidates.BestHeuristicType());
-    if (heuristic_source == GetActiveHeuristicSource()) {
-      autofill_metrics::LogLocalHeuristicMatchedAttribute(
-          candidates.BestHeuristicTypeReason());
-    }
-
-    const size_t field_rank = ++field_rank_map.at(field->GetFieldSignature());
-    // Log the field type predicted from local heuristics.
-    field->AppendLogEventIfNotRepeated(HeuristicPredictionFieldLogEvent{
-        .field_type = field->heuristic_type(heuristic_source),
-        .heuristic_source = heuristic_source,
-        .is_active_heuristic_source =
-            GetActiveHeuristicSource() == heuristic_source,
-        .rank_in_field_signature_group = field_rank,
     });
   }
 }

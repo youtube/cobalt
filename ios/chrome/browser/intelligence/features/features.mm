@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#define TODO_BASE_FEATURE_MACROS_NEED_MIGRATION
+
 #import "ios/chrome/browser/intelligence/features/features.h"
 
 #import "base/check.h"
@@ -69,12 +71,20 @@ BWGPromoConsentVariations BWGPromoConsentVariationsParam() {
   if (param == 4) {
     return BWGPromoConsentVariations::kForceFRE;
   }
+  if (param == 5) {
+    return BWGPromoConsentVariations::kSkipNewUserDelay;
+  }
   return BWGPromoConsentVariations::kDisabled;
 }
 
 bool ShouldForceBWGPromo() {
   return BWGPromoConsentVariationsParam() ==
          BWGPromoConsentVariations::kForceFRE;
+}
+
+bool ShouldSkipBWGPromoNewUserDelay() {
+  return BWGPromoConsentVariationsParam() ==
+         BWGPromoConsentVariations::kSkipNewUserDelay;
 }
 
 BASE_FEATURE(BWGPromoConsent, base::FEATURE_DISABLED_BY_DEFAULT);

@@ -26,6 +26,11 @@ namespace features {
 BASE_FEATURE(kSendEmptyGestureScrollUpdate,
              "SendEmptyGestureScrollUpdate",
              base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(bool,
+                   kSendEmptyGestureScrollUpdateFilterOutEmptyUpdates,
+                   &kSendEmptyGestureScrollUpdate,
+                   "filter_out_empty_updates",
+                   false);
 
 #if BUILDFLAG(IS_WIN)
 // If enabled, calculate native window occlusion - Windows-only.
@@ -265,7 +270,7 @@ bool IsTouchTextEditingRedesignEnabled() {
 // This feature enables drag and drop using touch input devices.
 BASE_FEATURE(kTouchDragAndDrop,
              "TouchDragAndDrop",
-#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_WIN)
              base::FEATURE_ENABLED_BY_DEFAULT
 #else
              base::FEATURE_DISABLED_BY_DEFAULT

@@ -22,6 +22,7 @@
 #include "google_apis/google_api_keys.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
+#include "net/http/http_response_headers.h"
 #include "services/data_decoder/public/cpp/data_decoder.h"
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
@@ -198,8 +199,7 @@ std::string ConvertSearchRequestToJson(
     requested_results += kExtraItemsInRawResponse;
   }
   request_dict.Set("max_results", base::NumberToString(requested_results));
-  std::string request_content;
-  base::JSONWriter::Write(request_dict, &request_content);
+  std::string request_content = base::WriteJson(request_dict).value_or("");
   VLOG(2) << request_content;
   return request_content;
 }
