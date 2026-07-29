@@ -258,36 +258,49 @@ def _extract_flag_key(arg: str) -> str:
     return arg.split("=", 1)[0].split()[0]
 
 
-def remove_duplicate_sb_args(cobalt_json_args: List[str], override_args: List[str]) -> List[str]:
-    """Filters pre-existing flags from cobalt_json_args whose keys are overridden by override_args.
-
-    Handles inline equals ('--foo=val'), single-string space ('--foo val'),
-    valueless/boolean flags ('--foo'), and two-item space-separated ('--foo', 'val').
-    """
+def _filter_args_by_keys(base_args: List[str], override_args: List[str]) -> List[str]:
+    """Filters flags from base_args whose option keys match any flag in override_args."""
     override_keys = set()
     for arg in override_args:
         if arg.startswith("--"):
             override_keys.add(_extract_flag_key(arg))
 
-    filtered_cobalt_json_args = []
+    filtered_args = []
     i = 0
-    while i < len(cobalt_json_args):
-        arg = cobalt_json_args[i]
+    while i < len(base_args):
+        arg = base_args[i]
         if arg.startswith("--"):
             key = _extract_flag_key(arg)
             if key in override_keys:
                 # Key is overridden by override_args. Skip this flag.
-                # If value was in separate argument item (no '=' or space in arg),
-                # skip the next argument item too if it's a non-flag value.
-                if "=" not in arg and " " not in arg and (i + 1 < len(cobalt_json_args)) and not cobalt_json_args[i + 1].startswith("--"):
+                if "=" not in arg and " " not in arg and (i + 1 < len(base_args)) and not base_args[i + 1].startswith("--"):
                     i += 1  # Skip space-separated value item
             else:
-                filtered_cobalt_json_args.append(arg)
+                filtered_args.append(arg)
         else:
-            filtered_cobalt_json_args.append(arg)
+            filtered_args.append(arg)
         i += 1
 
-    return filtered_cobalt_json_args + override_args
+    return filtered_args
+
+
+def remove_duplicate_sb_args(
+    cobalt_json_args: List[str],
+    script_args: Optional[List[str]] = None,
+    user_override_args: Optional[List[str]] = None,
+) -> List[str]:
+    """Combines cobalt_json_args, script_args, and user_override_args with key deduplication.
+
+    Precedence order (highest to lowest):
+      1. user_override_args (passed via --param)
+      2. script_args (script-added flags e.g. --remote-debugging-port=9222)
+      3. cobalt_json_args (pre-existing flags from WPEFramework cobalt.json / sbmainargs)
+    """
+    script_args = script_args or []
+    user_override_args = user_override_args or []
+
+    override_args = _filter_args_by_keys(script_args, user_override_args) + user_override_args
+    return _filter_args_by_keys(cobalt_json_args, override_args) + override_args
 
 
 def launch_on_device(
@@ -358,9 +371,10 @@ def launch_on_device(
                     script_args.append("--remote-debugging-port=9222")
 
                 user_override_args = param if param else []
-                override_args = remove_duplicate_sb_args(script_args, user_override_args)
 
-                config["sbmainargs"] = remove_duplicate_sb_args(cobalt_json_args, override_args)
+                config["sbmainargs"] = remove_duplicate_sb_args(
+                    cobalt_json_args, script_args, user_override_args
+                )
 
                 # Set configuration
                 rpc_set_config = json.dumps({

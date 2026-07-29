@@ -619,6 +619,20 @@ class TestRemoveDuplicateSbArgs(unittest.TestCase):
         override_args = deploy_rdk.remove_duplicate_sb_args(script_args, user_override_args)
         self.assertEqual(override_args, ["--remote-debugging-port=9999"])
 
+    def test_three_arg_precedence(self):
+        """Verifies remove_duplicate_sb_args correctly deduplicates across all 3 argument sources."""
+        cobalt_json_args = ["--v=1", "--remote-debugging-port=8080", "--url=https://old.com"]
+        script_args = ["--remote-debugging-port=9222"]
+        user_override_args = ["--remote-debugging-port=9999", "--enable-heap-profiling"]
+
+        result = deploy_rdk.remove_duplicate_sb_args(
+            cobalt_json_args, script_args, user_override_args
+        )
+        self.assertEqual(
+            result,
+            ["--v=1", "--url=https://old.com", "--remote-debugging-port=9999", "--enable-heap-profiling"]
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
