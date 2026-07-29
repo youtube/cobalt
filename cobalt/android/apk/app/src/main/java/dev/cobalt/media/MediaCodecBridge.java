@@ -40,9 +40,8 @@ import dev.cobalt.media.MediaCodecFrameRateEstimator.FrameRateEstimator;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.SynchronizedHolder;
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.Locale;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
@@ -212,14 +211,21 @@ class MediaCodecBridge {
       this.colorRange = colorRange;
       this.colorStandard = colorStandard;
       this.colorTransfer = colorTransfer;
-      this.hdrStaticInfo = MediaCodecUtil.getHdrStaticInfo(
-          primaryRChromaticityX,
-          primaryRChromaticityY,
-          primaryGChromaticityX,
-          primaryGChromaticityY, primaryBChromaticityX,
-          primaryBChromaticityY, whitePointChromaticityX,
-          whitePointChromaticityY, maxMasteringLuminance,
-          minMasteringLuminance, maxCll, maxFall, forceBigEndianHdrMetadata);
+      hdrStaticInfo =
+          MediaCodecUtil.getHdrStaticInfo(
+              primaryRChromaticityX,
+              primaryRChromaticityY,
+              primaryGChromaticityX,
+              primaryGChromaticityY,
+              primaryBChromaticityX,
+              primaryBChromaticityY,
+              whitePointChromaticityX,
+              whitePointChromaticityY,
+              maxMasteringLuminance,
+              minMasteringLuminance,
+              maxCll,
+              maxFall,
+              forceBigEndianHdrMetadata);
     }
   }
 

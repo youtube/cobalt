@@ -588,7 +588,6 @@ public class BaseStarboardBridge {
     return mAudioOutputManager;
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   ExoPlayerManager getExoPlayerManager() {
     return mExoPlayerManager;

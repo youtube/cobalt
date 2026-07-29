@@ -22,7 +22,13 @@ import androidx.media3.decoder.DecoderInputBuffer;
 import androidx.media3.exoplayer.FormatHolder;
 import androidx.media3.exoplayer.source.SampleStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 
+/**
+ * A custom {@link SampleStream} that interfaces with the native Cobalt C++ layer to provide media
+ * samples to ExoPlayer. It pulls data from the native queues and handles memory allocation for
+ * zero-copy JNI transfer.
+ */
 public class ExoPlayerSampleStream implements SampleStream {
   // Custom signal from native indicating the buffer requires allocation before reading data.
   private static final int RESULT_NEEDS_ALLOCATION = -6;
@@ -46,14 +52,27 @@ public class ExoPlayerSampleStream implements SampleStream {
     }
   }
 
+  /** Returns whether data is available to be read. */
   @Override
   public boolean isReady() {
     return mBridge.isReady(mType);
   }
 
+  /**
+   * Throws an error that's preventing data from being read. Does nothing if no such error exists.
+   */
   @Override
   public void maybeThrowError() throws IOException {}
 
+  /**
+   * Reads from the stream.
+   *
+   * @param formatHolder A {@link FormatHolder} to populate in the case of reading a format.
+   * @param buffer A {@link DecoderInputBuffer} to populate in the case of reading a sample or the
+   *     end of the stream.
+   * @param readFlags Flags controlling the behavior of this read operation.
+   * @return The result of the read operation.
+   */
   @Override
   public int readData(
       @NonNull FormatHolder formatHolder, @NonNull DecoderInputBuffer buffer, int readFlags) {
@@ -67,7 +86,10 @@ public class ExoPlayerSampleStream implements SampleStream {
 
     if (result == RESULT_NEEDS_ALLOCATION) {
       int size = (int) mMetadata[1];
-      buffer.data = java.nio.ByteBuffer.allocateDirect(size);
+      // Cobalt's JNI layer strictly requires zero-copy DirectByteBuffers.
+      // We don't call buffer.ensureSpaceForWrite(size) here, as it may allocate
+      // standard Java heap buffers which are rejected by the C++ bridge.
+      buffer.data = ByteBuffer.allocateDirect(size);
       result = mBridge.readSample(mType, buffer.data, mMetadata);
     }
 
@@ -91,6 +113,12 @@ public class ExoPlayerSampleStream implements SampleStream {
     return result;
   }
 
+  /**
+   * Attempts to skip to the keyframe before the specified position.
+   *
+   * @param positionUs The specified time.
+   * @return The number of messages that were skipped.
+   */
   @Override
   public int skipData(long positionUs) {
     return mBridge.skipData(mType, positionUs);

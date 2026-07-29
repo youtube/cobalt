@@ -15,6 +15,7 @@
 package dev.cobalt.media;
 
 import static dev.cobalt.media.Log.TAG;
+import static dev.cobalt.media.MediaCodecUtil.getHdrStaticInfo;
 
 import android.content.Context;
 import android.view.Surface;
@@ -253,7 +254,7 @@ public class ExoPlayerManager {
 
     if (isHdr) {
       ByteBuffer staticInfo =
-          dev.cobalt.media.MediaCodecUtil.getHdrStaticInfo(
+          getHdrStaticInfo(
               primaryRChromaticityX,
               primaryRChromaticityY,
               primaryGChromaticityX,
