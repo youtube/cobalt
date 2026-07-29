@@ -13,14 +13,13 @@ source_set("browser") {
     "data_controls_dialog_factory.h",
     "last_replaced_clipboard_data.cc",
     "last_replaced_clipboard_data.h",
-    "reporting_service_base.h",
-    "reporting_service_base_factory.h",
   ]
   deps = [
     "//components/enterprise/data_controls/core/browser",
     "//components/enterprise/data_controls/core/browser:features",
     "//components/prefs",
     "//content/public/browser/",
+    "//ui/base/clipboard",
   ]
 }
 

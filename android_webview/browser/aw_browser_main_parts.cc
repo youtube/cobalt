@@ -18,13 +18,14 @@
 #include "android_webview/browser/metrics/memory_metrics_logger.h"
 #include "android_webview/browser/metrics/system_state_util.h"
 #include "android_webview/browser/network_service/aw_network_change_notifier_factory.h"
+#include "android_webview/common/aw_cached_flags.h"
 #include "android_webview/common/aw_descriptors.h"
 #include "android_webview/common/aw_paths.h"
 #include "android_webview/common/aw_resource.h"
 #include "android_webview/common/aw_switches.h"
 #include "android_webview/common/crash_reporter/aw_crash_reporter_client.h"
 #include "base/android/apk_assets.h"
-#include "base/android/build_info.h"
+#include "base/android/apk_info.h"
 #include "base/android/bundle_utils.h"
 #include "base/android/memory_pressure_listener_android.h"
 #include "base/android/path_utils.h"
@@ -284,9 +285,8 @@ void AwBrowserMainParts::RegisterSyntheticTrials() {
   //    represented mainly by version codes ending with 41 and 42, which
   //    dominate, but we want to filter them out nonetheless because it's harder
   //    to set up experiment for them.)
-  std::string version_code =
-      base::android::BuildInfo::GetInstance()->package_version_code();
-  size_t ram_mb = base::SysInfo::AmountOfPhysicalMemoryMB();
+  std::string version_code = base::android::apk_info::package_version_code();
+  size_t ram_mb = base::SysInfo::AmountOfPhysicalMemory().InMiB();
   auto cpu_abi_bitness_support =
       metrics::AndroidMetricsHelper::GetInstance()->cpu_abi_bitness_support();
   bool is_device_of_interest =
@@ -331,6 +331,33 @@ void AwBrowserMainParts::RegisterSyntheticTrials() {
   AwMetricsServiceAccessor::RegisterSyntheticFieldTrial(
       metrics, "WebViewStartupTasksMetrics",
       webview_startup_tasks_experiment_enabled ? "Enabled" : "Control",
+      variations::SyntheticTrialAnnotationMode::kCurrentLog);
+
+  bool in_seed_experiment = base::FeatureList::GetStateIfOverridden(
+                                features::kWebViewReducedSeedExpiration)
+                                .has_value() ||
+                            base::FeatureList::GetStateIfOverridden(
+                                features::kWebViewReducedSeedRequestPeriod)
+                                .has_value();
+  bool reduced_seed_expiration = android_webview::CachedFlags::IsEnabled(
+      features::kWebViewReducedSeedExpiration);
+  bool reduced_seed_request_period = android_webview::CachedFlags::IsEnabled(
+      features::kWebViewReducedSeedRequestPeriod);
+
+  std::string group = "Default";
+  if (in_seed_experiment) {
+    if (reduced_seed_expiration && reduced_seed_request_period) {
+      group = "BothEnabled";
+    } else if (reduced_seed_expiration) {
+      group = "ReducedSeedExpiration";
+    } else if (reduced_seed_request_period) {
+      group = "ReducedSeedRequestPeriod";
+    } else {
+      group = "Control";
+    }
+  }
+  AwMetricsServiceAccessor::RegisterSyntheticFieldTrial(
+      metrics, "WebViewFasterFinchSeed", group,
       variations::SyntheticTrialAnnotationMode::kCurrentLog);
 }
 

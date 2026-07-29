@@ -11,6 +11,9 @@ import android.content.SharedPreferences;
 import androidx.annotation.IntDef;
 import androidx.annotation.VisibleForTesting;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JniType;
+
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -74,8 +77,6 @@ public class WebViewCachedFlags {
                             prefs,
                             Map.of(
                                     // Add new CachedFlags here along with their default state.
-                                    AwFeatures.WEBVIEW_SEPARATE_RESOURCE_CONTEXT,
-                                    DefaultState.DISABLED,
                                     AwFeatures.WEBVIEW_DISABLE_CHIPS,
                                     DefaultState.DISABLED,
                                     AwFeatures.WEBVIEW_USE_STARTUP_TASKS_LOGIC,
@@ -85,6 +86,10 @@ public class WebViewCachedFlags {
                                     AwFeatures.WEBVIEW_STARTUP_TASKS_YIELD_TO_NATIVE,
                                     DefaultState.DISABLED,
                                     AwFeatures.WEBVIEW_USE_BACKGROUND_THREAD_FOR_GMS,
+                                    DefaultState.DISABLED,
+                                    AwFeatures.WEBVIEW_REDUCED_SEED_EXPIRATION,
+                                    DefaultState.DISABLED,
+                                    AwFeatures.WEBVIEW_REDUCED_SEED_REQUEST_PERIOD,
                                     DefaultState.DISABLED));
         }
     }
@@ -158,6 +163,12 @@ public class WebViewCachedFlags {
         mDefaults = defaults;
     }
 
+    /** Helper method to be called by native to check feature values without the instance. */
+    @CalledByNative
+    private static boolean isFeatureEnabled(@JniType("std::string") String feature) {
+        return get().isCachedFeatureEnabled(feature);
+    }
+
     /**
      * Before this generic mechanism was written, a number of early startup experiments used
      * individual prefs to read experiment state. By migrating to the generic mechanism, we may
@@ -174,11 +185,9 @@ public class WebViewCachedFlags {
             SharedPreferences prefs, SharedPreferences.Editor editor) {
         boolean didMigration = false;
         if (prefs.contains("useWebViewResourceContext")) {
-            // If this pref is present, we should enable the WEBVIEW_SEPARATE_RESOURCE_CONTEXT flag
-            // for this run of WebView.
+            // This flag has been cleaned up now so we don't need to add it to enabled set. Just
+            // remove the pref.
             editor.remove("useWebViewResourceContext");
-            mOverrideDisabled.remove(AwFeatures.WEBVIEW_SEPARATE_RESOURCE_CONTEXT);
-            mOverrideEnabled.add(AwFeatures.WEBVIEW_SEPARATE_RESOURCE_CONTEXT);
             didMigration = true;
         }
         if (prefs.contains("defaultWebViewPartitionedCookiesState")) {

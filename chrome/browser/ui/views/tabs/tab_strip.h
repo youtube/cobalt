@@ -234,16 +234,8 @@ class TabStrip : public views::View,
 
   TabDragContext* GetDragContext();
 
-  // Returns true if Tabs in this TabStrip are currently changing size or
-  // position.
-  bool IsAnimating() const;
-
-  // Stops any ongoing animations. If `layout` is true and an animation is
-  // ongoing this does a layout.
-  void StopAnimating(bool layout);
-
-  // Returns the index of the focused tab, if any.
-  std::optional<int> GetFocusedTabIndex() const;
+  // Stops any ongoing animations and lays out the tabstrip.
+  void StopAnimating();
 
   // Returns a view for anchoring an in-product help promo. `index_hint`
   // indicates at which tab the promo should be displayed, but is not

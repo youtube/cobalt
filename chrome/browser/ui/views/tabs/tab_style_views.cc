@@ -55,16 +55,6 @@ Tab* GetRightTab(const Tab* tab) {
   return tab->controller()->GetAdjacentTab(tab, base::i18n::IsRTL() ? -1 : 1);
 }
 
-// Updates a target value, returning true if it changed.
-template <class T>
-bool UpdateValue(T* dest, const T& src) {
-  if (*dest == src) {
-    return false;
-  }
-  *dest = src;
-  return true;
-}
-
 class TabStyleViewsImpl : public TabStyleViews {
  public:
   explicit TabStyleViewsImpl(Tab* tab);
@@ -161,7 +151,6 @@ class TabStyleViewsImpl : public TabStyleViews {
   bool ShouldCompactLeadingEdge(TabStyle::PathType path_type) const;
 
   // Painting helper functions:
-  void PaintInactiveTabBackground(gfx::Canvas* canvas) const;
   void PaintTabBackground(gfx::Canvas* canvas,
                           TabStyle::TabSelectionState selection_state,
                           bool hovered,

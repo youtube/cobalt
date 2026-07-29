@@ -262,7 +262,7 @@
 <translation id="2253927598983295051">آنچه را باید با <ph name="APP_NAME" /> هم‌رسانی شود انتخاب کنید</translation>
 <translation id="2276696007612801991">‏برای بررسی گذرواژه‌هایتان، به سیستم حساب Google وارد شوید</translation>
 <translation id="2281243904606300427">‫<ph name="TAB_TITLE" />، زبانه ناشناس انتخاب‌شده</translation>
-<translation id="2286841657746966508">آدرس صورت‌حساب</translation>
+<translation id="2286841657746966508">نشانی صورت‌حساب</translation>
 <translation id="228704530595896923">فهرست گزینه‌های هم‌رسانی.</translation>
 <translation id="2287421207599770907">{NUMBER_OF_TABS,plural, =1{دیدن <ph name="TABS_COUNT_ONE" /> برگه}one{دیدن <ph name="TABS_COUNT_MANY" /> برگه}other{دیدن <ph name="TABS_COUNT_MANY" /> برگه}}</translation>
 <translation id="2297822946037605517">هم‌رسانی این صفحه</translation>
@@ -1092,6 +1092,7 @@
 <translation id="6125202119952209826">به گروه برگه با <ph name="OWNER_FIRST_NAME" /> بپیوندید</translation>
 <translation id="6125864963080902918"><ph name="BEGIN_LINK" />جزئیات بیشتر<ph name="END_LINK" /></translation>
 <translation id="6127379762771434464">مورد برداشته شد</translation>
+<translation id="6127860394906721547">گروه زبانه‌های «<ph name="TITLE_OF_GROUP" />»، به‌رنگ <ph name="COLOR_NAME" />، متشکل از سایت‌های <ph name="URL_LIST" /> باز می‌شود.</translation>
 <translation id="6130303040046284160">کوچک کردن زبانه</translation>
 <translation id="6134168885321518274">باز کردن نوار جستجو</translation>
 <translation id="6135608400322377268">{TAB_COUNT,plural, =1{‫<ph name="TAB_COUNT_ONE" /> برگه}one{‫<ph name="TAB_COUNT_MANY" /> برگه}other{‫<ph name="TAB_COUNT_MANY" /> برگه}}</translation>

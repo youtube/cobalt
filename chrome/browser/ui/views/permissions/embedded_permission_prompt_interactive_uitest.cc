@@ -28,6 +28,7 @@
 #include "components/permissions/features.h"
 #include "components/permissions/permission_request_manager.h"
 #include "components/permissions/permission_uma_util.h"
+#include "components/permissions/permission_util.h"
 #include "components/permissions/request_type.h"
 #include "components/ukm/test_ukm_recorder.h"
 #include "content/public/test/browser_test.h"
@@ -109,10 +110,6 @@ class EmbeddedPermissionPromptInteractiveTest
   }
 
   net::EmbeddedTestServer* https_server() { return https_server_.get(); }
-
-  ui::ElementContext context() const {
-    return browser()->window()->GetElementContext();
-  }
 
   GURL GetOrigin() { return url::Origin::Create(GetURL()).GetURL(); }
 
@@ -547,7 +544,7 @@ IN_PROC_BROWSER_TEST_P(EmbeddedPermissionPromptInteractiveTest,
 IN_PROC_BROWSER_TEST_P(EmbeddedPermissionPromptInteractiveTest,
                        BasicFlowGeolocation) {
   TestAskBlockAllowFlow(
-      "geolocation", {ContentSettingsType::GEOLOCATION},
+      "geolocation", {permissions::PermissionUtil::GetGeolocationType()},
       std::vector<std::u16string>(
           {u"a.test:" + base::UTF8ToUTF16(GetOrigin().port()) + u" wants to",
            u"You have allowed location for this site",
@@ -581,7 +578,8 @@ IN_PROC_BROWSER_TEST_P(EmbeddedPermissionPromptInteractiveTest,
 
 IN_PROC_BROWSER_TEST_P(EmbeddedPermissionPromptInteractiveTest,
                        TestAllowThisTimeFlowGeolocation) {
-  TestAllowThisTimeFlow("geolocation", {ContentSettingsType::GEOLOCATION});
+  TestAllowThisTimeFlow("geolocation",
+                        {permissions::PermissionUtil::GetGeolocationType()});
 }
 
 IN_PROC_BROWSER_TEST_P(EmbeddedPermissionPromptInteractiveTest,

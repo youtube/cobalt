@@ -468,26 +468,23 @@ IN_PROC_BROWSER_TEST_F(TabStripActionContainerBrowserTest, PreloadFreOnNudge) {
 
   auto* service = glic::GlicKeyedServiceFactory::GetGlicKeyedService(
       browser()->GetProfile());
-  auto& window_controller = service->window_controller();
   glic::SetFRECompletion(browser()->profile(),
                          glic::prefs::FreStatus::kNotStarted);
-  EXPECT_TRUE(window_controller.fre_controller()->ShouldShowFreDialog());
-  EXPECT_FALSE(window_controller.fre_controller()->IsWarmed());
+  EXPECT_TRUE(service->fre_controller().ShouldShowFreDialog());
+  EXPECT_FALSE(service->fre_controller().IsWarmed());
 
   // This will enable preloading again.
   ResetMemoryPressure();
 
   base::RunLoop run_loop;
-  auto subscription =
-      window_controller.fre_controller()->AddWebUiStateChangedCallback(
-          base::BindRepeating(
-              [](base::RunLoop* run_loop,
-                 glic::mojom::FreWebUiState new_state) {
-                if (new_state == glic::mojom::FreWebUiState::kReady) {
-                  run_loop->Quit();
-                }
-              },
-              base::Unretained(&run_loop)));
+  auto subscription = service->fre_controller().AddWebUiStateChangedCallback(
+      base::BindRepeating(
+          [](base::RunLoop* run_loop, glic::mojom::FreWebUiState new_state) {
+            if (new_state == glic::mojom::FreWebUiState::kReady) {
+              run_loop->Quit();
+            }
+          },
+          base::Unretained(&run_loop)));
 
   nudge_controller->UpdateNudgeLabel(
       browser()->tab_strip_model()->GetActiveWebContents(), "test",
@@ -497,7 +494,7 @@ IN_PROC_BROWSER_TEST_F(TabStripActionContainerBrowserTest, PreloadFreOnNudge) {
 
   // Wait for the FRE to preload.
   run_loop.Run();
-  EXPECT_TRUE(window_controller.fre_controller()->IsWarmed());
+  EXPECT_TRUE(service->fre_controller().IsWarmed());
 }
 
 IN_PROC_BROWSER_TEST_F(TabStripActionContainerBrowserTest,
@@ -521,14 +518,14 @@ IN_PROC_BROWSER_TEST_F(TabStripActionContainerBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(TabStripActionContainerBrowserTest,
-                       ShowAndHideGlicActorTaskIconBasedOnTaskState) {
+                       ShowAndHideGlicActorTaskIcon) {
   EXPECT_FALSE(GlicActorButtonContainer()->GetVisible());
   ASSERT_THAT(GlicActorButtonContainer()->children(), SizeIs(1));
 
   auto* task_icon_controller =
-      browser()->browser_window_features()->glic_actor_task_icon_controller();
+      tabs::GlicActorTaskIconController::From(browser());
   task_icon_controller->OnStateUpdate(
-      actor::ui::ActorUiStateManagerInterface::UiState::kActive,
+      actor::ui::ActorUiStateManagerInterface::TaskIconUiState::kShown,
       glic::GlicWindowController::State::kClosed,
       glic::mojom::CurrentView::kConversation);
 
@@ -540,7 +537,7 @@ IN_PROC_BROWSER_TEST_F(TabStripActionContainerBrowserTest,
             GlicActorButtonContainer()->children()[1]);
 
   task_icon_controller->OnStateUpdate(
-      actor::ui::ActorUiStateManagerInterface::UiState::kInactive,
+      actor::ui::ActorUiStateManagerInterface::TaskIconUiState::kHidden,
       glic::GlicWindowController::State::kClosed,
       glic::mojom::CurrentView::kConversation);
 
@@ -555,10 +552,10 @@ IN_PROC_BROWSER_TEST_F(TabStripActionContainerBrowserTest,
   EXPECT_FALSE(GlicActorButtonContainer()->GetVisible());
 
   auto* task_icon_controller =
-      browser()->browser_window_features()->glic_actor_task_icon_controller();
+      tabs::GlicActorTaskIconController::From(browser());
 
   task_icon_controller->OnStateUpdate(
-      actor::ui::ActorUiStateManagerInterface::UiState::kCheckTasks,
+      actor::ui::ActorUiStateManagerInterface::TaskIconUiState::kNeedsAttention,
       glic::GlicWindowController::State::kClosed,
       glic::mojom::CurrentView::kConversation);
 
@@ -576,7 +573,7 @@ IN_PROC_BROWSER_TEST_F(TabStripActionContainerBrowserTest,
   ResetAnimation(1);
 
   task_icon_controller->OnStateUpdate(
-      actor::ui::ActorUiStateManagerInterface::UiState::kInactive,
+      actor::ui::ActorUiStateManagerInterface::TaskIconUiState::kHidden,
       glic::GlicWindowController::State::kClosed,
       glic::mojom::CurrentView::kConversation);
 
@@ -588,10 +585,10 @@ IN_PROC_BROWSER_TEST_F(TabStripActionContainerBrowserTest,
 IN_PROC_BROWSER_TEST_F(TabStripActionContainerBrowserTest,
                        ResetTaskIconOnCheckTaskToActiveStateChange) {
   auto* task_icon_controller =
-      browser()->browser_window_features()->glic_actor_task_icon_controller();
+      tabs::GlicActorTaskIconController::From(browser());
 
   task_icon_controller->OnStateUpdate(
-      actor::ui::ActorUiStateManagerInterface::UiState::kCheckTasks,
+      actor::ui::ActorUiStateManagerInterface::TaskIconUiState::kNeedsAttention,
       glic::GlicWindowController::State::kClosed,
       glic::mojom::CurrentView::kConversation);
 
@@ -609,7 +606,7 @@ IN_PROC_BROWSER_TEST_F(TabStripActionContainerBrowserTest,
   ResetAnimation(1);
 
   task_icon_controller->OnStateUpdate(
-      actor::ui::ActorUiStateManagerInterface::UiState::kActive,
+      actor::ui::ActorUiStateManagerInterface::TaskIconUiState::kShown,
       glic::GlicWindowController::State::kClosed,
       glic::mojom::CurrentView::kConversation);
 
@@ -621,5 +618,33 @@ IN_PROC_BROWSER_TEST_F(TabStripActionContainerBrowserTest,
             GlicActorButtonContainer()->children()[1]);
   EXPECT_EQ(GlicActorTaskIcon()->GetText(), std::u16string());
   EXPECT_FALSE(GlicActorTaskIcon()->GetIsShowingNudge());
+}
+
+IN_PROC_BROWSER_TEST_F(TabStripActionContainerBrowserTest,
+                       GlicActorTaskIconTooltipAndA11yText) {
+  auto* task_icon_controller =
+      tabs::GlicActorTaskIconController::From(browser());
+  // Show the task icon.
+  task_icon_controller->OnStateUpdate(
+      actor::ui::ActorUiStateManagerInterface::TaskIconUiState::kShown,
+      glic::GlicWindowController::State::kClosed,
+      glic::mojom::CurrentView::kConversation);
+
+  // TODO(crbug.com/431015299): Replace with finalized strings when ready.
+  EXPECT_EQ(GlicActorTaskIcon()->GetTooltipText(),
+            std::u16string(u"Open Gemini in Chrome"));
+  EXPECT_EQ(GlicActorTaskIcon()->GetViewAccessibility().GetCachedName(),
+            std::u16string(u"Open Gemini in Chrome"));
+
+  task_icon_controller->OnStateUpdate(
+      actor::ui::ActorUiStateManagerInterface::TaskIconUiState::kShown,
+      glic::GlicWindowController::State::kOpen,
+      glic::mojom::CurrentView::kConversation);
+
+  // TODO(crbug.com/431015299): Replace with finalized strings when ready.
+  EXPECT_EQ(GlicActorTaskIcon()->GetTooltipText(),
+            std::u16string(u"Close Gemini in Chrome"));
+  EXPECT_EQ(GlicActorTaskIcon()->GetViewAccessibility().GetCachedName(),
+            std::u16string(u"Close Gemini in Chrome"));
 }
 #endif  // BUILDFLAG(ENABLE_GLIC)

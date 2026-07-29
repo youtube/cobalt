@@ -1,10 +1,10 @@
 // Copyright 2025 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import {BrowserProxy, currentReadHighlightClass, MAX_SPEECH_LENGTH, NodeStore, ReadAloudHighlighter, SpeechBrowserProxyImpl, SpeechController, VoiceLanguageController, WordBoundaries} from 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
-import {assertEquals, assertFalse, assertGT, assertNotEquals, assertStringContains, assertStringExcludes, assertTrue} from 'chrome-untrusted://webui-test/chai_assert.js';
+import {BrowserProxy, MAX_SPEECH_LENGTH, NodeStore, ReadAloudHighlighter, SpeechBrowserProxyImpl, SpeechController, VoiceLanguageController, WordBoundaries} from 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
+import {assertEquals, assertFalse, assertGT, assertNotEquals, assertTrue} from 'chrome-untrusted://webui-test/chai_assert.js';
 
-import {createSpeechErrorEvent, createSpeechSynthesisVoice, mockMetrics, setSimpleAxTreeWithText, setSimpleNodeStoreWithText, setSimpleTreeWithText} from './common.js';
+import {createSpeechErrorEvent, createSpeechSynthesisVoice, createWordBoundaryEvent, mockMetrics, setSimpleAxTreeWithText, setSimpleNodeStoreWithText, setSimpleTreeWithText} from './common.js';
 import {FakeReadingMode} from './fake_reading_mode.js';
 import {TestColorUpdaterBrowserProxy} from './test_color_updater_browser_proxy.js';
 import type {TestMetricsBrowserProxy} from './test_metrics_browser_proxy.js';
@@ -22,12 +22,13 @@ suite('SpeechController', () => {
   let nodeStore: NodeStore;
   let highlighter: ReadAloudHighlighter;
   let voiceLanguageController: VoiceLanguageController;
+  let readingMode: FakeReadingMode;
 
   setup(() => {
     // Clearing the DOM should always be done first.
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
     BrowserProxy.setInstance(new TestColorUpdaterBrowserProxy());
-    const readingMode = new FakeReadingMode();
+    readingMode = new FakeReadingMode();
     chrome.readingMode = readingMode as unknown as typeof chrome.readingMode;
     speech = new TestSpeechBrowserProxy();
     SpeechBrowserProxyImpl.setInstance(speech);
@@ -100,10 +101,31 @@ suite('SpeechController', () => {
 
     speechController.onPlayPauseToggle(null, 'No matter how many times');
     speechController.onPlayPauseToggle(null, 'No matter how many times');
+
+    assertTrue(speechController.isPausedFromButton());
+  });
+
+  test('pause source is not updated if already paused', () => {
+    assertFalse(speechController.isPausedFromButton());
+
+    speechController.onPlayPauseToggle(null, 'No matter how many times');
+    speechController.onPlayPauseToggle(null, 'No matter how many times');
     assertTrue(speechController.isPausedFromButton());
 
     speechController.previewVoice(null);
-    assertFalse(speechController.isPausedFromButton());
+    assertTrue(speechController.isPausedFromButton());
+  });
+
+  test('isTemporaryPause', () => {
+    assertFalse(speechController.isTemporaryPause());
+
+    speechController.onPlayPauseToggle(null, 'No matter how many times');
+    speechController.onPlayPauseToggle(null, 'No matter how many times');
+    assertFalse(speechController.isTemporaryPause());
+
+    speechController.onPlayPauseToggle(null, 'No matter how many times');
+    speechController.previewVoice(null);
+    assertTrue(speechController.isTemporaryPause());
   });
 
   test('previewVoice stops speech', () => {
@@ -205,7 +227,7 @@ suite('SpeechController', () => {
     assertFalse(speechController.isSpeechActive());
     assertFalse(speechController.isAudioCurrentlyPlaying());
     assertFalse(speechController.isPausedFromButton());
-    assertTrue(speechController.isTemporaryPause());
+    assertFalse(speechController.isTemporaryPause());
     assertEquals(0, speech.getCallCount('pause'));
     assertEquals(1, speech.getCallCount('cancel'));
     assertEquals(0, speech.getCallCount('speak'));
@@ -327,6 +349,69 @@ suite('SpeechController', () => {
         assertEquals(1, speech.getCallCount('speak'));
         assertEquals(1, speech.getCallCount('cancel'));
       });
+
+  test('word boundary received updates words heard', () => {
+    const textContent = 'You\'re all I can think of';
+    setSimpleTreeWithText(textContent);
+    speechController.onPlayPauseToggle(null, textContent);
+    const spoken = speech.getArgs('speak')[0];
+
+    spoken.onboundary(createWordBoundaryEvent(spoken, 0, 6));
+    spoken.onboundary(createWordBoundaryEvent(spoken, 7, 3));
+
+    assertEquals(2, readingMode.wordsHeard);
+  });
+
+  test('words heard not updated for whitespace', () => {
+    const textContent = 'Every drop I drink up';
+    setSimpleTreeWithText(textContent);
+    speechController.onPlayPauseToggle(null, textContent);
+    const spoken = speech.getArgs('speak')[0];
+
+    spoken.onboundary(createWordBoundaryEvent(spoken, 0, 5));
+    spoken.onboundary(createWordBoundaryEvent(spoken, 5, 1));
+
+    assertEquals(1, readingMode.wordsHeard);
+  });
+
+  test('words heard reset on clear', () => {
+    const textContent = 'You\'re my soda pop';
+    setSimpleTreeWithText(textContent);
+    speechController.onPlayPauseToggle(null, textContent);
+    const spoken = speech.getArgs('speak')[0];
+
+    spoken.onboundary(createWordBoundaryEvent(spoken, 0, 5));
+    spoken.onboundary(createWordBoundaryEvent(spoken, 6, 2));
+    assertEquals(2, readingMode.wordsHeard);
+
+    speechController.clearReadAloudState();
+    spoken.onboundary(createWordBoundaryEvent(spoken, 9, 4));
+    assertEquals(1, readingMode.wordsHeard);
+  });
+
+  test('sentence end with word boundaries, does not count sentence', () => {
+    const textContent = 'My little soda pop';
+    setSimpleTreeWithText(textContent);
+    speechController.onPlayPauseToggle(null, textContent);
+    const spoken = speech.getArgs('speak')[0];
+
+    spoken.onboundary(createWordBoundaryEvent(spoken, 0, 2));
+    assertEquals(1, readingMode.wordsHeard);
+
+    spoken.onend();
+    assertEquals(1, readingMode.wordsHeard);
+  });
+
+  test('sentence end with no word boundaries, counts sentence', () => {
+    const textContent = 'Cool me down, you\'re so hot';
+    setSimpleTreeWithText(textContent);
+    speechController.onPlayPauseToggle(null, textContent);
+    const spoken = speech.getArgs('speak')[0];
+
+    spoken.onend();
+
+    assertEquals(6, readingMode.wordsHeard);
+  });
 
   suite('very long text', () => {
     function getSpokenText(): string {
@@ -691,50 +776,6 @@ suite('SpeechController', () => {
 
     speechController.onVoiceSelected(voice3);
     assertFalse(wordBoundaries.hasBoundaries());
-  });
-
-  test('onLinksToggled rehighlights', () => {
-    const text = 'Life was a chore, so';
-    const id = 2;
-    chrome.readingMode.getCurrentText = () => [id];
-    chrome.readingMode.getTextContent = () => text;
-    chrome.readingMode.getCurrentTextStartIndex = () => 0;
-    chrome.readingMode.getCurrentTextEndIndex = () => text.length;
-    const sentence = document.createElement('p');
-    sentence.appendChild(document.createTextNode(text));
-    nodeStore.setDomNode(sentence, id);
-    nodeStore.setDomNode(sentence, id);
-    speechController.onHighlightGranularityChange(
-        chrome.readingMode.sentenceHighlighting);
-    speechController.onPlayPauseToggle(null, text);
-    assertTrue(highlighter.hasCurrentHighlights());
-    speech.reset();
-
-    speechController.onLinksToggled();
-
-    assertTrue(highlighter.hasCurrentHighlights());
-    assertStringContains(
-        (nodeStore.getDomNode(id) as Element).innerHTML,
-        currentReadHighlightClass);
-  });
-
-  test('onLinksToggled does not highlight if no highlights', () => {
-    const text = 'She set sail';
-    const id = 2;
-    chrome.readingMode.getCurrentText = () => [];
-    const sentence = document.createElement('p');
-    sentence.appendChild(document.createTextNode(text));
-    nodeStore.setDomNode(sentence, id);
-    speechController.onHighlightGranularityChange(
-        chrome.readingMode.sentenceHighlighting);
-    assertFalse(highlighter.hasCurrentHighlights());
-
-    speechController.onLinksToggled();
-
-    assertFalse(highlighter.hasCurrentHighlights());
-    assertStringExcludes(
-        (nodeStore.getDomNode(id) as Element).innerHTML,
-        currentReadHighlightClass);
   });
 
   test('set previous reading position without saved state does nothing', () => {

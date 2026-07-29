@@ -636,8 +636,7 @@ bool ValidFormatForDirectUploading(GrGLenum format, unsigned int type) {
 // is enabled or disabled. The one-copy path being enabled is the default
 // production state, with this Feature being used to be able to disable this
 // path for performance testing.
-BASE_FEATURE(kOneCopyUploadOfVideoFrameToGLTexture,
-             "OneCopyUploadOfVideoFrameToGLTexture",
+BASE_FEATURE(OneCopyUploadOfVideoFrameToGLTexture,
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -1070,6 +1069,7 @@ void PaintCanvasVideoRenderer::Paint(
   cc::PaintFlags video_flags;
   video_flags.setAlphaf(flags.getAlphaf());
   video_flags.setBlendMode(flags.getBlendMode());
+  video_flags.setTargetedHdrHeadroom(flags.getTargetedHdrHeadroom());
 
   const bool need_rotation = params.transformation.rotation != VIDEO_ROTATION_0;
   const bool need_scaling =

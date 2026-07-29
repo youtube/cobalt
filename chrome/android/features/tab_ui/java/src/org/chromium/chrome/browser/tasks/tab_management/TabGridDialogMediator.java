@@ -64,13 +64,13 @@ import org.chromium.chrome.browser.tabmodel.TabGroupUtils.TabGroupCreationCallba
 import org.chromium.chrome.browser.tabmodel.TabGroupUtils.TabMovedCallback;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelObserver;
-import org.chromium.chrome.browser.tasks.tab_management.MessageService.MessageType;
 import org.chromium.chrome.browser.tasks.tab_management.TabGridContextMenuCoordinator.ShowTabListEditor;
 import org.chromium.chrome.browser.tasks.tab_management.TabGridItemLongPressOrchestrator.CancelLongPressTabItemEventListener;
 import org.chromium.chrome.browser.tasks.tab_management.TabListEditorAction.ButtonType;
 import org.chromium.chrome.browser.tasks.tab_management.TabListEditorAction.IconPosition;
 import org.chromium.chrome.browser.tasks.tab_management.TabListEditorAction.ShowMode;
 import org.chromium.chrome.browser.tasks.tab_management.TabListEditorCoordinator.TabListEditorController;
+import org.chromium.chrome.browser.tasks.tab_management.TabSwitcherMessageManager.MessageType;
 import org.chromium.chrome.browser.tasks.tab_management.TabUiMetricsHelper.TabGroupColorChangeActionType;
 import org.chromium.chrome.browser.tasks.tab_management.TabUiMetricsHelper.TabListEditorOpenMetricGroups;
 import org.chromium.chrome.browser.tinker_tank.TinkerTankDelegate;
@@ -389,6 +389,19 @@ public class TabGridDialogMediator
 
                     @Override
                     public void willCloseTab(Tab tab, boolean didCloseAlone) {
+                        if (ChromeFeatureList.sTabCollectionAndroid.isEnabled()) return;
+
+                        onTabClose(tab);
+                    }
+
+                    @Override
+                    public void didRemoveTabForClosure(Tab tab) {
+                        if (!ChromeFeatureList.sTabCollectionAndroid.isEnabled()) return;
+
+                        onTabClose(tab);
+                    }
+
+                    private void onTabClose(Tab tab) {
                         if (!isVisible()) return;
 
                         // Ignore updates to tabs in other tab groups.

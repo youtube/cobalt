@@ -34,6 +34,7 @@ import static org.mockito.Mockito.when;
 
 import static org.chromium.base.test.util.Restriction.RESTRICTION_TYPE_NON_LOW_END_DEVICE;
 import static org.chromium.chrome.browser.customtabs.CustomTabsTestUtils.createTestBitmap;
+import static org.chromium.chrome.test.util.ChromeTabUtils.getTabCountOnUiThread;
 import static org.chromium.components.content_settings.PrefNames.COOKIE_CONTROLS_MODE;
 import static org.chromium.ui.test.util.ViewUtils.onViewWaiting;
 
@@ -43,6 +44,7 @@ import android.app.PendingIntent;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -166,6 +168,7 @@ import org.chromium.chrome.browser.tab.TabTestUtils;
 import org.chromium.chrome.browser.tabmodel.TabModelObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.test.ScreenShooter;
+import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonVariant;
 import org.chromium.chrome.browser.toolbar.menu_button.MenuButton;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuCoordinator;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuHandler;
@@ -208,6 +211,7 @@ import org.chromium.url.GURL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -470,6 +474,22 @@ public class CustomTabActivityTest {
         Assert.assertNotNull(linkMenu.findItem(R.id.contextmenu_copy_link_address));
     }
 
+    @Test
+    @SmallTest
+    public void testContextMenuPreviewPage() throws Exception {
+        mCustomTabActivityTestRule.startCustomTabActivityWithIntent(createMinimalCustomTabIntent());
+        ContextMenuUtils.selectContextMenuItem(
+                getInstrumentation(),
+                null,
+                mCustomTabActivityTestRule.getActivity().getActivityTab(),
+                "aboutLink",
+                R.id.contextmenu_open_in_ephemeral_tab);
+        var ephemeralTabCoordinator =
+                mCustomTabActivityTestRule.getActivity().getEphemeralTabCoordinatorSupplier().get();
+        CriteriaHelper.pollUiThread(ephemeralTabCoordinator::isOpened);
+        ThreadUtils.runOnUiThreadBlocking(ephemeralTabCoordinator::close);
+    }
+
     /**
      * Test whether the color of the toolbar is correctly customized. For L or later releases,
      * status bar color is also tested.
@@ -538,6 +558,39 @@ public class CustomTabActivityTest {
         assertFalse(
                 "Reader mode CCT should not support optional button",
                 dataProvider.isOptionalButtonSupported());
+    }
+
+    @Test
+    @SmallTest
+    @EnableFeatures({
+        ChromeFeatureList.CCT_ADAPTIVE_BUTTON + ":open_in_browser/true",
+        ChromeFeatureList.ENABLE_DISCOUNT_INFO_API
+    })
+    public void testOptionalButton_SupportedTypes() {
+        Intent intent = createMinimalCustomTabIntent();
+        mCustomTabActivityTestRule.startCustomTabActivityWithIntent(intent);
+        var supportedTypes =
+                mCustomTabActivityTestRule
+                        .getActivity()
+                        .getRootUiCoordinatorForTesting()
+                        .getAdaptiveToolbarUiCoordinatorForTesting()
+                        .getAdaptiveToolbarButtonControllerForTesting()
+                        .getAllSupportedTypesForTesting();
+        var expectedTypes =
+                Set.of(
+                        AdaptiveToolbarButtonVariant.SHARE,
+                        AdaptiveToolbarButtonVariant.PRICE_TRACKING,
+                        AdaptiveToolbarButtonVariant.READER_MODE,
+                        AdaptiveToolbarButtonVariant.TRANSLATE,
+                        AdaptiveToolbarButtonVariant.READ_ALOUD,
+                        AdaptiveToolbarButtonVariant.PRICE_INSIGHTS,
+                        AdaptiveToolbarButtonVariant.DISCOUNTS,
+                        AdaptiveToolbarButtonVariant.OPEN_IN_BROWSER);
+        assertEquals(
+                "Supported types don't match. Please check out the note in"
+                        + " AdaptiveToolbarUiCoordinator#initialize.",
+                expectedTypes,
+                supportedTypes);
     }
 
     /**
@@ -1024,7 +1077,9 @@ public class CustomTabActivityTest {
 
         openTabHelper.waitForCallback(0, 1);
         assertEquals(
-                "A new tab should have been created.", 2, tabSelector.getModel(false).getCount());
+                "A new tab should have been created.",
+                2,
+                getTabCountOnUiThread(tabSelector.getModel(false)));
     }
 
     @Test
@@ -1397,10 +1452,7 @@ public class CustomTabActivityTest {
 
     @Test
     @LargeTest
-    @EnableFeatures({
-        ChromeFeatureList.PREFETCH_BROWSER_INITIATED_TRIGGERS,
-        ChromeFeatureList.CCT_NAVIGATIONAL_PREFETCH
-    })
+    @EnableFeatures({ChromeFeatureList.CCT_NAVIGATIONAL_PREFETCH})
     public void testNavigationalPrefetch() throws Exception {
         Context context = getInstrumentation().getTargetContext().getApplicationContext();
         Intent intent = CustomTabsIntentTestUtils.createMinimalCustomTabIntent(context, mTestPage);
@@ -1432,10 +1484,7 @@ public class CustomTabActivityTest {
 
     @Test
     @LargeTest
-    @EnableFeatures({
-        ChromeFeatureList.PREFETCH_BROWSER_INITIATED_TRIGGERS,
-        ChromeFeatureList.CCT_NAVIGATIONAL_PREFETCH
-    })
+    @EnableFeatures({ChromeFeatureList.CCT_NAVIGATIONAL_PREFETCH})
     public void testNavigationalPrefetchNotServed() throws Exception {
         Context context = getInstrumentation().getTargetContext().getApplicationContext();
         Intent intent = CustomTabsIntentTestUtils.createMinimalCustomTabIntent(context, mTestPage2);
@@ -1467,10 +1516,7 @@ public class CustomTabActivityTest {
 
     @Test
     @LargeTest
-    @EnableFeatures({
-        ChromeFeatureList.PREFETCH_BROWSER_INITIATED_TRIGGERS,
-        ChromeFeatureList.CCT_NAVIGATIONAL_PREFETCH
-    })
+    @EnableFeatures({ChromeFeatureList.CCT_NAVIGATIONAL_PREFETCH})
     public void testNavigationalPrefetchFalseNegative() throws Exception {
         Context context = getInstrumentation().getTargetContext().getApplicationContext();
         Intent intent = CustomTabsIntentTestUtils.createMinimalCustomTabIntent(context, mTestPage);
@@ -2094,9 +2140,9 @@ public class CustomTabActivityTest {
         mCustomTabActivityTestRule.startCustomTabActivityWithIntent(intent);
 
         CustomTabActivity activity = mCustomTabActivityTestRule.getActivity();
-        Assert.assertEquals(1, activity.getCurrentTabModel().getCount());
+        Assert.assertEquals(1, mCustomTabActivityTestRule.tabsCount(false));
 
-        DOMUtils.clickNode(activity.getActivityTab().getWebContents(), "target_blank_link");
+        DOMUtils.clickNode(mCustomTabActivityTestRule.getWebContents(), "target_blank_link");
         CriteriaHelper.pollUiThread(
                 () -> Criteria.checkThat(activity.getCurrentTabModel().getCount(), is(2)));
 
@@ -3086,6 +3132,37 @@ public class CustomTabActivityTest {
         assertNotNull(
                 "Page info should have been shown.",
                 PageInfoController.getLastPageInfoController());
+    }
+
+    @Test
+    @MediumTest
+    public void testTabReparentedOnDensityChange() {
+        // Start the initial activity and get its tab.
+        mCustomTabActivityTestRule.startCustomTabActivityWithIntent(createMinimalCustomTabIntent());
+        CustomTabActivity initialActivity = mCustomTabActivityTestRule.getActivity();
+        Tab tab1 = initialActivity.getActivityTab();
+        Assert.assertNotNull("Initial tab should not be null", tab1);
+
+        // Trigger the recreation via onConfigurationChanged and wait for the new activity instance
+        // to be resumed.
+        Configuration currentConfig = initialActivity.getResources().getConfiguration();
+        Configuration newConfig = new Configuration(currentConfig);
+        newConfig.densityDpi += 20;
+
+        CustomTabActivity recreatedActivity =
+                ApplicationTestUtils.waitForActivityWithClass(
+                        CustomTabActivity.class,
+                        Stage.RESUMED,
+                        () -> initialActivity.onConfigurationChanged(newConfig));
+        mCustomTabActivityTestRule.setActivity(recreatedActivity);
+
+        // Wait for the old activity to be destroyed.
+        ApplicationTestUtils.waitForActivityState(initialActivity, Stage.DESTROYED);
+
+        // Verify that the tab was re-parented.
+        Tab tab2 = recreatedActivity.getActivityTab();
+        Assert.assertNotNull("Tab in new activity should not be null", tab2);
+        Assert.assertSame("Tab should be the same instance after recreation", tab1, tab2);
     }
 
     private void rotateCustomTabActivity(CustomTabActivity activity, int orientation) {

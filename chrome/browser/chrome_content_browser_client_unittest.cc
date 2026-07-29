@@ -20,6 +20,7 @@
 #include "base/metrics/field_trial_params.h"
 #include "base/run_loop.h"
 #include "base/strings/strcat.h"
+#include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/gmock_callback_support.h"
 #include "base/test/gtest_util.h"
@@ -55,6 +56,7 @@
 #include "components/content_settings/core/common/pref_names.h"
 #include "components/file_access/scoped_file_access.h"
 #include "components/file_access/test/mock_scoped_file_access_delegate.h"
+#include "components/fingerprinting_protection_filter/interventions/common/interventions_features.h"
 #include "components/network_session_configurator/common/network_switches.h"
 #include "components/policy/core/common/policy_pref_names.h"
 #include "components/prefs/testing_pref_service.h"
@@ -70,6 +72,7 @@
 #include "content/public/browser/child_process_security_policy.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
+#include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/site_instance.h"
 #include "content/public/browser/site_isolation_policy.h"
 #include "content/public/browser/storage_partition.h"
@@ -89,6 +92,7 @@
 #include "net/ssl/ssl_info.h"
 #include "net/test/cert_test_util.h"
 #include "net/test/test_data_directory.h"
+#include "pdf/buildflags.h"
 #include "services/network/test/test_network_context.h"
 #include "services/video_effects/public/cpp/buildflags.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -167,11 +171,22 @@
 #include "third_party/blink/public/common/features.h"
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
+#if BUILDFLAG(ENABLE_PDF)
+#include "content/public/test/mock_navigation_handle.h"
+#include "content/public/test/test_renderer_host.h"
+#include "pdf/pdf_features.h"
+#endif  // BUILDFLAG(ENABLE_PDF)
+
 using ::content::BrowsingDataFilterBuilder;
 using ::testing::_;
 using ::testing::IsFalse;
 using ::testing::IsTrue;
 using ::testing::NotNull;
+
+#if BUILDFLAG(ENABLE_PDF)
+using ::testing::NiceMock;
+using ::testing::Return;
+#endif  // BUILDFLAG(ENABLE_PDF)
 
 class ChromeContentBrowserClientTest : public testing::Test {
  public:
@@ -1702,11 +1717,29 @@ TEST_F(ChromeContentBrowserClientTest, ShouldUseSpareRenderProcessHost) {
   EXPECT_EQ(SpareProcessRefusedByEmbedderReason::NoProfile, refused_reason);
 
 #if !BUILDFLAG(IS_ANDROID)
-  // Chrome-search URL
-  EXPECT_FALSE(browser_client.ShouldUseSpareRenderProcessHost(
-      &profile_, GURL("chrome-search://test"), refused_reason));
-  EXPECT_EQ(SpareProcessRefusedByEmbedderReason::InstantRendererForNewTabPage,
-            refused_reason);
+  {
+    // Disable kInstantUsesSpareRenderer flag to verify
+    // that Chrome-search URLs are not using the spare renderer.
+    base::test::ScopedFeatureList scoped_feature_list;
+    scoped_feature_list.InitAndDisableFeature(
+        features::kInstantUsesSpareRenderer);
+    // Chrome-search URL
+    EXPECT_FALSE(browser_client.ShouldUseSpareRenderProcessHost(
+        &profile_, GURL("chrome-search://test"), refused_reason));
+    EXPECT_EQ(SpareProcessRefusedByEmbedderReason::InstantRendererForNewTabPage,
+              refused_reason);
+  }
+  {
+    // Enable kInstantUsesSpareRenderer flag to verify
+    // that Chrome-search URLs can use the spare renderer.
+    base::test::ScopedFeatureList scoped_feature_list;
+    scoped_feature_list.InitAndEnableFeature(
+        features::kInstantUsesSpareRenderer);
+    // Chrome-search URL
+    EXPECT_TRUE(browser_client.ShouldUseSpareRenderProcessHost(
+        &profile_, GURL("chrome-search://test"), refused_reason));
+    EXPECT_FALSE(refused_reason.has_value());
+  }
 #endif
 
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
@@ -1716,6 +1749,83 @@ TEST_F(ChromeContentBrowserClientTest, ShouldUseSpareRenderProcessHost) {
   EXPECT_EQ(SpareProcessRefusedByEmbedderReason::ExtensionProcess,
             refused_reason);
 #endif
+}
+
+class CanvasInterventionsContentBrowserClientTest
+    : public ChromeContentBrowserClientTest,
+      public testing::WithParamInterface<std::tuple<bool, bool, bool>> {
+ public:
+  CanvasInterventionsContentBrowserClientTest() {
+    std::tie(enable_canvas_interventions_, feature_enabled_in_regular_mode_,
+             run_in_regular_mode_) = GetParam();
+    SetFeatureFlags(enable_canvas_interventions_,
+                    feature_enabled_in_regular_mode_);
+  }
+
+  void SetFeatureFlags(bool is_canvas_interventions_feature_enabled,
+                       bool enable_in_regular_mode) {
+    if (is_canvas_interventions_feature_enabled) {
+      scoped_feature_list_.InitWithFeaturesAndParameters(
+          {
+              {fingerprinting_protection_interventions::features::kCanvasNoise,
+               {{"enable_in_regular_mode",
+                 base::ToString(enable_in_regular_mode)}}},
+          },
+          {});
+    } else {
+      scoped_feature_list_.InitWithFeatures(
+          /*enabled_features=*/{},
+          /*disabled_features=*/{
+              fingerprinting_protection_interventions::features::kCanvasNoise});
+    }
+  }
+
+  static std::string DescribeParams(
+      const testing::TestParamInfo<ParamType>& info) {
+    auto [enable_canvas_interventions_, feature_enabled_in_regular_mode_,
+          run_in_regular_mode_] = info.param;
+    return base::StringPrintf(
+        "%s_%s_%s",
+        enable_canvas_interventions_ ? "CanvasInterventionsEnabled"
+                                     : "CanvasInterventionsDisabled",
+        feature_enabled_in_regular_mode_ ? "EnabledInRegularMode"
+                                         : "DisabledInRegularMode",
+        run_in_regular_mode_ ? "RunInRegularMode" : "RunInIncognitoMode");
+  }
+
+ protected:
+  bool enable_canvas_interventions_;
+  bool feature_enabled_in_regular_mode_;
+  bool run_in_regular_mode_;
+
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+static auto kCanvasInterventionsTestParams =
+    testing::Combine(testing::Bool(), testing::Bool(), testing::Bool());
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    CanvasInterventionsContentBrowserClientTest,
+    kCanvasInterventionsTestParams,
+    CanvasInterventionsContentBrowserClientTest::DescribeParams);
+
+TEST_P(CanvasInterventionsContentBrowserClientTest,
+       InterventionsNavigationPropagatesCanvasInterventionsFeature) {
+  ChromeContentBrowserClient client;
+  const GURL some_url("http://example.test");
+
+  if (run_in_regular_mode_) {
+    EXPECT_EQ(enable_canvas_interventions_ && feature_enabled_in_regular_mode_,
+              client.ShouldEnableCanvasNoise(profile_.GetOriginalProfile(),
+                                             some_url));
+  } else {
+    EXPECT_EQ(enable_canvas_interventions_,
+              client.ShouldEnableCanvasNoise(
+                  profile_.GetOriginalProfile()->GetPrimaryOTRProfile(
+                      /*create_if_needed=*/true),
+                  some_url));
+  }
 }
 
 class WillComputeSiteForNavigationTest : public ChromeContentBrowserClientTest {
@@ -2082,3 +2192,50 @@ TEST_P(GrantCookieAccessDueToHeuristicTest,
 INSTANTIATE_TEST_SUITE_P(All,
                          GrantCookieAccessDueToHeuristicTest,
                          testing::Bool());
+
+#if BUILDFLAG(ENABLE_PDF)
+class ChromeContentBrowserClientOopifPdfTest
+    : public ChromeRenderViewHostTestHarness {
+ public:
+  ChromeContentBrowserClientOopifPdfTest() = default;
+  ~ChromeContentBrowserClientOopifPdfTest() override = default;
+
+ private:
+  base::test::ScopedFeatureList feature_list_{chrome_pdf::features::kPdfOopif};
+};
+
+TEST_F(ChromeContentBrowserClientOopifPdfTest,
+       OverrideLocalURLCrossOriginEmbedderPolicy) {
+  NiceMock<content::MockNavigationHandle> navigation_handle;
+  navigation_handle.set_render_frame_host(main_rfh());
+  ON_CALL(navigation_handle, IsPdf).WillByDefault(Return(false));
+
+  TestChromeContentBrowserClient browser_client;
+  EXPECT_FALSE(
+      browser_client
+          .MaybeOverrideLocalURLCrossOriginEmbedderPolicy(&navigation_handle)
+          .has_value());
+
+  ON_CALL(navigation_handle, IsPdf).WillByDefault(Return(true));
+
+  // The RFH is missing a parent, i.e. the PDF extension host.
+  EXPECT_FALSE(
+      browser_client
+          .MaybeOverrideLocalURLCrossOriginEmbedderPolicy(&navigation_handle)
+          .has_value());
+
+  auto* pdf_embedder_tester = content::RenderFrameHostTester::For(main_rfh());
+  pdf_embedder_tester->InitializeRenderFrameIfNeeded();
+  content::RenderFrameHost* pdf_extension =
+      pdf_embedder_tester->AppendChild("extension host");
+  content::RenderFrameHost* pdf_content =
+      content::RenderFrameHostTester::For(pdf_extension)
+          ->AppendChild("content host");
+  navigation_handle.set_render_frame_host(pdf_content);
+
+  EXPECT_TRUE(
+      browser_client
+          .MaybeOverrideLocalURLCrossOriginEmbedderPolicy(&navigation_handle)
+          .has_value());
+}
+#endif  // BUILDFLAG(ENABLE_PDF)

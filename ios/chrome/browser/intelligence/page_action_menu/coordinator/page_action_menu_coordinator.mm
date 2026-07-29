@@ -83,8 +83,13 @@ const CGFloat kMenuCornerRadius = 20;
       self.browser->GetCommandDispatcher(), PageActionMenuCommands);
   _viewController.BWGHandler =
       HandlerForProtocol(self.browser->GetCommandDispatcher(), BWGCommands);
-  _viewController.lensOverlayHandler = HandlerForProtocol(
-      self.browser->GetCommandDispatcher(), LensOverlayCommands);
+
+  // If Lens is not available for the profile, then the handler has not been
+  // configured.
+  if ([_mediator isLensAvailableForProfile]) {
+    _viewController.lensOverlayHandler = HandlerForProtocol(
+        self.browser->GetCommandDispatcher(), LensOverlayCommands);
+  }
 
   _navigationController = [[UINavigationController alloc]
       initWithRootViewController:_viewController];
@@ -146,7 +151,7 @@ const CGFloat kMenuCornerRadius = 20;
     (PageActionMenuViewController*)viewController {
   _readerModeOptionsViewController =
       [[ReaderModeOptionsViewController alloc] init];
-  [_readerModeOptionsViewController updateHideReaderModeButtonVisibility:YES];
+  [_readerModeOptionsViewController updateHideReaderModeButtonVisibility:NO];
   _readerModeOptionsViewController.readerModeOptionsHandler =
       HandlerForProtocol(self.browser->GetCommandDispatcher(),
                          ReaderModeOptionsCommands);

@@ -28,6 +28,7 @@
 #include "content/browser/loader/subresource_proxying_url_loader_service.h"
 #include "content/browser/navigation_subresource_loader_params.h"
 #include "content/browser/preloading/prerender/reserved_prerender_host_info.h"
+#include "content/browser/prerender_host_id.h"
 #include "content/browser/renderer_host/browsing_context_group_swap.h"
 #include "content/browser/renderer_host/commit_deferring_condition_runner.h"
 #include "content/browser/renderer_host/cookie_access_observers.h"
@@ -459,7 +460,7 @@ class CONTENT_EXPORT NavigationRequest
       blink::mojom::TransferrableURLLoaderPtr transferrable_loader) override;
   GlobalRenderFrameHostId GetPreviousRenderFrameHostId() override;
   ChildProcessId GetExpectedRenderProcessHostId() override;
-  bool IsServedFromBackForwardCache() override;
+  bool IsServedFromBackForwardCache() const override;
   void SetIsOverridingUserAgent(bool override_ua) override;
   void SetSilentlyIgnoreErrors() override;
   void SetVisitedLinkSalt(uint64_t salt) override;
@@ -1068,10 +1069,6 @@ class CONTENT_EXPORT NavigationRequest
   // committed entry.
   const GURL& GetPreviousMainFrameURL() const;
 
-  // This is the same as |NavigationHandle::IsServedFromBackForwardCache|, but
-  // adds a const qualifier.
-  bool IsServedFromBackForwardCache() const;
-
   // Whether this navigation is activating an existing page (e.g. served from
   // the BackForwardCache or Prerender)
   bool IsPageActivation() const override;
@@ -1487,6 +1484,17 @@ class CONTENT_EXPORT NavigationRequest
     return frame_entry_document_sequence_number_;
   }
 
+  // Returns the canvas noise token used for canvas noising on the renderer.
+  // Only one token should be generated per page and should use the main frame's
+  // origin to generate such. Main frames should use this accessor to populate
+  // the content::Page and subsequent blink::Pages. Subframes should not use
+  // this accessor, but instead should use `PageImpl::canvas_noise_token()` to
+  // get the canvas noise token.
+  std::optional<uint64_t> canvas_noise_token() {
+    CHECK(IsInMainFrame());
+    return canvas_noise_token_;
+  }
+
   // Called when the browser process is about to process beforeunload handlers
   // for this navigation, including sending an IPC to the renderer process to
   // run beforeunload handlers when necessary.
@@ -1682,6 +1690,11 @@ class CONTENT_EXPORT NavigationRequest
   void OnNavigationEventProcessed(
       NavigationThrottleEvent event,
       NavigationThrottle::ThrottleCheckResult result);
+
+  // Returns the PrerenderHostId driving the navigation. If the navigation
+  // is not derived from a prerendered page, the default-consturcted null
+  // value will be returned.
+  PrerenderHostId GetPrerenderHostId() const;
 
  private:
   friend class NavigationRequestTest;
@@ -3331,6 +3344,14 @@ class CONTENT_EXPORT NavigationRequest
   // instantiated.
   blink::mojom::ConfidenceLevel confidence_level_ =
       blink::mojom::ConfidenceLevel::kHigh;
+
+  // The token value for canvas noising. This should only be set on main frame
+  // navigations that subsequently set the token value on the page.
+  std::optional<uint64_t> canvas_noise_token_ = std::nullopt;
+
+  // For NavigationRequests not in a prerendered page, the value will be the
+  // default-constructed null value.
+  const PrerenderHostId prerender_host_id_;
 
   base::WeakPtrFactory<NavigationRequest> weak_factory_{this};
 };

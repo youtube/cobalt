@@ -115,6 +115,7 @@
 #include "url/gurl.h"
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
+#include "chrome/browser/safe_browsing/extension_telemetry/extension_telemetry_service.h"
 #include "chrome/browser/ui/extensions/settings_api_bubble_helpers.h"
 #endif
 
@@ -793,6 +794,13 @@ void ChromeOmniboxClient::OnAutocompleteAccept(
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   extensions::MaybeShowExtensionControlledSearchNotification(
       location_bar_->GetWebContents(), match_type);
+
+  if (AutocompleteMatch::IsSearchType(match_type)) {
+    if (auto* telemetry_service =
+            safe_browsing::ExtensionTelemetryService::Get(profile_)) {
+      telemetry_service->OnOmniboxSearch(match);
+    }
+  }
 #endif
 }
 
@@ -817,6 +825,13 @@ void ChromeOmniboxClient::OnPopupVisibilityChanged(bool popup_is_open) {
     helper->OnPopupVisibilityChanged(
         popup_is_open, GetPageClassification(/*is_prefetch=*/false));
   }
+}
+
+void ChromeOmniboxClient::OpenUrl(GURL gurl) {
+  CHECK(browser_);
+  NavigateParams params(browser_, gurl, ui::PAGE_TRANSITION_GENERATED);
+  params.disposition = WindowOpenDisposition::CURRENT_TAB;
+  Navigate(&params);
 }
 
 void ChromeOmniboxClient::OpenIphLink(GURL gurl) {

@@ -8,6 +8,8 @@ import android.os.Bundle;
 import android.webkit.WebChromeClient;
 import android.webkit.WebViewClient;
 
+import com.android.webview.chromium.WebViewChromiumAwInit.CallSite;
+
 import org.chromium.android_webview.AwBrowserContextStore;
 import org.chromium.android_webview.AwContents;
 import org.chromium.android_webview.AwRenderProcess;
@@ -15,6 +17,7 @@ import org.chromium.android_webview.ScriptHandler;
 import org.chromium.android_webview.WebMessageListener;
 import org.chromium.android_webview.WebViewChromiumRunQueue;
 import org.chromium.base.ThreadUtils;
+import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.content_public.browser.MessagePayload;
 import org.chromium.content_public.browser.MessagePort;
 
@@ -62,7 +65,7 @@ public class SharedWebViewChromium {
     }
 
     public AwRenderProcess getRenderProcess() {
-        mAwInit.startYourEngines(true);
+        mAwInit.triggerAndWaitForChromiumStarted(CallSite.WEBVIEW_INSTANCE);
         if (checkNeedsPost()) {
             return mRunQueue.runOnUiThreadBlocking(() -> getRenderProcess());
         }
@@ -98,7 +101,7 @@ public class SharedWebViewChromium {
     }
 
     public MessagePort[] createWebMessageChannel() {
-        mAwInit.startYourEngines(true);
+        mAwInit.triggerAndWaitForChromiumStarted(CallSite.WEBVIEW_INSTANCE);
         if (checkNeedsPost()) {
             MessagePort[] ret =
                     mRunQueue.runOnUiThreadBlocking(
@@ -175,7 +178,7 @@ public class SharedWebViewChromium {
     }
 
     public SharedWebViewRendererClientAdapter getWebViewRendererClientAdapter() {
-        mAwInit.startYourEngines(true);
+        mAwInit.triggerAndWaitForChromiumStarted(CallSite.WEBVIEW_INSTANCE);
         if (checkNeedsPost()) {
             return mRunQueue.runOnUiThreadBlocking(
                     new Callable<SharedWebViewRendererClientAdapter>() {
@@ -206,9 +209,17 @@ public class SharedWebViewChromium {
     }
 
     protected boolean checkNeedsPost() {
+        RecordHistogram.recordBooleanHistogram(
+                "Android.WebView.Startup.CheckNeedsPost.IsChromiumInitialized",
+                mAwInit.isChromiumInitialized());
         boolean needsPost = !mAwInit.isChromiumInitialized() || !ThreadUtils.runningOnUiThread();
         if (!needsPost && mAwContents == null) {
             throw new IllegalStateException("AwContents must be created if we are not posting!");
+        }
+        if (mAwInit.isChromiumInitialized()) {
+            RecordHistogram.recordBooleanHistogram(
+                    "Android.WebView.Startup.CheckNeedsPost.CalledOnUiThread",
+                    ThreadUtils.runningOnUiThread());
         }
         return needsPost;
     }

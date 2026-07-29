@@ -32,13 +32,13 @@ class MockD3D12VideoEncodeDelegate : public D3D12VideoEncodeDelegate {
   ~MockD3D12VideoEncodeDelegate() override = default;
 
   size_t GetMaxNumOfRefFrames() const override { return 8; }
+  size_t GetMaxNumOfManualRefBuffers() const override { return 4; }
   bool SupportsRateControlReconfiguration() const override { return false; }
-  EncoderStatus::Or<BitstreamBufferMetadata> EncodeImpl(
-      ID3D12Resource*,
-      UINT,
-      const VideoEncoder::EncodeOptions&,
-      const gfx::ColorSpace&) override {
-    return BitstreamBufferMetadata();
+  EncoderStatus EncodeImpl(ID3D12Resource*,
+                           UINT,
+                           const VideoEncoder::EncodeOptions&,
+                           const gfx::ColorSpace&) override {
+    return EncoderStatus::Codes::kOk;
   }
 
  private:
@@ -166,6 +166,18 @@ D3D12VideoEncodeDelegateTestBase::CreateResource(
           .Format = VideoPixelFormatToDxgiFormat(format),
       }));
   return input_frame;
+}
+
+void D3D12VideoEncodeDelegateTestBase::EnableFeature(
+    const base::Feature& feature) {
+  scoped_feature_list_.emplace();
+  scoped_feature_list_->InitAndEnableFeature(feature);
+}
+
+void D3D12VideoEncodeDelegateTestBase::DisableFeature(
+    const base::Feature& feature) {
+  scoped_feature_list_.emplace();
+  scoped_feature_list_->InitAndDisableFeature(feature);
 }
 
 class D3D12VideoEncodeDelegateTest : public D3D12VideoEncodeDelegateTestBase {

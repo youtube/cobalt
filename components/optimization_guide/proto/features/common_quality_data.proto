@@ -361,7 +361,10 @@ message Geometry {
 
   // Whether the content node is fixed or sticky position. This may suggest
   // that the node is a header, footer, or sidebar.
-  bool is_fixed_or_sticky_position = 3 [features = { field_presence: EXPLICIT }];
+  bool is_fixed_or_sticky_position = 3 [
+    deprecated = true,
+    features = { field_presence: EXPLICIT }
+  ];
 
   reserved 4, 5;
 }
@@ -1494,7 +1497,7 @@ enum AXStringAttribute {
 }
 
 // AX Int attribute enum.
-// Next ID: 68
+// Next ID: 69
 enum AXIntAttribute {
   AX_IA_NONE = 0;
 

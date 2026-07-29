@@ -7,15 +7,19 @@
 
 #include <iosfwd>
 #include <memory>
+#include <optional>
+#include <vector>
 
 #include "base/callback_list.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/weak_ptr.h"
+#include "base/timer/elapsed_timer.h"
 #include "base/types/pass_key.h"
 #include "chrome/browser/actor/task_id.h"
 #include "chrome/browser/actor/tools/tool_request.h"
 #include "chrome/common/actor.mojom-forward.h"
+#include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "components/tabs/public/tab_interface.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
@@ -32,8 +36,10 @@ class UiEventDispatcher;
 // Represents a task that Chrome is executing on behalf of the user.
 class ActorTask {
  public:
-  using ActCallback =
-      base::OnceCallback<void(mojom::ActionResultPtr, std::optional<size_t>)>;
+  using ActCallback = base::OnceCallback<void(
+      mojom::ActionResultPtr,
+      std::optional<size_t>,
+      std::vector<optimization_guide::proto::ScriptToolResult>)>;
 
   ActorTask() = delete;
   ActorTask(Profile* profile,
@@ -120,7 +126,11 @@ class ActorTask {
  private:
   void OnFinishedAct(ActCallback callback,
                      mojom::ActionResultPtr result,
-                     std::optional<size_t> index_of_failed_action);
+                     std::optional<size_t> index_of_failed_action,
+                     std::vector<optimization_guide::proto::ScriptToolResult>
+                         script_tool_results);
+  void OnTabWillDetach(tabs::TabInterface* tab,
+                       tabs::TabInterface::DetachReason reason);
 
   State state_ = State::kCreated;
   raw_ptr<Profile> profile_;
@@ -136,8 +146,18 @@ class ActorTask {
 
   TaskId id_;
 
+  // A timer for the current state that is not paused.
+  std::optional<base::ElapsedTimer> current_timer_ = base::ElapsedTimer();
+  // An accumulation of elapsed times for previous "active" states.
+  base::TimeDelta total_active_time_;
+
   // The set of all tabs this task has acted upon.
+  // TODO(mcnee): We have additional tab related state below. We could wrap them
+  // up into a struct and have the handle be a map key for easier management.
   absl::flat_hash_set<tabs::TabHandle> tab_handles_;
+
+  // Holds subscriptions for TabInterface callbacks.
+  std::vector<base::CallbackListSubscription> tab_subscriptions_;
 
   // A map from a tab's handle to a ScopedClosureRunner that keeps the tab
   // in "actuation mode". This is released when the tab is removed from the

@@ -169,8 +169,13 @@ public class BookmarkBarTest {
         // clicked.
         onView(withClassName(endsWith("BookmarkToolbar"))).check(doesNotExist());
 
-        // Check that the new popup window is displayed.
-        onView(withId(R.id.menu_list)).inRoot(isPlatformPopup()).check(matches(isDisplayed()));
+        // When the folder is empty, the list should not be displayed.
+        onView(withId(R.id.menu_list)).inRoot(isPlatformPopup()).check(matches(not(isDisplayed())));
+
+        // The empty view should be displayed.
+        onView(withText(R.string.bookmarks_bar_empty_message))
+                .inRoot(isPlatformPopup())
+                .check(matches(isDisplayed()));
     }
 
     @Test
@@ -344,12 +349,12 @@ public class BookmarkBarTest {
     }
 
     private @Nullable Tab getCurrentTab() {
-        return mCtaTestRule.getActivity().getActivityTab();
+        return mCtaTestRule.getActivityTab();
     }
 
     private @Nullable Tab getLastTab() {
         final var tabModel = mCtaTestRule.getActivity().getCurrentTabModel();
-        return tabModel.getTabAt(tabModel.getCount() - 1);
+        return ThreadUtils.runOnUiThreadBlocking(() -> tabModel.getTabAt(tabModel.getCount() - 1));
     }
 
     private @NonNull GURL getTestServerUrl(@NonNull String relativeUrl) {
