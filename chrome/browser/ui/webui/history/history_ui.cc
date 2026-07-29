@@ -47,7 +47,6 @@
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/history_resources.h"
 #include "chrome/grit/history_resources_map.h"
-#include "chrome/grit/locale_settings.h"
 #include "components/grit/components_scaled_resources.h"
 #include "components/history/core/common/pref_names.h"
 #include "components/history_clusters/core/config.h"
@@ -99,10 +98,12 @@ content::WebUIDataSource* CreateAndAddHistoryUIHTMLSource(Profile* profile) {
       {"turnOnSyncPromoDesc", IDS_HISTORY_TURN_ON_SYNC_PROMO_DESC},
       {"turnOnSyncHistoryPromo", IDS_HISTORY_SYNC_HISTORY_PROMO},
       {"syncHistoryPromoBodySignedOut",
-        IDS_RECENT_TABS_SYNC_HISTORY_PROMO_BODY_SIGNED_OUT},
+       IDS_RECENT_TABS_SYNC_HISTORY_PROMO_BODY_SIGNED_OUT},
       {"syncHistoryPromoBodyPendingSignIn",
        IDS_RECENT_TABS_SYNC_HISTORY_PROMO_BODY_PENDING_SIGN_IN},
-  };
+      {"syncHistoryPromoBodyPendingSignInSyncHistoryOn",
+       IDS_RECENT_TABS_SYNC_HISTORY_PROMO_BODY_PENDING_SIGN_IN_SYNC_HISTORY_ON},
+      {"verifyItsYou", IDS_VERIFY_IT_IS_YOU}};
   source->AddLocalizedStrings(kStrings);
 
   source->AddLocalizedString("turnOnSyncHistoryButton",
@@ -116,24 +117,19 @@ content::WebUIDataSource* CreateAndAddHistoryUIHTMLSource(Profile* profile) {
   // the user's settings.
   source->AddString(
       "sidebarFooterGMAOnly",
-      l10n_util::GetStringFUTF16(
-          IDS_HISTORY_OTHER_FORMS_OF_HISTORY_GMA_ONLY,
-          l10n_util::GetStringUTF16(
-              IDS_SETTINGS_CLEAR_DATA_MYACTIVITY_URL_IN_HISTORY)));
+      l10n_util::GetStringFUTF16(IDS_HISTORY_OTHER_FORMS_OF_HISTORY_GMA_ONLY,
+                                 chrome::kMyActivityUrlInHistory));
   source->AddString(
       "sidebarFooterGAAOnly",
       l10n_util::GetStringFUTF16(IDS_HISTORY_OTHER_FORMS_OF_HISTORY_GAA_ONLY,
                                  chrome::kMyActivityGeminiAppsUrl));
-  source->AddString("sidebarFooterGMAAndGAA",
-                    l10n_util::GetStringFUTF16(
-                        IDS_HISTORY_OTHER_FORMS_OF_HISTORY_GMA_AND_GAA,
-                        l10n_util::GetStringUTF16(
-                            IDS_SETTINGS_CLEAR_DATA_MYACTIVITY_URL_IN_HISTORY),
-                        chrome::kMyActivityGeminiAppsUrl));
+  source->AddString(
+      "sidebarFooterGMAAndGAA",
+      l10n_util::GetStringFUTF16(IDS_HISTORY_OTHER_FORMS_OF_HISTORY_GMA_AND_GAA,
+                                 chrome::kMyActivityUrlInHistory,
+                                 chrome::kMyActivityGeminiAppsUrl));
   // Links that are used in the messages above.
-  source->AddString("sidebarFooterGMALink",
-                    l10n_util::GetStringUTF16(
-                        IDS_SETTINGS_CLEAR_DATA_MYACTIVITY_URL_IN_HISTORY));
+  source->AddString("sidebarFooterGMALink", chrome::kMyActivityUrlInHistory);
   source->AddString("sidebarFooterGAALink", chrome::kMyActivityGeminiAppsUrl);
 
 #if BUILDFLAG(ENABLE_GLIC)

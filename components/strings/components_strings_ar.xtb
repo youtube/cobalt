@@ -210,7 +210,6 @@
           <ph name="LIST_ITEM" />صاحب العمل أو المدرسة
           <ph name="LIST_ITEM" />مزوّد خدمة الإنترنت
         <ph name="END_LIST" /></translation>
-<translation id="1335042910556016570">تتبُّع هذا العنصر</translation>
 <translation id="1337692097987160377">مشاركة علامة التبويب هذه</translation>
 <translation id="1339601241726513588">نطاق التسجيل:</translation>
 <translation id="1340482604681802745">عنوان الاستلام</translation>
@@ -481,7 +480,6 @@
 <translation id="1762779605905950734">اسم الشارع</translation>
 <translation id="1763864636252898013">هذا الخادم لم يتمكن من إثبات أن ذلك <ph name="DOMAIN" />؛ بل إنه شهادة أمان غير موثوقة من خلال نظام تشغيل جهازك. وربما يكون السبب في ذلك خطأ في التكوين أو مهاجمًا يعترض الاتصال.</translation>
 <translation id="1768211456781949159">‏<ph name="BEGIN_LINK" />تجربة تشغيل بيانات التشخيص لشبكة Windows<ph name="END_LINK" />.</translation>
-<translation id="1771254328977666895">الاطّلاع على سجلّ الأسعار</translation>
 <translation id="1777422078676229054">تصوير (أرشفة)</translation>
 <translation id="1778646502362731194">JIS B0</translation>
 <translation id="1785118555253503473">هل تريد تثبيت تطبيقات الويب؟</translation>
@@ -990,6 +988,7 @@
 <translation id="2610561535971892504">النقر لنسخ النص</translation>
 <translation id="2612676031748830579">رقم البطاقة</translation>
 <translation id="2612993535136743634">‏سيتم حذف كل رموز الأمان المحفوظة على جهازك وفي حسابك على Google.</translation>
+<translation id="2614835674900828050">هذا الخيار غير متاح لعملية الشراء هذه</translation>
 <translation id="2616412942031748191">تسويق وتحسين محركات بحث</translation>
 <translation id="2618206371527040026">مؤتمرات ومنشورات أكاديمية</translation>
 <translation id="2619052155095999743">إدخال</translation>
@@ -1238,6 +1237,7 @@
 <translation id="305162504811187366">‏سجلّ الوصول إلى الكمبيوتر المكتبي عن بُعد من Chrome، بما في ذلك الطوابع الزمنية والمضيفين وأرقام تعريف جلسات العملاء</translation>
 <translation id="3052868890529250114">‏يمكنك عادةً الاتصال بالمواقع الإلكترونية بشكل آمن، ولكن تعذَّر على Chrome استخدام اتصال آمن في الوقت الحالي. قد يحاول أحد المهاجمين التجسس على اتصالك بالشبكة أو تعديله. <ph name="BEGIN_LEARN_MORE_LINK" />مزيد من المعلومات حول هذا التحذير<ph name="END_LEARN_MORE_LINK" /></translation>
 <translation id="3052964831964880138">انخفاض في سعر <ph name="PRODUCT_NAME" /> بقيمة <ph name="PRICE_DROP" /></translation>
+<translation id="3056660797732519147">‏تم فتح شاشة خطأ عملية "الدفع الآجل" (BNPL). لوحة المفاتيح مخفية.</translation>
 <translation id="3061707000357573562">خدمة رمز التصحيح</translation>
 <translation id="3062655045399308513">حذف بيانات التصفّح…</translation>
 <translation id="3063453392496098461">‏تعذَّر تثبيت خدمات VPN التي تُشغَّل في الخلفية.</translation>
@@ -1253,6 +1253,7 @@
 <translation id="3087734570205094154">أسفل</translation>
 <translation id="3090667236485488075">زجاج</translation>
 <translation id="3093122472063815077">‏تم فتح شاشة التقدّم في عملية "الدفع الآجل" (BNPL) في نصف الشاشة.</translation>
+<translation id="309381737510736393">‏عندما تفرض مؤسستك قيودًا على حفظ المعلومات في حسابك على Google، لن يكون بإمكانك مشاركة علامات التبويب أو التعاون مع الآخرين</translation>
 <translation id="3094051226187213523">‏يمكنك فتح "وضع AI" باستخدام هذا الاقتراح.</translation>
 <translation id="3095940652251934233">كشف</translation>
 <translation id="3098513225387949945">تم التجاهل لأنّ قائمة الإيقاف تتضمّن نمطًا يعادل حرف البدل "*"، ما يعادل إيقاف السياسة.</translation>
@@ -1698,6 +1699,7 @@
 <translation id="3784372983762739446">أجهزة بلوتوث</translation>
 <translation id="3785246317262748285">‏يمكنك عادةً الاتصال بالمواقع الإلكترونية بشكل آمن، ولكن تعذَّر على Chrome استخدام اتصال آمن في الوقت الحالي، وقد يحاول أحد المهاجمين التجسس على اتصالك بالشبكة أو تعديله. <ph name="LEARN_MORE" /></translation>
 <translation id="378611282717571199">أفضل نتيجة مطابِقة لعبارة البحث "<ph name="SEARCH_QUERY" />"</translation>
+<translation id="3787887386289385215">‫"<ph name="ISSUER_1_NAME" />" أو "<ph name="ISSUER_2_NAME" />" أو "<ph name="ISSUER_3_NAME" />"</translation>
 <translation id="3789841737615482174">تثبيت</translation>
 <translation id="3791118028061680614">الدفع بدون التبديل بين التطبيقات</translation>
 <translation id="3792100426446126328">‏<ph name="NAME" /> (<ph name="WIDTH" /> x <ph name="HEIGHT" /> بوصة)</translation>
@@ -1990,6 +1992,7 @@
 <translation id="4242981939686657948">للبحث في سجلّ التصفّح بفاعلية أكبر، فعِّل</translation>
 <translation id="4244926541863471678">فيلم</translation>
 <translation id="4246517972543675653">الدراسة في الخارج</translation>
+<translation id="4250343410682686342">‏تم فتح شاشة خطأ عملية "الدفع الآجل" (BNPL) بطول الشاشة.</translation>
 <translation id="4250431568374086873">إن اتصالك بهذا الموقع غير آمن تمامًا</translation>
 <translation id="4250680216510889253">لا</translation>
 <translation id="4250716950689692560">A4x4</translation>
@@ -2506,6 +2509,7 @@
 <translation id="5122786942953798871">ظرف (قطني)</translation>
 <translation id="5123063207673082822">نهاية الأسبوع</translation>
 <translation id="5123433949759960244">كرة السلة</translation>
+<translation id="5124797626438336458">‏تم فتح شاشة خطأ عملية "الدفع الآجل" (BNPL) في نصف الشاشة.</translation>
 <translation id="5125575917473813637">تعديل بطاقة الهوية</translation>
 <translation id="5125751979347152379">‏عنوان URL غير صالح.</translation>
 <translation id="512592033764059484">كرة قدم</translation>
@@ -2679,6 +2683,7 @@
 <translation id="5412040515238827314">تنسيق غير صالح: كان من المتوقّع ظهور قائمة بالأنماط.</translation>
 <translation id="5412245327974352290"><ph name="TRADITIONAL_TEXT" /> - <ph name="ADDITIONAL_TEXT" /></translation>
 <translation id="541416427766103491">المكدِّس 4</translation>
+<translation id="5414306071315087019">‏خيار "الدفع الآجل" (BNPL) متاح في Google Pay</translation>
 <translation id="5414446060143308245">يجب مراجعة الملفات قبل نقلها</translation>
 <translation id="5414511064953050917">النقل على أي حال</translation>
 <translation id="5418700249417444482">‏تُرسَل إلى Google Cloud أو جهات خارجية عناوين URL الخاصة بالصفحات التي تزورها وذلك لتحليلها، وقد تكون مرئية للمشرف. على سبيل المثال، قد يتم فحص هذه الصفحات لرصد المواقع الإلكترونية غير الآمنة أو فلترة المواقع الإلكترونية استنادًا إلى القواعد التي حدّدها المشرف.</translation>
@@ -2799,6 +2804,7 @@
 <translation id="5595485650161345191">تعديل العنوان</translation>
 <translation id="5596939519753369075">2 × 3.5 بوصة</translation>
 <translation id="5597254438174353289">أزرق 3</translation>
+<translation id="5603469469737324249">‫"<ph name="ISSUER_1_NAME" />" أو "<ph name="ISSUER_2_NAME" />"</translation>
 <translation id="560412284261940334">الإدارة غير متوفرة</translation>
 <translation id="5605249000617390290">مزيد من المعلومات حول ميزة "تتبُّع الأسعار"</translation>
 <translation id="5605670050355397069">Ledger</translation>
@@ -4172,6 +4178,7 @@
 <translation id="7860345425589240791">‏أدخِل تاريخ انتهاء صلاحية البطاقة الجديد ورمز التحقق من البطاقة (CVC) المتوفّر على <ph name="SIDE_OF_CARD" />.</translation>
 <translation id="7862185352068345852">هل تريد مغادرة الموقع؟</translation>
 <translation id="7865448901209910068">أفضل سرعة</translation>
+<translation id="7865482168955081228">‏تم إغلاق شاشة خطأ عملية "الدفع الآجل" (BNPL).</translation>
 <translation id="7870281855125116701">يتوفّر خصم على المنتج.</translation>
 <translation id="7871445724586827387">‏تغيير كلمة مرور حسابك على Google</translation>
 <translation id="787226752901403048">‏يُرجى تسجيل الدخول إلى Chrome لمشاركة مجموعات علامات التبويب والانضمام إليها والعمل معًا على الأفكار</translation>

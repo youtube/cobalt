@@ -42,6 +42,7 @@
 <translation id="1434626383986940139">Chrome Canary 應用程式</translation>
 <translation id="1439793550875056299">釘選 Chrome</translation>
 <translation id="146866447420868597">要登入 Chrome 嗎？</translation>
+<translation id="1476347941828409626">管理 Chrome 設定檔(&amp;M)</translation>
 <translation id="1492280395845991349">重新啟動即可完成 Chrome 更新程序</translation>
 <translation id="1497802159252041924">安裝錯誤：<ph name="INSTALL_ERROR" /></translation>
 <translation id="1507198376417198979">自訂新的 Chrome 設定檔</translation>
@@ -230,7 +231,7 @@
 <translation id="3595784445906693824">要以新設定檔登入 Chrome 嗎？</translation>
 <translation id="3596080736082218006">{COUNT,plural, =0{系統管理員要求你重新啟動 Chrome，以套用更新}=1{系統管理員要求你重新啟動 Chrome，以套用更新。你的無痕視窗不會重新開啟。}other{系統管理員要求你重新啟動 Chrome，以套用更新。你的 # 個無痕視窗不會重新開啟。}}</translation>
 <translation id="3597003331831379823">無法以進階權限執行設定。<ph name="METAINSTALLER_ERROR" /></translation>
-<translation id="3622716124581627104">可以辨識物品或地點，也可複製或翻譯文字。使用 Google 智慧鏡頭時，系統會將頁面的螢幕截圖傳送給 Google。<ph name="LEARN_MORE" /></translation>
+<translation id="3622716124581627104">可以辨識物品或地點，也可複製或翻譯文字。使用 Google 智慧鏡頭時，系統會將網頁截圖傳送給 Google。<ph name="LEARN_MORE" /></translation>
 <translation id="3622797965165704966">無論是登入 Google 帳戶使用 Chrome，還是以 Google 帳戶使用共用電腦，現在都變得更容易了。</translation>
 <translation id="3635073343384702370">若有已存密碼，Chrome 可執行安全檢查</translation>
 <translation id="3667616615096815454">伺服器無法辨識應用程式，因此無法安裝。</translation>
@@ -247,6 +248,9 @@
 <translation id="3809772425479558446">Google Chrome 僅支援 Windows 10 以上版本的作業系統。</translation>
 <translation id="3810973564298564668">管理</translation>
 <translation id="383928141529488001">Google Chrome 需要藍牙存取權才能偵測藍牙裝置。<ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
+<translation id="3846683726093018685">**摘要：** 請用一句話 (不超過 30 個字) 說明螢幕截圖內容的主要主題和目的。
+
+          **建議問題：** 生成項目符號清單，列出使用者可以提出的 3 至 5 個問題，以便啟發思考，深入瞭解螢幕截圖內容。其中至少應有一個問題與某個視覺物件、其設計或位置相關。</translation>
 <translation id="386202838227397562">請關閉所有 Google Chrome 視窗，並再試一次</translation>
 <translation id="3873044882194371212">在 Chrome 無痕視窗中開啟連結(&amp;G)</translation>
 <translation id="3885770153807205175">語言選單</translation>
@@ -508,6 +512,7 @@ Google Chrome 無法復原你的設定。</translation>
 <translation id="6885412569789873916">Chrome Beta 版應用程式</translation>
 <translation id="6893363893008038481">從 Chrome 中移除帳戶</translation>
 <translation id="6896758677409633944">複製</translation>
+<translation id="6927941417289800361">登入帳戶就能在 Chrome 使用 Google 帳戶儲存的密碼和其他資訊。你隨時可以前往設定進行變更。</translation>
 <translation id="6930294499209825">讓 Google 軟體保持最新狀態。如果停用或停止這項服務，Google 軟體就無法保持最新狀態。這樣一來，假如有安全漏洞，可能無法修正。Google 的功能也可能無法正常運作。如果這項服務沒有用於任何 Google 軟體，就會自行解除安裝。</translation>
 <translation id="6933858244219479645">ChromeOS 系統</translation>
 <translation id="6938166777909186039">如要取得日後的 Google Chrome 更新，必須使用 Windows 10 以上版本。這部電腦目前版本為 Windows 8.1。</translation>
@@ -520,6 +525,7 @@ Google Chrome 無法復原你的設定。</translation>
 <translation id="7024536598735240744">解壓縮錯誤：<ph name="UNPACK_ERROR" />。</translation>
 <translation id="7025789849649390912">已停止安裝。</translation>
 <translation id="7025800014283535195">你可以在這裡切換不同的 Chrome 設定檔</translation>
+<translation id="7047386856539490735">這些結果實用嗎？</translation>
 <translation id="7051685429025310665">由於近期並未造訪，Chrome 已移除<ph name="PERMISSION_1" />、<ph name="PERMISSION_2" />和<ph name="PERMISSION_3" />權限。</translation>
 <translation id="7059914902409643750">使用你專屬的 Chrome</translation>
 <translation id="7060643578009939353">使用 Google 智慧鏡頭搜尋這部影片</translation>
@@ -590,10 +596,10 @@ Google Chrome 無法復原你的設定。</translation>
 <translation id="7777080907402804672">如果圖片缺少有用的說明，Chrome 會嘗試為你提供說明。系統會將圖片傳送給 Google，以便產生說明。你隨時可以在設定中關閉這項功能。</translation>
 <translation id="778331955594035129">Chrome 需要位置存取權，才能執行這個網站要求的功能</translation>
 <translation id="7787950393032327779">另一台電腦 (<ph name="HOST_NAME" />) 的 Google Chrome 處理程序 (<ph name="PROCESS_ID" />) 正在使用這個設定檔。Chrome 已鎖定此設定檔，確保其不致受損。如果你確定其他處理程序目前未使用此設定檔，請予以解除鎖定，然後重新啟動 Chrome。</translation>
+<translation id="7792336732117553384">管理 Chrome 設定檔(&amp;M)</translation>
 <translation id="7801699035218095297">Google Chrome 正在嘗試複製密碼。如果你同意這項作業，請輸入你的 Windows 密碼。</translation>
 <translation id="7804364787702057554">你在 Chrome 中的帳戶</translation>
 <translation id="7808348361785373670">從 Chrome 中移除...</translation>
-<translation id="7825851276765848807">不明錯誤導致安裝失敗，請再次下載 Google Chrome。</translation>
 <translation id="7827099906024714326">Chrome 必須先驗證身分，才能將這些資料儲存到 Google 帳戶，讓你在所有裝置上使用。如果現在登出，系統將刪除這類資料。</translation>
 <translation id="7845233973568007926">感謝你安裝本服務。你必須重新啟動電腦，才能使用 <ph name="BUNDLE_NAME" />。</translation>
 <translation id="7849037457735762883">接續上次的瀏覽內容：Chrome 每次重新啟動時都能還原分頁。如要開啟這項功能，請前往</translation>
@@ -672,7 +678,6 @@ Google Chrome 無法復原你的設定。</translation>
 <translation id="873133009373065397">Google Chrome 無法偵測或設定預設瀏覽器</translation>
 <translation id="8747073452963259673">搜尋區域的左下角：左側 <ph name="LEFT" />%，底部 <ph name="BOTTOM" />%</translation>
 <translation id="8748735421235723888">Chrome 會釋出閒置分頁占用的記憶體，將更多電腦資源提供給使用中的分頁和其他應用程式，同時保持 Chrome 快速運作。當你切回閒置分頁時，這些分頁會自動恢復為「使用中」狀態。<ph name="BEGIN_LINK" />進一步瞭解記憶體節省模式<ph name="END_LINK" /></translation>
-<translation id="8753189155654018347">從 Chrome 中移除這個應用程式的資料</translation>
 <translation id="8765470054473112089">在網址列或搜尋框中輸入時，Chrome 會將你輸入的內容傳送給預設搜尋引擎，提供更符合需求的搜尋建議。這項功能在無痕模式中為關閉狀態。</translation>
 <translation id="8781673607513845160">如要使用攝影機，請在<ph name="BEGIN_LINK" />系統設定<ph name="END_LINK" />中授予 Chrome 存取權</translation>
 <translation id="878572486461146056">安裝錯誤：網路管理員採用的「群組原則」不允許安裝應用程式：<ph name="INSTALL_ERROR" /></translation>
@@ -688,6 +693,7 @@ Google Chrome 無法復原你的設定。</translation>
 <translation id="8883862939660515976">向 Google 智慧鏡頭詢問這張圖片的相關問題</translation>
 <translation id="8914504000324227558">重新啟動 Chrome</translation>
 <translation id="8922193594870374009">如要將號碼從 <ph name="ORIGIN" /> 傳送到 Android 手機，請在這兩部裝置上登入 Chrome。</translation>
+<translation id="8922998289262614701">從 Chrome 移除這個應用程式的資料</translation>
 <translation id="8948460679427074738">這項擴充功能尚未發布隱私權實務規範 (例如擴充功能如何收集和使用資料)，因此 Chrome 建議你移除。</translation>
 <translation id="8958307504142971576">現在可以使用更多 Chrome 功能</translation>
 <translation id="8991530961471831170">開啟 Gemini 版 Chrome</translation>

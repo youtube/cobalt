@@ -6,10 +6,24 @@ import("//build/config/compiler/sdk_version.gni")
 
 source_set("public") {
   sources = [
+    "base_migratable_sync_service.h",
     "context_id.h",
+    "migratable_bridge_mediator.h",
     "migratable_sync_service.h",
     "migratable_sync_service_coordinator.h",
+    "shareable_private_bridge.h",
+    "shareable_shared_bridge.h",
+    "sync_entity_identifier.h",
   ]
 
-  deps = [ "//base" ]
+  deps = [ ":features" ]
+}
+
+static_library("features") {
+  sources = [
+    "features.cc",
+    "features.h",
+  ]
+
+  public_deps = [ "//base" ]
 }

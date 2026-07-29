@@ -28,6 +28,7 @@ namespace features {
 // alongside the definition of their values in the .cc file.
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kAdditionalOpaqueOriginEnforcements);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kAndroidCaptureKeyEvents);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kAndroidCaretBrowsing);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kAndroidDevToolsFrontend);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kAndroidFallbackToNextSlot);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kAndroidWarmUpSpareRendererWithTimeout);
@@ -121,12 +122,14 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(kFedCm);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kFedCmAlternativeIdentifiers);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kFedCmAutofill);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kFedCmDelegation);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kFedCmErrorAttribute);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kFedCmIdPRegistration);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kFedCmIframeOrigin);
-CONTENT_EXPORT BASE_DECLARE_FEATURE(kFedCmMetricsEndpoint);
-CONTENT_EXPORT BASE_DECLARE_FEATURE(kFedCmWithoutWellKnownEnforcement);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kFedCmLightweightMode);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kFedCmMetricsEndpoint);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kFedCmNonceInParams);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kFedCmWellKnownEndpointValidation);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kFedCmWithoutWellKnownEnforcement);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kFencedFramesEnforceFocus);
 #if BUILDFLAG(IS_ANDROID)
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kFluidResize);
@@ -152,7 +155,6 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(kIsolatedWebApps);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kIsolateFencedFrames);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kIsolateOrigins);
 CONTENT_EXPORT extern const char kIsolateOriginsFieldTrialParamName[];
-CONTENT_EXPORT BASE_DECLARE_FEATURE(kLazyInitializeMediaControls);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(
     kLoadingPredictorLimitPreconnectSocketCount);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kLogJsConsoleMessages);
@@ -397,6 +399,10 @@ CONTENT_EXPORT extern const base::FeatureParam<std::string>
 
 CONTENT_EXPORT extern const base::FeatureParam<std::string>
     kForcedOffCapturingAppsUserSetting;
+
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kSubframeProcessShutdownDelay);
+CONTENT_EXPORT extern const base::FeatureParam<int>
+    kSubframeProcessShutdownDelaySeconds;
 
 // DON'T ADD RANDOM STUFF HERE. Put it in the main section above in
 // alphabetical order, or in one of the ifdefs (also in order in each section).

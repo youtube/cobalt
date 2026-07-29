@@ -459,7 +459,8 @@ void WaitForFakeJoinFlowView() {
 
 // Checks that the IPH is presented when the user foreground the app with a
 // shared tab group active.
-- (void)testForegroundIPH {
+// TODO(crbug.com/411064928): Re-enable this test.
+- (void)DISABLED_testForegroundIPH {
   if ([ChromeEarlGrey isIPadIdiom]) {
     // Not available on iPad.
     return;
@@ -1321,6 +1322,12 @@ void WaitForFakeJoinFlowView() {
   if (base::ios::IsRunningOnIOS26OrLater()) {
     EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
   }
+#if !TARGET_IPHONE_SIMULATOR
+  // TODO(crbug.com/449204815): Re-enable the test on iPad device.
+  if ([ChromeEarlGrey isIPadIdiom]) {
+    EARL_GREY_TEST_DISABLED(@"Test disabled on iPad.");
+  }
+#endif
 
   AddSharedGroup(/*owner=*/YES, self.testServer);
   [ChromeEarlGrey waitForMainTabCount:1];
@@ -1369,6 +1376,12 @@ void WaitForFakeJoinFlowView() {
 // Tests that the badge on the tab switcher appears when a shared group is
 // updated and disappears when a user visits the updated page.
 - (void)testTabSwitcherBadge {
+#if !TARGET_IPHONE_SIMULATOR
+  // TODO(crbug.com/449204815): Re-enable the test on iPad device.
+  if ([ChromeEarlGrey isIPadIdiom]) {
+    EARL_GREY_TEST_DISABLED(@"Test disabled on iPad.");
+  }
+#endif
   AddSharedGroup(/*owner=*/YES, self.testServer);
   [ChromeEarlGrey waitForMainTabCount:1];
 

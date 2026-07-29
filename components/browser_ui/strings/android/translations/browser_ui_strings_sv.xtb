@@ -40,6 +40,7 @@
 <translation id="1500473259453106018">Dölj kortet Sänkta priser på flikar</translation>
 <translation id="1508931164824684991">Webbplatser får använda JavaScript</translation>
 <translation id="1510341833810331442">Webbplatser får inte spara data på enheten</translation>
+<translation id="1532175480576580256">Arket på nedre delen av skärmen för mina genvägar har öppnats över hela skärmen</translation>
 <translation id="1538031354170655462">Webbplatser använder vanligtvis närfältskommunikation (NFC) för att fungera med taggar eller enheter i närheten, till exempel för att skanna märken eller för kontaktlös betalning</translation>
 <translation id="1547123415014299762">Tredjepartscookies tillåts</translation>
 <translation id="1569054338208717605">Gör webbplatser snabbare med Chromes V8-motor men gör Chrome något mindre motståndskraftigt mot attacker</translation>
@@ -115,6 +116,7 @@
 <translation id="228293613124499805">De flesta webbplatser du besöker sparar troligen data på enheten, oftast för att förbättra upplevelsen genom att spara dina inställningar eller information som du delar med webbplatsen. Vi rekommenderar att du låter den här inställningen vara aktiverad.</translation>
 <translation id="2289270750774289114">Fråga när en webbplats försöker söka efter Bluetooth-enheter i närheten (rekommenderas)</translation>
 <translation id="2315043854645842844">Val av certifikat på klienten stöds inte av operativsystemet.</translation>
+<translation id="2347601491101454548">Arket på nedre delen av skärmen för mina genvägar har öppnats över halva skärmen</translation>
 <translation id="2359808026110333948">Fortsätt</translation>
 <translation id="2379925928934107488">Använd mörkt tema på webbplatser om Chrome använder mörkt tema, när det är möjligt</translation>
 <translation id="2390272837142897736">Öka zoom</translation>
@@ -145,6 +147,11 @@
 <translation id="2588271083332682494">Få mer ordning med flikgrupper</translation>
 <translation id="2597457036804169544">Använd inte mörkt tema på webbplatser</translation>
 <translation id="2606760465469169465">Verifiera automatiskt</translation>
+<translation id="2610903128639500624">Hantera i <ph name="BEGIN_LINK1" />Android-inställningarna<ph name="END_LINK1" />
+
+Avancerat skydd styr följande Chrome-inställningar:
+• Använd alltid en säker anslutning aktiveras.
+• JavaScript-optimering är inaktiverat. <ph name="BEGIN_LINK2" />Hantera webbplatsundantag<ph name="END_LINK2" /></translation>
 <translation id="2621115761605608342">Tillåt JavaScript på en specifik webbplats.</translation>
 <translation id="2626708220538466178">Ark på nedre delen av standardwebbläsaren har stängts</translation>
 <translation id="2653659639078652383">Skicka</translation>
@@ -303,6 +310,7 @@
 <translation id="4336566011000459927">Chrome begränsar cookies igen i dag</translation>
 <translation id="4338831206024587507">Alla webbplatser under <ph name="DOMAIN" /></translation>
 <translation id="4340799661701629185">Tillåt inte att webbplatser skickar aviseringar</translation>
+<translation id="4341577178275615435">Aktivera eller inaktivera textmarkörläge med kortkommandot F7</translation>
 <translation id="4402755511846832236">Blockera webbplatser från att veta när du använder enheten aktivt</translation>
 <translation id="4412683424767388419">Ark på nedre delen av skärmen för Chrome-färger har öppnats över halva skärmen</translation>
 <translation id="4412992751769744546">Tillåt cookies från tredje part</translation>
@@ -337,6 +345,7 @@
 <translation id="4816495437032298535">Sparade zoomnivåer för webbplatser</translation>
 <translation id="4836046166855586901">Fråga när en webbplats vill veta om du använder enheten aktivt</translation>
 <translation id="483914009762354899">Inkludera alla webbplatser på den här domänen</translation>
+<translation id="4852997963351138624">Hexadecimal bakgrundsfärg</translation>
 <translation id="4882919381756638075">Åtkomst till mikrofonen brukar kunna behövas för kommunikationsfunktioner på webbplatsen, t.ex. videochatt</translation>
 <translation id="4883854917563148705">Hanterade inställningar kan inte återställas</translation>
 <translation id="4887024562049524730">Fråga innan webbplatser tillåts att använda VR-enheter och VR-data (rekommenderas)</translation>
@@ -500,6 +509,7 @@
 <translation id="6608650720463149374"><ph name="GIGABYTES" /> GB</translation>
 <translation id="6612358246767739896">Skyddat innehåll</translation>
 <translation id="662080504995468778">Stanna kvar</translation>
+<translation id="6630443592285535486">Skriv hexadecimalt värde här</translation>
 <translation id="6635327442719709864">När detta är aktiverat kan webbplatser be om att få använda serieportar. När detta är inaktiverat kan inte webbplatser använda serieportar.</translation>
 <translation id="6678072580827808850">Granska säkerhetskontrollen</translation>
 <translation id="6682057173375416470">Få föreslagna artiklar på sidan Ny flik</translation>
@@ -557,6 +567,7 @@
 <translation id="7399802613464275309">Säkerhetskontroll</translation>
 <translation id="7406113532070524618">Den här inställningen fungerar utan att du identifieras eller att webbplatser tillåts se din webbhistorik, men webbplatser kan dela en del uppgifter som en del av verifieringen</translation>
 <translation id="7409735910987429903">Webbplatser kan öppna popup-fönster med annonser eller omdirigera dig till webbplatser som du kanske inte vill besöka</translation>
+<translation id="7412160840120117304">Hexadecimal primär färg</translation>
 <translation id="7423098979219808738">Fråga först</translation>
 <translation id="7423538860840206698">Läsbehörighet till Urklipp har nekats</translation>
 <translation id="7425915948813553151">Mörkt tema för webbplatser</translation>

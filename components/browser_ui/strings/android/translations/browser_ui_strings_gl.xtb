@@ -40,6 +40,7 @@
 <translation id="1500473259453106018">Ocultar tarxeta Baixadas de prezo nas pestanas</translation>
 <translation id="1508931164824684991">Os sitios poden usar JavaScript</translation>
 <translation id="1510341833810331442">Os sitios non teñen permiso para gardar datos no teu dispositivo</translation>
+<translation id="1532175480576580256">Panel inferior dos meus atallos aberto a altura completa</translation>
 <translation id="1538031354170655462">Normalmente os sitios usan Near Field Communication (NFC) para interactuar con localizadores ou dispositivos próximos (por exemplo, para o escaneamento de indicadores ou o pago sen contacto)</translation>
 <translation id="1547123415014299762">Permítense as cookies de terceiros</translation>
 <translation id="1569054338208717605">Co motor V8 de Chrome, os sitios son máis rápidos, pero un chisco menos resistentes aos ataques</translation>
@@ -115,6 +116,7 @@
 <translation id="228293613124499805">A maioría dos sitios que visitas poden gardar datos no teu dispositivo. A miúdo, gardan as túas preferencias ou a información que compartes co sitio para mellorar a túa experiencia. É recomendable manter activada esta opción de configuración.</translation>
 <translation id="2289270750774289114">Preguntar cando un sitio web queira detectar dispositivos Bluetooth próximos (recomendado)</translation>
 <translation id="2315043854645842844">A selección do certificado do cliente non é compatible co sistema operativo.</translation>
+<translation id="2347601491101454548">Panel inferior dos meus atallos aberto a altura media</translation>
 <translation id="2359808026110333948">Continuar</translation>
 <translation id="2379925928934107488">Aplícaselles o tema escuro aos sitios sempre que é posible cando Chrome está configurado con ese tema</translation>
 <translation id="2390272837142897736">Aumentar zoom</translation>
@@ -145,6 +147,11 @@
 <translation id="2588271083332682494">Ten todo ordenado cos grupos de pestanas</translation>
 <translation id="2597457036804169544">Non se lles aplica o tema escuro aos sitios</translation>
 <translation id="2606760465469169465">Verificación automática</translation>
+<translation id="2610903128639500624">Xestionar en <ph name="BEGIN_LINK1" />configuración de Android<ph name="END_LINK1" />
+
+Protección avanzada controla estas opcións de configuración de Chrome:
+• A opción Usar sempre conexións seguras está activada.
+• O Especialista en optimización de JavaScript está desactivado. <ph name="BEGIN_LINK2" />Xestionar excepcións do sitio<ph name="END_LINK2" /></translation>
 <translation id="2621115761605608342">Permite a execución de JavaScript para un sitio específico.</translation>
 <translation id="2626708220538466178">Panel inferior do navegador predeterminado pechado</translation>
 <translation id="2653659639078652383">Enviar</translation>
@@ -303,6 +310,7 @@
 <translation id="4336566011000459927">Chrome volverá limitar as cookies hoxe</translation>
 <translation id="4338831206024587507">Todos os sitios do dominio <ph name="DOMAIN" /></translation>
 <translation id="4340799661701629185">Non permitir que os sitios envíen notificacións</translation>
+<translation id="4341577178275615435">Para activar ou desactivar a navegación por cursor de texto, usa o atallo F7</translation>
 <translation id="4402755511846832236">Impide que os sitios saiban se estás utilizando este dispositivo de maneira activa</translation>
 <translation id="4412683424767388419">Panel inferior de cores de Chrome aberto a altura media</translation>
 <translation id="4412992751769744546">Permitir cookies de terceiros</translation>
@@ -337,6 +345,7 @@
 <translation id="4816495437032298535">Zoom gardado para os sitios</translation>
 <translation id="4836046166855586901">Pregúntache sempre que un sitio quere saber se estás utilizando este dispositivo de maneira activa</translation>
 <translation id="483914009762354899">Incluír todos os sitios deste dominio</translation>
+<translation id="4852997963351138624">Valor hexadecimal da cor de fondo</translation>
 <translation id="4882919381756638075">Os sitios adoitan usar o micrófono para ofrecerche determinadas funcións relacionadas coa comunicación (por exemplo, chat de vídeo)</translation>
 <translation id="4883854917563148705">Non se pode restablecer a configuración xestionada</translation>
 <translation id="4887024562049524730">Pregunta antes de permitir que os sitios utilicen os teus datos e dispositivos de realidade virtual (recomendado)</translation>
@@ -500,6 +509,7 @@
 <translation id="6608650720463149374"><ph name="GIGABYTES" /> GB</translation>
 <translation id="6612358246767739896">Contido protexido</translation>
 <translation id="662080504995468778">Quedar</translation>
+<translation id="6630443592285535486">Escribe o valor hexadecimal da cor aquí</translation>
 <translation id="6635327442719709864">Cando esta opción está activada, os sitios poden pedir permiso para utilizar portos de serie. Cando está desactivada, os sitios non poden usar eses portos.</translation>
 <translation id="6678072580827808850">Revisar Comprobación de seguranza</translation>
 <translation id="6682057173375416470">Obter artículos suxeridos na páxina Nova pestana</translation>
@@ -557,6 +567,7 @@
 <translation id="7399802613464275309">Revisión de seguranza</translation>
 <translation id="7406113532070524618">Esta opción de configuración non te identifica nin permite que os sitios vexan o teu historial de navegación. Aínda así, os sitios poden compartir certa información mínima como parte da verificación</translation>
 <translation id="7409735910987429903">Os sitios poderían mostrar ventás emerxentes con anuncios ou redirixirte a sitios web que quizais non queiras visitar</translation>
+<translation id="7412160840120117304">Valor hexadecimal da cor principal</translation>
 <translation id="7423098979219808738">Preguntar primeiro</translation>
 <translation id="7423538860840206698">Bloqueouse a lectura do portapapeis</translation>
 <translation id="7425915948813553151">Tema escuro para os sitios</translation>

@@ -52,16 +52,24 @@ export function getHtml(this: ContextMenuEntrypointElement) {
       ${this.i18n('addImage')}
     </button>
     <button id="fileUpload" class="dropdown-item"
-        @click="${this.openFileUpload}">
+        @click="${this.openFileUpload}"
+        ?disabled="${this.inCreateImageMode}">
       <cr-icon icon="composebox:fileUpload"></cr-icon>
       ${this.i18n('uploadFile')}
     </button>
+    ${this.showDeepSearch_ || this.showCreateImage_ ? html`<hr/>` : ''}
     ${this.showDeepSearch_ ?
-    html`<hr/>
-    <button id="deepSearch" class="dropdown-item"
-        @click="${this.onDeepSearchClick_}">
+    html`<button id="deepSearch" class="dropdown-item"
+        @click="${this.onDeepSearchClick_}"
+        ?disabled="${this.inCreateImageMode}">
       <cr-icon icon="composebox:deepSearch"></cr-icon>
-      Deep Search
+      ${this.i18n('deepSearch')}
+    </button>` : ''}
+    ${this.showCreateImage_ ?
+    html`<button id="createImage" class="dropdown-item"
+        @click="${this.onCreateImageClick_}">
+      <cr-icon icon="composebox:nanoBanana"></cr-icon>
+      ${this.i18n('createImages')}
     </button>` : ''}
   </cr-action-menu>
 <!--_html_template_end_-->`;

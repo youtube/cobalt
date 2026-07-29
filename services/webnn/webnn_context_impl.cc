@@ -38,7 +38,7 @@
 namespace webnn {
 
 WebNNContextImpl::WebNNContextImpl(
-    mojo::PendingAssociatedReceiver<mojom::WebNNContext> receiver,
+    mojo::PendingReceiver<mojom::WebNNContext> receiver,
     WebNNContextProviderImpl* context_provider,
     ContextProperties properties,
     mojom::CreateContextOptionsPtr options,
@@ -46,18 +46,26 @@ WebNNContextImpl::WebNNContextImpl(
     mojo::ScopedDataPipeProducerHandle read_tensor_producer,
     gpu::CommandBufferId command_buffer_id,
     std::unique_ptr<ScopedSequence> sequence,
-    scoped_refptr<gpu::SchedulerTaskRunner> task_runner)
-    : WebNNObjectImpl<mojom::WebNNContext, blink::WebNNContextToken>(
+    scoped_refptr<gpu::SchedulerTaskRunner> scheduler_task_runner,
+    scoped_refptr<gpu::MemoryTracker> memory_tracker,
+    scoped_refptr<base::SingleThreadTaskRunner> owning_task_runner,
+    gpu::SharedImageManager* shared_image_manager)
+    : WebNNObjectImpl<mojom::WebNNContext,
+                      blink::WebNNContextToken,
+                      mojo::Receiver<mojom::WebNNContext>>(
           std::move(receiver),
-          task_runner),
+          scheduler_task_runner,
+          std::move(owning_task_runner)),
       context_provider_(context_provider),
       properties_(IntersectWithBaseProperties(std::move(properties))),
       options_(std::move(options)),
       command_buffer_id_(command_buffer_id),
       sequence_(std::move(sequence)),
-      scheduler_task_runner_(std::move(task_runner)),
+      scheduler_task_runner_(std::move(scheduler_task_runner)),
       write_tensor_consumer_(std::move(write_tensor_consumer)),
-      read_tensor_producer_(std::move(read_tensor_producer)) {
+      read_tensor_producer_(std::move(read_tensor_producer)),
+      memory_type_tracker_(std::move(memory_tracker)),
+      shared_image_manager_(shared_image_manager) {
   CHECK(context_provider_);
 
 #if BUILDFLAG(BUILD_TFLITE_WITH_XNNPACK)
@@ -181,7 +189,7 @@ void WebNNContextImpl::WaitSyncToken(const gpu::SyncToken& fence) {
   // Prevent WebNN from performing further operations until the specified
   // SyncToken fence has been released.
   base::OnceClosure nop_task = base::DoNothing();
-  context_provider()->scheduler()->ScheduleTask(gpu::Scheduler::Task(
+  sequence_->scheduler().ScheduleTask(gpu::Scheduler::Task(
       sequence_->sequence_id(), std::move(nop_task), {fence}));
 }
 
@@ -194,7 +202,7 @@ gpu::SyncToken WebNNContextImpl::GenVerifiedSyncToken() {
   // appending a no-op task - the sync token will be automatically signaled
   // by the scheduler after this task executes.
   base::OnceClosure nop_task = base::DoNothing();
-  context_provider()->scheduler()->ScheduleTask(gpu::Scheduler::Task(
+  sequence_->scheduler().ScheduleTask(gpu::Scheduler::Task(
       sequence_->sequence_id(), std::move(nop_task), {}, verified_release));
 
   // Verify the release since the sync token could be passed to another Mojo
@@ -267,7 +275,7 @@ void WebNNContextImpl::CreateTensorFromMailbox(mojom::TensorInfoPtr tensor_info,
   auto receiver = remote.InitWithNewEndpointAndPassReceiver();
 
   // Must be a scheduled task since this depends on shared image creation task.
-  PostTaskToOwningTaskRunner(
+  PostTaskToSchedulerTaskRunner(
       base::BindOnce(
           [](base::WeakPtr<WebNNContextImpl> self,
              mojo::PendingAssociatedReceiver<mojom::WebNNTensor> receiver,
@@ -278,20 +286,14 @@ void WebNNContextImpl::CreateTensorFromMailbox(mojom::TensorInfoPtr tensor_info,
               return;
             }
 
-            gpu::SharedImageManager* shared_image_manager =
-                self->context_provider()->shared_image_manager();
-            CHECK(shared_image_manager);
+            CHECK(self->shared_image_manager_);
 
             constexpr char kWebNNCreateTensorErrorMessage[] =
                 "Failed to create tensor.";
 
-            // TODO(crbug.com/345352987): give WebNN its own memory source and
-            // tracker.
             std::unique_ptr<gpu::WebNNTensorRepresentation> representation =
-                shared_image_manager->ProduceWebNNTensor(
-                    mailbox, self->context_provider()
-                                 ->shared_context_state()
-                                 ->memory_type_tracker());
+                self->shared_image_manager_->ProduceWebNNTensor(
+                    mailbox, &self->memory_type_tracker_);
             if (!representation) {
               std::move(callback).Run(ToError<mojom::CreateTensorResult>(
                   mojom::Error::Code::kUnknownError,
@@ -356,7 +358,7 @@ void WebNNContextImpl::OnLost(const std::string& reason) {
   // Safe to use base::Unretained because `this` is sequence-bound to
   // scheduler_task_runner_. Deletion occurs via Shutdown(), which drops all
   // pending tasks - including this one - before the object is destroyed.
-  PostTaskToOwningTaskRunner(base::BindOnce(
+  PostTaskToSchedulerTaskRunner(base::BindOnce(
       [](WebNNContextImpl* self, const std::string& reason) {
         self->GetMojoReceiver().ResetWithReason(/*custom_reason=*/0, reason);
         self->OnDisconnect();

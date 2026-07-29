@@ -20,7 +20,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.graphics.Matrix;
+import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Build;
 import android.provider.Browser;
@@ -30,6 +32,8 @@ import androidx.annotation.ColorInt;
 import androidx.annotation.IntDef;
 import androidx.annotation.VisibleForTesting;
 import androidx.browser.customtabs.CustomTabsIntent;
+
+import com.google.android.material.color.DynamicColorsOptions;
 
 import org.chromium.base.Callback;
 import org.chromium.base.ContextUtils;
@@ -42,16 +46,18 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.ntp_customization.theme.BackgroundImageInfo;
-import org.chromium.chrome.browser.ntp_customization.theme.NtpThemeCoordinator.NTPThemeBottomSheetSection;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.edge_to_edge.EdgeToEdgeStateProvider;
+import org.chromium.ui.util.ColorUtils;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.util.Arrays;
 import java.util.concurrent.Executor;
 
@@ -63,13 +69,14 @@ public class NtpCustomizationUtils {
         NtpBackgroundImageType.DEFAULT,
         NtpBackgroundImageType.IMAGE_FROM_DISK,
         NtpBackgroundImageType.CHROME_COLOR,
-        NtpBackgroundImageType.CHROME_THEME
+        NtpBackgroundImageType.THEME_COLLECTION
     })
+    @Retention(RetentionPolicy.SOURCE)
     public @interface NtpBackgroundImageType {
         int DEFAULT = 0;
         int IMAGE_FROM_DISK = 1;
         int CHROME_COLOR = 2;
-        int CHROME_THEME = 3;
+        int THEME_COLLECTION = 3;
         int NUM_ENTRIES = 4;
     }
 
@@ -187,7 +194,7 @@ public class NtpCustomizationUtils {
     /** Returns the customized primary color if set, null otherwise. */
     public @Nullable static @ColorInt Integer getPrimaryColorFromCustomizedThemeColor() {
         if (!ChromeFeatureList.sNewTabPageCustomizationV2.isEnabled()
-                || (getNtpBackgroundImageType() != NtpBackgroundImageType.CHROME_COLOR)) {
+                || (getNtpBackgroundImageType() == NtpBackgroundImageType.DEFAULT)) {
             return null;
         }
 
@@ -196,6 +203,14 @@ public class NtpCustomizationUtils {
         if (color == NtpCustomizationConfigManager.COLOR_NOT_SET) return null;
 
         return color;
+    }
+
+    // Gets the content based primary color for a bitmap.
+    public @Nullable static @ColorInt Integer getContentBasedSeedColor(Bitmap bitmap) {
+        DynamicColorsOptions.Builder builder = new DynamicColorsOptions.Builder();
+        builder.setContentBasedSource(bitmap);
+        DynamicColorsOptions dynamicColorsOptions = builder.build();
+        return dynamicColorsOptions.getContentBasedSeedColor();
     }
 
     // Launch a new activity in the same task with the given uri as a CCT.
@@ -491,26 +506,45 @@ public class NtpCustomizationUtils {
     }
 
     /**
-     * Returns the corresponding {@link NTPThemeBottomSheetSection} for a given {@link
-     * NtpBackgroundImageType}.
+     * Sets tint color for the default Google logo.
      *
-     * @param imageType The background image type.
+     * @param context Used to look up current day/night mode status.
      */
-    public static @NTPThemeBottomSheetSection int getSectionForBackgroundImageType(
-            @NtpBackgroundImageType int imageType) {
-        switch (imageType) {
-            case NtpBackgroundImageType.DEFAULT:
-                return NTPThemeBottomSheetSection.CHROME_DEFAULT;
-            case NtpBackgroundImageType.IMAGE_FROM_DISK:
-                return NTPThemeBottomSheetSection.UPLOAD_AN_IMAGE;
-            case NtpBackgroundImageType.CHROME_COLOR:
-                return NTPThemeBottomSheetSection.CHROME_COLORS;
-            case NtpBackgroundImageType.CHROME_THEME:
-                return NTPThemeBottomSheetSection.THEME_COLLECTIONS;
-            default:
-                assert false : "image type not supported!";
-                return NTPThemeBottomSheetSection.NUM_ENTRIES;
+    public static void setTintForDefaultGoogleLogo(
+            Context context, Drawable defaultGoogleLogoDrawable) {
+        // Check the mode before applying a tinted color. A transparent tint in light mode will
+        // cause the logo's color to disappear.
+        boolean isNightMode = ColorUtils.inNightMode(context);
+        @NtpBackgroundImageType
+        int defaultBackgroundType =
+                NtpCustomizationConfigManager.getInstance().getBackgroundImageType();
+
+        // The colorful Google logo is shown for default theme in light mode.
+        if (!isNightMode && defaultBackgroundType == NtpBackgroundImageType.DEFAULT) {
+            return;
         }
+
+        @ColorInt int tintColor;
+        if (defaultBackgroundType == NtpBackgroundImageType.CHROME_COLOR) {
+            @ColorInt
+            Integer primaryColor = NtpCustomizationUtils.getPrimaryColorFromCustomizedThemeColor();
+            if (primaryColor != null) {
+                tintColor = primaryColor.intValue();
+            } else if (!isNightMode) {
+                // When primary color is missing, falls back to colorful Google logo in light mode.
+                return;
+            } else {
+                // When primary color is missing, falls back to white Google logo in light mode.
+                tintColor = Color.WHITE;
+            }
+        } else {
+            // For all other cases, white color is used. This includes: Ntps with a customized
+            // background image in either light or dark mode; or Ntps without any theme in dark
+            // mode.
+            tintColor = Color.WHITE;
+        }
+
+        defaultGoogleLogoDrawable.setTint(tintColor);
     }
 
     public static void resetSharedPreferenceForTesting() {

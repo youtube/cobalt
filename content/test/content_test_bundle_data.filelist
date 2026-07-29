@@ -2032,6 +2032,8 @@ data/accessibility/css/carousel-positioned-buttons.html
 data/accessibility/css/carousel-with-links-expected-android-external.txt
 data/accessibility/css/carousel-with-links-expected-blink.txt
 data/accessibility/css/carousel-with-links.html
+data/accessibility/css/carousel-with-tabs-dynamic-expected-blink.txt
+data/accessibility/css/carousel-with-tabs-dynamic.html
 data/accessibility/css/carousel-with-tabs-expected-android-assist-data.txt
 data/accessibility/css/carousel-with-tabs-expected-android-external.txt
 data/accessibility/css/carousel-with-tabs-expected-auralinux.txt
@@ -7596,7 +7598,6 @@ data/gpu/webgl1_conformance_android_runtimes.json
 data/gpu/webgl1_conformance_linux_runtimes.json
 data/gpu/webgl1_conformance_mac_runtimes.json
 data/gpu/webgl1_conformance_win_runtimes.json
-data/gpu/webgl2-context-blocked.html
 data/gpu/webgl2-copytexsubimage2d-high-power-switch-does-not-crash.html
 data/gpu/webgl2-multisampling-high-power-switch-does-not-crash.html
 data/gpu/webgl2-multisampling-high-power-switch-loses-context.html
@@ -8113,6 +8114,7 @@ data/navigation_controller/dynamic_iframe.html
 data/navigation_controller/form.html
 data/navigation_controller/hash_anchor_with_iframe.html
 data/navigation_controller/iframe_popup.html
+data/navigation_controller/inject_cross_site_iframe.html
 data/navigation_controller/inject_iframe_srcdoc_with_nested_frame.html
 data/navigation_controller/inject_into_blank_iframe.html
 data/navigation_controller/inject_subframe_into_blank_iframe.html

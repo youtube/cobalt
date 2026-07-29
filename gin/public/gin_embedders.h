@@ -23,16 +23,52 @@ enum GinEmbedder : uint16_t {
 };
 
 enum EmbedderDataTag : uint16_t {
-  kBlinkScriptState,
-  kGinPerContextData,
   // kDeprecatedData is used for data that is already not used anymore but still
   // exists for legacy reasons, e.g. in the implementation of
   // gin::DeprecatedWrappable.
   kDeprecatedData,
-  kPdfiumFXJSEClassDescriptor,
-  kPdfiumFXJSEHostObjectTag,
-  kPdfiumCFXJSEHostObject,
-  kPdfiumCFXJSPerObjectData,
+  // kDefaultTag can be used by embedders that don't use V8 type tagging, e.g.
+  // because they have their own type tagging system, like PDFium.
+  kDefaultEmbedderDataTag = kDeprecatedData,
+  kBlinkScriptState,
+  kGinPerContextData,
+};
+
+enum ExternalPointerTypeTag : uint16_t {
+  kExternalPointerTypeTagDefaultTag = 0,
+  kAppHooksDelegateTag,
+  kAuctionV8LoggerTest_TestLazyFillerTag,
+  kForDebuggingOnlyBindingsTag,
+  kLazyFillerTag,
+  kPrivateAggregationBindingsTag,
+  kPrivateModelTrainingBindingsTag,
+  kRealTimeReportingBindingsTag,
+  kRegisterAdBeaconBindingsTag,
+  kRegisterAdMacroBindingsTag,
+  kReportBindingsTag,
+  kSetBidBindingsTag,
+  kSetPriorityBindingsTag,
+  kSetPrioritySignalsOverrideBindingsTag,
+  kSharedStorageBindingsTag,
+  kTextConversionHelpersTag,
+  kWebIDLCompatTestTag,
+  kDeclarativeContentHooksDelegateHandlerCallbackTag,
+  kAPIBindingHandlerCallbackTag,
+  kAPIBindingEventDataTag,
+  kAPIBindingCustomPropertyDataTag,
+  kAPIBindingJSUtilUnittestErrorInfoTag,
+  kEventEmitterUnittestListenerClosureDataTag,
+  kModuleSystemTag,
+  kObjectBackedNativeHandlerHandlerFunctionTag,
+  kGinInternalCallbackHolderBaseTag,
+  kProxyResolverV8ContextTag,
+  kThreadDebuggerCommonImplTag,
+  kViewTransitionTestDataTag,
+  kViewTransitionTestDocumentTag,
+  kViewTransitionTestBoolTag,
+  kFXJSEFunctionDescriptorTag,
+  kFXJSEClassDescriptorTag,
+  kV8IsolateTag,
 };
 
 }  // namespace gin

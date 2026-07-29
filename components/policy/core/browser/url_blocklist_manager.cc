@@ -97,7 +97,7 @@ const base::Value::List* GetPrefList(const PrefService* pref_service,
 }
 
 bool BypassBlocklistWildcardForURL(const GURL& url) {
-  const std::string& scheme = url.scheme();
+  const std::string& scheme = url.GetScheme();
   for (const char* bypass_scheme : kBypassBlocklistWildcardForSchemes) {
     if (scheme == bypass_scheme)
       return true;
@@ -112,7 +112,7 @@ bool BypassBlocklistWildcardForURL(const GURL& url) {
   // Leading and trailing slashes must be removed because the host name is
   // parsed as the URL path (which may contain slashes).
   const std::string_view trimmed_path =
-      base::TrimString(url.path_piece(), "/", base::TrimPositions::TRIM_ALL);
+      base::TrimString(url.path(), "/", base::TrimPositions::TRIM_ALL);
   if (scheme == kIosNtpAboutScheme && trimmed_path == kIosNtpHost) {
     return true;
   }

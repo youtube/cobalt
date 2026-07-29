@@ -61,7 +61,11 @@ TEST_P(HistorySignInStateWatcherTest, NullServices) {
   StrictMock<base::MockCallback<base::RepeatingClosure>> callback;
   HistorySignInStateWatcher watcher(nullptr, nullptr, callback.Get());
 
-  EXPECT_EQ(HistorySignInState::kSignedOut, watcher.GetSignInState());
+  if (GetParam()) {
+    EXPECT_EQ(HistorySignInState::kSyncDisabled, watcher.GetSignInState());
+  } else {
+    EXPECT_EQ(HistorySignInState::kSignedOut, watcher.GetSignInState());
+  }
 }
 
 class HistorySignInStateWatcherSyncToSigninTest
@@ -70,6 +74,27 @@ class HistorySignInStateWatcherSyncToSigninTest
   HistorySignInStateWatcherSyncToSigninTest()
       : HistorySignInStateWatcherTestBase(/*replace_sync_with_signin=*/true) {}
 };
+
+// Sync is disabled by policy, should be reflected in the sign-in state.
+TEST_F(HistorySignInStateWatcherSyncToSigninTest, SyncDisabledByPolicy) {
+  CoreAccountInfo account_info = identity_test_env_.MakePrimaryAccountAvailable(
+      "test@example.com", signin::ConsentLevel::kSignin);
+  sync_service_.SetSignedIn(signin::ConsentLevel::kSignin, account_info);
+  sync_service_.SetAllowedByEnterprisePolicy(false);
+  HistorySignInStateWatcher watcher(identity_test_env_.identity_manager(),
+                                    &sync_service_, base::DoNothing());
+  ASSERT_EQ(HistorySignInState::kSyncDisabled, watcher.GetSignInState());
+}
+
+// Tabs sync is disabled by policy and there is no account info, should result
+// in a sync disabled state.
+TEST_F(HistorySignInStateWatcherSyncToSigninTest, TabsSyncDisabled) {
+  sync_service_.GetUserSettings()->SetTypeIsManagedByPolicy(
+      syncer::UserSelectableType::kTabs, true);
+  HistorySignInStateWatcher watcher(identity_test_env_.identity_manager(),
+                                    &sync_service_, base::DoNothing());
+  ASSERT_EQ(HistorySignInState::kSyncDisabled, watcher.GetSignInState());
+}
 
 // Signing in to web only, should change the state and trigger a notification.
 TEST_F(HistorySignInStateWatcherSyncToSigninTest, NotifiesOnWebOnlySignIn) {
@@ -118,15 +143,13 @@ TEST_F(HistorySignInStateWatcherSyncToSigninTest,
   sync_service_.GetUserSettings()->SetSelectedType(
       syncer::UserSelectableType::kTabs, false);
 
-  StrictMock<base::MockCallback<base::RepeatingClosure>> callback;
   HistorySignInStateWatcher watcher(identity_test_env_.identity_manager(),
-                                    &sync_service_, callback.Get());
+                                    &sync_service_, base::DoNothing());
   ASSERT_EQ(HistorySignInState::kSignedInNotSyncingTabs,
             watcher.GetSignInState());
 
   sync_service_.GetUserSettings()->SetSelectedType(
       syncer::UserSelectableType::kHistory, true);
-  sync_service_.FireStateChanged();
   EXPECT_EQ(HistorySignInState::kSignedInNotSyncingTabs,
             watcher.GetSignInState());
 }
@@ -155,8 +178,9 @@ TEST_F(HistorySignInStateWatcherSyncToSigninTest, NotifiesOnEnablingTabsSync) {
   EXPECT_EQ(HistorySignInState::kSignedInSyncingTabs, watcher.GetSignInState());
 }
 
-// Users with pending sign-in should be treated as signed-in.
-TEST_F(HistorySignInStateWatcherSyncToSigninTest, SignInPendingMapsToSignedIn) {
+// Users with pending sign-in have a separate state.
+TEST_F(HistorySignInStateWatcherSyncToSigninTest,
+       SignInPendingCanOptInToTabsSync) {
   const CoreAccountInfo account_info =
       identity_test_env_.MakePrimaryAccountAvailable(
           "test@example.com", signin::ConsentLevel::kSignin);
@@ -167,15 +191,15 @@ TEST_F(HistorySignInStateWatcherSyncToSigninTest, SignInPendingMapsToSignedIn) {
       syncer::UserSelectableType::kTabs, false);
   identity_test_env_.SetInvalidRefreshTokenForPrimaryAccount();
 
-  StrictMock<base::MockCallback<base::RepeatingClosure>> callback;
   HistorySignInStateWatcher watcher(identity_test_env_.identity_manager(),
-                                    &sync_service_, callback.Get());
-  EXPECT_EQ(HistorySignInState::kSignedInNotSyncingTabs,
+                                    &sync_service_, base::DoNothing());
+  EXPECT_EQ(HistorySignInState::kSignInPendingNotSyncingTabs,
             watcher.GetSignInState());
 
   sync_service_.GetUserSettings()->SetSelectedType(
       syncer::UserSelectableType::kTabs, true);
-  EXPECT_EQ(HistorySignInState::kSignedInSyncingTabs, watcher.GetSignInState());
+  EXPECT_EQ(HistorySignInState::kSignInPendingSyncingTabs,
+            watcher.GetSignInState());
 }
 
 #if !BUILDFLAG(IS_CHROMEOS)

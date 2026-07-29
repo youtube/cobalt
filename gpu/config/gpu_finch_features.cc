@@ -429,15 +429,6 @@ BASE_FEATURE(kGPUDriverBugListTestGroup, base::FEATURE_DISABLED_BY_DEFAULT);
 const base::FeatureParam<int> kGPUDriverBugListTestGroupId{
     &kGPUDriverBugListTestGroup, "test_group", 0};
 
-bool UseGles2ForOopR() {
-#if BUILDFLAG(IS_ANDROID) && defined(ARCH_CPU_X86_FAMILY)
-  // GLES3 is not supported on emulators with passthrough. crbug.com/1423712
-  if (gl::UsePassthroughCommandDecoder(base::CommandLine::ForCurrentProcess()))
-    return true;
-#endif
-  return false;
-}
-
 bool IsUsingVulkan() {
 #if BUILDFLAG(IS_ANDROID)
   // Force on if Vulkan feature is enabled from command line.
@@ -883,5 +874,9 @@ bool IsGraphiteContextThreadSafe() {
 BASE_FEATURE(kWebGPUCompatibilityMode, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kWebGPUAndroidOpenGLES, base::FEATURE_ENABLED_BY_DEFAULT);
+
+#if BUILDFLAG(IS_WIN)
+BASE_FEATURE(kWebGPUQualcommWindows, base::FEATURE_ENABLED_BY_DEFAULT);
+#endif
 
 }  // namespace features

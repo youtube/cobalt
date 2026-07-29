@@ -18,6 +18,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.Matrix;
@@ -69,6 +70,7 @@ public class TopInsetCoordinatorUnitTest {
     @Mock private NativePage mNativePage;
     @Mock private TopInsetCoordinator.Observer mObserver;
     @Mock private LayoutStateProvider mLayoutStateProvider;
+    @Mock private Context mContext;
 
     @Captor
     private ArgumentCaptor<LayoutStateProvider.LayoutStateObserver> mLayoutStateObserverCaptor;
@@ -97,7 +99,8 @@ public class TopInsetCoordinatorUnitTest {
 
         mNtpCustomizationConfigManager = NtpCustomizationConfigManager.getInstance();
         mTopInsetCoordinator =
-                new TopInsetCoordinator(mTabSupplier, mInsetObserver, mLayoutStateProviderSupplier);
+                new TopInsetCoordinator(
+                        mContext, mTabSupplier, mInsetObserver, mLayoutStateProviderSupplier);
         mTopInsetCoordinator.addObserver(mObserver);
 
         mWindowInsetsCompat = createWindowInsetsCompat(TOP_PADDING);
@@ -273,7 +276,8 @@ public class TopInsetCoordinatorUnitTest {
         // Verifies that observers are NOT added again when a customized background type is changed.
         clearInvocations(mNtpTab);
         clearInvocations(mLayoutStateProvider);
-        setBackgroundType(NtpBackgroundImageType.CHROME_COLOR, NtpBackgroundImageType.CHROME_THEME);
+        setBackgroundType(
+                NtpBackgroundImageType.CHROME_COLOR, NtpBackgroundImageType.THEME_COLLECTION);
         verify(mNtpTab, never()).addObserver(any(TabObserver.class));
         verify(mLayoutStateProvider, never())
                 .addObserver(any(LayoutStateProvider.LayoutStateObserver.class));
@@ -281,7 +285,7 @@ public class TopInsetCoordinatorUnitTest {
         assertNotNull(mTopInsetCoordinator.getTrackingTabForTesting());
 
         // Verifies that observers are removed when the customized background is removed.
-        setBackgroundType(NtpBackgroundImageType.CHROME_THEME, NtpBackgroundImageType.DEFAULT);
+        setBackgroundType(NtpBackgroundImageType.THEME_COLLECTION, NtpBackgroundImageType.DEFAULT);
         verify(mNtpTab, times(2)).removeObserver(any(TabObserver.class));
         verify(mLayoutStateProvider)
                 .removeObserver(any(LayoutStateProvider.LayoutStateObserver.class));
@@ -313,12 +317,13 @@ public class TopInsetCoordinatorUnitTest {
         // Verifies that retriggerOnApplyWindowInsets() isn't called again when the customized
         // background type is changed.
         clearInvocations(mInsetObserver);
-        setBackgroundType(NtpBackgroundImageType.CHROME_COLOR, NtpBackgroundImageType.CHROME_THEME);
+        setBackgroundType(
+                NtpBackgroundImageType.CHROME_COLOR, NtpBackgroundImageType.THEME_COLLECTION);
         verify(mInsetObserver, never()).retriggerOnApplyWindowInsets();
 
         // Verifies that retriggerOnApplyWindowInsets() is called when the customized background is
         // removed.
-        setBackgroundType(NtpBackgroundImageType.CHROME_THEME, NtpBackgroundImageType.DEFAULT);
+        setBackgroundType(NtpBackgroundImageType.THEME_COLLECTION, NtpBackgroundImageType.DEFAULT);
         verify(mInsetObserver).retriggerOnApplyWindowInsets();
 
         // Verifies that retriggerOnApplyWindowInsets() isn't called again when the background type

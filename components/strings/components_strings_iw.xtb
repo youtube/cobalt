@@ -210,7 +210,6 @@
           <ph name="LIST_ITEM" />המעסיק שלך או בית הספר
           <ph name="LIST_ITEM" />ספק האינטרנט שלך
         <ph name="END_LIST" /></translation>
-<translation id="1335042910556016570">מעקב אחר הפריט הזה</translation>
 <translation id="1337692097987160377">שיתוף הכרטיסייה הזו</translation>
 <translation id="1339601241726513588">דומיין הרשמה:</translation>
 <translation id="1340482604681802745">כתובת איסוף</translation>
@@ -481,7 +480,6 @@
 <translation id="1762779605905950734">שם הרחוב</translation>
 <translation id="1763864636252898013">השרת הזה לא הצליח להוכיח שהוא <ph name="DOMAIN" />. אישור האבטחה שלו לא נחשב כמהימן על ידי מערכת ההפעלה של המכשיר. ייתכן שהסיבה לכך היא תצורה שגויה או תוקף המיירט את החיבור שלך.</translation>
 <translation id="1768211456781949159">‏<ph name="BEGIN_LINK" />יש לנסות להפעיל את אבחון הרשת של Windows<ph name="END_LINK" />.</translation>
-<translation id="1771254328977666895">צפייה בהיסטוריית המחירים</translation>
 <translation id="1777422078676229054">Photo (Archival)</translation>
 <translation id="1778646502362731194">JIS B0</translation>
 <translation id="1785118555253503473">להתקין אפליקציות אינטרנט?</translation>
@@ -816,6 +814,7 @@
 <translation id="2321291402658100099">ניהול המידע</translation>
 <translation id="2322254345061973671">{COUNT,plural, =1{חלון אחד}one{‫# חלונות}two{‫# חלונות}other{‫# חלונות}}</translation>
 <translation id="232390861414237658">‏אפשר למלא באופן אוטומטי את פרטי הכרטיס הזה לביצוע רכישות ב-Chrome כששומרים אותו לשימוש ב-Google Pay</translation>
+<translation id="2326283484705860548">‏עכשיו אפשר למלא אוטומטית מידע נוסף מ-Google Wallet</translation>
 <translation id="2328651992442742497">יש הרשאה (ברירת מחדל)</translation>
 <translation id="2328955282645810595">כלי בנייה וכלי עבודה ממונעים</translation>
 <translation id="2330137317877982892"><ph name="CREDIT_CARD" />, בתוקף עד <ph name="EXPIRATION_DATE_ABBR" /></translation>
@@ -826,6 +825,7 @@
 <translation id="2346319942568447007">תמונה שהעתקת</translation>
 <translation id="2347764072711098973">‏אפשר לשלם בתשלומים באמצעות Affirm,‏ Zip או Klarna</translation>
 <translation id="2348509731468399833">מעקב המחירים הופסק</translation>
+<translation id="2348836501965732644">אפשר לנהל את המידע או להשבית את ההצעות האלו בהגדרות</translation>
 <translation id="2349957959687031096">הכפתור לפתיחת כרטיסייה פרטית, מפעילים אותו כדי לפתוח כרטיסייה פרטית חדשה ולגלוש באופן פרטי</translation>
 <translation id="2350796302381711542">האם לאפשר ל-<ph name="HANDLER_HOSTNAME" /> לפתוח את כל קישורי <ph name="PROTOCOL" /> במקום את <ph name="REPLACED_HANDLER_TITLE" />?</translation>
 <translation id="2351718832234620840">‏השרת הזה לא הצליח להוכיח שהוא <ph name="DOMAIN" /> כי הוא משתמש באישור אבטחה שלא נחשב לאמין לפי Chromium או לפי הגדרות המערכת שלך להצפנת תעבורת אינטרנט. יכול להיות שהסיבה לכך היא הגדרה שגויה או שתוקף מיירט את החיבור שלך.</translation>
@@ -990,6 +990,7 @@
 <translation id="2610561535971892504">לחיצה להעתקה</translation>
 <translation id="2612676031748830579">מספר הכרטיס</translation>
 <translation id="2612993535136743634">‏כל קודי האבטחה שנשמרו במכשיר ובחשבון ה-Google יימחקו</translation>
+<translation id="2614835674900828050">האפשרות הזאת לא זמינה לרכישה הזו</translation>
 <translation id="2616412942031748191">שיווק ואופטימיזציה למנועי חיפוש</translation>
 <translation id="2618206371527040026">כנסים ופרסומים אקדמיים</translation>
 <translation id="2619052155095999743">הוסף</translation>
@@ -1238,6 +1239,7 @@
 <translation id="305162504811187366">‏ההיסטוריה של Chrome Remote Desktop, כולל חותמות זמן, מארחים ומזהי סשנים של לקוחות</translation>
 <translation id="3052868890529250114">‏לרוב החיבור לאתרים מאובטח, אבל הפעם ל-Chrome אין אפשרות להשתמש בחיבור מאובטח. יכול להיות שתוקף מנסה לצותת לחיבור לרשת או לשנות אותו. <ph name="BEGIN_LEARN_MORE_LINK" />מידע נוסף על האזהרה הזו<ph name="END_LEARN_MORE_LINK" /></translation>
 <translation id="3052964831964880138">הנחה בסך <ph name="PRICE_DROP" /> על <ph name="PRODUCT_NAME" /></translation>
+<translation id="3056660797732519147">‏מסך השגיאה של "קונים עכשיו, משלמים אחר כך (BNPL)". המקלדת מוסתרת.</translation>
 <translation id="3061707000357573562">שירות תיקון</translation>
 <translation id="3062655045399308513">מחיקת נתוני הגלישה מתבצעת…</translation>
 <translation id="3063453392496098461">‏ההתקנה של שירותי ה-VPN שפועלים ברקע נכשלה.</translation>
@@ -1253,6 +1255,7 @@
 <translation id="3087734570205094154">תחתית</translation>
 <translation id="3090667236485488075">Glass</translation>
 <translation id="3093122472063815077">מסך ההתקדמות של "קונים עכשיו, משלמים אחר כך" נפתח עד בחצי המסך.</translation>
+<translation id="309381737510736393">‏כשהארגון מגביל את האפשרות לשמור בחשבון Google, לא ניתן לשתף כרטיסיות או לשתף פעולה עם אחרים</translation>
 <translation id="3094051226187213523">‏פתיחת מצב AI עם ההצעה הזו.</translation>
 <translation id="3095940652251934233">Statement</translation>
 <translation id="3098513225387949945">המערכת התעלמה מהמדיניות כי רשימת ההשבתה מכילה תבנית ששווה ל-'*', שזהה להשבתת המדיניות.</translation>
@@ -1452,6 +1455,7 @@
 <translation id="340924996148642843">אין גישה להשוואה כרגע.</translation>
 <translation id="3409896703495473338">ניהול הגדרות האבטחה</translation>
 <translation id="3411091017011773343">העלאה בעוד <ph name="HOURS" /> שע'</translation>
+<translation id="341134412449102894">הפרטים שלך נשמרו ב-<ph name="IDS_AUTOFILL_GOOGLE_WALLET_TITLE" /> בחשבון <ph name="ACCOUNT" /></translation>
 <translation id="3413466783792948876">‏אם משתמשים ברשת ציבורית, מומלץ להיכנס לאתר אחר כך כדי לשמור על הבטיחות. הסיכון נמוך יותר ברשת מהימנה, כמו ה-Wi-Fi בבית או במקום העבודה.</translation>
 <translation id="3414275587143250384">מחשוב מבוזר ומחשוב ענן</translation>
 <translation id="3414952576877147120">גודל:</translation>
@@ -1698,6 +1702,7 @@
 <translation id="3784372983762739446">‏מכשירי Bluetooth</translation>
 <translation id="3785246317262748285">‏בדרך כלל החיבור לאתרים מאובטח, אבל הפעם ל-Chrome אין אפשרות להשתמש בחיבור מאובטח. יכול להיות שתוקף מנסה לצותת לחיבור לרשת או לשנות אותו. <ph name="LEARN_MORE" /></translation>
 <translation id="378611282717571199">ההתאמות הטובות ביותר לשאילתה '<ph name="SEARCH_QUERY" />'</translation>
+<translation id="3787887386289385215">‫<ph name="ISSUER_1_NAME" />, <ph name="ISSUER_2_NAME" />, או <ph name="ISSUER_3_NAME" /></translation>
 <translation id="3789841737615482174">התקנה</translation>
 <translation id="3791118028061680614">משלמים בלי לעבור בין אפליקציות</translation>
 <translation id="3792100426446126328">‏<ph name="NAME" /> ‏(<ph name="WIDTH" />x<ph name="HEIGHT" /> אינץ')</translation>
@@ -1990,6 +1995,7 @@
 <translation id="4242981939686657948">כדי לחפש בהיסטוריית הגלישה בצורה יעילה יותר, צריך להפעיל את</translation>
 <translation id="4244926541863471678">Film</translation>
 <translation id="4246517972543675653">לימודים בחו"ל</translation>
+<translation id="4250343410682686342">‏מסך השגיאה של "קונים עכשיו, משלמים אחר כך (BNPL)" נפתח במסך מלא.</translation>
 <translation id="4250431568374086873">החיבור שלך לאתר הזה לא מאובטח בצורה מלאה</translation>
 <translation id="4250680216510889253">לא</translation>
 <translation id="4250716950689692560">A4x4</translation>
@@ -2012,7 +2018,7 @@
 <translation id="4277529130885813215">שימוש במכשיר אחר</translation>
 <translation id="4277937682389409325">כתובת מקומית</translation>
 <translation id="4278090321534187713">הכרטיסים שהמוכר הזה לא מקבל מושבתים</translation>
-<translation id="4278390842282768270">מותר</translation>
+<translation id="4278390842282768270">יש אישור</translation>
 <translation id="4281245629646759298">צהוב בהיר</translation>
 <translation id="4281998142035485137">{0,plural, =1{לפתוח את הקובץ הסודי?}one{לפתוח את הקבצים הסודיים?}two{לפתוח את הקבצים הסודיים?}other{לפתוח את הקבצים הסודיים?}}</translation>
 <translation id="4282280603030594840">קניית רכב</translation>
@@ -2510,6 +2516,7 @@ Del</translation>
 <translation id="5122786942953798871">Envelope (Cotton)</translation>
 <translation id="5123063207673082822">סוף השבוע</translation>
 <translation id="5123433949759960244">כדורסל</translation>
+<translation id="5124797626438336458">‏מסך השגיאה של "קונים עכשיו, משלמים אחר כך (BNPL)" נפתח בחצי מגובה המסך.</translation>
 <translation id="5125575917473813637">עריכת תעודת הזהות</translation>
 <translation id="5125751979347152379">כתובת אתר לא חוקית.</translation>
 <translation id="512592033764059484">כדורגל</translation>
@@ -2683,6 +2690,7 @@ Del</translation>
 <translation id="5412040515238827314">פורמט לא תקין: אמורה להופיע רשימת תבניות.</translation>
 <translation id="5412245327974352290"><ph name="TRADITIONAL_TEXT" /> – <ph name="ADDITIONAL_TEXT" /></translation>
 <translation id="541416427766103491">מערים 4</translation>
+<translation id="5414306071315087019">‏אפשר לשלם בשיטת "קונים עכשיו, משלמים אחר כך (BNPL)" דרך Google Pay</translation>
 <translation id="5414446060143308245">נדרשת בדיקה לפני ההעברה</translation>
 <translation id="5414511064953050917">אעביר בכל זאת</translation>
 <translation id="5418700249417444482">‏כתובות URL של דפים שנכנסת אליהם יישלחו אל Google Cloud או לצדדים שלישיים לצורך ניתוח, ויכול להיות שיהיו גלויים לאדמין שלך. לדוגמה, יכול להיות שהדפים יעברו סריקה לזיהוי אתרים לא בטוחים או לסינון אתרים לפי כללים שהוגדרו על ידי האדמין.</translation>
@@ -2804,6 +2812,7 @@ Del</translation>
 <translation id="5595485650161345191">עריכת כתובת</translation>
 <translation id="5596939519753369075">‏2x3.5 אינץ'</translation>
 <translation id="5597254438174353289">כחול 3</translation>
+<translation id="5603469469737324249">‫<ph name="ISSUER_1_NAME" /> או <ph name="ISSUER_2_NAME" /></translation>
 <translation id="560412284261940334">ניהול אינו נתמך</translation>
 <translation id="5605249000617390290">מידע נוסף על המעקב אחר מחירים</translation>
 <translation id="5605670050355397069">Ledger</translation>
@@ -4177,6 +4186,7 @@ Del</translation>
 <translation id="7860345425589240791">‏יש להזין את תאריך התפוגה הנכון ואת קוד האימות (CVC) שמופיע ב<ph name="SIDE_OF_CARD" /></translation>
 <translation id="7862185352068345852">לצאת מהאתר?</translation>
 <translation id="7865448901209910068">המהירות הטובה ביותר</translation>
+<translation id="7865482168955081228">‏מסך השגיאה של "קונים עכשיו, משלמים אחר כך (BNPL)" סגור.</translation>
 <translation id="7870281855125116701">נמצאה הנחה</translation>
 <translation id="7871445724586827387">‏שינוי הסיסמה לחשבון Google</translation>
 <translation id="787226752901403048">‏כדי לשתף קבוצות של כרטיסיות, להצטרף אליהן ולעבוד יחד על רעיונות, צריך להיכנס ל-Chrome</translation>
@@ -4238,7 +4248,7 @@ Del</translation>
 <translation id="79682505114836835">הערך "<ph name="VALUE" />" הוא צבע הקסדצימלי לא חוקי.</translation>
 <translation id="7968982339740310781">הצגת פרטים</translation>
 <translation id="7975858430722947486">התווסף להשוואה</translation>
-<translation id="7976053965094442846">‏מנפיקים של האפשרות "קונים עכשיו, משלמים אחר כך (BNPL)" שזמינים כדי לשלם בתשלומים המקלדת מוסתרת.</translation>
+<translation id="7976053965094442846">‏מנפיקים של האפשרות "קונים עכשיו, משלמים אחר כך (BNPL)" שזמינים כדי לשלם בתשלומים. המקלדת מוסתרת.</translation>
 <translation id="7976214039405368314">יותר מדי בקשות</translation>
 <translation id="7977538094055660992">מכשיר פלט</translation>
 <translation id="7979463492896063081">{TIME_DIMENSION,plural, =0{לפני <ph name="TIME_COUNT" /> דק‘}=1{לפני שעה (<ph name="TIME_COUNT" />)}one{לפני יום אחד (<ph name="TIME_COUNT" />)}two{לפני יומיים (<ph name="TIME_COUNT" />)}other{לפני <ph name="TIME_COUNT" /> ימים}}</translation>

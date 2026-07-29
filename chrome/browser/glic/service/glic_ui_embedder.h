@@ -28,6 +28,8 @@ class GlicUiEmbedder {
         mojom::WebClientHandler::SwitchConversationCallback callback) = 0;
     virtual void WillCloseFor(tabs::TabInterface* tab) = 0;
     virtual Host& host() = 0;
+    virtual void Attach(tabs::TabInterface* tab) = 0;
+    virtual void Detach() = 0;
   };
 
   virtual ~GlicUiEmbedder() = default;
@@ -43,6 +45,8 @@ class GlicUiEmbedder {
 
   // Close the glic UI (keeps webclient alive for now)
   virtual void Close() = 0;
+
+  virtual views::View* GetViewForTesting() = 0;
 
   // Creates the inactive version of this embedder.
   virtual std::unique_ptr<GlicUiEmbedder> CreateInactiveEmbedder() const = 0;

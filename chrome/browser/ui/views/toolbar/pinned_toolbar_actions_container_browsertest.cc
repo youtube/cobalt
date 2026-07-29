@@ -106,7 +106,7 @@ class PinnedToolbarActionsContainerBrowserTest : public InProcessBrowserTest {
 IN_PROC_BROWSER_TEST_F(PinnedToolbarActionsContainerBrowserTest,
                        CustomizeToolbarCanBeCalledFromNewTabPage) {
   auto pinned_button = std::make_unique<PinnedActionToolbarButton>(
-      browser(), actions::kActionCut, container());
+      browser(), actions::kActionCut, container()->GetWeakPtrForTesting());
   pinned_button->menu_model()->ActivatedAt(2);
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
@@ -123,7 +123,7 @@ IN_PROC_BROWSER_TEST_F(PinnedToolbarActionsContainerBrowserTest,
 IN_PROC_BROWSER_TEST_F(PinnedToolbarActionsContainerBrowserTest,
                        CustomizeToolbarCanBeCalledFromNonNewTabPage) {
   auto pinned_button = std::make_unique<PinnedActionToolbarButton>(
-      browser(), actions::kActionCut, container());
+      browser(), actions::kActionCut, container()->GetWeakPtrForTesting());
   pinned_button->menu_model()->ActivatedAt(2);
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
@@ -142,7 +142,8 @@ IN_PROC_BROWSER_TEST_F(PinnedToolbarActionsContainerBrowserTest,
       true));
   AddBlankTabAndShow(incognito_browser);
   auto pinned_button = std::make_unique<PinnedActionToolbarButton>(
-      incognito_browser, actions::kActionCut, container());
+      incognito_browser, actions::kActionCut,
+      container()->GetWeakPtrForTesting());
   EXPECT_FALSE(pinned_button->menu_model()->IsEnabledAt(2));
 }
 
@@ -294,4 +295,32 @@ IN_PROC_BROWSER_TEST_F(PinnedToolbarActionsContainerBrowserTest,
   EXPECT_EQ(web_app_container->IsActionPinned(kActionSidePanelShowBookmarks),
             false);
   EXPECT_EQ(web_app_container->IsActionPinned(kActionPrint), false);
+}
+
+IN_PROC_BROWSER_TEST_F(PinnedToolbarActionsContainerBrowserTest,
+                       PinnedButtonPinningAndUnpinning) {
+  PinnedToolbarActionsModel* const actions_model =
+      PinnedToolbarActionsModel::Get(browser()->profile());
+
+  // Verify button is visible when pinned.
+  actions_model->UpdatePinnedState(kActionTabSearch, true);
+  auto* button_before = container()->GetButtonFor(kActionTabSearch);
+  views::test::WaitForAnimatingLayoutManager(container());
+  EXPECT_EQ(container()->IsActionPinned(kActionTabSearch), true);
+  EXPECT_EQ(button_before->GetVisible(), true);
+
+  // Verify button is no longer visible after unpinning.
+  actions_model->UpdatePinnedState(kActionTabSearch, false);
+  auto* button_during = container()->GetButtonFor(kActionTabSearch);
+  views::test::WaitForAnimatingLayoutManager(container());
+  EXPECT_EQ(container()->IsActionPinned(kActionTabSearch), false);
+  // Button becomes inaccessible after being unpinned.
+  EXPECT_EQ(button_during, nullptr);
+
+  // Verify button is visible when pinned again.
+  actions_model->UpdatePinnedState(kActionTabSearch, true);
+  auto* button_after = container()->GetButtonFor(kActionTabSearch);
+  views::test::WaitForAnimatingLayoutManager(container());
+  EXPECT_EQ(container()->IsActionPinned(kActionTabSearch), true);
+  EXPECT_EQ(button_after->GetVisible(), true);
 }

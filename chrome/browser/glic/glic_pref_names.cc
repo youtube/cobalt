@@ -18,7 +18,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterBooleanPref(kGlicMicrophoneEnabled, false);
   registry->RegisterBooleanPref(kGlicGeolocationEnabled, false);
   registry->RegisterBooleanPref(kGlicTabContextEnabled, false);
-  registry->RegisterBooleanPref(kGlicDefaultTabContextEnabled, false);
+  registry->RegisterBooleanPref(kGlicDefaultTabContextEnabled, true);
   registry->RegisterBooleanPref(
       kGlicRolloutEligibility, false,
       user_prefs::PrefRegistrySyncable::SYNCABLE_PRIORITY_PREF);
@@ -38,6 +38,10 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
 
   // Boolean pref for the closed captioning setting.
   registry->RegisterBooleanPref(prefs::kGlicClosedCaptioningEnabled, false);
+
+  registry->RegisterIntegerPref(
+      prefs::kGlicActuationOnWeb,
+      static_cast<int>(prefs::GlicActuationOnWebPolicyState::kEnabled));
 }
 
 void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {

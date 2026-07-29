@@ -18,7 +18,7 @@ import {createAutocompleteMatch, SearchboxBrowserProxy} from './searchbox_browse
 import type {SearchboxIconElement} from './searchbox_icon.js';
 import {getCss} from './searchbox_match.css.js';
 import {getHtml} from './searchbox_match.html.js';
-import {decodeString16, mojoTimeTicks} from './utils.js';
+import {mojoTimeTicks} from './utils.js';
 
 
 
@@ -109,6 +109,8 @@ export class SearchboxMatchElement extends CrLitElement {
 
       match: {type: Object},
 
+      selection: {type: Object},
+
       /**
        * Index of the match in the autocomplete result. Used to inform embedder
        * of events such as deletion, click, etc.
@@ -169,6 +171,11 @@ export class SearchboxMatchElement extends CrLitElement {
   accessor isEntitySuggestion: boolean = false;
   accessor isRichSuggestion: boolean = false;
   accessor match: AutocompleteMatch = createAutocompleteMatch();
+  accessor selection: OmniboxPopupSelection = {
+    line: -1,
+    state: SelectionLineState.kNormal,
+    actionIndex: 0,
+  };
   accessor matchIndex: number = -1;
   accessor sideType: SideType = SideType.kDefaultPrimary;
   accessor showThumbnail: boolean = false;
@@ -298,7 +305,7 @@ export class SearchboxMatchElement extends CrLitElement {
     if (!this.match) {
       return '';
     }
-    return decodeString16(this.match.a11yLabel);
+    return this.match.a11yLabel;
   }
 
   private sanitizeInnerHtml_(html: string): TrustedHTML {
@@ -360,7 +367,7 @@ export class SearchboxMatchElement extends CrLitElement {
     if (!this.match) {
       return '';
     }
-    return decodeString16(this.match.removeButtonA11yLabel);
+    return this.match.removeButtonA11yLabel;
   }
 
   private computeSeparatorText_(): string {
@@ -373,7 +380,7 @@ export class SearchboxMatchElement extends CrLitElement {
     if (!this.match || !this.match.tailSuggestCommonPrefix) {
       return '';
     }
-    const prefix = decodeString16(this.match.tailSuggestCommonPrefix);
+    const prefix = this.match.tailSuggestCommonPrefix;
     // Replace last space with non breaking space since spans collapse
     // trailing white spaces and the prefix always ends with a white space.
     if (prefix.slice(-1) === ' ') {
@@ -390,7 +397,7 @@ export class SearchboxMatchElement extends CrLitElement {
   }
 
   /**
-   * Decodes the AcMatchClassificationStyle enteries encoded in the given
+   * Decodes the AcMatchClassificationStyle entries encoded in the given
    * ACMatchClassification style field, maps each entry to a CSS
    * class and returns them.
    */
@@ -438,27 +445,6 @@ export class SearchboxMatchElement extends CrLitElement {
         }, document.createElement('span'));
   }
 
-  updateSelection(selection: OmniboxPopupSelection) {
-    this.$['focus-indicator'].classList.toggle(
-        'selected-within',
-        selection.state !== SelectionLineState.kNormal &&
-            selection.line === this.matchIndex);
-
-    this.$.remove.classList.toggle(
-        'selected',
-        selection.state === SelectionLineState.kFocusedButtonRemoveSuggestion &&
-            selection.line === this.matchIndex);
-
-    [...this.shadowRoot.querySelectorAll('cr-searchbox-action')].forEach(
-        (action, index) => {
-          action.classList.toggle(
-              'selected',
-              selection.state === SelectionLineState.kFocusedButtonAction &&
-                  selection.actionIndex === index &&
-                  selection.line === this.matchIndex);
-        });
-  }
-
   private getMatchContents_(): string {
     if (!this.match) {
       return '';
@@ -470,8 +456,7 @@ export class SearchboxMatchElement extends CrLitElement {
     const matchDescription =
         match.answer ? match.answer.secondLine : match.description;
 
-    return decodeString16(
-        match.swapContentsAndDescription ? matchDescription : matchContents);
+    return match.swapContentsAndDescription ? matchDescription : matchContents;
   }
 
   private getMatchDescription_(): string {
@@ -485,8 +470,7 @@ export class SearchboxMatchElement extends CrLitElement {
     const matchDescription =
         match.answer ? match.answer.secondLine : match.description;
 
-    return decodeString16(
-        match.swapContentsAndDescription ? matchContents : matchDescription);
+    return match.swapContentsAndDescription ? matchContents : matchDescription;
   }
 
   private getMatchContentsClassifications_(): ACMatchClassification[] {
@@ -505,6 +489,36 @@ export class SearchboxMatchElement extends CrLitElement {
     const match = this.match;
     return match.swapContentsAndDescription ? match.contentsClass :
                                               match.descriptionClass;
+  }
+
+  protected getFocusIndicatorCssClass_(): string {
+    return this.selection.line === this.matchIndex &&
+            this.selection.state !== SelectionLineState.kNormal ?
+        'selected-within' :
+        '';
+  }
+
+  protected getKeywordCssClass_(): string {
+    return this.selection.line === this.matchIndex &&
+            this.selection.state === SelectionLineState.kKeywordMode ?
+        'selected' :
+        '';
+  }
+
+  protected getActionCssClass_(actionIndex: number): string {
+    return this.selection.line === this.matchIndex &&
+            this.selection.state === SelectionLineState.kFocusedButtonAction &&
+            this.selection.actionIndex === actionIndex ?
+        'selected' :
+        '';
+  }
+
+  protected getRemoveCssClass_(): string {
+    return this.selection.line === this.matchIndex &&
+            this.selection.state ===
+                SelectionLineState.kFocusedButtonRemoveSuggestion ?
+        'selected' :
+        '';
   }
 }
 

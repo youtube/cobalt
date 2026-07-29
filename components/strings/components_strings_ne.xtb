@@ -210,7 +210,6 @@
           <ph name="LIST_ITEM" />तपाईंको रोजगारदाता वा विद्यालय
           <ph name="LIST_ITEM" />तपाईंको इन्टरनेट सेवा प्रदायक
         <ph name="END_LIST" /></translation>
-<translation id="1335042910556016570">यो वस्तु ट्र्याक गर्नुहोस्</translation>
 <translation id="1337692097987160377">यो ट्याब सेयर गर्नुहोस्</translation>
 <translation id="1339601241726513588">भर्ती डोमेन:</translation>
 <translation id="1340482604681802745">पिकअपको ठेगाना</translation>
@@ -481,7 +480,6 @@
 <translation id="1762779605905950734">सडकको नाम</translation>
 <translation id="1763864636252898013">यो सर्भर हो भनेर प्रमाणित गर्न सकेन <ph name="DOMAIN" />; यसको सुरक्षा प्रमाणपत्रलाई तपाईंको डिभाइसको अपरेटिङ सिस्टमले विश्वास गरेन। यो एक गलत कन्फिगुरेसन वा तपाईंको जडान अवरोध गर्न खोज्ने आक्रमणकारीको हुनसक्छ।</translation>
 <translation id="1768211456781949159"><ph name="BEGIN_LINK" />Windows नेटवर्क सम्बन्धी निदान चलाएर हेर्नुहोस्<ph name="END_LINK" />।</translation>
-<translation id="1771254328977666895">मूल्यको हिस्ट्री हेर्नुहोस्</translation>
 <translation id="1777422078676229054">फोटो (अर्काइभल)</translation>
 <translation id="1778646502362731194">JIS B0</translation>
 <translation id="1785118555253503473">वेब एपहरू इन्स्टल गर्ने हो?</translation>
@@ -990,6 +988,7 @@
 <translation id="2610561535971892504">क्लिक टु कपी</translation>
 <translation id="2612676031748830579">कार्ड नम्बर</translation>
 <translation id="2612993535136743634">तपाईंको डिभाइस र Google खातामा सेभ गरिएका सबै सेक्युरिटी कोडहरू मेटाइने छन्</translation>
+<translation id="2614835674900828050">यो खरिदका लागि उपलब्ध छैन</translation>
 <translation id="2616412942031748191">सर्च इन्जिन अप्टिमाइजेसन तथा मार्केटिङ</translation>
 <translation id="2618206371527040026">शैक्षिक सम्मेलन तथा प्रकाशनहरू</translation>
 <translation id="2619052155095999743">घुसाउनुहोस्</translation>
@@ -1289,6 +1288,7 @@
 <translation id="3137507986424712703">{COUNT,plural, =0{कुनै पनि होइन}=1{१ खाताको साइन इनसम्बन्धी डेटा}other{# खाताहरूको साइन इनसम्बन्धी डेटा}}</translation>
 <translation id="3140646734028448730">व्यावसायिक सेवाहरू</translation>
 <translation id="3141093262818886744">जे भए पनि खोल्नुहोस्</translation>
+<translation id="3141337053413339205">यो ट्याब प्रयोग गर्नुहोस्</translation>
 <translation id="3141641372357166056">सहमति जनाउने कि नजनाउने भनेर निर्णय गरिएको छैन</translation>
 <translation id="3144458715650412431">परीक्षणसम्बन्धी नीतिहरू लागू गरिएका छन्। chrome://policy/test मा गई ती नीतिहरूको समीक्षा गरी रिसेट गर्नुहोस्। एड्मिनसम्बन्धी नीतिहरू लागू गरिने छैनन्।</translation>
 <translation id="3145945101586104090">प्रतिक्रिया डिकोड गर्न असफल भयो</translation>
@@ -3431,6 +3431,7 @@
 <translation id="6671697161687535275">Chromium बाट फारम सुझाव हटाउने हो?</translation>
 <translation id="6675846980676550611">AR प्रयोग गर्ने अनुमति दिइएको छैन</translation>
 <translation id="6677351035258626477">फास्ट फुड</translation>
+<translation id="6677738644213083042">यो ट्याब प्रयोग गर्नुहोस्</translation>
 <translation id="6679354743514146922">Chrome ब्राउजरले <ph name="APP_NAME" /> मा तपाईंको पासवर्ड हाल्न खोज्दै छ।</translation>
 <translation id="6681790815630918386">CVC सेभ गरिएको छ</translation>
 <translation id="6683022854667115063">हेडफोन</translation>

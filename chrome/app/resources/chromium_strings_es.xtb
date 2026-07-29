@@ -35,6 +35,7 @@ Es posible que algunas funciones no estén disponibles y que no se guarden los c
 <translation id="1345251407431278948">¡Fijada! Puedes volver a acceder a la búsqueda por imágenes desde el nuevo botón de la barra de herramientas.</translation>
 <translation id="1356661055722410047">¡Novedad! Puedes traducir tanto texto como imágenes en tu pantalla.</translation>
 <translation id="1383876407941801731">Buscar</translation>
+<translation id="1397530502368084401">&amp;Gestionar perfiles de Chromium</translation>
 <translation id="1414495520565016063">Has iniciado sesión en Chromium</translation>
 <translation id="141901961143729572">Comparte tus ideas</translation>
 <translation id="1465192221147974788">Para compartir tu ventana, permite la grabación de pantalla de Chromium en Ajustes del sistema</translation>
@@ -73,8 +74,8 @@ Es posible que algunas funciones no estén disponibles y que no se guarden los c
 <translation id="1896836275755235458">Chromium ahorra batería limitando la actividad en segundo plano y los efectos visuales, como el desplazamiento fluido y la velocidad de fotogramas de los vídeos. <ph name="BEGIN_LINK" />Más información sobre Ahorro de energía<ph name="END_LINK" /></translation>
 <translation id="1898804291554630487">Preguntar sobre esta página</translation>
 <translation id="1900969832270057921">Servicio de la herramienta de actualización de Chromium</translation>
+<translation id="1911666947158375684">Mientras tengas la sesión iniciada, puedes usar tus contraseñas y otros elementos de tu cuenta de Google en Chromium. Puedes cambiar esta opción en cualquier momento en la configuración.</translation>
 <translation id="1911763535808217981">Si esta opción está desactivada, puedes iniciar sesión en sitios de Google, como Gmail, sin hacerlo en Chromium</translation>
-<translation id="1916451563296275579">Quitar datos de esta aplicación de Chromium</translation>
 <translation id="1929939181775079593">Chromium no responde. ¿Quieres reiniciarlo ahora?</translation>
 <translation id="1933341829955786215">Tu organización, <ph name="MANAGER" />, requiere que inicies sesión en Chromium</translation>
 <translation id="193439633299369377">ChromiumOS se debe reiniciar para que se aplique la actualización.</translation>
@@ -237,6 +238,9 @@ Es posible que algunas funciones no estén disponibles y que no se guarden los c
 <translation id="379589255253486813">Chromium te avisará si tienes que revisar algo</translation>
 <translation id="3802055581630249637">Chromium precarga páginas que probablemente visites para que se carguen más rápido cuando accedas a ellas</translation>
 <translation id="3810973564298564668">Gestionar</translation>
+<translation id="3846683726093018685">**Resumir:** en una sola frase de menos de 30 palabras, describe el tema principal y la finalidad del contenido de la captura de pantalla.
+
+          **Sugerir preguntas:** genera una lista con viñetas de entre 3 y 5 preguntas que inviten a la reflexión y que un usuario podría hacer para entender mejor la captura de pantalla. Al menos una de estas preguntas debe referirse específicamente a un objeto visual, su diseño o su ubicación.</translation>
 <translation id="3848258323044014972"><ph name="PAGE_TITLE" /> - Chromium</translation>
 <translation id="3885770153807205175">Selector de idioma</translation>
 <translation id="388648406173476553">Personaliza y controla Chromium. Se requiere tu intervención. Haz clic aquí para obtener más información.</translation>
@@ -472,6 +476,7 @@ Es posible que algunas funciones no estén disponibles y que no se guarden los c
 <translation id="6669284030132180248">Si también guardas los marcadores en tu cuenta de Google, puedes hacer un seguimiento de los precios de los productos en Chromium y recibir una notificación cuando bajen</translation>
 <translation id="6676384891291319759">Accede a Internet.</translation>
 <translation id="668175097507315160">ChromiumOS no ha podido sincronizar tus datos debido a un error de inicio de sesión.</translation>
+<translation id="6691132793308828750">Quitar datos de esta aplicación de Chromium</translation>
 <translation id="6692797197837897398">Chromium te ofrece más control sobre los anuncios que ves y limita la información que los sitios pueden obtener sobre ti cuando te muestran anuncios personalizados</translation>
 <translation id="6709350901466051922">Chromium necesita el permiso del micrófono para este sitio</translation>
 <translation id="6712881677154121168">Error de descarga: <ph name="DOWNLOAD_ERROR" />.</translation>
@@ -492,6 +497,7 @@ Es posible que algunas funciones no estén disponibles. Especifica un directorio
 <translation id="6877155553248388166">esquina inferior derecha del área de búsqueda: un <ph name="RIGHT" /> % a la derecha y un <ph name="BOTTOM" /> % abajo</translation>
 <translation id="6896758677409633944">Copiar</translation>
 <translation id="6901631050894301805">Establece Chromium como navegador predeterminado y fíjalo en la barra de tareas</translation>
+<translation id="6909503629704372277">&amp;Gestionar perfiles de Chromium</translation>
 <translation id="6934579572334859869">Pregunta a la búsqueda por imágenes sobre esta imagen</translation>
 <translation id="6964305034639999644">Abrir enlace en una ventana de incó&amp;gnito de Chromium</translation>
 <translation id="6965382102122355670">Aceptar</translation>
@@ -503,6 +509,7 @@ Es posible que algunas funciones no estén disponibles. Especifica un directorio
 <translation id="7024536598735240744">Error al descomprimir: <ph name="UNPACK_ERROR" />.</translation>
 <translation id="7025789849649390912">Instalación detenida.</translation>
 <translation id="7045244423563602563">Personaliza Chromium a tu gusto</translation>
+<translation id="7047386856539490735">¿Te han resultado útiles estos resultados?</translation>
 <translation id="705851970750939768">Actualizar Chromium</translation>
 <translation id="7067091210845072982">Si una imagen no tiene ninguna descripción útil, Chromium intentará proporcionártela. Para crear las descripciones, las imágenes se envían a Google.</translation>
 <translation id="7141270731789036260">Personalizar Chrome for Testing</translation>
@@ -628,7 +635,6 @@ Chromium no puede recuperar tu configuración.</translation>
 <translation id="8586442755830160949">Copyright <ph name="YEAR" /> Los creadores de Chromium. Todos los derechos reservados.</translation>
 <translation id="8601359445272098721">¡Novedad! Puedes traducir tanto texto como imágenes en tu pantalla seleccionando el botón Traducir pantalla.</translation>
 <translation id="8619360774459241877">Iniciando Chromium...</translation>
-<translation id="8621669128220841554">La instalación ha fallado debido a un error no especificado. Vuelve a descargar Chromium.</translation>
 <translation id="8648201657708811153">Google Chrome for Testing no se puede establecer como navegador predeterminado.</translation>
 <translation id="8697124171261953979">También controla qué página se muestra al iniciar Chromium o al hacer búsquedas desde el omnibox.</translation>
 <translation id="8704119203788522458">Aquí tienes tu navegador Chromium</translation>

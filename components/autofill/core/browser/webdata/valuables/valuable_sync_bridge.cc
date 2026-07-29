@@ -8,6 +8,7 @@
 #include <optional>
 
 #include "base/check.h"
+#include "base/notreached.h"
 #include "components/autofill/core/browser/data_model/valuables/loyalty_card.h"
 #include "components/autofill/core/browser/webdata/autofill_ai/entity_sync_util.h"
 #include "components/autofill/core/browser/webdata/autofill_webdata_service.h"
@@ -62,6 +63,18 @@ bool IsSyncWalletFlightReservationsEnabled() {
 
 bool IsSyncWalletVehicleRegistrationsEnabled() {
   return base::FeatureList::IsEnabled(syncer::kSyncWalletVehicleRegistrations);
+}
+
+// Returns if the entity `change` should be uploaded to AUTOFILL_VALUABLE.
+bool ShouldUploadEntityChange(const EntityInstanceChange& change) {
+  switch (change.data_model()->record_type()) {
+    case EntityInstance::RecordType::kLocal:
+      // Local entities are not uploaded as AUTOFILL_VALUABLE.
+      return false;
+    case EntityInstance::RecordType::kServerWallet:
+      return true;
+  }
+  NOTREACHED();
 }
 
 }  // namespace
@@ -182,8 +195,18 @@ std::unique_ptr<syncer::MutableDataBatch> ValuableSyncBridge::GetData() {
 
 std::unique_ptr<syncer::DataBatch> ValuableSyncBridge::GetDataForCommit(
     StorageKeyList storage_keys) {
-  // This type never commits to the server.
-  NOTREACHED();
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  auto batch = std::make_unique<syncer::MutableDataBatch>();
+  absl::flat_hash_set<std::string> keys_set(storage_keys.begin(),
+                                            storage_keys.end());
+  std::unique_ptr<syncer::DataBatch> all_data = GetData();
+  while (all_data->HasNext()) {
+    syncer::KeyAndData item = all_data->Next();
+    if (keys_set.contains(item.first)) {
+      batch->Put(item.first, std::move(item.second));
+    }
+  }
+  return batch;
 }
 
 std::unique_ptr<syncer::DataBatch>
@@ -209,11 +232,11 @@ bool ValuableSyncBridge::IsEntityDataValid(
     case sync_pb::AutofillValuableSpecifics::kFlightReservation:
       // TODO(crbug.com/436547381): Add stronger validation for flight
       // reservation.
-      return IsSyncWalletVehicleRegistrationsEnabled();
+      return IsSyncWalletFlightReservationsEnabled();
     case sync_pb::AutofillValuableSpecifics::kVehicleRegistration:
       // TODO(crbug.com/436547381): Add stronger validation for vehicle
       // registration.
-      return IsSyncWalletFlightReservationsEnabled();
+      return IsSyncWalletVehicleRegistrationsEnabled();
     case sync_pb::AutofillValuableSpecifics::VALUABLE_DATA_NOT_SET:
       // Ignore new entry types that the client doesn't know about.
       return false;
@@ -442,22 +465,33 @@ std::optional<syncer::ModelError> ValuableSyncBridge::SetSyncData(
 void ValuableSyncBridge::EntityInstanceChanged(
     const EntityInstanceChange& change) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  // Determine if the entity change should be uploaded to AUTOFILL_VALUABLE.
-  switch (change.data_model()->record_type()) {
-    case EntityInstance::RecordType::kLocal:
-      // Local entities are not uploaded as AUTOFILL_VALUABLE.
-      return;
-    case EntityInstance::RecordType::kServerWallet:
-      break;
+  if (!IsSyncWalletFlightReservationsEnabled() &&
+      !IsSyncWalletVehicleRegistrationsEnabled()) {
+    return;
   }
+
+  if (!ShouldUploadEntityChange(change)) {
+    return;
+  }
+
+  CHECK(change_processor()->IsTrackingMetadata());
+
+  std::unique_ptr<syncer::MetadataChangeList> metadata_change_list =
+      CreateMetadataChangeList();
 
   switch (change.type()) {
     case EntityInstanceChange::ADD:
     case EntityInstanceChange::UPDATE:
+      CHECK(change.data_model());
+      change_processor()->Put(
+          *change.key(),
+          CreateEntityDataFromEntityInstance(*change.data_model()),
+          metadata_change_list.get());
+      break;
     case EntityInstanceChange::REMOVE:
     case EntityInstanceChange::HIDE_IN_AUTOFILL:
-      // TODO(crbug.com/441736370) Handle switch cases.
-      break;
+      // Removing valuables is not supported from the client.
+      NOTREACHED();
   }
 }
 

@@ -331,15 +331,10 @@ class HistoryBackend : public base::RefCountedThreadSafe<HistoryBackend>,
   // `recency_window_days` is the number of days of history to consider
   // when scoring segments. A result older than this window will not add to a
   // segment's score.
-  // `check_visual_deduplication_flag` if true, it will check if the flag
-  // gurading an additional filter is enabled. If so, it will filter out URLs
-  // with the same hostname and first N digits of the title, keeping the one
-  // with the highest score.
   MostVisitedURLList QueryMostVisitedURLs(
       int result_count,
       const std::optional<std::string>& recency_factor_name = std::nullopt,
-      std::optional<size_t> recency_window_days = std::nullopt,
-      bool check_visual_deduplication_flag = false);
+      std::optional<size_t> recency_window_days = std::nullopt);
 
   // Request `result_count` of the most repeated queries for the given keyword.
   // Used by TopSites.
@@ -413,9 +408,11 @@ class HistoryBackend : public base::RefCountedThreadSafe<HistoryBackend>,
   // time range [`begin_time`, `end_time`). If the given host has not been
   // visited in the given time range, the result will have a null base::Time,
   // but still report success. Only queries http and https hosts.
-  HistoryLastVisitResult GetLastVisitToHost(const std::string& host,
-                                            base::Time begin_time,
-                                            base::Time end_time);
+  HistoryLastVisitResult GetLastVisitToHost(
+      const std::string& host,
+      base::Time begin_time,
+      base::Time end_time,
+      VisitQuery404sPolicy policy_for_404_visits);
 
   // Same as the above, but for the given origin instead of host.
   HistoryLastVisitResult GetLastVisitToOrigin(
@@ -663,13 +660,15 @@ class HistoryBackend : public base::RefCountedThreadSafe<HistoryBackend>,
   // methods.
 
   // TODO(manukh): DEPRECATED (see above comment)
-  bool GetMostRecentVisitForURL(URLID id, VisitRow* visit_row) override;
+  bool GetMostRecentVisitForURL(
+      URLID id,
+      VisitRow* visit_row,
+      VisitQuery404sPolicy policy_for_404_visits) override;
 
-  // Fetches up to `max_visits` most recent visits for the passed URL.
-  // TODO(manukh): Rename to `GetMostRecentVisitsForUrlId`.
-  bool GetMostRecentVisitsForURL(URLID id, int max_visits, VisitVector* visits);
-
-  QueryURLAndVisitsResult GetMostRecentVisitsForGurl(GURL url, int max_visits);
+  QueryURLAndVisitsResult GetMostRecentVisitsForGurl(
+      GURL url,
+      int max_visits,
+      VisitQuery404sPolicy policy_for_404_visits);
 
   // Gets whether the URL is known to sync.
   bool GetIsUrlKnownToSync(URLID id, bool* is_known_to_sync);

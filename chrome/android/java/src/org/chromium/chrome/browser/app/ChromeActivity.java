@@ -1103,25 +1103,12 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
     protected void applyThemeOverlays() {
         // Apply the theme overlay before applying dynamic colors in the super's call. The order
         // ensures the color attributes for dynamic colors are not overridden by the overlay.
-        boolean useThemeModule = false;
         if (ThemeModuleUtils.isEnabled()) {
-            int themeModuleOverlay = ThemeModuleUtils.getProviderInstance().getThemeOverlay();
-            if (themeModuleOverlay != 0) {
-                useThemeModule = true;
-                applySingleThemeOverlay(themeModuleOverlay);
-            }
-        }
-
-        // If the theme module is not in use, apply the baseline version of the overlay for app menu
-        // icon buttons.
-        if (!useThemeModule) {
-            applySingleThemeOverlay(R.style.AppMenuTopRowIconButtonsStyleOverlay);
+            applySingleThemeOverlay(R.style.ThemeOverlay_BrowserUI_ExpressiveUpdate);
         }
 
         if (!HubUtils.isGtsUpdateEnabled()) {
             applySingleThemeOverlay(R.style.HubToolbarActionButtonStyleOverlay_Baseline);
-        } else if (!useThemeModule) {
-            applySingleThemeOverlay(R.style.HubToolbarActionButtonStyleOverlay_Fill);
         }
 
         super.applyThemeOverlays();
@@ -2742,6 +2729,14 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
 
         if (id == R.id.managed_by_menu_id) {
             openChromeManagementPage();
+            return true;
+        }
+
+        if (id == R.id.view_source
+                && !currentTab.isNativePage()
+                && DevToolsWindowAndroid.canViewSource(
+                        currentTab.getProfile(), currentTab.getWebContents())) {
+            currentTab.getWebContents().getMainFrame().viewSource();
             return true;
         }
 

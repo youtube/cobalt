@@ -21,6 +21,7 @@
 #include "components/content_settings/core/test/content_settings_mock_provider.h"
 #include "components/content_settings/core/test/content_settings_test_utils.h"
 #include "components/permissions/constants.h"
+#include "components/safe_browsing/core/browser/safe_browsing_metrics_collector.h"
 #include "components/safe_browsing/core/common/features.h"
 #include "components/ukm/test_ukm_recorder.h"
 #include "content/public/browser/browser_context.h"
@@ -51,6 +52,8 @@ constexpr char kNotificationCountHistogram[] =
     "NotificationCount";
 constexpr char kRevokedWebsitesCountHistogram[] =
     "Settings.SafetyHub.DisruptiveNotificationRevocations.RevokedWebsitesCount";
+constexpr char kSafeBrowsingNotificationRevocationSourceHistogram[] =
+    "SafeBrowsing.NotificationRevocationSource";
 
 base::TimeDelta GetRevocationsLifetime() {
   return content_settings::features::
@@ -443,6 +446,10 @@ TEST_F(DisruptiveNotificationPermissionsManagerRevocationTest,
       "Settings.SafetyHub.DisruptiveNotificationRevocations."
       "HasReportedMetricsBeforeRevocation",
       true, 1);
+  t.ExpectBucketCount(
+      kSafeBrowsingNotificationRevocationSourceHistogram,
+      safe_browsing::NotificationRevocationSource::kDisruptiveAutoRevocation,
+      1);
 
   // After that, no new metrics are reported since there is no notification
   // content setting exception.
@@ -1544,4 +1551,43 @@ TEST_F(DisruptiveNotificationPermissionsManagerRevocationTest,
   auto revocation_entries = ukm_recorder.GetEntriesByName(
       "SafetyHub.DisruptiveNotificationRevocations.FalsePositiveRevocation");
   EXPECT_EQ(0u, revocation_entries.size());
+}
+
+TEST_F(DisruptiveNotificationPermissionsManagerRevocationTest,
+       IsUrlIgnoredForRevokedDisruptiveNotification) {
+  GURL ignored_inside_sh_url("https://www.example1.com");
+  GURL ignored_outside_sh_url("https://www.example2.com");
+  GURL revoked_url("https://www.example3.com");
+  GURL non_existent_url("https://www.example4.com");
+
+  // Set up ignored entries.
+  ContentSettingHelper(*hcsm()).PersistRevocationEntry(
+      ignored_inside_sh_url,
+      RevocationEntry(/*revocation_state=*/RevocationState::kIgnoreInsideSH,
+                      /*site_engagement=*/0.0,
+                      /*daily_notification_count=*/3));
+  ContentSettingHelper(*hcsm()).PersistRevocationEntry(
+      ignored_outside_sh_url,
+      RevocationEntry(/*revocation_state=*/RevocationState::kIgnoreOutsideSH,
+                      /*site_engagement=*/0.0,
+                      /*daily_notification_count=*/3));
+  // Set up a revoked entry.
+  ContentSettingHelper(*hcsm()).PersistRevocationEntry(
+      revoked_url,
+      RevocationEntry(/*revocation_state=*/RevocationState::kRevoked,
+                      /*site_engagement=*/0.0,
+                      /*daily_notification_count=*/3));
+
+  EXPECT_TRUE(DisruptiveNotificationPermissionsManager::
+                  IsUrlIgnoredForRevokedDisruptiveNotification(
+                      hcsm(), ignored_inside_sh_url));
+  EXPECT_TRUE(DisruptiveNotificationPermissionsManager::
+                  IsUrlIgnoredForRevokedDisruptiveNotification(
+                      hcsm(), ignored_outside_sh_url));
+  EXPECT_FALSE(
+      DisruptiveNotificationPermissionsManager::
+          IsUrlIgnoredForRevokedDisruptiveNotification(hcsm(), revoked_url));
+  EXPECT_FALSE(DisruptiveNotificationPermissionsManager::
+                   IsUrlIgnoredForRevokedDisruptiveNotification(
+                       hcsm(), non_existent_url));
 }

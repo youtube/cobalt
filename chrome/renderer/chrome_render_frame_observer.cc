@@ -61,6 +61,7 @@
 #include "third_party/blink/public/web/web_element.h"
 #include "third_party/blink/public/web/web_frame_content_dumper.h"
 #include "third_party/blink/public/web/web_local_frame.h"
+#include "third_party/blink/public/web/web_local_frame_client.h"
 #include "third_party/blink/public/web/web_node.h"
 #include "third_party/blink/public/web/web_security_policy.h"
 #include "third_party/blink/public/web/web_view.h"
@@ -249,10 +250,23 @@ void ChromeRenderFrameObserver::ReadyToCommitNavigation(
 }
 
 void ChromeRenderFrameObserver::DidSetPageLifecycleState(
-    bool restoring_from_bfcache) {
-  if (restoring_from_bfcache && translate_agent_) {
+    blink::BFCacheStateChange bfcache_change) {
+  if (bfcache_change == blink::BFCacheStateChange::kRestoredFromBFCache &&
+      translate_agent_) {
     translate_agent_->RenewPageRegistration();
   }
+#if !BUILDFLAG(IS_ANDROID)
+  if (bfcache_change == blink::BFCacheStateChange::kStoredToBFCache) {
+    // Reset actor state if entering the BFCache
+    page_stability_monitor_.reset();
+    tool_executor_.reset();
+
+    // Flush any remaining log entries which may have been added in the
+    // destructors above. Don't reset the actor journal since it is only created
+    // from the constructor.
+    actor_journal_->SendLogBuffer();
+  }
+#endif
 }
 
 void ChromeRenderFrameObserver::DidFinishLoad() {

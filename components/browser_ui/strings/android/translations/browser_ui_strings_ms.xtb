@@ -7,6 +7,7 @@
 <translation id="1073417869336441572">Bantu kami meningkatkan Chrome dengan memberitahu kami sebab anda membenarkan kuki pihak ketiga. <ph name="BEGIN_LINK" />Hantar maklum balas<ph name="END_LINK" /></translation>
 <translation id="1074758928858737435">Anda boleh meminta untuk melihat versi desktop laman</translation>
 <translation id="1085696779717592361">Gunakan Chrome Secara Lalai</translation>
+<translation id="113098737392899175">Navigasi halaman dengan kursor teks apabila papan kekunci disambungkan</translation>
 <translation id="1178015372320901893">Helaian bawah pintasan saya</translation>
 <translation id="1178581264944972037">Jeda</translation>
 <translation id="1181037720776840403">Alih keluar</translation>
@@ -147,6 +148,11 @@
 <translation id="2588271083332682494">Berkemas dengan kumpulan tab</translation>
 <translation id="2597457036804169544">Jangan gunakan tema gelap pada laman</translation>
 <translation id="2606760465469169465">Sahkan secara automatik</translation>
+<translation id="2610903128639500624">Urus dalam <ph name="BEGIN_LINK1" />tetapan Android<ph name="END_LINK1" />
+
+Perlindungan Lanjutan mengawal tetapan Chrome ini:
+• "Sentiasa gunakan sambungan selamat" dihidupkan.
+• "Pengoptimum JavaScript" dimatikan. <ph name="BEGIN_LINK2" />Urus pengecualian Laman<ph name="END_LINK2" /></translation>
 <translation id="2621115761605608342">Benarkan JavaScript untuk tapak tertentu.</translation>
 <translation id="2626708220538466178">Helaian bawah penyemak imbas lalai ditutup</translation>
 <translation id="2653659639078652383">Serah</translation>
@@ -305,6 +311,7 @@
 <translation id="4336566011000459927">Chrome akan mengehadkan kuki lagi hari ini</translation>
 <translation id="4338831206024587507">Semua laman di bawah <ph name="DOMAIN" /></translation>
 <translation id="4340799661701629185">Jangan benarkan laman menghantar pemberitahuan</translation>
+<translation id="4341577178275615435">Untuk menghidupkan atau mematikan semak imbas karet, gunakan pintasan F7</translation>
 <translation id="4402755511846832236">Sekat tapak daripada mengetahui waktu anda menggunakan peranti ini dengan aktif</translation>
 <translation id="4412683424767388419">Helaian bawah warna Chrome dibuka pada ketinggian separuh</translation>
 <translation id="4412992751769744546">Benarkan kuki pihak ketiga</translation>
@@ -339,6 +346,7 @@
 <translation id="4816495437032298535">Zum yang disimpan untuk laman</translation>
 <translation id="4836046166855586901">Tanya apabila laman ingin mengetahui waktu anda menggunakan peranti ini dengan aktif</translation>
 <translation id="483914009762354899">Sertakan semua laman di bawah domain ini</translation>
+<translation id="4852997963351138624">Heks Warna Latar</translation>
 <translation id="4882919381756638075">Tapak biasanya menggunakan mikrofon anda untuk ciri komunikasi seperti sembang video</translation>
 <translation id="4883854917563148705">Tetapan yang diurus tidak dapat ditetapkan semula</translation>
 <translation id="4887024562049524730">Tanya sebelum membenarkan tapak menggunakan peranti dan data realiti maya anda (disyorkan)</translation>
@@ -502,6 +510,7 @@
 <translation id="6608650720463149374"><ph name="GIGABYTES" /> GB</translation>
 <translation id="6612358246767739896">Kandungan yang dilindungi</translation>
 <translation id="662080504995468778">Kekal di sini</translation>
+<translation id="6630443592285535486">Taip heks di sini</translation>
 <translation id="6635327442719709864">Apabila dihidupkan, laman dapat meminta untuk menggunakan port bersiri. Apabila dimatikan, laman tidak dapat menggunakan port bersiri.</translation>
 <translation id="6678072580827808850">Semak Pemeriksaan Keselamatan</translation>
 <translation id="6682057173375416470">Dapatkan artikel yang dicadangkan pada halaman Tab Baharu</translation>
@@ -559,6 +568,7 @@
 <translation id="7399802613464275309">Semakan Keselamatan</translation>
 <translation id="7406113532070524618">Tetapan ini berfungsi tanpa mengenal pasti identiti anda atau membenarkan laman melihat sejarah penyemakan imbas anda tetapi laman boleh berkongsi sedikit maklumat sebagai sebahagian daripada proses pengesahan</translation>
 <translation id="7409735910987429903">Tapak mungkin menghantar tetingkap timbul untuk memaparkan iklan, atau menggunakan ubah hala untuk membawa anda ke laman web yang mungkin tidak ingin anda lawati</translation>
+<translation id="7412160840120117304">Heks Warna Utama</translation>
 <translation id="7423098979219808738">Tanya dahulu</translation>
 <translation id="7423538860840206698">Disekat daripada membaca papan keratan</translation>
 <translation id="7425915948813553151">Tema gelap untuk laman</translation>
@@ -690,6 +700,7 @@
 <translation id="8803526663383843427">Apabila dihidupkan</translation>
 <translation id="8805385115381080995">Penyemakan imbas akan menjadi lebih pantas kerana laman kurang berkemungkinan untuk meminta anda mengesahkan anda orang sebenar</translation>
 <translation id="8816026460808729765">Sekat tapak daripada mengakses penderia</translation>
+<translation id="884765916894384048">Akses latar</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8874790741333031443">Cuba berikan kebenaran sementara untuk kuki pihak ketiga yang boleh mengurangkan perlindungan penyemakan imbas tetapi ciri laman lebih berkemungkinan untuk berfungsi seperti yang dijangka.</translation>
 <translation id="8889294078294184559">Sementara anda terus menyemak imbas, laman boleh menyemak dengan Chrome dan membuat pengesahan dengan laman yang telah anda lawati sebelum ini bahawa anda berkemungkinan merupakan orang yang sebenar</translation>

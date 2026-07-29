@@ -77,7 +77,11 @@ chromium-metrics-reviews@google.com.
   <int value="0" label="Password manager settings"/>
   <int value="1" label="Password promo card"/>
   <int value="2" label="Bookmark manager promo card"/>
-  <int value="3" label="Profile menu button"/>
+  <int value="3" label="Profile menu row button"/>
+  <int value="4" label="Profile menu primary button action"/>
+  <int value="5" label="Profile menu primary button with bookmarks action"/>
+  <int value="6"
+      label="Profile menu priamry button with Windows10 depreciation action"/>
 </enum>
 
 <!-- LINT.ThenChange(/chrome/browser/profiles/batch_upload/batch_upload_service.h:EntryPoint) -->
@@ -125,17 +129,6 @@ chromium-metrics-reviews@google.com.
   <int value="0" label="Not first sync"/>
   <int value="1" label="First sync"/>
 </enum>
-
-<!-- LINT.IfChange(CrossUserSharingDecryptionResult) -->
-
-<enum name="CrossUserSharingDecryptionResult">
-  <int value="0" label="Succeeded"/>
-  <int value="1" label="Invitation missing required fields"/>
-  <int value="2" label="Failed to decrypt invitation"/>
-  <int value="3" label="Failed to parse decrypted invitation"/>
-</enum>
-
-<!-- LINT.ThenChange(/components/sync/engine/data_type_worker.cc:CrossUserSharingDecryptionResult) -->
 
 <!-- LINT.IfChange(CrossUserSharingKeyPairState) -->
 
@@ -377,6 +370,8 @@ chromium-metrics-reviews@google.com.
   <int value="96" label="AutofillAiLastVersionDeduped"/>
   <int value="97" label="CrossDeviceOmniboxIsInBottomPosition"/>
   <int value="98" label="AutofillWasNameAndEmailProfileUsed"/>
+  <int value="99" label="CrossDeviceCrossPlatformPromosIOS16thActiveDay"/>
+  <int value="100" label="CrossDeviceSafetyCheckHomeModuleEnabled"/>
 <!-- LINT.ThenChange(/components/sync_preferences/common_syncable_prefs_database.cc:CommonSyncablePref)-->
 
 <!-- LINT.IfChange(ChromeSyncablePref) -->

@@ -47,6 +47,7 @@ import os
 import pathlib
 import shlex
 import shutil
+import subprocess
 import sys
 import time
 import tempfile
@@ -101,6 +102,12 @@ BUNDLETOOL = THIRD_PARTY_DIR / 'android_build_tools/bundletool/cipd/bundletool.j
 GSUTIL_DIR = THIRD_PARTY_DIR / 'catapult/third_party/gsutil'
 PAGE_SETS_DATA = CHROMIUM_SRC_DIR / 'tools/perf/page_sets/data'
 PERF_TOOLS = ['benchmarks', 'executables', 'crossbench']
+
+# Constants for CBB support.
+# CBB uses a pseudo benchmark that retrieves the versions of alternative
+# browsers (Edge on Windows, or Safari on Mac) installed on the device.
+CBB_BROWSER_VERSIONS_BENCHMARK = 'browser_versions'
+CBB_BROWSER_VERSIONS_FILENAME = 'browser_versions.json'
 
 # See https://crbug.com/923564.
 # We want to switch over to using histograms for everything, but converting from
@@ -1209,6 +1216,42 @@ def _set_cwd():
   os.chdir(candidates[0])
 
 
+def get_browser_versions(isolated_out_dir):
+  """Detect versions of alternative browsers installed on the device.
+
+  Detect which version of Edge (and Safari in the future) is currently
+  installed. The result is saved in a file named CBB_BROWSER_VERSIONS_FILENAME
+  in the isolated output directory.
+  """
+  results = {}
+  if IsWindows():
+    channels = {
+        'stable':
+        'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
+        'dev':
+        'C:/Program Files (x86)/Microsoft/Edge Dev/Application/msedge.exe',
+    }
+    for channel, path in channels.items():
+      cmd = [
+          'powershell', '-command',
+          f"(Get-Item '{path}').VersionInfo.ProductVersion"
+      ]
+      results[channel] = subprocess.run(cmd,
+                                        capture_output=True,
+                                        encoding='utf8',
+                                        check=True).stdout.strip()
+  else:
+    # TODO(b/433796487): Handle Mac.
+    print('Only Windows OS is supported')
+    return 1
+
+  with open(os.path.join(isolated_out_dir, CBB_BROWSER_VERSIONS_FILENAME),
+            'w') as f:
+    json.dump(results, f)
+
+  return 0
+
+
 def main(sys_args):
   sys.stdout.reconfigure(line_buffering=True)
   _set_cwd()
@@ -1272,6 +1315,8 @@ def main(sys_args):
         options.xvfb,
         results_label=options.results_label)
     test_results_files.append(output_paths.test_results)
+  elif options.benchmarks == CBB_BROWSER_VERSIONS_BENCHMARK:
+    overall_return_code = get_browser_versions(isolated_out_dir)
   elif options.benchmarks:
     benchmarks = options.benchmarks.split(',')
     for benchmark in benchmarks:

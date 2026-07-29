@@ -33,8 +33,8 @@ source_set("credential_provider") {
     ":account_verification_provider",
     ":font_provider",
     ":metrics_util",
-    ":passkey_keychain_provider_bridge",
     ":passkey_request_details",
+    ":passkey_welcome_screen_util",
     ":reauthentication_handler",
     ":system_strings",
     "//base",
@@ -42,7 +42,9 @@ source_set("credential_provider") {
     "//ios/chrome/common/app_group",
     "//ios/chrome/common/crash_report",
     "//ios/chrome/common/credential_provider",
+    "//ios/chrome/common/credential_provider:passkey_keychain_provider_bridge",
     "//ios/chrome/common/credential_provider:ui",
+    "//ios/chrome/common/credential_provider/ui",
     "//ios/chrome/common/ui/colors",
     "//ios/chrome/common/ui/confirmation_alert",
     "//ios/chrome/common/ui/reauthentication",
@@ -77,6 +79,7 @@ source_set("unit_tests") {
     "metrics_util_unittest.mm",
     "passkey_request_details_unittest.mm",
     "passkey_util_unittest.mm",
+    "passkey_welcome_screen_util_unittest.mm",
   ]
   deps = [
     ":metrics_util",
@@ -84,6 +87,7 @@ source_set("unit_tests") {
     ":passkey_request_details_testing",
     ":passkey_util",
     ":passkey_util_swift",
+    ":passkey_welcome_screen_util",
     "//base",
     "//base/test:test_support",
     "//components/cbor",
@@ -92,6 +96,7 @@ source_set("unit_tests") {
     "//device/fido",
     "//ios/chrome/common/app_group",
     "//ios/chrome/common/credential_provider",
+    "//ios/chrome/common/credential_provider/ui",
     "//testing/gtest",
     "//third_party/ocmock",
   ]
@@ -131,21 +136,6 @@ source_set("passkey_util") {
     "AuthenticationServices.framework",
     "Foundation.framework",
   ]
-}
-
-source_set("passkey_keychain_provider_bridge") {
-  sources = [
-    "passkey_keychain_provider_bridge.h",
-    "passkey_keychain_provider_bridge.mm",
-  ]
-  deps = [
-    ":passkey_keychain_provider",
-    ":passkey_util",
-    "//base",
-    "//components/sync/protocol",
-    "//ios/chrome/credential_provider_extension/ui:credential_response_handler",
-  ]
-  frameworks = [ "Foundation.framework" ]
 }
 
 source_set("password_util") {
@@ -205,6 +195,18 @@ source_set("passkey_request_details") {
   ]
 }
 
+source_set("passkey_welcome_screen_util") {
+  sources = [
+    "passkey_welcome_screen_util.h",
+    "passkey_welcome_screen_util.mm",
+  ]
+  deps = [
+    "//base",
+    "//ios/chrome/common/credential_provider/ui",
+  ]
+  frameworks = [ "Foundation.framework" ]
+}
+
 source_set("passkey_request_details_testing") {
   testonly = true
   sources = [ "passkey_request_details+Testing.h" ]
@@ -236,30 +238,6 @@ source_set("font_provider_header") {
 source_set("font_provider_implementation") {
   sources = [ "font_provider.mm" ]
   deps = [ ":font_provider_header" ]
-  assert_no_deps = [ "//ios/chrome/browser/*" ]
-  frameworks = [ "Foundation.framework" ]
-}
-
-source_set("passkey_keychain_provider") {
-  public_deps = [ ":passkey_keychain_provider_header" ]
-  deps = [ ios_passkey_keychain_provider_target ]
-  assert_no_deps = [ "//ios/chrome/browser/*" ]
-  frameworks = [ "Foundation.framework" ]
-}
-
-source_set("passkey_keychain_provider_header") {
-  sources = [ "passkey_keychain_provider.h" ]
-  deps = [ "//base" ]
-  assert_no_deps = [ "//ios/chrome/browser/*" ]
-  frameworks = [ "Foundation.framework" ]
-}
-
-source_set("passkey_keychain_provider_implementation") {
-  sources = [ "passkey_keychain_provider.mm" ]
-  deps = [
-    ":passkey_keychain_provider_header",
-    "//base",
-  ]
   assert_no_deps = [ "//ios/chrome/browser/*" ]
   frameworks = [ "Foundation.framework" ]
 }

@@ -419,7 +419,7 @@ gCrWebLegacy.fill.webFormElementToFormData = function(
 
   form.name = gCrWebLegacy.form.getFormIdentifier(formElement);
   form.origin = getFrameUrlOrOrigin(frame);
-  form.action = gCrWebLegacy.fill.getCanonicalActionForForm(formElement);
+  form.action = fillUtil.getCanonicalActionForForm(formElement);
 
   // The raw name and id attributes, which may be empty.
   form.name_attribute = formElement.getAttribute('name') || '';
@@ -515,8 +515,8 @@ gCrWebLegacy.fill.webFormControlElementToFormField = function(
     field.placeholder_attribute = 'x-max-data-length-exceeded';
   }
 
-  field.aria_label = gCrWebLegacy.fill.getAriaLabel(element);
-  field.aria_description = gCrWebLegacy.fill.getAriaDescription(element);
+  field.aria_label = fillUtil.getAriaLabel(element);
+  field.aria_description = fillUtil.getAriaDescription(element);
 
   if (!gCrWebLegacy.fill.isAutofillableElement(element)) {
     return;

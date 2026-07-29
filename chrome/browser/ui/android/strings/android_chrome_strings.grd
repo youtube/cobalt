@@ -4120,6 +4120,9 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_MENU_PAGE_INFO" desc="Tooltip on Android for the button to view information about the current web page. Info is short for information.  [CHAR_LIMIT=27]">
         Page info
       </message>
+      <message name="IDS_MENU_APP_INFO" desc="Tooltip on Android for the button to view information about the current app. Info is short for information.  [CHAR_LIMIT=27]">
+        App info
+      </message>
       <message name="IDS_MENU_STOP_REFRESH" desc="Tooltip on Android for the button to stop refreshing the current web page. [CHAR_LIMIT=27]">
         Stop refreshing
       </message>
@@ -4847,6 +4850,18 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_ACCESSIBILITY_TABSTRIP_TAB_PINNED_SELECTED_INCOGNITO" desc="Content description for the pinned tabs that are selected in Incognito mode">
         <ph name="TAB_TITLE">%1$s<ex>Welcome to Facebook</ex></ph>, Pinned Selected Incognito Tab
       </message>
+      <message name="IDS_ACCESSIBILITY_TABSTRIP_TAB_MULTISELECTED" desc="Content description for tabs that are multiselected">
+        <ph name="TAB_TITLE">%1$s<ex>Welcome to Facebook</ex></ph>, Multiselected Tab
+      </message>
+      <message name="IDS_ACCESSIBILITY_TABSTRIP_TAB_MULTISELECTED_INCOGNITO" desc="Content description for tabs that are multiselected in Incognito mode">
+        <ph name="TAB_TITLE">%1$s<ex>Welcome to Facebook</ex></ph>, Multiselected Incognito Tab
+      </message>
+      <message name="IDS_ACCESSIBILITY_TABSTRIP_TAB_MULTISELECTED_PINNED" desc="Content description for tabs that are multiselected and pinned">
+        <ph name="TAB_TITLE">%1$s<ex>Welcome to Facebook</ex></ph>, Multiselected Pinned Tab
+      </message>
+      <message name="IDS_ACCESSIBILITY_TABSTRIP_TAB_MULTISELECTED_PINNED_INCOGNITO" desc="Content description for tabs that are multiselected and pinned in Incognito mode">
+        <ph name="TAB_TITLE">%1$s<ex>Welcome to Facebook</ex></ph>, Multiselected Pinned Incognito Tab
+      </message>
 
       <!-- Accessibility strings used in both tablet and phone tab strips -->
       <message name="IDS_ACCESSIBILITY_TABSTRIP_TAB" desc="Content description for the tab title.">
@@ -5458,6 +5473,9 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_KEYBOARD_SHORTCUT_TOGGLE_BOOKMARK_BAR" desc="A text label that appears next to the keyboard shortcut that will toggle the bookmark bar. The shortcut description is shown in a system dialog along with all other supported shortcuts. [CHAR_LIMIT=55]">
         Show or hide Bookmarks bar
       </message>
+      <message name="IDS_KEYBOARD_SHORTCUT_VIEW_SOURCE" desc="A text label that appears next to the keyboard shortcut that will display non-editable HTML source code for the current page. The shortcut description is shown in a system dialog along with all other supported shortcuts. [CHAR_LIMIT=55]">
+        View page source
+      </message>
       <message name="IDS_KEYBOARD_SHORTCUT_DEVELOPER_TOOLS" desc="A text label that appears next to the keyboard shortcut that will open Developer Tools. The shortcut description is shown in a system dialog along with all other supported shortcuts. [CHAR_LIMIT=55]">
         Open Developer Tools
       </message>
@@ -5478,6 +5496,9 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
       <message name="IDS_KEYBOARD_SHORTCUT_DEVELOPER_GROUP_HEADER" desc="A text label that appears above a list of shortcuts that are related to tools used by developers. This group is part of several groups of keyboard shortcuts all shown in a dialog.">
         Developer shortcuts
+      </message>
+      <message name="IDS_KEYBOARD_SHORTCUT_TOGGLE_MULTISELECT" desc="A text label that appears above a list of shortcuts that are related to the tab strip. The shortcut description is shown in a system dialog along with all other supported shortcuts. [CHAR_LIMIT=55]">
+        Toggle tab selection
       </message>
 
       <if expr="enable_arcore">
@@ -7061,6 +7082,30 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
       <message name="IDS_TIPS_PROMO_BOTTOM_SHEET_NEGATIVE_BUTTON_TEXT" desc="Button text for the Tips Promo bottom sheet to go to an education page on the tip feature usage.">
         Show me how
+      </message>
+      <message name="IDS_TIPS_PROMO_BOTTOM_SHEET_TITLE_ESB" desc="Title of the Enhanced Safe Browsing feature tip main page promo. [CHAR_LIMIT=32]">
+        Get Chrome\u2019s strongest security
+      </message>
+      <message name="IDS_TIPS_PROMO_BOTTOM_SHEET_DESCRIPTION_ESB" desc="Description of the Enhanced Safe Browsing feature tip main page promo.">
+        Add an extra layer of protection against online threats with enhanced protection
+      </message>
+      <message name="IDS_TIPS_PROMO_BOTTOM_SHEET_TITLE_QUICK_DELETE" desc="Title of the Quick Delete feature tip main page promo. [CHAR_LIMIT=32]">
+        Quickly delete your browsing data
+      </message>
+      <message name="IDS_TIPS_PROMO_BOTTOM_SHEET_DESCRIPTION_QUICK_DELETE" desc="Description of the Quick Delete feature tip main page promo.">
+        You can delete some or all of your history, cookies, site data, and more
+      </message>
+      <message name="IDS_TIPS_PROMO_BOTTOM_SHEET_TITLE_LENS" desc="Title of the Google Lens feature tip main page promo. [CHAR_LIMIT=32]">
+        Search with Google Lens
+      </message>
+      <message name="IDS_TIPS_PROMO_BOTTOM_SHEET_DESCRIPTION_LENS" desc="Description of the Google Lens feature tip main page promo.">
+        Shop, translate, and identify what you see using your camera and photo gallery
+      </message>
+      <message name="IDS_TIPS_PROMO_BOTTOM_SHEET_TITLE_BOTTOM_OMNIBOX" desc="Title of the Bottom Omnibox feature tip main page promo. [CHAR_LIMIT=32]">
+        Choose your address bar position
+      </message>
+      <message name="IDS_TIPS_PROMO_BOTTOM_SHEET_DESCRIPTION_BOTTOM_OMNIBOX" desc="Description of the Bottom Omnibox feature tip main page promo.">
+        Switch the position of your address bar to the top or bottom for a customized browsing experience
       </message>
     </messages>
   </release>

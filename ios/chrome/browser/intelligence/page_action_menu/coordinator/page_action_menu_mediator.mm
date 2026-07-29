@@ -4,6 +4,7 @@
 
 #import "ios/chrome/browser/intelligence/page_action_menu/coordinator/page_action_menu_mediator.h"
 
+#import "base/strings/sys_string_conversions.h"
 #import "components/prefs/pref_service.h"
 #import "components/search/search.h"
 #import "components/search_engines/template_url_service.h"
@@ -17,6 +18,7 @@
 #import "ios/chrome/browser/shared/public/commands/page_action_menu_commands.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/translate/model/chrome_ios_translate_client.h"
+#import "ios/web/public/permissions/permissions.h"
 #import "ios/web/public/web_state.h"
 #import "ios/web/public/web_state_observer_bridge.h"
 
@@ -109,23 +111,26 @@
 }
 
 - (BOOL)isFeatureAvailable:(PageActionMenuFeatureType)featureType {
+  if (!_webState) {
+    return NO;
+  }
+
   switch (featureType) {
     case PageActionMenuTranslate: {
-      if (!_webState) {
-        return NO;
-      }
       ChromeIOSTranslateClient* translateClient =
           ChromeIOSTranslateClient::FromWebState(_webState);
       return IsTranslateActive(translateClient);
     }
-    case PageActionMenuCameraPermission:
-      // TODO(crbug.com/447143165): Implement camera permission availability
-      // check.
-      return NO;
-    case PageActionMenuMicrophonePermission:
-      // TODO(crbug.com/447143165): Implement microphone permission availability
-      // check.
-      return NO;
+    case PageActionMenuCameraPermission: {
+      web::PermissionState state =
+          _webState->GetStateForPermission(web::PermissionCamera);
+      return state == web::PermissionStateAllowed;
+    }
+    case PageActionMenuMicrophonePermission: {
+      web::PermissionState state =
+          _webState->GetStateForPermission(web::PermissionMicrophone);
+      return state == web::PermissionStateAllowed;
+    }
     case PageActionMenuPopupBlocker:
       // TODO(crbug.com/447143165): Implement popup blocker permission
       // availability check.
@@ -159,8 +164,11 @@
 }
 
 - (NSString*)currentSiteDomain {
-  // TODO(crbug.com/447143165): Return actual current domain.
-  return @"foo.com";
+  if (!_webState) {
+    return nil;
+  }
+  GURL url = _webState->GetLastCommittedURL();
+  return base::SysUTF8ToNSString(url.GetHost());
 }
 
 #pragma mark - CRWWebStateObserver

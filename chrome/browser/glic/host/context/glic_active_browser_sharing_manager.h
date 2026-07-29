@@ -7,20 +7,24 @@
 
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/glic/host/context/glic_delegating_sharing_manager.h"
-#include "chrome/browser/ui/browser_list_observer.h"
+#include "chrome/browser/glic/host/context/glic_sharing_utils.h"
 
 class Profile;
 
 namespace glic {
+class GlicInstance;
+
+class GlicWindowController;
 
 // Sharing manager that tracks with the active browser. When a Chrome window is
 // active and its active tab is showing a GlicInstance, this sharing manager
 // behaves like the sharing manager for that instance. Otherwise it behaves like
 // an empty sharing manager (nothing is or can be shared).
-class GlicActiveBrowserSharingManager : public GlicDelegatingSharingManager,
-                                        public BrowserListObserver {
+class GlicActiveBrowserSharingManager : public GlicDelegatingSharingManager {
  public:
-  explicit GlicActiveBrowserSharingManager(Profile* profile);
+  explicit GlicActiveBrowserSharingManager(
+      Profile* profile,
+      GlicWindowController* instance_coordinator);
   ~GlicActiveBrowserSharingManager() override;
 
   GlicActiveBrowserSharingManager(const GlicActiveBrowserSharingManager&) =
@@ -28,21 +32,26 @@ class GlicActiveBrowserSharingManager : public GlicDelegatingSharingManager,
   GlicActiveBrowserSharingManager& operator=(
       const GlicActiveBrowserSharingManager&) = delete;
 
-  // BrowserListObserver.
-  void OnBrowserSetLastActive(Browser* browser) override;
-  void OnBrowserNoLongerActive(Browser* browser) override;
-
   // Callback for changes to the active tab.
-  void OnActiveTabChanged(BrowserWindowInterface* browser);
+  void OnActiveTabChanged(tabs::TabInterface* active_tab);
 
  private:
+  // Callback for changes to the last active GlicInstance.
+  void OnLastActiveInstanceChanged(GlicInstance* instance);
+
   // Updates the delegate based on current active browser state.
   void UpdateDelegate();
+
+  // TODO(b:444463509): Refactor into a shared singleton.
+  GlicActiveTabForProfileTracker active_tab_tracker_;
 
   // Subscription for active tab changes.
   base::CallbackListSubscription active_tab_subscription_;
 
   raw_ptr<Profile> profile_;
+
+  // Subscription for last active instance changes.
+  base::CallbackListSubscription last_active_instance_subscription_;
 };
 
 }  // namespace glic

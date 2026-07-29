@@ -5,44 +5,105 @@
 // clang-format off
 import 'chrome://settings/lazy_load.js';
 
-import type {V8PageElement} from 'chrome://settings/lazy_load.js';
-import {SiteSettingsPrefsBrowserProxyImpl} from 'chrome://settings/lazy_load.js';
+import type {SettingsCollapseRadioButtonElement, V8PageElement} from 'chrome://settings/lazy_load.js';
+import {ContentSetting, SafeBrowsingSetting, SiteSettingsPrefsBrowserProxyImpl} from 'chrome://settings/lazy_load.js';
+import type {SettingsPrefsElement} from 'chrome://settings/settings.js';
+import {CrSettingsPrefs} from 'chrome://settings/settings.js';
 
 import {TestSiteSettingsPrefsBrowserProxy} from './test_site_settings_prefs_browser_proxy.js';
 
+import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
-import {isChildVisible} from 'chrome://webui-test/test_util.js';
+import {isVisible} from 'chrome://webui-test/test_util.js';
 // clang-format on
 
-suite('V8Page', function() {
+function createPage(settingsPrefs: SettingsPrefsElement,
+                    safeBrowsingSetting: SafeBrowsingSetting) {
+  const page = document.createElement('settings-v8-page');
+  page.prefs = settingsPrefs.prefs;
+
+  document.body.appendChild(page);
+
+  page.setPrefValue('generated.safe_browsing', safeBrowsingSetting);
+  page.setPrefValue('generated.javascript_optimizer', ContentSetting.ALLOW);
+  if (safeBrowsingSetting === SafeBrowsingSetting.DISABLED) {
+    page.set(
+        'prefs.generated.javascript_optimizer.enforcement',
+        chrome.settingsPrivate.Enforcement.ENFORCED);
+    page.set(
+        'prefs.generated.javascript_optimizer.controlledBy',
+        chrome.settingsPrivate.ControlledBy.SAFE_BROWSING_OFF);
+  }
+  return page;
+}
+
+function queryBlockOnUnfamiliarSitesRadioButton(page: HTMLElement) {
+  return page.shadowRoot!.querySelector<SettingsCollapseRadioButtonElement>(
+      '#blockForUnfamiliarSites');
+}
+
+suite('V8Page_BlockOnUnfamiliarSitesFeatureDisabled', function() {
   let page: V8PageElement;
   let siteSettingsBrowserProxy: TestSiteSettingsPrefsBrowserProxy;
+  let settingsPrefs: SettingsPrefsElement;
+
+  suiteSetup(function() {
+    settingsPrefs = document.createElement('settings-prefs');
+    return CrSettingsPrefs.initialized;
+  });
 
   setup(function() {
+    document.body.innerHTML = window.trustedTypes!.emptyHTML;
+    assertFalse(
+        loadTimeData.getBoolean('enableBlockV8OptimizerOnUnfamiliarSites'));
+
     siteSettingsBrowserProxy = new TestSiteSettingsPrefsBrowserProxy();
     SiteSettingsPrefsBrowserProxyImpl.setInstance(siteSettingsBrowserProxy);
 
-    page = document.createElement('settings-v8-page');
-    document.body.innerHTML = window.trustedTypes!.emptyHTML;
-    document.body.appendChild(page);
+    page = createPage(settingsPrefs, SafeBrowsingSetting.STANDARD);
     return flushTasks();
   });
 
-  function isRadioButtonVisible(page: V8PageElement, selector: string) {
-    const radioGroup =
-        page.shadowRoot!.querySelector('#javascriptOptimizerRadioGroup');
-    if (radioGroup === null) {
-      return false;
-    }
-    return isChildVisible(radioGroup, selector, /*checkLightDom=*/ true);
-  }
+  test('CheckRadioButtons', function() {
+    assertFalse(!!queryBlockOnUnfamiliarSitesRadioButton(page));
+  });
+});
 
-  test('CheckRadioButtons_BlockOnUnfamiliarSitesFeatureEnabled', function() {
-    assertTrue(isRadioButtonVisible(page, '#blockForUnfamiliarSites'));
+suite('V8Page_BlockOnUnfamiliarSitesFeatureEnabled', function() {
+  let page: V8PageElement;
+  let siteSettingsBrowserProxy: TestSiteSettingsPrefsBrowserProxy;
+  let settingsPrefs: SettingsPrefsElement;
+
+  suiteSetup(function() {
+    settingsPrefs = document.createElement('settings-prefs');
+    return CrSettingsPrefs.initialized;
   });
 
-  test('CheckRadioButtons_BlockOnUnfamiliarSitesFeatureDisabled', function() {
-    assertFalse(isRadioButtonVisible(page, '#blockForUnfamiliarSites'));
+  setup(function() {
+    document.body.innerHTML = window.trustedTypes!.emptyHTML;
+    siteSettingsBrowserProxy = new TestSiteSettingsPrefsBrowserProxy();
+    SiteSettingsPrefsBrowserProxyImpl.setInstance(siteSettingsBrowserProxy);
+
+    assertTrue(
+        loadTimeData.getBoolean('enableBlockV8OptimizerOnUnfamiliarSites'));
+  });
+
+  test('CheckRadioButtons_SafeBrowsingEnabled', async function() {
+    page = createPage(settingsPrefs, SafeBrowsingSetting.STANDARD);
+    await flushTasks();
+    const radioButton = queryBlockOnUnfamiliarSitesRadioButton(page);
+    assertTrue(!!radioButton);
+    assertTrue(isVisible(radioButton));
+    assertFalse(radioButton.disabled);
+  });
+
+  test('CheckRadioButtons_SafeBrowsingDisabled', async function() {
+    page = createPage(settingsPrefs, SafeBrowsingSetting.DISABLED);
+    await flushTasks();
+    const radioButton = queryBlockOnUnfamiliarSitesRadioButton(page);
+    assertTrue(!!radioButton);
+    assertTrue(isVisible(radioButton));
+    assertTrue(radioButton.disabled);
   });
 });

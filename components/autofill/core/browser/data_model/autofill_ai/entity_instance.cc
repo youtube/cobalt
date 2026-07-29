@@ -125,7 +125,7 @@ AttributeInstance::~AttributeInstance() = default;
 
 std::u16string AttributeInstance::GetInfo(
     FieldType field_type,
-    const std::string& app_locale,
+    std::string_view app_locale,
     base::optional_ref<const AutofillFormatString> format_string) const {
   field_type = GetNormalizedFieldType(field_type);
   return std::visit(
@@ -187,7 +187,7 @@ VerificationStatus AttributeInstance::GetVerificationStatus(
 void AttributeInstance::SetInfo(
     FieldType field_type,
     const std::u16string& value,
-    const std::string& app_locale,
+    std::string_view app_locale,
     base::optional_ref<const AutofillFormatString> format_string,
     VerificationStatus status) {
   field_type = GetNormalizedFieldType(field_type);
@@ -298,6 +298,11 @@ bool EntityInstance::ImportOrder(const EntityInstance& lhs,
   return EntityType::ImportOrder(lhs.type(), rhs.type());
 }
 
+bool EntityInstance::MigrationOrder(const EntityInstance& lhs,
+                                    const EntityInstance& rhs) {
+  return lhs.use_date() > rhs.use_date();
+}
+
 std::ostream& operator<<(std::ostream& os, const AttributeInstance& a) {
   os << a.type() << ": " << '"'
      << a.GetInfo(a.type().field_type(), /*app_locale=*/"en-US",
@@ -310,6 +315,7 @@ std::ostream& operator<<(std::ostream& os, const EntityInstance& e) {
   os << "- name: " << '"' << e.type() << '"' << std::endl;
   os << "- nickname: " << '"' << e.nickname() << '"' << std::endl;
   os << "- guid: " << '"' << e.guid() << '"' << std::endl;
+  os << "- use date: " << '"' << e.use_date() << '"' << std::endl;
   os << "- date modified: " << '"' << e.date_modified() << '"' << std::endl;
   for (const AttributeInstance& a : e.attributes()) {
     os << "- attribute " << a << std::endl;

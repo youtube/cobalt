@@ -42,11 +42,9 @@
 #include "base/uuid.h"
 #include "base/values.h"
 #include "build/build_config.h"
-#include "components/fingerprinting_protection_filter/interventions/common/interventions_features.h"
 #include "components/services/storage/public/mojom/cache_storage_control.mojom.h"
 #include "components/ukm/test_ukm_recorder.h"
 #include "content/browser/child_process_security_policy_impl.h"
-#include "content/browser/fingerprinting_protection/canvas_noise_token_data.h"
 #include "content/browser/process_lock.h"
 #include "content/browser/renderer_host/code_cache_host_impl.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
@@ -1270,16 +1268,15 @@ IN_PROC_BROWSER_TEST_F(UserAgentServiceWorkerBrowserTest, NavigatorUserAgent) {
         }
 
         std::string path = "content/test/data/service_worker";
-        path.append(std::string(params->url_request.url.path_piece()));
+        path.append(std::string(params->url_request.url.path()));
 
         std::string headers = "HTTP/1.1 200 OK\n";
-        base::StrAppend(
-            &headers,
-            {"Content-Type: text/",
-             base::EndsWith(params->url_request.url.path_piece(), ".js")
-                 ? "javascript"
-                 : "html",
-             "\n"});
+        base::StrAppend(&headers,
+                        {"Content-Type: text/",
+                         base::EndsWith(params->url_request.url.path(), ".js")
+                             ? "javascript"
+                             : "html",
+                         "\n"});
 
         URLLoaderInterceptor::WriteResponse(
             path, params->client.get(), &headers, std::optional<net::SSLInfo>(),
@@ -3240,7 +3237,7 @@ class HeaderInjectingThrottle : public blink::URLLoaderThrottle {
   void WillStartRequest(network::ResourceRequest* request,
                         bool* defer) override {
     GURL url = request->url;
-    if (url.query().find("PlzRedirect") != std::string::npos) {
+    if (url.GetQuery().find("PlzRedirect") != std::string::npos) {
       GURL::Replacements replacements;
       replacements.SetQueryStr("DidRedirect");
       request->url = url.ReplaceComponents(replacements);
@@ -3598,7 +3595,7 @@ class ServiceWorkerThrottlingTest : public ServiceWorkerBrowserTest {
       const net::test_server::HttpRequest& request) {
     base::AutoLock auto_lock(lock_);
     if (!should_block_ ||
-        request.GetURL().query().find("block") == std::string::npos) {
+        request.GetURL().GetQuery().find("block") == std::string::npos) {
       return nullptr;
     }
     auto response = base::MakeRefCounted<BlockingResponse>();
@@ -5177,44 +5174,46 @@ class ServiceWorkerStaticRouterRaceNetworkAndFetchHandlerSourceBrowserTest
     test_server->RegisterRequestHandler(base::BindRepeating(
         [](const net::test_server::HttpRequest& request)
             -> std::unique_ptr<net::test_server::HttpResponse> {
-          if (!base::Contains(request.GetURL().path(),
+          if (!base::Contains(request.GetURL().GetPath(),
                               "/service_worker/mock_response") &&
-              !base::Contains(request.GetURL().path(),
+              !base::Contains(request.GetURL().GetPath(),
                               "/service_worker/no_race")) {
             return nullptr;
           }
 
-          if (base::Contains(request.GetURL().query(), "server_close_socket")) {
+          if (base::Contains(request.GetURL().GetQuery(),
+                             "server_close_socket")) {
             return std::make_unique<net::test_server::RawHttpResponse>("", "");
           }
 
           const bool is_slow =
-              base::Contains(request.GetURL().query(), "server_slow");
+              base::Contains(request.GetURL().GetQuery(), "server_slow");
           auto http_response =
               is_slow ? std::make_unique<net::test_server::DelayedHttpResponse>(
                             base::Seconds(2))
                       : std::make_unique<net::test_server::BasicHttpResponse>();
 
           const char kQueryForRedirect[] = "server_redirect";
-          if (base::Contains(request.GetURL().query(), kQueryForRedirect)) {
+          if (base::Contains(request.GetURL().GetQuery(), kQueryForRedirect)) {
             http_response->set_code(net::HTTP_TEMPORARY_REDIRECT);
 
-            const int pos = request.GetURL().query().find(kQueryForRedirect);
+            const int pos = request.GetURL().GetQuery().find(kQueryForRedirect);
             const int len = strlen(kQueryForRedirect);
             const std::string new_query =
-                request.GetURL().query().erase(pos, len);
+                request.GetURL().GetQuery().erase(pos, len);
 
             http_response->AddCustomHeader(
-                "Location", request.GetURL().path() + "?" + new_query);
+                "Location", request.GetURL().GetPath() + "?" + new_query);
             return http_response;
           }
 
-          if (!base::Contains(request.GetURL().query(),
+          if (!base::Contains(request.GetURL().GetQuery(),
                               "server_unknown_mime_type")) {
             http_response->set_content_type("text/plain");
           }
 
-          if (base::Contains(request.GetURL().query(), "server_large_data")) {
+          if (base::Contains(request.GetURL().GetQuery(),
+                             "server_large_data")) {
             // The data pipe buffer size created for the RaceNetworkRequest test
             // is 1024 byte. Set large data to overflow the buffer.
             http_response->set_content(std::string(1024 * 3, 'A'));
@@ -5224,7 +5223,7 @@ class ServiceWorkerStaticRouterRaceNetworkAndFetchHandlerSourceBrowserTest
             return http_response;
           }
 
-          if (base::Contains(request.GetURL().query(), "server_notfound")) {
+          if (base::Contains(request.GetURL().GetQuery(), "server_notfound")) {
             http_response->set_code(net::HTTP_NOT_FOUND);
             http_response->set_content(
                 "[ServiceWorkerRaceNetworkRequest] Not found");
@@ -7025,15 +7024,15 @@ class ServiceWorkerStaticRouterBrowserTest : public ServiceWorkerBrowserTest {
     embedded_test_server()->RegisterRequestHandler(base::BindRepeating(
         [](const net::test_server::HttpRequest& request)
             -> std::unique_ptr<net::test_server::HttpResponse> {
-          if (base::Contains(request.GetURL().path(),
+          if (base::Contains(request.GetURL().GetPath(),
                              "/service_worker/direct") ||
-              base::Contains(request.GetURL().path(),
+              base::Contains(request.GetURL().GetPath(),
                              "/service_worker/direct_if_not_running") ||
-              base::Contains(request.GetURL().path(),
+              base::Contains(request.GetURL().GetPath(),
                              "/service_worker/cache_with_wrong_name") ||
-              base::Contains(request.GetURL().path(),
+              base::Contains(request.GetURL().GetPath(),
                              "/service_worker/cache_miss") ||
-              base::Contains(request.GetURL().path(),
+              base::Contains(request.GetURL().GetPath(),
                              "/service_worker/not_not_match")) {
             auto http_response =
                 std::make_unique<net::test_server::BasicHttpResponse>();
@@ -7044,7 +7043,7 @@ class ServiceWorkerStaticRouterBrowserTest : public ServiceWorkerBrowserTest {
                 "Response from the network");
             return http_response;
           }
-          if (base::Contains(request.GetURL().path(),
+          if (base::Contains(request.GetURL().GetPath(),
                              "/service_worker/race_network_and_fetch")) {
             auto http_response =
                 std::make_unique<net::test_server::BasicHttpResponse>();
@@ -7694,13 +7693,13 @@ class ServiceWorkerSyntheticResponseBrowserTest
     test_server->RegisterRequestHandler(base::BindRepeating(
         [](const net::test_server::HttpRequest& request)
             -> std::unique_ptr<net::test_server::HttpResponse> {
-          if (!base::Contains(request.GetURL().path(),
+          if (!base::Contains(request.GetURL().GetPath(),
                               "/service_worker/synthetic_response")) {
             return nullptr;
           }
 
           const bool is_slow =
-              base::Contains(request.GetURL().query(), "server_slow");
+              base::Contains(request.GetURL().GetQuery(), "server_slow");
 
           std::string headers =
               "HTTP/1.1 200 OK\r\n"
@@ -7710,28 +7709,28 @@ class ServiceWorkerSyntheticResponseBrowserTest
               "Date: Fri, 27 Jun 2025 10:50:00 JST\r\n"
               "Test-Duplicated-Header: x\r\n";
 
-          if (base::Contains(request.GetURL().query(),
+          if (base::Contains(request.GetURL().GetQuery(),
                              "header_mismatch_ignored_header")) {
             headers += "Alt-Svc: h2=\":443\"; ma=2592000;\r\n";
-          } else if (base::Contains(request.GetURL().query(),
+          } else if (base::Contains(request.GetURL().GetQuery(),
                                     "header_mismatch_with_duplicated_header")) {
             headers +=
                 "Test-Duplicated-Header: y, z\r\n"
                 "Test-Duplicated-Header: x\r\n";
-          } else if (base::Contains(request.GetURL().query(),
+          } else if (base::Contains(request.GetURL().GetQuery(),
                                     "header_mismatch")) {
             headers += "X-Inconsistent-Header: ?1\r\n";
           }
 
           std::string content;
-          if (base::Contains(request.GetURL().query(), "echo=foo")) {
+          if (base::Contains(request.GetURL().GetQuery(), "echo=foo")) {
             content = "[SyntheticResponse] foo";
-          } else if (base::Contains(request.GetURL().query(), "echo=bar")) {
+          } else if (base::Contains(request.GetURL().GetQuery(), "echo=bar")) {
             content = "[SyntheticResponse] bar";
-          } else if (base::Contains(request.GetURL().query(),
+          } else if (base::Contains(request.GetURL().GetQuery(),
                                     "inline_script_without_csp")) {
             content = "<script>window.is_inline_script_executed=true;</script>";
-          } else if (base::Contains(request.GetURL().query(),
+          } else if (base::Contains(request.GetURL().GetQuery(),
                                     "inline_script_with_csp")) {
             content =
                 "<meta http-equiv=\"Content-Security-Policy\" "
@@ -7996,135 +7995,4 @@ IN_PROC_BROWSER_TEST_P(ServiceWorkerSyntheticResponseBrowserTest,
                      "Math.ceil(performance.getEntriesByType('navigation')[0]."
                      "responseStart) < 2000"));
 }
-
-class CanvasNoiseTestContentBrowserClient
-    : public ContentBrowserTestContentBrowserClient {
- public:
-  explicit CanvasNoiseTestContentBrowserClient() = default;
-  ~CanvasNoiseTestContentBrowserClient() override = default;
-
- private:
-  bool ShouldEnableCanvasNoise(content::BrowserContext* browser_context,
-                               const GURL& origin) override {
-    return enabled_;
-  }
-
-  bool enabled_ = true;
-};
-
-class ServiceWorkerCanvasNoiseTokenBrowserTest
-    : public ServiceWorkerBrowserTest {
- public:
-  ServiceWorkerCanvasNoiseTokenBrowserTest() = default;
-
-  void SetUpOnMainThread() override {
-    ServiceWorkerBrowserTest::SetUpOnMainThread();
-    host_resolver()->AddRule("*", "127.0.0.1");
-    embedded_test_server()->StartAcceptingConnections();
-
-    content_browser_client_ =
-        std::make_unique<CanvasNoiseTestContentBrowserClient>();
-  }
-
-  void SetUpCommandLine(base::CommandLine* command_line) override {
-    ServiceWorkerBrowserTest::SetUpCommandLine(command_line);
-    command_line->AppendSwitch(switches::kExposeInternalsForTesting);
-  }
-
-  WebContents* web_contents() const { return shell()->web_contents(); }
-
-  // This can change depending on the origin of the currently navigated site.
-  // See https://crbug.com/442616874 on why we don't use the CanvasNoiseToken
-  // from the Page.
-  std::optional<blink::NoiseToken> GetCurrentPageToken() {
-    return GetCanvasNoiseTokenForPage(
-        web_contents()->GetPrimaryMainFrame()->GetPage());
-  }
-
-  // Gets the canvas noise token from the Service Worker in the renderer.
-  std::optional<blink::NoiseToken> GetNoiseHashesFromServiceWorker(
-      RenderFrameHost* rfh) {
-    EvalJsResult js_result = EvalJs(rfh, R"(
-	new Promise(resolve => {
-	    navigator.serviceWorker.ready.then((reg) => reg.active.postMessage({}));
-	    navigator.serviceWorker.addEventListener('message', (event) => {
-	      resolve(event.data);
-	})});
-      )");
-
-    CHECK(js_result.is_ok());
-    if (js_result == base::Value()) {
-      return std::nullopt;
-    }
-    uint64_t token;
-    CHECK(base::StringToUint64(js_result.ExtractString(), &token));
-    return blink::NoiseToken(token);
-  }
-
-  scoped_refptr<ServiceWorkerVersion> RegisterCanvasServiceWorkerVersion(
-      GURL page_url) {
-    WorkerRunningStatusObserver observer(public_context());
-    EXPECT_TRUE(NavigateToURL(shell(), page_url));
-    EXPECT_EQ("DONE", EvalJs(shell(), "register('canvas_noise_worker.js');"));
-    observer.WaitUntilRunning();
-    return wrapper()->GetLiveVersion(observer.version_id());
-  }
-
- protected:
-  std::unique_ptr<CanvasNoiseTestContentBrowserClient> content_browser_client_;
-  base::test::ScopedFeatureList scoped_feature_list_{
-      fingerprinting_protection_interventions::features::kCanvasNoise};
-};
-
-IN_PROC_BROWSER_TEST_F(ServiceWorkerCanvasNoiseTokenBrowserTest,
-                       SameOriginServiceWorkerHasSameCanvasNoiseToken) {
-  const GURL page_url = embedded_test_server()->GetURL(
-      "/service_worker/create_service_worker.html");
-  scoped_refptr<ServiceWorkerVersion> version =
-      RegisterCanvasServiceWorkerVersion(page_url);
-
-  // TODO(https://crbug.com/442616874): change to EXPECT_EQ once we key canvas
-  // noise tokens with StorageKey.
-  EXPECT_NE(GetCurrentPageToken(),
-            version->embedded_worker()->GetOrCreateCanvasNoiseToken());
-
-  std::optional<blink::NoiseToken> worker_token =
-      GetNoiseHashesFromServiceWorker(web_contents()->GetPrimaryMainFrame());
-  EXPECT_EQ(worker_token,
-            version->embedded_worker()->GetOrCreateCanvasNoiseToken());
-}
-
-IN_PROC_BROWSER_TEST_F(ServiceWorkerCanvasNoiseTokenBrowserTest,
-                       CrossOriginServiceWorkerHasSameCanvasNoiseToken) {
-  ASSERT_TRUE(embedded_https_test_server().Start());
-  const GURL iframe_url = embedded_https_test_server().GetURL(
-      "b.com", "/service_worker/create_service_worker.html");
-
-  // Now create a cross origin subframe that spawns a service worker.
-  ASSERT_TRUE(NavigateToURL(
-      shell(), embedded_https_test_server().GetURL(
-                   "a.com", "/service_worker/one_subframe.html?subframe_url=" +
-                                iframe_url.spec())));
-  auto* subframe_rfh =
-      static_cast<RenderFrameHostImpl*>(ChildFrameAt(shell(), 0));
-  ASSERT_EQ(subframe_rfh->GetLastCommittedURL(), iframe_url);
-  EXPECT_EQ("DONE",
-            EvalJs(subframe_rfh, "register('canvas_noise_worker.js');"));
-  std::optional<blink::NoiseToken> subframe_worker_token =
-      GetNoiseHashesFromServiceWorker(subframe_rfh);
-
-  std::vector<ServiceWorkerVersionInfo> versions =
-      wrapper()->GetAllLiveVersionInfo();
-  EXPECT_EQ(versions.size(), 1);
-  scoped_refptr<ServiceWorkerVersion> version =
-      wrapper()->GetLiveVersion(versions[0].version_id);
-
-  EXPECT_EQ(subframe_worker_token,
-            version->embedded_worker()->GetOrCreateCanvasNoiseToken());
-
-  // TODO(https://crbug.com/442616874): change to EXPECT_EQ once we key canvas
-  // noise tokens with StorageKey.
-  EXPECT_NE(GetCurrentPageToken(), subframe_worker_token);
-}
-
 }  // namespace content

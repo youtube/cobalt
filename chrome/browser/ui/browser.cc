@@ -152,6 +152,7 @@
 #include "chrome/browser/ui/window_sizer/window_sizer.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
+#include "chrome/browser/web_applications/web_app_tab_helper.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
 #include "chrome/common/chrome_constants.h"
 #include "chrome/common/chrome_features.h"
@@ -337,7 +338,7 @@ const extensions::Extension* GetExtensionForOrigin(
 
   const extensions::Extension* extension =
       extensions::ExtensionRegistry::Get(profile)->enabled_extensions().GetByID(
-          security_origin.host());
+          security_origin.GetHost());
   DCHECK(extension);
   return extension;
 #else
@@ -2384,9 +2385,9 @@ bool Browser::ShouldFocusLocationBarByDefault(WebContents* source) {
     }
 
     if ((url.SchemeIs(content::kChromeUIScheme) &&
-         url.host_piece() == chrome::kChromeUINewTabHost) ||
+         url.host() == chrome::kChromeUINewTabHost) ||
         (virtual_url.SchemeIs(content::kChromeUIScheme) &&
-         virtual_url.host_piece() == chrome::kChromeUINewTabHost)) {
+         virtual_url.host() == chrome::kChromeUINewTabHost)) {
       return true;
     }
 

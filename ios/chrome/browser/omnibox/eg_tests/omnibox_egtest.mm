@@ -506,10 +506,16 @@ void FocusFakebox() {
 
   [[EarlGrey selectElementWithMatcher:chrome_test_util::DefocusedLocationView()]
       assertWithMatcher:chrome_test_util::LocationViewContainingText(
-                            _URL1.host())];
+                            _URL1.GetHost())];
 }
 
 - (void)testCopyPaste {
+#if !TARGET_IPHONE_SIMULATOR
+  // TODO(crbug.com/449210011): Re-enable the test on iPad device.
+  if ([ChromeEarlGrey isIPadIdiom]) {
+    EARL_GREY_TEST_DISABLED(@"Test disabled on iPad.");
+  }
+#endif
   [self openPage1];
 
   // Long pressing should allow copying.

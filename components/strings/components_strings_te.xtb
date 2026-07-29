@@ -205,7 +205,6 @@
 <translation id="1330449323196174374">ఎడమవైపు గేట్‌ ఫోల్డ్</translation>
 <translation id="1333745675627230582">Chrome Dino గేమ్‌ను ఆడండి</translation>
 <translation id="1333989956347591814">మీ యాక్టివిటీ వీటికి లేదా వీరికి <ph name="BEGIN_EMPHASIS" />ఇప్పటికీ కనిపించవచ్చు<ph name="END_EMPHASIS" />: <ph name="BEGIN_LIST" /> <ph name="LIST_ITEM" />మీరు తెరిచే వెబ్‌సైట్‌లు<ph name="LIST_ITEM" />మీరు ఉద్యోగం చేస్తోన్న సంస్థ లేదా స్కూల్ అడ్మిన్<ph name="LIST_ITEM" />మీ ఇంటర్నెట్ సర్వీస్ ప్రొవైడర్<ph name="END_LIST" /></translation>
-<translation id="1335042910556016570">ఈ ఐటెమ్‌ను ట్రాక్ చేయండి</translation>
 <translation id="1337692097987160377">ఈ ట్యాబ్‌ను షేర్ చేయి</translation>
 <translation id="1339601241726513588">నమోదిత డొమైన్:</translation>
 <translation id="1340482604681802745">పికప్ అడ్రస్‌</translation>
@@ -476,7 +475,6 @@
 <translation id="1762779605905950734">వీధి పేరు</translation>
 <translation id="1763864636252898013">ఈ సర్వర్ <ph name="DOMAIN" /> అని నిరూపించుకోలేకపోయింది; దీని భద్రతా ప్రమాణపత్రాన్ని మీ పరికర ఆపరేటింగ్ సిస్టమ్ విశ్వసించలేదు. ఇది తప్పుగా కాన్ఫిగర్ చేయడం వలన లేదా దాడిచేసే వ్యక్తి మీ కనెక్షన్‌కు అంతరాయం కలిగించడం వలన జరిగి ఉండవచ్చు.</translation>
 <translation id="1768211456781949159"><ph name="BEGIN_LINK" />Windows నెట్‌వర్క్ సమస్య విశ్లేషణలను అమలు చేయడం ప్రయత్నించండి<ph name="END_LINK" />.</translation>
-<translation id="1771254328977666895">ధర హిస్టరీని చూడండి</translation>
 <translation id="1777422078676229054">ఫోటో (ఆర్కైవల్)</translation>
 <translation id="1778646502362731194">JIS B0</translation>
 <translation id="1785118555253503473">వెబ్ యాప్‌లను ఇన్‌స్టాల్ చేయాలా?</translation>
@@ -985,6 +983,7 @@
 <translation id="2610561535971892504">కాపీ చేయడానికి క్లిక్ చేయండి</translation>
 <translation id="2612676031748830579">కార్డ్ నంబర్</translation>
 <translation id="2612993535136743634">మీ పరికరంలో, Google ఖాతాలో సేవ్ అయ్యి ఉన్న సెక్యూరిటీ కోడ్‌లన్నీ తొలగించబడతాయి</translation>
+<translation id="2614835674900828050">ఈ కొనుగోలు కోసం అందుబాటులో లేదు</translation>
 <translation id="2616412942031748191">సెర్చ్ ఇంజిన్ ఆప్టిమైజేషన్ &amp; మార్కెటింగ్</translation>
 <translation id="2618206371527040026">అకడమిక్ కాన్ఫరెన్సులు &amp; పబ్లికేషన్స్</translation>
 <translation id="2619052155095999743">చొప్పించండి</translation>
@@ -1233,6 +1232,7 @@
 <translation id="305162504811187366">టైమ్ స్టాంప్‌‌లు, హోస్ట్‌లు, క్లయింట్ సెషన్ idలతో సహా Chrome రిమోట్ డెస్క్‌టాప్ హిస్టరీ</translation>
 <translation id="3052868890529250114">మీరు సాధారణంగా సైట్‌లకు సురక్షితంగానే కనెక్ట్ అవుతారు, కానీ Chrome ఈ సమయంలో సురక్షితమైన కనెక్షన్‌ను ఉపయోగించలేకపోతోంది. అటాకర్ మీ నెట్‌వర్క్ కనెక్షన్‌ను రహస్యంగా గమనించడానికి లేదా మార్చడానికి ట్రై చేస్తూ ఉండవచ్చు. <ph name="BEGIN_LEARN_MORE_LINK" />ఈ హెచ్చరిక గురించి మరింత తెలుసుకోండి<ph name="END_LEARN_MORE_LINK" /></translation>
 <translation id="3052964831964880138"><ph name="PRODUCT_NAME" /> పైన <ph name="PRICE_DROP" /> తగ్గింపు</translation>
+<translation id="3056660797732519147">ఇప్పుడు కొనండి, పేమెంట్ తర్వాత చేయండి ఎర్రర్ స్క్రీన్. కీబోర్డ్ దాచబడింది.</translation>
 <translation id="3061707000357573562">ప్యాచ్ సేవ</translation>
 <translation id="3062655045399308513">బ్రౌజింగ్ డేటాను తొలగించండి...</translation>
 <translation id="3063453392496098461">VPN బ్యాక్‌గ్రౌండ్ సర్వీస్‌ల ఇన్‌స్టలేషన్ విఫలమైంది.</translation>
@@ -1248,6 +1248,7 @@
 <translation id="3087734570205094154">దిగువ</translation>
 <translation id="3090667236485488075">గ్లాస్</translation>
 <translation id="3093122472063815077">'ఇప్పుడు కొనండి, పేమెంట్ తర్వాత చేయండి' ప్రోగ్రెస్, హాఫ్ స్క్రీన్‌లో తెరవబడింది.</translation>
+<translation id="309381737510736393">మీ సంస్థ మీ Google ఖాతాకు డేటా సేవింగ్‌ను పరిమితం చేసినప్పుడు, మీరు ట్యాబ్‌లను షేర్ చేయలేరు లేదా ఇతరులతో సహకరించలేరు</translation>
 <translation id="3094051226187213523">ఈ సూచనతో AI మోడ్‌ను తెరవండి.</translation>
 <translation id="3095940652251934233">స్టేట్‌మెంట్</translation>
 <translation id="3098513225387949945">'*'కు సమానమైన ఆకృతి డిజేబుల్ లిస్ట్‌లో ఉంది, ఇది పాలసీని డిజేబుల్ చేయడానికి సమానం, అందుకే ఇది విస్మరించబడింది.</translation>
@@ -1693,6 +1694,7 @@
 <translation id="3784372983762739446">బ్లూటూత్ పరికరాలు</translation>
 <translation id="3785246317262748285">మీరు సాధారణంగా సైట్‌లకు సురక్షితంగా కనెక్ట్ అవుతుంటారు, కానీ Chrome ఈసారి సురక్షితమైన కనెక్షన్‌ను ఉపయోగించలేకపోతోంది. అటాకర్ మీ నెట్‌వర్క్ కనెక్షన్‌పై ఓ కన్నేసి ఉంచడానికి లేదా దాన్ని మార్చడానికి ట్రై చేస్తూ ఉండవచ్చు. <ph name="LEARN_MORE" /></translation>
 <translation id="378611282717571199">"<ph name="SEARCH_QUERY" />"కు సంబంధించిన బెస్ట్ మ్యాచ్‌లు</translation>
+<translation id="3787887386289385215"><ph name="ISSUER_1_NAME" />, <ph name="ISSUER_2_NAME" />, లేదా <ph name="ISSUER_3_NAME" /></translation>
 <translation id="3789841737615482174">ఇన్‌స్టాల్ చేయండి</translation>
 <translation id="3791118028061680614">యాప్‌లను స్విచ్ చేయకుండానే పేమెంట్ చేయండి</translation>
 <translation id="3792100426446126328"><ph name="NAME" /> (<ph name="WIDTH" /> x <ph name="HEIGHT" /> అంగుళాలు)</translation>
@@ -1985,6 +1987,7 @@
 <translation id="4242981939686657948">మీ బ్రౌజింగ్ హిస్టరీని సెర్చ్ చేయడానికి మరింత శక్తివంతమైన మార్గం కోసం, ఆన్ చేయండి</translation>
 <translation id="4244926541863471678">ఫిల్మ్</translation>
 <translation id="4246517972543675653">విదేశాల్లో చదవడం</translation>
+<translation id="4250343410682686342">'ఇప్పుడు కొనండి, పేమెంట్ తర్వాత చేయండి' ఎర్రర్, ఫుల్ స్క్రీన్‌లో తెరవబడింది.</translation>
 <translation id="4250431568374086873">ఈ సైట్‌కు మీ కనెక్షన్ పూర్తి స్థాయిలో సురక్షితంగా లేదు</translation>
 <translation id="4250680216510889253">లేదు</translation>
 <translation id="4250716950689692560">A4x4</translation>
@@ -2501,6 +2504,7 @@
 <translation id="5122786942953798871">ఎన్వలప్ (కాటన్)</translation>
 <translation id="5123063207673082822">వారాంతం</translation>
 <translation id="5123433949759960244">బాస్కెట్‌బాల్</translation>
+<translation id="5124797626438336458">'ఇప్పుడు కొనండి, పేమెంట్ తర్వాత చేయండి' ఎర్రర్, హాఫ్ స్క్రీన్‌లో తెరవబడింది.</translation>
 <translation id="5125575917473813637">గుర్తింపు కార్డ్‌ను ఎడిట్ చేయండి</translation>
 <translation id="5125751979347152379">చెల్లని URL.</translation>
 <translation id="512592033764059484">సాకర్</translation>
@@ -2674,6 +2678,7 @@
 <translation id="5412040515238827314">చెల్లని ఫార్మాట్: ఈ ఆకృతుల లిస్ట్‌లో ఒకటి అయి ఉంటుందని ఊహించాము.</translation>
 <translation id="5412245327974352290"><ph name="TRADITIONAL_TEXT" /> - <ph name="ADDITIONAL_TEXT" /></translation>
 <translation id="541416427766103491">స్టాకర్ 4</translation>
+<translation id="5414306071315087019">Google Payలో ఇప్పుడు కొనండి, పేమెంట్ తర్వాత చేయండి ఫీచర్ అందుబాటులో ఉంది</translation>
 <translation id="5414446060143308245">బదిలీ చేసే ముందు, రివ్యూ చేయడం ముఖ్యం</translation>
 <translation id="5414511064953050917">ఏదైమైనా తరలించండి</translation>
 <translation id="5418700249417444482">మీరు చూసే పేజీలకు సంబంధించిన URLలు విశ్లేషణ కోసం Google Cloud లేదా థర్డ్-పార్టీ యాప్‌లకు పంపబడతాయి, అవి మీ అడ్మినిస్ట్రేటర్‌కు కనిపించవచ్చు. ఉదాహరణకు, సురక్షితం కాని వెబ్‌సైట్‌లను గుర్తించడం కోసం వాటిని స్కాన్ చేయడం జరుగుతుంది లేదా అడ్మినిస్ట్రేటర్ సెట్ చేసిన నియమాల ఆధారంగా వెబ్‌సైట్‌లను ఫిల్టర్ చేయవచ్చు.</translation>
@@ -2794,6 +2799,7 @@
 <translation id="5595485650161345191">అడ్రస్‌ను ఎడిట్ చేయండి</translation>
 <translation id="5596939519753369075">2 x 3.5 అంగుళాలు</translation>
 <translation id="5597254438174353289">నీలం రంగు 3</translation>
+<translation id="5603469469737324249"><ph name="ISSUER_1_NAME" /> లేదా <ph name="ISSUER_2_NAME" /></translation>
 <translation id="560412284261940334">నిర్వహణకు మద్దతు లేదు</translation>
 <translation id="5605249000617390290">ధర ట్రాకింగ్ గురించి మరింత తెలుసుకోండి</translation>
 <translation id="5605670050355397069">లెడ్జర్</translation>
@@ -4167,6 +4173,7 @@
 <translation id="7860345425589240791"><ph name="SIDE_OF_CARD" /> మీ కొత్త గడువు తేదీ, CVCని ఎంటర్ చేయండి</translation>
 <translation id="7862185352068345852">సైట్ నుండి నిష్క్రమించాలా?</translation>
 <translation id="7865448901209910068">ఉత్తమ వేగం</translation>
+<translation id="7865482168955081228">'ఇప్పుడు కొనండి, పేమెంట్ తర్వాత చేయండి' ఎర్రర్ స్క్రీన్ మూసివేయబడింది.</translation>
 <translation id="7870281855125116701">డిస్కౌంట్ కనుగొనబడింది</translation>
 <translation id="7871445724586827387">మీ Google ఖాతా పాస్‌వర్డ్‌ను మార్చండి</translation>
 <translation id="787226752901403048">Chromeకు సైన్ ఇన్ చేసి ట్యాబ్ గ్రూప్‌లలో షేర్ చేయండి, చేరండి, వచ్చిన ఐడియాలపై కలిసి పని చేయండి</translation>

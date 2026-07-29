@@ -9,13 +9,16 @@
 <translation id="1028699632127661925">正在傳送到「<ph name="DEVICE_NAME" />」...</translation>
 <translation id="103269572468856066">要一併清除這些網站和應用程式中的資料嗎？</translation>
 <translation id="1034259925032978114">視窗已開啟</translation>
+<translation id="1035113036584565771">提示通知宣傳內容已關閉</translation>
 <translation id="1036348656032585052">關閉</translation>
 <translation id="1045899828449635435">要一併清除這些網站中的資料嗎？</translation>
 <translation id="1049743911850919806">無痕模式</translation>
 <translation id="1052842760770519282">無法存取部分密碼</translation>
 <translation id="1058669287135776095">你已離線。請檢查網際網路連線，然後再試一次。</translation>
+<translation id="1066338698580889414">提示通知的宣傳內容已開啟，並顯示在整個畫面</translation>
 <translation id="1070689840697074178">你可以在這裡下載 PDF</translation>
 <translation id="107147699690128016">如果變更副檔名，這個檔案可能會在其他應用程式中開啟，並可能對裝置造成損害。</translation>
+<translation id="1086486568852410168">透過 Google 智慧鏡頭搜尋</translation>
 <translation id="1087799850623149508">按住網址列即可移到底部</translation>
 <translation id="1089606299949659462">審查完成！</translation>
 <translation id="1094555143448724771">如要查看其他裝置上的分頁，請同步分頁和歷史記錄</translation>
@@ -151,6 +154,7 @@
 <translation id="1696555181932908973">你可以在「<ph name="SITE_ETLD_PLUS_ONE" />」上試著透過其他方法繼續操作。</translation>
 <translation id="1702543251015153180">要變更深色主題設定嗎？</translation>
 <translation id="1702907158640575240">受管理的瀏覽器</translation>
+<translation id="170478069042229393"><ph name="TAB_TITLE" />，固定的無痕分頁</translation>
 <translation id="1718835860248848330">過去 1 小時</translation>
 <translation id="1726477445370128854">Chrome 會預先載入你可能造訪的網頁，加快你瀏覽及搜尋的速度</translation>
 <translation id="1728803206919861584">要脫離無痕模式儲存密碼金鑰嗎？</translation>
@@ -439,6 +443,7 @@
 <translation id="3027950907978057636">來自「<ph name="APP_LABEL" />」</translation>
 <translation id="3029276696788198026">不使用預先載入模式</translation>
 <translation id="3029704984691124060">通關密語不符</translation>
+<translation id="3029829659829245765"><ph name="TAB_TITLE" />，已選取的固定分頁</translation>
 <translation id="3036750288708366620"><ph name="BEGIN_LINK" />取得說明<ph name="END_LINK" /></translation>
 <translation id="3037177537145227281">追蹤價格</translation>
 <translation id="3037517125981011456">顯示登入 Chrome 的提示</translation>
@@ -497,6 +502,7 @@
 <translation id="3309978850836730073">隨時可在此使用閱讀模式</translation>
 <translation id="331080746368555063">私人網站可能會包含貴公司的內部網路等項目</translation>
 <translation id="3311330810461485557">依應用程式、日期等條件搜尋。</translation>
+<translation id="3331974543021145906">應用程式資訊</translation>
 <translation id="3334729583274622784">是否要變更副檔名？</translation>
 <translation id="333863344734218290">在你造訪不安全的公開和私人網站時發出警告</translation>
 <translation id="3341262203274374114">無法取消追蹤，發生錯誤。</translation>
@@ -626,6 +632,7 @@
 <translation id="397105322502079400">計算中…</translation>
 <translation id="397583555483684758">同步處理功能已停止運作</translation>
 <translation id="3976396876660209797">移除這個捷徑後再重新建立</translation>
+<translation id="397650873162244514"><ph name="TAB_TITLE" />，固定分頁</translation>
 <translation id="3985022125189960801">你重新新增的網站可再次推斷你的興趣喜好</translation>
 <translation id="3985215325736559418">你要再次下載 <ph name="FILE_NAME" /> 嗎？</translation>
 <translation id="3987993985790029246">複製連結</translation>
@@ -1138,12 +1145,14 @@
 <translation id="6255809143828972562">Chrome 提供各種實用工具，讓你放心瀏覽網路，掌控一切設定</translation>
 <translation id="6264376385120300461">仍要下載</translation>
 <translation id="6264485186158353794">返回安全網頁</translation>
+<translation id="6276708887952587684">查看網頁原始碼</translation>
 <translation id="6277522088822131679">列印網頁時發生問題，請再試一次。</translation>
 <translation id="6278428485366576908">主題</translation>
 <translation id="6291294824436685757">刪除瀏覽資料；選取要刪除的資料</translation>
 <translation id="6295158916970320988">所有網站</translation>
 <translation id="629730747756840877">帳戶</translation>
 <translation id="6301526076346731664">開啟「開發人員工具」</translation>
+<translation id="630308129961693966">選擇網址列位置</translation>
 <translation id="6303969859164067831">登出並關閉同步處理功能</translation>
 <translation id="6307241780749477694">通過身分驗證，即可在這部裝置上存取所有密碼</translation>
 <translation id="6312687380483398334">網頁應用程式 (安靜模式)</translation>
@@ -1376,6 +1385,8 @@
 <translation id="7191430249889272776">已在背景開啟分頁。</translation>
 <translation id="7192397795254933433">{NUM_PASSWORDS,plural, =1{建議你立即變更}other{建議你立即變更}}</translation>
 <translation id="7196215469483532480">隱私權指南說明已開啟，顯示於整個畫面</translation>
+<translation id="7196455519852483601">你可以刪除部分或全部的歷史記錄、Cookie、網站資料等等</translation>
+<translation id="7197682514647286393">快速刪除瀏覽資料</translation>
 <translation id="7207760545532569765">將 <ph name="TAB_COUNT" /> 個分頁還原為新的背景分頁。</translation>
 <translation id="7217781228893594884">系統會在你離開 Chrome 後鎖定無痕分頁</translation>
 <translation id="7221869452894271364">重新載入此頁</translation>
@@ -1413,6 +1424,7 @@
 <translation id="7375125077091615385">類型：</translation>
 <translation id="7376560087009844242">使用輕觸搜尋功能時，納入較多網頁文字也許能找到更相關的結果。你隨時可以前往<ph name="BEGIN_LINK" />設定頁面<ph name="END_LINK" />調整設定。</translation>
 <translation id="7379900596734708416">現已推出網站的深色主題</translation>
+<translation id="7384486627147155832">提示通知的宣傳內容已開啟，並顯示在畫面下半部</translation>
 <translation id="7388615499319468910">網站和廣告主可以瞭解廣告成效。這項設定已關閉。</translation>
 <translation id="7400003506822844357">{FILE_COUNT,plural, =1{其他，清單中有 1 個檔案}other{其他，清單中有 # 個檔案}}</translation>
 <translation id="7400418766976504921">網址</translation>
@@ -1584,6 +1596,7 @@
 <translation id="8090732854597034573">如需協助，請找家長幫忙</translation>
 <translation id="8101414242770404289"><ph name="TIME_PERIOD" />期間沒有要關閉的分頁</translation>
 <translation id="8103578431304235997">無痕式分頁</translation>
+<translation id="810433609302852">提示通知功能宣傳內容和使用步驟的底部功能表</translation>
 <translation id="8105893657415066307"><ph name="DESCRIPTION" /> <ph name="SEPARATOR" /> <ph name="FILE_SIZE" /></translation>
 <translation id="8107530384992929318">關閉排序選項</translation>
 <translation id="8110024788458304985">協助改善 Chrome 的功能與效能</translation>
@@ -1812,6 +1825,7 @@
 <translation id="9104858485806491627">{INACTIVE_TIME_DAYS,plural, =1{1 天以上未使用}other{# 天以上未使用}}</translation>
 <translation id="9106148373857059373">書籤儲存流程已關閉</translation>
 <translation id="9108808586816295166">可能無法隨時使用安全 DNS</translation>
+<translation id="9124978074365039456">使用相機和相片購物、翻譯及辨識所見內容</translation>
 <translation id="9130135798965366513">如要繼續，<ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> 會將你的<ph name="FIELDS_STRING" />提供給這個網站。詳情請查看這個網站的《<ph name="BEGIN_LINK1" />隱私權政策<ph name="END_LINK1" />》和《<ph name="BEGIN_LINK2" />服務條款<ph name="END_LINK2" />》。</translation>
 <translation id="9131209053278896908">這裡會顯示已封鎖的網站</translation>
 <translation id="9133397713400217035">離線探索</translation>
@@ -1825,6 +1839,7 @@
 <translation id="9169507124922466868">已在畫面下半部顯示瀏覽記錄</translation>
 <translation id="9189607089796819144">仍要下載「<ph name="FILE_NAME" />」(<ph name="FILE_SIZE" />) 嗎？</translation>
 <translation id="9190276265094487094">所有已同步的裝置上都會有你的歷史記錄，方便你繼續執行先前的工作</translation>
+<translation id="9197941237799589838"><ph name="TAB_TITLE" />，選取的固定無痕分頁</translation>
 <translation id="9199368092038462496">{NUM_MINS,plural, =1{已在 1 分鐘前檢查}other{已在 # 分鐘前檢查}}</translation>
 <translation id="9204836675896933765">還剩 1 個檔案</translation>
 <translation id="9205933215779845960">找不到該頁面。請檢查錯別字或嘗試使用 <ph name="SEARCH_ENGINE" /> 搜尋。</translation>

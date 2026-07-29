@@ -4,8 +4,10 @@
 
 #import "ios/chrome/browser/history/model/history_tab_helper.h"
 
+#import "base/feature_list.h"
 #import "base/memory/ptr_util.h"
 #import "base/metrics/histogram_macros.h"
+#import "components/history/core/browser/features.h"
 #import "components/history/core/browser/history_constants.h"
 #import "components/history/core/browser/history_service.h"
 #import "components/history/core/browser/history_types.h"
@@ -112,14 +114,24 @@ history::HistoryAddPageArgs HistoryTabHelper::CreateHistoryAddPageArgs(
   // contribute to Most Visited.
   const bool content_suggestions_navigation = ui::PageTransitionCoreTypeIs(
       transition, ui::PAGE_TRANSITION_AUTO_BOOKMARK);
-  const bool consider_for_ntp_most_visited =
-      !content_suggestions_navigation &&
-      referrer_url != kReadingListReferrerURL;
 
   const int http_response_code =
       navigation_context->GetResponseHeaders()
           ? navigation_context->GetResponseHeaders()->response_code()
           : 0;
+
+  // If `history::kVisitedLinksOn404` is enabled, visits to
+  // reachable URLs that result in a 404 response will be saved to history. We
+  // don't want to count error navigations as visits when calculating the Most
+  // Visited, so we filter them out here.
+  const bool status_code_qualifies_for_ntp_most_visited =
+      !(base::FeatureList::IsEnabled(history::kVisitedLinksOn404) &&
+        http_response_code == 404);
+
+  const bool consider_for_ntp_most_visited =
+      status_code_qualifies_for_ntp_most_visited &&
+      !content_suggestions_navigation &&
+      referrer_url != kReadingListReferrerURL;
 
   // Hide navigations that result in an error in order to prevent the omnibox
   // from suggesting URLs that have never been navigated to successfully.
@@ -233,7 +245,7 @@ void HistoryTabHelper::DidFinishNavigation(
     return;
   }
 
-  // Do not record failed navigation nor 404 to the history (to prevent them
+  // Do not record failed navigation to the history (to prevent them
   // from showing up as Most Visited tiles on NTP).
   UMA_HISTOGRAM_BOOLEAN("History.Is4XXOr5XXStatusCode",
                         navigation_context->GetError());
@@ -243,8 +255,13 @@ void HistoryTabHelper::DidFinishNavigation(
     return;
   }
 
+  // If `history::kVisitedLinksOn404` is enabled, record 404s in History.
+  const bool should_record_404 =
+      base::FeatureList::IsEnabled(history::kVisitedLinksOn404);
+
   if (navigation_context->GetResponseHeaders() &&
-      navigation_context->GetResponseHeaders()->response_code() == 404) {
+      navigation_context->GetResponseHeaders()->response_code() == 404 &&
+      !should_record_404) {
     return;
   }
 

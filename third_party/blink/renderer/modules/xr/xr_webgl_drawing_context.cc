@@ -4,14 +4,11 @@
 
 #include "third_party/blink/renderer/modules/xr/xr_webgl_drawing_context.h"
 
-#include "third_party/blink/renderer/bindings/modules/v8/v8_xr_gpu_projection_layer_init.h"
 #include "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.h"
-#include "third_party/blink/renderer/modules/xr/xr_frame_provider.h"
-#include "third_party/blink/renderer/modules/xr/xr_session.h"
-#include "third_party/blink/renderer/modules/xr/xr_system.h"
 #include "third_party/blink/renderer/modules/xr/xr_webgl_binding.h"
+#include "third_party/blink/renderer/modules/xr/xr_webgl_frame_transport_context_impl.h"
 #include "third_party/blink/renderer/modules/xr/xr_webgl_swap_chain.h"
-#include "third_party/blink/renderer/platform/graphics/accelerated_static_bitmap_image.h"
+#include "third_party/blink/renderer/platform/graphics/gpu/xr_webgl_frame_transport_delegate.h"
 
 namespace blink {
 
@@ -21,12 +18,10 @@ XRWebGLDrawingContext::XRWebGLDrawingContext(
     XRWebGLSwapChain* depth_stencil_swap_chain)
     : webgl_context_(binding->context()),
       color_swap_chain_(color_swap_chain),
-      depth_stencil_swap_chain_(depth_stencil_swap_chain) {
+      depth_stencil_swap_chain_(depth_stencil_swap_chain),
+      binding_(binding) {
   CHECK(color_swap_chain_);
-}
-
-enum XRGraphicsBinding::Api XRWebGLDrawingContext::GraphicsApi() const {
-  return XRGraphicsBinding::Api::kWebGL;
+  CHECK(binding_);
 }
 
 void XRWebGLDrawingContext::SetCompositionLayer(XRCompositionLayer* layer) {
@@ -66,8 +61,8 @@ void XRWebGLDrawingContext::OnFrameEnd() {
   }
 }
 
-const XRLayer* XRWebGLDrawingContext::layer() const {
-  return color_swap_chain_->layer();
+XRSession* XRWebGLDrawingContext::session() const {
+  return color_swap_chain_->layer()->session();
 }
 
 scoped_refptr<StaticBitmapImage>
@@ -75,10 +70,15 @@ XRWebGLDrawingContext::TransferToStaticBitmapImage() {
   return color_swap_chain_->TransferToStaticBitmapImage();
 }
 
+XRFrameTransportDelegate* XRWebGLDrawingContext::GetTransportDelegate() {
+  return binding_->GetTransportDelegate();
+}
+
 void XRWebGLDrawingContext::Trace(Visitor* visitor) const {
   visitor->Trace(webgl_context_);
   visitor->Trace(color_swap_chain_);
   visitor->Trace(depth_stencil_swap_chain_);
+  visitor->Trace(binding_);
   XRLayerDrawingContext::Trace(visitor);
 }
 

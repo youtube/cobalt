@@ -7,6 +7,7 @@
 <translation id="1073417869336441572">请告诉我们您允许使用第三方 Cookie 的原因，以帮助我们改进 Chrome<ph name="BEGIN_LINK" />发送反馈<ph name="END_LINK" /></translation>
 <translation id="1074758928858737435">您可以查看桌面版网站</translation>
 <translation id="1085696779717592361">默认使用 Chrome</translation>
+<translation id="113098737392899175">连接键盘时，使用文本光标浏览网页</translation>
 <translation id="1178015372320901893">“我的快捷方式”底部动作条</translation>
 <translation id="1178581264944972037">暂停</translation>
 <translation id="1181037720776840403">移除</translation>
@@ -40,6 +41,7 @@
 <translation id="1500473259453106018">隐藏“在标签页上显示降价通知”卡片</translation>
 <translation id="1508931164824684991">网站可以使用 JavaScript</translation>
 <translation id="1510341833810331442">网站不得将数据保存在您的设备上</translation>
+<translation id="1532175480576580256">我的快捷方式底部动作条已按最大高度显示</translation>
 <translation id="1538031354170655462">网站通常会通过近距离无线通信 (NFC) 与附近的标签或设备互动，例如扫描徽章或感应式付款</translation>
 <translation id="1547123415014299762">允许使用第三方 Cookie</translation>
 <translation id="1569054338208717605">使用 Chrome 的 V8 引擎加速网站，但 Chrome 的防攻击能力会略微降低</translation>
@@ -115,6 +117,7 @@
 <translation id="228293613124499805">您访问的大多数网站很可能会将数据保存到设备上，例如保存您的偏好设置或您与网站分享的信息，这通常是为了提升您的浏览体验。我们建议您保持此设置的开启状态。</translation>
 <translation id="2289270750774289114">在网站想发现附近的蓝牙设备时询问您（推荐）</translation>
 <translation id="2315043854645842844">操作系统不支持选择客户端证书。</translation>
+<translation id="2347601491101454548">我的快捷方式底部动作条已按一半高度显示</translation>
 <translation id="2359808026110333948">继续</translation>
 <translation id="2379925928934107488">当 Chrome 使用深色主题时，尽可能对网站应用深色主题</translation>
 <translation id="2390272837142897736">放大</translation>
@@ -145,6 +148,11 @@
 <translation id="2588271083332682494">使用标签页分组整理标签页</translation>
 <translation id="2597457036804169544">不对网站应用深色主题</translation>
 <translation id="2606760465469169465">自动验证</translation>
+<translation id="2610903128639500624">在 <ph name="BEGIN_LINK1" />Android 设置<ph name="END_LINK1" />中管理
+
+高级保护功能会控制以下 Chrome 设置：
+•“一律使用安全连接”已开启。
+•“JavaScript 优化工具”已关闭。<ph name="BEGIN_LINK2" />管理网站例外情况<ph name="END_LINK2" /></translation>
 <translation id="2621115761605608342">允许特定网站运行 JavaScript。</translation>
 <translation id="2626708220538466178">默认浏览器底部动作条已关闭</translation>
 <translation id="2653659639078652383">提交</translation>
@@ -303,6 +311,7 @@
 <translation id="4336566011000459927">Chrome 将于今天再次限制 Cookie</translation>
 <translation id="4338831206024587507"><ph name="DOMAIN" /> 下的所有网站</translation>
 <translation id="4340799661701629185">不允许网站发送通知</translation>
+<translation id="4341577178275615435">如需开启或关闭光标浏览模式，请使用快捷键 F7</translation>
 <translation id="4402755511846832236">禁止网站了解您何时在主动使用此设备</translation>
 <translation id="4412683424767388419">Chrome 颜色底部动作条已按一半高度显示</translation>
 <translation id="4412992751769744546">允许第三方 Cookie</translation>
@@ -337,6 +346,7 @@
 <translation id="4816495437032298535">已保存的网站缩放级别</translation>
 <translation id="4836046166855586901">在网站想了解您何时在主动使用此设备时询问您</translation>
 <translation id="483914009762354899">包含该网域下的所有网站</translation>
+<translation id="4852997963351138624">背景颜色十六进制代码</translation>
 <translation id="4882919381756638075">网站通常会使用您的麦克风以实现通信功能（例如视频聊天）</translation>
 <translation id="4883854917563148705">无法重置受管理的设置</translation>
 <translation id="4887024562049524730">需先询问，得到许可后才允许网站使用您的虚拟现实设备和数据（推荐）</translation>
@@ -428,7 +438,7 @@
 <translation id="5844448279347999754">开启此设置后，网站可以请求查看保存到剪贴板中的文字和图片。关闭此设置后，网站无法查看保存到剪贴板中的文字或图片。</translation>
 <translation id="5853982612236235577">开启此设置后，网站可以请求发送通知。关闭此设置后，网站无法发送通知。</translation>
 <translation id="5860033963881614850">关闭</translation>
-<translation id="5860491529813859533">启用</translation>
+<translation id="5860491529813859533">开启</translation>
 <translation id="5876056640971328065">暂停视频</translation>
 <translation id="5877248419911025165">收起所有请求</translation>
 <translation id="5878945009165002849">屏蔽来自身份服务的登录提示</translation>
@@ -500,6 +510,7 @@
 <translation id="6608650720463149374"><ph name="GIGABYTES" /> GB</translation>
 <translation id="6612358246767739896">受保护的内容</translation>
 <translation id="662080504995468778">留下</translation>
+<translation id="6630443592285535486">在此处输入十六进制代码</translation>
 <translation id="6635327442719709864">开启此设置后，网站可以请求使用串行端口。关闭此设置后，网站无法使用串行端口。</translation>
 <translation id="6678072580827808850">查看安全检查</translation>
 <translation id="6682057173375416470">在“新标签页”页面上获取推荐的文章</translation>
@@ -557,6 +568,7 @@
 <translation id="7399802613464275309">安全检查</translation>
 <translation id="7406113532070524618">处于启用状态时，此设置不会识别您的身份，也不会允许网站查看您的浏览记录。不过，在验证过程中，网站可能会分享少量信息</translation>
 <translation id="7409735910987429903">网站可能会发送弹出式窗口以展示广告，或者使用重定向将您引导至您可能不想访问的网站</translation>
+<translation id="7412160840120117304">主颜色十六进制代码</translation>
 <translation id="7423098979219808738">先询问</translation>
 <translation id="7423538860840206698">已阻止读取剪贴板中的内容</translation>
 <translation id="7425915948813553151">为网站开启深色主题</translation>
@@ -688,6 +700,7 @@
 <translation id="8803526663383843427">开启时</translation>
 <translation id="8805385115381080995">由于网站要求您验证自己是真实用户的情况随之减少，浏览体验将变得更加流畅。</translation>
 <translation id="8816026460808729765">禁止网站使用传感器</translation>
+<translation id="884765916894384048">转为后台播放</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8874790741333031443">尝试暂时允许使用第三方 Cookie，这意味着您将采用较低级别的浏览保护措施，但网站功能更有可能会按预期运行。</translation>
 <translation id="8889294078294184559">随着您继续浏览，所访问的网站可从 Chrome 中获取上一个网站提供的相关信息来验证您可能是真实的用户</translation>

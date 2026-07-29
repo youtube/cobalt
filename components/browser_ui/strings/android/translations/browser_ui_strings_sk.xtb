@@ -40,6 +40,7 @@
 <translation id="1500473259453106018">Skryť kartu Poklesy cien na kartách</translation>
 <translation id="1508931164824684991">Weby môžu používať JavaScript</translation>
 <translation id="1510341833810331442">Weby nemôžu ukladať údaje vo vašom zariadení</translation>
+<translation id="1532175480576580256">Dolný hárok Moje skratky je otvorený na celú výšku</translation>
 <translation id="1538031354170655462">Weby zvyčajne používajú technológiu NFC (Near Field Communication), aby mohli fungovať so značkami alebo zariadeniami v okolí. Umožňuje im to napríklad skenovať odznaky alebo realizovať bezkontaktné platby</translation>
 <translation id="1547123415014299762">Súbory cookie tretích strán sú povolené</translation>
 <translation id="1569054338208717605">Zrýchľovať weby pomocou nástroja V8 Chromu (Chrome bude o niečo menej odolný voči útokom)</translation>
@@ -115,6 +116,7 @@
 <translation id="228293613124499805">Väčšina webov, ktoré navštevujete, pravdepodobne ukladá dáta vo vašom zariadení. Často ukladajú vaše predvoľby alebo informácie, ktoré s nimi zdieľate, čím zlepšujú vaše prostredie. Toto nastavenie odporúčame nechať zapnuté.</translation>
 <translation id="2289270750774289114">Opýtať sa, keď chce web objavovať zariadenia Bluetooth v okolí (odporúčané)</translation>
 <translation id="2315043854645842844">Operačný systém nepodporuje výber certifikátu na strane klienta.</translation>
+<translation id="2347601491101454548">Dolný hárok Moje skratky je otvorený na polovičnú výšku</translation>
 <translation id="2359808026110333948">Pokračovať</translation>
 <translation id="2379925928934107488">Ak je to možné, používajte tmavý režim na weboch, keď ho používa Chrome</translation>
 <translation id="2390272837142897736">Zvýšiť úroveň lupy</translation>
@@ -145,6 +147,11 @@
 <translation id="2588271083332682494">Usporiadajte si karty pomocou skupín</translation>
 <translation id="2597457036804169544">Nepoužívať tmavý motív na weboch</translation>
 <translation id="2606760465469169465">Automatické overenie</translation>
+<translation id="2610903128639500624">Spravujte v <ph name="BEGIN_LINK1" />nastaveniach Androidu<ph name="END_LINK1" />
+
+Rozšírená ochrana ovláda tieto nastavenia Chromu:
+• Nastavenie Vždy používať zabezpečené pripojenia je zapnuté.
+• Optimalizátor JavaScriptu je vypnutý. <ph name="BEGIN_LINK2" />Spravovať výnimky webov<ph name="END_LINK2" /></translation>
 <translation id="2621115761605608342">Povoliť JavaScript na konkrétnom webe.</translation>
 <translation id="2626708220538466178">Dolný hárok predvoleného prehliadača je zavretý</translation>
 <translation id="2653659639078652383">Odoslať</translation>
@@ -303,6 +310,7 @@
 <translation id="4336566011000459927">Chrome dnes znova obmedzí súbory cookie</translation>
 <translation id="4338831206024587507">Všetky weby v doméne <ph name="DOMAIN" /></translation>
 <translation id="4340799661701629185">Nepovoliť webom odosielať upozornenia</translation>
+<translation id="4341577178275615435">Ak chcete zapnúť alebo vypnúť prehliadanie Caret, použite skratku F7</translation>
 <translation id="4402755511846832236">Neumožniť webom zistiť, či aktívne používate toto zariadenie</translation>
 <translation id="4412683424767388419">Dolný hárok farieb Chromu je otvorený na polovičnú výšku</translation>
 <translation id="4412992751769744546">Povoliť súbory cookie tretích strán</translation>
@@ -337,6 +345,7 @@
 <translation id="4816495437032298535">Uložené úrovne lupy na weboch</translation>
 <translation id="4836046166855586901">Opýtať sa, keď chce web zistiť, či aktívne používate toto zariadenie</translation>
 <translation id="483914009762354899">Zahŕňať všetky weby v tejto doméne</translation>
+<translation id="4852997963351138624">Hexadecimálny kód farby pozadia</translation>
 <translation id="4882919381756638075">Weby zvyčajne používajú váš mikrofón, aby mohli poskytovať komunikačné funkcie, ako sú videohovory</translation>
 <translation id="4883854917563148705">Spravované nastavenia sa nedajú resetovať</translation>
 <translation id="4887024562049524730">Pýtať sa, či chcete povoliť webu používať zariadenie a dáta pre virtuálnu realitu (odporúčané)</translation>
@@ -500,6 +509,7 @@
 <translation id="6608650720463149374"><ph name="GIGABYTES" /> GB</translation>
 <translation id="6612358246767739896">Chránený obsah</translation>
 <translation id="662080504995468778">Zostať</translation>
+<translation id="6630443592285535486">Tu zadajte hexadecimálny kód</translation>
 <translation id="6635327442719709864">Keď je táto možnosť zapnutá, weby môžu žiadať o povolenie používať sériové porty. Keď je táto možnosť vypnutá, weby nemôžu používať sériové porty.</translation>
 <translation id="6678072580827808850">Vykonať kontrolu bezpečnosti</translation>
 <translation id="6682057173375416470">Získavajte navrhované články na stránke na novej karte</translation>
@@ -557,6 +567,7 @@
 <translation id="7399802613464275309">Kontrola bezpečnosti</translation>
 <translation id="7406113532070524618">Toto nastavenie funguje bez identifikácie vašej totožnosti a neumožňuje webom zobraziť si vašu históriu prehliadania, ale v rámci overenia môžu weby zdieľať malé množstvo informácií</translation>
 <translation id="7409735910987429903">Weby môžu odoslať vyskakovacie okná na zobrazovanie reklám, prípadne vás presmerovaniami naviesť na weby, ktoré nechcete navštíviť</translation>
+<translation id="7412160840120117304">Hexadecimálny kód primárnej farby</translation>
 <translation id="7423098979219808738">Najprv sa opýtať</translation>
 <translation id="7423538860840206698">Blokovať čítanie schránky</translation>
 <translation id="7425915948813553151">Tmavý motív pre weby</translation>

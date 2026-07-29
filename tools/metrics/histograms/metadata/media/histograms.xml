@@ -563,7 +563,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Media.Audio.Android.AAudioFramesPerBurst.{Direction}{AudioLatencyTag}"
-    units="frames" expires_after="2026-01-18">
+    units="frames" expires_after="2026-03-29">
   <owner>tguilbert@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -577,7 +577,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Media.Audio.Android.AAudioFramesPerBurstChanged.{Direction}{AudioLatencyTag}"
-    enum="Boolean" expires_after="2026-01-18">
+    enum="Boolean" expires_after="2026-03-29">
   <owner>tguilbert@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -717,7 +717,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Audio.Autoplay" enum="AutoplaySource"
-    expires_after="2026-01-25">
+    expires_after="2026-03-29">
   <owner>evliu@google.com</owner>
   <owner>dalecurtis@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
@@ -809,7 +809,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Audio.Capture.Mac.MicSystemPermission.Startup"
-    enum="SystemMediaCapturePermission" expires_after="2026-01-26">
+    enum="SystemMediaCapturePermission" expires_after="2026-03-29">
   <owner>toprice@chromium.org</owner>
   <owner>video-cmi-apis@google.com</owner>
   <owner>webrtc-audio-uma@google.com</owner>
@@ -999,7 +999,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Audio.Capture.Win.InitError" enum="Hresult"
-    expires_after="2026-01-25">
+    expires_after="2026-03-29">
   <owner>olka@chromium.org</owner>
   <owner>tommi@chromium.org</owner>
   <owner>guidou@chromium.org</owner>
@@ -4955,7 +4955,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.MediaFoundationRenderer.FailedToSetDCompMode"
-    enum="Hresult" expires_after="2026-01-15">
+    enum="Hresult" expires_after="2026-03-29">
   <owner>xhwang@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -5015,6 +5015,16 @@ chromium-metrics-reviews@google.com.
   <summary>
     Whether or not the media history database exists. Called on the
     initialization of the profile.
+  </summary>
+</histogram>
+
+<histogram name="Media.MediaLauncherActivityStarted"
+    enum="MediaLauncherActivityEnabledReason" expires_after="2026-06-01">
+  <owner>steimel@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    Recorded when the MediaLauncherActivity starts up. Records the reaosn that
+    MediaLauncherActivity is enabled.
   </summary>
 </histogram>
 
@@ -5597,6 +5607,16 @@ chromium-metrics-reviews@google.com.
   <summary>
     The hardware/software decoding behavior used for a PPB_VideoDecoder API
     instance. This UMA is recorded when the PepperVideoDecoderHost is destroyed.
+  </summary>
+</histogram>
+
+<histogram name="Media.PictureInPicture.Android.Action"
+    enum="PictureInPictureButtonAction" expires_after="2026-09-30">
+  <owner>philyan@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    Records which Picture-in-Picture button was clicked. This is recorded when
+    the user clicks on a button in the Android Picture-in-Picture window.
   </summary>
 </histogram>
 
@@ -6805,7 +6825,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Video.Autoplay" enum="AutoplaySource"
-    expires_after="2026-01-25">
+    expires_after="2026-03-29">
   <owner>evliu@google.com</owner>
   <owner>dalecurtis@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
@@ -6816,7 +6836,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Video.Autoplay.Muted.PlayMethod.BecomesVisible"
-    enum="Boolean" expires_after="2026-01-25">
+    enum="Boolean" expires_after="2026-03-29">
   <owner>evliu@google.com</owner>
   <owner>dalecurtis@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
@@ -6830,7 +6850,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Video.Autoplay.Muted.PlayMethod.OffscreenDuration"
-    units="ms" expires_after="2026-01-25">
+    units="ms" expires_after="2026-03-29">
   <owner>evliu@google.com</owner>
   <owner>dalecurtis@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
@@ -6841,7 +6861,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Video.Autoplay.Muted.UnmuteAction" enum="BooleanSuccess"
-    expires_after="2026-01-25">
+    expires_after="2026-03-29">
   <owner>evliu@google.com</owner>
   <owner>dalecurtis@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
@@ -7471,6 +7491,47 @@ chromium-metrics-reviews@google.com.
   <token key="DbOperation" variants="DbOperation"/>
 </histogram>
 
+<histogram name="Media.VideoEncoder.D3D12VEA.EncodeStatus.{VideoCodec}"
+    enum="EncoderStatus" expires_after="2026-04-01">
+  <owner>eugene@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    Records if the {VideoCodec} encoder was torn down because the stream ended,
+    or if it was due to an encoder error. Recorded once when shutting down an
+    accelerated (or out of process) video encoder.
+  </summary>
+  <token key="VideoCodec" variants="VideoCodec"/>
+</histogram>
+
+<histogram name="Media.VideoEncoder.D3D12VEA.InitSuccessRate.{VideoCodec}"
+    enum="VEAInitSuccessRate" expires_after="2026-04-01">
+  <owner>eugene@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    Records the usage and success rate of D3D12 video encode accelerator for
+    {VideoCodec} codec. kInit is recorded every time VEA Initialize() is called.
+    kSuccess is recorded only when VEA initialization completes successfully.
+    Success percentage = (kSuccess count / kInit count) * 100.
+  </summary>
+  <token key="VideoCodec" variants="VideoCodec"/>
+</histogram>
+
+<histogram name="Media.VideoEncoder.{Impl}.EncodingLatency.{VideoCodec}"
+    units="ms" expires_after="2026-04-01">
+  <owner>eugene@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    Average encoding latency in milliseconds per frame for the {VideoCodec}
+    codec when using the {Impl}. Recorded on every key frame or when the
+    encoding session is destroyed so remaining samples are reported.
+  </summary>
+  <token key="Impl">
+    <variant name="D3D12VEA" summary=""/>
+    <variant name="MFVEA" summary=""/>
+  </token>
+  <token key="VideoCodec" variants="VideoCodec"/>
+</histogram>
+
 <histogram name="Media.VideoEncoder.{Usage}.{Impl}.Area" units="pixels"
     expires_after="2026-02-22">
   <owner>hiroh@chromium.org</owner>
@@ -7779,6 +7840,12 @@ chromium-metrics-reviews@google.com.
                  audio and video track."/>
     <variant name=".AudioVideo.EME"
         summary="Watch time for EME media with both an audio and video track."/>
+    <variant name=".AudioVideo.HDR.All"
+        summary="HDR watch time for all media with both an audio and video
+                 track."/>
+    <variant name=".AudioVideo.HDR.EME"
+        summary="HDR watch time for EME media with both an audio and video
+                 track."/>
     <variant name=".AudioVideo.HLS"
         summary="Watch time for HLS media with both an audio and video track."/>
     <variant name=".AudioVideo.MediaFoundation.All"

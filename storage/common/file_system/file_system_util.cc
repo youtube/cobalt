@@ -168,7 +168,7 @@ bool ParseFileSystemSchemeURL(const GURL& url,
 
   // A path of the inner_url contains only mount type part (e.g. "/temporary").
   DCHECK(url.inner_url());
-  std::string inner_path = url.inner_url()->path();
+  std::string inner_path = url.inner_url()->GetPath();
   for (const auto& valid_type : kValidTypes) {
     if (inner_path == valid_type.dir) {
       file_system_type = valid_type.type;
@@ -179,7 +179,7 @@ bool ParseFileSystemSchemeURL(const GURL& url,
   if (file_system_type == kFileSystemTypeUnknown)
     return false;
 
-  std::string path = base::UnescapeBinaryURLComponent(url.path_piece());
+  std::string path = base::UnescapeBinaryURLComponent(url.path());
 
   // Ensure the path is relative.
   while (!path.empty() && path[0] == '/')

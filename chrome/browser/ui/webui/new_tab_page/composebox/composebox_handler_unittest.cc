@@ -68,7 +68,8 @@ class ComposeboxHandlerTest : public ContextualSearchboxHandlerTestHarness {
         /*identity_manager=*/nullptr, url_loader_factory(),
         version_info::Channel::UNKNOWN, "en-US", template_url_service(),
         fake_variations_client(), /*send_lns_surface=*/false,
-        /*enable_multi_context_input_flow=*/false);
+        /*enable_multi_context_input_flow=*/false,
+        /*enable_viewport_images=*/true);
     query_controller_ = query_controller_ptr.get();
     web_contents()->SetDelegate(&delegate_);
     auto metrics_recorder_ptr =
@@ -162,8 +163,13 @@ TEST_F(ComposeboxHandlerTest, SubmitQuery) {
 
   SubmitQueryAndWaitForNavigation();
 
-  GURL expected_url = query_controller().CreateAimUrl(
-      kQueryText, /*query_start_time=*/base::Time::Now());
+  std::unique_ptr<ComposeboxQueryController::CreateSearchUrlRequestInfo>
+      search_url_request_info = std::make_unique<
+          ComposeboxQueryController::CreateSearchUrlRequestInfo>();
+  search_url_request_info->query_text = kQueryText;
+  search_url_request_info->query_start_time = base::Time::Now();
+  GURL expected_url =
+      query_controller().CreateSearchUrl(std::move(search_url_request_info));
   GURL actual_url =
       web_contents()->GetController().GetLastCommittedEntry()->GetURL();
 
@@ -217,6 +223,43 @@ TEST_F(ComposeboxHandlerTest, SetDeepSearchMode) {
       web_contents()->GetController().GetLastCommittedEntry()->GetURL();
   EXPECT_FALSE(
       net::GetValueForKeyInQuery(query_url_disabled_dr, "dr", &dr_param));
+}
+
+TEST_F(ComposeboxHandlerTest, SetCreateImageMode) {
+  // Wait until the state changes to kClusterInfoReceived.
+  base::RunLoop run_loop;
+  query_controller().set_on_query_controller_state_changed_callback(
+      base::BindLambdaForTesting([&](QueryControllerState state) {
+        if (state == QueryControllerState::kClusterInfoReceived) {
+          run_loop.Quit();
+        }
+      }));
+
+  // Start the session.
+  EXPECT_CALL(query_controller(), NotifySessionStarted)
+      .Times(1)
+      .WillOnce(testing::Invoke(
+          &query_controller(), &MockQueryController::NotifySessionStartedBase));
+  handler().NotifySessionStarted();
+  run_loop.Run();
+
+  // Submitting with create image mode enabled.
+  handler().SetCreateImageMode(true);
+  SubmitQueryAndWaitForNavigation();
+  GURL query_url_create_image =
+      web_contents()->GetController().GetLastCommittedEntry()->GetURL();
+  std::string imgn_param;
+  EXPECT_TRUE(
+      net::GetValueForKeyInQuery(query_url_create_image, "imgn", &imgn_param));
+  EXPECT_EQ("1", imgn_param);
+
+  // Submitting with create image mode disabled.
+  handler().SetCreateImageMode(false);
+  SubmitQueryAndWaitForNavigation();
+  GURL query_url_disabled_create_image =
+      web_contents()->GetController().GetLastCommittedEntry()->GetURL();
+  EXPECT_FALSE(net::GetValueForKeyInQuery(query_url_disabled_create_image,
+                                          "imgn", &imgn_param));
 }
 
 TEST_F(ComposeboxHandlerTest, DeleteFileAndSubmitQuery) {

@@ -7,27 +7,33 @@
 
 #import <UIKit/UIKit.h>
 
+@protocol ChromeContentConfiguration;
 @class TableViewCell;
 @class LegacyTableViewCell;
 
 // Configuration object for a TableView cell.
 // It is using a TableViewCellContentView as content view.
-// +---------------------------------------------+
-// |           TableViewCellContentView          |
-// |                                             |
-// |  title                       trailing label |
-// |  subtitle                                   |
-// |                                             |
-// +---------------------------------------------+
+// +------------------------------------------------------------------+
+// |                     TableViewCellContentView                     |
+// |                                                                  |
+// | +-----------+                                   +-----------+    |
+// | | Leading   |  Title                            | Trailing  |    |
+// | | View      |                    Trailing Label | View      |    |
+// | |(Optional) |  Subtitle                         |(Optional) |    |
+// | +-----------+                                   +-----------+    |
+// |                                                                  |
+// +------------------------------------------------------------------+
 @interface TableViewCellContentConfiguration : NSObject <UIContentConfiguration>
 
 // The updates to properties must be reflected in the copy method.
 // LINT.IfChange(Copy)
 
 // The leading content configuration for the cell.
-@property(nonatomic, copy) id<UIContentConfiguration> leadingConfiguration;
+@property(nonatomic, copy)
+    NSObject<ChromeContentConfiguration>* leadingConfiguration;
 // The trailing content configuration for the cell.
-@property(nonatomic, copy) id<UIContentConfiguration> trailingConfiguration;
+@property(nonatomic, copy)
+    NSObject<ChromeContentConfiguration>* trailingConfiguration;
 
 // Whether the labels should be disabled (change text color). Default NO.
 @property(nonatomic, assign, getter=isTextDisabled) BOOL textDisabled;
@@ -56,7 +62,7 @@
 // ensures that the pool of cells that will be used for this content
 // configuration can be reused for the same configurations.
 + (void)registerCellForTableView:(UITableView*)tableView;
-+ (TableViewCell*)dequeueTableViewCell:(UITableView*)tableView;
++ (UITableViewCell*)dequeueTableViewCell:(UITableView*)tableView;
 
 // TODO(crbug.com/443034511): Remove this method.
 // **DO NOT use both the legacy and non-legacy versions on the same

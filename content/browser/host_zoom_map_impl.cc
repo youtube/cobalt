@@ -351,7 +351,7 @@ void HostZoomMapImpl::SetDefaultZoomLevelInternal(double level,
   GURL url = GetURLForRenderFrameHostPtr(rfh);
   // It is possible for a WebContent's zoom level to be queried before
   // a navigation has occurred, in which case `url` will be empty.
-  scheme = url.scheme();
+  scheme = url.GetScheme();
   host = net::GetHostOrSpecFromURL(url);
 
   bool uses_default_zoom = !HasZoomLevel(scheme, host) &&
@@ -443,10 +443,10 @@ double HostZoomMapImpl::GetZoomLevelForWebContents(
   GURL url = GetURLForRenderFrameHost(rfh_id);
 
 #if BUILDFLAG(IS_ANDROID)
-  return GetZoomLevelForHostAndSchemeAndroid(url.scheme(),
+  return GetZoomLevelForHostAndSchemeAndroid(url.GetScheme(),
                                              net::GetHostOrSpecFromURL(url));
 #else
-  return GetZoomLevelForHostAndScheme(url.scheme(),
+  return GetZoomLevelForHostAndScheme(url.GetScheme(),
                                       net::GetHostOrSpecFromURL(url));
 #endif
 }

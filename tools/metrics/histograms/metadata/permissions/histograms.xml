@@ -1028,6 +1028,26 @@ chromium-metrics-reviews@google.com.
   <token key="PermissionType" variants="AllPermissionTypes"/>
 </histogram>
 
+<histogram
+    name="Permissions.PredictionService.Action.{PermissionType}.{Likelihood}.{Prominence}"
+    enum="PermissionAction" expires_after="2026-09-30">
+  <owner>elklm@chromium.org</owner>
+  <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
+  <summary>
+    Records the user action on a permission prompt when the prediction service
+    determined the grant likelihood to be unlikely or very unlikely.
+  </summary>
+  <token key="Prominence">
+    <variant name="Loud"/>
+    <variant name="Quiet"/>
+  </token>
+  <token key="Likelihood">
+    <variant name="Unlikely"/>
+    <variant name="VeryUnlikely"/>
+  </token>
+  <token key="PermissionType" variants="CpssSupportedTypes"/>
+</histogram>
+
 <histogram name="Permissions.PredictionService.ConcurrentRequests"
     enum="PermissionPredictionSupportedType" expires_after="2025-12-01">
   <owner>elklm@chromium.org</owner>
@@ -1040,7 +1060,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.PredictionService.MSBB" enum="BooleanEnabled"
-    expires_after="2025-12-01">
+    expires_after="2026-03-29">
   <owner>elklm@chromium.org</owner>
   <owner>hempjudith@google.com</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
@@ -1065,7 +1085,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.PredictionService.TFLiteLibAvailable"
-    enum="BooleanAvailable" expires_after="2025-12-01">
+    enum="BooleanAvailable" expires_after="2026-03-29">
   <owner>elklm@chromium.org</owner>
   <owner>hempjudith@google.com</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
@@ -1764,14 +1784,11 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records when a permission request was preignored because it will be shown as
     a quiet chip.
-
-    Warning: this histogram was expired from 2025-11-15 to 2024-06-27; data may
-    be missing.
   </summary>
 </histogram>
 
 <histogram name="Permissions.QuietPrompt.Preignore.PageReloadInfoBar"
-    enum="BooleanShown" expires_after="2026-01-01">
+    enum="BooleanShown" expires_after="2026-03-29">
   <owner>elklm@chromium.org</owner>
   <owner>hempjudith@google.com</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>

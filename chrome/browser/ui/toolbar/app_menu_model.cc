@@ -1241,6 +1241,13 @@ void AppMenuModel::LogMenuMetrics(int command_id) {
       }
       LogMenuAction(MENU_ACTION_RECENT_TABS_LOGIN_FOR_DEVICE_TABS);
       break;
+    case IDC_RECENT_TABS_SEE_DEVICE_TABS:
+      if (!uma_action_recorded_) {
+        base::UmaHistogramMediumTimes("WrenchMenu.TimeToAction.SeeDeviceTabs",
+                                      delta);
+      }
+      LogMenuAction(MENU_ACTION_RECENT_TABS_SEE_DEVICE_TABS);
+      break;
     case IDC_FIND:
       if (!uma_action_recorded_) {
         base::UmaHistogramMediumTimes("WrenchMenu.TimeToAction.Find", delta);
@@ -1843,7 +1850,8 @@ void AppMenuModel::Build() {
           : IDS_NEW_TAB,
       kNewTabRefreshIcon);
 
-  if (features::IsTabGroupMenuMoreEntryPointsEnabled()) {
+  if (base::FeatureList::IsEnabled(
+          features::kCreateNewTabGroupAppMenuTopLevel)) {
     AddItemWithStringIdAndVectorIcon(this, IDC_CREATE_NEW_TAB_GROUP_TOP_LEVEL,
                                      IDS_CREATE_NEW_TAB_GROUP,
                                      kCreateNewTabGroupIcon);

@@ -9,7 +9,9 @@
 #include "base/memory/ref_counted_delete_on_sequence.h"
 #include "base/memory/weak_ptr.h"
 #include "base/task/bind_post_task.h"
+#include "gpu/command_buffer/service/scheduler_task_runner.h"
 #include "mojo/public/cpp/bindings/associated_receiver.h"
+#include "mojo/public/cpp/bindings/receiver.h"
 #include "third_party/blink/public/common/tokens/tokens.h"
 
 namespace webnn {
@@ -27,13 +29,17 @@ concept IsSupportedTokenType = IsAnyOf<T,
                                        blink::WebNNGraphToken>;
 }  // namespace internal
 
-template <typename MojoInterface, typename WebNNTokenType>
+template <typename MojoInterface,
+          typename WebNNTokenType,
+          typename MojoReceiverType>
   requires internal::IsSupportedTokenType<WebNNTokenType>
-class WebNNObjectImpl : public MojoInterface,
-                        public base::RefCountedThreadSafe<
-                            WebNNObjectImpl<MojoInterface, WebNNTokenType>> {
+class WebNNObjectImpl
+    : public MojoInterface,
+      public base::RefCountedDeleteOnSequence<
+          WebNNObjectImpl<MojoInterface, WebNNTokenType, MojoReceiverType>> {
  public:
-  using WebNNObjectType = WebNNObjectImpl<MojoInterface, WebNNTokenType>;
+  using WebNNObjectType =
+      WebNNObjectImpl<MojoInterface, WebNNTokenType, MojoReceiverType>;
 
   WebNNObjectImpl(const WebNNObjectImpl&) = delete;
   WebNNObjectImpl& operator=(const WebNNObjectImpl&) = delete;
@@ -70,18 +76,30 @@ class WebNNObjectImpl : public MojoInterface,
   // responses.
   void ResetMojoReceiver() {
     DCHECK_CALLED_ON_VALID_SEQUENCE(gpu_sequence_checker_);
-    receiver_.reset();
+    mojo_receiver_.reset();
+  }
+
+  base::SequencedTaskRunner* owning_task_runner() {
+    return base::RefCountedDeleteOnSequence<
+        WebNNObjectType>::owning_task_runner();
   }
 
  protected:
   // Constructs the receiver and binds it to the Mojo pipe.
-  // The owning_task_runner is where the disconnect is posted.
-  WebNNObjectImpl(
-      mojo::PendingAssociatedReceiver<MojoInterface> pending_receiver,
-      scoped_refptr<base::SequencedTaskRunner> owning_task_runner)
-      : owning_task_runner_(std::move(owning_task_runner)),
-        receiver_(this, std::move(pending_receiver), owning_task_runner_) {
-    receiver_.set_disconnect_handler(base::BindOnce(
+  // The scheduler_task_runner posts scheduled work (including disconnects) to
+  // the GPU sequence. The owning_task_runner is the underlying single-thread
+  // runner for the GPU sequence, used for object deletions.
+  template <typename MojoPendingReceiverType>
+  WebNNObjectImpl(MojoPendingReceiverType pending_receiver,
+                  scoped_refptr<gpu::SchedulerTaskRunner> scheduler_task_runner,
+                  scoped_refptr<base::SequencedTaskRunner> owning_task_runner)
+      : base::RefCountedDeleteOnSequence<WebNNObjectType>(
+            std::move(owning_task_runner)),
+        scheduler_task_runner_(scheduler_task_runner),
+        mojo_receiver_(this,
+                       std::move(pending_receiver),
+                       scheduler_task_runner) {
+    mojo_receiver_.set_disconnect_handler(base::BindOnce(
         &WebNNObjectType::OnDisconnect, weak_factory_.GetWeakPtr()));
   }
 
@@ -91,16 +109,16 @@ class WebNNObjectImpl : public MojoInterface,
 
   // Returns the AssociatedReceiver bound to this implementation.
   // Only legal to call from within the stack frame of a message dispatch.
-  mojo::AssociatedReceiver<MojoInterface>& GetMojoReceiver() {
+  MojoReceiverType& GetMojoReceiver() {
     DCHECK_CALLED_ON_VALID_SEQUENCE(gpu_sequence_checker_);
-    return receiver_;
+    return mojo_receiver_;
   }
 
-  // Posts a task to the owning sequence.
+  // Posts a scheduled task to the gpu sequence.
   // Only legal to call from within the stack frame of a message dispatch.
-  void PostTaskToOwningTaskRunner(base::OnceClosure task) {
+  void PostTaskToSchedulerTaskRunner(base::OnceClosure task) {
     DCHECK_CALLED_ON_VALID_SEQUENCE(gpu_sequence_checker_);
-    owning_task_runner_->PostTask(FROM_HERE, std::move(task));
+    scheduler_task_runner_->PostTask(FROM_HERE, std::move(task));
   }
 
  protected:
@@ -109,14 +127,14 @@ class WebNNObjectImpl : public MojoInterface,
   // the GPU scheduler must occur on this sequence.
   SEQUENCE_CHECKER(gpu_sequence_checker_);
 
-  friend class base::RefCountedThreadSafe<WebNNObjectImpl>;
+  friend class base::RefCountedDeleteOnSequence<WebNNObjectImpl>;
+  friend class base::DeleteHelper<WebNNObjectImpl>;
 
   const WebNNTokenType handle_;
 
-  const scoped_refptr<base::SequencedTaskRunner> owning_task_runner_;
+  const scoped_refptr<gpu::SchedulerTaskRunner> scheduler_task_runner_;
 
-  mojo::AssociatedReceiver<MojoInterface> receiver_
-      GUARDED_BY_CONTEXT(gpu_sequence_checker_);
+  MojoReceiverType mojo_receiver_ GUARDED_BY_CONTEXT(gpu_sequence_checker_);
 
   base::WeakPtrFactory<WebNNObjectType> weak_factory_
       GUARDED_BY_CONTEXT(gpu_sequence_checker_){this};

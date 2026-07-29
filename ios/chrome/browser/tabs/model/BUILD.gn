@@ -131,6 +131,7 @@ source_set("tabs_internal") {
     "//ios/chrome/browser/web/model",
     "//ios/chrome/browser/web/model:page_placeholder",
     "//ios/chrome/browser/web/model/annotations",
+    "//ios/chrome/browser/web/model/choose_file",
     "//ios/chrome/browser/web/model/font_size",
     "//ios/chrome/browser/web/model/image_fetch",
     "//ios/chrome/browser/web/model/print",
@@ -222,6 +223,7 @@ source_set("dependency_installer") {
   deps = [
     ":features",
     "//base",
+    "//ios/chrome/browser/shared/model/browser",
     "//ios/chrome/browser/shared/model/web_state_list",
     "//ios/web/public",
     "//ios/web/public:web_state_observer",

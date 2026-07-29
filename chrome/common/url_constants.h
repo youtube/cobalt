@@ -320,7 +320,8 @@ inline constexpr char kGoogleAccountWorkAddressURL[] =
 
 // URL of the change Google Account name page.
 inline constexpr char kGoogleAccountNameEmailAddressEditURL[] =
-    "https://myaccount.google.com/personal-info";
+    "https://myaccount.google.com/"
+    "personal-info?utm_source=chrome-settings&utm_medium=autofill";
 
 // URL of the two factor authentication setup required intersitial.
 inline constexpr char kGoogleTwoFactorIntersitialURL[] =
@@ -380,13 +381,20 @@ inline constexpr char16_t kManagedUiLearnMoreUrl[] =
 inline constexpr char kInsecureDownloadBlockingLearnMoreUrl[] =
     "https://support.google.com/chrome?p=mixed_content_downloads";
 
-// "myactivity.google.com" URL for the history checkbox in ClearBrowsingData.
+// "myactivity.google.com" URLs with their respective UTM sources.
+// - In the Clear Browsing Data footer.
+// - In the Clear Browsing Data "notice about other forms of history".
+// - On the history page.
 inline constexpr char16_t kMyActivityUrlInClearBrowsingData[] =
     u"https://myactivity.google.com/myactivity?utm_source=chrome_cbd";
+inline constexpr char16_t kMyActivityUrlInClearBrowsingDataNotice[] =
+    u"https://myactivity.google.com/myactivity/?utm_source=chrome_n";
+inline constexpr char16_t kMyActivityUrlInHistory[] =
+    u"https://myactivity.google.com/myactivity/?utm_source=chrome_h";
 
 // The URL for the Gemini Personal Context page.
 inline constexpr char16_t kGeminiPersonalContextUrl[] =
-    u"https://gemini.google.com/corp/saved-info";
+    u"https://gemini.google.com/saved-info";
 
 // The URL for "Your Gemini Apps Activity" page.inline constexpr char16_t
 // kMyActivityGeminiAppsUrl[] =

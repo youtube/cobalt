@@ -39,7 +39,6 @@ import org.chromium.chrome.browser.omnibox.NewTabPageDelegate;
 import org.chromium.chrome.browser.omnibox.UrlBarData;
 import org.chromium.chrome.browser.omnibox.status.StatusCoordinator;
 import org.chromium.chrome.browser.tabmodel.IncognitoStateProvider;
-import org.chromium.chrome.browser.theme.SurfaceColorUpdateUtils;
 import org.chromium.chrome.browser.theme.ThemeColorProvider;
 import org.chromium.chrome.browser.theme.ThemeUtils;
 import org.chromium.chrome.browser.toolbar.R;
@@ -60,6 +59,7 @@ import org.chromium.chrome.browser.toolbar.top.NavigationPopup.HistoryDelegate;
 import org.chromium.chrome.browser.toolbar.top.ToolbarUtils.ToolbarComponentId;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.chrome.browser.user_education.UserEducationHelper;
+import org.chromium.components.browser_ui.styles.ChromeColors;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.components.browser_ui.widget.animation.CancelAwareAnimatorListener;
 import org.chromium.components.feature_engagement.Tracker;
@@ -140,6 +140,15 @@ public class ToolbarTablet extends ToolbarLayout {
         mLocationBar = locationBarCoordinator;
         final @ColorInt int color = SemanticColorUtils.getColorSurfaceContainer(getContext());
         mLocationBar.getTabletCoordinator().tintBackground(color);
+
+        mToolbarWidthConsumers[ToolbarComponentId.OMNIBOX_BOOKMARK] =
+                mLocationBar.getBookmarkButtonToolbarWidthConsumer();
+        mToolbarWidthConsumers[ToolbarComponentId.OMNIBOX_INSTALL] =
+                mLocationBar.getInstallButtonToolbarWidthConsumer();
+        mToolbarWidthConsumers[ToolbarComponentId.OMNIBOX_MIC] =
+                mLocationBar.getMicButtonToolbarWidthConsumer();
+        mToolbarWidthConsumers[ToolbarComponentId.OMNIBOX_LENS] =
+                mLocationBar.getLensButtonToolbarWidthConsumer();
     }
 
     @Override
@@ -230,8 +239,7 @@ public class ToolbarTablet extends ToolbarLayout {
             // TODO (amaralp): Have progress bar observe theme color and incognito changes directly.
             getProgressBar()
                     .setThemeColor(
-                            SurfaceColorUpdateUtils.getDefaultThemeColor(
-                                    getContext(), incognitoBranded),
+                            ChromeColors.getDefaultThemeColor(getContext(), incognitoBranded),
                             incognitoBranded);
             updateRippleBackground();
             mIsIncognitoBranded = incognitoBranded;
@@ -351,7 +359,7 @@ public class ToolbarTablet extends ToolbarLayout {
             ToolbarDataProvider toolbarDataProvider,
             ToolbarTabController tabController,
             MenuButtonCoordinator menuButtonCoordinator,
-            ToggleTabStackButtonCoordinator tabSwitcherButtonCoordinator,
+            @Nullable ToggleTabStackButtonCoordinator tabSwitcherButtonCoordinator,
             HistoryDelegate historyDelegate,
             UserEducationHelper userEducationHelper,
             ObservableSupplier<Tracker> trackerSupplier,
@@ -363,6 +371,7 @@ public class ToolbarTablet extends ToolbarLayout {
             @Nullable ExtensionToolbarCoordinator extensionToolbarCoordinator,
             ThemeColorProvider themeColorProvider,
             IncognitoStateProvider incognitoStateProvider) {
+        assert tabSwitcherButtonCoordinator != null;
         super.initialize(
                 toolbarDataProvider,
                 tabController,
@@ -427,7 +436,8 @@ public class ToolbarTablet extends ToolbarLayout {
     }
 
     @Override
-    void setBookmarkClickHandler(OnClickListener listener) {
+    void setBookmarkClickHandler(@Nullable OnClickListener listener) {
+        assert listener != null;
         mLocationBar.setBookmarkClickListener(listener);
     }
 
@@ -577,6 +587,12 @@ public class ToolbarTablet extends ToolbarLayout {
         }
 
         @Override
+        public boolean isVisible() {
+            return mToolbarView.getPaddingStart() == mHorizontalPadding
+                    && mToolbarView.getPaddingEnd() == mHorizontalPadding;
+        }
+
+        @Override
         public int updateVisibility(int availableWidth) {
             assert availableWidth >= 0;
             int paddingWidth = Math.min(availableWidth, 2 * mHorizontalPadding);
@@ -593,6 +609,11 @@ public class ToolbarTablet extends ToolbarLayout {
     }
 
     private class LocationBarMinWidthConsumer implements ToolbarWidthConsumer {
+        @Override
+        public boolean isVisible() {
+            return true;
+        }
+
         @Override
         public int updateVisibility(int availableWidth) {
             assert isToolbarTabletResizeRefactorEnabled();
@@ -611,6 +632,11 @@ public class ToolbarTablet extends ToolbarLayout {
     }
 
     private class OptionalButtonToolbarWidthConsumer implements ToolbarWidthConsumer {
+        @Override
+        public boolean isVisible() {
+            return mOptionalButton != null && mOptionalButton.getVisibility() == View.VISIBLE;
+        }
+
         @Override
         public int updateVisibility(int availableWidth) {
             assert isToolbarTabletResizeRefactorEnabled();
@@ -816,5 +842,15 @@ public class ToolbarTablet extends ToolbarLayout {
     void ensureLocationBarMidWidthConsumer() {
         mToolbarWidthConsumers[ToolbarComponentId.LOCATION_BAR_MINIMUM] =
                 new LocationBarMinWidthConsumer();
+    }
+
+    public boolean areAnyToolbarComponentsMissingForWidth(
+            @ToolbarComponentId int[] toolbarComponents) {
+        for (@ToolbarComponentId int toolbarComponentId : toolbarComponents) {
+            @Nullable ToolbarWidthConsumer widthConsumer =
+                    mToolbarWidthConsumers[toolbarComponentId];
+            if (widthConsumer == null || !widthConsumer.isVisible()) return true;
+        }
+        return false;
     }
 }

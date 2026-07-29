@@ -4,12 +4,20 @@
 
 #include "components/persistent_cache/persistent_cache.h"
 
-#include <cstdint>
+#include <stdint.h>
+
 #include <memory>
 
 #include "base/containers/span.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
+#include "base/task/task_traits.h"
+#include "base/task/thread_pool.h"
+#include "base/test/gmock_expected_support.h"
+#include "base/test/task_environment.h"
+#include "base/test/test_future.h"
 #include "components/persistent_cache/backend_params.h"
 #include "components/persistent_cache/mock/mock_backend_impl.h"
 #include "components/persistent_cache/sqlite/sqlite_backend_impl.h"
@@ -88,10 +96,12 @@ class PersistentCacheTest : public testing::Test,
  protected:
   // Used to creates a new cache independent from any other.
   std::unique_ptr<PersistentCache> OpenCache() {
-    auto cache = PersistentCache::Open(
-        (params_provider_.CreateBackendFilesAndBuildParams(GetParam())));
-    CHECK(cache->GetBackendForTesting());
-    return cache;
+    auto backend = params_provider_.CreateBackendWithFiles(GetParam());
+    if (!backend) {
+      ADD_FAILURE() << "Failed to create backend";
+      return nullptr;
+    }
+    return std::make_unique<PersistentCache>(std::move(backend));
   }
 
   // Used to create a new cache with provided params. Use with params copied
@@ -219,10 +229,12 @@ TEST_P(PersistentCacheTest, MultipleLiveCachesAreIndependent) {
 }
 
 TEST_P(PersistentCacheTest, EphemeralCachesSharingParamsShareData) {
-  BackendParams backend_params =
-      params_provider_.CreateBackendFilesAndBuildParams(GetParam());
+  std::unique_ptr<Backend> backend =
+      params_provider_.CreateBackendWithFiles(GetParam());
+  ASSERT_TRUE(backend);
   for (int i = 0; i < 3; ++i) {
-    auto cache = OpenCache(backend_params.Copy());
+    ASSERT_OK_AND_ASSIGN(auto params, backend->ExportReadWriteParams());
+    auto cache = OpenCache(std::move(params));
 
     // First run, setup.
     if (i == 0) {
@@ -239,12 +251,13 @@ TEST_P(PersistentCacheTest, EphemeralCachesSharingParamsShareData) {
 }
 
 TEST_P(PersistentCacheTest, LiveCachesSharingParamsShareData) {
-  BackendParams backend_params =
-      params_provider_.CreateBackendFilesAndBuildParams(GetParam());
+  std::unique_ptr<Backend> backend =
+      params_provider_.CreateBackendWithFiles(GetParam());
   std::vector<std::unique_ptr<PersistentCache>> caches;
 
   for (int i = 0; i < 3; ++i) {
-    caches.push_back(OpenCache(backend_params.Copy()));
+    ASSERT_OK_AND_ASSIGN(auto params, backend->ExportReadWriteParams());
+    caches.push_back(OpenCache(std::move(params)));
     std::unique_ptr<PersistentCache>& cache = caches.back();
 
     // First run, setup.
@@ -259,6 +272,105 @@ TEST_P(PersistentCacheTest, LiveCachesSharingParamsShareData) {
       EXPECT_NE(cache->Find(kKey), nullptr);
     }
   }
+}
+
+// Create an instance and share it for read-only access to others.
+TEST_P(PersistentCacheTest, MultipleInstancesShareData) {
+  // The main read-write instance.
+  auto main_cache = OpenCache();
+
+  std::vector<std::unique_ptr<PersistentCache>> caches;
+  for (int i = 0; i < 3; ++i) {
+    // Export a read-only view to the main instance.
+    ASSERT_OK_AND_ASSIGN(auto params,
+                         main_cache->ExportReadOnlyBackendParams());
+    // Create a new instance that will read from the original.
+    caches.push_back(OpenCache(std::move(params)));
+    std::unique_ptr<PersistentCache>& ro_cache = caches.back();
+
+    if (i == 0) {
+      // The db is empty when the first client connects.
+      EXPECT_EQ(ro_cache->Find(kKey), nullptr);
+      // Insert a value via the read-write instance.
+      main_cache->Insert(kKey, base::byte_span_from_cstring("1"));
+      // It should be there.
+      EXPECT_NE(main_cache->Find(kKey), nullptr);
+    }
+
+    // The new read-only client should see the value that was previously
+    // inserted.
+    EXPECT_NE(ro_cache->Find(kKey), nullptr);
+  }
+}
+
+// Create an instance and share it for read-write access to others.
+TEST_P(PersistentCacheTest, MultipleInstancesCanWriteData) {
+  static constexpr char kThisKeyPrefix[] = "thiskey-";
+  static constexpr char kOtherKeyPrefix[] = "otherkey-";
+
+  // The main read-write instance.
+  auto main_cache = OpenCache();
+
+  std::vector<std::unique_ptr<PersistentCache>> caches;
+  for (int i = 0; i < 3; ++i) {
+    // Export a read-only view to the main instance.
+    ASSERT_OK_AND_ASSIGN(auto params,
+                         main_cache->ExportReadWriteBackendParams());
+    // Create a new instance that will read/write from/to the original.
+    caches.push_back(OpenCache(std::move(params)));
+    std::unique_ptr<PersistentCache>& rw_cache = caches.back();
+
+    // This new cache has access to all previous values.
+    for (int j = 0; j < i; ++j) {
+      std::string value = base::NumberToString(j);
+      EXPECT_NE(rw_cache->Find(base::StrCat({kThisKeyPrefix, value})), nullptr);
+      EXPECT_NE(rw_cache->Find(base::StrCat({kOtherKeyPrefix, value})),
+                nullptr);
+    }
+
+    // A new value added from the original is seen here.
+    std::string value = base::NumberToString(i);
+    std::string other_key = base::StrCat({kOtherKeyPrefix, value});
+    EXPECT_EQ(main_cache->Find(other_key), nullptr);
+    EXPECT_EQ(rw_cache->Find(other_key), nullptr);
+    main_cache->Insert(other_key, base::as_byte_span(value));
+    EXPECT_NE(main_cache->Find(other_key), nullptr);
+    EXPECT_NE(rw_cache->Find(other_key), nullptr);
+
+    // A new value added here is seen in the original.
+    std::string this_key = base::StrCat({kThisKeyPrefix, value});
+    EXPECT_EQ(main_cache->Find(this_key), nullptr);
+    EXPECT_EQ(rw_cache->Find(this_key), nullptr);
+    rw_cache->Insert(this_key, base::as_byte_span(value));
+    EXPECT_NE(main_cache->Find(this_key), nullptr);
+    EXPECT_NE(rw_cache->Find(this_key), nullptr);
+  }
+}
+
+TEST_P(PersistentCacheTest, ThreadSafeAccess) {
+  base::test::TaskEnvironment env;
+
+  // Create the cache and insert on this sequence.
+  auto value = base::byte_span_from_cstring("1");
+  auto cache = OpenCache();
+  cache->Insert(kKey, value);
+
+  // Find() on ThreadPool. Result should be expected and there are no sequence
+  // checkers tripped.
+  base::test::TestFuture<std::unique_ptr<Entry>> future_entry;
+  base::ThreadPool::PostTask(
+      FROM_HERE, {base::MayBlock()},
+      base::BindOnce(
+          [](PersistentCache* cache,
+             base::OnceCallback<void(std::unique_ptr<Entry>)> on_entry) {
+            std::move(on_entry).Run(cache->Find(kKey));
+          },
+          cache.get(), future_entry.GetSequenceBoundCallback()));
+
+  // Wait for result availability and check.
+  auto entry = future_entry.Take();
+  ASSERT_NE(entry, nullptr);
+  EXPECT_EQ(entry->GetContentSpan(), value);
 }
 
 INSTANTIATE_TEST_SUITE_P(All,

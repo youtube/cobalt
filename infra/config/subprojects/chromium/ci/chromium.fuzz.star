@@ -526,7 +526,7 @@ centipede_linux_asan_builder(
     branch_selector = branches.selector.LINUX_BRANCHES,
     clusterfuzz_archive_name_prefix = "centipede",
     console_short_name = "cent",
-    execution_timeout = 4 * time.hour,
+    execution_timeout = 5 * time.hour,
     gn_extra_configs = [
         "chromeos_codecs",
         "pdf_xfa",
@@ -1005,21 +1005,22 @@ libfuzzer_linux32_v8_arm_builder(
 )
 
 libfuzzer_linux_asan_builder(
-    name = "android-x64-libfuzzer-asan",
-    description_html = "This builder uploads android libfuzzer fuzzers, for x64 using ASan.",
+    name = "android-desktop-x64-libfuzzer-asan",
+    description_html = "This builder uploads android desktop libfuzzer fuzzers, for x64 using ASan.",
     # TODO(crbug.com/328559555): add this to the gardener_rotations
     gardener_rotations = args.ignore_default(None),
     build_config = builder_config.build_config.RELEASE,
     target_bits = 64,
     target_platform = builder_config.target_platform.ANDROID,
-    clusterfuzz_archive_subdir = "android-x64-asan",
-    console_short_name = "android-x64",
+    clusterfuzz_archive_subdir = "android-desktop-x64-asan",
+    console_short_name = "android-desktop-x64",
     execution_timeout = 6 * time.hour,
     gclient_apply_configs = ["android"],
     gn_extra_configs = [
         "android",
         "asan",
         "android_fastbuild",
+        "android_desktop",
     ],
     max_concurrent_invocations = 2,
     siso_remote_jobs = siso.remote_jobs.HIGH_JOBS_FOR_CI,

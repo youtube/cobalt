@@ -645,7 +645,7 @@ TEST_F(WebSocketEndToEndTest, HttpsProxyUsed) {
 
 std::unique_ptr<HttpResponse> ProxyPacHandler(const HttpRequest& request) {
   GURL url = request.GetURL();
-  EXPECT_EQ(url.path_piece(), "/proxy.pac");
+  EXPECT_EQ(url.path(), "/proxy.pac");
   EXPECT_TRUE(url.has_query());
   std::string proxy;
   EXPECT_TRUE(GetValueForKeyInQuery(url, "proxy", &proxy));
@@ -1022,7 +1022,7 @@ TEST_F(WebSocketEndToEndTest, EncryptedClientHello) {
   MockHostResolverBase::RuleResolver::RuleKey resolve_key;
   // The DNS query itself is made with the https scheme rather than wss.
   resolve_key.scheme = url::kHttpsScheme;
-  resolve_key.hostname_pattern = wss_url.host();
+  resolve_key.hostname_pattern = wss_url.GetHost();
   resolve_key.port = wss_url.IntPort();
   HostResolverEndpointResult result;
   result.ip_endpoints = {

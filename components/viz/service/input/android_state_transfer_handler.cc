@@ -22,6 +22,17 @@ base::TimeTicks GetEventDowntime(const base::android::ScopedInputEvent& event) {
       base::Time::kNanosecondsPerMillisecond);
 }
 
+// LINT.IfChange(VizSequenceDroppedReason)
+
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+enum class VizSequenceDroppedReason {
+  kOlderSequenceInQueue = 0,
+  kMaxValue = kOlderSequenceInQueue,
+};
+
+// LINT.ThenChange(//tools/metrics/histograms/metadata/android/enums.xml:VizSequenceDroppedReason)
+
 }  // namespace
 
 AndroidStateTransferHandler::TransferState::TransferState(
@@ -63,8 +74,7 @@ void AndroidStateTransferHandler::StateOnTouchTransfer(
     // of order. But it's possible the timestamps provided by Android platform
     // are the issue.
     TRACE_EVENT_INSTANT("viz", "OutOfOrderTransferStateDropped");
-    base::UmaHistogramEnumeration(
-        kStateProcessingResultHistogram,
+    EmitStateProcessingResultHistogram(
         InputOnVizStateProcessingResult::kDroppedOutOfOrderDownTime);
     return;
   }
@@ -73,8 +83,7 @@ void AndroidStateTransferHandler::StateOnTouchTransfer(
 
   pending_transferred_states_.emplace(rir_support, std::move(state));
   if (pending_transferred_states_.size() > kMaxPendingTransferredStates) {
-    base::UmaHistogramEnumeration(
-        kStateProcessingResultHistogram,
+    EmitStateProcessingResultHistogram(
         InputOnVizStateProcessingResult::kDroppedTooManyPendingStates);
     pending_transferred_states_.pop();
   }
@@ -189,8 +198,7 @@ bool AndroidStateTransferHandler::CanStartProcessingVizEvents(
   while (!pending_transferred_states_.empty() &&
          (pending_transferred_states_.front().transfer_state->down_time_ms <
           event_down_time)) {
-    base::UmaHistogramEnumeration(
-        kStateProcessingResultHistogram,
+    EmitStateProcessingResultHistogram(
         InputOnVizStateProcessingResult::kDroppedUnusedOlderStates);
     pending_transferred_states_.pop();
   }
@@ -204,12 +212,20 @@ bool AndroidStateTransferHandler::CanStartProcessingVizEvents(
   // processed before next sequence starts.
   if (event_down_time == state.transfer_state->down_time_ms) {
     if (state.transfer_state->browser_would_have_handled) {
-      client_->TransferInputBackToBrowser();
+      if (client_->TransferInputBackToBrowser()) {
+        EmitStateProcessingResultHistogram(
+            InputOnVizStateProcessingResult::
+                kTransferBackToBrowserSuccessfully);
+      } else {
+        EmitStateProcessingResultHistogram(
+            InputOnVizStateProcessingResult::
+                kDroppedTransferBackToBrowserFailed);
+      }
       ignore_remaining_touch_sequence_ = true;
+    } else {
+      EmitStateProcessingResultHistogram(
+          InputOnVizStateProcessingResult::kProcessedSuccessfully);
     }
-    base::UmaHistogramEnumeration(
-        kStateProcessingResultHistogram,
-        InputOnVizStateProcessingResult::kProcessedSuccessfully);
     state_for_curr_sequence_.emplace(std::move(state));
     pending_transferred_states_.pop();
     return true;
@@ -222,8 +238,17 @@ void AndroidStateTransferHandler::MaybeDropEventsFromEarlierSequences(
   if (events_buffer_.empty()) {
     return;
   }
+
   while (!events_buffer_.empty() &&
          GetEventDowntime(events_buffer_.front()) < state->down_time_ms) {
+    const int action =
+        AMotionEvent_getAction(events_buffer_.front().a_input_event()) &
+        AMOTION_EVENT_ACTION_MASK;
+    if (action == AMOTION_EVENT_ACTION_DOWN) {
+      base::UmaHistogramEnumeration(
+          "Android.InputOnViz.Viz.SequenceDroppedReason",
+          VizSequenceDroppedReason::kOlderSequenceInQueue);
+    }
     events_buffer_.pop();
   }
 }

@@ -9,6 +9,7 @@
 
 #import "base/apple/foundation_util.h"
 #import "base/containers/contains.h"
+#import "base/feature_list.h"
 #import "base/ios/block_types.h"
 #import "base/ios/ios_util.h"
 #import "base/memory/raw_ptr.h"
@@ -18,6 +19,7 @@
 #import "base/metrics/user_metrics_action.h"
 #import "base/strings/sys_string_conversions.h"
 #import "components/commerce/core/commerce_feature_list.h"
+#import "components/commerce/core/shopping_service.h"
 #import "components/feed/core/v2/public/ios/pref_names.h"
 #import "components/image_fetcher/core/image_data_fetcher.h"
 #import "components/ntp_tiles/most_visited_sites.h"
@@ -83,7 +85,6 @@
 #import "ios/chrome/browser/content_suggestions/ui_bundled/tips/coordinator/tips_magic_stack_mediator.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/tips/coordinator/tips_passwords_coordinator.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/tips/model/tips_metrics.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/tips/model/tips_prefs.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/tips/ui/tips_module_state.h"
 #import "ios/chrome/browser/default_browser/model/promo_source.h"
 #import "ios/chrome/browser/default_browser/model/utils.h"
@@ -367,8 +368,10 @@ using segmentation_platform::TipIdentifier;
                          browser:self.browser
         optimizationGuideService:OptimizationGuideServiceFactory::GetForProfile(
                                      profile)
-          impressionLimitService:ImpressionLimitServiceFactory::GetForProfile(
-                                     profile)
+          impressionLimitService:
+              base::FeatureList::IsEnabled(commerce::kShopCardImpressionLimits)
+                  ? ImpressionLimitServiceFactory::GetForProfile(profile)
+                  : nil
                  shoppingService:commerce::ShoppingServiceFactory::
                                      GetForProfile(profile)
                    bookmarkModel:ios::BookmarkModelFactory::GetForProfile(
@@ -409,12 +412,9 @@ using segmentation_platform::TipIdentifier;
     _priceTrackingPromoMediator.NTPActionsDelegate = self.NTPActionsDelegate;
     [moduleMediators addObject:_priceTrackingPromoMediator];
   }
-  if (base::FeatureList::IsEnabled(commerce::kShopCard) &&
-      (base::Contains(commerce::kShopCardVariation.Get(),
-                      commerce::kShopCardArm1) ||
-       commerce::kShopCardVariation.Get() == commerce::kShopCardArm2)) {
-    // If ShopCard experiment is on, create the ShopCard mediator.
-    // Note at this point we don't know which of the 4 variants will show.
+  // Only users that are eligible for ShoppingList are eligible for the
+  // ShopCard.
+  if (shoppingService->IsShoppingListEligible()) {
     _shopCardMediator = [[ShopCardMediator alloc]
         initWithShoppingService:commerce::ShoppingServiceFactory::GetForProfile(
                                     profile)
@@ -459,8 +459,10 @@ using segmentation_platform::TipIdentifier;
     [moduleMediators addObject:_sendTabPromoMediator];
   }
 
-  if (IsTipsMagicStackEnabled() &&
-      !tips_prefs::IsTipsInMagicStackDisabled(prefs)) {
+  BOOL areTipsCardsEnabled =
+      prefs->GetBoolean(prefs::kHomeCustomizationMagicStackTipsEnabled);
+
+  if (IsTipsMagicStackEnabled() && areTipsCardsEnabled) {
     _tipsMediator = [[TipsMagicStackMediator alloc]
         initWithIdentifier:TipIdentifier::kUnknown
         profilePrefService:prefs
@@ -473,17 +475,19 @@ using segmentation_platform::TipIdentifier;
     [moduleMediators addObject:_tipsMediator];
   }
 
-  if (base::FeatureList::IsEnabled(
-          segmentation_platform::features::kAppBundlePromoEphemeralCard)) {
+  if (segmentation_platform::features::IsAppBundlePromoEphemeralCardEnabled() &&
+      areTipsCardsEnabled) {
     _appBundlePromoMediator = [[AppBundlePromoMediator alloc]
         initWithAppStoreBundleService:AppStoreBundleServiceFactory::
-                                          GetForProfile(self.profile)];
+                                          GetForProfile(self.profile)
+                   profilePrefService:prefs];
     _appBundlePromoMediator.presentationAudience = self;
     [moduleMediators addObject:_appBundlePromoMediator];
   }
-  if (base::FeatureList::IsEnabled(
-          segmentation_platform::features::kDefaultBrowserMagicStackIos)) {
-    _defaultBrowserMediator = [[DefaultBrowserMediator alloc] init];
+  if (segmentation_platform::features::IsDefaultBrowserMagicStackEnabled() &&
+      areTipsCardsEnabled) {
+    _defaultBrowserMediator =
+        [[DefaultBrowserMediator alloc] initWithProfilePrefService:prefs];
     _defaultBrowserMediator.presentationAudience = self;
     [moduleMediators addObject:_defaultBrowserMediator];
   }
@@ -885,15 +889,13 @@ using segmentation_platform::TipIdentifier;
     case ContentSuggestionsModuleType::kTabResumption:
       [self showMagicStackRecentTabs];
       break;
-    case ContentSuggestionsModuleType::kShopCard:
-      if (base::Contains(commerce::kShopCardVariation.Get(),
-                         commerce::kShopCardArm1)) {
-        id<PriceTrackedItemsCommands> priceNotificationsCommands =
-            HandlerForProtocol(self.browser->GetCommandDispatcher(),
-                               PriceTrackedItemsCommands);
-        [priceNotificationsCommands showPriceTrackedItems];
-      }
+    case ContentSuggestionsModuleType::kShopCard: {
+      id<PriceTrackedItemsCommands> priceNotificationsCommands =
+          HandlerForProtocol(self.browser->GetCommandDispatcher(),
+                             PriceTrackedItemsCommands);
+      [priceNotificationsCommands showPriceTrackedItems];
       break;
+    }
     default:
       break;
   }
@@ -910,12 +912,6 @@ using segmentation_platform::TipIdentifier;
     case ContentSuggestionsModuleType::kSafetyCheck:
       [_safetyCheckMediator disableModule];
       break;
-    case ContentSuggestionsModuleType::kSetUpListDefaultBrowser:
-    case ContentSuggestionsModuleType::kSetUpListAutofill:
-    case ContentSuggestionsModuleType::kSetUpListNotifications:
-    case ContentSuggestionsModuleType::kCompactedSetUpList:
-      [_setUpListMediator disableModule];
-      break;
     case ContentSuggestionsModuleType::kPriceTrackingPromo: {
       base::RecordAction(base::UserMetricsAction(
           "Commerce.PriceTracking.MagicStackPromo.Hidden"));
@@ -928,9 +924,16 @@ using segmentation_platform::TipIdentifier;
       [_sendTabPromoMediator dismissModule];
       break;
     }
+    case ContentSuggestionsModuleType::kSetUpListDefaultBrowser:
+    case ContentSuggestionsModuleType::kSetUpListAutofill:
+    case ContentSuggestionsModuleType::kSetUpListNotifications:
+    case ContentSuggestionsModuleType::kCompactedSetUpList:
     case ContentSuggestionsModuleType::kTipsWithProductImage:
-    case ContentSuggestionsModuleType::kTips: {
-      [_tipsMediator disableModule];
+    case ContentSuggestionsModuleType::kTips:
+    case ContentSuggestionsModuleType::kAppBundlePromo:
+    case ContentSuggestionsModuleType::kDefaultBrowser: {
+      // Disable all cards with "Chrome Tips" header.
+      [self disableTipsModules];
       break;
     }
     case ContentSuggestionsModuleType::kShopCard: {
@@ -947,9 +950,9 @@ using segmentation_platform::TipIdentifier;
 // and Safety Check modules.
 - (PushNotificationClientId)pushNotificationClientId:
     (ContentSuggestionsModuleType)type {
-  // This is only supported for Set Up List, Tips, Send Tab, and Safety Check
+  // This is only supported for Tips, Send Tab, and Safety Check
   // modules.
-  CHECK(IsSetUpListModuleType(type) || IsTipsModuleType(type) ||
+  CHECK(IsTipsModuleType(type) ||
         type == ContentSuggestionsModuleType::kSafetyCheck ||
         type == ContentSuggestionsModuleType::kSendTabPromo);
 
@@ -957,7 +960,7 @@ using segmentation_platform::TipIdentifier;
     return PushNotificationClientId::kSafetyCheck;
   }
 
-  if (IsSetUpListModuleType(type) || IsTipsModuleType(type)) {
+  if (IsTipsModuleType(type)) {
     return PushNotificationClientId::kTips;
   }
 
@@ -973,18 +976,14 @@ using segmentation_platform::TipIdentifier;
 // notifications are exclusively supported by the Set Up List, Send Tab, and
 // Safety Check modules.
 - (int)pushNotificationTitleMessageId:(ContentSuggestionsModuleType)type {
-  // This is only supported for Set Up List, Tips, Send Tab, and Safety Check
+  // This is only supported for Tips, Send Tab, and Safety Check
   // modules.
-  CHECK(IsSetUpListModuleType(type) || IsTipsModuleType(type) ||
+  CHECK(IsTipsModuleType(type) ||
         type == ContentSuggestionsModuleType::kSafetyCheck ||
         type == ContentSuggestionsModuleType::kSendTabPromo);
 
   if (type == ContentSuggestionsModuleType::kSafetyCheck) {
     return IDS_IOS_SAFETY_CHECK_TITLE;
-  }
-
-  if (IsSetUpListModuleType(type)) {
-    return content_suggestions::SetUpListTitleStringID();
   }
 
   if (IsTipsModuleType(type)) {
@@ -1013,6 +1012,8 @@ using segmentation_platform::TipIdentifier;
       return NotificationOptInAccessPoint::kSetUpList;
     case ContentSuggestionsModuleType::kTipsWithProductImage:
     case ContentSuggestionsModuleType::kTips:
+    case ContentSuggestionsModuleType::kAppBundlePromo:
+    case ContentSuggestionsModuleType::kDefaultBrowser:
       return NotificationOptInAccessPoint::kTips;
     default:
       NOTREACHED();
@@ -1021,9 +1022,9 @@ using segmentation_platform::TipIdentifier;
 
 - (void)enableNotifications:(ContentSuggestionsModuleType)type
              viaContextMenu:(BOOL)viaContextMenu {
-  // This is only supported for Set Up List, Tips, Send Tab, and Safety Check
+  // This is only supported for Tips, Send Tab, and Safety Check
   // modules.
-  CHECK(IsSetUpListModuleType(type) || IsTipsModuleType(type) ||
+  CHECK(IsTipsModuleType(type) ||
         type == ContentSuggestionsModuleType::kSafetyCheck ||
         type == ContentSuggestionsModuleType::kSendTabPromo);
 
@@ -1056,9 +1057,9 @@ using segmentation_platform::TipIdentifier;
 
 - (void)disableNotifications:(ContentSuggestionsModuleType)type
               viaContextMenu:(BOOL)viaContextMenu {
-  // This is only supported for Set Up List, Tips, Send Tab, and Safety Check
+  // This is only supported for Tips, Send Tab, and Safety Check
   // modules.
-  CHECK(IsSetUpListModuleType(type) || IsTipsModuleType(type) ||
+  CHECK(IsTipsModuleType(type) ||
         type == ContentSuggestionsModuleType::kSafetyCheck ||
         type == ContentSuggestionsModuleType::kSendTabPromo);
 
@@ -1436,6 +1437,12 @@ using segmentation_platform::TipIdentifier;
     default:
       NOTREACHED();
   }
+}
+
+// Disables Magic Stack cards with the "Chrome Tips" header.
+- (void)disableTipsModules {
+  PrefService* prefs = self.profile->GetPrefs();
+  prefs->SetBoolean(prefs::kHomeCustomizationMagicStackTipsEnabled, false);
 }
 
 @end

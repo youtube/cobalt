@@ -506,7 +506,7 @@
 <translation id="3211671540163313381">نگاشتن کلید پد کنترل</translation>
 <translation id="3217462202230355157">مطمئن شوید میکروفونتان وصل است یا <ph name="DEVICE_TYPE" /> را بازراه‌اندازی کنید</translation>
 <translation id="3226405216343213872">درحال جستجوی اسکنرها</translation>
-<translation id="3226657629376379887">منوی کنش‌های طرح‌بندی</translation>
+<translation id="3226657629376379887">منو کنش‌های طرح‌بندی</translation>
 <translation id="3227186760713762082">تقسیم مقدار <ph name="CATEGORY_TEXT" /> بر <ph name="CONVERSION_RATE" /></translation>
 <translation id="3242622575335502454">هنر دیجیتال</translation>
 <translation id="3246869037381808805">کارهای چاپ قدیمی‌تر از ۱ روز برداشته می‌شوند</translation>
@@ -966,7 +966,7 @@
 <translation id="5227902338748591677">زمان‌بندی زمینه تاریک</translation>
 <translation id="5229104491259541281">تبدیل کردن «<ph name="QUERY" />»</translation>
 <translation id="5229344016299762883">خروج از حالت تمام‌صفحه</translation>
-<translation id="5234764350956374838">رد کردن</translation>
+<translation id="5234764350956374838">بستن</translation>
 <translation id="5236119614998611749">خلاصه تولید نشد</translation>
 <translation id="5244638145904800454">{NUM_ROOL_APPS,plural,offset:1 =1{سرپرستتان «<ph name="APP_NAME" />» را طوری راه‌اندازی کرده است که هر بار به سیستم وارد می‌شوید، به‌طور خودکار اجرا شود.}=2{سرپرستتان «<ph name="APP_NAME" />» و ۱ برنامه دیگر را طوری راه‌اندازی کرده است که هر بار به سیستم وارد می‌شوید به‌طور خودکار اجرا شوند.}one{سرپرستتان «<ph name="APP_NAME" />» و # برنامه دیگر را طوری راه‌اندازی کرده است که هر بار به سیستم وارد می‌شوید به‌طور خودکار اجرا شوند.}other{سرپرستتان «<ph name="APP_NAME" />» و # برنامه دیگر را طوری راه‌اندازی کرده است که هر بار به سیستم وارد می‌شوید به‌طور خودکار اجرا شوند.}}</translation>
 <translation id="5248419081947706722">آبی</translation>
@@ -1055,7 +1055,7 @@
 <translation id="5655296450510165335">ثبت‌نام دستگاه</translation>
 <translation id="5655776422854483175">هیچ کار چاپی وجود ندارد</translation>
 <translation id="5659593005791499971">ایمیل</translation>
-<translation id="5662240986744577912">روشن/خاموش کردن صفحه حریم‌خصوصی</translation>
+<translation id="5662240986744577912">روشن/خاموش کردن صفحه حریم خصوصی</translation>
 <translation id="5669267381087807207">فعالسازی</translation>
 <translation id="5670702108860320605">BSSID</translation>
 <translation id="5674943355143004615">کاغذدیواری موردنظرتان را که می‌خواهید بسازید توصیف کنید</translation>
@@ -1809,7 +1809,7 @@
 <translation id="8987565828374052507">{NUMBER_OF_PAGES,plural, =0{اسکن}=1{اسکن کردن صفحه {NUMBER_OF_PAGES}}one{اسکن کردن صفحه {NUMBER_OF_PAGES}}other{اسکن کردن صفحه {NUMBER_OF_PAGES}}}</translation>
 <translation id="89945434909472341">روستا</translation>
 <translation id="8997710128084572139">باتری دستگاه <ph name="BATTERY_PERCENTAGE" />٪ شارژ دارد.</translation>
-<translation id="8998002498898621320">عکس واقع‌نما</translation>
+<translation id="8998002498898621320">عکس واقع‌گرایانه</translation>
 <translation id="8998289560386111590">در دستگاهتان دردسترس نیست</translation>
 <translation id="9000871120886759611">برای اینکه مطمئن شوید می‌توانید به زبان ترجیحی‌تان به اطلاعات دسترسی پیدا کنید، بازنشانی کنید. بررسی کنید که فقط از زبان‌های ترجیحی استفاده شده باشد.</translation>
 <translation id="9003499805101629690">پیتزا</translation>

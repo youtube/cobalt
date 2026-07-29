@@ -823,7 +823,8 @@ void HistorySyncBridge::OnURLsModified(HistoryBackend* history_backend,
 
   for (const URLRow& url_row : changed_urls) {
     VisitRow visit_row;
-    if (history_backend_->GetMostRecentVisitForURL(url_row.id(), &visit_row) &&
+    if (history_backend_->GetMostRecentVisitForURL(
+            url_row.id(), &visit_row, VisitQuery404sPolicy::kInclude404s) &&
         visit_row.originator_cache_guid.empty()) {
       // It's the URL corresponding to a local visit - probably the title got
       // updated.
@@ -1159,9 +1160,12 @@ bool HistorySyncBridge::AddEntityInBackend(
     referring_visit_id = added_visit_id;
 
     // If the sending client supports syncing its clusters, add the appropriate
-    // details to history.
+    // details to history. 404s shouldn't make their way into clusters in
+    // general, but if they do, that's a mistake we don't want to replicate on
+    // sync.
     DCHECK(!specifics.originator_cache_guid().empty());
-    if (specifics.originator_cluster_id() > 0) {
+    if (specifics.originator_cluster_id() > 0 &&
+        specifics.http_response_code() != 404) {
       // Populate the visit to a synced cluster.
       history::ClusterVisit cluster_visit;
       cluster_visit.annotated_visit.visit_row = visit_row;

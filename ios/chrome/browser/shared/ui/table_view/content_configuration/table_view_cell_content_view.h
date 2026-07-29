@@ -7,9 +7,11 @@
 
 #import <UIKit/UIKit.h>
 
+#import "ios/chrome/browser/shared/ui/table_view/content_configuration/chrome_content_view.h"
+
 @class TableViewCellContentConfiguration;
 
-@interface TableViewCellContentView : UIView <UIContentView>
+@interface TableViewCellContentView : UIView <ChromeContentView>
 
 /// Initializes with `configuration`.
 - (instancetype)initWithConfiguration:
@@ -18,6 +20,9 @@
 - (instancetype)initWithFrame:(CGRect)frame NS_UNAVAILABLE;
 - (instancetype)init NS_UNAVAILABLE;
 - (instancetype)initWithCoder:(NSCoder*)coder NS_UNAVAILABLE;
+
+// Returns the trailing content view, to be used in testing only.
+- (UIView*)trailingContentViewForTesting;
 
 @end
 

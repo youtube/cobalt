@@ -17,20 +17,22 @@ class WebNNTestEnvironment {
       WebNNContextProviderImpl::WebNNStatus status =
           WebNNContextProviderImpl::WebNNStatus::kWebNNEnabled,
       WebNNContextProviderImpl::LoseAllContextsCallback
-          lose_all_contexts_callback = base::DoNothing());
+          lose_all_contexts_callback = base::DoNothing(),
+      std::unique_ptr<base::test::TaskEnvironment> task_environment =
+          std::make_unique<base::test::TaskEnvironment>());
   ~WebNNTestEnvironment();
 
   WebNNContextProviderImpl* context_provider() const {
     return context_provider_.get();
   }
 
-  void RunUntilIdle() { task_environment_.RunUntilIdle(); }
+  void RunUntilIdle() { task_environment_->RunUntilIdle(); }
 
   void BindWebNNContextProvider(
       mojo::PendingReceiver<mojom::WebNNContextProvider> pending_receiver);
 
  private:
-  base::test::TaskEnvironment task_environment_;
+  std::unique_ptr<base::test::TaskEnvironment> task_environment_;
   // Initialize a GPU Scheduler so tests can also use a scheduler
   // runner without the GPU service. The sync point manager must come first
   // since it is passed to the scheduler as a naked pointer.

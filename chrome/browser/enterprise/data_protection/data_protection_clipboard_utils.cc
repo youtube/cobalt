@@ -220,7 +220,7 @@ void MaybeReportDataControlsPaste(const content::ClipboardEndpoint& source,
                                   const ui::ClipboardMetadata& metadata,
                                   const data_controls::Verdict& verdict,
                                   bool bypassed = false) {
-#if !BUILDFLAG(IS_ANDROID) && BUILDFLAG(SAFE_BROWSING_AVAILABLE)
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   auto* router =
       enterprise_connectors::ReportingEventRouterFactory::GetForBrowserContext(
           destination.browser_context());
@@ -238,14 +238,14 @@ void MaybeReportDataControlsPaste(const content::ClipboardEndpoint& source,
   } else {
     router->ReportPaste(context, verdict);
   }
-#endif  // !BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(SAFE_BROWSING_AVAILABLE)
 }
 
 void MaybeReportDataControlsCopy(const content::ClipboardEndpoint& source,
                                  const ui::ClipboardMetadata& metadata,
                                  const data_controls::Verdict& verdict,
                                  bool bypassed = false) {
-#if !BUILDFLAG(IS_ANDROID) && BUILDFLAG(SAFE_BROWSING_AVAILABLE)
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   auto* router =
       enterprise_connectors::ReportingEventRouterFactory::GetForBrowserContext(
           source.browser_context());
@@ -263,7 +263,7 @@ void MaybeReportDataControlsCopy(const content::ClipboardEndpoint& source,
   } else {
     router->ReportCopy(context, verdict);
   }
-#endif  // !BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(SAFE_BROWSING_AVAILABLE)
 }
 
 void OnDataControlsPasteWarning(
@@ -468,6 +468,8 @@ void IsCopyRestrictedByDialog(
     if (factory) {
       factory->ShowDialogIfNeeded(source.web_contents(), block_dialog_type);
     }
+    std::move(callback).Run(metadata.format_type, content::ClipboardPasteData(),
+                            /*replacement_data=*/std::nullopt);
     return;
   }
 
@@ -488,6 +490,10 @@ void IsCopyRestrictedByDialog(
           source.web_contents(), warn_dialog_type,
           base::BindOnce(&OnDataControlsCopyWarning, source, metadata, data,
                          std::move(verdict), std::move(callback)));
+    } else {
+      std::move(callback).Run(metadata.format_type,
+                              content::ClipboardPasteData(),
+                              /*replacement_data=*/std::nullopt);
     }
     return;
   }

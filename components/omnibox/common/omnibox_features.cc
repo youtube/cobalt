@@ -171,6 +171,9 @@ BASE_FEATURE(kMostVisitedTilesHorizontalRenderGroup,
 // accommodate the autocompletions.
 BASE_FEATURE(kRichAutocompletion, "OmniboxRichAutocompletion", ENABLED);
 
+// If enabled, removes the cutout for the location bar and fills the entire
+// popup content with the WebUI WebView.
+BASE_FEATURE(kWebUIOmniboxFullPopup, DISABLED);
 // If enabled, shows the omnibox suggestions in the popup in WebUI.
 BASE_FEATURE(kWebUIOmniboxPopup, DISABLED);
 // Enables the WebUI for omnibox suggestions without modifying the popup UI.
@@ -186,8 +189,21 @@ BASE_FEATURE(kOmniboxAssistantVoiceSearch, DISABLED);
 // When enabled, the multimodal input button is shown in the Omnibox.
 BASE_FEATURE(kOmniboxMultimodalInput, DISABLED);
 
-// Whether the AI Mode entrypoint is shown in the Omnibox as a RHS button.
+// Whether the AI Mode entrypoint is shown in the Omnibox as a RHS button. Only
+// used on desktop platforms.
+// The first feature enables the entrypoint for all users. The second feature
+// enables the entrypoint only for users who have their locale set to English
+// and are located in the US, and has no effect if the first feature is
+// enabled.
 BASE_FEATURE(kAiModeOmniboxEntryPoint, DISABLED);
+BASE_FEATURE(kAiModeOmniboxEntryPointEnUs, ENABLED);
+
+// Hides the AIM entrypoint in the Omnibox when user input is in progress. Only
+// used on desktop platforms.
+BASE_FEATURE(kHideAimEntrypointOnUserInput,
+             "OmniboxHideAimEntrypointOnUserInput",
+             DISABLED);
+
 
 // When enabled, removes the Search Ready Omnibox feature.
 BASE_FEATURE(kRemoveSearchReadyOmnibox, DISABLED);
@@ -337,10 +353,6 @@ BASE_FEATURE(kEnableSiteSearchAllowUserOverridePolicy, ENABLED);
 // Enables preconnecting to omnibox suggestions that are not only Search types.
 BASE_FEATURE(kPreconnectNonSearchOmniboxSuggestions, DISABLED);
 
-// Enables restricting omnibox focus restoration to only situations that involve
-// "invisible focus".
-BASE_FEATURE(kOmniboxRestoreInvisibleFocusOnly, ENABLED);
-
 // Enabls adding an aim shortcut in the typed state.
 BASE_FEATURE(kOmniboxAimShortcutTypedState, DISABLED);
 
@@ -358,11 +370,6 @@ bool IsGeminiPrototypeProviderEnabled() {
   return base::FeatureList::IsEnabled(kGeminiPrototypeOmniboxProvider);
 }
 #endif
-
-// Hides the AIM entrypoint in the Omnibox when user input is in progress.
-BASE_FEATURE(kHideAimEntrypointOnUserInput,
-             "OmniboxHideAimEntrypointOnUserInput",
-             DISABLED);
 
 // Controls whether the composebox
 BASE_FEATURE(kComposeboxUsesChromeComposeClient, DISABLED);

@@ -37,6 +37,7 @@ source_set("unit_tests") {
     "//base/test:test_support",
     "//components/sync:test_support",
     "//components/sync/base:features",
+    "//components/test/ios",
     "//ios/chrome/app/profile",
     "//ios/chrome/browser/authentication/ui_bundled:continuation_test",
     "//ios/chrome/browser/authentication/ui_bundled/fullscreen_signin_screen/coordinator",
@@ -66,7 +67,7 @@ source_set("unit_tests") {
 source_set("eg2_tests") {
   configs += [ "//build/config/ios:xctest_config" ]
   testonly = true
-  sources = [ "upgrade_signin_promo_egtest.mm" ]
+  sources = [ "fullscreen_signin_promo_egtest.mm" ]
   deps = [
     "//base",
     "//base/test:test_support",

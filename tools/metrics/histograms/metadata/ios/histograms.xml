@@ -274,7 +274,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.BackgroundRefresh.InitStage"
-    enum="InitStageDuringBackgroundRefreshType" expires_after="2026-01-27">
+    enum="InitStageDuringBackgroundRefreshType" expires_after="2026-03-29">
   <owner>fedegermi@google.com</owner>
   <owner>marq@chromium.org</owner>
   <summary>
@@ -2588,6 +2588,17 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram
+    name="IOS.HomeCustomization.Background.Gallery.SelectedCollectionIndex"
+    units="index" expires_after="2026-03-01">
+  <owner>cheickcisse@google.com</owner>
+  <owner>bling-team@google.com</owner>
+  <summary>
+    Records the index of the gallery collection when a user selects a background
+    image and applies it on the NTP.
+  </summary>
+</histogram>
+
 <histogram name="IOS.HomeCustomization.Background.Ntp.ImageDownloadErrorCode"
     enum="HttpResponseCode" expires_after="2026-03-01">
   <owner>cheickcisse@google.com</owner>
@@ -2595,6 +2606,18 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records the HTTP status response code received when downloading an image for
     the NTP background. Logged for each image download attempt that failed.
+  </summary>
+</histogram>
+
+<histogram
+    name="IOS.HomeCustomization.Background.Ntp.ImageUserUploadedFetchError"
+    enum="IOSUserUploadedImageError" expires_after="2026-03-01">
+  <owner>cheickcisse@google.com</owner>
+  <owner>bling-mony-pod@google.com</owner>
+  <summary>
+    Records the result of loading a user-uploaded image on the NTP. This is
+    logged each time the NTP is loaded or the background is updated with a
+    user-uploaded image.
   </summary>
 </histogram>
 
@@ -2616,6 +2639,18 @@ chromium-metrics-reviews@google.com.
     Records the total number of times recently used backgrounds are selected
     while the Home Customization panel is open. This value is recorded once when
     the user dismisses the panel.
+  </summary>
+</histogram>
+
+<histogram
+    name="IOS.HomeCustomization.Background.RecentlyUsed.ImageUserUploadedFetchError"
+    enum="IOSUserUploadedImageError" expires_after="2026-03-01">
+  <owner>cheickcisse@google.com</owner>
+  <owner>bling-mony-pod@google.com</owner>
+  <summary>
+    Records the result of loading a user-uploaded image in the recently used
+    list. This is logged each time the customization menu is opened and a
+    user-uploaded image is present in the recently used list.
   </summary>
 </histogram>
 
@@ -3671,28 +3706,28 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.MiniMap.ConsentOutcome" enum="IOSMiniMapConsentOutcome"
-    expires_after="2025-10-09">
+    expires_after="2026-10-01">
   <owner>olivierrobin@chromium.org</owner>
   <owner>bling-squid-squad@google.com</owner>
   <summary>Outcome of the MiniMap consent screen.</summary>
 </histogram>
 
 <histogram name="IOS.MiniMap.Link.ConsentOutcome"
-    enum="IOSMiniMapConsentOutcome" expires_after="2025-10-09">
+    enum="IOSMiniMapConsentOutcome" expires_after="2026-10-01">
   <owner>olivierrobin@chromium.org</owner>
   <owner>bling-squid-squad@google.com</owner>
   <summary>Outcome of the MiniMap consent screen when showing a link.</summary>
 </histogram>
 
 <histogram name="IOS.MiniMap.Link.Outcome" enum="IOSMiniMapOutcome"
-    expires_after="2026-03-08">
+    expires_after="2026-10-01">
   <owner>olivierrobin@chromium.org</owner>
   <owner>bling-squid-squad@google.com</owner>
   <summary>Outcome of the MiniMap screen when showing a link.</summary>
 </histogram>
 
 <histogram name="IOS.MiniMap.Outcome" enum="IOSMiniMapOutcome"
-    expires_after="2026-02-22">
+    expires_after="2026-10-01">
   <owner>olivierrobin@chromium.org</owner>
   <owner>bling-squid-squad@google.com</owner>
   <summary>Outcome of the MiniMap screen.</summary>
@@ -3720,7 +3755,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.MultiWindow.OpenInNewWindow" enum="WindowActivityOrigin"
-    expires_after="2026-01-25">
+    expires_after="2026-03-29">
   <owner>marq@chromium.org</owner>
   <owner>fedegermi@google.com</owner>
   <summary>
@@ -3793,7 +3828,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.Notifications.SafetyCheck.Interaction"
-    enum="IOSSafetyCheckNotificationType" expires_after="2026-01-25">
+    enum="IOSSafetyCheckNotificationType" expires_after="2026-03-29">
   <owner>bwwilliams@google.com</owner>
   <owner>scottyoder@google.com</owner>
   <owner>bling-pandamonium@google.com</owner>
@@ -5015,7 +5050,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="IOS.PushNotification.ProminenceAlert.Result"
     enum="IOSNotificationsProminenceAlertActionResult"
-    expires_after="2025-11-10">
+    expires_after="2026-11-10">
   <owner>thegreenfrog@google.com</owner>
   <owner>bling-gsu-pod@google.com</owner>
   <summary>
@@ -5072,7 +5107,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.ReaderMode.Distiller.Latency" units="ms"
-    expires_after="2026-01-25">
+    expires_after="2026-03-29">
   <owner>fernandex@google.com</owner>
   <owner>bling-squid-squad@google.com</owner>
   <summary>
@@ -5084,7 +5119,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.ReaderMode.Distiller.Result"
-    enum="ReaderModeDistillerOutcome" expires_after="2026-01-25">
+    enum="ReaderModeDistillerOutcome" expires_after="2026-03-29">
   <owner>fernandex@google.com</owner>
   <owner>qpubert@google.com</owner>
   <owner>bling-squid-squad@google.com</owner>
@@ -5127,7 +5162,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.ReaderMode.Heuristic.Latency" units="ms"
-    expires_after="2026-01-25">
+    expires_after="2026-03-29">
   <owner>fernandex@google.com</owner>
   <owner>bling-squid-squad@google.com</owner>
   <summary>
@@ -5324,7 +5359,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.SafariImport.EntryPoint{EntryPoint}.Action"
-    enum="SafariDataImportEntryPointAction" expires_after="2026-01-28">
+    enum="SafariDataImportEntryPointAction" expires_after="2026-03-29">
   <owner>ginnyhuang@chromium.org</owner>
   <owner>bling-pandamonium@google.com</owner>
   <summary>
@@ -5340,7 +5375,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.SafariImport.ExportEducationAction"
-    enum="SafariDataImportExportEducationAction" expires_after="2026-01-28">
+    enum="SafariDataImportExportEducationAction" expires_after="2026-03-29">
   <owner>ginnyhuang@chromium.org</owner>
   <owner>bling-pandamonium@google.com</owner>
   <summary>
@@ -5351,7 +5386,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.SafariImport.Import.DeleteFile" enum="Boolean"
-    expires_after="2026-01-28">
+    expires_after="2026-03-29">
   <owner>ginnyhuang@chromium.org</owner>
   <owner>bling-pandamonium@google.com</owner>
   <summary>
@@ -5361,7 +5396,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.SafariImport.Import.ExitOnStage"
-    enum="SafariDataImportStage" expires_after="2026-01-28">
+    enum="SafariDataImportStage" expires_after="2026-03-29">
   <owner>ginnyhuang@chromium.org</owner>
   <owner>bling-pandamonium@google.com</owner>
   <summary>
@@ -5373,7 +5408,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.SafariImport.Import.FailureAlert" enum="BooleanSuccess"
-    expires_after="2026-01-28">
+    expires_after="2026-03-29">
   <owner>ginnyhuang@chromium.org</owner>
   <owner>bling-pandamonium@google.com</owner>
   <summary>
@@ -5385,7 +5420,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.SafariImport.Import.InvalidPasswords.Display"
-    enum="Boolean" expires_after="2026-01-28">
+    enum="Boolean" expires_after="2026-03-29">
   <owner>ginnyhuang@chromium.org</owner>
   <owner>bling-pandamonium@google.com</owner>
   <summary>
@@ -5943,7 +5978,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.SetUpList.AllItemsCompleted" enum="Boolean"
-    expires_after="2026-01-11">
+    expires_after="2026-03-29">
   <owner>scottyoder@google.com</owner>
   <owner>bling-pandamonium@google.com</owner>
   <summary>
@@ -7002,7 +7037,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="ManualFallback.VisibleSuggestions.ExpandIcon.OpenPaymentMethods"
-    units="Suggestions" expires_after="2026-01-25">
+    units="Suggestions" expires_after="2026-03-29">
   <owner>noemies@google.com</owner>
   <owner>sugoi@google.com</owner>
   <summary>

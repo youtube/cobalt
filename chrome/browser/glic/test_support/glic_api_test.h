@@ -105,7 +105,7 @@ class WebUIStateListener : public Host::Observer {
   void WaitForWebUiState(mojom::WebUiState state);
 
  private:
-  raw_ptr<Host> host_;
+  base::WeakPtr<Host> host_;
   std::deque<mojom::WebUiState> states_;
 };
 
@@ -188,10 +188,8 @@ class GlicApiTestBase : public T {
   }
 
   Host* GetHost() {
-    Profile* profile = T::browser()->profile();
-    return &GlicKeyedServiceFactory::GetGlicKeyedService(profile)
-                ->GetInstanceForActiveTab(T::browser())
-                ->host();
+    GlicInstance* instance = T::GetGlicInstance();
+    return instance ? &instance->host() : nullptr;
   }
 
   // Run the test typescript function. The typescript function must have the
@@ -251,7 +249,7 @@ class GlicApiTestBase : public T {
   }
 
   void WaitForWebUiState(mojom::WebUiState state) {
-    WebUIStateListener listener(T::GetHostForActiveTab());
+    WebUIStateListener listener(T::GetHost());
     listener.WaitForWebUiState(state);
   }
 

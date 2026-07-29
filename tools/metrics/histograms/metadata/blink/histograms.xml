@@ -385,13 +385,16 @@ chromium-metrics-reviews@google.com.
   <summary>Logs the occurrences of canvas fallback from GPU to CPU.</summary>
 </histogram>
 
-<histogram name="Blink.Canvas.HibernationEvents" enum="CanvasHibernationEvent"
+<histogram name="Blink.Canvas.HibernationEvents2" enum="CanvasHibernationEvent"
     expires_after="2026-02-22">
   <owner>aaronhk@chromium.org</owner>
   <owner>fserb@chromium.org</owner>
   <summary>
     Records the occurrence of events related to 2D canvas GPU resource
     hibernation.
+
+    Replaced Blink.Canvas.HibernationEvents because some hibernation events were
+    incorrectly classified.
   </summary>
 </histogram>
 
@@ -921,7 +924,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Blink.CullRect.UpdateTime" units="microseconds"
-    expires_after="2026-01-25">
+    expires_after="2026-03-29">
   <owner>pdr@chromium.org</owner>
   <owner>wangxianzhu@chromium.org</owner>
   <owner>paint-dev@chromium.org</owner>
@@ -1584,6 +1587,18 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Blink.FedCm.CrossSiteIframeType"
+    enum="FedCmCrossSiteIframeType" expires_after="2026-02-22">
+  <owner>cbiesinger@chromium.org</owner>
+  <owner>web-identity-eng@google.com</owner>
+  <summary>
+    Records whether the client metadata endpoint response contained a value for
+    `client_is_third_party_to_top_frame_origin`, and if so, what value. Only
+    recorded if the iframe is cross-site. Recorded when we receive the client
+    metadata endpoint response.
+  </summary>
+</histogram>
+
 <histogram name="Blink.FedCm.DidShowUI" enum="Boolean"
     expires_after="2026-02-22">
   <owner>npm@chromium.org</owner>
@@ -1608,7 +1623,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Blink.FedCm.DomainHint.NumMatchingAccounts"
-    enum="FedCmNumAccounts" expires_after="2025-12-12">
+    enum="FedCmNumAccounts" expires_after="2026-03-29">
   <owner>npm@chromium.org</owner>
   <owner>web-identity-eng@google.com</owner>
   <summary>
@@ -1839,7 +1854,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Blink.FedCm.LoginHint.NumMatchingAccounts"
-    enum="FedCmNumAccounts" expires_after="2025-12-12">
+    enum="FedCmNumAccounts" expires_after="2026-03-29">
   <owner>npm@chromium.org</owner>
   <owner>web-identity-eng@google.com</owner>
   <summary>
@@ -1961,7 +1976,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Blink.FedCm.SegmentationPlatform.UserAction"
-    enum="FedCmUserAction" expires_after="2026-01-25">
+    enum="FedCmUserAction" expires_after="2026-03-29">
   <owner>tanzachary@chromium.org</owner>
   <owner>web-identity-eng@google.com</owner>
   <summary>
@@ -4070,7 +4085,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Blink.LinkHeader.LoadLinksFromHeaderMode"
-    enum="LoadLinksFromHeaderMode" expires_after="2026-01-25">
+    enum="LoadLinksFromHeaderMode" expires_after="2026-03-29">
   <owner>tnak@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -4199,6 +4214,23 @@ chromium-metrics-reviews@google.com.
     https://crbug.com/579496 https://crbug.com/1376866
   </summary>
   <token key="ResourceType" variants="ResourceType"/>
+</histogram>
+
+<histogram
+    name="Blink.MemoryCache.TotalTakenTimeForDidLoadResourceFromMemoryCache"
+    units="microseconds" expires_after="2026-02-28">
+  <owner>sisidovski@chromium.org</owner>
+  <owner>chrome-loading@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
+  <summary>
+    Total time spent processing
+    `ResourceFetcher::DidLoadResourceFromMemoryCache()` until the document
+    parsing is finished in the renderer process. This is recorded on each
+    navigation for http or https URLs in OutermostMainFrame. The UMA is reported
+    when the document finishes parsing.
+
+    This histogram only records metrics on machines with high-resolution clocks.
+  </summary>
 </histogram>
 
 <histogram name="Blink.MobileMetrics.BadTapTargetRatioExtractionSucceed"
@@ -5232,7 +5264,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Blink.Sms.Receive.TimeSmsReceive" units="ms"
-    expires_after="2025-12-12">
+    expires_after="2026-03-29">
   <owner>yigu@chromium.org</owner>
   <owner>goto@chromium.org</owner>
   <owner>web-identity-eng@google.com</owner>

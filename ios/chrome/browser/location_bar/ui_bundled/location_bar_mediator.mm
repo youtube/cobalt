@@ -297,7 +297,6 @@ const CGFloat kIconPointSize = 16.0;
 /// Whether the lens overlay entrypoint should be available.
 - (BOOL)isLensOverlayEntrypointAvailable {
   if (![self isLensOverlayAvailable] ||
-      !base::FeatureList::IsEnabled(kLensOverlayEnableLocationBarEntrypoint) ||
       _isIncognito ||
       !search_engines::SupportsSearchImageWithLens(self.templateURLService)) {
     return NO;
@@ -310,10 +309,8 @@ const CGFloat kIconPointSize = 16.0;
     }
   }
 
-  if (!base::FeatureList::IsEnabled(
-          kLensOverlayEnableLocationBarEntrypointOnSRP) &&
-      (google_util::IsGoogleSearchUrl(visibleURL) ||
-       google_util::IsGoogleHomePageUrl(visibleURL))) {
+  if (google_util::IsGoogleSearchUrl(visibleURL) ||
+      google_util::IsGoogleHomePageUrl(visibleURL)) {
     return NO;
   }
 

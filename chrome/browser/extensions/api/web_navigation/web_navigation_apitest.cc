@@ -26,6 +26,8 @@
 #include "chrome/browser/extensions/extension_apitest.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ssl/https_upgrades_util.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/context_menu_params.h"
 #include "content/public/browser/navigation_handle.h"
@@ -50,6 +52,7 @@
 #include "extensions/browser/background_script_executor.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/test_event_router_observer.h"
+#include "extensions/buildflags/buildflags.h"
 #include "extensions/common/extension_features.h"
 #include "extensions/common/switches.h"
 #include "extensions/test/extension_test_message_listener.h"
@@ -80,6 +83,8 @@
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/test/base/ui_test_utils.h"
 #endif
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 using content::WebContents;
 
@@ -127,8 +132,9 @@ class DelayLoadStartAndExecuteJavascript : public content::WebContentsObserver {
         : owner_(owner) {
       // Assume only one window open, which is fine for these tests.
       CHECK_EQ(BrowserList::GetInstance()->size(), 1u);
-      Browser* browser = BrowserList::GetInstance()->get(0);
-      browser->tab_strip_model()->AddObserver(this);
+      BrowserWindowInterface* const browser =
+          GetLastActiveBrowserWindowInterfaceWithAnyProfile();
+      browser->GetTabStripModel()->AddObserver(this);
     }
 
     // TabStripModelObserver:

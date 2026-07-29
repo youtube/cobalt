@@ -4,44 +4,58 @@
 
 #include "gpu/command_buffer/service/gpu_persistent_cache.h"
 
+#include <string_view>
+
 #include "base/containers/span.h"
+#include "base/dcheck_is_on.h"
 #include "base/logging.h"
+#include "base/metrics/histogram_functions.h"
+#include "base/synchronization/lock_subtle.h"
+#include "base/timer/elapsed_timer.h"
 #include "base/trace_event/trace_event.h"
 #include "components/persistent_cache/entry.h"
 #include "components/persistent_cache/persistent_cache.h"
 
 namespace gpu {
 
-GpuPersistentCache::GpuPersistentCache() = default;
+// We have to enable lock tracking to allow PersistentCache to be used on
+// multiple threads/different sequences.
+#if DCHECK_IS_ON()
+#define SCOPED_LOCK(lock) \
+  base::AutoLock auto_lock(lock, base::subtle::LockTracking::kEnabled)
+#else
+#define SCOPED_LOCK(lock) base::AutoLock auto_lock(lock)
+#endif  // DCHECK_IS_ON()
 
-GpuPersistentCache::~GpuPersistentCache() = default;
+GpuPersistentCache::GpuPersistentCache(std::string_view cache_prefix)
+    : cache_prefix_(cache_prefix) {}
+
+GpuPersistentCache::~GpuPersistentCache() {
+  SCOPED_LOCK(lock_);
+  persistent_cache_.reset();
+}
 
 void GpuPersistentCache::InitializeCache(
-    base::File db_file,
-    base::File journal_file,
-    base::UnsafeSharedMemoryRegion shared_lock) {
-  base::AutoLock auto_lock(lock_);
-  persistent_cache::BackendParams params;
-  params.type = persistent_cache::BackendType::kSqlite;
-  params.db_file = std::move(db_file);
-  params.db_file_is_writable = true;
-  params.journal_file = std::move(journal_file);
-  params.journal_file_is_writable = true;
-  params.shared_lock = std::move(shared_lock);
+    persistent_cache::BackendParams backend_params) {
+  SCOPED_LOCK(lock_);
   persistent_cache_ =
-      persistent_cache::PersistentCache::Open(std::move(params));
+      persistent_cache::PersistentCache::Open(std::move(backend_params));
 }
 
 size_t GpuPersistentCache::LoadData(const void* key,
                                     size_t key_size,
                                     void* value,
                                     size_t value_size) {
-  TRACE_EVENT0("gpu", "GpuPersistentCache::LoadData");
-  base::AutoLock auto_lock(lock_);
+  SCOPED_LOCK(lock_);
+  TRACE_EVENT1("gpu", "GpuPersistentCache::LoadData", "persistent_cache_",
+               !!persistent_cache_);
+  base::UmaHistogramBoolean(GetHistogramName("Load.CacheAvailable"),
+                            !!persistent_cache_);
   if (!persistent_cache_) {
     return 0;
   }
 
+  base::ElapsedTimer timer;
   std::string_view key_str(static_cast<const char*>(key), key_size);
   std::unique_ptr<persistent_cache::Entry> entry =
       persistent_cache_->Find(key_str);
@@ -50,9 +64,18 @@ size_t GpuPersistentCache::LoadData(const void* key,
     return 0;
   }
 
+  size_t bytes_copied = 0;
   if (value_size > 0) {
-    return entry->CopyContentTo(
+    bytes_copied = entry->CopyContentTo(
         UNSAFE_TODO(base::span(static_cast<uint8_t*>(value), value_size)));
+  }
+
+  base::UmaHistogramCustomMicrosecondsTimes(
+      GetHistogramName("Load"), timer.Elapsed(), base::Microseconds(1),
+      base::Seconds(30), 100);
+
+  if (bytes_copied > 0) {
+    return bytes_copied;
   }
 
   return entry->GetContentSize();
@@ -62,8 +85,11 @@ void GpuPersistentCache::StoreData(const void* key,
                                    size_t key_size,
                                    const void* value,
                                    size_t value_size) {
-  TRACE_EVENT0("gpu", "GpuPersistentCache::StoreData");
-  base::AutoLock auto_lock(lock_);
+  SCOPED_LOCK(lock_);
+  TRACE_EVENT1("gpu", "GpuPersistentCache::StoreData", "persistent_cache_",
+               !!persistent_cache_);
+  base::UmaHistogramBoolean(GetHistogramName("Store.CacheAvailable"),
+                            !!persistent_cache_);
   if (!persistent_cache_) {
     return;
   }
@@ -72,6 +98,11 @@ void GpuPersistentCache::StoreData(const void* key,
   persistent_cache_->Insert(
       key_str,
       UNSAFE_TODO(base::span(static_cast<const uint8_t*>(value), value_size)));
+}
+
+std::string GpuPersistentCache::GetHistogramName(
+    std::string_view metric) const {
+  return "GPU.PersistentCache." + cache_prefix_ + "." + std::string(metric);
 }
 
 }  // namespace gpu

@@ -94,9 +94,12 @@ WebNNGraphImpl::WebNNGraphImpl(
     base::WeakPtr<WebNNContextImpl> context,
     ComputeResourceInfo compute_resource_info,
     std::vector<mojom::Device> devices)
-    : WebNNObjectImpl<mojom::WebNNGraph, blink::WebNNGraphToken>(
+    : WebNNObjectImpl<mojom::WebNNGraph,
+                      blink::WebNNGraphToken,
+                      mojo::AssociatedReceiver<mojom::WebNNGraph>>(
           std::move(receiver),
-          context->scheduler_task_runner()),
+          context->scheduler_task_runner(),
+          context->owning_task_runner()),
       context_(std::move(context)),
       compute_resource_info_(std::move(compute_resource_info)),
       devices_(std::move(devices)) {
@@ -179,7 +182,7 @@ void WebNNGraphImpl::Dispatch(
   }
 
   // Call DispatchImpl() implemented by an `mojom::WebNNGraph` backend.
-  PostTaskToOwningTaskRunner(base::BindOnce(
+  PostTaskToSchedulerTaskRunner(base::BindOnce(
       [](WebNNGraphImpl* self,
          base::flat_map<std::string, scoped_refptr<WebNNTensorImpl>>
              name_to_input_tensor_map,

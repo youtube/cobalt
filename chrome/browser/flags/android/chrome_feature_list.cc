@@ -22,6 +22,7 @@
 #include "chrome/browser/task_manager/common/task_manager_features.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/common/chrome_features.h"
+#include "chrome_feature_list.h"
 #include "components/android_autofill/browser/android_autofill_features.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_payments_features.h"
@@ -213,6 +214,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kAndroidDesktopDensity,
     &kAndroidElegantTextHeight,
     &kAndroidFirstRunLaunchBounds,
+    &kAndroidLogoViewRefactor,
     &kAndroidProgressBarVisualUpdate,
     &kAndroidNoVisibleHintForDifferentTLD,
     &kAndroidOmniboxFocusedNewTabPage,
@@ -252,11 +254,13 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kAsyncNotificationManagerForDownload,
     &kAutomotiveBackButtonBarStreamline,
     &kAuxiliarySearchDonation,
+    &kAuxiliarySearchHistoryDonation,
     &kBatchTabRestore,
     &kBlockIntentsWhileLocked,
     &kBookmarkPaneAndroid,
     &kBrowserControlsDebugging,
     &kBrowserControlsEarlyResize,
+    &kBrowserControlsRenderDrivenShowConstraint,
     &kCacheActivityTaskID,
     &kCacheIsMultiInstanceApi31Enabled,
     &kCastDeviceFilter,
@@ -269,7 +273,6 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kCCTClientDataHeader,
     &kCCTContextualMenuItems,
     &kCCTDestroyTabWhenModelIsEmpty,
-    &kCCTEarlyNav,
     &kCCTExtendTrustedCdnPublisher,
     &kCCTFixWarmup,
     &kCCTFreInSameTask,
@@ -282,7 +285,6 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kCCTOpenInBrowserButtonIfAllowedByEmbedder,
     &kCCTOpenInBrowserButtonIfEnabledByEmbedder,
     &kCCTNavigationMetrics,
-    &kCCTPredictiveBackGesture,
     &kCCTRealtimeEngagementEventsInBackground,
     &kCCTReportParallelRequestStatus,
     &kCCTReportPrerenderEvents,
@@ -439,10 +441,10 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kThirdPartyDisableChromeAutofillSettingsScreen,
     &kToolbarPhoneAnimationRefactor,
     &kToolbarSnapshotRefactor,
+    &kToolbarStaleCaptureBugFix,
     &kToolbarTabletResizeRefactor,
     &kTopControlsRefactor,
     &kTouchToSearchCallout,
-    &kTraceBinderIpc,
     &kStartSurfaceReturnTime,
     &kUmaBackgroundSessions,
     &kUmaSessionCorrectnessFixes,
@@ -570,6 +572,8 @@ BASE_FEATURE(kAndroidElegantTextHeight, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kAndroidFirstRunLaunchBounds, base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kAndroidLogoViewRefactor, base::FEATURE_ENABLED_BY_DEFAULT);
+
 BASE_FEATURE(kAndroidProgressBarVisualUpdate,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -630,7 +634,7 @@ BASE_FEATURE(kAndroidThemeResourceProvider, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kAndroidToolbarScrollAblation, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kAndroidUseAdminsForEnterpriseInfo,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kAndroidWindowPopupLargeScreen, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -640,9 +644,7 @@ BASE_FEATURE(kAndroidWindowPopupPredictFinalBounds,
 BASE_FEATURE(kAndroidWindowPopupResizeAfterSpawn,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kAndroidXRUsesSurfaceControl,
-             "AndroidWindowPopupResizeAfterSpawn",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kAndroidXRUsesSurfaceControl, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kAndroidZoomIndicator, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -667,6 +669,9 @@ BASE_FEATURE(kAutomotiveBackButtonBarStreamline,
 
 BASE_FEATURE(kAuxiliarySearchDonation, base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kAuxiliarySearchHistoryDonation,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kTinkerTankBottomSheet, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kBatchTabRestore, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -678,6 +683,9 @@ BASE_FEATURE(kBookmarkPaneAndroid, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kBrowserControlsDebugging, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kBrowserControlsEarlyResize, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kBrowserControlsRenderDrivenShowConstraint,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kCacheActivityTaskID, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -705,8 +713,6 @@ BASE_FEATURE(kCCTContextualMenuItems, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kCCTDestroyTabWhenModelIsEmpty, base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kCCTEarlyNav, base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kCCTExtendTrustedCdnPublisher, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kCCTFixWarmup, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -732,8 +738,6 @@ BASE_FEATURE(kCCTOpenInBrowserButtonIfAllowedByEmbedder,
 
 BASE_FEATURE(kCCTOpenInBrowserButtonIfEnabledByEmbedder,
              base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kCCTPredictiveBackGesture, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGridTabSwitcherUpdate, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -921,7 +925,7 @@ BASE_FEATURE(kMostVisitedTilesReselect, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kMultiInstanceApplicationStatusCleanup,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kMvcUpdateViewWhenModelChanged, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kMvcUpdateViewWhenModelChanged, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kNativePageTransitionHardwareCapture,
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -1006,7 +1010,7 @@ BASE_FEATURE(kRelatedSearchesAllLanguage, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kRelatedSearchesSwitch, base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kReloadTabUiResourcesIfChanged, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kReloadTabUiResourcesIfChanged, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kRemoveTabFocusOnShowingAndSelect,
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -1098,19 +1102,19 @@ BASE_FEATURE(kTestDefaultEnabled, base::FEATURE_ENABLED_BY_DEFAULT);
 // and more" screen in the Chrome settings that don't apply in third party mode
 // and would confuse the user.
 BASE_FEATURE(kThirdPartyDisableChromeAutofillSettingsScreen,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kToolbarPhoneAnimationRefactor, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kToolbarSnapshotRefactor, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kToolbarStaleCaptureBugFix, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kToolbarTabletResizeRefactor, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kTopControlsRefactor, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kTouchToSearchCallout, base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kTraceBinderIpc, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSearchInCCT, base::FEATURE_DISABLED_BY_DEFAULT);
 

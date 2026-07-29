@@ -490,12 +490,12 @@ function absoluteURL(doc: Document, relativeURL: string): string {
  * function GetCanonicalActionForForm.
  * @return Canonical action.
  */
-gCrWebLegacy.fill.getCanonicalActionForForm = function(
+function getCanonicalActionForForm(
     formElement: HTMLFormElement): string {
   const rawAction = formElement.getAttribute('action') || '';
   const absoluteUrl = absoluteURL(formElement.ownerDocument, rawAction);
   return removeQueryAndReferenceFromURL(absoluteUrl);
-};
+}
 
 declare interface OptionFieldStrings {
     option_values: string[] & {toJSON?: string|null};
@@ -622,20 +622,20 @@ function coalesceTextByIdList(
  * or the value of the aria-label attribute, with priority given to the
  * aria-labelledby text.
  */
-gCrWebLegacy.fill.getAriaLabel = function(element: Element): string {
+function getAriaLabel(element: Element): string {
   let label = coalesceTextByIdList(element, 'aria-labelledby');
   if (!label) {
     label = element.getAttribute('aria-label') || '';
   }
   return label.trim();
-};
+}
 
 /**
  * Returns the coalesced text referenced by the aria-describedby attribute.
  */
-gCrWebLegacy.fill.getAriaDescription = function(element: Element): string {
+function getAriaDescription(element: Element): string {
   return coalesceTextByIdList(element, 'aria-describedby');
-};
+}
 
 /**
  * Searches an element's ancestors to see if the element is inside a <form> or
@@ -775,4 +775,7 @@ export {
   isVisibleNode,
   getUniqueID,
   shouldAutocomplete,
+  getAriaLabel,
+  getAriaDescription,
+  getCanonicalActionForForm,
 };

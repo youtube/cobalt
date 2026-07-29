@@ -21,6 +21,7 @@
 #import "components/policy/policy_constants.h"
 #import "components/pref_registry/pref_registry_syncable.h"
 #import "components/prefs/pref_service.h"
+#import "components/safety_check/safety_check_pref_names.h"
 #import "components/search/search.h"
 #import "components/search_engines/template_url_service.h"
 #import "components/signin/public/base/signin_metrics.h"
@@ -612,6 +613,7 @@
   [self stopSharingCoordinator];
   [self stopAccountMenuCoordinator];
   [self stopSigninCoordinator];
+  [self dismissCustomizationMenu];
 }
 
 #pragma mark - Setters
@@ -989,13 +991,28 @@
 
 // This also belongs to #pragma mark - SigninPromoViewMediatorDelegate
 - (void)showSigninWithCommand:(ShowSigninCommand*)command {
-  if (_signinCoordinator) {
+  if (_signinCoordinator.viewWillPersist) {
+    // There is a signin-coordinator currently being presented.
+    // Let’s call the completion block of the command in order to inform the
+    // giver of the command that the command is interrupted.
     SigninCoordinatorCompletionCallback completion = command.completion;
     if (completion) {
       completion(SigninCoordinatorResultInterrupted, nil);
     }
     return;
+  } else if (_signinCoordinator) {
+    // There may be a signin-coordinator being presented. Due to uncertainty,
+    // let’s close the current sign-in coordinator and start the new one.
+    _signinCoordinator.signinCompletion(SigninCoordinatorResultInterrupted,
+                                        nil);
+    // The signin-completion should have unset the sign-in coordinator.
+    CHECK(!_signinCoordinator, base::NotFatalUntil::M146);
   }
+  __weak __typeof(self) weakSelf = self;
+  [command addSigninCompletion:^(SigninCoordinatorResult result,
+                                 id<SystemIdentity>) {
+    [weakSelf showSigninCommandDidFinish];
+  }];
   _signinCoordinator =
       [SigninCoordinator signinCoordinatorWithCommand:command
                                               browser:self.browser
@@ -1780,18 +1797,15 @@
 
       PrefService* prefService = self.prefService;
       BOOL safetyCheckEnabled = prefService->GetBoolean(
-          prefs::kHomeCustomizationMagicStackSafetyCheckEnabled);
-      BOOL setUpListEnabled = prefService->GetBoolean(
-          prefs::kHomeCustomizationMagicStackSetUpListEnabled);
+          safety_check::prefs::kSafetyCheckHomeModuleEnabled);
       BOOL tabResumptionEnabled = prefService->GetBoolean(
           prefs::kHomeCustomizationMagicStackTabResumptionEnabled);
       BOOL tipsEnabled = prefService->GetBoolean(
           prefs::kHomeCustomizationMagicStackTipsEnabled);
       [self.NTPMetricsRecorder
-          recordMagicStackCustomizationStateWithSetUpList:setUpListEnabled
-                                              safetyCheck:safetyCheckEnabled
-                                            tabResumption:tabResumptionEnabled
-                                                     tips:tipsEnabled];
+          recordMagicStackCustomizationStateWithSafetyCheck:safetyCheckEnabled
+                                              tabResumption:tabResumptionEnabled
+                                                       tips:tipsEnabled];
 
       // TODO(crbug.com/350990359): Deprecate IOS.NTP.Impression when Home
       // Customization launches.

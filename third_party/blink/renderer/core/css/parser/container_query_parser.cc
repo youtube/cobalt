@@ -79,15 +79,15 @@ class SizeFeatureSet : public MediaQueryParser::FeatureSet {
            feature == media_feature_names::kAspectRatioMediaFeature ||
            feature == media_feature_names::kOrientationMediaFeature;
   }
+  bool IsAllowedWithValue(const AtomicString& feature) const override {
+    return true;
+  }
   bool IsCaseSensitive(const AtomicString& feature) const override {
     return false;
   }
   bool SupportsRange() const override { return true; }
   bool SupportsStyleRange() const override { return false; }
-  bool SupportsElementDependent() const override {
-    return RuntimeEnabledFeatures::
-        CSSSiblingFunctionsInContainerQueriesEnabled();
-  }
+  bool SupportsElementDependent() const override { return true; }
 };
 
 class StateFeatureSet : public MediaQueryParser::FeatureSet {
@@ -98,12 +98,14 @@ class StateFeatureSet : public MediaQueryParser::FeatureSet {
     return feature == media_feature_names::kStuckMediaFeature ||
            feature == media_feature_names::kSnappedMediaFeature ||
            feature == media_feature_names::kScrollableMediaFeature ||
-           (RuntimeEnabledFeatures::
-                CSSScrollDirectionContainerQueriesEnabled() &&
-            feature == media_feature_names::kDirectionMediaFeature);
+           (RuntimeEnabledFeatures::CSSScrolledContainerQueriesEnabled() &&
+            feature == media_feature_names::kScrolledMediaFeature);
   }
   bool IsAllowedWithoutValue(const AtomicString& feature,
                              const ExecutionContext*) const override {
+    return true;
+  }
+  bool IsAllowedWithValue(const AtomicString& feature) const override {
     return true;
   }
   bool IsCaseSensitive(const AtomicString& feature) const override {
@@ -111,10 +113,7 @@ class StateFeatureSet : public MediaQueryParser::FeatureSet {
   }
   bool SupportsRange() const override { return false; }
   bool SupportsStyleRange() const override { return false; }
-  bool SupportsElementDependent() const override {
-    return RuntimeEnabledFeatures::
-        CSSSiblingFunctionsInContainerQueriesEnabled();
-  }
+  bool SupportsElementDependent() const override { return true; }
 };
 
 class AnchoredFeatureSet : public MediaQueryParser::FeatureSet {
@@ -128,15 +127,15 @@ class AnchoredFeatureSet : public MediaQueryParser::FeatureSet {
                              const ExecutionContext*) const override {
     return true;
   }
+  bool IsAllowedWithValue(const AtomicString& feature) const override {
+    return true;
+  }
   bool IsCaseSensitive(const AtomicString& feature) const override {
     return false;
   }
   bool SupportsRange() const override { return false; }
   bool SupportsStyleRange() const override { return false; }
-  bool SupportsElementDependent() const override {
-    return RuntimeEnabledFeatures::
-        CSSSiblingFunctionsInContainerQueriesEnabled();
-  }
+  bool SupportsElementDependent() const override { return true; }
 };
 
 }  // namespace
@@ -219,7 +218,7 @@ const MediaQueryExpNode* ContainerQueryParser::ConsumeQueryInParens(
     // scroll-state(scrollable: [ none | top | right | bottom | left |
     // block-start | inline-start | block-end | inline-end | x | y | block |
     // inline ] )
-    // scroll-state(direction: [ none | top | right | bottom | left
+    // scroll-state(scrolled: [ none | top | right | bottom | left
     // | block-start | inline-start | block-end | inline-end | x | y | block |
     // inline ] )
     CSSParserTokenStream::RestoringBlockGuard guard(stream);

@@ -40,6 +40,7 @@
 <translation id="1500473259453106018">Paslēpt kartīti “Cenu kritums cilnēs”</translation>
 <translation id="1508931164824684991">Atļaut vietnēm izmantot JavaScript</translation>
 <translation id="1510341833810331442">Vietnēm nav atļauts saglabāt datus jūsu ierīcē</translation>
+<translation id="1532175480576580256">Ekrāna apakšdaļas lapa “Manas saīsnes” ir atvērta pilnā augstumā</translation>
 <translation id="1538031354170655462">Vietnēs parasti tiek izmantoti tuva darbības lauka sakari (NFC), lai darbotos ar tuvumā esošiem izsekotājiem vai ierīcēm, piemēram, skenētu emblēmas vai veiktu bezkontakta maksājumus.</translation>
 <translation id="1547123415014299762">Trešo pušu sīkfaili ir atļauti</translation>
 <translation id="1569054338208717605">Paātrināt vietņu darbību, izmantojot Chrome programmu V8, bet nedaudz samazināt Chrome izturību pret uzbrukumiem</translation>
@@ -115,6 +116,7 @@
 <translation id="228293613124499805">Lielākā daļa apmeklēto vietņu, iespējams, saglabā datus jūsu ierīcē. Bieži vien jūsu preferences vai ar vietni kopīgotā informācija tiek saglabāta, lai uzlabotu jums pieejamās lietošanas iespējas. Šo iestatījumu ieteicams atstāt ieslēgtu.</translation>
 <translation id="2289270750774289114">Vaicāt, ja vietne vēlas redzēt tuvumā esošās Bluetooth ierīces (ieteicams)</translation>
 <translation id="2315043854645842844">Operētājsistēma neatbalsta klienta puses sertifikāta atlasi.</translation>
+<translation id="2347601491101454548">Ekrāna apakšdaļas lapa “Manas saīsnes” ir atvērta pusekrāna augstumā</translation>
 <translation id="2359808026110333948">Turpināt</translation>
 <translation id="2379925928934107488">Lietojiet tumšo motīvu vietnēs, kad tumšais motīvs tiek izmantots pārlūkā Chrome (ja iespējams)</translation>
 <translation id="2390272837142897736">Tālināt</translation>
@@ -145,6 +147,11 @@
 <translation id="2588271083332682494">Ciļņu kārtošana, izmantojot ciļņu grupas</translation>
 <translation id="2597457036804169544">Varat vietnēs nelietot tumšo motīvu</translation>
 <translation id="2606760465469169465">Automātiska verifikācija</translation>
+<translation id="2610903128639500624">Pārvaldība <ph name="BEGIN_LINK1" />Android iestatījumos<ph name="END_LINK1" />
+
+Papildu aizsardzība pārvalda tālāk norādītos Chrome iestatījumus
+• Tiek ieslēgts iestatījums “Vienmēr izmantot drošus savienojumus”.
+• Tiek izslēgts iestatījums “JavaScript optimizētājs”. <ph name="BEGIN_LINK2" />Pārvaldīt vietņu izņēmumus<ph name="END_LINK2" /></translation>
 <translation id="2621115761605608342">Atļaut JavaScript konkrētai vietnei</translation>
 <translation id="2626708220538466178">Noklusējuma pārlūka ekrāna apakšdaļas lapa ir aizvērta</translation>
 <translation id="2653659639078652383">Iesniegt</translation>
@@ -303,6 +310,7 @@
 <translation id="4336566011000459927">Šodien pārlūkā Chrome atkal tiks ierobežoti sīkfaili</translation>
 <translation id="4338831206024587507">Visas vietnes domēnā <ph name="DOMAIN" /></translation>
 <translation id="4340799661701629185">Neļaut vietnēm sūtīt paziņojumus</translation>
+<translation id="4341577178275615435">Lai ieslēgtu vai izslēgtu taustiņpārlūkošanu, izmantojiet īsinājumtaustiņu F7.</translation>
 <translation id="4402755511846832236">Nerādīt vietnēm, kad jūs aktīvi lietojat šo ierīci</translation>
 <translation id="4412683424767388419">Chrome krāsu ekrāna apakšdaļas lapa ir atvērta pusekrāna augstumā</translation>
 <translation id="4412992751769744546">Atļaut trešo pušu sīkfailus</translation>
@@ -337,6 +345,7 @@
 <translation id="4816495437032298535">Saglabātā tālummaiņa vietnēm</translation>
 <translation id="4836046166855586901">Vaicāt, ja vietne vēlas zināt, kad jūs aktīvi lietojat šo ierīci</translation>
 <translation id="483914009762354899">Iekļaut visas šī domēna vietnes</translation>
+<translation id="4852997963351138624">Fona krāsas heksadecimālais kods</translation>
 <translation id="4882919381756638075">Parasti vietnēs mikrofons tiek izmantots, lai nodrošinātu noteiktas saziņas funkcijas, piemēram, video tērzēšanu.</translation>
 <translation id="4883854917563148705">Pārvaldītos iestatījumus nevar atiestatīt</translation>
 <translation id="4887024562049524730">Vaicāt, pirms atļaut vietnēm piekļūt jūsu virtuālās realitātes ierīcei un datiem (ieteicams)</translation>
@@ -500,6 +509,7 @@
 <translation id="6608650720463149374"><ph name="GIGABYTES" /> GB</translation>
 <translation id="6612358246767739896">Aizsargāts saturs</translation>
 <translation id="662080504995468778">Palikt</translation>
+<translation id="6630443592285535486">Šeit ievadiet heksadecimālo kodu</translation>
 <translation id="6635327442719709864">Kad šis slēdzis ir ieslēgts, vietnes var pieprasīt atļauju izmantot seriālos portus. Kad tas ir izslēgts, vietnes nevar izmantot seriālos portus.</translation>
 <translation id="6678072580827808850">Pārskatīt drošības pārbaudi</translation>
 <translation id="6682057173375416470">Saņemiet ieteiktos rakstus jaunas cilnes lapā</translation>
@@ -557,6 +567,7 @@
 <translation id="7399802613464275309">Drošības pārbaude</translation>
 <translation id="7406113532070524618">Šis iestatījums darbojas, neidentificējot jūs vai neatļaujot vietnēm skatīt jūsu pārlūkošanas vēsturi, taču verifikācijas nolūkos vietnes var kopīgot nelielu informācijas daudzumu</translation>
 <translation id="7409735910987429903">Vietnēs var tikt nosūtīti uznirstošie elementi reklāmu rādīšanai vai izmantota novirzīšana uz vietnēm, kuras, iespējams, nevēlaties apmeklēt.</translation>
+<translation id="7412160840120117304">Galvenās krāsas heksadecimālais kods</translation>
 <translation id="7423098979219808738">Vispirms jautāt</translation>
 <translation id="7423538860840206698">Bloķēta starpliktuves satura lasīšana</translation>
 <translation id="7425915948813553151">Tumšā motīva lietošana vietnēs</translation>

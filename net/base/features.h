@@ -300,9 +300,6 @@ NET_EXPORT BASE_DECLARE_FEATURE(kCookieDomainRejectNonASCII);
 
 NET_EXPORT BASE_DECLARE_FEATURE(kThirdPartyStoragePartitioning);
 
-// Controls consideration of top-level 3PCD origin trial settings.
-NET_EXPORT BASE_DECLARE_FEATURE(kTopLevelTpcdOriginTrial);
-
 // Feature to enable consideration of 3PC deprecation trial settings.
 NET_EXPORT BASE_DECLARE_FEATURE(kTpcdTrialSettings);
 
@@ -779,6 +776,10 @@ NET_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
 // exceeds this value and the browser is idle, a checkpoint is executed.
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
                                       kSqlDiskCacheIdleCheckpointThreshold);
+// While the memory usage for the buffer doesn't exceed the number of bytes
+// specified by this param, the SQL backend executes optimistic writes.
+NET_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
+                                      kSqlDiskCacheOptimisticWriteBufferSize);
 #endif  // ENABLE_DISK_CACHE_SQL_BACKEND
 
 // If enabled, ignore Strict-Transport-Security for [*.]localhost hosts.
@@ -819,6 +820,16 @@ NET_EXPORT BASE_DECLARE_FEATURE_PARAM(bool,
 // hints indicate that the disk cache entry is not usable.
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(bool,
                                       kHttpCacheNoVarySearchKeepNotSuitable);
+
+// Whether to use the new implementation of
+// HttpNoVarySearchData::AreEquivalent().
+NET_EXPORT BASE_DECLARE_FEATURE(kHttpNoVarySearchDataUseNewAreEquivalent);
+
+// Whether to check the result against the old implementation and
+// DumpWithoutCrashing() if they differ.
+NET_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    bool,
+    kHttpNoVarySearchDataAreEquivalentCheckResult);
 
 // Enables sending the CORS Origin header on the POST request for Reporting API
 // report uploads.
@@ -922,8 +933,8 @@ NET_EXPORT BASE_DECLARE_FEATURE_PARAM(std::string, kQuicHintHostPortPairs);
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(std::string,
                                       kWildcardQuicHintHostPortPairs);
 
-// Enables support for Public Resolver Errors (PRE), based on Version 1 of the
-// https://datatracker.ietf.org/doc/draft-nottingham-public-resolver-errors/01/
+// Enables support for Public Resolver Errors (PRE), based on Version 2 of the
+// https://datatracker.ietf.org/doc/draft-nottingham-public-resolver-errors/02/
 // When enabled, clients will attempt to parse structured error information
 // from the EXTRA-TEXT field of Extended DNS Errors.
 NET_EXPORT BASE_DECLARE_FEATURE(kDnsFilteringDetails);
@@ -934,6 +945,15 @@ NET_EXPORT BASE_DECLARE_FEATURE(kDnsFilteringDetails);
 // Note that this flag is only set for metric collection.
 NET_EXPORT BASE_DECLARE_FEATURE(kUpdateIsMainFrameOriginRecentlyAccessed);
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(size_t, kRecentlyAccessedOriginCacheSize);
+
+// When enabled, the browser tries QUIC by default.
+NET_EXPORT BASE_DECLARE_FEATURE(kTryQuicByDefault);
+
+// The QUIC connection options which will be sent to the server in order to
+// enable certain QUIC features. This should be set using `QuicTag`s (32-bit
+// value represented in ASCII equivalent e.g. EXMP). To set multiple features,
+// separate the values with a comma (e.g. "ABCD,EFGH").
+NET_EXPORT BASE_DECLARE_FEATURE_PARAM(std::string, kQuicOptions);
 
 }  // namespace net::features
 

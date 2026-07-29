@@ -894,10 +894,10 @@
       status: "stable",
     },
     {
-      // crbug.com/389726691.
-      name: "CanvasTextNg",
-      origin_trial_feature_name: "CanvasTextNg",
-      status: "stable",
+      // Canvas2D API for specifying HDR tone mapping behavior.
+      // https:/crbug.com/448552449, https://github.com/whatwg/html/issues/11424
+      name: "CanvasToneMapping",
+      status: "experimental",
     },
     {
       // Kill switch for https://crbug.com/330506337.
@@ -948,10 +948,6 @@
       status: "stable",
     },
     {
-      name: "CascadedAfterChangeStyle",
-      status: "stable",
-    },
-    {
       // Kill switch for changes to RenderFrameMetadataObserverImpl in connection with Engagement
       // Signals. See https://crrev.com/c/4544201 and https://crbug.com/1458640.
       name: "CCTNewRFMPushBehavior",
@@ -965,6 +961,22 @@
     },
     {
       name: "CheckVisibilityExtraProperties",
+      status: "stable",
+    },
+    {
+      // Set currentTarget to null after dispatch for EventTarget.
+      // This was added in M142 and can be removed after M144.
+      // https://issues.chromium.org/issues/346766786
+      name: "ClearCurrentTargetAfterDispatch",
+      status: "stable",
+    },
+    {
+      // Determine clearing of target and relatedTarget by checking
+      // if the top node is in shadow tree.
+      // This was added in M142 and can be removed after M144.
+      // https://issues.chromium.org/issues/373655918
+      // https://issues.chromium.org/issues/40253359
+      name: "ClearTargetOnlyIfInShadowTree",
       status: "stable",
     },
     {
@@ -1031,11 +1043,12 @@
       status: "stable",
     },
     {
-      // Return an empty list from composedPath() when the event
-      // path is empty.
+      // Return the current target from composedPath() while
+      // dispatching.
       // This was added in M142 and can be removed after M144.
       // https://issues.chromium.org/issues/444932649
-      name: "ComposedPathEmptyAfterDispatch",
+      // https://issues.chromium.org/issues/346766786
+      name: "ComposedPathReturnTargetBeingDispatched",
       status: "stable",
     },
     {
@@ -1102,16 +1115,6 @@
       // selections.
       name: "ConsiderSubOrSuperScriptAncestorAlignForCaretSelection",
       status: "stable"
-    },
-    {
-      // See https://crbug.com/426067493 for details.
-      name: "ConsiderUpstreamPositionForFindingNextLine",
-      status: "stable",
-    },
-    {
-      // See https://crbug.com/40679713 for details.
-      name: "ConsiderUpstreamPositionForFindingPreviousLine",
-      status: "stable",
     },
     {
       name: "ContactsManager",
@@ -1330,16 +1333,8 @@
       status: "stable",
     },
     {
-      name: "CSSExponentialFunctions",
-      status: "stable",
-    },
-    {
       name: "CSSFallbackContainerQueries",
       status: "experimental",
-    },
-    {
-      name: "CSSFilterBrightnessNonNegativePercentage",
-      status: "stable",
     },
     {
       // crbug.com/417306102
@@ -1371,11 +1366,6 @@
       // // https://drafts.csswg.org/css-values-5/#ident
       name: "CSSIdentFunction",
       status: "test",
-    },
-    {
-      // Support making elements inert through the interactivity property.
-      name: "CSSInert",
-      status: "stable",
     },
     {
       // CSS if() function for custom properties. Flag is used only for media
@@ -1450,11 +1440,6 @@
     {
       name: "CSSMixins",
       status: "experimental",
-    },
-    {
-      // Kill switch for crbug.com/378966977
-      name: "CSSNegatedFeatureless",
-      status: "stable",
     },
     {
       name: "CSSNestedPseudoElements",
@@ -1554,7 +1539,8 @@
       status: "experimental",
     },
     {
-      name: "CSSScrollDirectionContainerQueries",
+      // https://drafts.csswg.org/css-conditional-5/#scrolled
+      name: "CSSScrolledContainerQueries",
       status: "test",
     },
     {
@@ -1616,16 +1602,6 @@
       base_feature: "CssSelectorFragmentAnchor",
     },
     {
-      // sibling-index() and sibling-count()
-      name: "CSSSiblingFunctions",
-      status: "stable",
-    },
-    {
-      // Allow sibling-index() and sibling-count() in @container queries
-      name: "CSSSiblingFunctionsInContainerQueries",
-      status: "stable",
-    },
-    {
       name: "CSSSignRelatedFunctions",
       status: "stable",
     },
@@ -1667,11 +1643,6 @@
       name: "CSSTextSpacing",
       depends_on: ["CSSTextAutoSpace"],
       status: "test",
-    },
-    {
-      // crbug.com/41442840: Enabled by default on M139, remove after M141.
-      name: "CSSTransitionNoneRunningTransitionsFix",
-      status: "stable",
     },
     {
       // Support for tree-scoped [1] timeline names (e.g. produced by
@@ -1717,15 +1688,13 @@
       status: "stable",
     },
     {
-      // Replaces \r\n and \r with \n in setCustomValidity.
-      // https://github.com/whatwg/html/pull/10350
-      // https://issues.chromium.org/issues/340814283
-      name: "CustomValidityNormalizeNewlines",
-      status: "stable",
-    },
-    {
       // https://chromestatus.com/feature/5134293578285056
       name: "Database",
+    },
+    // https://crbug.com/448174611
+    {
+      name: "DeclarativeCSSModules",
+      status: "test",
     },
     {
       // https://crbug.com/393631108
@@ -1817,13 +1786,6 @@
     {
       name: "DialogNewFocusBehavior",
       status: "experimental",
-    },
-    {
-      // Prevents <form method=dialog> from submitting across shadow boundaries
-      // when looking for an ancestor <dialog> element.
-      // https://issues.chromium.org/issues/40229445
-      name: "DialogSubmitShadowBoundaries",
-      status: "stable",
     },
     {
       name: "DigitalGoods",
@@ -2059,6 +2021,10 @@
       // https://github.com/MicrosoftEdge/MSEdgeExplainers/blob/main/ElementInternalsType/explainer.md
       name: "ElementInternalsDotType",
       status: "experimental",
+    },
+    {
+      name: "EmphasisMarkShapeCache",
+      status: "stable",
     },
     {
       name: "EnforceAnonymityExposure",
@@ -2497,7 +2463,7 @@
     {
       // crbug.com/41170551
       name: "FontLanguageOverride",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "FontMatchAliasesAsLastResort",
@@ -2574,6 +2540,10 @@
       name: "GamepadMultitouch",
       status: "experimental",
       public: true,
+    },
+    {
+      name: "GamepadWindowEventHandlers",
+      status: "experimental",
     },
     {
       // Tracking bug for the implementation: https://crbug.com/430204832
@@ -2689,12 +2659,6 @@
       origin_trial_feature_name: "HrefTranslate",
       status: "stable",
       base_feature: "none",
-    },
-    {
-      // Adds color:gray to the <hr> element in the UA stylesheet.
-      // https://issues.chromium.org/issues/425113244
-      name: "HrElementGray",
-      status: "stable",
     },
     // The `anchor` attribute, supported by both anchor positioning and the
     // popover API.
@@ -2865,10 +2829,6 @@
       status: "stable",
     },
     {
-      name: "InsertLineBreakIfInlineListItem",
-      status: "stable",
-    },
-    {
       // crbug.com/1420675
       name: "InsertLineBreakIfPhrasingContent",
       status: {"Android": "test", "default": "stable"},
@@ -2905,11 +2865,6 @@
     {
       name: "InterestGroupsInSharedStorageWorklet",
       public: true,
-      status: "stable",
-    },
-    {
-      // If enabled, IntersectionObserverScrollMargin will be parsed.
-      name: "IntersectionObserverScrollMargin",
       status: "stable",
     },
     {
@@ -2951,6 +2906,7 @@
         "Mac": "stable",
         "Linux": "stable",
         "ChromeOS": "stable",
+        "Android": "test",
         "default": "",
       },
       origin_trial_feature_name: "LanguageDetectionAPI",
@@ -2975,12 +2931,6 @@
       base_feature: "LayoutNGShapeCache",
     },
     {
-      name: "LazyInitializeMediaControls",
-      base_feature: "none",
-      public: true,
-      // This is enabled by features::kLazyInitializeMediaControls.
-    },
-    {
       // Allow triggering the word suggestion from left click.
       // From crbug.com/433209485
       name: "LeftClickToHandleSuggestion",
@@ -2989,16 +2939,18 @@
       }
     },
     {
+      // Makes light dismiss for popovers and dialogs use the click event
+      // instead of pointerdown and pointerup in order to fix light dismiss
+      // bugs for touch inputs.
+      // https://issues.chromium.org/issues/408010435
+      name: "LightDismissFromClick",
+      status: "experimental",
+    },
+    {
       name: "LimitThirdPartyCookies",
       origin_trial_feature_name: "LimitThirdPartyCookies",
       status: "experimental",
       base_feature: "none",
-    },
-    {
-      // Stop emitting U+FFFC Object Replacement Character for out-of-flow
-      // objects such as floating or out-of-flow positioned. crbug.com/40658609
-      name: "LineBreakOofNoOrc",
-      status: "stable",
     },
     {
       // Improves the logic for removing focus from a currently focused <a>
@@ -3011,12 +2963,6 @@
     },
     {
       name: "ListOwnerMustHaveCSSBox",
-      status: "stable",
-    },
-    {
-      // Enabling this changes the `list-style-position` quirk to match the
-      // HTML standard spec.
-      name: "ListStylePositionQuirkStandard",
       status: "stable",
     },
     {
@@ -3164,12 +3110,6 @@
     {
       name: "MediaCaptureVoiceIsolation",
       status: "experimental",
-    },
-    // Set to reflect the MediaCastOverlayButton feature.
-    {
-      name: "MediaCastOverlayButton",
-      base_feature: "none",
-      public: true,
     },
     {
       name: "MediaControlsExpandGesture",
@@ -3395,6 +3335,10 @@
       status: "stable",
     },
     {
+      name: "NonEmptyVisibleTextSelectionForTextFragment",
+      status: "stable",
+    },
+    {
       // TODO(crbug.com/1426629): This feature enables the deprecated value
       // slider-vertical. Disable this feature to stop parsing or allowing these
       // values.
@@ -3450,15 +3394,6 @@
     },
     {
       name: "OnDeviceWebSpeechAvailable",
-      status: "stable",
-    },
-    {
-      // This flag makes the <option> element's label attribute render the
-      // contents of the label attribute even if it is only whitespace in order
-      // to match the spec and firefox. It also stops stripping/simplifying
-      // whitespace when using the label attribute for rendering.
-      // https://github.com/whatwg/html/issues/10955
-      name: "OptionLabelAttributeWhitespace",
       status: "stable",
     },
     {
@@ -3780,6 +3715,12 @@
     },
     {
       name: "PositionOutsideTabSpanCheckSiblingNode",
+      status: "stable",
+    },
+    {
+      // Kill switch for https://crbug.com/448173938 which changes position
+      // visibility to ignore non-clipping ancestors.
+      name: "PositionVisibilityIgnoreNonClipAncestors",
       status: "stable",
     },
     {
@@ -4282,11 +4223,6 @@
       status: "stable",
     },
     {
-      // crbug.com/324111880
-      name: "RubyShortHeuristics",
-      status: "stable",
-    },
-    {
       // HTML event loop invoking 'Run snapshot post-layout state steps' from
       // the CSSOM View per spec proposal.
       name: "RunSnapshotPostLayoutStateSteps",
@@ -4305,10 +4241,6 @@
       // Tracking bug: crbug.com/356601280
       name: "SanitizerAPI",
       status: "test",
-    },
-    {
-      name: "SchedulerYieldDisallowCrossFrameInheritance",
-      status: "stable",
     },
     {
       // https://wicg.github.io/webcomponents/proposals/Scoped-Custom-Element-Registries
@@ -4660,10 +4592,6 @@
       status: "experimental",
     },
     {
-      name: "SkipLineBreakItemWhenIsCollapsed",
-      status: "stable",
-    },
-    {
       name: "SkipOofItemForBreakCandidate",
       status: "stable",
     },
@@ -4691,10 +4619,6 @@
       base_feature: "none",
       public: true,
       status: {"Android": "test"},
-    },
-    {
-      name: "SmilKeyTimesKeyPointsAllowTrailingSemicolon",
-      status: "stable",
     },
     {
       // Used to enable the code for detecting soft navigations through task
@@ -4773,8 +4697,10 @@
       origin_trial_allows_third_party: true,
     },
     {
+      // Preserves the sticky user activation state after a page navigates to
+      // another same-origin page. https://crbug.com/433729626
       name: "StickyUserActivationAcrossSameOriginNavigation",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "StorageBuckets",
@@ -4822,12 +4748,6 @@
       status: "stable",
     },
     {
-      // Feature for updating SVG presentation attribute style eagerly. This is
-      // a kill switch in case we encounter issues with this optimization.
-      name: "SvgEagerPresAttrStyleUpdate",
-      status: "stable",
-    },
-    {
       // Treat SVG documents in <object>/<embed> as replaced elements
       // https://issues.chromium.org/41302806
       name: "SVGEmbeddedAsReplacedElement",
@@ -4836,16 +4756,6 @@
     {
       name: "SvgEnableTextDecorationCssStyling",
       status: "experimental",
-    },
-    {
-      // Enables loading of external SVG resource documents for the 'clip-path',
-      // 'fill', 'stroke' and 'marker-*' properties.
-      name: "SvgExternalResources",
-      status: "stable",
-    },
-    {
-      name: "SvgFeConvolveMatrixZeroDivisorBehavior",
-      status: "stable",
     },
     {
       name: "SvgFilterPaintsForHiddenContent",
@@ -4865,10 +4775,6 @@
       status: "test",
     },
     {
-      name: "SvgNoPixelSnappingScaleAdjustment",
-      status: "stable",
-    },
-    {
       name: "SvgPartitionSVGDocumentResourcesInMemoryCache",
       status: "stable",
     },
@@ -4882,10 +4788,6 @@
     },
     {
       name: "SvgSmilPruneInstanceTimes",
-      status: "stable",
-    },
-    {
-      name: "SvgTextCentralBaselineTextDecorationFix",
       status: "stable",
     },
     {
@@ -5122,15 +5024,6 @@
     {
       name: "TimeZoneChangeEvent",
       status: "experimental",
-    },
-    {
-      // Adds an "source" attribute to ToggleEvent which is set to the button
-      // that invoked the element which the toggle event was fired on, if
-      // appropriate.
-      // https://issues.chromium.org/issues/408018828
-      // https://github.com/whatwg/html/issues/9111
-      name: "ToggleEventSource",
-      status: "stable",
     },
     {
       name: "TopicsAPI",
@@ -5653,18 +5546,6 @@
       base_feature: "none",
     },
     {
-      name: "WebCodecsCopyToRGB",
-      status: "stable",
-    },
-    {
-      name: "WebCodecsHBDFormats",
-      status: "stable",
-    },
-    {
-      name: "WebCodecsOrientation",
-      status: "stable",
-    },
-    {
       name: "WebCodecsVideoEncoderBuffers",
       status: "experimental",
     },
@@ -5932,7 +5813,8 @@
     },
     {
       name: "WidthAndHeightAsPresentationAttributesOnNestedSvg",
-      status: "stable",
+      // Disabled due to web compat issues, see https://crbug.com/449170647.
+      status: "experimental",
     },
     {
       name: "WidthAndHeightStylePropertiesOnUseAndSymbol",

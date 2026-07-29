@@ -78,8 +78,10 @@ LensSidePanelUntrustedUI::LensSidePanelUntrustedUI(content::WebUI* web_ui)
   html_source->AddLocalizedString(
       "searchboxGhostLoaderNoSuggestText",
       IDS_GOOGLE_SEARCH_BOX_CONTEXTUAL_NO_SUGGEST_TEXT);
-  html_source->AddLocalizedString("feedbackToastMessage",
-                                  IDS_LENS_OVERLAY_FEEDBACK_TOAST_MESSAGE);
+  html_source->AddLocalizedString(
+      "feedbackToastMessage", lens::features::IsLensUpdatedFeedbackEnabled()
+                                  ? IDS_LENS_OVERLAY_FEEDBACK_TOAST_MESSAGE_ALT
+                                  : IDS_LENS_OVERLAY_FEEDBACK_TOAST_MESSAGE);
   html_source->AddLocalizedString("sendFeedbackButtonText",
                                   IDS_LENS_OVERLAY_SEND_FEEDBACK_BUTTON_LABEL);
   html_source->AddLocalizedString(
@@ -109,6 +111,9 @@ LensSidePanelUntrustedUI::LensSidePanelUntrustedUI(content::WebUI* web_ui)
   html_source->AddBoolean(
       "newFeedbackEnabled",
       lens::features::IsLensSearchSidePanelNewFeedbackEnabled());
+  html_source->AddInteger(
+      "updatedFeedbackToastTimeoutMs",
+      lens::features::GetLensUpdatedFeedbackToastTimeoutMs());
   html_source->AddString("resultsSearchURL",
                          lens::features::GetLensOverlayResultsSearchURL());
   html_source->AddBoolean(
@@ -136,6 +141,10 @@ LensSidePanelUntrustedUI::LensSidePanelUntrustedUI(content::WebUI* web_ui)
       aim_enabled && lens::features::GetAimSearchboxEnabled());
   html_source->AddBoolean("showLensButton",
                           lens::features::GetEnableLensButtonInSearchbox());
+  html_source->AddBoolean("updatedFeedbackEnabled",
+                          aim_enabled &&
+                              lens::features::GetAimSearchboxEnabled() &&
+                              lens::features::IsLensUpdatedFeedbackEnabled());
 
   // Allow FrameSrc from all Google subdomains as redirects can occur.
   GURL results_side_panel_url =
@@ -221,6 +230,7 @@ LensSidePanelUntrustedUI::LensSidePanelUntrustedUI(content::WebUI* web_ui)
   html_source->AddBoolean("composeboxShowPdfUpload", false);
   html_source->AddBoolean("composeboxSmartComposeEnabled", false);
   html_source->AddBoolean("composeboxShowDeepSearchButton", false);
+  html_source->AddBoolean("composeboxShowCreateImageButton", false);
 
   // If the ThemeSource isn't added here, since this WebUI is
   // chrome-untrusted, it will be unable to load stylesheets until a new tab

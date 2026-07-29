@@ -3,6 +3,7 @@
 <translationbundle lang="pt-PT">
 <translation id="1076643793026027628">O Chrome abre automaticamente links de Navegação anónima do YouTube na Navegação anónima.</translation>
 <translation id="1086486568852410168">Pesquisar com o Google Lens</translation>
+<translation id="1088490543924960890">Comece a guardar chaves de acesso com o Gestor de Palavras-passe da Google</translation>
 <translation id="1143896152279775643">A palavra-passe será guardada no Gestor de palavras-passe da Google para <ph name="EMAIL" />.</translation>
 <translation id="1146503048444965320">Abra um novo separador no Chrome</translation>
 <translation id="1158134713295836892">Gemini no Chrome</translation>
@@ -86,6 +87,9 @@ Experimente aguardar alguns minutos antes de terminar sessão. Se terminar sess�
 <translation id="2940565985148833945">Sugestão do Chrome: pesquise com o Lens</translation>
 <translation id="2957447865124070833">Selecione <ph name="BEGIN_BOLD" />Chrome<ph name="END_BOLD" />.</translation>
 <translation id="2986402782150919988">Adicione marcadores ao Chrome</translation>
+<translation id="3027236223714901838">Para manter as suas chaves de acesso seguras, primeiro tem de criar um PIN de recuperação.
+
+        As chaves de acesso são guardadas no Gestor de Palavras-passe da Google, o que lhe permite usá-las no Chrome em qualquer dispositivo.</translation>
 <translation id="3030414234702425231">Uma vez que está a terminar sessão numa conta gerida por <ph name="SIGNOUT_MANAGED_DOMAIN" />, os seus dados do Chrome serão eliminados deste dispositivo. Contudo, permanecem na sua Conta Google.</translation>
 <translation id="3042447686908081308">Importar para Chrome</translation>
 <translation id="3051521853355903257">Faça a gestão das palavras-passe no Chrome</translation>
@@ -256,6 +260,7 @@ Para ver mais definições que usam dados para melhorar a sua experiência do Ch
 <translation id="7371674917547846460">Mantenha-se a par das dicas úteis do Chrome e muito mais.</translation>
 <translation id="7394108421562933108">Maps no Chrome</translation>
 <translation id="7400722733683201933">Acerca do Google Chrome</translation>
+<translation id="7444830584401232881">Esta chave de acesso vai ser guardada no Gestor de Palavras-passe da Google de <ph name="USER_EMAIL" />.</translation>
 <translation id="7466693328838535498">Na caixa Widgets de Pesquisa, introduza "Chrome"</translation>
 <translation id="7477056987201678345">A eliminar os dados do Chrome…</translation>
 <translation id="7492574581995589075">A sua organização desativou a capacidade de usar e guardar dados do Chrome na sua Conta Google. Os novos marcadores, palavras-passe e muito mais são guardados apenas neste dispositivo.</translation>

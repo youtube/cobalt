@@ -63,7 +63,7 @@ chromium-metrics-reviews@google.com.
 </variants>
 
 <histogram name="WebCore.DistillabilityUs" units="microseconds"
-    expires_after="2026-01-25">
+    expires_after="2026-03-29">
   <owner>wychen@chromium.org</owner>
   <owner>gilmanmh@google.com</owner>
   <summary>
@@ -453,7 +453,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebCore.IndexedDB.RequestDuration2.{RequestType}.Foreground"
-    units="ms" expires_after="2026-01-25">
+    units="ms" expires_after="2026-03-29">
   <owner>estade@chromium.org</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
@@ -484,8 +484,9 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebCore.IndexedDB.Transaction.{TransactionType}.TimeActive2"
-    units="ms" expires_after="2025-11-09">
-  <owner>estade@chromium.org</owner>
+    units="ms" expires_after="2026-11-02">
+  <owner>leimy@chromium.org</owner>
+  <owner>evanstade@microsoft.com</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
     The time it takes for an IndexedDB transaction to commit, starting from when
@@ -497,8 +498,9 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="WebCore.IndexedDB.Transaction.{TransactionType}.TimeActive2.Foreground"
-    units="ms" expires_after="2026-01-25">
-  <owner>estade@chromium.org</owner>
+    units="ms" expires_after="2026-11-02">
+  <owner>leimy@chromium.org</owner>
+  <owner>evanstade@microsoft.com</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
     Only recorded for foreground tabs, i.e. priority 0 clients, as of when the

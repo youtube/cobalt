@@ -21,6 +21,10 @@
 
 class BrowserView;
 
+namespace views {
+class Label;
+}
+
 // This enum is used for functions who rely on the state of the browser to alter
 // the appearance of the window frame.
 enum class BrowserFrameActiveState {
@@ -161,6 +165,13 @@ class BrowserFrameView : public views::FrameView {
   virtual gfx::Rect GetBoundsForWebAppFrameToolbar(
       const gfx::Size& toolbar_preferred_size) const = 0;
 
+  // Lays out the window title for a web app within the given available space.
+  // Unlike the above GetBounds methods this is not just a method to return the
+  // bounds the title should occupy, since different implementations might also
+  // want to change other attributes of the title, such as alignment.
+  virtual void LayoutWebAppWindowTitle(const gfx::Rect& available_space,
+                                       views::Label& window_title_label) const;
+
   // Returns the inset from the top of the window to the top of the client
   // view. For a tabbed browser, this is the space occupied by the tab strip.
   // For popup windows, this is the toolbar. For app windows, this is the
@@ -175,7 +186,12 @@ class BrowserFrameView : public views::FrameView {
 
   // Returns true if the top UI (tabstrip, toolbar) should be hidden because the
   // browser is in fullscreen mode.
-  virtual bool ShouldHideTopUIForFullscreen() const;
+  virtual bool ShouldHideTopUIInFullscreen() const;
+
+  // Returns true if a toolbar should be shown in the current browser, false if
+  // not. If this returns false, there is no reason to call e.g.
+  // `GetBoundsForWebAppFrameToolbar()`.
+  virtual bool ShouldShowWebAppFrameToolbar() const;
 
   // Returns whether the user is allowed to exit fullscreen on their own (some
   // special modes lock the user in fullscreen).

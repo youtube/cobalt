@@ -1010,6 +1010,26 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
+<histogram name="Enterprise.DeviceSignals.HarmfulApps.Count" units="count"
+    expires_after="2026-10-01">
+  <owner>xzonghan@chromium.org</owner>
+  <owner>cbe-device-trust-eng@google.com</owner>
+  <summary>
+    Recorded the number of potentialy harmful apps when SafetyNet correctly
+    collect this information.
+  </summary>
+</histogram>
+
+<histogram name="Enterprise.DeviceSignals.HarmfulApps.Result"
+    enum="DeviceSignalsHarmfulAppsStatus" expires_after="2026-10-01">
+  <owner>xzonghan@chromium.org</owner>
+  <owner>cbe-device-trust-eng@google.com</owner>
+  <summary>
+    Recorded the success status of SafetyNet API when collecting potentially
+    harmful apps.
+  </summary>
+</histogram>
+
 <histogram name="Enterprise.DeviceSignals.UserPermission"
     enum="DeviceSignalsUserPermission" expires_after="2026-02-10">
   <owner>seblalancette@chromium.org</owner>
@@ -1363,7 +1383,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.Dlp.ActiveFileEventsCount" units="entries"
-    expires_after="2026-01-25">
+    expires_after="2026-03-29">
   <owner>accorsi@google.com</owner>
   <owner>chromeos-dlp@google.com</owner>
   <summary>
@@ -2324,7 +2344,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.EventBasedLogUpload.{EventLogUploadType}"
-    enum="EnterpriseEventBasedLogUploadResult" expires_after="2026-01-25">
+    enum="EnterpriseEventBasedLogUploadResult" expires_after="2026-03-29">
   <owner>iremuguz@google.com</owner>
   <owner>chromeos-commercial-supportability@google.com</owner>
   <summary>
@@ -2377,7 +2397,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.FileAnalysisRequest.PrintedPageSize" units="KB"
-    expires_after="2026-01-25">
+    expires_after="2026-03-29">
   <owner>eliashomsi@google.com</owner>
   <owner>nancylanxiao@google.com</owner>
   <owner>cbe-cep-eng@google.com</owner>
@@ -4106,7 +4126,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="EnterpriseCheck.IsRunningOnManagedProfileDuration" units="ms"
-    expires_after="2026-01-25">
+    expires_after="2026-03-29">
   <owner>nafisabedin@google.com</owner>
   <improvement direction="LOWER_IS_BETTER"/>
   <summary>

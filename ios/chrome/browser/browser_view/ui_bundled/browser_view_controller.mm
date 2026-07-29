@@ -243,9 +243,6 @@ const CGFloat kTopDynamicIslandInset = 24;
   // view.
   BOOL _lensOverlayVisible;
 
-  // Whether the find bar is currently visible.
-  BOOL _findBarVisible;
-
   // TODO(crbug.com/429955447): Remove when diamond prototype is cleaned.
   ToolbarType _diamondToolbarType;
   NSArray<NSLayoutConstraint*>* _diamondToolbarTopConstraints;
@@ -465,7 +462,7 @@ const CGFloat kTopDynamicIslandInset = 24;
              BrowserViewVisibilityState::kCoveredByOmniboxPopup ||
          _visibilityState ==
              BrowserViewVisibilityState::kCoveredByVoiceSearch ||
-         _lensOverlayVisible || _findBarVisible;
+         _lensOverlayVisible;
 }
 
 - (void)setVisibilityState:(BrowserViewVisibilityState)state {
@@ -925,15 +922,13 @@ const CGFloat kTopDynamicIslandInset = 24;
     self.view.overrideUserInterfaceStyle = UIUserInterfaceStyleDark;
   }
 
-  if (@available(iOS 17, *)) {
-    NSArray<UITrait>* traits = TraitCollectionSetForTraits(nil);
-    __weak __typeof(self) weakSelf = self;
-    UITraitChangeHandler handler = ^(id<UITraitEnvironment> traitEnvironment,
-                                     UITraitCollection* previousCollection) {
-      [weakSelf updateUIOnTraitChange:previousCollection];
-    };
-    [self registerForTraitChanges:traits withHandler:handler];
-  }
+  NSArray<UITrait>* traits = TraitCollectionSetForTraits(nil);
+  __weak __typeof(self) weakSelf = self;
+  UITraitChangeHandler handler = ^(id<UITraitEnvironment> traitEnvironment,
+                                   UITraitCollection* previousCollection) {
+    [weakSelf updateUIOnTraitChange:previousCollection];
+  };
+  [self registerForTraitChanges:traits withHandler:handler];
 }
 
 - (void)viewSafeAreaInsetsDidChange {
@@ -1140,7 +1135,10 @@ const CGFloat kTopDynamicIslandInset = 24;
       // view controller uses information that it should not know or care about:
       // this BVC is contained and its parent bounds to the full screen.
       launchScreenView.frame = self.parentViewController.view.bounds;
+      [self.parentViewController addChildViewController:launchScreenController];
       [self.parentViewController.view addSubview:launchScreenView];
+      [launchScreenController
+          didMoveToParentViewController:self.parentViewController];
       [launchScreenView setNeedsLayout];
       [launchScreenView layoutIfNeeded];
 
@@ -1403,15 +1401,17 @@ const CGFloat kTopDynamicIslandInset = 24;
 
   if (initialLayout) {
     // Add the toolbars as child view controllers.
-    [self addChildViewController:self.toolbarCoordinator
-                                     .primaryToolbarViewController];
-    [self addChildViewController:self.toolbarCoordinator
-                                     .secondaryToolbarViewController];
+    UIViewController* primaryToolbarViewController =
+        self.toolbarCoordinator.primaryToolbarViewController;
+    [self addChildViewController:primaryToolbarViewController];
+
+    UIViewController* secondaryToolbarViewController =
+        self.toolbarCoordinator.secondaryToolbarViewController;
+    [self addChildViewController:secondaryToolbarViewController];
 
     // Add the primary toolbar. On iPad, it should be in front of the tab strip
     // because the tab strip slides behind it when showing the thumb strip.
-    UIView* primaryToolbarView =
-        self.toolbarCoordinator.primaryToolbarViewController.view;
+    UIView* primaryToolbarView = primaryToolbarViewController.view;
     if (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET) {
       if (self.tabStripCoordinator) {
         UIViewController* tabStripViewController =
@@ -1433,9 +1433,11 @@ const CGFloat kTopDynamicIslandInset = 24;
     } else {
       [self.view addSubview:primaryToolbarView];
     }
-    [self.view insertSubview:self.toolbarCoordinator
-                                 .secondaryToolbarViewController.view
+    [self.view insertSubview:secondaryToolbarViewController.view
                 aboveSubview:primaryToolbarView];
+
+    [primaryToolbarViewController didMoveToParentViewController:self];
+    [secondaryToolbarViewController didMoveToParentViewController:self];
 
     // TODO(crbug.com/40270239): Migrate kContentAreaGuide to LayoutGuideCenter.
     // Add guide kContentAreaGuide to the browser view.
@@ -1491,15 +1493,6 @@ const CGFloat kTopDynamicIslandInset = 24;
     }
 
     AddSameConstraintsToSides(self.view, contentAreaGuide, contentSides);
-
-    // Complete child UIViewController containment flow now that the views are
-    // finished being added.
-    [self.tabStripCoordinator.viewController
-        didMoveToParentViewController:self];
-    [self.toolbarCoordinator.primaryToolbarViewController
-        didMoveToParentViewController:self];
-    [self.toolbarCoordinator.secondaryToolbarViewController
-        didMoveToParentViewController:self];
   }
 
   // Resize the typing shield to cover the entire browser view and bring it to
@@ -1733,10 +1726,8 @@ const CGFloat kTopDynamicIslandInset = 24;
 
 // Notifies or modifies BVC owned UI elements when a UITrait has been changed.
 - (void)updateUIOnTraitChange:(UITraitCollection*)previousTraitCollection {
-  if (@available(iOS 17.0, *)) {
-    if (base::FeatureList::IsEnabled(kEnableTraitCollectionWorkAround)) {
-      [self updateTraitsIfNeeded];
-    }
+  if (base::FeatureList::IsEnabled(kEnableTraitCollectionWorkAround)) {
+    [self updateTraitsIfNeeded];
   }
 
   // After `-shutdown` is called, profile is invalid and will cause a

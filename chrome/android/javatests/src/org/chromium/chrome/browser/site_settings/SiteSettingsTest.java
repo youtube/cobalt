@@ -44,6 +44,7 @@ import static org.chromium.ui.test.util.ViewUtils.waitForViewCheckingState;
 
 import android.content.Context;
 import android.content.Intent;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 
@@ -173,7 +174,6 @@ import java.util.concurrent.TimeoutException;
     ContentSwitches.HOST_RESOLVER_RULES + "=MAP * 127.0.0.1",
     "ignore-certificate-errors"
 })
-@EnableFeatures(ChromeFeatureList.DISPLAY_WILDCARD_CONTENT_SETTINGS)
 @DisableFeatures({
     ChromeFeatureList.EDGE_TO_EDGE_EVERYWHERE,
 })
@@ -3542,6 +3542,11 @@ public class SiteSettingsTest {
     @Feature({"Preferences"})
     @CommandLineFlags.Add(BaseSwitches.ENABLE_LOW_END_DEVICE_MODE)
     @EnableFeatures(ChromeFeatureList.PERMISSION_SITE_SETTING_RADIO_BUTTON)
+    @DisableIf.Build(
+            sdk_equals = Build.VERSION_CODES.Q,
+            message =
+                    "https://crbug.com/448715624: Test is crashing with"
+                            + " --disable-field-trial-config")
     public void testAddingJavascriptOptimizerExceptionsBlockedIfNotEnoughRam() {
         final SettingsActivity settingsActivity =
                 SiteSettingsTestUtils.startSiteSettingsCategory(

@@ -14,15 +14,11 @@ import android.content.pm.PackageManager.NameNotFoundException;
 import android.content.res.Configuration;
 import android.graphics.Color;
 import android.os.Bundle;
-import android.os.Handler;
-import android.view.Gravity;
 import android.view.KeyEvent;
-import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.ViewGroup.LayoutParams;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
@@ -52,6 +48,7 @@ import org.chromium.chrome.browser.init.ChromeBrowserInitializer;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileManager;
 import org.chromium.chrome.browser.profiles.ProfileManagerUtils;
+import org.chromium.chrome.browser.settings.search.SettingsSearchCoordinator;
 import org.chromium.chrome.browser.ui.device_lock.MissingDeviceLockLauncher;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager.SnackbarManageable;
@@ -62,11 +59,11 @@ import org.chromium.components.browser_ui.modaldialog.AppModalPresenter;
 import org.chromium.components.browser_ui.settings.EmbeddableSettingsPage;
 import org.chromium.components.browser_ui.settings.PreferenceUpdateObserver;
 import org.chromium.components.browser_ui.settings.SettingsFragment;
-import org.chromium.components.browser_ui.settings.SettingsItemBackgroundDecoration;
-import org.chromium.components.browser_ui.settings.SettingsStylingController;
 import org.chromium.components.browser_ui.settings.SettingsUtils;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.components.browser_ui.util.TraceEventVectorDrawableCompat;
+import org.chromium.components.browser_ui.widget.containment.ContainmentItemController;
+import org.chromium.components.browser_ui.widget.containment.ContainmentItemDecoration;
 import org.chromium.components.browser_ui.widget.gesture.BackPressHandler;
 import org.chromium.components.browser_ui.widget.scrim.ScrimManager;
 import org.chromium.components.browser_ui.widget.scrim.ScrimManager.ScrimClient;
@@ -153,12 +150,9 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
     private static final String MAIN_FRAGMENT_TAG = "settings_main";
     public static final String MULTI_COLUMN_FRAGMENT_TAG = "multi_column_settings";
 
-    private final Map<Fragment, SettingsItemBackgroundDecoration> mItemDecorations =
-            new HashMap<>();
+    private final Map<Fragment, ContainmentItemDecoration> mItemDecorations = new HashMap<>();
 
-    // True if multiple-column Fragment is activated. Both the window width and the feature flag
-    // condition should be met.
-    private boolean mUseMultiColumn;
+    private @Nullable SettingsSearchCoordinator mSearchCoordinator;
 
     @SuppressLint("InlinedApi")
     @Override
@@ -195,7 +189,7 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
                     new TitleUpdater(), false /* recursive */);
         }
 
-        if (ChromeFeatureList.sAndroidSettingsContainment.isEnabled()) {
+        if (isContainmentEnabled()) {
             // In multi-column mode, the main settings fragment is a child of the
             // MultiColumnSettings fragment, so the callbacks must be registered recursively.
             boolean recursive = true;
@@ -222,12 +216,10 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
                         @Override
                         public void onFragmentViewCreated(
                                 @NonNull FragmentManager fm,
-                                @NonNull Fragment f,
+                                @NonNull Fragment fragment,
                                 @NonNull View v,
                                 @Nullable Bundle savedInstanceState) {
-                            if (f instanceof PreferenceFragmentCompat fragment) {
-                                updateBackgrounds(fragment);
-                            }
+                            applyContainmentForFragment(fragment);
                         }
 
                         @Override
@@ -248,7 +240,6 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
         Toolbar actionBar = findViewById(R.id.action_bar);
         setSupportActionBar(actionBar);
         assumeNonNull(getSupportActionBar()).setDisplayHomeAsUpEnabled(true);
-        if (ChromeFeatureList.sSearchInSettings.isEnabled()) initializeSearchUi();
 
         mIsNewlyCreated = savedInstanceState == null;
 
@@ -262,11 +253,11 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
                 // TODO(crbug.com/404074032): Implement them back.
                 var transaction = fragmentManager.beginTransaction();
                 mMultiColumnSettings = new MultiColumnSettings();
+                mMultiColumnSettings.setPendingFragmentIntent(getIntent());
                 transaction.replace(R.id.content, mMultiColumnSettings, MULTI_COLUMN_FRAGMENT_TAG);
                 transaction.commit();
             } else {
                 Fragment fragment = instantiateMainFragment(getIntent());
-
                 var transaction = fragmentManager.beginTransaction();
                 transaction.replace(R.id.content, fragment, MAIN_FRAGMENT_TAG);
                 setFragmentAnimation(transaction, fragment);
@@ -274,118 +265,30 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
             }
         }
 
+        if (ChromeFeatureList.sSearchInSettings.isEnabled()) {
+            mSearchCoordinator =
+                    new SettingsSearchCoordinator(
+                            this, this::getUseMultiColumn, mMultiColumnSettings);
+            mSearchCoordinator.initializeSearchUi();
+        }
         setStatusBarColor();
         initBottomSheet();
 
         mSnackbarManagerSupplier.set(new SnackbarManager(this, getContentView(), null));
 
         mIntentRequestTracker = IntentRequestTracker.createFromActivity(this);
-        if (ChromeFeatureList.sAndroidSettingsContainment.isEnabled()) {
+        if (isContainmentEnabled()) {
             int backgroundColor = SemanticColorUtils.getSettingsBackgroundColor(this);
             findViewById(R.id.content).setBackgroundColor(backgroundColor);
             findViewById(R.id.app_bar_layout).setBackgroundColor(backgroundColor);
         }
     }
 
-    private void initializeSearchUi() {
-        // TODO(jinsukkim): Factor out to its own MVC when the code size grows.
-        mUseMultiColumn = getUseMultiColumn();
-        Toolbar actionBar = findViewById(R.id.action_bar);
-        ViewGroup appBar = findViewById(R.id.app_bar_layout);
-        ViewGroup searchBoxParent = mUseMultiColumn ? actionBar : appBar;
-        LayoutInflater.from(this).inflate(R.layout.settings_search_box, searchBoxParent, true);
-        LayoutInflater.from(this).inflate(R.layout.settings_search_query, actionBar, true);
-        View searchBox = findViewById(R.id.search_box);
-        View queryContainer = findViewById(R.id.search_query_container);
-        if (mUseMultiColumn) {
-            // Adjust the view width after the Fragment layout is completed.
-            new Handler().post(this::updateDetailPanelWidth);
-        }
-        searchBox.setOnClickListener(
-                v -> {
-                    searchBox.setVisibility(View.GONE);
-                    queryContainer.setVisibility(View.VISIBLE);
-                    if (!mUseMultiColumn) {
-                        assumeNonNull(getSupportActionBar()).setDisplayHomeAsUpEnabled(false);
-                    }
-                    // TODO(jinsukkim): Initialize search query widget.
-                });
-        View backToSettings = findViewById(R.id.back_arrow_icon);
-        backToSettings.setOnClickListener(
-                v -> {
-                    queryContainer.setVisibility(View.GONE);
-                    searchBox.setVisibility(View.VISIBLE);
-                    if (!mUseMultiColumn) {
-                        assumeNonNull(getSupportActionBar()).setDisplayHomeAsUpEnabled(true);
-                    }
-                    getSettingsFragmentManager().popBackStack();
-                    // TODO(jinsukkim): Complete back action.
-                });
-        actionBar.setOverflowIcon(null);
-    }
-
-    private FragmentManager getSettingsFragmentManager() {
-        if (mUseMultiColumn) {
-            return assumeNonNull(mMultiColumnSettings).getChildFragmentManager();
-        } else {
-            return getSupportFragmentManager();
-        }
-    }
-
-    private void updateDetailPanelWidth() {
-        assert mUseMultiColumn : "Should be called in multi-column mode only.";
-
-        var windowMetrics = WindowMetricsCalculator.getOrCreate().computeCurrentWindowMetrics(this);
-        int endPaddingPx =
-                getResources().getDimensionPixelSize(R.dimen.settings_detail_panel_end_padding);
-        int headerWidthPx = assumeNonNull(mMultiColumnSettings).getHeaderPanelWidthPx();
-        int detailViewWidthPx = windowMetrics.getBounds().width() - headerWidthPx - endPaddingPx;
-        View searchBox = findViewById(R.id.search_box);
-        var lp = (Toolbar.LayoutParams) searchBox.getLayoutParams();
-        lp.width = detailViewWidthPx;
-        lp.gravity = Gravity.END;
-        searchBox.setLayoutParams(lp);
-        View queryContainer = findViewById(R.id.search_query_container);
-        LayoutParams qlp = queryContainer.getLayoutParams();
-        qlp.width = detailViewWidthPx;
-        queryContainer.setLayoutParams(qlp);
-    }
-
     @Override
     public void onConfigurationChanged(@NonNull Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
-        if (!ChromeFeatureList.sSearchInSettings.isEnabled()) return;
-
-        boolean useMultiColumn = getUseMultiColumn();
-        if (useMultiColumn == mUseMultiColumn) {
-            if (mUseMultiColumn) new Handler().post(this::updateDetailPanelWidth);
-            return;
-        }
-
-        mUseMultiColumn = useMultiColumn;
-        View searchBox = findViewById(R.id.search_box);
-        ViewGroup searchBoxParent =
-                findViewById(useMultiColumn ? R.id.app_bar_layout : R.id.action_bar);
-        searchBoxParent.removeView(searchBox);
-        new Handler().post(() -> switchSearchUiLayout(searchBox));
-    }
-
-    private void switchSearchUiLayout(View searchBox) {
-        if (mUseMultiColumn) {
-            ViewGroup actionBar = findViewById(R.id.action_bar);
-            actionBar.addView(searchBox);
-            updateDetailPanelWidth();
-        } else {
-            ViewGroup appBarLayout = findViewById(R.id.app_bar_layout);
-            appBarLayout.addView(searchBox);
-            View queryContainer = findViewById(R.id.search_query_container);
-            LayoutParams lp = searchBox.getLayoutParams();
-            lp.width = LayoutParams.MATCH_PARENT;
-            searchBox.setLayoutParams(lp);
-            lp = queryContainer.getLayoutParams();
-            lp.width = LayoutParams.MATCH_PARENT;
-            queryContainer.setLayoutParams(lp);
-        }
+        updateContainmentForMultiColumnLayout();
+        if (mSearchCoordinator != null) mSearchCoordinator.onConfigurationChanged(newConfig);
     }
 
     /**
@@ -402,26 +305,120 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
                         .getDimensionPixelSize(R.dimen.settings_min_multi_column_screen_width);
     }
 
-    @Override
-    public void onPreferencesUpdated(PreferenceFragmentCompat fragment) {
-        updateBackgrounds(fragment);
+    /** Returns true if the AndroidSettingsContainment feature is enabled. */
+    private static boolean isContainmentEnabled() {
+        return ChromeFeatureList.sAndroidSettingsContainment.isEnabled();
     }
 
-    /** Updates the background of all the visible preferences on the settings screen. */
-    private void updateBackgrounds(PreferenceFragmentCompat fragment) {
-        if (!ChromeFeatureList.sAndroidSettingsContainment.isEnabled()
-                || fragment.getListView() == null) return;
+    @Override
+    public void onPreferencesUpdated(PreferenceFragmentCompat fragment) {
+        applyContainmentForFragment(fragment);
+    }
+
+    /**
+     * Applies or removes containment styling for fragments within the multi-column settings layout
+     * based on whether the multi-column layout is currently active.
+     */
+    private void updateContainmentForMultiColumnLayout() {
+        if (mMultiColumnSettings == null) {
+            return;
+        }
+
+        for (Fragment rootFragment :
+                mMultiColumnSettings.getChildFragmentManager().getFragments()) {
+            if (rootFragment.isAdded()) {
+                if (getUseMultiColumn()) {
+                    removeContainmentForFragment(rootFragment);
+                } else {
+                    applyContainmentForFragment(rootFragment);
+                }
+            }
+        }
+    }
+
+    /**
+     * Helper method to validate and cast a fragment for containment styling.
+     *
+     * @param f The fragment to check.
+     * @return The casted {@link PreferenceFragmentCompat} if valid for styling, otherwise null.
+     */
+    private @Nullable PreferenceFragmentCompat resolveFragmentForContainment(Fragment f) {
+        if (!(f instanceof PreferenceFragmentCompat fragment) || fragment.getListView() == null) {
+            return null;
+        }
+        return fragment;
+    }
+
+    /**
+     * Removes containment from the given fragment.
+     *
+     * @param f The fragment to remove the styling from.
+     */
+    private void removeContainmentForFragment(Fragment f) {
+        PreferenceFragmentCompat fragment = resolveFragmentForContainment(f);
+        if (!isContainmentEnabled() || fragment == null) {
+            return;
+        }
+
+        if (fragment instanceof MainSettings) {
+            ContainmentItemDecoration itemDecoration = mItemDecorations.get(fragment);
+            if (itemDecoration != null) {
+                fragment.getListView().removeItemDecoration(itemDecoration);
+                mItemDecorations.remove(fragment);
+                // Force a full redraw of the recycler view items.
+                if (fragment.getListView().getAdapter() != null) {
+                    // `invalidate()` is insufficient to remove the containment background because
+                    // it doesn't trigger a re-evaluation of `RecyclerView.ItemDecoration`s, which
+                    // applies the containment styling. A full redraw of items is needed.
+                    fragment.getListView()
+                            .getAdapter()
+                            .notifyItemRangeChanged(
+                                    0, fragment.getListView().getAdapter().getItemCount());
+                }
+            }
+        }
+    }
+
+    /**
+     * Returns whether containment should be skipped for the given fragment, specifically for
+     * MainSettings when in multi-column, two-pane mode.
+     */
+    private boolean shouldSkipContainmentForMainSettings(PreferenceFragmentCompat fragment) {
+        return fragment instanceof MainSettings
+                && getUseMultiColumn()
+                && mMultiColumnSettings != null
+                && mMultiColumnSettings.isTwoPane();
+    }
+
+    /**
+     * Applies containment styling to the given fragment if containment is enabled and the fragment
+     * is a valid {@link PreferenceFragmentCompat} with a list view. This method also handles
+     * skipping containment for MainSettings when in multi-column, two-pane mode.
+     *
+     * @param f The fragment to apply the styling to.
+     */
+    private void applyContainmentForFragment(Fragment f) {
+        PreferenceFragmentCompat fragment = resolveFragmentForContainment(f);
+        if (!isContainmentEnabled() || fragment == null) {
+            return;
+        }
+
+        // For MainSettings, skip containment if multi-column layout is visible.
+        if (shouldSkipContainmentForMainSettings(fragment)) {
+            return;
+        }
+
         // Posting this runnable ensures the RecyclerView has completed its layout pass before
         // updating backgrounds.
         fragment.getListView()
                 .post(
                         () -> {
-                            SettingsStylingController controller =
-                                    new SettingsStylingController(SettingsActivity.this);
-                            SettingsItemBackgroundDecoration itemDecoration =
+                            ContainmentItemController controller =
+                                    new ContainmentItemController(SettingsActivity.this);
+                            ContainmentItemDecoration itemDecoration =
                                     mItemDecorations.get(fragment);
                             if (itemDecoration == null) {
-                                itemDecoration = new SettingsItemBackgroundDecoration(controller);
+                                itemDecoration = new ContainmentItemDecoration(controller);
                                 mItemDecorations.put(fragment, itemDecoration);
                                 fragment.getListView().addItemDecoration(itemDecoration);
                             }
@@ -435,7 +432,7 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
 
     @Override
     public void applyThemeOverlays() {
-        if (ChromeFeatureList.sAndroidSettingsContainment.isEnabled()) {
+        if (isContainmentEnabled()) {
             applySingleThemeOverlay(R.style.ThemeOverlay_Chromium_Settings_Containment);
         }
         super.applyThemeOverlays();
@@ -464,7 +461,11 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
         // soon. We defer making a fragment transaction to onResume because doing it here breaks
         // fragment animations as all pending animations are cleared when an activity is resumed.
         assert mPendingNewIntent == null;
-        mPendingNewIntent = intent;
+        if (mMultiColumnSettings != null) {
+            mMultiColumnSettings.setPendingFragmentIntent(intent);
+        } else {
+            mPendingNewIntent = intent;
+        }
     }
 
     private Fragment instantiateMainFragment(Intent intent) {
@@ -551,6 +552,9 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
 
         // If there is a pending intent to process from onNewIntent, process it now.
         if (mPendingNewIntent != null) {
+            // If multi-column is enabled, fragment instantiation is handled in MultiColumnSettings.
+            assert mMultiColumnSettings == null;
+
             Fragment fragment = instantiateMainFragment(mPendingNewIntent);
             mPendingNewIntent = null;
 

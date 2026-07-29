@@ -33,6 +33,7 @@
 <translation id="1345251407431278948">تمّ تثبيت اللوحة. يمكنك الوصول إلى ميزة "البحث بالصور" مرة أخرى من خلال الزر الجديد في شريط الأدوات</translation>
 <translation id="1356661055722410047">ميزة جديدة: يمكنك ترجمة كل من النص والصور على شاشتك</translation>
 <translation id="1383876407941801731">البحث</translation>
+<translation id="1397530502368084401">‏&amp;إدارة الملفات الشخصية على Chromium</translation>
 <translation id="1414495520565016063">‏تم تسجيل دخولك إلى Chromium!</translation>
 <translation id="141901961143729572">شارِك أفكارك</translation>
 <translation id="1465192221147974788">‏لمشاركة النافذة، يجب السماح بتسجيل الشاشة في Chromium ضِمن "إعدادات النظام" (System Settings).</translation>
@@ -71,8 +72,8 @@
 <translation id="1896836275755235458">‏يحافظ Chromium على طاقة البطارية من خلال الحدّ من الأنشطة في الخلفية والتأثيرات المرئية، مثل التمرير السلس وعدد اللقطات في الثانية للفيديو. <ph name="BEGIN_LINK" />مزيد من المعلومات حول ميزة "توفير البطارية"<ph name="END_LINK" /></translation>
 <translation id="1898804291554630487">طرح سؤال حول هذه الصفحة</translation>
 <translation id="1900969832270057921">‏خدمة Chromium Updater</translation>
+<translation id="1911666947158375684">‏بعد تسجيل الدخول إلى حسابك، يمكنك استخدام كلمات المرور وغيرها من بيانات حسابك على Google في Chromium. ويمكنك تغيير ذلك متى شئت في الإعدادات.</translation>
 <translation id="1911763535808217981">‏من خلال إيقاف هذا الإعداد، يمكنك تسجيل الدخول إلى "مواقع Google" مثل Gmail بدون الحاجة إلى تسجيل الدخول إلى Chromium</translation>
-<translation id="1916451563296275579">‏إزالة بيانات هذه التطبيقات من Chromium</translation>
 <translation id="1929939181775079593">‏لا يستجيب Chromium. هل تريد إعادة التشغيل الآن؟</translation>
 <translation id="1933341829955786215">‏تطلُب المؤسسة (<ph name="MANAGER" />) منك تسجيل الدخول إلى Chromium</translation>
 <translation id="193439633299369377">‏يجب إعادة تشغيل نظام التشغيل Chromium حتى يتم تطبيق التحديث.</translation>
@@ -235,6 +236,9 @@
 <translation id="379589255253486813">‏سيُعلِمك Chromium في حال العثور على اقتراحات مطلوب مراجعتها.</translation>
 <translation id="3802055581630249637">‏يُحمِّل Chromium مسبقًا الصفحات التي من المرجَح أن تزورها، وذلك بهدف تحميلها بسرعة أكبر عند زيارتك لها.</translation>
 <translation id="3810973564298564668">إدارة</translation>
+<translation id="3846683726093018685">**تلخيص:** أريد وصفًا للموضوع الرئيسي وهدف محتوى لقطة الشاشة في جملة واحدة لا تزيد عن 30 كلمة.
+
+          **اقتراح أسئلة:** أريد قائمة نقطية تتضمّن من 3 إلى 5 أسئلة تشجّع على التفكير ويمكن للمستخدم طرحها لفهم لقطة الشاشة بشكل أفضل. يجب أن تتضمّن هذه الأسئلة سؤالاً واحدًا على الأقل يتعلّق بعنصر مرئي أو تصميمه أو موضعه تحديدًا.</translation>
 <translation id="3848258323044014972"><ph name="PAGE_TITLE" /> - Chromium</translation>
 <translation id="3885770153807205175">أداة اختيار اللغة</translation>
 <translation id="388648406173476553">‏تخصيص Chromium والتحكُّم فيه معلومات مهمة - انقر للحصول على التفاصيل.</translation>
@@ -470,6 +474,7 @@
 <translation id="6669284030132180248">‏إذا حفظت أيضًا إشاراتك المرجعية في حسابك على Google، يمكنك تتبُّع أسعار المنتجات من خلال Chromium وتلقّي إشعارات عند انخفاض السعر.</translation>
 <translation id="6676384891291319759">الدخول إلى الإنترنت</translation>
 <translation id="668175097507315160">‏تعذّر على نظام التشغيل Chromium مزامنة بياناتك بسبب حدوث خطأ أثناء تسجيل الدخول.</translation>
+<translation id="6691132793308828750">‏إزالة بيانات هذا التطبيق من Chromium</translation>
 <translation id="6692797197837897398">‏يتيح لك Chromium التحكّم بشكل أكبر في الإعلانات التي تظهر لك والحدّ من مقدار معلوماتك التي يمكن للمواقع الإلكترونية معرفتها عندما تعرض لك إعلانات مخصّصة</translation>
 <translation id="6709350901466051922">‏يحتاج Chromium إلى إذن للوصول إلى الميكروفون من أجل هذا الموقع الإلكتروني.</translation>
 <translation id="6712881677154121168">حدث خطأ في عملية التنزيل: <ph name="DOWNLOAD_ERROR" />.</translation>
@@ -490,6 +495,7 @@
 <translation id="6877155553248388166">أسفل يسار مساحة البحث: %<ph name="RIGHT" /> من الجهة اليسرى و%<ph name="BOTTOM" /> من الأسفل</translation>
 <translation id="6896758677409633944">نسخ</translation>
 <translation id="6901631050894301805">‏ننصحك بضبط Chromium كمتصفّح تلقائي وتثبيته في شريط المهام</translation>
+<translation id="6909503629704372277">‏&amp;إدارة الملفات الشخصية على Chromium</translation>
 <translation id="6934579572334859869">طرح أسئلة حول هذه الصورة باستخدام ميزة "البحث بالصور"</translation>
 <translation id="6964305034639999644">‏فتح الرابط في نافذة تصفح متخفٍ في Chromium</translation>
 <translation id="6965382102122355670">حسنًا</translation>
@@ -501,6 +507,7 @@
 <translation id="7024536598735240744">حدث خطأ في فك ضغط الحزمة: <ph name="UNPACK_ERROR" />.</translation>
 <translation id="7025789849649390912">تم إيقاف التثبيت.</translation>
 <translation id="7045244423563602563">‏اجعل Chromium متصفِّحك الدائم</translation>
+<translation id="7047386856539490735">هل هذه النتائج مفيدة؟</translation>
 <translation id="705851970750939768">‏تحديث Chromium</translation>
 <translation id="7067091210845072982">‏في حال لم تتضمن صورة ما وصفًا مفيدًا، سيحاول Chromium توفير وصف لك. لإنشاء الأوصاف، سيتم إرسال الصور إلى Google.</translation>
 <translation id="7141270731789036260">‏تخصيص Chrome for Testing</translation>
@@ -626,7 +633,6 @@
 <translation id="8586442755830160949">‏حقوق الطبع والنشر لعام <ph name="YEAR" /> لصالح The Chromium Authors. جميع الحقوق محفوظة.</translation>
 <translation id="8601359445272098721">ميزة جديدة: يمكنك ترجمة النص والصور على الشاشة من خلال النقر على زر "ترجمة محتوى الشاشة"</translation>
 <translation id="8619360774459241877">‏جارٍ إطلاق Chromium...</translation>
-<translation id="8621669128220841554">‏تعذّر التثبيت نظرًا لحدوث خطأ غير محدد. يُرجى إعادة تنزيل Chromium.</translation>
 <translation id="8648201657708811153">‏لا يمكن اختيار الإصدار Google Chrome for Test ليكون متصفِّحك التلقائي.</translation>
 <translation id="8697124171261953979">‏كما أنها تتحكم في الصفحة التي تظهر عند تشغيل Chromium أو إجراء بحث من المربع متعدد الاستخدامات.</translation>
 <translation id="8704119203788522458">‏هذا هو Chromium الخاص بك</translation>

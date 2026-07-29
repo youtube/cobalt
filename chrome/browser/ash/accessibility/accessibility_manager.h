@@ -21,7 +21,6 @@
 #include "base/scoped_observation.h"
 #include "base/time/time.h"
 #include "chrome/browser/ash/accessibility/chromevox_panel.h"
-#include "chrome/browser/ash/accessibility/service/accessibility_service_client.h"
 #include "chrome/browser/extensions/api/braille_display_private/braille_controller.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_observer.h"
@@ -48,6 +47,8 @@
 #include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/wm/core/coordinate_conversion.h"
 
+class PrefService;
+
 namespace content {
 struct FocusedNodeDetails;
 }  // namespace content
@@ -70,7 +71,6 @@ enum class SelectToSpeakState;
 enum class SelectToSpeakPanelAction;
 enum class Sound;
 struct AccessibilityFocusRingInfo;
-class AccessibilityServiceClient;
 
 enum class AccessibilityNotificationType {
   kManagerShutdown,
@@ -146,7 +146,7 @@ class AccessibilityManager
 
   // Creates an instance of AccessibilityManager, this should be called once,
   // because only one instance should exist at the same time.
-  static void Initialize();
+  static void Initialize(PrefService* local_state);
   // Deletes the existing instance of AccessibilityManager.
   static void Shutdown();
   // Returns the existing instance. If there is no instance, returns NULL.
@@ -539,7 +539,8 @@ class AccessibilityManager
   void LoadEnhancedNetworkTtsForTest();
 
  protected:
-  AccessibilityManager();
+  // `local_state` must be non-null, and must outlive `this`.
+  explicit AccessibilityManager(PrefService* local_state);
   ~AccessibilityManager() override;
 
  private:
@@ -678,6 +679,8 @@ class AccessibilityManager
 
   bool spoken_feedback_enabled() const { return bool(screen_reader_mode_); }
 
+  const raw_ref<PrefService> local_state_;
+
   // Profile which has the current a11y context.
   raw_ptr<Profile> profile_ = nullptr;
   base::ScopedObservation<Profile, ProfileObserver> profile_observation_{this};
@@ -701,8 +704,6 @@ class AccessibilityManager
   std::set<std::string> accessibility_common_enabled_features_;
 
   AccessibilityStatusCallbackList callback_list_;
-
-  std::unique_ptr<AccessibilityServiceClient> accessibility_service_client_;
 
   bool braille_display_connected_ = false;
   base::Time braille_display_connect_time_;
@@ -795,7 +796,6 @@ class AccessibilityManager
   friend class AccessibilityManagerDlcTest;
   friend class AccessibilityManagerNoOnDeviceSpeechRecognitionTest;
   friend class AccessibilityManagerTest;
-  friend class AccessibilityServiceClientTest;
   friend class DictationTest;
   friend class SwitchAccessTest;
 };

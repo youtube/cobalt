@@ -40,6 +40,7 @@ import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
+import org.chromium.base.ui.KeyboardUtils;
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -51,6 +52,7 @@ import org.chromium.chrome.browser.composeplate.ComposeplateUtils;
 import org.chromium.chrome.browser.device.DeviceClassManager;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
+import org.chromium.chrome.browser.layouts.toolbar.ToolbarWidthConsumer;
 import org.chromium.chrome.browser.lens.LensController;
 import org.chromium.chrome.browser.lens.LensEntryPoint;
 import org.chromium.chrome.browser.lens.LensIntentParams;
@@ -75,12 +77,12 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.Tab.LoadUrlResult;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
-import org.chromium.chrome.browser.theme.SurfaceColorUpdateUtils;
 import org.chromium.chrome.browser.theme.ThemeUtils;
 import org.chromium.chrome.browser.ui.default_browser_promo.DefaultBrowserPromoUtils;
 import org.chromium.chrome.browser.ui.native_page.NativePage;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.chrome.browser.util.ChromeAccessibilityUtil;
+import org.chromium.components.browser_ui.styles.ChromeColors;
 import org.chromium.components.browser_ui.widget.animation.CancelAwareAnimatorListener;
 import org.chromium.components.browser_ui.widget.gesture.BackPressHandler;
 import org.chromium.components.embedder_support.util.UrlUtilities;
@@ -92,7 +94,6 @@ import org.chromium.components.webapps.AppBannerManager;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.common.ResourceRequestBody;
-import org.chromium.ui.KeyboardUtils;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.KeyNavigationUtil;
 import org.chromium.ui.base.PageTransition;
@@ -102,6 +103,7 @@ import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.url.GURL;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
@@ -228,6 +230,11 @@ class LocationBarMediator
     private final ObservableSupplier<@NavigationFulfillmentType Integer>
             mNavigationFulfillmentTypeSupplier;
 
+    private final ButtonToolbarWidthConsumer mBookmarkButtonToolbarWidthConsumer;
+    private final ButtonToolbarWidthConsumer mInstallButtonToolbarWidthConsumer;
+    private final ButtonToolbarWidthConsumer mMicButtonToolbarWidthConsumer;
+    private final ButtonToolbarWidthConsumer mLensButtonToolbarWidthConsumer;
+
     /*package */ LocationBarMediator(
             Context context,
             LocationBarLayout locationBarLayout,
@@ -276,6 +283,23 @@ class LocationBarMediator
         mNavigationFulfillmentTypeSupplier.addObserver(
                 mCallbackController.makeCancelable((v) -> updateButtonVisibility()));
         AppBannerManager.addObserver(this);
+
+        mBookmarkButtonToolbarWidthConsumer =
+                new ButtonToolbarWidthConsumer(
+                        mContext,
+                        this::shouldShowBookmarkButton,
+                        this::updateBookmarkButtonVisibility);
+        mInstallButtonToolbarWidthConsumer =
+                new ButtonToolbarWidthConsumer(
+                        mContext,
+                        this::shouldShowInstallButton,
+                        this::updateInstallButtonVisibility);
+        mMicButtonToolbarWidthConsumer =
+                new ButtonToolbarWidthConsumer(
+                        mContext, this::shouldShowMicButton, this::updateMicButtonVisibility);
+        mLensButtonToolbarWidthConsumer =
+                new ButtonToolbarWidthConsumer(
+                        mContext, this::shouldShowLensButton, this::updateLensButtonVisibility);
     }
 
     /**
@@ -425,13 +449,15 @@ class LocationBarMediator
                 onUrlFocusedFromNtpScrollChanged();
             }
 
-            if (fraction > 0f) {
-                mLocationBarLayout.setUrlActionContainerVisibility(View.VISIBLE);
-            } else if (fraction == 0f && !mIsUrlFocusChangeInProgress) {
-                // If a URL focus change is in progress, then it will handle setting the visibility
-                // correctly after it completes.  If done here, it would cause the URL to jump due
-                // to a badly timed layout call.
-                mLocationBarLayout.setUrlActionContainerVisibility(View.GONE);
+            if (!ChromeFeatureList.sToolbarPhoneAnimationRefactor.isEnabled()) {
+                if (fraction > 0f) {
+                    mLocationBarLayout.setUrlActionContainerVisibility(View.VISIBLE);
+                } else if (fraction == 0f && !mIsUrlFocusChangeInProgress) {
+                    // If a URL focus change is in progress, then it will handle setting the
+                    // visibility correctly after it completes.  If done here, it would cause the
+                    // URL to jump due to a badly timed layout call.
+                    mLocationBarLayout.setUrlActionContainerVisibility(View.GONE);
+                }
             }
 
             // Add expansion animation for the space besides status view in location bar.
@@ -1171,7 +1197,8 @@ class LocationBarMediator
 
     // Private methods
 
-    private void setProfile(Profile profile) {
+    @VisibleForTesting
+    void setProfile(Profile profile) {
         if (profile == null || !mNativeInitialized) return;
 
         mIsComposeplateEnabled = ComposeplateUtils.isComposeplateEnabled(mIsTablet, profile);
@@ -1229,7 +1256,7 @@ class LocationBarMediator
         // If the url bar is focused, the toolbar background color is the default color regardless
         // of whether it is branded or not.
         if (isUrlBarFocused()) {
-            return SurfaceColorUpdateUtils.getDefaultThemeColor(
+            return ChromeColors.getDefaultThemeColor(
                     mContext, mLocationBarDataProvider.isIncognitoBranded());
         } else {
             return mLocationBarDataProvider.getPrimaryColor();
@@ -1261,7 +1288,8 @@ class LocationBarMediator
     }
 
     private void setMicButtonVisibility(boolean shouldShowMicButton) {
-        mLocationBarLayout.setMicButtonVisibility(shouldShowMicButton);
+        mLocationBarLayout.setMicButtonVisibility(
+                shouldShowMicButton && mMicButtonToolbarWidthConsumer.hasSpaceToShow());
     }
 
     private void updateLensButtonVisibility() {
@@ -1271,7 +1299,8 @@ class LocationBarMediator
 
     private void setLensButtonVisibility(boolean shouldShowLensButton) {
         LensMetrics.recordShown(LensEntryPoint.OMNIBOX, shouldShowLensButton);
-        mLocationBarLayout.setLensButtonVisibility(shouldShowLensButton);
+        mLocationBarLayout.setLensButtonVisibility(
+                shouldShowLensButton && mLensButtonToolbarWidthConsumer.hasSpaceToShow());
     }
 
     /** Updates the display of the composeplate button. */
@@ -1305,7 +1334,8 @@ class LocationBarMediator
      * and is only shown when the omnibox is unfocused; the URL action container is hidden when the
      * omnibox is unfocused on phones.
      */
-    private boolean shouldShowInstallButton() {
+    @VisibleForTesting
+    boolean shouldShowInstallButton() {
         if (mUrlHasFocus || mIsUrlFocusChangeInProgress) return false;
 
         WebContents webContents = getWebContentsForCurrentTab();
@@ -1316,21 +1346,39 @@ class LocationBarMediator
 
     /** Updates the visibility of the install button. */
     private void updateInstallButtonVisibility() {
-        mLocationBarLayout.setInstallButtonVisibility(shouldShowInstallButton());
+        setInstallButtonVisibility(shouldShowInstallButton());
+    }
+
+    private void setInstallButtonVisibility(boolean shouldShowInstallButton) {
+        mLocationBarLayout.setInstallButtonVisibility(
+                shouldShowInstallButton && mInstallButtonToolbarWidthConsumer.hasSpaceToShow());
     }
 
     private void updateTabletButtonsVisibility() {
         assert mIsTablet;
+        updateBookmarkButtonVisibility();
+    }
+
+    private void updateBookmarkButtonVisibility() {
+        setBookmarkButtonVisibility(shouldShowBookmarkButton());
+    }
+
+    private void setBookmarkButtonVisibility(boolean shouldShowBookmarkButton) {
         LocationBarTablet locationBarTablet = (LocationBarTablet) mLocationBarLayout;
-        boolean showBookmarkButton =
-                mShouldShowButtonsWhenUnfocused && shouldShowPageActionButtons();
-        locationBarTablet.setBookmarkButtonVisibility(showBookmarkButton);
+        locationBarTablet.setBookmarkButtonVisibility(
+                shouldShowBookmarkButton && mBookmarkButtonToolbarWidthConsumer.hasSpaceToShow());
+    }
+
+    @VisibleForTesting
+    boolean shouldShowBookmarkButton() {
+        return mShouldShowButtonsWhenUnfocused && shouldShowPageActionButtons();
     }
 
     /**
      * @return Whether the delete button should be shown.
      */
-    private boolean shouldShowDeleteButton() {
+    @VisibleForTesting
+    boolean shouldShowDeleteButton() {
         // Show the delete button at the end when the bar has focus and has some text.
         boolean hasText =
                 mUrlCoordinator != null
@@ -1939,5 +1987,71 @@ class LocationBarMediator
     @Override
     public void onSearchBoxHintTextChanged(String newHintText) {
         mUrlCoordinator.setUrlBarHintText(newHintText);
+    }
+
+    /* package */ ToolbarWidthConsumer getBookmarkButtonToolbarWidthConsumer() {
+        return mBookmarkButtonToolbarWidthConsumer;
+    }
+
+    /* package */ ToolbarWidthConsumer getInstallButtonToolbarWidthConsumer() {
+        return mInstallButtonToolbarWidthConsumer;
+    }
+
+    /* package */ ToolbarWidthConsumer getMicButtonToolbarWidthConsumer() {
+        return mMicButtonToolbarWidthConsumer;
+    }
+
+    /* package */ ToolbarWidthConsumer getLensButtonToolbarWidthConsumer() {
+        return mLensButtonToolbarWidthConsumer;
+    }
+
+    private static class ButtonToolbarWidthConsumer implements ToolbarWidthConsumer {
+        private final int mButtonWidth;
+        private final Supplier<Boolean> mShouldShowButton;
+        private final Runnable mUpdateButtonVisibility;
+        private boolean mHasSpaceToShow;
+
+        ButtonToolbarWidthConsumer(
+                Context context,
+                Supplier<Boolean> shouldShowButton,
+                Runnable updateButtonVisibility) {
+            mShouldShowButton = shouldShowButton;
+            mUpdateButtonVisibility = updateButtonVisibility;
+            mButtonWidth =
+                    context.getResources()
+                            .getDimensionPixelSize(R.dimen.location_bar_action_icon_width);
+        }
+
+        boolean hasSpaceToShow() {
+            if (!ChromeFeatureList.sToolbarTabletResizeRefactor.isEnabled()) {
+                return true;
+            }
+            return mHasSpaceToShow;
+        }
+
+        @Override
+        public boolean isVisible() {
+            return mHasSpaceToShow && mShouldShowButton.get();
+        }
+
+        @Override
+        public int updateVisibility(int availableWidth) {
+            assert ChromeFeatureList.sToolbarTabletResizeRefactor.isEnabled();
+
+            if (mShouldShowButton.get() && availableWidth >= mButtonWidth) {
+                mHasSpaceToShow = true;
+                mUpdateButtonVisibility.run();
+                return mButtonWidth;
+            }
+            mHasSpaceToShow = false;
+            mUpdateButtonVisibility.run();
+            return 0;
+        }
+
+        @Override
+        public int updateVisibilityWithAnimation(
+                int availableWidth, Collection<Animator> animators) {
+            return updateVisibility(availableWidth);
+        }
     }
 }

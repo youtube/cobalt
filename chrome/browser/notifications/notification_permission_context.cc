@@ -112,7 +112,7 @@ ContentSetting NotificationPermissionContext::GetPermissionStatusForExtension(
       extensions::ExtensionRegistry::Get(
           Profile::FromBrowserContext(browser_context()))
           ->enabled_extensions()
-          .GetByID(origin.host());
+          .GetByID(origin.GetHost());
 
   if (!extension || !extension->permissions_data()->HasAPIPermission(
                         extensions::mojom::APIPermissionID::kNotifications)) {
@@ -226,12 +226,11 @@ void NotificationPermissionContext::DecidePermission(
 }
 
 void NotificationPermissionContext::UpdateTabContext(
-    const permissions::PermissionRequestID& id,
-    const GURL& requesting_frame,
+    const permissions::PermissionRequestData& request_data,
     bool allowed) {
   auto* content_settings =
       content_settings::PageSpecificContentSettings::GetForFrame(
-          id.global_render_frame_host_id());
+          request_data.id.global_render_frame_host_id());
   if (!content_settings) {
     return;
   }

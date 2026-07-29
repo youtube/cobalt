@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_UI_ACTIONS_CHROME_ACTION_ID_H_
 
 #include "build/branding_buildflags.h"
+#include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "ui/actions/action_id.h"
 
@@ -203,6 +204,8 @@
   E(kActionReadingListMenuAddTab, IDC_READING_LIST_MENU_ADD_TAB) \
   E(kActionRecentTabsLoginForDeviceTabs, \
     IDC_RECENT_TABS_LOGIN_FOR_DEVICE_TABS) \
+  E(kActionRecentTabsSeeDeviceTabs, \
+    IDC_RECENT_TABS_SEE_DEVICE_TABS) \
   E(kActionOpenRecentTab, IDC_OPEN_RECENT_TAB) \
   /* Spell-check */ \
   /* Insert any additional suggestions before _LAST; these have to be */ \
@@ -280,6 +283,8 @@
   E(kActionContentContextLoadImage, IDC_CONTENT_CONTEXT_LOAD_IMAGE) \
   E(kActionContentContextSearchLensForImage, \
     IDC_CONTENT_CONTEXT_SEARCHLENSFORIMAGE) \
+  E(kActionContentContextGlicShareImage, \
+    IDC_CONTENT_CONTEXT_GLICSHAREIMAGE) \
   E(kActionContentContextTranslateImageWithWeb, \
     IDC_CONTENT_CONTEXT_TRANSLATEIMAGEWITHWEB) \
   E(kActionContentContextTranslateImageWithLens, \

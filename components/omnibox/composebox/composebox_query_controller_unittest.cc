@@ -80,6 +80,8 @@ using FileUploadStatusTuple = std::tuple<base::UnguessableToken,
                                          lens::MimeType,
                                          FileUploadStatus,
                                          std::optional<FileUploadErrorType>>;
+using CreateSearchUrlRequestInfo =
+    ComposeboxQueryController::CreateSearchUrlRequestInfo;
 
 using base::test::EqualsProto;
 
@@ -91,12 +93,13 @@ class ComposeboxQueryControllerTest
   ~ComposeboxQueryControllerTest() override = default;
 
   void CreateController(bool send_lns_surface,
-                        bool enable_multi_context_input_flow = false) {
+                        bool enable_multi_context_input_flow = false,
+                        bool enable_viewport_images = true) {
     controller_ = std::make_unique<TestComposeboxQueryController>(
         identity_manager(), shared_url_loader_factory_,
         version_info::Channel::UNKNOWN, kLocale, template_url_service(),
         fake_variations_client_.get(), send_lns_surface,
-        enable_multi_context_input_flow);
+        enable_multi_context_input_flow, enable_viewport_images);
     controller_->AddObserver(this);
 
     lens::LensOverlayServerClusterInfoResponse cluster_info_response;
@@ -960,7 +963,12 @@ TEST_F(ComposeboxQueryControllerTest,
 
   // Act: Create the destination URL for the query. The destination URL can
   // only be created after the cluster info is received.
-  GURL aim_url = controller().CreateAimUrl("hello", kTestQueryStartTime);
+  std::unique_ptr<CreateSearchUrlRequestInfo> search_url_request_info =
+      std::make_unique<CreateSearchUrlRequestInfo>();
+  search_url_request_info->query_text = "hello";
+  search_url_request_info->query_start_time = kTestQueryStartTime;
+  GURL aim_url =
+      controller().CreateSearchUrl(std::move(search_url_request_info));
 
   // Get the file and viewport upload requests.
   std::optional<lens::LensOverlayServerRequest> file_upload_request;
@@ -1088,6 +1096,58 @@ TEST_F(ComposeboxQueryControllerTest,
   EXPECT_TRUE(net::GetValueForKeyInQuery(aim_url, kVisualInputTypeParameterKey,
                                          &vit_value));
   EXPECT_EQ(vit_value, "wp");
+}
+
+TEST_F(ComposeboxQueryControllerTest,
+       UploadPageContextPdfFileWithViewportButViewportsDisabledRequestSuccess) {
+  // Create the controller with viewports disabled.
+  CreateController(/*send_lns_surface=*/false,
+                   /*enable_multi_context_input_flow=*/true,
+                   /*enable_viewport_images=*/false);
+
+  // Act: Start the session.
+  controller().NotifySessionStarted();
+
+  // Assert: Validate cluster info request and state changes.
+  WaitForClusterInfo();
+
+  // Act: Start the file upload flow with viewport and pdf context inputs.
+  GURL page_url = GURL("https://www.test.com");
+  std::string page_title = "Test Page";
+  const base::UnguessableToken file_token = base::UnguessableToken::Create();
+  std::unique_ptr<lens::ContextualInputData> input_data =
+      std::make_unique<lens::ContextualInputData>();
+  input_data->primary_content_type = lens::MimeType::kPdf;
+  input_data->context_input = std::vector<lens::ContextualInput>();
+  input_data->page_url = page_url;
+  input_data->page_title = page_title;
+  input_data->pdf_current_page = 1;
+  input_data->context_input->push_back(
+      lens::ContextualInput(std::vector<uint8_t>(), lens::MimeType::kPdf));
+  SkBitmap bitmap;
+  bitmap.allocN32Pixels(100, 100);
+  bitmap.eraseColor(SK_ColorRED);  // Fill with a solid color
+  input_data->viewport_screenshot = bitmap;
+  lens::ImageEncodingOptions image_options{.max_size = 1000000,
+                                           .max_height = 1000,
+                                           .max_width = 1000,
+                                           .compression_quality = 30};
+  controller().StartFileUploadFlow(file_token, std::move(input_data),
+                                   image_options);
+
+  // Assert: Validate file upload request and status changes.
+  WaitForFileUpload(file_token, lens::MimeType::kPdf);
+
+  // Get the file and viewport upload requests.
+  std::optional<lens::LensOverlayServerRequest> file_upload_request =
+      controller().last_sent_file_upload_request();
+
+  // Validate the file upload request payload.
+  EXPECT_EQ(file_upload_request->objects_request()
+                .request_context()
+                .request_id()
+                .media_type(),
+            lens::LensOverlayRequestId::MEDIA_TYPE_PDF);
 }
 #endif  // !BUILDFLAG(IS_IOS)
 
@@ -1323,7 +1383,12 @@ TEST_F(ComposeboxQueryControllerTest, AbandonSessionClearsFiles) {
             controller_state_future_.Take());
 
   // Act: Generate the destination URL for the query.
-  GURL aim_url = controller().CreateAimUrl("test", kTestQueryStartTime);
+  std::unique_ptr<CreateSearchUrlRequestInfo> search_url_request_info =
+      std::make_unique<CreateSearchUrlRequestInfo>();
+  search_url_request_info->query_text = "test";
+  search_url_request_info->query_start_time = kTestQueryStartTime;
+  GURL aim_url =
+      controller().CreateSearchUrl(std::move(search_url_request_info));
 
   // Assert: Lens request id is NOT added to unimodal text queries.
   std::string vsrid_value;
@@ -1404,7 +1469,12 @@ TEST_F(ComposeboxQueryControllerTest,
   WaitForClusterInfo(QueryControllerState::kClusterInfoInvalid);
 
   // Act: Generate the destination URL for the query.
-  GURL aim_url = controller().CreateAimUrl("test", kTestQueryStartTime);
+  std::unique_ptr<CreateSearchUrlRequestInfo> search_url_request_info =
+      std::make_unique<CreateSearchUrlRequestInfo>();
+  search_url_request_info->query_text = "test";
+  search_url_request_info->query_start_time = kTestQueryStartTime;
+  GURL aim_url =
+      controller().CreateSearchUrl(std::move(search_url_request_info));
 
   // Assert: Lens request id is NOT added to unimodal text queries.
   std::string vsrid_value;
@@ -1439,7 +1509,12 @@ TEST_F(ComposeboxQueryControllerTest, QuerySubmitted) {
   WaitForClusterInfo();
 
   // Act: Generate the destination URL for the query.
-  GURL aim_url = controller().CreateAimUrl("test", kTestQueryStartTime);
+  std::unique_ptr<CreateSearchUrlRequestInfo> search_url_request_info =
+      std::make_unique<CreateSearchUrlRequestInfo>();
+  search_url_request_info->query_text = "test";
+  search_url_request_info->query_start_time = kTestQueryStartTime;
+  GURL aim_url =
+      controller().CreateSearchUrl(std::move(search_url_request_info));
 
   // Assert: Lens request id is NOT added to unimodal text queries.
   std::string vsrid_value;
@@ -1483,7 +1558,12 @@ TEST_F(ComposeboxQueryControllerTest, QuerySubmittedWithUploadedPdf) {
 
   // Act: Create the destination URL for the query. The destination URL can
   // only be created after the cluster info is received.
-  GURL aim_url = controller().CreateAimUrl("hello", kTestQueryStartTime);
+  std::unique_ptr<CreateSearchUrlRequestInfo> search_url_request_info =
+      std::make_unique<CreateSearchUrlRequestInfo>();
+  search_url_request_info->query_text = "hello";
+  search_url_request_info->query_start_time = kTestQueryStartTime;
+  GURL aim_url =
+      controller().CreateSearchUrl(std::move(search_url_request_info));
 
   // Assert: Lens request id is NOT added to multimodal pdf queries.
   std::string vsrid_value;
@@ -1537,7 +1617,12 @@ TEST_F(ComposeboxQueryControllerTest, QuerySubmittedWithUploadedImage) {
 
   // Act: Create the destination URL for the query. The destination URL can
   // only be created after the cluster info is received.
-  GURL aim_url = controller().CreateAimUrl("hello", kTestQueryStartTime);
+  std::unique_ptr<CreateSearchUrlRequestInfo> search_url_request_info =
+      std::make_unique<CreateSearchUrlRequestInfo>();
+  search_url_request_info->query_text = "hello";
+  search_url_request_info->query_start_time = kTestQueryStartTime;
+  GURL aim_url =
+      controller().CreateSearchUrl(std::move(search_url_request_info));
 
   // Assert: Lens request id is NOT added to multimodal pdf queries.
   std::string vsrid_value;
@@ -1600,7 +1685,12 @@ TEST_F(ComposeboxQueryControllerTest,
             controller().query_controller_state());
 
   // Act: Create the destination URL for the query.
-  GURL aim_url = controller().CreateAimUrl("hello", kTestQueryStartTime);
+  std::unique_ptr<CreateSearchUrlRequestInfo> search_url_request_info =
+      std::make_unique<CreateSearchUrlRequestInfo>();
+  search_url_request_info->query_text = "hello";
+  search_url_request_info->query_start_time = kTestQueryStartTime;
+  GURL aim_url =
+      controller().CreateSearchUrl(std::move(search_url_request_info));
 
   // Assert: Lens request id is NOT added to unimodal text queries.
   std::string vsrid_value;
@@ -1715,7 +1805,12 @@ TEST_F(ComposeboxQueryControllerTest, QuerySubmittedWithLnsSurface) {
 
   // Act: Create the destination URL for the query. The destination URL can
   // only be created after the cluster info is received.
-  GURL aim_url = controller().CreateAimUrl("hello", kTestQueryStartTime);
+  std::unique_ptr<CreateSearchUrlRequestInfo> search_url_request_info =
+      std::make_unique<CreateSearchUrlRequestInfo>();
+  search_url_request_info->query_text = "hello";
+  search_url_request_info->query_start_time = kTestQueryStartTime;
+  GURL aim_url =
+      controller().CreateSearchUrl(std::move(search_url_request_info));
 
   // Assert: Lns surface is added to the url.
   std::string lns_surface_value;
@@ -1851,7 +1946,12 @@ TEST_F(ComposeboxQueryControllerTest,
                 .request_id()
                 .uuid());
   // Act: Create the destination URL for the query.
-  GURL aim_url = controller().CreateAimUrl("hello", kTestQueryStartTime);
+  std::unique_ptr<CreateSearchUrlRequestInfo> search_url_request_info =
+      std::make_unique<CreateSearchUrlRequestInfo>();
+  search_url_request_info->query_text = "hello";
+  search_url_request_info->query_start_time = kTestQueryStartTime;
+  GURL aim_url =
+      controller().CreateSearchUrl(std::move(search_url_request_info));
 
   // Assert: Lens request id is NOT added to queries using multi-context flow.
   std::string vsrid_value;

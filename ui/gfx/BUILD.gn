@@ -477,6 +477,7 @@ component("color_space") {
     ]
   }
   deps = [
+    "//components/viz/common/resources:shared_image_format",
     "//skia:skcms",
     "//ui/gfx:buffer_types",
     "//ui/gfx:gfx_switches",
@@ -668,7 +669,7 @@ source_set("memory_buffer_sources") {
     ]
 
     public_deps += [
-      "//components/viz/common:shared_image_format",
+      "//components/viz/common/resources:shared_image_format",
       "//ui/gfx:color_space",
     ]
   }
@@ -682,6 +683,8 @@ source_set("memory_buffer_sources") {
       "native_pixmap_handle.cc",
       "native_pixmap_handle.h",
     ]
+
+    deps += [ "//components/viz/common/resources:shared_image_format" ]
   }
 
   if (enable_vulkan) {
@@ -906,7 +909,7 @@ test("gfx_unittests") {
     "//skia:skcms",
     "//testing/gtest",
     "//third_party/icu:icuuc",
-    "//third_party/libpng",
+    "//third_party/libpng:libpng_for_testonly",
     "//third_party/zlib",
     "//ui/base",
     "//ui/gfx/animation",

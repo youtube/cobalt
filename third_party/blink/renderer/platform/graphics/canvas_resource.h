@@ -214,12 +214,18 @@ class PLATFORM_EXPORT CanvasResourceSharedImage final : public CanvasResource {
   scoped_refptr<StaticBitmapImage> Bitmap() final;
   void Transfer() final;
 
+  // Save (and wait on) this sync token on the context used by this resource for
+  // rendering.
+  // TODO(crbug.com/40286368): completely defer the waiting to the
+  // zero-parameter variant of WaitSyncToken().
   void WaitSyncToken(const gpu::SyncToken&) override;
+
+  // Wait on the saved |sync_token_|.
+  void WaitSyncToken();
   const gpu::SyncToken GetSyncToken() override;
 
   void NotifyResourceLost() final;
 
-  void WillDraw();
   bool IsLost() const { return owning_thread_data().is_lost; }
 
   const scoped_refptr<gpu::ClientSharedImage>& GetClientSharedImage()
@@ -292,6 +298,7 @@ class PLATFORM_EXPORT CanvasResourceSharedImage final : public CanvasResource {
   // This should only be de-referenced on the owning thread but may be copied
   // on a different thread.
   base::WeakPtr<WebGraphicsContext3DProviderWrapper> context_provider_wrapper_;
+  gpu::SyncToken acquire_sync_token_;
 
   // Accessed on any thread.
   const bool is_accelerated_;

@@ -42,6 +42,7 @@
 <translation id="1434626383986940139">Chrome Canary-apper</translation>
 <translation id="1439793550875056299">Fest Chrome</translation>
 <translation id="146866447420868597">Vil du logge på Chrome?</translation>
+<translation id="1476347941828409626">&amp;Administrer Chrome-profiler</translation>
 <translation id="1492280395845991349">Start på nytt for å fullføre Chrome-oppdateringen</translation>
 <translation id="1497802159252041924">Installasjonsfeil: <ph name="INSTALL_ERROR" /></translation>
 <translation id="1507198376417198979">Tilpass den nye Chrome-profilen din</translation>
@@ -248,6 +249,9 @@
 <translation id="3810973564298564668">Administrer</translation>
 <translation id="383928141529488001">Google Chrome trenger Bluetooth-tilgang for å utforske 
  Bluetooth-enheter. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
+<translation id="3846683726093018685">**Sammendrag:** Beskriv hovedemnet og formålet med innholdet i skjermbildet i én setning på under 30 ord.
+
+          **Foreslå spørsmål:** Generer en punktliste med tre til fem tankevekkende spørsmål en bruker kan stille for å forstå skjermbildet bedre. Disse spørsmålene må inneholde minst ett som handler spesifikt om et visuelt objekt, utformingen av det eller plasseringen av det.</translation>
 <translation id="386202838227397562">Lukk alle Google Chrome-vinduer og prøv på nytt.</translation>
 <translation id="3873044882194371212">Åpne linken i et inko&amp;gnitovindu i Chrome</translation>
 <translation id="3885770153807205175">Språkvelger</translation>
@@ -507,6 +511,7 @@
 <translation id="6885412569789873916">Chrome Beta-apper</translation>
 <translation id="6893363893008038481">Fjern kontoen fra Chrome</translation>
 <translation id="6896758677409633944">Kopiér</translation>
+<translation id="6927941417289800361">Når du er logget på, kan du bruke passord med mer fra Google-kontoen din i Chrome. Du kan når som helst endre dette i innstillingene.</translation>
 <translation id="6930294499209825">Holder Google-programvaren oppdatert. Hvis denne tjenesten deaktiveres eller stoppes, blir ikke Google-programvaren din holdt oppdatert. Det betyr at eventuelle sikkerhetsproblemer som oppstår, ikke kan utbedres, og at noen funksjoner kanskje ikke fungerer. Denne tjenesten avinstallerer seg selv når det ikke finnes noen Google-programvare som bruker den.</translation>
 <translation id="6933858244219479645">ChromeOS-systemet</translation>
 <translation id="6938166777909186039">For å få fremtidige Google Chrome-oppdateringer må du ha Windows 10 eller nyere. Denne datamaskinen bruker Windows 8.1.</translation>
@@ -519,6 +524,7 @@
 <translation id="7024536598735240744">Feil ved utpakking: <ph name="UNPACK_ERROR" />.</translation>
 <translation id="7025789849649390912">Installasjonen er stoppet.</translation>
 <translation id="7025800014283535195">Du kan bytte mellom Chrome-profiler her</translation>
+<translation id="7047386856539490735">Er disse resultatene nyttige?</translation>
 <translation id="7051685429025310665">Du har ikke vært her i det siste. Chrome har fjernet <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> og <ph name="PERMISSION_3" /></translation>
 <translation id="7059914902409643750">Gi Chrome et personlig preg</translation>
 <translation id="7060643578009939353">Søk i denne videoen med Google Lens</translation>
@@ -589,10 +595,10 @@
 <translation id="7777080907402804672">Hvis et bilde ikke har noen nyttig beskrivelse, prøver Chrome å finne en til deg. For å opprette beskrivelser blir bilder sendt til Google. Du kan slå av dette i innstillingene når som helst.</translation>
 <translation id="778331955594035129">Chrome trenger posisjonstillatelse for dette nettstedet</translation>
 <translation id="7787950393032327779">Profilen ser ut til å være i bruk av en annen Google Chrome-prosess (<ph name="PROCESS_ID" />) på en annen datamaskin (<ph name="HOST_NAME" />). Chrome har låst profilen slik at den ikke blir infisert. Hvis du er sikker på at ingen andre prosesser bruker profilen, kan du låse opp profilen og starte Chrome på nytt.</translation>
+<translation id="7792336732117553384">&amp;Administrer Chrome-profiler</translation>
 <translation id="7801699035218095297">Google Chrome prøver å kopiere passord. Skriv inn Windows-passordet ditt for å tillate dette.</translation>
 <translation id="7804364787702057554">Kontoen din i Chrome</translation>
 <translation id="7808348361785373670">Fjern fra Chrome</translation>
-<translation id="7825851276765848807">Installeringen mislyktes på grunn av en uspesifisert feil. Last ned Google Chrome på nytt.</translation>
 <translation id="7827099906024714326">Chrome må bekrefte at det er deg, før enkelte data kan lagres i Google-kontoen din og brukes på alle enhetene dine. Hvis du logger av nå, blir disse dataene slettet.</translation>
 <translation id="7845233973568007926">Installasjonen er fullført. Start datamaskinen på nytt før du tar i bruk <ph name="BUNDLE_NAME" />.</translation>
 <translation id="7849037457735762883">Fortsett der du avsluttet: Chrome kan gjenopprette fanene dine hver gang du starter på nytt. For å slå på dette, gå til</translation>
@@ -671,7 +677,6 @@
 <translation id="873133009373065397">Google Chrome kan ikke fastslå eller angi standardnettleseren</translation>
 <translation id="8747073452963259673">nederst til venstre i søkefeltet: venstre <ph name="LEFT" /> %, nederst <ph name="BOTTOM" /> %</translation>
 <translation id="8748735421235723888">Chrome frigjør minne fra inaktive faner. Dette gir aktive faner og andre apper flere datamaskinressurser og holder Chrome rask. De inaktive fanene dine blir automatisk aktive igjen når du går tilbake til dem. <ph name="BEGIN_LINK" />Finn ut mer om minnesparing<ph name="END_LINK" /></translation>
-<translation id="8753189155654018347">Fjern data for denne appen fra Chrome</translation>
 <translation id="8765470054473112089">Når du skriver i adressefeltet eller søkefeltet, sender Chrome det du skriver til standardsøkemotoren din, for å gi deg bedre forslag. Dette er av i Inkognito.</translation>
 <translation id="8781673607513845160">For å la Chrome bruke kameraet må du gi tilgang i <ph name="BEGIN_LINK" />systeminnstillingene<ph name="END_LINK" /></translation>
 <translation id="878572486461146056">Installasjonsfeil: Nettverksadministratoren din har aktivert en grupperegel som forhindrer installasjonen: <ph name="INSTALL_ERROR" /></translation>
@@ -687,6 +692,7 @@
 <translation id="8883862939660515976">Spør Google Lens om dette bildet</translation>
 <translation id="8914504000324227558">Start Chrome på nytt</translation>
 <translation id="8922193594870374009">For å sende numre fra <ph name="ORIGIN" /> til Android-telefonen din, logg på Chrome på begge enhetene.</translation>
+<translation id="8922998289262614701">Fjern data for disse appene fra Chrome</translation>
 <translation id="8948460679427074738">Denne utvidelsen har ikke publisert retningslinjer for personvern, for eksempel hvordan den samler inn og bruker data. Chrome anbefaler at du fjerner den.</translation>
 <translation id="8958307504142971576">Nå har du flere funksjoner tilgjengelig i Chrome</translation>
 <translation id="8991530961471831170">Åpne Gemini i Chrome</translation>

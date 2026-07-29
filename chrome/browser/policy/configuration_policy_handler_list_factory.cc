@@ -267,6 +267,10 @@
 #include "components/safe_browsing/content/common/file_type_policies_prefs.h"
 #endif
 
+#if BUILDFLAG(ENABLE_GLIC)
+#include "chrome/browser/glic/glic_pref_names.h"
+#endif  // BUILDFLAG(ENABLE_GLIC)
+
 namespace policy {
 namespace {
 
@@ -2383,6 +2387,9 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kLocalNetworkAccessRestrictionsEnabled,
     prefs::kManagedLocalNetworkAccessRestrictionsEnabled,
     base::Value::Type::BOOLEAN },
+  { key::kLocalNetworkAccessRestrictionsTemporaryOptOut,
+    prefs::kManagedLocalNetworkAccessRestrictionsTemporaryOptOut,
+    base::Value::Type::BOOLEAN },
   { key::kLocalNetworkAccessAllowedForUrls,
     prefs::kManagedLocalNetworkAccessAllowedForUrls,
     base::Value::Type::LIST },
@@ -2441,6 +2448,11 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kAIModeSettings,
     omnibox::kAIModeSettings,
     base::Value::Type::INTEGER },
+#if BUILDFLAG(ENABLE_GLIC)
+  { key::kGeminiActOnWebSettings,
+    glic::prefs::kGlicActuationOnWeb,
+    base::Value::Type::INTEGER },
+#endif  // BUILDFLAG(ENABLE_GLIC)
 };
 // clang-format on
 

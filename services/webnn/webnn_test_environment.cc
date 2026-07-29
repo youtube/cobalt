@@ -4,12 +4,16 @@
 
 #include "services/webnn/webnn_test_environment.h"
 
+#include "base/run_loop.h"
+
 namespace webnn::test {
 
 WebNNTestEnvironment::WebNNTestEnvironment(
     WebNNContextProviderImpl::WebNNStatus status,
     WebNNContextProviderImpl::LoseAllContextsCallback
-        lose_all_contexts_callback) {
+        lose_all_contexts_callback,
+    std::unique_ptr<base::test::TaskEnvironment> task_environment)
+    : task_environment_(std::move(task_environment)) {
   gpu::GpuFeatureInfo gpu_feature_info;
   gpu::GPUInfo gpu_info;
 
@@ -37,7 +41,7 @@ WebNNTestEnvironment::WebNNTestEnvironment(
       /*shared_context_state=*/nullptr, std::move(gpu_feature_info),
       std::move(gpu_info), /*shared_image_manager=*/nullptr,
       std::move(lose_all_contexts_callback),
-      task_environment_.GetMainThreadTaskRunner(), &scheduler_,
+      task_environment_->GetMainThreadTaskRunner(), &scheduler_,
       kFakeClientIdForTesting);
 }
 
@@ -46,6 +50,23 @@ void WebNNTestEnvironment::BindWebNNContextProvider(
   context_provider_->BindWebNNContextProvider(std::move(pending_receiver));
 }
 
-WebNNTestEnvironment::~WebNNTestEnvironment() = default;
+WebNNTestEnvironment::~WebNNTestEnvironment() {
+  // Destroy all WebNNContextImpls on their owning sequences before destroying
+  // the gpu::Scheduler, since the contexts may post tasks to the same
+  // sequences.
+  auto pending_runners =
+      context_provider_->GetAllContextTaskRunnersForTesting();
+
+  // Drop all references to the contexts so their destructors run.
+  context_provider_.reset();
+
+  // Drain each task runner to ensure all tasks posted by contexts have
+  // completed.
+  for (auto& runner : pending_runners) {
+    base::RunLoop loop;
+    runner->PostTask(FROM_HERE, loop.QuitClosure());
+    loop.Run();  // Blocks until all previously posted tasks complete
+  }
+}
 
 }  // namespace webnn::test

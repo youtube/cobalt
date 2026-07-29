@@ -204,9 +204,9 @@ class HeadlessDevToolsNetworkBlockedUrlTest
     SendCommandSync(devtools_client_, "Page.enable");
 
     base::Value::List urls;
-    urls.Append("/hello.html");
+    urls.Append("*://*:*/hello.html");
     devtools_client_.SendCommand("Network.setBlockedURLs",
-                                 Param("urls", std::move(urls)));
+                                 Param("urlPatterns", std::move(urls)));
 
     devtools_client_.SendCommand(
         "Page.navigate",
@@ -216,7 +216,7 @@ class HeadlessDevToolsNetworkBlockedUrlTest
 
   std::string GetUrlPath(const std::string& url) const {
     GURL gurl(url);
-    return gurl.path();
+    return gurl.GetPath();
   }
 
   void OnRequestWillBeSent(const base::Value::Dict& params) {
@@ -686,7 +686,7 @@ class DevtoolsInterceptionWithAuthProxyTest
                                     std::move(auth_challenge_response));
     } else {
       GURL url(DictString(params, "params.request.url"));
-      files_loaded_.insert(url.path());
+      files_loaded_.insert(url.GetPath());
     }
 
     devtools_client_.SendCommand("Network.continueInterceptedRequest",

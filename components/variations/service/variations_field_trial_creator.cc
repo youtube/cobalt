@@ -22,7 +22,6 @@
 #include "base/json/json_file_value_serializer.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/metrics/histogram_functions.h"
-#include "base/metrics/histogram_macros.h"
 #include "base/process/process.h"
 #include "base/sequence_checker.h"
 #include "base/strings/pattern.h"
@@ -49,6 +48,7 @@
 #include "components/variations/service/safe_seed_manager.h"
 #include "components/variations/service/variations_service_client.h"
 #include "components/variations/service/variations_service_utils.h"
+#include "components/variations/variations_features.h"
 #include "components/variations/variations_ids_provider.h"
 #include "components/variations/variations_layers.h"
 #include "components/variations/variations_seed_processor.h"
@@ -71,8 +71,9 @@ void RecordSeedExpiry(bool is_safe_seed, VariationsSeedExpiry seed_expiry) {
 
 // Records the loaded seed's age.
 void RecordSeedFreshness(base::TimeDelta seed_age) {
-  UMA_HISTOGRAM_CUSTOM_COUNTS("Variations.SeedFreshness", seed_age.InMinutes(),
-                              1, base::Days(30).InMinutes(), 50);
+  base::UmaHistogramCustomCounts("Variations.SeedFreshness",
+                                 seed_age.InMinutes(), 1,
+                                 base::Days(30).InMinutes(), 50);
 }
 
 // Records details about Chrome's attempt to apply a variations seed.
@@ -340,6 +341,10 @@ bool VariationsFieldTrialCreator::SetUpFieldTrials(
 
   base::FeatureList::SetInstance(std::move(feature_list));
 
+  if (base::FeatureList::IsEnabled(internal::kPurgeVariationsSeedFromMemory)) {
+    GetSeedStore()->AllowToPurgeSeedsDataFromMemory();
+  }
+
   // For testing Variations Safe Mode, maybe crash here.
   if (base::FeatureList::IsEnabled(kForceFieldTrialSetupCrashForTesting)) {
     // Terminate with a custom exit test code. See
@@ -417,7 +422,7 @@ std::string VariationsFieldTrialCreator::LoadPermanentConsistencyCountry(
   if (!permanent_overridden_country.empty()) {
     base::UmaHistogramEnumeration(
         "Variations.LoadPermanentConsistencyCountryResult",
-        LOAD_COUNTRY_HAS_PERMANENT_OVERRIDDEN_COUNTRY, LOAD_COUNTRY_MAX);
+        LoadPermanentConsistencyCountryResult::kHasPermanentOverriddenCountry);
     return permanent_overridden_country;
   }
 
@@ -446,23 +451,33 @@ std::string VariationsFieldTrialCreator::LoadPermanentConsistencyCountry(
   // version and the country code in the variations seed.
   LoadPermanentConsistencyCountryResult result;
   if (is_stored_info_emtpy) {
-    result = !latest_country.empty() ? LOAD_COUNTRY_NO_PREF_HAS_SEED
-                                     : LOAD_COUNTRY_NO_PREF_NO_SEED;
+    result = !latest_country.empty()
+                 ? LoadPermanentConsistencyCountryResult::kNoPrefHasSeed
+                 : LoadPermanentConsistencyCountryResult::kNoPrefNoSeed;
   } else if (!is_stored_info_valid) {
-    result = !latest_country.empty() ? LOAD_COUNTRY_INVALID_PREF_HAS_SEED
-                                     : LOAD_COUNTRY_INVALID_PREF_NO_SEED;
+    result = !latest_country.empty()
+                 ? LoadPermanentConsistencyCountryResult::kInvalidPrefHasSeed
+                 : LoadPermanentConsistencyCountryResult::kInvalidPrefNoSeed;
   } else if (latest_country.empty()) {
-    result = does_version_match ? LOAD_COUNTRY_HAS_PREF_NO_SEED_VERSION_EQ
-                                : LOAD_COUNTRY_HAS_PREF_NO_SEED_VERSION_NEQ;
+    result =
+        does_version_match
+            ? LoadPermanentConsistencyCountryResult::kHasPrefNoSeedVersionEq
+            : LoadPermanentConsistencyCountryResult::kHasPrefNoSeedVersionNeq;
   } else if (does_version_match) {
-    result = does_country_match ? LOAD_COUNTRY_HAS_BOTH_VERSION_EQ_COUNTRY_EQ
-                                : LOAD_COUNTRY_HAS_BOTH_VERSION_EQ_COUNTRY_NEQ;
+    result =
+        does_country_match
+            ? LoadPermanentConsistencyCountryResult::kHasBothVersionEqCountryEq
+            : LoadPermanentConsistencyCountryResult::
+                  kHasBothVersionEqCountryNeq;
   } else {
-    result = does_country_match ? LOAD_COUNTRY_HAS_BOTH_VERSION_NEQ_COUNTRY_EQ
-                                : LOAD_COUNTRY_HAS_BOTH_VERSION_NEQ_COUNTRY_NEQ;
+    result =
+        does_country_match
+            ? LoadPermanentConsistencyCountryResult::kHasBothVersionNeqCountryEq
+            : LoadPermanentConsistencyCountryResult::
+                  kHasBothVersionNeqCountryNeq;
   }
-  UMA_HISTOGRAM_ENUMERATION("Variations.LoadPermanentConsistencyCountryResult",
-                            result, LOAD_COUNTRY_MAX);
+  base::UmaHistogramEnumeration(
+      "Variations.LoadPermanentConsistencyCountryResult", result);
 
   // Use the stored country if one is available and was fetched since the last
   // time Chrome was updated.
@@ -691,10 +706,13 @@ CreateTrialsResult VariationsFieldTrialCreator::CreateTrialsFromSeed(
   std::string seed_data;              // Only set if not in safe mode.
   std::string base64_seed_signature;  // Only set if not in safe mode.
   const bool run_in_safe_mode = seed_type_ == SeedType::kSafeSeed;
+  // TODO: crbug.com/445600380 - Check if we can avoid copying the seed data
+  // when loading the seed.
   const bool seed_loaded =
       run_in_safe_mode
-          ? GetSeedStore()->LoadSafeSeed(&seed, client_state.get())
-          : GetSeedStore()->LoadSeed(&seed, &seed_data, &base64_seed_signature);
+          ? GetSeedStore()->LoadSafeSeedSync(&seed, client_state.get())
+          : GetSeedStore()->LoadSeedSync(&seed, &seed_data,
+                                         &base64_seed_signature);
   if (!seed_loaded) {
     // If Chrome should run in safe mode but the safe seed was not successfully
     // loaded, then do not apply a seed. Fall back to client-side defaults.

@@ -9,6 +9,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/time/clock.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "chrome/browser/picture_in_picture/auto_picture_in_picture_safe_browsing_checker_client.h"
 #include "chrome/browser/picture_in_picture/auto_pip_setting_helper.h"
 #include "components/content_settings/core/common/content_settings.h"
@@ -19,7 +20,10 @@
 #include "services/media_session/public/mojom/audio_focus.mojom.h"
 #include "services/media_session/public/mojom/media_session.mojom.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
+
+#if !BUILDFLAG(IS_ANDROID)
 #include "ui/views/bubble/bubble_border.h"
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 namespace permissions {
 class PermissionDecisionAutoBlockerBase;
@@ -162,8 +166,9 @@ class AutoPictureInPictureTabHelper
   }
 
 #if BUILDFLAG(IS_ANDROID)
-  // Called from Java when the user closes the PiP window soon after it opened.
-  void OnQuickDismissal();
+  // Called from Java when the user dismissed the PiP window either soon after
+  // it opened or using the hide button.
+  void OnPictureInPictureDismissed();
 
   int GetDismissCountForTesting(const GURL& url);
 
@@ -396,6 +401,12 @@ class AutoPictureInPictureTabHelper
   // Set to the current time when `this` calls the MediaSession
   // `EnterAutoPictureInPicture` method.
   std::optional<base::TimeTicks> current_enter_pip_time_;
+
+  // Set to the current time when the media starts playing.
+  std::optional<base::TimeTicks> playing_start_time_;
+
+  // The total accumulated playback time in picture in picture.
+  std::optional<base::TimeDelta> current_pip_playback_time_;
 
   // The total accumulated time spent in picture in picture due to video
   // conferencing. The accumulated time does not differentiate between the

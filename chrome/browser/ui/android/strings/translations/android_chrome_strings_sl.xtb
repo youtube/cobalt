@@ -9,13 +9,16 @@
 <translation id="1028699632127661925">Pošiljanje v napravo <ph name="DEVICE_NAME" /> ...</translation>
 <translation id="103269572468856066">Želite izbrisati tudi podatke s teh mest in iz aplikacij?</translation>
 <translation id="1034259925032978114">Okno je odprto.</translation>
+<translation id="1035113036584565771">Promocija obvestil z nasveti je zaprta</translation>
 <translation id="1036348656032585052">Izklop</translation>
 <translation id="1045899828449635435">Želite tudi izbrisati podatke s teh mest?</translation>
 <translation id="1049743911850919806">Anonimni način</translation>
 <translation id="1052842760770519282">Nekatera gesla niso dostopna</translation>
 <translation id="1058669287135776095">Nimate vzpostavljene povezave. Preverite internetno povezavo in poskusite znova.</translation>
+<translation id="1066338698580889414">Promocija obvestil z nasveti je odprta pri polni višini</translation>
 <translation id="1070689840697074178">PDF-je lahko prenesete tukaj</translation>
 <translation id="107147699690128016">Če spremenite pripono datoteke, se lahko datoteka odpre v drugem programu in je lahko morebitno škodljiva za vašo napravo.</translation>
+<translation id="1086486568852410168">Iskanje z Googlom Lens</translation>
 <translation id="1087799850623149508">Naslovno vrstico lahko premaknete na dno tako, da se je dotaknete in jo pridržite</translation>
 <translation id="1089606299949659462">Pregled je končan!</translation>
 <translation id="1094555143448724771">Če si želite ogledati zavihke iz drugih naprav, sinhronizirajte zavihke in zgodovino</translation>
@@ -151,6 +154,7 @@ Vaše šifrirane podatke lahko bere samo oseba, ki ima vaše geslo. Geslo ni pos
 <translation id="1696555181932908973">Na <ph name="SITE_ETLD_PLUS_ONE" /> lahko poskusite nadaljevati na druge načine.</translation>
 <translation id="1702543251015153180">Želite spremeniti nastavitve temne teme?</translation>
 <translation id="1702907158640575240">Upravljan brskalnik</translation>
+<translation id="170478069042229393"><ph name="TAB_TITLE" />, pripeti anonimni zavihek</translation>
 <translation id="1718835860248848330">Zadnja ura</translation>
 <translation id="1726477445370128854">Brskanje in iskanje sta hitrejša, ko Chrome vnaprej naloži strani, za katere meni, da jih boste morda obiskali.</translation>
 <translation id="1728803206919861584">Želite ključ za dostop shraniti zunaj anonimnega načina?</translation>
@@ -439,6 +443,7 @@ Vaše šifrirane podatke lahko bere samo oseba, ki ima vaše geslo. Geslo ni pos
 <translation id="3027950907978057636">Iz aplikacije <ph name="APP_LABEL" /></translation>
 <translation id="3029276696788198026">Brez vnaprejšnjega nalaganja</translation>
 <translation id="3029704984691124060">Gesli se ne ujemata</translation>
+<translation id="3029829659829245765"><ph name="TAB_TITLE" />, pripeti izbrani zavihek</translation>
 <translation id="3036750288708366620"><ph name="BEGIN_LINK" />Poiščite pomoč<ph name="END_LINK" /></translation>
 <translation id="3037177537145227281">Spremljanje cene</translation>
 <translation id="3037517125981011456">Pokaže pozive za prijavo v Chrome.</translation>
@@ -497,6 +502,7 @@ Vaše šifrirane podatke lahko bere samo oseba, ki ima vaše geslo. Geslo ni pos
 <translation id="3309978850836730073">Način za branje je vedno na voljo tukaj</translation>
 <translation id="331080746368555063">Zasebna spletna mesta lahko vključujejo stvari, kot je intranet podjetja</translation>
 <translation id="3311330810461485557">Iščite po aplikaciji, datumu in drugih možnostih.</translation>
+<translation id="3331974543021145906">Podatki o aplikaciji</translation>
 <translation id="3334729583274622784">Želite spremeniti pripono datoteke?</translation>
 <translation id="333863344734218290">Prikaz opozorila za javna in zasebna spletna mesta, ki niso varna</translation>
 <translation id="3341262203274374114">Spremljanja ni mogoče preklicati. Prišlo je do napake.</translation>
@@ -626,6 +632,7 @@ Vaše šifrirane podatke lahko bere samo oseba, ki ima vaše geslo. Geslo ni pos
 <translation id="397105322502079400">Izračunavanje …</translation>
 <translation id="397583555483684758">Sinhronizacija je prenehala delovati</translation>
 <translation id="3976396876660209797">Odstranite in znova ustvarite to bližnjico</translation>
+<translation id="397650873162244514"><ph name="TAB_TITLE" />, pripeti zavihek</translation>
 <translation id="3985022125189960801">Spletno mesto dodajte nazaj, če želite, da bo znova v skupini spletnih mest, ki lahko ugotovijo, kaj vam je všeč.</translation>
 <translation id="3985215325736559418">Ali želite znova prenesti datoteko <ph name="FILE_NAME" />?</translation>
 <translation id="3987993985790029246">Kopiranje povezave</translation>
@@ -1138,12 +1145,14 @@ Nekatera spletna mesta se lahko na primer na zahtevo odzovejo tako, da prikažej
 <translation id="6255809143828972562">S Chromovimi orodji lahko varno brskate in imate nadzor</translation>
 <translation id="6264376385120300461">Vseeno prenesi</translation>
 <translation id="6264485186158353794">Nazaj na varno</translation>
+<translation id="6276708887952587684">Prikaz vira strani</translation>
 <translation id="6277522088822131679">Pri tiskanju strani je prišlo do težave. Poskusite znova.</translation>
 <translation id="6278428485366576908">Tema</translation>
 <translation id="6291294824436685757">Izbris podatkov brskanja; izberite podatke za izbris</translation>
 <translation id="6295158916970320988">Vsa spletna mesta</translation>
 <translation id="629730747756840877">Račun</translation>
 <translation id="6301526076346731664">Odpiranje orodij za razvijalce</translation>
+<translation id="630308129961693966">Izberite položaj naslovne vrstice</translation>
 <translation id="6303969859164067831">Odjava in izklop sinhronizacije</translation>
 <translation id="6307241780749477694">Preverite, ali ste to vi, da boste imeli dostop do vseh gesel v tej napravi</translation>
 <translation id="6312687380483398334">Spletni programi (tiho)</translation>
@@ -1376,6 +1385,8 @@ Nekatera spletna mesta se lahko na primer na zahtevo odzovejo tako, da prikažej
 <translation id="7191430249889272776">Zavihek se je odprl v ozadju.</translation>
 <translation id="7192397795254933433">{NUM_PASSWORDS,plural, =1{Takoj ga spremenite}one{Takoj jih spremenite}two{Takoj jih spremenite}few{Takoj jih spremenite}other{Takoj jih spremenite}}</translation>
 <translation id="7196215469483532480">Pojasnilo glede vodnika po zasebnosti se je odprlo pri polni višini</translation>
+<translation id="7196455519852483601">Izbrišete lahko del ali celotno zgodovino, piškotke, podatke spletnih mest in drugo</translation>
+<translation id="7197682514647286393">Hitro izbrišite podatke brskanja</translation>
 <translation id="7207760545532569765">Obnovitev zavihkov (<ph name="TAB_COUNT" />) kot novih zavihkov v ozadju.</translation>
 <translation id="7217781228893594884">Ko zaprete Chrome, se anonimni zavihki zaklenejo.</translation>
 <translation id="7221869452894271364">Ponovno naložite to stran</translation>
@@ -1413,6 +1424,7 @@ Nekatera spletna mesta se lahko na primer na zahtevo odzovejo tako, da prikažej
 <translation id="7375125077091615385">Vrsta:</translation>
 <translation id="7376560087009844242">Če vključite več besedila na strani, bodo morda prikazani boljši rezultati, ko uporabljate dotikanje za iskanje. To lahko kadar koli spremenite v <ph name="BEGIN_LINK" />nastavitvah<ph name="END_LINK" />.</translation>
 <translation id="7379900596734708416">Temna tema za spletna mesta je na voljo</translation>
+<translation id="7384486627147155832">Promocija obvestil z nasveti je odprta pri polovični višini</translation>
 <translation id="7388615499319468910">Spletna mesta in oglaševalci lahko razumejo, kako delujejo oglasi. Ta nastavitev je izklopljena.</translation>
 <translation id="7400003506822844357">{FILE_COUNT,plural, =1{Druga 1 datoteka na seznamu}one{Druga # datoteka na seznamu}two{Drugi # datoteki na seznamu}few{Druge # datoteke na seznamu}other{Drugih # datotek na seznamu}}</translation>
 <translation id="7400418766976504921">URL</translation>
@@ -1584,6 +1596,7 @@ Nekatera spletna mesta se lahko na primer na zahtevo odzovejo tako, da prikažej
 <translation id="8090732854597034573">Če potrebuješ pomoč, se obrni na starša.</translation>
 <translation id="8101414242770404289">Ni zavihkov za to obdobje: <ph name="TIME_PERIOD" /></translation>
 <translation id="8103578431304235997">Anonimni zavihek</translation>
+<translation id="810433609302852">Razdelek na dnu zaslona s promocijo funkcije obvestil z nasveti in koraki za uporabo</translation>
 <translation id="8105893657415066307"><ph name="DESCRIPTION" /><ph name="SEPARATOR" /> <ph name="FILE_SIZE" /></translation>
 <translation id="8107530384992929318">Zapiranje možnosti razvrščanja</translation>
 <translation id="8110024788458304985">Pomagajte izboljšati Chromove funkcije in njegovo delovanje</translation>
@@ -1812,6 +1825,7 @@ Nekatera spletna mesta se lahko na primer na zahtevo odzovejo tako, da prikažej
 <translation id="9104858485806491627">{INACTIVE_TIME_DAYS,plural, =1{Neuporabljen 1 dan ali več}one{Neuporabljeni # dan ali več}two{Neuporabljena # dneva ali več}few{Neuporabljeni # dnevi ali več}other{Neuporabljenih # dni ali več}}</translation>
 <translation id="9106148373857059373">Postopek shranjevanja zaznamka je zaprt</translation>
 <translation id="9108808586816295166">Varni DNS morda ni na voljo ves čas</translation>
+<translation id="9124978074365039456">Uporabite fotoaparat in fotogalerijo, da boste lahko nakupovali, prevajali in prepoznavali, kaj je prikazano</translation>
 <translation id="9130135798965366513">Če želite nadaljevati, bo ponudnik <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> delil vaše podatke – <ph name="FIELDS_STRING" /> – s tem spletnim mestom. Oglejte si <ph name="BEGIN_LINK1" />pravilnik o zasebnosti<ph name="END_LINK1" /> in <ph name="BEGIN_LINK2" />pogoje storitve<ph name="END_LINK2" /> tega spletnega mesta.</translation>
 <translation id="9131209053278896908">Blokirana spletna mesta so prikazana tukaj</translation>
 <translation id="9133397713400217035">Raziščite vsebino brez povezave</translation>
@@ -1825,6 +1839,7 @@ Nekatera spletna mesta se lahko na primer na zahtevo odzovejo tako, da prikažej
 <translation id="9169507124922466868">Zgodovina krmarjenja je napol odprta</translation>
 <translation id="9189607089796819144">Ali želite vseeno prenesti datoteko »<ph name="FILE_NAME" />« (<ph name="FILE_SIZE" />)?</translation>
 <translation id="9190276265094487094">Zgodovino si boste lahko ogledali v vseh sinhroniziranih napravah, da boste lahko nadaljevali, kar ste počeli.</translation>
+<translation id="9197941237799589838"><ph name="TAB_TITLE" />, pripeti izbrani anonimni zavihek</translation>
 <translation id="9199368092038462496">{NUM_MINS,plural, =1{Preverjeno pred 1 minuto}one{Preverjeno pred # minuto}two{Preverjeno pred # minutama}few{Preverjeno pred # minutami}other{Preverjeno pred # minutami}}</translation>
 <translation id="9204836675896933765">Še 1 datoteka</translation>
 <translation id="9205933215779845960">Te strani ni mogoče najti. Preverite črkovanje ali poskusite iskanje v iskalniku <ph name="SEARCH_ENGINE" />.</translation>

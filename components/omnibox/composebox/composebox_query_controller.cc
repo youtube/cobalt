@@ -107,6 +107,11 @@ ComposeboxQueryController::UploadRequest::~UploadRequest() = default;
 ComposeboxQueryController::FileInfo::FileInfo() = default;
 ComposeboxQueryController::FileInfo::~FileInfo() = default;
 
+ComposeboxQueryController::CreateSearchUrlRequestInfo::
+    CreateSearchUrlRequestInfo() = default;
+ComposeboxQueryController::CreateSearchUrlRequestInfo::
+    ~CreateSearchUrlRequestInfo() = default;
+
 namespace {
 
 // Creates a payload for a contextual data upload request, for webpage contents
@@ -187,7 +192,8 @@ ComposeboxQueryController::ComposeboxQueryController(
     TemplateURLService* template_url_service,
     variations::VariationsClient* variations_client,
     bool send_lns_surface,
-    bool enable_multi_context_input_flow)
+    bool enable_multi_context_input_flow,
+    bool enable_viewport_images)
     : identity_manager_(identity_manager),
       url_loader_factory_(url_loader_factory),
       channel_(channel),
@@ -195,7 +201,8 @@ ComposeboxQueryController::ComposeboxQueryController(
       template_url_service_(template_url_service),
       variations_client_(variations_client),
       send_lns_surface_(send_lns_surface),
-      enable_multi_context_input_flow_(enable_multi_context_input_flow) {
+      enable_multi_context_input_flow_(enable_multi_context_input_flow),
+      enable_viewport_images_(enable_viewport_images) {
   create_request_task_runner_ = base::ThreadPool::CreateTaskRunner(
       {base::TaskPriority::USER_VISIBLE,
        base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN});
@@ -240,10 +247,8 @@ ComposeboxQueryController::GetNextRequestId(
   return request_id;
 }
 
-GURL ComposeboxQueryController::CreateAimUrl(
-    const std::string& query_text,
-    base::Time query_start_time,
-    std::map<std::string, std::string> additional_params) {
+GURL ComposeboxQueryController::CreateSearchUrl(
+    std::unique_ptr<CreateSearchUrlRequestInfo> search_url_request_info) {
   num_files_in_request_ = 0;
   if (!active_files_.empty() && cluster_info_.has_value()) {
     if (enable_multi_context_input_flow_) {
@@ -260,10 +265,12 @@ GURL ComposeboxQueryController::CreateAimUrl(
       }
       return GetUrlForMultimodalAim(
           template_url_service_,
-          omnibox::DESKTOP_CHROME_NTP_REALBOX_ENTRY_POINT, query_start_time,
+          omnibox::DESKTOP_CHROME_NTP_REALBOX_ENTRY_POINT,
+          search_url_request_info->query_start_time,
           cluster_info_->search_session_id(), std::move(contextual_inputs),
           send_lns_surface_ ? kLnsSurfaceParameterValue : std::string(),
-          base::UTF8ToUTF16(query_text), additional_params);
+          base::UTF8ToUTF16(search_url_request_info->query_text),
+          std::move(search_url_request_info->additional_params));
     } else {
       // When multi-context input flow is not enabled, only one file is
       // supported.
@@ -277,14 +284,16 @@ GURL ComposeboxQueryController::CreateAimUrl(
         num_files_in_request_ = 1;
         return GetUrlForMultimodalAim(
             template_url_service_,
-            omnibox::DESKTOP_CHROME_NTP_REALBOX_ENTRY_POINT, query_start_time,
+            omnibox::DESKTOP_CHROME_NTP_REALBOX_ENTRY_POINT,
+            search_url_request_info->query_start_time,
             cluster_info_->search_session_id(),
             GetNextRequestId(lens::RequestIdUpdateMode::kSearchUrl,
                              last_file->mime_type_,
                              last_file->request_id_->media_type()),
             last_file->mime_type_,
             send_lns_surface_ ? kLnsSurfaceParameterValue : std::string(),
-            base::UTF8ToUTF16(query_text), additional_params);
+            base::UTF8ToUTF16(search_url_request_info->query_text),
+            std::move(search_url_request_info->additional_params));
       }
     }
   }
@@ -292,9 +301,11 @@ GURL ComposeboxQueryController::CreateAimUrl(
   // not valid, as unimodal text queries.
   // TODO(crbug.com/432125987): Handle file reupload after cluster info
   // expiration.
-  return GetUrlForAim(
-      template_url_service_, omnibox::DESKTOP_CHROME_NTP_REALBOX_ENTRY_POINT,
-      query_start_time, base::UTF8ToUTF16(query_text), additional_params);
+  return GetUrlForAim(template_url_service_,
+                      omnibox::DESKTOP_CHROME_NTP_REALBOX_ENTRY_POINT,
+                      search_url_request_info->query_start_time,
+                      base::UTF8ToUTF16(search_url_request_info->query_text),
+                      std::move(search_url_request_info->additional_params));
 }
 
 void ComposeboxQueryController::AddObserver(FileUploadStatusObserver* obs) {
@@ -321,9 +332,11 @@ void ComposeboxQueryController::StartFileUploadFlow(
 
 #if BUILDFLAG(IS_IOS)
   bool has_viewport_screenshot =
+      enable_viewport_images_ &&
       contextual_input_data->viewport_screenshot_bytes.has_value();
 #else
   bool has_viewport_screenshot =
+      enable_viewport_images_ &&
       contextual_input_data->viewport_screenshot.has_value();
 #endif  // BUILDFLAG(IS_IOS)
   // Unlike image uploads, PDF / page content uploads need to increment the
@@ -728,7 +741,8 @@ void ComposeboxQueryController::CreateUploadRequestBodiesAndContinue(
   // TODO(crbug.com/442685171): Pass the pdf page number to the viewport
   // upload request if available.
 #if BUILDFLAG(IS_IOS)
-  if (contextual_input_data->viewport_screenshot_bytes.has_value()) {
+  if (enable_viewport_images_ &&
+      contextual_input_data->viewport_screenshot_bytes.has_value()) {
     CHECK(image_options.has_value());
     CreateImageUploadRequest(
         file_token,
@@ -745,7 +759,8 @@ void ComposeboxQueryController::CreateUploadRequestBodiesAndContinue(
                            file_info->num_outstanding_network_requests_++)));
   }
 #else
-  if (contextual_input_data->viewport_screenshot.has_value()) {
+  if (enable_viewport_images_ &&
+      contextual_input_data->viewport_screenshot.has_value()) {
     CHECK(image_options.has_value());
     ProcessDecodedImageAndContinue(
         *file_info->request_id_, image_options.value(),

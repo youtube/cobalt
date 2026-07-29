@@ -60,6 +60,7 @@
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/base/models/image_model.h"
 #include "ui/color/color_id.h"
+#include "ui/color/color_provider.h"
 #include "ui/color/color_recipe.h"
 #include "ui/color/color_transform.h"
 #include "ui/display/display.h"
@@ -269,7 +270,7 @@ bool AppBrowserController::ShouldShowCustomTabBar() const {
   }
 
   GURL start_url = GetAppStartUrl();
-  std::string_view start_url_scheme = start_url.scheme_piece();
+  std::string_view start_url_scheme = start_url.scheme();
 
   bool is_internal_start_url_scheme =
       start_url_scheme == extensions::kExtensionScheme ||

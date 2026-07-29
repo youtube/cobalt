@@ -9,7 +9,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "anstyle"
-version = "1.0.11"
+version = "1.0.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -84,7 +84,7 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.2.38"
+version = "1.2.39"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "find-msvc-tools",
@@ -191,7 +191,7 @@ dependencies = [
 
 [[package]]
 name = "cxx"
-version = "1.0.185"
+version = "1.0.186"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "cc",
@@ -205,7 +205,7 @@ dependencies = [
 
 [[package]]
 name = "cxx-build"
-version = "1.0.185"
+version = "1.0.186"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "cc",
@@ -219,7 +219,7 @@ dependencies = [
 
 [[package]]
 name = "cxxbridge-cmd"
-version = "1.0.185"
+version = "1.0.186"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "clap",
@@ -232,12 +232,12 @@ dependencies = [
 
 [[package]]
 name = "cxxbridge-flags"
-version = "1.0.185"
+version = "1.0.186"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "cxxbridge-macro"
-version = "1.0.185"
+version = "1.0.186"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "indexmap",
@@ -720,7 +720,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "memchr"
-version = "2.7.5"
+version = "2.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -824,7 +824,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "quote"
-version = "1.0.40"
+version = "1.0.41"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "proc-macro2",
@@ -841,7 +841,7 @@ dependencies = [
 
 [[package]]
 name = "regex-automata"
-version = "0.4.10"
+version = "0.4.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -888,7 +888,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "serde"
-version = "1.0.225"
+version = "1.0.228"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "serde_core",
@@ -897,7 +897,7 @@ dependencies = [
 
 [[package]]
 name = "serde_core"
-version = "1.0.225"
+version = "1.0.228"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "serde_derive",
@@ -905,7 +905,7 @@ dependencies = [
 
 [[package]]
 name = "serde_derive"
-version = "1.0.225"
+version = "1.0.228"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "proc-macro2",

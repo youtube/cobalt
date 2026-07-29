@@ -17,13 +17,22 @@
 #include "chrome/browser/ui/views/frame/browser_widget.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/browser/ui/views/web_apps/frame_toolbar/web_app_frame_toolbar_view.h"
+#include "ui/gfx/geometry/rect.h"
 #include "ui/views/view.h"
+
+namespace {
+
+// Feature that manages the transition between old and current browser layout
+// delegate. This feature is on by default and provided only as a killswitch.
+BASE_FEATURE(kDesktopNewTopAreaLayoutFeature, base::FEATURE_ENABLED_BY_DEFAULT);
+
+}  // namespace
 
 // static
 std::unique_ptr<BrowserViewLayoutDelegate>
 BrowserViewLayoutDelegateImplBase::CreateDelegate(BrowserView& browser_view) {
-  if (base::FeatureList::IsEnabled(features::kDesktopNewTopAreaLayoutFeature)) {
-    return std::make_unique<BrowserViewLayoutDelegateImplNew>(browser_view);
+  if (base::FeatureList::IsEnabled(kDesktopNewTopAreaLayoutFeature)) {
+    return std::make_unique<BrowserViewLayoutDelegateImpl>(browser_view);
   }
   return std::make_unique<BrowserViewLayoutDelegateImplOld>(browser_view);
 }
@@ -58,6 +67,13 @@ int BrowserViewLayoutDelegateImplBase::GetTopInsetInBrowserView() const {
 
   return browser_view_->browser_widget()->GetFrameView()->GetTopInset(false) -
          browser_view_->y();
+}
+
+void BrowserViewLayoutDelegateImplBase::LayoutWebAppWindowTitle(
+    const gfx::Rect& available_space,
+    views::Label& window_title_label) const {
+  return GetFrameView()->LayoutWebAppWindowTitle(available_space,
+                                                 window_title_label);
 }
 
 bool BrowserViewLayoutDelegateImplBase::IsToolbarVisible() const {
@@ -204,6 +220,9 @@ BrowserViewLayoutDelegateImplOld::GetBoundsForToolbarInVerticalTabBrowserView()
 gfx::Rect
 BrowserViewLayoutDelegateImplOld::GetBoundsForWebAppFrameToolbarInBrowserView()
     const {
+  if (!GetFrameView()->ShouldShowWebAppFrameToolbar()) {
+    return gfx::Rect();
+  }
   const gfx::Size web_app_frame_toolbar_preferred_size =
       browser_view().web_app_frame_toolbar()->GetPreferredSize();
   gfx::RectF bounds_f =
@@ -214,14 +233,13 @@ BrowserViewLayoutDelegateImplOld::GetBoundsForWebAppFrameToolbarInBrowserView()
   return gfx::ToEnclosingRect(bounds_f);
 }
 
-BrowserViewLayoutDelegateImplNew::BrowserViewLayoutDelegateImplNew(
+BrowserViewLayoutDelegateImpl::BrowserViewLayoutDelegateImpl(
     BrowserView& browser_view)
     : BrowserViewLayoutDelegateImplBase(browser_view) {}
-BrowserViewLayoutDelegateImplNew::~BrowserViewLayoutDelegateImplNew() = default;
+BrowserViewLayoutDelegateImpl::~BrowserViewLayoutDelegateImpl() = default;
 
 gfx::Rect
-BrowserViewLayoutDelegateImplNew::GetBoundsForTabStripRegionInBrowserView()
-    const {
+BrowserViewLayoutDelegateImpl::GetBoundsForTabStripRegionInBrowserView() const {
   const gfx::Size tabstrip_minimum_size =
       browser_view().tab_strip_view()->GetMinimumSize();
   const auto layout = GetFrameView()->GetBrowserLayoutParams();
@@ -249,7 +267,7 @@ BrowserViewLayoutDelegateImplNew::GetBoundsForTabStripRegionInBrowserView()
 }
 
 gfx::Rect
-BrowserViewLayoutDelegateImplNew::GetBoundsForToolbarInVerticalTabBrowserView()
+BrowserViewLayoutDelegateImpl::GetBoundsForToolbarInVerticalTabBrowserView()
     const {
   const gfx::Size toolbar_preferred_size =
       browser_view().toolbar()->GetPreferredSize();
@@ -275,11 +293,12 @@ BrowserViewLayoutDelegateImplNew::GetBoundsForToolbarInVerticalTabBrowserView()
 }
 
 gfx::Rect
-BrowserViewLayoutDelegateImplNew::GetBoundsForWebAppFrameToolbarInBrowserView()
+BrowserViewLayoutDelegateImpl::GetBoundsForWebAppFrameToolbarInBrowserView()
     const {
-  if (browser_view().ShouldHideUIForFullscreen()) {
+  if (!GetFrameView()->ShouldShowWebAppFrameToolbar()) {
     return gfx::Rect();
   }
+
   const gfx::Size web_app_frame_toolbar_preferred_size =
       browser_view().web_app_frame_toolbar()->GetPreferredSize();
 

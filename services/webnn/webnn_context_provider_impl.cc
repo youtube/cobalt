@@ -103,9 +103,27 @@ WebNNContextProviderImpl::WebNNContextProviderImpl(
       client_id_(client_id) {
   CHECK_NE(scheduler_, nullptr);
   CHECK_NE(main_thread_task_runner_, nullptr);
+  DCHECK(main_thread_task_runner_->BelongsToCurrentThread());
+  if (shared_context_state_) {
+    memory_tracker_ = shared_context_state_->memory_tracker();
+  }
 }
 
-WebNNContextProviderImpl::~WebNNContextProviderImpl() = default;
+WebNNContextProviderImpl::~WebNNContextProviderImpl() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+}
+
+base::flat_set<scoped_refptr<base::SequencedTaskRunner>>
+WebNNContextProviderImpl::GetAllContextTaskRunnersForTesting() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  base::flat_set<scoped_refptr<base::SequencedTaskRunner>> runners;
+  for (auto& impl : context_impls_) {
+    runners.insert(impl->owning_task_runner());
+  }
+
+  return runners;
+}
 
 std::unique_ptr<WebNNContextProviderImpl> WebNNContextProviderImpl::Create(
     scoped_refptr<gpu::SharedContextState> shared_context_state,
@@ -133,16 +151,16 @@ void WebNNContextProviderImpl::BindWebNNContextProvider(
 }
 
 void WebNNContextProviderImpl::RemoveWebNNContextImpl(WebNNContextImpl* impl) {
-  auto it = impls_.find(impl->handle());
-  CHECK(it != impls_.end());
-  impls_.erase(it);
+  auto it = context_impls_.find(impl->handle());
+  CHECK(it != context_impls_.end());
+  context_impls_.erase(it);
 }
 
 #if BUILDFLAG(IS_WIN)
 void WebNNContextProviderImpl::DestroyContextsAndKillGpuProcess(
     const std::string& reason) {
   // Send the contexts lost reason to the renderer process.
-  for (const auto& impl : impls_) {
+  for (const auto& impl : context_impls_) {
     impl->OnLost(reason);
   }
 
@@ -177,15 +195,16 @@ void WebNNContextProviderImpl::CreateWebNNContext(
       *scheduler_, sequence->sequence_id());
 
   if (g_backend_for_testing) {
-    impls_.emplace(g_backend_for_testing->CreateWebNNContext(
+    context_impls_.emplace(g_backend_for_testing->CreateWebNNContext(
         this, std::move(options), command_buffer_id, std::move(sequence),
-        std::move(scheduler_task_runner), std::move(callback)));
+        std::move(scheduler_task_runner), memory_tracker_,
+        main_thread_task_runner_, shared_image_manager_, std::move(callback)));
     return;
   }
 
   scoped_refptr<WebNNContextImpl> context_impl;
-  mojo::PendingAssociatedRemote<mojom::WebNNContext> remote;
-  auto receiver = remote.InitWithNewEndpointAndPassReceiver();
+  mojo::PendingRemote<mojom::WebNNContext> remote;
+  auto receiver = remote.InitWithNewPipeAndPassReceiver();
 
   RecordDeviceType(options->device);
 
@@ -221,7 +240,8 @@ void WebNNContextProviderImpl::CreateWebNNContext(
           std::move(options), std::move(write_tensor_consumer),
           std::move(read_tensor_producer),
           std::move(env_creation_results.value()), command_buffer_id,
-          std::move(sequence), std::move(scheduler_task_runner));
+          std::move(sequence), std::move(scheduler_task_runner),
+          memory_tracker_, main_thread_task_runner_, shared_image_manager_);
     }
   } else if (dml::ShouldCreateDmlContext(*options)) {
     base::expected<scoped_refptr<WebNNContextImpl>, mojom::ErrorPtr>
@@ -230,7 +250,8 @@ void WebNNContextProviderImpl::CreateWebNNContext(
             std::move(read_tensor_producer), gpu_feature_info_, gpu_info_,
             shared_context_state_.get(), std::move(receiver), this,
             command_buffer_id, std::move(sequence),
-            std::move(scheduler_task_runner));
+            std::move(scheduler_task_runner), memory_tracker_,
+            main_thread_task_runner_, shared_image_manager_);
     if (!context_creation_results.has_value()) {
       std::move(callback).Run(mojom::CreateContextResult::NewError(
           std::move(context_creation_results.error())));
@@ -254,7 +275,8 @@ void WebNNContextProviderImpl::CreateWebNNContext(
       read_tensor_consumer.reset();
       context_impl = base::MakeRefCounted<coreml::ContextImplCoreml>(
           std::move(receiver), this, std::move(options), command_buffer_id,
-          std::move(sequence), std::move(scheduler_task_runner));
+          std::move(sequence), std::move(scheduler_task_runner),
+          memory_tracker_, main_thread_task_runner_, shared_image_manager_);
     }
   }
 #endif  // BUILDFLAG(IS_APPLE)
@@ -265,7 +287,8 @@ void WebNNContextProviderImpl::CreateWebNNContext(
         std::move(receiver), this, std::move(options),
         std::move(write_tensor_consumer), std::move(read_tensor_producer),
         command_buffer_id, std::move(sequence),
-        std::move(scheduler_task_runner));
+        std::move(scheduler_task_runner), memory_tracker_,
+        main_thread_task_runner_, shared_image_manager_);
   }
 #endif  // BUILDFLAG(WEBNN_USE_TFLITE)
 
@@ -280,7 +303,7 @@ void WebNNContextProviderImpl::CreateWebNNContext(
 
   ContextProperties context_properties = context_impl->properties();
   const blink::WebNNContextToken& context_handle = context_impl->handle();
-  impls_.emplace(std::move(context_impl));
+  context_impls_.emplace(std::move(context_impl));
 
   auto success = mojom::CreateContextSuccess::New(
       std::move(remote), std::move(context_properties),
@@ -293,8 +316,8 @@ void WebNNContextProviderImpl::CreateWebNNContext(
 base::optional_ref<WebNNContextImpl>
 WebNNContextProviderImpl::GetWebNNContextImplForTesting(
     const blink::WebNNContextToken& handle) {
-  const auto it = impls_.find(handle);
-  if (it == impls_.end()) {
+  const auto it = context_impls_.find(handle);
+  if (it == context_impls_.end()) {
     mojo::ReportBadMessage(kBadMessageInvalidContext);
     return std::nullopt;
   }

@@ -1620,6 +1620,15 @@ DrawResult LayerTreeHostImpl::CalculateRenderPasses(FrameData* frame) {
   if (resourceless_software_draw_)
     draw_result = DrawResult::kSuccess;
 
+  // We can't abort a save directive because that will stall a pending view
+  // transition.
+  // TODO(vmpstr): We might want to revisit this, and punt the save directive to
+  // the next frame (which we can force). This is non-trivial to do, and may not
+  // be worth it for rare cases like this.
+  if (frame->has_view_transition_save_directive) {
+    draw_result = DrawResult::kSuccess;
+  }
+
 #if DCHECK_IS_ON()
   for (const auto& render_pass : frame->render_passes) {
     for (auto* quad : render_pass->quad_list)
@@ -1661,7 +1670,9 @@ DrawResult LayerTreeHostImpl::CalculateRenderPasses(FrameData* frame) {
   // destroyed.
   // TODO(weiliangc): Test copy request w/ LayerTreeFrameSink recreation. Would
   // trigger this DCHECK.
-  DCHECK(!frame->has_copy_requests || draw_result == DrawResult::kSuccess);
+  DCHECK((!frame->has_copy_requests &&
+          !frame->has_view_transition_save_directive) ||
+         draw_result == DrawResult::kSuccess);
 
   return draw_result;
 }
@@ -2911,15 +2922,6 @@ std::optional<SubmitInfo> LayerTreeHostImpl::DrawLayers(FrameData* frame) {
     trees_in_viz_submit_time = UpdateDisplayTree(*frame);
 
     layer_tree_frame_sink_->ExportFrameTiming();
-
-    if (!base::FeatureList::IsEnabled(features::kNoCompositorFrameAcks)) {
-      // For the display compositor we should have already submitted at display
-      // Immediately queue a DidReceiveCompositorFrameAck.
-      GetTaskRunner()->PostTask(
-          FROM_HERE,
-          base::BindOnce(&LayerTreeHostImpl::DidReceiveCompositorFrameAck,
-                         weak_factory_.GetWeakPtr()));
-    }
   } else {
     TRACE_EVENT(
         "viz,benchmark,graphics.pipeline", "Graphics.Pipeline",
@@ -3118,6 +3120,7 @@ viz::CompositorFrame LayerTreeHostImpl::GenerateCompositorFrame(
   }
 
   viz::CompositorFrameMetadata metadata = MakeCompositorFrameMetadata();
+  bool has_view_transition_with_animate = false;
 
   // Don't compute transition directives in TreesInViz mode because
   // the requests will be sent over to viz to compute them.
@@ -3155,6 +3158,9 @@ viz::CompositorFrame LayerTreeHostImpl::GenerateCompositorFrame(
     }
 
     auto display_color_spaces = GetDisplayColorSpaces();
+    // TODO(vmpstr): If the frame we would produce has animated checkerboarded
+    // content, we should wait until an actual frame is produced before
+    // destructively taking view transition requests.
     for (auto& request : active_tree_->TakeViewTransitionRequests(
              /*should_set_needs_update_draw_properties=*/true)) {
       if (resourceless_software_draw_) {
@@ -3162,6 +3168,14 @@ viz::CompositorFrame LayerTreeHostImpl::GenerateCompositorFrame(
       } else {
         metadata.transition_directives.push_back(request->ConstructDirective(
             view_transition_element_map, display_color_spaces));
+        if (request->maybe_cross_frame_sink() &&
+            features::ShouldAckCOREarlyForViewTransition()) {
+          OnCompositorFrameTransitionDirectiveProcessed(request->sequence_id());
+          if (request->type() ==
+              ViewTransitionRequest::Type::kAnimateRenderer) {
+            has_view_transition_with_animate = true;
+          }
+        }
       }
     }
   } else {
@@ -3173,14 +3187,34 @@ viz::CompositorFrame LayerTreeHostImpl::GenerateCompositorFrame(
     if (active_tree_->HasViewTransitionRequests()) {
       active_tree_->set_needs_update_draw_properties();
     }
+    if (features::ShouldAckCOREarlyForViewTransition()) {
+      for (auto& request : active_tree_->view_transition_requests()) {
+        if (request->maybe_cross_frame_sink()) {
+          OnCompositorFrameTransitionDirectiveProcessed(request->sequence_id());
+          if (request->type() ==
+              ViewTransitionRequest::Type::kAnimateRenderer) {
+            has_view_transition_with_animate = true;
+          }
+        }
+      }
+    }
   }
 
   PopulateMetadataContentColorUsage(frame, &metadata);
   metadata.has_shared_element_resources = frame->has_shared_element_resources;
-  metadata.deadline = viz::FrameDeadline(
-      CurrentBeginFrameArgs().frame_time,
-      frame->deadline_in_frames.value_or(0u), CurrentBeginFrameArgs().interval,
-      frame->use_default_lower_bound_deadline);
+  uint32_t frame_deadline = frame->deadline_in_frames.value_or(0u);
+  // Set a higher frame deadline for ViewTransitions with `kAnimateRenderer` to
+  // wait for animations from old RenderFrame, in case there are issues with old
+  // RenderFrame being stuck, and we send CopyOutputRequest Ack early for
+  // fast-path ViewTransition navigations.
+  if (features::ShouldAckCOREarlyForViewTransition() &&
+      has_view_transition_with_animate) {
+    frame_deadline = 240;
+  }
+  metadata.deadline =
+      viz::FrameDeadline(CurrentBeginFrameArgs().frame_time, frame_deadline,
+                         CurrentBeginFrameArgs().interval,
+                         frame->use_default_lower_bound_deadline);
   metadata.frame_interval_inputs.frame_time =
       CurrentBeginFrameArgs().frame_time;
   metadata.frame_interval_inputs.has_input = has_input_for_frame_interval_;
@@ -4277,8 +4311,6 @@ LayerTreeHostImpl::CreateRasterBufferProvider() {
         /*is_software=*/true);
   }
 
-  const gpu::Capabilities& caps =
-      compositor_context_provider->ContextCapabilities();
   viz::RasterContextProvider* worker_context_provider =
       layer_tree_frame_sink_->worker_context_provider();
 
@@ -4307,13 +4339,10 @@ LayerTreeHostImpl::CreateRasterBufferProvider() {
         /*is_software=*/false);
   }
 
-  const int max_copy_texture_chromium_size =
-      caps.max_copy_texture_chromium_size;
   return std::make_unique<OneCopyRasterBufferProvider>(
       worker_context_provider->SharedImageInterface(), GetTaskRunner(),
       compositor_context_provider, worker_context_provider,
-      max_copy_texture_chromium_size, settings_.use_partial_raster,
-      settings_.max_staging_buffer_usage_in_bytes,
+      settings_.use_partial_raster, settings_.max_staging_buffer_usage_in_bytes,
       raster_caps_.tile_overlay_candidate);
 }
 

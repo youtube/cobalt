@@ -244,8 +244,7 @@ IN_PROC_BROWSER_TEST_F(GlicFreControllerUiTest, PreconnectOnButtonHover) {
   EXPECT_EQ(connection_tracker.GetAcceptedSocketCount(), 1u);
 }
 
-// TODO(crbug.com/436190211): Fix and re-enable.
-IN_PROC_BROWSER_TEST_F(GlicFreControllerUiTest, DISABLED_PressNoThanksButton) {
+IN_PROC_BROWSER_TEST_F(GlicFreControllerUiTest, PressNoThanksButton) {
   auto server_running = fre_server().StartAcceptingConnectionsAndReturnHandle();
 
   // Tests that pressing the "No Thanks" button in the FRE closes the FRE
@@ -403,7 +402,7 @@ class GlicFreControllerUiHttpErrorTest : public GlicFreControllerUiTestBase {
     fre_server_.RegisterRequestHandler(base::BindRepeating(
         [](const GURL& url, const net::test_server::HttpRequest& request)
             -> std::unique_ptr<net::test_server::HttpResponse> {
-          if (request.relative_url == url.path()) {
+          if (request.relative_url == url.GetPath()) {
             auto response =
                 std::make_unique<net::test_server::BasicHttpResponse>();
             response->set_code(net::HTTP_BAD_GATEWAY);

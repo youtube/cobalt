@@ -42,7 +42,7 @@ class TestSharedImageInterface : public SharedImageInterface {
   // test clients that need the handle grab it from the created SI.
   static gfx::GpuMemoryBufferHandle CreatePixmapHandle(
       const gfx::Size& size,
-      gfx::BufferFormat format);
+      viz::SharedImageFormat format);
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 
   // for default-args overloads
@@ -125,6 +125,8 @@ class TestSharedImageInterface : public SharedImageInterface {
   SyncToken GenUnverifiedSyncToken() override;
   void VerifySyncToken(SyncToken& sync_token) override;
   void WaitSyncToken(const SyncToken& sync_token) override;
+  bool CanVerifySyncToken(const gpu::SyncToken& sync_token) override;
+  void VerifyFlush() override;
 
   // This is used only on windows for webrtc tests where test wants the
   // production code to trigger ClientSharedImage::MapAsync() but wants

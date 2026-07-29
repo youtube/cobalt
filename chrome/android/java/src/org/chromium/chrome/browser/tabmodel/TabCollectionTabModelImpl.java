@@ -46,6 +46,7 @@ import org.chromium.chrome.browser.tabmodel.NextTabPolicy.NextTabPolicySupplier;
 import org.chromium.chrome.browser.tabmodel.PendingTabClosureManager.PendingTabClosureDelegate;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilterObserver.DidRemoveTabGroupReason;
 import org.chromium.components.tab_groups.TabGroupColorId;
+import org.chromium.components.tabs.TabStripCollection;
 import org.chromium.content_public.browser.WebContents;
 
 import java.util.ArrayList;
@@ -610,8 +611,25 @@ public class TabCollectionTabModelImpl extends TabModelJniBridge
     }
 
     @Override
-    public void pinTab(int tabId) {
-        updatePinnedState(tabId, /* isPinned= */ true);
+    public void pinTab(
+            int tabId,
+            boolean showUngroupDialog,
+            @Nullable TabModelActionListener tabModelActionListener) {
+        Tab tab = getTabById(tabId);
+        if (tab == null) return;
+        if (tab.getIsPinned()) return;
+
+        TabPinnerActionListener listener =
+                new TabPinnerActionListener(
+                        () -> updatePinnedState(tabId, /* isPinned= */ true),
+                        tabModelActionListener);
+        getTabUngrouper()
+                .ungroupTabs(
+                        Collections.singletonList(tab),
+                        /* trailing= */ true,
+                        showUngroupDialog,
+                        listener);
+        listener.pinIfCollaborationDialogShown();
     }
 
     @Override
@@ -783,6 +801,13 @@ public class TabCollectionTabModelImpl extends TabModelJniBridge
         if (mNativeTabCollectionTabModelImplPtr == 0) return 0;
         return TabCollectionTabModelImplJni.get()
                 .getIndexOfFirstNonPinnedTab(mNativeTabCollectionTabModelImplPtr);
+    }
+
+    @Override
+    public @Nullable TabStripCollection getTabStripCollection() {
+        if (mNativeTabCollectionTabModelImplPtr == 0) return null;
+        return TabCollectionTabModelImplJni.get()
+                .getTabStripCollection(mNativeTabCollectionTabModelImplPtr);
     }
 
     // TabCloser overrides.
@@ -1729,6 +1754,12 @@ public class TabCollectionTabModelImpl extends TabModelJniBridge
         int currentIndex = indexOf(tab);
         if (currentIndex == TabList.INVALID_TAB_INDEX) return;
 
+        if (isPinned) {
+            recordPinTimestamp(tab);
+        } else {
+            recordPinnedDuration(tab);
+        }
+
         // The C++ side will adjust to a valid index.
         moveTabInternal(
                 tab,
@@ -2338,5 +2369,8 @@ public class TabCollectionTabModelImpl extends TabModelJniBridge
                 long nativeTabCollectionTabModelImpl, @JniType("base::Token") Token tabGroupId);
 
         int getIndexOfFirstNonPinnedTab(long nativeTabCollectionTabModelImpl);
+
+        @JniType("tabs::TabStripCollection*")
+        TabStripCollection getTabStripCollection(long nativeTabCollectionTabModelImpl);
     }
 }

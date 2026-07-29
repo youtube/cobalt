@@ -35,6 +35,7 @@ Neke funkcije možda neće biti dostupne i promjene postavki se neće sačuvati.
 <translation id="1345251407431278948">Zakačeno! Mogućnost ponovnog pristupa pretraživanju pomoću slika putem novog dugmeta na alatnoj traci</translation>
 <translation id="1356661055722410047">Novo! Možete prevesti i tekst i slike s ekrana</translation>
 <translation id="1383876407941801731">Traži</translation>
+<translation id="1397530502368084401">&amp;Upravljajte profilima u Chromiumu</translation>
 <translation id="1414495520565016063">Prijavili ste se u Chromium!</translation>
 <translation id="141901961143729572">Podijelite svoje misli</translation>
 <translation id="1465192221147974788">Da podijelite prozor, dozvolite snimanje ekrana za Chromium u Postavkama sistema.</translation>
@@ -73,8 +74,8 @@ Neke funkcije možda neće biti dostupne i promjene postavki se neće sačuvati.
 <translation id="1896836275755235458">Chromium štedi energiju baterije ograničavanjem pozadinske aktivnosti i vizuelnih efekata, poput glatkog klizanja i broja slika u sekundi videozapisa. <ph name="BEGIN_LINK" />Saznajte više o Uštedi energije<ph name="END_LINK" /></translation>
 <translation id="1898804291554630487">Pitajte o ovoj stranici</translation>
 <translation id="1900969832270057921">Usluga za ažuriranje Chromiuma</translation>
+<translation id="1911666947158375684">Dok ste prijavljeni, lozinke i drugo s Google računa možete koristiti u Chromiumu. Ovo možete promijeniti bilo kada u postavkama.</translation>
 <translation id="1911763535808217981">Isključivanjem ove postavke, možete se prijaviti na Googleove web lokacije poput Gmaila bez prijave na Chromium</translation>
-<translation id="1916451563296275579">Ukloni podatke aplikacije iz Chromiuma</translation>
 <translation id="1929939181775079593">Chromium ne reagira. Ponovo pokrenuti sada?</translation>
 <translation id="1933341829955786215">Organizacija <ph name="MANAGER" /> zahtijeva da se prijavite u Chromium</translation>
 <translation id="193439633299369377">ChromiumOS treba ponovo pokrenuti da se primijeni ažuriranje.</translation>
@@ -237,6 +238,9 @@ Neke funkcije možda neće biti dostupne i promjene postavki se neće sačuvati.
 <translation id="379589255253486813">Chromium će vas obavijestiti ako nešto budete trebali pregledati</translation>
 <translation id="3802055581630249637">Chromium predučitava stranice za koje postoji vjerovatnoća da ćete ih posjetiti kako bi se brže učitavale prilikom posjete</translation>
 <translation id="3810973564298564668">Upravljaj</translation>
+<translation id="3846683726093018685">**Sažmi:** u jednoj rečenici od najviše 30 riječi opiši primarnu temu i svrhu sadržaja na snimku ekrana.
+
+          **Predloži pitanja:** generiraj listu s 3–5 pitanja koja potiču na razmišljanje i koja korisnik može postaviti da bolje razumije snimak ekrana. Ova pitanja trebaju uključivati najmanje jedno pitanje koje se konkretno odnosi na vizuelni objekat, njegov dizajn ili položaj.</translation>
 <translation id="3848258323044014972"><ph name="PAGE_TITLE" /> – Chromium</translation>
 <translation id="3885770153807205175">Birač jezika</translation>
 <translation id="388648406173476553">Prilagodite i kontrolirajte Chromium. Potrebna je vaša pažnja - kliknite za detalje.</translation>
@@ -472,6 +476,7 @@ Neke funkcije možda neće biti dostupne i promjene postavki se neće sačuvati.
 <translation id="6669284030132180248">Ako sačuvate oznake i na svoj Google račun možete pratiti cijene proizvoda u Chromiumu i primati obavještenja kada cijena padne</translation>
 <translation id="6676384891291319759">Pristupite internetu</translation>
 <translation id="668175097507315160">ChromiumOS nije sinhronizirao vaše podatke zbog greške prilikom prijave.</translation>
+<translation id="6691132793308828750">Ukloni podatke aplikacije iz Chromiuma</translation>
 <translation id="6692797197837897398">Chromium vam daje veću kontrolu nad oglasima koji vam se prikazuju i ograničava koje web lokacije mogu saznati informacije o vama kada vam prikažu personalizirane oglase</translation>
 <translation id="6709350901466051922">Chromiumu je za ovu web lokaciju potrebno odobrenje za mikrofon</translation>
 <translation id="6712881677154121168">Greška prilikom preuzimanja: <ph name="DOWNLOAD_ERROR" /></translation>
@@ -492,6 +497,7 @@ Moguće je da neke funkcije neće biti dostupne. Odredite drugi direktorij profi
 <translation id="6877155553248388166">donji desni ugao područja za pretraživanje: desno <ph name="RIGHT" />%, dolje <ph name="BOTTOM" />%</translation>
 <translation id="6896758677409633944">Kopiraj</translation>
 <translation id="6901631050894301805">Postavite Chromium kao zadani preglednik i zakačite ga na traku zadataka</translation>
+<translation id="6909503629704372277">&amp;Upravljajte profilima u Chromiumu</translation>
 <translation id="6934579572334859869">Postavite pitanje pretraživanju pomoću slika o ovoj slici</translation>
 <translation id="6964305034639999644">Otvori link u anonim&amp;nom prozoru Chromiuma</translation>
 <translation id="6965382102122355670">Uredu</translation>
@@ -503,6 +509,7 @@ Moguće je da neke funkcije neće biti dostupne. Odredite drugi direktorij profi
 <translation id="7024536598735240744">Greška prilikom otpakivanja: <ph name="UNPACK_ERROR" />.</translation>
 <translation id="7025789849649390912">Instalacija je zaustavljena.</translation>
 <translation id="7045244423563602563">Prilagodite Chromium sebi</translation>
+<translation id="7047386856539490735">Jesu li ovi rezultati korisni?</translation>
 <translation id="705851970750939768">Ažuriraj Chromium</translation>
 <translation id="7067091210845072982">Ako slika ne sadrži koristan opis, Chromium će ga pokušati pružiti. Slike se šalju Googleu radi kreiranja opisa.</translation>
 <translation id="7141270731789036260">Prilagodite Chrome for Testing</translation>
@@ -628,7 +635,6 @@ Chromium ne može vratiti vaše postavke.</translation>
 <translation id="8586442755830160949">Autorska prava <ph name="YEAR" /> Autori Chromiuma. Sva prava zadržana.</translation>
 <translation id="8601359445272098721">Novo! Možete prevesti i tekst i slike s ekrana odabirom dugmeta "Prevedi ekran"</translation>
 <translation id="8619360774459241877">Pokretanje Chromiuma...</translation>
-<translation id="8621669128220841554">Instalacija nije uspjela zbog neodređene greške. Ponovo preuzmite Chromium.</translation>
 <translation id="8648201657708811153">Google Chrome for Testing nije moguće postaviti kao zadani preglednik.</translation>
 <translation id="8697124171261953979">Također kontrolira koja stranica će se prikazati kada pokrenete Chromium ili budete pretraživali iz višenamjenskog okvira.</translation>
 <translation id="8704119203788522458">Ovo je vaš Chromium</translation>

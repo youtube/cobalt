@@ -14,10 +14,12 @@
 #import "ios/chrome/browser/download/coordinator/download_manager_coordinator.h"
 #import "ios/chrome/browser/download/model/download_manager_tab_helper.h"
 #import "ios/chrome/browser/download/model/pass_kit_tab_helper.h"
+#import "ios/chrome/browser/enterprise/data_controls/model/data_controls_tab_helper.h"
 #import "ios/chrome/browser/find_in_page/model/find_tab_helper.h"
 #import "ios/chrome/browser/follow/model/follow_tab_helper.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_controller.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_tab_helper.h"
+#import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/itunes_urls/model/itunes_urls_handler_tab_helper.h"
 #import "ios/chrome/browser/lens/model/lens_tab_helper.h"
 #import "ios/chrome/browser/mini_map/model/mini_map_tab_helper.h"
@@ -36,6 +38,8 @@
 #import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/contextual_sheet_commands.h"
+#import "ios/chrome/browser/shared/public/commands/data_controls_commands.h"
+#import "ios/chrome/browser/shared/public/commands/file_upload_panel_commands.h"
 #import "ios/chrome/browser/shared/public/commands/help_commands.h"
 #import "ios/chrome/browser/shared/public/commands/lens_commands.h"
 #import "ios/chrome/browser/shared/public/commands/mini_map_commands.h"
@@ -53,6 +57,7 @@
 #import "ios/chrome/browser/tabs/model/tabs_dependency_installer.h"
 #import "ios/chrome/browser/tabs/model/tabs_dependency_installer_bridge.h"
 #import "ios/chrome/browser/web/model/annotations/annotations_tab_helper.h"
+#import "ios/chrome/browser/web/model/choose_file/choose_file_tab_helper.h"
 #import "ios/chrome/browser/web/model/print/print_tab_helper.h"
 #import "ios/chrome/browser/web/model/repost_form_tab_helper.h"
 #import "ios/chrome/browser/web/model/repost_form_tab_helper_delegate.h"
@@ -62,6 +67,10 @@
 #import "ui/base/device_form_factor.h"
 
 @interface TabLifecycleMediator () <TabsDependencyInstalling>
+
+// The source browser.
+@property(nonatomic, assign) Browser* browser;
+
 @end
 
 @implementation TabLifecycleMediator {
@@ -69,10 +78,11 @@
   TabsDependencyInstallerBridge _dependencyInstallerBridge;
 }
 
-- (instancetype)initWithWebStateList:(WebStateList*)webStateList {
+- (instancetype)initWithBrowser:(Browser*)browser {
   if ((self = [super init])) {
     _dependencyInstallerBridge.StartObserving(
-        self, webStateList, TabsDependencyInstaller::Policy::kOnlyRealized);
+        self, browser, TabsDependencyInstaller::Policy::kOnlyRealized);
+    _browser = browser;
   }
   return self;
 }
@@ -158,6 +168,10 @@
   DCHECK(_overscrollActionsDelegate);
   OverscrollActionsTabHelper::FromWebState(webState)->SetDelegate(
       _overscrollActionsDelegate);
+
+  data_controls::DataControlsTabHelper::GetOrCreateForWebState(webState)
+      ->SetDataControlsCommandsHandler(
+          HandlerForProtocol(_commandDispatcher, DataControlsCommands));
 
   // DownloadManagerTabHelper cannot function without its delegate.
   DCHECK(_downloadManagerTabHelperDelegate);
@@ -271,6 +285,13 @@
     id<BWGCommands> BWGCommandsHandler =
         HandlerForProtocol(_commandDispatcher, BWGCommands);
     BWGTabHelper->SetBwgCommandsHandler(BWGCommandsHandler);
+
+    // TODO(crbug.com/448157489): Remove this or refactor to
+    // `HandlerForProtocol`.
+    if (IsAskGeminiSnackbarEnabled()) {
+      BWGTabHelper->SetSnackbarCommandsHandler(
+          static_cast<id<SnackbarCommands>>(_commandDispatcher));
+    }
   }
 
   FindTabHelper* findTabHelper = FindTabHelper::FromWebState(webState);
@@ -278,6 +299,14 @@
     FullscreenController* fullscreenController =
         FullscreenController::FromBrowser(self.browser);
     findTabHelper->SetFullscreenController(fullscreenController);
+  }
+
+  if (base::FeatureList::IsEnabled(kIOSCustomFileUploadMenu)) {
+    ChooseFileTabHelper* chooseFileTabHelper =
+        ChooseFileTabHelper::FromWebState(webState);
+    CHECK(chooseFileTabHelper);
+    chooseFileTabHelper->SetFileUploadPanelHandler(
+        HandlerForProtocol(_commandDispatcher, FileUploadPanelCommands));
   }
 }
 
@@ -318,6 +347,9 @@
   }
 
   OverscrollActionsTabHelper::FromWebState(webState)->SetDelegate(nil);
+
+  data_controls::DataControlsTabHelper::GetOrCreateForWebState(webState)
+      ->SetDataControlsCommandsHandler(nil);
 
   DownloadManagerTabHelper::FromWebState(webState)->SetDelegate(nil);
   DownloadManagerTabHelper::FromWebState(webState)->SetSnackbarHandler(nil);
@@ -397,11 +429,21 @@
   BwgTabHelper* BWGTabHelper = BwgTabHelper::FromWebState(webState);
   if (BWGTabHelper) {
     BWGTabHelper->SetBwgCommandsHandler(nil);
+    if (IsAskGeminiSnackbarEnabled()) {
+      BWGTabHelper->SetSnackbarCommandsHandler(nil);
+    }
   }
 
   FindTabHelper* findTabHelper = FindTabHelper::FromWebState(webState);
   if (findTabHelper) {
     findTabHelper->SetFullscreenController(nullptr);
+  }
+
+  if (base::FeatureList::IsEnabled(kIOSCustomFileUploadMenu)) {
+    ChooseFileTabHelper* chooseFileTabHelper =
+        ChooseFileTabHelper::FromWebState(webState);
+    CHECK(chooseFileTabHelper);
+    chooseFileTabHelper->SetFileUploadPanelHandler(nil);
   }
 }
 

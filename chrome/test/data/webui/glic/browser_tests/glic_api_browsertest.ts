@@ -578,15 +578,11 @@ class ApiTests extends ApiTestFixtureBase {
 
   async testGetDefaultTabContextPermissionState() {
     assertDefined(this.host.getDefaultTabContextPermissionState);
-
     const defaultTabContextState =
         observeSequence(this.host.getDefaultTabContextPermissionState());
-
-    assertFalse(await defaultTabContextState.next());
-
+    assertTrue(await defaultTabContextState.next() as boolean);
     await this.advanceToNextStep();
-
-    assertTrue(await defaultTabContextState.next());
+    assertFalse(await defaultTabContextState.next() as boolean);
   }
 
   async testGetOsHotkeyState() {
@@ -1649,6 +1645,42 @@ class ApiTests extends ApiTestFixtureBase {
         metadata.frameMetadata[0]!.metaTags.find(tag => tag.name === 'author');
     assertDefined(authorTag);
     assertEquals('Ruth', authorTag.content);
+  }
+
+  /**
+   * Verifies that getPageMetadata emits new values when the tab navigates to a
+   * new page.
+   */
+  async testGetPageMetadataOnNavigation() {
+    assertDefined(this.host.getPageMetadata);
+    assertDefined(this.host.getFocusedTabStateV2);
+
+    const focus =
+        await observeSequence(this.host.getFocusedTabStateV2()).next();
+    const tabId = checkDefined(focus.hasFocus?.tabData.tabId);
+
+    const metadataObservable =
+        this.host.getPageMetadata(tabId, ['author', 'description']);
+    assertDefined(metadataObservable);
+    const metadataSequence = observeSequence(metadataObservable);
+
+    // The initial page has one meta tag.
+    let metadata: PageMetadata = await metadataSequence.next();
+    assertDefined(metadata);
+    assertEquals(1, metadata.frameMetadata.length);
+    assertEquals(1, metadata.frameMetadata[0]!.metaTags.length);
+    const authorTag =
+        metadata.frameMetadata[0]!.metaTags.find(tag => tag.name === 'author');
+    assertDefined(authorTag);
+    assertEquals('George', authorTag.content);
+
+    // The C++ side will navigate to a page with no meta tags.
+    await this.advanceToNextStep();
+
+    metadata = await metadataSequence.next();
+    assertDefined(metadata);
+    assertEquals(1, metadata.frameMetadata.length);
+    assertEquals(0, metadata.frameMetadata[0]!.metaTags.length);
   }
 
   /**

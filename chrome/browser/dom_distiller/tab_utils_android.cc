@@ -46,14 +46,6 @@ void JNI_DomDistillerTabUtils_DistillCurrentPageAndViewIfSuccessful(
           jni_zero::ScopedJavaGlobalRef<jobject>(j_callback)));
 }
 
-void JNI_DomDistillerTabUtils_DistillCurrentPageAndView(
-    JNIEnv* env,
-    const JavaParamRef<jobject>& j_web_contents) {
-  content::WebContents* web_contents =
-      content::WebContents::FromJavaWebContents(j_web_contents);
-  ::DistillCurrentPageAndView(web_contents);
-}
-
 void JNI_DomDistillerTabUtils_DistillCurrentPage(
     JNIEnv* env,
     const JavaParamRef<jobject>& j_source_web_contents) {
@@ -80,7 +72,7 @@ std::u16string JNI_DomDistillerTabUtils_GetFormattedUrlFromOriginalDistillerUrl(
 
   if (url.spec().length() > content::kMaxURLDisplayChars)
     url = url.IsStandard() ? url.DeprecatedGetOriginAsURL()
-                           : GURL(url.scheme() + ":");
+                           : GURL(url.GetScheme() + ":");
 
   // Note that we can't unescape spaces here, because if the user copies this
   // and pastes it into another program, that program may think the URL ends at
@@ -117,6 +109,16 @@ void JNI_DomDistillerTabUtils_RunReadabilityHeuristicsOnWebContents(
   content::WebContents* web_contents =
       content::WebContents::FromJavaWebContents(j_web_contents);
   ::RunReadabilityHeuristicsOnWebContents(web_contents, std::move(callback));
+}
+
+void JNI_DomDistillerTabUtils_OverrideDefaultZoomForReaderModePage(
+    JNIEnv* env,
+    const JavaParamRef<jobject>& j_source_web_contents,
+    const JavaParamRef<jstring>& j_distiller_url) {
+  content::WebContents* source_web_contents =
+      content::WebContents::FromJavaWebContents(j_source_web_contents);
+  GURL url(base::android::ConvertJavaStringToUTF8(env, j_distiller_url));
+  ::OverrideDefaultZoomForReaderModePage(source_web_contents, url);
 }
 
 }  // namespace android

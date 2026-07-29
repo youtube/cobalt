@@ -86,7 +86,6 @@ ASSERT_SIZE(ShapeResultCharacterData, SameSizeAsShapeResultCharacterData);
 struct SameSizeAsShapeResult {
   Vector<int> character_position_;
   Vector<UntracedMember<void*>, 1> runs_;
-  UntracedMember<void*> deprecated_ink_bounds_;
   float width;
   unsigned start_index_;
   unsigned bitfields;
@@ -429,7 +428,6 @@ ShapeResult::ShapeResult(const ShapeResult& other)
 ShapeResult::~ShapeResult() = default;
 
 void ShapeResult::Trace(Visitor* visitor) const {
-  visitor->Trace(deprecated_ink_bounds_);
   visitor->Trace(runs_);
   visitor->Trace(character_position_);
 }
@@ -948,6 +946,20 @@ float ShapeResult::ForEachGraphemeClusters(const StringView& text,
     }
   }
   return advance_so_far;
+}
+
+GlyphData ShapeResult::EmphasisMarkGlyphData(
+    const FontDescription& font_description) const {
+  for (const auto& run : runs_) {
+    DCHECK(run->font_data_);
+    if (run->glyph_data_.IsEmpty()) {
+      continue;
+    }
+    return GlyphData(run->glyph_data_[0].glyph,
+                     run->font_data_->EmphasisMarkFontData(font_description),
+                     run->CanvasRotation());
+  }
+  return GlyphData();
 }
 
 namespace {

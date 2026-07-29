@@ -88,15 +88,25 @@ void ComposeboxHandler::SubmitQuery(
     additional_params["dr"] = "1";
   }
 
+  if (create_image_mode_enabled_) {
+    additional_params["imgn"] = "1";
+  }
+
   // This is the time that the user clicked the submit button, however optional
   // autocomplete logic may be run before this if there was a match associated
   // with the query.
   base::Time query_start_time = base::Time::Now();
   composebox_metrics_recorder_->NotifySessionStateChanged(
       SessionState::kQuerySubmitted);
-  OpenUrl(query_controller_->CreateAimUrl(query_text, query_start_time,
-                                          additional_params),
-          disposition);
+  std::unique_ptr<ComposeboxQueryController::CreateSearchUrlRequestInfo>
+      search_url_request_info = std::make_unique<
+          ComposeboxQueryController::CreateSearchUrlRequestInfo>();
+  search_url_request_info->query_text = query_text;
+  search_url_request_info->query_start_time = query_start_time;
+  search_url_request_info->additional_params = additional_params;
+  OpenUrl(
+      query_controller_->CreateSearchUrl(std::move(search_url_request_info)),
+      disposition);
   composebox_metrics_recorder_->NotifySessionStateChanged(
       SessionState::kNavigationOccurred);
   composebox_metrics_recorder_->RecordQueryMetrics(
@@ -105,6 +115,10 @@ void ComposeboxHandler::SubmitQuery(
 
 void ComposeboxHandler::SetDeepSearchMode(bool enabled) {
   deep_search_mode_enabled_ = enabled;
+}
+
+void ComposeboxHandler::SetCreateImageMode(bool enabled) {
+  create_image_mode_enabled_ = enabled;
 }
 
 void ComposeboxHandler::SubmitQuery(const std::string& query_text,

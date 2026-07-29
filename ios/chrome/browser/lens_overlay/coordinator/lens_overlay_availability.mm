@@ -52,6 +52,9 @@ bool IsLVFEscapeHatchEnabled(const PrefService* prefs) {
   if (isTablet) {
     return NO;
   }
-  return IsLensOverlayAvailable(prefs) &&
-         base::FeatureList::IsEnabled(kLensOverlayEnableLVFEscapeHatch);
+  return IsLensOverlayAvailable(prefs);
+}
+
+bool UseCustomLensOverlayBottomSheet() {
+  return base::FeatureList::IsEnabled(kLensOverlayCustomBottomSheet);
 }

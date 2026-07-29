@@ -14,8 +14,6 @@
 #include <sys/poll.h>
 
 #include <cstdint>
-#include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
 #include "base/bits.h"
@@ -46,6 +44,8 @@
 #include "media/gpu/test/image_quality_metrics.h"
 #include "media/gpu/test/video_test_environment.h"
 #include "media/gpu/video_frame_mapper_factory.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 #include "third_party/libyuv/include/libyuv.h"
 #include "ui/gfx/overlay_transform.h"
 #include "ui/gl/gl_bindings.h"
@@ -440,10 +440,9 @@ scoped_refptr<VideoFrame> ProcessFrameLibyuv(scoped_refptr<VideoFrame> in_frame,
   }
 
   // Assemble a graph of the available LibYUV conversion functions.
-  std::unordered_multimap<
-      uint32_t, std::pair<base::RepeatingCallback<scoped_refptr<VideoFrame>(
-                              const VideoFrame&)>,
-                          FrameState>>
+  absl::flat_hash_map<uint32_t, std::pair<base::RepeatingCallback<scoped_refptr<
+                                              VideoFrame>(const VideoFrame&)>,
+                                          FrameState>>
       frame_process_graph = {
           {V4L2_PIX_FMT_MM21,
            std::make_pair(base::BindRepeating(&ConvMM21ToI420),
@@ -484,7 +483,7 @@ scoped_refptr<VideoFrame> ProcessFrameLibyuv(scoped_refptr<VideoFrame> in_frame,
   // steps for a given frame. Some of these conversions are not completely
   // lossless, so we want to minimize distortion.
   std::vector<FrameState> frame_states = {FrameState(in_fourcc, false)};
-  std::unordered_set<FrameState> seen_states;
+  absl::flat_hash_set<FrameState> seen_states;
   std::vector<std::vector<
       base::RepeatingCallback<scoped_refptr<VideoFrame>(const VideoFrame&)>>>
       paths = {{}};

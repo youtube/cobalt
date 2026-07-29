@@ -210,7 +210,6 @@
           <ph name="LIST_ITEM" />นายจ้างหรือโรงเรียน
           <ph name="LIST_ITEM" />ผู้ให้บริการอินเทอร์เน็ต
         <ph name="END_LIST" /></translation>
-<translation id="1335042910556016570">ติดตามรายการนี้</translation>
 <translation id="1337692097987160377">แชร์แท็บนี้</translation>
 <translation id="1339601241726513588">โดเมนการลงทะเบียน:</translation>
 <translation id="1340482604681802745">ที่อยู่ในการรับ</translation>
@@ -481,7 +480,6 @@
 <translation id="1762779605905950734">ชื่อถนน</translation>
 <translation id="1763864636252898013">เซิร์ฟเวอร์นี้ไม่สามารถพิสูจน์ได้ว่าเป็น <ph name="DOMAIN" /> เพราะระบบปฏิบัติการของอุปกรณ์ของคุณไม่เชื่อถือใบรับรองความปลอดภัย โดยอาจเกิดจากการกำหนดค่าผิดหรือผู้บุกรุกที่ขัดขวางการเชื่อมต่อของคุณ</translation>
 <translation id="1768211456781949159"><ph name="BEGIN_LINK" />ลองเรียกใช้การวินิจฉัยเครือข่ายของ Windows<ph name="END_LINK" /></translation>
-<translation id="1771254328977666895">ดูประวัติราคา</translation>
 <translation id="1777422078676229054">รูปภาพ (Archival)</translation>
 <translation id="1778646502362731194">JIS B0</translation>
 <translation id="1785118555253503473">ติดตั้งเว็บแอปไหม</translation>
@@ -816,6 +814,7 @@
 <translation id="2321291402658100099">จัดการข้อมูล</translation>
 <translation id="2322254345061973671">{COUNT,plural, =1{1 หน้าต่าง}other{# หน้าต่าง}}</translation>
 <translation id="232390861414237658">ป้อนข้อมูลบัตรนี้โดยอัตโนมัติสำหรับการซื้อใน Chrome เมื่อบันทึกบัตรไว้ใช้กับ Google Pay</translation>
+<translation id="2326283484705860548">ตอนนี้คุณสามารถป้อนข้อมูลเพิ่มเติมจาก Google Wallet โดยอัตโนมัติได้แล้ว</translation>
 <translation id="2328651992442742497">อนุญาต (ค่าเริ่มต้น)</translation>
 <translation id="2328955282645810595">การก่อสร้างและเครื่องมือไฟฟ้า</translation>
 <translation id="2330137317877982892"><ph name="CREDIT_CARD" /> หมดอายุ <ph name="EXPIRATION_DATE_ABBR" /></translation>
@@ -826,6 +825,7 @@
 <translation id="2346319942568447007">รูปภาพที่คุณคัดลอก</translation>
 <translation id="2347764072711098973">ใช้ Affirm, Zip หรือ Klarna เพื่อแบ่งจ่าย</translation>
 <translation id="2348509731468399833">หยุดติดตามราคาแล้ว</translation>
+<translation id="2348836501965732644">จัดการข้อมูลหรือปิดการแนะนำเหล่านี้ได้ในการตั้งค่า</translation>
 <translation id="2349957959687031096">ปุ่มเปิดแท็บที่ไม่ระบุตัวตน เปิดใช้งานเพื่อเปิดแท็บใหม่ที่ไม่ระบุตัวตนในการท่องเว็บแบบส่วนตัว</translation>
 <translation id="2350796302381711542">ต้องการอนุญาตให้ <ph name="HANDLER_HOSTNAME" /> เปิดลิงก์ <ph name="PROTOCOL" /> ทั้งหมดแทน <ph name="REPLACED_HANDLER_TITLE" /> ไหม</translation>
 <translation id="2351718832234620840">เซิร์ฟเวอร์นี้พิสูจน์ไม่ได้ว่าเป็น <ph name="DOMAIN" /> เนื่องจากใช้ใบรับรองความปลอดภัยที่ Chromium หรือการกำหนดค่าระบบของคุณไม่เชื่อถือสำหรับการเข้ารหัสการเข้าชมเว็บ สาเหตุอาจเกิดจากการกำหนดค่าผิดหรือผู้โจมตีขัดขวางการเชื่อมต่อของคุณ</translation>
@@ -990,6 +990,7 @@
 <translation id="2610561535971892504">คลิกเพื่อคัดลอก</translation>
 <translation id="2612676031748830579">หมายเลขบัตร</translation>
 <translation id="2612993535136743634">จะมีการลบรหัสความปลอดภัยทั้งหมดที่บันทึกไว้ในอุปกรณ์และในบัญชี Google</translation>
+<translation id="2614835674900828050">ไม่พร้อมให้บริการสำหรับการซื้อครั้งนี้</translation>
 <translation id="2616412942031748191">การปรับแต่งเว็บไซต์ให้ติดอันดับบนเครื่องมือค้นหาและการตลาด</translation>
 <translation id="2618206371527040026">การประชุมเชิงวิชาการและการเผยแพร่</translation>
 <translation id="2619052155095999743">แทรก</translation>
@@ -1253,6 +1254,7 @@
 <translation id="3087734570205094154">ด้านล่าง</translation>
 <translation id="3090667236485488075">กระจก</translation>
 <translation id="3093122472063815077">เปิดหน้าจอความคืบหน้าของ "ซื้อก่อน จ่ายทีหลัง" ที่ระดับความสูงครึ่งหนึ่ง</translation>
+<translation id="309381737510736393">เมื่อองค์กรจำกัดการบันทึกลงในบัญชี Google ของคุณ คุณจะแชร์แท็บหรือทำงานร่วมกับผู้อื่นไม่ได้</translation>
 <translation id="3094051226187213523">เปิดโหมด AI ด้วยคำแนะนำนี้</translation>
 <translation id="3095940652251934233">Statement</translation>
 <translation id="3098513225387949945">ไม่สนใจเนื่องจากรายการ "ปิดใช้" มีรูปแบบเท่ากับ "*" ซึ่งเทียบเท่ากับการปิดใช้นโยบาย</translation>
@@ -1697,6 +1699,7 @@
 <translation id="3784372983762739446">อุปกรณ์บลูทูธ</translation>
 <translation id="3785246317262748285">โดยปกติคุณจะเชื่อมต่อกับเว็บไซต์ต่างๆ อย่างปลอดภัย แต่ Chrome ไม่สามารถใช้การเชื่อมต่อที่ปลอดภัยได้ในขณะนี้ ผู้โจมตีอาจกำลังพยายามดักฟังหรือแก้ไขการเชื่อมต่อเครือข่ายของคุณ <ph name="LEARN_MORE" /></translation>
 <translation id="378611282717571199">ผลลัพธ์ที่ตรงที่สุดสำหรับ "<ph name="SEARCH_QUERY" />"</translation>
+<translation id="3787887386289385215"><ph name="ISSUER_1_NAME" />, <ph name="ISSUER_2_NAME" /> หรือ <ph name="ISSUER_3_NAME" /></translation>
 <translation id="3789841737615482174">ติดตั้ง</translation>
 <translation id="3791118028061680614">ชำระเงินโดยไม่ต้องเปลี่ยนแอป</translation>
 <translation id="3792100426446126328"><ph name="NAME" /> (<ph name="WIDTH" /> x <ph name="HEIGHT" /> นิ้ว)</translation>
@@ -2678,6 +2681,7 @@
 <translation id="5412040515238827314">รูปแบบไม่ถูกต้อง: ควรมีรายการรูปแบบ</translation>
 <translation id="5412245327974352290"><ph name="TRADITIONAL_TEXT" /> - <ph name="ADDITIONAL_TEXT" /></translation>
 <translation id="541416427766103491">สแต็กเกอร์ 4</translation>
+<translation id="5414306071315087019">ซื้อก่อน จ่ายทีหลังได้ด้วย Google Pay</translation>
 <translation id="5414446060143308245">ต้องตรวจสอบก่อนโอน</translation>
 <translation id="5414511064953050917">ย้ายเลย</translation>
 <translation id="5418700249417444482">URL ของหน้าเว็บที่คุณเข้าชมจะส่งไปยัง Google Cloud หรือบุคคลที่สามเพื่อทำการวิเคราะห์ และผู้ดูแลระบบอาจมองเห็นได้ เช่น อาจสแกนเพื่อตรวจหาเว็บไซต์ที่ไม่ปลอดภัยหรือกรองเว็บไซต์ตามกฎที่ผู้ดูแลระบบตั้งไว้</translation>
@@ -2798,6 +2802,7 @@
 <translation id="5595485650161345191">แก้ไขที่อยู่</translation>
 <translation id="5596939519753369075">2 x 3.5 นิ้ว</translation>
 <translation id="5597254438174353289">น้ำเงิน 3</translation>
+<translation id="5603469469737324249"><ph name="ISSUER_1_NAME" /> หรือ <ph name="ISSUER_2_NAME" /></translation>
 <translation id="560412284261940334">ไม่สนับสนุนการจัดการ</translation>
 <translation id="5605249000617390290">ดูข้อมูลเพิ่มเติมเกี่ยวกับการติดตามราคา</translation>
 <translation id="5605670050355397069">Ledger</translation>

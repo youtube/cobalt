@@ -408,12 +408,6 @@ const CGFloat kSeparatorHeight = 0.5;
       }
       return l10n_util::GetNSString(IDS_IOS_TAB_RESUMPTION_TITLE);
     }
-    case ContentSuggestionsModuleType::kSetUpListDefaultBrowser:
-    case ContentSuggestionsModuleType::kSetUpListAutofill:
-    case ContentSuggestionsModuleType::kCompactedSetUpList:
-    case ContentSuggestionsModuleType::kSetUpListAllSet:
-    case ContentSuggestionsModuleType::kSetUpListNotifications:
-      return content_suggestions::SetUpListTitleString();
     case ContentSuggestionsModuleType::kSafetyCheck:
       return l10n_util::GetNSString(IDS_IOS_SAFETY_CHECK_TITLE);
     case ContentSuggestionsModuleType::kPriceTrackingPromo:
@@ -431,6 +425,11 @@ const CGFloat kSeparatorHeight = 0.5;
             IDS_IOS_CONTENT_SUGGESTIONS_SHOPCARD_REVIEWS_ALT_TITLE);
       }
     }
+    case ContentSuggestionsModuleType::kSetUpListDefaultBrowser:
+    case ContentSuggestionsModuleType::kSetUpListAutofill:
+    case ContentSuggestionsModuleType::kCompactedSetUpList:
+    case ContentSuggestionsModuleType::kSetUpListAllSet:
+    case ContentSuggestionsModuleType::kSetUpListNotifications:
     case ContentSuggestionsModuleType::kTipsWithProductImage:
     case ContentSuggestionsModuleType::kTips:
     case ContentSuggestionsModuleType::kAppBundlePromo:
@@ -460,13 +459,10 @@ const CGFloat kSeparatorHeight = 0.5;
                                              config:(MagicStackModule*)config {
   switch (type) {
     case ContentSuggestionsModuleType::kShopCard: {
-      if (base::Contains(commerce::kShopCardVariation.Get(),
-                         commerce::kShopCardArm1)) {
-        ShopCardItem* shopCardItem = static_cast<ShopCardItem*>(config);
-        _seeMoreButton.accessibilityLabel = [@[
-          _seeMoreButton.titleLabel.text, shopCardItem.shopCardData.productTitle
-        ] componentsJoinedByString:@", "];
-      }
+      ShopCardItem* shopCardItem = static_cast<ShopCardItem*>(config);
+      _seeMoreButton.accessibilityLabel = [@[
+        _seeMoreButton.titleLabel.text, shopCardItem.shopCardData.productTitle
+      ] componentsJoinedByString:@", "];
       break;
     }
     default:

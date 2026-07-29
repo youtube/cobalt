@@ -40,6 +40,7 @@
 <translation id="1500473259453106018">Ukryj kartę Obniżki cen na kartach</translation>
 <translation id="1508931164824684991">Strony mogą używać JavaScriptu</translation>
 <translation id="1510341833810331442">Witryny nie mogą zapisywać danych na Twoim urządzeniu</translation>
+<translation id="1532175480576580256">Plansza dolna Moje skróty otwarta na całą wysokość</translation>
 <translation id="1538031354170655462">Strony zwykle używają komunikacji Near Field Communication (NFC) do obsługi tagów lub urządzeń w pobliżu, na przykład do skanowania identyfikatorów lub dokonywania płatności zbliżeniowych</translation>
 <translation id="1547123415014299762">Pliki cookie innych firm są dozwolone</translation>
 <translation id="1569054338208717605">Witryny będą działać szybciej dzięki mechanizmowi V8 w przeglądarce Chrome, ale będzie ona trochę mniej odporna na ataki</translation>
@@ -115,6 +116,7 @@
 <translation id="228293613124499805">Aby strony, na które wchodzisz, mogły lepiej działać, przeważnie zapisują one na Twoim urządzeniu dane. Najczęściej są to informacje, które im udostępniasz, lub Twoje ustawienia. Zalecamy pozostawienie tego ustawienia włączonego.</translation>
 <translation id="2289270750774289114">Pytaj, gdy strona chce wykryć urządzenia Bluetooth w pobliżu (zalecane)</translation>
 <translation id="2315043854645842844">Wybieranie certyfikatu klienta nie jest obsługiwane przez ten system operacyjny.</translation>
+<translation id="2347601491101454548">Plansza dolna Moje skróty otwarta do połowy wysokości</translation>
 <translation id="2359808026110333948">Dalej</translation>
 <translation id="2379925928934107488">Stosuj ciemny motyw witryn w przypadkach, w których stosuje go Chrome, tam, gdzie to możliwe</translation>
 <translation id="2390272837142897736">Zwiększ powiększenie</translation>
@@ -145,6 +147,11 @@
 <translation id="2588271083332682494">Utrzymuj porządek dzięki grupom kart</translation>
 <translation id="2597457036804169544">Nie stosuj ciemnego motywu witryn</translation>
 <translation id="2606760465469169465">Automatyczna weryfikacja</translation>
+<translation id="2610903128639500624">Zarządzaj w <ph name="BEGIN_LINK1" />ustawieniach Androida<ph name="END_LINK1" />
+
+Zaawansowana ochrona kontroluje te ustawienia Chrome:
+• Opcja „Zawsze używaj bezpiecznych połączeń” jest włączona.
+• Opcja „Optymalizator JavaScriptu” jest wyłączona. <ph name="BEGIN_LINK2" />Zarządzaj wyjątkami dotyczącymi witryny<ph name="END_LINK2" /></translation>
 <translation id="2621115761605608342">Zezwól na użycie JavaScriptu w określonej witrynie.</translation>
 <translation id="2626708220538466178">Plansza dolna przeglądarki domyślnej zamknięta</translation>
 <translation id="2653659639078652383">Prześlij</translation>
@@ -303,6 +310,7 @@
 <translation id="4336566011000459927">Chrome ponownie ograniczy pliki cookie dzisiaj</translation>
 <translation id="4338831206024587507">Wszystkie witryny w domenie <ph name="DOMAIN" /></translation>
 <translation id="4340799661701629185">Nie zezwalaj witrynom na wysyłanie powiadomień</translation>
+<translation id="4341577178275615435">Aby włączyć lub wyłączyć przeglądanie przy użyciu kursora, użyj skrótu F7</translation>
 <translation id="4402755511846832236">Nie pozwalaj stronom sprawdzać, czy aktualnie używasz urządzenia</translation>
 <translation id="4412683424767388419">Plansza dolna Kolory Chrome otwarta do połowy wysokości</translation>
 <translation id="4412992751769744546">Zezwalaj na pliki cookie innych firm</translation>
@@ -337,6 +345,7 @@
 <translation id="4816495437032298535">Zapisane powiększenie witryn</translation>
 <translation id="4836046166855586901">Pytaj, gdy strona chce wiedzieć, kiedy aktywnie korzystasz z urządzenia</translation>
 <translation id="483914009762354899">Uwzględnij wszystkie witryny w tej domenie</translation>
+<translation id="4852997963351138624">Szesnastkowy kod koloru tła</translation>
 <translation id="4882919381756638075">Strony zwykle używają mikrofonu na potrzeby komunikacji, na przykład czatu wideo</translation>
 <translation id="4883854917563148705">Ustawień zarządzanych nie można zresetować</translation>
 <translation id="4887024562049524730">Pytaj, zanim zezwolisz stronom na korzystanie z urządzenia i danych rzeczywistości wirtualnej (zalecane)</translation>
@@ -500,6 +509,7 @@
 <translation id="6608650720463149374"><ph name="GIGABYTES" /> GB</translation>
 <translation id="6612358246767739896">Treść chroniona</translation>
 <translation id="662080504995468778">Zostań</translation>
+<translation id="6630443592285535486">Wpisz tutaj wartość szesnastkową</translation>
 <translation id="6635327442719709864">Gdy to ustawienie jest włączone, strony mogą prosić o zgodę na używanie portów szeregowych. Gdy jest wyłączone, strony nie mogą używać portów szeregowych.</translation>
 <translation id="6678072580827808850">Przeprowadź kontrolę zabezpieczeń</translation>
 <translation id="6682057173375416470">Otrzymuj sugerowane artykuły na stronie Nowa karta</translation>
@@ -557,6 +567,7 @@
 <translation id="7399802613464275309">Kontrola zabezpieczeń</translation>
 <translation id="7406113532070524618">To ustawienie działa bez ujawniania Twojej tożsamości i udzielania witrynom dostępu do Twojej historii przeglądania, chociaż witryny mogą w ramach weryfikacji udostępniać niewielką ilość informacji.</translation>
 <translation id="7409735910987429903">Strony mogą wysyłać wyskakujące okienka, by wyświetlać reklamy, albo używać przekierowań, by otwierać strony, których możesz nie chcieć odwiedzać</translation>
+<translation id="7412160840120117304">Szesnastkowy kod koloru podstawowego</translation>
 <translation id="7423098979219808738">Najpierw zapytaj</translation>
 <translation id="7423538860840206698">Zablokowano odczytywanie schowka</translation>
 <translation id="7425915948813553151">Ciemny motyw witryn</translation>

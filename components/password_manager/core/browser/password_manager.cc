@@ -524,11 +524,6 @@ void PasswordManager::RegisterProfilePrefs(
   registry->RegisterBooleanPref(
       prefs::kCredentialsEnableService, true,
       user_prefs::PrefRegistrySyncable::SYNCABLE_PRIORITY_PREF);
-#if BUILDFLAG(IS_IOS)
-  // Deprecated pref in profile prefs.
-  registry->RegisterBooleanPref(prefs::kCredentialProviderEnabledOnStartup,
-                                false);
-#endif  // BUILDFLAG(IS_IOS)
   registry->RegisterBooleanPref(
       prefs::kCredentialsEnableAutosignin, true,
       user_prefs::PrefRegistrySyncable::SYNCABLE_PRIORITY_PREF);
@@ -1441,7 +1436,7 @@ bool PasswordManager::IsAutomaticSavePromptAvailable(
 
 bool PasswordManager::ShouldBlockPasswordForSameOriginButDifferentScheme(
     const GURL& url) const {
-  return submitted_form_url_.host_piece() == url.host_piece() &&
+  return submitted_form_url_.host() == url.host() &&
          submitted_form_url_.SchemeIsCryptographic() &&
          !url.SchemeIsCryptographic();
 }

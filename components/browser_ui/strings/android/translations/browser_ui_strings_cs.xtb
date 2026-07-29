@@ -40,6 +40,7 @@
 <translation id="1500473259453106018">Skrýt kartu Poklesy cen na kartách</translation>
 <translation id="1508931164824684991">Weby mohou používat JavaScript</translation>
 <translation id="1510341833810331442">Weby nemohou ukládat data do vašeho zařízení</translation>
+<translation id="1532175480576580256">Spodní panel Moje zkratky otevřený na celou výšku</translation>
 <translation id="1538031354170655462">Weby obvykle technologii NFC (Near Field Communication) používají ke komunikaci s lokátory nebo zařízeními v okolí, například ke skenování čipů nebo k bezkontaktnímu placení</translation>
 <translation id="1547123415014299762">Soubory cookie třetích stran jsou povoleny</translation>
 <translation id="1569054338208717605">Zrychlit weby v Chromu pomocí modulu V8, čímž se ale o trochu sníží odolnost Chromu vůči útokům</translation>
@@ -115,6 +116,7 @@
 <translation id="228293613124499805">Většina navštěvovaných webů pravděpodobně ukládá data do vašeho zařízení, často za účelem zlepšení uživatelského prostředí (uloží se vaše předvolby a informace sdílené s weby). Doporučujeme toto nastavení ponechat zapnuté.</translation>
 <translation id="2289270750774289114">Zeptat se, když chce web objevit zařízení Bluetooth v okolí (doporučeno)</translation>
 <translation id="2315043854645842844">Volbu certifikátu na straně klienta operační systém nepodporuje.</translation>
+<translation id="2347601491101454548">Spodní panel Moje zkratky otevřený na polovinu výšky</translation>
 <translation id="2359808026110333948">Pokračovat</translation>
 <translation id="2379925928934107488">Když Chrome používá tmavý motiv, použít ho i pro Chrome (pokud je to možné)</translation>
 <translation id="2390272837142897736">Zvýšit přiblížení</translation>
@@ -145,6 +147,11 @@
 <translation id="2588271083332682494">Udělejte si pořádek se skupinami karet</translation>
 <translation id="2597457036804169544">Nepoužívat pro weby tmavý motiv</translation>
 <translation id="2606760465469169465">Automatické ověření</translation>
+<translation id="2610903128639500624">Spravujte v <ph name="BEGIN_LINK1" />nastavení systému Android<ph name="END_LINK1" />
+
+Pokročilá ochrana spravuje tato nastavení Chromu:
+• Možnost Vždy používat zabezpečená připojení je zapnutá.
+• Optimalizátor JavaScriptu je vypnutý. <ph name="BEGIN_LINK2" />Spravovat výjimky pro konkrétní weby<ph name="END_LINK2" /></translation>
 <translation id="2621115761605608342">Povolit JavaScript pro konkrétní web.</translation>
 <translation id="2626708220538466178">Spodní panel výchozího prohlížeče je zavřený</translation>
 <translation id="2653659639078652383">Odeslat</translation>
@@ -303,6 +310,7 @@
 <translation id="4336566011000459927">Chrome dnes soubory cookie opět omezí</translation>
 <translation id="4338831206024587507">Všechny weby v doméně <ph name="DOMAIN" /></translation>
 <translation id="4340799661701629185">Nepovolovat webům odesílat oznámení</translation>
+<translation id="4341577178275615435">Procházení pomocí kurzoru zapnete nebo vypnete klávesou F7</translation>
 <translation id="4402755511846832236">Nedovolit webům zjistit, kdy aktivně používáte toto zařízení</translation>
 <translation id="4412683424767388419">Spodní panel barev Chromu otevřený na polovinu výšky</translation>
 <translation id="4412992751769744546">Povolit cookies třetích stran</translation>
@@ -337,6 +345,7 @@
 <translation id="4816495437032298535">Uložené přiblížení pro weby</translation>
 <translation id="4836046166855586901">Zeptat se, když chce web zjistit, kdy aktivně používáte toto zařízení</translation>
 <translation id="483914009762354899">Zahrnout všechny weby v této doméně</translation>
+<translation id="4852997963351138624">Barva pozadí (hexadecimální kód)</translation>
 <translation id="4882919381756638075">Weby obvykle používají mikrofon ke komunikačním funkcím, jako je videohovor</translation>
 <translation id="4883854917563148705">Spravovaná nastavení nelze resetovat</translation>
 <translation id="4887024562049524730">Předtím, než webům bude povoleno použít zařízení a data pro virtuální realitu, se zeptat (doporučeno)</translation>
@@ -500,6 +509,7 @@
 <translation id="6608650720463149374"><ph name="GIGABYTES" /> GB</translation>
 <translation id="6612358246767739896">Chráněný obsah</translation>
 <translation id="662080504995468778">Zůstat</translation>
+<translation id="6630443592285535486">Sem zadejte hexadecimální kód</translation>
 <translation id="6635327442719709864">Když je tato možnost zapnutá, mohou weby žádat o použití sériových portů. Když je vypnutá, weby sériové porty používat nemohou.</translation>
 <translation id="6678072580827808850">Provést bezpečnostní kontrolu</translation>
 <translation id="6682057173375416470">Nechte si na stránce Nová karta zobrazovat doporučené články</translation>
@@ -557,6 +567,7 @@
 <translation id="7399802613464275309">Bezpečnostní kontrola</translation>
 <translation id="7406113532070524618">Toto nastavení funguje, aniž by webům umožňovalo identifikovat vás nebo zjistit vaši historii prohlížení. Weby však v rámci ověření mohou sdílet malé množství informací</translation>
 <translation id="7409735910987429903">Weby mohou prostřednictvím vyskakovacích oken zobrazovat reklamy, případně vás přesměrovat na weby, které dost možná nechcete navštívit</translation>
+<translation id="7412160840120117304">Primární barva (hexadecimální kód)</translation>
 <translation id="7423098979219808738">Nejprve se dotázat</translation>
 <translation id="7423538860840206698">Čtení schránky je blokováno</translation>
 <translation id="7425915948813553151">Tmavý motiv pro weby</translation>

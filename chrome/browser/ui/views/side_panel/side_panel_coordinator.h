@@ -29,15 +29,13 @@
 #include "ui/views/view_observer.h"
 
 class BrowserView;
+class SidePanelHeader;
 
 namespace actions {
 class ActionItem;
 }  // namespace actions
 
 namespace views {
-class ImageButton;
-class MenuRunner;
-class ToggleImageButton;
 class View;
 }  // namespace views
 
@@ -69,29 +67,9 @@ class SidePanelCoordinator final : public SidePanelUIBase,
               SidePanelUtil::SidePanelOpenTrigger open_trigger) override;
   void OpenInNewTab() override;
 
-  void SetNoDelaysForTesting(bool no_delays_for_testing) override;
-
-  // Returns the web contents in a side panel if one exists.
-  content::WebContents* GetWebContentsForTest(SidePanelEntryId id) override;
-  void DisableAnimationsForTesting() override;
-
   // Re-runs open new tab URL check and sets button state to enabled/disabled
   // accordingly.
   void UpdateNewTabButtonState();
-
-  SidePanelEntry* GetCurrentSidePanelEntryForTesting();
-
-  actions::ActionItem* GetActionItem(SidePanelEntry::Key entry_key);
-
-  views::ToggleImageButton* GetHeaderPinButtonForTesting() {
-    return header_pin_button_;
-  }
-
-  views::ImageButton* GetHeaderMoreInfoButtonForTesting() {
-    return header_more_info_button_;
-  }
-
-  SidePanelEntry* GetLoadingEntryForTesting() const;
 
   // SidePanelUIBase:
   using SidePanelUIBase::Show;
@@ -106,12 +84,21 @@ class SidePanelCoordinator final : public SidePanelUIBase,
   using ShownCallback = base::RepeatingCallback<void()>;
   base::CallbackListSubscription RegisterSidePanelShown(ShownCallback callback);
 
+  void SetNoDelaysForTesting(bool no_delays_for_testing) override;
+
+  content::WebContents* GetWebContentsForTest(SidePanelEntryId id) override;
+  void DisableAnimationsForTesting() override;
+
+  SidePanelEntry* GetCurrentSidePanelEntryForTesting();
+
+  SidePanelEntry* GetLoadingEntryForTesting() const;
+
+  SidePanelHeader* GetSidePanelHeaderForTesting() { return side_panel_header_; }
+
  private:
   friend class SidePanelCoordinatorTest;
-  FRIEND_TEST_ALL_PREFIXES(UserNoteUICoordinatorTest,
-                           ShowEmptyUserNoteSidePanel);
-  FRIEND_TEST_ALL_PREFIXES(UserNoteUICoordinatorTest,
-                           PopulateUserNoteSidePanel);
+
+  actions::ActionItem* GetActionItem(SidePanelEntry::Key entry_key);
 
   void UpdatePinState();
   void UpdateHeaderPinButtonState();
@@ -134,9 +121,9 @@ class SidePanelCoordinator final : public SidePanelUIBase,
       SidePanelRegistry* old_contextual_registry,
       SidePanelRegistry* new_contextual_registry) override;
 
-  // Clear cached views for registry entries for global and contextual
-  // registries.
-  void ClearCachedEntryViews();
+  // Clear cached views with the corresponding panel type for registry entries
+  // for global and contextual registries.
+  void ClearCachedEntryViews(SidePanelEntry::PanelType type);
 
   void UpdatePanelIconAndTitle(const ui::ImageModel& icon,
                                std::u16string_view text,
@@ -154,8 +141,6 @@ class SidePanelCoordinator final : public SidePanelUIBase,
   // Called when the action item associated with the side panel entry changes.
   // The key is the unique key of the action item that has changed.
   void OnActionItemChanged(UniqueKey key);
-
-  std::unique_ptr<views::View> CreateHeader();
 
   void NotifyPinnedContainerOfActiveStateChange(SidePanelEntryKey key,
                                                 bool show_active_in_toolbar);
@@ -194,23 +179,8 @@ class SidePanelCoordinator final : public SidePanelUIBase,
   // item associated with the side panel entry changes.
   base::CallbackListSubscription action_item_controller_subscription_;
 
-  // Used to update icon in the side panel header.
-  raw_ptr<views::ImageView, AcrossTasksDanglingUntriaged> panel_icon_ = nullptr;
-
-  // Used to update the displayed title in the side panel header.
-  raw_ptr<views::Label, AcrossTasksDanglingUntriaged> panel_title_ = nullptr;
-
-  // Used to update the visibility of the 'Open in New Tab' header button.
-  raw_ptr<views::ImageButton, AcrossTasksDanglingUntriaged>
-      header_open_in_new_tab_button_ = nullptr;
-
-  // Used to update the visibility of the pin header button.
-  raw_ptr<views::ToggleImageButton, AcrossTasksDanglingUntriaged>
-      header_pin_button_ = nullptr;
-
-  // Used to update the visibility of the more info button.
-  raw_ptr<views::ImageButton, AcrossTasksDanglingUntriaged>
-      header_more_info_button_ = nullptr;
+  raw_ptr<SidePanelHeader, AcrossTasksDanglingUntriaged> side_panel_header_ =
+      nullptr;
 
   // Model for the more info menu.
   std::unique_ptr<ui::MenuModel> more_info_menu_model_;

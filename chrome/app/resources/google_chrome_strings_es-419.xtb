@@ -42,6 +42,7 @@
 <translation id="1434626383986940139">Aplicaciones de Chrome Canary</translation>
 <translation id="1439793550875056299">Fijar Chrome</translation>
 <translation id="146866447420868597">¿Quieres acceder a Chrome?</translation>
+<translation id="1476347941828409626">&amp;Administrar perfiles de Chrome</translation>
 <translation id="1492280395845991349">Reinicia para finalizar la actualización de Chrome</translation>
 <translation id="1497802159252041924">Error de instalación: <ph name="INSTALL_ERROR" /></translation>
 <translation id="1507198376417198979">Personaliza tu nuevo perfil de Chrome.</translation>
@@ -248,6 +249,9 @@
 <translation id="3810973564298564668">Administrar</translation>
 <translation id="383928141529488001">Google Chrome necesita acceso a la conexión Bluetooth para explorar 
  los dispositivos Bluetooth. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
+<translation id="3846683726093018685">**Resumir:** Describe el tema y el propósito principales del contenido de la captura de pantalla en una oración de menos de 30 palabras.
+
+          **Sugerir preguntas:** Genera una lista con viñetas de 3 a 5 preguntas que inviten a la reflexión que un usuario podría hacer para comprender mejor la captura de pantalla. Estas preguntas deben incluir al menos una que sea específicamente sobre un objeto visual, su diseño o su ubicación.</translation>
 <translation id="386202838227397562">Cierra todas las ventanas de Google Chrome e intenta nuevamente.</translation>
 <translation id="3873044882194371212">Abrir vínculo en una ventana de navegación de incó&amp;gnito de Chrome</translation>
 <translation id="3885770153807205175">Selector de idioma</translation>
@@ -507,6 +511,7 @@
 <translation id="6885412569789873916">Apps de Chrome Beta</translation>
 <translation id="6893363893008038481">Quitar la cuenta de Chrome</translation>
 <translation id="6896758677409633944">Copiar</translation>
+<translation id="6927941417289800361">Mientras tengas acceso, puedes usar las contraseñas y otros elementos de tu Cuenta de Google en Chrome. Puedes cambiar este parámetro cuando lo desees en la configuración.</translation>
 <translation id="6930294499209825">Mantiene actualizado tu software de Google. Si este servicio se desactiva o se detiene, tu software de Google no se mantendrá actualizado, lo que implica que las vulnerabilidades de seguridad que puedan aparecer no podrán solucionarse y es posible que no se puedan usar algunas funciones. Este servicio se desinstalará automáticamente si ningún software de Google lo utiliza.</translation>
 <translation id="6933858244219479645">Sistema de ChromeOS</translation>
 <translation id="6938166777909186039">Para recibir las próximas actualizaciones de Google Chrome, necesitarás Windows 10 o una versión posterior. Esta computadora usa Windows 8.1.</translation>
@@ -519,6 +524,7 @@
 <translation id="7024536598735240744">Error al momento de desempaquetar: <ph name="UNPACK_ERROR" />.</translation>
 <translation id="7025789849649390912">Se detuvo la instalación.</translation>
 <translation id="7025800014283535195">Puedes alternar entre los perfiles de Chrome aquí</translation>
+<translation id="7047386856539490735">¿Te parecen útiles estos resultados?</translation>
 <translation id="7051685429025310665">No lo visitaste recientemente. Chrome quitó los permisos <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> y <ph name="PERMISSION_3" />.</translation>
 <translation id="7059914902409643750">Personaliza Chrome a tu medida</translation>
 <translation id="7060643578009939353">Buscar este video con Google Lens</translation>
@@ -589,10 +595,10 @@
 <translation id="7777080907402804672">Si una imagen no tiene una descripción útil, Chrome intentará proporcionarte una. Para crear descripciones, se envían las imágenes a Google. Puedes desactivar esta opción en la configuración en cualquier momento.</translation>
 <translation id="778331955594035129">Chrome necesita permiso de acceso a la ubicación para este sitio.</translation>
 <translation id="7787950393032327779">Parece que otro proceso de Google Chrome (<ph name="PROCESS_ID" />) está utilizando el perfil en otra computadora (<ph name="HOST_NAME" />). Chrome bloqueó el perfil para que no se dañe. Si puedes confirmar que ningún otro proceso está utilizando este perfil, puedes desbloquearlo y volver a iniciar Chrome.</translation>
+<translation id="7792336732117553384">&amp;Administrar perfiles de Chrome</translation>
 <translation id="7801699035218095297">Google Chrome está intentando copiar contraseñas. Para permitirlo, ingresa tu contraseña de Windows.</translation>
 <translation id="7804364787702057554">Tu cuenta en Chrome</translation>
 <translation id="7808348361785373670">Eliminar de Chrome…</translation>
-<translation id="7825851276765848807">La instalación falló debido a un error no especificado. Descarga Google Chrome otra vez.</translation>
 <translation id="7827099906024714326">Chrome debe verificar tu identidad para guardar algunos datos en tu Cuenta de Google y que puedan usarse en todos tus dispositivos. Si sales ahora, se borrarán estos datos.</translation>
 <translation id="7845233973568007926">Gracias por instalar <ph name="BUNDLE_NAME" />. Debes reiniciar tu computadora antes de usarlo.</translation>
 <translation id="7849037457735762883">Retoma tu actividad desde donde la dejaste: Chrome puede restablecer tus pestañas cada vez que reinicias. Para activar esta opción, ve a</translation>
@@ -671,7 +677,6 @@
 <translation id="873133009373065397">Google Chrome no puede determinar ni establecer el navegador predeterminado</translation>
 <translation id="8747073452963259673">esquina inferior izquierda del área de búsqueda: izquierda <ph name="LEFT" />%, inferior <ph name="BOTTOM" />%</translation>
 <translation id="8748735421235723888">Chrome libera memoria de las pestañas inactivas. Esto brinda más recursos informáticos a las pestañas activas y a otras apps, y permite que Chrome siga funcionando rápido. Las pestañas inactivas se vuelven a activar automáticamente cuando regresas a ellas. <ph name="BEGIN_LINK" />Obtén más información sobre el Ahorro de memoria<ph name="END_LINK" /></translation>
-<translation id="8753189155654018347">Quitar los datos de esta app de Chrome</translation>
 <translation id="8765470054473112089">Cuando escribes en la barra de direcciones o en el cuadro de búsqueda, Chrome envía lo que escribes a tu motor de búsqueda predeterminado para obtener mejores sugerencias. Esta función está desactivada en el modo Incógnito.</translation>
 <translation id="8781673607513845160">Para usar la cámara, otorga acceso a Chrome en la <ph name="BEGIN_LINK" />configuración del sistema<ph name="END_LINK" /></translation>
 <translation id="878572486461146056">Error de instalación: El administrador de red aplicó una política de grupo que impide la instalación (<ph name="INSTALL_ERROR" />).</translation>
@@ -687,6 +692,7 @@
 <translation id="8883862939660515976">Preguntar a Google Lens acerca de esta imagen</translation>
 <translation id="8914504000324227558">Volver a iniciar Chrome</translation>
 <translation id="8922193594870374009">Para enviar un número de <ph name="ORIGIN" /> a tu teléfono Android, accede a Chrome en ambos dispositivos.</translation>
+<translation id="8922998289262614701">Quitar los datos de esta app de Chrome</translation>
 <translation id="8948460679427074738">Esta extensión no publicó prácticas de privacidad, como la forma en que recopila y usa datos. Chrome te recomienda quitarla.</translation>
 <translation id="8958307504142971576">Ahora tienes más funciones disponibles en Chrome</translation>
 <translation id="8991530961471831170">Abrir Gemini en Chrome</translation>

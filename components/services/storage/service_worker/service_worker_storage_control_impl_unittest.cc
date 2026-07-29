@@ -628,6 +628,10 @@ class ServiceWorkerStorageControlImplTest : public testing::Test {
     return return_value;
   }
 
+  void PerformStorageCleanup(base::OnceClosure callback) {
+    storage()->PerformStorageCleanup(std::move(callback));
+  }
+
   GetUsageForStorageKeyResult GetUsageForStorageKey(
       const blink::StorageKey& key) {
     GetUsageForStorageKeyResult result;
@@ -866,7 +870,7 @@ TEST_F(ServiceWorkerStorageControlImplTest, StoreAndDeleteRegistration) {
   // Obtains all StorageKeys. This operation should succeed.
   {
     std::vector<blink::StorageKey> storage_keys = GetRegisteredStorageKeys();
-    EXPECT_EQ(storage_keys.size(), 1UL);
+    ASSERT_EQ(storage_keys.size(), 1UL);
     EXPECT_EQ(storage_keys[0], kKey);
     // The obtained keys must be the same as the keys from TakeRegisteredKeys().
     EXPECT_EQ(storage_keys, storage_shared_buffer().TakeRegisteredKeys());
@@ -898,7 +902,7 @@ TEST_F(ServiceWorkerStorageControlImplTest, StoreAndDeleteRegistration) {
     std::map<blink::StorageKey, std::vector<GURL>> registration_scopes =
         storage_shared_buffer().TakeRegistrationScopes();
     EXPECT_EQ(registration_scopes.size(), 1UL);
-    EXPECT_TRUE(registration_scopes.contains(kKey));
+    ASSERT_TRUE(registration_scopes.contains(kKey));
     EXPECT_EQ(registration_scopes[kKey], std::vector<GURL>({kScope}));
     // The 2nd call of TakeRegistrationScopes() returns an empty map.
     EXPECT_TRUE(storage_shared_buffer().TakeRegistrationScopes().empty());
@@ -943,7 +947,7 @@ TEST_F(ServiceWorkerStorageControlImplTest, StoreAndDeleteRegistration) {
     std::map<blink::StorageKey, std::vector<GURL>> registration_scopes =
         storage_shared_buffer().TakeRegistrationScopes();
     EXPECT_EQ(registration_scopes.size(), 1UL);
-    EXPECT_TRUE(registration_scopes.contains(kKey));
+    ASSERT_TRUE(registration_scopes.contains(kKey));
     EXPECT_TRUE(registration_scopes[kKey].empty());
     // The 2nd call of TakeRegistrationScopes() returns an empty map.
     EXPECT_TRUE(storage_shared_buffer().TakeRegistrationScopes().empty());
@@ -1113,6 +1117,7 @@ TEST_F(ServiceWorkerStorageControlImplTest, UpdateResourceSha256Checksums) {
   // Resources written in the storage don't have |sha256_checksum|
   FindRegistrationResult result = FindRegistrationForId(registration_id, kKey);
   ASSERT_EQ(result.status, DatabaseStatus::kOk);
+  ASSERT_EQ(result.entry->resources.size(), 2UL);
   ASSERT_FALSE(result.entry->resources[0]->sha256_checksum.has_value());
   ASSERT_FALSE(result.entry->resources[1]->sha256_checksum.has_value());
 
@@ -1444,7 +1449,7 @@ TEST_F(ServiceWorkerStorageControlImplTest, StoreAndGetUserData) {
     std::vector<std::string> keys = {"key1", "key2"};
     GetUserDataResult result = GetUserData(registration_id, keys);
     ASSERT_EQ(result.status, DatabaseStatus::kOk);
-    EXPECT_EQ(result.values.size(), 2UL);
+    ASSERT_EQ(result.values.size(), 2UL);
     EXPECT_EQ("value1", result.values[0]);
     EXPECT_EQ("value2", result.values[1]);
   }
@@ -1472,7 +1477,7 @@ TEST_F(ServiceWorkerStorageControlImplTest, StoreAndGetUserData) {
     std::vector<std::string> keys = {"key2"};
     GetUserDataResult result = GetUserData(registration_id, keys);
     ASSERT_EQ(result.status, DatabaseStatus::kOk);
-    EXPECT_EQ(result.values.size(), 1UL);
+    ASSERT_EQ(result.values.size(), 1UL);
     EXPECT_EQ("value2", result.values[0]);
   }
 
@@ -1535,7 +1540,7 @@ TEST_F(ServiceWorkerStorageControlImplTest, StoreAndGetUserDataByKeyPrefix) {
     GetUserDataByKeyPrefixResult result =
         GetUserDataByKeyPrefix(registration_id, "prefix");
     ASSERT_EQ(result.status, DatabaseStatus::kOk);
-    EXPECT_EQ(result.values.size(), 4UL);
+    ASSERT_EQ(result.values.size(), 4UL);
     EXPECT_EQ(result.values[0], "value1");
     EXPECT_EQ(result.values[1], "value2");
     EXPECT_EQ(result.values[2], "value3");
@@ -1775,6 +1780,43 @@ TEST_F(ServiceWorkerStorageControlImplTest, GetUsageForStorageKey) {
     ASSERT_EQ(result.status, DatabaseStatus::kOk);
     ASSERT_EQ(result.usage, 0);
   }
+}
+
+TEST_F(ServiceWorkerStorageControlImplTest, PerformStorageCleanup) {
+  const GURL kScope("https://www.example.com/scope/");
+  const blink::StorageKey kKey =
+      blink::StorageKey::CreateFirstParty(url::Origin::Create(kScope));
+  const GURL kScriptUrl("https://www.example.com/scope/sw.js");
+  const GURL kClientUrl("https://www.example.com/scope/document.html");
+  const int64_t kScriptSize = 10;
+
+  LazyInitializeForTest();
+
+  const int64_t kResourceId = GetNewResourceId();
+  const int64_t kVersionId = GetNewVersionId().version_id;
+  const int64_t kRegistrationId = GetNewRegistrationId();
+
+  // Create and store a registration, and a resource.
+  DatabaseStatus status =
+      CreateAndStoreRegistration(kRegistrationId, kVersionId, kResourceId,
+                                  kScope, kKey, kScriptUrl, kScriptSize);
+  ASSERT_EQ(status, DatabaseStatus::kOk);
+
+  // Delete the registration. This should make the resource purgeable.
+  DeleteRegistrationResult delete_result =
+      DeleteRegistration(kRegistrationId, kKey);
+  ASSERT_EQ(delete_result.status, DatabaseStatus::kOk);
+
+  // Call PerformStorageCleanup. This is async.
+  base::RunLoop loop;
+  PerformStorageCleanup(loop.QuitClosure());
+  loop.Run();
+
+  // The resource should be purged.
+  ReadDataResult read_resource_result =
+      ReadResource(kResourceId, kScriptSize);
+  ASSERT_EQ(read_resource_result.status, net::ERR_CACHE_MISS);
+  ASSERT_EQ(read_resource_result.data, "");
 }
 
 // Tests that apply policy updates work.

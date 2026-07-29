@@ -153,9 +153,8 @@ BASE_FEATURE(kDiscountAutofill, base::FEATURE_DISABLED_BY_DEFAULT);
 // Promotion in Magic Stack for Price Tracking users from other platforms.
 BASE_FEATURE(kPriceTrackingPromo, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// ShopCard in Magic Stack, including shopping features like price drop,
-// reviews, etc.
-BASE_FEATURE(kShopCard, base::FEATURE_DISABLED_BY_DEFAULT);
+// Shopping variations to Tab resumption.
+BASE_FEATURE(kTabResumptionShopCard, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Impression limits on ShopCards
 BASE_FEATURE(kShopCardImpressionLimits, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -237,14 +236,6 @@ BASE_FEATURE(kPriceTrackingSubscriptionServiceProductVersion,
 BASE_FEATURE(kShoppingPDPMetrics, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSubscriptionsApi, base::FEATURE_DISABLED_BY_DEFAULT);
-
-#if BUILDFLAG(IS_IOS)
-BASE_FEATURE(kPriceInsightsIos, base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kPriceInsightsHighPriceIos,
-             "PriceInsightsHighPrice",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-#endif
 
 BASE_FEATURE(kShoppingPageTypes, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -392,7 +383,7 @@ bool IsNoDiscountMerchant(const GURL& url) {
   if (!pattern_from_component) {
     return true;
   }
-  return RE2::PartialMatch(url.host_piece(), *pattern_from_component);
+  return RE2::PartialMatch(url.host(), *pattern_from_component);
 }
 #endif
 }  // namespace commerce

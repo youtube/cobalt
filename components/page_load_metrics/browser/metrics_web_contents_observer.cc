@@ -45,6 +45,7 @@
 #include "net/http/http_response_headers.h"
 #include "services/network/public/mojom/fetch_api.mojom-shared.h"
 #include "third_party/blink/public/common/loader/resource_type_util.h"
+#include "third_party/blink/public/mojom/loader/resource_load_info.mojom.h"
 #include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom.h"
 #include "ui/base/page_transition_types.h"
 #include "url/url_constants.h"
@@ -487,7 +488,7 @@ void MetricsWebContentsObserver::ResourceLoadComplete(
     content::RenderFrameHost* render_frame_host,
     const content::GlobalRequestID& request_id,
     const blink::mojom::ResourceLoadInfo& resource_load_info) {
-  if (!ShouldTrackScheme(resource_load_info.final_url.scheme_piece())) {
+  if (!ShouldTrackScheme(resource_load_info.final_url.scheme())) {
     return;
   }
 
@@ -1226,7 +1227,7 @@ bool MetricsWebContentsObserver::DoesTimingUpdateHaveError(
     return true;
   }
 
-  if (!ShouldTrackScheme(tracker->GetUrl().scheme_piece())) {
+  if (!ShouldTrackScheme(tracker->GetUrl().scheme())) {
     RecordInternalError(ERR_IPC_FROM_BAD_URL_SCHEME);
     return true;
   }
@@ -1318,7 +1319,7 @@ bool MetricsWebContentsObserver::ShouldTrackMainFrameNavigation(
     return true;
   }
 
-  return ShouldTrackSchemeForNonWebUI(url.scheme_piece());
+  return ShouldTrackSchemeForNonWebUI(url.scheme());
 }
 
 bool MetricsWebContentsObserver::ShouldTrackScheme(

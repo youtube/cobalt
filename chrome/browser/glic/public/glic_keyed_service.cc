@@ -35,6 +35,7 @@
 #include "chrome/browser/glic/host/context/glic_active_browser_sharing_manager.h"
 #include "chrome/browser/glic/host/context/glic_page_context_fetcher.h"
 #include "chrome/browser/glic/host/context/glic_screenshot_capturer.h"
+#include "chrome/browser/glic/host/context/glic_share_image_handler.h"
 #include "chrome/browser/glic/host/context/glic_sharing_manager_impl.h"
 #include "chrome/browser/glic/host/context/glic_tab_data.h"
 #include "chrome/browser/glic/host/context/glic_tab_source_observer.h"
@@ -117,7 +118,8 @@ std::unique_ptr<GlicSharingManager> CreateSharingManager(
                                                     metrics);
   }
 
-  return std::make_unique<GlicActiveBrowserSharingManager>(profile);
+  return std::make_unique<GlicActiveBrowserSharingManager>(profile,
+                                                           window_controller);
 }
 
 }  // namespace
@@ -163,6 +165,9 @@ GlicKeyedService::GlicKeyedService(
       FROM_HERE, base::MemoryPressureListenerTag::kGlicKeyedService,
       base::BindRepeating(&GlicKeyedService::OnMemoryPressure,
                           weak_ptr_factory_.GetWeakPtr()));
+  if (base::FeatureList::IsEnabled(features::kGlicShareImage)) {
+    share_image_handler_ = std::make_unique<GlicShareImageHandler>(*this);
+  }
 
   // If `--glic-always-open-fre` is present, unset this pref to ensure the FRE
   // is shown for testing convenience.
@@ -257,6 +262,10 @@ void GlicKeyedService::CloseUI() {
   window_controller().Shutdown();
   host_manager().Shutdown();
   fre_controller_->Shutdown();
+}
+
+void GlicKeyedService::ClosePanel() {
+  window_controller().Close();
 }
 
 void GlicKeyedService::PrepareForOpen() {
@@ -405,11 +414,6 @@ void GlicKeyedService::CreateTab(
     tab_data->url = url;
   }
   std::move(callback).Run(std::move(tab_data));
-}
-
-void GlicKeyedService::ClosePanel() {
-  window_controller().Close();
-  screenshot_capturer_->CloseScreenPicker();
 }
 
 void GlicKeyedService::SetContextAccessIndicator(bool show) {
@@ -693,6 +697,14 @@ void GlicKeyedService::CaptureScreenshot(
       window_controller().GetHostNativeWindow(), std::move(callback));
 }
 
+void GlicKeyedService::ShareContextImage(tabs::TabInterface* tab,
+                                         content::RenderFrameHost* frame,
+                                         const ::GURL& src_url) {
+  CHECK(base::FeatureList::IsEnabled(features::kGlicShareImage));
+  CHECK(share_image_handler_);
+  share_image_handler_->ShareContextImage(tab, frame, src_url);
+}
+
 bool GlicKeyedService::IsContextAccessIndicatorShown(
     const content::WebContents* contents) {
   return is_context_access_indicator_enabled_ &&
@@ -839,6 +851,10 @@ HostManager& GlicKeyedService::host_manager() {
     NOTIMPLEMENTED();
   }
   return window_controller().host_manager();
+}
+
+GlicInstance* GlicKeyedService::GetInstanceForTab(tabs::TabInterface* tab) {
+  return window_controller().GetInstanceForTab(tab);
 }
 
 GlicInstance* GlicKeyedService::GetInstanceForActiveTab(

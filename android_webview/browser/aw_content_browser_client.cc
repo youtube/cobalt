@@ -20,6 +20,7 @@
 #include "android_webview/browser/aw_contents.h"
 #include "android_webview/browser/aw_contents_client_bridge.h"
 #include "android_webview/browser/aw_contents_io_thread_client.h"
+#include "android_webview/browser/aw_contents_statics.h"
 #include "android_webview/browser/aw_cookie_access_policy.h"
 #include "android_webview/browser/aw_devtools_manager_delegate.h"
 #include "android_webview/browser/aw_feature_list_creator.h"
@@ -61,6 +62,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
 #include "base/path_service.h"
@@ -403,7 +405,7 @@ bool AwContentBrowserClient::IsHandledURL(const GURL& url) {
     return true;
   }
 
-  const std::string scheme = url.scheme();
+  const std::string scheme = url.GetScheme();
   DCHECK_EQ(scheme, base::ToLowerASCII(scheme));
   static const char* const kProtocolList[] = {
       url::kHttpScheme,         url::kHttpsScheme,
@@ -450,6 +452,29 @@ void AwContentBrowserClient::AppendExtraCommandLineSwitches(
 
     command_line->CopySwitchesFrom(*base::CommandLine::ForCurrentProcess(),
                                    kSwitchNames);
+  }
+
+  if (base::FeatureList::IsEnabled(
+          features::kWebViewConfigurableLibraryPrefetch)) {
+    RendererLibraryPrefetchMode mode = GetRendererLibraryPrefetchMode();
+    switch (mode) {
+      case RendererLibraryPrefetchMode::kDisabled:
+        command_line->AppendSwitchASCII(
+            switches::kWebViewRendererLibraryPrefetch,
+            switches::kWebViewRendererLibraryPrefetchDisabled);
+        break;
+      case RendererLibraryPrefetchMode::kEnabled:
+        command_line->AppendSwitchASCII(
+            switches::kWebViewRendererLibraryPrefetch,
+            switches::kWebViewRendererLibraryPrefetchEnabled);
+        break;
+      default:
+        // kDefault or unknown values are ignored. But sanitize for histograms.
+        mode = RendererLibraryPrefetchMode::kDefault;
+        break;
+    }
+    base::UmaHistogramEnumeration("Android.WebView.RendererLibraryPrefetchMode",
+                                  mode);
   }
 }
 

@@ -260,32 +260,12 @@ BASE_DECLARE_FEATURE(kEnableLensViewFinderUnifiedExperience);
 // Whether to enable loading AIM in the lens result page.
 BASE_DECLARE_FEATURE(kLensLoadAIMInLensResultPage);
 
-// Feature flag to enable the Lens overlay location bar entrypoint. Enabled by
-// default.
-BASE_DECLARE_FEATURE(kLensOverlayEnableLocationBarEntrypoint);
-
-// Feature flag to enable the Lens overlay location bar entrypoint on SRP.
-// Enabled by default.
-BASE_DECLARE_FEATURE(kLensOverlayEnableLocationBarEntrypointOnSRP);
-
-// Feature flag to disable price insights for a lens overlay experiment. As the
-// price insights entrypoint trumps the lens overlay entrypoint. This flag
-// should only be used for experiment.
-BASE_DECLARE_FEATURE(kLensOverlayDisablePriceInsights);
-
-// Feature flag to enable lens overlay location bar entrypoint only when price
-// insights should trigger. This is used as counterfactual for
-// kLensOverlayDisablePriceInsights.
-BASE_DECLARE_FEATURE(kLensOverlayPriceInsightsCounterfactual);
 
 // Feature to force allow iPad support of lens overlay.
 BASE_DECLARE_FEATURE(kLensOverlayEnableIPadCompatibility);
 
 // Feature to allow landscape support of lens overlay.
 BASE_DECLARE_FEATURE(kLensOverlayEnableLandscapeCompatibility);
-
-// Feature to enable LVF escape hatch in the overflow menu in Lens overlay.
-BASE_DECLARE_FEATURE(kLensOverlayEnableLVFEscapeHatch);
 
 // Feature to open lens overlay navigation in the same tab.
 BASE_DECLARE_FEATURE(kLensOverlayEnableSameTabNavigation);
@@ -323,6 +303,9 @@ BASE_DECLARE_FEATURE(kAIMPrototype);
 // Used to gate the immersive SRP in the AIM prototype.
 BASE_DECLARE_FEATURE(kAIMPrototypeImmersiveSRP);
 
+// Feature flag for the tab picker in the aim prototype.
+BASE_DECLARE_FEATURE(kAIMPrototypeTabPicker);
+
 // Variations of AIM prototype.
 extern const char kAIMPrototypeParam[];
 extern const char kAIMPrototypeParamAllOmniboxEntrypoints[];
@@ -353,6 +336,19 @@ BASE_DECLARE_FEATURE(kTabGridNewTransitions);
 
 // Whether the new tab grid tabs transitions should be enabled.
 bool IsNewTabGridTransitionsEnabled();
+
+// When enabled, a Tab Group button will appear in the overflow menu.
+BASE_DECLARE_FEATURE(kTabGroupInOverflowMenu);
+
+// When enabled, a Tab Group button will appear in the Tab Icon context menu.
+BASE_DECLARE_FEATURE(kTabGroupInTabIconContextMenu);
+
+// When enabled, a "New Tab Button" will be added to the Tab Group recall
+// surface.
+BASE_DECLARE_FEATURE(kTabRecallNewTabGroupButton);
+
+// When enabled, an overflow menu will replace the edit menu on the GTS.
+BASE_DECLARE_FEATURE(kTabSwitcherOverflowMenu);
 
 // Feature to enable force showing the Contextual Panel entrypoint.
 BASE_DECLARE_FEATURE(kContextualPanelForceShowEntrypoint);
@@ -404,15 +400,6 @@ extern const base::FeatureParam<int>
 // Flag to enable push notification settings menu item.
 BASE_DECLARE_FEATURE(kNotificationSettingsMenuItem);
 
-// Feature param under kBottomOmniboxDefaultSetting to select the default
-// setting.
-extern const char kBottomOmniboxDefaultSettingParam[];
-extern const char kBottomOmniboxDefaultSettingParamTop[];
-extern const char kBottomOmniboxDefaultSettingParamBottom[];
-extern const char kBottomOmniboxDefaultSettingParamSafariSwitcher[];
-// Feature flag to change the default position of the omnibox.
-BASE_DECLARE_FEATURE(kBottomOmniboxDefaultSetting);
-
 // Feature flag the "Hide Toolbar" button in the overflow menu.
 BASE_DECLARE_FEATURE(kHideToolbarsInOverflowMenu);
 
@@ -422,9 +409,6 @@ BASE_DECLARE_FEATURE(kBottomOmniboxEvolution);
 // Feature flag to put all clipboard access onto a background thread. Any
 // synchronous clipboard access will always return nil/false.
 BASE_DECLARE_FEATURE(kOnlyAccessClipboardAsync);
-
-// Feature flag to try using the page theme color in the top toolbar
-BASE_DECLARE_FEATURE(kThemeColorInTopToolbar);
 
 // Whether the Safety Check Manager can automatically trigger Safety Checks.
 bool IsSafetyCheckAutorunByManagerEnabled();
@@ -510,8 +494,6 @@ extern const char kContentPushNotificationsExperimentType[];
 // Feature flag to enable the content notifications.
 BASE_DECLARE_FEATURE(kContentPushNotifications);
 
-// Feature flag to enable Content Notification experiments.
-BASE_DECLARE_FEATURE(kContentNotificationExperiment);
 
 // Feature flag to enable Content Notification Provisional without any
 // conditions.
@@ -525,9 +507,6 @@ BASE_DECLARE_FEATURE(kContentNotificationDeliveredNAU);
 
 // Parameter value for the max number of delivered NAUs to be sent per session.
 extern const char kDeliveredNAUMaxPerSession[];
-
-// Feature flag to enable a more stable fullscreen.
-BASE_DECLARE_FEATURE(kFullscreenImprovement);
 
 // Feature flag to enable a new illustration in the sync opt-in promotion view.
 BASE_DECLARE_FEATURE(kNewSyncOptInIllustration);
@@ -644,9 +623,6 @@ bool IsFeedAblationEnabled();
 
 // YES when Follow UI Update is enabled.
 bool IsFollowUIUpdateEnabled();
-
-// YES if content push notification experiments are enabled.
-bool IsContentNotificationExperimentEnabled();
 
 // YES when any of the content push notification variations are enabled.
 bool IsContentPushNotificationsEnabled();
@@ -883,6 +859,15 @@ extern const std::string_view
 
 // Returns whether 'kFRESignInSecondaryActionLabelUpdate' is enabled.
 bool FRESignInSecondaryActionLabelUpdate();
+
+// Feature flag to change the button order in the confirmation alerts, placing
+// the primary CTA below the secondary button.
+BASE_DECLARE_FEATURE(kConfirmationButtonSwapOrder);
+
+// Checks if the button order in the confirmation alerts should be swapped
+// (primary button at the bottom), based on the `kConfirmationButtonSwapOrder`
+// flag.
+bool IsConfirmationButtonSwapOrderEnabled();
 
 // Enables Profile-specific push notification handling logic. When enabled, this
 // routes incoming notifications to the PushNotificationClientManager associated

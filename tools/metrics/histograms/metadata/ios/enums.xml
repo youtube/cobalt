@@ -118,6 +118,7 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="UserInitiatedFinishedByCode"/>
   <int value="3" label="UserTapped"/>
   <int value="4" label="BottomReached"/>
+  <int value="5" label="NoChange"/>
 </enum>
 
 <!-- LINT.ThenChange(//ios/chrome/browser/fullscreen/ui_bundled/fullscreen_metrics.h:FullscreenModeTransitionReason) -->
@@ -912,7 +913,7 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="NewTab"/>
   <int value="2" label="NewIncognitoTab"/>
   <int value="3" label="NewWindow"/>
-  <int value="4" label="Follow"/>
+  <int value="4" label="Obsolete in M143 - Follow"/>
   <int value="5" label="Bookmark"/>
   <int value="6" label="ReadingList"/>
   <int value="7" label="ClearBrowsingData"/>
@@ -1340,6 +1341,8 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="Failed to create directory"/>
   <int value="2" label="Failed to write file"/>
   <int value="3" label="Failed to convert to JPEG"/>
+  <int value="4" label="Failed to read file"/>
+  <int value="5" label="Failed to create a UIImage from the loaded data"/>
 </enum>
 
 <!-- LINT.ThenChange(/ios/chrome/browser/home_customization/utils/home_customization_constants.h:UserUploadedImageError) -->

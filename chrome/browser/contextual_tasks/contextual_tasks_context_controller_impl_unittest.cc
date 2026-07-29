@@ -72,7 +72,7 @@ class MockContextualTasksService : public ContextualTasksService {
   MOCK_METHOD(void,
               GetContextForTask,
               (const base::Uuid& task_id,
-               base::OnceCallback<void(std::optional<ContextualTaskContext>)>
+               base::OnceCallback<void(std::unique_ptr<ContextualTaskContext>)>
                    context_callback),
               (override));
   MOCK_METHOD(void,
@@ -87,8 +87,13 @@ class MockContextualTasksService : public ContextualTasksService {
               GetMostRecentContextualTaskForSessionID,
               (SessionID session_id),
               (const, override));
+
   MOCK_METHOD(void, AddObserver, (Observer * observer), (override));
   MOCK_METHOD(void, RemoveObserver, (Observer * observer), (override));
+  MOCK_METHOD(base::WeakPtr<syncer::DataTypeControllerDelegate>,
+              GetAiThreadControllerDelegate,
+              (),
+              (override));
 };
 
 class ContextualTasksContextControllerImplTest : public testing::Test {
@@ -134,21 +139,21 @@ class ContextualTasksContextControllerImplTest : public testing::Test {
     return task;
   }
 
-  std::optional<ContextualTaskContext> GetContextForTask(
+  std::unique_ptr<ContextualTaskContext> GetContextForTask(
       const base::Uuid& task_id) {
-    std::optional<ContextualTaskContext> context;
+    std::unique_ptr<ContextualTaskContext> result;
     base::RunLoop run_loop;
     controller_->GetContextForTask(
         task_id, base::BindOnce(
-                     [](std::optional<ContextualTaskContext>* out_context,
+                     [](std::unique_ptr<ContextualTaskContext>* out_context,
                         base::OnceClosure quit_closure,
-                        std::optional<ContextualTaskContext> result) {
-                       *out_context = std::move(result);
+                        std::unique_ptr<ContextualTaskContext> context) {
+                       *out_context = std::move(context);
                        std::move(quit_closure).Run();
                      },
-                     &context, run_loop.QuitClosure()));
+                     &result, run_loop.QuitClosure()));
     run_loop.Run();
-    return context;
+    return result;
   }
 
   std::optional<ContextualTask> GetSelectedTaskForTab(
@@ -292,18 +297,19 @@ TEST_F(ContextualTasksContextControllerImplTest, GetContextForTask) {
   EXPECT_CALL(mock_service_, GetContextForTask(task_id, _))
       .WillOnce(
           [&](const base::Uuid&,
-              base::OnceCallback<void(std::optional<ContextualTaskContext>)>
+              base::OnceCallback<void(std::unique_ptr<ContextualTaskContext>)>
                   callback) {
-            std::move(callback).Run(std::make_optional(expected_context));
+            std::move(callback).Run(
+                std::make_unique<ContextualTaskContext>(expected_context));
           });
 
-  std::optional<ContextualTaskContext> context = GetContextForTask(task_id);
-  ASSERT_TRUE(context.has_value());
+  std::unique_ptr<ContextualTaskContext> context = GetContextForTask(task_id);
+  ASSERT_TRUE(context.get());
   EXPECT_EQ(context->GetTaskId(), expected_context.GetTaskId());
   const auto& attachments = context->GetUrlAttachments();
   ASSERT_EQ(attachments.size(), 2u);
-  EXPECT_EQ(attachments[0].url, url1);
-  EXPECT_EQ(attachments[1].url, url2);
+  EXPECT_EQ(attachments[0].GetURL(), url1);
+  EXPECT_EQ(attachments[1].GetURL(), url2);
 }
 
 TEST_F(ContextualTasksContextControllerImplTest, GetContextForTask_NotFound) {
@@ -312,11 +318,11 @@ TEST_F(ContextualTasksContextControllerImplTest, GetContextForTask_NotFound) {
   EXPECT_CALL(mock_service_, GetContextForTask(task_id, _))
       .WillOnce(
           [&](const base::Uuid&,
-              base::OnceCallback<void(std::optional<ContextualTaskContext>)>
-                  callback) { std::move(callback).Run(std::nullopt); });
+              base::OnceCallback<void(std::unique_ptr<ContextualTaskContext>)>
+                  callback) { std::move(callback).Run(nullptr); });
 
-  std::optional<ContextualTaskContext> context = GetContextForTask(task_id);
-  EXPECT_FALSE(context.has_value());
+  std::unique_ptr<ContextualTaskContext> context = GetContextForTask(task_id);
+  EXPECT_FALSE(context);
 }
 
 TEST_F(ContextualTasksContextControllerImplTest, GetFeatureEligibility) {

@@ -39,15 +39,13 @@ namespace net::device_bound_sessions {
 class SessionStore;
 
 struct DeferredURLRequest {
-  DeferredURLRequest(const URLRequest* request,
-                     SessionService::RefreshCompleteCallback callback);
+  explicit DeferredURLRequest(SessionService::RefreshCompleteCallback callback);
   DeferredURLRequest(DeferredURLRequest&& other) noexcept;
 
   DeferredURLRequest& operator=(DeferredURLRequest&& other) noexcept;
 
   ~DeferredURLRequest();
 
-  raw_ptr<const URLRequest> request = nullptr;
   base::ElapsedTimer timer;
   SessionService::RefreshCompleteCallback callback;
 };
@@ -191,7 +189,7 @@ class NET_EXPORT SessionServiceImpl : public SessionService {
   // Callback after unwrapping a session key. `on_access_callback` is
   // used to notify the browser that this request led to usage of a
   // session.
-  void OnSessionKeyRestored(URLRequest* request,
+  void OnSessionKeyRestored(base::WeakPtr<URLRequest> request,
                             const SessionKey& session_key,
                             OnAccessCallback on_access_callback,
                             Session::KeyIdOrError key_id_or_error);

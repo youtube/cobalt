@@ -695,10 +695,10 @@ IN_PROC_BROWSER_TEST_P(WorkerTest,
 
   // Check cookies sent with each request to "a.test".
   // Neither the frame nor the SharedWorker should get SameSite cookies.
-  EXPECT_EQ(kNoCookie, GetReceivedCookie(test_url.path()));
-  EXPECT_EQ(kNoCookie, GetReceivedCookie(worker_url.path()));
-  EXPECT_EQ(kNoCookie, GetReceivedCookie(script_url.path()));
-  EXPECT_EQ(kNoCookie, GetReceivedCookie(resource_url.path()));
+  EXPECT_EQ(kNoCookie, GetReceivedCookie(test_url.GetPath()));
+  EXPECT_EQ(kNoCookie, GetReceivedCookie(worker_url.GetPath()));
+  EXPECT_EQ(kNoCookie, GetReceivedCookie(script_url.GetPath()));
+  EXPECT_EQ(kNoCookie, GetReceivedCookie(resource_url.GetPath()));
 }
 
 // Test that an "a.test" worker sends "a.test" SameSite cookies, both when
@@ -1268,7 +1268,7 @@ IN_PROC_BROWSER_TEST_F(SharedWorkerExtendedLifetimeBrowserOriginTrialTest,
         }
 
         const std::string content_type =
-            base::EndsWith(params->url_request.url.path_piece(), ".js")
+            base::EndsWith(params->url_request.url.path(), ".js")
                 ? "text/javascript"
                 : "text/html";
 
@@ -1280,7 +1280,7 @@ IN_PROC_BROWSER_TEST_F(SharedWorkerExtendedLifetimeBrowserOriginTrialTest,
             {content_type, kOriginTrialToken}, {});
 
         URLLoaderInterceptor::WriteResponse(
-            "content/test/data" + params->url_request.url.path(),
+            "content/test/data" + params->url_request.url.GetPath(),
             params->client.get(), &headers, std::optional<net::SSLInfo>(),
             params->url_request.url);
 
@@ -1372,7 +1372,7 @@ IN_PROC_BROWSER_TEST_F(SharedWorkerOnAndroidBrowserOriginTrialTest, Basic) {
         }
 
         const std::string content_type =
-            base::EndsWith(params->url_request.url.path_piece(), ".js")
+            base::EndsWith(params->url_request.url.path(), ".js")
                 ? "text/javascript"
                 : "text/html";
 
@@ -1384,7 +1384,7 @@ IN_PROC_BROWSER_TEST_F(SharedWorkerOnAndroidBrowserOriginTrialTest, Basic) {
             {content_type, kOriginTrialToken}, {});
 
         URLLoaderInterceptor::WriteResponse(
-            "content/test/data" + params->url_request.url.path(),
+            "content/test/data" + params->url_request.url.GetPath(),
             params->client.get(), &headers, std::optional<net::SSLInfo>(),
             params->url_request.url);
 

@@ -10,6 +10,7 @@ import("//build/config/ui.gni")
 import("//chrome/browser/buildflags.gni")
 import("//chrome/common/features.gni")
 import("//chromeos/ash/components/assistant/assistant.gni")
+import("//components/captive_portal/core/features.gni")
 import("//components/compose/features.gni")
 import("//components/enterprise/buildflags/buildflags.gni")
 import("//components/lens/features.gni")
@@ -49,7 +50,6 @@ generate_allowlist_from_histograms_file("webui_name_variants") {
 static_library("ui") {
   sources = [
     "accelerator_utils.h",
-    "bluetooth/bluetooth_dialogs.h",
     "browser_dialogs.cc",
     "browser_dialogs.h",
     "browser_navigator_params.cc",
@@ -421,7 +421,6 @@ static_library("ui") {
     "//components/browsing_topics",
     "//components/browsing_topics/mojom:mojo_bindings",
     "//components/captive_portal/content",
-    "//components/captive_portal/core:buildflags",
     "//components/client_hints/browser",
     "//components/commerce/content/browser",
     "//components/commerce/core:feature_list",
@@ -547,6 +546,7 @@ static_library("ui") {
     "//components/safe_browsing/content/browser",
     "//components/safe_browsing/content/browser/password_protection",
     "//components/safe_browsing/content/browser/web_ui",
+    "//components/safe_browsing/core/browser:safe_browsing_metrics_collector",
     "//components/safe_browsing/core/browser/db:database_manager",
     "//components/safe_browsing/core/browser/db:util",
     "//components/safe_browsing/core/browser/password_protection:password_protection_metrics_util",
@@ -691,6 +691,10 @@ static_library("ui") {
   if (is_chrome_branded) {
     deps +=
         [ "//components/plus_addresses/core/browser/resources:vector_icons" ]
+  }
+
+  if (enable_captive_portal_detection) {
+    deps += [ "//chrome/browser/captive_portal" ]
   }
 
   # TODO(crbug.com/41437292): Remove this circular dependency.
@@ -1273,6 +1277,8 @@ static_library("ui") {
       "webui/settings/recent_site_settings_helper.h",
       "webui/settings/reset_settings_handler.cc",
       "webui/settings/reset_settings_handler.h",
+      "webui/settings/saved_info_handler.cc",
+      "webui/settings/saved_info_handler.h",
       "webui/settings/search_engines_handler.cc",
       "webui/settings/search_engines_handler.h",
       "webui/settings/settings_clear_browsing_data_handler.cc",
@@ -1425,6 +1431,7 @@ static_library("ui") {
       "//chrome/browser/ui/passwords/bubble_controllers/password_change",
       "//chrome/browser/ui/performance_controls",
       "//chrome/browser/ui/performance_controls:impl",
+      "//chrome/browser/ui/promos:controller",
       "//chrome/browser/ui/search",
       "//chrome/browser/ui/search:impl",
       "//chrome/browser/ui/search_engine_choice",
@@ -1743,6 +1750,7 @@ static_library("ui") {
       "//chrome/browser/ui/toolbar/pinned_toolbar:impl",
       "//chrome/browser/ui/bookmarks:impl",
       "//chrome/browser/ui/feature_first_run:impl",
+      "//chrome/browser/ui/promos:controller",
 
       # TODO(crbug.com/364667551): It includes quite a few files from //c/b/ui's
       # subdirectories such as views and webui which are not modularized yet.
@@ -2464,7 +2472,6 @@ static_library("ui") {
       "//components/app_restore",
       "//components/assist_ranker",
       "//components/assist_ranker/proto",
-      "//components/captive_portal/core",
       "//components/component_updater/ash",
       "//components/consent_auditor",
       "//components/content_relationship_verification",
@@ -2532,7 +2539,6 @@ static_library("ui") {
 
     public_deps += [
       "//chrome/browser/ash/accessibility",
-      "//chrome/browser/ash/accessibility/service",
       "//chrome/browser/ash/account_manager",
       "//chrome/browser/ash/camera_mic",
       "//chrome/browser/ash/drive",
@@ -2549,7 +2555,6 @@ static_library("ui") {
       "//chrome/browser/apps/browser_instance",
       "//chrome/browser/ash/accessibility",
       "//chrome/browser/ash/accessibility/live_caption",
-      "//chrome/browser/ash/accessibility/service",
       "//chrome/browser/ash/account_manager",
       "//chrome/browser/ash/android_sms",
       "//chrome/browser/ash/annotator",
@@ -3188,6 +3193,7 @@ static_library("ui") {
       "//chrome/browser/apps/app_shim",
       "//chrome/browser/enterprise/connectors/device_trust/key_management/core/mac",
       "//chrome/browser/updater:browser_updater_client",
+      "//chrome/browser/web_applications/extensions",
       "//chrome/updater:browser_sources",
       "//components/remote_cocoa/app_shim",
       "//components/remote_cocoa/app_shim:features",
@@ -3776,20 +3782,11 @@ static_library("ui") {
       "views/frame/app_menu_button.cc",
       "views/frame/app_menu_button.h",
       "views/frame/app_menu_button_observer.h",
-
-      # TODO(https://crbug.com/443281722): Remove browser_frame.h a couple weeks
-      # after the refactor of BrowserFrame => BrowserWindow lands.
-      "views/frame/browser_frame.h",
       "views/frame/browser_frame_view.cc",
       "views/frame/browser_frame_view.h",
       "views/frame/browser_native_widget.h",
       "views/frame/browser_native_widget_factory.cc",
       "views/frame/browser_native_widget_factory.h",
-
-      # TODO(https://crbug.com/443301212): Remove
-      # browser_non_client_frame_view.h a couple weeks after the refactor of
-      # BrowserNonClientFrameView => BrowserFrameView lands.
-      "views/frame/browser_non_client_frame_view.h",
       "views/frame/browser_root_view.cc",
       "views/frame/browser_root_view.h",
       "views/frame/browser_view.cc",
@@ -4681,7 +4678,6 @@ static_library("ui") {
       # componentized:
       # c/b/ui/browser.h, browser_finder.h, browser_window.h.
       # c/b/ui/passwords/passwords_model_delegate.h, passwords_client_ui_delegate.h.
-      "//chrome/browser/ui/views/zoom",
       "//chrome/browser/ui/webauthn:impl",
       "//chrome/browser/ui/webui/app_service_internals",
       "//chrome/browser/ui/webui/autofill_ml_internals",
@@ -5365,7 +5361,10 @@ static_library("ui") {
   }
 
   if (enable_session_service) {
-    deps += [ "//chrome/browser/ui/webui/tab_strip_internals" ]
+    deps += [
+      "//chrome/browser/ui/webui/tab_strip_internals",
+      "//chrome/browser/ui/webui/tab_strip_internals:impl",
+    ]
   }
 }
 

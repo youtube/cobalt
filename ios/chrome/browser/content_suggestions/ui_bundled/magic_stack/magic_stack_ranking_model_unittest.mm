@@ -269,7 +269,7 @@ class MagicStackRankingModelTest : public PlatformTest {
 
     // Necessary set up for kIOSSetUpList.
     GetProfile()->GetPrefs()->SetBoolean(
-        prefs::kHomeCustomizationMagicStackSetUpListEnabled, true);
+        prefs::kHomeCustomizationMagicStackTipsEnabled, true);
     ClearDefaultBrowserPromoData();
     WriteFirstRunSentinel();
 
@@ -675,6 +675,7 @@ TEST_F(MagicStackRankingModelTest, TestEphemeralModelDidGetCardToShow) {
       static_cast<commerce::MockShoppingService*>(
           commerce::ShoppingServiceFactory::GetForProfile(GetProfile()));
   shopping_service->SetIsShoppingListEligible(true);
+  shopping_service->SetGetAllSubscriptionsCallbackValue({});
 
   FakeMagicStackRankingModelDelegate* delegate_ =
       [[FakeMagicStackRankingModelDelegate alloc] init];

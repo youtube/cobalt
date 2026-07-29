@@ -40,6 +40,7 @@
 <translation id="1500473259453106018">Karte „Preissenkungen auf Tabs“ ausblenden</translation>
 <translation id="1508931164824684991">Websites dürfen JavaScript verwenden</translation>
 <translation id="1510341833810331442">Websites dürfen keine Daten auf deinem Gerät speichern</translation>
+<translation id="1532175480576580256">Die Ansicht „Meine Verknüpfungen“ am unteren Rand ist vollständig geöffnet</translation>
 <translation id="1538031354170655462">Websites verwenden Nahfeldkommunikation für gewöhnlich dazu, mit Tags oder Geräten in der Nähe zu interagieren, z. B. beim Scannen von Preisetiketten oder kontaktlosen Bezahlen</translation>
 <translation id="1547123415014299762">Drittanbieter-Cookies werden zugelassen</translation>
 <translation id="1569054338208717605">Websites mit der V8-Engine von Chrome beschleunigen (dadurch wird Chrome etwas anfälliger für Angriffe)</translation>
@@ -115,6 +116,7 @@
 <translation id="228293613124499805">Die meisten Websites, die du besuchst, speichern wahrscheinlich Daten auf deinem Gerät. Damit du bequemer im Internet surfen kannst, werden häufig Einstellungen oder Informationen gespeichert, die du an die jeweiligen Websites weitergibst. Wir empfehlen, diese Einstellung aktiviert zu lassen.</translation>
 <translation id="2289270750774289114">Nachfragen, wenn eine Website nach Bluetooth-Geräten in der Nähe suchen möchte (empfohlen)</translation>
 <translation id="2315043854645842844">Die clientseitige Zertifikatauswahl wird vom Betriebssystem nicht unterstützt.</translation>
+<translation id="2347601491101454548">Die Ansicht „Meine Verknüpfungen“ am unteren Rand ist halb geöffnet</translation>
 <translation id="2359808026110333948">Weiter</translation>
 <translation id="2379925928934107488">Sofern möglich, dunkles Design auf Websites anwenden, wenn Chrome das dunkle Design verwendet</translation>
 <translation id="2390272837142897736">Heranzoomen</translation>
@@ -145,6 +147,11 @@
 <translation id="2588271083332682494">Überblick dank Tabgruppen</translation>
 <translation id="2597457036804169544">Dunkles Design nicht auf Websites anwenden</translation>
 <translation id="2606760465469169465">Automatische Bestätigung</translation>
+<translation id="2610903128639500624">In den <ph name="BEGIN_LINK1" />Android-Einstellungen<ph name="END_LINK1" /> verwalten
+
+Diese Chrome-Einstellungen werden durch das erweiterte Sicherheitsprogramm gesteuert:
+• „Immer verschlüsselte Verbindungen verwenden“ ist aktiviert.
+• „JavaScript-Optimierungstool“ ist deaktiviert. <ph name="BEGIN_LINK2" />Ausnahmen für Websites verwalten<ph name="END_LINK2" /></translation>
 <translation id="2621115761605608342">JavaScript für eine bestimmte Website zulassen.</translation>
 <translation id="2626708220538466178">Ansicht am unteren Rand des Standardbrowsers geschlossen</translation>
 <translation id="2653659639078652383">Senden</translation>
@@ -303,6 +310,7 @@
 <translation id="4336566011000459927">Chrome schränkt heute wieder Cookies ein</translation>
 <translation id="4338831206024587507">Alle Websites unter <ph name="DOMAIN" /></translation>
 <translation id="4340799661701629185">Websites dürfen keine Benachrichtigungen senden</translation>
+<translation id="4341577178275615435">Mit dem Tastaturkürzel F7 kann die Tastaturnavigation aktiviert oder deaktiviert werden</translation>
 <translation id="4402755511846832236">Websites daran hindern, Informationen zu deiner aktiven Nutzung dieses Geräts abzurufen</translation>
 <translation id="4412683424767388419">Die Ansicht am unteren Rand zu Chrome-Farben ist halb geöffnet</translation>
 <translation id="4412992751769744546">Drittanbieter-Cookies zulassen</translation>
@@ -337,6 +345,7 @@
 <translation id="4816495437032298535">Gespeicherter Zoom für Websites</translation>
 <translation id="4836046166855586901">Nachfragen, wenn eine Website Informationen zu deiner aktiven Nutzung dieses Geräts abrufen möchte</translation>
 <translation id="483914009762354899">Alle Websites unter dieser Domain einschließen</translation>
+<translation id="4852997963351138624">Hintergrundfarbe (Hex-Code)</translation>
 <translation id="4882919381756638075">Websites verwenden normalerweise dein Mikrofon für Kommunikationsfunktionen wie Videochats</translation>
 <translation id="4883854917563148705">Verwaltete Einstellungen können nicht zurückgesetzt werden</translation>
 <translation id="4887024562049524730">Nachfragen, bevor Websites erlaubt wird, mein Virtual-Reality-Gerät und meine Virtual-Reality-Daten zu verwenden (empfohlen)</translation>
@@ -500,6 +509,7 @@
 <translation id="6608650720463149374"><ph name="GIGABYTES" /> GB</translation>
 <translation id="6612358246767739896">Geschützte Inhalte</translation>
 <translation id="662080504995468778">Bleiben</translation>
+<translation id="6630443592285535486">Hex-Code eingeben</translation>
 <translation id="6635327442719709864">Wenn diese Funktion aktiviert ist, können Websites anfragen, ob sie serielle Ports verwenden dürfen. Ist sie deaktiviert, können Websites keine seriellen Ports verwenden.</translation>
 <translation id="6678072580827808850">Sicherheitscheck aufrufen</translation>
 <translation id="6682057173375416470">Vorgeschlagene Artikel auf der Seite „Neuer Tab“ abrufen</translation>
@@ -557,6 +567,7 @@
 <translation id="7399802613464275309">Sicherheitscheck</translation>
 <translation id="7406113532070524618">Diese Einstellung funktioniert, ohne dass dabei deine Identität preisgegeben oder Websites erlaubt wird, deinen Browserverlauf einzusehen; allerdings können Websites bei der Überprüfung eine kleine Datenmenge weitergeben</translation>
 <translation id="7409735910987429903">Websites senden möglicherweise Pop-ups zum Anzeigen von Werbung oder bringen dich mithilfe von Weiterleitungen zu Websites, die du möglicherweise gar nicht besuchen möchtest</translation>
+<translation id="7412160840120117304">Primäre Farbe (Hex-Code)</translation>
 <translation id="7423098979219808738">Zuerst fragen</translation>
 <translation id="7423538860840206698">Es dürfen keine Dateien aus der Zwischenablage abgerufen werden</translation>
 <translation id="7425915948813553151">Dunkles Design für Websites</translation>

@@ -566,6 +566,7 @@ _CROSSBENCH_PIXEL9 = frozenset([
     # _jetstream2_crossbench(arguments=['--fileserver', '--debug']),
     _motionmark1_3_crossbench(arguments=['--fileserver', '--debug']),
     _speedometer3_crossbench(arguments=['--fileserver', '--debug']),
+    _speedometer3_a11y_crossbench(arguments=['--fileserver', '--debug']),
     _loadline_phone_crossbench(arguments=[
         '--cool-down-threshold=moderate',
         '--no-splash',
@@ -738,6 +739,7 @@ _MAC_M2_PRO_BENCHMARK_CONFIGS = PerfSuite(OFFICIAL_BENCHMARK_CONFIGS).Remove([
     'speedometer3-minorms',
 ])
 _MAC_M3_PRO_BENCHMARK_CONFIGS = PerfSuite([])
+_MAC_M4_MINI_BENCHMARK_CONFIGS = PerfSuite(OFFICIAL_BENCHMARK_CONFIGS)
 
 _WIN_10_BENCHMARK_CONFIGS = PerfSuite(OFFICIAL_BENCHMARK_CONFIGS).Remove([
     'v8.runtime_stats.top_25',
@@ -936,6 +938,12 @@ MAC_M3_PRO = PerfPlatform('mac-m3-pro-perf',
                           4,
                           'mac',
                           crossbench=_CROSSBENCH_BENCHMARKS_ALL)
+MAC_M4_MINI = PerfPlatform('mac-m4-mini-perf',
+                          'Mac M4 mini ARM',
+                          _MAC_M4_MINI_BENCHMARK_CONFIGS,
+                          25,
+                          'mac',
+                          crossbench=_CROSSBENCH_BENCHMARKS_ALL)
 # Win
 WIN_10_LOW_END = PerfPlatform(
     'win-10_laptop_low_end-perf',
@@ -999,15 +1007,14 @@ WIN_11_PGO = PerfPlatform('win-11-perf-pgo',
                           'win',
                           executables=_WIN_11_EXECUTABLE_CONFIGS,
                           pinpoint_only=True)
-WIN_ARM64_SNAPDRAGON_PLUS = PerfPlatform(
-    'win-arm64-snapdragon-plus-perf',
-    'Windows Dell Snapdragon Plus',
+WIN_ARM64_SNAPDRAGON_ELITE = PerfPlatform(
+    'win-arm64-snapdragon-elite-perf',
+    'Windows Dell Snapdragon Elite',
     _WIN_ARM64_BENCHMARK_CONFIGS,
     1,
     'win',
     executables=_WIN_ARM64_EXECUTABLE_CONFIGS,
-    crossbench=_CROSSBENCH_BENCHMARKS_ALL,
-    is_fyi=True)
+    crossbench=_CROSSBENCH_BENCHMARKS_ALL)
 
 # Android
 ANDROID_BRYA = PerfPlatform(

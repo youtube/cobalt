@@ -110,6 +110,7 @@
 #import "ios/chrome/browser/download/model/pass_kit_tab_helper.h"
 #import "ios/chrome/browser/download/ui/features.h"
 #import "ios/chrome/browser/drive_file_picker/coordinator/root_drive_file_picker_coordinator.h"
+#import "ios/chrome/browser/enterprise/data_controls/coordinator/data_controls_dialog_coordinator.h"
 #import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
 #import "ios/chrome/browser/feature_engagement/model/tracker_util.h"
 #import "ios/chrome/browser/find_in_page/model/find_tab_helper.h"
@@ -230,10 +231,12 @@
 #import "ios/chrome/browser/shared/public/commands/contextual_sheet_commands.h"
 #import "ios/chrome/browser/shared/public/commands/country_code_picker_commands.h"
 #import "ios/chrome/browser/shared/public/commands/credential_exchange_commands.h"
+#import "ios/chrome/browser/shared/public/commands/data_controls_commands.h"
 #import "ios/chrome/browser/shared/public/commands/download_list_commands.h"
 #import "ios/chrome/browser/shared/public/commands/drive_file_picker_commands.h"
 #import "ios/chrome/browser/shared/public/commands/enhanced_calendar_commands.h"
 #import "ios/chrome/browser/shared/public/commands/feed_commands.h"
+#import "ios/chrome/browser/shared/public/commands/file_upload_panel_commands.h"
 #import "ios/chrome/browser/shared/public/commands/find_in_page_commands.h"
 #import "ios/chrome/browser/shared/public/commands/google_one_commands.h"
 #import "ios/chrome/browser/shared/public/commands/help_commands.h"
@@ -367,6 +370,7 @@ const char kChromeAppStoreUrl[] =
     ContextualSheetCommands,
     CountryCodePickerCommands,
     CredentialExchangeCommands,
+    DataControlsCommands,
     DefaultBrowserGenericPromoCommands,
     DefaultPromoNonModalPresentationDelegate,
     DownloadListCommands,
@@ -374,6 +378,7 @@ const char kChromeAppStoreUrl[] =
     EnhancedCalendarCommands,
     EditMenuBuilder,
     EnterprisePromptCoordinatorDelegate,
+    FileUploadPanelCommands,
     FindInPageCommands,
     FormInputAccessoryCoordinatorNavigator,
     BWGCommands,
@@ -734,6 +739,9 @@ const char kChromeAppStoreUrl[] =
 
   // The coordinator for the Credential Exchange feature handling the import.
   CredentialImportCoordinator* _credentialImportCoordinator;
+
+  // The coordinator for displaying Enterprise Data Controls dialogs.
+  DataControlsDialogCoordinator* _dataControlsDialogCoordinator;
 }
 
 #pragma mark - ReaderModeBrowserAgentDelegate
@@ -893,6 +901,11 @@ const char kChromeAppStoreUrl[] =
   [self stopSaveToPhotos];
   [self hideSaveToDrive];
   [self hideDriveFilePicker];
+  if (@available(iOS 18.4, *)) {
+    if (base::FeatureList::IsEnabled(kIOSCustomFileUploadMenu)) {
+      [self hideFileUploadPanel];
+    }
+  }
   if (IsDownloadListEnabled()) {
     [self hideDownloadList];
   }
@@ -964,6 +977,9 @@ const char kChromeAppStoreUrl[] =
 
   [_lastTabClosingAlert stop];
   _lastTabClosingAlert = nil;
+
+  [_dataControlsDialogCoordinator stop];
+  _dataControlsDialogCoordinator = nil;
 
   [self hideGoogleOne];
   [self updateLensUIForBackground];
@@ -1178,6 +1194,7 @@ const char kChromeAppStoreUrl[] =
     @protocol(EnhancedCalendarCommands),
     @protocol(FeedCommands),
     @protocol(PromosManagerCommands),
+    @protocol(FileUploadPanelCommands),
     @protocol(FindInPageCommands),
     @protocol(BWGCommands),
     @protocol(ReaderModeCommands),
@@ -1207,6 +1224,7 @@ const char kChromeAppStoreUrl[] =
     @protocol(GoogleOneCommands),
     @protocol(WelcomeBackPromoCommands),
     @protocol(CredentialExchangeCommands),
+    @protocol(DataControlsCommands),
   ];
 
   for (Protocol* protocol in protocols) {
@@ -1780,7 +1798,15 @@ const char kChromeAppStoreUrl[] =
   [_credentialImportCoordinator stop];
   _credentialImportCoordinator = nil;
 
+  [_dataControlsDialogCoordinator stop];
+  _dataControlsDialogCoordinator = nil;
+
   [self hideDriveFilePicker];
+  if (@available(iOS 18.4, *)) {
+    if (base::FeatureList::IsEnabled(kIOSCustomFileUploadMenu)) {
+      [self hideFileUploadPanel];
+    }
+  }
   [self hideContextualSheet];
   [self dismissEditAddressBottomSheet];
   [self dismissLensPromo];
@@ -1831,8 +1857,8 @@ const char kChromeAppStoreUrl[] =
 - (void)startTabLifeCycleMediator {
   Browser* browser = self.browser;
 
-  TabLifecycleMediator* tabLifecycleMediator = [[TabLifecycleMediator alloc]
-      initWithWebStateList:browser->GetWebStateList()];
+  TabLifecycleMediator* tabLifecycleMediator =
+      [[TabLifecycleMediator alloc] initWithBrowser:browser];
 
   // Set properties that are already valid.
   tabLifecycleMediator.commandDispatcher = browser->GetCommandDispatcher();
@@ -1844,7 +1870,6 @@ const char kChromeAppStoreUrl[] =
   tabLifecycleMediator.overscrollActionsDelegate = self;
   tabLifecycleMediator.appLauncherBrowserPresentationProvider = self;
   tabLifecycleMediator.editMenuBuilder = self;
-  tabLifecycleMediator.browser = self.browser;
 
   self.tabLifecycleMediator = tabLifecycleMediator;
 }
@@ -2771,8 +2796,8 @@ const char kChromeAppStoreUrl[] =
     return;
   }
   ChooseFileTabHelper* tab_helper =
-      ChooseFileTabHelper::GetOrCreateForWebState(activeWebState);
-  if (!tab_helper->IsChoosingFiles()) {
+      ChooseFileTabHelper::FromWebState(activeWebState);
+  if (!tab_helper || !tab_helper->IsChoosingFiles()) {
     return;
   }
   // Start the coordinator.
@@ -2884,6 +2909,18 @@ const char kChromeAppStoreUrl[] =
     }
   }
   std::move(deactivateReader).Run();
+}
+
+#pragma mark - FileUploadPanelCommands
+
+- (void)showFileUploadPanel API_AVAILABLE(ios(18.4)) {
+  CHECK(base::FeatureList::IsEnabled(kIOSCustomFileUploadMenu));
+  // TODO(crbug.com/441659098): Start the FileUploadPanelCoordinator.
+}
+
+- (void)hideFileUploadPanel API_AVAILABLE(ios(18.4)) {
+  CHECK(base::FeatureList::IsEnabled(kIOSCustomFileUploadMenu));
+  // TODO(crbug.com/441659098): Stop the FileUploadPanelCoordinator.
 }
 
 #pragma mark - FindInPageCommands
@@ -3141,10 +3178,10 @@ const char kChromeAppStoreUrl[] =
   [self.defaultBrowserGenericPromoCoordinator start];
 }
 
-- (void)showSigninPromo {
+- (void)showFullscreenSigninPromo {
   [HandlerForProtocol(self.dispatcher, ApplicationCommands)
-      showSigninUpgradePromoWithCompletion:^(SigninCoordinatorResult result,
-                                             id<SystemIdentity>) {
+      showFullscreenSigninPromoWithCompletion:^(SigninCoordinatorResult result,
+                                                id<SystemIdentity>) {
         [self.promosManagerCoordinator promoWasDismissed];
       }];
 }
@@ -4750,6 +4787,19 @@ const char kChromeAppStoreUrl[] =
       initWithBaseViewController:self.viewController
                          browser:self.browser];
   [self.downloadListCoordinator start];
+}
+
+#pragma mark - DataControlsCommands
+
+- (void)showDataControlsWarningDialog:
+            (data_controls::DataControlsDialog::Type)dialogType
+                             callback:(base::OnceCallback<void(bool)>)callback {
+  _dataControlsDialogCoordinator = [[DataControlsDialogCoordinator alloc]
+      initWithBaseViewController:self.viewController
+                         browser:self.browser
+                      dialogType:dialogType
+                        callback:std::move(callback)];
+  [_dataControlsDialogCoordinator start];
 }
 
 @end

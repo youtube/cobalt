@@ -196,6 +196,7 @@ DetachedTabCollection::DetachedTabCollection(DetachedTabCollection&&) = default;
 
 DetachedTab::DetachedTab(int index_before_any_removals,
                          int index_at_time_of_removal,
+                         bool was_pinned_at_time_of_removal,
                          std::unique_ptr<tabs::TabModel> tab,
                          TabStripModelChange::RemoveReason remove_reason,
                          tabs::TabInterface::DetachReason tab_detach_reason,
@@ -203,6 +204,7 @@ DetachedTab::DetachedTab(int index_before_any_removals,
     : tab(std::move(tab)),
       index_before_any_removals(index_before_any_removals),
       index_at_time_of_removal(index_at_time_of_removal),
+      was_pinned_at_time_of_removal(was_pinned_at_time_of_removal),
       remove_reason(remove_reason),
       tab_detach_reason(tab_detach_reason),
       id(id) {}
@@ -395,6 +397,49 @@ void TabStripModel::DetachAndDeleteWebContentsAt(int index) {
                         tabs::TabInterface::DetachReason::kDelete);
 }
 
+std::vector<std::variant<std::unique_ptr<DetachedTab>,
+                         std::unique_ptr<DetachedTabCollection>>>
+TabStripModel::DetachTabsAndCollectionsForInsertion(
+    const std::vector<int>& tab_indices) {
+  const std::vector<tab_groups::TabGroupId> groups_to_move =
+      GetGroupsDestroyedFromRemovingIndices(tab_indices);
+
+  std::vector<tabs::TabInterface*> tab_interfaces;
+  for (const int index : tab_indices) {
+    tab_interfaces.push_back(GetTabAtIndex(index));
+  }
+
+  std::vector<std::variant<std::unique_ptr<DetachedTab>,
+                           std::unique_ptr<DetachedTabCollection>>>
+      owned_tabs_and_collections;
+
+  for (const tabs::TabInterface* tab_interface : tab_interfaces) {
+    const int index = GetIndexOfTab(tab_interface);
+    if (index == TabStripModel::kNoTab) {
+      // If this is a tab, we already moved it as part of its group.
+      // If this is a header, we will move it when we get to its first tab.
+      continue;
+    }
+
+    const std::optional<tab_groups::TabGroupId> group =
+        tab_interface->GetGroup();
+    if (std::find(groups_to_move.begin(), groups_to_move.end(), group) !=
+        groups_to_move.end()) {
+      owned_tabs_and_collections.emplace_back(
+          DetachTabGroupForInsertion(group.value()));
+    } else if (tab_interface->IsSplit()) {
+      owned_tabs_and_collections.emplace_back(
+          DetachSplitTabForInsertion(tab_interface->GetSplit().value()));
+    } else {
+      owned_tabs_and_collections.emplace_back(DetachTabWithReasonAt(
+          index, TabStripModelChange::RemoveReason::kInsertedIntoOtherTabStrip,
+          tabs::TabInterface::DetachReason::kInsertIntoOtherWindow));
+    }
+  }
+
+  return owned_tabs_and_collections;
+}
+
 std::unique_ptr<DetachedTab> TabStripModel::DetachTabWithReasonAt(
     int index,
     TabStripModelChange::RemoveReason web_contents_remove_reason,
@@ -405,11 +450,14 @@ std::unique_ptr<DetachedTab> TabStripModel::DetachTabWithReasonAt(
                                       "selecting at least one tab before "
                                       "trying to detach web contents.";
   tabs::TabModel* active_tab_model = GetTabModelAtIndex(active_index());
+  tabs::TabModel* tab_model = GetTabModelAtIndex(index);
   if (index == active_index() && !closing_all_) {
-    active_tab_model->WillEnterBackground(base::PassKey<TabStripModel>());
+    tab_model->WillDeactivate(base::PassKey<TabStripModel>());
   }
-  GetTabModelAtIndex(index)->WillDetach(base::PassKey<TabStripModel>(),
-                                        tab_detach_reason);
+  if (tab_model->IsVisible()) {
+    tab_model->WillBecomeHidden(base::PassKey<TabStripModel>());
+  }
+  tab_model->WillDetach(base::PassKey<TabStripModel>(), tab_detach_reason);
 
   DetachNotifications notifications(active_tab_model, selection_model());
   auto dt = DetachTabImpl(index, index,
@@ -595,9 +643,13 @@ TabStripModelChange::Remove TabStripModel::ProcessTabsForDetach(
        index >= static_cast<int>(tab_indices.start()); index--) {
     tabs::TabModel* tab = GetTabModelAtIndex(index);
 
-    // If the tab is active, notify it that it's going to the background:
+    // If the tab is active, notify it that it's going to be deactivated:
     if (tab == active_tab_model) {
-      active_tab_model->WillEnterBackground(base::PassKey<TabStripModel>());
+      tab->WillDeactivate(base::PassKey<TabStripModel>());
+    }
+    // If the tab is visible, notify it that it's going to be hidden:
+    if (tab->IsVisible()) {
+      tab->WillBecomeHidden(base::PassKey<TabStripModel>());
     }
 
     // Tell the tab it’s being detached (inserted into another window).
@@ -792,17 +844,19 @@ std::unique_ptr<DetachedTab> TabStripModel::DetachTabImpl(
   }
   CHECK(ContainsIndex(index_at_time_of_removal));
 
+  tabs::TabModel* tab = GetTabModelAtIndex(index_at_time_of_removal);
+
+  const bool was_pinned_at_time_of_removal = tab->IsPinned();
+
   for (auto& observer : observers_) {
-    observer.OnTabWillBeRemoved(
-        GetTabAtIndex(index_at_time_of_removal)->GetContents(),
-        index_at_time_of_removal);
+    observer.OnTabWillBeRemoved(tab->GetContents(), index_at_time_of_removal);
   }
 
   FixOpeners(index_at_time_of_removal);
 
   // Ask the delegate to save an entry for this tab in the historical tab
   // database.
-  tabs::TabModel* tab = GetTabModelAtIndex(index_at_time_of_removal);
+
   std::optional<SessionID> id = std::nullopt;
   if (create_historical_tab) {
     id = delegate_->CreateHistoricalTab(tab->GetContents());
@@ -814,8 +868,8 @@ std::unique_ptr<DetachedTab> TabStripModel::DetachTabImpl(
   old_tab_model->OnRemovedFromModel();
   return std::make_unique<DetachedTab>(
       index_before_any_removals, index_at_time_of_removal,
-      std::move(old_tab_model), web_contents_remove_reason, tab_detach_reason,
-      id);
+      was_pinned_at_time_of_removal, std::move(old_tab_model),
+      web_contents_remove_reason, tab_detach_reason, id);
 }
 
 void TabStripModel::SendDetachWebContentsNotifications(
@@ -1959,8 +2013,10 @@ void TabStripModel::RemoveFromGroup(const std::vector<int>& indices) {
     }
   }
 
-  for (auto [group_id, group_indices] : indices_per_tab_group) {
-    const TabGroup* group = group_model_->GetTabGroup(group_id);
+  for (const auto& [immutable_group_id, immutable_group_indices] :
+       indices_per_tab_group) {
+    auto group_indices = immutable_group_indices;
+    const TabGroup* group = group_model_->GetTabGroup(immutable_group_id);
     CHECK(group);
     tabs::TabInterface* first_tab_in_group = group->GetFirstTab();
     CHECK(first_tab_in_group);
@@ -1976,7 +2032,7 @@ void TabStripModel::RemoveFromGroup(const std::vector<int>& indices) {
         group_indices.begin(), group_indices.end(), group_indices.begin(),
         [first_tab_index](int index) { return index - first_tab_index; });
     auto [left_of_group, right_of_group] =
-        contents_data_->GetTabGroupCollection(group_id)
+        contents_data_->GetTabGroupCollection(immutable_group_id)
             ->SeparateTabsByVisualPosition(group_indices);
     for (auto partition : {&left_of_group, &right_of_group}) {
       std::transform(
@@ -3329,7 +3385,7 @@ std::vector<int> TabStripModel::GetIndicesClosedByCommand(
 bool TabStripModel::IsNewTabAtEndOfTabStrip(WebContents* contents) const {
   const GURL& url = contents->GetLastCommittedURL();
   return url.SchemeIs(content::kChromeUIScheme) &&
-         url.host_piece() == chrome::kChromeUINewTabHost &&
+         url.host() == chrome::kChromeUINewTabHost &&
          contents == GetTabAtIndex(count() - 1)->GetContents() &&
          contents->GetController().GetEntryCount() == 1;
 }
@@ -3367,10 +3423,7 @@ int TabStripModel::InsertTabAtImpl(
   // If there's already an active tab, and the new tab will become active, send
   // a notification.
   if (active_tab_model && active && !closing_all_) {
-    for (tabs::TabInterface* foreground_tab : GetForegroundTabs()) {
-      static_cast<tabs::TabModel*>(foreground_tab)
-          ->WillEnterBackground(base::PassKey<TabStripModel>());
-    }
+    NotifyForegroundTabsWillEnterBackground();
   }
 
   // Have to get the active contents before we monkey with the contents
@@ -3479,13 +3532,15 @@ bool TabStripModel::CloseWebContentses(
 
   for (WebContents* contents : items) {
     const int index = GetIndexOfWebContents(contents);
+    tabs::TabModel* tab_model = GetTabModelAtIndex(index);
     if (index == active_index() && !closing_all_) {
-      GetTabModelAtIndex(active_index())
-          ->WillEnterBackground(base::PassKey<TabStripModel>());
+      tab_model->WillDeactivate(base::PassKey<TabStripModel>());
     }
-    GetTabModelAtIndex(index)->WillDetach(
-        base::PassKey<TabStripModel>(),
-        tabs::TabInterface::DetachReason::kDelete);
+    if (tab_model->IsVisible() && !closing_all_) {
+      tab_model->WillBecomeHidden(base::PassKey<TabStripModel>());
+    }
+    tab_model->WillDetach(base::PassKey<TabStripModel>(),
+                          tabs::TabInterface::DetachReason::kDelete);
   }
 
   // We only try the fast shutdown path if the whole browser process is *not*
@@ -3572,29 +3627,15 @@ TabStripSelectionChange TabStripModel::SetSelection(
   if (selection_model().active().has_value() &&
       new_model.active().has_value() &&
       selection_model().active().value() != new_model.active().value()) {
-    if (GetActiveTab()->GetSplit() !=
-        GetSplitForTab(new_model.active().value())) {
-      // When not switching between two splits, the active tab is deactivated
-      // and all foreground tabs become hidden.
-      for (tabs::TabInterface* tab : GetForegroundTabs()) {
-        if (tab->IsActivated()) {
-          static_cast<tabs::TabModel*>(GetActiveTab())
-              ->WillDeactivate(base::PassKey<TabStripModel>());
-        }
-        static_cast<tabs::TabModel*>(tab)->WillBecomeHidden(
-            base::PassKey<TabStripModel>());
-      }
-
-    } else if (GetActiveTab()->IsSplit()) {
+    if (GetActiveTab()->IsSplit() &&
+        GetActiveTab()->GetSplit() ==
+            GetSplitForTab(new_model.active().value())) {
       // When switching between two tabs in a split, neither enters the
       // background but one becomes deactivated.
       static_cast<tabs::TabModel*>(GetActiveTab())
           ->WillDeactivate(base::PassKey<TabStripModel>());
     } else {
-      // For a non-split tab, just mark the active tab as entering the
-      // background.
-      static_cast<tabs::TabModel*>(GetActiveTab())
-          ->WillEnterBackground(base::PassKey<TabStripModel>());
+      NotifyForegroundTabsWillEnterBackground();
     }
   }
 
@@ -3997,7 +4038,11 @@ void TabStripModel::UpdateTabInSplitImpl(tabs::TabInterface* split_tab,
 
     // The `split_tab` will be replaced in the split so notify observers that it
     // will be moving to the background.
-    static_cast<tabs::TabModel*>(split_tab)->WillEnterBackground(
+    if (split_tab->IsActivated()) {
+      static_cast<tabs::TabModel*>(split_tab)->WillDeactivate(
+          base::PassKey<TabStripModel>());
+    }
+    static_cast<tabs::TabModel*>(split_tab)->WillBecomeHidden(
         base::PassKey<TabStripModel>());
 
     // Move the split index first so the group is not possibly destroyed at the
@@ -4937,6 +4982,10 @@ void TabStripModel::OnActiveTabChanged(
   const tabs::TabInterface* old_opener = nullptr;
   int reason = selection.reason;
 
+  if (new_tab->GetGroup()) {
+    group_model_->OnTabGroupActivated(*(new_tab->GetGroup()));
+  }
+
   if (old_tab) {
     const int index = GetIndexOfTab(old_tab);
     if (index != TabStripModel::kNoTab) {
@@ -5192,6 +5241,17 @@ bool TabStripModel::CanActivateTabAt(int index) {
   }
 
   return true;
+}
+
+void TabStripModel::NotifyForegroundTabsWillEnterBackground() {
+  for (tabs::TabInterface* tab : GetForegroundTabs()) {
+    if (tab->IsActivated()) {
+      static_cast<tabs::TabModel*>(GetActiveTab())
+          ->WillDeactivate(base::PassKey<TabStripModel>());
+    }
+    static_cast<tabs::TabModel*>(tab)->WillBecomeHidden(
+        base::PassKey<TabStripModel>());
+  }
 }
 
 TabStripModel::ScopedTabStripModalUIImpl::ScopedTabStripModalUIImpl(

@@ -210,7 +210,6 @@
           <ph name="LIST_ITEM" />ನಿಮ್ಮ ಉದ್ಯೋಗದಾತರು ಅಥವಾ ಶಾಲೆ
           <ph name="LIST_ITEM" />ನಿಮಗೆ ಇಂಟರ್ನೆಟ್ ಸೇವೆ ಒದಗಿಸುವವರು
         <ph name="END_LIST" /></translation>
-<translation id="1335042910556016570">ಈ ಐಟಂ ಅನ್ನು ಟ್ರ್ಯಾಕ್ ಮಾಡಿ</translation>
 <translation id="1337692097987160377">ಈ ಟ್ಯಾಬ್ ಹಂಚಿಕೊಳ್ಳಿ</translation>
 <translation id="1339601241726513588">ಡೊಮೇನ್ ದಾಖಲಾತಿ:</translation>
 <translation id="1340482604681802745">ಪಿಕಪ್ ವಿಳಾಸ</translation>
@@ -480,7 +479,6 @@
 <translation id="1762779605905950734">ರಸ್ತೆಯ ಹೆಸರು</translation>
 <translation id="1763864636252898013">ಈ ಸರ್ವರ್ <ph name="DOMAIN" /> ಆಗಿದೆ ಎಂಬುದನ್ನು ಸಾಬೀತುಪಡಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ; ಅದರ ಸುರಕ್ಷತಾ ಪ್ರಮಾಣಪತ್ರವು ನಿಮ್ಮ ಸಾಧನದ ಆಪರೇಟಿಂಗ್ ಸಿಸ್ಟಂ‌ ಪ್ರಕಾರ ವಿಶ್ವಾಸಾರ್ಹವಾಗಿಲ್ಲ. ಇದು ತಪ್ಪು ಕಾನ್ಫಿಗರೇಶನ್‌ನಿಂದ ಅಥವಾ ಆಕ್ರಮಣಕಾರರು ನಿಮ್ಮ ಸಂಪರ್ಕದಲ್ಲಿ ಒಳನುಸುಳಿರುವುದರಿಂದ ಆಗಿರಬಹುದು.</translation>
 <translation id="1768211456781949159"><ph name="BEGIN_LINK" />Windows ನೆಟ್‌ವರ್ಕ್ ಡಯಾಗ್ನಾಸ್ಟಿಕ್ಸ್‌ ರನ್ ಮಾಡಲು ಪ್ರಯತ್ನಿಸಿ‌<ph name="END_LINK" />.</translation>
-<translation id="1771254328977666895">ಬೆಲೆಯ ಇತಿಹಾಸವನ್ನು ನೋಡಿ</translation>
 <translation id="1777422078676229054">ಫೋಟೋ (ಆರ್ಕೈವಲ್)</translation>
 <translation id="1778646502362731194">JIS B0</translation>
 <translation id="1785118555253503473">ವೆಬ್ ಆ್ಯಪ್‌ಗಳನ್ನು ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಬೇಕೇ?</translation>
@@ -990,6 +988,7 @@
 <translation id="2610561535971892504">ನಕಲಿಸಲು ಕ್ಲಿಕ್ ಮಾಡಿ</translation>
 <translation id="2612676031748830579">ಕಾರ್ಡ್ ಸಂಖ್ಯೆ</translation>
 <translation id="2612993535136743634">ನಿಮ್ಮ ಸಾಧನದಲ್ಲಿ ಮತ್ತು Google ಖಾತೆಯಲ್ಲಿ ಸೇವ್ ಮಾಡಲಾದ ಎಲ್ಲಾ ಭದ್ರತಾ ಕೋಡ್‌ಗಳನ್ನು ಅಳಿಸಲಾಗುತ್ತದೆ</translation>
+<translation id="2614835674900828050">ಈ ಖರೀದಿಗೆ ಲಭ್ಯವಿಲ್ಲ</translation>
 <translation id="2616412942031748191">ಸರ್ಚ್‌ ಎಂಜಿನ್‌ ಆಪ್ಟಿಮೈಸೇಷನ್‌ ಮತ್ತು ಮಾರ್ಕೆಟಿಂಗ್</translation>
 <translation id="2618206371527040026">ಶೈಕ್ಷಣಿಕ ಸಮ್ಮೇಳನಗಳು ಮತ್ತು ಪ್ರಕಟಣೆಗಳು</translation>
 <translation id="2619052155095999743">Insert</translation>
@@ -1238,6 +1237,7 @@
 <translation id="305162504811187366">ಟೈಮ್‌ಸ್ಟ್ಯಾಂಪ್‌ಗಳು, ಹೋಸ್ಟ್‌ಗಳು ಮತ್ತು ಕ್ಲೈಂಟ್ ಸೆಷನ್ ಐಡಿಗಳು ಸೇರಿದಂತೆ Chrome ರಿಮೋಟ್ ಡೆಸ್ಕ್‌ಟಾಪ್ ಇತಿಹಾಸ</translation>
 <translation id="3052868890529250114">ನೀವು ಸಾಮಾನ್ಯವಾಗಿ ಸೈಟ್‌ಗಳಿಗೆ ಸುರಕ್ಷಿತವಾಗಿ ಕನೆಕ್ಟ್‌ ಆಗಿರುತ್ತೀರಿ, ಆದರೆ Chrome ಗೆ ಈ ಸಮಯದಲ್ಲಿ ಸುರಕ್ಷಿತ ಕನೆಕ್ಷನ್ ಅನ್ನು ಬಳಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. ಅಟ್ಯಾಕರ್‌ಗಳು ನಿಮ್ಮ ನೆಟ್‌ವರ್ಕ್ ಕನೆಕ್ಷನ್ ಅನ್ನು ಕದ್ದಾಲಿಕೆ ಮಾಡಲು ಅಥವಾ ಮಾರ್ಪಡಿಸಲು ಪ್ರಯತ್ನಿಸುತ್ತಿರಬಹುದು. <ph name="BEGIN_LEARN_MORE_LINK" />ಈ ಎಚ್ಚರಿಕೆಯ ಕುರಿತು ಇನ್ನಷ್ಟು ತಿಳಿಯಿರಿ<ph name="END_LEARN_MORE_LINK" /></translation>
 <translation id="3052964831964880138"><ph name="PRODUCT_NAME" /> ಉತ್ಪನ್ನದ ಮೇಲೆ <ph name="PRICE_DROP" /> ದರ ಇಳಿಕೆ</translation>
+<translation id="3056660797732519147">ಈಗ ಖರೀದಿಸಿ, ನಂತರ ಪಾವತಿಸಿ ದೋಷದ ಸ್ಕ್ರೀನ್. ಕೀಬೋರ್ಡ್ ಅನ್ನು ಮರೆಮಾಡಲಾಗಿದೆ.</translation>
 <translation id="3061707000357573562">ಪ್ಯಾಚ್ ಸೇವೆ</translation>
 <translation id="3062655045399308513">ಬ್ರೌಸಿಂಗ್ ಡೇಟಾವನ್ನು ಅಳಿಸಿ...</translation>
 <translation id="3063453392496098461">VPN ಹಿನ್ನೆಲೆ ಸೇವೆಗಳ ಇನ್‌ಸ್ಟಾಲೇಶನ್ ವಿಫಲವಾಗಿದೆ.</translation>
@@ -1253,6 +1253,7 @@
 <translation id="3087734570205094154">ಕೆಳಗೆ</translation>
 <translation id="3090667236485488075">ಗ್ಲಾಸ್</translation>
 <translation id="3093122472063815077">ಈಗ ಖರೀದಿಸಿ, ನಂತರ ಪಾವತಿಸಿ ಪ್ರಗತಿ ಸ್ಕ್ರೀನ್‌ ಅರ್ಧ ಎತ್ತರದಲ್ಲಿ ತೆರೆಯಲಾಗಿದೆ.</translation>
+<translation id="309381737510736393">ನಿಮ್ಮ ಸಂಸ್ಥೆಯು ನಿಮ್ಮ Google ಖಾತೆಯಲ್ಲಿ ಸೇವ್ ಮಾಡುವುದನ್ನು ಸೀಮಿತಗೊಳಿಸಿದಾಗ, ಟ್ಯಾಬ್‌ಗಳನ್ನು ಹಂಚಿಕೊಳ್ಳಲು ಅಥವಾ ಇತರರೊಂದಿಗೆ ಕೊಲಾಬೊರೇಟ್ ಮಾಡಲು ನಿಮಗೆ ಸಾಧ್ಯವಾಗುವುದಿಲ್ಲ</translation>
 <translation id="3094051226187213523">ಈ ಸಲಹೆಯೊಂದಿಗೆ AI ಮೋಡ್ ಅನ್ನು ತೆರೆಯಿರಿ.</translation>
 <translation id="3095940652251934233">Statement</translation>
 <translation id="3098513225387949945">ನಿರ್ಲಕ್ಷಿಸಲಾಗಿದೆ ಏಕೆಂದರೆ ನಿಷ್ಕ್ರಿಯಗೊಳಿಸಿದ ಪಟ್ಟಿಯು '*' ಗೆ ಸಮಾನವಾದ ಪ್ಯಾಟರ್ನ್ ಅನ್ನು ಹೊಂದಿದೆ, ಇದು ನೀತಿಯನ್ನು ನಿಷ್ಕ್ರಿಯಗೊಳಿಸುವುದಕ್ಕೆ ಸಮನಾಗಿರುತ್ತದೆ.</translation>
@@ -1695,6 +1696,7 @@
 <translation id="3784372983762739446">ಬ್ಲೂಟೂತ್‌‌ ಸಾಧನಗಳು</translation>
 <translation id="3785246317262748285">ನೀವು ಸಾಮಾನ್ಯವಾಗಿ ಸೈಟ್‌ಗಳಿಗೆ ಸುರಕ್ಷಿತವಾಗಿ ಕನೆಕ್ಟ್‌ ಆಗಿರುತ್ತೀರಿ, ಆದರೆ Chrome ಗೆ ಈ ಸಮಯದಲ್ಲಿ ಸುರಕ್ಷಿತ ಕನೆಕ್ಷನ್ ಅನ್ನು ಬಳಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. ಅಟ್ಯಾಕರ್‌ಗಳು ನಿಮ್ಮ ನೆಟ್‌ವರ್ಕ್ ಕನೆಕ್ಷನ್ ಅನ್ನು ಕದ್ದಾಲಿಕೆ ಮಾಡಲು ಅಥವಾ ಮಾರ್ಪಡಿಸಲು ಪ್ರಯತ್ನಿಸುತ್ತಿರಬಹುದು. <ph name="LEARN_MORE" /></translation>
 <translation id="378611282717571199">"<ph name="SEARCH_QUERY" />" ಗಾಗಿ ಉತ್ತಮ ಹೊಂದಾಣಿಕೆಗಳು</translation>
+<translation id="3787887386289385215"><ph name="ISSUER_1_NAME" />, <ph name="ISSUER_2_NAME" />, ಅಥವಾ <ph name="ISSUER_3_NAME" /></translation>
 <translation id="3789841737615482174">ಇನ್‌ಸ್ಟಾಲ್</translation>
 <translation id="3791118028061680614">ಆ್ಯಪ್‌ಗಳನ್ನು ಬದಲಿಸದೆಯೇ ಪಾವತಿಸಿ</translation>
 <translation id="3792100426446126328"><ph name="NAME" /> (<ph name="WIDTH" /> x <ph name="HEIGHT" /> ಇಂಚು)</translation>
@@ -1987,6 +1989,7 @@
 <translation id="4242981939686657948">ನಿಮ್ಮ ಬ್ರೌಸಿಂಗ್ ಇತಿಹಾಸವನ್ನು ಇನ್ನಷ್ಟು ಪರಿಣಾಮಕಾರಿಯಾಗಿ ಹುಡುಕಲು, ಇದನ್ನು ಆನ್ ಮಾಡಿ</translation>
 <translation id="4244926541863471678">ಚಲನಚಿತ್ರ</translation>
 <translation id="4246517972543675653">ವಿದೇಶಿ ಅಧ್ಯಯನ</translation>
+<translation id="4250343410682686342">ಈಗ ಖರೀದಿಸಿ, ನಂತರ ಪಾವತಿಸಿ ದೋಷದ ಸ್ಕ್ರೀನ್ ಅನ್ನು ಪೂರ್ಣ ಎತ್ತರದಲ್ಲಿ ತೆರೆಯಲಾಗಿದೆ.</translation>
 <translation id="4250431568374086873">ಈ ಸೈಟ್‌ಗೆ ನಿಮ್ಮ ಸಂಪರ್ಕವು ಸಂಪೂರ್ಣವಾಗಿ ಸುರಕ್ಷಿತವಾಗಿಲ್ಲ</translation>
 <translation id="4250680216510889253">ಇಲ್ಲ</translation>
 <translation id="4250716950689692560">A4x4</translation>
@@ -2503,6 +2506,7 @@
 <translation id="5122786942953798871">ಎನ್ವಲಪ್ (ಕಾಟನ್)</translation>
 <translation id="5123063207673082822">ವಾರಾಂತ್ಯ</translation>
 <translation id="5123433949759960244">ಬಾಸ್ಕೆಟ್‌ಬಾಲ್‌</translation>
+<translation id="5124797626438336458">ಈಗ ಖರೀದಿಸಿ, ನಂತರ ಪಾವತಿಸಿ ದೋಷದ ಸ್ಕ್ರೀನ್ ಅನ್ನು ಅರ್ಧ ಎತ್ತರದಲ್ಲಿ ತೆರೆಯಲಾಗಿದೆ.</translation>
 <translation id="5125575917473813637">ಗುರುತಿನ ಚೀಟಿಯನ್ನು ಎಡಿಟ್ ಮಾಡಿ</translation>
 <translation id="5125751979347152379">ಅಮಾನ್ಯವಾದ URL.</translation>
 <translation id="512592033764059484">ಸಾಕರ್</translation>
@@ -2676,6 +2680,7 @@
 <translation id="5412040515238827314">ಅಮಾನ್ಯ ಫಾರ್ಮ್ಯಾಟ್: ಪ್ಯಾಟರ್ನ್‌ಗಳ ಪಟ್ಟಿಯನ್ನು ನಿರೀಕ್ಷಿಸಲಾಗಿದೆ.</translation>
 <translation id="5412245327974352290"><ph name="TRADITIONAL_TEXT" /> - <ph name="ADDITIONAL_TEXT" /></translation>
 <translation id="541416427766103491">ಸ್ಟ್ಯಾಕರ್ 4</translation>
+<translation id="5414306071315087019">ಈಗ ಖರೀದಿಸಿ, ನಂತರ ಪಾವತಿಸುವ ಫೀಚರ್ Google Pay ಜೊತೆಗೆ ಲಭ್ಯವಿದೆ</translation>
 <translation id="5414446060143308245">ವರ್ಗಾವಣೆ ಮಾಡುವ ಮೊದಲು ಪರಿಶೀಲನೆಯ ಅಗತ್ಯವಿದೆ</translation>
 <translation id="5414511064953050917">ಹೇಗಿದ್ದರೂ ಸರಿಸಿ</translation>
 <translation id="5418700249417444482">ನೀವು ಭೇಟಿ ನೀಡುವ ಪುಟಗಳ URL ಗಳನ್ನು ವಿಶ್ಲೇಷಣೆಗಾಗಿ Google Cloud ಅಥವಾ ಥರ್ಡ್ ಪಾರ್ಟಿಗಳಿಗೆ ಕಳುಹಿಸಲಾಗುತ್ತದೆ ಮತ್ತು ನಿಮ್ಮ ನಿರ್ವಾಹಕರಿಗೆ ಗೋಚರಿಸಬಹುದು. ಉದಾಹರಣೆಗೆ, ಅಸುರಕ್ಷಿತ ವೆಬ್‌ಸೈಟ್‌ಗಳನ್ನು ಪತ್ತೆಹಚ್ಚಲು ಅಥವಾ ನಿರ್ವಾಹಕರು ಸೆಟ್ ಮಾಡಿದ ನಿಯಮಗಳ ಆಧಾರದ ಮೇಲೆ ವೆಬ್‌ಸೈಟ್‌ಗಳನ್ನು ಫಿಲ್ಟರ್ ಮಾಡಲು ಅವುಗಳನ್ನು ಸ್ಕ್ಯಾನ್ ಮಾಡಬಹುದು.</translation>
@@ -2796,6 +2801,7 @@
 <translation id="5595485650161345191">ವಿಳಾಸ ಎಡಿಟ್ ಮಾಡಿ</translation>
 <translation id="5596939519753369075">2 x 3.5 ಇಂಚು</translation>
 <translation id="5597254438174353289">ನೀಲಿ 3</translation>
+<translation id="5603469469737324249"><ph name="ISSUER_1_NAME" /> ಅಥವಾ <ph name="ISSUER_2_NAME" /></translation>
 <translation id="560412284261940334">ನಿರ್ವಾಹಕ ಬೆಂಬಲಿಸುವುದಿಲ್ಲ</translation>
 <translation id="5605249000617390290">ಬೆಲೆಯ ಟ್ರ್ಯಾಕಿಂಗ್ ಕುರಿತು ಇನ್ನಷ್ಟು ತಿಳಿಯಿರಿ</translation>
 <translation id="5605670050355397069">Ledger</translation>
@@ -4168,6 +4174,7 @@
 <translation id="7860345425589240791"><ph name="SIDE_OF_CARD" /> ನಲ್ಲಿನ ನಿಮ್ಮ ಹೊಸ ಅವಧಿ ಮುಗಿಯುವ ದಿನಾಂಕ ಮತ್ತು CVC ಅನ್ನು ನಮೂದಿಸಿ</translation>
 <translation id="7862185352068345852">ಸೈಟ್‌ ಅನ್ನು ತೊರೆಯುವುದೇ?</translation>
 <translation id="7865448901209910068">ಉತ್ತಮ ವೇಗ</translation>
+<translation id="7865482168955081228">ಈಗ ಖರೀದಿಸಿ, ನಂತರ ಪಾವತಿಸಿ ದೋಷದ ಸ್ಕ್ರೀನ್ ಅನ್ನು ಮುಚ್ಚಲಾಗಿದೆ.</translation>
 <translation id="7870281855125116701">ರಿಯಾಯಿತಿ ಕಂಡುಬಂದಿದೆ</translation>
 <translation id="7871445724586827387">ನಿಮ್ಮ Google ಖಾತೆಯ ಪಾಸ್‌ವರ್ಡ್‌ ಅನ್ನು ಬದಲಾಯಿಸಿ</translation>
 <translation id="787226752901403048">ಟ್ಯಾಬ್ ಗುಂಪುಗಳನ್ನು ಹಂಚಿಕೊಳ್ಳಲು ಮತ್ತು ಸೇರಿಕೊಳ್ಳಲು ಹಾಗೂ ಐಡಿಯಾಗಳ ಮೇಲೆ ಜೊತೆಯಾಗಿ ಕೆಲಸ ಮಾಡಲು Chrome ಗೆ ಸೈನ್ ಇನ್ ಮಾಡಿ</translation>

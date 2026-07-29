@@ -337,11 +337,6 @@ content::RenderFrameHost* NavigateToURLBlockUntilNavigationsComplete(
       BROWSER_TEST_WAIT_FOR_LOAD_STOP);
 }
 
-base::FilePath GetTestFilePath(const base::FilePath& dir,
-                               const base::FilePath& file) {
-  return chrome_test_utils::GetTestFilePath(dir, file);
-}
-
 GURL GetTestUrl(const base::FilePath& dir, const base::FilePath& file) {
   return chrome_test_utils::GetTestUrl(dir, file);
 }
@@ -642,7 +637,7 @@ void WaitForBrowserSetLastActive(BrowserWindowInterface* browser,
 }
 
 void SendToOmniboxAndSubmit(BrowserWindowInterface* browser,
-                            const std::string& input,
+                            std::string_view input,
                             base::TimeTicks match_selection_timestamp) {
   OmniboxView* omnibox = browser->GetBrowserForMigrationOnly()
                              ->window()

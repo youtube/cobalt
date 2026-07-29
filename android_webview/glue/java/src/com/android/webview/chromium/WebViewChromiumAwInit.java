@@ -38,8 +38,10 @@ import org.chromium.android_webview.DualTraceEvent;
 import org.chromium.android_webview.HttpAuthDatabase;
 import org.chromium.android_webview.R;
 import org.chromium.android_webview.WebViewChromiumRunQueue;
+import org.chromium.android_webview.common.AwFeatures;
 import org.chromium.android_webview.common.AwResource;
 import org.chromium.android_webview.common.Lifetime;
+import org.chromium.android_webview.common.WebViewCachedFlags;
 import org.chromium.android_webview.gfx.AwDrawFnImpl;
 import org.chromium.android_webview.metrics.TrackExitReasons;
 import org.chromium.android_webview.variations.FastVariationsSeedSafeModeAction;
@@ -355,6 +357,8 @@ public class WebViewChromiumAwInit {
         CallSite.STATIC_GET_VARIATIONS_HEADER,
         CallSite.STATIC_SET_DEFAULT_TRAFFIC_STATS_TAG,
         CallSite.STATIC_SET_DEFAULT_TRAFFIC_STATS_UID,
+        CallSite.STATIC_SET_RENDERER_LIBRARY_PREFETCH_MODE,
+        CallSite.STATIC_GET_RENDERER_LIBRARY_PREFETCH_MODE,
         CallSite.COUNT,
     })
     public @interface CallSite {
@@ -464,8 +468,10 @@ public class WebViewChromiumAwInit {
         int STATIC_GET_VARIATIONS_HEADER = 102;
         int STATIC_SET_DEFAULT_TRAFFIC_STATS_TAG = 103;
         int STATIC_SET_DEFAULT_TRAFFIC_STATS_UID = 104;
+        int STATIC_SET_RENDERER_LIBRARY_PREFETCH_MODE = 105;
+        int STATIC_GET_RENDERER_LIBRARY_PREFETCH_MODE = 106;
         // Remember to update WebViewStartupCallSite in enums.xml when adding new values here.
-        int COUNT = 105;
+        int COUNT = 107;
     };
 
     // LINT.ThenChange(//tools/metrics/histograms/metadata/android/enums.xml:WebViewStartupCallSite)
@@ -524,6 +530,26 @@ public class WebViewChromiumAwInit {
         mIsStartupTasksYieldToNativeExperimentEnabled = enabled;
     }
 
+    // These are startup tasks that can either run during provider init or during `startChromium`.
+    // This is extracted out so that we can experiment with calling this in either of these
+    // locations.
+    public void runNonUiThreadCapableStartupTasks() {
+        ResourceBundle.setAvailablePakLocales(AwLocaleConfig.getWebViewSupportedPakLocales());
+
+        try (DualTraceEvent ignored2 = DualTraceEvent.scoped("LibraryLoader.ensureInitialized")) {
+            LibraryLoader.getInstance().ensureInitialized();
+        }
+
+        // TODO(crbug.com/400414092): PathService overrides should be obsolete now.
+        PathService.override(PathService.DIR_MODULE, "/system/lib/");
+        PathService.override(DIR_RESOURCE_PAKS_ANDROID, "/system/framework/webview/paks");
+
+        initPlatSupportLibrary();
+        AwContentsStatics.setCheckClearTextPermitted(
+                ContextUtils.getApplicationContext().getApplicationInfo().targetSdkVersion
+                        >= Build.VERSION_CODES.O);
+    }
+
     // Initializes a new StartupTaskRunner with a list of tasks to run for chromium startup.
     // Postcondition of calling `.run` on the returned StartupTasksRunner is that Chromium startup
     // is finished.
@@ -546,25 +572,11 @@ public class WebViewChromiumAwInit {
                         TrackExitReasons.startTrackingStartup();
                     }
 
-                    final Context context = ContextUtils.getApplicationContext();
-
-                    ResourceBundle.setAvailablePakLocales(
-                            AwLocaleConfig.getWebViewSupportedPakLocales());
-
-                    try (DualTraceEvent ignored2 =
-                            DualTraceEvent.scoped("WebViewChromiumAwInit.LibraryLoader")) {
-                        LibraryLoader.getInstance().ensureInitialized();
+                    if (!WebViewCachedFlags.get()
+                            .isCachedFeatureEnabled(
+                                    AwFeatures.WEBVIEW_MOVE_WORK_TO_PROVIDER_INIT)) {
+                        runNonUiThreadCapableStartupTasks();
                     }
-
-                    // TODO(crbug.com/400414092): These should be obsolete now.
-                    PathService.override(PathService.DIR_MODULE, "/system/lib/");
-                    PathService.override(
-                            DIR_RESOURCE_PAKS_ANDROID, "/system/framework/webview/paks");
-
-                    initPlatSupportLibrary();
-                    AwContentsStatics.setCheckClearTextPermitted(
-                            context.getApplicationInfo().targetSdkVersion >= Build.VERSION_CODES.O);
-
                     waitUntilSetUpResources();
                     // NOTE: Finished writing Java resources. From this point on, it's safe
                     // to use them.
@@ -608,7 +620,7 @@ public class WebViewChromiumAwInit {
                     } catch (Resources.NotFoundException e) {
                         RecordHistogram.recordBooleanHistogram(
                                 ASSET_PATH_WORKAROUND_HISTOGRAM_NAME, true);
-                        mFactory.addWebViewAssetPath(context);
+                        mFactory.addWebViewAssetPath(ContextUtils.getApplicationContext());
                     }
 
                     AwBrowserProcess.configureChildProcessLauncher();

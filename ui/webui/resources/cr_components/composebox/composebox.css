@@ -116,40 +116,7 @@
 }
 
 #errorScrim {
-  align-items: center;
-  background-color: var(--color-new-tab-page-composebox-error-scrim-background);
   border-radius: inherit;
-  color: var(--color-new-tab-page-composebox-error-scrim-foreground);
-  display: flex;
-  font-size: 16px;
-  flex-direction: column;
-  gap: 12px;
-  justify-content: center;
-  height: 100%;
-  position: absolute;
-  opacity: 0.90;
-  width: 100%;
-  z-index: 1;
-}
-
-#errorScrim > p {
-  margin: 0;
-}
-
-#dismissErrorButton {
-  --cr-button-background-color:
-      var(--color-new-tab-page-composebox-error-scrim-button-background);
-  --cr-button-border-color:
-      var(--color-new-tab-page-composebox-error-scrim-foreground);
-  --cr-button-text-color:
-      var(--color-new-tab-page-composebox-error-scrim-button-text);
-  --cr-icon-button-hover-background-color:
-      var(--color-new-tab-page-composebox-error-scrim-button-background-hover);
-  border: none;
-  font-size: 14px;
-  gap: 4px;
-  height: 44px;
-  width: 122px;
 }
 
 #composebox {
@@ -598,4 +565,14 @@
   margin-top: 20px;
   position: absolute;
   transform: translate(-50%);
+}
+
+.carousel-divider {
+  border-radius: 100px;
+  border-top: 1px solid
+    var(--color-new-tab-page-composebox-file-carousel-divider);
+  margin-inline-end: 16px;
+  margin-inline-start: var(--text-input-inline-start-spacing);
+  margin-top: 8px;
+  margin-bottom: 10px;
 }

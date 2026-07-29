@@ -730,9 +730,17 @@ void OnClientMetadataParsed(
   data.privacy_policy_url = ExtractUrl(response, kPrivacyPolicyKey);
   data.terms_of_service_url = ExtractUrl(response, kTermsOfServiceKey);
   if (is_cross_site_iframe) {
-    data.client_is_third_party_to_top_frame_origin =
-        response.FindBool(kClientIsThirdPartyToTopFrameOriginKey)
-            .value_or(false);
+    auto value = response.FindBool(kClientIsThirdPartyToTopFrameOriginKey);
+    webid::CrossSiteIframeType type_for_metrics;
+    if (!value) {
+      type_for_metrics = webid::CrossSiteIframeType::kNoValueReceived;
+    } else if (*value) {
+      type_for_metrics = webid::CrossSiteIframeType::kIframeIsThirdParty;
+    } else {
+      type_for_metrics = webid::CrossSiteIframeType::kIframeIsSameParty;
+    }
+    webid::RecordCrossSiteIframeType(type_for_metrics);
+    data.client_is_third_party_to_top_frame_origin = value.value_or(false);
   }
 
   const base::Value::List* icons_value = response.FindList(kBrandingIconsKey);
@@ -1126,7 +1134,7 @@ std::optional<GURL> IdpNetworkRequestManager::ComputeWellKnownUrl(
 
     if (etld_plus_one.empty())
       return std::nullopt;
-    well_known_url = GURL(provider.scheme() + "://" + etld_plus_one);
+    well_known_url = GURL(provider.GetScheme() + "://" + etld_plus_one);
   }
 
   GURL::Replacements replacements;
@@ -1178,7 +1186,7 @@ void IdpNetworkRequestManager::FetchConfig(const GURL& provider,
       maxResponseSizeInKiB * 1024);
 }
 
-void IdpNetworkRequestManager::SendAccountsRequest(
+bool IdpNetworkRequestManager::SendAccountsRequest(
     const url::Origin& idp_origin,
     const GURL& accounts_url,
     const std::string& client_id,
@@ -1196,7 +1204,7 @@ void IdpNetworkRequestManager::SendAccountsRequest(
           client_id, std::move(callback), success_status,
           data_decoder::DataDecoder::ValueOrError(
               base::Value::Dict().Set(kAccountsKey, std::move(accounts))));
-      return;
+      return false;
     }
 
     // If there were no stored accounts and the supplied accounts URL is empty,
@@ -1206,7 +1214,7 @@ void IdpNetworkRequestManager::SendAccountsRequest(
           client_id, std::move(callback), success_status,
           data_decoder::DataDecoder::ValueOrError(
               base::Value::Dict().Set(kAccountsKey, base::Value::List())));
-      return;
+      return false;
     }
   }
 
@@ -1218,6 +1226,7 @@ void IdpNetworkRequestManager::SendAccountsRequest(
       /*url_encoded_post_data=*/std::nullopt,
       base::BindOnce(&OnAccountsRequestParsed, client_id, std::move(callback)),
       maxResponseSizeInKiB * 1024);
+  return true;
 }
 
 void IdpNetworkRequestManager::SendTokenRequest(

@@ -24,6 +24,8 @@ class BASE_EXPORT RegisteredMemoryConsumer {
   friend bool operator==(const RegisteredMemoryConsumer& lhs,
                          const RegisteredMemoryConsumer& rhs) = default;
 
+  int memory_limit() const { return memory_consumer_->memory_limit(); }
+
  private:
   friend class MemoryConsumerRegistry;
 
@@ -36,6 +38,7 @@ class BASE_EXPORT RegisteredMemoryConsumer {
 // global registry for the current process.
 class BASE_EXPORT MemoryConsumerRegistry {
  public:
+  static bool Exists();
   static MemoryConsumerRegistry& Get();
   static void Set(MemoryConsumerRegistry* instance);
 

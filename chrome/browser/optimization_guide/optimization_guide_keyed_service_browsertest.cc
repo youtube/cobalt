@@ -317,7 +317,7 @@ class OptimizationGuideKeyedServiceBrowserTest
 
     const HintsComponentInfo& component_info =
         test_hints_component_creator_.CreateHintsComponentInfoWithPageHints(
-            proto::NOSCRIPT, {url_with_hints_.host()}, "simple.html");
+            proto::NOSCRIPT, {url_with_hints_.GetHost()}, "simple.html");
 
     OptimizationHintsComponentUpdateListener::GetInstance()
         ->MaybeUpdateHintsComponent(component_info);
@@ -439,8 +439,7 @@ class OptimizationGuideKeyedServiceBrowserTest
     }
 
     GURL request_url = request.GetURL();
-    std::string dest =
-        base::UnescapeBinaryURLComponent(request_url.query_piece());
+    std::string dest = base::UnescapeBinaryURLComponent(request_url.query());
 
     auto http_response =
         std::make_unique<net::test_server::BasicHttpResponse>();

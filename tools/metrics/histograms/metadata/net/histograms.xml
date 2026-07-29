@@ -160,9 +160,28 @@ chromium-metrics-reviews@google.com.
   <variant name="ReadEntryData"/>
   <variant name="RunEviction"/>
   <variant name="UpdateEntryHeaderAndLastUsed"/>
-  <variant name="UpdateEntryLastUsed"/>
+  <variant name="UpdateEntryLastUsedByKey"/>
+  <variant name="UpdateEntryLastUsedByResId"/>
   <variant name="WriteEntryData"/>
 </variants>
+
+<!-- LINT.IfChange(StreamSocketCloseReason) -->
+
+<variants name="StreamSocketCloseReason">
+  <variant name="Abort"/>
+  <variant name="AttemptManagerDraining"/>
+  <variant name="CannotUseTcpBasedProtocols"/>
+  <variant name="CloseAllConnections"/>
+  <variant name="IpAddressChanged"/>
+  <variant name="QuicSessionCreated"/>
+  <variant name="SpdySessionCreated"/>
+  <variant name="SslConfigChanged"/>
+  <variant name="Unspecified"/>
+  <variant name="UsingExistingQuicSession"/>
+  <variant name="UsingExistingSpdySession"/>
+</variants>
+
+<!-- LINT.ThenChange(//net/socket/stream_socket_close_reason.h:StreamSocketCloseReason) -->
 
 <variants name="SuccessOrFailure">
   <variant name="Failure" summary="Operation failed"/>
@@ -1859,6 +1878,39 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Net.DeviceBoundSessions.DeferralResultByOutcome.{Outcome}"
+    enum="DeviceBoundSessionRefreshResult" expires_after="2026-02-18">
+  <owner>drubery@chromium.org</owner>
+  <owner>chrome-counter-abuse-alerts@google.com</owner>
+  <summary>
+    This records the outcome of deferring a request due to a Device Bound
+    Session (https://github.com/w3c/webappsec-dbsc/blob/main/README.md). This is
+    logged every time a {Outcome} request is unblocked after being deferred,
+    which is usually due to a refresh completing.
+  </summary>
+  <token key="Outcome">
+    <variant name="Failure" summary="failed"/>
+    <variant name="Success" summary="successful"/>
+  </token>
+</histogram>
+
+<histogram name="Net.DeviceBoundSessions.DeferralResult{Duration}"
+    enum="DeviceBoundSessionRefreshResult" expires_after="2026-02-18">
+  <owner>drubery@chromium.org</owner>
+  <owner>chrome-counter-abuse-alerts@google.com</owner>
+  <summary>
+    This records the outcome of deferring a request due to a Device Bound
+    Session (https://github.com/w3c/webappsec-dbsc/blob/main/README.md). This is
+    logged every time a request is unblocked after being deferred {Duration},
+    which is usually due to a refresh completing.
+  </summary>
+  <token key="Duration">
+    <variant name="" summary="for any duration of deferral"/>
+    <variant name=".Instant" summary="if the deferral takes less than 1ms"/>
+    <variant name=".Slow" summary="if the deferral takes more than 1ms"/>
+  </token>
+</histogram>
+
 <histogram name="Net.DeviceBoundSessions.DeletionReason"
     enum="DeviceBoundSessionDeletionReason" expires_after="2026-02-18">
   <owner>drubery@chromium.org</owner>
@@ -1922,7 +1974,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.DeviceBoundSessions.RequestDeferralDecision2"
-    enum="DeviceBoundSessionUsage" expires_after="2026-01-18">
+    enum="DeviceBoundSessionUsage" expires_after="2026-03-29">
   <owner>thefrog@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -1931,6 +1983,18 @@ chromium-metrics-reviews@google.com.
     for that decision. This is logged once for each round trip of most network
     requests that can add a cookie header; requests that attempt to refresh but
     fail are omitted.
+  </summary>
+</histogram>
+
+<histogram name="Net.DeviceBoundSessions.RequestDeferredCount" units="requests"
+    expires_after="2026-02-18">
+  <owner>drubery@chromium.org</owner>
+  <owner>chrome-counter-abuse-alerts@google.com</owner>
+  <summary>
+    This records how many requests were deferred by a single Device Bound
+    Session (https://github.com/w3c/webappsec-dbsc/blob/main/README.md) refresh.
+    This is logged every time requests are unblocked, which is usually due to a
+    refresh completing.
   </summary>
 </histogram>
 
@@ -1997,7 +2061,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.DeviceBoundSessions.{RequestType}.Network.Result"
-    enum="CombinedHttpResponseAndNetErrorCode" expires_after="2026-01-22">
+    enum="CombinedHttpResponseAndNetErrorCode" expires_after="2026-03-29">
   <owner>thefrog@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -2102,12 +2166,14 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.DNS.DnsConfig.SecureDnsMode" enum="SecureDnsModeDetails"
-    expires_after="2025-07-13">
+    expires_after="2026-10-01">
   <owner>horo@chromium.org</owner>
   <owner>src/net/dns/OWNERS</owner>
   <summary>
     Records details of the secure DNS mode used to configure the host resolver
     at construction of the network service.
+
+    Warning: this histogram was expired from M140 to M142; data may be missing.
   </summary>
 </histogram>
 
@@ -3350,7 +3416,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.HttpStreamPool.Existing{Protocol}SessionFoundTime"
-    units="ms" expires_after="2025-12-02">
+    units="ms" expires_after="2026-03-29">
   <owner>bashi@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -3455,24 +3521,14 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.HttpStreamPool.TcpBasedAttemptCancelCount.{Reason}"
-    units="attempts" expires_after="2025-12-02">
+    units="attempts" expires_after="2026-03-29">
   <owner>bashi@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
     The number of in-flight stream attempts when canceling them. Recorded when
     an HttpStreamPool::AttemptManager cancels in-flight stream attempts.
   </summary>
-  <token key="Reason">
-    <variant name="CannotUseTcpBasedProtocols"/>
-    <variant name="CloseAllConnections"/>
-    <variant name="IpAddressChanged"/>
-    <variant name="QuicSessionCreated"/>
-    <variant name="SpdySessionCreated"/>
-    <variant name="SslConfigChanged"/>
-    <variant name="Unspecified"/>
-    <variant name="UsingExistingQuicSession"/>
-    <variant name="UsingExistingSpdySession"/>
-  </token>
+  <token key="Reason" variants="StreamSocketCloseReason"/>
 </histogram>
 
 <histogram
@@ -3557,6 +3613,22 @@ chromium-metrics-reviews@google.com.
     <variant name="OtherFailure" summary="Attempt failed other than time out"/>
     <variant name="Success" summary="Attempt succeeded"/>
     <variant name="TimedOut" summary="Attempt timed out"/>
+  </token>
+</histogram>
+
+<histogram name="Net.HttpStreamPool.{JobType}JobCancelCount.{Reason}"
+    units="jobs" expires_after="2025-12-02">
+  <owner>bashi@chromium.org</owner>
+  <owner>blink-network-stack@google.com</owner>
+  <summary>
+    The number of HttpStreamPool::Jobs when an HttpStreamPool::AttemptManager
+    cancels them. Recorded when an HttpStreamPool::AttemptManager cancels
+    HttpStreamPool::Jobs.
+  </summary>
+  <token key="Reason" variants="StreamSocketCloseReason"/>
+  <token key="JobType">
+    <variant name="Preconnect"/>
+    <variant name="Request"/>
   </token>
 </histogram>
 
@@ -4071,7 +4143,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.QuicConnection.ServerAllowsActiveMigrationForMultiPort"
-    enum="BooleanEnabled" expires_after="2026-01-25">
+    enum="BooleanEnabled" expires_after="2026-03-29">
   <owner>renjietang@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -6616,20 +6688,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Net.RegistryControlledDomains.GetDomainAndRegistry.CacheHit"
-    enum="BooleanCacheHit" expires_after="2025-11-11">
-  <owner>jkarlin@chromium.org</owner>
-  <owner>src/net/base/registry_controlled_domains/OWNERS</owner>
-  <summary>
-    Replaced by a sampled version of this histogram,
-    Net.RegistryControlledDomains.GetDomainAndRegistry.CacheHit.Sampled, in
-    M137.
-
-    Whether a call to GetDomainAndRegistry was served from the cache or not.
-    Recorded on all calls to GetDomainAndRegistry.
-  </summary>
-</histogram>
-
 <histogram
     name="Net.RegistryControlledDomains.GetDomainAndRegistry.CacheHit.Sampled"
     enum="BooleanCacheHit" expires_after="2026-04-04">
@@ -6889,7 +6947,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Net.SessionCreate.GoogleSearch.Preconnect2.{ProtocolType}.IsSessionReused"
-    enum="Boolean" expires_after="2026-01-25">
+    enum="Boolean" expires_after="2026-03-29">
   <owner>suzukikeita@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -7549,7 +7607,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SqlDiskCache.Backend.{CheckpointType}.{ResultType}"
-    units="pages" expires_after="2025-12-09">
+    units="pages" expires_after="2026-03-29">
   <owner>horo@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -7565,7 +7623,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SqlDiskCache.Backend.{CheckpointType}.{TimeType}"
-    units="microseconds" expires_after="2025-12-09">
+    units="microseconds" expires_after="2026-03-29">
   <owner>horo@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -7579,6 +7637,20 @@ chromium-metrics-reviews@google.com.
     <variant name="FailureTime"/>
     <variant name="SuccessTime"/>
   </token>
+</histogram>
+
+<histogram name="Net.SqlDiskCache.Backend.{MethodName}.PostingDelay"
+    units="microseconds" expires_after="2026-03-08">
+  <owner>horo@chromium.org</owner>
+  <owner>src/net/OWNERS</owner>
+  <summary>
+    Measures the time delay from posting a task to its execution for the method
+    of the SQL-based disk cache backend. This metric is recorded immediately
+    before the logic for the method is executed. It helps diagnose potential
+    delays caused by task queueing. The histogram is not reported on Windows
+    machines without high resolution clocks.
+  </summary>
+  <token key="MethodName" variants="SqlPersistentStoreMethodName"/>
 </histogram>
 
 <histogram name="Net.SqlDiskCache.Backend.{MethodName}.Result"
@@ -7674,6 +7746,30 @@ chromium-metrics-reviews@google.com.
     issues, especially when exclusive operations are frequent. Recorded when a
     normal operation is run. The histogram is not reported on Windows machines
     without high resolution clocks.
+  </summary>
+</histogram>
+
+<histogram name="Net.SqlDiskCache.OptimisticWrite.Result"
+    enum="SqlDiskCacheStoreError" expires_after="2026-03-08">
+  <owner>horo@chromium.org</owner>
+  <owner>src/net/OWNERS</owner>
+  <summary>
+    Records the result of an optimistic write operation to the SQL disk cache.
+    This is recorded when the optimistic write completes on the background
+    thread, indicating whether the underlying persistent store operation
+    succeeded or failed.
+  </summary>
+</histogram>
+
+<histogram name="Net.SqlDiskCache.Write.IsOptimistic" enum="Boolean"
+    expires_after="2026-03-22">
+  <owner>horo@chromium.org</owner>
+  <owner>src/net/OWNERS</owner>
+  <summary>
+    Records whether a disk cache write operation was performed optimistically
+    (synchronously) or not. True indicates the write was optimistic, false
+    indicates it was queued for asynchronous processing. This metric will be
+    emitted every time a cache entry write happens.
   </summary>
 </histogram>
 

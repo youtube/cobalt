@@ -4,17 +4,24 @@
 
 package org.chromium.components.browser_ui.widget;
 
+import static android.view.KeyEvent.ACTION_DOWN;
+import static android.view.KeyEvent.KEYCODE_TAB;
+
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.when;
 
 import static org.chromium.base.test.util.Batch.UNIT_TESTS;
 import static org.chromium.components.browser_ui.widget.BrowserUiListMenuUtils.getBasicListMenu;
 import static org.chromium.ui.listmenu.ListItemType.MENU_ITEM_WITH_SUBMENU;
 import static org.chromium.ui.listmenu.ListMenuItemProperties.CLICK_LISTENER;
+import static org.chromium.ui.listmenu.ListMenuItemProperties.ENABLED;
 import static org.chromium.ui.listmenu.ListMenuItemProperties.TITLE;
 import static org.chromium.ui.listmenu.ListMenuSubmenuItemProperties.SUBMENU_ITEMS;
 
 import android.app.Activity;
 import android.graphics.drawable.ColorDrawable;
+import android.view.KeyEvent;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.ListView;
@@ -23,8 +30,15 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.Spy;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.Robolectric;
+import org.robolectric.Shadows;
 import org.robolectric.annotation.Config;
+import org.robolectric.shadows.ShadowListView;
 
 import org.chromium.base.test.BaseActivityTestRule;
 import org.chromium.base.test.BaseRobolectricTestRunner;
@@ -38,6 +52,7 @@ import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.shadows.ShadowAppCompatResources;
 import org.chromium.ui.test.util.BlankUiTestActivity;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /** Unit test for {@link BrowserUiListMenuUtils}. */
@@ -52,38 +67,74 @@ public class BrowserUiListMenuUnitTest {
     public final BaseActivityTestRule<BlankUiTestActivity> mActivityTestRule =
             new BaseActivityTestRule<>(BlankUiTestActivity.class);
 
+    @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
+
     private static final String TEST_LABEL = "test";
+    private static final int NUM_SUBMENU_ITEMS = 5;
+    private static final int NUM_NORMAL_ITEMS_IN_ROOT = 4;
 
     private Activity mActivity;
     private ModelList mData;
     private BasicListMenu mBasicListMenu;
     private View mView;
+    @Mock private View mMockView;
+    @Spy private ListView mContentView;
 
     @Before
     public void setup() {
         mActivity = Robolectric.buildActivity(Activity.class).setup().get();
 
         mData = new ModelList();
-        for (int i = 0; i < 5; i++) {
-            mData.add(new ListItemBuilder().withTitle(TEST_LABEL).build());
+        List<ListItem> subList = new ArrayList<>();
+        for (int i = 0; i < NUM_SUBMENU_ITEMS; i++) {
+            subList.add(new ListItemBuilder().withTitle(TEST_LABEL + i).build());
+        }
+        mData.add(
+                new ListItem(
+                        MENU_ITEM_WITH_SUBMENU,
+                        new PropertyModel.Builder(ListMenuSubmenuItemProperties.ALL_KEYS)
+                                .with(TITLE, TEST_LABEL)
+                                .with(SUBMENU_ITEMS, subList)
+                                .with(ENABLED, true)
+                                .build()));
+        for (int i = NUM_SUBMENU_ITEMS; i < (NUM_SUBMENU_ITEMS + NUM_NORMAL_ITEMS_IN_ROOT); i++) {
+            mData.add(new ListItemBuilder().withTitle(TEST_LABEL + i).build());
         }
     }
 
     @Test
     public void testScrollHairline() {
         mBasicListMenu = getBasicListMenu(mActivity, mData, item -> {});
-        mView = mBasicListMenu.getContentView();
-        int width = mActivity.getResources().getDimensionPixelSize(R.dimen.list_menu_width);
-        int height = 300; // Some arbitrary value small enough to make the bottom part scrollable
-        mActivity.setContentView(mView, new LinearLayout.LayoutParams(width, height));
+        mContentView = Mockito.spy(setupListViewForSubmenuTesting());
+        // Assert not showing before navigation
         View hairline = mView.findViewById(R.id.menu_header_bottom_hairline);
         assertEquals(View.INVISIBLE, hairline.getVisibility());
-        ListView listView = mView.findViewById(R.id.menu_list);
-        listView.scrollTo(0, 1);
+        // Navigate to submenu
+        ListItem submenuParent = (ListItem) mContentView.getItemAtPosition(0);
+        submenuParent.model.get(CLICK_LISTENER).onClick(mView);
+
+        // Test listener directly since view scroll coordinate doesn't seem to work.
+        when(mContentView.getChildAt(0)).thenReturn(mMockView);
+        when(mMockView.getTop()).thenReturn(-1);
+        mBasicListMenu
+                .getScrollChangeListenerForTesting()
+                .onScrollChange(
+                        mContentView,
+                        /* scrollX= */ 0,
+                        /* scrollY= */ 1,
+                        /* oldScrollX= */ 0,
+                        /* oldScrollY= */ 0);
         assertEquals(View.VISIBLE, hairline.getVisibility());
-        listView.scrollTo(0, 0);
-        assertEquals(View.INVISIBLE, hairline.getVisibility());
-        listView.scrollTo(1, 0);
+        // Scroll and assert it's no longer visible
+        when(mMockView.getTop()).thenReturn(0);
+        mBasicListMenu
+                .getScrollChangeListenerForTesting()
+                .onScrollChange(
+                        mContentView,
+                        /* scrollX= */ 0,
+                        /* scrollY= */ 0,
+                        /* oldScrollX= */ 0,
+                        /* oldScrollY= */ 0);
         assertEquals(View.INVISIBLE, hairline.getVisibility());
     }
 
@@ -91,12 +142,22 @@ public class BrowserUiListMenuUnitTest {
     public void testScrollHairline_color() {
         int colorIntForTest = 10;
         mBasicListMenu = getBasicListMenu(mActivity, mData, item -> {}, 0, colorIntForTest);
-        mView = mBasicListMenu.getContentView();
-        int width = mActivity.getResources().getDimensionPixelSize(R.dimen.list_menu_width);
-        int height = 300; // Some arbitrary value small enough to make the bottom part scrollable
-        mActivity.setContentView(mView, new LinearLayout.LayoutParams(width, height));
+        setupListViewForSubmenuTesting();
         View hairline = mView.findViewById(R.id.menu_header_bottom_hairline);
         assertEquals(colorIntForTest, ((ColorDrawable) hairline.getBackground()).getColor());
+    }
+
+    @Test
+    public void testScroll_noHeader_noHairline() {
+        mBasicListMenu = getBasicListMenu(mActivity, mData, item -> {});
+        ListView listView = setupListViewForSubmenuTesting();
+        // Assert not showing before navigation
+        View hairline = mView.findViewById(R.id.menu_header_bottom_hairline);
+        assertEquals(View.INVISIBLE, hairline.getVisibility());
+        // Don't navigate to submenu, so there's no fixed header.
+        // Scroll and assert hairline is still not visible.
+        listView.scrollListBy(1);
+        assertEquals(View.INVISIBLE, hairline.getVisibility());
     }
 
     @Test
@@ -134,5 +195,47 @@ public class BrowserUiListMenuUnitTest {
                 "Expected 2nd dimension to be itemHeight*2 + padding",
                 itemHeight * 2L + verticalPadding,
                 dimensions[1]);
+    }
+
+    @Test
+    public void testKeyboardNavigation() {
+        mBasicListMenu = getBasicListMenu(mActivity, mData, item -> {});
+        View view = mBasicListMenu.getContentView();
+        ListView headerView = view.findViewById(R.id.menu_header);
+        ListView contentView = setupListViewForSubmenuTesting();
+        // Navigate to submenu and focus on header.
+        ListItem submenuParent = (ListItem) contentView.getItemAtPosition(0);
+        submenuParent.model.get(CLICK_LISTENER).onClick(mView);
+        // Need to shadow the list views and populate them manually
+        populateListView(headerView);
+        populateListView(contentView);
+        headerView.getChildAt(0).requestFocus();
+        // Hit tab and now the content view should have focus.
+        headerView.onKeyDown(KEYCODE_TAB, new KeyEvent(ACTION_DOWN, KEYCODE_TAB));
+        assertTrue("Expected content view to contain focus", contentView.hasFocus());
+        for (int i = 0; i < NUM_SUBMENU_ITEMS - 1; i++) {
+            contentView.onKeyDown(KEYCODE_TAB, new KeyEvent(ACTION_DOWN, KEYCODE_TAB));
+            assertEquals(
+                    "Expected item at position " + (i + 1) + " in content list to be selected",
+                    i + 1,
+                    contentView.getSelectedItemPosition());
+        }
+    }
+
+    private ListView setupListViewForSubmenuTesting() {
+        mBasicListMenu.setupCallbacksRecursively(
+                () -> {}, /* drillDownOverrideValue= */ null, /* flyoutController= */ null);
+        mView = mBasicListMenu.getContentView();
+        int width = mActivity.getResources().getDimensionPixelSize(R.dimen.list_menu_width);
+        int height = 300; // Some arbitrary value small enough to make the bottom part scrollable
+        mActivity.setContentView(mView, new LinearLayout.LayoutParams(width, height));
+        ListView listView = mView.findViewById(R.id.menu_list);
+        populateListView(listView);
+        return listView;
+    }
+
+    private static void populateListView(ListView listView) {
+        ShadowListView shadowListView = Shadows.shadowOf(listView);
+        shadowListView.populateItems();
     }
 }

@@ -6,13 +6,19 @@
 
 #import <memory>
 
+#import "base/functional/callback_helpers.h"
+#import "base/test/scoped_feature_list.h"
 #import "base/test/task_environment.h"
+#import "ios/chrome/browser/shared/public/commands/file_upload_panel_commands.h"
+#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/web/model/choose_file/fake_choose_file_controller.h"
 #import "ios/web/public/test/fakes/fake_navigation_context.h"
 #import "ios/web/public/test/fakes/fake_web_state.h"
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
+#import "third_party/ocmock/OCMock/OCMock.h"
+#import "third_party/ocmock/gtest_support.h"
 
 // Test suite for ChooseFileTabHelper.
 class ChooseFileTabHelperTest : public PlatformTest {
@@ -20,7 +26,8 @@ class ChooseFileTabHelperTest : public PlatformTest {
   void SetUp() override {
     PlatformTest::SetUp();
     web_state_ = std::make_unique<web::FakeWebState>();
-    tab_helper_ = ChooseFileTabHelper::GetOrCreateForWebState(web_state_.get());
+    ChooseFileTabHelper::CreateForWebState(web_state_.get());
+    tab_helper_ = ChooseFileTabHelper::FromWebState(web_state_.get());
   }
 
  protected:
@@ -28,6 +35,18 @@ class ChooseFileTabHelperTest : public PlatformTest {
   raw_ptr<ChooseFileTabHelper, DanglingUntriaged> tab_helper_;
   std::unique_ptr<web::FakeWebState> web_state_;
 };
+
+// Tests that calling `RunOpenPanel()` invokes the file upload panel handler.
+TEST_F(ChooseFileTabHelperTest, RunOpenPanel) {
+  if (@available(iOS 18.4, *)) {
+    base::test::ScopedFeatureList scoped_feature_list{kIOSCustomFileUploadMenu};
+    id handler = OCMProtocolMock(@protocol(FileUploadPanelCommands));
+    OCMExpect([handler showFileUploadPanel]);
+    tab_helper_->SetFileUploadPanelHandler(handler);
+    tab_helper_->RunOpenPanel(nil, nil, base::DoNothing());
+    EXPECT_OCMOCK_VERIFY(handler);
+  }
+}
 
 // Tests that calling `StopChoosingFiles()` submits file selection and that
 // `IsChoosingFiles()` returns false afterwards.
@@ -39,9 +58,11 @@ TEST_F(ChooseFileTabHelperTest, StopChoosingFiles) {
   // Test that calling `StopChoosingFiles()` forwards its arguments to the
   // controller and ends file selection.
   auto controller = std::make_unique<FakeChooseFileController>(
-      ChooseFileEvent(false /*allow_multiple_files*/,
-                      false /*has_selected_file*/, std::vector<std::string>{},
-                      std::vector<std::string>{}, web_state_.get()));
+      ChooseFileEvent::Builder()
+          .SetAllowMultipleFiles(false)
+          .SetHasSelectedFile(false)
+          .SetWebState(web_state_.get())
+          .Build());
   NSURL* file_url = [NSURL fileURLWithPath:@"/path/to/file"];
   NSArray<NSURL*>* file_urls = @[ file_url ];
   NSString* display_string = @"display_string";
@@ -67,9 +88,11 @@ TEST_F(ChooseFileTabHelperTest, StopChoosingFiles) {
   // Test that calling `StopChoosingFiles()` with no arguments forwards an empty
   // list of files to the controller and ends file selection.
   controller = std::make_unique<FakeChooseFileController>(
-      ChooseFileEvent(false /*allow_multiple_files*/,
-                      false /*has_selected_file*/, std::vector<std::string>{},
-                      std::vector<std::string>{}, web_state_.get()));
+      ChooseFileEvent::Builder()
+          .SetAllowMultipleFiles(false)
+          .SetHasSelectedFile(false)
+          .SetWebState(web_state_.get())
+          .Build());
   controller->SetSubmitSelectionCompletion(
       base::BindOnce(^(const FakeChooseFileController& control) {
         selection_submitted = true;
@@ -90,9 +113,11 @@ TEST_F(ChooseFileTabHelperTest, DidFinishNavigation) {
   EXPECT_FALSE(tab_helper_->IsChoosingFiles());
 
   auto controller = std::make_unique<FakeChooseFileController>(
-      ChooseFileEvent(false /*allow_multiple_files*/,
-                      false /*has_selected_file*/, std::vector<std::string>{},
-                      std::vector<std::string>{}, web_state_.get()));
+      ChooseFileEvent::Builder()
+          .SetAllowMultipleFiles(false)
+          .SetHasSelectedFile(false)
+          .SetWebState(web_state_.get())
+          .Build());
   tab_helper_->StartChoosingFiles(std::move(controller));
   EXPECT_TRUE(tab_helper_->IsChoosingFiles());
 
@@ -111,9 +136,11 @@ TEST_F(ChooseFileTabHelperTest, DidFinishNavigation) {
 // are forwarded to the controller.
 TEST_F(ChooseFileTabHelperTest, SetIsPresentingFilePicker) {
   auto controller = std::make_unique<FakeChooseFileController>(
-      ChooseFileEvent(false /*allow_multiple_files*/,
-                      false /*has_selected_file*/, std::vector<std::string>{},
-                      std::vector<std::string>{}, web_state_.get()));
+      ChooseFileEvent::Builder()
+          .SetAllowMultipleFiles(false)
+          .SetHasSelectedFile(false)
+          .SetWebState(web_state_.get())
+          .Build());
   ChooseFileController* controller_ptr = controller.get();
   tab_helper_->StartChoosingFiles(std::move(controller));
   ASSERT_TRUE(tab_helper_->IsChoosingFiles());
@@ -130,8 +157,11 @@ TEST_F(ChooseFileTabHelperTest, SetIsPresentingFilePicker) {
 // Tests that `GetChooseFileEvent()` returns the event passed to the controller
 // at construction.
 TEST_F(ChooseFileTabHelperTest, GetChooseFileEvent) {
-  ChooseFileEvent event(false, false, std::vector<std::string>{},
-                        std::vector<std::string>{}, web_state_.get());
+  ChooseFileEvent event = ChooseFileEvent::Builder()
+                              .SetAllowMultipleFiles(false)
+                              .SetHasSelectedFile(false)
+                              .SetWebState(web_state_.get())
+                              .Build();
   auto controller = std::make_unique<FakeChooseFileController>(event);
   tab_helper_->StartChoosingFiles(std::move(controller));
   const ChooseFileEvent tab_helper_event = tab_helper_->GetChooseFileEvent();
@@ -141,4 +171,32 @@ TEST_F(ChooseFileTabHelperTest, GetChooseFileEvent) {
   EXPECT_EQ(event.accept_mime_types, tab_helper_event.accept_mime_types);
   EXPECT_EQ(event.web_state.get(), tab_helper_event.web_state.get());
   EXPECT_EQ(event.time, tab_helper_event.time);
+}
+
+// Tests that `SetLastChooseFileEvent()`, `ResetLastChooseFileEvent()` and
+// `HasLastChooseFileEvent()` work as expected.
+TEST_F(ChooseFileTabHelperTest, LastChooseFileEvent) {
+  EXPECT_FALSE(tab_helper_->HasLastChooseFileEvent());
+
+  ChooseFileEvent event = ChooseFileEvent::Builder()
+                              .SetAllowMultipleFiles(false)
+                              .SetHasSelectedFile(false)
+                              .SetWebState(web_state_.get())
+                              .Build();
+  tab_helper_->SetLastChooseFileEvent(event);
+  EXPECT_TRUE(tab_helper_->HasLastChooseFileEvent());
+
+  std::optional<ChooseFileEvent> tab_helper_event =
+      tab_helper_->ResetLastChooseFileEvent();
+  ASSERT_TRUE(tab_helper_event.has_value());
+  EXPECT_EQ(event.allow_multiple_files,
+            tab_helper_event.value().allow_multiple_files);
+  EXPECT_EQ(event.accept_file_extensions,
+            tab_helper_event.value().accept_file_extensions);
+  EXPECT_EQ(event.accept_mime_types,
+            tab_helper_event.value().accept_mime_types);
+  EXPECT_EQ(event.web_state.get(), tab_helper_event.value().web_state.get());
+  EXPECT_EQ(event.time, tab_helper_event.value().time);
+
+  EXPECT_FALSE(tab_helper_->HasLastChooseFileEvent());
 }

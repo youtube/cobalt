@@ -21,6 +21,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/notreached.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/types/pass_key.h"
 #include "chrome/browser/ash/accessibility/accessibility_manager.h"
 #include "chrome/browser/ash/app_mode/kiosk_app_types.h"
 #include "chrome/browser/ash/app_mode/kiosk_controller.h"
@@ -59,7 +60,6 @@
 #include "chrome/browser/ui/ash/login/login_feedback.h"
 #include "chrome/browser/ui/ash/login/signin_ui.h"
 #include "chrome/browser/ui/ash/system/system_tray_client_impl.h"
-#include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/webui/ash/diagnostics_dialog/diagnostics_dialog.h"
 #include "chrome/browser/ui/webui/ash/login/family_link_notice_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/gaia_screen_handler.h"
@@ -230,7 +230,17 @@ LoginDisplayHostCommon::LoginDisplayHostCommon(
       login_ui_pref_controller_(std::make_unique<LoginUIPrefController>(
           update_geolocation_usage_allowed)),
       wizard_context_(std::make_unique<WizardContext>()),
-      oobe_metrics_helper_(std::make_unique<OobeMetricsHelper>()) {
+      // TODO(crbug.com/446058312): OobeMetricsHelper ctor should take a
+      // `PrefService` pointer as parameter (g_browser_process->local_state()).
+      // However, given the lifecycle of LoginDisplayHostCommon (that schedules
+      // its deletion or self-deletes it), it is not trivial to ensure that
+      // this PrefService reference won't become dangling.
+      // Pass a getter callback for safity until the ownership described is
+      // reworked.
+      oobe_metrics_helper_(std::make_unique<OobeMetricsHelper>(
+          base::PassKey<LoginDisplayHostCommon>(),
+          base::BindRepeating(
+              []() { return g_browser_process->local_state(); }))) {
   if (features::IsOobeCrosEventsEnabled()) {
     oobe_cros_events_metrics_ =
         std::make_unique<OobeCrosEventsMetrics>(oobe_metrics_helper_.get());
@@ -240,7 +250,7 @@ LoginDisplayHostCommon::LoginDisplayHostCommon(
   app_terminating_subscription_ =
       browser_shutdown::AddAppTerminatingCallback(base::BindOnce(
           &LoginDisplayHostCommon::OnAppTerminating, base::Unretained(this)));
-  BrowserList::AddObserver(this);
+  browser_controller_observation_.Observe(BrowserController::GetInstance());
 }
 
 LoginDisplayHostCommon::~LoginDisplayHostCommon() = default;
@@ -447,7 +457,11 @@ void LoginDisplayHostCommon::CancelPasswordChangedFlow() {
 
 bool LoginDisplayHostCommon::HandleAccelerator(LoginAcceleratorAction action) {
   if (KioskController::Get().IsSessionStarting()) {
-    return KioskController::Get().HandleAccelerator(action);
+    KioskController::Get().HandleAccelerator(action);
+    // Mark all accelerators as handled during kiosk launch so they are not
+    // forwarded to the next accelerator target, meaning all accelerators are
+    // suppressed during the kiosk launch.
+    return true;
   }
 
   if (action == LoginAcceleratorAction::kShowFeedback) {
@@ -660,17 +674,17 @@ WizardContext* LoginDisplayHostCommon::GetWizardContextForTesting() {
   return GetWizardContext();
 }
 
-void LoginDisplayHostCommon::OnBrowserAdded(Browser* browser) {
-  VLOG(4) << "OnBrowserAdded " << session_starting_;
+void LoginDisplayHostCommon::OnBrowserCreated(BrowserDelegate* browser) {
+  VLOG(4) << "OnBrowserCreated " << session_starting_;
   // Browsers created before session start (windows opened by extensions, for
   // example) are ignored.
   if (session_starting_) {
-    // OnBrowserAdded is called when the browser is created, but not shown yet.
-    // Lock window has to be closed at this point so that a browser window
+    // OnBrowserCreated is called when the browser is created, but not shown
+    // yet. Lock window has to be closed at this point so that a browser window
     // exists and the window can acquire input focus.
     OnBrowserCreated();
     app_terminating_subscription_ = {};
-    BrowserList::RemoveObserver(this);
+    browser_controller_observation_.Reset();
   }
 }
 
@@ -757,7 +771,7 @@ void LoginDisplayHostCommon::Cleanup() {
 
   SigninProfileHandler::Get()->ClearSigninProfile(base::DoNothing());
   app_terminating_subscription_ = {};
-  BrowserList::RemoveObserver(this);
+  browser_controller_observation_.Reset();
   login_ui_pref_controller_.reset();
 
   // Cancel kiosk session start since kiosk holds a pointer to `this` during

@@ -40,6 +40,7 @@
 <translation id="1500473259453106018">Hide price drops on tabs card</translation>
 <translation id="1508931164824684991">Sites can use JavaScript</translation>
 <translation id="1510341833810331442">Sites aren't allowed to save data on your device</translation>
+<translation id="1532175480576580256">My shortcuts bottom sheet opened at full height</translation>
 <translation id="1538031354170655462">Sites usually use Near Field Communication (NFC) to work with nearby tags or devices, such as scanning badges or paying contactless</translation>
 <translation id="1547123415014299762">Third-party cookies are allowed</translation>
 <translation id="1569054338208717605">Speed up sites with Chrome's V8 engine but make Chrome slightly less resistant to attacks</translation>
@@ -115,6 +116,7 @@
 <translation id="228293613124499805">Most sites that you visit probably save data to your device, often to improve your experience by saving your preferences or information that you share with the site. We recommend keeping this setting on.</translation>
 <translation id="2289270750774289114">Ask when a site wants to discover nearby Bluetooth devices (recommended)</translation>
 <translation id="2315043854645842844">Client side certificate selection is not supported by the operating system.</translation>
+<translation id="2347601491101454548">My shortcuts bottom sheet opened at half height</translation>
 <translation id="2359808026110333948">Continue</translation>
 <translation id="2379925928934107488">Apply Dark theme to sites when Chrome uses Dark theme, when possible</translation>
 <translation id="2390272837142897736">Increase zoom</translation>
@@ -145,6 +147,11 @@
 <translation id="2588271083332682494">Tidy up with tab groups</translation>
 <translation id="2597457036804169544">Don’t apply Dark theme to sites</translation>
 <translation id="2606760465469169465">Auto-verify</translation>
+<translation id="2610903128639500624">Manage in <ph name="BEGIN_LINK1" />Android settings<ph name="END_LINK1" />
+
+Advanced Protection controls these Chrome settings:
+• 'Always use secure connections' is on.
+• 'JavaScript optimiser' is off. <ph name="BEGIN_LINK2" />Manage site exceptions<ph name="END_LINK2" /></translation>
 <translation id="2621115761605608342">Allow JavaScript for a specific site.</translation>
 <translation id="2626708220538466178">Default browser bottom sheet closed</translation>
 <translation id="2653659639078652383">Submit</translation>
@@ -303,6 +310,7 @@
 <translation id="4336566011000459927">Chrome will limit cookies again today</translation>
 <translation id="4338831206024587507">All sites under <ph name="DOMAIN" /></translation>
 <translation id="4340799661701629185">Don't allow sites to send notifications</translation>
+<translation id="4341577178275615435">To turn caret browsing on or off, use the shortcut F7</translation>
 <translation id="4402755511846832236">Block sites from knowing when you're actively using this device</translation>
 <translation id="4412683424767388419">Chrome colours bottom sheet opened at half height</translation>
 <translation id="4412992751769744546">Allow third-party cookies</translation>
@@ -337,6 +345,7 @@
 <translation id="4816495437032298535">Saved zoom for sites</translation>
 <translation id="4836046166855586901">Ask when a site wants to know when you're actively using this device</translation>
 <translation id="483914009762354899">Include all sites under this domain</translation>
+<translation id="4852997963351138624">Background colour Hex</translation>
 <translation id="4882919381756638075">Sites usually use your microphone for communication features like video chatting</translation>
 <translation id="4883854917563148705">Managed settings cannot be reset</translation>
 <translation id="4887024562049524730">Ask before allowing sites to use your virtual reality device and data (recommended)</translation>
@@ -500,6 +509,7 @@
 <translation id="6608650720463149374"><ph name="GIGABYTES" /> GB</translation>
 <translation id="6612358246767739896">Protected content</translation>
 <translation id="662080504995468778">Stay</translation>
+<translation id="6630443592285535486">Type hex here</translation>
 <translation id="6635327442719709864">When on, sites can ask to use serial ports. When off, sites can't use serial ports.</translation>
 <translation id="6678072580827808850">Review Safety Check</translation>
 <translation id="6682057173375416470">Get suggested articles on the New tab page</translation>
@@ -557,6 +567,7 @@
 <translation id="7399802613464275309">Safety check</translation>
 <translation id="7406113532070524618">This setting works without identifying you or allowing sites to see your browsing history, though sites can share a small amount of info as part of the verification</translation>
 <translation id="7409735910987429903">Sites might send pop-ups to show ads, or use redirects to lead you to websites that you may not want to visit</translation>
+<translation id="7412160840120117304">Primary colour Hex</translation>
 <translation id="7423098979219808738">Ask first</translation>
 <translation id="7423538860840206698">Blocked from reading clipboard</translation>
 <translation id="7425915948813553151">Dark theme for sites</translation>

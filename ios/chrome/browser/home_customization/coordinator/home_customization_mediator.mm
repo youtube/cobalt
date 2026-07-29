@@ -8,6 +8,7 @@
 #import "base/memory/raw_ptr.h"
 #import "components/commerce/core/commerce_feature_list.h"
 #import "components/prefs/pref_service.h"
+#import "components/safety_check/safety_check_pref_names.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/set_up_list/utils.h"
 #import "ios/chrome/browser/discover_feed/model/discover_feed_visibility_browser_agent.h"
 #import "ios/chrome/browser/discover_feed/model/feed_constants.h"
@@ -72,28 +73,18 @@
 
 - (void)configureMagicStackPageData {
   std::map<CustomizationToggleType, BOOL> toggleMap = {
-      {CustomizationToggleType::kSetUpList,
-       [self
-           isMagicStackCardEnabledForType:CustomizationToggleType::kSetUpList]},
       {CustomizationToggleType::kSafetyCheck,
        [self isMagicStackCardEnabledForType:CustomizationToggleType::
                                                 kSafetyCheck]},
       {CustomizationToggleType::kTapResumption,
        [self isMagicStackCardEnabledForType:CustomizationToggleType::
                                                 kTapResumption]},
+      {CustomizationToggleType::kTips,
+       [self isMagicStackCardEnabledForType:CustomizationToggleType::kTips]},
+      {CustomizationToggleType::kShopCard,
+       [self
+           isMagicStackCardEnabledForType:CustomizationToggleType::kShopCard]},
   };
-  if (IsTipsMagicStackEnabled()) {
-    toggleMap.insert(
-        {CustomizationToggleType::kTips,
-         [self isMagicStackCardEnabledForType:CustomizationToggleType::kTips]});
-  }
-  if (base::Contains(commerce::kShopCardVariation.Get(),
-                     commerce::kShopCardArm1) ||
-      commerce::kShopCardVariation.Get() == commerce::kShopCardArm2) {
-    toggleMap.insert({CustomizationToggleType::kShopCard,
-                      [self isMagicStackCardEnabledForType:
-                                CustomizationToggleType::kShopCard]});
-  }
   [self.magicStackPageConsumer populateToggles:toggleMap];
 }
 
@@ -119,32 +110,19 @@
 // preferences.
 - (BOOL)isMagicStackCardEnabledForType:(CustomizationToggleType)type {
   switch (type) {
-    case CustomizationToggleType::kSetUpList:
-      return _prefService->GetBoolean(
-          prefs::kHomeCustomizationMagicStackSetUpListEnabled);
     case CustomizationToggleType::kSafetyCheck:
       return _prefService->GetBoolean(
-          prefs::kHomeCustomizationMagicStackSafetyCheckEnabled);
+          safety_check::prefs::kSafetyCheckHomeModuleEnabled);
     case CustomizationToggleType::kTapResumption:
       return _prefService->GetBoolean(
           prefs::kHomeCustomizationMagicStackTabResumptionEnabled);
     case CustomizationToggleType::kTips: {
-      CHECK(IsTipsMagicStackEnabled());
       return _prefService->GetBoolean(
           prefs::kHomeCustomizationMagicStackTipsEnabled);
     }
     case CustomizationToggleType::kShopCard:
-      if (base::Contains(commerce::kShopCardVariation.Get(),
-                         commerce::kShopCardArm1)) {
-        return _prefService->GetBoolean(
-            prefs::kHomeCustomizationMagicStackShopCardPriceTrackingEnabled);
-      } else if (commerce::kShopCardVariation.Get() ==
-                 commerce::kShopCardArm2) {
-        return _prefService->GetBoolean(
-            prefs::kHomeCustomizationMagicStackShopCardReviewsEnabled);
-      } else {
-        return false;
-      }
+      return _prefService->GetBoolean(
+          prefs::kHomeCustomizationMagicStackShopCardPriceTrackingEnabled);
     default:
       NOTREACHED();
   }
@@ -170,35 +148,23 @@
       break;
 
     // Magic Stack page toggles.
-    case CustomizationToggleType::kSetUpList:
-      _prefService->SetBoolean(
-          prefs::kHomeCustomizationMagicStackSetUpListEnabled, enabled);
-      break;
     case CustomizationToggleType::kSafetyCheck:
       _prefService->SetBoolean(
-          prefs::kHomeCustomizationMagicStackSafetyCheckEnabled, enabled);
+          safety_check::prefs::kSafetyCheckHomeModuleEnabled, enabled);
       break;
     case CustomizationToggleType::kTapResumption:
       _prefService->SetBoolean(
           prefs::kHomeCustomizationMagicStackTabResumptionEnabled, enabled);
       break;
     case CustomizationToggleType::kTips: {
-      CHECK(IsTipsMagicStackEnabled());
       _prefService->SetBoolean(prefs::kHomeCustomizationMagicStackTipsEnabled,
                                enabled);
       break;
     }
     case CustomizationToggleType::kShopCard:
-      if (base::Contains(commerce::kShopCardVariation.Get(),
-                         commerce::kShopCardArm1)) {
-        _prefService->SetBoolean(
-            prefs::kHomeCustomizationMagicStackShopCardPriceTrackingEnabled,
-            enabled);
-      } else if (commerce::kShopCardVariation.Get() ==
-                 commerce::kShopCardArm2) {
-        _prefService->SetBoolean(
-            prefs::kHomeCustomizationMagicStackShopCardReviewsEnabled, enabled);
-      }
+      _prefService->SetBoolean(
+          prefs::kHomeCustomizationMagicStackShopCardPriceTrackingEnabled,
+          enabled);
       break;
   }
 }

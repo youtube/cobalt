@@ -783,7 +783,9 @@ class TabImpl implements Tab {
 
         // Record UMA "ShowHistory" here. That way it'll pick up both user
         // typing chrome://history as well as selecting from the drop down menu.
-        if (fixedUrl.getSpec().equals(UrlConstants.HISTORY_URL)) {
+        String fixedUrlSpec = fixedUrl.getSpec();
+        if (UrlConstants.HISTORY_HOST.equals(fixedUrlSpec)
+                || UrlConstants.NATIVE_HISTORY_URL.equals(fixedUrlSpec)) {
             RecordUserAction.record("ShowHistory");
         }
 
@@ -791,7 +793,7 @@ class TabImpl implements Tab {
             return new LoadUrlResult(TabLoadStatus.DEFAULT_PAGE_LOAD, null);
         }
 
-        params.setUrl(fixedUrl.getSpec());
+        params.setUrl(fixedUrlSpec);
         NavigationHandle handle = mWebContents.getNavigationController().loadUrl(params);
         return new LoadUrlResult(TabLoadStatus.DEFAULT_PAGE_LOAD, handle);
     }
@@ -806,7 +808,13 @@ class TabImpl implements Tab {
         WebContents oldWebContents = mWebContents;
         destroyWebContents(false);
         mWebContents = null;
-        mWebContentsState = oldWebContentsState;
+        if (mWebContentsState != oldWebContentsState) {
+            if (mWebContentsState != null) {
+                mWebContentsState.destroy();
+                mWebContentsState = null;
+            }
+            mWebContentsState = oldWebContentsState;
+        }
         mIsLoading = false;
         // In case extracting the WebContentsState fails make sure we reload to the same URL.
         if (mWebContentsState == null) {
@@ -834,7 +842,9 @@ class TabImpl implements Tab {
         freeze();
         Referrer referrer = params.getReferrer();
         assumeNonNull(mWebContentsState);
-        mWebContentsState =
+        // The only reason this should still be null is if we failed to allocate a byte buffer,
+        // which probably means we are close to an OOM.
+        boolean success =
                 mWebContentsState.appendPendingNavigation(
                         mProfile,
                         title,
@@ -844,9 +854,6 @@ class TabImpl implements Tab {
                         referrer != null ? referrer.getPolicy() : 0,
                         params.getInitiatorOrigin());
 
-        // The only reason this should still be null is if we failed to allocate a byte buffer,
-        // which probably means we are close to an OOM.
-        boolean success = mWebContentsState != null;
         RecordHistogram.recordBooleanHistogram(
                 "Tabs.FreezeAndAppendPendingNavigationResult", success);
         if (success) {
@@ -854,6 +861,11 @@ class TabImpl implements Tab {
             mPendingLoadParams = null;
             mUrl = new GURL(assumeNonNull(mWebContentsState).getVirtualUrlFromState());
         } else {
+            // If we failed to append the pending navigation, clear the WebContentsState and restore
+            // the tab to a blank state.
+            mWebContentsState.destroy();
+            mWebContentsState = null;
+
             // Since we are not allowed to auto-navigate the only remaining fallback is to clobber
             // all navigation state and treat the tab as if it is in a pending load state. All the
             // previous state was already cleaned up so we just need to set the params here.
@@ -866,7 +878,7 @@ class TabImpl implements Tab {
         }
         observers.rewind();
         notifyFaviconChanged();
-        updateTitle(title == null ? "" : title);
+        updateTitle(title == null ? mUrl.getSpec() : title);
 
         while (observers.hasNext()) {
             observers.next().onNavigationEntriesAppended(this);
@@ -1136,6 +1148,10 @@ class TabImpl implements Tab {
         mTabViewManager.destroy();
         hideNativePage(false, null);
         destroyWebContents(true);
+        if (mWebContentsState != null) {
+            mWebContentsState.destroy();
+            mWebContentsState = null;
+        }
 
         TabImportanceManager.tabDestroyed(this);
 
@@ -1253,6 +1269,8 @@ class TabImpl implements Tab {
                 mUrl = new GURL(loadUrlParams.getUrl());
                 if (pendingTitle != null) {
                     setTitle(pendingTitle);
+                } else {
+                    setTitle(mUrl.getSpec());
                 }
             }
 
@@ -1823,7 +1841,14 @@ class TabImpl implements Tab {
         }
     }
 
-    /** This is currently used when restoring tabs, and by DOMDistiller */
+    /**
+     * This is currently used by recent tabs when restoring tabs.
+     *
+     * @deprecated This method is deprecated and should not be used. The intent is to align with
+     *     desktop platforms where a WebContents is assigned to a Tab and they remain 1:1 for the
+     *     lifetime of the Tab. The remaining uses of this method are being removed.
+     */
+    @Deprecated
     @CalledByNative
     void swapWebContents(WebContents webContents, boolean didStartLoad, boolean didFinishLoad) {
         boolean hasWebContents = mContentView != null && mWebContents != null;
@@ -2233,6 +2258,7 @@ class TabImpl implements Tab {
             View compositorView = compositorViewHolderSupplier.get();
             webContents.setSize(compositorView.getWidth(), compositorView.getHeight());
 
+            mWebContentsState.destroy();
             mWebContentsState = null;
             initWebContents(webContents);
 
@@ -2416,6 +2442,9 @@ class TabImpl implements Tab {
 
     @VisibleForTesting
     void setWebContentsState(WebContentsState webContentsState) {
+        if (mWebContentsState != null) {
+            mWebContentsState.destroy();
+        }
         mWebContentsState = webContentsState;
     }
 
@@ -2477,9 +2506,8 @@ class TabImpl implements Tab {
     @CalledByNative
     private void deleteNavigationEntriesFromFrozenState(long predicate) {
         if (mWebContentsState == null) return;
-        WebContentsState newState = mWebContentsState.deleteNavigationEntries(predicate);
-        if (newState != null) {
-            mWebContentsState = newState;
+        boolean success = mWebContentsState.deleteNavigationEntries(predicate);
+        if (success) {
             notifyNavigationEntriesDeleted();
         }
     }

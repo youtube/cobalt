@@ -84,7 +84,7 @@ void LockedQuizSessionManager::OnBocaSWALaunched(
     LOG(WARNING) << "Boca SWA launch failed. Cannot start locked quiz session.";
     // TODO(crbug.com/435523242): Add UMA metric here to record Boca launch
     // failure for locked quiz.
-    std::move(callback).Run(nullptr);
+    std::move(callback).Run(SessionID::InvalidValue());
     return;
   }
 
@@ -93,9 +93,15 @@ void LockedQuizSessionManager::OnBocaSWALaunched(
   if (!window_id.is_valid()) {
     LOG(WARNING)
         << "Could not find a valid window ID for the launched Boca SWA.";
-    std::move(callback).Run(nullptr);
+    std::move(callback).Run(SessionID::InvalidValue());
     return;
   }
+
+  // Prepare SWA window. We do not close bundle content to ensure we do not
+  // inadvertently close the locked quiz tab if there are other tabs opened by
+  // extensions on launch.
+  system_web_app_manager_->PrepareSystemWebAppWindowForOnTask(
+      window_id, /*close_bundle_content=*/false);
 
   // Lock Boca SWA window and apply navigation restrictions for the quiz.
   system_web_app_manager_->SetPinStateForSystemWebAppWindow(/*pinned=*/true,
@@ -113,7 +119,7 @@ void LockedQuizSessionManager::OnBocaSWALaunched(
   if (browser_delegate) {
     browser_delegate->Activate();
   }
-  std::move(callback).Run(browser_delegate);
+  std::move(callback).Run(window_id);
 }
 
 void LockedQuizSessionManager::SetLockedFullscreenState(Browser* browser,

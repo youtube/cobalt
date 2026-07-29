@@ -731,7 +731,8 @@ void ChromePasswordProtectionService::MaybeLogPasswordReuseDetectedEvent(
     content::WebContents* web_contents) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
-  if (IsIncognito() && !WebUIContentInfoSingleton::HasListener()) {
+  if (IsIncognito() &&
+      !WebUIContentInfoSingleton::GetInstance()->HasListener()) {
     return;
   }
 
@@ -777,7 +778,8 @@ void ChromePasswordProtectionService::MaybeLogPasswordReuseDialogInteraction(
     PasswordReuseDialogInteraction::InteractionResult interaction_result) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
-  if (IsIncognito() && !WebUIContentInfoSingleton::HasListener()) {
+  if (IsIncognito() &&
+      !WebUIContentInfoSingleton::GetInstance()->HasListener()) {
     return;
   }
 
@@ -805,7 +807,8 @@ void ChromePasswordProtectionService::MaybeLogPasswordReuseLookupResult(
     PasswordReuseLookup::LookupResult result) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
-  if (IsIncognito() && !WebUIContentInfoSingleton::HasListener()) {
+  if (IsIncognito() &&
+      !WebUIContentInfoSingleton::GetInstance()->HasListener()) {
     return;
   }
 
@@ -835,7 +838,8 @@ void ChromePasswordProtectionService::
         const std::string& verdict_token) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
-  if (IsIncognito() && !WebUIContentInfoSingleton::HasListener()) {
+  if (IsIncognito() &&
+      !WebUIContentInfoSingleton::GetInstance()->HasListener()) {
     return;
   }
 
@@ -1347,12 +1351,6 @@ void ChromePasswordProtectionService::MaybeReportPasswordReuseDetected(
           "PasswordProtection.GmailReportSent",
           base::EndsWith(username_or_email, "@gmail.com"));
     }
-#else   // BUILDFLAG(IS_ANDROID)
-    if (!base::FeatureList::IsEnabled(
-            enterprise_connectors::
-                kEnterpriseSecurityEventReportingOnAndroid)) {
-      return;
-    }
 #endif  // !BUILDFLAG(IS_ANDROID)
 
     auto* reporting_event_router = enterprise_connectors::
@@ -1377,11 +1375,6 @@ void ChromePasswordProtectionService::ReportPasswordChanged() {
   if (safe_browsing_event_router) {
     safe_browsing_event_router->OnPolicySpecifiedPasswordChanged(
         GetAccountInfo().email);
-  }
-#else   // BUILDFLAG(IS_ANDROID)
-  if (!base::FeatureList::IsEnabled(
-          enterprise_connectors::kEnterpriseSecurityEventReportingOnAndroid)) {
-    return;
   }
 #endif  // !BUILDFLAG(IS_ANDROID)
 

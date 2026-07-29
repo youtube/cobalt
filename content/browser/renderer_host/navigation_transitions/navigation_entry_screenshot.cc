@@ -60,14 +60,8 @@ void CompressNavigationScreenshotOnWorkerThread(
   SCOPED_UMA_HISTOGRAM_TIMER("Navigation.GestureTransition.CompressionTime");
   TRACE_EVENT0("navigation", "CompressNavigationScreenshotOnWorkerThread");
 
-  sk_sp<SkPixelRef> compressed_bitmap = nullptr;
-  if (base::FeatureList::IsEnabled(ui::kCompressBitmapAtBackgroundPriority)) {
-    compressed_bitmap = ui::Etc1::CompressBitmapAtBackgroundPriority(
-        bitmap, supports_etc_non_power_of_two);
-  } else {
-    compressed_bitmap =
-        ui::Etc1::CompressBitmap(bitmap, supports_etc_non_power_of_two);
-  }
+  sk_sp<SkPixelRef> compressed_bitmap =
+      ui::Etc1::CompressBitmap(bitmap, supports_etc_non_power_of_two);
 
   if (compressed_bitmap) {
     std::move(done_callback).Run(std::move(compressed_bitmap));
@@ -161,6 +155,7 @@ NavigationEntryScreenshot::NavigationEntryScreenshot(
 NavigationEntryScreenshot::~NavigationEntryScreenshot() {
   if (cache_) {
     cache_->OnNavigationEntryGone(unique_id_);
+    cache_ = nullptr;
   }
   if (read_back_needed_ || compression_task_) {
     auto observer_list =

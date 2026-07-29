@@ -95,9 +95,8 @@ class DebugHeaderBuilder {
 }  // namespace
 
 DeferredURLRequest::DeferredURLRequest(
-    const URLRequest* request,
     SessionService::RefreshCompleteCallback callback)
-    : request(request), callback(std::move(callback)) {}
+    : callback(std::move(callback)) {}
 
 DeferredURLRequest::DeferredURLRequest(DeferredURLRequest&& other) noexcept =
     default;
@@ -137,7 +136,7 @@ void SessionServiceImpl::RegisterBoundSession(
     const std::optional<url::Origin>& original_request_initiator) {
   Session* federated_provider_session = nullptr;
   bool is_google_subdomain_for_histograms = IsSubdomainOf(
-      registration_params.registration_endpoint().host_piece(), "google.com");
+      registration_params.registration_endpoint().host(), "google.com");
   if (registration_params.provider_session_id().has_value()) {
     if (!base::FeatureList::IsEnabled(
             features::kDeviceBoundSessionsFederatedRegistration)) {
@@ -200,7 +199,7 @@ SessionServiceImpl::GetFederatedProviderSessionIfValid(
   GURL provider_url = *registration_params.provider_url();
   if (!provider_url.is_valid() || url::Origin::Create(provider_url).opaque()) {
     return base::unexpected(
-        SessionError(SessionError::ErrorType::kInvalidFederatedSessionUrl));
+        SessionError(SessionError::kInvalidFederatedSessionUrl));
   }
 
   SessionKey provider_key{SchemefulSite(provider_url),
@@ -210,12 +209,12 @@ SessionServiceImpl::GetFederatedProviderSessionIfValid(
   if (!provider_session) {
     // Provider session not found, fail the registration.
     return base::unexpected(
-        SessionError(SessionError::ErrorType::kInvalidFederatedSession));
+        SessionError(SessionError::kInvalidFederatedSession));
   }
 
   if (url::Origin::Create(provider_url) != provider_session->origin()) {
     return base::unexpected(
-        SessionError(SessionError::ErrorType::kInvalidFederatedSession));
+        SessionError(SessionError::kInvalidFederatedSession));
   }
 
   unexportable_keys::ServiceErrorOr<
@@ -223,22 +222,20 @@ SessionServiceImpl::GetFederatedProviderSessionIfValid(
       algorithm =
           key_service_->GetAlgorithm(*provider_session->unexportable_key_id());
   if (!algorithm.has_value()) {
-    return base::unexpected(
-        SessionError(SessionError::ErrorType::kInvalidFederatedKey));
+    return base::unexpected(SessionError(SessionError::kInvalidFederatedKey));
   }
 
   unexportable_keys::ServiceErrorOr<std::vector<uint8_t>> pub_key =
       key_service_->GetSubjectPublicKeyInfo(
           *provider_session->unexportable_key_id());
   if (!pub_key.has_value()) {
-    return base::unexpected(
-        SessionError(SessionError::ErrorType::kInvalidFederatedKey));
+    return base::unexpected(SessionError(SessionError::kInvalidFederatedKey));
   }
 
   std::string thumbprint = CreateJwkThumbprint(*algorithm, *pub_key);
   if (thumbprint != *registration_params.provider_key()) {
     return base::unexpected(
-        SessionError(SessionError::ErrorType::kFederatedKeyThumbprintMismatch));
+        SessionError(SessionError::kFederatedKeyThumbprintMismatch));
   }
 
   return provider_session;
@@ -369,8 +366,8 @@ void SessionServiceImpl::DeferRequestForRefresh(
   SessionKey session_key{SchemefulSite(request->url()), *deferral.session_id};
   // For the first deferring request, create a new vector and add the request.
   auto [it, inserted] = deferred_requests_.try_emplace(session_key.id);
-  // Add the request to the deferred list.
-  it->second.emplace_back(request, std::move(callback));
+  // Add the request callback to the deferred list.
+  it->second.emplace_back(std::move(callback));
 
   auto* session = GetSession(session_key);
   CHECK(session, base::NotFatalUntil::M147);
@@ -407,7 +404,8 @@ void SessionServiceImpl::DeferRequestForRefresh(
       session_store_->RestoreSessionBindingKey(
           session_key,
           base::BindOnce(&SessionServiceImpl::OnSessionKeyRestored,
-                         weak_factory_.GetWeakPtr(), request, session_key,
+                         weak_factory_.GetWeakPtr(), request->GetWeakPtr(),
+                         session_key,
                          request->device_bound_session_access_callback()));
     } else {
       UnblockDeferredRequests(session_key, RefreshResult::kFatalError);
@@ -451,9 +449,21 @@ void SessionServiceImpl::UnblockDeferredRequests(const SessionKey& session_key,
   auto requests = std::move(it->second);
   deferred_requests_.erase(it);
 
+  base::UmaHistogramCounts100("Net.DeviceBoundSessions.RequestDeferredCount",
+                              requests.size());
+
   for (auto& request : requests) {
     base::UmaHistogramTimes("Net.DeviceBoundSessions.RequestDeferredDuration",
                             request.timer.Elapsed());
+    base::UmaHistogramEnumeration("Net.DeviceBoundSessions.DeferralResult",
+                                  result);
+    if (request.timer.Elapsed() <= base::Milliseconds(1)) {
+      base::UmaHistogramEnumeration(
+          "Net.DeviceBoundSessions.DeferralResult.Instant", result);
+    } else {
+      base::UmaHistogramEnumeration(
+          "Net.DeviceBoundSessions.DeferralResult.Slow", result);
+    }
     std::move(request.callback).Run(result);
   }
 }
@@ -649,7 +659,7 @@ SessionError::ErrorType SessionServiceImpl::OnRegistrationCompleteInternal(
     return registration_result.error().type;
   } else if (registration_result.is_no_session_config_change()) {
     // No config changes is not allowed at registration.
-    return SessionError::ErrorType::kInvalidConfigJson;
+    return SessionError::kInvalidConfigJson;
   }
 
   std::unique_ptr<Session> session = registration_result.TakeSession();
@@ -658,7 +668,7 @@ SessionError::ErrorType SessionServiceImpl::OnRegistrationCompleteInternal(
   NotifySessionAccess(on_access_callback, SessionAccess::AccessType::kCreation,
                       SessionKey{site, session->id()}, *session);
   AddSession(site, std::move(session));
-  return SessionError::ErrorType::kSuccess;
+  return SessionError::kSuccess;
 }
 
 SessionError::ErrorType SessionServiceImpl::OnRefreshRequestCompletionInternal(
@@ -696,14 +706,18 @@ SessionError::ErrorType SessionServiceImpl::OnRefreshRequestCompletionInternal(
   }
 
   return registration_result.is_error() ? registration_result.error().type
-                                        : SessionError::ErrorType::kSuccess;
+                                        : SessionError::kSuccess;
 }
 
 void SessionServiceImpl::OnSessionKeyRestored(
-    URLRequest* request,
+    base::WeakPtr<URLRequest> request,
     const SessionKey& session_key,
     OnAccessCallback on_access_callback,
     Session::KeyIdOrError key_id_or_error) {
+  if (!request) {
+    return;
+  }
+
   if (!key_id_or_error.has_value()) {
     UnblockDeferredRequests(session_key, RefreshResult::kFatalError);
     DeleteSessionAndNotify(DeletionReason::kFailedToUnwrapKey, session_key,
@@ -719,7 +733,7 @@ void SessionServiceImpl::OnSessionKeyRestored(
 
   session->set_unexportable_key_id(key_id_or_error);
 
-  RefreshSessionInternal(request, session_key, session, *key_id_or_error);
+  RefreshSessionInternal(request.get(), session_key, session, *key_id_or_error);
 }
 
 void SessionServiceImpl::RefreshSessionInternal(

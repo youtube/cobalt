@@ -213,7 +213,6 @@ bool IsFormatEnabled(media::VideoPixelFormat fmt) {
     case media::PIXEL_FORMAT_XBGR:
     case media::PIXEL_FORMAT_ARGB:
     case media::PIXEL_FORMAT_XRGB:
-      return true;
     case media::PIXEL_FORMAT_YUV420P10:
     case media::PIXEL_FORMAT_YUV420P12:
     case media::PIXEL_FORMAT_YUV420AP10:
@@ -226,7 +225,7 @@ bool IsFormatEnabled(media::VideoPixelFormat fmt) {
     case media::PIXEL_FORMAT_I444A:
     case media::PIXEL_FORMAT_YUV444AP10:
     case media::PIXEL_FORMAT_RGBAF16:
-      return RuntimeEnabledFeatures::WebCodecsHBDFormatsEnabled();
+      return true;
     default:
       return false;
   }
@@ -653,12 +652,9 @@ VideoFrame* VideoFrame::Create(ScriptState* script_state,
     return nullptr;
   }
 
-  media::VideoTransformation transformation = media::kNoTransformation;
-  bool transformed = false;
-  if (RuntimeEnabledFeatures::WebCodecsOrientationEnabled()) {
-    transformation = media::VideoTransformation(init->rotation(), init->flip());
-    transformed = transformation != media::kNoTransformation;
-  }
+  auto transformation =
+      media::VideoTransformation(init->rotation(), init->flip());
+  bool transformed = transformation != media::kNoTransformation;
 
   // Special case <video> and VideoFrame to directly use the underlying frame.
   if (source->IsVideoFrame() || source->IsHTMLVideoElement()) {
@@ -821,6 +817,10 @@ VideoFrame* VideoFrame::Create(ScriptState* script_state,
       return nullptr;
 
     auto* sbi = static_cast<StaticBitmapImage*>(image.get());
+
+    // We don't know which thread the video frame might end up on, so Transfer()
+    // the image so that it doesn't hold on to any thread-affine state.
+    sbi->Transfer();
 
     // The sync token needs to be updated when |frame| is released, but
     // AcceleratedStaticBitmapImage::UpdateSyncToken() is not thread-safe.
@@ -1081,10 +1081,8 @@ VideoFrame* VideoFrame::Create(ScriptState* script_state,
     frame->metadata().frame_duration = base::Microseconds(init->duration());
   }
 
-  if (RuntimeEnabledFeatures::WebCodecsOrientationEnabled()) {
-    frame->metadata().transformation =
-        media::VideoTransformation(init->rotation(), init->flip());
-  }
+  frame->metadata().transformation =
+      media::VideoTransformation(init->rotation(), init->flip());
 
   return MakeGarbageCollected<VideoFrame>(std::move(frame),
                                           ExecutionContext::From(script_state));
@@ -1386,8 +1384,7 @@ ScriptPromise<IDLSequence<PlaneLayout>> VideoFrame::copyTo(
     return promise;
   }
 
-  if (RuntimeEnabledFeatures::WebCodecsCopyToRGBEnabled() &&
-      options->hasFormat()) {
+  if (options->hasFormat()) {
     if (!media::IsRGB(dest_layout.Format())) {
       exception_state.ThrowDOMException(
           DOMExceptionCode::kNotSupportedError,

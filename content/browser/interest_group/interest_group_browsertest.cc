@@ -94,6 +94,7 @@
 #include "content/public/test/content_browser_test_content_browser_client.h"
 #include "content/public/test/content_browser_test_utils.h"
 #include "content/public/test/privacy_sandbox_coordinator_test_util.h"
+#include "content/public/test/render_frame_host_test_support.h"
 #include "content/public/test/test_frame_navigation_observer.h"
 #include "content/public/test/test_navigation_observer.h"
 #include "content/public/test/url_loader_monitor.h"
@@ -553,7 +554,7 @@ class NetworkResponder {
       std::vector<uint8_t> bundle_bytes = builder.CreateBundle();
       std::string body(reinterpret_cast<const char*>(bundle_bytes.data()),
                        bundle_bytes.size());
-      RegisterNetworkResponse(GURL(bundle.bundle_url).path(), body,
+      RegisterNetworkResponse(GURL(bundle.bundle_url).GetPath(), body,
                               /*mime_type=*/"application/webbundle",
                               /*extra_response_headers=*/
                               {{"X-Content-Type-Options", "nosniff"},
@@ -655,7 +656,7 @@ function generateBid(
   std::unique_ptr<net::test_server::HttpResponse> RequestHandler(
       const net::test_server::HttpRequest& request) {
     base::AutoLock auto_lock(response_map_lock_);
-    const auto it = response_map_.find(request.GetURL().path());
+    const auto it = response_map_.find(request.GetURL().GetPath());
     if (it == response_map_.end()) {
       return nullptr;
     }
@@ -726,8 +727,8 @@ std::unique_ptr<net::test_server::HttpResponse> HandleAdditionalBids(
     return nullptr;
   }
   std::vector<std::string> pieces =
-      base::SplitString(request.GetURL().query_piece(), "&",
-                        base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+      base::SplitString(request.GetURL().query(), "&", base::TRIM_WHITESPACE,
+                        base::SPLIT_WANT_NONEMPTY);
   if (pieces.size() < 2u) {
     return nullptr;
   }
@@ -1459,7 +1460,7 @@ function provideAdditionalBids(seller, nonce, bidStringList,
     auto result = RunAuctionAndWait(auction_config_json, execution_target);
     GURL urn_url = GURL(result.ExtractString());
     EXPECT_TRUE(urn_url.is_valid());
-    EXPECT_EQ(url::kUrnScheme, urn_url.scheme_piece());
+    EXPECT_EQ(url::kUrnScheme, urn_url.scheme());
 
     TestFencedFrameURLMappingResultObserver observer;
     ConvertFencedFrameURNToURL(urn_url, &observer);
@@ -1494,7 +1495,7 @@ function provideAdditionalBids(seller, nonce, bidStringList,
                                     /*execution_target=*/std::nullopt);
     GURL urn_url = GURL(result.ExtractString());
     EXPECT_TRUE(urn_url.is_valid()) << result;
-    EXPECT_EQ(url::kUrnScheme, urn_url.scheme_piece()) << result;
+    EXPECT_EQ(url::kUrnScheme, urn_url.scheme()) << result;
 
     TestFencedFrameURLMappingResultObserver observer;
     ConvertFencedFrameURNToURL(urn_url, &observer);
@@ -1636,7 +1637,7 @@ function provideAdditionalBids(seller, nonce, bidStringList,
 
     auto ad_auction_header = request.headers.find("Sec-Ad-Auction-Fetch");
     if (ad_auction_header != request.headers.end()) {
-      request_path_ad_auction_header_map_[request.GetURL().path()] =
+      request_path_ad_auction_header_map_[request.GetURL().GetPath()] =
           ad_auction_header->second;
     }
 
@@ -2152,7 +2153,7 @@ try {
       // The only other URLs this should be used with are about:blank URLs or
       // loopback http URLs.
       if (expected_url.SchemeIs(url::kHttpScheme)) {
-        EXPECT_EQ("127.0.0.1", expected_url.host());
+        EXPECT_EQ("127.0.0.1", expected_url.GetHost());
       } else {
         ASSERT_EQ(GURL(url::kAboutBlankURL), expected_url);
       }
@@ -2248,7 +2249,7 @@ try {
         GetAdAuctionComponentsInJS(ad_frame, 1);
     ASSERT_TRUE(components);
     ASSERT_EQ(1u, components->size());
-    EXPECT_EQ(url::kUrnScheme, (*components)[0].scheme_piece());
+    EXPECT_EQ(url::kUrnScheme, (*components)[0].scheme());
     if (component_ad_urn) {
       *component_ad_urn = (*components)[0];
     }
@@ -2313,7 +2314,7 @@ try {
     ASSERT_EQ(kMaxAdAuctionAdComponents, all_component_urls->size());
     for (size_t i = 0; i < all_component_urls->size(); ++i) {
       // All ad component URLs should use the URN scheme.
-      EXPECT_EQ(url::kUrnScheme, (*all_component_urls)[i].scheme_piece());
+      EXPECT_EQ(url::kUrnScheme, (*all_component_urls)[i].scheme());
 
       // All ad component URLs should be unique.
       for (size_t j = 0; j < i; ++j) {
@@ -5751,10 +5752,10 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest,
                        browserSignals) {
         return bid;
       };)";
-  network_responder_->RegisterNetworkResponse(almost_too_long_seller_url.path(),
-                                              kDecisionLogicScript,
-                                              "application/javascript");
-  network_responder_->RegisterNetworkResponse(too_long_seller_url.path(),
+  network_responder_->RegisterNetworkResponse(
+      almost_too_long_seller_url.GetPath(), kDecisionLogicScript,
+      "application/javascript");
+  network_responder_->RegisterNetworkResponse(too_long_seller_url.GetPath(),
                                               kDecisionLogicScript,
                                               "application/javascript");
 
@@ -5866,8 +5867,9 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest,
   EXPECT_EQ(url, RunAuctionAndWaitForUrl(auction_config2));
 }
 
+// TODO(crbug.com/444872127): Flaky.
 IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest,
-                       RunAuctionWithTooLongTrustedScoringSignalsUrl) {
+                       DISABLED_RunAuctionWithTooLongTrustedScoringSignalsUrl) {
   GURL url = embedded_https_test_server().GetURL("a.test", "/echo");
   url::Origin origin = url::Origin::Create(url);
   GURL decision_url = embedded_https_test_server().GetURL(
@@ -10299,7 +10301,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest,
   disabled_group.owner = disabled_origin;
   disabled_group.name = "candy";
   disabled_group.bidding_url = embedded_https_test_server().GetURL(
-      disabled_domain.host(),
+      disabled_domain.GetHost(),
       "/interest_group/bidding_logic_stop_bidding_after_win.js");
   disabled_group.ads.emplace();
   disabled_group.ads->emplace_back(
@@ -10321,9 +10323,9 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest,
               /*owner=*/test_origin,
               /*name=*/"cars")
               .SetBiddingUrl(embedded_https_test_server().GetURL(
-                  test_url.host(), "/interest_group/bidding_logic.js"))
+                  test_url.GetHost(), "/interest_group/bidding_logic.js"))
               .SetTrustedBiddingSignalsUrl(embedded_https_test_server().GetURL(
-                  test_url.host(),
+                  test_url.GetHost(),
                   "/interest_group/trusted_bidding_signals.json"))
               .SetTrustedBiddingSignalsKeys({{"key1"}})
               .SetAds(
@@ -10340,7 +10342,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest,
     perBuyerSignals: {$1: {even: 'more', x: 4.5}}
                 })",
       test_origin,
-      embedded_https_test_server().GetURL(test_url.host(),
+      embedded_https_test_server().GetURL(test_url.GetHost(),
                                           "/interest_group/decision_logic.js"),
       disabled_origin);
   RunAuctionAndWaitForURLAndNavigateIframe(auction_config, ad_url);
@@ -10856,7 +10858,7 @@ IN_PROC_BROWSER_TEST_F(DeprecatedRenderURLReplacementsDisabledTest,
                                     /*execution_target=*/std::nullopt);
     GURL urn_url = GURL(result.ExtractString());
     EXPECT_TRUE(urn_url.is_valid());
-    EXPECT_EQ(url::kUrnScheme, urn_url.scheme_piece());
+    EXPECT_EQ(url::kUrnScheme, urn_url.scheme());
     NavigateIframeAndCheckURL(web_contents(), urn_url, ad_url);
   }
 }
@@ -10930,7 +10932,7 @@ IN_PROC_BROWSER_TEST_F(DeprecatedRenderURLReplacementsEnabledTest,
     auto result = RunAuctionAndWait(auction_config);
     GURL urn_url = GURL(result.ExtractString());
     EXPECT_TRUE(urn_url.is_valid());
-    EXPECT_EQ(url::kUrnScheme, urn_url.scheme_piece());
+    EXPECT_EQ(url::kUrnScheme, urn_url.scheme());
     NavigateIframeAndCheckURL(web_contents(), urn_url, expected_ad_url);
   }
 }
@@ -10984,7 +10986,7 @@ IN_PROC_BROWSER_TEST_F(DeprecatedRenderURLReplacementsEnabledTest,
     auto result = RunAuctionAndWait(auction_config);
     GURL urn_url = GURL(result.ExtractString());
     EXPECT_TRUE(urn_url.is_valid());
-    EXPECT_EQ(url::kUrnScheme, urn_url.scheme_piece());
+    EXPECT_EQ(url::kUrnScheme, urn_url.scheme());
     NavigateIframeAndCheckURL(web_contents(), urn_url, expected_ad_url);
   }
 }
@@ -11161,7 +11163,7 @@ IN_PROC_BROWSER_TEST_F(
     auto result = RunAuctionAndWait(auction_config);
     GURL urn_url = GURL(result.ExtractString());
     EXPECT_TRUE(urn_url.is_valid());
-    EXPECT_EQ(url::kUrnScheme, urn_url.scheme_piece());
+    EXPECT_EQ(url::kUrnScheme, urn_url.scheme());
     NavigateIframeAndCheckURL(web_contents(), urn_url, expected_ad_url);
   }
 }
@@ -11471,7 +11473,7 @@ IN_PROC_BROWSER_TEST_F(
   auto result = RunAuctionAndWait(auction_config);
   GURL urn_url = GURL(result.ExtractString());
   EXPECT_TRUE(urn_url.is_valid());
-  EXPECT_EQ(url::kUrnScheme, urn_url.scheme_piece());
+  EXPECT_EQ(url::kUrnScheme, urn_url.scheme());
 
   TestFencedFrameURLMappingResultObserver observer;
   ConvertFencedFrameURNToURL(urn_url, &observer);
@@ -11561,7 +11563,7 @@ IN_PROC_BROWSER_TEST_F(
   auto result = RunAuctionAndWait(auction_config);
   GURL urn_url = GURL(result.ExtractString());
   EXPECT_TRUE(urn_url.is_valid());
-  EXPECT_EQ(url::kUrnScheme, urn_url.scheme_piece());
+  EXPECT_EQ(url::kUrnScheme, urn_url.scheme());
 
   TestFencedFrameURLMappingResultObserver observer;
   ConvertFencedFrameURNToURL(urn_url, &observer);
@@ -11655,7 +11657,7 @@ IN_PROC_BROWSER_TEST_F(DeprecatedRenderURLReplacementsEnabledTest,
   auto result = RunAuctionAndWait(auction_config);
   GURL urn_url = GURL(result.ExtractString());
   EXPECT_TRUE(urn_url.is_valid());
-  EXPECT_EQ(url::kUrnScheme, urn_url.scheme_piece());
+  EXPECT_EQ(url::kUrnScheme, urn_url.scheme());
   {
     TestFencedFrameURLMappingResultObserver observer;
     ConvertFencedFrameURNToURL(urn_url, &observer);
@@ -11873,7 +11875,7 @@ IN_PROC_BROWSER_TEST_F(DeprecatedRenderURLReplacementsEnabledTest,
   auto result = RunAuctionAndWait(auction_config);
   GURL urn_url = GURL(result.ExtractString());
   EXPECT_TRUE(urn_url.is_valid());
-  EXPECT_EQ(url::kUrnScheme, urn_url.scheme_piece());
+  EXPECT_EQ(url::kUrnScheme, urn_url.scheme());
 
   TestFencedFrameURLMappingResultObserver observer;
   ConvertFencedFrameURNToURL(urn_url, &observer);
@@ -11919,7 +11921,7 @@ IN_PROC_BROWSER_TEST_F(DeprecatedRenderURLReplacementsEnabledTest,
   auto result = RunAuctionAndWait(auction_config);
   GURL urn_url = GURL(result.ExtractString());
   EXPECT_TRUE(urn_url.is_valid());
-  EXPECT_EQ(url::kUrnScheme, urn_url.scheme_piece());
+  EXPECT_EQ(url::kUrnScheme, urn_url.scheme());
 
   TestFencedFrameURLMappingResultObserver observer;
   ConvertFencedFrameURNToURL(urn_url, &observer);
@@ -11966,7 +11968,7 @@ IN_PROC_BROWSER_TEST_F(DeprecatedRenderURLReplacementsEnabledTest,
   auto result = RunAuctionAndWait(auction_config);
   GURL urn_url = GURL(result.ExtractString());
   EXPECT_TRUE(urn_url.is_valid());
-  EXPECT_EQ(url::kUrnScheme, urn_url.scheme_piece());
+  EXPECT_EQ(url::kUrnScheme, urn_url.scheme());
 
   TestFencedFrameURLMappingResultObserver observer;
   ConvertFencedFrameURNToURL(urn_url, &observer);
@@ -12015,7 +12017,7 @@ IN_PROC_BROWSER_TEST_F(DeprecatedRenderURLReplacementsEnabledTest,
   auto result = RunAuctionAndWait(auction_config);
   GURL urn_url = GURL(result.ExtractString());
   EXPECT_TRUE(urn_url.is_valid());
-  EXPECT_EQ(url::kUrnScheme, urn_url.scheme_piece());
+  EXPECT_EQ(url::kUrnScheme, urn_url.scheme());
 
   {
     TestFencedFrameURLMappingResultObserver observer;
@@ -12108,7 +12110,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest,
                                   /*execution_target=*/std::nullopt);
   GURL urn_url = GURL(result.ExtractString());
   EXPECT_TRUE(urn_url.is_valid());
-  EXPECT_EQ(url::kUrnScheme, urn_url.scheme_piece());
+  EXPECT_EQ(url::kUrnScheme, urn_url.scheme());
 
   {
     TestFencedFrameURLMappingResultObserver observer;
@@ -12165,7 +12167,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest,
                                   /*execution_target=*/std::nullopt);
   GURL urn_url = GURL(result.ExtractString());
   EXPECT_TRUE(urn_url.is_valid());
-  EXPECT_EQ(url::kUrnScheme, urn_url.scheme_piece());
+  EXPECT_EQ(url::kUrnScheme, urn_url.scheme());
 
   {
     TestFencedFrameURLMappingResultObserver observer;
@@ -12347,7 +12349,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest, RunAdAuctionCancelLate) {
   auto result = EvalJs(shell(), auction_script);
   GURL urn_url = GURL(result.ExtractString());
   EXPECT_TRUE(urn_url.is_valid());
-  EXPECT_EQ(url::kUrnScheme, urn_url.scheme_piece());
+  EXPECT_EQ(url::kUrnScheme, urn_url.scheme());
 
   TestFencedFrameURLMappingResultObserver observer;
   ConvertFencedFrameURNToURL(urn_url, &observer);
@@ -13084,7 +13086,7 @@ perBuyerSignals: {$1: {even: 'more', x: 4.5}}
   GURL urn_url(urn_url_string.ExtractString());
   ASSERT_TRUE(urn_url.is_valid())
       << "URL is not valid: " << urn_url_string.ExtractString();
-  EXPECT_EQ(url::kUrnScheme, urn_url.scheme_piece());
+  EXPECT_EQ(url::kUrnScheme, urn_url.scheme());
 
   EXPECT_TRUE(
       ReplaceInURNInJS(urn_url, {{"%%LOADING_MODE%%", "fenced-frame"}}));
@@ -13736,7 +13738,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupFencedFrameBrowserTest, CrossOrigin) {
       kSeller, "/interest_group/decision_logic_need_signals.js");
   // Register a seller script that only bids if the `trustedScoringSignals` are
   // successfully fetched.
-  network_responder_->RegisterNetworkResponse(seller_logic_url.path(), R"(
+  network_responder_->RegisterNetworkResponse(seller_logic_url.GetPath(), R"(
 function scoreAd(
     adMetadata, bid, auctionConfig, trustedScoringSignals, browserSignals) {
   // Reject bids if trustedScoringSignals is not received.
@@ -13761,7 +13763,7 @@ function reportResult(
   GURL seller_signals_url = embedded_https_test_server().GetURL(
       kSeller, "/trusted_scoring_signals.json");
   network_responder_->RegisterNetworkResponse(
-      seller_signals_url.path(),
+      seller_signals_url.GetPath(),
       base::StringPrintf(R"({"renderUrls": {"%s": "foo"}})",
                          ad_url.spec().c_str()));
 
@@ -15137,7 +15139,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupFencedFrameBrowserTest,
   GURL urn_url(urn_url_string.ExtractString());
   ASSERT_TRUE(urn_url.is_valid())
       << "URL is not valid: " << urn_url_string.ExtractString();
-  EXPECT_EQ(url::kUrnScheme, urn_url.scheme_piece());
+  EXPECT_EQ(url::kUrnScheme, urn_url.scheme());
 
   // Repeatedly load the URN in fenced frames.  The first two iterations use the
   // original fenced frame, the next two use a new one that replaces the first.
@@ -15156,7 +15158,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupFencedFrameBrowserTest,
         GetAdAuctionComponentsInJS(ad_frame, 1);
     ASSERT_TRUE(components);
     ASSERT_EQ(1u, components->size());
-    EXPECT_EQ(url::kUrnScheme, (*components)[0].scheme_piece());
+    EXPECT_EQ(url::kUrnScheme, (*components)[0].scheme());
     NavigateFencedFrameAndWait((*components)[0], ad_component_url, ad_frame);
   }
 }
@@ -15208,7 +15210,8 @@ return {
   )";
   GURL bidding_url = embedded_https_test_server().GetURL(
       "a.test", "/generated_bidding_logic.js");
-  network_responder_->RegisterBidderScript(bidding_url.path(), bidding_script);
+  network_responder_->RegisterBidderScript(bidding_url.GetPath(),
+                                           bidding_script);
 
   GURL ad_url = embedded_https_test_server().GetURL(
       "c.test", "/fenced_frames/basic.html");
@@ -17859,16 +17862,16 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest, UpdateAndReportToDevtools) {
                group.execution_mode ==
                    blink::InterestGroup::ExecutionMode::kGroupedByOriginMode &&
                group.bidding_url.has_value() &&
-               group.bidding_url->path() ==
+               group.bidding_url->GetPath() ==
                    "/interest_group/new_bidding_logic.js" &&
                group.trusted_bidding_signals_url.has_value() &&
-               group.trusted_bidding_signals_url->path() ==
+               group.trusted_bidding_signals_url->GetPath() ==
                    "/interest_group/new_trusted_bidding_signals_url.json" &&
                group.trusted_bidding_signals_keys.has_value() &&
                group.trusted_bidding_signals_keys->size() == 1 &&
                group.trusted_bidding_signals_keys.value()[0] == "new_key" &&
                group.ads.has_value() && group.ads->size() == 1 &&
-               GURL(group.ads.value()[0].render_url()).path() ==
+               GURL(group.ads.value()[0].render_url()).GetPath() ==
                    "/new_ad_render_url" &&
                group.ads.value()[0].metadata == "{\"new_a\":\"b\"}";
       }));
@@ -17938,16 +17941,16 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest, DeprecatedDailyUpdateUrl) {
                group.execution_mode ==
                    blink::InterestGroup::ExecutionMode::kGroupedByOriginMode &&
                group.bidding_url.has_value() &&
-               group.bidding_url->path() ==
+               group.bidding_url->GetPath() ==
                    "/interest_group/new_bidding_logic.js" &&
                group.trusted_bidding_signals_url.has_value() &&
-               group.trusted_bidding_signals_url->path() ==
+               group.trusted_bidding_signals_url->GetPath() ==
                    "/interest_group/new_trusted_bidding_signals_url.json" &&
                group.trusted_bidding_signals_keys.has_value() &&
                group.trusted_bidding_signals_keys->size() == 1 &&
                group.trusted_bidding_signals_keys.value()[0] == "new_key" &&
                group.ads.has_value() && group.ads->size() == 1 &&
-               GURL(group.ads.value()[0].render_url()).path() ==
+               GURL(group.ads.value()[0].render_url()).GetPath() ==
                    "/new_ad_render_url" &&
                group.ads.value()[0].metadata == "{\"new_a\":\"b\"}";
       }));
@@ -18020,16 +18023,16 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest,
                group.execution_mode ==
                    blink::InterestGroup::ExecutionMode::kGroupedByOriginMode &&
                group.bidding_url.has_value() &&
-               group.bidding_url->path() ==
+               group.bidding_url->GetPath() ==
                    "/interest_group/new_bidding_logic.js" &&
                group.trusted_bidding_signals_url.has_value() &&
-               group.trusted_bidding_signals_url->path() ==
+               group.trusted_bidding_signals_url->GetPath() ==
                    "/interest_group/new_trusted_bidding_signals_url.json" &&
                group.trusted_bidding_signals_keys.has_value() &&
                group.trusted_bidding_signals_keys->size() == 1 &&
                group.trusted_bidding_signals_keys.value()[0] == "new_key" &&
                group.ads.has_value() && group.ads->size() == 1 &&
-               GURL(group.ads.value()[0].render_url()).path() ==
+               GURL(group.ads.value()[0].render_url()).GetPath() ==
                    "/new_ad_render_url" &&
                group.ads.value()[0].metadata == "{\"new_a\":\"b\"}";
       }));
@@ -18087,19 +18090,19 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest,
             }
             const auto& group = groups->GetInterestGroups()[0]->interest_group;
             return group.name == "cars" && group.bidding_url.has_value() &&
-                   group.bidding_url->path() ==
+                   group.bidding_url->GetPath() ==
                        "/interest_group/bidding_logic.js" &&
                    group.update_url.has_value() &&
-                   group.update_url->path() ==
+                   group.update_url->GetPath() ==
                        "/interest_group/update_partial.json" &&
                    group.trusted_bidding_signals_url.has_value() &&
-                   group.trusted_bidding_signals_url->path() ==
+                   group.trusted_bidding_signals_url->GetPath() ==
                        "/interest_group/trusted_bidding_signals.json" &&
                    group.trusted_bidding_signals_keys.has_value() &&
                    group.trusted_bidding_signals_keys->size() == 1 &&
                    group.trusted_bidding_signals_keys.value()[0] == "key1" &&
                    group.ads.has_value() && group.ads->size() == 1 &&
-                   GURL(group.ads.value()[0].render_url()).path() ==
+                   GURL(group.ads.value()[0].render_url()).GetPath() ==
                        "/new_ad_render_url" &&
                    group.ads.value()[0].metadata == "{\"new_a\":\"b\"}";
           }));
@@ -18843,7 +18846,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupPrivateNetworkBrowserTest,
       "a.test", "/interest_group/new_bidding_logic.js");
 
   // The server JSON updates biddingLogicURL only.
-  network_responder_->RegisterNetworkResponse(update_url.path(),
+  network_responder_->RegisterNetworkResponse(update_url.GetPath(),
                                               JsReplace(R"(
 {
   "biddingLogicURL": $1
@@ -18979,10 +18982,10 @@ IN_PROC_BROWSER_TEST_F(InterestGroupPrivateNetworkBrowserTest,
 )";
   // a.test's response is delayed until later.
   network_responder_->RegisterNetworkResponse(
-      update_url_b.path(),
+      update_url_b.GetPath(),
       JsReplace(kUpdateContentTemplate, new_bidding_url_b));
   network_responder_->RegisterNetworkResponse(
-      update_url_c.path(),
+      update_url_c.GetPath(),
       JsReplace(kUpdateContentTemplate, new_bidding_url_c));
 
   // First, create an interest group in a.test and start updating it from a
@@ -19336,7 +19339,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest,
     auto* execution_target = execution_targets[i];
     url = execution_target->GetLastCommittedURL();
     origin = url::Origin::Create(url);
-    host = url.host();
+    host = url.GetHost();
     WebContentsConsoleObserver console_observer(shell()->web_contents());
     console_observer.SetPattern(WarningPermissionsPolicy("*", "*"));
     // Use a second observer to wait until the last message is received.
@@ -19522,7 +19525,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupRestrictedPermissionsPolicyBrowserTest,
   for (auto* execution_target : execution_targets) {
     url = execution_target->GetLastCommittedURL();
     origin = url::Origin::Create(url);
-    host = url.host();
+    host = url.GetHost();
     WebContentsConsoleObserver console_observer(shell()->web_contents());
     console_observer.SetPattern(WarningPermissionsPolicy("*", "*"));
 
@@ -19594,7 +19597,7 @@ IN_PROC_BROWSER_TEST_F(
   GURL join_declared_self_url = embedded_https_test_server().GetURL(
       "b.test", "/interest_group/join_declared_self.html");
   network_responder_->RegisterNetworkResponse(
-      join_declared_self_url.path(), "", "text/html",
+      join_declared_self_url.GetPath(), "", "text/html",
       {{"Permissions-Policy", "join-ad-interest-group=(self)"}});
 
   url::Origin allow_join_origin = url::Origin::Create(
@@ -19606,7 +19609,7 @@ IN_PROC_BROWSER_TEST_F(
   // join-ad-interest-group=(self)
   ASSERT_TRUE(
       NavigateToURL(shell(), embedded_https_test_server().GetURL(
-                                 "b.test", join_declared_self_url.path())));
+                                 "b.test", join_declared_self_url.GetPath())));
 
   // Joining a group cross-origin should fail.
   EXPECT_EQ("NotAllowedError: Permission to join interest group denied.",
@@ -19643,8 +19646,8 @@ IN_PROC_BROWSER_TEST_F(
   const char kGroup[] = "aardvarks";
   GURL join_declared_self_url = embedded_https_test_server().GetURL(
       "b.test", "/interest_group/empty.html");
-  network_responder_->RegisterNetworkResponse(join_declared_self_url.path(), "",
-                                              "text/html", {{}});
+  network_responder_->RegisterNetworkResponse(join_declared_self_url.GetPath(),
+                                              "", "text/html", {{}});
 
   url::Origin allow_join_origin = url::Origin::Create(
       GURL(embedded_https_test_server().GetURL("allow-join.a.test", "/")));
@@ -19654,7 +19657,7 @@ IN_PROC_BROWSER_TEST_F(
   // Navigate to a URL without a document policy.
   ASSERT_TRUE(
       NavigateToURL(shell(), embedded_https_test_server().GetURL(
-                                 "b.test", join_declared_self_url.path())));
+                                 "b.test", join_declared_self_url.GetPath())));
 
   // Joining a group cross-origin should succeed.
   EXPECT_EQ(kSuccess, JoinInterestGroupAndVerify(allow_join_origin, kGroup));
@@ -19695,7 +19698,7 @@ IN_PROC_BROWSER_TEST_F(
   GURL join_declared_self_url = embedded_https_test_server().GetURL(
       "b.test", "/interest_group/join_declared_self.html");
   network_responder_->RegisterNetworkResponse(
-      join_declared_self_url.path(), "", "text/html",
+      join_declared_self_url.GetPath(), "", "text/html",
       {{"Permissions-Policy", "join-ad-interest-group=(self)"}});
 
   url::Origin allow_join_origin = url::Origin::Create(
@@ -19707,7 +19710,7 @@ IN_PROC_BROWSER_TEST_F(
   // join-ad-interest-group=(self)
   ASSERT_TRUE(
       NavigateToURL(shell(), embedded_https_test_server().GetURL(
-                                 "b.test", join_declared_self_url.path())));
+                                 "b.test", join_declared_self_url.GetPath())));
 
   // Joining a group cross-origin should work.
   EXPECT_EQ(kSuccess, JoinInterestGroupAndVerify(allow_join_origin, kGroup));
@@ -19991,7 +19994,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest, DeprecatedURNToURLValidURN) {
     auto result = RunAuctionAndWait(auction_config);
     GURL urn_url = GURL(result.ExtractString());
     EXPECT_TRUE(urn_url.is_valid());
-    EXPECT_EQ(url::kUrnScheme, urn_url.scheme_piece());
+    EXPECT_EQ(url::kUrnScheme, urn_url.scheme());
     EXPECT_EQ(ad_url,
               ConvertFencedFrameURNToURLInJS(urn_url, test_case.send_reports));
     histogram_tester.ExpectTotalCount(
@@ -20050,7 +20053,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest, ExecutionModeCompatibility) {
                 .SetExecutionMode(
                     blink::InterestGroup::ExecutionMode::kCompatibilityMode)
                 .SetBiddingUrl(embedded_https_test_server().GetURL(
-                    test_url.host(), "/interest_group/bidding_logic.js"))
+                    test_url.GetHost(), "/interest_group/bidding_logic.js"))
                 .SetAds(ads)
                 .Build()));
   }
@@ -20115,7 +20118,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest, ExecutionModeGroupByOrigin) {
                 .SetExecutionMode(
                     blink::InterestGroup::ExecutionMode::kGroupedByOriginMode)
                 .SetBiddingUrl(embedded_https_test_server().GetURL(
-                    test_url.host(), "/interest_group/bidding_logic.js"))
+                    test_url.GetHost(), "/interest_group/bidding_logic.js"))
                 .SetAds(ads)
                 .Build()));
   }
@@ -20169,7 +20172,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest,
                     /*owner=*/test_origin,
                     /*name=*/"cars0")
                     .SetBiddingUrl(embedded_https_test_server().GetURL(
-                        test_url.host(), "/interest_group/bidding_logic.js"))
+                        test_url.GetHost(), "/interest_group/bidding_logic.js"))
                     .SetAds(ads)
                     .Build()));
 
@@ -21598,7 +21601,7 @@ class InterestGroupAdComponentAutomaticBeaconBrowserTest
         GetAdAuctionComponentsInJS(ad_frame, 1);
     ASSERT_TRUE(components);
     ASSERT_EQ(1u, components->size());
-    EXPECT_EQ(url::kUrnScheme, (*components)[0].scheme_piece());
+    EXPECT_EQ(url::kUrnScheme, (*components)[0].scheme());
 
     // Load the ad component.
     if (IsAdComponentLoadedInFencedFrame()) {
@@ -22151,8 +22154,7 @@ class BiddingAndAuctionServerAPIsOriginTrialBrowserTest
         std::make_unique<URLLoaderInterceptor>(base::BindLambdaForTesting(
             [&](URLLoaderInterceptor::RequestParams* params) -> bool {
               URLLoaderInterceptor::WriteResponse(
-                  base::StrCat(
-                      {kBaseDataDir, params->url_request.url.path_piece()}),
+                  base::StrCat({kBaseDataDir, params->url_request.url.path()}),
                   params->client.get());
 
               return true;
@@ -26359,7 +26361,7 @@ class InterestGroupOOPIFBrowserTest : public InterestGroupBrowserTest {
 // Test to make sure we don't crash when Page changes with DFSS ad slot pending.
 // https://crbug.com/326085515
 // TODO(crbug.com/446756531): Re-enable this test.
-#if (BUILDFLAG(IS_FUCHSIA) || (BUILDFLAG(IS_WIN) && defined(ADDRESS_SANITIZER)))
+#if BUILDFLAG(IS_FUCHSIA)
 #define MAYBE_PageImplChangeDirectFromSellerSignals \
   DISABLED_PageImplChangeDirectFromSellerSignals
 #else
@@ -26388,7 +26390,8 @@ IN_PROC_BROWSER_TEST_F(InterestGroupOOPIFBrowserTest,
   blink::InterestGroup interest_group =
       blink::TestInterestGroupBuilder(frame_origin, "cars")
           .SetBiddingUrl(embedded_https_test_server().GetURL(
-              frame_origin.GetURL().host(), "/interest_group/bidding_logic.js"))
+              frame_origin.GetURL().GetHost(),
+              "/interest_group/bidding_logic.js"))
           .SetAds({{{GURL("https://example.com/render"), "null"}}})
           .Build();
   EXPECT_EQ(kSuccess, JoinInterestGroupAndVerify(interest_group, child_rfh));
@@ -26396,9 +26399,13 @@ IN_PROC_BROWSER_TEST_F(InterestGroupOOPIFBrowserTest,
   // 2) Act as if there was an infinite unload handler in the OOPIF.
   child_rfh->DoNotDeleteForTesting();
 
-  // Set an arbitrarily long timeout to ensure the subframe unload timer doesn't
-  // fire before we call OnDetach().
+  // Ensure the subframe unload timer and the unload timers don't fire before
+  // we call OnDetach().
+  DisableUnloadTimerForTesting(child_rfh);
   child_rfh->SetSubframeUnloadTimeoutForTesting(base::Seconds(30));
+
+  // ...and also for main.
+  DisableUnloadTimerForTesting(root_ftn->current_frame_host());
 
   // With BackForwardCache, old document doesn't fire unload handlers as the
   // page is stored in BackForwardCache on navigation.
@@ -26577,7 +26584,7 @@ void InterestGroupCrossOriginTrustedSignalsBrowserTest::
   )";
 
   network_responder_->RegisterNetworkResponse(
-      seller_logic_url.path(),
+      seller_logic_url.GetPath(),
       JsReplace(kSellerScriptTemplate, url::Origin::Create(seller_signals_url)),
       "application/javascript", std::move(extra_js_headers));
 
@@ -26591,7 +26598,7 @@ void InterestGroupCrossOriginTrustedSignalsBrowserTest::
         url::Origin::Create(seller_logic_url).Serialize());
   }
   network_responder_->RegisterNetworkResponse(
-      seller_signals_url.path(),
+      seller_signals_url.GetPath(),
       base::StringPrintf(R"({"renderUrls": {"%s": "foo"}})",
                          ad_url.spec().c_str()),
       "application/json", std::move(extra_json_headers));
@@ -26710,7 +26717,7 @@ void InterestGroupCrossOriginTrustedSignalsBrowserTest::
     })";
 
   network_responder_->RegisterNetworkResponse(
-      bidder_script_url.path(),
+      bidder_script_url.GetPath(),
       JsReplace(kBidScriptTemplate, url::Origin::Create(bidder_signals_url)),
       "application/javascript");
 
@@ -26730,8 +26737,8 @@ void InterestGroupCrossOriginTrustedSignalsBrowserTest::
         std::string("Access-Control-Allow-Origin"),
         url::Origin::Create(bidder_script_url).Serialize());
   }
-  network_responder_->RegisterNetworkResponse(bidder_signals_url.path(), kJson,
-                                              "application/json",
+  network_responder_->RegisterNetworkResponse(bidder_signals_url.GetPath(),
+                                              kJson, "application/json",
                                               std::move(extra_json_headers));
 
   GURL seller_logic_url = embedded_https_test_server().GetURL(
@@ -29120,7 +29127,7 @@ void InterestGroupTrustedSignalsKVv2BrowserTest::
     })";
 
   network_responder_->RegisterNetworkResponse(
-      bidder_script_url.path(),
+      bidder_script_url.GetPath(),
       JsReplace(kBidScriptTemplate, url::Origin::Create(bidder_signals_url)),
       "application/javascript");
 
@@ -29217,7 +29224,7 @@ void InterestGroupTrustedSignalsKVv2BrowserTest::
     })";
 
   network_responder_->RegisterNetworkResponse(
-      bidder_script_url.path(), kBidderScript, "application/javascript");
+      bidder_script_url.GetPath(), kBidderScript, "application/javascript");
 
   // Navigate to publisher.
   ASSERT_TRUE(NavigateToURL(shell(), test_url));
@@ -29271,7 +29278,7 @@ void InterestGroupTrustedSignalsKVv2BrowserTest::
   }
 
   network_responder_->RegisterNetworkResponse(
-      seller_script_url.path(),
+      seller_script_url.GetPath(),
       JsReplace(kSellerScriptTemplate, url::Origin::Create(seller_signals_url)),
       "application/javascript", std::move(extra_js_headers));
 
@@ -29374,7 +29381,7 @@ IN_PROC_BROWSER_TEST_P(InterestGroupTrustedSignalsKVv2BrowserTest,
     })";
 
   network_responder_->RegisterNetworkResponse(
-      bidder_script_url.path(), kBidderScript, "application/javascript");
+      bidder_script_url.GetPath(), kBidderScript, "application/javascript");
 
   // Navigate to publisher.
   ASSERT_TRUE(
@@ -29445,7 +29452,7 @@ IN_PROC_BROWSER_TEST_P(InterestGroupTrustedSignalsKVv2BrowserTest,
     })";
 
   network_responder_->RegisterNetworkResponse(
-      bidder_script_url.path(), kBidderScript, "application/javascript");
+      bidder_script_url.GetPath(), kBidderScript, "application/javascript");
 
   // Navigate to publisher.
   ASSERT_TRUE(NavigateToURL(shell(), test_url));
@@ -29479,7 +29486,7 @@ IN_PROC_BROWSER_TEST_P(InterestGroupTrustedSignalsKVv2BrowserTest,
   )";
 
   network_responder_->RegisterNetworkResponse(
-      seller_script_url.path(), kSellerScript, "application/javascript");
+      seller_script_url.GetPath(), kSellerScript, "application/javascript");
 
   std::string auction_config = JsReplace(R"({
     seller: $1,
@@ -29642,7 +29649,7 @@ IN_PROC_BROWSER_TEST_P(InterestGroupTrustedSignalsKVv2BrowserTest,
     })";
 
   network_responder_->RegisterNetworkResponse(
-      bidder_script_url.path(), kBidderScript, "application/javascript");
+      bidder_script_url.GetPath(), kBidderScript, "application/javascript");
 
   // Navigate to publisher.
   ASSERT_TRUE(NavigateToURL(shell(), test_url));
@@ -29679,7 +29686,7 @@ IN_PROC_BROWSER_TEST_P(InterestGroupTrustedSignalsKVv2BrowserTest,
   )";
 
   network_responder_->RegisterNetworkResponse(
-      seller_script_url.path(), kSellerScript, "application/javascript");
+      seller_script_url.GetPath(), kSellerScript, "application/javascript");
 
   std::string auction_config = JsReplace(R"({
     seller: $1,
@@ -29775,7 +29782,7 @@ class InterestGroupTrustedSignalsKVv2ContextualDataBrowserTest
     })";
 
     network_responder_->RegisterNetworkResponse(
-        bidder_script_url.path(),
+        bidder_script_url.GetPath(),
         base::StringPrintf(kBidderScript, expected_bidding_key.c_str()),
         "application/javascript");
 
@@ -29858,7 +29865,7 @@ class InterestGroupTrustedSignalsKVv2ContextualDataBrowserTest
         })";
 
     network_responder_->RegisterNetworkResponse(
-        seller_script_url.path(),
+        seller_script_url.GetPath(),
         base::StringPrintf(kSellerScript, expected_render_url_value.c_str()),
         "application/javascript");
 

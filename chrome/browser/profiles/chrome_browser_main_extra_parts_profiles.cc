@@ -20,6 +20,7 @@
 #include "chrome/browser/autocomplete/in_memory_url_index_factory.h"
 #include "chrome/browser/autocomplete/provider_state_service_factory.h"
 #include "chrome/browser/autocomplete/shortcuts_backend_factory.h"
+#include "chrome/browser/autofill/account_setting_service_factory.h"
 #include "chrome/browser/autofill/autocomplete_history_manager_factory.h"
 #include "chrome/browser/autofill/autofill_ai_model_cache_factory.h"
 #include "chrome/browser/autofill/autofill_ai_model_executor_factory.h"
@@ -220,7 +221,6 @@
 #include "chrome/browser/themes/theme_service_factory.h"
 #include "chrome/browser/tpcd/experiment/eligibility_service_factory.h"
 #include "chrome/browser/tpcd/heuristics/opener_heuristic_service_factory.h"
-#include "chrome/browser/tpcd/support/origin_trial_service_factory.h"
 #include "chrome/browser/tpcd/support/top_level_trial_service_factory.h"
 #include "chrome/browser/tpcd/support/tpcd_support_service_factory.h"
 #include "chrome/browser/translate/translate_ranker_factory.h"
@@ -266,7 +266,7 @@
 #include "components/optimization_guide/machine_learning_tflite_buildflags.h"
 #include "components/password_manager/content/browser/password_manager_log_router_factory.h"
 #include "components/password_manager/content/browser/password_requirements_service_factory.h"
-#include "components/payments/content/browser_binding/browser_bound_keys_deleter_factory.h"
+#include "components/payments/content/browser_binding/browser_bound_key_deleter_factory.h"
 #include "components/payments/content/has_enrolled_instrument_query_factory.h"
 #include "components/permissions/features.h"
 #include "components/policy/content/password_manager_blocklist_policy.h"
@@ -296,6 +296,7 @@
 #include "chrome/browser/android/omnibox/autocomplete_controller_android.h"
 #include "chrome/browser/android/persisted_tab_data/leveldb_persisted_tab_data_storage_android_factory.h"
 #include "chrome/browser/android/search_permissions/search_permissions_service.h"
+#include "chrome/browser/android/tab_state_storage_service_factory.h"
 #include "chrome/browser/android/thin_webview/chrome_thin_webview_initializer.h"
 #include "chrome/browser/android/webapk/webapk_install_service_factory.h"
 #include "chrome/browser/android/webapk/webapk_sync_service_factory.h"
@@ -310,7 +311,6 @@
 #include "chrome/browser/search_resumption/start_suggest_service_factory.h"
 #include "chrome/browser/signin/android/signin_bridge_factory.h"
 #include "chrome/browser/signin/signin_manager_android_factory.h"
-#include "chrome/browser/tab/tab_state_storage_service_factory.h"
 #include "components/commerce/core/commerce_feature_list.h"
 #include "components/commerce/core/proto/discount_infos_db_content.pb.h"  // nogncheck
 #include "components/commerce/core/proto/merchant_signal_db_content.pb.h"
@@ -362,6 +362,7 @@
 #include "chrome/browser/ui/lens/lens_keyed_service_factory.h"
 #include "chrome/browser/ui/media_router/media_router_ui_service_factory.h"
 #include "chrome/browser/ui/performance_controls/performance_controls_hats_service_factory.h"
+#include "chrome/browser/ui/promos/ios_promo_trigger_service_factory.h"
 #include "chrome/browser/ui/safety_hub/password_status_check_service_factory.h"
 #include "chrome/browser/ui/safety_hub/safety_hub_hats_service_factory.h"
 #include "chrome/browser/ui/tabs/organization/tab_organization_service_factory.h"
@@ -671,6 +672,7 @@ void ChromeBrowserMainExtraPartsProfiles::
   AccountInvestigatorFactory::GetInstance();
   AccountPasswordStoreFactory::GetInstance();
   AccountReconcilorFactory::GetInstance();
+  autofill::AccountSettingServiceFactory::GetInstance();
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
   AccountsPolicyManagerFactory::GetInstance();
 #endif
@@ -1004,6 +1006,9 @@ void ChromeBrowserMainExtraPartsProfiles::
 #if !BUILDFLAG(IS_ANDROID)
   InstantServiceFactory::GetInstance();
 #endif
+#if !BUILDFLAG(IS_ANDROID)
+  IOSPromoTriggerServiceFactory::GetInstance();
+#endif
   IpProtectionCoreHostFactory::GetInstance();
 #if BUILDFLAG(IS_WIN)
   JumpListFactory::GetInstance();
@@ -1153,9 +1158,7 @@ void ChromeBrowserMainExtraPartsProfiles::
 #if !BUILDFLAG(IS_ANDROID)
   PasswordStatusCheckServiceFactory::GetInstance();
 #endif
-#if BUILDFLAG(IS_ANDROID)
   payments::BrowserBoundKeyDeleterFactory::GetInstance();
-#endif
   payments::HasEnrolledInstrumentQueryFactory::GetInstance();
 #if !BUILDFLAG(IS_ANDROID)
   payments::PaymentRequestDisplayManagerFactory::GetInstance();
@@ -1405,7 +1408,6 @@ void ChromeBrowserMainExtraPartsProfiles::
 #endif
   TopSitesFactory::GetInstance();
   tpcd::experiment::EligibilityServiceFactory::GetInstance();
-  tpcd::trial::OriginTrialServiceFactory::GetInstance();
   tpcd::trial::TpcdTrialServiceFactory::GetInstance();
   tpcd::trial::TopLevelTrialServiceFactory::GetInstance();
   TrackingProtectionOnboardingFactory::GetInstance();

@@ -153,11 +153,6 @@ class VisitDatabase {
                             int max_results,
                             VisitVector* visits);
 
-  // Looks up URLIDs for all visits with specified transition. Returns true on
-  // success and false otherwise.
-  bool GetAllURLIDsForTransition(ui::PageTransition transition,
-                                 std::vector<URLID>* urls);
-
   // Looks up all the app IDs found in the database entries. Returns a struct
   // containing the list of the IDs.
   GetAllAppIdsResult GetAllAppIds();
@@ -180,19 +175,25 @@ class VisitDatabase {
                                VisitVector* visits);
 
   // Returns the visit ID for the most recent visit of the given URL ID, or 0
-  // if there is no visit for the URL.
+  // if there is no visit for the URL. Includes or excludes 404 visits according
+  // to `policy_for_404_visits`.
   //
   // If non-NULL, the given visit row will be filled with the information of
   // the found visit. When no visit is found, the row will be unchanged.
-  VisitID GetMostRecentVisitForURL(URLID url_id, VisitRow* visit_row);
+  VisitID GetMostRecentVisitForURL(URLID url_id,
+                                   VisitRow* visit_row,
+                                   VisitQuery404sPolicy policy_for_404_visits);
 
-  // Returns the `max_results` most recent visit sessions for `url_id`.
+  // Returns the `max_results` most recent visit sessions for `url_id`. Includes
+  // or excludes visits with an HTTP response code of 404 according to
+  // `policy_for_404_visits`.
   //
   // Returns false if there's a failure preparing the statement. True
-  // otherwise. (No results are indicated with an empty `visits`
+  // otherwise. (No matching results is indicated with an empty `visits`
   // vector.)
   bool GetMostRecentVisitsForURL(URLID url_id,
                                  int max_results,
+                                 VisitQuery404sPolicy policy_for_404_visits,
                                  VisitVector* visits);
 
   // Finds a redirect coming from the given `from_visit`. If a redirect is
@@ -246,6 +247,7 @@ class VisitDatabase {
   bool GetLastVisitToHost(const std::string& host,
                           base::Time begin_time,
                           base::Time end_time,
+                          VisitQuery404sPolicy policy_for_404_visits,
                           base::Time* last_visit);
 
   // Same as the above, but for the given origin instead of host.

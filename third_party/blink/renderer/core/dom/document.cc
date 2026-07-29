@@ -8086,6 +8086,10 @@ void Document::FinishedParsing() {
                                                    /*did_commit_load=*/false);
     // Record the total taken time by subresource load observer update.
     Loader()->ReportTotalTakenTimeToUpdateSubresourceLoadMetrics();
+    // Record the total taken time by resource load from memory cache.
+    base::UmaHistogramMicrosecondsTimes(
+        "Blink.MemoryCache.TotalTakenTimeForDidLoadResourceFromMemoryCache",
+        fetcher_->total_taken_time_for_did_load_resource_from_memory_cache());
   }
 }
 
@@ -8555,7 +8559,7 @@ void Document::AddToTopLayer(Element* element, const Element* before) {
   // element in the top layer list.
   if (PseudoElement* backdrop =
           element->GetPseudoElement(PseudoId::kPseudoIdBackdrop,
-                                    /*view_transition_name=*/g_null_atom)) {
+                                    /*pseudo_argument=*/g_null_atom)) {
     CHECK(!backdrop->IsInTopLayer());
     AddToTopLayer(backdrop, element);
   }
@@ -8629,7 +8633,7 @@ void Document::RemoveFromTopLayerImmediately(Element* element) {
   // element in the top layer list.
   if (PseudoElement* backdrop =
           element->GetPseudoElement(PseudoId::kPseudoIdBackdrop,
-                                    /*view_transition_name=*/g_null_atom)) {
+                                    /*pseudo_argument=*/g_null_atom)) {
     CHECK(backdrop->IsInTopLayer());
     RemoveFromTopLayerImmediately(backdrop);
   }
@@ -10233,6 +10237,15 @@ bool Document::CanThrottleFrameRate() {
     }
   }
   return true;
+}
+
+CustomElementRegistry* Document::EffectiveGlobalCustomElementRegistry() const {
+  DCHECK(RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled());
+  auto* registry = customElementRegistry();
+  if (registry && registry->IsGlobalRegistry()) {
+    return registry;
+  }
+  return nullptr;
 }
 
 template class CORE_TEMPLATE_EXPORT Supplement<Document>;

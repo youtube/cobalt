@@ -673,28 +673,9 @@ void RasterImplementation::SetAggressivelyFreeResources(
   }
 }
 
-uint64_t RasterImplementation::ShareGroupTracingGUID() const {
-  NOTREACHED();
-}
-
 void RasterImplementation::SetErrorMessageCallback(
     base::RepeatingCallback<void(const char*, int32_t)> callback) {
   error_message_callback_ = std::move(callback);
-}
-
-bool RasterImplementation::ThreadSafeShallowLockDiscardableTexture(
-    uint32_t texture_id) {
-  NOTREACHED();
-}
-
-void RasterImplementation::CompleteLockDiscardableTexureOnContextThread(
-    uint32_t texture_id) {
-  NOTREACHED();
-}
-
-bool RasterImplementation::ThreadsafeDiscardableTextureIsDeletedForTracing(
-    uint32_t texture_id) {
-  NOTREACHED();
 }
 
 base::span<uint8_t> RasterImplementation::MapTransferCacheEntry(

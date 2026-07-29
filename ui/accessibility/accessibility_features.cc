@@ -390,11 +390,6 @@ bool IsScreenAIOCREnabled() {
   return base::FeatureList::IsEnabled(ax::mojom::features::kScreenAIOCREnabled);
 }
 
-BASE_FEATURE(kAccessibilityService, base::FEATURE_DISABLED_BY_DEFAULT);
-bool IsAccessibilityServiceEnabled() {
-  return base::FeatureList::IsEnabled(::features::kAccessibilityService);
-}
-
 // This feature is only used for generating training data for Screen2x and
 // should never be used in any other circumstance, and should not be enabled by
 // default.
@@ -520,11 +515,5 @@ bool IsWasmTtsEngineAutoInstallDisabled() {
       ::features::kWasmTtsEngineAutoInstallDisabled);
 }
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-
-BASE_FEATURE(kAccessibilityHitTestPointCopy, base::FEATURE_ENABLED_BY_DEFAULT);
-bool IsAccessibilityHitTestPointCopyEnabled() {
-  return base::FeatureList::IsEnabled(
-      ::features::kAccessibilityHitTestPointCopy);
-}
 
 }  // namespace features

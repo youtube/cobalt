@@ -72,6 +72,7 @@ import org.chromium.chrome.browser.metrics.StartupMetricsTracker;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationConfigManager;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
+import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundImageType;
 import org.chromium.chrome.browser.ntp_customization.edge_to_edge.TopInsetCoordinator;
 import org.chromium.chrome.browser.omnibox.OmniboxFocusReason;
 import org.chromium.chrome.browser.omnibox.OmniboxStub;
@@ -979,9 +980,10 @@ public class NewTabPage
 
     /**
      * Sets the listener for search box scroll changes.
+     *
      * @param listener The listener to be notified on changes.
      */
-    public void setSearchBoxScrollListener(OnSearchBoxScrollListener listener) {
+    public void setSearchBoxScrollListener(@Nullable OnSearchBoxScrollListener listener) {
         mNewTabPageLayout.setSearchBoxScrollListener(listener);
     }
 
@@ -1172,7 +1174,7 @@ public class NewTabPage
                 && !mIsTablet
                 && isInSingleUrlBarMode()
                 && NtpCustomizationConfigManager.getInstance().getBackgroundImageType()
-                        != NtpCustomizationUtils.NtpBackgroundImageType.DEFAULT;
+                        != NtpBackgroundImageType.DEFAULT;
     }
 
     @Override
@@ -1223,6 +1225,11 @@ public class NewTabPage
     public void reload() {
         mFeedSurfaceProvider.reload();
         mNewTabPageLayout.reload();
+    }
+
+    @Override
+    public int getTopInset() {
+        return mNewTabPageLayout.getTopInset();
     }
 
     // InvalidationAwareThumbnailProvider

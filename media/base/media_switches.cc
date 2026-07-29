@@ -259,15 +259,13 @@ const char kUserGestureRequiredPolicy[] = "user-gesture-required";
 
 }  // namespace autoplay
 
-#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
+#if BUILDFLAG(USE_V4L2_CODEC)
 // Some (Qualcomm only at the moment) V4L2 video decoders require setting the
 // framerate so that the hardware decoder can scale the clocks efficiently.
 // This provides a mechanism during testing to lock the decoder framerate
 // to a specific value.
 const char kHardwareVideoDecodeFrameRate[] = "hardware-video-decode-framerate";
-#endif
 
-#if BUILDFLAG(USE_V4L2_CODEC)
 // This is needed for V4L2 testing using VISL (virtual driver) on cros VM with
 // arm64-generic-vm. Minigbm buffer allocation is done using dumb driver with
 // vkms.
@@ -360,7 +358,7 @@ BASE_FEATURE(kMacCatapLoopbackAudioForCast, base::FEATURE_DISABLED_BY_DEFAULT);
 // Enables system audio loopback capture using the macOS CoreAudio tap API for
 // screen share.
 BASE_FEATURE(kMacCatapLoopbackAudioForScreenShare,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Use the built-in MacOS screen-sharing picker (SCContentSharingPicker). This
 // flag will only use the built-in picker on MacOS 15 Sequoia and later where it
@@ -401,9 +399,6 @@ BASE_FEATURE(kWidevinePersistentLicenseSupport,
 #else
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(ENABLE_LIBRARY_CDMS)
-
-// Display the Cast overlay button on the media controls.
-BASE_FEATURE(kMediaCastOverlayButton, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Use AndroidOverlay only if required for secure video playback. This requires
 // that |kOverlayFullscreenVideo| is true, else it is ignored.
@@ -527,12 +522,6 @@ BASE_FEATURE(kAudioFlexibleLoopbackForSystemLoopback,
 
 BASE_FEATURE(kCrOSEnforceMonoAudioCapture, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
-
-// Make MSE garbage collection algorithm more aggressive when we are under
-// moderate or critical memory pressure. This will relieve memory pressure by
-// releasing stale data from MSE buffers.
-BASE_FEATURE(kMemoryPressureBasedSourceBufferGC,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Controls whether the Mirroring Service will fetch, analyze, and store
 // information on the quality of the session using RTCP logs.
@@ -940,10 +929,6 @@ BASE_FEATURE(kHardwareMediaKeyHandling,
 #endif
 );
 
-// Enables a platform-specific resolution cutoff for prioritizing platform
-// decoders over software decoders or vice-versa.
-BASE_FEATURE(kResolutionBasedDecoderPriority, base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Allows the AutoPictureInPictureTabHelper to automatically enter
 // picture-in-picture for websites with video playback (instead of only websites
 // using camera or microphone).
@@ -959,6 +944,15 @@ BASE_FEATURE(kAutoplayDisableSettings, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Whether we should allow color space changes to flush AcceleratedVideoDecoder.
 BASE_FEATURE(kAVDColorSpaceChanges, base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Allows Chrome to reconfigure the sink to match the channel count of the
+// source audio data. This ensures opening of an audio output stream to match
+// the source audio data channels, to signal to the downstream audio
+// subsystem that the audio must be processed according to the source audio
+// channel count.
+// TODO(crbug.com/445215599): This should be replaced with a MediaClient
+// mechanism if it works as intended.
+BASE_FEATURE(kMatchSourceAudioChannelLayout, base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
 // Allows the enhanced picture-in-picture transition animation that depend on
@@ -980,6 +974,8 @@ BASE_FEATURE(kEnableSurfaceInputForAndroidVEA,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables block model (LinearBlock) on supported devices.
+// TODO(crbug.com/327625558): Currently block model is buggy and can't be
+// enabled, we need to test it again when Android 17 is released.
 BASE_FEATURE(kMediaCodecBlockModel, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Allow selection of low latency decoders in low delay mode.

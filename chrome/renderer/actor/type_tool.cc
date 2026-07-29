@@ -22,6 +22,7 @@
 #include "chrome/renderer/actor/click_tool.h"
 #include "chrome/renderer/actor/tool_utils.h"
 #include "content/public/renderer/render_frame.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 #include "third_party/abseil-cpp/absl/strings/str_format.h"
 #include "third_party/blink/public/common/input/web_coalesced_input_event.h"
 #include "third_party/blink/public/common/input/web_input_event.h"
@@ -70,13 +71,13 @@ struct KeyInfo {
 
 // Function to provide access to the key info map.
 // Initialization happens thread-safely on the first call.
-const std::unordered_map<char, KeyInfo>& GetKeyInfoMap() {
+const absl::flat_hash_map<char, KeyInfo>& GetKeyInfoMap() {
   // TODO(crbug.com/402082693): This map is a temporary solution in converting
   // between dom code and key code. We should find a central solution to this
   // that aligns with ui/events/keycodes/ data and functions.
-  static const base::NoDestructor<std::unordered_map<char, KeyInfo>>
+  static const base::NoDestructor<absl::flat_hash_map<char, KeyInfo>>
       key_info_map([] {
-        std::unordered_map<char, KeyInfo> map_data = {
+        absl::flat_hash_map<char, KeyInfo> map_data = {
             {' ', {ui::VKEY_SPACE, "Space"}},
             {')', {ui::VKEY_0, "Digit0", u'0'}},
             {'!', {ui::VKEY_1, "Digit1", u'1'}},
@@ -195,7 +196,7 @@ std::optional<TypeTool::KeyParams> TypeTool::GetKeyParamsForChar(char c) const {
     params.dom_code = base::StrCat({"Digit", {c}});
   } else {
     // Symbols and Punctuation (US QWERTY layout assumed)
-    const std::unordered_map<char, KeyInfo>& key_info_map = GetKeyInfoMap();
+    const absl::flat_hash_map<char, KeyInfo>& key_info_map = GetKeyInfoMap();
     auto it = key_info_map.find(c);
     if (it == key_info_map.end()) {
       ACTOR_LOG() << "Character cannot be mapped directly to key event: " << c;
@@ -275,6 +276,7 @@ mojom::ActionResultPtr TypeTool::SimulateKeyPress(TypeTool::KeyParams params) {
   // event but this is expected and common.
   if (down_result == WebInputEventResult::kHandledSuppressed) {
     return MakeResult(mojom::ActionResultCode::kTypeKeyDownSuppressed,
+                      /*requires_page_stabilization=*/false,
                       absl::StrFormat("Suppressed char[%s]", params.dom_key));
   }
 
@@ -358,6 +360,9 @@ void TypeTool::Execute(ToolFinishedCallback callback) {
     for (const auto& param : validated_result->key_sequence) {
       mojom::ActionResultPtr result = SimulateKeyPress(param);
       if (!IsOk(*result)) {
+        // The initial click may have changed the page.
+        result->requires_page_stabilization = true;
+
         std::move(callback).Run(std::move(result));
         return;
       }
@@ -397,15 +402,27 @@ void TypeTool::ContinueIncrementalTyping(ToolFinishedCallback callback) {
     if (down_result == WebInputEventResult::kHandledSuppressed) {
       std::move(callback).Run(
           MakeResult(mojom::ActionResultCode::kTypeKeyDownSuppressed,
+                     /*requires_page_stabilization=*/true,
                      absl::StrFormat("Suppressed char[%s]", params.dom_key)));
       return;
     }
 
-    CreateAndDispatchKeyEvent(WebInputEvent::Type::kChar, params);
+    WebInputEventResult char_result =
+        CreateAndDispatchKeyEvent(WebInputEvent::Type::kChar, params);
+    if (char_result == WebInputEventResult::kHandledSuppressed) {
+      ACTOR_LOG() << "Warning: Char event for key " << params.dom_key
+                  << " suppressed.";
+    }
 
     is_key_down_ = true;
   } else {
-    CreateAndDispatchKeyEvent(WebInputEvent::Type::kKeyUp, params);
+    WebInputEventResult up_result =
+        CreateAndDispatchKeyEvent(WebInputEvent::Type::kKeyUp, params);
+    if (up_result == WebInputEventResult::kHandledSuppressed) {
+      ACTOR_LOG() << "Warning: KeyUp event for key " << params.dom_key
+                  << " suppressed.";
+    }
+
     is_key_down_ = false;
     current_key_++;
   }
@@ -413,13 +430,39 @@ void TypeTool::ContinueIncrementalTyping(ToolFinishedCallback callback) {
   if (current_key_ >= target_and_keys_->key_sequence.size()) {
     std::move(callback).Run(MakeOkResult());
   } else {
+    bool is_final_enter_key_down =
+        action_->follow_by_enter &&
+        current_key_ == target_and_keys_->key_sequence.size() - 1 &&
+        !is_key_down_;
+    DCHECK(!is_final_enter_key_down ||
+           target_and_keys_->key_sequence[current_key_].dom_code ==
+               GetEnterKeyParams().dom_code);
+
+    base::TimeDelta delay;
+
+    if (is_final_enter_key_down) {
+      // If the next key is the final enter key, it has a specific delay to
+      // ensure a user-like input and to allow the page to process the typed
+      // text. Only down is delayed to avoid doubling this longer delay and
+      // since most inputs take action on the down event.
+      delay = features::kGlicActorTypeToolEnterDelay.Get();
+    } else {
+      delay = (is_key_down_ ? features::kGlicActorKeyDownDuration
+                            : features::kGlicActorKeyUpDuration)
+                  .Get();
+
+      // Apply a speed boost when typing a long string.
+      if (action_->text.length() >
+          features::kGlicActorIncrementalTypingLongTextThreshold.Get()) {
+        delay *= features::kGlicActorIncrementalTypingLongMultiplier.Get();
+      }
+    }
+
     task_runner_->PostDelayedTask(
         FROM_HERE,
         base::BindOnce(&TypeTool::ContinueIncrementalTyping,
                        weak_ptr_factory_.GetWeakPtr(), std::move(callback)),
-        (is_key_down_ ? features::kGlicActorKeyDownDuration
-                      : features::kGlicActorKeyUpDuration)
-            .Get());
+        delay);
   }
 }
 
@@ -484,6 +527,7 @@ TypeTool::ValidatedResult TypeTool::Validate() const {
                     JournalDetailsBuilder().Add("char", c).Build());
       return base::unexpected(
           MakeResult(mojom::ActionResultCode::kTypeFailedMappingCharToKey,
+                     /*requires_page_stabilization=*/false,
                      absl::StrFormat("Failed on char[%c]", c)));
     }
     key_sequence.push_back(params.value());

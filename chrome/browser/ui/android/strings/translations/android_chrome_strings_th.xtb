@@ -9,13 +9,16 @@
 <translation id="1028699632127661925">กำลังส่งไปที่ <ph name="DEVICE_NAME" />...</translation>
 <translation id="103269572468856066">ล้างข้อมูลเว็บไซต์และแอปเหล่านี้ด้วยไหม</translation>
 <translation id="1034259925032978114">หน้าต่างเปิดอยู่</translation>
+<translation id="1035113036584565771">ปิดการโปรโมตการแจ้งเตือนเคล็ดลับแล้ว</translation>
 <translation id="1036348656032585052">ปิด</translation>
 <translation id="1045899828449635435">ล้างข้อมูลเว็บไซต์เหล่านี้ด้วยไหม</translation>
 <translation id="1049743911850919806">โหมดไม่ระบุตัวตน</translation>
 <translation id="1052842760770519282">รหัสผ่านบางรายการเข้าถึงไม่ได้</translation>
 <translation id="1058669287135776095">คุณออฟไลน์อยู่ ตรวจสอบการเชื่อมต่ออินเทอร์เน็ตแล้วลองอีกครั้ง</translation>
+<translation id="1066338698580889414">การโปรโมตการแจ้งเตือนเคล็ดลับเปิดอยู่แบบเต็มความสูง</translation>
 <translation id="1070689840697074178">คุณดาวน์โหลด PDF ได้ที่นี่</translation>
 <translation id="107147699690128016">หากคุณเปลี่ยนนามสกุลไฟล์ ไฟล์นั้นอาจเปิดในแอปพลิเคชันอื่นและเป็นอันตรายต่ออุปกรณ์ของคุณ</translation>
+<translation id="1086486568852410168">ค้นหาด้วย Google Lens</translation>
 <translation id="1087799850623149508">คุณแตะแถบที่อยู่ค้างไว้เพื่อย้ายไปด้านล่างได้</translation>
 <translation id="1089606299949659462">ตรวจสอบเรียบร้อยแล้ว</translation>
 <translation id="1094555143448724771">หากต้องการดูแท็บจากอุปกรณ์อื่นๆ ให้ซิงค์แท็บและประวัติการเข้าชม</translation>
@@ -151,6 +154,7 @@
 <translation id="1696555181932908973">คุณลองดำเนินการต่อใน <ph name="SITE_ETLD_PLUS_ONE" /> ด้วยวิธีอื่นๆ ได้</translation>
 <translation id="1702543251015153180">เปลี่ยนการตั้งค่าธีมมืดไหม</translation>
 <translation id="1702907158640575240">เบราว์เซอร์ที่มีการจัดการ</translation>
+<translation id="170478069042229393"><ph name="TAB_TITLE" />, แท็บที่ไม่ระบุตัวตนที่ปักหมุด</translation>
 <translation id="1718835860248848330">1 ชั่วโมงที่ผ่านมา</translation>
 <translation id="1726477445370128854">คุณจะท่องเว็บและค้นหาได้เร็วขึ้นเมื่อ Chrome โหลดหน้าเว็บที่คิดว่าคุณอาจจะเข้าชมไว้ล่วงหน้า</translation>
 <translation id="1728803206919861584">บันทึกพาสคีย์นอกโหมดไม่ระบุตัวตนไหม</translation>
@@ -439,6 +443,7 @@
 <translation id="3027950907978057636">จาก <ph name="APP_LABEL" /></translation>
 <translation id="3029276696788198026">ไม่ต้องโหลดล่วงหน้า</translation>
 <translation id="3029704984691124060">รหัสผ่านไม่ตรงกัน</translation>
+<translation id="3029829659829245765"><ph name="TAB_TITLE" />, แท็บที่เลือกที่ปักหมุด</translation>
 <translation id="3036750288708366620"><ph name="BEGIN_LINK" />ขอความช่วยเหลือ<ph name="END_LINK" /></translation>
 <translation id="3037177537145227281">กำลังติดตามราคา</translation>
 <translation id="3037517125981011456">แสดงข้อความแจ้งให้ลงชื่อเข้าใช้ Chrome</translation>
@@ -497,6 +502,7 @@
 <translation id="3309978850836730073">โหมดการอ่านพร้อมใช้งานเสมอ</translation>
 <translation id="331080746368555063">เว็บไซต์ส่วนตัวอาจรวมถึงอินทราเน็ตของบริษัทของคุณ เป็นต้น</translation>
 <translation id="3311330810461485557">ค้นหาตามแอป วันที่ และอื่นๆ</translation>
+<translation id="3331974543021145906">ข้อมูลแอป</translation>
 <translation id="3334729583274622784">เปลี่ยนนามสกุลไฟล์ใช่ไหม</translation>
 <translation id="333863344734218290">เตือนคุณสำหรับเว็บไซต์สาธารณะและเว็บไซต์ส่วนตัวที่ไม่ปลอดภัย</translation>
 <translation id="3341262203274374114">เลิกติดตามไม่ได้ เกิดข้อผิดพลาด</translation>
@@ -626,6 +632,7 @@
 <translation id="397105322502079400">กำลังคำนวณ...</translation>
 <translation id="397583555483684758">การซิงค์หยุดทำงานแล้ว</translation>
 <translation id="3976396876660209797">นำทางลัดนี้ออกแล้วสร้างใหม่</translation>
+<translation id="397650873162244514"><ph name="TAB_TITLE" />, แท็บที่ปักหมุด</translation>
 <translation id="3985022125189960801">เพิ่มเว็บไซต์กลับหากต้องการรวมไว้ในกลุ่มเว็บไซต์ที่คาดเดาสิ่งที่คุณชอบได้</translation>
 <translation id="3985215325736559418">คุณต้องการดาวน์โหลด <ph name="FILE_NAME" /> อีกครั้งไหม</translation>
 <translation id="3987993985790029246">คัดลอกลิงก์</translation>
@@ -1138,12 +1145,14 @@
 <translation id="6255809143828972562">เครื่องมือจาก Chrome ช่วยให้คุณท่องเว็บได้อย่างปลอดภัยและควบคุมได้ตามต้องการ</translation>
 <translation id="6264376385120300461">ดาวน์โหลดต่อไป</translation>
 <translation id="6264485186158353794">กลับสู่ความปลอดภัย</translation>
+<translation id="6276708887952587684">ดูซอร์สโค้ดของหน้าเว็บ</translation>
 <translation id="6277522088822131679">เกิดปัญหาในการพิมพ์หน้านี้ โปรดลองอีกครั้ง</translation>
 <translation id="6278428485366576908">ธีม</translation>
 <translation id="6291294824436685757">ลบข้อมูลการท่องเว็บ เลือกข้อมูลที่จะลบ</translation>
 <translation id="6295158916970320988">เว็บไซต์ทั้งหมด</translation>
 <translation id="629730747756840877">บัญชี</translation>
 <translation id="6301526076346731664">เปิดเครื่องมือสำหรับนักพัฒนาซอฟต์แวร์</translation>
+<translation id="630308129961693966">เลือกตำแหน่งของแถบที่อยู่</translation>
 <translation id="6303969859164067831">ออกจากระบบและปิดการซิงค์</translation>
 <translation id="6307241780749477694">โปรดยืนยันว่าเป็นคุณเพื่อรับรหัสผ่านทั้งหมดในอุปกรณ์นี้</translation>
 <translation id="6312687380483398334">เว็บแอป (ไม่ส่งเสียงหรือแสดงให้เห็น)</translation>
@@ -1376,6 +1385,8 @@
 <translation id="7191430249889272776">แท็บเปิดในพื้นหลัง</translation>
 <translation id="7192397795254933433">{NUM_PASSWORDS,plural, =1{คุณควรเปลี่ยนรหัสผ่านตอนนี้เลย}other{คุณควรเปลี่ยนรหัสผ่านเหล่านี้ตอนนี้เลย}}</translation>
 <translation id="7196215469483532480">คำอธิบายคู่มือความเป็นส่วนตัวเปิดแบบเต็มหน้า</translation>
+<translation id="7196455519852483601">คุณสามารถลบประวัติการเข้าชม คุกกี้ ข้อมูลเว็บไซต์ และอื่นๆ บางส่วนหรือทั้งหมดได้</translation>
+<translation id="7197682514647286393">ลบข้อมูลการท่องเว็บอย่างรวดเร็ว</translation>
 <translation id="7207760545532569765">คืนค่า <ph name="TAB_COUNT" /> แท็บเป็นแท็บใหม่ในเบื้องหลัง</translation>
 <translation id="7217781228893594884">แท็บที่ไม่ระบุตัวตนจะล็อกเมื่อคุณออกจาก Chrome</translation>
 <translation id="7221869452894271364">โหลดหน้านี้ใหม่</translation>
@@ -1413,6 +1424,7 @@
 <translation id="7375125077091615385">ประเภท:</translation>
 <translation id="7376560087009844242">การรวมข้อความของหน้ามากขึ้นอาจช่วยให้คุณเห็นผลการค้นหาที่ดีขึ้นเมื่อใช้ฟีเจอร์แตะเพื่อค้นหา คุณเปลี่ยนการตั้งค่านี้ได้ทุกเมื่อโดยไปที่<ph name="BEGIN_LINK" />การตั้งค่า<ph name="END_LINK" /></translation>
 <translation id="7379900596734708416">ธีมมืดสำหรับเว็บไซต์พร้อมให้ใช้งาน</translation>
+<translation id="7384486627147155832">การโปรโมตการแจ้งเตือนเคล็ดลับเปิดอยู่ครึ่งหน้าจอ</translation>
 <translation id="7388615499319468910">เว็บไซต์และผู้ลงโฆษณาจะรู้ได้ว่าโฆษณามีประสิทธิภาพเพียงใด การตั้งค่านี้ปิดอยู่</translation>
 <translation id="7400003506822844357">{FILE_COUNT,plural, =1{อีก 1 ไฟล์ในรายการ}other{อีก # ไฟล์ในรายการ}}</translation>
 <translation id="7400418766976504921">URL</translation>
@@ -1584,6 +1596,7 @@
 <translation id="8090732854597034573">โปรดขอความช่วยเหลือจากผู้ปกครองหากต้องการ</translation>
 <translation id="8101414242770404289">ไม่มีแท็บจาก <ph name="TIME_PERIOD" /></translation>
 <translation id="8103578431304235997">แท็บที่ไม่ระบุตัวตน</translation>
+<translation id="810433609302852">Bottom Sheet การโปรโมตและขั้นตอนการใช้งานฟีเจอร์แจ้งเตือนเคล็ดลับ</translation>
 <translation id="8105893657415066307"><ph name="DESCRIPTION" /> <ph name="SEPARATOR" /> <ph name="FILE_SIZE" /></translation>
 <translation id="8107530384992929318">ปิดตัวเลือกการจัดเรียง</translation>
 <translation id="8110024788458304985">ช่วยปรับปรุงฟีเจอร์และประสิทธิภาพของ Chrome</translation>
@@ -1812,11 +1825,13 @@
 <translation id="9104858485806491627">{INACTIVE_TIME_DAYS,plural, =1{ไม่ได้ใช้งานเป็นเวลาตั้งแต่ 1 วันขึ้นไป}other{ไม่ได้ใช้งานเป็นเวลาตั้งแต่ # วันขึ้นไป}}</translation>
 <translation id="9106148373857059373">ขั้นตอนการบันทึกบุ๊กมาร์กปิดอยู่</translation>
 <translation id="9108808586816295166">DNS ที่ปลอดภัยอาจไม่พร้อมใช้งานในบางครั้ง</translation>
+<translation id="9124978074365039456">เลือกซื้อ แปล และระบุสิ่งที่คุณเห็นโดยใช้กล้องและแกลเลอรีรูปภาพ</translation>
 <translation id="9130135798965366513">หากต้องการดำเนินการต่อ <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> จะแชร์<ph name="FIELDS_STRING" />ของคุณกับเว็บไซต์นี้ ดู<ph name="BEGIN_LINK1" />นโยบายความเป็นส่วนตัว<ph name="END_LINK1" />และ<ph name="BEGIN_LINK2" />ข้อกำหนดในการให้บริการ<ph name="END_LINK2" />ของเว็บไซต์นี้</translation>
 <translation id="9131209053278896908">เว็บไซต์ที่บล็อกจะปรากฏที่นี่</translation>
 <translation id="9133397713400217035">สำรวจแบบออฟไลน์</translation>
 <translation id="9143389653531441385">ลงชื่อสมัครใช้ด้วย <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /></translation>
 <translation id="9148126808321036104">ลงชื่อเข้าใช้อีกครั้ง</translation>
+<translation id="9148564897242852377">สลับการเลือกแท็บ</translation>
 <translation id="9157212632995922070">เลือกบัญชีเพื่อดำเนินการต่อไปยัง <ph name="SITE_ETLD_PLUS_ONE" /></translation>
 <translation id="9158770349521403363">แชร์เนื้อหาเท่านั้น</translation>
 <translation id="9161172953291434881">คุณไว้ใจให้เว็บไซต์นี้เข้าถึงข้อมูลของคุณไหม</translation>
@@ -1825,6 +1840,7 @@
 <translation id="9169507124922466868">ประวัติการนำทางเปิดอยู่ครึ่งเดียว</translation>
 <translation id="9189607089796819144">คุณต้องการดาวน์โหลด "<ph name="FILE_NAME" />" (<ph name="FILE_SIZE" />) ต่อไปไหม</translation>
 <translation id="9190276265094487094">อุปกรณ์ทั้งหมดที่ซิงค์ไว้จะมีประวัติการเข้าชม คุณจึงทำสิ่งที่ดำเนินการอยู่ต่อได้</translation>
+<translation id="9197941237799589838"><ph name="TAB_TITLE" />, แท็บที่ไม่ระบุตัวตนที่เลือกที่ปักหมุด</translation>
 <translation id="9199368092038462496">{NUM_MINS,plural, =1{ตรวจสอบเมื่อ 1 นาทีที่ผ่านมา}other{ตรวจสอบเมื่อ # นาทีที่ผ่านมา}}</translation>
 <translation id="9204836675896933765">เหลืออีก 1 ไฟล์</translation>
 <translation id="9205933215779845960">ไม่พบหน้านั้น โปรดตรวจสอบตัวสะกดหรือลองค้นหาใน <ph name="SEARCH_ENGINE" /></translation>

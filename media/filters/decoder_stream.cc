@@ -107,11 +107,7 @@ DecoderStream<StreamType>::DecoderStream(
       stream_(nullptr),
       cdm_context_(nullptr),
       decoder_produced_a_frame_(false),
-      decoder_selector_(
-          task_runner_,
-          std::move(create_decoders_cb),
-          media_log,
-          base::FeatureList::IsEnabled(kResolutionBasedDecoderPriority)),
+      decoder_selector_(task_runner_, std::move(create_decoders_cb), media_log),
       decoding_eos_(false),
       preparing_output_(false),
       pending_decode_requests_(0),
@@ -812,7 +808,7 @@ void DecoderStream<StreamType>::OnBuffersReady(
         // Save valid buffers to be consumed by the new decoder.
         // |pending_buffers_| is copied to |fallback_buffers_| in
         // OnDecoderSelected().
-        for (auto buffer : buffers) {
+        for (const auto& buffer : buffers) {
           pending_buffers_.push_back(std::move(buffer));
         }
         buffers.clear();
@@ -940,7 +936,7 @@ void DecoderStream<StreamType>::OnBuffersReady(
     ReportEncryptionType(buffers[0]);
   }
 
-  for (auto buffer : buffers) {
+  for (const auto& buffer : buffers) {
     Decode(std::move(buffer));
   }
   buffers.clear();

@@ -959,7 +959,7 @@ IN_PROC_BROWSER_TEST_P(SavedTabGroupInteractiveTest,
                 ->tab_strip_model()
                 ->GetActiveWebContents()
                 ->GetVisibleURL()
-                .host_piece();
+                .host();
           },
           chrome::kChromeUINewTabHost));
 }
@@ -1020,7 +1020,7 @@ IN_PROC_BROWSER_TEST_P(SavedTabGroupInteractiveTest,
                 ->tab_strip_model()
                 ->GetActiveWebContents()
                 ->GetVisibleURL()
-                .host_piece();
+                .host();
           },
           chrome::kChromeUINewTabHost));
 }
@@ -1198,12 +1198,24 @@ IN_PROC_BROWSER_TEST_F(SavedTabGroupEverythingMenuMoreEntryPointsFeature,
       EnsurePresent(STGTabsMenuModel::kTab));
 }
 
-IN_PROC_BROWSER_TEST_F(SavedTabGroupEverythingMenuMoreEntryPointsFeature,
-                       CheckCreateNewTabGroupPresentInAppMenuEverythingMenu) {
+class SavedTabGroupsCreateNewTabGroupAppMenu
+    : public SavedTabGroupInteractiveTestBase {
+ public:
+  SavedTabGroupsCreateNewTabGroupAppMenu() {
+    scoped_feature_list_.InitAndEnableFeature(
+        features::kCreateNewTabGroupAppMenuTopLevel);
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(
+    SavedTabGroupsCreateNewTabGroupAppMenu,
+    CheckCreateNewTabGroupPresentInEverythingMenuFromAppMenu) {
   RunTestSequence(FinishTabstripAnimations(),
                   EnsurePresent(kToolbarAppMenuButtonElementId),
                   PressButton(kToolbarAppMenuButtonElementId),
-                  EnsurePresent(AppMenuModel::kCreateNewTabGroupTopLevel),
                   WaitForShow(AppMenuModel::kTabGroupsMenuItem),
                   SelectMenuItem(AppMenuModel::kTabGroupsMenuItem),
                   EnsurePresent(STGEverythingMenu::kCreateNewTabGroup));
@@ -1237,10 +1249,7 @@ class TabGroupShortcutsInteractiveTest
   TabGroupShortcutsInteractiveTest() = default;
   ~TabGroupShortcutsInteractiveTest() override = default;
 
-  void SetUp() override {
-    scoped_feature_list_.InitWithFeatures({tabs::kTabGroupShortcuts}, {});
-    SavedTabGroupInteractiveTestBase::SetUp();
-  }
+  void SetUp() override { SavedTabGroupInteractiveTestBase::SetUp(); }
 
   StepBuilder WaitForIndexToBecomeActiveTab(int index) {
     return Do([=, this]() {
@@ -1249,9 +1258,6 @@ class TabGroupShortcutsInteractiveTest
       }));
     });
   }
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 IN_PROC_BROWSER_TEST_F(TabGroupShortcutsInteractiveTest,

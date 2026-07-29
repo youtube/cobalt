@@ -9,11 +9,13 @@
 #include "base/hash/hash.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/utf_string_conversions.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_prefs.h"
 #include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
+#include "components/sync/base/features.h"
 #include "components/sync/base/user_selectable_type.h"
 #include "components/sync/service/sync_service.h"
 #include "components/sync/service/sync_user_settings.h"
@@ -24,6 +26,14 @@ namespace {
 
 constexpr std::string_view kSeparator = "|";
 
+// Returns true if `profile` has the same full name and email address as `info`,
+// false otherwise.
+bool AutofillProfileMatchesAccountInfo(const AutofillProfile& profile,
+                                       const AccountInfo& info) {
+  return profile.GetRawInfo(NAME_FULL) == base::UTF8ToUTF16(info.full_name) &&
+         profile.GetRawInfo(EMAIL_ADDRESS) == base::UTF8ToUTF16(info.email);
+}
+
 }  // namespace
 
 AccountNameEmailStore::AccountNameEmailStore(
@@ -32,8 +42,6 @@ AccountNameEmailStore::AccountNameEmailStore(
     syncer::SyncService& sync_service,
     PrefService& pref_service)
     : address_data_manager_(address_data_manager),
-      identity_manager_(identity_manager),
-      sync_service_(sync_service),
       pref_service_(pref_service) {
   identity_manager_observer_.Observe(&identity_manager);
   sync_service_observer_.Observe(&sync_service);
@@ -49,8 +57,12 @@ AccountNameEmailStore::~AccountNameEmailStore() = default;
 
 void AccountNameEmailStore::OnExtendedAccountInfoUpdated(
     const AccountInfo& info) {
+  if (!identity_manager_observer_.GetSource()) {
+    return;
+  }
   const std::optional<CoreAccountInfo>& primary_info =
-      identity_manager_->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin);
+      identity_manager_observer_.GetSource()->GetPrimaryAccountInfo(
+          signin::ConsentLevel::kSignin);
   if (!primary_info.has_value() ||
       (!primary_info->IsEmpty() && info.gaia != primary_info->gaia)) {
     return;
@@ -58,10 +70,13 @@ void AccountNameEmailStore::OnExtendedAccountInfoUpdated(
   MaybeUpdateOrCreateAccountNameEmail();
 }
 
+void AccountNameEmailStore::OnIdentityManagerShutdown(
+    signin::IdentityManager*) {
+  identity_manager_observer_.Reset();
+}
+
 void AccountNameEmailStore::OnSyncShutdown(syncer::SyncService*) {
-  // Unreachable, since the service owning this instance is Shutdown() before
-  // the SyncService.
-  NOTREACHED();
+  sync_service_observer_.Reset();
 }
 
 void AccountNameEmailStore::OnStateChanged(syncer::SyncService* sync_service) {
@@ -77,6 +92,7 @@ void AccountNameEmailStore::OnStateChanged(syncer::SyncService* sync_service) {
   }
   switch (reason.value()) {
     case ProfileUpdateBlockReason::kAutofillSyncToggleDisabled:
+    case ProfileUpdateBlockReason::kSyncDisabled:
       SoftRemoveAccountNameEmail();
       return;
     case ProfileUpdateBlockReason::kUserSignedOut:
@@ -98,18 +114,21 @@ void AccountNameEmailStore::OnStateChanged(syncer::SyncService* sync_service) {
 }
 
 void AccountNameEmailStore::MaybeUpdateOrCreateAccountNameEmail() {
-  if (GetBlockAccountNameEmailUpdateReason().has_value()) {
+  if (!identity_manager_observer_.GetSource() ||
+      GetBlockAccountNameEmailUpdateReason().has_value()) {
     return;
   }
 
   const std::optional<CoreAccountInfo>& core_info =
-      identity_manager_->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin);
+      identity_manager_observer_.GetSource()->GetPrimaryAccountInfo(
+          signin::ConsentLevel::kSignin);
   if (!core_info.has_value()) {
     return;
   }
 
   const std::optional<AccountInfo>& extended_info =
-      identity_manager_->FindExtendedAccountInfo(core_info.value());
+      identity_manager_observer_.GetSource()->FindExtendedAccountInfo(
+          core_info.value());
   if (!extended_info.has_value()) {
     return;
   }
@@ -129,6 +148,10 @@ void AccountNameEmailStore::ApplyChange(const AutofillProfileChange& change) {
           prefs::kAutofillNameAndEmailProfileNotSelectedCounter,
           features::kAutofillNameAndEmailProfileNotSelectedThreshold.Get() + 1);
       return;
+    case AutofillProfileChange::UPDATE:
+      // Although the kAccountNameEmail profile is read-only from the user POV,
+      // it still supports silent updates.
+      return;
     case AutofillProfileChange::ADD:
       return;
     case AutofillProfileChange::HIDE_IN_AUTOFILL:
@@ -136,9 +159,6 @@ void AccountNameEmailStore::ApplyChange(const AutofillProfileChange& change) {
       // soft removed, since `AddressDataManager` already removed it, there is
       // nothing left to do.
       return;
-    case AutofillProfileChange::UPDATE:
-      // kAccountNameEmail profile is read only.
-      NOTREACHED();
   }
 }
 
@@ -186,9 +206,10 @@ void AccountNameEmailStore::UpdateOrCreateAccountNameEmail(
       address_data_manager_->GetProfilesByRecordType(
           AutofillProfile::RecordType::kAccountNameEmail);
   const bool account_name_email_exists = !account_name_email_profiles.empty();
-  if (!hashes_different && account_name_email_exists) {
-    // Hashes are the same and the kAccountNameEmail profile exists.
-    // This function was called as a side effect of the other, unrelated flow.
+  if (account_name_email_exists && AutofillProfileMatchesAccountInfo(
+                                       *account_name_email_profiles[0], info)) {
+    // A valid kAccountNameEmail profile already exists. This function was
+    // called as a side effect of the other, unrelated flow.
     return;
   }
 
@@ -212,13 +233,25 @@ std::string AccountNameEmailStore::HashAccountInfo(
 
 std::optional<AccountNameEmailStore::ProfileUpdateBlockReason>
 AccountNameEmailStore::GetBlockAccountNameEmailUpdateReason() {
-  if (sync_service_->GetTransportState() ==
+  if (!sync_service_observer_.GetSource()) {
+    return ProfileUpdateBlockReason::kSyncDisabled;
+  }
+
+  if (sync_service_observer_.GetSource()->GetTransportState() ==
       syncer::SyncService::TransportState::DISABLED) {
     return ProfileUpdateBlockReason::kUserSignedOut;
   }
 
-  if (!sync_service_->GetUserSettings()->GetSelectedTypes().Has(
-          syncer::UserSelectableType::kAutofill)) {
+  if (!base::FeatureList::IsEnabled(
+          syncer::kReplaceSyncPromosWithSignInPromos) &&
+      !sync_service_observer_.GetSource()->IsSyncFeatureEnabled()) {
+    return ProfileUpdateBlockReason::kSyncDisabled;
+  }
+
+  if (!sync_service_observer_.GetSource()
+           ->GetUserSettings()
+           ->GetSelectedTypes()
+           .Has(syncer::UserSelectableType::kAutofill)) {
     return ProfileUpdateBlockReason::kAutofillSyncToggleDisabled;
   }
 
@@ -226,7 +259,7 @@ AccountNameEmailStore::GetBlockAccountNameEmailUpdateReason() {
     return ProfileUpdateBlockReason::kDataNotLoaded;
   }
 
-  switch (sync_service_->GetDownloadStatusFor(
+  switch (sync_service_observer_.GetSource()->GetDownloadStatusFor(
       syncer::DataType::PRIORITY_PREFERENCES)) {
     case syncer::SyncService::DataTypeDownloadStatus::kWaitingForUpdates:
       return ProfileUpdateBlockReason::kDataNotLoaded;

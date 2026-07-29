@@ -164,7 +164,9 @@ public interface TabObserver {
     /**
      * Called when the WebContents of a {@link Tab} is about to be swapped.
      * @param tab The notifying {@link Tab}
+     * @deprecated This method will be removed soon as swapping web contents will no longer be possible.
      */
+    @Deprecated
     void webContentsWillSwap(Tab tab);
 
     /**
@@ -173,7 +175,9 @@ public interface TabObserver {
      * @param didStartLoad Whether WebContentsObserver::DidStartProvisionalLoadForFrame() has
      *     already been called.
      * @param didFinishLoad Whether WebContentsObserver::DidFinishLoad() has already been called.
+     * @deprecated This method will be removed soon as swapping web contents will no longer be possible.
      */
+    @Deprecated
     void onWebContentsSwapped(Tab tab, boolean didStartLoad, boolean didFinishLoad);
 
     /**
@@ -383,11 +387,23 @@ public interface TabObserver {
      */
     void onContentViewScrollingStateChanged(boolean scrolling);
 
-    /** Called when the gesture begin event is received. */
+    /**
+     * Called when the gesture begin event is received. Seems to correspond to the second through
+     * n-th finger on the screen.
+     */
     void onGestureBegin();
 
-    /** Called when the gesture end event is received. */
+    /**
+     * Called when the gesture end event is received. Seems to correspond to the second through n-th
+     * finger on the screen.
+     */
     void onGestureEnd();
+
+    /** Called at the very start of a touch interaction, when the first finger/click starts. */
+    void onTouchDown();
+
+    /** Called at the very end of a touch interaction, when the last finger leaves the screen. */
+    void onTouchUp();
 
     /** Back press refactor related. Called when navigation state is invalidated. */
     void onNavigationStateChanged();

@@ -728,18 +728,6 @@
       ]
     },
     {
-      "id": 133,
-      "description": "CHROMIUM_copy_texture with 1MB copy per flush to avoid unwanted cache growth on Adreno",
-      "cr_bugs": [542478],
-      "os": {
-        "type": "android"
-      },
-      "gl_renderer": "Adreno.*",
-      "features": [
-        "max_copy_texture_chromium_size_1048576"
-      ]
-    },
-    {
       "id": 135,
       "description": "Screen flickers on 2009 iMacs",
       "cr_bugs": [543324],
@@ -811,19 +799,6 @@
       "gl_renderer": "Adreno \\(TM\\) 4.*",
       "comment": "Originally on 418.",
       "disabled_extensions": ["GL_EXT_sRGB"]
-    },
-    {
-      "id": 145,
-      "cr_bugs": [585250],
-      "description": "EGLImage ref counting across EGLContext/threads is broken",
-      "os": {
-        "type": "android"
-      },
-      "gl_vendor": "Qualcomm.*",
-      "gl_renderer": "Adreno \\(TM\\) [45].*",
-      "features": [
-        "broken_egl_image_ref_counting"
-      ]
     },
     {
       "id": 147,
@@ -1420,19 +1395,6 @@
       "gl_extensions": ".*GL_VIV_shader_binary.*",
       "features": [
         "disable_program_cache"
-      ]
-    },
-    {
-      "id": 252,
-      "description": "Core profile doesn't work on NVidia GeForce GT 120",
-      "cr_bugs": [657817],
-      "os": {
-        "type": "macosx"
-      },
-      "vendor_id": "0x10de",
-      "device_id": ["0x0640"],
-      "features": [
-        "disable_es3_gl_context"
       ]
     },
     {

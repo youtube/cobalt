@@ -40,7 +40,7 @@ using WebUIDomains = std::vector<std::string>;
 // chrome://foo.bar/. Domains are returned in the same order they appear in the
 // host.
 WebUIDomains GetWebUIDomains(const GURL& url) {
-  return base::SplitString(url.host_piece(), ".", base::TRIM_WHITESPACE,
+  return base::SplitString(url.host(), ".", base::TRIM_WHITESPACE,
                            base::SPLIT_WANT_ALL);
 }
 
@@ -50,7 +50,8 @@ WebUIDomains GetWebUIDomains(const GURL& url) {
 // to share a process whilst maintaining independent SiteURLs to allow for
 // WebUIType differentiation.
 bool IsWebUIAndUsesTLDForProcessLockURL(const GURL& url) {
-  if (!base::Contains(URLDataManagerBackend::GetWebUISchemes(), url.scheme())) {
+  if (!base::Contains(URLDataManagerBackend::GetWebUISchemes(),
+                      url.GetScheme())) {
     return false;
   }
 
@@ -125,9 +126,8 @@ bool IsOriginIsolatedSandboxedFrame(const UrlInfo& url_info) {
 }
 
 // Computes whether to disable v8-optimization for the
-// (browsing_instance_id, process_lock_origin) pair. Caches the result in
-// ChildProcessSecurityPolicyImpl.
-bool CheckAndCacheShouldDisableV8Optimization(
+// (browsing_instance_id, process_lock_origin) pair.
+bool CheckShouldDisableV8Optimization(
     BrowserContext* browser_context,
     const BrowsingInstanceId& browsing_instance_id,
     const url::Origin& process_lock_origin) {
@@ -139,14 +139,8 @@ bool CheckAndCacheShouldDisableV8Optimization(
     return are_v8_optimizations_disabled_result.value();
   }
 
-  bool are_v8_optimizations_disabled =
-      GetContentClient()->browser()->AreV8OptimizationsDisabledForSite(
-          browser_context, process_lock_origin.GetURL());
-  ChildProcessSecurityPolicyImpl::GetInstance()
-      ->AddV8OptimizationDisabledStateForOrigin(browsing_instance_id,
-                                                process_lock_origin,
-                                                are_v8_optimizations_disabled);
-  return are_v8_optimizations_disabled;
+  return GetContentClient()->browser()->AreV8OptimizationsDisabledForSite(
+      browser_context, process_lock_origin.GetURL());
 }
 
 }  // namespace
@@ -194,7 +188,7 @@ SiteInfo SiteInfo::CreateForDefaultSiteInstance(
       isolation_context.browser_or_resource_context().ToBrowserContext();
   bool is_jit_disabled = GetContentClient()->browser()->IsJitDisabledForSite(
       browser_context, GURL());
-  bool are_v8_optimizations_disabled = CheckAndCacheShouldDisableV8Optimization(
+  bool are_v8_optimizations_disabled = CheckShouldDisableV8Optimization(
       browser_context, isolation_context.browsing_instance_id(), url::Origin());
 
   WebExposedIsolationLevel web_exposed_isolation_level =
@@ -310,7 +304,7 @@ SiteInfo SiteInfo::Create(const IsolationContext& isolation_context,
   is_jitless =
       is_jitless || GetContentClient()->browser()->IsJitDisabledForSite(
                         browser_context, agent_cluster_url_or_default);
-  are_v8_optimizations_disabled = CheckAndCacheShouldDisableV8Optimization(
+  are_v8_optimizations_disabled = CheckShouldDisableV8Optimization(
       browser_context, isolation_context.browsing_instance_id(),
       url::Origin::Create(agent_cluster_url_or_default));
 
@@ -700,7 +694,7 @@ bool SiteInfo::ShouldLockProcessToSite(
   // Most WebUI processes should be locked on all platforms.  The only exception
   // is NTP, handled via the separate callout to the embedder.
   const auto& webui_schemes = URLDataManagerBackend::GetWebUISchemes();
-  if (base::Contains(webui_schemes, site_url_.scheme())) {
+  if (base::Contains(webui_schemes, site_url_.GetScheme())) {
     return GetContentClient()->browser()->DoesWebUIUrlRequireProcessLock(
         site_url_);
   }
@@ -801,7 +795,7 @@ AgentClusterKey SiteInfo::GetAgentClusterKeyForURL(
       !effective_url.has_value()) {
     WebUIDomains host_domains = GetWebUIDomains(url_info.url);
     return AgentClusterKey::CreateSiteKeyed(
-        GURL(url_info.url.scheme() + url::kStandardSchemeSeparator +
+        GURL(url_info.url.GetScheme() + url::kStandardSchemeSeparator +
              host_domains.back()),
         AgentClusterKey::OACStatus::kSiteKeyedByDefault);
   }
@@ -1030,8 +1024,8 @@ AgentClusterKey SiteInfo::GetAgentClusterKeyForURL(
   }
 
   // All other URLs use a site-keyed agent cluster based on their scheme.
-  DCHECK(!url.scheme().empty());
-  GURL site_url = GURL(url.scheme() + ":");
+  DCHECK(!url.GetScheme().empty());
+  GURL site_url = GURL(url.GetScheme() + ":");
   return AgentClusterKey::CreateSiteKeyed(site_url, oac_status);
 }
 

@@ -22,6 +22,7 @@
 #include "components/prefs/pref_service.h"
 #include "components/variations/entropy_provider.h"
 #include "components/variations/pref_names.h"
+#include "components/variations/variations_features.h"
 #include "third_party/zlib/google/compression_utils.h"
 
 namespace variations {
@@ -338,11 +339,6 @@ void SeedReaderWriter::SetFetchTime(base::Time fetch_time) {
   local_state_->SetTime(fields_prefs_->client_fetch_time, fetch_time);
 }
 
-bool SeedReaderWriter::HasPendingWrite() const {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  return seed_writer_ && seed_writer_->HasPendingWrite();
-}
-
 void SeedReaderWriter::ClearPermanentConsistencyCountryAndVersion() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (ShouldUseSeedFile()) {
@@ -432,6 +428,8 @@ bool SeedReaderWriter::IsIdenticalToSafeSeedSentinel() {
 
 void SeedReaderWriter::AllowToPurgeSeedDataFromMemory() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  CHECK(!seed_purgeable_from_memory_)
+      << "AllowToPurgeSeedDataFromMemory() should only be called once.";
   seed_purgeable_from_memory_ = true;
   if (ShouldClearSeedDataFromMemory()) {
     stored_seed_data_ = std::nullopt;
@@ -783,6 +781,11 @@ void SeedReaderWriter::GetSeedData(GetSeedDataCallback done_callback) {
       FROM_HERE, base::BindOnce(&ReadSeedFromFile, seed_writer_->path()),
       base::BindOnce(read_file_cb, std::move(done_callback),
                      std::move(signature)));
+}
+
+bool SeedReaderWriter::HasPendingWrite() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return seed_writer_ && seed_writer_->HasPendingWrite();
 }
 
 // TODO(crbug.com/433877973): Execute in background thread if sync is not

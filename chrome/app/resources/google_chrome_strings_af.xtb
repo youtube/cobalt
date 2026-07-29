@@ -44,6 +44,7 @@ Sommige kenmerke kan dalk nie beskikbaar wees nie en veranderings aan voorkeure 
 <translation id="1434626383986940139">Chrome Kanarie-programme</translation>
 <translation id="1439793550875056299">Speld Chrome vas</translation>
 <translation id="146866447420868597">Meld by Chrome aan?</translation>
+<translation id="1476347941828409626">&amp;Bestuur Chrome-profiele</translation>
 <translation id="1492280395845991349">Herbegin om Chrome-opdatering te voltooi</translation>
 <translation id="1497802159252041924">Installeerfout: <ph name="INSTALL_ERROR" /></translation>
 <translation id="1507198376417198979">Pasmaak jou nuwe Chrome-profiel</translation>
@@ -252,6 +253,9 @@ Sommige kenmerke kan dalk nie beskikbaar wees nie en veranderings aan voorkeure 
 <translation id="3810973564298564668">Bestuur</translation>
 <translation id="383928141529488001">Google Chrome het Bluetooth-toegang nodig om 
  Bluetooth-toestelle te verken. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
+<translation id="3846683726093018685">**Som op:** Beskryf die primêre onderwerp en doel van die inhoud in die skermskoot in ’n enkele sin van onder 30 woorde.
+
+          **Stel vrae voor:** Genereer ’n koeëlpuntlys met 3-5 besinningswaardige vrae wat ’n gebruiker kan vra om die skermskoot beter te verstaan. Hierdie vrae moet ten minste een vraag wat spesifiek oor ’n visuele objek, sy ontwerp of sy plasing gaan, insluit.</translation>
 <translation id="386202838227397562">Maak asseblief alle Google Chrome-vensters toe en probeer weer.</translation>
 <translation id="3873044882194371212">Maak skakel in 'n incognitovenster in Chrome oop</translation>
 <translation id="3885770153807205175">Taalkieser</translation>
@@ -515,6 +519,7 @@ Google Chrome kan nie jou instellings terugstel nie.</translation>
 <translation id="6885412569789873916">Chrome Beta-programme</translation>
 <translation id="6893363893008038481">Verwyder rekening uit Chrome</translation>
 <translation id="6896758677409633944">Kopieer</translation>
+<translation id="6927941417289800361">Terwyl jy aangemeld is, kan jy jou wagwoorde en meer van jou Google-rekening in Chrome gebruik. Jy kan dit enige tyd in instellings verander.</translation>
 <translation id="6930294499209825">Hou jou Google-sagteware bygewerk. As hierdie diens gedeaktiveer of gestop word, sal jou Google-sagteware nie bygewerk gehou word nie, wat beteken dat sekuriteitskwesbaarhede kan opduik wat nie reggestel kan word nie, en dat kenmerke dalk nie sal werk nie. Hierdie diens deïnstalleer vanself wanneer geen Google-sagteware dit gebruik nie.</translation>
 <translation id="6933858244219479645">ChromeOS</translation>
 <translation id="6938166777909186039">Jy het Windows 10 of nuwer nodig om in die toekoms Google Chrome-opdaterings te kry. Hierdie rekenaar gebruik Windows 8.1.</translation>
@@ -527,6 +532,7 @@ Google Chrome kan nie jou instellings terugstel nie.</translation>
 <translation id="7024536598735240744">Uitpakfout: <ph name="UNPACK_ERROR" />.</translation>
 <translation id="7025789849649390912">Installering is gestop.</translation>
 <translation id="7025800014283535195">Jy kan hier tussen Chrome-profiele wissel</translation>
+<translation id="7047386856539490735">Is hierdie resultate nuttig?</translation>
 <translation id="7051685429025310665">Jy het nie onlangs die webwerf besoek nie. Chrome het <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, <ph name="PERMISSION_3" /> verwyder.</translation>
 <translation id="7059914902409643750">Maak Chrome jou eie</translation>
 <translation id="7060643578009939353">Soek hierdie video met Google Lens</translation>
@@ -597,10 +603,10 @@ Google Chrome kan nie jou instellings terugstel nie.</translation>
 <translation id="7777080907402804672">As 'n prent nie 'n nuttige beskrywing het nie, sal Chrome probeer om een vir jou te verskaf. Prente word na Google toe gestuur om beskrywings te skep. Jy kan dit enige tyd in instellings afskakel.</translation>
 <translation id="778331955594035129">Chrome het liggingtoestemming vir hierdie werf nodig</translation>
 <translation id="7787950393032327779">Dit lyk of die profiel tans deur 'n ander Google Chrome-proses (<ph name="PROCESS_ID" />) op 'n ander rekenaar (<ph name="HOST_NAME" />) gebruik word. Chrome het die profiel gesluit sodat dit nie gekorrupteer word nie. As jy seker is geen ander prosesse gebruik hierdie profiel nie, kan jy die profiel ontsluit en Chrome herbegin.</translation>
+<translation id="7792336732117553384">&amp;Bestuur Chrome-profiele</translation>
 <translation id="7801699035218095297">Google Chrome probeer tans om wagwoorde te kopieer. Tik jou Windows-wagwoord in om dit toe te laat.</translation>
 <translation id="7804364787702057554">Jou rekening in Chrome</translation>
 <translation id="7808348361785373670">Verwyder uit Chrome …</translation>
-<translation id="7825851276765848807">Installering het weens 'n ongespesifiseerde fout misluk. Laai Google Chrome asseblief weer af.</translation>
 <translation id="7827099906024714326">Chrome moet verifieer dat dit jy is voordat sommige data in jou Google-rekening gestoor kan word en op al jou toestelle gebruik kan word. As jy nou afmeld, sal hierdie data uitgevee word.</translation>
 <translation id="7845233973568007926">Dankie dat jy geïnstalleer het. Jy moet jou rekenaar herbegin voordat jy <ph name="BUNDLE_NAME" /> gebruik.</translation>
 <translation id="7849037457735762883">Gaan voort waar jy opgehou het: Chrome kan elke keer as jy herbegin, jou oortjies terugstel. Om dit aan te skakel, gaan na</translation>
@@ -679,7 +685,6 @@ Google Chrome kan nie jou instellings terugstel nie.</translation>
 <translation id="873133009373065397">Google Chrome kan nie die verstekblaaier bepaal of stel nie</translation>
 <translation id="8747073452963259673">onderste linkerhoek van soekgebied: links <ph name="LEFT" />%, onder <ph name="BOTTOM" />%</translation>
 <translation id="8748735421235723888">Chrome maak geheue uit onaktiewe oortjies beskikbaar. Dit gee aktiewe oortjies en ander apps meer rekenaarhulpbronne en hou Chrome vinnig. Jou onaktiewe oortjies word outomaties weer aktief wanneer jy na hulle toe teruggaan. <ph name="BEGIN_LINK" />Kry meer inligting oor Geheuebespaarder<ph name="END_LINK" /></translation>
-<translation id="8753189155654018347">Verwyder hierdie appsdata uit Chrome</translation>
 <translation id="8765470054473112089">Wanneer jy iets in die adresbalk of soekkassie tik, stuur Chrome wat jy tik na jou versteksoekenjin toe om beter voorstelle te kry. Dit is af in Incognito.</translation>
 <translation id="8781673607513845160">Jy moet vir Chrome toegang in <ph name="BEGIN_LINK" />stelselinstellings<ph name="END_LINK" /> gee om jou kamera te gebruik</translation>
 <translation id="878572486461146056">Installeerfout: Jou netwerkadmin het ’n groepbeleid toegepas wat installasie verhinder: <ph name="INSTALL_ERROR" /></translation>
@@ -695,6 +700,7 @@ Google Chrome kan nie jou instellings terugstel nie.</translation>
 <translation id="8883862939660515976">Vra Google Lens oor hierdie prent</translation>
 <translation id="8914504000324227558">Herbegin Chrome</translation>
 <translation id="8922193594870374009">Meld op albei toestelle by Chrome aan om 'n nommer van <ph name="ORIGIN" /> af na jou Android-foon te stuur.</translation>
+<translation id="8922998289262614701">Verwyder hierdie app se data uit Chrome</translation>
 <translation id="8948460679427074738">Hierdie uitbreiding het nie privaatheidpraktyke gepubliseer nie, soos hoe dit data insamel en gebruik. Chrome beveel aan dat jy dit verwyder.</translation>
 <translation id="8958307504142971576">Jy het nou meer kenmerke beskikbaar in Chrome</translation>
 <translation id="8991530961471831170">Maak Gemini in Chrome oop</translation>

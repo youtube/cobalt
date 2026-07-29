@@ -136,6 +136,11 @@ void ChromeBrowserFieldTrials::RegisterFeatureOverrides(
   feature_overrides.EnableFeature(
       blink::features::kAndroidDesktopWebPrefsLargeDisplays);
 
+  // Enables the caret browsing a11y feature - can use arrow keys to navigate
+  // through web pages.
+  // TODO(crbug.com/369139090): Remove when rollout is complete
+  feature_overrides.EnableFeature(features::kAndroidCaretBrowsing);
+
   // If enabled, render processes associated only with tabs in unfocused windows
   // will be downgraded to "vis" priority, rather than remaining at "fg". This
   // will allow tabs in unfocused windows to be prioritized for OOM kill in
@@ -222,6 +227,16 @@ void ChromeBrowserFieldTrials::RegisterFeatureOverrides(
   // TODO(crbug.com/427242080): Remove when tablet rollout is complete.
   feature_overrides.EnableFeature(
       chrome::android::kAndroidPinnedTabsTabletTabStrip);
+  // TODO(crbug.com/433879656): Remove when this feature on LFF device is
+  // stable.
+  feature_overrides.EnableFeature(features::kFluidResize);
+
+  // Three flags are required for the bookmarks bar feature.
+  // TODO(crbug.com/430059235): Remove once feature is launched to 100% on all
+  // form factors.
+  feature_overrides.EnableFeature(chrome::android::kAndroidBookmarkBar);
+  feature_overrides.EnableFeature(chrome::android::kAndroidAppearanceSettings);
+  feature_overrides.EnableFeature(chrome::android::kTopControlsRefactor);
 #endif  // BUILDFLAG(IS_DESKTOP_ANDROID)
   // Desktop-first features which are past incubation should either end up here,
   // or to a finch trial that enables it for all form factors.

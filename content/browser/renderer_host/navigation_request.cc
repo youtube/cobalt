@@ -4930,10 +4930,17 @@ void NavigationRequest::SelectFrameHostForOnResponseStarted(
         IsLoadDataWithBaseURL()
             ? url::Origin::Create(common_params_->base_url_for_data_url)
             : url::Origin::Create(common_params_->url);
-    ChildProcessSecurityPolicyImpl::GetInstance()
-        ->AddDefaultIsolatedOriginIfNeeded(
-            isolation_context, origin,
-            false /* is_global_walk_or_frame_removal */);
+    auto* policy = ChildProcessSecurityPolicyImpl::GetInstance();
+    policy->AddDefaultIsolatedOriginIfNeeded(
+        isolation_context, origin, false /* is_global_walk_or_frame_removal */);
+
+    url::Origin process_lock_origin =
+        url::Origin::Create(instance->GetSiteInfo().GetProcessLockURL());
+    // Cache the computed v8 optimization state so that all instances of an
+    // origin in a BrowsingInstance are assigned to the same process.
+    policy->AddV8OptimizationDisabledStateForOriginIfNotCached(
+        isolation_context.browsing_instance_id(), process_lock_origin,
+        instance->GetProcess()->AreV8OptimizationsDisabled());
 
     // Replace the SiteInstance of the previously committed entry if it's for a
     // url that doesn't require a site assignment, if this new commit will be
@@ -5003,9 +5010,8 @@ void NavigationRequest::SelectFrameHostForOnResponseStarted(
   // TODO(crbug.com/399783247): Remove
   if (base::FeatureList::IsEnabled(
           features::kHoldbackDebugReasonStringRemoval)) {
-    SCOPED_CRASH_KEY_STRING256(
-        "Bug1454273", "base_host_for_data_url",
-        common_params_->base_url_for_data_url.host_piece());
+    SCOPED_CRASH_KEY_STRING256("Bug1454273", "base_host_for_data_url",
+                               common_params_->base_url_for_data_url.host());
     SCOPED_CRASH_KEY_STRING1024("Bug1454273", "rfh_selected_reason",
                                 rfh_selected_reason);
   }
@@ -7371,8 +7377,8 @@ NavigationRequest::CheckCredentialedSubresource() const {
   DCHECK(parent);
   const GURL& parent_url = parent->GetLastCommittedURL();
   if (url::IsSameOriginWith(parent_url, common_params_->url) &&
-      parent_url.username() == common_params_->url.username() &&
-      parent_url.password() == common_params_->url.password()) {
+      parent_url.GetUsername() == common_params_->url.GetUsername() &&
+      parent_url.GetPassword() == common_params_->url.GetPassword()) {
     return CredentialedSubresourceCheckResult::ALLOW_REQUEST;
   }
 
@@ -7465,7 +7471,8 @@ void NavigationRequest::SetupCSPEmbeddedEnforcement() {
     // 'csp' attribute.
     const GURL& url = GetURL();
     frame_csp_attribute->self_origin = network::mojom::CSPSource::New(
-        url.scheme(), url.host(), url.EffectiveIntPort(), "", false, false);
+        url.GetScheme(), url.GetHost(), url.EffectiveIntPort(), "", false,
+        false);
   }
 
   const network::mojom::ContentSecurityPolicy* parent_required_csp =
@@ -8515,7 +8522,14 @@ void NavigationRequest::UpdatePrivateNetworkRequestPolicy() {
       ContentBrowserClient::PrivateNetworkRequestPolicyOverride::
           kBlockInsteadOfWarn) {
     private_network_request_policy_ =
-        OverrideBlockWithWarn(private_network_request_policy_);
+        OverrideToBlockInsteadOfWarn(private_network_request_policy_);
+  }
+
+  if (policy_override ==
+      ContentBrowserClient::PrivateNetworkRequestPolicyOverride::
+          kWarnInsteadOfBlock) {
+    private_network_request_policy_ =
+        OverrideToWarnInsteadOfBlock(private_network_request_policy_);
   }
 }
 

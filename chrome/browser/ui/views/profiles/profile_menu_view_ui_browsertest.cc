@@ -74,6 +74,7 @@ enum class WithLocalData {
   kNoLocalData,
   kSingleLocalData,
   kMultipleLocalData,
+  kWithBookmarksLocalData,
 };
 
 struct ProfileMenuViewPixelTestParam {
@@ -260,6 +261,8 @@ const ProfileMenuViewPixelTestParam kPixelTestParams[] = {
         .pixel_test_param = {.test_suffix = "BatchUploadPromoSingleLocalData"},
         .signin_status = SigninStatusPixelTestParam::kSignedInNoSync,
         .with_local_data = WithLocalData::kSingleLocalData,
+        .extra_features_and_params =
+            {{switches::kSigninWindows10DepreciationStateBypassForTesting, {}}},
     },
     {
         .pixel_test_param = {.test_suffix =
@@ -267,6 +270,30 @@ const ProfileMenuViewPixelTestParam kPixelTestParams[] = {
                              .use_dark_theme = true},
         .signin_status = SigninStatusPixelTestParam::kSignedInNoSync,
         .with_local_data = WithLocalData::kMultipleLocalData,
+        .extra_features_and_params =
+            {{switches::kSigninWindows10DepreciationStateBypassForTesting, {}}},
+    },
+    {
+        .pixel_test_param = {.test_suffix = "BatchUploadPrimaryPromo"},
+        .signin_status = SigninStatusPixelTestParam::kSignedInWithHistorySync,
+        .with_local_data = WithLocalData::kMultipleLocalData,
+        .extra_features_and_params =
+            {{switches::kSigninWindows10DepreciationStateBypassForTesting, {}}},
+    },
+    {
+        .pixel_test_param = {.test_suffix = "BatchUploadBookmarksPrimaryPromo"},
+        .signin_status = SigninStatusPixelTestParam::kSignedInNoSync,
+        .with_local_data = WithLocalData::kWithBookmarksLocalData,
+        .extra_features_and_params =
+            {{switches::kSigninWindows10DepreciationStateBypassForTesting, {}}},
+    },
+    {
+        .pixel_test_param =
+            {.test_suffix = "BatchUploadWindows10DepreciationPrimaryPromo"},
+        .signin_status = SigninStatusPixelTestParam::kSignedInNoSync,
+        .with_local_data = WithLocalData::kMultipleLocalData,
+        .extra_features_and_params =
+            {{switches::kSigninWindows10DepreciationStateForTesting, {}}},
     },
     {
         .pixel_test_param = {.test_suffix = "AvatarSyncPromo"},
@@ -602,6 +629,7 @@ class ProfileMenuViewPixelTest
     }
 
     size_t local_data_count = 0;
+    syncer::DataType data_type = syncer::PASSWORDS;
     switch (GetParam().with_local_data) {
       case WithLocalData::kNoLocalData:
         break;
@@ -611,10 +639,14 @@ class ProfileMenuViewPixelTest
       case WithLocalData::kMultipleLocalData:
         local_data_count = 5;
         break;
+      case WithLocalData::kWithBookmarksLocalData:
+        local_data_count = 5;
+        data_type = syncer::BOOKMARKS;
+        break;
     }
     if (local_data_count != 0) {
-      batch_upload_test_helper_.SetReturnDescriptions(
-          syncer::DataType::PASSWORDS, local_data_count);
+      batch_upload_test_helper_.SetReturnDescriptions(data_type,
+                                                      local_data_count);
     }
   }
 

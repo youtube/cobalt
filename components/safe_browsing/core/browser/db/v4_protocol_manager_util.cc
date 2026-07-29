@@ -318,7 +318,7 @@ void V4ProtocolManagerUtil::UrlToFullHashes(
 
   std::vector<std::string> hosts;
   if (url.HostIsIPAddress()) {
-    hosts.push_back(url.host());
+    hosts.push_back(url.GetHost());
   } else {
     GenerateHostVariantsToCheck(canon_host, &hosts);
   }
@@ -468,9 +468,8 @@ void V4ProtocolManagerUtil::CanonicalizeUrl(const GURL& url,
   std::string url_unescaped_with_can_hostpath;
   url::StdStringCanonOutput output(&url_unescaped_with_can_hostpath);
   url::Parsed temp_parsed;
-  url::ReplaceComponents(url_unescaped_str.data(), url_unescaped_str.length(),
-                         parsed, hp_replacements, nullptr, &output,
-                         &temp_parsed);
+  url::ReplaceComponents(url_unescaped_str_view, parsed, hp_replacements,
+                         nullptr, &output, &temp_parsed);
   output.Complete();
 
   // 6. Step needed to revert escaping done in url::ReplaceComponents.

@@ -30,8 +30,6 @@
 namespace sandbox {
 namespace {
 
-using ScopedUnicodeString = std::unique_ptr<UNICODE_STRING, NtAllocDeleter>;
-
 TEST(SandboxNtUtil, IsSameProcessPseudoHandle) {
   HANDLE current_process_pseudo = GetCurrentProcess();
   EXPECT_TRUE(IsSameProcess(current_process_pseudo));
@@ -247,42 +245,6 @@ TEST(SandboxNtUtil, ValidParameter) {
   EXPECT_TRUE(verify_buffer());
 }
 
-TEST(SandboxNtUtil, CopyNameAndAttributes) {
-  OBJECT_ATTRIBUTES object_attributes;
-  InitializeObjectAttributes(&object_attributes, nullptr, 0, nullptr, nullptr);
-  std::unique_ptr<wchar_t, NtAllocDeleter> name;
-  size_t name_len;
-  uint32_t attributes;
-  EXPECT_EQ(STATUS_UNSUCCESSFUL,
-            sandbox::CopyNameAndAttributes(&object_attributes, &name, &name_len,
-                                           &attributes));
-  UNICODE_STRING object_name = {};
-  InitializeObjectAttributes(&object_attributes, &object_name, 0,
-                             reinterpret_cast<HANDLE>(0x88), nullptr);
-  EXPECT_EQ(STATUS_UNSUCCESSFUL,
-            sandbox::CopyNameAndAttributes(&object_attributes, &name, &name_len,
-                                           &attributes));
-  wchar_t name_buffer[] = {L'A', L'B', L'C', L'D'};
-  object_name.Length = static_cast<USHORT>(sizeof(name_buffer));
-  object_name.MaximumLength = object_name.Length;
-  object_name.Buffer = name_buffer;
-
-  InitializeObjectAttributes(&object_attributes, &object_name, 0,
-                             reinterpret_cast<HANDLE>(0x88), nullptr);
-  EXPECT_EQ(STATUS_UNSUCCESSFUL,
-            sandbox::CopyNameAndAttributes(&object_attributes, &name, &name_len,
-                                           &attributes));
-  InitializeObjectAttributes(&object_attributes, &object_name, 0x12345678,
-                             nullptr, nullptr);
-  ASSERT_EQ(STATUS_SUCCESS,
-            sandbox::CopyNameAndAttributes(&object_attributes, &name, &name_len,
-                                           &attributes));
-  EXPECT_EQ(object_attributes.Attributes, attributes);
-  EXPECT_EQ(std::size(name_buffer), name_len);
-  EXPECT_EQ(0, wcsncmp(name.get(), name_buffer, std::size(name_buffer)));
-  EXPECT_EQ(L'\0', name.get()[name_len]);
-}
-
 TEST(SandboxNtUtil, GetNtExports) {
   const NtExports* exports = GetNtExports();
   ASSERT_TRUE(exports);
@@ -294,45 +256,30 @@ TEST(SandboxNtUtil, GetNtExports) {
 
 TEST(SandboxNtUtil, ExtractModuleName) {
   {
-    UNICODE_STRING module_path = {};
-    ::RtlInitUnicodeString(&module_path, L"no-path-sep");
-    ScopedUnicodeString result(ExtractModuleName(&module_path));
-    EXPECT_TRUE(result);
-    EXPECT_EQ(result->Length, module_path.Length);
-    EXPECT_EQ(std::wstring(module_path.Buffer), std::wstring(result->Buffer));
+    std::wstring_view module_path = L"no-path-sep";
+    std::wstring_view result = ExtractModuleName(module_path);
+    EXPECT_FALSE(result.empty());
+    EXPECT_EQ(module_path, result);
   }
   {
-    UNICODE_STRING module_path = {};
-    ::RtlInitUnicodeString(&module_path, L"c:\\has a\\path\\module.dll");
-    ScopedUnicodeString result(ExtractModuleName(&module_path));
-
-    EXPECT_TRUE(result);
-    EXPECT_EQ(result->Length, 10 * sizeof(wchar_t));
-    EXPECT_EQ(std::wstring(L"module.dll"), std::wstring(result->Buffer));
+    std::wstring_view result =
+        ExtractModuleName(L"c:\\has a\\path\\module.dll");
+    EXPECT_FALSE(result.empty());
+    EXPECT_EQ(L"module.dll", result);
   }
   {
-    UNICODE_STRING module_path = {};
-    ::RtlInitUnicodeString(&module_path, L"c:\\only a\\path\\");
-    ScopedUnicodeString result(ExtractModuleName(&module_path));
-
-    EXPECT_FALSE(result);
+    std::wstring_view result = ExtractModuleName(L"c:\\only a\\path\\");
+    EXPECT_TRUE(result.empty());
   }
   {
-    UNICODE_STRING module_path = {};
-    ::RtlInitUnicodeString(&module_path, L"A");
-    ScopedUnicodeString result(ExtractModuleName(&module_path));
-
-    EXPECT_TRUE(result);
-    EXPECT_EQ(result->Length, module_path.Length);
-    EXPECT_EQ(std::wstring(module_path.Buffer), std::wstring(result->Buffer));
+    std::wstring_view module_path = L"A";
+    std::wstring_view result = ExtractModuleName(module_path);
+    EXPECT_FALSE(result.empty());
+    EXPECT_EQ(module_path, result);
   }
   {
-    UNICODE_STRING module_path = {};
-    ::RtlInitUnicodeString(&module_path, L"");
-    ScopedUnicodeString result(ExtractModuleName(&module_path));
-
-    EXPECT_TRUE(result);
-    EXPECT_EQ(result->Length, 0);
+    std::wstring_view result = ExtractModuleName(L"");
+    EXPECT_TRUE(result.empty());
   }
 }
 

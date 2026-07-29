@@ -25,6 +25,7 @@
 #import "components/omnibox/composebox/ios/composebox_query_controller_ios.h"
 #import "components/search_engines/template_url_service.h"
 #import "components/search_engines/util.h"
+#import "ios/chrome/browser/aim/prototype/coordinator/aim_prototype_url_loader.h"
 #import "ios/chrome/browser/aim/prototype/public/features.h"
 #import "ios/chrome/browser/aim/prototype/ui/aim_input_item.h"
 #import "ios/chrome/browser/favicon/model/favicon_loader.h"
@@ -32,7 +33,6 @@
 #import "ios/chrome/browser/shared/model/url/url_util.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/snapshots/model/snapshot_tab_helper.h"
-#import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_params.h"
 #import "ios/chrome/common/NSString+Chromium.h"
 #import "ios/chrome/common/ui/favicon/favicon_attributes.h"
@@ -44,11 +44,6 @@
 #import "url/gurl.h"
 
 namespace {
-
-/// Minimum number of whitespace to auto trigger AIM.
-constexpr size_t kMinWhitespaceTriggerAIM = 1;
-/// Minimum number of characters to auto trigger AIM.
-constexpr size_t kMinCharTriggerAIM = 10;
 
 // Reads data from a file URL. Runs on a background thread.
 NSData* ReadDataFromURL(GURL url) {
@@ -116,21 +111,11 @@ CreateInputDataFromAnnotatedPageContent(
   return input_data;
 }
 
-/// Returns the number of whitespace in `string`.
-size_t WhitespaceCount(const std::u16string& string) {
-  return std::count_if(
-      string.begin(), string.end(),
-      [](unsigned char c) { return std::isspace(c); }  // The condition
-  );
-}
-
 }  // namespace
 
 @implementation AIMPrototypeMediator {
   // The ordered list of items for display.
   NSMutableArray<AIMInputItem*>* _items;
-  // The URL loading browser agent.
-  raw_ptr<UrlLoadingBrowserAgent> _urlLoadingBrowserAgent;
   // The C++ controller for this feature.
   std::unique_ptr<ComposeboxQueryControllerIOS> _composeboxQueryController;
   // The observer bridge for file upload status.
@@ -145,17 +130,14 @@ size_t WhitespaceCount(const std::u16string& string) {
   raw_ptr<FaviconLoader> _faviconLoader;
 }
 
-- (instancetype)initWithUrlLoadingBrowserAgent:
-                    (UrlLoadingBrowserAgent*)urlLoadingBrowserAgent
-                     composeboxQueryController:
-                         (std::unique_ptr<ComposeboxQueryControllerIOS>)
-                             composeboxQueryController
-                                  webStateList:(WebStateList*)webStateList
-                                 faviconLoader:(FaviconLoader*)faviconLoader {
+- (instancetype)
+    initWithComposeboxQueryController:
+        (std::unique_ptr<ComposeboxQueryControllerIOS>)composeboxQueryController
+                         webStateList:(WebStateList*)webStateList
+                        faviconLoader:(FaviconLoader*)faviconLoader {
   self = [super init];
   if (self) {
     _items = [NSMutableArray array];
-    _urlLoadingBrowserAgent = urlLoadingBrowserAgent;
     _composeboxQueryController = std::move(composeboxQueryController);
     _composeboxObserverBridge =
         std::make_unique<ComposeboxFileUploadObserverBridge>(
@@ -169,7 +151,6 @@ size_t WhitespaceCount(const std::u16string& string) {
 
 - (void)disconnect {
   _composeboxQueryController->NotifySessionAbandoned();
-  _urlLoadingBrowserAgent = nullptr;
   _faviconLoader = nullptr;
   _composeboxObserverBridge.reset();
   _composeboxQueryController.reset();
@@ -257,26 +238,18 @@ size_t WhitespaceCount(const std::u16string& string) {
 }
 
 - (void)sendText:(NSString*)text {
-  GURL URL = _composeboxQueryController->CreateAimUrl(
-      base::SysNSStringToUTF8(text), base::Time::Now());
+  std::unique_ptr<ComposeboxQueryController::CreateSearchUrlRequestInfo>
+      search_url_request_info = std::make_unique<
+          ComposeboxQueryController::CreateSearchUrlRequestInfo>();
+  search_url_request_info->query_text = base::SysNSStringToUTF8(text);
+  search_url_request_info->query_start_time = base::Time::Now();
+  GURL URL = _composeboxQueryController->CreateSearchUrl(
+      std::move(search_url_request_info));
   // TODO(crbug.com/40280872): Handle AIM enabled in the query controller.
   if (!_AIModeEnabled) {
     URL = net::AppendOrReplaceQueryParameter(URL, "udm", "24");
   }
-  UrlLoadParams params = UrlLoadParams::InCurrentTab(URL);
-  params.web_params.transition_type = ui::PAGE_TRANSITION_GENERATED;
-  _urlLoadingBrowserAgent->Load(params);
-
-  // TODO(crbug.com/442371203): Dismissing the view directly here will
-  // lead to a crash because some calls made after pressing the return
-  // key are still being performed. This hack postpones the dismiss action.
-  __weak AIMPrototypeMediator* weakSelf = self;
-  base::OnceClosure completion = base::BindOnce(^{
-    [weakSelf dismissAimPrototype];
-  });
-  constexpr base::TimeDelta kDelay = base::Seconds(0);
-  base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
-      FROM_HERE, std::move(completion), kDelay);
+  [self.URLLoader loadURL:URL];
 }
 
 - (void)setAIModeEnabled:(BOOL)enabled {
@@ -601,20 +574,7 @@ size_t WhitespaceCount(const std::u16string& string) {
   if (isSearchType) {
     [self sendText:[NSString cr_fromString16:text]];
   } else {
-    UrlLoadParams params = UrlLoadParams::InCurrentTab(destinationURL);
-    params.web_params.transition_type = ui::PAGE_TRANSITION_GENERATED;
-    _urlLoadingBrowserAgent->Load(params);
-
-    // TODO(crbug.com/442371203): Dismissing the view directly here will
-    // lead to a crash because some calls made after pressing the return
-    // key are still being performed. This hack postpones the dismiss action.
-    __weak AIMPrototypeMediator* weakSelf = self;
-    base::OnceClosure completion = base::BindOnce(^{
-      [weakSelf dismissAimPrototype];
-    });
-    constexpr base::TimeDelta kDelay = base::Seconds(0.5);
-    base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
-        FROM_HERE, std::move(completion), kDelay);
+    [self.URLLoader loadURL:destinationURL];
   }
 }
 
@@ -623,21 +583,9 @@ size_t WhitespaceCount(const std::u16string& string) {
          userInputInProgress:(BOOL)userInputInProgress {
   // Update mic button visibility.
   [self.consumer hideMicButton:text.length()];
-
-  // Auto trigger AIM if conditions are met.
-  if (!_AIModeEnabled && userInputInProgress && isSearchQuery) {
-    if (text.length() >= kMinCharTriggerAIM &&
-        WhitespaceCount(text) >= kMinWhitespaceTriggerAIM) {
-      [self.consumer setAIModeEnabled:YES];
-    }
-  }
 }
 
 #pragma mark - Private helpers
-
-- (void)dismissAimPrototype {
-  [self.delegate dismissAimPrototype];
-}
 
 /// Updates the consumer items and maybe trigger AIM.
 - (void)updateConsumerItems {

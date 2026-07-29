@@ -40,6 +40,7 @@
 <translation id="1500473259453106018">Fela spjaldið „Verðlækkun á flipum“</translation>
 <translation id="1508931164824684991">Vefsvæði geta notað JavaScript</translation>
 <translation id="1510341833810331442">Vefsvæði mega ekki vista gögn í tækinu þínu</translation>
+<translation id="1532175480576580256">Blað neðst í flýtileiðunum mínum opnað í fullri hæð</translation>
 <translation id="1538031354170655462">Vefsvæði nota yfirleitt nándarsamskipti (NFC) til að vinna með nálæg merki eða tæki, eins og að skanna merki eða snertilausar greiðslur</translation>
 <translation id="1547123415014299762">Fótspor þriðju aðila eru leyfð</translation>
 <translation id="1569054338208717605">Stytta hleðslutíma vefsvæða með V8-vél Chrome og gera Chrome örlítið berskjaldaðri gagnvart árásum</translation>
@@ -115,6 +116,7 @@
 <translation id="228293613124499805">Flest vefsvæði sem þú skoðar vista líklega gögn í tækinu, oft í þeim tilgangi að bæta upplifun þína með því að vista valið þitt eða upplýsingar sem þú deilir með vefsvæðinu. Við mælum með að hafa kveikt á þessari stillingu.</translation>
 <translation id="2289270750774289114">Spyrja þegar vefsvæði vill finna nálæg Bluetooth-tæki (ráðlagt)</translation>
 <translation id="2315043854645842844">Stýrikerfið styður ekki vottorðsval hjá biðlara.</translation>
+<translation id="2347601491101454548">Blað neðst í flýtileiðunum mínum opnað í hálfri hæð</translation>
 <translation id="2359808026110333948">Halda áfram</translation>
 <translation id="2379925928934107488">Nota dökkt þema fyrir vefsvæði þegar Chrome notar dökkt þema, sé þess kostur</translation>
 <translation id="2390272837142897736">Auka aðdrátt</translation>
@@ -145,6 +147,11 @@
 <translation id="2588271083332682494">Taktu til með flipahópum</translation>
 <translation id="2597457036804169544">Ekki nota dökkt þema fyrir vefsvæði</translation>
 <translation id="2606760465469169465">Sjálfvirk staðfesting</translation>
+<translation id="2610903128639500624">Þú getur stjórnað þessu í <ph name="BEGIN_LINK1" />stillingum Android<ph name="END_LINK1" />
+
+Ítarleg vernd stjórnar þessum Chrome-stillingum:
+• Kveikt er á „Alltaf nota örugga tengingu“.
+• Slökkt er á JavaScript-fínstillingu. <ph name="BEGIN_LINK2" />Stjórna undantekningum vefsvæðis<ph name="END_LINK2" /></translation>
 <translation id="2621115761605608342">Leyfa JavaScript fyrir ákveðna síðu.</translation>
 <translation id="2626708220538466178">Blað neðst í sjálfgefnum vafra, lokað</translation>
 <translation id="2653659639078652383">Senda</translation>
@@ -303,6 +310,7 @@
 <translation id="4336566011000459927">Chrome mun aftur takmarka fótspor í dag</translation>
 <translation id="4338831206024587507">Öll vefsvæði undir <ph name="DOMAIN" /></translation>
 <translation id="4340799661701629185">Ekki leyfa vefsvæðum að senda tilkynningar</translation>
+<translation id="4341577178275615435">Notaðu F7 flýtilykilinn til að kveikja eða slökkva á skoðun með textabendli</translation>
 <translation id="4402755511846832236">Lokaðu á að vefsvæði geti séð hvenær þú notar þetta tæki</translation>
 <translation id="4412683424767388419">Blað neðst í Chrome-litum opnað í hálfri hæð</translation>
 <translation id="4412992751769744546">Leyfa fótspor þriðja aðilla</translation>
@@ -337,6 +345,7 @@
 <translation id="4816495437032298535">Vistuð stærð vefsvæða</translation>
 <translation id="4836046166855586901">Spyrja þegar vefsvæði vill vita hvenær þú notar þetta tæki</translation>
 <translation id="483914009762354899">Hafa öll vefsvæði undir þessu léni</translation>
+<translation id="4852997963351138624">Bakgrunnslitur (sextándakerfi)</translation>
 <translation id="4882919381756638075">Vefsvæði nota yfirleitt hljóðnemann fyrir samskiptaeiginleika eins og myndspjall</translation>
 <translation id="4883854917563148705">Ekki er hægt að endurstilla stýrðar stillingar</translation>
 <translation id="4887024562049524730">Spyrja áður en vefsvæði nota sýndarveruleikatæki og -gögn (ráðlagt)</translation>
@@ -500,6 +509,7 @@
 <translation id="6608650720463149374"><ph name="GIGABYTES" /> GB</translation>
 <translation id="6612358246767739896">Varið efni</translation>
 <translation id="662080504995468778">Vera áfram</translation>
+<translation id="6630443592285535486">Sláðu inn sextándakerfislit</translation>
 <translation id="6635327442719709864">Ef kveikt er á þessu geta vefsvæði beðið um að fá að nota raðtengi. Ef slökkt er á þessu geta vefsvæði ekki notað raðtengi.</translation>
 <translation id="6678072580827808850">Opna öryggisathugun</translation>
 <translation id="6682057173375416470">Fáðu tillögur að greinum á síðu nýrra flipa</translation>
@@ -557,6 +567,7 @@
 <translation id="7399802613464275309">Öryggisathugun</translation>
 <translation id="7406113532070524618">Þessi stilling virkar án þess að auðkenna þig eða leyfa vefsvæðum að sjá vafraferilinn þinn en vefsvæði geta þó deilt litlu magni upplýsinga sem hluta af staðfestingunni</translation>
 <translation id="7409735910987429903">Vefsvæði gætu sent sprettiglugga til að birta auglýsingar eða notað framsendingu til að leiða þig inn á vefsvæði sem þú vilt hugsanlega ekki skoða</translation>
+<translation id="7412160840120117304">Aðallitur (sextándakerfi)</translation>
 <translation id="7423098979219808738">Spyrja fyrst</translation>
 <translation id="7423538860840206698">Lokað fyrir lestur klippiborðs</translation>
 <translation id="7425915948813553151">Dökkt þema fyrir vefsvæði</translation>

@@ -6,6 +6,7 @@
 
 #include "base/functional/bind.h"
 #include "base/task/thread_pool.h"
+#include "chrome/browser/tab/storage_package.h"
 #include "chrome/browser/tab/tab_state_storage_database.h"
 
 namespace tabs {
@@ -38,15 +39,17 @@ void TabStateStorageBackend::Initialize() {
                      weak_ptr_factory_.GetWeakPtr()));
 }
 
-void TabStateStorageBackend::SaveNode(int id,
-                                      int type,
-                                      std::string payload,
-                                      std::string children) {
+void TabStateStorageBackend::Save(int id,
+                                  int type,
+                                  std::unique_ptr<StoragePackage> package) {
+  std::string payload = package->SerializePayload();
+  // TODO(https://crbug.com/448875689): Get serialized children data from
+  // package.
   db_task_runner_->PostTaskAndReplyWithResult(
       FROM_HERE,
       base::BindOnce(&TabStateStorageDatabase::SaveNode,
                      base::Unretained(database_.get()), id, type,
-                     std::move(payload), std::move(children)),
+                     std::move(payload), ""),
       base::BindOnce(&TabStateStorageBackend::OnWrite,
                      weak_ptr_factory_.GetWeakPtr()));
 }

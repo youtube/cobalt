@@ -16,6 +16,19 @@ import sys
 from pathlib import Path
 
 
+def _get_gemini_executable() -> str:
+    """Finds the gemini executable."""
+    gemini_cmd = shutil.which('gemini')
+    if gemini_cmd:
+        return gemini_cmd
+
+    gemini_cmd_path = Path('/google/bin/releases/gemini-cli/tools/gemini')
+    if gemini_cmd_path.exists():
+        return str(gemini_cmd_path)
+
+    return 'gemini'
+
+
 def get_extensions_from_dir(extensions_dir: Path) -> list[str]:
     """Returns a list of all extensions in the given directory.
 
@@ -89,10 +102,13 @@ def get_global_extension_dir() -> Path:
     return Path.home() / '.gemini' / 'extensions'
 
 
-def _run_command(command: list[str]) -> None:
+def _run_command(command: list[str], skip_prompt: bool = False) -> None:
     """Runs a command and handles errors."""
     try:
-        subprocess.run(command, check=True)
+        if skip_prompt:
+            subprocess.run(command, check=True, input='y\n', encoding='utf-8')
+        else:
+            subprocess.run(command, check=True)
     except FileNotFoundError:
         print(
             f"Error: Command '{command[0]}' not found. Is 'gemini' in your "
@@ -138,6 +154,7 @@ def fix_extensions(project_root: Path | None) -> None:
     user_extensions_dir = get_global_extension_dir()
     source_dirs = get_extensions_dirs(project_root)
 
+    gemini_cmd = _get_gemini_executable()
     print('Found project-level extensions. Converting to the new model...')
     for extension in extensions:
         if (user_extensions_dir / extension).exists():
@@ -160,13 +177,14 @@ def fix_extensions(project_root: Path | None) -> None:
 
         print(f'Fixing "{extension}"...')
         _run_command([
-            'gemini', 'extensions', 'link',
+            gemini_cmd, 'extensions', 'link',
             str(source_dir_for_ext / extension)
         ])
         _run_command(
-            ['gemini', 'extensions', 'disable', extension, '--scope=User'])
-        _run_command(
-            ['gemini', 'extensions', 'enable', extension, '--scope=Workspace'])
+            [gemini_cmd, 'extensions', 'disable', extension, '--scope=User'])
+        _run_command([
+            gemini_cmd, 'extensions', 'enable', extension, '--scope=Workspace'
+        ])
 
     print('Removing old project-level extensions directory...')
     shutil.rmtree(project_extensions_dir)
@@ -177,7 +195,7 @@ def get_gemini_version() -> str | None:
     """Gets the version of the Gemini CLI."""
     try:
         result = subprocess.run(
-            ['gemini', '--version'],
+            [_get_gemini_executable(), '--version'],
             check=True,
             capture_output=True,
             text=True,
@@ -273,6 +291,11 @@ def main() -> None:
 
     update_parser = subparsers.add_parser('update', help='Update extensions.')
     update_parser.add_argument(
+        '--skip-prompt',
+        action='store_true',
+        help='Skip any interactive prompts.',
+    )
+    update_parser.add_argument(
         'extensions',
         nargs='*',
         help=('A list of extension directory names to update. If not '
@@ -297,8 +320,10 @@ def main() -> None:
         parser.print_help()
         sys.exit(1)
 
+    gemini_cmd = _get_gemini_executable()
+
     if args.command == 'list':
-        _run_command(['gemini', 'extensions', 'list'])
+        _run_command([gemini_cmd, 'extensions', 'list'])
         return
 
     if args.command == 'fix':
@@ -307,7 +332,7 @@ def main() -> None:
 
     extensions_to_process = args.extensions
     if not extensions_to_process and args.command == 'update':
-        _run_command(['gemini', 'extensions', 'update', '--all'])
+        _run_command([gemini_cmd, 'extensions', 'update', '--all'])
         return
 
     for extension in extensions_to_process:
@@ -320,16 +345,28 @@ def main() -> None:
                 print(f"Error: Extension '{extension}' not found.",
                       file=sys.stderr)
                 sys.exit(1)
-            cmd = ['gemini', 'extensions']
+            cmd = [gemini_cmd, 'extensions']
             if args.copy:
                 cmd.extend(['install', '--path', str(source_dir / extension)])
             else:
                 cmd.extend(['link', str(source_dir / extension)])
-            _run_command(cmd)
+            _run_command(cmd, skip_prompt=args.skip_prompt)
         elif args.command == 'update':
-            _run_command(['gemini', 'extensions', 'update', extension])
+            _run_command([gemini_cmd, 'extensions', 'update', extension],
+                         skip_prompt=args.skip_prompt)
         elif args.command == 'remove':
-            _run_command(['gemini', 'extensions', 'uninstall', extension])
+            if '_' in extension:
+                # gemini rejects extension names with _ in them so if they're
+                # already installed we need to delete them directly
+                try:
+                    shutil.rmtree(get_global_extension_dir() / extension)
+                except OSError as e:
+                    print(f"Error removing extension '{extension}': {e}",
+                          file=sys.stderr)
+                    sys.exit(1)
+            else:
+                _run_command(
+                    [gemini_cmd, 'extensions', 'uninstall', extension])
 
 
 if __name__ == '__main__':

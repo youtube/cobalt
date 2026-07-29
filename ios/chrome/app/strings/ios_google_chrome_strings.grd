@@ -808,6 +808,17 @@ Only someone with your passphrase can read your encrypted data. The passphrase i
       <message name="IDS_IOS_PARCEL_TRACKING_INFOBAR_PACKAGE_ALREADY_TRACKED_SUBTITLE" desc="Text for the subtitle string of the Parcel Tracking 'Package Already Tracked' infobar.">
         This package has already been tracked on Chrome.
       </message>
+      <message name="IDS_IOS_PASSKEY_ENROLLMENT_FOOTER_MESSAGE" desc="Message displayed at the bottom of the passkey enrollement welcome screen, but just over the primary action button. Lets the user know to which account the passkey they're creating will be saved in if they do to tap the primary action button and keep going with the enrollment process.">
+        This passkey will be saved to Google Password Manager for <ph name="USER_EMAIL">$1<ex>peter.parker@gmail.com</ex></ph>
+      </message>
+      <message name="IDS_IOS_PASSKEY_ENROLLMENT_TITLE" desc="Title of the screen shown when the user needs to create their Google Password Manager pin to set up and use passkeys with their Google Account.">
+        Start saving passkeys with Google Password Manager
+      </message>
+      <message name="IDS_IOS_PASSKEY_PARTIAL_BOOTSTRAPPING_SUBTITLE" desc="Subtitle of the screen shown when the user needs to create their Google Password Manager pin to set up passkeys on their device.">
+        To keep your passkeys safe, you’ll first need to create a recovery PIN.
+
+        Passkeys are saved in Google Password Manager, which lets you use them in Chrome on any device.
+      </message>
       <message name="IDS_IOS_PASSWORD_BOTTOM_SHEET_TITLE" desc="Title of the password bottom sheet. [iOS only]">
           Google Password Manager
       </message>
@@ -1066,17 +1077,11 @@ For more settings that use data to improve your Chrome experience, go to <ph nam
       <message name="IDS_IOS_SET_UP_LIST_DESCRIPTION" desc="Description for the Set Up List - a list of tasks the user might want to complete when first using Chrome.">
           Complete these suggested actions below to get the most out of Chrome.
       </message>
-      <message name="IDS_IOS_SET_UP_LIST_HIDE_MODULE_CONTEXT_MENU_TITLE" desc="Title for the long-press context menu for the Set Up List module.">
-          This card shows you suggestions on how to get the most out of Chrome.
-      </message>
       <message name="IDS_IOS_SET_UP_LIST_NOTIFICATIONS_DESCRIPTION" desc="Description for the Set Up List item that encourages the user to enable Chrome notifications.">
         Keep up with price tracking updates and Chrome tips.
       </message>
       <message name="IDS_IOS_SET_UP_LIST_NOTIFICATIONS_SHORT_DESCRIPTION" desc="Description for the Set Up List item that encourages the user to enable Chrome notifications.">
         Keep up with helpful Chrome tips and more.
-      </message>
-      <message name="IDS_IOS_SET_UP_LIST_TIPS_TITLE" desc="Title for the Set Up List (a variation that mentions Tips) - a list of tasks the user might want to complete when first using Chromium.">
-        Chrome Tips
       </message>
       <message name="IDS_IOS_SHORT_PRODUCT_NAME" desc="The Chrome application short name">
         Chrome

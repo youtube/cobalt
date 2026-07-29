@@ -155,7 +155,7 @@ void TapMagicStackEditButton() {
 
 - (void)setUp {
   [super setUp];
-  [NewTabPageAppInterface disableSetUpList];
+  [NewTabPageAppInterface disableTipsCards];
 }
 
 - (void)tearDownHelper {
@@ -378,11 +378,12 @@ void TapMagicStackEditButton() {
       assertWithMatcher:grey_sufficientlyVisible()];
 
   // Turn off the Set Up list toggle.
-  [[EarlGrey selectElementWithMatcher:
-                 grey_allOf(grey_kindOfClassName(@"UISwitch"),
-                            grey_ancestor(grey_accessibilityID(
-                                kCustomizationToggleSetUpListIdentifier)),
-                            nil)] performAction:grey_turnSwitchOn(NO)];
+  [[EarlGrey
+      selectElementWithMatcher:grey_allOf(
+                                   grey_kindOfClassName(@"UISwitch"),
+                                   grey_ancestor(grey_accessibilityID(
+                                       kCustomizationToggleTipsIdentifier)),
+                                   nil)] performAction:grey_turnSwitchOn(NO)];
 
   // Dismiss the menu.
   [[EarlGrey
@@ -413,7 +414,7 @@ void TapMagicStackEditButton() {
 
   NSString* setupListHideTitle = l10n_util::GetNSStringF(
       IDS_IOS_SET_UP_LIST_HIDE_MODULE_CONTEXT_MENU_DESCRIPTION,
-      l10n_util::GetStringUTF16(IDS_IOS_SET_UP_LIST_TIPS_TITLE));
+      l10n_util::GetStringUTF16(IDS_IOS_MAGIC_STACK_TIP_TITLE));
   [[EarlGrey
       selectElementWithMatcher:
           grey_allOf(chrome_test_util::ContextMenuItemWithAccessibilityLabel(

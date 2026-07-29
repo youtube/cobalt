@@ -40,6 +40,7 @@
 <translation id="1500473259453106018">Ocultar nas guias o card de redução no preço</translation>
 <translation id="1508931164824684991">Os sites podem usar JavaScript</translation>
 <translation id="1510341833810331442">Os sites não podem salvar dados no seu dispositivo</translation>
+<translation id="1532175480576580256">A página inferior "Meus atalhos" está aberta no tamanho máximo</translation>
 <translation id="1538031354170655462">Os sites geralmente usam a comunicação a curta distância (NFC) para trabalhar com tags ou dispositivos nas proximidades, como a leitura de crachás ou o pagamento por aproximação</translation>
 <translation id="1547123415014299762">Cookies de terceiros são permitidos</translation>
 <translation id="1569054338208717605">Tornar os sites mais rápidos com o mecanismo V8 do Chrome, mas deixar o navegador um pouco menos resistente a ataques</translation>
@@ -115,6 +116,7 @@
 <translation id="228293613124499805">A maioria dos sites que você visita provavelmente salva dados no seu dispositivo, muitas vezes para melhorar a experiência ao salvar suas preferências ou as informações que você compartilha com o site. Recomendamos manter essa configuração ativada.</translation>
 <translation id="2289270750774289114">Perguntar quando um site quer descobrir dispositivos Bluetooth nas proximidades (recomendado)</translation>
 <translation id="2315043854645842844">A seleção de certificado do cliente não é compatível com o sistema operacional.</translation>
+<translation id="2347601491101454548">A página inferior "Meus atalhos" está aberta na metade da altura</translation>
 <translation id="2359808026110333948">Continuar</translation>
 <translation id="2379925928934107488">Aplicar o tema escuro para sites, quando possível, ao usar o tema escuro no Chrome</translation>
 <translation id="2390272837142897736">Aumentar zoom</translation>
@@ -145,6 +147,11 @@
 <translation id="2588271083332682494">Aproveite os grupos de guias</translation>
 <translation id="2597457036804169544">Não aplicar o tema escuro para sites</translation>
 <translation id="2606760465469169465">Verificação automática</translation>
+<translation id="2610903128639500624">Gerenciar nas <ph name="BEGIN_LINK1" />configurações do Android<ph name="END_LINK1" />
+
+A Proteção Avançada controla estas configurações do Chrome:
+• A opção "Sempre usar conexões seguras" está ativada.
+• O otimizador de JavaScript está desativado. <ph name="BEGIN_LINK2" />Gerenciar exceções dos sites<ph name="END_LINK2" /></translation>
 <translation id="2621115761605608342">Permitir JavaScript para um site específico.</translation>
 <translation id="2626708220538466178">A página inferior de navegador padrão foi fechada</translation>
 <translation id="2653659639078652383">Enviar</translation>
@@ -303,6 +310,7 @@
 <translation id="4336566011000459927">O Chrome vai limitar os cookies de novo hoje</translation>
 <translation id="4338831206024587507">Todos os sites em <ph name="DOMAIN" /></translation>
 <translation id="4340799661701629185">Não permitir que os sites enviem notificações</translation>
+<translation id="4341577178275615435">Para ativar ou desativar a Caret Browsing, use o atalho F7</translation>
 <translation id="4402755511846832236">Impedir que sites saibam quando você está usando este dispositivo</translation>
 <translation id="4412683424767388419">O painel de cores do Chrome está aberto na metade da altura</translation>
 <translation id="4412992751769744546">Permitir cookies de terceiros</translation>
@@ -337,6 +345,7 @@
 <translation id="4816495437032298535">Zoom salvo para sites</translation>
 <translation id="4836046166855586901">Perguntar quando um site quiser saber os momentos em que você está usando este dispositivo</translation>
 <translation id="483914009762354899">Incluir todos os sites neste domínio</translation>
+<translation id="4852997963351138624">Hexadecimal da cor do plano de fundo</translation>
 <translation id="4882919381756638075">Os sites geralmente usam o microfone para recursos de comunicação, como chat por vídeo</translation>
 <translation id="4883854917563148705">Não é possível redefinir as configurações gerenciadas</translation>
 <translation id="4887024562049524730">Perguntar antes de permitir que sites usem seus dispositivos e dados de realidade virtual (recomendado)</translation>
@@ -500,6 +509,7 @@
 <translation id="6608650720463149374"><ph name="GIGABYTES" /> GB</translation>
 <translation id="6612358246767739896">Conteúdo protegido</translation>
 <translation id="662080504995468778">Ficar</translation>
+<translation id="6630443592285535486">Digite o hexadecimal aqui</translation>
 <translation id="6635327442719709864">Quando ativada, os sites podem pedir para usar portas seriais. Quando desativada, os sites não podem usar portas seriais.</translation>
 <translation id="6678072580827808850">Analisar Confirmação de segurança</translation>
 <translation id="6682057173375416470">Receba sugestões de artigos na página Nova guia</translation>
@@ -557,6 +567,7 @@
 <translation id="7399802613464275309">Confirmação de segurança</translation>
 <translation id="7406113532070524618">Essa configuração funciona sem identificar você ou permitir que sites acessem o histórico de navegação. Apesar disso, os sites podem compartilhar uma pequena quantidade de informações como parte da verificação.</translation>
 <translation id="7409735910987429903">Os sites podem exibir pop-ups para mostrar anúncios ou usar redirecionamentos para levar até sites que talvez você não queira acessar</translation>
+<translation id="7412160840120117304">Hexadecimal da cor primária</translation>
 <translation id="7423098979219808738">Perguntar primeiro</translation>
 <translation id="7423538860840206698">Leitura da área de transferência bloqueada</translation>
 <translation id="7425915948813553151">Tema escuro para sites</translation>
@@ -678,7 +689,7 @@
 <translation id="8719283222052720129">Ative a permissão para o app <ph name="APP_NAME" /> nas <ph name="BEGIN_LINK" />configurações do Android<ph name="END_LINK" />.</translation>
 <translation id="8721719390026067591">Quando essa configuração está ativada, os sites podem pedir para procurar dispositivos Bluetooth. Quando está desativada, os sites não podem procurar dispositivos Bluetooth.</translation>
 <translation id="8725066075913043281">Tentar novamente</translation>
-<translation id="8730621377337864115">Concluir</translation>
+<translation id="8730621377337864115">Concluído</translation>
 <translation id="8737426583868847403">Os sites que você salvar com um nível de zoom personalizado vão aparecer aqui</translation>
 <translation id="8751914237388039244">Selecione uma imagem</translation>
 <translation id="8775741625735357092">Você pode ativar a barra de favoritos em Configurações &gt; Aparência</translation>

@@ -1,7 +1,6 @@
 adjust_src_dst_region_for_blitframebuffer
 avoid_one_component_egl_images
 avoid_stencil_buffers
-broken_egl_image_ref_counting
 check_egl_fence_before_wait
 check_ycbcr_studio_g22_left_p709_for_nv12_support
 disable_2d_canvas_auto_flush
@@ -40,7 +39,6 @@ disable_dml_meta_commands_for_gpu
 disable_dxgi_zero_copy_video
 disable_dynamic_video_encode_framerate_update
 disable_egl_ext_image_dma_buf_import_modifiers
-disable_es3_gl_context
 disable_gl_rgb_format
 disable_h264_accelerator_sw_brc
 disable_half_float_for_gmb
@@ -99,7 +97,6 @@ gl_clear_broken
 init_gl_position_in_vertex_shader
 limit_d3d11_video_decoder_to_11_0
 max_3d_array_texture_size_1024
-max_copy_texture_chromium_size_1048576
 max_msaa_sample_count_2
 max_msaa_sample_count_4
 max_num_hw_video_decoders_10

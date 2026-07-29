@@ -276,7 +276,7 @@ TEST_F(OmniboxEditModelTest, CurrentMatch) {
 
     EXPECT_EQ(u"example.com", view()->GetText());
 
-    AutocompleteMatch match = model()->CurrentMatch(nullptr);
+    AutocompleteMatch match = model()->CurrentMatch();
     EXPECT_EQ(AutocompleteMatchType::URL_WHAT_YOU_TYPED, match.type);
     EXPECT_TRUE(model()->CurrentTextIsURL());
     EXPECT_EQ("http://www.example.com/", match.destination_url.spec());
@@ -292,7 +292,7 @@ TEST_F(OmniboxEditModelTest, CurrentMatch) {
 
     EXPECT_EQ(u"google.com", view()->GetText());
 
-    AutocompleteMatch match = model()->CurrentMatch(nullptr);
+    AutocompleteMatch match = model()->CurrentMatch();
     EXPECT_EQ(AutocompleteMatchType::URL_WHAT_YOU_TYPED, match.type);
     EXPECT_TRUE(model()->CurrentTextIsURL());
 
@@ -345,32 +345,7 @@ TEST_F(OmniboxEditModelTest, UnelideDoesNothingWhenFullURLAlreadyShown) {
   EXPECT_TRUE(model()->ShouldShowCurrentPageIcon());
 }
 
-// The tab-switching system sometimes focuses the Omnibox even if it was not
-// previously focused. In those cases, ignore the saved focus state.
-TEST_F(OmniboxEditModelTest, IgnoreInvalidSavedFocusStates) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitWithFeatures(
-      {}, {omnibox::kOmniboxRestoreInvisibleFocusOnly});
-
-  // The Omnibox starts out unfocused. Save that state.
-  ASSERT_FALSE(model()->has_focus());
-  OmniboxEditModel::State state = model()->GetStateForTabSwitch();
-  ASSERT_EQ(OMNIBOX_FOCUS_NONE, state.focus_state);
-
-  // Simulate the tab-switching system focusing the Omnibox.
-  model()->OnSetFocus(false);
-
-  // Restoring the old saved state should not clobber the model's focus state.
-  model()->RestoreState(&state);
-  EXPECT_TRUE(model()->has_focus());
-  EXPECT_TRUE(model()->is_caret_visible());
-}
-
 TEST_F(OmniboxEditModelTest, RestoreInvisibleFocusOnlyForVisibleState) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitWithFeatures(
-      {omnibox::kOmniboxRestoreInvisibleFocusOnly}, {});
-
   // The Omnibox starts out focused. Save that state.
   model()->OnSetFocus(false);
   ASSERT_TRUE(model()->has_focus());
@@ -387,10 +362,6 @@ TEST_F(OmniboxEditModelTest, RestoreInvisibleFocusOnlyForVisibleState) {
 }
 
 TEST_F(OmniboxEditModelTest, RestoreInvisibleFocusOnlyForInvisibleState) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitWithFeatures(
-      {omnibox::kOmniboxRestoreInvisibleFocusOnly}, {});
-
   // The Omnibox starts out invisibly focused. Save that state.
   model()->OnSetFocus(false);
   model()->SetCaretVisibility(false);
@@ -410,36 +381,38 @@ TEST_F(OmniboxEditModelTest, RestoreInvisibleFocusOnlyForInvisibleState) {
 // Tests ConsumeCtrlKey() consumes ctrl key when down, but does not affect ctrl
 // state otherwise.
 TEST_F(OmniboxEditModelTest, ConsumeCtrlKey) {
-  model()->control_key_state_ = TestOmniboxEditModel::UP;
-  model()->ConsumeCtrlKey();
-  EXPECT_EQ(model()->control_key_state_, TestOmniboxEditModel::UP);
-  model()->control_key_state_ = TestOmniboxEditModel::DOWN;
+  model()->control_key_state_ = TestOmniboxEditModel::ControlKeyState::kUp;
   model()->ConsumeCtrlKey();
   EXPECT_EQ(model()->control_key_state_,
-            TestOmniboxEditModel::DOWN_AND_CONSUMED);
+            TestOmniboxEditModel::ControlKeyState::kUp);
+  model()->control_key_state_ = TestOmniboxEditModel::ControlKeyState::kDown;
   model()->ConsumeCtrlKey();
   EXPECT_EQ(model()->control_key_state_,
-            TestOmniboxEditModel::DOWN_AND_CONSUMED);
+            TestOmniboxEditModel::ControlKeyState::kDownAndConsumed);
+  model()->ConsumeCtrlKey();
+  EXPECT_EQ(model()->control_key_state_,
+            TestOmniboxEditModel::ControlKeyState::kDownAndConsumed);
 }
 
 // Tests ctrl_key_state_ is set consumed if the ctrl key is down on focus.
 TEST_F(OmniboxEditModelTest, ConsumeCtrlKeyOnRequestFocus) {
-  model()->control_key_state_ = TestOmniboxEditModel::DOWN;
+  model()->control_key_state_ = TestOmniboxEditModel::ControlKeyState::kDown;
   model()->OnSetFocus(false);
-  EXPECT_EQ(model()->control_key_state_, TestOmniboxEditModel::UP);
+  EXPECT_EQ(model()->control_key_state_,
+            TestOmniboxEditModel::ControlKeyState::kUp);
   model()->OnSetFocus(true);
   EXPECT_EQ(model()->control_key_state_,
-            TestOmniboxEditModel::DOWN_AND_CONSUMED);
+            TestOmniboxEditModel::ControlKeyState::kDownAndConsumed);
 }
 
 // Tests the ctrl key is consumed on a ctrl-action (e.g. ctrl-c to copy)
 TEST_F(OmniboxEditModelTest, ConsumeCtrlKeyOnCtrlAction) {
-  model()->control_key_state_ = TestOmniboxEditModel::DOWN;
+  model()->control_key_state_ = TestOmniboxEditModel::ControlKeyState::kDown;
   OmniboxView::StateChanges state_changes{nullptr, nullptr, {},   false,
                                           false,   false,   false};
   model()->OnAfterPossibleChange(state_changes, false);
   EXPECT_EQ(model()->control_key_state_,
-            TestOmniboxEditModel::DOWN_AND_CONSUMED);
+            TestOmniboxEditModel::ControlKeyState::kDownAndConsumed);
 }
 
 TEST_F(OmniboxEditModelTest, KeywordModePreservesInlineAutocompleteText) {
@@ -1639,9 +1612,9 @@ TEST_F(OmniboxEditModelPopupTest,
   auto* result = &controller()->autocomplete_controller()->published_result_;
   result->AppendMatches(matches);
 
-  const SkBitmap* actual_bitmap = model()->GetPopupRichSuggestionBitmap(
-      u"match_without_associated_keyword");
-
+  const SkBitmap* actual_bitmap =
+      model()->GetPopupRichSuggestionBitmapForKeyword(
+          u"match_without_associated_keyword");
   EXPECT_FALSE(actual_bitmap);
 }
 
@@ -1672,12 +1645,12 @@ TEST_F(OmniboxEditModelPopupTest,
   model()->rich_suggestion_bitmaps_.insert({1, expected_bitmap});
 
   const SkBitmap* match_without_bitmap_bitmap =
-      model()->GetPopupRichSuggestionBitmap(u"match_without_bitmap");
+      model()->GetPopupRichSuggestionBitmapForKeyword(u"match_without_bitmap");
   EXPECT_FALSE(match_without_bitmap_bitmap);
 
   const SkBitmap* match_with_bitmap_bitmap =
-      model()->GetPopupRichSuggestionBitmap(u"match_with_bitmap");
-  EXPECT_TRUE(match_with_bitmap_bitmap);
+      model()->GetPopupRichSuggestionBitmapForKeyword(u"match_with_bitmap");
+  ASSERT_TRUE(match_with_bitmap_bitmap);
   gfx::test::CheckColors(expected_bitmap.getColor(0, 0),
                          match_with_bitmap_bitmap->getColor(0, 0));
 }

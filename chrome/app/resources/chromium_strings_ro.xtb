@@ -33,6 +33,7 @@
 <translation id="1345251407431278948">S-a fixat! Poți să accesezi din nou Căutarea de imagini folosind noul buton din bara de instrumente</translation>
 <translation id="1356661055722410047">Nou! Poți traduce atât textul, cât și imaginile de pe ecran</translation>
 <translation id="1383876407941801731">Caută</translation>
+<translation id="1397530502368084401">&amp;Gestionează profilurile Chromium</translation>
 <translation id="1414495520565016063">V-ați conectat la Chromium!</translation>
 <translation id="141901961143729572">Spune-ți părerea</translation>
 <translation id="1465192221147974788">Pentru a permite accesul la fereastră, permite înregistrarea ecranului pentru Chromium din Setări de sistem.</translation>
@@ -71,8 +72,8 @@
 <translation id="1896836275755235458">Chromium economisește energia bateriei limitând activitatea de fundal și efectele vizuale, cum ar fi derularea lină și ratele de cadre video. <ph name="BEGIN_LINK" />Află mai multe despre Economisirea energiei<ph name="END_LINK" /></translation>
 <translation id="1898804291554630487">Întreabă despre această pagină</translation>
 <translation id="1900969832270057921">Chromium Updater Service</translation>
+<translation id="1911666947158375684">După ce te conectezi, poți folosi parolele și alte date din Contul Google în Chromium. Poți modifica oricând opțiunea din setări.</translation>
 <translation id="1911763535808217981">Dacă dezactivezi, te poți conecta la site-uri Google ca Gmail fără a te conecta la Chromium</translation>
-<translation id="1916451563296275579">Elimină datele aplicațiilor din Chromium</translation>
 <translation id="1929939181775079593">Chromium nu mai răspunde. Îl reporniți acum?</translation>
 <translation id="1933341829955786215">Organizația ta, <ph name="MANAGER" />, îți solicită să te conectezi la Chromium</translation>
 <translation id="193439633299369377">Pentru a se aplica actualizarea, sistemul de operare Chromium trebuie să fie repornit.</translation>
@@ -235,6 +236,9 @@
 <translation id="379589255253486813">Chromium te va anunța dacă trebuie să examinezi ceva</translation>
 <translation id="3802055581630249637">Chromium preîncarcă paginile pe care este posibil să le accesezi, astfel încât să se încarce mai rapid când le accesezi</translation>
 <translation id="3810973564298564668">Gestionează</translation>
+<translation id="3846683726093018685">**Rezumă:** într-o propoziție cu mai puțin de 30 de cuvinte, descrie subiectul principal și scopul conținutului din captura de ecran.
+
+          **Sugerează întrebări:** generează o listă cu marcatori cu 3 – 5 întrebări care dau de gândit pe care un utilizator le-ar putea pune pentru a înțelege mai bine captura de ecran. Aceste întrebări trebuie să includă cel puțin una care să se refere în mod specific la un obiect vizual, la designul sau plasarea acestuia.</translation>
 <translation id="3848258323044014972"><ph name="PAGE_TITLE" /> - Chromium</translation>
 <translation id="3885770153807205175">Selector de limbă</translation>
 <translation id="388648406173476553">Personalizează și controlează Chromium. Ceva are nevoie de atenția ta – dă clic pentru detalii.</translation>
@@ -470,6 +474,7 @@
 <translation id="6669284030132180248">Dacă salvezi marcajele și în Contul Google, poți să urmărești prețurile produselor în Chromium și să primești notificări când scad</translation>
 <translation id="6676384891291319759">Accesează internetul</translation>
 <translation id="668175097507315160">Sistemul de operare Chromium nu a putut sincroniza datele din cauza unei erori la conectare.</translation>
+<translation id="6691132793308828750">Elimină datele aplicației din Chromium</translation>
 <translation id="6692797197837897398">Chromium îți oferă control îmbunătățit asupra anunțurilor pe care le vezi și limitează informațiile pe care site-urile le pot afla despre tine când îți afișează anunțuri personalizate</translation>
 <translation id="6709350901466051922">Chromium are nevoie de acces la microfon pentru acest site</translation>
 <translation id="6712881677154121168">Eroare la descărcare: <ph name="DOWNLOAD_ERROR" />.</translation>
@@ -490,6 +495,7 @@ Este posibil ca unele funcții să nu fie disponibile. Specificați un director 
 <translation id="6877155553248388166">colțul din dreapta jos al zonei de căutare: dreapta <ph name="RIGHT" /> %, jos <ph name="BOTTOM" /> %</translation>
 <translation id="6896758677409633944">Copiază</translation>
 <translation id="6901631050894301805">Setează Chromium ca browser prestabilit și fixează-l în bara de activități</translation>
+<translation id="6909503629704372277">&amp;Gestionează profilurile Chromium</translation>
 <translation id="6934579572334859869">Întreabă Căutarea de imagini despre această imagine</translation>
 <translation id="6964305034639999644">Deschide linkul într-o fereastră Chromium inco&amp;gnito</translation>
 <translation id="6965382102122355670">OK</translation>
@@ -501,6 +507,7 @@ Este posibil ca unele funcții să nu fie disponibile. Specificați un director 
 <translation id="7024536598735240744">Eroare la despachetare: <ph name="UNPACK_ERROR" />.</translation>
 <translation id="7025789849649390912">Instalare oprită.</translation>
 <translation id="7045244423563602563">Personalizează Chromium</translation>
+<translation id="7047386856539490735">Sunt utile aceste rezultate?</translation>
 <translation id="705851970750939768">Actualizează Chromium</translation>
 <translation id="7067091210845072982">Dacă o imagine nu are o descriere utilă, Chromium va încerca să o completeze. Pentru a crea descrieri, imaginile sunt trimise la Google.</translation>
 <translation id="7141270731789036260">Personalizează Chrome for Testing</translation>
@@ -626,7 +633,6 @@ Chromium nu poate recupera setările.</translation>
 <translation id="8586442755830160949">Copyright <ph name="YEAR" /> The Chromium Authors. Toate drepturile rezervate.</translation>
 <translation id="8601359445272098721">Nou! Poți traduce atât textul, cât și imaginile de pe ecran selectând butonul Tradu ecranul</translation>
 <translation id="8619360774459241877">Se lansează Chromium...</translation>
-<translation id="8621669128220841554">Instalarea nu a reușit din cauza unei erori neprecizate. Descărcați Chromium din nou.</translation>
 <translation id="8648201657708811153">Google Chrome for Testing nu poate fi setat ca browser prestabilit.</translation>
 <translation id="8697124171261953979">Stabilește și ce pagină se afișează când porniți Chromium sau când căutați din caseta polivalentă.</translation>
 <translation id="8704119203788522458">Acesta este browserul dvs. Chromium</translation>

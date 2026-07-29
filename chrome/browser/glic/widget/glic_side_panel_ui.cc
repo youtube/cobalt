@@ -18,6 +18,7 @@
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
+#include "ui/views/view.h"
 
 namespace glic {
 
@@ -30,7 +31,11 @@ GlicSidePanelUi::GlicSidePanelUi(Profile* profile,
   }
   auto* glic_side_panel_coordinator =
       tab_->GetTabFeatures()->glic_side_panel_coordinator();
-  coordinator_observation_.Observe(glic_side_panel_coordinator);
+
+  panel_visibility_subscription_ =
+      glic_side_panel_coordinator->AddVisibilityCallback(base::BindRepeating(
+          &GlicSidePanelUi::VisibilityChanged, weak_ptr_factory_.GetWeakPtr()));
+
   glic_side_panel_coordinator->SetContentsView(CreateView(profile_));
   panel_state_.kind = mojom::PanelState_Kind::kAttached;
 }
@@ -70,11 +75,12 @@ void GlicSidePanelUi::EnableDragResize(bool enabled) {
 }
 
 void GlicSidePanelUi::Attach() {
-  NOTIMPLEMENTED();
+  // The Side Panel Ui is already attached.
+  NOTREACHED();
 }
 
 void GlicSidePanelUi::Detach() {
-  NOTIMPLEMENTED();
+  delegate_->Detach();
 }
 
 void GlicSidePanelUi::SetMinimumWidgetSize(const gfx::Size& size) {
@@ -124,33 +130,20 @@ void GlicSidePanelUi::Close() {
   side_panel_coordinator->Close();
 }
 
-std::unique_ptr<GlicUiEmbedder> GlicSidePanelUi::CreateInactiveEmbedder()
-    const {
-  return GlicInactiveSidePanelUi::From(*this, tab_);
+void GlicSidePanelUi::ClosePanel() {
+  Close();
 }
 
-void GlicSidePanelUi::TakeScreenshot(
-    ui::GrabSnapshotImageCallback callback) const {
-  content::WebContents* web_contents = delegate_->host().webui_contents();
-  if (!web_contents) {
-    std::move(callback).Run(gfx::Image());
-    return;
-  }
+std::unique_ptr<GlicUiEmbedder> GlicSidePanelUi::CreateInactiveEmbedder()
+    const {
+  return GlicInactiveSidePanelUi::CreateForVisibleTab(
+      tab_, delegate_->host().webui_contents(), delegate_.get());
+}
 
-  content::RenderWidgetHostView* render_widget_host_view =
-      web_contents->GetRenderWidgetHostView();
-  if (!render_widget_host_view) {
-    std::move(callback).Run(gfx::Image());
-    return;
-  }
-
-  render_widget_host_view->CopyFromSurface(
-      gfx::Rect(), gfx::Size(),
-      base::BindOnce(
-          [](ui::GrabSnapshotImageCallback callback, const SkBitmap& bitmap) {
-            std::move(callback).Run(gfx::Image::CreateFrom1xBitmap(bitmap));
-          },
-          std::move(callback)));
+views::View* GlicSidePanelUi::GetViewForTesting() {
+  return tab_->GetTabFeatures()
+      ->glic_side_panel_coordinator()
+      ->GetViewForTesting();  // IN-TEST
 }
 
 }  // namespace glic

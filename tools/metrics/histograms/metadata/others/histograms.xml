@@ -651,7 +651,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Ads.InterestGroup.Auction.BidderWorkletIsolateTotalHeapSizeKilobytes"
-    units="KB" expires_after="2026-01-25">
+    units="KB" expires_after="2026-03-29">
   <owner>abigailkatcoff@google.com</owner>
   <owner>privacy-sandbox-dev@chromium.org</owner>
   <summary>
@@ -1802,22 +1802,6 @@ chromium-metrics-reviews@google.com.
   <token key="Type" variants="InterestGroupRequestType"/>
 </histogram>
 
-<histogram name="Ads.InterestGroup.Net.ResponseParsed.{Type}" enum="Boolean"
-    expires_after="2026-01-31">
-  <owner>xtlsheep@google.com</owner>
-  <owner>pauljensen@chromium.org</owner>
-  <owner>privacy-sandbox-dev@chromium.org</owner>
-  <summary>
-    True if the trusted KVv2 bidding or scoring signals successfully parsed the
-    received response without any CBOR parsing error. Recorded whenever there is
-    a response received for Kvv2 signals.
-
-    See https://github.com/WICG/turtledove/blob/main/FLEDGE.md for the latest
-    version of the FLEDGE explainer.
-  </summary>
-  <token key="Type" variants="InterestGroupRequestType"/>
-</histogram>
-
 <histogram name="Ads.InterestGroup.Net.ResponseSizeBytes.{Type}" units="bytes"
     expires_after="2026-03-15">
   <owner>caraitto@chromium.org</owner>
@@ -2374,6 +2358,36 @@ chromium-metrics-reviews@google.com.
     https://github.com/WICG/turtledove/blob/main/FLEDGE_browser_bidding_and_auction_API.md
     for the latest version of the Protected Audience Bidding &amp; Auction
     Services explainer.
+  </summary>
+</histogram>
+
+<histogram name="Ads.InterestGroup.TrustedKVv2BiddingResponseParsed"
+    enum="Boolean" expires_after="2026-01-31">
+  <owner>xtlsheep@google.com</owner>
+  <owner>pauljensen@chromium.org</owner>
+  <owner>privacy-sandbox-dev@chromium.org</owner>
+  <summary>
+    True if the trusted KVv2 bidding signals successfully parsed the received
+    response without any CBOR parsing error. Recorded whenever there is a
+    response received for Kvv2 signals.
+
+    See https://github.com/WICG/turtledove/blob/main/FLEDGE.md for the latest
+    version of the FLEDGE explainer.
+  </summary>
+</histogram>
+
+<histogram name="Ads.InterestGroup.TrustedKVv2ScoringResponseParsed"
+    enum="Boolean" expires_after="2026-01-31">
+  <owner>xtlsheep@google.com</owner>
+  <owner>pauljensen@chromium.org</owner>
+  <owner>privacy-sandbox-dev@chromium.org</owner>
+  <summary>
+    True if the trusted KVv2 scoring signals successfully parsed the received
+    response without any CBOR parsing error. Recorded whenever there is a
+    response received for Kvv2 signals.
+
+    See https://github.com/WICG/turtledove/blob/main/FLEDGE.md for the latest
+    version of the FLEDGE explainer.
   </summary>
 </histogram>
 
@@ -3406,7 +3420,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ComponentUpdater.Calls" enum="ComponentUpdaterCalls"
-    expires_after="2026-01-25">
+    expires_after="2026-03-29">
   <owner>sorin@chromium.org</owner>
   <owner>src/components/component_updater/OWNERS</owner>
   <summary>
@@ -3429,21 +3443,21 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ComponentUpdater.UpdateCompleteError"
-    enum="UpdateClientErrors" expires_after="2026-01-25">
+    enum="UpdateClientErrors" expires_after="2026-03-29">
   <owner>sorin@chromium.org</owner>
   <owner>src/components/component_updater/OWNERS</owner>
   <summary>The result of an install or an update check.</summary>
 </histogram>
 
 <histogram name="ComponentUpdater.UpdateCompleteResult" enum="BooleanError"
-    expires_after="2026-01-25">
+    expires_after="2026-03-29">
   <owner>sorin@chromium.org</owner>
   <owner>src/components/component_updater/OWNERS</owner>
   <summary>The result of an install or an update check.</summary>
 </histogram>
 
 <histogram name="ComponentUpdater.UpdateCompleteTime" units="ms"
-    expires_after="2026-01-25">
+    expires_after="2026-03-29">
   <owner>sorin@chromium.org</owner>
   <owner>src/components/component_updater/OWNERS</owner>
   <summary>
@@ -4159,7 +4173,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DocumentScan.ScanFailed" enum="DocumentScanSaneBackend"
-    expires_after="2026-01-27">
+    expires_after="2026-03-29">
   <owner>bmgordon@chromium.org</owner>
   <owner>project-bolton@google.com</owner>
   <summary>
@@ -6028,6 +6042,62 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Mojo.Channel.ChannelInitPauseToFlushTime" units="ms"
+    expires_after="2026-07-13">
+  <owner>rakina@chromium.org</owner>
+  <owner>navigation-dev@chromium.org</owner>
+  <summary>
+    For each RenderProcessHost, records its time spent between pausing and
+    flushing its IPC channel via Pause() (triggered when the channel is
+    intialized) and Flush() (after the renderer process launched notification is
+    received) respectively.
+
+    Recorded when the channel gets flushed.
+  </summary>
+</histogram>
+
+<histogram name="Mojo.Channel.ChannelInitPauseToUnpauseTime" units="ms"
+    expires_after="2026-07-13">
+  <owner>rakina@chromium.org</owner>
+  <owner>navigation-dev@chromium.org</owner>
+  <summary>
+    For each RenderProcessHost, records its time spent between pausing and
+    flushing its IPC channel via Pause() (triggered when the channel is
+    initialized) and Unpause() (after the renderer process launched notification
+    is received) respectively.
+
+    Recorded when the channel gets unpaused.
+  </summary>
+</histogram>
+
+<histogram name="Mojo.Channel.ProcessLaunchPauseToFlushTime" units="ms"
+    expires_after="2026-07-13">
+  <owner>rakina@chromium.org</owner>
+  <owner>navigation-dev@chromium.org</owner>
+  <summary>
+    For each RenderProcessHost, records its time spent between pausing and
+    flushing its IPC channel via Pause() (triggered when renderer process launch
+    is requested) and Flush() (after the renderer process launched notification
+    is received) respectively.
+
+    Recorded when the channel gets flushed.
+  </summary>
+</histogram>
+
+<histogram name="Mojo.Channel.ProcessLaunchPauseToUnpauseTime" units="ms"
+    expires_after="2026-07-13">
+  <owner>rakina@chromium.org</owner>
+  <owner>navigation-dev@chromium.org</owner>
+  <summary>
+    For each RenderProcessHost, records its time spent between pausing and
+    flushing its IPC channel via Pause() (triggered when renderer process launch
+    is requested) and Unpause() (after the renderer process launched
+    notification is received) respectively.
+
+    Recorded when the channel gets unpaused.
+  </summary>
+</histogram>
+
 <histogram name="Mojo.Channel.WriteMessageLatency" units="ms"
     expires_after="2026-03-22">
   <owner>amistry@chromium.org</owner>
@@ -6081,7 +6151,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Mojo.Channel.WriteToReadLatencyUs" units="microseconds"
-    expires_after="2026-01-25">
+    expires_after="2026-03-29">
   <owner>lizeb@chromium.org</owner>
   <owner>rockot@google.com</owner>
   <summary>
@@ -7717,7 +7787,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ReadingList.Read.Number" units="count"
-    expires_after="2026-01-25">
+    expires_after="2026-03-29">
   <owner>gambard@chromium.org</owner>
   <owner>bling-team@google.com</owner>
   <summary>Number of read entries in reading list.</summary>
@@ -7733,7 +7803,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ReadingList.Unread.Number" units="count"
-    expires_after="2026-01-25">
+    expires_after="2026-03-29">
   <owner>gambard@chromium.org</owner>
   <owner>bling-team@google.com</owner>
   <summary>Number of unread entries in reading list.</summary>
@@ -9590,7 +9660,7 @@ should be kept until we use this API.  -->
 </histogram>
 
 <histogram name="UpdateClient.Component.UpdateCheckResult"
-    enum="UpdateClientUpdateCheckResult" expires_after="2026-01-25">
+    enum="UpdateClientUpdateCheckResult" expires_after="2026-03-29">
   <owner>noahrose@google.com</owner>
   <owner>sorin@chromium.org</owner>
   <owner>waffles@chromium.org</owner>
@@ -9601,7 +9671,7 @@ should be kept until we use this API.  -->
 </histogram>
 
 <histogram name="UpdateClient.Component.Updated" enum="Boolean"
-    expires_after="2026-01-25">
+    expires_after="2026-03-29">
   <owner>noahrose@google.com</owner>
   <owner>sorin@chromium.org</owner>
   <owner>waffles@chromium.org</owner>
@@ -9636,7 +9706,7 @@ should be kept until we use this API.  -->
 </histogram>
 
 <histogram name="UpdateClient.UnzipTime{AppID}" units="ms"
-    expires_after="2026-01-25">
+    expires_after="2026-03-29">
   <owner>noahrose@google.com</owner>
   <owner>sorin@chromium.org</owner>
   <owner>waffles@chromium.org</owner>

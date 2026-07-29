@@ -24,6 +24,7 @@
 #include "third_party/blink/public/web/web_document.h"
 #include "third_party/blink/public/web/web_frame_widget.h"
 #include "third_party/blink/public/web/web_local_frame.h"
+#include "third_party/blink/public/web/web_local_frame_client.h"
 
 namespace actor {
 
@@ -35,7 +36,7 @@ using ::content::RenderFrameObserver;
 
 std::ostream& operator<<(std::ostream& o,
                          const PageStabilityMonitor::State& state) {
-  return o << base::to_underlying(state);
+  return o << PageStabilityMonitor::StateToString(state);
 }
 
 namespace {
@@ -60,21 +61,21 @@ PageStabilityMonitor::PageStabilityMonitor(content::RenderFrame& frame,
                                            TaskId task_id,
                                            Journal& journal)
     : RenderFrameObserver(&frame),
-      paint_stability_monitor_(supports_paint_stability
-                                   ? PaintStabilityMonitor::MaybeCreate(frame)
-                                   : nullptr),
       task_id_(task_id),
-      journal_(journal) {
+      journal_(journal),
+      paint_stability_monitor_(
+          supports_paint_stability
+              ? PaintStabilityMonitor::MaybeCreate(frame, task_id, journal)
+              : nullptr) {
   CHECK(render_frame());
   CHECK(render_frame()->GetWebFrame());
   starting_request_count_ =
       render_frame()->GetWebFrame()->GetDocument().ActiveResourceRequestCount();
 
-  journal_entry_ = journal_->CreatePendingAsyncEntry(
-      task_id_, "PageStabilityInitial",
-      JournalDetailsBuilder()
-          .Add("requests_before", starting_request_count_)
-          .Build());
+  journal_->Log(task_id_, "PageStability: Created",
+                JournalDetailsBuilder()
+                    .Add("requests_before", starting_request_count_)
+                    .Build());
 }
 
 PageStabilityMonitor::~PageStabilityMonitor() {
@@ -83,35 +84,25 @@ PageStabilityMonitor::~PageStabilityMonitor() {
   }
 
   // If we have a callback, ensure it replies now.
-  journal_entry_->Log("PageStabilityMonitorDestructor", {});
-  MoveToState(State::kRenderFrameGoingAway);
+  OnRenderFrameGoingAway();
   Cleanup();
 }
 
 void PageStabilityMonitor::NotifyWhenStable(base::TimeDelta observation_delay,
                                             NotifyWhenStableCallback callback) {
+  CHECK_EQ(state_, State::kInitial);
   CHECK(!is_stable_callback_);
   is_stable_callback_ = std::move(callback);
 
-  // It's possible that a navigation has been committed before NotifyWhenStable
-  // has been called, requesting the callback be invoked. Do so now.
-  if (state_ == State::kInvokedBeforeNotify) {
-    MoveToState(State::kInvokeCallback);
+  if (render_frame_did_go_away_) {
+    MoveToState(State::kRenderFrameGoingAway);
     return;
   }
-
-  CHECK_EQ(state_, State::kInitial);
-
-  // This will end the PageStabilityInitial entry and start a new one.
-  journal_entry_.reset();
-  journal_entry_ = journal_->CreatePendingAsyncEntry(
-      task_id_, "PageStability",
-      JournalDetailsBuilder().Add("state", state_).Build());
 
   monitoring_start_delay_ = observation_delay;
 
   if (paint_stability_monitor_) {
-    paint_stability_monitor_->Start(journal_entry_.get());
+    paint_stability_monitor_->Start();
   }
 
   SetTimeout(State::kTimeoutGlobal, GetGlobalTimeoutDelay());
@@ -133,24 +124,24 @@ void PageStabilityMonitor::DidCommitProvisionalLoad(
     return;
   }
 
-  journal_entry_->Log(
-      "DidCommitProvisionalLoad",
+  journal_->Log(
+      task_id_, "PageStability: DidCommitProvisionalLoad",
       JournalDetailsBuilder()
           .Add("transition", PageTransitionGetCoreTransitionString(transition))
           .Build());
-  MoveToState(State::kRenderFrameGoingAway);
+  OnRenderFrameGoingAway();
 }
 
 void PageStabilityMonitor::DidFailProvisionalLoad() {
   if (state_ == State::kWaitForNavigation) {
-    journal_entry_->Log("DidFailProvisionalLoad", {});
+    journal_->Log(task_id_, "DidFailProvisionalLoad", {});
     MoveToState(State::kStartMonitoring);
   }
 }
 
 void PageStabilityMonitor::DidSetPageLifecycleState(
-    bool restoring_from_bfcache) {
-  if (restoring_from_bfcache) {
+    blink::BFCacheStateChange bfcache_change) {
+  if (bfcache_change != blink::BFCacheStateChange::kStoredToBFCache) {
     return;
   }
 
@@ -159,8 +150,8 @@ void PageStabilityMonitor::DidSetPageLifecycleState(
     return;
   }
 
-  journal_entry_->Log("PageStabilityMonitor Page Frozen", {});
-  MoveToState(State::kRenderFrameGoingAway);
+  journal_->Log(task_id_, "PageStabilityMonitor Page Frozen", {});
+  OnRenderFrameGoingAway();
 }
 
 void PageStabilityMonitor::OnDestruct() {
@@ -173,6 +164,11 @@ void PageStabilityMonitor::MoveToState(State new_state) {
   if (state_ == State::kDone) {
     return;
   }
+
+  journal_entry_.reset();
+  journal_entry_ = journal_->CreatePendingAsyncEntry(
+      task_id_,
+      absl::StrFormat("PageStabilityState: %s", StateToString(new_state)), {});
 
   DCheckStateTransition(state_, new_state);
 
@@ -200,12 +196,14 @@ void PageStabilityMonitor::MoveToState(State new_state) {
       }
       // Do nothing - will advance to the next state from
       // DidCommit|FailProvisionalLoad.
-      journal_entry_->Log("WaitingForNavigation");
       break;
     }
     case State::kStartMonitoring: {
       WebDocument document = render_frame()->GetWebFrame()->GetDocument();
       int after_request_count = document.ActiveResourceRequestCount();
+      journal_entry_->Log(
+          "Network Requests",
+          JournalDetailsBuilder().Add("count", after_request_count).Build());
 
       State next_state;
 
@@ -217,13 +215,8 @@ void PageStabilityMonitor::MoveToState(State new_state) {
                            weak_ptr_factory_.GetWeakPtr()));
       }
       if (after_request_count > starting_request_count_) {
-        journal_entry_->Log("WaitForNetworkIdle",
-                            JournalDetailsBuilder()
-                                .Add("requests", after_request_count)
-                                .Build());
         next_state = State::kWaitForNetworkIdle;
       } else {
-        journal_entry_->Log("WaitForMainThreadIdle");
         next_state = State::kWaitForMainThreadIdle;
       }
 
@@ -243,38 +236,16 @@ void PageStabilityMonitor::MoveToState(State new_state) {
           [](base::OnceClosure callback, base::TimeTicks unused_deadline) {
             std::move(callback).Run();
           },
-          MoveToStateClosure(State::kWaitForVisualStateRequest)));
+          MoveToStateClosure(State::kMaybeDelayCallback)));
       render_frame()->GetWebFrame()->PostIdleTask(
           FROM_HERE, main_thread_idle_callback_.callback());
       break;
     }
-    case State::kWaitForVisualStateRequest: {
-      WebFrameWidget* widget = render_frame()->GetWebFrame()->FrameWidget();
-      if (!widget->InsertVisualStateRequest(
-              MoveToStateClosure(State::kMaybeDelayCallback))) {
-        journal_entry_->EndEntry(
-            JournalDetailsBuilder()
-                .AddError("Failed to wait for new frame presentation due to no "
-                          "compositor.")
-                .Build());
-        MoveToState(State::kMaybeDelayCallback);
-      }
-      break;
-    }
     case State::kTimeoutGlobal: {
-      journal_entry_->EndEntry(
-          JournalDetailsBuilder()
-              .AddError("Timed out waiting for page stability.")
-              .Build());
       MoveToState(State::kInvokeCallback);
       break;
     }
     case State::kTimeoutMainThread: {
-      journal_entry_->EndEntry(
-          JournalDetailsBuilder()
-              .AddError("Timed out waiting for page stability - main thread to "
-                        "produce a thread.")
-              .Build());
       MoveToState(State::kInvokeCallback);
       break;
     }
@@ -293,19 +264,9 @@ void PageStabilityMonitor::MoveToState(State new_state) {
       }
       break;
     }
-    case State::kInvokedBeforeNotify: {
-      // Do nothing - this will be moved from NotifyWhenStable.
-      break;
-    }
     case State::kInvokeCallback: {
-      // If we don't yet have a callback it's because NotifyWhenStable hasn't
-      // been called yet (NavigationCommitted can occur before then). If this
-      // happens, just move to kDone; the callback will invoke when it is
-      // called.
-      if (!is_stable_callback_) {
-        MoveToState(State::kInvokedBeforeNotify);
-        break;
-      }
+      CHECK(is_stable_callback_);
+
       // Ensure we release the network and main thread idle callback slots.
       network_idle_callback_.Cancel();
       main_thread_idle_callback_.Cancel();
@@ -327,6 +288,7 @@ void PageStabilityMonitor::MoveToState(State new_state) {
       break;
     }
     case State::kRenderFrameGoingAway: {
+      CHECK(render_frame_did_go_away_);
       MoveToState(State::kInvokeCallback);
       break;
     }
@@ -390,9 +352,22 @@ void PageStabilityMonitor::SetTimeout(State timeout_type,
 }
 
 void PageStabilityMonitor::OnPaintStabilityReached() {
-  // Do this in a separate task since paint stability can be reached while
-  // transitioning to `State::kStartMonitoring`.
+  // Do this in a separate task since this callback can be called synchronously
+  // when registered.
+  // TODO(bokan): It'd be better for PaintStabilityMonitor to post the reply in
+  // this case.
   PostMoveToStateClosure(State::kPaintStabilityReached).Run();
+}
+
+void PageStabilityMonitor::OnRenderFrameGoingAway() {
+  render_frame_did_go_away_ = true;
+
+  // Don't enter the state machine until NotifyWhenStable is called.
+  if (state_ == State::kInitial) {
+    return;
+  }
+
+  MoveToState(State::kRenderFrameGoingAway);
 }
 
 void PageStabilityMonitor::DCheckStateTransition(State old_state,
@@ -421,15 +396,8 @@ void PageStabilityMonitor::DCheckStateTransition(State old_state,
               State::kTimeoutGlobal,
               State::kRenderFrameGoingAway}},
           {State::kWaitForMainThreadIdle, {
-              State::kWaitForVisualStateRequest,
-              State::kPaintStabilityReached,
-              State::kTimeoutMainThread,
-              State::kTimeoutGlobal,
-              State::kRenderFrameGoingAway}},
-          {State::kWaitForVisualStateRequest, {
-              State::kPaintStabilityReached,
               State::kMaybeDelayCallback,
-              State::kInvokeCallback,
+              State::kPaintStabilityReached,
               State::kTimeoutMainThread,
               State::kTimeoutGlobal,
               State::kRenderFrameGoingAway}},
@@ -443,15 +411,11 @@ void PageStabilityMonitor::DCheckStateTransition(State old_state,
               State::kTimeoutMainThread,
               State::kTimeoutGlobal,
               State::kRenderFrameGoingAway}},
-          {State::kInvokedBeforeNotify, {
-              State::kInvokeCallback,
-              State::kRenderFrameGoingAway}},
           {State::kRenderFrameGoingAway, {
               State::kInvokeCallback}},
           {State::kPaintStabilityReached, {
               State::kInvokeCallback}},
           {State::kInvokeCallback, {
-              State::kInvokedBeforeNotify,
               State::kDone}}
 
           // kDone can be entered after various tasks are posted but before
@@ -482,13 +446,41 @@ void PageStabilityMonitor::Bind(
 }
 
 void PageStabilityMonitor::OnMojoDisconnected() {
-  if (!receiver_.is_bound()) {
-    return;
-  }
+  journal_->Log(task_id_, "OnMojoDisconnected",
+                JournalDetailsBuilder().Add("state", state_).Build());
+}
 
-  CHECK(journal_entry_);
-  journal_entry_->Log("OnMojoDisconnected",
-                      JournalDetailsBuilder().Add("state", state_).Build());
+// static
+std::string_view PageStabilityMonitor::StateToString(State state) {
+  switch (state) {
+    case State::kInitial:
+      return "Initial";
+    case State::kMonitorStartDelay:
+      return "MonitorStartDelay";
+    case State::kWaitForNavigation:
+      return "WaitForNavigation";
+    case State::kStartMonitoring:
+      return "StartMonitoring";
+    case State::kWaitForNetworkIdle:
+      return "WaitForNetworkIdle";
+    case State::kWaitForMainThreadIdle:
+      return "WaitForMainThreadIdle";
+    case State::kTimeoutGlobal:
+      return "TimeoutGlobal";
+    case State::kTimeoutMainThread:
+      return "TimeoutMainThread";
+    case State::kMaybeDelayCallback:
+      return "MaybeDelayCallback";
+    case State::kInvokeCallback:
+      return "InvokeCallback";
+    case State::kRenderFrameGoingAway:
+      return "RenderFrameGoingAway";
+    case State::kPaintStabilityReached:
+      return "PaintStabilityReached";
+    case State::kDone:
+      return "Done";
+  }
+  NOTREACHED();
 }
 
 }  // namespace actor

@@ -52,10 +52,10 @@ std::unique_ptr<net::test_server::HttpResponse> SearchResponse(
       base::UTF16ToUTF8(TemplateURLPrepopulateData::google.keyword));
   const std::string secondSearchEngineKeyword(
       base::UTF16ToUTF8(secondPrepopulatedSearchEngine->keyword));
-  if (base::Contains(request.GetURL().path(), googleSearchEngineKeyword)) {
+  if (base::Contains(request.GetURL().GetPath(), googleSearchEngineKeyword)) {
     http_response->set_content(
         "<body>" + std::string(googleSearchEngineKeyword) + "</body>");
-  } else if (base::Contains(request.GetURL().path(),
+  } else if (base::Contains(request.GetURL().GetPath(),
                             secondSearchEngineKeyword)) {
     http_response->set_content(
         "<body>" + std::string(secondSearchEngineKeyword) + "</body>");
@@ -137,7 +137,7 @@ std::unique_ptr<net::test_server::HttpResponse> StandardResponse(
 
 - (void)addURLRewriter {
   GURL url = self.testServer->GetURL(kPageURL);
-  NSString* port = base::SysUTF8ToNSString(url.port());
+  NSString* port = base::SysUTF8ToNSString(url.GetPort());
 
   const std::string googleSearchEngineKeyword(
       base::UTF16ToUTF8(TemplateURLPrepopulateData::google.keyword));

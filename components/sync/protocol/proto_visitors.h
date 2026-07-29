@@ -2066,6 +2066,8 @@ VISIT_PROTO_FIELDS(const sync_pb::FlightReservation& proto) {
   VISIT(arrival_airport);
   VISIT(departure_date_unix_epoch_micros);
   VISIT(arrival_date_unix_epoch_micros);
+  VISIT(airline_logo);
+  VISIT(carrier_code);
 }
 
 VISIT_PROTO_FIELDS(const sync_pb::AccountSettingSpecifics& proto) {
@@ -2151,8 +2153,21 @@ VISIT_PROTO_FIELDS(const sync_pb::AiThreadSpecifics& proto) {
   VISIT(title);
 }
 
+VISIT_PROTO_FIELDS(const sync_pb::ContextualTask& proto) {
+  VISIT(title);
+  VISIT(thread_id);
+}
+
+VISIT_PROTO_FIELDS(const sync_pb::UrlResource& proto) {
+  VISIT(task_guid);
+  VISIT(url);
+}
+
 VISIT_PROTO_FIELDS(const sync_pb::ContextualTaskSpecifics& proto) {
-  // TODO(crbug.com/445840788): In CL #2, VISIT fields added to specifics.
+  VISIT(guid);
+  VISIT(contextual_task);
+  VISIT(url_resource);
+  VISIT(version);
 }
 
 }  // namespace syncer

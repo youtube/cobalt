@@ -1460,8 +1460,8 @@ IN_PROC_BROWSER_TEST_P(ContentScriptApiTestWithContextType, ContentScriptUrls) {
     ASSERT_EQ(1u, observer.messages().size());
     GURL source_url(observer.messages()[0].source_id);
     ASSERT_TRUE(source_url.is_valid());
-    EXPECT_EQ(kExtensionScheme, source_url.scheme_piece());
-    EXPECT_EQ(extension->id(), source_url.host_piece());
+    EXPECT_EQ(kExtensionScheme, source_url.scheme());
+    EXPECT_EQ(extension->id(), source_url.host());
   };
 
   // Test the script url from both a static content script specified in the
@@ -1858,7 +1858,7 @@ GURL ContentScriptRelatedFrameTest::CreateBlobURL(
       content::EvalJs(host, kCreateBlobURL).ExtractString();
   GURL url(url_string);
   EXPECT_TRUE(url.is_valid());
-  EXPECT_EQ(url::kBlobScheme, url.scheme());
+  EXPECT_EQ(url::kBlobScheme, url.GetScheme());
   EXPECT_EQ(
       url::Origin::Create(host->GetLastCommittedURL()).GetURL(),
       url::Origin::Create(url).GetTupleOrPrecursorTupleIfOpaque().GetURL());
@@ -1886,7 +1886,7 @@ GURL ContentScriptRelatedFrameTest::CreateFilesystemURL(
       content::EvalJs(host, kCreateFilesystemURL).ExtractString();
   GURL url(url_string);
   EXPECT_TRUE(url.is_valid());
-  EXPECT_EQ(url::kFileSystemScheme, url.scheme());
+  EXPECT_EQ(url::kFileSystemScheme, url.GetScheme());
   EXPECT_EQ(
       url::Origin::Create(host->GetLastCommittedURL()).GetURL(),
       url::Origin::Create(url).GetTupleOrPrecursorTupleIfOpaque().GetURL());

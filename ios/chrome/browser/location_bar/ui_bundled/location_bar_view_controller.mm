@@ -348,15 +348,13 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
   [self updateTrailingButtonState];
   [self switchToEditing:NO];
 
-  if (@available(iOS 17, *)) {
-    NSArray<UITrait>* traits = TraitCollectionSetForTraits(
-        @[ UITraitHorizontalSizeClass.class, UITraitVerticalSizeClass.class ]);
-    [self registerForTraitChanges:traits
-                       withAction:@selector(updateTrailingButtonState)];
+  NSArray<UITrait>* traits = TraitCollectionSetForTraits(
+      @[ UITraitHorizontalSizeClass.class, UITraitVerticalSizeClass.class ]);
+  [self registerForTraitChanges:traits
+                     withAction:@selector(updateTrailingButtonState)];
 
-    [self registerForTraitChanges:@[ UITraitHorizontalSizeClass.class ]
-                       withAction:@selector(sizeClassDidChange)];
-  }
+  [self registerForTraitChanges:@[ UITraitHorizontalSizeClass.class ]
+                     withAction:@selector(sizeClassDidChange)];
 
   if (base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdateV2)) {
     _defaultSearchEngineIconView = [[UIImageView alloc] init];
@@ -367,16 +365,6 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
         CGSizeMake(kOmniboxLeadingImageSize + 12.0f, kOmniboxLeadingImageSize));
   }
 }
-
-#if !defined(__IPHONE_17_0) || __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_17_0
-- (void)traitCollectionDidChange:(UITraitCollection*)previousTraitCollection {
-  [super traitCollectionDidChange:previousTraitCollection];
-  if (@available(iOS 17, *)) {
-    return;
-  }
-  [self updateTrailingButtonState];
-}
-#endif
 
 #pragma mark - FullscreenUIElement
 
@@ -705,16 +693,21 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
       // padding to balance it.
       UIImage* shareImage =
           DefaultSymbolWithPointSize(kShareSymbol, kSymbolImagePointSize);
-      // TODO(crbug.com/411039614): Replace
-      // UIGraphicsBeginImageContextWithOptions with UIGraphicsImageRenderer.
-      UIGraphicsBeginImageContextWithOptions(
-          CGSizeMake(shareImage.size.width,
-                     shareImage.size.height + kShareIconBalancingHeightPadding),
-          NO, 0.0);
-      [shareImage drawInRect:CGRectMake(0, 0, shareImage.size.width,
-                                        shareImage.size.height)];
-      UIImage* paddedShareImage = UIGraphicsGetImageFromCurrentImageContext();
-      UIGraphicsEndImageContext();
+
+      UIGraphicsImageRendererFormat* format =
+          [UIGraphicsImageRendererFormat preferredFormat];
+      format.scale = 0.0;
+      format.opaque = NO;
+      UIGraphicsImageRenderer* renderer = [[UIGraphicsImageRenderer alloc]
+          initWithSize:CGSizeMake(shareImage.size.width,
+                                  shareImage.size.height +
+                                      kShareIconBalancingHeightPadding)
+                format:format];
+      UIImage* paddedShareImage = [renderer
+          imageWithActions:^(UIGraphicsImageRendererContext* context) {
+            [shareImage drawInRect:CGRectMake(0, 0, shareImage.size.width,
+                                              shareImage.size.height)];
+          }];
 
       [self.locationBarSteadyView.trailingButton setImage:paddedShareImage
                                                  forState:UIControlStateNormal];

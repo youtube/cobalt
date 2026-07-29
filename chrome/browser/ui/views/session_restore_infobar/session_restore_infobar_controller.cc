@@ -14,6 +14,7 @@
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
+#include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/prefs/session_startup_pref.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sessions/session_restore.h"
@@ -24,6 +25,9 @@
 #include "chrome/browser/ui/views/session_restore_infobar/session_restore_infobar_model.h"
 #include "chrome/browser/ui/views/session_restore_infobar/session_restore_infobar_prefs.h"
 #include "chrome/common/pref_names.h"
+#include "components/browsing_data/core/pref_names.h"
+#include "components/content_settings/core/browser/host_content_settings_map.h"
+#include "components/content_settings/core/common/content_settings.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/web_contents.h"
 
@@ -41,35 +45,25 @@ void SessionRestoreInfobarController::MaybeShowInfoBar(
     Profile& profile,
     bool was_restarted,
     bool is_post_crash_launch) {
+  HostContentSettingsMap* host_content_settings_map =
+      HostContentSettingsMapFactory::GetForProfile(&profile);
+  if (host_content_settings_map->GetDefaultContentSetting(
+          ContentSettingsType::COOKIES) != CONTENT_SETTING_ALLOW) {
+    return;
+  }
+
   model_ = std::make_unique<SessionRestoreInfobarModel>(profile, was_restarted,
                                                         is_post_crash_launch);
 
-  if (GetInfobarMessageType() ==
-      SessionRestoreInfoBarDelegate::InfobarMessageType::kTurnOffFromRestart) {
-    if (profile.GetPrefs()->GetInteger(
-            prefs::kSessionRestoreTurnOffFromRestartInfoBarTimesShown) >=
-        kSessionRestoreInfoBarMaxOptOutTimesShown) {
-      return;
-    }
-  } else if (GetInfobarMessageType() ==
-             SessionRestoreInfoBarDelegate::InfobarMessageType::
-                 kTurnOffFromSession) {
-    if (profile.GetPrefs()->GetInteger(
-            prefs::kSessionRestoreTurnOffFromSessionInfoBarTimesShown) >=
-        kSessionRestoreInfoBarMaxOptOutTimesShown) {
-      return;
-    }
-  } else if (InfoBarShownMaxTimes(profile.GetPrefs())) {
+
+  if (InfoBarShownMaxTimes(profile.GetPrefs())) {
     return;
   }
 
-  if (UserInteractedWithSessionRestorePref(profile.GetPrefs())) {
+  if (!profile.GetPrefs()
+           ->FindPreference(prefs::kRestoreOnStartup)
+           ->IsDefaultValue()) {
     return;
-  }
-
-  if (features::kSetDefaultToContinueSession.Get()) {
-    SessionStartupPref::SetStartupPref(
-        &profile, SessionStartupPref(SessionStartupPref::LAST));
   }
 
   if (!model_->ShouldShowOnStartup()) {
@@ -82,7 +76,7 @@ void SessionRestoreInfobarController::MaybeShowInfoBar(
 
   SessionRestoreInfoBarManager::GetInstance()->ShowInfoBar(
       profile, GetInfobarMessageType());
-  IncrementInfoBarShownCount(profile.GetPrefs(), GetInfobarMessageType());
+  IncrementInfoBarShownCount(profile.GetPrefs());
 }
 
 SessionRestoreInfobarController* SessionRestoreInfobarController::From(
@@ -98,10 +92,8 @@ SessionRestoreInfobarController::GetInfobarMessageType() {
       if (model_->IsBrowserRestarting()) {
         return SessionRestoreInfoBarDelegate::InfobarMessageType::
             kTurnOffFromRestart;
-      } else {
-        return SessionRestoreInfoBarDelegate::InfobarMessageType::
-            kTurnOffFromSession;
       }
+      return SessionRestoreInfoBarDelegate::InfobarMessageType::kNone;
     case SessionRestoreInfobarModel::SessionRestoreMessageValue::OpenNewTabPage:
       if (model_->IsDefaultSessionRestorePref() &&
           model_->IsBrowserRestarting()) {

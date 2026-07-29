@@ -44,6 +44,7 @@ class WebFormElement;
 class WebString;
 class WebURLRequest;
 class WebWorkerFetchContext;
+enum class BFCacheStateChange;
 enum class DetachReason;
 struct JavaScriptFrameworkDetectionResult;
 }  // namespace blink
@@ -120,7 +121,8 @@ class CONTENT_EXPORT RenderFrameObserver {
       blink::WebDocumentLoader* document_loader) {}
 
   // Called when a RenderFrame's page lifecycle state gets updated.
-  virtual void DidSetPageLifecycleState(bool restoring_from_bfcache) {}
+  virtual void DidSetPageLifecycleState(
+      blink::BFCacheStateChange bfcache_change) {}
 
   // These match the Blink API notifications. These will not be called for the
   // initial empty document, since that already exists before an observer for a
@@ -273,6 +275,10 @@ class CONTENT_EXPORT RenderFrameObserver {
   // Notification when the renderer a response started, completed or canceled.
   // Complete or Cancel is guaranteed to be called for a response that started.
   // |request_id| uniquely identifies the request within this render frame.
+  //
+  // TODO(crbug.com/404425954): `DidStartResponse()`, `DidCompleteResponse()`,
+  // `DidCancelResponse()` are going to be deprecated. Use callback setters in
+  // `RenderFrame` instead.
   virtual void DidStartResponse(
       const url::SchemeHostPort& final_response_url,
       int request_id,

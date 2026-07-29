@@ -26,7 +26,6 @@
 #include "gpu/command_buffer/service/shared_image/cpu_readback_upload_copy_strategy.h"
 #include "gpu/command_buffer/service/shared_image/egl_image_backing_factory.h"
 #include "gpu/command_buffer/service/shared_image/gl_texture_image_backing_factory.h"
-#include "gpu/command_buffer/service/shared_image/gpu_memory_buffer_factory.h"
 #include "gpu/command_buffer/service/shared_image/raw_draw_image_backing_factory.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_backing.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_copy_manager.h"
@@ -79,6 +78,7 @@
 #include "gpu/command_buffer/service/dxgi_shared_handle_manager.h"
 #include "gpu/command_buffer/service/shared_image/d3d_image_backing_factory.h"
 #include "gpu/command_buffer/service/shared_image/dcomp_image_backing_factory.h"
+#include "gpu/command_buffer/service/shared_image/gpu_memory_buffer_factory_dxgi.h"
 #include "ui/gl/direct_composition_support.h"
 #include "ui/gl/gl_angle_util_win.h"
 #endif  // BUILDFLAG(IS_WIN)
@@ -642,6 +642,13 @@ bool SharedImageFactory::IsD3DSharedImageSupported() const {
       context_state_->GetD3D11Device().Get(), gpu_preferences_);
 }
 
+GpuMemoryBufferFactoryDXGI*
+SharedImageFactory::GetGpuMemoryBufferFactoryDXGI() {
+  static auto* factory =
+      new GpuMemoryBufferFactoryDXGI(shared_image_manager_->io_runner());
+  return factory;
+}
+
 bool SharedImageFactory::CreateSwapChain(const Mailbox& front_buffer_mailbox,
                                          const Mailbox& back_buffer_mailbox,
                                          viz::SharedImageFormat format,
@@ -711,19 +718,29 @@ SharedImageFactory::CreateNativeGpuMemoryBufferHandle(
     const gfx::Size& size,
     viz::SharedImageFormat format,
     gfx::BufferUsage usage) {
-  auto* gmb_factory = shared_image_manager_->gpu_memory_buffer_factory();
-  CHECK(gmb_factory);
-  return gmb_factory->CreateNativeGmbHandle(size, format, usage);
+#if BUILDFLAG(IS_APPLE)
+  return IOSurfaceImageBackingFactory::CreateGpuMemoryBufferHandle(size,
+                                                                   format);
+#elif BUILDFLAG(IS_OZONE)
+  return OzoneImageBackingFactory::CreateGpuMemoryBufferHandle(
+      shared_image_manager_->vulkan_context_provider(), size, format, usage);
+#else
+  return GetGpuMemoryBufferFactoryDXGI()->CreateNativeGmbHandle(size, format,
+                                                                usage);
+#endif
 }
 #endif
 
 bool SharedImageFactory::CopyNativeBufferToSharedMemoryAsync(
     gfx::GpuMemoryBufferHandle buffer_handle,
     base::UnsafeSharedMemoryRegion shared_memory) {
-  auto* gmb_factory = shared_image_manager_->gpu_memory_buffer_factory();
-  CHECK(gmb_factory);
-  return gmb_factory->FillSharedMemoryRegionWithBufferContents(
-      std::move(buffer_handle), std::move(shared_memory));
+#if BUILDFLAG(IS_WIN)
+  return GetGpuMemoryBufferFactoryDXGI()
+      ->FillSharedMemoryRegionWithBufferContents(std::move(buffer_handle),
+                                                 std::move(shared_memory));
+#else
+  return false;
+#endif
 }
 
 #if BUILDFLAG(IS_WIN)

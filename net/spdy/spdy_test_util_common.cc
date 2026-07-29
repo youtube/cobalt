@@ -75,11 +75,11 @@ void ParseUrl(std::string_view url,
               std::string* path) {
   GURL gurl(url);
   path->assign(gurl.PathForRequest());
-  scheme->assign(gurl.scheme());
-  host->assign(gurl.host());
+  scheme->assign(gurl.GetScheme());
+  host->assign(gurl.GetHost());
   if (gurl.has_port()) {
     host->append(":");
-    host->append(gurl.port());
+    host->append(gurl.GetPort());
   }
 }
 
@@ -358,6 +358,7 @@ HttpNetworkSessionParams SpdySessionDependencies::CreateSessionParams(
   params.enable_spdy_ping_based_connection_checking = session_deps->enable_ping;
   params.enable_user_alternate_protocol_ports =
       session_deps->enable_user_alternate_protocol_ports;
+  params.enable_http2 = session_deps->enable_http2;
   params.enable_quic = session_deps->enable_quic;
   params.spdy_session_max_recv_window_size =
       session_deps->session_max_recv_window_size;

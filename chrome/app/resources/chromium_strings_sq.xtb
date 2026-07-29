@@ -34,6 +34,7 @@ Disa funksione mund të mos ofrohen dhe ndryshimet në preferenca nuk do të ruh
 <translation id="1345251407431278948">U gozhdua! Mund të qasesh përsëri te "Kërkimi nëpërmjet imazheve" nga butoni i ri në shiritin e veglave</translation>
 <translation id="1356661055722410047">E re! Mund të përkthesh tekstet dhe imazhet në ekranin tënd</translation>
 <translation id="1383876407941801731">Kërko</translation>
+<translation id="1397530502368084401">&amp;Menaxho profilet e Chromium</translation>
 <translation id="1414495520565016063">Je i identifikuar në Chromium!</translation>
 <translation id="141901961143729572">Ndaj mendimet e tua</translation>
 <translation id="1465192221147974788">Për të ndarë dritaren tënde, lejo regjistrimin e ekranit për Chromium te "Cilësimet e sistemit".</translation>
@@ -72,8 +73,8 @@ Disa funksione mund të mos ofrohen dhe ndryshimet në preferenca nuk do të ruh
 <translation id="1896836275755235458">Chromium kursen energjinë e baterisë duke kufizuar aktivitetin në sfond dhe efektet vizuale, si p.sh. lëvizjen e butë dhe shpejtësitë e kuadrove të videove. <ph name="BEGIN_LINK" />Mëso më shumë për "Kursyesin e energjisë"<ph name="END_LINK" /></translation>
 <translation id="1898804291554630487">Pyet rreth kësaj faqeje</translation>
 <translation id="1900969832270057921">Chromium Updater Service</translation>
+<translation id="1911666947158375684">Kur je i identifikuar, mund të përdorësh fjalëkalimet dhe më shumë nga "Llogaria jote e Google" në Chromium. Këtë mund ta ndryshosh në çdo kohë te cilësimet.</translation>
 <translation id="1911763535808217981">Duke çaktivizuar këtë, mund të identifikohesh në sajtet e Google si Gmail pa u identifikuar në Chromium</translation>
-<translation id="1916451563296275579">Hiq të dhënat e këtij aplikacioni nga Chromium</translation>
 <translation id="1929939181775079593">Chromium nuk përgjigjet. Dëshiron ta hapësh sërish tani?</translation>
 <translation id="1933341829955786215">Organizata jote, <ph name="MANAGER" />, kërkon që të identifikohesh në Chromium</translation>
 <translation id="193439633299369377">ChromiumOS ka nevojë të riniset për të zbatuar përditësimin.</translation>
@@ -236,6 +237,9 @@ Disa funksione mund të mos ofrohen dhe ndryshimet në preferenca nuk do të ruh
 <translation id="379589255253486813">Chromium do të të informojë nëse duhet të rishikosh diçka</translation>
 <translation id="3802055581630249637">Chromium ngarkon paraprakisht faqet që mund t'i vizitosh që ato të ngarkohen më shpejt kur t'i vizitosh</translation>
 <translation id="3810973564298564668">Menaxho</translation>
+<translation id="3846683726093018685">**Përmblidh:** Në një fjali të vetme deri në 30 fjalë, përshkruaj subjektin kryesor dhe qëllimin e përmbajtjes në pamjen e ekranit.
+
+          **Sugjero pyetje:** Gjenero një listë me pika prej 3 deri në 5 pyetje që nxisin të menduarit dhe që mund të bëhen nga një përdorues për të kuptuar më mirë pamjen e ekranit. Këto pyetje duhet të përfshijnë të paktën një pyetje që ka të bëjë në mënyrë specifike me një objekt vizual, dizajnin ose vendosjen e tij.</translation>
 <translation id="3848258323044014972"><ph name="PAGE_TITLE" /> - Chromium</translation>
 <translation id="3885770153807205175">Zgjedhësi i gjuhës</translation>
 <translation id="388648406173476553">Personalizo dhe kontrollo Chromium. Diçka ka nevojë për vëmendjen tënde - kliko për detaje.</translation>
@@ -471,6 +475,7 @@ Disa funksione mund të mos ofrohen dhe ndryshimet në preferenca nuk do të ruh
 <translation id="6669284030132180248">Nëse i ruan faqeshënuesit e tu vetëm në "Llogarinë tënde të Google", mund t'i monitorosh çmimet e produkteve në Chromium dhe të marrësh njoftime kur të ulet çmimi</translation>
 <translation id="6676384891291319759">Qasu në internet</translation>
 <translation id="668175097507315160">ChromiumOS nuk mund t'i sinkronizonte të dhënat e tua për shkak të një gabimi gjatë identifikimit.</translation>
+<translation id="6691132793308828750">Hiq të dhënat e këtij aplikacioni nga Chromium</translation>
 <translation id="6692797197837897398">Chromium të jep më shumë kontroll mbi reklamat që shikon ti dhe kufizon ato që sajtet mund të mësojnë për ty kur të shfaqin reklama të personalizuara.</translation>
 <translation id="6709350901466051922">Chromium ka nevojë për lejen e mikrofonit për këtë sajt</translation>
 <translation id="6712881677154121168">Gabim shkarkimi: <ph name="DOWNLOAD_ERROR" />.</translation>
@@ -491,6 +496,7 @@ Disa funksione mund të mos ofrohen. Specifiko një direktori tjetër profili os
 <translation id="6877155553248388166">këndi poshtë djathtas i zonës së kërkimit: djathtas <ph name="RIGHT" />%, poshtë <ph name="BOTTOM" />%</translation>
 <translation id="6896758677409633944">Kopjo</translation>
 <translation id="6901631050894301805">Cakto Chromium si shfletuesin tënd të parazgjedhur dhe gozhdoje te shiriti i detyrave</translation>
+<translation id="6909503629704372277">&amp;Menaxho profilet e Chromium</translation>
 <translation id="6934579572334859869">Pyet "Kërkimin e imazheve" për këtë imazh</translation>
 <translation id="6964305034639999644">Hape lidhjen në një dritare të fshe&amp;htë të Chromium</translation>
 <translation id="6965382102122355670">Në rregull</translation>
@@ -502,6 +508,7 @@ Disa funksione mund të mos ofrohen. Specifiko një direktori tjetër profili os
 <translation id="7024536598735240744">Gabim shpaketimi: <ph name="UNPACK_ERROR" />.</translation>
 <translation id="7025789849649390912">Instalimi ndaloi.</translation>
 <translation id="7045244423563602563">Bëje Chromium tëndin</translation>
+<translation id="7047386856539490735">A janë të dobishme këto rezultate?</translation>
 <translation id="705851970750939768">Përditëso Chromium</translation>
 <translation id="7067091210845072982">Nëse një imazh nuk ka një përshkrim të dobishëm, Chromium do të përpiqet të të japë një përshkrim. Për të krijuar përshkrime, imazhet dërgohen te Google.</translation>
 <translation id="7141270731789036260">Personalizo Chrome for Testing</translation>
@@ -627,7 +634,6 @@ Chromium nuk është në gjendje të rikuperojë cilësimet e tua.</translation>
 <translation id="8586442755830160949">Të drejtat e autorit <ph name="YEAR" /> Autorët e Chromium. Të gjitha të drejtat të rezervuara.</translation>
 <translation id="8601359445272098721">E re! Mund të përkthesh tekstet dhe imazhet në ekranin tënd duke zgjedhur butonin "përkthe ekranin"</translation>
 <translation id="8619360774459241877">Po hapet Chromium...</translation>
-<translation id="8621669128220841554">Instalimi dështoi për shkak të një gabimi të papërcaktuar. Shkarko përsëri Chromium.</translation>
 <translation id="8648201657708811153">Google Chrome for Testing nuk mund të bëhet shfletuesi yt i parazgjedhur.</translation>
 <translation id="8697124171261953979">Kontrollon po ashtu se cila faqe shfaqet kur nis Chromium ose kur kërkon nga Omnibox.</translation>
 <translation id="8704119203788522458">Ky është Chromium për ty</translation>

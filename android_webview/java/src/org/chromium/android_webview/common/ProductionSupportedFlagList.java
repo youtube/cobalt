@@ -478,10 +478,6 @@ public final class ProductionSupportedFlagList {
                 "WebRtcEncodedTransformDirectCallback",
                 "Directly invoke WebRTC Encoded Transform callbacks in a worker."),
         Flag.baseFeature(
-                "RTCAlignReceivedEncodedVideoTransforms",
-                "Aligns the JS calls by WebRTC Encoded Transforms on Video Frames with a Metronome"
-                        + " to save power."),
-        Flag.baseFeature(
                 "WebRtcAudioSinkUseTimestampAligner",
                 "Align WebRTC and Chrome clocks using a timestamp aligner for absolute capture"
                         + " times in Audio RTP packets."),
@@ -1093,10 +1089,6 @@ public final class ProductionSupportedFlagList {
                 BaseFeatures.BACKGROUND_NOT_PERCEPTIBLE_BINDING,
                 "Enable boosting the importance of renderers without boosting their CPU priority."),
         Flag.baseFeature(
-                "CleanupToBeNormalTermination",
-                "Process terminated by RenderProcessHost::Cleanup() is marked as "
-                        + "normal_termination."),
-        Flag.baseFeature(
                 "KeepChildProcessAfterIPCReset",
                 "When enabled, child process will not terminate itself when IPC is reset."),
         Flag.baseFeature(
@@ -1109,10 +1101,6 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(
                 BaseFeatures.USE_SHARED_REBIND_SERVICE_CONNECTION,
                 "Use a shared service connection to apply service group importance changes."),
-        Flag.baseFeature(
-                "ReloadHiddenTabsWithActiveCrashedSubframes",
-                "Restricts reloading of hidden tabs with crashed subframes to only happen for "
-                        + "active subframes."),
         Flag.baseFeature(
                 "SubframePriorityContribution",
                 "Stops priority contributions from subframes in back-forward cache."),
@@ -1160,6 +1148,14 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(
                 AwFeatures.WEBVIEW_OPT_IN_TO_GMS_BIND_SERVICE_OPTIMIZATION,
                 "Opt-in WebView to GMSCore's bindService optimizations"),
+        Flag.baseFeature(
+                AwFeatures.WEBVIEW_MOVE_WORK_TO_PROVIDER_INIT,
+                " Moves some of the work that is being run during `startChromium` to be done"
+                    + " beforehand during WebView provider initialization. This is expected to"
+                    + " improve startup performance especially when async startup takes place."),
+        Flag.baseFeature(
+                "OriginMatcherNewCopyAssignment",
+                "Use a faster implementation for copying OriginMatchers."),
         // Add new commandline switches and features above. The final entry should have a
         // trailing comma for cleaner diffs.
     };

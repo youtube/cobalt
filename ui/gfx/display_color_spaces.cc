@@ -13,6 +13,7 @@
 #include <cmath>
 
 #include "build/build_config.h"
+#include "components/viz/common/resources/shared_image_format_utils.h"
 #include "skia/ext/skcolorspace_primaries.h"
 
 namespace gfx {
@@ -74,10 +75,12 @@ DisplayColorSpaces::DisplayColorSpaces(const gfx::ColorSpace& c)
     color_spaces_[i] = c;
 }
 
-DisplayColorSpaces::DisplayColorSpaces(const ColorSpace& c, BufferFormat f)
+DisplayColorSpaces::DisplayColorSpaces(const ColorSpace& c,
+                                       viz::SharedImageFormat f)
     : DisplayColorSpaces(c) {
+  auto buffer_format = viz::SinglePlaneSharedImageFormatToBufferFormat(f);
   for (size_t i = 0; i < kConfigCount; i++) {
-    buffer_formats_[i] = f;
+    buffer_formats_[i] = buffer_format;
   }
 }
 
@@ -100,6 +103,16 @@ void DisplayColorSpaces::SetOutputColorSpaceAndBufferFormat(
   size_t i = GetIndex(color_usage, needs_alpha);
   color_spaces_[i] = color_space;
   buffer_formats_[i] = buffer_format;
+}
+
+void DisplayColorSpaces::SetOutputColorSpaceAndFormat(
+    ContentColorUsage color_usage,
+    bool needs_alpha,
+    const gfx::ColorSpace& color_space,
+    viz::SharedImageFormat format) {
+  SetOutputColorSpaceAndBufferFormat(
+      color_usage, needs_alpha, color_space,
+      viz::SinglePlaneSharedImageFormatToBufferFormat(format));
 }
 
 ColorSpace DisplayColorSpaces::GetOutputColorSpace(

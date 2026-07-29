@@ -112,9 +112,10 @@ std::string HistoryTool::JournalEvent() const {
 
 std::unique_ptr<ObservationDelayController> HistoryTool::GetObservationDelayer(
     std::optional<ObservationDelayController::PageStabilityConfig>
-        page_stability_config) const {
+        page_stability_config) {
   return std::make_unique<ObservationDelayController>(
-      *web_contents()->GetPrimaryMainFrame(), task_id(), page_stability_config);
+      *web_contents()->GetPrimaryMainFrame(), task_id(), journal(),
+      page_stability_config);
 }
 
 void HistoryTool::UpdateTaskBeforeInvoke(ActorTask& task,
@@ -174,9 +175,11 @@ void HistoryTool::DidFinishNavigation(NavigationHandle* navigation_handle) {
 
     if (!navigation_handle->HasCommitted()) {
       result = MakeResult(mojom::ActionResultCode::kHistoryFailedBeforeCommit,
+                          /*requires_page_stabilization=*/false,
                           details_msg(navigation_handle));
     } else if (navigation_handle->IsErrorPage()) {
       result = MakeResult(mojom::ActionResultCode::kHistoryErrorPage,
+                          /*requires_page_stabilization=*/false,
                           details_msg(navigation_handle));
     } else {
       result = MakeOkResult();

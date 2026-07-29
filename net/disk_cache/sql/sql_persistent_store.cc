@@ -227,13 +227,24 @@ void PopulateTraceDetails(const base::expected<ResultType, Error>& result,
   PopulateTraceDetails(store_status, dict);
 }
 
+// A helper function to record the time delay from posting a task to its
+// execution.
+void RecordPostingDelay(std::string_view method_name,
+                        base::TimeDelta posting_delay) {
+  base::UmaHistogramMicrosecondsTimes(
+      base::StrCat({kHistogramPrefix, method_name, ".PostingDelay"}),
+      posting_delay);
+}
+
 // Records timing and result histograms for a backend method. This logs the
 // method's duration to ".SuccessTime" or ".FailureTime" histograms and the
 // `Error` code to a ".Result" histogram.
 void RecordTimeAndErrorResultHistogram(std::string_view method_name,
+                                       base::TimeDelta posting_delay,
                                        base::TimeDelta time_delta,
                                        Error error,
                                        bool corruption_detected) {
+  RecordPostingDelay(method_name, posting_delay);
   base::UmaHistogramMicrosecondsTimes(
       base::StrCat({kHistogramPrefix, method_name,
                     error == Error::kOk ? ".SuccessTime" : ".FailureTime",
@@ -318,7 +329,7 @@ class Backend {
 
   // Initializes the database, including setting up the schema and reading
   // metadata. Returns the cache status and max size on success.
-  InitResultOrError Initialize();
+  InitResultOrError Initialize(base::TimeTicks start_time);
 
   int32_t GetEntryCount() const { return store_status_.entry_count; }
   int64_t GetSizeOfAllEntries() const {
@@ -330,50 +341,74 @@ class Backend {
   }
 
   EntryInfoOrErrorAndEvictionRequested OpenOrCreateEntry(
-      const CacheEntryKey& key);
-  OptionalEntryInfoOrError OpenEntry(const CacheEntryKey& key);
+      const CacheEntryKey& key,
+      base::TimeTicks start_time);
+  OptionalEntryInfoOrError OpenEntry(const CacheEntryKey& key,
+                                     base::TimeTicks start_time);
   EntryInfoOrErrorAndEvictionRequested CreateEntry(const CacheEntryKey& key,
                                                    base::Time creation_time,
-                                                   bool run_existance_check);
+                                                   bool run_existance_check,
+                                                   base::TimeTicks start_time);
 
-  ErrorAndEvictionRequested DoomEntry(const CacheEntryKey& key, ResId res_id);
+  ErrorAndEvictionRequested DoomEntry(const CacheEntryKey& key,
+                                      ResId res_id,
+                                      base::TimeTicks start_time);
   ErrorAndEvictionRequested DeleteDoomedEntry(const CacheEntryKey& key,
-                                              ResId res_id);
-  Error DeleteDoomedEntries(base::flat_set<ResId> excluded_res_ids);
+                                              ResId res_id,
+                                              base::TimeTicks start_time);
+  Error DeleteDoomedEntries(base::flat_set<ResId> excluded_res_ids,
+                            base::TimeTicks start_time);
   ResIdAndHashKeyListOrErrorAndEvictionRequested DeleteLiveEntry(
-      const CacheEntryKey& key);
+      const CacheEntryKey& key,
+      base::TimeTicks start_time);
 
-  ErrorAndEvictionRequested DeleteAllEntries();
+  ErrorAndEvictionRequested DeleteAllEntries(base::TimeTicks start_time);
   ResIdAndHashKeyListOrErrorAndEvictionRequested DeleteLiveEntriesBetween(
       base::Time initial_time,
       base::Time end_time,
-      base::flat_set<CacheEntryKey> excluded_keys);
-  Error UpdateEntryLastUsed(const CacheEntryKey& key, base::Time last_used);
+      base::flat_set<CacheEntryKey> excluded_keys,
+      base::TimeTicks start_time);
+  Error UpdateEntryLastUsedByKey(const CacheEntryKey& key,
+                                 base::Time last_used,
+                                 base::TimeTicks start_time);
+  Error UpdateEntryLastUsedByResId(ResId res_id,
+                                   base::Time last_used,
+                                   base::TimeTicks start_time);
   ErrorAndEvictionRequested UpdateEntryHeaderAndLastUsed(
       const CacheEntryKey& key,
       ResId res_id,
       base::Time last_used,
       scoped_refptr<net::IOBuffer> buffer,
-      int64_t header_size_delta);
+      int64_t header_size_delta,
+      base::TimeTicks start_time);
   ErrorAndEvictionRequested WriteEntryData(const CacheEntryKey& key,
                                            ResId res_id,
                                            int64_t old_body_end,
                                            int64_t offset,
                                            scoped_refptr<net::IOBuffer> buffer,
                                            int buf_len,
-                                           bool truncate);
+                                           bool truncate,
+                                           base::TimeTicks start_time);
   IntOrError ReadEntryData(ResId res_id,
                            int64_t offset,
                            scoped_refptr<net::IOBuffer> buffer,
                            int buf_len,
                            int64_t body_end,
-                           bool sparse_reading);
-  RangeResult GetEntryAvailableRange(ResId res_id, int64_t offset, int len);
+                           bool sparse_reading,
+                           base::TimeTicks start_time);
+  RangeResult GetEntryAvailableRange(ResId res_id,
+                                     int64_t offset,
+                                     int len,
+                                     base::TimeTicks start_time);
   int64_t CalculateSizeOfEntriesBetween(base::Time initial_time,
-                                        base::Time end_time);
-  OptionalEntryInfoWithIdAndKey OpenLatestEntryBeforeResId(ResId res_id_cursor);
+                                        base::Time end_time,
+                                        base::TimeTicks start_time);
+  OptionalEntryInfoWithIdAndKey OpenLatestEntryBeforeResId(
+      ResId res_id_cursor,
+      base::TimeTicks start_time);
   ResIdAndHashKeyListOrErrorAndEvictionRequested RunEviction(
-      base::flat_set<CacheEntryKey> excluded_keys);
+      base::flat_set<CacheEntryKey> excluded_keys,
+      base::TimeTicks start_time);
   bool MaybeRunCheckpoint();
 
   void EnableStrictCorruptionCheckForTesting() {
@@ -409,8 +444,9 @@ class Backend {
       base::Time end_time,
       const base::flat_set<CacheEntryKey>& excluded_keys,
       bool& corruption_detected);
-  Error UpdateEntryLastUsedInternal(const CacheEntryKey& key,
-                                    base::Time last_used);
+  Error UpdateEntryLastUsedByKeyInternal(const CacheEntryKey& key,
+                                         base::Time last_used);
+  Error UpdateEntryLastUsedByResIdInternal(ResId res_id, base::Time last_used);
   Error UpdateEntryHeaderAndLastUsedInternal(
       const CacheEntryKey& key,
       ResId res_id,
@@ -540,15 +576,17 @@ class Backend {
   int wal_pages_ = 0;
 };
 
-InitResultOrError Backend::Initialize() {
+InitResultOrError Backend::Initialize(base::TimeTicks start_time) {
+  const base::TimeDelta posting_delay = base::TimeTicks::Now() - start_time;
   TRACE_EVENT_BEGIN0("disk_cache", "SqlBackend.Initialize");
   base::ElapsedTimer timer;
   CHECK(!db_init_status_.has_value());
   bool corruption_detected = false;
   HashResIdSet index;
   db_init_status_ = InitializeInternal(corruption_detected, index);
-  RecordTimeAndErrorResultHistogram("Initialize", timer.Elapsed(),
-                                    *db_init_status_, corruption_detected);
+  RecordTimeAndErrorResultHistogram("Initialize", posting_delay,
+                                    timer.Elapsed(), *db_init_status_,
+                                    corruption_detected);
   TRACE_EVENT_END1("disk_cache", "SqlBackend.Initialize", "result",
                    [&](perfetto::TracedValue trace_context) {
                      auto dict = std::move(trace_context).WriteDictionary();
@@ -692,7 +730,9 @@ void Backend::DatabaseErrorCallback(int error, sql::Statement* statement) {
 }
 
 EntryInfoOrErrorAndEvictionRequested Backend::OpenOrCreateEntry(
-    const CacheEntryKey& key) {
+    const CacheEntryKey& key,
+    base::TimeTicks start_time) {
+  const base::TimeDelta posting_delay = base::TimeTicks::Now() - start_time;
   TRACE_EVENT_BEGIN1("disk_cache", "SqlBackend.OpenOrCreateEntry", "data",
                      [&](perfetto::TracedValue trace_context) {
                        auto dict = std::move(trace_context).WriteDictionary();
@@ -702,9 +742,9 @@ EntryInfoOrErrorAndEvictionRequested Backend::OpenOrCreateEntry(
   base::ElapsedTimer timer;
   bool corruption_detected = false;
   auto result = OpenOrCreateEntryInternal(key, corruption_detected);
-  RecordTimeAndErrorResultHistogram("OpenOrCreateEntry", timer.Elapsed(),
-                                    result.error_or(Error::kOk),
-                                    corruption_detected);
+  RecordTimeAndErrorResultHistogram(
+      "OpenOrCreateEntry", posting_delay, timer.Elapsed(),
+      result.error_or(Error::kOk), corruption_detected);
   TRACE_EVENT_END1("disk_cache", "SqlBackend.OpenOrCreateEntry", "result",
                    [&](perfetto::TracedValue trace_context) {
                      auto dict = std::move(trace_context).WriteDictionary();
@@ -735,7 +775,9 @@ EntryInfoOrError Backend::OpenOrCreateEntryInternal(const CacheEntryKey& key,
                              corruption_detected);
 }
 
-OptionalEntryInfoOrError Backend::OpenEntry(const CacheEntryKey& key) {
+OptionalEntryInfoOrError Backend::OpenEntry(const CacheEntryKey& key,
+                                            base::TimeTicks start_time) {
+  const base::TimeDelta posting_delay = base::TimeTicks::Now() - start_time;
   TRACE_EVENT_BEGIN1("disk_cache", "SqlBackend.OpenEntry", "data",
                      [&](perfetto::TracedValue trace_context) {
                        auto dict = std::move(trace_context).WriteDictionary();
@@ -744,7 +786,7 @@ OptionalEntryInfoOrError Backend::OpenEntry(const CacheEntryKey& key) {
                      });
   base::ElapsedTimer timer;
   auto result = OpenEntryInternal(key);
-  RecordTimeAndErrorResultHistogram("OpenEntry", timer.Elapsed(),
+  RecordTimeAndErrorResultHistogram("OpenEntry", posting_delay, timer.Elapsed(),
                                     result.error_or(Error::kOk),
                                     /*corruption_detected=*/false);
   TRACE_EVENT_END1("disk_cache", "SqlBackend.OpenEntry", "result",
@@ -791,7 +833,9 @@ OptionalEntryInfoOrError Backend::OpenEntryInternal(const CacheEntryKey& key) {
 EntryInfoOrErrorAndEvictionRequested Backend::CreateEntry(
     const CacheEntryKey& key,
     base::Time creation_time,
-    bool run_existance_check) {
+    bool run_existance_check,
+    base::TimeTicks start_time) {
+  const base::TimeDelta posting_delay = base::TimeTicks::Now() - start_time;
   TRACE_EVENT_BEGIN1("disk_cache", "SqlBackend.CreateEntry", "data",
                      [&](perfetto::TracedValue trace_context) {
                        auto dict = std::move(trace_context).WriteDictionary();
@@ -802,9 +846,9 @@ EntryInfoOrErrorAndEvictionRequested Backend::CreateEntry(
   bool corruption_detected = false;
   auto result = CreateEntryInternal(key, creation_time, run_existance_check,
                                     corruption_detected);
-  RecordTimeAndErrorResultHistogram("CreateEntry", timer.Elapsed(),
-                                    result.error_or(Error::kOk),
-                                    corruption_detected);
+  RecordTimeAndErrorResultHistogram(
+      "CreateEntry", posting_delay, timer.Elapsed(),
+      result.error_or(Error::kOk), corruption_detected);
   TRACE_EVENT_END1("disk_cache", "SqlBackend.CreateEntry", "result",
                    [&](perfetto::TracedValue trace_context) {
                      auto dict = std::move(trace_context).WriteDictionary();
@@ -878,7 +922,9 @@ EntryInfoOrError Backend::CreateEntryInternal(const CacheEntryKey& key,
 }
 
 ErrorAndEvictionRequested Backend::DoomEntry(const CacheEntryKey& key,
-                                             ResId res_id) {
+                                             ResId res_id,
+                                             base::TimeTicks start_time) {
+  const base::TimeDelta posting_delay = base::TimeTicks::Now() - start_time;
   TRACE_EVENT_BEGIN1("disk_cache", "SqlBackend.DoomEntry", "data",
                      [&](perfetto::TracedValue trace_context) {
                        auto dict = std::move(trace_context).WriteDictionary();
@@ -889,8 +935,8 @@ ErrorAndEvictionRequested Backend::DoomEntry(const CacheEntryKey& key,
   base::ElapsedTimer timer;
   bool corruption_detected = false;
   auto result = DoomEntryInternal(res_id, corruption_detected);
-  RecordTimeAndErrorResultHistogram("DoomEntry", timer.Elapsed(), result,
-                                    corruption_detected);
+  RecordTimeAndErrorResultHistogram("DoomEntry", posting_delay, timer.Elapsed(),
+                                    result, corruption_detected);
   TRACE_EVENT_END1("disk_cache", "SqlBackend.DoomEntry", "result",
                    [&](perfetto::TracedValue trace_context) {
                      auto dict = std::move(trace_context).WriteDictionary();
@@ -952,8 +998,11 @@ Error Backend::DoomEntryInternal(ResId res_id, bool& corruption_detected) {
       /*total_size_delta=*/total_size_delta.ValueOrDie(), corruption_detected);
 }
 
-ErrorAndEvictionRequested Backend::DeleteDoomedEntry(const CacheEntryKey& key,
-                                                     ResId res_id) {
+ErrorAndEvictionRequested Backend::DeleteDoomedEntry(
+    const CacheEntryKey& key,
+    ResId res_id,
+    base::TimeTicks start_time) {
+  const base::TimeDelta posting_delay = base::TimeTicks::Now() - start_time;
   TRACE_EVENT_BEGIN1("disk_cache", "SqlBackend.DeleteDoomedEntry", "data",
                      [&](perfetto::TracedValue trace_context) {
                        auto dict = std::move(trace_context).WriteDictionary();
@@ -963,8 +1012,9 @@ ErrorAndEvictionRequested Backend::DeleteDoomedEntry(const CacheEntryKey& key,
                      });
   base::ElapsedTimer timer;
   auto result = DeleteDoomedEntryInternal(res_id);
-  RecordTimeAndErrorResultHistogram("DeleteDoomedEntry", timer.Elapsed(),
-                                    result, /*corruption_detected=*/false);
+  RecordTimeAndErrorResultHistogram("DeleteDoomedEntry", posting_delay,
+                                    timer.Elapsed(), result,
+                                    /*corruption_detected=*/false);
   TRACE_EVENT_END1("disk_cache", "SqlBackend.DeleteDoomedEntry", "result",
                    [&](perfetto::TracedValue trace_context) {
                      auto dict = std::move(trace_context).WriteDictionary();
@@ -1011,15 +1061,18 @@ Error Backend::DeleteDoomedEntryInternal(ResId res_id) {
   return transaction.Commit() ? Error::kOk : Error::kFailedToCommitTransaction;
 }
 
-Error Backend::DeleteDoomedEntries(base::flat_set<ResId> excluded_res_ids) {
+Error Backend::DeleteDoomedEntries(base::flat_set<ResId> excluded_res_ids,
+                                   base::TimeTicks start_time) {
+  const base::TimeDelta posting_delay = base::TimeTicks::Now() - start_time;
   TRACE_EVENT_BEGIN0("disk_cache", "SqlBackend.DeleteDoomedEntries");
   base::ElapsedTimer timer;
   bool corruption_detected = false;
   size_t deleted_count = 0;
   auto result = DeleteDoomedEntriesInternal(excluded_res_ids, deleted_count,
                                             corruption_detected);
-  RecordTimeAndErrorResultHistogram("DeleteDoomedEntries", timer.Elapsed(),
-                                    result, corruption_detected);
+  RecordTimeAndErrorResultHistogram("DeleteDoomedEntries", posting_delay,
+                                    timer.Elapsed(), result,
+                                    corruption_detected);
   base::UmaHistogramCounts100("Net.SqlDiskCache.DeleteDoomedEntriesCount",
                               deleted_count);
   TRACE_EVENT_END1("disk_cache", "SqlBackend.DeleteDoomedEntries", "result",
@@ -1085,7 +1138,9 @@ Error Backend::DeleteDoomedEntriesInternal(
 }
 
 ResIdAndHashKeyListOrErrorAndEvictionRequested Backend::DeleteLiveEntry(
-    const CacheEntryKey& key) {
+    const CacheEntryKey& key,
+    base::TimeTicks start_time) {
+  const base::TimeDelta posting_delay = base::TimeTicks::Now() - start_time;
   TRACE_EVENT_BEGIN1("disk_cache", "SqlBackend.DeleteLiveEntry", "data",
                      [&](perfetto::TracedValue trace_context) {
                        auto dict = std::move(trace_context).WriteDictionary();
@@ -1095,9 +1150,9 @@ ResIdAndHashKeyListOrErrorAndEvictionRequested Backend::DeleteLiveEntry(
   base::ElapsedTimer timer;
   bool corruption_detected = false;
   auto result = DeleteLiveEntryInternal(key, corruption_detected);
-  RecordTimeAndErrorResultHistogram("DeleteLiveEntry", timer.Elapsed(),
-                                    result.error_or(Error::kOk),
-                                    corruption_detected);
+  RecordTimeAndErrorResultHistogram(
+      "DeleteLiveEntry", posting_delay, timer.Elapsed(),
+      result.error_or(Error::kOk), corruption_detected);
   TRACE_EVENT_END1("disk_cache", "SqlBackend.DeleteLiveEntry", "result",
                    [&](perfetto::TracedValue trace_context) {
                      auto dict = std::move(trace_context).WriteDictionary();
@@ -1177,7 +1232,9 @@ ResIdAndHashKeyListOrError Backend::DeleteLiveEntryInternal(
              : base::unexpected(error);
 }
 
-ErrorAndEvictionRequested Backend::DeleteAllEntries() {
+ErrorAndEvictionRequested Backend::DeleteAllEntries(
+    base::TimeTicks start_time) {
+  const base::TimeDelta posting_delay = base::TimeTicks::Now() - start_time;
   TRACE_EVENT_BEGIN1("disk_cache", "SqlBackend.DeleteAllEntries", "data",
                      [&](perfetto::TracedValue trace_context) {
                        auto dict = std::move(trace_context).WriteDictionary();
@@ -1186,7 +1243,8 @@ ErrorAndEvictionRequested Backend::DeleteAllEntries() {
   base::ElapsedTimer timer;
   bool corruption_detected = false;
   Error result = DeleteAllEntriesInternal(corruption_detected);
-  RecordTimeAndErrorResultHistogram("DeleteAllEntries", timer.Elapsed(), result,
+  RecordTimeAndErrorResultHistogram("DeleteAllEntries", posting_delay,
+                                    timer.Elapsed(), result,
                                     corruption_detected);
   TRACE_EVENT_END1("disk_cache", "SqlBackend.DeleteAllEntries", "result",
                    [&](perfetto::TracedValue trace_context) {
@@ -1237,7 +1295,9 @@ Error Backend::DeleteAllEntriesInternal(bool& corruption_detected) {
 ResIdAndHashKeyListOrErrorAndEvictionRequested
 Backend::DeleteLiveEntriesBetween(base::Time initial_time,
                                   base::Time end_time,
-                                  base::flat_set<CacheEntryKey> excluded_keys) {
+                                  base::flat_set<CacheEntryKey> excluded_keys,
+                                  base::TimeTicks start_time) {
+  const base::TimeDelta posting_delay = base::TimeTicks::Now() - start_time;
   TRACE_EVENT_BEGIN1("disk_cache", "SqlBackend.DeleteLiveEntriesBetween",
                      "data", [&](perfetto::TracedValue trace_context) {
                        auto dict = std::move(trace_context).WriteDictionary();
@@ -1252,9 +1312,9 @@ Backend::DeleteLiveEntriesBetween(base::Time initial_time,
   bool corruption_detected = false;
   auto result = DeleteLiveEntriesBetweenInternal(
       initial_time, end_time, excluded_keys, corruption_detected);
-  RecordTimeAndErrorResultHistogram("DeleteLiveEntriesBetween", timer.Elapsed(),
-                                    result.error_or(Error::kOk),
-                                    corruption_detected);
+  RecordTimeAndErrorResultHistogram(
+      "DeleteLiveEntriesBetween", posting_delay, timer.Elapsed(),
+      result.error_or(Error::kOk), corruption_detected);
   TRACE_EVENT_END1("disk_cache", "SqlBackend.DeleteLiveEntriesBetween",
                    "result", [&](perfetto::TracedValue trace_context) {
                      auto dict = std::move(trace_context).WriteDictionary();
@@ -1333,28 +1393,31 @@ ResIdAndHashKeyListOrError Backend::DeleteLiveEntriesBetweenInternal(
              : base::unexpected(error);
 }
 
-Error Backend::UpdateEntryLastUsed(const CacheEntryKey& key,
-                                   base::Time last_used) {
-  TRACE_EVENT_BEGIN1("disk_cache", "SqlBackend.UpdateEntryLastUsed", "data",
-                     [&](perfetto::TracedValue trace_context) {
+Error Backend::UpdateEntryLastUsedByKey(const CacheEntryKey& key,
+                                        base::Time last_used,
+                                        base::TimeTicks start_time) {
+  const base::TimeDelta posting_delay = base::TimeTicks::Now() - start_time;
+  TRACE_EVENT_BEGIN1("disk_cache", "SqlBackend.UpdateEntryLastUsedByKey",
+                     "data", [&](perfetto::TracedValue trace_context) {
                        auto dict = std::move(trace_context).WriteDictionary();
                        dict.Add("key", key.string());
                        dict.Add("last_used", last_used);
                      });
   base::ElapsedTimer timer;
-  auto result = UpdateEntryLastUsedInternal(key, last_used);
-  RecordTimeAndErrorResultHistogram("UpdateEntryLastUsed", timer.Elapsed(),
-                                    result, /*corruption_detected=*/false);
-  TRACE_EVENT_END1("disk_cache", "SqlBackend.UpdateEntryLastUsed", "result",
-                   [&](perfetto::TracedValue trace_context) {
+  auto result = UpdateEntryLastUsedByKeyInternal(key, last_used);
+  RecordTimeAndErrorResultHistogram("UpdateEntryLastUsedByKey", posting_delay,
+                                    timer.Elapsed(), result,
+                                    /*corruption_detected=*/false);
+  TRACE_EVENT_END1("disk_cache", "SqlBackend.UpdateEntryLastUsedByKey",
+                   "result", [&](perfetto::TracedValue trace_context) {
                      auto dict = std::move(trace_context).WriteDictionary();
                      PopulateTraceDetails(result, dict);
                    });
   return result;
 }
 
-Error Backend::UpdateEntryLastUsedInternal(const CacheEntryKey& key,
-                                           base::Time last_used) {
+Error Backend::UpdateEntryLastUsedByKeyInternal(const CacheEntryKey& key,
+                                                base::Time last_used) {
   if (simulate_db_failure_for_testing_) {
     return Error::kFailedForTesting;
   }
@@ -1367,10 +1430,61 @@ Error Backend::UpdateEntryLastUsedInternal(const CacheEntryKey& key,
   {
     sql::Statement statement(db_.GetCachedStatement(
         SQL_FROM_HERE,
-        GetQuery(Query::kUpdateEntryLastUsed_UpdateResourceLastUsed)));
+        GetQuery(Query::kUpdateEntryLastUsedByKey_UpdateResourceLastUsed)));
     statement.BindTime(0, last_used);
     statement.BindInt64(1, key.hash().value());
     statement.BindString(2, key.string());
+    if (!statement.Run()) {
+      return Error::kFailedToExecute;
+    }
+    change_count = db_.GetLastChangeCount();
+  }
+  if (!transaction.Commit()) {
+    return Error::kFailedToCommitTransaction;
+  }
+  return change_count == 0 ? Error::kNotFound : Error::kOk;
+}
+
+Error Backend::UpdateEntryLastUsedByResId(ResId res_id,
+                                          base::Time last_used,
+                                          base::TimeTicks start_time) {
+  const base::TimeDelta posting_delay = base::TimeTicks::Now() - start_time;
+  TRACE_EVENT_BEGIN1("disk_cache", "SqlBackend.UpdateEntryLastUsedByResId",
+                     "data", [&](perfetto::TracedValue trace_context) {
+                       auto dict = std::move(trace_context).WriteDictionary();
+                       dict.Add("res_id", res_id.value());
+                       dict.Add("last_used", last_used);
+                     });
+  base::ElapsedTimer timer;
+  auto result = UpdateEntryLastUsedByResIdInternal(res_id, last_used);
+  RecordTimeAndErrorResultHistogram("UpdateEntryLastUsedByResId", posting_delay,
+                                    timer.Elapsed(), result,
+                                    /*corruption_detected=*/false);
+  TRACE_EVENT_END1("disk_cache", "SqlBackend.UpdateEntryLastUsedByResId",
+                   "result", [&](perfetto::TracedValue trace_context) {
+                     auto dict = std::move(trace_context).WriteDictionary();
+                     PopulateTraceDetails(result, dict);
+                   });
+  return result;
+}
+
+Error Backend::UpdateEntryLastUsedByResIdInternal(ResId res_id,
+                                                  base::Time last_used) {
+  if (simulate_db_failure_for_testing_) {
+    return Error::kFailedForTesting;
+  }
+  CheckDatabaseInitStatus();
+  sql::Transaction transaction(&db_);
+  if (!transaction.Begin()) {
+    return Error::kFailedToStartTransaction;
+  }
+  int64_t change_count = 0;
+  {
+    sql::Statement statement(db_.GetCachedStatement(
+        SQL_FROM_HERE,
+        GetQuery(Query::kUpdateEntryLastUsedByResId_UpdateResourceLastUsed)));
+    statement.BindTime(0, last_used);
+    statement.BindInt64(1, res_id.value());
     if (!statement.Run()) {
       return Error::kFailedToExecute;
     }
@@ -1387,7 +1501,9 @@ ErrorAndEvictionRequested Backend::UpdateEntryHeaderAndLastUsed(
     ResId res_id,
     base::Time last_used,
     scoped_refptr<net::IOBuffer> buffer,
-    int64_t header_size_delta) {
+    int64_t header_size_delta,
+    base::TimeTicks start_time) {
+  const base::TimeDelta posting_delay = base::TimeTicks::Now() - start_time;
   TRACE_EVENT_BEGIN1("disk_cache", "SqlBackend.UpdateEntryHeaderAndLastUsed",
                      "data", [&](perfetto::TracedValue trace_context) {
                        auto dict = std::move(trace_context).WriteDictionary();
@@ -1403,7 +1519,7 @@ ErrorAndEvictionRequested Backend::UpdateEntryHeaderAndLastUsed(
       key, res_id, last_used, std::move(buffer), header_size_delta,
       corruption_detected);
   RecordTimeAndErrorResultHistogram("UpdateEntryHeaderAndLastUsed",
-                                    timer.Elapsed(), result,
+                                    posting_delay, timer.Elapsed(), result,
                                     corruption_detected);
   TRACE_EVENT_END1("disk_cache", "SqlBackend.UpdateEntryHeaderAndLastUsed",
                    "result", [&](perfetto::TracedValue trace_context) {
@@ -1466,7 +1582,9 @@ ErrorAndEvictionRequested Backend::WriteEntryData(
     int64_t offset,
     scoped_refptr<net::IOBuffer> buffer,
     int buf_len,
-    bool truncate) {
+    bool truncate,
+    base::TimeTicks start_time) {
+  const base::TimeDelta posting_delay = base::TimeTicks::Now() - start_time;
   TRACE_EVENT_BEGIN1("disk_cache", "SqlBackend.WriteEntryData", "data",
                      [&](perfetto::TracedValue trace_context) {
                        auto dict = std::move(trace_context).WriteDictionary();
@@ -1483,7 +1601,8 @@ ErrorAndEvictionRequested Backend::WriteEntryData(
   auto result =
       WriteEntryDataInternal(res_id, old_body_end, offset, std::move(buffer),
                              buf_len, truncate, corruption_detected);
-  RecordTimeAndErrorResultHistogram("WriteEntryData", timer.Elapsed(), result,
+  RecordTimeAndErrorResultHistogram("WriteEntryData", posting_delay,
+                                    timer.Elapsed(), result,
                                     corruption_detected);
   TRACE_EVENT_END1("disk_cache", "SqlBackend.WriteEntryData", "result",
                    [&](perfetto::TracedValue trace_context) {
@@ -1877,7 +1996,9 @@ IntOrError Backend::ReadEntryData(ResId res_id,
                                   scoped_refptr<net::IOBuffer> buffer,
                                   int buf_len,
                                   int64_t body_end,
-                                  bool sparse_reading) {
+                                  bool sparse_reading,
+                                  base::TimeTicks start_time) {
+  const base::TimeDelta posting_delay = base::TimeTicks::Now() - start_time;
   TRACE_EVENT_BEGIN1("disk_cache", "SqlBackend.ReadEntryData", "data",
                      [&](perfetto::TracedValue trace_context) {
                        auto dict = std::move(trace_context).WriteDictionary();
@@ -1893,9 +2014,9 @@ IntOrError Backend::ReadEntryData(ResId res_id,
   auto result =
       ReadEntryDataInternal(res_id, offset, std::move(buffer), buf_len,
                             body_end, sparse_reading, corruption_detected);
-  RecordTimeAndErrorResultHistogram("ReadEntryData", timer.Elapsed(),
-                                    result.error_or(Error::kOk),
-                                    corruption_detected);
+  RecordTimeAndErrorResultHistogram(
+      "ReadEntryData", posting_delay, timer.Elapsed(),
+      result.error_or(Error::kOk), corruption_detected);
   TRACE_EVENT_END1("disk_cache", "SqlBackend.ReadEntryData", "result",
                    [&](perfetto::TracedValue trace_context) {
                      auto dict = std::move(trace_context).WriteDictionary();
@@ -1991,7 +2112,9 @@ IntOrError Backend::ReadEntryDataInternal(ResId res_id,
 
 RangeResult Backend::GetEntryAvailableRange(ResId res_id,
                                             int64_t offset,
-                                            int len) {
+                                            int len,
+                                            base::TimeTicks start_time) {
+  const base::TimeDelta posting_delay = base::TimeTicks::Now() - start_time;
   TRACE_EVENT_BEGIN1("disk_cache", "SqlBackend.GetEntryAvailableRange", "data",
                      [&](perfetto::TracedValue trace_context) {
                        auto dict = std::move(trace_context).WriteDictionary();
@@ -2001,8 +2124,9 @@ RangeResult Backend::GetEntryAvailableRange(ResId res_id,
                      });
   base::ElapsedTimer timer;
   auto result = GetEntryAvailableRangeInternal(res_id, offset, len);
-  RecordTimeAndErrorResultHistogram("GetEntryAvailableRange", timer.Elapsed(),
-                                    Error::kOk, /*corruption_detected=*/false);
+  RecordTimeAndErrorResultHistogram("GetEntryAvailableRange", posting_delay,
+                                    timer.Elapsed(), Error::kOk,
+                                    /*corruption_detected=*/false);
   TRACE_EVENT_END1("disk_cache", "SqlBackend.GetEntryAvailableRange", "result",
                    [&](perfetto::TracedValue trace_context) {
                      auto dict = std::move(trace_context).WriteDictionary();
@@ -2063,10 +2187,12 @@ RangeResult Backend::GetEntryAvailableRangeInternal(ResId res_id,
 }
 
 int64_t Backend::CalculateSizeOfEntriesBetween(base::Time initial_time,
-                                               base::Time end_time) {
+                                               base::Time end_time,
+                                               base::TimeTicks start_time) {
   if (initial_time == base::Time::Min() && end_time == base::Time::Max()) {
     return GetSizeOfAllEntries();
   }
+  const base::TimeDelta posting_delay = base::TimeTicks::Now() - start_time;
   TRACE_EVENT_BEGIN1("disk_cache", "SqlBackend.CalculateSizeOfEntriesBetween",
                      "data", [&](perfetto::TracedValue trace_context) {
                        auto dict = std::move(trace_context).WriteDictionary();
@@ -2076,7 +2202,7 @@ int64_t Backend::CalculateSizeOfEntriesBetween(base::Time initial_time,
   base::ElapsedTimer timer;
   auto result = CalculateSizeOfEntriesBetweenInternal(initial_time, end_time);
   RecordTimeAndErrorResultHistogram("CalculateSizeOfEntriesBetween",
-                                    timer.Elapsed(), Error::kOk,
+                                    posting_delay, timer.Elapsed(), Error::kOk,
                                     /*corruption_detected=*/false);
   TRACE_EVENT_END1("disk_cache", "SqlBackend.CalculateSizeOfEntriesBetween",
                    "result", result);
@@ -2104,7 +2230,9 @@ int64_t Backend::CalculateSizeOfEntriesBetweenInternal(base::Time initial_time,
 }
 
 OptionalEntryInfoWithIdAndKey Backend::OpenLatestEntryBeforeResId(
-    ResId res_id_cursor) {
+    ResId res_id_cursor,
+    base::TimeTicks start_time) {
+  const base::TimeDelta posting_delay = base::TimeTicks::Now() - start_time;
   TRACE_EVENT_BEGIN1("disk_cache", "SqlBackend.OpenLatestEntryBeforeResId",
                      "data", [&](perfetto::TracedValue trace_context) {
                        auto dict = std::move(trace_context).WriteDictionary();
@@ -2114,7 +2242,7 @@ OptionalEntryInfoWithIdAndKey Backend::OpenLatestEntryBeforeResId(
   bool corruption_detected = false;
   auto result =
       OpenLatestEntryBeforeResIdInternal(res_id_cursor, corruption_detected);
-  RecordTimeAndErrorResultHistogram("OpenLatestEntryBeforeResId",
+  RecordTimeAndErrorResultHistogram("OpenLatestEntryBeforeResId", posting_delay,
                                     timer.Elapsed(), Error::kOk,
                                     corruption_detected);
   TRACE_EVENT_END1("disk_cache", "SqlBackend.OpenLatestEntryBeforeResId",
@@ -2161,15 +2289,17 @@ OptionalEntryInfoWithIdAndKey Backend::OpenLatestEntryBeforeResIdInternal(
 }
 
 ResIdAndHashKeyListOrErrorAndEvictionRequested Backend::RunEviction(
-    base::flat_set<CacheEntryKey> excluded_keys) {
+    base::flat_set<CacheEntryKey> excluded_keys,
+    base::TimeTicks start_time) {
+  const base::TimeDelta posting_delay = base::TimeTicks::Now() - start_time;
   TRACE_EVENT0("disk_cache", "SqlBackend.RunEviction");
   base::ElapsedTimer timer;
   bool corruption_detected = false;
   auto result =
       RunEvictionInternal(std::move(excluded_keys), corruption_detected);
-  RecordTimeAndErrorResultHistogram("RunEviction", timer.Elapsed(),
-                                    result.error_or(Error::kOk),
-                                    corruption_detected);
+  RecordTimeAndErrorResultHistogram(
+      "RunEviction", posting_delay, timer.Elapsed(),
+      result.error_or(Error::kOk), corruption_detected);
   MaybeCrashIfCorrupted(corruption_detected);
   return ResIdAndHashKeyListOrErrorAndEvictionRequested(std::move(result),
                                                         ShouldStartEviction());
@@ -2324,6 +2454,11 @@ int64_t Backend::CalculateTotalSize() {
 
 bool Backend::MaybeRunCheckpoint() {
   TRACE_EVENT("disk_cache", "SqlBackend.MaybeRunCheckpoint");
+  if (!db_.is_open()) {
+    // The database might have been closed if a catastrophic error occurred and
+    // RazeAndPoison() was called.
+    return false;
+  }
   if (!IsBrowserIdle()) {
     // Between the time when idle was detected in the browser process and the
     // time when this backend was notified, the browser became non-idle.
@@ -2391,6 +2526,7 @@ class SqlPersistentStoreImpl : public SqlPersistentStore {
   // Kicks off the asynchronous initialization of the backend.
   void Initialize(ErrorCallback callback) override {
     backend_.AsyncCall(&Backend::Initialize)
+        .WithArgs(base::TimeTicks::Now())
         .Then(base::BindOnce(
             [](base::WeakPtr<SqlPersistentStoreImpl> weak_ptr,
                ErrorCallback callback, InitResultOrError result) {
@@ -2408,7 +2544,7 @@ class SqlPersistentStoreImpl : public SqlPersistentStore {
   void OpenOrCreateEntry(const CacheEntryKey& key,
                          EntryInfoOrErrorCallback callback) override {
     backend_.AsyncCall(&Backend::OpenOrCreateEntry)
-        .WithArgs(key)
+        .WithArgs(key, base::TimeTicks::Now())
         .Then(WrapEntryInfoOrErrorCallback(
             std::move(callback), key,
             IndexMismatchLocation::kOpenOrCreateEntry));
@@ -2416,7 +2552,7 @@ class SqlPersistentStoreImpl : public SqlPersistentStore {
   void OpenEntry(const CacheEntryKey& key,
                  OptionalEntryInfoOrErrorCallback callback) override {
     backend_.AsyncCall(&Backend::OpenEntry)
-        .WithArgs(key)
+        .WithArgs(key, base::TimeTicks::Now())
         .Then(WrapCallback(std::move(callback)));
   }
   void CreateEntry(const CacheEntryKey& key,
@@ -2424,7 +2560,8 @@ class SqlPersistentStoreImpl : public SqlPersistentStore {
                    EntryInfoOrErrorCallback callback) override {
     bool run_existance_check = !index_ || index_->Contains(key.hash());
     backend_.AsyncCall(&Backend::CreateEntry)
-        .WithArgs(key, creation_time, run_existance_check)
+        .WithArgs(key, creation_time, run_existance_check,
+                  base::TimeTicks::Now())
         .Then(WrapEntryInfoOrErrorCallback(
             std::move(callback), key, IndexMismatchLocation::kCreateEntry));
   }
@@ -2432,7 +2569,7 @@ class SqlPersistentStoreImpl : public SqlPersistentStore {
                  ResId res_id,
                  ErrorCallback callback) override {
     backend_.AsyncCall(&Backend::DoomEntry)
-        .WithArgs(key, res_id)
+        .WithArgs(key, res_id, base::TimeTicks::Now())
         .Then(base::BindOnce(
             [](base::WeakPtr<SqlPersistentStoreImpl> weak_ptr,
                CacheEntryKey::Hash key_hash, ResId res_id,
@@ -2457,24 +2594,25 @@ class SqlPersistentStoreImpl : public SqlPersistentStore {
                          ResId res_id,
                          ErrorCallback callback) override {
     backend_.AsyncCall(&Backend::DeleteDoomedEntry)
-        .WithArgs(key, res_id)
+        .WithArgs(key, res_id, base::TimeTicks::Now())
         .Then(WrapCallbackWithEvictionRequested(std::move(callback)));
   }
   void DeleteDoomedEntries(base::flat_set<ResId> excluded_res_ids,
                            ErrorCallback callback) override {
     backend_.AsyncCall(&Backend::DeleteDoomedEntries)
-        .WithArgs(std::move(excluded_res_ids))
+        .WithArgs(std::move(excluded_res_ids), base::TimeTicks::Now())
         .Then(WrapCallback(std::move(callback)));
   }
   void DeleteLiveEntry(const CacheEntryKey& key,
                        ErrorCallback callback) override {
     backend_.AsyncCall(&Backend::DeleteLiveEntry)
-        .WithArgs(key)
+        .WithArgs(key, base::TimeTicks::Now())
         .Then(WrapErrorCallbackToRemoveFromIndex(
             std::move(callback), IndexMismatchLocation::kDeleteLiveEntry));
   }
   void DeleteAllEntries(ErrorCallback callback) override {
     backend_.AsyncCall(&Backend::DeleteAllEntries)
+        .WithArgs(base::TimeTicks::Now())
         .Then(base::BindOnce(
             [](base::WeakPtr<SqlPersistentStoreImpl> weak_ptr,
                ErrorCallback callback, ErrorAndEvictionRequested result) {
@@ -2494,16 +2632,24 @@ class SqlPersistentStoreImpl : public SqlPersistentStore {
                                 base::flat_set<CacheEntryKey> excluded_keys,
                                 ErrorCallback callback) override {
     backend_.AsyncCall(&Backend::DeleteLiveEntriesBetween)
-        .WithArgs(initial_time, end_time, std::move(excluded_keys))
+        .WithArgs(initial_time, end_time, std::move(excluded_keys),
+                  base::TimeTicks::Now())
         .Then(WrapErrorCallbackToRemoveFromIndex(
             std::move(callback),
             IndexMismatchLocation::kDeleteLiveEntriesBetween));
   }
-  void UpdateEntryLastUsed(const CacheEntryKey& key,
-                           base::Time last_used,
-                           ErrorCallback callback) override {
-    backend_.AsyncCall(&Backend::UpdateEntryLastUsed)
-        .WithArgs(key, last_used)
+  void UpdateEntryLastUsedByKey(const CacheEntryKey& key,
+                                base::Time last_used,
+                                ErrorCallback callback) override {
+    backend_.AsyncCall(&Backend::UpdateEntryLastUsedByKey)
+        .WithArgs(key, last_used, base::TimeTicks::Now())
+        .Then(WrapCallback(std::move(callback)));
+  }
+  void UpdateEntryLastUsedByResId(ResId res_id,
+                                  base::Time last_used,
+                                  ErrorCallback callback) override {
+    backend_.AsyncCall(&Backend::UpdateEntryLastUsedByResId)
+        .WithArgs(res_id, last_used, base::TimeTicks::Now())
         .Then(WrapCallback(std::move(callback)));
   }
   void UpdateEntryHeaderAndLastUsed(const CacheEntryKey& key,
@@ -2513,7 +2659,8 @@ class SqlPersistentStoreImpl : public SqlPersistentStore {
                                     int64_t header_size_delta,
                                     ErrorCallback callback) override {
     backend_.AsyncCall(&Backend::UpdateEntryHeaderAndLastUsed)
-        .WithArgs(key, res_id, last_used, std::move(buffer), header_size_delta)
+        .WithArgs(key, res_id, last_used, std::move(buffer), header_size_delta,
+                  base::TimeTicks::Now())
         .Then(WrapCallbackWithEvictionRequested(std::move(callback)));
   }
 
@@ -2527,7 +2674,7 @@ class SqlPersistentStoreImpl : public SqlPersistentStore {
                       ErrorCallback callback) override {
     backend_.AsyncCall(&Backend::WriteEntryData)
         .WithArgs(key, res_id, old_body_end, offset, std::move(buffer), buf_len,
-                  truncate)
+                  truncate, base::TimeTicks::Now())
         .Then(WrapCallbackWithEvictionRequested(std::move(callback)));
   }
   void ReadEntryData(ResId res_id,
@@ -2539,7 +2686,7 @@ class SqlPersistentStoreImpl : public SqlPersistentStore {
                      IntOrErrorCallback callback) override {
     backend_.AsyncCall(&Backend::ReadEntryData)
         .WithArgs(res_id, offset, std::move(buffer), buf_len, body_end,
-                  sparse_reading)
+                  sparse_reading, base::TimeTicks::Now())
         .Then(WrapCallback(std::move(callback)));
   }
   void GetEntryAvailableRange(ResId res_id,
@@ -2547,21 +2694,21 @@ class SqlPersistentStoreImpl : public SqlPersistentStore {
                               int len,
                               RangeResultCallback callback) override {
     backend_.AsyncCall(&Backend::GetEntryAvailableRange)
-        .WithArgs(res_id, offset, len)
+        .WithArgs(res_id, offset, len, base::TimeTicks::Now())
         .Then(WrapCallback(std::move(callback)));
   }
   void CalculateSizeOfEntriesBetween(base::Time initial_time,
                                      base::Time end_time,
                                      Int64OrErrorCallback callback) override {
     backend_.AsyncCall(&Backend::CalculateSizeOfEntriesBetween)
-        .WithArgs(initial_time, end_time)
+        .WithArgs(initial_time, end_time, base::TimeTicks::Now())
         .Then(WrapCallback(std::move(callback)));
   }
   void OpenLatestEntryBeforeResId(
       ResId res_id_cursor,
       OptionalEntryInfoWithIdAndKeyCallback callback) override {
     backend_.AsyncCall(&Backend::OpenLatestEntryBeforeResId)
-        .WithArgs(res_id_cursor)
+        .WithArgs(res_id_cursor, base::TimeTicks::Now())
         .Then(WrapCallback(std::move(callback)));
   }
   bool ShouldStartEviction() override {
@@ -2572,7 +2719,7 @@ class SqlPersistentStoreImpl : public SqlPersistentStore {
     CHECK(!eviction_in_progress_);
     eviction_in_progress_ = true;
     backend_.AsyncCall(&Backend::RunEviction)
-        .WithArgs(std::move(excluded_keys))
+        .WithArgs(std::move(excluded_keys), base::TimeTicks::Now())
         .Then(base::BindOnce(
             [](base::WeakPtr<SqlPersistentStoreImpl> weak_ptr,
                ErrorCallback callback,

@@ -98,6 +98,7 @@ chromium-metrics-reviews@google.com.
   <int value="10" label="Ended with fallback to software"/>
   <int value="11" label="Ended with teardown"/>
   <int value="12" label="Aborted because there was no surface"/>
+  <int value="13" label="Ended on canvas reset"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/renderer/platform/graphics/canvas_hibernation_handler.h:CanvasHibernationEvent) -->
@@ -2278,8 +2279,10 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="1971" label="AnchorClickDispatchForNonConnectedNode"/>
   <int value="1972" label="HTMLParseErrorNestedForm"/>
   <int value="1973" label="FontShapingNotDefGlyphObserved"/>
-  <int value="1974" label="PostMessageOutgoingWouldBeBlockedByConnectSrc"/>
-  <int value="1975" label="PostMessageIncomingWouldBeBlockedByConnectSrc"/>
+  <int value="1974"
+      label="OBSOLETE_PostMessageOutgoingWouldBeBlockedByConnectSrc"/>
+  <int value="1975"
+      label="OBSOLETE_PostMessageIncomingWouldBeBlockedByConnectSrc"/>
   <int value="1977" label="CrossOriginPropertyAccess"/>
   <int value="1978" label="CrossOriginPropertyAccessFromOpener"/>
   <int value="1979" label="CredentialManagerCreate"/>
@@ -3296,7 +3299,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="2911" label="V8XRSession_End_Method"/>
   <int value="2912" label="V8XRWebGLLayer_Constructor"/>
   <int value="2913" label="FetchKeepalive"/>
-  <int value="2914" label="CSSTransitionCancelledByRemovingStyle"/>
+  <int value="2914" label="OBSOLETE_CSSTransitionCancelledByRemovingStyle"/>
   <int value="2915" label="V8RTCRtpSender_SetStreams_Method"/>
   <int value="2916" label="CookieNoSameSite"/>
   <int value="2917" label="CookieInsecureAndSameSiteNone"/>
@@ -6279,6 +6282,8 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5670" label="ResolvedColumnRuleWidthWithNoneOrHiddenStyle"/>
   <int value="5671" label="ResolvedOutlineWidthWithNoneOrHiddenStyle"/>
   <int value="5672" label="ContextMenuEventDefaultPrevented"/>
+  <int value="5673" label="SmartCardEstablishContext"/>
+  <int value="5674" label="SmartCardConnect"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom:WebFeature) -->
@@ -6518,6 +6523,16 @@ Called by update_permissions_policy_enum.py.-->
 </enum>
 
 <!-- LINT.ThenChange(//content/browser/webid/metrics.h:ContinueOnPopupStatus) -->
+
+<!-- LINT.IfChange(FedCmCrossSiteIframeType) -->
+
+<enum name="FedCmCrossSiteIframeType">
+  <int value="0" label="No value received"/>
+  <int value="1" label="Iframe is third party"/>
+  <int value="2" label="Iframe is same party"/>
+</enum>
+
+<!-- LINT.ThenChange(//content/browser/webid/metrics.h:CrossSiteIframeType) -->
 
 <!-- LINT.IfChange(FedCmCspStatus) -->
 

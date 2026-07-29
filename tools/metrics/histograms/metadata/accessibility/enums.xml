@@ -1727,7 +1727,7 @@ Unknown properties are collapsed to zero. -->
   <int value="39"
       label="Open developer tools element inspection (not implemented)"/>
   <int value="40" label="Toggle showing developer tools (not implemented)"/>
-  <int value="41" label="View page source (not implemented)"/>
+  <int value="41" label="View page source"/>
   <int value="42" label="Open task manager"/>
   <int value="43" label="Save page"/>
   <int value="44" label="Show downloads"/>
@@ -1748,6 +1748,7 @@ Unknown properties are collapsed to zero. -->
   <int value="59" label="Open menu"/>
   <int value="60"
       label="Use a custom keyboard shortcut registered by an extension"/>
+  <int value="61" label="Toggle multiselect"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/android/java/src/org/chromium/chrome/browser/KeyboardShortcuts.java:KeyboardShortcutsSemanticMeaning, //tools/metrics/histograms/metadata/accessibility/histograms.xml:KeyboardShortcutsSemanticMeaning) -->

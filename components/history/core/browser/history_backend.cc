@@ -917,7 +917,7 @@ bool HistoryBackend::IsUntypedIntranetHost(const GURL& url) {
       !url.SchemeIs(url::kFtpScheme))
     return false;
 
-  const std::string host = url.host();
+  const std::string host = url.GetHost();
   const size_t registry_length =
       net::registry_controlled_domains::GetCanonicalHostRegistryLength(
           host, net::registry_controlled_domains::EXCLUDE_UNKNOWN_REGISTRIES,
@@ -1672,27 +1672,23 @@ bool HistoryBackend::CanAddURL(const GURL& url) const {
   return delegate_->CanAddURL(url);
 }
 
-bool HistoryBackend::GetMostRecentVisitForURL(URLID id, VisitRow* visit_row) {
+bool HistoryBackend::GetMostRecentVisitForURL(
+    URLID id,
+    VisitRow* visit_row,
+    VisitQuery404sPolicy policy_for_404_visits) {
   if (db_)
-    return db_->GetMostRecentVisitForURL(id, visit_row);
-  return false;
-}
-
-bool HistoryBackend::GetMostRecentVisitsForURL(URLID id,
-                                               int max_visits,
-                                               VisitVector* visits) {
-  if (db_)
-    return db_->GetMostRecentVisitsForURL(id, max_visits, visits);
+    return db_->GetMostRecentVisitForURL(id, visit_row, policy_for_404_visits);
   return false;
 }
 
 QueryURLAndVisitsResult HistoryBackend::GetMostRecentVisitsForGurl(
     GURL url,
-    int max_visits) {
+    int max_visits,
+    VisitQuery404sPolicy policy_for_404_visits) {
   QueryURLAndVisitsResult result;
   if (db_ && GetURL(url, &result.row) &&
       db_->GetMostRecentVisitsForURL(result.row.id(), max_visits,
-                                     &result.visits)) {
+                                     policy_for_404_visits, &result.visits)) {
     result.success = true;
   }
   return result;
@@ -2145,11 +2141,12 @@ GetAllAppIdsResult HistoryBackend::GetAllAppIds() {
 HistoryLastVisitResult HistoryBackend::GetLastVisitToHost(
     const std::string& host,
     base::Time begin_time,
-    base::Time end_time) {
+    base::Time end_time,
+    VisitQuery404sPolicy policy_for_404_visits) {
   base::Time last_visit;
-  return {
-      db_ && db_->GetLastVisitToHost(host, begin_time, end_time, &last_visit),
-      last_visit};
+  return {db_ && db_->GetLastVisitToHost(host, begin_time, end_time,
+                                         policy_for_404_visits, &last_visit),
+          last_visit};
 }
 
 HistoryLastVisitResult HistoryBackend::GetLastVisitToOrigin(
@@ -2847,7 +2844,7 @@ URLRows HistoryBackend::GetMatchesForHost(const std::u16string& host_name) {
     URLRow row;
     std::string host_name_utf8 = base::UTF16ToUTF8(host_name);
     while (iter.GetNextURL(&row)) {
-      if (row.url().is_valid() && row.url().host() == host_name_utf8) {
+      if (row.url().is_valid() && row.url().GetHost() == host_name_utf8) {
         results.push_back(std::move(row));
       }
     }
@@ -2861,7 +2858,8 @@ RedirectList HistoryBackend::QueryRedirectsFrom(const GURL& from_url) {
     return {};
 
   URLID from_url_id = db_->GetRowForURL(from_url, nullptr);
-  VisitID cur_visit = db_->GetMostRecentVisitForURL(from_url_id, nullptr);
+  VisitID cur_visit = db_->GetMostRecentVisitForURL(
+      from_url_id, nullptr, VisitQuery404sPolicy::kExclude404s);
   if (!cur_visit)
     return {};  // No visits for URL.
 
@@ -2875,7 +2873,9 @@ RedirectList HistoryBackend::QueryRedirectsTo(const GURL& to_url) {
     return {};
 
   URLID to_url_id = db_->GetRowForURL(to_url, nullptr);
-  VisitID cur_visit = db_->GetMostRecentVisitForURL(to_url_id, nullptr);
+  // TODO: crbug.com/448407141 Take in a 404 policy param and pass in here
+  VisitID cur_visit = db_->GetMostRecentVisitForURL(
+      to_url_id, nullptr, VisitQuery404sPolicy::kInclude404s);
   if (!cur_visit)
     return {};  // No visits for URL.
 
@@ -2895,15 +2895,9 @@ VisibleVisitCountToHostResult HistoryBackend::GetVisibleVisitCountToHost(
 MostVisitedURLList HistoryBackend::QueryMostVisitedURLs(
     int result_count,
     const std::optional<std::string>& recency_factor_name,
-    std::optional<size_t> recency_window_days,
-    bool check_visual_deduplication_flag) {
+    std::optional<size_t> recency_window_days) {
   if (!db_)
     return {};
-
-  bool visual_deduplication_enabled =
-      check_visual_deduplication_flag &&
-      base::FeatureList::IsEnabled(
-          history::kMostVisitedTilesVisualDeduplication);
 
   const base::ElapsedTimer query_timer;
 
@@ -2912,9 +2906,8 @@ MostVisitedURLList HistoryBackend::QueryMostVisitedURLs(
           ? base::BindRepeating(&HistoryBackendClient::IsWebSafe,
                                 base::Unretained(backend_client_.get()))
           : base::NullCallback();
-  std::vector<std::unique_ptr<PageUsageData>> data =
-      db_->QuerySegmentUsage(result_count, url_filter, recency_factor_name,
-                             recency_window_days, visual_deduplication_enabled);
+  std::vector<std::unique_ptr<PageUsageData>> data = db_->QuerySegmentUsage(
+      result_count, url_filter, recency_factor_name, recency_window_days);
 
   MostVisitedURLList result;
   for (const std::unique_ptr<PageUsageData>& current_data : data) {

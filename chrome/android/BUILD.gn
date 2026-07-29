@@ -387,6 +387,7 @@ if (_is_default_toolchain) {
       "//components/credential_management/android:java",
       "//components/enterprise/client_certificates/android:browser_binding_java",
       "//components/sync_preferences/cross_device_pref_tracker/android:java",
+      "//components/tabs/public/android:java",
       "//components/visited_url_ranking/public:public_java",
       "//google_apis/gaia/android:java",
 
@@ -775,6 +776,7 @@ if (_is_default_toolchain) {
       "//third_party/androidx:androidx_localbroadcastmanager_localbroadcastmanager_java",
       "//third_party/androidx:androidx_mediarouter_mediarouter_java",
       "//third_party/androidx:androidx_preference_preference_java",
+      "//third_party/androidx:androidx_slidingpanelayout_slidingpanelayout_java",
       "//third_party/androidx:androidx_vectordrawable_vectordrawable_animated_java",
       "//third_party/androidx:androidx_viewpager2_viewpager2_java",
       "//third_party/androidx:androidx_viewpager_viewpager_java",
@@ -922,7 +924,6 @@ if (_is_default_toolchain) {
       "//chrome/browser/tabmodel/internal:java",
       "//chrome/browser/tabwindow/internal:java",
       "//chrome/browser/task_manager/internal/android:java",
-      "//chrome/browser/touch_to_fill/autofill/one_time_tokens/android/internal:java",
       "//chrome/browser/touch_to_fill/password_manager/android/internal:java",
       "//chrome/browser/touch_to_fill/password_manager/no_passkeys/internal/android:java",
       "//chrome/browser/touch_to_fill/password_manager/password_generation/android/internal:java",
@@ -1064,6 +1065,7 @@ if (_is_default_toolchain) {
       "junit:chrome_junit_tests_org.chromium.chrome.browser.search_engines",
       "junit:chrome_junit_tests_org.chromium.chrome.browser.searchwidget",
       "junit:chrome_junit_tests_org.chromium.chrome.browser.segmentation_platform",
+      "junit:chrome_junit_tests_org.chromium.chrome.browser.settings",
       "junit:chrome_junit_tests_org.chromium.chrome.browser.share",
       "junit:chrome_junit_tests_org.chromium.chrome.browser.signin",
       "junit:chrome_junit_tests_org.chromium.chrome.browser.suggestions",
@@ -1150,7 +1152,6 @@ if (_is_default_toolchain) {
       "//chrome/browser/tabwindow/internal:junit",
       "//chrome/browser/task_manager/internal/android:junit",
       "//chrome/browser/touch_to_fill/autofill/android/internal:junit",
-      "//chrome/browser/touch_to_fill/autofill/one_time_tokens/android/internal:junit",
       "//chrome/browser/touch_to_fill/common/android:junit",
       "//chrome/browser/touch_to_fill/password_manager/no_passkeys/internal/android:junit",
       "//chrome/browser/touch_to_fill/password_manager/password_generation/android/internal:junit",
@@ -2100,7 +2101,6 @@ if (_is_default_toolchain) {
       "java/src/org/chromium/chrome/browser/base/ColdStartTracker.java",
       "java/src/org/chromium/chrome/browser/base/DexFixer.java",
       "java/src/org/chromium/chrome/browser/base/DexFixerReason.java",
-      "java/src/org/chromium/chrome/browser/base/ServiceTracingProxyProvider.java",
       "java/src/org/chromium/chrome/browser/base/SplitChromeApplication.java",
       "java/src/org/chromium/chrome/browser/base/SplitCompatAppComponentFactory.java",
       "java/src/org/chromium/chrome/browser/base/SplitCompatApplication.java",
@@ -3292,6 +3292,7 @@ if (_is_default_toolchain) {
       "//chrome/browser/bookmarks/android:jni_headers",
       "//chrome/browser/partnerbookmarks:jni_headers",
       "//chrome/browser/webid:jni_headers",
+      "//components/tabs/public/android:jni_headers",
     ]
   }
 

@@ -111,7 +111,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.AdaptiveToolbarButton.Shown"
-    enum="AdaptiveToolbarButtonVariant" expires_after="2026-01-25">
+    enum="AdaptiveToolbarButtonVariant" expires_after="2026-03-29">
   <owner>jinsukkiim@google.com</owner>
   <owner>clank-app-team@google.com</owner>
   <summary>
@@ -519,7 +519,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.IncognitoCCTCallerId" enum="IncognitoCCTCallerId"
-    expires_after="2025-09-23">
+    expires_after="2026-03-23">
   <owner>dullweber@google.com</owner>
   <owner>arabm@google.com</owner>
   <owner>chrome-incognito@google.com</owner>
@@ -649,7 +649,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.PageNavigation.ErrorCode" enum="NetErrorCodes"
-    expires_after="2026-01-25">
+    expires_after="2026-03-29">
   <owner>jinsukkim@chromium.org</owner>
   <owner>chrome-connective-tissue@google.com</owner>
   <summary>

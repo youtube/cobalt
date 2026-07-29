@@ -166,17 +166,20 @@ class ArcAppsPublisherTest : public testing::Test {
   void SetUp() override {
     testing::Test::SetUp();
 
-    profile_ = MakeProfile();
-
     // Do not destroy the ArcServiceManager during TearDown, so that Arc
     // KeyedServices can be correctly destroyed during profile shutdown.
     arc_test_.set_persist_service_manager(true);
-    // We will manually start ArcApps after setting up IntentHelper, this allows
-    // ArcApps to observe the correct IntentHelper during initialization.
-    arc_test_.set_start_app_service_publisher(false);
     // We want to use the real ArcIntentHelper KeyedService so that it's the
     // same object that ArcApps uses.
     arc_test_.set_initialize_real_intent_helper_bridge(true);
+    arc_test_.PreProfileSetUp();
+
+    profile_ = MakeProfile();
+
+    // Initialize AppServiceProxy.
+    app_service_test_.SetUp(profile());
+
+    // Initialize ARC.
     arc_test_.SetUp(profile());
 
     auto* arc_bridge_service =
@@ -194,8 +197,6 @@ class ArcAppsPublisherTest : public testing::Test {
     provider->SetWebAppPolicyManager(std::move(web_app_policy_manager));
     web_app::test::AwaitStartWebAppProviderAndSubsystems(profile());
 
-    app_service_test_.SetUp(profile_.get());
-    apps::ArcAppsFactory::GetForProfile(profile());
     // Ensure that the PreferredAppsList is fully initialized before running the
     // test.
     task_environment_.RunUntilIdle();
@@ -203,7 +204,6 @@ class ArcAppsPublisherTest : public testing::Test {
 
   void TearDown() override {
     arc_test_.StopArcInstance();
-    apps::ArcAppsFactory::GetInstance()->ShutDownForTesting(profile());
     arc_test_.TearDown();
   }
 
@@ -1078,23 +1078,23 @@ TEST_F(ArcAppsPublisherTest, OnlyValidFilterIsPublished) {
   arc_test()->app_instance()->SendRefreshAppList(fake_apps);
 
   std::vector<arc::IntentFilter::AuthorityEntry> filter_authorities1;
-  filter_authorities1.emplace_back(kTestUrl.host(), 0);
+  filter_authorities1.emplace_back(kTestUrl.GetHost(), 0);
   std::vector<arc::IntentFilter::PatternMatcher> patterns;
-  patterns.emplace_back(kTestUrl.path(), arc::PatternType::kPrefix);
+  patterns.emplace_back(kTestUrl.GetPath(), arc::PatternType::kPrefix);
 
-  auto filter = arc::IntentFilter(package_name, {arc::kIntentActionView},
-                                  std::move(filter_authorities1),
-                                  std::move(patterns), {kTestUrl.scheme()}, {});
+  auto filter = arc::IntentFilter(
+      package_name, {arc::kIntentActionView}, std::move(filter_authorities1),
+      std::move(patterns), {kTestUrl.GetScheme()}, {});
   std::vector<arc::IntentFilter> filters;
   filters.push_back(std::move(filter));
 
   std::vector<arc::IntentFilter::AuthorityEntry> filter_authorities2;
-  filter_authorities2.emplace_back(kTestUrl.host(), 0);
+  filter_authorities2.emplace_back(kTestUrl.GetHost(), 0);
   constexpr arc::PatternType kInvalidPatternType =
       static_cast<arc::PatternType>(5);
   ASSERT_FALSE(arc::IsKnownPatternType(kInvalidPatternType));
   std::vector<arc::IntentFilter::PatternMatcher> invalid_pattern;
-  invalid_pattern.emplace_back(kTestUrl.path(), kInvalidPatternType);
+  invalid_pattern.emplace_back(kTestUrl.GetPath(), kInvalidPatternType);
 
   auto invalid_filter = arc::IntentFilter(
       package_name, {arc::kIntentActionView}, std::move(filter_authorities2),

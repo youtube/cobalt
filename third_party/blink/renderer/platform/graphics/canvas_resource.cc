@@ -391,16 +391,6 @@ CanvasResourceSharedImage::~CanvasResourceSharedImage() {
   }
 }
 
-void CanvasResourceSharedImage::WillDraw() {
-  DCHECK(!is_cross_thread())
-      << "Write access is only allowed on the owning thread";
-
-  // Sync token for software mode is generated from SharedImageInterface each
-  // time the GMB is updated.
-  if (!is_accelerated_)
-    return;
-}
-
 void CanvasResourceSharedImage::Transfer() {
   if (is_cross_thread() || !ContextProviderWrapper())
     return;
@@ -517,9 +507,14 @@ void CanvasResourceSharedImage::UploadSoftwareRenderingResults(
 void CanvasResourceSharedImage::WaitSyncToken(
     const gpu::SyncToken& sync_token) {
   if (sync_token.HasData()) {
-    if (auto* interface_base = InterfaceBase()) {
-      interface_base->WaitSyncTokenCHROMIUM(sync_token.GetConstData());
-    }
+    acquire_sync_token_ = sync_token;
+    WaitSyncToken();
+  }
+}
+
+void CanvasResourceSharedImage::WaitSyncToken() {
+  if (auto* interface_base = InterfaceBase()) {
+    interface_base->WaitSyncTokenCHROMIUM(acquire_sync_token_.GetConstData());
   }
 }
 

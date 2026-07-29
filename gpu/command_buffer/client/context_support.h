@@ -58,27 +58,9 @@ class ContextSupport {
   virtual void SetAggressivelyFreeResources(
       bool aggressively_free_resources) = 0;
 
-  // Returns an ID that can be used to globally identify the share group that
-  // this context's resources belong to.
-  virtual uint64_t ShareGroupTracingGUID() const = 0;
-
   // Sets a callback to be run when an error occurs.
   virtual void SetErrorMessageCallback(
       base::RepeatingCallback<void(const char*, int32_t)> callback) = 0;
-
-  // Allows locking a GPU discardable texture from any thread. Any successful
-  // call to ThreadSafeShallowLockDiscardableTexture must be paired with a
-  // later call to CompleteLockDiscardableTexureOnContextThread.
-  virtual bool ThreadSafeShallowLockDiscardableTexture(uint32_t texture_id) = 0;
-
-  // Must be called on the context's thread, only following a successful call
-  // to ThreadSafeShallowLockDiscardableTexture.
-  virtual void CompleteLockDiscardableTexureOnContextThread(
-      uint32_t texture_id) = 0;
-
-  // Checks if a discardable handle is deleted. For use in tracing code.
-  virtual bool ThreadsafeDiscardableTextureIsDeletedForTracing(
-      uint32_t texture_id) = 0;
 
   // Access to transfer cache functionality for OOP raster. Only
   // ThreadsafeLockTransferCacheEntry can be accessed without holding the

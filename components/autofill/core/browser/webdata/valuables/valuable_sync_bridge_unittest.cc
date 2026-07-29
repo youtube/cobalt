@@ -93,6 +93,7 @@ EntityInstance GetServerVehicleEntityInstance(
     test::VehicleOptions options = {}) {
   options.nickname = "";
   options.date_modified = {};
+  options.use_date = {};
   options.record_type = EntityInstance::RecordType::kServerWallet;
   return test::GetVehicleEntityInstance(options);
 }
@@ -101,6 +102,7 @@ EntityInstance GetServerFlightEntityInstance(
     test::FlightReservationOptions options = {}) {
   options.nickname = "";
   options.date_modified = {};
+  options.use_date = {};
   options.record_type = EntityInstance::RecordType::kServerWallet;
   return test::GetFlightReservationEntityInstance(options);
 }
@@ -370,9 +372,48 @@ TEST_F(ValuableSyncBridgeDeathTest, ApplyIncrementalSyncChanges) {
   EXPECT_THAT(GetAllLoyaltyCardsFromTable(), ElementsAre(remote1));
 }
 
-// Tests that `GetDataForCommit()` returns empty collection.
-TEST_F(ValuableSyncBridgeDeathTest, GetDataForCommit) {
-  EXPECT_DEATH_IF_SUPPORTED({ bridge().GetDataForCommit({}); }, ".*");
+// Tests that `GetDataForCommit()` returns only the requested loyalty cards.
+TEST_F(ValuableSyncBridgeTest, GetDataForCommit_LoyaltyCards) {
+  const LoyaltyCard card1 = TestLoyaltyCard(kId1);
+  const LoyaltyCard card2 = TestLoyaltyCard(kId2);
+  AddLoyaltyCards({card1, card2});
+
+  std::unique_ptr<syncer::DataBatch> batch = bridge().GetDataForCommit({kId1});
+  EXPECT_THAT(ExtractLoyaltyCardsFromDataBatch(std::move(batch)),
+              ElementsAre(card1));
+}
+
+// Tests that `GetDataForCommit()` returns only the requested entities.
+TEST_F(ValuableSyncBridgeTest, GetDataForCommit_Entities) {
+  const EntityInstance vehicle1 = GetServerVehicleEntityInstance(
+      {.guid = "00000000-0000-2000-8000-300000000000"});
+  const EntityInstance vehicle2 = GetServerVehicleEntityInstance(
+      {.guid = "00000000-0000-4000-8000-300000000000"});
+  AddEntities({vehicle1, vehicle2});
+
+  std::unique_ptr<syncer::DataBatch> batch =
+      bridge().GetDataForCommit({"00000000-0000-4000-8000-300000000000"});
+  EXPECT_THAT(ExtractEntitiesFromDataBatch(std::move(batch)),
+              ElementsAre(vehicle2));
+}
+
+// Tests that `GetDataForCommit()` returns an empty batch for no keys.
+TEST_F(ValuableSyncBridgeTest, GetDataForCommit_NoKeys) {
+  const LoyaltyCard card1 = TestLoyaltyCard(kId1);
+  AddLoyaltyCards({card1});
+
+  std::unique_ptr<syncer::DataBatch> batch = bridge().GetDataForCommit({});
+  EXPECT_FALSE(batch->HasNext());
+}
+
+// Tests that `GetDataForCommit()` returns an empty batch for non-existent keys.
+TEST_F(ValuableSyncBridgeTest, GetDataForCommit_NonExistentKeys) {
+  const LoyaltyCard card1 = TestLoyaltyCard(kId1);
+  AddLoyaltyCards({card1});
+
+  std::unique_ptr<syncer::DataBatch> batch =
+      bridge().GetDataForCommit({"non-existent-key"});
+  EXPECT_FALSE(batch->HasNext());
 }
 
 // Tests that `GetAllDataForDebugging()` returns all loyalty cards.
@@ -615,6 +656,57 @@ TEST_F(ValuableSyncBridgeTest,
   EXPECT_TRUE(SyncEntityInstances({}));
   EXPECT_THAT(GetAllEntityInstancesFromTable(),
               UnorderedElementsAre(local_vehicle));
+}
+
+// Tests that `EntityInstanceChanged()` does nothing when flight and vehicle
+// sync features are disabled.
+TEST_F(ValuableSyncBridgeTest,
+       EntityInstanceChanged_DoesNothingWhenFeaturesDisabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures({}, {syncer::kSyncWalletFlightReservations,
+                                     syncer::kSyncWalletVehicleRegistrations});
+  const EntityInstance vehicle = GetServerVehicleEntityInstance();
+
+  EXPECT_CALL(mock_processor(), Put).Times(0);
+
+  bridge().EntityInstanceChanged(
+      EntityInstanceChange(EntityInstanceChange::ADD, vehicle.guid(), vehicle));
+}
+
+// Tests that `EntityInstanceChanged()` ignores local entities.
+TEST_F(ValuableSyncBridgeTest, EntityInstanceChanged_IgnoresLocalEntities) {
+  EXPECT_CALL(mock_processor(), Put).Times(0);
+  const EntityInstance vehicle = GetLocalVehicleEntityInstance();
+
+  bridge().EntityInstanceChanged(
+      EntityInstanceChange(EntityInstanceChange::ADD, vehicle.guid(), vehicle));
+}
+
+// Tests that `EntityInstanceChanged()` handles ADD and UPDATE changes.
+TEST_F(ValuableSyncBridgeTest, EntityInstanceChanged_AddUpdate) {
+  ON_CALL(mock_processor(), IsTrackingMetadata).WillByDefault(Return(true));
+  const EntityInstance vehicle = GetServerVehicleEntityInstance();
+
+  EXPECT_CALL(mock_processor(), Put(_, _, _));
+  bridge().EntityInstanceChanged(
+      EntityInstanceChange(EntityInstanceChange::ADD, vehicle.guid(), vehicle));
+
+  EXPECT_CALL(mock_processor(), Put(_, _, _));
+  bridge().EntityInstanceChanged(EntityInstanceChange(
+      EntityInstanceChange::UPDATE, vehicle.guid(), vehicle));
+}
+
+// Tests that `EntityInstanceChanged()` crashes on REMOVE change.
+TEST_F(ValuableSyncBridgeDeathTest, EntityInstanceChanged_Remove) {
+  ON_CALL(mock_processor(), IsTrackingMetadata).WillByDefault(Return(true));
+  const EntityInstance vehicle = GetServerVehicleEntityInstance();
+
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        bridge().EntityInstanceChanged(EntityInstanceChange(
+            EntityInstanceChange::REMOVE, vehicle.guid(), vehicle));
+      },
+      ".*");
 }
 
 }  // namespace autofill
