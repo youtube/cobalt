@@ -178,11 +178,6 @@ StarboardRendererWrapper::StarboardRendererWrapper(
     )
     :
 #endif  // BUILDFLAG(IS_ANDROID)
-      renderer_extension_receiver_(
-          this,
-          std::move(traits.renderer_extension_receiver)),
-      client_extension_remote_(std::move(traits.client_extension_remote),
-                               traits.task_runner),
       video_geometry_setter_service_(traits.video_geometry_setter_service),
       overlay_plane_id_(traits.overlay_plane_id),
       renderer_(
@@ -199,7 +194,12 @@ StarboardRendererWrapper::StarboardRendererWrapper(
           ,
           std::move(traits.android_overlay_factory_cb)
 #endif  // BUILDFLAG(IS_ANDROID)
-      ) {
+              ),
+      renderer_extension_receiver_(
+          this,
+          std::move(traits.renderer_extension_receiver)),
+      client_extension_remote_(std::move(traits.client_extension_remote),
+                               traits.task_runner) {
   DETACH_FROM_THREAD(thread_checker_);
   base::SequenceBound<StarboardGpuFactoryImpl> gpu_factory_impl(
       traits.gpu_task_runner,
