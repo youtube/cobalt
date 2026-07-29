@@ -1649,7 +1649,7 @@ public class CustomTabActivityTest {
         var sessionHolder = new SessionHolder<>(token);
         connection.newSession(token);
         setCanUseHiddenTabForSession(sessionHolder, true);
-        connection.warmup(0);
+        connection.warmup();
 
         // Needs the browser process to be initialized.
         ThreadUtils.runOnUiThreadBlocking(
@@ -2226,7 +2226,7 @@ public class CustomTabActivityTest {
     @EnableFeatures({ChromeFeatureList.CCT_RESIZABLE_FOR_THIRD_PARTIES})
     @MinAndroidSdkLevel(Build.VERSION_CODES.O_MR1)
     // crbug.com/350394860
-    @DisableIf.Device(DeviceFormFactor.TABLET)
+    @DisableIf.Device(DeviceFormFactor.ONLY_TABLET)
     public void testLaunchPartialCustomTabActivity_SideSheet() throws Exception {
         Intent intent = createMinimalCustomTabIntent();
         var token = SessionHolder.getSessionHolderFromIntent(intent);

@@ -1579,14 +1579,17 @@ AnimationTrigger* CSSAnimations::ComputeTrigger(
       CSSAnimationData::GetRepeated(data->TriggerExitRangeEndList(),
                                     animation_index);
 
+  // TODO(crbug.com/424448496): Verify the spaces of animation triggers:
+  // internally we should store things in physical space, and only expose CSS
+  // space for consistency with the rest of the code.
   Animation::RangeBoundary* new_range_start =
-      Animation::ToRangeBoundary(new_start_offset);
+      Animation::ToRangeBoundary(new_start_offset, 1.f);
   Animation::RangeBoundary* new_range_end =
-      Animation::ToRangeBoundary(new_end_offset);
+      Animation::ToRangeBoundary(new_end_offset, 1.f);
   Animation::RangeBoundary* new_exit_range_start =
-      Animation::ToRangeBoundary(new_exit_start_offset);
+      Animation::ToRangeBoundary(new_exit_start_offset, 1.f);
   Animation::RangeBoundary* new_exit_range_end =
-      Animation::ToRangeBoundary(new_exit_end_offset);
+      Animation::ToRangeBoundary(new_exit_end_offset, 1.f);
 
   bool need_new_trigger = !existing_trigger ||
                           existing_timeline != new_timeline ||
@@ -2280,7 +2283,7 @@ void CSSAnimations::MaybeApplyPendingUpdate(Element* element) {
         KeyframeEffect::kDefaultPriority, event_delegate);
     auto* animation = MakeGarbageCollected<CSSAnimation>(
         element->GetExecutionContext(), entry.timeline, effect,
-        entry.position_index, entry.name, entry.trigger);
+        entry.position_index, entry.name);
     animation->SetTriggerActionPlayState(
         entry.play_state_list[entry.name_index % entry.play_state_list.size()]);
     animation->SetTrigger(entry.trigger);
@@ -2475,9 +2478,10 @@ void CSSAnimations::CalculateTransitionUpdateForPropertyHandle(
                 state.animating_element.GetDocument(),
                 WebFeature::kCSSTransitionCancelledByRemovingStyle);
           }
-          // TODO(crbug.com/934700): Add a return to this branch to correctly
-          // continue transitions under default settings (all 0s) in the absence
-          // of a change in base computed style.
+          if (RuntimeEnabledFeatures::
+                  CSSTransitionNoneRunningTransitionsFixEnabled()) {
+            return;
+          }
         } else {
           return;
         }

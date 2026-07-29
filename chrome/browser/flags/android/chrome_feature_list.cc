@@ -43,7 +43,6 @@
 #include "components/feed/feed_feature_list.h"
 #include "components/history/core/browser/features.h"
 #include "components/history_clusters/core/features.h"
-#include "components/invalidation/impl/invalidation_switches.h"
 #include "components/language/core/common/language_experiments.h"
 #include "components/ntp_tiles/features.h"
 #include "components/offline_pages/core/offline_page_feature.h"
@@ -144,6 +143,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &features::kBoardingPassDetector,
     &features::kContextMenuEmptySpace,
     &features::kDisplayEdgeToEdgeFullscreen,
+    &features::kEnableExclusiveAccessManager,
     &features::kHttpsFirstBalancedMode,
     &features::kNetworkServiceInProcess,
     &features::kElasticOverscroll,
@@ -250,6 +250,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kCCTExtendTrustedCdnPublisher,
     &kCCTEphemeralMediaViewerExperiment,
     &kCCTEphemeralMode,
+    &kCCTFixWarmup,
     &kCCTFreInSameTask,
     &kCCTIncognitoAvailableToThirdParty,
     &kCCTIntentFeatureOverrides,
@@ -380,6 +381,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kTabGroupParityBottomSheetAndroid,
     &kTabletTabStripAnimation,
     &kToolbarPhoneCleanup,
+    &kTabFreezeOnUndoableClosureKillSwitch,
     &kTabStateFlatBuffer,
     &kTabStripContextMenuAndroid,
     &kTabStripDensityChangeAndroid,
@@ -397,6 +399,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kTestDefaultDisabled,
     &kTestDefaultEnabled,
     &kTopControlsRefactor,
+    &kTouchToSearchCallout,
     &kTraceBinderIpc,
     &kStartSurfaceReturnTime,
     &kUmaBackgroundSessions,
@@ -458,8 +461,6 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &syncer::kWebApkBackupAndRestoreBackend,
     &syncer::kUnoPhase2FollowUp,
     &syncer::kSyncEnablePasswordsSyncErrorMessageAlternative,
-    &tab_groups::kTabGroupSyncAndroid,
-    &tab_groups::kTabGroupSyncAutoOpenKillSwitch,
     &tab_groups::kUseAlternateHistorySyncIllustration,
     &visited_url_ranking::features::kGroupSuggestionService,
     &visited_url_ranking::features::kVisitedURLRankingService,
@@ -741,6 +742,8 @@ BASE_FEATURE(kCCTEphemeralMode,
 BASE_FEATURE(kCCTExtendTrustedCdnPublisher,
              "CCTExtendTrustedCdnPublisher",
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kCCTFixWarmup, "CCTFixWarmup", base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kCCTFreInSameTask,
              "CCTFreInSameTask",
@@ -1093,7 +1096,7 @@ BASE_FEATURE(kPageContentProvider,
 
 BASE_FEATURE(kPowerSavingModeBroadcastReceiverInBackground,
              "PowerSavingModeBroadcastReceiverInBackground",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kPreconnectOnTabCreation,
              "PreconnectOnTabCreation",
@@ -1258,6 +1261,10 @@ BASE_FEATURE(kToolbarPhoneCleanup,
              "ToolbarPhoneCleanup",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kTabFreezeOnUndoableClosureKillSwitch,
+             "TabFreezeOnUndoableClosureKillSwitch",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 BASE_FEATURE(kTabStateFlatBuffer,
              "TabStateFlatBuffer",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -1325,6 +1332,10 @@ BASE_FEATURE(kTestDefaultEnabled,
 // Enables the use of the refactored Top Controls approach on Android.
 BASE_FEATURE(kTopControlsRefactor,
              "TopControlsRefactor",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kTouchToSearchCallout,
+             "TouchToSearchCallout",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kTraceBinderIpc,

@@ -120,7 +120,7 @@ const base::FeatureParam<bool> kAutofillAiServerModelUseCacheResults{
 // strings DD/MM/YYYY and D/M/YYYY.
 BASE_FEATURE(kAutofillAiVoteForFormatStringsFromSingleFields,
              "AutofillAiVoteForFormatStringsFromSingleFields",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, votes for date format strings from multiple fields are uploaded.
 // For example, <input type=text value=31> <input type=text value=12> <input
@@ -128,7 +128,7 @@ BASE_FEATURE(kAutofillAiVoteForFormatStringsFromSingleFields,
 // respectively.
 BASE_FEATURE(kAutofillAiVoteForFormatStringsFromMultipleFields,
              "AutofillAiVoteForFormatStringsFromMultipleFields",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables the second iteration AutofillAI.
 // This feature is independent of `autofill_ai::kAutofillAi`.
@@ -311,6 +311,13 @@ BASE_FEATURE(kAutofillFixEmptyFieldAndroidSettingsBug,
              "AutofillFixEmptyFieldAndroidSettingsBug",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// If enabled, autofill will use FormFieldData::DeepEqual instead of deprecated
+// SameFieldAs().
+// TODO(crbug.com/40183094): Clean up when confirmed that this is safe.
+BASE_FEATURE(kAutofillUseDeepEqualInsteadOfSameFieldAs,
+             "AutofillUseDeepEqualInsteadOfSameFieldAs",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 // When enabled, focusing on a credit card number field that was traditionally
 // autofilled will yield all credit card suggestions.
 // TODO(crbug.com/354175563): Remove when launched.
@@ -461,6 +468,17 @@ BASE_FEATURE_PARAM(bool,
                    &kAutofillModelPredictions,
                    "model_active",
                    false);
+
+// When true, apply small form rules to ML predictions - if there are too few
+// fields or too few distinct types, predictions are cleared. There are some
+// special cases. See
+// `FormFieldParser::ClearCandidatesIfHeuristicsDidNotFindEnoughFields`.
+BASE_FEATURE_PARAM(bool,
+    kAutofillModelPredictionsSmallFormRules,
+    &kAutofillModelPredictions,
+    "small_form_rules",
+    false);
+
 
 // If enabled, a pre-filled field will not be filled.
 BASE_FEATURE(kAutofillSkipPreFilledFields,

@@ -2044,11 +2044,11 @@ static bool ParseHexColor(CSSParserTokenStream& stream,
       if (token.GetType() == kNumberToken) {  // e.g. 112233
         color = String::Format("%d", static_cast<int>(token.NumericValue()));
       } else {  // e.g. 0001FF
-        color = String::Number(static_cast<int>(token.NumericValue())) +
-                token.Value().ToString();
+        color = StrCat({String::Number(static_cast<int>(token.NumericValue())),
+                        token.Value().ToString()});
       }
       while (color.length() < 6) {
-        color = "0" + color;
+        color = StrCat({"0", color});
       }
     } else if (token.GetType() == kIdentToken) {  // e.g. FF0000
       color = token.Value().ToString();
@@ -7988,23 +7988,6 @@ bool ConsumeRadii(std::array<CSSValue*, 4>& horizontal_radii,
   }
   Complete4Sides(horizontal_radii);
   Complete4Sides(vertical_radii);
-  return true;
-}
-
-bool ConsumeCornerShapes(std::array<CSSValue*, 4>& shapes,
-                         CSSParserTokenStream& stream,
-                         const CSSParserContext& context) {
-  for (unsigned value_count = 0; value_count < 4; ++value_count) {
-    shapes[value_count] = ConsumeCornerShape(stream, context);
-    if (!shapes[value_count]) {
-      if (!value_count) {
-        return false;
-      }
-      break;
-    }
-  }
-
-  Complete4Sides(shapes);
   return true;
 }
 

@@ -611,7 +611,6 @@ Consultez les instructions de votre moteur de recherche pour supprimer votre his
 <translation id="3557336313807607643">Ajouter aux contacts</translation>
 <translation id="355765753469272474">Annuler</translation>
 <translation id="3565930036634619844">Onglet. <ph name="TAB_INDEX" /> sur <ph name="NUMBER_OF_TABS" />.</translation>
-<translation id="3570693105179140209">Touchez deux fois pour obtenir plus de mots de passe.</translation>
 <translation id="3572607909481582402">Dans votre compte Google</translation>
 <translation id="3575234738189584619">Rechercher avec Lentille</translation>
 <translation id="3575426792457739946">Cette liste contient tous les profils chargés.</translation>
@@ -624,6 +623,7 @@ Consultez les instructions de votre moteur de recherche pour supprimer votre his
 <translation id="3596414637720633074">Bloquer les témoins tiers en navigation privée</translation>
 <translation id="3602260545951981695">Choisissez « Protection renforcée »</translation>
 <translation id="3608436266458100337">Mode Lecteur</translation>
+<translation id="3610041351087301930">Masquer le lecteur</translation>
 <translation id="3622175633937495219">Historique de recherche (<ph name="COUNT" /> éléments trouvés)</translation>
 <translation id="3625008969091706597">Vous pouvez balayer l'écran à partir du bord pour reculer.</translation>
 <translation id="362709345066740529">Personnalisez vos cartes, votre flux et bien plus ici</translation>
@@ -654,7 +654,6 @@ Consultez les instructions de votre moteur de recherche pour supprimer votre his
 <translation id="3779810277399252432">Pas de connexion Internet.</translation>
 <translation id="3782614601387961027">Ignorer l'avertissement</translation>
 <translation id="3789841737615482174">Installer</translation>
-<translation id="3795478177331815672">Ouvrir les onglets et les groupes d'onglets</translation>
 <translation id="380329542618494757">Nom</translation>
 <translation id="3803696231112616155">Offrir de traduire ce site</translation>
 <translation id="3808311849069021992">Afficher les détails du moteur de recherche</translation>
@@ -700,7 +699,6 @@ Consultez les instructions de votre moteur de recherche pour supprimer votre his
 <translation id="3955740319737378355">Terminé</translation>
 <translation id="3955822496205734389">Vous avez des mots de passe faibles.</translation>
 <translation id="3958312024468322930">Faites-la glisser jusqu'au Dock situé dans la partie inférieure de votre écran d'accueil</translation>
-<translation id="3960218941754097036">Rechercher ce qui se trouve sur votre écran avec Lentille Google</translation>
 <translation id="3962326069546168954">Enregistrer</translation>
 <translation id="3967327056943561740">Favoris</translation>
 <translation id="3967822245660637423">Téléchargement terminé</translation>
@@ -967,7 +965,6 @@ Consultez les instructions de votre moteur de recherche pour supprimer votre his
 <translation id="4979397965658815378">Connectez-vous à votre compte Google pour synchroniser vos favoris, vos mots de passe, votre historique et vos autres paramètres sur tous vos appareils</translation>
 <translation id="4985921635659180565">Une fois que la suppression d'un fichier est programmée, elle ne peut plus être annulée.</translation>
 <translation id="498624032394115435">Toute personne disposant du lien peut modifier tous les onglets.</translation>
-<translation id="4989065233040279145">Choisissez l'endroit où enregistrer <ph name="FILENAME" /></translation>
 <translation id="499122600724363620"><ph name="NAME" />, <ph name="EMAIL" />, géré par votre organisation.</translation>
 <translation id="4992255726304765516">Couleur du groupe d'onglets : <ph name="COLOR" /></translation>
 <translation id="5005498671520578047">Copier mot de passe</translation>
@@ -1067,6 +1064,7 @@ Consultez les instructions de votre moteur de recherche pour supprimer votre his
 <translation id="5431252637281434233">Vous serez déconnecté</translation>
 <translation id="543338862236136125">Modifier le mot de passe</translation>
 <translation id="5433691172869980887">Nom d'utilisateur copié</translation>
+<translation id="5437480232219631455">Vous pouvez ouvrir Gemini ici</translation>
 <translation id="5439618055789623719">Connecté en tant que <ph name="USER_EMAIL" /></translation>
 <translation id="5443636120437209490">Une meilleure navigation par défaut</translation>
 <translation id="5444892875087332195">Favoris</translation>
@@ -1230,7 +1228,7 @@ La fonction de transfert doit également être activée dans la section Généra
 <translation id="6078236141387574983">Ajuster la hauteur de la feuille</translation>
 <translation id="6084848228346514841">Sélectionner des onglets</translation>
 <translation id="6089212833343035912">NIP du gestionnaire de mots de passe Google</translation>
-<translation id="6090760257419195752">Mises en garde ignorées</translation>
+<translation id="6090760257419195752">Avertissements ignorés</translation>
 <translation id="6096965253650248286"><ph name="COUNT" /> trouvé(s)</translation>
 <translation id="6100617279104942061">Connecté en tant que <ph name="USER_EMAIL" />. Ouvre les paramètres.</translation>
 <translation id="6103540626693881831">Chiffrement sur l'appareil</translation>
@@ -1446,6 +1444,7 @@ Lorsque vous êtes en mode de navigation privée, les sites ne peuvent pas utili
 <translation id="6831043979455480757">Traduire</translation>
 <translation id="6842136130964845393">Pour vous assurer de toujours pouvoir accéder à vos mots de passe enregistrés, vérifiez qu'il s'agit bien de vous</translation>
 <translation id="6851516051005285358">Voir la version pour ordinateur</translation>
+<translation id="6857446173140146664">Supprimer l'arrière-plan</translation>
 <translation id="6858718102216837409">Ajouter une langue…</translation>
 <translation id="6858855187367714033">Numérisé</translation>
 <translation id="6859944681507688231">Pour numériser un code QR ou une carte de crédit, activez l'appareil photo dans les paramètres.</translation>
@@ -1652,7 +1651,6 @@ Lorsque vous êtes en mode de navigation privée, les sites ne peuvent pas utili
 <translation id="7724085059277147439">{count,plural, =1{Élément enregistré dans votre compte Google, {email}}one{Élément enregistré dans votre compte Google, {email}}other{Éléments enregistrés dans votre compte Google, {email}}}</translation>
 <translation id="7729458878441927652">Pour voir les onglets de vos autres appareils, synchronisez vos onglets et votre historique.</translation>
 <translation id="7730020510075123961">Non, fusionner les données</translation>
-<translation id="7730973429297233609">Sélectionnez le compte que vous souhaitez utiliser pour enregistrer <ph name="FILENAME" /> – <ph name="FILESIZE" /></translation>
 <translation id="7733646263819020771"><ph name="BOOKMRK_NAME" />. Uniquement sur cet appareil.</translation>
 <translation id="7744192722284567281">Trouvé dans une violation de données</translation>
 <translation id="7749790401023484470">Vous n'avez pas sélectionné de texte.</translation>
@@ -1813,6 +1811,7 @@ Les sites peuvent utiliser des témoins afin de voir votre activité de navigati
 <translation id="8343993175958086504">Sauvegardez vos données et utilisez-les sur n'importe quel appareil</translation>
 <translation id="8348530355586151720">Touchez le menu à trois points</translation>
 <translation id="8349305172487531364">Barre de favoris</translation>
+<translation id="8363484128299778310">Récupération temporaire en cas de problème</translation>
 <translation id="8364563001733875155">Pour modifier votre NIP, configurez d'abord un mot de passe sur votre appareil.</translation>
 <translation id="8366466717204352506">Vérification jamais exécutée</translation>
 <translation id="8368001212524806591">Suivre le prix</translation>
@@ -1835,7 +1834,6 @@ Les sites peuvent utiliser des témoins afin de voir votre activité de navigati
 <translation id="8428045167754449968">Ville</translation>
 <translation id="8428213095426709021">Paramètres</translation>
 <translation id="8428634594422941299">OK</translation>
-<translation id="8430694217306051839">Choisissez l'endroit où enregistrer <ph name="FILENAME" /> (<ph name="FILE_SIZE" />)</translation>
 <translation id="8434837876193928924">Détails du groupe d'onglets</translation>
 <translation id="8438566539970814960">Amélioration des recherches et de la navigation</translation>
 <translation id="8439758443371991593">Masquer Ajouter à la Liste de lecture</translation>

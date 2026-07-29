@@ -19,6 +19,7 @@
 #include "base/check.h"
 #include "base/check_op.h"
 #include "base/command_line.h"
+#include "base/containers/flat_set.h"
 #include "base/containers/to_vector.h"
 #include "base/containers/unique_ptr_adapters.h"
 #include "base/dcheck_is_on.h"
@@ -224,6 +225,21 @@ class WrappedTestingCertVerifier : public net::CertVerifier {
     }
     return g_cert_verifier_for_testing->Verify(
         params, verify_result, std::move(callback), out_req, net_log);
+  }
+  void Verify2QwacBinding(
+      const std::string& binding,
+      const std::string& hostname,
+      const scoped_refptr<net::X509Certificate>& tls_cert,
+      base::OnceCallback<void(const scoped_refptr<net::X509Certificate>&)>
+          callback,
+      const net::NetLogWithSource& net_log) override {
+    if (!g_cert_verifier_for_testing) {
+      base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+          FROM_HERE, base::BindOnce(std::move(callback), nullptr));
+      return;
+    }
+    g_cert_verifier_for_testing->Verify2QwacBinding(
+        binding, hostname, tls_cert, std::move(callback), net_log);
   }
   void SetConfig(const Config& config) override {
     if (!g_cert_verifier_for_testing) {
@@ -2085,6 +2101,20 @@ void NetworkContext::VerifyCertForSignedExchange(
                      CTVerificationMode::kSignedExchange, std::move(callback));
 }
 
+void NetworkContext::Verify2QwacCertBinding(
+    const std::string& binding,
+    const std::string& hostname,
+    const scoped_refptr<net::X509Certificate>& tls_certificate,
+    Verify2QwacCertBindingCallback callback) {
+  net::CertVerifier* cert_verifier =
+      g_cert_verifier_for_testing ? g_cert_verifier_for_testing
+                                  : url_request_context_->cert_verifier();
+  cert_verifier->Verify2QwacBinding(
+      binding, hostname, tls_certificate, std::move(callback),
+      net::NetLogWithSource::Make(url_request_context_->net_log(),
+                                  net::NetLogSourceType::CERT_VERIFIER_JOB));
+}
+
 void NetworkContext::NotifyExternalCacheHit(const GURL& url,
                                             const std::string& http_method,
                                             const net::NetworkIsolationKey& key,
@@ -2570,9 +2600,10 @@ void NetworkContext::OnHttpAuthDynamicParamsChanged(
       http_auth_dynamic_network_service_params->allow_gssapi_library_load);
 #endif  // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
   if (http_auth_dynamic_network_service_params->allowed_schemes.has_value()) {
-    http_auth_merged_preferences_.set_allowed_schemes(std::set<std::string>(
-        http_auth_dynamic_network_service_params->allowed_schemes->begin(),
-        http_auth_dynamic_network_service_params->allowed_schemes->end()));
+    http_auth_merged_preferences_.set_allowed_schemes(
+        base::flat_set<std::string>(
+            http_auth_dynamic_network_service_params->allowed_schemes->begin(),
+            http_auth_dynamic_network_service_params->allowed_schemes->end()));
   } else {
     http_auth_merged_preferences_.set_allowed_schemes(std::nullopt);
   }

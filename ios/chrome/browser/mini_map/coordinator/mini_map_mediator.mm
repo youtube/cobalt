@@ -71,14 +71,13 @@ enum class MiniMapOutcome {
   self.webState = nullptr;
 }
 
-- (void)userInitiatedMiniMapConsentRequired:(BOOL)consentRequired {
+- (void)userInitiatedMiniMapWithIPH:(BOOL)showIPH {
   if (!self.prefService) {
     return;
   }
 
-  BOOL shouldPresentIPH =
-      consentRequired && ShouldPresentConsentIPH(self.prefService);
-  if (consentRequired) {
+  BOOL shouldPresentIPH = showIPH && ShouldPresentConsentIPH(self.prefService);
+  if (showIPH) {
     if (shouldPresentIPH) {
       base::UmaHistogramEnumeration("IOS.MiniMap.ConsentOutcome",
                                     ConsentOutcome::kConsentIPH);
@@ -120,7 +119,7 @@ enum class MiniMapOutcome {
                                 MiniMapOutcome::kOpenedQuery);
 }
 
-- (void)userDisabledSettingFromMiniMap {
+- (void)userDisabledOneTapSettingFromMiniMap {
   base::UmaHistogramEnumeration("IOS.MiniMap.Outcome",
                                 MiniMapOutcome::kUserDisabled);
   if (!self.prefService) {
@@ -135,6 +134,14 @@ enum class MiniMapOutcome {
       manager->RemoveDecorationsWithType(kDecorationAddress);
     }
   }
+}
+
+- (void)userDisabledURLSettingFromMiniMap {
+  // TODO(crbug.com/420402648): Add metrics.
+  if (!self.prefService) {
+    return;
+  }
+  self.prefService->SetBoolean(prefs::kIosMiniMapShowNativeMap, false);
 }
 
 - (void)userOpenedSettingsFromDisableConfirmation {

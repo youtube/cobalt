@@ -785,7 +785,6 @@ Les autorisations que vous avez déjà accordées à des applications peuvent s'
 <translation id="1542524755306892917">Cette option permet à l'Assistant Google de fournir des réponses personnalisées lorsque <ph name="SUPERVISED_USER_NAME" /> pose des questions.</translation>
 <translation id="1543284117603151572">Importé à partir d'Edge</translation>
 <translation id="1543538514740974167">Arrivez ici plus rapidement</translation>
-<translation id="154420222899071768">Votre mot de passe n'a pas été mis à jour, mais vous devriez toujours pouvoir accéder au site avec votre ancien mot de passe</translation>
 <translation id="1544588554445317666">Essayez d'utiliser un nom de fichier plus court ou de l'enregistrer dans un autre dossier</translation>
 <translation id="1545177026077493356">Mode kiosque automatique</translation>
 <translation id="1545749641540134597">Balayer le code QR</translation>
@@ -2326,7 +2325,6 @@ https://support.google.com/chrome/?p=applescript</translation>
 <translation id="2588636910004461974">Appareils appartenant à <ph name="VENDOR_NAME" /></translation>
 <translation id="2589658397149952302">Ne jamais afficher les fichiers Disque</translation>
 <translation id="2593499352046705383">Avant de commencer, assurez-vous d'avoir une sauvegarde de vos données. L'installation de <ph name="DEVICE_OS" /> écrasera les données présentes sur votre disque dur. Apprenez-en plus à la page g.co/flex/InstallGuide.</translation>
-<translation id="2594832159966169099">Gérer la sécurité V8</translation>
 <translation id="2597073208962000830">La fonctionnalité Partage à proximité utilise le Bluetooth pour détecter les appareils à proximité.</translation>
 <translation id="2598136842498757793">Personnaliser les boutons de la barre d'outils</translation>
 <translation id="2598710988533271874">Nouveau Chrome disponible</translation>
@@ -4773,6 +4771,7 @@ Souhaitez-vous lancer <ph name="CONTROL_PANEL_APPLET_NAME" />?</translation>
 <translation id="4305402730127028764">Copier vers <ph name="DEVICE_NAME" /></translation>
 <translation id="4305817255990598646">Changer</translation>
 <translation id="4306119971288449206">Les applications doivent être diffusées avec le type de contenu « <ph name="CONTENT_TYPE" /> ».</translation>
+<translation id="4306489587293957491">Entrer</translation>
 <translation id="4306810703452026910">Chrome cessera de signaler les notifications de ce site comme indésirables</translation>
 <translation id="4307992518367153382">Paramètres de base</translation>
 <translation id="4309165024397827958">Autoriser les applications et les services Android disposant de l'autorisation de localisation à utiliser la position de votre appareil. Google peut collecter des données de localisation sur une base périodique et les utiliser de manière anonyme pour aider à améliorer la précision de la localisation et les services qui y font appel.</translation>
@@ -4830,6 +4829,7 @@ Souhaitez-vous lancer <ph name="CONTROL_PANEL_APPLET_NAME" />?</translation>
 <translation id="4350230709416545141">Toujours empêcher <ph name="HOST" /> d'accéder à votre position</translation>
 <translation id="4350782034419308508">Hey Google</translation>
 <translation id="435185728237714178">Accédez à l'application « <ph name="APP_NAME" /> » pour gérer les applications installées et diffusées en continu</translation>
+<translation id="4352913519324947509">Votre mot de passe n'a pas été modifié, mais vous devriez toujours pouvoir accéder au site avec votre mot de passe actuel</translation>
 <translation id="4354073718307267720">Demander une autorisation lorsqu'un site veut créer une carte 3D de votre environnement ou faire le suivi de la position de l'appareil photo</translation>
 <translation id="4354344420232759511">Les sites que vous visiterez apparaîtront ici</translation>
 <translation id="435527878592612277">Sélectionner votre photo</translation>
@@ -5987,7 +5987,6 @@ Appuyez sur Ctrl+Alt+diminuer la luminosité pour dézoomer.</translation>
 <translation id="5186381005592669696">Personnalisez la langue d'affichage pour les applications prises en charge</translation>
 <translation id="5186788525428341874">Vous pouvez utiliser cette clé d'accès pour vous connecter plus rapidement sur l'ensemble de vos appareils. Elle sera enregistrée dans le gestionnaire de mots de passe Google du compte <ph name="ACCOUNT_NAME" />.</translation>
 <translation id="5187641678926990264">&amp;Installer la page en tant qu'application…</translation>
-<translation id="5187671830619031922">Ajouter l'onglet à l'affichage partagé</translation>
 <translation id="5187826826541650604"><ph name="KEY_NAME" /> (<ph name="DEVICE" />)</translation>
 <translation id="5188242000716462162">Partagé par <ph name="USER_NAME" /></translation>
 <translation id="5188648870018555788">Utiliser la position. Autorisez les applis, les sites Web et les services ChromeOS et Android disposant d'une autorisation de localisation à utiliser la position de votre appareil. La précision de la localisation fournit une position plus précise pour les applis et les services Android. Pour ce faire, Google traite périodiquement des informations sur les capteurs de l'appareil et les signaux sans fil émis par votre appareil afin de recueillir de façon participative des données sur la position des signaux sans fil. Ces données sont utilisées sans vous identifier pour améliorer la précision de la localisation et les services basés sur l'emplacement. Elles le sont aussi pour améliorer, pour fournir et pour maintenir les services de Google en fonction des intérêts légitimes de Google et de tiers envers la satisfaction des besoins des utilisateurs. <ph name="BEGIN_LINK1" />En savoir plus sur l'utilisation de la position<ph name="END_LINK1" /></translation>
@@ -7017,7 +7016,6 @@ Vous pouvez attribuer plusieurs commutateurs à cette action.</translation>
 <translation id="594221546068848596">Rechercher la page avec <ph name="VISUAL_SEARCH_PROVIDER" /></translation>
 <translation id="5942779427914696408">Visibilité de l'appareil</translation>
 <translation id="5943127421590245687">Votre vérification a réussi. Pour déverrouiller et restaurer vos données locales, veuillez entrer votre ancien mot de passe <ph name="DEVICE_TYPE" />.</translation>
-<translation id="5943209617717087975"><ph name="THIRD_PARTY_NTP_MANAGER" /> gère votre page Nouvel Onglet</translation>
 <translation id="5945002094477276055">Le fichier <ph name="FILE_NAME" /> pourrait être dangereux. Voulez-vous l'envoyer au service de navigation sécurisée Google pour le faire analyser?</translation>
 <translation id="5945192511027649793">Désactiver le pavé tactile</translation>
 <translation id="5945363896952315544">Votre clé de sécurité ne peut pas stocker davantage d'empreintes digitales. Pour en ajouter une, commencer par supprimer une empreinte digitale existante.</translation>
@@ -7213,7 +7211,7 @@ Vous pouvez attribuer plusieurs commutateurs à cette action.</translation>
 <translation id="6088475950266477163">Paramètres</translation>
 <translation id="608912389580139775">Pour ajouter cette page à votre liste de lecture, cliquez sur l'icône de favori</translation>
 <translation id="6089289670051481345">Tritanomalie</translation>
-<translation id="6090760257419195752">Mises en garde ignorées</translation>
+<translation id="6090760257419195752">Avertissements ignorés</translation>
 <translation id="609174145569509836">Libérer de l'espace de stockage</translation>
 <translation id="6091761513005122595">Partage correctement configuré.</translation>
 <translation id="6093803049406781019">Supprimer le profil</translation>
@@ -8319,6 +8317,7 @@ Vous pouvez gérer les paramètres à partir du menu de la carte ou afficher plu
 <translation id="686831807558000905">Ne pas se connecter</translation>
 <translation id="686839242150793617">Autorisés à entrer automatiquement l'Incrustation d'image</translation>
 <translation id="6868934826811377550">Voir les renseignements</translation>
+<translation id="6870470066213933201">Gérer l'optimisation et la sécurité de JavaScript</translation>
 <translation id="6871644448911473373">Répondeur OCSP : <ph name="LOCATION" /></translation>
 <translation id="6871860225073478239">Langues…</translation>
 <translation id="6873571253135628430">Modifier les autorisations du site</translation>
@@ -9013,6 +9012,7 @@ Vous pouvez gérer les paramètres à partir du menu de la carte ou afficher plu
 <translation id="7387951778417998929">Pour utiliser un moteur de recherche autre que celui par défaut, entrez son raccourci dans la barre d'adresse suivi de votre raccourci-clavier favori. Vous pouvez aussi modifier votre moteur de recherche par défaut ici.</translation>
 <translation id="7388615499319468910">Les sites et les annonceurs peuvent mieux comprendre la performance des annonces. Ce paramètre est désactivé.</translation>
 <translation id="738903649531469042">Ajouter l'onglet à la liste de lecture</translation>
+<translation id="7389615853658756494">Le modifier sur le site</translation>
 <translation id="7392118418926456391">Échec de l'analyse antivirus</translation>
 <translation id="7392915005464253525">&amp;Rouvrir la fenêtre fermée</translation>
 <translation id="7393073300870882456">{COUNT,plural, =1{1 élément copié}one{{COUNT} élément copié}other{{COUNT} éléments copiés}}</translation>
@@ -9142,6 +9142,7 @@ Vous pouvez gérer les paramètres à partir du menu de la carte ou afficher plu
 <translation id="7474043404939621342">Personnaliser votre barre d'outils</translation>
 <translation id="747459581954555080">Tout restaurer</translation>
 <translation id="747507174130726364">{NUM_DAYS,plural, =1{Retour immédiat exigé}one{Retournez l'appareil <ph name="DEVICE_TYPE" /> d'ici {NUM_DAYS} jour}other{Retournez l'appareil <ph name="DEVICE_TYPE" /> d'ici {NUM_DAYS} jours}}</translation>
+<translation id="747557463733380256">En savoir plus sur la gestion de votre navigateur</translation>
 <translation id="7475671414023905704">URL de mot de passe perdu Netscape</translation>
 <translation id="7475742997309661417">Le lecteur d'écran sur ChromeOS, ChromeVox, est principalement utilisé par les personnes aveugles ou ayant une basse vision pour lire le texte affiché à l'écran avec un synthétiseur vocal ou un afficheur braille. Maintenez les deux touches de volume enfoncées pendant cinq secondes pour activer ChromeVox. Lorsque ChromeVox est activé, une présentation rapide s'affiche.</translation>
 <translation id="7476454130948140105">Pile trop faible pour la mise à jour (<ph name="BATTERY_PERCENT" /> %)</translation>
@@ -10290,6 +10291,7 @@ Conservez votre fichier de clé en lieu sûr. Vous en aurez besoin lors de la cr
 <translation id="8265018477030547118">Uniquement sur cet appareil</translation>
 <translation id="826511437356419340">Vous avez activé le mode de vue d'ensemble des fenêtres. Balayez l'écran pour naviguer, ou appuyez sur la touche Tabulation si vous utilisez un clavier.</translation>
 <translation id="8265671588726449108">{COUNT,plural, =1{Votre fenêtre de navigation privée ne se rouvrira pas après le redémarrage}one{Votre fenêtre de navigation privée ({COUNT}) ne se rouvrira pas après le redémarrage}other{Vos {COUNT} fenêtres de navigation privée ne se rouvriront pas après le redémarrage}}</translation>
+<translation id="8266430295499893285">Vous devez confirmer votre identité avant de pouvoir accéder à vos mots de passe</translation>
 <translation id="8266947622852630193">Toutes les méthodes d'entrée</translation>
 <translation id="8267539814046467575">Ajouter une imprimante</translation>
 <translation id="8267961145111171918"><ph name="BEGIN_PARAGRAPH1" />Il s'agit de données générales concernant votre appareil et l'usage que vous en faites (comme le niveau de la pile, l'activité système, l'activité des applications et les erreurs) qui seront utilisées pour améliorer Android. De plus, certaines données collectées contribueront également à améliorer les applications de Google et aideront nos partenaires, comme les concepteurs d'Android, à améliorer leurs applications et leurs produits.<ph name="END_PARAGRAPH1" />
@@ -11099,7 +11101,6 @@ Cela peut inclure des renseignements sur les fichiers, les logiciels installés,
 <translation id="8827125715368568315">Autorisations bloquées : <ph name="PERMISSION" /> et <ph name="COUNT" /> autres</translation>
 <translation id="8827289157496676362">Épingler l'extension</translation>
 <translation id="8828933418460119530">Nom DNS</translation>
-<translation id="8829979393064090868">Ajouter l'onglet à l'affichage partagé</translation>
 <translation id="8830479210602243906">Augmenter votre productivité</translation>
 <translation id="883062543841130884">Substitutions</translation>
 <translation id="8830779999439981481">L'appareil redémarre afin d'installer les mises à jour</translation>

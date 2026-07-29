@@ -140,7 +140,7 @@ std::u16string OmniboxEditModelIOS::GetPermanentDisplayText() const {
 
 void OmniboxEditModelIOS::SetUserText(const std::u16string& text) {
   SetInputInProgress(true);
-  InternalSetUserText(text);
+  text_model_->UpdateUserText(text);
   GetInfoForCurrentText(&current_match_, nullptr);
   text_model_->paste_state = OmniboxPasteState::kNone;
 }
@@ -192,7 +192,7 @@ void OmniboxEditModelIOS::Revert() {
   SetInputInProgress(false);
   text_model_->input.Clear();
   text_model_->paste_state = OmniboxPasteState::kNone;
-  InternalSetUserText(std::u16string());
+  text_model_->UpdateUserText(std::u16string());
   size_t start, end;
   if (view_) {
     view_->GetSelectionBounds(&start, &end);
@@ -275,26 +275,7 @@ void OmniboxEditModelIOS::ClearAdditionalText() {
 }
 
 void OmniboxEditModelIOS::OnSetFocus() {
-  TRACE_EVENT0("omnibox", "OmniboxEditModelIOS::OnSetFocus");
-  text_model_->last_omnibox_focus = base::TimeTicks::Now();
-  text_model_->focus_resulted_in_navigation = false;
-
-  // If the omnibox lost focus while the caret was hidden and then regained
-  // focus, OnSetFocus() is called and should restore visibility. Note that
-  // focus can be regained without an accompanying call to
-  // OmniboxViewIOS::SetFocus(), e.g. by tabbing in.
-  SetFocusState(OMNIBOX_FOCUS_VISIBLE, OMNIBOX_FOCUS_CHANGE_EXPLICIT);
-
-  if (text_model_->user_input_in_progress || !text_model_->in_revert) {
-    controller_->client()->OnInputStateChanged();
-  }
-
-  if (omnibox_feature_configs::HappinessTrackingSurveyForOmniboxOnFocusZps::
-          Get()
-              .enabled) {
-    controller_->client()->MaybeShowOnFocusHatsSurvey(
-        autocomplete_controller()->autocomplete_provider_client());
-  }
+  text_model_->OnSetFocus();
 }
 
 void OmniboxEditModelIOS::StartZeroSuggestRequest(
@@ -379,38 +360,12 @@ void OmniboxEditModelIOS::OnPopupDataChanged(
 
 bool OmniboxEditModelIOS::OnAfterPossibleChange(
     const OmniboxViewIOS::StateChanges& state_changes) {
-  // Update the paste state as appropriate: if we're just finishing a paste
-  // that replaced all the text, preserve that information; otherwise, if we've
-  // made some other edit, clear paste tracking.
-  if (text_model_->paste_state == OmniboxPasteState::kPasting) {
-    text_model_->paste_state = OmniboxPasteState::kPasted;
+  bool state_changed =
+      text_model_->UpdateStateAfterPossibleChange(state_changes);
 
-    GURL url = GURL(*(state_changes.new_text));
-    if (url.is_valid()) {
-      controller_->client()->OnUserPastedInOmniboxResultingInValidURL();
-    }
-  } else if (state_changes.text_differs) {
-    text_model_->paste_state = OmniboxPasteState::kNone;
-  }
-
-  if (state_changes.text_differs || state_changes.selection_differs) {
-    // Restore caret visibility whenever the user changes text or selection in
-    // the omnibox.
-    SetFocusState(OMNIBOX_FOCUS_VISIBLE, OMNIBOX_FOCUS_CHANGE_TYPING);
-  }
-
-  // If the user text does not need to be changed, return now, so we don't
-  // change any other state, lest arrowing around the omnibox do something like
-  // reset `just_deleted_text_`.  Note that modifying the selection accepts any
-  // inline autocompletion, which results in a user text change.
-  if (!state_changes.text_differs &&
-      (!state_changes.selection_differs ||
-       text_model_->inline_autocompletion.empty())) {
+  if (!state_changed) {
     return false;
   }
-
-  InternalSetUserText(*state_changes.new_text);
-  text_model_->just_deleted_text = state_changes.just_deleted_text;
 
   if (view_) {
     view_->UpdatePopup();
@@ -422,12 +377,6 @@ bool OmniboxEditModelIOS::OnAfterPossibleChange(
 // static
 const char OmniboxEditModelIOS::kCutOrCopyAllTextHistogram[] =
     "Omnibox.CutOrCopyAllText";
-
-void OmniboxEditModelIOS::InternalSetUserText(const std::u16string& text) {
-  text_model_->user_text = text;
-  text_model_->just_deleted_text = false;
-  text_model_->inline_autocompletion.clear();
-}
 
 void OmniboxEditModelIOS::GetInfoForCurrentText(AutocompleteMatch* match,
                                                 GURL* alternate_nav_url) const {
@@ -773,16 +722,6 @@ void OmniboxEditModelIOS::OpenMatch(OmniboxPopupSelection selection,
               alternate_input, alternate_nav_url, false));
     }
   }
-}
-
-void OmniboxEditModelIOS::SetFocusState(OmniboxFocusState state,
-                                        OmniboxFocusChangeReason reason) {
-  if (state == text_model_->focus_state) {
-    return;
-  }
-
-  text_model_->focus_state = state;
-  controller_->client()->OnFocusChanged(text_model_->focus_state, reason);
 }
 
 std::u16string OmniboxEditModelIOS::GetText() const {

@@ -14,13 +14,19 @@
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/new_tab_page/new_tab_page_util.h"
+#include "chrome/browser/preloading/autocomplete_dictionary_preload_service.h"
+#include "chrome/browser/preloading/autocomplete_dictionary_preload_service_factory.h"
 #include "chrome/browser/preloading/prefetch/search_prefetch/search_prefetch_service.h"
 #include "chrome/browser/preloading/prefetch/search_prefetch/search_prefetch_service_factory.h"
+#include "chrome/browser/preloading/search_preload/search_preload_service.h"
+#include "chrome/browser/preloading/search_preload/search_preload_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/webui/metrics_reporter/metrics_reporter.h"
+#include "chrome/common/pref_names.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/bookmarks/browser/bookmark_model.h"
 #include "components/omnibox/browser/omnibox_controller.h"
+#include "components/omnibox/browser/omnibox_prefs.h"
 #include "components/omnibox/browser/vector_icons.h"
 #include "components/omnibox/common/omnibox_feature_configs.h"
 #include "components/search/ntp_features.h"
@@ -299,7 +305,7 @@ std::vector<searchbox::mojom::AutocompleteMatchPtr> CreateAutocompleteMatches(
       mojom_match->icon_path = kGoogleAgentspaceIconResourceName;
 #endif
     }
-    mojom_match->icon_url = match.icon_url.spec();
+    mojom_match->icon_url = match.icon_url;
     mojom_match->image_dominant_color = match.image_dominant_color;
     mojom_match->image_url = match.image_url.spec();
     mojom_match->fill_into_edit = match.fill_into_edit;
@@ -468,7 +474,8 @@ void SearchboxHandler::SetupWebUIDataSource(content::WebUIDataSource* source,
       {"searchBoxHintMultimodal", IDS_GOOGLE_SEARCH_BOX_EMPTY_HINT_MULTIMODAL},
       {"searchboxThumbnailLabel",
        IDS_GOOGLE_SEARCH_BOX_MULTIMODAL_IMAGE_THUMBNAIL},
-      {"voiceSearchButtonLabel", IDS_TOOLTIP_MIC_SEARCH}};
+      {"voiceSearchButtonLabel", IDS_TOOLTIP_MIC_SEARCH},
+      {"searchboxComposeButtonText", IDS_NTP_COMPOSE_ENTRYPOINT}};
   source->AddLocalizedStrings(kStrings);
 
   source->AddBoolean(
@@ -494,12 +501,10 @@ void SearchboxHandler::SetupWebUIDataSource(content::WebUIDataSource* source,
       base::FeatureList::IsEnabled(ntp_features::kRealboxCr23Theming));
   source->AddBoolean("searchboxCr23SteadyStateShadow",
                      ntp_features::kNtpRealboxCr23SteadyStateShadow.Get());
-  source->AddBoolean("searchboxShowComposeEntrypoint",
-                     base::FeatureList::IsEnabled(
-                         ntp_features::kNtpSearchboxComposeEntrypoint));
-  source->AddBoolean(
-      "searchboxShowComposebox",
-      base::FeatureList::IsEnabled(ntp_features::kNtpSearchboxComposebox));
+
+  source->AddBoolean("searchboxShowComposeAnimation",
+                     profile->GetPrefs()->GetInteger(
+                         prefs::kNtpComposeButtonShownCountPrefName) < 3);
 }
 
 // static
@@ -788,9 +793,16 @@ void SearchboxHandler::OnNavigationLikely(
     // the web UI is referencing a stale match.
     return;
   }
+
   if (auto* search_prefetch_service =
           SearchPrefetchServiceFactory::GetForProfile(profile_)) {
     search_prefetch_service->OnNavigationLikely(
+        line, *match, navigation_predictor, web_contents_);
+  }
+
+  if (SearchPreloadService* search_preload_service =
+          SearchPreloadServiceFactory::GetForProfile(profile_)) {
+    search_preload_service->OnNavigationLikely(
         line, *match, navigation_predictor, web_contents_);
   }
 }
@@ -813,9 +825,21 @@ void SearchboxHandler::OnResultChanged(AutocompleteController* controller,
   //  AutocompleteController and move this logic to the RealboxOmniboxClient.
   if (owned_controller_) {
     if (autocomplete_controller()->done()) {
+      if (auto* dictionary_preload_service =
+              AutocompleteDictionaryPreloadServiceFactory::GetForProfile(
+                  profile_)) {
+        dictionary_preload_service->MaybePreload(
+            autocomplete_controller()->result());
+      }
       if (SearchPrefetchService* search_prefetch_service =
               SearchPrefetchServiceFactory::GetForProfile(profile_)) {
         search_prefetch_service->OnResultChanged(
+            web_contents_, autocomplete_controller()->result());
+      }
+
+      if (SearchPreloadService* search_preload_service =
+              SearchPreloadServiceFactory::GetForProfile(profile_)) {
+        search_preload_service->OnAutocompleteResultChanged(
             web_contents_, autocomplete_controller()->result());
       }
     }

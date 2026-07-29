@@ -31,6 +31,8 @@
 #include "chrome/browser/password_manager/profile_password_store_factory.h"
 #include "chrome/browser/promos/promos_types.h"
 #include "chrome/browser/signin/signin_promo_util.h"
+#include "chrome/browser/ui/actions/chrome_action_id.h"
+#include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_command_controller.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_finder.h"
@@ -56,7 +58,6 @@
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/passwords/manage_passwords_page_action_controller.h"
-#include "chrome/browser/ui/views/passwords/password_change/password_change_credential_leak_bubble_view.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/grit/branded_strings.h"
@@ -467,6 +468,7 @@ void ManagePasswordsUIController::OnCredentialLeak(
 
     password_change_service->OfferPasswordChangeUi(
         details.origin, details.username, details.password, web_contents());
+    UpdateBubbleAndIconVisibility();
     return;
   }
 
@@ -719,7 +721,10 @@ ManagePasswordsUIController::GetPasswordFeatureManager() {
 }
 
 password_manager::ui::State ManagePasswordsUIController::GetState() const {
-  if (IsPasswordChangeOngoing()) {
+  PasswordChangeDelegate* delegate = GetPasswordChangeDelegate();
+  if (delegate &&
+      delegate->GetCurrentState() ==
+          PasswordChangeDelegate::State::kPasswordSuccessfullyChanged) {
     return password_manager::ui::State::PASSWORD_CHANGE_STATE;
   }
   return passwords_data_.state();
@@ -1171,12 +1176,16 @@ void ManagePasswordsUIController::UpdateBubbleAndIconVisibility() {
     CHECK(tab_features);
     auto* const controller =
         tab_features->manage_passwords_page_action_controller();
-    controller->UpdateVisibility(GetState(), IsExplicitlyBlocklisted(), this);
+    actions::ActionItem* passwords_action_item =
+        actions::ActionManager::Get().FindAction(
+            kActionShowPasswordsBubbleOrPage,
+            browser->browser_actions()->root_action_item());
+    controller->UpdateVisibility(GetState(), IsExplicitlyBlocklisted(), *this,
+                                 *passwords_action_item);
   } else {
     browser->window()->UpdatePageActionIcon(
         PageActionIconType::kManagePasswords);
   }
-  browser->window()->UpdatePageActionIcon(PageActionIconType::kChangePassword);
 }
 
 AccountChooserPrompt* ManagePasswordsUIController::CreateAccountChooser(

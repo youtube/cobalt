@@ -711,8 +711,8 @@ source_set("web_applications_test_support") {
     "isolated_web_apps/test/iwa_test_server_configurator.h",
     "isolated_web_apps/test/key_distribution/test_utils.cc",
     "isolated_web_apps/test/key_distribution/test_utils.h",
-    "isolated_web_apps/test/mock_isolated_web_app_install_command_wrapper.cc",
-    "isolated_web_apps/test/mock_isolated_web_app_install_command_wrapper.h",
+    "isolated_web_apps/test/mock_iwa_install_command_wrapper.cc",
+    "isolated_web_apps/test/mock_iwa_install_command_wrapper.h",
     "isolated_web_apps/test/policy_generator.cc",
     "isolated_web_apps/test/policy_generator.h",
     "isolated_web_apps/test/policy_test_utils.cc",
@@ -1231,8 +1231,10 @@ source_set("web_applications_browser_tests") {
       "//chrome/browser/ash/policy/test_support",
       "//chrome/browser/ash/system_web_apps/test_support",
       "//chrome/browser/ash/system_web_apps/test_support:test_support_ui",
+      "//chrome/browser/ash/test:test_support",
       "//chrome/browser/ui/ash/login",
       "//chrome/browser/web_applications/ash/migrations:browser_tests",
+      "//chromeos/ash/components/policy/device_policy:test_support",
       "//chromeos/ash/components/system:system",
     ]
   } else {

@@ -629,6 +629,7 @@ android_library(
   resources_package = "org.chromium.chrome.test"
 
   sources = [
+    "src/org/chromium/chrome/browser/contextualsearch/ContextualSearchCalloutTest.java",
     "src/org/chromium/chrome/browser/contextualsearch/ContextualSearchCriticalTest.java",
     "src/org/chromium/chrome/browser/contextualsearch/ContextualSearchFakeServer.java",
     "src/org/chromium/chrome/browser/contextualsearch/ContextualSearchHistogramTest.java",
@@ -1357,6 +1358,7 @@ android_library("chrome_test_java_org.chromium.chrome.browser.tasks") {
     "//chrome/android/features/tab_ui/javatests/src/org/chromium/chrome/browser/tasks/tab_management/TabGridDialogTest.java",
     "//chrome/android/features/tab_ui/javatests/src/org/chromium/chrome/browser/tasks/tab_management/TabGridIncognitoReauthPromoTest.java",
     "//chrome/android/features/tab_ui/javatests/src/org/chromium/chrome/browser/tasks/tab_management/TabGridIphTest.java",
+    "//chrome/android/features/tab_ui/javatests/src/org/chromium/chrome/browser/tasks/tab_management/TabGridViewRenderTest.java",
     "//chrome/android/features/tab_ui/javatests/src/org/chromium/chrome/browser/tasks/tab_management/TabGroupColorPickerTest.java",
     "//chrome/android/features/tab_ui/javatests/src/org/chromium/chrome/browser/tasks/tab_management/TabGroupDialogPTTest.java",
     "//chrome/android/features/tab_ui/javatests/src/org/chromium/chrome/browser/tasks/tab_management/TabGroupListBottomSheetTest.java",
@@ -1720,7 +1722,10 @@ android_library("chrome_unit_test_java_org.chromium.chrome.browser.download") {
     "src/org/chromium/chrome/browser/download/dialogs/DownloadLocationDialogTest.java",
   ]
 
-  deps = [ ":common_unit_test_deps_java" ]
+  deps = [
+    ":common_unit_test_deps_java",
+    "//components/download/public/common:public_java",
+  ]
 }
 
 android_library("chrome_unit_test_java_org.chromium.chrome.browser.share") {

@@ -65,6 +65,7 @@
 <translation id="178701303897325119">លែងអាចប្រើកម្មវិធីបន្ថែម​នេះបានទៀតហើយ។ Chrome ណែនាំ​ឱ្យអ្នកដក​កម្មវិធីបន្ថែមនេះ​ចេញជំនួសវិញ។</translation>
 <translation id="1812689907177901597">ប្រសិនបើ​បិទ​មុខងារនេះ មានន័យ​ថាអ្នក​អាចចូល​គេហទំព័រផ្សេងៗ​របស់ Google ដូចជា Gmail ដោយមិន​ចាំបាច់ចូល Chrome នោះទេ</translation>
 <translation id="1821644463306970002">{NUM_TABS,plural, =1{Chrome ណែនាំឱ្យ​ផ្អាក​ផ្ទាំង​ដែលធ្វើឱ្យ​កម្មវិធីរុករក​តាមអ៊ីនធឺណិត​របស់អ្នក​ដំណើរការ​យឺត}other{Chrome ណែនាំឱ្យ​ផ្អាក​ផ្ទាំង​ដែលធ្វើឱ្យ​កម្មវិធីរុករក​តាមអ៊ីនធឺណិត​របស់អ្នក​ដំណើរការ​យឺត}}</translation>
+<translation id="1832046143430087831">បង្កើន​ល្បឿន​គេហទំព័រ​ដោយប្រើ​ម៉ាស៊ីន V8 របស់ Chrome ប៉ុន្តែ​ធ្វើឱ្យ Chrome មិនសូវធន់នឹង​ការវាយប្រហារ​បន្តិច។ ការកំណត់​នេះត្រូវបាន​បិទ។</translation>
 <translation id="1838374766361614909">ជម្រះការស្វែងរក</translation>
 <translation id="1860536484129686729">Chrome ត្រូវការ​ការអនុញ្ញាត​ដើម្បី​ចូល​ប្រើ​កាមេរ៉ា​របស់​អ្នក​សម្រាប់​ទំព័រនេះ</translation>
 <translation id="1873233029667955273">Google Chrome មិនមែន​ជា​កម្មវិធី​រុករក​តាមអ៊ីនធឺណិត​លំនាំដើម​របស់អ្នក​ទេ</translation>
@@ -223,6 +224,7 @@
 <translation id="3716540481907974026">កំណែ ChromeOS Flex</translation>
 <translation id="3718181793972440140">វា​នឹង​លុប​ធាតុ 1 ចេញ​ពី​ឧបករណ៍​នេះ។ ដើម្បី​ទាញ​យក​ទិន្នន័យ​របស់អ្នក​មកវិញ​នៅ​ពេល​ក្រោយ សូម​ចូល​ទៅ​កាន់ Chrome ជា <ph name="USER_EMAIL" /> ។</translation>
 <translation id="3723744677043446310">{NUM_EXTENSIONS,plural, =1{Chrome ណែនាំ​ឱ្យអ្នកដក​កម្មវិធីបន្ថែមនេះ​ចេញ។ <ph name="BEGIN_LINK" />ស្វែងយល់​បន្ថែម​អំពី​កម្មវិធីបន្ថែម​ដែលអាច​ប្រើបាន<ph name="END_LINK" />}other{Chrome ណែនាំ​ឱ្យអ្នកដក​កម្មវិធីបន្ថែម​ទាំងនេះ​ចេញ។ <ph name="BEGIN_LINK" />ស្វែងយល់​បន្ថែម​អំពី​កម្មវិធីបន្ថែម​ដែលអាច​ប្រើបាន<ph name="END_LINK" />}}</translation>
+<translation id="3756724684201900923">ស្វែងយល់​បន្ថែម​អំពី​ការដំឡើង Chrome</translation>
 <translation id="3780814664026482060">Chrome - <ph name="PAGE_TITLE" /></translation>
 <translation id="3785324443014631273">ChromeOS Flex មិនអាចធ្វើ​សម​កាល​កម្មទិន្នន័យរបស់អ្នកបានទេ ដោយសារមានបញ្ហាក្នុងការចូលគណនី។</translation>
 <translation id="3795971588916395511">Google ChromeOS</translation>
@@ -449,12 +451,12 @@ Google Chrome មិនអាចសង្គ្រោះការកំណត់
 <translation id="6718739135284199302">ធ្វើឱ្យ Chrome កាន់តែ​រហ័ស</translation>
 <translation id="6735387454586646204">ប្រព័ន្ធ ChromeOS Flex</translation>
 <translation id="6750954913813541382">Chrome ផ្ញើអក្សរដែលអ្នក​វាយបញ្ចូលនៅក្នុង​កម្មវិធីរុករកតាមអ៊ីនធឺណិតទៅ Google ដើម្បីកែ​កំហុសអក្ខរាវិរុទ្ធ</translation>
+<translation id="6760235774835597023">បង្កើន​ល្បឿន​គេហទំព័រ​ដោយប្រើ​ម៉ាស៊ីន V8 របស់ Chrome ប៉ុន្តែ​ធ្វើឱ្យ Chrome មិនសូវធន់នឹង​ការវាយប្រហារ​បន្តិច។ ការកំណត់​នេះ​ត្រូវ​បានបើក។</translation>
 <translation id="677276454032249905">នៅ​តែ​ចង់​ចាក​ចេញពី Chrome ឬ?</translation>
 <translation id="6794858689789885890">លុប​ទិន្នន័យ​គេហទំព័រ​ពីឧបករណ៍​របស់អ្នក​ជានិច្ច នៅ​ពេលដែល​អ្នកបិទ Chrome</translation>
 <translation id="6831043979455480757">បកប្រែ</translation>
 <translation id="683440813066116847">វិន័យត្រលប់ចូលសម្រាប់  Google Chrome Canary ដើម្បីអនុញ្ញាតចរាចរណ៍ mDNS។</translation>
 <translation id="684888714667046800">មិនអាចភ្ជាប់ទៅអ៊ីនធឺណិតបានទេ។ ប្រសិនបើអ្នក​ប្រើជញ្ជាំង​ភ្លើង សូម​ប្រាកដថា <ph name="PRODUCT_EXE_NAME" /> ស្ថិត​នៅក្នុង​បញ្ជីអនុញ្ញាត។</translation>
-<translation id="6851981911629679515">បើកការការពារបន្ថែមនៅក្នុងម៉ាស៊ីន JavaScript និង WebAssembly របស់ Chrome</translation>
 <translation id="6877155553248388166">ជ្រុង​ខាងក្រោម​ផ្នែក​ខាងស្ដាំ​នៃ​តំបន់​ស្វែងរក៖ ស្ដាំ <ph name="RIGHT" />%, ក្រោម <ph name="BOTTOM" />%</translation>
 <translation id="6881299373831449287">កំពុង​ដំឡើង​កំណែ Chrome</translation>
 <translation id="6885412569789873916">កម្មវិធី Chrome បេតា</translation>

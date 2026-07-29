@@ -84,6 +84,7 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.state.LevelDBPersistedDataStorage;
 import org.chromium.chrome.browser.tab.state.LevelDBPersistedDataStorageJni;
 import org.chromium.chrome.browser.tab.state.ShoppingPersistedTabData;
+import org.chromium.chrome.browser.tab_ui.TabCardThemeUtil;
 import org.chromium.chrome.browser.tab_ui.TabListFaviconProvider.ResourceTabFavicon;
 import org.chromium.chrome.browser.tab_ui.TabListFaviconProvider.StaticTabFaviconType;
 import org.chromium.chrome.browser.tab_ui.TabListFaviconProvider.TabFavicon;
@@ -693,7 +694,8 @@ public class TabListViewHolderTest {
         boolean isSelected = false;
         mGridModel.set(TabProperties.IS_SELECTED, isSelected);
         ColorStateList unselectedColorStateList =
-                TabUiThemeProvider.getActionButtonTintList(sActivity, isIncognito, isSelected);
+                TabCardThemeUtil.getActionButtonTintList(
+                        sActivity, isIncognito, isSelected, /* colorId */ null);
 
         Assert.assertEquals(
                 unselectedColorStateList, ImageViewCompat.getImageTintList(gridActionButton));
@@ -701,7 +703,8 @@ public class TabListViewHolderTest {
         isSelected = true;
         mGridModel.set(TabProperties.IS_SELECTED, isSelected);
         ColorStateList selectedColorStateList =
-                TabUiThemeProvider.getActionButtonTintList(sActivity, isIncognito, isSelected);
+                TabCardThemeUtil.getActionButtonTintList(
+                        sActivity, isIncognito, isSelected, /* colorId */ null);
         Assert.assertEquals(
                 selectedColorStateList, ImageViewCompat.getImageTintList(gridActionButton));
     }

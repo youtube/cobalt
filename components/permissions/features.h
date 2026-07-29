@@ -37,9 +37,6 @@ COMPONENT_EXPORT(PERMISSIONS_COMMON)
 BASE_DECLARE_FEATURE(kPermissionsAIv1);
 
 COMPONENT_EXPORT(PERMISSIONS_COMMON)
-BASE_DECLARE_FEATURE(kPermissionsAIv3Geolocation);
-
-COMPONENT_EXPORT(PERMISSIONS_COMMON)
 BASE_DECLARE_FEATURE(kPermissionsAIv3);
 
 COMPONENT_EXPORT(PERMISSIONS_COMMON)
@@ -59,6 +56,9 @@ BASE_DECLARE_FEATURE(kApproximateGeolocationPermission);
 COMPONENT_EXPORT(PERMISSIONS_COMMON)
 extern const base::FeatureParam<bool>
     kApproximateGeolocationPermissionSampleData;
+
+COMPONENT_EXPORT(PERMISSIONS_COMMON)
+extern const base::FeatureParam<int> kApproximateGeolocationPermissionPromptArm;
 
 #else
 

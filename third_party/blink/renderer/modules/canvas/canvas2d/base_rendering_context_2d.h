@@ -224,6 +224,9 @@ class MODULES_EXPORT BaseRenderingContext2D : public CanvasRenderingContext,
   void PageVisibilityChanged() override {}
   void RestoreCanvasMatrixClipStack(cc::PaintCanvas* c) const final;
   void Reset() override;
+  scoped_refptr<StaticBitmapImage> PaintRenderingResultsToSnapshot(
+      SourceDrawingBuffer source_buffer,
+      FlushReason reason) final;
 
   void SetTryRestoreContextIntervalForTesting(base::TimeDelta delay) {
     try_restore_context_interval_ = delay;
@@ -268,8 +271,6 @@ class MODULES_EXPORT BaseRenderingContext2D : public CanvasRenderingContext,
   void DispatchContextRestoredEvent(TimerBase*);
   void TryRestoreContextEvent(TimerBase*);
   void RestoreFromInvalidSizeIfNeeded() override;
-
-  bool IsDrawElementEligible(Element* element, ExceptionState& exception_state);
 
   // `CanvasRenderingContext2D` and `OffscreenCanvasRenderingContext2D` do not
   // create resource providers the same way. Thus, `BaseRenderingContext2D`

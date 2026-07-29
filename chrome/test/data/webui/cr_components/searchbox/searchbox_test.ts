@@ -25,6 +25,13 @@ enum Attributes {
   SELECTED = 'selected',
 }
 
+interface ComposeClickEventDetail {
+  button: number;
+  ctrlKey: boolean;
+  metaKey: boolean;
+  shiftKey: boolean;
+}
+
 function createClipboardEvent(name: string): ClipboardEvent {
   return new ClipboardEvent(
       name, {cancelable: true, clipboardData: new DataTransfer()});
@@ -325,10 +332,10 @@ suite('NewTabPageRealboxTest', () => {
 
   test('clicking composebox button emits an event.', async () => {
     // Arrange.
-    loadTimeData.overrideValues(
-        {searchboxShowComposeEntrypoint: true, searchboxShowComposebox: true});
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
     realbox = document.createElement('cr-searchbox');
+    realbox.composeButtonEnabled = true;
+    realbox.composeboxEnabled = true;
     document.body.appendChild(realbox);
     await waitAfterNextRender(realbox);
 
@@ -338,7 +345,22 @@ suite('NewTabPageRealboxTest', () => {
     const composeButton =
         realbox.shadowRoot!.querySelector<HTMLElement>('#composeButton');
     assertTrue(!!composeButton);
-    composeButton.click();
+
+    // Dispatch the 'compose-click' event directly, which cr-searchbox
+    // listens for. This simulates the `cr-searchbox-compose-button`
+    // child `cr-button` being clicked and its `onClick_` function being
+    // called.
+    const eventDetail: ComposeClickEventDetail = {
+      button: 0,
+      ctrlKey: false,
+      metaKey: false,
+      shiftKey: false,
+    };
+    composeButton.dispatchEvent(new CustomEvent('compose-click', {
+      detail: eventDetail,
+      bubbles: true,
+      composed: true,
+    }));
 
     // Assert.
     await whenOpenComposeBox;
@@ -2162,11 +2184,11 @@ suite('NewTabPageRealboxTest', () => {
 
         const matches = [
           createUrlMatch({
-            iconUrl: 'https://helloworld.com/url.png',
+            iconUrl: {url: 'https://helloworld.com/url.png'},
             iconPath: 'page.svg',
           }),
           createSearchMatch({
-            iconUrl: 'https://helloworld.com/search.png',
+            iconUrl: {url: 'https://helloworld.com/search.png'},
             iconPath: 'clock.svg',
             imageUrl: 'https://gstatic.com/',
             imageDominantColor: '#757575',
@@ -2188,12 +2210,12 @@ suite('NewTabPageRealboxTest', () => {
         assertIconState(
             matchEls[0], /*hasEntityImage=*/ false, /*expectUseIconImg=*/ false,
             `//image?staticEncode=true&encodeType=webp&url=${
-                matches[0]!.iconUrl}`);
+                matches[0]!.iconUrl.url}`);
         // Test initial icon state for the second match: icon image not used.
         assertIconState(
             matchEls[1], /*hasEntityImage=*/ true, /*expectUseIconImg=*/ false,
             `//image?staticEncode=true&encodeType=webp&url=${
-                matches[1]!.iconUrl}`);
+                matches[1]!.iconUrl.url}`);
 
         // Select the first match.
         let arrowDownEvent = arrowDown(realbox);
@@ -2207,18 +2229,18 @@ suite('NewTabPageRealboxTest', () => {
         assertIconState(
             realbox, /*hasEntityImage=*/ false, /*expectUseIconImg=*/ false,
             `//image?staticEncode=true&encodeType=webp&url=${
-                matches[0]!.iconUrl}`);
+                matches[0]!.iconUrl.url}`);
 
         // Mock icon image finishing loading for the first match and the realbox
         // itself. The icon image should be used icon.
         assertAndLoadIcon(
             matchEls[0], /*hasEntityImage=*/ false,
             `//image?staticEncode=true&encodeType=webp&url=${
-                matches[0]!.iconUrl}`);
+                matches[0]!.iconUrl.url}`);
         assertAndLoadIcon(
             realbox, /*hasEntityImage=*/ false,
             `//image?staticEncode=true&encodeType=webp&url=${
-                matches[0]!.iconUrl}`);
+                matches[0]!.iconUrl.url}`);
 
         // Select the second match.
         arrowDownEvent = arrowDown(realbox);
@@ -2232,17 +2254,17 @@ suite('NewTabPageRealboxTest', () => {
         assertIconState(
             realbox, /*hasEntityImage=*/ false, /*expectUseIconImg=*/ false,
             `//image?staticEncode=true&encodeType=webp&url=${
-                matches[1]!.iconUrl}`);
+                matches[1]!.iconUrl.url}`);
         // Mock icon image finishing loading for the second match and the
         // realbox itself. The icon image should be used.
         assertAndLoadIcon(
             matchEls[1], /*hasEntityImage=*/ true,
             `//image?staticEncode=true&encodeType=webp&url=${
-                matches[1]!.iconUrl}`);
+                matches[1]!.iconUrl.url}`);
         assertAndLoadIcon(
             realbox, /*hasEntityImage=*/ false,
             `//image?staticEncode=true&encodeType=webp&url=${
-                matches[1]!.iconUrl}`);
+                matches[1]!.iconUrl.url}`);
 
         // Select the first match by pressing 'Escape'.
         const escapeEvent = new KeyboardEvent('keydown', {
@@ -2262,13 +2284,13 @@ suite('NewTabPageRealboxTest', () => {
         assertIconState(
             realbox, /*hasEntityImage=*/ false, /*expectUseIconImg=*/ false,
             `//image?staticEncode=true&encodeType=webp&url=${
-                matches[0]!.iconUrl}`);
+                matches[0]!.iconUrl.url}`);
         // Mock icon image finishing loading for the realbox (now showing the
         // first match's icon image again).
         assertAndLoadIcon(
             realbox, /*hasEntityImage=*/ false,
             `//image?staticEncode=true&encodeType=webp&url=${
-                matches[0]!.iconUrl}`);
+                matches[0]!.iconUrl.url}`);
       });
 
 
@@ -2284,7 +2306,7 @@ suite('NewTabPageRealboxTest', () => {
         isEnterpriseSearchAggregatorPeopleType: true,
       }),
       createUrlMatch({
-        iconUrl: 'https://helloworld-2.com/url.png',
+        iconUrl: {url: 'https://helloworld-2.com/url.png'},
         iconPath: fallbackIconPath,
         isEnterpriseSearchAggregatorPeopleType: true,
         contents: stringToMojoString16('helloworld-2.com'),

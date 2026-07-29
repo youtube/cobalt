@@ -25,6 +25,7 @@
 #include "base/trace_event/trace_event.h"
 #include "media/audio/mac/audio_loopback_input_mac.h"
 #include "media/audio/mac/catap_api.h"
+#include "media/base/audio_sample_types.h"
 #include "media/base/audio_timestamp_helper.h"
 
 namespace media {
@@ -207,7 +208,7 @@ AudioInputStream::OpenOutcome CatapAudioInputStream::Open() {
   if (is_device_open_) {
     ReportOpenStatus(OpenStatus::kErrorDeviceAlreadyOpen, timer.Elapsed());
     SendLogMessage("%s => Device is already open.", __func__);
-    return OpenOutcome::kFailed;
+    return OpenOutcome::kAlreadyOpen;
   }
 
   NSArray<NSNumber*>* process_audio_device_ids_to_exclude = @[];
@@ -226,20 +227,72 @@ AudioInputStream::OpenOutcome CatapAudioInputStream::Open() {
     }
   }
 
+  // The allocation and initialization of CATapDescription has been split into
+  // the steps a-f to enable debugging of a flaky test.
+
+  // a. Allocate the CATapDescription instance.
+  //    Store it in a temporary variable first to allow immediate validation.
+  CATapDescription* new_tap_description = [[CATapDescription alloc] init];
+
+  // b. Check if allocation was successful.
+  //    If alloc returns nil, it means memory allocation failed.
+  if (new_tap_description == nil) {
+    SendLogMessage("%s => Failed to allocate CATapDescription.", __func__);
+    return OpenOutcome::kFailed;
+  }
+
+  // c. Verify the actual runtime class of the allocated object.
+  //    This is the most critical check for an "unrecognized selector" when the
+  //    API is known to exist. It catches cases where 'alloc' might return an
+  //    object of an unexpected type due to subtle runtime issues.
+  if (![new_tap_description isKindOfClass:[CATapDescription class]]) {
+    SendLogMessage("%s => Allocated object is of unexpected class.", __func__);
+    return OpenOutcome::kFailed;
+  }
+
+  // d. Double-check if the allocated object responds to the specific
+  //    initializers. While logically redundant if step 3 passes and the OS
+  //    version is correct, this directly tests the "unrecognized selector"
+  //    condition.
+  if (![new_tap_description respondsToSelector:@selector
+                            (initStereoGlobalTapButExcludeProcesses:)]) {
+    SendLogMessage("%s => CATapDescription instance does not respond to "
+                   "initStereoGlobalTapButExcludeProcesses:.",
+                   __func__);
+    return OpenOutcome::kFailed;
+  }
+  if (![new_tap_description
+          respondsToSelector:@selector(initExcludingProcesses:
+                                                 andDeviceUID:withStream:)]) {
+    SendLogMessage("%s => CATapDescription instance does not respond to "
+                   "initExcludingProcesses:andDeviceUID:withStream:.",
+                   __func__);
+    return OpenOutcome::kFailed;
+  }
+
+  // e. Perform the actual initialization if all preceding checks pass.
   if (device_id_ == AudioDeviceDescription::kLoopbackAllDevicesId ||
       base::FeatureList::IsEnabled(kMacCatapCaptureAllDevices)) {
     // Mix all processes to a stereo stream except the given processes.
     tap_description_ =
-        [[CATapDescription alloc] initStereoGlobalTapButExcludeProcesses:
-                                      process_audio_device_ids_to_exclude];
+        [new_tap_description initStereoGlobalTapButExcludeProcesses:
+                                 process_audio_device_ids_to_exclude];
   } else {
     // Mix all process audio streams destined for the selected device stream
     // except the given processes.
-    tap_description_ = [[CATapDescription alloc]
+    tap_description_ = [new_tap_description
         initExcludingProcesses:process_audio_device_ids_to_exclude
                   andDeviceUID:[NSString stringWithUTF8String:
                                              default_output_device_id_.c_str()]
                     withStream:0];
+  }
+
+  // f. Check if the initialization itself succeeded.
+  //    An 'init' method can return nil if initialization fails internally for
+  //    some reason.
+  if (tap_description_ == nil) {
+    SendLogMessage("%s => CATapDescription initialization failed.", __func__);
+    return OpenOutcome::kFailed;
   }
 
   if (params_.channels() == 1) {
@@ -256,7 +309,9 @@ AudioInputStream::OpenOutcome CatapAudioInputStream::Open() {
   // Initialization: Step 1.
   OSStatus status =
       catap_api_->AudioHardwareCreateProcessTap(tap_description_, &tap_);
-  if (status != noErr) {
+  if (status != noErr || tap_ == kAudioObjectUnknown) {
+    // `kAudioObjectUnknown` is returned if the specified output device doesn't
+    // exist.
     ReportOpenStatus(OpenStatus::kErrorCreatingProcessTap, timer.Elapsed());
     SendLogMessage("%s => Error creating process tap.", __func__);
     return OpenOutcome::kFailed;
@@ -328,7 +383,7 @@ AudioInputStream::OpenOutcome CatapAudioInputStream::Open() {
     ReportOpenStatus(OpenStatus::kErrorMissingAudioTapPermission,
                      timer.Elapsed());
     SendLogMessage("%s => Error when probing audio tap permissions.", __func__);
-    return OpenOutcome::kFailed;
+    return OpenOutcome::kFailedSystemPermissions;
   }
 
   is_device_open_ = true;

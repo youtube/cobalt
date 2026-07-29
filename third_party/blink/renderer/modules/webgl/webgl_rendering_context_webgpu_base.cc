@@ -3495,7 +3495,7 @@ int WebGLRenderingContextWebGPUBase::AllocatedBufferCountPerPixel() {
   // Front and back buffers.
   int buffer_count = 2;
 
-  if (Host()->ResourceProvider()) {
+  if (Host()->GetResourceProviderForWebGL()) {
     buffer_count++;
   }
 
@@ -3530,9 +3530,10 @@ void WebGLRenderingContextWebGPUBase::PageVisibilityChanged() {
   NOTIMPLEMENTED();
 }
 
-CanvasResourceProvider*
-WebGLRenderingContextWebGPUBase::PaintRenderingResultsToCanvas(
-    SourceDrawingBuffer) {
+scoped_refptr<StaticBitmapImage>
+WebGLRenderingContextWebGPUBase::PaintRenderingResultsToSnapshot(
+    SourceDrawingBuffer source_buffer,
+    FlushReason reason) {
   NOTIMPLEMENTED();
   return nullptr;
 }

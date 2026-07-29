@@ -119,10 +119,13 @@ class SyncServiceFactoryTest : public testing::Test {
     datatypes.Put(syncer::SECURITY_EVENTS);
     datatypes.Put(syncer::SUPERVISED_USER_SETTINGS);
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-    datatypes.Put(syncer::APPS);
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
     datatypes.Put(syncer::EXTENSIONS);
     datatypes.Put(syncer::EXTENSION_SETTINGS);
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+    datatypes.Put(syncer::APPS);
     datatypes.Put(syncer::APP_SETTINGS);
     datatypes.Put(syncer::WEB_APPS);
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
@@ -132,15 +135,7 @@ class SyncServiceFactoryTest : public testing::Test {
     datatypes.Put(syncer::SEARCH_ENGINES);
 #endif  // !BUILDFLAG(IS_ANDROID)
 
-#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || \
-    BUILDFLAG(IS_WIN)
     datatypes.Put(syncer::SAVED_TAB_GROUP);
-#elif BUILDFLAG(IS_ANDROID)
-    if (base::FeatureList::IsEnabled(tab_groups::kTabGroupSyncAndroid)) {
-      datatypes.Put(syncer::SAVED_TAB_GROUP);
-    }
-#endif  // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) ||
-        // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN)
     datatypes.Put(syncer::DICTIONARY);

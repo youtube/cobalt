@@ -6,6 +6,7 @@
 
 #include "base/notimplemented.h"
 #include "services/webnn/ort/buffer_content_ort.h"
+#include "services/webnn/ort/graph_impl_ort.h"
 #include "services/webnn/ort/tensor_impl_ort.h"
 #include "services/webnn/public/cpp/supported_data_types.h"
 #include "services/webnn/public/mojom/webnn_context_provider.mojom.h"
@@ -46,6 +47,10 @@ ContextProperties ContextImplOrt::GetContextProperties() {
       OperandDataType::kFloat32, OperandDataType::kFloat16,
       OperandDataType::kInt32, OperandDataType::kInt64};
 
+  static constexpr SupportedDataTypes kInts8Float16To32 = {
+      OperandDataType::kUint8, OperandDataType::kInt8,
+      OperandDataType::kFloat16, OperandDataType::kFloat32};
+
   return ContextProperties(
       InputOperandLayout::kNchw, Resample2DAxes::kChannelsFirst,
       BatchNormalizationAxis::kChannelsFirst,
@@ -57,7 +62,8 @@ ContextProperties ContextImplOrt::GetContextProperties() {
        /*batch_normalization_input=*/{},
        /*batch_normalization_mean=*/{},
        /*cast_input=*/{SupportedDataTypes::All(), kMaxRank},
-       /*clamp_input=*/{},
+       /*clamp_input=*/
+       {DataTypeConstraint::kAllDataTypesAtLeast8bits, kMaxRank},
        /*concat_inputs=*/{},
        /*conv2d_input=*/{},
        /*conv2d_bias=*/{},
@@ -135,9 +141,12 @@ ContextProperties ContextImplOrt::GetContextProperties() {
        /*lstm_cell_bias=*/{},
        /*matmul_input=*/{},
        /*pad_input=*/{},
-       /*average_pool2d_input=*/{},
-       /*l2_pool2d_input=*/{},
-       /*max_pool2d_input=*/{},
+       /*average_pool2d_input=*/
+       {DataTypeConstraint::kFloat16To32, {3, 8}},
+       /*l2_pool2d_input=*/
+       {DataTypeConstraint::kFloat16To32, {3, 8}},
+       /*max_pool2d_input=*/
+       {kInts8Float16To32, {3, 8}},
        /*prelu_input=*/{},
        /*quantize_linear_input=*/{},
        /*quantize_linear_zero_point=*/{},
@@ -162,13 +171,13 @@ ContextProperties ContextImplOrt::GetContextProperties() {
        /*scatter_nd_updates=*/{},
        /*sigmoid_input=*/{DataTypeConstraint::kFloat16To32, kMaxRank},
        /*slice_input=*/{},
-       /*softmax_input=*/{},
+       /*softmax_input=*/{DataTypeConstraint::kFloat16To32, kMaxRank},
        /*softplus_input=*/{},
        /*softsign_input=*/{DataTypeConstraint::kFloat16To32, kMaxRank},
        /*split_input=*/{},
        /*tanh_input=*/{DataTypeConstraint::kFloat16To32, kMaxRank},
        /*tile_input=*/{},
-       /*transpose_input=*/{},
+       /*transpose_input=*/{SupportedDataTypes::All(), kMaxRank},
        /*triangular_input=*/{},
        /*where_condition=*/{},
        /*where_value=*/{}});
@@ -187,8 +196,10 @@ void ContextImplOrt::CreateGraphImpl(
         constant_operands,
     base::flat_map<OperandId, WebNNTensorImpl*> constant_tensor_operands,
     CreateGraphImplCallback callback) {
-  // TODO(crbug.com/416535744): Implement GraphImpl for ORT backend.
-  NOTIMPLEMENTED();
+  GraphImplOrt::CreateAndBuild(
+      std::move(receiver), std::move(graph_info),
+      std::move(compute_resource_info), std::move(constant_operands),
+      std::move(constant_tensor_operands), this, std::move(callback));
 }
 
 void ContextImplOrt::CreateTensorImpl(

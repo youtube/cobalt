@@ -147,6 +147,49 @@ class TestWebContentsObserver : public content::WebContentsObserver {
   raw_ptr<content::WebContents, DanglingUntriaged> other_;
 };
 
+// Waits for a different view to claim focus within a widget with the specified
+// name.
+class TestFocusChangeWaiter : public views::FocusChangeListener {
+ public:
+  TestFocusChangeWaiter(views::FocusManager* focus_manager,
+                        const std::string& expected_widget_name)
+      : focus_manager_(focus_manager),
+        expected_widget_name_(expected_widget_name) {
+    if (auto* current_focused_view = focus_manager->GetFocusedView()) {
+      previous_view_id_ = current_focused_view->GetID();
+    } else {
+      previous_view_id_ = -1;
+    }
+    focus_manager_->AddFocusChangeListener(this);
+  }
+
+  TestFocusChangeWaiter(const TestFocusChangeWaiter&) = delete;
+  TestFocusChangeWaiter& operator=(const TestFocusChangeWaiter&) = delete;
+  ~TestFocusChangeWaiter() override {
+    focus_manager_->RemoveFocusChangeListener(this);
+  }
+
+  void Wait() { run_loop_.Run(); }
+
+ private:
+  // views::FocusChangeListener:
+  void OnDidChangeFocus(views::View* focused_before,
+                        views::View* focused_now) override {
+    if (focused_now && focused_now->GetID() != previous_view_id_) {
+      views::Widget* widget = focused_now->GetWidget();
+      if (widget && widget->GetName() == expected_widget_name_) {
+        run_loop_.Quit();
+      }
+    }
+  }
+
+  raw_ptr<views::FocusManager> focus_manager_;
+  base::RunLoop run_loop_;
+  int previous_view_id_;
+  std::string expected_widget_name_;
+  base::WeakPtrFactory<TestFocusChangeWaiter> weak_factory_{this};
+};
+
 class TestTabModalConfirmDialogDelegate : public TabModalConfirmDialogDelegate {
  public:
   explicit TestTabModalConfirmDialogDelegate(content::WebContents* contents)
@@ -531,7 +574,19 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest, GetAccessibleTabModalDialogTree) {
 
   content::WebContents* contents = browser_view()->GetActiveWebContents();
   auto delegate = std::make_unique<TestTabModalConfirmDialogDelegate>(contents);
+
+  // `ViewAXPlatformNodeDelegate::GetChildWidgets` expects the following
+  // conditions to be met in order to conclude that a tab modal dialog is
+  // showing:
+  // 1. The dialog is included in `Widget::GetAllOwnedWidgets()`.
+  // 2. The currently-focused view is contained in the dialog.
+  // Waiting for the dialog to be shown should ensure that the first
+  // condition is met. But we also need to wait for the focus to change
+  // or the second condition flakily fails.
+  TestFocusChangeWaiter focus_waiter(browser_view()->GetFocusManager(),
+                                     "MessageBoxView");
   TabModalConfirmDialog::Create(std::move(delegate), contents);
+  focus_waiter.Wait();
 
   // The tab modal dialog should be in the accessibility tree; everything else
   // should be hidden. So we expect an "OK" button and no reload button.

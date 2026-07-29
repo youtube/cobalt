@@ -37,6 +37,7 @@
 #include "base/numerics/checked_math.h"
 #include "base/synchronization/lock.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "device/vr/buildflags/buildflags.h"
 #include "device/vr/public/mojom/vr_service.mojom-blink-forward.h"
@@ -57,7 +58,6 @@
 #include "third_party/blink/public/platform/task_type.h"
 #include "third_party/blink/renderer/bindings/core/v8/to_v8_traits.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_htmlcanvaselement_offscreencanvas.h"
-#include "third_party/blink/renderer/bindings/modules/v8/v8_canvas_hit_test_rect.h"
 #include "third_party/blink/renderer/bindings/modules/v8/webgl_any.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/frame/dactyloscoper.h"
@@ -846,8 +846,8 @@ void WebGLRenderingContextBase::commit() {
   // Note: we commit only if (a) the paint operation succeeded and (b) it
   // actually updated the returned resource provider.
   bool resource_provider_was_updated = false;
-  auto* resource_provider = PaintRenderingResultsToCanvasInternal(
-      kBackBuffer, resource_provider_was_updated);
+  auto* resource_provider = PaintRenderingResultsToCanvas(
+      kBackBuffer, &resource_provider_was_updated);
   if (resource_provider && resource_provider_was_updated) {
     Host()->Commit(resource_provider->ProduceCanvasResource(FlushReason::kNone),
                    SkIRect::MakeWH(width, height));
@@ -1699,8 +1699,8 @@ bool WebGLRenderingContextBase::PushFrameWithCopy() {
   // Note: we push a frame only if (a) the paint operation succeeded and (b) it
   // actually updated the resource provider.
   bool resource_provider_was_updated = false;
-  auto* resource_provider = PaintRenderingResultsToCanvasInternal(
-      kBackBuffer, resource_provider_was_updated);
+  auto* resource_provider = PaintRenderingResultsToCanvas(
+      kBackBuffer, &resource_provider_was_updated);
   if (resource_provider && resource_provider_was_updated) {
     const int width = GetDrawingBuffer()->Size().width();
     const int height = GetDrawingBuffer()->Size().height();
@@ -1874,11 +1874,14 @@ void WebGLRenderingContextBase::PageVisibilityChanged() {
     GetDrawingBuffer()->SetIsInHiddenPage(!Host()->IsPageVisible());
 }
 
-CanvasResourceProvider*
-WebGLRenderingContextBase::PaintRenderingResultsToCanvas(
-    SourceDrawingBuffer source_buffer) {
-  bool dont_care = false;
-  return PaintRenderingResultsToCanvasInternal(source_buffer, dont_care);
+scoped_refptr<StaticBitmapImage>
+WebGLRenderingContextBase::PaintRenderingResultsToSnapshot(
+    SourceDrawingBuffer source_buffer,
+    FlushReason reason) {
+  CanvasResourceProvider* provider =
+      PaintRenderingResultsToCanvas(source_buffer);
+
+  return provider ? provider->Snapshot(reason) : nullptr;
 }
 
 scoped_refptr<CanvasResource>
@@ -1893,35 +1896,39 @@ WebGLRenderingContextBase::PaintRenderingResultsToResource(
   PaintRenderingResultsToCanvas(source_buffer);
   if (has_dispatcher && was_dirty &&
       Host()->GetOrCreateCanvasResourceProviderForWebGL()) {
-    return Host()->ResourceProvider()->ProduceCanvasResource(reason);
+    return Host()->GetResourceProviderForWebGL()->ProduceCanvasResource(reason);
   }
   return nullptr;
 }
 
 CanvasResourceProvider*
-WebGLRenderingContextBase::PaintRenderingResultsToCanvasInternal(
+WebGLRenderingContextBase::PaintRenderingResultsToCanvas(
     SourceDrawingBuffer source_buffer,
-    bool& resource_provider_was_updated) {
+    bool* resource_provider_was_updated /*=nullptr*/) {
   TRACE_EVENT0("blink",
                "WebGLRenderingContextBase::PaintRenderingResultsToCanvas");
-  resource_provider_was_updated = false;
+  if (resource_provider_was_updated != nullptr) {
+    *resource_provider_was_updated = false;
+  }
 
   if (isContextLost() || !GetDrawingBuffer()) {
-    return Host()->ResourceProvider();
+    return Host()->GetResourceProviderForWebGL();
   }
 
   bool must_clear_now = ClearIfComposited(kClearCallerOther) != kSkipped;
 
-  if (Host()->ResourceProvider() &&
-      Host()->ResourceProvider()->Size() != GetDrawingBuffer()->Size()) {
+  if (Host()->GetResourceProviderForWebGL() &&
+      Host()->GetResourceProviderForWebGL()->Size() !=
+          GetDrawingBuffer()->Size()) {
     Host()->DiscardResourceProvider();
   }
 
   // The host's ResourceProvider is purged to save memory when the tab
   // is backgrounded.
 
-  if (!must_paint_to_canvas_ && !must_clear_now && Host()->ResourceProvider()) {
-    return Host()->ResourceProvider();
+  if (!must_paint_to_canvas_ && !must_clear_now &&
+      Host()->GetResourceProviderForWebGL()) {
+    return Host()->GetResourceProviderForWebGL();
   }
 
   must_paint_to_canvas_ = false;
@@ -1942,7 +1949,9 @@ WebGLRenderingContextBase::PaintRenderingResultsToCanvasInternal(
     resource_provider->ImportResource(
         GetDrawingBuffer()->ExportLowLatencyCanvasResource(
             resource_provider->CreateWeakPtr()));
-    resource_provider_was_updated = true;
+    if (resource_provider_was_updated != nullptr) {
+      *resource_provider_was_updated = true;
+    }
     return resource_provider;
   }
 
@@ -1957,8 +1966,11 @@ WebGLRenderingContextBase::PaintRenderingResultsToCanvasInternal(
   if (!GetDrawingBuffer()->ResolveAndBindForReadAndDraw())
     return resource_provider;
 
-  resource_provider_was_updated = CopyRenderingResultsFromDrawingBuffer(
-      Host()->ResourceProvider(), source_buffer);
+  bool copy_succeeded = CopyRenderingResultsFromDrawingBuffer(
+      Host()->GetResourceProviderForWebGL(), source_buffer);
+  if (resource_provider_was_updated != nullptr) {
+    *resource_provider_was_updated = copy_succeeded;
+  }
   return resource_provider;
 }
 
@@ -6632,53 +6644,6 @@ void WebGLRenderingContextBase::texParameteri(GLenum target,
   TexParameter(target, pname, 0, param, false);
 }
 
-bool WebGLRenderingContextBase::IsDrawElementEligible(
-    Element* element,
-    GLenum target,
-    ExceptionState& exception_state) {
-  if (isContextLost()) {
-    return false;
-  }
-  if (!canvas()) {
-    return false;
-  }
-  if (!ValidateTexture2DBinding("texImage2D", target, true)) {
-    return false;
-  }
-
-  if (element->parentElement() != canvas()) {
-    exception_state.ThrowTypeError(
-        "Only immediate children of the <canvas> element can be passed to "
-        "texElement2D().");
-    return false;
-  }
-
-  if (!canvas()->layoutSubtree()) {
-    exception_state.ThrowTypeError(
-        "<canvas> elements without layoutsubtree do not support "
-        "drawElement().");
-  }
-
-  if (!element->GetLayoutObject()) {
-    exception_state.ThrowTypeError(
-        "The canvas and element used with texElement2D() must have been laid "
-        "out. Detached canvases are not supported, nor canvas or children "
-        "that "
-        "are `display: none`.");
-    return false;
-  }
-
-  // TODO(crbug.com/413728246): Maybe we can support canvas element.
-  if (IsA<HTMLCanvasElement>(element)) {
-    exception_state.ThrowTypeError(
-        "<canvas> children of a <canvas> cannot be passed to "
-        "texElement2D().");
-    return false;
-  }
-
-  return true;
-}
-
 void WebGLRenderingContextBase::texElement2D(GLenum target,
                                              GLint level,
                                              GLint internalformat,
@@ -6687,7 +6652,15 @@ void WebGLRenderingContextBase::texElement2D(GLenum target,
                                              Element* element,
                                              ExceptionState& exception_state) {
   CHECK(RuntimeEnabledFeatures::CanvasDrawElementEnabled());
-  if (!IsDrawElementEligible(element, target, exception_state)) {
+  if (isContextLost()) {
+    return;
+  }
+
+  if (!ValidateTexture2DBinding("texImage2D", target, true)) {
+    return;
+  }
+
+  if (!IsDrawElementEligible(element, "texElement2D()", exception_state)) {
     return;
   }
 
@@ -6756,36 +6729,9 @@ void WebGLRenderingContextBase::setHitTestRegions(
       DocumentUpdateReason::kCanvasDrawElement);
 
   VectorOf<HTMLCanvasElement::ElementHitTestRegion> result;
-  for (const auto& region : hit_test_regions) {
-    if (!IsDrawElementEligible(region->element(), GL_TEXTURE_2D,
-                               exception_state)) {
-      return;
-    }
-
-    // TODO(vmpstr): Find a common spot for this (code duplicated in
-    // `CanvasRenderingContext2D`).
-    double width = [&]() -> double {
-      if (region->rect()->hasWidth()) {
-        return *region->rect()->width();
-      }
-      gfx::RectF bounds =
-          region->element()->GetBoundingClientRectNoLifecycleUpdate();
-      return bounds.width();
-    }();
-
-    double height = [&]() -> double {
-      if (region->rect()->hasHeight()) {
-        return *region->rect()->height();
-      }
-      gfx::RectF bounds =
-          region->element()->GetBoundingClientRectNoLifecycleUpdate();
-      return bounds.height();
-    }();
-
-    result.push_back(
-        MakeGarbageCollected<HTMLCanvasElement::ElementHitTestRegion>(
-            region->element(), gfx::RectF(region->rect()->x(),
-                                          region->rect()->y(), width, height)));
+  if (!ConvertHitTestRegionsToHTMLCanvasRegions(
+          hit_test_regions, result, "setHitTestRegions()", exception_state)) {
+    return;
   }
 
   canvas()->SetHitTestRegions(std::move(result));
@@ -9115,7 +9061,7 @@ int WebGLRenderingContextBase::AllocatedBufferCountPerPixel() {
     }
   }
 
-  if (Host()->ResourceProvider()) {
+  if (Host()->GetResourceProviderForWebGL()) {
     buffer_count++;
   }
 

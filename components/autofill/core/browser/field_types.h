@@ -455,13 +455,7 @@ enum FieldType {
   // classification for the field.
   // SERVER_RESPONSE_PENDING = 161;
 
-  // Improved Prediction indicates that this field is support by the predition
-  // improvement system.
-  // This type is a metatype and does not correspond to a specific sort of
-  // data.
-  // It should not take precedence over existing types.
-  // TODO(crbug.com/389629676): Deprecate this field type.
-  IMPROVED_PREDICTION = 162,
+  // IMPROVED_PREDICTION = 162 is deprecated
 
   // Types to represent alternative names (e.g. phonetic name in Japanese).
   ALTERNATIVE_FULL_NAME = 163,
@@ -524,6 +518,9 @@ enum FieldType {
   // server will emit both types in the response. The joined type is built by
   // the client.
   EMAIL_OR_LOYALTY_MEMBERSHIP_ID = 189,
+
+  // Types 190 to 197 are not used on the client yet, but will likely be added
+  // in the future.
 
   // No new types can be added without a corresponding change to the Autofill
   // server.
@@ -604,54 +601,55 @@ FieldType HtmlFieldTypeToBestCorrespondingFieldType(HtmlFieldType field_type);
 // |fallback_value|.
 constexpr FieldType ToSafeFieldType(std::underlying_type_t<FieldType> raw_value,
                                     FieldType fallback_value) {
-  auto IsValid = [](std::underlying_type_t<FieldType> t) {
-    return NO_SERVER_DATA <= t && t < MAX_VALID_FIELD_TYPE &&
+  auto is_invalid = [](std::underlying_type_t<FieldType> t) {
+    return t < NO_SERVER_DATA || t >= MAX_VALID_FIELD_TYPE ||
            // Work phone numbers (values [15,19]) are deprecated.
-           !(15 <= t && t <= 19) &&
+           (15 <= t && t <= 19) ||
            // Cell phone numbers (values [25,29]) are deprecated.
-           !(25 <= t && t <= 29) &&
+           (25 <= t && t <= 29) ||
            // Shipping addresses (values [44,50]) are deprecated.
-           !(44 <= t && t <= 50) &&
+           (44 <= t && t <= 50) ||
            // Probably-account creation password (value 94) is deprecated.
-           t != 94 &&
+           t == 94 ||
            // Billing addresses (values [37,43], 78, 80, 82, 84) are deprecated.
-           !(37 <= t && t <= 43) && t != 78 && t != 80 && t != 82 && t != 84 &&
+           (37 <= t && t <= 43) || t == 78 || t == 80 || t == 82 || t == 84 ||
            // Billing phone numbers (values [62,66]) are deprecated.
-           !(62 <= t && t <= 66) &&
+           (62 <= t && t <= 66) ||
            // Billing names (values [67,72]) are deprecated.
-           !(67 <= t && t <= 72) &&
+           (67 <= t && t <= 72) ||
            // Fax numbers (values [20,24]) are deprecated.
-           !(20 <= t && t <= 24) &&
+           (20 <= t && t <= 24) ||
            // UPI VPA type (value 102) is deprecated.
-           !(t == 102) &&
+           t == 102 ||
            // Birthdates (values [118, 120]) are deprecated.
-           !(118 <= t && t <= 120) &&
+           (118 <= t && t <= 120) ||
            // Reserved for server-side only use.
-           !(111 <= t && t <= 113) && t != 117 && t != 127 &&
-           !(130 <= t && t <= 132) && t != 134 && !(137 <= t && t <= 139) &&
-           !(147 <= t && t <= 149) && t != 155 && t != 159 && t != 161 &&
+           (111 <= t && t <= 113) || t == 117 || t == 127 ||
+           (130 <= t && t <= 132) || t == 134 || (137 <= t && t <= 139) ||
+           (147 <= t && t <= 149) || t == 155 || t == 159 || t == 161 ||
+           // Deprecated Autofill AI types.
+           t == 162 ||
            // Types for the country for driver's license and vehicle are not
            // used yet, but will likely be added in the future.
-           !(187 <= t && t <= 188);
+           (187 <= t && t <= 188);
   };
-  return IsValid(raw_value) ? static_cast<FieldType>(raw_value)
-                            : fallback_value;
+  return is_invalid(raw_value) ? fallback_value
+                               : static_cast<FieldType>(raw_value);
 }
 
 constexpr HtmlFieldType ToSafeHtmlFieldType(
     std::underlying_type_t<HtmlFieldType> raw_value,
     HtmlFieldType fallback_value) {
-  using underlying_type_t = std::underlying_type_t<HtmlFieldType>;
-  auto IsValid = [](underlying_type_t t) {
-    return static_cast<underlying_type_t>(HtmlFieldType::kMinValue) <= t &&
-           t <= static_cast<underlying_type_t>(HtmlFieldType::kMaxValue) &&
+  auto is_invalid = [](std::underlying_type_t<HtmlFieldType> t) {
+    return t < base::to_underlying(HtmlFieldType::kMinValue) ||
+           t > base::to_underlying(HtmlFieldType::kMaxValue) ||
            // Full address is deprecated.
-           t != 17 &&
+           t == 17 ||
            // UPI is deprecated.
-           t != 46;
+           t == 46;
   };
-  return IsValid(raw_value) ? static_cast<HtmlFieldType>(raw_value)
-                            : fallback_value;
+  return is_invalid(raw_value) ? fallback_value
+                               : static_cast<HtmlFieldType>(raw_value);
 }
 
 constexpr inline FieldTypeSet kAllFieldTypes = [] {
@@ -785,7 +783,6 @@ constexpr FieldTypeGroup GroupTypeOfFieldType(FieldType field_type) {
     case COMPANY_NAME:
       return FieldTypeGroup::kCompany;
 
-    case IMPROVED_PREDICTION:
     case PASSPORT_NAME_TAG:
     case PASSPORT_NUMBER:
     case PASSPORT_ISSUING_COUNTRY:

@@ -16,7 +16,6 @@
 #include "chrome/browser/ui/autofill/autofill_bubble_controller_base.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #include "components/autofill/core/browser/integrators/autofill_ai/autofill_ai_delegate.h"
-#include "components/autofill_ai/core/browser/autofill_ai_client.h"
 #include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_contents_user_data.h"
@@ -43,10 +42,11 @@ class SaveOrUpdateAutofillAiDataControllerImpl
   ~SaveOrUpdateAutofillAiDataControllerImpl() override;
 
   // SaveOrUpdateAutofillAiDataController:
-  void ShowPrompt(autofill::EntityInstance new_entity,
-                  std::optional<autofill::EntityInstance> old_entity,
-                  AutofillAiClient::SaveOrUpdatePromptResultCallback
-                      save_prompt_acceptance_callback) override;
+  void ShowPrompt(
+      autofill::EntityInstance new_entity,
+      std::optional<autofill::EntityInstance> old_entity,
+      autofill::AutofillClient::EntitySaveOrUpdatePromptResultCallback
+          save_prompt_acceptance_callback) override;
   void OnSaveButtonClicked() override;
   base::optional_ref<const autofill::EntityInstance> GetAutofillAiData()
       const override;
@@ -87,7 +87,7 @@ class SaveOrUpdateAutofillAiDataControllerImpl
 
   // Callback to notify the data provider about the user decision for the save
   // or update prompt.
-  AutofillAiClient::SaveOrUpdatePromptResultCallback
+  autofill::AutofillClient::EntitySaveOrUpdatePromptResultCallback
       save_prompt_acceptance_callback_;
 
   base::WeakPtrFactory<SaveOrUpdateAutofillAiDataControllerImpl>

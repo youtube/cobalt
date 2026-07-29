@@ -38,7 +38,6 @@
 #include "third_party/blink/renderer/core/layout/min_max_sizes_cache.h"
 #include "third_party/blink/renderer/core/layout/overflow_model.h"
 #include "third_party/blink/renderer/core/paint/paint_layer_scrollable_area.h"
-#include "third_party/blink/renderer/core/scroll/scrollbar_theme.h"
 #include "third_party/blink/renderer/core/style/style_overflow_clip_margin.h"
 #include "third_party/blink/renderer/platform/graphics/overlay_scrollbar_clip_behavior.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_set.h"
@@ -1269,13 +1268,6 @@ class CORE_EXPORT LayoutBox : public LayoutBoxModelObject {
   void UpdateFromStyle() override;
 
   void InLayoutNGInlineFormattingContextWillChange(bool) final;
-
-  virtual ItemPosition SelfAlignmentNormalBehavior(
-      const LayoutBox* child = nullptr) const {
-    NOT_DESTROYED();
-    DCHECK(!child);
-    return ItemPosition::kStretch;
-  }
 
   PhysicalRect BackgroundPaintedExtent() const;
   virtual bool ForegroundIsKnownToBeOpaqueInRect(

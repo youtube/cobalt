@@ -11,7 +11,7 @@
 #include "base/task/thread_pool.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
 #include "chrome/browser/permissions/permissions_aiv1_handler.h"
-#include "components/optimization_guide/core/optimization_guide_model_provider.h"
+#include "components/optimization_guide/core/delivery/optimization_guide_model_provider.h"
 #include "components/permissions/features.h"
 #include "components/permissions/prediction_service/permissions_aiv3_handler.h"
 #include "components/permissions/request_type.h"
@@ -37,9 +37,7 @@ PredictionModelHandlerProvider::PredictionModelHandlerProvider(
           optimization_guide::proto::OptimizationTarget::
               OPTIMIZATION_TARGET_GEOLOCATION_PERMISSION_PREDICTIONS);
 
-  if (base::FeatureList::IsEnabled(permissions::features::kPermissionsAIv3) ||
-      base::FeatureList::IsEnabled(
-          permissions::features::kPermissionsAIv3Geolocation)) {
+  if (base::FeatureList::IsEnabled(permissions::features::kPermissionsAIv3)) {
     notification_aiv3_handler_ = std::make_unique<PermissionsAiv3Handler>(
         optimization_guide,
         optimization_guide::proto::OptimizationTarget::

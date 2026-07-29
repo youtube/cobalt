@@ -328,10 +328,6 @@ class CORE_EXPORT Performance : public EventTarget {
     return cross_origin_isolated_capability_;
   }
 
-  // TODO(https://crbug.com/1457049): remove this once visited links are
-  // partitioned.
-  bool softNavPaintMetricsSupported() const;
-
   base::SingleThreadTaskRunner& GetTaskRunner() { return *task_runner_; }
 
  private:
@@ -390,8 +386,7 @@ class CORE_EXPORT Performance : public EventTarget {
   virtual void BuildJSONValue(V8ObjectBuilder&) const;
 
   void AddPaintTiming(PerformancePaintTiming::PaintType,
-                      const DOMPaintTimingInfo& paint_timing_info,
-                      bool is_triggered_by_soft_navigation);
+                      const DOMPaintTimingInfo& paint_timing_info);
 
   PerformanceEntryVector resource_timing_buffer_;
   // The secondary RT buffer, used to store incoming entries after the main

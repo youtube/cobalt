@@ -65,6 +65,7 @@
 <translation id="178701303897325119">এই এক্সটেনশ্বনটো আৰু সমৰ্থিত নহয়। Chromeএ তাৰ পৰিৱৰ্তে আপুনি এইটো আঁতৰোৱাটো চুপাৰিছ কৰে।</translation>
 <translation id="1812689907177901597">আপুনি এইটো অফ কৰি বিভিন্ন Google ছাইট যেনে Gmailত Chromeত ছাইন ইন নকৰাকৈ ছাইন ইন কৰিব পাৰে</translation>
 <translation id="1821644463306970002">{NUM_TABS,plural, =1{Chromeএ আপোনাৰ ব্ৰাউজাৰ লেহেমীয়া কৰি টেবটো পজ কৰাটো চুপাৰিছ কৰে}one{Chromeএ আপোনাৰ ব্ৰাউজাৰ লেহেমীয়া কৰি টেবসমূহ পজ কৰাটো চুপাৰিছ কৰে}other{Chromeএ আপোনাৰ ব্ৰাউজাৰ লেহেমীয়া কৰি টেবসমূহ পজ কৰাটো চুপাৰিছ কৰে}}</translation>
+<translation id="1832046143430087831">Chromeৰ V8 ইঞ্জিনৰ সৈতে ছাইটবোৰ খৰতকীয়া কৰি তোলে কিন্তু Chromeক আক্ৰমণৰ পৰা সামান্য কম প্ৰতিৰোধী কৰে। এই ছেটিংটো অফ হৈ আছে।</translation>
 <translation id="1838374766361614909">সন্ধান কৰা বস্তুবোৰ মচক</translation>
 <translation id="1860536484129686729">এই ছাইটটোৰ বাবে Chromeক আপোনাৰ কেমেৰা এক্সেছ কৰাৰ অনুমতিৰ প্ৰয়োজন</translation>
 <translation id="1873233029667955273">Google Chrome আপোনাৰ ডিফ'ল্ট ব্ৰাউজাৰ নহয়</translation>
@@ -223,6 +224,7 @@
 <translation id="3716540481907974026">ChromeOS Flexৰ সংস্কৰণ</translation>
 <translation id="3718181793972440140">ইয়াৰ ফলত এই ডিভাইচটোৰ পৰা ১টা বস্তু মচা হ’ব। আপোনাৰ ডেটা পাছত পুনৰুদ্ধাৰ কৰিবলৈ Chromeত <ph name="USER_EMAIL" /> হিচাপে ছাইন ইন কৰক।</translation>
 <translation id="3723744677043446310">{NUM_EXTENSIONS,plural, =1{Chromeএ আপোনাক এইটো আঁতৰাবলৈ চুপাৰিছ কৰে। <ph name="BEGIN_LINK" />সমৰ্থিত এক্সটেনশ্বনসমূহৰ বিষয়ে অধিক জানক<ph name="END_LINK" />}one{Chromeএ আপোনাক এইসমূহ আঁতৰাবলৈ চুপাৰিছ কৰে। <ph name="BEGIN_LINK" />সমৰ্থিত এক্সটেনশ্বনসমূহৰ বিষয়ে অধিক জানক<ph name="END_LINK" />}other{Chromeএ আপোনাক এইসমূহ আঁতৰাবলৈ চুপাৰিছ কৰে। <ph name="BEGIN_LINK" />সমৰ্থিত এক্সটেনশ্বনসমূহৰ বিষয়ে অধিক জানক<ph name="END_LINK" />}}</translation>
+<translation id="3756724684201900923">Chrome ইনষ্টল কৰাৰ বিষয়ে অধিক জানক</translation>
 <translation id="3780814664026482060">Chrome - <ph name="PAGE_TITLE" /></translation>
 <translation id="3785324443014631273">ছাইন ইন কৰোঁতে কিবা আসোঁৱাহ হোৱাৰ কাৰণে ChromeOS Flexএ আপোনাৰ ডেটা ছিংক কৰিব নোৱাৰিলে।</translation>
 <translation id="3795971588916395511">Google ChromeOS</translation>
@@ -450,12 +452,12 @@ Google Chromeএ আপোনাৰ ছেটিংসমূহ পুনৰু�
 <translation id="6718739135284199302">Chromeক দ্ৰুত কৰক</translation>
 <translation id="6735387454586646204">ChromeOS Flex ছিষ্টেম</translation>
 <translation id="6750954913813541382">Chromeএ বানানৰ আসোঁৱাহসমূহ আঁতৰাবলৈ আপুনি ব্ৰাউজাৰত টাইপ কৰা পাঠ Googleলৈ পঠিয়ায়</translation>
+<translation id="6760235774835597023">Chromeৰ V8 ইঞ্জিনৰ সৈতে ছাইটবোৰ খৰতকীয়া কৰি তোলে কিন্তু Chromeক আক্ৰমণৰ পৰা সামান্য কম প্ৰতিৰোধী কৰে। এই ছেটিংটো অন হৈ আছে।</translation>
 <translation id="677276454032249905">যিকোনো প্ৰকাৰে Chrome বন্ধ কৰিবনে?</translation>
 <translation id="6794858689789885890">আপুনি Chrome বন্ধ কৰিলে সদায়েই আপোনাৰ ডিভাইচৰ পৰা ছাইটৰ ডেটা মচক</translation>
 <translation id="6831043979455480757">Translate</translation>
 <translation id="683440813066116847">mDNS ট্ৰেফিকক অনুমতি দিবলৈ Google Chrome বিটাৰ অন্তৰ্গামী নিয়ম।</translation>
 <translation id="684888714667046800">ইণ্টাৰনেটৰ লগত সংযোগ কৰিব পৰা নাই। আপুনি যদি কোনো ফায়াৰৱাল ব্যৱহাৰ কৰে, অনুগ্ৰহ কৰি অনুমতি দিয়া সূচীখনত <ph name="PRODUCT_EXE_NAME" /> থকাটো নিশ্চিত কৰক।</translation>
-<translation id="6851981911629679515">Chromeৰ JavaScript আৰু WebAssembly ইঞ্জিনত অতিৰিক্ত সুৰক্ষা অন কৰক</translation>
 <translation id="6877155553248388166">সন্ধান এলেকাৰ তলৰ সোঁফালৰ কোণ: <ph name="RIGHT" />% সোঁফালে, <ph name="BOTTOM" />% তললৈ</translation>
 <translation id="6881299373831449287">Chrome আপডে’ট কৰি থকা হৈছে</translation>
 <translation id="6885412569789873916">Chrome বিটা এপ্‌সমূহ</translation>

@@ -9,6 +9,7 @@
 
 #include "base/gtest_prod_util.h"
 #include "base/memory/stack_allocated.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_set.h"
@@ -99,9 +100,10 @@ class CORE_EXPORT SoftNavigationHeuristics
   // TaskAttributionTracker::Observer's implementation.
   void OnCreateTaskScope(scheduler::TaskAttributionInfo&) override;
 
-  void RecordPaint(LocalFrame*, const gfx::RectF& rect, Node* node);
-
+  SoftNavigationContext* MaybeGetSoftNavigationContextForTiming(Node* node);
   void OnPaintFinished();
+  void OnInputOrScroll();
+  void UpdateSoftLcpCandidate();
 
   // Returns an `EventScope` suitable for navigation. Used for navigations not
   // yet associated with an event.
@@ -129,8 +131,6 @@ class CORE_EXPORT SoftNavigationHeuristics
       SoftNavigationContext*) const;
   SoftNavigationContext* GetSoftNavigationContextForCurrentTask() const;
 
-  void ResetPaintTimingsIfNeeded();
-  void CommitPreviousPaintTimings(LocalFrame*);
   bool EmitSoftNavigationEntryIfAllConditionsMet(SoftNavigationContext*);
   LocalFrame* GetLocalFrameIfOutermostAndNotDetached() const;
   void OnSoftNavigationEventScopeDestroyed(const EventScope&);
@@ -175,6 +175,7 @@ class CORE_EXPORT SoftNavigationHeuristics
 
   uint32_t soft_navigation_count_ = 0;
   bool has_active_event_scope_ = false;
+  const features::SoftNavigationHeuristicsMode paint_attribution_mode_;
   // `task_attribution_tracker_` is cleared during `Shutdown()` (frame detach),
   // which should happen before the tracker is destroyed, since its lifetime is
   // tied to the lifetime of the isolate/main thread.

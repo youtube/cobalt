@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_ENTERPRISE_CONNECTORS_ANALYSIS_CONTENT_ANALYSIS_DIALOG_DELEGATE_H_
 
 #include "base/functional/callback_forward.h"
+#include "base/memory/raw_ptr.h"
 #include "chrome/browser/enterprise/connectors/analysis/content_analysis_delegate_base.h"
 #include "chrome/browser/enterprise/connectors/analysis/content_analysis_views.h"
 #include "chrome/browser/safe_browsing/cloud_content_scanning/deep_scanning_utils.h"
@@ -84,7 +85,13 @@ class ContentAnalysisDialogDelegate : public views::DialogDelegate,
   inline bool is_warning() const { return dialog_state_ == State::WARNING; }
   inline bool is_pending() const { return dialog_state_ == State::PENDING; }
 
+  // Updates `final_result_` and `dialog_state_`.
   void UpdateStateFromFinalResult(FinalContentAnalysisResult final_result);
+
+  // Update the appearance of the dialog. This will not do anything unless the
+  // dialog's state was changed by `UpdateStateFromFinalResult()` since the last
+  // `UpdateDialogAppearance()` call.
+  void UpdateDialogAppearance();
 
   bool has_learn_more_url() const;
   bool bypass_requires_justification() const;

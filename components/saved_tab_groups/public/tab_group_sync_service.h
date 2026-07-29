@@ -34,6 +34,7 @@ namespace tab_groups {
 class CollaborationFinder;
 class TabGroupSyncDelegate;
 class TabGroupSyncMetricsLogger;
+class VersioningMessageController;
 
 // A RAII class that pauses local tab model observers when required.
 class ScopedLocalObservationPauser {
@@ -386,12 +387,21 @@ class TabGroupSyncService : public KeyedService, public base::SupportsUserData {
   virtual std::unique_ptr<std::vector<SavedTabGroup>>
   TakeSharedTabGroupsAvailableAtStartupForMessaging() = 0;
 
+  // Returns if shared tab group existed during startup. If
+  // `open_shared_tab_groups` is true, returns whether there were open shared
+  // tab groups during startup.
+  virtual bool HadSharedTabGroupsLastSession(bool open_shared_tab_groups) = 0;
+
   // Called when the last tab in a group is closed.
   virtual void OnLastTabClosed(const SavedTabGroup& saved_tab_group) = 0;
 
   // Add / remove observers.
   virtual void AddObserver(Observer* observer) = 0;
   virtual void RemoveObserver(Observer* observer) = 0;
+
+  // Returns the versioning message controller which is responsible for business
+  // logic related to shared tab groups versioning related messages.
+  virtual VersioningMessageController* GetVersioningMessageController() = 0;
 
   // For testing only. This is needed to test the API calls received before
   // service init as we need to explicitly un-initialize the service for these

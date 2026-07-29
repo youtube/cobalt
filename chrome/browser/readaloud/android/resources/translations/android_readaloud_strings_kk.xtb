@@ -5,7 +5,6 @@
 <translation id="1178581264944972037">Кідірту</translation>
 <translation id="1246424317317450637">Жуан</translation>
 <translation id="1357114957607379632">Жасанды интеллект аудиосы ойнатылайын деп жатыр...</translation>
-<translation id="1370273601702151510">Ұнайды</translation>
 <translation id="1483137792530497944">Өзен</translation>
 <translation id="1586836055630070874">Байсалды</translation>
 <translation id="1639239467298939599">Жүктелуде</translation>
@@ -19,7 +18,6 @@
 <translation id="2575502321843437554">Онша қызық емес</translation>
 <translation id="2611765907167846862">Сабырлы</translation>
 <translation id="3023502830214299618">Өкінішке қарай, бұл бетте әзірше ойнату қолжетімді емес. Кейінірек қайталап көріңіз.</translation>
-<translation id="3457812538570616687">Ұнамайды</translation>
 <translation id="3493899379487634969">Не дұрыс болмады?</translation>
 <translation id="3730775656877876887">Жасанды интеллект аудиосы ойнатылайын деп жатыр</translation>
 <translation id="3778044272390020426">Теріс пікір опцияларының мәзірі</translation>
@@ -33,6 +31,7 @@
 <translation id="4525525184005340968">Алқап</translation>
 <translation id="4710974520964166851">Бәсең</translation>
 <translation id="4773921449011281499">Байыпты</translation>
+<translation id="4867493576811701175">"Ұнайды" түймесі. Сізге бұл функция ұнағаны туралы пікір жіберу үшін басыңыз</translation>
 <translation id="4872475766448853257"><ph name="NUMBER_OF_SECONDS" /> секунд артқа оралу</translation>
 <translation id="4967513477347430212">Жағалау</translation>
 <translation id="5026371835667036198">Жарқын</translation>
@@ -63,6 +62,7 @@
 <translation id="8136852699834914183">Бұл бетте ойнату функциясы қолжетімді емес.</translation>
 <translation id="8198036737896977997">Ауа</translation>
 <translation id="8264989794233974275">Жылдамдықты <ph name="PLAYBACK_SPEED" /> есе арттыру/азайту.</translation>
+<translation id="837054959055425654">"Ұнамайды" түймесі. Бұл функцияға қатысты мәселе туралы толық пікір жіберуге арналған үлгіні ашу үшін басыңыз</translation>
 <translation id="8407011429883244666">Ойнатқышты жабу.</translation>
 <translation id="8462210863277153423">Сапа мен зерттеу қызметін жақсарту үшін URL мекенжайыңыз пікірмен бірге жүктеп салынады.</translation>
 <translation id="8481839122437406573">Сабырлы</translation>

@@ -66,7 +66,7 @@ unsigned hardware_context_count = 0;
 
 // A context ID that is incremented for each context that is created.
 // This initializes the internal id for the context.
-unsigned context_id = 0;
+uint32_t context_id = 0;
 
 // When the client does not have enough permission, the outputLatency property
 // is quantized by 8ms to reduce the precision for privacy concerns.
@@ -373,6 +373,11 @@ AudioContext::AudioContext(LocalDOMWindow& window,
 
   // Initializes `v8_sink_id_` with the given `sink_descriptor_`.
   UpdateV8SinkId();
+
+  EnsureAudioContextManagerService();
+  if (audio_context_manager_.is_bound()) {
+    audio_context_manager_->AudioContextCreated(context_id_);
+  }
 }
 
 void AudioContext::Uninitialize() {
@@ -606,6 +611,11 @@ ScriptPromise<IDLUndefined> AudioContext::closeContext(
 }
 
 void AudioContext::DidClose() {
+  EnsureAudioContextManagerService();
+  if (audio_context_manager_.is_bound()) {
+    audio_context_manager_->AudioContextClosed(context_id_);
+  }
+
   SetContextState(V8AudioContextState::Enum::kClosed);
 
   if (close_resolver_) {
@@ -1293,7 +1303,7 @@ void AudioContext::OnDevicesChanged(mojom::blink::MediaDeviceType device_type,
                                                ConsoleMessage>(
           mojom::ConsoleMessageSource::kOther,
           mojom::ConsoleMessageLevel::kInfo,
-          WTF::StrCat(
+          StrCat(
               {"[AudioContext] Fallback to the default device due to an invalid"
                " audio device change. (",
                String(sink_descriptor_.SinkId().Utf8()), ")"})));

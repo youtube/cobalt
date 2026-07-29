@@ -36,6 +36,7 @@
 #include "chrome/browser/privacy_sandbox/tracking_protection_settings_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/regional_capabilities/regional_capabilities_service_factory.h"
+#include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/ssl/https_upgrades_util.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
@@ -97,6 +98,7 @@
 #include "components/autofill/core/browser/payments/payments_autofill_client.h"
 #include "components/autofill/core/browser/permissions/autofill_ai/autofill_ai_permission_utils.h"
 #include "components/autofill/core/common/autofill_features.h"
+#include "components/browsing_data/core/features.h"
 #include "components/commerce/core/commerce_feature_list.h"
 #include "components/commerce/core/feature_utils.h"
 #include "components/commerce/core/shopping_service.h"
@@ -114,6 +116,7 @@
 #include "components/regional_capabilities/regional_capabilities_service.h"
 #include "components/safe_browsing/core/common/features.h"
 #include "components/safe_browsing/core/common/hashprefix_realtime/hash_realtime_utils.h"
+#include "components/search_engines/template_url_service.h"
 #include "components/signin/public/base/signin_pref_names.h"
 #include "components/signin/public/base/signin_switches.h"
 #include "components/sync/base/features.h"
@@ -299,6 +302,12 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
     commerce::ShoppingServiceFactory::GetForBrowserContext(profile)
         ->FetchPriceEmailPref();
   }
+
+  TemplateURLService* template_url_service =
+      TemplateURLServiceFactory::GetForProfile(profile);
+  html_source->AddBoolean(
+      "showSearchAggregatorSuggest",
+      template_url_service->GetEnterpriseSearchAggregatorEngine());
 
   regional_capabilities::RegionalCapabilitiesService* regional_capabilties =
       regional_capabilities::RegionalCapabilitiesServiceFactory::GetForProfile(
@@ -623,7 +632,7 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
   // Delete Browsing Data
   html_source->AddBoolean(
       "enableDeleteBrowsingDataRevamp",
-      base::FeatureList::IsEnabled(features::kDbdRevampDesktop));
+      base::FeatureList::IsEnabled(browsing_data::features::kDbdRevampDesktop));
 
   html_source->AddBoolean(
       "enableSupportForHomeAndWork",

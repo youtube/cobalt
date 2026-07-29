@@ -33,11 +33,11 @@
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/base/testing_profile_manager.h"
+#include "components/optimization_guide/core/delivery/test_model_info_builder.h"
+#include "components/optimization_guide/core/delivery/test_optimization_guide_model_provider.h"
 #include "components/optimization_guide/core/mock_optimization_guide_model_executor.h"
 #include "components/optimization_guide/core/optimization_guide_model_executor.h"
 #include "components/optimization_guide/core/optimization_guide_proto_util.h"
-#include "components/optimization_guide/core/test_model_info_builder.h"
-#include "components/optimization_guide/core/test_optimization_guide_model_provider.h"
 #include "components/optimization_guide/proto/features/scam_detection.pb.h"
 #include "components/safe_browsing/core/common/features.h"
 #include "components/safe_browsing/core/common/proto/client_model.pb.h"
@@ -1680,13 +1680,24 @@ TEST_P(ClientSideDetectionServiceTest,
   // service class.
   csd_service_->SetOnDeviceAvailabilityForTesting(false);
 
-  csd_service_->LogOnDeviceModelEligibilityReason();
+  csd_service_->IsOnDeviceModelAvailable(
+      /*log_failed_eligibility_reason=*/true);
 
   // We expect the histogram value for
   // SBClientPhishing.OnDeviceModelEligibilityReasonAtInquiryFailure to be
   // kModelTobeInstalled as we set the EXPECT_CALL above when calling for
   // function GetOnDeviceModelEligibility within the optimization guide service,
   // which is called in the service delegate.
+  histogram_tester.ExpectUniqueSample(
+      "SBClientPhishing.OnDeviceModelEligibilityReasonAtInquiryFailure",
+      optimization_guide::OnDeviceModelEligibilityReason::kModelToBeInstalled,
+      1);
+
+  csd_service_->IsOnDeviceModelAvailable(
+      /*log_failed_eligibility_reason=*/false);
+
+  // The histogram is not logged again because
+  // log_failed_eligibility_reason is set to false.
   histogram_tester.ExpectUniqueSample(
       "SBClientPhishing.OnDeviceModelEligibilityReasonAtInquiryFailure",
       optimization_guide::OnDeviceModelEligibilityReason::kModelToBeInstalled,

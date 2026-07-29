@@ -61,6 +61,7 @@
 <translation id="178701303897325119">Extensia nu mai este acceptată. Chrome recomandă să o elimini.</translation>
 <translation id="1812689907177901597">Dacă dezactivezi, te poți conecta la site-uri Google ca Gmail fără a te conecta la Chrome</translation>
 <translation id="1821644463306970002">{NUM_TABS,plural, =1{Chrome recomandă să întrerupi fila care încetinește browserul}few{Chrome recomandă să întrerupi filele care încetinesc browserul}other{Chrome recomandă să întrerupi filele care încetinesc browserul}}</translation>
+<translation id="1832046143430087831">Accelerează site-urile cu motorul V8 din Chrome, dar reduce ușor rezistența Chrome la atacuri. Setarea este dezactivată.</translation>
 <translation id="1838374766361614909">Șterge căutarea</translation>
 <translation id="1860536484129686729">Chrome are nevoie de permisiune ca să acceseze camera foto pentru acest site</translation>
 <translation id="1873233029667955273">Google Chrome nu este browserul prestabilit</translation>
@@ -219,6 +220,7 @@
 <translation id="3716540481907974026">Versiunea sistemului de operare Chrome Flex</translation>
 <translation id="3718181793972440140">Astfel, se va șterge 1 element de pe acest dispozitiv. Pentru a recupera datele mai târziu, conectează-te la Chrome ca <ph name="USER_EMAIL" />.</translation>
 <translation id="3723744677043446310">{NUM_EXTENSIONS,plural, =1{Chrome recomandă să o elimini. <ph name="BEGIN_LINK" />Află mai multe despre extensiile acceptate<ph name="END_LINK" />}few{Chrome recomandă să le elimini. <ph name="BEGIN_LINK" />Află mai multe despre extensiile acceptate<ph name="END_LINK" />}other{Chrome recomandă să le elimini. <ph name="BEGIN_LINK" />Află mai multe despre extensiile acceptate<ph name="END_LINK" />}}</translation>
+<translation id="3756724684201900923">Află mai multe despre instalarea Chrome</translation>
 <translation id="3780814664026482060">Chrome – <ph name="PAGE_TITLE" /></translation>
 <translation id="3785324443014631273">ChromeOS Flex nu a putut sincroniza datele din cauza unei erori la conectare.</translation>
 <translation id="3795971588916395511">Sistemul de operare Google Chrome</translation>
@@ -442,12 +444,12 @@
 <translation id="6718739135284199302">Crește eficiența în Chrome</translation>
 <translation id="6735387454586646204">ChromeOS Flex</translation>
 <translation id="6750954913813541382">Pentru a corecta erorile de scriere, Chrome trimite la Google textul pe care îl introduci în browser</translation>
+<translation id="6760235774835597023">Accelerează site-urile cu motorul V8 din Chrome, dar reduce ușor rezistența Chrome la atacuri. Setarea este activată.</translation>
 <translation id="677276454032249905">Ieși din Chrome oricum?</translation>
 <translation id="6794858689789885890">Șterge întotdeauna datele privind site-urile de pe dispozitiv când închizi Chrome</translation>
 <translation id="6831043979455480757">Tradu</translation>
 <translation id="683440813066116847">Regula de intrare pentru Google Chrome Canary pentru a permite traficul mDNS.</translation>
 <translation id="684888714667046800">Nu se poate realiza conexiunea la internet. Dacă folosești un firewall, verifică dacă <ph name="PRODUCT_EXE_NAME" /> se află în lista cu acces permis.</translation>
-<translation id="6851981911629679515">Activează protecția suplimentară în motorul JavaScript și WebAssembly din Chrome</translation>
 <translation id="6877155553248388166">colțul din dreapta jos al zonei de căutare: dreapta <ph name="RIGHT" /> %, jos <ph name="BOTTOM" /> %</translation>
 <translation id="6881299373831449287">Se actualizează Chrome</translation>
 <translation id="6885412569789873916">Aplicații Chrome Beta</translation>

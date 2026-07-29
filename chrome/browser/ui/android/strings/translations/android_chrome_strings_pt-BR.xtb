@@ -109,6 +109,7 @@ Para conferir mais configurações que usam dados para melhorar sua experiência
 <translation id="1419753403124156396">Reiniciar o Chrome?</translation>
 <translation id="1428770807407000502">Desativar a sincronização?</translation>
 <translation id="1430915738399379752">Imprimir</translation>
+<translation id="1433478348197382180">Modo de leitura</translation>
 <translation id="1435593198351412143">Abrir PDFs automaticamente</translation>
 <translation id="1437543266176261764">Em execução no app <ph name="APP_NAME" /></translation>
 <translation id="1448440926884431741">Organize seus produtos monitorados nos favoritos</translation>
@@ -331,6 +332,7 @@ Só uma pessoa com sua senha longa pode ler seus dados criptografados. Essa senh
 <translation id="2524132927880411790">Acessar a pesquisa por voz do Google app</translation>
 <translation id="2527209463677295330">Ao incluir mais texto de uma página, você poderá ver resultados melhores</translation>
 <translation id="2527779675047087889">Ocultar conteúdo da área de transferência</translation>
+<translation id="2531209299761896527">Faça gesto de pinça, segure e arraste para abrir guias em uma nova janela</translation>
 <translation id="2532336938189706096">Visualização na Web</translation>
 <translation id="253498598929009420">O site terá acesso ao conteúdo da sua tela</translation>
 <translation id="2535807170289627159">Todas as guias</translation>
@@ -544,7 +546,6 @@ Só uma pessoa com sua senha longa pode ler seus dados criptografados. Essa senh
 <translation id="3513019849832307207">Entrar e abrir</translation>
 <translation id="3513704683820682405">Realidade aumentada</translation>
 <translation id="3516053221628030540">Acessar o Google Play</translation>
-<translation id="351672147489633468">{NUM_REVOKED_PERMISSIONS,plural, =1{As permissões de notificações foram removidas de um site que você não visitou recentemente}one{As permissões de notificações foram removidas de # site que você não visitou recentemente}other{As permissões de notificações foram removidas de # sites que você não visitou recentemente}}</translation>
 <translation id="3518985090088779359">Aceitar e continuar</translation>
 <translation id="3519014757432845220">Ajude a melhorar a proteção contra spam compartilhando o conteúdo da notificação e o URL do site com o Google. O conteúdo poderá ser analisado por humanos.</translation>
 <translation id="3521388823983121502">Não é possível continuar com o <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /></translation>
@@ -713,6 +714,7 @@ Só uma pessoa com sua senha longa pode ler seus dados criptografados. Essa senh
 <translation id="4298388696830689168">Sites vinculados</translation>
 <translation id="4300632303535881174">Ir para a página anterior</translation>
 <translation id="4303044213806199882">chrome_screenshot_<ph name="CURRENT_TIMESTAMP_MS" /></translation>
+<translation id="4306489587293957491">Inserir</translation>
 <translation id="4307992518367153382">Básicas</translation>
 <translation id="4311652497846705514">Abrir PDF?</translation>
 <translation id="4320177379694898372">Sem conexão com a Internet</translation>
@@ -1059,7 +1061,7 @@ Só uma pessoa com sua senha longa pode ler seus dados criptografados. Essa senh
 <translation id="5855546874025048181">Refinar: <ph name="REFINE_TEXT" /></translation>
 <translation id="5857447844686706637">Algo deu errado. Não foi possível atualizar o recurso Monitorar preço.</translation>
 <translation id="5859968346865909126">Ele pode ser ativado ou desativado nas configurações</translation>
-<translation id="5860033963881614850">Desativada</translation>
+<translation id="5860033963881614850">Desativado</translation>
 <translation id="5860491529813859533">Ativar</translation>
 <translation id="5864419784173784555">Aguardando outro download…</translation>
 <translation id="5865733239029070421">Envia estatísticas de uso e relatórios de erros automaticamente para o Google</translation>
@@ -1080,7 +1082,6 @@ Só uma pessoa com sua senha longa pode ler seus dados criptografados. Essa senh
 <translation id="5956665950594638604">Abrir Central de Ajuda do Chrome em uma nova guia</translation>
 <translation id="59577092665511740">Escolha uma conta.</translation>
 <translation id="5958275228015807058">Encontre seus arquivos e páginas em Downloads</translation>
-<translation id="5958994127112619898">Página simplificada</translation>
 <translation id="5962718611393537961">Toque para recolher</translation>
 <translation id="5964869237734432770">Parar descrição de imagens</translation>
 <translation id="5975083100439434680">Diminuir zoom</translation>
@@ -1274,7 +1275,7 @@ Por exemplo, alguns sites podem responder a esse pedido mostrando anúncios que 
 <translation id="6734310707649923383">Você pode consultar ou excluir as páginas visitadas do histórico</translation>
 <translation id="6738867403308150051">Fazendo o download...</translation>
 <translation id="674388916582496364">É comum que os sites que você visita se lembrem dos seus interesses para personalizar a experiência. Os sites também podem armazenar informações sobre seus interesses com o Chrome.</translation>
-<translation id="6746338529702829275">Analise os dados da sua conta</translation>
+<translation id="6746338529702829275">Analise os dados da conta</translation>
 <translation id="6751521182688001123">Abrir rapidamente uma nova guia. Para editar este atalho, toque e pressione.</translation>
 <translation id="6754359471209693699">Começar nova pesquisa</translation>
 <translation id="6756507620369789050">Compartilhar feedback</translation>
@@ -1629,7 +1630,6 @@ Para mudar essa configuração, <ph name="BEGIN_LINK" />exclua os dados do Chrom
 <translation id="8137562778192957619">Você não precisa se lembrar dessa senha. Ela vai ficar salva no Gerenciador de senhas do Google.</translation>
 <translation id="8152331954420209374">Acessar o Lens</translation>
 <translation id="8163820386638255770">Confirme sua identidade para usar e salvar senhas na sua Conta do Google</translation>
-<translation id="8179976553408161302">Entrar</translation>
 <translation id="8186512483418048923"><ph name="FILES" /> arquivos restantes</translation>
 <translation id="8190358571722158785">Um dia restante</translation>
 <translation id="8192765420340770300">Página inferior de login aberta no tamanho máximo</translation>
@@ -1651,7 +1651,6 @@ Para mudar essa configuração, <ph name="BEGIN_LINK" />exclua os dados do Chrom
 <translation id="8244387390464017490">Personalizar "Nova guia"</translation>
 <translation id="8250920743982581267">Documentos</translation>
 <translation id="8255617931166444521">Os sites só podem usar os cookies para ver sua atividade de navegação na própria página.</translation>
-<translation id="8256087213273124136">O Chrome cancelou sua inscrição para receber notificações</translation>
 <translation id="8258999165172757081">Adicionado</translation>
 <translation id="8259179246279078674">Como as páginas pré-carregadas são criptografadas, o Google não sabe nada sobre o conteúdo delas. Os servidores do Google saberão quais sites foram pré-carregados de forma anônima. Essa informação é usada somente para pré-carregar as páginas, e não está vinculada a outras informações da sua Conta do Google.</translation>
 <translation id="8260126382462817229">Tente fazer login novamente</translation>
@@ -1686,7 +1685,7 @@ Para mudar essa configuração, <ph name="BEGIN_LINK" />exclua os dados do Chrom
 <translation id="8402673309244746971">Acessar "Seguindo"</translation>
 <translation id="8413126021676339697">Mostrar histórico completo</translation>
 <translation id="8413795581997394485">Protege contra extensões, sites e downloads perigosos. Quando você acessa um site, o Chrome envia ao Google apenas uma parte ofuscada do URL por um servidor de privacidade que oculta seu endereço IP. Se um site fizer algo suspeito, o URL completo e partes do conteúdo da página também serão enviados.</translation>
-<translation id="8414396119627470038">Fazer login no <ph name="SITE_ETLD_PLUS_ONE" /> com <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /></translation>
+<translation id="8414396119627470038">Fazer login em <ph name="SITE_ETLD_PLUS_ONE" /> com <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /></translation>
 <translation id="8419144699778179708">Exclui o histórico, inclusive da caixa de pesquisa</translation>
 <translation id="8419244640277402268">Incluir</translation>
 <translation id="8422250855136581222">Nenhuma guia neste dispositivo</translation>
@@ -1795,7 +1794,7 @@ Para mudar essa configuração, <ph name="BEGIN_LINK" />exclua os dados do Chrom
 <translation id="8856931513242997049">Fluxo de permissão de notificações fechado</translation>
 <translation id="8863714995118816041">Permissões concedidas novamente para <ph name="SITE_NAME" /></translation>
 <translation id="8865415417596392024">Dados do Chrome na sua conta</translation>
-<translation id="8888527824584402177">As guias que você não usa há <ph name="DAYS_INACTIVE" /> dias são movidas para cá<ph name="AUTODELETE_SECTION" />. Você pode mudar essa opção quando quiser nas <ph name="SETTINGS_TITLE" />.</translation>
+<translation id="8888527824584402177">As guias que você não usa há <ph name="DAYS_INACTIVE" /> dias são movidas para cá<ph name="AUTODELETE_SECTION" />. Mude isso quando quiser nas <ph name="SETTINGS_TITLE" />.</translation>
 <translation id="8890668505403261809">Pesquisar nas guias anônimas</translation>
 <translation id="8898822736010347272">Envia ao Google URLs de algumas páginas que você visita, informações do sistema limitadas e parte do conteúdo das páginas para ajudar a descobrir novas ameaças e proteger todos os usuários na Web.</translation>
 <translation id="8903921497873541725">Aumentar zoom</translation>

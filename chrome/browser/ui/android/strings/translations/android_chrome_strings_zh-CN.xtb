@@ -109,6 +109,7 @@
 <translation id="1419753403124156396">重启 Chrome？</translation>
 <translation id="1428770807407000502">关闭同步功能？</translation>
 <translation id="1430915738399379752">打印</translation>
+<translation id="1433478348197382180">阅读模式</translation>
 <translation id="1435593198351412143">自动打开 PDF 文件</translation>
 <translation id="1437543266176261764">正在“<ph name="APP_NAME" />”应用内运行</translation>
 <translation id="1448440926884431741">在“书签”页面中整理您跟踪的商品</translation>
@@ -331,6 +332,7 @@
 <translation id="2524132927880411790">在 Google 应用中打开语音搜索</translation>
 <translation id="2527209463677295330">如果选择纳入相应页面上的更多文字，您便可能会看到相关性更高的结果</translation>
 <translation id="2527779675047087889">隐藏剪贴板内容</translation>
+<translation id="2531209299761896527">双指张合、按住并拖动即可在新窗口中打开标签页</translation>
 <translation id="2532336938189706096">网页视图</translation>
 <translation id="253498598929009420">该网站将能看到您屏幕上的内容</translation>
 <translation id="2535807170289627159">所有标签页</translation>
@@ -523,7 +525,7 @@
 <translation id="3435465986463792564">打开了许多窗口？您可在此处管理它们</translation>
 <translation id="3435575784518354875">如需继续使用您的密码，请立即将其导出，更新 Google Play 服务，然后将其重新导入 Google 密码管理工具。<ph name="BEGIN_LINK" />查看完整说明<ph name="END_LINK" />。</translation>
 <translation id="3435738964857648380">安全</translation>
-<translation id="3435914367318771664">将标签页添加至新的分组</translation>
+<translation id="3435914367318771664">向新分组添加标签页</translation>
 <translation id="3439276997620616816">此处会显示您近期关闭的标签页</translation>
 <translation id="3443221991560634068">重新加载当前网页</translation>
 <translation id="3444179773590444986">针对为网站开启深色主题分享反馈？</translation>
@@ -544,7 +546,6 @@
 <translation id="3513019849832307207">加入并打开</translation>
 <translation id="3513704683820682405">增强现实</translation>
 <translation id="3516053221628030540">前往 Google Play</translation>
-<translation id="351672147489633468">{NUM_REVOKED_PERMISSIONS,plural, =1{已撤消您最近未访问过的一个网站的通知权限}other{已撤消您最近未访问过的 # 个网站的通知权限}}</translation>
 <translation id="3518985090088779359">接受并继续</translation>
 <translation id="3519014757432845220">与 Google 分享通知内容和网站网址，帮助我们改进垃圾信息防范功能。您分享的内容可能会经过人工审核。</translation>
 <translation id="3521388823983121502">无法使用 <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> 继续操作</translation>
@@ -713,6 +714,7 @@
 <translation id="4298388696830689168">已关联的网站</translation>
 <translation id="4300632303535881174">前往上一页</translation>
 <translation id="4303044213806199882">chrome_screenshot_<ph name="CURRENT_TIMESTAMP_MS" /></translation>
+<translation id="4306489587293957491">输入</translation>
 <translation id="4307992518367153382">基本</translation>
 <translation id="4311652497846705514">打开 PDF 文件？</translation>
 <translation id="4320177379694898372">未连接到互联网</translation>
@@ -1079,7 +1081,6 @@
 <translation id="5956665950594638604">在新标签页中打开 Chrome 帮助中心</translation>
 <translation id="59577092665511740">选择一个账号。</translation>
 <translation id="5958275228015807058">在“下载内容”中查找您的文件和网页</translation>
-<translation id="5958994127112619898">简化网页</translation>
 <translation id="5962718611393537961">点按即可收起</translation>
 <translation id="5964869237734432770">停止获取图片说明</translation>
 <translation id="5975083100439434680">缩小</translation>
@@ -1142,7 +1143,7 @@
 <translation id="6205314730813004066">广告隐私权设置</translation>
 <translation id="6210748933810148297">不是 <ph name="EMAIL" />？</translation>
 <translation id="6211386937064921208">正在预览此页</translation>
-<translation id="6212567362666004597">向分组中添加标签页</translation>
+<translation id="6212567362666004597">向分组添加标签页</translation>
 <translation id="6221633008163990886">需解锁才能导出您的密码</translation>
 <translation id="6225572914528673855">地址栏</translation>
 <translation id="6232535412751077445">如果您启用了“不跟踪”，您的浏览流量中将会包含一项请求。具体影响取决于网站是否会回应该请求以及如何解读该请求。
@@ -1626,7 +1627,6 @@
 <translation id="8137562778192957619">您不需要记住此密码。系统会将它保存到 Google 密码管理工具中。</translation>
 <translation id="8152331954420209374">开启智能镜头</translation>
 <translation id="8163820386638255770">如要将密码保存在您的 Google 账号中并使用这些密码，请验证是您本人在操作</translation>
-<translation id="8179976553408161302">Enter</translation>
 <translation id="8186512483418048923">还剩 <ph name="FILES" /> 个文件</translation>
 <translation id="8190358571722158785">还剩 1 天</translation>
 <translation id="8192765420340770300">已打开用于选择登录账号的底部动作条，并以最大高度显示</translation>
@@ -1648,7 +1648,6 @@
 <translation id="8244387390464017490">自定义新标签页页面</translation>
 <translation id="8250920743982581267">文档</translation>
 <translation id="8255617931166444521">网站只能使用 Cookie 查看您在此网站上的浏览活动</translation>
-<translation id="8256087213273124136">Chrome 已替您退订通知</translation>
 <translation id="8258999165172757081">已添加</translation>
 <translation id="8259179246279078674">由于预加载的网页均已加密，因此 Google 不会得知与预加载的网页内容有关的任何信息。不过，Google 服务器会得知哪些网站是以私密方式预加载的。该信息仅用于预加载网页，不会关联到您 Google 账号中的其他信息。</translation>
 <translation id="8260126382462817229">请尝试重新登录</translation>

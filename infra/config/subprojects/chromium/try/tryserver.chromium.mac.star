@@ -23,9 +23,7 @@ try_.defaults.set(
     execution_timeout = try_.DEFAULT_EXECUTION_TIMEOUT,
     orchestrator_cores = 2,
     orchestrator_siso_remote_jobs = siso.remote_jobs.HIGH_JOBS_FOR_CQ,
-    reclient_enabled = False,
     service_account = try_.DEFAULT_SERVICE_ACCOUNT,
-    siso_enabled = True,
     siso_project = siso.project.DEFAULT_UNTRUSTED,
 )
 
@@ -596,11 +594,11 @@ ios_builder(
 )
 
 ios_builder(
-    name = "ios-blink-dbg-fyi",
+    name = "ios-blink-rel-fyi",
     mirrors = [
-        "ci/ios-blink-dbg-fyi",
+        "ci/ios-blink-rel-fyi",
     ],
-    gn_args = "ci/ios-blink-dbg-fyi",
+    gn_args = "ci/ios-blink-rel-fyi",
     builderless = True,
     cpu = cpu.ARM64,
     execution_timeout = 4 * time.hour,
@@ -811,7 +809,7 @@ ios_builder(
     mirrors = ["ci/ios26-sdk-simulator"],
     gn_args = "ci/ios26-sdk-simulator",
     cpu = cpu.ARM64,
-    xcode = xcode.x16betabots,
+    xcode = xcode.x26betabots,
 )
 
 ios_builder(

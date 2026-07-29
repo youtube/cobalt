@@ -784,7 +784,6 @@
 <translation id="1542524755306892917">‏כך Google Assistant תוכל לתת תשובות מותאמות אישית לשאלות של <ph name="SUPERVISED_USER_NAME" />.</translation>
 <translation id="1543284117603151572">‏ייבוא מ-Edge</translation>
 <translation id="1543538514740974167">רוצה להגיע לכאן מהר יותר?</translation>
-<translation id="154420222899071768">הסיסמה שלך לא עודכנה, אבל עדיין אמורה להיות לך אפשרות לגשת לאתר באמצעות הסיסמה הישנה</translation>
 <translation id="1544588554445317666">אפשר לנסות להשתמש בשם קובץ קצר יותר או לשמור את הקובץ בתיקייה אחרת</translation>
 <translation id="1545177026077493356">מצב קיוסק אוטומטי</translation>
 <translation id="1545749641540134597">‏סריקת קוד QR</translation>
@@ -2336,7 +2335,6 @@
 <translation id="2588636910004461974">מכשירים של <ph name="VENDOR_NAME" /></translation>
 <translation id="2589658397149952302">‏אין להציג קובצי Drive אף פעם</translation>
 <translation id="2593499352046705383">‏לפני שמתחילים, צריך לוודא שיש גיבוי של הנתונים. התקנת <ph name="DEVICE_OS" /> תחליף את כל הנתונים שבכונן הקשיח שלך. מידע נוסף זמין בכתובת g.co/flex/InstallGuide.</translation>
-<translation id="2594832159966169099">‏ניהול האבטחה של V8</translation>
 <translation id="2597073208962000830">‏התכונה 'שיתוף בקרבת מקום' מחפשת מכשירים בקרבת מקום באמצעות Bluetooth.</translation>
 <translation id="2598136842498757793">התאמה אישית של כפתורי סרגל הכלים</translation>
 <translation id="2598710988533271874">‏יש גרסה חדשה זמינה של Chrome</translation>
@@ -4188,6 +4186,7 @@
 <translation id="3876219572815410515">שינוי גודל החלונות למעלה</translation>
 <translation id="3877075909000773256">הגדרות שיתוף בקרבת מקום למכשיר של <ph name="USER_NAME" />. השיתוף יתבצע בשם <ph name="USER_EMAIL" />.</translation>
 <translation id="3877209288227498506">אפשר לבחור אם להציג שימוש בזיכרון ותמונות בכרטיס התצוגה המקדימה שמופיע כשמעבירים את העכבר מעל לכרטיסייה</translation>
+<translation id="3877603629930976930">לא לשתף</translation>
 <translation id="3878445208930547646">אין לך הרשאה להעתיק מהאתר הזה</translation>
 <translation id="3879748587602334249">מנהל ההורדות</translation>
 <translation id="3880513902716032002">חלק מהדפים שאליהם עוברים נטענים מראש</translation>
@@ -5997,7 +5996,6 @@
 <translation id="5186381005592669696">התאמה אישית של שפת התצוגה לאפליקציות נתמכות</translation>
 <translation id="5186788525428341874">‏אפשר להשתמש במפתח הגישה הזה כדי להיכנס לחשבון מהר יותר בכל המכשירים שלך. הוא יישמר במנהל הסיסמאות של Google בחשבון <ph name="ACCOUNT_NAME" />.</translation>
 <translation id="5187641678926990264">&amp;התקנת הדף כאפליקציה…</translation>
-<translation id="5187671830619031922">הוספת הכרטיסייה לתצוגה מפוצלת</translation>
 <translation id="5187826826541650604"><ph name="KEY_NAME" /> ‏(<ph name="DEVICE" />)</translation>
 <translation id="5188242000716462162">שותף על ידי <ph name="USER_NAME" /></translation>
 <translation id="5188648870018555788">‏שימוש בנתוני המיקום. מתן אפשרות לאפליקציות, לאתרים ולשירותים של ChromeOS ו-Android עם הרשאת מיקום להשתמש במיקום של המכשיר. ההגדרה 'קביעת מיקום יותר מדויקת' מספקת מיקום מדויק יותר לאפליקציות ולשירותים של Android. כדי לעשות את זה, Google מעבדת מדי פעם נתונים על חיישני מכשיר ואותות אלחוטיים מהמכשיר שלך כדי לתמוך במיקור המונים של מיקומי אותות אלחוטיים. השימוש בנתונים האלה נעשה בלי לזהות אותך כדי לשפר את מידת הדיוק של המיקום ואת האיכות של השירותים מבוססי-המיקום. כמו כן, הנתונים משמשים כדי לשפר, לספק ולתחזק את השירותים של Google על סמך האינטרסים הלגיטימיים של Google ושל צדדים שלישיים כדי לשרת את צורכי המשתמשים. <ph name="BEGIN_LINK1" />מידע נוסף על השימוש במיקום<ph name="END_LINK1" /></translation>
@@ -6480,6 +6478,7 @@
 <translation id="5533343601674003130">‏שירות PDF</translation>
 <translation id="5537725057119320332">‏הפעלת Cast</translation>
 <translation id="5539070192556911367">‏לא ניתן להתחבר ל-Google</translation>
+<translation id="5541091577812545428">הסיסמה לא השתנתה</translation>
 <translation id="5542132724887566711">פרופיל</translation>
 <translation id="5542750926112347543">‏קובצי Cookie מ-<ph name="DOMAIN" /> חסומים</translation>
 <translation id="5542949973455282971">מתבצע חיבור אל <ph name="CARRIER_NAME" /></translation>
@@ -7028,7 +7027,6 @@
 <translation id="594221546068848596">חיפוש בדף באמצעות <ph name="VISUAL_SEARCH_PROVIDER" /></translation>
 <translation id="5942779427914696408">הרשאות גישה למכשיר</translation>
 <translation id="5943127421590245687">האימות הסתיים בהצלחה. כדי לבטל את הנעילה של הנתונים המקומיים ולשחזר אותם, יש להזין את הסיסמה הקודמת שלך עבור <ph name="DEVICE_TYPE" />.</translation>
-<translation id="5943209617717087975">דף הכרטיסייה החדשה מנוהל על ידי <ph name="THIRD_PARTY_NTP_MANAGER" /></translation>
 <translation id="5945002094477276055">‏הקובץ <ph name="FILE_NAME" /> עלול להיות מסוכן. לשלוח אותו לשירות הגלישה הבטוחה של Google לצורך סריקה?</translation>
 <translation id="5945192511027649793">השבתת לוח המגע</translation>
 <translation id="5945363896952315544">אין מקום לטביעות אצבע נוספות במפתח האבטחה שלך. כדי להוסיף טביעת אצבע חדשה, קודם צריך למחוק אחת מהקיימות.</translation>
@@ -8287,6 +8285,7 @@
 <translation id="6841186874966388268">שגיאות</translation>
 <translation id="6842135459748401207">רק מכשירים שמחוברים אל <ph name="USER_EMAIL" /></translation>
 <translation id="6842136130964845393">כדי לוודא שתמיד תהיה לך גישה לסיסמאות השמורות, עליך לאמת את זהותך</translation>
+<translation id="6842670680297285750">תצוגה מפוצלת חדשה עם הכרטיסייה הנוכחית</translation>
 <translation id="6842749380892715807">‏ההורדה האחרונה של הרשימות של אתרי XML הייתה בשעה <ph name="LAST_DATE_DOWNLOAD" />.</translation>
 <translation id="6842868554183332230">לרוב, אתרים יכולים לזהות מתי המכשיר הזה משמש אותך באופן פעיל כדי להגדיר את הזמינות שלך באפליקציות צ'אט</translation>
 <translation id="6843264316370513305">ניפוי באגים ברשת</translation>
@@ -8686,6 +8685,7 @@
 <translation id="7131896909366247105"><ph name="APP_NAME" />, בהמתנה</translation>
 <translation id="7132886488919643383">‏רוצה להשתמש ב-AI מבית Google כדי לקבל עזרה בקריאה, בכתיבה וביצירה?</translation>
 <translation id="7134098520442464001">הקטנת טקסט</translation>
+<translation id="7134653428559514680">לא מומלץ לשתף תוכן מהאתר הזה</translation>
 <translation id="7134951043985383439">בוצעה הורדה של קובץ מסוכן</translation>
 <translation id="7135729336746831607">‏האם להפעיל את Bluetooth?</translation>
 <translation id="7136694880210472378">הגדרה כברירת מחדל</translation>
@@ -9132,6 +9132,7 @@
 <translation id="7460045493116006516">העיצוב הנוכחי</translation>
 <translation id="7461924472993315131">הצמדה</translation>
 <translation id="746216226901520237">‏בפעם הבאה, הטלפון יבטל את הנעילה של <ph name="DEVICE_TYPE" />. אפשר להשבית את Smart Lock דרך ההגדרות.</translation>
+<translation id="7463068149674892185">לא מומלץ לבצע את הפעולה הזו</translation>
 <translation id="746329643760972486">MacOS</translation>
 <translation id="7463985990119325874">הארגון שלך קובע את אופן השימוש בנתונים שנאספו באמצעות התכונות האלה.</translation>
 <translation id="7464645554245611385">העדכון האחרון לכרטיסייה הזו</translation>
@@ -9301,6 +9302,7 @@
 <translation id="7585106857920830898">המערכת בודקת אם הקובץ עומד בדרישות של מדיניות האבטחה של הארגון…</translation>
 <translation id="7586498138629385861">‏Chrome ימשיך לפעול כל עוד יש אפליקציות Chrome פתוחות.</translation>
 <translation id="7587806318633605613">היסטוריית הצעות</translation>
+<translation id="7589448773774086276">תצוגה מפוצלת חדשה עם הכרטיסייה הנוכחית</translation>
 <translation id="7589461650300748890">היי! זהירות.</translation>
 <translation id="7590883480672980941">הגדרות קלט</translation>
 <translation id="7592060599656252486">חלק</translation>
@@ -10250,6 +10252,7 @@
 <translation id="8230134520748321204">האם לשמור את הסיסמה של <ph name="ORIGIN" />?</translation>
 <translation id="8230326817897075865">מחיקת <ph name="CREDENTIAL_TYPE" /></translation>
 <translation id="8230446983261649357">לא לאפשר לאתרים להציג תמונות</translation>
+<translation id="8231438895476693774">הוספת הכרטיסייה לתצוגה מפוצלת חדשה</translation>
 <translation id="823226567613548870">מחיקת הנתונים של <ph name="BRAND" /></translation>
 <translation id="8233028084277069927">פתיחה עכשיו</translation>
 <translation id="8234795456569844941">רוצה לעזור למהנדסים שלנו לפתור את הבעיה הזו? אפשר לספר לנו מה קרה לפני שהוצגה לך הודעת השגיאה לגבי הפרופיל:</translation>
@@ -10262,6 +10265,7 @@
 <translation id="8239932336306009582">לא מורשים לשלוח התראות</translation>
 <translation id="8241040075392580210">צל</translation>
 <translation id="8241338426526905580">אין אישורים</translation>
+<translation id="8241650983304689286">הוספת הכרטיסייה לתצוגה מפוצלת חדשה</translation>
 <translation id="8241806945692107836">קביעת תצורת המכשיר...</translation>
 <translation id="8241868517363889229">לקרוא ולשנות את הסימניות שלך</translation>
 <translation id="8242273718576931540">לא ניתן לחבר את המכשיר שלך לרשת זו. <ph name="BEGIN_LINK_LEARN_MORE" />מידע נוסף<ph name="END_LINK_LEARN_MORE" /></translation>
@@ -11115,7 +11119,6 @@
 <translation id="8827125715368568315">בוצעה חסימה להרשאות <ph name="PERMISSION" /> ועוד <ph name="COUNT" /></translation>
 <translation id="8827289157496676362">הצמדת התוסף</translation>
 <translation id="8828933418460119530">‏שם DNS</translation>
-<translation id="8829979393064090868">הוספת הכרטיסייה לתצוגה מפוצלת</translation>
 <translation id="8830479210602243906">שיפור הפרודוקטיביות</translation>
 <translation id="883062543841130884">תחליפים</translation>
 <translation id="8830779999439981481">מתבצעת הפעלה מחדש להחלת העדכונים</translation>

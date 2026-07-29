@@ -337,6 +337,9 @@ extern const char kFullscreenTransitionDescription[];
 extern const char kFullscreenSmoothScrollingName[];
 extern const char kFullscreenSmoothScrollingDescription[];
 
+extern const char kFullscreenScrollThresholdName[];
+extern const char kFullscreenScrollThresholdDescription[];
+
 extern const char kHomeMemoryImprovementsName[];
 extern const char kHomeMemoryImprovementsDescription[];
 
@@ -437,6 +440,9 @@ extern const char kNonModalSignInPromoDescription[];
 extern const char kNotificationCollisionManagementName[];
 extern const char kNotificationCollisionManagementDescription[];
 
+extern const char kNTPMIAEntrypointName[];
+extern const char kNTPMIAEntrypointDescription[];
+
 extern const char kIOSSharedHighlightingColorChangeName[];
 extern const char kIOSSharedHighlightingColorChangeDescription[];
 
@@ -492,9 +498,6 @@ extern const char kLensLoadAIMInLensResultPageDescription[];
 
 extern const char kLensOverlayForceShowOnboardingScreenName[];
 extern const char kLensOverlayForceShowOnboardingScreenDescription[];
-
-extern const char kLensOverlayAlternativeOnboardingName[];
-extern const char kLensOverlayAlternativeOnboardingDescription[];
 
 extern const char kLensOverlayDisableIPHPanGestureName[];
 extern const char kLensOverlayDisableIPHPanGestureDescription[];
@@ -791,6 +794,9 @@ extern const char kSendUmaOverAnyNetworkDescription[];
 extern const char kSeparateProfilesForManagedAccountsName[];
 extern const char kSeparateProfilesForManagedAccountsDescription[];
 
+extern const char kShareExtensionForMultiprofileName[];
+extern const char kShareExtensionForMultiprofileDescription[];
+
 extern const char kSharedHighlightingIOSName[];
 extern const char kSharedHighlightingIOSDescription[];
 
@@ -865,9 +871,6 @@ extern const char kEnableLensOverlayDescription[];
 
 extern const char kEnableLensViewFinderUnifiedExperienceName[];
 extern const char kEnableLensViewFinderUnifiedExperienceDescription[];
-
-extern const char kEnableLensContextMenuUnifiedExperienceName[];
-extern const char kEnableLensContextMenuUnifiedExperienceDescription[];
 
 extern const char kTabGridNewTransitionsName[];
 extern const char kTabGridNewTransitionsDescription[];

@@ -173,7 +173,9 @@ class MockPage : public side_panel::mojom::CustomizeChromePage {
   MOCK_METHOD(void,
               AttachedTabStateUpdated,
               (side_panel::mojom::NewTabPageType));
-  MOCK_METHOD(void, NtpManagedByNameUpdated, (const std::string&));
+  MOCK_METHOD(void,
+              NtpManagedByNameUpdated,
+              (const std::string&, const std::string&));
   MOCK_METHOD(void, SetFooterSettings, (bool visible));
 
   mojo::Receiver<side_panel::mojom::CustomizeChromePage> receiver_{this};
@@ -206,6 +208,7 @@ class MockNtpBackgroundService : public NtpBackgroundService {
       : NtpBackgroundService(application_locale_storage, url_loader_factory) {}
   MOCK_CONST_METHOD0(collection_info, std::vector<CollectionInfo>&());
   MOCK_CONST_METHOD0(collection_images, std::vector<CollectionImage>&());
+  MOCK_METHOD(void, FetchCollectionInfo, (const std::string& filtering_label));
   MOCK_METHOD(void, FetchCollectionInfo, ());
   MOCK_METHOD(void, FetchCollectionImageInfo, (const std::string&));
   MOCK_METHOD(void,
@@ -587,7 +590,7 @@ TEST_F(CustomizeChromePageHandlerTest, GetBackgroundCollections) {
       CustomizeChromePageHandler::GetBackgroundCollectionsCallback>
       callback;
   EXPECT_CALL(callback, Run(_)).Times(1).WillOnce(MoveArg(&collections));
-  EXPECT_CALL(mock_ntp_background_service(), FetchCollectionInfo).Times(1);
+  EXPECT_CALL(mock_ntp_background_service(), FetchCollectionInfo()).Times(1);
   handler().GetBackgroundCollections(callback.Get());
   ntp_background_service_observer().OnCollectionInfoAvailable();
 
@@ -1200,20 +1203,24 @@ TEST_F(CustomizeChromePageHandlerWithTemplateURLServiceTest,
   testing::Mock::VerifyAndClearExpectations(&mock_page_);
 
   std::string name;
+  std::string description;
   EXPECT_CALL(mock_page_, NtpManagedByNameUpdated)
       .Times(1)
-      .WillOnce(SaveArg<0>(&name));
+      .WillOnce(DoAll(SaveArg<0>(&name), SaveArg<1>(&description)));
   SetFirstPartyDefault();
   mock_page_.FlushForTesting();
   EXPECT_EQ(std::string(), name);
+  EXPECT_EQ(std::string(), description);
 
   mock_page_.FlushForTesting();
   testing::Mock::VerifyAndClearExpectations(&mock_page_);
 
   EXPECT_CALL(mock_page_, NtpManagedByNameUpdated)
       .Times(1)
-      .WillOnce(SaveArg<0>(&name));
+      .WillOnce(DoAll(SaveArg<0>(&name), SaveArg<1>(&description)));
   SetThirdPartyDefault();
   mock_page_.FlushForTesting();
   EXPECT_EQ(std::string(base::UTF16ToUTF8(kThirdPartyShortName)), name);
+  EXPECT_EQ(l10n_util::GetStringUTF8(IDS_NTP_MANAGED_BY_SEARCH_ENGINE),
+            description);
 }

@@ -10,6 +10,7 @@
 #include "base/time/time.h"
 #include "build/android_buildflags.h"
 #include "build/build_config.h"
+#include "build/buildflag.h"
 #include "build/chromecast_buildflags.h"
 #include "third_party/blink/public/common/features_generated.h"
 #include "third_party/blink/public/common/forcedark/forcedark_switches.h"
@@ -727,7 +728,13 @@ BASE_FEATURE_ENUM_PARAM(
 // window's top-level site.
 BASE_FEATURE(kEnforceNoopenerOnBlobURLNavigation,
              "EnforceNoopenerOnBlobURLNavigation",
+// TODO(crbug.com/421810301): Temporarily disable this feature on ChromeOS due
+// to a regression.
+#if BUILDFLAG(IS_CHROMEOS)
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#else
              base::FEATURE_ENABLED_BY_DEFAULT);
+#endif
 
 BASE_FEATURE(kEventTimingIgnorePresentationTimeFromUnexpectedFrameSource,
              "EventTimingIgnorePresentationTimeFromUnexpectedFrameSource",
@@ -2237,19 +2244,6 @@ BASE_FEATURE_PARAM(bool,
                    "rest",
                    false);
 
-BASE_FEATURE(kProduceCompileHints2,
-             "ProduceCompileHints2",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-BASE_FEATURE_PARAM(double,
-                   kProduceCompileHintsNoiseLevel,
-                   &kProduceCompileHints2,
-                   "noise-probability",
-                   0.5);
-BASE_FEATURE_PARAM(double,
-                   kProduceCompileHintsDataProductionLevel,
-                   &kProduceCompileHints2,
-                   "data-production-probability",
-                   0.005);
 BASE_FEATURE(kForceProduceCompileHints,
              "ForceProduceCompileHints",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -2695,7 +2689,7 @@ BASE_FEATURE(kWebAppBorderless,
 // https://github.com/WICG/manifest-incubations/blob/gh-pages/scope_extensions-explainer.md
 BASE_FEATURE(kWebAppEnableScopeExtensions,
              "WebAppEnableScopeExtensions",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Controls scope extensions feature in web apps. Enables parsing of "site"
 // entries in "scope_extensions" field in web app manifests. See explainer for
@@ -2799,7 +2793,7 @@ BASE_FEATURE(kWebRtcUseMinMaxVEADimensions,
 // Kill switch for crbug.com/407785197.
 BASE_FEATURE(kWebRtcAllowDataChannelRecordingInWebrtcInternals,
              "WebRtcAllowDataChannelRecordingInWebrtcInternals",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Kill switch for https://crbug.com/338955051.
 BASE_FEATURE(kWebUSBTransferSizeLimit,

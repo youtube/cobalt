@@ -622,6 +622,7 @@ void AddClearBrowsingDataStrings(content::WebUIDataSource* html_source,
       {"clearPasswords", IDS_SETTINGS_CLEAR_PASSWORDS},
       {"clearFormData", IDS_SETTINGS_CLEAR_FORM_DATA},
       {"clearHostedAppData", IDS_SETTINGS_CLEAR_HOSTED_APP_DATA},
+      {"clearPeriod15Min", IDS_SETTINGS_CLEAR_PERIOD_15_MIN},
       {"clearPeriod15Minutes", IDS_SETTINGS_CLEAR_PERIOD_15_MINUTES},
       {"clearPeriodHour", IDS_SETTINGS_CLEAR_PERIOD_HOUR},
       {"clearPeriod24Hours", IDS_SETTINGS_CLEAR_PERIOD_24_HOURS},
@@ -649,8 +650,11 @@ void AddClearBrowsingDataStrings(content::WebUIDataSource* html_source,
        IDS_SETTINGS_MANAGE_IN_GOOGLE_PASSWORD_MANAGER},
       {"searchHistory", IDS_SETTINGS_SEARCH_HISTORY},
       {"myActivity", IDS_SETTINGS_MY_ACTIVITY},
-      {"manageInYourGoogleAccount",
-       IDS_SETTINGS_MANAGE_IN_YOUR_GOOGLE_ACCOUNT}};
+      {"manageInYourGoogleAccount", IDS_SETTINGS_MANAGE_IN_YOUR_GOOGLE_ACCOUNT},
+      {"deletionConfirmationToast",
+       IDS_SETTINGS_DELETION_CONFIRMATION_TOAST_LABEL},
+      {"deletionConfirmationAllTimeToast",
+       IDS_SETTINGS_DELETION_CONFIRMATION_ALL_TIME_TOAST_LABEL}};
 
   html_source->AddString(
       "clearGoogleSearchHistoryGoogleDse",
@@ -674,6 +678,10 @@ void AddClearBrowsingDataStrings(content::WebUIDataSource* html_source,
       l10n_util::GetStringFUTF16(
           IDS_CLEAR_BROWSING_DATA_PASSWORDS_NOTICE,
           l10n_util::GetStringUTF16(IDS_PASSWORDS_WEB_LINK)));
+  html_source->AddString("deleteBrowsingDataMyActivityUrl",
+                         chrome::kMyActivityUrlInClearBrowsingData);
+  html_source->AddString("deleteBrowsingDataSearchHistoryUrl",
+                         chrome::kSearchHistoryUrlInClearBrowsingData);
 
 #if !BUILDFLAG(IS_CHROMEOS)
   html_source->AddBoolean(
@@ -1623,10 +1631,13 @@ void AddPersonalizationOptionsStrings(content::WebUIDataSource* html_source) {
       {"enablePersonalizationLoggingDesc",
        IDS_SETTINGS_ENABLE_LOGGING_PREF_DESC},
       {"spellingDescription", IDS_SETTINGS_SPELLING_PREF_DESC},
-      {"searchSuggestPrefDesc", IDS_SETTINGS_SUGGEST_PREF_DESC},
       {"linkDoctorPref", IDS_SETTINGS_LINKDOCTOR_PREF},
       {"linkDoctorPrefDesc", IDS_SETTINGS_LINKDOCTOR_PREF_DESC},
       {"searchSuggestPref", IDS_SETTINGS_SUGGEST_PREF},
+      {"searchSuggestPrefDesc", IDS_SETTINGS_SUGGEST_PREF_DESC},
+      {"searchAggregatorSuggestPref", IDS_SETTINGS_SEARCH_AGGREGATOR_PREF},
+      {"searchAggregatorSuggestPrefDesc",
+        IDS_SETTINGS_SEARCH_AGGREGATOR_PREF_DESC},
       {"priceEmailNotificationsPref", IDS_PRICE_TRACKING_SETTINGS_TITLE},
       {"priceEmailNotificationsPrefDesc",
        IDS_PRICE_TRACKING_SETTINGS_EMAIL_DESCRIPTION},
@@ -1735,13 +1746,18 @@ void AddSyncControlsStrings(content::WebUIDataSource* html_source) {
       {"syncEverythingCheckboxLabel",
        IDS_SETTINGS_SYNC_EVERYTHING_CHECKBOX_LABEL},
       {"appCheckboxLabel", IDS_SETTINGS_APPS_CHECKBOX_LABEL},
-      {"paymentsCheckboxLabel", IDS_SYNC_DATATYPE_PAYMENTS},
       {"nonPersonalizedServicesSectionLabel",
        IDS_SETTINGS_NON_PERSONALIZED_SERVICES_SECTION_LABEL},
       {"customizeSyncLabel", IDS_SETTINGS_CUSTOMIZE_SYNC},
       {"syncData", IDS_SETTINGS_SYNC_DATA},
   };
   html_source->AddLocalizedStrings(kLocalizedStrings);
+  html_source->AddLocalizedString(
+      "paymentsCheckboxLabel",
+      base::FeatureList::IsEnabled(
+          autofill::features::kAutofillEnableLoyaltyCardsFilling)
+          ? IDS_SYNC_DATATYPE_PAYMENTS_AND_INFO
+          : IDS_SYNC_DATATYPE_PAYMENTS);
 }
 
 void AddPeopleStrings(content::WebUIDataSource* html_source, Profile* profile) {
@@ -2045,8 +2061,12 @@ void AddPrivacyStrings(content::WebUIDataSource* html_source,
        IDS_SETTINGS_PRELOAD_PAGES_EXTENDED_PRELOADING_THINGS_TO_CONSIDER_BULLET_TWO},
       {"preloadingPageThingsToConsiderBulletOne",
        IDS_SETTINGS_PRELOAD_PAGES_THINGS_TO_CONSIDER_BULLET_ONE},
-      {"securityV8LinkTitle", IDS_SETTINGS_SECURITY_V8_LINK_TITLE},
-      {"securityV8LinkDescription", IDS_SETTINGS_SECURITY_V8_LINK_DESCRIPTION},
+      {"securityJavascriptOptimizerLinkTitle",
+       IDS_SETTINGS_SECURITY_JAVASCRIPT_OPTIMIZATION_LINK_TITLE},
+      {"securityJavascriptOptimizerLinkRowLabelEnabled",
+       IDS_SETTINGS_SECURITY_JAVASCRIPT_OPTIMIZATION_LINK_ROW_ENABLED},
+      {"securityJavascriptOptimizerLinkRowLabelDisabled",
+       IDS_SETTINGS_SECURITY_JAVASCRIPT_OPTIMIZATION_LINK_ROW_DISABLED},
 #if BUILDFLAG(IS_CHROMEOS)
       {"openChromeOSSecureDnsSettingsLabel",
        IDS_SETTINGS_SECURE_DNS_OPEN_CHROME_OS_SETTINGS_LABEL},

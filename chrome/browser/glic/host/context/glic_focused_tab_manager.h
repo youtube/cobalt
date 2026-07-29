@@ -5,6 +5,8 @@
 #ifndef CHROME_BROWSER_GLIC_HOST_CONTEXT_GLIC_FOCUSED_TAB_MANAGER_H_
 #define CHROME_BROWSER_GLIC_HOST_CONTEXT_GLIC_FOCUSED_TAB_MANAGER_H_
 
+#include <variant>
+
 #include "base/callback_list.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
@@ -30,6 +32,9 @@ class Widget;
 class BrowserWindowInterface;
 
 namespace glic {
+
+class GlicMetrics;
+
 // Responsible for managing which tab is considered "focused" and for accessing
 // its WebContents. This is an implementation detail of GlicKeyedService and
 // others should rely on the interface that GlicKeyedService exposes for
@@ -39,8 +44,10 @@ class GlicFocusedTabManager : public BrowserListObserver,
                               public GlicWindowController::StateObserver,
                               public views::WidgetObserver {
  public:
-  explicit GlicFocusedTabManager(Profile* profile,
-                                 GlicWindowController& window_controller);
+  GlicFocusedTabManager(Profile* profile,
+                        GlicWindowController& window_controller,
+                        Host* host,
+                        GlicMetrics* metrics);
   ~GlicFocusedTabManager() override;
 
   GlicFocusedTabManager(const GlicFocusedTabManager&) = delete;
@@ -95,6 +102,14 @@ class GlicFocusedTabManager : public BrowserListObserver,
       base::RepeatingCallback<void(const glic::mojom::TabData*)>;
   base::CallbackListSubscription AddFocusedTabDataChangedCallback(
       FocusedTabDataChangedCallback callback);
+
+  void GetContextFromFocusedTab(
+      const mojom::GetTabContextOptions& options,
+      base::OnceCallback<void(glic::mojom::GetContextResultPtr)> callback);
+
+  // True if the tab_id corresponds to either the focused tab or a tab whose
+  // contents match the no-focus candidate.
+  bool IsTabFocused(int tab_id) const;
 
  private:
   // Data provided when there is no focused tab.
@@ -281,6 +296,9 @@ class GlicFocusedTabManager : public BrowserListObserver,
 
   // The Glic window controller.
   raw_ref<GlicWindowController> window_controller_;
+
+  // Enables providing focus-related input to metrics.
+  raw_ptr<GlicMetrics> metrics_;
 
   // The currently focused tab data.
   FocusedTabDataImpl focused_tab_data_;

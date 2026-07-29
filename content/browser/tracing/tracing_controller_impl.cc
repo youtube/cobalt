@@ -191,9 +191,11 @@ TracingController* TracingController::GetInstance() {
   return TracingControllerImpl::GetInstance();
 }
 
-TracingControllerImpl::TracingControllerImpl() {
+TracingControllerImpl::TracingControllerImpl()
+    : delegate_(GetContentClient()->browser()->CreateTracingDelegate()) {
   DCHECK(!g_tracing_controller);
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  CHECK(delegate_);
   // Deliberately leaked, like this class.
   base::FileTracing::SetProvider(new FileTracingProviderImpl);
   InitializeDataSources();
@@ -458,11 +460,10 @@ bool TracingControllerImpl::StartTracing(
   DCHECK(!tracing_session_host_);
   ConnectToServiceIfNeeded();
 
-  perfetto::TraceConfig perfetto_config = tracing::GetDefaultPerfettoConfig(
-      trace_config,
-      /*privacy_filtering_enabled=*/false,
-      /*convert_to_legacy_json=*/true,
-      perfetto::protos::gen::ChromeConfig::USER_INITIATED);
+  perfetto::TraceConfig perfetto_config =
+      tracing::GetDefaultPerfettoConfig(trace_config,
+                                        /*privacy_filtering_enabled=*/false,
+                                        /*convert_to_legacy_json=*/true);
 
   consumer_host_->EnableTracing(
       tracing_session_host_.BindNewPipeAndPassReceiver(),

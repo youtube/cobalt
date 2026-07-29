@@ -743,6 +743,10 @@ bool ContentBrowserClient::AreThirdPartyCookiesGenerallyAllowed(
   return true;
 }
 
+void ContentBrowserClient::PrewarmServiceWorkerRegistrationForDSE(
+    BrowserContext* browser_context,
+    ServiceWorkerContext& service_worker_context) {}
+
 bool ContentBrowserClient::CanSendSCTAuditingReport(
     BrowserContext* browser_context) {
   return false;
@@ -963,7 +967,7 @@ ContentBrowserClient::GetDevToolsBackgroundServiceExpirations(
 }
 
 std::unique_ptr<TracingDelegate> ContentBrowserClient::CreateTracingDelegate() {
-  return nullptr;
+  return std::make_unique<TracingDelegate>();
 }
 
 bool ContentBrowserClient::IsSystemWideTracingEnabled() {

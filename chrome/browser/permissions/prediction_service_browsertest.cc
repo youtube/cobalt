@@ -30,11 +30,10 @@
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/content_settings/core/common/pref_names.h"
 #include "components/metrics/content/subprocess_metrics_provider.h"
-#include "components/optimization_guide/core/model_util.h"
+#include "components/optimization_guide/core/delivery/model_util.h"
+#include "components/optimization_guide/core/delivery/test_model_info_builder.h"
+#include "components/optimization_guide/core/delivery/test_optimization_guide_model_provider.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
-#include "components/optimization_guide/core/optimization_guide_test_util.h"
-#include "components/optimization_guide/core/test_model_info_builder.h"
-#include "components/optimization_guide/core/test_optimization_guide_model_provider.h"
 #include "components/optimization_guide/proto/models.pb.h"
 #include "components/permissions/features.h"
 #include "components/permissions/permission_request_manager.h"
@@ -409,9 +408,7 @@ class PredictionServiceHoldbackBrowserTest
                                           permissions::features::
                                               kPermissionsAIv1,
                                           permissions::features::
-                                              kPermissionsAIv3,
-                                          permissions::features::
-                                              kPermissionsAIv3Geolocation}) {}
+                                              kPermissionsAIv3}) {}
 
   void SetUpOnMainThread() override {
     PredictionServiceBrowserTestBase::SetUpOnMainThread();
@@ -526,9 +523,7 @@ class SignatureModelPredictionServiceBrowserTest
                                          {permissions::features::
                                               kPermissionsAIv1,
                                           permissions::features::
-                                              kPermissionsAIv3,
-                                          permissions::features::
-                                              kPermissionsAIv3Geolocation}) {}
+                                              kPermissionsAIv3}) {}
 
   void TriggerCpssV1AndVerifyUi(
       PermissionAction permission_action,
@@ -793,11 +788,9 @@ std::vector<ModelMetadata> model_data_testcase = {
 
 std::vector<PermissionRequestMetadata> request_data_testcase = {
     {
-
         /*optimization_target=*/kAiv3OptTargetGeolocation,
         /*request_type=*/RequestType::kGeolocation},
     {
-
         /*optimization_target=*/kAiv3OptTargetNotification,
         /*request_type=*/RequestType::kNotifications},
 };

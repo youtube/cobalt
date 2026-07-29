@@ -5,7 +5,6 @@
 <translation id="1178581264944972037">一時停止</translation>
 <translation id="1246424317317450637">太字</translation>
 <translation id="1357114957607379632">AI 再生を生成しています...</translation>
-<translation id="1370273601702151510">高く評価</translation>
 <translation id="1483137792530497944">川</translation>
 <translation id="1586836055630070874">心地良い</translation>
 <translation id="1639239467298939599">読み込んでいます</translation>
@@ -19,7 +18,6 @@
 <translation id="2575502321843437554">あまり興味を引かなかった</translation>
 <translation id="2611765907167846862">うららか</translation>
 <translation id="3023502830214299618">現在このページでは再生できません。しばらくしてからもう一度お試しください。</translation>
-<translation id="3457812538570616687">低く評価</translation>
 <translation id="3493899379487634969">どのような問題がありましたか。</translation>
 <translation id="3730775656877876887">AI 再生を生成しています</translation>
 <translation id="3778044272390020426">低評価のオプション メニュー</translation>
@@ -33,6 +31,7 @@
 <translation id="4525525184005340968">谷</translation>
 <translation id="4710974520964166851">リラックス</translation>
 <translation id="4773921449011281499">安らぐ</translation>
+<translation id="4867493576811701175">高評価ボタンです。選択すると、この機能が気に入ったというフィードバックが送信されます</translation>
 <translation id="4872475766448853257"><ph name="NUMBER_OF_SECONDS" /> 秒巻き戻し</translation>
 <translation id="4967513477347430212">海岸</translation>
 <translation id="5026371835667036198">明るい</translation>
@@ -63,6 +62,7 @@
 <translation id="8136852699834914183">このページは再生できません。</translation>
 <translation id="8198036737896977997">空気</translation>
 <translation id="8264989794233974275">速度を <ph name="PLAYBACK_SPEED" /> 倍速く / 遅くする。</translation>
+<translation id="837054959055425654">低評価ボタンです。選択するとフォームが開き、この機能に関する問題について詳細なフィードバックを提供できます</translation>
 <translation id="8407011429883244666">プレーヤーを閉じる。</translation>
 <translation id="8462210863277153423">品質改善と調査のため、フィードバックとともに URL がアップロードされます。</translation>
 <translation id="8481839122437406573">穏やか</translation>

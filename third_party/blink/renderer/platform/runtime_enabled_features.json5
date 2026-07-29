@@ -303,11 +303,6 @@
       name: "AdjustEndOfNextParagraphIfMovedParagraphIsUpdated",
       status: "stable",
     },
-    // See crbug.com/41115285
-    {
-      name: "AdjustStartOfParagraphToMoveDuringIndent",
-      status: "stable",
-    },
     {
       name: "AdTagging",
       public: true,
@@ -893,12 +888,6 @@
     // and can be removed in M140.
     {
       name: "ClearPopoverInvokerAfterBeforeToggle",
-      status: "stable",
-    },
-    // crbug.com/40851596: Send click to the capture pointer target instead of
-    // the common ancestor of pointerdown and pointerup targets.
-    {
-      name: "ClickToCapturedPointer",
       status: "stable",
     },
     {
@@ -1589,6 +1578,11 @@
       status: "experimental",
     },
     {
+      // crbug.com/41442840: Enabled by default on M139, remove after M141.
+      name: "CSSTransitionNoneRunningTransitionsFix",
+      status: "stable",
+    },
+    {
       // Support for tree-scoped [1] timeline names (e.g. produced by
       // scroll-timeline).
       //
@@ -1644,6 +1638,12 @@
       name: "CustomizableSelectInPage",
       status: "experimental",
       depends_on: ["CustomizableSelect"],
+    },
+    {
+      // appearance:base-select for <select multiple size=1> with a picker.
+      name: "CustomizableSelectMultiplePopup",
+      status: "experimental",
+      depends_on: ["CustomizableSelectInPage"],
     },
     {
       // Replaces \r\n and \r with \n in setCustomValidity.
@@ -1826,12 +1826,6 @@
       name: "DisplayCutoutAPI",
       base_feature: "none",
       public: true,
-    },
-    {
-      // Scale very large height and width of HTML Element
-      // to allow DnD.
-      name: "DnDScaleHeightAndWidthToMaxDimension",
-      status: "stable",
     },
     {
       name: "DocumentCookie",
@@ -2569,7 +2563,7 @@
     {
       name: "HTMLCommandRequestClose",
       depends_on: ["HTMLCommandAttributes"],
-      status: "experimental",
+      status: "stable",
     },
     // The `<embed>` should follow the specification, layout is not forced
     // when the `type` attribute is set to `image`.
@@ -2687,12 +2681,6 @@
       name: "ImprovedSourceRetargeting",
       status: "experimental",
     },
-    // This ensures that table tag is included in extended selection.
-    // https://crbug.com/40833812
-    {
-      name: "IncludeTableTagInExtendedSelection",
-      status: "stable",
-    },
     {
       name: "IncomingCallNotifications",
     },
@@ -2786,7 +2774,7 @@
     },
     {
       name: "InstallOnDeviceSpeechRecognition",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "IntegrityPolicyScript",
@@ -2879,6 +2867,10 @@
       public: true,
     },
     {
+      name: "LayoutAddChildBeforeDescendantFix",
+      status: "stable",
+    },
+    {
       // LayoutBox::PhysicalLocation() to return a truly visual offset - the
       // offset of its first fragment relatively to the first fragment of its
       // containing block, also when block-fragmented (used to be in the
@@ -2906,7 +2898,7 @@
       status: "stable",
     },
     {
-      name: "LayoutMinSizeIndefinite",
+      name: "LayoutNewReplacedLogic",
       status: "stable",
     },
     {
@@ -3264,11 +3256,6 @@
       status: "stable",
     },
     {
-      // crbug.com/380107555
-      name: "NodeInUAShadowRootUnderAnonymousBlockFlow",
-      status: "stable",
-    },
-    {
       // This turns off all font antialiasing for tests unless it is
       // explicitly required and enabled using the
       // "--enable-font-antialiasing" flag like in the case of
@@ -3328,6 +3315,10 @@
       base_feature: "none",
     },
     {
+      name: "NumberInputFullWidthChars",
+      status: "stable",
+    },
+    {
       name: "ObservableAPI",
       status: "stable",
       public: true,
@@ -3350,7 +3341,7 @@
     },
     {
       name: "OnDeviceWebSpeechAvailable",
-      status: "experimental",
+      status: "stable",
     },
     {
       // This flag makes the <option> element's label attribute render the
@@ -3558,11 +3549,6 @@
     // This is to add an option to enable the Reveal button on password inputs while waiting ::reveal gets standardized.
     {
       name: "PasswordReveal",
-    },
-    {
-      // https://crbug.com/41247646
-      name: "PasteListItemOutsidePreviousListItem",
-      status: "stable",
     },
     {
       name: "PaymentApp",
@@ -3887,6 +3873,14 @@
       name: "ReadableStreamAsyncIterable",
       status: "stable",
     },
+    {
+      // Enables support for a 'min' option in ReadableStream BYOBReader.read(),
+      // allowing callers to specify the minimum number of bytes to be read into
+      // the buffer before resolving the read request.
+      // https://chromestatus.com/feature/6396991665602560
+      name: "ReadableStreamBYOBReaderReadMinOption",
+      status: "experimental",
+    },
     // If enabled, both Accept-Language HTTP header and JavaScript getter will
     // be reduced.
     {
@@ -4116,7 +4110,7 @@
     },
     {
       name: "RTCEncodedFrameAudioLevel",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "RTCEncodedFrameSetMetadata",
@@ -4245,7 +4239,7 @@
     },
     {
       name: "ScrollAnchorPriorityCandidateSubtree",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "ScrollbarColor",
@@ -4640,9 +4634,6 @@
       origin_trial_feature_name: "SoftNavigationHeuristics",
     },
     {
-      name: "SoftNavigationHeuristicsExposeFPAndFCP",
-    },
-    {
       // Whether spatial navigation should use cursor inheritance to exclude
       // nodes where cursor is inherited. Kill-switch that can be remove once
       // the change goes through a stable release.
@@ -4766,6 +4757,10 @@
     {
       name: "SvgTransformOnNestedSvgElement",
       status: "stable",
+    },
+    {
+      name: "SvgUseInstancesAttributeSync",
+      status: "stable"
     },
     {
       name: "SynthesizedKeyboardEventsForAccessibilityActions",
@@ -5034,9 +5029,9 @@
     {
       name: "TranslationAPI",
       status: {
-        "Win": "experimental",
-        "Mac": "experimental",
-        "Linux": "experimental",
+        "Win": "stable",
+        "Mac": "stable",
+        "Linux": "stable",
         "default": "",
       },
       origin_trial_feature_name: "TranslationAPI",
@@ -5088,6 +5083,11 @@
     },
     {
       name: "UnexposedTaskIds",
+    },
+    // This is a kill switch for the unprefixed Web Speech API.
+    {
+      name: "UnprefixedSpeechRecognition",
+      status: "stable",
     },
     {
       name: "UnrestrictedMeasureUserAgentSpecificMemory",
@@ -5199,6 +5199,10 @@
       // This is a performance improvement which has slight visual differences.
       // Enabled in M137. http://crbug.com/334963179
       name: "ValidationBubbleNoForcedLayout",
+      status: "stable",
+    },
+    {
+      name: "VideoAspectRatioNaturalDimension",
       status: "stable",
     },
     {
@@ -5351,14 +5355,6 @@
     {
       name: "WebAuthAuthenticatorAttachment",
       status: "test",
-    },
-    // Aligns the error thrown by navigator.credentials.create in a
-    // cross-origin iframe with no user activation to be correct to the
-    // webauthn spec whether or not the 'payment' extension is specified. See
-    // https://crbug.com/41484826
-    {
-      name: "WebAuthenticationAlignErrorTypeForPaymentCredentialCreate",
-      status: "stable",
     },
     // Prototyping https://github.com/w3c/webauthn/issues/2144
     {
@@ -5525,6 +5521,7 @@
       // Launch feature flag for WebGPU Compatibility Mode
       // https://chromestatus.com/feature/6436406437871616
       name: "WebGPUCompatibilityMode",
+      origin_trial_feature_name: "WebGPUCompatibilityMode",
       status: "experimental",
       // Also enabled as part of all experimental WebGPU features.
       implied_by: ["WebGPUExperimentalFeatures"],
@@ -5546,15 +5543,6 @@
       name: "WebGPUExperimentalFeatures",
       status: "experimental",
       public: true,
-    },
-    {
-      // Launch feature flag for GPURequestAdapterOptions featureLevel
-      // https://chromestatus.com/feature/5154347661656064
-      name: "WebGPUFeatureLevel",
-      status: "experimental",
-      // Also enabled as part of all experimental WebGPU features and
-      // as part of Compatibility Mode.
-      implied_by: ["WebGPUExperimentalFeatures", "WebGPUCompatibilityMode"],
     },
     {
       name: "WebHID",
@@ -5636,6 +5624,7 @@
     },
     {
       name: "WebSpeechRecognitionContext",
+      status: "experimental",
     },
     {
       name: "WebTransportCustomCertificates",

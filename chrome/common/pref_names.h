@@ -2386,6 +2386,9 @@ inline constexpr char kNtpCollapsedSnapshotDocument[] =
 // Keeps track of sync promo collapsed state in the Other Devices menu.
 inline constexpr char kNtpCollapsedSyncPromo[] = "ntp.collapsed_sync_promo";
 #else
+// Name of preference to count of times compose button was shown.
+inline const char kNtpComposeButtonShownCountPrefName[] =
+    "ntp.compose_button.shown_count";
 // Holds info for New Tab Page custom background
 // Use `kNtpCustomBackgroundDict` only.
 inline constexpr char kDeprecatedNtpCustomBackgroundDictDoNotUse[] =
@@ -3262,6 +3265,11 @@ inline constexpr char kDeviceWeeklyScheduledSuspend[] =
 // sessions.
 inline constexpr char kKioskChromeAppsForceAllowed[] =
     "kiosk_chrome_apps_force_allowed";
+
+// A boolean pref which determines whether kiosk application level logs would be
+// collected and stored.
+inline constexpr char kKioskApplicationLogCollectionEnabled[] =
+    "kiosk_application_log_collection_enabled";
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || \

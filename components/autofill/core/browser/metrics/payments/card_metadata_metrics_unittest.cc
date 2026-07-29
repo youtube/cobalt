@@ -726,6 +726,15 @@ class CardBenefitFormEventMetricsTest
     }
   }
 
+  // Returns the benefit source, issuer id, or network suffix for benefit
+  // source, issuer id, or network specific form events.
+  const std::string_view GetSuffix() const {
+    if (is_card_benefits_source_sync_enabled()) {
+      return GetCardBenefitSourceSuffix(card_.benefit_source());
+    }
+    return GetCardIssuerIdOrNetworkSuffix(card_.issuer_id());
+  }
+
  private:
   int credit_card_number_field_index_;
   CreditCard card_;
@@ -754,9 +763,10 @@ INSTANTIATE_TEST_SUITE_P(
 
 // Tests that when the card suggestion shown had a benefit available,
 // `FORM_EVENT_SUGGESTION_FOR_CARD_WITH_BENEFIT_AVAILABLE_SHOWN` is logged as
-// many times as the suggestions are shown, and
-// `FORM_EVENT_SUGGESTION_FOR_CARD_WITH_BENEFIT_AVAILABLE_SHOWN_ONCE` is
-// logged only once.
+// many times as the suggestions are shown.
+// `FORM_EVENT_SUGGESTION_FOR_CARD_WITH_BENEFIT_AVAILABLE_SHOWN_ONCE` is only
+// logged once. `kSuggestionWithBenefitShownWithMultipleServerCards` is not
+// logged.
 TEST_P(CardBenefitFormEventMetricsTest, LogShownMetrics_SuggestionHasBenefits) {
   base::HistogramTester histogram_tester;
   AddBenefitToCard(card());
@@ -773,6 +783,18 @@ TEST_P(CardBenefitFormEventMetricsTest, LogShownMetrics_SuggestionHasBenefits) {
           Bucket(
               FORM_EVENT_SUGGESTION_FOR_CARD_WITH_BENEFIT_AVAILABLE_SHOWN_ONCE,
               1)));
+  EXPECT_THAT(
+      histogram_tester.GetAllSamples("Autofill.FormEvents.CreditCard.Benefits"),
+      BucketsInclude(
+          Bucket(CardBenefitFormEvent::
+                     kSuggestionWithBenefitShownWithMultipleServerCards,
+                 0)));
+  EXPECT_THAT(histogram_tester.GetAllSamples(base::StrCat(
+                  {"Autofill.FormEvents.CreditCard.Benefits.", GetSuffix()})),
+              BucketsInclude(
+                  Bucket(CardBenefitFormEvent::
+                             kSuggestionWithBenefitShownWithMultipleServerCards,
+                         0)));
 
   // Show the popup again.
   ShowCardSuggestions();
@@ -787,15 +809,26 @@ TEST_P(CardBenefitFormEventMetricsTest, LogShownMetrics_SuggestionHasBenefits) {
           Bucket(
               FORM_EVENT_SUGGESTION_FOR_CARD_WITH_BENEFIT_AVAILABLE_SHOWN_ONCE,
               1)));
+  EXPECT_THAT(
+      histogram_tester.GetAllSamples("Autofill.FormEvents.CreditCard.Benefits"),
+      BucketsInclude(
+          Bucket(CardBenefitFormEvent::
+                     kSuggestionWithBenefitShownWithMultipleServerCards,
+                 0)));
+  EXPECT_THAT(histogram_tester.GetAllSamples(base::StrCat(
+                  {"Autofill.FormEvents.CreditCard.Benefits.", GetSuffix()})),
+              BucketsInclude(
+                  Bucket(CardBenefitFormEvent::
+                             kSuggestionWithBenefitShownWithMultipleServerCards,
+                         0)));
 }
 
 // Tests that when we have multiple cards with benefits that share the same
 // issuer or benefit source, we only log
-// FORM_EVENT_SUGGESTION_FOR_CARD_WITH_BENEFIT_AVAILABLE_SHOWN_ONCE once for all
-// cards in that benefit source's benefits histogram.
-TEST_P(
-    CardBenefitFormEventMetricsTest,
-    LogShownMetrics_BenefitHistogram_MultipleSuggestionsWithSameBenefitSourceHaveBenefits) {
+// `FORM_EVENT_SUGGESTION_FOR_CARD_WITH_BENEFIT_AVAILABLE_SHOWN_ONCE` and
+// `kSuggestionWithBenefitShownWithMultipleServerCards` once.
+TEST_P(CardBenefitFormEventMetricsTest,
+       LogShownMetrics_MultipleSuggestionsWithSameIssuerIdOrBenefitSource) {
   base::HistogramTester histogram_tester;
   AddBenefitToCard(card());
 
@@ -808,6 +841,18 @@ TEST_P(
       BucketsAre(Bucket(
           FORM_EVENT_SUGGESTION_FOR_CARD_WITH_BENEFIT_AVAILABLE_SHOWN_ONCE,
           1)));
+  EXPECT_THAT(
+      histogram_tester.GetAllSamples("Autofill.FormEvents.CreditCard.Benefits"),
+      BucketsInclude(
+          Bucket(CardBenefitFormEvent::
+                     kSuggestionWithBenefitShownWithMultipleServerCards,
+                 1)));
+  EXPECT_THAT(
+      histogram_tester.GetAllSamples(base::StrCat(
+          {"Autofill.FormEvents.CreditCard.Benefits.", GetSuffix()})),
+      BucketsAre(Bucket(CardBenefitFormEvent::
+                            kSuggestionWithBenefitShownWithMultipleServerCards,
+                        1)));
 }
 
 // Tests that when the card suggestion shown did not have any benefit available,
@@ -829,6 +874,18 @@ TEST_P(CardBenefitFormEventMetricsTest,
           Bucket(
               FORM_EVENT_SUGGESTION_FOR_CARD_WITH_BENEFIT_AVAILABLE_SHOWN_ONCE,
               0)));
+  EXPECT_THAT(
+      histogram_tester.GetAllSamples("Autofill.FormEvents.CreditCard.Benefits"),
+      BucketsInclude(
+          Bucket(CardBenefitFormEvent::
+                     kSuggestionWithBenefitShownWithMultipleServerCards,
+                 0)));
+  EXPECT_THAT(
+      histogram_tester.GetAllSamples(base::StrCat(
+          {"Autofill.FormEvents.CreditCard.Benefits.", GetSuffix()})),
+      BucketsAre(Bucket(CardBenefitFormEvent::
+                            kSuggestionWithBenefitShownWithMultipleServerCards,
+                        0)));
 }
 
 // Tests that when a masked server card with a benefit is selected after card

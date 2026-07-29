@@ -15,6 +15,7 @@
 #include "third_party/blink/renderer/core/frame/visual_viewport.h"
 #include "third_party/blink/renderer/core/layout/hit_test_location.h"
 #include "third_party/blink/renderer/core/layout/layout_box_model_object.h"
+#include "third_party/blink/renderer/core/layout/layout_object_inlines.h"
 #include "third_party/blink/renderer/core/page/scrolling/snap_coordinator.h"
 #include "third_party/blink/renderer/core/paint/paint_controller_paint_test.h"
 #include "third_party/blink/renderer/core/paint/paint_layer.h"
@@ -374,12 +375,7 @@ TEST_P(PaintLayerScrollableAreaTest, SelectElementPromotionTest) {
   element->setAttribute(html_names::kClassAttr, AtomicString("composited"));
   UpdateAllLifecyclePhasesForTest();
   EXPECT_TRUE(HasDirectCompositingReasons(element->GetLayoutBox()));
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
-  // <select> implementation is different and not scrollable on Android and iOS.
-  EXPECT_FALSE(UsesCompositedScrolling(element->GetLayoutBox()));
-#else
   EXPECT_TRUE(UsesCompositedScrolling(element->GetLayoutBox()));
-#endif
 }
 
 // Ensure OverlayScrollbarColorTheme get updated when page load

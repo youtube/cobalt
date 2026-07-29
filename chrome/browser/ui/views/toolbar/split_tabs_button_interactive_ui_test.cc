@@ -361,19 +361,31 @@ IN_PROC_BROWSER_TEST_F(SplitTabButtonInteractiveTest, ReverseSplitTabPosition) {
           GetTestUrl()));
 }
 
-IN_PROC_BROWSER_TEST_F(SplitTabButtonInteractiveTest, CloseActiveTab) {
-  RunTestSequence(AddInstrumentedTab(kWebContents2Id, GetTestUrl()),
+IN_PROC_BROWSER_TEST_F(SplitTabButtonInteractiveTest, CloseLeftRightTabs) {
+  RunTestSequence(InstrumentTab(kWebContents1Id),
+                  AddInstrumentedTab(kWebContents2Id, GetTestUrl()),
                   SelectTab(kTabStripElementId, 0), EnterSplitView(0, 1),
-                  FocusInactiveTabInSplit(),
                   WaitForShow(kToolbarSplitTabsToolbarButtonElementId),
                   // Open the button's context menu.
                   PressButton(kToolbarSplitTabsToolbarButtonElementId),
-                  WaitForShow(SplitTabMenuModel::kReversePositionMenuItem),
-                  // Selecting close menu item should close the active tab
-                  SelectMenuItem(SplitTabMenuModel::kCloseMenuItem),
-                  WaitForHide(kWebContents2Id),
+                  WaitForShow(SplitTabMenuModel::kCloseStartTabMenuItem),
+                  // Selecting close left menu item should close the left tab
+                  EnsureNotPresent(SplitTabMenuModel::kCloseMenuItem),
+                  SelectMenuItem(SplitTabMenuModel::kCloseStartTabMenuItem),
+                  WaitForHide(kWebContents1Id),
                   WaitForHide(kToolbarSplitTabsToolbarButtonElementId),
-                  CheckTabCount(1));
+                  CheckTabCount(1), EnsurePresent(kWebContents2Id),
+                  // Create a new split with a third tab.
+                  AddInstrumentedTab(kWebContents3Id, GetTestUrl()),
+                  SelectTab(kTabStripElementId, 0), EnterSplitView(0, 1),
+                  WaitForShow(kToolbarSplitTabsToolbarButtonElementId),
+                  PressButton(kToolbarSplitTabsToolbarButtonElementId),
+                  WaitForShow(SplitTabMenuModel::kCloseEndTabMenuItem),
+                  // Selecting close right menu item should close the right tab
+                  SelectMenuItem(SplitTabMenuModel::kCloseEndTabMenuItem),
+                  WaitForHide(kWebContents3Id),
+                  WaitForHide(kToolbarSplitTabsToolbarButtonElementId),
+                  CheckTabCount(1), EnsurePresent(kWebContents2Id));
 }
 
 IN_PROC_BROWSER_TEST_F(SplitTabButtonInteractiveTest, ExitSplit) {
@@ -402,5 +414,5 @@ IN_PROC_BROWSER_TEST_F(SplitTabButtonInteractiveTest, ButtonUpdatesOnSplit) {
                       OnIncompatibleAction::kIgnoreAndContinue,
                       "Screenshot can only run in pixel_tests on Windows."),
                   Screenshot(kToolbarSplitTabsToolbarButtonElementId,
-                             "SplitTabButton", "6618989"));
+                             "SplitTabButton", "6628632"));
 }

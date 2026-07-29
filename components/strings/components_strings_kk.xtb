@@ -522,6 +522,7 @@
 <translation id="1863257867908022953">12-науа</translation>
 <translation id="1864927262126810325"><ph name="SOURCE_NAME" /> дереккөзінен</translation>
 <translation id="186539747722034544">Кабельдік және жерсеріктік провайдерлер</translation>
+<translation id="1866757068250903512"><ph name="READERNAME" /> деп аталатын аутентификация құрылғыларын және олармен бірге қолданылатын смарт карталарды басқару</translation>
 <translation id="1870473978371099486">Жеке сабақ беру қызметтері</translation>
 <translation id="1871208020102129563">Прокси .pac сценарий URL мекенжайын емес, бекітілген прокси серверлерін пайдалануға орнатылған.</translation>
 <translation id="1871284979644508959">Міндетті өріс</translation>
@@ -866,6 +867,7 @@
             <ph name="LIST_ITEM" />үлгілерге енгізілген ақпарат.
           <ph name="END_LIST" /></translation>
 <translation id="2448295565072560657">Сіз жүйеге кіргенде, осы құрылғыға қосылып тұрған перифериялық құрылғылар</translation>
+<translation id="2450019289047528273">Google Wallet-тегі төлеу әдістері және басқа ақпарат</translation>
 <translation id="2451607499823206582">Бағаларды біліп жүру</translation>
 <translation id="2452098632681057184">Экология және қоршаған орта</translation>
 <translation id="2452837234288608067">Ештеңе шықпады. Қайталап көріңіз.</translation>
@@ -935,6 +937,7 @@
 <translation id="2546283357679194313">Cookie файлдары және торап деректері</translation>
 <translation id="254947805923345898">Саясат мәні жарамсыз.</translation>
 <translation id="2549836668759467704">Құрылысқа қатысты консалтинг және мердігерлік қызмет</translation>
+<translation id="2549919488151689436"><ph name="TOPIC_1" />, <ph name="TOPIC_2" /> және т.б.</translation>
 <translation id="255002559098805027"><ph name="HOST_NAME" /> қате жауап жіберді.</translation>
 <translation id="2551608178605132291">Мекенжай: <ph name="ADDRESS" />.</translation>
 <translation id="2552246211866555379">Hagaki</translation>
@@ -1045,6 +1048,7 @@
 <translation id="2743934314332613923">Жүргізуші куәлігін жаңарту керек пе?</translation>
 <translation id="2759299890026163685">Әрекетті қайталамас бұрын, интернет байланысының тұрақты екеніне көз жеткізіңіз.</translation>
 <translation id="2759825833388495838"><ph name="APP_NAME" /> қолданбасында құпия сөздеріңізді толтырмақ</translation>
+<translation id="2760805590727089264">АА/ЖЖ</translation>
 <translation id="2764001903315068341">Комикс</translation>
 <translation id="2765217105034171413">Кіші</translation>
 <translation id="2768397283109119044"><ph name="DOMAIN" /> доменіне қол жеткізуге әрекет еттіңіз, бірақ сервер сол атқа жарамсыз сертификат ұсынды. Бұл ат — резервтелген IP мекенжайы немесе ішкі хост атауы.</translation>
@@ -1384,6 +1388,7 @@
 <translation id="3362968246557010467">Бұл саясат ескі <ph name="OLD_POLICY" /> саясатынан автоматты түрде көшірілді. Орнына осы саясатты пайдаланғаныңыз жөн.</translation>
 <translation id="3364869320075768271">Сайт (<ph name="URL" />) виртуалдық шындық құрылғысын және деректерді пайдалануға рұқсат сұрайды.</translation>
 <translation id="3369192424181595722">Сағат қатесі</translation>
+<translation id="3370855919511944393">Wallet параметрлері</translation>
 <translation id="3371064404604898522">Chrome-ды әдепкі браузер етіп орнату</translation>
 <translation id="3371186787117738282"><ph name="ATTRIBUTE_NAME" /> қосылды</translation>
 <translation id="337363190475750230">Өшірілді</translation>
@@ -1559,6 +1564,7 @@
 <translation id="3641116835972736297">Америкалық футбол</translation>
 <translation id="3642196846309122856">Файлдарды қайта жүктеп алып көріңіз</translation>
 <translation id="3642638418806704195">Қолданба:</translation>
+<translation id="3644768007456662469">Төлемдер элементінің белгішесі</translation>
 <translation id="3646643500201740985">Жарнама өнімділігін өлшеу</translation>
 <translation id="3647286794400715637">Әрбір URL жолы жазбасында 1–2 URL болуы керек.</translation>
 <translation id="3647400963805615193">Chrome кеңесін жабу түймесі. Жабу үшін Enter пернесін басыңыз. <ph name="REMOVE_BUTTON_FOCUSED_FRIENDLY_MATCH_TEXT" /></translation>
@@ -2095,11 +2101,13 @@
 <translation id="4530347922939905757">Мәтіндік хабар</translation>
 <translation id="4531477351494678589">Виртуалдық карта нөмірі:</translation>
 <translation id="4535523368173457420">Бұл іздеу жүйелері аймағыңызда танымал және олар кездейсоқ ретпен көрсетілген.</translation>
+<translation id="4539931187424170595">{NUM_YEARS,plural, =1{1 жыл бұрын жасалды.}other{{NUM_YEARS} жыл бұрын жасалды.}}</translation>
 <translation id="4541810033354695636">толықтырылған шындық</translation>
 <translation id="4542971377163063093">6-науа</translation>
 <translation id="4543072026714825470">Келесіде жылдамырақ төлеу үшін картаңызды және төлем мекенжайын Google аккаунтыңызға сақтап қойыңыз.</translation>
 <translation id="454441086898495030"><ph name="SET" /> жинағына қосу қажет пе?</translation>
 <translation id="4546730006268514143">Тасымалдау уақыты өтіп кетті</translation>
+<translation id="4548974025982531828">{NUM_DAYS,plural, =1{1 күн бұрын жасалды.}other{{NUM_DAYS} күн бұрын жасалды.}}</translation>
 <translation id="455113658016510503">A9</translation>
 <translation id="4556069465387849460">Құпия сөздерді толтыру үшін экран құлпын пайдаланып жатырсыз</translation>
 <translation id="4557573143631562971">Үй сақтандыру</translation>
@@ -2893,6 +2901,7 @@
 <translation id="5938153366081463283">Виртуалдық карта қосыңыз.</translation>
 <translation id="5938793338444039872">Troy</translation>
 <translation id="5938866385061293322">Бұл ақпарат Trustpilot, ScamAdviser, Google және т.б. сияқты тәуелсіз пікірлер веб-сайттарынан алынған. Қорытындылар AI арқылы жасалған.</translation>
+<translation id="5943775258256265106">{NUM_MINS,plural, =1{1 минут бұрын жасалды.}other{{NUM_MINS} минут бұрын жасалды.}}</translation>
 <translation id="5944297261866530437">Мата (жылтырлығы жоғары)</translation>
 <translation id="5950901984834744590">Қырыну құралдары</translation>
 <translation id="5951495562196540101">Тұтынушының аккаунтымен тіркеу мүмкін емес (лицензия пакеті бар).</translation>
@@ -3040,6 +3049,7 @@
 <translation id="6177531123306197852">C2 хатқалтасы</translation>
 <translation id="6180316780098470077">Қайталау аралығы</translation>
 <translation id="6182972682129119950">A4x5</translation>
+<translation id="6184099524311454384">Қойындыларды іздеу</translation>
 <translation id="6184868291074982484">Chrome үшінші тарап cookie файлдарына автоматты түрде шектеу қояды.</translation>
 <translation id="6190518157737269631">Пернетақтадағы Esc сияқты кейбір пернелерді қайта анықтау</translation>
 <translation id="6194209731893739467">Бақылайтын барлық өнімді осы жерден көре аласыз.</translation>
@@ -3598,6 +3608,7 @@
 <translation id="7130775116821607281">Жүктеп салуға тыйым салды</translation>
 <translation id="7132939140423847331">Әкімші бұл деректің көшірілуіне тыйым салды.</translation>
 <translation id="7135130955892390533">Күйін көрсету</translation>
+<translation id="7135814714616751706">Таңбашаларды іздеу</translation>
 <translation id="7136009930065337683">Инкогнито туралы толық ақпарат</translation>
 <translation id="7138472120740807366">Жеткізу әдісі</translation>
 <translation id="7138678301420049075">Басқа</translation>
@@ -4053,6 +4064,7 @@
 <translation id="7894280532028510793">Дұрыс жазылған болса, <ph name="BEGIN_LINK" />Network Diagnostics құралын іске қосып көріңіз<ph name="END_LINK" />.</translation>
 <translation id="7901831439558593470">178 x 229 мм хатқалта</translation>
 <translation id="7905064834449738336">Құпия сөзді пайдаланған кезде, ол онлайн жарияланған болса, Chromium сізге ескертеді. Тексеру кезінде құпия сөздер мен пайдаланушылар аты шифрланады. Сондықтан оларды ешкім, тіпті Google да оқи алмайды.</translation>
+<translation id="7906177144646315659">{NUM_HOURS,plural, =1{1 сағат бұрын жасалды.}other{{NUM_HOURS} сағат бұрын жасалды.}}</translation>
 <translation id="7908648876066812348">Виртуалдық карта қосылып жатыр</translation>
 <translation id="7909498058929404306"><ph name="RUN_CHROME_SAFETY_CHECK_FOCUSED_FRIENDLY_MATCH_TEXT" />, параметрлердегі Chrome қауіпсіздік тексерісі бетіне өту үшін Tab, содан кейін Enter пернесін басыңыз.</translation>
 <translation id="791107458486222637">Нәтиже қайталанып жатыр.</translation>
@@ -4169,6 +4181,7 @@
 <translation id="8092254339843485299">6 x 8 дюйм</translation>
 <translation id="8092774999298748321">Қою күлгін</translation>
 <translation id="8094917007353911263">Пайдаланып жатқан желі <ph name="BEGIN_BOLD" /><ph name="LOGIN_URL" /><ph name="END_BOLD" /> мекенжайына кіруді талап етуі мүмкін.</translation>
+<translation id="809543534949702122">Тарихтан іздеу</translation>
 <translation id="8098855213644561659">A3 Extra</translation>
 <translation id="809898108652741896">A6</translation>
 <translation id="8103161714697287722">Төлеу әдісі</translation>
@@ -4187,6 +4200,7 @@
 <translation id="8134058435519644366">Жұмысқа қабылдау және жұмысқа тұру</translation>
 <translation id="8135546115396015134">сол жақ перне</translation>
 <translation id="8137456439814903304">Қуат және коммуналдық қызметтер</translation>
+<translation id="814432316791813431">{NUM_MONTHS,plural, =1{1 ай бұрын жасалды.}other{{NUM_MONTHS} ай бұрын жасалды.}}</translation>
 <translation id="8148608574971654810">PDF нұсқасы:</translation>
 <translation id="8149426793427495338">Компьютеріңіз ұйқы күйіне өтті.</translation>
 <translation id="8150722005171944719"><ph name="URL" /> сілтемесіндегі файл оқылмайды. Ол жойылған, көшірілген болуы немесе файл рұқсаттары кедергі болуы мүмкін.</translation>
@@ -4806,6 +4820,7 @@
 <translation id="9219103736887031265">Кескіндер</translation>
 <translation id="922152298093051471">Chrome-ды реттеу</translation>
 <translation id="9222403027701923763">Бастауыш және орта мектеп (K-12)</translation>
+<translation id="9222463428840654067">Карта нөмірі дұрыс емес.</translation>
 <translation id="922849469395748170">Тұрақты клиент карталары</translation>
 <translation id="93020190163435405">Өндірістік тағылымдама</translation>
 <translation id="931598121743515856">Сатып алу сомасы <ph name="CHECKOUT_AMOUNT_MINIMUM" /> сомасынан көп болуы керек.</translation>

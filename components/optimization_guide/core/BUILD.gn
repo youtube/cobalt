@@ -7,10 +7,7 @@ import("//mojo/public/tools/bindings/mojom.gni")
 if (is_android) {
   import("//build/config/android/rules.gni")
 }
-import("//build/buildflag_header.gni")
 import("//components/optimization_guide/features.gni")
-import("//third_party/mediapipe/features.gni")
-import("//third_party/tflite/features.gni")
 
 # bloomfilter is isolated because of the allowlisted murmurhash3 dep.
 source_set("bloomfilter") {
@@ -50,96 +47,10 @@ static_library("filters") {
   visibility = [ ":*" ]
 }
 
-static_library("model_executor") {
-  sources = [
-    "execution_status.cc",
-    "execution_status.h",
-    "model_executor.h",
-    "model_handler.h",
-  ]
-  if (build_with_tflite_lib) {
-    sources += [
-      "base_model_executor.h",
-      "base_model_executor_helpers.h",
-      "bert_model_executor.cc",
-      "bert_model_executor.h",
-      "bert_model_handler.cc",
-      "bert_model_handler.h",
-      "model_execution_timeout_watchdog.cc",
-      "model_execution_timeout_watchdog.h",
-      "model_validator.cc",
-      "model_validator.h",
-      "signature_model_executor.h",
-      "tflite_model_executor.h",
-    ]
-  }
-
-  if (build_with_mediapipe_lib) {
-    assert(build_with_tflite_lib)
-
-    sources += [
-      "mediapipe_text_model_executor.cc",
-      "mediapipe_text_model_executor.h",
-    ]
-  }
-
-  public_deps = [
-    "//components/optimization_guide:machine_learning_tflite_buildflags",
-    "//components/optimization_guide/proto:optimization_guide_proto",
-    "//third_party/re2",
-  ]
-
-  deps = [
-    ":core_util",
-    ":features",
-    ":prediction",
-    "//base",
-    "//net",
-    "//url",
-  ]
-
-  configs += [ "//build/config/compiler:wexit_time_destructors" ]
-
-  if (build_with_tflite_lib) {
-    public_deps += [
-      "//components/optimization_guide/core:machine_learning",
-      "//third_party/abseil-cpp:absl",
-      "//third_party/tflite",
-      "//third_party/tflite:tflite_public_headers",
-      "//third_party/tflite_support",
-      "//third_party/tflite_support:tflite_support_proto",
-    ]
-    deps += [ ":machine_learning" ]
-  }
-
-  if (build_with_mediapipe_lib) {
-    assert(build_with_tflite_lib)
-
-    public_deps += [ "//third_party/mediapipe" ]
-  }
-}
-
 mojom("interfaces") {
   sources = [ "optimization_guide_common.mojom" ]
   webui_module_path = "/"
   public_deps = [ "//mojo/public/mojom/base" ]
-}
-
-if (build_with_tflite_lib) {
-  static_library("machine_learning") {
-    sources = [
-      "tflite_op_resolver.cc",
-      "tflite_op_resolver.h",
-    ]
-    deps = [
-      ":features",
-      "//components/optimization_guide:machine_learning_tflite_buildflags",
-      "//third_party/tflite",
-      "//third_party/tflite:buildflags",
-      "//third_party/tflite:tflite_public_headers",
-    ]
-    configs += [ "//build/config/compiler:wexit_time_destructors" ]
-  }
 }
 
 component("features") {
@@ -185,7 +96,8 @@ component("features") {
   defines = [ "IS_OPTIMIZATION_GUIDE_FEATURES_IMPL" ]
 }
 
-output_proto_descriptors_cc_file = "$root_gen_dir/components/optimization_guide/core/model_execution/on_device_model_execution_proto_descriptors.cc"
+output_proto_descriptors_cc_file = "$target_gen_dir/model_execution/on_device_model_execution_proto_descriptors.cc"
+output_proto_enum_templates_h_file = "$target_gen_dir/model_execution/on_device_model_execution_proto_enum_templates.h"
 
 source_set("hints") {
   sources = [
@@ -270,7 +182,7 @@ source_set("core_util") {
     "//ui/accessibility:ax_enums_mojo",
     "//url",
   ]
-  visibility = [ ":*" ]
+  visibility = [ "./*" ]
 }
 
 source_set("model_execution") {
@@ -380,10 +292,10 @@ source_set("model_execution") {
       "model_execution/value_converter.cc",
       "model_execution/value_converter.h",
       output_proto_descriptors_cc_file,
+      output_proto_enum_templates_h_file,
     ]
     deps += [
       ":core_util",
-      ":model_executor",
       ":on_device_model_execution_proto_generator",
       ":prediction",
       "//components/component_updater",
@@ -415,7 +327,6 @@ static_library("core") {
     ":filters",
     ":hints",
     ":model_execution",
-    ":model_executor",
     ":prediction",
     "//components/autofill/core/common",
     "//components/leveldb_proto",
@@ -426,12 +337,9 @@ static_library("core") {
   ]
   if (build_with_tflite_lib) {
     public_deps += [
-      "//components/optimization_guide/core:machine_learning",
-      "//third_party/abseil-cpp:absl",
-      "//third_party/tflite",
-      "//third_party/tflite:tflite_public_headers",
-      "//third_party/tflite_support",
-      "//third_party/tflite_support:tflite_support_proto",
+      "//components/optimization_guide/core/inference",
+
+      # TODO: crbug.com/421262905 - Don't provide compression_utils
       "//third_party/zlib/google:compression_utils",
     ]
   }
@@ -439,29 +347,29 @@ static_library("core") {
 
 static_library("prediction") {
   sources = [
-    "model_enums.h",
-    "model_info.cc",
-    "model_info.h",
-    "model_store_metadata_entry.cc",
-    "model_store_metadata_entry.h",
-    "model_util.cc",
-    "model_util.h",
-    "optimization_guide_model_provider.h",
-    "optimization_target_model_observer.h",
-    "prediction_manager.cc",
-    "prediction_manager.h",
-    "prediction_model_download_manager.cc",
-    "prediction_model_download_manager.h",
-    "prediction_model_download_observer.h",
-    "prediction_model_fetch_timer.cc",
-    "prediction_model_fetch_timer.h",
-    "prediction_model_fetcher.h",
-    "prediction_model_fetcher_impl.cc",
-    "prediction_model_fetcher_impl.h",
-    "prediction_model_override.cc",
-    "prediction_model_override.h",
-    "prediction_model_store.cc",
-    "prediction_model_store.h",
+    "delivery/model_enums.h",
+    "delivery/model_info.cc",
+    "delivery/model_info.h",
+    "delivery/model_store_metadata_entry.cc",
+    "delivery/model_store_metadata_entry.h",
+    "delivery/model_util.cc",
+    "delivery/model_util.h",
+    "delivery/optimization_guide_model_provider.h",
+    "delivery/optimization_target_model_observer.h",
+    "delivery/prediction_manager.cc",
+    "delivery/prediction_manager.h",
+    "delivery/prediction_model_download_manager.cc",
+    "delivery/prediction_model_download_manager.h",
+    "delivery/prediction_model_download_observer.h",
+    "delivery/prediction_model_fetch_timer.cc",
+    "delivery/prediction_model_fetch_timer.h",
+    "delivery/prediction_model_fetcher.h",
+    "delivery/prediction_model_fetcher_impl.cc",
+    "delivery/prediction_model_fetcher_impl.h",
+    "delivery/prediction_model_override.cc",
+    "delivery/prediction_model_override.h",
+    "delivery/prediction_model_store.cc",
+    "delivery/prediction_model_store.h",
   ]
   deps = [
     ":core_util",
@@ -482,7 +390,20 @@ static_library("prediction") {
   configs += [ "//build/config/compiler:wexit_time_destructors" ]
 }
 
-source_set("filters_test_support") {
+source_set("page_content") {
+  sources = [
+    "page_content_proto_serializer.cc",
+    "page_content_proto_serializer.h",
+  ]
+
+  deps = [
+    "//base",
+    "//components/optimization_guide/proto:optimization_guide_proto",
+    "//url",
+  ]
+}
+
+static_library("filters_test_support") {
   testonly = true
   sources = [
     "filters/test_hints_component_creator.cc",
@@ -496,19 +417,25 @@ source_set("filters_test_support") {
   ]
 }
 
-source_set("hints_test_support") {
+static_library("hints_test_support") {
   testonly = true
   sources = [
+    "hints/fake_hints_fetcher.h",
     "hints/mock_optimization_guide_decider.cc",
     "hints/mock_optimization_guide_decider.h",
     "hints/mock_push_notification_manager.cc",
     "hints/mock_push_notification_manager.h",
+    "hints/test_hints_config.cc",
+    "hints/test_hints_config.h",
     "hints/test_optimization_guide_decider.cc",
     "hints/test_optimization_guide_decider.h",
+    "proto_database_provider_test_base.cc",
+    "proto_database_provider_test_base.h",
   ]
   deps = [
     ":hints",
     "//base",
+    "//components/leveldb_proto",
     "//components/optimization_guide/proto:optimization_guide_proto",
     "//testing/gmock",
     "//testing/gtest:gtest",
@@ -516,49 +443,44 @@ source_set("hints_test_support") {
   ]
 }
 
-static_library("test_support") {
+static_library("delivery_test_support") {
+  testonly = true
+  sources = [
+    "delivery/test_model_info_builder.cc",
+    "delivery/test_model_info_builder.h",
+    "delivery/test_optimization_guide_model_provider.cc",
+    "delivery/test_optimization_guide_model_provider.h",
+  ]
+  deps = [
+    ":prediction",
+    "//base",
+    "//components/optimization_guide/proto:optimization_guide_proto",
+  ]
+  visibility = [ "./*" ]
+}
+
+static_library("model_execution_test_support") {
   testonly = true
   sources = [
     "mock_optimization_guide_on_device_capability_provider.cc",
     "mock_optimization_guide_on_device_capability_provider.h",
     "model_quality/test_model_quality_logs_uploader_service.cc",
     "model_quality/test_model_quality_logs_uploader_service.h",
-    "optimization_guide_test_util.cc",
-    "optimization_guide_test_util.h",
-    "proto_database_provider_test_base.cc",
-    "proto_database_provider_test_base.h",
-    "test_model_executor.cc",
-    "test_model_executor.h",
-    "test_model_handler.h",
-    "test_model_info_builder.cc",
-    "test_model_info_builder.h",
-    "test_optimization_guide_model_provider.cc",
-    "test_optimization_guide_model_provider.h",
-  ]
-  public_deps = [
-    ":filters_test_support",
-    ":hints_test_support",
   ]
   deps = [
-    ":core",
-    ":filters",
+    ":core_util",
+    ":delivery_test_support",
+    ":features",
+    ":model_execution",
+    ":prediction",
     "//base",
     "//base/test:test_support",
-    "//components/leveldb_proto",
     "//components/optimization_guide/proto:optimization_guide_proto",
     "//services/network/public/cpp",
     "//testing/gmock",
     "//testing/gtest",
     "//url",
   ]
-  if (build_with_tflite_lib) {
-    sources += [
-      "test_tflite_model_executor.cc",
-      "test_tflite_model_executor.h",
-      "test_tflite_model_handler.h",
-    ]
-    deps += [ "//third_party/abseil-cpp:absl" ]
-  }
   if (build_with_model_execution) {
     sources += [
       "mock_optimization_guide_model_executor.cc",
@@ -589,6 +511,20 @@ static_library("test_support") {
   }
 }
 
+group("test_support") {
+  testonly = true
+  public_deps = [
+    ":delivery_test_support",
+    ":filters_test_support",
+    ":hints_test_support",
+    ":model_execution_test_support",
+  ]
+  if (build_with_tflite_lib) {
+    public_deps +=
+        [ "//components/optimization_guide/core/inference:test_support" ]
+  }
+}
+
 if (is_ios) {
   source_set("eg_test_support+eg2") {
     testonly = true
@@ -598,9 +534,8 @@ if (is_ios) {
       "optimization_guide_enums.h",
       "optimization_guide_switches.cc",
       "optimization_guide_switches.h",
-      "optimization_guide_test_util.cc",
-      "optimization_guide_test_util.h",
     ]
+    public_deps = [ ":hints_test_support" ]
     deps = [
       "//base",
       "//components/optimization_guide/proto:optimization_guide_proto",
@@ -651,7 +586,6 @@ source_set("hints_unit_tests") {
     ":filters",
     ":hints",
     ":hints_test_support",
-    ":test_support",
     "//base/test:test_support",
     "//components/leveldb_proto:test_support",
     "//components/optimization_guide/proto:optimization_guide_proto",
@@ -669,31 +603,61 @@ source_set("hints_unit_tests") {
   ]
 }
 
-source_set("unit_tests") {
+source_set("delivery_unit_tests") {
   testonly = true
   sources = [
-    "feature_registry/enterprise_policy_registry_unittest.cc",
-    "feature_registry/mqls_feature_registry_unittest.cc",
-    "feature_registry/settings_ui_registry_unittest.cc",
+    "delivery/model_store_metadata_entry_unittest.cc",
+    "delivery/model_util_unittest.cc",
+    "delivery/prediction_manager_unittest.cc",
+    "delivery/prediction_model_download_manager_unittest.cc",
+    "delivery/prediction_model_fetch_timer_unittest.cc",
+    "delivery/prediction_model_fetcher_unittest.cc",
+    "delivery/prediction_model_override_unittest.cc",
+    "delivery/prediction_model_store_unittest.cc",
+  ]
+  deps = [
+    ":core_util",
+    ":delivery_test_support",
+    ":features",
+    ":prediction",
+    "//base",
+    "//base/test:test_support",
+    "//components/download/public/background_service/test:test_support",
+    "//components/optimization_guide/proto:optimization_guide_proto",
+    "//components/prefs:test_support",
+    "//components/services/unzip:in_process",
+    "//components/sync_preferences:test_support",
+    "//components/variations:test_support",
+    "//services/network:test_support",
+    "//testing/gtest",
+    "//third_party/zlib/google:zip",
+  ]
+}
+
+source_set("model_execution_unit_tests") {
+  testonly = true
+  sources = [
     "model_execution/performance_class_unittest.cc",
-    "model_handler_unittest.cc",
     "model_quality/model_quality_log_entry_unittest.cc",
     "model_quality/model_quality_logs_uploader_service_unittest.cc",
     "model_quality/model_quality_util_unittest.cc",
-    "model_store_metadata_entry_unittest.cc",
-    "model_util_unittest.cc",
-    "noisy_metrics_recorder_unittest.cc",
-    "optimization_guide_features_unittest.cc",
-    "optimization_guide_permissions_util_unittest.cc",
-    "optimization_guide_proto_util_unittest.cc",
-    "optimization_guide_switches_unittest.cc",
-    "optimization_guide_util_unittest.cc",
-    "prediction_manager_unittest.cc",
-    "prediction_model_download_manager_unittest.cc",
-    "prediction_model_fetch_timer_unittest.cc",
-    "prediction_model_fetcher_unittest.cc",
-    "prediction_model_override_unittest.cc",
-    "prediction_model_store_unittest.cc",
+  ]
+  deps = [
+    ":core_util",
+    ":delivery_test_support",
+    ":features",
+    ":model_execution",
+    ":model_execution_test_support",
+    "//base",
+    "//base/test:test_proto",
+    "//base/test:test_support",
+    "//components/optimization_guide/proto:optimization_guide_proto",
+    "//components/prefs:test_support",
+    "//components/signin/public/identity_manager",
+    "//components/variations:test_support",
+    "//services/network:network_service",
+    "//services/network:test_support",
+    "//testing/gtest",
   ]
 
   if (build_with_model_execution) {
@@ -725,77 +689,54 @@ source_set("unit_tests") {
       "model_execution/substitution_unittest.cc",
       "model_quality/model_execution_logging_wrappers_unittest.cc",
     ]
-  }
-  if (build_with_tflite_lib) {
-    sources += [
-      "bert_model_executor_unittest.cc",
-      "model_validator_unittest.cc",
-      "tflite_model_executor_unittest.cc",
+    deps += [
+      ":prediction",
+      "//components/component_updater",
+      "//components/optimization_guide/public/mojom",
+      "//components/signin/public/identity_manager:test_support",
+      "//components/sync_preferences:test_support",
+      "//services/data_decoder/public/cpp:test_support",
+      "//services/on_device_model/public/cpp",
+      "//services/on_device_model/public/cpp/test_support",
+      "//services/on_device_model/public/mojom",
+      "//third_party/tflite:buildflags",
     ]
   }
+}
 
-  if (build_with_mediapipe_lib) {
-    assert(build_with_tflite_lib)
-
-    sources += [ "mediapipe_text_model_executor_unittest.cc" ]
-  }
-
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "feature_registry/enterprise_policy_registry_unittest.cc",
+    "feature_registry/mqls_feature_registry_unittest.cc",
+    "feature_registry/settings_ui_registry_unittest.cc",
+    "noisy_metrics_recorder_unittest.cc",
+    "optimization_guide_features_unittest.cc",
+    "optimization_guide_permissions_util_unittest.cc",
+    "optimization_guide_proto_util_unittest.cc",
+    "optimization_guide_switches_unittest.cc",
+    "optimization_guide_util_unittest.cc",
+  ]
   deps = [
-    ":bloomfilter",
     ":core",
+    ":delivery_unit_tests",
     ":features",
     ":filters_unit_tests",
     ":hints_unit_tests",
-    ":prediction",
-    ":test_support",
+    ":model_execution_unit_tests",
     ":unit_tests_bundle_data",
     "//base",
-    "//base/test:test_proto",
     "//base/test:test_support",
-    "//components/download/public/background_service/test:test_support",
-    "//components/leveldb_proto:test_support",
     "//components/optimization_guide/proto:optimization_guide_proto",
-    "//components/optimization_guide/public/mojom",
     "//components/prefs:test_support",
-    "//components/services/unzip:in_process",
-    "//components/signin/public/identity_manager:test_support",
     "//components/sync_preferences:test_support",
-    "//components/ukm:test_support",
     "//components/unified_consent",
-    "//components/variations:test_support",
-    "//net:test_support",
-    "//services/data_decoder/public/cpp:test_support",
-    "//services/network:network_service",
-    "//services/network:test_support",
-    "//services/on_device_model/public/cpp",
-    "//services/on_device_model/public/cpp/test_support",
+    "//google_apis",
     "//testing/gmock",
     "//testing/gtest",
-    "//third_party/abseil-cpp:absl",
-    "//third_party/tflite:buildflags",
-    "//third_party/zlib/google:zip",
-    "//ui/base",
-    "//url:url",
   ]
-
-  if (build_with_model_execution) {
-    deps += [ "//components/component_updater" ]
-  }
-
   if (build_with_tflite_lib) {
-    deps += [
-      "//third_party/abseil-cpp:absl",
-      "//third_party/tflite",
-      "//third_party/tflite:tflite_public_headers",
-      "//third_party/tflite_support",
-      "//third_party/tflite_support:tflite_support_proto",
-    ]
-  }
-
-  if (build_with_mediapipe_lib) {
-    assert(build_with_tflite_lib)
-
-    deps += [ "//third_party/mediapipe" ]
+    deps += [ "//components/optimization_guide/core/inference:unit_tests" ]
   }
 }
 
@@ -844,10 +785,17 @@ action("on_device_model_execution_proto_generator") {
       "//components/optimization_guide/tools/gen_on_device_proto_descriptors.py"
 
   inputs = [ "$root_gen_dir/components/optimization_guide/proto/optimization_guide_proto.descriptor" ]
-  outputs = [ output_proto_descriptors_cc_file ]
+  outputs = [
+    output_proto_descriptors_cc_file,
+    output_proto_enum_templates_h_file,
+  ]
 
-  args = [ "--output_cc=" +
-           rebase_path(output_proto_descriptors_cc_file, root_build_dir) ]
+  args = [
+    "--proto_descriptors_cc=" +
+        rebase_path(output_proto_descriptors_cc_file, root_build_dir),
+    "--enum_templates_h=" +
+        rebase_path(output_proto_enum_templates_h_file, root_build_dir),
+  ]
   foreach(file, inputs) {
     args += [
       "--input_file",

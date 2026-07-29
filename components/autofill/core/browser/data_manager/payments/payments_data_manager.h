@@ -130,6 +130,11 @@ class PaymentsDataManager : public AutofillWebDataServiceObserverOnUISequence,
   // with the specified `guid`.
   const Iban* GetIbanByGUID(const std::string& guid) const;
 
+  // Returns the `AutofillOfferData` with the specified `offer_id`, or nullptr
+  // if there is no promo code with the specified `offer_id`.
+  const AutofillOfferData* GetMerchantPromoCodeByOfferId(
+      const int64_t offer_id) const;
+
   // Returns the IBAN if any cached IBAN in `server_ibans_` has the same
   // `instrument_id` as the given `instrument_id`, otherwise returns nullptr.
   const Iban* GetIbanByInstrumentId(int64_t instrument_id) const;
@@ -505,6 +510,12 @@ class PaymentsDataManager : public AutofillWebDataServiceObserverOnUISequence,
 
   // Returns the value of the FacilitatedPaymentsPix user pref.
   bool IsFacilitatedPaymentsPixUserPrefEnabled() const;
+
+  // Sets the FacilitatedPaymentsPixAccountLinking user pref value to `enabled`.
+  void SetFacilitatedPaymentsPixAccountLinkingUserPref(bool enabled);
+
+  // Returns the value of the FacilitatedPaymentsPixAccountLinking user pref.
+  bool IsFacilitatedPaymentsPixAccountLinkingUserPrefEnabled() const;
 
   // Returns the value of the FacilitatedPaymentsEwallet user pref.
   bool IsFacilitatedPaymentsEwalletUserPrefEnabled() const;

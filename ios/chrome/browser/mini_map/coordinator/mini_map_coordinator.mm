@@ -12,6 +12,7 @@
 #import "ios/chrome/browser/search_engines/model/template_url_service_factory.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
+#import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/public/commands/application_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/mini_map_commands.h"
@@ -39,12 +40,6 @@
 // The WebState that triggered the request.
 @property(assign) base::WeakPtr<web::WebState> webState;
 
-// The text to be recognized as an address.
-@property(nonatomic, copy) NSString* text;
-
-// Whether the consent of the user is required.
-@property(assign) BOOL consentRequired;
-
 // The mode to display the map.
 @property(assign) MiniMapMode mode;
 
@@ -52,23 +47,37 @@
 
 @implementation MiniMapCoordinator {
   BOOL _stopCalled;
-
   BOOL _showingMap;
+
+  // The text to be recognized as an address.
+  NSString* _text;
+
+  // The Universal link URL to maps to display the MiniMap for.
+  NSURL* _url;
+
+  // Whether IPH should be shown (on first presentation).
+  BOOL _showIPH;
 }
 
 - (instancetype)initWithBaseViewController:(UIViewController*)viewController
                                    browser:(Browser*)browser
-                                  webState:(web::WebState*)webState
                                       text:(NSString*)text
-                           consentRequired:(BOOL)consentRequired
+                                       url:(NSURL*)URL
+                                   withIPH:(BOOL)withIPH
                                       mode:(MiniMapMode)mode {
   self = [super initWithBaseViewController:viewController browser:browser];
   if (self) {
+    CHECK_EQ((text ? 1 : 0) + (URL ? 1 : 0), 1);
     _text = text;
-    if (webState) {
-      _webState = webState->GetWeakPtr();
+    _url = URL;
+    web::WebState* currentWebState =
+        browser->GetWebStateList()->GetActiveWebState();
+    if (currentWebState) {
+      // Keep track of the WebState so we can remove the annotations if the
+      // user disable the feature.
+      _webState = currentWebState->GetWeakPtr();
     }
-    _consentRequired = consentRequired;
+    _showIPH = withIPH;
     _mode = mode;
   }
   return self;
@@ -81,7 +90,7 @@
   self.mediator = [[MiniMapMediator alloc] initWithPrefs:prefService
                                                 webState:self.webState.get()];
   self.mediator.delegate = self;
-  [self.mediator userInitiatedMiniMapConsentRequired:self.consentRequired];
+  [self.mediator userInitiatedMiniMapWithIPH:_showIPH];
 }
 
 - (void)stop {
@@ -101,30 +110,23 @@
 
 - (void)doShowMapWithIPH:(BOOL)showIPH {
   __weak __typeof(self) weakSelf = self;
-
   MiniMapControllerCompletionWithURL completion = ^(NSURL* url) {
     [weakSelf mapDismissedRequestingURL:url];
   };
-
   MiniMapControllerCompletionWithString completionWithQuery =
       ^(NSString* query) {
         [weakSelf mapDismissedRequestingQuery:query];
       };
-  self.miniMapController = ios::provider::CreateMiniMapController(
-      self.text, completion, completionWithQuery);
+  self.miniMapController = ios::provider::CreateMiniMapController();
+  if (_text) {
+    [self configureForText];
+  } else {
+    [self configureForURL];
+  }
 
+  [self.miniMapController configureCompletion:completion];
   [self.miniMapController
-      configureFooterWithTitle:l10n_util::GetNSString(
-                                   IDS_IOS_MINI_MAP_FOOTER_STRING)
-      leadingButtonTitle:l10n_util::GetNSString(IDS_IOS_MINI_MAP_DISABLE_STRING)
-      trailingButtonTitle:l10n_util::GetNSString(
-                              IDS_IOS_OPTIONS_REPORT_AN_ISSUE)
-      leadingButtonAction:^(UIViewController* viewController) {
-        [weakSelf disableOneTapMinimapFromViewController:viewController];
-      }
-      trailingButtonAction:^(UIViewController* viewController) {
-        [weakSelf reportAnIssueFromMiniMapInViewController:viewController];
-      }];
+      configureCompletionWithSearchQuery:completionWithQuery];
 
   if (showIPH) {
     NSString* iphTitle = l10n_util::GetNSString(IDS_IOS_MINI_MAP_IPH_TITLE);
@@ -158,6 +160,41 @@
   }
 }
 
+- (void)configureForText {
+  __weak __typeof(self) weakSelf = self;
+  [self.miniMapController configureAddress:_text];
+  [self.miniMapController
+      configureFooterWithTitle:l10n_util::GetNSString(
+                                   IDS_IOS_MINI_MAP_FOOTER_STRING)
+      leadingButtonTitle:l10n_util::GetNSString(IDS_IOS_MINI_MAP_DISABLE_STRING)
+      trailingButtonTitle:l10n_util::GetNSString(
+                              IDS_IOS_OPTIONS_REPORT_AN_ISSUE)
+      leadingButtonAction:^(UIViewController* viewController) {
+        [weakSelf disableOneTapMinimapFromViewController:viewController];
+      }
+      trailingButtonAction:^(UIViewController* viewController) {
+        [weakSelf reportAnIssueFromMiniMapInViewController:viewController];
+      }];
+}
+
+- (void)configureForURL {
+  __weak __typeof(self) weakSelf = self;
+  [self.miniMapController configureURL:_url];
+  // TODO(crbug.com/422978919): put real button string
+  [self.miniMapController
+      configureFooterWithTitle:l10n_util::GetNSString(
+                                   IDS_IOS_MINI_MAP_FOOTER_STRING)
+      leadingButtonTitle:@"*** Turn off TBD ***"
+      trailingButtonTitle:l10n_util::GetNSString(
+                              IDS_IOS_OPTIONS_REPORT_AN_ISSUE)
+      leadingButtonAction:^(UIViewController* viewController) {
+        [weakSelf disableURLHandlingFromViewContrller:viewController];
+      }
+      trailingButtonAction:^(UIViewController* viewController) {
+        [weakSelf reportAnIssueFromMiniMapInViewController:viewController];
+      }];
+}
+
 // Called at the end of the minimap workflow.
 - (void)workflowEnded {
   if (!_stopCalled) {
@@ -178,7 +215,7 @@
 
 - (void)disableOneTapMinimapFromViewController:
     (UIViewController*)viewController {
-  [self.mediator userDisabledSettingFromMiniMap];
+  [self.mediator userDisabledOneTapSettingFromMiniMap];
 
   [viewController.presentingViewController dismissViewControllerAnimated:YES
                                                               completion:nil];
@@ -188,6 +225,26 @@
   [snackbarCommandHandler
       showSnackbarWithMessage:l10n_util::GetNSString(
                                   IDS_IOS_MINI_MAP_DISABLE_CONFIRMATION_STRING)
+      buttonText:l10n_util::GetNSString(
+                     IDS_IOS_MINI_MAP_DISABLE_CONFIRMATION_BUTTON_STRING)
+      messageAction:^{
+        [weakSelf userOpenedSettingsFromConfirmation];
+      }
+      completionAction:^(BOOL) {
+        [weakSelf workflowEnded];
+      }];
+}
+
+- (void)disableURLHandlingFromViewContrller:(UIViewController*)viewController {
+  [self.mediator userDisabledURLSettingFromMiniMap];
+
+  [viewController.presentingViewController dismissViewControllerAnimated:YES
+                                                              completion:nil];
+  id<SnackbarCommands> snackbarCommandHandler = HandlerForProtocol(
+      self.browser->GetCommandDispatcher(), SnackbarCommands);
+  __weak __typeof(self) weakSelf = self;
+  // TODO(crbug.com/422978919): put real button string
+  [snackbarCommandHandler showSnackbarWithMessage:@"*** Setting off TBD ***"
       buttonText:l10n_util::GetNSString(
                      IDS_IOS_MINI_MAP_DISABLE_CONFIRMATION_BUTTON_STRING)
       messageAction:^{

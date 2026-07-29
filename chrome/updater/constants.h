@@ -262,8 +262,13 @@ inline constexpr char kDevOverrideKeyCrxVerifierFormat[] =
     "crx_verifier_format";
 inline constexpr char kDevOverrideKeyMinumumEventLoggingCooldownSeconds[] =
     "minimum_event_logging_cooldown_seconds";
-inline constexpr char kDevOverrideKeyEventLoggingPermissionProvider[] =
-    "event_logging_permission_provider";
+inline constexpr char kDevOverrideKeyEventLoggingPermissionProviderAppId[] =
+    "event_logging_permission_provider_app_id";
+#if BUILDFLAG(IS_MAC)
+inline constexpr char
+    kDevOverrideKeyEventLoggingPermissionProviderDirectoryName[] =
+        "event_logging_permission_provider_directory_name";
+#endif
 inline constexpr char kDevOverrideKeyDictPolicies[] = "dict_policies";
 
 // TODO(crbug.com/389965546): remove this once the checked-in old updater builds
@@ -302,6 +307,18 @@ inline constexpr int kWaitForLaunchctlUpdateSec = 5;
 // instruct the client to backoff for a longer period.
 inline constexpr base::TimeDelta kMinimumEventLoggingCooldown =
     base::Minutes(15);
+
+// The minimum factor by which kDefaultLastCheckPeriod can be
+// multiplied to get the next check delay.
+inline constexpr double kUpdateCheckMinDelayFactor = 1.0;
+
+// The maximum factor by which kDefaultLastCheckPeriod can be
+// multiplied to get the next check delay.
+inline constexpr double kUpdateCheckMaxDelayFactor = 1.2;
+
+// Probability of applying kUpdateCheckMaxDelayFactor to the next
+// check delay.
+inline constexpr double kProbabilityOfIncreasedDelay = 0.1;
 
 // Install Errors.
 //

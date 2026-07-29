@@ -17,6 +17,7 @@
 #include "base/metrics/user_metrics.h"
 #include "base/metrics/user_metrics_action.h"
 #include "base/rand_util.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/bind_post_task.h"
@@ -42,6 +43,8 @@
 #include "chrome/browser/predictors/autocomplete_action_predictor_factory.h"
 #include "chrome/browser/predictors/loading_predictor.h"
 #include "chrome/browser/predictors/loading_predictor_factory.h"
+#include "chrome/browser/preloading/autocomplete_dictionary_preload_service.h"
+#include "chrome/browser/preloading/autocomplete_dictionary_preload_service_factory.h"
 #include "chrome/browser/preloading/prefetch/search_prefetch/search_prefetch_service.h"
 #include "chrome/browser/preloading/prefetch/search_prefetch/search_prefetch_service_factory.h"
 #include "chrome/browser/preloading/prerender/prerender_manager.h"
@@ -53,7 +56,6 @@
 #include "chrome/browser/ui/bookmarks/bookmark_stats.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_window.h"
@@ -520,6 +522,11 @@ void ChromeOmniboxClient::OnResultChanged(
     bool should_preload,
     const BitmapFetchedCallback& on_bitmap_fetched) {
   if (should_preload) {
+    if (auto* dictionary_preload_service =
+            AutocompleteDictionaryPreloadServiceFactory::GetForProfile(
+                profile_)) {
+      dictionary_preload_service->MaybePreload(result);
+    }
     if (SearchPrefetchService* search_prefetch_service =
             SearchPrefetchServiceFactory::GetForProfile(profile_)) {
       search_prefetch_service->OnResultChanged(location_bar_->GetWebContents(),
@@ -827,6 +834,13 @@ ChromeOmniboxClient::GetLensOverlaySuggestInputs() const {
   return std::nullopt;
 }
 
+void ChromeOmniboxClient::MaybePrewarmForDefaultSearchEngine() {
+  auto* prerender_manager = PrerenderManager::GetOrCreateForWebContents(
+      location_bar_->GetWebContents());
+  CHECK(prerender_manager);
+  prerender_manager->MaybeStartPrewarmSearchResult();
+}
+
 base::WeakPtr<OmniboxClient> ChromeOmniboxClient::AsWeakPtr() {
   return weak_factory_.GetWeakPtr();
 }
@@ -855,10 +869,17 @@ void ChromeOmniboxClient::DoPreconnect(const AutocompleteMatch& match) {
   auto* loading_predictor =
       predictors::LoadingPredictorFactory::GetForProfile(profile_);
   if (loading_predictor) {
+    bool is_preconnectable =
+        predictors::AutocompleteActionPredictor::IsPreconnectable(match);
     loading_predictor->PrepareForPageLoad(
         /*initiator_origin=*/std::nullopt, match.destination_url,
-        predictors::HintOrigin::OMNIBOX,
-        predictors::AutocompleteActionPredictor::IsPreconnectable(match));
+        predictors::HintOrigin::OMNIBOX, is_preconnectable);
+    base::UmaHistogramExactLinear(
+        base::StrCat(
+            {"Omnibox.LoadingPredictor.MatchType.",
+             is_preconnectable ? "Preconnectable" : "NonPreconnectable"}),
+        match.GetOmniboxEventResultType(),
+        metrics::OmniboxEventProto::Suggestion::ResultType_MAX + 1);
   }
   // We could prefetch the alternate nav URL, if any, but because there
   // can be many of these as a user types an initial series of characters,

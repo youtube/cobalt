@@ -109,6 +109,7 @@ For å se flere innstillinger som bruker data for å forbedre Chrome-opplevelsen
 <translation id="1419753403124156396">Vil du starte Chrome på nytt?</translation>
 <translation id="1428770807407000502">Vil du slå av synkronisering?</translation>
 <translation id="1430915738399379752">Skriv ut</translation>
+<translation id="1433478348197382180">Lesemodus</translation>
 <translation id="1435593198351412143">Åpne PDF-filer automatisk</translation>
 <translation id="1437543266176261764">Kjører i <ph name="APP_NAME" /></translation>
 <translation id="1448440926884431741">Organiser sporede produkter i Bokmerker</translation>
@@ -331,6 +332,7 @@ Bare personer som har passordfrasen din, kan lese de krypterte dataene. Passordf
 <translation id="2524132927880411790">Gå til talesøk i Google-appen</translation>
 <translation id="2527209463677295330">Hvis du inkluderer mer av teksten på siden, kan det hende du får bedre resultater</translation>
 <translation id="2527779675047087889">Skjul innholdet på utklippstavlen</translation>
+<translation id="2531209299761896527">Klyp, hold og dra for å åpne faner i et nytt vindu</translation>
 <translation id="2532336938189706096">Nettvisning</translation>
 <translation id="253498598929009420">Nettstedet kan se innholdet på skjermen din</translation>
 <translation id="2535807170289627159">Alle faner</translation>
@@ -544,7 +546,6 @@ Bare personer som har passordfrasen din, kan lese de krypterte dataene. Passordf
 <translation id="3513019849832307207">Bli med og åpne</translation>
 <translation id="3513704683820682405">Utvidet virkelighet</translation>
 <translation id="3516053221628030540">Gå til Google Play</translation>
-<translation id="351672147489633468">{NUM_REVOKED_PERMISSIONS,plural, =1{Fjernet varslingstillatelser fra 1 nettsted du ikke har besøkt nylig}other{Fjernet varslingstillatelser fra # nettsteder du ikke har besøkt nylig}}</translation>
 <translation id="3518985090088779359">Godta og fortsett</translation>
 <translation id="3519014757432845220">Bidra til å gjøre beskyttelsen mot søppelpost bedre ved å dele varselinnholdet og nettadressen med Google. Innholdet kan bli gjennomgått av mennesker.</translation>
 <translation id="3521388823983121502">Kan ikke fortsette med <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /></translation>
@@ -713,6 +714,7 @@ Bare personer som har passordfrasen din, kan lese de krypterte dataene. Passordf
 <translation id="4298388696830689168">Tilknyttede nettsteder</translation>
 <translation id="4300632303535881174">Gå til forrige side</translation>
 <translation id="4303044213806199882">chrome_skjermdump_<ph name="CURRENT_TIMESTAMP_MS" /></translation>
+<translation id="4306489587293957491">Skriv inn</translation>
 <translation id="4307992518367153382">Generelt</translation>
 <translation id="4311652497846705514">Vil du åpne PDF-filen?</translation>
 <translation id="4320177379694898372">Ingen internettilkobling</translation>
@@ -1079,7 +1081,6 @@ Google-kontoen din kan ha andre former for nettleserlogger, for eksempel søk og
 <translation id="5956665950594638604">Åpne brukerstøtten for Chrome i en ny fane</translation>
 <translation id="59577092665511740">Velg en konto.</translation>
 <translation id="5958275228015807058">Du finner filene og sidene dine under Nedlastinger</translation>
-<translation id="5958994127112619898">Forenkle siden</translation>
 <translation id="5962718611393537961">Trykk for å skjule</translation>
 <translation id="5964869237734432770">Stopp bildebeskrivelser</translation>
 <translation id="5975083100439434680">Zoom ut</translation>
@@ -1628,7 +1629,6 @@ For å endre denne innstillingen, <ph name="BEGIN_LINK" />slett Chrome-dataene i
 <translation id="8137562778192957619">Du trenger ikke å huske dette passordet. Det blir lagret i Google Passordlagring.</translation>
 <translation id="8152331954420209374">Gå til Lens</translation>
 <translation id="8163820386638255770">For å bruke og lagre passord i Google-kontoen din, bekreft at det er deg</translation>
-<translation id="8179976553408161302">Enter</translation>
 <translation id="8186512483418048923"><ph name="FILES" /> filer gjenstår</translation>
 <translation id="8190358571722158785">1 dag igjen</translation>
 <translation id="8192765420340770300">Påloggingsfeltet nederst er åpnet i full høyde</translation>
@@ -1650,7 +1650,6 @@ For å endre denne innstillingen, <ph name="BEGIN_LINK" />slett Chrome-dataene i
 <translation id="8244387390464017490">Tilpass Ny fane-siden</translation>
 <translation id="8250920743982581267">Dokumenter</translation>
 <translation id="8255617931166444521">Nettsteder kan bare bruke informasjonskapslene dine til å se surfeaktiviteten din på sitt eget nettsted</translation>
-<translation id="8256087213273124136">Chrome har meldt deg av varsler</translation>
 <translation id="8258999165172757081">Lagt til</translation>
 <translation id="8259179246279078674">Siden de forhåndslastede sidene er krypterte, får ikke Google vite noe om det forhåndslastede sideinnholdet. Googles tjenere får vite hvilke nettsteder som forhåndslastes privat. Denne informasjonen brukes bare til å forhåndslaste sidene og blir ikke knyttet til annen informasjon i Google-kontoen din.</translation>
 <translation id="8260126382462817229">Prøv å logge på igjen</translation>

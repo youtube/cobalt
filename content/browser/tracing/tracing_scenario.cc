@@ -264,7 +264,6 @@ bool TracingScenario::Initialize(
   if (!tracing::AdaptPerfettoConfigForChrome(
           &trace_config_, privacy_filtering_enabled_,
           enable_package_name_filter,
-          perfetto::protos::gen::ChromeConfig::BACKGROUND,
           enable_system_backend)) {
     return false;
   }
@@ -427,8 +426,8 @@ void TracingScenario::OnNestedScenarioUpload(
   active_scenario_ = nullptr;
   SetState(State::kCloning);
   // Skip cloning if the trace isn't allowed to save or is still starting.
-  if (!scenario_delegate_->OnScenarioCloned(this) ||
-      current_state_ == State::kStarting) {
+  if (current_state_ == State::kStarting ||
+      !scenario_delegate_->OnScenarioCloned(this)) {
     OnTracingCloned();
     return;
   }
@@ -489,6 +488,11 @@ bool TracingScenario::OnStartTrigger(
     const BackgroundTracingRule* triggered_rule) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
+  if (triggered_rule) {
+    base::UmaHistogramSparse("Tracing.Background.Scenario.Trigger.Start",
+                             TriggerNameHash(triggered_rule));
+  }
+
   if (current_state() == State::kEnabled) {
     // Move to setup before starting the session below.
     if (!OnSetupTrigger(triggered_rule)) {
@@ -520,8 +524,6 @@ bool TracingScenario::OnStartTrigger(
   tracing_session_->Start();
   if (triggered_rule) {
     TriggersDataSource::EmitTrigger(triggered_rule);
-    base::UmaHistogramSparse("Tracing.Background.Scenario.Trigger.Start",
-                             TriggerNameHash(triggered_rule));
   }
   return true;
 }

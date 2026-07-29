@@ -6061,6 +6061,39 @@ TEST_P(LayerTreeHostImplTest, ScrollbarInnerLargerThanOuter) {
   EXPECT_EQ(300, horiz_scrollbar->clip_layer_length());
 }
 
+TEST_P(LayerTreeHostImplTest, ScrollbarDeviceLargerThanOuter) {
+  LayerTreeSettings settings = DefaultSettings();
+  CreateHostImpl(settings, CreateLayerTreeFrameSink());
+  auto* active_tree = host_impl_->active_tree();
+
+  gfx::Size device_size(600, 800);
+  gfx::Size outer_viewport_size(300, 400);
+  gfx::Size content_size(300, 1000);
+
+  SetupViewportLayers(active_tree, /* inner_viewport_size */ device_size,
+                      outer_viewport_size, content_size);
+  active_tree->PushPageScaleFromMainThread(/* page_scale_factor */ 2,
+                                           /* min_page_scale_factor */ 2,
+                                           /* max_page_scale_factor */ 4);
+
+  LayerImpl* root_scroll = OuterViewportScrollLayer();
+  auto* horiz_scrollbar = AddLayer<PaintedScrollbarLayerImpl>(
+      active_tree, ScrollbarOrientation::kHorizontal, true, true);
+  auto* vert_scrollbar = AddLayer<PaintedScrollbarLayerImpl>(
+      active_tree, ScrollbarOrientation::kVertical, true, true);
+  SetupScrollbarLayer(root_scroll, horiz_scrollbar);
+  SetupScrollbarLayer(root_scroll, vert_scrollbar);
+  LayerImpl* child = AddLayerInActiveTree();
+  child->SetBounds(content_size);
+
+  host_impl_->active_tree()->UpdateAllScrollbarGeometriesForTesting();
+
+  EXPECT_EQ(300, horiz_scrollbar->clip_layer_length());
+  EXPECT_EQ(300, horiz_scrollbar->scroll_layer_length());
+  EXPECT_EQ(400, vert_scrollbar->clip_layer_length());
+  EXPECT_EQ(1000, vert_scrollbar->scroll_layer_length());
+}
+
 TEST_P(LayerTreeHostImplTest, ScrollbarRegistration) {
   LayerTreeSettings settings = DefaultSettings();
   settings.scrollbar_animator = LayerTreeSettings::ANDROID_OVERLAY;
@@ -10684,11 +10717,9 @@ class BlendStateCheckLayer : public LayerImpl {
              gfx::ColorSpace(), gpu::SHARED_IMAGE_USAGE_CPU_WRITE_ONLY,
              "BlendStateCheckLayerTest"});
     auto sync_token = shared_image_interface_->GenVerifiedSyncToken();
-    viz::TransferableResource resource =
-        viz::TransferableResource::MakeSoftwareSharedImage(
-            shared_image, sync_token, gfx::Size(1, 1),
-            viz::SinglePlaneFormat::kBGRA_8888,
-            viz::TransferableResource::ResourceSource::kTileRasterTask);
+    viz::TransferableResource resource = viz::TransferableResource::Make(
+        shared_image,
+        viz::TransferableResource::ResourceSource::kTileRasterTask, sync_token);
 
     resource_id_ = resource_provider_->ImportResource(std::move(resource),
                                                       base::DoNothing());

@@ -37,7 +37,7 @@
 #include "third_party/blink/renderer/platform/wtf/text/text_codec_ascii_fast_path.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
-namespace WTF {
+namespace blink {
 
 static const UChar kTable[256] = {
     0x0000, 0x0001, 0x0002, 0x0003, 0x0004, 0x0005, 0x0006, 0x0007,  // 00-07
@@ -74,7 +74,8 @@ static const UChar kTable[256] = {
     0x00F8, 0x00F9, 0x00FA, 0x00FB, 0x00FC, 0x00FD, 0x00FE, 0x00FF   // F8-FF
 };
 
-void TextCodecLatin1::RegisterEncodingNames(EncodingNameRegistrar registrar) {
+void TextCodecLatin1::RegisterEncodingNames(
+    WTF::EncodingNameRegistrar registrar) {
   // Taken from the alias table at https://encoding.spec.whatwg.org/
   registrar("windows-1252", "windows-1252");
   registrar("ANSI_X3.4-1968", "windows-1252");
@@ -96,12 +97,12 @@ void TextCodecLatin1::RegisterEncodingNames(EncodingNameRegistrar registrar) {
 }
 
 static std::unique_ptr<TextCodec> NewStreamingTextDecoderWindowsLatin1(
-    const TextEncoding&,
+    const WTF::TextEncoding&,
     const void*) {
   return std::make_unique<TextCodecLatin1>();
 }
 
-void TextCodecLatin1::RegisterCodecs(TextCodecRegistrar registrar) {
+void TextCodecLatin1::RegisterCodecs(WTF::TextCodecRegistrar registrar) {
   registrar("windows-1252", NewStreamingTextDecoderWindowsLatin1, nullptr);
 
   // ASCII and Latin-1 both decode as Windows Latin-1 although they retain
@@ -111,7 +112,7 @@ void TextCodecLatin1::RegisterCodecs(TextCodecRegistrar registrar) {
 }
 
 String TextCodecLatin1::Decode(base::span<const uint8_t> bytes,
-                               FlushBehavior,
+                               WTF::FlushBehavior,
                                bool,
                                bool&) {
   if (bytes.empty()) {
@@ -136,7 +137,7 @@ String TextCodecLatin1::Decode(base::span<const uint8_t> bytes,
           if (!IsAllASCII<LChar>(chunk))
             goto useLookupTable;
 
-          CopyASCIIMachineWord(destination, source);
+          CopyAsciiMachineWord(destination, source);
           source += sizeof(MachineWord);
           destination += sizeof(MachineWord);
         }
@@ -188,7 +189,7 @@ upConvertTo16Bit:
           if (!IsAllASCII<LChar>(chunk))
             goto useLookupTable16;
 
-          CopyASCIIMachineWord(destination16, source);
+          CopyAsciiMachineWord(destination16, source);
           source += sizeof(MachineWord);
           destination16 += sizeof(MachineWord);
         }
@@ -212,8 +213,8 @@ upConvertTo16Bit:
 template <typename CharType>
 static std::string EncodeComplexWindowsLatin1(
     base::span<const CharType> char_data,
-    UnencodableHandling handling) {
-  DCHECK_NE(handling, kNoUnencodables);
+    WTF::UnencodableHandling handling) {
+  DCHECK_NE(handling, WTF::kNoUnencodables);
   const auto* characters = char_data.data();
   const wtf_size_t length = base::checked_cast<wtf_size_t>(char_data.size());
   wtf_size_t target_length = length;
@@ -259,7 +260,7 @@ static std::string EncodeComplexWindowsLatin1(
 
 template <typename CharType>
 std::string TextCodecLatin1::EncodeCommon(base::span<const CharType> characters,
-                                          UnencodableHandling handling) {
+                                          WTF::UnencodableHandling handling) {
   std::string string(characters.size(), '\0');
 
   // Convert the string a fast way and simultaneously do an efficient check to
@@ -279,13 +280,13 @@ std::string TextCodecLatin1::EncodeCommon(base::span<const CharType> characters,
 }
 
 std::string TextCodecLatin1::Encode(base::span<const UChar> characters,
-                                    UnencodableHandling handling) {
+                                    WTF::UnencodableHandling handling) {
   return EncodeCommon(characters, handling);
 }
 
 std::string TextCodecLatin1::Encode(base::span<const LChar> characters,
-                                    UnencodableHandling handling) {
+                                    WTF::UnencodableHandling handling) {
   return EncodeCommon(characters, handling);
 }
 
-}  // namespace WTF
+}  // namespace blink

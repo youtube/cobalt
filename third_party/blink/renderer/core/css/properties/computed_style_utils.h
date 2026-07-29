@@ -190,7 +190,8 @@ class CORE_EXPORT ComputedStyleUtils {
       const Length& default_offset);
   static CSSValue* ValueForAnimationTimingFunction(
       const scoped_refptr<TimingFunction>&);
-  static CSSValue* ValueForAnimationTimeline(const StyleTimeline&);
+  static CSSValue* ValueForAnimationTimeline(const StyleTimeline&,
+                                             const ComputedStyle&);
 
   static CSSValue* ValueForAnimationDelayList(const CSSTimingData*);
   static CSSValue* ValueForAnimationDirectionList(const CSSAnimationData*);
@@ -209,7 +210,8 @@ class CORE_EXPORT ComputedStyleUtils {
   static CSSValue* ValueForAnimationRangeEndList(const CSSAnimationData*,
                                                  const ComputedStyle&);
   static CSSValue* ValueForAnimationTimingFunctionList(const CSSTimingData*);
-  static CSSValue* ValueForAnimationTimelineList(const CSSAnimationData*);
+  static CSSValue* ValueForAnimationTimelineList(const CSSAnimationData*,
+                                                 const ComputedStyle&);
 
   static CSSValue* ValueForTimelineInset(const TimelineInset&,
                                          const ComputedStyle&);
@@ -240,13 +242,16 @@ class CORE_EXPORT ComputedStyleUtils {
       const ComputedStyle& style);
   static CSSValue* ValueForAnimationTriggerType(const EAnimationTriggerType);
   static CSSValue* ValueForAnimationTriggerTypeList(const CSSAnimationData*);
-  static CSSValue* ValueForAnimationTriggerTimelineList(
-      const CSSAnimationData*);
+  static CSSValue* ValueForAnimationTriggerTimelineList(const CSSAnimationData*,
+                                                        const ComputedStyle&);
   static CSSValueList* ValuesForBorderRadiusCorner(const LengthSize&,
                                                    const ComputedStyle&);
   static CSSValue* ValueForBorderRadiusCorner(const LengthSize&,
                                               const ComputedStyle&);
   static CSSValue* ValueForCornerShape(const Superellipse&);
+  static CSSValueList* ValueForCornerShapeEdgeShorthand(
+      const StylePropertyShorthand&,
+      const ComputedStyle&);
 
   // Serializes a gfx::Transform into a matrix() or matrix3d() transform
   // function value. If force_matrix3d is true, it will always give a matrix3d

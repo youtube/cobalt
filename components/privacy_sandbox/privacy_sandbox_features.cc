@@ -87,9 +87,15 @@ BASE_FEATURE(kEnforcePrivacySandboxAttestations,
              "EnforcePrivacySandboxAttestations",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+#if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kDefaultAllowPrivacySandboxAttestations,
              "DefaultAllowPrivacySandboxAttestations",
              base::FEATURE_ENABLED_BY_DEFAULT);
+#else
+BASE_FEATURE(kDefaultAllowPrivacySandboxAttestations,
+             "DefaultAllowPrivacySandboxAttestations",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
 
 const char kPrivacySandboxEnrollmentOverrides[] =
     "privacy-sandbox-enrollment-overrides";
@@ -122,7 +128,7 @@ BASE_FEATURE(kRelatedWebsiteSetsDevUI,
 
 BASE_FEATURE(kAlwaysBlock3pcsIncognito,
              "AlwaysBlock3pcsIncognito",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kFingerprintingProtectionUx,
              "FingerprintingProtectionUx",

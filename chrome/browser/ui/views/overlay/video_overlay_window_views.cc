@@ -37,6 +37,7 @@
 #include "chrome/browser/ui/views/overlay/skip_ad_label_button.h"
 #include "chrome/browser/ui/views/overlay/toggle_camera_button.h"
 #include "chrome/browser/ui/views/overlay/toggle_microphone_button.h"
+#include "chrome/browser/ui/views/picture_in_picture/picture_in_picture_tucker.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/global_media_controls/public/format_duration.h"
 #include "components/vector_icons/vector_icons.h"
@@ -57,7 +58,6 @@
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/favicon_size.h"
 #include "ui/gfx/geometry/resize_utils.h"
-#include "ui/gfx/geometry/rounded_corners_f.h"
 #include "ui/gfx/geometry/skia_conversions.h"
 #include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
@@ -473,6 +473,8 @@ VideoOverlayWindowViews::~VideoOverlayWindowViews() {
     overlay_view_->RemoveObserver(this);
   }
   display::Screen::GetScreen()->RemoveObserver(this);
+  PictureInPictureWindowManager::GetInstance()->OnPictureInPictureWindowHidden(
+      this);
 }
 
 gfx::Size& VideoOverlayWindowViews::GetNaturalSize() {
@@ -783,6 +785,12 @@ bool VideoOverlayWindowViews::IsLayoutPendingForTesting() const {
          update_controls_bounds_timer_->IsRunning();
 }
 
+void VideoOverlayWindowViews::FinishTuckAnimationForTesting() {
+  if (tucker_) {
+    tucker_->FinishAnimationForTesting();  // IN-TEST
+  }
+}
+
 void VideoOverlayWindowViews::OnDisplayMetricsChanged(
     const display::Display& display,
     uint32_t changed_metrics) {
@@ -807,6 +815,18 @@ void VideoOverlayWindowViews::OnViewVisibilityChanged(
 
   // The visibility of `overlay_view_` affects our minimum size.
   OnSizeConstraintsChanged();
+}
+
+void VideoOverlayWindowViews::SetForcedTucking(bool tuck) {
+  if (!tucker_) {
+    tucker_ = std::make_unique<PictureInPictureTucker>(*this);
+  }
+  is_tucking_forced_ = tuck;
+  if (tuck) {
+    tucker_->Tuck();
+  } else {
+    tucker_->Untuck();
+  }
 }
 
 void VideoOverlayWindowViews::OnAutoPipSettingOverlayViewHidden() {
@@ -1901,6 +1921,8 @@ bool VideoOverlayWindowViews::IsActive() const {
 void VideoOverlayWindowViews::Close() {
   views::Widget::Close();
   MaybeUnregisterFrameSinkHierarchy();
+  PictureInPictureWindowManager::GetInstance()->OnPictureInPictureWindowHidden(
+      this);
 }
 
 void VideoOverlayWindowViews::ShowInactive() {
@@ -1934,6 +1956,15 @@ void VideoOverlayWindowViews::ShowInactive() {
 
   // If this is not the first time the window is shown, this will be a no-op.
   has_been_shown_ = true;
+
+  // If we're still tucked from a previous session and it's no longer necessary,
+  // then untuck now.
+  if (is_tucking_forced_ && !PictureInPictureWindowManager::GetInstance()
+                                 ->IsPictureInPictureForceTucked()) {
+    SetForcedTucking(false);
+  }
+  PictureInPictureWindowManager::GetInstance()->OnPictureInPictureWindowShown(
+      this);
 }
 
 void VideoOverlayWindowViews::Hide() {
@@ -1941,6 +1972,8 @@ void VideoOverlayWindowViews::Hide() {
   RemoveOverlayViewIfExists();
   views::Widget::Hide();
   MaybeUnregisterFrameSinkHierarchy();
+  PictureInPictureWindowManager::GetInstance()->OnPictureInPictureWindowHidden(
+      this);
 }
 
 bool VideoOverlayWindowViews::IsVisible() const {
@@ -1965,6 +1998,9 @@ void VideoOverlayWindowViews::UpdateNaturalSize(const gfx::Size& natural_size) {
   // Update the views::Widget bounds to adhere to sizing spec. This will also
   // update the layout of the controls.
   SetBounds(CalculateAndUpdateWindowBounds());
+  if (is_tucking_forced_) {
+    tucker_->Tuck();
+  }
 }
 
 void VideoOverlayWindowViews::SetPlaybackState(PlaybackState playback_state) {

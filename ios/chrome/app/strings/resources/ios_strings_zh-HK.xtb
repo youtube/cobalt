@@ -611,7 +611,6 @@
 <translation id="3557336313807607643">新增至通訊錄</translation>
 <translation id="355765753469272474">復原</translation>
 <translation id="3565930036634619844">分頁。<ph name="NUMBER_OF_TABS" /> 個分頁入面嘅第 <ph name="TAB_INDEX" /> 個。</translation>
-<translation id="3570693105179140209">㩒兩下就可以睇多啲密碼。</translation>
 <translation id="3572607909481582402">在你的 Google 帳戶中</translation>
 <translation id="3575234738189584619">用「智能鏡頭」搜尋</translation>
 <translation id="3575426792457739946">此清單包含所有已載入的個人檔案。</translation>
@@ -624,6 +623,7 @@
 <translation id="3596414637720633074">在無痕模式中封鎖第三方 Cookie</translation>
 <translation id="3602260545951981695">選擇「強化保護」</translation>
 <translation id="3608436266458100337">閱讀器模式</translation>
+<translation id="3610041351087301930">隱藏「閱讀器模式」</translation>
 <translation id="3622175633937495219">在記錄中搜尋 (找到 <ph name="COUNT" /> 個結果)</translation>
 <translation id="3625008969091706597">只要在邊緣滑動即可返回上一個畫面。</translation>
 <translation id="362709345066740529">在此自訂資訊卡、動態消息等內容</translation>
@@ -654,7 +654,6 @@
 <translation id="3779810277399252432">沒有互聯網連線。</translation>
 <translation id="3782614601387961027">關閉警告</translation>
 <translation id="3789841737615482174">安裝</translation>
-<translation id="3795478177331815672">打開分頁同分頁群組</translation>
 <translation id="380329542618494757">名稱</translation>
 <translation id="3803696231112616155">為此網站提供翻譯選項</translation>
 <translation id="3808311849069021992">顯示搜尋引擎詳細資料</translation>
@@ -700,7 +699,6 @@
 <translation id="3955740319737378355">完成</translation>
 <translation id="3955822496205734389">你有安全度低的密碼。</translation>
 <translation id="3958312024468322930">將圖示拖曳至主畫面底部的 Dock</translation>
-<translation id="3960218941754097036">使用「Google 智能鏡頭」搜尋畫面上的任何內容</translation>
 <translation id="3962326069546168954">儲存</translation>
 <translation id="3967327056943561740">書籤</translation>
 <translation id="3967822245660637423">下載完成</translation>
@@ -967,7 +965,6 @@
 <translation id="4979397965658815378">登入 Google 帳戶後，您即可在任何裝置上存取自己的書籤、密碼、記錄和其他設定</translation>
 <translation id="4985921635659180565">檔案預定刪除後，便無法取消操作。</translation>
 <translation id="498624032394115435">任何擁有連結的人均可編輯所有分頁。</translation>
-<translation id="4989065233040279145">選擇「<ph name="FILENAME" />」的儲存位置</translation>
 <translation id="499122600724363620"><ph name="NAME" />，<ph name="EMAIL" />，該帳戶由你的機構管理。</translation>
 <translation id="4992255726304765516">分頁群組顏色係<ph name="COLOR" /></translation>
 <translation id="5005498671520578047">複製密碼</translation>
@@ -1067,6 +1064,7 @@
 <translation id="5431252637281434233">系統會將你登出</translation>
 <translation id="543338862236136125">修改密碼</translation>
 <translation id="5433691172869980887">已複製使用者名稱</translation>
+<translation id="5437480232219631455">你可在此開啟 Gemini</translation>
 <translation id="5439618055789623719">已使用 <ph name="USER_EMAIL" /> 的身分登入</translation>
 <translation id="5443636120437209490">設定為預預設瀏覽器，提升瀏覽體驗</translation>
 <translation id="5444892875087332195">書籤</translation>
@@ -1446,6 +1444,7 @@
 <translation id="6831043979455480757">翻譯</translation>
 <translation id="6842136130964845393">為確保您可隨時存取已儲存的密碼，請驗證您的身分</translation>
 <translation id="6851516051005285358">切換至電腦版網站</translation>
+<translation id="6857446173140146664">刪除背景</translation>
 <translation id="6858718102216837409">新增語言…</translation>
 <translation id="6858855187367714033">已經掃咗瞄</translation>
 <translation id="6859944681507688231">如要掃瞄二維條碼或信用卡，請在設定中啟用相機。</translation>
@@ -1652,7 +1651,6 @@
 <translation id="7724085059277147439">{count,plural, =1{這個項目已儲存到 Google 帳戶 ({email})}other{這些項目已儲存到 Google 帳戶 ({email})}}</translation>
 <translation id="7729458878441927652">如要查看其他裝置上的分頁，請同步處理分頁和記錄。</translation>
 <translation id="7730020510075123961">否，請合併資料</translation>
-<translation id="7730973429297233609">選取要用來儲存 <ph name="FILENAME" /> (<ph name="FILESIZE" />) 的帳戶</translation>
 <translation id="7733646263819020771"><ph name="BOOKMRK_NAME" />。只係喺呢部裝置上面。</translation>
 <translation id="7744192722284567281">發生資料外洩事件</translation>
 <translation id="7749790401023484470">未選取任何文字。</translation>
@@ -1813,6 +1811,7 @@
 <translation id="8343993175958086504">備份資料即可在任何裝置上使用。</translation>
 <translation id="8348530355586151720">輕按三點選單</translation>
 <translation id="8349305172487531364">書籤列</translation>
+<translation id="8363484128299778310">發生問題時的臨時復原選項</translation>
 <translation id="8364563001733875155">如要更改 PIN，請先在裝置上設定密碼。</translation>
 <translation id="8366466717204352506">從未檢查過</translation>
 <translation id="8368001212524806591">追蹤價格</translation>
@@ -1835,7 +1834,6 @@
 <translation id="8428045167754449968">城市/鄉鎮</translation>
 <translation id="8428213095426709021">設定</translation>
 <translation id="8428634594422941299">知道了</translation>
-<translation id="8430694217306051839">選擇「<ph name="FILENAME" />」(<ph name="FILE_SIZE" />) 的儲存位置</translation>
 <translation id="8434837876193928924">分頁群組詳情</translation>
 <translation id="8438566539970814960">改善搜尋和瀏覽體驗</translation>
 <translation id="8439758443371991593">隱藏「加入閱讀清單」</translation>

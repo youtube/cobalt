@@ -69,6 +69,10 @@ IN_PROC_BROWSER_TEST_F(NewTabPageTest, ComposeboxFileCarousel) {
   RunTest("new_tab_page/composebox/file_carousel_test.js", "mocha.run()");
 }
 
+IN_PROC_BROWSER_TEST_F(NewTabPageTest, ComposeboxFileThumbnail) {
+  RunTest("new_tab_page/composebox/file_thumbnail_test.js", "mocha.run()");
+}
+
 using NewTabPageModulesTest = NewTabPageBrowserTest;
 
 IN_PROC_BROWSER_TEST_F(NewTabPageModulesTest, ModuleWrapper) {
@@ -206,6 +210,16 @@ IN_PROC_BROWSER_TEST_F(NewTabPageAppTest, LensUploadDialog) {
           "runMochaSuite('NewTabPageAppTest LensUploadDialog')");
 }
 
+IN_PROC_BROWSER_TEST_F(NewTabPageAppTest, Composebox) {
+  RunTest("new_tab_page/app_test.js",
+          "runMochaSuite('NewTabPageAppTest Composebox')");
+}
+
+IN_PROC_BROWSER_TEST_F(NewTabPageAppTest, ComposeEntryPoint) {
+  RunTest("new_tab_page/app_test.js",
+          "runMochaSuite('NewTabPageAppTest ComposeEntryPoint')");
+}
+
 IN_PROC_BROWSER_TEST_F(NewTabPageAppTest, WallpaperSearch) {
   RunTest("new_tab_page/app_test.js",
           "runMochaSuite('NewTabPageAppTest WallpaperSearch')");
@@ -214,6 +228,11 @@ IN_PROC_BROWSER_TEST_F(NewTabPageAppTest, WallpaperSearch) {
 IN_PROC_BROWSER_TEST_F(NewTabPageAppTest, MicrosoftAuth) {
   RunTest("new_tab_page/app_test.js",
           "runMochaSuite('NewTabPageAppTest MicrosoftAuth')");
+}
+
+IN_PROC_BROWSER_TEST_F(NewTabPageAppTest, NewTabFooter) {
+  RunTest("new_tab_page/app_test.js",
+          "runMochaSuite('NewTabPageAppTest NewTabFooter')");
 }
 
 class NewTabPageModulesMostRelevantTabResumptionModuleTest

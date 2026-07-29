@@ -61,7 +61,7 @@ import java.util.List;
 @Config(
         manifest = Config.NONE,
         shadows = {TabbedNavigationBarColorControllerUnitTest.ShadowSemanticColorUtils.class},
-        sdk = 28)
+        sdk = 29)
 @EnableFeatures(ChromeFeatureList.NAV_BAR_COLOR_MATCHES_TAB_BACKGROUND)
 public class TabbedNavigationBarColorControllerUnitTest {
     public @Rule MockitoRule mockitoRule = MockitoJUnit.rule();
@@ -323,6 +323,7 @@ public class TabbedNavigationBarColorControllerUnitTest {
     })
     @DisableFeatures({ChromeFeatureList.EDGE_TO_EDGE_EVERYWHERE})
     public void testNavBarColorAnimationsEdgeToEdgeBottomChin() {
+        mNavColorController.setIsBottomChinEnabledForTesting(true);
         when(mTab.getBackgroundColor()).thenReturn(Color.BLUE);
         when(mLayoutManager.getActiveLayoutType()).thenReturn(LayoutType.BROWSING);
 

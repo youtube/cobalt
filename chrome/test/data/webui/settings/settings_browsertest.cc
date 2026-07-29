@@ -11,6 +11,7 @@
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/web_ui_mocha_browser_test.h"
+#include "components/browsing_data/core/features.h"
 #include "components/compose/buildflags.h"
 #include "components/compose/core/browser/compose_features.h"
 #include "components/content_settings/core/common/features.h"
@@ -522,8 +523,7 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, RelaunchConfirmationDialog) {
 }
 #endif
 
-// TODO(crbug.com/40719198): Flaky on all OSes. Enable the test.
-IN_PROC_BROWSER_TEST_F(SettingsTest, DISABLED_ResetPage) {
+IN_PROC_BROWSER_TEST_F(SettingsTest, ResetPage) {
   RunTest("settings/reset_page_test.js", "mocha.run()");
 }
 
@@ -688,7 +688,6 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, SyncAccountControl) {
 }
 #endif
 
-
 IN_PROC_BROWSER_TEST_F(SettingsTest, TabDiscardExceptionDialog) {
   RunTest("settings/tab_discard_exception_dialog_test.js", "mocha.run()");
 }
@@ -813,7 +812,7 @@ IN_PROC_BROWSER_TEST_F(SettingsClearBrowsingDataTest,
 class SettingsClearBrowsingDataV2Test : public SettingsBrowserTest {
  private:
   base::test::ScopedFeatureList scoped_feature_list_{
-      features::kDbdRevampDesktop};
+      browsing_data::features::kDbdRevampDesktop};
 };
 
 #if !BUILDFLAG(IS_CHROMEOS)
@@ -828,6 +827,11 @@ IN_PROC_BROWSER_TEST_F(SettingsClearBrowsingDataV2Test,
                        DeleteBrowsingDataDialog) {
   RunTest("settings/clear_browsing_data_dialog_v2_test.js",
           "runMochaSuite('DeleteBrowsingDataDialog')");
+}
+
+IN_PROC_BROWSER_TEST_F(SettingsClearBrowsingDataV2Test, OtherGoogleDataDialog) {
+  RunTest("settings/other_google_data_dialog_test.js",
+          "runMochaSuite('OtherGoogleDataDialog')");
 }
 
 IN_PROC_BROWSER_TEST_F(SettingsClearBrowsingDataV2Test,
@@ -929,8 +933,7 @@ IN_PROC_BROWSER_TEST_F(SettingsBrowserTest, MemorySaverAggressiveness) {
           "runMochaSuite('MemorySaverAggressiveness')");
 }
 
-class SettingsPersonalizationOptionsTest : public SettingsBrowserTest {
-};
+class SettingsPersonalizationOptionsTest : public SettingsBrowserTest {};
 
 IN_PROC_BROWSER_TEST_F(SettingsPersonalizationOptionsTest, AllBuilds) {
   RunTest("settings/personalization_options_test.js",
@@ -1010,13 +1013,8 @@ IN_PROC_BROWSER_TEST_F(SettingsPrivacyGuideTest, MAYBE_3pcdOff) {
 }
 
 // Privacy guide integration tests.
-// TODO(crbug.com/40899379): Re-enable when no longer flaky.
-#if (BUILDFLAG(IS_LINUX) && !defined(NDEBUG))
-#define MAYBE_Integration DISABLED_Integration
-#else
-#define MAYBE_Integration Integration
-#endif
-IN_PROC_BROWSER_TEST_F(SettingsBrowserTest, MAYBE_Integration) {
+// TODO(crbug.com/424171352); Re-enable this test.
+IN_PROC_BROWSER_TEST_F(SettingsBrowserTest, DISABLED_Integration) {
   RunTest("settings/privacy_guide_integration_test.js", "mocha.run()");
 }
 
@@ -1147,7 +1145,7 @@ class SettingsPrivacyPageTest : public SettingsBrowserTest {
 #if BUILDFLAG(IS_CHROMEOS)
             blink::features::kWebPrinting,
 #endif
-            features::kDbdRevampDesktop,
+            browsing_data::features::kDbdRevampDesktop,
             privacy_sandbox::kPrivacySandboxRelatedWebsiteSetsUi,
             permissions::features::kPermissionSiteSettingsRadioButton,
             privacy_sandbox::kFingerprintingProtectionUx,
@@ -1464,6 +1462,11 @@ IN_PROC_BROWSER_TEST_F(SettingsSecurityPageTest,
           "runMochaSuite('SecurityPageHappinessTrackingSurveys')");
 }
 
+IN_PROC_BROWSER_TEST_F(SettingsSecurityPageTest, JavascriptOptimizer) {
+  RunTest("settings/security_page_test.js",
+          "runMochaSuite('JavascriptOptimizer')");
+}
+
 // TODO(crbug/338155508): Enable this flaky test. This is flaky on Linux debug
 // build.
 // TODO(crbug.com/409069315): Re-enable this test on Mac.
@@ -1474,6 +1477,12 @@ IN_PROC_BROWSER_TEST_F(SettingsSecurityPageTest,
 #endif
 IN_PROC_BROWSER_TEST_F(SettingsSecurityPageTest, MAYBE_SafeBrowsing) {
   RunTest("settings/security_page_test.js", "runMochaSuite('SafeBrowsing')");
+}
+
+using SettingsSecurityPageV2Test = SettingsBrowserTest;
+
+IN_PROC_BROWSER_TEST_F(SettingsSecurityPageV2Test, Main) {
+  RunTest("settings/security_page_v2_test.js", "runMochaSuite('Main')");
 }
 
 #if !BUILDFLAG(IS_CHROMEOS)

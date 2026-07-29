@@ -396,6 +396,18 @@ BASE_FEATURE(kWebrtcMediaCapabilitiesParameters,
              "WebrtcMediaCapabilitiesParameters",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// Controls the persistent license support for protected media that uses
+// widevine.
+BASE_FEATURE(kWidvinePersistentLicenseSupport,
+             "WidvinePersistentLicenseSupport",
+#if BUILDFLAG(ENABLE_LIBRARY_CDMS)
+             // TODO(crbug.com/423458074): This will rollout slowly as an
+             // experiment eventually becoming disabled by default.
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#else
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(ENABLE_LIBRARY_CDMS)
+
 // Display the Cast overlay button on the media controls.
 BASE_FEATURE(kMediaCastOverlayButton,
              "MediaCastOverlayButton",
@@ -653,6 +665,15 @@ BASE_FEATURE(kFeatureManagementLiveTranslateCrOS,
 BASE_FEATURE(kFileDialogsBlockPictureInPicture,
              "FileDialogsBlockPictureInPicture",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Tucks picture-in-picture windows while file dialogs are open.
+BASE_FEATURE(kFileDialogsTuckPictureInPicture,
+             "FileDialogsTuckPictureInPicture",
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 // Show toolbar button that opens dialog for controlling media sessions.
@@ -849,7 +870,7 @@ const base::FeatureParam<std::string> kMediaFoundationClearKeyCdmPathForTesting{
 // Enables the On-Device Web Speech feature on supported devices.
 BASE_FEATURE(kOnDeviceWebSpeech,
              "OnDeviceWebSpeech",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables the Live Caption feature on supported devices.
 BASE_FEATURE(kLiveCaption, "LiveCaption", base::FEATURE_ENABLED_BY_DEFAULT);
@@ -865,6 +886,9 @@ BASE_FEATURE(kLogSodaLoadFailures,
 // a Chromium prompt through which they choose which tab/window/screen
 // to share. If this flag is enabled, then when the user chooses to
 // share, transient activation is conferred on the capturing Web application.
+//
+// TODO(crbug.com/420406085): Remove after January 2028.
+// Keep this flag around at least until that date.
 BASE_FEATURE(kGetDisplayMediaConfersActivation,
              "GetDisplayMediaConfersActivation",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1703,10 +1727,10 @@ BASE_FEATURE(kMediaFoundationAcceleratedEncodeOnArm64,
 #if BUILDFLAG(IS_WIN)
 BASE_FEATURE(kMediaFoundationD3DVideoProcessing,
              "MediaFoundationD3DVideoProcessing",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+             base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kMediaFoundationSharedImageEncode,
              "MediaFoundationSharedImageEncode",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+             base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
 // Controls whether muted media stream audio should continue to render.

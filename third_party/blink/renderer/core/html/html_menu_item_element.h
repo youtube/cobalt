@@ -10,6 +10,7 @@
 
 namespace blink {
 
+class HTMLFieldSetElement;
 class HTMLMenuBarElement;
 class HTMLMenuListElement;
 
@@ -23,8 +24,11 @@ class CORE_EXPORT HTMLMenuItemElement final : public HTMLElement {
 
   int index() const;
 
-  bool Checked() const;
+  bool IsCheckable() const;
+  bool checked() const;
+  // This only sets `this` to checked if `IsCheckable()` is true.
   void setChecked(bool);
+  bool ShouldAppearChecked() const;
 
   HTMLMenuBarElement* OwnerMenuBarElement() const;
   HTMLMenuListElement* OwnerMenuListElement() const;
@@ -40,6 +44,9 @@ class CORE_EXPORT HTMLMenuItemElement final : public HTMLElement {
   void RemovedFrom(ContainerNode&) override;
 
   bool IsDisabledFormControl() const override;
+  bool IsKeyboardFocusableSlow(
+      UpdateBehavior update_behavior =
+          UpdateBehavior::kStyleAndLayout) const override;
   void DefaultEventHandler(Event&) override;
 
   void SetDirty(bool);
@@ -51,16 +58,18 @@ class CORE_EXPORT HTMLMenuItemElement final : public HTMLElement {
 
   int DefaultTabIndex() const override;
   FocusableState SupportsFocus(UpdateBehavior update_behavior) const override;
-  bool IsKeyboardFocusableSlow(
-      UpdateBehavior update_behavior =
-          UpdateBehavior::kStyleAndLayout) const override;
   bool ShouldHaveFocusAppearance() const override;
 
   // Traverse ancestors to find the nearest menubar or menulist ancestor.
   void ResetNearestAncestorMenuBarOrMenuList();
+  // Traverse ancestors to find the nearest fieldset ancestor.
+  void ResetNearestAncestorFieldSet();
 
   Member<HTMLMenuBarElement> nearest_ancestor_menu_bar_;
   Member<HTMLMenuListElement> nearest_ancestor_menu_list_;
+  // Could be null forever; it is only used to allow `this` to be checkable, if
+  // `this` is immediately nested inside a `<fieldset checkable>`.
+  Member<HTMLFieldSetElement> nearest_ancestor_field_set_;
 
   // Represents 'checkedness'.
   bool is_checked_;

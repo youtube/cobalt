@@ -10,19 +10,27 @@
 #import "base/functional/bind.h"
 #import "base/functional/callback_helpers.h"
 #import "base/json/values_util.h"
+#import "base/strings/sys_string_conversions.h"
 #import "base/task/bind_post_task.h"
 #import "base/task/sequenced_task_runner.h"
 #import "base/values.h"
 #import "components/prefs/pref_change_registrar.h"
 #import "components/prefs/pref_service.h"
+#import "components/prefs/scoped_user_pref_update.h"
+#import "ios/chrome/browser/push_notification/model/constants.h"
 #import "ios/chrome/browser/reminder_notifications/coordinator/reminder_notifications_mediator.h"
 #import "ios/chrome/browser/reminder_notifications/model/reminder_notification_builder.h"
+#import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
+#import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/web/public/web_state.h"
 #import "url/gurl.h"
 
 ReminderNotificationClient::ReminderNotificationClient(ProfileIOS* profile)
     : PushNotificationClient(PushNotificationClientId::kReminders, profile) {
+  CHECK(profile);
+
   pref_change_registrar_ = std::make_unique<PrefChangeRegistrar>();
 
   PrefService* prefs = profile->GetPrefs();
@@ -31,7 +39,13 @@ ReminderNotificationClient::ReminderNotificationClient(ProfileIOS* profile)
 
   pref_change_registrar_->Add(
       prefs::kReminderNotifications,
-      base::BindRepeating(&ReminderNotificationClient::OnPrefsChanged,
+      base::BindRepeating(
+          &ReminderNotificationClient::OnReminderDataPrefChanged,
+          weak_ptr_factory_.GetWeakPtr()));
+
+  pref_change_registrar_->Add(
+      prefs::kFeaturePushNotificationPermissions,
+      base::BindRepeating(&ReminderNotificationClient::OnPermissionsPrefChanged,
                           weak_ptr_factory_.GetWeakPtr()));
 }
 
@@ -39,15 +53,39 @@ ReminderNotificationClient::~ReminderNotificationClient() = default;
 
 bool ReminderNotificationClient::CanHandleNotification(
     UNNotification* notification) {
-  // TODO(crbug.com/390432325): Handle reminder notification interactions.
-  return false;
+  return [notification.request.identifier
+      hasPrefix:kReminderNotificationsIdentifierPrefix];
 }
 
 bool ReminderNotificationClient::HandleNotificationInteraction(
     UNNotificationResponse* response) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  // TODO(crbug.com/390432325): Handle reminder notification interactions.
-  return false;
+
+  if (!CanHandleNotification(response.notification)) {
+    return false;
+  }
+
+  NSDictionary* user_info = response.notification.request.content.userInfo;
+  NSString* url_string = user_info[@"url"];
+
+  if (!url_string || url_string.length == 0) {
+    // TODO(crbug.com/390432325): Consider adding UMA logs for missing URL.
+    return false;
+  }
+
+  GURL url(base::SysNSStringToUTF8(url_string));
+
+  if (!url.is_valid()) {
+    // TODO(crbug.com/390432325): Consider adding UMA logs for invalid URL.
+    return false;
+  }
+
+  // TODO(crbug.com/422449238): Consider adding UMA logs for interaction
+  // handling.
+
+  LoadUrlInNewTab(url);
+
+  return true;
 }
 
 std::optional<UIBackgroundFetchResult>
@@ -62,26 +100,33 @@ ReminderNotificationClient::RegisterActionableNotifications() {
   return @[];
 }
 
-void ReminderNotificationClient::OnSceneActiveForegroundBrowserReady() {
+bool ReminderNotificationClient::IsPermitted() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  OnSceneActiveForegroundBrowserReady(base::DoNothing());
+
+  ProfileIOS* current_profile = GetProfile();
+
+  return current_profile->GetPrefs()
+      ->GetDict(prefs::kFeaturePushNotificationPermissions)
+      .FindBool(kReminderNotificationKey)
+      .value_or(false);
 }
 
-void ReminderNotificationClient::OnSceneActiveForegroundBrowserReady(
-    base::OnceClosure closure) {
+void ReminderNotificationClient::OnReminderDataPrefChanged() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  // TODO(crbug.com/390432325): Handle reminder notification interactions.
-  std::move(closure).Run();
+
+  ScheduleNewReminders();
 }
 
-void ReminderNotificationClient::OnPrefsChanged() {
+void ReminderNotificationClient::OnPermissionsPrefChanged() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  // Schedule notifications based on Pref changes. Cancel existing notifications
-  // first, then schedule new ones based on current prefs.
-  CancelAllNotifications(base::BindOnce(
-      &ReminderNotificationClient::ScheduleNotificationsFromPrefs,
-      weak_ptr_factory_.GetWeakPtr()));
+  if (!IsPermitted()) {
+    CancelAllNotifications(base::DoNothing());
+
+    return;
+  }
+
+  ScheduleNewReminders();
 }
 
 void ReminderNotificationClient::CancelAllNotifications(
@@ -119,51 +164,6 @@ void ReminderNotificationClient::OnGetPendingNotificationsForCancellation(
   std::move(completion_handler).Run();
 }
 
-void ReminderNotificationClient::ScheduleNotificationsFromPrefs() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-  // TODO(crbug.com/422761719): Add `IsPermitted()` to check if the client can
-  // schedule notifications.
-
-  ProfileIOS* current_profile = GetProfile();
-  CHECK(current_profile);
-
-  PrefService* prefs = current_profile->GetPrefs();
-
-  const base::Value::Dict& reminders =
-      prefs->GetDict(prefs::kReminderNotifications);
-
-  if (reminders.empty()) {
-    // TODO(crbug.com/422449238): Consider adding UMA/logging for this failure
-    // case.
-    return;
-  }
-
-  for (auto it : reminders) {
-    const std::string& url = it.first;
-    const base::Value& details = it.second;
-
-    GURL reminder_url(url);
-
-    if (!reminder_url.is_valid()) {
-      // TODO(crbug.com/422449238): Consider adding UMA/logging for this failure
-      // case.
-      continue;
-    }
-
-    const base::Value::Dict* reminder_details = details.GetIfDict();
-
-    if (!reminder_details) {
-      // TODO(crbug.com/422449238): Consider adding UMA/logging for this failure
-      // case.
-      continue;
-    }
-
-    ScheduleNotification(reminder_url, *reminder_details,
-                         current_profile->GetProfileName());
-  }
-}
-
 void ReminderNotificationClient::ScheduleNotification(
     const GURL& reminder_url,
     const base::Value::Dict& reminder_details,
@@ -195,9 +195,119 @@ void ReminderNotificationClient::ScheduleNotification(
       [[ReminderNotificationBuilder alloc] initWithURL:reminder_url
                                                   time:reminder_time.value()];
 
-  // TODO(crbug.com/392921766): Set page title and image for the notification.
+  Browser* browser = GetActiveForegroundBrowser();
+
+  web::WebState* web_state =
+      browser ? browser->GetWebStateList()->GetActiveWebState() : nullptr;
+
+  if (web_state &&
+      (web_state->GetLastCommittedURL() == reminder_url ||
+       web_state->GetVisibleURL() == reminder_url) &&
+      !web_state->GetTitle().empty()) {
+    [builder setPageTitle:base::SysUTF16ToNSString(web_state->GetTitle())];
+  }
+
+  // TODO(crbug.com/392921766): Set page image for the notification.
 
   ScheduledNotificationRequest request = [builder buildRequest];
 
-  ScheduleProfileNotification(request, base::DoNothing(), profile_name);
+  ScheduleProfileNotification(
+      request,
+      base::BindOnce(&ReminderNotificationClient::OnNotificationScheduled,
+                     weak_ptr_factory_.GetWeakPtr(), reminder_url),
+      profile_name);
+}
+
+void ReminderNotificationClient::OnNotificationScheduled(
+    const GURL& scheduled_url,
+    NSError* error) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  if (error) {
+    // TODO(crbug.com/422449238): Consider adding UMA for scheduling failures.
+    return;
+  }
+
+  ProfileIOS* current_profile = GetProfile();
+
+  if (!current_profile) {
+    // Profile might have been destroyed before the callback ran.
+
+    // TODO(crbug.com/422449238): Consider adding UMA for scheduling failures.
+
+    return;
+  }
+
+  PrefService* prefs = current_profile->GetPrefs();
+
+  ScopedDictPrefUpdate update(prefs, prefs::kReminderNotifications);
+
+  update->Remove(scheduled_url.spec());
+
+  // TODO(crbug.com/422449238): Consider adding UMA for successful removal.
+}
+
+void ReminderNotificationClient::ScheduleNewReminders() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  if (!IsPermitted()) {
+    return;
+  }
+
+  auto completion_block = base::CallbackToBlock(base::BindPostTask(
+      base::SequencedTaskRunner::GetCurrentDefault(),
+      base::BindOnce(&ReminderNotificationClient::ScheduleNewRemindersIfNeeded,
+                     weak_ptr_factory_.GetWeakPtr())));
+
+  [[UNUserNotificationCenter currentNotificationCenter]
+      getPendingNotificationRequestsWithCompletionHandler:completion_block];
+}
+
+void ReminderNotificationClient::ScheduleNewRemindersIfNeeded(
+    NSArray<UNNotificationRequest*>* pending_requests) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  ProfileIOS* current_profile = GetProfile();
+  if (!current_profile || !IsPermitted()) {
+    return;
+  }
+
+  PrefService* prefs = current_profile->GetPrefs();
+  const base::Value::Dict& reminders_in_prefs =
+      prefs->GetDict(prefs::kReminderNotifications);
+  if (reminders_in_prefs.empty()) {
+    return;
+  }
+
+  // Build a set of pending URLs for quick lookup.
+  std::set<std::string> pending_urls;
+  for (UNNotificationRequest* request in pending_requests) {
+    if (![request.identifier
+            hasPrefix:kReminderNotificationsIdentifierPrefix]) {
+      continue;
+    }
+
+    NSString* url = request.content.userInfo[@"url"];
+    pending_urls.insert(base::SysNSStringToUTF8(url));
+  }
+
+  // Iterate through reminders in prefs and schedule notifications only for URLs
+  // that exist in prefs but not in the notification center.
+  for (const auto [key, value] : reminders_in_prefs) {
+    GURL url(key);
+
+    if (!url.is_valid()) {
+      continue;
+    }
+
+    std::string url_string = url.spec();
+
+    if (pending_urls.find(url_string) == pending_urls.end()) {
+      const base::Value::Dict* details = value.GetIfDict();
+
+      if (details) {
+        ScheduleNotification(url, *details, current_profile->GetProfileName());
+      }
+    }
+  }
 }

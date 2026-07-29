@@ -20,12 +20,13 @@ class MockSaveOrUpdateAutofillAiDataController
   MockSaveOrUpdateAutofillAiDataController();
   ~MockSaveOrUpdateAutofillAiDataController() override;
 
-  MOCK_METHOD(void,
-              ShowPrompt,
-              (autofill::EntityInstance,
-               std::optional<autofill::EntityInstance>,
-               AutofillAiClient::SaveOrUpdatePromptResultCallback),
-              (override));
+  MOCK_METHOD(
+      void,
+      ShowPrompt,
+      (autofill::EntityInstance,
+       std::optional<autofill::EntityInstance>,
+       autofill::AutofillClient::EntitySaveOrUpdatePromptResultCallback),
+      (override));
   MOCK_METHOD(base::optional_ref<const autofill::EntityInstance>,
               GetAutofillAiData,
               (),

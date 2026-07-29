@@ -100,7 +100,6 @@ using mojom::blink::CredentialInfo;
 using mojom::blink::CredentialInfoPtr;
 using mojom::blink::CredentialManagerError;
 using mojom::blink::CredentialMediationRequirement;
-using mojom::blink::PaymentCredentialInstrument;
 using mojom::blink::WebAuthnDOMExceptionDetailsPtr;
 using MojoPublicKeyCredentialCreationOptions =
     mojom::blink::PublicKeyCredentialCreationOptions;
@@ -901,26 +900,6 @@ bool IsPaymentExtensionValid(const CredentialCreationOptions* options,
   const auto* payment = options->publicKey()->extensions()->payment();
   if (!payment->hasIsPayment() || !payment->isPayment()) {
     return true;
-  }
-
-  // TODO(crbug.com/1512245): Remove this check in favour of the validation in
-  // |AuthenticationCredentialsContainer::create|, which throws a
-  // NotAllowedError rather than a SecurityError like the SPC spec currently
-  // requires.
-  if (!RuntimeEnabledFeatures::
-          WebAuthenticationAlignErrorTypeForPaymentCredentialCreateEnabled() &&
-      !IsSameSecurityOriginWithAncestors(
-          To<LocalDOMWindow>(resolver->GetExecutionContext())->GetFrame())) {
-    bool has_user_activation = LocalFrame::ConsumeTransientUserActivation(
-        To<LocalDOMWindow>(resolver->GetExecutionContext())->GetFrame(),
-        UserActivationUpdateSource::kRenderer);
-    if (!has_user_activation) {
-      resolver->Reject(MakeGarbageCollected<DOMException>(
-          DOMExceptionCode::kSecurityError,
-          "A user activation is required to create a credential in a "
-          "cross-origin iframe."));
-      return false;
-    }
   }
 
   const auto* context = resolver->GetExecutionContext();
@@ -1906,17 +1885,8 @@ AuthenticationCredentialsContainer::create(
   // In the case of create() in a cross-origin iframe, the spec requires that
   // the caller must have transient user activation (which is consumed).
   // https://w3c.github.io/webauthn/#sctn-createCredential, step 2.
-  //
-  // TODO(crbug.com/1512245): This check should be used for payment credentials
-  // as well, but currently the SPC spec expects a SecurityError rather than
-  // NotAllowedError.
-  bool has_payment_extension = options->publicKey()->hasExtensions() &&
-                               options->publicKey()->extensions()->hasPayment();
   if (!IsSameSecurityOriginWithAncestors(
-          To<LocalDOMWindow>(resolver->GetExecutionContext())->GetFrame()) &&
-      (RuntimeEnabledFeatures::
-           WebAuthenticationAlignErrorTypeForPaymentCredentialCreateEnabled() ||
-       !has_payment_extension)) {
+          To<LocalDOMWindow>(resolver->GetExecutionContext())->GetFrame())) {
     bool has_user_activation = LocalFrame::ConsumeTransientUserActivation(
         To<LocalDOMWindow>(resolver->GetExecutionContext())->GetFrame(),
         UserActivationUpdateSource::kRenderer);

@@ -273,6 +273,18 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Blink.Blink.LoadURLSynchronouslyDuration" units="ms"
+    expires_after="2025-11-30">
+  <owner>fdoray@chromium.org</owner>
+  <owner>catan-team@chromium.org</owner>
+  <summary>
+    Duration of a synchronous load by blink::URLLoader. Recorded every time
+    blink::URLLoader::LoadSynchronously performs a load. Synchronous load are
+    discouraged as they block the main thread. This histogram will be used to
+    estimate to which extent they affect Interaction to Next Paint (INP).
+  </summary>
+</histogram>
+
 <histogram name="Blink.Canvas.2DLayerBridge.Compression.DecompressionTime"
     units="ms" expires_after="2025-11-16">
   <owner>lizeb@chromium.org</owner>
@@ -1123,6 +1135,7 @@ chromium-metrics-reviews@google.com.
     units="ms" expires_after="2025-10-26">
   <owner>chikamune@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
   <summary>
     Time between CommitNavigation to StartLoadingResponse in the renderer
     process. This is recorded on each new navigation for http or https URLs in
@@ -1135,6 +1148,7 @@ chromium-metrics-reviews@google.com.
     units="ms" expires_after="2025-10-12">
   <owner>chikamune@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
   <summary>
     Time spent processing DocumentLoader::CreateParserPostCommit() in the
     renderer process. This is recorded on each new navigation for http or https
@@ -1149,19 +1163,6 @@ chromium-metrics-reviews@google.com.
     The EffectiveZoom as reported by ComputedStyle in a Blink renderer. The
     value is reported each time the effective zoom is set to a new value. The
     maximum zoom reported is 400% to keep the histogram of reasonable size.
-  </summary>
-</histogram>
-
-<histogram name="Blink.Element.Fullscreen.DurationUpTo1H.RequestFullscreen"
-    units="ms" expires_after="2025-04-13">
-  <owner>btriebw@chromium.org</owner>
-  <owner>msw@chromium.org</owner>
-  <owner>web-windowing-team@google.com</owner>
-  <summary>
-    The duration of a fullscreen session initiated by a
-    element.{webkit}requestFullscreen request, up to 1 hour. The value is
-    reported each time HTML fullscreen mode exits after it was initiated by
-    element.{webkit}requestFullscreen. Excludes XR fullscreen.
   </summary>
 </histogram>
 
@@ -3110,6 +3111,7 @@ chromium-metrics-reviews@google.com.
   <owner>
     src/third_party/blink/renderer/core/lcp_critical_path_predictor/OWNERS
   </owner>
+  <improvement direction="LOWER_IS_BETTER"/>
   <summary>
     Measures the total elapsed time it takes to run SVGImage::DataChanged()
     while loading the outermost main frame document until finishing parsing.
@@ -3391,6 +3393,7 @@ chromium-metrics-reviews@google.com.
   <owner>chikamune@chromium.org</owner>
   <owner>yyanagisawa@chromium.org</owner>
   <owner>kouhei@chromium.org</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
   <summary>
     Record when the page's main frame starts preloading {SubresourceType}.
     Measures the duration between when the navigation starts, to when preloading
@@ -4982,6 +4985,7 @@ chromium-metrics-reviews@google.com.
   <owner>paint-dev@chromium.org</owner>
   <owner>chikamune@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
   <summary>
     Time spent updating a SVG image once all data is received.
 

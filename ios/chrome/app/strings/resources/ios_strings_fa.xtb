@@ -53,7 +53,7 @@
 <translation id="1207493287814084192">۵:۳۰ ب.ظ.</translation>
 <translation id="1217294226280635614">نمای تقسیم‌شده</translation>
 <translation id="1219674500290482172">اتصال به اینترنت امکان‌پذیر نیست.</translation>
-<translation id="1227113644794103810">برگه‌های غیرفعال</translation>
+<translation id="1227113644794103810">زبانه‌های غیرفعال</translation>
 <translation id="1231733316453485619">همگام‌سازی روشن شود؟</translation>
 <translation id="1253032109800629289">پنهان کردن «اعلان‌های دریافت پیگیری قیمت»</translation>
 <translation id="1258491128795710625">ویژگی‌های جدید</translation>
@@ -545,6 +545,7 @@
 <translation id="3227137524299004712">میکروفن</translation>
 <translation id="3235063766008841141">به سایت فریب‌دهنده‌ای وارد شد و درمعرض نقض داده قرار گرفت</translation>
 <translation id="3235242129752692527">جزئیات رویداد را ویرایش کنید و روی «ذخیره» تک‌ضرب بزنید.</translation>
+<translation id="323863549127671026">زبانه‌ها و گروه‌های زبانه باز فعلی</translation>
 <translation id="3240426699337459095">پیوند کپی شد</translation>
 <translation id="3244271242291266297">ماه</translation>
 <translation id="3245429137663807393">‏اگر گزارش‌های استفاده از Chrome را نیز هم‌رسانی کنید، این گزارش‌ها نشانی‌های وبی را که بازدید می‌کنید دربرمی‌گیرند.</translation>
@@ -611,7 +612,6 @@
 <translation id="3557336313807607643">افزودن به مخاطبین</translation>
 <translation id="355765753469272474">واگرداندن</translation>
 <translation id="3565930036634619844">برگه. ‫<ph name="TAB_INDEX" /> از <ph name="NUMBER_OF_TABS" />.</translation>
-<translation id="3570693105179140209">برای دیدن گذرواژه‌های بیشتر، دو تک‌ضرب بزنید.</translation>
 <translation id="3572607909481582402">‏در «حساب Google» شما</translation>
 <translation id="3575234738189584619">جستجو با «لنز»</translation>
 <translation id="3575426792457739946">این فهرست حاوی همه نمایه‌های بارشده است.</translation>
@@ -624,6 +624,7 @@
 <translation id="3596414637720633074">مسدود کردن کوکی‌های طرف سوم در «حالت ناشناس»</translation>
 <translation id="3602260545951981695">«محافظت بهبودیافته» را انتخاب کنید</translation>
 <translation id="3608436266458100337">حالت خواننده</translation>
+<translation id="3610041351087301930">پنهان کردن خواننده</translation>
 <translation id="3622175633937495219">سابقه «جستجو» (<ph name="COUNT" /> مورد پیدا شد)</translation>
 <translation id="3625008969091706597">برای رفتن به عقب، می‌توانید از لبه تند بکشید.</translation>
 <translation id="362709345066740529">کارت‌ها، فید، و موارد دیگر را اینجا سفارشی‌سازی کنید</translation>
@@ -654,7 +655,6 @@
 <translation id="3779810277399252432">اتصال اینترنتی ندارید</translation>
 <translation id="3782614601387961027">بستن هشدار</translation>
 <translation id="3789841737615482174">نصب</translation>
-<translation id="3795478177331815672">باز کردن برگه‌ها و گروه‌های برگه</translation>
 <translation id="380329542618494757">نام</translation>
 <translation id="3803696231112616155">پیشنهاد ترجمه این سایت</translation>
 <translation id="3808311849069021992">نمایش جزئیات موتور جستجو</translation>
@@ -700,7 +700,6 @@
 <translation id="3955740319737378355">تمام</translation>
 <translation id="3955822496205734389">چند گذرواژه ضعیف دارید.</translation>
 <translation id="3958312024468322930">آن را به جایگاه واقع در پایین «صفحه اصلی» بکشید</translation>
-<translation id="3960218941754097036">‏هر چیزی را در صفحه‌نمایش با «لنز Google» جستجو کنید</translation>
 <translation id="3962326069546168954">ذخیره</translation>
 <translation id="3967327056943561740">نشانک‌ها</translation>
 <translation id="3967822245660637423">بارگیری کامل شد</translation>
@@ -967,7 +966,6 @@
 <translation id="4979397965658815378">‏برای دریافت نشانک‌ها، گذرواژه‌ها، سابقه و تنظیمات دیگر در همه دستگاه‌هایتان، به سیستم حساب Google خودتان وارد شوید</translation>
 <translation id="4985921635659180565">وقتی فایلی برای حذف زمان‌بندی شود، دیگر قابل‌لغو نیست.</translation>
 <translation id="498624032394115435">هر کسی پیوند را داشته باشد می‌تواند همه برگه‌ها را ویرایش کند.</translation>
-<translation id="4989065233040279145">انتخاب مکان ذخیره‌سازی <ph name="FILENAME" /></translation>
 <translation id="499122600724363620">‫<ph name="NAME" />،‏ <ph name="EMAIL" />، توسط سازمانتان مدیریت می‌شود.</translation>
 <translation id="4992255726304765516">رنگ <ph name="COLOR" /> گروه برگه</translation>
 <translation id="5005498671520578047">کپی گذرواژه</translation>
@@ -1067,6 +1065,7 @@
 <translation id="5431252637281434233">از سیستم خارج خواهید شد</translation>
 <translation id="543338862236136125">ویرایش گذرواژه</translation>
 <translation id="5433691172869980887">نام کاربری کپی شد</translation>
+<translation id="5437480232219631455">‏می‌توانید Gemini را از اینجا باز کنید</translation>
 <translation id="5439618055789623719">ورود به سیستم با <ph name="USER_EMAIL" /></translation>
 <translation id="5443636120437209490">مرور بهتر به‌طور پیش‌فرض</translation>
 <translation id="5444892875087332195">نشانک‌ها</translation>
@@ -1653,7 +1652,6 @@ Handoff باید در بخش عمومی تنظیمات نیز فعال شود و
 <translation id="7724085059277147439">{count,plural, =1{‏مورد در «حساب Google» شما ({email}) ذخیره شد}one{‏موارد در «حساب Google» شما ({email}) ذخیره شد}other{‏موارد در «حساب Google» شما ({email}) ذخیره شد}}</translation>
 <translation id="7729458878441927652">برای دیدن برگه‌های دستگاه‌های دیگرتان، برگه‌ها و سابقه را همگام‌سازی کنید.</translation>
 <translation id="7730020510075123961">نه، داده‌ها ادغام شود</translation>
-<translation id="7730973429297233609">حسابی را که می‌خواهید برای ذخیره کردن <ph name="FILENAME" />‏ - <ph name="FILESIZE" /> استفاده شود انتخاب کنید</translation>
 <translation id="7733646263819020771"><ph name="BOOKMRK_NAME" />. فقط در این دستگاه.</translation>
 <translation id="7744192722284567281">در نقض داده پیدا شد</translation>
 <translation id="7749790401023484470">هیچ نوشتاری را انتخاب نکردید.</translation>
@@ -1814,6 +1812,7 @@ Handoff باید در بخش عمومی تنظیمات نیز فعال شود و
 <translation id="8343993175958086504">از داده‌هایتان پشتیبان بگیرید و در هر دستگاهی از آن‌ها استفاده کنید.</translation>
 <translation id="8348530355586151720">روی منوِ سه‌نقطه‌ای تک‌ضرب بزنید</translation>
 <translation id="8349305172487531364">نوار نشانک‌ها</translation>
+<translation id="8363484128299778310">بازیابی موقت درصورت بروز مشکل</translation>
 <translation id="8364563001733875155">برای تغییر دادن پین، ابتدا گذرنویسه‌ای دردستگاهتان راه‌اندازی کنید.</translation>
 <translation id="8366466717204352506">بررسی هرگز اجرا نشده است</translation>
 <translation id="8368001212524806591">پیگیری قیمت</translation>
@@ -1836,7 +1835,6 @@ Handoff باید در بخش عمومی تنظیمات نیز فعال شود و
 <translation id="8428045167754449968">شهر / شهرک</translation>
 <translation id="8428213095426709021">تنظیمات</translation>
 <translation id="8428634594422941299">متوجه شدم</translation>
-<translation id="8430694217306051839">انتخاب مکان ذخیره‌سازی <ph name="FILENAME" /> (<ph name="FILE_SIZE" />)</translation>
 <translation id="8434837876193928924">جزئیات گروه برگه</translation>
 <translation id="8438566539970814960">بهبود جستجوها و مرور</translation>
 <translation id="8439758443371991593">پنهان کردن «افزودن به فهرست خواندن»</translation>

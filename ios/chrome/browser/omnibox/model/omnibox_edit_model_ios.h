@@ -270,20 +270,11 @@ class OmniboxEditModelIOS {
                  const std::u16string& pasted_text,
                  base::TimeTicks match_selection_timestamp = base::TimeTicks());
 
-  // An internal method to set the user text. Notably, this differs from
-  // SetUserText because it does not change the user-input-in-progress state.
-  void InternalSetUserText(const std::u16string& text);
-
   // Copies a match corresponding to the current text into `match`, and
   // populates `alternate_nav_url` as well if it's not nullptr. If the popup
   // is closed, the match is generated from the autocomplete classifier.
   void GetInfoForCurrentText(AutocompleteMatch* match,
                              GURL* alternate_nav_url) const;
-
-  // If focus_state_ does not match `state`, we update it and notify the
-  // InstantController about the change (passing along the `reason` for the
-  // change).
-  void SetFocusState(OmniboxFocusState state, OmniboxFocusChangeReason reason);
 
   // Returns view text if there is a view. Until the model is made the
   // primary data source, this should not be called when there's no view.

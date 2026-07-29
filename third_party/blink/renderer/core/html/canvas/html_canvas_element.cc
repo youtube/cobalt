@@ -93,6 +93,7 @@
 #include "third_party/blink/renderer/core/inspector/console_message.h"
 #include "third_party/blink/renderer/core/layout/hit_test_canvas_result.h"
 #include "third_party/blink/renderer/core/layout/layout_html_canvas.h"
+#include "third_party/blink/renderer/core/layout/layout_object_inlines.h"
 #include "third_party/blink/renderer/core/layout/layout_view.h"
 #include "third_party/blink/renderer/core/loader/render_blocking_resource_manager.h"
 #include "third_party/blink/renderer/core/page/chrome_client.h"
@@ -384,7 +385,7 @@ bool HTMLCanvasElement::PrepareTransferableResource(
   if (PrintedInCurrentTask() || IsPrinting()) {
     reason = FlushReason::kCanvasPushFrameWhilePrinting;
   }
-  FlushRecording(reason);
+  FlushRecordingForCanvas2D(reason);
 
   // If the context is lost, we don't know if we should be producing GPU or
   // software frames, until we get a new context, since the compositor will
@@ -869,7 +870,7 @@ void HTMLCanvasElement::PostFinalizeFrame(FlushReason reason) {
              frame_dispatcher_ && !dirty_rect_.IsEmpty() &&
              GetOrCreateCanvasResourceProviderForCanvas2D()) {
     if (scoped_refptr<CanvasResource> canvas_resource =
-            ResourceProvider()->ProduceCanvasResource(reason)) {
+            GetResourceProviderForCanvas2D()->ProduceCanvasResource(reason)) {
       const gfx::Rect src_rect(Size());
       dirty_rect_.Intersect(src_rect);
       const gfx::Rect int_dirty = dirty_rect_;
@@ -1229,7 +1230,7 @@ void HTMLCanvasElement::PaintInternal(GraphicsContext& context,
   if (IsPrinting() && IsRenderingContext2D() &&
       GetResourceProviderForCanvas2D()) {
     auto* provider = GetResourceProviderForCanvas2D();
-    FlushRecording(FlushReason::kPrinting);
+    FlushRecordingForCanvas2D(FlushReason::kPrinting);
     // `FlushRecording` might be a no-op if a flush already happened before.
     // Fortunately, the last flush recording was kept by the provider.
     const std::optional<cc::PaintRecord>& last_recording =
@@ -2137,51 +2138,31 @@ UniqueFontSelector* HTMLCanvasElement::GetFontSelector() {
 }
 
 void HTMLCanvasElement::UpdateMemoryUsage() {
-  int non_gpu_buffer_count = 0;
-  int gpu_buffer_count = 0;
-
   if (!IsRenderingContext2D() && !IsWebGL())
     return;
-  if (context_ && context_->DrawsViaGpu()) {
+
+  int buffer_count = context_->AllocatedBufferCountPerPixel();
+  auto* provider = IsWebGL() ? GetResourceProviderForWebGL()
+                             : GetResourceProviderForCanvas2D();
+  if (provider && provider->IsAccelerated()) {
     // The number of internal GPU buffers vary between one (stable
     // non-displayed state) and three (triple-buffered animations).
     // Adding 2 is a pessimistic but relevant estimate.
     // Note: These buffers might be allocated in GPU memory.
-    gpu_buffer_count += 2;
-  }
-
-  // NOTE: One of the callsites of this method is DiscardResourceProvider(), at
-  // which point the context is not necessarily present (e.g., if
-  // DiscardResourceProvider() is called due to an initial setSize() call on the
-  // canvas).
-  if (context_) {
-    non_gpu_buffer_count += context_->AllocatedBufferCountPerPixel();
+    buffer_count += 2;
   }
 
   // NOTE: All formats used by canvas are either 8-bit or 16-bit.
   const int bytes_per_pixel = GetRenderingContextFormat().BitsPerPixel() / 8;
 
-  intptr_t gpu_memory_usage = 0;
   uint32_t canvas_width = std::min(kMaximumCanvasSize, width());
   uint32_t canvas_height = std::min(kMaximumCanvasSize, height());
 
-  if (gpu_buffer_count) {
-    // Switch from cpu mode to gpu mode
-    base::CheckedNumeric<intptr_t> checked_usage =
-        gpu_buffer_count * bytes_per_pixel;
-    checked_usage *= canvas_width;
-    checked_usage *= canvas_height;
-    gpu_memory_usage =
-        checked_usage.ValueOrDefault(std::numeric_limits<intptr_t>::max());
-  }
-
   // Recomputation of externally memory usage computation is carried out
   // in all cases.
-  base::CheckedNumeric<intptr_t> checked_usage =
-      non_gpu_buffer_count * bytes_per_pixel;
+  base::CheckedNumeric<intptr_t> checked_usage = buffer_count * bytes_per_pixel;
   checked_usage *= canvas_width;
   checked_usage *= canvas_height;
-  checked_usage += gpu_memory_usage;
   intptr_t externally_allocated_memory =
       checked_usage.ValueOrDefault(std::numeric_limits<intptr_t>::max());
   // Subtracting two intptr_t that are known to be positive will never
@@ -2401,15 +2382,6 @@ bool HTMLCanvasElement::TransferToGPUTextureWasInvoked() {
 
 bool HTMLCanvasElement::IsAccelerated() const {
   return GetRasterMode() == RasterMode::kGPU;
-}
-
-HTMLCanvasElement::ElementHitTestRegion::ElementHitTestRegion(
-    Element* element,
-    const gfx::RectF& rect)
-    : element_(element), rect_(rect) {}
-
-void HTMLCanvasElement::ElementHitTestRegion::Trace(Visitor* visitor) const {
-  visitor->Trace(element_);
 }
 
 }  // namespace blink

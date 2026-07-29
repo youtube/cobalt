@@ -1551,8 +1551,6 @@ _BANNED_CPP_FUNCTIONS: Sequence[BanRule] = (
             _THIRD_PARTY_EXCEPT_BLINK,
             # sql/ itself uses virtual tables in the recovery module and tests.
             r'^sql/.*',
-            # TODO(https://crbug.com/695592): Remove once WebSQL is deprecated.
-            r'third_party/blink/web_tests/storage/websql/.*'
             # Various performance tools that do not build as part of Chrome.
             r'^tools/perf.*',
             r'.*perfetto.*',
@@ -2866,28 +2864,6 @@ def CheckCrosApiNeedBrowserTest(input_api, output_api):
             )
         ]
     return []
-
-
-def CheckValidHostsInDEPSOnUpload(input_api, output_api):
-    """Checks that DEPS file deps are from allowed_hosts."""
-    # Run only if DEPS file has been modified to annoy fewer bystanders.
-    if all(f.LocalPath() != 'DEPS' for f in input_api.AffectedFiles()):
-        return []
-    # Outsource work to gclient verify
-    try:
-        gclient_path = input_api.os_path.join(input_api.PresubmitLocalPath(),
-                                              'third_party', 'depot_tools',
-                                              'gclient.py')
-        input_api.subprocess.check_output(
-            [input_api.python3_executable, gclient_path, 'verify'],
-            stderr=input_api.subprocess.STDOUT)
-        return []
-    except input_api.subprocess.CalledProcessError as error:
-        return [
-            output_api.PresubmitError(
-                'DEPS file must have only git dependencies.',
-                long_text=error.output)
-        ]
 
 
 def _GetMessageForMatchingType(input_api, affected_file, line_number, line,
@@ -6111,6 +6087,9 @@ def ChecksCommon(input_api, output_api):
             non_inclusive_terms=_NON_INCLUSIVE_TERMS))
     results.extend(
         input_api.canned_checks.CheckNewDEPSHooksHasRequiredReviewers(
+            input_api, output_api))
+    results.extend(
+        input_api.canned_checks.CheckValidHostsInDEPSOnUpload(
             input_api, output_api))
 
     presubmit_py_filter = lambda f: input_api.FilterSourceFile(

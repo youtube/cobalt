@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base/callback_list.h"
+#include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "chrome/browser/glic/host/context/glic_tab_data.h"
@@ -158,7 +159,7 @@ enum class GlicRequestEvent {
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicRequestEvent)
 
 class GlicEnabling;
-class GlicFocusedTabManager;
+class GlicSharingManager;
 class GlicWindowController;
 
 namespace internal {
@@ -222,7 +223,7 @@ class GlicMetrics {
   // Must be called immediately after constructor before any calls from
   // glic.mojom.
   void SetControllers(GlicWindowController* window_controller,
-                      GlicFocusedTabManager* tab_manager);
+                      GlicSharingManager* sharing_manager);
   void SetDelegateForTesting(std::unique_ptr<Delegate> delegate);
 
   // Must be called when context is requested.

@@ -177,10 +177,29 @@ EventScopeTypeFromEvent(const Event& event) {
   return std::nullopt;
 }
 
+features::SoftNavigationHeuristicsMode GetPaintAttributionMode(
+    const FeatureContext* context) {
+  // If the feature flag for SoftNavigationHeuristics is enabled, prefer the
+  // feature param to determine whether to enable advanced paint attribution.
+  // This allows users to select the mode via about://flags.
+  if (base::FeatureList::IsEnabled(features::kSoftNavigationHeuristics)) {
+    return features::kSoftNavigationHeuristicsModeParam.Get();
+  }
+  // Without the feature flag enabled, query the runtime enabled feature
+  // directly. This allows the finch experiment to control the feature; it
+  // also enables the feature for tests (since it's 'experimental').
+  if (RuntimeEnabledFeatures::
+          SoftNavigationDetectionAdvancedPaintAttributionEnabled(context)) {
+    return features::SoftNavigationHeuristicsMode::kAdvancedPaintAttribution;
+  }
+  return features::SoftNavigationHeuristicsMode::kBasic;
+}
+
 }  // namespace
 
 SoftNavigationHeuristics::SoftNavigationHeuristics(LocalDOMWindow* window)
     : window_(window),
+      paint_attribution_mode_(GetPaintAttributionMode(window)),
       task_attribution_tracker_(
           scheduler::TaskAttributionTracker::From(window->GetIsolate())) {
   LocalFrame* frame = window->GetFrame();
@@ -380,8 +399,6 @@ bool SoftNavigationHeuristics::EmitSoftNavigationEntryIfAllConditionsMet(
   auto* performance = DOMWindowPerformance::performance(*window_.Get());
   performance->AddSoftNavigationEntry(AtomicString(context->InitialUrl()),
                                       context->UserInteractionTimestamp());
-
-  CommitPreviousPaintTimings(frame);
   ReportSoftNavigationToMetrics(frame, context);
 
   TRACE_EVENT_INSTANT("scheduler,devtools.timeline,loading",
@@ -392,12 +409,13 @@ bool SoftNavigationHeuristics::EmitSoftNavigationEntryIfAllConditionsMet(
   return true;
 }
 
-void SoftNavigationHeuristics::RecordPaint(LocalFrame* frame,
-                                           const gfx::RectF& rect,
-                                           Node* node) {
-  if (context_for_current_url_) {
-    context_for_current_url_->AddPaintedArea(node, rect, true);
+SoftNavigationContext*
+SoftNavigationHeuristics::MaybeGetSoftNavigationContextForTiming(Node* node) {
+  if (context_for_current_url_ &&
+      context_for_current_url_->IsNeededForTiming(node)) {
+    return context_for_current_url_;
   }
+  return nullptr;
 }
 
 void SoftNavigationHeuristics::OnPaintFinished() {
@@ -405,6 +423,26 @@ void SoftNavigationHeuristics::OnPaintFinished() {
     if (context->OnPaintFinished()) {
       EmitSoftNavigationEntryIfAllConditionsMet(context);
     }
+  }
+}
+
+void SoftNavigationHeuristics::OnInputOrScroll() {
+  for (const auto& context : potential_soft_navigations_) {
+    // TODO(crbug.com/425402677): Is this is a good time to emit metrics to UKM,
+    // and potentially force exhausting the context / remove it from
+    // `potential_soft_navigations_`?
+    context->OnInputOrScroll();
+  }
+}
+
+void SoftNavigationHeuristics::UpdateSoftLcpCandidate() {
+  if (!context_for_current_url_) {
+    return;
+  }
+  // Performance timeline won't allow emitting LCP entries without this flag,
+  // but we can save a lot of needless work by also just not even trying.
+  if (RuntimeEnabledFeatures::SoftNavigationHeuristicsEnabled(window_)) {
+    context_for_current_url_->UpdateSoftLcpCandidate();
   }
 }
 
@@ -435,44 +473,6 @@ void SoftNavigationHeuristics::ReportSoftNavigationToMetrics(
   // Count "successful soft nav" in histogram
   base::UmaHistogramEnumeration(kPageLoadInternalSoftNavigationOutcome,
                                 SoftNavigationOutcome::kSoftNavigationDetected);
-}
-
-void SoftNavigationHeuristics::ResetPaintTimingsIfNeeded() {
-  LocalFrame* frame = GetLocalFrameIfOutermostAndNotDetached();
-  if (!frame) {
-    return;
-  }
-  LocalFrameView* local_frame_view = frame->View();
-  CHECK(local_frame_view);
-  if (RuntimeEnabledFeatures::SoftNavigationHeuristicsEnabled(window_)) {
-    if (Document* document = window_->document();
-        document &&
-        RuntimeEnabledFeatures::SoftNavigationHeuristicsExposeFPAndFCPEnabled(
-            window_.Get())) {
-      PaintTiming::From(*document).ResetFirstPaintAndFCP();
-    }
-    local_frame_view->GetPaintTimingDetector().RestartRecordingLCP();
-  }
-
-  local_frame_view->GetPaintTimingDetector().RestartRecordingLCPToUkm();
-}
-
-// Once all the soft navigation conditions are met (verified in
-// `EmitSoftNavigationEntryIfAllConditionsMet()`), the previous paints are
-// committed, to make sure accumulated FP, FCP and LCP entries are properly
-// fired.
-void SoftNavigationHeuristics::CommitPreviousPaintTimings(LocalFrame* frame) {
-  CHECK(frame && frame->IsOutermostMainFrame());
-  LocalFrameView* local_frame_view = frame->View();
-
-  CHECK(local_frame_view);
-
-  local_frame_view->GetPaintTimingDetector().SoftNavigationDetected(
-      window_.Get());
-  if (RuntimeEnabledFeatures::SoftNavigationHeuristicsExposeFPAndFCPEnabled(
-          window_.Get())) {
-    PaintTiming::From(*window_->document()).SoftNavigationDetected();
-  }
 }
 
 void SoftNavigationHeuristics::Trace(Visitor* visitor) const {
@@ -563,29 +563,6 @@ LocalFrame* SoftNavigationHeuristics::GetLocalFrameIfOutermostAndNotDetached()
   return frame;
 }
 
-namespace {
-bool ShouldEnableAdvancedPaintAttribution(const FeatureContext* context) {
-  // If the feature flag for SoftNavigationHeuristics is enabled, prefer the
-  // feature param to determine whether to enable advanced paint attribution.
-  // This allows users to select the mode via about://flags.
-  if (base::FeatureList::IsEnabled(features::kSoftNavigationHeuristics)) {
-    features::SoftNavigationHeuristicsMode mode =
-        features::kSoftNavigationHeuristicsModeParam.Get();
-    switch (mode) {
-      case features::SoftNavigationHeuristicsMode::kBasic:
-        return false;
-      case features::SoftNavigationHeuristicsMode::kAdvancedPaintAttribution:
-        return true;
-    }
-  }
-  // Without the feature flag enabled, query the runtime enabled feature
-  // directly. This allows the finch experiment to control the feature; it
-  // also enables the feature for tests (since it's 'experimental').
-  return RuntimeEnabledFeatures::
-      SoftNavigationDetectionAdvancedPaintAttributionEnabled(context);
-}
-}  // namespace
-
 SoftNavigationHeuristics::EventScope SoftNavigationHeuristics::CreateEventScope(
     EventScope::Type type,
     ScriptState* script_state) {
@@ -605,16 +582,12 @@ SoftNavigationHeuristics::EventScope SoftNavigationHeuristics::CreateEventScope(
     // been cleared, which can happen in tests.
     if (IsInteractionStart(type) || !active_interaction_context_) {
       active_interaction_context_ = MakeGarbageCollected<SoftNavigationContext>(
-          ShouldEnableAdvancedPaintAttribution(window_));
+          *window_, paint_attribution_mode_);
       potential_soft_navigations_.push_back(active_interaction_context_);
       TRACE_EVENT_INSTANT(TRACE_DISABLED_BY_DEFAULT("loading"),
                           "SoftNavigationHeuristics::CreateNewContext",
                           "context", *active_interaction_context_);
     }
-
-    // Ensure that paints would be reset, so that paint recording would continue
-    // despite the user interaction.
-    ResetPaintTimingsIfNeeded();
   }
   CHECK(active_interaction_context_.Get());
 

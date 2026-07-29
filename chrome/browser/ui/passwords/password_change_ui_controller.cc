@@ -5,56 +5,72 @@
 #include "chrome/browser/ui/passwords/password_change_ui_controller.h"
 
 #include "base/functional/callback.h"
+#include "base/strings/utf_string_conversions.h"
+#include "base/task/single_thread_task_runner.h"
+#include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/signin/identity_manager_factory.h"
+#include "chrome/browser/sync/sync_service_factory.h"
+#include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/passwords/ui_utils.h"
+#include "chrome/browser/ui/singleton_tabs.h"
 #include "chrome/browser/ui/tabs/public/tab_dialog_manager.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
+#include "chrome/browser/ui/views/passwords/password_change/password_change_toast.h"
+#include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/theme_resources.h"
 #include "components/constrained_window/constrained_window_views.h"
 #include "components/tabs/public/tab_interface.h"
+#include "components/vector_icons/vector_icons.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/models/dialog_model.h"
+#include "ui/gfx/vector_icon_types.h"
+#include "ui/views/bubble/bubble_dialog_delegate_view.h"
 #include "ui/views/bubble/bubble_dialog_model_host.h"
 
 namespace {
 
-// Whether a dialog should be displayed for a given `state`.
-bool ShouldDisplayDialog(PasswordChangeDelegate::State state) {
-  switch (state) {
-    case PasswordChangeDelegate::State::kOfferingPasswordChange:
-    case PasswordChangeDelegate::State::kChangePasswordFormNotFound:
-    case PasswordChangeDelegate::State::kPasswordChangeFailed:
-    case PasswordChangeDelegate::State::kOtpDetected:
-      return true;
-    case PasswordChangeDelegate::State::kWaitingForAgreement:
-    case PasswordChangeDelegate::State::kWaitingForChangePasswordForm:
-    case PasswordChangeDelegate::State::kChangingPassword:
-    case PasswordChangeDelegate::State::kPasswordSuccessfullyChanged:
-      return false;
-  }
-}
+using ToastOptions = PasswordChangeToast::ToastOptions;
 
-// Creates dialog for `PasswordChangeDelegate::State::kOfferingPasswordChange`.
+constexpr base::TimeDelta kToastDisplayTime = base::Seconds(4);
+
+// Creates dialog offering password change to the user. `with_privacy_notice`
+// specifies whether an additional privacy paragraph should be displayed.
 std::unique_ptr<ui::DialogModel> CreateOfferChangePasswordDialog(
-    base::OnceClosure accept_callback) {
-  return ui::DialogModel::Builder()
-      .SetBannerImage(
-          ui::ImageModel::FromResourceId(IDR_PASSWORD_CHANGE_WARNING),
-          ui::ImageModel::FromResourceId(IDR_PASSWORD_CHANGE_WARNING_DARK))
-      .SetIcon(
-          ui::ImageModel::FromVectorIcon(GooglePasswordManagerVectorIcon()))
-      .SetTitle(l10n_util::GetStringUTF16(
-          IDS_PASSWORD_MANAGER_UI_PASSWORD_CHANGE_LEAK_BUBBLE_TITLE))
-      .AddParagraph(ui::DialogModelLabel(l10n_util::GetStringUTF16(
-          IDS_PASSWORD_MANAGER_UI_PASSWORD_CHANGE_LEAK_BUBBLE_DETAILS)))
-      .AddCancelButton(base::DoNothing(),
-                       ui::DialogModel::Button::Params().SetLabel(
-                           l10n_util::GetStringUTF16(IDS_NO_THANKS)))
-      .AddOkButton(
-          std::move(accept_callback),
-          ui::DialogModel::Button::Params().SetLabel(l10n_util::GetStringUTF16(
-              IDS_PASSWORD_MANAGER_UI_PASSWORD_CHANGE_CHANGE_PASSWORD)))
-      .Build();
+    base::OnceClosure accept_callback,
+    base::RepeatingClosure navigate_to_settings_callback,
+    bool with_privacy_notice,
+    std::u16string email) {
+  ui::DialogModelLabel::TextReplacement link = ui::DialogModelLabel::CreateLink(
+      with_privacy_notice
+          ? IDS_PASSWORD_MANAGER_UI_PASSWORD_CHANGE_LEAK_DIALOG_LINK_WITH_PRIVACY_NOTICE
+          : IDS_PASSWORD_MANAGER_UI_PASSWORD_CHANGE_LEAK_DIALOG_LINK_WITHOUT_PRIVACY_NOTICE,
+      std::move(navigate_to_settings_callback));
+
+  ui::DialogModel::Builder dialog_builder;
+  dialog_builder.SetBannerImage(
+      ui::ImageModel::FromResourceId(IDR_PASSWORD_CHANGE_WARNING),
+      ui::ImageModel::FromResourceId(IDR_PASSWORD_CHANGE_WARNING_DARK));
+  dialog_builder.SetIcon(
+      ui::ImageModel::FromVectorIcon(GooglePasswordManagerVectorIcon()));
+  dialog_builder.SetTitle(l10n_util::GetStringUTF16(
+      IDS_PASSWORD_MANAGER_UI_PASSWORD_CHANGE_LEAK_DIALOG_TITLE));
+  dialog_builder.AddParagraph(ui::DialogModelLabel::CreateWithReplacements(
+      IDS_PASSWORD_MANAGER_UI_PASSWORD_CHANGE_LEAK_DIALOG_DETAILS,
+      {ui::DialogModelLabel::CreatePlainText(std::move(email)), link}));
+  dialog_builder.AddCancelButton(base::DoNothing(),
+                                 ui::DialogModel::Button::Params().SetLabel(
+                                     l10n_util::GetStringUTF16(IDS_NO_THANKS)));
+  dialog_builder.AddOkButton(
+      std::move(accept_callback),
+      ui::DialogModel::Button::Params().SetLabel(l10n_util::GetStringUTF16(
+          IDS_PASSWORD_MANAGER_UI_PASSWORD_CHANGE_CHANGE_PASSWORD)));
+  if (with_privacy_notice) {
+    dialog_builder.AddParagraph(ui::DialogModelLabel(l10n_util::GetStringUTF16(
+        IDS_PASSWORD_MANAGER_UI_PASSWORD_CHANGE_PRIVACY_NOTICE)));
+  }
+  return dialog_builder.Build();
 }
 
 // Creates dialog for failed states of password change flow.
@@ -104,91 +120,209 @@ std::unique_ptr<ui::DialogModel> CreateOtpDetectedDialog(
       .Build();
 }
 
-// Creates dialog for `state`.
-std::unique_ptr<ui::DialogModel> CreateDialog(
-    PasswordChangeDelegate::State state,
-    base::OnceClosure accept_callback) {
-  switch (state) {
-    case PasswordChangeDelegate::State::kOfferingPasswordChange:
-      return CreateOfferChangePasswordDialog(std::move(accept_callback));
-    case PasswordChangeDelegate::State::kChangePasswordFormNotFound:
-      return CreatePasswordChangeFailedDialog(std::move(accept_callback),
-                                              /*use_error_image=*/false);
-    case PasswordChangeDelegate::State::kPasswordChangeFailed:
-      return CreatePasswordChangeFailedDialog(std::move(accept_callback),
-                                              /*use_error_image=*/true);
-    case PasswordChangeDelegate::State::kOtpDetected:
-      return CreateOtpDetectedDialog(std::move(accept_callback));
-    case PasswordChangeDelegate::State::kWaitingForAgreement:
-    case PasswordChangeDelegate::State::kWaitingForChangePasswordForm:
-    case PasswordChangeDelegate::State::kChangingPassword:
-    case PasswordChangeDelegate::State::kPasswordSuccessfullyChanged:
-      NOTREACHED();
-  }
-}
-
 }  // namespace
 
 PasswordChangeUIController::PasswordChangeUIController(
     PasswordChangeDelegate* password_change_delegate,
-    base::WeakPtr<content::WebContents> web_contents)
+    tabs::TabInterface* tab_interface)
     : password_change_delegate_(password_change_delegate),
-      web_contents_(web_contents) {}
+      tab_interface_(tab_interface) {}
 
-PasswordChangeUIController::~PasswordChangeUIController() = default;
+PasswordChangeUIController::~PasswordChangeUIController() {
+  CloseDialogWidget(views::Widget::ClosedReason::kUnspecified);
+  CloseToastWidget(views::Widget::ClosedReason::kUnspecified);
+}
 
 void PasswordChangeUIController::UpdateState(
     PasswordChangeDelegate::State state) {
-  if (state_ == state) {
+  std::variant<ToastOptions, std::unique_ptr<ui::DialogModel>> configuration =
+      GetDialogOrToastConfiguration(state);
+
+  if (std::holds_alternative<ToastOptions>(configuration)) {
+    if (toast_view_) {
+      toast_view_->UpdateLayout(
+          std::move(std::get<ToastOptions>(configuration)));
+      return;
+    }
+    ShowToast(std::move(std::get<ToastOptions>(configuration)));
     return;
   }
 
-  state_ = state;
+  // Close the toast before attempting to open any dialog.
+  CloseToastWidget(views::Widget::ClosedReason::kUnspecified);
+  ShowDialog(
+      std::move(std::get<std::unique_ptr<ui::DialogModel>>(configuration)));
+}
 
-  // TODO(crbug.com/417389698): Handle other states.
-  if (ShouldDisplayDialog(state_)) {
-    tabs::TabInterface* tab_interface =
-        tabs::TabInterface::MaybeGetFromContents(web_contents_.get());
-    if (!tab_interface || !tab_interface->CanShowModalUI()) {
-      return;
-    }
+std::variant<ToastOptions, std::unique_ptr<ui::DialogModel>>
+PasswordChangeUIController::GetDialogOrToastConfiguration(
+    PasswordChangeDelegate::State state) {
+  auto open_password_change_tab_callback =
+      base::BindOnce(&PasswordChangeUIController::OpenPasswordChangeTab,
+                     weak_ptr_factory_.GetWeakPtr());
+  auto cancel_password_change_callback =
+      base::BindOnce(&PasswordChangeUIController::CancelPasswordChange,
+                     weak_ptr_factory_.GetWeakPtr());
+  auto navigate_to_settings_callback = base::BindRepeating(
+      &PasswordChangeUIController::NavigateToPasswordChangeSettings,
+      base::Unretained(this));
+  Profile* profile = Profile::FromBrowserContext(
+      tab_interface_->GetContents()->GetBrowserContext());
+  std::u16string email = base::UTF8ToUTF16(GetDisplayableAccountName(
+      SyncServiceFactory::GetForProfile(profile),
+      IdentityManagerFactory::GetForProfile(profile)));
 
-    base::OnceClosure accept_callback = base::BindOnce(
-        &PasswordChangeUIController::OnDialogAccepted, base::Unretained(this));
-    std::unique_ptr<views::BubbleDialogModelHost> model_host =
-        views::BubbleDialogModelHost::CreateModal(
-            CreateDialog(state_, std::move(accept_callback)),
-            ui::mojom::ModalType::kChild);
-    // TODO(crbug.com/338254375): Remove once it is a default state.
-    model_host->SetOwnershipOfNewWidget(
-        views::Widget::InitParams::CLIENT_OWNS_WIDGET);
-    tab_interface->GetTabFeatures()
-        ->tab_dialog_manager()
-        ->CreateAndShowDialog(
-            model_host.release(),
-            std::make_unique<tabs::TabDialogManager::Params>())
-        .release();
-    return;
+  switch (state) {
+    /* Dialogs */
+    case PasswordChangeDelegate::State::kWaitingForAgreement:
+      return CreateOfferChangePasswordDialog(
+          base::BindOnce(&PasswordChangeDelegate::OnPrivacyNoticeAccepted,
+                         password_change_delegate_->AsWeakPtr()),
+          std::move(navigate_to_settings_callback),
+          /*with_privacy_notice=*/true, std::move(email));
+    case PasswordChangeDelegate::State::kOfferingPasswordChange:
+      return CreateOfferChangePasswordDialog(
+          base::BindOnce(&PasswordChangeUIController::StartPasswordChangeFlow,
+                         weak_ptr_factory_.GetWeakPtr()),
+          std::move(navigate_to_settings_callback),
+          /*with_privacy_notice=*/false, std::move(email));
+    case PasswordChangeDelegate::State::kChangePasswordFormNotFound:
+      return CreatePasswordChangeFailedDialog(
+          std::move(open_password_change_tab_callback),
+          /*use_error_image=*/false);
+    case PasswordChangeDelegate::State::kPasswordChangeFailed:
+      return CreatePasswordChangeFailedDialog(
+          std::move(open_password_change_tab_callback),
+          /*use_error_image=*/true);
+    case PasswordChangeDelegate::State::kOtpDetected:
+      return CreateOtpDetectedDialog(
+          std::move(open_password_change_tab_callback));
+
+    /* Toasts */
+    case PasswordChangeDelegate::State::kWaitingForChangePasswordForm:
+      return ToastOptions(
+          l10n_util::GetStringUTF16(
+              IDS_PASSWORD_MANAGER_UI_PASSWORD_CHANGE_OMNIBOX_SIGN_IN_CHECK),
+          l10n_util::GetStringUTF16(
+              IDS_PASSWORD_MANAGER_UI_PASSWORD_CHANGE_CANCEL),
+          std::move(cancel_password_change_callback));
+    case PasswordChangeDelegate::State::kChangingPassword:
+      return ToastOptions(
+          l10n_util::GetStringUTF16(
+              IDS_PASSWORD_MANAGER_UI_PASSWORD_CHANGE_OMNIBOX_CHANGING_PASSWORD),
+          l10n_util::GetStringUTF16(
+              IDS_PASSWORD_MANAGER_UI_PASSWORD_CHANGE_CANCEL),
+          std::move(cancel_password_change_callback));
+    case PasswordChangeDelegate::State::kPasswordSuccessfullyChanged:
+      return ToastOptions(
+          l10n_util::GetStringUTF16(
+              IDS_PASSWORD_MANAGER_UI_PASSWORD_CHANGED_TITLE),
+          vector_icons::kPasswordManagerIcon,
+          l10n_util::GetStringUTF16(
+              IDS_PASSWORD_MANAGER_UI_VIEW_DETAILS_BUTTON),
+          base::BindOnce(&PasswordChangeUIController::ShowPasswordDetails,
+                         weak_ptr_factory_.GetWeakPtr()),
+          true);
+    case PasswordChangeDelegate::State::kCanceled:
+      return ToastOptions(
+          l10n_util::GetStringUTF16(IDS_PASSWORD_MANAGER_UI_PASSWORD_UNCHANGED),
+          vector_icons::kPasswordManagerIcon, std::nullopt);
   }
 }
 
-void PasswordChangeUIController::OnDialogAccepted() {
+void PasswordChangeUIController::ShowToast(ToastOptions options) {
+  CHECK(tab_interface_);
+  auto toast_view = std::make_unique<PasswordChangeToast>(std::move(options));
+  toast_view_ = toast_view.get();
+  auto params = std::make_unique<tabs::TabDialogManager::Params>();
+  params->close_on_navigate = false;
+  params->close_on_detach = false;
+  params->disable_input = false;
+
+  toast_widget_ =
+      tab_interface_->GetTabFeatures()
+          ->tab_dialog_manager()
+          ->CreateAndShowDialog(toast_view.release(), std::move(params));
+  toast_widget_->MakeCloseSynchronous(
+      base::BindOnce(&PasswordChangeUIController::CloseToastWidget,
+                     weak_ptr_factory_.GetWeakPtr()));
+}
+
+void PasswordChangeUIController::ShowDialog(
+    std::unique_ptr<ui::DialogModel> dialog_model) {
+  CHECK(tab_interface_);
+  if (!tab_interface_->CanShowModalUI()) {
+    return;
+  }
+
+  std::unique_ptr<views::BubbleDialogModelHost> model_host =
+      views::BubbleDialogModelHost::CreateModal(std::move(dialog_model),
+                                                ui::mojom::ModalType::kChild);
+  // TODO(crbug.com/338254375): Remove once it is a default state.
+  model_host->SetOwnershipOfNewWidget(
+      views::Widget::InitParams::CLIENT_OWNS_WIDGET);
+  dialog_widget_ = tab_interface_->GetTabFeatures()
+                       ->tab_dialog_manager()
+                       ->CreateAndShowDialog(
+                           model_host.release(),
+                           std::make_unique<tabs::TabDialogManager::Params>());
+  dialog_widget_->MakeCloseSynchronous(
+      base::BindOnce(&PasswordChangeUIController::CloseDialogWidget,
+                     weak_ptr_factory_.GetWeakPtr()));
+}
+
+void PasswordChangeUIController::OpenPasswordChangeTab() {
   CHECK(password_change_delegate_);
 
-  switch (state_) {
-    case PasswordChangeDelegate::State::kOfferingPasswordChange:
-      password_change_delegate_->StartPasswordChangeFlow();
-      return;
-    case PasswordChangeDelegate::State::kChangePasswordFormNotFound:
-    case PasswordChangeDelegate::State::kPasswordChangeFailed:
-    case PasswordChangeDelegate::State::kOtpDetected:
-      password_change_delegate_->OpenPasswordChangeTab();
-      password_change_delegate_->Stop();
-      return;
-    case PasswordChangeDelegate::State::kWaitingForAgreement:
-    case PasswordChangeDelegate::State::kWaitingForChangePasswordForm:
-    case PasswordChangeDelegate::State::kChangingPassword:
-    case PasswordChangeDelegate::State::kPasswordSuccessfullyChanged:
-      NOTREACHED();
-  }
+  password_change_delegate_->OpenPasswordChangeTab();
+  password_change_delegate_->Stop();
+}
+
+void PasswordChangeUIController::StartPasswordChangeFlow() {
+  CHECK(password_change_delegate_);
+  password_change_delegate_->StartPasswordChangeFlow();
+}
+
+void PasswordChangeUIController::ShowPasswordDetails() {
+  // TODO(crbug.com/338254375): Open password changed successfully bubble when
+  // applicable.
+  NavigateToPasswordDetailsPage(
+      chrome::FindBrowserWithTab(tab_interface_->GetContents()),
+      base::UTF16ToUTF8(password_change_delegate_->GetDisplayOrigin()),
+      password_manager::ManagePasswordsReferrer::kPasswordChangeInfoBubble);
+
+  CHECK(password_change_delegate_);
+  password_change_delegate_->Stop();
+}
+
+void PasswordChangeUIController::CancelPasswordChange() {
+  CHECK(password_change_delegate_);
+  password_change_delegate_->CancelPasswordChangeFlow();
+
+  // Post delayed task to stop password change. This will destroy the
+  // controller.
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(&PasswordChangeDelegate::Stop,
+                     password_change_delegate_->AsWeakPtr()),
+      kToastDisplayTime);
+}
+
+void PasswordChangeUIController::NavigateToPasswordChangeSettings() {
+  ShowSingletonTabOverwritingNTP(
+      Profile::FromBrowserContext(
+          tab_interface_->GetContents()->GetBrowserContext()),
+      GURL(chrome::kChromeUiPasswordChangeUrl),
+      NavigateParams::IGNORE_AND_NAVIGATE);
+}
+
+void PasswordChangeUIController::CloseDialogWidget(
+    views::Widget::ClosedReason reason) {
+  dialog_widget_.reset();
+}
+
+void PasswordChangeUIController::CloseToastWidget(
+    views::Widget::ClosedReason reason) {
+  toast_view_ = nullptr;
+  toast_widget_.reset();
 }

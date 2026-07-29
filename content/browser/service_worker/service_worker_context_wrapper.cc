@@ -26,7 +26,6 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
-#include "components/services/storage/service_worker/service_worker_storage_control_impl.h"
 #include "content/browser/blob_storage/chrome_blob_storage_context.h"
 #include "content/browser/devtools/devtools_instrumentation.h"
 #include "content/browser/loader/navigation_url_loader_impl.h"
@@ -79,14 +78,6 @@
 namespace content {
 
 namespace {
-
-// Another switch for `kServiceWorkerBackgroundUpdateForRegisteredStorageKeys`
-// intended to be controlled from Field Trial (e.g. kill-switch). The original
-// flag may be overridden by `AwFieldTrials::RegisterFeatureOverrides`.
-BASE_FEATURE(
-    kServiceWorkerBackgroundUpdateForRegisteredStorageKeysFieldTrialControlled,
-    "ServiceWorkerBackgroundUpdateForRegisteredStorageKeysFieldTrialControlled",
-    base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Translate a ServiceWorkerVersion::Status to a
 // ServiceWorkerRunningInfo::ServiceWorkerVersionStatus.
@@ -275,17 +266,7 @@ ServiceWorkerContextWrapper::ServiceWorkerContextWrapper(
       core_sync_observer_list_(
           base::MakeRefCounted<ServiceWorkerContextSynchronousObserverList>()),
       browser_context_(browser_context),
-      process_manager_(std::make_unique<ServiceWorkerProcessManager>()),
-      storage_shared_buffer_(
-          base::FeatureList::IsEnabled(
-              features::
-                  kServiceWorkerBackgroundUpdateForRegisteredStorageKeys) &&
-                  base::FeatureList::IsEnabled(
-                      kServiceWorkerBackgroundUpdateForRegisteredStorageKeysFieldTrialControlled)
-              ? base::MakeRefCounted<
-                    storage::ServiceWorkerStorage::StorageSharedBuffer>(
-                    /*enable_registered_storage_keys=*/true)
-              : nullptr) {
+      process_manager_(std::make_unique<ServiceWorkerProcessManager>()) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
   // Add this object as an observer of the wrapped |context_core_|. This lets us
@@ -333,6 +314,9 @@ void ServiceWorkerContextWrapper::InitInternal(
       quota_manager_proxy, special_storage_policy,
       std::move(non_network_pending_loader_factory_bundle_for_update_check),
       core_observer_list_.get(), core_sync_observer_list_.get(), this);
+
+  GetContentClient()->browser()->PrewarmServiceWorkerRegistrationForDSE(
+      browser_context, *this);
 }
 
 void ServiceWorkerContextWrapper::Shutdown() {
@@ -341,7 +325,6 @@ void ServiceWorkerContextWrapper::Shutdown() {
   ClearRunningServiceWorkers();
   NotifyRunningServiceWorkerStoppedToSynchronousObserver();
   storage_partition_ = nullptr;
-  storage_control_.reset();
   context_core_.reset();
   // Shutdown the `process_manager_` at the end so that the steps above can have
   // a valid browser context pointer through `process_manager_`.
@@ -749,7 +732,9 @@ size_t ServiceWorkerContextWrapper::CountExternalRequestsForTest(
 bool ServiceWorkerContextWrapper::MaybeHasRegistrationForStorageKey(
     const blink::StorageKey& key) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  return context() ? context()->MaybeHasRegistrationForStorageKey(key) : true;
+  return context()
+             ? context()->registry().MaybeHasRegistrationForStorageKey(key)
+             : true;
 }
 
 void ServiceWorkerContextWrapper::GetAllStorageKeysInfo(
@@ -1635,7 +1620,6 @@ void ServiceWorkerContextWrapper::DidDeleteAndStartOver(
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   DCHECK(running_service_workers_.empty());
   is_deleting_and_starting_over_ = false;
-  storage_control_.reset();
   if (status != blink::ServiceWorkerStatusCode::kOk) {
     context_core_.reset();
     return;
@@ -1823,33 +1807,6 @@ ServiceWorkerContextWrapper::
   }
 
   return factory_bundle;
-}
-
-void ServiceWorkerContextWrapper::BindStorageControl(
-    mojo::PendingReceiver<storage::mojom::ServiceWorkerStorageControl>
-        receiver) {
-  DCHECK_CURRENTLY_ON(BrowserThread::UI);
-
-  if (storage_control_binder_for_test_) {
-    storage_control_binder_for_test_.Run(std::move(receiver));
-    return;
-  }
-
-  // The database task runner is BLOCK_SHUTDOWN in order to support
-  // ClearSessionOnlyOrigins() (called due to the "clear on browser exit"
-  // content setting).
-  // The ServiceWorkerStorageControl receiver runs on thread pool by using
-  // |database_task_runner| SequencedTaskRunner.
-  // TODO(falken): Only block shutdown for that particular task, when someday
-  // task runners support mixing task shutdown behaviors.
-  scoped_refptr<base::SequencedTaskRunner> database_task_runner =
-      base::ThreadPool::CreateSequencedTaskRunner(
-          {base::MayBlock(), base::TaskShutdownBehavior::BLOCK_SHUTDOWN});
-  database_task_runner->PostTask(
-      FROM_HERE,
-      base::BindOnce(
-          base::IgnoreResult(&storage::ServiceWorkerStorageControlImpl::Create),
-          std::move(receiver), user_data_directory_, storage_shared_buffer_));
 }
 
 void ServiceWorkerContextWrapper::SetStorageControlBinderForTest(

@@ -1036,7 +1036,7 @@ NSString* const kSettingsDoneButtonId = @"kSettingsDoneButtonId";
   }
 }
 
-#pragma mark - Accessibility
+#pragma mark - UIAccessibilityAction
 
 - (BOOL)accessibilityPerformEscape {
   UIViewController* poppedController = [self popViewControllerAnimated:YES];
@@ -1089,7 +1089,7 @@ NSString* const kSettingsDoneButtonId = @"kSettingsDoneButtonId";
 }
 
 - (void)keyCommand_close {
-  base::RecordAction(base::UserMetricsAction("MobileKeyCommandClose"));
+  base::RecordAction(base::UserMetricsAction(kMobileKeyCommandClose));
   [self closeSettings];
 }
 

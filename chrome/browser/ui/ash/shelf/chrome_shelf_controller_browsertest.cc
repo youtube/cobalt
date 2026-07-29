@@ -109,6 +109,7 @@
 #include "chrome/common/extensions/manifest_handlers/app_launch_info.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "chromeos/ash/components/demo_mode/utils/demo_session_utils.h"
 #include "chromeos/ash/components/file_manager/app_id.h"
 #include "chromeos/constants/chromeos_features.h"
 #include "components/app_constants/constants.h"
@@ -1370,7 +1371,7 @@ IN_PROC_BROWSER_TEST_F(FilesManagerExtensionTest, VerifyFirstItem) {
 // Launching an app from the shelf when not in Demo Mode should not record app
 // launch stat.
 IN_PROC_BROWSER_TEST_F(ShelfAppBrowserTest, NoDemoModeAppLaunchSourceReported) {
-  EXPECT_FALSE(ash::DemoSession::IsDeviceInDemoMode());
+  EXPECT_FALSE(ash::demo_mode::IsDeviceInDemoMode());
 
   base::HistogramTester histogram_tester;
 
@@ -1390,7 +1391,7 @@ IN_PROC_BROWSER_TEST_F(ShelfAppBrowserTest, NoDemoModeAppLaunchSourceReported) {
 IN_PROC_BROWSER_TEST_F(ShelfAppBrowserTest, DemoModeAppLaunchSourceReported) {
   // Set Demo mode
   ash::test::LockDemoDeviceInstallAttributes();
-  EXPECT_TRUE(ash::DemoSession::IsDeviceInDemoMode());
+  EXPECT_TRUE(ash::demo_mode::IsDeviceInDemoMode());
 
   base::HistogramTester histogram_tester;
 
@@ -2760,12 +2761,10 @@ IN_PROC_BROWSER_TEST_F(HotseatShelfAppBrowserTest, EnableChromeVox) {
   speech_monitor.Call([this]() {
     // Disable earcons (https://crbug.com/396507).
     const std::string script(R"JS(
-        let module = await import('/chromevox/mv2/background/chromevox.js');
-        module.ChromeVox.earcons.playEarcon = function() {};
-        module = await import('/chromevox/mv2/background/chromevox_state.js');
-        let ChromeVoxState = module.ChromeVoxState;
-        module = await import('/chromevox/mv2/background/chromevox_range.js');
-        let ChromeVoxRange = module.ChromeVoxRange;
+        const imports = TestImportManager.getImports();
+        imports.ChromeVox.earcons.playEarcon = function() {};
+        let ChromeVoxState = imports.ChromeVoxState;
+        let ChromeVoxRange = imports.ChromeVoxRange;
 
         await ChromeVoxState.ready();
 

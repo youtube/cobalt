@@ -40,7 +40,6 @@ import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
 import androidx.annotation.VisibleForTesting;
 import androidx.recyclerview.widget.GridLayoutManager;
-import androidx.recyclerview.widget.ItemTouchHelper;
 
 import org.chromium.base.Callback;
 import org.chromium.base.CollectionUtil;
@@ -122,6 +121,7 @@ import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModel.WritableObjectPropertyKey;
 import org.chromium.ui.modelutil.SimpleRecyclerViewAdapter;
+import org.chromium.ui.recyclerview.widget.ItemTouchHelper2;
 import org.chromium.ui.util.XrUtils;
 import org.chromium.url.GURL;
 
@@ -1227,8 +1227,8 @@ class TabListMediator implements TabListNotificationHandler {
 
                         @Nullable PropertyModel model = mModelList.getModelFromSyncId(syncId);
                         if (model != null) {
-                            Long archivalTimeMs =
-                                    mTabGroupSyncService.getGroup(syncId).archivalTimeMs;
+                            SavedTabGroup tabGroup = mTabGroupSyncService.getGroup(syncId);
+                            Long archivalTimeMs = tabGroup.archivalTimeMs;
 
                             // If the tab group is archived, run archival reset logic and remove the
                             // tab group from the model list.
@@ -1236,6 +1236,11 @@ class TabListMediator implements TabListNotificationHandler {
                                 model.set(TabProperties.USE_SHRINK_CLOSE_ANIMATION, true);
                                 mModelList.removeAt(index);
                                 mTabGroupSyncService.updateArchivalStatus(syncId, false);
+                                RecordUserAction.record(
+                                        "TabGroups.ArchivedTabGroupManualCloseOnInactiveSurface");
+                                RecordHistogram.recordCount1000Histogram(
+                                        "TabGroups.ArchivedTabGroupManualCloseOnInactiveSurface.TabGroupTabCount",
+                                        tabGroup.savedTabs.size());
                             }
                         }
                     }
@@ -1720,7 +1725,7 @@ class TabListMediator implements TabListNotificationHandler {
     /**
      * @return The callback that hosts the logic for swipe and drag related actions.
      */
-    ItemTouchHelper.SimpleCallback getItemTouchHelperCallback(
+    ItemTouchHelper2.SimpleCallback getItemTouchHelperCallback(
             final float swipeToDismissThreshold,
             final float mergeThreshold,
             final float ungroupThreshold) {

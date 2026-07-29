@@ -151,7 +151,6 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
     }
 
     private @Nullable LayoutStateProvider mLayoutStateProvider;
-    protected Runnable mAppMenuInvalidator;
 
     /**
      * Construct a new {@link AppMenuPropertiesDelegateImpl}.
@@ -216,7 +215,7 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
         return mReadAloudAppMenuResetter;
     }
 
-    @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
+    @VisibleForTesting(otherwise = VisibleForTesting.PROTECTED)
     @Nullable
     public ModelList getModelList() {
         return mModelList;
@@ -268,16 +267,16 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
     }
 
     @Override
-    public final ModelList getMenuItems(AppMenuHandler handler) {
+    public final ModelList getMenuItems() {
         mReadAloudPos = -1;
         mHasReadAloudInserted = false;
-        mModelList = buildMenuModelList(handler);
+        mModelList = buildMenuModelList();
         return mModelList;
     }
 
     /** Construct the ModelList for the appropriate current state of the menu. */
     @VisibleForTesting
-    public abstract ModelList buildMenuModelList(AppMenuHandler handler);
+    public abstract ModelList buildMenuModelList();
 
     /**
      * Builds a property model for a divider item type.
@@ -299,8 +298,20 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
      * @return A Builder object that forms the basis for text menu item models.
      */
     public PropertyModel.Builder buildBaseModelForTextItem(@IdRes int id) {
-        return new PropertyModel.Builder(AppMenuItemProperties.ALL_KEYS)
-                .with(AppMenuItemProperties.MENU_ITEM_ID, id)
+        return populateBaseModelForTextItem(
+                new PropertyModel.Builder(AppMenuItemProperties.ALL_KEYS), id);
+    }
+
+    /**
+     * Populates the PropertyModel.Builder with the common properties for a text menu item.
+     *
+     * @param builder The builder to populate with data.
+     * @param id The id of the text menu item.
+     * @return A Builder object that forms the basis for text menu item models.
+     */
+    public PropertyModel.Builder populateBaseModelForTextItem(
+            PropertyModel.Builder builder, @IdRes int id) {
+        return builder.with(AppMenuItemProperties.MENU_ITEM_ID, id)
                 .with(AppMenuItemProperties.ENABLED, true)
                 .with(AppMenuItemProperties.ICON_COLOR_RES, getMenuItemIconColorRes(id))
                 .with(AppMenuItemProperties.ICON_SHOW_BADGE, shouldShowBadgeOnMenuItemIcon(id))
@@ -889,6 +900,12 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
                     if (subListItem.model.get(AppMenuItemProperties.MENU_ITEM_ID)
                             == R.id.reload_menu_id) {
                         updateReloadPropertyModel(subListItem.model, isLoading);
+
+                        // The additional icons model list is not observed, so replace the full
+                        // list object to trigger an update.
+                        ModelList replacementList = new ModelList();
+                        replacementList.addAll(subList);
+                        listItem.model.set(AppMenuItemProperties.ADDITIONAL_ICONS, replacementList);
                         return;
                     }
                 }
@@ -1012,6 +1029,34 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
      */
     @Nullable
     protected ListItem maybeBuildPriceTrackingListItem(@Nullable Tab currentTab, boolean showIcon) {
+        Boolean show = getPriceTrackingMenuItemInfo(currentTab);
+        if (show == null) return null;
+
+        if (show) {
+            return new ListItem(
+                    AppMenuItemType.STANDARD,
+                    buildModelForStandardMenuItem(
+                            R.id.enable_price_tracking_menu_id,
+                            R.string.enable_price_tracking_menu_item,
+                            showIcon ? R.drawable.price_tracking_disabled : 0));
+        } else {
+            return new ListItem(
+                    AppMenuItemType.STANDARD,
+                    buildModelForStandardMenuItem(
+                            R.id.disable_price_tracking_menu_id,
+                            R.string.disable_price_tracking_menu_item,
+                            showIcon ? R.drawable.price_tracking_enabled_filled : 0));
+        }
+    }
+
+    /**
+     * Determine which menu to show for price tracking feature.
+     *
+     * @param currentTab The currently selected tab.
+     * @return {@code true} to show 'enable'. Shows no option if {@code null}.
+     */
+    @Nullable
+    public Boolean getPriceTrackingMenuItemInfo(@Nullable Tab currentTab) {
         if (currentTab == null || currentTab.getWebContents() == null) {
             return null;
         }
@@ -1043,21 +1088,7 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
             showStartPriceTracking = !isSubscribed;
         }
 
-        if (showStartPriceTracking) {
-            return new ListItem(
-                    AppMenuItemType.STANDARD,
-                    buildModelForStandardMenuItem(
-                            R.id.enable_price_tracking_menu_id,
-                            R.string.enable_price_tracking_menu_item,
-                            showIcon ? R.drawable.price_tracking_disabled : 0));
-        } else {
-            return new ListItem(
-                    AppMenuItemType.STANDARD,
-                    buildModelForStandardMenuItem(
-                            R.id.disable_price_tracking_menu_id,
-                            R.string.disable_price_tracking_menu_item,
-                            showIcon ? R.drawable.price_tracking_enabled_filled : 0));
-        }
+        return showStartPriceTracking;
     }
 
     /**
@@ -1070,12 +1101,13 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
      */
     @Nullable
     protected ListItem maybeBuildRequestDesktopSiteListItem(
-            Tab currentTab, boolean isNativePage, boolean showIcon) {
+            @Nullable Tab currentTab, boolean isNativePage, boolean showIcon) {
         // Hide request desktop site on all native pages. Also hide it for desktop Android, which
         // always requests desktop sites.
         boolean itemVisible =
                 !isNativePage
                         && !shouldShowReaderModePrefs(currentTab)
+                        && currentTab != null
                         && currentTab.getWebContents() != null
                         && !BuildConfig.IS_DESKTOP_ANDROID;
 
